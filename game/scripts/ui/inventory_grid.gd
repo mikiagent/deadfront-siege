@@ -46,9 +46,19 @@ var _pool: Array[InventorySlot] = []
 var _shown: Array[InventorySlot] = []
 var _wheel: Tween
 var _wheel_to := 0.0
+## Mouse drag scrolling (desktop; a touchscreen has the ScrollContainer's own): the press point, the
+## distance dragged and the fling speed (px/s) that keeps gliding after release.
+var _drag_from := Vector2.INF
+var _dragged := 0.0
+var _fling := 0.0
+var _glide_y := 0.0 # the fling's position with its sub-pixel part (scroll_vertical is whole pixels)
+## Fling speed lost per second (a glide of about half a second) and the speed it stops at.
+const FLING_KEEP := 0.004
+const FLING_STOP := 30.0
 
 func _init() -> void:
 	clip_contents = true
+	set_process(false) # runs only while a fling glides
 	add_child(InvTheme.surface(InvTheme.PANEL, 1.3, 1.0))
 	_scroll = ScrollContainer.new()
 	_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -57,7 +67,7 @@ func _init() -> void:
 	add_child(_scroll)
 	_content = Control.new()
 	_content.mouse_filter = Control.MOUSE_FILTER_PASS
-	_content.gui_input.connect(_on_wheel)
+	_content.gui_input.connect(_on_pointer)
 	_scroll.add_child(_content)
 	var frame := Control.new() # over the cells: the panel's dark, irregular edge
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -326,8 +336,11 @@ func _on_cell_pressed(c: InventorySlot) -> void:
 	select_uid(c.uid)
 
 ## Smooth wheel scrolling (spec 13 s20): a notch glides half a compartment over a few frames where
-## the ScrollContainer would jump. Touch drag and trackpad pans stay the container's own.
-func _on_wheel(e: InputEvent) -> void:
+## the ScrollContainer would jump. A mouse drag scrolls the grid and flings on release (kinetic); on a
+## touchscreen the ScrollContainer's own drag does both, and trackpad pans stay its own.
+func _on_pointer(e: InputEvent) -> void:
+	if not DisplayServer.is_touchscreen_available():
+		_drag(e)
 	var mb := e as InputEventMouseButton
 	if mb == null or not mb.pressed or (mb.button_index != MOUSE_BUTTON_WHEEL_UP and mb.button_index != MOUSE_BUTTON_WHEEL_DOWN):
 		return
@@ -340,6 +353,43 @@ func _on_wheel(e: InputEvent) -> void:
 	_wheel = create_tween()
 	_wheel.tween_property(_scroll, "scroll_vertical", roundi(_wheel_to), 0.09).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_content.accept_event()
+
+## Left-button drag on the grid: the content follows the pointer past a small dead zone (a shorter
+## move stays a tap on the cell) and keeps the release speed as a fling.
+func _drag(e: InputEvent) -> void:
+	var mb := e as InputEventMouseButton
+	if mb and mb.button_index == MOUSE_BUTTON_LEFT:
+		if mb.pressed:
+			_drag_from = mb.global_position
+			_dragged = 0.0
+			_fling = 0.0
+		else:
+			_drag_from = Vector2.INF
+			_glide_y = _scroll.scroll_vertical
+			set_process(absf(_fling) > FLING_STOP)
+		return
+	var mm := e as InputEventMouseMotion
+	if mm == null or _drag_from == Vector2.INF or not (mm.button_mask & MOUSE_BUTTON_MASK_LEFT):
+		return
+	_dragged += absf(mm.relative.y)
+	if _dragged > InventorySlot.TAP_SLOP:
+		_scroll.scroll_vertical -= roundi(mm.relative.y)
+		_fling = -mm.velocity.y
+		_content.accept_event()
+
+func _process(delta: float) -> void:
+	var limit := maxf(0.0, _content.size.y - _scroll.size.y)
+	var y := clampf(_glide_y + _fling * delta, 0.0, limit)
+	_glide_y = y
+	_scroll.scroll_vertical = roundi(y)
+	_fling *= pow(FLING_KEEP, delta)
+	if absf(_fling) < FLING_STOP or y <= 0.0 or y >= limit:
+		_fling = 0.0
+		set_process(false)
+
+## The live fling speed in px/s (0 at rest).
+func fling_speed() -> float:
+	return _fling
 
 func _scroll_to(c: InventorySlot) -> void:
 	if c and _scroll and is_inside_tree():

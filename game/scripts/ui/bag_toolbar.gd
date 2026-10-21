@@ -3,7 +3,8 @@ extends Control
 ## Durango's bottom bag toolbar (spec 13 s9): a wide dark Auto Sort button with its dropdown caret
 ## on the left; square Select, Filter and Lock buttons on the right (a Drop square only when a
 ## package that owns dropping sets InvActions.drop_handler). The storage view (2026-10-20 storage
-## reference) adds Select All and Search, whose field opens beside Auto Sort. Each one does something real.
+## reference) adds Select All and Search, whose field opens beside Auto Sort; the in-game Bag adds the
+## trash (discard, after the card's confirm). Each one does something real.
 
 signal sort_pressed(key: StringName)
 signal filter_chosen(id: StringName)
@@ -12,10 +13,11 @@ signal lock_pressed
 signal drop_pressed
 signal select_all_pressed
 signal search_changed(text: String)
+signal trash_pressed
 
 var sort_key: StringName = &"type"
-## The right-hand squares this toolbar shows, in this order (the Bag: Select, Filter, Lock; storage:
-## Select All, Select, Search, Lock; the picker none).
+## The right-hand squares this toolbar shows, in this order (the in-game Bag: Select, Filter, Lock,
+## Trash; storage: Select All, Select, Search, Lock; the picker none).
 var squares: Array[StringName] = [&"select", &"filter", &"lock"]
 var filter_id: StringName = &"all"
 var select_on := false
@@ -27,6 +29,7 @@ var _lock: Button
 var _drop: Button
 var _select_all: Button
 var _search: Button
+var _trash: Button
 var _query: LineEdit
 var _menu: Control
 var _m := {}
@@ -64,6 +67,9 @@ func _init() -> void:
 	_search.expand_icon = true
 	_search.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_search.toggled.connect(_on_search_toggled)
+	_trash = _button("", "Discard the selection")
+	_trash.draw.connect(func() -> void: InvGlyphs.trash(_trash, Rect2(Vector2.ZERO, _trash.size), Color(InvGlyphs.WHITE, 0.35) if _trash.disabled else InvGlyphs.WHITE))
+	_trash.pressed.connect(func() -> void: trash_pressed.emit())
 	_query = LineEdit.new()
 	_query.placeholder_text = "Search"
 	_query.visible = false
@@ -73,6 +79,7 @@ func _init() -> void:
 	_query.text_changed.connect(func(t: String) -> void: search_changed.emit(t))
 	add_child(_query)
 	set_lock_state(false, false)
+	set_trash_state(false)
 	resized.connect(_layout)
 
 func _button(text: String, tip: String) -> Button:
@@ -100,6 +107,12 @@ func set_lock_state(all_locked: bool, enabled: bool) -> void:
 	_lock.disabled = not enabled
 	_lock.tooltip_text = ("Unlock" if all_locked else "Lock") + (" the selection" if enabled else ": select an item first")
 
+## The trash square works on a selection only.
+func set_trash_state(enabled: bool) -> void:
+	_trash.disabled = not enabled
+	_trash.tooltip_text = "Discard the selection" if enabled else "Discard: select an item first"
+	_trash.queue_redraw()
+
 func _layout() -> void:
 	if _m.is_empty():
 		return
@@ -111,14 +124,14 @@ func _layout() -> void:
 	_caret.position = Vector2(pad + sort_w - 1.0, pad)
 	_caret.size = Vector2(maxf(44.0, sq * 0.9), sq)
 	var shown: Array[Button] = []
-	var by_id := {&"select_all": _select_all, &"select": _select, &"search": _search, &"filter": _filter, &"lock": _lock}
+	var by_id := {&"select_all": _select_all, &"select": _select, &"search": _search, &"filter": _filter, &"lock": _lock, &"trash": _trash}
 	for id: StringName in by_id:
 		(by_id[id] as Button).visible = false
 	for id in squares:
 		if by_id.has(id):
 			(by_id[id] as Button).visible = true
 			shown.append(by_id[id])
-	_drop.visible = InvActions.drop_handler.is_valid() and squares.has(&"lock") # with the bag's own squares
+	_drop.visible = InvActions.drop_handler.is_valid() and squares.has(&"lock") and not squares.has(&"trash") # the trash is the Bag's own
 	if _drop.visible:
 		shown.append(_drop)
 	var x := size.x - pad
@@ -172,6 +185,11 @@ func _open_sort_menu() -> void:
 	_open_menu(_caret, rows, func(key: StringName) -> void:
 		sort_key = key
 		sort_pressed.emit(key))
+
+## The funnel shows `id` as chosen without emitting (the rail chose it).
+func set_filter(id: StringName) -> void:
+	filter_id = id
+	_filter.queue_redraw()
 
 func _open_filter_menu() -> void:
 	var rows: Array = []

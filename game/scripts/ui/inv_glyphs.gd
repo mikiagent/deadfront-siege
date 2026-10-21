@@ -2,7 +2,7 @@ class_name InvGlyphs
 extends RefCounted
 ## White procedural glyphs for the bag toolbar that the white icon set (data/ui_icons.json) has no
 ## drawing for: multi-select (a ticked box), select all (a grid of dots with a tick), filter (a funnel),
-## the storage rail's All (four squares) and the Auto Sort dropdown caret.
+## the storage rail's All (four squares), the Auto Sort dropdown caret and the in-game Bag's trash.
 ## White polylines, so they read as actions (GAUNTLET: colour = things, white = actions).
 
 const WHITE := Color(1, 1, 1, 0.92)
@@ -75,3 +75,14 @@ static func chevron(ci: CanvasItem, r: Rect2, color: Color) -> void:
 	var c := r.get_center()
 	var h := minf(r.size.x, r.size.y) * 0.22
 	ci.draw_polyline(PackedVector2Array([c + Vector2(-h * 0.4, -h), c + Vector2(h * 0.45, 0), c + Vector2(-h * 0.4, h)]), color, maxf(2.0, h * 0.18), true)
+
+## A bin with its lid: the in-game Bag's discard square (the icon set has no trash).
+static func trash(ci: CanvasItem, r: Rect2, color: Color = WHITE) -> void:
+	var s := minf(r.size.x, r.size.y) * 0.56
+	var o := r.get_center() - Vector2(s, s) * 0.5
+	var w := maxf(2.0, s * 0.09)
+	ci.draw_line(o + Vector2(0, s * 0.16), o + Vector2(s, s * 0.16), color, w)
+	ci.draw_polyline(PackedVector2Array([o + Vector2(s * 0.36, s * 0.16), o + Vector2(s * 0.36, 0), o + Vector2(s * 0.64, 0), o + Vector2(s * 0.64, s * 0.16)]), color, w * 0.8)
+	ci.draw_polyline(PackedVector2Array([o + Vector2(s * 0.12, s * 0.28), o + Vector2(s * 0.2, s), o + Vector2(s * 0.8, s), o + Vector2(s * 0.88, s * 0.28)]), color, w)
+	for fx in [0.38, 0.62]:
+		ci.draw_line(o + Vector2(s * fx, s * 0.4), o + Vector2(s * fx, s * 0.86), color, w * 0.8)

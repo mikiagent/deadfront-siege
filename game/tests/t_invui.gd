@@ -60,7 +60,7 @@ func _run() -> void:
 	var tests: Array[Callable] = [_t01_open_close, _t02_capacity, _t03_individual, _t04_levels, _t05_new,
 		_t06_brackets, _t07_inspect, _t08_attributes, _t09_sorting, _t10_filtering, _t11_locking,
 		_t12_transfers, _t13_equipment, _t14_stats, _t15_presets, _t16_rare_bone_craft,
-		_t17_berry_cook, _t18_sell_exact, _t19_save_load, _t20_screen_sizes, _t21_polish]
+		_t17_berry_cook, _t18_sell_exact, _t19_save_load, _t20_screen_sizes, _t21_polish, _t22_ingame_dock]
 	for t in tests:
 		_reset_bag()
 		var errs := log.script_errors
@@ -992,6 +992,189 @@ func _t21_polish() -> void:
 	print("[t_invui] 21 open 142/142: %d cells in %d us" % [cells.size(), us])
 	_expect(cells.size() == 142 and us < 50000, "21: a full 142-slot bag opens in under 50 ms (%d cells, %d us)" % [cells.size(), us])
 	ui.call("hide_ui")
+
+# ---------------------------------------------------------------- 22: the in-game Bag (owner's third reference)
+
+## "Inventory menu while in game, scrollview": opened in play (I, the HUD's Bag), the Bag is a panel
+## docked on the right while the world stays visible and live on the left; the item card floats
+## between them and shows every field the item's data has with only its valid actions; the grid
+## scrolls (wheel, drag, fling); the toolbar's trash discards the exact instance after a confirm.
+func _t22_ingame_dock() -> void:
+	if not _need(["bag_screen", "inv_theme", "item_inspect_panel"], "22 in-game Bag"):
+		return
+	var ui = player.ui
+	ui.call("hide_ui")
+	var meat := _give(&"raw_meat", 23)
+	player.inventory.slots[meat].process_count = 2
+	var meat_uid := _uid(meat)
+	var bone := _give(&"raptor_bone", 60, {"firm": 8})
+	var bone_uid := _uid(bone)
+	for k in 30: # enough rows to scroll at every canvas
+		_give(&"herb_leaf", 10 + k)
+	# Layout at the judge's canvas, the landscape phone (with a notch) and the SE canvas.
+	for view in [Vector2(1600, 900), Vector2(844, 390), Vector2(804, 452)]:
+		var notch: bool = view.x == 844.0
+		C["inv_theme"].set("forced_insets", Vector4(47, 21, 0, 47) if notch else Vector4(-1, -1, -1, -1))
+		var holder := Control.new()
+		holder.size = view
+		host.get_child(1).add_child(holder)
+		var bs: Control = C["bag_screen"].new()
+		holder.add_child(bs)
+		bs.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		bs.call("bind", player.inventory, player)
+		bs.call("select_uid", "")
+		await process_frame
+		await process_frame
+		if not bs.has_method("dock_rect"):
+			_expect(false, "22: the Bag is not docked (no dock_rect: it still fills the screen)")
+			holder.queue_free()
+			break
+		var dock: Rect2 = bs.call("dock_rect")
+		var desk: bool = view.x == 1600.0
+		_expect(is_equal_approx(dock.end.x, view.x) and dock.position.y == 0.0 and dock.size.y == view.y, "22: the panel runs the full height of the right edge at %s (%s)" % [view, dock])
+		var share: float = dock.size.x / view.x
+		_expect((share >= 0.34 and share <= 0.4) if desk else (share >= 0.45 and share <= 0.6), "22: the panel takes %s of the width at %s (%.2f)" % ["37 %% (the reference)" if desk else "about half", view, share])
+		_expect(bs.mouse_filter == Control.MOUSE_FILTER_IGNORE, "22: outside its panel the Bag lets the pointer through to the world")
+		var covers := []
+		for c in bs.get_children():
+			if c is Control and (c as Control).visible and (c as Control).get_global_rect().position.x < holder.global_position.x + dock.position.x - 0.5:
+				covers.append(c.name)
+		_expect(covers.is_empty(), "22: with nothing selected nothing covers the world left of the panel at %s (%s)" % [view, covers])
+		var g = bs.get("grid")
+		var px: float = g.call("cell_px")
+		_expect(int(g.get("columns")) == (5 if desk else 4) and px >= float(C["inv_theme"].call("label_room", 12)), "22: %d columns of %d px at %s, each holds NEW beside 'Lv. 60'" % [g.get("columns"), px, view])
+		var tab: Control = bs.get("tab")
+		var cap = bs.get("capacity")
+		var count := "%d / %d" % [player.inventory.used_slots(), player.inventory.slot_count]
+		_expect((tab.visible and str(tab.get("count")) == count) if desk else (cap.visible and cap.call("label_text") == count), "22: the capacity reads %s on the %s" % [count, "Bag tab" if desk else "header"])
+		_expect((bs.get("rail") as Control).visible and (bs.get("toolbar") as Control).visible, "22: the category rail and the toolbar are on the panel")
+		bs.call("select_uid", meat_uid)
+		await process_frame
+		var card: Control = bs.get("inspect")
+		var cr := card.get_global_rect()
+		var dl := holder.global_position.x + dock.position.x
+		_expect(card.visible and cr.end.x <= dl + 0.5 and cr.position.x >= holder.global_position.x + (47.0 if notch else 0.0) - 0.5 and cr.size.x < dock.size.x, "22: the card floats between the world and the panel at %s (card %s, panel from %d)" % [view, cr, dl])
+		_check_targets(bs, view)
+		if notch:
+			_check_safe(bs, view, Rect2(47, 0, view.x - 94, view.y - 21))
+		holder.queue_free()
+	C["inv_theme"].set("forced_insets", Vector4(-1, -1, -1, -1))
+	# The card shows what the meat's data has and only its valid actions.
+	var p := _panel(player.inventory.slots[_find(meat_uid)])
+	p.call("apply_metrics", C["inv_theme"].call("dock_metrics", Vector2(1600, 900)) if C["inv_theme"].has_method("dock_metrics") else C["inv_theme"].call("metrics", Vector2(1600, 900)))
+	var rows := "\n".join(Array(p.call("rows")))
+	var food: GDScript = load("res://scripts/items/food.gd")
+	var energy := "Energy  +%.0f" % food.call("energy_restore", player.inventory.slots[_find(meat_uid)])
+	for want in ["Lv. 23", "Processed  ×2", "Meat", "Food", "\nRaw\n", energy, "Carnivore food", "Stomachache  25 %", "Create"]:
+		_expect(rows.contains(want), "22: the meat's card shows '%s' (%s)" % [want.strip_edges(), rows.replace("\n", " / ")])
+	var acts: Array = p.call("actions")
+	_expect(not acts.is_empty() and acts[0] == &"eat" and not acts.has(&"equip"), "22: the meat's yellow action is Eat and nothing it cannot do (%s)" % [acts])
+	p.queue_free()
+	var stick := _panel(player.inventory.slots[_give(&"club", 22)])
+	stick.call("apply_metrics", C["inv_theme"].call("metrics", Vector2(1600, 900)))
+	var srows := "\n".join(Array(stick.call("rows")))
+	_expect(srows.contains("Durability") and srows.contains("Maintenance") and srows.contains("Repair  Not possible") and not Array(stick.call("actions")).has(&"eat"), "22: a club's card has its durability and Maintenance, and no Eat (%s)" % srows.replace("\n", " / "))
+	stick.queue_free()
+	# Real pointer routing in a 1600x900 viewport: I opens the dock; taps on the panel and the card keep
+	# it open, a tap on a cell selects it, wheel / drag / fling scroll, a tap on the world closes.
+	var sv := SubViewport.new()
+	sv.size = Vector2i(1600, 900)
+	host.add_child(sv)
+	var ui2: Control = (load("res://scenes/ui/inventory.tscn") as PackedScene).instantiate()
+	sv.add_child(ui2)
+	ui2.call("bind", player.inventory, player)
+	ui2.visible = true # what the I key and the HUD's Bag entry do
+	await process_frame
+	await process_frame
+	var bag: Control = ui2.get("_bag")
+	_expect(ui2.call("current_screen") == &"bag" and bag != null and bag.has_method("dock_rect"), "22: I / the HUD's Bag opens the docked Bag")
+	if bag == null or not bag.has_method("dock_rect"):
+		sv.queue_free()
+		return
+	var g2 = bag.get("grid")
+	var cell: Control = null
+	for c in g2.call("item_cells"):
+		if str(c.get("uid")) == bone_uid:
+			cell = c
+	_tap(sv, cell.get_global_rect().get_center() if cell else Vector2(1300, 200))
+	await process_frame
+	_expect(g2.call("selected_uid") == bone_uid and (bag.get("inspect") as Control).visible, "22: a tap on a cell selects that instance and floats its card in")
+	var dock2: Rect2 = bag.call("dock_rect")
+	_tap(sv, Vector2(dock2.position.x + 6.0, dock2.position.y + dock2.size.y * 0.5)) # the panel's own margin
+	_tap(sv, (bag.get("inspect") as Control).get_global_rect().get_center())
+	await process_frame
+	_expect(ui2.visible and g2.call("selected_uid") == bone_uid, "22: taps on the panel and on the card keep the Bag open and the selection")
+	var sc: ScrollContainer = null
+	for c in g2.get_children():
+		if c is ScrollContainer:
+			sc = c
+	var gc: Vector2 = (g2 as Control).get_global_rect().get_center()
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel.pressed = true
+	wheel.position = gc
+	wheel.global_position = gc
+	sv.push_input(wheel)
+	await process_frame
+	var mid := sc.scroll_vertical
+	await create_timer(0.25).timeout
+	_expect(sc.scroll_vertical > 0 and mid < sc.scroll_vertical, "22: a wheel notch glides the grid down (at once %d, after 0.25 s %d)" % [mid, sc.scroll_vertical])
+	sc.scroll_vertical = 0
+	await process_frame
+	var sel := str(g2.call("selected_uid"))
+	_mouse(sv, gc, true)
+	var at := gc
+	for k in 6:
+		at += Vector2(0, -24)
+		var mm := InputEventMouseMotion.new()
+		mm.position = at
+		mm.global_position = at
+		mm.relative = Vector2(0, -24)
+		mm.velocity = Vector2(0, -1400)
+		mm.button_mask = MOUSE_BUTTON_MASK_LEFT
+		sv.push_input(mm)
+	var dragged := sc.scroll_vertical
+	_mouse(sv, at, false)
+	await create_timer(0.15).timeout
+	_expect(dragged >= 100 and sc.scroll_vertical > dragged and g2.call("selected_uid") == sel, "22: a drag scrolls the grid with the pointer (%d px), keeps gliding after release (%d px) and selects nothing" % [dragged, sc.scroll_vertical])
+	# The trash: a confirm on the card first, Keep keeps; Discard removes exactly that instance; a locked one stays.
+	var bar = bag.get("toolbar")
+	if not bar.has_signal("trash_pressed"):
+		_expect(false, "22: the toolbar has no trash")
+	else:
+		g2.call("select_uid", bone_uid)
+		bar.emit_signal("trash_pressed")
+		var card2 = bag.get("inspect")
+		_expect(Array(card2.call("actions")) == [&"discard", &"keep"] and "\n".join(Array(card2.call("rows"))).contains("gone for good"), "22: the trash asks on the card first (%s)" % [card2.call("actions")])
+		(card2.call("button_for", &"keep") as Button).pressed.emit()
+		_expect(_find(bone_uid) >= 0, "22: Keep keeps the bone")
+		bar.emit_signal("trash_pressed")
+		(card2.call("button_for", &"discard") as Button).pressed.emit()
+		_expect(_find(bone_uid) < 0 and _find(meat_uid) >= 0, "22: Discard removes exactly the selected bone")
+		var mi := _find(meat_uid)
+		player.inventory.slots[mi].set_flag(&"locked", true)
+		g2.call("select_uid", meat_uid)
+		bar.emit_signal("trash_pressed")
+		_expect(not Array(card2.call("actions")).has(&"discard") and _find(meat_uid) >= 0, "22: a locked item is never offered for discard")
+		player.inventory.slots[mi].set_flag(&"locked", false)
+	_tap(sv, Vector2(200, 450)) # the world left of the card
+	await process_frame
+	_expect(not ui2.visible and ui2.call("current_screen") == &"", "22: a tap on the world beside the Bag closes it")
+	sv.queue_free()
+
+func _mouse(vp: Viewport, at: Vector2, down: bool) -> void:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = down
+	e.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
+	e.position = at
+	e.global_position = at
+	vp.push_input(e)
+
+## A left click (press and release in place), as a tap on a phone arrives.
+func _tap(vp: Viewport, at: Vector2) -> void:
+	_mouse(vp, at, true)
+	_mouse(vp, at, false)
 
 ## A key press as the desktop sends it, to the bag family.
 func _press(ui: Object, key: Key) -> void:

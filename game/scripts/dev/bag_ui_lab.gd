@@ -1,6 +1,7 @@
 extends Node3D
 ## INVUI lab (spec 13): one deterministic survivor whose bag looks like the Durango Bag reference.
-## 91 of 100 slots used: berries Lv. 12/25/42 (the 42 has a rare trait), raptor bones Lv. 45/60
+## 91 of 100 slots used: berries Lv. 12/25/42 (the 42 has a rare trait), raw meat Lv. 23 processed twice
+## (the in-game reference's "Carne"; every other raw meat once), raptor bones Lv. 45/60
 ## (the 60 has Firm, Low Density and the rare Black Sheen), herb leaves, a caged animal (4 slots),
 ## a workbench kit, weapons, tools and armour; the newest pickups are NEW, two valuables are
 ## locked; forager hood and vest are worn and the work pick is the held tool; a bonded raptor
@@ -10,6 +11,8 @@ extends Node3D
 ##   Godot --path game --resolution 1600x900 --rendering-method gl_compatibility \
 ##     -- --lab=bag_ui_lab --screen=bag --shot=/tmp/bag.png --shot-delay=6
 ##   --screen= bag | inspect | character | equipment | storage | cargo | picker
+##   (bag and inspect are the in-game Bag: the panel docked on the right over the live lab world, the
+##   item card floating between them; --select=meat is the owner's in-game reference state)
 ##   (shot-only: storage_select = the storage reference's "1 Select" with a gold check; storage_notice =
 ##   a box that belongs to someone else, its notice over the grid; craft = the stew menu)
 ##   --insets=left,right,bottom[,top] lays the family out inside a phone's safe area (notch)
@@ -126,6 +129,7 @@ func _seed() -> void:
 	_add(&"berry", 12, {}, "berry12", true)
 	_add(&"berry", 25, {}, "berry25", true)
 	_add(&"berry", 42, {"full": 4, "vivid_inspiration": true}, "berry42", true)
+	_add(&"raw_meat", 23, {}, "meat", false, false, 2)
 	_add(&"raptor_bone", 45, {"firm": 6, "low_density": 2}, "bone45", true)
 	_add(&"raptor_bone", 60, {"firm": 8, "low_density": 3, "black_sheen": true}, "bone60", false, true)
 	_add(&"captured_animal", 13, {"species": "zebraceratops", "variant": "", "level": 13}, "cage", true)
@@ -146,7 +150,7 @@ func _seed() -> void:
 		for k in int(row[1]):
 			if inv.used_slots() >= USED:
 				break
-			_add(row[0], 1 + (int(row[2]) + k * int(row[3])) % 60, {}, "", k < 6 and row[0] == &"herb_leaf")
+			_add(row[0], 1 + (int(row[2]) + k * int(row[3])) % 60, {}, "", k < 6 and row[0] == &"herb_leaf", false, 1 if row[0] == &"raw_meat" else 0)
 	inv.equip_at(_index_of(uids["hood"]), &"head")
 	inv.equip_at(_index_of(uids["vest"]), &"body")
 	inv.set_equipped_tool_index(_index_of(uids["pick"]))
@@ -191,8 +195,9 @@ func _box(id: StringName, lvl: int, attrs: Dictionary, processed: int = 0) -> St
 			return u
 	return ""
 
-func _add(id: StringName, lvl: int, attrs: Dictionary, role: String, is_new: bool, locked: bool = false) -> void:
+func _add(id: StringName, lvl: int, attrs: Dictionary, role: String, is_new: bool, locked: bool = false, processed: int = 0) -> void:
 	var s := ItemStack.make(id, 1, attrs, lvl)
+	s.process_count = processed
 	var before := {}
 	for x in player.inventory.slots:
 		if x:
@@ -291,7 +296,7 @@ func _check_bag() -> void:
 	ui.call("select_uid", uids["bone60"])
 	var bag: BagScreen = ui.get("_bag")
 	# Headless windows are 64x64: the column count is the one InvTheme picks for the canvas (t_invui 20 pins 7 at 1600x900).
-	var want: int = InvTheme.metrics(bag.size).columns if bag else -1
+	var want: int = InvTheme.dock_metrics(bag.size).columns if bag else -1
 	_expect(ui.call("current_screen") == &"bag" and bag != null and bag.grid.columns == want, "the Bag opens with its %d-column grid (screen %s, columns %s, size %s)" % [want, ui.call("current_screen"), bag.grid.columns if bag else -1, bag.size if bag else Vector2.ZERO])
 	var leads := 0
 	for s in player.inventory.slots:
@@ -299,6 +304,14 @@ func _check_bag() -> void:
 	_expect(bag.grid.item_cells().size() == leads and bag.grid.cells().size() == leads + player.inventory.slot_count - USED, "one cell per instance plus %d empty compartments (%d cells)" % [player.inventory.slot_count - USED, bag.grid.cells().size()])
 	var rows := "\n".join(bag.inspect.rows())
 	_expect(bag.inspect.title_text() == "Raptor Bone" and rows.contains("Firm Lv. 8") and rows.contains("Black Sheen"), "selecting the Lv. 60 bone inspects its traits")
+	# The in-game reference's card: the twice-processed raw meat, its state, food values and Eat.
+	ui.call("select_uid", uids["meat"])
+	rows = "\n".join(bag.inspect.rows())
+	var meat: ItemStack = player.inventory.slots[_index_of(uids["meat"])]
+	_expect(bag.inspect.visible and bag.inspect.title_text() == "Raw Meat" and rows.contains("Processed  ×2") and rows.contains("\nRaw\n") \
+		and rows.contains("Energy  +%.0f" % Food.energy_restore(meat)) and not bag.inspect.actions().is_empty() and bag.inspect.actions()[0] == &"eat", "the meat's card: Raw, hammer ×2, Energy, Eat first (%s | %s)" % [rows.replace("\n", " / "), bag.inspect.actions()])
+	ui.call("select_uid", "")
+	_expect(not bag.inspect.visible, "with nothing selected the card leaves the world clear")
 	var t0 := Time.get_ticks_usec()
 	bag.grid.refresh()
 	var us := Time.get_ticks_usec() - t0

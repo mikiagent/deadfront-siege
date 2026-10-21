@@ -20,6 +20,7 @@ const LABELS := {
 	&"quick1": "Quick Food 1", &"quick2": "Quick Food 2", &"feed": "Feed Pet", &"lock": "Lock",
 	&"unlock": "Unlock", &"sell": "Sell on Market", &"drop": "Drop",
 	&"store": "Store", &"take": "Take", &"take_all": "Take All", &"use": "Use",
+	&"discard": "Discard", &"keep": "Keep",
 }
 
 static func label(action: StringName) -> String:
@@ -115,7 +116,14 @@ static func run(action: StringName, player: Player, index: int, ctx: Dictionary 
 				return false
 			drop_handler.call(stack.uid)
 			return true
+		&"discard": # the in-game Bag's trash, after its confirm
+			return not stack.is_locked() and bool(pa.discard(index))
 	return false
+
+## The trash square works offline only: the server has no discard op yet (W3), and a lock protects
+## an item from it (spec 13 s9).
+static func can_discard(player: Player) -> bool:
+	return player != null and not bool(player.actions.get("online"))
 
 ## True when every bag slot in `indices` holds a locked item (and there is at least one).
 static func all_locked(inv: Inventory, indices: Array[int]) -> bool:

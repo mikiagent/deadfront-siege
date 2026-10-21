@@ -4,7 +4,9 @@ extends Control
 ## loot, dinosaur cargo), Character -> Gear, Equipment / My Info and the craft / cook ingredient picker. It keeps the
 ## API every caller uses (bind, show_storage, show_pet_bag, hide_ui, rebuild, visible) and the
 ## transfer rules for containers; the screens are presentation over the inventories it binds.
-## Toggling `visible` (I, the HUD's Bag entry) opens the Bag; "<" goes back one screen, X and Esc close.
+## Toggling `visible` (I, the HUD's Bag entry) opens the Bag, docked on the right with the world live
+## beside it (the owner's in-game reference); a tap on that world, "<" on the Bag, X and Esc close.
+## The other screens are full-screen; their "<" goes back one screen.
 ## Desktop keys (spec 13 s21): arrows move the selection (the gear cells on Character / Equipment),
 ## Enter runs the yellow action, Tab switches a container's tabs.
 
@@ -159,8 +161,10 @@ func rebuild() -> void:
 func layout_blocks() -> Dictionary:
 	var out := {}
 	if _screen == &"bag" and _bag:
-		for pair in [["header", _bag.header], ["grid", _bag.grid], ["toolbar", _bag.toolbar], ["inspect", _bag.inspect]]:
-			out[pair[0]] = (pair[1] as Control).get_global_rect()
+		# The docked panel's parts, and the floating card while an item is selected.
+		for pair in [["header", _bag.header], ["tabs", _bag.tab], ["rail", _bag.rail], ["grid", _bag.grid], ["toolbar", _bag.toolbar], ["inspect", _bag.inspect]]:
+			if (pair[1] as Control).visible:
+				out[pair[0]] = (pair[1] as Control).get_global_rect()
 	elif _storage and _screen in [&"storage", &"cargo"]:
 		var g: InventoryGrid = _storage.bag_grid if _storage.tab == &"bag" else _storage.box_grid
 		for pair in [["header", _storage.header], ["tabs", _storage.bag_tab], ["rail", _storage.rail], ["grid", g], ["toolbar", _storage.toolbar], ["inspect", _storage.inspect]]:
@@ -175,6 +179,14 @@ func layout_blocks() -> Dictionary:
 		out["gear"] = Rect2(g.cells[0].global_position, g.cells[0].size * 3.0)
 		out["list"] = g.list.get_global_rect()
 	return out
+
+## Only the world beside the docked Bag reaches here (its panel and card take their own taps): a tap
+## on it closes the family, as a tap outside a side sheet does.
+func _gui_input(event: InputEvent) -> void:
+	var mb := event as InputEventMouseButton
+	if visible and _screen == &"bag" and mb and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+		accept_event()
+		hide_ui()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):

@@ -80,6 +80,41 @@ static func metrics(view: Vector2) -> Dictionary:
 	m.compact = compact
 	return m
 
+## The in-game Bag (the owner's third inventory reference, "inventory menu while in game, scrollview"):
+## a panel docked on the right (header, the Bag tab, the filter rail, a five-column scrolling grid,
+## the toolbar) with the world live on its left and the item card floating between them. The
+## reference measures (of 1350 x 756): panel 37 % wide, header 7 % high, card 19 % wide, cells 6.4 %.
+## A phone keeps the type floor: four columns, each wide enough for NEW beside "Lv. 60" at 12 px, in
+## a panel of at least half the safe width (a notched phone's panel grows rather than run the labels
+## together); its capacity rides in the header instead of a tab row.
+static func dock_metrics(view: Vector2) -> Dictionary:
+	var m := metrics(view)
+	var compact: bool = m.compact
+	m.header_h = 44.0 if compact else roundf(clampf(view.y * 0.07, 56.0, 72.0))
+	m.title_font = 22 if compact else 30
+	m.tab_h = 0.0 if compact else roundf(clampf(view.y * 0.05, 40.0, 52.0))
+	m.rail_w = 44.0 if compact else 56.0
+	m.toolbar_h = 52.0 if compact else roundf(clampf(view.y * 0.075, 60.0, 76.0))
+	m.square = 44.0 if compact else 56.0
+	m.gap = 6.0 if compact else 10.0
+	m.columns = 4 if compact else 5
+	var chrome: float = m.margin * 2.0 + m.rail_w + m.gap + 2.0 # the grid's frame takes 2 px
+	m.dock_w = maxf(roundf(view.x * (0.5 if compact else 0.375)), ceilf(m.columns * maxf(72.0, label_room(UiTokens.TYPE_MIN)) + chrome))
+	m.card_w = roundf(view.x * (0.25 if compact else 0.19))
+	m.cell = floorf((m.dock_w - chrome) / m.columns)
+	m.grid_w = m.cell * m.columns
+	m.lv_font = maxi(UiTokens.TYPE_MIN, roundi(m.cell * 0.13))
+	m.new_font = maxi(UiTokens.TYPE_MIN, roundi(m.cell * 0.11))
+	# The floating card is a third of the old inspect panel's width: its type steps down to match.
+	m.name_font = 18 if compact else 26
+	m.row_font = 14 if compact else 18
+	m.row_h = 28.0 if compact else 36.0
+	m.section_font = UiTokens.TYPE_MIN if compact else 15
+	m.primary_h = 56.0 if compact else 64.0
+	m.secondary_h = 56.0
+	m.button_font = 16 if compact else 22
+	return m
+
 ## Width a compartment needs for the NEW tag (inset 4, 8 px of padding) and "Lv. 60" (inset 6) at
 ## `px`, with a 4 px gap between them (InvPaint.new_tag / level).
 static func label_room(px: int) -> float:

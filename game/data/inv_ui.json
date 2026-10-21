@@ -78,5 +78,26 @@
   },
   "category_labels": {"_about": "Family chips on the inspect panel read ItemDef.categories; ids that do not read well capitalised get a label here.", "blade_mat": "Blade Material"},
   "storage": {"_about": "Storage / cargo view (spec 13 s17 + the 2026-10-20 storage-transfer reference): compartment width the column count aims for, desktop and phone (NEW beside Lv. NN fits).", "cell": 100, "cell_compact": 84},
-  "new_tag": {"text": "NEW"}
+  "new_tag": {"text": "NEW"},
+  "flavour": {
+    "_about": "The item card's plain description line (the in-game Bag reference shows one under Info). Says what the thing is, never a mechanic or lore; an item without a line shows none. ASSUMPTION 74.",
+    "raw_meat": "A cut of fresh meat from a hunted animal.",
+    "berry": "A wild berry.",
+    "herb_leaf": "A leaf from a wild herb.",
+    "mushroom": "A wild mushroom.",
+    "raptor_bone": "A bone from a raptor.",
+    "raptor_hide": "The feathered hide of a raptor.",
+    "stone": "A fist-sized stone.",
+    "flint": "A nodule of flint with glassy, sharp edges.",
+    "branch": "A straight branch broken from a tree.",
+    "wood_log": "A length of log from a felled tree.",
+    "fibre_stalk": "Fibrous plant stalks.",
+    "clay": "A lump of wet clay.",
+    "resin": "Sticky resin from a tree.",
+    "ore": "Rough rock with metal in it.",
+    "iron_ingot": "A bar of smelted iron.",
+    "plank": "A sawn wooden plank.",
+    "stone_knife": "A stone blade bound to a handle.",
+    "club": "A heavy wooden club."
+  }
 }

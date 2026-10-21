@@ -4,7 +4,9 @@ Branch `claude/mmo-invui`, work tree `.claude/worktrees/mmo-invui`, stacked on `
 hooks applied in commit 3ecb02ca "Apply W2-INV hooks (INVUI base)". Design truth, newest first: spec 13
 (`docs/design/durango-prompts/13_inventory_equipment_ui.md`) and its three references
 (`docs/reference/durango-{bag-instances,character-gear,equipment-myinfo}.webp`; the owner's second inventory example,
-`durango-storage-transfer.webp`, governs the storage view: spec 13's 2026-10-20 addendum), then specs 04/05/06/08, GAUNTLET.md's UI
+`durango-storage-transfer.webp`, governs the storage view: spec 13's 2026-10-20 addendum; the owner's third,
+`durango-bag-ingame-panel.webp` ("inventory menu while in game, scrollview", addendum 2), governs the Bag as it opens in
+play: section 7), then specs 04/05/06/08, GAUNTLET.md's UI
 rules and STATUS owner decisions. Durango's look wins over the older DEADFRONT UI tokens (teal, 12 px radius, 5x4 bag) inside
 this screen family.
 
@@ -54,7 +56,9 @@ All new UI files are flat in `game/scripts/ui/` (t_uiicons and t_ui scan that fo
 | Equipment slot | `scripts/ui/equipment_slot.gd` | EquipmentSlot | Dark cell, faded silhouette when empty, real art + Lv + durability when worn, brackets |
 | Gear preset selector | `scripts/ui/gear_preset_selector.gd` | GearPresetSelector | 4 numbered compact cells, active one bracketed, locked ones with a lock glyph |
 | Gear presets model | `scripts/items/gear_presets.gd` | GearPresets | Unlock rule, capture / apply via commands, save sanitizer (lives in items/ so inventory.gd can call it without a UI dependency) |
-| Bag screen | `scripts/ui/bag_screen.gd` | BagScreen | Header + grid + toolbar + inspect (ref 1) |
+| Bag screen | `scripts/ui/bag_screen.gd` | BagScreen | The in-game Bag (B4, third reference): a panel docked on the right (header "< Bag  X", the Bag tab with the capacity, FilterRail, a 5-column scrolling grid, toolbar with Trash) over the live world, the ItemInspectPanel floating between them as the item card; the screen ignores the pointer outside them (B1-B3: header + grid + toolbar + inspect, ref 1) |
+| Tab (B4) | `scripts/ui/inv_tab.gd` | InvTab | One family tab ("Bag 91 / 100"): grey, the active one near-black with gold text and underline, a light-up after a transfer; storage's two tabs and the in-game Bag's one (a heading there: it switches nothing, so it takes no taps) |
+| Card facts (B4) | `scripts/ui/inv_card_facts.gd` | InvCardFacts | What the card says about one instance, from its data only: title / kind / Lv., durability and the hammer count, families, state chips (Raw, Poisoned), traits, Info rows (Energy, the pet food fill, raw-food risks, damage, armour, tool, held, locked, unstable), the tint as a colour hex, a plain description (data `flavour`), Maintenance for items that wear, Create (recipes that take it) |
 | Gear screen base (B2) | `scripts/ui/gear_screen.gd` | GearScreen | What Character and Equipment share: header, the nine EquipmentSlots, the candidate column (InventoryGrid in `slot:<cell>` filter with the worn piece pinned) over one yellow action and a grey reason line |
 | Character -> Gear | `scripts/ui/character_screen.gd` | CharacterScreen | Portrait, name, XP bar, powers, Detailed Stats; Gear tab, presets, 3x3, candidates + Unequip (ref 2) |
 | Detailed Stats panel | `scripts/ui/detailed_stats_panel.gd` | DetailedStatsPanel | Real stats only, grouped (combat / crafting / gathering / survival) |
@@ -175,6 +179,7 @@ auto-open in `_ready` goes (labs open screens explicitly).
 | BagToolbar (B3 additions) | `squares` may hold `&"select_all"`, `&"search"`; signals `select_all_pressed`, `search_changed(text)`; `set_select(on)`, `set_search(on)`, `query()` |
 | InvHeader (B3 addition) | `set_title(text, lead := "")`: `lead` in gold before the title ("1 Select") |
 | BagScreen | `bind(inv, player)`, `select_index(i)`; laid out from its own size (full-rect child) |
+| B4 in-game Bag | `BagScreen.dock_rect() -> Rect2` (the panel; the world shows left of it), `tab` (InvTab: "Bag" + `count`), `rail`, `capacity` (shown in the header on a phone only), `inspect` = the floating card (hidden with nothing selected); `InvTheme.dock_metrics(view)` (+ `dock_w`, `card_w`, `rail_w`, `tab_h`; `columns` 5 desktop / 4 phone, never under `label_room(12)`); `InvActions` actions `&"discard"` / `&"keep"`, `static can_discard(player) -> bool` (offline only); `BagToolbar` square `&"trash"`, signal `trash_pressed`, `set_trash_state(on)`, `set_filter(id)` (the rail chose it); `InventoryGrid.fling_speed()` (mouse drag + fling on desktop); `InventorySlot.shows_processed()`, `TAP_SLOP` (a tap selects on release within 12 px); `InvPaint.plus(ci, cell, px, unit)`; `ItemInspectPanel.set_section_open(id, on)` (&"info", &"care", &"make"), compact panels tuck the secondary actions into the scroll; `InvCardFacts.of(stack, player)`, `creates(stack)`, `pet_diet(def)`; `InventoryUI._gui_input`: a left press that reaches the host (the world beside the dock) closes the family |
 | B4 additions | `InvMotion` consts `OPEN_S` (0.11) `TAB_S` (0.07) `SETTLE_S` (0.08) `FLASH_S` (0.3), `fade_in(c, secs)`, `run(owner, step, secs)`; `InventoryGrid.move_selection(dir: Vector2i) -> bool` (left / right = reading order, up / down = nearest item in the next row; nothing in multi-select); `InventorySlot.settle_in()`, `static describe(stack) -> String` (the hover tip); `InvPaint.PIP_SHAPES`, `pip(ci, rect, cls)`, `pip_color(cls)`; `ItemInspectPanel.press_primary() -> bool`, inner class `TraitChip` (`cls`, tooltip "Rare trait: Black Sheen"); `GearScreen.move_slot(dir) -> bool`, `press_primary() -> bool`; `StorageScreen.flash_tab(id)`, `active_grid()`; `EquipmentSlot.flash()`; `InventoryUI._key(e: InputEventKey) -> bool` (arrows, Enter, Tab) |
 
 ## 5. Data each element reads
@@ -238,7 +243,8 @@ sync; applied uncommitted in the work tree for local testing, the way ECON does,
 | `scripts/dev/ui_real_capture_lab.gd`, `ui_screenshot_lab.gd`, `ui_family_lab.gd` (W1-UI labs) | replace reads of `_profile_col/_bag_col/_equip_col/_close_btn/_grid.columns == 5/_profile` with INVUI's (`ui.layout_blocks()` rects); B2: the Character screen's blocks, its `profile_lines()` carrying `LevelDisplay.player_label()` and the held title, and a `character` shot | B1/B2 |
 | `scripts/dev/inventory_lab.gd` (W2-INV) | drop its grouping asserts (×16 cells, `_cells`, `_on_cell`); keep the 100-instance seed and assert one cell per instance | B1 |
 | `tests/t_ui.gd` (W1-UI) | add the INVUI ui files to `OWNED` (type floor, const-before-func; B3: `item_picker.gd`, `filter_rail.gd`; B4: `inv_motion.gd`) and `character_screen.gd` to `LEVEL_SITES` | B1/B2/B3/B4 |
-| `scripts/player/player_sim.gd` (W2-PLAYER) | `_walk` reads no walking input while `p.ui.visible` (the bag family is a full-screen modal whose arrow keys move its selection; the survivor does not walk blind under it) | B4 |
+| `scripts/player/player_sim.gd` (W2-PLAYER) | `_walk` reads no walking input while `p.ui.visible` (the bag family's arrow keys move its selection, and a tap on the world beside the docked Bag closes it; the survivor stands still meanwhile) | B4 |
+| `scripts/player/player_actions.gd` (B4 in-game Bag) | `discard(index) -> bool`: removes the bag instance for good, offline only, never a locked one or a slot lock (the trash, after the card's confirm; the server has no discard op, so the trash is not shown online) | B4 |
 
 run_all.gd (it does not list t_ files; its InventoryUI private reads stay valid), main.gd, game.gd, world.gd, project.godot
 and touch_controls.gd need no change (InventoryUI hosts the screens; `I` / joy
@@ -246,7 +252,27 @@ Back already toggle `ui.visible`).
 
 ## 7. Screens and layouts
 
-**Bag (ref 1).** Header (back "<", "Bag", yellow bag icon, "91 / 100" with a grey slash; right: T-stone chip from
+**The in-game Bag (B4; the owner's third reference, "inventory menu while in game, scrollview"; the default and only
+Bag).** Opened in play (I, the HUD Menu's Bag, Back on a pad) the Bag is a panel docked on the right, the world staying
+visible and live on its left (nothing pauses; the survivor stands still). Measured on the reference (1350 x 756): panel
+37.4 % of the width, header 7 %, cells 6.5 % of the width (5 columns), card 18.7 % from the header's line to the
+bottom. At 1600x900: panel 600 px (37.5 %), header 63, the gold "Bag 91 / 100" tab over the grid, the FilterRail (56 px
+squares) left of a 5-column grid of 100 px compartments that scrolls (wheel glides half a compartment, a mouse drag
+follows the pointer and flings on release, a touch drag is the ScrollContainer's own, kinetic), toolbar 68 px: Auto Sort
++ caret, then Select, Filter, Lock and Trash. Each compartment: NEW, "Lv. N", a small white "+" under the level on a
+processed instance, the trait pips, the brackets. The item card (ItemInspectPanel, 304 px) floats left of the panel
+while an item is selected: gold title band, art + kind + "Lv. N", durability and the hammer count, family chips three a
+row, state chips (Raw) and trait chips, then folding bars Info (Energy, the pet food fill, raw risks, the colour hex, a
+plain description), Maintenance (items that wear: Repair Not possible) and Create (folded: the recipes that take it),
+and only the valid actions with the yellow primary at the bottom. Nothing selected: no card, the world clear. The trash
+asks on the card first ("Discard Raw Meat Lv. 23? It is gone for good." with Discard / Keep; locked items stay). A tap
+on the world closes the family; taps on the panel and the card do not. Phone (844x390, compact): the panel is half the
+safe width or wider (4 columns, each holding NEW beside "Lv. 60" at 12 px: a notched phone's panel grows to 404 px), the
+capacity rides in the header (no tab row), the card is a quarter of the width and pins only its yellow primary (the other
+actions scroll in under its rows). The first reference's full-screen Bag is retired: the dock covers its every use (the
+same inspection and actions on the card); the picker keeps that full-screen layout.
+
+**Bag (ref 1, B1-B3; superseded by the in-game Bag above).** Header (back "<", "Bag", yellow bag icon, "91 / 100" with a grey slash; right: T-stone chip from
 `World.t_stones` (display only, no "+"), close X). Left 69 %: one textured panel with the 7-column grid (empty cells to
 capacity, scrolls by wheel and drag), toolbar under it: Auto Sort (dark, light text, 1 px border, radius <= 4, ~20 % W) with a
 "▲" dropdown segment listing the sort keys; right-aligned squares Select, Filter, Lock (+ Trash only with `drop_handler`).
@@ -348,6 +374,29 @@ B1-B3 added 23-66 (listed in the report). B4:
     values"; s1 the screenshots are primary.
 72. ASSUMPTION the gear column's properties read one fact a line (a joined line wrapped with a "·" left at its end).
 
+B4, the in-game Bag (the owner's third reference):
+
+73. ASSUMPTION the docked Bag is the only Bag: the first reference's full-screen Bag is retired because the dock's card
+    carries the same inspection and actions; Character, Equipment, storage, cargo and the picker stay full-screen
+    (the references show them so). Doc check: task "keep the full-screen Bag only where the design needs it".
+74. ASSUMPTION the card's description line comes from data `inv_ui.json flavour` (a plain sentence saying what the thing
+    is, no mechanic, no lore, 18 common items); an item without one shows none. Doc check: items.json has no description
+    field; AGENTS.md "do not invent lore".
+75. ASSUMPTION the small white "+" under a compartment's level marks a processed instance (`process_count > 0`); the
+    card's hammer says how often. Doc check: the reference marks the twice-processed meat and others so; no doc names it.
+76. ASSUMPTION Trash = Discard: offline only (no server op; the square is not shown online), never a locked item or a
+    slot lock, after a confirm on the card. Doc check: spec 13 s9 (lock protects from dropping); the reference's trash.
+77. ASSUMPTION a tap on the world beside the dock closes the family (a side sheet's rule); the HUD under the modal layer
+    takes no taps while the Bag is open; the survivor stands still (69). Doc check: none on the in-game Bag's taps.
+78. ASSUMPTION the card's Info names follow the game: Durango's Satiety is Energy (PRD 6.1: eating restores Energy),
+    its Animal Vigor is "<Diet> food +N" (`Food.feed_pet`'s hunger fill, energy x 10); its "Cru Nvl. 1" is the state
+    chip "Raw" (no raw levels exist); Maintenance reads "Repair: Not possible" (the game has no repair). Doc check:
+    food.gd, PRD 6.1.
+79. ASSUMPTION phone dock: half the safe width or more, 4 columns never under the label room, the capacity in the header,
+    a card a quarter of the width that pins only the yellow primary. Doc check: GAUNTLET type floor and 44 / 56 px.
+80. ASSUMPTION desktop grids scroll by mouse drag with a fling (FLING_KEEP 0.004 a second, about half a second of glide)
+    besides the wheel; a touchscreen keeps the ScrollContainer's own drag. Doc check: task "touch drag, wheel, kinetic".
+
 ## 10. Acceptance checklist (measurable; test or shot that proves it)
 
 Viewports: 1600x900 gl_compatibility (judge), 1600x900 Forward+, 1920x1080, 844x390 and 804x452 (667x375) landscape.
@@ -381,6 +430,7 @@ Viewports: 1600x900 gl_compatibility (judge), 1600x900 Forward+, 1920x1080, 844x
 | S1 | NEW, locked and presets round-trip; an old save without presets loads; t_save goldens unchanged | t_invui 19 + t_save |
 | P1 | bag_ui_lab open times: every screen < 150 ms, the 91-item bag < 50 ms, a 142-slot bag < 50 ms (headless build + layout, measured) | lab "[bagui] open times" line |
 | V1 | Shots at 1600x900 glc of bag, inspect, character, equipment, storage, cargo, picker read side by side with the references: every s25 detail present (dark earthy background, dense grid, small grey Lv, blue NEW, yellow brackets, wide Auto Sort, bottom-right squares, capacity at top, dark character panel, yellow Gear tab, numbered presets, silhouette slots, Detailed Stats, consistent inspection) | builders open each PNG; reviewer + fidelity judge |
+| D4 | The in-game Bag: I / the HUD's Bag open the dock (panel 34-40 % of 1600, 45-60 % on phones, full height at the right edge); nothing covers the world with nothing selected; the card floats between world and panel; 5 / 4 columns each >= label room; capacity on the tab / header; real pointer routing: a cell tap selects, panel and card taps keep it open, a world tap closes; wheel glides, drag + fling scroll without selecting; trash confirm, Keep, Discard of exactly that instance, locked never offered; the meat's card (Lv., hammer x2, Meat / Food, Raw, Energy, pet food, Stomachache, Create, Eat first, no Equip) and a club's (Durability, Maintenance, no Eat) | t_invui 22, bag_ui_lab headless |
 | R1 | All existing gates: every t_*.gd PASS (t_save's 5 deliberate SCRIPT ERRORs), run_all `[tests] PASS`, `tools/smoke.sh --no-import` SMOKE PASS, the INVUI lab 0 SCRIPT ERROR lines, no new Godot-*.ips | each builder |
 
 ## 11. Phase plan for the builders (spec 13 s24)
@@ -415,6 +465,9 @@ storage tab that received items and on the gear cell an Equip filled; smooth whe
 (half a compartment a notch over 90 ms); keys: arrows (key events only, so the pad's d-pad keeps bandage /
 hunt-chase), Enter (the yellow action, never on key repeat), Tab (storage tabs), Esc and I as before; t_invui 21
 pins motion, keys, trait shapes, the 1920x1080 canvas, a notched phone's safe area and the 142-slot open.
+
+As built (B4, the in-game Bag): see section 7's first paragraph; t_invui 22 and the lab's meat checks pin it. The
+lab's `--screen=bag --select=meat` is the reference's state (the raw meat Lv. 23 processed twice, its card with Eat).
 
 ## 12. Open questions for the owner (non-blocking; the assumptions above proceed)
 

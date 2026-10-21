@@ -25,8 +25,8 @@ var box_grid: InventoryGrid
 var toolbar: BagToolbar
 var rail: FilterRail
 var inspect: ItemInspectPanel
-var bag_tab: Button
-var box_tab: Button
+var bag_tab: InvTab
+var box_tab: InvTab
 var player: Player
 ## &"storage" or &"cargo" (InvActions ctx.where).
 var kind: StringName = &"storage"
@@ -175,12 +175,9 @@ func notice_text() -> String:
 func action_button(action: StringName) -> Button:
 	return inspect.button_for(action)
 
-func _tab(id: StringName) -> Button:
-	var b := Button.new()
-	b.focus_mode = Control.FOCUS_NONE
-	b.flat = true
+func _tab(id: StringName) -> InvTab:
+	var b := InvTab.new()
 	b.pressed.connect(func() -> void: show_tab(id))
-	b.draw.connect(func() -> void: _draw_tab(b, id))
 	add_child(b)
 	return b
 
@@ -202,41 +199,23 @@ func _tab_text(id: StringName) -> Array:
 	var inv := bag_grid.inventory if id == &"bag" else box_grid.inventory
 	return ["Bag" if id == &"bag" else _title, "%d / %d" % [inv.used_slots(), inv.slot_count] if inv else ""]
 
+## The reference's tabs (InvTab): the active one gold with its underline; a tab lights up as items land.
 func _paint_tabs() -> void:
-	bag_tab.queue_redraw()
-	box_tab.queue_redraw()
-
-## The reference's tabs: grey with grey text, the active one near-black with gold text and a gold
-## underline.
-func _draw_tab(b: Button, id: StringName) -> void:
-	if _m.is_empty():
-		return
-	var on := tab == id
-	var r := Rect2(Vector2.ZERO, b.size)
-	b.draw_style_box(InvTheme.button_box(Color(0.03, 0.032, 0.03, 0.95) if on else Color(0.26, 0.26, 0.245, 0.92), Color(0, 0, 0, 0.5), 4), r)
-	if float(_flash[id]) > 0.0:
-		b.draw_rect(r.grow(-2.0), Color(InvTheme.SELECT, 0.32 * float(_flash[id])))
-	if on:
-		b.draw_rect(Rect2(Vector2(6, r.size.y - 5), Vector2(r.size.x - 12, 4)), InvTheme.SELECT)
-	var f := InvTheme.font()
-	var px := _tab_px()
-	var parts := _tab_text(id)
-	var y := (r.size.y + f.get_ascent(px) - f.get_descent(px)) * 0.5 - 1.0
-	var pad := float(_m.margin) + 4.0
-	var count_w := f.get_string_size(str(parts[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	var name := UiTokens.ellipsis(f, str(parts[0]), r.size.x - pad * 2.0 - count_w - 12.0, px)
-	b.draw_string(f, Vector2(pad, y), name, HORIZONTAL_ALIGNMENT_LEFT, -1, px, InvTheme.SELECT if on else InvTheme.TEXT_2)
-	b.draw_string(f, Vector2(r.size.x - pad - count_w, y), str(parts[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, px, InvTheme.SELECT if on else InvTheme.TEXT_2)
-
-func _tab_px() -> int:
-	return int(_m.row_font) + (2 if _m.compact else 4)
+	for pair in [[bag_tab, &"bag"], [box_tab, &"box"]]:
+		var b: InvTab = pair[0]
+		var parts := _tab_text(pair[1])
+		b.label = str(parts[0])
+		b.count = str(parts[1])
+		b.active = tab == pair[1]
+		b.flash = float(_flash[pair[1]])
+		if not _m.is_empty():
+			b.px = int(_m.row_font) + (2 if _m.compact else 4)
+			b.pad = float(_m.margin) + 4.0
+		b.queue_redraw()
 
 ## The tab's width: its name, a gap and its count, never narrower than the reference's.
 func _tab_w(id: StringName) -> float:
-	var f := InvTheme.font()
-	var parts := _tab_text(id)
-	var w := f.get_string_size("%s%s" % parts, HORIZONTAL_ALIGNMENT_LEFT, -1, _tab_px()).x
-	return maxf(w + float(_m.margin) * 2.0 + 8.0 + 28.0, 150.0 if _m.compact else 230.0)
+	return (bag_tab if id == &"bag" else box_tab).wanted_width(150.0 if _m.compact else 230.0)
 
 func _refresh() -> void:
 	var g := _grid()
@@ -306,6 +285,7 @@ func _layout() -> void:
 	var bar_h: float = _m.toolbar_h
 	var inspect_w: float = _m.inspect_w
 	var main_r := right - inspect_w - gap
+	_paint_tabs() # their texts and type, before they are measured
 	# Tabs over the rail and grid, from the left edge, the reference's way.
 	bag_tab.position = Vector2(left, top)
 	bag_tab.size = Vector2(_tab_w(&"bag"), tab_h)

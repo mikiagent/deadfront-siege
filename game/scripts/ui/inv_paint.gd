@@ -1,7 +1,7 @@
 class_name InvPaint
 extends RefCounted
 ## Draw helpers every slot-like control in the bag family paints with, so the Bag, storage, cargo
-## and picker cells match (spec 13 s5-8, s11): item art, "Lv. N", the blue NEW tag, the yellow
+## and picker cells match (spec 13 s5-8, s11): item art, "Lv. N", the processed "+", the blue NEW tag, the yellow
 ## corner brackets (the gold check in multi-select), trait pips, the lock pip, durability and a count.
 
 ## Shape each trait class is drawn with (pips and the inspect panel's trait chips).
@@ -175,3 +175,11 @@ static func frame(ci: CanvasItem, r: Rect2, width: float = 3.0, key: int = 0) ->
 			pts.append(from.lerp(to, float(s) / steps) + normal * InvHeader._jit(k) * 0.9)
 	pts.append(pts[0])
 	ci.draw_polyline(pts, InvTheme.FRAME_INK, width, true)
+
+## A small white "+" under the "Lv. N" label: a processed instance (the in-game Bag reference).
+static func plus(ci: CanvasItem, cell: Rect2, px: int, unit: float) -> void:
+	var h := maxf(4.0, roundf(px * 0.32))
+	var c := Vector2(cell.end.x - inset(unit) - h, cell.position.y + inset(unit) + px * 1.75 + h) # clear of the label's descenders
+	var w := maxf(1.5, roundf(h * 0.4))
+	ci.draw_line(c - Vector2(h, 0), c + Vector2(h, 0), InvGlyphs.WHITE, w)
+	ci.draw_line(c - Vector2(0, h), c + Vector2(0, h), InvGlyphs.WHITE, w)

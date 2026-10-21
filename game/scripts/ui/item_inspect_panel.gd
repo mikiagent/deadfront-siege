@@ -1,11 +1,13 @@
 class_name ItemInspectPanel
 extends Control
-## The right-hand inspection panel of the bag family (spec 13 s10-11; the Bag and storage-transfer
-## references): a tan title band with the item's name, a tan card with its art, kind and "Lv. N" over
-## a line with its durability and processing count (the hammer "×3"), then the item's families as
-## chips (its categories: what a recipe can use it as), its traits as chips in gold (positive), grey
-## (negative) and green (rare), and the black "Info" bar that folds the compact rows (energy, damage,
-## held, ...). Only the actions valid for this item show: one yellow primary, the rest dark.
+## The inspection panel of the bag family (spec 13 s10-11; the Bag, storage-transfer and in-game Bag
+## references), the storage view's right panel and the in-game Bag's floating card: a tan title band
+## with the item's name, a tan card with its art, kind and "Lv. N" over a line with its durability and
+## processing count (the hammer "×3"), then the item's families as chips (its categories: what a
+## recipe can use it as), its state ("Raw") and traits as chips in gold (positive), grey (negative) and
+## green (rare), and black bars that fold their rows: Info (energy, pet food, damage, held, ..., the
+## item's colour and a plain description), Maintenance and Create (InvCardFacts reads them all). Only
+## the actions valid for this item show: one yellow primary, the rest dark.
 
 signal action_pressed(action: StringName)
 
@@ -16,14 +18,19 @@ var ctx := {}
 var _notes: Array[Dictionary] = [] # {text, color}: reasons and warnings, read in full above the chips
 var _stats: Array = [] # [label, value, colour] on the card's lower line (durability, processing)
 var _families: Array[String] = [] # category ids
-var _traits: Array[Dictionary] = [] # {text, color}
+var _traits: Array[Dictionary] = [] # {text, color, cls}
+var _states: Array = [] # [text, colour] chips before the traits ("Raw")
 var _rows: Array[Dictionary] = []  # {text, value, color} under Info
+var _colour := Color(0, 0, 0, 0) # the instance's tint (a = 0: none)
+var _flavour := ""
+var _sections: Array = [] # {id, title, rows: [[key, value, colour]]} after Info
 var _actions: Array[StringName] = []
 var _title := ""
 var _kind := ""
 var _sub := ""
 var _m := {}
-var _info_open := true
+## Which bars are open (Info and Maintenance open, Create folded, as the reference shows them).
+var _open := {&"info": true, &"care": true, &"make": false}
 var _deco: Control
 var _scroll: ScrollContainer
 var _box: VBoxContainer
@@ -64,7 +71,11 @@ func show_stack(s: ItemStack, c: Dictionary, summary: Array = []) -> void:
 	_stats.clear()
 	_families.clear()
 	_traits.clear()
+	_states.clear()
 	_rows.clear()
+	_colour = Color(0, 0, 0, 0)
+	_flavour = ""
+	_sections.clear()
 	_actions.clear()
 	for n: Array in c.get("notes", []):
 		_notes.append({"text": str(n[0]), "color": n[1]})
@@ -94,10 +105,20 @@ func rows() -> PackedStringArray:
 		out.append("%s  %s" % [st[0], st[1]])
 	for f in _families:
 		out.append(family_label(f))
+	for st: Array in _states:
+		out.append(str(st[0]))
 	for t in _traits:
 		out.append(str(t.text))
 	for r in _rows:
 		out.append(("%s  %s" % [r.text, r.value]).strip_edges())
+	if _colour.a > 0.0:
+		out.append("Colour  #%s" % _colour.to_html(false).to_upper())
+	if _flavour != "":
+		out.append(_flavour)
+	for sec: Dictionary in _sections:
+		out.append(str(sec.title))
+		for r: Array in sec.rows:
+			out.append(("%s  %s" % [r[0], r[1]]).strip_edges())
 	return out
 
 func actions() -> Array[StringName]:
@@ -134,52 +155,21 @@ static func family_art(cat: String, own: StringName) -> StringName:
 	return rep if Data.item(rep) != null else own
 
 func _fill(s: ItemStack) -> void:
-	var d := s.def()
-	var item_name := d.display_name if d and d.display_name != "" else LevelDisplay.nice_name(str(s.def_id))
-	var species := str(s.attributes.get("species", ""))
-	# A caged animal is titled by its species, as Durango titles the cage "Zebraceratops".
-	_title = LevelDisplay.nice_name(species) if species != "" else item_name
-	_kind = item_name
-	_sub = LevelDisplay.label(s.level) if s.level > 0 else ""
-	var player: Player = ctx.get("player") as Player
-	if s.max_durability > 0:
-		_stats.append(["Durability", "%d / %d%s" % [s.durability, s.max_durability, "  Broken" if s.is_broken() else ""], InvTheme.DANGER if s.is_broken() else InvTheme.PRIMARY_INK])
-	if s.process_count > 0:
-		_stats.append(["Processed", "×%d" % s.process_count, InvTheme.PRIMARY_INK])
-	if d and species == "":
-		for c in d.categories:
-			_families.append(str(c))
-	var sec := InvAttributes.sections(s)
-	for cls: StringName in [&"positive", &"negative", &"rare"]:
-		for r: Dictionary in sec[str(cls)]:
-			_traits.append({"text": InvAttributes.line(r), "color": section_color(cls), "cls": cls})
-	if s.def_id == &"captured_animal":
-		_row("Bond it at a taming pen", "", InvTheme.TEXT_2)
-	if s.is_fungible() and s.count > 1:
-		_row("Count", "%d" % s.count)
-	if s.scaled_damage() > 0.0:
-		_row("Damage", "%.0f" % s.scaled_damage())
-	if s.scaled_armor() > 0.0:
-		_row("Armor", "%.0f" % s.scaled_armor())
-	if d and d.health_bonus > 0.0:
-		_row("Max health", "+%.0f" % d.health_bonus_at(s.level))
-	if d and d.tool_class not in [&"", &"none"]:
-		_row("Tool", "%s  %.2fx" % [str(d.tool_class).capitalize(), s.gather_power()])
-	if Food.is_food(s):
-		_row("Energy", "+%.0f" % Food.energy_restore(s))
-		if Food.is_raw(s):
-			_row("Raw", "may upset the stomach", InvTheme.TEXT_2)
-		if Food.is_poisoned(s):
-			_row("Poisoned", "", InvTheme.DANGER)
-		var buffs := Food.buff_ids(s)
-		if not buffs.is_empty():
-			_row("Buffs", ", ".join(PackedStringArray(buffs.map(func(b: StringName) -> String: return LevelDisplay.nice_name(str(b))))))
-	if player and player.inventory.equipped_tool_index >= 0 and player.inventory.slots[player.inventory.equipped_tool_index] == s:
-		_row("Held tool", "", InvTheme.SELECT)
-	if s.is_locked():
-		_row("Locked", "", InvTheme.TEXT_2)
-	if s.is_unstable(): # W2-INV's "U" pip: lost if carried off the unstable island on foot
-		_row("Unstable", "cargo warp it home", InvTheme.TEXT_2)
+	var f := InvCardFacts.of(s, ctx.get("player") as Player)
+	_title = str(f.title)
+	_kind = str(f.kind)
+	_sub = str(f.sub)
+	_stats = f.stats
+	for c: String in f.families:
+		_families.append(c)
+	_states = f.states
+	for t: Dictionary in f.traits:
+		_traits.append(t)
+	for r: Array in f.info:
+		_row(str(r[0]), str(r[1]), r[2])
+	_colour = f.colour
+	_flavour = str(f.flavour)
+	_sections = f.sections
 
 func _row(key: String, value: String, color: Color = InvTheme.TEXT) -> void:
 	_rows.append({"text": key, "value": value, "color": color})
@@ -202,8 +192,13 @@ func _card_h() -> float:
 func _actions_h() -> float:
 	if _actions.is_empty():
 		return 0.0
-	var rows_n := ceili(float(_actions.size() - 1) / 2.0)
+	var rows_n := 0 if _tucked() else ceili(float(_actions.size() - 1) / 2.0)
 	return float(_m.primary_h) + rows_n * (float(_m.secondary_h) + 6.0) + float(_m.margin) * 2.0
+
+## A phone's panel is short: only the yellow primary stays pinned at the bottom and the other actions
+## scroll in under the rows (pinned, two 56 px rows of them left the in-game card no room to read).
+func _tucked() -> bool:
+	return bool(_m.get("compact", false))
 
 func _rebuild() -> void:
 	if _m.is_empty():
@@ -220,21 +215,33 @@ func _rebuild() -> void:
 	if stack:
 		if not _families.is_empty():
 			var flow := _flow()
-			var per := 3 if _m.compact else 4
+			var per := 3 if _m.compact or _inner_w() < 320.0 else 4 # the floating card: three a row, as the in-game reference
 			var w := maxf(44.0, floorf((_inner_w() - float(per - 1) * 6.0) / float(per)))
 			for f in _families:
 				flow.add_child(_FamilyChip.new(family_label(f), family_art(f, stack.def_id), w, px))
-		if not _traits.is_empty():
+		if not _traits.is_empty() or not _states.is_empty():
 			var flow := _flow()
+			for st: Array in _states:
+				flow.add_child(TraitChip.new(str(st[0]), &"state", px, st[1]))
 			for t in _traits:
 				flow.add_child(TraitChip.new(str(t.text), t.cls, px))
-		if not _rows.is_empty():
-			_box.add_child(_info_bar())
-	if not stack or _info_open:
+		if not _rows.is_empty() or _colour.a > 0.0 or _flavour != "":
+			_box.add_child(_section_bar("Info", &"info"))
+	if not stack or _open[&"info"]:
 		for r in _rows:
 			_box.add_child(_text_row(str(r.text), str(r.value), r.color, false))
+		if stack and _colour.a > 0.0:
+			_box.add_child(_Swatch.new(_colour, float(_m.row_h) * 1.5))
+		if stack and _flavour != "":
+			_box.add_child(_text_row(_flavour, "", InvTheme.TEXT, true))
+	for sec: Dictionary in _sections:
+		_box.add_child(_section_bar(str(sec.title), sec.id))
+		if _open.get(sec.id, true):
+			for r: Array in sec.rows:
+				_box.add_child(_text_row(str(r[0]), str(r[1]), r[2], false))
 	for b in _buttons:
-		b.queue_free()
+		if b.get_parent() == self: # tucked ones went with the scroll's rows above
+			b.queue_free()
 	_buttons.clear()
 	var labels: Dictionary = ctx.get("labels", {})
 	for i in _actions.size():
@@ -251,7 +258,15 @@ func _rebuild() -> void:
 		else:
 			b.add_theme_font_size_override("font_size", int(_m.button_font) - (2 if _m.compact else 6))
 		b.pressed.connect(func() -> void: action_pressed.emit(a))
-		add_child(b)
+		if i > 0 and _tucked():
+			b.custom_minimum_size = Vector2(0, _m.secondary_h)
+			var pad := MarginContainer.new() # clear of the scrollbar, a gap under the row above
+			pad.add_theme_constant_override("margin_right", 10)
+			pad.add_theme_constant_override("margin_top", 6)
+			pad.add_child(b)
+			_box.add_child(pad)
+		else:
+			add_child(b)
 		_buttons.append(b)
 	_layout()
 
@@ -301,27 +316,33 @@ func _text_row(text: String, value: String, color: Color, wrap: bool) -> HBoxCon
 	row.add_child(gutter)
 	return row
 
-## Durango's black "Info" bar; its caret folds the rows under it.
-func _info_bar() -> Button:
+## Durango's black section bar ("Info", "Maintenance", "Create"); its caret folds the rows under it.
+func _section_bar(title: String, id: StringName) -> Button:
+	var open: bool = _open.get(id, true)
 	var b := Button.new()
 	b.flat = true
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(0, maxf(44.0, float(_m.row_h) * 1.1))
-	b.tooltip_text = "Hide the details" if _info_open else "Show the details"
+	b.tooltip_text = ("Hide " if open else "Show ") + title
 	b.draw.connect(func() -> void:
 		var r := Rect2(Vector2.ZERO, b.size - Vector2(10, 0))
 		b.draw_rect(r, Color(0.02, 0.025, 0.02, 0.85))
 		var f := InvTheme.font()
 		var ipx: int = _m.section_font
-		b.draw_string(f, Vector2(float(_m.margin) * 0.5, (r.size.y + f.get_ascent(ipx) - f.get_descent(ipx)) * 0.5), "Info", HORIZONTAL_ALIGNMENT_LEFT, -1, ipx, InvTheme.TEXT_2)
+		b.draw_string(f, Vector2(float(_m.margin) * 0.5, (r.size.y + f.get_ascent(ipx) - f.get_descent(ipx)) * 0.5), title, HORIZONTAL_ALIGNMENT_LEFT, -1, ipx, InvTheme.TEXT_2)
 		var c := Vector2(r.end.x - r.size.y * 0.5, r.size.y * 0.5)
 		var t := r.size.y * 0.16
-		var up := 1.0 if _info_open else -1.0
+		var up := 1.0 if open else -1.0
 		b.draw_colored_polygon(PackedVector2Array([c + Vector2(-t, t * 0.6 * up), c + Vector2(t, t * 0.6 * up), c + Vector2(0, -t * 0.7 * up)]), InvGlyphs.WHITE))
 	b.pressed.connect(func() -> void:
-		_info_open = not _info_open
+		_open[id] = not open
 		_rebuild())
 	return b
+
+## Folds or opens one bar (&"info", &"care", &"make"), as a tap on it does.
+func set_section_open(id: StringName, on: bool) -> void:
+	_open[id] = on
+	_rebuild()
 
 func _layout() -> void:
 	if _m.is_empty():
@@ -337,7 +358,7 @@ func _layout() -> void:
 		var y := size.y - pad - float(_m.primary_h)
 		_buttons[0].position = Vector2(pad, y)
 		_buttons[0].size = Vector2(w, _m.primary_h)
-		var rest := _buttons.slice(1)
+		var rest: Array = [] if _tucked() else _buttons.slice(1)
 		var rows_n := ceili(float(rest.size()) / 2.0)
 		var half := (w - 6.0) * 0.5
 		for i in rest.size():
@@ -421,26 +442,50 @@ class _FamilyChip extends Control:
 
 ## One trait chip (storage reference: "Firm Lv. 4" gold, "Heavy Lv. 2" grey): the class's pip shape
 ## before the text, so positive / negative / rare read without colour too (spec 13 s11; B4).
+## A `cls` of &"state" is the item's state ("Raw", the in-game reference's "Cru"): no pip, in `ink`.
 class TraitChip extends Control:
-	const CLASS_WORDS := {&"positive": "Positive trait", &"negative": "Negative trait", &"rare": "Rare trait"}
+	const CLASS_WORDS := {&"positive": "Positive trait", &"negative": "Negative trait", &"rare": "Rare trait", &"state": "State"}
 	var text := ""
 	var cls: StringName = &"positive"
 	var px := 14
+	var ink := Color(0, 0, 0, 0)
 
-	func _init(t: String, c: StringName, font_px: int) -> void:
+	func _init(t: String, c: StringName, font_px: int, color: Color = Color(0, 0, 0, 0)) -> void:
 		text = t
 		cls = c
 		px = font_px
+		ink = color if color.a > 0.0 else InvPaint.pip_color(c)
 		tooltip_text = "%s: %s" % [CLASS_WORDS.get(c, "Trait"), t]
 		var f := InvTheme.font()
-		custom_minimum_size = Vector2(f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + _pip_px() + 22.0, roundf(px * 1.9))
+		custom_minimum_size = Vector2(f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + _pip_px() + (22.0 if _pip_px() > 0.0 else 16.0), roundf(px * 1.9))
 
 	func _pip_px() -> float:
-		return maxf(6.0, roundf(px * 0.45))
+		return maxf(6.0, roundf(px * 0.45)) if InvPaint.PIP_SHAPES.has(cls) else 0.0
 
 	func _draw() -> void:
 		draw_style_box(InvTheme.button_box(Color(1, 1, 1, 0.08), Color(0, 0, 0, 0), 4), Rect2(Vector2.ZERO, size))
 		var p := _pip_px()
-		InvPaint.pip(self, Rect2(Vector2(8.0, (size.y - p) * 0.5), Vector2(p, p)), cls)
+		if p > 0.0:
+			InvPaint.pip(self, Rect2(Vector2(8.0, (size.y - p) * 0.5), Vector2(p, p)), cls)
 		var f := InvTheme.font()
-		draw_string(f, Vector2(8.0 + p + 6.0, (size.y + f.get_ascent(px) - f.get_descent(px)) * 0.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, InvPaint.pip_color(cls))
+		draw_string(f, Vector2(8.0 + (p + 6.0 if p > 0.0 else 0.0), (size.y + f.get_ascent(px) - f.get_descent(px)) * 0.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, ink)
+
+## The item's colour (its tint) as Durango's hexagon swatch; the hex code is its tooltip and a row in
+## rows(), so the colour is never the only way to read it.
+class _Swatch extends Control:
+	var colour := Color.WHITE
+
+	func _init(c: Color, side: float) -> void:
+		colour = c
+		custom_minimum_size = Vector2(side, side)
+		tooltip_text = "Colour #%s" % c.to_html(false).to_upper()
+
+	func _draw() -> void:
+		var r := minf(size.x, size.y) * 0.42
+		var c := Vector2(r + 8.0, size.y * 0.5)
+		var pts := PackedVector2Array()
+		for k in 6:
+			pts.append(c + Vector2.from_angle(PI / 6.0 + k * PI / 3.0) * r)
+		draw_colored_polygon(pts, colour)
+		pts.append(pts[0])
+		draw_polyline(pts, Color(0.02, 0.02, 0.02, 0.9), maxf(2.0, r * 0.12), true)

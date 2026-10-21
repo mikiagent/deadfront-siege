@@ -2,7 +2,9 @@ class_name InventorySlot
 extends Control
 ## One compartment of the bag grid (spec 13 s5-8): flat, transparent over the textured panel,
 ## a faint dashed edge, the item centred, "Lv. N" top-right, NEW top-left, trait pips under the art,
-## brackets when selected (the gold check in multi-select).
+## a small white "+" under the level on a processed instance (the in-game Bag reference), brackets
+## when selected (the gold check in multi-select). A tap selects on release, so a drag that scrolls
+## the grid selects nothing.
 ## Empty cells stay visible. `uid` is the instance's identity (or "#<slot>" for a fungible stack).
 
 signal pressed(slot: InventorySlot)
@@ -28,6 +30,10 @@ var checks := false:
 			checks = v
 			queue_redraw()
 var _rare := false
+## Where the pointer went down on this cell (INF: not pressed here).
+var _down := Vector2.INF
+## How far a press may move and still be a tap, not a scroll.
+const TAP_SLOP := 12.0
 ## 0 -> 1 as the brackets settle onto a new selection (InvMotion.SETTLE_S); 1 at rest.
 var _settle := 1.0
 
@@ -60,6 +66,8 @@ static func describe(s: ItemStack) -> String:
 	for cls: StringName in [&"positive", &"negative", &"rare"]:
 		for r: Dictionary in sec[str(cls)]:
 			lines.append("%s: %s" % [ItemInspectPanel.TraitChip.CLASS_WORDS[cls], InvAttributes.line(r)])
+	if s.process_count > 0:
+		lines.append("Processed ×%d" % s.process_count)
 	if &"new" in s.flags:
 		lines.append("New")
 	if s.is_locked():
@@ -85,13 +93,24 @@ func shows_rare() -> bool:
 func shows_lock() -> bool:
 	return stack != null and stack.is_locked()
 
+## The white "+": this instance has been processed (# ASSUMPTION: the in-game reference marks the
+## selected, twice-processed meat and others so; its card's hammer count says how often).
+func shows_processed() -> bool:
+	return stack != null and stack.process_count > 0
+
+## Mouse buttons only: a phone's touch arrives as an emulated mouse button too (handling both would
+## toggle a multi-select twice).
 func _gui_input(event: InputEvent) -> void:
-	if stack == null:
+	var mb := event as InputEventMouseButton
+	if stack == null or mb == null or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
-	var tap := (event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT) \
-		or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
-	if tap:
-		pressed.emit(self)
+	if mb.pressed:
+		_down = mb.global_position
+	elif _down != Vector2.INF:
+		var tap := _down.distance_to(mb.global_position) <= TAP_SLOP
+		_down = Vector2.INF
+		if tap:
+			pressed.emit(self)
 
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
@@ -107,6 +126,8 @@ func _draw() -> void:
 	elif shows_new():
 		InvPaint.new_tag(self, r, new_px, unit)
 	InvPaint.level(self, level_text(), r, lv_px, unit)
+	if shows_processed():
+		InvPaint.plus(self, r, lv_px, unit)
 	InvPaint.pips(self, r, stack, unit)
 	if shows_lock():
 		InvPaint.lock_pip(self, r, unit)
