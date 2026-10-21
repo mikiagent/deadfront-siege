@@ -25,10 +25,10 @@ func _process(delta: float) -> void:
 	if c == null:
 		return
 	var cam := get_viewport().get_camera_3d()
+	# Beside the body's middle as in the reference, nearer for a small animal; never off past a big one.
 	var box := CreaturePlates.creature_box(cam, c)
-	var at := Vector2(box.end.x + 4.0, box.get_center().y - size.y * 0.5)
-	if not box.has_area():
-		at = cam.unproject_position(c.global_position + Vector3(0, c.def.height_meters * 0.5, 0)) + Vector2(24.0, -size.y * 0.5)
+	var mid := cam.unproject_position(c.global_position + Vector3(0, c.def.height_meters * 0.5, 0))
+	var at := mid + Vector2(clampf(box.size.x * 0.3, 36.0, 140.0), -size.y * 0.5)
 	var r := get_viewport_rect().size
 	var inset := UiTokens.safe_insets(get_viewport())  # x right, y bottom, z top, w left
 	position = at.clamp(Vector2(8.0 + inset.w, 8.0 + inset.z), r - size - Vector2(28.0 + inset.x, 8.0 + inset.y))
@@ -46,14 +46,15 @@ func _shown_for() -> Creature:
 func _draw() -> void:
 	super()
 	var c := size * 0.5
-	var s := (minf(size.x, size.y) * 0.5 - 2.0) * 0.46
+	var s := (minf(size.x, size.y) * 0.5 - 2.0) * 0.6
 	_sword(c, Vector2(-1, -1), s)
 	_sword(c, Vector2(1, -1), s)
 	if not UiTokens.is_compact(get_viewport_rect().size):  # phones have no key
 		var font := ThemeDB.fallback_font
 		var key := Rect2(Vector2(size.x - 4.0, c.y - 20.0), Vector2(20.0, 20.0))
-		draw_rect(key, Color(0.95, 0.95, 0.95, 0.95))
-		UiTokens.draw_centered(self, font, key.get_center(), KEY, 14, UiTokens.INK)
+		draw_rect(key, UiTokens.INK)
+		draw_rect(key, Color(0.85, 0.85, 0.85), false, 1.5)
+		UiTokens.draw_centered(self, font, key.get_center(), KEY, 14, UiTokens.TEXT)
 
 ## One sword across the hex: tip toward `dir` (a diagonal), hilt in the opposite corner.
 func _sword(c: Vector2, dir: Vector2, s: float) -> void:
@@ -61,8 +62,9 @@ func _sword(c: Vector2, dir: Vector2, s: float) -> void:
 	var guard := c - dir * s * 0.55
 	var pommel := c - dir * s * 0.95
 	var side := Vector2(-dir.y, dir.x).normalized()
-	var w := s * 0.13
-	draw_colored_polygon(PackedVector2Array([tip, guard + side * w, guard - side * w]), SWORD_RED)
-	draw_line(guard + side * s * 0.3, guard - side * s * 0.3, SWORD_RED, maxf(2.0, s * 0.12), true)
-	draw_line(guard, pommel, SWORD_RED, maxf(2.0, s * 0.1), true)
-	draw_circle(pommel, maxf(1.5, s * 0.09), SWORD_RED)
+	var w := s * 0.17
+	var shoulder := tip.lerp(guard, 0.18)  # the point's bevel; the blade keeps its width to the guard
+	draw_colored_polygon(PackedVector2Array([tip, shoulder + side * w, guard + side * w, guard - side * w, shoulder - side * w]), SWORD_RED)
+	draw_line(guard + side * s * 0.34, guard - side * s * 0.34, SWORD_RED, maxf(3.0, s * 0.16), true)
+	draw_line(guard, pommel, SWORD_RED, maxf(3.0, s * 0.14), true)
+	draw_circle(pommel, maxf(2.0, s * 0.12), SWORD_RED)
