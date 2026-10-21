@@ -36,6 +36,7 @@ TILES = [
     "meat_fat", "canvas_slope", "deck", "deck_old", "deck_dark", "fish",
     # farm set (dsc farmkit): dark tilled soil, grass, crop leaves, straw, compost
     "soil", "soil_dark", "grass", "crop_leaf", "crop_leaf_dark", "straw", "compost",
+    "soil_ridge",
 ]
 TILE_INDEX = {n: i for i, n in enumerate(TILES)}
 
@@ -264,19 +265,27 @@ def _sign_board():
     return img
 
 
-def _furrows(seed, base, dark, freq=5):
-    """Tilled soil: soft furrow ridges with clods, so it reads as earth and not as planking."""
+def _furrows(seed, base, dark, freq=4, stripes=True):
+    """Tilled soil: mottled clods and soft furrow shading. Low contrast on purpose, so a soil
+    surface never reads as planking at the iso camera's distance."""
     n = TILE_PX
     yy, xx = np.mgrid[0:n, 0:n] / n
-    wob = _fbm(_rng(seed), n, 3, 3) * 0.1
+    wob = _fbm(_rng(seed), n, 3, 3) * 0.12
     p = yy + wob
     ridge = 0.5 + 0.5 * np.sin(p * freq * 2 * math.pi)
-    t = np.clip(ridge ** 2.4, 0, 1)
-    img = _mix(_rgb(dark), _rgb(base), t * 0.8)
-    clod = _fbm(_rng(seed + 3), n, 14, 3)
-    img = img * (0.82 + 0.36 * clod)[..., None]
-    grit = _fbm(_rng(seed + 11), n, 40, 2)
-    return img * (0.9 + 0.2 * grit)[..., None]
+    t = np.clip(ridge ** 3.0, 0, 1) if stripes else 0.0
+    img = _mix(_rgb(dark), _rgb(base), t * 0.45)
+    clod = _fbm(_rng(seed + 3), n, 10, 3)
+    img = img * (0.78 + 0.44 * clod)[..., None]
+    grit = _fbm(_rng(seed + 11), n, 34, 2)
+    img = img * (0.88 + 0.24 * grit)[..., None]
+    # scattered small stones in the soil
+    r = _rng(seed + 23)
+    for _ in range(14):
+        cx, cy = r.integers(4, n - 4, 2)
+        d = np.sqrt(((xx * n - cx) / 1.6) ** 2 + ((yy * n - cy) / 1.6) ** 2)
+        img = _mix(img, _rgb(dark) * 1.5, np.clip(1 - d / 2.6, 0, 1) * 0.5)
+    return img
 
 
 def _grass(seed, base, dark):
@@ -394,8 +403,13 @@ def paint_atlas():
         "bone": _speckle(32, (0.88, 0.84, 0.74), (0.7, 0.65, 0.55), scale=6),
         # farm set: dark tilled soil for the field beds and paths, grass for the path fringe,
         # crop leaves for the four growth stages, straw and compost for the farm props
-        "soil": _furrows(41, (0.34, 0.25, 0.16), (0.15, 0.1, 0.06)),
-        "soil_dark": _furrows(42, (0.24, 0.17, 0.11), (0.1, 0.07, 0.04)),
+        "soil": _furrows(41, (0.3, 0.22, 0.14), (0.19, 0.13, 0.08)),
+        # the flat bed between the ridges: mottled earth with no directional stripes, so the
+        # tilled plot never reads as planking from the iso camera
+        "soil_dark": _furrows(42, (0.23, 0.16, 0.1), (0.14, 0.09, 0.055), stripes=False),
+        # the heaped furrow ridges: mottled earth, no directional stripes, so a row of ridges
+        # never reads as planking from the iso camera
+        "soil_ridge": _furrows(48, (0.27, 0.19, 0.12), (0.17, 0.11, 0.07), stripes=False),
         "grass": _grass(43, (0.4, 0.5, 0.22), (0.26, 0.35, 0.14)),
         "crop_leaf": _leaf(44, (0.42, 0.55, 0.2), (0.2, 0.32, 0.09)),
         "crop_leaf_dark": _leaf(45, (0.3, 0.42, 0.15), (0.13, 0.22, 0.06)),

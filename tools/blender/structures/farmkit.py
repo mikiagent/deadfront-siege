@@ -34,7 +34,7 @@ def _ridges(p, hx, hy, top):
             yj = y + 0.012 * (((i * 11 + k * 7) % 3) - 1)  # break the straight furrow line
             # a triangular heap of soil, not a plank: the apex is above the middle of the row
             p.prism([(x0, yj - w / 2, top), (x0, yj + w / 2, top), (x0, yj, top + h)],
-                    (seg_w, 0, 0), "soil", tile_m=0.35)
+                    (seg_w, 0, 0), "soil_ridge", tile_m=0.35)
 
 
 def _bed(p, half=0.93):
@@ -59,7 +59,7 @@ def _bed(p, half=0.93):
                      (x, y - half / 4 - 0.03, berm_h)], (0, half / 2 + 0.06, 0), "soil", tile_m=0.4)
     # a few clods on the bed so the soil is not a flat slab
     for i, (x, y) in enumerate(((-0.55, -0.62), (0.4, 0.25), (0.66, -0.5), (-0.2, 0.58))):
-        p.rock(0.05, (x, y, top + 0.02), tile="soil", squash=(1.2, 1.0, 0.5), seed=200 + i)
+        p.rock(0.05, (x, y, top + 0.02), tile="soil_ridge", squash=(1.2, 1.0, 0.5), seed=200 + i)
     return top + 0.05
 
 
@@ -158,7 +158,7 @@ def path_dirt():
     # the packed surface does not reach the tile edge: grass creeps in from all sides
     _dirt_pad(p, 0, 0, 1.78, 1.78)
     for i, (x, y, r) in enumerate(((-0.55, 0.42, 0.06), (0.48, -0.3, 0.05), (0.15, 0.62, 0.045), (-0.7, -0.55, 0.05))):
-        p.rock(r, (x, y, 0.04), tile="stone", squash=(1.3, 1.0, 0.5), seed=210 + i)
+        p.rock(r, (x, y, 0.04), tile="stone_dark", squash=(1.3, 1.0, 0.5), seed=210 + i)
     return [(p, (0, 0, 0))]
 
 
@@ -170,14 +170,14 @@ def path_dirt_corner():
     _dirt_pad(p, 0.0, 0.45, 1.78, 0.88)
     _dirt_pad(p, 0.45, 0.0, 0.88, 1.78)
     for i, (x, y, r) in enumerate(((0.5, 0.45, 0.055), (-0.2, 0.66, 0.05), (0.62, -0.1, 0.05))):
-        p.rock(r, (x, y, 0.04), tile="stone", squash=(1.3, 1.0, 0.5), seed=220 + i)
+        p.rock(r, (x, y, 0.04), tile="stone_dark", squash=(1.3, 1.0, 0.5), seed=220 + i)
     return [(p, (0, 0, 0))]
 
 
 def _cobbles(p, cells):
     """Flat cobble stones on a grid: cells is a list of (col, row) on a 3 x 3 grid over the tile,
     col 0 at -X and row 0 at -Y."""
-    w = 0.54
+    w = 0.62
     for i, (c, r) in enumerate(cells):
         x = -0.6 + c * 0.6
         y = -0.6 + r * 0.6
