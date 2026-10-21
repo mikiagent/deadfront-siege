@@ -30,6 +30,8 @@ var _models: Dictionary = {}  # stage id -> PackedScene
 var _fx: CPUParticles3D
 var _glow: OmniLight3D
 var _contents: Node3D
+var _strips: Array[Node3D] = []
+var _strips_prop_id: int = 0  # the stage model _strips were found in
 
 ## The clock jobs run on: wall time, so they keep going while the game is closed.
 static func now_s() -> float:
@@ -346,8 +348,8 @@ func to_dict() -> Dictionary:
 		outs.append({"recipe": o["recipe"], "stack": (o["stack"] as ItemStack).to_dict()})
 	return {"jobs": js, "outputs": outs}
 
-## Restore saved jobs. Rows for recipes this station no longer runs are kept as finished outputs of
-## their inputs (never deleted). Hand-edited numbers: a start in the future is clamped to now, one that
+## Restore saved jobs. Rows for recipes this station no longer runs, and rows past its capacity (a
+## hand-edited save), are kept as finished outputs of their inputs (never deleted). Hand-edited numbers: a start in the future is clamped to now, one that
 ## is not a number leaves the job waiting (it restarts, never finishes early), level stays 1..60.
 func load_dict(d: Dictionary) -> void:
 	jobs.clear()
@@ -359,7 +361,7 @@ func load_dict(d: Dictionary) -> void:
 		if ins.is_empty():
 			continue
 		var rid := StringName(str(row.get("recipe", "")))
-		if not runs(rid) or Crafting.recipe(rid).is_empty():
+		if not runs(rid) or Crafting.recipe(rid).is_empty() or jobs.size() >= capacity():
 			for s in ins:
 				outputs.append({"recipe": "", "stack": s})
 			continue
@@ -420,7 +422,12 @@ func _redraw() -> void:
 	if not is_inside_tree():
 		return
 	_swap_stage(stage_id())
-	ProcessFx.show_strips(get_parent().get_node_or_null("Prop"), jobs.size() + outputs.size(), capacity())
+	var prop := get_parent().get_node_or_null("Prop")
+	var pid := prop.get_instance_id() if prop else 0
+	if pid != _strips_prop_id:  # a new stage model: find its strips once, not 4x a second
+		_strips_prop_id = pid
+		_strips = ProcessFx.find_strips(prop)
+	ProcessFx.show_strips(_strips, jobs.size() + outputs.size(), capacity())
 	if _contents:
 		ProcessFx.sync_contents(_contents, cfg, content_progress())
 	var active := is_active()

@@ -1,6 +1,6 @@
 extends RefCounted
 ## W2-PROCESS checks that run in one frame, shared by t_process and run_all: a rack job on the wall
-## clock, and hand-edited process rows through the real load path (SaveSanitizer.clean ->
+## clock, exact XP per collected job, a save round trip, done colours, and hand-edited process rows through the real load path (SaveSanitizer.clean ->
 ## SaveRestore.spawn -> ProcessStation.load_dict) and the refund path (saved_stacks). Review r1: a
 ## forged row injected 1e9 dried meat at level 5e6, a non-number start aborted load_dict and lost the
 ## row's meat, a string start finished the job at once, and a duplicated uid loaded twice.
@@ -85,4 +85,79 @@ func run(root: Node) -> Dictionary:
 	out["a start an hour in the future loads as now, label time <= job length (%s, %ds)" % [fut, left_s]] = fut["jobs"] == 1 and float(fut.get("started", INF)) <= PS.now_s() and left_s >= 0 and left_s <= int(secs)
 	out["jobs/outputs that are not arrays load nothing and do not abort (%s)" % [got["not_arrays"]]] = got["not_arrays"]["jobs"] == 0 and got["not_arrays"]["ready"] == 0
 	out["a uid on two outputs loads once (%s)" % [got["dup_uid"]]] = got["dup_uid"]["units"] == 1 and got["dup_uid"]["refund"] == 1
+
+	# Review r3: a hand-edited row with 40 queued jobs loaded all 40 onto a 4-slot steamer. Jobs past
+	# capacity are outputs of their own inputs: nothing lost, nothing over capacity.
+	var many: Array = []
+	for i in 40:
+		many.append({"recipe": "steam", "inputs": [{"id": "dried_meat", "count": 1}], "queued_at": now, "started": -1.0, "level": 1})
+	var srow: Dictionary = SAN.clean({"home": {"buildings": [{"kind": "steamer", "cell": [0, 0], "rot": 0, "x": 0.0, "z": 0.0, "process": {"jobs": many, "outputs": []}}]}})["home"]["buildings"][0]
+	var steamer: Node3D = SR.spawn(srow)
+	root.add_child(steamer)
+	var sp = PS.of(steamer)
+	out["40 saved jobs on a 4-place steamer load as %d jobs + %d to collect (40 units kept)" % [sp.jobs.size(), sp.ready_count()]] = sp.jobs.size() == sp.capacity() and sp.jobs.size() + sp.ready_count() == 40
+	steamer.free()
+
+	# Review r3: nothing checked collect pays XP exactly once per job (spec 08:126 "repeated XP"; a
+	# mutation paying it twice passed every gate). A fresh SkillState banks every point (helper below).
+	var PLAYER: GDScript = load("res://scripts/player/player.gd")
+	var SK: GDScript = load("res://scripts/skills/skill_state.gd")
+	var CR: GDScript = load("res://scripts/items/crafting.gd")
+	var who = PLAYER.new()
+	var sk = SK.new()
+	who.add_child(sk)
+	who.skills = sk
+	sk._load()
+	var per: int = 6 + int(CR.recipe_seconds(CR.recipe(&"dry_meat")))
+	var rack2: Node3D = CS.make(&"drying_rack")
+	root.add_child(rack2)
+	var p2 = PS.of(rack2)
+	var xp: Array[float] = []
+	for _r in 2:
+		var src = INV.new(4)
+		for i in 2:
+			src.add(IS.make(&"raw_meat", 1))
+		p2.load_from(src, &"dry_meat", 2)
+		p2.advance(PS.now_s() + secs + 1.0)
+		p2.collect_into(INV.new(8), who)
+		xp.append(_tree_xp(sk, "processing"))
+	p2.collect_into(INV.new(8), who)  # nothing left: pays nothing
+	xp.append(_tree_xp(sk, "processing"))
+	out["collect pays %d Processing XP per dried meat, once: 2 -> %.0f, 4 -> %.0f, empty collect -> %.0f (want %d, %d, %d)" % [per, xp[0], xp[1], xp[2], 2 * per, 4 * per, 4 * per]] = xp == [2.0 * per, 4.0 * per, 4.0 * per]
+	rack2.free()
+	who.free()
+
+	# Review r3: only t_process round-tripped a loaded station through CraftStation.to_dict; run_all
+	# passed with the "process" key dropped from the save row.
+	var rack3: Node3D = CS.make(&"drying_rack")
+	root.add_child(rack3)
+	var meat3 = IS.make(&"raw_meat", 1)
+	meat3.stamp_identity("loot", "tester")
+	var inv3 = INV.new(2)
+	inv3.add(meat3)
+	PS.of(rack3).load_from(inv3, &"dry_meat", 1)
+	var row3: Dictionary = JSON.parse_string(JSON.stringify(rack3.to_dict()))
+	rack3.free()
+	var back3: Node3D = SR.spawn(row3)
+	root.add_child(back3)
+	var p3 = PS.of(back3)
+	var uid3 := str(p3.jobs[0]["inputs"][0].uid) if p3 and p3.jobs.size() == 1 else ""
+	out["a loaded rack saves and loads its job through to_dict -> JSON -> spawn (uid %s)" % uid3] = uid3 != "" and uid3 == meat3.uid
+	back3.free()
+
+	# Review r3: done food read as an empty dish (steamed: near-white) or vanished in a dark doorway
+	# (smoked: near-black). Every station's done colour keeps some colour and some light.
+	for sid: String in (PS.rules().get("stations", {}) as Dictionary):
+		var c: Variant = PS.config_for(StringName(sid)).get("contents")
+		if c is Dictionary:
+			var to := Color(str((c as Dictionary).get("to", "#000000")))
+			out["%s done colour %s is not near-white or near-black (s %.2f, v %.2f)" % [sid, to.to_html(false), to.s, to.v]] = to.s >= 0.35 and to.v >= 0.33
 	return out
+
+## A tree's XP since Lv. 1, counting levels gained, so the check holds whatever level cap applies.
+static func _tree_xp(sk: Object, tree: String) -> float:
+	var t: Dictionary = sk.trees[tree]
+	var total := float(t["xp"])
+	for l in range(1, int(t["level"])):
+		total += sk.xp_to_next(l)
+	return total

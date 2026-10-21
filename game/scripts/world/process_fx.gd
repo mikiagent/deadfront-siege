@@ -133,14 +133,18 @@ static func _content_mesh(kind: String) -> MeshInstance3D:
 		mi.mesh = strip
 	return mi
 
-## A stage model with strip_1..strip_N nodes shows the share of them its filled slots stand for, so
-## one strip on the rack is not drawn as a full rack. Returns the strips shown (-1: none in the model).
-static func show_strips(prop: Node, filled: int, capacity: int) -> int:
+## The strip_1..strip_N nodes of a stage model, in order (empty: the model has none).
+static func find_strips(prop: Node) -> Array[Node3D]:
 	var strips: Array[Node3D] = []
 	var i := 1
 	while prop and prop.find_child("strip_%d" % i, true, false) is Node3D:
 		strips.append(prop.find_child("strip_%d" % i, true, false) as Node3D)
 		i += 1
+	return strips
+
+## A stage model's strips (find_strips) show the share of them its filled slots stand for, so one strip
+## on the rack is not drawn as a full rack. Returns the strips shown (-1: none in the model).
+static func show_strips(strips: Array[Node3D], filled: int, capacity: int) -> int:
 	if strips.is_empty():
 		return -1
 	var shown := ceili(float(strips.size()) * float(mini(filled, capacity)) / float(maxi(1, capacity)))
