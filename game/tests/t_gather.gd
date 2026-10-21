@@ -845,7 +845,7 @@ func _test_hud_draw() -> void:
 	await _frames(3)
 	drawn = _drawn_notices(h)
 	var box: Rect2 = drawn.get(text, Rect2())
-	var avoid: Array[Rect2] = GF.notice_avoid(player)
+	var avoid := _must_avoid()
 	var on: Array = avoid.filter(func(a: Rect2) -> bool: return a.intersects(box))
 	# What the HUD alone would pick (its own blocks only): the set-up puts that on the radial or the survivor.
 	var tw: float = h._font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
@@ -867,6 +867,19 @@ func _test_hud_draw() -> void:
 	root.content_scale_size = keep[1]
 	await _frames(1)
 	_finished += 1
+
+## What a rare notice must keep off, listed here and not by GatherFeedback (a change there cannot hide
+## itself): the open radial's labels, title and hexes, and the survivor with their ring.
+func _must_avoid() -> Array[Rect2]:
+	var gr = player._gather_radial
+	var out: Array[Rect2] = []
+	out.append_array(gr.label_rects)
+	out.append(gr.title_box)
+	for c in gr.get_children():
+		if c is Control and c.visible:
+			out.append(c.get_global_rect())
+	out.append(GF.survivor_rect(player))
+	return out
 
 func _frames(n: int) -> void:
 	for i in n:

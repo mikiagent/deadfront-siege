@@ -176,6 +176,8 @@ func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot
 	if shot != "":
 		await get_tree().create_timer(shot_after).timeout
 		_popup_clear(node, shot.begins_with("rare"))
+		if via_radial:
+			await _capture(shot + "_open")  # the radial as the player sees it, before the stop closes it
 	# Stop before the capture: a slow windowed frame would otherwise keep the cycle running.
 	_p.actions.cancel_work()
 	if shot != "":
@@ -237,7 +239,7 @@ func _rare_notice_clear() -> void:
 			continue
 		var r := Rect2((hud.drawn_blocks[k] as Rect2).position + hud.global_position, (hud.drawn_blocks[k] as Rect2).size)
 		drawn += 1
-		for t in GatherFeedback.notice_avoid(_p):
+		for t in _must_avoid():
 			_check(not r.intersects(t), "rare notice '%s' at %s clear of %s" % [hud._events.notices[i]["text"], r, t])
 		print("[gather_lab] rare notice '%s' at %s, radial open %s" % [hud._events.notices[i]["text"], r, _p._gather_radial.is_open()])
 	var per := {}
@@ -246,6 +248,24 @@ func _rare_notice_clear() -> void:
 			per[n["base"]] = int(per.get(n["base"], 0)) + 1
 	_check(drawn > 0, "the rare notice is drawn")
 	_check(per.values().all(func(c: int) -> bool: return c == 1), "one notice per rare result, a repeat reads x2 (%s)" % per)
+
+## What a rare notice must keep off, listed here and not by GatherFeedback (a change there cannot hide
+## itself): the open radial's labels, title and hexes, the creature plates and the survivor with their ring.
+func _must_avoid() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var gr := _p._gather_radial
+	if gr and gr.is_open():
+		out.append_array(gr.label_rects)
+		out.append(gr.title_box)
+		for c in gr.get_children():
+			if c is Control and (c as Control).visible:
+				out.append((c as Control).get_global_rect())
+	if Game.creature_ui:
+		for pill in Game.creature_ui.find_children("Pill", "Control", true, false):
+			if (pill as Control).is_visible_in_tree():
+				out.append((pill as Control).get_global_rect())
+	out.append(GatherFeedback.survivor_rect(_p))
+	return out
 
 ## A tinted "Rare ..." HUD notice raised for this unit (it starts at NOTICE_T0; this one is under 0.6 s old).
 func _rare_notice_fresh() -> bool:
