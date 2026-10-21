@@ -22,16 +22,17 @@ index 7f54da55..d2cf0228 100644
  		shot.global_position = origin
  	)
 diff --git a/game/scripts/core/data.gd b/game/scripts/core/data.gd
-index aa02b967..fe83ffd7 100644
+index aa02b967..547c2a10 100644
 --- a/game/scripts/core/data.gd
 +++ b/game/scripts/core/data.gd
-@@ -47,9 +47,12 @@ func is_survival_unlocked(node_id: StringName) -> bool:
+@@ -47,9 +47,13 @@ func is_survival_unlocked(node_id: StringName) -> bool:
  func set_survival_unlocked(node_id: StringName, on: bool) -> void:
  	survival_unlocked[node_id] = on
  
-+## The one bonded-pet cap every bond path asks (pen, field tame, bag, market unpack): spec 09's
++## The one bonded-pet cap every client bond path asks (pen, field tame, bag, market unpack): spec 09's
 +## 3 + Animal Handling I-IV, at most 7 (SkillRules.bonded_capacity). Caged animals are items and
-+## never count. 3 with no local player (a dedicated server has no skill nodes until W3-SRVACT).
++## never count. 3 with no local player. The server's tame intent does not ask yet: skill nodes stay
++## client-side until W3-SRVACT, which adds the cap there with them.
  func bonded_cap() -> int:
 -	# Roster storage is unlimited; Player.MAX_PETS_OUT governs the three active companions.
 -	return 2147483647
@@ -122,14 +123,16 @@ index 08a7438c..eb33c240 100644
  		var layer := CanvasLayer.new()
  		add_child(layer)
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index e09baeef..a16c4d17 100644
+index e09baeef..bde3701b 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
-@@ -250,6 +250,11 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
+@@ -250,6 +250,13 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
  
  ## Optional endgame gates. Existing recipes are unchanged.
  static func progression_block(player: Player, rec: Dictionary) -> String:
-+	# W2-SKILLS: a recipe a skill node gates stays shown but locked until the node is learned.
++	# W2-SKILLS: a recipe a skill node gates (a node's recipe effect or the recipe's requires_node)
++	# stays shown but locked, saying what to learn. Merged with W2-DATA's requires_node check, keep
++	# both, this one first, so every skill gate reads "learn X (Tree Lv. N, SP)".
 +	if player != null and player.skills != null:
 +		var learn := SkillRules.recipe_block(player.skills, str(rec.get("id", "")))
 +		if learn != "":
@@ -245,6 +248,21 @@ index d7187dbb..999bafaf 100644
  	var need := Label.new()
  	need.text = "INGREDIENTS"
  	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index 80b01e5b..6f25ecbc 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -658,7 +658,9 @@ func _on_level_up(stored: int) -> void:
+ 	_levelup_lines.append([LevelDisplay.label(level), 40, Color(1.0, 0.85, 0.35)])
+ 	_levelup_lines.append(["Pioneer XP %d" % World.pioneer_xp, 18, Color.WHITE])
+ 	_levelup_lines.append(["T-stones %d" % World.t_stones, 18, Color.WHITE])
+-	var sp := Data.survival_nodes.size() - Data.survival_unlocked.size() if Data.get("survival_nodes") != null else 0
++	# W2-SKILLS: character levels pay the SP (spec 03); show what SkillState holds (sp_now recounts,
++	# since its own handler on this signal may not have run yet).
++	var sp: int = player.skills.sp_now() if player and player.skills else 0
+ 	_levelup_lines.append(["Available Skill Points: %d" % maxi(0, sp), 18, Color.WHITE])
+ 	var title := str(_titles.get(str(level), ""))
+ 	if title != "":
 diff --git a/game/scripts/ui/skills_sheet.gd b/game/scripts/ui/skills_sheet.gd
 index 3157fad0..5334afeb 100644
 --- a/game/scripts/ui/skills_sheet.gd
