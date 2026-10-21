@@ -123,7 +123,10 @@ static func fit_sheet(hud: HuntHud, r: Vector2, inset: Vector4, rail_y: float) -
 ## ghost under the bottom-left rail (the pointer still on MENU) it lay on MENU / ANIMALS / BUILD and ran
 ## off the canvas at both 1600x900 and 844x390. Falls back to the nearest clearing spot in a sweep,
 ## and to `near` itself when the whole canvas is packed (it never is: the centre is empty).
-static func placer_anchor(near: Vector2, offsets: Array, taken: Array, view: Vector2, inset: Vector4) -> Vector2:
+## `rel` is what each of the three hexes draws, relative to its own top-left corner: its hexagon and its
+## caption box (HexButton.hex_rect / caption_rect, taken from the hexes themselves so the check matches
+## what is drawn). One score per candidate: off-screen rects count 100 each, HUD overlaps 1; zero wins.
+static func placer_anchor(near: Vector2, offsets: Array, rel: Array, taken: Array, view: Vector2, inset: Vector4) -> Vector2:
 	var cands: Array[Vector2] = [near]
 	for dy in [-150.0, 110.0, -250.0]:
 		for dx in [-130.0, 130.0, -260.0, 260.0]:
@@ -146,7 +149,7 @@ static func placer_anchor(near: Vector2, offsets: Array, taken: Array, view: Vec
 	var best := near
 	var best_score := 1 << 30
 	for c in cands:
-		var score := _placer_row_score(c, offsets, taken, view, inset)
+		var score := _placer_row_score(c, offsets, rel, taken, view, inset)
 		if score < best_score:
 			best_score = score
 			best = c
@@ -154,19 +157,19 @@ static func placer_anchor(near: Vector2, offsets: Array, taken: Array, view: Vec
 				break
 	return best
 
-## Off-screen rects count 100 each, HUD overlaps 1: a zero score is a clean row.
-static func _placer_row_score(at: Vector2, offsets: Array, taken: Array, view: Vector2, inset: Vector4) -> int:
+static func _placer_row_score(at: Vector2, offsets: Array, rel: Array, taken: Array, view: Vector2, inset: Vector4) -> int:
 	var room := Rect2(Vector2(6.0 + inset.w, 6.0 + inset.z), view - Vector2(12.0 + inset.w + inset.x, 12.0 + inset.z + inset.y))
 	var score := 0
-	# HexButton 64: the hexagon is 51.96 x 60 with its caption (13 px + padding) under it.
-	for o in offsets:
-		var c: Vector2 = at + (o as Vector2)
-		for r in [Rect2(c - Vector2(26.0, 30.0), Vector2(52.0, 60.0)), Rect2(c + Vector2(-25.0, 32.0), Vector2(50.0, 17.0))]:
-			if not room.encloses(r):
+	for i in offsets.size():
+		var o: Vector2 = at + (offsets[i] as Vector2)
+		for k in 2:
+			var r: Rect2 = (rel[i] as Array)[k]
+			var box := Rect2(o + r.position, r.size)
+			if not room.encloses(box):
 				score += 100
 				continue
 			for t in taken:
-				if (t as Rect2).grow(-1.0).intersects((r as Rect2).grow(-1.0)):
+				if (t as Rect2).grow(-1.0).intersects(box.grow(-1.0)):
 					score += 1
 	return score
 

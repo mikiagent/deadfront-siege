@@ -54,7 +54,9 @@ func _run() -> void:
 		for h in hexes:
 			rects.append(h.call("hex_rect"))
 		print("[claimfixlab] ghost=%s placer hexes=%s" % [_player.placer.get("_ghost_root").global_position, rects])
-		print("[claimfixlab] taken=%s" % [_hud.taken_rects()])
+		var st0 := _player.station_craft.held_slot
+		var base_now: Vector2 = _hud._place_hexes[0].position + Vector2(105.0, 0.0)
+		print("[claimfixlab] hands=%s score_now=%d rel=%s" % [st0.get_global_rect(), HudLayout._placer_row_score(base_now, _hud.PLACE_OFFSETS, _hud._placer_rel(), _hud._placer_taken(), get_viewport().get_visible_rect().size, _hud._safe_insets()), _hud._placer_rel()])
 		var st := _player.station_craft.held_slot
 		print("[claimfixlab] held visible=%s rect=%s group=%s" % [st.is_visible_in_tree(), st.get_global_rect(), st.size])
 	await RenderingServer.frame_post_draw

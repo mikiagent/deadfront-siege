@@ -698,27 +698,50 @@ func _refresh_place_hexes() -> void:
 	var ghost: Node3D = player.placer.get("_ghost_root")
 	if cam == null or ghost == null:
 		return
-	var base := HudLayout.placer_anchor(cam.unproject_position(ghost.global_position) + Vector2(0, 40), PLACE_OFFSETS, _placer_taken(), get_viewport_rect().size, _safe_insets())
+	var base := HudLayout.placer_anchor(cam.unproject_position(ghost.global_position) + Vector2(0, 40), PLACE_OFFSETS, _placer_rel(), _placer_taken(), get_viewport_rect().size, _safe_insets())
 	for i in _place_hexes.size():
 		_place_hexes[i].position = base + (PLACE_OFFSETS[i] as Vector2)
 
 const PLACE_OFFSETS := [Vector2(-105, 0), Vector2(-22, 28), Vector2(60, 0)]
 
-## Every HUD rect the placer row must keep off: its own hexes, HANDS and the survivor's figure are
-## dropped (the row belongs next to the ghost, which may stand by the survivor).
-func _placer_taken() -> Array[Rect2]:
-	var out: Array[Rect2] = []
-	for r in taken_rects():
-		if not _placer_rect_near(r):
-			out.append(r)
+## What each placer hex draws relative to its own corner (its hexagon, then its caption box), from the
+## hexes themselves: the row is placed with the same geometry the check and the drawing use.
+func _placer_rel() -> Array:
+	var out: Array = []
+	for h in _place_hexes:
+		var hb := h as HexButton
+		var at := hb.position
+		var hex := hb.hex_rect()
+		var cap := hb.caption_rect()
+		out.append([Rect2(hex.position - at, hex.size), Rect2(cap.position - at, cap.size)])
 	return out
 
-## True when a HUD rect belongs to the placer row itself.
-func _placer_rect_near(r: Rect2) -> bool:
-	for h in _place_hexes:
-		if (h as Control).get_global_rect().grow(6.0).intersects(r):
-			return true
-	return false
+## Every HUD rect the placer row must keep off: the same sources as HudLayout.taken_rects, minus the
+## row's own three hexes and their captions (by node, not by where they happened to be last frame).
+func _placer_taken() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for k in drawn_blocks:
+		out.append(drawn_blocks[k])
+	for n in get_tree().get_nodes_in_group(&"hex_button"):
+		var h := n as HexButton
+		if h and h.is_visible_in_tree() and not _place_hexes.has(h):
+			out.append(h.hex_rect())
+			if h.caption != "":
+				out.append(h.caption_rect())
+	for c in get_children():
+		var ctl := c as Control
+		if ctl == null or ctl is HexButton or _place_hexes.has(ctl) or not ctl.is_visible_in_tree() or ctl.size.x < 8.0 or ctl.size.y < 8.0:
+			continue
+		if ctl is Label and (ctl as Label).text.strip_edges() == "":
+			continue
+		out.append(ctl.get_global_rect())
+	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
+	if held and held.is_visible_in_tree():
+		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
+	var fig := figure_rect()
+	if fig.has_area():
+		out.append(fig)
+	return out
 
 func _load_level_data() -> void:
 	for pair in [["res://data/skills/titles.json", "t"], ["res://data/skills/pioneer_levels.json", "g"]]:
