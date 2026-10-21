@@ -10,6 +10,7 @@ extends Control
 var player: Player
 var _font: Font
 var _minimap: Control
+var _daynight: DayNightDial  ## docked to the minimap's bottom-left edge, under the desktop quest card
 var _map_tex: ImageTexture
 var _map_island: StringName = &""
 var _map_span: int = 0
@@ -80,6 +81,8 @@ func _ready() -> void:
 	if TouchControls:
 		TouchControls.hud_mode = true
 	_build_minimap()
+	_daynight = DayNightDial.new()
+	add_child(_daynight)
 	_build_fatigue_panel()
 	_build_menu_row()
 	_build_combat()
@@ -146,6 +149,7 @@ func _layout() -> void:
 	var r := get_viewport_rect().size
 	var inset := _safe_insets()
 	_minimap.position = Vector2(r.x - MAP_PX - 16.0 - inset.x, 34.0 + inset.z)
+	_daynight.dock(_minimap.get_rect())
 	var y := r.y - HEX - CAPTION_H - 14.0 - inset.y  # captions sit under the hexes, inside the safe area
 	var x := 16.0 + inset.w
 	for h in [_menu_hex, _pets_hex, _build_hex, _skills_hex]:
@@ -158,7 +162,7 @@ func _layout() -> void:
 	if UiTokens.is_phone(r):
 		_inspect_hex.position = Vector2(r.x - HEX - 16.0 - inset.x, r.y - HEX * 2.0 - 36.0 - inset.y)
 	else:
-		_inspect_hex.position = Vector2(_minimap.position.x - 56.0 - 12.0, _minimap.position.y + (MAP_PX - 56.0) * 0.5)
+		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + DayNightDial.DISC + 8.0)  # under the dial
 	# Chase joins the quick-food row (slot 2): at the rail's left edge it sat on the first food hex.
 	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
 	if HudLayout.landscape_phone(r):
@@ -1040,8 +1044,8 @@ func _draw() -> void:
 	drawn_blocks["map_title"] = Rect2(mp.x, mp.y - 16.0 - meta_px, MAP_PX, meta_px + 4.0)
 	var tile := BuildGrid.tile_of(player.global_position)
 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 16), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
-	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 32), "%s  %s" % [Game.clock_label(), Game.phase_name()], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
-	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, 16.0 + meta_px + 4.0)
+	# The clock and phase line moved into the day/night dial's label: the dial shows the phase already.
+	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, meta_px + 4.0)
 	# The target plate (current hunt target, else the last creature attacked while it lives) and the
 	# level-up banner take over the landscape phone's centre band from the quest card while they show.
 	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
