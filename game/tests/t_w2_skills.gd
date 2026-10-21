@@ -2,8 +2,9 @@ extends SceneTree
 ## W2-SKILLS checks: trees.json is a valid node graph on Durango's 1-60 scale, a new survivor's
 ## trees start at Lv. 1 with the Lv1 AUTO nodes learned, a tree cannot pass the character level,
 ## Animal Handling I-IV raise bonded capacity 3 -> 7, skill nodes gate recipes and abilities,
-## refunds respect dependents and the daily limit, rev-1 saves migrate without losing a node or an unspent SP, and the
-## taming pen refuses a bond at the cap without losing the animal.
+## refunds respect dependents and the daily limit, rev-1 saves migrate without losing a node or an unspent SP, the
+## taming pen and the field tame refuse a bond at the cap without losing the animal or the food, and the
+## skills sheet opens a tree on rows the player can act on.
 ## Usage: godot --headless --path game --script res://tests/t_w2_skills.gd
 
 const WIRED := ["recipe", "ability", "bonded_slots", "capture_tier", "climate"]
@@ -34,7 +35,9 @@ func _process(_delta: float) -> bool:
 	_test_sanitizer_budget()
 	_test_pen_cap()
 	_test_refund_limit()
-	var want := 11
+	_test_field_tame_cap()
+	_test_sheet_rows()
+	var want := 13
 	if _sections != want:
 		failures.append("only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if failures.is_empty():
@@ -45,6 +48,10 @@ func _process(_delta: float) -> bool:
 			print("[t_w2_skills] FAIL %s" % f)
 		quit(1)
 	return true
+
+## The hooks patch lands as one piece; H2 (Data.bonded_cap() is no longer unlimited) marks it applied.
+func _hooks_applied() -> bool:
+	return get_root().get_node("Data").bonded_cap() < 1000
 
 func _expect(ok: bool, msg: String) -> void:
 	if not ok:
@@ -313,9 +320,22 @@ func _test_refund_limit() -> void:
 	older.erase("refunds_today")
 	copy.from_dict(older)
 	_expect(copy.refunds_today == 0 and copy.refund("processing", "charcoal"), "a save without the optional refund fields loads with none used")
+	# refund_block() only asks (a sheet may call it to grey a button): a new day reads as free
+	# without the counter being reset; refund() does the roll-over.
+	copy.refund_day = 0
+	copy.refunds_today = free
+	_expect(copy.refund_block() == "" and copy.refund_day == 0 and copy.refunds_today == free, "refund_block() is a query: it leaves the day's counter alone (day %d, used %d)" % [copy.refund_day, copy.refunds_today])
 	get_root().remove_child(copy)
 	copy.free()
 	_done_with(sk)
+	# SP stay derived after unlock and refund (no hand-kept sum): refunding a node a migrated save
+	# holds over budget gives back no SP the character level never paid.
+	var over := _fresh(0)
+	_grant(over, "processing", 25)
+	(over.trees["processing"]["unlocked"] as Array).append("charcoal")
+	over._recount_sp()
+	_expect(over.refund("processing", "charcoal") and over.sp_available == 0 and over.sp_spent == 0, "refunding an over-budget node gives back no SP the character level never paid (available %d)" % over.sp_available)
+	_done_with(over)
 	_sections += 1
 
 ## Integrator hook H6 (save_sanitizer._skills budget by character level). Until H6 lands the
@@ -350,6 +370,16 @@ func _test_sanitizer_budget() -> void:
 	var hostile := {"rev": 2, "refund_day": [1], "refunds_today": "x", "trees": {}}
 	San._skills(hostile, 0)
 	_expect(hostile["refund_day"] is int and hostile["refunds_today"] is int, "H6: the optional refund counter loads as numbers (got %s)" % [hostile])
+	# A hand-edited rev must read the same in the sanitizer and in SkillState.from_dict: it falls
+	# back to rev 1, so the save migrates with its nodes and its 50 unspent SP (an array crashed
+	# from_dict and left fresh trees; "2" lost the SP).
+	for bad in [[2], "2", -3]:
+		var odd := {"rev": bad, "sp_available": 50, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
+		San._skills(odd, 0)
+		var sk := _fresh(0)
+		sk.from_dict(odd)
+		_expect(odd["rev"] is int and sk.is_unlocked("survival", "animal_management_1") and sk.sp_available == 50, "H6: rev %s loads as rev %s with its 4 nodes and 50 SP (got %d SP)" % [JSON.stringify(bad), odd["rev"], sk.sp_available])
+		_done_with(sk)
 	_sections += 1
 
 ## Spec 09 grant: the pen bonds through Data.bonded_cap() (hook H2). At the cap the finished animal
@@ -390,4 +420,94 @@ func _test_pen_cap() -> void:
 	pen.free()
 	get_root().remove_child(p)
 	p.free()
+	_sections += 1
+
+## Spec 09 at the bonded cap, field tame (hooks H2 + H9): the plate says the roster is full instead
+## of "Tame", the feed is refused with an on-screen notice that names Animal Handling, and the food
+## is kept. The pets screen shows bonded / cap (H10, spec 09:50 "e.g. 3 / 4").
+func _test_field_tame_cap() -> void:
+	if not _hooks_applied():
+		print("[t_w2_skills] hooks not applied: field-tame cap check skipped")
+		_sections += 1
+		return
+	var data: Node = get_root().get_node("Data")
+	var FT: GDScript = load("res://scripts/pets/field_tame.gd")
+	var IS: GDScript = load("res://scripts/items/item_stack.gd")
+	var PetRecordS: GDScript = load("res://scripts/pets/pet_record.gd")
+	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	p.process_mode = Node.PROCESS_MODE_DISABLED
+	get_root().add_child(p)
+	var hud_src := GDScript.new() # stands in for the HUD Player.notice writes to
+	hud_src.source_code = "extends Node\nvar said: Array = []\nfunc notice(text: String) -> void:\n\tsaid.append(text)\n"
+	hud_src.reload()
+	var hud: Node = hud_src.new()
+	hud.add_to_group("hud")
+	get_root().add_child(hud)
+	var def: Resource = data.creature(&"compsognathus")
+	for i in 3:
+		p.bonded.append(PetRecordS.from_def(def))
+	var c: Node = (load("res://scripts/creatures/creature.gd") as GDScript).new()
+	c.def = def
+	c.health = (load("res://scripts/combat/health.gd") as GDScript).new()
+	c.health.setup(def.hp)
+	c.add_child(c.health)
+	c.statuses = (load("res://scripts/combat/status_effects.gd") as GDScript).new()
+	c.add_child(c.statuses)
+	c.health.hp = def.hp * 0.2
+	c.statuses.apply(&"knockdown")
+	var food: StringName = def.preferred_food[0]
+	p.inventory.add(IS.make(food, 2))
+	var hint: Dictionary = FT.plate_hint(c, p.inventory)
+	_expect(str(hint.get("kind", "")) == "need" and str(hint.get("text", "")) == "Bonded roster full (3 / 3)", "3 / 3 bonded: the plate says the roster is full, not Tame (got %s '%s')" % [hint.get("kind", ""), hint.get("text", "")])
+	var fed: bool = FT.apply_feed(p, c, food)
+	_expect(not fed and p.inventory.count_of(food) == 2 and is_zero_approx(float(c.tame_feeds)), "3 / 3 bonded: the feed is refused and the %s is kept (fed %s, %d left)" % [food, fed, p.inventory.count_of(food)])
+	var said := ", ".join(hud.said)
+	_expect(said.contains("Bonded roster full (3 / 3)") and said.contains("Animal Handling"), "3 / 3 bonded: the refusal is on screen and names Animal Handling (notices '%s')" % said)
+	var pets: Control = (load("res://scripts/ui/animal_screen.gd") as GDScript).new()
+	get_root().add_child(pets)
+	pets.open(p)
+	_expect(str(pets._title.text).contains("3 / 3"), "the pets screen shows bonded / cap (title '%s')" % pets._title.text)
+	(p.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")
+	hint = FT.plate_hint(c, p.inventory)
+	_expect(str(hint.get("kind", "")) == "tame", "Animal Handling I (cap 4) offers the tame again (got %s '%s')" % [hint.get("kind", ""), hint.get("text", "")])
+	pets.open(p)
+	_expect(str(pets._title.text).contains("3 / 4"), "the pets screen follows the cap (title '%s')" % pets._title.text)
+	for n in [pets, hud, p]:
+		get_root().remove_child(n)
+		n.free()
+	c.free()
+	_sections += 1
+
+## A fresh survivor's tree opens on rows to act on (hook H8, skills_sheet.gd): nodes the game reads
+## nothing from fold into one count line (spec 12:215 allows no inert UI), learned AUTO nodes into
+## one name line.
+func _test_sheet_rows() -> void:
+	if not _hooks_applied():
+		print("[t_w2_skills] hooks not applied: skills sheet rows check skipped")
+		_sections += 1
+		return
+	var sk := _fresh()
+	var sheet: Control = (load("res://scripts/ui/skills_sheet.gd") as GDScript).new()
+	get_root().add_child(sheet)
+	for tree in ["gathering", "processing"]:
+		sheet.open(sk, tree)
+		var later := 0
+		for n in sk.nodes(tree):
+			if sk.node_state(tree, n)[1] == SkillStateS.NOT_IN_GAME:
+				later += 1
+		var inert := 0
+		var fold := ""
+		var autos := ""
+		for row in sheet._box.get_children():
+			for b in row.find_children("*", "Button", true, false):
+				inert += 1 if (b as Button).text == SkillStateS.NOT_IN_GAME else 0
+			if row.name == "SkillsLater":
+				fold = row.text
+			elif row.name == "SkillsLearnedAuto":
+				autos = row.text
+		_expect(later > 0 and inert == 0 and fold.begins_with("%d more nodes" % later), "%s at Lv. 1: no 'not in the game yet' rows, one line counts them (%d rows, line '%s', want %d)" % [tree, inert, fold, later])
+		_expect(autos.begins_with("Learned automatically: "), "%s at Lv. 1: the learned AUTO nodes share one line ('%s')" % [tree, autos])
+	get_root().remove_child(sheet)
+	sheet.free()
+	_done_with(sk)
 	_sections += 1

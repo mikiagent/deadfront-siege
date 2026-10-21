@@ -25,7 +25,6 @@ var _panel: PanelContainer
 var _box: VBoxContainer
 var _head: HBoxContainer
 var _tree: String = ""
-var _refused_id := ""  # the row whose refund was just refused shows why (SkillState.refused)
 
 func _ready() -> void:
 	# The HUD that hosts this sheet has no size, so anchor to the viewport instead (top_level),
@@ -270,50 +269,34 @@ func _build_tree() -> void:
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_box.add_child(info)
 	var first: Array[Control] = []
-	var auto_learned: PackedStringArray = []
 	for n in skills.nodes(_tree):
 		var st := skills.node_state(_tree, n)
-		var title := str(n.get("name", str(n.get("id", "")).replace("_", " ").capitalize()))
-		# Learned-free rows have nothing to tap; one summary line keeps the first screen actionable.
-		if st[0] == "owned" and bool(n.get("auto", false)):
-			auto_learned.append(title)
-			continue
 		var h := HBoxContainer.new()
 		h.custom_minimum_size = Vector2(0, 60)
 		h.add_theme_constant_override("separation", UiTokens.SPACE)
 		var l := Label.new()
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		var cost := "AUTO" if bool(n.get("auto", false)) else "%d SP" % int(n.get("sp", 0))
-		l.text = "%s  ·  %s  ·  %s" % [title, LevelDisplay.label(int(n.get("level", 1))), cost]
-		var unlocks := str(n.get("unlocks", ""))
-		if unlocks != "" and unlocks.to_lower() != title.to_lower():
-			l.text += "\n" + unlocks
-		var nid := str(n.get("id", ""))
-		var refused := nid == _refused_id and skills.refused != ""
-		if refused:
-			l.text += "\n" + skills.refused
+		l.text = "%s  ·  %s  ·  %d SP\n%s" % [str(n.get("id", "")).replace("_", " ").capitalize(), LevelDisplay.label(int(n.get("level", 1))), int(n.get("sp", 0)), str(n.get("unlocks", ""))]
 		l.add_theme_font_size_override("font_size", UiTokens.meta(view) + 2)
 		match st[0]:
 			"owned":
 				l.add_theme_color_override("font_color", Color(0.55, 0.9, 0.5))
 			"locked":
 				l.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		if refused:
-			l.add_theme_color_override("font_color", UiTokens.DANGER)
 		h.add_child(l)
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(120 if UiTokens.is_narrow(view) else 140, 56)
+		var nid := str(n.get("id", ""))
 		if st[0] == "owned":
 			b.text = "Refund"
 			b.pressed.connect(func () -> void:
-				_refused_id = "" if skills.refund(_tree, nid) else nid
+				skills.refund(_tree, nid)
 				rebuild()
 			)
 		elif st[0] == "available":
 			b.text = "Unlock"
 			b.pressed.connect(func () -> void:
-				_refused_id = ""
 				skills.unlock(_tree, nid)
 				rebuild()
 			)
@@ -323,19 +306,11 @@ func _build_tree() -> void:
 			b.disabled = true
 		h.add_child(b)
 		_box.add_child(h)
-	if not auto_learned.is_empty():
-		var learned := Label.new()
-		learned.text = "Learned automatically: " + ", ".join(auto_learned)
-		learned.add_theme_color_override("font_color", UiTokens.META)
-		learned.add_theme_font_size_override("font_size", UiTokens.meta(view))
-		learned.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_box.add_child(learned)
 	var back := Button.new()
 	back.text = "All skills"
 	back.custom_minimum_size = Vector2(0, 56)
 	back.pressed.connect(func () -> void:
 		_tree = ""
-		_refused_id = ""
 		rebuild()
 	)
 	_box.add_child(back)

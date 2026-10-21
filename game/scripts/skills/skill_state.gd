@@ -18,6 +18,8 @@ const MIN_LEVEL := 1
 const OCCUPATION_LEVEL := 20
 ## Save revision of to_dict. 1 (no key): trees stored from 0, SP stored as a free number.
 const REV := 2
+## node_state's lock for a node the game reads nothing from (spec 12:215); the sheet folds these rows.
+const NOT_IN_GAME := "not in the game yet"
 
 var trees: Dictionary = {}   # id -> {level: int, xp: float, unlocked: Array}
 var defs: Dictionary = {}    # id -> tree definition from trees.json
@@ -146,7 +148,7 @@ func node_state(tree: String, node: Dictionary) -> Array:
 	if bool(node.get("auto", false)) and level_of(tree) < int(node.get("level", 1)):
 		return ["locked", "learned free at %s %d" % [NAMES.get(tree, tree), int(node.get("level", 1))]]
 	if not bool(node.get("auto", false)) and not SkillRules.buyable(self, tree, id):
-		return ["locked", "not in the game yet"]
+		return ["locked", NOT_IN_GAME]
 	if level_of(tree) < int(node.get("level", 1)):
 		return ["locked", "needs %s %d" % [NAMES.get(tree, tree), int(node.get("level", 1))]]
 	var req: Variant = node.get("requires", null)
@@ -165,9 +167,8 @@ func unlock(tree: String, node_id: String) -> bool:
 			print("[skill] cannot unlock %s: %s" % [node_id, st[1] if st[1] != "" else st[0]])
 			return false
 		var cost := int(n.get("sp", 0))
-		sp_available -= cost
-		sp_spent += cost
 		(trees[tree]["unlocked"] as Array).append(node_id)
+		_recount_sp() # SP stay derived (earned - cost of learned nodes), never adjusted by hand
 		if tree == "survival":
 			_mirror_survival(node_id, true)
 		print("[skill] unlocked %s (%s, %d SP)" % [node_id, tree, cost])
@@ -208,11 +209,11 @@ func refund(tree: String, node_id: String) -> bool:
 			var limit := refund_block()
 			if limit != "":
 				return _refuse(node_id, limit)
+			_roll_day()
 			refunds_today += 1
 			arr.erase(node_id)
 			var cost := int(n.get("sp", 0))
-			sp_available += cost
-			sp_spent -= cost
+			_recount_sp()
 			if tree == "survival":
 				_mirror_survival(node_id, false)
 			print("[skill] refunded %s (+%d SP, %d today)" % [node_id, cost, refunds_today])
@@ -230,16 +231,22 @@ func _refuse(node_id: String, why: String) -> bool:
 ## ASSUMPTION: a day is a UTC calendar day.
 ## shortcut: Warp Gems do not exist, so past free_per_day it refuses; charge warp_gems_each here,
 ## up to max_per_day, once that currency exists.
+## A query only (a sheet may call it to grey a button): the day roll-over happens in refund().
 func refund_block() -> String:
-	var today := int(Time.get_unix_time_from_system() / 86400.0)
-	if refund_day != today:
-		refund_day = today
-		refunds_today = 0
+	var used := refunds_today if refund_day == _today() else 0
 	var rule: Dictionary = config.get("refund", {})
 	var free := mini(int(rule.get("free_per_day", 5)), int(rule.get("max_per_day", 10)))
-	if refunds_today < free:
+	if used < free:
 		return ""
 	return "the %d free refunds of the day are used, more tomorrow" % free
+
+static func _today() -> int:
+	return int(Time.get_unix_time_from_system() / 86400.0)
+
+func _roll_day() -> void:
+	if refund_day != _today():
+		refund_day = _today()
+		refunds_today = 0
 
 func _mirror_survival(node_id: String, on: bool) -> void:
 	if Data.survival_nodes.has(StringName(node_id)):
