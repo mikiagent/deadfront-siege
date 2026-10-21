@@ -1,0 +1,1318 @@
+{
+	"away": {
+		"buildings": [
+			{
+				"cargo": false,
+				"cell": [
+					-2.0,
+					10.0
+				],
+				"contents": [
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "lda8e242445b585cf"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "l2fe9e1443e991f9d"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "l8210260758cbf08a"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "l09c13bc8ae1e5fab"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "lffe6a8824283b77a"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "l14cf30c6216aa076"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "lf0eff033c132a98b"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "l8a9368781fcc08ae"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "lf030b081e912ed6b"
+					},
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null
+				],
+				"kind": "basket",
+				"rot": 0.0,
+				"sleeps_left": -1.0,
+				"text": "",
+				"x": -1.5,
+				"z": 10.5
+			}
+		],
+		"claims": []
+	},
+	"clock": 0.350569,
+	"ground_snares": [],
+	"home": {
+		"buildings": [
+			{
+				"cargo": false,
+				"cell": [
+					-1.0,
+					8.0
+				],
+				"contents": [],
+				"kind": "tent",
+				"rot": 0.0,
+				"sleeps_left": 6.0,
+				"text": "",
+				"x": 0.5,
+				"z": 9.5
+			},
+			{
+				"cargo": false,
+				"cell": [
+					-1.0,
+					6.0
+				],
+				"contents": [
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "l542c6ee456d0ac72"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "l2711251898f6dfae"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "l1a70862bb67f5d31"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "l36da72aab010a86b"
+					},
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 1.0,
+						"created_at": 0.0,
+						"creator": "",
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"origin": "",
+						"process_count": 0.0,
+						"uid": "lf9a0bd3e3214d06d"
+					},
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null
+				],
+				"kind": "basket",
+				"rot": 0.0,
+				"sleeps_left": -1.0,
+				"text": "",
+				"x": -0.5,
+				"z": 6.5
+			},
+			{
+				"cell": [
+					-1.0,
+					7.0
+				],
+				"kind": "campfire",
+				"rot": 0.0,
+				"seconds_left": 120.0,
+				"x": -0.5,
+				"z": 7.5
+			},
+			{
+				"cell": [
+					2.0,
+					9.0
+				],
+				"kind": "workbench",
+				"rot": 1.0,
+				"x": 2.5,
+				"z": 10.0
+			}
+		],
+		"camp_layout": {
+			"CampBench": {
+				"cell": [
+					-2.0,
+					6.0
+				],
+				"rot": 1.0
+			}
+		},
+		"cargo": [
+			{
+				"attributes": {
+					"material_tier": "flint"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "flint",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l1f6a4830a025e540"
+			},
+			{
+				"attributes": {
+					"material_tier": "flint"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "flint",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l43932d67c21c10b2"
+			},
+			{
+				"attributes": {
+					"material_tier": "flint"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "flint",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "lbbcb0f9312147ef5"
+			},
+			{
+				"attributes": {
+					"material_tier": "flint"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "flint",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "ldc8c8d0d88bfcdf2"
+			},
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null
+		],
+		"claims": [
+			[
+				-7.0,
+				1.0,
+				14.0,
+				14.0
+			]
+		],
+		"terrain": "meadow"
+	},
+	"island_id": "temperate_25",
+	"objective": 2.0,
+	"objective_best": 1.0,
+	"occupation": "student",
+	"pending_refunds": [],
+	"pets": [
+		{
+			"accuracy": 85.9677419354839,
+			"attack": 90.8629032258064,
+			"bag": [
+				{
+					"attributes": {
+						"material_tier": "stone",
+						"tint": "#8a8a8a"
+					},
+					"count": 1.0,
+					"created_at": 0.0,
+					"creator": "",
+					"durability": 0.0,
+					"flags": [],
+					"id": "stone",
+					"level": 1.0,
+					"max_durability": 0.0,
+					"origin": "",
+					"process_count": 0.0,
+					"uid": "l2e62d0314139099c"
+				},
+				{
+					"attributes": {
+						"material_tier": "stone",
+						"tint": "#8a8a8a"
+					},
+					"count": 1.0,
+					"created_at": 0.0,
+					"creator": "",
+					"durability": 0.0,
+					"flags": [],
+					"id": "stone",
+					"level": 1.0,
+					"max_durability": 0.0,
+					"origin": "",
+					"process_count": 0.0,
+					"uid": "l68242c1a0f32f2c7"
+				},
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+			],
+			"defense": 44.8387096774194,
+			"genetics": {
+				"evs": {
+					"accuracy": 0.0,
+					"health": 0.0,
+					"melee_attack": 0.0,
+					"melee_defense": 0.0,
+					"ranged_attack": 0.0,
+					"ranged_defense": 0.0,
+					"speed": 0.0
+				},
+				"ivs": {
+					"accuracy": 1.0,
+					"health": 6.0,
+					"melee_attack": 11.0,
+					"melee_defense": 28.0,
+					"ranged_attack": 16.0,
+					"ranged_defense": 11.0,
+					"speed": 30.0
+				},
+				"level_gains": {
+					"accuracy": 0.0,
+					"health": 0.0,
+					"melee_attack": 0.0,
+					"melee_defense": 0.0,
+					"ranged_attack": 0.0,
+					"ranged_defense": 0.0,
+					"speed": 0.0
+				}
+			},
+			"grade": "B",
+			"hp": 581.161290322581,
+			"hp_now": -1.0,
+			"hunger": 256.0,
+			"hunger_efficiency": 1.0,
+			"hunger_max": 256.0,
+			"level": 1.0,
+			"name": "",
+			"origin": "tame",
+			"owner": "",
+			"parent_uids": [],
+			"ranged_attack": 95.4596774193548,
+			"ranged_defense": 38.258064516129,
+			"respawn_left": 0.0,
+			"species": "velociraptor",
+			"speed": 798.225806451613,
+			"tamed_at": 1792537695.0,
+			"tamed_role": [
+				"mount",
+				"scout"
+			],
+			"tamer": "",
+			"uid": "p_5691e1f4f26ddb1f",
+			"variant": "",
+			"wild_level": 1.0,
+			"xp": 0.0,
+			"xp_rate": 1.0
+		}
+	],
+	"pioneer_buildings": {},
+	"pioneer_crafts": {},
+	"pioneer_level": 4.0,
+	"pioneer_xp": 12.0,
+	"player": {
+		"inventory": [
+			{
+				"attributes": {},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 33.0,
+				"flags": [],
+				"id": "stone_knife_work",
+				"level": 1.0,
+				"max_durability": 40.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "lb7f21bf4b5e17f87"
+			},
+			{
+				"attributes": {},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 50.0,
+				"flags": [],
+				"id": "work_axe",
+				"level": 1.0,
+				"max_durability": 50.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l047d77403d001462"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l33bf22a7183e25e8"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "ldbe37c6043281335"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l77fb242ba5f66d7a"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "ld8827ba8f6457938"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l39ebe00f6666efcc"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l24436ffc28742340"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "ld34f29d61d5f32be"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l2dde56cae64d6d3f"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "lb22bb7f1707cd4a5"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "ld749ba2edf016625"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l9c44585f83dfecb9"
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l27ef3d5ef45729a4"
+			},
+			{
+				"attributes": {
+					"tint": "#7a5a32"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "branch",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l04564e5285d7175e"
+			},
+			{
+				"attributes": {
+					"tint": "#7a5a32"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "branch",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "lf0c42bd8fdc2580e"
+			},
+			{
+				"attributes": {
+					"tint": "#7a5a32"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "branch",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l6fc711c8e209672e"
+			},
+			{
+				"attributes": {
+					"tint": "#7a5a32"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "branch",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l95e15a66d046728f"
+			},
+			{
+				"attributes": {
+					"tint": "#7a5a32"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "branch",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l2b58e80fdcf0d378"
+			},
+			{
+				"attributes": {
+					"tint": "#7a5a32"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "branch",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "ldb68bb37078ca616"
+			},
+			{
+				"attributes": {
+					"tint": "#7a5a32"
+				},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "branch",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l72c5ac6c86bfc74e"
+			},
+			{
+				"attributes": {},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "raw_meat",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "ld18c13b3c2a619ce"
+			},
+			{
+				"attributes": {},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "raw_meat",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l5bbdc10d1795d34d"
+			},
+			{
+				"attributes": {},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 0.0,
+				"flags": [],
+				"id": "raw_meat",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l608b3cc832bc3549"
+			},
+			{
+				"attributes": {},
+				"count": 1.0,
+				"created_at": 0.0,
+				"creator": "",
+				"durability": 400.0,
+				"flags": [],
+				"id": "raid_helm",
+				"level": 1.0,
+				"max_durability": 400.0,
+				"origin": "",
+				"process_count": 0.0,
+				"uid": "l95d815808806d5dc"
+			},
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null
+		],
+		"inventory_extras": {
+			"quick_food": [
+				"",
+				""
+			],
+			"tool_index": -1.0,
+			"worn": {
+				"head": {
+					"attributes": {},
+					"count": 1.0,
+					"created_at": 0.0,
+					"creator": "",
+					"durability": 400.0,
+					"flags": [],
+					"id": "raid_helm",
+					"level": 1.0,
+					"max_durability": 400.0,
+					"origin": "",
+					"process_count": 0.0,
+					"uid": "lf267172c981fe1db"
+				}
+			}
+		},
+		"position": [
+			-0.220829740166664,
+			2.08180284500122,
+			12.210729598999
+		],
+		"statuses": [],
+		"vitals": {
+			"energy": 87.55,
+			"fatigue": 30.0024985123457,
+			"health": 100.215871466667,
+			"max_energy": 103.0,
+			"max_fatigue": 100.0,
+			"max_health": 105.0
+		}
+	},
+	"player_name": "Golden",
+	"raid_victory": false,
+	"saved_unix": 4000000000,
+	"schema": 3.0,
+	"skills": {
+		"animal_management_I": false,
+		"animal_management_II": false,
+		"animal_management_III": false,
+		"animal_management_IV": false,
+		"butchering_I": false,
+		"butchering_II": false,
+		"capture_technique_I": false,
+		"capture_technique_II": false,
+		"capture_technique_III": false,
+		"capture_technique_IV": false,
+		"capture_technique_V": false
+	},
+	"skills_v2": {
+		"occupation": "student",
+		"refund_day": -1.0,
+		"refunds_today": 0.0,
+		"rev": 2.0,
+		"sp_available": 40.0,
+		"sp_earned": 40.0,
+		"sp_extra": 0.0,
+		"sp_spent": 0.0,
+		"trees": {
+			"butchering": {
+				"level": 4.0,
+				"unlocked": [
+					"butcher_1"
+				],
+				"xp": 12.0
+			},
+			"construction": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"cooking": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"defense": {
+				"level": 1.0,
+				"unlocked": [
+					"roll"
+				],
+				"xp": 0.0
+			},
+			"farming": {
+				"level": 1.0,
+				"unlocked": [
+					"corn",
+					"apple_tree"
+				],
+				"xp": 0.0
+			},
+			"gathering": {
+				"level": 20.0,
+				"unlocked": [
+					"forage_1",
+					"branch",
+					"bush",
+					"fruit_1",
+					"log_1",
+					"bug_1",
+					"pebble",
+					"mud_1",
+					"stalk"
+				],
+				"xp": 0.0
+			},
+			"melee": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"processing": {
+				"level": 1.0,
+				"unlocked": [
+					"cordage"
+				],
+				"xp": 0.0
+			},
+			"ranged": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"survival": {
+				"level": 4.0,
+				"unlocked": [],
+				"xp": 27.0
+			},
+			"tailoring": {
+				"level": 1.0,
+				"unlocked": [
+					"leaf_outfit",
+					"footwraps",
+					"leaf_hat"
+				],
+				"xp": 0.0
+			},
+			"weapon_tools": {
+				"level": 1.0,
+				"unlocked": [
+					"improvised_tools"
+				],
+				"xp": 0.0
+			}
+		}
+	},
+	"t_stones": 42.0,
+	"unstable": {
+		"crater_discovered": false,
+		"harvested": {},
+		"remaining": 7199.865684
+	},
+	"visited_islands": {
+		"home_grassland": true,
+		"temperate_25": true
+	}
+}

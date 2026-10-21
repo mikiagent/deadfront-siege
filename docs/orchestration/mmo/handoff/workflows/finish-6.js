@@ -252,7 +252,7 @@ async function prepare(p) {
   const w = await agent(workPrompt(p), { label: `work:${p.key}`, phase: 'Work', schema: WORK_SCHEMA })
   if (!w) return { passed: false, cut: true, stage: 'work' }
   if (w.owner_gate) return { passed: false, owner_gate: w.owner_gate, stage: 'work', work: w.summary }
-  return reviewLoop(p, p.startRound, p.startRound + 2, 'full', null, '')
+  return reviewLoop(p, p.startRound, p.startRound + (p.key === 'econ' ? 4 : 2), 'full', null, '')  // ECON used its 3 rounds; orchestrator gave it 2 more (2026-10-21)
 }
 
 async function land(p, prep) {

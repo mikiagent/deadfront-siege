@@ -17,45 +17,37 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
 
 ## Each recipe slot has a lead stack (for the primary item's attributes) and may draw
 ## its remaining units from other stacks. A plan row records exact bag indices/counts.
-## Prefer dedicated materials over dual-category ones, so fibre stalk is spent before
-## bark that might still be needed as lashing. Leads take the largest matching stack.
+## Spec 05:23 (W2-INV): the recipe's own input (prefer_id) first, then the least valuable instance
+## (Inventory.spend_key), then dedicated materials before dual-category ones, then the lead's def;
+## a unit that a later slot still needs (a cheap reed is also the recipe's lashing) is left for it.
+## When a slot still runs short, plan again with dedicated materials first (the order before W2-INV).
+## A locked instance is spent only as the player's own pick (spec 13:229 "protect valuable items from
+## ... crafting consumption"), never as a default lead or fill.
 static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
+	var plan := _plan_ordered(inv, rec, picks, true)
+	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
+
+static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], value_first: bool) -> Array[Dictionary]:
 	var slots: Array = rec.get("slots", [])
 	if inv == null or slots.is_empty() or (not picks.is_empty() and picks.size() != slots.size()):
 		return []
+	var cats: Array[StringName] = []
+	var cands: Array = [] # per recipe slot: the bag slots of its category
+	for slot: Variant in slots:
+		if not slot is Dictionary:
+			return []
+		cats.append(StringName(str(slot.get("category", ""))))
+		cands.append(inv.find_by_category(cats[-1]).filter(func(idx: int) -> bool: return not inv.slots[idx].is_locked()))
 	var remaining: Dictionary = {}
 	var plan: Array[Dictionary] = []
 	var prefer := StringName(str(rec.get("input_id", "")))
 	for i in slots.size():
-		if not slots[i] is Dictionary:
-			return []
 		var slot: Dictionary = slots[i]
-		var cat := StringName(str(slot.get("category", "")))
+		var cat := cats[i]
 		var need := int(slot.get("count", 1))
 		if need <= 0:
 			return []
 		var preferred := StringName(str(slot.get("prefer_id", prefer if i == 0 else "")))
-		var candidates := inv.find_by_category(cat)
-		candidates.sort_custom(func(a: int, b: int) -> bool:
-			var sa := inv.slots[a]
-			var sb := inv.slots[b]
-			var pa := 1 if preferred != &"" and sa.def_id == preferred else 0
-			var pb := 1 if preferred != &"" and sb.def_id == preferred else 0
-			if pa != pb:
-				return pa > pb
-			var overlaps_a := 0
-			var overlaps_b := 0
-			for other in slots:
-				var other_cat := StringName(str(other.get("category", "")))
-				if sa.def().has_category(other_cat):
-					overlaps_a += 1
-				if sb.def().has_category(other_cat):
-					overlaps_b += 1
-			if overlaps_a != overlaps_b:
-				return overlaps_a < overlaps_b
-			var ca := int(remaining.get(a, sa.count))
-			var cb := int(remaining.get(b, sb.count))
-			return ca > cb if ca != cb else a < b)
 		var lead := -1
 		if not picks.is_empty():
 			lead = picks[i]
@@ -63,18 +55,34 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
 				return []
 			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
 				return []
-		elif not candidates.is_empty():
-			lead = candidates[0]
-		if lead < 0:
+		var keys := {}
+		var candidates: Array[int] = []
+		candidates.assign(cands[i])
+		var first := -1 # the least valuable unit left: the lead when none is picked
+		for idx in candidates:
+			keys[idx] = _pick_key(inv.slots[idx], preferred, cats, value_first) + [-int(remaining.get(idx, inv.slots[idx].count)), idx]
+			if int(remaining.get(idx, inv.slots[idx].count)) > 0 and (first < 0 or keys[idx] < keys[first]):
+				first = idx
+		if first < 0:
 			return []
-		var parts: Array[Dictionary] = []
-		var order: Array[int] = [lead]
+		# Inside equal keys the lead's own def goes first, so a twine made a moment ago is not spent as
+		# the fibre of the next twine while a raw stalk ties with it (W1-SRVDOM capture checks).
+		var lead_def := inv.slots[lead if lead >= 0 else first].def_id
+		for idx in candidates:
+			(keys[idx] as Array).insert((keys[idx] as Array).size() - 2, 0 if inv.slots[idx].def_id == lead_def else 1)
+		candidates.sort_custom(func(a: int, b: int) -> bool: return keys[a] < keys[b])
+		var order: Array[int] = []
+		if lead >= 0:
+			order.append(lead)
 		for idx in candidates:
 			if idx != lead:
 				order.append(idx)
+		var parts: Array[Dictionary] = []
 		for idx in order:
 			var available := int(remaining.get(idx, inv.slots[idx].count))
 			var take := mini(need, available)
+			if value_first and idx != lead:
+				take = mini(take, _spare_for_later(inv, slots, cands, remaining, i, idx))
 			if take > 0:
 				parts.append({"idx": idx, "count": take})
 				remaining[idx] = available - take
@@ -83,8 +91,32 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
 				break
 		if need > 0:
 			return []
-		plan.append({"lead": lead, "parts": parts})
+		plan.append({"lead": int(parts[0].idx), "parts": parts})
 	return plan
+
+## The default-pick sort key, ascending: the recipe's own input, then value (spend_key) and the
+## number of the recipe's categories the item serves, in the order the plan pass asks for.
+static func _pick_key(s: ItemStack, preferred: StringName, cats: Array[StringName], value_first: bool) -> Array:
+	var pref := 0 if preferred != &"" and s.def_id == preferred else 1
+	var overlaps := 0
+	for c in cats:
+		if s.def().has_category(c):
+			overlaps += 1
+	var value := Inventory.spend_key(s)
+	return [pref] + value + [overlaps] if value_first else [pref, overlaps] + value
+
+## Units of bag slot `idx` that recipe slot `i` may take while every later slot keeps enough
+## candidates (spending a cheap reed as fibre must not leave the recipe's lashing short).
+static func _spare_for_later(inv: Inventory, slots: Array, cands: Array, remaining: Dictionary, i: int, idx: int) -> int:
+	var spare := 1 << 30
+	for j in range(i + 1, slots.size()):
+		if idx not in cands[j]:
+			continue
+		var supply := 0
+		for c: int in cands[j]:
+			supply += int(remaining.get(c, inv.slots[c].count))
+		spare = mini(spare, supply - int(slots[j].get("count", 1)))
+	return maxi(0, spare)
 
 static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
 	var plan := _plan(inv, rec)
@@ -372,7 +404,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
 	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
 	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
 	consume_for_craft(scratch, rec, picks)
-	return scratch.add(out) == 0
+	return scratch.can_accept(out)
 
 static func refuse_full(player: Player, rec: Dictionary) -> void:
 	print("[craft] refused %s: bag full" % rec.get("id", ""))

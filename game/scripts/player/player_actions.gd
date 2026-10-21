@@ -384,7 +384,7 @@ func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
 	p.get_tree().create_timer(CORPSE_TAKE_SECONDS).timeout.connect(func () -> void: loot(corpse, slot))
 
 ## Move one corpse loot stack into the bag. Only what fits moves; the rest stays in the corpse
-## (sec-loss-08), and Butchering XP is paid once, only when units moved (sec-xpfarm-07).
+## (sec-loss-08), and Butchering XP is paid only when units moved (sec-xpfarm-07), once per drop kind.
 func loot(corpse: Corpse, slot: int) -> int:
 	if corpse == null or not is_instance_valid(corpse) or slot < 0 or slot >= corpse.loot.slot_count:
 		return 0
@@ -401,11 +401,12 @@ func loot(corpse: Corpse, slot: int) -> int:
 		return 0
 	p.inventory.wear_gather_tool(&"knife")
 	print("[item] +%d %s (loot %s)" % [moved, def_id, corpse.species])
-	if p.skills:
-		p.skills.add_xp("butchering", 3)
-	else:
-		World.add_xp(3)
-	WaterAccess.soil(p, &"butcher")
+	if corpse.first_take_of(def_id): # W2-INV: once per drop kind, not per instance taken
+		if p.skills:
+			p.skills.add_xp("butchering", 3)
+		else:
+			World.add_xp(3)
+		WaterAccess.soil(p, &"butcher") # one loot stack's grime (water.json), per kind as XP is
 	p.toast(def_id, moved)
 	return moved
 
