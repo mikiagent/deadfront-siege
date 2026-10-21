@@ -17,6 +17,15 @@ var _seq := 0 ## character-store seq for the provenance stamps test assets carry
 
 func run() -> Array[String]:
 	cat = EconCatalog.from_data()
+	# These tests pin the engine's stack rules (splits, partial fills, merges), not items.json's:
+	# W2-INV makes materials single instances, so this catalog keeps the old 999-unit stacks.
+	# t_econ runs the real data end to end.
+	for id: String in cat.items:
+		var d: ItemDef = cat.items[id]
+		if d.max_durability == 0 and d.slot_span <= 1 and d.stack_max < 999:
+			d = d.duplicate() as ItemDef
+			d.stack_max = 999
+			cat.items[id] = d
 	# Each test returns true on its last line; a script error aborts it and returns null.
 	for test: Callable in [_test_accounts_wallet_objectives, _test_bound_wallet_and_trade_lock, _test_item_deposits, _test_attribute_sources, _test_pet_deposits, _test_withdraw, _test_fixed_listings, _test_auctions, _test_anti_snipe_and_settlement, _test_orders, _test_expiry, _test_search, _test_history_and_reference, _test_reference_poisoning, _test_settlers, _test_idempotency, _test_rid_bodies, _test_vault_caps, _test_clock, _test_market_views, _test_journal_replay, _test_torn_newline, _test_snapshots, _test_snapshot_failures, _test_fault_reload, _test_fuzz, _test_search_perf]:
 		if test.call() != true:
@@ -249,6 +258,11 @@ func _test_item_deposits() -> bool:
 	_bad_item(e, _with(base, "attributes", {"processed": [["dry"]]}), "a nested processing history")
 	_bad_item(e, _with(base, "durability", 5), "durability on a plain item")
 	_bad_item(e, _with(base, "dupe", true), "unknown field")
+	_bad_item(e, _with(base, "_about", "x"), "a limits.json comment key as a field")
+	_bad_item(e, _with(base, "creator", 7), "a creator that is not text")
+	_bad_item(e, _with(base, "creator", "x".repeat(65)), "a creator over 64 characters")
+	_bad_item(e, _with(base, "created_at", -1), "a negative created_at")
+	_bad_item(e, _with(base, "created_at", "soon"), "a created_at that is not a number")
 	_bad_item(e, _with(base, "process_count", 500), "process count")
 	var knife := _stack("stone_knife", 1, 10)
 	var cap := int(knife.max_durability)
@@ -260,6 +274,11 @@ func _test_item_deposits() -> bool:
 	var fancy := _with(_with(base, "flags", ["raw"]), "attributes", {"tint": "#8a8a8a", "hardness": 2, "level": 5, "climate": "tundra", "processed": ["steam", "steam"]})
 	var got := _ok(e, "vault.deposit_item", 1, {"slot_dict": fancy})
 	_expect(got.item.flags == ["raw"] and int(got.item.attributes.hardness) == 2 and got.item.attributes.processed == ["steam", "steam"], "whitelisted flags and attributes survive")
+	# W2-INV instance identity (ItemStack.to_dict writes creator/created_at with a uid) is kept as is.
+	var minted := _with(_with(_stack("stone", 1), "creator", "Trader1"), "created_at", 1760000000)
+	var e2 := _engine(_rules()) # its own books: the caps below count this engine's deposits
+	var kept := _ok(e2, "vault.deposit_item", 1, {"slot_dict": minted})
+	_expect(Ledger.canon(e2.L.acct(1).vault_items.get(str(kept.get("uid", "")), {})) == Ledger.canon(Ledger.norm(minted)), "an instance's creator and created_at survive the deposit byte for byte: %s" % str(kept))
 	_err(e, "vault.deposit_item", 1, {}, "bad_request", T0, "no slot_dict")
 	_err(e, "vault.deposit_item", 1, {"slot_dict": "stone"}, "bad_request", T0, "slot_dict not an object")
 	_deposit(e, 1, "stone", 15) # 10 + 5 + 15 = the 30 cap
@@ -834,7 +853,7 @@ func _test_attribute_sources() -> bool:
 			pairs.append(["processed", hist, "processing.json in_place"])
 	_expect(pairs.size() > 40 and buffs.size() > 0 and climates.size() > 3, "attribute sources were found (%d)" % pairs.size())
 	for row in pairs:
-		var why: String = e.V._attribute(row[0], Ledger.norm(row[1]))
+		var why: String = e.V._rule("attributes", row[0], Ledger.norm(row[1]))
 		_expect(why == "", "attribute %s = %s from %s is allowed (%s)" % [row[0], var_to_str(row[1]), row[2], why])
 	# End to end: the rare raptor bone drop, and a knife crafted from it (Crafting copies the
 	# primary's attributes and adds material_tier).
