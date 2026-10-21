@@ -368,6 +368,10 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   (3) "Our house building system may be more robust than the original game, i will look into this. See this house is only 4x4": the owner
   is evaluating; W2-BUILDSYS is unchanged until the owner decides.
 
+- 2026-10-20 (owner) "This is what the player creation page looks like" (`docs/design/durango-prompts/19_character_creation.md`,
+  `docs/reference/durango-character-creation.png`): Durango's Gender/Profession screen. Package CHARCREATE (`claude/mmo-charcreate`) restyles
+  the existing character_creation.gd (occupations, gender, name already work). A male survivor model needs owner-approved concept art first.
+
 ## Owner questions (open)
 
 - none
