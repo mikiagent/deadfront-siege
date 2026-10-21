@@ -74,7 +74,7 @@ new `game/scripts/skills/skill_rules.gd`, new `game/tests/t_w2_skills.gd`, and `
 `game/scripts/dev/skills_lab.gd` (H13).
 The rev-1 goldens `save_v3_golden.json` and `save_v3_away_golden.json` are byte-identical to the base.
 
-## Sync 1 before integration (claude/mmo-overhaul @ 18ef7091, W2-DATA merged; branch merge 89cce919, hooks dbe1e006)
+## Sync 1 before integration (claude/mmo-overhaul @ 18ef7091, W2-DATA merged; branch merge 89cce919, hooks dbe1e006; the 1ffbc59c merge after it, de3a7854, is docs only and the patch applies clean on it)
 
 - Merge of claude/mmo-overhaul: no conflicts. The hooks patch failed `git apply --check` on the new base only in
   `crafting.gd` (W2-DATA's hooks landed its own `requires_node` check). It was regenerated on 18ef7091 with the
