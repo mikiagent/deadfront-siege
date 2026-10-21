@@ -441,7 +441,7 @@ func _style_cell(btn: Button, cell: Dictionary) -> void:
 	btn.modulate = Color.WHITE
 	if cell.has("back"):
 		btn.icon = null
-		btn.text = "‹ All"
+		btn.text = "< All"
 		btn.tooltip_text = "Back to the whole bag"
 		return
 	if cell.has("group"):
