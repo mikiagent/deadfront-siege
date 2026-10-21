@@ -6,7 +6,6 @@ extends MarketClient
 ## harness, not a falsely represented live market).
 
 var bridge: VaultBridge
-var account: int
 var clock: Callable ## -> int unix seconds; a harness injects its own so shots are deterministic
 
 func _init(p_bridge: VaultBridge, p_account: int, p_clock: Callable) -> void:

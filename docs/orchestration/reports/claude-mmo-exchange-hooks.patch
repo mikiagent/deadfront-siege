@@ -1,0 +1,138 @@
+diff --git a/game/scripts/economy/market_query.gd b/game/scripts/economy/market_query.gd
+index 9f6699ca..84a04bcc 100644
+--- a/game/scripts/economy/market_query.gd
++++ b/game/scripts/economy/market_query.gd
+@@ -3,7 +3,10 @@ extends RefCounted
+ ## Read-only market views (contract 6.5): search, open orders, item detail, trades, mine.
+ ## Nothing here writes state; every returned record is a copy.
+ 
+-const SORTS := ["price_asc", "price_desc", "ending_soon", "newest", "level_desc"]
++const SORTS := ["price_asc", "price_desc", "ending_soon", "newest", "level_desc", "level_asc", "durability_asc", "durability_desc"]
++## Search args. The market screens offer a filter only when it is here (W3-EXCHANGE H2 added
++## market_category, clade and def_id; species also matches captured_animal cages).
++const FILTERS := ["q", "kind", "asset", "category", "market_category", "clade", "def_id", "species", "min_level", "max_level", "min_price", "max_price", "grade", "stat_min"]
+ const KEY_MAX := (1 << 30) - 1
+ const NUM_MASK := (1 << 33) - 1
+ ## Search stat names (CreatureGenetics.STATS) -> PetDict fields.
+@@ -29,6 +32,9 @@ func search(me: int, a: EconArgs) -> Dictionary:
+ 	var kind := a.choice("kind", ["fixed", "auction", "any"], "any")
+ 	var asset := a.choice("asset", ["item", "pet", "any"], "any")
+ 	var category := a.text("category", 0, 32, "")
++	var market_category := a.text("market_category", 0, 32, "") ## market.json price key; "animal" = pets and cages
++	var clade := a.text("clade", 0, 48, "")
++	var def_id := a.text("def_id", 0, 48, "")
+ 	var species := a.text("species", 0, 48, "")
+ 	var min_level := a.integer("min_level", 1, lv_max, 1)
+ 	var max_level := a.integer("max_level", 1, lv_max, lv_max)
+@@ -48,7 +54,9 @@ func search(me: int, a: EconArgs) -> Dictionary:
+ 			return EconArgs.no("bad_request", "stat_min takes %s with numbers" % ", ".join(PET_FIELD.keys()))
+ 		mins[PET_FIELD[str(stat)]] = float(v)
+ 	var cat_name := StringName(category)
+-	var pets_only := species != "" or grade != "" or not mins.is_empty()
++	var pets_only := grade != "" or not mins.is_empty()
++	var base: Dictionary = cat.market.get("base_price_tstones", {})
++	var alias: Dictionary = R.g("category_alias")
+ 	var now := L.now
+ 	var keys := PackedInt64Array()
+ 	for l: Dictionary in L.s.listings.values():
+@@ -61,6 +69,14 @@ func search(me: int, a: EconArgs) -> Dictionary:
+ 		if (asset == "item" and is_pet) or (asset == "pet" and not is_pet):
+ 			continue
+ 		var ast: Dictionary = l.asset
++		# A pet or a captured_animal cage is an animal of a species: species, clade and "animal" match both.
++		var sp := str(ast.species) if is_pet else (str((ast.get("attributes", {}) as Dictionary).get("species", "")) if str(ast.id) == AssetValidator.CAGE else "")
++		if market_category != "" and (market_category == "animal") != (sp != ""):
++			continue
++		if species != "" and sp != species:
++			continue
++		if clade != "" and (sp == "" or cat.creature(sp) == null or cat.creature(sp).clade != clade):
++			continue
+ 		var lv: int = ast.level
+ 		if lv < min_level or lv > max_level:
+ 			continue
+@@ -68,7 +84,7 @@ func search(me: int, a: EconArgs) -> Dictionary:
+ 		if price < min_price or price > max_price:
+ 			continue
+ 		if is_pet:
+-			if category != "" or (species != "" and ast.species != species) or (grade != "" and not _grade_ok(str(ast.grade), grade)):
++			if category != "" or def_id != "" or (grade != "" and not _grade_ok(str(ast.grade), grade)):
+ 				continue
+ 			if q != "" and not str(ast.species).contains(q):
+ 				continue
+@@ -82,11 +98,15 @@ func search(me: int, a: EconArgs) -> Dictionary:
+ 		else:
+ 			if pets_only:
+ 				continue
+-			if category != "" or q != "":
++			if def_id != "" and str(ast.id) != def_id:
++				continue
++			if category != "" or q != "" or (market_category != "" and sp == ""):
+ 				var def := cat.item(ast.id)
++				if market_category != "" and sp == "" and (def == null or Settlers.market_category(def, base, alias) != market_category):
++					continue
+ 				if category != "" and (def == null or not def.has_category(cat_name)):
+ 					continue
+-				if q != "" and not (str(ast.id).contains(q) or (def != null and def.display_name.to_lower().contains(q))):
++				if q != "" and not (str(ast.id).contains(q) or sp.contains(q) or (def != null and def.display_name.to_lower().contains(q))):
+ 					continue
+ 		var num := Ledger.id_num(l.id)
+ 		var k := 0
+@@ -95,6 +115,8 @@ func search(me: int, a: EconArgs) -> Dictionary:
+ 			"price_desc": k = KEY_MAX - mini(price, KEY_MAX)
+ 			"ending_soon": k = mini(ends - now, KEY_MAX)
+ 			"level_desc": k = R.num("level_max") - lv
++			"level_asc": k = lv
++			"durability_asc", "durability_desc": k = _dur_key(ast, sort == "durability_desc")
+ 			"newest": num = NUM_MASK - num
+ 		keys.append((k << 33) | num)
+ 	keys.sort()
+@@ -229,6 +251,13 @@ func _key(a: EconArgs) -> String:
+ 		return PriceHistory.item_key(def_id) if cat.item(def_id) != null else "!unknown def_id"
+ 	return PriceHistory.pet_key(species) if cat.creature(species) != null else "!unknown species"
+ 
++## Current durability up or down; assets without durability (most materials, pets, cages) sort last.
++static func _dur_key(ast: Dictionary, desc: bool) -> int:
++	if int(ast.get("max_durability", 0)) <= 0:
++		return KEY_MAX
++	var d := mini(int(ast.get("durability", 0)), KEY_MAX - 1)
++	return KEY_MAX - 1 - d if desc else d
++
+ ## "S" matches S-, S and S+; "S+" matches only S+.
+ static func _grade_ok(have: String, want: String) -> bool:
+ 	return have.begins_with(want) if want.length() == 1 else have == want
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index 80b01e5b..05ab55c5 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -743,6 +743,7 @@ func _toggle_sheet(kind: StringName) -> void:
+ 			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
+ 			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
+ 			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
++			_sheet_btn(box, "Island Market", func () -> void: _close_sheet(); _open_market())
+ 			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
+ 			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
+ 		&"pets":
+@@ -882,6 +883,23 @@ func _open_map() -> void:
+ func open_map() -> void:
+ 	_open_map()
+ 
++var _market_screen: MarketScreen
++
++## The Island Market (W3-EXCHANGE, owner: Main Menu -> Island Market): opaque on its own layer, like the map.
++func _open_market() -> void:
++	_close_sheet()
++	if _market_screen == null:
++		_market_screen = MarketScreen.new()
++		var layer := CanvasLayer.new()
++		layer.name = "MarketLayer"
++		layer.layer = 96
++		add_child(layer)
++		layer.add_child(_market_screen)
++	_market_screen.open(player)
++
++func open_market() -> void:
++	_open_market()
++
+ # ---------------------------------------------------------------- per frame
+ 
+ func _build_fatigue_panel() -> void:

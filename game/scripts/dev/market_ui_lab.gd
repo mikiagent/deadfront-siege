@@ -2,15 +2,17 @@ extends Node3D
 ## W3-EXCHANGE lab: the Island Market screens over the deterministic local economy
 ## (MarketHarness: real VaultBridge, real other-account listings, labelled a test server).
 ## Run windowed: Godot --path game --resolution 1600x900 [--rendering-method gl_compatibility]
-##   -- --lab=market_ui_lab --screen=buy|buy_taming|sell|my_market|confirm|offline --shot=<png> --shot-delay=6
-## Skeleton (design step): seeds the economy and shows what the screen will read. B1 replaces
-## _show() with MarketScreen opened from the HUD's MENU sheet (the owner's navigation).
+##   -- --lab=market_ui_lab --screen=<one of SCREENS> --shot=<png> --shot-delay=6
+## The market is opened the owner's way: the HUD's MENU sheet, then its "Island Market" button
+## (hook H0). Prints "[market_lab] measure ..." for exchange-spec §8 gates 1-3.
 
-const SCREENS := ["buy", "buy_taming", "sell", "my_market", "confirm", "offline"]
+const SCREENS := ["buy", "buy_search", "buy_taming", "sell", "my_market", "confirm", "offline"]
 
 var screen := "buy"
 var harness: MarketHarness
+var _econ_dir := ""
 var _hud: HuntHud
+var _player: Player
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -21,36 +23,103 @@ func _ready() -> void:
 		screen = "buy"
 	Game.debug_overlay = false # before the HUD builds: players never see the DEBUG hex
 	var kit := LabKit.build(self, 4.0)
+	_player = kit["player"]
 	for c in (kit["ui"] as CanvasLayer).get_children():
 		if c is HuntHud:
 			_hud = c
 	World.load_island(self, &"home_grassland", Vector3(0, 1, 18), false) # a real island name for the header
 	(kit["nav"] as Node).queue_free()
+	MarketScreen.test_client = null
 	if screen != "offline":
 		# The run's own user dir (override.cfg + SaveGame.run_name convention), never the owner's.
-		harness = MarketHarness.new(OS.get_user_data_dir().path_join("runs/market_ui_lab/econ"))
+		# Per run: shots of several screens run in parallel and must not share one journal.
+		_econ_dir = OS.get_user_data_dir().path_join("runs/market_ui_lab/econ_%s_%d" % [screen, OS.get_process_id()])
+		harness = MarketHarness.new(_econ_dir)
 		harness.seed_scene()
 		for f in harness.failures:
 			push_error("[market_lab] harness: %s" % f)
+		MarketScreen.test_client = harness.client()
 	_show.call_deferred()
 
+func _exit_tree() -> void:
+	MarketScreen.test_client = null
+	MarketHarness.release_loggers()
+	if _econ_dir != "":
+		MarketHarness._wipe(_econ_dir)
+		DirAccess.remove_absolute(_econ_dir)
+
 func _show() -> void:
-	var lines: PackedStringArray = ["Island Market lab (skeleton) screen=%s island=%s" % [screen, MapScreen.island_name(str(World.island_id))]]
-	if harness == null:
-		lines.append("offline: no transport")
+	await get_tree().process_frame
+	var ms := await _open_from_menu()
+	if ms == null:
+		push_error("[market_lab] the market did not open")
+		return
+	match screen:
+		"buy_search":
+			ms.buy.set_query("branch")
+		"buy_taming":
+			ms.buy.set_category("animal")
+			for b in ms.buy.column.buttons:
+				if b.name == "Cat_clade_Compsognathidae":
+					b.pressed.emit()
+		"confirm":
+			for r in ms.buy.table.rows:
+				if str(r.view.key) == "item:stone_knife_work":
+					r.pressed.emit()
+		"sell", "my_market":
+			ms.rail.select(StringName(screen))
+	for i in 3:
+		await get_tree().process_frame
+	_measure(ms)
+
+## HUD MENU -> "Island Market" (the real button); without hook H0 the lab says so and opens it directly.
+func _open_from_menu() -> MarketScreen:
+	_hud.call("_toggle_sheet", &"menu")
+	await get_tree().process_frame
+	var sheet := _hud.find_child("HudSheet", true, false)
+	var entry: Button = null
+	if sheet:
+		for b in sheet.find_children("*", "Button", true, false):
+			if (b as Button).text == "Island Market":
+				entry = b
+	if entry:
+		print("[market_lab] menu: pressing the HUD's Island Market button")
+		entry.pressed.emit()
 	else:
-		var mc := harness.client()
-		lines.append(mc.label())
-		var w: Dictionary = (await mc.request("wallet.get")).get("r", {})
-		lines.append("wallet %d (bound %d)" % [int(w.get("wallet", 0)), int(w.get("bound", 0))])
-		var found: Dictionary = (await mc.request("market.search", {"page_size": 50})).get("r", {})
-		for v: Dictionary in found.get("results", []):
-			lines.append("%s  %s  Lv.%d  %d  by %s" % [v.id, v.key, int(v.asset.level), int(v.unit_price), v.seller_name])
-	print("[market_lab] " + "\n[market_lab] ".join(lines))
-	var layer := CanvasLayer.new()
-	layer.layer = 96
-	add_child(layer)
-	var label := Label.new()
-	label.text = "\n".join(lines)
-	label.position = Vector2(24, 24)
-	layer.add_child(label)
+		print("[market_lab] HOOK H0 absent: no Island Market row in the HUD menu; opening the screen directly")
+		_hud.call("_close_sheet")
+		var layer := CanvasLayer.new()
+		layer.layer = 96
+		add_child(layer)
+		var direct := MarketScreen.new()
+		layer.add_child(direct)
+		direct.open(_player)
+	await get_tree().process_frame
+	return get_tree().root.find_child("MarketScreen", true, false) as MarketScreen
+
+func _measure(ms: MarketScreen) -> void:
+	var view := ms.get_viewport_rect().size
+	var m := MarketTheme.metrics(view)
+	var t := ms.buy.table
+	var rows_vis := floori(t.get_node("Rows").size.y / float(m.row_h)) if ms.buy.visible else 0
+	print("[market_lab] measure view=%s header=%.1f%% (%dpx) rail=%.1f%% cat=%s row=%.1f%% (%dpx) rows=%d visible=%d chip=%s client=%s" % [
+		view, 100.0 * m.header_h / view.y, int(m.header_h), 100.0 * ms.rail.size.x / view.x,
+		("%.1f%%" % (100.0 * ms.buy.column.size.x / view.x)) if ms.buy.column.visible else "-",
+		100.0 * m.row_h / view.y, int(m.row_h), t.rows.size(), rows_vis, not t.chips.is_empty(), ms.client.kind()])
+	var small: PackedStringArray = []
+	for b in ms.find_children("*", "BaseButton", true, false):
+		var c := b as Control
+		if c.is_visible_in_tree() and (c.size.x < UiTokens.TARGET_MIN or c.size.y < UiTokens.TARGET_MIN):
+			small.append("%s %dx%d" % [c.name, c.size.x, c.size.y])
+	var clipped: PackedStringArray = []
+	for l in ms.find_children("*", "Label", true, false):
+		var lab := l as Label
+		if lab.is_visible_in_tree() and lab.autowrap_mode == TextServer.AUTOWRAP_OFF and lab.get_minimum_size().x > lab.size.x + 0.5:
+			clipped.append("%s '%s'" % [lab.name, lab.text])
+	var plus := 0
+	for b in ms.find_children("*", "Button", true, false):
+		if (b as Button).text.strip_edges() == "+":
+			plus += 1
+	print("[market_lab] measure targets_under_44=%d %s clipped_labels=%d %s plus_buttons=%d" % [small.size(), ", ".join(small), clipped.size(), ", ".join(clipped), plus])
+	if harness:
+		print("[market_lab] %s; rows: %s" % [ms.client.label(), ", ".join(t.rows.map(func (r: MarketRow) -> String: return "%s %s %d" % [r.model.name, r.model.uid, r.model.price]))])

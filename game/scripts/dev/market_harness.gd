@@ -34,6 +34,17 @@ func _init(dir: String) -> void:
 	for acct: int in NAMES:
 		_check(bridge.hello(acct, NAMES[acct], now), "hello %d" % acct)
 
+## MarketEngine and CharacterStore each register a static error-counting Logger and never remove
+## it; a windowed run that quits with them registered aborts in NSApplication terminate (a Godot
+## .ips per lab shot). The lab calls this on exit. Headless tests never take that path.
+# shortcut: unregisters ECON/SRVDOM's statics from outside; ECON should own a release() (report note).
+static func release_loggers() -> void:
+	for owner: Script in [MarketEngine, CharacterStore]:
+		var lg: Variant = owner.get("_errors")
+		if lg is Logger:
+			OS.remove_logger(lg)
+			owner.set("_errors", null)
+
 ## The screens' transport for one account, on the harness clock.
 func client(acct: int = VIEWER) -> LocalMarketClient:
 	return LocalMarketClient.new(bridge, acct, func () -> int: return now)

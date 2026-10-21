@@ -9,6 +9,7 @@ extends RefCounted
 ## from its cache and nothing happens twice (contract 5.3).
 const WRITE_OPS := MarketEngine.WRITE + ["vault.deposit", "vault.withdraw"]
 
+var account := -1 ## this player's economy account; -1 when unknown (own rows then rely on the server's self_trade)
 var _seq := 0
 var _session := "%x" % (Time.get_ticks_usec() ^ int(Time.get_unix_time_from_system())) ## rids stay unique across restarts
 
