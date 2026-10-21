@@ -6,7 +6,7 @@ extends Node3D
 ## The market is opened the owner's way: the HUD's MENU sheet, then its "Island Market" button
 ## (hook H0). Prints "[market_lab] measure ..." for exchange-spec §8 gates 1-3.
 
-const SCREENS := ["menu", "buy", "buy_search", "buy_taming", "sell", "my_market", "confirm", "offline"]
+const SCREENS := ["menu", "buy", "buy_search", "buy_taming", "sell", "sell_pet", "sell_none", "my_market", "confirm", "offline"]
 
 var screen := "buy"
 var harness: MarketHarness
@@ -69,8 +69,13 @@ func _show() -> void:
 			for r in ms.buy.table.rows:
 				if str(r.view.key) == "item:stone_knife_work":
 					r.pressed.emit()
-		"sell", "my_market":
-			ms.rail.select(StringName(screen))
+		"sell", "sell_pet", "sell_none":
+			ms.rail.select(&"sell")
+			for e: Dictionary in ms.sell.entries: # sell: the bag's bone stack; sell_pet: the bonded pet
+				if (screen == "sell" and e.src == "bag" and str(e.asset.get("id", "")) == "bone") or (screen == "sell_pet" and e.src == "pet"):
+					ms.sell.select(str(e.uid))
+		"my_market":
+			ms.rail.select(&"my_market")
 	for i in 3:
 		await get_tree().process_frame
 	_measure(ms)
@@ -136,5 +141,13 @@ func _measure(ms: MarketScreen) -> void:
 		if (b as Button).text.strip_edges() == "+":
 			plus += 1
 	print("[market_lab] measure targets_under_44=%d %s clipped_labels=%d %s plus_buttons=%d" % [small.size(), ", ".join(small), clipped.size(), ", ".join(clipped), plus])
+	if ms.sell.visible:
+		var pk := ms.sell.picker
+		var f := ms.sell.form
+		var cell: float = pk.cells[0].size.x if not pk.cells.is_empty() else 0.0
+		print("[market_lab] measure sell picker=%.1f%% cols=%d cell=%dpx cells=%d form=%dx%d form_min=%dx%d fits=%s list=%dx%d '%s' status='%s'" % [
+			100.0 * pk.size.x / view.x, pk._grid.columns, int(cell), pk.cells.size(), f.size.x, f.size.y,
+			f.get_combined_minimum_size().x, f.get_combined_minimum_size().y, f.get_combined_minimum_size().x <= f.size.x + 0.5 and f.size.y <= view.y,
+			f.list_btn.size.x, f.list_btn.size.y, f.list_btn.text, f.status.text])
 	if harness:
 		print("[market_lab] %s; rows: %s" % [ms.client.label(), ", ".join(t.rows.map(func (r: MarketRow) -> String: return "%s %s %d" % [r.model.name, r.model.uid, r.model.price]))])

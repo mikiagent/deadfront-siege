@@ -410,7 +410,9 @@ func _test_sell(hs: GDScript, ms_script: GDScript) -> void:
 	edit.text = str(int(band[1]) + 50)
 	edit.text_changed.emit(edit.text)
 	edit.text_submitted.emit(edit.text)
-	_expect(int(form.get("unit")) == int(band[1]) and (form.get("steppers").price_up as Button).disabled, "a typed price above the band is pulled to its top (%d)" % int(form.get("unit")))
+	_expect(int(form.get("unit")) == int(band[1]) + 50 and status.text.begins_with("Outside the usual range") and (form.get("list_btn") as Button).text.begins_with("List anyway for") and not (form.get("list_btn") as Button).disabled, "a typed price above the band is warned about, not refused (%s)" % status.text)
+	(form.get("steppers").price_down as Button).pressed.emit()
+	_expect(int(form.get("unit")) == int(band[1]) and status.text == "" and (form.get("steppers").price_up as Button).disabled, "the stepper brings it back to the band's top and the warning goes (%d)" % int(form.get("unit")))
 	var unit := int(band[0]) + 7
 	edit.text = str(unit)
 	edit.text_changed.emit(edit.text)
@@ -456,9 +458,9 @@ func _test_sell(hs: GDScript, ms_script: GDScript) -> void:
 	ms.queue_free()
 	print("[t_exchange] sell: %d cells, bone 1/2 at %d fee %d tax %d net %d, pet %s and cage %s listed, stored %s listed" % [got.size(), unit, p.fee, p.tax, p.net, pet.uid, cage.uid, stored_uid])
 
-## Gate 9 (Sell's error paths): bound coins cannot pay the fee, prices out of range, the band (H3),
-## refusal reasons for what the client can see, and a list step refused after the deposit keeps
-## the item safe in market storage.
+## Gate 9 (Sell's error paths): bound coins cannot pay the fee, prices out of range, the band is
+## advice (the server takes a price outside it), refusal reasons for what the client can see, and a
+## list step refused after the deposit keeps the item safe in market storage.
 func _test_sell_errors(hs: GDScript, ms_script: GDScript) -> void:
 	var h: RefCounted = hs.new(DIR + "/sell_errors")
 	h.call("seed_scene")
@@ -504,18 +506,12 @@ func _test_sell_errors(hs: GDScript, ms_script: GDScript) -> void:
 	for bad: int in [0, EconRules.load_default().num("max_unit_price") + 1]:
 		var r: Dictionary = await mc.call("request", "market.list_fixed", {"asset": {"uid": bone_uid}, "unit_price": bad, "duration_h": 24})
 		_expect(r.get("err", "") == "bad_request" and JSON.stringify(h.call("op", 1, "wallet.get", {}).r) == w1, "unit_price %d refused by the server: %s" % [bad, r.get("msg", "")])
-	# H3: the server refuses a price outside the band the panel keeps to; the edges list.
+	# The band is the reference filter (contract 6.5), not a listing limit: the server lists above it
+	# (a rare-trait instance can be worth more than 4x its def), so the panel warns instead of refusing.
 	var ref := int(h.call("op", 1, "market.item_detail", {"def_id": "bone"}).r.ref_price)
 	var band: Array = MF.call("band", ref)
-	if not (load("res://scripts/economy/market_book.gd") as GDScript).get_script_method_list().any(func (f: Dictionary) -> bool: return f.name == "band_of"):
-		_hook_absent("H3", "server-side price band")
-	else:
-		var out: Dictionary = await mc.call("request", "market.list_fixed", {"asset": {"uid": bone_uid}, "unit_price": int(band[1]) + 1, "duration_h": 24})
-		_expect(out.get("err", "") == "bad_request" and str(out.get("msg", "")) == "price must be between %d and %d" % band and JSON.stringify(h.call("op", 1, "wallet.get", {}).r) == w1, "H3: %d above the band is refused: %s" % [int(band[1]) + 1, out])
-		var low: Dictionary = await mc.call("request", "market.list_fixed", {"asset": {"uid": bone_uid}, "unit_price": int(band[0]) - 1, "duration_h": 24})
-		_expect(low.get("err", "") == "bad_request", "H3: %d below the band is refused" % (int(band[0]) - 1))
-		var edge: Dictionary = await mc.call("request", "market.list_fixed", {"asset": {"uid": bone_uid}, "unit_price": int(band[1]), "duration_h": 24})
-		_expect(edge.get("ok", false), "H3: the top of the band lists: %s" % edge)
+	var out: Dictionary = await mc.call("request", "market.list_fixed", {"asset": {"uid": bone_uid}, "unit_price": int(band[1]) + 1, "duration_h": 24})
+	_expect(band.size() == 2 and out.get("ok", false), "a price above the band %s is the seller's choice: %s" % [band, out.get("err", "ok")])
 	# Refusal reasons for what the client can see (the server's own words for the rest).
 	var why := func (kind: String, a: Dictionary) -> String: return str(MF.call("sell_refusal", kind, a))
 	_expect(why.call("item", {"id": "tamed_animal", "count": 1}).contains("bond"), "denied def (tamed_animal): %s" % why.call("item", {"id": "tamed_animal", "count": 1}))

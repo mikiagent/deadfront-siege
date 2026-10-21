@@ -40,9 +40,11 @@ func show_entries(list: Array, p_selected: String, empty_text: String) -> void:
 	entries = list
 	selected = p_selected
 	stored = 0
-	for c in cells:
+	for c in cells + _fill: # fillers too: new cells must come first in the grid
+		_grid.remove_child(c)
 		c.queue_free()
 	cells.clear()
+	_fill.clear()
 	for e: Dictionary in entries:
 		var b := Button.new()
 		b.name = "Cell_%s" % str(e.uid).validate_node_name()
@@ -86,7 +88,9 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 	# Empty compartments fill the visible rows, like the Bag's grid (they are not targets).
 	var want := maxi(0, cols * ceili(inner.y / _cell) - cells.size())
 	while _fill.size() > want:
-		_fill.pop_back().queue_free()
+		var gone: Control = _fill.pop_back()
+		_grid.remove_child(gone)
+		gone.queue_free()
 	while _fill.size() < want:
 		var f := Control.new()
 		f.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -140,20 +144,21 @@ func _draw_cell(b: Button, e: Dictionary) -> void:
 		if refused:
 			tint = Color(tint.r * 0.5, tint.g * 0.5, tint.b * 0.5, 0.45)
 		b.draw_texture_rect_region(tex, Rect2(art.get_center() - d * 0.5, d), src, tint)
-	MarketTheme.text(b, LevelDisplay.label(e.level), 4, fs * 0.85, r.size.x - 8, fs, MarketTheme.TEXT_2, HORIZONTAL_ALIGNMENT_RIGHT)
+	var inset := 8.0 # tags and labels sit inside the bracket corners
+	MarketTheme.text(b, LevelDisplay.label(e.level), 4, inset + fs * 0.5, r.size.x - inset - 6, fs, MarketTheme.TEXT_2, HORIZONTAL_ALIGNMENT_RIGHT)
 	if int(e.count) > 1:
-		MarketTheme.text(b, "×%d" % int(e.count), 4, r.size.y - fs * 0.9, r.size.x - 8, fs, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
+		MarketTheme.text(b, "×%d" % int(e.count), 4, r.size.y - inset - fs * 0.5, r.size.x - inset - 6, fs, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
 	if e.badge:
-		MarketGlyphs.badge_b(b, Vector2(5 + fs * 0.7, fs * 0.95), fs * 0.7)
+		MarketGlyphs.badge_b(b, Vector2(inset + fs * 0.7, inset + fs * 0.6), fs * 0.7)
 	elif e.src == "vault":
 		var f := MarketTheme.font()
 		var tw := f.get_string_size("Stored", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		b.draw_rect(Rect2(3, 3, tw + 8, fs * 1.35), Color(0.3, 0.25, 0.1, 0.9))
-		MarketTheme.text(b, "Stored", 7, 3 + fs * 0.68, tw + 2, fs, MarketTheme.GOLD)
+		b.draw_rect(Rect2(inset, inset - 2, tw + 8, fs * 1.35), Color(0.3, 0.25, 0.1, 0.9))
+		MarketTheme.text(b, "Stored", inset + 4, inset - 2 + fs * 0.68, tw + 2, fs, MarketTheme.GOLD)
 	if refused:
 		var mark := UiIcons.icon(&"lock" if "locked" in (e.asset.get("flags", []) as Array) else &"blocked")
 		if mark:
 			var ms := maxf(16.0, fs * 1.3)
-			b.draw_texture_rect(mark, Rect2(5, r.size.y - ms - 5, ms, ms), false)
+			b.draw_texture_rect(mark, Rect2(inset, r.size.y - ms - inset, ms, ms), false)
 	if str(e.uid) == selected:
 		MarketTheme.brackets(b, r.grow(-3), r.size.x * 0.16, maxf(3.0, r.size.x * 0.03))

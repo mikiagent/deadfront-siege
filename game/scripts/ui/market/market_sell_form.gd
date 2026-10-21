@@ -1,18 +1,23 @@
 class_name MarketSellForm
 extends PanelContainer
 ## Sell's right panel for the picked instance: its name band, card and facts (read from its dict),
-## a count for a stack, the unit price kept inside the reference band, the duration, and the
-## fee / tax / proceeds preview from ECON's own rules (MarketFormat.preview); the yellow List
-## button along the bottom. It shows and checks only; MarketSell sends the ops.
+## a count for a stack, the unit price (steppers move inside the reference band, a typed price
+## outside it is warned about), the duration, and the fee / tax / proceeds preview from ECON's own
+## rules (MarketFormat.preview); the yellow List button along the bottom. It shows and checks
+## only; MarketSell sends the ops.
 # swap: INVUI ItemInspectPanel for the band, card and facts when it reaches this base.
 
 signal list_pressed
 
+## Preview rows: id, key on a wide panel, key on a phone (two pairs a line there).
+const PREVIEW_ROWS := [["fee", "Listing fee (paid now)", "Fee now"], ["tax", "Market tax (when it sells)", "Tax on sale"], ["receive", "You receive", "You receive"], ["net", "Net after the fee", "Net"]]
+
 var entry: Dictionary = {}
 var tradable := 0
 var ref := 0 ## market.item_detail ref_price; 0 = no reference, so no band
-var lo := 1
+var lo := 1 ## the band (0.25x-4x of ref), or 1..max_price without a reference
 var hi := 1
+var max_price := 1 ## market_rules max_unit_price: the server's own limit
 var count := 1
 var unit := 0 ## 0 = no price yet (nothing is invented: a default only comes from the market's own prices)
 var hours := 24
@@ -36,9 +41,13 @@ var _count_box: VBoxContainer
 var _count_label: Label
 var _preview: GridContainer
 var _captions: Array[Label] = []
+var _price_caption: Label
 var _keys: Array[Label] = []
+var _pad: MarginContainer
+var _foot: MarginContainer
 var _m := {}
 var _badge_r := 12.0
+var _note := ""
 
 func _ready() -> void:
 	name = "SellForm"
@@ -67,11 +76,10 @@ func _ready() -> void:
 	root.add_child(scroll)
 	var pad := MarginContainer.new()
 	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for side in ["left", "right", "top", "bottom"]:
-		pad.add_theme_constant_override("margin_" + side, 12)
 	scroll.add_child(pad)
+	_pad = pad
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 8)
+	body.name = "SellBody"
 	pad.add_child(body)
 	var card := HBoxContainer.new()
 	card.add_theme_constant_override("separation", 12)
@@ -105,6 +113,7 @@ func _ready() -> void:
 	_count_box.get_child(1).add_child(_count_label)
 	_count_box.get_child(1).move_child(_count_label, 1)
 	var price_box := _stepper_box(steps, "Price each", "price")
+	_price_caption = price_box.get_child(0)
 	price_edit = LineEdit.new()
 	price_edit.name = "SellPrice"
 	price_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -144,7 +153,7 @@ func _ready() -> void:
 	_preview.add_theme_constant_override("h_separation", 12)
 	_preview.add_theme_constant_override("v_separation", 2)
 	_form.add_child(_preview)
-	for row: Array in [["fee", "Listing fee (paid now)"], ["tax", "Market tax (when it sells)"], ["receive", "You receive"], ["net", "Net after the fee"]]:
+	for row: Array in PREVIEW_ROWS:
 		var k := MarketTheme.label(row[1], 15, MarketTheme.TEXT_2)
 		k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_keys.append(k)
@@ -159,9 +168,8 @@ func _ready() -> void:
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(status)
 	var foot := MarginContainer.new()
-	for side in ["left", "right", "top", "bottom"]:
-		foot.add_theme_constant_override("margin_" + side, 10)
 	root.add_child(foot)
+	_foot = foot
 	list_btn = Button.new()
 	list_btn.name = "SellList"
 	list_btn.pressed.connect(func () -> void:
@@ -205,32 +213,32 @@ func show_entry(e: Dictionary) -> void:
 	hours = 24 # ASSUMPTION (exchange-spec A7): 24 h unless the player picks another duration
 	pending = false
 	var rules := EconRules.load_default()
+	max_price = rules.num("max_unit_price")
 	lo = 1
-	hi = rules.num("max_unit_price")
+	hi = max_price
 	status.text = ""
+	_note = ""
 	status.add_theme_color_override("font_color", MarketTheme.TEXT)
 	price_edit.text = ""
 	if e.is_empty():
 		_title.text = "Sell"
 		_icon.texture = null
 		_icon.visible = false
-		_type.text = "Choose an item from your bag."
-		_level.text = ""
-		_facts.text = "Listing moves that exact item into the market until it sells, expires or you cancel it."
+		_type.visible = false
+		_level.visible = false
+		_facts.text = "Choose an item from your bag. Listing moves that exact item into the market until it sells, expires or you cancel it."
 		_form.visible = false
 		list_btn.visible = false
 		_band_margin()
 		return
 	_icon.visible = true
+	_type.visible = not _m.get("compact", false)
 	_icon.texture = ItemArt.texture_for(e.icon)
 	_icon.modulate = e.tint
 	_title.text = str(e.name)
 	_band_margin()
 	_type.text = str(e.type) + ("  ·  in market storage" if e.src == "vault" else "")
-	_level.text = LevelDisplay.label(int(e.level)) + ("   ×%d" % count if count > 1 else "")
-	var lines := MarketFormat.asset_lines(str(e.kind), e.asset)
-	lines.remove_at(0) # level and type are on the card already
-	_facts.text = "\n".join(lines)
+	_card_text()
 	list_btn.visible = true
 	var refused := str(e.why) != ""
 	_form.visible = not refused
@@ -256,7 +264,7 @@ func set_reference(d: Dictionary) -> void:
 	refresh()
 
 func can_list() -> bool:
-	return not pending and not entry.is_empty() and str(entry.get("why", "")) == "" and unit >= lo and unit <= hi \
+	return not pending and not entry.is_empty() and str(entry.get("why", "")) == "" and unit >= 1 and unit <= max_price \
 		and tradable >= int(MarketFormat.preview(unit, count).fee)
 
 func set_pending(on: bool, text: String) -> void:
@@ -272,8 +280,10 @@ func say(text: String, color: Color = MarketTheme.TEXT) -> void:
 func refresh() -> void:
 	if entry.is_empty():
 		return
-	band_label.text = ("Recent price %s  ·  allowed %s – %s" % [MarketFormat.group(ref), MarketFormat.group(lo), MarketFormat.group(hi)]) if ref > 0 \
+	band_label.text = ("Recent price %s  ·  usual range %s – %s" % [MarketFormat.group(ref), MarketFormat.group(lo), MarketFormat.group(hi)]) if ref > 0 \
 		else "No recent trades: any price %s – %s" % [MarketFormat.group(lo), MarketFormat.group(hi)]
+	# A phone has no room for the band's own line: the price caption carries the allowed range.
+	_price_caption.text = "Price each  %s – %s" % [MarketFormat.group(lo), MarketFormat.group(hi)] if _m.get("compact", false) and ref > 0 else "Price each"
 	var p := MarketFormat.preview(unit, count)
 	for k: String in preview_values:
 		(preview_values[k] as Label).text = MarketFormat.group(int(p[k])) if unit > 0 else "—"
@@ -288,25 +298,49 @@ func refresh() -> void:
 		_chip(duration_btns[h], h == hours)
 	price_edit.editable = not pending
 	var why := ""
+	var note := "" ## a warning this refresh owns (cleared when its cause goes)
 	if str(entry.get("why", "")) != "":
 		why = "Can't be sold"
 	elif unit <= 0:
 		why = "Set a price"
 	elif tradable < int(p.fee):
 		why = "Not enough tradable T-stones"
-		if not pending:
-			say("The listing fee is %s tradable T-stones; you have %s. Bound T-stones can't pay market fees." % [MarketFormat.group(p.fee), MarketFormat.group(tradable)], MarketTheme.DANGER)
-	list_btn.text = why if why != "" else "List for %s" % MarketFormat.group(p.total)
+		note = "The listing fee is %s tradable T-stones; you have %s. Bound T-stones can't pay market fees." % [MarketFormat.group(p.fee), MarketFormat.group(tradable)]
+	var outside := why == "" and ref > 0 and (unit < lo or unit > hi)
+	if outside:
+		note = "Outside the usual range %s – %s for this item. Check the price; rare traits can be worth more." % [MarketFormat.group(lo), MarketFormat.group(hi)]
+	if not pending and note != "":
+		say(note, MarketTheme.DANGER)
+		_note = note
+	elif not pending and _note != "" and status.text == _note:
+		say("")
+		_note = ""
+	list_btn.text = why if why != "" else ("List anyway for %s" if outside else "List for %s") % MarketFormat.group(p.total)
 	list_btn.disabled = not can_list()
 
 func _step(id: String, dir: int) -> void:
 	if id == "count":
 		count = clampi(count + dir, 1, int(entry.get("count", 1)))
-		_level.text = LevelDisplay.label(int(entry.level)) + ("   ×%d" % int(entry.count) if int(entry.count) > 1 else "")
 	else:
 		var base := unit if unit > 0 else (ref if ref > 0 else lo)
 		_set_unit(clampi(base + dir * MarketFormat.price_step(base) if unit > 0 else base, lo, hi), true)
 	refresh()
+
+## Level (and the stack size) over the asset's facts; on a phone they share the first line.
+func _card_text() -> void:
+	if entry.is_empty():
+		return
+	var lv := LevelDisplay.label(int(entry.level)) + ("   ×%d" % int(entry.count) if int(entry.count) > 1 else "")
+	var lines := MarketFormat.asset_lines(str(entry.kind), entry.asset)
+	lines.remove_at(0) # level and type are on the card already
+	var phone: bool = _m.get("compact", false)
+	_level.visible = not phone
+	_level.text = lv
+	if phone:
+		lines.insert(0, lv + ("   ·   " + lines[0] if not lines.is_empty() else ""))
+		if lines.size() > 1:
+			lines.remove_at(1)
+	_facts.text = "\n".join(lines)
 
 func _set_unit(v: int, write: bool) -> void:
 	unit = maxi(0, v)
@@ -314,10 +348,12 @@ func _set_unit(v: int, write: bool) -> void:
 		price_edit.text = str(unit) if unit > 0 else ""
 	refresh()
 
-## A typed price is pulled into the band when the field is left (the stepper never leaves it).
+## A typed price over the server's maximum is pulled to it when the field is left. The band is
+## advice, not a wall: a rare-trait instance may be worth more than 4x its def's reference.
+# ASSUMPTION (exchange-spec A6, revised in B2): steppers keep to the band, a typed price may leave it with a warning.
 func _clamp_price() -> void:
-	if unit > 0 and (unit < lo or unit > hi):
-		_set_unit(clampi(unit, lo, hi), true)
+	if unit > max_price:
+		_set_unit(max_price, true)
 
 func _chip(b: Button, on: bool) -> void:
 	var edge := MarketTheme.GOLD if on else Color(0.5, 0.49, 0.44, 0.8)
@@ -346,10 +382,24 @@ func fit(m: Dictionary) -> void:
 	MarketTheme.size_label(_title, m.name + (2 if compact else 6))
 	_badge_r = (m.name + (2 if compact else 6)) * 0.62
 	_band_margin()
-	var isz := 48.0 if compact else 112.0
+	var isz := 36.0 if compact else 112.0
+	for box: Control in [_pad.get_child(0), _form]: # a phone's panel is ~330 px tall: tighter rhythm
+		box.add_theme_constant_override("separation", 4 if compact else 8)
+	var tb := _title_band.get_theme_stylebox("panel") as StyleBoxFlat
+	tb.content_margin_top = 4.0 if compact else 8.0
+	tb.content_margin_bottom = tb.content_margin_top
 	_icon.custom_minimum_size = Vector2(isz, isz)
 	MarketTheme.size_label(_type, m.type)
+	_type.visible = not compact and not entry.is_empty() # the name band says it already; a phone needs the line
+	for side in ["left", "right", "top", "bottom"]:
+		_pad.add_theme_constant_override("margin_" + side, 6 if compact else 12)
+	band_label.visible = not compact
+	for i in _keys.size():
+		_keys[i].text = PREVIEW_ROWS[i][2 if compact else 1]
 	MarketTheme.size_label(_level, m.name + (0 if compact else 4))
+	_card_text()
+	for side in ["left", "right", "top", "bottom"]:
+		_foot.add_theme_constant_override("margin_" + side, 6 if compact else 10)
 	MarketTheme.size_label(_facts, m.type)
 	for l: Label in _captions + _keys + [band_label]:
 		MarketTheme.size_label(l, m.type)
@@ -366,7 +416,7 @@ func fit(m: Dictionary) -> void:
 	for b: Button in duration_btns.values():
 		b.custom_minimum_size = Vector2(52 if compact else 72, tgt)
 		b.add_theme_font_size_override("font_size", m.type + 1)
-	_preview.columns = 2
+	_preview.columns = 4 if compact else 2
 	MarketTheme.action(list_btn, true, m.name)
 	list_btn.custom_minimum_size = Vector2(0, tgt if compact else 60.0)
 	refresh()

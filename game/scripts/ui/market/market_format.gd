@@ -169,7 +169,8 @@ static func preview(unit: int, count: int) -> Dictionary:
 
 ## The unit prices allowed around a reference price: [ceil(ref x low), floor(ref x high)] from
 ## market_rules.json (0.25x-4x), clipped to 1..max_unit_price; [] when there is no reference.
-# ASSUMPTION (exchange-spec A6): hook H3 makes market.list_fixed refuse outside the same band.
+# ASSUMPTION (exchange-spec A6, revised in B2): advice for the Sell panel; the server takes any
+# 1..max_unit_price (contract 6.5's band filters the reference price, it does not refuse listings).
 static func band(ref: int) -> Array:
 	if ref <= 0:
 		return []
