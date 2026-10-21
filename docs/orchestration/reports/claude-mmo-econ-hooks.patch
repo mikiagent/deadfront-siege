@@ -105,7 +105,7 @@ index d19f8337..3a5fdf66 100644
  ## good (sold, consumed). It can never come back, so its exported_assets record is dropped and
  ## the registry holds only assets in flight.
 diff --git a/game/tests/run_all.gd b/game/tests/run_all.gd
-index 0de559b8..27bf90f4 100644
+index 27e08922..1c3e0128 100644
 --- a/game/tests/run_all.gd
 +++ b/game/tests/run_all.gd
 @@ -50,6 +50,8 @@ func _process(_delta: float) -> bool:
