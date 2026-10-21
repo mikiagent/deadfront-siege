@@ -75,7 +75,7 @@ index d7187dbb..9f06ebef 100644
  	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
  	title.add_theme_color_override("font_color", UiTokens.TEXT)
 diff --git a/game/scripts/ui/hud_pills.gd b/game/scripts/ui/hud_pills.gd
-index 3671ff22..3b6f49c0 100644
+index 3671ff22..1963825c 100644
 --- a/game/scripts/ui/hud_pills.gd
 +++ b/game/scripts/ui/hud_pills.gd
 @@ -6,6 +6,9 @@ extends RefCounted
@@ -88,7 +88,7 @@ index 3671ff22..3b6f49c0 100644
  static func gather_radial_node(hud: HuntHud) -> Node3D:
  	var gr: Variant = hud.player.get("_gather_radial")
  	if gr and gr.has_method("is_open") and gr.is_open():
-@@ -107,9 +110,15 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+@@ -107,9 +110,17 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
  				name = "Harbour"
  		var active_row := n3 == radial_node or n3 == hud.player.gather_target
  		var kind_n := int(per_kind.get(name, 0))
@@ -100,55 +100,63 @@ index 3671ff22..3b6f49c0 100644
 +		if kind_n >= 2 and not active_row and status == "":  # every working station keeps its status
  			continue
  		per_kind[name] = kind_n + 1
++		var name_text := UiTokens.ellipsis(hud._font, name, UiTokens.LABEL_MAX_W - 28.0, 14)
++		var name_w := minf(hud._font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 28.0, UiTokens.LABEL_MAX_W)
 +		if status != "":
 +			name = status
  		var priority := 100 if active_row else int(40.0 - d)
  		if name == "Workbench" or name == "Cargo Warp":
  			priority += 5
-@@ -124,7 +133,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+@@ -124,7 +135,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
  		# The box covers what is drawn: tool icons poke 8 px over the pill, a regrow timer hangs under it.
  		pending.append({
  			"anchor": sp, "w": w, "h": 22.0 + (8.0 if not tools.is_empty() else 0.0) + (20.0 if timer != "" else 0.0), "priority": priority,
 -			"text": text, "dot": dot, "timer": timer, "tools": tools,
-+			"text": text, "dot": dot, "timer": timer, "tools": tools, "node": n3, "at": sp, "slide": status != "",
++			"text": text, "dot": dot, "timer": timer, "tools": tools, "node": n3, "at": sp, "slide": status != "", "name_text": name_text, "name_w": name_w,
  			"a": 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d),
  		})
  		shown += 1
-@@ -137,7 +146,12 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+@@ -137,7 +148,17 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
  		if x != fig:
  			hard.append(x)
  	var soft: Array[Rect2] = [fig]
-+	for item: Dictionary in pending:
-+		if item["slide"]:
-+			_slide_clear(item, hard + soft)
++	for item: Dictionary in pending.duplicate():
++		if item["slide"] and not _slide_clear(item, hard + soft):
++			# No spot by its station for the status: the shorter name chip, else no chip (one far
++			# off its station reads as the neighbour's).
++			item["text"] = item["name_text"]
++			item["w"] = item["name_w"]
++			if not _slide_clear(item, hard + soft):
++				pending.erase(item)
 +	last_drawn = []
  	for item in UiTokens.layout_labels(pending, view, hard, soft):
 +		last_drawn.append({"node": item["node"], "anchor": item["at"], "rect": item["rect"]})
  		var box: Rect2 = item["rect"]
  		hud.drawn_blocks["pill%d" % pill_i] = box
  		pill_i += 1
-@@ -168,3 +182,21 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+@@ -168,3 +189,22 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
  			hud.draw_rect(trect, tbg)
  			hud.draw_string(hud._font, Vector2(trect.position.x + 8.0, trect.position.y + 14.0), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), Color(1, 0.9, 0.6, a))
  		shown += 1
 +
 +## A status chip blocked where it stands (the survivor's figure, a HUD panel) steps sideways first, only
-+## as far as its station's anchor stays under it, then tries hanging just under the anchor, over its own
-+## station. Moving it a row up instead pushed the next station's chip up too, until in a dense camp row
-+## each status hung over the wrong station.
-+static func _slide_clear(item: Dictionary, taken: Array[Rect2]) -> void:
++## as far as its station's anchor stays under it, then tries hanging just under the anchor and one row
++## up. Returns false when no spot is free. Moving it rows up instead pushed the next station's chip up
++## too, until in a dense camp row each status hung over the wrong station.
++static func _slide_clear(item: Dictionary, taken: Array[Rect2]) -> bool:
 +	var w := minf(float(item["w"]), UiTokens.LABEL_MAX_W)
 +	var h := float(item["h"])
 +	var a: Vector2 = item["anchor"]
-+	for dy: float in [0.0, h + 4.0]:
++	for dy: float in [0.0, h + 4.0, -h - 4.0]:
 +		var dx := 0.0
 +		while dx <= w * 0.5 - 12.0:
 +			for x: float in [dx, -dx]:
 +				var r := Rect2(a + Vector2(x - w * 0.5, dy - h), Vector2(w, h)).grow(2.0)
 +				if not taken.any(func (t: Rect2) -> bool: return r.intersects(t)):
 +					item["anchor"] = a + Vector2(x, dy)
-+					return
++					return true
 +			dx += 4.0
++	return false
 diff --git a/game/scripts/ui/station_radial.gd b/game/scripts/ui/station_radial.gd
 index da32c8a2..9143a651 100644
 --- a/game/scripts/ui/station_radial.gd

@@ -612,4 +612,7 @@ func _test_chip_slide() -> void:
 	var panel: Array[Rect2] = [Rect2(0, 0, 900, 199)]  # a HUD panel right over the station
 	HP._slide_clear(lid, panel)
 	_expect(lid["anchor"] == Vector2(400, 226), "a chip with a panel above its station hangs under its anchor (%s)" % lid["anchor"])
+	var boxed := {"anchor": Vector2(400, 200), "w": 140.0, "h": 22.0}
+	var walls: Array[Rect2] = [Rect2(0, 0, 900, 150), Rect2(0, 175, 900, 300)]  # panels above and below
+	_expect(not HP._slide_clear(boxed, walls) and boxed["anchor"] == Vector2(400, 200), "a chip with no free spot by its station says so (HudPills then tries the name, else leaves it out)")
 

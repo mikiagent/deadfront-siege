@@ -6,8 +6,10 @@ extends Node3D
 ## the Warming Meal. Shift-tap pack-up refuses while the rack is loaded.
 ## Prints "[process_lab] PASS" or exits 1.
 ## Windowed: --lab=process_lab --shot=<png> [--proc=0|50|100] [--proc-view=rack|smoker|crock_pot|steamer|all]
-## [--open-menu=1] sets every station's jobs to that progress and frames one station or the whole row
-## (with its hex menu open).
+## [--open-menu=1|--open-craft=1] sets every station's jobs to that progress and frames one station or the
+## whole row (with its hex menu or its craft sheet open). The crock pot has one stew cooking and two waiting.
+## [--extra-racks=N] hangs meat on N more drying racks behind the first: each working rack keeps its chip
+## (HudPills drew two chips per station name, so a third rack's status never showed).
 
 ## A chip may sit one name-chip row (28 px) off its station's anchor, not further.
 const NEAR_PX := 30.0
@@ -19,6 +21,7 @@ var _smoker: CraftStation
 var _pot: CraftStation
 var _steamer: CraftStation
 var _fails: Array[String] = []
+var _extra: Array[CraftStation] = []
 
 func _check(ok: bool, label: String) -> void:
 	print("[process_lab] %s %s" % ["PASS" if ok else "FAIL", label])
@@ -57,15 +60,21 @@ func _shot_setup() -> void:
 	await get_tree().process_frame
 	var pct := clampf(float(_arg("proc", "50")) / 100.0, 0.0, 1.0)
 	var inv := Inventory.new(24)
-	inv.add(ItemStack.make(&"raw_meat", 8))
-	inv.add(ItemStack.make(&"herb_leaf", 1))
-	inv.add(ItemStack.make(&"berry", 1))
+	inv.add(ItemStack.make(&"raw_meat", 10))
+	inv.add(ItemStack.make(&"herb_leaf", 3))
+	inv.add(ItemStack.make(&"berry", 3))
 	inv.add(ItemStack.make(&"dried_meat", 2))
 	ProcessStation.of(_rack).load_from(inv, &"dry_meat", 4)
 	ProcessStation.of(_smoker).load_from(inv, &"smoke_meat", 3)
-	ProcessStation.of(_pot).load_from(inv, &"camp_stew", 1)
+	ProcessStation.of(_pot).load_from(inv, &"camp_stew", 3)
 	ProcessStation.of(_steamer).load_from(inv, &"steam", 2)
 	var stations: Array[CraftStation] = [_rack, _smoker, _pot, _steamer]
+	for i in int(_arg("extra-racks", "0")):
+		var r := _station(&"drying_rack", Vector3(-0.6 * float(i + 1), 0, -2.4 * float(i + 1)))
+		inv.add(ItemStack.make(&"raw_meat", 1))
+		ProcessStation.of(r).load_from(inv, &"dry_meat", 1)
+		_extra.append(r)
+		stations.append(r)
 	var longest := 0.0
 	for s in stations:
 		for j in ProcessStation.of(s).jobs:
@@ -76,7 +85,8 @@ func _shot_setup() -> void:
 		var ps := ProcessStation.of(s)
 		if pct < 1.0:
 			for j in ps.jobs:
-				j["started"] = ProcessStation.now_s() - ProcessStation.job_seconds(ps.station_id, StringName(str(j["recipe"]))) * pct
+				if float(j["started"]) >= 0.0:  # waiting jobs keep waiting
+					j["started"] = ProcessStation.now_s() - ProcessStation.job_seconds(ps.station_id, StringName(str(j["recipe"]))) * pct
 		ps.advance(ProcessStation.now_s())
 		ps._redraw()
 	var view := _arg("proc-view", "rack")
@@ -94,6 +104,8 @@ func _shot_setup() -> void:
 		_player.global_position = target.global_position + Vector3(1.2, 0, 0.8)
 		await get_tree().process_frame
 		_player.station_craft.open_station_menu(target)
+	if _arg("open-craft", "") == "1":  # the craft sheet a CRAFT tap opens: its times are the station's
+		_player.craft_ui.show_for_station(target.station_id)
 	get_tree().create_timer(4.0).timeout.connect(_check_labels.bind("shot %s %d%%" % [view, int(pct * 100.0)]))
 	print("[process_lab] shot ready proc=%d%% view=%s stage=%s label='%s' fx=%s" % [
 		int(pct * 100.0), view, tps.stage_id(), tps.label_text(),
@@ -199,7 +211,9 @@ func _check_labels(tag: String) -> void:
 		if own > NEAR_PX or nearer:
 			strays.append("%s %.0fpx%s" % [(d["node"] as Node).get("station_id"), own, " (nearer another)" if nearer else ""])
 	var drawn := DisplayServer.get_name() == "headless" or not pills.is_empty()  # headless draws no HUD
-	_check(drawn and hits == 0 and world_text == 0 and strays.is_empty(), "%s: %d chips, %d overlaps (chip on chip or on the survivor), %d station world labels, %d chips off their station %s" % [tag, pills.size(), hits, world_text, strays.size(), strays])
+	var racks := HudPills.last_drawn.filter(func (d: Dictionary) -> bool: return d["node"] == _rack or _extra.has(d["node"])).size()
+	var racks_ok := _extra.is_empty() or racks == 1 + _extra.size()
+	_check(drawn and hits == 0 and world_text == 0 and strays.is_empty() and racks_ok, "%s: %d chips, %d overlaps (chip on chip or on the survivor), %d station world labels, %d chips off their station %s%s" % [tag, pills.size(), hits, world_text, strays.size(), strays, "" if _extra.is_empty() else ", %d of %d working racks with a chip" % [racks, 1 + _extra.size()]])
 
 ## Pixels from a chip to its anchor point (0 when the point is on the chip).
 func _gap(r: Rect2, p: Vector2) -> float:
