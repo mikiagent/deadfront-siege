@@ -242,6 +242,11 @@ func _showing() -> String:
 		return "character:%s" % (_hud.get("_levelup_lines") as Array)[0][0]
 	return ""
 
+## Level-ups queued behind the one showing (a character level releases a capped survival level).
+func _waiting() -> bool:
+	var cel: Object = _hud.get("_levelups")
+	return cel != null and not (cel.get("queue") as Array).is_empty()
+
 func _fx_kinds() -> Array:
 	var out: Array = []
 	for fx in get_tree().get_nodes_in_group(FX_GROUP):
@@ -251,7 +256,7 @@ func _fx_kinds() -> Array:
 ## Lets the current celebrations and effects play out (they free themselves).
 func _drain() -> void:
 	var t := 0.0
-	while t < DRAIN_MAX_S and (_showing() != "" or not get_tree().get_nodes_in_group(FX_GROUP).is_empty()):
+	while t < DRAIN_MAX_S and (_showing() != "" or _waiting() or not get_tree().get_nodes_in_group(FX_GROUP).is_empty()):
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	_expect(t < DRAIN_MAX_S, "level-up celebrations and light effects end on their own (%.1f s)" % t)

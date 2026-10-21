@@ -17,8 +17,8 @@
     "light": {"at": 0.0, "in": 0.08, "hold": 0.1, "out": 0.7, "color": [1.0, 0.86, 0.6], "energy": 3.0, "range": 4.5, "lift": 1.2}
   },
   "hud": {
-    "character_s": 5.0,
-    "character_min_s": 2.6,
+    "character_s": 6.0,
+    "character_min_s": 4.0,
     "skill_s": 2.8,
     "skill_min_s": 1.7,
     "fade_s": 0.45,
