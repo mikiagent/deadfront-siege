@@ -83,7 +83,7 @@ with the spec 13 look; each is marked `# swap: INVUI <Component>` for the reconc
 | `listing_row.gd` | icon (ItemArt.texture_for + content_rect, modulated by ItemStack.tint_color), gold name, grey type line, `LevelDisplay.label`, "cur/max" or "—", coin + grouped price; seller name small; B badge for pets | listing view | INVUI ItemIcon, LevelLabel |
 | `listing_detail.gd` | detail + Buy confirm: real asset (level, durability, attributes gold/grey/green, processing, pet stats, genetics, grade, lineage), price, your tradable balance, Buy, pending / done / server error | listing view, `wallet.get` | INVUI ItemInspectPanel |
 | `sell_view.gd` (B2: `market_sell.gd` MarketSell + `market_picker.gd` MarketPicker + `market_sell_form.gd` MarketSellForm) | exact-instance picker of the **server** bag (+ pets, + market storage), price stepper/input, duration chips, preview, List | `char.get`, `vault.get`, `market.item_detail`, EconRules | INVUI InventoryGrid / InventorySlot, ItemInspectPanel |
-| `my_market_view.gd` | sub-tabs Active / Sold / Expired / History, Cancel on Active, Receive All + "n waiting" | `market.mine`, `vault.get`, `inbox.take` | — |
+| `my_market_view.gd` (B3: `market_mine.gd` MarketMine; Cancel is MarketConfirm's cancel mode) | sub-tabs Active / Sold / Expired / History, Cancel on Active, Receive All + "n waiting" | `market.mine`, `vault.get`, `inbox.take` | — |
 | `market_format.gd` MarketFormat | pure helpers: fee/tax/proceeds preview, number grouping, error text, row model from a view, category + clade grouping | EconRules, Data | — |
 
 ### 3.1 Header
@@ -151,7 +151,7 @@ gone. The item goes to the buyer's **vault** (contracts:157-159), not the bag.
   **Sold** = `closed_listings` state sold, with "credited +net" (`price × qty − tax`); **Expired** = state expired (and
   cancelled), "back in storage"; **History** = `mine.trades` (bought/sold, price, other party, time).
 - **Receive All**: `inbox.take` (clears events, shown as a toast list), `vault.get`, then one `vault.withdraw {uid}` per
-  item/pet, paced ≤ 4/s (contract 5.4 write 5/s). Stops on `bag_full` / `limit_reached` and shows "n waiting: bag full".
+  item/pet, paced ≤ 4/s (contract 5.4 write 5/s). (B3: tries every uid once instead of stopping at the first refusal, §13.)
   Proceeds are already in the wallet (ECON credits sales directly), so there is no coin claim. # ASSUMPTION: spec 06's
   "claimable proceeds" is served by direct credit + Receive All for items (contracts:157-158 are newer). Pressing it again
   moves nothing (each withdraw is idempotent by uid; an empty vault does nothing).
@@ -190,7 +190,7 @@ offline "The Island Market needs a connection to the game server." · timeout "N
 insufficient_funds "Not enough tradable T-stones" · limit_reached (msg tells which: trade lock "New accounts can trade in N min",
 50 listings, vault full, deposit cap, bonded roster) · self_trade "That is your own listing" · expired / not_found / closed
 "No longer available" (row removed) · not_owner "Not your listing" · invalid_asset "This can't be sold on the market" ·
-bag_full "Your bag is full: N still waiting" · rate_limited "Too fast, try again" · server_error "The market is busy finishing a
+bag_full "N still waiting: Your bag is full." (the server's msg names def ids, so it is not shown) · rate_limited "Too fast, try again" · server_error "The market is busy finishing a
 trade. Try again shortly." · unauthorized / bad_request "Something went wrong" + msg (a bug; logged).
 
 ## 6. Hooks (exact, compiling changes go in `claude-mmo-exchange-hooks.patch`, written in the build step that needs them)
@@ -212,7 +212,8 @@ land the UI degrades honestly (no arrows for missing sorts; no categories in the
   NetMarketClient, buy_view/table/row/detail with real `market.buy`, search sheet + chips, categories + Animals clades,
   hooks H0-H2. Lab screens buy, buy_taming, confirm, offline; the lab opens the market through the HUD MENU sheet.
 - **B2 Sell**: sell_view, MarketFormat preview, lab screen sell (H3 dropped, §12).
-- **B3 My Market + Receive All**: my_market_view, lab screen my_market.
+- **B3 My Market + Receive All** (done, §13): market_mine.gd, MarketConfirm cancel mode, lab screens my_market,
+  my_market_sold, my_market_history, my_market_cancel, my_market_received.
 - **B4 polish**: responsive at 1600x900, 1920x1080, 844x390, 667x375 (safe area), 500-listing performance (harness seeds 500
   listings by real ops; paging), focus/keyboard/gamepad (ui_cancel, focus_first), report.
 
@@ -333,4 +334,38 @@ ItemInspectPanel.
 - **Harness**: the viewer also has two looted bones, a crafted knife, a captured cage, a bonded compy and a stone stack
   with the "locked" flag. # shortcut: `MarketHarness.lock_first` sets the flag on the server character directly (the
   server has no lock intent until W3-SRVACT), standing in for the Bag's Lock.
+
+## 13. B3 as built (2026-10-20): My Market and Receive All
+
+Files: `game/scripts/ui/market/market_mine.gd` MarketMine (the tab). MarketConfirm gained `open_cancel` / `cancel_listing`
+(the listing panel in a cancel mode), MarketFormat `mine_rows`, `event_text`, `key_name`, `span`; MarketRow takes a prebuilt
+model and shows `LevelDisplay.NONE` for a level of 0; MarketClient `now()` (the harness clock on LocalMarketClient);
+MarketHarness `fill_bag`. No new hook: everything goes through ops already in `VaultBridge.CLIENT_OPS`.
+
+- **Layout**: a sub-tab band in the table-header style (Active n/50, Sold, Expired, History; the shown one lighter with
+  yellow brackets and a yellow label, like the rail), then rows in the Buy row style (icon, gold name over the grey type,
+  Lv., a status column, coin + price), then a footer band: status line, "n waiting in market storage", yellow Receive All.
+  Active rows have a white "Cancel"; the other sub-tabs give that width to the status column.
+- **Rows** are one `market.mine` answer: Active = `listings` ("Ends in 2 d 11 h", "Ending…" once due and not yet settled);
+  Sold = `closed_listings` with state sold ("Sold · +N credited", N = Σ total − tax of the account's trades whose `ref` is
+  the listing; "Sold · credited" if those trades were pruned); Expired = the other closed states ("Expired / Cancelled ·
+  back in storage", the count is qty minus units sold); History = `trades` ("Bought", "Sold", "Sold to Settlers" for npc
+  buyers, "· 13 h ago", the trade total as the price, `Lv. —` because a trade record keeps no level). Closed listings are
+  paged by the server (page_size 20); a "‹ n / m ›" pager shows on Sold / Expired when there is a page 2. Sub-tabs switch on
+  the last answer; the tab re-reads on open, after a cancel and after Receive All. # ASSUMPTION: the other party is not
+  shown in History: trade rows carry account ids, not names (an ECON change if wanted).
+- **Cancel** opens the listing panel: the asset's facts, "Listed at N", "Cancelling takes it off the market and puts it in
+  your market storage (My Market → Receive All). The listing fee of F T-stones is not refunded.", Keep listing / Cancel
+  listing. One `market.cancel` (a second tap while pending sends nothing; after it the button is gone). Success: "Cancelled. It
+  is in your market storage: Receive All brings it to your bag.", My Market re-reads. A listing that sold or expired meanwhile:
+  "No longer available.", nothing moves, My Market re-reads.
+- **Receive All**: `inbox.take` (its events become the status line: "Sold Fibre Stalk ×1 to Trader2: +5 credited. Berry ×1
+  expired: back in storage.", three at most plus "And n more."), then one `vault.withdraw {uid}` per item and pet, 0.25 s
+  apart, "Receiving i of n…". Changed from §3.5: every uid is tried once and a refusal does not stop the rest (a stack can
+  still merge into the bag after a knife found no slot; a full bonded roster does not hold items back); the first refusal
+  is the reason shown: "Received 1 into your bag. 2 still waiting: Your bag is full." Disabled with nothing waiting ("Market
+  storage is empty"); pressing it again only retries what is still there, so nothing moves twice. Proceeds need no claim
+  (A5). The header's wallet is re-read when My Market opens (sales credit while the screen is closed).
+- **Harness**: `fill_bag` loots single knives from a "pile" corpse until the server says `bag_full` (plain materials
+  stack to 999 per slot, ItemDef.from_dict, so gathering would need ~20,000 units to fill a bag).
 

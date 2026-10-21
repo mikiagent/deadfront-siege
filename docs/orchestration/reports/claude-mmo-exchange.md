@@ -179,20 +179,103 @@ Lab (`market_ui_lab`, hooks tree, opened through the HUD menu's Island Market bu
 - Left as is: captured cages and the bonded pet share the placeholder art until ICONS2's renders merge (the B disc and
   "Captured ..." tell them apart); "Stored" and "Lv. 1" sit close on 82 px phone cells.
 
-## For the next agent (B3 My Market, B4 polish)
+## B3: My Market and Receive All (done, b9685fc7 + docs commit)
 
-- My Market reads `market.mine` (listings, closed_listings, trades) and `vault.get`; Receive All is `inbox.take`, then
-  one `vault.withdraw {uid}` per item and pet (spec §3.5). The Sell tab already shows vault items as Stored cells and
-  re-reads after every write; after Receive All call `ms.sell.reload()` if Sell is open.
-- Turn the B3 PENDING lines in `t_exchange` into checks; reuse `_open`, `_open_sell`, `_click`, `_click_cell`,
-  `_entry`, `_hook_absent`. The harness already seeds an active, a sold and an expired listing and two vault items.
+Base sync: ECON is still not merged into `claude/mmo-overhaul` (no merge of claude/mmo-econ in its log); HEAD already
+contains `claude/mmo-econ` f5dd8ee8 (nothing new to merge), and ECON's hooks patch is unchanged since cf43dd44, so
+nothing was re-applied.
+
+Shipped (spec §13 has the detail):
+- **My Market tab** (`market_mine.gd`): a sub-tab band (Active n/50, Sold, Expired, History; the shown one lighter with
+  yellow brackets like the rail), rows in the Buy row style, a footer with the status line, "n waiting in market
+  storage" and a yellow Receive All. Every row is one `market.mine` answer: Active = open listings ("Ends in 2 d 11 h",
+  white Cancel); Sold = closed listings sold ("Sold · +N credited", N from the account's own trades for that listing);
+  Expired = expired and cancelled ("… · back in storage", units = qty minus units sold); History = the account's trades
+  ("Bought" / "Sold" / "Sold to Settlers", "· 13 h ago", the trade total). Sold / Expired page with the server
+  (page_size 20, a pager when there is a page 2).
+- **Cancel**: the listing panel (MarketConfirm) in a cancel mode: the asset's facts, "Listed at N", that it goes to market
+  storage and that the listing fee is not refunded; Keep listing / Cancel listing; one `market.cancel`. A listing that
+  sold meanwhile: "No longer available.", nothing moves, the tab re-reads.
+- **Receive All**: `inbox.take` (the events become the status line), then one `vault.withdraw {uid}` per item and pet,
+  0.25 s apart. Changed from spec §3.5: every uid is tried once and a refusal does not stop the rest (a stack can still
+  merge after a knife found no slot); the first refusal is the reason ("2 still waiting: Your bag is full."; bag_full's
+  server msg names def ids, so it is not appended). Disabled when nothing waits; pressing again only retries what is
+  still there. Proceeds need no claim (A5: the engine credits sales straight to the wallet). The header's wallet is
+  re-read when My Market opens.
+- `MarketClient.now()` (device clock; the harness clock on LocalMarketClient) for "ends in" and "ago".
+  # shortcut: NetMarketClient uses the device clock until NET reports a server-time offset.
+- `MarketHarness.fill_bag` loots single knives from a "pile" corpse until the server answers `bag_full` (plain
+  materials stack to 999 a slot on this base, so gathering cannot fill a bag).
+
+Assumptions added (spec §13): History does not name the other party (trade rows carry account ids, not names; an ECON
+change if wanted); Receive All tries every uid instead of stopping at the first refusal.
+
+Hooks patch: unchanged (H0-H2; B3 needs no change outside the package). It applies to b9685fc7: the hooks tree below was
+built from it with `mkscratch.sh exch-hooks b9685fc7 <patch>` ("Applied patch to ... cleanly" for both files).
+
+### Checks run (B3)
+
+New t_exchange checks (all through `MarketClient -> VaultBridge.client`; the two B3 PENDING lines are gone):
+- My Market sub-tab rows == `market.mine` ids for Active, Sold, Expired and History; a sold row says the net its sale
+  credited, equal to the seller's wallet delta (+19 for a 20 sale); History tells Bought, Sold and Sold to Settlers apart;
+  an active row says when it ends and has Cancel.
+- Cancel: the panel says the kept fee; a double tap cancels once ("Cancelled."), the wallet is unchanged (fee kept), the
+  exact units (uid, count, level, attributes) are back in market storage, the row leaves Active, storage holds one more,
+  Expired shows "Cancelled · back in storage"; a listing bought by another account while the panel is open: "No longer
+  available." and char, vault and wallet unchanged.
+- Receive All: storage count shown; after the press storage is empty and every unit is in the bag; a bought knife is home
+  under its own uid with its durability and level; the status says "Received 3 into your bag." plus the inbox news ("Sold
+  Fibre Stalk ×1 to Trader2"); `inbox.take` afterwards returns no events; the button is disabled and a forced second
+  press changes nothing ("Nothing was waiting.").
+- Full bag: 2 of 3 still waiting with "2 still waiting: Your bag is full."; every unit is in the bag or in storage; a
+  second press with the bag still full moves nothing.
+- Mutation run (then reverted): Receive All without `inbox.take` and My Market rows in reverse order -> `[t_exchange]
+  FAIL count=3` ("My Market sold rows == market.mine (["L357", "L377"] vs ["L377", "L357"])", "the inbox was taken",
+  the status/news check).
+
+Gates at b9685fc7 (branch = no hooks; hooks tree = `scratchpad/trees/exch-hooks`, b9685fc7 + the hooks patch, imported once):
+- every `game/tests/t_*.gd`, both trees: 21 x PASS, rc 0; `t_save` 5 SCRIPT ERRORs (deliberate, as on base), all others
+  0 (incl. `[t_econ] PASS`, `[t_ui] PASS`, `[t_exchange] PASS`).
+- `t_exchange`: branch `[t_exchange] PASS` with the HOOK H0/H1/H2 absent lines; hooks tree `-- --require-hooks`
+  `[t_exchange] PASS` (`sorts checked across pages: price_asc, price_desc, level_desc, level_asc, durability_asc,
+  durability_desc`, `menu: HUD MENU -> Island Market -> MarketScreen visible=true`); 1 PENDING line left (B4).
+- `run_all.gd` both: `[tests] PASS`; its 2 SCRIPT ERROR lines are FaultyEngine's after `[econ] fault test: the next SCRIPT
+  ERROR and ERROR lines are deliberate` (a grep count says 3 because that announcement line contains the words).
+- `tools/smoke.sh --no-import` both: `SMOKE PASS`.
+- No new Godot .ips: 34 before this step's first run and 34 after the last (newest still Godot-2026-10-20-202004.ips).
+
+Lab (`market_ui_lab`, new screens `my_market_sold`, `my_market_history`, `my_market_cancel`, `my_market_received`;
+`my_market` now shows the tab), 0 SCRIPT ERROR, exit 0 every run:
+- 1600x900: `measure my_market tab=active rows=1 visible=5 row=122px cancel=177x58 receive=220x58 'Receive All'`,
+  `targets_under_44=0 clipped_labels=0 plus_buttons=0`.
+- 844x390: `measure my_market tab=active rows=1 visible=4 row=48px cancel=94x44 receive=150x44 'Receive All'`,
+  `targets_under_44=0 clipped_labels=0 plus_buttons=0` (History: 6 rows, 4 visible).
+- Hooks tree: `[market_lab] menu: pressing the HUD's Island Market button`, then the same measure lines.
+- Shots looked at next to both market references (scratchpad `ex3/`): my_market, my_market_sold, my_market_history,
+  my_market_cancel, my_market_received at 1600x900 gl_compatibility and 844x390 gl_compatibility; my_market at 1600x900
+  Forward+ (same pixels); my_market (1600) and my_market_received (844) again in the hooks tree, opened through the HUD
+  menu. Matched: header and torn edge, the rail with the bracketed yellow My Market ledger, gold names over grey types,
+  "Lv. n", coin prices, dotted separators, the selection's yellow brackets on the sub-tab. Fixed after looking: "13 h 0
+  min ago" (zero minor units dropped), the Settlers status ellipsized (the Cancel column's width goes to the status off
+  Active), the Receive All button touching the panel edge, "1 T-stones", a stray separator after History.
+- Left as is: History rows read `Lv. —` (a trade record keeps no level); the bought/sold icons for pets and cages are the
+  same placeholder art until ICONS2's renders merge.
+
+## For the next agent (B4 polish)
+
+- B4 is the last PENDING line: responsive checks at 1600x900, 1920x1080, 844x390 and 667x375 (safe area), 500 listings
+  seeded by real ops with paging (< 8 ms a page, no frame > 33 ms), focus / keyboard / gamepad (ui_cancel closes the
+  cancel panel first, focus_first), then delete the PENDING line.
+- My Market re-reads on open, after a cancel and after Receive All; when W1-INT pushes inbox events over the socket, call
+  `ms.mine.reload()` on a pushed sold / expired event while the tab is shown (spec §10).
 - INVUI's components are on claude/mmo-invui over W2-INV's Inventory; swap the `# swap: INVUI ...` parts when both reach
-  this base.
-- ICONS2's `captured_animal` / `tamed_animal` renders are not on this base (claude/mmo-icons2, unmerged): picker cells,
-  rows and the Sell card show the same placeholder until it merges; ItemArt picks the renders up with no code change.
+  this base. ICONS2's `captured_animal` / `tamed_animal` renders (claude/mmo-icons2) are picked up by ItemArt with no code
+  change.
 - Risks: the band is advice only (owner may want a wall; then it belongs in ECON with its tests changed); a picker read
   and a deposit are two ops, so a bag change between them is caught by the uid re-read, not prevented; ECON should own a
   `release()` for its static Loggers; H1/H2 change ECON's search code while ECON is still being fixed, so the patch may
-  need a rebase at merge; `market.mine` can still exceed NET's 64 KiB frame (H4 note for W1-INT/ECON).
+  need a rebase at merge; `market.mine` returns every open listing and up to 100 trades with full asset dicts and can
+  still exceed NET's 64 KiB frame (H4 note for W1-INT/ECON: page `listings` and `trades`); NetMarketClient's "ends in" uses
+  the device clock.
 
 Credits spent: none. Meshy/Tripo not used.

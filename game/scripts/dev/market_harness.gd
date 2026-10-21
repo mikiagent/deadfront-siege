@@ -109,7 +109,7 @@ func lock_first(acct: int, def: String) -> void:
 	row.flags = (row.get("flags", []) as Array) + ["locked"]
 
 ## Loots single knives from a pile until the server says the bag is full (Receive All's full-bag
-## case; server stacks of gathered goods never fill a slot, so they cannot fill a bag).
+## case; plain materials stack to 999 a slot, so gathering would take ~20,000 units).
 func fill_bag(acct: int) -> void:
 	world.corpses["pile"] = {"pos": [1, 0, -1], "slots": []}
 	for i in CharacterState.BAG_SLOTS:
