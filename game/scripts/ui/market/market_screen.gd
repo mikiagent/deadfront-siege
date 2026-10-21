@@ -97,11 +97,12 @@ func _ready() -> void:
 			mine.reload()
 		else:
 			buy.drop(str(confirm.view.get("id", ""))))
+	confirm.stale.connect(_reopen_lot)
 	confirm.visibility_changed.connect(_confirm_focus)
 	add_child(confirm)
 	buy.table.search_pressed.connect(func () -> void: search.open(buy.q, _m))
 	buy.table.row_pressed.connect(func (v: Dictionary) -> void:
-		confirm.open(client, v, header.tradable(), client.account >= 0 and int(v.get("seller", -2)) == client.account, _m))
+		confirm.open(client, v, header.tradable(), client.account >= 0 and int(v.get("seller", -2)) == client.account, _m, int(header.wallet.get("trade_lock_s", 0))))
 	get_viewport().size_changed.connect(_layout)
 
 func is_open() -> bool:
@@ -139,6 +140,8 @@ func close_screen() -> void:
 	closed.emit()
 
 func show_tab(id: StringName) -> void:
+	if id == &"buy" and tab == &"buy" and buy.category != "":
+		buy.set_category("") # the active Buy tab pressed again: back to every listing (the column has no X)
 	tab = id
 	buy.visible = id == &"buy"
 	sell.visible = id == &"sell"
@@ -148,15 +151,31 @@ func show_tab(id: StringName) -> void:
 		refresh_wallet() # sales are credited while the screen is closed
 		mine.start(client)
 	if id == &"sell":
-		sell.set_wallet(int(header.wallet.get("wallet", 0)))
+		sell.set_wallet(int(header.wallet.get("wallet", 0)), int(header.wallet.get("trade_lock_s", 0)))
 		sell.start(client, _sell_uid) # the server's bag now: it changes while the screen is closed
 		_sell_uid = ""
+
+## Another player bought part of the lot in the open confirm: the list is read again from its first
+## page and the confirm reopens on the same listing with what is left, the reason kept above Buy.
+## Not on the first page any more: the confirm keeps the reason and no Buy (the list shows the rest).
+func _reopen_lot() -> void:
+	var id := str(confirm.view.get("id", ""))
+	var was := int(confirm.view.get("left", 1))
+	var why := confirm.status.text
+	buy.page = 1
+	await buy.reload()
+	for r in buy.table.rows: # a row still showing the old count (a search was already out) is not reopened
+		if str(r.view.get("id", "")) == id and int(r.view.get("left", 1)) < was and confirm.visible:
+			confirm.open(client, r.view, header.tradable(), false, _m, int(header.wallet.get("trade_lock_s", 0)))
+			if not confirm.buy_btn.disabled:
+				confirm.say(why, MarketTheme.DANGER)
+			return
 
 func refresh_wallet() -> void:
 	var res: Dictionary = await client.request("wallet.get")
 	if res.get("ok", false):
 		header.set_wallet(res.r)
-		sell.set_wallet(int(header.wallet.get("wallet", 0)))
+		sell.set_wallet(int(header.wallet.get("wallet", 0)), int(header.wallet.get("trade_lock_s", 0)))
 
 func _input(event: InputEvent) -> void:
 	if not visible:
@@ -219,7 +238,7 @@ func _confirm_focus() -> void:
 func _offline_panel() -> Control:
 	var p := PanelContainer.new()
 	p.name = "OfflinePanel"
-	var sb := MarketTheme.flat(Color(0.05, 0.06, 0.05, 0.75), MarketTheme.BORDER, 2, 6)
+	var sb := MarketTheme.flat(MarketTheme.DIALOG, MarketTheme.BORDER, 2, 6)
 	sb.set_content_margin_all(24)
 	p.add_theme_stylebox_override("panel", sb)
 	var box := VBoxContainer.new()

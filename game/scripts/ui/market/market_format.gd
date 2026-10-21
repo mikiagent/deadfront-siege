@@ -6,7 +6,9 @@ extends RefCounted
 
 const QUERY := "res://scripts/economy/market_query.gd"
 ## Market category -> title where id.capitalize() reads wrong.
-const TITLES := {"animal": "Animals", "food_raw": "Raw Food", "food_cooked": "Cooked Food"}
+# ASSUMPTION: "animal" (bonded pets and captured cages, hook H2) is titled "Taming Materials", the
+# owner's reference's name for that column (durango-prompts/14).
+const TITLES := {"animal": "Taming Materials", "food_raw": "Raw Food", "food_cooked": "Cooked Food"}
 ## Clade -> the short "<name> Type" row of the Animals column.
 # ASSUMPTION (exchange-spec A3): short forms of the real clades; no invented species (no Avian/Wolf).
 const CLADE_NAMES := {
@@ -19,6 +21,7 @@ const ERRORS := {
 	"offline": "The Island Market needs a connection to the game server.",
 	"timeout": "No answer from the server. Retrying…",
 	"insufficient_funds": "Not enough tradable T-stones.",
+	"insufficient_items": "Someone just bought part of this lot.",
 	"self_trade": "That is your own listing.",
 	"expired": "No longer available.",
 	"not_found": "No longer available.",
@@ -30,6 +33,8 @@ const ERRORS := {
 	"server_error": "The market is busy finishing a trade. Try again shortly.",
 }
 
+## Sell: an instance the character has equipped (weapon, armour, gather tool).
+const EQUIPPED := "Equipped. Unequip it in your Bag first."
 ## Sell: what a refused flag (limits.json refused_flags) tells the player; other flags get a generic line.
 const REFUSED_FLAGS := {
 	"locked": "Locked. Unlock it in your Bag to sell it.",
@@ -57,9 +62,13 @@ static func error_text(res: Dictionary) -> String:
 	if err == "limit_reached":
 		return msg.left(1).to_upper() + msg.substr(1) + "." if msg != "" else "A market limit was reached."
 	var head := str(ERRORS.get(err, "Something went wrong."))
-	if err in ["offline", "expired", "not_found", "closed", "self_trade", "bag_full"] or msg == "": # bag_full's msg names def ids
+	if err in ["offline", "expired", "not_found", "closed", "self_trade", "bag_full", "insufficient_items"] or msg == "": # bag_full's msg names def ids
 		return head
 	return "%s (%s)" % [head, msg]
+
+## The new-account trade lock as the engine words it (MarketEngine: "new accounts can trade in N min").
+static func lock_text(secs: int) -> String:
+	return "New accounts can trade in %d min." % ceili(secs / 60.0)
 
 ## True when the listing is gone and its row should leave the table.
 static func is_gone(res: Dictionary) -> bool:
@@ -117,12 +126,19 @@ static func asset_lines(kind: String, a: Dictionary) -> PackedStringArray:
 ## Sell picker cells: the server character's bag (one per stack or instance, in slot order), its
 ## bonded pets, then what waits in its market storage (listed from there with no deposit).
 ## Each is a row() model plus src (bag | pet | vault), key (bag slot or uid), kind, asset, why.
+## Equipped instances (char.get's equipment slots and gather tool hold uids) are refused here: the
+## server would take one out of the bag and CharacterState.commit would silently unequip it.
 static func sell_entries(ch: Dictionary, vault: Dictionary) -> Array:
 	var out: Array = []
 	var bag: Array = ch.get("bag", [])
+	var worn: Array = (ch.get("equipment", {}) as Dictionary).values().map(func (u: Variant) -> String: return str(u)) + [str(ch.get("tool", ""))]
 	for i in bag.size():
 		if bag[i] is Dictionary and str(bag[i].get("id", "")) != str(CharacterState.LOCK):
-			out.append(_entry("bag", i, "item", bag[i]))
+			var e := _entry("bag", i, "item", bag[i])
+			if str(e.uid) != "" and str(e.uid) in worn:
+				e.equipped = true
+				e.why = EQUIPPED
+			out.append(e)
 	var pets: Dictionary = ch.get("pets", {})
 	for uid: String in pets:
 		out.append(_entry("pet", uid, "pet", pets[uid]))

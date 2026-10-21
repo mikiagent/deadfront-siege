@@ -26,7 +26,7 @@ func _ready() -> void:
 			cancelled.emit())
 	add_child(dim)
 	_panel = PanelContainer.new()
-	var sb := MarketTheme.flat(Color(0.13, 0.15, 0.13, 0.98), MarketTheme.BORDER, 2, 6)
+	var sb := MarketTheme.flat(MarketTheme.DIALOG, MarketTheme.BORDER, 2, 6)
 	sb.set_content_margin_all(16)
 	_panel.add_theme_stylebox_override("panel", sb)
 	add_child(_panel)
@@ -41,7 +41,6 @@ func _ready() -> void:
 	field.placeholder_text = "Item or animal name"
 	field.max_length = 40 # MarketQuery.search: q is 0..40 characters
 	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field.add_theme_font_override("font", MarketTheme.font())
 	field.text_submitted.connect(func (t: String) -> void: searched.emit(t.strip_edges()))
 	row.add_child(field)
 	var go := Button.new()
@@ -56,10 +55,10 @@ func _ready() -> void:
 		_grid.add_theme_constant_override("h_separation", 8)
 		_grid.add_theme_constant_override("v_separation", 8)
 		_box.add_child(_grid)
-		for id: String in MarketFormat.categories():
+		for id: String in [""] + MarketFormat.categories(): # "" = All: leaves a chosen category
 			var b := Button.new()
-			b.name = "Category_%s" % id
-			b.text = MarketFormat.category_title(id)
+			b.name = "Category_%s" % (id if id != "" else "all")
+			b.text = MarketFormat.category_title(id) if id != "" else "All"
 			MarketTheme.action(b, false, 15)
 			b.pressed.connect(func () -> void: category_chosen.emit(id))
 			_grid.add_child(b)
@@ -74,6 +73,7 @@ func open(q: String, m: Dictionary) -> void:
 	_panel.custom_minimum_size = Vector2(w, 0)
 	_panel.size = Vector2(w, 0)
 	field.custom_minimum_size.y = m.tmin
+	field.add_theme_font_override("font", MarketTheme.font(m.name))
 	field.add_theme_font_size_override("font_size", m.name)
 	if _grid:
 		_grid.columns = 6 if compact else 4

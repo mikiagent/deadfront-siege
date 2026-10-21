@@ -29,7 +29,6 @@ func _ready() -> void:
 		sub = key
 		page = 1
 		reload())
-	column.closed.connect(func () -> void: set_category(""))
 	add_child(column)
 	table = MarketTable.new()
 	table.name = "Table"
@@ -53,7 +52,7 @@ func start(p_client: MarketClient) -> void:
 func set_query(text: String) -> void:
 	q = text
 	page = 1
-	table.set_chips([] if q == "" else [{"key": &"q", "text": "“%s”" % q}])
+	table.set_chips([] if q == "" else [{"key": &"q", "text": q}])
 	reload()
 
 func set_category(id: String) -> void:

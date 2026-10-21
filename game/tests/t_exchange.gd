@@ -58,6 +58,37 @@ class FakeNet extends RefCounted:
 			q.r = {"echo": q.op}
 		q.done.emit(q)
 
+## NetClient's shape over a harness's real economy, answering on a later frame like a socket does:
+## a second tap while an op is out reaches the screen before the first answer (LocalMarketClient
+## answers at once, so its double taps never overlap a pending op).
+class BridgeNet extends RefCounted:
+	var account_id := 1
+	var h: RefCounted
+	var write_ops: Array = []
+	var sent: Array[String] = []
+	var _n := 0
+	func is_online() -> bool:
+		return true
+	func request(op: String, a: Dictionary) -> FakeReq:
+		var q := FakeReq.new()
+		q.op = op
+		q.a = a
+		_n += 1
+		q.rid = "bn%d" % _n
+		sent.append(op)
+		_answer.call_deferred(q)
+		return q
+	func _answer(q: FakeReq) -> void:
+		var a := q.a.duplicate()
+		if q.op in write_ops:
+			a.rid = q.rid # the relay copies the envelope's rid into the op
+		var res: Dictionary = (h.get("bridge") as Object).call("client", q.op, account_id, a, int(h.get("now")))
+		q.ok = bool(res.get("ok", false))
+		q.r = res.get("r", {})
+		q.err = str(res.get("err", ""))
+		q.msg = str(res.get("msg", ""))
+		q.done.emit(q)
+
 func _process(_delta: float) -> bool:
 	if _done:
 		return true
@@ -88,6 +119,10 @@ func _run() -> void:
 		await _test_categories(hs, ms_script)
 		await _test_sell(hs, ms_script)
 		await _test_sell_errors(hs, ms_script)
+		await _test_sell_equipped(hs, ms_script)
+		await _test_trade_lock(hs, ms_script)
+		await _test_partial_lot(hs, ms_script)
+		await _test_slow_transport(hs, ms_script)
 		await _test_my_market(hs, ms_script)
 		await _test_cancel(hs, ms_script)
 		await _test_receive_all(hs, ms_script)
@@ -333,7 +368,7 @@ func _test_categories(hs: GDScript, ms_script: GDScript) -> void:
 		_expect((search.get("categories") as Array).is_empty(), "without H2 the search sheet offers no categories")
 		ms.queue_free()
 		return
-	_expect((search.get("categories") as Array).size() == (MF.call("categories") as Array).size(), "the search sheet lists every market category")
+	_expect((search.get("categories") as Array).size() == (MF.call("categories") as Array).size() + 1 and (search.get("categories")[0] as Button).text == "All", "the search sheet lists All and every market category")
 	search.emit_signal("category_chosen", "animal")
 	var keys := _row_keys(table)
 	_expect((buy.get("column") as Control).visible and keys.size() == 4 and keys.count("pet:compsognathus") == 1 and keys.count("item:captured_animal") == 3, "Animals: the bonded pet and three cages, one row each: %s" % [keys])
@@ -343,21 +378,29 @@ func _test_categories(hs: GDScript, ms_script: GDScript) -> void:
 	var cm: Dictionary = cage_row.get("model")
 	_expect(pm.badge and pm.icon == &"tamed_animal" and cm.name == "Captured Compsognathus" and not cm.badge and cm.icon == &"captured_animal", "a bonded pet has the B badge, a cage reads Captured <species>: %s / %s" % [pm.name, cm.name])
 	var col: Control = buy.get("column")
+	_expect(str(col.get("title")) == "Taming Materials" and col.find_children("*", "Button", true, false).all(func (b: Node) -> bool: return str(b.name).begins_with("Cat_")), "the animal column is titled Taming Materials and has no close button (references): %s" % col.get("title"))
 	var titles: Array = (col.get("entries") as Array).map(func (e: Dictionary) -> String: return str(e.title))
 	_expect(titles[0] == "View All" and "Compy Type" in titles and "Raptor Type" in titles and "Avian Type" not in titles and "Wolf Type" not in titles, "Animals column: View All then real clades only: %s" % [titles])
 	col.emit_signal("picked", "clade:Compsognathidae")
 	_expect(_row_keys(table).size() == 4, "Compy Type: the compsognathus pet and cages")
 	col.emit_signal("picked", "clade:Dromaeosauridae")
-	_expect(_row_keys(table).is_empty() and str((table.get("_empty") as Label).text).contains("Animals"), "Raptor Type: no listings, said so")
+	_expect(_row_keys(table).is_empty() and str((table.get("_empty") as Label).text).contains("Taming Materials"), "Raptor Type: no listings, said so")
 	search.emit_signal("category_chosen", "wood")
 	_expect((table.get("rows") as Array).all(func (r: Control) -> bool: return r.get("model").type == "Wood") and _row_keys(table).count("item:branch") == 3, "Wood: only wood items: %s" % [_row_keys(table)])
 	col.emit_signal("picked", "def:branch")
 	_expect(_row_keys(table) == ["item:branch", "item:branch", "item:branch"], "Wood > Branch: the three branches")
-	col.emit_signal("closed")
-	_expect(not col.visible and _row_keys(table).size() == (h.call("op", 1, "market.search", {"page_size": 20}).r.results as Array).size(), "closing the category shows everything again")
+	var everything := (h.call("op", 1, "market.search", {"page_size": 20}).r.results as Array).size()
+	_click((ms.get("rail") as Control).get("buttons")[&"buy"]) # the active Buy tab again leaves the category
+	await process_frame
+	_expect(not col.visible and _row_keys(table).size() == everything, "pressing Buy again shows everything (%d rows)" % _row_keys(table).size())
+	search.emit_signal("category_chosen", "wood")
+	search.emit_signal("category_chosen", "")
+	_expect(not col.visible and _row_keys(table).size() == everything, "the search sheet's All shows everything too")
 	search.emit_signal("searched", "branch")
 	var chips: Array = table.get("chips")
 	_expect(chips.size() == 1 and _row_keys(table).size() == 3, "a name search shows a chip and only matching rows")
+	var chip := table.find_child("Chip_q", true, false) as Button
+	_expect(chip != null and chip.text.begins_with("branch") and (chip.get_theme_stylebox("normal") as StyleBoxFlat).content_margin_left >= 10.0, "the chip names the search plainly, padded on the left: '%s'" % (chip.text if chip else "-"))
 	table.emit_signal("chip_removed", &"q")
 	_expect((table.get("chips") as Array).is_empty() and _row_keys(table).size() > 3, "removing the chip clears the search")
 	ms.queue_free()
@@ -545,6 +588,167 @@ func _test_sell_errors(hs: GDScript, ms_script: GDScript) -> void:
 	_expect(why.call("item", {"id": "bone", "count": 2, "flags": ["raw"]}) == "", "an ordinary stack can be sold")
 	ms.queue_free()
 	print("[t_exchange] sell errors: price 0, over max, bound pays the fee, fee over the wallet, stale balance (stored, wallet kept), server range, band %s, refusal reasons" % [band])
+
+## Review r1: an item the character has equipped is tagged and refused in the picker (listing it
+## would take it out of the bag and CharacterState.commit would silently unequip it). Hook H5: the
+## server refuses the deposit of an equipped uid as well.
+func _test_sell_equipped(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/equipped")
+	h.call("seed_scene")
+	var knife := ""
+	for row: Variant in h.call("op", 1, "char.get", {}).r.bag:
+		if row is Dictionary and str(row.id) == "stone_knife_work":
+			knife = str(row.uid)
+	var eq: Dictionary = h.call("op", 1, "act.equip", {"bag_slot": _slot_of(h, knife)})
+	var worn := func () -> String:
+		var ch: Dictionary = h.call("op", 1, "char.get", {}).r
+		return JSON.stringify([ch.equipment, ch.tool])
+	_expect(eq.get("ok", false) and worn.call().contains(knife), "the viewer's knife %s is equipped on the server: %s" % [knife, worn.call()])
+	var ms: Control = await _open_sell(h, 1, ms_script)
+	var sell: Control = ms.get("sell")
+	var form: Control = sell.get("form")
+	var e := _entry(sell, func (x: Dictionary) -> bool: return str(x.uid) == knife)
+	await _click_cell(sell, knife)
+	var status := form.get("status") as Label
+	_expect(e.get("equipped", false) and str(e.why).begins_with("Equipped") and status.text == e.why and (form.get("list_btn") as Button).disabled, "an equipped knife is tagged and refused: %s" % status.text)
+	var before: String = worn.call() + JSON.stringify(h.call("op", 1, "market.mine", {}).r.listings)
+	_click(form.get("list_btn"))
+	await sell.call("list_selected")
+	_expect(worn.call() + JSON.stringify(h.call("op", 1, "market.mine", {}).r.listings) == before and _slot_of(h, knife) >= 0, "List does nothing: still equipped, still in the bag, nothing listed")
+	var forced: Dictionary = h.call("op", 1, "vault.deposit", {"bag_slot": _slot_of(h, knife), "count": 1})
+	if forced.get("ok", false):
+		_hook_absent("H5", "the server's refusal of an equipped deposit")
+	else:
+		_expect(str(forced.get("err", "")) == "invalid_asset" and str(forced.get("msg", "")).contains("equipped") and worn.call().contains(knife), "H5: the server refuses an equipped deposit too: %s" % forced)
+	ms.queue_free()
+	print("[t_exchange] equipped: %s tagged and refused (%s)" % [knife, e.get("why", "")])
+
+## Review r1: a new account inside the trade lock sees it before List and Buy (hook H6: wallet.get's
+## trade_lock_s), so no deposit moves an item for a listing the server would refuse.
+func _test_trade_lock(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/lock")
+	h.call("seed_scene")
+	var bridge: Object = h.get("bridge")
+	bridge.call("hello", 6, "Newcomer", int(h.get("now")))
+	for i in 3:
+		bridge.call("client", "act.gather", 6, {"node_id": "rock", "option": 0}, int(h.get("now")))
+	var w: Dictionary = h.call("op", 6, "wallet.get", {}).r
+	if not w.has("trade_lock_s"):
+		_hook_absent("H6", "the trade lock shown before List and Buy")
+		return
+	var ms: Control = await _open_sell(h, 6, ms_script)
+	var sell: Control = ms.get("sell")
+	var form: Control = sell.get("form")
+	var stone := _entry(sell, func (e: Dictionary) -> bool: return str(e.asset.get("id", "")) == "stone")
+	await _click_cell(sell, str(stone.uid))
+	(form.get("price_edit") as LineEdit).text_changed.emit("5")
+	var want: String = MF.call("lock_text", int(w.trade_lock_s))
+	var status := form.get("status") as Label
+	_expect(int(w.trade_lock_s) > 0 and (form.get("list_btn") as Button).disabled and status.text == want, "a new account: List is off and says %s (%s)" % [want, status.text])
+	var books := func () -> String: return JSON.stringify([h.call("op", 6, "char.get", {}).r.bag, h.call("op", 6, "vault.get", {}).r, h.call("op", 6, "wallet.get", {}).r])
+	var before: String = books.call()
+	_click(form.get("list_btn"))
+	await sell.call("list_selected")
+	_expect(books.call() == before, "nothing left the bag for a listing the lock would refuse")
+	_click((ms.get("rail") as Control).get("buttons")[&"buy"])
+	await process_frame
+	var confirm: Control = ms.get("confirm")
+	_click(_first(ms.get("buy").get("table"), "item:branch"))
+	await process_frame
+	_expect((confirm.get("buy_btn") as Button).disabled and (confirm.get("status") as Label).text == want, "Buy says the lock too: %s" % (confirm.get("status") as Label).text)
+	ms.queue_free()
+	print("[t_exchange] trade lock: %s before List and Buy, nothing moved" % want)
+
+## Review r1: another player buys part of a lot while its confirm is open. The refusal is in words,
+## the lot is read again and the confirm reopens with what is left; buying that works.
+func _test_partial_lot(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/lot")
+	h.call("seed_scene")
+	h.call("_gather", 2, "stone", 5)
+	var lot: String = h.call("list_one", 2, "stone", 5, 5)
+	ms_script.set("test_client", h.call("client", 1))
+	var ms: Control = await _open(ms_script)
+	var table: Control = ms.get("buy").get("table")
+	var confirm: Control = ms.get("confirm")
+	var status := confirm.get("status") as Label
+	var row: Control = null
+	for r: Control in table.get("rows"):
+		if str(r.get("view").id) == lot:
+			row = r
+	if not _expect(row != null, "the ×5 lot %s is on the first page" % lot):
+		ms.queue_free()
+		return
+	_click(row)
+	await process_frame
+	_expect(int(confirm.get("view").left) == 5, "the confirm opens on the whole lot")
+	h.call("op", 3, "market.buy", {"listing_id": lot, "count": 2})
+	var w1 := _wallet(h, 1)
+	_click(confirm.get("buy_btn"))
+	await process_frame
+	await process_frame
+	var buy_btn := confirm.get("buy_btn") as Button
+	_expect(status.text == "Someone just bought part of this lot." and _wallet(h, 1) == w1, "a partly bought lot is refused in words, nothing paid: %s" % status.text)
+	_expect(confirm.visible and int(confirm.get("view").left) == 3 and buy_btn.visible and not buy_btn.disabled and buy_btn.text == "Buy for 15", "the confirm reopens on the 3 left (%s, left %s)" % [buy_btn.text, confirm.get("view").get("left")])
+	_click(buy_btn)
+	await process_frame
+	_expect(status.text.begins_with("Bought.") and _wallet(h, 1) == w1 - 15, "the rest of the lot is bought: %s" % status.text)
+	ms.queue_free()
+	print("[t_exchange] partial lot: 2 of 5 bought elsewhere -> reread, 3 bought for 15")
+
+## Review r1: on the network transport (answers a frame later) two taps while Buy, Cancel or List is
+## out send the op once.
+func _test_slow_transport(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/slow")
+	h.call("seed_scene")
+	var net := BridgeNet.new()
+	net.h = h
+	net.write_ops = (load("res://scripts/ui/market/market_client.gd") as GDScript).get_script_constant_map().WRITE_OPS
+	ms_script.set("test_client", (load("res://scripts/ui/market/net_market_client.gd") as GDScript).new(net))
+	var ms: Control = await _open(ms_script)
+	var table: Control = ms.get("buy").get("table")
+	var confirm: Control = ms.get("confirm")
+	var header: Control = ms.get("header")
+	await _until(func () -> bool: return not (table.get("rows") as Array).is_empty() and not (header.get("wallet") as Dictionary).is_empty())
+	_click(_first(table, "item:branch"))
+	await process_frame
+	_click(confirm.get("buy_btn"))
+	_click(confirm.get("buy_btn")) # the second tap lands while market.buy is out
+	await _until(func () -> bool: return not confirm.get("pending"))
+	_expect(net.sent.count("market.buy") == 1 and (confirm.get("status") as Label).text.begins_with("Bought."), "network: a double tap on Buy sends one market.buy (%d)" % net.sent.count("market.buy"))
+	_click(confirm.get("cancel_btn"))
+	_click((ms.get("rail") as Control).get("buttons")[&"my_market"])
+	var mine: Control = ms.get("mine")
+	await _until(func () -> bool: return mine.find_child("Cancel_*", true, false) != null)
+	_click(mine.find_child("Cancel_*", true, false))
+	await process_frame
+	_click(confirm.get("buy_btn"))
+	_click(confirm.get("buy_btn"))
+	await _until(func () -> bool: return not confirm.get("pending"))
+	_expect(net.sent.count("market.cancel") == 1 and (confirm.get("status") as Label).text.begins_with("Cancelled."), "network: a double tap on Cancel listing sends one market.cancel (%d)" % net.sent.count("market.cancel"))
+	_click(confirm.get("cancel_btn"))
+	_click((ms.get("rail") as Control).get("buttons")[&"sell"])
+	var sell: Control = ms.get("sell")
+	var form: Control = sell.get("form")
+	await _until(func () -> bool: return not (sell.get("entries") as Array).is_empty())
+	var bone := _entry(sell, func (e: Dictionary) -> bool: return e.src == "bag" and str(e.asset.id) == "bone")
+	await _click_cell(sell, str(bone.uid))
+	(form.get("price_edit") as LineEdit).text_changed.emit("20")
+	await _until(func () -> bool: return form.call("can_list"))
+	_click(form.get("list_btn"))
+	_click(form.get("list_btn"))
+	await _until(func () -> bool: return (form.get("status") as Label).text.begins_with("Listed") or not form.get("pending"))
+	await _until(func () -> bool: return (form.get("status") as Label).text.begins_with("Listed"))
+	_expect(net.sent.count("vault.deposit") == 1 and net.sent.count("market.list_fixed") == 1, "network: a double tap on List sends one deposit and one listing (%d, %d): %s" % [net.sent.count("vault.deposit"), net.sent.count("market.list_fixed"), (form.get("status") as Label).text])
+	ms.queue_free()
+	print("[t_exchange] network transport: one market.buy, one market.cancel, one deposit + list_fixed for double taps")
+
+## Waits (up to ~4 s of frames) for `cond`; the network transport answers on later frames.
+func _until(cond: Callable, frames: int = 240) -> void:
+	for i in frames:
+		if cond.call():
+			return
+		await process_frame
+	failures.append("timed out waiting (%s)" % cond)
 
 ## Picks `uid` in the open Sell tab and lists it at `price` (0 = the panel's starting price).
 func _list_entry(sell: Control, uid: String, price: int) -> void:

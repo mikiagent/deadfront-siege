@@ -14,6 +14,7 @@ const PREVIEW_ROWS := [["fee", "Listing fee (paid now)", "Fee now"], ["tax", "Ma
 
 var entry: Dictionary = {}
 var wallet := 0 ## every T-stone (wallet.get): bound ones pay listing fees first (ECON r5, a sink)
+var lock_s := 0 ## seconds left of the new-account trade lock (wallet.get trade_lock_s, hook H6)
 var ref := 0 ## market.item_detail ref_price; 0 = no reference, so no band
 var lo := 1 ## the band (0.25x-4x of ref), or 1..max_price without a reference
 var hi := 1
@@ -52,14 +53,14 @@ var _note := ""
 
 func _ready() -> void:
 	name = "SellForm"
-	var sb := MarketTheme.flat(Color(0.12, 0.15, 0.13, 0.94), MarketTheme.BORDER, 2, 4)
+	var sb := MarketTheme.flat(MarketTheme.DIALOG, MarketTheme.BORDER, 2, 6)
 	sb.set_content_margin_all(0)
 	add_theme_stylebox_override("panel", sb)
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", 0)
 	add_child(root)
 	_title_band = PanelContainer.new()
-	var tb := MarketTheme.flat(Color(0.78, 0.7, 0.5, 0.95), Color(0, 0, 0, 0), 0, 3)
+	var tb := MarketTheme.flat(MarketTheme.PARCHMENT, Color(0, 0, 0, 0), 0, 4)
 	tb.set_content_margin_all(8)
 	tb.content_margin_left = 14
 	_title_band.add_theme_stylebox_override("panel", tb)
@@ -124,7 +125,6 @@ func _ready() -> void:
 	price_edit.placeholder_text = "Price"
 	price_edit.max_length = 7
 	price_edit.select_all_on_focus = true
-	price_edit.add_theme_font_override("font", MarketTheme.font())
 	price_edit.add_theme_color_override("font_color", MarketTheme.TEXT)
 	price_edit.add_theme_stylebox_override("normal", MarketTheme.flat(Color(0.04, 0.05, 0.04, 0.9), MarketTheme.BORDER, 1, 4))
 	price_edit.add_theme_stylebox_override("focus", MarketTheme.flat(Color(0, 0, 0, 0), MarketTheme.GOLD, 2, 4))
@@ -268,7 +268,7 @@ func set_reference(d: Dictionary) -> void:
 
 func can_list() -> bool:
 	return not pending and not entry.is_empty() and str(entry.get("why", "")) == "" and unit >= 1 and unit <= max_price \
-		and wallet >= int(MarketFormat.preview(unit, count).fee)
+		and wallet >= int(MarketFormat.preview(unit, count).fee) and lock_s <= 0
 
 func set_pending(on: bool, text: String) -> void:
 	pending = on
@@ -304,6 +304,9 @@ func refresh() -> void:
 	var note := "" ## a warning this refresh owns (cleared when its cause goes)
 	if str(entry.get("why", "")) != "":
 		why = "Can't be sold"
+	elif lock_s > 0:
+		why = "Can't list yet"
+		note = MarketFormat.lock_text(lock_s)
 	elif unit <= 0:
 		why = "Set a price"
 	elif wallet < int(p.fee):
@@ -368,7 +371,7 @@ func _chip(b: Button, on: bool) -> void:
 	b.add_theme_stylebox_override("focus", MarketTheme.flat(Color(0, 0, 0, 0), MarketTheme.ACTION, 2, 4))
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, MarketTheme.GOLD if on else MarketTheme.TEXT)
-	b.add_theme_font_override("font", MarketTheme.font())
+	b.add_theme_font_override("font", MarketTheme.font(b.get_theme_font_size("font_size")))
 	b.disabled = pending
 
 ## The bonded "B" disc before the name (the Bag reference's "B Zebraceratops").
@@ -424,6 +427,7 @@ func fit(m: Dictionary) -> void:
 	_count_label.custom_minimum_size = Vector2(56 if compact else 72, tgt)
 	_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	price_edit.custom_minimum_size = Vector2(80 if compact else 120, tgt)
+	price_edit.add_theme_font_override("font", MarketTheme.font(m.name))
 	price_edit.add_theme_font_size_override("font_size", m.name)
 	for b: Button in steppers.values():
 		b.custom_minimum_size = Vector2(tgt, tgt)
@@ -434,7 +438,7 @@ func fit(m: Dictionary) -> void:
 	# One-line labels stand as tall as the font's emoji fallback (~2.1x the size); the preview rows
 	# overlap that empty band so the fee / tax / proceeds show above List on a phone and beside a tall card.
 	var vpx: int = m.type + (0 if compact else 2)
-	_preview.add_theme_constant_override("v_separation", 2 - maxi(0, roundi(MarketTheme.font().get_height(vpx) - vpx * 1.4)))
+	_preview.add_theme_constant_override("v_separation", 2 - maxi(0, roundi(MarketTheme.font(vpx).get_height(vpx) - vpx * 1.4)))
 	MarketTheme.action(list_btn, true, m.name)
 	list_btn.custom_minimum_size = Vector2(0, tgt if compact else 60.0)
 	refresh()

@@ -1,31 +1,21 @@
 class_name MarketCategories
 extends Control
 ## The middle column while a category is chosen (reference: "Taming Materials" over View All and
-## the sub-types): the category title with a close control, then one row per sub-type. The
-## selected row is a gold gradient with a yellow chevron.
+## the sub-types): the category title, then one row per sub-type. The selected row is a gold
+## gradient with a yellow chevron. No close control (the reference has none): the rail's Buy tab
+## and the search sheet's "All" leave the category.
 
 signal picked(key: String) ## "" = View All
-signal closed
 
 var title := ""
 var entries: Array = [] ## [{key, title}], View All first
 var selected := ""
-var close_btn: Button
 var buttons: Array[Button] = []
 var _scroll: MarketDragScroll
 var _list: VBoxContainer
 var _m := {}
 
 func _ready() -> void:
-	close_btn = Button.new()
-	close_btn.name = "CategoryClose"
-	close_btn.tooltip_text = "All categories"
-	close_btn.icon = UiIcons.icon(&"close")
-	close_btn.expand_icon = true
-	close_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	MarketTheme.bare(close_btn)
-	close_btn.pressed.connect(func () -> void: closed.emit())
-	add_child(close_btn)
 	_scroll = MarketDragScroll.new()
 	add_child(_scroll)
 	_list = VBoxContainer.new()
@@ -64,10 +54,6 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 	position = rect.position
 	size = rect.size
 	var th: float = m.thead_h
-	var side := maxf(m.tmin, th)
-	close_btn.position = Vector2(size.x - side, 0)
-	close_btn.size = Vector2(side, th)
-	close_btn.add_theme_constant_override("icon_max_width", int(minf(side, th) * 0.42))
 	_scroll.position = Vector2(0, th)
 	_scroll.size = Vector2(size.x, size.y - th)
 	_list.custom_minimum_size.x = size.x
@@ -81,9 +67,9 @@ func _draw() -> void:
 	if _m.is_empty():
 		return
 	var th: float = _m.thead_h
-	draw_style_box(MarketTheme.flat(Color(0.03, 0.04, 0.03, 0.24), MarketTheme.BORDER, 2, 3), Rect2(Vector2.ZERO, size))
+	draw_style_box(MarketTheme.panel(), Rect2(Vector2.ZERO, size))
 	draw_rect(Rect2(2, 2, size.x - 4, th - 2), MarketTheme.BAND)
-	MarketTheme.text(self, title, close_btn.size.x * 0.5, th * 0.5, size.x - close_btn.size.x * 2.0, _m.name, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	MarketTheme.text(self, title, _m.margin, th * 0.5, size.x - _m.margin * 2.0, _m.name, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 
 func _draw_row(b: Button, t: String, on: bool) -> void:
 	var r := Rect2(Vector2.ZERO, b.size)

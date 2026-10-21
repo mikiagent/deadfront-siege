@@ -43,7 +43,7 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 func _draw() -> void:
 	if _m.is_empty():
 		return
-	draw_style_box(MarketTheme.flat(Color(0.05, 0.06, 0.05, 0.3), MarketTheme.BORDER, 2, 3), Rect2(Vector2.ZERO, size))
+	draw_style_box(MarketTheme.panel(), Rect2(Vector2.ZERO, size))
 	for t: Array in TABS:
 		var b: Button = buttons[t[0]]
 		var r := Rect2(b.position, b.size)

@@ -75,11 +75,11 @@ func columns() -> Dictionary:
 	var w := size.x
 	var pad: float = _m.margin
 	var name_x: float = pad + _m.icon + 12.0
-	var f := MarketTheme.font()
 	var hs: int = _m.head
+	var f := MarketTheme.font(hs)
 	var need := func (col: StringName) -> float: return f.get_string_size(HEADS[col], HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x + hs * 0.7 + 16.0
 	var ns: int = _m.name
-	var pw := maxf(w * 0.18 - pad * 0.5, maxf(need.call(&"price"), f.get_string_size("1,000,000", HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x + ns * 0.95 + 14.0))
+	var pw := maxf(w * 0.18 - pad * 0.5, maxf(need.call(&"price"), MarketTheme.font(ns).get_string_size("1,000,000", HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x + ns * 0.95 + 14.0))
 	var dw := maxf(w * 0.18, need.call(&"durability"))
 	var lw := maxf(w * 0.14, need.call(&"level"))
 	var price_x := w - pad * 0.5 - pw
@@ -181,13 +181,16 @@ func set_chips(list: Array) -> void:
 	for c: Dictionary in chips:
 		var b := Button.new()
 		b.name = "Chip_%s" % c.key
-		b.text = "%s   ✕" % c.text
+		b.text = "%s  ✕" % c.text
 		b.tooltip_text = "Clear %s" % c.text
-		b.add_theme_stylebox_override("normal", MarketTheme.flat(Color(0.06, 0.06, 0.06, 0.82), Color(0.3, 0.3, 0.28, 1), 1, 4))
-		b.add_theme_stylebox_override("hover", MarketTheme.flat(Color(0.12, 0.12, 0.11, 0.9), Color(0.4, 0.4, 0.36, 1), 1, 4))
-		b.add_theme_stylebox_override("pressed", MarketTheme.flat(Color(0.12, 0.12, 0.11, 0.9), MarketTheme.GOLD, 1, 4))
-		b.add_theme_font_override("font", MarketTheme.font())
-		b.add_theme_font_size_override("font_size", maxi(14, int(_m.get("name", 16)) - 2))
+		for st: String in ["normal", "hover", "pressed"]: # even padding on both sides of the words (references)
+			var sb := MarketTheme.flat(Color(0.06, 0.06, 0.05, 0.82) if st == "normal" else Color(0.12, 0.12, 0.11, 0.9), MarketTheme.GOLD if st == "pressed" else Color(0.3, 0.3, 0.28, 1), 1, 4)
+			sb.content_margin_left = 14
+			sb.content_margin_right = 12
+			b.add_theme_stylebox_override(st, sb)
+		var cs := maxi(14, int(_m.get("name", 16)) - 2)
+		b.add_theme_font_override("font", MarketTheme.font(cs))
+		b.add_theme_font_size_override("font_size", cs)
 		b.add_theme_color_override("font_color", MarketTheme.TEXT)
 		var key: StringName = c.key
 		b.pressed.connect(func () -> void: chip_removed.emit(key))
@@ -212,7 +215,7 @@ func _draw() -> void:
 	if _m.is_empty():
 		return
 	var th: float = _m.thead_h
-	draw_style_box(MarketTheme.flat(Color(0.03, 0.04, 0.03, 0.24), MarketTheme.BORDER, 2, 3), Rect2(Vector2.ZERO, size))
+	draw_style_box(MarketTheme.panel(), Rect2(Vector2.ZERO, size))
 	draw_rect(Rect2(2, 2, size.x - 4, th - 2), MarketTheme.BAND)
 	MarketTheme.dotted(self, Vector2(6, th), Vector2(size.x - 6, th))
 	var c := columns()
@@ -229,7 +232,7 @@ func _draw() -> void:
 		var active: bool = sort == s[0] or sort == s[1]
 		var col_c := MarketTheme.GOLD if active else MarketTheme.TEXT
 		var label: String = HEADS[col]
-		var f := MarketTheme.font()
+		var f := MarketTheme.font(hs)
 		var aw := hs * 0.7 if _sortable(col) else 0.0
 		var tw := minf(f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x, w - aw - 10.0)
 		var tx := x + (w - tw - aw) * 0.5

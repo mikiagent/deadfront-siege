@@ -3,7 +3,8 @@ extends Control
 ## Sell's exact-instance picker on the Bag's textured panel: one cell per bag stack or instance,
 ## bonded pet and stored item (MarketFormat.sell_entries), never merged. A cell shows the art,
 ## grey "Lv. n" top-right, "×n" for a stack, the "B" badge on a bonded pet (pet carrier art), a
-## "Stored" tag on what waits in market storage; the picked one has the four yellow brackets.
+## "Stored" tag on what waits in market storage, an "Equipped" tag on what the character wears or
+## holds; the picked one has the four yellow brackets.
 ## A refused cell stays visible, dimmed, with a lock (or blocked) mark; the Sell panel says why.
 # swap: INVUI InventoryGrid / InventorySlot when they reach this base (same look).
 
@@ -112,7 +113,7 @@ func _draw() -> void:
 	if _m.is_empty():
 		return
 	var th: float = _m.thead_h
-	draw_style_box(MarketTheme.flat(Color(0.03, 0.04, 0.03, 0.24), MarketTheme.BORDER, 2, 3), Rect2(Vector2.ZERO, size))
+	draw_style_box(MarketTheme.panel(), Rect2(Vector2.ZERO, size))
 	draw_rect(Rect2(2, 2, size.x - 4, th - 2), MarketTheme.BAND)
 	MarketTheme.dotted(self, Vector2(6, th), Vector2(size.x - 6, th))
 	var hs: int = _m.head
@@ -151,11 +152,11 @@ func _draw_cell(b: Button, e: Dictionary) -> void:
 		MarketTheme.text(b, "×%d" % int(e.count), 4, r.size.y - inset - fs * 0.5, r.size.x - inset - 6, fs, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
 	if e.badge:
 		MarketGlyphs.badge_b(b, Vector2(inset + fs * 0.7, inset + fs * 0.6), fs * 0.7)
-	elif e.src == "vault":
-		var f := MarketTheme.font()
-		var tw := f.get_string_size("Stored", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	elif e.src == "vault" or e.get("equipped", false):
+		var tag := "Equipped" if e.get("equipped", false) else "Stored"
+		var tw := MarketTheme.font(fs).get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		b.draw_rect(Rect2(inset, inset - 2, tw + 8, fs * 1.35), Color(0.3, 0.25, 0.1, 0.9))
-		MarketTheme.text(b, "Stored", inset + 4, inset - 2 + fs * 0.68, tw + 2, fs, MarketTheme.GOLD)
+		MarketTheme.text(b, tag, inset + 4, inset - 2 + fs * 0.68, tw + 2, fs, MarketTheme.GOLD)
 	if refused:
 		var mark := UiIcons.icon(&"lock" if "locked" in (e.asset.get("flags", []) as Array) else &"blocked")
 		if mark:

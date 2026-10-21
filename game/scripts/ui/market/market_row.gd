@@ -59,17 +59,20 @@ func _draw() -> void:
 	var sub: String = model.type + ("  ·  Your listing" if own else "")
 	MarketTheme.text(self, sub, cols.name_x, mid + gap * 0.5 + 1.0, cols.name_w, ts, MarketTheme.TEXT_2)
 	MarketTheme.text(self, LevelDisplay.label(model.level) if model.level > 0 else LevelDisplay.NONE, cols.level_x, mid, cols.level_w, ns, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
-	MarketTheme.text(self, model.dur, cols.dur_x, mid, cols.dur_w, ns, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	# No durability in the item's data (materials, cages, pets): a quiet dash, not a made-up number.
+	var none: bool = model.dur == "—"
+	MarketTheme.text(self, model.dur, cols.dur_x, mid, cols.dur_w, ns, MarketTheme.TEXT_OFF if none else MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	price(self, model.price, Rect2(cols.price_x, 0, cols.price_w, h), ns)
 
-## Coin + grouped number, centred in `r` (rows, the confirm panel).
+## Coin + grouped number in `r`. The coin sits at the same x in every row (where a 3-digit price
+## would centre), so coins line up down the column, and on the digits' midline, not the em box's.
 static func price(ci: CanvasItem, value: int, r: Rect2, fs: int) -> void:
-	var f := MarketTheme.font()
+	var f := MarketTheme.font(fs)
 	var txt := MarketFormat.group(value)
 	var csz := fs * 0.95
-	var tw := minf(f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, r.size.x - csz - 6.0)
-	var x := r.position.x + (r.size.x - tw - csz - 6.0) * 0.5
-	var coin := UiIcons.icon(&"t_stone")
-	if coin:
-		ci.draw_texture_rect(coin, Rect2(x, r.get_center().y - csz * 0.5, csz, csz), false, Color(0.82, 0.82, 0.8))
-	MarketTheme.text(ci, txt, x + csz + 6.0, r.get_center().y, tw, fs, MarketTheme.TEXT)
+	var gap := fs * 0.3
+	var x := r.position.x + maxf(0.0, (r.size.x - csz - gap - f.get_string_size("000", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x) * 0.5)
+	var mid := r.get_center().y
+	var digits_mid := mid + (f.get_ascent(fs) - f.get_descent(fs)) * 0.5 - fs * 0.36 # baseline minus half the digit height
+	MarketGlyphs.coin(ci, Vector2(x + csz * 0.5, digits_mid), csz * 0.46)
+	MarketTheme.text(ci, txt, x + csz + gap, mid, r.end.x - x - csz - gap, fs, MarketTheme.TEXT)

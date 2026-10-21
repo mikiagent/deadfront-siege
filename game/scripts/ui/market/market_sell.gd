@@ -35,9 +35,12 @@ func start(p_client: MarketClient, uid: String = "") -> void:
 	selected = uid
 	await reload()
 
-## Every T-stone the account holds: a listing fee is a sink, so bound ones pay it too.
-func set_wallet(n: int) -> void:
+## Every T-stone the account holds: a listing fee is a sink, so bound ones pay it too. `lock_s`:
+## wallet.get's trade_lock_s (hook H6), the seconds before a new account may trade; until then
+## List stays off, so nothing leaves the bag for a listing the server would refuse.
+func set_wallet(n: int, lock_s: int = 0) -> void:
 	form.wallet = n
+	form.lock_s = lock_s
 	form.refresh()
 
 ## Reads the server character and its market storage again and rebuilds the picker.

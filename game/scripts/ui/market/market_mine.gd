@@ -272,7 +272,7 @@ func _draw() -> void:
 	if _m.is_empty():
 		return
 	var th: float = _m.thead_h
-	draw_style_box(MarketTheme.flat(Color(0.03, 0.04, 0.03, 0.24), MarketTheme.BORDER, 2, 3), Rect2(Vector2.ZERO, size))
+	draw_style_box(MarketTheme.panel(), Rect2(Vector2.ZERO, size))
 	draw_rect(Rect2(2, 2, size.x - 4, th - 2), MarketTheme.BAND)
 	MarketTheme.dotted(self, Vector2(6, th), Vector2(size.x - 6, th))
 	var fy := size.y - footer_h()

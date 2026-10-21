@@ -11,7 +11,10 @@ const PANEL := Color("#39392F")
 const PANEL_2 := Color("#26322C")
 const BAND := Color(0.03, 0.035, 0.03, 0.55) ## table header / column title band over the panel
 const SEPARATOR := Color(0.62, 0.60, 0.53, 0.45) ## dotted row lines
-const BORDER := Color(0.36, 0.35, 0.31, 0.9)
+const BORDER := Color(0.04, 0.04, 0.025, 0.9) ## the references' panels sit in a thin dark rim, not a light stroke
+const PANEL_FILL := Color(0.05, 0.055, 0.035, 0.42) ## rail, columns, table: the backdrop shows through, darker
+const DIALOG := Color(0.11, 0.105, 0.08, 0.98) ## Sell panel, confirm, search sheet: the list panels' warm brown-black
+const PARCHMENT := Color(0.69, 0.65, 0.55) ## the torn band under the header and dialog title bands
 const GOLD := Color("#E6BE54") ## names, selection, brackets, the active tab
 const PRIMARY := Color("#F2C84C") ## primary button fill (dark text)
 const PRIMARY_TEXT := Color("#1B1A14")
@@ -22,7 +25,7 @@ const ACTION := Color(1, 1, 1, 1) ## actions and icons are white (GAUNTLET:61)
 const DANGER := Color(0.88, 0.36, 0.30)
 const TEST_BADGE := Color(0.86, 0.52, 0.16) ## the local test server, never mistaken for the live market
 
-static var _font: FontVariation
+static var _fonts := {} ## size px -> FontVariation
 static var _backdrop: ShaderMaterial
 
 ## Every size the screens use, from the viewport (reference proportions, exchange-spec §1/§8).
@@ -38,29 +41,34 @@ static func metrics(view: Vector2, px_per_pt: float = 1.0, usable_w: float = -1.
 	m.tmin = ceilf(UiTokens.TARGET_MIN * maxf(1.0, px_per_pt))
 	m.margin = 8.0 if compact else 16.0
 	m.header_h = maxf(m.tmin, roundf(h * 0.106))
-	m.edge_h = 6.0 if compact else 9.0
+	m.edge_h = maxf(8.0, roundf(h * 0.019)) ## the references' torn band is ~2 % of the height
 	m.rail_w = roundf(uw * 0.105)
 	m.cat_w = roundf(uw * 0.29)
 	m.thead_h = maxf(m.tmin, roundf(h * 0.068))
-	m.row_h = maxf(m.tmin, 48.0) if compact else roundf(h * 0.136)
+	m.row_h = maxf(m.tmin, roundf(h * 0.134)) ## the references' 13.6 %: 52 px at 390
 	m.chip_h = m.tmin if compact else roundf(h * 0.07)
 	m.pager_h = m.tmin if compact else 56.0
-	m.title = maxi(20, roundi(h * 0.045))
-	m.name = maxi(14, roundi(h * 0.029))
-	m.type = maxi(UiTokens.TYPE_MIN, roundi(h * 0.022))
-	m.head = maxi(13, roundi(h * 0.026))
-	m.tab = maxi(13, roundi(h * 0.027))
+	# Reference sizes (1078 px tall shots): title 5.6 %, names and rows 3.4 %, headers 3 %, type lines 2.5 %.
+	m.title = maxi(20, roundi(h * 0.052))
+	m.name = maxi(15, roundi(h * 0.031))
+	m.type = maxi(UiTokens.TYPE_MIN + 1, roundi(h * 0.024))
+	m.head = maxi(14, roundi(h * 0.029))
+	m.tab = maxi(14, roundi(h * 0.029))
 	m.icon = roundf(m.row_h * (0.78 if compact else 0.6))
 	return m
 
-## Durango's condensed sans: the project's fallback font narrowed (no new font files).
-static func font() -> Font:
-	if _font == null:
-		_font = FontVariation.new()
-		_font.base_font = ThemeDB.fallback_font
-		_font.variation_transform = Transform2D(Vector2(0.92, 0), Vector2(0, 1), Vector2.ZERO)
-		_font.spacing_glyph = -1 # the transform narrows outlines, not advances: pull the letters back together
-	return _font
+## Durango's condensed sans: the project's fallback font narrowed (no new font files), one per size.
+## The transform narrows the outlines but not the advances, so each size pulls its letters back
+## together by what its glyphs lost (~7 % of an em): one variation for every size would gap the big ones.
+static func font(size_px: int = 18) -> Font:
+	var f: FontVariation = _fonts.get(size_px)
+	if f == null:
+		f = FontVariation.new()
+		f.base_font = ThemeDB.fallback_font
+		f.variation_transform = Transform2D(Vector2(0.86, 0), Vector2(0, 1), Vector2.ZERO)
+		f.spacing_glyph = -roundi(size_px * 0.07)
+		_fonts[size_px] = f
+	return f
 
 ## Weathered earth behind the panels: soft blotches plus fine grain, no texture files and no
 ## NoiseTexture2D (it generates asynchronously on the web).
@@ -68,9 +76,9 @@ static func backdrop() -> ShaderMaterial:
 	if _backdrop == null:
 		var sh := Shader.new()
 		sh.code = """shader_type canvas_item;
-uniform vec4 dark : source_color = vec4(0.12, 0.115, 0.09, 1.0);
-uniform vec4 earth : source_color = vec4(0.37, 0.31, 0.21, 1.0);
-uniform vec4 moss : source_color = vec4(0.27, 0.30, 0.19, 1.0);
+uniform vec4 dark : source_color = vec4(0.21, 0.21, 0.15, 1.0);
+uniform vec4 earth : source_color = vec4(0.45, 0.40, 0.29, 1.0);
+uniform vec4 moss : source_color = vec4(0.37, 0.41, 0.27, 1.0);
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -87,6 +95,11 @@ void fragment() {
 		_backdrop = ShaderMaterial.new()
 		_backdrop.shader = sh
 	return _backdrop
+
+## The rail, the category column, the table, the picker and My Market: a dark rim around a darker
+## see-through fill, so the lighter backdrop reads as the sheet they sit on (references).
+static func panel() -> StyleBoxFlat:
+	return flat(PANEL_FILL, BORDER, 2, 6)
 
 static func flat(bg: Color, border: Color = Color(0, 0, 0, 0), bw: int = 0, radius: int = 4) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -119,13 +132,12 @@ static func action(b: Button, primary: bool, size_px: int) -> void:
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, ink)
 	b.add_theme_color_override("font_disabled_color", TEXT_OFF)
-	b.add_theme_font_override("font", font())
+	b.add_theme_font_override("font", font(size_px))
 	b.add_theme_font_size_override("font_size", size_px)
 
 static func label(text: String, size_px: int, color: Color = TEXT) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_override("font", font())
 	size_label(l, size_px)
 	l.add_theme_color_override("font_color", color)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -135,12 +147,13 @@ static func label(text: String, size_px: int, color: Color = TEXT) -> Label:
 ## emoji fallbacks report a line height of ~2.1x (38 px at 18), which double-spaced every wrapped line.
 static func size_label(l: Label, size_px: int) -> void:
 	var px := maxi(UiTokens.TYPE_MIN, size_px)
+	l.add_theme_font_override("font", font(px))
 	l.add_theme_font_size_override("font_size", px)
-	l.add_theme_constant_override("line_spacing", mini(0, roundi(px * 1.3 - font().get_height(px))))
+	l.add_theme_constant_override("line_spacing", mini(0, roundi(px * 1.3 - font(px).get_height(px))))
 
 ## Text in a box: ellipsized to the width, vertically centred on `mid_y`. True when it was cut.
 static func text(ci: CanvasItem, s: String, x: float, mid_y: float, width: float, size_px: int, color: Color, align := HORIZONTAL_ALIGNMENT_LEFT) -> bool:
-	var f := font()
+	var f := font(size_px)
 	var fit := UiTokens.ellipsis(f, s, width, size_px)
 	var base := mid_y + (f.get_ascent(size_px) - f.get_descent(size_px)) * 0.5
 	ci.draw_string(f, Vector2(x, base), fit, align, width, size_px, color)
@@ -161,16 +174,35 @@ static func brackets(ci: CanvasItem, r: Rect2, arm: float, stroke: float, color:
 		ci.draw_rect(Rect2(corner.x + (0.0 if sx > 0 else -stroke), corner.y + (0.0 if sy > 0 else -arm), stroke, arm), color)
 		ci.draw_rect(Rect2(corner.x + (0.0 if sx > 0 else -arm), corner.y + (0.0 if sy > 0 else -stroke), arm, stroke), color)
 
-## The light ragged band under the header: a deterministic jitter, the same every frame.
+## The references' torn parchment band under the header: a light strip whose top edge is ripped
+## into the black band in irregular bites, a few dark scuffs, and two dark rivet blobs. A
+## deterministic hash, so it is the same every frame and in every shot.
 static func torn_edge(ci: CanvasItem, y: float, w: float, h: float) -> void:
-	var pts := PackedVector2Array([Vector2(0, y)])
+	var rnd := func (n: int, k: float) -> float: return fmod(absf(sin(n * 12.9898 + k) * 43758.5453), 1.0)
+	var top := PackedVector2Array()
 	var x := 0.0
 	var i := 0
 	while x < w:
-		x = minf(w, x + 7.0 + fmod(float(i) * 13.7, 11.0))
-		var jag := fmod(float(i) * 37.3, 1.0)
-		pts.append(Vector2(x, y + h * (0.35 + 0.65 * jag)))
+		var bite := 1.0 if rnd.call(i, 3.1) > 0.82 else 0.0 # now and then a deep rip
+		top.append(Vector2(x, y + h * (0.04 + 0.22 * rnd.call(i, 1.7) + 0.38 * bite)))
+		x += 4.0 + 14.0 * rnd.call(i, 7.3)
 		i += 1
-	pts.append(Vector2(w, y))
-	ci.draw_colored_polygon(pts, Color(0.66, 0.62, 0.52, 0.9))
-	ci.draw_rect(Rect2(0, y, w, 2.0), Color(0.84, 0.8, 0.7, 0.75))
+	top.append(Vector2(w, y + h * 0.1))
+	var band := top.duplicate()
+	var j := 0
+	x = w
+	while x > 0.0: # a softer lower edge into the sheet
+		band.append(Vector2(x, y + h * (0.86 + 0.14 * rnd.call(j, 5.9))))
+		x -= 10.0 + 22.0 * rnd.call(j, 2.3)
+		j += 1
+	band.append(Vector2(0, y + h * 0.9))
+	ci.draw_colored_polygon(band, PARCHMENT)
+	ci.draw_polyline(top, Color(0.88, 0.85, 0.77, 0.8), 1.5) # the paper's lit edge
+	for k in 9: # dark scuffs across the strip
+		var sx: float = w * rnd.call(k, 9.1)
+		var sw: float = w * (0.02 + 0.05 * rnd.call(k, 4.4))
+		ci.draw_rect(Rect2(sx, y + h * (0.3 + 0.35 * rnd.call(k, 6.6)), sw, maxf(1.0, h * 0.12)), Color(0.25, 0.22, 0.16, 0.35))
+	for f: float in [0.27, 0.77]: # rivet blobs
+		ci.draw_set_transform(Vector2(w * f, y + h * 0.42), 0.0, Vector2(2.6, 1.0))
+		ci.draw_circle(Vector2.ZERO, h * 0.32, Color(0.07, 0.06, 0.045, 0.95))
+		ci.draw_set_transform(Vector2.ZERO)
