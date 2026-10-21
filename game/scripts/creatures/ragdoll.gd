@@ -227,7 +227,10 @@ func _push() -> void:
 	right.y = 0.0
 	right = right.normalized()
 	var along := _dir.dot(right)
-	_side = right * (signf(along) if absf(along) > 0.2 else 1.0)  # onto the flank away from the blow
+	# Onto the flank away from the blow; a blow from ahead or behind picks no flank, so the downhill
+	# one (rolled onto its uphill flank a carcass ends propped up on the slope).
+	var downhill := right.dot(_ground_n)
+	_side = right * (signf(along) if absf(along) > 0.2 else (signf(downhill) if absf(downhill) > 0.02 else 1.0))
 	var pivot := creature.global_position
 	var hips_h := 1.0
 	if _root_body >= 0:
@@ -297,7 +300,11 @@ func _plan_pose() -> void:
 		var contour := down.cross(n).normalized()
 		up = contour * signf(contour.dot(_side) if absf(contour.dot(_side)) > 1e-3 else 1.0)
 		fwd = down * signf(fwd.dot(down) if absf(fwd.dot(down)) > 1e-3 else 1.0)
-	else:
+	# A little toward the belly: the legs' dead weight then holds it on the flank instead of rolling
+	# it onto its back, and the upper legs lean toward the ground.
+	var belly := deg_to_rad(float(g.get("belly_tilt_deg", 0.0)))
+	up = (up * cos(belly) + n * sin(belly)).normalized()
+	if not _align:
 		fwd = (fwd - up * fwd.dot(up)).normalized()
 	_target = Basis(up.cross(-fwd), up, -fwd)
 

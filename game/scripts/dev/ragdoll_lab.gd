@@ -41,9 +41,9 @@ const LIE_FRAC := 0.5  # hips at most this share of the standing hips height
 const LIE_WIDTH_K := 1.15
 const FOOT_FRAC := 0.75  # no foot higher than this share of the standing hips height
 const LIMIT_TOL_DEG := 8.0  # hinges: knees, elbows, ankles, tail and neck hinges
-## Cones (hips, shoulders, neck, tail): the engine's 6DOF clamps per axis in its own frame, this
-## lab decomposes twist-then-swing from rest; past ~40 deg of swing the two disagree by 10-20 deg.
-const CONE_TOL_DEG := 20.0
+## Cones (hips, shoulders, neck, tail) are measured the way the 6DOF joint clamps them (engine_angles),
+## so they get the hinges' tolerance (the twist-then-swing reading disagreed by 10-20 deg past 40 deg).
+const CONE_TOL_DEG := 8.0
 const STRETCH_TOL := 0.01
 ## Skin tear: a mesh edge over TEAR_RATIO x its idle length AND over TEAR_LEN_FRAC of the
 ## creature's height is pulled skin. A ragdoll may tear at most TEAR_MAX_FRAC of the mesh's edges;
@@ -622,10 +622,11 @@ func _worst_limit(sk: Skeleton3D, rd: Ragdoll, only: String) -> Array:
 			over = maxf(maxf(float(j["min"]) - a.x, a.x - float(j["max"])), a.z - LIMIT_TOL_DEG)
 			shown = "%.0f off-axis %.0f" % [a.x, a.z]
 		else:
-			var a := joint_angles(sk, pb, cb, j["dir_skel"] as Vector3, j["axis"] as Vector3)
-			over = maxf(absf(a.x) - float(j["twist"]), maxf(float(j["min"]) - a.y, a.y - float(j["max"])))
-			over = maxf(over, absf(a.z) - float(j["side"]))
-			shown = "twist %.0f bend %.0f side %.0f" % [a.x, a.y, a.z]
+			# The 6DOF limits are [-twist, twist] on X, [-side, side] on Y, [-max, -min] on Z (RagdollRig._set_limits).
+			var a := engine_angles(sk, pb, cb, j["dir_skel"] as Vector3, j["axis"] as Vector3)
+			over = maxf(absf(a.x) - float(j["twist"]), absf(a.y) - float(j["side"]))
+			over = maxf(over, maxf(-float(j["max"]) - a.z, a.z + float(j["min"])))
+			shown = "twist %.0f side %.0f bend %.0f" % [a.x, a.y, -a.z]
 		if over > worst:
 			worst = over
 			who = "%s %s %s" % [sk.get_bone_name(cb), kind, shown]
@@ -651,6 +652,23 @@ static func joint_angles(sk: Skeleton3D, parent: int, child: int, line: Vector3,
 	if line.is_equal_approx(bend_axis):
 		return Vector3(rad_to_deg(tw_angle), 0.0, rad_to_deg(sv.length()))
 	return Vector3(rad_to_deg(tw_angle), rad_to_deg(sv.dot(b)), rad_to_deg(sv.dot(a.cross(b))))
+
+## The angles a cone's 6DOF joint limits, in degrees: the joint frame (RagdollRig: X along the bone,
+## Z the bend axis made square to it, Y = Z x X) of the child against the parent's, both from rest,
+## as GodotPhysics' 6DOF reads them: XYZ Euler angles of the parent's frame in the child's (checked:
+## settled cones then sit within 2 deg of their limits; the child-in-parent reading overshot by 34).
+static func engine_angles(sk: Skeleton3D, parent: int, child: int, line: Vector3, bend_axis: Vector3) -> Vector3:
+	var pr := sk.get_bone_global_rest(parent).basis.orthonormalized()
+	var cr := sk.get_bone_global_rest(child).basis.orthonormalized()
+	var pn := sk.get_bone_global_pose(parent).basis.orthonormalized()
+	var cn := sk.get_bone_global_pose(child).basis.orthonormalized()
+	var q := (pn.transposed() * cn) * (pr.transposed() * cr).transposed()  # child's turn from rest, parent frame
+	var x := line.normalized()
+	var z := bend_axis - x * bend_axis.dot(x)
+	z = z.normalized() if z.length_squared() > 1e-6 else x.cross(Vector3.UP).normalized()
+	var jf := pr.transposed() * Basis(x, z.cross(x), z)
+	var r := jf.transposed() * q * jf
+	return r.transposed().get_euler(EULER_ORDER_XYZ) * (180.0 / PI)
 
 func _fail(tag: String, why: Array[String]) -> void:
 	for w in why:
