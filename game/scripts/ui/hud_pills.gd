@@ -5,6 +5,10 @@ extends RefCounted
 ## functions over the HUD, split out of hunt_hud.gd (review: no god-file growth).
 
 const TOOL_ICON_ITEM := {"axe": "work_axe", "pick": "work_pick", "knife": "stone_knife", "none": "hands", "": "hands"}
+const GLIDE_PX := 5.0  ## px per frame a pill slides toward a new row (it hopped a whole row in one frame)
+
+## Each pill's offset from its anchor as last drawn, by object instance id.
+static var _last_offset := {}
 
 static func gather_radial_node(hud: HuntHud) -> Node3D:
 	var gr: Variant = hud.player.get("_gather_radial")
@@ -110,9 +114,6 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 		if kind_n >= 2 and not active_row:
 			continue
 		per_kind[name] = kind_n + 1
-		var priority := 100 if active_row else int(40.0 - d)
-		if name == "Workbench" or name == "Cargo Warp":
-			priority += 5
 		var text := UiTokens.ellipsis(hud._font, name, UiTokens.LABEL_MAX_W - 28.0, 14)
 		var tw := hud._font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 		var working := (grp == "harvest" and (n3 == hud.player.gather_target or (gather_radial_node(hud) == n3))) or (grp == "corpse" and n3 is Corpse and (n3 as Corpse).tapped_recently(4.0))
@@ -121,29 +122,47 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 		if timer != "":
 			w = maxf(w, hud._font.get_string_size(timer, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(hud.get_viewport_rect().size)).x + 16.0)
 		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
+		# Placed lowest on screen first, not nearest first: the camera shifts every pill alike, so this order
+		# (and which pill steps up a row) holds while the survivor walks; by whole metres (or whole pixels)
+		# two near bushes tied, the sort is not stable, and they traded rows frame to frame.
+		var priority := (2000000000 if active_row else 0) + (1000000000 if name == "Workbench" or name == "Cargo Warp" else 0) + int(sp.y * 1000.0)
 		# The box covers what is drawn: tool icons poke 8 px over the pill, a regrow timer hangs under it.
 		pending.append({
 			"anchor": sp, "w": w, "h": 22.0 + (8.0 if not tools.is_empty() else 0.0) + (20.0 if timer != "" else 0.0), "priority": priority,
-			"text": text, "dot": dot, "timer": timer, "tools": tools,
+			"text": text, "dot": dot, "timer": timer, "tools": tools, "id": n3.get_instance_id(),
 			"a": 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d),
 		})
 		shown += 1
 	var view := hud.get_viewport_rect().size
 	var pill_i := 0
-	# The survivor is only stepped away from: a building behind it keeps its label.
+	# The survivor is only stepped away from: a building behind it keeps its label. While it walks the
+	# labels hold their spots and fade where they cross it: stepping away, every label it passed hopped a row.
 	var fig := HudLayout.figure_rect(hud)
+	var walking := hud.player.velocity.length() > 0.5
 	var hard: Array[Rect2] = []
 	for x in avoid:
-		if x != fig:
+		if x != fig and not (walking and x == hud.drawn_blocks.get("nameplate")):
 			hard.append(x)
-	var soft: Array[Rect2] = [fig]
+	var soft: Array[Rect2] = []
+	if not walking:
+		soft.append(fig)
+	var offsets := {}
 	for item in UiTokens.layout_labels(pending, view, hard, soft):
 		var box: Rect2 = item["rect"]
+		var anchor: Vector2 = item["anchor"]
+		if _last_offset.has(item["id"]):
+			box.position = anchor + (_last_offset[item["id"]] as Vector2).move_toward(box.position - anchor, GLIDE_PX)
+		offsets[item["id"]] = box.position - anchor
+		var under := false
+		for h in hard:
+			under = under or box.intersects(h)
+		if under:
+			continue  # gliding under a HUD block (a level-up opened over it): hidden until it is clear
 		hud.drawn_blocks["pill%d" % pill_i] = box
 		pill_i += 1
 		var tools: Array = item["tools"]
 		var rect := Rect2(box.position + Vector2(0.0, 8.0 if not tools.is_empty() else 0.0), Vector2(box.size.x, 22.0))
-		var a: float = item["a"]
+		var a: float = item["a"] * (0.35 if walking and box.intersects(fig) else 1.0)
 		var text: String = item["text"]
 		var dot: Color = item["dot"]
 		var bg := UiTokens.INK
@@ -168,3 +187,4 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 			hud.draw_rect(trect, tbg)
 			hud.draw_string(hud._font, Vector2(trect.position.x + 8.0, trect.position.y + 14.0), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), Color(1, 0.9, 0.6, a))
 		shown += 1
+	_last_offset = offsets

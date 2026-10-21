@@ -28,6 +28,9 @@ func add_trauma(amount: float) -> void:
 
 func _ready() -> void:
 	projection = PROJECTION_ORTHOGONAL
+	# Moved every frame after the target's interpolated transform, so it is not interpolated itself:
+	# interpolated, unproject_position() in _process read last frame's camera and screen UI trailed the world.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if size <= 1.0:
 		size = default_size  # Camera3D.size defaults to 1 m, which is a face-full of capsule
 	for a in OS.get_cmdline_user_args():

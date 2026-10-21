@@ -27,6 +27,7 @@ var _ring3d: MeshInstance3D  # selection hexagon on the ground, depth-tested so 
 var label_rects: Array[Rect2] = []
 ## The name + level backing as last drawn (the capture lab checks it against the HUD and the source).
 var title_box: Rect2
+var _hold := RadialHold.new()  # the layout solved on open, held against the node while the camera moves
 
 const HEX := 64.0
 const RING_R := 1.15  # selection hexagon radius on the ground, m
@@ -36,6 +37,7 @@ func _ready() -> void:
 	# Inside the tree set_anchors_preset keeps the current (empty) rect; reset the offsets too.
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	process_priority = 1  # after the camera's follow (priority 0): the hexes trailed the plant by a frame
 	visible = false
 	_load_icons()
 
@@ -147,6 +149,7 @@ func _show_ring3d() -> void:
 	_ring3d.visible = true
 
 func close() -> void:
+	_hold.reset()
 	if _ring3d:
 		_ring3d.visible = false
 	for b in _buttons:
@@ -229,7 +232,8 @@ func _process(_delta: float) -> void:
 	if node == null or not is_instance_valid(node):
 		close()
 		return
-	_layout()
+	if not _hold.follow(self, _anchor()):
+		_layout()
 	queue_redraw()
 
 func _anchor() -> Vector2:
@@ -239,7 +243,7 @@ func _anchor() -> Vector2:
 	return cam.unproject_position(node.global_position + Vector3(0, anchor_height * 0.45, 0))
 
 func _layout() -> void:
-	var base := _anchor()
+	var base := _hold.solved(_anchor())
 	var view := get_viewport_rect().size
 	var tf := ThemeDB.fallback_font
 	var ns := UiTokens.body(view)
@@ -279,6 +283,8 @@ func _draw() -> void:
 	var xs: Array[float] = [title_box.position.x]
 	for b in _buttons:
 		xs.append_array([b.position.x - title_box.size.x - 12.0, b.position.x + b.size.x + 12.0])
+	if _hold.held:
+		xs.clear()
 	for x in xs:
 		var spot := Rect2(Vector2(clampf(x, 8.0, maxf(8.0, view.x - title_box.size.x - 8.0)), title_box.position.y), title_box.size)
 		var clear := true
@@ -296,6 +302,9 @@ func _draw() -> void:
 	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
 	var plate := nameplate()
 	var src := source_rect()
+	var held_rects: Array[Rect2] = []
+	if _hold.held:
+		held_rects.assign(label_rects)
 	label_rects.clear()
 	for i in _buttons.size():
 		var b := _buttons[i]
@@ -308,7 +317,7 @@ func _draw() -> void:
 		for j in _buttons.size():
 			if j != i:
 				blockers.append(Rect2(_buttons[j].position, _buttons[j].size))
-		var rect := pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), tw, view, blockers, [src])
+		var rect: Rect2 = held_rects[i] if i < held_rects.size() else pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), tw, view, blockers, [src])
 		var pos := rect.position + Vector2(4.0, 14.0)
 		label_rects.append(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)))
 		draw_rect(label_rects[-1], UiTokens.INK)
@@ -316,6 +325,7 @@ func _draw() -> void:
 		if reason != "":
 			var short := UiTokens.ellipsis(font, reason, 148.0, UiTokens.meta(view))
 			draw_string(font, pos + Vector2(2, 24), short, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.DANGER)
+	_hold.picked()
 	# Gather progress: a thick outline sweeping around the picked hex, once per unit.
 	if active_index >= 0 and active_index < _buttons.size():
 		var ab := _buttons[active_index]
