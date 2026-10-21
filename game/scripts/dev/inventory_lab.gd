@@ -110,7 +110,7 @@ func _check() -> void:
 		small += 1 if b.get_combined_minimum_size().x < UiTokens.TARGET_MIN or b.get_combined_minimum_size().y < UiTokens.TARGET_MIN else 0
 	_expect(small == 0, "every bag cell is a %d px+ target (%d smaller)" % [UiTokens.TARGET_MIN, small])
 	var stone_cell: Button = cells[0] if not cells.is_empty() else null
-	# A group reads "16 ›" (opens); a real stack reads "×45": the two never look alike.
+	# A group reads "16 …" (opens); a real stack reads "×45": the two never look alike.
 	_expect(stone_cell != null and stone_cell.text.begins_with("16") and not stone_cell.text.contains("×"), "the stone group shows 16 and no stack ×N (got '%s')" % (stone_cell.text if stone_cell else ""))
 	var shot_text := ""
 	for k in ui._cells.size():

@@ -492,7 +492,7 @@ index dfb25ece..e97f1130 100644
  				continue
  			if int(row.count) < 1 or int(row.durability) < 0:
 diff --git a/game/scripts/ui/inventory_ui.gd b/game/scripts/ui/inventory_ui.gd
-index c2ae65f0..0cb4b9b1 100644
+index c2ae65f0..389d1fe2 100644
 --- a/game/scripts/ui/inventory_ui.gd
 +++ b/game/scripts/ui/inventory_ui.gd
 @@ -47,6 +47,11 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
@@ -595,7 +595,7 @@ index c2ae65f0..0cb4b9b1 100644
  				b.tooltip_text = s.tooltip()
  				b.disabled = false
  				b.modulate = Color(0.7, 0.7, 0.7, 0.8) if _readonly_reason() != "" else Color.WHITE
-@@ -420,6 +423,77 @@ func rebuild() -> void:
+@@ -420,6 +423,78 @@ func rebuild() -> void:
  	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
  	_select(_selected if _selected >= 0 else -1)
  
@@ -645,8 +645,9 @@ index c2ae65f0..0cb4b9b1 100644
 +		return
 +	if cell.has("group"):
 +		var first := inventory.slots[int(cell.slots[0])]
-+		# "16 ›" opens into 16 instances; a real stack (ammo, coins) reads "×45", so they never look alike.
-+		ItemIcons.style_slot(btn, first.def_id, _pips(cell.slots) + "%d ›" % int(cell.units))
++		# "16 …" opens into 16 instances; a real stack (ammo, coins) reads "×45", so they never look alike
++		# (… is plain typography in ui_icons.json, which t_uiicons enforces).
++		ItemIcons.style_slot(btn, first.def_id, _pips(cell.slots) + "%d …" % int(cell.units))
 +		btn.tooltip_text = "%d × %s: tap to see each one" % [(cell.slots as Array).size(), first.def().display_name if first.def() else str(first.def_id)]
 +		return
 +	var s := inventory.slots[int(cell.slot)]
@@ -673,7 +674,7 @@ index c2ae65f0..0cb4b9b1 100644
  func _refresh_profile() -> void:
  	if _profile == null or inventory == null:
  		return
-@@ -549,6 +623,7 @@ func _refresh_equipped() -> void:
+@@ -549,6 +624,7 @@ func _refresh_equipped() -> void:
  			caption = "%.0f" % st.scaled_armor()
  		if st:
  			ItemIcons.style_slot(b, st.def_id, caption)
@@ -681,7 +682,7 @@ index c2ae65f0..0cb4b9b1 100644
  			b.tooltip_text = st.tooltip()
  			b.modulate = Color.WHITE
  		else:
-@@ -564,10 +639,11 @@ func _select(index: int) -> void:
+@@ -564,10 +640,11 @@ func _select(index: int) -> void:
  	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
  	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
  		b.visible = false
@@ -696,7 +697,7 @@ index c2ae65f0..0cb4b9b1 100644
  	if none:
  		_tip.text = "Tap an item."
  		return
-@@ -614,8 +690,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
+@@ -614,8 +691,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
  			elif fid != "":
  				inventory.set_quick_food(0 if slot == "food1" else 1, &"")
  		_:
@@ -707,7 +708,7 @@ index c2ae65f0..0cb4b9b1 100644
  
  func _on_equip_pressed() -> void:
  	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
-@@ -626,7 +702,7 @@ func _on_equip_pressed() -> void:
+@@ -626,7 +703,7 @@ func _on_equip_pressed() -> void:
  	var d := st.def()
  	var slot := Inventory.slot_for(d)
  	if slot != &"":
@@ -716,7 +717,7 @@ index c2ae65f0..0cb4b9b1 100644
  	elif d and d.tool_class != &"" and d.tool_class != &"none":
  		inventory.set_equipped_tool_index(_selected)
  	_select(_selected)
-@@ -745,7 +821,7 @@ func _can_store_selected() -> bool:
+@@ -745,7 +822,7 @@ func _can_store_selected() -> bool:
  	var st := inventory.slots[_selected]
  	if st == null or st.is_locked() or str(st.def_id) == "_slot_lock": return false
  	if inventory.equipped_tool_index == _selected: return false
