@@ -397,10 +397,13 @@ func _test_categories(hs: GDScript, ms_script: GDScript) -> void:
 	search.emit_signal("category_chosen", "")
 	_expect(not col.visible and _row_keys(table).size() == everything, "the search sheet's All shows everything too")
 	search.emit_signal("searched", "branch")
+	await process_frame
 	var chips: Array = table.get("chips")
 	_expect(chips.size() == 1 and _row_keys(table).size() == 3, "a name search shows a chip and only matching rows")
 	var chip := table.find_child("Chip_q", true, false) as Button
-	_expect(chip != null and chip.text.begins_with("branch") and (chip.get_theme_stylebox("normal") as StyleBoxFlat).content_margin_left >= 10.0, "the chip names the search plainly, padded on the left: '%s'" % (chip.text if chip else "-"))
+	# The chip's words are drawn condensed (no Button text in the wide font) with 14 px either side.
+	var cw: float = load("res://scripts/ui/market/market_theme.gd").width("branch  ×", maxi(14, int((table.get("_m") as Dictionary).get("name", 16)) - 2)) + 28.0
+	_expect(chip != null and chip.tooltip_text == "Clear branch" and chip.text == "" and absf(chip.size.x - cw) < 1.0, "the chip names the search plainly, condensed and evenly padded: '%s' %.0f px (%.0f)" % [chip.tooltip_text if chip else "-", chip.size.x if chip else 0.0, cw])
 	table.emit_signal("chip_removed", &"q")
 	_expect((table.get("chips") as Array).is_empty() and _row_keys(table).size() > 3, "removing the chip clears the search")
 	ms.queue_free()

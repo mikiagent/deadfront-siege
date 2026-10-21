@@ -180,17 +180,14 @@ func set_chips(list: Array) -> void:
 	for c: Dictionary in chips:
 		var b := Button.new()
 		b.name = "Chip_%s" % c.key
-		b.text = "%s  ×" % c.text
 		b.tooltip_text = "Clear %s" % c.text
-		for st: String in ["normal", "hover", "pressed"]: # even padding on both sides of the words (references)
-			var sb := MarketTheme.flat(Color(0.06, 0.06, 0.05, 0.82) if st == "normal" else Color(0.12, 0.12, 0.11, 0.9), MarketTheme.GOLD if st == "pressed" else Color(0.3, 0.3, 0.28, 1), 1, 4)
-			sb.content_margin_left = 14
-			sb.content_margin_right = 12
-			b.add_theme_stylebox_override(st, sb)
+		for st: String in ["normal", "hover", "pressed"]:
+			b.add_theme_stylebox_override(st, MarketTheme.flat(Color(0.06, 0.06, 0.05, 0.82) if st == "normal" else Color(0.12, 0.12, 0.11, 0.9), MarketTheme.GOLD if st == "pressed" else Color(0.3, 0.3, 0.28, 1), 1, 4))
+		# The words are drawn condensed like the rest of the table, with even padding on both sides.
 		var cs := maxi(14, int(_m.get("name", 16)) - 2)
-		b.add_theme_font_override("font", MarketTheme.font())
-		b.add_theme_font_size_override("font_size", cs)
-		b.add_theme_color_override("font_color", MarketTheme.TEXT)
+		var words := "%s  ×" % c.text
+		b.custom_minimum_size.x = MarketTheme.width(words, cs) + 28.0
+		b.draw.connect(func () -> void: MarketTheme.text(b, words, 14.0, b.size.y * 0.5, b.size.x - 28.0, cs, MarketTheme.TEXT))
 		var key: StringName = c.key
 		b.pressed.connect(func () -> void: chip_removed.emit(key))
 		_chip_box.add_child(b)
