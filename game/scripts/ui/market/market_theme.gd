@@ -61,9 +61,14 @@ static func metrics(view: Vector2, px_per_pt: float = 1.0, usable_w: float = -1.
 ## evenly. (A FontVariation transform narrows outlines, not advances: wide letters left gaps.)
 const CONDENSE := 0.85
 
-## The project's font (no new font files). Labels and buttons use it as is.
+## The project's UI font (no new font files) without the symbol and emoji fallbacks Game adds: a
+## shaped line takes the tallest fallback's metrics, so every one-line label stood ~2.1x its size
+## (38 px at 18 against 26) and the Sell preview went under List. Market text needs none of them:
+## account names are letters, digits, space, _ and - (MarketEngine), item names are ASCII, and the
+## few symbols used (· × – — … ‹ ›) are in the base font ("×" for the chip, no "✕" or "→").
 static func font() -> Font:
-	return ThemeDB.fallback_font
+	var fv := ThemeDB.fallback_font as FontVariation # Game's wrapper; plain before Game installs it
+	return fv.base_font if fv != null and fv.base_font != null else ThemeDB.fallback_font
 
 ## The drawn width of `s` in condensed text (text() below).
 static func width(s: String, size_px: int) -> float:

@@ -111,12 +111,12 @@ func list_selected() -> void:
 	var res: Dictionary = await client.request("market.list_fixed", {"asset": {"uid": uid, "count": count}, "unit_price": unit, "duration_h": hours})
 	if not res.get("ok", false):
 		var why := FEE_SHORT if str(res.get("err", "")) == "insufficient_funds" else MarketFormat.error_text(res)
-		await _finish(why + " It is safe in your market storage: list it again here, or take it back with My Market → Receive All.", uid)
+		await _finish(why + " It is safe in your market storage: list it again here, or take it back with Receive All in My Market.", uid)
 		return
 	listed.emit(res)
 	selected = ""
 	await reload()
-	form.say("Listed %s for %s T-stones (fee %s paid). It is in My Market → Active until it sells or expires." % [e.name + ("  ×%d" % count if count > 1 else ""), MarketFormat.group(unit * count), MarketFormat.group(int(res.r.get("fee", 0)))], MarketTheme.GOLD)
+	form.say("Listed %s for %s T-stones (fee %s paid). It shows in My Market under Active until it sells or expires." % [e.name + ("  ×%d" % count if count > 1 else ""), MarketFormat.group(unit * count), MarketFormat.group(int(res.r.get("fee", 0)))], MarketTheme.GOLD)
 
 ## The bag slot that holds `uid` right now (char.get), or -1.
 func _slot_now(uid: String) -> int:

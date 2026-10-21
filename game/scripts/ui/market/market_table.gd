@@ -180,7 +180,7 @@ func set_chips(list: Array) -> void:
 	for c: Dictionary in chips:
 		var b := Button.new()
 		b.name = "Chip_%s" % c.key
-		b.text = "%s  ✕" % c.text
+		b.text = "%s  ×" % c.text
 		b.tooltip_text = "Clear %s" % c.text
 		for st: String in ["normal", "hover", "pressed"]: # even padding on both sides of the words (references)
 			var sb := MarketTheme.flat(Color(0.06, 0.06, 0.05, 0.82) if st == "normal" else Color(0.12, 0.12, 0.11, 0.9), MarketTheme.GOLD if st == "pressed" else Color(0.3, 0.3, 0.28, 1), 1, 4)

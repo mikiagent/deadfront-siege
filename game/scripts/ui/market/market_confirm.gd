@@ -122,7 +122,7 @@ func open(p_client: MarketClient, v: Dictionary, p_tradable: int, own: bool, m: 
 	_price_row.text = ("Price  %s T-stones" % MarketFormat.group(total)) + ("  (%s each)" % MarketFormat.group(row.price) if row.count > 1 else "") \
 		+ ("  ·  %d of %d left" % [row.count, qty] if qty > row.count else "")
 	var tax := EconRules.ceil_bp(total, EconRules.load_default().bp("sales_tax")) # the engine's own rounding
-	_balance.text = "Your tradable T-stones  %s  →  %s\nNo buyer fee; the seller pays %d T-stones market tax." % [MarketFormat.group(tradable), MarketFormat.group(tradable - total), tax]
+	_balance.text = "Your tradable T-stones: %s now, %s after\nNo buyer fee; the seller pays %d T-stones market tax." % [MarketFormat.group(tradable), MarketFormat.group(tradable - total), tax]
 	say("")
 	buy_btn.text = "Buy for %s" % MarketFormat.group(total)
 	buy_btn.visible = not own
@@ -150,7 +150,7 @@ func open_cancel(p_client: MarketClient, v: Dictionary, m: Dictionary) -> void:
 	mode = &"cancel"
 	var row := MarketFormat.row(v)
 	_lines.text = "\n".join(MarketFormat.asset_lines(str(v.get("type", "item")), v.get("asset", {})))
-	_balance.text = "Cancelling takes it off the market and puts it in your market storage (My Market → Receive All).\nThe listing fee of %s %s is not refunded." % [MarketFormat.group(int(v.get("fee", 0))), "T-stone" if int(v.get("fee", 0)) == 1 else "T-stones"]
+	_balance.text = "Cancelling takes it off the market and puts it in your market storage (Receive All in My Market brings it to your bag).\nThe listing fee of %s %s is not refunded." % [MarketFormat.group(int(v.get("fee", 0))), "T-stone" if int(v.get("fee", 0)) == 1 else "T-stones"]
 	say("")
 	buy_btn.text = "Cancel listing"
 	buy_btn.disabled = false
@@ -197,7 +197,7 @@ func buy() -> void:
 	var res: Dictionary = await client.request("market.buy", {"listing_id": row.id, "count": row.count})
 	pending = false
 	if res.get("ok", false):
-		say("Bought. It is in your market storage: My Market → Receive All.", MarketTheme.GOLD)
+		say("Bought. It is in your market storage: Receive All in My Market brings it to your bag.", MarketTheme.GOLD)
 		buy_btn.visible = false
 		cancel_btn.text = "Done"
 		bought.emit(res)

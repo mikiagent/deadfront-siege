@@ -1123,6 +1123,12 @@ func _test_safe_area(hs: GDScript, ms_script: GDScript) -> void:
 	var plain := ThemeDB.fallback_font.get_string_size("Captured Compsognathus", HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
 	var drawn: float = mt.call("width", "Captured Compsognathus", 20)
 	_expect(drawn < plain * 0.9, "drawn names are condensed (%.0f of %.0f px)" % [drawn, plain])
+	# A one-line label stands about as tall as its text: the Noto Sans Symbols fallback made it 2.1x
+	# (38 px at 18), which pushed Sell's fee preview under List once the type grew.
+	var one: Label = mt.call("label", "Lv. 1", 18)
+	get_root().add_child(one) # shaped (and measured) in the tree
+	_expect(one.get_minimum_size().y < 18 * 1.6, "a one-line 18 px market label is %.0f px tall (under 29)" % one.get_minimum_size().y)
+	one.free()
 	ms_script.set("test_insets", Vector4(-1, -1, -1, -1))
 	ms.queue_free()
 	print("[t_exchange] safe area: back, X, rail, table and rows inside 47/47/21 px insets")
