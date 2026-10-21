@@ -17,8 +17,9 @@ Per-id builders, what changed per flagged id and the earlier decisions are in
 - The 100 other renders are byte-identical to `tools/dsc/icons2_base.json`; the rig is unchanged.
 
 ## This run
-- Merged `claude/mmo-overhaul` five times (45, 10, 3, 40 and 1 commits, all clean). The 40 brought
-  W2-DATA (items.json, recipes, t_data, t_items); nothing it touches overlaps this package's files.
+- Merged `claude/mmo-overhaul` six times (45, 10, 3, 40, 1 and 52 commits, all clean). The 40 brought
+  W2-DATA (items.json, recipes, t_data, t_items), the 52 W2-SKILLS; neither touches this package's
+  files.
   The branch is 0 commits behind at the head named below.
 - **armor_scute re-renders byte-identically now.** Cause: Blender's Bevel modifier on its 12-gon
   prisms put out the same faces in a different order on each run and moved two vertices by ~1e-9
@@ -42,6 +43,9 @@ Per-id builders, what changed per flagged id and the earlier decisions are in
   (forager_wraps, hide_bone_bracers, travel_sleeves, GLB renders of the armour kits) are thin
   diagonal slivers at 40-64 px, travel_sleeves dark on the dark slot; they are one arm each now, as
   their flag asked, and keep their replace mark (t_iconart pins them).
+- captured_animal's animal reads as a green lump at slot size; STATUS (2026-10-20, owner: "the cage
+  icon should look like there's a dino inside") gives that to package CAGEICON, stacked on this
+  branch, so it is left as it is here.
 
 ## The t_iconart.gd change (orchestrator grant)
 One check in `_test_fallback`: "some unrendered item has a symbol to test the fallback with" cannot
@@ -50,8 +54,39 @@ hold once every item is rendered, which is this package's goal. It now prints
 exists and still runs the check when one does. The junk-id fallback checks above it still cover
 the fallback path. 4 lines changed, nothing else in the test.
 
+Proof it was needed: the base test run against this branch before the W2-DATA merge printed
+`[t_iconart] FAIL some unrendered item has a symbol to test the fallback with`. After the W2-DATA
+merge the base test passes again (`[t_iconart] PASS`), only because W2-DATA's 59 new unrendered items
+give the check a subject; it fails again the day an art package renders them. So the change is kept
+as granted; the branch passes with or without it today, and the integrator may leave it out of the
+squash if the gate's out-of-scope line matters more than that future failure.
+
 ## Gates (lines seen)
-GATES_PLACEHOLDER
+All on fef3cfee (then the latest base; what came after it is docs: one base merge of STATUS/spec
+files and this report).
+- Full `./tools/dsc/verify_icons2.sh`: 65 x `PASS <id>`, no `FAIL ... byte-identical` line for the
+  100 kept renders, then `PASS re-render byte-identical` (the `--verify` of all 65 in one Blender
+  process ended `REPRO PASS`), no `FAIL import`, `PASS t_iconart`, `PASS run_all`. It does not print
+  `VERIFY PASS` because of exactly two lines, both expected:
+  `FAIL out of scope: game/tests/t_iconart.gd` (the granted change) and
+  `FAIL out of scope: docs/orchestration/reports/claude-mmo-icons2.md` (this report, which the prompt
+  asks for; the gate's allowlist only knows dsc-icons2.md).
+- An earlier full run on 161e65c5 died at steamer_kit with `no space left on device` (the disk hit
+  1.2 GB free); `--verify steamer_kit,stone_fire_pit_kit` alone then gave `REPRO PASS n=2`, and the
+  run above passed with the disk back at 100+ GB.
+- `--import`: rc 0, 0 `SCRIPT ERROR`, 0 `Failed to compile`.
+- Every `game/tests/t_*.gd` (21): `[t_ai] PASS`, `[t_build] PASS`, `[t_canim] PASS`, `[t_combat] PASS`,
+  `[t_data] PASS items=223 recipes=155`, `[t_harbour] PASS`, `[t_iconart] PASS`, `[t_items] PASS`,
+  `[t_light] PASS` (t_light and t_lighting), `[t_occlude] PASS`, `[t_player] PASS`, `[t_save] PASS`
+  (5 SCRIPT ERROR lines, the deliberate ones as on base), `[t_server_domain] PASS`, `[t_srvdom] PASS`,
+  `[t_structart] PASS`, `[t_tame] PASS`, `[t_ui] PASS`, `[t_uiicons] PASS`, `[t_w2_skills] PASS`,
+  `[t_web] PASS`; 0 SCRIPT ERROR in all others.
+- `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- `item_art_lab` headless: rc 0, 0 SCRIPT ERROR. Windowed on gl_compatibility at 1600x900 and 844x390
+  with field_small_kit, field_large_kit, captured_animal, tamed_animal, armor_scute, tent_kit,
+  sign_kit and the three arm pieces in slots (looked at): the two field kits read apart, the cages
+  read as cages, nothing clipped. (Scratch shots, not committed.)
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` during the run.
 
 ## Squash merge: in-scope paths
 - `game/assets/icons/render/` : the 65 PNGs, their 32 new `.png.import` files (base commits one per
