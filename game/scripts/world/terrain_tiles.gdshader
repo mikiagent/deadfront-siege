@@ -11,6 +11,12 @@ uniform sampler2D dirt_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D sand_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rock_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D noise_tex : filter_linear_mipmap, repeat_enable;
+// Biome zones (BiomeZones): G channel of the tile map, palette 8x2 = row 0 ground tint,
+// row 1 layer mix (R dirt, G sand, B rock). Two noise-displaced samples give soft painted edges.
+uniform sampler2D biome_pal : filter_linear, repeat_disable;
+uniform float biome_on = 1.0;
+uniform float biome_edge_m = 5.0;
+uniform float biome_blend = 0.55;
 
 uniform vec3 tint_grass = vec3(0.42, 0.62, 0.32);
 uniform vec3 tint_dry = vec3(0.56, 0.54, 0.35);
@@ -31,6 +37,13 @@ uniform float h_sand = 0.25;
 uniform float h_wet = 0.15;
 uniform float h_shallow = -0.05;
 uniform float h_deep = -0.6;
+// Biome knobs (BiomeMaterial sets them from biomes.json); defaults reproduce the pre-biome look.
+uniform float slope_dry_lo = 0.12;
+uniform float slope_dry_hi = 0.30;
+uniform float slope_rock_lo = 0.32;
+uniform float slope_rock_hi = 0.50;
+uniform float macro_strength = 0.20;
+uniform float macro_scale = 12.0;
 uniform float grid_enabled = 0.0;
 uniform float grid_width = 0.03;
 uniform float grid_fade = 25.0;
@@ -48,6 +61,14 @@ vec3 tex2(sampler2D t, vec2 p) {
 	float k = texture(noise_tex, p / 23.0).r;
 	return mix(texture(t, uv1).rgb, texture(t, uv2).rgb, clamp(k * 1.4 - 0.2, 0.0, 1.0));
 }
+
+float biome_id_at(vec2 p) {
+	vec2 map_uv = (p + vec2(map_size * 0.5)) / map_size;
+	map_uv = clamp(map_uv, vec2(0.0), vec2(0.9999));
+	return floor(texture(tile_map_tex, map_uv).g * 255.0 + 0.5);
+}
+vec3 zone_tint(float id) { return texture(biome_pal, vec2((id + 0.5) / 8.0, 0.25)).rgb; }
+vec3 zone_mix(float id) { return texture(biome_pal, vec2((id + 0.5) / 8.0, 0.75)).rgb; }
 
 float tile_id_at(vec2 p) {
 	vec2 map_uv = (p + vec2(map_size * 0.5)) / map_size;
@@ -77,6 +98,13 @@ void fragment() {
 	float n = texture(noise_tex, p / 9.0).r - 0.5;
 	float h = world_pos.y + n * 0.35;
 
+	// Zone at two noise-warped points, blended: zone borders wander and never show a tile step.
+	vec2 boff = vec2(texture(noise_tex, p / 7.0).r - 0.5, texture(noise_tex, p / 7.0 + vec2(0.61)).r - 0.5) * biome_edge_m * 2.0;
+	float bA = biome_id_at(p + boff);
+	float bB = biome_id_at(p - boff * 0.8 + vec2(2.3, -1.7));
+	float bw = biome_blend * biome_on;
+	vec3 zone_t = mix(zone_tint(bA), zone_tint(bB), bw);
+	vec3 zone_m = mix(zone_mix(bA), zone_mix(bB), bw);
 	vec3 grass = tex2(grass_tex, p) * tint_grass;
 	vec3 dry = tex2(grass_tex, p) * tint_dry;
 	vec3 sand = tex2(sand_tex, p) * tint_sand;
@@ -89,8 +117,19 @@ void fragment() {
 	base = mix(wet * 0.85, base, smoothstep(h_shallow - 0.10, h_shallow + 0.05, h));
 	base = mix(tint_deep, base, smoothstep(h_deep - 0.3, h_deep + 0.2, h));
 	float above_sand = smoothstep(h_sand, h_sand + 0.2, h);
-	base = mix(base, dry, smoothstep(0.12, 0.30, v_slope) * above_sand);
-	base = mix(base, rock, smoothstep(0.32, 0.50, v_slope));
+	base = mix(base, dry, smoothstep(slope_dry_lo, slope_dry_hi, v_slope) * above_sand);
+	base = mix(base, rock, smoothstep(slope_rock_lo, slope_rock_hi, v_slope));
+	// Zone layer mix (dirt, sand, rock) on dry land only; the beach band keeps its own sand.
+	float on_land = smoothstep(h_sand, h_grass, h) * biome_on;
+	base = mix(base, dirt, zone_m.r * on_land);
+	base = mix(base, sand, zone_m.g * on_land);
+	base = mix(base, rock, zone_m.b * on_land);
+	// Paint the zone over whatever layer won: multiply keeps the texture's detail and moves the
+	// hue; dark, near-neutral zones (black basalt, canyon sandstone) also flatten toward their own
+	// colour at the surface's brightness, or a multiply over a brown baked set would stay brown.
+	float luma_b = dot(base, vec3(0.30, 0.59, 0.11));
+	float flat_w = clamp((1.0 - max(zone_t.r, max(zone_t.g, zone_t.b))) * 1.2, 0.0, 0.92) * biome_on;
+	base = mix(base * zone_t, zone_t * (0.30 + 0.85 * luma_b), flat_w);
 
 	// Tile overrides (harvested bare tiles, mud, dirt, rock, ash) with a soft edge:
 	// two lookups, the second displaced by noise, averaged.
@@ -101,7 +140,7 @@ void fragment() {
 	vec3 ocol = (o0.rgb * o0.a + o1.rgb * o1.a) / max(o0.a + o1.a, 0.001);
 	vec3 albedo = mix(base, ocol, ow);
 
-	albedo *= 0.90 + texture(noise_tex, p / 12.0).r * 0.20;
+	albedo *= 1.0 - macro_strength * 0.5 + texture(noise_tex, p / macro_scale).r * macro_strength;
 	albedo *= v_color.rgb;
 
 	float gx = min(fract(p.x), 1.0 - fract(p.x));

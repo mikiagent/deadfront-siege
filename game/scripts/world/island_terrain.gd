@@ -94,7 +94,7 @@ static func build(rt: IslandRuntime, size: float, climate: String) -> void:
 			if rs > shore1:
 				var t2 := clampf((rs - shore1) / (size * 0.05), 0.0, 1.0)
 				h = lerpf(h, -2.6, t2)
-			if rt._camp_hint != Vector3.ZERO:
+			if rt._camp_hint != Vector3.ZERO and _camp_active(rt):
 				var camp_d := Vector2(wx - rt._camp_hint.x, wz - rt._camp_hint.z).length()
 				if camp_d < 16.0:
 					var s := clampf(1.0 - camp_d / 16.0, 0.0, 1.0)
@@ -186,7 +186,7 @@ static func _v(rt: IslandRuntime, st: SurfaceTool, p: Vector3) -> void:
 static func _terrain_color(rt: IslandRuntime, p: Vector3) -> Color:
 	var col := Color(1, 1, 1)  # vertex colour is a multiplier on the shader's albedo
 	var camp_d := Vector2(p.x - rt._camp_hint.x, p.z - rt._camp_hint.z).length()
-	if camp_d < 18.0:
+	if camp_d < 18.0 and _camp_active(rt):
 		# A warm, trampled clearing frames the opening camp against the surrounding grass.
 		# The broad feathered edge reads as terrain variation, not a UI boundary ring.
 		var inner := 1.0 - smoothstep(7.0, 18.0, camp_d)
@@ -315,8 +315,14 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	types.resize(rt._tile_span * rt._tile_span)
 	var fresh := PackedByteArray()
 	fresh.resize(types.size())
-	rt._tile_map_image = Image.create(rt._tile_span, rt._tile_span, false, Image.FORMAT_R8)
+	# RG8: R = tile type, G = biome zone (BiomeZones). The shader reads both.
+	rt._tile_map_image = Image.create(rt._tile_span, rt._tile_span, false, Image.FORMAT_RG8)
 	rt._tile_map_image.fill(Color.BLACK)
+	var biomes := PackedByteArray()
+	biomes.resize(types.size())
+	# The generated camp clearing is the home island's; elsewhere the zone map keeps its own field.
+	var camp: Vector3 = rt._camp_hint if _camp_active(rt) else Vector3.ZERO
+	var bctx := BiomeZones.context(rt, climate, camp, _layout_seed(rt, climate))
 	var has_ash := _climate_has_material(climate, "ash")
 	for z in rt._tile_span:
 		for x in rt._tile_span:
@@ -348,12 +354,47 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			if rt._crater_hint != Vector3.ZERO and cdist < 8.5 and h > -0.2:
 				t = TileType.DIRT
 			var idx := x + z * rt._tile_span
+			var b := BiomeZones.zone_of(bctx, wx, wz, h, slope, river)
 			types[idx] = t
+			biomes[idx] = b
 			fresh[idx] = 1 if t == TileType.MUD else 0
-			rt._tile_map_image.set_pixel(x, z, Color(float(t) / 255.0, 0.0, 0.0))
 	rt.tile_types = types
+	BiomeZones.install(rt, biomes)
 	rt.fresh_water = fresh
+	BiomeZones.smooth(rt)
+	_write_tile_image(rt)
 	rt._tile_map_tex = ImageTexture.create_from_image(rt._tile_map_image)
+
+## Copies both channels into the tile image (the shader samples R and G).
+static func _write_tile_image(rt: IslandRuntime) -> void:
+	var span := rt._tile_span
+	if rt._tile_map_image == null or rt._tile_map_image.get_width() != span:
+		rt._tile_map_image = Image.create(span, span, false, Image.FORMAT_RG8)
+	var bio := BiomeZones.biome_types(rt)
+	for z in span:
+		for x in span:
+			var idx := x + z * span
+			var t := int(rt.tile_types[idx]) if idx < rt.tile_types.size() else 0
+			var b := int(bio[idx]) if idx < bio.size() else 0
+			rt._tile_map_image.set_pixel(x, z, Color(float(t) / 255.0, float(b) / 255.0, 0.0))
+
+## The camp shape in the heightmap and vertex colours belongs to the home island only: the other
+## islands' generated rim must stay untamed.
+static func _camp_active(rt: IslandRuntime) -> bool:
+	return _island_key(rt) == "home_grassland"
+
+## The island's id: set on the runtime by World.load_island where available, else the current one.
+static func _island_key(rt: IslandRuntime) -> String:
+	return str(rt.get_meta("island_id", World.island_id))
+
+## Moisture seed: the island's own id, so two grassland islands do not share a zone field.
+## island_runtime.gd (another job's file) will carry the layout seed; until then the island id is
+## the key, and an unnamed runtime falls back to the heightmap seed.
+static func _layout_seed(rt: IslandRuntime, climate: String) -> int:
+	var key := _island_key(rt)
+	if key == "":
+		return 25 if climate == "temperate" else 17
+	return 1000 + absi(hash(key)) % 100000
 
 static func _terrain_material(rt: IslandRuntime) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
@@ -378,6 +419,12 @@ static func _terrain_material(rt: IslandRuntime) -> ShaderMaterial:
 	m.set_shader_parameter("tint_bare", _c3(_tile_color(rt, TileType.BARE)))
 	m.set_shader_parameter("tint_deep", _c3(_tile_color(rt, TileType.DEEP)))
 	m.set_shader_parameter("tint_ash", _c3(_tile_color(rt, TileType.ASH)))
+	# W1-BIOME: per-climate baked textures, palette multipliers and the biome shader knobs.
+	# The tint_* values above stay as fallbacks if a row is missing one of its textures.
+	if not BiomeMaterial.apply_terrain(m, rt._climate):
+		push_warning("[biome] no biomes.json row for climate %s; using the fallback ground" % rt._climate)
+	m.set_shader_parameter("biome_pal", ImageTexture.create_from_image(BiomeZones.palette_image(rt._climate)))
+	m.set_shader_parameter("biome_on", 1.0)
 	return m
 
 static func _c3(c: Color) -> Vector3:
@@ -426,7 +473,12 @@ static func set_tile_type(rt: IslandRuntime, tile: Vector2i, tile_type: int) -> 
 	var tz := clampi(tile.y + int(rt._size * 0.5), 0, rt._tile_span - 1)
 	rt.tile_types[tile_idx(rt, tx, tz)] = tile_type
 	if rt._tile_map_image:
-		rt._tile_map_image.set_pixel(tx, tz, Color(float(tile_type) / 255.0, 0.0, 0.0))
+		# G keeps the biome zone: harvesting a node must not repaint the ground's biome.
+		var b := 0.0
+		var bio := BiomeZones.biome_types(rt)
+		if not bio.is_empty():
+			b = float(bio[tile_idx(rt, tx, tz)]) / 255.0
+		rt._tile_map_image.set_pixel(tx, tz, Color(float(tile_type) / 255.0, b, 0.0))
 		if rt._tile_map_tex:
 			rt._tile_map_tex.update(rt._tile_map_image)
 
