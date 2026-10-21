@@ -107,3 +107,25 @@ static func _clear_orphan_locks(inv: Inventory) -> void:
 		var a := int(s.attributes.get("anchor", -1))
 		if a < 0 or a >= i or slots[a] == null or slots[a].def_id == Inventory.LOCK or a + slots[a].slot_span() <= i:
 			slots[i] = null
+
+## One holder per uid across containers that load on their own (home cargo, the bag and its worn
+## gear, building contents, pet bags; spec 05:20 one location, 05:26 duplicate IDs): the first
+## keeps it, later holders are reminted. A container listed twice is walked once. Returns how many.
+static func unique_uids(invs: Array) -> int:
+	var seen := {}
+	var walked := {}
+	var n := 0
+	for inv: Inventory in invs:
+		if inv == null or walked.has(inv):
+			continue
+		walked[inv] = true
+		var held: Array = inv.slots.duplicate()
+		held.append_array(inv.equipment.values())
+		for s: Variant in held:
+			if not s is ItemStack or (s as ItemStack).uid == "":
+				continue
+			if seen.has(s.uid):
+				(s as ItemStack).remint_uid()
+				n += 1
+			seen[s.uid] = true
+	return n

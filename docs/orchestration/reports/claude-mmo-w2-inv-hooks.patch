@@ -1,5 +1,5 @@
 diff --git a/game/scripts/core/save_game.gd b/game/scripts/core/save_game.gd
-index 2ac1e244..6e8c7605 100644
+index 2ac1e244..479f1713 100644
 --- a/game/scripts/core/save_game.gd
 +++ b/game/scripts/core/save_game.gd
 @@ -260,7 +260,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
@@ -12,6 +12,24 @@ index 2ac1e244..6e8c7605 100644
  	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
  	if extras is Dictionary:
  		player.inventory.extras_from_dict(extras as Dictionary)
+@@ -276,6 +277,17 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
+ 			var rec := PetRecord.from_dict(row)
+ 			if rec != null: # an aborted from_dict would otherwise break every later save_now
+ 				player.bonded.append(rec)
++	# W2-INV (spec 05:20/26): building contents and pet bags load on their own; a uid one of them
++	# repeats (an edited save) is reminted, so every instance has one location.
++	var held: Array = [World.cargo_home, player.inventory]
++	for n in host.get_tree().get_nodes_in_group("placed_building"):
++		if not n.is_queued_for_deletion() and World.runtime and World.runtime.is_ancestor_of(n): # not the old island's
++			held.append(n.get("storage"))
++	for rec in player.bonded:
++		held.append(rec.bag)
++	var reminted := InventoryMigration.unique_uids(held)
++	if reminted > 0:
++		print("[inv] load: %d duplicate uids reminted" % reminted)
+ 	# Field growth catch-up (same offline window as tent rest).
+ 	if elapsed > 0 and World.runtime:
+ 		for n in World.runtime.get_tree().get_nodes_in_group("field"):
 diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
 index b1f73860..93d39900 100644
 --- a/game/scripts/core/save_sanitizer.gd
@@ -51,10 +69,44 @@ index b1f73860..93d39900 100644
  		s["level"] = _int(s["level"], 1, MAX_LEVEL)
  	if s.has("process_count"):
 diff --git a/game/scripts/creatures/corpse.gd b/game/scripts/creatures/corpse.gd
-index 13185501..1fb5a302 100644
+index 13185501..24a7dbb6 100644
 --- a/game/scripts/creatures/corpse.gd
 +++ b/game/scripts/creatures/corpse.gd
-@@ -153,7 +153,7 @@ func _roll_loot() -> void:
+@@ -15,9 +15,12 @@ var _tap_s: float = -999.0
+ var _fading: bool = false
+ var _emptied: bool = false
+ var poison_spoiled: bool = false
+-## Loot units left when Butchering XP was last paid; a take only pays when units really moved
+-## (a full bag used to pay +3 XP per tap with nothing taken).
+-var _units_paid: int = 0
++## Loot units per drop kind at the last take, and the kinds Butchering XP was paid for: 3 XP per
++## kind, the first time any of it leaves the loot. A take only pays when units really moved (a full
++## bag used to pay +3 XP per tap with nothing taken); with one instance per unit (W2-INV) a take
++## of each item must not pay per unit, so item takes and Take all pay the same.
++var _units_seen: Dictionary = {}
++var _paid_kinds: Dictionary = {}
+ 
+ func setup(c: Creature) -> void:
+ 	level = maxi(1, int(c.get("level")) if c.get("level") != null else 1)
+@@ -43,7 +46,7 @@ func _ready() -> void:
+ 	cs.position.y = 0.4
+ 	add_child(cs)
+ 	_place_on_tile()
+-	_units_paid = _units()
++	_units_seen = _kind_units()
+ 	if _owner:
+ 		_owner.visible = true
+ 		_owner.collision_layer = 0
+@@ -72,7 +75,7 @@ func open_loot(player: Player) -> void:
+ 		if player.has_method("notice"):
+ 			player.notice("Nothing left on the %s." % species_display_name().to_lower())
+ 		return
+-	_units_paid = _units()
++	_units_seen = _kind_units()
+ 	var why := can_butcher(player.inventory)
+ 	var readonly := "needs knife" if why == "need tool knife" else ""
+ 	player.ui.show_storage(loot, player, {
+@@ -153,17 +156,17 @@ func _roll_loot() -> void:
  		# Preserve the defeated creature's material quality. The catalogue base
  		# is a default for spawned items, not the quality of an earned corpse.
  		attrs["level"] = level
@@ -63,6 +115,43 @@ index 13185501..1fb5a302 100644
  
  func _on_take_from_loot() -> void:
  	# Taking from the chest screen trains Butchering (and so the player level), once per take
+ 	# that actually moved units out of the loot.
+-	var left := _units()
+-	var moved := left < _units_paid
+-	_units_paid = left
++	var now := _kind_units()
+ 	var p := PlayerRegistry.local()
+-	if moved and p and p.skills:
+-		p.skills.add_xp("butchering", 3)
++	for k: StringName in _units_seen:
++		if p and p.skills and int(now.get(k, 0)) < int(_units_seen[k]) and first_take_of(k):
++			p.skills.add_xp("butchering", 3)
++	_units_seen = now
+ 	if _is_empty():
+ 		_on_loot_empty()
+ 
+@@ -175,11 +178,18 @@ func _on_loot_empty() -> void:
+ func _is_empty() -> bool:
+ 	return loot.used_slots() <= 0
+ 
+-func _units() -> int:
+-	var n := 0
++## True once per drop kind: the take that pays its Butchering XP (radial loot and the chest screen).
++func first_take_of(def_id: StringName) -> bool:
++	if _paid_kinds.has(def_id):
++		return false
++	_paid_kinds[def_id] = true
++	return true
++
++func _kind_units() -> Dictionary:
++	var n := {}
+ 	for st in loot.slots:
+ 		if st:
+-			n += st.count
++			n[st.def_id] = int(n.get(st.def_id, 0)) + st.count
+ 	return n
+ 
+ ## Dropped loot on the floor: a billboard loot-bag symbol with the top item's icon over it,
 diff --git a/game/scripts/dev/craft_lab.gd b/game/scripts/dev/craft_lab.gd
 index 0b840a23..b880d45b 100644
 --- a/game/scripts/dev/craft_lab.gd
@@ -92,7 +181,7 @@ index 0b840a23..b880d45b 100644
  	sc._process(FULL_RETRY)
  	_check(not sc.crafting and _player.inventory.count_of(&"skewer") == 1 and _inputs_home(1, 1), "it finishes once a slot frees up")
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index e09baeef..faf78b8f 100644
+index e09baeef..265001e3 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
 @@ -18,7 +18,8 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
@@ -105,7 +194,26 @@ index e09baeef..faf78b8f 100644
  static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
  	var slots: Array = rec.get("slots", [])
  	if inv == null or slots.is_empty() or (not picks.is_empty() and picks.size() != slots.size()):
-@@ -53,6 +54,12 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+@@ -36,7 +37,17 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 			return []
+ 		var preferred := StringName(str(slot.get("prefer_id", prefer if i == 0 else "")))
+ 		var candidates := inv.find_by_category(cat)
+-		candidates.sort_custom(func(a: int, b: int) -> bool:
++		var lead := -1
++		if not picks.is_empty():
++			lead = picks[i]
++			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat):
++				return []
++			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
++				return []
++		# The lead's def breaks ties inside equal spend keys only (W2-INV review 2: ordering the lead's
++		# whole def first spent a lv40 trait stalk while a plain lv1 palm frond was left).
++		var lead_def := {"id": inv.slots[lead].def_id if lead >= 0 else &""}
++		var by_value := func(a: int, b: int) -> bool:
+ 			var sa := inv.slots[a]
+ 			var sb := inv.slots[b]
+ 			var pa := 1 if preferred != &"" and sa.def_id == preferred else 0
+@@ -53,21 +64,27 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
  					overlaps_b += 1
  			if overlaps_a != overlaps_b:
  				return overlaps_a < overlaps_b
@@ -115,25 +223,59 @@ index e09baeef..faf78b8f 100644
 +			var kb := Inventory.spend_key(sb)
 +			if ka != kb:
 +				return ka < kb
++			var la: bool = sa.def_id == lead_def.id
++			if la != (sb.def_id == lead_def.id):
++				return la
  			var ca := int(remaining.get(a, sa.count))
  			var cb := int(remaining.get(b, sb.count))
- 			return ca > cb if ca != cb else a < b)
-@@ -68,9 +75,14 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+-			return ca > cb if ca != cb else a < b)
+-		var lead := -1
+-		if not picks.is_empty():
+-			lead = picks[i]
+-			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat):
+-				return []
+-			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
+-				return []
+-		elif not candidates.is_empty():
++			return ca > cb if ca != cb else a < b
++		candidates.sort_custom(by_value)
++		if lead < 0 and not candidates.is_empty():
+ 			lead = candidates[0]
++			lead_def.id = inv.slots[lead].def_id
++			candidates.sort_custom(by_value) # again, with the tie-break
  		if lead < 0:
  			return []
  		var parts: Array[Dictionary] = []
-+		# The lead's own material first: with one instance per slot (W2-INV) the remaining units come
-+		# from other slots, and a fibre twine must not be spent when more fibre stalk is there.
++		# The lead first, then the other units by the same order (one instance per slot, W2-INV).
  		var order: Array[int] = [lead]
  		for idx in candidates:
--			if idx != lead:
-+			if idx != lead and inv.slots[idx].def_id == inv.slots[lead].def_id:
-+				order.append(idx)
-+		for idx in candidates:
-+			if idx not in order:
- 				order.append(idx)
- 		for idx in order:
- 			var available := int(remaining.get(idx, inv.slots[idx].count))
+ 			if idx != lead:
+@@ -98,6 +115,16 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
+ 	missing.fill(-1)
+ 	return missing
+ 
++## Spec 13:486 "Do not automatically consume the most valuable item": true when the plan for these
++## picks spends an instance with traits (e.g. every candidate has one), so the craft UI can ask for
++## an explicit pick. # ASSUMPTION: traits only; a higher level alone does not ask.
++static func plan_spends_traits(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
++	for row in _plan(inv, rec, picks):
++		for part in row.parts:
++			if not Inventory.traits(inv.slots[int(part.idx)]).is_empty():
++				return true
++	return false
++
+ static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
+ 	return not _plan(inv, rec, picks).is_empty()
+ 
+@@ -321,7 +348,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
+ 	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
+ 	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
+ 	consume_for_craft(scratch, rec, picks)
+-	return scratch.add(out) == 0
++	return scratch.can_accept(out)
+ 
+ static func refuse_full(player: Player, rec: Dictionary) -> void:
+ 	print("[craft] refused %s: bag full" % rec.get("id", ""))
 diff --git a/game/scripts/items/item_stack.gd b/game/scripts/items/item_stack.gd
 index 6a5110b8..ebfc27d8 100644
 --- a/game/scripts/items/item_stack.gd
@@ -176,8 +318,37 @@ index 70ddf6cb..78c3af7a 100644
  var vitals: Vitals
  var statuses: StatusEffects
  var hunt: Hunt
+diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
+index 3bfbb398..1f84a3d6 100644
+--- a/game/scripts/player/player_actions.gd
++++ b/game/scripts/player/player_actions.gd
+@@ -383,7 +383,7 @@ func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
+ 	p.get_tree().create_timer(CORPSE_TAKE_SECONDS).timeout.connect(func () -> void: loot(corpse, slot))
+ 
+ ## Move one corpse loot stack into the bag. Only what fits moves; the rest stays in the corpse
+-## (sec-loss-08), and Butchering XP is paid once, only when units moved (sec-xpfarm-07).
++## (sec-loss-08), and Butchering XP is paid only when units moved (sec-xpfarm-07), once per drop kind.
+ func loot(corpse: Corpse, slot: int) -> int:
+ 	if corpse == null or not is_instance_valid(corpse) or slot < 0 or slot >= corpse.loot.slot_count:
+ 		return 0
+@@ -400,10 +400,11 @@ func loot(corpse: Corpse, slot: int) -> int:
+ 		return 0
+ 	p.inventory.wear_gather_tool(&"knife")
+ 	print("[item] +%d %s (loot %s)" % [moved, def_id, corpse.species])
+-	if p.skills:
+-		p.skills.add_xp("butchering", 3)
+-	else:
+-		World.add_xp(3)
++	if corpse.first_take_of(def_id): # W2-INV: once per drop kind, not per instance taken
++		if p.skills:
++			p.skills.add_xp("butchering", 3)
++		else:
++			World.add_xp(3)
+ 	p.toast(def_id, moved)
+ 	return moved
+ 
 diff --git a/game/scripts/server/character_state.gd b/game/scripts/server/character_state.gd
-index 79c8b05c..828b0a63 100644
+index 79c8b05c..c37d7623 100644
 --- a/game/scripts/server/character_state.gd
 +++ b/game/scripts/server/character_state.gd
 @@ -5,7 +5,7 @@ extends RefCounted
@@ -189,7 +360,7 @@ index 79c8b05c..828b0a63 100644
  const LOCK := &"_slot_lock"
  
  var d: Dictionary
-@@ -23,6 +23,52 @@ static func fresh(id: int, name: String, ts: int) -> Dictionary:
+@@ -23,6 +23,54 @@ static func fresh(id: int, name: String, ts: int) -> Dictionary:
  		"wallet": 0, "pets": {}, "skills": {}, "pos": [0, 0, 0], "pos_ts": ts, "rids": {},
  	}
  
@@ -211,7 +382,9 @@ index 79c8b05c..828b0a63 100644
 +		var def := Data.item(StringName(str(row.id)))
 +		var cap: int = def.stack_max if def else int(row.count)
 +		var left := int(row.count) - cap
-+		if left <= 0:
++		# A row without a uid would give every such row the units ".1", ".2"; invariants() already
++		# flags it, so it stays as stored (nothing deleted) until an operator looks.
++		if left <= 0 or str(row.get("uid", "")) == "":
 +			continue
 +		row.count = cap
 +		var k := 0
@@ -242,7 +415,7 @@ index 79c8b05c..828b0a63 100644
  ## A fresh Inventory over a deep copy of the bag (so a refused op cannot have touched state),
  ## with equipment and the chosen gather tool mapped from uids to what Inventory expects.
  func inventory() -> Inventory:
-@@ -40,7 +86,7 @@ func inventory() -> Inventory:
+@@ -40,7 +88,7 @@ func inventory() -> Inventory:
  	for slot: String in d.equipment:
  		var i := find_uid(str(d.equipment[slot]))
  		if i >= 0:
@@ -252,7 +425,7 @@ index 79c8b05c..828b0a63 100644
  	return inv
  
 diff --git a/game/scripts/server/character_store.gd b/game/scripts/server/character_store.gd
-index dfb25ece..13a84ebe 100644
+index dfb25ece..e97f1130 100644
 --- a/game/scripts/server/character_store.gd
 +++ b/game/scripts/server/character_store.gd
 @@ -14,7 +14,7 @@ const VERSION := 1
@@ -264,7 +437,17 @@ index dfb25ece..13a84ebe 100644
  
  var s: Dictionary
  var world: WorldFacade
-@@ -236,11 +236,33 @@ func open() -> String:
+@@ -223,7 +223,8 @@ func open() -> String:
+ 				break
+ 			var why := replay_line(text)
+ 			if why != "":
+-				return why
++				# W2-INV: a journal written under other rules (items stacked) may not replay under these.
++				return why + ("; the data files changed since the snapshot: boot the previous build once so it snapshots, then upgrade" if data_changed else "")
+ 			if nl < 0: # a complete last line that lost only its newline: give it back
+ 				var f := FileAccess.open(path, FileAccess.READ_WRITE)
+ 				f.seek_end()
+@@ -236,11 +237,33 @@ func open() -> String:
  		return "cannot open journal (%d)" % FileAccess.get_open_error()
  	_journal.seek_end()
  	_ops_since = 0
@@ -299,7 +482,7 @@ index dfb25ece..13a84ebe 100644
  
  ## Verified write of the snapshot, then a fresh journal (everything in it is now covered).
  func snapshot() -> String:
-@@ -301,7 +323,7 @@ func invariants() -> Array[String]:
+@@ -301,7 +324,7 @@ func invariants() -> Array[String]:
  	var pets := 0
  	for key: String in s.chars:
  		var ch: Dictionary = s.chars[key]
@@ -309,7 +492,7 @@ index dfb25ece..13a84ebe 100644
  				continue
  			if int(row.count) < 1 or int(row.durability) < 0:
 diff --git a/game/scripts/ui/inventory_ui.gd b/game/scripts/ui/inventory_ui.gd
-index c2ae65f0..1e2b6b06 100644
+index c2ae65f0..389d1fe2 100644
 --- a/game/scripts/ui/inventory_ui.gd
 +++ b/game/scripts/ui/inventory_ui.gd
 @@ -47,6 +47,11 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
@@ -336,9 +519,11 @@ index c2ae65f0..1e2b6b06 100644
  	_tip.custom_minimum_size = Vector2(180, 24)
  	_tip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
  	col_e.add_child(_tip)
-@@ -261,7 +266,13 @@ func _slot_style(b: Button, selected: bool = false) -> void:
+@@ -260,8 +265,15 @@ func _slot_style(b: Button, selected: bool = false) -> void:
+ 	hov.bg_color = Color(0.16, 0.18, 0.2, 1.0)
  	b.add_theme_stylebox_override("hover", hov)
  	b.add_theme_stylebox_override("pressed", UiTokens.slot_style(true))
++	b.add_theme_stylebox_override("disabled", sb) # an empty slot stays a visible compartment
  	b.add_theme_color_override("font_color", UiTokens.TEXT)
 -	b.add_theme_font_size_override("font_size", 12)
 +	_fit_slot(b)
@@ -351,7 +536,7 @@ index c2ae65f0..1e2b6b06 100644
  
  func _slot_vec() -> Vector2:
  	return Vector2(_slot_px, _slot_px)
-@@ -285,7 +296,7 @@ func _mk_slot(index: int) -> Button:
+@@ -285,7 +297,7 @@ func _mk_slot(index: int) -> Button:
  	var b := _btn("", _slot_vec())
  	_slot_style(b)
  	if index >= 0:
@@ -360,7 +545,7 @@ index c2ae65f0..1e2b6b06 100644
  	return b
  
  func _mk_storage_slot(index: int) -> Button:
-@@ -304,6 +315,7 @@ func bind(inv: Inventory, owner_player: Player = null) -> void:
+@@ -304,6 +316,7 @@ func bind(inv: Inventory, owner_player: Player = null) -> void:
  
  func hide_ui() -> void:
  	visible = false
@@ -368,7 +553,7 @@ index c2ae65f0..1e2b6b06 100644
  	pet_bag = null
  	_storage_opts = {}
  
-@@ -376,25 +388,14 @@ func rebuild() -> void:
+@@ -376,25 +389,14 @@ func rebuild() -> void:
  		return
  	_refresh_profile()
  	_refresh_equipped()
@@ -402,7 +587,7 @@ index c2ae65f0..1e2b6b06 100644
  	for c in _pet_grid.get_children():
  		c.queue_free()
  	var has_storage := pet_bag != null
-@@ -407,6 +408,7 @@ func rebuild() -> void:
+@@ -407,6 +409,7 @@ func rebuild() -> void:
  				b.disabled = true
  			else:
  				ItemIcons.style_slot(b, s.def_id, str(s.count))
@@ -410,7 +595,7 @@ index c2ae65f0..1e2b6b06 100644
  				b.tooltip_text = s.tooltip()
  				b.disabled = false
  				b.modulate = Color(0.7, 0.7, 0.7, 0.8) if _readonly_reason() != "" else Color.WHITE
-@@ -420,6 +422,60 @@ func rebuild() -> void:
+@@ -420,6 +423,78 @@ func rebuild() -> void:
  	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
  	_select(_selected if _selected >= 0 else -1)
  
@@ -427,10 +612,29 @@ index c2ae65f0..1e2b6b06 100644
 +	for g in groups:
 +		var at: Array = g.slots
 +		out.append({"slot": at[0]} if at.size() == 1 else {"group": g.def_id, "slots": at, "units": g.units})
++	# Spec 13:124 "Empty slots remain visible": one empty cell per free bag slot.
++	for k in inventory.slot_count - inventory.used_slots():
++		out.append({"empty": true})
 +	return out
++
++## "L " / "U " when any instance in `at` is locked / unstable (a group hides them otherwise).
++func _pips(at: Array) -> String:
++	var locked := false
++	var unstable := false
++	for i in at:
++		var s := inventory.slots[int(i)]
++		locked = locked or s.is_locked()
++		unstable = unstable or s.is_unstable()
++	return ("L " if locked else "") + ("U " if unstable else "")
 +
 +func _style_cell(btn: Button, cell: Dictionary) -> void:
 +	btn.modulate = Color.WHITE
++	btn.disabled = cell.has("empty")
++	if cell.has("empty"):
++		btn.icon = null
++		btn.text = ""
++		btn.tooltip_text = ""
++		return
 +	if cell.has("back"):
 +		btn.icon = UiIcons.icon(&"back") # white = action
 +		btn.expand_icon = true
@@ -441,23 +645,22 @@ index c2ae65f0..1e2b6b06 100644
 +		return
 +	if cell.has("group"):
 +		var first := inventory.slots[int(cell.slots[0])]
-+		ItemIcons.style_slot(btn, first.def_id, "×%d" % int(cell.units))
++		# "16 …" opens into 16 instances; a real stack (ammo, coins) reads "×45", so they never look alike
++		# (… is plain typography in ui_icons.json, which t_uiicons enforces).
++		ItemIcons.style_slot(btn, first.def_id, _pips(cell.slots) + "%d …" % int(cell.units))
 +		btn.tooltip_text = "%d × %s: tap to see each one" % [(cell.slots as Array).size(), first.def().display_name if first.def() else str(first.def_id)]
 +		return
 +	var s := inventory.slots[int(cell.slot)]
-+	var pip := ""
-+	if s.is_locked():
-+		pip = "L "
-+	if s.is_unstable():
-+		pip += "U "
 +	# A unique instance shows its level; a stack (ammo, coins) its count.
-+	ItemIcons.style_slot(btn, s.def_id, pip + ("×%d" % s.count if s.count > 1 else "Lv %d" % s.level))
++	ItemIcons.style_slot(btn, s.def_id, _pips([cell.slot]) + ("×%d" % s.count if s.count > 1 else "Lv %d" % s.level))
 +	btn.tooltip_text = s.tooltip()
 +
 +func _on_cell(k: int) -> void:
 +	if k < 0 or k >= _cells.size():
 +		return
 +	var cell: Dictionary = _cells[k]
++	if cell.has("empty"):
++		return
 +	if cell.has("back"):
 +		_open_group = &""
 +		rebuild()
@@ -471,7 +674,7 @@ index c2ae65f0..1e2b6b06 100644
  func _refresh_profile() -> void:
  	if _profile == null or inventory == null:
  		return
-@@ -549,6 +605,7 @@ func _refresh_equipped() -> void:
+@@ -549,6 +624,7 @@ func _refresh_equipped() -> void:
  			caption = "%.0f" % st.scaled_armor()
  		if st:
  			ItemIcons.style_slot(b, st.def_id, caption)
@@ -479,7 +682,7 @@ index c2ae65f0..1e2b6b06 100644
  			b.tooltip_text = st.tooltip()
  			b.modulate = Color.WHITE
  		else:
-@@ -564,10 +621,11 @@ func _select(index: int) -> void:
+@@ -564,10 +640,11 @@ func _select(index: int) -> void:
  	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
  	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
  		b.visible = false
@@ -494,7 +697,7 @@ index c2ae65f0..1e2b6b06 100644
  	if none:
  		_tip.text = "Tap an item."
  		return
-@@ -614,8 +672,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
+@@ -614,8 +691,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
  			elif fid != "":
  				inventory.set_quick_food(0 if slot == "food1" else 1, &"")
  		_:
@@ -505,7 +708,7 @@ index c2ae65f0..1e2b6b06 100644
  
  func _on_equip_pressed() -> void:
  	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
-@@ -626,7 +684,7 @@ func _on_equip_pressed() -> void:
+@@ -626,7 +703,7 @@ func _on_equip_pressed() -> void:
  	var d := st.def()
  	var slot := Inventory.slot_for(d)
  	if slot != &"":
@@ -514,7 +717,7 @@ index c2ae65f0..1e2b6b06 100644
  	elif d and d.tool_class != &"" and d.tool_class != &"none":
  		inventory.set_equipped_tool_index(_selected)
  	_select(_selected)
-@@ -745,7 +803,7 @@ func _can_store_selected() -> bool:
+@@ -745,7 +822,7 @@ func _can_store_selected() -> bool:
  	var st := inventory.slots[_selected]
  	if st == null or st.is_locked() or str(st.def_id) == "_slot_lock": return false
  	if inventory.equipped_tool_index == _selected: return false
@@ -3098,10 +3301,18 @@ index 586db7c5..f88b970e 100644
  	bag.remove_at(bag.slot_count - 1, 1)
  	_expect(CR.output_fits(bag, knife, CR.default_picks(bag, knife)), "one free slot lets the craft through")
 diff --git a/game/tests/t_player.gd b/game/tests/t_player.gd
-index 037f42f1..6b19e113 100644
+index 037f42f1..ba369416 100644
 --- a/game/tests/t_player.gd
 +++ b/game/tests/t_player.gd
-@@ -341,10 +341,11 @@ func _test_corpse_full_bag() -> void:
+@@ -73,6 +73,7 @@ func _run() -> void:
+ 	await _test_pet_hp_and_summon()
+ 	await _test_pet_menu_bag_feed_dump()
+ 	await _test_corpse_full_bag()
++	await _test_corpse_take_xp()
+ 	await _test_no_creature_climb()
+ 	await _test_footsteps_and_ear()
+ 	_test_structure_interact()
+@@ -341,13 +342,55 @@ func _test_corpse_full_bag() -> void:
  	var take_s: float = (load("res://scripts/player/player_actions.gd") as GDScript).get_script_constant_map()["CORPSE_TAKE_SECONDS"]
  	await create_timer(take_s + 0.3, true, true).timeout
  	var left = corpse.loot.slots[slot]
@@ -3115,8 +3326,52 @@ index 037f42f1..6b19e113 100644
  	corpse.queue_free()
  	await process_frame
  
++## W2-INV review 2: corpse loot is one instance per unit, so a flat +3 per take paid per unit.
++## Butchering XP is 3 per drop kind, the first time any of it leaves the corpse: radial takes,
++## chest takes of each item and Take all pay the same.
++func _test_corpse_take_xp() -> void:
++	await _reset_at(Vector3(0, 1.0, 0))
++	if not player.inventory.has_tool_class(&"knife"):
++		player.inventory.add(ItemStackS.make(&"stone_knife_work", 1))
++	var paid: Array = []
++	for way in ["radial", "chest", "take_all"]:
++		var corpse = CorpseS.new()
++		host.add_child(corpse)
++		corpse.global_position = Vector3(1.2, 0, 0)
++		corpse.loot.add_growing(ItemStackS.make(&"raw_meat", 3))
++		corpse.loot.add_growing(ItemStackS.make(&"raptor_hide", 2))
++		var xp0 := _butchering_total()
++		if way == "radial":
++			for i in corpse.loot.slot_count:
++				if corpse.loot.slots[i]:
++					player.actions.loot(corpse, i)
++		else:
++			corpse.open_loot(player)
++			if way == "chest":
++				for i in corpse.loot.slot_count:
++					if corpse.loot.slots[i]:
++						player.ui._take_storage(i)
++			else:
++				player.ui._take_all_storage()
++			player.ui.hide_ui()
++		paid.append(snappedf(_butchering_total() - xp0, 0.01))
++		_expect(corpse.loot.used_slots() == 0, "%s takes every loot instance (left %d)" % [way, corpse.loot.used_slots()])
++		corpse.queue_free()
++	_expect(paid == [6.0, 6.0, 6.0], "radial takes, chest takes and Take all each pay 3 per drop kind (paid %s)" % [paid])
++	await process_frame
++
++## Butchering XP earned in all, across level-ups (xp_of is the XP into the current level).
++func _butchering_total() -> float:
++	var n: float = player.skills.xp_of("butchering")
++	for l in player.skills.level_of("butchering"):
++		n += player.skills.xp_to_next(l)
++	return n
++
+ ## phys-climb-01: a tap-to-walk route straight through a compsognathus, zebraceratops and
+ ## velociraptor, held for 5 s, raises her at most 0.15 m (was +0.97, +1.16 and +1.82 m: the stall
+ ## fallback hopped her onto their backs); unstick never steps into a creature.
 diff --git a/game/tests/t_save.gd b/game/tests/t_save.gd
-index 973340ac..780c8f95 100644
+index 973340ac..5c4b67aa 100644
 --- a/game/tests/t_save.gd
 +++ b/game/tests/t_save.gd
 @@ -1,10 +1,17 @@
@@ -3138,7 +3393,7 @@ index 973340ac..780c8f95 100644
  const RUN_DIR := "user://runs/t_save"
  ## Island state regenerated on load, not save format: excluded from field-for-field compares.
  ## A snare's life_left loses the 0-1 s of offline time each load counts.
-@@ -74,9 +81,10 @@ func _run() -> void:
+@@ -74,9 +81,11 @@ func _run() -> void:
  		quit(0)
  		return
  	_test_two_saves()
@@ -3147,10 +3402,11 @@ index 973340ac..780c8f95 100644
  		await _test_round_trip(name)
  	await _test_forged()
 +	await _test_stacked_migration()
++	await _test_duplicate_uids_across_containers()
  	await _test_truncated()
  	await _test_future()
  	await _test_backup_fallback()
-@@ -156,7 +164,21 @@ func _test_round_trip(name: String) -> void:
+@@ -156,7 +165,21 @@ func _test_round_trip(name: String) -> void:
  	_check(diffs.is_empty(), "%s re-saves field-for-field equal: %s" % [name, diffs.slice(0, 6)])
  	if LEGACY.has(name):
  		_check_legacy(name, s1)
@@ -3173,7 +3429,7 @@ index 973340ac..780c8f95 100644
  		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
  		var gd: Array[String] = []
  		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
-@@ -177,12 +199,91 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
+@@ -177,12 +200,119 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
  	_check(ok, "%s content survives migration: buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
  	print("[t_save] legacy %s buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
  
@@ -3235,6 +3491,34 @@ index 973340ac..780c8f95 100644
 +	_check(diffs.is_empty(), "the migrated save re-saves unchanged: %s" % [diffs.slice(0, 4)])
 +	print("[t_save] stacked migration units=%s bag=%d cargo_stone=%d" % [_units(s1), bag_used, cargo_stone])
 +
++## W2-INV review 2 (spec 05:20/26): an edited save whose bag, basket and pet bag rows share one uid
++## loads as three instances: the bag keeps the uid, the basket and pet copies are reminted.
++func _test_duplicate_uids_across_containers() -> void:
++	const U := "laaaa0001"
++	var src: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
++	var holders: Array = [src.player.inventory, src.pets[0].bag]
++	for b in src.home.buildings:
++		if str(b.kind) == "basket":
++			holders.append(b.contents)
++	for rows in holders:
++		for row in rows:
++			if row is Dictionary and str(row.id) == "stone":
++				row["uid"] = U
++				break
++	_clean()
++	_put(JSON.stringify(src))
++	SG.load_now(host)
++	SG.save_now()
++	var s1 := _saved()
++	var seen := {}
++	var dup := 0
++	for row in _rows(s1):
++		var u := str(row.get("uid", ""))
++		dup += 1 if u != "" and seen.has(u) else 0
++		seen[u] = true
++	var bag_keeps := (s1.player.inventory as Array).any(func (r: Variant) -> bool: return r is Dictionary and str(r.get("uid", "")) == U)
++	_check(dup == 0 and bag_keeps, "a uid shared by bag, basket and pet bag rows loads as distinct instances, the bag keeps it (dup %d, bag keeps %s)" % [dup, bag_keeps])
++
 +## Every item row in a save: bag, worn gear, home cargo, building contents, pet bags.
 +func _rows(d: Dictionary, skip_home_camp: bool = false) -> Array:
 +	var out: Array = []
@@ -3266,7 +3550,7 @@ index 973340ac..780c8f95 100644
  	_check(helm != null and helm.count == 1 and helm.level == 60, "forged raid_helm x5000 L9999 loads as x1 L60")
  	_check(helm != null and helm.durability <= helm.max_durability and helm.max_durability == IS.make(&"raid_helm", 1, {}, 60).max_durability, "forged durability clamps to the item's ceiling")
  	var unknown := 0
-@@ -325,7 +426,7 @@ func _test_away_island() -> void:
+@@ -325,7 +455,7 @@ func _test_away_island() -> void:
  ## (the golden's 42 t_stones and 6 stacks arrive) and keep saving, never abort halfway.
  func _test_hostile_types() -> void:
  	_clean()
@@ -3275,7 +3559,7 @@ index 973340ac..780c8f95 100644
  	SG.load_now(host) # the golden camp layout, so the pen cell below is free under it
  	await process_frame
  	var pen := _free_cell(&"makeshift_taming_pen")
-@@ -373,7 +474,7 @@ func _test_hostile_types() -> void:
+@@ -373,7 +503,7 @@ func _test_hostile_types() -> void:
  		cases[label] = func (d: Dictionary) -> void: d["home"]["buildings"] = [row]
  	for label in cases:
  		_clean()
@@ -3284,7 +3568,7 @@ index 973340ac..780c8f95 100644
  		(cases[label] as Callable).call(d)
  		_put(JSON.stringify(d))
  		W.t_stones = 0
-@@ -383,7 +484,7 @@ func _test_hostile_types() -> void:
+@@ -383,7 +513,7 @@ func _test_hostile_types() -> void:
  		var stacks := 0
  		for st in player.inventory.slots:
  			if st != null: stacks += 1
@@ -3293,7 +3577,7 @@ index 973340ac..780c8f95 100644
  		var saved: bool = SG.save_now()
  		_check(ok and saved and errors.script_errors == errs, "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d pets=%d script_errors=%d)" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), errors.script_errors - errs])
  		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d pets=%d saved=%s" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), saved])
-@@ -442,9 +543,9 @@ func _check_pen(label: String, keeps: bool) -> void:
+@@ -442,9 +572,9 @@ func _check_pen(label: String, keeps: bool) -> void:
  ## load lifts the block.
  func _test_aborted_load() -> void:
  	_clean()
@@ -3305,7 +3589,7 @@ index 973340ac..780c8f95 100644
  	raw["t_stones"] = {}
  	print("[t_save] the next SCRIPT ERROR (Nonexistent 'int' constructor) is the deliberate abort")
  	expected_script_errors += 1
-@@ -508,7 +609,7 @@ func _held_on_disk(d: Dictionary) -> Array:
+@@ -508,7 +638,7 @@ func _held_on_disk(d: Dictionary) -> Array:
  ## must treat it as unreadable rather than apply it.
  func _test_sanitizer_abort() -> void:
  	_clean()
@@ -3314,7 +3598,7 @@ index 973340ac..780c8f95 100644
  	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
  	San.set("abort_for_test", true)
  	print("[t_save] the next SCRIPT ERROR (call on a null instance) is the deliberate sanitizer abort")
-@@ -523,7 +624,7 @@ func _test_sanitizer_abort() -> void:
+@@ -523,7 +653,7 @@ func _test_sanitizer_abort() -> void:
  	for i in 70:
  		W._process(1.0)
  	_check(FileAccess.get_sha256(SG.path) == sha0, "aborted sanitizer: bytes unchanged after 70 s of autosave")
@@ -3323,7 +3607,7 @@ index 973340ac..780c8f95 100644
  	forged[San.get("CHECKED")] = true
  	_put(JSON.stringify(forged))
  	var ok: Dictionary = (load("res://scripts/core/save_migrations.gd") as GDScript).read(SG.path)
-@@ -536,7 +637,7 @@ func _test_sanitizer_abort() -> void:
+@@ -536,7 +666,7 @@ func _test_sanitizer_abort() -> void:
  ## pen the grid still accepts keeps its animal.
  func _test_pen_refunds() -> void:
  	_clean()
@@ -3332,7 +3616,7 @@ index 973340ac..780c8f95 100644
  	_put(golden)
  	SG.load_now(host)
  	await process_frame
-@@ -591,7 +692,7 @@ func _test_pen_refunds() -> void:
+@@ -591,7 +721,7 @@ func _test_pen_refunds() -> void:
  ## save must still record this session's buildings, or sailing away and back loses them.
  func _test_refused_save_keeps_camp() -> void:
  	_clean()
@@ -3341,7 +3625,7 @@ index 973340ac..780c8f95 100644
  	SG.load_now(host) # the golden basket holds 5 stone
  	await process_frame
  	var cell := _free_cell(&"basket")
-@@ -643,6 +744,7 @@ func _write_golden() -> void:
+@@ -643,6 +773,7 @@ func _write_golden() -> void:
  	inv.add(IS.make(&"stone", 12))
  	inv.add(IS.make(&"branch", 7))
  	inv.add(IS.make(&"raw_meat", 3))
@@ -3349,7 +3633,7 @@ index 973340ac..780c8f95 100644
  	inv.equip(&"head", &"raid_helm")
  	inv.add(IS.make(&"raid_helm", 1))
  	W.cargo_home.load_array([])
-@@ -676,15 +778,13 @@ func _write_golden() -> void:
+@@ -676,15 +807,13 @@ func _write_golden() -> void:
  	var d := _saved()
  	d["unstable"]["harvested"] = {}
  	d["saved_unix"] = 4000000000 # clamps to now at load: no offline time, so the snare round-trips
@@ -3368,7 +3652,7 @@ index 973340ac..780c8f95 100644
  	# Away golden: the survivor standing on an unstable island with a stocked basket there.
  	W.remaining_lifetime = 0.0
  	W.load_island(host, &"temperate_25", Vector3(0, 1, 12), false)
-@@ -700,7 +800,7 @@ func _write_golden() -> void:
+@@ -700,7 +829,7 @@ func _write_golden() -> void:
  	var a := _saved()
  	a["unstable"]["harvested"] = {}
  	a["saved_unix"] = 4000000000
