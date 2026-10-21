@@ -21,6 +21,10 @@ func _process(_delta: float) -> bool:
 	if _started or root.get_node_or_null("Data") == null:
 		return false
 	_started = true
+	# Watchdog: a probe that dies mid-run must end, not idle until the outer alarm.
+	root.get_tree().create_timer(90.0).timeout.connect(func () -> void:
+		print("[probe] WATCHDOG quit(2)")
+		quit(2))
 	_run()
 	return false
 
@@ -62,7 +66,7 @@ func _run() -> void:
 	_player.actions.claim()
 	await process_frame
 	_say("after claim #2 3 m east: claims=%d (was %d), moved=%s" % [_rt.claims.size(), n_before, _rt.claims.has(old) and _rt.claims.size() == n_before])
-	_say("claim panel opened by a second CLAIM: %s" % (_hud.has_method("claim_panel_open") and _hud.call("claim_panel_open")))
+	_say("claim panel opened by a second CLAIM: %s" % (_hud.call("claim_panel_open") if _hud.has_method("claim_panel_open") else "no panel in this build"))
 	if _hud.has_method("claim_confirm_cancel"):
 		_hud.call("claim_confirm_cancel")
 	# 2. Ghost spawn.

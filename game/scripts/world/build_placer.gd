@@ -29,6 +29,7 @@ var _ghost_cells: MeshInstance3D
 var _ghost_label: Label3D
 
 var _last_sync := [Vector2i(999999, 999999), -1, ""]  # cell, rot, placing: overlay rebuilt only on change
+var _pointer_seen := Vector2.ZERO  # Game.pointer when the ghost was seated; unchanged = the opening tap does not move it
 var _ghost_mat_valid: bool = false  # material currently on the ghost visual
 var _ghost_mat_fresh: bool = false  # false until the first tint after a visual rebuild
 var _last_label: String = ""
@@ -136,7 +137,11 @@ func begin(kind: StringName) -> void:
 	reason = ""
 	valid = false
 	_rebuild_ghost_visual()
-	_snap_to_pointer()
+	# The pointer still rests on the HUD hex that opened the placer (the BUILD sheet, the bag), so the
+	# ghost used to appear under the bottom-left rail or off-screen. It starts in front of the survivor;
+	# the first touch or drag moves it (a tap the player does not make is not one _pointer_moved sees).
+	_seat_in_front()
+	_pointer_seen = Game.pointer
 	_sync_grid_state()
 	_ghost_root.visible = true
 	_ghost_grid.visible = true
@@ -416,7 +421,9 @@ func _process(_delta: float) -> void:
 	if placing == &"":
 		return
 	if moving == null:
-		_snap_to_pointer()
+		if Game.pointer != _pointer_seen:
+			_pointer_seen = Game.pointer
+			_snap_to_pointer()
 	elif dragging:
 		_snap_centered()  # follows the finger while held
 	_sync_grid_state()
@@ -599,6 +606,49 @@ func _grid() -> BuildGrid:
 	if g is BuildGrid:
 		return g as BuildGrid
 	return null
+
+## Where the first tap that may move the ghost starts from: a pointer that has not moved since begin().
+const FRONT_STEPS_MAX := 6.0  ## search radius in tiles in front of the survivor
+## ASSUMPTION: no PRD line fixes how far ahead the ghost starts; 2 m reads as "in front" at the
+## game's 15 m zoom and is inside BuildGrid's 8 m reach.
+const FRONT_GAP := 2.0
+
+## Seat the ghost in front of the survivor on ground `kind` can be placed on, inside the claim: the
+## facing, then beside it, then a ring out to FRONT_STEPS_MAX tiles. When nothing there is valid, the
+## nearest tile of the claim so the reason line says why (too far, unclaimed, water, taken).
+func _seat_in_front() -> void:
+	var actor := get_parent() as Node3D
+	if actor == null:
+		return
+	var grid := _grid()
+	var fwd := -actor.global_transform.basis.z
+	fwd.y = 0.0
+	if fwd.length_squared() < 0.0001:
+		fwd = Vector3(0.0, 0.0, 1.0)
+	fwd = fwd.normalized()
+	var side := Vector3(-fwd.z, 0.0, fwd.x)
+	var start := actor.global_position
+	var best := BuildGrid.tile_of(start + fwd * FRONT_GAP)
+	if grid == null:
+		cell = best
+		return
+	# The facing first, then beside it (+-0.6, +-1.2, +-1.8 rad), then behind at 2 m: the nearest
+	# placeable tile wins. After that a ring grows out one metre at a time, still in front.
+	var first := best
+	for ring in range(1, int(FRONT_STEPS_MAX) + 1):
+		var r := FRONT_GAP + float(ring - 1)
+		var cands: Array = []
+		if ring == 1:
+			cands = [0.0, -0.6, 0.6, -1.2, 1.2, -1.8, 1.8, PI]
+		else:
+			for k in 8:
+				cands.append(TAU * float(k) / 8.0)
+		for a in cands:
+			var t := BuildGrid.tile_of(start + (fwd * cos(float(a)) + side * sin(float(a))) * r)
+			if grid.can_place(placing, t, 0) == "":
+				cell = t
+				return
+	cell = first
 
 func _snap_to_pointer() -> bool:
 	var hit := _ground()

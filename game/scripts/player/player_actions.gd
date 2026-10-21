@@ -567,22 +567,48 @@ func place_snare(id: StringName) -> bool:
 
 ## Claim a 14x14 plot here. Home: free (expansion by Pioneer level is M10's problem).
 ## Unstable: the first plot is free, later ones consume a claim_stake. ASSUMPTION.
+## A survivor who holds no plot on this island stakes one straight away (first claim, the tutorial
+## flow). Holding any plot, the same press only asks: the HUD opens its CLAIM confirm and only that
+## panel's confirm calls claim_confirmed(). A press never moves or drops land already held; the
+## plots only ever add, so nothing can be orphaned by a press. ASSUMPTION: the PRD (13.1) and spec
+## 18 are silent on a second claim; they describe expansions, one free then paid, which this is.
 func claim() -> void:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
 		return
+	if not (rt.get("claims") as Array).is_empty():
+		if online:
+			return
+		var hud := p.get_tree().get_first_node_in_group("hud")
+		if hud and hud.has_method("open_claim_confirm"):
+			hud.call("open_claim_confirm")
+			return
+		print("[world] claim refused: you already hold land here; nothing moved")
+		p.notice("You already hold land here. Nothing moved.")
+		return
+	claim_confirmed()
+
+## Stake the plot under the survivor. The CLAIM confirm calls this; a first claim calls it directly.
+## True when the plot is yours now (a refused plot keeps the stake and the free first plot).
+func claim_confirmed() -> bool:
+	var rt := World.runtime
+	if rt == null or not rt.has_method("claim_at"):
+		return false
 	var stake := not World.is_home() and World.free_claim_used
 	if stake and p.inventory.count_of(&"claim_stake") < 1:
 		print("[world] claim refused: needs claim_stake")
-		return
+		p.notice("Needs a claim stake.")
+		return false
 	if not rt.claim_at(BuildGrid.tile_of(p.global_position)):
 		print("[world] claim refused: not dry land, or another survivor's")
-		return
+		p.notice("Can't claim here: not dry land, or another survivor's")
+		return false
 	# Paid only once the plot is yours: a refused claim keeps the stake (and the free first plot).
 	if stake:
 		p.inventory.consume(&"claim_stake", 1)
 	if not World.is_home():
 		World.free_claim_used = true
+	return true
 
 # ---------------------------------------------------------------- structures
 

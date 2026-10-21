@@ -45,6 +45,8 @@ var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
 var _place_hexes: Array[HexButton] = []
+var _claim_panel: ClaimPanel  ## the CLAIM confirm (a second claim asks first; claim_panel.gd)
+var _claim_tile := Vector2i.ZERO  ## where the survivor stood when it opened
 var _done_hex: HexButton
 var _levelup_lines: Array = []
 var _levelup_title: String = ""  ## the title line and one stat summary: the landscape-phone banner
@@ -575,6 +577,11 @@ func toast(id: StringName, n: int) -> void:
 	print("[ui] toast %s +%d" % [id, n])
 	_events.add_toast(id, n)
 
+func _on_context(id: String) -> void:
+	if id != "claim":
+		claim_confirm_cancel()
+	player.context_action(id)
+
 func _refresh_context(delta: float) -> void:
 	_ctx_timer -= delta
 	if _ctx_timer > 0.0:
@@ -608,7 +615,7 @@ func _refresh_context(delta: float) -> void:
 		if h.glyph == "" and h.icon == null:
 			h.glyph = h.caption
 			h.caption = ""
-		h.pressed.connect(func () -> void: player.context_action(id))
+		h.pressed.connect(_on_context.bind(id))
 		add_child(h)
 		if id == "claim":
 			# Land claim lives by the minimap (it is about the map, not the fight).
@@ -620,6 +627,60 @@ func _refresh_context(delta: float) -> void:
 		_ctx_hexes.append(h)
 	if _sheet:
 		move_child(_sheet, -1)  # a context hex added later drew (and took taps) over the open sheet
+
+## CLAIM pressed while this survivor already holds land here: ask, naming the plots that stay and the
+## plot this press would stake (claim_panel.gd). Nothing is staked, spent or moved until the panel's
+## CLAIM; Close, walking away or a second CLAIM press cancels it.
+func open_claim_confirm() -> void:
+	if player == null or World.runtime == null or player.actions == null:
+		return
+	if claim_panel_open():
+		claim_confirm_cancel()
+		return
+	var rt: Node = World.runtime
+	if not rt.has_method("claim_plot"):
+		return
+	_claim_tile = BuildGrid.tile_of(player.global_position)
+	var plot: Rect2i = rt.call("claim_plot", _claim_tile)
+	_claim_panel = ClaimPanel.new()
+	add_child(_claim_panel)
+	_claim_panel.answered.connect(_on_claim_answered)
+	_claim_panel.open(rt.get("claims"), _claim_tile, plot, str(rt.call("claim_block_reason", _claim_tile)), _claim_stake_due())
+	_claim_panel.fit(get_viewport_rect().size, _safe_insets())
+
+func claim_panel_open() -> bool:
+	return is_instance_valid(_claim_panel) and _claim_panel.visible
+
+func claim_panel_text() -> String:
+	return _claim_panel.body_text() if claim_panel_open() else ""
+
+## Close the panel without staking (Close, Cancel, Esc, a HAUL / MOVE tap, walking away).
+func claim_confirm_cancel() -> void:
+	if is_instance_valid(_claim_panel):
+		_claim_panel.queue_free()
+	_claim_panel = null
+
+## The panel's answer (`confirmed` = its CLAIM). The test and a headless run reach the same path.
+func claim_confirm(confirmed: bool) -> void:
+	claim_confirm_cancel()
+	if confirmed and player and player.actions:
+		player.actions.claim_confirmed()
+
+func _on_claim_answered(confirmed: bool) -> void:
+	claim_confirm(confirmed)
+
+## The panel's confirm is about where the survivor stands when it is pressed.
+func _claim_stake_due() -> bool:
+	return not World.is_home() and World.free_claim_used
+
+func _refresh_claim_panel() -> void:
+	if not claim_panel_open():
+		return
+	var here := BuildGrid.tile_of(player.global_position) if player else _claim_tile
+	if here != _claim_tile or player.placer.placing != &"":
+		claim_confirm_cancel()
+		return
+	_claim_panel.fit(get_viewport_rect().size, _safe_insets())
 
 func _refresh_place_hexes() -> void:
 	var placing := player.placer != null and player.placer.placing != &""
@@ -637,10 +698,28 @@ func _refresh_place_hexes() -> void:
 	var ghost: Node3D = player.placer.get("_ghost_root")
 	if cam == null or ghost == null:
 		return
-	var base := cam.unproject_position(ghost.global_position) + Vector2(0, 40)
-	var offs := [Vector2(-105, 0), Vector2(-22, 28), Vector2(60, 0)]
+	var base := HudLayout.placer_anchor(cam.unproject_position(ghost.global_position) + Vector2(0, 40), PLACE_OFFSETS, _placer_taken(), get_viewport_rect().size, _safe_insets())
 	for i in _place_hexes.size():
-		_place_hexes[i].position = base + offs[i]
+		_place_hexes[i].position = base + (PLACE_OFFSETS[i] as Vector2)
+
+const PLACE_OFFSETS := [Vector2(-105, 0), Vector2(-22, 28), Vector2(60, 0)]
+
+## Every HUD rect the placer row must keep off: its own hexes, HANDS and the survivor's figure are
+## dropped (the row belongs next to the ghost, which may stand by the survivor).
+func _placer_taken() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for r in taken_rects():
+		if not _placer_rect_near(r.position):
+			out.append(r)
+	return out
+
+## True when a HUD rect belongs to the placer row itself or stands where the row belongs.
+func _placer_rect_near(at: Vector2) -> bool:
+	for h in _place_hexes:
+		if (h as Control).get_global_rect().grow(6.0).has_point(at):
+			return true
+	var fig := figure_rect()
+	return fig.has_area() and fig.grow(6.0).has_point(at)
 
 func _load_level_data() -> void:
 	for pair in [["res://data/skills/titles.json", "t"], ["res://data/skills/pioneer_levels.json", "g"]]:
@@ -954,6 +1033,7 @@ func _process(delta: float) -> void:
 		for h in _skill_hexes:
 			h.queue_redraw()
 	_refresh_context(delta)
+	_refresh_claim_panel()
 	_refresh_place_hexes()
 	_refresh_food_hexes()
 	var pet_out := not player.live_pets().is_empty()

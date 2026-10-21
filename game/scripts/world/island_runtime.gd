@@ -389,9 +389,22 @@ func apply_harvest_tile_snapshot(snap: Dictionary) -> void:
 func is_claimed(tile: Vector2i) -> bool:
 	return IslandClaims.is_claimed(self, tile)
 
-## Claim a 14x14 plot centred on the tile; returns false when it overlaps water or an existing claim centre.
+## Claim a 14x14 plot centred on the tile; returns false when its centre is not dry land or the plot
+## would take a tile another player holds.
 func claim_at(tile: Vector2i, size: int = 14) -> bool:
 	return IslandClaims.claim_at(self, tile, size)
+
+## The plot a claim at `tile` would take (IslandClaims.plot_at).
+func claim_plot(tile: Vector2i, size: int = 14) -> Rect2i:
+	return IslandClaims.plot_at(tile, size)
+
+## Why a claim at `tile` would be refused, "" when it would be staked (IslandClaims.block_reason).
+func claim_block_reason(tile: Vector2i, size: int = 14) -> String:
+	return IslandClaims.block_reason(self, tile, size)
+
+## Why a claim at `tile` would not expand the land held here, "" when it would (IslandClaims.expand_reason).
+func claim_expand_reason(tile: Vector2i, size: int = 14) -> String:
+	return IslandClaims.expand_reason(self, tile, size)
 
 ## Whose land the tile is, {} when nobody's (IslandClaims.owner_at).
 func owner_at(tile: Vector2i) -> Dictionary:
