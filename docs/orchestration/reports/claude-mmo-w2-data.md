@@ -1,7 +1,7 @@
 # W2-DATA report: item and recipe data, material ladder, nets, armour bands
 
-Branch `claude/mmo-w2-data`, merged with `claude/mmo-overhaul` at 34b6d459. Gates ran on HEADREF with the hooks
-patch applied (scratch tree `work-w2-data`). No dsc worker was used (the owner took DeepSeek off on 2026-10-20),
+Branch `claude/mmo-w2-data`, merged with `claude/mmo-overhaul` at 34b6d459. Gates ran on 264950b4 with the hooks
+patch applied (scratch tree `work-w2-data`). The commits after it change only this report. No dsc worker was used (the owner took DeepSeek off on 2026-10-20),
 so nothing goes in dsc-improvements.md. No credits spent.
 
 ## What shipped
@@ -40,7 +40,7 @@ so nothing goes in dsc-improvements.md. No credits spent.
 - **Repairs:** `recipes.json "repairs"` has one row per ProgressionScaling tier. They are data only; a
   consumer still has to be written.
 - **Missing sources and dead references fixed:** recipes for `hoe`, `steamer_kit`, `pillar`, `claim_stake`,
-  `stone_knife`, `cloth_scrap`, `metal_shard`, `blue_dye`, `fruit_fertilizer`, seed extraction for all four
+  `stone_knife`, `cloth_scrap`, `metal_shard`, `blue_dye` (staged, see below), `fruit_fertilizer`, seed extraction for all four
   crops, and `antivenom`/`antibiotic`. New items `moss` and `cactus_flower` for existing nature yields.
   Faction crate ids now point at real items.
 - **Loops fixed:** `sashimi`, `carnivore_feed` and `herbivore_feed` were multiplying loops (output fed its
@@ -85,23 +85,27 @@ so nothing goes in dsc-improvements.md. No credits spent.
    `coral` and `blue_dye` had no real source. Those four items are now `source_pending` (the reason is in
    items.json), and the `blue_dye` recipe (coral at the mortar) is `staged` until a blue_tropical island exists.
 
-## Acceptance (scratch tree on 2f2bc9e4 + hooks patch)
+## Acceptance (scratch tree on 264950b4 + hooks patch)
 
 | Item | Result |
 |---|---|
-| t_data: every referenced id exists; every item has market_category and rarity | `[t_data] PASS items=223 recipes=156` |
-| Progression walk logs time per rung, no unreachable rung | see the ladder table below; `best_pick=steel`; `reachable=220/223 pending=["fish", "log_shelter_kit", "cabin_bed_kit"]` |
+| t_data: every referenced id exists; every item has market_category and rarity | `[t_data] PASS items=223 recipes=155` (one fewer live recipe: `blue_dye` is staged) |
+| Progression walk logs time per rung, no unreachable rung | see the ladder table below; `[t_data] reachable=216/223 pending=["fish", "log_shelter_kit", "cabin_bed_kit", "silver_ore", "pearl", "coral", "blue_dye"] best_pick=steel` |
+| Vision fix 1: twine and dried hide on the start island first; processing mandatory | `[t_data] start island: reachable=108 twine ~2.3 s dried_hide ~5.1 s hide_strap ~3.5 s rope ~8.9 s, metal []`; `_check_processing_chain` passes (no raw hide outside the drying step, rope takes twine only) |
+| Vision fix 2: no metal source on the home climate | same line, `metal []`; the check names any ore/metal item the start-island walk reaches and where it came from |
 | Nets I–V craftable; every tameable species has a reachable net | `[t_data] tameable species with a reachable net: 17`; tiers 1–5 each checked |
-| steamer_kit and hoe craftable; armour in every 5–10 band 1–60 | `armor_body levels [1, 10, 20, 30, 35, 40, 50, 55]`; head `[10, 20, 30, 35, 40, 50, 55]`; arms/legs same as body |
-| equip_mount_lab and craft_lab PASS | `[equiplab] PASS`, `[craft_lab] PASS`, 0 SCRIPT ERROR lines in either |
-| every t_*.gd, run_all, smoke, progression probe | All 20 t_*.gd print `[<name>] PASS` with rc=0 (t_data, t_build, t_uiicons, t_items, t_ui, t_iconart, t_save, t_tame, t_player, t_combat, t_ai, t_canim, t_harbour, t_light, t_lighting, t_occlude, t_server_domain, t_srvdom, t_structart, t_web). t_save prints its 5 deliberate SCRIPT ERRORs, as on base; every other log has 0 SCRIPT ERROR and 0 "couldn't resolve track". `[tests] PASS` (run_all); `SMOKE PASS` (tools/smoke.sh --no-import); `[progression] PARTIAL seeded gate fixture, earned loop and raid fight untested; failures=0` (unchanged from base). Import log has 0 error lines. No new Godot-*.ips (25 before and after, newest Godot-2026-10-20-131531.ips). |
+| steamer_kit and hoe craftable; armour in every 5–10 band 1–60 | `[t_data] armor_body levels [1, 10, 20, 30, 35, 40, 50, 55]`; head `[10, 20, 30, 35, 40, 50, 55]`; arms/legs same as body |
+| equip_mount_lab and craft_lab PASS | `[equiplab] PASS`; `[craft_lab] PASS`; rc=0, 0 SCRIPT ERROR lines in either (headless, `-- --lab=<lab>`) |
+| every t_*.gd | All 20 print their PASS line with rc=0: t_ai, t_build, t_canim, t_combat, t_data, t_harbour (`islands=15`), t_iconart, t_items, t_light, t_lighting (prints `[t_light] PASS`), t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons (`ids=171 files=114`), t_web. t_save prints its 5 deliberate SCRIPT ERRORs, as on base; every other log has 0 SCRIPT ERROR and 0 "couldn't resolve track". |
+| run_all, smoke, progression probe | `[tests] PASS` (0 SCRIPT ERROR; two plain ERROR lines: the deliberate "Save schema 4 is newer than this build (3)" fixture and "1 resources still in use at exit"); `SMOKE PASS` (tools/smoke.sh --no-import); `[progression] PARTIAL seeded gate fixture, earned loop and raid fight untested; failures=0` (rc=0, unchanged from base) |
+| Import, crashes | mkscratch import log has 0 error lines. No new Godot-*.ips: 25 before and after, newest still Godot-2026-10-20-131531.ips |
 | Pick chain in play code (t_items with hook 11) | `[t_items] bare hands: copper_ore='needs obsidian pick' black_iron='needs bronze pick'`; `[t_items] flint node seconds: bone pick (minimum tier) 2.68, flint pick 2.40, base 3.00` |
 | Hook 6 enforces requires_node | `[t_data] smelt_copper gate: before 'needs skill smelting 1', after learning smelting_1 ''` |
 
 ### Ladder numbers against the specs
 
 Seconds are the walk's gathering + crafting time for the dearest tool of the rung, stations and travel
-excluded. Rerun on HEADREF with the island-driven walk: the same numbers to the decimal, so the vision fixes
+excluded. Rerun on 264950b4 with the island-driven walk: the same numbers to the decimal, so the vision fixes
 did not move a rung. "Skill gate" is the trees.json level of the rung recipes' `requires_node`.
 
 | Rung | Seconds | Skill gate | Its ore needs | Ore found on (island level) |
@@ -154,7 +158,9 @@ What contradicted the specs and was fixed this round:
 - GraniteBoulder `ore` restored (the old hook 9): `[t_data] FAIL start island yields no metal, but ore comes from
   gather GraniteBoulder (grassland)`, `… but ingot comes from recipe ingot`, `… but metal_shard comes from recipe
   metal_shards`. The forge and the anvil were reachable on the home island.
-- run_all hook 12 on the old recipes.json: RUNALL_OLD
+- run_all with hook 12 on the old recipes.json and items.json: `ERROR: [tests] raw hide raw_hide is dried
+  before cutting straps`, `ERROR: [tests] raw hide raptor_hide is dried before cutting straps`,
+  `[tests] FAIL count=2` (rc=1).
 - Mutation (steel_ingot back in `blade_mat`, smelt_iron back to 10 s): `[t_data] FAIL ungated recipe work_pick
   takes steel_ingot (steel tier) as its primary` (also improvised_stone_knife, work_axe, hoe) and
   `[t_data] FAIL rung iron tools (~50.0 s) cost at least the rung below (~79.4 s)`.
@@ -172,7 +178,7 @@ independent, so H1 needs a rebase onto hook 6 and nothing else.
 
 ## Integrator hooks (`docs/orchestration/reports/claude-mmo-w2-data-hooks.patch`)
 
-`git apply --check` is clean on `claude/mmo-overhaul` 34b6d459 and on the branch (HEADREF). The branch has no
+`git apply --check` is clean on `claude/mmo-overhaul` 34b6d459 and on the branch (264950b4). The branch has no
 edits to `nature_manifest.json` or `world/rules.json` (`git diff claude/mmo-overhaul HEAD --` on both is
 empty). Every edit to them is in hooks 9 and 10, with its reason given below.
 
@@ -218,9 +224,9 @@ Hook 9, `nature_manifest.json`, edit by edit:
   "every item reachable" fails and recipes like `antibiotic`, `seasoned_roast` and `spiced_skewer` can never
   be crafted.
 
-On the branch alone t_data, t_build and t_uiicons fail until these hooks land: `[t_build] FAIL route
+On the branch alone t_data, t_build, t_uiicons and run_all fail until these hooks land: `[t_build] FAIL route
 forge_kit` / `anvil_kit`, `[t_uiicons] FAIL station_forge (from recipes.json) has its own icon, not the
-fallback`, and the t_data lines above. With the patch applied every gate passes.
+fallback`, run_all's `uncut hide remains eligible raw_hide` (hook 12), and the t_data lines above. With the patch applied every gate passes.
 
 Not in the patch (follow-ups for their owners):
 - ItemArt should read `ItemDef.rarity` instead of item_rarity.json (ICONS2/W2-SCREENS), then delete it.
