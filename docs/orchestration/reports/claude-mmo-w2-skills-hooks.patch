@@ -169,23 +169,43 @@ index 08a7438c..eb33c240 100644
  		var layer := CanvasLayer.new()
  		add_child(layer)
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index e09baeef..08d3c3d1 100644
+index 0d5d57d1..b0cb5782 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
-@@ -250,6 +250,13 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
+@@ -250,9 +250,11 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
  
  ## Optional endgame gates. Existing recipes are unchanged.
  static func progression_block(player: Player, rec: Dictionary) -> String:
+-	var node := str(rec.get("requires_node", ""))
+-	if node != "":
+-		var learn := _node_block(player, node)
 +	# W2-SKILLS: a recipe a skill node gates (a node's recipe effect or the recipe's requires_node)
 +	# stays shown but locked, saying what to learn: "learn X (Tree Lv. N, SP)". It covers both kinds
 +	# of gate, so it is the only requires_node check here (W2-DATA's own check folds into it).
 +	if player != null and player.skills != null:
 +		var learn := SkillRules.recipe_block(player.skills, str(rec.get("id", "")))
-+		if learn != "":
-+			return learn
+ 		if learn != "":
+ 			return learn
  	var survival := int(rec.get("required_survival", 0))
- 	if survival > 0 and (player == null or player.skills == null or player.skills.level_of("survival") < survival):
- 		return "needs Survival %d" % survival
+@@ -267,18 +269,6 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
+ 			return "needs materials and crafting skill for level %d" % minimum
+ 	return ""
+ 
+-## "" once the trees.json node is learned, else "needs Smelting 1 (Processing 25)": the node, its tree and
+-## level, so the player knows which tree to raise. Node ids are unique across trees (t_data checks it).
+-static func _node_block(player: Player, node_id: String) -> String:
+-	if player != null and player.skills != null:
+-		for tree in player.skills.defs:
+-			for n in player.skills.nodes(str(tree)):
+-				if n is Dictionary and str((n as Dictionary).get("id", "")) == node_id:
+-					if player.skills.is_unlocked(str(tree), node_id):
+-						return ""
+-					return "needs %s (%s %d)" % [str((n as Dictionary).get("name", node_id.capitalize())), SkillState.NAMES.get(str(tree), str(tree)), int((n as Dictionary).get("level", 1))]
+-	return "needs %s" % node_id.capitalize()
+-
+ static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
+ 	if rec.is_empty():
+ 		return false
 diff --git a/game/scripts/pets/field_tame.gd b/game/scripts/pets/field_tame.gd
 index b64cb1b8..2aabbd29 100644
 --- a/game/scripts/pets/field_tame.gd
@@ -283,10 +303,10 @@ index 61df96f6..21cad4ee 100644
  
  func _is_out(rec: PetRecord) -> bool:
 diff --git a/game/scripts/ui/craft_ui.gd b/game/scripts/ui/craft_ui.gd
-index d7187dbb..999bafaf 100644
+index fddac3f3..b0afd11f 100644
 --- a/game/scripts/ui/craft_ui.gd
 +++ b/game/scripts/ui/craft_ui.gd
-@@ -454,6 +454,17 @@ func _show_detail(info: Dictionary) -> void:
+@@ -455,6 +455,17 @@ func _show_detail(info: Dictionary) -> void:
  		st.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
  		st.add_theme_color_override("font_color", UiTokens.META)
  		_detail.add_child(st)
