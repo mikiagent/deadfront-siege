@@ -143,3 +143,14 @@ remap, so a fresh tree imports correctly the first time.
 - Night glow: an OmniLight (warm, small range) on placed forges in `CraftStation._ready`. That is a code
   change in `game/scripts/world/craft_station.gd`, so it needs a hooks patch or W2-PROCESS (fuel state) to own it.
 - Possible fuel states (unlit, lit) as `stages`, like the drying rack, if W2-PROCESS adds forge fuel.
+
+## Sync 1 before integration (2026-10-20)
+
+- Merged `claude/mmo-overhaul` e5f3ec8a (W2-SKILLS and spec 19-22 docs) as 2b381c11. No conflicts. The base
+  touched no file under `game/assets/`, `tools/blender/` or `props_manifest.json`, so both GLBs, the atlas and
+  every existing GLB are unchanged. Still no hooks patch.
+- Gates in a scratch tree at 2b381c11, after `--import`: all 22 `t_*.gd` print PASS (`[t_forgeart] PASS`,
+  `[t_structart] PASS`, `[t_w2_skills] PASS`, `[t_data] PASS items=223 recipes=155`). t_save has its 5
+  deliberate SCRIPT ERRORs and no others. `run_all.gd` prints `[tests] PASS`, `tools/smoke.sh --no-import` prints `SMOKE PASS`,
+  `--lab=build_lab` headless prints `[build] PASS` with 0 SCRIPT ERROR. `check_manifest.py` PASS, 43 kinds.
+  0 "couldn't resolve track", and no new `Godot-*.ips`.
