@@ -1357,6 +1357,8 @@ def makeshift_workbench():
     # the flat stone slab: two stones, the bigger one on top
     p.rock(0.3, (-0.12, 0.0, H - 0.05), tile="stone", squash=(1.5, 1.15, 0.24), seed=101)
     p.rock(0.24, (0.42, 0.05, H - 0.04), tile="stone_dark", squash=(1.1, 1.0, 0.22), seed=102)
+    # a split billet laid on the slab: the work surface that makes it a bench, not a table
+    p.box((0.5, 0.22, 0.06), (-0.1, 0.12, H + 0.01), "wood", rot=(0, 0, 6), tile_m=0.5)
     # a stone hammer and a stick of cord left on the slab
     p.log((-0.02, -0.08, H + 0.02), (0.16, -0.14, H + 0.02), 0.018, tile="wood_dark", seg=5)
     p.rock(0.05, (0.18, -0.15, H + 0.04), tile="stone_dark", squash=(1.1, 0.9, 0.8), seed=103)
@@ -1494,23 +1496,23 @@ def kiln():
     p.box((1.7, 1.6, 0.1), (0, 0.05, 0.05), "cobble", tile_m=0.9)
     # firebox: two side walls, a back wall and a soot-lined mouth at the front
     for sx in (-1, 1):
-        p.box((0.3, 1.0, 0.5), (sx * 0.5, -0.1, 0.35), "clay", tile_m=0.7)
-    p.box((1.3, 0.22, 0.5), (0, 0.32, 0.35), "clay", tile_m=0.7)
-    p.box((0.72, 0.06, 0.42), (0, -0.52, 0.31), "soot", tile_m=0.5)  # dark inside the mouth
-    p.box((0.8, 0.9, 0.04), (0, -0.1, 0.12), "ash", tile_m=0.6)
-    p.cyl(0.22, 0.03, (0, -0.12, 0.14), "ember", seg=10, cap_tile="ember")
+        p.box((0.26, 1.0, 0.62), (sx * 0.52, -0.05, 0.41), "clay", tile_m=0.7)
+    p.box((1.3, 0.22, 0.62), (0, 0.37, 0.41), "clay", tile_m=0.7)
+    p.box((0.8, 0.06, 0.52), (0, -0.48, 0.36), "soot", tile_m=0.5)  # dark inside the mouth
+    p.box((0.86, 0.9, 0.04), (0, -0.05, 0.12), "ash", tile_m=0.6)
+    p.cyl(0.24, 0.03, (0, -0.08, 0.14), "ember", seg=10, cap_tile="ember")
     for i, (lx, ly) in enumerate(((-0.2, -0.2), (0.18, -0.28), (0.0, 0.08))):
         p.log((lx - 0.12, ly, 0.17), (lx + 0.12, ly + 0.05, 0.19), 0.035, tile="char", seg=5, end_tile="ember")
-    # the clay dome shell over the firebox
-    _dome(p, 0.72, 0.72, 0.56, tile="clay", seg=14, rings=4, cy=0.06)
-    p.cyl(0.74, 0.06, (0, 0.06, 0.58), "clay_dark", seg=14, cap_tile="clay")
+    # the clay dome shell over the firebox, set back so the mouth stays visible
+    _dome(p, 0.62, 0.66, 0.68, tile="clay", seg=14, rings=4, cy=0.12)
+    p.cyl(0.64, 0.06, (0, 0.12, 0.7), "clay_dark", seg=14, cap_tile="clay")
     # a collar and the chimney
-    p.cyl(0.19, 0.1, (0, 0.06, 1.29), "clay_dark", seg=10, cap_tile="clay_dark")
-    p.cyl(0.16, 0.34, (0, 0.06, 1.48), "clay", seg=10, cap_tile="soot")
+    p.cyl(0.18, 0.1, (0, 0.12, 1.35), "clay_dark", seg=10, cap_tile="clay_dark")
+    p.cyl(0.15, 0.32, (0, 0.12, 1.53), "clay", seg=10, cap_tile="soot")
     # the mouth's clay arch, made of two leaning slabs and a lintel
     for sx in (-1, 1):
-        p.box((0.16, 0.14, 0.5), (sx * 0.36, -0.56, 0.36), "clay_dark", rot=(0, sx * 10, 0), tile_m=0.4)
-    p.box((0.9, 0.16, 0.14), (0, -0.56, 0.66), "clay_dark", tile_m=0.5)
+        p.box((0.18, 0.16, 0.62), (sx * 0.38, -0.52, 0.41), "clay_dark", rot=(0, sx * 10, 0), tile_m=0.4)
+    p.box((1.0, 0.18, 0.16), (0, -0.52, 0.78), "clay_dark", tile_m=0.5)
     # firewood stacked at the side and a clay pot waiting to be fired
     for i in range(3):
         p.log((-0.98, 0.08 + i * 0.17, 0.07 + i * 0.09), (-0.98, 0.22 + i * 0.17, 0.07 + i * 0.09), 0.05,
@@ -1596,9 +1598,9 @@ def oven():
     p.box((0.74, 0.9, 0.04), (0, 0.0, 0.11), "ash", tile_m=0.6)
     p.cyl(0.2, 0.03, (0, 0.02, 0.13), "ember", seg=10, cap_tile="ember")
     p.log((-0.18, -0.18, 0.16), (0.2, -0.24, 0.17), 0.032, tile="char", seg=5, end_tile="ember")
-    # the stone dome
-    _dome(p, 0.62, 0.5, 0.52, tile="stone", seg=14, rings=4, cy=0.05)
-    p.cyl(0.64, 0.05, (0, 0.05, 0.54), "stone_dark", seg=14, cap_tile="stone")
+    # the stone dome: masonry, so it does not read as one smooth grey blob
+    _dome(p, 0.62, 0.5, 0.52, tile="cobble", seg=14, rings=4, cy=0.05)
+    p.cyl(0.64, 0.05, (0, 0.05, 0.54), "stone_dark", seg=14, cap_tile="cobble")
     # the flue
     p.cyl(0.15, 0.09, (0, 0.05, 1.04), "stone_dark", seg=10, cap_tile="stone_dark")
     p.cyl(0.12, 0.3, (0, 0.05, 1.21), "stone", seg=10, cap_tile="soot")
@@ -1664,15 +1666,16 @@ def _site_stakes(p, hx, hy, stake_h=0.42):
 
 
 def _site_logs(p, hx, hy, n=4, seed=0):
-    """A small pile of logs and rolled straps inside the staked-out corner. Kept inside the
-    footprint so the model fits its cell."""
+    """A pile of logs and rolled straps inside the staked-out corner, on the camera side so the
+    pile is seen. Kept inside the footprint so the model fits its cell."""
+    per_row = max(2, n // 2)
     for i in range(n):
-        x = -hx + 0.34 + 0.13 * (i % 2)
-        y = -hy + 0.24
-        z = 0.055 + 0.1 * (i // 2)
-        p.log((x - 0.2, y + 0.02 * (i % 3), z), (x + 0.2, y - 0.02 * (i % 3), z), 0.05, tile="bark", seg=6)
+        x = -hx + 0.4 + 0.12 * (i % per_row)
+        y = -hy + 0.3 - 0.18 * (i // per_row)
+        z = 0.07 + 0.13 * (i // per_row)
+        p.log((x - 0.26, y, z), (x + 0.26, y + 0.03 * (i % 3 - 1), z), 0.07, tile="bark", seg=6)
     for i in range(2):
-        p.torus(0.075, 0.018, (-hx + 0.3 + i * 0.24, hy - 0.24, 0.02), "rope", seg=9, tube=4)
+        p.torus(0.09, 0.022, (-hx + 0.3 + i * 0.3, -hy + 0.56, 0.02), "rope", seg=9, tube=4)
 
 
 def _site_scaffold(p, hx, hy, height, braces=True):
@@ -1705,11 +1708,14 @@ def site_small(stage):
         _site_logs(p, hx, hy, n=2)
     else:
         _site_scaffold(p, hx, hy, height=2.05, braces=True)
-        # partial plank cladding on the back and left sides
-        for i in range(4):
-            p.box((hx * 2, 0.06, 0.34), (0, hy, 0.4 + i * 0.36), "plank", tile_m=1.2)
+        # Partial plank cladding on the front (-Y) and right (+X) sides, the two the iso camera
+        # sees: the wall is only part way up, so the frame still shows through it.
         for i in range(3):
-            p.box((0.06, hy * 2 - 0.1, 0.34), (-hx, 0.02, 0.58 + i * 0.36), "plank", tile_m=1.2)
+            p.box((hx * 2, 0.06, 0.32), (0, -hy, 0.36 + i * 0.34), "plank", tile_m=1.2)
+        for i in range(2):
+            p.box((0.06, hy * 2 - 0.1, 0.32), (hx, 0.02, 0.5 + i * 0.34), "plank", tile_m=1.2)
+        # a lintel over the front doorway opening, so the front reads as a wall in progress
+        p.log((-0.34, -hy, 1.44), (0.34, -hy, 1.44), 0.05, tile="wood_dark", seg=6)
         # a ladder leaning on the frame inside the footprint and a plank stack
         for sx in (-1, 1):
             p.log((sx * 0.16, -hy + 0.62, 0.02), (sx * 0.16, -hy + 0.06, 1.55), 0.028, tile="wood", seg=5)
@@ -1735,14 +1741,16 @@ def site_large(stage):
         _site_logs(p, hx, hy, n=4)
     else:
         _site_scaffold(p, hx, hy, height=2.5, braces=True)
-        for i in range(6):
-            p.box((hx * 2, 0.07, 0.36), (0, hy, 0.5 + i * 0.38), "plank", tile_m=1.4)
-        for i in range(5):
-            p.box((0.07, hy * 2 - 0.1, 0.36), (-hx, 0.02, 0.68 + i * 0.38), "plank", tile_m=1.4)
-        # a frame and a doorway opening marked on the front
+        # Partial plank cladding on the front (-Y) and right (+X) sides, the two the iso camera
+        # sees; the wall stops part way up and to the side, so the frame shows through it.
+        for i in range(4):
+            p.box((hx * 2 - 0.5, 0.07, 0.34), (-0.25, -hy, 0.46 + i * 0.36), "plank", tile_m=1.4)
+        for i in range(3):
+            p.box((0.07, hy * 2 - 0.4, 0.34), (hx, 0.2, 0.62 + i * 0.36), "plank", tile_m=1.4)
+        # a doorway frame marked on the front
         for sx in (-1, 1):
-            p.log((sx * 0.55, -hy, 0.02), (sx * 0.55, -hy, 2.1), 0.045, tile="wood_dark", seg=6)
-        p.log((-0.55, -hy, 2.1), (0.55, -hy, 2.1), 0.04, tile="wood_dark")
+            p.log((sx * 0.55, -hy, 0.02), (sx * 0.55, -hy, 1.9), 0.045, tile="wood_dark", seg=6)
+        p.log((-0.55, -hy, 1.9), (0.55, -hy, 1.9), 0.04, tile="wood_dark")
         # scaffolding planks laid on the front rail and a ladder inside the footprint
         for i in range(3):
             p.box((2.6, 0.24, 0.05), (0, -hy + 0.16, 0.9 + i * 0.42), "plank", tile_m=1.6)

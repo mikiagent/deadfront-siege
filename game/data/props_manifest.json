@@ -688,7 +688,7 @@
         0.631
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (428 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (440 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "workbench tier 0: lashed sticks and a flat stone slab; starter recipes"
     },
     "basic_workbench": {
@@ -744,7 +744,7 @@
       "glb": "res://assets/props/blender/kiln.glb",
       "aabb_m": [
         2.097,
-        1.65,
+        1.69,
         1.6
       ],
       "art_status": "REVIEW",
@@ -853,7 +853,7 @@
         2.005
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (472 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (468 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "construction site (2x2), stage 2: scaffold at full height with partial plank cladding"
     },
     "site_large_0": {
@@ -894,11 +894,11 @@
       "glb": "res://assets/props/blender/site_large_2.glb",
       "aabb_m": [
         3.007,
-        2.6,
+        2.52,
         3.005
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (600 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (552 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "construction site (3x3), stage 2: scaffold at full height with partial plank cladding"
     }
   },
