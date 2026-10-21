@@ -10,6 +10,24 @@ Owner approval on record (STATUS, 2026-10-20): "the non-stacking inventory save 
 independent review passes and old saves migrate cleanly in tests." Review rounds 1 to 5 and the delta review are
 fixed below; the package needs its re-review before the merge.
 
+## Sync step 1 before integration (2026-10-21, base acc684a6)
+
+claude/mmo-overhaul acc684a6 (9ebe13f9 + acc684a6: STATUS.md and two workflow scripts, docs only) merged at 709fba3c,
+no conflicts. The hooks patch touches none of those files, so it is unchanged; `git apply --check` is clean on the
+claude/mmo-overhaul worktree at acc684a6. Gates in mkscratch tree `sync-w2-inv` (709fba3c + hooks, import 0 SCRIPT
+ERROR / "Failed to compile"), every run through gslot, logs in scratch `sync-w2-inv-gates/`:
+- All 24 `t_*.gd` exit 0 with their PASS line and 0 SCRIPT ERROR except t_save's 5 deliberate ones (`[t_save] PASS`),
+  including `[t_inventory] PASS`, `[t_items] PASS`, `[t_srvdom] PASS`, `[t_server_domain] PASS`, `[t_w2_skills] PASS`,
+  `[t_data] PASS items=223 recipes=155`, `[t_uiicons] PASS ids=177 ...`.
+- `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- Labs exit 0, 0 SCRIPT ERROR: `[invlab] PASS empty_cells=100/97 slots=100 groups=20 stone_open=17 equip_l30=true
+  full_unequip_notice=true`, `[craft_lab] PASS`, `[equiplab] PASS`, `[kitchen_lab] PASS`, `[waterlab] done`; windowed
+  gl_compatibility `ui_real_capture_lab` 844x390 `[uireal] PASS screens=hud,...,bag,charcreate,...` and inventory_lab
+  1600x900. Shots opened: the full bag at 1600x900 (20 cells, group pills 16..2 with "Lv 1-N" ranges, ×45 / ×6 stacks,
+  knife and pick worn) and the empty bag at 844x390 (a grid of empty slots, "Bag 0 / 100").
+- 0 "couldn't resolve track" in every log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (newest still
+  2026-10-20-232613, from before these runs).
+
 ## Review 5 findings (2026-10-21)
 Fixed on 20e6dbb3 (branch), 30c1b1b1 and f27a6bce (hooks). Each check below FAILs on the reviewed code (or a mutation
 that brings the finding back) and passes now. Logs in scratch `w2inv-r6/` (`old_hooks_t_inventory.log`, `mut_*.log`,
