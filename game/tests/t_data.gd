@@ -26,7 +26,7 @@ const RUNGS := ["stone", "bone", "flint", "obsidian", "copper", "bronze", "iron"
 ## Special families IslandScatter._scatter_special_tiles plants on every island.
 const SPECIAL_FAMILIES := ["mud", "clay", "berry_bush", "tree_stump"]
 ## cleared_by entries in statuses.json that are actions or places, not items.
-const STATUS_ACTIONS := ["cauterise", "residence", "struggle", "pet_aggro"]
+const STATUS_ACTIONS := ["cauterise", "residence", "struggle", "pet_aggro", "wash", "drink"]  # wash/drink: WaterAccess verbs (WATER)
 ## Seconds a capture or a taming takes, for the time log only (# ASSUMPTION).
 const CAPTURE_SECONDS := 60.0
 const TAME_SECONDS := 120.0

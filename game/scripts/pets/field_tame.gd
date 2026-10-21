@@ -62,12 +62,21 @@ static func feed_value(creature: Creature, food_id: StringName) -> float:
 		return ACCEPTED_FEED
 	return 0.0
 
+## "" while `player` may bond one more animal, else why not (spec 09: 3 + Animal Handling I-IV).
+static func roster_full(player: Player) -> String:
+	if player == null or player.bonded.size() < Data.bonded_cap():
+		return ""
+	return "Bonded roster full (%d / %d)" % [player.bonded.size(), Data.bonded_cap()]
+
 static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
 	## Returns {kind, text, food_id, progress} for the creature plate.
 	if not can_attempt(creature):
 		return {}
 	var need := preferred_need(creature)
+	# The plate is the local survivor's view; at the cap a green "Tame" led to a silent refusal.
 	var locked := lock_reason(creature)
+	if locked == "":
+		locked = roster_full(PlayerRegistry.local())
 	if locked != "":
 		return {
 			"kind": &"need",
@@ -123,8 +132,9 @@ static func apply_feed(player: Player, creature: Creature, food_id: StringName) 
 		print("[tame] refused: %s" % lock_reason(creature))
 		return false
 	# Refuse before eating the food: a completed tame must have a roster slot to go to.
-	if player.bonded.size() >= Data.bonded_cap():
-		print("[tame] refused: roster full (%d)" % Data.bonded_cap())
+	var full := roster_full(player)
+	if full != "":
+		player.notice(full + ". Animal Handling (Survival) adds slots.")
 		return false
 	var value := feed_value(creature, food_id)
 	if value <= 0.0:

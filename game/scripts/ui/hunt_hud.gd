@@ -658,7 +658,9 @@ func _on_level_up(stored: int) -> void:
 	_levelup_lines.append([LevelDisplay.label(level), 40, Color(1.0, 0.85, 0.35)])
 	_levelup_lines.append(["Pioneer XP %d" % World.pioneer_xp, 18, Color.WHITE])
 	_levelup_lines.append(["T-stones %d" % World.t_stones, 18, Color.WHITE])
-	var sp := Data.survival_nodes.size() - Data.survival_unlocked.size() if Data.get("survival_nodes") != null else 0
+	# W2-SKILLS: character levels pay the SP (spec 03); show what SkillState holds (sp_now recounts,
+	# since its own handler on this signal may not have run yet).
+	var sp: int = player.skills.sp_now() if player and player.skills else 0
 	_levelup_lines.append(["Available Skill Points: %d" % maxi(0, sp), 18, Color.WHITE])
 	var title := str(_titles.get(str(level), ""))
 	if title != "":
@@ -1024,7 +1026,8 @@ func _draw() -> void:
 		var sx0 := sx
 		for inst in player.statuses.instances():
 			HudStatusChip.draw(self, _font, Vector2(sx, sy), inst.id, Color(1, 0.75, 0.45))
-			draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
+			if inst.time_left < 3600.0:  # "until washed / treated" statuses (9999 s) show no countdown
+				draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
 			sx += 30
 		if sx > sx0:
 			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)

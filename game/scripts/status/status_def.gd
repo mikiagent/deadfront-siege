@@ -14,6 +14,9 @@ extends Resource
 @export var attack_mult: float = 1.0
 @export var max_health_mult: float = 1.0
 @export var fatigue_per_min: float = 0.0
+## Multiplies every fatigue gain while active (PRD 6.4: Dirty 1.2, Clean 0.8); heat_ only heat fatigue.
+@export var fatigue_mult: float = 1.0
+@export var heat_fatigue_mult: float = 1.0
 @export var evasion_add: float = 0.0
 @export var weakness_rank: int = 1
 @export var cleared_by: Array[StringName] = []
@@ -36,6 +39,8 @@ static func from_dict(d: Dictionary) -> StatusDef:
 	s.attack_mult = float(d.get("attack_mult", 1.0))
 	s.max_health_mult = float(d.get("max_health_mult", 1.0))
 	s.fatigue_per_min = float(d.get("fatigue_per_min", 0.0))
+	s.fatigue_mult = float(d.get("fatigue_mult", 1.0))
+	s.heat_fatigue_mult = float(d.get("heat_fatigue_mult", 1.0))
 	s.evasion_add = float(d.get("evasion_add", 0.0))
 	s.weakness_rank = int(d.get("weakness_rank", 1))
 	s.cleared_by = ItemDef._names(d.get("cleared_by", []))
