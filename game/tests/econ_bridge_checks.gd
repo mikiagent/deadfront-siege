@@ -459,13 +459,14 @@ func _test_full_bag() -> bool:
 	lid = str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": src}, "unit_price": 2, "duration_h": 24}).listing.id)
 	var part := str(_ok(b, "market.buy", 2, {"listing_id": lid, "count": 2}).get("asset", {}).get("uid", ""))
 	_expect(b.econ.engine.state().src.has(whole) and not b.econ.engine.state().src.has(part), "one purchase is a whole export (char.receive), the other a split part (char.grant)")
-	# Berries until a gather finds no room: no empty slot and no berry stack with space.
-	var last := {}
-	for _i in 2000:
-		last = b.chars.apply("act.gather", 2, {"node_id": "bush", "option": 0}, T0)
-		if not last.get("ok", false):
+	# Clubs (tools wear, so one per slot) from gathered branches and twine until no slot is
+	# empty; account 2 holds no stone_shot, so nothing it buys can merge into a stack either.
+	for _i in 200:
+		if _empty_slots(b, 2) == 0:
 			break
-	_expect(last.get("err") == "bag_full" and _empty_slots(b, 2) == 0, "account 2's bag is full (%s, %d empty)" % [last.get("err", "ok"), _empty_slots(b, 2)])
+		for step: Array in [["act.gather", {"node_id": "bush", "option": 2}], ["act.gather", {"node_id": "bush", "option": 1}], ["act.craft", {"recipe_id": "twine"}], ["act.craft", {"recipe_id": "club"}]]:
+			b.chars.apply(step[0], 2, step[1], T0)
+	_expect(_empty_slots(b, 2) == 0 and _slot(b, 2, SPLIT) < 0, "account 2's bag is full (%d empty)" % _empty_slots(b, 2))
 	var h := _hash(b)
 	var w1 := _op(b, "vault.withdraw", 2, {"uid": whole})
 	var w2 := _op(b, "vault.withdraw", 2, {"uid": part})
@@ -473,10 +474,8 @@ func _test_full_bag() -> bool:
 	var kept := _vault(b, 2).has(whole) and _vault(b, 2).has(part)
 	var other := _client(b, "market.search", 3, {})
 	_expect(w1.get("err") == "bag_full" and w2.get("err") == "bag_full" and kept and same and _stuck(b) == "" and other.get("ok", false), "a full bag refuses both purchases before the vault lets go, the bridge serving (whole=%s part=%s in_vault=%s unchanged=%s stuck='%s' search=%s)" % [w1.get("err", "ok"), w2.get("err", "ok"), kept, same, _stuck(b), other.get("err", "ok")])
-	for _i in 200: # eat berries until two slots are free
-		if _empty_slots(b, 2) >= 2 or _slot(b, 2, "berry") < 0:
-			break
-		b.chars.apply("act.eat", 2, {"bag_slot": _slot(b, 2, "berry")}, T0)
+	for _i in 2: # two clubs into the vault free two slots
+		_ok(b, "vault.deposit", 2, {"bag_slot": _slot(b, 2, "club")})
 	var r1 := _op(b, "vault.withdraw", 2, {"uid": whole})
 	var r2 := _op(b, "vault.withdraw", 2, {"uid": part})
 	var again := _op(b, "vault.withdraw", 2, {"uid": whole})
