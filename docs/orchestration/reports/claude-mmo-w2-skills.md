@@ -50,14 +50,75 @@ recipe-gated progression, and survivors that start at Lv. 1.
   functional, 19 partial, 175 defined.** (Dry Leather moved from defined to functional in r2: it gates the
   existing `dried_hide` recipe.) Every node has `status`, `source` (spec09/11/12 or prd7), `effects` and
   `sp_assumed` where the pack gives no SP.
-- **Skills sheet (trivial, listed):** node rows show the Durango name and "AUTO" in place of "0 SP". Owned auto
-  nodes collapse into one "Learned automatically: Leaf, Branch, ..." line under the tree, so the first screen
-  holds rows the player can act on. A description that only repeats the node name is not shown.
+- **Skills sheet (hook H8; skills_sheet.gd is W1-UI's file, so the change lives in the hooks patch since r5):**
+  node rows show the Durango name and "AUTO" in place of "0 SP". Owned auto nodes collapse into one "Learned
+  automatically: Leaf, Branch, ..." line, and nodes the game reads nothing from yet into one "11 more nodes come
+  with later updates" line, so a tree opens on rows the player can act on. A description that only repeats the
+  node name is not shown. A refused refund shows its reason in red on the row.
+- **Bonded cap on screen (hooks H9, H10):** at the cap the field-tame plate reads "Bonded roster full (3 / 3)"
+  instead of "Tame", the feed is refused with the notice "... Animal Handling (Survival) adds slots." and the
+  food is kept; the pets screen title reads "BONDED n / cap" (spec 09:50).
 
-Files: `game/data/skills/trees.json`, `game/scripts/skills/skill_state.gd`, new `game/scripts/skills/skill_rules.gd`,
-new `game/tests/t_w2_skills.gd`, `game/scripts/ui/skills_sheet.gd` (trivial), `game/tests/t_save.gd`, new
+Files on the branch: `game/data/skills/trees.json`, `game/scripts/skills/skill_state.gd`, new
+`game/scripts/skills/skill_rules.gd`, new `game/tests/t_w2_skills.gd`, `game/tests/t_save.gd`, new
 `game/tests/fixtures/save_v3_skills_rev2.json`, and `game/scripts/world/taming_pen.gd` (orchestrator grant).
+Everything else is in the hooks patch (H1-H10).
 The rev-1 goldens `save_v3_golden.json` and `save_v3_away_golden.json` are byte-identical to the base.
+
+## Review r5 findings (fixed in this round)
+
+Scope check (the check that would have caught the blocker), run at the r5 head:
+`git diff --name-only claude/mmo-overhaul...HEAD | grep -vE '<package files and grants>'` prints nothing
+(exit 1). The pattern is the Files list above plus this report, the hooks patch and the review findings file.
+
+- **BLOCKER, skills_sheet.gd edited on the branch: fixed.** The file is back to claude/mmo-overhaul on the branch
+  (`git diff claude/mmo-overhaul HEAD -- game/scripts/ui/skills_sheet.gd` is empty). The same diff, plus the
+  fold below, is hook H8. `git apply --check` on claude/mmo-overhaul @ 34b6d459: clean.
+  t_w2_skills now checks the sheet (section "skills sheet rows"). With the old sheet (hooks H1-H7 only) it prints
+  `[t_w2_skills] FAIL gathering at Lv. 1: no 'not in the game yet' rows, one line counts them (11 rows, line '', want 11)`
+  and `[t_w2_skills] FAIL gathering at Lv. 1: the learned AUTO nodes share one line ('')`.
+- **MAJOR, field tame at the cap was silent: fixed (hook H9, field_tame.gd is W1-TAME's).**
+  `FieldTame.roster_full(player)` returns "Bonded roster full (n / cap)". `plate_hint` shows it as a `need`
+  hint (no food icon, no bar) for the local survivor, and `apply_feed` calls `player.notice(... + ". Animal
+  Handling (Survival) adds slots.")` before it returns false, so the food stays in the bag.
+  Hook H10 puts "BONDED n / cap" in the pets screen title (spec 09:50 "Display bonded count and max in the pets
+  UI (e.g. `3 / 4`)"); W2-BREED no longer needs to add it.
+  Check, t_w2_skills section "field-tame cap" (real Player, a stand-in HUD that records notices). Old hooks:
+  `[t_w2_skills] FAIL 3 / 3 bonded: the plate says the roster is full, not Tame (got tame 'Tame')`,
+  `[t_w2_skills] FAIL 3 / 3 bonded: the refusal is on screen and names Animal Handling (notices '')`,
+  `[t_w2_skills] FAIL the pets screen shows bonded / cap (title 'ANIMALS    ·    GROWTH')`.
+  New hooks: `[ui] notice Bonded roster full (3 / 3). Animal Handling (Survival) adds slots.`, then
+  `[t_w2_skills] PASS`; the food check ("the feed is refused and the berry is kept") passes in both.
+- **Minor, hostile `rev`: fixed (H6).** The sanitizer writes the number it used back:
+  `sv["rev"] = _int(sv.get("rev", 1), 1, SkillState.REV)`, so `from_dict` reads the same rev. A hand-edited
+  `[2]`, `"2"` or `-3` loads as rev 1 and migrates with its nodes and unspent SP. Old H6:
+  `SCRIPT ERROR: Invalid call. Nonexistent 'int' constructor.`,
+  `[t_w2_skills] FAIL H6: rev [2] loads as rev [2] with its 4 nodes and 50 SP (got 0 SP)` and
+  `[t_w2_skills] FAIL H6: rev "2" loads as rev 2 with its 4 nodes and 50 SP (got 0 SP)`. New H6: PASS, and
+  t_w2_skills prints no SCRIPT ERROR.
+- **Minor, a fresh tree is a screen of grey rows: fixed (H8).** Nodes locked with `SkillState.NOT_IN_GAME`
+  fold into one muted line with the count. Gathering at Lv. 1 now shows the AUTO line and "11 more nodes come
+  with later updates"; Processing shows its buyable rows first, then "34 more nodes come with later updates".
+  Gathering has no node the game reads yet (all partial or defined until W2-GATHER wires them), so it has no
+  Unlock row; that is the honest state (spec 12:215).
+- **Minor, Dry Leather paces cured hide: raised, value kept (spec 11:34).** Confirmed on claude/mmo-w2-data @
+  f9a66e85: the `cured_hide` category holds only `dried_hide` and `hide_strap`, `hide_strap` is made from
+  `dried_hide`, and 32 live recipes take `cured_hide` (tent_kit, every forager, leather, hide_bone, raid, copper,
+  bronze, iron and steel armour piece; cabin_bed_kit is staged). With H1 the `dried_hide` recipe waits for Dry
+  Leather (Processing 15), so all of them wait for character Lv. 15. canvas_tent_kit and log_shelter_kit still
+  give early shelter. This is a pacing call for the owner and the integrator (see Open owner decisions); no
+  check is added, because the level a check should assert ("the bed and the first armour band by character
+  Lv. N") is that decision.
+- **Minor, `refund_block()` changed state; SP adjusted by hand: fixed.** `refund_block()` only reads (a new
+  day counts as 0 used); `_roll_day()` runs in `refund()`. `unlock()` and `refund()` call `_recount_sp()`.
+  Checks with the old skill_state.gd:
+  `[t_w2_skills] FAIL refund_block() is a query: it leaves the day's counter alone (day 20747, used 0)` and
+  `[t_w2_skills] FAIL refunding an over-budget node gives back no SP the character level never paid (available 1)`.
+- **Acceptance "Bonded cap 3 -> 7, refusal loses no animal": met** for the pen (unchanged) and the field tame
+  (above): `[ui] notice Bonded roster full (3 / 3). Animal Handling (Survival) adds slots.`; screenshots below.
+- **Acceptance "save round-trips and hostile inputs": met.** `rev 2 round-trips unchanged` holds, and the
+  hostile rev cases pass with no SCRIPT ERROR.
+- **Acceptance "scope: only the package's files and grants": met** (scope check above).
 
 ## Save format change (owner approved: save rev 2 with migration of rev-1 saves)
 
@@ -165,6 +226,40 @@ needed and the other was not, so only one was built.
    - The counter is the optional save pair above (no rev bump).
    - Online it is still client-side, like node purchases, until W3-SRVACT moves purchases to the server.
 
+## Acceptance r5 (branch @ e39d8e82 + hooks H1-H10, claude/mmo-overhaul @ 34b6d459 unchanged, so no merge)
+
+Scratch tree `trees/w2s-r5` (mkscratch.sh at e39d8e82 with the r4 patch, then H6/H8/H9/H10 authored there and
+the patch regenerated from it with `git diff HEAD`). The r5 commits after e39d8e82 touch only this report and
+the patch. `git apply --check` of the new patch: clean on the branch and on claude/mmo-overhaul @ 34b6d459.
+- `--import`: rc 0, 0 SCRIPT ERROR.
+- All 20 `t_*.gd` print PASS (t_ai, t_build, t_canim, t_combat, t_harbour, t_iconart, t_items, t_light,
+  t_lighting, t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons,
+  t_w2_skills, t_web). Only t_save prints SCRIPT ERROR lines: its 5 deliberate ones, as on the base.
+- `[t_save] rev-1 skills migrate: 19 nodes kept, SP 539/802`, then `[t_save] PASS`.
+- `[t_w2_skills] catalog 212 of 918 nodes: functional 18, partial 19, defined 175`, then `[t_w2_skills] PASS`
+  (13 sections; new: field-tame cap, skills sheet rows; extended: H6 hostile rev, refund query and SP drift).
+- run_all: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- Labs, 0 SCRIPT ERROR each: skills_lab `[skill] character level 1`; capture_lab `[capture] PASS bonded+=2`;
+  ui_family_lab `[uifamily] inventory=true animals=true unlimited=true active_cap=3` (H5's cap-3 check);
+  ui_real_capture_lab `[uireal] PASS screens=hud,craft,skills,...` at 844x390 and 1600x900 on gl_compatibility.
+- No "couldn't resolve track" in any log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (27 Godot
+  reports before and after).
+
+r5 screenshots, looked at (scratchpad `r5shots/`; the refund and roster-full ones use scratch-only lab edits
+that are not committed: skills_lab sets character Lv. 30 and spends the 5 refunds, capture_lab gives 3 bonded
+records before the shot):
+- `desk_glc_tree.png` (1600x900 gl_compatibility), `desk_fwd_tree.png`, `phone_glc_tree.png` (844x390):
+  "Gathering Lv. 1", "SP 0", "Learned automatically: Leaf, Branch, Bush, Fruit I, Log I, Bug I, Pebble, Mud I,
+  Stalk", "11 more nodes come with later updates", then "All skills". No grey rows.
+- `desk_glc_refund.png`, `phone_glc_refund.png`: "Processing Lv. 30", "SP 309"; rows Leather Strap (Unlock),
+  Charcoal in red with "Cannot refund: the 5 free refunds of the day are used, more tomorrow" (Refund), Dry
+  Leather (Unlock), then "Learned automatically: Rope" and "34 more nodes come with later updates". Readable at
+  844x390.
+- `desk_glc_rosterfull.png`, `desk_fwd_rosterfull.png`, `phone_glc_rosterfull.png`: the downed
+  Compsognathus's plate reads "Bonded roster full (3 / 3)" in the orange hint colour, with no feed bar.
+- `uireal_844x390/animals_844x390.png`, `uireal_1600x900/animals_1600x900.png`: the pets screen title reads
+  "ANIMALS · BONDED 1 / 3 · GROWTH".
+
 ## Acceptance r4 (branch @ e33c4d75, merged with claude/mmo-overhaul @ 34b6d459, hooks H1-H7 applied)
 
 Scratch tree `trees/w2s-r4` (mkscratch.sh, hooks applied with `git apply --3way`, imported once). The hooks
@@ -271,19 +366,26 @@ skills_lab:
 - **H5** `game/scripts/dev/ui_family_lab.gd`: it asserted an unlimited roster. It now expects 3.
 - **H7** `game/scripts/ui/craft_ui.gd` `_show_detail`: a gated recipe's detail shows what unlocks it, in red,
   above the ingredients.
+- **H8** `game/scripts/ui/skills_sheet.gd` (W1-UI) `_build_tree`: Durango names, "AUTO", the learned-auto
+  line, the not-in-game count line and the red refund refusal on its row.
+- **H9** `game/scripts/pets/field_tame.gd` (W1-TAME): `roster_full(player)`; `plate_hint` shows it for the
+  local survivor; `apply_feed` gives the notice before refusing.
+- **H10** `game/scripts/ui/animal_screen.gd`: the title reads "ANIMALS · BONDED n / cap · GROWTH".
 - **H6** `game/scripts/core/save_sanitizer.gd` `_skills(sv, pioneer_level)`:
   - The node-purchase budget is the SP the character level paid.
   - For a rev-1 save, the budget is what its tree levels paid under the old award, so the migration never drops
     a learned node.
   - `sp_available` is clamped to `max(0, character SP - spent)`.
   - The caller passes the clamped `pioneer_level`.
+  - `rev` is written back as the number the sanitizer used (r5), so a hand-edited rev cannot split the two readers.
   - Known gap: a forged rev-1 save can keep nodes up to the old per-tree budget. It still gets 0 extra SP,
     because SkillState derives SP.
 
 Wanted from other packages:
 - W2-PROCESS reads `SkillRules.ability(sk, "handicraft" | "metal_processing")`. That turns Handicraft and
   Metalworking from partial to functional.
-- W2-BREED shows "n / cap" from `Data.bonded_cap()` in the pets UI.
+- (Done in H10: the pets screen shows "n / cap".) Other bond paths (the market's caged-pet unpack, W2-BREED's
+  hatching) should call `Data.bonded_cap()` and `FieldTame.roster_full()` for the same text.
 
 ## Assumptions (`# ASSUMPTION` in code or data)
 
@@ -303,6 +405,13 @@ Wanted from other packages:
    2026-10-20, and the Wayback Machine was offline. Only the nodes the pack names are imported; the counts are
    recorded. Supply the table (or another copy) to finish the import.
 3. ~~The save rev 2 bump~~. Approved as built.
+4. **Pacing: when does cured hide open?** Spec 11:34 puts Dry Leather at Processing Lv. 15, and this package
+   gates the `dried_hide` recipe on it (H1). After W2-DATA lands, that holds the tent kit and every armour band
+   (32 live recipes) until character Lv. 15. Options: keep it (spec value); have W2-DATA let the bed and the
+   first armour band take uncut hide; or move the gate. Not a merge blocker: nothing is a dead end
+   (canvas_tent_kit and log_shelter_kit give early shelter), and the value follows the spec. Docs searched first: spec 11 gives only the level, spec 03 says nothing about
+   which recipes need cured hide, and docs/reference holds two screenshots (the skill categories and a gather
+   radial), no node table.
 
 ## Left (not done)
 
