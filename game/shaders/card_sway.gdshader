@@ -26,8 +26,8 @@ uniform float alpha_scissor = 0.5;
 // shader parameters of the same names.
 uniform vec3 camera_focus = vec3(0.0);
 uniform float parallax_strength = 0.006;
-## Visible height of the card in metres: the slide is measured per metre of card, so a knee-high
-## plant barely moves while a tree's crown drifts, and it never exceeds PARALLAX_MAX_SHARE of the card.
+// Visible height of the card in metres: the slide is measured per metre of card, so a knee-high
+// plant barely moves while a tree's crown drifts, and it never exceeds PARALLAX_MAX_SHARE of the card.
 uniform float card_height = 1.0;
 const float PARALLAX_MAX_SHARE = 0.15;
 
