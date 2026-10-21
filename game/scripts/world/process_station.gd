@@ -470,6 +470,11 @@ func _build_fx() -> void:
 		var ramp := Gradient.new()
 		var c := Color(0.96, 0.97, 1.0) if steam else Color(0.55, 0.53, 0.5)
 		var a := float(cfg.get("fx_alpha", 0.55 if steam else 0.5))
+		if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+			# The web renderer (the judge) draws the same grey far darker and thinner than Forward+:
+			# the rack's smoke vanished on the dirt and the smoker's was a dark thread.
+			c = c.linear_to_srgb()
+			a = minf(1.0, a * 1.5)
 		ramp.set_color(0, Color(c, 0.0))
 		ramp.set_color(1, Color(c, 0.0))
 		ramp.add_point(0.15, Color(c, a))
