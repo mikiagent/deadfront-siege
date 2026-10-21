@@ -643,7 +643,9 @@ Base sync (twice; W2-INV is still not merged into claude/mmo-overhaul, whose tip
   data/inventory.json, t_inventory), committed after this step's gates had started. The next step's sync takes it; it
   touches inventory.gd, where INVUI's hook adds presets, lock skips and the span uid: checked against ecf6ccf0's
   inventory.gd, the lock-skip hunk's context (the `spend_key` body just above `find_by_category`) no longer matches, so a
-  plain `git apply` refuses it there; the change itself does not overlap, `--3way` after that merge takes it.
+  plain `git apply` refuses it there; the change itself does not overlap: `git apply --cached --3way` of this hooks
+  patch onto HEAD with ecf6ccf0's inventory.gd in a scratch index "Applied patch to 'game/scripts/items/inventory.gd'
+  cleanly".
 
 Shipped (c1b5c231, abba023e, be5f123f, a8613495 and this report; all under `game/` unless named):
 - `scripts/ui/inv_motion.gd` (InvMotion, new): restrained motion (spec 13 s20). Screens fade in over 110 ms when they
