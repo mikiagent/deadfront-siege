@@ -3,7 +3,7 @@
   "clade": "Ceratopsia",
   "period": "Late Cretaceous",
   "real_length_m": 9.0,
-  "height_meters": 6.0,
+  "height_meters": 4.645,
   "rig": "quadruped",
   "tier": 55,
   "climate": "swamp",
@@ -34,6 +34,48 @@
     "attack_heavy": "Triceratops lowers its horns, holds, then charges forward",
     "knockdown": "Triceratops collapses onto its side",
     "alert": "Triceratops raises its head and paws the ground"
+  },
+  "pipeline": {
+    "route": "tripo_mesh_opus_rig",
+    "version": 1,
+    "forward_axis": "-Z",
+    "source_height_m": 4.645,
+    "concept_sheet": "assets/concept-art/creatures/triceratops/concept-sheet-v01.png (APPROVED by the owner 2026-10-21: \"triceratops looks good\")",
+    "mesh_views": "ref/triceratops_{front,left,right,back}_v1.png (Codex image tool from the approved sheet with its composite top view masked out; the left view also attached to the other three; white background; no sheet panel cropped)",
+    "mesh": "Tripo P1-20260311 multiview, PBR, face_limit 20000, task 555e7332-ddd8-4583-b714-b98b6464aa24, 50 Tripo credits; rotated to face -Z, scaled to 9.0 m beak tip to tail tip (4.645 m to the frill top, back 3.92 m over the hips), feet on z=0, UV seams welded (23387 -> 9517 verts, one island, 19053 faces); 135 faces (0.7 %) re-wound to match Tripo's normals and Tripo's shading normals kept as split normals",
+    "rig_and_animation": "Opus builder in headless Blender: 31 bones (root, Hips, Spine1-2, Chest, Neck1-2, Head, Jaw, UpperArm/Forearm/Hand/Finger and Thigh/Shin/Metatarsal/Toe per side, Tail1-6); heat weights cleaned by region: face, horns and frill rigid on Head (frill found by occlusion from the neck and chest), jaw split on the measured mouth line, legs own their columns, feet rigid below the wrist/ankle; clips from analytic four-leg IK (knees forward, elbows back, feet planted) baked to FK at 30 fps",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ],
+    "authored_clips": {
+      "idle": "3.0 s breathing loop, slow look, tail sway, feet planted",
+      "walk": "1.0 s lateral-sequence walk loop, planted feet stride at 1.6 m/s in mesh units (duty 0.65 hind / 0.60 fore, heels lift at push-off)",
+      "run": "0.6 s fast amble loop (no flight phase), planted feet stride at 4.2 m/s in mesh units (duty 0.50 hind / 0.47 fore)",
+      "attack_primary": "1.2 s head toss: horns dip, then hook up and to the right at 42 %",
+      "attack_heavy": "2.4 s horns lowered and held (tremor telegraph), short charge: body lunges 0.78 m as both forefeet step, horns hook up at 72 %, back off to the start",
+      "hit_react": "0.6 s flinch from neutral, feet planted, ends at rest",
+      "knockdown": "2.5 s struck on the right flank, staggers, collapses onto its left side, stunned hold with breathing and a head lift",
+      "death": "2.8 s forelegs buckle first, hindquarters sink, rolls onto its left side, one hind-leg kick, still",
+      "alert": "2.0 s head comes up, right forefoot paws the ground twice, snort"
+    },
+    "verifier": "creature-verify.mjs --height 4.645 --require-jaw: ALL HARD CHECKS PASSED (feed, sleep, tail_swipe optional, missing)",
+    "tools": "tools/blender/triceratops/ (prep, joints, build_rig, qlib, clips, bake, matte, export, make_sheet; work files in /Users/milankinzy/Documents/deadfront-dsc-work/triceratops-v2, outside the repo)",
+    "provenance": "docs/orchestration/reports/claude-mmo-trike.md",
+    "credits": {
+      "tripo": 50,
+      "tripo_balance_before": 3155,
+      "tripo_balance_after": 3105
+    },
+    "textures": "Tripo 2048 maps: colour and normal unchanged; roughness remapped 0.55 + 0.45 r (mean 0.57 -> 0.81) so the hide stays matte; metallic mean 0.02",
+    "data_note": "# ASSUMPTION (TRIKE 2026-10-21): height_meters 6.0 -> 4.645 so the mesh matches the approved sheet next to the 1.8 m survivor (9.0 m beak to tail, back 3.92 m). The kick-mass proxy real_length_m x height_meters fell from 54 to 41.8, under combat_tuning.json kick.giant_mass 60, so the triceratops became kickable (t_combat expects it too heavy). Smallest data change that keeps that outcome without changing the animal's size, collision radius, reach or plate box: kick.giant_mass 60 -> 40. Side effect for the owner: dilophosaurus (43.2), utahraptor (44.0), gallimimus (45.6) and ankylosaurus (54.4) also become too heavy to kick (they were shoved 0.51-0.65 m); styracosaurus (39.6) and everything smaller are unchanged."
   },
   "taming": {
     "preferred_food": [

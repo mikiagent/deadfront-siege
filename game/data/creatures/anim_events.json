@@ -73,6 +73,17 @@
       "walk": 0.174,
       "run": 0.63
     },
+    "triceratops": {
+      "height_m": 4.645,
+      "run_l": 4.201,
+      "run_len": 0.6,
+      "run_r": 4.201,
+      "walk_l": 1.6,
+      "walk_len": 1.0,
+      "walk_r": 1.6,
+      "walk": 1.6,
+      "run": 4.201
+    },
     "tyrannosaurus": {
       "height_m": 8.0,
       "run_l": 0.442,
