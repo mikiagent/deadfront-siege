@@ -61,7 +61,7 @@ func _check_station(data: Node, kind: StringName) -> void:
 	if kit == null or fp != kit.footprint:
 		failures.append("%s footprint %s, kit says %s" % [kind, fp, kit.footprint if kit else "no kit"])
 	# Scale against the survivor (data/characters/survivor.json height_meters): the chimney clears
-	# her head, the anvil face sits near knuckle height.
+	# his head, the anvil face sits near knuckle height.
 	var tall := float((JSON.parse_string(FileAccess.get_file_as_string("res://data/characters/survivor.json")) as Dictionary).get("height_meters", 1.78))
 	var h := _aabb(prop, Transform3D.IDENTITY).size.y if prop else 0.0
 	var lo := tall * 1.2 if kind == &"forge" else tall * 0.4

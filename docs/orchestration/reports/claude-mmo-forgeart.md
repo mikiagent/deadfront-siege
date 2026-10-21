@@ -61,7 +61,7 @@ builds only the two new pieces. It repaints the atlas, but the result has the sa
 - `CraftStation.make(forge|anvil)` attaches `Prop`, the Blender GLB from the row, and no `FallbackMesh`;
 - the footprint equals the kit's footprint;
 - the height is in range for the 1.78 m survivor (`data/characters/survivor.json` `height_meters`): the forge
-  between 1.2x and 1.8x her height, the anvil between 0.4x and 0.55x;
+  between 1.2x and 1.8x his height, the anvil between 0.4x and 0.55x;
 - the camera-projected area of `ember`-tile faces on the forge is at least 0.12 m².
 
 With the base manifest (18ef7091) swapped in, the test fails:
@@ -103,11 +103,11 @@ In every run the log shows `forge prop=true fallback=false` and `anvil prop=true
 
 - `forward_plus_844_v2.png` and `gl_compatibility_844_v2.png` (844x390, camera size 6). In both renderers:
   - the forge reads as a stone forge, with the chimney well above the survivor's head;
-  - the hearth top is at her hip;
+  - the hearth top is at his hip;
   - the orange ember bed shows on top of the hearth, above the dirt disc;
   - the bellows sits on its trestle beside the forge;
-  - the anvil on its stump, with the hammer and the blue quench water, stands at her side, its face below
-    her waist.
+  - the anvil on its stump, with the hammer and the blue quench water, stands at his side, its face below
+    his waist.
 - `compat_1600_z6_v2.png` and `compat_1600_z12_v2.png` (1600x900, gl_compatibility; z12 is near play zoom). The
   forge and the anvil both read at play distance. The ember bed reads as fire.
 
@@ -154,3 +154,37 @@ remap, so a fresh tree imports correctly the first time.
   deliberate SCRIPT ERRORs and no others. `run_all.gd` prints `[tests] PASS`, `tools/smoke.sh --no-import` prints `SMOKE PASS`,
   `--lab=build_lab` headless prints `[build] PASS` with 0 SCRIPT ERROR. `check_manifest.py` PASS, 43 kinds.
   0 "couldn't resolve track", and no new `Godot-*.ips`.
+
+## Sync 2 (2026-10-21)
+
+- Merged `claude/mmo-overhaul` 809be2e8 (WATER, HUD-DAYNIGHT, W2-DATA sync 1, specs 23-24) as 77c1c150.
+  No conflicts. The base touched nothing under `game/assets/props/`, `tools/blender/`, `props_manifest.json`,
+  `craft_station.gd` or `prop_visuals.gd`. `git diff claude/mmo-overhaul HEAD -- game/assets` lists only the four
+  new forge/anvil files, so the atlas and every existing GLB are byte-identical to the base. Still no hooks patch.
+- Pronouns: spec 19 now makes the v2 survivor male; the report and a t_forgeart comment said "her".
+- Gates in the package tree after `--import` (alarm 900, exit 0, 0 error lines):
+  - all 24 `t_*.gd` exit 0 with PASS, among them `[t_forgeart] PASS`, `[t_structart] PASS`, `[t_build] PASS`,
+    `[t_water] PASS`, `[t_daynight] PASS`, `[t_data] PASS items=223 recipes=155`. 0 SCRIPT ERROR except t_save's
+    5 deliberate ones.
+  - `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`. `--lab=build_lab` headless:
+    `[build] PASS`, 0 SCRIPT ERROR.
+  - `check_manifest.py`: `PASS 43 kinds resolve to existing GLBs`.
+  - 0 "couldn't resolve track". No new `Godot-*.ips` (newest is still `Godot-2026-10-20-232613.ips`, from
+    before this run).
+- Old-behaviour proof re-run on this merge: with the base `props_manifest.json` swapped in, t_forgeart exits 1 with
+  `[t_forgeart] FAIL forge_kit (place_as forge) resolves to no model and places as the fallback box` and six more
+  FAIL lines (anvil kit, both FallbackMesh boxes, the 1x1 forge footprint, both heights 0.00 m).
+- Shots (windowed, the scratch `forge_shot.gd`, placed through `BuildPlacer.confirm`, 0 SCRIPT ERROR, the log says
+  `forge prop=true fallback=false` and `anvil prop=true fallback=false`): `forward_plus_844_v3.png`,
+  `gl_compatibility_844_v3.png` (844x390, size 6) and `compat_1600_z12_v3.png` (1600x900, gl_compatibility, size 12).
+  I looked at all three and at enlarged crops. Both renderers match the earlier shots: the fieldstone hearth with the
+  orange ember bed, the hood and the chimney well above the survivor's head, the bellows on its trestle, the anvil
+  on its stump with the hammer and the blue bucket, its face below his waist. The new day/night dial sits by the
+  minimap and covers neither station.
+- Rebuild check: `build.py -- forge anvil` in a scratch copy of the kit gives GLBs with the same glTF JSON, the
+  same buffer length and the same positions, normals and indices as the committed ones. Only a few UV offsets differ
+  (forge 32 of 7308 floats, anvil 12 of 1704). Two anvil rebuilds also differ from each other in these floats. The
+  cause is in the shared kit: `lib.Part._finish` collects faces through a Python set, so the order of the per-face
+  random tile offsets depends on memory addresses. The texture window moves inside its tile; the look does not
+  change. I did not change `lib.py`: sorting the faces would change every other structure on its next rebuild.
+  Whoever owns the kit can fix it with `sorted(..., key=lambda f: f.index)`.
