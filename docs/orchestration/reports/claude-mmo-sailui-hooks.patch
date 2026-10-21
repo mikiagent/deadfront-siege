@@ -1,0 +1,194 @@
+diff --git a/game/scripts/core/world.gd b/game/scripts/core/world.gd
+index 2eb0a496..7c4c6c87 100644
+--- a/game/scripts/core/world.gd
++++ b/game/scripts/core/world.gd
+@@ -75,6 +75,17 @@ func is_unstable() -> bool:
+ func def_of(id: StringName) -> Dictionary:
+ 	return islands.get(str(id), {}) as Dictionary
+ 
++## The island's name for people, one rule for the Sail chart and the map: its data display_name
++## (home's "Private Grassland", the standing order's "Unstable Temperate"), else "<Climate> Island".
++## Callers show the level beside it, as Durango's "Tropical Sea Lv. 18" and "Lv. 25" do.
++func island_name(id: StringName) -> String:
++	var def := def_of(id)
++	var dn := str(def.get("display_name", ""))
++	if dn == "" or dn == str(id).replace("_", " ").capitalize():
++		var climate := str(def.get("climate", ""))
++		return ("%s Island" % climate.capitalize()) if climate != "" else str(id).replace("_", " ").capitalize()
++	return dn
++
+ func _boot() -> void:
+ 	if Game.smoke_test:
+ 		return
+diff --git a/game/scripts/dev/bot_survivor.gd b/game/scripts/dev/bot_survivor.gd
+index 3c5b752c..ee43f8d7 100644
+--- a/game/scripts/dev/bot_survivor.gd
++++ b/game/scripts/dev/bot_survivor.gd
+@@ -567,16 +567,17 @@ func _travel() -> String:
+ 	_goal = "travel"
+ 	if not World.is_home():
+ 		return "harbour outbound route starts at home"
+-	# Catalogue ladder: choose the first enabled real harbour button.
++	# Catalogue ladder: choose the first island whose Sail chart card has an enabled Sail.
+ 	var ui: CanvasLayer = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure() as CanvasLayer
+ 	ui.call("show_harbour")
+ 	var route: Button = null
+ 	var locked := ""
+-	for button in ui.find_children("*", "Button", true, false):
+-		var candidate := button as Button
+-		if not candidate.text.begins_with("SAIL "): continue
++	var sail := ui.find_children("*", "SailScreen", true, false)
++	for id in World.harbour_routes():
++		var candidate: Button = (sail[0] as SailScreen).route_button(StringName(id)) if not sail.is_empty() else null
++		if candidate == null: continue
+ 		if candidate.disabled:
+-			if locked == "": locked = candidate.text
++			if locked == "": locked = "%s: %s" % [id, candidate.text]
+ 			continue
+ 		route = candidate
+ 		break
+@@ -622,10 +623,8 @@ func _return_home() -> String:
+ 	var ui: CanvasLayer = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure() as CanvasLayer
+ 	ui.call("show_harbour")
+ 	var route: Button = null
+-	for button in ui.find_children("*", "Button", true, false):
+-		if (button as Button).text.contains("FREE RETURN HOME"):
+-			route = button as Button
+-			break
++	for sail in ui.find_children("*", "SailScreen", true, false):
++		route = (sail as SailScreen).route_button(&"home")
+ 	if route == null:
+ 		return "no visible return-home route"
+ 	route.pressed.emit()
+diff --git a/game/scripts/dev/progression_probe.gd b/game/scripts/dev/progression_probe.gd
+index 0807595c..5d918552 100644
+--- a/game/scripts/dev/progression_probe.gd
++++ b/game/scripts/dev/progression_probe.gd
+@@ -8,10 +8,11 @@ func check(ok: bool, label: String) -> void:
+ 	if not ok:
+ 		failures.append(label)
+ 
++## The Sail chart's departure control for `id` (its card's Sail, or the header's Free return home).
+ func button(ui: CanvasLayer, id: String) -> Button:
+-	for node in ui.find_children("*", "Button", true, false):
+-		if str(node.get_meta("route_id", "")) == id and not node.is_queued_for_deletion():
+-			return node as Button
++	for sail in ui.find_children("*", "SailScreen", true, false):
++		if not sail.is_queued_for_deletion():
++			return (sail as SailScreen).route_button(StringName(id))
+ 	return null
+ 
+ func run(host: Node) -> void:
+diff --git a/game/scripts/dev/web_soak.gd b/game/scripts/dev/web_soak.gd
+index bce2ebab..a342e7b7 100644
+--- a/game/scripts/dev/web_soak.gd
++++ b/game/scripts/dev/web_soak.gd
+@@ -61,6 +61,14 @@ func run(host: Node) -> void:
+ 	var world_ui = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure()
+ 	world_ui.show_harbour()
+ 	await _checkpoint("harbour-open")
++	await get_tree().create_timer(1.5).timeout  # the harness shoots the Sail chart
++	var sail: Array[Node] = world_ui.find_children("*", "SailScreen", true, false)
++	if sail.is_empty():
++		_fail("harbour did not open the Sail chart")
++		return
++	(sail[0] as SailScreen).scroll_to(INF)
++	await _checkpoint("sail-right")
++	await get_tree().create_timer(1.5).timeout
+ 	world_ui.hide_all()
+ 	await _checkpoint("harbour-closed")
+ 
+diff --git a/game/scripts/ui/map_screen.gd b/game/scripts/ui/map_screen.gd
+index a4631250..af23e2aa 100644
+--- a/game/scripts/ui/map_screen.gd
++++ b/game/scripts/ui/map_screen.gd
+@@ -147,7 +147,7 @@ func _region_card(id: String, entry: Dictionary) -> Button:
+ 	var here := id == str(World.island_id)
+ 	var travel := "You are here" if here else "Charted"
+ 	var b := Button.new()
+-	b.text = "%s\n%s    %s\n%s\n%s\n%s" % [island_name(id), LevelDisplay.label(tier), climate, materials, species, travel]
++	b.text = "%s\n%s    %s\n%s\n%s\n%s" % [World.island_name(StringName(id)), LevelDisplay.label(tier), climate, materials, species, travel]
+ 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+ 	b.clip_text = true
+ 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+@@ -191,15 +191,6 @@ func _material_line(climate: String) -> String:
+ 		return "Resources —"
+ 	return UiTokens.ellipsis(ThemeDB.fallback_font, " · ".join(names), 200.0, 14)
+ 
+-## Island name for people: its display name, or "<Climate> Island" when the data only has an id.
+-static func island_name(id: String) -> String:
+-	var def := World.def_of(StringName(id))
+-	var dn := str(def.get("display_name", ""))
+-	if dn == "" or dn == id.replace("_", " ").capitalize():
+-		var climate := str(def.get("climate", ""))
+-		return ("%s Island" % climate.capitalize()) if climate != "" else id.replace("_", " ").capitalize()
+-	return dn
+-
+ static func _species_name(id: String) -> String:
+ 	if id == "":
+ 		return ""
+@@ -375,7 +366,7 @@ func _draw() -> void:
+ 	var close_w := minf(160.0, maxf(96.0, r.x * 0.36))
+ 	var text_w := r.x - MARGIN * 2.0 - close_w - 12.0
+ 	draw_string(font, Vector2(MARGIN, MARGIN + head), title, HORIZONTAL_ALIGNMENT_LEFT, text_w, head, Color.WHITE)
+-	var sub := "%s   %s" % [island_name(str(World.island_id)), "Home" if World.is_home() else "Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0))]
++	var sub := "%s   %s" % [World.island_name(World.island_id), "Home" if World.is_home() else "Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0))]
+ 	var sub_pos := Vector2(MARGIN, MARGIN + head + 22) if phone else Vector2(MARGIN + 220, MARGIN + head)
+ 	var sub_w := text_w if phone else minf(r.x * 0.4, text_w - 220.0)
+ 	draw_string(font, sub_pos, UiTokens.ellipsis(font, sub, sub_w, UiTokens.body(r)), HORIZONTAL_ALIGNMENT_LEFT, sub_w, UiTokens.body(r), UiTokens.TEAL)
+diff --git a/game/scripts/ui/world_ui.gd b/game/scripts/ui/world_ui.gd
+index 72ef5481..41cff4b6 100644
+--- a/game/scripts/ui/world_ui.gd
++++ b/game/scripts/ui/world_ui.gd
+@@ -160,27 +160,20 @@ func _show_arrival(host: Node) -> void:
+ 	go.pressed.connect(layer.queue_free)
+ 	box.add_child(go)
+ 
++## The Sail chart (SailScreen): every island by level on a sea that scrolls right. Its choices
++## travel exactly as the old route list did.
+ func show_harbour() -> void:
+-	var rows: Array = []
+-	var player := PlayerRegistry.local()
+-	var level := player.skills.level_of("survival") if player and player.skills else 0
+-	if not World.is_home():
+-		rows.append(["Free return home", &"home"])
+-		rows.append(["Return to camp", &"camp"])
+-	for key in World.harbour_routes():
+-		if key == str(World.island_id):
+-			continue
+-		var id := StringName(key)
+-		var dest := World.def_of(id)
+-		var required := World.route_level(id)
+-		var cost := int(dest.get("sail_cost", 5))
+-		var label := "Sail %s (%d T)" % [dest.get("display_name", key), cost]
+-		if level < required:
+-			label += " - Survival %d required" % required
+-		elif World.t_stones < cost:
+-			label += " - need T-stones"
+-		rows.append([label, id, level < required or World.t_stones < cost])
+-	_fill("Harbour - Survival %d" % level, rows, func (id: StringName) -> void:
++	for c in _panel.get_children():
++		c.queue_free()
++	_mode = &"sail"
++	_panel.visible = true
++	var layer := CanvasLayer.new()
++	layer.layer = 96  # full screen, so above the creature plates and the touch layer, like the map
++	_panel.add_child(layer)
++	var sail := SailScreen.new()
++	layer.add_child(sail)
++	sail.closed.connect(hide_all)
++	sail.chosen.connect(func (id: StringName) -> void:
+ 		hide_all()
+ 		match id:
+ 			&"home": World.travel(&"home_grassland", &"harbour_home")
+diff --git a/game/scripts/world/harbour.gd b/game/scripts/world/harbour.gd
+index 39cd7928..f455b066 100644
+--- a/game/scripts/world/harbour.gd
++++ b/game/scripts/world/harbour.gd
+@@ -1,5 +1,5 @@
+ extends StaticBody3D
+-## The dock. Opens the sea-route list; travel is a fade + load, never ocean sailing. Movable in
++## The dock. Opens the Sail chart (SailScreen); travel is a fade + load, never ocean sailing. Movable in
+ ## layout mode (3x6 footprint); HarbourSite keeps it on the coast with the pier pointing out to
+ ## sea along local -Z. The island's harbour marker follows it.
+ ## Visual: the props_manifest "harbour" row (glb, else Kenney model) when one exists, else a
