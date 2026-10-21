@@ -547,9 +547,7 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 				return no("conflict", "pet %s is already held" % uid)
 	if str(s.exported_assets.get(uid, "")) != CharacterStore.canon(asset):
 		return no("invalid_asset", "%s is not an asset this server exported (or it was edited)" % uid)
-	if uid.begins_with("p"):
-		if (ch.d.pets as Dictionary).size() >= Data.bonded_cap(): # pack 09: the cap holds when a bond forms
-			return no("limit_reached", "the bonded roster is full (%d)" % Data.bonded_cap())
+	if uid.begins_with("p"): # the roster cap is VaultBridge's: a refused deposit coming back is no new bond
 		s.exported_assets.erase(uid)
 		ch.d.pets[uid] = (asset as Dictionary).duplicate(true)
 		ch.d.pets[uid].owner = str(account) # a bought pet answers to its new owner; tamer keeps the lineage
@@ -590,6 +588,11 @@ func _grant(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return no("bag_full", "no room for %s" % stack.def_id)
 	var origin := str(asset.get("origin", ""))
 	var uids := ch.commit(inv, origin if origin in Provenance.ORIGINS else "market", seq)
+	var row := ch.find_uid(uids[0]) if uids.size() == 1 else -1
+	if row >= 0 and int(ch.d.bag[row].count) == n: # its own row: the part keeps who made it and when
+		for k: String in ["creator", "created_at"]:
+			if (asset as Dictionary).has(k):
+				ch.d.bag[row][k] = asset[k]
 	count("exported", stack.def_id, -n)
 	return ok({"item": str(stack.def_id), "count": n, "uids": uids})
 
