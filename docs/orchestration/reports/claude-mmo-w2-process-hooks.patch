@@ -1,5 +1,5 @@
 diff --git a/game/scripts/core/save_restore.gd b/game/scripts/core/save_restore.gd
-index ac920efc..fdb5adb8 100644
+index d4663088..8be9867e 100644
 --- a/game/scripts/core/save_restore.gd
 +++ b/game/scripts/core/save_restore.gd
 @@ -89,7 +89,8 @@ static func _kits_by_kind() -> Dictionary:
@@ -23,10 +23,10 @@ index ac920efc..fdb5adb8 100644
  	if crop != "" and not bool(row.get("failed", false)):
  		# ASSUMPTION: a planted crop comes back as the seed it took, whatever its growth.
 diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
-index b2f961bc..9ad06e98 100644
+index e830f944..93b38cc4 100644
 --- a/game/scripts/player/player_actions.gd
 +++ b/game/scripts/player/player_actions.gd
-@@ -440,6 +440,25 @@ func craft(rid: StringName, count: int = 1) -> bool:
+@@ -441,6 +441,25 @@ func craft(rid: StringName, count: int = 1) -> bool:
  	p.station_craft.begin(rid, count)
  	return true
  
@@ -176,7 +176,7 @@ index da32c8a2..9143a651 100644
  			btn.set_blocked(missing)
  		btn.pressed.connect(_on_pressed.bind(rid, missing))
 diff --git a/game/tests/run_all.gd b/game/tests/run_all.gd
-index 0de559b8..1ba931ff 100644
+index 27e08922..14ad7343 100644
 --- a/game/tests/run_all.gd
 +++ b/game/tests/run_all.gd
 @@ -50,6 +50,7 @@ func _process(_delta: float) -> bool:

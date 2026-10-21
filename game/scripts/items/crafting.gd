@@ -22,7 +22,8 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
 ## a unit that a later slot still needs (a cheap reed is also the recipe's lashing) is left for it.
 ## When a slot still runs short, plan again with dedicated materials first (the order before W2-INV).
 ## A locked instance is spent only as the player's own pick (spec 13:229 "protect valuable items from
-## ... crafting consumption"), never as a default lead or fill.
+## ... crafting consumption"), never as a default lead or fill. An in-place primary with no processing
+## left (W2-PROCESS) sorts last, so the card previews the instance a station will really use.
 static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
 	var plan := _plan_ordered(inv, rec, picks, true)
 	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
@@ -41,6 +42,7 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
 	var remaining: Dictionary = {}
 	var plan: Array[Dictionary] = []
 	var prefer := StringName(str(rec.get("input_id", "")))
+	var pi := primary_index(rec)
 	for i in slots.size():
 		var slot: Dictionary = slots[i]
 		var cat := cats[i]
@@ -60,7 +62,8 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
 		candidates.assign(cands[i])
 		var first := -1 # the least valuable unit left: the lead when none is picked
 		for idx in candidates:
-			keys[idx] = _pick_key(inv.slots[idx], preferred, cats, value_first) + [-int(remaining.get(idx, inv.slots[idx].count)), idx]
+			var spent := 1 if i == pi and processing_left(rec, inv.slots[idx]) == 0 else 0
+			keys[idx] = [spent] + _pick_key(inv.slots[idx], preferred, cats, value_first) + [-int(remaining.get(idx, inv.slots[idx].count)), idx]
 			if int(remaining.get(idx, inv.slots[idx].count)) > 0 and (first < 0 or keys[idx] < keys[first]):
 				first = idx
 		if first < 0:
@@ -124,14 +127,6 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
 		var picks: Array[int] = []
 		for row in plan:
 			picks.append(int(row["lead"]))
-		# An in-place primary with no processing left is swapped for one that has, so the card
-		# previews the instance a station will really use.
-		var pi := primary_index(rec)
-		if pi < picks.size() and processing_left(rec, inv.slots[picks[pi]]) == 0:
-			for idx in stacks_for_slot(inv, (rec.get("slots", []) as Array)[pi]):
-				if idx not in picks and processing_left(rec, inv.slots[idx]) != 0:
-					picks[pi] = idx
-					break
 		return picks
 	var missing: Array[int] = []
 	missing.resize(rec.get("slots", []).size())
