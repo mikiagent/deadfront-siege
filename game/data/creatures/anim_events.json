@@ -31,14 +31,14 @@
     },
     "deinonychus": {
       "height_m": 3.6,
-      "run_l": 12.534,
-      "run_len": 0.625,
-      "run_r": 15.224,
-      "walk_l": 3.975,
-      "walk_len": 1.209,
-      "walk_r": 4.794,
-      "walk": 4.385,
-      "run": 13.879
+      "run_l": 6.606,
+      "run_len": 0.6,
+      "run_r": 6.606,
+      "walk_l": 2.6,
+      "walk_len": 0.9,
+      "walk_r": 2.6,
+      "walk": 2.6,
+      "run": 6.606
     },
     "gallimimus": {
       "height_m": 3.8,

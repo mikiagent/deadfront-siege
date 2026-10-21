@@ -37,28 +37,15 @@
     "alert": "Mid-sized feathered dinosaur snaps to attention, head low and forward, tail raised stiff, scanning for the pack"
   },
   "pipeline": {
-    "stage": "C2_blocked_rig_pose_estimation",
-    "reference": "01a0b17b-1fad-7691-9116-53e883622c01",
-    "i2m": "01a0b17b-ab48-721c-8493-0ff19ff49bf3",
-    "reference_file": "res://assets/creatures/deinonychus/ref/deinonychus_side.png",
-    "mesh_file": "res://assets/creatures/deinonychus/work/deinonychus_i2m_v1.glb",
-    "sheet_file": "res://assets/creatures/deinonychus/sheet.png",
-    "c2_credits_spent": 24,
-    "c2_balance_before": 3871,
-    "c2_balance_after": 3823,
-    "preset_actions": {
-      "idle": 0,
-      "hit_react": 178,
-      "death": 8
-    },
-    "rig_failure": {
-      "http_status": 422,
-      "message": "Pose estimation failed, please provide a valid model",
-      "task_id": null,
-      "attempts": 1
-    },
-    "accepted_final_files": [],
-    "missing_clips": [
+    "route": "tripo_mesh_opus_rig",
+    "version": 2,
+    "forward_axis": "-Z",
+    "source_height_m": 3.6,
+    "concept_sheet": "assets/concept-art/creatures/deinonychus/concept-sheet-v01.png (APPROVED by Milan 2026-10-18)",
+    "mesh_views": "ref/deinonychus_{front,left,right,back}_v2.png (dsc image tool from the approved sheet, white background)",
+    "mesh": "Tripo P1-20260311 multiview, PBR, face_limit 20000, task f346e472-5a16-4209-a213-f14e3795420f, 50 Tripo credits; rotated to face -Z, scaled to 3.6 m, feet on z=0, UV seams welded (27673 -> 9532 verts, one island); textures 2048 (Color, NormalGL, ORM; metallic mean 0.02)",
+    "rig_and_animation": "Opus builder in headless Blender: 34 bones (root, Hips, Spine1-2, Chest, Neck1-3, Head, Jaw, Arm/Forearm/Hand, Thigh/Shin/Metatarsal/Toe/Sickle per side, Tail1-8); heat weights cleaned by region (limbs keep only their own segment, jaw split on the measured mouth line, sickle claw on its own bone); clips from analytic digitigrade leg IK (knee forward, ankle back, ball of foot planted) baked to FK at 30 fps",
+    "clips": [
       "idle",
       "walk",
       "run",
@@ -69,62 +56,117 @@
       "death",
       "alert"
     ],
-    "forward_axis": "+Z",
-    "source_height_m": 0.6,
-    "source_length_m": 1.2881,
-    "route": "skeleton_transplant_v3",
-    "mesh_source": "res://assets/creatures/deinonychus/work/deinonychus_i2m_v1.glb",
-    "donor_rig": "tools/standins/quaternius/Velociraptor.fbx (CC0, 37 bones)",
-    "transplant_tool": "tools/transplant_rig.py",
-    "fit": "landmark (snout/feet/tail, hip height, hip width)",
-    "repair": {
-      "loose_removed": 179,
-      "doubles_merged": 2900,
-      "holes_filled": 43,
-      "verts_before": 9298,
-      "islands": 299,
-      "verts_after": 6219
-    },
-    "warp": {
-      "mode": "landmark",
-      "snout": [
-        -0.77,
-        -0.64
-      ],
-      "foot": [
-        -0.12,
-        -0.16
-      ],
-      "tail": [
-        0.74,
-        0.64
-      ],
-      "hip_z_scale": 1.058,
-      "width_scale": 0.982
-    },
-    "weights": {
-      "direct_fraction": 1.0,
-      "toe_weights": "three spatial smoothing passes; original bone assignments retained"
-    },
-    "clips": [
-      "alert",
-      "attack_heavy",
-      "attack_primary",
-      "death",
-      "hit_react",
-      "idle",
-      "knockdown",
-      "run",
-      "walk"
-    ],
     "authored_clips": {
-      "knockdown": "complete death collapse followed by 8-frame grounded hold",
-      "hit_react": "dedicated 0.6s head/neck recoil from neutral idle; no death frames",
-      "alert": "idle 0-40% with head pitched 20.0 deg",
-      "attack_heavy": "telegraph hold of 8 frames at 30%",
-      "death": "coherent sideways collapse with small neck release; corrected to ground each frame"
+      "idle": "3.0 s breathing loop, feet planted",
+      "walk": "0.9 s loop, planted feet stride at 2.6 m/s in mesh units (duty 0.6, toes pivot at push-off)",
+      "run": "0.6 s loop, planted feet stride at 6.6 m/s in mesh units (duty 0.36, flight phase)",
+      "attack_primary": "1.2 s lunge bite, jaw snaps shut at 42 %, head twists on the pull-back",
+      "attack_heavy": "2.4 s crouch, held telegraph with sickle claws raised, spring, two sickle rakes (first at 72 %), kick off backward, land",
+      "hit_react": "0.6 s flinch from neutral, feet planted, ends at rest",
+      "knockdown": "2.5 s shove on the right flank, skid, drop onto the left side, stunned hold with breathing",
+      "death": "2.8 s legs buckle, fall onto the left side, one leg spasm, still",
+      "alert": "2.0 s head low and forward, tail raised stiff, scans left and right"
     },
-    "rig_revision": 3
+    "verifier": "creature-verify.mjs --height 3.6 --require-jaw: ALL HARD CHECKS PASSED (feed, sleep, tail_swipe optional, missing)",
+    "tools": "tools/deinonychus_v2/ (rig and clip scripts; work files in /Users/milankinzy/Documents/deadfront-dsc-work/deinonychus-v2, outside the repo)",
+    "provenance": "docs/orchestration/reports/claude-mmo-deinonychus.md",
+    "credits": {
+      "tripo": 50,
+      "tripo_balance_before": 3205,
+      "tripo_balance_after": 3155
+    },
+    "v1": {
+      "stage": "C2_blocked_rig_pose_estimation",
+      "reference": "01a0b17b-1fad-7691-9116-53e883622c01",
+      "i2m": "01a0b17b-ab48-721c-8493-0ff19ff49bf3",
+      "reference_file": "res://assets/creatures/deinonychus/ref/deinonychus_side.png",
+      "mesh_file": "res://assets/creatures/deinonychus/work/deinonychus_i2m_v1.glb",
+      "sheet_file": "res://assets/creatures/deinonychus/sheet.png",
+      "c2_credits_spent": 24,
+      "c2_balance_before": 3871,
+      "c2_balance_after": 3823,
+      "preset_actions": {
+        "idle": 0,
+        "hit_react": 178,
+        "death": 8
+      },
+      "rig_failure": {
+        "http_status": 422,
+        "message": "Pose estimation failed, please provide a valid model",
+        "task_id": null,
+        "attempts": 1
+      },
+      "accepted_final_files": [],
+      "missing_clips": [
+        "idle",
+        "walk",
+        "run",
+        "attack_primary",
+        "attack_heavy",
+        "hit_react",
+        "knockdown",
+        "death",
+        "alert"
+      ],
+      "forward_axis": "+Z",
+      "source_height_m": 0.6,
+      "source_length_m": 1.2881,
+      "route": "skeleton_transplant_v3",
+      "mesh_source": "res://assets/creatures/deinonychus/work/deinonychus_i2m_v1.glb",
+      "donor_rig": "tools/standins/quaternius/Velociraptor.fbx (CC0, 37 bones)",
+      "transplant_tool": "tools/transplant_rig.py",
+      "fit": "landmark (snout/feet/tail, hip height, hip width)",
+      "repair": {
+        "loose_removed": 179,
+        "doubles_merged": 2900,
+        "holes_filled": 43,
+        "verts_before": 9298,
+        "islands": 299,
+        "verts_after": 6219
+      },
+      "warp": {
+        "mode": "landmark",
+        "snout": [
+          -0.77,
+          -0.64
+        ],
+        "foot": [
+          -0.12,
+          -0.16
+        ],
+        "tail": [
+          0.74,
+          0.64
+        ],
+        "hip_z_scale": 1.058,
+        "width_scale": 0.982
+      },
+      "weights": {
+        "direct_fraction": 1.0,
+        "toe_weights": "three spatial smoothing passes; original bone assignments retained"
+      },
+      "clips": [
+        "alert",
+        "attack_heavy",
+        "attack_primary",
+        "death",
+        "hit_react",
+        "idle",
+        "knockdown",
+        "run",
+        "walk"
+      ],
+      "authored_clips": {
+        "knockdown": "complete death collapse followed by 8-frame grounded hold",
+        "hit_react": "dedicated 0.6s head/neck recoil from neutral idle; no death frames",
+        "alert": "idle 0-40% with head pitched 20.0 deg",
+        "attack_heavy": "telegraph hold of 8 frames at 30%",
+        "death": "coherent sideways collapse with small neck release; corrected to ground each frame"
+      },
+      "rig_revision": 3,
+      "version": 1,
+      "note": "v1 glb, textures, sheet and anim moved to res://assets/creatures/deinonychus/v1/ (.gdignore: kept for history, not imported or exported)"
+    }
   },
   "look": "3 meter dromaeosaur, feathered arms, sickle claws, long stiff tail, olive green with dark spots,",
   "taming": {

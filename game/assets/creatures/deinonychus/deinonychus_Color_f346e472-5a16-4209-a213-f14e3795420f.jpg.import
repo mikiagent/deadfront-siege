@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dq3cufa3d54m5"
-path="res://.godot/imported/deinonychus_Image_3.jpg-a53cca4f3f44dc57ef3bcaef9d910982.ctex"
+uid="uid://fenox7h15w84"
+path="res://.godot/imported/deinonychus_Color_f346e472-5a16-4209-a213-f14e3795420f.jpg-a83f1b330226796c1afd249cacbfd644.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "8a0ae8d1fd72202dbcd304177375f647"
+"md5": "239a173f33c4435454b50424a8c97e6b"
 }
 
 [deps]
 
-source_file="res://assets/creatures/deinonychus/deinonychus_Image_3.jpg"
-dest_files=["res://.godot/imported/deinonychus_Image_3.jpg-a53cca4f3f44dc57ef3bcaef9d910982.ctex"]
+source_file="res://assets/creatures/deinonychus/deinonychus_Color_f346e472-5a16-4209-a213-f14e3795420f.jpg"
+dest_files=["res://.godot/imported/deinonychus_Color_f346e472-5a16-4209-a213-f14e3795420f.jpg-a83f1b330226796c1afd249cacbfd644.ctex"]
 
 [params]
 
