@@ -37,8 +37,8 @@ var _notice: Label
 var _can := {"store": false, "take": false, "take_all": false}
 var _note := ""
 var _store_why := ""
-## Bag slots the trash is asking to discard (the card shows the confirm while set).
-var _discard: Array[int] = []
+## What the trash is asking to discard (InvActions.identities; the card shows the confirm while set).
+var _discard: Array = []
 var _asking := false
 var _m := {}
 ## Per tab, 1 -> 0 after items arrive there (InvMotion.FLASH_S).
@@ -283,7 +283,7 @@ func _ask_discard() -> void:
 	if tab != &"bag" or bag_grid.selected_indices().is_empty():
 		return
 	_asking = true
-	_discard = InvActions.discard_prompt(bag_grid.inventory, bag_grid.selected_indices(), player).gone
+	_discard = InvActions.identities(bag_grid.inventory, InvActions.discard_prompt(bag_grid.inventory, bag_grid.selected_indices(), player).gone)
 	_refresh_inspect()
 
 func _on_action(action: StringName) -> void:
@@ -291,8 +291,8 @@ func _on_action(action: StringName) -> void:
 		var gone := _discard.duplicate() if action == &"discard" else []
 		_discard.clear()
 		_asking = false
-		for i in gone:
-			InvActions.run(&"discard", player, i, _ctx())
+		if not gone.is_empty():
+			InvActions.discard_identities(player, gone, _ctx())
 		_refresh()
 		return
 	match action:

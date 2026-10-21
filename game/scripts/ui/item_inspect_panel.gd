@@ -26,6 +26,8 @@ var _flavour := ""
 var _sections: Array = [] # {id, title, rows: [[key, value, colour]]} after Info
 var _actions: Array[StringName] = []
 var _title := ""
+## A caged animal's grade ("B"), in a disc before the title as the Bag reference's Zebraceratops.
+var _grade := ""
 var _kind := ""
 var _sub := ""
 var _m := {}
@@ -90,6 +92,7 @@ func show_stack(s: ItemStack, c: Dictionary, summary: Array = []) -> void:
 	_flavour = ""
 	_sections.clear()
 	_actions.clear()
+	_grade = ""
 	for n: Array in c.get("notes", []):
 		_notes.append({"text": str(n[0]), "color": n[1]})
 	if s == null:
@@ -112,6 +115,8 @@ func rows() -> PackedStringArray:
 	var out := PackedStringArray()
 	if _sub != "":
 		out.append(_sub)
+	if _grade != "":
+		out.append("Grade %s" % _grade)
 	for n in _notes:
 		out.append(str(n.text))
 	for st: Array in _stats:
@@ -174,6 +179,7 @@ static func family_icon(cat: String) -> StringName:
 func _fill(s: ItemStack) -> void:
 	var f := InvCardFacts.of(s, ctx.get("player") as Player)
 	_title = str(f.title)
+	_grade = str(f.get("grade", ""))
 	_kind = str(f.kind)
 	_sub = str(f.sub)
 	_stats = f.stats
@@ -421,7 +427,17 @@ func _draw_deco() -> void:
 	var fn := InvTheme.font_at(npx)
 	var title := UiTokens.ellipsis(fn, _title, size.x - float(_m.margin) * 2.0, npx)
 	var tw := fn.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, npx).x
-	_deco.draw_string(fn, Vector2((size.x - tw) * 0.5, (band.size.y + fn.get_ascent(npx) - fn.get_descent(npx)) * 0.5), title, HORIZONTAL_ALIGNMENT_LEFT, -1, npx, InvTheme.PRIMARY_INK)
+	var tx := (size.x - tw) * 0.5
+	if _grade != "": # the grade disc before the name, the pair centred together
+		var gr := band.size.y * 0.3
+		tx += gr + 4.0
+		var gc := Vector2(tx - gr - 8.0, band.size.y * 0.5)
+		_deco.draw_circle(gc, gr, Color("#5C4C30"))
+		_deco.draw_arc(gc, gr, 0.0, TAU, 32, Color(0, 0, 0, 0.35), 1.5, true)
+		var gpx := roundi(gr * 1.3)
+		var gf := InvTheme.font_at(gpx)
+		UiTokens.draw_centered(_deco, gf, gc, _grade, gpx, InvTheme.TEXT)
+	_deco.draw_string(fn, Vector2(tx, (band.size.y + fn.get_ascent(npx) - fn.get_descent(npx)) * 0.5), title, HORIZONTAL_ALIGNMENT_LEFT, -1, npx, InvTheme.PRIMARY_INK)
 	if stack:
 		# The tan card (storage reference): art, kind and level, then durability and the hammer count.
 		var card := Rect2(Vector2(0, band.end.y), Vector2(size.x, _card_h()))

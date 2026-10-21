@@ -37,8 +37,8 @@ var _m := {}
 ## The instance inspected last. Its NEW tag stays while it is selected (the reference shows a
 ## selected cage still NEW) and clears when the selection moves on or the bag closes.
 var _seen: ItemStack
-## Bag slots the trash is asking to discard; the card shows the confirm while this is set.
-var _discard: Array[int] = []
+## What the trash is asking to discard (InvActions.identities); the card shows the confirm while set.
+var _discard: Array = []
 ## The HUD is faded out beside the phone dock (_sync_hud).
 var _hud_away := false
 
@@ -120,6 +120,15 @@ func select_index(i: int) -> void:
 
 func select_uid(uid: String) -> void:
 	grid.select_uid(uid)
+	if uid != "" and grid.selected_uid() != uid and grid.filter_id != &"all":
+		rail.choose(&"all") # the filter hid it: show everything rather than select nothing (review r2)
+		grid.select_uid(uid)
+
+## A new session opens on All in acquisition order (review r2: a Food filter outlived the close).
+func reset_view() -> void:
+	grid.view_key = &"acquired"
+	toolbar.close_menu()
+	rail.choose(&"all")
 
 func ctx() -> Dictionary:
 	return {"where": &"bag", "player": player}
@@ -199,8 +208,8 @@ func _ask_discard() -> void:
 	if picked.is_empty() or inventory == null:
 		return
 	var ask := InvActions.discard_prompt(inventory, picked, player)
-	_discard = ask.gone
-	var focus := inventory.slots[_discard[0] if not _discard.is_empty() else picked[0]]
+	_discard = InvActions.identities(inventory, ask.gone)
+	var focus := inventory.slots[ask.gone[0] if not ask.gone.is_empty() else picked[0]]
 	_show_card(focus, {"where": &"bag", "player": player, "actions": ask.actions, "notes": ask.notes})
 
 func _run(action: StringName) -> void:
@@ -210,8 +219,7 @@ func _run(action: StringName) -> void:
 	if action == &"discard":
 		var gone := _discard.duplicate()
 		_discard.clear()
-		for i in gone:
-			InvActions.run(&"discard", player, i, ctx())
+		InvActions.discard_identities(player, gone, ctx())
 		return
 	var i := grid.selected_index()
 	if i < 0 or player == null:
@@ -286,17 +294,30 @@ func _layout() -> void:
 ## the vitals and the hexes: "BUIL"), so the HUD steps aside while the Bag is open there and comes back
 ## when it closes. It takes no taps meanwhile anyway (a tap on the world closes the Bag).
 func _sync_hud() -> void:
-	var hud := get_tree().get_first_node_in_group(&"hud") as CanvasItem if is_inside_tree() else null
-	var away := hud != null and is_visible_in_tree() and bool(_m.get("compact", false))
-	if hud and away != _hud_away:
-		hud.modulate.a = 0.0 if away else 1.0
+	var away := is_visible_in_tree() and bool(_m.get("compact", false))
+	if away or _hud_away: # every sync while away: the held slot can come after the first (bind lays out again)
+		for c in _hud_parts():
+			c.modulate.a = 0.0 if away else 1.0
 	_hud_away = away
+
+## The HUD and the held-tool hex ("WORK PICK" / "HANDS"), which lives outside the HUD node and stayed
+## drawn over the world beside the phone dock (review r2).
+func _hud_parts() -> Array[CanvasItem]:
+	var out: Array[CanvasItem] = []
+	if not is_inside_tree():
+		return out
+	var hud := get_tree().get_first_node_in_group(&"hud") as CanvasItem
+	if hud:
+		out.append(hud)
+	var held: CanvasItem = player.station_craft.held_slot if player and player.station_craft else null
+	if held:
+		out.append(held)
+	return out
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
 		_sync_hud()
 	elif what == NOTIFICATION_EXIT_TREE and _hud_away:
-		var hud := get_tree().get_first_node_in_group(&"hud") as CanvasItem
-		if hud:
-			hud.modulate.a = 1.0
+		for c in _hud_parts():
+			c.modulate.a = 1.0
 		_hud_away = false

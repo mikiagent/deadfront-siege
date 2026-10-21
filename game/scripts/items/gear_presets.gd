@@ -26,8 +26,10 @@ static func unlocked_count(level: int) -> int:
 		n += 1 if level >= unlock_level(k) else 0
 	return n
 
+## The active preset, never one not yet earned: a save (old or forged) can name a locked one, which the
+## selector would bracket and a switch would capture the worn gear into (review r2).
 static func active(inv: Inventory) -> int:
-	return int(_p(inv).get("active", 0))
+	return clampi(int(_p(inv).get("active", 0)), 0, maxi(0, unlocked_count(LevelDisplay.player_level()) - 1))
 
 ## Whether preset `k` has been saved (an unsaved one is null; an empty loadout is {}).
 static func has_set(inv: Inventory, k: int) -> bool:

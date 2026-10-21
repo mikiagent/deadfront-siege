@@ -27,7 +27,7 @@ static func of(s: ItemStack, player: Player) -> Dictionary:
 		"stats": [], "families": [], "states": [], "traits": [], "info": info,
 		"colour": s.tint_color() if str(s.attributes.get("tint", "")).begins_with("#") else Color(0, 0, 0, 0),
 		"flavour": str((InvView.data().get("flavour", {}) as Dictionary).get(str(s.def_id), "")),
-		"sections": [],
+		"sections": [], "grade": "",
 	}
 	if s.max_durability > 0:
 		f.stats.append(["Durability", "%d / %d%s" % [s.durability, s.max_durability, "  Broken" if s.is_broken() else ""], InvTheme.DANGER if s.is_broken() else InvTheme.PRIMARY_INK])
@@ -46,7 +46,7 @@ static func of(s: ItemStack, player: Player) -> Dictionary:
 		for r: Dictionary in sec[str(cls)]:
 			f.traits.append({"text": InvAttributes.line(r), "color": InvPaint.pip_color(cls), "cls": cls})
 	if s.def_id == &"captured_animal":
-		info.append(["Bond it at a taming pen", "", InvTheme.TEXT_2])
+		_animal(f, s)
 	if s.is_fungible() and s.count > 1:
 		info.append(["Count", "%d" % s.count, InvTheme.TEXT])
 	if Food.is_food(s):
@@ -81,6 +81,31 @@ static func of(s: ItemStack, player: Player) -> Dictionary:
 	if not make.is_empty():
 		f.sections.append({"id": &"make", "title": "Create", "rows": make})
 	return f
+
+## A caged animal's card (the Bag reference's Zebraceratops: grade, stats, the bond): the pet it becomes,
+## worked out as the taming pen will (PetRecord.from_def on its species, variant, level and genetics),
+## so the card shows its life, attack, defense, speed and cargo bag, its roles as chips and the pen's
+## time and odds (review r2: the card showed one line where the reference shows the animal).
+static func _animal(f: Dictionary, s: ItemStack) -> void:
+	var def := Data.creature(StringName(str(s.attributes.get("species", ""))))
+	if f.flavour == "":
+		f.flavour = "Bond it at a taming pen."
+	if def == null:
+		return
+	var raw: Variant = s.attributes.get("genetics", {})
+	# The pen rolls genetics for a cage without them; the card shows neutral ones rather than a new roll per look.
+	var genes := CreatureGenetics.from_dict(raw) if raw is Dictionary else CreatureGenetics.neutral()
+	var rec := PetRecord.from_def(def, &"", StringName(str(s.attributes.get("variant", ""))), genes, maxi(1, s.level))
+	f.grade = str(rec.grade)
+	for role: StringName in rec.tamed_role:
+		f.states.append([LevelDisplay.nice_name(str(role)), InvTheme.TEXT])
+	if rec.variant != &"":
+		f.info.append(["Variant", LevelDisplay.nice_name(str(rec.variant)), InvTheme.TEXT])
+	f.info.append_array([["Life", "%.0f" % rec.hp, InvTheme.TEXT], ["Attack", "%.0f" % rec.attack, InvTheme.TEXT],
+		["Defense", "%.0f" % rec.defense, InvTheme.TEXT], ["Movement Speed", "%.1f" % rec.speed, InvTheme.TEXT],
+		["Bag", "%d" % rec.bag.slot_count, InvTheme.TEXT],
+		["Bond time", "%d min" % roundi(TamingPen.BASE_SECONDS / 60.0), InvTheme.TEXT_2],
+		["Bond chance", "%d %%" % roundi(TamingPen.SUCCESS_CHANCE * 100.0), InvTheme.TEXT_2]])
 
 ## "carnivore" / "herbivore" when a pet of that diet eats it (Food.feed_pet's rule), else "".
 static func pet_diet(d: ItemDef) -> String:

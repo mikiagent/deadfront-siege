@@ -19,6 +19,12 @@ class LineLog extends Logger:
 		if error_type == ERROR_TYPE_SCRIPT:
 			script_errors += 1
 
+## Stands in for the HUD's notice line (Player.notice reaches the first node in group "hud").
+class NoticeSpy extends Control:
+	var said: PackedStringArray = []
+	func notice(text: String) -> void:
+		said.append(text)
+
 var failures: Array[String] = []
 var _done := false
 var log := LineLog.new()
@@ -240,13 +246,30 @@ func _t05_new() -> void:
 	_expect(bool(_cell(g, _uid(ib)).call("shows_new")), "5: the cell shows the NEW tag")
 	tr.call("acknowledge", inv.slots[ib])
 	_expect(not (&"new" in inv.slots[ib].flags), "5: acknowledging (selecting) clears NEW")
-	var rows: Array = inv.to_array()
-	C["inv_new_tracker"].call("rebaseline", inv)
-	inv.load_array(rows)
-	var any_new := false
-	for s in inv.slots:
-		any_new = any_new or (s != null and &"new" in s.flags)
-	_expect(not any_new, "5: loading a save marks nothing NEW")
+	# A save's rows carry uids this tracker has never seen (review r2: reloading the tracker's own uids
+	# could not fail): minted in another bag, loaded into a fresh bag a freshly bound tracker watches.
+	var src = INV.new(INV.BASE_SLOTS)
+	src.add(IS.make(&"berry", 1, {}, 12))
+	src.add(IS.make(&"raptor_bone", 1, {"firm": 2}, 45))
+	var rows: Array = JSON.parse_string(JSON.stringify(src.to_array()))
+	var fresh = INV.new(INV.BASE_SLOTS)
+	var tr2 = C["inv_new_tracker"].new()
+	tr2.call("bind", fresh)
+	C["inv_new_tracker"].call("rebaseline", fresh)
+	fresh.load_array(rows)
+	var loaded := 0
+	var marked := 0
+	for s in fresh.slots:
+		loaded += 1 if s != null else 0
+		marked += 1 if s != null and &"new" in s.flags else 0
+	_expect(loaded == 2 and marked == 0, "5: loading a save (uids the tracker never saw) marks nothing NEW (%d of %d NEW)" % [marked, loaded])
+	fresh.add(IS.make(&"berry", 1, {}, 30))
+	await process_frame # a later pickup is play again, not the load
+	fresh.add(IS.make(&"berry", 1, {}, 31))
+	var after := 0
+	for s in fresh.slots:
+		after += 1 if s != null and &"new" in s.flags else 0
+	_expect(after >= 1, "5: a pickup after the load frame is NEW again (%d NEW)" % after)
 	g.queue_free()
 
 func _t06_brackets() -> void:
@@ -292,6 +315,16 @@ func _t07_inspect() -> void:
 	_expect(not (p.call("actions") as Array).has(&"eat"), "7: a weapon offers no Eat")
 	p.call("show_stack", player.inventory.slots[_give(&"berry", 12)], _ctx())
 	_expect(not (p.call("actions") as Array).has(&"equip"), "7: a berry offers no Equip")
+	# Review r2: the cage card shows the animal it bonds into (the Bag reference's Zebraceratops card),
+	# worked out as the taming pen will, never just its title.
+	var genes := {"version": 1}
+	var cage := _give(&"captured_animal", 13, {"species": "zebraceratops", "variant": "", "level": 13, "genetics": genes})
+	p.call("show_stack", player.inventory.slots[cage], _ctx())
+	var crow := "\n".join(p.call("rows"))
+	var rec = load("res://scripts/pets/pet_record.gd").from_def(data.creature(&"zebraceratops"), &"", &"", load("res://scripts/creatures/creature_genetics.gd").from_dict(genes), 13)
+	_expect(crow.contains("Grade %s" % rec.grade) and crow.contains("Life  %.0f" % rec.hp) and crow.contains("Attack  %.0f" % rec.attack) \
+		and crow.contains("Defense  %.0f" % rec.defense) and crow.contains("Movement Speed  %.1f" % rec.speed) and crow.contains("Bag  %d" % rec.bag.slot_count) \
+		and crow.contains("taming pen"), "7: the cage card shows the bonded animal's grade, life, attack, defense, speed and bag (%s)" % crow.replace("\n", " | "))
 	p.queue_free()
 
 func _t08_attributes() -> void:
@@ -345,6 +378,16 @@ func _t09_sorting() -> void:
 	g.call("auto_sort", &"name")
 	_expect(_snapshot() == before, "9: sorting changes no uid, level, count, attribute, flag or slot")
 	g.queue_free()
+	# Review r2: "Acquired" is when an instance came, not its slot: a pickup in a freed first slot sorts last.
+	var inv = player.inventory
+	for k in inv.slot_count:
+		if inv.slots[k]:
+			inv.slots[k].created_at = 1000 + k
+	inv.remove_at(0, 1)
+	var late := _give(&"berry", 7)
+	inv.slots[late].created_at = 5000
+	var acq: Array = C["inv_view"].call("order", inv, &"acquired", &"all")
+	_expect(late == 0 and not acq.is_empty() and acq.back() == late, "9: Acquired puts the newest pickup last even in a freed first slot (%s)" % [acq])
 
 func _t10_filtering() -> void:
 	if not _need(["inv_view", "inventory_grid", "capacity_indicator"], "10 filtering"):
@@ -360,6 +403,24 @@ func _t10_filtering() -> void:
 	g.call("set_view", &"acquired", &"food")
 	_expect((g.call("item_cells") as Array).size() == 2 and _snapshot() == before, "10: filtering hides, never changes, items")
 	g.queue_free()
+	# Review r2: the filter is session state. A new open shows All; selecting an item the filter hides
+	# shows it rather than doing nothing.
+	var ui = player.ui
+	ui.open_bag()
+	var bag = ui.get("_bag")
+	bag.rail.choose(&"food")
+	ui.hide_ui()
+	ui.open_bag()
+	_expect(bag.grid.filter_id == &"all" and bag.grid.view_key == &"acquired", "10: the Bag opens on All after a Food filter last time (%s, %s)" % [bag.grid.filter_id, bag.grid.view_key])
+	bag.rail.choose(&"food")
+	var club := ""
+	for k in player.inventory.slot_count:
+		var st = player.inventory.slots[k]
+		if st and st.def_id == &"club":
+			club = st.uid
+	ui.select_uid(club)
+	_expect(club != "" and bag.grid.selected_uid() == club and bag.grid.filter_id == &"all", "10: selecting the club while Food hides it switches to All and selects it (%s)" % bag.grid.filter_id)
+	ui.hide_ui()
 
 func _t11_locking() -> void:
 	if not _need(["inv_actions"], "11 locking"):
@@ -381,6 +442,12 @@ func _t11_locking() -> void:
 		pk.queue_free()
 	C["inv_actions"].call("run", &"lock", player, i60, _ctx())
 	_expect(not inv.slots[i60].is_locked(), "11: Lock again unlocks")
+	# Review r2: a locked rare berry offered Eat as its yellow primary (one tap or Enter ate it).
+	var ib := _give(&"berry", 42, {"vivid_inspiration": true})
+	inv.slots[ib].set_flag(&"locked", true)
+	var bacts: Array = C["inv_actions"].call("valid", inv.slots[ib], _ctx())
+	var eaten: bool = C["inv_actions"].call("run", &"eat", player, ib, _ctx())
+	_expect(Array(bacts) == [&"unlock"] and not eaten and inv.slots[ib] != null, "11: a locked berry offers only Unlock and is never eaten (%s, eaten=%s)" % [bacts, eaten])
 	await _t11_locked_never_spent()
 
 ## One rule for spendable units (review r1 blocker): what a lock keeps is neither counted as payable
@@ -418,6 +485,19 @@ func _t11_locked_never_spent() -> void:
 	_expect(inv.count_of(&"stone_shot") == 0 and not inv.consume(&"stone_shot", 1) and inv.held_of(&"stone_shot") == 5, "11: locked ammo neither counts as ready nor fires (count %d)" % inv.count_of(&"stone_shot"))
 	var obj: Dictionary = load("res://scripts/core/objectives.gd").call("_progress", player, {"have": {"stone_shot": 5}})
 	_expect(int(obj.get("got", -1)) == 5, "11: a 'have N' goal still sees locked units (%s)" % [obj])
+	# Review r2: a pen took nothing and said nothing when the only caged animal was locked.
+	_reset_bag()
+	var spy := NoticeSpy.new()
+	spy.add_to_group(&"hud")
+	host.get_child(1).add_child(spy)
+	var cg := _give(&"captured_animal", 13, {"species": "zebraceratops"})
+	inv.slots[cg].set_flag(&"locked", true)
+	var pen = load("res://scripts/world/taming_pen.gd").new()
+	var took: bool = pen.try_insert(player)
+	_expect(not took and inv.slots[cg] != null and "\n".join(spy.said).contains("Locked"), "11: a pen keeps a locked caged animal and says why (%s)" % [spy.said])
+	pen.free()
+	spy.get_parent().remove_child(spy)
+	spy.free()
 	# Online there is no act.lock op yet: Lock is not offered (as Discard), so it never does nothing.
 	player.actions.online = true
 	var on: Array = C["inv_actions"].call("valid", inv.slots[a], _ctx())
@@ -661,6 +741,16 @@ func _t15_presets() -> void:
 		ch.presets.chosen.emit(3)
 		_expect(str(ch.note.text).contains("Lv. 50"), "15: tapping a locked preset says when it unlocks (%s)" % ch.note.text)
 		player.ui.hide_ui()
+	# Review r2: a save (forged or old) naming a locked preset active never brackets it, and a switch
+	# never captures the worn gear into it.
+	var sets: Array = (inv.get("presets") as Dictionary).get("sets", []).duplicate(true)
+	while sets.size() < 4:
+		sets.append(null)
+	inv.set("presets", GP.call("sanitize", {"active": 3, "sets": sets}))
+	_expect(int(GP.call("active", inv)) == 1, "15: a saved active preset beyond the earned ones reads as the last earned (%d)" % int(GP.call("active", inv)))
+	GP.call("switch", player, 0)
+	var after: Array = (inv.get("presets") as Dictionary).get("sets", [])
+	_expect(after.size() < 4 or after[3] == null, "15: a switch never captures gear into a locked preset (%s)" % [after])
 
 # ---------------------------------------------------------------- 16-18: picker, market
 
@@ -786,6 +876,27 @@ func _t17_craft_menu() -> void:
 	craft._choose_recipe("twine")
 	craft._start(rec, 1)
 	_expect(player.ui.call("current_screen") == &"picker" and player.inventory.count_of(&"fibre_stalk") == 2, "17: with only trait fibre left, Craft asks which instead of spending them")
+	player.ui.hide_ui()
+	# Review r2: "Craft x5" checked only the first job; job 2's default plan spent the Lv. 40 tough fibre.
+	_reset_bag()
+	var p5 := _uid(_give(&"fibre_stalk", 5))
+	var p9 := _uid(_give(&"fibre_stalk", 9))
+	var t40 := _uid(_give(&"fibre_stalk", 40, {"tough_fiber": 3}))
+	var t41 := _uid(_give(&"fibre_stalk", 41, {"tough_fiber": 2}))
+	craft.show_ui()
+	craft._choose_recipe("twine")
+	await process_frame
+	craft._start(rec, 5)
+	var sc = player.station_craft
+	for _job in 3:
+		if sc.recipe_id == &"twine":
+			sc._finish_one()
+	_expect(_find(p5) == -1 and _find(p9) == -1 and _find(t40) >= 0 and _find(t41) >= 0 and inv_count(&"twine") == 1, "17: Craft x5 makes one twine from the plain fibres and never spends the trait ones (40 in bag: %s, 41: %s, twine %d)" % [_find(t40) >= 0, _find(t41) >= 0, inv_count(&"twine")])
+	_expect(sc.recipe_id == &"", "17: the batch stops before the job that would take a trait fibre")
+	# The station radial crafts on the default plan: it never takes a trait fibre either.
+	sc.call("_on_recipe_chosen", &"twine")
+	_expect(_find(t40) >= 0 and _find(t41) >= 0 and sc.recipe_id == &"", "17: the radial's default plan refuses rather than spend a trait fibre")
+	sc.cancel_and_refund()
 	player.ui.hide_ui()
 	craft.hide_ui()
 	craft.queue_free()
@@ -1096,6 +1207,14 @@ func _t22_ingame_dock() -> void:
 	var hud_stub := Control.new()
 	hud_stub.add_to_group(&"hud")
 	host.get_child(1).add_child(hud_stub)
+	# The held-tool hex lives outside the HUD node (StationCraft's layer): it stayed over the world (review r2).
+	var crafter = player.station_craft
+	var made_held := false
+	if crafter and crafter.held_slot == null:
+		crafter.held_slot = load("res://scripts/ui/held_item_slot.gd").new()
+		host.get_child(1).add_child(crafter.held_slot)
+		made_held = true
+	var held: Control = crafter.held_slot if crafter else null
 	# Layout at the judge's canvas, the landscape phone (with a notch) and the SE canvas.
 	for view in [Vector2(1600, 900), Vector2(844, 390), Vector2(804, 452)]:
 		var notch: bool = view.x == 844.0
@@ -1141,6 +1260,7 @@ func _t22_ingame_dock() -> void:
 		_expect(card.visible and cr.end.x <= dl + 0.5 and cr.position.x >= holder.global_position.x + (47.0 if notch else 0.0) - 0.5 and cr.size.x < dock.size.x, "22: the card floats between the world and the panel at %s (card %s, panel from %d)" % [view, cr, dl])
 		var compact: bool = view.y < 500.0
 		_expect((hud_stub.modulate.a < 0.01) == compact, "22: the HUD %s beside the dock at %s (alpha %.2f)" % ["steps aside" if compact else "stays", view, hud_stub.modulate.a])
+		_expect(held != null and (held.modulate.a < 0.01) == compact, "22: the held-tool hex %s beside the dock at %s (alpha %.2f)" % ["steps aside" if compact else "stays", view, held.modulate.a if held else -1.0])
 		if desk:
 			_expect(cr.end.y <= holder.global_position.y + view.y - 26.0 + 0.5, "22: the card stops above the HUD's level line at 1600x900 (card bottom %.0f)" % cr.end.y)
 		_check_targets(bs, view)
@@ -1168,8 +1288,11 @@ func _t22_ingame_dock() -> void:
 			player.inventory.slots[_find(bone_uid)].set_flag(&"locked", false) # the trash below discards it
 		holder.queue_free()
 		await process_frame
-	_expect(is_equal_approx(hud_stub.modulate.a, 1.0), "22: the HUD comes back when the Bag goes (alpha %.2f)" % hud_stub.modulate.a)
+	_expect(is_equal_approx(hud_stub.modulate.a, 1.0) and held != null and is_equal_approx(held.modulate.a, 1.0), "22: the HUD and the held-tool hex come back when the Bag goes (alpha %.2f, %.2f)" % [hud_stub.modulate.a, held.modulate.a if held else -1.0])
 	hud_stub.queue_free()
+	if made_held:
+		crafter.held_slot.queue_free()
+		crafter.held_slot = null
 	C["inv_theme"].set("forced_insets", Vector4(-1, -1, -1, -1))
 	# The card shows what the meat's data has and only its valid actions.
 	var p := _panel(player.inventory.slots[_find(meat_uid)])
@@ -1269,6 +1392,17 @@ func _t22_ingame_dock() -> void:
 		bar.emit_signal("trash_pressed")
 		_expect(not Array(card2.call("actions")).has(&"discard") and _find(meat_uid) >= 0, "22: a locked item is never offered for discard")
 		player.inventory.slots[mi].set_flag(&"locked", false)
+		# Review r2: the confirm holds identities, not slots. The meat is used up and a pickup lands in its
+		# slot in the same frame, before Discard is pressed: the newcomer stays.
+		g2.call("select_uid", meat_uid)
+		bar.emit_signal("trash_pressed")
+		var asked := card2.call("button_for", &"discard") as Button
+		player.inventory.remove_at(mi, 1)
+		var late := _give(&"berry", 60)
+		var late_uid := _uid(late)
+		if asked:
+			asked.pressed.emit()
+		_expect(asked != null and late == mi and _find(late_uid) >= 0, "22: Discard never takes a pickup that landed in the asked slot (slot %d of %d, berry kept: %s)" % [late, mi, _find(late_uid) >= 0])
 	_tap(sv, Vector2(200, 450)) # the world left of the card
 	await process_frame
 	_expect(not ui2.visible and ui2.call("current_screen") == &"", "22: a tap on the world beside the Bag closes it")

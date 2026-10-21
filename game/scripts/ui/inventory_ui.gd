@@ -266,8 +266,8 @@ func _reset() -> void:
 	_storage_opts = {}
 	_selected = -1
 	if _bag:
-		_bag.toolbar.close_menu()
 		_bag.acknowledge_selection()
+		_bag.reset_view()
 	var cb := _on_close # once: hide_ui resets twice (visibility change, then directly)
 	_on_close = Callable()
 	if cb.is_valid():

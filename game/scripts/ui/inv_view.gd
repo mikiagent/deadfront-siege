@@ -40,7 +40,7 @@ static func order(inv: Inventory, key: StringName, filter: StringName) -> Array[
 		var s := inv.slots[i]
 		if s != null and s.def_id != Inventory.LOCK and _passes(s, rule):
 			out.append(i)
-	if key == &"acquired" or key == &"":
+	if key == &"":
 		return out
 	var rank := {}
 	for i in out:
@@ -92,6 +92,8 @@ static func _key(s: ItemStack, key: StringName) -> Array:
 	var d := s.def()
 	var name := d.display_name if d and d.display_name != "" else str(s.def_id)
 	match key:
+		&"acquired": # when the instance came into the game; a freed slot's reuse never moves it (review r2)
+			return [s.created_at]
 		&"name":
 			return [name, -s.level]
 		&"type":
