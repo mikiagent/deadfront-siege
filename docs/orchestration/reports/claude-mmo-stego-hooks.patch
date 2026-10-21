@@ -1,0 +1,182 @@
+diff --git a/game/data/creatures/anim_events.json b/game/data/creatures/anim_events.json
+index 6354b7fd..68262e6d 100644
+--- a/game/data/creatures/anim_events.json
++++ b/game/data/creatures/anim_events.json
+@@ -73,6 +73,17 @@
+       "walk": 0.174,
+       "run": 0.63
+     },
++    "stegosaurus": {
++      "height_m": 6.4,
++      "run_l": 3.461,
++      "run_len": 0.8,
++      "run_r": 3.455,
++      "walk_l": 0.961,
++      "walk_len": 1.6,
++      "walk_r": 0.961,
++      "walk": 0.961,
++      "run": 3.458
++    },
+     "tyrannosaurus": {
+       "height_m": 8.0,
+       "run_l": 0.442,
+diff --git a/game/scripts/creatures/creature.gd b/game/scripts/creatures/creature.gd
+index 6c893344..835b89c3 100644
+--- a/game/scripts/creatures/creature.gd
++++ b/game/scripts/creatures/creature.gd
+@@ -310,14 +310,19 @@ func _physics_process(delta: float) -> void:
+ 		velocity.x = dir.x * speed
+ 		velocity.z = dir.z * speed
+ 		face_towards(global_position + dir, delta)
+-		var frac := clampf(speed / 8.0, 0.0, 1.0)
+-		anim.play_locomotion(frac)
++		# Stride-matched cadence where the species' walk/run are baked and trusted (pipeline.stride_matched);
++		# donor clips keep the legacy pick until W2-RERIG (claude-mmo-w1-canim.md: do not wire them yet).
++		if def.pipeline.get("stride_matched", false):
++			anim.set_move_speed(speed)
++		else:
++			anim.play_locomotion(clampf(speed / 8.0, 0.0, 1.0))
+ 	else:
+ 		velocity.x = 0.0
+ 		velocity.z = 0.0
+ 		if not anim._busy and not anim._forced:
+ 			anim.play_idle()
+ 	_slide()
++	view.conform_to_ground(delta)
+ 	current_clip = anim.current_clip
+ 	_status_fx()
+ 	_blood_trail()
+diff --git a/game/scripts/creatures/creature_view.gd b/game/scripts/creatures/creature_view.gd
+index 86043dd2..b17a0a16 100644
+--- a/game/scripts/creatures/creature_view.gd
++++ b/game/scripts/creatures/creature_view.gd
+@@ -38,6 +38,9 @@ var _rider_bone: int = -1
+ var _rider_offset: Transform3D = Transform3D.IDENTITY
+ var _hit_flash_left: float = 0.0
+ var _flinch_tw: Tween
++var _feet := PackedInt32Array()  ## quadruped rigs: foot bones front L, front R, hind L, hind R (conform_to_ground)
++## GLB rigs: the model's rest bounds in this view's frame (creature_plates keeps the name pill off them).
++var body_box := AABB()
+ 
+ ## Procedural hurt: a quick shove back and a nod, then settle. Used instead of the synthesised
+ ## hit_react clip ("death 0-35 % reversed") that made transplanted species start collapsing on
+@@ -74,6 +77,11 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
+ 				rig.mesh_root.scale = Vector3.ONE * float(def.pipeline["stand_in_model_scale"])
+ 			using_glb = true
+ 			rig.fill_missing(CreatureClips.CONTRACT)
++			if def.rig == &"quadruped" and rig.skeleton:
++				_feet = _find_feet(rig.skeleton)
++			for mi in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
++				var b := RiggedModel._relative_to(mi, self) * (mi as MeshInstance3D).get_aabb()
++				body_box = body_box.merge(b) if body_box.has_volume() else b
+ 		else:
+ 			rig.queue_free()
+ 			rig = null
+@@ -92,6 +100,50 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
+ 		_mount.position = Vector3(0.0, def.height_meters * 0.85, 0.0)
+ 		add_child(_mount)
+ 
++## The lowest bone at rest in each quarter around the feet: front left, front right, hind left, hind right.
++func _find_feet(sk: Skeleton3D) -> PackedInt32Array:
++	var to_view := RiggedModel._relative_to(sk, self)
++	var low: Dictionary = {}  ## bone -> rest position in this view's frame, bones within 15 % of the height
++	var mid := Vector3.ZERO
++	for b in sk.get_bone_count():
++		var p := to_view * sk.get_bone_global_rest(b).origin
++		if p.y < def.height_meters * 0.15 and sk.get_bone_parent(b) != -1:  # the root bone sits at the origin
++			low[b] = p
++			mid += p
++	mid /= maxf(1.0, float(low.size()))
++	var out := PackedInt32Array([-1, -1, -1, -1])
++	for b in low:
++		var p: Vector3 = low[b]
++		var q := (0 if p.z < mid.z else 2) + (0 if p.x < mid.x else 1)  # -Z is the front
++		if out[q] == -1 or p.y < (low[out[q]] as Vector3).y:
++			out[q] = b
++	return out if not out.has(-1) else PackedInt32Array()
++
++## Quadruped rigs on a slope: pitch and roll to the ground plane under the four feet and sit on it (the
++## body's round capsule bottom rides up a slope). Called from the creature's alive physics step.
++func conform_to_ground(delta: float) -> void:
++	var rt = World.runtime  # IslandRuntime (surface_y); typed Node3D on World
++	if _feet.is_empty() or rt == null:
++		return
++	var to_body := (get_parent() as Node3D).global_transform.affine_inverse()
++	var g: Array[Vector3] = []  ## the ground under each foot, in the creature's frame
++	for b in _feet:
++		var w := rig.skeleton.global_transform * rig.skeleton.get_bone_global_pose(b).origin
++		g.append(to_body * Vector3(w.x, float(rt.surface_y(w.x, w.z)), w.z))
++	var front := (g[0] + g[1]) * 0.5
++	var hind := (g[2] + g[3]) * 0.5
++	var left := (g[0] + g[2]) * 0.5
++	var right := (g[1] + g[3]) * 0.5
++	if hind.z - front.z < 0.1 or right.x - left.x < 0.05:
++		return
++	var dz := (hind.y - front.y) / (hind.z - front.z)  # ground plane y = lift + dx * x + dz * z
++	var dx := (right.y - left.y) / (right.x - left.x)
++	var c := (front + hind) * 0.5
++	var k := clampf(delta * 8.0, 0.0, 1.0)
++	rotation.x = lerpf(rotation.x, atan(-dz), k)  # nose up when the ground ahead (-Z) is higher
++	rotation.z = lerpf(rotation.z, atan(dx), k)
++	position.y = lerpf(position.y, c.y - dx * c.x - dz * c.z, k)
++
+ func animation_player() -> AnimationPlayer:
+ 	if using_glb and rig:
+ 		return rig.anim_player
+diff --git a/game/scripts/ui/creature_plates.gd b/game/scripts/ui/creature_plates.gd
+index 88e493ba..21a0425f 100644
+--- a/game/scripts/ui/creature_plates.gd
++++ b/game/scripts/ui/creature_plates.gd
+@@ -168,18 +168,22 @@ func _separate_visible_creature_plates() -> void:
+ 		if clear:
+ 			placed.append(rect)
+ 
+-## The creature on screen: a box as long as the def along its facing, body_radius to each side and
+-## def height tall, projected and bounded. Empty when a corner is behind the camera.
+-# ASSUMPTION: real_length_m spans nose to tail and body_radius() is half the body's width (no mesh bounds per frame).
++## The creature on screen: its model's rest bounds (GLB rigs), else a box as long as the def along its
++## facing, body_radius to each side and def height tall; projected and bounded. Empty when a corner is
++## behind the camera.
++# ASSUMPTION (placeholders): real_length_m spans nose to tail and body_radius() is half the body's width.
+ static func creature_box(cam: Camera3D, c: Creature) -> Rect2:
+ 	var xf := c.get_global_transform_interpolated()
+-	var fwd := Vector3(xf.basis.z.x, 0.0, xf.basis.z.z)  # yaw only: a fading creature's basis collapses
+-	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+-	var side := fwd.cross(Vector3.UP) * c.body_radius()
+-	fwd *= c.def.real_length_m * 0.5
++	var back := Vector3(xf.basis.z.x, 0.0, xf.basis.z.z)  # yaw only: a fading creature's basis collapses
++	back = back.normalized() if back.length() > 0.01 else Vector3.BACK
++	var side := Vector3.UP.cross(back)
++	var r := c.body_radius()
++	var box: AABB = c.view.body_box if c.view and c.view.body_box.has_volume() \
++		else AABB(Vector3(-r, 0.0, -c.def.real_length_m * 0.5), Vector3(r * 2.0, c.def.height_meters, c.def.real_length_m))
+ 	var out := Rect2()
+ 	for i in 8:
+-		var p := xf.origin + (side if (i & 1) != 0 else -side) + (fwd if (i & 2) != 0 else -fwd) + Vector3(0.0, c.def.height_meters if (i & 4) != 0 else 0.0, 0.0)
++		var e := box.get_endpoint(i)
++		var p := xf.origin + side * e.x + Vector3.UP * e.y + back * e.z
+ 		if cam.is_position_behind(p):
+ 			return Rect2()
+ 		var s := cam.unproject_position(p)
+diff --git a/tools/bake_clip_speeds.py b/tools/bake_clip_speeds.py
+index b28400fd..48286c63 100755
+--- a/tools/bake_clip_speeds.py
++++ b/tools/bake_clip_speeds.py
+@@ -31,7 +31,7 @@ FEET_DISAGREE = 1.6
+ 
+ # Classes are loaded at runtime: `--script` compiles before the Data autoload exists.
+ GD = r'''extends SceneTree
+-const FEET := ["BackFoot", "Toe", "Metatarsal"]  # + ".L" / ".R": first bone the rig has
++const FEET := ["BackFoot.", "Toe.", "Metatarsal.", "hind_toe_"]  # + "L" / "R": first bone the rig has (hind_toe_: stegosaurus v2)
+ const N := 240
+ var _started := false
+ 
+@@ -55,7 +55,7 @@ func _run() -> void:
+ 		view.setup(def)
+ 		if view.using_glb and view.rig and view.rig.skeleton:
+ 			var skel: Skeleton3D = view.rig.skeleton
+-			var feet := {"l": _foot(skel, ".L"), "r": _foot(skel, ".R")}
++			var feet := {"l": _foot(skel, "L"), "r": _foot(skel, "R")}
+ 			var ap: AnimationPlayer = view.animation_player()
+ 			var row := {"id": str(id), "height_m": def.height_meters}
+ 			for gait in ["walk", "run"]:

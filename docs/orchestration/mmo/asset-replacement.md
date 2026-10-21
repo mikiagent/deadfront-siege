@@ -17,7 +17,7 @@ reviewer), `DONE` (shipped and pixel-checked). Evidence comes from the 2026-10-1
 | allosaurus, tarbosaurus, dilophosaurus | Procedural box-on-two-sticks placeholder | Tripo + dsc | W1-ARTA | REPLACE (concept sheets need a side-view-first redo; owner batch approval pending) |
 | triceratops, styracosaurus, ankylosaurus, smilodon | Box placeholder | Tripo + dsc | W1-ARTB | REPLACE (same) |
 | brachiosaurus | Box placeholder (does not spawn yet) | Tripo + dsc | W2-ARTC | REPLACE |
-| stegosaurus | Real GLB exists but a stale override forces the box (`creature_view.gd:65-66`); v2 merged with survivor branch | One-line fix + review v2 | W2-CVIEW | REPLACE |
+| stegosaurus | v2 (Tripo mesh, Opus rig) now loads in game; override and box fallback deleted, stride-baked, slope conform (claude-mmo-stego.md). Hide reads grey-blue, not the PRD's green-brown | One-line fix + review v2 | STEGO | REVIEW |
 | gallimimus, compsognathus, coelophysis | Pure-white untextured patches, washed albedo, plastic look; donor clips | Clips re-animated by dsc (bite attacks, side-lying knockdown, sleep, feed); textures still need retexture/regen | W2-RERIG/ARTC | REVIEW (clips) / REPLACE (textures) |
 | velociraptor, utahraptor | Donor rig (no jaw, 5 tail bones); attack whips tail vertical; belly-up knockdown | Clips re-animated by dsc (d649aea: bite attacks, side-lying knockdown, sleep, feed); bespoke rig with jaw still to do | W2-RERIG | REVIEW (clips in game; owner to judge; rig still REPLACE) |
 | protoceratops, megaloceros | Procedural quadruped clips: attack = idle, legs-up knockdown | Combat/ground/rest clips re-animated by dsc; walk/run still procedural | W2-RERIG | REVIEW (clips in game; walk/run still REPLACE) |
