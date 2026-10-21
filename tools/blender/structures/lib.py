@@ -34,6 +34,8 @@ TILES = [
     "stone", "stone_dark", "cobble", "clay", "clay_dark", "iron", "ash", "ember",
     "meat_raw", "meat_drying", "meat_dried", "water", "soot", "sign_board", "dirt", "bone",
     "meat_fat", "canvas_slope", "deck", "deck_old", "deck_dark", "fish",
+    # farm set (dsc farmkit): dark tilled soil, grass, crop leaves, straw, compost
+    "soil", "soil_dark", "grass", "crop_leaf", "crop_leaf_dark", "straw", "compost",
 ]
 TILE_INDEX = {n: i for i, n in enumerate(TILES)}
 
@@ -262,6 +264,61 @@ def _sign_board():
     return img
 
 
+def _furrows(seed, base, dark, freq=5):
+    """Tilled soil: soft furrow ridges with clods, so it reads as earth and not as planking."""
+    n = TILE_PX
+    yy, xx = np.mgrid[0:n, 0:n] / n
+    wob = _fbm(_rng(seed), n, 3, 3) * 0.1
+    p = yy + wob
+    ridge = 0.5 + 0.5 * np.sin(p * freq * 2 * math.pi)
+    t = np.clip(ridge ** 2.4, 0, 1)
+    img = _mix(_rgb(dark), _rgb(base), t * 0.8)
+    clod = _fbm(_rng(seed + 3), n, 14, 3)
+    img = img * (0.82 + 0.36 * clod)[..., None]
+    grit = _fbm(_rng(seed + 11), n, 40, 2)
+    return img * (0.9 + 0.2 * grit)[..., None]
+
+
+def _grass(seed, base, dark):
+    n = TILE_PX
+    yy, xx = np.mgrid[0:n, 0:n] / n
+    blades = _fbm(_rng(seed), n, 30, 3)
+    patch = _fbm(_rng(seed + 5), n, 5, 3)
+    t = np.clip(0.5 * blades + 0.6 * patch, 0, 1)
+    return _mix(_rgb(dark), _rgb(base), t)
+
+
+def _leaf(seed, base, dark, veins=True):
+    """Crop leaf: a flat blade with a pale midrib and a few side veins."""
+    n = TILE_PX
+    img = _speckle(seed, base, dark, scale=14)
+    yy, xx = np.mgrid[0:n, 0:n]
+    mid = np.clip(1 - np.abs(xx - n / 2) / 4.0, 0, 1)
+    img = _mix(img, _rgb(tuple(min(1.0, c * 1.25) for c in base)), mid * 0.5)
+    if veins:
+        side = np.clip(1 - np.abs(((yy + xx) % 26) - 13) / 2.0, 0, 1)
+        img = _mix(img, _rgb(tuple(min(1.0, c * 1.15) for c in base)), side * 0.18 * (1 - mid))
+    return img
+
+
+def _straw(seed, base, dark):
+    n = TILE_PX
+    yy, xx = np.mgrid[0:n, 0:n] / n
+    ang = 0.25
+    p = xx * math.sin(ang) + yy * math.cos(ang)
+    s = 0.5 + 0.5 * np.sin(p * 26 * 2 * math.pi)
+    t = np.clip(s ** 2.2 + 0.25 * _fbm(_rng(seed), n, 10, 2), 0, 1)
+    return _mix(_rgb(dark), _rgb(base), t)
+
+
+def _compost(seed):
+    n = TILE_PX
+    t = _fbm(_rng(seed), n, 7, 4)
+    img = _mix(_rgb((0.16, 0.12, 0.07)), _rgb((0.34, 0.26, 0.14)), t)
+    bits = np.clip((_fbm(_rng(seed + 9), n, 26, 2) - 0.66) * 6, 0, 1)
+    return _mix(img, _rgb((0.42, 0.36, 0.18)), bits)
+
+
 def _ember():
     img = _speckle(91, (0.12, 0.1, 0.09), (0.05, 0.04, 0.04), scale=8)
     n = TILE_PX
@@ -332,6 +389,15 @@ def paint_atlas():
         "deck_dark": _deck(38, (0.4, 0.27, 0.16), (0.24, 0.15, 0.08)),
         "fish": _fish(),
         "bone": _speckle(32, (0.88, 0.84, 0.74), (0.7, 0.65, 0.55), scale=6),
+        # farm set: dark tilled soil for the field beds and paths, grass for the path fringe,
+        # crop leaves for the four growth stages, straw and compost for the farm props
+        "soil": _furrows(41, (0.34, 0.25, 0.16), (0.15, 0.1, 0.06)),
+        "soil_dark": _furrows(42, (0.24, 0.17, 0.11), (0.1, 0.07, 0.04)),
+        "grass": _grass(43, (0.28, 0.36, 0.16), (0.13, 0.19, 0.08)),
+        "crop_leaf": _leaf(44, (0.42, 0.55, 0.2), (0.2, 0.32, 0.09)),
+        "crop_leaf_dark": _leaf(45, (0.3, 0.42, 0.15), (0.13, 0.22, 0.06)),
+        "straw": _straw(46, (0.68, 0.56, 0.3), (0.42, 0.32, 0.15)),
+        "compost": _compost(47),
     }
     img = np.zeros((ATLAS, ATLAS, 4))
     img[..., 3] = 1.0
