@@ -450,6 +450,9 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   - "That white triceratops is not acceptable, neither is the blocky stegosaurus." The Triceratops bake-off build is rejected:
     CREATURE-ART makes a concept sheet first, and the owner approves it before any Tripo spend. The blocky Stegosaurus is the
     placeholder that STEGO removes, so the shipped Tripo v2 shows.
+- 2026-10-21 (orchestrator) NET (network core) passed review r1 and is queued for the side integrator with four NET-side pre-merge fixes (auth.hello strike, rate-limited chat no longer a flood strike, MAX_PER_IP >= max_players_area, no journal writes on char.get). Merging into claude/mmo-overhaul only; the server stays local and nothing is deployed. Open prerequisite for W3-SRVWORLD/W3-SRVACT: the first presence.update on an unvisited island is accepted at any position (one free teleport per island).
+- 2026-10-21 (orchestrator) real_length_m drives collision radius, reach, kick mass and plate boxes, not the drawn size. Triceratops 18 -> 9 m (PRD) is on claude/mmo-trike only: it halves the body radius and makes it kickable (t_combat _test_kick_mass fails), so it needs a balance pass with the Tripo mesh before merging. Stegosaurus is 18 m in data vs an 11.9 m model; DEINO sets 8.1 m to match its mesh.
+- 2026-10-21 (orchestrator) The Triceratops concept sheet is generated in ChatGPT web on the owner's Plus plan (text-only prompts, driven in a debug Chrome); told the owner, awaiting any objection.
 
 ## Owner questions (open)
 
