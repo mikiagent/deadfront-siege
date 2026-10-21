@@ -200,7 +200,7 @@ trade. Try again shortly." · unauthorized / bad_request "Something went wrong" 
 | Id | File (owner) | Change | Step |
 |---|---|---|---|
 | H0 | `game/scripts/ui/hunt_hud.gd` (W1-UI / integrator) | menu row + `_open_market()` + `open_market()` (§3.6) | B1 |
-| H1 | `game/scripts/economy/market_query.gd` (ECON) | SORTS += `level_asc`, `durability_asc`, `durability_desc` (key = level / durability, no-durability last) | B1 |
+| ~~H1~~ | `game/scripts/economy/market_query.gd` (ECON) | SORTS += `level_asc`, `durability_asc`, `durability_desc`. **Landed in ECON** (465feb09, ECON review r3; no durability sorts as 0, pinned by ECON's tests), so it left the patch in fix r1 | B1 |
 | H2 | same | `market_category` arg (items by market category; `animal` includes pets and cages); `species` also matches `captured_animal` cages by `attributes.species` | B1 |
 | ~~H3~~ | `game/scripts/economy/market_book.gd` (ECON) | **Dropped in B2** (§12): refusing listings outside the band broke ECON's reference-poisoning tests (`[tests] FAIL count=26`, "price must be between 25 and 400") and contract 6.5's band filters the reference price, it is not a listing limit | — |
 | H4 | report note for W1-INT | the server relay (§2) and the 64 KiB frame: `market.mine` can exceed it; ECON should page `trades` | — |
@@ -443,7 +443,12 @@ Look (judge vs the two references):
 - Chip: the player's words without quotes, even padding.
 - Price: the coin sits at one x down the column and on the digits' midline.
 - Type: drawn text is condensed to 85 % by `draw_set_transform` (a FontVariation transform narrowed the outlines but not the
-  advances, so wide letters left gaps); title 5.2 %, names 3.1 %, headers 2.9 %, type lines 2.4 % of the height.
+  advances, so wide letters left gaps); title 5.2 %, names 3.1 %, headers 2.9 %, type lines 2.4 % of the height. The market
+  font is the project's base font without Game's Noto Sans Symbols / Symbols 2 / Emoji fallbacks: a shaped line takes the
+  tallest fallback's metrics, so every one-line label stood ~2.1x its size (38 px at 18 against 26) and, with the larger
+  type, Sell's fee preview went under List (lab: `hidden_under_list=2` at 1600x900, 8 at 844x390 with a notch). Market text
+  needs no fallback (account names are letters, digits, space, _ and -; item names are ASCII); the chip's "✕" became "×"
+  and the "→" in messages became words.
 - Picker: "Stored" / "Equipped" is a ribbon along the cell's bottom (a top-left tag ran into "Lv. n").
 - Kept, with evidence: durability "—" where the item has none (72 of 223 item defs carry `max_durability`; branch,
   `captured_animal` and `tamed_animal` do not, and `AssetValidator` refuses any durability on them: "<id> has no durability"), dimmed; 44 px targets at 844x390
