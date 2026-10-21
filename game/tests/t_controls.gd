@@ -10,7 +10,10 @@ const MAX_STEP := 2.0  ## px a hex, the title or a label may move against the no
 const SWAP_DEG := 45.0  ## a hex whose bearing from the anchor turns more than this in a frame swapped sides
 const WALK_MPS := 5.5
 const REACH_M := 1.6
-const CAM_SIZE := 22.0  ## zoomed out as a player does to tap a node 15 m off (gather_jitter_lab does the same)
+## Zoomed out as a player does to tap a node 15 m off (gather_jitter_lab does the same): 22 m on the old
+## 35.264 deg camera, scaled with the pitch so a node 15 m down the screen sits where it did (CAMERA
+## package: at 38.7 deg the same 22 m put it 23 px lower, against the HUD band the hold steers around).
+var CAM_SIZE := 22.0 * sin(deg_to_rad(absf(IsoCamera.pitch_deg()))) / sin(deg_to_rad(35.264))
 
 var failures: Array[String] = []
 var _started := false

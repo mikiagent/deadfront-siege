@@ -1,6 +1,8 @@
 class_name TouchGestures
 extends Node
-## Pinch (two fingers) or trackpad magnify to zoom the orthographic camera.
+## Pinch (two fingers) or trackpad magnify to zoom the follow camera. IsoCamera's size is its zoom
+## in both projections (metres of view height at the focus) and it owns the range; a plain
+## orthographic camera uses the range below.
 
 @export var min_size: float = 10.0
 @export var max_size: float = 28.0
@@ -31,5 +33,8 @@ func _input(event: InputEvent) -> void:
 
 func _zoom(factor: float) -> void:
 	var cam := get_viewport().get_camera_3d()
-	if cam and cam.projection == Camera3D.PROJECTION_ORTHOGONAL:
+	if cam is IsoCamera:
+		var iso := cam as IsoCamera
+		iso.size = clampf(iso.size * factor, iso.min_size, iso.max_size)
+	elif cam and cam.projection == Camera3D.PROJECTION_ORTHOGONAL:
 		cam.size = clampf(cam.size * factor, min_size, max_size)

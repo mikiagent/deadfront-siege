@@ -9,6 +9,8 @@ extends Node3D
 ##   --cam-shots=<dir>      windowed: saves <dir>/<spot>.png, and for the forest a parallax series
 ##                          <dir>/<spot>_pan_<-6|0|6>.png (the survivor and camera 6 m left/right along
 ##                          the screen), then quits. Prints each tall tree's on-screen lean.
+##   --cam-clip             with --cam-shots: 120 frames (half size) of the camera gliding 12 m to the
+##                          right past the forest, <dir>/clip_###.png, for a GIF of the parallax
 ##   --cam-perf             windowed, with --disable-vsync: 300 frames standing, 300 walking; prints
 ##                          "[cam] perf stand|walk mean median p95 ms, draw calls"
 ##   --cam-motion           walks right then up for 3 s each with the move actions at 60 fps and logs
@@ -58,6 +60,8 @@ func _ready() -> void:
 		_perf.call_deferred()
 	elif "--cam-motion" in args:
 		_motion.call_deferred()
+	elif _shots != "" and "--cam-clip" in args:
+		_clip.call_deferred()
 	elif _shots != "":
 		_take_shots.call_deferred()
 
@@ -122,6 +126,18 @@ func _settle(frames: int) -> void:
 func _take_shots() -> void:
 	DirAccess.make_dir_recursive_absolute(_shots)
 	await get_tree().create_timer(2.6).timeout
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--cam-exp="):  # dev probe: mode,near,max (shadow experiments)
+			var v := a.substr(10).split(",")
+			for l in get_tree().root.find_children("*", "DirectionalLight3D", true, false):
+				(l as DirectionalLight3D).directional_shadow_mode = int(v[0]) as DirectionalLight3D.ShadowMode
+				if v.size() > 2 and float(v[2]) > 0.0:
+					(l as DirectionalLight3D).directional_shadow_max_distance = float(v[2])
+			if v.size() > 1 and float(v[1]) > 0.0:
+				_cam.set_process(false)
+				_cam.near = float(v[1])
+			await _settle(5)
+	_print_view()
 	await _shot(_shots.path_join("%s.png" % _spot))
 	if _spot == "forest":
 		var right := _cam.global_basis.x
@@ -136,6 +152,17 @@ func _take_shots() -> void:
 			_report_lean(off)
 			await _shot(_shots.path_join("%s_pan_%d.png" % [_spot, off]))
 	get_tree().quit(0)
+
+## The camera and the lit sun's shadow fit, for the report.
+func _print_view() -> void:
+	print("[cam] view %s: near %.1f far %.1f distance %.1f size %.1f fov %.2f" % [
+		get_viewport().get_visible_rect().size, _cam.near, _cam.far, float(_cam.get("distance")), _cam.size, _cam.fov])
+	for l in get_tree().root.find_children("*", "DirectionalLight3D", true, false):
+		var d := l as DirectionalLight3D
+		if d.visible and d.shadow_enabled:
+			print("[cam] %s shadow max %.1f splits %.3f %.3f %.3f fade %.3f mode %d" % [d.name, d.directional_shadow_max_distance,
+				d.directional_shadow_split_1, d.directional_shadow_split_2, d.directional_shadow_split_3,
+				d.directional_shadow_fade_start, d.directional_shadow_mode])
 
 func _shot(path: String) -> void:
 	await RenderingServer.frame_post_draw
@@ -160,7 +187,14 @@ func _report_lean(off: int) -> void:
 		if sb.x < 0.0 or sb.x > view.x or sb.y < 0.0 or sb.y > view.y:
 			continue
 		var d := st - sb
-		rows.append("x=%4.0f y=%4.0f lean %+6.1f px over %5.1f px (%+.2f deg)" % [sb.x, sb.y, d.x, -d.y, rad_to_deg(atan2(d.x, -d.y))])
+		# The tall-prop shader adds a sideways lean on top of the lens (camera.gdshaderinc).
+		var k: float = RenderingServer.global_shader_parameter_get(&"parallax_strength")
+		var r := Vector3(_cam.global_basis.x.x, 0.0, _cam.global_basis.x.z).normalized()
+		var focus: Vector3 = RenderingServer.global_shader_parameter_get(&"camera_focus")
+		var lean_top := tp + r * (k * (tp.y - b.y) * (b - focus).dot(r))
+		var e := _cam.unproject_position(lean_top) - sb
+		rows.append("x=%4.0f y=%4.0f lens lean %+6.1f px over %5.1f px (%+.2f deg), with shader %+6.1f px (%+.2f deg)" % [
+			sb.x, sb.y, d.x, -d.y, rad_to_deg(atan2(d.x, -d.y)), e.x, rad_to_deg(atan2(e.x, -e.y))])
 	rows.sort()
 	print("[cam] pan %+d m: %d tall trees on screen" % [off, rows.size()])
 	for r in rows:
@@ -237,3 +271,23 @@ func _motion() -> void:
 	print("[cam] motion: %d frames, largest frame-to-frame change of the survivor's screen step %.2f px at %s" % [frames, worst, worst_at])
 	print("[cam] motion %s" % ("PASS" if worst <= MAX_JERK else "FAIL"))
 	get_tree().quit(0 if worst <= MAX_JERK else 1)
+
+func _clip() -> void:
+	DirAccess.make_dir_recursive_absolute(_shots)
+	Engine.max_fps = 60
+	await get_tree().create_timer(2.6).timeout
+	var right := _cam.global_basis.x
+	right.y = 0.0
+	right = right.normalized()
+	var home := _player.global_position - right * 6.0
+	for i in 120:
+		var p := home + right * (12.0 * float(i) / 119.0)
+		_player.global_position = Vector3(p.x, _ground(p.x, p.z) + 1.0, p.z)
+		_player.reset_physics_interpolation()
+		_cam.call("_snap")
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		img.resize(img.get_width() / 2, img.get_height() / 2, Image.INTERPOLATE_BILINEAR)
+		img.save_png(_shots.path_join("clip_%03d.png" % i))
+	print("[cam] clip 120 frames in %s" % _shots)
+	get_tree().quit(0)

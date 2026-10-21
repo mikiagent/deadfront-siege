@@ -458,9 +458,23 @@ static func _instance_hit(o: Obj, chest: Vector3, back: Vector3) -> bool:
 		return false
 	var c := wb.get_center()
 	var r := 0.5 * maxf(box.size.x * s.x, box.size.z * s.z) + BODY_R_M
-	return ray_hits_cylinder(chest, back, Vector2(c.x, c.z), r, wb.position.y - HEAD_M, wb.end.y + FEET_M)
+	var line := unlean(chest, back, xf.origin)
+	return ray_hits_cylinder(line[0], line[1], Vector2(c.x, c.z), r, wb.position.y - HEAD_M, wb.end.y + FEET_M)
+
+## The sight line in the prop's own unleaned shape: on screen a tall prop leans sideways by
+## IsoCamera.parallax per metre of height per metre it stands right of the focus
+## (shaders/camera/camera.gdshaderinc), so the line takes the opposite lean before the hit test.
+## [start, direction]; the direction is no longer unit length, which the tests below allow.
+static func unlean(chest: Vector3, back: Vector3, base: Vector3) -> Array:
+	if IsoCamera.parallax == 0.0:
+		return [chest, back]
+	var shift := IsoCamera.right * (IsoCamera.parallax * (base - IsoCamera.focus).dot(IsoCamera.right))
+	return [chest - shift * (chest.y - base.y), back - shift * back.y]
 
 static func _box_hit(box: AABB, chest: Vector3, back: Vector3, reach: float) -> bool:
+	var line := unlean(chest, back, Vector3(box.get_center().x, box.position.y, box.get_center().z))
+	chest = line[0]
+	back = line[1]
 	var b := box.grow(BODY_R_M)
 	b.position.y -= HEAD_M - BODY_R_M
 	b.size.y += HEAD_M + FEET_M - 2.0 * BODY_R_M
