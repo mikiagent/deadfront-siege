@@ -34,6 +34,7 @@ TILES = [
     "stone", "stone_dark", "cobble", "clay", "clay_dark", "iron", "ash", "ember",
     "meat_raw", "meat_drying", "meat_dried", "water", "soot", "sign_board", "dirt", "bone",
     "meat_fat", "canvas_slope", "deck", "deck_old", "deck_dark", "fish",
+    "shingle", "slate",
 ]
 TILE_INDEX = {n: i for i, n in enumerate(TILES)}
 
@@ -248,6 +249,44 @@ def _log_end():
     return _mix(img, _rgb((0.3, 0.2, 0.12)), (d > 0.88).astype(float))
 
 
+def _tabbed_tile(seed, base, rows, tabs, tone_lo, tone_hi, seam=0.5):
+    """Rows of overlapping tabs (shingles or slates): each tab gets its own tone and grain, a
+    dark shadow under the course above and a lit lip on the tab's lower edge."""
+    n = TILE_PX
+    r = _rng(seed)
+    img = np.zeros((n, n, 3))
+    rh = n // rows
+    tw = n // tabs
+    for i in range(rows):
+        y0 = i * rh
+        off = (i % 2) * (tw // 2)
+        for j in range(-1, tabs + 1):
+            x0 = j * tw + off
+            x1, x2 = max(0, x0), min(n, x0 + tw)
+            if x2 <= x1:
+                continue
+            tone = tone_lo + (tone_hi - tone_lo) * r.random()
+            g = _fbm(_rng(int(r.integers(0, 99999))), rh, 6, 3)
+            shade = 0.82 + 0.36 * np.clip(g, 0, 1).mean(axis=1)
+            col = (np.array(base)[None, :] * tone * shade[:, None])[:, None, :]
+            col[:2, :] *= 0.6
+            col[-2:, :] *= 1.15
+            img[y0:y0 + rh, x1:x2] = col
+            if 0 <= x0 < n:  # the vertical seam between tabs
+                img[y0:y0 + rh, x0:x0 + 2] *= seam
+    return img
+
+
+def _shingle():
+    """Cedar shingles: five courses of overlapping dark tabs, staggered, each with its own tone."""
+    return _tabbed_tile(121, (0.30, 0.21, 0.15), rows=5, tabs=4, tone_lo=0.72, tone_hi=1.25)
+
+
+def _slate():
+    """Slate: four courses of flat, slightly blue-grey tiles with worn edges."""
+    return _tabbed_tile(131, (0.30, 0.32, 0.36), rows=4, tabs=3, tone_lo=0.8, tone_hi=1.18, seam=0.55)
+
+
 def _sign_board():
     img = _planks(81, (0.56, 0.4, 0.24), (0.36, 0.24, 0.13), count=2)
     n = TILE_PX
@@ -332,6 +371,9 @@ def paint_atlas():
         "deck_dark": _deck(38, (0.4, 0.27, 0.16), (0.24, 0.15, 0.08)),
         "fish": _fish(),
         "bone": _speckle(32, (0.88, 0.84, 0.74), (0.7, 0.65, 0.55), scale=6),
+        # house kit: dark cedar shingles and cool slate for the higher material tiers
+        "shingle": _shingle(),
+        "slate": _slate(),
     }
     img = np.zeros((ATLAS, ATLAS, 4))
     img[..., 3] = 1.0
