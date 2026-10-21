@@ -6,8 +6,10 @@ extends SceneTree
 ## cuts heat fatigue and gives no Energy; Wash clears Dirty and Very dirty and grants Clean, with no
 ## direct fatigue rest; Fill turns an empty bucket into a water bucket at its level; the verbs go
 ## through PlayerActions (online they become intents). Gathering, butchering and hits make the
-## survivor Dirty, then Very dirty; standing in the sea makes them Thirsty. The statuses scale
-## fatigue as statuses.json says, no thirst/hunger/hygiene meter exists, and the check is cheap.
+## survivor Dirty, then Very dirty; standing in the sea makes them Wet, not Thirsty (PRD :284).
+## A harvested (BARE) tile in the river stays fresh. Statuses reach fatigue on every PlayerSim
+## branch, not only walking. The statuses scale fatigue as statuses.json says, no
+## thirst/hunger/hygiene meter exists, and the check is cheap.
 ## Usage: godot --headless --path game --script res://tests/t_water.gd
 
 const WATER_Y := -0.05 ## HarbourSite.WATER_Y
@@ -68,7 +70,9 @@ func _run() -> void:
 	print("[t_water] spots river=%s bank=%s (water %.1f m away) sea=%s" % [river, bank, _water_dist(bank), sea])
 	_expect(river != Vector3.ZERO and sea != Vector3.ZERO, "the home island has wadeable river and sea water")
 	_test_hexes(river, bank, sea)
+	_test_bare_river_tile(river)
 	await _test_in_water_and_thirst(river, sea)
+	await _test_staggered(river)
 	_test_drink(bank)
 	_test_wash(bank)
 	_test_fill(bank)
@@ -217,7 +221,33 @@ func _test_in_water_and_thirst(river: Vector3, sea: Vector3) -> void:
 	player.statuses.from_array([])
 	player.sim._wet_acc = 4.95
 	await _frames(10)
-	_expect(player.statuses.has(&"wet") and player.statuses.has(&"thirsty"), "5 s in the sea: Wet and Thirsty (seawater) %s" % [_status_ids()])
+	_expect(player.statuses.has(&"wet") and not player.statuses.has(&"thirsty"), "5 s in the sea: Wet, not Thirsty (PRD :284; seawater thirst is for drinking it) %s" % [_status_ids()])
+	player.statuses.from_array([])
+
+## Harvesting a node turns its tile BARE until it regrows; a river tile must stay fresh water.
+func _test_bare_river_tile(river: Vector3) -> void:
+	if WA == null:
+		return
+	var tile := Vector2i(floori(river.x), floori(river.z))
+	var base := int(IT.tile_type_at_world(rt, river.x, river.z))
+	IT.set_tile_type(rt, tile, 7)  # IslandTerrain.TileType.BARE, as IslandRuntime._on_tile_bare does
+	var bare := int(IT.tile_type_at_world(rt, river.x, river.z)) == 7
+	_expect(bare and WA.is_fresh(river), "a harvested (BARE) river tile is still fresh water (bare=%s)" % bare)
+	IT.set_tile_type(rt, tile, base)
+
+## Statuses and in_water refresh on every PlayerSim branch, not only while walking.
+func _test_staggered(river: Vector3) -> void:
+	player.statuses.from_array([])
+	player.statuses.apply(&"dirty")
+	player.vitals.fatigue_gain_mult = 1.0
+	player.in_water = false
+	player.sim._stagger_left = 10.0
+	player.velocity = Vector3.ZERO
+	player.global_position = Vector3(river.x, rt.surface_y(river.x, river.z) + 0.1, river.z)
+	await _frames(3)
+	_expect(player.sim._stagger_left > 0.0 and is_equal_approx(player.vitals.fatigue_gain_mult, 1.2) and player.in_water,
+		"staggered in the river: Dirty's x1.2 and in_water still apply (mult %.2f, in_water %s)" % [player.vitals.fatigue_gain_mult, player.in_water])
+	player.sim._stagger_left = 0.0
 	player.statuses.from_array([])
 
 func _status_ids() -> Array:

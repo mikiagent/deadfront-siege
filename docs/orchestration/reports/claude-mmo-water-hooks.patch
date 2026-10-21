@@ -23,7 +23,7 @@ index 8f8bc0e3..016131cd 100644
  NOTE_LINE = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->\n'
  NOTE_SOLID = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, solid shapes, white only. -->\n'
 diff --git a/game/data/statuses.json b/game/data/statuses.json
-index ffe5c7ce..50e0a84b 100644
+index ffe5c7ce..065a56df 100644
 --- a/game/data/statuses.json
 +++ b/game/data/statuses.json
 @@ -295,6 +295,92 @@
@@ -83,7 +83,7 @@ index ffe5c7ce..50e0a84b 100644
 +        "drink"
 +      ],
 +      "fx": "none",
-+      "_note": "PRD 6.3; research bestiary 4.2: until fresh water, fatigue gain +20%; world-environment: from seawater (ASSUMPTION: after 5 s in the sea, the Wet clock)."
++      "_note": "PRD 6.3; research bestiary 4.2: until fresh water, fatigue gain +20%. Nothing applies it yet: wading in the sea gives Wet (PRD :284), and the research ties seawater thirst to drinking it, which the game has no verb for. Drink clears it."
 +    },
 +    {
 +      "id": "quenched",
@@ -286,26 +286,28 @@ index 53380b23..e550c697 100644
  			var fire := p._nearest_group("bonfire")
  			if fire:
 diff --git a/game/scripts/player/player_sim.gd b/game/scripts/player/player_sim.gd
-index 1595640d..439866ef 100644
+index 1595640d..cc94d94e 100644
 --- a/game/scripts/player/player_sim.gd
 +++ b/game/scripts/player/player_sim.gd
-@@ -142,12 +142,15 @@ func _walk(delta: float) -> void:
+@@ -55,6 +55,10 @@ func tick_survival_xp(delta: float) -> void:
+ 
+ func tick(delta: float) -> void:
+ 	var anim := p.anim
++	if p.statuses != null and p.vitals != null:
++		# Before any branch returns, so mounted, rolling and staggered survivors see current statuses.
++		p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult()
++	p.in_water = WaterAccess.in_water(p.global_position)
+ 	if p._sleep_left > 0.0 and p.statuses != null and p.vitals != null:
+ 		_tick_sleep(delta)
+ 		return
+@@ -142,7 +146,6 @@ func _walk(delta: float) -> void:
  		# ASSUMPTION: walking 0.05/s, tap-running 0.09/s, sprint 0.2/s (was 0.25-0.8/s, which
  		# filled the bar in a few minutes and then blocked gathering).
  		p.vitals.add_fatigue(delta * (0.2 if can_sprint else (0.09 if running else 0.05)), &"walk")
 -	p.vitals.fatigue_gain_mult = 0.5 if _in_coziness() else 1.0
-+	p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult()
-+	p.in_water = WaterAccess.in_water(p.global_position)
  	if p.in_water:
  		_wet_acc += delta
  		var need := float(Data.world_rules.get("wet_after_seconds_in_water", 5))
- 		if _wet_acc >= need:
- 			p.statuses.apply(&"wet", null)
-+			if not WaterAccess.is_fresh(p.global_position):
-+				p.statuses.apply(&"thirsty", null)  # seawater (research: "Thirst +20% from seawater")
- 			_wet_acc = need - 1.0  # keep refreshing while in water, once a second rather than every frame
- 	else:
- 		_wet_acc = 0.0
 diff --git a/game/scripts/status/status_def.gd b/game/scripts/status/status_def.gd
 index c22123f8..b6ca1cb2 100644
 --- a/game/scripts/status/status_def.gd
@@ -344,7 +346,7 @@ index 80b01e5b..1748db87 100644
  		if sx > sx0:
  			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
 diff --git a/game/scripts/world/island_runtime.gd b/game/scripts/world/island_runtime.gd
-index 55ec6a4c..3fa10fd2 100644
+index 55ec6a4c..8d7d3c21 100644
 --- a/game/scripts/world/island_runtime.gd
 +++ b/game/scripts/world/island_runtime.gd
 @@ -20,7 +20,6 @@ var raining: bool:
@@ -355,7 +357,16 @@ index 55ec6a4c..3fa10fd2 100644
  var _climate: String = "temperate"
  var _tier: int = 25
  var _level_override: int = 0
-@@ -100,7 +99,6 @@ func build(def: Dictionary, terrain: StringName) -> void:
+@@ -32,6 +31,8 @@ var _crater_hint: Vector3 = Vector3.ZERO
+ var _ridge_dir: Vector2 = Vector2.RIGHT
+ var _tile_span: int = 0
+ var tile_types: PackedByteArray = PackedByteArray()
++## 1 on the river's MUD tiles as built; IslandTerrain.fresh_water_at_world reads it, harvesting never changes it.
++var fresh_water: PackedByteArray = PackedByteArray()
+ var _tile_map_image: Image
+ var _tile_map_tex: ImageTexture
+ var _terrain_mat: ShaderMaterial
+@@ -100,7 +101,6 @@ func build(def: Dictionary, terrain: StringName) -> void:
  	sun = lighting.sun
  	world_env = lighting.world_env
  	IslandTerrain.build(self, size, _climate)
@@ -363,7 +374,7 @@ index 55ec6a4c..3fa10fd2 100644
  	IslandTerrain.bake_nav(self)
  	build_grid = BuildGrid.new()
  	build_grid.name = "BuildGrid"
-@@ -190,26 +188,6 @@ func material_level(pos: Vector3, tier: int) -> int:
+@@ -190,26 +190,6 @@ func material_level(pos: Vector3, tier: int) -> int:
  	var off := int(row.get("level_offset", 0))
  	return clampi(tier + off, 1, int(Data.world_rules.get("level_cap", 60)))
  
@@ -390,3 +401,42 @@ index 55ec6a4c..3fa10fd2 100644
  func _setup_pathing() -> void:
  	if pathing and is_instance_valid(pathing):
  		pathing.queue_free()
+diff --git a/game/scripts/world/island_terrain.gd b/game/scripts/world/island_terrain.gd
+index 3ad34103..4bb1e09d 100644
+--- a/game/scripts/world/island_terrain.gd
++++ b/game/scripts/world/island_terrain.gd
+@@ -313,6 +313,8 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
+ 	rt._tile_span = maxi(1, int(round(rt._size)))
+ 	var types := PackedByteArray()
+ 	types.resize(rt._tile_span * rt._tile_span)
++	var fresh := PackedByteArray()
++	fresh.resize(types.size())
+ 	rt._tile_map_image = Image.create(rt._tile_span, rt._tile_span, false, Image.FORMAT_R8)
+ 	rt._tile_map_image.fill(Color.BLACK)
+ 	var has_ash := _climate_has_material(climate, "ash")
+@@ -347,8 +349,10 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
+ 				t = TileType.DIRT
+ 			var idx := x + z * rt._tile_span
+ 			types[idx] = t
++			fresh[idx] = 1 if t == TileType.MUD else 0
+ 			rt._tile_map_image.set_pixel(x, z, Color(float(t) / 255.0, 0.0, 0.0))
+ 	rt.tile_types = types
++	rt.fresh_water = fresh
+ 	rt._tile_map_tex = ImageTexture.create_from_image(rt._tile_map_image)
+ 
+ static func _terrain_material(rt: IslandRuntime) -> ShaderMaterial:
+@@ -407,6 +411,14 @@ static func tile_type_at_world(rt: IslandRuntime, x: float, z: float) -> int:
+ 	var tz := clampi(int(floor(z + rt._size * 0.5)), 0, rt._tile_span - 1)
+ 	return int(rt.tile_types[tile_idx(rt, tx, tz)])
+ 
++## River water as built (WaterAccess): a harvested node's BARE tile in the channel stays fresh.
++static func fresh_water_at_world(rt: IslandRuntime, x: float, z: float) -> bool:
++	if rt.fresh_water.is_empty():
++		return false
++	var tx := clampi(int(floor(x + rt._size * 0.5)), 0, rt._tile_span - 1)
++	var tz := clampi(int(floor(z + rt._size * 0.5)), 0, rt._tile_span - 1)
++	return rt.fresh_water[tile_idx(rt, tx, tz)] == 1
++
+ static func set_tile_type(rt: IslandRuntime, tile: Vector2i, tile_type: int) -> void:
+ 	if rt.tile_types.is_empty():
+ 		return

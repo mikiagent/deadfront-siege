@@ -3,7 +3,7 @@ extends RefCounted
 ## Fresh water beside the survivor (spec 17; PRD :105, :314): the Drink / Wash / Fill context
 ## hexes, their effects, and the dirt that washing clears. Fresh water is the river: terrain under
 ## the water plane on the river's MUD tiles (IslandTerrain). The sea is salt (PRD :315): it shows
-## no hexes and makes a survivor who stands in it Thirsty (PlayerSim). Every effect is a status in
+## no hexes; standing in it makes the survivor Wet (PRD :284), not Thirsty. Every effect is a status in
 ## statuses.json, never a meter (PRD :72, 6.3). Tunables: data/water.json. PlayerActions calls the
 ## verbs, so the server path stays in one place.
 
@@ -27,10 +27,9 @@ static func in_water(pos: Vector3) -> bool:
 	return rt != null and rt.surface_y(pos.x, pos.z) < HarbourSite.WATER_Y
 
 ## River water. IslandTerrain marks the river channel and its banks MUD (the mouth's shallows too);
-## the open sea never is. shortcut: a harvested node's tile reads BARE until it regrows, so a
-## node in the channel would blank that 1 m tile; switch to a fresh-water mask if nodes go there.
+## the open sea never is. The fresh-water mask is kept from the build, so a harvested tile stays fresh.
 static func is_fresh(pos: Vector3) -> bool:
-	return in_water(pos) and IslandTerrain.tile_type_at_world(World.runtime as IslandRuntime, pos.x, pos.z) == IslandTerrain.TileType.MUD
+	return in_water(pos) and IslandTerrain.fresh_water_at_world(World.runtime as IslandRuntime, pos.x, pos.z)
 
 ## Fresh water underfoot or within about reach_m: 17 heightmap lookups (feet, 8 directions at half
 ## and full reach), cheap enough for the HUD's 0.3 s refresh or every frame.
