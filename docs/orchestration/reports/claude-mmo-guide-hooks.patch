@@ -137,10 +137,10 @@ index 36c2c99d..1631113b 100644
  static func _hex_sweep(c: Vector2, r: float, frac: float) -> PackedVector2Array:
  	var hex := PackedVector2Array()
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index ed0b7728..5640eb8d 100644
+index b7ac4ea6..5fce1508 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
-@@ -820,6 +820,17 @@ func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
+@@ -824,6 +824,17 @@ func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
  func sheet_open() -> bool:
  	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible)
  
