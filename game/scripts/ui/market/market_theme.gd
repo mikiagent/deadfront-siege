@@ -25,7 +25,6 @@ const ACTION := Color(1, 1, 1, 1) ## actions and icons are white (GAUNTLET:61)
 const DANGER := Color(0.88, 0.36, 0.30)
 const TEST_BADGE := Color(0.86, 0.52, 0.16) ## the local test server, never mistaken for the live market
 
-static var _fonts := {} ## size px -> FontVariation
 static var _backdrop: ShaderMaterial
 
 ## Every size the screens use, from the viewport (reference proportions, exchange-spec §1/§8).
@@ -57,28 +56,29 @@ static func metrics(view: Vector2, px_per_pt: float = 1.0, usable_w: float = -1.
 	m.icon = roundf(m.row_h * (0.78 if compact else 0.6))
 	return m
 
-## Durango's condensed sans: the project's fallback font narrowed (no new font files), one per size.
-## The transform narrows the outlines but not the advances, so each size pulls its letters back
-## together by what its glyphs lost (~7 % of an em): one variation for every size would gap the big ones.
-static func font(size_px: int = 18) -> Font:
-	var f: FontVariation = _fonts.get(size_px)
-	if f == null:
-		f = FontVariation.new()
-		f.base_font = ThemeDB.fallback_font
-		f.variation_transform = Transform2D(Vector2(0.86, 0), Vector2(0, 1), Vector2.ZERO)
-		f.spacing_glyph = -roundi(size_px * 0.07)
-		_fonts[size_px] = f
-	return f
+## Drawn text (title, rail, headers, rows, columns, tags) is Durango's condensed sans: the project's
+## font squeezed to this width by the canvas transform, so glyphs and the gaps between them narrow
+## evenly. (A FontVariation transform narrows outlines, not advances: wide letters left gaps.)
+const CONDENSE := 0.85
+
+## The project's font (no new font files). Labels and buttons use it as is.
+static func font() -> Font:
+	return ThemeDB.fallback_font
+
+## The drawn width of `s` in condensed text (text() below).
+static func width(s: String, size_px: int) -> float:
+	return font().get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x * CONDENSE
 
 ## Weathered earth behind the panels: soft blotches plus fine grain, no texture files and no
-## NoiseTexture2D (it generates asynchronously on the web).
+## NoiseTexture2D (it generates asynchronously on the web). As light as the references' green-tan
+## (~0x5a a channel between panels), so the dark-rimmed panels sit on it like on a sheet.
 static func backdrop() -> ShaderMaterial:
 	if _backdrop == null:
 		var sh := Shader.new()
 		sh.code = """shader_type canvas_item;
-uniform vec4 dark : source_color = vec4(0.21, 0.21, 0.15, 1.0);
-uniform vec4 earth : source_color = vec4(0.45, 0.40, 0.29, 1.0);
-uniform vec4 moss : source_color = vec4(0.37, 0.41, 0.27, 1.0);
+uniform vec4 dark : source_color = vec4(0.26, 0.27, 0.19, 1.0);
+uniform vec4 earth : source_color = vec4(0.5, 0.46, 0.34, 1.0);
+uniform vec4 moss : source_color = vec4(0.4, 0.45, 0.3, 1.0);
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -132,7 +132,7 @@ static func action(b: Button, primary: bool, size_px: int) -> void:
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, ink)
 	b.add_theme_color_override("font_disabled_color", TEXT_OFF)
-	b.add_theme_font_override("font", font(size_px))
+	b.add_theme_font_override("font", font())
 	b.add_theme_font_size_override("font_size", size_px)
 
 static func label(text: String, size_px: int, color: Color = TEXT) -> Label:
@@ -147,16 +147,20 @@ static func label(text: String, size_px: int, color: Color = TEXT) -> Label:
 ## emoji fallbacks report a line height of ~2.1x (38 px at 18), which double-spaced every wrapped line.
 static func size_label(l: Label, size_px: int) -> void:
 	var px := maxi(UiTokens.TYPE_MIN, size_px)
-	l.add_theme_font_override("font", font(px))
+	l.add_theme_font_override("font", font())
 	l.add_theme_font_size_override("font_size", px)
-	l.add_theme_constant_override("line_spacing", mini(0, roundi(px * 1.3 - font(px).get_height(px))))
+	l.add_theme_constant_override("line_spacing", mini(0, roundi(px * 1.3 - font().get_height(px))))
 
-## Text in a box: ellipsized to the width, vertically centred on `mid_y`. True when it was cut.
-static func text(ci: CanvasItem, s: String, x: float, mid_y: float, width: float, size_px: int, color: Color, align := HORIZONTAL_ALIGNMENT_LEFT) -> bool:
-	var f := font(size_px)
-	var fit := UiTokens.ellipsis(f, s, width, size_px)
+## Condensed text in a box: ellipsized to the width, vertically centred on `mid_y`. True when it was cut.
+static func text(ci: CanvasItem, s: String, x: float, mid_y: float, w: float, size_px: int, color: Color, align := HORIZONTAL_ALIGNMENT_LEFT) -> bool:
+	var f := font()
+	var fit := UiTokens.ellipsis(f, s, w / CONDENSE, size_px)
 	var base := mid_y + (f.get_ascent(size_px) - f.get_descent(size_px)) * 0.5
-	ci.draw_string(f, Vector2(x, base), fit, align, width, size_px, color)
+	var tw := width(fit, size_px)
+	var dx := x + ((w - tw) * 0.5 if align == HORIZONTAL_ALIGNMENT_CENTER else (w - tw if align == HORIZONTAL_ALIGNMENT_RIGHT else 0.0))
+	ci.draw_set_transform(Vector2(dx, base), 0.0, Vector2(CONDENSE, 1.0))
+	ci.draw_string(f, Vector2.ZERO, fit, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, color)
+	ci.draw_set_transform(Vector2.ZERO)
 	return fit != s
 
 static func dotted(ci: CanvasItem, a: Vector2, b: Vector2, color: Color = SEPARATOR, step := 5.0) -> void:

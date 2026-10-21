@@ -73,7 +73,7 @@ func open(q: String, m: Dictionary) -> void:
 	_panel.custom_minimum_size = Vector2(w, 0)
 	_panel.size = Vector2(w, 0)
 	field.custom_minimum_size.y = m.tmin
-	field.add_theme_font_override("font", MarketTheme.font(m.name))
+	field.add_theme_font_override("font", MarketTheme.font())
 	field.add_theme_font_size_override("font_size", m.name)
 	if _grid:
 		_grid.columns = 6 if compact else 4

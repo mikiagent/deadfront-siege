@@ -371,7 +371,7 @@ func _chip(b: Button, on: bool) -> void:
 	b.add_theme_stylebox_override("focus", MarketTheme.flat(Color(0, 0, 0, 0), MarketTheme.ACTION, 2, 4))
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, MarketTheme.GOLD if on else MarketTheme.TEXT)
-	b.add_theme_font_override("font", MarketTheme.font(b.get_theme_font_size("font_size")))
+	b.add_theme_font_override("font", MarketTheme.font())
 	b.disabled = pending
 
 ## The bonded "B" disc before the name (the Bag reference's "B Zebraceratops").
@@ -427,7 +427,7 @@ func fit(m: Dictionary) -> void:
 	_count_label.custom_minimum_size = Vector2(56 if compact else 72, tgt)
 	_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	price_edit.custom_minimum_size = Vector2(80 if compact else 120, tgt)
-	price_edit.add_theme_font_override("font", MarketTheme.font(m.name))
+	price_edit.add_theme_font_override("font", MarketTheme.font())
 	price_edit.add_theme_font_size_override("font_size", m.name)
 	for b: Button in steppers.values():
 		b.custom_minimum_size = Vector2(tgt, tgt)
@@ -438,7 +438,7 @@ func fit(m: Dictionary) -> void:
 	# One-line labels stand as tall as the font's emoji fallback (~2.1x the size); the preview rows
 	# overlap that empty band so the fee / tax / proceeds show above List on a phone and beside a tall card.
 	var vpx: int = m.type + (0 if compact else 2)
-	_preview.add_theme_constant_override("v_separation", 2 - maxi(0, roundi(MarketTheme.font(vpx).get_height(vpx) - vpx * 1.4)))
+	_preview.add_theme_constant_override("v_separation", 2 - maxi(0, roundi(MarketTheme.font().get_height(vpx) - vpx * 1.4)))
 	MarketTheme.action(list_btn, true, m.name)
 	list_btn.custom_minimum_size = Vector2(0, tgt if compact else 60.0)
 	refresh()

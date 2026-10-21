@@ -74,7 +74,7 @@ func _draw() -> void:
 	var x: float = back_btn.position.x + side + _m.margin * 0.25
 	var free: float = right - x
 	var tsize: int = _m.title
-	var tw := minf(MarketTheme.font(tsize).get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, tsize).x, free * (0.62 if badge != "" else 1.0))
+	var tw := minf(MarketTheme.width(title, tsize), free * (0.62 if badge != "" else 1.0))
 	MarketTheme.text(self, title, x, h * 0.5, tw, tsize, MarketTheme.ACTION)
 	if badge != "":
 		# Honest but quiet (spec 06: never a falsely represented live market): grey words after the
@@ -88,7 +88,7 @@ func _pill(right: float, bound: bool, value: String, h: float, wide: bool) -> fl
 	var fs: int = _m.name
 	var ph := maxf(28.0, h * 0.66)
 	var isz := ph * 0.66
-	var tw := MarketTheme.font(fs).get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var tw := MarketTheme.width(value, fs)
 	var w := maxf(tw + isz + 34.0, size.x * (0.12 if wide else 0.07))
 	var r := Rect2(right - w, (h - ph) * 0.5, w, ph)
 	draw_style_box(MarketTheme.flat(Color(0.1, 0.1, 0.09, 0.95), Color(0.2, 0.2, 0.18, 1), 1, int(ph * 0.3)), r)

@@ -68,7 +68,7 @@ static func badge_b(ci: CanvasItem, c: Vector2, radius: float) -> void:
 	ci.draw_circle(c, radius, Color(0.05, 0.05, 0.05, 0.9))
 	ci.draw_arc(c, radius, 0, TAU, 24, Color(0.85, 0.84, 0.78, 0.7), 1.5, true)
 	var size_px := maxi(UiTokens.TYPE_MIN, roundi(radius * 1.3))
-	var f := MarketTheme.font(size_px)
+	var f := MarketTheme.font()
 	var tw := f.get_string_size("B", HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
 	ci.draw_string(f, c + Vector2(-tw * 0.5, (f.get_ascent(size_px) - f.get_descent(size_px)) * 0.5), "B", HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, MarketTheme.ACTION)
 

@@ -148,19 +148,19 @@ func _draw_cell(b: Button, e: Dictionary) -> void:
 		b.draw_texture_rect_region(tex, Rect2(art.get_center() - d * 0.5, d), src, tint)
 	var inset := 8.0 # tags and labels sit inside the bracket corners
 	MarketTheme.text(b, LevelDisplay.label(e.level), 4, inset + fs * 0.5, r.size.x - inset - 6, fs, MarketTheme.TEXT_2, HORIZONTAL_ALIGNMENT_RIGHT)
-	if int(e.count) > 1:
-		MarketTheme.text(b, "×%d" % int(e.count), 4, r.size.y - inset - fs * 0.5, r.size.x - inset - 6, fs, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
 	if e.badge:
 		MarketGlyphs.badge_b(b, Vector2(inset + fs * 0.7, inset + fs * 0.6), fs * 0.7)
-	elif e.src == "vault" or e.get("equipped", false):
-		var tag := "Equipped" if e.get("equipped", false) else "Stored"
-		var tw := MarketTheme.font(fs).get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		b.draw_rect(Rect2(inset, inset - 2, tw + 8, fs * 1.35), Color(0.3, 0.25, 0.1, 0.9))
-		MarketTheme.text(b, tag, inset + 4, inset - 2 + fs * 0.68, tw + 2, fs, MarketTheme.GOLD)
-	if refused:
+	var foot := 0.0 ## a "Stored" / "Equipped" ribbon along the bottom (a top-left tag ran into "Lv. n"); count and mark sit above it
+	if e.src == "vault" or e.get("equipped", false):
+		foot = roundf(fs * 1.45)
+		b.draw_rect(Rect2(3, r.size.y - foot - 3, r.size.x - 6, foot), Color(0.3, 0.25, 0.1, 0.9))
+		MarketTheme.text(b, "Equipped" if e.get("equipped", false) else "Stored", 3, r.size.y - 3 - foot * 0.5, r.size.x - 6, fs, MarketTheme.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	if int(e.count) > 1:
+		MarketTheme.text(b, "×%d" % int(e.count), 4, r.size.y - inset - fs * 0.5 - foot, r.size.x - inset - 6, fs, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
+	if refused and not e.get("equipped", false): # an equipped one says so on its ribbon
 		var mark := UiIcons.icon(&"lock" if "locked" in (e.asset.get("flags", []) as Array) else &"blocked")
 		if mark:
 			var ms := maxf(16.0, fs * 1.3)
-			b.draw_texture_rect(mark, Rect2(inset, r.size.y - ms - inset, ms, ms), false)
+			b.draw_texture_rect(mark, Rect2(inset, r.size.y - ms - inset - foot, ms, ms), false)
 	if str(e.uid) == selected:
 		MarketTheme.brackets(b, r.grow(-3), r.size.x * 0.16, maxf(3.0, r.size.x * 0.03))

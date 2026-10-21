@@ -9,7 +9,7 @@ extends Node3D
 ## The market is opened the owner's way: the HUD's MENU sheet, then its "Island Market" button
 ## (hook H0). Prints "[market_lab] measure ..." for exchange-spec §8 gates 1-3.
 
-const SCREENS := ["menu", "buy", "buy_search", "buy_taming", "sell", "sell_pet", "sell_tool", "sell_none", "my_market", "my_market_sold",
+const SCREENS := ["menu", "buy", "buy_search", "buy_taming", "sell", "sell_pet", "sell_tool", "sell_equipped", "sell_none", "my_market", "my_market_sold",
 	"my_market_history", "my_market_cancel", "my_market_received", "confirm", "offline", "buy_500"]
 
 var screen := "buy"
@@ -47,6 +47,11 @@ func _ready() -> void:
 			var t0 := Time.get_ticks_msec()
 			harness.seed_bulk(490)
 			print("[market_lab] seeded 490 more listings by real ops in %d ms" % (Time.get_ticks_msec() - t0))
+		if screen == "sell_equipped": # the viewer's knife equipped on the server: Sell tags and refuses it
+			var bag: Array = harness.op(MarketHarness.VIEWER, "char.get", {}).r.bag
+			for i in bag.size():
+				if bag[i] is Dictionary and str(bag[i].id) == "stone_knife_work":
+					print("[market_lab] equip knife: %s" % harness.op(MarketHarness.VIEWER, "act.equip", {"bag_slot": i}).get("ok", false))
 		for f in harness.failures:
 			push_error("[market_lab] harness: %s" % f)
 		MarketScreen.test_client = harness.client()
@@ -81,11 +86,11 @@ func _show() -> void:
 			for r in ms.buy.table.rows:
 				if str(r.view.key) == "item:stone_knife_work":
 					r.pressed.emit()
-		"sell", "sell_pet", "sell_tool", "sell_none":
+		"sell", "sell_pet", "sell_tool", "sell_equipped", "sell_none":
 			ms.rail.select(&"sell")
 			for e: Dictionary in ms.sell.entries: # sell: the bag's bone stack; sell_pet: the bonded pet; sell_tool: the crafted knife
 				if (screen == "sell" and e.src == "bag" and str(e.asset.get("id", "")) == "bone") or (screen == "sell_pet" and e.src == "pet") \
-						or (screen == "sell_tool" and str(e.asset.get("id", "")) == "stone_knife_work"):
+						or (screen in ["sell_tool", "sell_equipped"] and str(e.asset.get("id", "")) == "stone_knife_work"):
 					ms.sell.select(str(e.uid))
 		"my_market", "my_market_sold", "my_market_history", "my_market_cancel", "my_market_received":
 			ms.rail.select(&"my_market")

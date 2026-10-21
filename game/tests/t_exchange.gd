@@ -1111,6 +1111,18 @@ func _test_safe_area(hs: GDScript, ms_script: GDScript) -> void:
 			out.append("%s %s" % [c.name, r])
 	var header: Control = ms.get("header")
 	_expect(out.is_empty() and header.size.x == view.x, "with 47/47/21 px insets every target is inside the safe area, the header band spans the screen: %s" % ", ".join(out))
+	# Review r1 (fidelity): the torn band carries on as a tan parchment sheet around the body, inside the safe width.
+	var mt := load("res://scripts/ui/market/market_theme.gd") as GDScript
+	var sheet := ms.get_node_or_null("Sheet") as Control
+	var sb := sheet.get_theme_stylebox("panel") as StyleBoxFlat if sheet else null
+	var body := (ms.get("rail") as Control).get_global_rect().merge((ms.get("buy") as Control).get_global_rect())
+	_expect(sb != null and sheet.visible and sb.border_color.is_equal_approx(mt.get_script_constant_map().PARCHMENT) and sb.border_width_left >= 6 and sb.border_width_bottom >= 6 \
+		and sheet.get_global_rect().position.x >= safe.position.x - 0.5 and sheet.get_global_rect().end.x <= safe.end.x + 0.5 and sheet.get_global_rect().encloses(body) \
+		and body.position.x - sheet.get_global_rect().position.x >= sb.border_width_left, "a parchment frame sits around the rail and the table, inside the safe width: %s around %s" % [sheet.get_global_rect() if sheet else "none", body])
+	# Drawn text is condensed (Durango's narrow sans): the same words take ~85 % of the plain font's width.
+	var plain := ThemeDB.fallback_font.get_string_size("Captured Compsognathus", HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+	var drawn: float = mt.call("width", "Captured Compsognathus", 20)
+	_expect(drawn < plain * 0.9, "drawn names are condensed (%.0f of %.0f px)" % [drawn, plain])
 	ms_script.set("test_insets", Vector4(-1, -1, -1, -1))
 	ms.queue_free()
 	print("[t_exchange] safe area: back, X, rail, table and rows inside 47/47/21 px insets")

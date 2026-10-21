@@ -28,6 +28,7 @@ var _sell_uid := "" ## the instance to preselect when Sell opens
 var keys := false ## the last input was a key or a gamepad: focus moves for it (a tap or click shows no focus ring)
 var _back_focus: Control ## where focus returns when the confirm panel closes
 var _backdrop: ColorRect
+var _sheet: Panel ## the tan parchment frame around the body (references: the torn band carries on as a sheet)
 var _m := {}
 
 ## The transport this game has: the socket when Game.net is online, else none (offline).
@@ -49,6 +50,13 @@ func _ready() -> void:
 	_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_backdrop)
+	_sheet = Panel.new()
+	_sheet.name = "Sheet"
+	_sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sheet_sb := MarketTheme.flat(Color(0, 0, 0, 0), MarketTheme.PARCHMENT, 0, 0)
+	sheet_sb.draw_center = false
+	_sheet.add_theme_stylebox_override("panel", sheet_sb)
+	add_child(_sheet)
 	header = MarketHeader.new()
 	header.name = "Header"
 	header.back_pressed.connect(close_screen)
@@ -271,7 +279,14 @@ func _layout() -> void:
 	_m.safe = Rect2(ins.w, ins.z, view.x - ins.w - ins.x, view.y - ins.z - ins.y)
 	header.layout(_m, view.x, ins.w, ins.x)
 	var top: float = _m.header_h + _m.edge_h + _m.margin * 0.5
-	var body := Rect2(left, top, view.x - left - right, view.y - top - _m.margin * 0.5 - ins.y)
+	var body := Rect2(left, top, view.x - left - right, view.y - top - _m.margin - ins.y)
+	# Parchment on the safe width's edges and under the body, up to 2 px of the panels' dark rims.
+	_sheet.position = Vector2(ins.w, _m.header_h + _m.edge_h * 0.5)
+	_sheet.size = Vector2(view.x - ins.w - ins.x, view.y - _sheet.position.y)
+	var sheet_sb := _sheet.get_theme_stylebox("panel") as StyleBoxFlat
+	sheet_sb.border_width_left = int(_m.margin) - 2
+	sheet_sb.border_width_right = int(_m.margin) - 2
+	sheet_sb.border_width_bottom = int(_m.margin + ins.y) - 2
 	rail.layout(_m, Rect2(body.position, Vector2(_m.rail_w, body.size.y)))
 	var content := Rect2(body.position.x + _m.rail_w + _m.margin, body.position.y, body.size.x - _m.rail_w - _m.margin, body.size.y)
 	buy.layout(_m, content)

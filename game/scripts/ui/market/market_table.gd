@@ -76,10 +76,9 @@ func columns() -> Dictionary:
 	var pad: float = _m.margin
 	var name_x: float = pad + _m.icon + 12.0
 	var hs: int = _m.head
-	var f := MarketTheme.font(hs)
-	var need := func (col: StringName) -> float: return f.get_string_size(HEADS[col], HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x + hs * 0.7 + 16.0
+	var need := func (col: StringName) -> float: return MarketTheme.width(HEADS[col], hs) + hs * 0.7 + 16.0
 	var ns: int = _m.name
-	var pw := maxf(w * 0.18 - pad * 0.5, maxf(need.call(&"price"), MarketTheme.font(ns).get_string_size("1,000,000", HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x + ns * 0.95 + 14.0))
+	var pw := maxf(w * 0.18 - pad * 0.5, maxf(need.call(&"price"), MarketTheme.width("1,000,000", ns) + ns * 1.25 + 14.0))
 	var dw := maxf(w * 0.18, need.call(&"durability"))
 	var lw := maxf(w * 0.14, need.call(&"level"))
 	var price_x := w - pad * 0.5 - pw
@@ -189,7 +188,7 @@ func set_chips(list: Array) -> void:
 			sb.content_margin_right = 12
 			b.add_theme_stylebox_override(st, sb)
 		var cs := maxi(14, int(_m.get("name", 16)) - 2)
-		b.add_theme_font_override("font", MarketTheme.font(cs))
+		b.add_theme_font_override("font", MarketTheme.font())
 		b.add_theme_font_size_override("font_size", cs)
 		b.add_theme_color_override("font_color", MarketTheme.TEXT)
 		var key: StringName = c.key
@@ -232,9 +231,8 @@ func _draw() -> void:
 		var active: bool = sort == s[0] or sort == s[1]
 		var col_c := MarketTheme.GOLD if active else MarketTheme.TEXT
 		var label: String = HEADS[col]
-		var f := MarketTheme.font(hs)
 		var aw := hs * 0.7 if _sortable(col) else 0.0
-		var tw := minf(f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x, w - aw - 10.0)
+		var tw := minf(MarketTheme.width(label, hs), w - aw - 10.0)
 		var tx := x + (w - tw - aw) * 0.5
 		if MarketTheme.text(self, label, tx, th * 0.5, tw, hs, col_c):
 			heads_cut.append(label)

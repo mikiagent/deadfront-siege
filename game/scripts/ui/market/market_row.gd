@@ -67,11 +67,11 @@ func _draw() -> void:
 ## Coin + grouped number in `r`. The coin sits at the same x in every row (where a 3-digit price
 ## would centre), so coins line up down the column, and on the digits' midline, not the em box's.
 static func price(ci: CanvasItem, value: int, r: Rect2, fs: int) -> void:
-	var f := MarketTheme.font(fs)
+	var f := MarketTheme.font()
 	var txt := MarketFormat.group(value)
 	var csz := fs * 0.95
 	var gap := fs * 0.3
-	var x := r.position.x + maxf(0.0, (r.size.x - csz - gap - f.get_string_size("000", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x) * 0.5)
+	var x := r.position.x + maxf(0.0, (r.size.x - csz - gap - MarketTheme.width("000", fs)) * 0.5)
 	var mid := r.get_center().y
 	var digits_mid := mid + (f.get_ascent(fs) - f.get_descent(fs)) * 0.5 - fs * 0.36 # baseline minus half the digit height
 	MarketGlyphs.coin(ci, Vector2(x + csz * 0.5, digits_mid), csz * 0.46)
