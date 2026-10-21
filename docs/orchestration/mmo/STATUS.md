@@ -417,6 +417,26 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   - Backlog, in order: GATHERUI (after W2-GATHER merges), FOREST (density scaled to area, understory under tree clumps), OCCLUDE2 (solid trunks, per-object dither), LIGHT2 (soft sun edges, ambient 0.3 -> ~0.45, Forward+/compat colour match), MAPUI, ISLANDSHAPE (after the owner's island-size answer).
 - 2026-10-20 22:45 the disk filled up: review agents made about 80 uniquely named 1.6 GB scratch trees. Cleaned to 122 GB free. mkscratch.sh now keeps at most 12 trees and refuses below 15 GB.
 
+- 2026-10-20 (owner) more references and requests, each filed as a spec with its own run:
+  - Target select and pet radial (spec 23): TARGET-PET wf_12d62955-8bb.
+    - Ruling, from the owner's newer description: tapping a wild animal selects it, the red swords hex starts combat,
+      an animal already fighting you stays engaged, and the action mode stays.
+  - Crit numbers that balloon out (spec 24): COMBATFX wf_1c0f1639-5fc.
+  - "UI glitching on resource nodes, WASD + a joystick on the left that only appears when you hold and drag, better
+    pathfinding, movement and interactions": CONTROLS wf_1178f1fd-3e0.
+  - "Stegosaurus model is wrong": the merged v2 was hidden behind a stale override. STEGO wf_56306bba-f17.
+  - "Should be a triceratops too" (from the DeepSeek bake-off) and "a newer deinonychus": CREATURE-ART wf_3a741584-856.
+    - Triceratops: the better bake-off build goes into the game.
+    - Deinonychus: a Tripo rebuild from the approved sheet v01, capped at 100 credits.
+  - "The cage icon should look like there's a dino inside": CAGEICON round 3 wf_9cde60cc-597, with an inside-the-cage judge.
+  - In-game bag panel reference (spec 13 addendum 2): fed into INVUI B4.
+  - "Resting should sit you down and heal you and lower exhaustion. It didn't work on Vercel": REST wf_3af39880-3bb.
+    It reproduces on production first; there is no standalone rest action today.
+- Side integrator (`handoff/workflows/side-int.js`): merges finished side packages one at a time with every gate, and waits while
+  finish-6's integrator runs. WATER merged (4cd47f42). Queued: HUD-DAYNIGHT, then DOMAIN, each with a pre-merge polish fix.
+- Backlog: a one-bug Codex job for the Godot exit-time SIGABRT (std::system_error from a mutex lock 0.7-10 s after launch; about 10
+  .ips reports; it shows the owner "Godot quit unexpectedly").
+
 ## Owner questions (open)
 
 - Female v2 survivor base (PRD: 8 occupations x 2 genders; the shipped v2 is a MAN, the earlier question wrongly said male): a concept sheet for approval, then a Tripo mesh plus refitting the 3 armour kits, about 250 credits? Before or after extra hairstyles (4 Tripo styles, cap 300)? (2026-10-20; unanswered)
