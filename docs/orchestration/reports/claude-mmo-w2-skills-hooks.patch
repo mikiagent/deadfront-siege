@@ -42,7 +42,7 @@ index aa02b967..547c2a10 100644
  func has_capture_technique(tier: int) -> bool:
  	for id in survival_nodes:
 diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
-index b1f73860..0af0e9e6 100644
+index b1f73860..456a21c8 100644
 --- a/game/scripts/core/save_sanitizer.gd
 +++ b/game/scripts/core/save_sanitizer.gd
 @@ -103,7 +103,7 @@ static func clean(data: Dictionary) -> Dictionary:
@@ -81,7 +81,13 @@ index b1f73860..0af0e9e6 100644
  	for id in trees.keys():
  		if not SkillState.ORDER.has(str(id)):
  			trees.erase(id)
-@@ -239,7 +244,14 @@ static func _skills(sv: Dictionary) -> void:
+@@ -235,11 +240,19 @@ static func _skills(sv: Dictionary) -> void:
+ 		var row: Dictionary = trees[id] if trees[id] is Dictionary else {}
+ 		var level := _int(row.get("level", 0), 0, MAX_LEVEL)
+ 		row["level"] = level
+-		row["xp"] = _num(row.get("xp", 0.0), 0.0, SkillState.xp_to_next(level), 0.0)
++		# A tree at the character-level cap banks its XP (SkillState._resolve): keep what it can still use.
++		row["xp"] = _num(row.get("xp", 0.0), 0.0, SkillState.xp_to_max(level), 0.0)
  		row["unlocked"] = row.get("unlocked") if row.get("unlocked") is Array else []
  		trees[id] = row
  		for l in range(1, level + 1):
@@ -97,7 +103,7 @@ index b1f73860..0af0e9e6 100644
  	var spent := 0
  	for id in SkillState.ORDER:
  		if not trees.has(id):
-@@ -258,7 +270,10 @@ static func _skills(sv: Dictionary) -> void:
+@@ -258,7 +271,10 @@ static func _skills(sv: Dictionary) -> void:
  	payout.free()
  	sv["trees"] = trees
  	sv["sp_spent"] = spent
@@ -314,10 +320,20 @@ index 80b01e5b..6f25ecbc 100644
  	var title := str(_titles.get(str(level), ""))
  	if title != "":
 diff --git a/game/scripts/ui/skills_sheet.gd b/game/scripts/ui/skills_sheet.gd
-index 3157fad0..ee9009b6 100644
+index 3157fad0..c2a20a42 100644
 --- a/game/scripts/ui/skills_sheet.gd
 +++ b/game/scripts/ui/skills_sheet.gd
-@@ -269,27 +269,67 @@ func _build_tree() -> void:
+@@ -239,7 +239,8 @@ func _build_overview() -> void:
+ 		xp_col.add_theme_constant_override("separation", 2)
+ 		xp_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ 		cols.add_child(xp_col)
+-		xp_col.add_child(_cell("%d / %d XP" % [int(xp), int(need)], 0.0, meta, UiTokens.META, HORIZONTAL_ALIGNMENT_RIGHT))
++		# XP banked at the character-level cap reads as a full bar, as on Durango's skill screen.
++		xp_col.add_child(_cell("%d / %d XP" % [int(minf(xp, need)), int(need)], 0.0, meta, UiTokens.META, HORIZONTAL_ALIGNMENT_RIGHT))
+ 		var bar := ProgressBar.new()
+ 		bar.custom_minimum_size = Vector2(0, 6)
+ 		bar.max_value = maxf(1.0, need)
+@@ -269,27 +270,67 @@ func _build_tree() -> void:
  	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
  	_box.add_child(info)
  	var first: Array[Control] = []
@@ -388,7 +404,7 @@ index 3157fad0..ee9009b6 100644
  			b.pressed.connect(func () -> void:
  				skills.refund(_tree, nid)
  				rebuild()
-@@ -306,6 +346,15 @@ func _build_tree() -> void:
+@@ -306,6 +347,15 @@ func _build_tree() -> void:
  			b.disabled = true
  		h.add_child(b)
  		_box.add_child(h)
@@ -404,7 +420,7 @@ index 3157fad0..ee9009b6 100644
  	var back := Button.new()
  	back.text = "All skills"
  	back.custom_minimum_size = Vector2(0, 56)
-@@ -315,4 +364,6 @@ func _build_tree() -> void:
+@@ -315,4 +365,6 @@ func _build_tree() -> void:
  	)
  	_box.add_child(back)
  	first.append(back)
