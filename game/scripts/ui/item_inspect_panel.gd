@@ -179,6 +179,7 @@ func _rebuild() -> void:
 		if r.get("wrap", false):
 			k.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			k.custom_minimum_size.x = 40.0 # wraps to the row's width instead of widening it
+			k.add_theme_constant_override("line_spacing", -roundi(px * 0.6)) # the font's tall line box read as two rows
 		else:
 			k.clip_text = true
 			k.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
