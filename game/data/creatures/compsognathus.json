@@ -117,5 +117,26 @@
     "window_seconds": 45,
     "requires_pen": false
   },
-  "balance_note": "Attack 18 -> 7 on 2026-09-22: a bot playthrough showed four of them killing an unarmed level-0 survivor in ~3 s on the starting island and cancelling every gather. A swarm is still dangerous bare-handed, but survivable."
+  "balance_note": "Attack 18 -> 7 on 2026-09-22: a bot playthrough showed four of them killing an unarmed level-0 survivor in ~3 s on the starting island and cancelling every gather. A swarm is still dangerous bare-handed, but survivable.",
+  "eyes": {
+    "bone": "Head",
+    "points": [
+      [
+        0.1083,
+        0.0327,
+        0.1276
+      ],
+      [
+        0.0491,
+        0.0325,
+        0.1601
+      ]
+    ],
+    "radius": 0.03,
+    "color": [
+      1.0,
+      0.15,
+      0.1
+    ]
+  }
 }
