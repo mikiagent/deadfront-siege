@@ -368,13 +368,16 @@ static func traits(s: ItemStack) -> Dictionary:
 	return out
 
 ## Spec 05:23: default picks spend the least valuable instance first, so a rare or higher-level one
-## goes only when the player picks it. Ascending key: has traits, then level, then age (oldest first).
+## goes only when the player picks it. Ascending key: has traits, then the def's rarity (items.json,
+## ranked by data/inventory.json rarity_order; a plain dense bone is spared before a plain bone),
+## then level, then age (oldest first).
 ## ASSUMPTION: only crafted items carry created_at (a wall-clock stamp on gathered or migrated units
 ## would break the server's journal replay), so those tie at 0 and fall back to bag order, and a
-## crafted unit sorts after a gathered one of the same level. Item-def rarity (item_rarity.json, a
-## placeholder for UI rims) is not a key.
+## crafted unit sorts after a gathered one of the same level.
 static func spend_key(s: ItemStack) -> Array:
-	return [0 if traits(s).is_empty() else 1, s.level, s.created_at]
+	var d := s.def()
+	var rarity := maxi(0, (ItemDef.rules().get("rarity_order", []) as Array).find(str(d.rarity) if d else ""))
+	return [0 if traits(s).is_empty() else 1, rarity, s.level, s.created_at]
 
 func find_by_category(cat: StringName) -> Array[int]:
 	var hits: Array[int] = []

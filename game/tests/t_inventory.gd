@@ -542,6 +542,11 @@ func _test_default_pick_value_before_overlap() -> void:
 	spent = _spent(CR, inv, sling)
 	_expect(spent == [1, 3, 4, 5], "slingshot spends a plain raptor bone and the branch, not the dense bone (spent %s)" % [spent])
 	_expect(not CR.plan_spends_traits(inv, sling, CR.default_picks(inv, sling)), "the slingshot default spends no trait")
+	# Review 4: the def's rarity (items.json) is a key after traits. Both plain and lv1, the rare
+	# dense bone first in the bag stays and the common bone goes.
+	inv = _bag_of([[&"dense_bone", {}, 1], [&"bone", {}, 1], [&"branch", {}, 1], [&"twine", {}, 1], [&"twine", {}, 1]])
+	spent = _spent(CR, inv, sling)
+	_expect(spent == [1, 2, 3, 4], "slingshot spends the plain common bone, not the plain rare dense bone (spent %s)" % [spent])
 	inv = _bag_of([[&"fibre_stalk", trait9, 40], [&"fibre_stalk", trait9, 40], [&"reed", {}, 1], [&"reed", {}, 1],
 		[&"reed", {}, 1], [&"palm_frond", {}, 5]])
 	spent = _spent(CR, inv, straw)
