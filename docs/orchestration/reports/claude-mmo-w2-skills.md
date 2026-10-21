@@ -135,7 +135,34 @@ Mutation proofs (scratch `trees/w2s-r10mut`, branch adb7c93f + this patch):
   `FAIL 3 / 3 bonded: the feed is refused and the berry is kept (fed true, 1 left)`,
   `FAIL the pets screen shows bonded / cap (title 'ANIMALS    ·    BONDED 3 / 2147483647    ·    GROWTH')`.
 
-GATES_PLACEHOLDER
+Gates (package tree = branch + this patch; claude/mmo-overhaul moved to 809be2e8 during the run, docs only, merged
+in 4f7b1b0c; the patch regenerated on it, `git apply --cached --check` rc 0):
+- `--import` rc 0, 0 SCRIPT ERROR, 0 "Failed to compile".
+- All 23 `t_*.gd` rc 0 with PASS. Only t_save prints SCRIPT ERROR lines, its 5 deliberate ones:
+  `[t_save] rev-1 skills migrate: 19 nodes kept, SP 0/263`, `[t_save] PASS`; `[t_data] PASS items=223 recipes=155`;
+  `[t_w2_skills] catalog 213 of 918 nodes: functional 34 (16 of them through requires_node), partial 19, defined 160`,
+  `[t_w2_skills] migrated Lv. 23: earned 226, available 205; at Lv. 60 earned 720 of 922 SP of buyable nodes`,
+  `[t_w2_skills] PASS`; `[t_ui] PASS` (first run failed `player level read outside LevelDisplay at
+  res://scripts/dev/ui_real_capture_lab.gd:455`; the lab now reads the level through `LevelDisplay`, rerun PASS).
+  t_server_domain and t_srvdom were run one after the other (they share `user://t_srvdom_store`): both PASS.
+- run_all `[tests] PASS`; `tools/smoke.sh --no-import` `SMOKE PASS` (both rerun after the last sheet and lab edit).
+- Labs, 0 SCRIPT ERROR and 0 "couldn't resolve track" each: skills_lab `[skill] PASS level-up pays 10 SP, small_field
+  bought`; capture_lab `[capture] PASS bonded+=2`; ui_family_lab `[uifamily] inventory=true animals=true
+  unlimited=true active_cap=3`; ui_real_capture_lab on gl_compatibility at 1600x900 and 844x390 `[uireal] PASS
+  screens=hud,hud_daynight,craft,skills,...,levelup,...,busy_levelup,...` (it now also asserts the banner's SP).
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (25 before and after; newest 2026-10-20 23:26).
+
+Screenshots, looked at (scratchpad `w2s_r10/`):
+- `shots2/tree_desk_glc.png` (1600x900 gl_compatibility, `--lab=home_lab --shot=.../tree_desk_glc.png`, whose name opens
+  the Gathering tree): each muted row has its head line and, indented under it, "cut thickets with a knife · needs
+  Leaf", "stone and clay with a pick · needs Thickets", ... "black iron, gems · needs Rare Plants". Boulder and Long
+  Branch, whose `unlocks` repeat the name and which have no prerequisite, stay one line. Before:
+  `r9shots/desk_glc_gathering.png` (head lines only). A first shot with the detail line unindented read as a row of
+  its own (31 px under its head, 34 px to the next row); the indent and `line_spacing` 0 group it.
+- `shots2/tree_phone_glc.png` (844x390): header, auto line, All skills and the first four rows with their detail
+  lines, scroll bar inside the panel.
+- `shots/uireal_desk/levelup_1600x900.png`: "Lv. 5", "Available Skill Points: 40"; `shots/uireal_phone/levelup_844x390.png`:
+  "Lv. 5 LEVEL UP ... Skill points 40" (before: 0).
 
 ## r9: review r6's findings re-sent after the merge (claude/mmo-overhaul @ ddaab662)
 
