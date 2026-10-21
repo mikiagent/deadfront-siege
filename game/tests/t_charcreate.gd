@@ -197,12 +197,22 @@ func _test_tint() -> void:
 	var before := base_mesh.get_active_material(0)
 	var scale0: Vector3 = rig.scale
 	var lk: Dictionary = LOOK.defaults()
-	lk["colors"] = {"skin": "#603b27", "outfit1": "#7c3f38"}
+	lk["colors"] = {"skin": "#5c3a28", "outfit1": "#7c3f38"}
 	lk["height"] = 1.05
 	LOOK.apply(rig, lk)
 	var sm := base_mesh.get_active_material(0) as ShaderMaterial
-	_check(sm != null and sm.get_shader_parameter("tint_a2") == Color.html("#603b27") and sm.get_shader_parameter("tint_a0") == Color.html("#7c3f38"), "skin and outfit 1 tint their mask channels (B, R)")
+	_check(sm != null and sm.get_shader_parameter("tint_a2") == Color.html("#5c3a28") and sm.get_shader_parameter("tint_a0") == Color.html("#7c3f38"), "skin and outfit 1 tint their mask channels (B, R)")
 	_check(sm != null and (sm.get_shader_parameter("tint_a1") as Color).a == 0.0, "an unchosen slot leaves its region as painted")
+	# The lips sit outside the skin mask: without a chosen lip colour they follow the skin tone (darker
+	# skin, darker lips), and a chosen lip colour wins.
+	var lips_dark: Color = sm.get_shader_parameter("tint_b1") if sm else Color(0, 0, 0, 0)
+	_check(lips_dark.a == 1.0 and lips_dark.get_luminance() < LOOK.painted("lips").get_luminance(), "unchosen lips follow a darker skin (%s vs painted %s)" % [lips_dark.to_html(false), LOOK.painted("lips").to_html(false)])
+	_check(not lk["colors"].has("lips"), "the follow is shown only: the look keeps no lip colour")
+	var lk_lips: Dictionary = lk.duplicate(true)
+	lk_lips["colors"]["lips"] = "#8a4b48"
+	LOOK.apply(rig, lk_lips)
+	_check(sm.get_shader_parameter("tint_b1") == Color.html("#8a4b48"), "a chosen lip colour is used as chosen")
+	LOOK.apply(rig, lk)
 	_check(rig.scale.is_equal_approx(scale0 * 1.05), "height 1.05 scales the rig only (got %s from %s)" % [rig.scale, scale0])
 	var body: CollisionShape3D = player.find_child("*", false, false) as CollisionShape3D
 	for c in player.get_children():
@@ -216,7 +226,7 @@ func _test_tint() -> void:
 	for m in rig.find_children("*", "MeshInstance3D", true, false):
 		var mm := (m as MeshInstance3D).get_active_material(0) as ShaderMaterial
 		if mm and str((mm.get_meta(&"plain") as BaseMaterial3D).albedo_texture.resource_path).contains("travel_clothes"):
-			kit_tinted = mm.get_shader_parameter("tint_a0") == Color.html("#7c3f38") and mm.get_shader_parameter("tint_a3") == Color.html("#603b27")
+			kit_tinted = mm.get_shader_parameter("tint_a0") == Color.html("#7c3f38") and mm.get_shader_parameter("tint_a3") == Color.html("#5c3a28")
 	_check(kit_tinted, "a piece equipped later takes outfit 1 (chest) and the skin tone (PlayerEquipment hook)")
 	player.inventory.unequip(&"body")
 	LOOK.apply(rig, LOOK.defaults())
@@ -233,7 +243,7 @@ func _test_portrait() -> void:
 	lk["height"] = 1.04
 	ps.request(lk)
 	_check(ps.renders == n, "height does not re-render the headshot")
-	lk["colors"] = {"skin": "#8c5a3c"}
+	lk["colors"] = {"skin": "#82563b"}
 	ps.request(lk)
 	_check(ps.renders == n + 1 and ps.is_current(lk), "a colour change re-renders the portrait")
 	lk["portrait"] = {"pattern": "checker", "bg": "#7a4a4a"}
@@ -310,7 +320,7 @@ func _test_flow_and_save() -> void:
 	cc.create._set_tab("color")
 	cc.create._set_sub("outfit3")
 	_check(cc.stage.outfit != "", "Outfit Color 3 puts a kit on the preview so its swatches show (%s)" % cc.stage.outfit)
-	cc.set_color("skin", "#774a31")
+	cc.set_color("skin", "#6f4831")
 	cc.set_color("outfit1", "#b0773f")
 	_check(ps.renders > renders, "a colour change re-renders the portrait on the Create Character step")
 	cc.create.next.pressed.emit()
@@ -335,7 +345,7 @@ func _test_flow_and_save() -> void:
 	SG.save_now()
 	var saved: Dictionary = _saved()
 	_check(saved.get("occupation") == "farmer" and saved.get("player_name") == "Ana-Lu Quispe.", "the save keeps occupation and name as before")
-	_check(saved.get("look") is Dictionary and is_equal_approx(float(saved["look"]["height"]), 1.06) and saved["look"]["colors"] == {"skin": "#774a31", "outfit1": "#b0773f"} and saved["look"]["gender"] == "f", "the save keeps the look (%s)" % [saved.get("look")])
+	_check(saved.get("look") is Dictionary and is_equal_approx(float(saved["look"]["height"]), 1.06) and saved["look"]["colors"] == {"skin": "#6f4831", "outfit1": "#b0773f"} and saved["look"]["gender"] == "f", "the save keeps the look (%s)" % [saved.get("look")])
 	W.look = {}
 	LOOK.apply(p.rig, LOOK.defaults())
 	SG.load_now(host)

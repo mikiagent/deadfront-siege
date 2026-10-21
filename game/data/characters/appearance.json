@@ -1,6 +1,6 @@
 {
   "_about": "Character creation (spec 19 steps 2-3): what a survivor's look can be. CharacterLook reads it for the creation screens, the world model and the rendered portrait. A colour slot shows only when assets/characters/survivor/look/survivor_look_masks.json has a mask region for it; a part slot shows a picker only with two or more options for the chosen gender. Options attach through RiggedModel.attach_skinned (the armour slots' path), or on attach_bone when the scene has no skin.",
-  "_assumption": "PRD 5.1 names body, modern clothes and dye but gives no values. The height range, every palette colour (muted per assets/concept-art/STYLE.md), the portrait patterns and backgrounds and the preview outfits are ASSUMPTIONs.",
+  "_assumption": "PRD 5.1 names body, modern clothes and dye but gives no values. The height range, every palette colour (muted per assets/concept-art/STYLE.md; skin tones kept to skin-like albedos, since a paler swatch drew chalk-white under the stage light), the portrait patterns and backgrounds and the preview outfits are ASSUMPTIONs.",
   "height": {"min": 0.92, "max": 1.08, "step": 0.01, "default": 1.0},
   "color_slots": [
     {"id": "skin", "name": "Skin Color", "palette": "skin", "region": "Skin, also where worn gear shows it"},
@@ -12,8 +12,8 @@
   ],
   "palettes": {
     "skin": [
-      ["#f3dccb", "#ecc9ad", "#e2b896", "#d6a682", "#c99470", "#b8805c"],
-      ["#a26c4a", "#8c5a3c", "#774a31", "#603b27", "#4b2d1f", "#3a2219"]
+      ["#dcb49a", "#d3a78b", "#c99a7c", "#be8c6e", "#b27f61", "#a47255"],
+      ["#946446", "#82563b", "#6f4831", "#5c3a28", "#4a2e20", "#3a2319"]
     ],
     "outfit": [
       ["#e6e4df", "#bdbab3", "#94918a", "#6d6b66", "#4a4946", "#2a2a29"],

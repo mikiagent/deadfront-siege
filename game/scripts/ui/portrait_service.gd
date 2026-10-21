@@ -10,8 +10,10 @@ extends RefCounted
 signal changed(texture: Texture2D)
 
 const SIZE := 256
-## Head framing: the model faces -Z; the camera sits in front of the Head bone.
-const CAMERA_BACK := 0.78
+## Head framing: the model faces -Z; the camera sits in front of the Head bone (the skull base) and aims
+## above it, so the whole head with a little neck fills the picture (0.78 m cut the hair off).
+const CAMERA_BACK := 0.9
+const AIM_ABOVE_HEAD_BONE := 0.07
 const CAMERA_FOV := 26.0
 
 static var _shared: PortraitService
@@ -147,7 +149,7 @@ func _frame_head() -> void:
 	var bone := _rig.skeleton.find_bone("Head") if _rig.skeleton else -1
 	if bone >= 0:
 		head = _rig.skeleton.global_transform * _rig.skeleton.get_bone_global_pose(bone).origin
-	_camera.look_at_from_position(head + Vector3(0.0, 0.02, -CAMERA_BACK), head + Vector3(0.0, -0.035, 0.0))
+	_camera.look_at_from_position(head + Vector3(0.0, AIM_ABOVE_HEAD_BONE + 0.02, -CAMERA_BACK), head + Vector3(0.0, AIM_ABOVE_HEAD_BONE, 0.0))
 
 ## The portrait's backdrop: the background colour with the pattern drawn a shade darker. Also the
 ## pattern swatches in character creation.

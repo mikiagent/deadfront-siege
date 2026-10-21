@@ -214,8 +214,23 @@ static func refresh(rig: RiggedModel) -> void:
 		_tint_all(rig, (rig.get_meta(&"look") as Dictionary).get("colors", {}))
 
 static func _tint_all(rig: RiggedModel, colors: Dictionary) -> void:
+	var shown := with_lips(colors)
 	for node in rig.find_children("*", "MeshInstance3D", true, false):
-		_tint(node as MeshInstance3D, colors)
+		_tint(node as MeshInstance3D, shown)
+
+## The lips sit outside the skin mask, so a new skin tone left them as painted (pale on a dark face,
+## red on a pale one). Without a chosen lip colour they follow the skin: the painted lip colour scaled
+## by chosen skin over painted skin, in linear light. Shown only; the saved look is unchanged.
+static func with_lips(colors: Dictionary) -> Dictionary:
+	if not colors.has("skin") or colors.has("lips") or atlases_with("lips").is_empty():
+		return colors
+	var skin := Color.html(str(colors["skin"])).srgb_to_linear()
+	var painted_skin := painted("skin").srgb_to_linear()
+	var lip := painted("lips").srgb_to_linear()
+	var out := colors.duplicate()
+	out["lips"] = Color(minf(1.0, lip.r * skin.r / maxf(painted_skin.r, 0.001)), minf(1.0, lip.g * skin.g / maxf(painted_skin.g, 0.001)),
+		minf(1.0, lip.b * skin.b / maxf(painted_skin.b, 0.001))).linear_to_srgb().to_html(false)
+	return out
 
 ## Swaps the plain material for the look shader on surfaces whose albedo has a mask atlas (the base
 ## mesh, its body regions and the armour kits), and back again when no colour is chosen, so an

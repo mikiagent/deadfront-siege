@@ -3,7 +3,7 @@ extends Node3D
 ##   godot --path game --resolution 1600x900 -- --lab=charcreate_lab --shot=out.png --shot-delay=6
 ##     [--cc-step=0|1|2] [--cc-occupation=<id>] [--cc-tab=portrait|appearance|color] [--cc-sub=<id>]
 ##     [--cc-seed=<n>] (a randomised look) [--cc-gender=f] [--cc-name=<text>] [--cc-height=1.06]
-##     [--cc-colors=skin:#603b27,outfit1:#7c3f38] [--cc-outfit=<kit>] (the preview tries a kit on)
+##     [--cc-colors=skin:#5c3a28,outfit1:#7c3f38] [--cc-outfit=<kit>] (the preview tries a kit on)
 ##     [--cc-world] [--cc-wear=<kit>] (the look on the player in a lab world, the portrait in a corner)
 
 var _args := {}
