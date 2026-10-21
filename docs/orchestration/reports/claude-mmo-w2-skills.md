@@ -10,8 +10,8 @@ recipe-gated progression, and survivors that start at Lv. 1.
   The player badge and XP line already read Lv. 1 on the base through `LevelDisplay`.
 - **Character level 1-60 caps the trees (spec 03).** `character_level()` is now the one player level
   (`LevelDisplay.player_level()`, fed by every skill XP grant). Before, it was the average of the tree levels.
-  A tree cannot level past the character level. At the cap the XP bar fills and waits. `World.pioneer_changed`
-  releases it. The occupation's Lv. 20 head start is exempt: the docs conflict there, so it is an open owner
+  A tree cannot level past the character level. At the cap the tree keeps (banks) its XP and the bar reads full;
+  `World.pioneer_changed` spends the bank (r8; before r8 the XP past a full bar was dropped). The occupation's Lv. 20 head start is exempt: the docs conflict there, so it is an open owner
   decision (Open owner decisions 5). The cap can be switched off with `category_cap` in trees.json.
 - **Lv1 AUTO nodes.** `"auto": true` nodes (0 SP) are learned once their level is reached: at creation, on
   level-up, on occupation, and on load. They cannot be refunded. Examples: Rope (Basic Processing), Stone Blade,
@@ -48,8 +48,9 @@ recipe-gated progression, and survivors that start at Lv. 1.
   today's prices)`. They are recomputed on load, on every `World.pioneer_changed`, and for saves with no skills
   block. A saved `sp_earned` is never trusted.
 - **Catalog.** `trees.json.reference` holds the spec-12 counts: 13 categories that sum to 918 nodes, plus the
-  Toxic Oil Islands unlock list as an optional, defined-only entry. **212 of 918 nodes are imported: 18
-  functional, 19 partial, 175 defined.** (Dry Leather moved from defined to functional in r2: it gates the
+  Toxic Oil Islands unlock list as an optional, defined-only entry. **213 of 918 nodes are imported: 18
+  functional, 19 partial, 176 defined** (r8 added Boulder; Surviving Durango I-VII are named in
+  `reference.named_only`, see Review r8). (Dry Leather moved from defined to functional in r2: it gates the
   existing `dried_hide` recipe.) Every node has `status`, `source` (spec09/11/12 or prd7), `effects` and
   `sp_assumed` where the pack gives no SP.
 - **Skills sheet (hook H8; skills_sheet.gd is W1-UI's file, so the change lives in the hooks patch since r5):**
@@ -72,6 +73,84 @@ new `game/scripts/skills/skill_rules.gd`, new `game/tests/t_w2_skills.gd`, and `
 `game/tests/t_save.gd` and the new `game/tests/fixtures/save_v3_skills_rev2.json` (H12) and W1-QA's
 `game/scripts/dev/skills_lab.gd` (H13).
 The rev-1 goldens `save_v3_golden.json` and `save_v3_away_golden.json` are byte-identical to the base.
+
+## Review r8 (findings on r7 @ 8c2ec045; fixed at 99b135aa, hooks 77d54a50, base merged at 2091bc9a)
+
+Base: claude/mmo-overhaul moved to 73527576 (specs 15-17, STATUS and three reference images; no game/ file). It
+is merged (2091bc9a; `git diff 77d54a50 2091bc9a -- game` is empty). The hooks patch is unchanged by the merge:
+`git apply --check` is clean on the branch and on claude/mmo-overhaul @ 73527576.
+
+- **MAJOR, XP over the cap was dropped, so t_build failed after W2-DATA: fixed (banked).** Spec 03:7: a category
+  "cannot exceed character level, even when the player has lots of category XP"; 03:34 "Handle XP at
+  gated/capped levels consistently". `SkillState._resolve` now keeps the XP of a tree at the character-level
+  cap; the next `World.pioneer_changed` spends it. The only XP cut is what the tree could never use:
+  `SkillState.xp_to_max(level)`, the XP from its level to Lv. 60. H6 bounds a saved `xp` by the same
+  `xp_to_max(level)` (it was `xp_to_next(level)`, which would have thrown the bank away on load). H8 shows a
+  banked tree as a full bar ("28 / 28 XP"), as Durango's own skill screen does (`docs/reference/durango-skill-screen.webp`:
+  Survival Lv. 22 with a full bar). Checks, each failing on the r7 code:
+  - t_w2_skills, old `_resolve`: `[t_w2_skills] FAIL XP at the cap is banked, not dropped (xp 28 of 200)`,
+    `[t_w2_skills] FAIL a character level-up spends the banked XP (melee 2, survival 2, 0 XP left)`,
+    `[t_w2_skills] FAIL the bank holds what melee can still use up to Lv. 60, no more (60, want 15180)`.
+  - t_w2_skills, r7 hooks: `[t_w2_skills] FAIL H6: banked XP loads (500, got 60.0) and is bounded by what Lv. 5 can still use (15180, got 60.0)`,
+    `[t_w2_skills] FAIL melee at the cap with 200 XP banked reads a full bar ('200 / 28 XP')`.
+  - The integration itself: see the W2-DATA trial below (`build +8`, `[t_build] PASS`).
+- **MAJOR acceptance, integrates in the documented merge order with every gate passing: met.** Trial tree
+  `trees/w2s-r8-trial`: claude/mmo-w2-data @ 075e0bbd (its head; the reviewer used 753a3c64) with its hooks
+  committed, `git merge claude/mmo-w2-skills` @ 77d54a50 (no conflict), this hooks patch with `--3way`
+  (only `crafting.gd` conflicts; resolved as in Review r7: H1's block kept, W2-DATA's three `requires_node`
+  lines and `_node_block()` dropped), then `--import`: rc 0, 0 SCRIPT ERROR, 0 "Failed to compile".
+  - All 21 `t_*.gd` PASS, t_data included; only t_save prints SCRIPT ERROR lines, its 5 deliberate ones.
+  - `[build] place/pack/place xp: build +8 (pioneer +8), repack +0 (pioneer +0), kit flags=[&"repacked"]`, `[t_build] PASS`
+    (the reviewer's trial: `build +0 (pioneer +8)`, `[t_build] FAIL a fresh build still pays construction and pioneer XP`).
+  - `[t_data] smelt_copper gate: before 'learn Smelting 1 (Processing Lv. 25, 15 SP); you have 0 SP, reach Lv. 2 for +10 SP', after learning smelting_1 ''`,
+    `[t_data] PASS items=223 recipes=155`.
+  - `[t_w2_skills] catalog 213 of 918 nodes: functional 34 (16 of them through requires_node), partial 19, defined 160`,
+    `[t_w2_skills] recipes gated by requires_node: 56`, `[t_w2_skills] PASS`.
+  - run_all `[tests] PASS`; `tools/smoke.sh --no-import` `SMOKE PASS`.
+- **Minor, rev-1 saves keep a large permanent `sp_extra`: put to the owner** as Open owner decision 7, with the
+  reviewer's numbers and three options. Nothing changed: the migration is the owner-approved one.
+- **Minor, PRD names in sentence case: fixed.** The 54 `prd7` names in trees.json are Title Case ("Split Wood",
+  "Nails Pillars", "Thread Cloth", "Rare Plants", "Great Success 1", "Island Access 15"). New check (every node
+  name is Title Case), with one name reverted: `[t_w2_skills] FAIL every node name is in Title Case (not: ["Split wood"])`.
+  The `requires_node` lock now reads "learn Work Pick (Weapon / Tools Lv. 5, 6 SP)"; t_w2_skills expects that text.
+- **Minor, `SkillState.refused` only read by the test: removed** with `_refuse()`. The test checks
+  `refund_reason()`, which is what the sheet shows.
+- **Minor, Boulder missing: added.** `gathering/boulder`, Lv. 5 / 1 SP, defined, `level_assumed` and `sp_assumed`
+  (spec 12:35 says only "Boulder appears early"; Lv. 5 / 1 SP is what spec 12 gives Barrage, its one Lv. 5 node).
+  Checking spec 12's other "Documented examples" lines against trees.json found one more set: "Surviving Durango
+  I-VII are category milestones" (12:162), with no level, SP or effect. They are recorded by name in
+  `reference.named_only` and not placed in the tree, since a level would be invented. Spec 12:115 "Instrument
+  making also appears as a skill line" names no node. docs/reference (now 24 images) holds no node table; the
+  skill screen shows category levels only. Check: `catalog has boulder`; without the node:
+  `[t_w2_skills] FAIL catalog has boulder`.
+- **Minor, a new survivor's Gathering tree has nothing to buy: passed on** to W2-GATHER and the integrator
+  ("Wanted from other packages": Thickets and Mining first). Boulder adds a 12th muted row until then.
+- **Minor, H6 accepts any reachable node and an `sp_extra` up to the old award: kept for W3-SRVACT.** The optional
+  part (drop non-buyable nodes in rev-2 saves the save did not own before migration) is not built: from its
+  second load a migrated save is rev 2, so the sanitizer cannot tell "owned before migration" without a new save
+  field; the server record W3-SRVACT adds closes both gaps.
+
+## Acceptance r8 (branch @ 77d54a50 + hooks, claude/mmo-overhaul @ cecc936b; the 73527576 merge after it is docs only)
+
+Gate tree `trees/w2s-r8`: mkscratch.sh at 99b135aa with the r7 patch, H6/H8 edited there and the patch
+regenerated from it (`git diff --cached HEAD` equals the committed patch). Its game/ equals 77d54a50 + hooks.
+- `--import`: 0 SCRIPT ERROR.
+- All 20 `t_*.gd` PASS; only t_save prints SCRIPT ERROR lines, its 5 deliberate ones.
+- `[t_save] rev-1 skills migrate: 19 nodes kept, SP 539/802`, `[t_save] PASS`.
+- `[t_w2_skills] catalog 213 of 918 nodes: functional 18 (0 of them through requires_node), partial 19, defined 176`,
+  `[t_w2_skills] PASS`.
+- run_all `[tests] PASS`; `tools/smoke.sh --no-import` `SMOKE PASS`.
+- Labs, headless, 0 SCRIPT ERROR and 0 "couldn't resolve track" each: skills_lab `[skill] PASS level-up pays 10 SP, small_field bought`;
+  capture_lab `[capture] PASS bonded+=2`; ui_family_lab `[uifamily] inventory=true animals=true unlimited=true active_cap=3`.
+  ui_real_capture_lab on gl_compatibility at 844x390 and 1600x900: `[uireal] PASS screens=hud,craft,skills,...`, 0 SCRIPT ERROR.
+- No "couldn't resolve track" in any gate or trial log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (34 before and after).
+
+r8 screenshots, looked at (scratchpad `r8shots/`; a scratch-only skills_lab edit opens the sheet, never committed):
+- `desk_glc_gathering.png` (1600x900 gl_compatibility), `phone_glc_gathering.png` (844x390): "Boulder · Lv. 5 · 1 SP · not in
+  the game yet" first among the muted rows, then "Great Success 1", "Rare Plants", "Great Success 2".
+- `desk_glc_processing.png`, `phone_glc_processing.png` (Processing Lv. 30, scrolled): "Nails Pillars", "Thread Cloth".
+- `desk_glc_overview.png`, `desk_fwd_overview.png`, `phone_glc_overview.png` (character Lv. 1, melee given 200 XP): Melee and
+  Survival read "28 / 28 XP" with a full bar; every other tree "0 / 28 XP". The phone layout keeps both columns readable.
 
 ## Review r7 (findings on r6 @ 52c15c19; fixed at 5e77eb8c, report and one data name after it)
 
@@ -278,6 +357,11 @@ skills_v2 gains `"rev": 2`, `"sp_earned"` (informational) and `"sp_extra"`. A re
 r4 adds two optional fields with no rev bump: `refund_day` (the UTC day the counter belongs to, -1 when no
 refund has happened) and `refunds_today`. A save without them loads with no refunds used; H6 makes both
 numbers.
+
+r8 widens one field with no rev bump: a tree's `xp` may exceed its bar, because a tree at the character-level
+cap banks its XP. Every older save holds `xp` below the bar, which loads unchanged. H6 bounds it by
+`SkillState.xp_to_max(level)` (the XP the tree can still use up to Lv. 60) instead of `xp_to_next(level)`. A
+save written by r8 and read by older code loses only the bank (the old sanitizer clamps it to the bar).
 
 The rev-1 goldens are untouched inputs again (r1 major). t_save loads each one through SaveGame and
 SaveSanitizer and compares the result with `save_v3_skills_rev2.json`, field for field in both directions.
@@ -512,6 +596,7 @@ skills_lab:
   above the ingredients.
 - **H8** `game/scripts/ui/skills_sheet.gd` (W1-UI) `_build_tree`: Durango names, "AUTO", the learned-auto
   line, "All skills" above a muted row per node not in the game yet, and a greyed Refund with its reason.
+  `_build_overview` (r8): XP banked at the cap reads as a full bar ("28 / 28 XP").
 - **H9** `game/scripts/pets/field_tame.gd` (W1-TAME): `roster_full(player)`; `plate_hint` shows it for the
   local survivor; `apply_feed` gives the notice before refusing.
 - **H10** `game/scripts/ui/animal_screen.gd`: the title reads "ANIMALS · BONDED n / cap · GROWTH" and the equip
@@ -527,12 +612,18 @@ skills_lab:
     a learned node.
   - `sp_available` is clamped to `max(0, character SP - spent)`.
   - The caller passes the clamped `pioneer_level`.
+  - A tree's `xp` is bounded by `SkillState.xp_to_max(level)`, not `xp_to_next(level)`, so XP banked at the
+    character-level cap survives a load (r8).
   - `rev` is written back as the number the sanitizer used (r5), so a hand-edited rev cannot split the two readers.
   - Known gap: a forged save (any rev) can keep tree levels and nodes up to the old per-tree budget and an
     `sp_extra` up to that award. A rev-2 level clamp would not close it and would strip migrated saves (Review
     r7); W3-SRVACT's server record does.
 
 Wanted from other packages:
+- W2-GATHER and the integrator (review r8): spec 12:211 lists Gathering first, yet a new survivor's Gathering
+  tree has nothing to buy (9 AUTO nodes, 12 muted rows) because no gathering node has an effect the game reads.
+  Make Thickets and Mining 1-4 functional first (wire their effects and flip `status` in trees.json), so the
+  first tree gives choices.
 - W2-PROCESS reads `SkillRules.ability(sk, "handicraft" | "metal_processing")`. That turns Handicraft and
   Metalworking from partial to functional.
 - (Done in H10: the pets screen shows "n / cap".) Other bond paths (the market's caged-pet unpack, W2-BREED's
@@ -540,7 +631,8 @@ Wanted from other packages:
 
 ## Assumptions (`# ASSUMPTION` in code or data)
 
-- XP over the cap is dropped once the bar is full.
+- Boulder (spec 12:35 "appears early"): Lv. 5 / 1 SP, like Barrage, the one Lv. 5 node spec 12 prices
+  (`level_assumed`, `sp_assumed`).
 - Animal Handling I requires Capture Technique I.
 - SP values marked `sp_assumed`: Stealth II-V, Slaughter I-V, Barrage Damage I-III, Handicraft II-V,
   Metalworking I-IV, level 45/50/60 Processing nodes, the makeshift shovel/hoe and Standard Bow.
@@ -575,6 +667,16 @@ Wanted from other packages:
    (Survival 15) from 570 to 1,838 (t_w2_skills pacing lines above, 2 XP per gather; crafting and kills add XP
    too). Together with item 4 (cured hide at character Lv. 15), early play slows. Options: keep (spec 03); lower
    the early character XP curve; or let Survival pass the cap (it "simply tracks play", skills.md:7).
+
+7. **Rev-1 saves keep their old SP as a permanent extra (review r8, numbers from the reviewer's save).** A
+   migrated rev-1 save keeps its unspent SP as `sp_extra`, and new character levels pay on top of it (Save format
+   change; kept per review r1). The reviewer's real base-made save (character Lv. 22) loads with 1075 SP
+   available (earned 1237, of which extra 1023); a new Lv. 22 character has 214 (`paid_for_level(22)`). At
+   Lv. 60 that save would hold about 1743 SP against 720 for anyone else, and spec 03 makes scarce SP the core
+   mechanic ("cannot afford all nodes"). Options: (a) keep, as built; (b) cap `sp_extra` at what the save's
+   learned nodes cost beyond the SP its character level pays (nodes kept, old unspent SP dropped); (c) a
+   one-time free respec: every bought node refunded, `sp_extra` 0, SP = what the character level paid. (b) and
+   (c) are a few lines in `SkillState.from_dict`'s rev-1 branch and H6.
 
 ## Left (not done)
 
