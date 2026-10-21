@@ -25,7 +25,11 @@
   - `_roll_loot()` calls `ButcherLoot.roll_into(self, _owner)`.
   - `_on_take_from_loot()` calls `ButcherLoot.on_take(self, p)` when units moved.
 - `hunt_hud.gd`:
-  - The signature is `notice(text, tint := Color(0,0,0,0))`. A tinted notice is a rare result: it draws in its colour on ink, starts at `GatherFeedback.NOTICE_T0`, so it lives as long as the yield stack it stands in for, and waits for room instead of being dropped.
+  - The signature is `notice(text, tint := Color(0,0,0,0))`. A tinted notice is a rare result, drawn in its colour on ink.
+  - `GatherFeedback` owns its life:
+    - `stamp_notice` starts its clock at `NOTICE_T0`, so it lives as long as the yield stack it stands in for, and records when it was raised and the survivor's work target.
+    - `notice_stale` drops it once the survivor works another node or opens the bag or a loot screen.
+    - `hold_notice` lets it wait up to 2 s for room instead of being dropped.
 - `intent_handlers.gd` (`act.gather`):
   - The yield multiplier comes from `GatherService.yield_multiplier_with`.
   - Then `wear_role_tool`, `stamp_traits` and `add_finds` run with the op's `rng`.
@@ -47,8 +51,8 @@ Each mutation ran the full t_gather against the mutated file (scratchpad `w2g5/m
 2. **Major: nothing tested GatherXp's live path.**
    - Removed the sink (see 9). A new live case calls `PlayerActions.finish_gather` on a real survivor at a home bush, with the trait odds forced to 1.
    - Result: `finish_gather on a home bush (trait odds forced to 1): fibre 1, traited 1, gathering XP 12.0, knife 40 -> 39`. That is 2 + 10 per rare item.
-   - M-a (`if player.skills:` -> `if false:`): `[t_gather] FAIL finish_gather pays 2 + 10 per rare item into Gathering (got 2.0, want 42.0)`, plus the three butcher XP checks.
-   - Hook removed from finish_gather: `[t_gather] FAIL every gathered item took a trait with the odds forced to 1 (0 of 4)` and `FAIL the helper knife wore once for the unit (40 -> 40)`.
+   - M-a (`if player.skills:` -> `if false:`): `[t_gather] FAIL finish_gather pays 2 + 10 per rare item into Gathering (got 2.0, want 22.0)`, plus the three butcher XP checks.
+   - Hook removed from finish_gather: `[t_gather] FAIL every gathered item took a trait with the odds forced to 1 (0 of 2)` and `FAIL the helper knife wore once for the unit (40 -> 40)`.
 3. **Major: the corpse hook was untested.**
    - New live case: a real velociraptor is spawned and killed, so `Creature._on_died` -> `Corpse.setup` -> `_roll_loot` -> `roll_into` all run. Its talon is forced through the data.
    - The test then found a real gap: the radial take, `PlayerActions.loot`, never reached `ButcherLoot.on_take`, so a talon taken from the radial paid no rare XP. The new hooks hunk fixes that.
@@ -81,8 +85,16 @@ Each mutation ran the full t_gather against the mutated file (scratchpad `w2g5/m
    - Removed `GatherXp.set_sink`. W2-SKILLS (`5e77eb8c`) never calls it and keeps `SkillState.add_xp` as the door.
    - `GatherXp.award(player, category, amount)` pays this package's bonus XP the same way the base +2/+3 is paid. A check covers it without a skill tree (player XP).
 10. **Minor: an old gold notice lingered into the butcher stage, and banners pushed the plate.**
-    - A rare notice now starts at `NOTICE_T0` = 1.0 s into the HUD's 3.2 s life. It stays full for the yield stack's LIFE (1.4 s), then fades, so it is gone before the next stage.
-    - Check on the real `hunt_hud.gd`: after LIFE + 0.9 s the rare notice is gone and a plain one stays. MT0: `[t_gather] FAIL a rare notice is tinted and starts at NOTICE_T0 ...` and `FAIL after the stack's life the rare notice is gone, a plain one stays (["Rare find: Flint", "Too far."])`.
+    - Both of the reviewer's fixes are in. The notice's life is tied to the stack's: it starts at `NOTICE_T0` = 1.0 s into the HUD's 3.2 s life, stays full for the yield stack's LIFE (1.4 s), then fades.
+    - The notice also goes as soon as the survivor works another node or a bag/loot screen opens over it.
+    - With no room it waits at most 2 s (`NOTICE_WAIT_MS`), so the hold from item 8 cannot keep it alive into a later scene.
+    - The first 844x390 rerun showed exactly that bug: with an unbounded hold, the gather's green notice still sat beside the raptor carcass in the butcher shot. The final shots have no rare notice in the butcher stage at either renderer.
+    - Checks on the real `hunt_hud.gd`, plus a real survivor for the target change: after LIFE + 0.9 s the rare notice is gone and a plain one stays; with no room a fresh rare notice waits and a stale one ages; the notice goes when the survivor works another node or a loot screen opens.
+    - Mutation lines:
+      - MT0: `[t_gather] FAIL after the stack's life the rare notice is gone, a plain one stays (["Rare find: Flint", "Too far."])`.
+      - Mstale (check off): `[t_gather] FAIL a rare notice goes when the survivor works another node, not before (same false, moved false, plain false)`.
+      - Mscreen: `[t_gather] FAIL a rare notice goes when a bag or loot screen opens (closed false, open false)`.
+      - Mhold unbounded: `[t_gather] FAIL with no room a fresh rare notice waits, a stale or plain one ages (1.0 1.0 1.8)`.
     - Home berries no longer exist, so the lab's rare stage is now a trait.
     - **For W1-UI:** at 844x390 the level-up banner pushes the pet plate down onto the nearest node pill and its text (creature_plates). This package's bonus XP makes that level-up more likely. It does not cause the overlap.
 11. **Other checks added:**
@@ -91,10 +103,39 @@ Each mutation ran the full t_gather against the mutated file (scratchpad `w2g5/m
     - Traits removed from after_unit: `[t_gather] FAIL every gathered item took a trait with the odds forced to 1 (0 of 5)`.
 
 ## Gate lines (scratch trees `w2g5` and `w2g5g` = 0cbec77a + the hooks patch)
-GATES_PENDING
+Final commit be67836a, with the hooks patch `git apply --check` clean on claude/mmo-overhaul cecc936b. Each line below was seen in the run log:
+- `--import` (mkscratch, both trees): 0 `SCRIPT ERROR` / `Failed to compile` lines in `.import.log`.
+- Every `game/tests/t_*.gd` exited rc=0 with 0 SCRIPT ERROR, except t_save, which prints its 5 deliberate ones, as on base. `[t_ai] PASS`, `[t_build] PASS`, `[t_canim] PASS`, `[t_combat] PASS`, `[t_gather] PASS`, `[t_harbour] PASS islands=15`, `[t_iconart] PASS`, `[t_items] PASS`, `[t_light] PASS` (both t_light and t_lighting print this), `[t_occlude] PASS`, `[t_player] PASS`, `[t_save] PASS`, `[t_server_domain] PASS`, `[t_srvdom] PASS`, `[t_structart] PASS`, `[t_tame] PASS`, `[t_ui] PASS`, `[t_uiicons] PASS ids=169 ...`, `[t_web] PASS`.
+- `--script res://tests/run_all.gd`: `[tests] PASS`.
+- `tools/smoke.sh --no-import` (through gslot): `SMOKE PASS`.
+- `--lab=gather_lab` headless: `[gather_lab] PASS`, 0 SCRIPT ERROR.
+- Windowed `[gather_lab] PASS` with 0 SCRIPT ERROR on all four configs: gl_compatibility 1600x900, Forward+ 1600x900, gl_compatibility 844x390 and Forward+ 844x390.
+- **Flake:** in the last round two windowed runs failed while the full test suite ran beside them on the same machine:
+  - gl_compatibility 1600x900: `FAIL gathered 0/2 stone`. The survivor re-pathed to the rock (`[path] len=2` repeating) for 30 s.
+  - Forward+ 844x390: `FAIL branch is faster with the stone tool (2.46 < 2.16)`. That is a wall-clock timing compare.
+  - Both passed when rerun alone (`glc 1600x900 rc=0 [gather_lab] PASS`, `fwd 844x390 rc=0 [gather_lab] PASS`), and the three earlier rounds of all four configs passed.
+  - The path loop is PlayerActions/navigation, not this package. Reviewers should run the windowed lab on a quiet machine.
+- 0 "couldn't resolve track" in every gate and lab log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (directory listing compared with the one taken before the first run).
+- Mutation suite on be67836a (scratchpad `w2g5/mutate.py`, 18 mutations of package and hook code, output `w2g5/mutate_be67.out`): every one exits rc=1 with the lines quoted above.
 
 ## Screenshots looked at (scratchpad `w2g5/shots2`, not in the repo)
-SHOTS_PENDING
+Final runs are `w2g5/shots6` and `w2g5/shots6b`; `shots3` to `shots5` are the earlier rounds of this pass.
+- **1600x900 gl_compatibility `-rare`:**
+  - A green "Low Vibration Fibre Stalk" sits over a cream "+3 Fibre Stalk", left of the ring hex.
+  - It is clear of the Bush pill, the raptor and its plate, and the Common Tree and Rock pills. It reads on the grass thanks to the dark outline.
+  - The HUD toast "+3 Fibre Stalk" is at top centre. No notice is shown, because the stack was drawn.
+- **1600x900 Forward+ `-rare_radial`:** the same stack, above the bush and under the toast. The level-up stat list is on the left, clear of it.
+- **1600x900 `-tools`:** "+1 Log" sits right of the ring hex, clear of the Common Tree and Rock pills and of the rock itself.
+- **844x390 `-rare` and `-rare_radial`, both renderers:**
+  - The stack is skipped: the gather hexes, pills and orders leave no free spot within 120 px.
+  - The green notice "Rare trait: Low Vibration Fibre Stalk" on ink says it, under "Survivor", and the "+3 Fibre Stalk" toast is on the left.
+  - In the gl_compatibility radial shot of the loaded run, the notice had already gone: an autosave stall happened between the check and the capture.
+- **844x390 `-butcher`, both renderers:** loot toasts on the left and the "Loot · Velociraptor" label. No rare notice is left from the gathers; before the notice fixes, two green ones were there.
+- **844x390 `-tools`:** "+2 Log" sits beside the work-axe hex, clear of the Bush, Bush Berries, Common Tree and Rock pills.
+- **Not this package (W1-UI / INVUI):**
+  - The 844x390 level-up banner lies over the orders panel.
+  - `-loot_screen` still draws the minimap, pills, HUD hexes and the nameplate over the open loot grid.
+  - The pet plate/pill overlap is noted in item 10.
 
 ## Review round 1 (2026-10-20 evening), kept for the record
 The climate filter, the per-row climate materials check, the live after_unit and full-bag cases, the butcher knife hook, two finds in one frame, the gold fallback notice, rare part XP at the take, finds stamped with climate and level, the server act.gather hunk, and the bad-row guards. The quoted mutation lines are in git history (5c1f1c40). Superseded since then:
