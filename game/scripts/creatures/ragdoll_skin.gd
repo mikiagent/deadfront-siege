@@ -27,10 +27,15 @@ class Ground:
 		var key := Vector2i(floori(p.x / cell), floori(p.z / cell))
 		var row: Variant = cells.get(key)
 		if row == null:
-			q.from = Vector3((key.x + 0.5) * cell, p.y + lift, (key.y + 0.5) * cell)
-			q.to = q.from - Vector3(0.0, lift * 2.0 + 4.0, 0.0)
-			var hit := space.intersect_ray(q)
-			row = [hit["position"], hit["normal"]] if not hit.is_empty() else []
+			row = []
+			# A ray exactly on a heightmap grid line can slip through it: try a second spot in the cell.
+			for off: Vector2 in [Vector2(0.5, 0.5), Vector2(0.31, 0.73)]:
+				q.from = Vector3((key.x + off.x) * cell, p.y + lift, (key.y + off.y) * cell)
+				q.to = q.from - Vector3(0.0, lift * 2.0 + 4.0, 0.0)
+				var hit := space.intersect_ray(q)
+				if not hit.is_empty():
+					row = [hit["position"], hit["normal"]]
+					break
 			cells[key] = row
 		if (row as Array).is_empty():
 			return []
@@ -335,16 +340,15 @@ static func _shift_for(gaps: PackedFloat32Array, rel: PackedVector2Array, w: Vec
 ## tilt, else the least lift. Convex, so a 5x5 grid refined four times finds it; a tilt must win by
 ## a millimetre, so a body already resting on its supports keeps its pose.
 static func _least_tilt(gaps: PackedFloat32Array, rel: PackedVector2Array, max_tilt: float) -> Vector2:
-	# Only points that some allowed tilt can bring to the lowest contact matter.
-	var reach := 0.0
-	var lowest := INF
+	# Only points some allowed tilt can make the lowest contact matter: point i can only bind when
+	# its lowest reach (gap - max_tilt * lever) is under every point's highest (gap + max_tilt * lever).
+	var ceiling := INF
 	for i in gaps.size():
-		reach = maxf(reach, rel[i].length())
-		lowest = minf(lowest, gaps[i])
+		ceiling = minf(ceiling, gaps[i] + max_tilt * rel[i].length())
 	var g := PackedFloat32Array()
 	var rr := PackedVector2Array()
 	for i in gaps.size():
-		if gaps[i] - max_tilt * rel[i].length() <= lowest + max_tilt * reach:
+		if gaps[i] - max_tilt * rel[i].length() <= ceiling:
 			g.append(gaps[i])
 			rr.append(rel[i])
 	var best := Vector2.ZERO
