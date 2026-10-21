@@ -719,6 +719,15 @@ func _test_stack_motion() -> void:
 	_expect(gone_s <= GF.LEAVE_S + 0.6 and min_alpha < 0.6, "a stack something landed on fades out where it is within LEAVE_S (gone after %.2f s, alpha down to %.2f)" % [gone_s, min_alpha])
 	_expect(hud.notices.any(func(n): return str(n[0]) == "Rare trait: Black Sheen Stone"), "an unread rare stack that had to go hands its line to the green notice (%s)" % [hud.notices])
 	hud.drawn_blocks.clear()
+	# A newer stack replaces the last one by fading it out where it is, not by removing it between frames.
+	var old_box = GF.popup(player, Vector3(-1.5, 1.0, 0.0), [["+1 Stone", GF.CREAM, false]])
+	await _frames(3)
+	var was_drawn: bool = is_instance_valid(old_box) and old_box.visible
+	GF.popup(player, Vector3(-1.5, 1.0, 0.0), [["+2 Stone", GF.CREAM, false]])
+	await _frames(1)
+	var still: bool = is_instance_valid(old_box) and old_box.visible and not old_box.is_queued_for_deletion()
+	await create_timer(GF.LEAVE_S + 0.3).timeout
+	_expect(was_drawn and still and not is_instance_valid(old_box), "a replaced stack fades out over LEAVE_S instead of vanishing (drawn %s, there next frame %s, gone after %s)" % [was_drawn, still, not is_instance_valid(old_box)])
 	_finished += 1
 
 ## Landscape phone (844x390): with the HUD's top band right above the ring, a plain "+1 Stone" is not
@@ -819,6 +828,21 @@ func _test_hud_notice_life() -> void:
 	var c: Array = GF.notice_colors(GF.GREEN, 1.0)
 	var refusal := Color(0.35, 0.08, 0.06)
 	_expect(c[2] == GF.GREEN and c[1] == GF.GREEN and not Color(c[0], 1.0).is_equal_approx(Color(refusal, 1.0)) and (c[0] as Color).get_luminance() < 0.15, "a rare notice is drawn in its tint on ink, not the refusal red (%s)" % [c])
+	# A rare notice lands with the rare stack's pop and flash (the one rare show a phone with the radial
+	# open gets), easing to normal over PUNCH_S.
+	var p0: Vector2 = GF.notice_punch({"born": Time.get_ticks_msec()})
+	var p1: Vector2 = GF.notice_punch({"born": Time.get_ticks_msec() - int(GF.PUNCH_S * 1000.0) - 10})
+	_expect(p0.x > 1.3 and p0.y > 1.7 and is_equal_approx(p1.x, 1.0) and is_equal_approx(p1.y, 1.0), "a rare notice pops and flashes, then eases to normal (%s -> %s)" % [p0, p1])
+	# A repeat ("x2") of a notice not on screen is placed afresh; one on screen keeps its side.
+	var on_screen := []
+	GF.add_notice(on_screen, "Rare find: Resin", GF.GOLD, player)
+	on_screen[0]["x"] = 520.0
+	on_screen[0]["shown"] = true
+	GF.add_notice(on_screen, "Rare find: Resin", GF.GOLD, player)
+	var kept_side: bool = on_screen[0].has("x")
+	on_screen[0]["shown"] = false
+	GF.add_notice(on_screen, "Rare find: Resin", GF.GOLD, player)
+	_expect(kept_side and not on_screen[0].has("x") and on_screen.size() == 1, "a repeat keeps a shown notice's side and frees a hidden one's (kept %s, freed %s)" % [kept_side, not on_screen[0].has("x")])
 	h._events.tick(GF.LIFE + 0.9)
 	var texts: Array = h._events.notices.map(func(n): return n["text"])
 	_expect(not texts.has("Rare find: Flint") and texts.has("Too far."), "after the stack's life the rare notice is gone, a plain one stays (%s)" % [texts])
