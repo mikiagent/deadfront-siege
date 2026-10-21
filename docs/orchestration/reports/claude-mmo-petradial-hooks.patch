@@ -1,0 +1,402 @@
+diff --git a/game/assets/icons/ui/_src/build.py b/game/assets/icons/ui/_src/build.py
+index 016131cd..e6fe02d0 100644
+--- a/game/assets/icons/ui/_src/build.py
++++ b/game/assets/icons/ui/_src/build.py
+@@ -6,7 +6,7 @@
+ Each icons_*.py module fills a dict I of id -> {"l": [line elements], "s": [solid elements]} with
+ coordinates placed by hand on the 64 grid; geo.py and geo2.py only spell out the path syntax
+ (capsules, arcs, bands, knockout cuts). icons_a..f are the first pass (5-unit lines plus solids,
+-nudged by offsets.py); icons_g, icons_h, icons_i and icons_j are solid drawings centred optically by geo2.place.
++nudged by offsets.py); icons_g to icons_k are solid drawings centred optically by geo2.place.
+ Every id is drawn in exactly one module. To change an icon, edit its module and run build.py.
+ """
+ import os
+@@ -18,8 +18,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
+ OUT = os.path.dirname(HERE)
+ sys.path.insert(0, HERE)
+ from geo import f  # noqa: E402
+-MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h", "icons_i", "icons_j"]
+-SOLID = {"icons_g", "icons_h", "icons_i", "icons_j"}
++MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h", "icons_i", "icons_j", "icons_k"]
++SOLID = {"icons_g", "icons_h", "icons_i", "icons_j", "icons_k"}
+ HEAD = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">\n'
+ NOTE_LINE = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->\n'
+ NOTE_SOLID = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, solid shapes, white only. -->\n'
+diff --git a/game/data/ui_icons.json b/game/data/ui_icons.json
+index 1f372aef..ec8c5540 100644
+--- a/game/data/ui_icons.json
++++ b/game/data/ui_icons.json
+@@ -23,6 +23,8 @@
+ 		"harbour": "res://assets/icons/ui/harbour.svg",
+ 		"harbour_routes": "res://assets/icons/ui/harbour.svg",
+ 		"dismount": "res://assets/icons/ui/dismount.svg",
++		"ride": "res://assets/icons/ui/ride.svg",
++		"rename": "res://assets/icons/ui/rename.svg",
+ 		"catapult_stone": "res://assets/icons/ui/siege.svg",
+ 		"siege": "res://assets/icons/ui/siege.svg",
+ 		"catapult_toxin": "res://assets/icons/ui/toxin.svg",
+diff --git a/game/scripts/dev/ui_real_capture_lab.gd b/game/scripts/dev/ui_real_capture_lab.gd
+index 5ba2dc9c..682d622c 100644
+--- a/game/scripts/dev/ui_real_capture_lab.gd
++++ b/game/scripts/dev/ui_real_capture_lab.gd
+@@ -230,7 +230,7 @@ func _run() -> void:
+ 	await _capture("bag", [], logical)
+ 	_player.ui.visible = false
+ 	# animal screen (protected): shot only, for the eye check of the token theme on it
+-	_hud.call("_open_animals")
++	_hud.open_animals()
+ 	await _frames(3)
+ 	await _capture("animals", [], logical, false)
+ 	var animals := _hud.get_node_or_null("AnimalLayer/AnimalScreen") as Control
+diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
+index b2f961bc..9697e97e 100644
+--- a/game/scripts/player/player_actions.gd
++++ b/game/scripts/player/player_actions.gd
+@@ -481,6 +481,19 @@ func attack(target: Creature = null) -> bool:
+ 		hunt.start(target)
+ 	return hunt.swing_now()
+ 
++## The pet radial's Rename: the character-name rule (CharacterStore.name_problem). Returns "" or why not.
++func rename_pet(rec: PetRecord, new_name: String) -> String:
++	var nm := new_name.strip_edges()
++	var why := CharacterStore.name_problem(nm)
++	if rec == null or why != "":
++		return why if why != "" else "no pet"
++	if online:
++		_send(&"pet_rename", {"pet_uid": rec.uid, "name": nm})
++		return ""
++	rec.name = nm
++	print("[pets] renamed %s to %s" % [rec.species, nm])
++	return ""
++
+ func nearest_creature(max_d: float, include_pets: bool) -> Creature:
+ 	var best: Creature = null
+ 	var best_d := max_d
+diff --git a/game/scripts/player/player_input.gd b/game/scripts/player/player_input.gd
+index e550c697..20306e90 100644
+--- a/game/scripts/player/player_input.gd
++++ b/game/scripts/player/player_input.gd
+@@ -39,6 +39,9 @@ func _desktop_click_fallback(pos: Vector2) -> void:
+ 		return
+ 	_desktop_click_fallback_pending = false
+ 	Game.pointer = pos
++	# The click landed on a control that takes it (the pet radial, a hex): not a station tap underneath.
++	if tap_blocked():
++		return
+ 	# Pick stations in screen space first. Their low, open meshes often let a 3D ray pass through
+ 	# to terrain in desktop Compatibility/WebGL even when the visible mouse is over the model.
+ 	var best := _station_under_pointer(pos)
+@@ -236,7 +239,8 @@ func _walk_to_tile(at: Vector3) -> void:
+ func interact_tap_target(col: Object) -> void:
+ 	p.view.clear_ground_marker()
+ 	p.actions.cancel_work()
+-	if not (col is Creature and not (col as Creature).is_pet) and p.hunt:
++	# Any creature keeps the fight: a wild one is the target, your own pet opens its radial mid-fight.
++	if not col is Creature and p.hunt:
+ 		p.hunt.stop()
+ 	if col is HarvestNode:
+ 		var hn := col as HarvestNode
+diff --git a/game/scripts/player/player_pets.gd b/game/scripts/player/player_pets.gd
+index 5e2e8b06..37f3ceb8 100644
+--- a/game/scripts/player/player_pets.gd
++++ b/game/scripts/player/player_pets.gd
+@@ -1,19 +1,20 @@
+ class_name PlayerPets
+ extends RefCounted
+-## The survivor's bonded animals: summon and dismiss (HP kept), the pet hex menu (Ride, Bag, Feed,
+-## Orders), whistle orders, feeding, bag dumps that never delete, and riding.
++## The survivor's bonded animals: summon and dismiss (HP kept), the pet radial (Animals, Bag, Feed,
++## Ride, Dismiss, Rename; spec 23), whistle orders, feeding, bag dumps that never delete, and riding.
+ 
+ ## Up to MAX_OUT pets at once.
+ const MAX_OUT := 3
+-## White action glyphs for the pet hex menu (colour = things, white = actions).
++## Pet radial segments, clockwise from the top left as in the reference. icon = UiIcons id (white
++## action symbols). Orders are not here: the whistle hexes (SIC / HEEL / GUARD) stay on the HUD.
+ const MENU := {
+-	&"ride": {"id": &"ride", "label": "RIDE", "glyph": "⤒"},
+-	&"bag": {"id": &"bag", "label": "BAG", "glyph": "▣"},
+-	&"feed": {"id": &"feed", "label": "FEED", "glyph": "✚"},
+-	&"orders": {"id": &"orders", "label": "ORDERS", "glyph": "⚑"},
+-	&"attack": {"id": &"attack", "label": "ATTACK", "glyph": "⚔"},
+-	&"heel": {"id": &"heel", "label": "HEEL", "glyph": "↩"},
+-	&"guard": {"id": &"guard", "label": "GUARD", "glyph": "◎"},
++	&"animals": {"id": &"animals", "label": "Animals", "icon": "animals"},
++	&"bag": {"id": &"bag", "label": "Bag", "icon": "bag"},
++	&"feed": {"id": &"feed", "label": "Feed", "icon": "feed"},
++	&"ride": {"id": &"ride", "label": "Ride", "icon": "ride"},
++	&"dismount": {"id": &"dismount", "label": "Dismount", "icon": "dismount"},
++	&"dismiss": {"id": &"dismiss", "label": "Dismiss", "icon": "dismiss"},
++	&"rename": {"id": &"rename", "label": "Rename", "icon": "rename"},
+ }
+ ## HP a pet out of the bag has now, kept on its record so a dismissed pet comes back hurt and a save
+ ## keeps it. Uses PetRecord.hp_now once that field exists (integrator hook, saved with the record).
+@@ -24,7 +25,8 @@ var p: Player
+ var summoned: Array[Creature] = []
+ ## The pet the menu was last opened on: Feed and the bag screen's feed button act on it.
+ var focus: Creature
+-var menu: StationMenu
++var menu: PetRadial
++var rename_dialog: PetRenameDialog
+ var mount_hips_offset := Vector3.ZERO
+ var _mount_saved_parent: Node
+ var _rig_rest: Transform3D
+@@ -168,17 +170,19 @@ func order(cmd: StringName) -> void:
+ 		_:
+ 			p.notice("%s guard you." % who)
+ 
+-# ---------------------------------------------------------------- pet hex menu
++# ---------------------------------------------------------------- pet radial
+ 
+ func setup_menu(layer: CanvasLayer) -> void:
+-	menu = StationMenu.new()
+-	menu.name = "PetMenu"
++	menu = PetRadial.new()
++	menu.name = "PetRadial"
+ 	menu.player = p
+ 	layer.add_child(menu)
+ 	menu.action_chosen.connect(_on_menu)
++	rename_dialog = PetRenameDialog.new()
++	rename_dialog.name = "PetRename"
++	layer.add_child(rename_dialog)
+ 
+-## Tap (or interact key) on your own pet: its hex menu. Ride only for mount species, Bag only when
+-## it has one (tame-13: a mount with a bag used to mount and never show the bag).
++## Tap (or interact key) on your own pet: its radial; the same pet again closes it.
+ func interact(c: Creature) -> void:
+ 	if c == null or c.pet_record == null:
+ 		return
+@@ -189,34 +193,55 @@ func interact(c: Creature) -> void:
+ 		elif p.ui:
+ 			p.ui.show_pet_bag(c.pet_record)
+ 		return
++	if menu.visible and menu.pet == c:
++		menu.hide_menu()
++		return
+ 	menu.show_for(c, entries(c))
+ 
++## What this pet can do now; anything it cannot is left out. Animals needs the HUD's Animals screen,
++## Bag a bag (tame-13), Ride a mount species (Dismount while you ride it).
+ func entries(c: Creature) -> Array:
+ 	var out: Array = []
+-	if &"mount" in c.pet_record.tamed_role:
+-		out.append(MENU[&"ride"])
++	var hud := p.get_tree().get_first_node_in_group("hud") if p.is_inside_tree() else null
++	if hud and hud.has_method("open_animals"):
++		out.append(MENU[&"animals"])
+ 	if c.pet_record.bag:
+ 		out.append(MENU[&"bag"])
+ 	out.append(MENU[&"feed"])
+-	out.append(MENU[&"orders"])
++	if &"mount" in c.pet_record.tamed_role:
++		out.append(MENU[&"dismount"] if p.mounted_on == c else MENU[&"ride"])
++	out.append(MENU[&"dismiss"])
++	if rename_dialog:
++		out.append(MENU[&"rename"])
+ 	return out
+ 
+ func _on_menu(anchor: Node3D, action_id: StringName) -> void:
+ 	var c := anchor as Creature
+ 	if c == null or not is_instance_valid(c) or c.health.dead:
+ 		return
++	focus = c
+ 	match action_id:
+-		&"ride":
+-			p.mount(c)
++		&"animals":
++			var hud := p.get_tree().get_first_node_in_group("hud")
++			if hud and hud.has_method("open_animals"):
++				hud.open_animals(c.pet_record)
+ 		&"bag":
+ 			if p.ui:
+ 				p.ui.show_pet_bag(c.pet_record)
+ 		&"feed":
+ 			feed_best(c)
+-		&"orders":
+-			menu.show_for(c, [MENU[&"attack"], MENU[&"heel"], MENU[&"guard"]])
+-		&"attack", &"heel", &"guard":
+-			order(action_id)
++		&"ride":
++			if p.mounted_on and p.mounted_on != c:
++				p.dismount()
++			if p.mounted_on == null:
++				p.mount(c)
++		&"dismount":
++			p.dismount()
++		&"dismiss":
++			dismiss(c)
++		&"rename":
++			var rec := c.pet_record
++			rename_dialog.open(rec.name, func (nm: String) -> String: return p.actions.rename_pet(rec, nm))
+ 
+ ## Feed one unit of the first food in the bag this pet eats.
+ func feed_best(c: Creature) -> bool:
+diff --git a/game/scripts/server/character_store.gd b/game/scripts/server/character_store.gd
+index dfb25ece..7d85de68 100644
+--- a/game/scripts/server/character_store.gd
++++ b/game/scripts/server/character_store.gd
+@@ -142,14 +142,22 @@ func _run(op: String, account: int, a: Dictionary, ts: int, tape: Array, replayi
+ 	res.r["seq"] = s.seq
+ 	return res
+ 
++## The character-name rule, also used for pet names (PlayerActions.rename_pet): 3..20 letters,
++## digits, spaces, _ or -. Returns "" or why not.
++static func name_problem(nm: String) -> String:
++	if nm.length() < 3 or nm.length() > 20:
++		return "name must be 3..20 characters"
++	for c in nm:
++		if not (c >= "a" and c <= "z") and not (c >= "A" and c <= "Z") and not (c >= "0" and c <= "9") and c not in [" ", "_", "-"]:
++			return "name may use letters, digits, space, _ and -"
++	return ""
++
+ ## char.create {name}: the first hello of an account makes its server-owned character.
+ func _create(account: int, a: Dictionary, now: int) -> Dictionary:
+ 	var name: Variant = IntentHandlers.text(a, "name", 20)
+-	if name == null or (name as String).length() < 3:
+-		return IntentHandlers.no("bad_request", "name must be 3..20 characters")
+-	for c in (name as String):
+-		if not (c >= "a" and c <= "z") and not (c >= "A" and c <= "Z") and not (c >= "0" and c <= "9") and c not in [" ", "_", "-"]:
+-			return IntentHandlers.no("bad_request", "name may use letters, digits, space, _ and -")
++	var why := name_problem(str(name)) if name != null else "name must be 3..20 characters"
++	if why != "":
++		return IntentHandlers.no("bad_request", why)
+ 	if s.chars.has(str(account)):
+ 		return {"ok": true, "r": character(account).view()}
+ 	s.chars[str(account)] = CharacterState.fresh(account, name, now)
+diff --git a/game/scripts/ui/animal_screen.gd b/game/scripts/ui/animal_screen.gd
+index 21cad4ee..e4166d36 100644
+--- a/game/scripts/ui/animal_screen.gd
++++ b/game/scripts/ui/animal_screen.gd
+@@ -126,8 +126,10 @@ func _apply_detail_margin(detail_scroll: Control, bottom_margin: int) -> void:
+ 	if margin:
+ 		margin.add_theme_constant_override("margin_bottom", bottom_margin)
+ 
+-func open(p: Player) -> void:
++func open(p: Player, rec: PetRecord = null) -> void:
+ 	player = p
++	if rec and player.bonded.has(rec):
++		selected = player.bonded.find(rec)
+ 	selected = clampi(selected, 0, maxi(0, player.bonded.size() - 1))
+ 	visible = true
+ 	_layout()
+@@ -164,7 +166,7 @@ func _rebuild() -> void:
+ 		if rec.respawning():
+ 			row.add_child(RespawnRing.new(rec, _rebuild))
+ 		var b := Button.new()
+-		var full := "%s   Lv.%d   %s%s" % [str(rec.species).capitalize(), rec.level, rec.grade, "   EQUIPPED" if _is_out(rec) else ""]
++		var full := "%s   Lv.%d   %s%s" % [_display_name(rec), rec.level, rec.grade, "   EQUIPPED" if _is_out(rec) else ""]
+ 		b.text = UiTokens.ellipsis(font, full, 300.0, UiTokens.body(view))
+ 		b.clip_text = true
+ 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+@@ -228,12 +230,17 @@ func _show_detail(rec: PetRecord) -> void:
+ 		for stat in CreatureGenetics.STATS:
+ 			var stat_name := _title_words(str(stat))
+ 			growth += "%s\n    %s    +%d growth    EV %d\n" % [stat_name, genes.tier_for(stat), int(genes.level_gains.get(stat, 0)), int(genes.evs.get(stat, 0))]
+-	var name := str(rec.species).capitalize()
++	var name := _display_name(rec)
+ 	_detail.text = "%s\nLv. %d          Grade %s\nXP %.0f / %.0f\n\nHP              %.0f\nAttack          %.0f\nDefense         %.0f\nSpeed           %.0f\nHunger          %.0f / %.0f\n\nGROWTH / POTENTIAL\n%s\nLevel-ups add three random growth points. Training can focus EVs up to the species limits." % [name, rec.level, rec.grade, rec.xp, xp_need, rec.hp, rec.attack, rec.defense, rec.speed, rec.hunger, rec.hunger_max, growth]
+ 	# "ACTIVE": the title's BONDED n / cap is the roster; this is how many are out (W2-SKILLS H10).
+ 	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (ACTIVE %d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
+ 	_summon.disabled = not _is_out(rec) and player.live_pets().size() >= Player.MAX_PETS_OUT
+ 
++## The pet's own name (pet radial Rename) with its species, else the species.
++func _display_name(rec: PetRecord) -> String:
++	var species := str(rec.species).capitalize()
++	return "%s (%s)" % [rec.name, species] if rec.name != "" else species
++
+ func _is_out(rec: PetRecord) -> bool:
+ 	for pet in player.live_pets():
+ 		if pet.pet_record == rec:
+diff --git a/game/scripts/ui/hud_pills.gd b/game/scripts/ui/hud_pills.gd
+index 3671ff22..57fa835f 100644
+--- a/game/scripts/ui/hud_pills.gd
++++ b/game/scripts/ui/hud_pills.gd
+@@ -47,6 +47,10 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+ 			radial_node = gr.node
+ 			avoid.append_array(gr.label_rects)
+ 			avoid.append(gr.title_box)
++	var pet_radial := hud.player.pets.menu
++	if pet_radial and pet_radial.visible:
++		avoid.append(pet_radial.ring_rect())
++		avoid.append_array(pet_radial.label_rects)
+ 	var rows: Array = []
+ 	var pp := hud.player.global_position
+ 	# A bonfire is in "placed_building", "craft_station" AND "bonfire", so without this the camp
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index ed0b7728..43d4fd6c 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -215,7 +215,7 @@ func _build_menu_row() -> void:
+ 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
+ 	_pets_hex = _hex("", HEX, "ANIMALS")
+ 	_pets_hex.icon = UiIcons.icon(&"animals")
+-	_pets_hex.pressed.connect(_open_animals)
++	_pets_hex.pressed.connect(open_animals)
+ 	_build_hex = _hex("⌂", HEX, "BUILD")
+ 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
+ 	_skills_hex = _hex("★", HEX, "SKILLS")
+@@ -274,7 +274,8 @@ func _toggle_debug() -> void:
+ 	print("[hud] debug %s" % ("on" if Game.debug_overlay else "off"))
+ 
+ 
+-func _open_animals() -> void:
++## The Animals screen; with a record (the pet radial's Animals segment) it opens on that pet.
++func open_animals(rec: PetRecord = null) -> void:
+ 	_close_sheet()
+ 	if _animal_screen == null:
+ 		_animal_screen = AnimalScreen.new()
+@@ -284,7 +285,7 @@ func _open_animals() -> void:
+ 		layer.layer = 96
+ 		add_child(layer)
+ 		layer.add_child(_animal_screen)
+-	_animal_screen.open(player)
++	_animal_screen.open(player, rec)
+ 
+ func _build_combat() -> void:
+ 	_end_btn = Button.new()
+@@ -1062,7 +1063,8 @@ func _draw() -> void:
+ 	drawn_blocks["level"] = Rect2(lv_pos - Vector2(0.0, 12.0), Vector2(lw, 15.0))
+ 	# --- name under the survivor
+ 	var cam := get_viewport().get_camera_3d()
+-	if cam:
++	# Not under the pet radial: its see-through centre shows the pet, and the ring cut the name in two.
++	if cam and not (player.pets.menu and player.pets.menu.visible):
+ 		drawn_blocks["nameplate"] = HudLayout.nameplate_rect(cam, player, _font)
+ 		var at := (drawn_blocks["nameplate"] as Rect2).position + Vector2(0.0, NAME_PX)
+ 		draw_string(_font, at + Vector2.ONE, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0, 0, 0, 0.7))
+diff --git a/game/tests/t_player.gd b/game/tests/t_player.gd
+index 037f42f1..ae815e60 100644
+--- a/game/tests/t_player.gd
++++ b/game/tests/t_player.gd
+@@ -280,8 +280,8 @@ func _test_pet_hp_and_summon() -> void:
+ 	block.queue_free()
+ 	await process_frame
+ 
+-## tame-13, tame-16, build-storage-01: the pet menu offers Bag on a protoceratops (a mount with a
+-## bag), Bag opens that bag, Feed reaches the pet whose menu was opened (not just the first one),
++## tame-13, tame-16, build-storage-01: the pet radial offers Bag on a protoceratops (a mount with a
++## bag), Bag opens that bag, Feed reaches the pet whose radial was opened (not just the first one),
+ ## and a bag dump into full storage keeps what did not fit.
+ func _test_pet_menu_bag_feed_dump() -> void:
+ 	await _reset_at(Vector3(0, 1.0, 0))
+@@ -297,7 +297,7 @@ func _test_pet_menu_bag_feed_dump() -> void:
+ 	var ids: Array = []
+ 	for e in player.pets.entries(proto):
+ 		ids.append(e["id"])
+-	_expect(&"ride" in ids and &"bag" in ids and &"feed" in ids and &"orders" in ids, "protoceratops menu: %s" % [ids])
++	_expect(&"ride" in ids and &"bag" in ids and &"feed" in ids and &"dismiss" in ids, "protoceratops menu: %s" % [ids])
+ 	player.pets.interact(proto)
+ 	_expect(player.pets.menu.visible and player.mounted_on == null, "tapping a mount pet opens its menu instead of mounting it")
+ 	player.pets._on_menu(proto, &"bag")
+diff --git a/game/tests/t_ui.gd b/game/tests/t_ui.gd
+index 4b18ac78..a1eabbc9 100644
+--- a/game/tests/t_ui.gd
++++ b/game/tests/t_ui.gd
+@@ -13,6 +13,7 @@ const OWNED := [
+ 	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
+ 	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
+ 	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd",
++	"res://scripts/ui/pet_radial.gd", "res://scripts/ui/pet_rename_dialog.gd",
+ ]
+ const TYPE_MIN := 12
+ ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail
