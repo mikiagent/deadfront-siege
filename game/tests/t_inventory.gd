@@ -526,6 +526,7 @@ func _bag_of(rows: Array):
 ## lashing x1) spends 4 plain reeds, not 3 lv40 trait stalks; a slingshot spends a plain raptor bone,
 ## not the rare dense bone. A cheap dual unit a later slot needs is left for it (3 reeds, a frond:
 ## no trait stalk goes), and when value first cannot fill every slot the dedicated-first plan does.
+## Equal keys go to the lead's own def.
 func _test_default_pick_value_before_overlap() -> void:
 	var CR := load("res://scripts/items/crafting.gd") as GDScript
 	var recipes: Dictionary = get_root().get_node("Data").recipes
@@ -551,6 +552,14 @@ func _test_default_pick_value_before_overlap() -> void:
 	inv = _bag_of([[&"raptor_bone", {}, 1], [&"dense_bone", {}, 1], [&"branch", {}, 5]])
 	spent = _spent(CR, inv, tri)
 	_expect(spent == [0, 1, 2], "when value first runs a slot short, the dedicated-first plan still crafts (spent %s)" % [spent])
+	# Inside equal keys the lead's def goes first (the W1-SRVDOM capture checks craft two twines): a
+	# twine from a picked stalk spends the other stalk, not the tied twine earlier in the bag.
+	var twine: Dictionary = recipes.get(&"twine", {})
+	inv = _bag_of([[&"twine", {}, 1], [&"fibre_stalk", {}, 1], [&"fibre_stalk", {}, 1]])
+	var tw: Array[int] = []
+	for part in CR._plan(inv, twine, [1] as Array[int])[0].parts:
+		tw.append(int(part.idx))
+	_expect(tw == [1, 2], "a twine from a picked stalk spends the other stalk, not the tied twine (spent %s)" % [tw])
 
 ## Review 2: the worn row is a trust boundary. A forged worn helm (x5000, L9999, durability 1e9,
 ## a bad uid) read through the loader's own path loads as x1 L60 within the real durability ceiling.

@@ -225,7 +225,7 @@ index 0b840a23..1a1c4dac 100644
  const FULL_RETRY := StationCraft.FULL_RETRY_S + 0.05
  
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index e09baeef..17f11642 100644
+index e09baeef..bd6dd4de 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
 @@ -17,45 +17,35 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
@@ -235,9 +235,9 @@ index e09baeef..17f11642 100644
 -## Prefer dedicated materials over dual-category ones, so fibre stalk is spent before
 -## bark that might still be needed as lashing. Leads take the largest matching stack.
 +## Spec 05:23 (W2-INV): the recipe's own input (prefer_id) first, then the least valuable instance
-+## (Inventory.spend_key), then dedicated materials before dual-category ones; a unit that a later
-+## slot still needs (a cheap reed is also the recipe's lashing) is left for it. When a slot still
-+## runs short, plan again with dedicated materials first (the order before W2-INV).
++## (Inventory.spend_key), then dedicated materials before dual-category ones, then the lead's def;
++## a unit that a later slot still needs (a cheap reed is also the recipe's lashing) is left for it.
++## When a slot still runs short, plan again with dedicated materials first (the order before W2-INV).
  static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
 +	var plan := _plan_ordered(inv, rec, picks, true)
 +	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
@@ -290,21 +290,30 @@ index e09baeef..17f11642 100644
  		var lead := -1
  		if not picks.is_empty():
  			lead = picks[i]
-@@ -63,18 +53,24 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+@@ -63,18 +53,34 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
  				return []
  			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
  				return []
 -		elif not candidates.is_empty():
 -			lead = candidates[0]
 -		if lead < 0:
--			return []
--		var parts: Array[Dictionary] = []
--		var order: Array[int] = [lead]
 +		var keys := {}
 +		var candidates: Array[int] = []
 +		candidates.assign(cands[i])
++		var first := -1 # the least valuable unit left: the lead when none is picked
 +		for idx in candidates:
 +			keys[idx] = _pick_key(inv.slots[idx], preferred, cats, value_first) + [-int(remaining.get(idx, inv.slots[idx].count)), idx]
++			if int(remaining.get(idx, inv.slots[idx].count)) > 0 and (first < 0 or keys[idx] < keys[first]):
++				first = idx
++		if first < 0:
+ 			return []
+-		var parts: Array[Dictionary] = []
+-		var order: Array[int] = [lead]
++		# Inside equal keys the lead's own def goes first, so a twine made a moment ago is not spent as
++		# the fibre of the next twine while a raw stalk ties with it (W1-SRVDOM capture checks).
++		var lead_def := inv.slots[lead if lead >= 0 else first].def_id
++		for idx in candidates:
++			(keys[idx] as Array).insert((keys[idx] as Array).size() - 2, 0 if inv.slots[idx].def_id == lead_def else 1)
 +		candidates.sort_custom(func(a: int, b: int) -> bool: return keys[a] < keys[b])
 +		var order: Array[int] = []
 +		if lead >= 0:
@@ -321,7 +330,7 @@ index e09baeef..17f11642 100644
  			if take > 0:
  				parts.append({"idx": idx, "count": take})
  				remaining[idx] = available - take
-@@ -83,9 +79,33 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+@@ -83,9 +89,33 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
  				break
  		if need > 0:
  			return []
@@ -356,7 +365,7 @@ index e09baeef..17f11642 100644
  static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
  	var plan := _plan(inv, rec)
  	if not plan.is_empty():
-@@ -98,6 +118,16 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
+@@ -98,6 +128,16 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
  	missing.fill(-1)
  	return missing
  
@@ -373,7 +382,7 @@ index e09baeef..17f11642 100644
  static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
  	return not _plan(inv, rec, picks).is_empty()
  
-@@ -321,7 +351,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
+@@ -321,7 +361,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
  	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
  	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
  	consume_for_craft(scratch, rec, picks)
