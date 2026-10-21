@@ -58,8 +58,11 @@ func _world(look: Dictionary) -> void:
 	var close := Camera3D.new()
 	close.fov = 35.0
 	add_child(close)
-	close.look_at_from_position(player.global_position + Vector3(1.6, 1.4, -3.4), player.global_position + Vector3(0, 0.1, 0))
+	# From the sun's side, the survivor turned to the camera: from -Z the temperate sun backlit him.
+	var eye := player.global_position + Vector3(1.6, 1.4, 3.4)
+	close.look_at_from_position(eye, player.global_position + Vector3(0, 0.1, 0))
 	close.current = true
+	player.face_world(eye)
 	var layer := CanvasLayer.new()
 	layer.layer = 90
 	add_child(layer)

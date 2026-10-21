@@ -308,6 +308,7 @@ func _rebuild_panel(px: Callable, phone: bool) -> void:
 		panel_note.text = "Visual size only: reach, speed and the hit box stay the same."
 	var note_w := panel.size.x - (cell + gap if is_color else 0.0)
 	panel_note.add_theme_font_size_override("font_size", px.call(12 if phone else 14))
+	panel_note.add_theme_constant_override("line_spacing", -px.call(4 if phone else 5))  # the fallback font sets lines far apart
 	panel_note.position = Vector2(0, float(title_px) * 1.5)
 	panel_note.size = Vector2(note_w, 0)
 	if panel_note.text != "" and not is_color:

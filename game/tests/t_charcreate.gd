@@ -209,9 +209,9 @@ func _test_tint() -> void:
 	_check(lips_dark.a == 1.0 and lips_dark.get_luminance() < LOOK.painted("lips").get_luminance(), "unchosen lips follow a darker skin (%s vs painted %s)" % [lips_dark.to_html(false), LOOK.painted("lips").to_html(false)])
 	_check(not lk["colors"].has("lips"), "the follow is shown only: the look keeps no lip colour")
 	var lk_lips: Dictionary = lk.duplicate(true)
-	lk_lips["colors"]["lips"] = "#8a4b48"
+	lk_lips["colors"]["lips"] = "#8a514c"
 	LOOK.apply(rig, lk_lips)
-	_check(sm.get_shader_parameter("tint_b1") == Color.html("#8a4b48"), "a chosen lip colour is used as chosen")
+	_check(sm.get_shader_parameter("tint_b1") == Color.html("#8a514c"), "a chosen lip colour is used as chosen")
 	LOOK.apply(rig, lk)
 	_check(rig.scale.is_equal_approx(scale0 * 1.05), "height 1.05 scales the rig only (got %s from %s)" % [rig.scale, scale0])
 	var body: CollisionShape3D = player.find_child("*", false, false) as CollisionShape3D

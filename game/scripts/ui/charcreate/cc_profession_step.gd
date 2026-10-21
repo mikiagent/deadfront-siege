@@ -76,6 +76,7 @@ func _init(p_cc: CharacterCreation) -> void:
 	gender_hex.name = "GenderToggle"
 	gender_hex.fill = CcUi.GOLD
 	gender_hex.glyph_color = CcUi.INK
+	gender_hex.glyph_scale = 1.5  # the reference's sign fills most of the hex
 	gender_hex.pressed.connect(func () -> void: cc.set_gender("f" if cc.look["gender"] == "m" else "m"))
 	bar.add_child(gender_hex)
 	gender_label = CcUi.label("", 16)
@@ -144,6 +145,7 @@ func layout(view: Vector2, m: Dictionary) -> Rect2:
 	info.position = Vector2(s.position.x + pad, title.position.y + title.size.y + float(px.call(8)))
 	info.size = Vector2(info_w, s.end.y - float(px.call(12 if phone else 24)) - info.position.y)
 	model_note.add_theme_font_size_override("font_size", px.call(12 if phone else 14))
+	model_note.add_theme_constant_override("line_spacing", -px.call(4 if phone else 5))  # the fallback font sets lines far apart
 	model_note.size = Vector2(s.size.x * 0.34, 0)
 	model_note.position = Vector2(s.end.x - inset.x - pad - model_note.size.x, title.position.y + float(px.call(4)))
 	refresh()

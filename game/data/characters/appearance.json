@@ -1,6 +1,6 @@
 {
   "_about": "Character creation (spec 19 steps 2-3): what a survivor's look can be. CharacterLook reads it for the creation screens, the world model and the rendered portrait. A colour slot shows only when assets/characters/survivor/look/survivor_look_masks.json has a mask region for it; a part slot shows a picker only with two or more options for the chosen gender. Options attach through RiggedModel.attach_skinned (the armour slots' path), or on attach_bone when the scene has no skin.",
-  "_assumption": "PRD 5.1 names body, modern clothes and dye but gives no values. The height range, every palette colour (muted per assets/concept-art/STYLE.md; skin tones kept to skin-like albedos, since a paler swatch drew chalk-white under the stage light), the portrait patterns and backgrounds and the preview outfits are ASSUMPTIONs.",
+  "_assumption": "PRD 5.1 names body, modern clothes and dye but gives no values. The height range, every palette colour (muted per assets/concept-art/STYLE.md; skin and lip tones kept near real albedos, since paler swatches drew chalk-white skin and white lips under the stage light), the portrait patterns and backgrounds and the preview outfits are ASSUMPTIONs.",
   "height": {"min": 0.92, "max": 1.08, "step": 0.01, "default": 1.0},
   "color_slots": [
     {"id": "skin", "name": "Skin Color", "palette": "skin", "region": "Skin, also where worn gear shows it"},
@@ -28,8 +28,8 @@
       ["#4f6b3a", "#6f8a5a", "#3d5f8a", "#7899b8", "#6f7a84", "#97a3a9"]
     ],
     "lips": [
-      ["#e2aaa0", "#d08f86", "#bb766e", "#a35f59", "#8a4b48", "#6f3a3a"],
-      ["#d09ca4", "#bb7f8a", "#9f6470", "#b07e68", "#8f5f4d", "#5e3a32"]
+      ["#b77a6e", "#a86b62", "#9a5e57", "#8a514c", "#7a4542", "#693a39"],
+      ["#b4787f", "#a06670", "#8c5762", "#a57565", "#8a5c4d", "#6b4438"]
     ]
   },
   "parts": [

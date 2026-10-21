@@ -136,6 +136,8 @@ class Hex extends Control:
 	var fill := Color(0.16, 0.16, 0.16)
 	var glyph := ""
 	var glyph_color := CcUi.TEXT
+	## Glyph size over the hex radius (the symbol font draws the gender signs small).
+	var glyph_scale := 0.95
 	var texture: Texture2D
 	var caption := ""
 	var caption_px := 13
@@ -161,7 +163,7 @@ class Hex extends Control:
 			draw_texture_rect(texture, Rect2(c - Vector2(t, t) * 0.5, Vector2(t, t)), false)
 		if glyph != "":
 			var font := get_theme_default_font()
-			var gs := maxi(12, int(r * 0.95))
+			var gs := maxi(12, int(r * glyph_scale))
 			var w := font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs).x
 			draw_string(font, Vector2(c.x - w * 0.5, c.y + gs * 0.36), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, glyph_color)
 		var rim := CcUi.hex_points(r, c)

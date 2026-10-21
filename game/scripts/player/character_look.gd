@@ -67,7 +67,8 @@ static func painted(slot_id: String) -> Color:
 	var region: Dictionary = ((atlases()[on[0]] as Dictionary)["regions"] as Dictionary)[slot_id]
 	return Color.html(str(region.get("mean", "#808080")))
 
-## True when only armour kits carry the slot (Outfit Color 3: the barefoot base has no third garment).
+## True when only armour kits carry the slot. ASSUMPTION: Outfit Color 3 has no garment on the barefoot
+## base, so it drives the kits' sleeves and trim (their arms and helmet pieces) only.
 static func kit_only(slot_id: String) -> bool:
 	var on := atlases_with(slot_id)
 	return not on.is_empty() and not on.has("base") and not on.has("face")
