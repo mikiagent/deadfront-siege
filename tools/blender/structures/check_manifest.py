@@ -46,6 +46,14 @@ KIND_GLB = {
     "grindstone": "grindstone", "fishing_stand": "fishing_stand", "stone_grill": "stone_grill",
     "tent_canvas": "tent_canvas", "fence_fortified": "fence_fortified", "field_small": "field_small",
     "field_large": "field_large", "log_shelter": "log_shelter", "cabin_bed": "cabin_bed",
+    # station art (dsc-stationart): the workbench tiers, the processing stations and the
+    # construction-site stages
+    "makeshift_workbench": "makeshift_workbench", "basic_workbench": "basic_workbench",
+    "journeyman_workbench": "journeyman_workbench", "expert_workbench": "expert_workbench",
+    "kiln": "kiln", "loom": "loom", "large_loom": "large_loom", "oven": "oven",
+    "large_drying_rack": "large_drying_rack",
+    "site_small_0": "site_small_0", "site_small_1": "site_small_1", "site_small_2": "site_small_2",
+    "site_large_0": "site_large_0", "site_large_1": "site_large_1", "site_large_2": "site_large_2",
 }
 # Owner rule (2026-10-19): low-quality and low-poly assets are marked for replacement. The
 # building-system pieces are bare 1 m stand-ins for W2-BUILDSYS, so they are REPLACE outright; the
@@ -65,6 +73,23 @@ NODES = {
 ASSEMBLY_AABB = {"taming_pen": [4.05, 1.84, 4.12]}
 NEW_ROWS = {
     "harbour": {"footprint": [3, 6]},
+    # station art (dsc-stationart). Footprints are grid cells (1 m): the workbench tiers take the
+    # same 2x1 cell as the old workbench row, the sites take the footprint they are staked out on.
+    "makeshift_workbench": {"footprint": [2, 1]},
+    "basic_workbench": {"footprint": [2, 1]},
+    "journeyman_workbench": {"footprint": [2, 1]},
+    "expert_workbench": {"footprint": [2, 1]},
+    "kiln": {"footprint": [2, 2]},
+    "loom": {"footprint": [2, 1]},
+    "large_loom": {"footprint": [3, 2]},
+    "oven": {"footprint": [2, 2]},
+    "large_drying_rack": {"footprint": [3, 1]},
+    "site_small_0": {"footprint": [2, 2]},
+    "site_small_1": {"footprint": [2, 2]},
+    "site_small_2": {"footprint": [2, 2]},
+    "site_large_0": {"footprint": [3, 3]},
+    "site_large_1": {"footprint": [3, 3]},
+    "site_large_2": {"footprint": [3, 3]},
 }
 
 
@@ -99,6 +124,23 @@ NOTES = {
     "cabin_bed": "wooden bed with a hide mattress and fur blanket",
     "harbour": "harbour dock: plank pier on log piles with a canvas shed, 3x6 like HarbourSite.FOOTPRINT; "
                "deck 1.2 m above the pile feet, seaward end towards -Z. HarbourSite keeps it on the coast",
+    "makeshift_workbench": "workbench tier 0: lashed sticks and a flat stone slab; starter recipes",
+    "basic_workbench": "workbench tier 1: rough planks on pillars with strap lashings",
+    "journeyman_workbench": "workbench tier 2: trimmed planks, nailed, with a vice and a tool rack",
+    "expert_workbench": "workbench tier 3: processed planks, iron fittings, drawers and glue pots",
+    "kiln": "kiln station: clay dome with a firebox mouth and a chimney",
+    "loom": "loom station: upright frame loom with warp threads and a partly woven cloth",
+    "large_loom": "large loom station: wider frame with a weaver's bench and a cloth roll",
+    "oven": "oven station: stone bread oven with a firebox mouth and a flue",
+    "large_drying_rack": "large drying rack: two-bay rack on trimmed pillars",
+    "site_small_0": "construction site (2x2), stage 0: staked-out ground with a string outline and a "
+                    "pile of logs and straps",
+    "site_small_1": "construction site (2x2), stage 1: scaffold frame half up, smaller material piles",
+    "site_small_2": "construction site (2x2), stage 2: scaffold at full height with partial plank cladding",
+    "site_large_0": "construction site (3x3), stage 0: staked-out ground with a string outline and a "
+                    "pile of logs and straps",
+    "site_large_1": "construction site (3x3), stage 1: scaffold frame half up, smaller material piles",
+    "site_large_2": "construction site (3x3), stage 2: scaffold at full height with partial plank cladding",
 }
 STALE_NOTE = ("kenney", "placeholder", "until a dedicated")
 

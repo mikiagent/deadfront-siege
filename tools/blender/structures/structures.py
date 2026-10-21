@@ -1313,6 +1313,16 @@ def cabin_bed():
 # Same kit and atlas as the rest of the set: one material, origin at the ground centre, front -Y
 # (which becomes +Z in Godot, towards the iso camera). Sizes in metres next to a 1.8 m survivor.
 
+def _center_xy(p):
+    """Centre a part on x and y (Blender axes) so the GLB origin is the ground centre of the
+    footprint. The ground (z) is not touched."""
+    xs = [v.co.x for v in p.bm.verts]
+    ys = [v.co.y for v in p.bm.verts]
+    if not xs:
+        return
+    bmesh.ops.translate(p.bm, verts=p.bm.verts, vec=(-(min(xs) + max(xs)) / 2, -(min(ys) + max(ys)) / 2, 0))
+
+
 def _nailed_plank(p, size, loc, tile="plank", nails=True, rot=(0, 0, 0)):
     """A plank with iron nail heads at both ends."""
     p.box(size, loc, tile, rot=rot, tile_m=1.6)
@@ -1351,6 +1361,7 @@ def makeshift_workbench():
     p.log((-0.02, -0.08, H + 0.02), (0.16, -0.14, H + 0.02), 0.018, tile="wood_dark", seg=5)
     p.rock(0.05, (0.18, -0.15, H + 0.04), tile="stone_dark", squash=(1.1, 0.9, 0.8), seed=103)
     p.torus(0.07, 0.016, (0.4, -0.14, H + 0.01), "rope", seg=10, tube=4)
+    _center_xy(p)
     return [(p, (0, 0, 0))]
 
 
@@ -1377,6 +1388,7 @@ def basic_workbench():
     # two spare planks leaning on the bench end
     p.plank((L / 2 - 0.1, 0.1, 0.02), (L / 2 + 0.16, 0.34, 0.95), 0.2, 0.045, "wood", up=(0, 1, 0))
     p.plank((L / 2 - 0.14, 0.22, 0.02), (L / 2 + 0.1, 0.46, 0.9), 0.18, 0.04, "wood_dark", up=(0, 1, 0))
+    _center_xy(p)
     return [(p, (0, 0, 0))]
 
 
@@ -1418,6 +1430,7 @@ def journeyman_workbench():
     p.log((0.05, -0.2, H + 0.03), (0.32, -0.12, H + 0.03), 0.02, tile="wood", seg=5)
     p.box((0.1, 0.06, 0.06), (0.35, -0.11, H + 0.04), "wood_dark", rot=(0, 0, -20), tile_m=0.3)
     p.torus(0.08, 0.018, (0.68, 0.16, H + 0.01), "rope", seg=10, tube=4)
+    _center_xy(p)
     return [(p, (0, 0, 0))]
 
 
@@ -1459,6 +1472,7 @@ def expert_workbench():
     p.torus(0.085, 0.02, (-0.86, 0.22, H + 0.01), "rope", seg=10, tube=4)
     p.box((0.42, 0.035, 0.09), (-0.35, -W / 2 - 0.01, H - 0.12), "iron", rot=(0, 8, 0), tile_m=0.4)
     p.box((0.12, 0.05, 0.07), (-0.58, -W / 2 - 0.01, H - 0.15), "wood_dark", rot=(0, 8, 0), tile_m=0.3)
+    _center_xy(p)
     return [(p, (0, 0, 0))]
 
 
@@ -1505,6 +1519,7 @@ def kiln():
         p.log((-0.86, 0.12 + i * 0.18, 0.06), (-0.86, 0.26 + i * 0.18, 0.06), 0.05, tile="bark", seg=6)
     p.cyl(0.11, 0.18, (0.95, -0.35, 0.19), "clay", seg=10, r2=0.13, cap_tile="clay_dark")
     p.cyl(0.125, 0.03, (0.95, -0.35, 0.29), "clay_dark", seg=10)
+    _center_xy(p)
     return [(p, (0, 0, 0))]
 
 
@@ -1550,6 +1565,7 @@ def loom():
     # a bundle of yarn waiting at the side and a pair of weights
     p.cyl(0.11, 0.22, (-0.78, 0.12, 0.11), "weave", seg=9, r2=0.12, cap_tile="fiber")
     p.cyl(0.06, 0.1, (0.76, 0.06, 0.05), "fiber", seg=8, cap_tile="fiber")
+    _center_xy(p)
     return [(p, (0, 0, 0))]
 
 
@@ -1564,6 +1580,7 @@ def large_loom():
     # yarn baskets on both sides
     p.cyl(0.13, 0.2, (-1.15, 0.1, 0.1), "weave", seg=9, r2=0.14, cap_tile="fiber")
     p.cyl(0.11, 0.18, (1.12, -0.05, 0.09), "weave", seg=9, r2=0.12, cap_tile="fiber")
+    _center_xy(p)
     return [(p, (0, 0, 0))]
 
 
@@ -1596,6 +1613,7 @@ def oven():
     # a bowl of dough ready to go in
     p.cyl(0.11, 0.07, (0.85, 0.45, 0.11), "clay", seg=9, r2=0.13, cap_tile="clay_dark")
     p.rock(0.09, (0.85, 0.45, 0.13), tile="fiber", squash=(1.2, 1.0, 0.55), seed=111)
+    _center_xy(p)
     return [(p, (0, 0, 0))]
 
 
@@ -1624,6 +1642,115 @@ def large_drying_rack():
     p.torus(0.1, 0.022, (-0.75, -0.3, 0.02), "rope", seg=10, tube=4)
     for i in range(3):
         p.box((0.34, 0.1, 0.04), (0.75, -0.32, 0.02 + i * 0.045), "fiber", rot=(0, 0, -6 + 4 * i), tile_m=0.5)
+    _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def _site_stakes(p, hx, hy, stake_h=0.42):
+    """Four corner stakes with a string outline between them: the staked-out footprint."""
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * hx, sy * hy
+            p.log((x, y, -0.02), (x + sx * 0.03, y + sy * 0.03, stake_h), 0.028, tile="wood_dark", seg=5)
+    # the string line: a thin rope run round the four stakes, sagging in the middle
+    corners = [(-hx, -hy), (hx, -hy), (hx, hy), (-hx, hy)]
+    for i in range(4):
+        a = corners[i]
+        b = corners[(i + 1) % 4]
+        mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+        p.log((a[0], a[1], stake_h - 0.05), (mx, my, stake_h - 0.12), 0.008, tile="rope", seg=4, end_tile="rope")
+        p.log((mx, my, stake_h - 0.12), (b[0], b[1], stake_h - 0.05), 0.008, tile="rope", seg=4, end_tile="rope")
+    return corners
+
+
+def _site_logs(p, hx, hy, n=4, seed=0):
+    """A small pile of logs and rolled straps inside the staked-out corner. Kept inside the
+    footprint so the model fits its cell."""
+    for i in range(n):
+        x = -hx + 0.34 + 0.13 * (i % 2)
+        y = -hy + 0.24
+        z = 0.055 + 0.1 * (i // 2)
+        p.log((x - 0.2, y + 0.02 * (i % 3), z), (x + 0.2, y - 0.02 * (i % 3), z), 0.05, tile="bark", seg=6)
+    for i in range(2):
+        p.torus(0.075, 0.018, (-hx + 0.3 + i * 0.24, hy - 0.24, 0.02), "rope", seg=9, tube=4)
+
+
+def _site_scaffold(p, hx, hy, height, braces=True):
+    """Corner posts with horizontal rails and a diagonal brace: the scaffold frame."""
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * hx, sy * hy
+            p.log((x, y, -0.02), (x, y, height), 0.055, tile="bark", seg=7)
+    for z in (height * 0.55, height - 0.05):
+        for sy in (-1, 1):
+            p.log((-hx, sy * hy, z), (hx, sy * hy, z), 0.035, tile="wood", seg=5)
+        for sx in (-1, 1):
+            p.log((sx * hx, -hy, z), (sx * hx, hy, z), 0.035, tile="wood", seg=5)
+    if braces:
+        for sx in (-1, 1):
+            p.log((sx * hx, -hy, 0.05), (sx * hx, hy, height - 0.1), 0.028, tile="wood_dark", seg=5)
+
+
+def site_small(stage):
+    """Unfinished 2 x 2 m construction site. Stage 0 staked out, 1 half-built frame, 2 full frame
+    with a plank wall started on one side."""
+    p = Part("site_small_%d" % stage)
+    hx, hy = 0.95, 0.95
+    if stage == 0:
+        _site_stakes(p, hx, hy)
+        _site_logs(p, hx, hy, n=4)
+    elif stage == 1:
+        _site_stakes(p, hx, hy, stake_h=0.3)
+        _site_scaffold(p, hx, hy, height=1.15, braces=True)
+        _site_logs(p, hx, hy, n=2)
+    else:
+        _site_scaffold(p, hx, hy, height=2.05, braces=True)
+        # partial plank cladding on the back and left sides
+        for i in range(4):
+            p.box((hx * 2, 0.06, 0.34), (0, hy, 0.4 + i * 0.36), "plank", tile_m=1.2)
+        for i in range(3):
+            p.box((0.06, hy * 2 - 0.1, 0.34), (-hx, 0.02, 0.58 + i * 0.36), "plank", tile_m=1.2)
+        # a ladder leaning on the frame inside the footprint and a plank stack
+        for sx in (-1, 1):
+            p.log((sx * 0.16, -hy + 0.62, 0.02), (sx * 0.16, -hy + 0.06, 1.55), 0.028, tile="wood", seg=5)
+        for i in range(4):
+            p.log((-0.14, -hy + 0.54 - i * 0.11, 0.36 + i * 0.34), (0.14, -hy + 0.54 - i * 0.11, 0.36 + i * 0.34),
+                  0.022, tile="wood", seg=5)
+        for i in range(3):
+            p.box((0.9, 0.18, 0.05), (0.1, 0.2, 0.04 + i * 0.055), "wood", rot=(0, 0, 3 * i), tile_m=1.0)
+        _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def site_large(stage):
+    """Unfinished 3 x 3 m construction site, same three stages on a bigger footprint."""
+    p = Part("site_large_%d" % stage)
+    hx, hy = 1.45, 1.45
+    if stage == 0:
+        _site_stakes(p, hx, hy, stake_h=0.5)
+        _site_logs(p, hx, hy, n=6)
+    elif stage == 1:
+        _site_stakes(p, hx, hy, stake_h=0.34)
+        _site_scaffold(p, hx, hy, height=1.4, braces=True)
+        _site_logs(p, hx, hy, n=4)
+    else:
+        _site_scaffold(p, hx, hy, height=2.5, braces=True)
+        for i in range(6):
+            p.box((hx * 2, 0.07, 0.36), (0, hy, 0.5 + i * 0.38), "plank", tile_m=1.4)
+        for i in range(5):
+            p.box((0.07, hy * 2 - 0.1, 0.36), (-hx, 0.02, 0.68 + i * 0.38), "plank", tile_m=1.4)
+        # a frame and a doorway opening marked on the front
+        for sx in (-1, 1):
+            p.log((sx * 0.55, -hy, 0.02), (sx * 0.55, -hy, 2.1), 0.045, tile="wood_dark", seg=6)
+        p.log((-0.55, -hy, 2.1), (0.55, -hy, 2.1), 0.04, tile="wood_dark")
+        # scaffolding planks laid on the front rail and a ladder inside the footprint
+        for i in range(3):
+            p.box((2.6, 0.24, 0.05), (0, -hy + 0.16, 0.9 + i * 0.42), "plank", tile_m=1.6)
+        for sx in (-1, 1):
+            p.log((sx * 0.2, -hy + 0.66, 0.02), (sx * 0.2, -hy + 0.1, 1.8), 0.03, tile="wood", seg=5)
+        for i in range(5):
+            p.log((-0.18, -hy + 0.58 - i * 0.13, 0.4 + i * 0.34), (0.18, -hy + 0.58 - i * 0.13, 0.4 + i * 0.34),
+                  0.024, tile="wood", seg=5)
     return [(p, (0, 0, 0))]
 
 
@@ -1680,4 +1807,10 @@ BUILDERS = {
     "large_loom": large_loom,
     "oven": oven,
     "large_drying_rack": large_drying_rack,
+    "site_small_0": lambda: site_small(0),
+    "site_small_1": lambda: site_small(1),
+    "site_small_2": lambda: site_small(2),
+    "site_large_0": lambda: site_large(0),
+    "site_large_1": lambda: site_large(1),
+    "site_large_2": lambda: site_large(2),
 }
