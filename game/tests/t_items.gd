@@ -289,8 +289,23 @@ func _test_no_lost_items() -> void:
 	# W2-INV: inputs are one instance per slot, so spending them frees the slot a 1-slot output needs.
 	_expect(CR.output_fits(bag, knife, picks), "a full bag crafts: the consumed instances free a slot")
 	_expect(bag.to_array() == before, "the fit check leaves the bag untouched")
-	bag.remove_at(bag.slot_count - 1, 1)
-	_expect(CR.output_fits(bag, knife, CR.default_picks(bag, knife)), "one free slot lets the craft through")
+	# A full bag still refuses when the output needs more slots than the inputs free: sashimi makes
+	# 3 instances from 1 meat (sec-loss-08; on the hand path output_fits is the only loss guard).
+	var sashimi: Dictionary = CR.recipe(&"sashimi")
+	var meat = INV.new(20)
+	meat.add(IS.make(&"raw_meat", 1, {}, 1))
+	var lvl := 1
+	while meat.used_slots() < 20:
+		meat.add(IS.make(&"berry", 1, {}, lvl))
+		lvl += 1
+	var meat_before: Array = meat.to_array()
+	var mp: Array[int] = CR.default_picks(meat, sashimi)
+	_expect(CR.picks_valid(meat, sashimi, mp) and not CR.output_fits(meat, sashimi, mp), "a full bag refuses sashimi (3 out, 1 slot freed) before consuming")
+	_expect(meat.to_array() == meat_before, "the refused fit check leaves the bag untouched")
+	meat.remove_at(19, 1)
+	_expect(not CR.output_fits(meat, sashimi, CR.default_picks(meat, sashimi)), "one free slot is still one short for sashimi")
+	meat.remove_at(18, 1)
+	_expect(CR.output_fits(meat, sashimi, CR.default_picks(meat, sashimi)), "two free slots and the meat's own let sashimi through")
 	# StationCraft no longer parks refunds anywhere: no meta store may come back.
 	var methods: Array = SC.get_script_method_list().map(func(m: Dictionary) -> String: return str(m["name"]))
 	_expect(not "collect_held" in methods and not "HELD_META" in SC.get_script_constant_map(), "no volatile held-item store remains")
