@@ -681,7 +681,7 @@ Modular building beside the kit prefabs: StructurePiece with sockets (edge, top,
 
 After the survivor-v2 merge: equipment references the exact item (slot index or uid); equipped gear moves into an equipment container out of the 20-slot grid; can_accept(stack) before every consume; negative and zero amounts rejected; the best tool is auto-selected by gather_power; level scaling read only from ItemStack.
 
-**Owns:** `game/scripts/items/inventory.gd`; `game/scripts/items/item_def.gd`; `game/tests/t_inventory.gd (new)`; `game/scripts/items/inventory_migration.gd (new)`; `game/data/inventory.json (new: stacking categories, Pocket slots)`; `game/scripts/dev/inventory_lab.gd (new)`
+**Owns:** `game/scripts/items/inventory.gd`; `game/scripts/items/item_def.gd`; `game/tests/t_inventory.gd (new)`; `game/scripts/items/inventory_migration.gd (new)`; `game/scripts/items/inventory_equipment.gd (new: equip, unequip, capacity)`; `game/data/inventory.json (new: stacking categories, Pocket slots)`; `game/scripts/dev/inventory_lab.gd (new)`
 
 **Must not touch:** `game/scripts/items/item_stack.gd (W2-PROCESS)`; `game/scripts/ui/inventory_ui.gd (W2-SCREENS)`
 
@@ -693,6 +693,8 @@ After the survivor-v2 merge: equipment references the exact item (slot index or 
 - remove_at(i, -100) and consume(id, 0) return null/false and change nothing.
 - Equipped items no longer occupy the 20 bag slots; with nothing equipped a flint pick is chosen over a stone pick.
 - equip_mount_lab PASS.
+
+**Before players with large old saves update (review 2):** one instance per slot means home cargo (60), baskets (60) and pet bags (10) hold that many items; a heavy legacy save migrates into a home cargo of 22,125 slots. W2-BUILDSYS raises container capacities (spec 05:14) and INVUI virtualizes the storage/cargo grid. Server operators snapshot on the old build before upgrading.
 
 
 #### W2-LOOP: Renewable faucet and the harbour as mission and market hub

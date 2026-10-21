@@ -99,29 +99,37 @@ static func resize(inv: Inventory, cap: int) -> bool:
 ## Saved worn gear (extras "worn"), or the pre-W2-INV def-id "equipment" form: that item (highest
 ## level) moves out of the bag into its slot. Then the bag takes the capacity the worn gear gives
 ## (a shrink that would cut off items is skipped: never delete). `seen` holds the uids already
-## loaded (home cargo, the bag): a worn row repeating one is reminted.
+## loaded (home cargo, the bag): a worn row repeating one is reminted. A real item that can no
+## longer be worn where it was saved (its def's slot changed) goes to the bag and is logged.
 static func load_worn(inv: Inventory, d: Dictionary, seen: Dictionary) -> void:
 	var w: Variant = d.get("worn", null)
+	var unworn: Array[ItemStack] = []
 	if w is Dictionary:
 		for slot: Variant in w:
 			var row: Variant = w[slot]
-			if not row is Dictionary or StringName(str(slot)) not in Inventory.EQUIP_SLOTS:
+			if not row is Dictionary:
 				continue
 			var s := ItemStack.from_dict(row)
-			var want := Inventory.slot_for(s.def())
-			# Trust boundary: a known wearable def in its own slot, one unit, a reachable level.
-			if want == &"" or not (want == StringName(str(slot)) or (want == &"accessory1" and str(slot) == "accessory2")):
-				continue
+			if s.def() == null:
+				continue # not an item of this build (the lock marker, an unknown id)
+			# Trust boundary: one unit at a reachable level, a uid of its own.
 			s.count = 1
 			s.level = clampi(s.level, 1, 60)
 			if seen.has(s.uid):
 				s.remint_uid() # spec 05:26 duplicate IDs: the bag (or cargo) copy keeps it
 			Inventory.mint(s)
 			seen[s.uid] = true
-			inv.equipment[str(slot)] = s
+			var want := Inventory.slot_for(s.def())
+			if StringName(str(slot)) in Inventory.EQUIP_SLOTS and want != &"" and (want == StringName(str(slot)) or (want == &"accessory1" and str(slot) == "accessory2")):
+				inv.equipment[str(slot)] = s
+			else:
+				unworn.append(s)
 	else:
 		var legacy: Variant = d.get("equipment", {})
 		if legacy is Dictionary:
 			for slot: Variant in legacy:
 				inv.equip(StringName(str(slot)), StringName(str(legacy[slot])))
 	resize(inv, capacity(inv))
+	for s in unworn:
+		print("[inv] load: worn %s L%d cannot be worn there any more; moved to the bag" % [s.def_id, s.level])
+		inv.add_growing(s) # spec 05:11 never delete: a full bag grows rather than drop it

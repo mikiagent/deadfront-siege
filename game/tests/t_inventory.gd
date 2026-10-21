@@ -39,7 +39,7 @@ func _process(_delta: float) -> bool:
 		_test_worn_gear_kept, _test_currency_stacks, _test_visual_groups, _test_server_store_migration, _test_default_pick_spares_valuable,
 		_test_legacy_ceiling, _test_duplicate_uids, _test_pocket_capacity, _test_grown_container_reloads, _test_journal_before_split,
 		_test_tip_names_traits, _test_default_pick_across_defs, _test_forged_worn_row, _test_split_rows_without_uid,
-		_test_journal_rules_change, _test_unique_uids_across_containers]
+		_test_journal_rules_change, _test_unique_uids_across_containers, _test_default_pick_value_before_overlap]
 	for t in tests:
 		var errs := log.script_errors
 		t.call()
@@ -230,7 +230,16 @@ func _test_hostile_worn() -> void:
 	inv.extras_from_dict(_json({"worn": {"head": forged, "body": IS.make(&"stone", 1).to_dict(), "legs": _helm(5).to_dict(), "tail": _helm(5).to_dict(), "arms": "raid_helm"}}))
 	var h = inv.equipped_in(&"head")
 	_expect(h != null and h.count == 1 and h.level == 60, "a forged worn helm loads as x1 L60")
-	_expect(inv.equipped_in(&"body") == null and inv.equipped_in(&"legs") == null and not inv.equipment.has("tail") and inv.equipped_in(&"arms") == null, "worn rows in the wrong slot or of the wrong shape are dropped")
+	_expect(inv.equipped_in(&"body") == null and inv.equipped_in(&"legs") == null and not inv.equipment.has("tail") and inv.equipped_in(&"arms") == null, "worn rows in the wrong slot or of the wrong shape are not worn")
+	# Review 3 (spec 05:11 never delete): a real item that cannot be worn where it was saved (its
+	# def's slot changed, e.g. an items.json category edit) goes to the bag, logged; a non-row is not an item.
+	var lines := log.lines.size()
+	_expect(inv.count_of(&"stone") == 1 and inv.count_of(&"raid_helm") == 2 and inv.used_slots() == 3, "the stone (body) and the helms (legs, tail) are in the bag (stone %d helm %d used %d)" % [inv.count_of(&"stone"), inv.count_of(&"raid_helm"), inv.used_slots()])
+	var full = INV.new(2)
+	full.add(IS.make(&"stone", 2, {}, 1))
+	full.extras_from_dict(_json({"worn": {"legs": _helm(7).to_dict()}}))
+	var moved := Array(log.lines.slice(lines)).filter(func (l: String) -> bool: return l.contains("moved to the bag"))
+	_expect(full.count_of(&"raid_helm") == 1 and full.count_of(&"stone") == 2 and moved.size() == 1, "a full bag grows for an unwearable worn helm rather than drop it, and says so (helm %d, %d log lines)" % [full.count_of(&"raid_helm"), moved.size()])
 
 func _test_identity_through_transfer() -> void:
 	var a = INV.new(4)
@@ -497,6 +506,51 @@ func _test_default_pick_across_defs() -> void:
 	rare.slots[1] = IS.make(&"fibre_stalk", 1, {"hardness": 9}, 40)
 	var rp: Array[int] = CR.default_picks(rare, rec)
 	_expect(CR.picks_valid(rare, rec, rp) and CR.plan_spends_traits(rare, rec, rp), "only trait stalks: the default plan says it spends a trait")
+
+## The bag slots a default plan spends, sorted.
+func _spent(CR: GDScript, inv, rec: Dictionary) -> Array[int]:
+	var out: Array[int] = []
+	for row in CR._plan(inv, rec, CR.default_picks(inv, rec)):
+		for part in row.parts:
+			out.append(int(part.idx))
+	out.sort()
+	return out
+
+func _bag_of(rows: Array):
+	var inv = INV.new(20)
+	for i in rows.size():
+		inv.slots[i] = IS.make(rows[i][0], 1, rows[i][1], rows[i][2])
+	return inv
+
+## Review 3 (spec 05:23): value comes before "dedicated before dual-category". A straw roll (fibre x3,
+## lashing x1) spends 4 plain reeds, not 3 lv40 trait stalks; a slingshot spends a plain raptor bone,
+## not the rare dense bone. A cheap dual unit a later slot needs is left for it (3 reeds, a frond:
+## no trait stalk goes), and when value first cannot fill every slot the dedicated-first plan does.
+func _test_default_pick_value_before_overlap() -> void:
+	var CR := load("res://scripts/items/crafting.gd") as GDScript
+	var recipes: Dictionary = get_root().get_node("Data").recipes
+	var trait9 := {"hardness": 9}
+	var straw: Dictionary = recipes.get(&"straw_roll_kit", {})
+	var inv = _bag_of([[&"fibre_stalk", trait9, 40], [&"fibre_stalk", trait9, 40], [&"fibre_stalk", trait9, 40],
+		[&"reed", {}, 1], [&"reed", {}, 1], [&"reed", {}, 1], [&"reed", {}, 1]])
+	var spent := _spent(CR, inv, straw)
+	_expect(spent == [3, 4, 5, 6], "straw roll spends the 4 plain reeds, not the lv40 trait stalks (spent %s)" % [spent])
+	var sling: Dictionary = recipes.get(&"slingshot", {})
+	inv = _bag_of([[&"dense_bone", {"firm": 5}, 40], [&"raptor_bone", {}, 1], [&"raptor_bone", {}, 1], [&"branch", {}, 1],
+		[&"twine", {}, 1], [&"twine", {}, 1]])
+	spent = _spent(CR, inv, sling)
+	_expect(spent == [1, 3, 4, 5], "slingshot spends a plain raptor bone and the branch, not the dense bone (spent %s)" % [spent])
+	_expect(not CR.plan_spends_traits(inv, sling, CR.default_picks(inv, sling)), "the slingshot default spends no trait")
+	inv = _bag_of([[&"fibre_stalk", trait9, 40], [&"fibre_stalk", trait9, 40], [&"reed", {}, 1], [&"reed", {}, 1],
+		[&"reed", {}, 1], [&"palm_frond", {}, 5]])
+	spent = _spent(CR, inv, straw)
+	_expect(spent == [2, 3, 4, 5], "3 reeds and a frond: the third reed stays for the lashing, no trait stalk goes (spent %s)" % [spent])
+	# handle, bone, blade_mat: value first takes the lv1 raptor bone as the handle, then the dense
+	# bone is the only blade left for two slots; dedicated first (the branch) fills all three.
+	var tri := {"id": "t_tri", "slots": [{"category": "handle", "count": 1}, {"category": "bone", "count": 1}, {"category": "blade_mat", "count": 1}], "output": {"id": "twine", "count": 1}}
+	inv = _bag_of([[&"raptor_bone", {}, 1], [&"dense_bone", {}, 1], [&"branch", {}, 5]])
+	spent = _spent(CR, inv, tri)
+	_expect(spent == [0, 1, 2], "when value first runs a slot short, the dedicated-first plan still crafts (spent %s)" % [spent])
 
 ## Review 2: the worn row is a trust boundary. A forged worn helm (x5000, L9999, durability 1e9,
 ## a bad uid) read through the loader's own path loads as x1 L60 within the real durability ceiling.

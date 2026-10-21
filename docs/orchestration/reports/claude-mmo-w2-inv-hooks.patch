@@ -153,104 +153,210 @@ index 13185501..24a7dbb6 100644
  
  ## Dropped loot on the floor: a billboard loot-bag symbol with the top item's icon over it,
 diff --git a/game/scripts/dev/craft_lab.gd b/game/scripts/dev/craft_lab.gd
-index 0b840a23..b880d45b 100644
+index 0b840a23..1a1c4dac 100644
 --- a/game/scripts/dev/craft_lab.gd
 +++ b/game/scripts/dev/craft_lab.gd
-@@ -264,8 +264,9 @@ func _full_bag_craft() -> void:
+@@ -264,18 +264,30 @@ func _full_bag_craft() -> void:
  	var out := Crafting.craft(_player, rec, Crafting.default_picks(_player.inventory, rec))
  	var hud := get_tree().get_first_node_in_group("hud")
  	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
 -	_check(out == null and _player.inventory.to_array() == before, "full bag: craft refused, inputs unchanged")
--	_check(notices.contains("Bag is full"), "full bag: refusal notice shown")
 +	# W2-INV: inputs are one instance per slot, so spending them frees the slot the knife needs.
 +	_check(out != null and _player.inventory.count_of(&"stone_knife_work") == 1 and _player.inventory.count_of(&"stone") == 1, "full bag: the craft goes through on the slots its inputs free")
 +	_check(not notices.contains("Bag is full"), "full bag: no refusal notice")
++	# Sashimi makes 3 instances from 1 meat: a full bag refuses before consuming (sec-loss-08).
++	_empty_bag()
++	_player.inventory.add(ItemStack.make(&"raw_meat", 1, {}, 1))
++	_fill_bag()
++	_player.global_position = _bonfire.global_position + Vector3(0.8, 0, 0)
++	before = _player.inventory.to_array()
++	var sashimi := Crafting.recipe(&"sashimi")
++	out = Crafting.craft(_player, sashimi, Crafting.default_picks(_player.inventory, sashimi))
++	notices = str(hud.get("_events").notices) if hud and hud.get("_events") else ""
++	_check(out == null and _player.inventory.to_array() == before, "full bag: a 3-instance craft is refused, inputs unchanged")
+ 	_check(notices.contains("Bag is full"), "full bag: refusal notice shown")
  
  ## Start a skewer at `fire` with one meat and one branch (level 4) in an otherwise empty bag.
- func _start_skewer(fire: Node3D, meat: int = 1, branch: int = 1) -> StationCraft:
-@@ -308,8 +309,9 @@ func _finish_waits_for_room() -> void:
+-func _start_skewer(fire: Node3D, meat: int = 1, branch: int = 1) -> StationCraft:
++func _start_skewer(fire: Node3D, meat: int = 1, branch: int = 1, recipe: StringName = &"skewer") -> StationCraft:
+ 	var sc := _player.station_craft
+ 	_empty_bag()
+ 	_player.inventory.add(ItemStack.make(&"raw_meat", meat, {}, 4))
+ 	_player.inventory.add(ItemStack.make(&"branch", branch, {}, 4))
+ 	_player.global_position = fire.global_position + Vector3(0.8, 0, 0)
+ 	sc.station = fire
+-	sc._begin_recipe(&"skewer")
++	sc._begin_recipe(recipe)
+ 	_player.clear_nav()
+ 	sc._start_craft_cycle()
+ 	return sc
+@@ -299,20 +311,28 @@ func _recipe_switch_refunds() -> void:
+ 	sc.cancel_and_refund()
+ 
+ ## The bag fills up during the craft: the finished craft waits at 100 % with its inputs, then
+-## completes once a slot frees up.
++## completes once there is room. A skewer needs only the slot its inputs free (W2-INV: one instance
++## per slot); sashimi makes 3 instances from 1 meat, so it waits for two more.
+ func _finish_waits_for_room() -> void:
+-	# Two of each, so consuming one of each frees no slot for the skewer.
+ 	var sc := _start_skewer(_bonfire, 2, 2)
+ 	_fill_bag()
+ 	sc.progress = 0.99
  	sc._process(0.1)
++	_check(not sc.crafting and _inputs_home(1, 1) and _player.inventory.count_of(&"skewer") == 1, "a finished skewer with a full bag lands in the slot its inputs freed")
++	sc = _start_skewer(_bonfire, 1, 0, &"sashimi")
++	_fill_bag()
++	sc.progress = 0.99
++	sc._process(0.1)
  	var hud := get_tree().get_first_node_in_group("hud")
  	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
 -	_check(sc.crafting and _inputs_home(2, 2) and _player.inventory.count_of(&"skewer") == 0, "a finished craft with a full bag waits, inputs untouched")
 -	_check(notices.contains("make room to finish"), "the wait tells the player to make room")
-+	# W2-INV: the spent meat and branch instances free a slot, so the skewer lands without a wait.
-+	_check(not sc.crafting and _inputs_home(1, 1) and _player.inventory.count_of(&"skewer") == 1, "a finished craft with a full bag lands in the slot its inputs freed")
-+	_check(not notices.contains("make room to finish"), "no make-room wait")
++	_check(sc.crafting and _inputs_home(1, 0) and _player.inventory.count_of(&"sashimi") == 0, "a finished sashimi with a full bag waits, the meat untouched")
++	_check(notices.contains("make room to finish the Sashimi"), "the wait tells the player to make room")
  	_player.inventory.remove_at(_player.inventory.slot_count - 1, 1)
  	sc._process(FULL_RETRY)
- 	_check(not sc.crafting and _player.inventory.count_of(&"skewer") == 1 and _inputs_home(1, 1), "it finishes once a slot frees up")
+-	_check(not sc.crafting and _player.inventory.count_of(&"skewer") == 1 and _inputs_home(1, 1), "it finishes once a slot frees up")
++	_check(sc.crafting and _player.inventory.count_of(&"sashimi") == 0, "one freed slot is not enough: it still waits")
++	_player.inventory.remove_at(_player.inventory.slot_count - 2, 1)
++	sc._process(FULL_RETRY)
++	_check(not sc.crafting and _player.inventory.count_of(&"sashimi") == 3 and _inputs_home(0, 0), "it finishes once there is room for all 3")
+ 
+ const FULL_RETRY := StationCraft.FULL_RETRY_S + 0.05
+ 
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index e09baeef..265001e3 100644
+index e09baeef..17f11642 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
-@@ -18,7 +18,8 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
+@@ -17,45 +17,35 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
+ 
  ## Each recipe slot has a lead stack (for the primary item's attributes) and may draw
  ## its remaining units from other stacks. A plan row records exact bag indices/counts.
- ## Prefer dedicated materials over dual-category ones, so fibre stalk is spent before
+-## Prefer dedicated materials over dual-category ones, so fibre stalk is spent before
 -## bark that might still be needed as lashing. Leads take the largest matching stack.
-+## bark that might still be needed as lashing. Then the least valuable instance (Inventory.spend_key),
-+## then the largest matching stack.
++## Spec 05:23 (W2-INV): the recipe's own input (prefer_id) first, then the least valuable instance
++## (Inventory.spend_key), then dedicated materials before dual-category ones; a unit that a later
++## slot still needs (a cheap reed is also the recipe's lashing) is left for it. When a slot still
++## runs short, plan again with dedicated materials first (the order before W2-INV).
  static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
++	var plan := _plan_ordered(inv, rec, picks, true)
++	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
++
++static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], value_first: bool) -> Array[Dictionary]:
  	var slots: Array = rec.get("slots", [])
  	if inv == null or slots.is_empty() or (not picks.is_empty() and picks.size() != slots.size()):
-@@ -36,7 +37,17 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 		return []
++	var cats: Array[StringName] = []
++	var cands: Array = [] # per recipe slot: the bag slots of its category
++	for slot: Variant in slots:
++		if not slot is Dictionary:
++			return []
++		cats.append(StringName(str(slot.get("category", ""))))
++		cands.append(inv.find_by_category(cats[-1]))
+ 	var remaining: Dictionary = {}
+ 	var plan: Array[Dictionary] = []
+ 	var prefer := StringName(str(rec.get("input_id", "")))
+ 	for i in slots.size():
+-		if not slots[i] is Dictionary:
+-			return []
+ 		var slot: Dictionary = slots[i]
+-		var cat := StringName(str(slot.get("category", "")))
++		var cat := cats[i]
+ 		var need := int(slot.get("count", 1))
+ 		if need <= 0:
  			return []
  		var preferred := StringName(str(slot.get("prefer_id", prefer if i == 0 else "")))
- 		var candidates := inv.find_by_category(cat)
+-		var candidates := inv.find_by_category(cat)
 -		candidates.sort_custom(func(a: int, b: int) -> bool:
-+		var lead := -1
-+		if not picks.is_empty():
-+			lead = picks[i]
-+			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat):
-+				return []
-+			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
-+				return []
-+		# The lead's def breaks ties inside equal spend keys only (W2-INV review 2: ordering the lead's
-+		# whole def first spent a lv40 trait stalk while a plain lv1 palm frond was left).
-+		var lead_def := {"id": inv.slots[lead].def_id if lead >= 0 else &""}
-+		var by_value := func(a: int, b: int) -> bool:
- 			var sa := inv.slots[a]
- 			var sb := inv.slots[b]
- 			var pa := 1 if preferred != &"" and sa.def_id == preferred else 0
-@@ -53,21 +64,27 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
- 					overlaps_b += 1
- 			if overlaps_a != overlaps_b:
- 				return overlaps_a < overlaps_b
-+			# Spec 05:23 (W2-INV): the least valuable instance first, so a default pick never spends a
-+			# rare or higher-level one; the player can still pick it.
-+			var ka := Inventory.spend_key(sa)
-+			var kb := Inventory.spend_key(sb)
-+			if ka != kb:
-+				return ka < kb
-+			var la: bool = sa.def_id == lead_def.id
-+			if la != (sb.def_id == lead_def.id):
-+				return la
- 			var ca := int(remaining.get(a, sa.count))
- 			var cb := int(remaining.get(b, sb.count))
+-			var sa := inv.slots[a]
+-			var sb := inv.slots[b]
+-			var pa := 1 if preferred != &"" and sa.def_id == preferred else 0
+-			var pb := 1 if preferred != &"" and sb.def_id == preferred else 0
+-			if pa != pb:
+-				return pa > pb
+-			var overlaps_a := 0
+-			var overlaps_b := 0
+-			for other in slots:
+-				var other_cat := StringName(str(other.get("category", "")))
+-				if sa.def().has_category(other_cat):
+-					overlaps_a += 1
+-				if sb.def().has_category(other_cat):
+-					overlaps_b += 1
+-			if overlaps_a != overlaps_b:
+-				return overlaps_a < overlaps_b
+-			var ca := int(remaining.get(a, sa.count))
+-			var cb := int(remaining.get(b, sb.count))
 -			return ca > cb if ca != cb else a < b)
--		var lead := -1
--		if not picks.is_empty():
--			lead = picks[i]
--			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat):
--				return []
--			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
--				return []
+ 		var lead := -1
+ 		if not picks.is_empty():
+ 			lead = picks[i]
+@@ -63,18 +53,24 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 				return []
+ 			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
+ 				return []
 -		elif not candidates.is_empty():
-+			return ca > cb if ca != cb else a < b
-+		candidates.sort_custom(by_value)
-+		if lead < 0 and not candidates.is_empty():
- 			lead = candidates[0]
-+			lead_def.id = inv.slots[lead].def_id
-+			candidates.sort_custom(by_value) # again, with the tie-break
- 		if lead < 0:
- 			return []
- 		var parts: Array[Dictionary] = []
-+		# The lead first, then the other units by the same order (one instance per slot, W2-INV).
- 		var order: Array[int] = [lead]
+-			lead = candidates[0]
+-		if lead < 0:
+-			return []
+-		var parts: Array[Dictionary] = []
+-		var order: Array[int] = [lead]
++		var keys := {}
++		var candidates: Array[int] = []
++		candidates.assign(cands[i])
++		for idx in candidates:
++			keys[idx] = _pick_key(inv.slots[idx], preferred, cats, value_first) + [-int(remaining.get(idx, inv.slots[idx].count)), idx]
++		candidates.sort_custom(func(a: int, b: int) -> bool: return keys[a] < keys[b])
++		var order: Array[int] = []
++		if lead >= 0:
++			order.append(lead)
  		for idx in candidates:
  			if idx != lead:
-@@ -98,6 +115,16 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
+ 				order.append(idx)
++		var parts: Array[Dictionary] = []
+ 		for idx in order:
+ 			var available := int(remaining.get(idx, inv.slots[idx].count))
+ 			var take := mini(need, available)
++			if value_first and idx != lead:
++				take = mini(take, _spare_for_later(inv, slots, cands, remaining, i, idx))
+ 			if take > 0:
+ 				parts.append({"idx": idx, "count": take})
+ 				remaining[idx] = available - take
+@@ -83,9 +79,33 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 				break
+ 		if need > 0:
+ 			return []
+-		plan.append({"lead": lead, "parts": parts})
++		plan.append({"lead": int(parts[0].idx), "parts": parts})
+ 	return plan
+ 
++## The default-pick sort key, ascending: the recipe's own input, then value (spend_key) and the
++## number of the recipe's categories the item serves, in the order the plan pass asks for.
++static func _pick_key(s: ItemStack, preferred: StringName, cats: Array[StringName], value_first: bool) -> Array:
++	var pref := 0 if preferred != &"" and s.def_id == preferred else 1
++	var overlaps := 0
++	for c in cats:
++		if s.def().has_category(c):
++			overlaps += 1
++	var value := Inventory.spend_key(s)
++	return [pref] + value + [overlaps] if value_first else [pref, overlaps] + value
++
++## Units of bag slot `idx` that recipe slot `i` may take while every later slot keeps enough
++## candidates (spending a cheap reed as fibre must not leave the recipe's lashing short).
++static func _spare_for_later(inv: Inventory, slots: Array, cands: Array, remaining: Dictionary, i: int, idx: int) -> int:
++	var spare := 1 << 30
++	for j in range(i + 1, slots.size()):
++		if idx not in cands[j]:
++			continue
++		var supply := 0
++		for c: int in cands[j]:
++			supply += int(remaining.get(c, inv.slots[c].count))
++		spare = mini(spare, supply - int(slots[j].get("count", 1)))
++	return maxi(0, spare)
++
+ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
+ 	var plan := _plan(inv, rec)
+ 	if not plan.is_empty():
+@@ -98,6 +118,16 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
  	missing.fill(-1)
  	return missing
  
@@ -267,7 +373,7 @@ index e09baeef..265001e3 100644
  static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
  	return not _plan(inv, rec, picks).is_empty()
  
-@@ -321,7 +348,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
+@@ -321,7 +351,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
  	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
  	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
  	consume_for_craft(scratch, rec, picks)
@@ -492,14 +598,14 @@ index dfb25ece..e97f1130 100644
  				continue
  			if int(row.count) < 1 or int(row.durability) < 0:
 diff --git a/game/scripts/ui/inventory_ui.gd b/game/scripts/ui/inventory_ui.gd
-index c2ae65f0..389d1fe2 100644
+index c2ae65f0..7060a6b9 100644
 --- a/game/scripts/ui/inventory_ui.gd
 +++ b/game/scripts/ui/inventory_ui.gd
 @@ -47,6 +47,11 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
  const INK := Color(0.95, 0.95, 0.93)
  
  var _split: GridContainer
-+## Visual grouping (W2-INV, prompt 05): the bag grid shows one cell per item id with a ×N badge;
++## Visual grouping (W2-INV, prompt 05): the bag grid shows one cell per item id with a count badge;
 +## a group of several opens into its instances, one cell each, behind a back cell. Instances never
 +## merge. Each entry: {"slot": i} | {"group": id, "slots": [i...], "units": n} | {"back": true}.
 +var _cells: Array = []
@@ -595,7 +701,7 @@ index c2ae65f0..389d1fe2 100644
  				b.tooltip_text = s.tooltip()
  				b.disabled = false
  				b.modulate = Color(0.7, 0.7, 0.7, 0.8) if _readonly_reason() != "" else Color.WHITE
-@@ -420,6 +423,78 @@ func rebuild() -> void:
+@@ -420,6 +423,117 @@ func rebuild() -> void:
  	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
  	_select(_selected if _selected >= 0 else -1)
  
@@ -630,6 +736,7 @@ index c2ae65f0..389d1fe2 100644
 +func _style_cell(btn: Button, cell: Dictionary) -> void:
 +	btn.modulate = Color.WHITE
 +	btn.disabled = cell.has("empty")
++	_badge(btn, int(cell.get("units", 0)))
 +	if cell.has("empty"):
 +		btn.icon = null
 +		btn.text = ""
@@ -645,15 +752,53 @@ index c2ae65f0..389d1fe2 100644
 +		return
 +	if cell.has("group"):
 +		var first := inventory.slots[int(cell.slots[0])]
-+		# "16 …" opens into 16 instances; a real stack (ammo, coins) reads "×45", so they never look alike
-+		# (… is plain typography in ui_icons.json, which t_uiicons enforces).
-+		ItemIcons.style_slot(btn, first.def_id, _pips(cell.slots) + "%d …" % int(cell.units))
++		# A corner count badge (as in ARK and Durango) marks a group that opens into its instances; the
++		# caption is their level range. A real stack (ammo, coins) reads "×45" and has no badge.
++		ItemIcons.style_slot(btn, first.def_id, _pips(cell.slots) + _level_range(cell.slots))
 +		btn.tooltip_text = "%d × %s: tap to see each one" % [(cell.slots as Array).size(), first.def().display_name if first.def() else str(first.def_id)]
 +		return
 +	var s := inventory.slots[int(cell.slot)]
 +	# A unique instance shows its level; a stack (ammo, coins) its count.
 +	ItemIcons.style_slot(btn, s.def_id, _pips([cell.slot]) + ("×%d" % s.count if s.count > 1 else "Lv %d" % s.level))
 +	btn.tooltip_text = s.tooltip()
++
++## "Lv 1-14" over a group's instances ("Lv 5" when they share one level).
++func _level_range(at: Array) -> String:
++	var lo := 1 << 30
++	var hi := 0
++	for i in at:
++		lo = mini(lo, inventory.slots[int(i)].level)
++		hi = maxi(hi, inventory.slots[int(i)].level)
++	return "Lv %d" % lo if lo == hi else "Lv %d-%d" % [lo, hi]
++
++## The group count in the cell's top-right corner; hidden for n = 0 (the grid reuses its buttons).
++func _badge(btn: Button, n: int) -> void:
++	var b := btn.get_node_or_null("Badge") as Label
++	if b == null:
++		if n <= 0:
++			return
++		b = Label.new()
++		b.name = "Badge"
++		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
++		var pill := StyleBoxFlat.new()
++		pill.bg_color = UiTokens.INK_SOLID
++		pill.border_color = UiTokens.TEXT
++		pill.set_border_width_all(1)
++		pill.set_corner_radius_all(10)
++		pill.content_margin_left = 6.0
++		pill.content_margin_right = 6.0
++		b.add_theme_stylebox_override("normal", pill)
++		b.add_theme_color_override("font_color", UiTokens.TEXT)
++		b.anchor_left = 1.0
++		b.anchor_right = 1.0
++		b.grow_horizontal = Control.GROW_DIRECTION_BEGIN
++		b.offset_left = -4.0
++		b.offset_right = -4.0
++		b.offset_top = 4.0
++		btn.add_child(b)
++	b.visible = n > 0
++	b.text = str(n)
++	b.add_theme_font_size_override("font_size", clampi(int(_slot_px / 7.0), 12, 20))
 +
 +func _on_cell(k: int) -> void:
 +	if k < 0 or k >= _cells.size():
@@ -674,7 +819,7 @@ index c2ae65f0..389d1fe2 100644
  func _refresh_profile() -> void:
  	if _profile == null or inventory == null:
  		return
-@@ -549,6 +624,7 @@ func _refresh_equipped() -> void:
+@@ -549,6 +663,7 @@ func _refresh_equipped() -> void:
  			caption = "%.0f" % st.scaled_armor()
  		if st:
  			ItemIcons.style_slot(b, st.def_id, caption)
@@ -682,7 +827,7 @@ index c2ae65f0..389d1fe2 100644
  			b.tooltip_text = st.tooltip()
  			b.modulate = Color.WHITE
  		else:
-@@ -564,10 +640,11 @@ func _select(index: int) -> void:
+@@ -564,10 +679,11 @@ func _select(index: int) -> void:
  	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
  	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
  		b.visible = false
@@ -697,7 +842,7 @@ index c2ae65f0..389d1fe2 100644
  	if none:
  		_tip.text = "Tap an item."
  		return
-@@ -614,8 +691,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
+@@ -614,8 +730,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
  			elif fid != "":
  				inventory.set_quick_food(0 if slot == "food1" else 1, &"")
  		_:
@@ -708,7 +853,7 @@ index c2ae65f0..389d1fe2 100644
  
  func _on_equip_pressed() -> void:
  	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
-@@ -626,7 +703,7 @@ func _on_equip_pressed() -> void:
+@@ -626,7 +742,7 @@ func _on_equip_pressed() -> void:
  	var d := st.def()
  	var slot := Inventory.slot_for(d)
  	if slot != &"":
@@ -717,7 +862,7 @@ index c2ae65f0..389d1fe2 100644
  	elif d and d.tool_class != &"" and d.tool_class != &"none":
  		inventory.set_equipped_tool_index(_selected)
  	_select(_selected)
-@@ -745,7 +822,7 @@ func _can_store_selected() -> bool:
+@@ -745,7 +861,7 @@ func _can_store_selected() -> bool:
  	var st := inventory.slots[_selected]
  	if st == null or st.is_locked() or str(st.def_id) == "_slot_lock": return false
  	if inventory.equipped_tool_index == _selected: return false
@@ -3230,7 +3375,7 @@ index 5e18ccf6..707dc380 100644
  	_player.inventory.consume(&"wheat", got)
  	_player.inventory.consume(&"water_bucket", 2)
 diff --git a/game/tests/t_items.gd b/game/tests/t_items.gd
-index 586db7c5..f88b970e 100644
+index 586db7c5..1ae58cd3 100644
 --- a/game/tests/t_items.gd
 +++ b/game/tests/t_items.gd
 @@ -58,9 +58,9 @@ func _test_identity() -> void:
@@ -3290,7 +3435,7 @@ index 586db7c5..f88b970e 100644
  	var spare = INV.new(20)
  	spare.add(IS.make(&"work_pick", 1, {"material_tier": "copper"}, 1))
  	spare.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
-@@ -283,7 +286,8 @@ func _test_no_lost_items() -> void:
+@@ -283,10 +286,26 @@ func _test_no_lost_items() -> void:
  	var before: Array = bag.to_array()
  	var picks: Array[int] = CR.default_picks(bag, knife)
  	_expect(CR.picks_valid(bag, knife, picks), "full-bag fixture can otherwise make the knife")
@@ -3298,8 +3443,28 @@ index 586db7c5..f88b970e 100644
 +	# W2-INV: inputs are one instance per slot, so spending them frees the slot a 1-slot output needs.
 +	_expect(CR.output_fits(bag, knife, picks), "a full bag crafts: the consumed instances free a slot")
  	_expect(bag.to_array() == before, "the fit check leaves the bag untouched")
- 	bag.remove_at(bag.slot_count - 1, 1)
- 	_expect(CR.output_fits(bag, knife, CR.default_picks(bag, knife)), "one free slot lets the craft through")
+-	bag.remove_at(bag.slot_count - 1, 1)
+-	_expect(CR.output_fits(bag, knife, CR.default_picks(bag, knife)), "one free slot lets the craft through")
++	# A full bag still refuses when the output needs more slots than the inputs free: sashimi makes
++	# 3 instances from 1 meat (sec-loss-08; on the hand path output_fits is the only loss guard).
++	var sashimi: Dictionary = CR.recipe(&"sashimi")
++	var meat = INV.new(20)
++	meat.add(IS.make(&"raw_meat", 1, {}, 1))
++	var lvl := 1
++	while meat.used_slots() < 20:
++		meat.add(IS.make(&"berry", 1, {}, lvl))
++		lvl += 1
++	var meat_before: Array = meat.to_array()
++	var mp: Array[int] = CR.default_picks(meat, sashimi)
++	_expect(CR.picks_valid(meat, sashimi, mp) and not CR.output_fits(meat, sashimi, mp), "a full bag refuses sashimi (3 out, 1 slot freed) before consuming")
++	_expect(meat.to_array() == meat_before, "the refused fit check leaves the bag untouched")
++	meat.remove_at(19, 1)
++	_expect(not CR.output_fits(meat, sashimi, CR.default_picks(meat, sashimi)), "one free slot is still one short for sashimi")
++	meat.remove_at(18, 1)
++	_expect(CR.output_fits(meat, sashimi, CR.default_picks(meat, sashimi)), "two free slots and the meat's own let sashimi through")
+ 	# StationCraft no longer parks refunds anywhere: no meta store may come back.
+ 	var methods: Array = SC.get_script_method_list().map(func(m: Dictionary) -> String: return str(m["name"]))
+ 	_expect(not "collect_held" in methods and not "HELD_META" in SC.get_script_constant_map(), "no volatile held-item store remains")
 diff --git a/game/tests/t_player.gd b/game/tests/t_player.gd
 index 037f42f1..ba369416 100644
 --- a/game/tests/t_player.gd

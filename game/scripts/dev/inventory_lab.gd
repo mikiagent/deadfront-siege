@@ -1,7 +1,7 @@
 extends Node3D
 ## W2-INV bag lab: a full 100-slot bag of mixed single instances (plus one ammo and one bandage
 ## stack) in the real inventory screen. The grid groups identical items visually (one cell per
-## item id with a ×N badge); opening a group shows each instance; nothing ever merges.
+## item id with a corner count badge); opening a group shows each instance; nothing ever merges.
 ## Shots: --resolution 1600x900 (or 844x390) -- --lab=inventory_lab --shot=<png with "bag" in it>
 ##   [--bag-group=stone] opens that group first; [--bag-fill=N] keeps only the first N instances
 ##   (a partly filled bag shows its free slots as empty cells).
@@ -89,6 +89,11 @@ func _open(id: StringName) -> bool:
 			return true
 	return false
 
+## The visible group badge text of a cell, "" when it has none.
+func _badge_of(b: Button) -> String:
+	var badge := b.get_node_or_null("Badge") as Label if b else null
+	return badge.text if badge and badge.visible else ""
+
 func _expect(ok: bool, what: String) -> void:
 	if not ok:
 		_fails.append(what)
@@ -110,13 +115,14 @@ func _check() -> void:
 		small += 1 if b.get_combined_minimum_size().x < UiTokens.TARGET_MIN or b.get_combined_minimum_size().y < UiTokens.TARGET_MIN else 0
 	_expect(small == 0, "every bag cell is a %d px+ target (%d smaller)" % [UiTokens.TARGET_MIN, small])
 	var stone_cell: Button = cells[0] if not cells.is_empty() else null
-	# A group reads "16 …" (opens); a real stack reads "×45": the two never look alike.
-	_expect(stone_cell != null and stone_cell.text.begins_with("16") and not stone_cell.text.contains("×"), "the stone group shows 16 and no stack ×N (got '%s')" % (stone_cell.text if stone_cell else ""))
-	var shot_text := ""
+	# A group has a corner count badge (it opens) and its level range; a real stack reads "×45" with
+	# no badge: the two never look alike.
+	_expect(_badge_of(stone_cell) == "16" and stone_cell.text == "Lv 1-16" and not stone_cell.text.contains("×"), "the stone group has a 16 badge, its level range and no stack ×N (badge '%s', caption '%s')" % [_badge_of(stone_cell), stone_cell.text if stone_cell else ""])
+	var shot_cell: Button = null
 	for k in ui._cells.size():
 		if ui._cells[k].has("slot") and inv.slots[int(ui._cells[k].slot)].def_id == &"stone_shot":
-			shot_text = cells[k].text
-	_expect(shot_text.ends_with("×45"), "the stone_shot stack shows ×45 (got '%s')" % shot_text)
+			shot_cell = cells[k]
+	_expect(shot_cell != null and shot_cell.text.ends_with("×45") and _badge_of(shot_cell) == "", "the stone_shot stack shows ×45 and no group badge (caption '%s', badge '%s')" % [shot_cell.text if shot_cell else "", _badge_of(shot_cell)])
 	inv.slots[inv.find_first(&"stone")].set_flag(&"locked", true)
 	ui.rebuild()
 	_expect(_visible_cells()[0].text.begins_with("L "), "a group holding a locked stone carries the L pip (got '%s')" % _visible_cells()[0].text)
