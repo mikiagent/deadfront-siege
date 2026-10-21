@@ -46,6 +46,8 @@ KIND_GLB = {
     "grindstone": "grindstone", "fishing_stand": "fishing_stand", "stone_grill": "stone_grill",
     "tent_canvas": "tent_canvas", "fence_fortified": "fence_fortified", "field_small": "field_small",
     "field_large": "field_large", "log_shelter": "log_shelter", "cabin_bed": "cabin_bed",
+    # W2-DATA's metalworking stations (FORGEART); they had no row and showed the fallback box
+    "forge": "forge", "anvil": "anvil",
 }
 # Owner rule (2026-10-19): low-quality and low-poly assets are marked for replacement. The
 # building-system pieces are bare 1 m stand-ins for W2-BUILDSYS, so they are REPLACE outright; the
@@ -65,6 +67,8 @@ NODES = {
 ASSEMBLY_AABB = {"taming_pen": [4.05, 1.84, 4.12]}
 NEW_ROWS = {
     "harbour": {"footprint": [3, 6]},
+    "forge": {"footprint": [2, 2]},  # items.json forge_kit / anvil_kit footprints
+    "anvil": {"footprint": [1, 1]},
 }
 
 
@@ -97,6 +101,8 @@ NOTES = {
     "field_large": "large tilled farm plot inside a log border",
     "log_shelter": "small log hut with a thatch roof and an open front",
     "cabin_bed": "wooden bed with a hide mattress and fur blanket",
+    "forge": "smith's forge: fieldstone hearth with an ember bed, hood and chimney, bellows on a trestle",
+    "anvil": "smith's anvil on a stump with a hammer on the face, tongs and a quench bucket",
     "harbour": "harbour dock: plank pier on log piles with a canvas shed, 3x6 like HarbourSite.FOOTPRINT; "
                "deck 1.2 m above the pile feet, seaward end towards -Z. HarbourSite keeps it on the coast",
 }

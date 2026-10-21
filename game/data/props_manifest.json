@@ -675,6 +675,36 @@
       "art_status": "REVIEW",
       "upgrade": "low-poly hand-built Blender (1924 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "harbour dock: plank pier on log piles with a canvas shed, 3x6 like HarbourSite.FOOTPRINT; deck 1.2 m above the pile feet, seaward end towards -Z. HarbourSite keeps it on the coast"
+    },
+    "forge": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/forge.glb",
+      "aabb_m": [
+        1.982,
+        2.768,
+        1.38
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (1608 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "smith's forge: fieldstone hearth with an ember bed, hood and chimney, bellows on a trestle"
+    },
+    "anvil": {
+      "footprint": [
+        1,
+        1
+      ],
+      "glb": "res://assets/props/blender/anvil.glb",
+      "aabb_m": [
+        0.86,
+        0.843,
+        0.71
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (476 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "smith's anvil on a stump with a hammer on the face, tongs and a quench bucket"
     }
   },
   "tools": {

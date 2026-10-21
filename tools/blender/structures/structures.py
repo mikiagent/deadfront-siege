@@ -961,6 +961,157 @@ def grindstone():
     return [(p, (0, 0, 0))]
 
 
+# ------------------------------------------------------------------ metalworking (FORGEART)
+
+def _loft(p, rings, tile, tile_m=1.0):
+    """Skin a stack of equal-count convex rings (lists of xyz, bottom first) and cap both ends:
+    tapered hoods, chimney stacks and the pleated bellows that a box or a cylinder cannot shape."""
+    vs = [[p.bm.verts.new(pt) for pt in ring] for ring in rings]
+    n = len(rings[0])
+    faces = [p.bm.faces.new(list(reversed(vs[0]))), p.bm.faces.new(vs[-1])]
+    for a, b in zip(vs, vs[1:]):
+        for i in range(n):
+            j = (i + 1) % n
+            faces.append(p.bm.faces.new((a[i], a[j], b[j], b[i])))
+    bmesh.ops.recalc_face_normals(p.bm, faces=faces)
+    p.bm.normal_update()
+    return p._finish([v for r in vs for v in r], tile, tile_m=tile_m)
+
+
+def _rect(cx, cy, w, d, z):
+    return [(cx - w / 2, cy - d / 2, z), (cx + w / 2, cy - d / 2, z), (cx + w / 2, cy + d / 2, z), (cx - w / 2, cy + d / 2, z)]
+
+
+def _yz_rect(x, cy, d, z0, z1):
+    return [(x, cy - d / 2, z0), (x, cy + d / 2, z0), (x, cy + d / 2, z1), (x, cy - d / 2, z1)]
+
+
+def _paddle(x0, x1, half_w, z, tilt=0.0, scale=1.0):
+    """Bellows board outline in plan: narrow at the nozzle end x0, wide and rounded at x1. `tilt`
+    lifts the wide end (degrees) so the top board opens like a working bellows."""
+    shape = [(0.0, 0.3), (0.25, 0.85), (0.6, 1.0), (0.85, 0.85), (1.0, 0.45),
+             (1.0, -0.45), (0.85, -0.85), (0.6, -1.0), (0.25, -0.85), (0.0, -0.3)]
+    t = math.tan(R(tilt))
+    cx = (x0 + x1) / 2
+    out = []
+    for u, v in shape:
+        x = cx + (x0 + u * (x1 - x0) - cx) * scale
+        out.append((x, v * half_w * scale, z + (x - x0) * t))
+    return out
+
+
+def forge():
+    """Smith's forge (2x2): a round fieldstone hearth at working height with a glowing ember bed in
+    a firepot of rim stones, a tapered smoke-dark hood on two cheek pillars and a chimney well above
+    the survivor, pleated leather bellows on a trestle blowing into the hearth through an iron
+    nozzle, worked by a rocker lever, and a charcoal heap with split fuel behind. Durango camp
+    reference: stacked-stone furnace with the fire showing at the front
+    (docs/reference/durango-camp-workstations.webp)."""
+    p = Part("forge")
+    hx, hy, hr, H = -0.3, 0.0, 0.5, 0.74  # hearth centre, radius, working height (survivor 1.78 m)
+    # hearth drum: coursed stone, a footing of heavy stones and an uneven rim (no flat slab silhouette)
+    p.cyl(hr, H, (hx, hy, H / 2), "cobble", seg=12, r2=hr - 0.04, cap_tile="stone_dark", tile_m=0.6)
+    for i, (x, y, _) in enumerate(_ring(11, hr + 0.02, 0, 0.15)):
+        s = 0.12 + 0.025 * ((i * 5) % 3)
+        p.rock(s, (hx + x, hy + y, GROUND + s * 0.35), tile="stone_dark", squash=(1.25, 1.0, 0.75), seed=200 + i)
+    for i, (x, y, _) in enumerate(_ring(13, hr - 0.06, 0, 0.4)):
+        s = 0.075 + 0.02 * ((i * 3) % 4) / 3
+        p.rock(s, (hx + x, hy + y, H + s * 0.35), tile="stone", squash=(1.3, 1.0, 0.65), seed=220 + i)
+    # the ember bed: a broad glowing bed in front of the hood with charcoal lumps and hot coals on it
+    ex, ey = hx, hy - 0.1
+    p.cyl(0.33, 0.05, (ex, ey, H + 0.02), "char", seg=12, cap_tile="ember")
+    for i, (x, y, _) in enumerate(_ring(7, 0.2, 0, 0.3)):
+        p.rock(0.06, (ex + x, ey + y, H + 0.05), tile="ember" if i % 2 else "char", squash=(1.2, 1.0, 0.7), seed=240 + i)
+    for i in range(3):
+        p.rock(0.05, (ex - 0.08 + 0.08 * i, ey + 0.02 * i, H + 0.07), tile="ember", squash=(1.3, 1.0, 0.6), seed=250 + i)
+    # a bar heating in the coals, its far end glowing, handle out towards the smith
+    p.log((ex + 0.05, ey + 0.05, H + 0.08), (ex + 0.3, ey - 0.4, H + 0.15), 0.016, tile="iron", seg=5, end_tile="ember")
+    # cheek pillars, back wall and the tapered hood over the back half of the hearth, high enough
+    # for the survivor's head to clear it
+    by = hy + 0.2
+    ph = 0.68
+    for sx in (-1, 1):
+        p.cyl(0.11, ph, (hx + sx * 0.35, by, H + ph / 2), "cobble", seg=7, r2=0.09, cap_tile="stone_dark", tile_m=0.5)
+    p.box((0.64, 0.16, ph - 0.04), (hx, by + 0.17, H + (ph - 0.04) / 2), "cobble", tile_m=0.6)
+    p.box((0.54, 0.02, ph - 0.12), (hx, by + 0.085, H + (ph - 0.12) / 2), "soot")
+    z0, z1, z2 = H + ph - 0.04, H + ph + 0.06, H + ph + 0.46
+    _loft(p, [_rect(hx, by + 0.02, 0.96, 0.56, z0), _rect(hx, by + 0.02, 0.94, 0.54, z1),
+              _rect(hx, by + 0.1, 0.44, 0.36, z2)], "stone_dark", tile_m=0.6)
+    p.box((0.88, 0.02, 0.1), (hx, by - 0.265, z0 + 0.05), "soot")  # smoke-blackened hood lip
+    # chimney stack up past the survivor's head, a slab cap and a lip of soot
+    ch = 2.75
+    _loft(p, [_rect(hx, by + 0.1, 0.42, 0.34, z2 - 0.02), _rect(hx, by + 0.1, 0.34, 0.3, ch - 0.06)], "cobble", tile_m=0.6)
+    p.box((0.48, 0.4, 0.06), (hx, by + 0.1, ch - 0.03), "stone_dark", rot=(0, 2, 3))
+    p.box((0.24, 0.18, 0.02), (hx, by + 0.1, ch + 0.002), "soot")
+    # bellows on a trestle at the +X side (the camera side): a long pear of pleated hide between
+    # two dark boards, wide end lifted, an iron nozzle into the hearth and a rocker lever on a post
+    bx0, bx1, bz, hw, tilt = 0.24, 0.9, 0.52, 0.17, 18.0
+    lift = math.tan(R(tilt))
+    for x in (0.36, 0.78):
+        for sy in (-1, 1):
+            p.log((x, sy * 0.16, 0.0), (x, sy * 0.05, bz - 0.02), 0.028, tile="wood_dark", seg=6)
+        p.plank((x, -0.17, bz - 0.03), (x, 0.17, bz - 0.03), 0.06, 0.05, "wood")
+    p.prism(_paddle(bx0, bx1, hw, bz), (0, 0, 0.03), "wood_dark", tile_m=0.6)
+    rings = []
+    for k, sc in enumerate((0.9, 1.1, 0.84, 1.08, 0.84, 1.04, 0.9)):  # folds bulge out and pinch in
+        rings.append(_paddle(bx0, bx1, hw, bz + 0.03 + 0.026 * k, tilt * k / 6, sc))
+    _loft(p, rings, "hide", tile_m=0.35)  # tan hide between the dark boards so the folds read
+    top = bz + 0.03 + 0.026 * 6
+    p.prism(_paddle(bx0, bx1, hw, top, tilt), (0, 0, 0.03), "wood_dark", tile_m=0.6)
+    p.log((bx1 - 0.03, 0, top + 0.02 + (bx1 - bx0) * lift), (bx1 + 0.08, 0, top + 0.05 + (bx1 - bx0) * lift),
+          0.024, tile="wood", seg=6)  # handle
+    p.cyl(0.045, 0.1, (bx0 - 0.01, 0, bz + 0.08), "wood_dark", rot=(0, 90, 0), seg=8, r2=0.032)
+    p.cyl(0.028, 0.14, (bx0 - 0.11, 0, bz + 0.09), "iron", rot=(0, 92, 0), seg=7, r2=0.02, cap_tile="iron")
+    px, py = 0.96, 0.32
+    p.log((px, py, 0.0), (px, py, 1.45), 0.035, tile="bark", seg=7)
+    p.log((px - 0.02, py + 0.1, 1.42), (bx1 - 0.12, -0.02, 1.34), 0.024, tile="wood_dark", seg=6)
+    p.cyl(0.045, 0.06, (px, py, 1.41), "rope", seg=6)
+    p.log((bx1 - 0.12, -0.02, 1.33), (bx1 - 0.12, -0.02, top + 0.03 + (bx1 - 0.12 - bx0) * lift), 0.012, tile="rope", seg=4, end_tile="rope")
+    # charcoal heap and split fuel behind the hearth, tongs leaning on its front
+    for i, (x, y, _) in enumerate(_ring(6, 0.11, 0, 0.2)):
+        p.rock(0.07, (-0.78 + x, 0.5 + y, GROUND + 0.04), tile="char", squash=(1.1, 1.0, 0.8), seed=260 + i)
+    p.rock(0.08, (-0.78, 0.5, GROUND + 0.11), tile="char", squash=(1.1, 1.0, 0.8), seed=267)
+    for i in range(3):
+        p.log((0.05 + 0.07 * i, 0.68, GROUND + 0.04 + 0.05 * (i % 2)), (0.22 + 0.07 * i, 0.5, GROUND + 0.04 + 0.05 * (i % 2)), 0.032, tile="bark", seg=6)
+    for dy in (-0.012, 0.012):
+        p.log((hx - 0.34, hy - 0.48 + dy, GROUND), (hx - 0.29, hy - 0.37 + dy, H + 0.06), 0.009, tile="iron", seg=4, end_tile="iron")
+    return [(p, (0, 0, 0))]
+
+
+def anvil():
+    """Smith's anvil (1x1) on a hardwood stump with root flares: flared foot, waist, a face with a
+    hardy hole, a horn towards +X and a heel, its face at the survivor's knuckle height. A hammer
+    rests across the face and a quench bucket stands at the stump."""
+    p = Part("anvil")
+    S = 0.5  # stump height; the face lands at ~0.8 m
+    p.cyl(0.25, S, (0, 0, S / 2), "bark", seg=11, r2=0.23, cap_tile="log_end")
+    for i, (x, y, _) in enumerate(_ring(5, 0.22, 0, 0.5)):
+        p.log((x * 0.9, y * 0.9, 0.2), (x * 1.5, y * 1.5, GROUND - 0.02), 0.06, tile="bark", seg=6)
+    p.cyl(0.235, 0.012, (0, 0, S + 0.006), "char", seg=11)  # scorched top ring under the iron
+    a = S + 0.012
+    _loft(p, [_rect(0, 0, 0.34, 0.24, a), _rect(0, 0, 0.3, 0.2, a + 0.05), _rect(0, 0, 0.15, 0.11, a + 0.13),
+              _rect(0, 0, 0.17, 0.12, a + 0.17), _rect(0.02, 0, 0.36, 0.14, a + 0.2)], "iron", tile_m=0.3)
+    f0, f1 = a + 0.2, a + 0.28
+    p.box((0.44, 0.14, f1 - f0), (0.02, 0, (f0 + f1) / 2), "iron", tile_m=0.3)
+    p.box((0.38, 0.12, 0.004), (0.0, 0, f1 + 0.002), "stone", tile_m=0.3)  # bright worked face
+    p.box((0.025, 0.025, 0.006), (-0.13, 0, f1 + 0.004), "soot")  # hardy hole
+    _loft(p, [_yz_rect(-0.19, 0, 0.13, f0 + 0.01, f1), _yz_rect(-0.31, 0, 0.08, f1 - 0.05, f1 - 0.004)], "iron", tile_m=0.3)  # heel
+    p.cyl(0.055, 0.2, (0.33, 0, f0 + 0.045), "iron", rot=(0, 90, 0), seg=8, r2=0.012, cap_tile="iron")
+    # cross-peen hammer lying across the face, handle out over the camera side
+    hz = f1 + 0.025
+    p.box((0.13, 0.05, 0.045), (0.04, 0.0, hz), "iron", rot=(0, 0, 10), tile_m=0.3)
+    p.log((0.04, -0.01, hz), (0.1, -0.34, hz + 0.01), 0.016, tile="wood", seg=6)
+    # tongs leaning on the stump and a quench bucket
+    for dx in (-0.012, 0.012):
+        p.log((0.2 + dx, -0.3, GROUND - 0.02), (0.15 + dx, -0.19, S + 0.02), 0.008, tile="iron", seg=4, end_tile="iron")
+    qx, qy = -0.3, -0.2
+    p.cyl(0.11, 0.24, (qx, qy, 0.12), "wood", seg=9, r2=0.125, cap_tile="water")
+    for z in (0.05, 0.2):
+        p.cyl(0.12 + z * 0.06, 0.02, (qx, qy, z), "iron", seg=9)
+    p.cyl(0.115, 0.01, (qx, qy, 0.225), "water", seg=9, cap_tile="water")
+    return [(p, (0, 0, 0))]
+
+
 def _fish(p, c, length=0.3, girth=0.032, depth=0.07, yaw=0.0):
     """A fish hung by the tail from c (the tail tie): flattened oval body along -Z with a tail fin."""
     c = Vector(c)
@@ -1343,6 +1494,8 @@ BUILDERS = {
     "campfire_stand": campfire_stand,
     "technical_workbench": technical_workbench,
     "grindstone": grindstone,
+    "forge": forge,
+    "anvil": anvil,
     "fishing_stand": fishing_stand,
     "stone_grill": stone_grill,
     "tent_canvas": tent_canvas,
