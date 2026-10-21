@@ -317,8 +317,160 @@ Hooks (`docs/orchestration/reports/claude-mmo-invui-hooks.patch`, regenerated on
 Owner gates: none new. Presets is an optional save field old saves load without (written only once used, so the t_save
 goldens are unchanged); no money or authority change (online gear changes use the server's existing act.equip).
 
-Limits: exact-instance craft / cook picker and full storage are B3 (t_invui 16-17 fail by design). No accessory or
+Limits: exact-instance craft / cook picker and full storage are B3 (t_invui 16-17 fail by design; done in B3 below). No accessory or
 cosmetic gear exists, so the accessory cells only ever show the empty state and the Decorative Gear tab is not shown.
 Presets are local: online, applying sends one act.equip per slot from the client's mirror and the server keeps no preset
 record. The portrait does not show worn armour. Keyboard shortcuts beyond I / Esc, panel motion and the condensed font
 pass are B4. Owner questions: design section 12 (unchanged).
+
+## B3: storage, dinosaur cargo, craft / cook ingredient picker, market hook (2026-10-20, spec 13 sections 17-19, phase 4)
+
+Base sync: W2-INV is still not merged into claude/mmo-overhaul, so `claude/mmo-w2-inv` (a2e9756b, its review round 2) was
+merged. Its hooks patch changed since the last re-apply (c7e1b323) in six non-UI files; the delta (its new patch on a fresh
+a2e9756b against its old patch, built in a scratch tree) was applied and committed (9d31fc95): duplicate uids reminted
+across containers on load (save_game.gd), Butchering XP once per drop kind (corpse.gd, player_actions.gd), default picks
+ordered by spend_key with the lead's def only as a tie-break and `plan_spends_traits` (crafting.gd), `output_fits` asks
+`can_accept`, the server split skips uid-less rows (character_state.gd), a failed replay after a data change says what to do
+(character_store.gd), and their tests (t_player, t_save). Its inventory_ui.gd hunks (empty bag slots, "L / U" pips on a
+group, the "16 ..." group badge) are superseded by INVUI; their intents are kept: empty compartments up to capacity and the
+lock pip on each cell (B1), and the unstable state as an inspect row ("Unstable  cargo warp it home", new here). INVUI's
+hooks were rebuilt on the new base: crafting.gd's lock refusal moved into W2-INV's reordered `_plan`; inventory_lab.gd was
+re-made over W2-INV's new checks (`--bag-fill`, empty compartments, the ×45 stack, the lock pip), one cell per instance.
+
+Shipped (40b410b7, a4b452c7, 4694b105 and this report commit; all under `game/`):
+- `scripts/ui/storage_screen.gd` (StorageScreen, rewritten): the Bag grid and the container grid side by side, each with a
+  "Bag [bag] 91 / 100" strip and its own Auto Sort / Filter toolbar (BagToolbar with only the Filter square); the
+  ItemInspectPanel runs down the right like the Bag's and shows the instance tapped last on either side (a tap on one side
+  clears the other). Its yellow primary is the move: Store for a bag item; Take, with Take All beside it when the opener
+  allows, for a container item; Take All alone with nothing selected. A grey line says why not (take only, locked, held
+  tool, quick food) and the read-only reason ("Needs knife") hides Take. 5 columns at 1600x900, 3 on a 844x390 phone. No
+  T-stone chip. Storage boxes, baskets and home cargo (basket path), corpse loot and dinosaur cargo all keep calling
+  `show_storage` / `show_pet_bag`; InventoryUI keeps the transfer rules (`_store_selected`, `_take_storage`,
+  `_take_all_storage`, `_can_store_selected`) unchanged.
+- `scripts/ui/item_picker.gd` (ItemPicker, new): the Bag layout over one recipe slot: header "< Choose Fruit 1 / 1", the grid
+  filtered to the slot's candidates (`Crafting.stacks_for_slot`; locked never listed; slots the recipe's other slots use left
+  out), the least valuable instances preselected (`Inventory.spend_key`, W2-INV's order), multi-select when the slot takes
+  several (a pick past the count replaces the earliest), the inspect panel on the instance tapped last with a red line for a
+  rare trait ("Uses up a rare trait: Vivid Inspiration.", always) or a Lv. 40+ instance chosen over the least valuable,
+  "Choose N more" until the slot is covered, "N locked, not listed: unlock in the Bag to use.", and the yellow Use that
+  hands back the exact bag slots. Auto Sort works in it.
+- `scripts/ui/inventory_ui.gd`: `open_picker(rid, slot_index, on_pick, taken := [], on_close := Callable())` (on_close runs
+  once when the picker closes, picked or not, so the craft menu comes back), `current_screen() == &"picker"`, the picker's
+  and both storage toolbars' menus in Esc's menu-first rule, `layout_blocks()` for storage (bag, container, both toolbars,
+  inspect) and the picker, `_store_refusal()` for the storage panel's reason.
+- Shared parts: `item_inspect_panel.gd` takes screen-owned `ctx.actions` / `ctx.notes` (wrapped, read in full) / `ctx.title`
+  and shows the unstable state; `inventory_grid.gd` `only` (the picker's candidate set); `bag_toolbar.gd` `squares` (which
+  right-hand squares show) and an Auto Sort width that fits its label; `inv_actions.gd` labels for Store / Take / Take All /
+  Use, and Sell on Market closes the bag family first (the market opens on its own layer).
+- Tests and lab: t_invui 12 (Store moves the exact bone through the panel's button; Food on the storage side hides it there
+  and leaves the bag side on All; the box side offers Take and Take All; read-only loot shows "Needs knife" and no Take; a
+  locked berry stays and says why; a raptor's cargo opens in the same view and Take moves that berry), 16 (the plain Lv. 45
+  bone preselected with no warning, the Black Sheen bone warns, Use returns its slot, crafting consumes exactly it; then the
+  real path `player.craft_recipe(&"slingshot", 1, picks)` -> PlayerActions -> StationCraft spends the chosen Lv. 60 bone and
+  keeps the Lv. 45), 17 (berries pickable, Lv. 12 preselected, the Lv. 25 returned and cooked; then the craft menu: the twine
+  detail's fibre button opens the picker over the hidden menu, two plain fibres preselected, a third pick replaces the
+  earliest and warns at Lv. 40, Use brings the menu back, Craft spends exactly the chosen two; with only trait fibre left,
+  Craft opens the picker instead of spending), 20 (storage in the cargo state and the picker in the warning state at
+  1600x900, 844x390 and 804x452: 44 px targets, 56 px moves, no clipped or off-screen text). The new 16 / 17 test code fixed
+  a skeleton bug: test 16 took default picks before the handle and lashing were in the bag, so its plan could never be
+  valid. bag_ui_lab: `open_picker` joins the contract, `_check_b3` (store / take the Lv. 42 berry with its trait, take from the
+  raptor's cargo, picker preselect / warning / exact return), roles `box_bone` and `cargo_berry`, `--recipe=` /
+  `--recipe-slot=` for the picker and a shot-only `--screen=craft` (camp stew with the Lv. 25 berry chosen).
+
+Acceptance lines (B3 code + the hooks patch applied in the work tree; logs in the scratchpad `invui/b3/`):
+- t_invui on 4694b105: exit 0, "[t_invui] PASS", 0 SCRIPT ERROR (all 20 items; 12, 16, 17 and 20 newly cover B3).
+- H1 / H2 / F1: t_invui 16, 17, 12 as above; bag_ui_lab "[bagui] b3 storage=store,take cargo=take picker=berry42
+  bag=92/100", "[bagui] open times bag=1881us, inspect=3262us, character=13109us, equipment=8614us, storage=10547us,
+  cargo=6126us, picker=5259us", "[bagui] PASS bag=92/100 new=11 locked=2", 0 SCRIPT ERROR. H3 (Sell): t_invui 18 unchanged
+  (hidden with no market, the exact uid with one, never for a locked item).
+- Every t_*.gd (run on 40b410b7 + hooks; the later commits touch only item_picker.gd and item_inspect_panel.gd, and t_invui,
+  t_ui, t_uiicons, bag_ui_lab and inventory_lab were rerun after them): t_ai, t_build, t_canim, t_combat, t_harbour ("PASS
+  islands=15"), t_iconart, t_inventory, t_invui, t_items, t_light, t_lighting ("[t_light] PASS"), t_occlude, t_player (W2-INV's
+  new corpse take XP test through INVUI's `_take_storage` / `_take_all_storage`), t_save (5 deliberate SCRIPT ERRORs,
+  "[t_save] PASS"), t_server_domain, t_srvdom, t_structart, t_tame, t_ui ("engine errors/warnings during the checks: 0",
+  "[t_ui] PASS"), t_uiicons ("[t_uiicons] PASS ids=169 files=114 ..."), t_web all exit 0 with PASS.
+- run_all "[tests] PASS" (exit 0, 0 SCRIPT ERROR); tools/smoke.sh --no-import "SMOKE PASS".
+- Labs, 0 SCRIPT ERROR each: bag_ui_lab as above; inventory_lab "[invlab] PASS empty_cells=100/97 slots=100 cells=100
+  stones=16 stack45=true lock_pip=true equip_l30=true full_unequip_notice=true"; ui_family_lab exit 0; ui_screenshot_lab
+  "[uishot] PASS ..."; ui_real_capture_lab 844x390 and 1600x900 gl_compatibility "[uireal] PASS screens=...,bag,character,...".
+- Crash reports: 34 Godot-*.ips before this step and 34 after.
+
+Shots looked at (scratchpad `invui/b3/shots/`, not in the repo; each opened next to durango-bag-instances.webp, whose look
+storage, cargo and the picker reuse):
+- `storage_1600x900_glc.png` / `_fwd.png` (bag berry and box bone selected) and `storage_844x390_glc.png`: black torn header
+  "< Storage Box" and X, two dense textured grids with faint dashed compartments, blue NEW and grey "Lv. N" on every cell,
+  yellow L brackets on the selected cell only, a dark Auto Sort with its caret and a Filter square under each grid, the
+  inspect panel with the tan title band, card and black Info bar, gold / green trait lines, and the yellow Store / Take level
+  with the toolbars like the reference's Form Bond. Fixed after looking: NEW ran into "Lv. 12" in 72 px phone cells (now 3
+  columns of ~97 px); "91 / 100" ran into "Storage Box" (the counts now follow their labels, "Bag [bag] 91 / 100").
+- `cargo_1600x900_glc.png` / `_fwd.png`, `cargo_844x390_glc.png`: "< Velociraptor Cargo", the pet bag's 10 compartments, its
+  berry selected with Take (no Take All for cargo).
+- `picker_1600x900_glc.png` / `_fwd.png`, `picker_844x390_glc.png` (Lv. 42 berry chosen), `pickbone_1600x900_glc.png`
+  (slingshot bone slot: only the Lv. 45 bone; "1 locked, not listed") and `picktwine_844x390_glc.png` (two fibres bracketed,
+  "2 / 2"): the berries as three cells in a full compartment panel, brackets on the chosen one, the red rare-trait line over
+  its rows, yellow Use. Fixed after looking: "1 / 1" sat below the title line; the warning was cut to "Vivid I..." on the
+  phone (notes now wrap) and the wrapped lines then read as two rows (line spacing tightened).
+- `stewmenu_1600x900_glc.png` / `_fwd.png`, `stewmenu_844x390_glc.png` (the W1-UI craft menu, not a Durango screen): camp
+  stew's ingredients "Raw Meat 1/1", "Mushroom 1/1" and the chosen "Berry Lv. 25" in gold; on the phone the ingredients sit
+  below the fold of the detail scroll (W1-UI's layout, unchanged).
+Differences left: storage and the picker have no Durango reference of their own (spec 13 s17 asks for the Bag's
+foundation); the craft menu around the picker keeps the W1-UI look; panel grain and torn edges are B4.
+
+Assumptions added in B3 (design section 9 has 1-22, B1 23-30, B2 31-42):
+43. Storage shows the inspect panel beside the two grids all the time (one-tap inspection, spec 13 s21) instead of the
+    design's Inspect overlay button; its primary is the move that applies (design section 7 updated).
+44. Each storage side has Auto Sort and Filter only; Select and Lock stay on the Bag. Columns keep NEW beside "Lv. NN":
+    5 of ~108 px at 1600x900, 3 of ~97 px at 844x390.
+45. A bag item that cannot be stored says why in grey: "Take only: nothing goes in.", "Locked: unlock it in the Bag to
+    store it.", "Held tool: let go of it first.", "Quick food stays in the bag."
+46. No T-stone chip on storage, cargo or the picker (long titles; the chip belongs to the Bag header).
+47. Picker "least valuable" is W2-INV's `Inventory.spend_key` (plain before traits, lower level, older), the order default
+    picks spend in; locked instances are never listed and their count is said.
+48. Picker warning: a rare trait always (even when every candidate has one); Lv. >= data `picker.warn_level` (40) only for an
+    instance chosen over the preselected least valuable ones (a plain Lv. 45 bone that is the least valuable does not warn).
+49. A slot that takes several is multi-select; a pick past the count replaces the earliest; Use needs every chosen instance
+    to be needed (no surplus).
+50. The craft menu's detail ingredients are 44 px buttons that open the picker; the choice is kept by uid for that recipe,
+    shown in selection gold ("Berry Lv. 25"), dropped when one of its instances leaves the bag or another recipe is chosen.
+51. Craft opens the picker instead of crafting when the default plan would spend an instance with traits in a slot the
+    player did not choose (W2-INV's `plan_spends_traits` intent; traits, not level, as W2-INV ruled).
+52. A batch (Craft ×5) spends the chosen instances in its first job and the default (least valuable first) after; the station
+    radial crafts with the default and does not ask.
+53. Online, Craft sends `act.craft {picks}` with one lead slot per recipe slot (the server's existing contract); the server
+    spends a multi-unit slot's other units least valuable first, so online exactness holds for single-unit slots.
+54. Sell on Market closes the bag family before the handler runs (the market screen is its own full-screen layer).
+
+Hooks (`docs/orchestration/reports/claude-mmo-invui-hooks.patch`, regenerated on 4694b105, 14 files; `git apply --cached
+--check` passes on HEAD and it is applied uncommitted in the work tree). New or changed in B3:
+- `items/crafting.gd`: a pick is an int (the lead, as before) or an Array of exact bag slots (each spent, nothing else; a
+  chosen slot the recipe does not need refuses the plan); picks parameters typed `Array`; `lead_of(pick)`; public
+  `plan(inv, rec, picks)`; the B1 lock refusal now sits in W2-INV's reordered `_plan` and covers every chosen slot.
+- `items/station_craft.gd`: `begin(rid, count, picks := [])` refuses picks that cannot make it, keeps the chosen instances by
+  uid ("#slot" for a stack) so other slots changing while the survivor walks do not matter, spends exactly them in the first
+  job (`_job_picks`) and clears them after; the radial clears them; a chosen instance that left the bag stops the craft.
+- `player/player.gd`: `craft_recipe(rid, count, picks := [])`. `player/player_actions.gd`: `craft(rid, count, picks := [])`
+  (offline StationCraft; online `act.craft` with `Crafting.lead_of` per slot).
+- `ui/craft_ui.gd` (W1-UI): pickable ingredient buttons in the detail pane, `_pick_ingredient` (hides the menu, opens the
+  picker with the other slots' choices as `taken`, reopens on this recipe when it closes), `_set_chosen` / `_chosen_slots` /
+  `_picks_for`, `_trait_slot`, `_start` asks or crafts with the picks.
+- `tests/t_ui.gd`: item_picker.gd joins OWNED.
+- `dev/inventory_lab.gd` (W2-INV): re-made on W2-INV review 2 (see the base sync above).
+- Unchanged from B1 / B2: save_game.gd rebaseline, save_sanitizer presets, inventory.gd (presets, lock skips, span uid),
+  player_actions equip / unequip / hold / lock / eat, hunt_hud Character entry, the W1-UI labs.
+
+Market (spec 13 s18): no market screen exists on this base, so Sell on Market stays hidden (`InvActions.sell_handler` unset;
+t_invui 18 checks both states and that a locked item is never sellable). W3-EXCHANGE's `MarketScreen.open(player, &"sell",
+uid)` (claude/mmo-exchange) already takes the instance; once both are merged the integrator adds one line in hunt_hud.gd
+beside W3-EXCHANGE's `_open_market()`:
+`InvActions.sell_handler = func(uid: String) -> void: _open_market(); _market_screen.open(player, &"sell", uid)`
+(the bag family closes itself first; Sell then lists that uid with the market's own icon, level and attributes).
+
+Owner gates: none. No save field changes in B3 (picks and the craft session are not saved); no money; online crafting uses
+the server's existing `act.craft {picks}` validation (the client starts sending the lead slots it chose).
+
+Limits: process stations (W2-PROCESS's ProcessStation, not on this base) do not open the picker yet; it already takes picks,
+so its owner can call `player.ui.open_picker` the same way. The station radial and the later jobs of a batch use the default
+plan. Online, multi-unit slots are exact only for the lead (the server picks the rest; an exact list there is a server
+change). NEW tags are cleared only on the Bag, not on the storage screen. Drop stays hidden (no drop owner on this base).
+Keyboard shortcuts beyond I / Esc, panel motion, transfer feedback and the grain pass are B4. Owner questions: design
+section 12 (unchanged).

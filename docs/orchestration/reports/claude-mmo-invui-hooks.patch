@@ -1,5 +1,5 @@
 diff --git a/game/scripts/core/save_game.gd b/game/scripts/core/save_game.gd
-index 6e8c7605..93490737 100644
+index 479f1713..f4b41396 100644
 --- a/game/scripts/core/save_game.gd
 +++ b/game/scripts/core/save_game.gd
 @@ -261,6 +261,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
@@ -24,10 +24,10 @@ index 93d39900..251c437c 100644
  	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}},
  	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
 diff --git a/game/scripts/dev/inventory_lab.gd b/game/scripts/dev/inventory_lab.gd
-index e92bfd02..91cf4fce 100644
+index a3a79d00..5198cfb4 100644
 --- a/game/scripts/dev/inventory_lab.gd
 +++ b/game/scripts/dev/inventory_lab.gd
-@@ -1,9 +1,9 @@
+@@ -1,10 +1,10 @@
  extends Node3D
  ## W2-INV bag lab: a full 100-slot bag of mixed single instances (plus one ammo and one bandage
 -## stack) in the real inventory screen. The grid groups identical items visually (one cell per
@@ -35,13 +35,15 @@ index e92bfd02..91cf4fce 100644
 +## stack) in the real inventory screen. Since INVUI (spec 13) the Bag shows one cell per instance,
 +## never a group: three berries are three cells; nothing ever merges.
  ## Shots: --resolution 1600x900 (or 844x390) -- --lab=inventory_lab --shot=<png with "bag" in it>
--##   [--bag-group=stone] opens that group first.
-+##   [--bag-select=stone] selects the first instance of that item.
+-##   [--bag-group=stone] opens that group first; [--bag-fill=N] keeps only the first N instances
+-##   (a partly filled bag shows its free slots as empty cells).
++##   [--bag-select=stone] selects the first instance of that item; [--bag-fill=N] keeps only the first N
++##   instances (a partly filled bag shows its free slots as empty compartments).
  ## Headless (no --shot): drives the grid and prints "[invlab] PASS ..." (exit 0) or FAIL lines (exit 1).
  
  ## 100 slots: [id, instances, level step]. Levels cycle so an opened group shows different ones.
-@@ -35,28 +35,22 @@ func _ready() -> void:
- 	player.inventory.add(ItemStack.make(&"bandage", 6))
+@@ -42,52 +42,41 @@ func _ready() -> void:
+ 		player.inventory.add(ItemStack.make(&"bandage", 6))
  	await get_tree().process_frame
  	var ui := player.ui
 -	ui.visible = true
@@ -57,30 +59,68 @@ index e92bfd02..91cf4fce 100644
  	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
  		await _check()
  
--func _visible_cells() -> Array[Button]:
+-## Visible grid cells; item cells only unless `with_empty` (free bag slots show as empty cells).
+-func _visible_cells(with_empty: bool = false) -> Array[Button]:
 -	var out: Array[Button] = []
--	for c in player.ui._grid.get_children():
--		if c is Button and (c as Button).visible:
--			out.append(c)
+-	var grid: Node = player.ui._grid
+-	for k in grid.get_child_count():
+-		var b := grid.get_child(k) as Button
+-		if b.visible and (with_empty or k >= player.ui._cells.size() or not player.ui._cells[k].has("empty")):
+-			out.append(b)
 -	return out
 +func _grid() -> InventoryGrid:
 +	return (player.ui.get("_bag") as BagScreen).grid
  
+-## Spec 13:124 "Empty slots remain visible": an empty bag shows every slot as an empty cell, and a
+-## bag of 3 items shows 3 item cells and 97 empty ones. Empty cells take no taps.
++## Taps the first cell holding `id`, as a player would.
++func _select_first(id: StringName) -> bool:
++	for c: InventorySlot in _grid().item_cells():
++		if c.stack.def_id == id:
++			_grid().select_uid(c.uid)
++			return true
++	return false
++
++## Spec 13:124 "Empty slots remain visible": an empty bag shows every slot as an empty compartment,
++## and a bag of 3 items shows 3 item cells and 97 empty ones. Empty compartments take no taps.
+ func _check_empty_cells() -> void:
+-	var ui := player.ui
+-	var bag := ui.inventory
+ 	var probe := Inventory.new()
+-	ui._selected = -1
+-	ui.inventory = probe
+-	ui.rebuild()
++	_grid().bind(probe)
+ 	for want in [0, 3]:
+ 		for id in [&"stone", &"branch", &"berry"].slice(0, want):
+ 			probe.add(ItemStack.make(id, 1))
+-		ui.rebuild()
+-		var shown := _visible_cells(true)
+-		var blank := shown.filter(func (b: Button) -> bool: return b.icon == null and b.text == "" and b.disabled)
+-		_expect(shown.size() == 100 and blank.size() == 100 - want, "%d items: %d item cells and %d empty slot cells (%d shown, %d empty)" % [want, want, 100 - want, shown.size(), blank.size()])
+-	ui.inventory = bag
+-	ui.rebuild()
+-
 -## Taps the cell of group `id`, as a player would.
 -func _open(id: StringName) -> bool:
 -	var cells: Array = player.ui._cells
 -	for k in cells.size():
 -		if cells[k].get("group", &"") == id:
 -			player.ui._on_cell(k)
-+## Taps the first cell holding `id`, as a player would.
-+func _select_first(id: StringName) -> bool:
-+	for c: InventorySlot in _grid().item_cells():
-+		if c.stack.def_id == id:
-+			_grid().select_uid(c.uid)
- 			return true
- 	return false
+-			return true
+-	return false
++		_grid().refresh()
++		var shown := _grid().cells()
++		var blank := shown.filter(func (c: InventorySlot) -> bool: return c.stack == null)
++		_expect(shown.size() == 100 and blank.size() == 100 - want, "%d items: %d item cells and %d empty compartments (%d shown, %d empty)" % [want, want, 100 - want, shown.size(), blank.size()])
++	var empty_cell: InventorySlot = _grid().cells().back()
++	empty_cell.pressed.emit(empty_cell) # a tap on an empty compartment selects nothing
++	_expect(_grid().selected_uid() == "", "an empty compartment takes no selection")
++	_grid().bind(player.inventory)
  
-@@ -73,52 +67,46 @@ func _check() -> void:
+ func _expect(ok: bool, what: String) -> void:
+ 	if not ok:
+@@ -102,64 +91,58 @@ func _check() -> void:
  		if s:
  			units[s.def_id] = int(units.get(s.def_id, 0)) + s.count
  	_expect(inv.used_slots() == 100 and inv.slot_count == 100, "the bag holds 100 instances in 100 slots (%d/%d)" % [inv.used_slots(), inv.slot_count])
@@ -92,7 +132,26 @@ index e92bfd02..91cf4fce 100644
 -		small += 1 if b.get_combined_minimum_size().x < UiTokens.TARGET_MIN or b.get_combined_minimum_size().y < UiTokens.TARGET_MIN else 0
 -	_expect(small == 0, "every bag cell is a %d px+ target (%d smaller)" % [UiTokens.TARGET_MIN, small])
 -	var stone_cell: Button = cells[0] if not cells.is_empty() else null
--	_expect(stone_cell != null and stone_cell.text.ends_with("×16"), "the stone group shows ×16 (got '%s')" % (stone_cell.text if stone_cell else ""))
+-	# A group reads "16 …" (opens); a real stack reads "×45": the two never look alike.
+-	_expect(stone_cell != null and stone_cell.text.begins_with("16") and not stone_cell.text.contains("×"), "the stone group shows 16 and no stack ×N (got '%s')" % (stone_cell.text if stone_cell else ""))
+-	var shot_text := ""
+-	for k in ui._cells.size():
+-		if ui._cells[k].has("slot") and inv.slots[int(ui._cells[k].slot)].def_id == &"stone_shot":
+-			shot_text = cells[k].text
+-	_expect(shot_text.ends_with("×45"), "the stone_shot stack shows ×45 (got '%s')" % shot_text)
++	var cells := _grid().item_cells()
++	_expect(cells.size() == 100 and _grid().cells().size() == 100, "one cell per instance: %d item cells, %d cells" % [cells.size(), _grid().cells().size()])
++	var stones := cells.filter(func(c: InventorySlot) -> bool: return c.stack.def_id == &"stone")
++	_expect(stones.size() == 16, "16 stones are 16 cells (%d)" % stones.size())
++	# A real stack (ammo) is one cell with its count; a single instance never shows a count.
++	var shot: Array = cells.filter(func(c: InventorySlot) -> bool: return c.stack.def_id == &"stone_shot")
++	_expect(shot.size() == 1 and (shot[0] as InventorySlot).stack.is_fungible() and (shot[0] as InventorySlot).stack.count == 45 and not (stones[0] as InventorySlot).stack.is_fungible(), "the stone_shot stack is one cell of 45; a stone is a single instance")
++	# A locked stone carries the lock pip on its own cell (W2-INV's L pip on a group).
+ 	inv.slots[inv.find_first(&"stone")].set_flag(&"locked", true)
+-	ui.rebuild()
+-	_expect(_visible_cells()[0].text.begins_with("L "), "a group holding a locked stone carries the L pip (got '%s')" % _visible_cells()[0].text)
+-	inv.slots[inv.find_first(&"stone")].set_flag(&"locked", false)
+-	ui.rebuild()
 -	_expect(_open(&"stone"), "the stone group opens")
 -	await get_tree().process_frame
 -	cells = _visible_cells()
@@ -113,10 +172,12 @@ index e92bfd02..91cf4fce 100644
 -	ui._on_cell(l30)
 -	var uid: String = inv.slots[ui._selected].uid if ui._selected >= 0 and inv.slots[ui._selected] else ""
 -	ui._on_equip_pressed()
-+	var cells := _grid().item_cells()
-+	_expect(cells.size() == 100 and _grid().cells().size() == 100, "one cell per instance: %d item cells, %d cells" % [cells.size(), _grid().cells().size()])
-+	var stones := cells.filter(func(c: InventorySlot) -> bool: return c.stack.def_id == &"stone")
-+	_expect(stones.size() == 16, "16 stones are 16 cells (%d)" % stones.size())
++	_grid().refresh()
++	var locked_cells := _grid().item_cells().filter(func(c: InventorySlot) -> bool: return c.shows_lock())
++	_expect(locked_cells.size() == 1 and (locked_cells[0] as InventorySlot).stack.def_id == &"stone", "a locked stone shows the lock pip on its cell (%d locked cells)" % locked_cells.size())
++	for c: InventorySlot in locked_cells:
++		c.stack.set_flag(&"locked", false)
++	_grid().refresh()
 +	_expect(_select_first(&"stone"), "a stone can be selected")
 +	var picked := _grid().selected_index()
 +	_expect(picked >= 0 and inv.slots[picked].def_id == &"stone", "tapping a stone selects that slot")
@@ -160,9 +221,10 @@ index e92bfd02..91cf4fce 100644
 +	var bag := ui.get("_bag") as BagScreen
 +	var rows := " | ".join(bag.inspect.rows())
 +	_expect(bag.inspect.title_text() == "Stone" and not rows.contains("attr") and not rows.contains("tint"), "the inspect panel shows no raw attribute dict (%s)" % rows)
+ 	_check_empty_cells()
  	if _fails.is_empty():
--		print("[invlab] PASS slots=100 groups=%d stone_open=17 equip_l30=true full_unequip_notice=true" % groups.size())
-+		print("[invlab] PASS slots=100 cells=100 stones=16 equip_l30=true full_unequip_notice=true")
+-		print("[invlab] PASS empty_cells=100/97 slots=100 groups=%d stone_open=17 equip_l30=true full_unequip_notice=true" % groups.size())
++		print("[invlab] PASS empty_cells=100/97 slots=100 cells=100 stones=16 stack45=true lock_pip=true equip_l30=true full_unequip_notice=true")
  	get_tree().quit(0 if _fails.is_empty() else 1)
 diff --git a/game/scripts/dev/ui_family_lab.gd b/game/scripts/dev/ui_family_lab.gd
 index 08a7438c..87d384d2 100644
@@ -270,25 +332,180 @@ index c07ec418..419ea453 100644
  	ui.queue_free()
  	var animals := AnimalScreen.new()
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index faf78b8f..51053834 100644
+index 265001e3..bdcca728 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
-@@ -66,8 +66,8 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+@@ -20,7 +20,10 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
+ ## Prefer dedicated materials over dual-category ones, so fibre stalk is spent before
+ ## bark that might still be needed as lashing. Then the least valuable instance (Inventory.spend_key),
+ ## then the largest matching stack.
+-static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
++## A pick per recipe slot is its lead bag slot (int; the rest by that order) or, from the INVUI
++## ingredient picker (spec 13 s12/s19), an Array of the exact bag slots to spend, every one of them.
++## A locked instance is never spent, even when picked (spec 13 s9).
++static func _plan(inv: Inventory, rec: Dictionary, picks: Array = []) -> Array[Dictionary]:
+ 	var slots: Array = rec.get("slots", [])
+ 	if inv == null or slots.is_empty() or (not picks.is_empty() and picks.size() != slots.size()):
+ 		return []
+@@ -38,12 +41,19 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 		var preferred := StringName(str(slot.get("prefer_id", prefer if i == 0 else "")))
+ 		var candidates := inv.find_by_category(cat)
  		var lead := -1
++		var exact: Array = []
  		if not picks.is_empty():
- 			lead = picks[i]
+-			lead = picks[i]
 -			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat):
 -				return []
-+			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or inv.slots[lead].is_locked() or not inv.slots[lead].def().has_category(cat):
-+				return [] # a locked instance is never spent, even when picked (spec 13 s9)
- 			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
+-			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
++			var chosen: Array = picks[i] if picks[i] is Array else [picks[i]]
++			for e: Variant in chosen:
++				var k := int(e) if e is int or e is float else -1
++				if k < 0 or k >= inv.slot_count or inv.slots[k] == null or inv.slots[k].is_locked() \
++						or not inv.slots[k].def().has_category(cat) or int(remaining.get(k, inv.slots[k].count)) <= 0:
++					return []
++			if chosen.is_empty():
  				return []
- 		elif not candidates.is_empty():
++			lead = int(chosen[0])
++			if picks[i] is Array:
++				exact = chosen
+ 		# The lead's def breaks ties inside equal spend keys only (W2-INV review 2: ordering the lead's
+ 		# whole def first spent a lv40 trait stalk while a plain lv1 palm frond was left).
+ 		var lead_def := {"id": inv.slots[lead].def_id if lead >= 0 else &""}
+@@ -84,11 +94,12 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 		if lead < 0:
+ 			return []
+ 		var parts: Array[Dictionary] = []
+-		# The lead first, then the other units by the same order (one instance per slot, W2-INV).
++		# The lead first, then the other units by the same order (one instance per slot, W2-INV);
++		# exact picks spend the chosen slots and only those, each one of them.
+ 		var order: Array[int] = [lead]
+-		for idx in candidates:
+-			if idx != lead:
+-				order.append(idx)
++		for e: Variant in (exact.slice(1) if not exact.is_empty() else candidates):
++			if int(e) != lead:
++				order.append(int(e))
+ 		for idx in order:
+ 			var available := int(remaining.get(idx, inv.slots[idx].count))
+ 			var take := mini(need, available)
+@@ -96,7 +107,9 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 				parts.append({"idx": idx, "count": take})
+ 				remaining[idx] = available - take
+ 				need -= take
+-			if need == 0:
++			elif not exact.is_empty():
++				return [] # a chosen instance the slot does not need: the choice does not match the recipe
++			if need == 0 and exact.is_empty():
+ 				break
+ 		if need > 0:
+ 			return []
+@@ -118,16 +131,27 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
+ ## Spec 13:486 "Do not automatically consume the most valuable item": true when the plan for these
+ ## picks spends an instance with traits (e.g. every candidate has one), so the craft UI can ask for
+ ## an explicit pick. # ASSUMPTION: traits only; a higher level alone does not ask.
+-static func plan_spends_traits(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
++static func plan_spends_traits(inv: Inventory, rec: Dictionary, picks: Array) -> bool:
+ 	for row in _plan(inv, rec, picks):
+ 		for part in row.parts:
+ 			if not Inventory.traits(inv.slots[int(part.idx)]).is_empty():
+ 				return true
+ 	return false
+ 
+-static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
++static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array) -> bool:
+ 	return not _plan(inv, rec, picks).is_empty()
+ 
++## The plan for these picks, one row per recipe slot: {lead, parts: [{idx, count}]}; [] when the bag
++## cannot make it. The craft menu reads it to ask before a default spends an item with traits.
++static func plan(inv: Inventory, rec: Dictionary, picks: Array = []) -> Array[Dictionary]:
++	return _plan(inv, rec, picks)
++
++## The lead bag slot of one pick: an int, or the first of an exact Array (INVUI picker).
++static func lead_of(pick: Variant) -> int:
++	if pick is Array:
++		return int((pick as Array)[0]) if not (pick as Array).is_empty() else -1
++	return int(pick) if pick is int or pick is float else -1
++
+ static func primary_index(rec: Dictionary) -> int:
+ 	var slots: Array = rec.get("slots", [])
+ 	for i in slots.size():
+@@ -135,15 +159,15 @@ static func primary_index(rec: Dictionary) -> int:
+ 			return i
+ 	return 0
+ 
+-static func preview(inv: Inventory, rec: Dictionary, picks: Array[int]) -> ItemStack:
++static func preview(inv: Inventory, rec: Dictionary, picks: Array) -> ItemStack:
+ 	if not picks_valid(inv, rec, picks):
+ 		return null
+ 	var pidx := primary_index(rec)
+-	var primary := inv.slots[picks[pidx]]
++	var primary := inv.slots[lead_of(picks[pidx])]
+ 	var levels := consumed_levels(inv, rec, picks)
+ 	return build_output(rec, primary, crafted_level_for(rec, levels))
+ 
+-static func consumed_levels(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[int]:
++static func consumed_levels(inv: Inventory, rec: Dictionary, picks: Array) -> Array[int]:
+ 	var out: Array[int] = []
+ 	for row in _plan(inv, rec, picks):
+ 		for part in row["parts"]:
+@@ -152,7 +176,7 @@ static func consumed_levels(inv: Inventory, rec: Dictionary, picks: Array[int])
+ 				out.append(stack.level)
+ 	return out
+ 
+-static func slot_level_contributions(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[Dictionary]:
++static func slot_level_contributions(inv: Inventory, rec: Dictionary, picks: Array) -> Array[Dictionary]:
+ 	var out: Array[Dictionary] = []
+ 	var plan := _plan(inv, rec, picks)
+ 	for i in plan.size():
+@@ -289,7 +313,7 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
+ 			return "needs materials and crafting skill for level %d" % minimum
+ 	return ""
+ 
+-static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
++static func can_make(player: Player, rec: Dictionary, picks: Array) -> bool:
+ 	if rec.is_empty():
+ 		return false
+ 	if progression_block(player, rec) != "":
+@@ -326,7 +350,7 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
+ 	else:
+ 		World.add_xp(6 + int(recipe_seconds(rec)))
+ 
+-static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: RandomNumberGenerator = null) -> ItemStack:
++static func craft(player: Player, rec: Dictionary, picks: Array, rng: RandomNumberGenerator = null) -> ItemStack:
+ 	if not can_make(player, rec, picks):
+ 		return null
+ 	var burnt := rolls_burn(rec, skill_level_for(rec, player), rng)
+@@ -338,14 +362,14 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: Rando
+ 
+ ## Would the output still fit after the inputs leave the bag? Checked on a scratch copy so a
+ ## full bag refuses before anything is consumed (sec-loss-08).
+-static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burnt: bool = false, player: Player = null) -> bool:
++static func output_fits(inv: Inventory, rec: Dictionary, picks: Array, burnt: bool = false, player: Player = null) -> bool:
+ 	if inv == null or not picks_valid(inv, rec, picks):
+ 		return false
+ 	var scratch := Inventory.new(inv.slot_count)
+ 	for i in inv.slot_count:
+ 		if inv.slots[i]:
+ 			scratch.slots[i] = inv.slots[i].duplicate_stack()
+-	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
++	var primary := scratch.slots[lead_of(picks[primary_index(rec)])].duplicate_stack()
+ 	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
+ 	consume_for_craft(scratch, rec, picks)
+ 	return scratch.can_accept(out)
+@@ -428,7 +452,7 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
+ 		_:
+ 			return cat
+ 
+-static func consume_for_craft(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[ItemStack]:
++static func consume_for_craft(inv: Inventory, rec: Dictionary, picks: Array) -> Array[ItemStack]:
+ 	var refund: Array[ItemStack] = []
+ 	var plan := _plan(inv, rec, picks)
+ 	if plan.is_empty():
 diff --git a/game/scripts/items/inventory.gd b/game/scripts/items/inventory.gd
-index be5910ee..91e4a98b 100644
+index 85109ba5..3d841bda 100644
 --- a/game/scripts/items/inventory.gd
 +++ b/game/scripts/items/inventory.gd
-@@ -24,6 +24,8 @@ const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"
+@@ -25,6 +25,8 @@ const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"
  var equipment: Dictionary = {}
  ## Two quick-food def ids for the HUD food hexes + auto-feed.
  var quick_food: Array = ["", ""]
@@ -297,7 +514,7 @@ index be5910ee..91e4a98b 100644
  ## uids taken while loading (home cargo, then this bag): a worn row repeating one is reminted.
  var load_uids: Dictionary = {}
  
-@@ -202,13 +204,17 @@ func extras_to_dict() -> Dictionary:
+@@ -123,12 +125,16 @@ func extras_to_dict() -> Dictionary:
  	for slot in equipment:
  		if equipment[slot] is ItemStack:
  			w[slot] = (equipment[slot] as ItemStack).to_dict()
@@ -307,16 +524,15 @@ index be5910ee..91e4a98b 100644
 +		out["presets"] = presets.duplicate(true) # only once used: saves without presets stay as they were
 +	return out
  
- ## Call after load_array. A pre-W2-INV save names worn gear by def id with the item still in the
- ## bag: that item (highest level) moves out of the bag into its slot. Then the bag takes the
- ## capacity the worn gear gives (a shrink that would cut off items is skipped: never delete).
+ ## Call after load_array: worn gear (InventoryEquipment.load_worn, which also migrates the
+ ## pre-W2-INV def-id form), quick food and the chosen tool.
  func extras_from_dict(d: Dictionary) -> void:
  	equipment.clear()
 +	presets = GearPresets.sanitize(d.get("presets", {}))
  	var seen := load_uids.merged(uids())
  	load_uids = {}
  	equipped_tool_index = int(d.get("tool_index", -1))
-@@ -395,7 +401,9 @@ func add(stack: ItemStack) -> int:
+@@ -293,7 +299,9 @@ func add(stack: ItemStack) -> int:
  	var start := _find_span(span)
  	if start < 0:
  		return stack.count
@@ -327,7 +543,7 @@ index be5910ee..91e4a98b 100644
  	stack.count = 0
  	changed.emit()
  	return 0
-@@ -474,11 +482,13 @@ static func traits(s: ItemStack) -> Dictionary:
+@@ -376,11 +384,13 @@ static func traits(s: ItemStack) -> Dictionary:
  static func spend_key(s: ItemStack) -> Array:
  	return [0 if traits(s).is_empty() else 1, s.level, s.created_at]
  
@@ -342,7 +558,7 @@ index be5910ee..91e4a98b 100644
  			continue
  		var d := s.def()
  		if d and d.has_category(cat):
-@@ -487,7 +497,7 @@ func find_by_category(cat: StringName) -> Array[int]:
+@@ -389,7 +399,7 @@ func find_by_category(cat: StringName) -> Array[int]:
  
  func find_first(def_id: StringName) -> int:
  	for i in slot_count:
@@ -351,7 +567,7 @@ index be5910ee..91e4a98b 100644
  			return i
  	return -1
  
-@@ -499,14 +509,20 @@ func count_of(def_id: StringName) -> int:
+@@ -401,14 +411,20 @@ func count_of(def_id: StringName) -> int:
  	return n
  
  func consume(def_id: StringName, amount: int) -> bool:
@@ -374,11 +590,181 @@ index be5910ee..91e4a98b 100644
  			continue
  		var take := mini(left, s.count)
  		remove_at(i, take)
+diff --git a/game/scripts/items/station_craft.gd b/game/scripts/items/station_craft.gd
+index ebbe5438..1cfbc5e0 100644
+--- a/game/scripts/items/station_craft.gd
++++ b/game/scripts/items/station_craft.gd
+@@ -24,7 +24,10 @@ var crafting: bool = false
+ var progress: float = 0.0
+ var duration: float = 3.0
+ var queue_left: int = 0
+-var _picks: Array[int] = []
++var _picks: Array = []
++## INVUI (spec 13 s19): the instances the player chose per recipe slot (uid, or "#<slot>" for a
++## fungible stack). The first job spends exactly those; later jobs of the batch take the default.
++var _exact: Array = []
+ var _full_wait: float = 0.0  # countdown to the next fit retry of a finished craft
+ var _told_full: bool = false
+ var _hand_tool: Node3D
+@@ -142,12 +145,15 @@ static func is_craft_station(n: Object) -> bool:
+ 
+ ## From the craft menu: craft `count` of a recipe. Hand recipes start at once; station recipes
+ ## walk to the nearest station of that kind first (none built -> refused).
+-func begin(rid: StringName, count: int = 1) -> bool:
++func begin(rid: StringName, count: int = 1, picks: Array = []) -> bool:
+ 	var rec := Crafting.recipe(rid)
+ 	if rec.is_empty():
+ 		return false
+ 	if crafting:
+ 		cancel_and_refund()
++	if not picks.is_empty() and not Crafting.picks_valid(player.inventory, rec, picks):
++		player.notice("Those ingredients cannot make this.")
++		return false
+ 	var sid := Crafting.station_id(rec)
+ 	_hand_craft = sid == ""
+ 	station = null
+@@ -157,6 +163,7 @@ func begin(rid: StringName, count: int = 1) -> bool:
+ 			print("[craft] blocked %s: no %s built" % [rid, sid])
+ 			return false
+ 	_batch_total = maxi(1, count)
++	_exact = _keys_of(picks)
+ 	_begin_recipe(rid)
+ 	if recipe_id != rid:
+ 		return false
+@@ -174,6 +181,7 @@ func _on_recipe_chosen(rid: StringName) -> void:
+ 			card.set_queue(queue_left + 1)
+ 		print("[craft] queue %s ×%d" % [rid, queue_left + 1])
+ 		return
++	_exact.clear() # the radial crafts with the default picks
+ 	_begin_recipe(rid)
+ 
+ func _begin_recipe(rid: StringName) -> void:
+@@ -192,7 +200,7 @@ func _begin_recipe(rid: StringName) -> void:
+ 		print("[craft] blocked %s: needs %s" % [rid, missing])
+ 		return
+ 	recipe_id = rid
+-	_picks = Crafting.default_picks(player.inventory, rec)
++	_picks = _job_picks(rec)
+ 	if not Crafting.picks_valid(player.inventory, rec, _picks):
+ 		print("[craft] blocked %s: needs %s" % [rid, Crafting.missing_ingredient_name(player.inventory, rec)])
+ 		return
+@@ -204,12 +212,50 @@ func _begin_recipe(rid: StringName) -> void:
+ 			player.face_world(station.global_position)
+ 	# Arrival is polled in _process.
+ 
++## The chosen instances as keys that survive other slots changing while the survivor walks: an
++## exact pick (Array) keeps its shape, a lead pick (int) stays one key.
++func _keys_of(picks: Array) -> Array:
++	var out: Array = []
++	for pick: Variant in picks:
++		var keys: Array[String] = []
++		for k: Variant in (pick if pick is Array else [pick]):
++			var s := player.inventory.slots[int(k)] if int(k) >= 0 and int(k) < player.inventory.slot_count else null
++			keys.append((s.uid if s.uid != "" else "#%d" % int(k)) if s else "")
++		out.append(keys if pick is Array else keys[0])
++	return out
++
++## This job's picks: the chosen instances where they still are (-1 once one left the bag, which
++## stops the craft), else the default plan (least valuable first).
++func _job_picks(rec: Dictionary) -> Array:
++	if _exact.is_empty():
++		return Crafting.default_picks(player.inventory, rec)
++	var out: Array = []
++	for keys: Variant in _exact:
++		if keys is Array:
++			var row: Array[int] = []
++			for k: String in keys:
++				row.append(_slot_of(k))
++			out.append(row)
++		else:
++			out.append(_slot_of(str(keys)))
++	return out
++
++func _slot_of(key: String) -> int:
++	var inv := player.inventory
++	if key.begins_with("#"):
++		var j := int(key.substr(1))
++		return j if j >= 0 and j < inv.slot_count and inv.slots[j] else -1
++	for i in inv.slot_count:
++		if key != "" and inv.slots[i] and inv.slots[i].uid == key:
++			return i
++	return -1
++
+ func _start_craft_cycle() -> void:
+ 	var rec := Crafting.recipe(recipe_id)
+ 	if rec.is_empty():
+ 		_clear_session()
+ 		return
+-	_picks = Crafting.default_picks(player.inventory, rec)
++	_picks = _job_picks(rec)
+ 	var blocked := Crafting.progression_block(player, rec)
+ 	if blocked != "":
+ 		player.notice(blocked)
+@@ -317,7 +363,7 @@ func _process(delta: float) -> void:
+ ## (inputs untouched) until there is room; inputs that left the bag stop it.
+ func _finish_one() -> void:
+ 	var rec := Crafting.recipe(recipe_id)
+-	_picks = Crafting.default_picks(player.inventory, rec)
++	_picks = _job_picks(rec)
+ 	if not Crafting.picks_valid(player.inventory, rec, _picks):
+ 		player.notice("Craft stopped: its materials left the bag.")
+ 		_clear_session()
+@@ -331,6 +377,7 @@ func _finish_one() -> void:
+ 	_full_wait = 0.0
+ 	_told_full = false
+ 	var consumed := Crafting.consume_for_craft(player.inventory, rec, _picks)
++	_exact.clear() # the chosen instances are spent; the rest of the batch takes the default
+ 	var overflow: Array[ItemStack] = []
+ 	var out := Crafting.finish_craft(player, rec, consumed, _burnt, overflow)
+ 	if not overflow.is_empty():
+@@ -370,6 +417,7 @@ func _clear_session() -> void:
+ 	recipe_id = &""
+ 	_hand_craft = false
+ 	_picks.clear()
++	_exact.clear()
+ 	if card:
+ 		card.hide_card()
+ 	_hide_ring()
+diff --git a/game/scripts/player/player.gd b/game/scripts/player/player.gd
+index 78c3af7a..fd8fb2a3 100644
+--- a/game/scripts/player/player.gd
++++ b/game/scripts/player/player.gd
+@@ -193,8 +193,8 @@ func open_station_craft(st: Node3D) -> void:
+ 		station_craft.open_station_menu(st)
+ 
+ ## From the craft menu: craft `count` of a recipe (walks to the station if needed).
+-func craft_recipe(rid: StringName, count: int = 1) -> void:
+-	actions.craft(rid, count)
++func craft_recipe(rid: StringName, count: int = 1, picks: Array = []) -> void:
++	actions.craft(rid, count, picks)
+ 
+ func begin_eat_slot(index: int) -> bool:
+ 	return actions.eat(index)
 diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
-index 3bfbb398..8e87fd21 100644
+index 1f84a3d6..e63aa758 100644
 --- a/game/scripts/player/player_actions.gd
 +++ b/game/scripts/player/player_actions.gd
-@@ -422,7 +422,7 @@ func craft(rid: StringName, count: int = 1) -> bool:
+@@ -410,20 +410,24 @@ func loot(corpse: Corpse, slot: int) -> int:
+ 
+ # ---------------------------------------------------------------- craft, eat, equip, place
+ 
+-func craft(rid: StringName, count: int = 1) -> bool:
++## `picks`: one per recipe slot, the bag slots the player chose (INVUI picker), or [] for the default.
++func craft(rid: StringName, count: int = 1, picks: Array = []) -> bool:
+ 	if p.station_craft == null:
+ 		return false
+ 	if online:
+-		return _send(&"craft", {"recipe_id": str(rid), "count": count})
++		var body := {"recipe_id": str(rid), "count": count}
++		if not picks.is_empty(): # act.craft takes one lead slot per recipe slot; it spends the rest least valuable first
++			body["picks"] = picks.map(func(k: Variant) -> int: return Crafting.lead_of(k))
++		return _send(&"craft", body)
+ 	cancel_work()
+ 	if p.hunt:
+ 		p.hunt.stop()
+-	p.station_craft.begin(rid, count)
++	p.station_craft.begin(rid, count, picks)
+ 	return true
  
  func eat(index: int) -> bool:
  	if online:
@@ -387,7 +773,7 @@ index 3bfbb398..8e87fd21 100644
  	return p.eat_session != null and p.eat_session.begin_eat(index)
  
  func equip(slot: StringName, def_id: StringName) -> bool:
-@@ -431,6 +431,51 @@ func equip(slot: StringName, def_id: StringName) -> bool:
+@@ -432,6 +436,51 @@ func equip(slot: StringName, def_id: StringName) -> bool:
  	p.inventory.equip(slot, def_id)
  	return true
  
@@ -439,6 +825,181 @@ index 3bfbb398..8e87fd21 100644
  ## Confirm the building ghost (place_confirm key or tap on the ghost).
  func place_confirm() -> bool:
  	if online:
+diff --git a/game/scripts/ui/craft_ui.gd b/game/scripts/ui/craft_ui.gd
+index d7187dbb..304b14f5 100644
+--- a/game/scripts/ui/craft_ui.gd
++++ b/game/scripts/ui/craft_ui.gd
+@@ -34,6 +34,10 @@ var _refresh_left: float = 0.0
+ var _selected_id: String = ""
+ var _footer: HBoxContainer
+ var _phone_detail := false  ## phone only: the detail sheet is up instead of the list
++## INVUI (spec 13 s19): the instances chosen per ingredient of recipe `_chosen_rid`, as
++## {recipe slot: [uid, or "#<bag slot>" for a stack]}; another recipe starts empty.
++var _chosen := {}
++var _chosen_rid := ""
+ 
+ func _ready() -> void:
+ 	visible = false
+@@ -328,8 +332,9 @@ func _output_name(rec: Dictionary) -> String:
+ 		return out_def.display_name
+ 	return str(rec.get("display_name", rec.get("id", "?"))).replace("_", " ").capitalize()
+ 
+-## Icon + "have/need" per slot; red when short.
+-func _ingredients_row(rec: Dictionary) -> Control:
++## Icon + "have/need" per slot; red when short. `pickable` (the detail pane): each ingredient is a
++## button that opens the Bag's ingredient picker, and shows the instance chosen.
++func _ingredients_row(rec: Dictionary, pickable: bool = false) -> Control:
+ 	var row := HFlowContainer.new()
+ 	row.add_theme_constant_override("h_separation", 12)
+ 	row.add_theme_constant_override("v_separation", 8)
+@@ -351,6 +356,11 @@ func _ingredients_row(rec: Dictionary) -> Control:
+ 			sample_id = player.inventory.slots[picks[i]].def_id
+ 		else:
+ 			sample_id = Crafting.sample_def_for_category(player.inventory, cat)
++		var d := Data.item(sample_id)
++		var nm := d.display_name if d and d.display_name != "" else LevelDisplay.nice_name(str(cat))
++		if pickable:
++			row.add_child(_ingredient_button(rec, i, sample_id, nm, have, need))
++			continue
+ 		var cell := HBoxContainer.new()
+ 		cell.add_theme_constant_override("separation", 4)
+ 		var ic := TextureRect.new()
+@@ -362,8 +372,6 @@ func _ingredients_row(rec: Dictionary) -> Control:
+ 		ic.visible = ic.texture != null  # no empty 24 px gap before an icon-less ingredient
+ 		cell.add_child(ic)
+ 		var l := Label.new()
+-		var d := Data.item(sample_id)
+-		var nm := d.display_name if d and d.display_name != "" else LevelDisplay.nice_name(str(cat))
+ 		l.text = "%s %d/%d" % [nm, mini(have, need), need]
+ 		l.add_theme_font_size_override("font_size", 14)
+ 		l.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
+@@ -371,6 +379,101 @@ func _ingredients_row(rec: Dictionary) -> Control:
+ 		row.add_child(cell)
+ 	return row
+ 
++## One ingredient as a 44 px button: "Berry 1/1", or the chosen instance ("Berry Lv. 25") in the
++## selection gold. Tapping opens the picker on that slot (nothing to choose when short).
++func _ingredient_button(rec: Dictionary, i: int, sample_id: StringName, nm: String, have: int, need: int) -> Button:
++	var b := Button.new()
++	b.flat = true
++	b.focus_mode = Control.FOCUS_ALL
++	b.icon = ItemIcons.texture(sample_id)
++	b.add_theme_constant_override("icon_max_width", 24)
++	b.custom_minimum_size = Vector2(0, UiTokens.TARGET_MIN)
++	b.add_theme_font_size_override("font_size", 14)
++	var picked := _chosen_slots(rec, i)
++	b.text = "%s %d/%d" % [nm, mini(have, need), need]
++	if not picked.is_empty(): # the chosen instance's own art and name (a slot takes several kinds)
++		var st := player.inventory.slots[picked[0]]
++		b.icon = ItemIcons.texture(st.def_id)
++		var cd := st.def()
++		var cn := cd.display_name if cd and cd.display_name != "" else LevelDisplay.nice_name(str(st.def_id))
++		b.text = ("%s %s" % [cn, LevelDisplay.label(st.level)]) if picked.size() == 1 else ("%s ×%d chosen" % [cn, picked.size()])
++	var tone := InvTheme.SELECT if not picked.is_empty() else (Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
++	for c in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
++		b.add_theme_color_override(c, tone)
++	b.disabled = have < need
++	b.tooltip_text = "Choose which ones to use"
++	b.pressed.connect(_pick_ingredient.bind(rec, i))
++	return b
++
++## Opens the Bag's ingredient picker on recipe slot `i` (spec 13 s19). The menu steps aside while it
++## is up and comes back on this recipe when it closes.
++func _pick_ingredient(rec: Dictionary, i: int) -> void:
++	if player == null or player.ui == null or not player.ui.has_method("open_picker"):
++		return
++	var rid := str(rec.get("id", ""))
++	var taken: Array = []
++	for k in _chosen.keys() if _chosen_rid == rid else []:
++		if int(k) != i:
++			taken.append_array(_chosen_slots(rec, int(k)))
++	hide_ui()
++	player.ui.open_picker(StringName(rid), i, func(picked: Array) -> void: _set_chosen(rid, i, picked), taken,
++		func() -> void: show_ui(); _choose_recipe(rid))
++
++func _set_chosen(rid: String, i: int, picked: Array) -> void:
++	if _chosen_rid != rid:
++		_chosen = {}
++		_chosen_rid = rid
++	var keys: Array[String] = []
++	for k: Variant in picked:
++		var st := player.inventory.slots[int(k)]
++		keys.append(st.uid if st.uid != "" else "#%d" % int(k))
++	_chosen[i] = keys
++
++## Bag slots chosen for recipe slot `i` that are still in the bag; [] when none or one left.
++func _chosen_slots(rec: Dictionary, i: int) -> Array[int]:
++	var out: Array[int] = []
++	if _chosen_rid != str(rec.get("id", "")) or not _chosen.has(i):
++		return out
++	var inv := player.inventory
++	for key: String in _chosen[i]:
++		var at := -1
++		if key.begins_with("#"):
++			var j := int(key.substr(1))
++			at = j if j >= 0 and j < inv.slot_count and inv.slots[j] else -1
++		else:
++			for j in inv.slot_count:
++				if inv.slots[j] and inv.slots[j].uid == key:
++					at = j
++		if at < 0: # one of them left the bag: the choice is void, the default applies
++			out.clear()
++			return out
++		out.append(at)
++	return out
++
++## Picks for Craft: the chosen instances where the player chose, the default lead elsewhere;
++## [] (the default plan) when nothing is chosen or the choice no longer makes the recipe.
++func _picks_for(rec: Dictionary) -> Array:
++	var picks: Array = []
++	var any := false
++	var defaults := Crafting.default_picks(player.inventory, rec)
++	for i in defaults.size():
++		var mine := _chosen_slots(rec, i)
++		any = any or not mine.is_empty()
++		picks.append(mine if not mine.is_empty() else defaults[i])
++	return picks if any and Crafting.picks_valid(player.inventory, rec, picks) else []
++
++## Spec 13 s19 "do not automatically consume the most valuable item": the first recipe slot whose
++## default would spend an instance with traits (W2-INV Inventory.traits) the player did not choose.
++func _trait_slot(rec: Dictionary, picks: Array) -> int:
++	var rows := Crafting.plan(player.inventory, rec, picks)
++	for i in rows.size():
++		if i < picks.size() and picks[i] is Array:
++			continue
++		for part: Dictionary in rows[i].parts:
++			if not Inventory.traits(player.inventory.slots[int(part.idx)]).is_empty():
++				return i
++	return -1
++
+ func _choose_recipe(rid: String) -> void:
+ 	_selected_id = rid
+ 	_phone_detail = _single_pane()
+@@ -392,9 +495,14 @@ func _apply_phone_pane() -> void:
+ 	_footer.visible = sheet or (_pinned_actions() and not single)
+ 
+ func _start(rec: Dictionary, count: int) -> void:
++	var picks := _picks_for(rec) if player else []
++	var ask := _trait_slot(rec, picks) if player else -1
++	if ask >= 0: # every one left has a trait: the player chooses which, never the craft silently
++		_pick_ingredient(rec, ask)
++		return
+ 	hide_ui()
+ 	if player and player.has_method("craft_recipe"):
+-		player.craft_recipe(StringName(str(rec.get("id", ""))), count)
++		player.craft_recipe(StringName(str(rec.get("id", ""))), count, picks)
+ 
+ ## {exists, near, dist} for a station kind, from the survivor's position.
+ func _station_info(sid: String) -> Dictionary:
+@@ -459,7 +567,7 @@ func _show_detail(info: Dictionary) -> void:
+ 	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+ 	need.add_theme_color_override("font_color", UiTokens.META)
+ 	_detail.add_child(need)
+-	_detail.add_child(_ingredients_row(rec))
++	_detail.add_child(_ingredients_row(rec, true))
+ 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
+ 	if missing != "":
+ 		var lock := Label.new()
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
 index 80b01e5b..efee0cd3 100644
 --- a/game/scripts/ui/hunt_hud.gd
@@ -452,7 +1013,7 @@ index 80b01e5b..efee0cd3 100644
  			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
  			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 diff --git a/game/tests/t_ui.gd b/game/tests/t_ui.gd
-index 4b18ac78..cfc74717 100644
+index 4b18ac78..d361c3da 100644
 --- a/game/tests/t_ui.gd
 +++ b/game/tests/t_ui.gd
 @@ -13,6 +13,16 @@ const OWNED := [
@@ -468,7 +1029,7 @@ index 4b18ac78..cfc74717 100644
 +	"res://scripts/ui/inventory_ui.gd",
 +	"res://scripts/ui/inv_stats.gd", "res://scripts/ui/equipment_slot.gd", "res://scripts/ui/gear_preset_selector.gd",
 +	"res://scripts/ui/gear_screen.gd", "res://scripts/ui/character_screen.gd", "res://scripts/ui/detailed_stats_panel.gd",
-+	"res://scripts/ui/equipment_screen.gd",
++	"res://scripts/ui/equipment_screen.gd", "res://scripts/ui/item_picker.gd",
  ]
  const TYPE_MIN := 12
  ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail
