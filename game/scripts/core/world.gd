@@ -100,9 +100,13 @@ func _boot() -> void:
 ## save: it opens creation again, keeping the file until the new world's first save replaces it.
 ## Returns true when a save was loaded, false when creation is opening.
 func ensure_survivor(host: Node) -> bool:
+	var sg := load("res://scripts/core/save_game.gd") as GDScript
 	var saved := _save_exists() and not ("--new-game" in OS.get_cmdline_user_args())
-	if saved and not (load("res://scripts/core/save_game.gd") as GDScript).has_precreation_save():
+	if saved and not sg.has_precreation_save():
 		_load_now(host)
+		# A real save: creation is done, whatever state this world was in (a reload after the bug).
+		if sg.disk_schema() >= 3:
+			creation_pending = false
 		return true
 	start_new(host)
 	return false
@@ -132,14 +136,7 @@ func start_new(host: Node) -> void:
 			p.skills.apply_occupation(occ)
 		print("[world] new survivor %s (%s, %s)" % [nm, occ, gender])
 		load_island(host, island_id, Vector3(0, 1, 18), true)
-		call_deferred("_repick_unpicked_island", host)
 	)
-
-## Reopen the pick for a save written before it (see WorldUI.reopen_terrain_if_unpicked).
-func _repick_unpicked_island(host: Node) -> void:
-	var ui: Node = (load("res://scripts/ui/world_ui.gd") as GDScript).instance_on(host)
-	if ui and ui.has_method("reopen_terrain_if_unpicked"):
-		ui.reopen_terrain_if_unpicked()
 
 func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) -> void:
 	_clear_runtime()

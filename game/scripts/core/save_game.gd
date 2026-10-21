@@ -45,17 +45,22 @@ static func _raw_run_name(user_args: PackedStringArray, args: PackedStringArray)
 		return args[i + 1].get_file().get_basename()
 	return ""
 
-## True when the save on disk was written before a survivor existed: no name or no occupation, which
-## only the pre-creation autosave (and saves older than character creation) leave empty.
-static func is_precreation(data: Dictionary) -> bool:
+## True for a save the 60 s autosave wrote before a survivor existed: schema 3 with no name or no
+## occupation. Older schemas (v0-v2) never stored those fields at all and are real saves; they load.
+static func is_precreation(data: Dictionary, schema: int) -> bool:
+	if schema < 3:
+		return false
 	return str(data.get("player_name", "")).strip_edges() == "" or str(data.get("occupation", "")) == ""
 
+## Only the main file: a .bak is the previous good save, never the one boot should judge.
 static func has_precreation_save() -> bool:
-	for path_try in [path, path + ".bak"]:
-		var r := SaveMigrations.read(path_try)
-		if r.has("data") and is_precreation(r["data"] as Dictionary):
-			return true
-	return false
+	var r := SaveMigrations.read(path)
+	return r.has("data") and is_precreation(r["data"] as Dictionary, int(r["schema"]))
+
+## The schema on disk (0 for a pre-schema save), -1 when there is no readable main file.
+static func disk_schema() -> int:
+	var r := SaveMigrations.read(path)
+	return int(r["schema"]) if r.has("data") else -1
 
 static func exists() -> bool:
 	return FileAccess.file_exists(path) or FileAccess.file_exists(path + ".bak")

@@ -41,8 +41,6 @@ func _init(player: Player) -> void:
 
 ## Dead: no input, only gravity.
 func hold_still(delta: float) -> void:
-	if p.vitals:
-		p.vitals.moving = false  # standing still: Energy may trickle back
 	p.velocity.x = 0.0
 	p.velocity.z = 0.0
 	if not p.is_on_floor():
@@ -125,12 +123,10 @@ func _walk(delta: float) -> void:
 	var dir := cam_dir(input)
 	var can_sprint := Input.is_action_pressed("sprint") and not p.statuses.has_flag(&"no_sprint")
 	running = can_sprint or (p.nav_active and not p.statuses.has_flag(&"no_sprint"))
-	# Stamina: a held sprint 9/s; empty -> walk until it refills.
+	# Stamina: sprint 9/s, tap-run 3/s; empty -> walk until it refills.
 	p.vitals.in_combat = (p.hunt != null and p.hunt.target != null) or (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 5.0
 	if running and p.velocity.length_squared() > 0.5:
-		# SAVEFIX: only a held sprint spends Energy. Tap-to-walk's jog is the same 5.5 m/s tap the
-		# HUD offers as walking; at 3/s it emptied the bar in 33 s and was blamed on "energy drain".
-		if not p.vitals.drain_energy(9.0 if can_sprint else 0.0, delta):
+		if not p.vitals.drain_energy(9.0 if can_sprint else 3.0, delta):
 			running = false
 			can_sprint = false
 	elif running and p.vitals.energy <= 0.0:
@@ -144,7 +140,6 @@ func _walk(delta: float) -> void:
 	horizontal = horizontal.move_toward(dir * target_speed, p.accel * delta)
 	p.velocity.x = horizontal.x
 	p.velocity.z = horizontal.z
-	p.vitals.moving = dir.length_squared() > 0.0 or Vector2(p.velocity.x, p.velocity.z).length() > 0.5
 	if dir.length_squared() > 0.0:
 		var target_yaw := atan2(-dir.x, -dir.z)  # RiggedModel faces -Z (the old capsule faced +Z)
 		p.visual.rotation.y = lerp_angle(p.visual.rotation.y, target_yaw, p.turn_speed * delta)

@@ -26,9 +26,6 @@ var exhausted: bool = false
 var dead: bool = false
 var blocks_regen: bool = false
 var fatigue_gain_mult: float = 1.0
-## Set by PlayerSim while walking: the survivor is moving, so the Energy auto-recovery trickle
-## pauses (PRD 6.2: Energy comes back by eating and slowly; a walk should not refill it).
-var moving: bool = false
 var fatigue_log: Dictionary = {}
 ## Island level versus survivor level, set by the island each frame (ProgressionScaling.fatigue_level_factor).
 ## Applies to every gain except the baseline clock, so over-levelled ground tires you faster.
@@ -59,12 +56,7 @@ var in_combat: bool = false
 var _stamina_lock: float = 0.0
 const REGEN_LOCK_S := 6.0
 var _regen_lock: float = 0.0
-## Energy auto-recovery per second while out of combat. PRD 6.2: Energy is restored by eating and
-## "slowly auto-recovers" (it also recovers in combat, owner note on spec 25). The value lives in
-## data/world/rules.json (energy_regen_per_s); this is its fallback.
-@export var energy_regen: float = 1.0
-## Energy recovery in combat: the same slow trickle (owner note: Durango's Energy always recovers).
-@export var energy_regen_combat: float = 1.0
+@export var energy_regen: float = 2.0
 
 func _process(delta: float) -> void:
 	if dead:
@@ -75,8 +67,8 @@ func _process(delta: float) -> void:
 		health = minf(effective_max_health(), health + health_regen * delta)
 	_stamina_lock = maxf(0.0, _stamina_lock - delta)
 	var stam_cap := max_energy * stamina_cap_mult()
-	if _stamina_lock <= 0.0 and not moving:
-		energy = minf(stam_cap, energy + (energy_regen_combat if in_combat else energy_regen) * stamina_regen_mult() * delta)
+	if _stamina_lock <= 0.0:
+		energy = minf(stam_cap, energy + (STAMINA_REGEN_COMBAT if in_combat else STAMINA_REGEN_CALM) * stamina_regen_mult() * delta)
 	energy = minf(energy, stam_cap)
 	_sync_exhausted()
 

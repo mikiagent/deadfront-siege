@@ -51,9 +51,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			show_pause()
 		get_viewport().set_input_as_handled()
 
-## Defect-1 saves wrote the world before the pick: the terrain is their default "meadow", picked by
-## nobody. Hands the layer back with a fresh pick when the survivor was created this session.
-func reopen_terrain_if_unpicked() -> void:
+## A survivor made this session must not save before picking an island (defect 1: the 60 s autosave
+## did, and the reload skipped the pick). Whenever nothing is open at the end of a frame and the pick
+## was never made, put the pick back up — closing it without choosing changes nothing.
+func _process(_delta: float) -> void:
 	if World.creation_pending and _mode == &"":
 		show_terrain()
 

@@ -229,7 +229,9 @@ func _dot(inst: StatusInstance) -> void:
 		if dps > 0.0:
 			pl.vitals.take_damage(dps * 0.5)
 		if def.fatigue_per_min > 0.0:
-			pl.vitals.add_fatigue(def.fatigue_per_min * (0.5 / 60.0) * 100.0 * float(inst.stacks), inst.id)
+			# fatigue_per_min is a rate on the 0-100 fatigue scale (PRD's +5.4/min, +18/min), per
+			# tick of 0.5 s. It used to be multiplied by 100 as well: Wet charged 30/min.
+			pl.vitals.add_fatigue(def.fatigue_per_min * (0.5 / 60.0) * float(inst.stacks), inst.id)
 
 func _expire(inst: StatusInstance) -> void:
 	var def := Data.status(inst.id)

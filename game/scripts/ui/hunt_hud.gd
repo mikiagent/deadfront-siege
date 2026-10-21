@@ -1015,7 +1015,7 @@ func _draw() -> void:
 	_draw_exhaustion_face(face_pos, strain)
 	# The words follow spec 01's fatigue scale (0-24 rested, 25-49 slightly tired, 50-74 tired,
 	# 75-99 exhausted); the playtest read "TIRED" a few minutes into a walk and it was 25 %.
-	var face_label := "RESTED" if strain < 0.25 else ("SLIGHTLY TIRED" if strain < 0.5 else ("TIRED" if strain < 0.75 else "EXHAUSTED"))
+	var face_label := "RESTED" if strain < 0.25 else ("WORN" if strain < 0.5 else ("TIRED" if strain < 0.75 else "EXHAUSTED"))
 	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
 	draw_string(_font, Vector2(x + 27.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, bar_w - 30.0, bar_px, face_col)
 	yy += 22.0

@@ -261,7 +261,6 @@ func _test_drink(bank: Vector3) -> void:
 	player.statuses.apply(&"thirsty")
 	_expect(player.statuses.has(&"thirsty"), "Thirsty is a status in statuses.json")
 	player.vitals.energy = 50.0
-	player.vitals._stamina_lock = 60.0  # SAVEFIX: Energy's slow auto-recovery (rules.json) must not race the 50.0 check
 	player.context_action("drink")
 	_expect(not player.statuses.has(&"thirsty") and player.statuses.has(&"quenched"), "Drink clears Thirsty and grants Quenched %s" % [_status_ids()])
 	_expect(is_equal_approx(player.vitals.energy, 50.0), "Drink gives no Energy (food fills Energy, PRD 6.2; was +5): %.1f" % player.vitals.energy)
@@ -418,7 +417,7 @@ func _test_no_meter() -> void:
 	_expect(meters.is_empty(), "no thirst / hunger / hygiene / dirt meter on the survivor, vitals or statuses %s" % [meters])
 	var keys: Array = player.vitals.to_dict().keys()
 	keys.sort()
-	_expect(keys == ["energy", "fatigue", "health", "max_energy", "max_fatigue", "max_health"], "the saved vitals are Health, Energy and fatigue only %s" % [keys])
+	_expect(keys == ["energy", "fatigue", "health", "level_energy", "level_health", "max_energy", "max_fatigue", "max_health"], "the saved vitals are Health, Energy and fatigue only, plus the pioneer-level part of their maxima %s" % [keys])
 	var hud := FileAccess.get_file_as_string("res://scripts/ui/hunt_hud.gd").to_lower()
 	for bad in ["thirst", "hunger", "hygien"]:
 		_expect(not hud.contains(bad), "the HUD draws no %s bar" % bad)
