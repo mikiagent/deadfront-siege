@@ -645,7 +645,7 @@ func open_claim_confirm() -> void:
 	_claim_panel = ClaimPanel.new()
 	add_child(_claim_panel)
 	_claim_panel.answered.connect(_on_claim_answered)
-	_claim_panel.open(rt.get("claims"), _claim_tile, plot, str(rt.call("claim_block_reason", _claim_tile)), _claim_stake_due())
+	_claim_panel.open(rt.get("claims"), _claim_tile, plot, str(rt.call("claim_expand_reason", _claim_tile)), _claim_stake_due())
 	_claim_panel.fit(get_viewport_rect().size, _safe_insets())
 
 func claim_panel_open() -> bool:
@@ -709,17 +709,16 @@ const PLACE_OFFSETS := [Vector2(-105, 0), Vector2(-22, 28), Vector2(60, 0)]
 func _placer_taken() -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for r in taken_rects():
-		if not _placer_rect_near(r.position):
+		if not _placer_rect_near(r):
 			out.append(r)
 	return out
 
-## True when a HUD rect belongs to the placer row itself or stands where the row belongs.
-func _placer_rect_near(at: Vector2) -> bool:
+## True when a HUD rect belongs to the placer row itself.
+func _placer_rect_near(r: Rect2) -> bool:
 	for h in _place_hexes:
-		if (h as Control).get_global_rect().grow(6.0).has_point(at):
+		if (h as Control).get_global_rect().grow(6.0).intersects(r):
 			return true
-	var fig := figure_rect()
-	return fig.has_area() and fig.grow(6.0).has_point(at)
+	return false
 
 func _load_level_data() -> void:
 	for pair in [["res://data/skills/titles.json", "t"], ["res://data/skills/pioneer_levels.json", "g"]]:

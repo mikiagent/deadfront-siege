@@ -140,23 +140,35 @@ static func placer_anchor(near: Vector2, offsets: Array, taken: Array, view: Vec
 			cands.append(Vector2(x, y))
 			x += step
 		y += step
+	# The first spot that is off nothing wins; when a corner of a small canvas is packed (the ghost
+	# below the rail, the vitals over the top-left), the spot off the least HUD wins rather than the
+	# row staying on the rail. Off-screen counts worst: a hex there cannot be tapped at all.
+	var best := near
+	var best_score := 1 << 30
 	for c in cands:
-		if _placer_row_clear(c, offsets, taken, view, inset):
-			return c
-	return near
+		var score := _placer_row_score(c, offsets, taken, view, inset)
+		if score < best_score:
+			best_score = score
+			best = c
+			if score == 0:
+				break
+	return best
 
-static func _placer_row_clear(at: Vector2, offsets: Array, taken: Array, view: Vector2, inset: Vector4) -> bool:
+## Off-screen rects count 100 each, HUD overlaps 1: a zero score is a clean row.
+static func _placer_row_score(at: Vector2, offsets: Array, taken: Array, view: Vector2, inset: Vector4) -> int:
 	var room := Rect2(Vector2(6.0 + inset.w, 6.0 + inset.z), view - Vector2(12.0 + inset.w + inset.x, 12.0 + inset.z + inset.y))
+	var score := 0
 	# HexButton 64: the hexagon is 51.96 x 60 with its caption (13 px + padding) under it.
 	for o in offsets:
 		var c: Vector2 = at + (o as Vector2)
 		for r in [Rect2(c - Vector2(26.0, 30.0), Vector2(52.0, 60.0)), Rect2(c + Vector2(-25.0, 32.0), Vector2(50.0, 17.0))]:
 			if not room.encloses(r):
-				return false
+				score += 100
+				continue
 			for t in taken:
 				if (t as Rect2).grow(-1.0).intersects((r as Rect2).grow(-1.0)):
-					return false
-	return true
+					score += 1
+	return score
 
 ## Screen rects the HUD holds this frame: the blocks _draw has painted so far (drawn_blocks, minus
 ## keys starting with one of `skip`), every visible hex on screen (HUD, station and gather radials)

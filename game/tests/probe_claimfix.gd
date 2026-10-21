@@ -67,6 +67,7 @@ func _run() -> void:
 	await process_frame
 	_say("after claim #2 3 m east: claims=%d (was %d), moved=%s" % [_rt.claims.size(), n_before, _rt.claims.has(old) and _rt.claims.size() == n_before])
 	_say("claim panel opened by a second CLAIM: %s" % (_hud.call("claim_panel_open") if _hud.has_method("claim_panel_open") else "no panel in this build"))
+	_say("claim #2 text: %s" % (_hud.call("claim_panel_text").replace("\n", " ") if _hud.has_method("claim_panel_text") else "no panel in this build"))
 	if _hud.has_method("claim_confirm_cancel"):
 		_hud.call("claim_confirm_cancel")
 	# 2. Ghost spawn.
@@ -122,8 +123,8 @@ func _hex_hits() -> Array:
 	var mine: Array[Rect2] = []
 	for h in self_hexes:
 		if (h as Control).is_visible_in_tree():
-			mine.append((h as HexButton).hex_rect())
-	var taken: Array[Rect2] = _hud.call("taken_rects")
+			mine.append(h.call("hex_rect"))
+	var taken: Array[Rect2] = _hud.call("_placer_taken")  # the HUD rects the placer row keeps off
 	var out: Array = []
 	for r in taken:
 		for m in mine:

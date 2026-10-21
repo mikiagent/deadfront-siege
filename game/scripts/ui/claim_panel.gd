@@ -10,6 +10,7 @@ extends PanelContainer
 
 signal answered(confirmed: bool)
 const SIZE := Vector2(340.0, 196.0)
+const PHONE_SIZE := Vector2(272.0, 166.0)  ## a 390 px canvas: narrow enough to stand left of the map column
 const TITLE := "Claim this land?"
 
 var _body: Label
@@ -20,12 +21,13 @@ var _cancel: Button
 ## stake, `why` "" when that plot expands the land held (IslandRuntime.claim_expand_reason), `stake`
 ## whether the press spends a claim stake. Two lines: what stays, what the press is (a no-op when the
 ## plot would not expand).
-static func describe(plots: Array, tile: Vector2i, rect: Rect2i, why: String, stake: bool) -> String:
-	var kept := "You hold %d plot%s here; this press takes none of %s away." % [plots.size(), "" if plots.size() == 1 else "s", "it" if plots.size() == 1 else "them"]
-	var pay := " It spends a claim stake." if stake else ""
+static func describe(plots: Array, tile: Vector2i, _rect: Rect2i, why: String, stake: bool) -> String:
+	var n := plots.size()
+	var kept := "You hold %d plot%s; pressing CLAIM moves or loses none of %s." % [n, "" if n == 1 else "s", "it" if n == 1 else "them"]
+	var pay := " Spends a claim stake." if stake else ""
 	if why != "":
-		return "%s\nNo plot here: %s. Nothing moved, nothing spent." % [kept, why]
-	return "%s\nCLAIM expands your land by a 14x14 plot at (%d, %d), sharing an edge with what you hold.%s" % [kept, tile.x, tile.y, pay]
+		return "%s\nNo expansion here: %s. Nothing moves, nothing is spent." % [kept, why]
+	return "%s\nEXPAND adds a 14x14 plot at (%d, %d), sharing an edge with your land.%s" % [kept, tile.x, tile.y, pay]
 
 ## Tiles of `rect` already inside one of `plots`.
 static func _inner_tiles(plots: Array, rect: Rect2i) -> int:
@@ -92,13 +94,22 @@ func _button(text: String, primary: bool) -> Button:
 	b.add_theme_stylebox_override("pressed", UiTokens.button_style(not primary))
 	return b
 
-## Room for the panel on this canvas: over the survivor (centre is empty at every size), between the
-## vitals/quest band and the bottom rail, and never on the minimap column or the XP line.
+## Room for the panel on this canvas: the strip under the vitals / quest band (top 120 px) and over the
+## bottom rail and XP line (bottom 104 px). A 390 px canvas has 166 px between them, so there the panel
+## is short and its text wraps to more lines; at 900 px it takes its full height over the empty centre.
 func fit(view: Vector2, inset: Vector4) -> void:
-	var w := minf(SIZE.x, view.x - 32.0 - inset.w - inset.x)
-	var h := minf(SIZE.y, view.y - 24.0 - inset.z)
+	var w := minf(PHONE_SIZE.x if view.y < 500.0 else SIZE.x, view.x - 32.0 - inset.w - inset.x)
+	var top := 120.0 + inset.z
+	var bottom := view.y - 104.0 - inset.y
+	var h := clampf(bottom - top, 120.0, PHONE_SIZE.y if view.y < 500.0 else SIZE.y)
 	custom_minimum_size = Vector2(w, h)
 	size = Vector2(w, h)
-	var x := clampf(view.x * 0.5 - w * 0.5, 16.0 + inset.w, maxf(16.0 + inset.w, view.x - 16.0 - inset.x - w))
-	var y := clampf(view.y * 0.5 - h * 0.5, 120.0 + inset.z, maxf(120.0 + inset.z, view.y - 96.0 - inset.y - h))
-	position = Vector2(x, y)
+	# Left of the map column (154 px map + 16 px margin + the safe inset) on a phone, where the
+	# centred panel covered the minimap; the centre of a desktop canvas is empty.
+	var right := view.x - (240.0 if view.y < 500.0 else 16.0) - inset.x
+	var x := clampf(view.x * 0.5 - w * 0.5, 16.0 + inset.w, maxf(16.0 + inset.w, right - w))
+	# The content can be taller than the strip (a wrapped line on a phone): then the panel ends on the
+	# rail's top edge and grows up into the play area, never over the rail's hexes.
+	var real := maxf(size.y, get_combined_minimum_size().y)
+	var y := minf((top + bottom) * 0.5 - real * 0.5, bottom - real)
+	position = Vector2(x, maxf(8.0 + inset.z, y))

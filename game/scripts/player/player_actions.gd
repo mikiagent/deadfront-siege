@@ -594,6 +594,14 @@ func claim_confirmed() -> bool:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
 		return false
+	# PRD 13.1: with land already held a claim is one orthogonal expansion of it, never a plot out on
+	# its own (the confirm path runs this too, so a stale panel cannot stake a hop).
+	if not (rt.get("claims") as Array).is_empty() and rt.has_method("claim_expand_reason"):
+		var why := str(rt.call("claim_expand_reason", BuildGrid.tile_of(p.global_position)))
+		if why != "":
+			print("[world] claim refused: %s" % why)
+			p.notice("Can't claim here: %s" % why)
+			return false
 	var stake := not World.is_home() and World.free_claim_used
 	if stake and p.inventory.count_of(&"claim_stake") < 1:
 		print("[world] claim refused: needs claim_stake")
