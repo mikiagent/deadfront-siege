@@ -1,0 +1,378 @@
+diff --git a/game/scripts/core/save_game.gd b/game/scripts/core/save_game.gd
+index 6e8c7605..93490737 100644
+--- a/game/scripts/core/save_game.gd
++++ b/game/scripts/core/save_game.gd
+@@ -261,6 +261,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
+ 	player.global_position = seat
+ 	print("[world] loaded player at %s (saved y=%.2f)" % [seat.snapped(Vector3.ONE * 0.1), pos.y])
+ 	# Legacy stacks split into instances; what no longer fits the bag goes to home cargo (W2-INV).
++	InvNewTracker.rebaseline(player.inventory) # a load marks nothing NEW (spec 13 s7)
+ 	player.inventory.load_array(data.get("player", {}).get("inventory", []), World.cargo_home)
+ 	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
+ 	if extras is Dictionary:
+diff --git a/game/scripts/dev/inventory_lab.gd b/game/scripts/dev/inventory_lab.gd
+index 2e0f77e6..ce6dd495 100644
+--- a/game/scripts/dev/inventory_lab.gd
++++ b/game/scripts/dev/inventory_lab.gd
+@@ -1,9 +1,9 @@
+ extends Node3D
+ ## W2-INV bag lab: a full 100-slot bag of mixed single instances (plus one ammo and one bandage
+-## stack) in the real inventory screen. The grid groups identical items visually (one cell per
+-## item id with a ×N badge); opening a group shows each instance; nothing ever merges.
++## stack) in the real inventory screen. Since INVUI (spec 13) the Bag shows one cell per instance,
++## never a group: three berries are three cells; nothing ever merges.
+ ## Shots: --resolution 1600x900 (or 844x390) -- --lab=inventory_lab --shot=<png with "bag" in it>
+-##   [--bag-group=stone] opens that group first.
++##   [--bag-select=stone] selects the first instance of that item.
+ ## Headless (no --shot): drives the grid and prints "[invlab] PASS ..." (exit 0) or FAIL lines (exit 1).
+ 
+ ## 100 slots: [id, instances, level step]. Levels cycle so an opened group shows different ones.
+@@ -35,28 +35,22 @@ func _ready() -> void:
+ 	player.inventory.add(ItemStack.make(&"bandage", 6))
+ 	await get_tree().process_frame
+ 	var ui := player.ui
+-	ui.visible = true
+-	ui.rebuild()
++	ui.open_bag()
+ 	for a in OS.get_cmdline_user_args():
+-		if a.begins_with("--bag-group="):
+-			_open(StringName(a.substr(12)))
+-	print("[invlab] bag %d/%d groups=%d cells=%d" % [player.inventory.used_slots(), player.inventory.slot_count, player.inventory.groups().size(), _visible_cells().size()])
++		if a.begins_with("--bag-select="):
++			_select_first(StringName(a.substr(13)))
++	print("[invlab] bag %d/%d cells=%d" % [player.inventory.used_slots(), player.inventory.slot_count, _grid().item_cells().size()])
+ 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
+ 		await _check()
+ 
+-func _visible_cells() -> Array[Button]:
+-	var out: Array[Button] = []
+-	for c in player.ui._grid.get_children():
+-		if c is Button and (c as Button).visible:
+-			out.append(c)
+-	return out
++func _grid() -> InventoryGrid:
++	return (player.ui.get("_bag") as BagScreen).grid
+ 
+-## Taps the cell of group `id`, as a player would.
+-func _open(id: StringName) -> bool:
+-	var cells: Array = player.ui._cells
+-	for k in cells.size():
+-		if cells[k].get("group", &"") == id:
+-			player.ui._on_cell(k)
++## Taps the first cell holding `id`, as a player would.
++func _select_first(id: StringName) -> bool:
++	for c: InventorySlot in _grid().item_cells():
++		if c.stack.def_id == id:
++			_grid().select_uid(c.uid)
+ 			return true
+ 	return false
+ 
+@@ -67,50 +61,35 @@ func _expect(ok: bool, what: String) -> void:
+ 
+ func _check() -> void:
+ 	var inv := player.inventory
+-	var ui := player.ui
+ 	var units := {}
+ 	for s in inv.slots:
+ 		if s:
+ 			units[s.def_id] = int(units.get(s.def_id, 0)) + s.count
+ 	_expect(inv.used_slots() == 100 and inv.slot_count == 100, "the bag holds 100 instances in 100 slots (%d/%d)" % [inv.used_slots(), inv.slot_count])
+-	var groups := inv.groups()
+-	var cells := _visible_cells()
+-	_expect(groups.size() == FILL.size() + 2 and cells.size() == groups.size(), "one cell per item id: %d groups, %d cells" % [groups.size(), cells.size()])
+-	var small := 0
+-	for b in cells:
+-		small += 1 if b.get_combined_minimum_size().x < UiTokens.TARGET_MIN or b.get_combined_minimum_size().y < UiTokens.TARGET_MIN else 0
+-	_expect(small == 0, "every bag cell is a %d px+ target (%d smaller)" % [UiTokens.TARGET_MIN, small])
+-	var stone_cell: Button = cells[0] if not cells.is_empty() else null
+-	_expect(stone_cell != null and stone_cell.text.ends_with("×16"), "the stone group shows ×16 (got '%s')" % (stone_cell.text if stone_cell else ""))
+-	_expect(_open(&"stone"), "the stone group opens")
+-	await get_tree().process_frame
+-	cells = _visible_cells()
+-	_expect(cells.size() == 17 and ui._cells[0].has("back"), "opened: a back cell and 16 stone instances (%d cells)" % cells.size())
+-	_expect(ui._selected >= 0 and inv.slots[ui._selected].def_id == &"stone" and ui._tip.text != "Tap an item.", "opening selects the first stone and shows it")
+-	ui._on_cell(5)
+-	var picked: int = ui._selected
+-	_expect(picked == int(ui._cells[5].slot) and inv.slots[picked].def_id == &"stone", "tapping an instance selects that slot")
+-	ui._on_cell(0)
+-	_expect(_visible_cells().size() == groups.size(), "back shows the whole bag again")
+-	# Equip the exact helm picked from its group: the L30 one, not the first.
+-	_open(&"raid_helm")
+-	var l30 := -1
+-	for k in ui._cells.size():
+-		var c: Dictionary = ui._cells[k]
+-		if c.has("slot") and inv.slots[int(c.slot)].level == 30:
+-			l30 = k
+-	ui._on_cell(l30)
+-	var uid: String = inv.slots[ui._selected].uid if ui._selected >= 0 and inv.slots[ui._selected] else ""
+-	ui._on_equip_pressed()
++	var cells := _grid().item_cells()
++	_expect(cells.size() == 100 and _grid().cells().size() == 100, "one cell per instance: %d item cells, %d cells" % [cells.size(), _grid().cells().size()])
++	var stones := cells.filter(func(c: InventorySlot) -> bool: return c.stack.def_id == &"stone")
++	_expect(stones.size() == 16, "16 stones are 16 cells (%d)" % stones.size())
++	_expect(_select_first(&"stone"), "a stone can be selected")
++	var picked := _grid().selected_index()
++	_expect(picked >= 0 and inv.slots[picked].def_id == &"stone", "tapping a stone selects that slot")
++	# Equip the exact helm picked: the L30 one, not the first.
++	var uid := ""
++	for c: InventorySlot in cells:
++		if c.stack.def_id == &"raid_helm" and c.stack.level == 30:
++			uid = c.uid
++	_grid().select_uid(uid)
++	(player.ui.get("_bag") as BagScreen).inspect.action_pressed.emit(&"equip")
+ 	var worn := inv.equipped_in(&"head")
+-	_expect(worn != null and worn.level == 30 and worn.uid == uid and uid != "", "Equip wears the L30 helm chosen in its group")
+-	_expect(inv.used_slots() == 99 and _visible_cells().size() == groups.size(), "the worn helm left the bag; one helm is left as a single cell (%d cells)" % _visible_cells().size())
++	_expect(worn != null and worn.level == 30 and worn.uid == uid and uid != "", "Equip wears the L30 helm selected")
++	await get_tree().process_frame
++	_expect(inv.used_slots() == 99 and _grid().item_cells().size() == 99, "the worn helm left the bag (%d cells)" % _grid().item_cells().size())
+ 	var after := {}
+ 	for s in inv.slots:
+ 		if s:
+ 			after[s.def_id] = int(after.get(s.def_id, 0)) + s.count
+ 	after[&"raid_helm"] = int(after.get(&"raid_helm", 0)) + 1
+-	_expect(after == units, "grouping merged nothing: every unit is where it was")
++	_expect(after == units, "the view merged nothing: every unit is where it was")
+ 	if _fails.is_empty():
+-		print("[invlab] PASS slots=100 groups=%d stone_open=17 equip_l30=true" % groups.size())
++		print("[invlab] PASS slots=100 cells=100 stones=16 equip_l30=true")
+ 	get_tree().quit(0 if _fails.is_empty() else 1)
+diff --git a/game/scripts/dev/ui_family_lab.gd b/game/scripts/dev/ui_family_lab.gd
+index 08a7438c..87d384d2 100644
+--- a/game/scripts/dev/ui_family_lab.gd
++++ b/game/scripts/dev/ui_family_lab.gd
+@@ -36,7 +36,7 @@ func _ready() -> void:
+ 		animal.open(player)
+ 		await get_tree().process_frame
+ 		var animal_ok := animal.visible and animal._list.get_child_count() == 3 and animal._detail.text.contains("GROWTH / POTENTIAL")
+-		var inventory_ok := player.ui != null and player.ui._profile != null and player.ui._grid.columns == 5
++		var inventory_ok := player.ui != null and player.ui.current_screen() == &"bag" and player.ui.layout_blocks().has("grid")
+ 		var stego: PetRecord = player.bonded[2]
+ 		print("[uifamily] inventory=%s animals=%s unlimited=%s active_cap=%d stego=%s" % [inventory_ok, animal_ok, unlimited_ok, Player.MAX_PETS_OUT, stego.species])
+ 		get_tree().quit(0 if inventory_ok and animal_ok and unlimited_ok and Player.MAX_PETS_OUT == 3 else 1)
+diff --git a/game/scripts/dev/ui_real_capture_lab.gd b/game/scripts/dev/ui_real_capture_lab.gd
+index 5ba2dc9c..d9c3322d 100644
+--- a/game/scripts/dev/ui_real_capture_lab.gd
++++ b/game/scripts/dev/ui_real_capture_lab.gd
+@@ -209,24 +209,17 @@ func _run() -> void:
+ 	await _capture_plate(logical)
+ 	await _camp_and_station(logical)
+ 	await _busy(logical)
+-	# bag (protected inventory_ui): it scrolls down, so its columns are checked across the view,
+-	# and off a portrait phone they must start side by side near the top (the portrait rows pushed
+-	# the slots and equipment below a 390 px landscape view).
++	# bag (INVUI, spec 13): Durango's grid with its toolbar under it and the inspect panel beside it,
++	# all inside the view; the grid scrolls inside its own panel. The player level and title moved
++	# to the Character screen with the profile (INVUI B2 checks them there).
+ 	_player.ui.visible = true
+ 	_player.ui.call("rebuild")
+ 	await _frames(3)
+ 	var bag := bag_blocks(_player.ui)
+-	_check_blocks("bag", bag, logical, true)
+-	if logical.x > logical.y:  # by shape, not by the predicates under test
+-		for col in ["profile_col", "bag_col", "equip_col"]:
+-			var top: float = (bag[col] as Rect2).position.y if bag.has(col) else INF
+-			_expect(top < logical.y * 0.5 and absf(top - (bag["profile_col"] as Rect2).position.y) < 8.0, "bag: %s starts beside the others in the top half (y %.0f)" % [col, top])
+-	# One player level: the bag printed pioneer level + 1 ("Lv. 1") beside the HUD's and atlas's "Lv. 0".
+-	var profile := _player.ui.get("_profile") as Label
+-	_expect(profile != null and profile.text.ends_with(LevelDisplay.player_label()), "bag: profile shows the player level %s like the HUD and atlas (got \"%s\")" % [LevelDisplay.player_label(), profile.text.replace("\n", " / ") if profile else "missing"])
+-	# The held title from character creation on (orchestrator 2026-10-20: level 1 holds titles.json "1").
+-	var held_title := LevelDisplay.current_title(LevelDisplay.player_level())
+-	_expect(held_title != "" and profile != null and profile.text.contains(held_title), "bag: profile shows the held title \"%s\"" % held_title)
++	_check_blocks("bag", bag, logical)
++	_expect(bag.has("grid") and bag.has("toolbar") and bag.has("inspect"), "bag: grid, toolbar and inspect panel are shown (%s)" % [bag.keys()])
++	if bag.has("grid") and bag.has("inspect"):
++		_expect(absf((bag["grid"] as Rect2).position.y - (bag["inspect"] as Rect2).position.y) < 8.0, "bag: the inspect panel starts beside the grid")
+ 	await _capture("bag", [], logical)
+ 	_player.ui.visible = false
+ 	# animal screen (protected): shot only, for the eye check of the token theme on it
+@@ -534,14 +527,9 @@ static func atlas_blocks(map: MapScreen) -> Dictionary:
+ 		out["legend"] = row if i == 0 else (out["legend"] as Rect2).merge(row)
+ 	return out
+ 
+-## Bag columns (profile, slots, equipment) and its close button.
++## Bag blocks (INVUI): header, grid, toolbar and inspect panel of the open screen.
+ static func bag_blocks(bag: Node) -> Dictionary:
+-	var out := {}
+-	for key in ["_profile_col", "_bag_col", "_equip_col", "_close_btn"]:
+-		var c := bag.get(key) as Control
+-		if c and c.is_visible_in_tree():
+-			out[key.trim_prefix("_")] = c.get_global_rect()
+-	return out
++	return bag.call("layout_blocks") if bag.has_method("layout_blocks") else {}
+ 
+ func _controls_in(node: Node) -> Array[Control]:
+ 	var out: Array[Control] = []
+diff --git a/game/scripts/dev/ui_screenshot_lab.gd b/game/scripts/dev/ui_screenshot_lab.gd
+index c07ec418..419ea453 100644
+--- a/game/scripts/dev/ui_screenshot_lab.gd
++++ b/game/scripts/dev/ui_screenshot_lab.gd
+@@ -51,9 +51,9 @@ func _audit_size(player: Player, size: Vector2i) -> void:
+ 	ui.rebuild()
+ 	await get_tree().process_frame
+ 	_audit_tree(ui, view, "inventory")
+-	_expect(ui._grid.columns == 5, "inventory keeps a 5-column bag at %s" % size)
+-	_expect(ui._profile != null and ui._profile.text.contains("Lv."), "inventory profile is present at %s" % size)
+-	_expect(not ui._profile.text.contains("Stegosaurus Compsognathus") or ui._profile.size.x >= 160.0, "long survivor name has room or an ellipsis at %s" % size)
++	# INVUI (spec 13): the Bag is Durango's grid + toolbar + inspect panel; the profile moved to Character.
++	var blocks: Dictionary = ui.layout_blocks()
++	_expect(ui.current_screen() == &"bag" and blocks.has("grid") and blocks.has("toolbar") and blocks.has("inspect"), "inventory opens the Bag with its grid, toolbar and inspect panel at %s" % size)
+ 	await _shot(host, "inventory_%dx%d" % [size.x, size.y])
+ 	ui.queue_free()
+ 	var animals := AnimalScreen.new()
+diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
+index faf78b8f..51053834 100644
+--- a/game/scripts/items/crafting.gd
++++ b/game/scripts/items/crafting.gd
+@@ -66,8 +66,8 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 		var lead := -1
+ 		if not picks.is_empty():
+ 			lead = picks[i]
+-			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat):
+-				return []
++			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or inv.slots[lead].is_locked() or not inv.slots[lead].def().has_category(cat):
++				return [] # a locked instance is never spent, even when picked (spec 13 s9)
+ 			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
+ 				return []
+ 		elif not candidates.is_empty():
+diff --git a/game/scripts/items/inventory.gd b/game/scripts/items/inventory.gd
+index 7c95a9f2..f1196495 100644
+--- a/game/scripts/items/inventory.gd
++++ b/game/scripts/items/inventory.gd
+@@ -316,7 +316,9 @@ func add(stack: ItemStack) -> int:
+ 	var start := _find_span(span)
+ 	if start < 0:
+ 		return stack.count
+-	_place_span(stack.duplicate_stack(), start)
++	var placed := stack.duplicate_stack()
++	_mint(placed) # a caged animal is an instance too: the bag selects and sells it by uid (spec 13 s12)
++	_place_span(placed, start)
+ 	stack.count = 0
+ 	changed.emit()
+ 	return 0
+@@ -420,11 +422,13 @@ static func spend_key(s: ItemStack) -> Array:
+ 			break
+ 	return [traits, s.level, s.created_at]
+ 
++## Locked instances are never found or consumed by these helpers (spec 13 s9: lock protects an item
++## from crafting, processing and auto-consumption); the player unlocks it to spend it.
+ func find_by_category(cat: StringName) -> Array[int]:
+ 	var hits: Array[int] = []
+ 	for i in slot_count:
+ 		var s := slots[i]
+-		if s == null:
++		if s == null or s.is_locked():
+ 			continue
+ 		var d := s.def()
+ 		if d and d.has_category(cat):
+@@ -433,7 +437,7 @@ func find_by_category(cat: StringName) -> Array[int]:
+ 
+ func find_first(def_id: StringName) -> int:
+ 	for i in slot_count:
+-		if slots[i] and slots[i].def_id == def_id and slots[i].def_id != LOCK:
++		if slots[i] and slots[i].def_id == def_id and slots[i].def_id != LOCK and not slots[i].is_locked():
+ 			return i
+ 	return -1
+ 
+@@ -445,14 +449,20 @@ func count_of(def_id: StringName) -> int:
+ 	return n
+ 
+ func consume(def_id: StringName, amount: int) -> bool:
+-	if amount <= 0 or count_of(def_id) < amount:
++	if amount <= 0:
++		return false
++	var have := 0
++	for s in slots:
++		if s and s.def_id == def_id and not s.is_locked():
++			have += s.count
++	if have < amount:
+ 		return false
+ 	var left := amount
+ 	for i in slot_count:
+ 		if left <= 0:
+ 			break
+ 		var s := slots[i]
+-		if s == null or s.def_id != def_id:
++		if s == null or s.def_id != def_id or s.is_locked():
+ 			continue
+ 		var take := mini(left, s.count)
+ 		remove_at(i, take)
+diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
+index 3bfbb398..ab566b43 100644
+--- a/game/scripts/player/player_actions.gd
++++ b/game/scripts/player/player_actions.gd
+@@ -422,7 +422,7 @@ func craft(rid: StringName, count: int = 1) -> bool:
+ 
+ func eat(index: int) -> bool:
+ 	if online:
+-		return _send(&"eat", {"slot": index})
++		return _send(&"eat", {"bag_slot": index}) # the server's act.eat contract (intent_handlers.gd)
+ 	return p.eat_session != null and p.eat_session.begin_eat(index)
+ 
+ func equip(slot: StringName, def_id: StringName) -> bool:
+@@ -431,6 +431,47 @@ func equip(slot: StringName, def_id: StringName) -> bool:
+ 	p.inventory.equip(slot, def_id)
+ 	return true
+ 
++## Wear the exact bag instance (spec 13 s12: never the first of its id). Online the server picks the
++## slot from the item (act.equip {bag_slot}).
++func equip_at(index: int, slot: StringName = &"") -> bool:
++	if online:
++		return _send(&"equip", {"bag_slot": index})
++	var ok := p.inventory.equip_at(index, slot)
++	if ok:
++		p.refresh_equipment_vitals()
++	return ok
++
++## Gear back into the bag; refused (stays worn) when the bag is full.
++func unequip(slot: StringName) -> bool:
++	if online:
++		return _send(&"equip", {"slot": str(slot), "clear": true})
++	var ok := p.inventory.unequip(slot)
++	if ok:
++		p.refresh_equipment_vitals()
++	return ok
++
++## Hold the work tool at bag `index` (the server keeps it as ch.d.tool).
++func hold_tool(index: int) -> bool:
++	if online:
++		return _send(&"equip", {"bag_slot": index})
++	var s := p.inventory.slots[index] if index >= 0 and index < p.inventory.slot_count else null
++	if s == null or s.is_locked() or s.def() == null or s.def().tool_class in [&"", &"none"]:
++		return false
++	p.inventory.set_equipped_tool_index(index)
++	return true
++
++## Lock or unlock the instance at bag `index` (spec 13 s9). shortcut: online it is queued with no
++## server op yet; W3 adds one.
++func set_locked(index: int, on: bool) -> bool:
++	if online:
++		return _send(&"lock", {"bag_slot": index, "on": on})
++	var s := p.inventory.slots[index] if index >= 0 and index < p.inventory.slot_count else null
++	if s == null or s.def_id == Inventory.LOCK:
++		return false
++	s.set_flag(&"locked", on)
++	p.inventory.changed.emit()
++	return true
++
+ ## Confirm the building ghost (place_confirm key or tap on the ghost).
+ func place_confirm() -> bool:
+ 	if online:
+diff --git a/game/tests/t_ui.gd b/game/tests/t_ui.gd
+index 4b18ac78..783c57b6 100644
+--- a/game/tests/t_ui.gd
++++ b/game/tests/t_ui.gd
+@@ -13,6 +13,13 @@ const OWNED := [
+ 	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
+ 	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
+ 	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd",
++	# INVUI (spec 13): the Durango bag family
++	"res://scripts/ui/inv_theme.gd", "res://scripts/ui/inv_paint.gd", "res://scripts/ui/inv_glyphs.gd",
++	"res://scripts/ui/inventory_slot.gd", "res://scripts/ui/inventory_grid.gd", "res://scripts/ui/inv_view.gd",
++	"res://scripts/ui/inv_attributes.gd", "res://scripts/ui/inv_actions.gd", "res://scripts/ui/inv_new_tracker.gd",
++	"res://scripts/ui/capacity_indicator.gd", "res://scripts/ui/inv_header.gd", "res://scripts/ui/bag_toolbar.gd",
++	"res://scripts/ui/item_inspect_panel.gd", "res://scripts/ui/bag_screen.gd", "res://scripts/ui/storage_screen.gd",
++	"res://scripts/ui/inventory_ui.gd",
+ ]
+ const TYPE_MIN := 12
+ ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail

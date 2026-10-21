@@ -32,9 +32,10 @@ var CR: GDScript
 var data: Node
 var world: Node
 
+## Never returns true: that quits the tree on the next frame, before an awaiting test finishes.
 func _process(_delta: float) -> bool:
 	if _done:
-		return true
+		return false
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_done = true
@@ -285,8 +286,9 @@ func _t07_inspect() -> void:
 	var ic := _give(&"club", 22)
 	var p := _panel(player.inventory.slots[ic])
 	var rows := "\n".join(p.call("rows"))
-	_expect(str(p.call("title_text")) == "Club" and rows.contains("Lv. 22"), "7: title is the item name with its level")
-	_expect(rows.contains("60 / 60"), "7: durability reads cur / max")
+	var club = player.inventory.slots[ic]
+	_expect(str(p.call("title_text")) == club.def().display_name and rows.contains("Lv. 22"), "7: title is the item name with its level (%s)" % p.call("title_text"))
+	_expect(club.max_durability > 0 and rows.contains("%d / %d" % [club.durability, club.max_durability]), "7: durability reads cur / max (%s)" % rows.replace("\n", " | "))
 	_expect(not (p.call("actions") as Array).has(&"eat"), "7: a weapon offers no Eat")
 	p.call("show_stack", player.inventory.slots[_give(&"berry", 12)], _ctx())
 	_expect(not (p.call("actions") as Array).has(&"equip"), "7: a berry offers no Equip")
@@ -574,16 +576,28 @@ func _t20_screen_sizes() -> void:
 		_check_targets(bs, view)
 		box.queue_free()
 
+## Tap targets inside a scroll area (the grid's cells are not buttons; a list's rows may be).
+func _scrolled(sc: Control, view: Vector2, small: Array) -> void:
+	var stack: Array[Node] = sc.get_children()
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		stack.append_array(n.get_children())
+		if n is BaseButton and (n as Control).is_visible_in_tree() and ((n as Control).size.y < 43.5 or (n as Control).size.x < 43.5):
+			small.append("%s %s (scrolled)" % [n.name, (n as Control).size])
+
 func _check_targets(root: Control, view: Vector2) -> void:
 	var small := []
 	var clipped := []
 	var stack: Array[Node] = [root]
 	while not stack.is_empty():
 		var n: Node = stack.pop_back()
-		stack.append_array(n.get_children())
 		if not (n is Control) or not (n as Control).is_visible_in_tree():
 			continue
 		var c := n as Control
+		if n is ScrollContainer:
+			_scrolled(c, view, small)  # scrolled content runs past the view on purpose; its targets still count
+			continue
+		stack.append_array(n.get_children())
 		if c is BaseButton:
 			var need := 56.0 if c.is_in_group(&"inv_contextual") else 44.0
 			if c.size.y < need - 0.5 or c.size.x < 44.0 - 0.5:

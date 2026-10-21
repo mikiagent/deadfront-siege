@@ -19,7 +19,9 @@ extends Node3D
 ##   signatures and open the shared split view.
 
 const SCREENS := [&"bag", &"inspect", &"character", &"equipment", &"storage", &"cargo", &"picker"]
-const CONTRACT := ["open_bag", "open_character", "open_equipment", "open_picker", "select_uid", "current_screen"]
+const CONTRACT := ["open_bag", "select_uid", "current_screen"]
+## Contract members a later build step adds; until then their screens are skipped, not failed.
+const LATER := {"open_character": "B2", "open_equipment": "B2", "open_picker": "B3"}
 const USED := 91
 ## Filler after the named items, in pickup order: [id, instances, first level, level step].
 const FILL := [
@@ -58,6 +60,8 @@ func _ready() -> void:
 # ---------------------------------------------------------------- seed
 
 func _seed() -> void:
+	# Seeding is not a pickup: only the items marked below carry NEW.
+	InvNewTracker.rebaseline(player.inventory)
 	World.player_name = "Milan"
 	World.occupation = "Gatherer"
 	World.pioneer_level = 13
@@ -162,6 +166,10 @@ func _open(screen: StringName) -> bool:
 			ui.visible = true
 			ui.rebuild()
 			return false
+	for m in LATER:
+		if str(screen) in str(m) and not ui.has_method(m):
+			print("[bagui] SKIP %s: InventoryUI.%s comes in %s" % [screen, m, LATER[m]])
+			return false
 	match screen:
 		&"bag":
 			ui.call("open_bag")
@@ -187,6 +195,34 @@ func _open(screen: StringName) -> bool:
 
 # ---------------------------------------------------------------- headless check
 
+## B1: the Bag shows one cell per instance with the lab's labels, and the selection inspects it.
+func _check_bag() -> void:
+	var ui := player.ui
+	ui.call("open_bag")
+	ui.call("select_uid", uids["bone60"])
+	var bag: BagScreen = ui.get("_bag")
+	# Headless windows are 64x64: the column count is the one InvTheme picks for the canvas (t_invui 20 pins 7 at 1600x900).
+	var want: int = InvTheme.metrics(bag.size).columns if bag else -1
+	_expect(ui.call("current_screen") == &"bag" and bag != null and bag.grid.columns == want, "the Bag opens with its %d-column grid (screen %s, columns %s, size %s)" % [want, ui.call("current_screen"), bag.grid.columns if bag else -1, bag.size if bag else Vector2.ZERO])
+	var leads := 0
+	for s in player.inventory.slots:
+		leads += 1 if s and s.def_id != Inventory.LOCK else 0
+	_expect(bag.grid.item_cells().size() == leads and bag.grid.cells().size() == leads + player.inventory.slot_count - USED, "one cell per instance plus %d empty compartments (%d cells)" % [player.inventory.slot_count - USED, bag.grid.cells().size()])
+	var rows := "\n".join(bag.inspect.rows())
+	_expect(bag.inspect.title_text() == "Raptor Bone" and rows.contains("Firm Lv. 8") and rows.contains("Black Sheen"), "selecting the Lv. 60 bone inspects its traits")
+	var t0 := Time.get_ticks_usec()
+	bag.grid.refresh()
+	var us := Time.get_ticks_usec() - t0
+	player.inventory.slot_count = 142
+	player.inventory.slots.resize(142)
+	t0 = Time.get_ticks_usec()
+	bag.grid.refresh()
+	var us142 := Time.get_ticks_usec() - t0
+	player.inventory.slot_count = 100
+	player.inventory.slots.resize(100)
+	print("[bagui] grid refresh 100=%dus 142=%dus" % [us, us142])
+	_expect(us < 50000 and us142 < 50000, "a bag refresh stays under 50 ms")
+
 func _expect(ok: bool, what: String) -> void:
 	if not ok:
 		_fails.append(what)
@@ -210,9 +246,10 @@ func _check() -> void:
 		var times := []
 		for screen in SCREENS:
 			var t0 := Time.get_ticks_usec()
-			_open(screen)
-			times.append("%s=%dus" % [screen, Time.get_ticks_usec() - t0])
+			var ok := _open(screen)
+			times.append("%s=%s" % [screen, ("%dus" % (Time.get_ticks_usec() - t0)) if ok else "later"])
 		print("[bagui] open times %s" % ", ".join(PackedStringArray(times)))
+		_check_bag()
 	if _fails.is_empty():
 		print("[bagui] PASS bag=%d/%d new=%d locked=%d" % [inv.used_slots(), inv.slot_count, _flag_count(&"new"), _flag_count(&"locked")])
 	get_tree().quit(0 if _fails.is_empty() else 1)

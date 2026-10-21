@@ -1,0 +1,30 @@
+class_name InvGlyphs
+extends RefCounted
+## White procedural glyphs for the bag toolbar that the white icon set (data/ui_icons.json) has no
+## drawing for: multi-select (a ticked box), filter (a funnel) and the Auto Sort dropdown caret.
+## White polylines, so they read as actions (GAUNTLET: colour = things, white = actions).
+
+const WHITE := Color(1, 1, 1, 0.92)
+
+## A square with a tick, offset like Durango's select toggle.
+static func select(ci: CanvasItem, r: Rect2, on: bool = false) -> void:
+	var s := minf(r.size.x, r.size.y) * 0.62
+	var o := r.get_center() - Vector2(s, s) * 0.5
+	var w := maxf(2.0, s * 0.09)
+	ci.draw_polyline(PackedVector2Array([o + Vector2(s * 0.62, s * 0.08), o + Vector2(s * 0.08, s * 0.08),
+		o + Vector2(s * 0.08, s * 0.92), o + Vector2(s * 0.92, s * 0.92), o + Vector2(s * 0.92, s * 0.5)]), WHITE, w)
+	ci.draw_polyline(PackedVector2Array([o + Vector2(s * 0.28, s * 0.48), o + Vector2(s * 0.5, s * 0.7), o + Vector2(s, s * 0.08)]), InvTheme.SELECT if on else WHITE, w * 1.2)
+
+## A funnel: wide top, narrow stem.
+static func funnel(ci: CanvasItem, r: Rect2, on: bool = false) -> void:
+	var s := minf(r.size.x, r.size.y) * 0.62
+	var o := r.get_center() - Vector2(s, s) * 0.5
+	var pts := PackedVector2Array([o + Vector2(0, s * 0.06), o + Vector2(s, s * 0.06), o + Vector2(s * 0.6, s * 0.52),
+		o + Vector2(s * 0.6, s * 0.94), o + Vector2(s * 0.4, s * 0.8), o + Vector2(s * 0.4, s * 0.52)])
+	ci.draw_colored_polygon(pts, InvTheme.SELECT if on else WHITE)
+
+## The upward caret on the Auto Sort dropdown segment.
+static func caret(ci: CanvasItem, r: Rect2) -> void:
+	var s := minf(r.size.x, r.size.y) * 0.32
+	var c := r.get_center()
+	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-s, s * 0.45), c + Vector2(s, s * 0.45), c + Vector2(0, -s * 0.55)]), WHITE)
