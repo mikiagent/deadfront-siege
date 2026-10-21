@@ -62,8 +62,7 @@ anti_aliasing/quality/msaa_3d.web=0
 ; global shader parameters; until then CardProp reads these settings every card and feeds them to
 ; the sway shader, so a camera change is a setting change.
 camera_focus="0,0,0"
-camera_pitch_deg=-35.264
-parallax_strength=0.055
+parallax_strength=0.006
 
 [physics]
 

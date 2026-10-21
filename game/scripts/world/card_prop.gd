@@ -11,10 +11,12 @@ extends Node3D
 
 const DATA_PATH := "res://data/card2d.json"
 const SHADER_PATH := "res://shaders/card_sway.gdshader"
-## IsoCamera's angle; the card is baked from it and turned to it every frame.
-const CAMERA_YAW_DEG := IsoCamera.YAW_DEG
 
 static var _data: Dictionary = {}
+## The game camera's basis, read from an IsoCamera instance once and kept (the card is baked from
+## the same angle, so a camera change only needs a re-bake; nothing here hard-codes it).
+static var _default_basis: Basis = Basis()
+static var _default_read := false
 
 var _quad: MeshInstance3D
 var _quad_size := Vector2.ONE
@@ -55,6 +57,18 @@ static func card_for_model(path: String) -> String:
 		if str((cards()[id] as Dictionary).get("model", "")) == path:
 			return str(id)
 	return ""
+
+## The angle the cards are baked from and drawn to when no camera is in the tree yet: IsoCamera's.
+static func default_basis() -> Basis:
+	if not _default_read:
+		_default_read = true
+		var cam := IsoCamera.new()
+		var tree := Engine.get_main_loop() as SceneTree
+		if tree and tree.root:
+			tree.root.add_child(cam)
+			_default_basis = cam.global_basis.orthonormalized()
+			cam.queue_free()
+	return _default_basis
 
 static func kind_params(kind: String) -> Dictionary:
 	var kinds: Variant = data().get("kinds", {})
@@ -144,7 +158,7 @@ func setup(card_id: String, height_m: float = 0.0) -> bool:
 	# _face_camera), which runs now and every frame after.
 	_quad = mi
 	_quad_size = Vector2(w, h)
-	_face_camera(IsoCamera.view_basis())
+	_face_camera(default_basis())
 	_feed_camera()
 	set_meta(&"card_id", card_id)
 	return true
@@ -176,20 +190,19 @@ func _process(_delta: float) -> void:
 	_feed_camera()
 
 ## Camera state shared by every card: computed once per frame (the first card that asks), not 150
-## times. Project settings [card2d] until the camera package publishes camera_focus /
-## camera_pitch_deg / parallax_strength as global shader parameters.
+## times. The focus is the active camera's own ground point, so the projection and pitch are never
+## assumed here; only the strength is a setting (project.godot [card2d] parallax_strength) until the
+## camera package publishes it as a global shader parameter.
 static var _frame_seen: int = -1
 static var _focus := Vector3.ZERO
 static var _strength := 0.055
-static var _pitch := -35.264
 
 ## The camera's ground focus: project the view ray forward from the camera until it meets y = 0.
 static func camera_state(cam: Camera3D) -> void:
 	if _frame_seen == Engine.get_process_frames():
 		return
 	_frame_seen = Engine.get_process_frames()
-	_strength = float(ProjectSettings.get_setting("card2d/parallax_strength", 0.055))
-	_pitch = float(ProjectSettings.get_setting("card2d/camera_pitch_deg", IsoCamera.PITCH_DEG))
+	_strength = float(ProjectSettings.get_setting("card2d/parallax_strength", 0.006))
 	_focus = Vector3.ZERO
 	if cam == null:
 		return
@@ -206,7 +219,6 @@ func _feed_camera() -> void:
 	var mat := mi.material_override as ShaderMaterial
 	mat.set_shader_parameter("camera_focus", _focus)
 	mat.set_shader_parameter("parallax_strength", _strength)
-	mat.set_shader_parameter("camera_pitch_deg", _pitch)
 
 ## Short shiver after a gather (HarvestNode.mark_gathered calls this).
 func rustle(seconds: float = 0.6) -> void:
@@ -214,6 +226,9 @@ func rustle(seconds: float = 0.6) -> void:
 	if mi == null or not (mi.material_override is ShaderMaterial):
 		return
 	var mat := mi.material_override as ShaderMaterial
+	# Rocks do not sway: card2d.json gives them amplitude 0, and they do not shiver either.
+	if float(mat.get_shader_parameter("sway_amplitude")) <= 0.0:
+		return
 	mat.set_shader_parameter("rustle", 1.0)
 	mat.set_shader_parameter("rustle_time", 0.0)
 	var tw := create_tween()

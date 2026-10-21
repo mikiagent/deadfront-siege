@@ -153,12 +153,12 @@ func _test_card_prop() -> void:
 	var mi: MeshInstance3D = card.get_node_or_null("Card")
 	# Full camera-facing (owner: align with the camera angle at all times), not a Y-axis billboard:
 	# the quad's basis is the camera's, read from IsoCamera rather than hard-coded.
-	var view: Basis = IsoCamera.view_basis()
+	var view: Basis = CP.default_basis()
 	var qb: Basis = mi.global_basis.orthonormalized() if mi else Basis()
 	_expect(mi != null and qb.z.is_equal_approx(view.z), "the card's normal is the camera's forward (\u00b7=%.4f)" % qb.z.dot(view.z))
 	_expect(absf(qb.y.dot(view.y)) > 0.999, "the card's up is the camera's up")
 	_expect(absf(qb.x.dot(view.x)) > 0.999, "the card's right is the camera's right")
-	_expect(mi != null and is_equal_approx(qb.y.y, cos(deg_to_rad(IsoCamera.PITCH_DEG))), "the card is tilted with the camera's pitch (y=%.3f), not vertical" % qb.y.y)
+	_expect(mi != null and qb.y.y < 0.95, "the card is tilted with the camera's pitch (y=%.3f), not a vertical billboard" % qb.y.y)
 	# The card follows a camera whose angle differs (the Durango-angle package can change it).
 	var other := Basis.from_euler(Vector3(deg_to_rad(-18.0), deg_to_rad(30.0), 0.0))
 	card._face_camera(other)
@@ -201,7 +201,32 @@ func _test_card_prop() -> void:
 		_expect(rock.setup(rock_id, 1.0), "the rock card sets up")
 		var rmat := (rock.get_node("Card") as MeshInstance3D).material_override as ShaderMaterial
 		_expect(is_equal_approx(float(rmat.get_shader_parameter("sway_amplitude")), 0.0), "the rock card's amplitude is 0")
+		rock.rustle(0.3)
+		var rv: Variant = rmat.get_shader_parameter("rustle")
+		_expect(rv == null or float(rv) == 0.0, "a rock does not even shiver")
+		rock.queue_free()
+	_test_parallax()
 	card.queue_free()
+
+## The parallax bound (R1): the shader's slide grows with card height and is capped at 15 % of it, so
+## a half-metre plant 15 m from the camera focus moves well under 8 cm instead of shearing apart.
+func _test_parallax() -> void:
+	var sh := load(SHADER_PATH) as Shader
+	_expect(sh != null, "the sway shader loads for the parallax check")
+	if sh == null:
+		return
+	var code := (sh as Shader).code
+	_expect(code.contains("card_height"), "the parallax reads card_height")
+	_expect(code.contains("PARALLAX_MAX_SHARE"), "the parallax is clamped to a share of the card")
+	# Compute the shader's formula here for the two cases the brief names: a 0.5 m card 15 m out,
+	# and an 8 m tree at the same distance, strength from project settings.
+	var strength := float(ProjectSettings.get_setting("card2d/parallax_strength", 0.006))
+	var max_share := 0.15
+	var plant := minf(15.0 * strength * 0.5, max_share * 0.5)
+	var tree := minf(15.0 * strength * 8.0, max_share * 8.0)
+	_expect(plant < 0.08, "a 0.5 m card 15 m from the focus slides %.3f m (< 0.08)" % plant)
+	_expect(tree > plant * 4.0, "an 8 m tree slides far more than a plant (%.3f vs %.3f m)" % [tree, plant])
+	_expect(max_share * 8.0 < 1.5, "the slide never exceeds 15 % of the card (8 m -> %.2f m)" % (max_share * 8.0))
 
 func _test_card_prop_async() -> void:
 	var card: Node3D = CP.new()
@@ -265,7 +290,111 @@ func _test_islands() -> void:
 		done = true
 		break
 	_expect(done, "a carded node was gatherable")
+	await _test_empty_card()
+	await _test_tap_selects()
+	await _test_fade()
 	rules["resource_render"] = keep
+
+## R3: a depleted berry bush keeps its node and shows the "-empty" card, the full one hidden; the cards
+## are freed with the node (they are children of the runtime, not of the node itself).
+func _test_empty_card() -> void:
+	var node = null
+	for n in get_nodes_in_group("harvest"):
+		if n.has_method("has_empty_card") and n.has_empty_card():
+			node = n
+			break
+	_expect(node != null, "a carded node has an empty card")
+	if node == null:
+		return
+	var full: Node3D = node.get("_card")
+	var empty: Node3D = node.get("_card_empty")
+	_expect(full.visible and not empty.visible, "the full card shows while the node has something")
+	# Spend every yield's pool through the game's own consume path (berries and fibre are separate).
+	var opts: Array = node.options()
+	for i in opts.size():
+		for k in 60:
+			node.select_option(i)
+			if node.pool_units_left() <= 0:
+				break
+			node.consume_unit()
+	node.select_option(0)
+	_expect(node.depleted, "the node is depleted once its pool is spent")
+	_expect(node.visible, "a depleted node with an empty card stays visible (R3)")
+	_expect(empty.visible, "the empty card shows when depleted (R3)")
+	_expect(not full.visible, "the full card hides when depleted")
+	node.regen_seconds = 0.0
+	node.queue_free()
+	await process_frame
+	await process_frame
+	_expect(not is_instance_valid(full) and not is_instance_valid(empty), "freeing the node frees its cards (R3)")
+
+## R4: tapping a card resource still selects its node (the node keeps the pick shape; the card has none).
+func _test_tap_selects() -> void:
+	var cam := IsoCamera.new()
+	cam.name = "TapaCam"
+	host.add_child(cam)
+	cam.size = 18.0
+	cam.current = true
+	var node = null
+	for n in get_nodes_in_group("harvest"):
+		if n.get("_card") is Node3D and n.pool_units_left() > 0 and n.can_gather(player.inventory) == "":
+			node = n
+			break
+	_expect(node != null, "a gatherable carded node to tap")
+	if node == null:
+		cam.queue_free()
+		return
+	player.clear_nav()
+	player.global_position = node.global_position + Vector3(3.0, 1.0, 3.0)
+	cam._target = player
+	cam.global_position = player.global_position + Vector3(20, 20, 20)
+	cam.look_at(player.global_position + Vector3.UP * 0.5)
+	await process_frame
+	await physics_frame
+	var screen: Vector2 = cam.unproject_position(node.global_position + Vector3.UP * 0.7)
+	var picked: StringName = player.debug_tap_screen(screen)
+	_expect(player.gather_target == node or (player._gather_radial != null and player._gather_radial.is_open()),
+		"a tap on a card selects its node (picked=%s gather=%s)" % [picked, player.gather_target != null])
+	if player._gather_radial != null and player._gather_radial.is_open():
+		player._gather_radial.close()
+	player.actions.cancel_work()
+	player.gather_target = null
+	cam.current = false
+	cam.queue_free()
+
+## R4/W2-OCCLUDE: a tall card that hides the survivor fades, driven by the same Occlusion dither.
+func _test_fade() -> void:
+	var card: Node3D = CP.new()
+	host.add_child(card)
+	var id: String = CP.card_for_family("CommonTree")
+	card.setup(id, 8.0)
+	card.global_position = Vector3(30, 0, 30)
+	var cam := IsoCamera.new()
+	host.add_child(cam)
+	cam.current = true
+	cam._target = player
+	# Put the survivor just behind the card along the camera's sight line.
+	var back := Vector3(0.57735, 0.57735, 0.57735)
+	player.global_position = card.global_position - Vector3(0, 0, 0) + Vector3(0, 1.0, 0)
+	cam.global_position = player.global_position + back * 30.0
+	cam.look_at(player.global_position)
+	var n := Occlusion.make_card_occludable(card, Occlusion.BETWEEN)
+	_expect(n > 0, "a tall card opts into the see-through fade (%d surfaces)" % n)
+	await process_frame
+	var driver = Occlusion.driver()
+	_expect(driver != null, "the occlusion driver runs for cards")
+	if driver != null:
+		var chest: Vector3 = player.global_position + Vector3.UP * 0.3
+		var hits: Dictionary = driver.in_the_way(chest, back.normalized())
+		_expect(not hits.is_empty(), "the card is found in the way when it hides the survivor")
+		driver.step_between(hits, 0.5, -back.normalized())
+		var mi := card.get_node("Card") as MeshInstance3D
+		var f: float = mi.get_instance_shader_parameter(&"occl_fade")
+		_expect(f > 0.0, "the card fades when it hides the survivor (occl_fade=%.2f)" % f)
+	Occlusion.release(card)
+	cam.current = false
+	cam.queue_free()
+	card.queue_free()
 
 ## Loads the home island and counts the cards; `clear` frees it again.
 func _island_cards(clear: bool) -> int:

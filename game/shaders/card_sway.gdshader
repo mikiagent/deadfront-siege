@@ -25,9 +25,11 @@ uniform float alpha_scissor = 0.5;
 // parallax_strength from project settings [card2d] until the camera package exposes them as global
 // shader parameters of the same names.
 uniform vec3 camera_focus = vec3(0.0);
-uniform float camera_pitch_deg = -35.264;
-uniform float parallax_strength = 0.055;
+uniform float parallax_strength = 0.006;
+## Visible height of the card in metres: the slide is measured per metre of card, so a knee-high
+## plant barely moves while a tree's crown drifts, and it never exceeds PARALLAX_MAX_SHARE of the card.
 uniform float card_height = 1.0;
+const float PARALLAX_MAX_SHARE = 0.15;
 
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -37,7 +39,7 @@ void vertex() {
 	float wave = sin(TIME * sway_speed + phase);
 	float gust = sin(TIME * 0.37 + phase * 0.5) * 0.5;
 	float amp = sway_amplitude * (wave + gust);
-	// A short shiver right after a gather (HarvestNode.mark_gathered -> CardProp.rustle).
+	// A short shiver right after a gather (HarvestNode.mark_gathered -> CardProp.rustle); rocks send 0.
 	amp += rustle * 0.09 * sin(rustle_time * 26.0) * h * h;
 	VERTEX.x += amp * h * h;
 	VERTEX.z += amp * 0.35 * h * h;
@@ -50,8 +52,14 @@ void vertex() {
 	float sr = dot(vec3(d.x, 0.0, d.y), normalize(MODEL_MATRIX[0].xyz));
 	float su = dot(vec3(d.x, 0.0, d.y), normalize(MODEL_MATRIX[1].xyz));
 	float t = h * h;
-	VERTEX.x += sr * parallax_strength * t;
-	VERTEX.y += su * parallax_strength * t;
+	// In metres of card, not metres of ground: a 0.5 m plant 15 m from the focus slides < 0.08 m,
+	// and even a tall tree moves at most 15 % of its own height (else small cards sheared into slivers).
+	vec2 dir = vec2(sr, su);
+	float metres = length(dir) * parallax_strength * t * card_height;
+	float shift = min(metres, PARALLAX_MAX_SHARE * card_height) * t;
+	vec2 unit = metres > 1e-5 ? dir / length(dir) : vec2(0.0);
+	VERTEX.x += unit.x * shift;
+	VERTEX.y += unit.y * shift;
 	occl_drop = occl_drop_of(MODEL_MATRIX, INV_VIEW_MATRIX);
 }
 

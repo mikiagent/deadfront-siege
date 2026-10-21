@@ -56,8 +56,8 @@ func _ready() -> void:
 	# Far enough out to hold both patches side by side (2 x 26 m + the gap) and the survivor between.
 	_cam.size = 34.0
 	_cam.distance = 40.0
-	# In front of both patches, on the near side of the screen (the camera sits towards +x/+z).
-	_player.global_position = SCREEN_DEPTH * (float(ROWS) * SPACING * 0.5 + 1.5) + Vector3(0, 1.05, 0)
+	# Between the two patches, at their middle depth: left of him the 3D models, right of him the cards.
+	_player.global_position = Vector3(0, 1.05, 0)
 	_player.rotation.y = PI * 0.25
 	_cam._snap()
 	Game.debug_overlay = false
@@ -130,14 +130,15 @@ func _build() -> void:
 	var batches: Dictionary = {}
 	for row in ROWS:
 		for col in COLS:
-			# Rows from the back: tall trees, then bushes, then rocks and ground cover, so the crowns
-			# of the tall props do not cover the small ones in front of them.
+			# Mixed layout (no banded rows): trees, bushes, rocks and ground cover interleaved, so the
+			# trial shows what a real patch looks like. A few tall trees, as the brief asks.
+			var roll := rng.randf()
 			var path := ""
-			if row < TREE_ROWS:
+			if roll < 0.10:
 				path = tree_paths[rng.randi_range(0, tree_paths.size() - 1)]
-			elif row < TREE_ROWS + 3:
+			elif roll < 0.35:
 				path = bush_paths[rng.randi_range(0, bush_paths.size() - 1)]
-			elif row < TREE_ROWS + 5:
+			elif roll < 0.50:
 				path = rock_paths[rng.randi_range(0, rock_paths.size() - 1)]
 			else:
 				path = small_paths[rng.randi_range(0, small_paths.size() - 1)]
@@ -211,9 +212,14 @@ func _run() -> void:
 	await _measure()
 	var ms_cards := _avg(_perf_cards)
 	var ms_models := _avg(_perf_models)
-	print("[card2d] PASS kinds=%d cards=%d models=%d ms_cards=%.2f ms_models=%.2f" % [
-		_kinds.size(), _card_count, _model_count, ms_cards, ms_models])
-	get_tree().quit(0)
+	var ok := _card_count > 0 and _card_count == _model_count and ms_cards < ms_models
+	if ok:
+		print("[card2d] PASS kinds=%d cards=%d models=%d ms_cards=%.2f ms_models=%.2f" % [
+			_kinds.size(), _card_count, _model_count, ms_cards, ms_models])
+	else:
+		print("[card2d] FAIL kinds=%d cards=%d models=%d ms_cards=%.2f ms_models=%.2f" % [
+			_kinds.size(), _card_count, _model_count, ms_cards, ms_models])
+	get_tree().quit(0 if ok else 1)
 
 func _avg(a: Array[float]) -> float:
 	if a.is_empty():

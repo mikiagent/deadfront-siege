@@ -80,8 +80,9 @@ func _bake_one(id: String, path: String, res: int) -> Dictionary:
 	if box.size.length() < 0.001:
 		_fails.append("%s: empty model" % id)
 		return {}
-	# The game camera's own angle, so a camera change only needs a re-bake.
-	var basis := IsoCamera.view_basis()
+	# The game camera's own angle (an IsoCamera instance, nothing hard-coded), so a camera change
+	# only needs a re-bake.
+	var basis := _camera_basis()
 	var right := basis.x
 	var up := basis.y
 	var fwd := -basis.z
@@ -127,6 +128,17 @@ func _bake_one(id: String, path: String, res: int) -> Dictionary:
 		"texture": [pw, ph],
 		"resolution": res,
 	}
+
+## The basis of the game camera: an IsoCamera node is stood up once and read, so the bake follows
+## any change to the camera script's angle without duplicating it here.
+var _basis_cache: Basis = Basis()
+func _camera_basis() -> Basis:
+	if _basis_cache == Basis():
+		var cam := IsoCamera.new()
+		add_child(cam)
+		_basis_cache = cam.global_basis.orthonormalized()
+		cam.queue_free()
+	return _basis_cache
 
 ## Renders one pass of one model: albedo (neutral light, transparent sky) or view-space normals.
 func _render(path: String, res: int, cam_pos: Vector3, basis: Basis, cam_size: float, normals: bool) -> Image:
@@ -190,9 +202,48 @@ func _render(path: String, res: int, cam_pos: Vector3, basis: Basis, cam_size: f
 	if img == null:
 		return null
 	img.convert(Image.FORMAT_RGBA8)
-	if normals and _decode == "srgb":
-		img.srgb_to_linear()
+	if normals:
+		if _decode == "srgb":
+			img.srgb_to_linear()
+		_to_card_tangent(img)
 	return img
+
+## The normal pass stores the view-space normal (camera basis: x right, y up, z towards the viewer),
+## but a material's NORMAL_MAP is tangent space: the card's own quad is the surface, so the map must
+## be relative to it. This rewrites each texel as (along tangent, along bitangent, along the card's
+## normal), with z made positive so thin foliage is lit two-sided instead of going black on every
+## leaf that faces away from the camera. The quad's handedness is read from a real PlaneMesh, not
+## assumed.
+func _to_card_tangent(img: Image) -> void:
+	var sign_b := _bitangent_sign()
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			var n := Vector3(c.r * 2.0 - 1.0, c.g * 2.0 - 1.0, c.b * 2.0 - 1.0)
+			var ts := Vector3(n.x, n.y * sign_b, absf(n.z))
+			img.set_pixel(x, y, Color(ts.x * 0.5 + 0.5, ts.y * 0.5 + 0.5, ts.z * 0.5 + 0.5, 1.0))
+
+## +1/-1: does the quad's bitangent point along the camera's up? PlaneMesh FACE_Z's UVs and
+## tangents decide it, so the map matches whatever mesh CardProp draws.
+var _sign_b := 0.0
+func _bitangent_sign() -> float:
+	if _sign_b != 0.0:
+		return _sign_b
+	var pm := PlaneMesh.new()
+	pm.orientation = PlaneMesh.FACE_Z
+	var arr := pm.get_mesh_arrays()
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var uvs: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = arr[Mesh.ARRAY_TANGENT]
+	var normal := Vector3.BACK
+	var tangent := Vector3(tangents[0], tangents[1], tangents[2])
+	var w := tangents[3]
+	var bitangent := normal.cross(tangent) * w
+	# Texture v grows towards the quad's -Y in Godot's UV convention; the map's y follows the
+	# bitangent, so compare the two directly.
+	_sign_b = -1.0 if bitangent.y < 0.0 else 1.0
+	print("[cardbake] quad tangent=%s bitangent=%s sign=%+.0f" % [tangent, bitangent, _sign_b])
+	return _sign_b
 
 ## Which colour space the normal pass lands in: a plane turned 45° about Y should encode its
 ## view-space normal (0.707, 0, 0.707) as R = 0.854 linear; an sRGB target stores 0.933.

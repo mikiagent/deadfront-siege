@@ -438,6 +438,10 @@ func set_card_visual(card: CardProp, empty_card: CardProp = null) -> void:
 	_apply_card_state()
 	_apply_batch()
 
+## True when this node draws an "-empty" card while depleted (CARD2D).
+func has_empty_card() -> bool:
+	return _card_empty != null and is_instance_valid(_card_empty)
+
 ## The full card while the node has something left, the empty one while it is regrowing.
 func _apply_card_state() -> void:
 	if _card == null or not is_instance_valid(_card):
@@ -459,6 +463,15 @@ func _apply_batch() -> void:
 	elif _batch:
 		_batch.set_shown(_batch_idx, visible and not depleted)
 	_set_tap_zone(visible and not depleted)
+
+## The cards are children of the island runtime, not of this node (they keep their own transforms),
+## so freeing this node must free them too or they stay standing with nothing to harvest.
+func _exit_tree() -> void:
+	for c in [_card, _card_empty]:
+		if c != null and is_instance_valid(c):
+			c.queue_free()
+	_card = null
+	_card_empty = null
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
@@ -515,11 +528,13 @@ func _on_pool_empty() -> void:
 
 func _sync_visual_state() -> void:
 	depleted = _all_empty()
-	_apply_card_state()
 	if depleted:
-		visible = _empty_batch != null
+		# A depleted berry bush keeps showing its empty model (or, in the card path, its -empty card);
+		# only a node with neither disappears.
+		visible = _empty_batch != null or has_empty_card()
 		collision_layer = 0
 		_apply_batch()
+		_apply_card_state()
 		return
 	if falls_to_log:
 		rotation = Vector3.ZERO
@@ -527,6 +542,7 @@ func _sync_visual_state() -> void:
 	visible = true
 	collision_layer = 1
 	_apply_batch()
+	_apply_card_state()
 
 func regen_left() -> float:
 	return _regen_left
