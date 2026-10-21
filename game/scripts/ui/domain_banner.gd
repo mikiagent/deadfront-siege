@@ -4,12 +4,13 @@ extends RefCounted
 ## profile picture." Crossing into claimed land shows "<owner>'s Domain" for a few seconds as the
 ## label spec 15's map draws (durango-island-map.webp): a dark pill, the owner's portrait in a round
 ## frame on its left end, the name gold and "'s Domain" white. Staying inside shows it once; leaving
-## and coming back, or stepping straight into another owner's land, shows it again. HuntHud ticks
-## it every frame and draws it before the toasts and notices, which then keep off it.
+## and coming back, or crossing into another owner's land, shows it again. HuntHud ticks it every
+## frame and draws it before the toasts and notices, which then keep off it.
 
 const SHOW_S := 3.5  ## on screen, fades included
 const FADE_S := 0.35
-## Outside this long before the domain counts as left, so walking along its edge does not flash it.
+## Off a domain this long before it counts as left (or the next owner's as entered), so walking along
+## its edge, or along the border two owners share, does not flash it.
 const LEAVE_S := 0.5
 ## A move this long in one frame is a respawn or a teleport, not a walk across the edge.
 const JUMP_M := 6.0
@@ -22,7 +23,7 @@ var shown: Dictionary = {}  ## the owner on the banner
 var age: float = -1.0  ## seconds the banner has been up; < 0 hidden
 var _island_id: int = 0  ## the runtime the last tick saw
 var _last_at := Vector3.INF
-var _out_s: float = 0.0
+var _away_s: float = 0.0  ## seconds off the current owner's land
 var _pill := StyleBoxFlat.new()
 
 func showing() -> bool:
@@ -44,43 +45,55 @@ func tick(delta: float, rt: Node, at: Vector3) -> void:
 	if id != _island_id or jumped:
 		# ASSUMPTION: arriving (boot, load, a voyage, a respawn, a teleport) is not entering a
 		# domain: the banner waits for the survivor to walk or ride across a claim edge.
+		if id != _island_id:
+			age = -1.0  # a banner does not follow the survivor to the next island
 		_island_id = id
 		owner = here
-		_out_s = 0.0
+		_away_s = 0.0
 		return
-	if here.is_empty():
-		_out_s += delta
-		if _out_s >= LEAVE_S:
-			owner = {}
+	if str(here.get("id", "")) == str(owner.get("id", "")):
+		_away_s = 0.0
 		return
-	_out_s = 0.0
-	if str(here.get("id", "")) != str(owner.get("id", "")):
+	# From open ground a domain shows at once; out of one (to open ground or the next owner's) only
+	# after LEAVE_S away from it.
+	_away_s += delta
+	if owner.is_empty() or _away_s >= LEAVE_S:
 		owner = here
-		shown = here
-		age = 0.0
+		_away_s = 0.0
+		if not here.is_empty():
+			shown = here
+			age = 0.0
 
-## Top centre, else the nearest free spot straight down (under the target plate, or the quest card
-## on a landscape phone), off the vitals, minimap, quest card, hexes and the survivor, inside the
-## safe area.
+## Desktop: top centre, else the nearest free spot straight down (under the target plate), off the
+## vitals, minimap, quest card, hexes and the survivor, inside the safe area. Landscape phone: a slim
+## toast in its own slot at the top of the band between the vitals and the map, above the quest card;
+## while the target plate or level-up holds that slot it is not drawn, never down in the play area
+## (the survivor, a mount).
 func draw(hud: HuntHud) -> void:
 	if age < 0.0:
 		return
 	var r := hud.get_viewport_rect().size
+	var band := HudLayout.centre_band(hud, r) if HudLayout.landscape_phone(r) else Rect2()
+	var slim := band.has_area()
 	var compact := UiTokens.is_compact(r)
 	var font := hud._font
 	var inset := hud._safe_insets()
-	# Compact: 40 px tall fits between a landscape phone's quest card and the survivor's head.
-	var px := 17 if compact else 22
-	var h := 34.0 if compact else 46.0
-	var d := h + (6.0 if compact else 8.0)  # the portrait stands out of the pill above and below
+	var px := 15 if slim else (17 if compact else 22)
+	var h := 26.0 if slim else (34.0 if compact else 46.0)
+	var d := h if slim else h + (6.0 if compact else 8.0)  # off a phone the portrait stands out of the pill
 	var tail := "'s Domain"
 	var tail_w := font.get_string_size(tail, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	var room := r.x - 32.0 - inset.x - inset.w - d - tail_w - 30.0
+	var room := (band.size.x if slim else r.x - 32.0 - inset.x - inset.w) - d - tail_w - 30.0
 	var who := UiTokens.ellipsis(font, str(shown.get("name", "")), room, px)
 	var who_w := font.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	var w := d + 10.0 + who_w + tail_w + 20.0
-	var top := 14.0 + inset.z
-	var box := UiTokens.free_spot(Rect2(inset.w + (r.x - inset.w - inset.x - w) * 0.5, top, w, d), hud.taken_rects(), r)
+	var box := Rect2(band.get_center().x - w * 0.5, band.position.y, w, d)
+	if slim:
+		for t in hud.taken_rects():
+			if box.intersects(t):
+				return
+	else:
+		box = UiTokens.free_spot(Rect2(inset.w + (r.x - inset.w - inset.x - w) * 0.5, 14.0 + inset.z, w, d), hud.taken_rects(), r)
 	if not box.has_area():
 		return
 	hud.drawn_blocks["domain"] = box

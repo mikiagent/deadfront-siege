@@ -1,10 +1,13 @@
 extends SceneTree
 ## Spec 18 acceptance (domain banner and claim edges). Walking into claimed land shows "<owner>'s
 ## Domain" with a portrait: once while staying inside, again after leaving and coming back, again
-## when stepping straight into another owner's land; arriving on the island is not entering; a step
-## over the edge and back does not flash it; the HUD draws it clear of its blocks. Claim data says
-## who owns each tile; the dotted outline follows it (a new plot, other players' rows, touching
-## plots read as one, malformed rows dropped).
+## when crossing into another owner's land; arriving on the island is not entering; a step over the
+## edge and back, or walking along two owners' shared border, does not flash it; an island change
+## takes it down; the HUD draws it clear of its blocks, on a landscape phone in its slot above the
+## quest card. Claim data says who owns each tile; the dotted outline follows it (a new plot, other
+## players' rows in their own colour, touching plots read as one, malformed and off-island rows
+## dropped or cut, only the nearest few of a crowd, lit and opaque). Claims refuse another player's
+## tiles and a refused claim keeps its stake; the own portrait goes when the look can have changed.
 ## Run: Godot --headless --path game --script res://tests/t_domain.gd -> "[t_domain] PASS", exit 0/1.
 ## Scripts are load()ed on the first frame: `--script` compiles this file before autoloads exist.
 
@@ -66,9 +69,13 @@ func _run() -> void:
 	_test_enter_stay_leave()
 	_test_arrival_and_edge_step()
 	_test_other_owner()
+	_test_shared_border_and_island_change()
 	_test_malformed_rows()
 	_test_outline_follows_claims()
+	await _test_crowd()
+	_test_claim_refusals()
 	_test_portrait()
+	await _test_phone_slot()
 	_finish()
 
 func _finish() -> void:
@@ -195,36 +202,79 @@ func _test_other_owner() -> void:
 	var b: RefCounted = DB.new()
 	var my_edge := _at(Vector2i(_own.end.x - 1, their_tile.y))
 	b.tick(0.016, _rt, my_edge)
-	b.tick(0.016, _rt, _at(their_tile))
-	_expect(b.showing() and b.text() == "%s's Domain" % THEM.name and not bool(b.shown.get("own", false)), "stepping from your land into %s's shows \"%s's Domain\" (got \"%s\")" % [THEM.name, THEM.name, b.text()])
-	b.tick(0.016, _rt, my_edge)
-	_expect(b.text() == "%s's Domain" % ME, "stepping back shows yours again (got \"%s\")" % b.text())
-	# The shared edge is one line: drawn once, not twice.
-	var v: PackedVector3Array = CO.vertices(_rt)
+	for i in 6:
+		b.tick(0.1, _rt, _at(their_tile))
+	_expect(b.showing() and b.text() == "%s's Domain" % THEM.name and not bool(b.shown.get("own", false)), "crossing from your land into %s's shows \"%s's Domain\" (got \"%s\")" % [THEM.name, THEM.name, b.text()])
+	for i in 6:
+		b.tick(0.1, _rt, my_edge)
+	_expect(b.text() == "%s's Domain" % ME, "crossing back shows yours again (got \"%s\")" % b.text())
+	# The shared edge is one line: drawn once, not twice, in your colour; their other sides in theirs.
+	var arr: Array = CO.dashes(_rt)
+	var v: PackedVector3Array = arr[0]
+	var col: PackedColorArray = arr[1]
 	var on_shared := 0
-	for p in v:
+	var shared_col := true
+	var theirs_col := 0
+	for i in v.size():
+		var p := v[i]
 		if absf(p.x - float(theirs.position.x)) < 0.2 and p.z >= float(theirs.position.y) and p.z <= float(theirs.end.y):
 			on_shared += 1
-	_expect(on_shared == 6 * theirs.size.y, "the edge between two owners is drawn once (%d vertices, want %d)" % [on_shared, 6 * theirs.size.y])
+			shared_col = shared_col and col[i] == CO.COLOR
+		elif p.x > float(theirs.position.x) + 0.2:
+			theirs_col += 1 if col[i] == CO.OTHER_COLOR else 0
+	_expect(on_shared == 6 * theirs.size.y and shared_col, "the edge between two owners is drawn once, yellow (%d vertices, want %d)" % [on_shared, 6 * theirs.size.y])
+	_expect(theirs_col == 6 * 3 * theirs.size.x, "%s's other three sides are in the other-owner colour (%d vertices)" % [THEM.name, theirs_col])
+	_expect(CO.OTHER_COLOR.h != CO.COLOR.h and CO.DOT < CO.DASH, "other owners' edges differ in colour and dash")
 	_rt.set_other_claims([])
 	_expect((_rt.owner_at(their_tile) as Dictionary).is_empty(), "clearing other claims frees their land")
+
+## Walking along the border you share with another owner (a step either side every 0.2 s) shows
+## neither banner; an island change takes a showing banner down.
+func _test_shared_border_and_island_change() -> void:
+	var theirs := Rect2i(_own.end.x, _own.position.y, 12, 12)
+	_rt.set_other_claims([{"rect": [theirs.position.x, theirs.position.y, theirs.size.x, theirs.size.y], "owner": THEM}])
+	var mine := _at(Vector2i(_own.end.x - 1, theirs.position.y + 4))
+	var their := _at(Vector2i(theirs.position.x, theirs.position.y + 4))
+	var b: RefCounted = DB.new()
+	b.tick(0.016, _rt, mine)
+	var flashes := 0
+	for i in 20:
+		b.tick(0.2, _rt, their if i % 2 == 0 else mine)
+		flashes += 1 if b.showing() else 0
+	_expect(flashes == 0, "walking along a shared border does not flash either banner (%d ticks showing)" % flashes)
+	_rt.set_other_claims([])
+	var c: RefCounted = DB.new()
+	c.tick(0.016, _rt, _at(_outside()))
+	c.tick(0.016, _rt, _at(_inside()))
+	var other_island := Node.new()
+	c.tick(0.016, other_island, _at(_inside()))
+	_expect(not c.showing(), "sailing to another island takes the banner down")
+	other_island.free()
 
 func _test_malformed_rows() -> void:
 	var rows := [
 		{"rect": [1, 2], "owner": THEM}, {"rect": [0, 0, 4, 4]}, {"rect": [0, 0, 4, 4], "owner": {"id": "", "name": "x"}},
 		{"rect": [0, 0, 4, 4], "owner": {"id": "self", "name": "forged"}}, {"rect": [0, 0, 0, 4], "owner": THEM}, "junk", 7,
+		{"rect": [5000, 5000, 12, 12], "owner": THEM},
 	]
 	_rt.set_other_claims(rows)
-	_expect((_rt.get("other_claims") as Array).is_empty(), "malformed claim rows are dropped (kept %d)" % (_rt.get("other_claims") as Array).size())
+	_expect((_rt.get("other_claims") as Array).is_empty(), "malformed and off-island claim rows are dropped (kept %d)" % (_rt.get("other_claims") as Array).size())
 
 # ---------------------------------------------------------------- the outline
 
 func _test_outline_follows_claims() -> void:
 	var mi := _rt.get_node_or_null("ClaimBoundary") as MeshInstance3D
 	var mat := mi.material_override as StandardMaterial3D if mi else null
-	_expect(mat != null and mat.albedo_color.r > 0.85 and mat.albedo_color.g > 0.7 and mat.albedo_color.b < 0.5, "the claim edge is yellow (%s)" % [mat.albedo_color if mat else "no mesh"])
-	var v0: PackedVector3Array = CO.vertices(_rt)
+	_expect(CO.COLOR.r > 0.85 and CO.COLOR.g > 0.7 and CO.COLOR.b < 0.5, "your claim edge is yellow (%s)" % CO.COLOR)
+	# Lit, so it dims at night with the ground; opaque, so the water drawn after it cannot cover it.
+	_expect(mat != null and mat.vertex_color_use_as_albedo and mat.vertex_color_is_srgb and mat.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED and mat.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED,
+		"the claim edge is lit and opaque (shading %s, transparency %s)" % [mat.shading_mode if mat else -1, mat.transparency if mat else -1])
+	var v0: PackedVector3Array = CO.dashes(_rt)[0]
 	_expect(v0.size() == 6 * 4 * _own.size.x, "one camp plot: one dash per metre of its edge (%d vertices)" % v0.size())
+	var down := 0
+	for i in range(0, v0.size(), 3):  # Godot's front faces wind clockwise; a lit dash facing down is black
+		down += 1 if (v0[i + 2] - v0[i]).cross(v0[i + 1] - v0[i]).y <= 0.0 else 0
+	_expect(down == 0, "every dash faces up (%d of %d triangles face down)" % [down, v0.size() / 3])
 	var low := INF
 	for p in v0:
 		low = minf(low, p.y - maxf(_rt.surface_y(p.x, p.z), -0.05))
@@ -238,7 +288,7 @@ func _test_outline_follows_claims() -> void:
 		if _rt.claim_at(centre):
 			added = true
 			_expect(_rt.get("_claim_mesh").mesh != before, "a new claim rebuilds the outline mesh")
-			var v1: PackedVector3Array = CO.vertices(_rt)
+			var v1: PackedVector3Array = CO.dashes(_rt)[0]
 			var inner := 0
 			for p in v1:
 				var on_line: bool = (d.x > 0 and absf(p.x - _own.end.x) < 0.2) or (d.x < 0 and absf(p.x - _own.position.x) < 0.2) \
@@ -253,6 +303,107 @@ func _test_outline_follows_claims() -> void:
 	_expect(added, "a plot next to the camp claim could be staked")
 	print("[t_domain] outline: %d dashes, merged plot %s (dx=%d)" % [v0.size() / 6, added, shared_x])
 
+## 400 other players' plots (a server's worth) plus rows reaching off the island: they are cut to the
+## island, the rebuild stays under 20 ms, and of the crowd only the NEAREST to the survivor draw, picked
+## again as they walk.
+func _test_crowd() -> void:
+	var half := int(float(_rt.get("_size")) * 0.5)
+	var span: int = _rt.get("_tile_span")
+	var side := span / 20  # 400 plots tile the island
+	var rows := []
+	for i in 20:
+		for j in 20:
+			rows.append({"rect": [-half + i * side, -half + j * side, side, side], "owner": {"id": "p%d" % (i * 20 + j), "name": "N%d" % i}})
+	rows.append({"rect": [half - 4, 0, 12, 12], "owner": THEM})  # 8 tiles of it past the island's edge
+	var t0 := Time.get_ticks_usec()
+	_rt.set_other_claims(rows)
+	var ms := float(Time.get_ticks_usec() - t0) / 1000.0
+	var kept: Array = _rt.get("other_claims")
+	var last: Rect2i = kept.back()["rect"] if not kept.is_empty() else Rect2i()
+	print("[t_domain] crowd: %d rows, rebuild %.2f ms, island %d tiles, last row %s" % [kept.size(), ms, span, last])
+	_expect(ms < 20.0, "400 claims rebuild in under 20 ms (%.2f ms)" % ms)
+	var island := Rect2i(-half, -half, span, span)
+	var want := 0
+	for row in rows:
+		var a: Array = row["rect"]
+		want += 1 if Rect2i(a[0], a[1], a[2], a[3]).intersects(island) else 0
+	_expect(kept.size() == want and want == 401, "every row on the island is kept (%d of %d)" % [kept.size(), want])
+	_expect(last == Rect2i(half - 4, 0, 12, 12).intersection(island) and last.size.x == span - half - (half - 4), "a row reaching off the island is cut to it (%s)" % last)
+	var outline: Object = _rt.get("_claim_mesh")
+	var drawn: PackedInt32Array = outline.get("_drawn")
+	_expect(drawn.size() == CO.NEAREST, "of 401 other claims only the %d nearest draw (%d)" % [CO.NEAREST, drawn.size()])
+	_expect(_nearest_ok(drawn), "the drawn claims are the ones nearest the survivor")
+	var dashes: int = (CO.dashes(_rt, drawn)[0] as PackedVector3Array).size() / 6
+	_expect(dashes <= 4 * 14 + CO.NEAREST * 4 * side, "a crowd draws at most your plot and %d others (%d dashes)" % [CO.NEAREST, dashes])
+	_player.global_position = _at(Vector2i(-half + 5, -half + 5)) + Vector3(0, 1, 0)
+	await process_frame
+	await process_frame
+	var moved: PackedInt32Array = outline.get("_drawn")
+	_expect(moved != drawn and _nearest_ok(moved), "walking elsewhere picks the claims nearest there (%s -> %s)" % [drawn, moved])
+	_rt.set_other_claims([])
+	_player.global_position = _at(_outside() + Vector2i(0, 5)) + Vector3(0, 1, 0)
+
+func _nearest_ok(drawn: PackedInt32Array) -> bool:
+	var at := Vector2(_player.global_position.x, _player.global_position.z)
+	var far := 0.0
+	var near := INF
+	var kept: Array = _rt.get("other_claims")
+	for i in kept.size():
+		var r: Rect2i = kept[i]["rect"]
+		var d := at.distance_to(at.clamp(Vector2(r.position), Vector2(r.end)))
+		if i in drawn:
+			far = maxf(far, d)
+		else:
+			near = minf(near, d)
+	return far <= near
+
+## Claiming refuses a plot that would take another player's tiles, and a refused claim keeps the
+## claim stake; a successful one spends it.
+func _test_claim_refusals() -> void:
+	var theirs := Rect2i(_own.end.x + 20, _own.position.y, 12, 12)
+	_rt.set_other_claims([{"rect": [theirs.position.x, theirs.position.y, theirs.size.x, theirs.size.y], "owner": THEM}])
+	var n: int = _rt.claims.size()
+	var mid := theirs.get_center()
+	_expect(_rt.spawn_ok(_at(mid), false), "setup: the middle of their plot is dry land (claimable but for them)")
+	_expect(not _rt.claim_at(mid), "a plot on another player's land is refused")
+	var reach := Vector2i(1 << 30, 0)  # dry, outside theirs, its 14x14 plot overlapping theirs
+	for k in range(1, 7):
+		var t := Vector2i(theirs.position.x - k, mid.y)
+		if _rt.spawn_ok(_at(t), false):
+			reach = t
+			break
+	_expect(reach.x != 1 << 30 and not _rt.claim_at(reach), "a plot reaching into another player's land is refused (from %s)" % reach)
+	_expect(_rt.claims.size() == n, "a refused claim adds no plot")
+	var def_was: Dictionary = _world.island_def
+	var free_was: bool = _world.free_claim_used
+	var unstable_was: Array = _world.unstable_claims.duplicate()
+	_world.island_def = {"kind": "unstable"}
+	_world.free_claim_used = true
+	_player.inventory.add(load("res://scripts/items/item_stack.gd").make(&"claim_stake", 1))
+	var stakes: int = _player.inventory.count_of(&"claim_stake")
+	_player.global_position = _at(theirs.get_center()) + Vector3(0, 1, 0)
+	_player.actions.claim()
+	_expect(_player.inventory.count_of(&"claim_stake") == stakes and _rt.claims.size() == n, "claiming on another player's land keeps the stake (%d -> %d)" % [stakes, _player.inventory.count_of(&"claim_stake")])
+	var free := Vector2i(1 << 30, 0)
+	for k in 40:
+		var t := Vector2i(theirs.end.x + 10 + k * 3, theirs.position.y + 6)
+		if _rt.spawn_ok(_at(t), false):
+			free = t
+			break
+	if free.x != 1 << 30:
+		_player.global_position = _at(free) + Vector3(0, 1, 0)
+		_player.actions.claim()
+		_expect(_player.inventory.count_of(&"claim_stake") == stakes - 1 and _rt.claims.size() == n + 1, "a claim that succeeds spends the stake (%d -> %d)" % [stakes, _player.inventory.count_of(&"claim_stake")])
+	else:
+		_expect(false, "no free dry tile east of %s to claim" % theirs)
+	while _rt.claims.size() > n:
+		_rt.claims.pop_back()
+	_world.island_def = def_was
+	_world.free_claim_used = free_was
+	_world.unstable_claims = unstable_was
+	_player.inventory.consume(&"claim_stake", _player.inventory.count_of(&"claim_stake"))
+	_rt.set_other_claims([])
+
 # ---------------------------------------------------------------- portraits
 
 func _test_portrait() -> void:
@@ -263,3 +414,49 @@ func _test_portrait() -> void:
 	_expect(other == PP.silhouette(), "an owner with no known look gets the neutral silhouette")
 	var img := (PP.silhouette() as Texture2D).get_image()
 	_expect(img != null and img.get_width() == PP.SIZE and img.get_pixel(PP.SIZE / 2, PP.SIZE * 2 / 5) != img.get_pixel(4, 4), "the silhouette has a head on its backdrop")
+	# Your portrait is rendered again after a gear change, a save load or a new survivor.
+	var mine: Dictionary = _rt.owner_at(_inside())
+	var cache: Dictionary = PP.get("_cache")
+	var held := ImageTexture.create_from_image(Image.create_empty(2, 2, false, Image.FORMAT_RGBA8))
+	cache["self"] = held
+	_expect(PP.texture_for(mine, _hud) == held, "your portrait stays cached while nothing changes")
+	_player.inventory.equip(&"head", &"t_domain_helmet")
+	_expect(PP.texture_for(mine, _hud) != held, "equipping gear drops your cached portrait")
+	_player.inventory.unequip(&"head")
+	PP.texture_for(mine, _hud)
+	cache["self"] = held
+	var occ: String = _world.occupation
+	_world.occupation = "t_domain_other"  # what a save load or a new survivor sets
+	_expect(PP.texture_for(mine, _hud) != held, "a save load or a new survivor drops your cached portrait")
+	_world.occupation = occ
+
+# ---------------------------------------------------------------- the phone HUD
+
+## At 844x390 the banner takes its slot at the top, above the quest card: off the play area and
+## the survivor.
+func _test_phone_slot() -> void:
+	var was_size := root.size
+	var was_scale := root.content_scale_size
+	root.size = Vector2i(844, 390)
+	root.content_scale_size = Vector2i(844, 390)
+	_player.clear_nav()
+	var start := _outside() + Vector2i(0, 5)
+	_player.global_position = _at(start) + Vector3(0, 1, 0)
+	for i in 4:
+		await process_frame
+	await create_timer(0.7).timeout
+	await _walk(start, _inside() - Vector2i(0, 2))
+	for i in 3:
+		await process_frame
+	var view: Vector2 = _hud.get_viewport_rect().size
+	var box: Rect2 = _hud.drawn_blocks.get("domain", Rect2())
+	var quest: Rect2 = _hud.drawn_blocks.get("quest", Rect2())
+	var fig: Rect2 = _hud.figure_rect()
+	print("[t_domain] phone view=%s banner=%s quest=%s figure=%s" % [view, box, quest, fig])
+	_expect(view == Vector2(844, 390), "the HUD canvas is 844x390 (%s)" % view)
+	_expect(box.has_area(), "on a landscape phone the banner shows")
+	_expect(box.has_area() and quest.has_area() and box.end.y <= quest.position.y, "on a landscape phone the banner sits above the quest card (%s, quest %s)" % [box, quest])
+	_expect(not box.intersects(fig), "on a landscape phone the banner is clear of the survivor (%s, %s)" % [box, fig])
+	root.size = was_size
+	root.content_scale_size = was_scale
+	await process_frame

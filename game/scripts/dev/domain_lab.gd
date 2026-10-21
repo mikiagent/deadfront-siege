@@ -1,11 +1,11 @@
 extends Node3D
 ## Spec 18 (domain banner and claim edges), windowed. Boots the home island with the real HUD, walks
 ## the survivor across its camp claim's edge, stays inside, walks out and back in, then (when the
-## runtime takes other players' claims) into a neighbour's domain next door. Saves
-## <step>_<w>x<h>.png per step and prints what the HUD drew: the domain banner ("domain" in
-## HuntHud.drawn_blocks) and the claim boundary mesh.
-## Windowed: --resolution 1600x900 -- --lab=domain_lab --shot-dir=DIR (also 844x390; add
-## --rendering-method gl_compatibility for the web renderer).
+## runtime takes other players' claims) into a neighbour's domain next door, and last stands in a
+## crowd of 36 other plots. Saves <step>_<w>x<h>.png per step and prints what the HUD drew: the
+## domain banner ("domain" in HuntHud.drawn_blocks) and the claim boundary mesh.
+## Windowed: --resolution 1600x900 -- --lab=domain_lab --shot-dir=DIR [--tod=0.92 for night] (also
+## 844x390; add --rendering-method gl_compatibility for the web renderer).
 ## Prints "[domain] PASS ..." (exit 0) or "[domain] FAIL ..." lines (exit 1).
 
 const NEIGHBOUR := {"id": "lab_neighbour", "name": "Rowan"}
@@ -36,6 +36,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot-dir="):
 			_out = a.substr(11)
+		if a.begins_with("--tod="):
+			Game.time_of_day = float(a.substr(6))
 	DirAccess.make_dir_recursive_absolute(_out)
 	Game.debug_overlay = false
 	var kit := LabKit.build(self, 4.0)
@@ -79,10 +81,21 @@ func _run() -> void:
 		await _walk(Vector2i(theirs.position.x + 3, near.y), true)
 		await _wait(0.7)
 		await _step("neighbour", true, str(NEIGHBOUR.name))
+		# A crowd: 36 plots of 36 owners around the neighbour's; only the nearest few draw.
+		var rows := []
+		for i in 6:
+			for j in 6:
+				rows.append({"rect": [theirs.position.x - 30 + i * 12, theirs.position.y - 30 + j * 12, 12, 12], "owner": {"id": "lab_crowd%d" % (i * 6 + j), "name": "Crowd %d" % (i * 6 + j)}})
+		rt.call("set_other_claims", rows)
+		await _wait(4.6)  # a switch to the crowd plot underfoot shows after 0.5 s, for 3.5 s
+		var outline := rt.get_node_or_null("ClaimBoundary")
+		var drawn: Variant = outline.get("_drawn") if outline else null
+		print("[domain] crowd: %d other claims, %s drawn" % [rt.get("other_claims").size(), drawn.size() if drawn != null else "all"])
+		await _step("crowd", false)
 	else:
 		print("[domain] runtime has no set_other_claims: neighbour step skipped")
 	if _fails.is_empty():
-		print("[domain] PASS steps=outside,entered,staying,reentered%s" % (",neighbour" if rt.has_method("set_other_claims") else ""))
+		print("[domain] PASS tod=%.2f steps=outside,entered,staying,reentered%s" % [Game.time_of_day, ",neighbour,crowd" if rt.has_method("set_other_claims") else ""])
 		get_tree().quit(0)
 	else:
 		for f in _fails:
@@ -136,6 +149,11 @@ func _step(name: String, want_banner: bool, want_name: String = "") -> void:
 		var minimap := Rect2(_hud._minimap.position, Vector2(HuntHud.MAP_PX, HuntHud.MAP_PX))
 		if box.intersects(minimap):
 			_fails.append("%s: banner %s covers the minimap %s" % [name, box, minimap])
+		if box.intersects(_hud.figure_rect()):
+			_fails.append("%s: banner %s covers the survivor %s" % [name, box, _hud.figure_rect()])
+		var quest: Rect2 = _hud.drawn_blocks.get("quest", Rect2())
+		if HudLayout.landscape_phone(get_viewport().get_visible_rect().size) and quest.has_area() and box.end.y > quest.position.y:
+			_fails.append("%s: on a phone the banner %s left its slot above the quest card %s" % [name, box, quest])
 		if not Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size).encloses(box):
 			_fails.append("%s: banner %s leaves the view" % [name, box])
 	var img := get_tree().root.get_texture().get_image()
@@ -150,6 +168,8 @@ func _report_edge(rt: IslandRuntime) -> void:
 		print("[domain] edge: no ClaimBoundary mesh")
 		return
 	var mat := mi.material_override as StandardMaterial3D
+	if mat:
+		print("[domain] edge material: shading=%d transparency=%d vertex_colour=%s albedo=%s" % [mat.shading_mode, mat.transparency, mat.vertex_color_use_as_albedo, mat.albedo_color])
 	var prim := "?"
 	var verts := 0
 	for s in mi.mesh.get_surface_count():
