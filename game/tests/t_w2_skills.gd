@@ -580,6 +580,8 @@ func _test_field_tame_cap() -> void:
 		p2.bonded.append(PetRecordS.from_def(def))
 	(p2.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")
 	_expect(FT.roster_full(p2) == "" and FT.roster_full(p) != "", "a second survivor with Animal Handling I has room at 3 bonded while the local one is full ('%s' / '%s')" % [FT.roster_full(p2), FT.roster_full(p)])
+	pets.open(p2)
+	_expect(str(pets._title.text).contains("3 / 4"), "the pets screen opened for the second survivor shows its own cap (title '%s')" % pets._title.text)
 	get_root().remove_child(p2)
 	p2.free()
 	(p.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")

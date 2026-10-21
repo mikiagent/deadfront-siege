@@ -65,7 +65,10 @@ recipe-gated progression, and survivors that start at Lv. 1.
   the game yet", then "cut thickets with a knife  ·  needs Leaf" (spec 12 10.6: lock reason, level, SP, what it
   unlocks, prerequisite; the second line since the finish-run review r1). A description that only repeats the node name is not
   shown. A Refund the player cannot use now (the day's 5 free refunds are used, or a learned node needs it) is
-  greyed with "Cannot refund: ..." under the node before the tap (`SkillState.refund_reason`).
+  greyed with "Cannot refund: ..." under the node before the tap (`SkillState.refund_reason`). While a migrated
+  save owes SP, the header reads "SP 0 · 223 owed by kept skills" (`SkillState.sp_text`) and a Refund row says
+  "Refund pays off 4 of the 23 owed SP, no SP back" (`SkillState.refund_note`, review r2). Locks name their
+  prerequisite ("needs Drying Rack"), as the muted rows do.
 - **Bonded cap on screen (hooks H9, H10):** at the cap the field-tame plate reads "Bonded roster full (3 / 3)"
   instead of "Tame", the feed is refused with the notice "... Animal Handling (Survival) adds slots." and the
   food is kept; the pets screen title reads "BONDED n / cap" (spec 09:50) and its equip button "EQUIP
@@ -79,6 +82,37 @@ new `game/scripts/skills/skill_rules.gd`, new `game/tests/t_w2_skills.gd`, and `
 `game/tests/t_save.gd` and the new `game/tests/fixtures/save_v3_skills_rev2.json` (H12) and W1-QA's
 `game/scripts/dev/skills_lab.gd` (H13).
 The rev-1 goldens `save_v3_golden.json` and `save_v3_away_golden.json` are byte-identical to the base.
+
+## Finish-run review r2 (findings in this run's prompt; base claude/mmo-overhaul @ acc684a6)
+
+The base moved to acc684a6 (STATUS and workflow docs); the branch merged it (8da3f6c0). Branch files changed:
+`skill_state.gd` and `t_w2_skills.gd`. The hooks patch is regenerated on acc684a6 with this round's changes
+(H2/H6/H8/H14/H16 extended, H17 new); `git apply --cached --check` against acc684a6's tree: rc 0.
+
+| Finding | Fix | Check that would have caught it |
+|---|---|---|
+| MAJOR: the migration notice is not drawn at 844x390 (+ MAJOR acceptance "notice readable on first load") | `SkillState.migration_notice(owed, available)` returns two short notices: "Skill points now follow your level" and "All skills kept; 147 SP owed" (or "All skills kept; N SP to spend"). The review's one-line text ("Skills kept. SP now come from your level: 51 owed.") is 446 px at the HUD's 17 pt and was still skipped at 844x390. Under the dial, between the vitals and the minimap, the column holds about 366 px, and a notice only slides up or down. The skills sheet's SP readout is `SkillState.sp_text()`: "SP 0 · 147 owed by kept skills" while `sp_extra > 0` (H8), so the number stays on screen after the notices fade. The 3.2 s life and the red notice style are the HUD's (W1-UI's `hud_event_state.gd`, `hunt_hud.gd`) and are unchanged. Two lines of 34 and 28 characters can be read in that time. | ui_real_capture_lab `_migration_notice` (H14): each notice is drawn whole (box width >= the text's width) over the idle HUD at every size, then checked against the HUD blocks and the survivor. With the old text: `[uireal] FAIL the migration notice is drawn whole at 844x390 (box [P: (0.0, 0.0), S: (0.0, 0.0)], needs 1249 px)`. The review's line fails the same way (`... needs 446 px`). Now: `[uireal] migration notice 0 [P: (345.0, 226.0614), S: (292.0, 30.0)] (needs 292 px)` and `notice 1 [P: (369.5, 260.0614), S: (243.0, 30.0)]` at 844x390, and both are drawn at 1600x900. t_w2_skills checks the exact lines, the header and the first load's two notices. |
+| MAJOR acceptance + minor: unspent SP dropped on migration | **Not changed; put to the owner (owner_gate).** The rule came from the first run's brief, `docs/orchestration/mmo/handoff/workflows/finish-6.js:84`: "old saves lose unspent SP (keep it unless spec 03 says otherwise)". Spec 03:14 says "players can level many professions but cannot afford all nodes simultaneously", and PRD 7.3 (durango-wild-lands-systems-prd.md:503) says "If a rebuild gives enough SP to max everything, the market, clans, and \"occupation\" fantasy collapse". The finish-run review r1 marked keeping them MAJOR (a Lv. 23 save could buy all 66 nodes); review r2 marks dropping them MAJOR (brief wording, real saves lose 848 and 2036 SP). Two reviews disagree, and real saves are hit, so the owner decides. The STATUS hunk (H16) no longer records it under "Owner decisions" (an agent wrote that entry). It is now an "Owner questions (open)" item with the release note for the merge: "Skill points now come from your character level. Every skill you learned is kept; points left unspent under the old per-skill award are gone, and skills that cost more than your level pays are paid off by your next levels." To keep the SP instead, change the `sp_extra` line in `SkillState._recount_sp` and the write-back in H6. | Evidence: `[t_w2_skills] migrated Lv. 23: earned 226, available 205; at Lv. 60 earned 720 of 922 SP of buyable nodes`. |
+| Minor: hooks patch STATUS hunk fails on acc684a6 | Merged acc684a6, then regenerated the patch from scratch tree `trees/w2s-r11` (`git diff HEAD` of the hooked files). The base's STATUS entries are untouched; ours is the new owner question. | `git apply --cached --check` on acc684a6's tree and on the branch: rc 0. |
+| Minor: Refund on an owing save gives 0 SP with no warning | `SkillState.refund_note(tree, id)`: while `sp_extra > 0` the Refund row (H8) shows a `RefundNote` line under the node: "Refund pays off 4 of the 23 owed SP, no SP back", or "Refund pays off the N owed SP, then gives M SP" when the node costs more than the debt. | t_w2_skills `while 23 SP are owed the sheet says so (header ...) and what a refund pays (note ...)` and `owing 23 SP: the header says so (...) and the Refund row says what it pays (...)`. With `refund_note` returning "" and `sp_text` returning "SP %d": `FAIL while 23 SP are owed the sheet says so (header 'SP 0') and what a refund pays (note '')`, `FAIL owing 23 SP: the header says so ('Survival  Lv. 40, SP 0') and the Refund row says what it pays ('')`. |
+| Minor: the H6 cap of a rev-2 `sp_extra` at the old award is untested (mutant M8 passes) | The finding is right that nothing kills M8, but no forged save can: the cap never binds on the shipped trees.json. For every tree and level L, the nodes up to L cost at most 53 % of the old award for L (worst: Survival Lv. 55, 342 of 650 SP). A forged rev-2 save is stopped by its tree levels before it reaches the cap, so M8 is an equivalent mutant today. The cap stays, because it matters once an import puts more SP into a tree than its old award. | t_w2_skills now pins the reason: `H6: no tree's nodes cost more than the old award of their level, so the sp_extra cap needs a forged case now: [...]`. It fails on the day the data makes the cap matter, which is when a forged case becomes possible. |
+| Minor: the pets screen title ignores its player's cap | H17: `Data.bonded_cap(player)` in `animal_screen.gd`. | t_w2_skills `the pets screen opened for the second survivor shows its own cap` (mutation result below). |
+| Minor: locks show raw ids ("needs taming_pen") | `SkillState.node_name(tree, id)`; `node_state` says "needs <name>", and `refund_reason` uses the same helper. | t_w2_skills `a lock names its prerequisite`: 51 locks checked. With the old line: `FAIL a lock names its prerequisite (51 checked, by id: ["needs island_access_15", "needs belly_fat_1", "needs stealth_1", ...`. |
+| Minor: H6 counts spent SP at today's prices | `# shortcut:` in H6: a price rise drops a rev-2 save's last learned nodes there (SkillState would keep them). Store each node's paid price, or bump the rev and migrate, before raising a price. | (comment) |
+
+First load of a real rev-1 save, looked at (scratchpad `w2s_r11/load/`). The save is t_save's 19-node variant of
+`save_v3_golden.json`: Lv. 5, 539 unspent SP, 263 SP of nodes at today's prices. It was shot through the normal
+boot path, using two scratch-only edits that were never committed: `--shot` kept the default save slot, and
+`--w2s-sheet` opened the Survival tree after 2 s. Log: `[ui] notice Skill points now follow your level`,
+`[ui] notice All skills kept; 223 SP owed`, `[skill] restored 12 trees (rev 1, SP 0/263)`.
+- `phone_d1.5.png` and `phone_d2.5.png` (844x390, gl_compatibility): both notices are drawn whole under the
+  survivor's name, clear of the camp labels, HANDS and the rail. Before: the reviewer's `after_notice_phone_d1.png`
+  had no notice.
+- `desk_d1.5.png` (1600x900, gl_compatibility): both notices sit under the top centre.
+- `phone_sheet.png` (844x390): the Survival tree header reads "Survival Lv. 55" and "SP 0 · 223 owed by kept
+  skills" next to Close.
+- Lab shots `w2s_r11/phone/migration_notice_844x390.png` and `w2s_r11/desk/migration_notice_1600x900.png` show the
+  same two notices over the idle HUD.
 
 ## Finish-run review r1 (`docs/orchestration/mmo/handoff/findings/w2-skills-review-r1.json` findings in this run's prompt; base claude/mmo-overhaul @ 946da955)
 
@@ -514,13 +548,14 @@ skills_v2 gains `"rev": 2`, `"sp_earned"` (informational) and `"sp_extra"`. A re
 - A level stored as 0 reads as Lv. 1.
 - SP are recomputed from the character level.
 - Every learned node is kept and re-priced at today's costs.
-- **Unspent SP are not kept** (finish-run review r1; it reverses r1 minor 1 of the first run, which kept them).
+- **Unspent SP are not kept** (finish-run review r1; it reverses r1 minor 1 of the first run, which kept them;
+  review r2 asks the owner to confirm it: owner_gate, STATUS "Owner questions (open)").
   Spec 03:14 "players can level many professions but cannot afford all nodes simultaneously" and PRD 7.3 settle
   it. `sp_extra` is the SP of the kept nodes beyond what the character level paid; new levels pay it off before
   they add SP, so a migrated save never holds more SP than a new character at its level beyond the nodes it
-  keeps. The first load shows one notice: "Skill points now come from your character level. Every learned
-  skill is kept; they cost 223 SP more than Lv. 5 pays, so new levels pay that off first." (or "... and you have
-  N SP to spend."). H6 writes the same `sp_extra` back, so a forged or older rev-2 `sp_extra` cannot mint SP.
+  keeps. The first load shows two short notices (review r2: one long line was not drawn at 844x390): "Skill
+  points now follow your level" and "All skills kept; 223 SP owed" (or "All skills kept; N SP to spend"). While SP
+  are owed, the skills sheet's SP readout says "SP 0 · 223 owed by kept skills". H6 writes the same `sp_extra` back, so a forged or older rev-2 `sp_extra` cannot mint SP.
 - AUTO nodes are learned.
 - Nothing is deleted.
 
@@ -854,9 +889,13 @@ Wanted from other packages:
    too). Together with item 4 (cured hide at character Lv. 15), early play slows. Options: keep (spec 03); lower
    the early character XP curve; or let Survival pass the cap (it "simply tracks play", skills.md:7).
 
-7. ~~Rev-1 saves keep their old SP as a permanent extra~~. Settled by the docs (finish-run review r1): spec 03:14 and
-   PRD 7.3 (durango-wild-lands-systems-prd.md:503). Built as option (b), held as an invariant: nodes kept, unspent
-   SP dropped, `sp_extra` = the kept nodes' cost beyond the character level's SP; recorded in STATUS (H16).
+7. **Rev-1 saves drop their unspent SP: reopened for the owner (review r2, the package's owner_gate).** Built as
+   option (b) after the finish-run review r1, from spec 03:14 and PRD 7.3 (durango-wild-lands-systems-prd.md:503):
+   nodes kept, unspent SP dropped, `sp_extra` = the kept nodes' cost beyond the character level's SP. Review r2
+   found that the brief says "unspent SP and unlocks kept" and that real saves lose a lot (Lv. 23 848 -> 0 with
+   51 owed; Lv. 60 2036 -> 0 with 147 owed). The STATUS hunk no longer records it as settled: it is an open owner
+   question with a release note (H16). Switching to "keep" is the `sp_extra` line in `SkillState._recount_sp` and
+   H6's write-back; nothing else changes.
    The original entry:
    **Rev-1 saves keep their old SP as a permanent extra (review r8, numbers from the reviewer's save).** A
    migrated rev-1 save keeps its unspent SP as `sp_extra`, and new character levels pay on top of it (Save format
