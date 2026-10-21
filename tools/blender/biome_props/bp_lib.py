@@ -173,7 +173,9 @@ def export(objs, name):
     # Origin at the ground centre of the AABB: shift so the footprint centre is x = y = 0 and the
     # lowest geometry sits on z = 0, whatever the builder did with its parts.
     lo, hi = _bounds(ob)
-    ob.location -= Vector(((lo.x + hi.x) * 0.5, (lo.y + hi.y) * 0.5, lo.z))
+    # x/y only: the AABB centre of the footprint sits on the origin, z stays as authored so big
+    # landforms keep their skirt below z = 0 (ground_z in the report).
+    ob.location -= Vector(((lo.x + hi.x) * 0.5, (lo.y + hi.y) * 0.5, 0.0))
     bpy.context.view_layer.update()
     ob.select_set(True)
     os.makedirs(OUT_DIR, exist_ok=True)

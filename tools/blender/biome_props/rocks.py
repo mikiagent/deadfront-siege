@@ -402,78 +402,96 @@ def _canyon_wall(name, height, width, depth, seed, palette, skirt=0.7):
 
 
 def _jointed_cliff(name, width, depth, height, seed, palette, skirt=0.6):
-    """A natural jointed sandstone cliff: two or three big irregular rock masses of different heights
-    that overlap and step back into each other (not a staircase), deep vertical joints notching every
-    wall, ragged broken rims (no flat steps, no block on top) and a talus foot."""
+    """A natural jointed sandstone cliff: three big irregular sandstone masses of clearly different
+    heights standing side by side and overlapping, each a fluted prism with 0.3-0.6 m vertical joint
+    notches cut into it every ~2 m, horizontal strata in the vertex colour, a ragged rim, a broken
+    low cap and a 0.6 m skirt below z = 0."""
     rng = L.rng_for(name, seed)
     L.new_scene(name)
     bm = bmesh.new()
-    # (scale, centre offset, top height, plan phase, corner count): the tiers are offset in x and y and
-    # differ in size, so no tier sits centred on the one below it.
-    tiers = [(1.00, (-0.22, 0.10), height * 1.00, 0.0, 18),
-             (0.86, (0.34, -0.16), height * 0.72, 1.3, 16),
-             (0.62, (-0.52, 0.30), height * 0.52, 2.7, 14)]
-    rims = []
-    for ti, (sc, off, top, ph, corners) in enumerate(tiers):
-        n = corners * 2   # corner + notch pair, so joints cut into the wall between corners
+    # (radius_x, radius_y, top height, centre offset): different heights, sizes and offsets, so no
+    # tier sits centred on the one below and the group never reads as a staircase.
+    tiers = [(width * 0.42, depth * 0.38, height * 1.00, (-width * 0.14, -depth * 0.04)),
+             (width * 0.32, depth * 0.36, height * 0.68, (width * 0.16, depth * 0.10)),
+             (width * 0.26, depth * 0.30, height * 0.42, (-width * 0.02, -depth * 0.30))]
+    for ti, (rx, ry, top, off) in enumerate(tiers):
+        n = 40
+        ph = rng.uniform(0, 6.28)
+        joints = rng.choice((13, 15, 17))   # ~2 m apart around the perimeter
+        # outline: irregular plan, plus a hard joint notch 0.3-0.6 m deep
         plan = []
         for k in range(n):
-            a = ph + 2 * math.pi * k / n
-            # irregular outline plus a hard notch every ~3 m along the wall: the vertical joint
-            notch = 1.0 - 0.16 * max(0.0, math.sin(a * 7 + ph * 3 + seed * 0.3)) ** 5
-            rr = (1.0 + 0.20 * math.sin(a * 2 + ph) + 0.09 * math.sin(a * 5 - ph)
-                  + 0.06 * (L.hash01(seed, ti, k) - 0.5)) * notch
-            plan.append((a, rr))
-        z0 = -skirt if ti == 0 else top * 0.30
-        # the rim height wanders 1.5 m so the silhouette is broken, never a level step
-        rim_z = [top * (1.0 - 0.18 * L.hash01(seed, ti, k, 7)) - 0.25 * math.sin(2 * math.pi * k / n * 3 + ph)
-                 for k in range(n)]
+            a = 2 * math.pi * k / n
+            base_r = 1.0 + 0.16 * math.sin(a * 3 + ph) + 0.07 * math.sin(a * 7 - ph)
+            notch = max(0.0, math.sin(a * joints + ph * 2)) ** 6
+            plan.append((a, base_r - notch * (0.55 / max(rx, 1e-3))))
+        # ragged rim: the top edge wanders 0.5 m and the joints break deeper
+        rim = []
+        for k, (a, rr) in enumerate(plan):
+            notch = max(0.0, math.sin(a * joints + ph * 2)) ** 6
+            rim.append(top * (1.0 - 0.06 * L.hash01(seed, ti, k)) - 0.55 * notch
+                       - 0.30 * max(0.0, math.sin(a * 3 + ph)))
+        z0 = -skirt if ti == 0 else top * 0.22
 
-        def ring(z_at, shrink, extra=0.0):
+        def ring(zs, shrink, tw=0.0):
             out = []
             for k, (a, rr) in enumerate(plan):
-                z = z_at(k) if callable(z_at) else z_at
-                tw = 0.04 * ti
-                out.append(bm.verts.new((off[0] + math.cos(a + tw) * width * 0.5 * sc * rr * shrink,
-                                         off[1] + math.sin(a + tw) * depth * 0.5 * sc * rr * shrink,
-                                         z - extra * (1.0 - rr))))
+                z = zs[k] if isinstance(zs, list) else zs
+                out.append(bm.verts.new((off[0] + math.cos(a + tw) * rx * rr * shrink,
+                                         off[1] + math.sin(a + tw) * ry * rr * shrink, z)))
             return out
 
-        low = ring(z0, 1.03)
-        mid = ring(z0 + (top - z0) * 0.45, 1.00)
-        up = ring(top - 0.55, 0.975)
-        rim = ring(lambda k: rim_z[k], 0.965)
-        for ra, rb in ((low, mid), (mid, up), (up, rim)):
+        # tall riser with two bulges: sandstone weathers into rounded beds, not a smooth cone
+        rows = [(z0, 1.02), (z0 + (top - z0) * 0.24, 1.03), (z0 + (top - z0) * 0.44, 1.01),
+                (z0 + (top - z0) * 0.64, 1.00), (z0 + (top - z0) * 0.84, 0.97)]
+        rings = [ring(z, s, ti * 0.04) for z, s in rows]
+        rings.append(ring(rim, 0.94, ti * 0.04))
+        for ra, rb in zip(rings, rings[1:]):
             for k in range(n):
                 bm.faces.new((ra[k], ra[(k + 1) % n], rb[(k + 1) % n], rb[k]))
-        c = bm.verts.new((off[0], off[1], top - 0.9))
+        # broken low cap: two inset rings then a centre, so the top is a weathered dome, not a fan
+        # a bench: a flat ledge 0.5 m wide just inside the rim, then a low broken crown
+        cap_lo = ring([z - 0.04 for z in rim], 0.80, ti * 0.04)
+        cap_hi = ring([z + 0.10 for z in rim], 0.55, ti * 0.04)
+        for ra, rb in ((rings[-1], cap_lo), (cap_lo, cap_hi)):
+            for k in range(n):
+                bm.faces.new((ra[k], ra[(k + 1) % n], rb[(k + 1) % n], rb[k]))
+        c = bm.verts.new((off[0], off[1], top + 0.10))
         for k in range(n):
-            bm.faces.new((rim[k], rim[(k + 1) % n], c))
-        rims.append((off, width * 0.5 * sc, depth * 0.5 * sc, top))
-    # broken blocks fallen off the joints at the foot
-    for k in range(9):
+            bm.faces.new((cap_hi[k], cap_hi[(k + 1) % n], c))
+    # fallen blocks at the foot, half sunk
+    for k in range(14):
         a = rng.uniform(0, 6.28)
-        d = rng.uniform(0.95, 1.15)
+        d = rng.uniform(1.00, 1.18)
         L.add_ico(bm, (math.cos(a) * width * 0.5 * d, math.sin(a) * depth * 0.5 * d, 0.0),
-                  rng.uniform(0.22, 0.55), subdiv=1, scale=(1.6, 1.1, 0.75), wob=0.10,
-                  seed=k, sink=-0.10)
+                  rng.uniform(0.25, 0.62), subdiv=1, scale=(1.7, 1.1, 0.8), wob=0.12,
+                  seed=k, sink=-0.12)
     base_col = rock_colour(palette, seed, strata=0.0, moss=(0.44, 0.45, 0.26))
 
     def col(co):
         c = base_col(co)
         t = co.z / max(height, 1e-3)
-        band = math.sin((co.z + L.wobble(Vector((co.x, co.y, 0)), 2, 3.0, seed) * 0.08) / 1.15 * math.pi)
-        c = L.mix(c, palette["dark"], max(0.0, band) * 0.38)
-        c = L.mix(c, palette["light"], max(0.0, -band) * 0.34)
-        # desert varnish in the joints: dark vertical streaks keyed on the plan angle
+        # each mass is a slightly different bed: saturated red, dusty pale, mid with grit
+        d = [math.hypot((co.x - o[0]) / rx, (co.y - o[1]) / ry) for (rx, ry, _t, o) in tiers]
+        which = d.index(min(d))
+        c = L.mix(c, (palette["base"], palette["light"], palette["dark"])[which], 0.45)
+        # horizontal bedding: one band pair per 1.0 m, plus a thin dark seam every 0.34 m
+        band = math.sin((co.z + L.wobble(Vector((co.x, co.y, 0)), 2, 3.0, seed) * 0.06) / 1.0 * math.pi)
+        c = L.mix(c, palette["dark"], max(0.0, band) * 0.45)
+        c = L.mix(c, palette["light"], max(0.0, -band) * 0.40)
+        # bedding seams: strong horizontal dark lines every 0.34 m plus a pale ledge under each
+        seam = math.sin((co.z + L.wobble(co, 2, 2.0, seed) * 0.05) / 0.34 * math.pi)
+        c = L.mix(c, palette["dark"], max(0.0, seam - 0.55) * 2.0)
+        c = L.mix(c, palette["light"], max(0.0, -seam - 0.45) * 1.8)
+        if t > 0.72:
+            c = L.mix(c, palette["top"], (t - 0.72) * 1.1)
+        # damp varnish down the joints and lichen on the upper beds
         ang = math.atan2(co.y, co.x)
-        joint = max(0.0, math.sin(ang * 7 + seed * 0.3)) ** 5
-        c = L.mix(c, palette["dark"], joint * 0.55)
+        j = max(0.0, math.sin(ang * 15 + seed * 0.3)) ** 10
+        c = L.mix(c, palette["dark"], j * 0.55 * max(0.0, 1.0 - t * 0.5))
         streak = L.noise3(Vector((co.x * 1.7, co.y * 1.7, co.z * 0.22)), 1.0, seed + 3)
-        c = L.mix(c, palette["dark"], max(0.0, streak - 0.55) * 0.9)
-        if t > 0.80:
-            c = L.mix(c, palette["top"], (t - 0.80) * 1.6)
-            c = L.mix(c, (0.44, 0.45, 0.26), max(0.0, L.noise3(co, 1.6, seed + 5) - 0.62) * 0.7)
+        c = L.mix(c, palette["dark"], max(0.0, streak - 0.58) * 1.1)
+        c = L.mix(c, (0.44, 0.45, 0.26), max(0.0, L.noise3(co, 1.6, seed + 5) - 0.60) * 0.9 * t)
         return c
 
     L.paint(bm, col)
@@ -516,14 +534,15 @@ def _basalt_face(name, width, height, seed, palette, skirt=0.6):
     # columns show basalt instead of the sky, and the face reads as one cliff
     back = []
     n = 16
-    for j, (z, sc) in enumerate(((-skirt, 1.06), (height * 0.30, 1.02), (height * 0.62, 0.96),
-                                 (height * 0.80, 0.82), (height * 0.84, 0.55))):
+    for j, (z, sc) in enumerate(((-skirt, 1.04), (height * 0.22, 1.00), (height * 0.42, 0.94),
+                                 (height * 0.52, 0.78), (height * 0.55, 0.45))):
         row = []
         for k in range(n):
             a = 2 * math.pi * k / n
             rr = 1.0 + 0.05 * math.sin(a * 4 + seed)
-            row.append((math.cos(a) * width * 0.52 * sc * rr,
-                        -0.55 + math.sin(a) * 1.55 * sc * rr, z))
+            # the ridge sits behind the column rows (y < -0.9) and never rises above 0.55 of the wall
+            row.append((math.cos(a) * width * 0.50 * sc * rr,
+                        -1.55 + math.sin(a) * 0.95 * sc * rr, z))
         back.append(row)
     L.loft(bm, back, close_top=True, close_bottom=False)
     for k in range(8):
@@ -640,7 +659,7 @@ BUILDERS = {
     # widths measured through the buttress wobble (~2.9x the radius parameter): 12.2, 12.5, 13.4 m
     # three different silhouettes (spec 26): fluted red canyon wall, stepped terrace, columnar basalt
     "mesa_sandstone": lambda: _canyon_wall("mesa_sandstone", 9.0, 11.0, 5.4, 41, SANDSTONE, skirt=0.7),
-    "cliff_chunk_red": lambda: _jointed_cliff("cliff_chunk_red", 12.5, 6.8, 7.4, 43, SANDSTONE, skirt=0.6),
+    "cliff_chunk_red": lambda: _jointed_cliff("cliff_chunk_red", 12.0, 7.0, 7.6, 43, SANDSTONE, skirt=0.6),
     "mesa_basalt": lambda: _basalt_face("mesa_basalt", 10.5, 8.5, 42, BASALT, skirt=0.7),
     "basalt_columns": lambda: build_basalt_columns("basalt_columns", 51, count=9, spread=1.7, h_lo=0.55, h_hi=2.4),
     "boulder_pile_a": lambda: build_boulder_pile("boulder_pile_a", 61, count=9, spread=1.15, size=0.75),

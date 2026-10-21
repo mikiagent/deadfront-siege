@@ -177,7 +177,7 @@ def render_tile(name, path):
 def main(out, names):
     if not names:
         names = sorted(f[:-4] for f in os.listdir(GLB_DIR) if f.endswith(".glb"))
-    tmp = os.path.join(os.path.dirname(out), "_tiles")
+    tmp = "/tmp/biomeassets_tiles"  # scratch; never inside the repo
     os.makedirs(tmp, exist_ok=True)
     tiles = []
     for n in names:

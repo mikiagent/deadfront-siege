@@ -93,6 +93,58 @@ def _crystal_cluster(name, seed, colour_low, colour_high, count=6, height=0.55, 
     return [L.finalize(bm, name, smooth=False, rough=rough, metallic=metallic)]
 
 
+def build_sulphur_mound(name, seed):
+    """A sulphur vent mound: a rounded dome of yellow crust 0.9 m across and 0.65 m tall, its flanks
+    open in cracks with paler and dirtier bands, small sulphur crystals and pale nodules on top.
+    A mound, not a pancake: the dome is built from rings so it has real height."""
+    rng = L.rng_for(name, seed)
+    L.new_scene(name)
+    bm = bmesh.new()
+    n = 18
+    rings = []
+    for sc, z in ((1.06, -0.05), (1.00, 0.02), (0.94, 0.18), (0.80, 0.36), (0.58, 0.52), (0.30, 0.63)):
+        row = []
+        for k in range(n):
+            a = 2 * math.pi * k / n
+            rr = sc * (1.0 + 0.07 * math.sin(a * 5 + seed) + 0.04 * math.sin(a * 3))
+            row.append(bm.verts.new((math.cos(a) * 0.62 * rr, math.sin(a) * 0.56 * rr, z)))
+        rings.append(row)
+    for ra, rb in zip(rings, rings[1:]):
+        for k in range(n):
+            bm.faces.new((ra[k], ra[(k + 1) % n], rb[(k + 1) % n], rb[k]))
+    c = bm.verts.new((0, 0, 0.70))
+    for k in range(n):
+        bm.faces.new((rings[-1][k], rings[-1][(k + 1) % n], c))
+    bm.faces.new(list(reversed(rings[0])))
+    # crystals and nodules on the dome: a few taller ones so the height passes 0.8 m
+    for k in range(7):
+        a = rng.uniform(0, 6.28)
+        d = rng.uniform(0.05, 0.42)
+        base = Vector((math.cos(a) * d, math.sin(a) * d, 0.60 - d * 0.55))
+        h = rng.uniform(0.10, 0.26)
+        _prism6(bm, base, base + Vector((math.cos(a) * 0.05, math.sin(a) * 0.05, h)),
+                rng.uniform(0.035, 0.06), taper=0.65, twist=rng.uniform(0, 1))
+    for k in range(10):
+        a = rng.uniform(0, 6.28)
+        d = rng.uniform(0.60, 0.78)
+        L.add_ico(bm, (math.cos(a) * d, math.sin(a) * d, 0.02), rng.uniform(0.05, 0.11), subdiv=1,
+                  scale=(1.4, 1.1, 0.7), wob=0.02, seed=k, sink=-0.02)
+    low, high = (0.68, 0.54, 0.12), (0.97, 0.90, 0.36)
+
+    def col(co):
+        t = max(0.0, min(1.0, co.z / 0.7))
+        c = L.mix(low, high, t ** 0.6)
+        crack = abs(math.sin(co.z * 22.0 + L.wobble(co, 2, 0.35, seed) * 2.0))
+        c = L.mix(c, (0.34, 0.30, 0.18), max(0.0, crack - 0.86) * 2.4)   # dirt in the cracks
+        nod = L.noise3(co, 0.08, seed + 4)
+        c = L.mix(c, (0.98, 0.95, 0.78), max(0.0, nod - 0.72) * 1.8)     # pale efflorescence
+        return c
+
+    L.paint(bm, col)
+    _ = (Matrix, )  # keep the import used
+    return [L.finalize(bm, name, smooth=False, rough=0.55, metallic=0.0)]
+
+
 # ---------------------------------------------------------------- steam vent
 
 def build_steam_vent(name, seed):
@@ -261,13 +313,11 @@ def build_pebbles(name, seed):
 
 BUILDERS = {
     "crystal_blue": lambda: _crystal_cluster("crystal_blue", 71, (0.35, 0.60, 0.86), (0.62, 0.84, 0.96),
-                                             count=6, height=0.75, spread=0.40, host=(0.55, 0.34, 0.24)),
+                                             count=6, height=1.25, spread=0.40, host=(0.55, 0.34, 0.24)),
     "crystal_obsidian": lambda: _crystal_cluster("crystal_obsidian", 72, (0.07, 0.07, 0.09), (0.26, 0.24, 0.30),
-                                                 count=6, height=0.55, spread=0.32, host=(0.18, 0.18, 0.19),
+                                                 count=6, height=0.95, spread=0.32, host=(0.18, 0.18, 0.19),
                                                  metallic=0.25, rough=0.25),
-    "crystal_sulphur": lambda: _crystal_cluster("crystal_sulphur", 73, (0.72, 0.58, 0.14), (0.95, 0.86, 0.32),
-                                                count=5, height=0.36, spread=0.42, host=(0.36, 0.33, 0.22),
-                                                metallic=0.0, rough=0.45),
+    "crystal_sulphur": lambda: build_sulphur_mound("crystal_sulphur", 73),
     "steam_vent": lambda: build_steam_vent("steam_vent", 81),
     "hot_spring_rim": lambda: build_hot_spring_rim("hot_spring_rim", 82),
     "pebble_patch": lambda: build_pebbles("pebble_patch", 91),
