@@ -1,9 +1,70 @@
 # W2-BUILDSYS: ARK-style modular building with structure HP, tiers and repair
 
-Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip 34b6d459:
+Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip cecc936b:
 docs only since 1c89134a, which brought W2-OCCLUDE, W1-UIICONS and DSC-CAMP). Review r1 stopped before any run.
 Closes build-struct-01, build-def-01, build-tier-01, build-place-02, phys-wall-01, build-storage-01 (chest and
 large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
+
+## Owner gate: save schema 3 -> 4
+
+`save_migrations.gd` raises `CURRENT_SCHEMA` from 3 to 4, with a `_v3_to_v4` step that only sets the version.
+plan-register.md:660 and :672 prescribe it ("save schema 4 for piece rows", "an old schema-3 save migrates"),
+but STATUS records no owner approval. The shared rules list "a rev bump" as an owner gate. W2-INV's save change
+got its own approval (STATUS:325).
+
+- **What it does.** Old saves load unchanged. The new rows are optional: pieces, `durability` on worn kits, and
+  loot bags. The bump only matters on a rollback. An older build then refuses a schema-4 save: it quarantines
+  the file and falls back to `.bak`.
+- **Without the bump**, an older build would load the save and refund the piece rows as unknown kinds.
+  `SaveRestore._items_of` gives back a row's `contents` (chest items go to camp cargo), but a piece has no kit
+  to refund. The house and the materials it cost would be gone at the next save.
+- **Asked of the owner:** approve the 3 -> 4 bump (recommended). Or say keep schema 3, and accept that a
+  rollback build drops houses without refunding them.
+
+## Resume pass 2 (2026-10-20 ~21:45, finish-6 resumed again)
+
+- **Base**: merged cecc936b (HANDOFF, exchange.js and invui.js: docs only), so `git diff fa833312 HEAD -- game/
+  tools/` is empty. W2-PROCESS (add208b3) still does not touch `build_placer.gd`. Its `salvage_contents()` and
+  `pack_up_block_reason()` match the duck-typed calls here, so nothing needs keeping or redoing.
+- **Hooks patch**: unchanged. Through a throwaway index: `APPLY OK on cecc936b` and `APPLY OK on f1ee5b17`.
+- **Hook 4**: there is still no `tools/labs.txt` on the base. W1-QA owns it and is not merged. When it lands,
+  append (its format):
+  `snap_build_lab | 120 | -- --lab=snap_build_lab | shot` and
+  `snap_build_touch | 120 | -- --lab=snap_build_lab --snap-touch`.
+- **Docs answers**, checked against the files again: spec 10:90, 10:102, 05:14, 11:155 and PRD:582 say what the
+  first resume pass quotes. PRD:819 "Signs (text, images, animated billboards)" gives no length, so the 48
+  characters stay `# ASSUMPTION`.
+- **Gates**: scratch tree `trees/bs4-gates` (mkscratch, f1ee5b17 + hooks), logs and PNGs in the 72cebc8b
+  scratchpad under `bs4/`.
+  - `--import`: 0 SCRIPT ERROR, 0 "Failed to compile".
+  - All 20 `t_*.gd` exit 0 with their PASS line and 0 SCRIPT ERROR, except t_save's 5 deliberate ones
+    (`[t_save] PASS`). t_harbour prints `PASS islands=15`.
+  - t_buildsys: `ok repair_upgrade`, `ok furniture`, `ok salvage`, `ok snap_resources`, `[t_buildsys] PASS`.
+  - run_all: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- **Labs (headless)**, 0 SCRIPT ERROR, 0 "couldn't resolve track":
+  - snap_build_lab: `[snap] PASS`, including `house: 52 pieces, its ramp, a chest and a sign placed through
+    socket snapping (got 55)`, `the chest comes back with its 7 stone` and `a schema-3 save migrates to 4`.
+  - `--snap-touch`: `[snap] PASS`.
+  - build_lab: `[build] PASS`.
+  - siege probe: `[siege] destroyed-after=12s occupancy-cleared=true`.
+- **Fail on old behaviour**: not redone, because the code is unchanged. The six-mutation run of the first resume
+  pass (`bs3/mutlogs/t_buildsys.log`) ends `[t_buildsys] FAIL count=21`.
+- **Pixels (windowed, looked at each)**:
+  - `house_fwd.png` / `house_glc.png` (1600x900): the snapped 2-storey plank house. Gable roof, storey band,
+    framed door and windows on both storeys, stone ramp. The two renderers match.
+  - `inside_fwd.png` / `inside_glc.png`: the roof and upper storey fade to a dithered outline, and the front wall
+    to a dither. The survivor behind it is faint in both renderers (W2-OCCLUDE's look).
+  - Touch at 844x390 on gl_compatibility (`--touch --snap-touch`): `[snap] PASS` with 19 touch ok lines.
+    - `touch_ghost.png`: the ghost, snap points and the ROTATE/PLACE/CANCEL hexes. The cost label's tail runs
+      under the DEBUG hex and the lab's level-up banner (dev overlays).
+    - `touch_card.png`: Wood Wall card. "Upgrade to Stone / stone ×8 · plank ×2", "Demolish / half back",
+      "Building to Stone (5) / stone ×40 · plank ×11".
+    - `touch_house_card.png`: Wood Door card. Open door, Upgrade, Demolish, "Building to Stone (45) / stone ×344
+      · plank ×88".
+    - `touch_chest.png`: the bag panel opens, but the chest grid is below the fold under the HUD hexes. This is
+      the known limit (W2-SCREENS/INVUI).
+- **Crash reports**: no new `~/Library/Logs/DiagnosticReports/Godot-*.ips`. The before and after listings are
+  identical; the newest is still `-202004`.
 
 ## Resume pass (2026-10-20 ~20:10, finish-6 resumed on the owner's "continue")
 
@@ -356,7 +417,7 @@ logs and PNGs are in the 72cebc8b scratchpad under `bs3/`.
 ## Integrator hooks
 
 `docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 and 5 as one patch; `git apply --check`
-passes on claude/mmo-overhaul 34b6d459 (resume pass). The hooked tree passed the whole suite and --snap-touch (resume pass above).
+passes on claude/mmo-overhaul cecc936b (resume pass 2). The hooked tree passed the whole suite and --snap-touch (resume pass 2 above).
 
 1. **W2-PLAYER, `game/scripts/player/player_input.gd`**: `interact_tap_target`: `elif col is StructurePiece:`
    find the `hud` group node and call `hud.open_structure(col)`; `is_interactable`: a `StructurePiece` is
@@ -370,7 +431,8 @@ passes on claude/mmo-overhaul 34b6d459 (resume pass). The hooked tree passed the
 3. **W2-ECO, `game/scripts/creatures/brains/creature_brain.gd`**: unchanged from the first pass: `_break_in()`
    before `_think` retargets the blocking wall from `StructureHealth.siege_target` once a second;
    `hunting_player` and the leash treat any structure like the catapult.
-4. **No registration needed**: the base has no lab registry, labs load by scene name. `--lab=snap_build_lab`
+4. **No registration needed on the base**: it has no lab registry, labs load by scene name. When W1-QA's
+   `tools/labs.txt` lands, append the two rows given in resume pass 2. `--lab=snap_build_lab`
    (headless `[snap] PASS`; `--shot=<png>` frames the house, `--snap-inside` puts the survivor inside,
    `--snap-ghost` stages a ghost; `--snap-touch` runs the touch loop and needs hooks 1-2, `--snap-shots=<stem>`
    saves a PNG per touch step).
