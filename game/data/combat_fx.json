@@ -1,0 +1,32 @@
+{
+  "_doc": "Damage numbers (spec 24, owner correction 2026-10-21), read by scripts/ui/combat_fx.gd. A number pops in (pop_from -> 1.0 over pop_s), then grows to expand_to while its opacity falls to 0 by life_s, and floats up rise_lines number-heights over its whole life, easing out. size_px is a normal number at 1.0x on the 1600x900 canvas; phone canvases (UiTokens.is_compact) multiply it by compact_scale. A hit is 'big' when it takes at least big_hit_frac of the target's max HP. Quick hits on one target take the nearest spot beside it where they stay pad_px clear of its readable numbers (alpha >= visible_alpha) for their whole path. Every value is an ASSUMPTION until the owner tunes it.",
+  "size_px": 20,
+  "compact_scale": 0.8,
+  "tiers": {"normal": 1.0, "big": 1.25, "crit": 1.5, "small": 0.8},
+  "big_hit_frac": 0.1,
+  "life_s": 0.75,
+  "pop_s": 0.08,
+  "pop_from": 0.6,
+  "expand_to": 1.4,
+  "rise_lines": 1.0,
+  "fade_power": 2.0,
+  "anchor_height_frac": 0.7,
+  "player_anchor_m": 2.0,
+  "edge_margin_px": 8,
+  "max_per_target": 8,
+  "visible_alpha": 0.3,
+  "pad_px": 3,
+  "outline_px": 4,
+  "outline_color": "#120c08",
+  "crit_outline_px": 6,
+  "crit_outline_color": "#2a1700",
+  "bold_embolden": 0.6,
+  "colors": {
+    "dealt": "#ffffff",
+    "taken": "#ff4a3a",
+    "crit": "#ffd21c",
+    "heal": "#72ff80",
+    "xp": "#ffd95a",
+    "miss": "#c4c4c4"
+  }
+}
