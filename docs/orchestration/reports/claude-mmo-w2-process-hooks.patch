@@ -22,3 +22,56 @@ index cd8df9b8..75cfdeb8 100644
  	var crop := str(row.get("crop_id", ""))
  	if crop != "" and not bool(row.get("failed", false)):
  		# ASSUMPTION: a planted crop comes back as the seed it took, whatever its growth.
+diff --git a/game/scripts/ui/hud_pills.gd b/game/scripts/ui/hud_pills.gd
+index 3671ff22..d757b777 100644
+--- a/game/scripts/ui/hud_pills.gd
++++ b/game/scripts/ui/hud_pills.gd
+@@ -105,6 +105,11 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+ 				name = "Cargo Warp"
+ 			elif grp == "harbour":
+ 				name = "Harbour"
++			# A process station's job status hangs under its own chip (one anchor per station): as a
++			# world label it ran into the survivor's chip, the HUD panels and the next station's label.
++			var ps := ProcessStation.of(n3)
++			if ps:
++				timer = ps.label_text()
+ 		var active_row := n3 == radial_node or n3 == hud.player.gather_target
+ 		var kind_n := int(per_kind.get(name, 0))
+ 		if kind_n >= 2 and not active_row:
+@@ -160,7 +165,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+ 			ix += 14.0
+ 		var timer: String = item["timer"]
+ 		if timer != "":
+-			var tt := UiTokens.ellipsis(hud._font, timer, 96.0, UiTokens.meta(view))
++			var tt := UiTokens.ellipsis(hud._font, timer, maxf(96.0, box.size.x - 16.0), UiTokens.meta(view))
+ 			var ttw := hud._font.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view)).x
+ 			var trect := Rect2(rect.position.x, rect.position.y + rect.size.y + 2.0, ttw + 16.0, 18.0)
+ 			var tbg := UiTokens.INK
+diff --git a/game/tests/run_all.gd b/game/tests/run_all.gd
+index 1041e72f..41114071 100644
+--- a/game/tests/run_all.gd
++++ b/game/tests/run_all.gd
+@@ -50,6 +50,7 @@ func _process(_delta: float) -> bool:
+ 	_test_mortar_well_kit_routes()
+ 	_test_empty_bucket_recipe()
+ 	_test_multistack_crafting()
++	_test_process_stations()
+ 	_finish()
+ 	return true
+ 
+@@ -576,6 +577,15 @@ func _test_multistack_crafting() -> void:
+ 	for label in results:
+ 		_expect(bool(results[label]), str(label))
+ 
++## W2-PROCESS: a wall-clock rack job and hand-edited process rows on the load and refund paths.
++func _test_process_stations() -> void:
++	var script: GDScript = load("res://tests/process_checks.gd") as GDScript
++	_expect(script != null, "process checks load")
++	if script == null: return
++	var results: Dictionary = script.new().call("run", get_root())
++	for label in results:
++		_expect(bool(results[label]), str(label))
++
+ func _test_combat_counters() -> void:
+ 	var model := load("res://scripts/combat/combat_counters.gd") as GDScript
+ 	var creature_count := 0
