@@ -13,6 +13,8 @@ extends RefCounted
 ## - Stuck: no headway for STALL_REPLAN s plans again around what blocks; GIVE_UP s with none at all
 ##   stops the route and says so. She never hops.
 
+# ASSUMPTION: the tuning below (clearance, stall and give-up times, shortcut look-ahead, corner swing) is
+# measured on the route bot, not taken from a reference.
 const CLEARANCE := 0.4        ## m from any blocked tile: the capsule's 0.35 plus a little
 const ARRIVE := 0.25          ## m, a plain move
 const ARRIVE_TARGET := 1.5    ## m, a walk to something to work on (it stands on its own tile)

@@ -4,7 +4,7 @@ Owner (newest): "UI glitching up and down on resource nodes when clicking around
 joystick for movement on the bottom left that only appears when hold and drag on the left side. Improve the
 pathfinding and movement, player interactions with buildings, crafting stations, and resources".
 
-Steps: B1 jitter (done), B2 WASD + joystick (done), B3 pathfinding + movement and B4 interactions (not started).
+Steps: B1 jitter (done), B2 WASD + joystick (done), B3 pathfinding + movement (done), B4 interactions (not started).
 
 Hooks: `docs/orchestration/reports/claude-mmo-controls-hooks.patch` (other owners' files; the integrator applies
 it at merge). The branch itself only adds new files.
@@ -236,5 +236,160 @@ next commit; they are comments only.
 
 - Apply `claude-mmo-controls-hooks.patch`. It now covers `touch_controls.gd`, `player_input.gd` and
   `player_actions.gd` as well as B1's files. Run `--import` once (new class_name `FloatStick`).
-- B3 (pathfinding + movement) and B4 (interactions) have not started. B4 can use `cancel_work` dropping a craft
-  that is walking to its station. A tap on the left half now arrives on release.
+- B4 (interactions) can use `cancel_work` dropping a craft that is walking to its station. A tap on the left half
+  now arrives on release. (B3 has since landed; see its section.)
+
+## B3: pathfinding and movement (done)
+
+### What was there (base)
+
+- Tap-to-move and walks to a target used `TilePath` (1 m A*, string-pulled with a one-tile-wide Bresenham line) and
+  `PlayerSim._tile_nav_dir`: it planned again every 1.5 s from the centre of the current tile, steered at the next
+  waypoint at full speed and stopped dead on it, and only noticed a new building by walking into it (re-plan after
+  0.35 s without moving). Stuck for 1.2 s it walked straight at the goal, at 2 s it hopped 0.45 m (`unstick`), and
+  at 5 s it printed "abandoned" and kept pushing: nothing ended the route.
+- The string pull only checked the tiles the centre line crossed, so routes grazed trunks and fence ends with the
+  0.35 m capsule and slid along them.
+- A route that started inside a blocked tile (a survivor pressed against a thin fence stands in its row) began on
+  the first free tile in scan order, which was usually the one behind the fence.
+
+### What shipped
+
+- New `game/scripts/player/route_walker.gd` (`RouteWalker`): follows the survivor's tile routes.
+  - Plans the whole route once (no 96-tile prefix: A* searches it all anyway), string-pulled with 0.4 m clearance.
+  - Walks to the furthest waypoint within 6 m that a line with the same clearance reaches from where she stands, so
+    corners are cut only where nothing is in the way. A fresh plan skips the tile centre she stands on.
+  - Plans again when the grid changes (a building placed or taken away, a gate shut or opened), when she is pushed
+    1.5 m off her leg, or after 0.35 s without headway. Never on a timer.
+  - Brakes at 0.8 of her acceleration so she stops on the tapped tile (v = sqrt(2 a d)) and takes sharp corners
+    slowly enough not to swing more than 0.2 m wide into what they go round.
+  - Gives up after 1.5 s without headway in all, says "Can't get there." and drops the walk's work. Time spent
+    stalled is paid back only by getting nearer the goal than before, so rocking in place adds up. No hop.
+  - A plain move whose tile nothing reaches still ends on the nearest reachable tile with "Can't get all the way
+    there." (phys-path-01).
+- Hooks (patch, on top of B1 and B2):
+  - `tile_path.gd` +53/-10: `path(..., clearance)` pulls the string only along lines that keep `clearance` m from
+    every blocked tile (0, the default, keeps the old line for creatures). `clear_line(a, b, radius)` is public. The
+    start and goal tiles are the free tiles nearest the real position, not the first in scan order. `revision`
+    counts changes (a cell re-flagged, a pending refresh).
+  - `player_sim.gd` +24/-88: tile routes go through RouteWalker; the old tile follower is gone (585 -> 521 lines).
+    The NavigationAgent3D branch (labs and tests without an island) is unchanged, and so are walk, run and sprint
+    speeds, acceleration and turning.
+  Gather rules, timings and yields, target selection and the hex look are untouched.
+- `route_bot_lab` (new): the B3 gate. On one island it builds a player compound through the real placer (fences on
+  three sides with a 4 m opening, a closed gate, a tent and a workbench inside), then taps 100 random reachable
+  spots through the ground-tap path, 8-40 m off, every other one 1-3 m from a resource node. The reference is a
+  1 m grid of tiles where the capsule physically fits, searched 8-way. Route 50 opens the gate. Every 5th route
+  drops a fence across the planned path 3-6 m ahead of her and takes it away afterwards (those 20 routes are left
+  out of the length gate, since the reference did not know the fence). Wild animals are removed and vitals topped
+  up per route (lab set-up). It saves a top view of the island and a close-up of the compound.
+- `t_controls` B3 cases, on home_grassland's real TilePath: an open 18 m tap route is planned once, walked
+  straight and ends on the tile; a fence dropped across the route 4 m ahead is walked round without touching it;
+  pressed against a fence, a route along her side stays on her side; an opened gate is used at once; a wall body
+  the grid does not know ends the route within 2 s with the notice, with no hop.
+
+### Numbers
+
+route_bot_lab, headless at a fixed 60 fps, 100 routes per island. Before = 46727c31 with the B1 and B2 hooks only;
+after = the same commit with the full hooks patch. Heading = mean change of the velocity's direction per metre
+walked. Contact = frames touching a solid other than the ground. Hops = frames that move further than her speed
+allows.
+
+| island | run | arrived | stuck > 2 s | over 1.15x ref | heading deg/m (p95) | contact frames | hops | ref m per s |
+|---|---|---|---|---|---|---|---|---|
+| home_grassland | before | 98 % | 2 | 2 of 81 | 11.72 (33.27) | 2187 | 0 | 6.34 |
+| home_grassland | after | 100 % | 0 | 0 of 80 | 3.89 (12.90) | 2 | 0 | 6.76 |
+| temperate_25 | before | 98 % | 2 | 0 of 80 | 11.31 (22.92) | 2090 | 0 | 6.37 |
+| temperate_25 | after | 100 % | 0 | 0 of 80 | 2.73 (7.80) | 0 | 0 | 6.75 |
+| tropical_25 | before | 99 % | 1 | 1 of 80 | 12.01 (27.76) | 1325 | 0 | 6.30 |
+| tropical_25 | after | 100 % | 0 | 0 of 80 | 2.98 (9.76) | 2 | 0 | 6.78 |
+
+- The heading bound is 6.0 deg/m, half the base. Walked length over the reference: mean 0.944-0.945 after (string
+  pulling beats 8-way grid paths), max 1.003; before, mean 0.999-1.004 and max 1.149-1.212.
+- Every miss before was a dropped-fence route: she pushed into the fence for 8-12 s (the route restarted on the far
+  side of it) and never got there. After: 0 misses, no "gave up" on any island.
+- `[path]` lines (one per plan) per 100 routes: 120-146 after, 465-528 before.
+- "ref m per s" is the reference length over the time taken on arrived routes; tap-to-move runs at 7.0 m/s.
+
+t_controls (headless):
+- Before (46727c31, B1 and B2 hooks): FAIL 5, all B3. At rest 0.55 m past the tapped tile (it plans twice);
+  dropped fence: 437 contact frames and not there in 8 s; against a fence: 119 contact frames; gate: walked 16.01 m round the fence (12 through the gate); unknown wall: pushed 7.12 s, no
+  notice.
+- After: PASS. 0.21 m off at rest, 1 plan, 0.00 deg/m; dropped fence 0 contact frames, there in 3.0 s; fence side
+  0 contact frames; gate 12.19 m; unknown wall: gave up after 1.53 s of pushing with "Can't get there.", largest
+  step 0.117 m.
+
+### Gates
+
+All ran in scratch tree `trees/controls-gates`: 46727c31 plus the hooks patch (its staged diff equals the
+committed patch). `--import` printed 0 SCRIPT ERROR.
+- Every `game/tests/t_*.gd` (22) PASS. t_save prints its 5 deliberate SCRIPT ERRORs, every other test 0. run_all
+  prints `[tests] PASS`, smoke `SMOKE PASS`.
+- route_bot_lab prints `[route] PASS` on home_grassland, temperate_25 and tropical_25, 0 SCRIPT ERROR. Before: FAIL
+  on all three (success, stuck, length and heading).
+- ui_real_capture_lab prints `[uireal] PASS` at 844x390 gl_compat, 1600x900 gl_compat and 1600x900 Forward+, 0
+  SCRIPT ERROR.
+- move_stick_lab (B2) prints `[stick] PASS` at the same three settings.
+- gather_jitter_lab (B1), which B3 touched, with 0 SCRIPT ERROR: PASS at 1600x900 gl_compat and Forward+; FAIL at
+  844x390, the same way with and without B3 (below). These runs used the final lab (19b96fb4) in this worktree, with
+  and without the B3 hook files.
+
+### gather_jitter_lab: what B3 changed, and a B1 failure it uncovered
+
+- The lab set the survivor down 0.2 m above the ground on the phone, which puts the capsule's centre there and
+  0.8 m of her in the ground. She could not move until the old router's unstick hop lifted her out after ~2 s: the
+  B1 phone walk was 11.9 m in 3.5 s. B3 has no hop, so she stood still and gave up. The lab now stands her up.
+- Grabbing a screenshot stalls one frame (~0.13 s); in the next frame the follow camera catches up the whole stall
+  (its lerp clamps at 1) and the world moves under the radial (59-62 px at 1600x900 when she happened to be running
+  at the shot). The lab now lets that frame pass before it compares again.
+- Routes now run straight at 7 m/s, so the 18 m walk at 1600x900 took 2.3 s instead of 3.3 s. The lab zooms out
+  and picks a node 21-32 m off: 3.5 s.
+- With the survivor standing, the phone walk fails B1 with and without B3: once, the held radial lags its node by
+  64 px and solves again (155.47 px before B3, 155.42 px after, 4 side swaps), and the walk is 2.1-2.2 s (16 m; at
+  19.5 m and 22 m no node is on screen clear of the minimap, CLAIM and the vitals). RadialHold follows the node along y only
+  there (a trace shows x held while the node slides 1.5 px a frame): following along x would push part of it onto
+  the HUD or off the screen. This is B1's hold, not B3. Suggested fix for whoever
+  takes B1 up again: let a held label change sides on its own (or glide the re-solve at <= 2 px per frame) rather
+  than re-solve the whole radial.
+
+| gather_jitter_lab (final lab) | walk | click | verdict |
+|---|---|---|---|
+| 844x390 gl_compat, before B3 | 2.14 s, 155.47 px, 4 swaps | 2 opens, 0.35 px | FAIL |
+| 844x390 gl_compat, after | 2.21 s, 155.42 px, 4 swaps | 4 opens, 1.18 px | FAIL |
+| 1600x900 gl_compat, before B3 | 3.52 s, 0.00 px | 0.00 px | PASS |
+| 1600x900 gl_compat, after | 3.50 s, 0.00 px | 0.00 px | PASS |
+| 1600x900 Forward+, before B3 | 3.50 s, 0.00 px | 0.00 px | PASS |
+| 1600x900 Forward+, after | 3.51 s, 0.00 px | 0.00 px | PASS |
+
+### Shots (scratchpad `b3/after/shots/<size>_<renderer>/`, `b3/after/route/`, `b3/base3/`, all opened)
+
+- `route_home_grassland_9_<size>.png`: she has just turned off the line for a fence dropped across it and passes
+  its end; the dashed route runs on to the green tile marker. At 844x390 (`--touch`) the same, between the HUD
+  hexes. `_4_` is the same moment for another dropped fence, in a tree's shadow; `_1_` threads palm trunks to a
+  marker. The level-up text in `_1_` and `_4_` is the lab's: placing the compound gives construction XP.
+- `route_map_<island>.png` (after) and `b3/base3/route_map_<island>.png` (before): before, the trails (yellow) zig
+  around the 8-way reference (blue) and red contact marks sit on trunks and fences all over home_grassland; after,
+  straight legs and two red marks. `route_compound_<island>.png` is the compound close-up.
+
+### Assumptions and limits
+
+- `# ASSUMPTION:` (route_walker.gd) clearance 0.4 m (capsule 0.35), stall re-plan 0.35 s, give-up 1.5 s, 6 m
+  shortcut look-ahead and 0.2 m corner swing are tuned on the route bot, not taken from a reference.
+- Owner-passable walls: there are none in the base (walls are solid for everyone; GAUNTLET says they "may" be
+  passable for the owner). Gates are what the owner opens: an open gate is passable and a route uses it as soon as
+  it opens; a closed one is not.
+- The grid does not know creatures or corpses. Pushing into one plans again and, after 1.5 s without headway, stops
+  with "Can't get there." (it used to push for ever). Hunts call `nav_to` every frame toward a moving target, which
+  restarts the walker, so a chase does not give up.
+- A walk to a target still counts as arrived within 1.5 m of the target's centre, even through a wall; reach
+  points on the target's open side are B4.
+- Creatures keep the old string pull (clearance 0); only the start and goal tiles changed for them.
+- The route bot removes wild animals and tops up vitals each route, and its dropped fences are placed through the
+  placer with a temporary claim and no reach limit (lab set-up).
+
+### For the integrator and the next steps
+
+- Apply `claude-mmo-controls-hooks.patch`. It now also covers `tile_path.gd` and `player_sim.gd`. Run `--import`
+  once (new class_name `RouteWalker`).
+- B4: `RouteWalker.tolerance()` and `plan()` are where a reach point on the target's open side plugs in;
+  `gave_up` already drops the work with a notice.
