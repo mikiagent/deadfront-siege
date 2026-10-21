@@ -192,6 +192,7 @@ func is_tap_target() -> bool:
 	return not (kind in [&"foundation", &"ceiling", &"stairs", &"ramp"])
 
 func set_sign_text(text: String) -> void:
+	# ASSUMPTION: 48 characters (structures.json text_max); specs 05/10 and the PRDs give no sign limit.
 	sign_text = text.strip_edges().left(int(piece_def(kind).get("text_max", 48)))
 	var l := _visual.find_child("SignText", true, false) as Label3D if _visual else null
 	if l:
