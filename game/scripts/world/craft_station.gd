@@ -22,9 +22,6 @@ func _ready() -> void:
 	if ps and not _pending_process.is_empty():
 		ps.load_dict(_pending_process)
 		_pending_process = {}
-	child_entered_tree.connect(_watch_destroyed)
-	for c in get_children():
-		_watch_destroyed(c)
 
 func _exit_tree() -> void:
 	if World.runtime == null:
@@ -43,7 +40,9 @@ func pack_up_block_reason() -> String:
 		return ps.pack_up_block_reason()
 	return "" if _pending_process.is_empty() else "collect the %s first" % str(station_id).replace("_", " ")
 
-## What the station held, taken off it (duck-typed for any destruction path).
+## What the station held, taken off it so no copy stays behind. Duck-typed: W2-BUILDSYS's
+## StructureHealth calls it when damage destroys the station and drops the stacks into the bag, home
+## cargo or a loot bag (spec 10:102, 11:155: never deleted).
 func salvage_contents() -> Array[ItemStack]:
 	var out: Array[ItemStack] = []
 	var ps := ProcessStation.of(self)
@@ -52,20 +51,6 @@ func salvage_contents() -> Array[ItemStack]:
 	out.append_array(ProcessStation.saved_stacks(_pending_process))
 	_pending_process = {}
 	return out
-
-## W2-BUILDSYS gives a station a StructureHealth child that emits `destroyed` before it frees the
-## station; whatever was on it then goes to camp cargo, or waits in SaveRestore.pending_refunds
-## (saved, retried every load) while the cargo is full. Spec 10:102, 11:155: never deleted.
-func _watch_destroyed(c: Node) -> void:
-	if c.has_signal("destroyed") and not c.is_connected("destroyed", _on_destroyed):
-		c.connect("destroyed", _on_destroyed)
-
-func _on_destroyed(_source: Node = null) -> void:
-	var rows: Array = []
-	for s in salvage_contents():
-		rows.append(s.to_dict())
-	if not rows.is_empty():
-		SaveRestore._refund({"kind": str(station_id), "cell": [build_cell.x, build_cell.y], "contents": rows}, &"", "destroyed")
 
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	build_cell = cell

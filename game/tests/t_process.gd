@@ -389,50 +389,33 @@ func _test_exact_picks() -> void:
 	rack.free()
 
 ## Spec 10:102 / 11:155: a station destroyed by damage never deletes what is on it. W2-BUILDSYS's
-## StructureHealth child emits `destroyed` before it frees the station.
+## StructureHealth asks the host duck-typed (has_method("salvage_contents")) and drops the stacks into
+## the bag, home cargo or a loot bag; this checks the station hands over everything exactly once.
 func _test_destroyed() -> void:
-	var world: Node = get_root().get_node("World")
-	var SR: GDScript = load("res://scripts/core/save_restore.gd")
-	var was_cargo = world.cargo_home
-	var was_pending: Array = SR.pending_refunds
-	var fake := GDScript.new()
-	fake.source_code = "extends Node\nsignal destroyed(source: Node)\n"
-	fake.reload()
-	for cargo_slots in [8, 1]:
-		world.cargo_home = INV.new(cargo_slots)
-		world.cargo_home.add(IS.make(&"stone", 1))
-		SR.pending_refunds = []
-		var rack: Node3D = CS.make(&"drying_rack")
-		get_root().add_child(rack)
-		var ps = PS.of(rack)
-		var inv = INV.new(6)
-		var m = IS.make(&"raw_meat", 1, {}, 12)
-		m.stamp_identity("loot", "tester")
-		inv.add(m)
-		inv.add(IS.make(&"raw_hide", 1))
-		ps.load_from(inv, &"dry_meat", 1)
-		ps.advance(PS.now_s() + PS.job_seconds(&"drying_rack", &"dry_meat") + 1.0)  # meat done
-		ps.load_from(inv, &"dried_hide", 1)  # hide still drying
-		var health := Node.new()
-		health.name = "StructureHealth"
-		health.set_script(fake)
-		rack.add_child(health)
-		health.emit_signal("destroyed", null)
-		var on_rack: int = ps.contents().size()
-		rack.free()
-		if cargo_slots == 8:
-			var uid_ok := false
-			for s in world.cargo_home.slots:
-				if s and s.uid == m.uid:
-					uid_ok = true
-			_expect(on_rack == 0 and uid_ok and _count(world.cargo_home, &"dried_meat") == 1 and _count(world.cargo_home, &"raw_hide") == 1, "a destroyed rack's dried meat (same uid) and drying hide go to camp cargo")
-		else:
-			_expect(on_rack == 0 and SR.pending_refunds.size() == 1 and _count(world.cargo_home, &"dried_meat") == 0, "cargo full: the contents wait in pending_refunds (%d rows)" % SR.pending_refunds.size())
-			world.cargo_home = INV.new(8)
-			SR.retry_refunds(SR.pending_refunds.duplicate())
-			_expect(_count(world.cargo_home, &"dried_meat") == 1 and _count(world.cargo_home, &"raw_hide") == 1, "with room, the next load's retry hands both over")
-	world.cargo_home = was_cargo
-	SR.pending_refunds = was_pending
+	var rack: Node3D = CS.make(&"drying_rack")
+	get_root().add_child(rack)
+	var ps = PS.of(rack)
+	var inv = INV.new(6)
+	var m = IS.make(&"raw_meat", 1, {}, 12)
+	m.stamp_identity("loot", "tester")
+	inv.add(m)
+	inv.add(IS.make(&"raw_hide", 1))
+	inv.add(IS.make(&"raw_meat", 1))
+	ps.load_from(inv, &"dry_meat", 1)
+	ps.advance(PS.now_s() + PS.job_seconds(&"drying_rack", &"dry_meat") + 1.0)  # meat done
+	ps.load_from(inv, &"dried_hide", 1)  # hide still drying
+	ps.load_from(inv, &"dry_meat", 1)  # a second meat still drying
+	var got: Array = rack.call("salvage_contents") if rack.has_method("salvage_contents") else []
+	var ids: Array = []
+	var uid_ok := false
+	for s in got:
+		ids.append(str(s.def_id))
+		uid_ok = uid_ok or (s.def_id == &"dried_meat" and s.uid == m.uid)
+	ids.sort()
+	_expect(ids == ["dried_meat", "raw_hide", "raw_meat"] and uid_ok, "a destroyed rack hands over its dried meat (same uid), the drying hide and the drying meat (%s)" % [ids])
+	var again: Array = rack.call("salvage_contents")
+	_expect(ps.contents().is_empty() and again.is_empty() and not rack.to_dict().has("process") and not ps.is_active(), "nothing stays on the station, a second salvage hands over nothing")
+	rack.free()
 
 ## A saved station row that the grid refuses on load is refunded with its jobs and outputs, not just
 ## the kit (hooks patch: SaveRestore._items_of reads the row's process dict).
