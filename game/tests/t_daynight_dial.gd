@@ -78,9 +78,10 @@ func _test_phases(game: Node, D: GDScript) -> void:
 ## (ceil read 61 s as "2 min" and 59.5 s as "60 s").
 func _test_countdown(D: GDScript) -> void:
 	var bad: Array[String] = []
+	var dusk: float = D.get_script_constant_map()["STARTS"][2][0]  # not WorldLighting: Game is no autoload yet when this compiles
 	for q in range(1, 1201):
-		var t: float = WorldLighting.DUSK - float(q) * 0.25 / 720.0
-		var secs: float = (WorldLighting.DUSK - t) * 720.0
+		var t: float = dusk - float(q) * 0.25 / 720.0
+		var secs: float = (dusk - t) * 720.0
 		var wait := str((D.call("label_lines", t, 720.0) as PackedStringArray)[1]).trim_prefix("Dusk in ")
 		var n := wait.to_int()
 		var ok := (n >= 1 and n <= 59 and n >= secs - 0.001 and n < secs + 1.0) if wait.ends_with(" s") \
