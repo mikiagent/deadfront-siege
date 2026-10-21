@@ -4,7 +4,8 @@ extends Node3D
 ## Inputs leave the bag and sit on the station; a job finishes on the wall clock (now_s), so it
 ## keeps running with the player 50 m away, on another island or with the game closed. Outputs wait
 ## on the station until collected. State is only timestamps: no ticking is needed for correctness,
-## _process just advances and redraws (stage model, smoke/steam, glow, label).
+## _process just advances and redraws (stage model, smoke/steam, glow). The status text (label_text)
+## is the second line of the station's HUD name chip (HudPills), laid out with the HUD's other labels.
 
 const NODE_NAME := "Process"
 const REDRAW_S := 0.25
@@ -28,8 +29,6 @@ var _shown_stage: String = "?"
 var _models: Dictionary = {}  # stage id -> PackedScene
 var _fx: CPUParticles3D
 var _glow: OmniLight3D
-var _label: Label3D
-var _label_r: float = 0.8  # metres from the station's centre to its front corner
 
 ## The clock jobs run on: wall time, so they keep going while the game is closed.
 static func now_s() -> float:
@@ -253,20 +252,34 @@ func salvage_contents() -> Array[ItemStack]:
 
 ## The stacks in a saved process dict (to_dict), for a row that is refunded instead of rebuilt.
 static func saved_stacks(d: Dictionary) -> Array[ItemStack]:
+	var seen := {}
 	var out: Array[ItemStack] = []
-	var rows: Array = []
-	for j in d.get("jobs", []):
-		if j is Dictionary:
-			rows.append_array((j as Dictionary).get("inputs", []))
-	for o in d.get("outputs", []):
-		if o is Dictionary:
-			rows.append((o as Dictionary).get("stack"))
-	for sd in rows:
-		if sd is Dictionary:
-			var s := ItemStack.from_dict(sd)
-			if s.def() != null and s.count > 0:
-				out.append(s)
+	for j: Dictionary in _dicts(d.get("jobs")):
+		out.append_array(_clean_stacks(j.get("inputs"), seen))
+	for o: Dictionary in _dicts(d.get("outputs")):
+		out.append_array(_clean_stacks([o.get("stack")], seen))
 	return out
+
+## The save file is user-editable and SaveSanitizer does not reach a row's process dict, so its stacks
+## pass the same boundary here (known id, count within stack_max, level within MAX_LEVEL). A uid
+## already seen on this station is a forged copy and is dropped.
+static func _clean_stacks(rows: Variant, seen: Dictionary) -> Array[ItemStack]:
+	var out: Array[ItemStack] = []
+	if not rows is Array:
+		return out
+	for sd: Variant in SaveSanitizer.stacks(rows):
+		if not sd is Dictionary:
+			continue
+		var s := ItemStack.from_dict(sd)
+		if s.def() == null or s.count <= 0 or (s.uid != "" and seen.has(s.uid)):
+			continue
+		if s.uid != "":
+			seen[s.uid] = true
+		out.append(s)
+	return out
+
+static func _dicts(v: Variant) -> Array:
+	return (v as Array).filter(func (r: Variant) -> bool: return r is Dictionary) if v is Array else []
 
 ## Why the station cannot be packed up now ("" = it can). BuildPlacer.pack_up_blocker asks this (via
 ## CraftStation) before it touches anything, on every pack-up path, so a refusal moves nothing and
@@ -294,20 +307,15 @@ func to_dict() -> Dictionary:
 	return {"jobs": js, "outputs": outs}
 
 ## Restore saved jobs. Rows for recipes this station no longer runs are kept as finished outputs of
-## their inputs (never deleted); a start time in the future is clamped to now.
+## their inputs (never deleted). Hand-edited numbers: a start in the future is clamped to now, one that
+## is not a number leaves the job waiting (it restarts, never finishes early), level stays 1..60.
 func load_dict(d: Dictionary) -> void:
 	jobs.clear()
 	outputs.clear()
 	var now := now_s()
-	for row in d.get("jobs", []):
-		if not row is Dictionary:
-			continue
-		var ins: Array[ItemStack] = []
-		for sd in (row as Dictionary).get("inputs", []):
-			if sd is Dictionary:
-				var s := ItemStack.from_dict(sd)
-				if s.def() != null and s.count > 0:
-					ins.append(s)
+	var seen := {}
+	for row: Dictionary in _dicts(d.get("jobs")):
+		var ins := _clean_stacks(row.get("inputs"), seen)
 		if ins.is_empty():
 			continue
 		var rid := StringName(str(row.get("recipe", "")))
@@ -315,21 +323,19 @@ func load_dict(d: Dictionary) -> void:
 			for s in ins:
 				outputs.append({"recipe": "", "stack": s})
 			continue
-		var started := float(row.get("started", -1.0))
+		var started := SaveSanitizer._num(row.get("started"), -1.0, now, -1.0)
 		jobs.append({
 			"recipe": str(rid),
 			"inputs": ins,
-			"queued_at": minf(float(row.get("queued_at", now)), now),
-			"started": minf(started, now) if started >= 0.0 else -1.0,
-			"level": maxi(1, int(row.get("level", 1))),
-			"burnt": bool(row.get("burnt", false)),
+			"queued_at": SaveSanitizer._num(row.get("queued_at"), 0.0, now, now),
+			"started": started if started >= 0.0 else -1.0,
+			"level": SaveSanitizer._int(row.get("level"), 1, SaveSanitizer.MAX_LEVEL),
+			"burnt": row.get("burnt") is bool and bool(row["burnt"]),
 			"by": str(row.get("by", "")),
 		})
-	for row in d.get("outputs", []):
-		if row is Dictionary and (row as Dictionary).get("stack") is Dictionary:
-			var s := ItemStack.from_dict(row["stack"])
-			if s.def() != null and s.count > 0:
-				outputs.append({"recipe": str(row.get("recipe", "")), "stack": s})
+	for row: Dictionary in _dicts(d.get("outputs")):
+		for s in _clean_stacks([row.get("stack")], seen):
+			outputs.append({"recipe": str(row.get("recipe", "")), "stack": s})
 	# Waiting jobs with a free slot (slots raised in config) start now.
 	for j in jobs:
 		if float(j["started"]) < 0.0 and running_count() < slots():
@@ -373,24 +379,9 @@ func _redraw() -> void:
 		_fx.emitting = active
 	if _glow:
 		_glow.visible = active
-	if _label:
-		# fixed_size text shrinks with the window; hold it near HUD size on a 390 px phone.
-		_label.pixel_size = 0.0012 * clampf(900.0 / maxf(1.0, get_viewport().get_visible_rect().size.y), 1.0, 2.4)
-		_label.text = label_text()
-		_label.visible = _label.text != ""
-		_place_label()
 
-## Under the station, at its corner nearest the camera. Over the roof it sat in the top band a phone
-## gives to the HUD (orders panel, vitals) and was hidden whenever the survivor stood beside it.
-func _place_label() -> void:
-	var cam := get_viewport().get_camera_3d()
-	var host := get_parent() as Node3D
-	if cam == null or host == null:
-		return
-	var toward := cam.global_basis.z * Vector3(1.0, 0.0, 1.0)
-	if toward.length_squared() > 0.0001:
-		_label.global_position = host.global_position + toward.normalized() * _label_r
-
+## The status line under the station's HUD name chip: "Drying 4/4  ·  4:54", "Ready: 4 Dried Meat".
+## A world Label3D here collided with the survivor's chip, the HUD panels and neighbour stations.
 func label_text() -> String:
 	var now := now_s()
 	if is_active():
@@ -440,7 +431,7 @@ func _stage_scene(id: String) -> PackedScene:
 	_models[id] = packed
 	return packed
 
-## Smoke or steam while a job runs, an ember glow for fired stations, and a world label.
+## Smoke or steam while a job runs and an ember glow for fired stations.
 ## CPUParticles3D: the same look in Forward+ and gl_compatibility (web, phones).
 func _build_fx() -> void:
 	var off_v: Variant = cfg.get("fx_offset", [0.0, 1.0, 0.0])
@@ -503,24 +494,6 @@ func _build_fx() -> void:
 		_glow.position = Vector3(0.0, 0.5, 0.0)
 		_glow.visible = false
 		add_child(_glow)
-	_label = Label3D.new()
-	_label.name = "ProcessLabel"
-	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.no_depth_test = true
-	_label.render_priority = 10  # over the smoke it floats in
-	_label.fixed_size = true
-	_label.pixel_size = 0.0012
-	_label.font_size = 32
-	_label.outline_size = 14
-	# Saturated: the tonemapper turns a pale yellow into beige that vanishes on grass.
-	_label.modulate = Color(1.0, 0.82, 0.25)
-	_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
-	_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP  # the text hangs below its anchor
-	var aabb: Variant = ((Data.props_manifest.get("buildings", {}) as Dictionary).get(str(station_id), {}) as Dictionary).get("aabb_m", [1, 1.4, 1])
-	if aabb is Array and (aabb as Array).size() >= 3:
-		_label_r = 0.5 * Vector2(float(aabb[0]), float(aabb[2])).length() + 0.1
-	_label.visible = false
-	add_child(_label)
 
 static var _puff: Texture2D
 

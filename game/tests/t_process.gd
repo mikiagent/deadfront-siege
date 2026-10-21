@@ -46,6 +46,10 @@ func _process(_delta: float) -> bool:
 			_test_queue_catch_up()
 			_test_two_recipes_at_once()
 			_test_exact_picks()
+			_test_craft_route_picks()
+			var checks: Dictionary = (load("res://tests/process_checks.gd") as GDScript).new().run(get_root())
+			for label in checks:
+				_expect(bool(checks[label]), str(label))
 			_test_destroyed()
 			_test_refund_row()
 			_start_rack()
@@ -386,6 +390,44 @@ func _test_exact_picks() -> void:
 	inv.slots[3] = d
 	var pick_d: Array[int] = [3]
 	_expect(ps.load_from(inv, &"dry_meat", 2, null, null, pick_d) == 2 and (ps.jobs[0]["inputs"][0]).uid == d.uid and (ps.jobs[1]["inputs"][0]).uid == c.uid, "a batch takes the pick first, then auto-picks the repeat")
+	rack.free()
+
+## Review r1: the game path (StationCraft.begin -> walk -> arrival) re-picked on arrival, so a bag
+## change on the way put the lv 31 meat on the rack instead of the previewed lv 9 one. The station now
+## takes the previewed uid wherever it moved, and refuses (no substitute) once it left the bag.
+func _test_craft_route_picks() -> void:
+	var inv = _player.inventory
+	for i in inv.slot_count:
+		inv.slots[i] = null
+	_player.skills.trees["processing"] = {"level": 10, "xp": 0.0, "unlocked": []}
+	var rack: Node3D = CS.make(&"drying_rack")
+	get_root().add_child(rack)
+	rack.global_position = _player.global_position + Vector3(1.0, 0.0, 0.0)
+	var ps = PS.of(rack)
+	var sc = _player.station_craft
+	var a = IS.make(&"raw_meat", 1, {}, 9)
+	a.stamp_identity("loot", "tester")
+	var b = IS.make(&"raw_meat", 1, {}, 31)
+	b.stamp_identity("loot", "tester")
+	inv.slots[0] = a
+	inv.slots[1] = b
+	var ok: bool = sc.begin(&"dry_meat", 1)
+	var shown: String = inv.slots[sc._picks[0]].uid if ok and sc._picks.size() == 1 and sc._picks[0] >= 0 else ""
+	inv.slots[0] = b  # the bag is sorted on the way to the rack
+	inv.slots[1] = a
+	sc._start_craft_cycle()
+	var took: String = ps.jobs[0]["inputs"][0].uid if ps.jobs.size() == 1 else "none"
+	_expect(shown == a.uid and took == a.uid and inv.slots[0] == b, "craft route: the rack takes the previewed instance after a bag sort (previewed %s, took %s)" % [shown, took])
+	# The previewed one leaves the bag before arrival: refused, the other meat is not substituted.
+	var c = IS.make(&"raw_meat", 1, {}, 4)
+	c.stamp_identity("loot", "tester")
+	inv.slots[1] = c
+	ok = sc.begin(&"dry_meat", 1)
+	var picked: String = inv.slots[sc._picks[0]].uid if ok and sc._picks[0] >= 0 else ""
+	var stays = c if picked == b.uid else b
+	inv.slots[sc._picks[0]] = null  # eaten, dropped or traded on the way
+	sc._start_craft_cycle()
+	_expect(ok and ps.jobs.size() == 1 and inv.slots.has(stays) and sc.recipe_id == &"", "craft route: a previewed instance gone on arrival is refused, %s stays in the bag" % ("lv %d" % stays.level))
 	rack.free()
 
 ## Spec 10:102 / 11:155: a station destroyed by damage never deletes what is on it. W2-BUILDSYS's

@@ -86,6 +86,7 @@ func _shot_setup() -> void:
 	_cam.size = _cam.default_size if view == "all" else _cam.min_size  # the game's own zoom range, closest for one station
 	_cam._snap()
 	var tps := ProcessStation.of(target)
+	get_tree().create_timer(4.0).timeout.connect(_check_labels.bind("shot %s %d%%" % [view, int(pct * 100.0)]))
 	print("[process_lab] shot ready proc=%d%% view=%s stage=%s label='%s' fx=%s" % [
 		int(pct * 100.0), view, tps.stage_id(), tps.label_text(),
 		(tps.get_node("ProcessFx") as CPUParticles3D).emitting if tps.has_node("ProcessFx") else false])
@@ -103,6 +104,7 @@ func _demo() -> void:
 	_check(_player.inventory.find_first(&"raw_meat") < 0, "the raw meat left the bag")
 	_check(not _player.station_craft.crafting, "the survivor is free: no stand-and-wait craft")
 	_check(ps.stage_id() == "raw" and (ps.get_node("ProcessFx") as CPUParticles3D).emitting, "raw stage, smoke on")
+	_check_labels("survivor at the loaded rack")
 	_player.global_position = _rack.global_position + Vector3(50, 0, 0)
 	ProcessStation.clock_skew_s = ProcessStation.job_seconds(&"drying_rack", &"dry_meat") + 2.0
 	await get_tree().create_timer(0.6).timeout
@@ -156,6 +158,26 @@ func _demo() -> void:
 	else:
 		print("[process_lab] FAIL %s" % ", ".join(_fails))
 		get_tree().quit(1)
+
+## Review r1: the job status as a world label ran into the survivor's chip, the HUD panels and the
+## next station's label. It is the second line of each station's HUD chip now (HudPills lays the chips
+## out): no chip may cover another chip or the survivor, and no station draws world text.
+func _check_labels(tag: String) -> void:
+	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
+	var pills: Array[Rect2] = []
+	for k in (hud.drawn_blocks if hud else {}):
+		if str(k).begins_with("pill"):
+			pills.append(hud.drawn_blocks[k])
+	var fig := HudLayout.figure_rect(hud) if hud else Rect2()
+	var hits := 0
+	for i in pills.size():
+		hits += 1 if pills[i].intersects(fig) else 0
+		for j in range(i + 1, pills.size()):
+			hits += 1 if pills[i].intersects(pills[j]) else 0
+	var world_text := 0
+	for s: Node in [_rack, _smoker, _pot, _steamer]:
+		world_text += s.find_children("*", "Label3D", true, false).size()
+	_check(not pills.is_empty() and hits == 0 and world_text == 0, "%s: %d chips, %d overlaps (chip on chip or on the survivor), %d station world labels" % [tag, pills.size(), hits, world_text])
 
 func _xp() -> float:
 	var t: Dictionary = _player.skills.trees.get("processing", {})
