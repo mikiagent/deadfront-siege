@@ -1,0 +1,162 @@
+diff --git a/game/scripts/core/save_game.gd b/game/scripts/core/save_game.gd
+index 2ac1e244..0940919a 100644
+--- a/game/scripts/core/save_game.gd
++++ b/game/scripts/core/save_game.gd
+@@ -98,6 +98,7 @@ static func save_now() -> bool:
+ 		"skills_v2": player.skills.to_dict() if player.skills else {},
+ 		"player_name": World.player_name,
+ 		"occupation": World.occupation,
++		"look": World.look,
+ 		"pioneer_level": World.pioneer_level,
+ 		"pioneer_crafts": World.pioneer_crafts,
+ 		"pioneer_buildings": World.pioneer_buildings,
+@@ -223,6 +224,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
+ 	World.camp_layout = (cl as Dictionary).duplicate() if cl is Dictionary else {}
+ 	World.player_name = str(data.get("player_name", ""))
+ 	World.occupation = str(data.get("occupation", ""))
++	World.look = CharacterLook.clean(data.get("look", {})) # optional: older saves get the default look
+ 	Game.time_of_day = float(data.get("clock", 0.35))
+ 	var skills: Dictionary = data.get("skills", {}) # sanitized: known survival ids -> bool
+ 	for id in skills:
+@@ -264,6 +266,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
+ 	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
+ 	if extras is Dictionary:
+ 		player.inventory.extras_from_dict(extras as Dictionary)
++	CharacterLook.apply(player.rig, World.look) # after the worn pieces attach, so they take the colours too
+ 	# Derive equipment capacity before restoring statuses, whose sync clamps health.
+ 	player.refresh_equipment_vitals()
+ 	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))
+diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
+index 456a21c8..dd6a7992 100644
+--- a/game/scripts/core/save_sanitizer.gd
++++ b/game/scripts/core/save_sanitizer.gd
+@@ -25,7 +25,7 @@ const SHAPE := {
+ 	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}},
+ 	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
+ 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
+-	"player_name": "", "occupation": "", "t_stones": 0, "visited_islands": {}, "raid_victory": false,
++	"player_name": "", "occupation": "", "look": {}, "t_stones": 0, "visited_islands": {}, "raid_victory": false,
+ 	"objective": 0, "objective_best": 0, "island_id": "",
+ 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
+ 	"clock": 0.0, "saved_unix": 0,
+diff --git a/game/scripts/core/world.gd b/game/scripts/core/world.gd
+index 2eb0a496..1dc10bb5 100644
+--- a/game/scripts/core/world.gd
++++ b/game/scripts/core/world.gd
+@@ -21,6 +21,8 @@ var objective_best: int = 0 ## high-water progress on the current order (materia
+ var _objective_acc: float = 0.0
+ var player_name: String = ""
+ var occupation: String = ""  # gathers +1, crafts +10, buildings +15; bar wraps every 100 (ASSUMPTION)
++## Character creation's look (CharacterLook: gender, height, colours, parts, portrait); saved as "look".
++var look: Dictionary = {}
+ var pioneer_crafts: Dictionary = {}
+ var pioneer_buildings: Dictionary = {}
+ var cargo_home: Inventory = Inventory.new(60) ## ASSUMPTION: 60 slots for mobile UI
+@@ -106,9 +108,12 @@ func start_new(host: Node) -> void:
+ 	cc.done.connect(func (occ: String, gender: String, nm: String) -> void:
+ 		occupation = occ
+ 		player_name = nm
++		look = CharacterLook.clean(cc.look)
+ 		var p := _player()
+ 		if p and p.skills:
+ 			p.skills.apply_occupation(occ)
++		if p:
++			CharacterLook.apply(p.rig, look)
+ 		print("[world] new survivor %s (%s, %s)" % [nm, occ, gender])
+ 		load_island(host, island_id, Vector3(0, 1, 18), true)
+ 	)
+diff --git a/game/scripts/dev/ui_real_capture_lab.gd b/game/scripts/dev/ui_real_capture_lab.gd
+index 5ba2dc9c..27bebe31 100644
+--- a/game/scripts/dev/ui_real_capture_lab.gd
++++ b/game/scripts/dev/ui_real_capture_lab.gd
+@@ -245,44 +245,24 @@ func _run() -> void:
+ 	# HANDS (layer 64) drew on the creation cards (layer 60) on a fresh save.
+ 	var hands: Control = _player.station_craft.held_slot if _player.station_craft else null
+ 	_expect(hands == null or not hands.is_visible_in_tree(), "charcreate: HANDS hides while character creation is up")
+-	var cc_rects := {}
+-	for c in _controls_in(cc):
+-		if c is Button or c is LineEdit:
+-			cc_rects[str(c.name)] = c.get_global_rect()
+-	_expect(cc_rects.has("EnterRift") and cc_rects.has("NameField"), "character creation has the name field and ENTER THE RIFT")
+-	_check_blocks("charcreate", cc_rects, logical)
+-	# Cards in one row line up: titles at one y, head-start lines at one y, every line inside its card.
+-	var rows := {}
+-	var symbols := 0
+-	for c in _controls_in(cc):
+-		if c is Button and str(c.name).begins_with("Card_"):
+-			# Desktop cards: the head-start symbol fills the band that sat empty (~130 px).
+-			var band := c.find_child("CardSymbol", true, false) as Control
+-			var sym := band.get_child(0) as TextureRect if band and band.get_child_count() > 0 else null
+-			if sym and sym.texture and sym.is_visible_in_tree() and c.get_global_rect().encloses(sym.get_global_rect()):
+-				symbols += 1
+-			elif not phone:
+-				_fail("charcreate: %s shows its head-start symbol inside the card" % c.name)
+-			var lines := _labels_in(c)
+-			for l in lines:
+-				_expect(c.get_global_rect().grow(0.5).encloses(l.get_global_rect()), "charcreate: %s line \"%s\" inside its card" % [c.name, l.text.left(20)])
+-			if not lines.is_empty():
+-				(rows.get_or_add(roundi(c.get_global_rect().position.y), []) as Array).append(Vector2(lines[0].get_global_rect().position.y, lines[-1].get_global_rect().position.y))
+-	var spread := Vector2.ZERO
+-	for y in rows:
+-		var lo := Vector2(INF, INF)
+-		var hi := -lo
+-		for v: Vector2 in rows[y]:
+-			lo = lo.min(v)
+-			hi = hi.max(v)
+-		spread = spread.max(hi - lo)
+-	print("[uireal] charcreate cards: rows=%d title_y_spread=%.1f start_y_spread=%.1f symbols=%d" % [rows.size(), spread.x, spread.y, symbols])
+-	_expect(spread.x <= 1.0 and spread.y <= 1.0, "charcreate: card titles and head starts line up across each row (spread %s)" % spread)
+-	for key in ["Body_f", "Body_m", "NameField", "EnterRift"]:
+-		_expect(not cc_rects.has(key) or (cc_rects[key] as Rect2).size.y >= UiTokens.TARGET_PRIMARY - 0.5, "charcreate: %s is at least %d px tall (%s)" % [key, UiTokens.TARGET_PRIMARY, cc_rects.get(key)])
+-	await _capture("charcreate", [cc.get_child(0) as Control], logical)
+-	if symbols > 0:  # phone cards have no room for one
+-		_check_white("charcreate", cc)
++	# Spec 19's three steps (CHARCREATE): Gender/Profession, Create Character and Name. Buttons outside the
++	# scrolling lists must sit inside the view without overlapping; the primary controls are full size.
++	for cstep: Array in [[0, "charcreate", ["Next"]], [1, "charcreate_look", ["Next", "Randomize"]], [2, "charcreate_name", ["NameField", "OK"]]]:
++		cc.call("_go", cstep[0])
++		await _frames(3)
++		var cc_rects := {}
++		for c in _controls_in(cc):
++			if (c is Button or c is LineEdit) and not _in_scroll(c, cc):
++				cc_rects["%s/%s" % [c.get_parent().name, c.name]] = c.get_global_rect()
++		for key in cstep[2]:
++			var hit := ""
++			for k in cc_rects:
++				if str(k).ends_with("/" + key):
++					hit = k
++			_expect(hit != "", "%s: has %s" % [cstep[1], key])
++			_expect(hit == "" or (cc_rects[hit] as Rect2).size.y >= UiTokens.TARGET_PRIMARY - 0.5, "%s: %s is at least %d px tall (%s)" % [cstep[1], key, UiTokens.TARGET_PRIMARY, cc_rects.get(hit)])
++		_check_blocks(cstep[1], cc_rects, logical)
++		await _capture(cstep[1], [cc.get_child(0) as Control], logical)
+ 	cc.queue_free()
+ 	await _resize(logical)
+ 	_finish(phone, logical)
+@@ -543,6 +523,15 @@ static func bag_blocks(bag: Node) -> Dictionary:
+ 			out[key.trim_prefix("_")] = c.get_global_rect()
+ 	return out
+ 
++## Inside a ScrollContainer below `top` (a scrolled list's rows may sit past the view on purpose).
++func _in_scroll(c: Node, top: Node) -> bool:
++	var n := c.get_parent()
++	while n != null and n != top:
++		if n is ScrollContainer:
++			return true
++		n = n.get_parent()
++	return false
++
+ func _controls_in(node: Node) -> Array[Control]:
+ 	var out: Array[Control] = []
+ 	if node is Control and (node as Control).is_visible_in_tree():
+diff --git a/game/scripts/player/player_equipment.gd b/game/scripts/player/player_equipment.gd
+index 1bd8b68a..4f847c46 100644
+--- a/game/scripts/player/player_equipment.gd
++++ b/game/scripts/player/player_equipment.gd
+@@ -56,6 +56,7 @@ func equip(slot: StringName, visual: String) -> void:
+ 	var meshes := RiggedModel.attach_skinned(rig.skeleton, "%s/armor/%s/%s.glb" % [ROOT, kit, piece])
+ 	for m in meshes:
+ 		PlayerView.web_safe_mesh(m)
++	CharacterLook.refresh(rig) # the survivor's chosen colours carry onto the new piece
+ 	# A kit without this piece (travel_clothes has no helmet) attaches nothing and hides nothing.
+ 	equipped[slot] = {"visual": visual, "meshes": meshes, "hides": _hides(kit, piece) if not meshes.is_empty() else []}
+ 	_sync_body()
