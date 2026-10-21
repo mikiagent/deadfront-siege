@@ -75,7 +75,7 @@ index b0afd11f..2968c383 100644
  	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
  	title.add_theme_color_override("font_color", UiTokens.TEXT)
 diff --git a/game/scripts/ui/hud_pills.gd b/game/scripts/ui/hud_pills.gd
-index 3671ff22..1963825c 100644
+index 3671ff22..9d8a3050 100644
 --- a/game/scripts/ui/hud_pills.gd
 +++ b/game/scripts/ui/hud_pills.gd
 @@ -6,6 +6,9 @@ extends RefCounted
@@ -88,7 +88,7 @@ index 3671ff22..1963825c 100644
  static func gather_radial_node(hud: HuntHud) -> Node3D:
  	var gr: Variant = hud.player.get("_gather_radial")
  	if gr and gr.has_method("is_open") and gr.is_open():
-@@ -107,9 +110,17 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+@@ -107,9 +110,19 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
  				name = "Harbour"
  		var active_row := n3 == radial_node or n3 == hud.player.gather_target
  		var kind_n := int(per_kind.get(name, 0))
@@ -100,14 +100,16 @@ index 3671ff22..1963825c 100644
 +		if kind_n >= 2 and not active_row and status == "":  # every working station keeps its status
  			continue
  		per_kind[name] = kind_n + 1
-+		var name_text := UiTokens.ellipsis(hud._font, name, UiTokens.LABEL_MAX_W - 28.0, 14)
-+		var name_w := minf(hud._font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 28.0, UiTokens.LABEL_MAX_W)
++		var name_text := ""  # the fallback chip when a status has no spot by its station
++		var name_w := 0.0
 +		if status != "":
++			name_text = UiTokens.ellipsis(hud._font, name, UiTokens.LABEL_MAX_W - 28.0, 14)
++			name_w = minf(hud._font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 28.0, UiTokens.LABEL_MAX_W)
 +			name = status
  		var priority := 100 if active_row else int(40.0 - d)
  		if name == "Workbench" or name == "Cargo Warp":
  			priority += 5
-@@ -124,7 +135,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+@@ -124,7 +137,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
  		# The box covers what is drawn: tool icons poke 8 px over the pill, a regrow timer hangs under it.
  		pending.append({
  			"anchor": sp, "w": w, "h": 22.0 + (8.0 if not tools.is_empty() else 0.0) + (20.0 if timer != "" else 0.0), "priority": priority,
@@ -116,7 +118,7 @@ index 3671ff22..1963825c 100644
  			"a": 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d),
  		})
  		shown += 1
-@@ -137,7 +148,17 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+@@ -137,7 +150,17 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
  		if x != fig:
  			hard.append(x)
  	var soft: Array[Rect2] = [fig]
@@ -134,7 +136,7 @@ index 3671ff22..1963825c 100644
  		var box: Rect2 = item["rect"]
  		hud.drawn_blocks["pill%d" % pill_i] = box
  		pill_i += 1
-@@ -168,3 +189,22 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+@@ -168,3 +191,22 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
  			hud.draw_rect(trect, tbg)
  			hud.draw_string(hud._font, Vector2(trect.position.x + 8.0, trect.position.y + 14.0), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), Color(1, 0.9, 0.6, a))
  		shown += 1
