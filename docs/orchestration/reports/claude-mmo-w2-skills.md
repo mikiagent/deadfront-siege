@@ -37,7 +37,8 @@ recipe-gated progression, and survivors that start at Lv. 1.
   Leather), field_small (Till Small Field) and field_large (Till Large Field). This becomes real once hook H1
   lands; the craft card already shows `progression_block` text as the lock reason.
 - **Refunds.** A node another learned node needs cannot be refunded. A refunded survival node clears its Data
-  mirror. This fixes a bug: refunding Capture Technique used to leave net capture on.
+  mirror. This fixes a bug: refunding Capture Technique used to leave net capture on. Refunds have a daily
+  limit (r4, vision fix 2): 5 free a day from trees.json `refund`, then refused with the reason on the row.
 - **SP come from character levels (spec 03; coordinator decision 2026-10-20).** Tree level-ups pay nothing.
   Each character level 2..60 pays `sp_budget` (10/12/14/16 by band, 720 SP at Lv. 60). The occupation's Lv. 20
   grants levels and auto nodes but no SP (ASSUMPTION). SP are always derived:
@@ -69,6 +70,10 @@ skills_v2 gains `"rev": 2`, `"sp_earned"` (informational) and `"sp_extra"`. A re
   save's own tree levels paid under the old award, so a forged save cannot mint SP.
 - AUTO nodes are learned.
 - Nothing is deleted.
+
+r4 adds two optional fields with no rev bump: `refund_day` (the UTC day the counter belongs to, -1 when no
+refund has happened) and `refunds_today`. A save without them loads with no refunds used; H6 makes both
+numbers.
 
 The rev-1 goldens are untouched inputs again (r1 major). t_save loads each one through SaveGame and
 SaveSanitizer and compares the result with `save_v3_skills_rev2.json`, field for field in both directions.
@@ -122,7 +127,7 @@ the expectation is `[island_access_15, stealth_1]` with sp_spent 7.
 - **Minor, two copies of the survival id bridge: fixed.** `unlock()` calls `_mirror_survival(node_id, true)`,
   as `refund()` and `from_dict()` do. The mirror now writes only ids survival.json knows, the same rule loading
   uses (t_save: "an unknown id unlocks nothing").
-- **Minor, the daily refund limit: no change**, as the review accepts. The `# ASSUMPTION` on `refund()` stays.
+- **Minor, the daily refund limit:** built in r4 (vision fix 2, below).
 
 ## Vision fixes (vision-check.md) and whether they are needed
 
@@ -145,18 +150,61 @@ needed and the other was not, so only one was built.
    - The W2-PROCESS hooks should flip Handicraft and Metalworking to functional when they read
      `SkillRules.ability`, and W2-ACTION should do the same for Stealth and Slaughter. Until then those nodes
      are not for sale.
-2. **Daily refund limit: not built.** docs/design/skills.md:9 does say "Refunds: 5 free unlearns a day, then
-   30 Warp Gems, max 10 a day", and spec 03:37 says "keep configurable, do not require monetization". Reasons
-   to skip it:
-   - Warp Gems do not exist, so the rule would be a hard 5 a day.
-   - Node purchases are client-side until W3-SRVACT, so a daily counter in a local save limits honest players
-     and stops nobody.
-   - It adds friction against the owner's "fun and playable first".
-   - The config already sits in trees.json (`refund`), so W3-SRVACT can enforce it server-side, where it
-     means something.
-   This is the one place this run departs from the computed task. Overrule it and it is about 25 lines.
+2. **Daily refund limit: built in r4.** The cited lines say it: docs/design/skills.md:9 "Refunds: 5 free
+   unlearns a day, then 30 Warp Gems, max 10 a day", and spec 03:37 "keep configurable, do not require
+   monetization". (r3 had skipped it; this run's task restated it, so it is built.)
+   - `SkillState.refund_block()` reads trees.json `refund` (`free_per_day` 5, `warp_gems_each` 30,
+     `max_per_day` 10). The day is a UTC calendar day (ASSUMPTION).
+   - Warp Gems do not exist in the game (no hit in game/scripts or game/data), so nothing is charged: past
+     the free count `refund()` refuses, keeps the node and leaves the reason in `SkillState.refused`:
+     "Cannot refund: the 5 free refunds of the day are used, more tomorrow". A `shortcut:` comment marks
+     where the gem charge goes once that currency exists.
+   - The skills sheet shows the reason in red on the row the player tapped (a HUD notice would sit under
+     the opaque sheet on a phone). Other refusals (learned automatically, a learned node needs it) now show
+     there too; before they only printed.
+   - The counter is the optional save pair above (no rev bump).
+   - Online it is still client-side, like node purchases, until W3-SRVACT moves purchases to the server.
 
-## Acceptance (r3: branch merged with claude/mmo-overhaul @ 548059bc, hooks applied in a scratch tree)
+## Acceptance r4 (branch @ e33c4d75, merged with claude/mmo-overhaul @ 34b6d459, hooks H1-H7 applied)
+
+Scratch tree `trees/w2s-r4` (mkscratch.sh, hooks applied with `git apply --3way`, imported once). The hooks
+patch was regenerated after the base merge: H6 gained the refund-counter clamp, nothing else changed. It
+applies clean on the branch, and the hooked files are identical on claude/mmo-overhaul @ 34b6d459.
+- `--import`: 0 SCRIPT ERROR.
+- All 20 `t_*.gd` print PASS (t_ai, t_build, t_canim, t_combat, t_harbour, t_iconart, t_items, t_light,
+  t_lighting, t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons,
+  t_w2_skills, t_web). Only t_save prints SCRIPT ERROR lines: its deliberate ones (3 errors and 2
+  announcements, 5 matching lines), as on the base.
+- `[t_save] rev-1 skills migrate: 19 nodes kept, SP 539/802`, then `[t_save] PASS`.
+- `[t_w2_skills] catalog 212 of 918 nodes: functional 18, partial 19, defined 175`, then `[t_w2_skills] PASS`
+  (11 sections, including the new refund limit and the H6 refund-counter types).
+- run_all: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- `[uireal] PASS screens=hud,craft,skills,...` at 844x390 on gl_compatibility, 0 SCRIPT ERROR. The headless
+  skills_lab: `[skill] character level 1`, 0 SCRIPT ERROR.
+- No "couldn't resolve track" in any log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (the list
+  is the same before and after the run).
+
+Mutation proofs at this head:
+- Refund limit off (`if refunds_today < free:` -> `if true:`):
+  `[t_w2_skills] FAIL refund 6 of the day is refused with a reason and keeps the node: ''`,
+  `[t_w2_skills] FAIL the day's refund count survives a save and load`.
+- Rev-1 unspent-SP line in `SkillState.from_dict` replaced by `sp_extra = 0`:
+  `[t_save] FAIL save_v3_golden.json skills_v2 migrates to its rev-2 expectation: ["/skills_v2/sp_available: 270.0 vs 40.0", ...]`,
+  `[t_save] FAIL first load: the 539 unspent SP are kept (got 0)`,
+  `[t_save] FAIL re-load: every node bought under rev 1 is kept (missing ["island_access_25", ...])`,
+  `[t_save] FAIL count=7`.
+
+r4 screenshots, looked at (scratchpad `g4/shots/`). A scratch-only skills_lab edit (never committed) sets
+character Lv. 30, buys and refunds Charcoal 5 times, buys it again, opens Processing and taps its Refund:
+- `desk_fwd_refund.png` (1600x900 Forward+) and `desk_glc_refund.png` (1600x900 gl_compatibility): the
+  Charcoal row is red and reads "Cannot refund: the 5 free refunds of the day are used, more tomorrow"; the
+  node stays owned (Refund button still there); "Processing Lv. 30", "SP 309".
+- `phone_glc_refund.png` (844x390): the same red line on one row next to its Refund button, readable at
+  phone size, Close inside the view.
+- `uireal/skills_844x390.png` (fresh survivor): every tree reads Lv. 1, "SP 0", no "Lv. 0".
+- `desk_glc_tree.png`, `phone_glc_tree.png`: Gathering at Lv. 1 with "not in the game yet" locks, readable.
+
+## Acceptance r3 (branch merged with claude/mmo-overhaul @ 548059bc, hooks applied in a scratch tree)
 
 Hooks patch: unchanged, `git apply --check` clean on claude/mmo-overhaul @ 548059bc and on the branch. The
 base moves since c2b373f3 are docs only (STATUS, workflows, spec 14), and the r2 fixes touch no hooked file. Gates
@@ -246,6 +294,7 @@ Wanted from other packages:
   Metalworking I-IV, level 45/50/60 Processing nodes, the makeshift shovel/hoe and Standard Bow.
 - The occupation's Lv. 20 grants no SP.
 - A migrated save that is over budget keeps its nodes with 0 SP available.
+- The refund day is a UTC calendar day; with no Warp Gems in the game, refunds past the free count are refused.
 
 ## Open owner decisions
 
@@ -258,7 +307,6 @@ Wanted from other packages:
 ## Left (not done)
 
 - Research timers (spec 03 table).
-- Daily refund limits (vision fix 2, not built; see above).
 - Career Guides.
 - Attribute service.
 - Server-side recipe gates and node purchases online: CharacterState keeps levels only (W3-SRVACT).
