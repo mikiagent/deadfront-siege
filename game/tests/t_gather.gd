@@ -754,9 +754,10 @@ func _test_phone_stack() -> void:
 	player.global_position = Vector3(0, 0.9, -30)
 	var at: Vector3 = cam.project_position(Vector2(420, 150), cam.global_position.distance_to(Vector3.ZERO))
 	var a: Vector2 = cam.unproject_position(at)
-	# Both sides taken, as the toasts, plates and pills of a real phone frame leave them: under the ring is the spot.
-	hud.drawn_blocks["toast0"] = Rect2(a.x + 30.0, a.y - 90.0, 160.0, 150.0)
-	hud.drawn_blocks["toast1"] = Rect2(a.x - 190.0, a.y - 90.0, 160.0, 150.0)
+	# Both sides taken top to well below the ring, as the toasts, plates and pills of a real phone frame
+	# leave them (a side column cannot slide clear within MAX_SHIFT): under the ring is the one spot.
+	hud.drawn_blocks["toast0"] = Rect2(a.x + 72.0, a.y - 90.0, 160.0, 240.0)
+	hud.drawn_blocks["toast1"] = Rect2(a.x - 232.0, a.y - 90.0, 160.0, 240.0)
 	var plain = GF.popup(player, at, [["+1 Stone", GF.CREAM, false]])
 	await _frames(3)
 	var plain_drawn: bool = is_instance_valid(plain) and plain.visible and not plain.is_queued_for_deletion()
