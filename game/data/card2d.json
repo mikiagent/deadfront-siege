@@ -1,0 +1,157 @@
+{
+  "_about": "CARD2D trial (spec 25 §1): resource props as flat camera-facing cards baked from the 3D GLBs. Each entry names one GLB, the sway kind it uses, the families that use it and, after a bake, the texture geometry. card_bake.gd (--lab=card_bake) renders game/assets/nature/cards/<name>_albedo.png and <name>_normal.png and rewrites pivot/world_size/content/baked below; the other keys are hand-edited and kept. pivot is the ground point in normalized texture UV (u from the left, v from the top); world_size is the whole texture rectangle in metres at scale 1; content is the visible part in texture pixels. Buildings stay 3D (out of scope).",
+  "_kinds": "Sway per role: trees slow and wide, bushes in between, grass/plants fast and small, rocks none. amplitude is the tip's sideways travel in metres.",
+  "kinds": {
+    "tree": {"amplitude": 0.22, "speed": 0.55, "cast_shadow": true},
+    "bush": {"amplitude": 0.10, "speed": 1.15, "cast_shadow": false},
+    "grass": {"amplitude": 0.05, "speed": 2.10, "cast_shadow": false},
+    "plant": {"amplitude": 0.06, "speed": 1.70, "cast_shadow": false},
+    "rock": {"amplitude": 0.0, "speed": 1.0, "cast_shadow": false}
+  },
+  "cards": {
+    "tree-common-a": {
+      "model": "res://assets/nature/generated/tree-common-a.glb",
+      "kind": "tree",
+      "resolution": 1024,
+      "families": ["CommonTree"]
+    },
+    "tree-birch-a": {
+      "model": "res://assets/nature/generated/tree-birch-a.glb",
+      "kind": "tree",
+      "resolution": 1024,
+      "families": ["BirchTree"]
+    },
+    "tree-birch-b": {
+      "model": "res://assets/nature/generated/tree-birch-b.glb",
+      "kind": "tree",
+      "resolution": 1024,
+      "families": []
+    },
+    "tree-acacia-a": {
+      "model": "res://assets/nature/generated/tree-acacia-a.glb",
+      "kind": "tree",
+      "resolution": 1024,
+      "families": ["AcaciaTree"]
+    },
+    "tree-palm-a": {
+      "model": "res://assets/nature/generated/tree-palm-a.glb",
+      "kind": "tree",
+      "resolution": 1024,
+      "families": ["PalmTree"]
+    },
+    "tree-pine-a": {
+      "model": "res://assets/nature/generated/tree-pine-a.glb",
+      "kind": "tree",
+      "resolution": 1024,
+      "families": ["PineTree"]
+    },
+    "tree-common-dead": {
+      "model": "res://assets/nature/generated/tree-common-dead.glb",
+      "kind": "tree",
+      "resolution": 1024,
+      "families": ["CommonTree_Dead"]
+    },
+    "tree-birch-dead": {
+      "model": "res://assets/nature/generated/tree-birch-dead.glb",
+      "kind": "tree",
+      "resolution": 1024,
+      "families": ["BirchTree_Dead"]
+    },
+    "bush-berries-a": {
+      "model": "res://assets/nature/generated/bush-berries-a.glb",
+      "kind": "bush",
+      "resolution": 512,
+      "families": ["BushBerries", "berry_bush"]
+    },
+    "bush-berries-a-empty": {
+      "model": "res://assets/nature/generated/bush-berries-a-empty.glb",
+      "kind": "bush",
+      "resolution": 512,
+      "families": []
+    },
+    "bush-berries-b": {
+      "model": "res://assets/nature/generated/bush-berries-b.glb",
+      "kind": "bush",
+      "resolution": 512,
+      "families": ["BushBerries", "berry_bush"]
+    },
+    "bush-berries-b-empty": {
+      "model": "res://assets/nature/generated/bush-berries-b-empty.glb",
+      "kind": "bush",
+      "resolution": 512,
+      "families": ["Bush"]
+    },
+    "grass-a": {
+      "model": "res://assets/nature/generated/grass-a.glb",
+      "kind": "grass",
+      "resolution": 512,
+      "families": ["Grass"]
+    },
+    "wildgrass-a": {
+      "model": "res://assets/nature/generated/wildgrass-a.glb",
+      "kind": "grass",
+      "resolution": 512,
+      "families": ["WildGrass"]
+    },
+    "plant-a": {
+      "model": "res://assets/nature/generated/plant-a.glb",
+      "kind": "plant",
+      "resolution": 512,
+      "families": ["Plant"]
+    },
+    "plant-herb-leaf": {
+      "model": "res://assets/resources/generated/plant-herb_leaf-final.glb",
+      "kind": "plant",
+      "resolution": 512,
+      "families": ["HerbPlant"]
+    },
+    "plant-dry-grass": {
+      "model": "res://assets/resources/generated/plant-dry_grass-final.glb",
+      "kind": "plant",
+      "resolution": 512,
+      "families": ["DryGrassTuft"]
+    },
+    "fibre-stalk": {
+      "model": "res://assets/resources/generated/resource-fibre_stalk-final.glb",
+      "kind": "plant",
+      "resolution": 512,
+      "families": ["FibreTuft"]
+    },
+    "branch-pile": {
+      "model": "res://assets/resources/generated/resource-branch-final.glb",
+      "kind": "plant",
+      "resolution": 512,
+      "families": ["BranchPile"]
+    },
+    "berry-sprig": {
+      "model": "res://assets/resources/generated/resource-berries-final.glb",
+      "kind": "plant",
+      "resolution": 512,
+      "families": ["BerrySprig"]
+    },
+    "cactus-a": {
+      "model": "res://assets/resources/generated/plant-cactus-final.glb",
+      "kind": "plant",
+      "resolution": 512,
+      "families": ["Cactus"]
+    },
+    "rock-a": {
+      "model": "res://assets/nature/generated/rock-a.glb",
+      "kind": "rock",
+      "resolution": 512,
+      "families": ["Rock"]
+    },
+    "rock-moss-a": {
+      "model": "res://assets/nature/generated/rock-moss-a.glb",
+      "kind": "rock",
+      "resolution": 512,
+      "families": ["Rock_Moss"]
+    },
+    "granite-boulder": {
+      "model": "res://assets/resources/generated/min4-stone-final.glb",
+      "kind": "rock",
+      "resolution": 512,
+      "families": ["GraniteBoulder"]
+    }
+  }
+}
