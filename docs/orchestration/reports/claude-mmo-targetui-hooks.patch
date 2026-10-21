@@ -1,0 +1,152 @@
+diff --git a/game/scripts/dev/hunt_lab.gd b/game/scripts/dev/hunt_lab.gd
+index be0afc3a..5f0615c4 100644
+--- a/game/scripts/dev/hunt_lab.gd
++++ b/game/scripts/dev/hunt_lab.gd
+@@ -111,6 +111,7 @@ func _demo() -> void:
+ 		_herd[0].statuses.apply(&"groggy", _player)
+ 		_herd[0].brain.on_aggro(_player)
+ 	_tap_creature(lead)
++	_player.controls.selection.engage()  # spec 23: the tap selects, the swords start the fight
+ 	_reveal_plates()
+ 	# Let alert (0.6 s) resolve into approach / flee, then force a retreat chunk.
+ 	get_tree().create_timer(0.85).timeout.connect(func () -> void:
+diff --git a/game/scripts/player/player_input.gd b/game/scripts/player/player_input.gd
+index e550c697..13917b22 100644
+--- a/game/scripts/player/player_input.gd
++++ b/game/scripts/player/player_input.gd
+@@ -20,9 +20,12 @@ var _hold_walk_retarget_left: float = 0.0
+ var _tap_touch_index: int = -1
+ var _desktop_click_fallback_pending: bool = false
+ var _touch_context: StringName = &"explore"
++## The wild animal a tap selected (spec 23); its swords hex or E starts the fight.
++var selection: TargetSelect
+ 
+ func _init(player: Player) -> void:
+ 	p = player
++	selection = TargetSelect.new(player)
+ 
+ ## Godot web can consume a desktop mouse press before it reaches _unhandled_input even when the
+ ## canvas control ignores mouse input. Defer a fallback until GUI routing has finished;
+@@ -78,7 +81,7 @@ func handle_unhandled(event: InputEvent) -> void:
+ 		p.sim.try_roll(p.sim.cam_dir(p.sim.input_vector()))
+ 		return
+ 	if event.is_action_pressed("attack"):
+-		p.actions.attack()
++		p.actions.attack(selection.current() if p.hunt.target == null else null)  # the fight, else the selection, else the nearest
+ 		return
+ 	if event.is_action_pressed("interact"):
+ 		interact()
+@@ -228,6 +231,7 @@ func tap_world() -> StringName:
+ func _walk_to_tile(at: Vector3) -> void:
+ 	var nav_pos := p.sim.closest_nav_point(BuildGrid.tile_centre(BuildGrid.tile_of(at), World.runtime))
+ 	p.actions.cancel_work()
++	selection.clear()
+ 	if p.hunt:
+ 		p.hunt.stop()
+ 	p.nav_to(nav_pos)
+@@ -236,8 +240,9 @@ func _walk_to_tile(at: Vector3) -> void:
+ func interact_tap_target(col: Object) -> void:
+ 	p.view.clear_ground_marker()
+ 	p.actions.cancel_work()
+-	if not (col is Creature and not (col as Creature).is_pet) and p.hunt:
+-		p.hunt.stop()
++	if not (col is Creature) and p.hunt:
++		p.hunt.stop()  # a tap on any animal, your pet too, keeps the fight going
++	selection.select(col as Creature)  # a wild animal is selected; anything else clears the selection
+ 	if col is HarvestNode:
+ 		var hn := col as HarvestNode
+ 		var opts := hn.options()
+@@ -259,8 +264,7 @@ func interact_tap_target(col: Object) -> void:
+ 			p.pets.interact(c)
+ 		elif FieldTame.can_attempt(c):
+ 			p.actions.begin_field_tame(c)
+-		else:
+-			p.actions.attack(c)
++		# Any other wild animal stays selected only: the swords hex or E starts the fight.
+ 	elif col is Bonfire or col is CraftStation:
+ 		# Reference: tapping a station opens its recipe radial (M8e); cauterise lives in the context hexes.
+ 		p.open_station_craft(col as Node3D)
+@@ -381,6 +385,10 @@ func interact() -> void:
+ 	if p.mounted_on:
+ 		p.dismount()
+ 		return
++	var sel := selection.current()
++	if sel and sel != p.hunt.target:
++		selection.engage()  # the key the swords hex shows
++		return
+ 	var sleep_spot := p.sim.nearest_sleep_spot()
+ 	if sleep_spot and p.vitals.fatigue >= 1.0:
+ 		p.sim.start_sleep(sleep_spot)
+diff --git a/game/scripts/ui/creature_plates.gd b/game/scripts/ui/creature_plates.gd
+index 88e493ba..d9639b1f 100644
+--- a/game/scripts/ui/creature_plates.gd
++++ b/game/scripts/ui/creature_plates.gd
+@@ -187,7 +187,7 @@ static func creature_box(cam: Camera3D, c: Creature) -> Rect2:
+ 	return out
+ 
+ func _forced_visible(c: Creature, player: Player, now: float) -> bool:
+-	if player.hunt and player.hunt.target == c:
++	if (player.hunt and player.hunt.target == c) or player.controls.selection.target == c:
+ 		return true
+ 	if now - c.last_damaged_s <= 5.0:
+ 		return true
+@@ -455,6 +455,9 @@ static func _in_focus(c: Creature, player: Player) -> bool:
+ func _pick_emphasis(player: Player) -> int:
+ 	if player.hunt and player.hunt.target and is_instance_valid(player.hunt.target) and not player.hunt.target.health.dead:
+ 		return player.hunt.target.get_instance_id()
++	var sel := player.controls.selection.current()  # the tapped animal shows its name, as in the reference
++	if sel:
++		return sel.get_instance_id()
+ 	var best := 0
+ 	var best_score := -1.0
+ 	var now := _now_s()
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index ed0b7728..33d7a724 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -34,6 +34,7 @@ var _chase_hex: HexButton
+ var _feed_hex: HexButton
+ var _food_hexes: Array[HexButton] = []
+ var _whistle_hexes: Array[HexButton] = []  # attack / heel / guard, shown while a pet is out
++var _swords_hex: TargetSwordsHex  # beside the selected wild animal: starts the fight (spec 23)
+ var _in_combat: bool = false
+ var _combat_alpha: float = 0.0
+ var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
+@@ -362,6 +363,9 @@ func _build_combat() -> void:
+ 			_chase_hex.queue_redraw()
+ 	)
+ 	add_child(_chase_hex)
++	_swords_hex = TargetSwordsHex.new()
++	_swords_hex.player = player
++	add_child(_swords_hex)
+ 
+ ## Deliberate death card. Shown while player.dead; the survivor stays on the ground until respawn.
+ func _build_death() -> void:
+@@ -1042,9 +1046,11 @@ func _draw() -> void:
+ 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 16), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
+ 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 32), "%s  %s" % [Game.clock_label(), Game.phase_name()], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
+ 	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, 16.0 + meta_px + 4.0)
+-	# The target plate (current hunt target, else the last creature attacked while it lives) and the
++	# The target plate (current hunt target, else the selection, else the last creature attacked while it lives) and the
+ 	# level-up banner take over the landscape phone's centre band from the quest card while they show.
+ 	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
++	if plate_t == null:
++		plate_t = player.controls.selection.current()  # a tap selects: its plate shows before any fight
+ 	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
+ 		plate_t = _last_target
+ 	var band := HudLayout.centre_band(self, r)
+@@ -1158,11 +1164,13 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
+ 			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
+ 			var name_px := UiTokens.heading(r)
+ 			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
++			draw_rect(Rect2(px, py - 4, pw, 48), Color(UiTokens.INK, 0.75 * a))  # the reference's dark band: the name reads on foliage
+ 			draw_string(_font, Vector2(px + 12, py + 28), nm, HORIZONTAL_ALIGNMENT_LEFT, pw - 120.0, name_px, Color(1, 1, 1, a))
+ 			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x
+ 			draw_string(_font, Vector2(px + 18 + nmw, py + 28), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, UiTokens.DANGER)
+ 			draw_rect(Rect2(px + pw - 60, py - 4, 52, 52), Color(0.12, 0.12, 0.14, 0.9 * a))
+-			draw_string(_font, Vector2(px + pw - 48, py + 32), str(t.def.id).left(1).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 1, 1, a))
++			# ASSUMPTION: no per-species portrait art exists yet; the Animals head stands in for the reference's portrait.
++			draw_texture_rect(UiIcons.icon(&"animals"), Rect2(px + pw - 54, py + 2, 40, 40), false, Color(1, 1, 1, a))
+ 			var frac := clampf(t.health.hp / maxf(1.0, t.health.max_hp), 0.0, 1.0)
+ 			draw_rect(Rect2(px, py + 44, pw, 22), Color(0.12, 0.05, 0.05, 0.9 * a))
+ 			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(0.80, 0.12, 0.12, 0.95 * a))
