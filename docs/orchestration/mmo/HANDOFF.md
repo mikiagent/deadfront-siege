@@ -13,6 +13,14 @@ branch tip is pushed to GitHub (w2-data 178e320c, w2-skills 42e9ce6d, w2-inv 5ff
 e4d20cb8, w2-buildsys 4b8c6d23, econ 0853cc6f, w2-ragdoll 052c5646 (WIP commit at the stop), icons2 95be9029, invui 3ecb02ca).
 Nothing new is merged into claude/mmo-overhaul since section 2; production is unchanged (31c064a08/2284b9bf56).
 
+**Update ~20:40, stopped again at the owner's usage limit (same resume commands).** INVUI B1 is done (Bag + inspection,
+head dcd8f1ab: t_invui items 1-13/18/20 pass, every other gate PASS). Its run stopped on a false owner gate ("none for B1"); the
+scripts now treat "none ..." as no gate. Resuming INVUI goes on with B2. Its design's open questions (section 12 of invui-spec.md:
+a locked item still equippable?, Decorative Gear, preset unlock levels, power rows) go to the owner after review if the docs do
+not settle them. finish-6 was in fix rounds with REAL review findings (DATA, INV, PROCESS, SKILLS failed r1/r2 and were being
+fixed; ECON r4 and GATHER r1 reviews running). W3-EXCHANGE was building B1. RISK: 7 Godot-*.ips SIGABRT reports
+(recursive_mutex::lock, main thread) appeared 20:10-20:20, not attributed to any run; check ~/Library/Logs/DiagnosticReports first.
+
 | Run | Script (repo copy) | State at the stop | Resume |
 |---|---|---|---|
 | finish-6, wf_c321f8a4-028 | `handoff/workflows/finish-6.js` | Priority 1: the 7 merges in the handoff order plus W2-RAGDOLL, ICONS2, FORGEART. Restarted twice (see below), so every package restarts from its branch tip. Results of the derailed resume are not trusted and are not replayed: W2-PROCESS r2 pass + A/B 2/1 and ECON r5 pass need a fresh review; W2-SKILLS r2 found a real blocker (fixed in fix r2) | Same session: `Workflow({scriptPath: ".claude/worktrees/deadfront-finish-6.js", resumeFromRunId: "wf_c321f8a4-028"})`. New session: launch the script file fresh (same effect) |
