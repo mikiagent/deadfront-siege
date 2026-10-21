@@ -109,7 +109,6 @@ static func save_now() -> bool:
 			"buildings": World._home_buildings_cache, # refreshed above when the survivor is home
 			"cargo": World.cargo_home.to_array(),
 			"claims": World.home_claims,
-			"domain": World.home_domain,
 			"camp_layout": World.camp_layout,
 		},
 		"pioneer_xp": World.pioneer_xp,
@@ -134,9 +133,15 @@ static func save_now() -> bool:
 		"saved_unix": int(Time.get_unix_time_from_system()),
 		"pending_refunds": SaveRestore.pending_refunds,
 	}
+	# CLAIMS2 / spec 29: the domain record is written only once a domain exists, so a save with no
+	# declared domain keeps exactly the old shape (an old save and its fixtures re-save unchanged).
+	if not World.home_domain.is_empty():
+		(payload["home"] as Dictionary)["domain"] = World.home_domain
 	if not World.is_home():
 		# The island the survivor is standing on: its buildings, storage and staked claims.
-		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims, "domain": World.away_domain}
+		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims}
+		if not World.away_domain.is_empty():
+			(payload["away"] as Dictionary)["domain"] = World.away_domain
 	if not SaveMigrations.write_atomic(path, JSON.stringify(payload)):
 		print("[world] save failed")
 		return false

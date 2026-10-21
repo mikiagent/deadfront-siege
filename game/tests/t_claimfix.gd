@@ -19,6 +19,7 @@ var _world: Node
 var _kit: Dictionary
 var BG: GDScript  ## build_grid.gd, load()ed on the first frame: `--script` compiles this file before autoloads exist
 var IS: GDScript
+var DR: GDScript  ## domain_rules.gd: the cell size (CLAIMS2 / spec 29)
 
 func _process(_delta: float) -> bool:
 	if _started or root.get_node_or_null("Data") == null:
@@ -39,6 +40,7 @@ func _expect(ok: bool, what: String) -> void:
 func _run() -> void:
 	BG = load("res://scripts/world/build_grid.gd")
 	IS = load("res://scripts/items/item_stack.gd")
+	DR = load("res://scripts/world/domain_rules.gd")
 	_G = root.get_node("Game")
 	_world = root.get_node("World")
 	_host = Node3D.new()
@@ -84,8 +86,8 @@ func _stand_outside(min_dist: float) -> bool:
 func _without_claim(give_stake: bool) -> void:
 	_Xc(_hud, "claim_confirm_cancel", [])
 	var rt: Node = _rt
-	while rt.claims.size() > 1:
-		rt.claims.pop_back()
+	# CLAIMS2: no domain cells, just the camp's own 14x14 land (which the outline always draws).
+	rt.call("clear_domain")
 	_world.home_claims = [[rt.claims[0].position.x, rt.claims[0].position.y, rt.claims[0].size.x, rt.claims[0].size.y]]
 	if give_stake and _player.inventory.count_of(&"claim_stake") < 1:
 		_player.inventory.add(IS.make(&"claim_stake", 1))
@@ -99,8 +101,17 @@ func _test_second_claim_needs_confirm() -> void:
 	var start: Rect2i = _rt.claims[0]
 	var saved_before: Array = (_world.home_claims as Array).duplicate()
 	# 1. A press away from the land: the panel says why it can't expand, and nothing is staked.
-	var far := Vector2i(start.end.x + 22, start.get_center().y)
-	_expect(_stand_at(far) != "", "setup: the survivor stands on dry land well off the camp plot (%s)" % far)
+	# Well off the camp land but still on dry ground: the first tile east that is not in any cell
+	# sharing an edge with it (the camp block is on the cell grid, so the next cell is an expansion).
+	var far := Vector2i(1 << 30, 0)
+	for k in range(start.end.x + 2, start.end.x + 40):
+		var tile := Vector2i(k, start.get_center().y)
+		if _stand_at(tile) == "":
+			continue
+		if _rt.call("claim_expand_reason", tile) != "":
+			far = tile
+			break
+	_expect(far.x != 1 << 30, "setup: the survivor stands on dry land well off the camp plot (%s)" % far)
 	_player.actions.claim()
 	await process_frame
 	_expect(_rt.claims.size() == 1, "a second CLAIM press does not take land by itself (%d claims)" % _rt.claims.size())
@@ -126,21 +137,21 @@ func _test_second_claim_needs_confirm() -> void:
 	_Xc(_hud, "claim_confirm", [false])
 	await process_frame
 	_expect(not _Ge(_hud, "claim_panel_open") and _rt.claims.size() == 1, "Close takes nothing (%d claims)" % _rt.claims.size())
-	# 3. One plot east of the camp plot: shares a full edge, so the panel's EXPAND stakes it.
-	var next := Vector2i(start.end.x + start.size.x / 2, start.get_center().y)
-	_expect(_stand_at(next) != "", "setup: the survivor stands one plot east of the camp plot (%s)" % next)
+	# 3. The cell east of the camp land: shares a full edge, so the panel's EXPAND stakes it.
+	var next := _edge_cell(start)
+	_expect(next != Vector2i(1 << 30, 0) and _stand_at(next) != "", "setup: the survivor stands in the cell east of the camp plot (%s)" % next)
 	_player.actions.claim()
 	await process_frame
 	_expect(_Ge(_hud, "claim_panel_open"), "a press next to the land asks again")
 	var near_text := str(_Xu(_hud, "claim_panel_text")).replace("\n", " ")
 	print("[t_claimfix] panel next to the land: %s" % near_text)
-	_expect(near_text.contains("14x14") and near_text.to_lower().contains("edge"), "the panel names the 14x14 expansion and that it shares an edge: \"%s\"" % near_text)
+	_expect(near_text.contains("%dx%d" % [DR.cell_tiles(), DR.cell_tiles()]) and near_text.to_lower().contains("edge"), "the panel names the %dx%d cell expansion and that it shares an edge: \"%s\"" % [DR.cell_tiles(), DR.cell_tiles(), near_text])
 	_Xc(_hud, "claim_confirm", [true])
 	await process_frame
 	_expect(_rt.claims.size() == 2, "EXPAND adds exactly one plot (%d claims)" % _rt.claims.size())
 	_expect(_rt.claims.has(start), "the camp plot is still yours after the confirm (%s)" % [_rt.claims])
-	var fresh := _rect(next)
-	_expect(_rt.claims.has(fresh), "the added plot is the 14x14 centred on the survivor at %s (%s, got %s)" % [next, fresh, _rt.claims])
+	var fresh: Rect2i = _rt.call("claim_plot", next)
+	_expect(_rt.claims.has(fresh), "the added plot is the %dx%d cell the survivor stands in (%s, got %s)" % [DR.cell_tiles(), DR.cell_tiles(), fresh, _rt.claims])
 	_expect(_world.home_claims.size() == saved_before.size() + 1, "the confirm saved the new plot (%s)" % [_world.home_claims])
 	_expect(not _Ge(_hud, "claim_panel_open"), "the panel closes on confirm")
 	# 4. A stake is spent only by the commit; the ask and a refused plot keep it.
@@ -240,9 +251,22 @@ func _test_placer_hexes_clear() -> void:
 	root.content_scale_size = was_scale
 	await process_frame
 
-## IslandClaims.plot_at without the class name (see BG above).
-func _rect(tile: Vector2i, n: int = 14) -> Rect2i:
-	return Rect2i(tile - Vector2i(n / 2, n / 2), Vector2i(n, n))
+## A tile in the middle of a cell east of the camp land that shares a full edge with it
+## (CLAIMS2 / spec 29: a domain grows by cells, not by 14x14 plots).
+func _edge_cell(camp: Rect2i) -> Vector2i:
+	var n: int = DR.cell_tiles()
+	var best := Vector2i(1 << 30, 0)
+	var y := camp.position.y + 1
+	while y < camp.end.y:
+		var x := camp.end.x
+		while x < camp.end.x + n:
+			var tile := Vector2i(x, y)
+			var cell: Rect2i = _rt.call("claim_plot", tile)
+			if cell.has_point(tile) and _rt.call("claim_expand_reason", tile) == "" and _stand_at(tile) != "":
+				return tile
+			x += 1
+		y += 1
+	return best
 
 func _Ge(obj: Object, method: String) -> Variant:
 	if obj == null or not obj.has_method(method):

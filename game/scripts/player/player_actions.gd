@@ -576,6 +576,12 @@ func claim() -> void:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
 		return
+	# CLAIMS2 / spec 29: at the cap the press says so before it asks, naming the numbers.
+	var capped: String = str(rt.call("claim_limit_reason")) if rt.has_method("claim_limit_reason") else ""
+	if capped != "":
+		print("[world] claim refused: %s" % capped)
+		p.notice("%s. Raise your Pioneer rank (or the Communications Center) to claim more." % capped)
+		return
 	if not (rt.get("claims") as Array).is_empty():
 		if online:
 			p.notice("Expanding a claim online is not wired yet.")
@@ -608,9 +614,10 @@ func claim_confirmed() -> bool:
 		print("[world] claim refused: needs claim_stake")
 		p.notice("Needs a claim stake.")
 		return false
+	var why_now := str(rt.call("claim_expand_reason", BuildGrid.tile_of(p.global_position)))
 	if not rt.claim_at(BuildGrid.tile_of(p.global_position)):
-		print("[world] claim refused: not dry land, or another survivor's")
-		p.notice("Can't claim here: not dry land, or another survivor's")
+		print("[world] claim refused: %s" % why_now)
+		p.notice("Can't claim here: %s." % (why_now if why_now != "" else "not dry land, or another survivor's"))
 		return false
 	# Paid only once the plot is yours: a refused claim keeps the stake (and the free first plot).
 	if stake:

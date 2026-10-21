@@ -77,21 +77,24 @@ static func occupied_cells(rt: IslandRuntime) -> Dictionary:
 static func used(rt: IslandRuntime) -> int:
 	return owned_cells(rt).size()
 
-## The cell cap: the Tamed Island's Pioneer-rank milestone (spec 29 section 4). A cap below the land
-## already held (a migrated save) is never applied by removing cells: at_cap() then blocks growth.
+## The cell cap: the Tamed Island's Pioneer-rank milestone (spec 29 section 4). A record may carry a
+## higher floor (a migrated save that already held more cells than the cap): the land is never taken
+## away, the floor just means no new cells until a milestone passes it.
 static func cap(rt: IslandRuntime) -> int:
-	var row := int(rt.domain.get("max_cells", 0))
-	return row if row > 0 else DomainRules.cap()
+	return maxi(DomainRules.cap(), int(rt.domain.get("max_cells", 0)))
 
 static func at_cap(rt: IslandRuntime) -> bool:
 	return used(rt) >= cap(rt)
 
 ## The record's cap follows the survivor's Pioneer rank. Called when the island builds and when the
 ## Domain screen opens; never drops a cell.
+## Keep the record's max_cells at the live cap when a domain is claimed or raised. The stored value
+## is a floor only: cap() takes whichever of the rank milestone and the record is higher, so a rank
+## change never has to rewrite the record (a save re-saved stays field-for-field the same).
 static func sync_cap(rt: IslandRuntime) -> void:
 	if not has_domain(rt):
 		return
-	rt.domain["max_cells"] = DomainRules.cap()
+	rt.domain["max_cells"] = maxi(int(rt.domain.get("max_cells", 0)), DomainRules.cap())
 
 static func is_claimed(rt: IslandRuntime, tile: Vector2i) -> bool:
 	for r in rt.claims:
@@ -178,12 +181,24 @@ static func _publish(rt: IslandRuntime) -> void:
 ## footprint is covered too, so nothing built is orphaned.
 static func setup(rt: IslandRuntime, def: Dictionary) -> void:
 	rt.domain = {}
-	var camp_tile := BuildGrid.tile_of(rt._camp_pos)
-	# ASSUMPTIONS: the camp's 14x14 landing claim stays (M8d: buildings go on claimed tiles), and it
-	# is not a domain cell: at 4x4 tiles a cell is 16 tiles, and spec 29's 13 starts as free choice.
-	rt.camp_claim = Rect2i(camp_tile - Vector2i(7, 7), Vector2i(14, 14))
-	rt.claims.clear()
 	var saved := World.domain_for_current()
+	# The world's copy is rewritten from this island's record below (or cleared when it has none), so a
+	# domain never leaks from the island the survivor left to the one arriving.
+	if World.is_home():
+		World.home_domain = {}
+	else:
+		World.away_domain = {}
+	var camp_tile := BuildGrid.tile_of(rt._camp_pos)
+	# The camp's landing claim stays buildable land but is not a domain cell (spec 29's 13 is free
+	# choice, and a fresh island starts with Declare). ASSUMPTION: it is a 4x4-cell block (16x16 tiles
+	# at 4) snapped to the cell grid instead of M8d's 14x14, so a declared cell always shares a full
+	# edge with it (a 14x14 block cuts the grid in half and leaves a gap). The block holds the whole
+	# old 14x14 plot, so every building an old save placed on the camp land stays on claimed land
+	# (t_save's v0 basket at (4,8)).
+	var lo := cell_of(rt, camp_tile) - Vector2i(2, 2)
+	var camp_cells := 4
+	rt.camp_claim = Rect2i(lo * cell_tiles(), Vector2i.ONE * cell_tiles() * camp_cells)
+	rt.claims.clear()
 	if not saved.is_empty():
 		rt.domain = from_save(saved)
 		if rt.domain.is_empty() or (rt.domain.get("cells", []) as Array).is_empty():
@@ -200,19 +215,20 @@ static func setup(rt: IslandRuntime, def: Dictionary) -> void:
 		rt.domain = _migrate_legacy(rt, rows)
 		if not rt.domain.is_empty():
 			print("[world] domain migrated from %d legacy plot rect(s): %d cell(s)" % [legacy.size(), used(rt)])
-	if rt.domain.is_empty() and str(def.get("kind", "")) != "private":
-		# The unstable island's landing camp gets its own cell (tents, pens); its own cap is the same
-		# Tamed Island scale until spec 29's outpost/civilized rules exist.
-		rt.domain = make_record(rt, [cell_of(rt, camp_tile)], "unstable")
+	# ASSUMPTION: only a Tamed Island (the private home) has a domain. An unstable island is a
+	# temporary visit; its camp claim is buildable land, not a domain (spec 29's other territory types
+	# are later phases), so no record is made or saved there until the survivor claims cells.
 	sync_cap(rt)
 	_rebuild_claim_rects(rt)
-	# The legacy rect list stays a mirror of the claimed land (an older build, and t_claimfix, still
-	# read it): the camp plot first, then every domain cell.
-	if World.is_home():
+	# Home only, and only once a domain exists: the legacy rect list stays a mirror of the claimed
+	# land (an older build, and t_claimfix, still read it): the camp plot first, then every domain
+	# cell. A fresh island writes nothing, so a save with no declared domain keeps exactly the old
+	# shape and re-saves field-for-field. The away island's rows are left as loaded (its cells save
+	# in the domain record).
+	if World.is_home() and has_domain(rt):
 		World.home_claims = _claim_rows(rt)
-	else:
-		World.unstable_claims = _claim_rows(rt)
 	_clear_grass_cells(rt, rt.domain.get("cells", []))
+	_rebuild_claim_mesh(rt)
 
 ## An old save's plot rects (plus every placed building's footprint) as a domain record. The cap may
 ## be exceeded: cells are never removed (the task's rule for migrated saves).
@@ -223,6 +239,8 @@ static func _migrate_legacy(rt: IslandRuntime, rows: Array) -> Dictionary:
 			var rect := Rect2i(int(row[0]), int(row[1]), int(row[2]), int(row[3]))
 			for c in cells_covering(rt, rect):
 				seen[c] = true
+	if seen.is_empty():
+		return {}  # no staked land in the save: nothing to migrate (the camp plot alone is no domain)
 	var buildings: Array = World._home_buildings_cache if World.is_home() else []
 	for b in buildings:
 		if not b is Dictionary:
@@ -236,10 +254,10 @@ static func _migrate_legacy(rt: IslandRuntime, rows: Array) -> Dictionary:
 		for c in cells_covering(rt, rect):
 			seen[c] = true
 	var cells: Array = seen.keys()
-	if cells.is_empty():
-		return {}
 	cells.sort_custom(func (a: Vector2i, b: Vector2i) -> bool: return a.y < b.y if a.y != b.y else a.x < b.x)
 	var rec := make_record(rt, cells)
+	# A migrated save may hold more cells than the cap: the floor keeps every cell and allows no new
+	# ones until a documented milestone passes it (the cap may be exceeded, never shrunk).
 	rec["max_cells"] = maxi(DomainRules.cap(), cells.size())
 	return rec
 
@@ -295,8 +313,10 @@ static func eligible_cells(rt: IslandRuntime, centre: Vector2i = NO_CELL, radius
 				if not held.has(c) and cell_block_reason(rt, c) == "":
 					out.append(c)
 	else:
+		# Growth is from the land the survivor holds: the domain's cells and the camp's own plot (a
+		# domain is declared at the camp, spec 29 section 4: the home island's landing).
 		var tried := {}
-		for c: Vector2i in own.keys():
+		for c: Vector2i in held.keys():
 			for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 				var n: Vector2i = c + d
 				if held.has(n) or tried.has(n):
@@ -361,17 +381,17 @@ static func reason_text(reason: String) -> String:
 		"cap":
 			return "Claim limit reached"
 		"terrain":
-			return "Water or cliff"
+			return "that cell is water or a cliff"
 		"outside_the_island":
-			return "Outside the island"
+			return "that cell is outside the island"
 		"ownership":
-			return "Another survivor's land"
+			return "another survivor's land"
 		"not_adjacent":
-			return "Not next to your domain"
+			return "a cell must share an edge with your land (no diagonal, no hop)"
 		"already_owned":
-			return "Already yours"
+			return "that cell overlaps land you already hold"
 		"no_cells":
-			return "No cells selected"
+			return "no cells selected"
 		_:
 			return reason.replace("_", " ").capitalize() if reason != "" else ""
 
@@ -399,9 +419,10 @@ static func batch_reason(rt: IslandRuntime, cells: Array) -> String:
 		var why := cell_block_reason(rt, cell)
 		if why != "":
 			return why
-	if not held.is_empty():
-		# Contiguity is within the domain itself (a Declare has no domain yet: any valid cell).
-		var grow := held.duplicate()
+	if not near.is_empty():
+		# Contiguous expansion (spec 29 section 2): from the domain, and for a first Declare from the
+		# camp's own claimed land, so a domain always starts at the survivor's camp.
+		var grow := near.duplicate()
 		var pending: Array[Vector2i] = fresh.duplicate()
 		var placed_any := true
 		while placed_any and not pending.is_empty():
@@ -434,6 +455,7 @@ static func claim_cells(rt: IslandRuntime, cells: Array) -> Dictionary:
 	rt.domain = rec
 	sync_cap(rt)
 	_rebuild_claim_rects(rt)
+	_rebuild_claim_mesh(rt)
 	_clear_grass_cells(rt, batch)
 	var bounds := cell_rect(rt, batch[0])
 	for c in batch:
@@ -458,6 +480,17 @@ static func claim_at(rt: IslandRuntime, tile: Vector2i, size: int = 0) -> bool:
 		World.unstable_claims = _claim_rows(rt)
 	return true
 
+## Forget this island's domain (the CLAIM panel's tests and a released claim use it): the camp's
+## own land stays claimed and buildable, no domain cells remain.
+static func clear_domain(rt: IslandRuntime) -> void:
+	rt.domain = {}
+	_rebuild_claim_rects(rt)
+	_rebuild_claim_mesh(rt)
+	if World.is_home():
+		World.home_claims = _claim_rows(rt)
+	else:
+		World.unstable_claims = _claim_rows(rt)
+
 ## The tile rect of the cell a claim at `tile` would take (Rect2i() only when the island has no grid).
 static func plot_for(rt: IslandRuntime, tile: Vector2i) -> Rect2i:
 	return cell_rect(rt, cell_of(rt, tile))
@@ -467,14 +500,14 @@ static func plot_for(rt: IslandRuntime, tile: Vector2i) -> Rect2i:
 static func plot_at(tile: Vector2i, size: int = 4) -> Rect2i:
 	return Rect2i(tile - Vector2i(size / 2, size / 2), Vector2i(size, size))
 
-## Why a claim at `tile` would be refused ("" when it would be staked).
+## Why a claim at `tile` would be refused, in words for the survivor ("" when it would be staked).
 static func block_reason(rt: IslandRuntime, tile: Vector2i, _size: int = 0) -> String:
-	return batch_reason(rt, [cell_of(rt, tile)])
+	return reason_text(batch_reason(rt, [cell_of(rt, tile)]))
 
-## Why a claim at `tile` would not expand the land held here ("" when it would). The CLAIM press and
-## its confirm both ask this, so a stale panel can never stake a hop.
+## Why a claim at `tile` would not expand the land held here, in words ("" when it would). The CLAIM
+## press and its confirm both ask this, so a stale panel can never stake a hop.
 static func expand_reason(rt: IslandRuntime, tile: Vector2i, _size: int = 0) -> String:
-	return batch_reason(rt, [cell_of(rt, tile)])
+	return reason_text(batch_reason(rt, [cell_of(rt, tile)]))
 
 static func _claim_rows(rt: IslandRuntime) -> Array:
 	var rows: Array = []

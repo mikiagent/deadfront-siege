@@ -21,13 +21,17 @@ var _cancel: Button
 ## stake, `why` "" when that plot expands the land held (IslandRuntime.claim_expand_reason), `stake`
 ## whether the press spends a claim stake. Two lines: what stays, what the press is (a no-op when the
 ## plot would not expand).
-static func describe(plots: Array, tile: Vector2i, _rect: Rect2i, why: String, stake: bool) -> String:
+static func describe(plots: Array, tile: Vector2i, rect: Rect2i, why: String, stake: bool) -> String:
+	# CLAIMS2 / spec 29: one cell is cell_tiles() x cell_tiles() world tiles (4x4 by default) on the
+	# island's grid, not a 14x14 plot centred on the survivor.
 	var n := plots.size()
-	var kept := "You hold %d plot%s; pressing CLAIM moves or loses none of %s." % [n, "" if n == 1 else "s", "it" if n == 1 else "them"]
+	var n_tiles := rect.size.x if rect.has_area() else DomainRules.cell_tiles()
+	var kept := "You hold %d cell%s; pressing CLAIM moves or loses none of %s." % [n, "" if n == 1 else "s", "it" if n == 1 else "them"]
 	var pay := " Spends a claim stake." if stake else ""
 	if why != "":
 		return "%s\nNo expansion here: %s. Nothing moves, nothing is spent." % [kept, why]
-	return "%s\nEXPAND adds a 14x14 plot at (%d, %d), sharing an edge with your land.%s" % [kept, tile.x, tile.y, pay]
+	var centre := rect.get_center() if rect.has_area() else tile
+	return "%s\nEXPAND adds a %dx%d cell at (%d, %d), sharing an edge with your land.%s" % [kept, n_tiles, n_tiles, centre.x, centre.y, pay]
 
 ## Tiles of `rect` already inside one of `plots`.
 static func _inner_tiles(plots: Array, rect: Rect2i) -> int:

@@ -427,6 +427,10 @@ func claim_preview(centre: Vector2i, radius: int = IslandClaims.PREVIEW_RADIUS) 
 func claim_domain(cells: Array) -> Dictionary:
 	return IslandClaims.claim_cells(self, cells)
 
+## Give up the domain's cells (the camp's own land stays): the Domain screen's Release.
+func clear_domain() -> void:
+	IslandClaims.clear_domain(self)
+
 ## Cells held / the cap (spec 29 section 4).
 func claim_used() -> int:
 	return IslandClaims.used(self)
