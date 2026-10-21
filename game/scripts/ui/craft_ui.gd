@@ -17,6 +17,7 @@ const STATIONS := [
 	["campfire", "Campfire", "skewer"], ["drying_rack", "Meat dryer", "drying_rack_kit"],
 	["crock_pot", "Crock pot", "boiled_meat"], ["mortar", "Mortar", "mortar_kit"],
 	["stone_grill", "Stone grill", "stone_grill_kit"], ["steamer", "Steamer", "steamer_kit"], ["well", "Well", "well_kit"],
+	["forge", "Forge", "ingot"], ["anvil", "Anvil", "hammer"],
 ]
 const NO_LEVEL := LevelDisplay.NONE
 const FOOTER_H := 64.0
@@ -454,6 +455,17 @@ func _show_detail(info: Dictionary) -> void:
 		st.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
 		st.add_theme_color_override("font_color", UiTokens.META)
 		_detail.add_child(st)
+	# W2-SKILLS: a recipe a skill node gates is listed but locked (spec 03): say what unlocks it,
+	# above the ingredients so a phone shows it without scrolling.
+	var locked := Crafting.progression_block(player, rec)
+	if locked != "":
+		var why := Label.new()
+		why.name = "DetailLock"
+		why.text = locked.left(1).to_upper() + locked.substr(1)
+		why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		why.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+		why.add_theme_color_override("font_color", UiTokens.DANGER)
+		_detail.add_child(why)
 	var need := Label.new()
 	need.text = "INGREDIENTS"
 	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
