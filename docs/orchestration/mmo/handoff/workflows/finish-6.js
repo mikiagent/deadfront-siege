@@ -256,7 +256,7 @@ async function prepare(p) {
 }
 
 async function land(p, prep) {
-  if (!prep || !prep.passed) return { merged: false, reason: !prep ? 'no result' : prep.owner_gate ? 'owner gate: ' + prep.owner_gate : prep.cut ? 'cut' : 'review not passed', cut: !!(prep && prep.cut) }
+  if (!prep || !prep.passed) return { merged: false, reason: !prep ? 'no result' : prep.owner_gate ? 'owner gate: ' + prep.owner_gate : prep.cut ? 'cut' : prep.paused ? 'paused by the owner (lowest priority)' : 'review not passed', cut: !!(prep && prep.cut) }
   let reviewedSha = prep.last && prep.last.reviewed_sha
   let dirty = false
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -294,12 +294,14 @@ const record = (k, prep, l) => {
 }
 
 // Fix/review runs 6 packages at a time (5 Godot slots are the real limit), in merge-priority order.
+// Owner 2026-10-21 ("pause lowest priority"): polish that hogs the Godot slots waits so merges and deploys go first.
+const PAUSED = ['w2-ragdoll']
 const POOL_ORDER = ['w2-data', 'w2-skills', 'w2-inv', 'w2-process', 'econ', 'w2-gather', 'w2-buildsys', 'w2-ragdoll', 'icons2']
 const queue = POOL_ORDER.slice()
 async function worker() {
   while (queue.length) {
     const k = queue.shift()
-    const r = await prepare(byKey[k]).catch(e => ({ passed: false, error: String(e) }))
+    const r = PAUSED.includes(k) ? { passed: false, paused: true } : await prepare(byKey[k]).catch(e => ({ passed: false, error: String(e) }))
     prepResolve[k](r)
   }
 }

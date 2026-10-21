@@ -39,7 +39,7 @@ if (!b) return { stopped: 'cut at build' }
 
 phase('Review')
 let final = null
-for (let round = 1; round <= 3; round++) {
+for (let round = 1; round <= 4; round++) {  // one extra round (orchestrator 2026-10-21: r3 left one precise major)
   const rv = await agent(`${ctx}
 
 ROLE: independent, demanding reviewer (round ${round}) of GUIDE. You did not write it. Do not edit ${WT}; probes and shots under ${SP}/review/guide/r${round}/. Review the branch WITH its hooks: bash ${SP}/mkscratch.sh rev-guide ${BR} ${HOOKS}; before-tree: bash ${SP}/mkscratch.sh revbase-guide claude/mmo-overhaul. Run every gate and t_guide; try to break it (every order step 0-10, the target behind the camera or off screen, a hostile creature near the target, opening the bag/craft/sheets mid-guide, picking the wrong hex, save/load mid-step, old saves, resizing, the finger eating a tap, the finger over the vitals or Orders card); check scope (new files + hooks) and that the test fails on the old code. Take matched BEFORE/AFTER shots of the first order (1600x900 gl_compatibility and 844x390) as pairs; look at every one. pass=true only with zero blockers and zero majors.`, { label: `review:r${round}`, phase: 'Review', schema: REVIEW, effort: 'high' })
@@ -59,7 +59,7 @@ ${rv.pairs.map((pr, i) => `Scene ${i + 1} "${pr.scene}": first = ${i % 2 ? pr.af
   } else if (pass) { pass = false; findings.push({ severity: 'major', where: 'review evidence', problem: 'no matched before/after pairs', fix: 'take them' }) }
   final = { round, pass, summary: rv.summary, findings, ab: ab ? { afterWins: ab.afterWins, beforeWins: ab.beforeWins, overall: ab.overall } : null }
   log(`GUIDE review r${round}: ${pass ? 'PASS' : 'not yet'}`)
-  if (pass || round === 3) break
+  if (pass || round === 4) break
   const fx = await agent(`${ctx}
 
 ROLE: builder, fix round ${round}. Fix every blocker and major and the cheap minors below, add a check for each, rerun the gates and shots, look at them, update ${REPORT} and ${HOOKS}, commit. If a finding is wrong, show evidence in the report.
