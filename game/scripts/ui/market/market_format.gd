@@ -158,7 +158,7 @@ static func sell_refusal(kind: String, a: Dictionary) -> String:
 	return ""
 
 ## The listing preview in integers, with the engine's own rules and rounding (MarketBook.list_fixed
-## and _pay_seller): the fee is paid now from tradable T-stones and never refunded; the tax is
+## and _pay_seller): the fee is paid now (bound T-stones first) and never refunded; the tax is
 ## taken when it sells; the proceeds go straight to the wallet. 20,000 -> 1,000 / 600 / 19,400 / 18,400.
 static func preview(unit: int, count: int) -> Dictionary:
 	var r := EconRules.load_default()

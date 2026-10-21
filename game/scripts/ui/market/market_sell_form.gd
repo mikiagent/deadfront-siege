@@ -13,7 +13,7 @@ signal list_pressed
 const PREVIEW_ROWS := [["fee", "Listing fee (paid now)", "Fee now"], ["tax", "Market tax (when it sells)", "Tax on sale"], ["receive", "You receive", "You receive"], ["net", "Net after the fee", "Net"]]
 
 var entry: Dictionary = {}
-var tradable := 0
+var wallet := 0 ## every T-stone (wallet.get): bound ones pay listing fees first (ECON r5, a sink)
 var ref := 0 ## market.item_detail ref_price; 0 = no reference, so no band
 var lo := 1 ## the band (0.25x-4x of ref), or 1..max_price without a reference
 var hi := 1
@@ -265,7 +265,7 @@ func set_reference(d: Dictionary) -> void:
 
 func can_list() -> bool:
 	return not pending and not entry.is_empty() and str(entry.get("why", "")) == "" and unit >= 1 and unit <= max_price \
-		and tradable >= int(MarketFormat.preview(unit, count).fee)
+		and wallet >= int(MarketFormat.preview(unit, count).fee)
 
 func set_pending(on: bool, text: String) -> void:
 	pending = on
@@ -303,9 +303,9 @@ func refresh() -> void:
 		why = "Can't be sold"
 	elif unit <= 0:
 		why = "Set a price"
-	elif tradable < int(p.fee):
-		why = "Not enough tradable T-stones"
-		note = "The listing fee is %s tradable T-stones; you have %s. Bound T-stones can't pay market fees." % [MarketFormat.group(p.fee), MarketFormat.group(tradable)]
+	elif wallet < int(p.fee):
+		why = "Not enough T-stones"
+		note = "The listing fee is %s T-stones; you have %s." % [MarketFormat.group(p.fee), MarketFormat.group(wallet)]
 	var outside := why == "" and ref > 0 and (unit < lo or unit > hi)
 	if outside:
 		note = "Outside the usual range %s – %s for this item. Check the price; rare traits can be worth more." % [MarketFormat.group(lo), MarketFormat.group(hi)]

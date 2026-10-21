@@ -468,7 +468,7 @@ func _test_sell(hs: GDScript, ms_script: GDScript) -> void:
 	ms.queue_free()
 	print("[t_exchange] sell: %d cells, bone 1/2 at %d fee %d tax %d net %d, pet %s and cage %s listed, stored %s listed" % [got.size(), unit, p.fee, p.tax, p.net, pet.uid, cage.uid, stored_uid])
 
-## Gate 9 (Sell's error paths): bound coins cannot pay the fee, prices out of range, the band is
+## Gate 9 (Sell's error paths): bound coins pay the fee but not a fee over the wallet, prices out of range, the band is
 ## advice (the server takes a price outside it), refusal reasons for what the client can see, and a
 ## list step refused after the deposit keeps the item safe in market storage.
 func _test_sell_errors(hs: GDScript, ms_script: GDScript) -> void:
@@ -493,19 +493,34 @@ func _test_sell_errors(hs: GDScript, ms_script: GDScript) -> void:
 	edit.focus_exited.emit()
 	var hi: int = int(form.get("hi"))
 	_expect(int(form.get("unit")) == hi and hi <= EconRules.load_default().num("max_unit_price"), "a price over the maximum is pulled to %d" % hi)
+	# A listing fee is a sink: bound T-stones pay it (ECON r5): 40 a unit is payable from 20 bound.
 	edit.text = "40"
 	edit.text_changed.emit("40")
-	_expect((form.get("list_btn") as Button).disabled and status.text.contains("Bound T-stones can't pay"), "bound coins only: List disabled, the fee reason shown (%s)" % status.text)
+	_expect(not (form.get("list_btn") as Button).disabled, "bound coins only: List is enabled, bound T-stones pay the fee (%s)" % (form.get("list_btn") as Button).text)
+	# 1,000 a unit -> a fee over the 20 T-stones held: disabled with the reason.
+	edit.text = "1000"
+	edit.text_changed.emit("1000")
+	var big_fee := int(MF.call("preview", 1000, int(form.get("count"))).fee)
+	_expect(big_fee > 20 and (form.get("list_btn") as Button).disabled and status.text.begins_with("The listing fee is %s T-stones; you have 20." % MF.call("group", big_fee)), "fee over the wallet: List disabled, the fee reason shown (%s)" % status.text)
 	var before := JSON.stringify([h.call("op", 4, "char.get", {}).r.bag, h.call("op", 4, "wallet.get", {}).r, h.call("op", 4, "vault.get", {}).r])
 	# A stale balance (the panel thinks the fee is payable): the server refuses the listing after the
 	# deposit, the stone waits in market storage, the wallet is untouched.
-	form.set("tradable", 999)
+	form.set("wallet", 999)
 	sell.call("list_selected")
 	await process_frame
 	var vault: Array = h.call("op", 4, "vault.get", {}).r.items
-	_expect(status.text.begins_with("Not enough tradable T-stones.") and status.text.contains("safe in your market storage") and int(h.call("op", 4, "wallet.get", {}).r.wallet) == 20 and vault.size() == 1 and str(vault[0].id) == "stone", "insufficient_funds after the deposit: %s; stone stored, wallet 20" % status.text)
+	_expect(status.text.begins_with("Not enough T-stones for the listing fee.") and status.text.contains("safe in your market storage") and int(h.call("op", 4, "wallet.get", {}).r.wallet) == 20 and vault.size() == 1 and str(vault[0].id) == "stone", "insufficient_funds after the deposit: %s; stone stored, wallet 20" % status.text)
 	_expect(str(sell.get("selected")) == str(vault[0].uid) if not vault.is_empty() else false, "the stored stone stays picked to list again")
 	_expect(before != JSON.stringify([h.call("op", 4, "char.get", {}).r.bag, h.call("op", 4, "wallet.get", {}).r, h.call("op", 4, "vault.get", {}).r]), "the deposit really moved the stone (bag -> storage)")
+	# Listed again from storage at 40: the bound wallet pays the fee (bound 20 -> 20 - fee).
+	form.set("wallet", 20)
+	edit.text = "40"
+	edit.text_changed.emit("40")
+	var fee40 := int(MF.call("preview", 40, int(form.get("count"))).fee)
+	sell.call("list_selected")
+	await process_frame
+	var w4: Dictionary = h.call("op", 4, "wallet.get", {}).r
+	_expect(int(w4.wallet) == 20 - fee40 and int(w4.bound) == 20 - fee40 and (h.call("op", 4, "market.mine", {}).r.listings as Array).size() == 1, "a bound-only seller lists: fee %d paid from bound (%s)" % [fee40, w4])
 	# The server refuses prices out of 1..max_unit_price, whatever a client sends.
 	var mc: RefCounted = h.call("client", 1)
 	var bone_uid := ""
@@ -530,7 +545,7 @@ func _test_sell_errors(hs: GDScript, ms_script: GDScript) -> void:
 	_expect(why.call("pet", {"species": "compsognathus", "summoned": true}).begins_with("Dismiss") and why.call("pet", {"species": "compsognathus", "bag": ["x"]}).begins_with("Empty"), "a summoned or loaded pet says what to do")
 	_expect(why.call("item", {"id": "bone", "count": 2, "flags": ["raw"]}) == "", "an ordinary stack can be sold")
 	ms.queue_free()
-	print("[t_exchange] sell errors: price 0, over max, bound-only fee, stale balance (stored, wallet kept), server range, band %s, refusal reasons" % [band])
+	print("[t_exchange] sell errors: price 0, over max, bound pays the fee, fee over the wallet, stale balance (stored, wallet kept), server range, band %s, refusal reasons" % [band])
 
 ## Picks `uid` in the open Sell tab and lists it at `price` (0 = the panel's starting price).
 func _list_entry(sell: Control, uid: String, price: int) -> void:

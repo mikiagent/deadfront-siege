@@ -10,6 +10,7 @@ extends Control
 signal listed(res: Dictionary)
 signal loaded ## after every reload of the picker (tests and the lab wait on it)
 
+const FEE_SHORT := "Not enough T-stones for the listing fee."
 const EMPTY := "Your bag on this server is empty. What you gather, craft, capture or tame online can be sold here."
 
 var client: MarketClient
@@ -34,8 +35,9 @@ func start(p_client: MarketClient, uid: String = "") -> void:
 	selected = uid
 	await reload()
 
-func set_tradable(n: int) -> void:
-	form.tradable = n
+## Every T-stone the account holds: a listing fee is a sink, so bound ones pay it too.
+func set_wallet(n: int) -> void:
+	form.wallet = n
 	form.refresh()
 
 ## Reads the server character and its market storage again and rebuilds the picker.
@@ -105,7 +107,8 @@ func list_selected() -> void:
 		stored = true
 	var res: Dictionary = await client.request("market.list_fixed", {"asset": {"uid": uid, "count": count}, "unit_price": unit, "duration_h": hours})
 	if not res.get("ok", false):
-		await _finish(MarketFormat.error_text(res) + " It is safe in your market storage: list it again here, or take it back with My Market → Receive All.", uid)
+		var why := FEE_SHORT if str(res.get("err", "")) == "insufficient_funds" else MarketFormat.error_text(res)
+		await _finish(why + " It is safe in your market storage: list it again here, or take it back with My Market → Receive All.", uid)
 		return
 	listed.emit(res)
 	selected = ""

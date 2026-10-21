@@ -1,8 +1,9 @@
 class_name MarketHeader
 extends Control
 ## `[<] Island name   [test badge]   [T 1,234] [lock 20] | [X]` on the black band with the torn
-## edge. Tradable T-stones are the big number (only they buy and pay fees); bound ones show with
-## a lock, and only when there are some, so a 20-coin wallet that cannot buy explains itself.
+## edge. Tradable T-stones are the big number (only they buy); bound ones show with a lock, and
+## only when there are some, so a 20-coin wallet that cannot buy explains itself (bound ones pay
+## listing fees, which Sell counts).
 ## No premium currency and no "+" (no monetization).
 
 signal back_pressed

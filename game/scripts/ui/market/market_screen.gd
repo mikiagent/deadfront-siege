@@ -142,7 +142,7 @@ func show_tab(id: StringName) -> void:
 		refresh_wallet() # sales are credited while the screen is closed
 		mine.start(client)
 	if id == &"sell":
-		sell.set_tradable(header.tradable())
+		sell.set_wallet(int(header.wallet.get("wallet", 0)))
 		sell.start(client, _sell_uid) # the server's bag now: it changes while the screen is closed
 		_sell_uid = ""
 
@@ -150,7 +150,7 @@ func refresh_wallet() -> void:
 	var res: Dictionary = await client.request("wallet.get")
 	if res.get("ok", false):
 		header.set_wallet(res.r)
-		sell.set_tradable(header.tradable())
+		sell.set_wallet(int(header.wallet.get("wallet", 0)))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or not event.is_action_pressed(&"ui_cancel"):
