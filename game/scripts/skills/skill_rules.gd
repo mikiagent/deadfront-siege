@@ -38,7 +38,9 @@ static func _index(sk: SkillState) -> Dictionary:
 			in_tree[str(n.get("id", ""))] = n
 		var ids := {}
 		for n in sk.nodes(tree):
-			if str(n.get("status", "functional")) != "functional" and not gating.has(str(n.get("id", ""))):
+			# A node is for sale when the game runs its effect: a recipe it gates (its own recipe list or a
+			# recipe's requires_node), or an effect type some system reads (ON SALE below; spec 12:215).
+			if not has_effect(n) and not str(n.get("id", "")) in gating:
 				continue
 			var cur: Variant = n
 			while cur is Dictionary and not ids.has(str(cur.get("id", ""))):
@@ -96,6 +98,27 @@ static func paid_for_level(sk: SkillState, level: int) -> int:
 	for l in range(SkillState.MIN_LEVEL + 1, level + 1):
 		total += sk.sp_for_level(l)
 	return total
+
+## Effect types a system reads today (skill_rules' own readers below and the hooks that call them):
+## "recipe" (no recipe list -> the recipe's requires_node names the node), "ability" (SkillRules.ability ->
+## Defense's Max Health into Player/PlayerActions), "bonded_slots" (Data.bonded_cap), "capture_tier"
+## (SkillState's Data mirror -> Data.has_capture_technique), "climate" (Player.climate_resistance).
+## A node with any other effect, or none, stays "not in the game yet".
+const READ_EFFECTS := ["recipe", "bonded_slots", "capture_tier", "climate"]
+## Abilities a system adds up today: Max Health and Max Energy go into Vitals (Player.refresh_equipment_vitals).
+## Handicraft, Metal Processing, Slaughter and Stealth are read by SkillRules.ability only, so their nodes
+## stay "not in the game yet" until W2-PROCESS/W2-BUTCHER/W3-SRVACT use them.
+const READ_ABILITIES := ["max_health", "max_energy"]
+
+## True when some system reads this node's effect (an empty "recipe" entry reads a recipe's requires_node).
+static func has_effect(n: Dictionary) -> bool:
+	for e in n.get("effects", []):
+		if not e is Dictionary:
+			continue
+		var kind := str(e.get("type", ""))
+		if READ_EFFECTS.has(kind) or (kind == "ability" and READ_ABILITIES.has(str(e.get("ability", "")))):
+			return true
+	return false
 
 ## Spec 12:215 "do not implement a decorative but inert" tree: SP buy only what the game enforces
 ## (status functional, or named by a recipe's requires_node) and the prerequisite chain such a

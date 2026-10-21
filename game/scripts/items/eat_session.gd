@@ -80,7 +80,7 @@ func _process(delta: float) -> void:
 func _apply_energy(amount: float) -> void:
 	if player == null or player.vitals == null:
 		return
-	player.vitals.energy = clampf(player.vitals.energy + amount, 0.0, player.vitals.max_energy)
+	player.vitals.energy = clampf(player.vitals.energy + amount, 0.0, player.vitals.effective_max_energy())
 	if player.vitals.has_method("eat"):
 		player.vitals.eat(amount * 1.5)
 

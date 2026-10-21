@@ -96,8 +96,14 @@
           "name": "Belly Fat 1",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "ability",
+              "ability": "max_energy",
+              "amount": 10
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "capture_technique_1",
@@ -2008,8 +2014,14 @@
           "name": "Max Health 1",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "ability",
+              "ability": "max_health",
+              "amount": 10
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "roll_duration_1",
@@ -2073,8 +2085,14 @@
           "name": "Max Health 2",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "ability",
+              "ability": "max_health",
+              "amount": 20
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "anti_knockdown",
@@ -2138,8 +2156,14 @@
           "name": "Max Health 3",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "ability",
+              "ability": "max_health",
+              "amount": 30
+            }
+          ],
+          "status": "functional"
         }
       ]
     },

@@ -10,6 +10,8 @@ var max_health: float = 100.0
 var equipment_health_bonus: float = 0.0 ## derived, never saved; equipping does not heal
 var health: float = 100.0
 var max_energy: float = 100.0
+## Skill nodes' + max energy (Survival Belly Fat 1), set by Player with the health bonus; never saved.
+var energy_bonus: float = 0.0
 var energy: float = 100.0
 var max_fatigue: float = 100.0
 var fatigue: float = 0.0
@@ -58,7 +60,7 @@ func _process(delta: float) -> void:
 	if not blocks_regen and _regen_lock <= 0.0:
 		health = minf(effective_max_health(), health + health_regen * delta)
 	_stamina_lock = maxf(0.0, _stamina_lock - delta)
-	var stam_cap := max_energy * stamina_cap_mult()
+	var stam_cap := (max_energy + energy_bonus) * stamina_cap_mult()
 	if _stamina_lock <= 0.0:
 		energy = minf(stam_cap, energy + (STAMINA_REGEN_COMBAT if in_combat else STAMINA_REGEN_CALM) * stamina_regen_mult() * delta)
 	energy = minf(energy, stam_cap)
@@ -80,6 +82,10 @@ func _sync_exhausted() -> void:
 
 func effective_max_health() -> float:
 	return max_health + equipment_health_bonus
+
+## The stamina bar's cap: max_energy plus skill nodes' bonus, before the fatigue strain cut.
+func effective_max_energy() -> float:
+	return max_energy + energy_bonus
 
 func take_damage(amount: float) -> void:
 	if dead:
@@ -103,7 +109,7 @@ func heal(amount: float) -> void:
 func revive(health_frac: float = 0.5) -> void:
 	dead = false
 	health = maxf(1.0, effective_max_health() * clampf(health_frac, 0.05, 1.0))
-	energy = maxf(energy, max_energy * 0.5)
+	energy = maxf(energy, (max_energy + energy_bonus) * 0.5)
 	fatigue = minf(fatigue, max_fatigue * 0.5)
 	_sync_exhausted()
 

@@ -319,9 +319,14 @@ func display_name() -> String:
 
 # ---------------------------------------------------------------- damage, death, respawn
 
+## Worn gear's health bonus, plus the skill nodes whose stat effect the game runs (Defense's Max Health I-III,
+## Survival's Belly Fat 1): SkillRules.ability totals, recounted here so a purchase shows the next frame.
 func refresh_equipment_vitals() -> void:
 	if vitals and inventory:
 		vitals.equipment_health_bonus = inventory.equipped_health_bonus()
+		if skills:
+			vitals.equipment_health_bonus += float(SkillRules.ability(skills, "max_health"))
+			vitals.energy_bonus = float(SkillRules.ability(skills, "max_energy"))
 		vitals.health = minf(vitals.health, vitals.effective_max_health())
 
 func receive_creature_hit(who: Creature, _clip: StringName) -> void:

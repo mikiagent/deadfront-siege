@@ -1007,7 +1007,7 @@ func _draw() -> void:
 	var yy := y
 	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px)
 	yy += big + gap
-	_bar(Vector2(x, yy), Vector2(bar_w, big), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "", "%.0f / %.0f" % [v.energy, v.max_energy], num_px)
+	_bar(Vector2(x, yy), Vector2(bar_w, big), v.energy / maxf(1.0, v.effective_max_energy()), Color(0.20, 0.45, 0.80), "", "%.0f / %.0f" % [v.energy, v.effective_max_energy()], num_px)
 	yy += big + gap
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
 	var face_pos := Vector2(x + 11.0, yy + 10.0)
