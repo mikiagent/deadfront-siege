@@ -571,14 +571,18 @@ func claim() -> void:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
 		return
-	if not World.is_home():
-		if World.free_claim_used:
-			if not p.inventory.consume(&"claim_stake", 1):
-				print("[world] claim refused: needs claim_stake")
-				return
-		World.free_claim_used = true
+	var stake := not World.is_home() and World.free_claim_used
+	if stake and p.inventory.count_of(&"claim_stake") < 1:
+		print("[world] claim refused: needs claim_stake")
+		return
 	if not rt.claim_at(BuildGrid.tile_of(p.global_position)):
-		print("[world] claim refused: not dry land")
+		print("[world] claim refused: not dry land, or another survivor's")
+		return
+	# Paid only once the plot is yours: a refused claim keeps the stake (and the free first plot).
+	if stake:
+		p.inventory.consume(&"claim_stake", 1)
+	if not World.is_home():
+		World.free_claim_used = true
 
 # ---------------------------------------------------------------- structures
 
