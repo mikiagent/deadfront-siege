@@ -21,6 +21,9 @@ import zlib
 
 import numpy as np
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import rules  # noqa: E402
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SHEET_DIR = os.path.join(ROOT, "docs/reference/2d-assets")
 OUT_DIR = os.path.join(ROOT, "game/assets/nature/sprites2d")
@@ -453,35 +456,13 @@ def slugify(s):
     return s.strip("_") or "item"
 
 
-def lookup_label(labels, sheet, sid, bbox):
-    """labels.json: {"sheets": {sheet: [ {id, src_rect, name, kind, ...} ]}}"""
-    rows = labels.get("sheets", {}).get(sheet, [])
-    for r in rows:
-        if r.get("id") == sid:
-            return r
-    cx, cy = bbox[0] + bbox[2] / 2.0, bbox[1] + bbox[3] / 2.0
-    best, best_d = None, 1e9
-    for r in rows:
-        rc = r.get("src_rect")
-        if not rc:
-            continue
-        d = abs(rc[0] + rc[2] / 2.0 - cx) + abs(rc[1] + rc[3] / 2.0 - cy)
-        if d < best_d:
-            best, best_d = r, d
-    if best is not None and best_d < 60:
-        return best
-    return None
-
-
 def default_pivot(alpha, kind):
     """Ground contact = centre of the bottom band; hanging vines/roots hang from the top."""
     h, w = alpha.shape
     ys, xs = np.nonzero(alpha > 0.3)
     if len(xs) == 0:
         return [w // 2, h]
-    hanging = isinstance(kind, str) and (kind.startswith("prop:vine") or kind.startswith("prop:root")
-                                         or kind.startswith("prop:waterfall"))
-    if hanging:
+    if isinstance(kind, str) and rules.hanging(kind):
         band = ys < ys.min() + max(2, (ys.max() - ys.min()) // 12)
         return [int(round(float(xs[band].mean()))), int(ys.min())]
     band = ys > ys.max() - max(2, (ys.max() - ys.min()) // 12)
@@ -539,23 +520,30 @@ def process_sheet(sheet_path, overrides, labels):
             "px": [int(ww), int(hh)],
         }
         rows.append((rgba, lab_row, alpha))
-    # naming needs the ids of the previous run, so resolve labels after all crops exist
+    # Labels are matched afterwards, once every crop exists: one-to-one by exact sheet+src_rect,
+    # IoU >= 0.7 fallback (rules.match_rects). Never by index or centre distance - both slid
+    # names onto neighbouring items whenever a split box changed the item count.
+    table = rules.load_table()
+    families = rules.load_families()
+    pick = rules.match_rects(name, [row["src_rect"] for _, row, _ in rows], table)
     manifest_rows = []
     for i, (rgba, row, alpha) in enumerate(rows, 1):
-        lab = lookup_label(labels, name, None, row["src_rect"])
-        slug = slugify(lab.get("name", "item")) if lab and lab.get("name") else "item"
+        lab = table[pick[i - 1]] if (i - 1) in pick else None
+        item_name = lab[5] if lab else "item"
+        kind = lab[6] if lab else "unused"
+        height_m = float(lab[7]) if lab else 0.5
+        slug = slugify(item_name)
         sid = "%s_%02d_%s" % (short, i, slug)
         rel = "res://assets/nature/sprites2d/%s/%s.png" % (name, sid)
-        kind = lab.get("kind", "unused") if lab else "unused"
-        # measured from this run's alpha, never from labels.json: a stored pivot goes stale as soon
-        # as a split box or a downscale changes the crop (the audit's "pivot outside the PNG")
+        # Pivot measured from this run's alpha, never from a stored value: a split box or a
+        # downscale changes the crop and a stored pivot goes stale (audit: "pivot outside PNG").
         piv = default_pivot(alpha, kind)
-        height_m = (lab.get("height_m", 0.5) if lab else 0.5)
         # Web pack budget: perceived size is set by height_m, not by the painted pixels, so tall
-        # items keep more resolution (they are the ones the camera sees up close in a 2D card).
-        # Everything is shipped at <= 512 px on the longest side, or <= 768 px at height_m >= 8.
+        # items keep more resolution (the camera sees them close up as a 2D card). Everything ships
+        # at <= 512 px on the longest side, or <= 768 px at height_m >= 8; `scale` records the
+        # factor so the game can hold size by height_m.
         hh, ww = rgba.shape[:2]
-        maxside = 704 if float(height_m) >= 8.0 else 448
+        maxside = 704 if height_m >= 8.0 else 448
         sc = min(1.0, maxside / float(max(ww, hh)))
         if sc < 1.0:
             nw, nh = max(1, int(round(ww * sc))), max(1, int(round(hh * sc)))
@@ -572,11 +560,11 @@ def process_sheet(sheet_path, overrides, labels):
             "px": row["px"],
             "pivot": [int(piv[0]), int(piv[1])],
             "scale": round(float(sc), 4),
-            "name": lab.get("name", slug.replace("_", " ").title()) if lab else "item",
+            "name": item_name,
             "kind": kind,
             "height_m": height_m,
-            "blocks": bool(lab.get("blocks", False)) if lab else False,
-            "destroyable": bool(lab.get("destroyable", True)) if lab else True,
+            "blocks": rules.blocks_for(kind, height_m, families),
+            "destroyable": rules.destroyable_for(kind, height_m),
         })
     return manifest_rows
 

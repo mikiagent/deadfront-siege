@@ -53,55 +53,73 @@
  },
  "_note_resources_08": "resources_08 is ONE art item: a leafy plant with its root ball knot and a bunch of red fruit hanging from the same stem bundle. The audit asked for a split at the waist; tried (bands at y 735/776/780/806), but the fruit bunch carries its own big green leaves, so the cut produces a two-material item (green leaf rim over dark red fruit) that reads wrong in game and fails the part-green edge check. Kept whole and named berry_palm (MangoBush).",
  "sheet-tall-grasses": {
-  "_split_why": "touching grass/reed clumps separated at their green gaps (round-3 audit rule 3)",
+  "_split_why": "touching grass/reed clumps separated at the thin base gap found by the minimum-column search; each box is 3 px wide and tall enough to cut the welded base, x includes the sheet offset",
   "split": [
    [
-    188,
-    304,
-    12,
-    105
+    89,
+    350,
+    4,
+    60
    ],
    [
-    1046,
-    301,
-    10,
-    124
+    285,
+    330,
+    4,
+    82
    ],
    [
-    142,
-    418,
-    14,
-    126
+    1194,
+    303,
+    4,
+    120
    ],
    [
-    566,
-    434,
-    10,
-    91
+    1315,
+    353,
+    4,
+    84
    ],
    [
-    922,
-    436,
-    14,
-    110
+    37,
+    429,
+    4,
+    63
    ],
    [
-    1330,
-    560,
-    16,
-    73
+    232,
+    438,
+    4,
+    87
    ],
    [
-    1080,
-    422,
-    10,
-    129
+    88,
+    483,
+    4,
+    60
    ],
    [
-    675,
-    442,
-    8,
-    101
+    369,
+    451,
+    4,
+    90
+   ],
+   [
+    525,
+    454,
+    4,
+    85
+   ],
+   [
+    794,
+    474,
+    4,
+    67
+   ],
+   [
+    1248,
+    575,
+    4,
+    62
    ]
   ]
  }
