@@ -45,8 +45,10 @@ var _keys: Array[Vector2i] = []
 var _points: PackedVector3Array = PackedVector3Array()
 var _kinds: Array[String] = []
 var _zones: Array[String] = []
-## The kind of each placed instance by slot (parallel to _points), for the wrong-biome check.
+## The kind and sprite of each placed instance by slot (parallel to _points), for the
+## wrong-biome check and the lab's per-zone sprite-kind count.
 var _rec_kinds: PackedStringArray = PackedStringArray()
+var _rec_sprites: PackedStringArray = PackedStringArray()
 var _missing := 0
 var _mat: ShaderMaterial
 
@@ -353,6 +355,7 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 	_kinds.clear()
 	_zones.clear()
 	_rec_kinds = PackedStringArray()
+	_rec_sprites = PackedStringArray()
 	if items.is_empty():
 		return
 	var atlas := _build_atlas(items)
@@ -385,6 +388,7 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 		var origin := pos + view.x * ((0.5 - pv.x) * w) + view.y * ((pv.y - 0.5) * h)
 		_points.append(pos)
 		_rec_kinds.append(str(it["kind"]))
+		_rec_sprites.append(str(it["sprite"]))
 		if not _kinds.has(str(it["kind"])):
 			_kinds.append(str(it["kind"]))
 		if not _zones.has(str(it["zone"])):
@@ -525,16 +529,44 @@ func wrong_biome_instances() -> int:
 			n += 1
 	return n
 
-## Instances of each kind placed within a zone (for the lab and tests): kind -> count.
-func zone_kind_counts(zone: String) -> Dictionary:
+## The distinct sprite ids standing in `zone` (the lab's per-zone sprite-kind count), measured
+## from the placed instances, not from the data file.
+func sprites_in_zone(zone: String) -> Dictionary:
 	var out: Dictionary = {}
 	if _rt == null or not is_instance_valid(_rt):
 		return out
-	for p in _points:
+	for i in mini(_points.size(), _rec_sprites.size()):
+		var p := _points[i]
 		if BiomeZones.zone_name(BiomeZones.biome_at(_rt, p.x, p.z)) != zone:
 			continue
-		out["total"] = int(out.get("total", 0)) + 1
+		out[str(_rec_sprites[i])] = true
 	return out
+
+## How many cards stand in `zone`, and the point of the card nearest their centroid (a dense
+## representative spot for the lab's camera).
+func zone_spot(zone: String) -> Dictionary:
+	var sum := Vector3.ZERO
+	var n := 0
+	for i in mini(_points.size(), _rec_kinds.size()):
+		var p := _points[i]
+		if BiomeZones.zone_name(BiomeZones.biome_at(_rt, p.x, p.z)) != zone:
+			continue
+		sum += p
+		n += 1
+	if n == 0:
+		return {}
+	var centre := sum / float(n)
+	var best := Vector3.INF
+	var best_d := INF
+	for i in mini(_points.size(), _rec_kinds.size()):
+		var p := _points[i]
+		if BiomeZones.zone_name(BiomeZones.biome_at(_rt, p.x, p.z)) != zone:
+			continue
+		var d := Vector2(p.x - centre.x, p.z - centre.z).length()
+		if d < best_d:
+			best_d = d
+			best = p
+	return {"count": n, "point": best, "centroid": centre}
 
 func cell_nodes() -> Array[MultiMeshInstance3D]:
 	var out: Array[MultiMeshInstance3D] = []

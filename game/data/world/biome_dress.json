@@ -92,6 +92,18 @@
         {
           "id": "rock_chip",
           "density": 0.012
+        },
+        {
+          "id": "reed_bed",
+          "density": 0.03
+        },
+        {
+          "id": "reed_clump",
+          "density": 0.03
+        },
+        {
+          "id": "cattail_clump",
+          "density": 0.02
         }
       ]
     },
@@ -127,11 +139,11 @@
       "kinds": [
         {
           "id": "basalt_chunk",
-          "density": 0.024
+          "density": 0.06
         },
         {
           "id": "obsidian_crystal",
-          "density": 0.004
+          "density": 0.008
         },
         {
           "id": "tree_fern",
@@ -147,7 +159,11 @@
         },
         {
           "id": "fern_red_bromeliad",
-          "density": 0.012
+          "density": 0.02
+        },
+        {
+          "id": "basalt_pebble",
+          "density": 0.03
         }
       ]
     },
@@ -155,19 +171,19 @@
       "kinds": [
         {
           "id": "reed_bed",
-          "density": 0.05
+          "density": 0.13
         },
         {
           "id": "reed_clump",
-          "density": 0.03
+          "density": 0.08
         },
         {
           "id": "cattail_clump",
-          "density": 0.02
+          "density": 0.06
         },
         {
           "id": "white_lily",
-          "density": 0.016
+          "density": 0.022
         },
         {
           "id": "fern_cluster",
@@ -200,6 +216,10 @@
         {
           "id": "boulder_small",
           "density": 0.006
+        },
+        {
+          "id": "reed_clump",
+          "density": 0.02
         }
       ]
     },
@@ -918,9 +938,9 @@
       "sway": 0.03,
       "where": "ground",
       "tint": [
-        0.86,
-        0.98,
-        0.82
+        0.7,
+        0.8,
+        0.66
       ]
     },
     "berry_palm": {
@@ -944,9 +964,9 @@
       "sway": 0.03,
       "where": "ground",
       "tint": [
-        0.9,
-        1.0,
-        0.84
+        0.74,
+        0.7,
+        0.62
       ]
     },
     "fern_red_bromeliad": {
@@ -970,9 +990,9 @@
       "sway": 0.04,
       "where": "ground",
       "tint": [
-        0.98,
-        0.94,
-        0.88
+        0.82,
+        0.8,
+        0.76
       ]
     },
     "reed_bed": {
@@ -981,7 +1001,9 @@
         "tall-grasses_24_reed_bed_pond"
       ],
       "zones": [
-        "wetland"
+        "wetland",
+        "savanna",
+        "beach"
       ],
       "height": 1.0,
       "scale": [
@@ -1009,6 +1031,7 @@
       ],
       "zones": [
         "wetland",
+        "savanna",
         "beach"
       ],
       "height": 1.0,
@@ -1036,7 +1059,8 @@
         "tall-grasses_20_reed_tuft_tall"
       ],
       "zones": [
-        "wetland"
+        "wetland",
+        "savanna"
       ],
       "height": 1.0,
       "scale": [
@@ -1187,6 +1211,33 @@
         0.92,
         1.0,
         0.84
+      ]
+    },
+    "basalt_pebble": {
+      "sprites": [
+        "jungle-cliffs_69_rock_chip",
+        "resources_23_rock_chip",
+        "jungle-cliffs_53_rock_chip_small"
+      ],
+      "zones": [
+        "basalt"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.54,
+        1.4
+      ],
+      "clump": [
+        2,
+        6
+      ],
+      "spread": 1.1,
+      "sway": 0.0,
+      "where": "any",
+      "tint": [
+        0.34,
+        0.34,
+        0.38
       ]
     }
   }
