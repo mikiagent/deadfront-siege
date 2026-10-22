@@ -14,6 +14,7 @@ var level: int = 1
 var anchor_height: float = 1.0
 var _buttons: Array[HexButton] = []
 var _labels: Array[Dictionary] = []
+var _label_left: Array[bool] = []  ## the side each label was solved on (a flip glides it alone)
 var _inventory: Inventory
 var _open: bool = false
 var _icons: Dictionary = {}
@@ -28,6 +29,9 @@ var label_rects: Array[Rect2] = []
 ## The name + level backing as last drawn (the capture lab checks it against the HUD and the source).
 var title_box: Rect2
 var _hold := RadialHold.new()  # the layout solved on open, held against the node while the camera moves
+var _offs_prev: Array[Vector2] = []  ## each part's offset from the node as drawn last frame (hard step cap)
+## How many times the held layout had to be solved again (the lab gates the glide instead of a jump).
+var solves := 0
 
 const HEX := 64.0
 const RING_R := 1.15  # selection hexagon radius on the ground, m
@@ -97,7 +101,9 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 	_open = true
 	visible = true
 	_show_ring3d()
-	_layout()
+	_offs_prev.clear()
+	_solve()  # a new menu: placed at once, then held against its node
+	_paint(_anchor())
 	queue_redraw()
 
 ## Hexagon flat on the terrain under the node (1.15 m), rebuilt on open; the mesh is depth-tested,
@@ -150,6 +156,7 @@ func _show_ring3d() -> void:
 
 func close() -> void:
 	_hold.reset()
+	_offs_prev.clear()
 	if _ring3d:
 		_ring3d.visible = false
 	for b in _buttons:
@@ -232,8 +239,14 @@ func _process(_delta: float) -> void:
 	if node == null or not is_instance_valid(node):
 		close()
 		return
-	if not _hold.follow(self, _anchor()):
-		_layout()
+	var anchor := _anchor()
+	var view := get_viewport_rect().size
+	if not _hold.follow(anchor, view, UiTokens.safe_insets(get_viewport()), UiTokens.hud_reserved(view)):
+		_solve()
+	_hold.advance()
+	_hold.clamp_offsets(_offs_prev, anchor, RadialHold.MAX_STEP)
+	_paint(anchor)
+	_check_label_sides(anchor, view)
 	queue_redraw()
 
 func _anchor() -> Vector2:
@@ -242,8 +255,11 @@ func _anchor() -> Vector2:
 		return Vector2.ZERO
 	return cam.unproject_position(node.global_position + Vector3(0, anchor_height * 0.45, 0))
 
-func _layout() -> void:
-	var base := _hold.solved(_anchor())
+## Solve the layout around the node: the title box, the hexes and each label's box. A first solve places
+## them; a later one is glided to (RadialHold.advance), so the ring never jumps when it has to give way.
+func _solve() -> void:
+	solves += 1
+	var anchor := _anchor()
 	var view := get_viewport_rect().size
 	var tf := ThemeDB.fallback_font
 	var ns := UiTokens.body(view)
@@ -253,46 +269,92 @@ func _layout() -> void:
 	if plate.has_area():
 		avoid.append(plate)
 	var src := source_rect()
-	title_box = title_spot(src, Vector2(tw, ns + 26), view, avoid)
+	var box := title_spot(src, Vector2(tw, ns + 26), view, avoid)
+	# Where the ring could not turn clear of the title (a crowded edge), slide the title to the first
+	# spot beside the hexes that is clear of all of them (one shift per hex moved it onto the other).
+	var keep_off: Array[Rect2] = UiTokens.hud_reserved(view)
+	keep_off.append_array([nameplate(), src])
+	for x in _title_spots(box, view):
+		var spot := Rect2(Vector2(clampf(x, 8.0, maxf(8.0, view.x - box.size.x - 8.0)), box.position.y), box.size)
+		var clear := true
+		for k in keep_off:
+			clear = clear and not spot.intersects(k)
+		if clear:
+			box = spot
+			break
 	# The ring turns to clear the plant and its title as well as the HUD.
 	avoid.append(src)
-	avoid.append(title_box)
+	avoid.append(box)
 	var lw := 0.0
 	for l in _labels:
 		lw = maxf(lw, tf.get_string_size(UiTokens.ellipsis(tf, str(l["text"]), 148.0, ns), HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x)
-	var spots := ContextRadial.hex_positions(base, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX, tw, avoid, lw)
+	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX, tw, avoid, lw)
+	var labels: Array[Rect2] = []
+	for i in spots.size():
+		var text: String = UiTokens.ellipsis(tf, str(_labels[i]["text"]), 148.0, ns)
+		var w := tf.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
+		var blockers: Array[Rect2] = [box, plate]
+		blockers.append_array(UiTokens.hud_reserved(view))
+		for j in spots.size():
+			if j != i:
+				blockers.append(Rect2(spots[j], Vector2(HEX, HEX)))
+		labels.append(pick_label_rect(ContextRadial.label_on_left(spots[i], HEX, view, anchor), Rect2(spots[i], Vector2(HEX, HEX)), w, view, blockers, [src]))
+	_hold.solve(box, spots, labels)
+	_hold.anchored(anchor)
+
+## A label whose hex has moved to its other side glides across on its own: the hexes do not re-solve.
+func _check_label_sides(anchor: Vector2, view: Vector2) -> void:
+	if not _hold.held or _hold.gliding():
+		return
+	var font := ThemeDB.fallback_font
+	var ts := UiTokens.body(view)
+	var src := source_rect()
+	for i in mini(_buttons.size(), _label_left.size()):
+		var hex := Rect2(_hold.drawn(1 + i).position, Vector2(HEX, HEX))
+		var left := ContextRadial.label_on_left(hex.position, HEX, view, anchor)
+		if left == _label_left[i]:
+			continue
+		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, ts)
+		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
+		var blockers: Array[Rect2] = [title_box, nameplate()]
+		blockers.append_array(UiTokens.hud_reserved(view))
+		for j in _buttons.size():
+			if j != i:
+				blockers.append(Rect2(_hold.drawn(1 + j).position, Vector2(HEX, HEX)))
+		var r := pick_label_rect(left, hex, w, view, blockers, [src])
+		_label_left[i] = left
+		_hold.set_label_goal(i, r)
+
+## The x positions the title may slide to: where it is, then just clear of each hex.
+func _title_spots(box: Rect2, _view: Vector2) -> Array[float]:
+	var xs: Array[float] = [box.position.x]
+	for i in mini(_buttons.size(), _hold.drawn_count() - 1):
+		var b := _hold.drawn(1 + i)
+		xs.append_array([b.position.x - box.size.x - 12.0, b.position.x + b.size.x + 12.0])
+	return xs
+
+## Take the drawn (gliding) places for the title, hexes and labels; the lab and the tests read these.
+func _paint(anchor: Vector2) -> void:
+	if _hold.drawn_count() < 1 + _buttons.size() + _labels.size():
+		return
+	_offs_prev.clear()
+	for i in _hold.drawn_count():
+		_offs_prev.append(_hold.drawn(i).position - anchor)
+	title_box = _hold.drawn(0)
 	for i in _buttons.size():
-		if i < spots.size():
-			_buttons[i].position = spots[i]
+		_buttons[i].position = _hold.drawn(1 + i).position
+	label_rects.clear()
+	for i in _labels.size():
+		label_rects.append(_hold.drawn(1 + _buttons.size() + i))
 
 func _draw() -> void:
-	if not _open or node == null:
+	if not _open or node == null or label_rects.size() < _buttons.size():
 		return
-	var base := _anchor()
 	var font := ThemeDB.fallback_font
 	var view := get_viewport_rect().size
 	var name := UiTokens.ellipsis(font, _node_name(), 168.0, UiTokens.body(view))
 	var ns := UiTokens.body(view)
 	var nw := font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x
-	# Where the ring could not turn clear of the title (a crowded edge), slide the title to the first
-	# spot beside the hexes that is clear of all of them (one shift per hex moved it onto the other).
-	var keep_off: Array[Rect2] = UiTokens.hud_reserved(view)
-	keep_off.append_array([nameplate(), source_rect()])
-	for b in _buttons:
-		keep_off.append(Rect2(b.position, b.size).grow(4.0))
-	var xs: Array[float] = [title_box.position.x]
-	for b in _buttons:
-		xs.append_array([b.position.x - title_box.size.x - 12.0, b.position.x + b.size.x + 12.0])
-	if _hold.held:
-		xs.clear()
-	for x in xs:
-		var spot := Rect2(Vector2(clampf(x, 8.0, maxf(8.0, view.x - title_box.size.x - 8.0)), title_box.position.y), title_box.size)
-		var clear := true
-		for k in keep_off:
-			clear = clear and not spot.intersects(k)
-		if clear:
-			title_box = spot
-			break
 	var name_pos := title_box.position + Vector2(10.0, float(ns))
 	var lv := LevelDisplay.label(level)
 	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.meta(view)).x
@@ -300,42 +362,16 @@ func _draw() -> void:
 	draw_rect(title_box, UiTokens.INK)
 	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
 	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
-	var plate := nameplate()
-	var src := source_rect()
-	var held_rects: Array[Rect2] = []
-	if _hold.held:
-		held_rects.assign(label_rects)
-	label_rects.clear()
 	for i in _buttons.size():
-		var b := _buttons[i]
 		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, UiTokens.body(view))
 		var reason: String = str(_labels[i]["reason"])
 		var ts := UiTokens.body(view)
-		var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
-		var blockers: Array[Rect2] = [title_box, plate]
-		blockers.append_array(UiTokens.hud_reserved(view))
-		for j in _buttons.size():
-			if j != i:
-				blockers.append(Rect2(_buttons[j].position, _buttons[j].size))
-		var rect: Rect2 = held_rects[i] if i < held_rects.size() else pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), tw, view, blockers, [src])
-		var pos := rect.position + Vector2(4.0, 14.0)
-		label_rects.append(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)))
-		draw_rect(label_rects[-1], UiTokens.INK)
+		var pos := label_rects[i].position + Vector2(4.0, 14.0)
+		draw_rect(label_rects[i], UiTokens.INK)
 		draw_string(font, pos + Vector2(2, 6), text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.95, 0.95, 0.95) if reason == "" else Color(0.75, 0.75, 0.75))
 		if reason != "":
 			var short := UiTokens.ellipsis(font, reason, 148.0, UiTokens.meta(view))
 			draw_string(font, pos + Vector2(2, 24), short, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.DANGER)
-	_hold.picked()
-	# Gather progress: a thick outline sweeping around the picked hex, once per unit.
-	if active_index >= 0 and active_index < _buttons.size():
-		var ab := _buttons[active_index]
-		var hc := ab.position + ab.size * 0.5
-		var hr := minf(ab.size.x, ab.size.y) * 0.5 + 4.0
-		var track := _hex_sweep(hc, hr, 1.0)
-		track.append(track[0])
-		draw_polyline(track, Color(0.05, 0.05, 0.05, 0.6), 6.0, true)
-		if _progress > 0.002:
-			draw_polyline(_hex_sweep(hc, hr, _progress), Color(1.0, 0.92, 0.5, 0.98), 6.0, true)
 
 func _node_name() -> String:
 	return title
