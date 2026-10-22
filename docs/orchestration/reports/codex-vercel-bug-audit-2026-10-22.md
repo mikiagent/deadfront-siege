@@ -15,6 +15,38 @@ Agent: Codex
 
 ## Confirmed defects
 
+### P0: the web renderer exhausts its instance-uniform buffer
+
+The owner captured the deployed build filling the error overlay with:
+
+```text
+ERROR: Too many instances using shader instance variables.
+Maximum items supported by this hardware is: 1024.
+```
+
+The scene behind the overlay contains black card-shaped render failures, so this is a production playability blocker rather than harmless console noise.
+
+Godot's web and Compatibility backends cap the global shader-variable buffer at 1,024 items. Godot reserves 16 items for each geometry instance whose material declares an `instance uniform`, which makes the real web ceiling 64 such geometry instances. The previous SWITCH2D work treated the item count as an instance count. The comment in `card_prop.gd` still calls the budget "a few thousand," and the old report says GLES3 permits 4,096 instances. Both are wrong for this allocation model, and web is capped at 1,024 items anyway.
+
+A temporary real-island probe loaded the current home island, expanded shader includes, counted every `GeometryInstance3D` whose material declares the occlusion instance uniforms, and failed identically on repeated runs:
+
+```text
+[shader-slots] instances=489 items=7824 limit=1024 card=310 multimesh=155 other=24
+[shader-slots] FAIL real island exceeds WebGL instance-uniform buffer by 6800 items
+```
+
+The dominant consumer is 310 tall resource cards using `occl_fade`. Converted MultiMesh scenery adds 155 instances, and other occluders add 24. The fade-free card shader is working for short cards, but 310 tall cards alone need 4,960 items and exceed the web ceiling almost five times. No reload or leak is required to reproduce the failure.
+
+Raising `rendering/limits/global_shader_variables/buffer_size` cannot fix web because 1,024 is the backend limit. Swapping materials at runtime is also unsafe as the primary design because Godot has a confirmed bug where instance-uniform allocations may remain reserved until the node is freed.
+
+Fix direction: remove per-instance uniforms from the web rendering path. The occlusion system already has eight global origin/fade slots for active MultiMesh entries. Use that same bounded global-slot design for cards and other occluders, or disable occlusion and compile a truly instance-uniform-free material on web as a containment fix. Add a gate that counts buffer items, not geometry nodes, and rejects any web island above 1,024. Material swaps need a renderer-level regression test because a source-only count cannot catch allocation leaks.
+
+Primary references:
+
+- Godot ProjectSettings documentation: <https://docs.godotengine.org/en/stable/classes/class_projectsettings.html#class-projectsettings-property-rendering-limits-global-shader-variables-buffer-size>
+- Godot issue documenting the 16-item reservation: <https://github.com/godotengine/godot/issues/110141>
+- Godot Compatibility reproduction where a 4,096-item limit fails at the 257th instance: <https://github.com/godotengine/godot/issues/114949>
+
 ### P1: layout placement emits a typed-array error every frame
 
 Reproduction on the current desktop build:
@@ -78,6 +110,7 @@ Fix direction: inspect the exported PCK by largest resource, exclude source/unre
 
 - Production build stamp: PASS, `b1f07de37/d0a79d2906`.
 - Production browser boot: PASS, main scene ready.
+- Production web rendering: FAIL, instance-uniform buffer exhausted at 1,024 items.
 - `tools/smoke.sh --no-import`: PASS.
 - Headless `--smoke --touch`: PASS.
 - `t_mapui.gd`: PASS, but covers the stale permanent-trail contract.
@@ -88,6 +121,7 @@ Fix direction: inspect the exported PCK by largest resource, exclude source/unre
 ## What failed
 
 - The deployed release could not complete the deterministic gameplay soak because the release and soak entry points do not connect.
+- The deployed web game is not playably rendered once the home island loads. Its occlusion shaders request 7,824 buffer items against the web limit of 1,024.
 - This task was diagnostic. No gameplay fixes were made, so all confirmed defects remain in production.
 
 ## Credits spent
@@ -98,6 +132,6 @@ Fix direction: inspect the exported PCK by largest resource, exclude source/unre
 ## What the next agent needs
 
 - Treat this report as superseding the earlier statement that no runtime errors appeared. The layout error surfaced only after interacting with the build.
-- Fix in this order: layout-mode per-frame error, branch-pile static classification, footstep TTL and save migration, then web payload and soak wiring.
+- Fix in this order: web instance-uniform exhaustion, layout-mode per-frame error, branch-pile static classification, footstep TTL and save migration, then web payload and soak wiring.
 - Preserve backward compatibility for existing map saves. Old trail rows have only two coordinates.
 - After fixes, rerun the two targeted regression checks, `t_mapui.gd`, `t_card2d.gd`, `tools/smoke.sh`, the `--touch` smoke, and a corrected production soak.
