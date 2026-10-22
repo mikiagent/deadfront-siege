@@ -212,6 +212,16 @@ func _test_wiring() -> void:
 	print("[t_mapui] wiring cells=%d trail=%d" % [f.revealed_count(), f.trail.size()])
 
 func _test_icons() -> void:
+	# CLAIMS2: a domain is a set of cells declared on the runtime, not a rect list a fresh world comes
+	# with. Declare one cell next to the survivor so the atlas has a claim to draw.
+	var w: Node = get_root().get_node_or_null("World")
+	if w != null and w.claims_for_current().is_empty():
+		var ic = load("res://scripts/world/island_claims.gd")
+		var bg = load("res://scripts/world/build_grid.gd")
+		var rt: Variant = w.runtime
+		if rt != null:
+			var tile: Vector2i = bg.tile_of(_player.global_position)
+			rt.claim_domain([ic.cell_of(rt, tile)])
 	var map: Control = MS.new()
 	root.add_child(map)
 	map.hud = _hud

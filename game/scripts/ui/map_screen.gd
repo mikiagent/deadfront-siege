@@ -96,6 +96,16 @@ func _icon_marks() -> Array:
 			continue
 		# A house on the claim's centre tile (the reference puts the owner's domain on the coast).
 		out.append({"kind": "claim", "at": Vector3(float(r.get_center().x) + 0.5, 0.0, float(r.get_center().y) + 0.5)})
+	# CLAIMS2: a domain is a set of cells on the runtime, not a list of rects; the legacy rows above are
+	# an old save's shape. Mark the declared domain's centre so the atlas keeps its house icon.
+	if out.is_empty() and IslandClaims.has_domain(rt):
+		var cells := IslandClaims.owned_cells(rt)
+		if not cells.is_empty():
+			var sum := Vector2.ZERO
+			for c: Vector2i in cells:
+				sum += Vector2(c)
+			var centre: Vector2 = sum / float(cells.size())
+			out.append({"kind": "claim", "at": Vector3(centre.x + 0.5, 0.0, centre.y + 0.5)})
 	var camp: Variant = rt.get("_camp_pos")
 	if camp is Vector3:
 		out.append({"kind": "camp", "at": camp})
