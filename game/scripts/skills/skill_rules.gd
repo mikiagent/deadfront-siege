@@ -126,6 +126,27 @@ static func has_effect(n: Dictionary) -> bool:
 static func buyable(sk: SkillState, tree: String, node_id: String) -> bool:
 	return ((_index(sk)["buyable"] as Dictionary).get(tree, {}) as Dictionary).has(node_id)
 
+## True when the SP held buy at least one buyable node now: the HUD's SKILLS hex pulses on this and
+## stops when it goes false (islands-and-loop-plan §3.3 "a pulse on the Skills hex when a node is
+## affordable"). A node also needs its tree level, its prerequisite and the SP it costs, so this asks
+## node_state instead of re-deriving the rules. `sp_now()` recounts: the answered SP is the SP on
+## screen. A learned node is no longer for sale, so a full spend turns the pulse off by itself.
+static func affordable_now(sk: SkillState) -> bool:
+	if sk == null:
+		return false
+	var sp: int = sk.sp_now()
+	if sp <= 0:
+		return false
+	for tree in SkillState.ORDER:
+		var lvl: int = sk.level_of(tree)
+		for n in sk.nodes(tree):
+			if bool(n.get("auto", false)) or int(n.get("sp", 0)) > sp or int(n.get("level", 1)) > lvl:
+				continue
+			if buyable(sk, tree, str(n.get("id", ""))):
+				if (sk.node_state(tree, n) as Array)[0] == "available":
+					return true
+	return false
+
 ## The gathering node that opens the gather item `item`, as [tree, node] ([] when no node gates it).
 ## An effect with an empty item list marks its node, not a material (Thickets: cutting thickets with a knife).
 static func gather_gate(sk: SkillState, item: String) -> Array:
@@ -143,6 +164,7 @@ static func _item_gate(sk: SkillState, tree: String, kind: String, item: String)
 	return []
 
 ## "" when the gather item is open (no node gates it, or its node is learned), else why it is locked
+
 ## ("Needs Mining 1 (Gathering Lv. 10, 8 SP)"). harvest_node.can_gather puts it on screen.
 static func gather_block(sk: SkillState, item: String) -> String:
 	if sk == null:
