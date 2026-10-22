@@ -139,7 +139,7 @@ func _process(delta: float) -> void:
 		ok = false
 	if ok:
 		var genes_raw: Variant = occupant.attributes.get("genetics", {})
-		var genes := CreatureGenetics.from_dict(genes_raw) if genes_raw is Dictionary else CreatureGenetics.roll()
+		var genes := CreatureGenetics.from_dict(genes_raw) if genes_raw is Dictionary else CreatureGenetics.roll(null, def.coloration)
 		var rec := PetRecord.from_def(def, &"", StringName(str(occupant.attributes.get("variant", ""))), genes, int(occupant.attributes.get("level", 1)))
 		rec.origin = &"capture"
 		rec.tamer = player.display_name()

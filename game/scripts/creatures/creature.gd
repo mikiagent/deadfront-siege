@@ -101,7 +101,13 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	# old 26 m cut-off culled every creature mesh and only the plates showed.
 	_set_vis_range(view, 0.0)
 	if genetics == null:
-		genetics = CreatureGenetics.roll()
+		# The colour roll is seeded off the animal's identity (spawn point), so a wild individual
+		# keeps its colours when the caller reuses a seeded genetics roll for it.
+		# Only the colour roll is seeded from the spawn point (a reload keeps the look); the IVs stay
+		# random, as they always were.
+		genetics = CreatureGenetics.roll(null, def.coloration, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
+	# One colour profile per individual, kept on the genetics record so taming carries it over.
+	view.apply_coloration(genetics.coloration if genetics.coloration != null else CreatureColoration.neutral())
 	level = _spawn_level(p_runtime, p_tier_offset)
 	health.setup(stat_value(&"health"))
 	health.healed.connect(_on_healed)
@@ -132,6 +138,16 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 		Game.ensure_creature_plates()
 	if Game and Game.debug_overlay:
 		print("[creature] %s spawned pack=%s level=%d" % [def.id, pack_id, level])
+
+## Identity key for a fresh wild spawn: species, rounded spawn point and a per-spawn serial.
+## Seeding the colour roll from it keeps one animal's look stable for as long as it lives (taming
+## reuses the genetics record), while a herd at different points and a respawned individual at the
+## same point both come out as new animals instead of clones.
+static var _spawn_serial: int = 0
+
+static func spawn_colour_key(species: StringName, at: Vector3) -> String:
+	_spawn_serial += 1
+	return "%s@%d,%d,%d#%d" % [species, roundi(at.x), roundi(at.y), roundi(at.z), _spawn_serial]
 
 func on_anim_event(kind: String, clip: String) -> void:
 	anim.on_event(kind, clip)

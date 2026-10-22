@@ -42,7 +42,12 @@ const SNARE_ROW := {"heavy": false, "life_left": 0.0, "arm_left": 0.0}
 const STATUS_ROW := {"id": "", "stacks": 0, "time_left": 0.0}
 const CAMP_ROW := {"rot": 0}
 ## CreatureGenetics.from_dict reads these parts with .get() and casts each leaf with int().
-const GENETICS := {"ivs": {}, "evs": {}, "level_gains": {}}
+## `coloration` is the individual's natural colour profile (CreatureColoration.from_dict clamps it
+## and ignores anything that is not a finite number).
+## coloration is the individual's colour profile: numbers, a bool and two short labels (morph, pattern).
+const GENETICS := {"ivs": {}, "evs": {}, "level_gains": {},
+	"coloration": {"hue_deg": 0.0, "sat": 0.0, "val": 0.0, "morph": "", "rare": false,
+		"pattern": "", "pattern_scale": 0.0, "pattern_strength": 0.0, "pattern_tone": 0.0, "pattern_seed": 0.0}}
 ## PetRecord.from_dict and CreatureGenetics.from_dict cast these with float()/int(). tamed_at and
 ## wild_level are the overhaul tip's (W1-TAME), listed ahead of the merge.
 const PET_ROW := {
@@ -223,15 +228,22 @@ static func _pets(rows: Array) -> Array:
 		out.append(p)
 	return out
 
-## Keep only numeric stats under each genetics part (keys other than ivs/evs/level_gains are never read).
+## Keep only numeric stats under each genetics part (keys other than ivs/evs/level_gains/coloration
+## are never read; coloration.morph is a label, dropped here, its hue/sat/val carry the look).
 static func _genetics(g: Variant) -> void:
 	if not g is Dictionary:
 		return
-	for part in (g as Dictionary).values():
+	for key in (g as Dictionary).keys():
+		var part: Variant = (g as Dictionary)[key]
 		if not part is Dictionary:
 			continue
 		for stat in (part as Dictionary).keys():
-			if not (part[stat] is int or part[stat] is float):
+			var v: Variant = (part as Dictionary)[stat]
+			if str(key) == "coloration":
+				# The profile keeps its bool and its two labels; _shape above already typed them.
+				if not (v is int or v is float or v is bool or v is String):
+					(part as Dictionary).erase(stat)
+			elif not (v is int or v is float):
 				(part as Dictionary).erase(stat)
 
 ## Tree levels cap at 60. Bought nodes must exist in trees.json and be reachable (tree level,

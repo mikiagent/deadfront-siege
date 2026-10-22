@@ -24,6 +24,9 @@ extends Resource
 @export var variants: Array[StringName] = []
 @export var clips: Dictionary = {}
 @export var pipeline: Dictionary = {}
+## Species' natural colour ranges for wild individuals: {"hue_deg": 14, "sat": 0.18, "val": 0.12}
+## and optionally "morphs": [{"id": "dark", "weight": 1, ...}]. Empty = CreatureColoration defaults.
+@export var coloration: Dictionary = {}
 @export var preferred_food: Array[StringName] = []
 @export var accepted_food: Array[StringName] = []
 @export var feeds_needed: float = 3.0
@@ -61,6 +64,8 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.variants = ItemDef._names(d.get("variants", []))
 	c.clips = d.get("clips", {})
 	c.pipeline = d.get("pipeline", {})
+	var colour: Variant = d.get("coloration", {})
+	c.coloration = colour if colour is Dictionary else {}
 	c._apply_taming(d)
 	return c
 

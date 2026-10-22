@@ -48,6 +48,14 @@ var respawn_left: float = 0.0
 func respawning() -> bool:
 	return respawn_left > 0.0
 
+## The individual's natural colours. Never null once genetics exist: a record with no profile (saved
+## before colour profiles existed, or built by hand) derives one from its uid, which is stable, so
+## loading the same pet twice never recolours it.
+func coloration() -> CreatureColoration:
+	if genetics != null and genetics.coloration != null:
+		return genetics.coloration
+	return CreatureColoration.derive(uid)
+
 func tick_respawn(delta: float) -> void:
 	if respawn_left > 0.0:
 		respawn_left = maxf(0.0, respawn_left - delta)
@@ -135,7 +143,11 @@ static func from_def(def: CreatureDef, _legacy_grade: StringName = &"", variant:
 	r.tamed_at = int(Time.get_unix_time_from_system())
 	r.species = def.id
 	r.variant = variant
-	r.genetics = p_genetics if p_genetics != null else CreatureGenetics.roll()
+	r.genetics = p_genetics if p_genetics != null else CreatureGenetics.roll(null, def.coloration)
+	if r.genetics.coloration == null:
+		# A hand-built genetics record (labs, probes) still gets this individual's own colours, kept
+		# on the record so taming and saving hand the very same profile on.
+		r.genetics.coloration = CreatureColoration.roll(def.coloration)
 	r.level = clampi(p_level, 1, PetStats.MAX_LEVEL)
 	r.wild_level = r.level
 	r.tamed_role = def.tamed_role.duplicate()
@@ -239,6 +251,12 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	r.accuracy = float(d.get("accuracy", 100.0))
 	r.speed = float(d.get("speed", 0.0))
 	r.genetics = CreatureGenetics.from_dict(d.get("genetics", {})) if d.get("genetics", {}) is Dictionary else CreatureGenetics.neutral()
+	# A save written before colour profiles has none (an all-junk block is erased down to {} by the
+	# sanitizer, so from_dict leaves it null too): derive one from the uid, never paint it neutral.
+	if r.genetics.coloration == null:
+		# A save written before colour profiles: derive one from the pet's uid, so it is the same on
+		# every load (a roll folded into the raw genetics table, which then round-trips like any other).
+		r.genetics.coloration = CreatureColoration.derive(r.uid, Data.creature(r.species).coloration if Data.creature(r.species) != null else {})
 	r.tamed_role.clear()
 	for v in d.get("tamed_role", []):
 		r.tamed_role.append(StringName(str(v)))

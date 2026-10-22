@@ -22,7 +22,9 @@
     "defense": 400,
     "speed": 450
   },
-  "tamed_role": ["mount"],
+  "tamed_role": [
+    "mount"
+  ],
   "look": "12 meter Tyrannosaurus rex, massive deep skull, tiny two-fingered arms, huge legs, thick tail, ash-dark scales with a rust-red back and pale belly,",
   "texture_prompt": "ash-dark scaly hide with rust-red dorsal colouring, pale belly, matte surface",
   "clips": {
@@ -66,5 +68,39 @@
       "sleep"
     ],
     "provenance": "work/pipeline.json, work/REPORT.md"
+  },
+  "coloration": {
+    "hue_deg": 10,
+    "sat": 0.14,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "pale"
+    ],
+    "patterns": [
+      {
+        "id": "stripes",
+        "weight": 3.0,
+        "scale": 0.85,
+        "strength": 0.26
+      },
+      {
+        "id": "spots",
+        "weight": 1.0,
+        "scale": 0.9,
+        "strength": 0.48
+      },
+      {
+        "id": "countershade",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
   }
 }
