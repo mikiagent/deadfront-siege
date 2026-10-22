@@ -13,11 +13,11 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 		counts = def["terrains"].get(str(terrain), {})
 	var home := str(def.get("kind", "")) == "private"
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 17 if home else 25
+	rng.seed = int(def.get("seed", 17 if home else 25))
 	# GROUND2D: the grass and flower families are painted ground cover now (scripts/world/ground_cover.gd):
 	# dense camera-facing cards per 32 m cell, thinned with distance instead of switched off at a range,
 	# never colliding. The counts stay data (ground_cover.json holds the density per m2).
-	GroundCover.install(rt, climate, 17 if home else 25)
+	GroundCover.install(rt, climate, int(def.get("seed", 17 if home else 25)))
 	# Durango's islands are dense: every family keeps a floor even when the island data is sparse.
 	# Denser islands (owner asked for resources everywhere): home floors up 3-4x, unstable up ~1.5x.
 	# Owner wants islands that read full: counts come from area x props.json scatter.nodes_target. The

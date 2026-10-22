@@ -157,8 +157,8 @@
     "cliff_rock": {
       "_about": "rock breaking out of a cliff face; ISLANDGEN's CLIFF tiles when they exist, steep rock/ash today. Big enough that it stays: 'really big cliffs'",
       "models": [
-        "res://assets/nature/biome/cliff-rock-a.glb",
-        "res://assets/nature/biome/spire-a.glb",
+        "res://assets/nature/biome/cliff_chunk_red.glb",
+        "res://assets/nature/biome/rock_spire_a.glb",
         "Rock_Moss_5",
         "Rock_7"
       ],
@@ -184,8 +184,8 @@
     },
     "rock_spire": {
       "models": [
-        "res://assets/nature/biome/spire-a.glb",
-        "res://assets/nature/biome/spire-b.glb"
+        "res://assets/nature/biome/rock_spire_a.glb",
+        "res://assets/nature/biome/rock_spire_b.glb"
       ],
       "collide": true,
       "destroyable": true,
@@ -209,9 +209,9 @@
     "mesa_cliff": {
       "_about": "the big sandstone/basalt formation: indestructible",
       "models": [
-        "res://assets/nature/biome/mesa-a.glb",
-        "res://assets/nature/biome/mesa-b.glb",
-        "res://assets/nature/biome/mesa-basalt-a.glb"
+        "res://assets/nature/biome/mesa_sandstone.glb",
+        "res://assets/nature/biome/mesa_basalt.glb",
+        "res://assets/nature/biome/mesa_basalt.glb"
       ],
       "collide": true,
       "destroyable": false,
@@ -234,8 +234,8 @@
     },
     "basalt_column": {
       "models": [
-        "res://assets/nature/biome/basalt-column-a.glb",
-        "res://assets/nature/biome/basalt-column-b.glb"
+        "res://assets/nature/biome/basalt_columns.glb",
+        "res://assets/nature/biome/basalt_columns.glb"
       ],
       "collide": true,
       "destroyable": false,
@@ -258,8 +258,8 @@
     },
     "termite_mound": {
       "models": [
-        "res://assets/nature/biome/termite-mound-a.glb",
-        "res://assets/nature/biome/termite-mound-b.glb"
+        "res://assets/nature/biome/termite_mound_a.glb",
+        "res://assets/nature/biome/termite_mound_b.glb"
       ],
       "collide": true,
       "destroyable": true,
@@ -284,8 +284,8 @@
       "models": [
         "WoodLog_Moss",
         "WoodLog",
-        "res://assets/nature/biome/log-fallen-a.glb",
-        "res://assets/nature/biome/log-fallen-b.glb"
+        "res://assets/nature/biome/fallen_log_dry.glb",
+        "res://assets/nature/biome/fallen_log_moss.glb"
       ],
       "collide": true,
       "destroyable": true,
@@ -309,8 +309,7 @@
     "tree_stump": {
       "models": [
         "TreeStump_Moss",
-        "TreeStump",
-        "res://assets/nature/biome/tree-stump-a.glb"
+        "TreeStump"
       ],
       "collide": true,
       "destroyable": true,
@@ -334,7 +333,7 @@
     "driftwood": {
       "models": [
         "WoodLog",
-        "res://assets/nature/biome/log-fallen-a.glb"
+        "res://assets/nature/biome/fallen_log_dry.glb"
       ],
       "collide": false,
       "destroyable": true,
@@ -357,8 +356,8 @@
     },
     "fern": {
       "models": [
-        "res://assets/nature/biome/fern-a.glb",
-        "res://assets/nature/biome/fern-b.glb",
+        "res://assets/nature/biome/fern_clump_a.glb",
+        "res://assets/nature/biome/fern_clump_b.glb",
         "Plant_2",
         "Plant_3"
       ],
@@ -383,8 +382,8 @@
     },
     "reeds": {
       "models": [
-        "res://assets/nature/biome/reed-clump-a.glb",
-        "res://assets/nature/biome/reed-clump-b.glb",
+        "res://assets/nature/biome/reed_clump_a.glb",
+        "res://assets/nature/biome/reed_clump_b.glb",
         "Plant_4",
         "Plant_5"
       ],
@@ -414,7 +413,7 @@
     },
     "plume_grass": {
       "models": [
-        "res://assets/nature/biome/plume-grass-a.glb",
+        "res://assets/nature/biome/plume_grass.glb",
         "Grass_2",
         "Grass"
       ],
@@ -466,8 +465,8 @@
     },
     "aloe": {
       "models": [
-        "res://assets/nature/biome/aloe-a.glb",
-        "res://assets/nature/biome/aloe-b.glb",
+        "res://assets/nature/biome/aloe_flower.glb",
+        "res://assets/nature/biome/aloe_flower.glb",
         "Plant_1"
       ],
       "collide": false,

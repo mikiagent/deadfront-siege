@@ -334,6 +334,9 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 			basis = basis.rotated(view.z, deg_to_rad(lean))
 		# The pivot pixel lands on the ground point (CardProp's rule), so the clump stands on its spot.
 		var origin := pos + view.x * ((0.5 - pv.x) * w) + view.y * ((pv.y - 0.5) * h)
+		# PROPS reads cover_points to prove cover exists far from the origin (island_scatter.cover_within).
+		# The old private _ground_cover filled it; GroundCover replaced that path, so fill it here.
+		rt.cover_points.append(pos)
 		if not groups.has(key):
 			groups[key] = []
 		var list: Array = groups[key]

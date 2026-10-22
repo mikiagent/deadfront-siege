@@ -335,9 +335,17 @@ static func _card_path(rows: Dictionary) -> String:
 		return ""
 	if card.begins_with("res://"):
 		return card if ResourceLoader.exists(card) else ""
-	# sprites2d.json is the CARD2D catalogue: {"props": {"stone_arch": {"path": "res://..."}}}
+	# sprites2d.json (SPRITES2D) is {"sprites": [...]}; a painted prop is the row whose kind is
+	# "prop:<id>". Older shape was {"props": {id: {path}}} - keep reading it if it ever returns.
 	var id := card.trim_prefix("prop:")
-	var spr: Variant = _sprites_data().get("props", null)
+	var data := _sprites_data()
+	if data.has("sprites") and data["sprites"] is Array:
+		for r in data["sprites"]:
+			if r is Dictionary and str((r as Dictionary).get("kind", "")) == "prop:" + id:
+				var f := str((r as Dictionary).get("file", ""))
+				if f != "" and ResourceLoader.exists(f):
+					return f
+	var spr: Variant = data.get("props", null)
 	if spr is Dictionary:
 		var row: Variant = (spr as Dictionary).get(id, null)
 		if row is Dictionary:
@@ -355,8 +363,8 @@ static func _sprites_data() -> Dictionary:
 	if _sprites_loaded:
 		return _sprites
 	_sprites_loaded = true
-	if ResourceLoader.exists("res://data/sprites2d.json"):
-		var f := FileAccess.open("res://data/sprites2d.json", FileAccess.READ)
+	if ResourceLoader.exists("res://data/world/sprites2d.json"):
+		var f := FileAccess.open("res://data/world/sprites2d.json", FileAccess.READ)
 		if f != null:
 			var parsed: Variant = JSON.parse_string(f.get_as_text())
 			if parsed is Dictionary:
