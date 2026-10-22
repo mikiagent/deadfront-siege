@@ -4,6 +4,7 @@ game/export/
 /export/
 *.blend1
 tools/__pycache__/
+tools/blender/biome_props/__pycache__/
 
 tools/blob.env
 game/export/packs/
