@@ -165,6 +165,18 @@ func _model_leaf(leaf_name: String) -> Node3D:
 	var prop := get_node_or_null("Prop")
 	return prop.find_child(leaf_name, true, false) as Node3D if prop else null
 
+## Where the survivor lies down: the middle of the bedding, not wherever they happened to stand.
+## PlacedBuilding's origin is the ground centre of the footprint (props_manifest), so for a tent this
+## is inside it - the survivor sleeps within the shelter rather than beside it.
+func sleep_anchor() -> Vector3:
+	return global_position
+
+## Where the survivor stands up: one step outside the footprint on the door side (+Z; the Blender
+## models face -Y, which Godot sees as +Z). Standing up inside a tent is not possible - it is 1.6 m
+## tall - so waking moves them out first.
+func wake_anchor() -> Vector3:
+	return global_transform * Vector3(0.0, 0.0, 1.6)
+
 func sleep_duration() -> float:
 	return 12.0 if kind == &"straw_roll" else (8.0 if kind == &"canvas_tent" else (7.0 if kind == &"log_shelter" else (5.0 if kind == &"cabin_bed" else 10.0)))
 
