@@ -12,6 +12,7 @@ import bmesh
 from mathutils import Euler, Matrix, Vector
 
 from lib import Part
+import farmkit
 
 R = math.radians
 
@@ -2092,6 +2093,22 @@ def house_roof_stone():
     return [(p, (0, 0, 0))]
 
 BUILDERS = {
+    # farm kit (dsc farmkit): fields, crop stages, path tiles and farm props
+    "field_tilled": farmkit.field_tilled,
+    "field_crop_0": farmkit.field_crop_0,
+    "field_crop_1": farmkit.field_crop_1,
+    "field_crop_2": farmkit.field_crop_2,
+    "field_crop_3": farmkit.field_crop_3,
+    "path_dirt": farmkit.path_dirt,
+    "path_dirt_corner": farmkit.path_dirt_corner,
+    "path_stone": farmkit.path_stone,
+    "path_stone_corner": farmkit.path_stone_corner,
+    "fence_post_rail": farmkit.fence_post_rail,
+    "fence_post_rail_gate": farmkit.fence_post_rail_gate,
+    "trellis": farmkit.trellis,
+    "scarecrow": farmkit.scarecrow,
+    "compost_heap": farmkit.compost_heap,
+    "water_trough": farmkit.water_trough,
     "tent": tent,
     "basket": basket,
     "workbench": workbench,

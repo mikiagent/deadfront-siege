@@ -1,5 +1,5 @@
 {
-  "_about": "Building visuals. `glb` (res:// path) is the hand-built Blender structure set (tools/blender/structures, one shared 1024 atlas) and wins when present; `aabb_m` is its measured size in Godot axes (x, y up, z) for colliders; `stages` lists per-stage GLBs for processing stations. `model` is the old Kenney Survival Kit 2.0 (CC0) name under res://assets/props/kenney/<name>.glb, kept as the fallback; rows whose art_status is REPLACE are marked for replacement (docs/orchestration/mmo/asset-replacement.md): Kenney rows, and the Blender building-system stand-ins. Every Blender row carries `upgrade`, its low-poly upgrade path. Footprints are grid cells (1 m). model_sizes_m are the Kenney sizes (Blender x, y, z=up).",
+  "_about": "Building visuals. `glb` (res:// path) is the hand-built Blender structure set (tools/blender/structures, one shared 1024 atlas) and wins when present; `aabb_m` is its measured size in Godot axes (x, y up, z) for colliders; `stages` lists per-stage GLBs for processing stations. `model` is the old Kenney Survival Kit 2.0 (CC0) name under res://assets/props/kenney/<name>.glb, kept as the fallback; rows whose art_status is REPLACE are marked for replacement (docs/orchestration/mmo/asset-replacement.md): Kenney rows, and the Blender building-system stand-ins. Every Blender row carries `upgrade`, its low-poly upgrade path. Footprints are grid cells (1 m). model_sizes_m are the Kenney sizes (Blender x, y, z=up). `farm` holds the farm kit models (dsc farmkit: field plots, crop stages, path tiles and farm props). They are not placeable building kinds; the game picks them up by name.",
   "buildings": {
     "bonfire": {
       "model": "campfire-pit",
@@ -1600,6 +1600,192 @@
     "club": {
       "model": "kenney/tool-hammer",
       "status": "stand-in"
+    }
+  },
+  "farm": {
+    "field_tilled": {
+      "glb": "res://assets/props/blender/field_tilled.glb",
+      "aabb_m": [
+        2.3,
+        0.182,
+        2.3
+      ],
+      "tris": 420,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): tilled 2 x 2 m plot: dark furrowed soil, furrow rows, raised earth edge. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (420 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "field_crop_0": {
+      "glb": "res://assets/props/blender/field_crop_0.glb",
+      "aabb_m": [
+        2.3,
+        0.23,
+        2.3
+      ],
+      "tris": 1188,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): plot with seedlings (growth stage 0). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (1188 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "field_crop_1": {
+      "glb": "res://assets/props/blender/field_crop_1.glb",
+      "aabb_m": [
+        2.3,
+        0.38,
+        2.3
+      ],
+      "tris": 1380,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): plot with young plants (growth stage 1). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (1380 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "field_crop_2": {
+      "glb": "res://assets/props/blender/field_crop_2.glb",
+      "aabb_m": [
+        2.3,
+        0.54,
+        2.3
+      ],
+      "tris": 1380,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): plot with grown plants (growth stage 2). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (1380 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "field_crop_3": {
+      "glb": "res://assets/props/blender/field_crop_3.glb",
+      "aabb_m": [
+        2.3,
+        0.6,
+        2.3
+      ],
+      "tris": 2340,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): plot with ripe plants (growth stage 3, harvestable). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (2340 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "path_dirt": {
+      "glb": "res://assets/props/blender/path_dirt.glb",
+      "aabb_m": [
+        2.0,
+        0.046,
+        2.0
+      ],
+      "tris": 104,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): 2 x 2 m packed dirt path tile, edges blend into the grass. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (104 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "path_dirt_corner": {
+      "glb": "res://assets/props/blender/path_dirt_corner.glb",
+      "aabb_m": [
+        2,
+        0.042,
+        2
+      ],
+      "tris": 96,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): dirt path corner tile: the strip turns, grass inside the turn. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (96 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "path_stone": {
+      "glb": "res://assets/props/blender/path_stone.glb",
+      "aabb_m": [
+        2.009,
+        0.047,
+        2.019
+      ],
+      "tris": 132,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): 2 x 2 m flat stone path tile. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (132 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "path_stone_corner": {
+      "glb": "res://assets/props/blender/path_stone_corner.glb",
+      "aabb_m": [
+        2.019,
+        0.047,
+        2.0
+      ],
+      "tris": 144,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): stone path corner tile: the stones turn, grass inside the turn. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (144 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "fence_post_rail": {
+      "glb": "res://assets/props/blender/fence_post_rail.glb",
+      "aabb_m": [
+        2.006,
+        1.41,
+        0.211
+      ],
+      "tris": 272,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): 2 m rail fence run with lashed posts. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (272 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "fence_post_rail_gate": {
+      "glb": "res://assets/props/blender/fence_post_rail_gate.glb",
+      "aabb_m": [
+        2.041,
+        1.711,
+        0.306
+      ],
+      "tris": 428,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): 2 m gate run with a hinged leaf (node Leaf, origin on the hinge). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (428 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "nodes": {
+        "leaf": "Leaf",
+        "note": "leaf origin sits on the hinge; swing about local Y"
+      }
+    },
+    "trellis": {
+      "glb": "res://assets/props/blender/trellis.glb",
+      "aabb_m": [
+        1.278,
+        1.723,
+        0.41
+      ],
+      "tris": 380,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): bean trellis with climbing vines. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (380 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "scarecrow": {
+      "glb": "res://assets/props/blender/scarecrow.glb",
+      "aabb_m": [
+        1.06,
+        1.9,
+        0.38
+      ],
+      "tris": 260,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): scarecrow on a cross frame. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (260 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "compost_heap": {
+      "glb": "res://assets/props/blender/compost_heap.glb",
+      "aabb_m": [
+        1.003,
+        0.864,
+        0.761
+      ],
+      "tris": 464,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): slatted compost bin with a fork leaning on it. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (464 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "water_trough": {
+      "glb": "res://assets/props/blender/water_trough.glb",
+      "aabb_m": [
+        1.5,
+        0.52,
+        0.63
+      ],
+      "tris": 140,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): wooden water trough with iron bands. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (140 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     }
   }
 }

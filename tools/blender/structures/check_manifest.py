@@ -79,6 +79,28 @@ NODES = {
 # The taming_pen row's GLB is one 2 m ring segment, but its collider is the whole pen: taming_pen.gd
 # _ring_layout puts fence/gate segments at +-1.92 m, so aabb_m is the ring's extent, not the segment's.
 ASSEMBLY_AABB = {"taming_pen": [4.05, 1.84, 4.12]}
+# Farm kit (dsc farmkit): models the game does not place as buildings yet (field plots, crop stages,
+# path tiles and farm props). They live in their own manifest section so they never become a
+# placeable kind, and the game can pick them up by name later.
+FARM_MODELS = {
+    "field_tilled": "tilled 2 x 2 m plot: dark furrowed soil, furrow rows, raised earth edge",
+    "field_crop_0": "plot with seedlings (growth stage 0)",
+    "field_crop_1": "plot with young plants (growth stage 1)",
+    "field_crop_2": "plot with grown plants (growth stage 2)",
+    "field_crop_3": "plot with ripe plants (growth stage 3, harvestable)",
+    "path_dirt": "2 x 2 m packed dirt path tile, edges blend into the grass",
+    "path_dirt_corner": "dirt path corner tile: the strip turns, grass inside the turn",
+    "path_stone": "2 x 2 m flat stone path tile",
+    "path_stone_corner": "stone path corner tile: the stones turn, grass inside the turn",
+    "fence_post_rail": "2 m rail fence run with lashed posts",
+    "fence_post_rail_gate": "2 m gate run with a hinged leaf (node Leaf, origin on the hinge)",
+    "trellis": "bean trellis with climbing vines",
+    "scarecrow": "scarecrow on a cross frame",
+    "compost_heap": "slatted compost bin with a fork leaning on it",
+    "water_trough": "wooden water trough with iron bands",
+}
+FARM_NOTE = ("farm kit model (dsc farmkit): %s. Sizes are an assumption: a field module is 2 x 2 m "
+             "and a path tile 2 x 2 m, at most 0.05 m high")
 NEW_ROWS = {
     "harbour": {"footprint": [3, 6]},
     # station art (dsc-stationart). Footprints are grid cells (1 m): the workbench tiers take the
@@ -236,6 +258,7 @@ def write(manifest):
             row["nodes"] = NODES[kind]
         if kind in NOTES:
             row["note"] = NOTES[kind]
+    write_farm(manifest)
     manifest["_about"] = (
         "Building visuals. `glb` (res:// path) is the hand-built Blender structure set "
         "(tools/blender/structures, one shared 1024 atlas) and wins when present; `aabb_m` is its "
@@ -244,8 +267,30 @@ def write(manifest):
         "res://assets/props/kenney/<name>.glb, kept as the fallback; rows whose art_status is "
         "REPLACE are marked for replacement (docs/orchestration/mmo/asset-replacement.md): Kenney rows, and "
         "the Blender building-system stand-ins. Every Blender row carries `upgrade`, its low-poly upgrade path. "
-        "Footprints are grid cells (1 m). model_sizes_m are the Kenney sizes (Blender x, y, z=up)."
+        "Footprints are grid cells (1 m). model_sizes_m are the Kenney sizes (Blender x, y, z=up). "
+        "`farm` holds the farm kit models (dsc farmkit: field plots, crop stages, path tiles and farm "
+        "props). They are not placeable building kinds; the game picks them up by name."
     )
+
+
+def write_farm(manifest):
+    """The farm kit's own section: models that are not placeable building kinds."""
+    farm = manifest.setdefault("farm", {})
+    for name, note in FARM_MODELS.items():
+        path = os.path.join(GAME, "assets", "props", "blender", name + ".glb")
+        if not os.path.exists(path):
+            continue
+        s = glb_info.summary(path)
+        row = farm.setdefault(name, {})
+        row["glb"] = RES % name
+        row["aabb_m"] = [round(s["aabb_max"][k] - s["aabb_min"][k], 3) for k in range(3)]
+        row["tris"] = s["tris"]
+        row["art_status"] = "REVIEW"
+        row["note"] = FARM_NOTE % note
+        row["upgrade"] = UPGRADE % s["tris"]
+    if "fence_post_rail_gate" in farm:
+        farm["fence_post_rail_gate"]["nodes"] = {
+            "leaf": "Leaf", "note": "leaf origin sits on the hinge; swing about local Y"}
 
 
 def check_glb(kind, path, fp, aabb_m, errors):
@@ -288,6 +333,24 @@ def main():
             f.write(json.dumps(manifest, indent=2) + "\n")
     errors = []
     replace = []
+    farm = manifest.get("farm", {})
+    for name, row in farm.items():
+        path = res_to_path(str(row.get("glb", "")))
+        if not os.path.exists(path):
+            errors.append("farm.%s: missing %s" % (name, path))
+            continue
+        s = glb_info.summary(path)
+        size = [s["aabb_max"][k] - s["aabb_min"][k] for k in range(3)]
+        if s["tris"] > MAX_TRIS:
+            errors.append("farm.%s: %d tris > %d" % (name, s["tris"], MAX_TRIS))
+        if s["material_names"] != [MAT_NAME] or s["images"] != 0:
+            errors.append("farm.%s: materials %s / %d images (want [%s] / 0)"
+                          % (name, s["material_names"], s["images"], MAT_NAME))
+        if not (-0.06 <= s["aabb_min"][1] <= 0.03):
+            errors.append("farm.%s: base at y=%.3f, not on the ground" % (name, s["aabb_min"][1]))
+        if abs(size[0] - size[2]) > 0.2 and name.startswith("field_"):
+            errors.append("farm.%s: %.2f x %.2f m, the plot must be square" % (name, size[0], size[2]))
+        print("[check_manifest] farm.%-20s %4d tris  aabb %s" % (name, s["tris"], [round(v, 2) for v in size]))
     for kind, row in manifest["buildings"].items():
         fp = row.get("footprint", [1, 1])
         if row.get("glb") and not row["glb"].startswith(OWN_PREFIX):
