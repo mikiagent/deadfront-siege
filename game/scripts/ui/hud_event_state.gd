@@ -15,6 +15,9 @@ const SKILL_MERGE := 1.0
 ## How long an XP toast and a level-up toast stay (the big one reads longer).
 const SKILL_LIFE := 1.6
 const SKILL_LEVEL_LIFE := 3.0
+## At most this many skill lines on screen at once, newest kept: a burst of gains (or several tree
+## levels from one banked grant) must not stack down over the survivor.
+const SKILL_MAX := 4
 
 ## "+4 Gathering XP", the same words the HUD draws and the test reads.
 static func skill_text(tree: String, amount: float) -> String:
@@ -32,9 +35,25 @@ func add_skill_xp(tree: String, amount: float, level: int = 0) -> void:
 			entry["t"] = 0.0
 			return
 	skill_toasts.append({"tree": tree, "amount": amount, "level": level, "text": skill_text(tree, amount), "big": false, "life": SKILL_LIFE, "t": 0.0})
+	_trim_skill()
 
+## Consecutive level-ups of one tree fold into one line with the newest level ("Survival Lv. 6"): a
+## character level-up releases the banked XP of every tree at once, and four lines for two trees read
+## as four separate events.
 func add_skill_level(tree: String, level: int) -> void:
+	for entry in skill_toasts:
+		if str(entry["tree"]) == tree and bool(entry["big"]):
+			entry["level"] = maxi(int(entry["level"]), level)
+			entry["text"] = "%s %s" % [str(SkillState.NAMES.get(tree, tree)), LevelDisplay.label(int(entry["level"]))]
+			entry["t"] = 0.0
+			return
 	skill_toasts.append({"tree": tree, "amount": 0.0, "level": level, "text": "%s %s" % [str(SkillState.NAMES.get(tree, tree)), LevelDisplay.label(level)], "big": true, "life": SKILL_LEVEL_LIFE, "t": 0.0})
+	_trim_skill()
+
+## Keeps the newest SKILL_MAX lines: the oldest gain gives way rather than the stack growing over the HUD.
+func _trim_skill() -> void:
+	while skill_toasts.size() > SKILL_MAX:
+		skill_toasts.pop_front()
 
 func add_bite(amount: float, heavy: bool) -> void:
 	bites.append({"t": 0.0, "heavy": heavy, "x": randf_range(-6.0, 6.0)})

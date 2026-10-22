@@ -128,6 +128,12 @@ func _test_merge() -> void:
 	rows = ev.get("skill_toasts")
 	_expect(rows.size() == 3, "a Gathering gain 1.1 s later starts a new toast (got %d)" % rows.size())
 	_expect(str(rows[rows.size() - 1]["text"]) == "+5 Gathering XP", "the new toast does not carry the old amount (\"%s\")" % str(rows[rows.size() - 1]["text"]))
+	# A burst cannot stack down over the survivor: the newest four lines are what the HUD draws.
+	for i in 10:
+		ev.add_skill_level("melee", 2 + i)
+	rows = ev.get("skill_toasts")
+	_expect(rows.size() == int(Events.SKILL_MAX), "a burst of gains keeps at most %d lines (got %d)" % [int(Events.SKILL_MAX), rows.size()])
+	_expect(str(rows[rows.size() - 1]["text"]) == "Melee Lv. 11", "the burst keeps the newest line (got \"%s\")" % str(rows[rows.size() - 1]["text"]))
 	# Older toasts age out, so the HUD never piles them up.
 	ev.tick(4.0)
 	_expect((ev.get("skill_toasts") as Array).is_empty(), "toasts clear after their life (got %d)" % (ev.get("skill_toasts") as Array).size())
@@ -141,6 +147,10 @@ func _test_level_toast() -> void:
 	_expect(bool(row.get("big", false)), "a tree level-up is the big toast")
 	_expect(str(row.get("text", "")) == "Gathering Lv. 2", "the level-up toast reads \"Gathering Lv. 2\" (got \"%s\")" % str(row.get("text", "")))
 	_expect(float(row.get("life", 0.0)) > float(Events.SKILL_LIFE), "the level-up toast stays longer than an XP toast")
+	# Two levels at once (a character level-up releasing a bank) is one line with the newest level.
+	ev.add_skill_level("gathering", 3)
+	var ups_rows: Array = ev.get("skill_toasts")
+	_expect(ups_rows.size() == 1 and str(ups_rows[0]["text"]) == "Gathering Lv. 3", "two Gathering level-ups fold into one line with the newest level (got %s)" % [ups_rows])
 	# The real signal path: reaching Lv. 2 emits skill_leveled once, with the new level.
 	var sk := _fresh(5)
 	var ups: Array = []
@@ -170,7 +180,7 @@ func _test_full() -> void:
 	print("[t_skillfeel] cap: melee Lv. %d of cap %d, banked %.0f, FULL label %s, xp \"%s\"" % [sk.level_of("melee"), sk.level_cap("melee"), sk.xp_of("melee"), full != null, xp_text])
 	_expect(sk.level_of("melee") == sk.level_cap("melee"), "melee stops at the character level (Lv. %d of %d)" % [sk.level_of("melee"), sk.level_cap("melee")])
 	_expect(full != null and str((full as Label).text).begins_with("FULL"), "a tree at the cap reads FULL (got \"%s\")" % (str((full as Label).text) if full else "-"))
-	_expect(full != null and str((full as Label).text).contains("%d XP banked" % int(sk.xp_of("melee"))) and int(sk.xp_of("melee")) > 52, "the FULL line shows the banked XP (got \"%s\" for %d banked)" % [str((full as Label).text) if full else "-", int(sk.xp_of("melee"))])
+	_expect(full != null and str((full as Label).text).contains("%d XP" % int(sk.xp_of("melee"))) and int(sk.xp_of("melee")) > 52, "the FULL line shows the banked XP (got \"%s\" for %d banked)" % [str((full as Label).text) if full else "-", int(sk.xp_of("melee"))])
 	_expect(xp_text == "%d / %d XP" % [int(SkillStateS.xp_to_next(sk.level_of("melee"))), int(SkillStateS.xp_to_next(sk.level_of("melee")))], "the capped row still shows the XP of the rung it waits on (\"%s\")" % xp_text)
 	var gathering: Node = sheet._box.find_child("Skill_gathering", true, false)
 	var gfull: Node = gathering.find_child("SkillFull_gathering", true, false) if gathering else null
