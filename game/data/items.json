@@ -3824,7 +3824,8 @@
       "market_category": "clothing",
       "rarity": "uncommon",
       "bag_def": "basic_bag",
-      "_about": "Spec 31 §2 migration: the old stand-in bag. Saves that hold it load as a Basic Bag of the same level (ItemStack.from_dict). New bags are the five defined in data/bags.json."
+      "_about": "Spec 31 §2 migration: the old stand-in bag. Saves that hold it load as a Basic Bag of the same level (ItemStack.from_dict). New bags are the five defined in data/bags.json.",
+      "source_pending": true
     },
     {
       "id": "basic_bag",
@@ -3917,7 +3918,7 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "market_category": "construction",
+      "market_category": "building_kit",
       "rarity": "common"
     },
     {
@@ -3931,7 +3932,7 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "market_category": "construction",
+      "market_category": "building_kit",
       "rarity": "common"
     },
     {
@@ -3945,7 +3946,7 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "market_category": "construction",
+      "market_category": "cordage",
       "rarity": "common"
     },
     {
@@ -3958,7 +3959,7 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "market_category": "construction",
+      "market_category": "building_kit",
       "rarity": "common"
     },
     {
@@ -3971,7 +3972,7 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "market_category": "construction",
+      "market_category": "building_kit",
       "rarity": "common"
     }
   ]

@@ -4723,7 +4723,7 @@
       "min_level": 1,
       "slots": [
         {
-          "category": "green_hide",
+          "category": "dried_hide",
           "count": 2,
           "primary": true
         },
@@ -4746,7 +4746,7 @@
       "seconds": 3.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 §2/§10 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
     },
     {
       "id": "small_pouch",
@@ -4756,7 +4756,7 @@
       "min_level": 1,
       "slots": [
         {
-          "category": "green_hide",
+          "category": "dried_hide",
           "count": 1,
           "primary": true
         },
@@ -4774,7 +4774,7 @@
       "seconds": 2.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 §2/§10 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
     },
     {
       "id": "large_pouch",
@@ -4784,7 +4784,7 @@
       "min_level": 8,
       "slots": [
         {
-          "category": "green_hide",
+          "category": "dried_hide",
           "count": 2,
           "primary": true
         },
@@ -4807,7 +4807,7 @@
       "seconds": 4.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 §2/§10 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
     },
     {
       "id": "advanced_backpack",
@@ -4845,7 +4845,7 @@
       "seconds": 6.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 §2/§10 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
     },
     {
       "id": "specialized_storage_bag",
@@ -4883,7 +4883,7 @@
       "seconds": 8.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 §2/§10 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
     },
     {
       "id": "plank_shape",
