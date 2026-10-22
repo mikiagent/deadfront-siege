@@ -1,69 +1,53 @@
-# Task: INVSLOTS: the bag is a scrolling grid of slots, one item per slot, with upgradable capacity
-
-Owner, verbatim: "the inventory system doesn't match what I asked for in the docs. Have deepseek work on inventory such that
-its a scroll view with slots, 1 item per slot and we can upgrade slots".
-DEADFRONT is a Godot 4.7.1 typed-GDScript survival game (project `game/`), web build, mobile-first (phone 844x390 landscape,
-tap targets >= 64 px, all input through InputMap actions and the touch layer).
-
-## What the docs say (read both files first)
-- docs/design/durango-prompts/05_inventory_stacking_storage.md: gathered and crafted items do NOT stack; each is an instance
-  (line 3, 6: "Five Large Leg Bones ... consume five physical spaces"); base player inventory 100 spaces, equipment adds
-  storage slots, Pocket attribute +6 spaces per level, bonuses added once and removed on unequip, never shrink below occupied
-  slots and never delete rare items (line 11); optional visual grouping must expand to one selectable slot per instance (line
-  23); virtualized lists where necessary (line 26).
-- docs/design/durango-prompts/13_inventory_equipment_ui.md: a dense grid of compartments (lines 107-124), empty slots visible,
-  capacity from real data that updates when equipment changes and warns when full (lines 87-104), selected-slot yellow
-  brackets, level label, rare green mark (lines 139-181, 294-297), scrollable with smooth scrolling (lines 495, 506), the same
-  slot design for storage and dinosaur cargo (lines 451-462).
-## Today (measure it yourself in M1)
-- Model: game/scripts/items/inventory.gd, inventory_equipment.gd (W2-INV made materials and food single instances with uids,
-  100-slot bag). UI: game/scripts/ui/inventory_ui.gd draws a GROUPED bag with count pills and level ranges: this is what the
-  owner rejects. Lab: game/scripts/dev/inventory_lab.gd (+ game/scenes/dev/inventory_lab.tscn).
-- An unmerged branch claude/mmo-invui (spec 13 bag and gear screens) may already have pieces you can reuse. Read it with
-  `git show claude/mmo-invui:<path>` and `git diff claude/mmo-overhaul...claude/mmo-invui -- game/scripts/ui`; copy what fits.
-  Do not merge it.
-## What to build
-1. The bag is a scroll view (ScrollContainer or equivalent; drag on touch, wheel on desktop) holding a grid with exactly
-   `capacity` slots: one item instance per slot, empty slots drawn, no count pills, no grouped stacks (remove grouping; an
-   optional "group" toggle is allowed only if it expands to one slot per instance, off by default). Level label, selected
-   brackets and the rare mark per spec 13. Slots >= 64 px at 844x390. A capacity indicator "used / capacity" from the data,
-   warning colour when full. Smooth with capacity 300 (virtualize rows if needed).
-2. Upgradable capacity per spec 05: base 100; equipment that adds storage slots and the Pocket attribute (+6 per level) raise
-   it on equip and lower it on unequip; an unequip that would leave fewer slots than items is refused with a notice and
-   nothing is ever deleted; the grid grows and shrinks live. Find what exists in game/data/items.json and
-   inventory_equipment.gd. If no item adds slots today, add ONE data-only bag item from the docs (values `# ASSUMPTION`) so it
-   can be tested. If capacity bonuses need a save-format change, STOP there and write "owner decision needed" in the report.
-3. If storage/basket and pet cargo use inventory_ui.gd, give them the same slot grid; otherwise list them in the report.
-## Milestones
-- M1 Read the docs and code, open the current bag in inventory_lab at 1600x900 and 844x390, write what you saw in
-  NOTES.md; write game/tests/t_invslots.gd: N identical items take N slots; capacity = base + bonuses and changes on
-  equip/unequip; an overflowing unequip is refused with 0 items lost; save then load keeps every instance and the capacity.
-  The model side passes: stage 1.
-- M2 The slot grid UI (scroll, one per slot, empty slots, no pills, capacity indicator). Stage 1.
-- M3 game/scripts/dev/invslots_lab.gd + game/scenes/dev/invslots_lab.tscn: open the bag with some items, print
-  `[invslots] RESULT capacity= grid_slots= items= filled= empty_visible= pills= min_slot_px= scroll_range= frame_ms_p95_300=
-  cap_upgraded= cap_after_unequip= items_lost=` (frame_ms_p95_300 = 95th percentile frame ms while scrolling a 300-slot bag;
-  pills = count badges visible), save shots of the bag (and the 300-slot bag) into --shot-dir. Stage 2.
-- M4 Phone pass at 844x390 and the 300-slot smoothness. Stage 2.
-- M5 Report and the full verify.
+# Task: BIOMEPROPS - the BIOMEASSETS models must render correctly before they are placed again
+Owner, 2026-10-22, on the deployed build: "props are broken". Cause: game/data/world/props.json named
+the BIOMEASSETS models by the hyphen convention (spire-a, mesa-a, basalt-column-a...) which never
+existed, so rock_spire, mesa_cliff, basalt_column, termite_mound and aloe were never placed. Pointing
+the paths at the shipped underscore files made them appear - as giant untextured slabs - so the remap
+was reverted. This job fixes the models, then re-enables the paths.
+The models carry one Principled material "biome_vcol" whose base colour is the COLOR_0 vertex
+attribute (per-vertex paint, no texture; tools/blender/biome_props/bp_lib.py). Godot does not use
+COLOR_0 as albedo unless the imported material says so, which is why they render flat grey/black.
+Milestones:
+M1 game/tests/t_biomeprops.gd: for every kind in props.json that points at res://assets/nature/biome/,
+the model exists, loads, has a MeshInstance3D with a material, that material uses vertex colour as
+albedo, and the mesh AABB fits the kind's declared radius_m (height between 0.5x and 3x of it). Fails
+before the fix. Stage 1.
+M2 the fix: make the imported biome_vcol material use vertex colour as albedo (an export step in
+tools/blender/biome_props/ or a documented Godot import pass like
+tools/blender/structures/godot_import_settings.py), and rescale any model whose AABB is out of band.
+Do not repaint art; the vertex colours are the owner-approved palette. Stage 1.
+M3 re-enable the paths in game/data/world/props.json (hyphen -> shipped underscore ids, one dropped
+where no stand-in exists) and make island_props place them; M1 green. Stage 1.
+M4 game/scripts/dev/biomeprops_lab.gd + scene: a game-camera shot of each fixed kind on the home
+island, printing `[biomeprops] RESULT kinds= vcol_ok= scale_ok= placed= missing_files=` and saving
+at least 2 PNGs into --shot-dir. Look at the PNGs and record a verdict in .dsc/NOTES.md. Stage 2.
+M5 report docs/orchestration/reports/dsc-biomeprops.md and the full verify.
 
 ## How to run Godot (exactly)
-- Headless test: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/gslot.sh perl -e 'alarm 400; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --script res://tests/<t>.gd > /tmp/invslots_t.log 2>&1` (bash timeout_ms 460000).
-- Labs and screenshots need a window, never --headless (frame_post_draw never fires headless):
-  `... perl -e 'alarm 400; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --path game --resolution 1600x900 --rendering-method gl_compatibility -- --lab=invslots_lab --shot-dir=/tmp/invslots_shots > /tmp/invslots_lab.log 2>&1`, and again with --resolution 844x390 (the phone, landscape).
-- After adding a class_name file or an asset: `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --import > /tmp/invslots_import.log 2>&1`.
+- Headless test: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/gslot.sh perl -e 'alarm 400; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --script res://tests/<t>.gd > /tmp/biomeprops_t.log 2>&1` (bash timeout_ms 460000).
+- Labs and screenshots need a window, never --headless (frame_post_draw never fires headless); bash timeout_ms 1020000, and the lab quits itself within 120 s:
+  `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --path game --resolution 1600x900 --rendering-method gl_compatibility -- --lab=biomeprops_lab --shot-dir=/tmp/biomeprops_shots > /tmp/biomeprops_lab.log 2>&1`, and again with --resolution 844x390 (the phone, landscape).
+- After adding a class_name file or an asset: `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --import > /tmp/biomeprops_import.log 2>&1`.
 - Parse-check every new or edited .gd before a long run: `... --headless --path game --check-only --script res://<path>`.
+  `--check-only` ALWAYS prints "Identifier not found: Data / World / Game / TouchControls" (autoloads do not exist in that
+  mode): ignore those lines; only `Parse Error` lines are real. Real tests run with `--script res://tests/<t>.gd`, where the
+  autoloads DO exist once the first frame runs: the test must load() every game script on its first frame instead of
+  naming classes at compile time (copy game/tests/t_domain.gd's structure exactly).
 - Never pipe Godot into tail/head/grep: read the log file afterwards. Never re-run a failed or hung command unchanged.
 ## Known traps
 - `:=` cannot infer from max()/min()/ternaries/Variant returns: use maxf/maxi or an explicit type.
 - Await coroutines. A `--script` test has no autoloads on its first frame: load() scripts on the first frame and add a 60 s
   quit watchdog, as game/tests/t_domain.gd does; print `[<test name>] PASS` or FAIL lines.
 - game/tests/t_save.gd prints 5 deliberate SCRIPT ERRORs; that is normal.
+- A lab log with `SHADER ERROR` or `Unknown character` means the shader did not compile and every card draws grey: the
+  gate fails on it. GDScript `##` comments are not shader syntax; shaders use `//`.
+- Scratch files go in $TMPDIR/biomeprops, never /tmp or docs/. Never `rm -r` a path that has tracked files.
+- Key any per-item data by a stable id (file name, src_rect), never by list order.
 - Write big files in parts (write_file, then edit_file); never python `s.replace()` without checking it matched.
 ## Gates
-- Verify: `bash /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/verify_job.sh invslots [1|2]` (no argument = the full gate). Read it and
-  `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/job_invslots.conf` (TEST, LAB, LAB_ASSERT, RELATED, SCOPE) before you start.
-- The lab gets `--shot-dir=<dir>`: save every PNG there. It must print exactly one line `[invslots] RESULT k=v k=v ...` with every
+- Verify: `bash /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/verify_job.sh biomeprops [1|2]` (no argument = the full gate). Read it and
+  `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/job_biomeprops.conf` (TEST, LAB, LAB_ASSERT, RELATED, SCOPE) before you start.
+- The lab gets `--shot-dir=<dir>`: save every PNG there. It must print exactly one line `[biomeprops] RESULT k=v k=v ...` with every
   key LAB_ASSERT reads, MEASURED from the live scene (never constants), then quit.
 - Milestones: write them to .dsc/PLAN.md and call milestone_done after each (milestones before MS_STAGE2 run stage 1, later
   ones stage 2). Anything visual: open the PNG, and write the path and a one-line verdict in .dsc/NOTES.md before ticking.
@@ -73,5 +57,5 @@ tap targets >= 64 px, all input through InputMap actions and the touch layer).
   merge branches, push or deploy. No new dependencies.
 - Do not tune balance numbers (HP, damage, XP, fatigue or energy rates). Owner: "game balancing like tuning hp and damage wont
   make sense until crafting building and skills is done and tuned". Mark every number the docs do not give `# ASSUMPTION`.
-- Report docs/orchestration/reports/dsc-invslots.md: what shipped, before/after numbers, the shots you looked at, assumptions,
+- Report docs/orchestration/reports/dsc-biomeprops.md: what shipped, before/after numbers, the shots you looked at, assumptions,
   what the integrator needs.
