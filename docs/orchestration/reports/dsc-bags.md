@@ -102,9 +102,10 @@ canvas is wide-and-short and stops clear of the screen's own close button.
 
 ## Gate note (scope base)
 `verify_job.sh` defaults its scope diff base to the merge-base with `claude/mmo-overhaul`. This
-worktree was cut from `claude/mmo-bags` *after* it merged `claude/mmo-overhaul`, so the merge-base is
-`82cbdb27` and the diff then also lists the invslots worker's files (`game/scenes/dev/invslots_lab.tscn`,
-`game/tests/t_invslots.gd`, …) that came in through that merge and are not mine. With `BASE` set to
-this task's own commit (`2c037f34`, the "BAGS task" commit) the scope check is clean:
-`BASE=2c037f34 verify_job.sh bags` → **VERIFY PASS** (t_bags, the lab at both resolutions, t_inventory,
-t_items, t_save, smoke, report and scope).
+worktree was cut from `claude/mmo-bags` *after* it had merged `claude/mmo-overhaul`, so that
+merge-base (`82cbdb27`) predates the merge and the diff also lists the invslots worker's files
+(`game/scenes/dev/invslots_lab.tscn`, `game/tests/t_invslots.gd`, its task and report) that came in
+through it and are not mine. `job_bags.conf` now sets `BASE=2c037f34` (the "BAGS task" commit, the
+tree this task started from), which makes the scope diff exactly this task's work:
+`verify_job.sh bags` → **VERIFY PASS** (t_bags, the lab at both resolutions with its asserts and
+PNGs, t_inventory, t_items, t_save, `tools/smoke.sh`, report and scope).
