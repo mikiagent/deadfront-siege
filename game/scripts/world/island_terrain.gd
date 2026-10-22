@@ -372,6 +372,35 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 static func _shader_id(t: int) -> int:
 	return TileType.GRASS if t == TileType.CLIFF else t
 
+## Copies both channels into the tile image (the shader samples R and G).
+static func _write_tile_image(rt: IslandRuntime) -> void:
+	var span := rt._tile_span
+	if rt._tile_map_image == null or rt._tile_map_image.get_width() != span:
+		rt._tile_map_image = Image.create(span, span, false, Image.FORMAT_RG8)
+	var bio := BiomeZones.biome_types(rt)
+	for z in span:
+		for x in span:
+			var idx := x + z * span
+			var t := int(rt.tile_types[idx]) if idx < rt.tile_types.size() else 0
+			var b := int(bio[idx]) if idx < bio.size() else 0
+			rt._tile_map_image.set_pixel(x, z, Color(float(_shader_id(t)) / 255.0, float(b) / 255.0, 0.0))
+
+## The camp shape in the heightmap and vertex colours belongs to the home island only: the other
+## islands' generated rim must stay untamed.
+static func _camp_active(rt: IslandRuntime) -> bool:
+	return _island_key(rt) == "home_grassland"
+
+## The island's id: set on the runtime by World.load_island where available, else the current one.
+static func _island_key(rt: IslandRuntime) -> String:
+	return str(rt.get_meta("island_id", World.island_id))
+
+## Moisture seed: the island's own id, so two grassland islands do not share a zone field.
+static func _layout_seed(rt: IslandRuntime, climate: String) -> int:
+	var key := _island_key(rt)
+	if key == "":
+		return 25 if climate == "temperate" else 17
+	return 1000 + absi(hash(key)) % 100000
+
 static func _terrain_material(rt: IslandRuntime) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = TERRAIN_SHADER
