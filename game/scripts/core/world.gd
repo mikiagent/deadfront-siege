@@ -35,6 +35,10 @@ var _home_buildings_cache: Array = []
 ## island builds them, saved under home.camp_layout.
 var camp_layout: Dictionary = {}
 var _save_acc: float = 0.0
+## True from a fresh start until character creation AND the first island pick have finished. No save
+## may be written before that: the 60 s autosave did once, on the creation screen, and a reload then
+## skipped both and loaded a default "Survivor" (playtest 2026-10-21).
+var creation_pending: bool = false
 var _fade: ColorRect
 
 const SAVE_PATH := "user://save_1.json"
@@ -64,6 +68,8 @@ func _process(delta: float) -> void:
 	_save_acc += delta
 	if _save_acc >= 60.0:
 		_save_acc = 0.0
+		if creation_pending:
+			return  # nothing exists to save yet; SaveGame refuses too, this keeps the log quiet
 		_save_now()
 
 func is_home() -> bool:
@@ -87,12 +93,28 @@ func _boot() -> void:
 		return  # downloader shell is showing; shell/boot.gd calls _boot once the game scene is up
 	if runtime != null and is_instance_valid(runtime):
 		return  # already booted
-	if _save_exists() and not ("--new-game" in OS.get_cmdline_user_args()):
-		_load_now(host)
-	else:
-		start_new(host)
+	ensure_survivor(host)
+
+## Boot's one decision: load a real survivor, or open character creation. A save written before the
+## survivor existed (the bug's 60 s autosave, or a save from before creation existed) counts as no
+## save: it opens creation again, keeping the file until the new world's first save replaces it.
+## Returns true when a save was loaded, false when creation is opening.
+func ensure_survivor(host: Node) -> bool:
+	var sg := load("res://scripts/core/save_game.gd") as GDScript
+	var saved := _save_exists() and not ("--new-game" in OS.get_cmdline_user_args())
+	if saved and not sg.has_precreation_save():
+		_load_now(host)  # a real save: SaveGame._apply also lifts "creation pending"
+		return true
+	start_new(host)
+	return false
+
+## Character creation and the first island pick are done: the world may save from here on.
+func finish_creation() -> void:
+	creation_pending = false
+	_save_acc = 0.0
 
 func start_new(host: Node) -> void:
+	creation_pending = true
 	home_terrain = &""
 	island_id = &"home_grassland"
 	visited_islands.clear()

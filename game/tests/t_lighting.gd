@@ -25,6 +25,7 @@ func _process(_delta: float) -> bool:
 	_test_warm_dawn_dusk(wl)
 	_test_moon_shadow_only_at_night(wl)
 	_test_shadow_fit(wl)
+	_test_shadow_fit_perspective(wl)
 	_test_key_light_never_from_below(wl)
 	_test_phase_thresholds()
 	_test_profiles()
@@ -95,6 +96,38 @@ func _test_shadow_fit(wl) -> void:
 	var m := [s.directional_shadow_split_1 * cam.far, s.directional_shadow_split_2 * cam.far, s.directional_shadow_split_3 * cam.far]
 	_check(m[0] > 20.0 and m[0] < 40.0 and m[1] > 40.0 and m[1] < 50.0 and m[2] > 50.0 and m[2] < 70.0,
 		"shadow splits at %.0f / %.0f / %.0f m, not fitted to the iso band 20-70 m" % m)
+	cam.free()
+
+## The perspective IsoCamera (CAMERA package) stands ~150 m back with a 4.3 deg lens. The fit uses one
+## shadow map from the camera's near plane to just past the ground's top edge (not Godot's 100 m default,
+## which is nearer than the ground: no shadows at all), fades only past that edge, and goes back to PSSM4
+## for an orthographic camera. Fog thins by 40 m / distance.
+func _test_shadow_fit_perspective(wl) -> void:
+	var cam = load("res://scripts/camera/iso_camera.gd").new()
+	cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+	cam.fov = 4.3
+	cam.size = 11.0
+	cam.rotation_degrees = Vector3(-38.7, 45.0, 0.0)
+	cam._apply_zoom()
+	wl.drive(0.5)
+	wl.fit_shadows(cam)
+	var s: DirectionalLight3D = wl.sun
+	var d: float = cam.distance
+	var g: float = cam.ground_half_depth()
+	var mx := s.directional_shadow_max_distance
+	_check(d > 120.0 and d < 170.0 and cam.near > 90.0 and cam.near < d - g - 20.0 and cam.far > d + g + 20.0,
+		"perspective camera at %.0f m, near %.0f far %.0f: not a tight band around the focus" % [d, cam.near, cam.far])
+	_check(s.directional_shadow_mode == DirectionalLight3D.SHADOW_ORTHOGONAL and (wl.moon as DirectionalLight3D).directional_shadow_mode == DirectionalLight3D.SHADOW_ORTHOGONAL,
+		"perspective shadows are not one map (gl_compatibility drew no split shadows this far out)")
+	_check(mx > d + g and mx < d + g + 15.0, "perspective shadows end at %.0f m, not just past the ground's top edge (%.0f m)" % [mx, d + g])
+	_check(s.directional_shadow_fade_start * mx >= d + g, "perspective shadows fade from %.0f m, on screen (ground ends %.0f m)" % [s.directional_shadow_fade_start * mx, d + g])
+	var e: Environment = wl.world_env.environment
+	var want: float = lerpf(wl._f("fog_density"), wl._f("fog_night_density"), 0.0) * 40.0 / d
+	_check(absf(e.fog_density - want) < 1e-6, "perspective fog %.5f, not the profile's thinned by 40 m / %.0f m (%.5f)" % [e.fog_density, d, want])
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	wl.fit_shadows(cam)
+	_check(s.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS, "an orthographic camera does not get PSSM4 back")
+	_check(absf(e.fog_density - lerpf(wl._f("fog_density"), wl._f("fog_night_density"), 0.0)) < 1e-6, "fog does not return to the profile's density for an orthographic camera")
 	cam.free()
 
 ## Every lit directional light points down (its -Z has a negative y) at every time of day.

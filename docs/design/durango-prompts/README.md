@@ -23,3 +23,4 @@ These files are newly consolidated, implementation-ready versions of the prompts
 - `11_processing_skill_material_transformations.md`: Processing progression, recipes, individual material enhancement, tanning, metalwork, alloys and delegated jobs.
 
 - `12_remaining_skill_trees.md` — Remaining/undercovered skill trees: Gathering, Butchering, Farming, Tailoring, Weapon/Tool, Ranged, Defense, Survival, Toxic Oil Islands.
+- `32_food_drink_consumption_effects.md` — What consuming a food or drink *does*: immediate vs digested Energy, the 27 food-buff keys, Enhanced Ability / Enhanced Survival buff slots, drinks and restoratives, taste grades, temperature and bad-food conditions, and the consumption transaction. Supplements `08`; it does not replace the cooking architecture. Filed as 32 because 16 was taken by the HUD dial.

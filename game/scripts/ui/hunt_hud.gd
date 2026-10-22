@@ -45,6 +45,8 @@ var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
 var _place_hexes: Array[HexButton] = []
+var _claim_panel: ClaimPanel  ## the CLAIM confirm (a second claim asks first; claim_panel.gd)
+var _claim_tile := Vector2i.ZERO  ## where the survivor stood when it opened
 var _done_hex: HexButton
 var _levelup_lines: Array = []
 var _levelup_title: String = ""  ## the title line and one stat summary: the landscape-phone banner
@@ -575,6 +577,11 @@ func toast(id: StringName, n: int) -> void:
 	print("[ui] toast %s +%d" % [id, n])
 	_events.add_toast(id, n)
 
+func _on_context(id: String) -> void:
+	if id != "claim":
+		claim_confirm_cancel()
+	player.context_action(id)
+
 func _refresh_context(delta: float) -> void:
 	_ctx_timer -= delta
 	if _ctx_timer > 0.0:
@@ -608,7 +615,7 @@ func _refresh_context(delta: float) -> void:
 		if h.glyph == "" and h.icon == null:
 			h.glyph = h.caption
 			h.caption = ""
-		h.pressed.connect(func () -> void: player.context_action(id))
+		h.pressed.connect(_on_context.bind(id))
 		add_child(h)
 		if id == "claim":
 			# Land claim lives by the minimap (it is about the map, not the fight).
@@ -620,6 +627,60 @@ func _refresh_context(delta: float) -> void:
 		_ctx_hexes.append(h)
 	if _sheet:
 		move_child(_sheet, -1)  # a context hex added later drew (and took taps) over the open sheet
+
+## CLAIM pressed while this survivor already holds land here: ask, naming the plots that stay and the
+## plot this press would stake (claim_panel.gd). Nothing is staked, spent or moved until the panel's
+## CLAIM; Close, walking away or a second CLAIM press cancels it.
+func open_claim_confirm() -> void:
+	if player == null or World.runtime == null or player.actions == null:
+		return
+	if claim_panel_open():
+		claim_confirm_cancel()
+		return
+	var rt: Node = World.runtime
+	if not rt.has_method("claim_plot"):
+		return
+	_claim_tile = BuildGrid.tile_of(player.global_position)
+	var plot: Rect2i = rt.call("claim_plot", _claim_tile)
+	_claim_panel = ClaimPanel.new()
+	add_child(_claim_panel)
+	_claim_panel.answered.connect(_on_claim_answered)
+	_claim_panel.open(rt.get("claims"), _claim_tile, plot, str(rt.call("claim_expand_reason", _claim_tile)), _claim_stake_due())
+	_claim_panel.fit(get_viewport_rect().size, _safe_insets())
+
+func claim_panel_open() -> bool:
+	return is_instance_valid(_claim_panel) and _claim_panel.visible
+
+func claim_panel_text() -> String:
+	return _claim_panel.body_text() if claim_panel_open() else ""
+
+## Close the panel without staking (Close, Cancel, Esc, a HAUL / MOVE tap, walking away).
+func claim_confirm_cancel() -> void:
+	if is_instance_valid(_claim_panel):
+		_claim_panel.queue_free()
+	_claim_panel = null
+
+## The panel's answer (`confirmed` = its CLAIM). The test and a headless run reach the same path.
+func claim_confirm(confirmed: bool) -> void:
+	claim_confirm_cancel()
+	if confirmed and player and player.actions:
+		player.actions.claim_confirmed()
+
+func _on_claim_answered(confirmed: bool) -> void:
+	claim_confirm(confirmed)
+
+## The panel's confirm is about where the survivor stands when it is pressed.
+func _claim_stake_due() -> bool:
+	return not World.is_home() and World.free_claim_used
+
+func _refresh_claim_panel() -> void:
+	if not claim_panel_open():
+		return
+	var here := BuildGrid.tile_of(player.global_position) if player else _claim_tile
+	if here != _claim_tile or player.placer.placing != &"":
+		claim_confirm_cancel()
+		return
+	_claim_panel.fit(get_viewport_rect().size, _safe_insets())
 
 func _refresh_place_hexes() -> void:
 	var placing := player.placer != null and player.placer.placing != &""
@@ -637,10 +698,50 @@ func _refresh_place_hexes() -> void:
 	var ghost: Node3D = player.placer.get("_ghost_root")
 	if cam == null or ghost == null:
 		return
-	var base := cam.unproject_position(ghost.global_position) + Vector2(0, 40)
-	var offs := [Vector2(-105, 0), Vector2(-22, 28), Vector2(60, 0)]
+	var base := HudLayout.placer_anchor(cam.unproject_position(ghost.global_position) + Vector2(0, 40), PLACE_OFFSETS, _placer_rel(), _placer_taken(), get_viewport_rect().size, _safe_insets())
 	for i in _place_hexes.size():
-		_place_hexes[i].position = base + offs[i]
+		_place_hexes[i].position = base + (PLACE_OFFSETS[i] as Vector2)
+
+const PLACE_OFFSETS := [Vector2(-105, 0), Vector2(-22, 28), Vector2(60, 0)]
+
+## What each placer hex draws relative to its own corner (its hexagon, then its caption box), from the
+## hexes themselves: the row is placed with the same geometry the check and the drawing use.
+func _placer_rel() -> Array:
+	var out: Array = []
+	for h in _place_hexes:
+		var hb := h as HexButton
+		var at := hb.position
+		var hex := hb.hex_rect()
+		var cap := hb.caption_rect()
+		out.append([Rect2(hex.position - at, hex.size), Rect2(cap.position - at, cap.size)])
+	return out
+
+## Every HUD rect the placer row must keep off: the same sources as HudLayout.taken_rects, minus the
+## row's own three hexes and their captions (by node, not by where they happened to be last frame).
+func _placer_taken() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for k in drawn_blocks:
+		out.append(drawn_blocks[k])
+	for n in get_tree().get_nodes_in_group(&"hex_button"):
+		var h := n as HexButton
+		if h and h.is_visible_in_tree() and not _place_hexes.has(h):
+			out.append(h.hex_rect())
+			if h.caption != "":
+				out.append(h.caption_rect())
+	for c in get_children():
+		var ctl := c as Control
+		if ctl == null or ctl is HexButton or _place_hexes.has(ctl) or not ctl.is_visible_in_tree() or ctl.size.x < 8.0 or ctl.size.y < 8.0:
+			continue
+		if ctl is Label and (ctl as Label).text.strip_edges() == "":
+			continue
+		out.append(ctl.get_global_rect())
+	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
+	if held and held.is_visible_in_tree():
+		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
+	var fig := figure_rect()
+	if fig.has_area():
+		out.append(fig)
+	return out
 
 func _load_level_data() -> void:
 	for pair in [["res://data/skills/titles.json", "t"], ["res://data/skills/pioneer_levels.json", "g"]]:
@@ -676,8 +777,9 @@ func _on_level_up(stored: int) -> void:
 		print("[world] pioneer level %d" % level)
 	var per: Dictionary = _level_gains.get("per_level", {})
 	if player and player.vitals:
-		player.vitals.max_health += float(per.get("max_health", 0))
-		player.vitals.max_energy += float(per.get("max_energy", 0))
+		# Through Vitals, which remembers the level part in the save: added straight to max_health
+		# (the old way) the next status sync erased it and a reload never brought it back.
+		player.vitals.grant_level_bonus(float(per.get("max_health", 0)), float(per.get("max_energy", 0)))
 	var stats: Array = _level_gains.get("display_stats", [])
 	var gain := int(_level_gains.get("display_gain", 5))
 	var bonus := int(_level_gains.get("bonus_stat_gain", 6))
@@ -954,6 +1056,7 @@ func _process(delta: float) -> void:
 		for h in _skill_hexes:
 			h.queue_redraw()
 	_refresh_context(delta)
+	_refresh_claim_panel()
 	_refresh_place_hexes()
 	_refresh_food_hexes()
 	var pet_out := not player.live_pets().is_empty()
@@ -1012,7 +1115,9 @@ func _draw() -> void:
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
 	var face_pos := Vector2(x + 11.0, yy + 10.0)
 	_draw_exhaustion_face(face_pos, strain)
-	var face_label := "RESTED" if strain < 0.25 else ("TIRED" if strain < 0.5 else ("WEARY" if strain < 0.75 else "EXHAUSTED"))
+	# The words follow spec 01's fatigue scale (0-24 rested, 25-49 slightly tired, 50-74 tired,
+	# 75-99 exhausted); the playtest read "TIRED" a few minutes into a walk and it was 25 %.
+	var face_label := "RESTED" if strain < 0.25 else ("WORN" if strain < 0.5 else ("TIRED" if strain < 0.75 else "EXHAUSTED"))
 	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
 	draw_string(_font, Vector2(x + 27.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, bar_w - 30.0, bar_px, face_col)
 	yy += 22.0
@@ -1037,6 +1142,13 @@ func _draw() -> void:
 			sx += 30
 		if sx > sx0:
 			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
+		# SAVEFIX: a status that lowers max HP says so under its chip (the number alone was a mystery).
+		var hp_note: String = player.statuses.max_health_note()
+		if hp_note != "":
+			var ny := sy + 46.0
+			var nw := _font.get_string_size(hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px).x
+			draw_string(_font, Vector2(sx0, ny), hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px, Color(0.96, 0.62, 0.42))
+			drawn_blocks["status_maxhp"] = Rect2(sx0, ny - bar_px, nw, bar_px + 4.0)
 	var mp := _minimap.position
 	var top := "Home" if World.is_home() else ("Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
 	if World.island_id == &"":

@@ -6,11 +6,12 @@ extends Node3D
 ## cell by cell instead of drawing the whole island whenever any tree is on screen.
 
 const CELL_M := 32.0
-## Render distance of a cell, from the camera to the cell centre. The iso camera sits 40 m from
-## the survivor at up to size 28; the farthest visible ground point is ~70 m away even at 21:9,
+## Render distance of a cell, from the camera to the cell centre, as ground around the focus:
+## IsoCamera.cull_range adds the camera's own distance (the old 40 m iso camera: 40 + 80 = 120 m).
+## The farthest visible ground point is ~30 m from the focus even at 21:9 and the widest zoom,
 ## plus half a cell diagonal (22.6 m), so nothing near the player is ever culled.
-## ASSUMPTION: 120 m covers every supported zoom and aspect up to 32:9.
-const CELL_RANGE_END_M := 120.0
+## ASSUMPTION: 80 m covers every supported zoom and aspect up to 32:9.
+const CELL_RANGE_M := 80.0
 ## ASSUMPTION: props shorter than this (bushes, rocks, plants) cast no shadow; their shadow was
 ## a few pixels at iso zoom but ~1.3M shadow triangles at camp.
 const SMALL_PROP_M := 2.5
@@ -139,7 +140,7 @@ func _commit_cell(key: Vector2i) -> void:
 			cell.material_overlay = _overlay
 		# The node sits at the cell centre so range culling measures from the cell, not the island.
 		cell.position = Vector3((float(key.x) + 0.5) * CELL_M, 0.0, (float(key.y) + 0.5) * CELL_M)
-		cell.visibility_range_end = CELL_RANGE_END_M
+		cell.visibility_range_end = IsoCamera.cull_range(CELL_RANGE_M)
 		add_child(cell)
 		_cells[key] = cell
 	var list: Array[int] = _members[key]

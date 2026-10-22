@@ -423,7 +423,7 @@ static func _commit_tree_discs(rt: IslandRuntime) -> void:
 		mm.set_instance_transform(i, rt._tree_disc_xforms[i])
 	rt._tree_discs.multimesh = mm
 	rt._tree_discs.material_override = PV.disc_material(0.9, Color(0.66, 0.52, 0.38))
-	rt._tree_discs.visibility_range_end = 60.0
+	rt._tree_discs.visibility_range_end = IsoCamera.cull_range(20.0)  # 60 m on the old 40 m camera
 	rt._tree_discs.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	rt.add_child(rt._tree_discs)
 

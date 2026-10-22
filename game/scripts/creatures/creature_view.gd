@@ -133,9 +133,13 @@ func end_ride() -> void:
 	_saddle.clear()
 
 ## Where the rider's model root goes this frame. Read it on skeleton_updated, not in _process.
+## The basis is orthonormalised: _rider_offset carries the mount's own scale (the game scales the GLB to
+## height_meters, K = 1 only for the T. rex), and the survivor rig must not inherit it. The translation
+## keeps it, so a scaled saddle still places the rider at the right spot in world space.
 func rider_transform() -> Transform3D:
 	var sk := rig.skeleton
-	return sk.global_transform * sk.get_bone_global_pose(_rider_bone) * _rider_offset
+	var t := sk.global_transform * sk.get_bone_global_pose(_rider_bone) * _rider_offset
+	return Transform3D(t.basis.orthonormalized(), t.origin)
 
 func set_status_fx(darken: float, tint: Color, wobble: float) -> void:
 	_fx_darken = darken

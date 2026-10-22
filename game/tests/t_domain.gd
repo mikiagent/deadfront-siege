@@ -383,16 +383,26 @@ func _test_claim_refusals() -> void:
 	var stakes: int = _player.inventory.count_of(&"claim_stake")
 	_player.global_position = _at(theirs.get_center()) + Vector3(0, 1, 0)
 	_player.actions.claim()
+	_player.actions.claim_confirmed()  # CLAIM with land held only opens the panel; confirm so the refusal path runs
 	_expect(_player.inventory.count_of(&"claim_stake") == stakes and _rt.claims.size() == n, "claiming on another player's land keeps the stake (%d -> %d)" % [stakes, _player.inventory.count_of(&"claim_stake")])
+	# CLAIMFIX: a claim with land held expands it by one orthogonal plot that shares a full edge with
+	# it and takes no other survivor's land, so the free plot is one plot out from the side of the
+	# land held (the other player's plot sits east, so that side rarely works).
 	var free := Vector2i(1 << 30, 0)
-	for k in 40:
-		var t := Vector2i(theirs.end.x + 10 + k * 3, theirs.position.y + 6)
-		if _rt.spawn_ok(_at(t), false):
+	var reach_plot := Rect2i()
+	for r in _rt.claims:
+		reach_plot = reach_plot.merge(r)
+	var centre_of_land := reach_plot.get_center()
+	for t in [Vector2i(centre_of_land.x, reach_plot.position.y - 7), Vector2i(centre_of_land.x, reach_plot.end.y + 7), Vector2i(reach_plot.position.x - 7, centre_of_land.y), Vector2i(reach_plot.end.x + 7, centre_of_land.y)]:
+		if _rt.spawn_ok(_at(t), false) and _rt.claim_expand_reason(t) == "":
 			free = t
 			break
 	if free.x != 1 << 30:
 		_player.global_position = _at(free) + Vector3(0, 1, 0)
+		# CLAIMFIX: a claim with land held is an orthogonal expansion, so the press asks first and
+		# the confirm's commit (claim_confirmed) is what stakes and spends the stake.
 		_player.actions.claim()
+		_player.actions.claim_confirmed()
 		_expect(_player.inventory.count_of(&"claim_stake") == stakes - 1 and _rt.claims.size() == n + 1, "a claim that succeeds spends the stake (%d -> %d)" % [stakes, _player.inventory.count_of(&"claim_stake")])
 	else:
 		_expect(false, "no free dry tile east of %s to claim" % theirs)
