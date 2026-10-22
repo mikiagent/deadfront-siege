@@ -104,7 +104,7 @@ func _find_cell() -> Vector2i:
 	for z in range(first.position.y, first.end.y):
 		for x in range(first.position.x, first.end.x):
 			var c := Vector2i(x, z)
-			if grid.can_place(CC.KIND, c, 0) == "":
+			if grid.can_place(CC.grid_kind(), c, 0) == "":
 				return c
 	return Vector2i.ZERO
 
@@ -132,7 +132,7 @@ func _build_center() -> void:
 	if _site == null:
 		print("[t_domaind] cannot continue without a site")
 		return
-	_expect(_site.is_in_group("construction_site") and not _site.is_in_group("comm_center"), "the placed site is a construction site, not the finished center")
+	_expect(_site.is_in_group("construction_site") and not CC.built(_rt), "the placed site is a construction site, not the finished center")
 	_give(&"plank_shape", 2)
 	_give(&"strap", 4)
 	_give(&"stone", 6)
@@ -147,12 +147,13 @@ func _build_center() -> void:
 	_site.work(float(_site.bp().get("work_seconds", 20.0)))
 	var site_id: String = _site.site_id
 	_station = BF.complete(_player, _site)
-	_expect(_station != null and str(_station.get("kind")) == "comm_center", "the finished structure is the Personal Communications Center (%s)" % (str(_station.get("kind")) if _station else "none"))
+	_expect(_station != null and CC.TAG in (_station.get("station_tags") as Array), "the finished structure is the Personal Communications Center (tags %s)" % [str(_station.get("station_tags")) if _station else "none"])
 	await process_frame
 	_expect(CC.built(_rt), "the center counts as built on this island")
+	_expect(CC.station(_rt) == _station, "the model finds that same station")
 	_expect(_player.inventory.count_of(&"plank_shape") == 0 and _player.inventory.count_of(&"strap") == 0 and _player.inventory.count_of(&"stone") == 0,
 		"the site's deposits were consumed exactly once by the build")
-	print("[t_domaind] built: site=%s station=%s" % [site_id, str(_station.get("kind")) if _station else "none"])
+	print("[t_domaind] built: site=%s station=%s tags=%s" % [site_id, str(_station.get("kind")) if _station else "none", str(_station.get("station_tags")) if _station else "[]"])
 
 # ---------------------------------------------------------------- contributions
 
@@ -235,7 +236,7 @@ func _test_save_round_trip() -> void:
 	_expect(row is Dictionary and not (row as Dictionary).is_empty(), "the save carries home.comm_center")
 	var center_rows: int = 0
 	for b: Variant in ((home as Dictionary).get("buildings", []) if home is Dictionary else []):
-		if b is Dictionary and str((b as Dictionary).get("kind", "")) == "comm_center":
+		if b is Dictionary and "comm_center" in ((b as Dictionary).get("station_tags", []) as Array):
 			center_rows += 1
 	_expect(center_rows == 1, "the built center is saved as a building row (%d)" % center_rows)
 	# A load: the record goes back through the same path SaveGame uses.

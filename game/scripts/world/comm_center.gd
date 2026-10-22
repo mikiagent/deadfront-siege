@@ -14,7 +14,10 @@ extends RefCounted
 ## held here, and completing a step consumes exactly those units once - never a clone, never twice.
 
 const PATH := "res://data/world/comm_center.json"
+## The blueprint's id; its finished station carries this as a station TAG on a workbench-kind station
+## (spec 30 section 10), which is how it is found again after a save/load.
 const KIND := &"comm_center"
+const TAG := &"comm_center"
 const START_RANK := 1
 
 static var _data: Dictionary = {}
@@ -37,6 +40,11 @@ static func blueprint() -> Dictionary:
 ## BuildUI and the Build menu then treat it like any other blueprint. The integrator may move the
 ## row into blueprints.json and delete this hook (then it must be called before the menu opens).
 static var _registered := false
+
+## The BuildGrid kind (and the finished station's kind) the blueprint places: the workbench kind,
+## which has a footprint in props_manifest and a kit, so the site and later the center restore.
+static func grid_kind() -> StringName:
+	return StringName(str((blueprint().get("station", {}) as Dictionary).get("kind", "workbench")))
 
 static func register_blueprint() -> void:
 	if _registered:
@@ -102,13 +110,43 @@ static func target_rank() -> int:
 
 ## True when the finished center stands on the current island (an upgrade needs the building).
 static func built(rt: Node = null) -> bool:
+	return station(rt) != null
+
+## The finished center standing on this island (a placed station carrying the comm_center tag), or
+## null. A construction site is not one: it has no station tags until it is completed.
+static func station(rt: Node = null) -> Node:
 	var runtime: Node = rt if rt != null else World.runtime
 	if runtime == null or not is_instance_valid(runtime):
-		return false
-	for n in runtime.get_tree().get_nodes_in_group(str(KIND)):
-		if n is Node and runtime.is_ancestor_of(n) and not (n as Node).is_queued_for_deletion():
-			return true
-	return false
+		return null
+	for n in runtime.get_tree().get_nodes_in_group("placed_building"):
+		if not n is Node or not runtime.is_ancestor_of(n) or (n as Node).is_queued_for_deletion():
+			continue
+		var tags: Variant = n.get("station_tags")
+		if tags is Array and TAG in tags:
+			return n as Node
+	return null
+
+## Give the finished station a nameboard, so the world says what it is: the center shares the
+## workbench grid kind and model (data/props_manifest.json for a center of its own is not in this
+## job's files), and nothing in the HUD names it. Idempotent: one board per station.
+static func label_station(rt: Node = null) -> void:
+	var st: Node = station(rt)
+	if st == null or not st is Node3D:
+		return
+	var host := st as Node3D
+	if host.get_node_or_null("CenterName") != null:
+		return
+	var l := Label3D.new()
+	l.name = "CenterName"
+	l.text = "COMMUNICATIONS CENTER"
+	l.font_size = 48
+	l.pixel_size = 0.004
+	l.outline_size = 8
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = false
+	l.modulate = Color(0.98, 0.9, 0.6)
+	l.position = Vector3(0.0, 2.6, 0.0)  # above the HUD name pill (1.55 m)
+	host.add_child(l)
 
 # ---------------------------------------------------------------- contributions (exact instances)
 
@@ -134,9 +172,21 @@ static func required(rank_id: int, slot: int) -> Dictionary:
 static func needed(rank_id: int, slot: int) -> int:
 	return maxi(0, int(required(rank_id, slot).get("quantity", 0)))
 
+## The held rows as they are (READ ONLY: never creates a record for a step nobody contributed to,
+## so an island that never used the center re-saves without it).
+static func held_rows(rank_id: int) -> Array:
+	var rec: Variant = World.home_comm_center
+	if not rec is Dictionary:
+		return []
+	var all: Variant = (rec as Dictionary).get("steps", {})
+	if not all is Dictionary:
+		return []
+	var rows: Variant = (all as Dictionary).get(str(rank_id), [])
+	return rows as Array if rows is Array else []
+
 ## Units handed to `slot`, counted from the instances themselves.
 static func deposited(rank_id: int, slot: int) -> int:
-	var rows := columns(rank_id)
+	var rows := held_rows(rank_id)
 	if slot < 0 or slot >= rows.size():
 		return 0
 	var n := 0
@@ -197,7 +247,7 @@ static func deposit(rank_id: int, slot: int, inv: Inventory = null) -> bool:
 
 ## Hand the last instance of `slot` back to the bag (Untouched if the bag cannot take it).
 static func withdraw(rank_id: int, slot: int, inv: Inventory = null) -> bool:
-	var rows := columns(rank_id)
+	var rows := held_rows(rank_id)
 	if slot < 0 or slot >= rows.size() or (rows[slot] as Array).is_empty():
 		return false
 	var bag: Inventory = inv if inv != null else _bag()
@@ -271,6 +321,12 @@ static func to_save() -> Dictionary:
 	var rec := record()
 	var steps_out: Dictionary = {}
 	for key in (rec.get("steps", {}) as Dictionary):
+		var any := false
+		for col: Array in (rec["steps"][key] as Array):
+			if not col.is_empty():
+				any = true
+		if not any:
+			continue  # a step nobody contributed to is not progress worth saving
 		var cols_out: Array = []
 		for col: Array in (rec["steps"][key] as Array):
 			var rows: Array = []
