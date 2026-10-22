@@ -1512,21 +1512,8 @@ func _ensure_map_texture() -> void:
 	var span: int = int(rt.get("_tile_span"))
 	if types.is_empty() or span <= 0:
 		return
-	var img := Image.create(span, span, false, Image.FORMAT_RGB8)
-	for z in span:
-		for x in span:
-			var t := int(types[x + z * span])
-			var c := Color(0.36, 0.52, 0.28)  # grass
-			match t:
-				1: c = Color(0.52, 0.50, 0.32)
-				2, 7: c = Color(0.42, 0.32, 0.22)
-				3: c = Color(0.80, 0.72, 0.52)
-				10: c = Color(0.62, 0.55, 0.42)
-				4: c = Color(0.55, 0.78, 0.82)
-				8: c = Color(0.16, 0.30, 0.46)
-				5, 9: c = Color(0.45, 0.45, 0.44)
-				6: c = Color(0.36, 0.28, 0.20)
-			img.set_pixel(x, z, c)
+	# Grass and dry land are coloured by biome zone (BiomeZones), everything else by tile type.
+	var img := BiomeZones.map_image(rt)
 	_map_tex = ImageTexture.create_from_image(img)
 	_map_island = World.island_id
 	_map_span = span
