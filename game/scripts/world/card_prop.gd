@@ -272,7 +272,7 @@ const ROLE_FALLBACK := {
 	"plant": ["card", "plant-a"],
 	"ground": ["card", "grass-a"],
 	"crop": ["card", "plant-a"],
-	"water": ["sprite", "jungle-plants_22_white_lily_plant"],
+	"water": ["sprite", "jungle-plants_24_white_lily_plant"],
 	"prop": ["card", "plant-a"],
 	"node": ["card", "rock-moss-a"],
 }
