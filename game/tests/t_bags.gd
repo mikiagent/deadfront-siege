@@ -274,7 +274,11 @@ func _test_preview_matches_result() -> void:
 	for i in (rec.get("slots", []) as Array).size():
 		var want := StringName(str(rec["slots"][i].get("category", "")))
 		picks.append(inv.find_by_category(want)[0])
-	var prev: Dictionary = CR.bag_preview(inv, rec, picks)
+	# The preview must be shown for the survivor who will craft: their crafting skill sets the level.
+	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	get_root().add_child(p)
+	p.inventory = inv
+	var prev: Dictionary = CR.bag_preview(inv, rec, picks, p)
 	_expect(not prev.is_empty(), "12: a bag preview is available")
 	if prev.is_empty():
 		return
@@ -288,6 +292,16 @@ func _test_preview_matches_result() -> void:
 	inv2.add(out)
 	inv2.equip_at(0)
 	_expect(inv2.capacity() == int(prev.get("total_capacity", -1)), "12: after crafting, the worn bag gives the previewed capacity %d (%d)" % [int(prev.get("total_capacity", -1)), inv2.capacity()])
+	# Craft for real through Crafting.craft (same picks, same function) and compare with the preview.
+	var made = CR.craft(p, rec, picks)
+	_expect(made != null and made.def_id == &"basic_bag", "12: Crafting.craft makes the previewed bag (%s)" % (made.def_id if made else "none"))
+	if made != null:
+		var crafted: Dictionary = BC.of_stack(made)
+		_expect(int(crafted.get("total", -1)) == int(prev.get("bonus", -2)) and int(crafted.get("base", -1)) == int(prev.get("base", -2)) and int(crafted.get("pocket", -1)) == int(prev.get("pocket", -2)), "12: the crafted bag's storage equals the preview (%s vs %s)" % [crafted, prev])
+		var inv3 = INV.new()
+		inv3.add(made)
+		_expect(inv3.equip_at(0) and inv3.capacity() == int(prev.get("total_capacity", -1)), "12: the crafted bag worn gives the previewed capacity %d (%d)" % [int(prev.get("total_capacity", -1)), inv3.capacity()])
+	p.queue_free()
 
 # ---------------------------------------------------------------- 13-14 save/load
 
