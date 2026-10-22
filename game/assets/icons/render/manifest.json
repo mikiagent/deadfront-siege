@@ -1916,8 +1916,10 @@
  },
  "missing": [
   "acacia_wood",
+  "advanced_backpack",
   "ash",
   "bark_strip",
+  "basic_bag",
   "cabin_bed_kit",
   "cactus_spine",
   "canvas_tent_kit",
@@ -1928,6 +1930,7 @@
   "field_small_kit",
   "fruit_fertilizer",
   "herbivore_feed",
+  "large_pouch",
   "leech",
   "log_shelter_kit",
   "makeshift_taming_pen",
@@ -1939,13 +1942,16 @@
   "pressure_dressing",
   "reed",
   "root",
+  "small_pouch",
   "smoker_kit",
   "snow_pine",
+  "specialized_storage_bag",
   "spice_herb",
   "steamer_kit",
   "stone_fire_pit_kit",
   "tamed_animal",
   "vine",
-  "willow_wood"
+  "willow_wood",
+  "woven_bag"
  ]
 }
