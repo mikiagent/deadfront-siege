@@ -1,0 +1,445 @@
+class_name DomainScreen
+extends Control
+## Spec 29 section 2's Domain screen (Main Menu -> Domain): the four territory tabs, what the
+## survivor holds on this island (cells used / cap), and the actions the record allows - Declare when
+## there is no domain yet, Expand when there is, Renew / Release where they apply (declared here as
+## later phases, disabled with the reason). Declare and Expand both open the ground-grid preview
+## (DomainPreview): the screen stays up as a narrow panel so the terrain stays readable, and its
+## footer is the candidate count with Confirm / Cancel.
+##
+## Layout: a left tab rail and a content card on a wide canvas; on a landscape phone the tabs turn
+## into a row under the title and the card takes the full width. Every action is 64 px tall on a
+## phone and 56 on desktop (tap targets; the gate measures the smallest).
+
+const GOLD := Color(0.96, 0.82, 0.36)
+const GOLD_DIM := Color(0.35, 0.30, 0.16)
+const TABS := [
+	["tamed_island", "Tamed Island"],
+	["civilized_island", "Civilized Island"],
+	["clan", "Clan"],
+	["outpost", "Outpost"],
+]
+## ASSUMPTION: spec 29 says the other three territory types are later phases. Their tabs exist (the
+## screen has four, per the acceptance criteria) and say so instead of pretending to work.
+const PHASE_NOTE := {
+	"civilized_island": "Phase E: shared-world claims, rent and renewal. Not in this build.",
+	"clan": "Phase F: clan Enclaves, unlocked at Clan Level 5. Not in this build.",
+	"outpost": "Phase G: Savage Island Outposts at Courier Warp Holes. Not in this build.",
+}
+
+var player: Player
+var rt: IslandRuntime
+var preview: DomainPreview
+var tab: String = "tamed_island"
+
+var _title: Label
+var _island: Label
+var _stats: Label
+var _body: Label
+var _note: Label
+var _tabs_box: Container
+var _content: VBoxContainer
+var _outer: BoxContainer
+var _tab_buttons: Dictionary = {}
+var _actions: HBoxContainer
+var _declare: Button
+var _expand: Button
+var _renew: Button
+var _release: Button
+var _confirm: Button
+var _cancel: Button
+var _close: Button
+var _root_panel: Panel
+
+var _previewing := false
+var _last_reason := ""
+var _picked := 0
+
+func _ready() -> void:
+	visible = false
+	name = "DomainScreen"
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE  # the world stays live; only the card blocks
+	z_index = 44
+	_root_panel = Panel.new()
+	_root_panel.name = "Card"
+	_root_panel.add_theme_stylebox_override("panel", UiTokens.panel_style(0.95))
+	_root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_root_panel)
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, UiTokens.SPACE * 2)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root_panel.add_child(margin)
+	var stack := VBoxContainer.new()
+	stack.name = "Stack"
+	stack.add_theme_constant_override("separation", UiTokens.SPACE)
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(stack)
+
+	var head := HBoxContainer.new()
+	head.name = "Head"
+	head.add_theme_constant_override("separation", UiTokens.SPACE)
+	stack.add_child(head)
+	_title = Label.new()
+	_title.name = "Title"
+	_title.text = "DOMAIN"
+	_title.add_theme_color_override("font_color", UiTokens.TEXT)
+	head.add_child(_title)
+	_island = Label.new()
+	_island.name = "Island"
+	_island.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_island.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_island.clip_text = true
+	_island.add_theme_color_override("font_color", GOLD)
+	head.add_child(_island)
+
+	_tabs_box = VBoxContainer.new()
+	_tabs_box.name = "Tabs"
+	_tabs_box.add_theme_constant_override("separation", UiTokens.SPACE)
+	_tabs_box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	for row in TABS:
+		var id: String = row[0]
+		var b := _button(str(row[1]), false)
+		b.name = "Tab_%s" % id
+		b.toggle_mode = true
+		b.pressed.connect(func () -> void: select_tab(id))
+		_tab_buttons[id] = b
+		_tabs_box.add_child(b)
+
+	_content = VBoxContainer.new()
+	_content.name = "Content"
+	_content.add_theme_constant_override("separation", UiTokens.SPACE)
+	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_stats = Label.new()
+	_stats.name = "Stats"
+	_stats.add_theme_color_override("font_color", UiTokens.TEXT)
+	_content.add_child(_stats)
+	_body = Label.new()
+	_body.name = "Body"
+	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_body.add_theme_color_override("font_color", UiTokens.META)
+	_content.add_child(_body)
+	_note = Label.new()
+	_note.name = "Note"
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note.add_theme_color_override("font_color", GOLD)
+	_content.add_child(_note)
+	_actions = HBoxContainer.new()
+	_actions.name = "Actions"
+	_actions.add_theme_constant_override("separation", UiTokens.SPACE)
+	_content.add_child(_actions)
+
+	_outer = HBoxContainer.new()
+	_outer.name = "Outer"
+	_outer.add_theme_constant_override("separation", UiTokens.SPACE)
+	_outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stack.add_child(_outer)
+	_outer.add_child(_tabs_box)
+	_outer.add_child(_content)
+
+	_declare = _action("DECLARE", true, _on_declare, "Declare")
+	_expand = _action("EXPAND", true, _on_expand, "Expand")
+	_renew = _action("RENEW", false, _on_later, "Renew")
+	_release = _action("RELEASE", false, _on_release, "Release")
+	_confirm = _action("CONFIRM", true, _on_confirm, "Confirm")
+	_cancel = _action("CANCEL", false, _on_cancel, "Cancel")
+	_close = _action("CLOSE", false, _on_close, "Close")
+
+	resized.connect(_layout)
+	get_viewport().size_changed.connect(_layout)
+	size = get_viewport_rect().size
+	_layout()
+
+func _button(text: String, gold: bool) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_stylebox_override("normal", UiTokens.button_style(false))
+	b.add_theme_stylebox_override("hover", UiTokens.button_style(true))
+	b.add_theme_stylebox_override("pressed", UiTokens.button_style(true))
+	b.add_theme_color_override("font_color", GOLD if gold else UiTokens.TEXT)
+	b.clip_text = true
+	return b
+
+func _action(text: String, gold: bool, cb: Callable, node_name: String) -> Button:
+	var b := _button(text, gold)
+	b.name = node_name
+	b.pressed.connect(cb)
+	_actions.add_child(b)
+	return b
+
+# ---------------------------------------------------------------- open / close / tabs
+
+func open(p: Player) -> void:
+	player = p
+	rt = World.runtime
+	visible = true
+	size = get_viewport_rect().size
+	if rt != null:
+		IslandClaims.sync_cap(rt)
+	tab = "tamed_island"
+	_previewing = false
+	_last_reason = ""
+	_picked = 0
+	_refresh()
+	_layout()
+	UiTokens.focus_first([_tab_buttons["tamed_island"]])
+
+func close() -> void:
+	_end_preview()
+	visible = false
+
+func is_open() -> bool:
+	return visible
+
+func select_tab(id: String) -> void:
+	tab = id
+	_refresh()
+
+func is_previewing() -> bool:
+	return _previewing
+
+# ---------------------------------------------------------------- the card's text
+
+func _refresh() -> void:
+	for id in _tab_buttons.keys():
+		var b: Button = _tab_buttons[id]
+		var on: bool = str(id) == tab
+		b.set_pressed_no_signal(on)
+		b.add_theme_stylebox_override("normal", UiTokens.button_style(on))
+		b.add_theme_color_override("font_color", GOLD if on else UiTokens.TEXT)
+	rt = World.runtime
+	var here := _island_name()
+	_island.text = here
+	if tab != "tamed_island":
+		_stats.text = ""
+		_body.text = str(PHASE_NOTE.get(tab, ""))
+		_note.text = ""
+		_set_actions(false, false, false, false, false, false, true)
+		return
+	var own: bool = rt != null and IslandClaims.has_domain(rt)
+	var used: int = rt.call("claim_used") if rt != null else 0
+	var cap: int = rt.call("claim_cap") if rt != null else DomainRules.cap()
+	_stats.text = "Plots  %d / %d" % [used, cap]
+	var lines: Array[String] = []
+	lines.append("Owner  %s   ·   %s" % [str(World.player_name), "personal Tamed Island" if World.is_home() else "visited island"])
+	lines.append("Grid  %d x %d tiles a cell on the island's origin grid" % [DomainRules.cell_tiles(), DomainRules.cell_tiles()])
+	lines.append("Upkeep  none on a Tamed Island" % [])
+	if own:
+		lines.append("Land  %d cell%s held, %d more until the cap" % [used, "" if used == 1 else "s", maxi(0, cap - used)])
+		lines.append("Grow  edge-adjacent cells only: no diagonal, no hop across water")
+	else:
+		lines.append("Land  no domain declared here yet" % [])
+		lines.append("Declare  pick any valid cell next to your camp land")
+	if _previewing:
+		lines.append("Preview  tap cells to select; Confirm stakes them as one batch")
+	_body.text = "\n".join(lines)
+	if World.is_home():
+		_note.text = "Claim limit reached: raise your Pioneer rank to claim more." if used >= cap and own else ""
+	else:
+		_note.text = "Visiting an island: land you claim here is not your Tamed Island domain."
+	_set_actions(not _previewing and tab == "tamed_island", not _previewing and tab == "tamed_island", false, not _previewing and own, _previewing, _previewing, true)
+	_declare.visible = not _previewing and not own
+	_expand.visible = not _previewing and own
+	_renew.visible = false
+	_release.visible = not _previewing and own
+	_confirm.visible = _previewing
+	_cancel.visible = _previewing
+	_update_footer()
+
+func _set_actions(declare: bool, expand: bool, renew: bool, release: bool, confirm: bool, cancel: bool, close_ok: bool) -> void:
+	_declare.disabled = not declare
+	_expand.disabled = not expand
+	_renew.disabled = not renew
+	_release.disabled = not release
+	_confirm.disabled = not confirm
+	_cancel.disabled = not cancel
+	_close.disabled = not close_ok
+
+func _island_name() -> String:
+	if rt == null:
+		return "No island"
+	var def: Dictionary = World.island_def
+	var label := str(def.get("name", World.island_id)).replace("_", " ")
+	return label.capitalize() if label != "" else "Uncharted island"
+
+# ---------------------------------------------------------------- Declare / Expand / Confirm
+
+func _on_declare() -> void:
+	_start_preview("declare")
+
+func _on_expand() -> void:
+	_start_preview("expand")
+
+func _start_preview(mode: String) -> void:
+	if rt == null:
+		return
+	if preview == null:
+		preview = DomainPreview.new()
+		preview.top_level = true
+		rt.add_child(preview)
+		preview.selection_changed.connect(_on_selection_changed)
+		preview.cell_refused.connect(_on_cell_refused)
+	_previewing = true
+	var at: Vector2i = IslandClaims.cell_of(rt, BuildGrid.tile_of(player.global_position)) if player != null else IslandClaims.cell_of(rt, Vector2i.ZERO)
+	if mode == "declare" and IslandClaims.has_domain(rt):
+		at = IslandClaims.cell_of(rt, IslandClaims.cell_rect(rt, (rt.domain["cells"][0] as Vector2i)).get_center())
+	preview.begin(rt, at)
+	_last_reason = ""
+	_picked = 0
+	_refresh()
+
+func _on_selection_changed(count: int) -> void:
+	_picked = count
+	_last_reason = ""
+	_update_footer()
+
+func _on_cell_refused(reason: String) -> void:
+	_last_reason = preview.reason_text(reason) if preview != null else reason
+	_update_footer()
+
+func _on_confirm() -> void:
+	if preview == null or not _previewing:
+		return
+	var out: Dictionary = preview.commit()
+	if not bool(out["ok"]):
+		_last_reason = IslandClaims.reason_text(str(out["reason"]))
+		_update_footer()
+		_refresh_stats_only()
+		return
+	_last_reason = ""
+	_previewing = false
+	_end_preview()
+	_refresh()
+
+func _on_cancel() -> void:
+	_previewing = false
+	_end_preview()
+	_refresh()
+
+func _end_preview() -> void:
+	if preview != null and is_instance_valid(preview):
+		preview.finish()
+	preview = null
+
+func _on_release() -> void:
+	if rt == null:
+		return
+	IslandClaims.clear_domain(rt)
+	_refresh()
+
+func _on_later() -> void:
+	_last_reason = "Renewal belongs to Civilized Island claims (Phase E)."
+	_update_footer()
+
+func _on_close() -> void:
+	close()
+
+func _update_footer() -> void:
+	if not _previewing:
+		_note.text = _last_reason
+		return
+	var cap: int = rt.call("claim_cap") if rt != null else DomainRules.cap()
+	var used: int = rt.call("claim_used") if rt != null else 0
+	var head := "Selected %d · holds %d / %d" % [_picked, used, cap]
+	_note.text = head if _last_reason == "" else "%s — %s" % [head, _last_reason]
+	_confirm.disabled = _picked == 0
+
+func _refresh_stats_only() -> void:
+	if rt == null:
+		return
+	_stats.text = "Plots  %d / %d" % [int(rt.call("claim_used")), int(rt.call("claim_cap"))]
+
+# ---------------------------------------------------------------- layout
+
+## The card is one container stack: a header, then tabs + content (side by side on a wide canvas, a
+## tab row above the content on a phone), so no text is ever hand-positioned over another control.
+func _layout() -> void:
+	var view := get_viewport_rect().size
+	position = Vector2.ZERO
+	size = view
+	var compact := UiTokens.is_compact(view)
+	var phone := UiTokens.is_phone(view)
+	var pad := 12.0 if compact else 20.0
+	var head := UiTokens.heading(view)
+	_title.add_theme_font_size_override("font_size", head)
+	_island.add_theme_font_size_override("font_size", head)
+	_stats.add_theme_font_size_override("font_size", head)
+	for l in [_body, _note]:
+		(l as Label).add_theme_font_size_override("font_size", UiTokens.body(view))
+	for b in [_declare, _expand, _renew, _release, _confirm, _cancel, _close]:
+		(b as Button).add_theme_font_size_override("font_size", UiTokens.body(view))
+	for id in _tab_buttons.keys():
+		(_tab_buttons[id] as Button).add_theme_font_size_override("font_size", UiTokens.body(view))
+	var btn_h := 64.0 if compact else 56.0
+	for b in [_declare, _expand, _renew, _release, _confirm, _cancel, _close]:
+		(b as Button).custom_minimum_size = Vector2(0.0, btn_h)
+		(b as Button).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for id in _tab_buttons.keys():
+		var b: Button = _tab_buttons[id]
+		b.custom_minimum_size = Vector2(0.0, btn_h if compact else 48.0)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var card_w := view.x - pad * 2.0 if phone else minf(620.0, maxf(520.0, view.x * 0.42))
+	var card_h := view.y - pad * 2.0
+	_root_panel.position = Vector2(pad, pad)
+	_root_panel.size = Vector2(card_w, card_h)
+	_set_axis(compact)
+	if not compact:
+		(_tabs_box as Control).custom_minimum_size = Vector2(196.0, 0.0)
+		(_tabs_box as Control).size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_tabs_box.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	else:
+		(_tabs_box as Control).custom_minimum_size = Vector2(0.0, btn_h)
+		(_tabs_box as Control).size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		_tabs_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+## Tabs beside the content on a wide canvas, above it on a phone.
+func _set_axis(horizontal_tabs: bool) -> void:
+	var want_outer: bool = horizontal_tabs == false  # wide: tabs | content in a row
+	var need_swap: bool = (_outer is HBoxContainer) != want_outer
+	if need_swap:
+		var kids: Array[Node] = _outer.get_children()
+		var fresh: BoxContainer = VBoxContainer.new() if want_outer else HBoxContainer.new()
+		fresh.name = "Outer"
+		fresh.add_theme_constant_override("separation", UiTokens.SPACE)
+		fresh.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		for k in kids:
+			_outer.remove_child(k)
+			fresh.add_child(k)
+		var stack := _outer.get_parent()
+		stack.remove_child(_outer)
+		_outer.queue_free()
+		_outer = fresh
+		stack.add_child(_outer)
+	var want_row: bool = horizontal_tabs
+	if (_tabs_box is HBoxContainer) != want_row:
+		var kids2: Array[Node] = _tabs_box.get_children()
+		var fresh2: Container = HBoxContainer.new() if want_row else VBoxContainer.new()
+		fresh2.name = "Tabs"
+		fresh2.add_theme_constant_override("separation", UiTokens.SPACE)
+		for k in kids2:
+			_tabs_box.remove_child(k)
+			fresh2.add_child(k)
+		_tabs_box.get_parent().remove_child(_tabs_box)
+		_tabs_box.queue_free()
+		_tabs_box = fresh2
+		_outer.add_child(_tabs_box)
+		_outer.move_child(_tabs_box, 0)
+
+## Smallest interactive control height on screen (the gate's tap-target check).
+func min_target_px() -> float:
+	var low := INF
+	for b in [_declare, _expand, _confirm, _cancel, _close]:
+		var btn := b as Button
+		if btn.visible:
+			low = minf(low, btn.size.y)
+	for id in _tab_buttons.keys():
+		var btn: Button = _tab_buttons[id]
+		if btn.visible:
+			low = minf(low, btn.size.y)
+	return low if low < INF else 0.0
