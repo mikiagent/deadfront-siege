@@ -253,6 +253,10 @@ func _scan(want: StringName) -> Vector2i:
 			var wet := not _dry(m)
 			if (want == &"water") != wet:
 				continue
+			if want == &"water":
+				# Unclaimed water reports "unclaimed" before it reports "water", so do not ask `_why`
+				# here: the caller claims this module before the table's in_water row reads the reason.
+				return m
 			if want == &"unclaimed":
 				var hit := false
 				for d in _square():
@@ -264,6 +268,18 @@ func _scan(want: StringName) -> Vector2i:
 				return m
 	_expect(false, "found a module for the '%s' reason" % want)
 	return _site + Vector2i(400, 0)
+
+## First module near the site where a thatch foundation is actually allowed: the island layout moves
+## between jobs, so the "valid" row cannot hardcode the site's own module.
+func _free_module() -> Vector2i:
+	var land := int(_rt.land_radius())
+	for dx in range(0, land):
+		for dz in [0, 1, -1, 2, -2]:
+			var m: Vector2i = _site + Vector2i(dx, dz)
+			if _why(&"foundation", _slot(m, 0, _SP.CELL)) == "":
+				return m
+	_expect(false, "found a module where a foundation is allowed")
+	return _site
 
 ## A module whose whole 2x2 is land with a harvest node on it, so `resource` (not water) fires.
 func _harvest_module() -> Vector2i:
@@ -288,12 +304,13 @@ func _test_reasons() -> void:
 	var water_m := _scan(&"water")
 	var tree_m := _harvest_module()
 	var free_m := _scan(&"unclaimed")
+	var mv := _free_module()
 	_rt.claims.append(Rect2i(water_m * 2 - Vector2i(1, 1), Vector2i(6, 6)))
 	_rt.claims.append(Rect2i(tree_m * 2 - Vector2i(1, 1), Vector2i(6, 6)))
 	_bg.call("reserve_cells", _sg.call("module_cells", mr))
 	var table: Array = [
-		["valid", &"foundation", _slot(ma, 0, _SP.CELL), ""],
-		["occupied", &"foundation", _slot(ma, 0, _SP.CELL), "occupied"],
+		["valid", &"foundation", _slot(mv, 0, _SP.CELL), ""],
+		["occupied", &"foundation", _slot(mv, 0, _SP.CELL), "occupied"],
 		["wall_on_bare_ground", &"wall", Vector4i(mb.x, mb.y, 0, _SP.EDGE_Z), "no_support"],
 		["ceiling_without_wall", &"ceiling", _slot(mb, 1, _SP.CELL), "no_support"],
 		["door_without_doorway", &"door", Vector4i(mb.x, mb.y, 0, _SP.DOOR_Z), "no_support"],
