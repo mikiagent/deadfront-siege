@@ -31,6 +31,8 @@ const FALLBACK := {"sun_energy": 2.2, "sun_warm_energy_scale": 0.8, "sun_max_ele
 	"sun_yaw_deg": [-35.0, -85.0], "fog_sun_scatter": 0.15}
 
 static var _profiles: Dictionary = {}
+## 0 by day, 1 at full night (drive() writes it every call). Creature eyeshine scales by it.
+static var night: float = 0.0
 
 var sun: DirectionalLight3D
 var moon: DirectionalLight3D
@@ -244,6 +246,7 @@ func drive(tod: float, sky: bool = true) -> void:
 	# over the first 0.02 of dusk, so the whole day phase (DAY..DUSK) is neutral.
 	var warm := maxf(1.0 - smoothstep(DAY - 0.04, DAY, tod), smoothstep(DUSK, DUSK + 0.02, tod))
 	var night := 1.0 - sun_up
+	WorldLighting.night = night
 	var elevation := maxf(MIN_ELEVATION_DEG, _f("sun_max_elevation_deg") * sin(PI * day_t))
 	# The iso camera looks down yaw 45; a sun near that axis hides each shadow behind its
 	# caster. The yaw band keeps the sun 80-130 deg off it while it crosses the sky.

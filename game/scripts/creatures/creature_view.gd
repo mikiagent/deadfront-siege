@@ -89,6 +89,7 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 				rig.mesh_root.scale = Vector3.ONE * float(def.pipeline["stand_in_model_scale"])
 			using_glb = true
 			rig.fill_missing(CreatureClips.CONTRACT)
+			_add_eyes()
 		else:
 			rig.queue_free()
 			rig = null
@@ -107,6 +108,38 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	else:
 		_mount.position = Vector3(0.0, def.height_meters * 0.85, 0.0)
 		add_child(_mount)
+
+## Eyeshine dots on the Head bone; only species whose JSON has an "eyes" block get them.
+## The block is read straight from the species file: it is a presentation detail, and CreatureDef
+## is the stats contract the other agents share.
+static var _eyes_cache: Dictionary = {}
+
+static func eyes_block(id: StringName) -> Dictionary:
+	if _eyes_cache.has(id):
+		return _eyes_cache[id]
+	var path := "res://data/creatures/%s.json" % id
+	var block: Dictionary = {}
+	if FileAccess.file_exists(path):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if parsed is Dictionary:
+			var raw: Variant = (parsed as Dictionary).get("eyes", {})
+			if raw is Dictionary:
+				block = raw
+	_eyes_cache[id] = block
+	return block
+
+func _add_eyes() -> void:
+	if def == null:
+		return
+	var block := eyes_block(def.id)
+	if block.is_empty():
+		return
+	var eyes := CreatureEyes.new()
+	eyes.name = "Eyes"
+	add_child(eyes)
+	if not eyes.setup(self, block):
+		eyes.queue_free()
+		return
 
 func animation_player() -> AnimationPlayer:
 	if using_glb and rig:

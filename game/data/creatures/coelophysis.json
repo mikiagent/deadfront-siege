@@ -150,5 +150,26 @@
     "feeds_needed": 3,
     "window_seconds": 45,
     "requires_pen": false
+  },
+  "eyes": {
+    "bone": "Head",
+    "points": [
+      [
+        0.1243,
+        -0.0197,
+        0.1601
+      ],
+      [
+        0.0672,
+        -0.0198,
+        0.1913
+      ]
+    ],
+    "radius": 0.014,
+    "color": [
+      1.0,
+      0.35,
+      0.15
+    ]
   }
 }
