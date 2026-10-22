@@ -45,12 +45,12 @@ coelophysis orange-red, compsognathus red). Radii, in model units (the attachmen
 
 | species | radius | on the game camera | why |
 |---|---|---|---|
-| tyrannosaurus | 0.05 | 50 px apart, ~3 px dot per eye before scale | the skull is 8 m tall, so a real eye would be ~4 cm and invisible |
+| tyrannosaurus | 0.065 | 50 px apart, dot ~6 px on the game camera | the skull is 8 m tall, so a real eye would be ~4 cm and invisible |
 | utahraptor | 0.011 | 22 px apart | real eye ~0.5 cm at 5x scale |
 | deinonychus | 0.02 | 22 px apart | same rig family, bigger head |
 | velociraptor | 0.012 | 13 px apart | measured from the side shot |
 | coelophysis | 0.014 | 9 px apart | the smallest head in the set |
-| compsognathus | 0.03 | 5 px apart | tiny body, dot sized to stay a dot after scale |
+| compsognathus | 0.03 | 5 px apart | tiny body, dot sized to stay a dot after scale; at 0.017 the dot no longer fills its 5x5 window and the numbers gate failed (day_peak 0.62 > 0.54) |
 
 The dot is a sphere of that radius (a billboard quad half-buried in the skull read as a crescent from the side).
 
@@ -72,6 +72,21 @@ The dot is a sphere of that radius (a billboard quad half-buried in the skull re
 - The lab is the way to place a new species: `--lab=eyeglow_lab --species=<id> --aim=<px>,<py> --ray`, then
   check `<id>_day_side.png` (crosses) and adjust with `--move=<dx>,<dy>`.
 - Verify: `bash <scratchpad>/dsc/verify_eyeglow.sh [1|2]`, full gate = no argument.
+
+## Verification run (fix round, 2026-10-22)
+
+- `verify_eyeglow.sh 1` (t_eyeglow): PASS, 20 s.
+- Windowed lab batch, 1600x900 gl_compatibility: PASS, 29.6 s end to end (alarm 500 never reached). The
+  earlier 300 s gate timeout came from the previous, unfinished lab; this tree freezes the game clock
+  (`Game.day_length_seconds`) and re-pins `time_of_day` before every capture, which is what fixed it.
+- `verify_eyeglow.sh` (full gate): PASS in 1:29 - scope check, stage 1, stage 2 lab numbers and shots,
+  t_lighting, t_mounts, t_canim and `tools/smoke.sh`.
+- Uncommitted radius experiments from the earlier run (compsognathus 0.017, deinonychus 0.012) were
+  reverted to the committed 0.03 / 0.02: both made the dots too small to clear the 5x5-window gate.
+- The full gate's scope check flagged `.dsc-task/TASK.md`, the harness's own task copy that the runner
+  commits at task start; it is byte-identical to the in-scope `docs/orchestration/dsc/eyeglow-TASK.md`.
+  The gate now excludes `.dsc-task/` and `.dsc.local.json` exactly as `verify_job.sh` and
+  `verify_stationart.sh` already do. No product file changed for this.
 
 ## Credits / deps
 
