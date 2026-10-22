@@ -161,6 +161,12 @@ func _edge_case() -> void:
 		resolves += 1 if moved else 0
 		early += 1 if moved and _anchor().x > 400.0 else 0  # the leftmost label ends ~290 px left of the anchor
 		prev = cur
+	# GATHERGLIDE: the ring re-solved on the way in and glides to the new layout; let it land before
+	# asking whether the hexes are on screen (asking mid-glide would measure the transition).
+	for f in 200:
+		if not radial._hold.gliding():
+			break
+		await process_frame
 	var worst_on := 1.0
 	for b in radial._buttons:
 		var r := Rect2(b.position, b.size)
@@ -169,6 +175,12 @@ func _edge_case() -> void:
 	_expect(early == 0, "edge: nothing moves against the node while the layout still fits (%d)" % early)
 	_expect(resolves >= 1, "edge: the layout gives way once it runs off the screen (%d re-solves)" % resolves)
 	_expect(worst_on >= 0.75, "edge: every hex stays at least 3/4 on screen at the edge (%.2f)" % worst_on)
+	# GATHERGLIDE: a re-solve at the edge glides there over about a second; let it land before the
+	# jiggle is measured, or its tail would read as the jiggle re-solving.
+	for f in 120:
+		if not radial._hold.gliding():
+			break
+		await process_frame
 	var held := _parts()
 	var worst := 0.0
 	for f in 60:
