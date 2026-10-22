@@ -64,15 +64,29 @@ func _run() -> void:
 		var nodes := rt.harvest_count
 		var scene_nodes := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
 		var dry_unwalk := _dry_outside_path(rt)
-		print("[islandgen] id=%s land=%d bbox=%.0fx%.0f aspect=%.2f peninsulas=%d solidity=%.2f coast_ratio=%.2f cliff_cells=%d river_to_sea=%s waterfall=%s build_ms=%.0f nodes=%d scene_nodes=%d crest=%.1f dry_unwalkable=%d ford=%s" % [
+		var rv := _river_metrics(rt)
+		print("[islandgen] id=%s land=%d bbox=%.0fx%.0f aspect=%.2f peninsulas=%d solidity=%.2f coast_ratio=%.2f cliff_cells=%d river_to_sea=%s waterfall=%s build_ms=%.0f nodes=%d scene_nodes=%d crest=%.1f dry_unwalkable=%d ford=%s margin_min=%.0f margins=%.0f/%.0f/%.0f/%.0f river_len=%.0f river_frac=%.2f river_mud=%.2f river_w=%.1f mesa_warp=%.2f" % [
 			id, int(m["land"]), bbox.x, bbox.y, float(m["aspect"]), int(m["peninsulas"]),
 			float(m["solidity"]), float(m["coast_ratio"]), int(m["cliff_cells"]), "true" if _river_sea(rt) else "false",
 			"true" if rt._shape != null and rt._shape.waterfall != Vector3.ZERO else "false",
 			ms, nodes, scene_nodes, crest, dry_unwalk,
 			str(rt._shape.ford.snapped(Vector2.ONE)) if rt._shape != null else "none",
+			float(m["margin_min"]), float(m["margin_w"]), float(m["margin_e"]), float(m["margin_n"]), float(m["margin_s"]),
+			float(rv["len"]), float(rv["frac"]), float(rv["mud"]), float(rv["width"]), float(rv["mesa"]),
 		])
 		var arr: Vector3 = rt.arrival_point()
 		print("[islandgen-harbour] id=%s harbour=[%.1f, 0, %.1f]" % [id, arr.x, arr.z])
+		# Fixed spawn rows and the crater must stand on dry land, not in the sea.
+		var def: Dictionary = World.islands.get(str(id), {})
+		for row in def.get("creatures", []):
+			var at: Array = row.get("at", [0, 0, 0])
+			var pos := Vector3(float(at[0]), 0.0, float(at[2]))
+			print("[islandgen-spawn] id=%s species=%s at=%s dry=%s h=%.2f" % [id, row.get("species", "?"), pos, str(rt.is_dry(pos)), rt.surface_y(pos.x, pos.z)])
+		var cr: Variant = def.get("crater", null)
+		if cr is Array and (cr as Array).size() >= 3:
+			var cp := Vector3(float(cr[0]), 0.0, float(cr[2]))
+			print("[islandgen-spawn] id=%s crater=%s dry=%s h=%.2f" % [id, cp, str(rt.is_dry(cp)), rt.surface_y(cp.x, cp.z)])
+		print("[islandgen-ring] id=%s farthest_dry=%.0f land_radius=%.0f" % [id, rt.farthest_dry_radius(), rt.land_radius()])
 		if _args.has("pens"):
 			for p in m["pen_details"]:
 				print("[islandgen-pen] %s len=%.0f width=%.0f angle=%.0f ratio=%.2f" % [id, float(p["length"]), float(p["width"]), float(p.get("angle", 0.0)), float(p["ratio"])])
@@ -262,6 +276,74 @@ func _dry_outside_path(rt: IslandRuntime) -> int:
 			if rt.is_dry(Vector3(wx, 0.0, wz)) and not rt.pathing.is_walkable(Vector2i(floori(wx), floori(wz))):
 				n += 1
 	return n
+
+## River and mesa numbers the review's criteria are judged on: the channel's arc length and its
+## fraction of the long axis, the fraction of channel tiles that are MUD, the mean channel width,
+## and how far the mesa's rim departs from a circle (0 = a perfect circle).
+func _river_metrics(rt: IslandRuntime) -> Dictionary:
+	var out := {"len": 0.0, "frac": 0.0, "mud": 0.0, "width": 0.0, "mesa": 0.0}
+	var sh: IslandShape = rt._shape
+	if sh == null:
+		return out
+	var m: Dictionary = IslandShape.coast_metrics(rt)
+	var bbox: Vector2 = m["bbox"]
+	var arc := 0.0
+	for i in sh.river.size() - 1:
+		arc += sh.river[i].distance_to(sh.river[i + 1])
+	out["len"] = arc
+	out["frac"] = arc / maxf(1.0, maxf(bbox.x, bbox.y))
+	# Channel tiles (within the channel half-width of the polyline) that are MUD.
+	var mud := 0
+	var total := 0
+	var span: int = rt._tile_span
+	var half: float = rt._size * 0.5
+	for z in span:
+		for x in span:
+			var wx := -half + float(x) + 0.5
+			var wz := -half + float(z) + 0.5
+			if rt.river_dist_at(wx, wz) > 2.6:
+				continue
+			total += 1
+			if int(rt.tile_types[x + z * span]) == IslandTerrain.TileType.MUD:
+				mud += 1
+	out["mud"] = float(mud) / maxf(1.0, float(total))
+	var wsum := 0.0
+	var wn := 0
+	for i in sh.river.size():
+		if not sh.river_w.is_empty():
+			wsum += sh.river_w[i]
+			wn += 1
+	out["width"] = (wsum / float(maxi(1, wn))) * 2.0
+	# Mesa rim: walk out from the centre on 48 bearings until the ground falls to half the mesa's
+	# height above the surrounding base; the radius spread is the departure from a circle.
+	if not sh.mesa.is_empty():
+		var mp: Vector2 = sh.mesa["pos"]
+		var lo := INF
+		var hi := -INF
+		for i in 48:
+			var ang := TAU * float(i) / 48.0
+			var dir := Vector2(cos(ang), sin(ang))
+			var base: float = rt.surface_y(mp.x + dir.x * 90.0, mp.y + dir.y * 90.0)
+			var top: float = rt.surface_y(mp.x, mp.y)
+			if top - base < 0.8:
+				continue  # no measurable mesa relief on this bearing (it sits inside the plateau)
+			var tgt: float = base + (top - base) * 0.5
+			var r := 0.0
+			var d := 3.0
+			# Only the mesa's own rim counts: scanning past 1.8 radii finds the enclosing plateau's
+			# edge, whose radius is nearly the same on every bearing (a spurious "circle").
+			var limit := float(sh.mesa["r"]) * 1.8
+			while d < limit:
+				if rt.surface_y(mp.x + dir.x * d, mp.y + dir.y * d) < tgt:
+					r = d
+					break
+				d += 1.0
+			if r <= 0.0:
+				continue
+			lo = minf(lo, r)
+			hi = maxf(hi, r)
+		out["mesa"] = -1.0 if lo == INF else (hi - lo) / maxf(1.0, hi)
+	return out
 
 func _river_sea(rt: IslandRuntime) -> bool:
 	# The same predicate t_islandgen asserts (IslandShape.river_to_sea: the last sample is at or past

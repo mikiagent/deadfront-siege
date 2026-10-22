@@ -295,6 +295,24 @@ func is_dry(pos: Vector3) -> bool:
 		return false
 	return surface_y(pos.x, pos.z) >= 0.4
 
+## Distance (m) from the ring centre to the FARTHEST dry tile: the spawn rings are clamped to
+## this, so the band reaches the far shore of an elongated island instead of stopping at a
+## land_radius circle while the far half gets no spawns.
+func farthest_dry_radius() -> float:
+	if dry_walk.is_empty():
+		return land_radius() * 1.10
+	var c := ring_centre()
+	var half := _size * 0.5
+	var best := 0.0
+	for z in _tile_span:
+		for x in _tile_span:
+			if dry_walk[x + z * _tile_span] == 0:
+				continue
+			var wx := -half + float(x) + 0.5
+			var wz := -half + float(z) + 0.5
+			best = maxf(best, Vector2(wx - c.x, wz - c.y).length())
+	return maxf(best, land_radius())
+
 ## Tile rect (BuildGrid tile coordinates) holding every dry tile: TilePath's grid is built from it.
 ## Computed once per island when the tile map exists (1 m tiles), cached.
 func dry_bbox() -> Rect2i:

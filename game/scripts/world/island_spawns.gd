@@ -49,9 +49,10 @@ static func spawn_all(rt: IslandRuntime, def: Dictionary) -> void:
 					var r0 := float(span[0]) if span.size() > 0 else 40.0
 					var r1 := float(span[1]) if span.size() > 1 else r0 + 20.0
 					# Rings are measured from the landing point (IslandRuntime.ring_centre), and the
-					# band is clamped to the island's own extent (the shaped islands run 160-200 m
-					# from the landing) so nothing spawns at sea.
-					var land := rt.land_radius() * 1.10
+					# band is clamped to the FARTHEST DRY TILE from that point, so the outer ring
+					# reaches the island's far shore (a land_radius circle left the far half of every
+					# shaped island without spawns and pushed crater/far_shore rows 138-146 m out).
+					var land: float = rt.farthest_dry_radius()
 					r1 = minf(r1, land)
 					r0 = minf(r0, r1 - 8.0)
 					if r1 <= r0 + 4.0:

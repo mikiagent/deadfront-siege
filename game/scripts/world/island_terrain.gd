@@ -26,7 +26,8 @@ enum TileType {
 	ASH = 9,
 	WET = 10,
 	## Cliff faces (escarpment risers, the mesa rim): impassable, never scattered on, so the props
-	## job can dress them with cliff rocks. Shader id 5 paints them as rock (see terrain_tiles.gdshader).
+	## job can dress them with cliff rocks. Painted as grass by _shader_id: the terrain shader
+	## already renders steep ground as rock from the vertex normal.
 	CLIFF = 11,
 }
 
@@ -272,8 +273,6 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	var pix := PackedByteArray()
 	pix.resize(span * span)
 	var has_ash := _climate_has_material(climate, "ash")
-	var byte := PackedByteArray()
-	byte.resize(span * span)
 	var half := rt._size * 0.5
 	var cell := rt._size / float(rt._res - 1)
 	var res := rt._res
@@ -309,6 +308,11 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			var hw := 4.0
 			if not warr.is_empty():
 				hw = lerpf(lerpf(warr[i00], warr[i10], tx), lerpf(warr[i01], warr[i11], tx), tz)
+			# Rock and cliff faces need DRY, INLAND ground at all four grid corners: a bilinear
+			# height says nothing about whether the tile is one vertex of a steep beach, and a
+			# slope read from the sea apron painted a sawtooth of grey ROCK tiles along home's
+			# coast beside the dock (water_lab sea_bank_1m).
+			var inland_rock := rad < land_r - 4.0 and minf(minf(harr[i00], harr[i10]), minf(harr[i01], harr[i11])) > 0.45
 			var t := TileType.GRASS
 			if h < -0.6:
 				t = TileType.DEEP
@@ -318,20 +322,21 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 				t = TileType.WET
 			elif h < 0.45 or rad > land_r + 2.0:
 				t = TileType.SAND
-			elif slope > 1.15 and rd > hw + 3.0:
+			elif slope > 1.15 and rd > hw + 3.0 and inland_rock:
 				# A riser: 1.15 rise/run is about 49 deg, the terrace face (3.2 m over one cell).
 				# The river's own banks are steep too; they stay water/bank, never a cliff (a cliff
 				# strip along both banks read as black walls in the top-down shot).
 				t = TileType.CLIFF
-			elif slope > 0.72 or h > 9.6:
+			elif (slope > 0.72 or h > 9.6) and inland_rock:
 				t = TileType.ROCK
 			elif slope > 0.5:
 				t = TileType.DRY
 			if has_ash and h > 4.8 and t == TileType.ROCK:
 				t = TileType.ASH
-			if shape != null and shape.ford != Vector2.ZERO and Vector2(wx - shape.ford.x, wz - shape.ford.y).length() < IslandShape.FORD_R:
-				hw = 0.0  # the ford: dry ground over the channel
-			if rd < hw and h > -0.5 and h < 0.4:
+			# The river: one continuous channel of MUD (half-width `hw`) with its bed under the
+			# -0.05 water plane. The ford is a SHALLOW crossing (bed -0.10 m), not a dry gap: the
+			# channel and its fresh-water mask run unbroken through it.
+			if rd < hw and h > -0.6 and h < 0.15:
 				t = TileType.MUD
 			elif rd < hw + 1.0 and h > 0.05 and h < 0.22:
 				# A narrow wet bank strip (MUD, so the fresh-water mask covers the edge). Wider or

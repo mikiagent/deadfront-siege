@@ -40,6 +40,8 @@ const WATERLINE := 0.3605 + 1.5 / 416.0  # where the beach profile crosses -0.05
 ## Legacy core: old height fully in at 50 m from the origin, gone by 75 m.
 const LEGACY_FULL := 50.0
 const LEGACY_END := 75.0
+## Sea kept on every side of the square grid, so no headland is cut off by the grid edge.
+const SEA_MARGIN := 24.0
 
 var size: float = 416.0
 var res: int = 161
@@ -74,7 +76,7 @@ var ridge_dir := Vector2.RIGHT
 ## +1 when the highland lies along +ridge_dir, -1 along -ridge_dir (chosen away from the cove).
 var high_side := 1.0
 ## Home: the river's line (z), just north of the camp, and the old dry gap's half-width as the ford.
-var _home_river_z := -12.0
+var _home_river_z := -34.0
 ## The camp hint (island def), flattened a little; home (0,8), unstable (0,12) by default.
 var camp_hint := Vector2(0.0, 12.0)
 ## {"pos": Vector2, "r": float, "h": float} or {}; most islands have one.
@@ -85,6 +87,10 @@ var river := PackedVector2Array()
 ## legacy core, where the old dry gap by the camp is the ford (plan 1.3).
 var ford := Vector2.ZERO
 const FORD_R := 11.0
+## Arc length of the chosen channel (m): t_islandgen asserts it spans >= half the long axis.
+var river_arc := 0.0
+## Which candidate (0-7) the river search settled on; later passes replay only that one.
+var _river_attempt := -1
 var _river_w := PackedFloat32Array()
 var waterfall := Vector3.ZERO
 
@@ -158,7 +164,7 @@ static func make(p_size: float, p_seed: int, p_kind: String, p_tier: int, harbou
 	# rewrites the island's 'harbour' row after every build, so a hint-derived shape would change
 	# between loads (a moved dock would then be refused and snap back - t_harbour's moved-harbour case).
 	# Home: south (the plan puts the cove ~115 m below the origin, the dock back near (0, 62)).
-	s._home_river_z = s.camp_hint.y - 26.0
+	s._home_river_z = s.camp_hint.y - 46.0
 	var hint_ang := INF
 	if legacy_core:
 		# +z, the near side: the land sits at centre (0, -35), so its south coast is ~115 m below
@@ -167,6 +173,8 @@ static func make(p_size: float, p_seed: int, p_kind: String, p_tier: int, harbou
 	else:
 		hint_ang = float(r.randi_range(0, 7)) * TAU / 8.0 + r.randf_range(-0.2, 0.2)
 	# 2-4 peninsulas: narrow Gaussian-ish lobes (the width/length measure needs them long and thin).
+	# 3-4 lobes: with 2 the smoothed coastline often merged both into one broad bump and the
+	# headland measure (and the merge review's silhouette) came up short.
 	var npen := r.randi_range(2, 3)
 	var base := r.randf() * TAU
 	var guard := 0.55  # keep lobes away from the harbour cove's angle
@@ -179,13 +187,13 @@ static func make(p_size: float, p_seed: int, p_kind: String, p_tier: int, harbou
 				a += 0.55
 		# Plan 1.2: one or two lobes 18-30 deg wide and 0.18-0.30 R high. The super-Gaussian's
 		# sigma is the half-width where the lobe falls to 1/e, so sigma 0.16-0.26 rad = 18-30 deg.
-		s._pens.append([a, r.randf_range(0.36, 0.55), r.randf_range(0.13, 0.20)])
+		s._pens.append([a, r.randf_range(0.40, 0.58), r.randf_range(0.13, 0.19)])
 	var nbays := r.randi_range(1, 2)
 	for i in nbays:
 		var a := r.randf() * TAU
 		if hint_ang != INF and absf(angle_difference(a, hint_ang)) < guard + 0.35:
 			a += 1.4
-		s._bays.append([a, r.randf_range(0.16, 0.30), r.randf_range(0.16, 0.26)])
+		s._bays.append([a, r.randf_range(0.10, 0.20), r.randf_range(0.16, 0.26)])
 	var cove_ang := hint_ang if hint_ang != INF else r.randf() * TAU
 	# The cove is deep on a home island: its head brings the dock back near the camp (plan 1.1).
 	# Home: a deep south cove; the plan's "a 50 m cove puts the dock back at about (0, 62)".
@@ -241,6 +249,9 @@ static func make(p_size: float, p_seed: int, p_kind: String, p_tier: int, harbou
 			"pos": Vector2(cos(ma), sin(ma)) * s.coast_radius(ma) * r.randf_range(0.30, 0.45),
 			"r": mr,
 			"h": 3.2 + r.randf_range(0.0, 1.4),
+			# A butte, not a cone: an elliptical, rotated, noise-warped footprint.
+			"aspect": r.randf_range(0.50, 0.78),
+			"rot": r.randf() * TAU,
 		}
 	if legacy_core:
 		s._legacy_noises()
@@ -327,17 +338,21 @@ func compute() -> void:
 	# wander and the highlands both move the -0.05 contour away from the analytic coast).
 	var long_m := target.x
 	var short_m := target.y
-	# The land bbox must leave >= 20 m of sea on every side of the square: the target is capped
-	# by that (a 416 m home holds at most 376 x 376 of land).
-	long_m = minf(long_m, size - 46.0)
-	short_m = minf(short_m, size - 46.0)
+	# The land bbox must leave >= SEA_MARGIN of sea on every side of the square: the target is
+	# capped by that (a 416 m home holds at most 372 x 372 of land with 22 m a side).
+	long_m = minf(long_m, size - 2.0 * SEA_MARGIN - 4.0)
+	short_m = minf(short_m, size - 2.0 * SEA_MARGIN - 4.0)
+	# Per-side margin pass FIRST (analytic coastline, microseconds): recentre the land inside the
+	# square and scale it down until every side has SEA_MARGIN of sea plus room for the shore's own
+	# noise wander. Doing this before the size calibration keeps the river's mouth attached to the
+	# coast the calibration ends on.
+	_settle_margins()
 	# Iterate the two-axis extent correction: scaling x and y moves the shape's own outline too,
-	# so one pass lands a few percent short (and the lobes make that non-linear). Three passes
-	# settle inside 2 %, well inside the 10 % target band.
-	for round_i in 4:
+	# so one pass lands a few percent short (and the lobes make that non-linear).
+	for round_i in 3:
 		_build_river()
 		_fill_heightmap()
-		if round_i >= 3:
+		if round_i >= 2:
 			break
 		var bb := _waterline_bbox()
 		if bb.x < 1.0 or bb.y < 1.0:
@@ -351,8 +366,72 @@ func compute() -> void:
 		else:
 			sx *= fy
 			sz *= fx
+	# The scaling above can nudge a headland back toward an edge: settle the real margins once
+	# more, rebuilding the river if the coast moved under it (the mouth must stay at the sea).
+	if _settle_margins():
+		_build_river()
+		_fill_heightmap()
 	_slopes(size / float(res - 1))
 	_find_waterfall()
+
+## Recentre and (if needed) shrink the land so every side of the square keeps SEA_MARGIN of sea,
+## measured on the analytic coastline. Returns true when it changed sx/sz/centre.
+func _settle_margins() -> bool:
+	var changed := false
+	var pad := SEA_MARGIN + size * 0.020
+	for _round in 6:
+		var cbox := _coast_rect()
+		if cbox.size.x < 1.0 or cbox.size.y < 1.0:
+			break
+		var m := _margins(cbox)
+		if m.x >= pad and m.y >= pad and m.z >= pad and m.w >= pad:
+			break
+		var c := cbox.position + cbox.size * 0.5
+		if absf(c.x) > 0.75 or absf(c.y) > 0.75:
+			centre -= c
+			changed = true
+			continue
+		var fit := size - 2.0 * pad
+		sx *= clampf(fit / maxf(1.0, cbox.size.x), 0.95, 1.0)
+		sz *= clampf(fit / maxf(1.0, cbox.size.y), 0.95, 1.0)
+		changed = true
+	return changed
+
+## The land's world-space extent (heights above the waterline inside the grid) as a Rect2.
+func _land_rect() -> Rect2:
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	var cell := size / float(res - 1)
+	for z in res:
+		for x in res:
+			if heights[x + z * res] > -0.05:
+				var wx := -size * 0.5 + float(x) * cell
+				var wz := -size * 0.5 + float(z) * cell
+				lo = Vector2(minf(lo.x, wx), minf(lo.y, wz))
+				hi = Vector2(maxf(hi.x, wx), maxf(hi.y, wz))
+	if lo.x == INF:
+		return Rect2()
+	return Rect2(lo, hi - lo)
+
+## The analytic coastline's world-space box (720 bearings, no heightmap pass): the margin pass
+## uses this so it costs microseconds instead of one heightmap fill per iteration.
+func _coast_rect() -> Rect2:
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for i in 360:
+		var th := TAU * float(i) / 360.0
+		var q := coast_point(th)
+		lo = Vector2(minf(lo.x, q.x), minf(lo.y, q.y))
+		hi = Vector2(maxf(hi.x, q.x), maxf(hi.y, q.y))
+	if lo.x == INF:
+		return Rect2()
+	return Rect2(lo, hi - lo)
+
+## Sea on each side of the land inside the square: (west, east, north, south) in metres.
+func _margins(r: Rect2) -> Vector4:
+	var half := size * 0.5
+	return Vector4(r.position.x + half, half - (r.position.x + r.size.x),
+		r.position.y + half, half - (r.position.y + r.size.y))
 
 func _fill_heightmap() -> void:
 	heights.resize(res * res)
@@ -368,13 +447,11 @@ func _fill_heightmap() -> void:
 			var r := rad(wx, wz)
 			var nr := river_near(wx, wz)
 			var d := nr.x
-			if ford != Vector2.ZERO and Vector2(wx - ford.x, wz - ford.y).length() < FORD_R:
-				d = 10000.0
-			# A flat dry camp disc (r 30 m) on every island: no river, no ford, no terrace inside it.
+			# A flat dry camp disc (r 30 m) on every island: no river, no terrace inside it.
+			# (The ford is NOT dry ground any more: it is a continuous shallow crossing, so the
+			# channel carve and the fresh-water mask run through it.)
 			if Vector2(wx - camp_hint.x, wz - camp_hint.y).length() < CAMP_R:
 				d = 10000.0
-			# Home: the old dry gap (|x| < 25 m at the ford) is the ONLY dry break; the channel
-			# still carves through the legacy core 25 m from the camp.
 
 			river_w[x + z * res] = nr.y
 			var idx := x + z * res
@@ -433,21 +510,30 @@ func _height(wx: float, wz: float, r: float, d_river: float, hw: float) -> float
 		# The plateau is cut by a 34 m river valley (the plan's valley), so the river descends in a
 		# gorge through the highland instead of being dammed by the rim.
 		h += (rise + inner) * flank * smoothstep(0.10, 0.30, t) * smoothstep(12.0, 34.0, d_river)
-	# Mesa: a plateau with a sharp rim (8 m edge over its 3.4-4.6 m face).
+	# Mesa: a plateau with a sharp rim (8 m edge over its 3.4-4.6 m face), warped so it reads as a
+	# butte rather than a perfect cone: an elliptical footprint (aspect 0.5-0.8) whose radius is
+	# pushed in and out by low-frequency noise.
 	if not mesa.is_empty():
 		var mp: Vector2 = mesa["pos"]
-		var md := Vector2(wx - mp.x, wz - mp.y).length()
+		var mq := Vector2(wx - mp.x, wz - mp.y)
+		# The footprint is an ellipse in the mesa's own (rotated) frame.
+		var ma := float(mesa.get("rot", 0.0))
+		var mc := cos(ma)
+		var ms := sin(ma)
+		var mq2 := Vector2(mq.x * mc + mq.y * ms, (-mq.x * ms + mq.y * mc) / float(mesa.get("aspect", 0.7)))
+		var md := mq2.length() + _ncliff.get_noise_2d(wx * 1.7, wz * 1.7) * size * 0.030
 		var mr := float(mesa["r"])
 		var mh := float(mesa["h"])
 		h += mh * smoothstep(mr + 4.0, mr - 4.0, md)
-	# Valley: ground falls toward the river so it reads as a river valley, not a slot cut in a plain.
-	# Outside the channel only: inside it the bed height is what holds the water, and letting the
-	# valley dig the bed pushed the water below the -0.33 profile (and under the sea's -0.6) on the
-	# islands whose river crosses low ground.
+	# Valley: a shallow shoulder that starts OUTSIDE twice the channel's half-width and never dips
+	# below +0.25 m. The old 1.5 m dip reaching to the bank put a 25-35 m valley floor at the -0.05
+	# waterline; with the water shader's alpha floor that whole floor painted as water, and terrain
+	# bumps poked through it as rows of brown chevrons (the merge review's shot).
 	var bank_h := h
-	if d_river > hw * 1.2 and d_river < 40.0:
-		var vw := 26.0
-		h -= 1.5 * exp(-pow(d_river / vw, 2.0))
+	if d_river > hw * 2.0 and d_river < hw * 2.0 + 24.0:
+		var vw := (d_river - hw * 2.0) / 24.0
+		var dip := 0.6 * (1.0 - vw) * (1.0 - vw)
+		h -= maxf(0.0, minf(dip, h - 0.25))
 	# Legacy core (home): the old seed-17 height function, blended in first, so the new features
 	# (the river, the terraces) still apply on top and the core is old GROUND, not a frozen patch.
 	if legacy:
@@ -475,13 +561,18 @@ func _height(wx: float, wz: float, r: float, d_river: float, hw: float) -> float
 	# not cut the coast into two dry lobes (the mouth still reaches the sea).
 	if r > shore0 - 4.0:
 		hw = 0.0
-	if ford != Vector2.ZERO and Vector2(wx - ford.x, wz - ford.y).length() < FORD_R:
-		d_river = 10000.0
-		h = maxf(h, 0.55)
 	# The camp clearing is never cut by the channel: an old basket stands 2 m from the camp centre and
 	# must stay on dry, buildable ground (t_save's away golden).
 	if Vector2(wx - camp_hint.x, wz - camp_hint.y).length() < CAMP_R:
 		d_river = 10000.0
+	# The ford: a continuous shallow crossing, not a dry disc. The channel keeps its water and its
+	# MUD (so the fresh-water mask is unbroken along the river); only the bed rises to -0.10 m over
+	# about 10 m, which a survivor wades and every creature walks.
+	var ford_w := 0.0
+	if ford != Vector2.ZERO:
+		var fd := Vector2(wx - ford.x, wz - ford.y).length()
+		if fd < FORD_R:
+			ford_w = smoothstep(FORD_R, FORD_R * 0.45, fd)
 	if d_river < hw * 2.2:
 		# The bed follows the ground: about 0.6 m below the bank, and only in the low ground (below
 		# ~2.4 m of bank) does it reach the waterline profile (-0.33, t_water's -0.25..-0.38). Up in
@@ -493,14 +584,16 @@ func _height(wx: float, wz: float, r: float, d_river: float, hw: float) -> float
 		# in high ground it is cut deeper (0.7 m under the bank) so the channel reads as a gorge
 		# with a river in it rather than a flat trench sliced through a hill (the plan's waterfall).
 		var bed := minf(-0.33, bank_h - 0.7)
-		if d_river < hw:
-			# A flat bed for the middle 60 % of the channel, then the bank: a visible sheet of water
-			# rather than a 1 m slot.
-			var carve := smoothstep(1.0, 0.6, d_river / maxf(0.001, hw))
-			h = lerpf(h, bed, carve)
-		else:
-			var bank := clampf(1.0 - (d_river - hw) / (hw * 1.2), 0.0, 1.0)
-			h = lerpf(h, minf(h, bed + 0.35), bank * 0.55)
+		# At the ford the bed rises to a shallow -0.10 m (still below the -0.05 water plane, so the
+		# river reads continuous through the crossing and the channel tiles stay MUD).
+		bed = lerpf(bed, -0.10, ford_w)
+		# One smooth channel profile: the ground falls from the bank to the bed across 2.2 channel
+		# half-widths, so the waterline is a smooth curve. The old two-branch carve (a hard flat
+		# bed inside `hw`, then a bank lerp) left a stepped rim that read as a sawtooth bank on the
+		# 2.6 m mesh.
+		var u := d_river / maxf(0.001, hw)
+		var w := smoothstep(2.2, 0.55, u)
+		h = lerpf(h, minf(h, bed), w)
 	# Camp disc: a flat dry clearing (1.1 m) 30 m across, on every island - the legacy camp pieces,
 	# the old baskets and any new landing camp stand on it. Full inside 18 m, blended out by 30 m.
 	var camp_d := Vector2(wx - camp_hint.x, wz - camp_hint.y).length()
@@ -547,83 +640,172 @@ func _legacy_height(wx: float, wz: float) -> float:
 
 # ---------------------------------------------------------------------------- river
 
-## Source in the highlands -> the sea, 7 control points with a lateral wobble, subdivided into
-## 26 samples for distance queries. The widths grow toward the mouth (a small delta).
+## The river: a plateau source on the highland flank, a meandering channel (+-15 m) to a mouth on
+## the coast 60-120 deg off the harbour cove, at least half the island's long axis long. Paths that
+## run out along a bay or come up short are rejected and re-seeded rather than clipped (a clipped
+## river was a coastal stub on tundra_30, swamp_55 and volcanic_60).
 func _build_river() -> void:
-	var rr := RandomNumberGenerator.new()
-	rr.seed = seed * 313 + 7
+	var want := 0.55 * target.x
+	var best_river := PackedVector2Array()
+	var best_len := -1.0
+	# The candidate search runs once: later passes (the size calibration refills the heightmap up
+	# to four times) replay only the winning attempt, so a rebuild costs one candidate, not eight.
+	var first := 0
+	var last := 8
+	if _river_attempt >= 0:
+		first = _river_attempt
+		last = _river_attempt + 1
+	for attempt in range(first, last):
+		var rr := RandomNumberGenerator.new()
+		rr.seed = seed * 313 + 7 + attempt * 977
+		var p := _river_candidate(rr)
+		if p.size() < 4:
+			continue
+		var arc := 0.0
+		for i in p.size() - 1:
+			arc += p[i].distance_to(p[i + 1])
+		# The body of the channel must be inland: only the mouth's last few samples (about 10 m)
+		# may sit at or past the coastline. A path that runs along a bay is not a river.
+		var outside := 0
+		var body := int(p.size() * 0.90)
+		for i in body:
+			if rad(p[i].x, p[i].y) > shore0 * 0.97:
+				outside = 999
+				break
+		var ok := outside == 0 and arc >= want
+		if OS.get_environment("ISL_RIVER") == "1":
+			print("[riverdbg] attempt=%d arc=%.0f want=%.0f outside=%d rad_end=%.0f shore0=%.0f" % [attempt, arc, want, outside, rad(p[p.size() - 1].x, p[p.size() - 1].y), shore0])
+		if ok:
+			best_river = p
+			best_len = arc
+			_river_attempt = attempt
+			break
+		if arc > best_len and outside == 0:
+			best_len = arc
+			best_river = p
+	if best_river.is_empty():
+		if _river_attempt >= 0:
+			# The replayed attempt is invalid at the new scale: search the whole set again.
+			_river_attempt = -1
+			_build_river()
+		return
+	river = best_river
+	river_arc = best_len
+	if OS.get_environment("ISL_RIVER") == "1":
+		var e := river[river.size() - 1]
+		print("[riverdbg] chose arc=%.0f n=%d end=%s rad_end=%.1f shore0=%.1f to_sea=%s" % [best_len, river.size(), e, rad(e.x, e.y), shore0, river_to_sea()])
+	_river_w.resize(river.size())
+	for i in river.size():
+		var t := float(i) / float(maxi(1, river.size() - 1))
+		# Half-width: a 7-12 m channel (the review's band), widening to a small delta at the mouth.
+		_river_w[i] = lerpf(3.5, 5.0, t)
+		# The source narrows to a spring: a constant-width sheet cut off square in the highland was
+		# the "river ends in a rectangle" read in the top-down shot.
+		if t < 0.18:
+			_river_w[i] = lerpf(0.9, _river_w[i], smoothstep(0.0, 0.18, t))
+		if t > 0.85:
+			_river_w[i] = lerpf(5.0, 7.0, (t - 0.85) / 0.15)
+	_bucket_river()
+	# Ford: a shallow crossing on the middle of the channel, at least 30 m from camp (home: the
+	# old dry gap at |x| < 25 m, plan 1.3).
+	var best := -1
+	var best_d := INF
+	for i in river.size():
+		var q := river[i]
+		if legacy and absf(q.x) < 25.0:
+			best = i
+			best_d = absf(q.x)
+			continue
+		var dc := Vector2(q.x - camp_hint.x, q.y - camp_hint.y).length()
+		var t := float(i) / float(maxi(1, river.size() - 1))
+		# Clear of the camp's flat disc: the clearing damps the channel and would leave the ford on
+		# dry bank instead of in the water.
+		if t > 0.25 and t < 0.62 and dc > CAMP_R + 12.0 and dc < best_d:
+			best = i
+			best_d = dc
+	if best >= 0:
+		ford = river[best]
+	if OS.get_environment("ISL_RIVER") == "1":
+		var zs := ""
+		for i in range(0, river.size(), 9):
+			zs += "%s " % river[i].snapped(Vector2.ONE)
+		print("[riverdbg] legacy=%s ford=%s river: %s" % [legacy, ford, zs])
+
+## One candidate channel (72 samples), or an empty array when the geometry cannot be formed.
+func _river_candidate(rr: RandomNumberGenerator) -> PackedVector2Array:
 	var hint_ang := atan2(_cove_centre().y, _cove_centre().x)
 	# The mouth is 60-120 deg off the cove's bearing, so the river does not empty into the harbour.
 	var mouth_ang := hint_ang + (PI * 0.62 if rr.randf() < 0.5 else -PI * 0.62) + rr.randf_range(-0.35, 0.35)
 	if legacy:
 		# Home: east highland -> west coast, north of the camp (the old stubs' line), so the
 		# legacy core around the origin keeps its flat dry ground.
-		mouth_ang = PI + rr.randf_range(-0.35, 0.25)
-	var source_ang := mouth_ang + PI + rr.randf_range(-0.45, 0.45)
-	# The source sits inland on the highland flank (the side `high_side` points to), so the river
-	# runs from the high ground down across the island to its mouth.
+		mouth_ang = PI + rr.randf_range(-0.25, 0.15)
+	var mouth := coast_point(mouth_ang) * 1.02  # a few metres into the sea
+	# The source sits on the plateau on the highland flank: high ground, well inland.
 	var ridge_ang := atan2(ridge_dir.y, ridge_dir.x)
 	if high_side < 0.0:
 		ridge_ang += PI
-	source_ang = ridge_ang + rr.randf_range(-0.5, 0.5)
-	var mouth := coast_point(mouth_ang) * 1.02  # a few metres into the sea
+	var source_ang := ridge_ang + rr.randf_range(-0.5, 0.5)
 	var cr := coast_radius(source_ang)
-	var source := centre + Vector2(cos(source_ang), sin(source_ang)) * cr * 0.62
-	# The bearing can cross a bay on its way out, so pull the point inland until it is really on land.
-	for _k in 30:
-		if rad(source.x, source.y) < shore0 * 0.82:
+	var source := centre + Vector2(cos(source_ang), sin(source_ang)) * cr * 0.58
+	for _k in 40:
+		if rad(source.x, source.y) < shore0 * 0.78:
 			break
 		source = source.lerp(centre, 0.12)
 	if legacy:
-		# Home (plan 1.3): east hills -> west coast along the old channel's line (just north of the
-		# camp), with the old dry gap at |x| < 25 m as the ford. Source and mouth are the points
-		# where that line meets the coast (so the channel stays inside the coastline).
+		# Home (plan 1.3): the channel runs along the old stub line (z = -18) from the east
+		# highland to the west coast, north of the camp.
 		var z0 := _home_river_z
 		var east := coast_on_line(z0, 1.0)
-		var west := coast_on_line(z0, -1.0)
-		source = Vector2(east.x - 30.0, z0)
-		mouth = Vector2(west.x - 3.0, z0)
-		source_ang = atan2(z0 - centre.y, source.x - centre.x)
-	var axis := (mouth - source)
+		source = Vector2(east.x - 34.0, z0)
+		mouth = Vector2(coast_on_line(z0, -1.0).x - 3.0, z0)
+	var axis := mouth - source
+	if axis.length() < 40.0:
+		return PackedVector2Array()
 	var perp := Vector2(-axis.y, axis.x).normalized()
-	# A meander arc, small enough that the channel does not wander onto the camp or the coast.
-	# A visible meander (8-15 % of the radius), not a straight line across the island.
-	var amp := cr * rr.randf_range(0.06, 0.10) if legacy else cr * rr.randf_range(0.08, 0.14)
+	# A smooth meander, two gentle S-bends of +-15 m: the channel reads as a river, not a canal.
+	var amp := 15.0
+	var phase := rr.randf_range(-0.6, 0.6)
 	var ctrl := PackedVector2Array()
-	var n := 7
+	var n := 9
 	for i in n:
 		var t := float(i) / float(n - 1)
-		# One gentle bow (a meander arc), not a zigzag: the channel should read as water, not noise.
-		var p := source.lerp(mouth, t) + perp * sin(t * PI + rr.randf_range(-0.25, 0.25)) * amp
-		# Keep the control points INSIDE the land (a straight source->mouth line can cross a bay and
-		# run out along the open sea); the mouth itself is re-attached at the coast below.
+		var p := source.lerp(mouth, t) + perp * sin(t * TAU * 1.15 + phase) * amp
 		for _k in 40:
-			if rad(p.x, p.y) < shore0 * 0.82:
+			if rad(p.x, p.y) < shore0 * 0.80:
 				break
 			p = p.lerp(centre, 0.1)
 		if legacy:
-			# The home river runs just north of the camp (z ~ -12, the old channel's line) with a
-			# gentle meander, and crosses x = 0 inside the old dry gap: the ford at |x| < 25 m
-			# (plan 1.3) keeps the camp's own ground dry and walkable. The mouth/source are where
-			# this line meets the coast, so the channel stays inside the coastline.
-			# Meander +-8 m around the channel's line (never within ~10 m of z = 0, where t_water
-			# checks dry grass, and never into the camp disc 26 m away).
-			p.y = _home_river_z + clampf((p.y - centre.y) * 0.9, -8.0, 8.0)
+			# The home channel keeps its line north of the camp: the meander runs up to 15 m SOUTH
+			# of it, so the camp disc and the dry grass at (-48, 0) that t_water checks stay clear.
+			# A real +-15 m meander along the old stub line (the review's figure): the camp disc is
+			# 42 m north of the line, so even the northmost bend leaves 27 m of dry ground.
+			p.y = _home_river_z + sin(t * TAU * 1.15 + phase) * amp
+		# Keep the channel clear of the camp's flat disc: the clearing flattens the ground, which
+		# dammed the river there (a 2 m bank across the channel, no MUD, a broken fresh-water mask).
+		var away := p - camp_hint
+		var keep_out := CAMP_R + 8.0
+		if away.length() < keep_out:
+			p = camp_hint + (away.normalized() if away.length() > 0.5 else Vector2.DOWN) * keep_out
 		ctrl.append(p)
-	# The last control point is the coast crossing on the way to the mouth: march out from the last
-	# inland point along the direction to the mouth until the coastline, then 3 m into the water.
-	var last := ctrl[ctrl.size() - 2] if ctrl.size() >= 2 else centre
-	var out_dir := (mouth - last).normalized()
+	# The mouth is the coast crossing: march out from the last inland control point TOWARD the
+	# intended mouth until the coast, then 6 m into the sea. This replaces the old post-hoc
+	# clipping, which cut real rivers short.
+	var last := ctrl[ctrl.size() - 2]
+	var out_dir := (mouth - last)
+	if out_dir.length() < 1.0:
+		out_dir = (ctrl[ctrl.size() - 1] - last)
+	out_dir = out_dir.normalized()
 	var edge := last
-	for _k in 200:
-		var q := edge + out_dir * 2.0
+	for _k in 300:
+		var q := edge + out_dir * 1.5
 		if rad(q.x, q.y) >= shore0:
 			break
 		edge = q
-	ctrl[ctrl.size() - 1] = edge + out_dir * 3.0
-	# Catmull-Rom subdivision to 72 samples (about 4-5 m apart): the carve tests distance to the
-	# nearest segment, so sparse samples made a staircase channel (NOTES.md, first shot).
-	river = PackedVector2Array()
+	ctrl[ctrl.size() - 1] = edge + out_dir * 6.0
+	# Catmull-Rom subdivision to 72 samples (4-5 m apart): the carve tests distance to the nearest
+	# segment, so sparse samples made a staircase channel (NOTES.md, first shot).
+	var out := PackedVector2Array()
 	var m := 72
 	for i in m:
 		var t := float(i) / float(m - 1) * float(ctrl.size() - 1)
@@ -633,49 +815,8 @@ func _build_river() -> void:
 		var p1 := ctrl[k]
 		var p2 := ctrl[k + 1]
 		var p3 := ctrl[mini(k + 2, ctrl.size() - 1)]
-		river.append(_catmull(p0, p1, p2, p3, f))
-	# Clip the polyline to the land: a straight line between the source and the mouth can cut across
-	# a bay and run along the open sea (volcanic_60 did), so the channel stops at the first sample
-	# past the coastline's shoulder.
-	var keep := river.size()
-	for i in river.size():
-		if rad(river[i].x, river[i].y) > shore0 * 0.995:
-			keep = maxi(3, i + 1)
-			break
-	if keep < river.size():
-		var cut := PackedVector2Array()
-		for i in keep:
-			cut.append(river[i])
-		# Push the end a few metres seaward so the mouth really reaches the water.
-		var dir_out := (cut[cut.size() - 1] - cut[cut.size() - 2]).normalized()
-		cut[cut.size() - 1] = cut[cut.size() - 1] + dir_out * 4.0
-		river = cut
-	_river_w.resize(river.size())
-	for i in river.size():
-		var t := float(i) / float(maxi(1, river.size() - 1))
-		# ASSUMPTION: 5-15 m wide channel (plan 1.3: 6-10 m body, widening to a small delta).
-		_river_w[i] = lerpf(3.4, 6.0, t * t)  # half-width: a 7-12 m channel (plan: 6-10 m, delta wider)
-		# A delta mouth: the last 20 % of the channel widens to 11-14 m where it meets the sea.
-		if t > 0.8:
-			_river_w[i] = lerpf(6.0, 10.0, (t - 0.8) / 0.2)
-	_bucket_river()
-	# Ford: first river sample in the middle third that is far enough from camp (home: the old
-	# dry gap at |p| < 58 m is the ford, so the legacy core stays dry and walkable).
-	var best := -1
-	var best_d := INF
-	for i in river.size():
-		var p := river[i]
-		if legacy and absf(p.x) < 25.0:
-			best = i
-			best_d = absf(p.x)
-			continue
-		var dc := Vector2(p.x - camp_hint.x, p.y - camp_hint.y).length()
-		var t := float(i) / float(maxi(1, river.size() - 1))
-		if t > 0.25 and t < 0.62 and dc > 30.0 and dc < best_d:
-			best = i
-			best_d = dc
-	if best >= 0:
-		ford = river[best]
+		out.append(_catmull(p0, p1, p2, p3, f))
+	return out
 
 func _bucket_river() -> void:
 	_segs.clear()
@@ -765,6 +906,16 @@ static func _seg_dist(p: Vector2, a: Vector2, b: Vector2) -> float:
 		return p.distance_to(a)
 	var t := clampf((p - a).dot(ab) / l2, 0.0, 1.0)
 	return p.distance_to(a + ab * t)
+
+## True when the whole channel body (everything but the mouth's last few metres) is inland: a
+## river that runs out along a bay is a coastal stub, not a river.
+func river_runs_inland() -> bool:
+	if river.size() < 4:
+		return false
+	for i in int(river.size() * 0.90):
+		if rad(river[i].x, river[i].y) > shore0 * 0.97:
+			return false
+	return true
 
 ## The river's mouth in the sea (last sample) and whether the channel reaches deep water.
 func river_to_sea() -> bool:
@@ -996,6 +1147,14 @@ static func coast_metrics(rt: IslandRuntime) -> Dictionary:
 						per += 1
 	var bw := hi.x - lo.x + 1.0
 	var bh := hi.y - lo.y + 1.0
+	# Real per-side margins (metres of sea between the land and the grid edge). The centred
+	# `(size - bbox) * 0.5` hid the clipped-headland case: a headland that ran out of the square
+	# has zero margin on that side and reads as a straight cut in the top-down shot.
+	var hm := half
+	var m_w := lo.x + hm
+	var m_e := hm - hi.x
+	var m_n := lo.y + hm
+	var m_s := hm - hi.y
 	var cliff := 0
 	for i in rt.tile_types.size():
 		if int(rt.tile_types[i]) == IslandTerrain.TileType.CLIFF:
@@ -1013,4 +1172,10 @@ static func coast_metrics(rt: IslandRuntime) -> Dictionary:
 		"peninsulas": pens.size(),
 		"pen_details": pens,
 		"cliff_cells": cliff,
+		# Sea on each side of the square grid (metres): west, east, north, south, and the smallest.
+		"margin_w": m_w,
+		"margin_e": m_e,
+		"margin_n": m_n,
+		"margin_s": m_s,
+		"margin_min": minf(minf(m_w, m_e), minf(m_n, m_s)),
 	}
