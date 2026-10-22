@@ -208,7 +208,7 @@ func _card(shape: Dictionary, short: bool) -> Button:
 	# Two anchored blocks, not a VBox: the map fills the card above a fixed-height text block, so
 	# every card's title and blurb sit on one line however long the blurb is (a VBox let a wrapped
 	# blurb push its own title down and clipped the neighbour's).
-	var text_h := _px(58 if short else 92)
+	var text_h := _px(52 if short else 92)
 	var tex := preview_texture(shape)
 	_previews[id] = tex
 	var prev := TextureRect.new()
@@ -230,7 +230,7 @@ func _card(shape: Dictionary, short: bool) -> Button:
 	text_block.offset_left = _px(4)
 	text_block.offset_right = -_px(4)
 	text_block.offset_top = -(text_h + _px(2))
-	text_block.offset_bottom = -_px(2)
+	text_block.offset_bottom = -_px(6)
 	text_block.add_theme_constant_override("separation", 0)
 	text_block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(text_block)
@@ -243,9 +243,12 @@ func _card(shape: Dictionary, short: bool) -> Button:
 	text_block.add_child(name_l)
 	var blurb := Label.new()
 	blurb.text = str(shape.get("blurb", ""))
+	# A landscape phone card is 390 px tall in total: the name (and the SELECTED tick) fit, a
+	# wrapped blurb did not and drew over the footer.
+	blurb.visible = not short
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	blurb.custom_minimum_size = Vector2(0, _px(32 if short else 36))
+	blurb.custom_minimum_size = Vector2(0, _px(36))
 	blurb.add_theme_font_size_override("font_size", _px(12 if short else 13))
 	blurb.add_theme_color_override("font_color", UiTokens.META)
 	blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
