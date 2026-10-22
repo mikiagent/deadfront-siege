@@ -43,15 +43,25 @@ func _ready() -> void:
 	_cam.size = 14.0
 	var args := OS.get_cmdline_user_args()
 	var gates := ""
+	var shots := ""
 	for a in args:
 		if a.begins_with("--occl-gates="):
 			gates = a.substr(13)
+		elif a.begins_with(O2_DIR_ARG):
+			shots = a.substr(O2_DIR_ARG.length())
 	if Game.shot_path != "" or "--occl-perf" in args or gates != "":
 		TouchControls.visible = false
 		TouchControls.enabled = false
 		(kit["ui"] as CanvasLayer).visible = false
 	if "--occl-perf" in args:
 		_perf.call_deferred()
+		return
+	if "--occl2" in args or shots != "":
+		# The gate passes --shot-dir= without --occl2: either flag asks for the occl2 measurement.
+		var dir := shots
+		if dir == "" and Game.shot_path != "":
+			dir = Game.shot_path.get_base_dir()
+		_occl2.call_deferred(dir, kit["ui"])
 		return
 	_tree = _prop(TREE, TREE_SPOT + SIGHT * 5.0, 9.0)
 	_rock = _prop(ROCK, ROCK_SPOT + SIGHT * 1.5, 3.0)
@@ -386,3 +396,390 @@ func _perf() -> void:
 	print("[occl] perf scale3d=%.1f props=%d objects=%d fading=%d on frame=%.3f cpu=%.3f | off frame=%.3f cpu=%.3f | delta frame=%.3f ms, driver=%.3f ms/frame" % [
 		get_viewport().scaling_3d_scale, occ.size(), objs, faded, a.x, a.y, b.x, b.y, a.x - b.x, drv_ms])
 	get_tree().quit(0)
+
+
+# --- OCCLUDE2 (--occl2): the survivor is always visible -------------------------------------------
+## Three play-test cases (the harbour spawn under the shed, a dense bush clump, a tree's crown), each
+## measured by an ID pass: the survivor is drawn in a flat colour (an unshaded override) and the share
+## of their own pixels that still show that colour, with the props solid and with them faded, is the
+## visible share. Then the fade is stepped frame by frame for its length and its biggest jump (a pop is
+## a one-frame change over 0.25), and a fading tree's trunk is checked to keep every pixel.
+## Prints one `[occlude2] RESULT ...` line, saves one PNG per case in --shot-dir, then quits.
+const O2_ID := Color(1.0, 0.0, 1.0)  # the survivor's flat ID colour; nothing else in these shots is magenta
+const O2_SETTLE := 30
+const O2_FADE_STEP := 1.0 / 60.0
+## Frames to settle before each frame of a measurement, so a material or a fade has landed.
+const O2_FRAME := 4
+## --shot-dir=DIR: where the occl2 shots go (its own flag; --shot alone makes Game quit after one shot).
+const O2_DIR_ARG := "--shot-dir="
+const BUSH := "res://assets/nature/generated/bush-berries-a.glb"
+
+var _o2_dir := ""
+var _o2_roots: Array = []
+
+func _occl2(dir: String, ui: CanvasLayer) -> void:
+	ui.visible = false
+	TouchControls.visible = false
+	TouchControls.enabled = false
+	_o2_dir = dir if dir != "" else OS.get_user_data_dir().path_join("occlude2")
+	DirAccess.make_dir_recursive_absolute(_o2_dir)
+	Engine.max_fps = 60
+	Game.debug_overlay = false
+	var vis := {}
+	vis["harbour"] = await _o2_case("harbour", _o2_harbour())
+	vis["bush"] = await _o2_case("bush", _o2_bushes())
+	vis["canopy"] = await _o2_case("canopy", _o2_canopy())
+	var fade: Vector2 = await _o2_fade_probe()
+	var trunk: float = await _o2_trunk_probe()
+	var lo := minf(float(vis["harbour"]), minf(float(vis["bush"]), float(vis["canopy"])))
+	print("[occlude2] RESULT vis_harbour=%.3f vis_bush=%.3f vis_canopy=%.3f fade_s=%.3f pops=%d trunk_alpha_min=%.3f vis_min=%.3f" % [
+		float(vis["harbour"]), float(vis["bush"]), float(vis["canopy"]), fade.x, int(fade.y), trunk, lo])
+	get_tree().quit(0)
+
+## The harbour's own node, as island_runtime builds it, with the survivor under the shed on the deck.
+func _o2_harbour() -> Node:
+	var h: Node3D = (load("res://scripts/world/harbour.gd") as GDScript).new()
+	h.name = "O2_harbour"
+	add_child(h)
+	_o2_roots = [h]
+	var deck := float((load("res://scripts/world/harbour.gd") as GDScript).get_script_constant_map().get("DECK_H", 1.2))
+	# The shed stands over z = +2.0 of the pier's local frame; the survivor stands under its roof.
+	_place(h.global_position + Vector3(0.0, deck, 2.0))
+	return h
+
+## A clump of seven full-size bushes round the survivor, the densest three on the sight line.
+func _o2_bushes() -> Node:
+	var b: VegBatch = VegBatch.get_for(self, BUSH)
+	b.name = "O2_bushes"
+	var at := TREE_SPOT
+	# Three bushes between the survivor and the camera, close enough to cover the body at iso pitch,
+	# and four more round them: the play-test's "walked into a bush field".
+	for off in [SIGHT * 0.9, SIGHT * 1.8 + Vector3(-0.7, 0, 0.7), SIGHT * 2.6 + Vector3(0.8, 0, -0.8)]:
+		_bush(b, at + off, 2.2)
+	for i in 4:
+		var a := float(i) * TAU / 4.0 + 0.4
+		_bush(b, at + Vector3(cos(a), 0, sin(a)) * 1.7, 2.0)
+	Occlusion.auto_fade(b, 2.2)
+	b.commit()
+	_place(at)
+	_o2_roots = [b]
+	return b
+
+func _bush(b: VegBatch, pos: Vector3, height: float) -> void:
+	var s := height / VegBatch.mesh_height(BUSH)
+	b.add(Transform3D(Basis.IDENTITY.rotated(Vector3.UP, float(pos.x * 7.0 + pos.z)).scaled(Vector3.ONE * s), pos))
+
+## A tree whose crown hangs over the survivor: the canopy on the sight line, the trunk beside them.
+func _o2_canopy() -> Node:
+	var t: VegBatch = _prop(TREE, TREE_SPOT + SIGHT * 2.2, 9.0)
+	Occlusion.auto_fade(t, 9.0)
+	t.commit()
+	_place(TREE_SPOT)
+	_o2_roots = [t]
+	return t
+
+## Fades the props, measures, saves the picture, then clears the case.
+func _o2_case(which: String, root: Node) -> float:
+	await _o2_wait(O2_SETTLE)
+	var vis := await _o2_visible()
+	await _o2_save(which)
+	print("[occlude2] case %s visible_before=%.3f visible_after=%.3f fade=%s" % [
+		which, vis.x, vis.y, _o2_fade_of(root)])
+	for c in _o2_roots:
+		if is_instance_valid(c):
+			Occlusion.release(c)
+			c.queue_free()
+	_o2_roots = []
+	await _o2_wait(4)
+	return vis.y
+
+## The share of the survivor's own silhouette that shows them: with the props solid (the "before"
+## number of this case) and with them faded by the system (the "after").
+## A pixel shows the survivor when it looks different with the body drawn than without it, props the
+## same: that needs no colour match (the ID colour comes out of the tonemapper shifted) and it works
+## for a dithered prop, which is the whole question. The silhouette is the body's own pixels (body
+## vs no body, props hidden), eroded by 2 px so antialiased edges do not count either way.
+func _o2_visible() -> Vector2:
+	var body: Array = _player.find_children("*", "GeometryInstance3D", true, false)
+	var props: Array = []
+	for n: Node in _o2_roots:
+		if n is GeometryInstance3D:
+			props.append(n)
+		for c in n.find_children("*", "GeometryInstance3D", true, false):
+			props.append(c)
+	# Solid first: the props must not be faded while the "before" frames are taken. Their modes
+	# (and trunk lines) are put back afterwards, so the faded frames use the system as shipped.
+	# The occluders are not always the case root (the harbour registers each part), so collect every
+	# node that actually carries a mode; measuring the root alone left the harbour faded in "before".
+	var occs := _o2_occluders()
+	var modes := {}
+	for n: Node in occs:
+		modes[n] = [Occlusion.mode_of(n), float(n.get_meta(&"occl_trunk", 0.0))]
+		Occlusion.release(n)
+	for p: GeometryInstance3D in props:
+		p.visible = false
+	_show(body, false)
+	var bg := await _o2_frame()
+	_show(body, true)
+	var masked := await _o2_frame()
+	for p: GeometryInstance3D in props:
+		p.visible = true
+	_show(body, false)
+	var solid_off := await _o2_frame()
+	_show(body, true)
+	var solid_on := await _o2_frame()
+	for n: Node in modes:
+		var m: Array = modes[n]
+		Occlusion.make_occludable(n, str(m[0]))
+		if float(m[1]) > 0.0:
+			Occlusion.set_trunk(n, float(m[1]))
+	# The fade restarts when the occluders are re-made above, and a MultiMesh cell is only filed a frame
+	# or two after it exists, so wait for the fade itself (a fixed frame count raced it at 844x390 and
+	# made the canopy case swing between 0.56 and 0.74).
+	await _o2_settled()
+	_show(body, false)
+	var faded_off := await _o2_frame()
+	_show(body, true)
+	var faded_on := await _o2_frame()
+	var size := 0
+	var before := 0
+	var after := 0
+	var w := get_viewport().get_texture().get_width()
+	# The erosion is in pixels, so it eats a bigger share of the body on the phone: 2 px at 1600 wide
+	# (a 2 px antialiased edge), 1 px at 844 (the same edge, half the pixels).
+	var er := 2 if w >= 1200 else 1
+	for i in range(0, bg.size(), 3):
+		if not _diff(bg, masked, i):
+			continue
+		var x := (i / 3) % w
+		var y := (i / 3) / w
+		if not _o2_in(bg, masked, w, x - er, y) or not _o2_in(bg, masked, w, x + er, y) \
+				or not _o2_in(bg, masked, w, x, y - er) or not _o2_in(bg, masked, w, x, y + er):
+			continue
+		size += 1
+		if _diff(solid_off, solid_on, i):
+			before += 1
+		if _diff(faded_off, faded_on, i):
+			after += 1
+	var n := maxf(1.0, float(size))
+	print("[occlude2] visible silhouette=%d solid=%d faded=%d" % [size, before, after])
+	return Vector2(float(before) / n, float(after) / n)
+
+## Every occludable node of the current case: the roots and any part under them that carries a mode.
+func _o2_occluders() -> Array:
+	var out: Array = []
+	for r: Node in _o2_roots:
+		if not is_instance_valid(r):
+			continue
+		if Occlusion.mode_of(r) != "":
+			out.append(r)
+		for c in r.find_children("*", "", true, false):
+			if Occlusion.mode_of(c) != "":
+				out.append(c)
+	return out
+
+## Waits until every case prop has finished fading (or 120 frames, so a failure cannot hang the lab).
+func _o2_settled() -> void:
+	for i in 120:
+		var done := true
+		for n: Node in _o2_occluders():
+			if Occlusion.fade_of(n) < 0.999:
+				done = false
+		if done:
+			break
+		await _o2_wait(1)
+	await _o2_wait(O2_FRAME)
+
+## Is (x, y) a pixel of the survivor's silhouette (body vs no body, props hidden)?
+func _o2_in(bg: PackedByteArray, masked: PackedByteArray, w: int, x: int, y: int) -> bool:
+	if x < 0 or y < 0 or x >= w:
+		return false
+	var i := (y * w + x) * 3
+	return i + 2 < bg.size() and _diff(bg, masked, i)
+
+## One drawn frame after O2_FRAME frames of settle.
+func _o2_frame() -> PackedByteArray:
+	await _o2_wait(O2_FRAME)
+	return await _o2_image()
+
+## Is (x, y) a pixel the tree paints over the empty frame (same rule as the trunk band)?
+func _tree_at(solid: PackedByteArray, empty: PackedByteArray, w: int, x: int, y: int) -> bool:
+	if x < 0 or y < 0 or x >= w:
+		return false
+	var i := (y * w + x) * 3
+	if i + 2 >= solid.size():
+		return false
+	return absi(solid[i] - empty[i]) + absi(solid[i + 1] - empty[i + 1]) + absi(solid[i + 2] - empty[i + 2]) > 20
+
+func _o2_image() -> PackedByteArray:
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	img.convert(Image.FORMAT_RGB8)
+	return img.get_data()
+
+func _o2_wait(frames: int) -> void:
+	for i in frames:
+		await RenderingServer.frame_post_draw
+
+func _o2_fade_of(n: Node) -> String:
+	if not is_instance_valid(n):
+		return "-"
+	return "%.2f" % Occlusion.fade_of(n)
+
+func _o2_save(which: String) -> void:
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	var path := _o2_dir.path_join("occlude2_%s_%dx%d.png" % [which, img.get_width(), img.get_height()])
+	img.save_png(path)
+	print("[occlude2] shot %s" % path)
+
+## Steps one tree in and out by hand, frame by frame: how long the fade takes and its biggest one-frame
+## jump (a pop is over 0.25). The driver's own _process is off for the duration.
+func _o2_fade_probe() -> Vector2:
+	var t: VegBatch = _prop(TREE, TREE_SPOT + SIGHT * 2.2, 9.0)
+	Occlusion.auto_fade(t, 9.0)
+	t.commit()
+	_place(TREE_SPOT)
+	await _o2_wait(8)
+	var drv := Occlusion.driver()
+	if drv == null:
+		return Vector2.ZERO
+	drv.set_process(false)
+	await _o2_wait(1)
+	drv._flush_pending()
+	var chest := _player.global_position + Vector3.UP * Occlusion.CHEST_UP_M
+	var hits: Dictionary = drv.in_the_way(chest, _cam.global_basis.z)
+	var fwd := -_cam.global_basis.z
+	var objs: Array = drv._owned.get(t.get_instance_id(), [])
+	var secs := 0.0
+	var worst := 0.0
+	for phase in 2:
+		var prev := _o2_tree_fade(objs)
+		var steps := 0
+		while steps < 240:
+			var h: Dictionary = hits if phase == 0 else {}
+			drv.step_between(h, O2_FADE_STEP, fwd)
+			steps += 1
+			var f := _o2_tree_fade(objs)
+			worst = maxf(worst, absf(f - prev))
+			prev = f
+			if (phase == 0 and f >= 0.999) or (phase == 1 and f <= 0.001):
+				break
+		secs = maxf(secs, float(steps) * O2_FADE_STEP)
+	drv.set_process(true)
+	Occlusion.release(t)
+	t.queue_free()
+	await _o2_wait(4)
+	print("[occlude2] fade objs=%d in_line=%d seconds=%.3f worst_step=%.3f" % [objs.size(), hits.size(), secs, worst])
+	return Vector2(secs, 1.0 if worst > 0.25 else 0.0)
+
+## The fade of the first instance object of `objs` (the tree on the sight line).
+func _o2_tree_fade(objs: Array) -> float:
+	for o: Occlusion.Obj in objs:
+		if o.inst:
+			return o.fade
+	return 0.0
+
+## How much of a faded tree's trunk still draws: the tree is photographed solid, faded and hidden, and
+## every pixel the trunk band of the tree owns (it differs from the empty frame) must look the same
+## faded as solid. The shader keeps the trunk solid, so a trunk pixel that changes is a leak.
+func _o2_trunk_probe() -> float:
+	var t: VegBatch = _prop(TREE, TREE_SPOT + SIGHT * 2.2, 9.0)
+	Occlusion.auto_fade(t, 9.0)
+	t.commit()
+	_place(TREE_SPOT)
+	await _o2_wait(8)
+	var drv := Occlusion.driver()
+	if drv:
+		drv.set_process(false)
+		await _o2_wait(1)
+		drv._flush_pending()
+	var chest := _player.global_position + Vector3.UP * Occlusion.CHEST_UP_M
+	var hits: Dictionary = drv.in_the_way(chest, _cam.global_basis.z) if drv else {}
+	var fwd := -_cam.global_basis.z
+	for n: Node in _o2_roots:
+		if is_instance_valid(n):
+			n.visible = false
+	# The survivor's own silhouette thins even a trunk (they must show through it), so take the body
+	# out of these frames: this probe is about the trunk's pixels elsewhere.
+	for g: GeometryInstance3D in _player.find_children("*", "GeometryInstance3D", true, false):
+		g.visible = false
+	if drv:
+		drv.step_between({}, 1.0, fwd)
+	await _o2_wait(6)
+	var solid := await _o2_image()
+	var cell := t.cell_for(0)
+	if cell:
+		cell.visible = false
+	await _o2_wait(6)
+	var empty := await _o2_image()
+	if cell:
+		cell.visible = true
+	if drv:
+		drv.step_between(hits, 1.0, fwd)
+	await _o2_wait(6)
+	var faded := await _o2_image()
+	if cell:
+		print("[occlude2] dbg cell occl_trunk=%s occl_fade=%s meta=%s" % [
+			cell.get_instance_shader_parameter(&"occl_trunk"), cell.get_instance_shader_parameter(&"occl_fade"),
+			t.get_meta(&"occl_trunk", "none")])
+	var w := get_viewport().get_texture().get_width()
+	var h := solid.size() / 3 / w
+	var foot := _cam.unproject_position(TREE_SPOT + SIGHT * 2.2)
+	var top := _cam.unproject_position(TREE_SPOT + SIGHT * 2.2 + Vector3(0, 9.0, 0))
+	# The trunk band of tree-common-a scaled to 9 m: its crown starts at 4.4/8 of the model (4.95 m of
+	# 9), so the lowest third of the tree on screen is trunk only (higher up the crown would dither).
+	var y0 := maxi(int(top.y + (foot.y - top.y) * 0.62), 0)
+	var y1 := mini(int(top.y + (foot.y - top.y) * 0.95), h)
+	var kept := 0
+	var same := 0
+	for y in range(y0, y1):
+		for x in w:
+			var i := (y * w + x) * 3
+			# Only the tree's own pixels in the band, two pixels inside its silhouette: its antialiased
+			# edge and its soft shadow both shift by a level or two between frames, and neither is trunk.
+			if absi(solid[i] - empty[i]) + absi(solid[i + 1] - empty[i + 1]) + absi(solid[i + 2] - empty[i + 2]) <= 20:
+				continue
+			if not _tree_at(solid, empty, w, x + 4, y) or not _tree_at(solid, empty, w, x - 4, y) \
+					or not _tree_at(solid, empty, w, x, y + 4) or not _tree_at(solid, empty, w, x, y - 4):
+				continue
+			kept += 1
+			if absi(solid[i] - faded[i]) + absi(solid[i + 1] - faded[i + 1]) + absi(solid[i + 2] - faded[i + 2]) <= 14:
+				same += 1
+	if drv:
+		drv.set_process(true)
+	Occlusion.release(t)
+	t.queue_free()
+	for g: GeometryInstance3D in _player.find_children("*", "GeometryInstance3D", true, false):
+		g.visible = true
+	for n: Node in _o2_roots:
+		if is_instance_valid(n):
+			n.visible = true
+	await _o2_wait(4)
+	print("[occlude2] trunk band y=%d..%d tree_pixels=%d unchanged=%d" % [y0, y1, kept, same])
+	if OS.get_cmdline_user_args().has("--o2-dbg"):
+		var i0 := Image.create_from_data(w, h, false, Image.FORMAT_RGB8, solid)
+		var i1 := Image.create_from_data(w, h, false, Image.FORMAT_RGB8, faded)
+		var i2 := Image.create_from_data(w, h, false, Image.FORMAT_RGB8, empty)
+		var r := Rect2i(0, y0, w, maxi(y1 - y0, 1))
+		var out := Image.create(w, r.size.y * 3 + 8, false, Image.FORMAT_RGB8)
+		out.fill(Color.BLACK)
+		out.blit_rect(i0, r, Vector2i(0, 0))
+		out.blit_rect(i1, r, Vector2i(0, r.size.y + 4))
+		out.blit_rect(i2, r, Vector2i(0, r.size.y * 2 + 8))
+		# Fourth strip: the band with the pixels that changed flagged white, so a leak is visible.
+		var im := Image.create_from_data(w, h, false, Image.FORMAT_RGB8, solid)
+		for y in range(y0, y1):
+			for x in w:
+				var i := (y * w + x) * 3
+				if absi(solid[i] - empty[i]) + absi(solid[i + 1] - empty[i + 1]) + absi(solid[i + 2] - empty[i + 2]) <= 20:
+					continue
+				if absi(solid[i] - faded[i]) + absi(solid[i + 1] - faded[i + 1]) + absi(solid[i + 2] - faded[i + 2]) > 14:
+					im.set_pixel(x, y, Color.WHITE)
+		var out2 := Image.create(w, r.size.y * 4 + 12, false, Image.FORMAT_RGB8)
+		out2.fill(Color.BLACK)
+		out2.blit_rect(out, Rect2i(0, 0, w, out.get_height()), Vector2i.ZERO)
+		out2.blit_rect(im, r, Vector2i(0, out.get_height() + 4))
+		out2.save_png(_o2_dir.path_join("occlude2_trunk_band.png"))
+		print("[occlude2] trunk band shot %s" % _o2_dir.path_join("occlude2_trunk_band.png"))
+	return float(same) / maxf(1.0, float(kept))

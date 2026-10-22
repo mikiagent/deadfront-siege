@@ -34,6 +34,15 @@ func _ready() -> void:
 	_shed_shape = _box_collider(Vector3(2.4, 2.3, 1.8), Vector3(0.0, DECK_H + 1.15, 2.1))
 	_level()
 
+## Every part of the dock fades on its own when it stands on the sight line to the survivor: the shed
+## frame and roof over the spawn, the deck and piles from the beach. Each part's own box decides, so a
+## crate at the far end never fades for a survivor under the roof. Re-filed after a layout move, as the
+## parts' boxes moved with them.
+func _register_occluders() -> void:
+	for c in _visual.find_children("*", "GeometryInstance3D", true, false):
+		Occlusion.release(c)
+		Occlusion.make_occludable(c, Occlusion.BETWEEN)
+
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	var moved := cell != build_cell or posmod(rot, 4) != build_rot
 	build_cell = cell
@@ -59,6 +68,7 @@ func _level() -> void:
 	_visual.position.y = FEET_Y - global_position.y
 	_deck_shape.position.y = _visual.position.y + DECK_H - 0.125
 	_shed_shape.position.y = _visual.position.y + DECK_H + 1.15
+	_register_occluders()
 
 func _box_collider(size: Vector3, at: Vector3) -> CollisionShape3D:
 	var shape := CollisionShape3D.new()

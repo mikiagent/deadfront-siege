@@ -82,6 +82,11 @@ func set_xform(i: int, xf: Transform3D) -> void:
 			cell.multimesh.set_instance_transform(_slot_of[i], _local_xform(i, cell.position))
 
 func add(xf: Transform3D) -> int:
+	# Anything tall enough to hide the survivor at the iso pitch (trees, palms, bushes) fades as a whole
+	# object when it stands on the sight line; a tree keeps its trunk solid. Done here, on the batch,
+	# because every nature prop goes through add() and a batch is one model (one trunk line for all its
+	# cells). The cells may not exist yet: Occlusion adopts children added after the hook.
+	Occlusion.auto_fade(self, _mesh_h * xf.basis.get_scale().y)
 	var i := _xforms.size()
 	_xforms.append(xf)
 	var key := Vector2i(floori(xf.origin.x / CELL_M), floori(xf.origin.z / CELL_M))

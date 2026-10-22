@@ -83,9 +83,19 @@ func _ready() -> void:
 		add_to_group("basket")
 	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
 		PropVisuals.apply_building_visual(self, kind, _fallback_size(), _color())
+	_register_occluders()
 	if kind == &"gate":
 		_build_gate_leaf()
 		_apply_gate_state()
+
+## Tall structures hide the survivor standing beside or under them (a tent, a shelter): each mesh
+## fades on its own when it stands on the sight line. A low one (basket, bed, sign) never covers the
+## chest and is left alone.
+func _register_occluders() -> void:
+	if _fallback_size().y < Occlusion.TALL_M:
+		return
+	for c in find_children("*", "GeometryInstance3D", true, false):
+		Occlusion.make_occludable(c, Occlusion.BETWEEN)
 
 func _exit_tree() -> void:
 	_release_grid()
