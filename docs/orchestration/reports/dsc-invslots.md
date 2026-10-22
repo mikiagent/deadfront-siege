@@ -105,13 +105,12 @@ After (`invslots_lab`, measured live at each resolution):
 - Three labs still assert the **old grouped bag** and now fail; they are outside this task's SCOPE:
   `game/scripts/dev/inventory_lab.gd` (`groups()`, count badges, "Lv 1-16", `ui._cells`,
   `ui._grid.columns == 5`), `game/scripts/dev/ui_family_lab.gd` (reads `player.ui._grid.columns`), and
-  `game/scripts/dev/ui_screenshot_lab.gd:54` (`asserts _grid.columns == 5`). Port them to `BagGrid`
+  `game/scripts/dev/ui_screenshot_lab.gd:54` (`asserts _grid.columns == 5`, next to the other two).
+  Port them to `BagGrid`
   (`slot_count()`, `filled()`, `empty_visible()`, `columns`) or retire them.
 - The new files must be **git-added** by the integrator: `game/scripts/ui/bag_grid.gd`,
-  `game/scripts/dev/invslots_lab.gd`, `game/scenes/dev/invslots_lab.tscn`,
+  `game/scripts/dev/invslots_lab.gd` (**still untracked**), `game/scenes/dev/invslots_lab.tscn`,
   `game/tests/t_invslots.gd` (plus their `.uid` side files).
-- `game/scripts/ui/item_icons.gd` is unchanged: an earlier caption-fallback edit was reverted (the file
-  is outside the job's SCOPE), and the fallback lives in `inventory_ui.gd` instead.
 - Untracked `game/assets/props/meshy/*_Image_0.jpg` texture extracts pre-date this task (Godot writes them
   when it imports the tracked `.glb` files; also untracked in the main checkout). They tripped the scope
   check, so this worktree's copies were deleted; a fresh `--import` recreates them (git-ignored churn,
