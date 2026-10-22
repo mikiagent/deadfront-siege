@@ -225,8 +225,8 @@ func _test_craft_picks() -> void:
 		return
 	var inv = INV.new()
 	var hide_idx: int = inv.used_slots()
-	inv.add(IS.make(&"raw_hide", 1, {"pocket": 3}, 12))
-	inv.add(IS.make(&"raw_hide", 1, {}, 12))
+	inv.add(IS.make(&"dried_hide", 1, {"pocket": 3}, 12))
+	inv.add(IS.make(&"dried_hide", 1, {}, 12))
 	inv.add(IS.make(&"fibre_stalk", 1, {}, 12))
 	inv.add(IS.make(&"fibre_stalk", 1, {}, 12))
 	inv.add(IS.make(&"fibre_stalk", 1, {}, 12))
@@ -237,7 +237,7 @@ func _test_craft_picks() -> void:
 		var want := StringName(str(slots[i].get("category", "")))
 		var pick := -1
 		for idx in inv.find_by_category(want):
-			if want == &"green_hide" and idx == hide_idx:
+			if want == &"dried_hide" and idx == hide_idx:
 				pick = idx
 			elif want == &"fibre" and pick < 0:
 				pick = idx
