@@ -86,6 +86,19 @@ static func inspector_text(stack: ItemStack) -> String:
 		lines.append("RAW")
 	if is_poisoned(stack):
 		lines.append("POISONED")
+	# CRAFTFEEL (spec 04): a flawless craft's stat bump, visible where the survivor inspects the food.
+	if bool(stack.flags.has(&"flawless")):
+		lines.append("FLAWLESS +%d%% durability/quality" % int(round(float(stack.attributes.get("flawless_bonus", 0.0)) * 100.0)))
+	var named := Inventory.traits(stack)
+	if not named.is_empty():
+		var bits: PackedStringArray = []
+		for k: Variant in named:
+			var key := str(k)
+			if key == "quality" or key == "flawless_bonus":
+				continue  # bookkeeping printed on the FLAWLESS line above, not a material trait
+			bits.append("%s %s" % [key.replace("_", " ").capitalize(), str(named[k])])
+		if not bits.is_empty():
+			lines.append("traits: %s" % ", ".join(bits))
 	for row in cooking_properties(stack):
 		var bits: PackedStringArray = []
 		if float(row.get("fatigue_relief", 0.0)) > 0.0:

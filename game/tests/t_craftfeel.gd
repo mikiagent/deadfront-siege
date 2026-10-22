@@ -53,6 +53,7 @@ func _run() -> void:
 	_test_rare_inheritance()
 	_test_skewer_slots()
 	_test_preview_matches_result()
+	_test_ui_text()
 	_test_xp_once()
 	_finish()
 
@@ -241,6 +242,25 @@ func _test_preview_matches_result() -> void:
 	var fl: Variant = CR.commit_outcome(_player, rec, p2, {"success": true, "flawless": true, "rare": &""})
 	_expect(fl != null and base != null and fl.level == base.level, "a flawless craft keeps the previewed level")
 	_expect(fl != null and (&"flawless" in fl.flags) and str(fl.attributes.get("quality", "")) == "flawless", "a flawless craft is marked on the item")
+
+## M3: the detail pane says the odds and the price of failing, from the same numbers the craft rolls.
+func _test_ui_text() -> void:
+	var UI: GDScript = load("res://scripts/ui/craft_ui.gd")
+	_clear_bag()
+	_player.inventory.add(IS.make(&"raptor_meat", 1, {"firm": 3, "black_sheen": 1}, 10))
+	_player.inventory.add(IS.make(&"branch", 1, {}, 10))
+	var rec: Dictionary = CR.recipe(&"skewer")
+	var picks: Array[int] = CR.default_picks(_player.inventory, rec)
+	var qual: Dictionary = CR.preview_quality(rec, _player, _player.inventory.slots[picks[0]])
+	var text: String = UI.craftfeel_text(qual)
+	print("[t_craftfeel] ui text: %s" % text.replace("\n", " | "))
+	_expect(text.contains("Success 100%"), "the card states the success chance (100 %%)")
+	_expect(text.contains("Flawless 5%"), "the card states the flawless chance (5 %%)")
+	_expect(text.contains("Materials are lost on failure"), "the card says materials are lost on failure")
+	_expect(text.contains("Black Sheen"), "the card lists the inherited rare trait (%s)" % text)
+	var hard: Dictionary = _rec(100.0)
+	var worse: String = UI.craftfeel_text(CR.preview_quality(hard, _player, null))
+	_expect(worse.contains("/ 100 needed"), "a recipe with an ability requirement shows it (%s)" % worse.replace("\n", " | "))
 
 ## Craft XP is paid once per successful craft, on the recipe's own tree (plus the survival mirror).
 func _test_xp_once() -> void:

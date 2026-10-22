@@ -321,7 +321,13 @@ func _show_card(rec: Dictionary) -> void:
 			"icon": card.icon_for(def_id),
 			"glyph": str(def_id).substr(0, 1).to_upper() if str(def_id) != "" else "?",
 		})
-	card.show_recipe(station, str(rec.get("display_name", recipe_id)), rows, progress, queue_left + 1)
+	# CRAFTFEEL: the card carries the same stake lines the detail pane showed (CraftUI.craftfeel_text).
+	var picks := Crafting.default_picks(player.inventory, rec)
+	var primary: ItemStack = null
+	if picks.size() > Crafting.primary_index(rec) and picks[Crafting.primary_index(rec)] >= 0:
+		primary = player.inventory.slots[picks[Crafting.primary_index(rec)]]
+	var odds: String = CraftUI.craftfeel_text(Crafting.preview_quality(rec, player, primary))
+	card.show_recipe(station, str(rec.get("display_name", recipe_id)), rows, progress, queue_left + 1, odds)
 
 ## Overflow units waiting for a free slot (see _finish_one); put back as soon as the bag takes them.
 func _flush_overflow() -> void:
