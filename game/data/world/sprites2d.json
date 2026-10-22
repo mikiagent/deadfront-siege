@@ -5946,7 +5946,7 @@
    "scale": 1.0,
    "name": "reed_strip_b",
    "kind": "unused",
-   "height_m": 2.5,
+   "height_m": 1.9,
    "blocks": true,
    "destroyable": true
   },
@@ -5971,7 +5971,7 @@
    "scale": 1.0,
    "name": "reed_strip_c",
    "kind": "unused",
-   "height_m": 2.5,
+   "height_m": 1.9,
    "blocks": true,
    "destroyable": true
   },
@@ -5996,7 +5996,7 @@
    "scale": 1.0,
    "name": "reed_strip_d",
    "kind": "unused",
-   "height_m": 2.5,
+   "height_m": 1.9,
    "blocks": true,
    "destroyable": true
   },

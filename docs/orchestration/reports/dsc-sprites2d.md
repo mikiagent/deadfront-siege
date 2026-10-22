@@ -11,6 +11,9 @@ pass in `label.py`. No GDScript, scenes or scripts touched.
 | `tools/sprites2d/cut.py` | per-sheet key -> despill -> split -> trim -> downscale -> PNG + `game/data/world/sprites2d.json` |
 | `tools/sprites2d/overrides.json` | hand boxes: `split`, `merge`, `drop` per sheet |
 | `tools/sprites2d/label.py` | matches `label_table.json` rows to sprites by exact `src_rect` then IoU >= 0.7, writes `labels.json` |
+| `tools/sprites2d/rules.py` | shared label matching + blocks/destroyable/hanging rules used by cut.py, label.py and tidy_table.py |
+| `tools/sprites2d/tidy_table.py` | reconciles `label_table.json` with the manifest after a re-cut; `label_new.json` names new crops |
+| `tools/sprites2d/audit.py` | 2x-on-two-grounds review renders per sheet |
 | `tools/sprites2d/label_table.json` | one row per sprite: `[sheet, x, y, w, h, name, kind, height_m]` |
 | `tools/sprites2d/labels.json` | name/kind/height/blocks/destroyable/pivot per sprite |
 | `tools/sprites2d/contact.py` | builds `docs/orchestration/reports/dsc-sprites2d-sheet.png` |
@@ -19,16 +22,16 @@ pass in `label.py`. No GDScript, scenes or scripts touched.
 
 ## Sheets
 
-| sheet | sheet px | sprites | PNG MB | key (border median) |
-|---|---|---|---|---|
-| sheet-beach-shells | 1254x1254 | 30 | 3.4 | (4, 249, 3) |
-| sheet-jungle-plants | 1254x1254 | 45 | 4.4 | (4, 250, 3) |
-| sheet-palms | 1254x1254 | 21 | 3.3 | (4, 250, 3) |
-| sheet-resources | 1254x1254 | 24 | 3.5 | (4, 249, 3) |
-| sheet-jungle-trees | 1536x1024 | 23 | 3.7 | (3, 234, 5) |
-| sheet-jungle-cliffs | 1536x1024 | 69 | 4.0 | (2, 239, 2) |
-| sheet-tall-grasses | 1448x1086 | 39 | 2.5 | (3, 250, 3) |
-| **total** | | **251** | **23.5 MB** | budget 24 MB |
+| sheet | sheet px | sprites | block | unused | PNG MB | key (border median) | max side | scale |
+|---|---|---|---|---|---|---|---|---|
+| sheet-beach-shells | 1254x1254 | 30 | 0 | 0 | 3.4 | (4, 249, 3) | 448 | 0.73-1.0 |
+| sheet-jungle-cliffs | 1536x1024 | 69 | 29 | 0 | 4.0 | (2, 239, 2) | 704 | 0.77-1.0 |
+| sheet-jungle-plants | 1254x1254 | 44 | 0 | 13 | 4.5 | (4, 250, 3) | 657 | 0.70-1.0 |
+| sheet-jungle-trees | 1536x1024 | 17 | 16 | 1 | 3.1 | (3, 234, 5) | 663 | 0.76-1.0 |
+| sheet-palms | 1254x1254 | 21 | 6 | 7 | 3.3 | (4, 250, 3) | 704 | 0.66-1.0 |
+| sheet-resources | 1254x1254 | 24 | 3 | 0 | 3.5 | (4, 249, 3) | 448 | 0.85-1.0 |
+| sheet-tall-grasses | 1448x1086 | 46 | 24 | 16 | 2.6 | (3, 250, 3) | 448 | 0.32-1.0 |
+| **total** | | **251** | **78** | **37** | **23.2 MiB** | budget 24 MiB |
 
 The four round-1 sheets are 1254x1254; the three later sheets the owner sent are not. The screen
 green is also not the same on every sheet: jungle-trees is noticeably darker (G 234) and
@@ -66,16 +69,22 @@ carries the resulting `scale` and the resized `px`/`pivot`; the smallest scale i
 
 ## Splits (overrides.json)
 
-`split` removes a box from the mask before labelling, so two touching items become two sprites.
-Round-3 changes:
+`split` partitions the touched component along the box centre line and keeps every pixel
+(`split_by_box`); `auto_welds` does the same automatically where two clumps share a few blades at the
+base, and is limited to the clump rows of tall-grasses so the isometric tiles and ground patches stay
+one sprite each. Round-3 changes:
 
 - **jungle-trees**: the boxes at x 1372, 525, 720, 1130, 1280 and 634/723 were deleted - they cut
   through canopy and fronds (05 had a flat right edge, 06 was its sliver, 11/12 had flat frond
   edges). The sheet is now cut on the real green bands only: two horizontal boxes separate the
   buttress tree / palms row / vine-tree row in column 1. Where art genuinely overlaps it stays one
   sprite named as a pair (`canopy_tree_pair`, `palm_pair_leaning`).
-- **tall-grasses**: 8 boxes at the green gaps between touching clumps (11, 13, 15, 16, 22, 23, 25,
-  31 and the two tufts in the 18/24 groups).
+- **tall-grasses**: the boxes were replaced by `auto_welds: [280, 650]`. It finds the nearly empty
+  columns between two touching clumps and partitions the component there, so no rectangular bite can
+  appear; the pass repeats on each half, so rows of three tufts separate too. 38 -> 46 sprites,
+  every clump single and complete. A split used to fuse straight back because `split_sheet()` re-ran
+  `label()` afterwards and the two halves are edge-adjacent; `relabel()` now renumbers without
+  re-connecting.
 - **jungle-plants**: [318,0,20,290] (two ferns) and [529,612,300,12] (bromeliad over broadleaf).
 - **resources_08** stays ONE sprite: the berry bunch hangs under big green leaves that belong to
   the same plant; every split line tried cut the fruit away from its own leaves (recorded in
@@ -99,7 +108,7 @@ stump, root ball, coconut bunch, one coconut; resources_21/22 bone shaft and fra
 
 - `blocks` follows `HarvestNode.blocks_movement()`: tree roles block, and any family whose height
   span reaches above 1.25 m. `prop:grass*` / `prop:reed*` never block. **Hanging vines and root
-  curtains never block** (`prop:vine*`, `prop:root_curtain`) - 74 of 251 sprites block.
+  curtains never block** (`prop:vine*`, `prop:root_curtain`) - 78 of 251 sprites block.
 - Pivots are measured from each PNG's own alpha: bottom-centre band for ground props, top band for
   hanging vines and root curtains (`prop:root_ball` deliberately does NOT match, it is a ball on the
   ground), bottom-centre for waterfalls (they stand).
@@ -107,7 +116,7 @@ stump, root ball, coconut bunch, one coconut; resources_21/22 bone shaft and fra
 
 ## Unused
 
-40 sprites are `unused`: single leaves, canopy slivers, stem fragments, the isometric ground tiles
+37 sprites are `unused`: single leaves, canopy slivers, stem fragments, the isometric ground tiles
 and big ground patches of tall-grasses (a colour reference on the sheet, not game art), and the
 waterfall/rock fragments of jungle-cliffs. They are still cut and shipped as PNGs so the sheet stays
 fully covered; the game simply never spawns them.
@@ -120,12 +129,12 @@ fully covered; the game simply never spawns them.
 - Visual self-check at 2x on sand (225,205,160) and dark grass (70,90,60) per sheet: resources,
   beach-shells, palms, jungle-plants, jungle-trees, tall-grasses, jungle-cliffs. See NOTES.md for
   what each sheet looked like; no khaki matte, no lime rim, no black ticks, no flat fills.
-- Contact sheet: `docs/orchestration/reports/dsc-sprites2d-sheet.png` (251 cells, re-generated).
+- Contact sheet: `docs/orchestration/reports/dsc-sprites2d-sheet.png` (251 cells, re-generated, reviewed in four crops at 180 px cells).
 
 ## Junk
 
-`cut.py` now deletes `<png>.import` together with a stale PNG; the 71 orphan sidecars staged by the
-earlier runs are gone (155 orphans were on disk, all removed). `tools/sprites2d/__pycache__` is out
+`cut.py` deletes `<png>.import` together with a stale PNG and also sweeps orphan `*.png.import`
+files (sidecar whose PNG is gone) in every sheet dir: 0 orphans on disk after a full run. `tools/sprites2d/__pycache__` is out
 of git and `.gitignore`d. No `game/assets/props/meshy/*`, `game/scripts/dev/*.uid` or
 `game/tests/*.uid` added.
 
