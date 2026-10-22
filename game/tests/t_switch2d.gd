@@ -147,7 +147,9 @@ func _test_mapping() -> void:
 	# data/world/sprites2d_map.json: a family with no art of its own borrows a named sprite.
 	var vis_stump: Dictionary = CP.visual_for("tree_stump", Vector3(1, 0, 2))
 	_expect(str(vis_stump.get("kind", "")) == "painted", "tree_stump draws the map's stump sprite")
-	_expect(str((vis_stump.get("row", {}) as Dictionary).get("id", "")) == "palms_19_broken_palm_stump", "the override names the stump sprite")
+	var want_stump := str(((CP.sprite_map().get("families", {}) as Dictionary).get("tree_stump", {}) as Dictionary).get("sprite", ""))
+	_expect(want_stump != "" and str((vis_stump.get("row", {}) as Dictionary).get("id", "")) == want_stump,
+		"the override names the stump sprite (%s)" % want_stump)
 	var map: Dictionary = CP.sprite_map()
 	_expect(not map.is_empty(), "sprites2d_map.json is read")
 	var vis_palm: Dictionary = CP.visual_for("PalmTree", Vector3(1, 0, 2))
