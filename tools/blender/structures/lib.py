@@ -83,7 +83,11 @@ def _rgb(c):
 
 
 def _mix(a, b, t):
-    t = t[..., None] if t.ndim == 2 else t
+    """Blend two colours by a weight t. t may be a scalar, a 1-D or a 2-D (per-pixel) map."""
+    if np.isscalar(t):
+        t = float(t)
+    elif t.ndim >= 2:
+        t = t[..., None]
     return a * (1 - t) + b * t
 
 

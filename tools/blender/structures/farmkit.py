@@ -43,7 +43,7 @@ def _ridges(p, hx, hy, top):
 def _bed(p, half=0.93):
     """The 2 x 2 m tilled plot: dark furrowed soil, furrow ridges, a raised earth edge."""
     top = 0.1
-    p.box((2 * half, 2 * half, top), (0, 0, top / 2), "soil", tile_m=0.5)
+    p.box((2 * half, 2 * half, top), (0, 0, top / 2), "soil_dark", tile_m=0.5)
     _ridges(p, half, half, top)
     # raised edge: a low earth berm all round the plot, heaped like a ridge and broken at the corners
     berm_h = 0.1
@@ -160,6 +160,10 @@ def path_dirt():
     _grass_base(p)
     # the packed surface does not reach the tile edge: grass creeps in from all sides
     _dirt_pad(p, 0, 0, 1.78, 1.78)
+    # a few stones pressed into the dirt, so the path is not a flat slab. They stay sunk into
+    # the pad: the whole tile must stay under 0.05 m high.
+    for i, (x, y, r) in enumerate(((-0.55, 0.42, 0.06), (0.48, -0.3, 0.05), (0.15, 0.62, 0.045), (-0.7, -0.55, 0.05))):
+        p.rock(r, (x, y, 0.018), tile="stone", squash=(1.3, 1.0, 0.35), seed=210 + i)
     return [(p, (0, 0, 0))]
 
 
@@ -170,6 +174,8 @@ def path_dirt_corner():
     # an L of packed dirt: the strip along +X and the strip along +Y meet in the far corner
     _dirt_pad(p, 0.0, 0.45, 1.78, 0.88)
     _dirt_pad(p, 0.45, 0.0, 0.88, 1.78)
+    for i, (x, y, r) in enumerate(((0.5, 0.45, 0.055), (-0.2, 0.66, 0.05), (0.62, -0.1, 0.05))):
+        p.rock(r, (x, y, 0.018), tile="stone", squash=(1.3, 1.0, 0.35), seed=220 + i)
     return [(p, (0, 0, 0))]
 
 

@@ -1130,13 +1130,13 @@
       "glb": "res://assets/props/blender/field_tilled.glb",
       "aabb_m": [
         2.3,
-        0.169,
+        0.182,
         2.3
       ],
-      "tris": 340,
+      "tris": 420,
       "art_status": "REVIEW",
       "note": "farm kit model (dsc farmkit): tilled 2 x 2 m plot: dark furrowed soil, furrow rows, raised earth edge. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
-      "upgrade": "low-poly hand-built Blender (340 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+      "upgrade": "low-poly hand-built Blender (420 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "field_crop_0": {
       "glb": "res://assets/props/blender/field_crop_0.glb",
@@ -1145,10 +1145,10 @@
         0.23,
         2.3
       ],
-      "tris": 1108,
+      "tris": 1188,
       "art_status": "REVIEW",
       "note": "farm kit model (dsc farmkit): plot with seedlings (growth stage 0). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
-      "upgrade": "low-poly hand-built Blender (1108 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+      "upgrade": "low-poly hand-built Blender (1188 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "field_crop_1": {
       "glb": "res://assets/props/blender/field_crop_1.glb",
@@ -1157,10 +1157,10 @@
         0.38,
         2.3
       ],
-      "tris": 1300,
+      "tris": 1380,
       "art_status": "REVIEW",
       "note": "farm kit model (dsc farmkit): plot with young plants (growth stage 1). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
-      "upgrade": "low-poly hand-built Blender (1300 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+      "upgrade": "low-poly hand-built Blender (1380 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "field_crop_2": {
       "glb": "res://assets/props/blender/field_crop_2.glb",
@@ -1169,10 +1169,10 @@
         0.54,
         2.3
       ],
-      "tris": 1300,
+      "tris": 1380,
       "art_status": "REVIEW",
       "note": "farm kit model (dsc farmkit): plot with grown plants (growth stage 2). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
-      "upgrade": "low-poly hand-built Blender (1300 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+      "upgrade": "low-poly hand-built Blender (1380 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "field_crop_3": {
       "glb": "res://assets/props/blender/field_crop_3.glb",
@@ -1181,17 +1181,17 @@
         0.6,
         2.3
       ],
-      "tris": 2260,
+      "tris": 2340,
       "art_status": "REVIEW",
       "note": "farm kit model (dsc farmkit): plot with ripe plants (growth stage 3, harvestable). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
-      "upgrade": "low-poly hand-built Blender (2260 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+      "upgrade": "low-poly hand-built Blender (2340 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "path_dirt": {
       "glb": "res://assets/props/blender/path_dirt.glb",
       "aabb_m": [
-        2,
-        0.066,
-        2
+        2.0,
+        0.046,
+        2.0
       ],
       "tris": 104,
       "art_status": "REVIEW",
@@ -1202,7 +1202,7 @@
       "glb": "res://assets/props/blender/path_dirt_corner.glb",
       "aabb_m": [
         2,
-        0.067,
+        0.042,
         2
       ],
       "tris": 96,
@@ -1213,9 +1213,9 @@
     "path_stone": {
       "glb": "res://assets/props/blender/path_stone.glb",
       "aabb_m": [
-        2,
+        2.009,
         0.047,
-        2
+        2.019
       ],
       "tris": 132,
       "art_status": "REVIEW",
@@ -1225,9 +1225,9 @@
     "path_stone_corner": {
       "glb": "res://assets/props/blender/path_stone_corner.glb",
       "aabb_m": [
-        2,
+        2.019,
         0.047,
-        2
+        2.0
       ],
       "tris": 144,
       "art_status": "REVIEW",

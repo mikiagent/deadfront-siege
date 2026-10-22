@@ -22,15 +22,15 @@ and at most **0.05 m high**, the fence run is **2 m** (the same run length as th
 
 | Model | Size (x, y up, z) m | Tris | Notes |
 |---|---|---|---|
-| `field_tilled` | 2.30 x 0.17 x 2.30 | 340 | dark furrowed soil, five heaped furrow ridges, broken earth berm |
-| `field_crop_0` | 2.30 x 0.23 x 2.30 | 1108 | seedlings: two small leaves per shoot, 4 rows x 6 |
-| `field_crop_1` | 2.30 x 0.38 x 2.30 | 1300 | young plants, three leaves, taller stalk |
-| `field_crop_2` | 2.30 x 0.54 x 2.30 | 1300 | grown plants, darker leaves, tallest stalk |
-| `field_crop_3` | 2.30 x 0.60 x 2.30 | 2260 | ripe plants with clay-red fruit, harvestable look |
-| `path_dirt` | 2.00 x 0.07 x 2.00 | 104 | packed dirt on a grass base, pebbles |
-| `path_dirt_corner` | 2.00 x 0.07 x 2.00 | 96 | L of packed dirt, grass inside the turn |
-| `path_stone` | 2.00 x 0.05 x 2.00 | 132 | 3 x 3 flat cobbles in a dirt bed |
-| `path_stone_corner` | 2.00 x 0.05 x 2.00 | 144 | L of cobbles, grass inside the turn |
+| `field_tilled` | 2.30 x 0.18 x 2.30 | 420 | dark furrowed soil, five heaped furrow ridges, broken earth berm |
+| `field_crop_0` | 2.30 x 0.23 x 2.30 | 1188 | seedlings: two small leaves per shoot, 4 rows x 6 |
+| `field_crop_1` | 2.30 x 0.38 x 2.30 | 1380 | young plants, three leaves, taller stalk |
+| `field_crop_2` | 2.30 x 0.54 x 2.30 | 1380 | grown plants, darker leaves, tallest stalk |
+| `field_crop_3` | 2.30 x 0.60 x 2.30 | 2340 | ripe plants with clay-red fruit, harvestable look |
+| `path_dirt` | 2.00 x 0.05 x 2.00 | 104 | packed dirt on a grass base, pebbles |
+| `path_dirt_corner` | 2.00 x 0.04 x 2.00 | 96 | L of packed dirt, grass inside the turn |
+| `path_stone` | 2.01 x 0.05 x 2.02 | 132 | 3 x 3 flat cobbles in a dirt bed |
+| `path_stone_corner` | 2.02 x 0.05 x 2.00 | 144 | L of cobbles, grass inside the turn |
 | `fence_post_rail` | 2.01 x 1.41 x 0.21 | 272 | two sharpened posts, two rails, rope lashings |
 | `fence_post_rail_gate` | 2.04 x 1.71 x 0.31 | 428 | two posts, a lintel and **node `Leaf`** (origin on the hinge at x = -0.86 m) |
 | `trellis` | 1.28 x 1.72 x 0.41 | 380 | A-frame lattice with two climbing vines |
@@ -50,6 +50,11 @@ Eight tiles were appended to `lib.TILES` (indices 38-45): `soil`, `soil_dark`, `
 index and their paint, so the other 24+ GLBs of the structure set rebuild unchanged. The soil
 tiles are deliberately low contrast and free of directional stripes: a striped soil texture made
 the tilled bed read as planking at the iso camera's distance (fixed, see below).
+
+One shared change to `lib._mix`: it now accepts a scalar weight, not only a per-pixel array.
+`_furrows(stripes=False)` passes a scalar, and the old code raised `AttributeError` on it, which
+made every atlas rebuild fail. The fix touches the blend helper only; the 38 original tiles
+still paint byte for byte the same.
 
 ## The manifest
 
@@ -77,11 +82,20 @@ What it showed, and what was fixed because of it:
 - The compost heap read as **scattered dark rocks**. Rebuilt as a slatted bin with a heap inside.
 - The crop leaves were flat squares; they are now tapered wedges that lean off the stalk.
 - The path tiles' grass was too dark against the terrain, so it was lightened.
+- A later rebuild found the atlas was **half painted**: `lib._mix` crashed on the scalar weight
+  that `_furrows(stripes=False)` passes, so `paint_atlas()` had been raising and the last saved
+  atlas kept the new `soil_ridge` tile as unpainted grey. That grey is what the tilled bed was
+  showing. Fixed in `lib._mix` (it now takes a scalar, a 1-D or a 2-D weight) and the whole
+  atlas was repainted; the other 38 tiles are unchanged pixel for pixel.
+- The same rebuild dropped the pebbles from the two dirt path tiles, which put `path_dirt` at
+  24 triangles (the gate wants at least 36). The pebbles are back, sunk into the dirt pad so the
+  tile still stays under the 0.05 m height the task asks for.
 
 Final read: the five plots step clearly from bare furrowed soil to ripe red-fruited crops, the
 path tiles read as dirt and stone surfaces with a grass corner, the fence run and the gate read as
 the same family as the existing `fence.glb`, and the trellis, scarecrow, compost bin and trough
-all read at their real size next to the 1.8 m figure.
+all read at their real size next to the 1.8 m figure. A close-up render of `field_crop_0` and
+`field_crop_1` confirmed the seedlings are green (they only looked pale at the sheet's distance).
 
 ## Known limits
 
