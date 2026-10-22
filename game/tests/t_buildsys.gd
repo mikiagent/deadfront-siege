@@ -136,6 +136,7 @@ func _reset_case() -> void:
 			n.free()
 	_rt.claims = _claims_base.duplicate()
 	_bg.get("_reserved").clear()
+	_bg.get("_occupied").clear()
 	_stand_at(_site)
 
 ## Put exactly `cost` of each item in the bag, nothing else of those items.
@@ -331,6 +332,7 @@ func _test_reasons() -> void:
 		if row[0] == "valid" and why == "":
 			_place_direct(&"foundation", &"thatch", row[2])  # the occupied row needs it there
 	_bg.get("_reserved").clear()
+	_bg.get("_occupied").clear()
 	_done("reasons", " cases=%d" % table.size())
 
 # ------------------------------------------------------------------ 4. socket snapping
@@ -414,7 +416,7 @@ func _free_row3() -> Vector2i:
 			for dx in range(2, 18):
 				var m: Vector2i = _site + Vector2i(dx * sx, dz)
 				var ok := true
-				for d in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0)]:
+				for d in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, 2)]:
 					ok = ok and _why(&"foundation", _slot(m + d, 0, _SP.CELL)) == ""
 				if ok:
 					return m
@@ -425,13 +427,13 @@ func _test_collapse() -> void:
 	_begin_case()
 	# a) Destroy the only wall that holds the ceiling: the ceiling and the wall on it fall.
 	_reset_case()
-	var a := _lean_to(_site)
+	var a := _lean_to(_free_module())
 	if a["wall"] == null: return
 	var fell: Array = a["wall"].destroy("test")
 	_expect(fell.size() == 2 and a["ceiling"] in fell and a["upper"] in fell, "destroying the wall drops the ceiling and the wall on it (fell %d)" % fell.size())
 	# b) A pillar on the far corner holds the ceiling: 0 fall, then the pillar takes it all.
 	_reset_case()
-	var b := _lean_to(_site + Vector2i(4, 0), &"thatch", true)
+	var b := _lean_to(_free_module(), &"thatch", true)
 	if b["pillar"] == null: return
 	fell = b["wall"].destroy("test")
 	_expect(fell.size() == 0 and not b["ceiling"].is_queued_for_deletion(), "the pillar still holds the ceiling: nothing falls (fell %d)" % fell.size())
