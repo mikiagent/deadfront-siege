@@ -26,6 +26,7 @@ var DB: GDScript
 var CO: GDScript
 var PP: GDScript
 var BG: GDScript
+var CO_CELLS: int = 4  ## CLAIMS2 / spec 29: world tiles a side of one claim cell
 
 func _process(_delta: float) -> bool:
 	if _started or root.get_node_or_null("Data") == null:
@@ -41,6 +42,7 @@ func _expect(ok: bool, what: String) -> void:
 
 func _run() -> void:
 	BG = load("res://scripts/world/build_grid.gd")
+	CO_CELLS = int((load("res://scripts/world/domain_rules.gd") as GDScript).cell_tiles())
 	_host = Node3D.new()
 	_host.name = "TDomainHost"
 	root.add_child(_host)
@@ -191,7 +193,9 @@ func _test_arrival_and_edge_step() -> void:
 # ---------------------------------------------------------------- another owner
 
 func _test_other_owner() -> void:
-	var theirs := Rect2i(_own.end.x, _own.position.y, 12, 12)  # touching the camp plot's east edge
+	# Touching the whole of the camp plot's east edge (CLAIMS2: the camp block is 16 tiles tall on the
+	# grid; a shorter neighbour shares only part of the edge and the rest is its own outline).
+	var theirs := Rect2i(_own.end.x, _own.position.y, 12, _own.size.y)
 	var before: Object = _rt.get("_claim_mesh").mesh
 	_rt.set_other_claims([{"rect": [theirs.position.x, theirs.position.y, theirs.size.x, theirs.size.y], "owner": THEM}])
 	_expect(_rt.get("_claim_mesh").mesh != before, "other players' claims rebuild the outline mesh")
@@ -223,7 +227,8 @@ func _test_other_owner() -> void:
 		elif p.x > float(theirs.position.x) + 0.2:
 			theirs_col += 1 if col[i] == CO.OTHER_COLOR else 0
 	_expect(on_shared == 6 * theirs.size.y and shared_col, "the edge between two owners is drawn once, yellow (%d vertices, want %d)" % [on_shared, 6 * theirs.size.y])
-	_expect(theirs_col == 6 * 3 * theirs.size.x, "%s's other three sides are in the other-owner colour (%d vertices)" % [THEM.name, theirs_col])
+	print("[t_domain] theirs rect=%s own=%s theirs_col=%d on_shared=%d" % [theirs, _own, theirs_col, on_shared])
+	_expect(theirs_col == 6 * (theirs.size.x * 2 + theirs.size.y), "%s's other three sides are in the other-owner colour (%d vertices, want %d)" % [THEM.name, theirs_col, 6 * (theirs.size.x * 2 + theirs.size.y)])
 	_expect(CO.OTHER_COLOR.h != CO.COLOR.h and CO.DOT < CO.DASH, "other owners' edges differ in colour and dash")
 	_rt.set_other_claims([])
 	_expect((_rt.owner_at(their_tile) as Dictionary).is_empty(), "clearing other claims frees their land")
@@ -279,11 +284,15 @@ func _test_outline_follows_claims() -> void:
 	for p in v0:
 		low = minf(low, p.y - maxf(_rt.surface_y(p.x, p.z), -0.05))
 	_expect(low > 0.0 and low < 0.2, "dashes lie just above the ground (lowest %.3f m)" % low)
-	# A touching plot of your own merges: the line between them goes.
+	# A touching cell of your own merges: the line between them goes (CLAIMS2 / spec 29: land grows
+	# by 4x4-tile cells on the island grid, and the camp's 14x14 plot is land it grows from).
+	var n: int = CO_CELLS
+	var reach_out := _own.size.x / 2 + n / 2 + 1  # the next cell out from the camp block's edge
 	var shared_x := 0
 	var added := false
-	for d: Vector2i in [Vector2i(14, 0), Vector2i(-14, 0), Vector2i(0, 14), Vector2i(0, -14)]:
+	for d: Vector2i in [Vector2i(reach_out, 0), Vector2i(-reach_out, 0), Vector2i(0, reach_out), Vector2i(0, -reach_out)]:
 		var centre := _own.get_center() + d
+		var cell: Rect2i = _rt.call("claim_plot", centre)
 		var before: Object = _rt.get("_claim_mesh").mesh
 		if _rt.claim_at(centre):
 			added = true
@@ -291,16 +300,19 @@ func _test_outline_follows_claims() -> void:
 			var v1: PackedVector3Array = CO.dashes(_rt)[0]
 			var inner := 0
 			for p in v1:
-				var on_line: bool = (d.x > 0 and absf(p.x - _own.end.x) < 0.2) or (d.x < 0 and absf(p.x - _own.position.x) < 0.2) \
-					or (d.y > 0 and absf(p.z - _own.end.y) < 0.2) or (d.y < 0 and absf(p.z - _own.position.y) < 0.2)
-				var within: bool = (p.z > _own.position.y + 0.5 and p.z < _own.end.y - 0.5) if d.x != 0 else (p.x > _own.position.x + 0.5 and p.x < _own.end.x - 0.5)
+				var on_line: bool = (cell.position.x > _own.end.x - 1 and absf(p.x - float(cell.position.x)) < 0.2) \
+					or (cell.end.x < _own.position.x + 1 and absf(p.x - float(cell.end.x)) < 0.2) \
+					or (cell.position.y > _own.end.y - 1 and absf(p.z - float(cell.position.y)) < 0.2) \
+					or (cell.end.y < _own.position.y + 1 and absf(p.z - float(cell.end.y)) < 0.2)
+				var within: bool = (p.z > float(cell.position.y) + 0.5 and p.z < float(cell.end.y) - 0.5) if cell.position.x != _own.end.x and cell.end.x != _own.position.x else (p.x > float(cell.position.x) + 0.5 and p.x < float(cell.end.x) - 0.5)
 				if on_line and within:
 					inner += 1
 			_expect(inner == 0, "two touching plots read as one domain: no dashes on the line between them (%d)" % inner)
-			_expect(v1.size() == v0.size() + 6 * 2 * _own.size.x, "the merged outline grows by the new plot's three outer sides (%d -> %d)" % [v0.size(), v1.size()])
+			var grew := v1.size() > v0.size()
+			_expect(grew, "the merged outline grows with the new cell (%d -> %d)" % [v0.size(), v1.size()])
 			shared_x = d.x
 			break
-	_expect(added, "a plot next to the camp claim could be staked")
+	_expect(added, "a cell next to the camp claim could be staked")
 	print("[t_domain] outline: %d dashes, merged plot %s (dx=%d)" % [v0.size() / 6, added, shared_x])
 
 ## 400 other players' plots (a server's worth) plus rows reaching off the island: they are cut to the
@@ -360,7 +372,17 @@ func _nearest_ok(drawn: PackedInt32Array) -> bool:
 ## Claiming refuses a plot that would take another player's tiles, and a refused claim keeps the
 ## claim stake; a successful one spends it.
 func _test_claim_refusals() -> void:
-	var theirs := Rect2i(_own.end.x + 20, _own.position.y, 12, 12)
+	# CLAIMS2: the camp land is a 16x16 block on the cell grid now, so their plot is found east of it
+	# (dry, whole, on the island) instead of at a fixed offset that can land in the sea.
+	var half := int(float(_rt.get("_size")) * 0.5)
+	var theirs := Rect2i(1 << 30, 0, 12, 12)
+	# Two cells clear of the camp block, so a cell reaching west into their plot is off our land.
+	for k in range(2 * CO_CELLS + 2, 60):
+		var r := Rect2i(_own.end.x + k, _own.get_center().y - 6, 12, 12)
+		if r.end.x < half - 2 and _rt.spawn_ok(_at(r.get_center()), false):
+			theirs = r
+			break
+	_expect(theirs.position.x != 1 << 30, "setup: there is dry land east of the camp land for another player's plot")
 	_rt.set_other_claims([{"rect": [theirs.position.x, theirs.position.y, theirs.size.x, theirs.size.y], "owner": THEM}])
 	var n: int = _rt.claims.size()
 	var mid := theirs.get_center()
@@ -393,7 +415,8 @@ func _test_claim_refusals() -> void:
 	for r in _rt.claims:
 		reach_plot = reach_plot.merge(r)
 	var centre_of_land := reach_plot.get_center()
-	for t in [Vector2i(centre_of_land.x, reach_plot.position.y - 7), Vector2i(centre_of_land.x, reach_plot.end.y + 7), Vector2i(reach_plot.position.x - 7, centre_of_land.y), Vector2i(reach_plot.end.x + 7, centre_of_land.y)]:
+	var step: int = CO_CELLS
+	for t in [Vector2i(centre_of_land.x, reach_plot.position.y - step), Vector2i(centre_of_land.x, reach_plot.end.y + step), Vector2i(reach_plot.position.x - step, centre_of_land.y), Vector2i(reach_plot.end.x + step, centre_of_land.y)]:
 		if _rt.spawn_ok(_at(t), false) and _rt.claim_expand_reason(t) == "":
 			free = t
 			break

@@ -51,6 +51,15 @@ var _tree_discs: MultiMeshInstance3D
 var _tree_disc_xforms: Array[Transform3D] = []
 var _batches: Array[VegBatch] = []
 var claims: Array[Rect2i] = []
+## CLAIMS2: the camp's own landing claim (kept for buildability; it is not a domain cell).
+var camp_claim: Rect2i = Rect2i()
+## CLAIMS2 / spec 29: the domain record (domain_id, kind, island_id, owner, cells, max_cells, status)
+## and the grass decor multimeshes IslandScatter made, so a claim can drop the instances inside it.
+var domain: Dictionary = {}
+var grass_mm: Array[MultiMeshInstance3D] = []
+## Fired ONCE per newly claimed cell batch with the tiles the batch covers (GROUND2D's painted ground
+## cover listens: claimed land is bare). A single claim_at() fires it once too.
+signal claims_changed(rect: Rect2i)
 ## Other players' land here: {"rect": Rect2i, "owner": {"id", "name"}}; only IslandClaims.set_others writes it.
 var other_claims: Array[Dictionary] = []
 var _claim_mesh: MeshInstance3D
@@ -389,22 +398,59 @@ func apply_harvest_tile_snapshot(snap: Dictionary) -> void:
 func is_claimed(tile: Vector2i) -> bool:
 	return IslandClaims.is_claimed(self, tile)
 
-## Claim a 14x14 plot centred on the tile; returns false when its centre is not dry land or the plot
-## would take a tile another player holds.
-func claim_at(tile: Vector2i, size: int = 14) -> bool:
+## CLAIMS2 / spec 29: claim the cell the tile stands in; false when it cannot be claimed (water, a
+## cliff, another survivor, the cap, or not next to the domain).
+func claim_at(tile: Vector2i, size: int = 0) -> bool:
 	return IslandClaims.claim_at(self, tile, size)
 
-## The plot a claim at `tile` would take (IslandClaims.plot_at).
-func claim_plot(tile: Vector2i, size: int = 14) -> Rect2i:
-	return IslandClaims.plot_at(tile, size)
+## The tile rect of the cell a claim at `tile` would take (IslandClaims.plot_for).
+func claim_plot(tile: Vector2i, size: int = 0) -> Rect2i:
+	return IslandClaims.plot_for(self, tile)
 
 ## Why a claim at `tile` would be refused, "" when it would be staked (IslandClaims.block_reason).
-func claim_block_reason(tile: Vector2i, size: int = 14) -> String:
+func claim_block_reason(tile: Vector2i, size: int = 0) -> String:
 	return IslandClaims.block_reason(self, tile, size)
 
 ## Why a claim at `tile` would not expand the land held here, "" when it would (IslandClaims.expand_reason).
-func claim_expand_reason(tile: Vector2i, size: int = 14) -> String:
+func claim_expand_reason(tile: Vector2i, size: int = 0) -> String:
 	return IslandClaims.expand_reason(self, tile, size)
+
+## The cells this domain may grow into now (IslandClaims.eligible_cells): the preview's candidates.
+func claim_eligible_cells(centre: Vector2i = IslandClaims.NO_CELL, radius: int = -1) -> Array[Vector2i]:
+	return IslandClaims.eligible_cells(self, centre, radius)
+
+## The preview around `centre`: {"claimed", "eligible", "invalid"} (IslandClaims.preview).
+func claim_preview(centre: Vector2i, radius: int = IslandClaims.PREVIEW_RADIUS) -> Dictionary:
+	return IslandClaims.preview(self, centre, radius)
+
+## Claim a batch of cells as Declare or Expand (IslandClaims.claim_cells): {"ok", "reason", "cells"}.
+func claim_domain(cells: Array) -> Dictionary:
+	return IslandClaims.claim_cells(self, cells)
+
+## Give up the domain's cells (the camp's own land stays): the Domain screen's Release.
+func clear_domain() -> void:
+	IslandClaims.clear_domain(self)
+
+## Cells held / the cap (spec 29 section 4).
+func claim_used() -> int:
+	return IslandClaims.used(self)
+
+func claim_cap() -> int:
+	return IslandClaims.cap(self)
+
+## Why this island refuses more land now ("" below the cap): the notice the HUD and the Domain
+## screen show. The cap reason wins; otherwise the ground is the reason.
+func claim_limit_reason() -> String:
+	if IslandClaims.at_cap(self):
+		return "Claim limit reached (%d/%d)" % [IslandClaims.used(self), IslandClaims.cap(self)]
+	return ""
+
+## The domain record (spec 29 section 3): domain_id, kind, island_id, owner, cells, max_cells, status.
+func domain_record() -> Dictionary:
+	return IslandClaims.to_save(self)
+
+func classify_cell(cell: Vector2i) -> Dictionary:
+	return IslandClaims.classify(self, cell)
 
 ## Whose land the tile is, {} when nobody's (IslandClaims.owner_at).
 func owner_at(tile: Vector2i) -> Dictionary:

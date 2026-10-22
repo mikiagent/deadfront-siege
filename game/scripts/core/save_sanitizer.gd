@@ -22,8 +22,8 @@ static var abort_for_test := false
 const SHAPE := {
 	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0}, "position": []},
 	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
-	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}},
-	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
+	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}},
+	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
 	"player_name": "", "occupation": "", "t_stones": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
@@ -97,6 +97,12 @@ static func clean(data: Dictionary) -> Dictionary:
 			_shape(row, CAMP_ROW)
 	if data.has("pending_refunds"):
 		data["pending_refunds"] = _buildings(data["pending_refunds"])
+	# CLAIMS2 / spec 29: the domain record. Cells are [x, z] pairs inside the world limit, the cap is
+	# a sane positive number, and the identity fields are short strings.
+	if (data.get("away", {}) as Dictionary).has("domain"):
+		data["away"]["domain"] = _domain(data["away"]["domain"])
+	if home.has("domain"):
+		home["domain"] = _domain(home["domain"])
 	for block in [home, data.get("away", {})]:
 		if (block as Dictionary).has("buildings"):
 			block["buildings"] = _buildings(block["buildings"])
@@ -328,6 +334,40 @@ static func _shape(data: Dictionary, shape: Dictionary) -> void:
 			data.erase(key)
 		elif want is Dictionary and not (want as Dictionary).is_empty():
 			_shape(got, want)
+
+## A domain record from disk, coerced: {} when it carries no usable cells (an island with no domain).
+## A forged cell list clamps to the world limit and drops repeated cells; the cap keeps its number
+## (it is a floor for migrated saves) but never absurd.
+static func _domain(v: Variant) -> Dictionary:
+	if not v is Dictionary:
+		return {}
+	var d: Dictionary = v
+	var cells: Array = []
+	var seen := {}
+	for c in d.get("cells", []):
+		if not (c is Array and (c as Array).size() >= 2 and _all_numbers(c)):
+			continue
+		if absf(float(c[0])) > WORLD_LIMIT or absf(float(c[1])) > WORLD_LIMIT:
+			continue
+		var cell := [int(c[0]), int(c[1])]
+		if seen.has(cell):
+			continue
+		seen[cell] = true
+		cells.append(cell)
+	if cells.is_empty():
+		return {}
+	return {
+		"domain_id": str(d.get("domain_id", "")) if str(d.get("domain_id", "")).length() <= 64 else "",
+		"kind": str(d.get("kind", "")) if str(d.get("kind", "")) in ["tamed_island", "unstable"] else "tamed_island",
+		"island_id": str(d.get("island_id", "")),
+		"owner": str(d.get("owner", "self")),
+		"owner_clan_id": str(d.get("owner_clan_id", "")),
+		"cells": cells,
+		"max_cells": _int(d.get("max_cells", 0), 1, 1000),
+		"status": str(d.get("status", "active")),
+		"renewal_deadline": d.get("renewal_deadline", null),
+		"permissions_profile_id": str(d.get("permissions_profile_id", "owner_only")),
+	}
 
 static func _is_position(v: Variant) -> bool:
 	if not (v is Array and (v as Array).size() == 3 and _all_numbers(v)):

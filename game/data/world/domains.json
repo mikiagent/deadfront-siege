@@ -1,0 +1,15 @@
+{
+  "_about": "Spec 29 domain config. cell_tiles: one claim cell is this many world tiles a side (spec 29 section 3: 'one claim cell is a 4x4 block of world tiles', configurable). tamed_island.start_cap is the historical starting limit (13). rank_caps are the documented Pioneer-rank milestones from spec 29 section 4 (historical, provisional): 2 -> 17, 6 -> 23, 7 -> 30. Only these ranks are documented; a rank between two milestones keeps the previous cap. Later phases (Civilized Islands, clans, outposts) add their own sections.",
+  "cell_tiles": 4,
+  "tamed_island": {
+    "_about": "historical, provisional (spec 29 section 4): player-reported Durango milestones, not 2019 server constants.",
+    "start_cap": 13,
+    "rank_caps": {
+      "1": 13,
+      "2": 17,
+      "6": 23,
+      "7": 30
+    },
+    "_later_phases": "Civilized Island upkeep/renewal, clan Enclave capacities (5 -> declare, 18 -> 51, 20 -> 57, 22 -> 63, 25 -> 72) and outpost limits are NOT in the game yet; do not add them until those phases start."
+  }
+}

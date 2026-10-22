@@ -852,6 +852,8 @@ func _toggle_sheet(kind: StringName) -> void:
 			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
 			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
 			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
+			# spec 29 section 2: Gameplay HUD -> Main Menu -> Domain.
+			_sheet_btn(box, "Domain", func () -> void: _close_sheet(); _open_domain())
 			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
 		&"pets":
@@ -990,6 +992,26 @@ func _open_map() -> void:
 
 func open_map() -> void:
 	_open_map()
+
+var _domain_screen: DomainScreen
+
+## spec 29: the Domain screen (four territory tabs, Declare/Expand with the ground preview).
+func _open_domain() -> void:
+	if _domain_screen == null:
+		_domain_screen = DomainScreen.new()
+		var layer := CanvasLayer.new()
+		layer.name = "DomainLayer"
+		layer.layer = 96
+		add_child(layer)
+		layer.add_child(_domain_screen)
+	if _domain_screen.is_open():
+		_domain_screen.close()
+	else:
+		_domain_screen.open(player)
+
+## The Domain screen, when the HUD has made one (the lab and tests read it).
+func domain_screen() -> DomainScreen:
+	return _domain_screen
 
 # ---------------------------------------------------------------- per frame
 
