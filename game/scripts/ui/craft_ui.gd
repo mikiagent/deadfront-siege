@@ -455,6 +455,16 @@ func _show_detail(info: Dictionary) -> void:
 		st.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
 		st.add_theme_color_override("font_color", UiTokens.META)
 		_detail.add_child(st)
+	# Spec 31 §10: a bag preview built by the same function the craft uses (Crafting.bag_preview).
+	var prev := Crafting.bag_preview(player.inventory, rec, Crafting.default_picks(player.inventory, rec), player)
+	if not prev.is_empty():
+		var bl := Label.new()
+		bl.name = "DetailBagPreview"
+		bl.text = "BAG PREVIEW\n" + _bag_preview_text(prev)
+		bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		bl.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+		bl.add_theme_color_override("font_color", UiTokens.TEXT)
+		_detail.add_child(bl)
 	# W2-SKILLS: a recipe a skill node gates is listed but locked (spec 03): say what unlocks it,
 	# above the ingredients so a phone shows it without scrolling.
 	var locked := Crafting.progression_block(player, rec)
@@ -569,3 +579,26 @@ func _mk_btn(text: String, cb: Callable, minsz: Vector2) -> Button:
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
 	b.pressed.connect(cb)
 	return b
+
+## Spec 31 §10 preview lines: expected level, base storage, inherited storage attributes, Pocket,
+## other modifiers, final expected capacity, and the survivor's capacity wearing it. Numbers come from
+## Crafting.bag_preview, so this text can never disagree with the crafted bag.
+static func _bag_preview_text(prev: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	lines.append("Expected level: %d" % int(prev.get("level", 0)))
+	lines.append("Base storage: +%d" % int(prev.get("base", 0)))
+	var inherited: Dictionary = prev.get("inherited", {})
+	for key: Variant in inherited:
+		var k := str(key)
+		if k == "pocket":
+			continue
+		lines.append("%s inherited: %s" % [k.capitalize(), str(inherited[key])])
+	lines.append("Pocket Lv. %d: +%d" % [int(prev.get("pocket_level", 0)), int(prev.get("pocket", 0))])
+	if int(prev.get("capacity", 0)) > 0:
+		lines.append("Capacity attribute: +%d" % int(prev.get("capacity", 0)))
+	if int(prev.get("other", 0)) > 0:
+		lines.append("Bag modifier: +%d" % int(prev.get("other", 0)))
+	lines.append("Final storage: +%d" % int(prev.get("bonus", 0)))
+	lines.append("Worn bag capacity: %d" % int(prev.get("total_capacity", 0)))
+	lines.append("Success: %d%%   Flawless: %d%%" % [int(round(float(prev.get("success", 1.0)) * 100.0)), int(round(float(prev.get("flawless", 0.0)) * 100.0))])
+	return "\n".join(lines)

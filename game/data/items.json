@@ -3816,7 +3816,89 @@
       "tool_class": "none",
       "max_durability": 0,
       "market_category": "clothing",
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "bag_def": "basic_bag",
+      "_about": "Spec 31 \u00a72 migration: the old stand-in bag. Saves that hold it load as a Basic Bag of the same level (ItemStack.from_dict). New bags are the five defined in data/bags.json."
+    },
+    {
+      "id": "basic_bag",
+      "display_name": "Basic Bag",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "common",
+      "bag_def": "basic_bag"
+    },
+    {
+      "id": "small_pouch",
+      "display_name": "Small Pouch",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "common",
+      "bag_def": "small_pouch"
+    },
+    {
+      "id": "large_pouch",
+      "display_name": "Large Pouch",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "bag_def": "large_pouch"
+    },
+    {
+      "id": "advanced_backpack",
+      "display_name": "Advanced Backpack",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "rare",
+      "bag_def": "advanced_backpack"
+    },
+    {
+      "id": "specialized_storage_bag",
+      "display_name": "Specialized Storage Bag",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "epic",
+      "bag_def": "specialized_storage_bag"
     }
   ]
 }

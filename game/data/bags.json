@@ -1,0 +1,56 @@
+{
+  "_doc": "Bag definitions (owner spec 31, durango-prompts/31_bag_levels_quality_and_capacity.md). A bag ITEM lives in items.json with categories accessory+bag and a bag_def pointing here; this file holds only its storage definition. HISTORICAL (spec 31 §1, §5, §15): a survivor starts with 100 personal spaces; a worn item's Pocket attribute adds 6 spaces per level. ASSUMPTION (spec 31 §2, §15 explicitly allows illustrative curves and new recipes): every capacity_curve table, storage_bonus and recipe below is a new design value, not a Nexon one. capacity_curve is [level, base_capacity] rows, linearly interpolated and clamped at both ends: a bag's level and its capacity bonus are separate statistics (a level-60 bag does not add 60). inheritable lists the material attributes this bag type may carry over from its primary material; anything else on the material stays on the material. storage_attributes maps an inherited attribute key to the spaces ONE point of it is worth to this bag. Read by scripts/items/bag_def.gd.",
+  "pocket_slots_per_level": 6,
+  "max_pocket_level": 60,
+  "storage_attributes": {
+    "pocket": { "slots_per_point": 6 },
+    "capacity": { "slots_per_point": 1 }
+  },
+  "bags": {
+    "basic_bag": {
+      "display_name": "Basic Bag",
+      "capacity_curve": [[1, 20], [10, 24], [20, 28], [30, 32], [45, 38], [60, 44]],
+      "storage_bonus": 0,
+      "inheritable": ["pocket", "capacity"],
+      "slot": "accessory1",
+      "min_craft_level": 1,
+      "recipe": "basic_bag"
+    },
+    "small_pouch": {
+      "display_name": "Small Pouch",
+      "capacity_curve": [[1, 8], [10, 12], [20, 16], [30, 20], [45, 24], [60, 28]],
+      "storage_bonus": 0,
+      "inheritable": ["capacity"],
+      "slot": "accessory1",
+      "min_craft_level": 1,
+      "recipe": "small_pouch"
+    },
+    "large_pouch": {
+      "display_name": "Large Pouch",
+      "capacity_curve": [[1, 14], [10, 20], [20, 26], [30, 32], [45, 40], [60, 48]],
+      "storage_bonus": 0,
+      "inheritable": ["capacity"],
+      "slot": "accessory1",
+      "min_craft_level": 8,
+      "recipe": "large_pouch"
+    },
+    "advanced_backpack": {
+      "display_name": "Advanced Backpack",
+      "capacity_curve": [[1, 26], [10, 34], [20, 42], [30, 50], [45, 60], [60, 70]],
+      "storage_bonus": 0,
+      "inheritable": ["pocket", "capacity"],
+      "slot": "accessory1",
+      "min_craft_level": 20,
+      "recipe": "advanced_backpack"
+    },
+    "specialized_storage_bag": {
+      "display_name": "Specialized Storage Bag",
+      "capacity_curve": [[1, 22], [10, 30], [20, 38], [30, 46], [45, 56], [60, 66]],
+      "storage_bonus": 8,
+      "inheritable": ["pocket", "capacity"],
+      "slot": "accessory1",
+      "min_craft_level": 30,
+      "recipe": "specialized_storage_bag"
+    }
+  }
+}

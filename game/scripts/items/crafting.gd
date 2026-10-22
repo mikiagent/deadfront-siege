@@ -208,6 +208,10 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 	var out := ItemStack.make(out_id, int(out_row.get("count", 1)))
 	if primary:
 		out.attributes = primary.attributes.duplicate(true)
+		# Spec 31 §4/§10: a bag inherits only the storage attributes its type lists; Pocket comes
+		# from the material, never from the bag's level.
+		if BagCapacity.is_bag(out.def_id):
+			BagCapacity.apply_inheritance(out, primary)
 		# Gear quality follows the primary material; level follows the weighted material mean.
 		var od := out.def()
 		if od and (od.has_category(&"tool") or od.damage > 0.0 or od.armor_value > 0.0):
@@ -400,6 +404,41 @@ static func missing_ingredient_name(inv: Inventory, rec: Dictionary) -> String:
 		if available < int(slot.get("count", 1)):
 			return _category_hint(cat)
 	return "materials"
+
+## Spec 31 §10: the bag crafting preview. It builds the would-be result through build_output (so
+## the preview and the crafted item can never disagree) and itemises it with BagCapacity: the
+## expected level, base capacity, inherited storage attributes, Pocket bonus, the bag's total bonus
+## and the inventory capacity the survivor would have wearing it. {} when the recipe makes no bag
+## or the picks do not fit.
+static func bag_preview(inv: Inventory, rec: Dictionary, picks: Array[int], player: Player = null) -> Dictionary:
+	if inv == null or rec.is_empty() or not picks_valid(inv, rec, picks):
+		return {}
+	var out_id := StringName(str((rec.get("output", {}) as Dictionary).get("id", "")))
+	if not BagCapacity.is_bag(out_id):
+		return {}
+	var primary: ItemStack = inv.slots[picks[primary_index(rec)]]
+	var level := crafted_level_for(rec, consumed_levels(inv, rec, picks), player)
+	var out := build_output(rec, primary, level)
+	var b := BagCapacity.of_stack(out)
+	var worn_now: int = BagCapacity.count(inv)
+	var replaced: int = 0
+	var slot := BagDef.slot(BagCapacity.bag_id_of(out_id))
+	for s: String in inv.equipment:
+		var v: Variant = inv.equipment[s]
+		if v is ItemStack and BagCapacity.bag_id_of((v as ItemStack).def_id) != &"":
+			replaced = int(BagCapacity.of_stack(v).get("total", 0))
+			break
+	return {
+		"id": str(out_id), "bag_id": str(BagCapacity.bag_id_of(out_id)), "level": level,
+		"base": int(b.get("base", 0)), "pocket": int(b.get("pocket", 0)),
+		"pocket_level": BagCapacity.pocket_level(out), "capacity": int(b.get("capacity", 0)),
+		"storage": b.get("storage", {}), "other": int(b.get("other", 0)),
+		"bonus": int(b.get("total", 0)), "inherited": BagCapacity.inherited_attributes(out_id, primary),
+		"total_capacity": worn_now - replaced + int(b.get("total", 0)),
+		# ASSUMPTION: this build has no success-chance or flawless roll in Crafting (spec 04's
+		# ability curve is not implemented yet), so a craft either happens or is refused: 1.0 / 0.0.
+		"slot": str(slot), "success": 1.0, "flawless": 0.0,
+	}
 
 ## -1 when the bag cannot make it: the UI must not advertise a level it cannot reach (craft-04).
 static func preview_level(inv: Inventory, rec: Dictionary) -> int:

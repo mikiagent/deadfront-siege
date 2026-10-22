@@ -14,6 +14,9 @@ static var _rules: Dictionary = {}
 @export var legacy_stack_max: int = 1
 ## Bag slots this item adds while worn (spec 05:11 "equipment adds storage slots").
 @export var bag_slots: int = 0
+## Bag type id in data/bags.json (spec 31): its capacity curve and inheritable storage attributes.
+## Empty for ordinary gear, whose bag_slots stays the whole storage rule.
+@export var bag_def: StringName = &""
 @export var tool_class: StringName = &"none"
 @export var base_level: int = 1
 @export var attack_rate: float = 0.0
@@ -61,6 +64,7 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	var old_data_cap := int(d.get("slot_span", 1)) > 1 or int(d.get("max_durability", 0)) > 0
 	def.legacy_stack_max = maxi(1, int(d.get("stack_max", 1))) if old_data_cap else 999
 	def.bag_slots = maxi(0, int(d.get("bag_slots", 0)))
+	def.bag_def = StringName(str(d.get("bag_def", "")))
 	def.tool_class = StringName(str(d.get("tool_class", "none")))
 	def.base_level = int(d.get("base_level", 1))
 	def.attack_rate = float(d.get("attack_rate", 0.0))

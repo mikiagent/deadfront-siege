@@ -4623,6 +4623,176 @@
       "process_add": 1,
       "tree": "cooking",
       "requires_node": "antibiotic"
+    },
+    {
+      "id": "basic_bag",
+      "display_name": "Basic Bag",
+      "skill": "tailoring",
+      "max_level": 60,
+      "min_level": 1,
+      "slots": [
+        {
+          "category": "green_hide",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "basic_bag",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 3.0,
+      "process_step": "sew",
+      "process_add": 1,
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+    },
+    {
+      "id": "small_pouch",
+      "display_name": "Small Pouch",
+      "skill": "tailoring",
+      "max_level": 60,
+      "min_level": 1,
+      "slots": [
+        {
+          "category": "green_hide",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "small_pouch",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "sew",
+      "process_add": 1,
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+    },
+    {
+      "id": "large_pouch",
+      "display_name": "Large Pouch",
+      "skill": "tailoring",
+      "max_level": 60,
+      "min_level": 8,
+      "slots": [
+        {
+          "category": "green_hide",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "large_pouch",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "sew",
+      "process_add": 1,
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+    },
+    {
+      "id": "advanced_backpack",
+      "display_name": "Advanced Backpack",
+      "skill": "tailoring",
+      "max_level": 60,
+      "min_level": 20,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "cloth",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "fibre",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "advanced_backpack",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 6.0,
+      "process_step": "sew",
+      "process_add": 1,
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+    },
+    {
+      "id": "specialized_storage_bag",
+      "display_name": "Specialized Storage Bag",
+      "skill": "tailoring",
+      "max_level": 60,
+      "min_level": 30,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "cloth",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "rope",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "fibre",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "specialized_storage_bag",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8.0,
+      "process_step": "sew",
+      "process_add": 1,
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
     }
   ],
   "repairs": [
