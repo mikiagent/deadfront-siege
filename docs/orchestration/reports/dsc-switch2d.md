@@ -40,8 +40,9 @@ CARD2D cards where it does not. Buildings (`placed_building`), creatures and the
 
 - `t_switch2d` PASS (script error free), `t_card2d` PASS, and the related `t_stepover`, `t_occlude` PASS.
 - Lab, windowed, at **1600x900** and **844x390** (the phone viewport):
-  `painted_nodes=267 baked_nodes=234 model_nodes=0 grey_cards=0 ms_cards 13.83-13.95 ms_models 13.81-13.92
-  tap_ok=1 empty_ok=1 facing_err_deg=0.02 shots=6` at each size. Six PNGs per resolution:
+  `painted_nodes=267 baked_nodes=234 model_nodes=0 grey_cards=0 ms_cards 12.6-13.9 ms_models 13.2-13.9
+  tap_ok=1 empty_ok=1 facing_err_deg=0.02 shots=6` at each size (final run; frame times move a few percent
+  with whatever else is on the box). Six PNGs per resolution:
   `switch2d_home_grassland_cards.png`, `..._models.png`, `switch2d_tropical_25_cards.png`,
   `..._models.png`, `switch2d_night_cards.png`, `switch2d_painted_shading.png`.
 - Frame time: cards cost about what the old 3D props cost in the same view (sum of per-island medians,
@@ -76,7 +77,9 @@ CARD2D cards where it does not. Buildings (`placed_building`), creatures and the
   (that is how the "cards shot" once became the camp, and every grey-card hit became plain grass).
 - The card's quad is offset from its node by the pivot compensation, so a sampling rect must centre on
   `global_transform * get_aabb().get_center()`, not on `global_position`.
-- `_tap_and_empty()` walks the survivor to a bush; return to the patch before shooting.
+- `_tap_and_empty()` walks the survivor to a bush; return to the patch before shooting. The model pass
+  reloads the island (which respawns the survivor), so it must call `_stand_in_props()` again or its
+  shot frames the camp instead of the patch and the cards/models pair is not like-for-like.
 - Thin, distant sprites (hanging vines, bamboo) cover a few pixels; `MIN_RECT_PX` (scaled by the frame
   height, so a phone-sized viewport keeps judging) and the 25 m distance cut keep them out.
 - Frame timing needs repeats (best of `PERF_PASSES` medians): a single pass is at the mercy of whatever
@@ -90,7 +93,9 @@ CARD2D cards where it does not. Buildings (`placed_building`), creatures and the
   that base this task's diff is exactly: `card_prop.gd`, `harvest_node.gd`, `island_scatter.gd`,
   `card_sway.gdshader`, `data/world/rules.json`, `data/world/sprites2d_map.json` (new), `project.godot`,
   `tests/t_card2d.gd`, `tests/t_switch2d.gd` (new), `scripts/dev/switch2d_lab.gd` (new),
-  `scenes/dev/switch2d_lab.tscn` (new), plus this report and the `.dsc/` notes.
+  `scenes/dev/switch2d_lab.tscn` (new), plus this report and the `.dsc/` notes. The gate's scope check
+  also had to ignore the runner's own bookkeeping files (`.dsc-task/TASK.md`, `.dsc.local.json`), which
+  it writes into the worktree; they are not the agent's edits.
 - Run smoke through the shared slot script (`gslot.sh`): launched bare in the sandbox, Godot segfaults on
   `user://logs/...` because `$HOME/Library` is not writable and only gslot.sh points `HOME` at scratch.
 - `tools/smoke.sh --no-import` → `SMOKE PASS`; `verify_job.sh switch2d` (full) → `VERIFY PASS`.

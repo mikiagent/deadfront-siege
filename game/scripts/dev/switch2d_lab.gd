@@ -155,6 +155,10 @@ func _measure_island(island: String) -> void:
 	_cam.set("_target", _player)
 	_cam.call("_snap")
 	await _settle(0.6)
+	# The reload puts the survivor back at the spawn, so walk him into the patch again: otherwise the
+	# "model" shot frames the camp while the "card" shot frames the patch, and the pair is not fair.
+	_stand_in_props()
+	await _settle(0.5)
 	await _shoot("%s_models" % island)
 	await _time_mode(&"perf_models")
 
