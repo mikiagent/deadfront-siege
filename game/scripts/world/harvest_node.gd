@@ -38,6 +38,9 @@ var _batch: VegBatch
 var _batch_idx: int = -1
 var _empty_batch: VegBatch
 var _empty_batch_idx: int = -1
+## CARD2D: the card drawing this node and, when the family swaps models on depletion, its empty card.
+var _card: CardProp
+var _card_empty: CardProp
 var _tile: Vector2i = Vector2i.ZERO
 var _regen_left: float = 0.0
 
@@ -362,6 +365,8 @@ func consume_unit() -> bool:
 	else:
 		pool = maxf(0.0, pool - 1.0)
 	session_gathered += 1
+	if _card:
+		_card.rustle()
 	if _all_empty():
 		_on_pool_empty()
 	elif _empty_batch:
@@ -405,6 +410,12 @@ func _spawn_log() -> void:
 		parent.add_child(log_n)
 	var attrs := yield_attributes.duplicate(true)
 	log_n.setup(StringName("%s_log" % node_id), &"wood_log", 1, 2, attrs, &"none", Color(0.42, 0.28, 0.16), 1.0, 0.0, "WoodLog_Moss", false, 6)
+	# SWITCH2D: under resource_render "card" the felled log is a card too, never a 3D model.
+	if IslandScatter.cards_enabled() and parent is IslandRuntime:
+		var vis: Dictionary = CardProp.visual_for("WoodLog_Moss", global_position)
+		if str(vis.get("kind", "")) != "":
+			IslandScatter._attach_card_visual(parent as IslandRuntime, log_n, vis, "prop", "WoodLog_Moss", global_position)
+			return
 	var path := "res://assets/nature/WoodLog_Moss.glb"
 	if ResourceLoader.exists(path):
 		log_n.set_visual(path)
@@ -431,8 +442,32 @@ func berries_available() -> bool:
 			return true
 	return false
 
+## CARD2D: this node draws as a card (island_scatter when resource_render is "card"). An empty card
+## is shown while the node is depleted, the way the batched path swaps to the family's depleted GLB.
+func set_card_visual(card: CardProp, empty_card: CardProp = null) -> void:
+	_card = card
+	_card_empty = empty_card
+	if _mesh:
+		_mesh.visible = false
+	_apply_card_state()
+	_apply_batch()
+
+## True when this node draws an "-empty" card while depleted (CARD2D).
+func has_empty_card() -> bool:
+	return _card_empty != null and is_instance_valid(_card_empty)
+
+## The full card while the node has something left, the empty one while it is regrowing.
+func _apply_card_state() -> void:
+	if _card == null or not is_instance_valid(_card):
+		return
+	var full := visible and not depleted
+	_card.visible = full
+	if _card_empty and is_instance_valid(_card_empty):
+		_card_empty.visible = visible and depleted
+
 func refresh_batched_visual() -> void:
 	_apply_batch()
+	_apply_card_state()
 
 func _apply_batch() -> void:
 	if _empty_batch:
@@ -443,9 +478,19 @@ func _apply_batch() -> void:
 		_batch.set_shown(_batch_idx, visible and not depleted)
 	_set_tap_zone(visible and not depleted)
 
+## The cards are children of the island runtime, not of this node (they keep their own transforms),
+## so freeing this node must free them too or they stay standing with nothing to harvest.
+func _exit_tree() -> void:
+	for c in [_card, _card_empty]:
+		if c != null and is_instance_valid(c):
+			c.queue_free()
+	_card = null
+	_card_empty = null
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
 		_apply_batch()
+		_apply_card_state()
 
 func set_visual(path: String) -> void:
 	if not ResourceLoader.exists(path):
@@ -489,7 +534,7 @@ func _on_pool_empty() -> void:
 		visible = false
 		queue_free()
 		return
-	if _empty_batch:
+	if _empty_batch or _card_empty:
 		_sync_visual_state()
 		return
 	visible = false
@@ -498,9 +543,12 @@ func _on_pool_empty() -> void:
 func _sync_visual_state() -> void:
 	depleted = _all_empty()
 	if depleted:
-		visible = _empty_batch != null
+		# A depleted berry bush keeps showing its empty model (or, in the card path, its -empty card);
+		# only a node with neither disappears.
+		visible = _empty_batch != null or has_empty_card()
 		collision_layer = 0
 		_apply_batch()
+		_apply_card_state()
 		return
 	if falls_to_log:
 		rotation = Vector3.ZERO
@@ -508,6 +556,7 @@ func _sync_visual_state() -> void:
 	visible = true
 	collision_layer = 1 if blocks_movement() else 0
 	_apply_batch()
+	_apply_card_state()
 
 func regen_left() -> float:
 	return _regen_left

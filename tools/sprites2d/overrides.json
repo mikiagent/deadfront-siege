@@ -1,0 +1,8 @@
+{
+ "_about": "Hand fixes for items that touch on a sheet. Boxes are [x, y, w, h] on the full-resolution sheet. split = cut one connected blob along the box; merge = group every component the box touches into one sprite; drop = throw away components mostly inside the box.",
+ "sheet-jungle-plants": {
+  "split": [
+   [318, 0, 20, 290]
+  ]
+ }
+}
