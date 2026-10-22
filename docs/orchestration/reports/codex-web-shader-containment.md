@@ -35,6 +35,10 @@ uniform include.
 
 ## Verification
 
+- Deployed to production: <https://durango-like.vercel.app>.
+- Immutable deployment: <https://durango-like-kovtx11f4-mikiagents-projects.vercel.app>.
+- Vercel inspection: <https://vercel.com/mikiagents-projects/durango-like/HeCQ1k3oq1QJkwFHXgruiWPd8WUb>.
+- Protected production response contains build stamp `6ff9e0304/bca4d87fa4`; deployment is `Ready`.
 - `t_card2d.gd`, `t_occlude2.gd`, and `t_switch2d.gd`: PASS.
 - Local Compatibility/WebGL soak: PASS, 11 checkpoints including travel away and back. No
   `Too many instances`, script/parse error, WebGL context loss, or all-black frame.
