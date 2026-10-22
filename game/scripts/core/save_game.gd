@@ -140,6 +140,10 @@ static func save_now() -> bool:
 	# declared domain keeps exactly the old shape (an old save and its fixtures re-save unchanged).
 	if not World.home_domain.is_empty():
 		(payload["home"] as Dictionary)["domain"] = World.home_domain
+	# DOMAIN-D / spec 29 section 4: the Personal Communications Center's rank and held contributions.
+	# Written only once the island has some, so a save with no center keeps exactly the old shape.
+	if not World.home_comm_center.is_empty():
+		(payload["home"] as Dictionary)["comm_center"] = CommCenter.to_save()
 	if not World.is_home():
 		# The island the survivor is standing on: its buildings, storage and staked claims.
 		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims}
@@ -250,6 +254,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	# CLAIMS2 / spec 29: the domain record. An old save has "claims" only; IslandClaims migrates
 	# those rects into covering cells when the island builds (and covers every placed building).
 	World.home_domain = data.get("home", {}).get("domain", {})
+	# DOMAIN-D / spec 29 section 4: the center's record (absent in a save from before it existed).
+	CommCenter.from_save((data.get("home", {}) as Dictionary).get("comm_center", {}))
 	var cl: Variant = data.get("home", {}).get("camp_layout", {})
 	World.camp_layout = (cl as Dictionary).duplicate() if cl is Dictionary else {}
 	var map_row: Variant = data.get("map", {})

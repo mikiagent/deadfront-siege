@@ -44,11 +44,13 @@ static func rank_caps() -> Dictionary:
 	var row: Variant = tamed_island().get("rank_caps", {})
 	return row as Dictionary if row is Dictionary else {}
 
-## The player's Pioneer rank for cap purposes. World.pioneer_level is the survivor's level and
-## starts at 0; spec 29's table starts at rank 1 (its upgrade track is a later job), so rank 0 reads
-## as rank 1: the starting cap.
+## The player's Pioneer rank for cap purposes: the survivor's own level (World.pioneer_level, which
+## starts at 0 and so reads as spec 29's rank 1) or the rank the Personal Communications Center has
+## raised the island to, whichever is higher. Only the center's track (DOMAIN-D) changes it by
+## contributing; nothing here claims land.
 static func pioneer_rank() -> int:
-	return maxi(1, int(World.pioneer_level))
+	CommCenter.register_blueprint()  # the center's build blueprint (data/world/comm_center.json)
+	return maxi(1, maxi(int(World.pioneer_level), CommCenter.rank()))
 
 ## Claim cap at a Pioneer rank: the highest documented milestone at or below it (a rank between two
 ## milestones keeps the previous cap, spec 29 section 4), never below the starting cap.

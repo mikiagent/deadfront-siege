@@ -1,0 +1,60 @@
+{
+  "_about": "Spec 29 section 4 (Island progression / Personal Communications Center) and section 10: a contribution-driven island upgrade track. Completing a step raises the Tamed Island's Pioneer rank, and the plot capacity follows the documented milestones in data/world/domains.json (rank 2 -> 17, 6 -> 23, 7 -> 30). An upgrade raises CAPACITY only: it never claims a cell (spec 29 section 4). Only the documented ranks have steps; a rank between two milestones keeps the previous cap, so there is no invented intermediate table.",
+  "_contributions": "Each step's item costs are # ASSUMPTION: spec 29 says the intervening ranks/costs are not established by any source. Quantities are deliberately small so the track can be walked through in one session and are tuned in this file alone. Contributions are exact item instances (spec 29 section 10): one unit leaves the bag, is held by the center, and is consumed exactly once when that step is completed.",
+  "_building": "The center is an ordinary BUILDFLOW build (construction site -> exact-instance deposits -> work -> finished structure), so its slots below are the site's deposit slots. blueprint.station.kind is the finished station's kind and its grid kind. The skill gate is the Construction tree's workbench node, the same gate the Basic Workbench has (data/blueprints.json), and construction_level 20 is the tutorial's building level.",
+  "blueprint": {
+    "id": "comm_center",
+    "display_name": "Personal Communications Center",
+    "category": "storage_workbench",
+    "categories": ["Construction Parts", "Storage Unit / Workbench", "Installation / Decoration"],
+    "construction_level": 20,
+    "_construction_level_source": "historical tutorial building level (spec 30 section 2), the same gate the Basic Workbench carries",
+    "skill_node": "workbench",
+    "footprint": [1, 1],
+    "_footprint": "the grid kind (comm_center) has no props_manifest row, so BuildGrid gives it one 1x1 cell for both the site and the finished station",
+    "work_seconds": 20.0,
+    "_work_seconds": "# ASSUMPTION: spec 29 gives no build timer",
+    "level_min": 1,
+    "level_max": 60,
+    "xp": 60.0,
+    "station": {
+      "kind": "comm_center",
+      "tags": ["comm_center"],
+      "level_from_result": true,
+      "supports_queued_jobs": false
+    },
+    "slots": [
+      {"slot_id": "planks", "label": "Plank Shape", "accepted_tags": ["plank_shape"], "quantity": 2, "min_level": 1, "role": "main", "level_contributing": true},
+      {"slot_id": "straps", "label": "Strap", "accepted_tags": ["strap"], "quantity": 4, "min_level": 1, "role": "support", "level_contributing": false},
+      {"slot_id": "stone", "label": "Stone", "accepted_tags": ["stone"], "quantity": 6, "min_level": 1, "role": "support", "level_contributing": false}
+    ]
+  },
+  "ranks": [
+    {
+      "rank": 2,
+      "_cap": "17 plots, spec 29 section 4 (Pioneer Rank 2); the number lives in data/world/domains.json",
+      "requires": [
+        {"slot_id": "planks", "label": "Plank Shape", "accepted_tags": ["plank_shape"], "quantity": 2, "min_level": 1},
+        {"slot_id": "stone", "label": "Stone", "accepted_tags": ["stone"], "quantity": 8, "min_level": 1}
+      ]
+    },
+    {
+      "rank": 6,
+      "_cap": "23 plots, spec 29 section 4 (Pioneer Rank 6)",
+      "requires": [
+        {"slot_id": "planks", "label": "Plank Shape", "accepted_tags": ["plank_shape"], "quantity": 4, "min_level": 1},
+        {"slot_id": "straps", "label": "Strap", "accepted_tags": ["strap"], "quantity": 6, "min_level": 1},
+        {"slot_id": "stone", "label": "Stone", "accepted_tags": ["stone"], "quantity": 16, "min_level": 1}
+      ]
+    },
+    {
+      "rank": 7,
+      "_cap": "30 plots, spec 29 section 4 (Pioneer Rank 7)",
+      "requires": [
+        {"slot_id": "planks", "label": "Plank Shape", "accepted_tags": ["plank_shape"], "quantity": 6, "min_level": 1},
+        {"slot_id": "straps", "label": "Strap", "accepted_tags": ["strap"], "quantity": 10, "min_level": 1},
+        {"slot_id": "stone", "label": "Stone", "accepted_tags": ["stone"], "quantity": 24, "min_level": 1}
+      ]
+    }
+  ]
+}
