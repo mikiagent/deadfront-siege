@@ -761,15 +761,15 @@
     ]
    },
    {
-    "id": "jungle-cliffs_13_cliff_pillar_g",
+    "id": "jungle-cliffs_13_cliff_waterfall_tiered",
     "src_rect": [
      712,
      460,
      159,
      225
     ],
-    "name": "cliff_pillar_g",
-    "kind": "prop:pillar",
+    "name": "cliff_waterfall_tiered",
+    "kind": "prop:waterfall",
     "height_m": 7.0,
     "blocks": true,
     "destroyable": false,
@@ -779,15 +779,15 @@
     ]
    },
    {
-    "id": "jungle-cliffs_14_cliff_pillar_h",
+    "id": "jungle-cliffs_14_cliff_waterfall_tall",
     "src_rect": [
      856,
      479,
      133,
      203
     ],
-    "name": "cliff_pillar_h",
-    "kind": "prop:pillar",
+    "name": "cliff_waterfall_tall",
+    "kind": "prop:waterfall",
     "height_m": 7.0,
     "blocks": true,
     "destroyable": false,
@@ -815,14 +815,14 @@
     ]
    },
    {
-    "id": "jungle-cliffs_16_waterfall_wide",
+    "id": "jungle-cliffs_16_waterfall_plateau",
     "src_rect": [
      994,
      504,
      144,
      203
     ],
-    "name": "waterfall_wide",
+    "name": "waterfall_plateau",
     "kind": "prop:waterfall",
     "height_m": 6.0,
     "blocks": true,
@@ -959,21 +959,21 @@
     ]
    },
    {
-    "id": "jungle-cliffs_24_fern_tall",
+    "id": "jungle-cliffs_24_root_curtain_c",
     "src_rect": [
      648,
      665,
      144,
      190
     ],
-    "name": "fern_tall",
-    "kind": "prop:fern",
-    "height_m": 1.2,
+    "name": "root_curtain_c",
+    "kind": "prop:root_curtain",
+    "height_m": 2.4,
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     38,
-     189
+     46,
+     0
     ]
    },
    {
@@ -995,17 +995,17 @@
     ]
    },
    {
-    "id": "jungle-cliffs_26_fern_small",
+    "id": "jungle-cliffs_26_palm_crown_small",
     "src_rect": [
      1369,
      631,
      69,
      77
     ],
-    "name": "fern_small",
-    "kind": "prop:fern",
-    "height_m": 0.7,
-    "blocks": false,
+    "name": "palm_crown_small",
+    "kind": "prop:fan_palm",
+    "height_m": 2.0,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      33,
@@ -1463,16 +1463,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_52_bromeliad_red",
+    "id": "jungle-cliffs_52_driftwood_bundle",
     "src_rect": [
      1216,
      870,
      122,
      76
     ],
-    "name": "bromeliad_red",
-    "kind": "prop:bromeliad",
-    "height_m": 1.1,
+    "name": "driftwood_bundle",
+    "kind": "prop:driftwood",
+    "height_m": 0.7,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1481,16 +1481,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_53_shell_small",
+    "id": "jungle-cliffs_53_rock_chip_small",
     "src_rect": [
      1344,
      867,
      49,
      35
     ],
-    "name": "shell_small",
-    "kind": "icon:seashell",
-    "height_m": 0.3,
+    "name": "rock_chip_small",
+    "kind": "prop:boulder",
+    "height_m": 0.4,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1499,16 +1499,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_54_shell_oyster",
+    "id": "jungle-cliffs_54_driftwood_log",
     "src_rect": [
      1388,
      901,
      136,
      88
     ],
-    "name": "shell_oyster",
-    "kind": "icon:oyster_shells",
-    "height_m": 0.3,
+    "name": "driftwood_log",
+    "kind": "prop:driftwood",
+    "height_m": 0.8,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1517,16 +1517,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_55_fern_low",
+    "id": "jungle-cliffs_55_fern_bromeliad_clump",
     "src_rect": [
      186,
      915,
      134,
      92
     ],
-    "name": "fern_low",
+    "name": "fern_bromeliad_clump",
     "kind": "prop:fern",
-    "height_m": 0.7,
+    "height_m": 0.9,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1553,16 +1553,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_57_driftwood_branch",
+    "id": "jungle-cliffs_57_fern_red_bromeliad",
     "src_rect": [
      432,
      926,
      176,
      84
     ],
-    "name": "driftwood_branch",
-    "kind": "prop:driftwood",
-    "height_m": 0.7,
+    "name": "fern_red_bromeliad",
+    "kind": "prop:fern",
+    "height_m": 1.0,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1571,16 +1571,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_58_driftwood_pile",
+    "id": "jungle-cliffs_58_fern_low_d",
     "src_rect": [
      611,
      938,
      84,
      68
     ],
-    "name": "driftwood_pile",
-    "kind": "prop:driftwood",
-    "height_m": 0.8,
+    "name": "fern_low_d",
+    "kind": "prop:fern",
+    "height_m": 0.7,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1589,17 +1589,17 @@
     ]
    },
    {
-    "id": "jungle-cliffs_59_fern_low_c",
+    "id": "jungle-cliffs_59_sapling_young",
     "src_rect": [
      691,
      919,
      69,
      89
     ],
-    "name": "fern_low_c",
-    "kind": "prop:fern",
-    "height_m": 0.8,
-    "blocks": false,
+    "name": "sapling_young",
+    "kind": "prop:tree_small",
+    "height_m": 2.5,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      33,
@@ -1625,16 +1625,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_61_shell_tiny_b",
+    "id": "jungle-cliffs_61_shell_open_big",
     "src_rect": [
      1193,
      947,
      73,
      52
     ],
-    "name": "shell_tiny_b",
+    "name": "shell_open_big",
     "kind": "icon:seashell",
-    "height_m": 0.25,
+    "height_m": 0.35,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1643,16 +1643,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_62_shell_pile",
+    "id": "jungle-cliffs_62_driftwood_bromeliad_log",
     "src_rect": [
      1297,
      917,
      119,
      91
     ],
-    "name": "shell_pile",
-    "kind": "icon:seashell",
-    "height_m": 0.3,
+    "name": "driftwood_bromeliad_log",
+    "kind": "prop:driftwood",
+    "height_m": 0.9,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1661,16 +1661,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_63_riftw",
+    "id": "jungle-cliffs_63_fern_small_b",
     "src_rect": [
      756,
      961,
      92,
      47
     ],
-    "name": "riftw",
-    "kind": "unused",
-    "height_m": 0.4,
+    "name": "fern_small_b",
+    "kind": "prop:fern",
+    "height_m": 0.6,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1679,16 +1679,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_64_shell_clam_d",
+    "id": "jungle-cliffs_64_mossy_rock",
     "src_rect": [
      859,
      973,
      62,
      37
     ],
-    "name": "shell_clam_d",
-    "kind": "icon:clam_shell",
-    "height_m": 0.3,
+    "name": "mossy_rock",
+    "kind": "prop:boulder",
+    "height_m": 0.4,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1697,15 +1697,15 @@
     ]
    },
    {
-    "id": "jungle-cliffs_65_shell_clam_e",
+    "id": "jungle-cliffs_65_conch_shell",
     "src_rect": [
      932,
      971,
      47,
      37
     ],
-    "name": "shell_clam_e",
-    "kind": "icon:clam_shell",
+    "name": "conch_shell",
+    "kind": "icon:conch",
     "height_m": 0.3,
     "blocks": false,
     "destroyable": true,
@@ -1715,15 +1715,15 @@
     ]
    },
    {
-    "id": "jungle-cliffs_66_shell_clam_f",
+    "id": "jungle-cliffs_66_spiral_shell",
     "src_rect": [
      990,
      968,
      58,
      40
     ],
-    "name": "shell_clam_f",
-    "kind": "icon:clam_shell",
+    "name": "spiral_shell",
+    "kind": "icon:spiral_shell",
     "height_m": 0.3,
     "blocks": false,
     "destroyable": true,
@@ -1733,14 +1733,14 @@
     ]
    },
    {
-    "id": "jungle-cliffs_67_shell_tiny_c",
+    "id": "jungle-cliffs_67_shell_cluster_small",
     "src_rect": [
      1060,
      981,
      54,
      28
     ],
-    "name": "shell_tiny_c",
+    "name": "shell_cluster_small",
     "kind": "icon:seashell",
     "height_m": 0.25,
     "blocks": false,
@@ -1751,16 +1751,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_68_shell_tiny_d",
+    "id": "jungle-cliffs_68_shell_open_big_b",
     "src_rect": [
      1122,
      961,
      59,
      46
     ],
-    "name": "shell_tiny_d",
+    "name": "shell_open_big_b",
     "kind": "icon:seashell",
-    "height_m": 0.25,
+    "height_m": 0.35,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -1769,16 +1769,16 @@
     ]
    },
    {
-    "id": "jungle-cliffs_69_driftwood_twig",
+    "id": "jungle-cliffs_69_rock_chip",
     "src_rect": [
      1288,
      984,
      32,
      24
     ],
-    "name": "driftwood_twig",
-    "kind": "prop:driftwood",
-    "height_m": 0.4,
+    "name": "rock_chip",
+    "kind": "prop:boulder",
+    "height_m": 0.3,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -2023,16 +2023,16 @@
     ]
    },
    {
-    "id": "jungle-plants_14_item",
+    "id": "jungle-plants_14_broadleaf_shrub_c",
     "src_rect": [
      530,
      494,
      293,
      341
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
+    "name": "broadleaf_shrub_c",
+    "kind": "Plant",
+    "height_m": 1.2,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -2221,16 +2221,16 @@
     ]
    },
    {
-    "id": "jungle-plants_25_red_flower_shrub",
+    "id": "jungle-plants_25_broadleaf_red_flower",
     "src_rect": [
      1013,
      861,
      151,
      145
     ],
-    "name": "red_flower_shrub",
+    "name": "broadleaf_red_flower",
     "kind": "Plant",
-    "height_m": 0.9,
+    "height_m": 1.3,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -2293,16 +2293,16 @@
     ]
    },
    {
-    "id": "jungle-plants_29_fern_e",
+    "id": "jungle-plants_29_heliconia_bromeliad",
     "src_rect": [
      957,
      1002,
      155,
      111
     ],
-    "name": "fern_e",
+    "name": "heliconia_bromeliad",
     "kind": "Plant",
-    "height_m": 0.8,
+    "height_m": 1.3,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -2311,16 +2311,16 @@
     ]
    },
    {
-    "id": "jungle-plants_30_fern_f",
+    "id": "jungle-plants_30_broadleaf_plant_d",
     "src_rect": [
      1116,
      998,
      127,
      112
     ],
-    "name": "fern_f",
+    "name": "broadleaf_plant_d",
     "kind": "Plant",
-    "height_m": 0.8,
+    "height_m": 1.3,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -2329,16 +2329,16 @@
     ]
    },
    {
-    "id": "jungle-plants_31_leaf",
+    "id": "jungle-plants_31_fern_frond_c",
     "src_rect": [
      11,
      1089,
      135,
      153
     ],
-    "name": "leaf",
+    "name": "fern_frond_c",
     "kind": "unused",
-    "height_m": 0.4,
+    "height_m": 0.7,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -2347,16 +2347,16 @@
     ]
    },
    {
-    "id": "jungle-plants_32_leaf_b",
+    "id": "jungle-plants_32_fern_frond_d",
     "src_rect": [
      158,
      1100,
      153,
      136
     ],
-    "name": "leaf_b",
+    "name": "fern_frond_d",
     "kind": "unused",
-    "height_m": 0.4,
+    "height_m": 0.7,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -2536,7 +2536,7 @@
     ],
     "name": "fern_frond",
     "kind": "unused",
-    "height_m": 0.3,
+    "height_m": 0.6,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -2545,16 +2545,16 @@
     ]
    },
    {
-    "id": "jungle-plants_43_leaf_k",
+    "id": "jungle-plants_43_fern_plant_small",
     "src_rect": [
      586,
      1171,
      78,
      68
     ],
-    "name": "leaf_k",
-    "kind": "unused",
-    "height_m": 0.3,
+    "name": "fern_plant_small",
+    "kind": "Plant",
+    "height_m": 0.5,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -2563,15 +2563,15 @@
     ]
    },
    {
-    "id": "jungle-plants_44_moss_mound",
+    "id": "jungle-plants_44_fern_frond_b",
     "src_rect": [
      1204,
      1167,
      41,
      70
     ],
-    "name": "moss_mound",
-    "kind": "Plant",
+    "name": "fern_frond_b",
+    "kind": "unused",
     "height_m": 0.6,
     "blocks": false,
     "destroyable": true,
@@ -2655,16 +2655,16 @@
     ]
    },
    {
-    "id": "jungle-trees_05_vine_tree_small",
+    "id": "jungle-trees_05_slender_tree",
     "src_rect": [
      1388,
      190,
      131,
      220
     ],
-    "name": "vine_tree_small",
+    "name": "slender_tree",
     "kind": "prop:tree_small",
-    "height_m": 7.0,
+    "height_m": 6.0,
     "blocks": true,
     "destroyable": true,
     "pivot": [
@@ -2673,17 +2673,17 @@
     ]
    },
    {
-    "id": "jungle-trees_06_item",
+    "id": "jungle-trees_06_palm_pair_leaning",
     "src_rect": [
      19,
      412,
      371,
      593
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
-    "blocks": false,
+    "name": "palm_pair_leaning",
+    "kind": "PalmTree",
+    "height_m": 6.0,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      98,
@@ -2709,17 +2709,17 @@
     ]
    },
    {
-    "id": "jungle-trees_08_banana_cluster",
+    "id": "jungle-trees_08_palm_row",
     "src_rect": [
      989,
      416,
      531,
      331
     ],
-    "name": "banana_cluster",
-    "kind": "Plant",
-    "height_m": 3.2,
-    "blocks": false,
+    "name": "palm_row",
+    "kind": "PalmTree",
+    "height_m": 6.0,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      242,
@@ -2727,21 +2727,21 @@
     ]
    },
    {
-    "id": "jungle-trees_09_palm_jungle_c",
+    "id": "jungle-trees_09_banana_plant",
     "src_rect": [
      356,
      438,
      576,
      308
     ],
-    "name": "palm_jungle_c",
-    "kind": "PalmTree",
-    "height_m": 8.0,
+    "name": "banana_plant",
+    "kind": "prop:banana",
+    "height_m": 4.5,
     "blocks": true,
     "destroyable": true,
     "pivot": [
-     283,
-     307
+     224,
+     239
     ]
    },
    {
@@ -2763,16 +2763,16 @@
     ]
    },
    {
-    "id": "jungle-trees_11_understorey_sapling_b",
+    "id": "jungle-trees_11_banana_clump_b",
     "src_rect": [
      630,
      625,
      91,
      119
     ],
-    "name": "understorey_sapling_b",
-    "kind": "prop:sapling",
-    "height_m": 3.0,
+    "name": "banana_clump_b",
+    "kind": "prop:banana",
+    "height_m": 2.5,
     "blocks": true,
     "destroyable": true,
     "pivot": [
@@ -2799,17 +2799,17 @@
     ]
    },
    {
-    "id": "jungle-trees_13_item",
+    "id": "jungle-trees_13_broadleaf_tree",
     "src_rect": [
      432,
      749,
      401,
      252
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
-    "blocks": false,
+    "name": "broadleaf_tree",
+    "kind": "prop:tree_small",
+    "height_m": 5.0,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      194,
@@ -2835,17 +2835,17 @@
     ]
    },
    {
-    "id": "jungle-trees_15_item",
+    "id": "jungle-trees_15_understorey_cluster",
     "src_rect": [
      879,
      752,
      471,
      246
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
-    "blocks": false,
+    "name": "understorey_cluster",
+    "kind": "prop:tree_small",
+    "height_m": 4.5,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      370,
@@ -3885,15 +3885,15 @@
     ]
    },
    {
-    "id": "tall-grasses_11_item",
+    "id": "tall-grasses_11_grass_tuft_small",
     "src_rect": [
      18,
      335,
      68,
      64
     ],
-    "name": "item",
-    "kind": "unused",
+    "name": "grass_tuft_small",
+    "kind": "WildGrass",
     "height_m": 0.5,
     "blocks": false,
     "destroyable": true,
@@ -3903,16 +3903,16 @@
     ]
    },
    {
-    "id": "tall-grasses_12_item",
+    "id": "tall-grasses_12_grass_clump_a",
     "src_rect": [
      86,
      306,
      110,
      101
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
+    "name": "grass_clump_a",
+    "kind": "WildGrass",
+    "height_m": 1.2,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -3957,16 +3957,16 @@
     ]
    },
    {
-    "id": "tall-grasses_15_item",
+    "id": "tall-grasses_15_straw_clump",
     "src_rect": [
      478,
      302,
      108,
      119
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
+    "name": "straw_clump",
+    "kind": "WildGrass",
+    "height_m": 1.2,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -3975,17 +3975,17 @@
     ]
    },
    {
-    "id": "tall-grasses_16_item",
+    "id": "tall-grasses_16_reed_clump",
     "src_rect": [
      586,
      302,
      117,
      127
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
-    "blocks": false,
+    "name": "reed_clump",
+    "kind": "ReedPlant",
+    "height_m": 1.6,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      58,
@@ -3993,17 +3993,17 @@
     ]
    },
    {
-    "id": "tall-grasses_17_item",
+    "id": "tall-grasses_17_reed_clump_b",
     "src_rect": [
      703,
      299,
      146,
      130
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
-    "blocks": false,
+    "name": "reed_clump_b",
+    "kind": "ReedPlant",
+    "height_m": 1.6,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      135,
@@ -4011,17 +4011,17 @@
     ]
    },
    {
-    "id": "tall-grasses_18_item",
+    "id": "tall-grasses_18_reed_bed",
     "src_rect": [
      849,
      298,
      223,
      137
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
-    "blocks": false,
+    "name": "reed_bed",
+    "kind": "ReedPlant",
+    "height_m": 1.8,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      21,
@@ -4047,17 +4047,17 @@
     ]
    },
    {
-    "id": "tall-grasses_20_item",
+    "id": "tall-grasses_20_reed_tuft_tall",
     "src_rect": [
      1223,
      307,
      92,
      121
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
-    "blocks": false,
+    "name": "reed_tuft_tall",
+    "kind": "ReedPlant",
+    "height_m": 1.7,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      52,
@@ -4065,17 +4065,17 @@
     ]
    },
    {
-    "id": "tall-grasses_21_item",
+    "id": "tall-grasses_21_cattail_clump",
     "src_rect": [
      1315,
      326,
      114,
      111
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
-    "blocks": false,
+    "name": "cattail_clump",
+    "kind": "ReedPlant",
+    "height_m": 1.6,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      64,
@@ -4101,16 +4101,16 @@
     ]
    },
    {
-    "id": "tall-grasses_23_item",
+    "id": "tall-grasses_23_grass_tuft_a",
     "src_rect": [
      105,
      420,
      156,
      105
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
+    "name": "grass_tuft_a",
+    "kind": "WildGrass",
+    "height_m": 0.6,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -4119,16 +4119,16 @@
     ]
    },
    {
-    "id": "tall-grasses_24_item",
+    "id": "tall-grasses_24_reed_bed_pond",
     "src_rect": [
      1083,
      424,
      195,
      122
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
+    "name": "reed_bed_pond",
+    "kind": "WildGrass",
+    "height_m": 1.0,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -4191,16 +4191,16 @@
     ]
    },
    {
-    "id": "tall-grasses_28_item",
+    "id": "tall-grasses_28_grass_tuft_c",
     "src_rect": [
      678,
      451,
      125,
      79
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
+    "name": "grass_tuft_c",
+    "kind": "WildGrass",
+    "height_m": 0.6,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -4209,16 +4209,16 @@
     ]
    },
    {
-    "id": "tall-grasses_29_item",
+    "id": "tall-grasses_29_straw_grass_clump",
     "src_rect": [
      803,
      444,
      135,
      97
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
+    "name": "straw_grass_clump",
+    "kind": "WildGrass",
+    "height_m": 1.0,
     "blocks": false,
     "destroyable": true,
     "pivot": [
@@ -4245,17 +4245,17 @@
     ]
    },
    {
-    "id": "tall-grasses_31_item",
+    "id": "tall-grasses_31_reed_tuft",
     "src_rect": [
      1278,
      440,
      156,
      109
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
-    "blocks": false,
+    "name": "reed_tuft",
+    "kind": "ReedPlant",
+    "height_m": 1.5,
+    "blocks": true,
     "destroyable": true,
     "pivot": [
      66,
@@ -4263,16 +4263,16 @@
     ]
    },
    {
-    "id": "tall-grasses_32_item",
+    "id": "tall-grasses_32_grass_tuft_d",
     "src_rect": [
      42,
      488,
      63,
      54
     ],
-    "name": "item",
-    "kind": "unused",
-    "height_m": 0.5,
+    "name": "grass_tuft_d",
+    "kind": "WildGrass",
+    "height_m": 0.4,
     "blocks": false,
     "destroyable": true,
     "pivot": [

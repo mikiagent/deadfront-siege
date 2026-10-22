@@ -691,6 +691,11 @@ def default_pivot(alpha, kind):
     ys, xs = np.nonzero(alpha > 0.3)
     if len(xs) == 0:
         return [w // 2, h]
+    if isinstance(kind, str) and "waterfall" in kind:
+        # A waterfall stands on the ground: its anchor is the BOTTOM CENTRE of the whole card,
+        # not the mean of the bottom band - the spray is widest at the bottom and would drag the
+        # pivot sideways (audit round 3: "waterfall pivot must be bottom-centre").
+        return [int(round(0.5 * (xs.min() + xs.max()))), int(ys.max()) + 1]
     if isinstance(kind, str) and rules.hanging(kind):
         band = ys < ys.min() + max(2, (ys.max() - ys.min()) // 12)
         return [int(round(float(xs[band].mean()))), int(ys.min())]

@@ -1051,9 +1051,9 @@
    "destroyable": false
   },
   {
-   "id": "jungle-cliffs_13_cliff_pillar_g",
+   "id": "jungle-cliffs_13_cliff_waterfall_tiered",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_13_cliff_pillar_g.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_13_cliff_waterfall_tiered.png",
    "src_rect": [
     712,
     460,
@@ -1065,20 +1065,20 @@
     225
    ],
    "pivot": [
-    105,
+    79,
     225
    ],
    "scale": 1.0,
-   "name": "cliff_pillar_g",
-   "kind": "prop:pillar",
+   "name": "cliff_waterfall_tiered",
+   "kind": "prop:waterfall",
    "height_m": 7.0,
    "blocks": true,
    "destroyable": false
   },
   {
-   "id": "jungle-cliffs_14_cliff_pillar_h",
+   "id": "jungle-cliffs_14_cliff_waterfall_tall",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_14_cliff_pillar_h.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_14_cliff_waterfall_tall.png",
    "src_rect": [
     856,
     479,
@@ -1090,12 +1090,12 @@
     203
    ],
    "pivot": [
-    77,
+    66,
     203
    ],
    "scale": 1.0,
-   "name": "cliff_pillar_h",
-   "kind": "prop:pillar",
+   "name": "cliff_waterfall_tall",
+   "kind": "prop:waterfall",
    "height_m": 7.0,
    "blocks": true,
    "destroyable": false
@@ -1126,9 +1126,9 @@
    "destroyable": false
   },
   {
-   "id": "jungle-cliffs_16_waterfall_wide",
+   "id": "jungle-cliffs_16_waterfall_plateau",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_16_waterfall_wide.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_16_waterfall_plateau.png",
    "src_rect": [
     994,
     504,
@@ -1140,11 +1140,11 @@
     203
    ],
    "pivot": [
-    86,
+    72,
     203
    ],
    "scale": 1.0,
-   "name": "waterfall_wide",
+   "name": "waterfall_plateau",
    "kind": "prop:waterfall",
    "height_m": 6.0,
    "blocks": true,
@@ -1326,9 +1326,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_24_fern_tall",
+   "id": "jungle-cliffs_24_root_curtain_c",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_24_fern_tall.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_24_root_curtain_c.png",
    "src_rect": [
     648,
     665,
@@ -1340,13 +1340,13 @@
     190
    ],
    "pivot": [
-    63,
-    190
+    54,
+    0
    ],
    "scale": 1.0,
-   "name": "fern_tall",
-   "kind": "prop:fern",
-   "height_m": 1.2,
+   "name": "root_curtain_c",
+   "kind": "prop:root_curtain",
+   "height_m": 2.4,
    "blocks": false,
    "destroyable": true
   },
@@ -1376,9 +1376,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_26_fern_small",
+   "id": "jungle-cliffs_26_palm_crown_small",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_26_fern_small.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_26_palm_crown_small.png",
    "src_rect": [
     1369,
     631,
@@ -1394,10 +1394,10 @@
     77
    ],
    "scale": 1.0,
-   "name": "fern_small",
-   "kind": "prop:fern",
-   "height_m": 0.7,
-   "blocks": false,
+   "name": "palm_crown_small",
+   "kind": "prop:fan_palm",
+   "height_m": 2.0,
+   "blocks": true,
    "destroyable": true
   },
   {
@@ -2026,9 +2026,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_52_bromeliad_red",
+   "id": "jungle-cliffs_52_driftwood_bundle",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_52_bromeliad_red.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_52_driftwood_bundle.png",
    "src_rect": [
     1216,
     870,
@@ -2044,16 +2044,16 @@
     76
    ],
    "scale": 1.0,
-   "name": "bromeliad_red",
-   "kind": "prop:bromeliad",
-   "height_m": 1.1,
+   "name": "driftwood_bundle",
+   "kind": "prop:driftwood",
+   "height_m": 0.7,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_53_shell_small",
+   "id": "jungle-cliffs_53_rock_chip_small",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_53_shell_small.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_53_rock_chip_small.png",
    "src_rect": [
     1344,
     867,
@@ -2069,16 +2069,16 @@
     35
    ],
    "scale": 1.0,
-   "name": "shell_small",
-   "kind": "icon:seashell",
-   "height_m": 0.3,
+   "name": "rock_chip_small",
+   "kind": "prop:boulder",
+   "height_m": 0.4,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_54_shell_oyster",
+   "id": "jungle-cliffs_54_driftwood_log",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_54_shell_oyster.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_54_driftwood_log.png",
    "src_rect": [
     1388,
     901,
@@ -2094,16 +2094,16 @@
     88
    ],
    "scale": 1.0,
-   "name": "shell_oyster",
-   "kind": "icon:oyster_shells",
-   "height_m": 0.3,
+   "name": "driftwood_log",
+   "kind": "prop:driftwood",
+   "height_m": 0.8,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_55_fern_low",
+   "id": "jungle-cliffs_55_fern_bromeliad_clump",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_55_fern_low.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_55_fern_bromeliad_clump.png",
    "src_rect": [
     186,
     915,
@@ -2119,9 +2119,9 @@
     92
    ],
    "scale": 1.0,
-   "name": "fern_low",
+   "name": "fern_bromeliad_clump",
    "kind": "prop:fern",
-   "height_m": 0.7,
+   "height_m": 0.9,
    "blocks": false,
    "destroyable": true
   },
@@ -2151,9 +2151,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_57_driftwood_branch",
+   "id": "jungle-cliffs_57_fern_red_bromeliad",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_57_driftwood_branch.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_57_fern_red_bromeliad.png",
    "src_rect": [
     432,
     926,
@@ -2169,16 +2169,16 @@
     84
    ],
    "scale": 1.0,
-   "name": "driftwood_branch",
-   "kind": "prop:driftwood",
-   "height_m": 0.7,
+   "name": "fern_red_bromeliad",
+   "kind": "prop:fern",
+   "height_m": 1.0,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_58_driftwood_pile",
+   "id": "jungle-cliffs_58_fern_low_d",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_58_driftwood_pile.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_58_fern_low_d.png",
    "src_rect": [
     611,
     938,
@@ -2194,16 +2194,16 @@
     68
    ],
    "scale": 1.0,
-   "name": "driftwood_pile",
-   "kind": "prop:driftwood",
-   "height_m": 0.8,
+   "name": "fern_low_d",
+   "kind": "prop:fern",
+   "height_m": 0.7,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_59_fern_low_c",
+   "id": "jungle-cliffs_59_sapling_young",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_59_fern_low_c.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_59_sapling_young.png",
    "src_rect": [
     691,
     919,
@@ -2219,10 +2219,10 @@
     89
    ],
    "scale": 1.0,
-   "name": "fern_low_c",
-   "kind": "prop:fern",
-   "height_m": 0.8,
-   "blocks": false,
+   "name": "sapling_young",
+   "kind": "prop:tree_small",
+   "height_m": 2.5,
+   "blocks": true,
    "destroyable": true
   },
   {
@@ -2251,9 +2251,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_61_shell_tiny_b",
+   "id": "jungle-cliffs_61_shell_open_big",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_61_shell_tiny_b.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_61_shell_open_big.png",
    "src_rect": [
     1193,
     947,
@@ -2269,16 +2269,16 @@
     52
    ],
    "scale": 1.0,
-   "name": "shell_tiny_b",
+   "name": "shell_open_big",
    "kind": "icon:seashell",
-   "height_m": 0.25,
+   "height_m": 0.35,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_62_shell_pile",
+   "id": "jungle-cliffs_62_driftwood_bromeliad_log",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_62_shell_pile.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_62_driftwood_bromeliad_log.png",
    "src_rect": [
     1297,
     917,
@@ -2294,16 +2294,16 @@
     91
    ],
    "scale": 1.0,
-   "name": "shell_pile",
-   "kind": "icon:seashell",
-   "height_m": 0.3,
+   "name": "driftwood_bromeliad_log",
+   "kind": "prop:driftwood",
+   "height_m": 0.9,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_63_riftw",
+   "id": "jungle-cliffs_63_fern_small_b",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_63_riftw.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_63_fern_small_b.png",
    "src_rect": [
     756,
     961,
@@ -2319,16 +2319,16 @@
     47
    ],
    "scale": 1.0,
-   "name": "riftw",
-   "kind": "unused",
-   "height_m": 0.4,
+   "name": "fern_small_b",
+   "kind": "prop:fern",
+   "height_m": 0.6,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_64_shell_clam_d",
+   "id": "jungle-cliffs_64_mossy_rock",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_64_shell_clam_d.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_64_mossy_rock.png",
    "src_rect": [
     859,
     973,
@@ -2344,16 +2344,16 @@
     37
    ],
    "scale": 1.0,
-   "name": "shell_clam_d",
-   "kind": "icon:clam_shell",
-   "height_m": 0.3,
+   "name": "mossy_rock",
+   "kind": "prop:boulder",
+   "height_m": 0.4,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_65_shell_clam_e",
+   "id": "jungle-cliffs_65_conch_shell",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_65_shell_clam_e.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_65_conch_shell.png",
    "src_rect": [
     932,
     971,
@@ -2369,16 +2369,16 @@
     37
    ],
    "scale": 1.0,
-   "name": "shell_clam_e",
-   "kind": "icon:clam_shell",
+   "name": "conch_shell",
+   "kind": "icon:conch",
    "height_m": 0.3,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_66_shell_clam_f",
+   "id": "jungle-cliffs_66_spiral_shell",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_66_shell_clam_f.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_66_spiral_shell.png",
    "src_rect": [
     990,
     968,
@@ -2394,16 +2394,16 @@
     40
    ],
    "scale": 1.0,
-   "name": "shell_clam_f",
-   "kind": "icon:clam_shell",
+   "name": "spiral_shell",
+   "kind": "icon:spiral_shell",
    "height_m": 0.3,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_67_shell_tiny_c",
+   "id": "jungle-cliffs_67_shell_cluster_small",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_67_shell_tiny_c.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_67_shell_cluster_small.png",
    "src_rect": [
     1060,
     981,
@@ -2419,16 +2419,16 @@
     28
    ],
    "scale": 1.0,
-   "name": "shell_tiny_c",
+   "name": "shell_cluster_small",
    "kind": "icon:seashell",
    "height_m": 0.25,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_68_shell_tiny_d",
+   "id": "jungle-cliffs_68_shell_open_big_b",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_68_shell_tiny_d.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_68_shell_open_big_b.png",
    "src_rect": [
     1122,
     961,
@@ -2444,16 +2444,16 @@
     46
    ],
    "scale": 1.0,
-   "name": "shell_tiny_d",
+   "name": "shell_open_big_b",
    "kind": "icon:seashell",
-   "height_m": 0.25,
+   "height_m": 0.35,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-cliffs_69_driftwood_twig",
+   "id": "jungle-cliffs_69_rock_chip",
    "sheet": "sheet-jungle-cliffs",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_69_driftwood_twig.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-cliffs/jungle-cliffs_69_rock_chip.png",
    "src_rect": [
     1288,
     984,
@@ -2469,9 +2469,9 @@
     24
    ],
    "scale": 1.0,
-   "name": "driftwood_twig",
-   "kind": "prop:driftwood",
-   "height_m": 0.4,
+   "name": "rock_chip",
+   "kind": "prop:boulder",
+   "height_m": 0.3,
    "blocks": false,
    "destroyable": true
   },
@@ -2801,9 +2801,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_14_item",
+   "id": "jungle-plants_14_broadleaf_shrub_c",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_14_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_14_broadleaf_shrub_c.png",
    "src_rect": [
     530,
     494,
@@ -2819,9 +2819,9 @@
     341
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "broadleaf_shrub_c",
+   "kind": "Plant",
+   "height_m": 1.2,
    "blocks": false,
    "destroyable": true
   },
@@ -3076,9 +3076,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_25_red_flower_shrub",
+   "id": "jungle-plants_25_broadleaf_red_flower",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_25_red_flower_shrub.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_25_broadleaf_red_flower.png",
    "src_rect": [
     1013,
     861,
@@ -3094,9 +3094,9 @@
     145
    ],
    "scale": 1.0,
-   "name": "red_flower_shrub",
+   "name": "broadleaf_red_flower",
    "kind": "Plant",
-   "height_m": 0.9,
+   "height_m": 1.3,
    "blocks": false,
    "destroyable": true
   },
@@ -3176,9 +3176,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_29_fern_e",
+   "id": "jungle-plants_29_heliconia_bromeliad",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_29_fern_e.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_29_heliconia_bromeliad.png",
    "src_rect": [
     957,
     1002,
@@ -3194,16 +3194,16 @@
     111
    ],
    "scale": 1.0,
-   "name": "fern_e",
+   "name": "heliconia_bromeliad",
    "kind": "Plant",
-   "height_m": 0.8,
+   "height_m": 1.3,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-plants_30_fern_f",
+   "id": "jungle-plants_30_broadleaf_plant_d",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_30_fern_f.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_30_broadleaf_plant_d.png",
    "src_rect": [
     1116,
     998,
@@ -3219,16 +3219,16 @@
     112
    ],
    "scale": 1.0,
-   "name": "fern_f",
+   "name": "broadleaf_plant_d",
    "kind": "Plant",
-   "height_m": 0.8,
+   "height_m": 1.3,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-plants_31_leaf",
+   "id": "jungle-plants_31_fern_frond_c",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_31_leaf.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_31_fern_frond_c.png",
    "src_rect": [
     11,
     1089,
@@ -3244,16 +3244,16 @@
     153
    ],
    "scale": 1.0,
-   "name": "leaf",
+   "name": "fern_frond_c",
    "kind": "unused",
-   "height_m": 0.4,
+   "height_m": 0.7,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-plants_32_leaf_b",
+   "id": "jungle-plants_32_fern_frond_d",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_32_leaf_b.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_32_fern_frond_d.png",
    "src_rect": [
     158,
     1100,
@@ -3269,9 +3269,9 @@
     136
    ],
    "scale": 1.0,
-   "name": "leaf_b",
+   "name": "fern_frond_d",
    "kind": "unused",
-   "height_m": 0.4,
+   "height_m": 0.7,
    "blocks": false,
    "destroyable": true
   },
@@ -3521,14 +3521,14 @@
    "scale": 1.0,
    "name": "fern_frond",
    "kind": "unused",
-   "height_m": 0.3,
+   "height_m": 0.6,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-plants_43_leaf_k",
+   "id": "jungle-plants_43_fern_plant_small",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_43_leaf_k.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_43_fern_plant_small.png",
    "src_rect": [
     586,
     1171,
@@ -3544,16 +3544,16 @@
     68
    ],
    "scale": 1.0,
-   "name": "leaf_k",
-   "kind": "unused",
-   "height_m": 0.3,
+   "name": "fern_plant_small",
+   "kind": "Plant",
+   "height_m": 0.5,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "jungle-plants_44_moss_mound",
+   "id": "jungle-plants_44_fern_frond_b",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_44_moss_mound.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_44_fern_frond_b.png",
    "src_rect": [
     1204,
     1167,
@@ -3569,8 +3569,8 @@
     70
    ],
    "scale": 1.0,
-   "name": "moss_mound",
-   "kind": "Plant",
+   "name": "fern_frond_b",
+   "kind": "unused",
    "height_m": 0.6,
    "blocks": false,
    "destroyable": true
@@ -3676,9 +3676,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-trees_05_vine_tree_small",
+   "id": "jungle-trees_05_slender_tree",
    "sheet": "sheet-jungle-trees",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_05_vine_tree_small.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_05_slender_tree.png",
    "src_rect": [
     1388,
     190,
@@ -3694,16 +3694,16 @@
     220
    ],
    "scale": 1.0,
-   "name": "vine_tree_small",
+   "name": "slender_tree",
    "kind": "prop:tree_small",
-   "height_m": 7.0,
+   "height_m": 6.0,
    "blocks": true,
    "destroyable": true
   },
   {
-   "id": "jungle-trees_06_item",
+   "id": "jungle-trees_06_palm_pair_leaning",
    "sheet": "sheet-jungle-trees",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_06_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_06_palm_pair_leaning.png",
    "src_rect": [
     19,
     412,
@@ -3719,10 +3719,10 @@
     448
    ],
    "scale": 0.7547,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
-   "blocks": false,
+   "name": "palm_pair_leaning",
+   "kind": "PalmTree",
+   "height_m": 6.0,
+   "blocks": true,
    "destroyable": true
   },
   {
@@ -3751,9 +3751,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-trees_08_banana_cluster",
+   "id": "jungle-trees_08_palm_row",
    "sheet": "sheet-jungle-trees",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_08_banana_cluster.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_08_palm_row.png",
    "src_rect": [
     989,
     416,
@@ -3769,16 +3769,16 @@
     279
    ],
    "scale": 0.8437,
-   "name": "banana_cluster",
-   "kind": "Plant",
-   "height_m": 3.2,
-   "blocks": false,
+   "name": "palm_row",
+   "kind": "PalmTree",
+   "height_m": 6.0,
+   "blocks": true,
    "destroyable": true
   },
   {
-   "id": "jungle-trees_09_palm_jungle_c",
+   "id": "jungle-trees_09_banana_plant",
    "sheet": "sheet-jungle-trees",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_09_palm_jungle_c.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_09_banana_plant.png",
    "src_rect": [
     356,
     438,
@@ -3786,17 +3786,17 @@
     308
    ],
    "px": [
-    576,
-    308
+    448,
+    240
    ],
    "pivot": [
-    269,
-    308
+    209,
+    240
    ],
-   "scale": 1.0,
-   "name": "palm_jungle_c",
-   "kind": "PalmTree",
-   "height_m": 8.0,
+   "scale": 0.7778,
+   "name": "banana_plant",
+   "kind": "prop:banana",
+   "height_m": 4.5,
    "blocks": true,
    "destroyable": true
   },
@@ -3826,9 +3826,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-trees_11_understorey_sapling_b",
+   "id": "jungle-trees_11_banana_clump_b",
    "sheet": "sheet-jungle-trees",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_11_understorey_sapling_b.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_11_banana_clump_b.png",
    "src_rect": [
     630,
     625,
@@ -3844,9 +3844,9 @@
     119
    ],
    "scale": 1.0,
-   "name": "understorey_sapling_b",
-   "kind": "prop:sapling",
-   "height_m": 3.0,
+   "name": "banana_clump_b",
+   "kind": "prop:banana",
+   "height_m": 2.5,
    "blocks": true,
    "destroyable": true
   },
@@ -3876,9 +3876,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-trees_13_item",
+   "id": "jungle-trees_13_broadleaf_tree",
    "sheet": "sheet-jungle-trees",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_13_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_13_broadleaf_tree.png",
    "src_rect": [
     432,
     749,
@@ -3894,10 +3894,10 @@
     252
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
-   "blocks": false,
+   "name": "broadleaf_tree",
+   "kind": "prop:tree_small",
+   "height_m": 5.0,
+   "blocks": true,
    "destroyable": true
   },
   {
@@ -3926,9 +3926,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-trees_15_item",
+   "id": "jungle-trees_15_understorey_cluster",
    "sheet": "sheet-jungle-trees",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_15_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-trees/jungle-trees_15_understorey_cluster.png",
    "src_rect": [
     879,
     752,
@@ -3944,10 +3944,10 @@
     234
    ],
    "scale": 0.9512,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
-   "blocks": false,
+   "name": "understorey_cluster",
+   "kind": "prop:tree_small",
+   "height_m": 4.5,
+   "blocks": true,
    "destroyable": true
   },
   {
@@ -5376,9 +5376,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_11_item",
+   "id": "tall-grasses_11_grass_tuft_small",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_11_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_11_grass_tuft_small.png",
    "src_rect": [
     18,
     335,
@@ -5394,16 +5394,16 @@
     64
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
+   "name": "grass_tuft_small",
+   "kind": "WildGrass",
    "height_m": 0.5,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "tall-grasses_12_item",
+   "id": "tall-grasses_12_grass_clump_a",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_12_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_12_grass_clump_a.png",
    "src_rect": [
     86,
     306,
@@ -5419,9 +5419,9 @@
     101
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "grass_clump_a",
+   "kind": "WildGrass",
+   "height_m": 1.2,
    "blocks": false,
    "destroyable": true
   },
@@ -5476,9 +5476,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_15_item",
+   "id": "tall-grasses_15_straw_clump",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_15_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_15_straw_clump.png",
    "src_rect": [
     478,
     302,
@@ -5494,16 +5494,16 @@
     119
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "straw_clump",
+   "kind": "WildGrass",
+   "height_m": 1.2,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "tall-grasses_16_item",
+   "id": "tall-grasses_16_reed_clump",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_16_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_16_reed_clump.png",
    "src_rect": [
     586,
     302,
@@ -5519,16 +5519,16 @@
     127
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
-   "blocks": false,
+   "name": "reed_clump",
+   "kind": "ReedPlant",
+   "height_m": 1.6,
+   "blocks": true,
    "destroyable": true
   },
   {
-   "id": "tall-grasses_17_item",
+   "id": "tall-grasses_17_reed_clump_b",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_17_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_17_reed_clump_b.png",
    "src_rect": [
     703,
     299,
@@ -5544,16 +5544,16 @@
     130
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
-   "blocks": false,
+   "name": "reed_clump_b",
+   "kind": "ReedPlant",
+   "height_m": 1.6,
+   "blocks": true,
    "destroyable": true
   },
   {
-   "id": "tall-grasses_18_item",
+   "id": "tall-grasses_18_reed_bed",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_18_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_18_reed_bed.png",
    "src_rect": [
     849,
     298,
@@ -5569,10 +5569,10 @@
     137
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
-   "blocks": false,
+   "name": "reed_bed",
+   "kind": "ReedPlant",
+   "height_m": 1.8,
+   "blocks": true,
    "destroyable": true
   },
   {
@@ -5601,9 +5601,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_20_item",
+   "id": "tall-grasses_20_reed_tuft_tall",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_20_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_20_reed_tuft_tall.png",
    "src_rect": [
     1223,
     307,
@@ -5619,16 +5619,16 @@
     121
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
-   "blocks": false,
+   "name": "reed_tuft_tall",
+   "kind": "ReedPlant",
+   "height_m": 1.7,
+   "blocks": true,
    "destroyable": true
   },
   {
-   "id": "tall-grasses_21_item",
+   "id": "tall-grasses_21_cattail_clump",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_21_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_21_cattail_clump.png",
    "src_rect": [
     1315,
     326,
@@ -5644,10 +5644,10 @@
     111
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
-   "blocks": false,
+   "name": "cattail_clump",
+   "kind": "ReedPlant",
+   "height_m": 1.6,
+   "blocks": true,
    "destroyable": true
   },
   {
@@ -5676,9 +5676,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_23_item",
+   "id": "tall-grasses_23_grass_tuft_a",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_23_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_23_grass_tuft_a.png",
    "src_rect": [
     105,
     420,
@@ -5694,16 +5694,16 @@
     105
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "grass_tuft_a",
+   "kind": "WildGrass",
+   "height_m": 0.6,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "tall-grasses_24_item",
+   "id": "tall-grasses_24_reed_bed_pond",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_24_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_24_reed_bed_pond.png",
    "src_rect": [
     1083,
     424,
@@ -5719,9 +5719,9 @@
     122
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "reed_bed_pond",
+   "kind": "WildGrass",
+   "height_m": 1.0,
    "blocks": false,
    "destroyable": true
   },
@@ -5801,9 +5801,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_28_item",
+   "id": "tall-grasses_28_grass_tuft_c",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_28_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_28_grass_tuft_c.png",
    "src_rect": [
     678,
     451,
@@ -5819,16 +5819,16 @@
     79
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "grass_tuft_c",
+   "kind": "WildGrass",
+   "height_m": 0.6,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "tall-grasses_29_item",
+   "id": "tall-grasses_29_straw_grass_clump",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_29_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_29_straw_grass_clump.png",
    "src_rect": [
     803,
     444,
@@ -5844,9 +5844,9 @@
     97
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "straw_grass_clump",
+   "kind": "WildGrass",
+   "height_m": 1.0,
    "blocks": false,
    "destroyable": true
   },
@@ -5876,9 +5876,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_31_item",
+   "id": "tall-grasses_31_reed_tuft",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_31_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_31_reed_tuft.png",
    "src_rect": [
     1278,
     440,
@@ -5894,16 +5894,16 @@
     109
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
-   "blocks": false,
+   "name": "reed_tuft",
+   "kind": "ReedPlant",
+   "height_m": 1.5,
+   "blocks": true,
    "destroyable": true
   },
   {
-   "id": "tall-grasses_32_item",
+   "id": "tall-grasses_32_grass_tuft_d",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_32_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_32_grass_tuft_d.png",
    "src_rect": [
     42,
     488,
@@ -5919,9 +5919,9 @@
     54
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "grass_tuft_d",
+   "kind": "WildGrass",
+   "height_m": 0.4,
    "blocks": false,
    "destroyable": true
   },
