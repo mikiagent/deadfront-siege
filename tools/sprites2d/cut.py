@@ -46,6 +46,8 @@ MIN_AREA = 400      # px of a full-resolution item; smaller specks are paint noi
 MIN_SIDE = 24       # px; the game never draws an item smaller than this
 CLOSE_PX = 0
 PAD = 2             # px of transparent padding around a trimmed item
+MIN_SHARE = 0.30    # a split piece smaller than this share of its item is a sliver, not an item
+MIN_PIECE = 60      # px; a split may not produce an item narrower than this
 
 
 # --- io -----------------------------------------------------------------------------------
@@ -368,6 +370,154 @@ def label(mask):
     return lab
 
 
+def split_by_box(lab, mask, box):
+    """Split every component the box touches along the box's centre line, keeping all pixels.
+
+    Only the rows the box covers are forced to one side or the other (x < centre -> A, x >= centre
+    -> B); every other pixel of the component is then attached by 4-neighbour growth inside that
+    component. Nothing is thrown away, so a split can never leave a rectangular bite, and the
+    boundary between the two items runs down the actual thin part of the artwork where the two
+    touch. Returns (new lab, accepted). Rejected if either side ends up under MIN_AREA or under
+    MIN_SHARE of the component (that would be one clump cut in half, not two items).
+    """
+    h, w = mask.shape
+    x, y, bw, bh = box
+    cx = x + bw // 2
+    rows = np.zeros_like(mask)
+    rows[max(0, y):min(h, y + bh), :] = True
+    touched = [i for i in range(1, int(lab.max()) + 1) if np.logical_and(lab == i, box_mask(mask.shape, box)).any()]
+    if not touched:
+        return lab, False
+    out = lab.copy()
+    nxt = int(lab.max())
+    accepted = False
+    for i in touched:
+        comp = lab == i
+        total = int(comp.sum())
+        if total < 2 * MIN_AREA:
+            continue
+        band = comp & rows
+        side_a = band & (np.arange(w)[None, :] < cx)
+        side_b = band & ~side_a
+        if side_a.sum() < MIN_AREA or side_b.sum() < MIN_AREA:
+            continue
+        # grow both sides over the rest of the component
+        a_lab = side_a.astype(np.int32)
+        b_lab = side_b.astype(np.int32) * 2
+        grow = a_lab + b_lab            # 1 = A, 2 = B, 3 = both (inside the band)
+        todo = comp & (grow == 0)
+        for _ in range(4 * (h + w)):
+            if not todo.any():
+                break
+            changed = False
+            for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nb = np.roll(np.roll(grow, dy, 0), dx, 1)
+                take = todo & (nb > 0)
+                if take.any():
+                    grow[take] = nb[take]
+                    todo &= ~take
+                    changed = True
+            if not changed:
+                break
+        side_a_all = comp & (grow == 1)
+        side_b_all = comp & (grow == 2)
+        if side_a_all.sum() < MIN_AREA or side_b_all.sum() < MIN_AREA:
+            continue
+        if min(side_a_all.sum(), side_b_all.sum()) < MIN_SHARE * total:
+            continue
+        nxt += 1
+        out[side_b_all] = nxt
+        accepted = True
+    return out, accepted
+
+
+def erode_split(mask, lab=None):
+    """Separate items that share a thin base weld (two grass clumps, two ferns side by side).
+
+    Erode the mask by a few px and label the cores: a clump is thick at the middle and survives,
+    while a weld between two clumps is a couple of blades and disappears. Each core then grows
+    back over the whole mask (multi-source BFS), so every pixel keeps its art and the boundary
+    follows the actual gap between the items - no rectangular box, no notch, no dropped sliver.
+    Only components that the erosion really divides into two substantial cores (>= MIN_SHARE of
+    the component each) are split; a single clump erodes to a single core and stays whole.
+    """
+    if lab is None:
+        lab = label(mask)
+    n = int(lab.max())
+    if n == 0:
+        return lab
+    out = lab.copy()
+    for i in range(1, n + 1):
+        sub = lab == i
+        total = int(sub.sum())
+        if total < 2 * MIN_AREA:
+            continue
+        core = _erode(sub, 3)
+        if not core.any():
+            core = _erode(sub, 2)
+        if not core.any():
+            continue
+        cl = label(core)
+        if int(cl.max()) < 2:
+            continue
+        sizes = np.bincount(cl.ravel())
+        sizes[0] = 0
+        if (sizes >= MIN_SHARE * total).sum() < 2:
+            continue
+        # grow the cores back inside this component only
+        grown = np.where(sub, cl, 0)
+        todo = sub & (grown == 0)
+        for _ in range(40):
+            if not todo.any():
+                break
+            got = np.zeros_like(grown)
+            for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nb = np.roll(np.roll(grown, dy, 0), dx, 1)
+                take = todo & (nb > 0) & (got == 0)
+                got[take] = nb[take]
+            if not got.any():
+                break
+            grown[got > 0] = got[got > 0]
+            todo &= got == 0
+        # keep only the cores that are real items; stray specks fall back to the biggest core
+        big = np.flatnonzero(sizes >= MIN_SHARE * total)
+        remap = np.zeros(int(cl.max()) + 1, np.int32)
+        for k, c in enumerate(big, 1):
+            remap[c] = k
+        grown = remap[grown]
+        grown[grown == 0] = 1
+        out[sub] = n - 1 + grown[sub] + (1000 * 0)  # unique ids per component
+        out[sub] += i * 10000
+    # compact to 1..n
+    ids = np.unique(out)
+    ids = ids[ids > 0]
+    shift = np.zeros(int(out.max()) + 1, np.int32)
+    for k, v in enumerate(ids, 1):
+        shift[v] = k
+    return shift[out]
+
+
+def grow_labels(lab, todo, rings=12):
+    """Give every separator pixel in `todo` the label of the nearest labelled pixel (4-neighbour
+    growth, at most `rings` steps). Used for the strip a split box removed and for the antialias
+    row it exposed, so components separate without leaving a straight-edged hole."""
+    lab = lab.copy()
+    todo = todo & (lab == 0)
+    for _ in range(rings):
+        if not todo.any():
+            break
+        got = np.zeros_like(lab)
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nb = np.roll(np.roll(lab, dy, 0), dx, 1)
+            take = todo & (nb > 0) & (got == 0)
+            got[take] = nb[take]
+        if not got.any():
+            break
+        lab[got > 0] = got[got > 0]
+        todo &= got == 0
+    return lab
+
+
 def box_mask(shape, box):
     h, w = shape
     x, y, bw, bh = box
@@ -385,67 +535,71 @@ def split_sheet(rgb, a, sheet_name, ov):
     mask = close_gaps(mask_full, CLOSE_PX)
     ov = ov.get(sheet_name, {})
     # Split boxes are cut out of the mask before labelling: two items that touch on the sheet
-    # become separate components, and thin parts that the box removes are simply lost.
-    for box in ov.get("split", []):
-        mask = mask & ~box_mask(mask.shape, box)
+    # become separate components. The strip itself is not thrown away - the pixels in it (and
+    # any antialiased pixel either side) are given back afterwards to the nearest component in
+    # grow_labels(), so a split separates items without punching a rectangular hole in them.
+    # Items that touch on the sheet are separated by overrides "split" boxes. A box partitions
+    # the component it touches along its centre line and keeps every pixel (split_by_box), so a
+    # split can never leave a notch, a rectangular bite or a dropped sliver. Optional
+    # "erode_split" additionally tries an erosion-based split of thin welds.
     lab = label(mask)
+    for box in ov.get("split", []):
+        lab, _ = split_by_box(lab, mask, box)
+    if ov.get("erode_split", False):
+        lab = erode_split(mask, lab)
+    lab = label(lab > 0)
     n = int(lab.max())
-
-    comps = {}
+    if n == 0:
+        return lab
+    out = lab.copy()
     for i in range(1, n + 1):
-        sel = lab == i
-        ys, xs = np.nonzero(sel)
-        if len(xs) == 0:
+        sub = lab == i
+        total = int(sub.sum())
+        if total < 2 * MIN_AREA:
             continue
-        comps[i] = [ys, xs]
-
-    # drop boxes: whole components that sit inside a drop rectangle
-    for box in ov.get("drop", []):
-        bm = box_mask(mask.shape, box)
-        for i in list(comps):
-            ys, xs = comps[i]
-            inside = bm[ys, xs]
-            if inside.mean() > 0.5:
-                del comps[i]
-
-    # merge boxes: every component overlapping the box becomes one item
-    for box in ov.get("merge", []):
-        bm = box_mask(mask.shape, box)
-        group = [i for i, (ys, xs) in comps.items() if bm[ys, xs].any()]
-        if len(group) < 2:
+        core = _erode(sub, 3)
+        if not core.any():
+            core = _erode(sub, 2)
+        if not core.any():
             continue
-        keep = group[0]
-        ys = np.concatenate([comps[i][0] for i in group])
-        xs = np.concatenate([comps[i][1] for i in group])
-        comps[keep] = [ys, xs]
-        for i in group[1:]:
-            del comps[i]
-
-    items = []
-    used_split = set()
-    for i, (ys, xs) in comps.items():
-        y0, y1 = int(ys.min()), int(ys.max()) + 1
-        x0, x1 = int(xs.min()), int(xs.max()) + 1
-        m = np.zeros(mask.shape, bool)
-        m[ys, xs] = True
-        items.append((m, i))
-    del comps
-
-    # trim to full-res alpha, ignore specks, keep items at least MIN_SIDE in both directions
-    out = []
-    for m, _ in items:
-        alpha_m = m & mask_full
-        al = np.where(alpha_m, a, 0.0)
-        ys, xs = np.nonzero(al > 0.0)
-        if len(xs) < MIN_AREA:
+        cl = label(core)
+        if int(cl.max()) < 2:
             continue
-        y0, y1 = int(ys.min()), int(ys.max()) + 1
-        x0, x1 = int(xs.min()), int(xs.max()) + 1
-        if x1 - x0 < MIN_SIDE or y1 - y0 < MIN_SIDE:
+        sizes = np.bincount(cl.ravel())
+        sizes[0] = 0
+        if (sizes >= MIN_SHARE * total).sum() < 2:
             continue
-        out.append([x0, y0, x1, y1, m])
-    out.sort(key=lambda b: (b[1] // 48, b[0]))
-    return out
+        # grow the cores back inside this component only
+        grown = np.where(sub, cl, 0)
+        todo = sub & (grown == 0)
+        for _ in range(40):
+            if not todo.any():
+                break
+            got = np.zeros_like(grown)
+            for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nb = np.roll(np.roll(grown, dy, 0), dx, 1)
+                take = todo & (nb > 0) & (got == 0)
+                got[take] = nb[take]
+            if not got.any():
+                break
+            grown[got > 0] = got[got > 0]
+            todo &= got == 0
+        # keep only the cores that are real items; stray specks fall back to the biggest core
+        big = np.flatnonzero(sizes >= MIN_SHARE * total)
+        remap = np.zeros(int(cl.max()) + 1, np.int32)
+        for k, c in enumerate(big, 1):
+            remap[c] = k
+        grown = remap[grown]
+        grown[grown == 0] = 1
+        out[sub] = n - 1 + grown[sub] + (1000 * 0)  # unique ids per component
+        out[sub] += i * 10000
+    # compact to 1..n
+    ids = np.unique(out)
+    ids = ids[ids > 0]
+    shift = np.zeros(int(out.max()) + 1, np.int32)
+    for k, v in enumerate(ids, 1):
+        shift[v] = k
+    return shift[out]
 
 
 # --- labels -------------------------------------------------------------------------------
