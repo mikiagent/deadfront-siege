@@ -1,0 +1,29 @@
+{
+  "driftRounds": 30,
+  "watchdogIdleSec": 0,
+  "maxTurns": 300,
+  "checkpointExclude": [
+    "*_Image_*.jpg",
+    "game/assets/props/meshy/*",
+    "*.pyc",
+    "__pycache__/**",
+    "*.orig",
+    "*.rej",
+    "*.blend1"
+  ],
+  "protectedPaths": [
+    "docs/reference/**",
+    "game/project.godot",
+    "game/override.cfg",
+    "game/scripts/camera/iso_camera.gd",
+    "game/scripts/world/island_claims.gd"
+  ],
+  "mapIgnore": [
+    "game/assets/creatures/**",
+    "game/assets/characters/**",
+    "archive/**",
+    "assets/**",
+    "research/**",
+    "hosting/**"
+  ]
+}
