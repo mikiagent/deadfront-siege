@@ -30,6 +30,8 @@ var ray_mode := false
 ## --move=<dx>,<dy>: shift every dot by this many screen pixels in the side shot and print the new
 ## points (right and up are positive). Used to walk a dot onto the painted eye.
 var move := Vector2.ZERO
+## The time of day every capture is pinned to; see the clock freeze in _ready.
+var _tod := NIGHT_TOD
 var _cam: Camera3D
 var _probe_cam: Camera3D
 
@@ -52,6 +54,10 @@ func _ready() -> void:
 			var pair := a.substr(6).split(",")
 			aim = Vector2(float(pair[0]), float(pair[1]))
 	Game.debug_overlay = false
+	# Game._process advances time_of_day every frame (game.gd). Over a lab run of several minutes
+	# that drifts "midnight" into daylight between the side shots and the game frames, so the clock
+	# is frozen here and time_of_day is re-pinned before every capture.
+	Game.day_length_seconds = 1.0e9
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	var kit := LabKit.build(self, 40.0)
 	# The kit's survivor carries a torch; standing next to the animal it lights the head brighter
@@ -73,7 +79,9 @@ func _ready() -> void:
 	_cam = Camera3D.new()
 	_cam.name = "GameCam"
 	_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	_cam.size = IsoCamera.new().default_size
+	# Same 15 m of screen height as IsoCamera's default_size; instancing one just to read the
+	# number leaks an ObjectDB instance, so the value is copied here.
+	_cam.size = 15.0
 	_cam.rotation_degrees = Vector3(-35.264, 45.0, 0.0)
 	_cam.current = true
 	add_child(_cam)
@@ -414,19 +422,19 @@ func _shoot_species(id: StringName, fails: Array[String]) -> bool:
 		return false
 	# Close-ups: side of the head, midnight and noon.
 	_probe_cam = _head_camera(c)
-	Game.time_of_day = NIGHT_TOD
+	_tod = NIGHT_TOD
 	await _settle()
 	await _save("%s_night_side" % id)
-	Game.time_of_day = NOON_TOD
+	_tod = NOON_TOD
 	await _settle()
 	await _save_marked("%s_day_side" % id, eyes)
 	# Game camera: the normal iso view and zoom, centred on the animal.
-	Game.time_of_day = NIGHT_TOD
+	_tod = NIGHT_TOD
 	_frame_game_camera(c)
 	await _settle()
 	var night_img := await _frame("%s_night_game" % id)
 	var night_head := _head_lum(night_img, c, eyes)
-	Game.time_of_day = NOON_TOD
+	_tod = NOON_TOD
 	await _settle()
 	var day_img := await _frame("%s_day_game" % id)
 	# The eye that is actually visible: the far one sits behind the skull and its window shows skin by
@@ -481,14 +489,21 @@ func _frame_game_camera(c: Creature) -> void:
 	_cam.current = true
 
 func _settle() -> void:
+	# Re-pin before the lighting step so the frames drawn below are lit for _tod.
+	_pin_tod()
 	# Wait for the lighting step and a few drawn frames with every shader compiled.
 	await get_tree().create_timer(0.4).timeout
 	for _i in 3:
 		await RenderingServer.frame_post_draw
 
+## Every capture pins the clock first: see the freeze in _ready.
+func _pin_tod() -> void:
+	Game.time_of_day = _tod
+
 ## Side frame with a magenta cross on each dot's screen position, so the placement can be judged
 ## against the painted eye in one look.
 func _save_marked(name: String, eyes: CreatureEyes) -> void:
+	_pin_tod()
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	var sc := _img_scale(img)
@@ -500,11 +515,13 @@ func _save_marked(name: String, eyes: CreatureEyes) -> void:
 	img.save_png("%s/%s.png" % [shot_dir, name])
 
 func _save(name: String) -> void:
+	_pin_tod()
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	img.save_png("%s/%s.png" % [shot_dir, name])
 
 func _frame(name: String) -> Image:
+	_pin_tod()
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	if name != "":
