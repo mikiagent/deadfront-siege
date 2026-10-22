@@ -27,6 +27,8 @@ var shown_change: int = 0
 var shown_worn_total: int = 0
 var shown_new_total: int = 0
 var shown_min_px: float = 0.0
+## True when the whole panel, Close button included, sits inside the view (the lab checks it).
+var shown_fits := false
 
 func _ready() -> void:
 	visible = false
@@ -69,29 +71,42 @@ func _ready() -> void:
 func show_stack(stack: ItemStack, index: int, inv: Inventory = null) -> void:
 	slot_index = index
 	_inventory = inv
-	var view := get_viewport_rect().size if is_inside_tree() else Vector2(1600, 900)
-	var compact := UiTokens.is_compact(view) if is_inside_tree() else false
-	var body_px := 15 if compact else 16
+	var view: Vector2 = get_viewport_rect().size if is_inside_tree() else Vector2(1600, 900)
+	var compact := UiTokens.is_compact(view)
+	var body_px := 13 if compact else 16
 	shown_bag_id = BagCapacity.bag_id_of(stack.def_id) if stack else &""
 	shown_breakdown = BagCapacity.of_stack(stack)
 	var d := stack.def() if stack else null
 	var b := shown_breakdown
 	_title.text = str(d.display_name) if d else "Bag"
-	_title.add_theme_font_size_override("font_size", 20 if not compact else 18)
+	_title.add_theme_font_size_override("font_size", 17 if compact else 20)
 	var lines: PackedStringArray = []
 	lines.append("Level %d" % stack.level)
 	lines.append("Storage Capacity: +%d" % int(b.get("total", 0)))
-	lines.append("Base Capacity: +%d" % int(b.get("base", 0)))
 	var storage: Dictionary = b.get("storage", {})
+	var extra: PackedStringArray = []
 	for key: Variant in storage:
-		lines.append("%s: +%d" % [String(key).capitalize(), int(storage[key])])
-	lines.append("Pocket Lv. %d: +%d" % [int(b.get("pocket_level", 0)), int(b.get("pocket", 0))])
+		extra.append("%s +%d" % [String(key).capitalize(), int(storage[key])])
 	if int(b.get("capacity", 0)) > 0:
-		lines.append("Capacity attribute: +%d" % int(b.get("capacity", 0)))
+		extra.append("Capacity +%d" % int(b.get("capacity", 0)))
 	if int(b.get("other", 0)) > 0:
-		lines.append("Bag modifier: +%d" % int(b.get("other", 0)))
-	lines.append("Crafting Quality: %s" % quality_text(stack))
-	lines.append("Durability: %d/%d" % [stack.durability, maxi(stack.max_durability, stack.durability)])
+		extra.append("Bag modifier +%d" % int(b.get("other", 0)))
+	if compact:
+		# A landscape phone is 390 px tall: the itemised list became a scroll play. One line per
+		# fact, the breakdown folded into the capacity line (the same numbers, just inline).
+		lines.append("Base +%d · Pocket Lv. %d +%d%s" % [int(b.get("base", 0)), int(b.get("pocket_level", 0)), int(b.get("pocket", 0)), "" if extra.is_empty() else " · " + " · ".join(extra)])
+		lines.append("Quality %s · Durability %d/%d" % [quality_text(stack), stack.durability, maxi(stack.max_durability, stack.durability)])
+	else:
+		lines.append("Base Capacity: +%d" % int(b.get("base", 0)))
+		for key: Variant in storage:
+			lines.append("%s: +%d" % [String(key).capitalize(), int(storage[key])])
+		lines.append("Pocket Lv. %d: +%d" % [int(b.get("pocket_level", 0)), int(b.get("pocket", 0))])
+		if int(b.get("capacity", 0)) > 0:
+			lines.append("Capacity attribute: +%d" % int(b.get("capacity", 0)))
+		if int(b.get("other", 0)) > 0:
+			lines.append("Bag modifier: +%d" % int(b.get("other", 0)))
+		lines.append("Crafting Quality: %s" % quality_text(stack))
+		lines.append("Durability: %d/%d" % [stack.durability, maxi(stack.max_durability, stack.durability)])
 	_body.text = "\n".join(lines)
 	_body.add_theme_font_size_override("font_size", body_px)
 	# Compare against the bag currently worn in the bag's own slot (spec 31 §9).
@@ -106,7 +121,7 @@ func show_stack(stack: ItemStack, index: int, inv: Inventory = null) -> void:
 			shown_new_total = int(b.get("total", 0))
 			shown_change = shown_new_total - shown_worn_total
 			var color := UP if shown_change > 0 else (DOWN if shown_change < 0 else META)
-			_compare.text = "Current bag: +%d slots\nNew bag: +%d slots\nCapacity change: %+d slots" % [shown_worn_total, shown_new_total, shown_change]
+			_compare.text = "Current +%d → new +%d\nCapacity change: %+d slots" % [shown_worn_total, shown_new_total, shown_change] if compact else "Current bag: +%d slots\nNew bag: +%d slots\nCapacity change: %+d slots" % [shown_worn_total, shown_new_total, shown_change]
 			_compare.add_theme_color_override("font_color", color)
 			_compare.visible = true
 		else:
@@ -119,10 +134,33 @@ func show_stack(stack: ItemStack, index: int, inv: Inventory = null) -> void:
 		_compare.text = ""
 		_compare.visible = false
 	shown_min_px = _close_btn.custom_minimum_size.y
+	_compare.add_theme_font_size_override("font_size", 14 if compact else 16)
+	# A landscape phone is 390 px tall: a narrow column wrapped every line and the Close button fell
+	# off the screen (lab shot). Wide and short: the panel takes most of the width and is clamped
+	# into the view, so nothing is left below the fold.
+	# On a phone the panel stops short of the screen's own close button in the corner, or the two
+	# icons stack on top of each other (844x390 shot).
+	var target_w := minf(view.x - 16.0, view.x - 120.0 if compact else 420.0)
+	# The labels are given the width they will have before the panel is measured: an autowrapped
+	# label in a zero-width column counts one word per line, and the panel came out 6500 px tall.
+	var inner := target_w - 28.0
+	_body.custom_minimum_size = Vector2(inner, 0)
+	_compare.custom_minimum_size = Vector2(inner, 0)
+	custom_minimum_size = Vector2(target_w, 0)
 	visible = true
-	# Centre-ish for phone one-hand reach; never above the safe area's top edge.
-	var pos := Vector2(maxf(16.0, view.x * 0.5 - 180.0), maxf(24.0, view.y * 0.22))
-	position = Vector2(int(pos.x), int(pos.y))
+	# The height is only right once the labels rewrapped, which Godot does at the end of the frame.
+	_fit_to_view.call_deferred()
+
+## Sizes the panel to its content and keeps it inside the view, Close button included.
+func _fit_to_view() -> void:
+	if not is_inside_tree() or not visible:
+		return
+	var view := get_viewport_rect().size if is_inside_tree() else Vector2(1600, 900)
+	reset_size()
+	size = get_combined_minimum_size()
+	var start := Vector2(view.x * 0.5 - size.x * 0.5, view.y * 0.22 if not UiTokens.is_compact(view) else 8.0)
+	position = Vector2(int(clampf(start.x, 8.0, maxf(8.0, view.x - size.x - 8.0))), int(clampf(start.y, 8.0, maxf(8.0, view.y - size.y - 8.0))))
+	shown_fits = size.y <= view.y - 16.0 and size.x <= view.x - 16.0
 
 ## "Normal" unless the instance carries a crafting-quality attribute; a flawless marker reads so.
 func quality_text(stack: ItemStack) -> String:
