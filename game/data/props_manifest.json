@@ -788,9 +788,9 @@
       ],
       "glb": "res://assets/props/blender/oven.glb",
       "aabb_m": [
-        1.75,
+        1.814,
         1.36,
-        1.586
+        1.434
       ],
       "art_status": "REVIEW",
       "upgrade": "low-poly hand-built Blender (584 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
@@ -803,12 +803,12 @@
       ],
       "glb": "res://assets/props/blender/large_drying_rack.glb",
       "aabb_m": [
-        3.1,
-        1.952,
+        2.961,
+        2.032,
         0.621
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (540 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (928 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "large drying rack: two-bay rack on trimmed pillars"
     },
     "site_small_0": {
@@ -818,12 +818,12 @@
       ],
       "glb": "res://assets/props/blender/site_small_0.glb",
       "aabb_m": [
-        2.013,
-        0.445,
-        2.011
+        2.07,
+        0.56,
+        2.06
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (384 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (496 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "construction site (2x2), stage 0: staked-out ground with a string outline and a pile of logs and straps"
     },
     "site_small_1": {
@@ -833,12 +833,12 @@
       ],
       "glb": "res://assets/props/blender/site_small_1.glb",
       "aabb_m": [
-        2.013,
-        1.174,
-        2.011
+        2.07,
+        1.176,
+        2.06
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (600 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (704 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "construction site (2x2), stage 1: scaffold frame half up, smaller material piles"
     },
     "site_small_2": {
@@ -853,7 +853,7 @@
         2.005
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (468 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (544 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "construction site (2x2), stage 2: scaffold at full height with partial plank cladding"
     },
     "site_large_0": {
@@ -863,12 +863,12 @@
       ],
       "glb": "res://assets/props/blender/site_large_0.glb",
       "aabb_m": [
-        3.013,
-        0.524,
-        3.011
+        3.07,
+        0.639,
+        3.06
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (424 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (544 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "construction site (3x3), stage 0: staked-out ground with a string outline and a pile of logs and straps"
     },
     "site_large_1": {
@@ -878,12 +878,12 @@
       ],
       "glb": "res://assets/props/blender/site_large_1.glb",
       "aabb_m": [
-        3.013,
-        1.423,
-        3.011
+        3.07,
+        1.426,
+        3.06
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (640 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (752 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "construction site (3x3), stage 1: scaffold frame half up, smaller material piles"
     },
     "site_large_2": {
@@ -894,11 +894,11 @@
       "glb": "res://assets/props/blender/site_large_2.glb",
       "aabb_m": [
         3.007,
-        2.52,
+        2.525,
         3.005
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (552 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (600 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "construction site (3x3), stage 2: scaffold at full height with partial plank cladding"
     }
   },

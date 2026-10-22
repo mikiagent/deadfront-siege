@@ -1611,7 +1611,7 @@ def oven():
     # A baking peel leaning sideways in screen space against the oven's right-hand masonry: the
     # blade end lies on the ground, the handle rests on the stone, so it never reads as a pole
     # stuck in a board.
-    p.log((0.95, 0.62, 0.03), (0.55, 0.3, 0.6), 0.022, tile="wood", seg=5)
+    p.log((0.95, 0.62, 0.03), (0.53, 0.3, 0.55), 0.022, tile="wood", seg=5)
     p.box((0.34, 0.26, 0.025), (0.95, 0.62, 0.03), "wood", rot=(0, 0, 35), tile_m=0.4)
     p.box((0.5, 0.42, 0.07), (0.85, 0.45, 0.04), "stone_dark", tile_m=0.5)
     # a bowl of dough ready to go in
@@ -1680,14 +1680,19 @@ def _site_stakes(p, hx, hy, stake_h=0.42):
 
 
 def _site_logs(p, hx, hy, n=4, seed=0):
-    """A pile of logs and rolled straps inside the staked-out corner, on the camera side so the
-    pile is seen. Kept inside the footprint so the model fits its cell."""
+    """A heap of logs and rolled straps inside the staked-out corner, on the camera side so the
+    pile is seen. Kept inside the footprint so the model fits its cell.
+
+    The logs are 0.6 m long at a 0.1 m radius (the review round: at the phone zoom of about
+    28 px/m a thinner log is sub-pixel). They are laid side by side in rows that step back from
+    the camera-facing corner and stack two high, so the pile reads as a heap of timber."""
     per_row = max(2, n // 2)
     for i in range(n):
-        x = -hx + 0.44 + 0.17 * (i % per_row)
-        y = -hy + 0.34 - 0.2 * (i // per_row)
-        z = 0.09 + 0.17 * (i // per_row)
-        p.log((x - 0.3, y, z), (x + 0.3, y + 0.03 * (i % 3 - 1), z), 0.09, tile="bark", seg=7)
+        col, row = i % per_row, i // per_row
+        x = hx - 0.42 - 0.2 * col
+        y = -hy + 0.42 + 0.22 * row
+        z = 0.1 + 0.19 * (row // 2)
+        p.log((x - 0.3, y, z), (x + 0.3, y + 0.03 * (i % 3 - 1), z), 0.1, tile="bark", seg=7)
     for i in range(2):
         p.torus(0.11, 0.028, (-hx + 0.32 + i * 0.34, -hy + 0.62, 0.02), "rope", seg=9, tube=4)
 
@@ -1717,7 +1722,7 @@ def site_small(stage):
     hx, hy = 0.95, 0.95
     if stage == 0:
         _site_stakes(p, hx, hy)
-        _site_logs(p, hx, hy, n=4)
+        _site_logs(p, hx, hy, n=6)
     elif stage == 1:
         _site_stakes(p, hx, hy, stake_h=0.3)
         _site_scaffold(p, hx, hy, height=1.15, braces=True)
@@ -1755,7 +1760,7 @@ def site_large(stage):
     hx, hy = 1.45, 1.45
     if stage == 0:
         _site_stakes(p, hx, hy, stake_h=0.5)
-        _site_logs(p, hx, hy, n=6)
+        _site_logs(p, hx, hy, n=8)
     elif stage == 1:
         _site_stakes(p, hx, hy, stake_h=0.34)
         _site_scaffold(p, hx, hy, height=1.4, braces=True)
@@ -1775,10 +1780,11 @@ def site_large(stage):
         for sx in (-1, 1):
             p.log((sx * 0.55, -hy, 0.02), (sx * 0.55, -hy, 1.9), 0.045, tile="wood_dark", seg=6)
         p.log((-0.55, -hy, 1.9), (0.55, -hy, 1.9), 0.04, tile="wood_dark")
-        # A working platform: two boards laid across the frame, resting on the front and back
-        # rails and reaching the corner posts, instead of planks floating in mid air.
-        for bx, bz in ((-1.0, 1.41), (0.78, 1.41), (0.0, 2.48)):
-            p.box((0.26, 2 * hy, 0.05), (bx, 0, bz), "plank", tile_m=1.6)
+        # A working platform: narrow scaffold boards laid ACROSS the frame, resting on the two
+        # side rails (which run front-to-back) and stopping at the corner posts, so nothing
+        # floats and no board reads as a ramp across the whole footprint.
+        for by, bz in ((-0.45, 1.41), (0.45, 1.41), (0.0, 2.48)):
+            p.box((2 * hx - 0.1, 0.24, 0.05), (0, by, bz), "plank", tile_m=1.6)
         for sx in (-1, 1):
             p.log((sx * 0.2, -hy + 0.66, 0.02), (sx * 0.2, -hy + 0.1, 1.8), 0.03, tile="wood", seg=5)
         for i in range(5):
