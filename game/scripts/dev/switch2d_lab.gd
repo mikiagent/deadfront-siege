@@ -17,8 +17,10 @@ const WATCHDOG_S := 115.0
 ## Frames timed per mode (the first ones compile pipelines and stream the island in).
 const PERF_WARMUP := 20
 const PERF_FRAMES := 150
-## Passes per mode, best median wins (see _time_mode).
-const PERF_PASSES := 3
+## Passes per mode, best median wins (see _time_mode). Five, not three: this box runs several agents'
+## Godot instances, so a whole card or model phase can land inside someone else's load spike; more
+## passes give both modes the same chance of a clean one (the best pass can only be inflated by load).
+const PERF_PASSES := 5
 ## Cards flat enough to draw as "grey" in the image test: a real painted card is never this flat.
 const GREY_STDDEV := 6.0
 ## On-screen rects smaller than this are not judged: a hanging vine or a grass tuft a few pixels

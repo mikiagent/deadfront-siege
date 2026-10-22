@@ -40,15 +40,15 @@ CARD2D cards where it does not. Buildings (`placed_building`), creatures and the
 
 - `t_switch2d` PASS (script error free), `t_card2d` PASS, and the related `t_stepover`, `t_occlude` PASS.
 - Lab, windowed, at **1600x900** and **844x390** (the phone viewport):
-  `painted_nodes=267 baked_nodes=234 model_nodes=0 grey_cards=0 ms_cards 12.6-13.9 ms_models 13.2-13.9
+  `painted_nodes=267 baked_nodes=234 model_nodes=0 grey_cards=0 ms_cards 12.4-14.0 ms_models 13.3-14.5
   tap_ok=1 empty_ok=1 facing_err_deg=0.02 shots=6` at each size (final run; frame times move a few percent
   with whatever else is on the box). Six PNGs per resolution:
   `switch2d_home_grassland_cards.png`, `..._models.png`, `switch2d_tropical_25_cards.png`,
   `..._models.png`, `switch2d_night_cards.png`, `switch2d_painted_shading.png`.
 - Frame time: cards cost about what the old 3D props cost in the same view (sum of per-island medians,
   vsync off, best of 3 passes per mode). The gate asserts `ms_cards <= ms_models * 1.05`; the winning
-  runs sit at 0.1-2 % over the models, and a single pass without the repeats swung by 40 % from other
-  agents' Godot instances on the same machine, which is why the lab takes the best of three.
+  runs sit level with or under the models, and single passes swing by 40 % from other agents' Godot
+  instances on the same machine, which is why the lab takes the best of five.
 - Look pass (every shot opened, verdict recorded in `.dsc/NOTES.md`): painted cards are planted on their
   pivots, upright, at manifest scale (palms ~5 m, grass knee-high next to the 1.8 m survivor), take the
   scene light and the night, and cast the island's shadows. No floating, sunk or giant cards. Buildings
@@ -82,8 +82,9 @@ CARD2D cards where it does not. Buildings (`placed_building`), creatures and the
   shot frames the camp instead of the patch and the cards/models pair is not like-for-like.
 - Thin, distant sprites (hanging vines, bamboo) cover a few pixels; `MIN_RECT_PX` (scaled by the frame
   height, so a phone-sized viewport keeps judging) and the 25 m distance cut keep them out.
-- Frame timing needs repeats (best of `PERF_PASSES` medians): a single pass is at the mercy of whatever
-  else is running on the machine.
+- Frame timing needs repeats (best of `PERF_PASSES` = 5 medians): a single pass is at the mercy of
+  whatever else is running on the machine. Three passes were not enough — a full-gate run once read
+  cards 17.3 ms vs models 15.1 ms because one card phase landed inside another agent's load spike.
 
 ## Integrator notes
 
