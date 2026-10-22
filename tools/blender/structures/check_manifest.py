@@ -37,6 +37,14 @@ KIND_GLB = {
     "smoker": "smoker", "crock_pot": "crock_pot", "steamer": "steamer", "mortar": "mortar",
     "well": "well", "catapult": "catapult", "floor": "floor", "wall": "wall",
     "wall_doorway": "wall_doorway", "roof": "roof",
+    # house kit (modular house parts, three material tiers): the same 2 m module in every tier
+    "house_foundation": "house_foundation", "house_floor": "house_floor", "house_wall": "house_wall",
+    "house_wall_window": "house_wall_window", "house_wall_doorway": "house_wall_doorway",
+    "house_door": "house_door", "house_roof": "house_roof", "house_roof_corner": "house_roof_corner",
+    "house_roof_gable": "house_roof_gable", "house_stairs": "house_stairs",
+    "house_wall_timber": "house_wall_timber", "house_wall_window_timber": "house_wall_window_timber",
+    "house_roof_timber": "house_roof_timber", "house_wall_stone": "house_wall_stone",
+    "house_wall_window_stone": "house_wall_window_stone", "house_roof_stone": "house_roof_stone",
     "taming_pen": "fence",  # the pen ring is built from fence segments; same style as fence/gate
     "harbour": "pier",  # harbour.gd reads buildings.harbour.glb; the pier fits HarbourSite's 3x6 footprint
     # camp pieces that used to be Kenney placeholders (dsc camp set)
@@ -90,6 +98,50 @@ NEW_ROWS = {
     "site_large_0": {"footprint": [3, 3]},
     "site_large_1": {"footprint": [3, 3]},
     "site_large_2": {"footprint": [3, 3]},
+}
+# The house kit rows are added by --write (they are modular parts, not placeable grid cells, so
+# they carry their module footprint instead of a 1 m grid footprint).
+HOUSE_ROWS = {
+    "house_foundation": {"footprint": [2, 2], "note": "stone plinth under a house module; sinks up to 0.5 m into the ground"},
+    "house_floor": {"footprint": [2, 2], "note": "plank floor deck of a 2 x 2 m house module"},
+    "house_wall": {"footprint": [2, 1], "note": "log wall of a 2 m house module (2.4 m storey)"},
+    "house_wall_window": {"footprint": [2, 1], "note": "log wall with a glazed 0.9 x 0.9 m window"},
+    "house_wall_doorway": {"footprint": [2, 1], "note": "log wall with a 1.0 x 2.0 m doorway"},
+    "house_door": {"footprint": [1, 1], "note": "hinged plank door leaf; its origin is the hinge"},
+    "house_roof": {"footprint": [2, 1], "note": "thatch roof slope of a 2 m house module"},
+    "house_roof_corner": {"footprint": [1, 1], "note": "thatch hip cap for a roof corner"},
+    "house_roof_gable": {"footprint": [1, 2], "note": "boarded gable end that closes the roof"},
+    "house_stairs": {"footprint": [2, 2], "note": "timber stair up to a house floor"},
+    "house_wall_timber": {"footprint": [2, 1], "note": "timber-frame wall of a 2 m house module"},
+    "house_wall_window_timber": {"footprint": [2, 1], "note": "timber-frame wall with a glazed window"},
+    "house_roof_timber": {"footprint": [2, 1], "note": "dark shingle roof slope of a 2 m house module"},
+    "house_wall_stone": {"footprint": [2, 1], "note": "stone wall of a 2 m house module"},
+    "house_wall_window_stone": {"footprint": [2, 1], "note": "stone wall with a glazed window"},
+    "house_roof_stone": {"footprint": [2, 1], "note": "slate roof slope of a 2 m house module"},
+}
+
+# The house kit is modular: its parts are sized by the house module (2.0 m x 2.0 m, a 2.4 m
+# storey), not by the 1 m build grid, and some parts are not ground-standing (a roof slope hangs
+# on a wall top, a foundation sinks into the ground) or not centred (the door leaf's origin is
+# its hinge). `footprint` is the module footprint in metres; `ground` says the part stands on
+# the ground; `hinge` says the origin sits on a pivot, not on the part's centre.
+HOUSE_KIT = {
+    "house_foundation": {"footprint": [2, 2], "ground": False},
+    "house_floor": {"footprint": [2, 2]},
+    "house_wall": {"footprint": [2, 1]},
+    "house_wall_window": {"footprint": [2, 1]},
+    "house_wall_doorway": {"footprint": [2, 1]},
+    "house_door": {"footprint": [1, 1], "hinge": True},
+    "house_roof": {"footprint": [2, 1], "ground": False},
+    "house_roof_corner": {"footprint": [1, 1], "ground": False},
+    "house_roof_gable": {"footprint": [1, 2], "ground": False},
+    "house_stairs": {"footprint": [2, 2]},
+    "house_wall_timber": {"footprint": [2, 1]},
+    "house_wall_window_timber": {"footprint": [2, 1]},
+    "house_roof_timber": {"footprint": [2, 1], "ground": False},
+    "house_wall_stone": {"footprint": [2, 1]},
+    "house_wall_window_stone": {"footprint": [2, 1]},
+    "house_roof_stone": {"footprint": [2, 1], "ground": False},
 }
 
 
@@ -158,8 +210,12 @@ def write(manifest):
     b = manifest["buildings"]
     for kind, row in NEW_ROWS.items():
         b.setdefault(kind, dict(row))
+    for kind, row in HOUSE_ROWS.items():
+        b.setdefault(kind, dict(row))
     for kind, row in b.items():
         name = KIND_GLB.get(kind)
+        if kind in HOUSE_KIT:
+            row["footprint"] = HOUSE_KIT[kind]["footprint"]
         if name is None:
             glb = str(row.get("glb", ""))
             if glb and not glb.startswith(OWN_PREFIX):
@@ -170,6 +226,8 @@ def write(manifest):
         s = glb_info.summary(res_to_path(RES % name))
         row["glb"] = RES % name
         row["aabb_m"] = list(ASSEMBLY_AABB.get(kind) or [round(s["aabb_max"][k] - s["aabb_min"][k], 3) for k in range(3)])
+        if kind in HOUSE_KIT and HOUSE_KIT[kind].get("hinge"):
+            row["nodes"] = {"leaf": "house_door", "note": "leaf origin is the hinge; swing about local Y"}
         row["art_status"] = "REPLACE" if kind in STAND_INS else "REVIEW"
         row["upgrade"] = STAND_IN_UPGRADE if kind in STAND_INS else UPGRADE % s["tris"]
         if kind in STAGES:
@@ -198,17 +256,21 @@ def check_glb(kind, path, fp, aabb_m, errors):
     lo, hi = s["aabb_min"], s["aabb_max"]
     size = [hi[k] - lo[k] for k in range(3)]
     name = os.path.basename(path)
+    kit = HOUSE_KIT.get(kind)
     if s["tris"] > MAX_TRIS:
         errors.append("%s: %s has %d tris > %d" % (kind, name, s["tris"], MAX_TRIS))
     if s["material_names"] != [MAT_NAME] or s["images"] != 0:
         errors.append("%s: %s has materials %s / %d images (want [%s] / 0)" % (kind, name, s["material_names"], s["images"], MAT_NAME))
-    if not (-0.06 <= lo[1] <= 0.03):
+    if not (-0.06 <= lo[1] <= 0.03) and not (kit and not kit.get("ground", True)):
         errors.append("%s: %s base at y=%.3f, not on the ground" % (kind, name, lo[1]))
     for k, dim in ((0, fp[0]), (2, fp[1])):
         centre = (lo[k] + hi[k]) / 2
-        if abs(centre) > ORIGIN_TOL_M:
+        if abs(centre) > ORIGIN_TOL_M and not (kit and kit.get("hinge")):
             errors.append("%s: %s origin off centre on axis %d by %.2f m" % (kind, name, k, centre))
-        if size[k] > dim * (1 + TOL):
+        # a house part is sized by the house module, not the 1 m build grid, so it gets a looser
+        # bound (an eave board or a hip roll may overhang its module)
+        limit = dim * (1.2 if kit else 1 + TOL)
+        if size[k] > limit:
             errors.append("%s: %s %.2f m wide on axis %d, footprint %d" % (kind, name, size[k], k, dim))
     if aabb_m:
         for k in range(3):
