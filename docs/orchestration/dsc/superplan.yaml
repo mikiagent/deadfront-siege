@@ -345,10 +345,59 @@ phases:
           game/scripts/dev/islandpick_lab.gd + scene printing `[islandpick] RESULT shapes= previews_shown= pick_persists=
           final_warning= old_save_ok= ui_min_px=` with shots. M4 look next to the reference; report; full verify.
 
+  # ---------------------------------------------------------------- food and drink effects (spec 32)
+  # Waits for the three systems it extends. Not part of phase p1's exit: it has its own phase so that adding it
+  # does not reopen a phase that is already finishing, and so the balance pass can wait on it.
+  - id: p7-food
+    goal: "Eating and drinking do something: immediate vs digested Energy, timed buffs with slots, drinks, taste"
+    after_phase: [p1-systems]
+    jobs:
+      - key: foodfx
+        title: "Spec 32: consumption effects - instant/digested Energy, buff slots, drinks, bad food, taste"
+        adopt: false
+        after: [{job: needs, state: merged}, {job: craftfeel, state: merged}, {job: bags, state: merged}]
+        resources: [godot]
+        rules_footer: common-footer.md
+        vars: {lab: foodfx_lab}
+        verify: "bash {sp}/dsc/verify_job.sh foodfx"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh foodfx {n}"
+        priority: 7
+        task_body: |
+          # Task: FOODFX: eating and drinking have effects beyond a flat Energy number
+          Owner: "add this to the docs and plan" (spec docs/design/durango-prompts/32_food_drink_consumption_effects.md).
+          Extend the systems that exist; do not build a second food, inventory or status architecture.
+          Today: game/scripts/items/food.gd (Energy only: base x (1 + 0.35 x process_count) x level), eat_session.gd
+          (3 s eat, move cancels the remaining restore, raw-food risk past half), a flat BUFFS table in
+          game/data/food_buffs.json, and game/scripts/status/status_def.gd + combat/status_effects.gd for timed
+          statuses. BAGS and CRAFTFEEL change the item/craft path - read them first and reuse their preview functions.
+          Do not tune balance numbers; every value spec 32 does not give is `# ASSUMPTION` and configurable, and every
+          example from the reconstruction keeps its provenance tag (spec 32 s15 and s13).
+          Milestones:
+          M1 game/tests/t_foodfx.gd: instant + digested Energy split at release ratio 0/0.4/1; the delayed share is never
+          paid twice across a save/load or a second eat intent; an interrupted eat consumes nothing and grants nothing;
+          eating twice quickly cannot consume one instance twice; a Maximum Fatigue buff expiring clamps current fatigue
+          and never touches base stat values; a drink that lowers current fatigue and a drink that raises the maximum are
+          different effects; same-container foods replace each other while Enhanced Ability and Enhanced Survival coexist;
+          a plain Energy food leaves an unrelated buff alive; a profession ability buff changes a real ability check
+          without granting category levels; raw bad food can apply Stomach Pain. Stage 1.
+          M2 the effect bundle + evaluator in data-driven code (consumption channels, per-field transforms, caps and
+          conflict validation as in spec 32 s8), delayed-digestion persistence, buff slots. Stage 1.
+          M3 consumption transaction: validate -> timed action with interrupt -> atomic consume of the exact instance ->
+          immediate effects -> schedule digestion -> buff slot replacement -> taste/temperature -> persist. Stage 2.
+          M4 game/scripts/dev/foodfx_lab.gd + scene printing `[foodfx] RESULT instant_split_ok= digest_once_ok=
+          interrupt_refunds= double_eat_blocked= buff_slots_ok= maxfatigue_expiry_ok= fatigue_vs_maxfatigue_ok=
+          buff_coexist_ok= plain_food_keeps_buff= ability_check_moves= bad_food_status= taste_grade_ok=
+          save_roundtrip= ui_min_px=` with shots of the food inspect panel and the two drinks. Stage 2.
+          M5 report (before/after, the shots, every assumption and provenance) and the full verify.
+          Data slice, not dozens of foods: water, tea, coffee, a raw berry, cooked meat, one profession-buff meal, one
+          fatigue restorative. The UI is spec 32 s12: item level, exact traits, Energy immediate/over time, fullness,
+          thirst, health, fatigue, max-stat effects, ability bonuses, negative effects, buff group, duration and
+          consumption time, plus a line saying when this food would replace an active buff.
+
   # ---------------------------------------------------------------- last (owner: systems before balance)
   - id: p6-balance
     goal: "HP, damage, pacing, XP curve, LOOP1 bot thresholds - only after the systems are done and tuned"
-    after_phase: [p1-systems, p2-2d, p5-next]
+    after_phase: [p1-systems, p2-2d, p5-next, p7-food]
     exit: manual
     jobs:
       - key: balance
