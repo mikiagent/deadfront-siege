@@ -39,7 +39,8 @@
       "display_name": "Bark Strip",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -237,7 +238,8 @@
       "display_name": "Fibre Stalk",
       "categories": [
         "fibre",
-        "stalk"
+        "stalk",
+        "strap_material"
       ],
       "stack_max": 30,
       "tool_class": "none",
@@ -250,7 +252,8 @@
       "display_name": "Reed",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 30,
       "tool_class": "none",
@@ -265,7 +268,8 @@
       "id": "root",
       "display_name": "Root",
       "categories": [
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -1236,7 +1240,8 @@
       "id": "palm_frond",
       "display_name": "Palm Frond",
       "categories": [
-        "fibre"
+        "fibre",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -1291,7 +1296,8 @@
       "display_name": "Vine",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",

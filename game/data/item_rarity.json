@@ -238,6 +238,17 @@
   "bone_knife": "common",
   "bone_axe": "common",
   "bone_pick": "common",
-  "bone_spear": "common"
+  "bone_spear": "common",
+  "woven_bag": "uncommon",
+  "basic_bag": "common",
+  "small_pouch": "common",
+  "large_pouch": "uncommon",
+  "advanced_backpack": "rare",
+  "specialized_storage_bag": "epic",
+  "plank_shape": "common",
+  "pillar_shape": "common",
+  "strap": "common",
+  "trimmed_plank": "common",
+  "fine_plank": "common"
  }
 }
