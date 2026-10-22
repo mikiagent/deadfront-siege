@@ -1,10 +1,10 @@
 class_name OcclusionMaterial
 extends RefCounted
 ## Turns a prop's StandardMaterial3D into a ShaderMaterial that looks the same but can fade
-## (shaders/occlusion/occluder_standard.gdshaderinc). Godot does not expose the shader it generates
+## (scripts/world/occlu_occluder_standard.gdshaderinc). Godot does not expose the shader it generates
 ## for a BaseMaterial3D, so the props' feature subset is rebuilt here; anything else is reported.
 
-const BODY := "res://shaders/occlusion/occluder_standard.gdshaderinc"
+const BODY := "res://scripts/world/occlu_occluder_standard.gdshaderinc"
 const FILTERS := ["filter_nearest", "filter_linear", "filter_nearest_mipmap", "filter_linear_mipmap",
 	"filter_nearest_mipmap_anisotropic", "filter_linear_mipmap_anisotropic"]
 const DIFFUSE := ["diffuse_burley", "diffuse_lambert", "diffuse_lambert_wrap", "diffuse_toon"]
@@ -70,6 +70,8 @@ static func derive(src: Material) -> ShaderMaterial:
 		_shaders[key] = shader
 	var m := ShaderMaterial.new()
 	m.shader = shader
+	# The trunk line stays 0 (the whole model fades) until Occlusion sets it from the mesh it came from.
+	m.set_shader_parameter("occl_trunk", 0.0)
 	m.render_priority = b.render_priority
 	m.next_pass = b.next_pass
 	m.set_shader_parameter("albedo", b.albedo_color)

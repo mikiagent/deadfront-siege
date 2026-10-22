@@ -4,12 +4,15 @@ extends Node
 ## make_occludable(node, mode):
 ##   "between": a prop standing between the camera and the survivor fades AS A WHOLE OBJECT to
 ##              about half its pixels (BETWEEN_DROP) over FADE_S, so its trunk, crown and outline
-##              stay readable while the survivor shows through (tall trees, big rocks, upper walls).
-##              Each MultiMesh instance (a VegBatch tree) is its own object; any other node is one
-##              object made of every mesh under it.
+##              stay readable while the survivor shows through (tall trees, bushes, sheds, rocks).
+##              Each MultiMesh instance (a VegBatch tree or bush) is its own object; any other node
+##              is one object made of every mesh under it.
+## Over the survivor's own silhouette on screen every prop fades to BODY_DROP instead, whatever its
+## mode: that is what keeps them visible behind several bushes, inside a shed or under a canopy,
+## where the per-object shares would otherwise multiply into a solid wall.
 ##   "inside":  the whole prop fades to a faint outline (INSIDE_DROP) while the survivor stands
 ##              under it and is solid from outside (roofs, ceilings).
-## The fade is an ordered-dither discard inside the prop's own material (shaders/occlusion/): no
+## The fade is an ordered-dither discard inside the prop's own material (scripts/world/occlu*): no
 ## blending, sorting or extra pass, the same in Forward+ and gl_compatibility. This node decides
 ## each frame which props are in the way (a grid lookup along the sight line, then a few cylinder
 ## or box tests) and steps their fades. Nothing changes on screen while nothing is in the way.
@@ -17,21 +20,40 @@ extends Node
 
 const BETWEEN := "between"
 const INSIDE := "inside"
-## Props at least this tall can cover the survivor at the iso pitch (island_scatter's hook).
-## ASSUMPTION: 2.4 m; every scattered rock today is under 1.5 m, so only trees and palms fade.
-const TALL_M := 2.4
+## Props at least this tall can cover the survivor at the iso pitch, and are tall enough for a trunk
+## line to mean something (island_scatter's hook). Bushes are 1.5-2.2 m and hide the survivor, rocks
+## are 0.7-1.3 m and do not. ASSUMPTION: 1.4 m, between the two.
+const TALL_M := 1.4
+## Props at least this tall are trees: their lower TRUNK_FRAC stays solid through a fade, so the tree
+## still reads whole (a bush's whole body is foliage). ASSUMPTION: 4 m, well under every palm and tree
+## (7-11 m) and well over a bush.
+const TREE_M := 4.0
 ## Share of pixels a faded prop drops: 9 of the 16 dither cells, so the prop keeps 7/16 (44 %) and
 ## a survivor fully behind it shows 9/16 (56 %). Owner 2026-10-20: partly see-through, never a hole.
 ## ASSUMPTION: 9/16, the dither level nearest half that still shows at least half the survivor.
 const BETWEEN_DROP := 0.55
 ## ASSUMPTION: 14 of 16 cells: a roof over the survivor keeps a faint readable outline.
 const INSIDE_DROP := 0.85
+## Share of a prop's pixels the shader drops over the survivor's own silhouette, whatever the prop's
+## fade: the dither is screen-space, so every prop drops the same pixels there and the survivor shows
+## through a stack of them at this one share instead of 1-(1-x)^n. Must equal OCCL_COVER_DROP in
+## scripts/world/occlusion_fade.gdshaderinc (t_occlude2 checks the two agree).
+## ASSUMPTION: 11 of 16 cells, so 11/16 (69 %) of the survivor always shows through, clear of the 0.6
+## gate even after the trunk, a second prop or an antialiased edge takes its share.
+const BODY_DROP := 0.6875
+## Share of a tree's height that is crown: everything below this (its trunk) never dithers, so the
+## tree still reads whole while its crown fades (spec 21). ASSUMPTION: 0.45; measured on the GLBs,
+## tree-common-a's trunk runs to y=3.8 of 8 m, birch's to 6.4 of 15, acacia's to 4.4 of 9.7.
+const TRUNK_FRAC := 0.45
 const FADE_S := 0.25
-const CHEST_UP_M := 0.3  # the player's origin is its capsule centre, 0.9 m above the feet
+## The survivor's chest is this far above the player origin (its capsule centre).
+const CHEST_UP_M := 0.3
 ## The survivor's body around the chest for the sight test: half width, head above, feet below.
 const BODY_R_M := 0.3
 const HEAD_M := 0.6
 const FEET_M := 1.2
+## Half the survivor's on-screen body height for the cover ellipse: head above the chest to knee below.
+const BODY_HALF_M := 0.9
 ## "inside": how far past a roof's edge the survivor still counts as under it, and how far below.
 const EDGE_M := 0.3
 const BELOW_M := 10.0
@@ -110,6 +132,30 @@ static func make_occludable(node: Node, mode: String = BETWEEN) -> int:
 		_driver._add_objects(node, geoms)
 	return n
 
+## The scatter's one hook: a nature prop of `height` metres opts in when it can hide the survivor
+## (only when enabled). Every caller goes through here, so the height and trunk rules live in one
+## place. Trees keep their trunk solid; bushes (below TALL_M) fade as one piece.
+static func auto_fade(node: Node, height: float) -> bool:
+	if not enabled or height < TALL_M:
+		return false
+	# The trunk line is set before the conversion: a VegBatch has no cells yet (they arrive on commit
+	# and are adopted later), so the count is 0 here even when the hook succeeds.
+	if height >= TREE_M:
+		set_trunk(node, height * TRUNK_FRAC)
+	if not node.has_meta(&"occl_mode"):
+		make_occludable(node, BETWEEN)
+	return mode_of(node) != ""
+
+## Keeps the bottom `metres` of `node`'s models solid through any fade: a tree's trunk, so the tree
+## still reads whole while its crown dithers (spec 21). 0 (the default) fades the whole model, which
+## is what a bush, a shed or a roof wants. Call it after make_occludable().
+static func set_trunk(node: Node, metres: float) -> void:
+	if node == null:
+		return
+	node.set_meta(&"occl_trunk", metres)
+	for gi in _geometry(node):
+		(gi as GeometryInstance3D).set_instance_shader_parameter(&"occl_trunk", metres)
+
 ## Puts the original materials back and forgets `node`.
 static func release(node: Node) -> void:
 	if node == null or not node.has_meta(&"occl_mode"):
@@ -119,7 +165,7 @@ static func release(node: Node) -> void:
 	var watch: Callable = node.get_meta(&"occl_watch")
 	if node.child_entered_tree.is_connected(watch):
 		node.child_entered_tree.disconnect(watch)
-	for k in [&"occl_mode", &"occl_surfaces", &"occl_watch"]:
+	for k in [&"occl_mode", &"occl_surfaces", &"occl_watch", &"occl_trunk"]:
 		node.remove_meta(k)
 	if _driver:
 		_driver._inside.erase(node.get_instance_id())
@@ -166,6 +212,7 @@ static func _ensure_driver() -> void:
 		# Added from code, once per run, so project.godot stays untouched (get_list is editor-only).
 		_globals_ready = true
 		RenderingServer.global_shader_parameter_add(&"occl_view", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
+		RenderingServer.global_shader_parameter_add(&"occl_body", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
 		for g in SLOT_NAMES:
 			RenderingServer.global_shader_parameter_add(g, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
 	if is_instance_valid(_driver):
@@ -232,6 +279,7 @@ static func _restore(gi: GeometryInstance3D) -> void:
 	var orig: Dictionary = gi.get_meta(&"occl_orig")
 	gi.remove_meta(&"occl_orig")
 	gi.set_instance_shader_parameter(&"occl_fade", 0.0)
+	gi.set_instance_shader_parameter(&"occl_trunk", 0.0)
 	if orig.has("override"):
 		gi.material_override = orig["override"]
 	if orig.has("mesh"):
@@ -287,9 +335,11 @@ func _adopt(child: Node, owner_node: Node) -> void:
 		return
 	var added := 0
 	var geoms: Array = []
+	var trunk := float(owner_node.get_meta(&"occl_trunk", 0.0))
 	for gi in _geometry(child):
 		var k := _convert(gi)
 		if k > 0:
+			(gi as GeometryInstance3D).set_instance_shader_parameter(&"occl_trunk", trunk)
 			added += k
 			geoms.append(gi)
 	if mode == INSIDE and _inside.has(owner_node.get_instance_id()):
@@ -406,8 +456,32 @@ func _process(delta: float) -> void:
 		var fwd := -cam.global_basis.z
 		step_between(hits, delta, fwd)
 		step_inside(p, delta)
+		_send_body(cam, p + Vector3.UP * (CHEST_UP_M - 0.3))
 	else:
 		step_between(hits, delta, Vector3.ZERO)
+		_send_body(null, Vector3.ZERO)
+
+## The survivor's silhouette on screen (an ellipse around their body) for occl_body: every prop drops
+## exactly BODY_DROP on those pixels, so whatever hides them (a bush, a crown, a roof, a whole pier)
+## shows them through, and a stack of props does not multiply the shares.
+func _send_body(cam: Camera3D, mid: Vector3) -> void:
+	if cam == null:
+		RenderingServer.global_shader_parameter_set(&"occl_body", Vector4.ZERO)
+		return
+	var up := Vector3.UP
+	var right := Vector3.RIGHT
+	if cam.projection == Camera3D.PROJECTION_ORTHOGONAL:
+		# The screen's own axes, so the ellipse is upright on screen at any camera angle.
+		up = cam.global_basis.y
+		right = cam.global_basis.x
+	var c := cam.unproject_position(mid)
+	var rx := c.distance_to(cam.unproject_position(mid + right * (BODY_R_M + 0.08)))
+	var ry := c.distance_to(cam.unproject_position(mid + up * (BODY_HALF_M)))
+	if ry < rx:
+		var t := rx
+		rx = ry
+		ry = t
+	RenderingServer.global_shader_parameter_set(&"occl_body", Vector4(c.x, c.y, rx, ry))
 
 ## Between objects whose bounds (widened by the survivor's body) cross the sight line from `chest`
 ## towards the camera along `back` (unit). Obj -> true. Public so tests can drive it.
