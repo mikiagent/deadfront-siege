@@ -1,5 +1,6 @@
 extends SceneTree
-## W1-BIOME: biomes.json covers every climate with real 1024 px textures and sane allowlists;
+## W1-BIOME: biomes.json covers every climate with real textures and sane allowlists;
+## the 1k bakes ship at process/size_limit=512 (pack budget), so the imported texture is 512 px;
 ## shader defaults still reproduce the pre-biome look; BiomeMaterial builds both materials.
 
 var failures: Array[String] = []
@@ -20,8 +21,8 @@ func _init() -> void:
 		for layer in BiomeMaterial.LAYERS:
 			var path := str(r.get("textures", {}).get(layer, ""))
 			var tex := load(path) as Texture2D if ResourceLoader.exists(path) else null
-			if tex == null or tex.get_width() != 1024:
-				failures.append("%s %s texture missing or not 1024 px: %s" % [climate, layer, path])
+			if tex == null or tex.get_width() != 512:
+				failures.append("%s %s texture missing or not 512 px: %s" % [climate, layer, path])
 		for fam in r.get("ground_cover", []):
 			if not fam in veg or fam in water_only:
 				failures.append("%s ground_cover %s not allowed" % [climate, fam])
@@ -106,6 +107,8 @@ func _check_import(climate: String, r: Dictionary) -> void:
 			failures.append("%s imports without mipmaps" % path)
 		if int(cfg.get_value("params", "compress/mode", -1)) != 2:
 			failures.append("%s is not VRAM compressed" % path)
+		if int(cfg.get_value("params", "process/size_limit", 0)) > 512:
+			failures.append("%s imports at size_limit %s, over the 512 pack budget" % [path, cfg.get_value("params", "process/size_limit")])
 
 ## The lab patch must reach every climate's rock band, or the rock layer never shows in a shot.
 func _check_lab_slope() -> void:

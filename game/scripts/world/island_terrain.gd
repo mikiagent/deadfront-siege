@@ -94,7 +94,7 @@ static func build(rt: IslandRuntime, size: float, climate: String) -> void:
 			if rs > shore1:
 				var t2 := clampf((rs - shore1) / (size * 0.05), 0.0, 1.0)
 				h = lerpf(h, -2.6, t2)
-			if rt._camp_hint != Vector3.ZERO and _camp_active(rt):
+			if rt._camp_hint != Vector3.ZERO:
 				var camp_d := Vector2(wx - rt._camp_hint.x, wz - rt._camp_hint.z).length()
 				if camp_d < 16.0:
 					var s := clampf(1.0 - camp_d / 16.0, 0.0, 1.0)
@@ -186,7 +186,7 @@ static func _v(rt: IslandRuntime, st: SurfaceTool, p: Vector3) -> void:
 static func _terrain_color(rt: IslandRuntime, p: Vector3) -> Color:
 	var col := Color(1, 1, 1)  # vertex colour is a multiplier on the shader's albedo
 	var camp_d := Vector2(p.x - rt._camp_hint.x, p.z - rt._camp_hint.z).length()
-	if camp_d < 18.0 and _camp_active(rt):
+	if camp_d < 18.0:
 		# A warm, trampled clearing frames the opening camp against the surrounding grass.
 		# The broad feathered edge reads as terrain variation, not a UI boundary ring.
 		var inner := 1.0 - smoothstep(7.0, 18.0, camp_d)

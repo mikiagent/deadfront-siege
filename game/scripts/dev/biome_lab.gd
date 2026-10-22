@@ -48,7 +48,7 @@ func _ready() -> void:
 	add_child(_cam)
 	_cam.current = true
 	# A windowed lab that never reaches quit() holds a Godot slot; give it a ceiling.
-	get_tree().create_timer(240.0).timeout.connect(func() -> void: get_tree().quit(2))
+	get_tree().create_timer(600.0).timeout.connect(func() -> void: get_tree().quit(2))
 	_run.call_deferred()
 
 func _hide_overlays() -> void:
@@ -62,6 +62,7 @@ func _hide_overlays() -> void:
 func _run() -> void:
 	await _climate_patches()
 	await _island_shots()
+	print("[biome_lab] done")
 	get_tree().quit(0)
 
 ## Every climate's baked set on one flat patch, top of frame: the fastest read of the palettes.
@@ -121,6 +122,9 @@ func _island_shots() -> void:
 		if rt == null:
 			print("[biome] id=%s FAIL no runtime" % id)
 			continue
+		# Top shots are about colour, not haze: the island's day fog would wash the palette.
+		if rt.world_env and rt.world_env.environment:
+			rt.world_env.environment.fog_enabled = false
 		var shares: Dictionary = BiomeZones.shares(rt)
 		var parts := PackedStringArray()
 		var land := maxi(1, _land_tiles(rt))
@@ -157,6 +161,68 @@ func _island_shots() -> void:
 			iso._snap()
 		await _shot("%s/%s_camp.png" % [_out, id])
 		top.queue_free()
+		# Mid-zoom across a zone edge: the boundary the shader paints, close enough to judge.
+		await _edge_shot(rt, id)
+
+## Halfway between camp level and the top shot, across the second-largest zone's border: the
+## soft painted edge (palette blend plus texture mix), not the island from orbit.
+func _edge_shot(rt: IslandRuntime, id: String) -> void:
+	var pos: Variant = _edge_pos(rt)
+	if pos == null:
+		return
+	var iso: IsoCamera = _kit.get("cam")
+	if iso == null:
+		return
+	# A low three-quarter camera 45 m out looks along the boundary, so both zones fill the frame.
+	var at: Vector3 = pos
+	_player.global_position = at
+	iso.size = clampf(22.0, iso.min_size, iso.max_size)  # mid zoom: ~1.5 screens of ground
+	iso.make_current()
+	iso._snap()
+	await _shot("%s/%s_edge.png" % [_out, id])
+
+## A tile on the border between the island's two biggest zones, drawn toward the island centre so
+## the edge sits in open ground rather than in a corner of the map.
+func _edge_pos(rt: IslandRuntime) -> Variant:
+	var arr := BiomeZones.biome_types(rt)
+	if arr.is_empty():
+		return null
+	var span := rt._tile_span
+	var counts := {}
+	for z in span:
+		for x in span:
+			var b := int(arr[x + z * span])
+			counts[b] = int(counts.get(b, 0)) + 1
+	var ranked: Array = counts.keys()
+	ranked.sort_custom(func (a: int, b: int) -> bool: return int(counts[a]) > int(counts[b]))
+	if ranked.size() < 2:
+		return null
+	var za := int(ranked[0])
+	var zb := int(ranked[1])
+	var best := -1.0
+	var pick := Vector3.ZERO
+	for z in range(4, span - 4):
+		for x in range(4, span - 4):
+			var b := int(arr[x + z * span])
+			if b != za:
+				continue
+			var nb := false
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if int(arr[(x + d.x) + (z + d.y) * span]) == zb:
+					nb = true
+					break
+			if not nb:
+				continue
+			var wx := -rt._size * 0.5 + float(x) + 0.5
+			var wz := -rt._size * 0.5 + float(z) + 0.5
+			var score := -Vector2(wx, wz).length()
+			if score > best:
+				best = score
+				pick = Vector3(wx, 0.0, wz)
+	if best == -1.0:
+		return null
+	pick.y = rt.surface_y(pick.x, pick.z)
+	return pick
 
 func _land_tiles(rt: IslandRuntime) -> int:
 	var n := 0
