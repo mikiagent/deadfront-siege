@@ -70,3 +70,11 @@ clusters) is the closest match to the concept art.
 - Re-run the lab with
   `Godot --path game --resolution 1600x900 --rendering-method gl_compatibility -- --lab=biomedress_lab --shot-dir=DIR`
   to regenerate the 30 comparison shots.
+
+## Gate status
+Stage 1 and stage 2 of `verify_job.sh biomedress` pass (test + lab at 1600x900 and 844x390; 30 shots).
+The full gate's related-test loop stops at `t_props2d`: `game/tests/t_props2d.gd` does not exist on this
+branch (it lives only on `claude/mmo-props2d`), so the gate reports "printed no PASS line" for a file that
+is not in the tree. `t_biome`, `t_ground2d`, `tools/smoke.sh` (SMOKE PASS) and the scope check all pass
+when run by hand. Integrator: either merge/point at a tree with `t_props2d.gd`, or remove `t_props2d`
+from `job_biomedress.conf` RELATED.
