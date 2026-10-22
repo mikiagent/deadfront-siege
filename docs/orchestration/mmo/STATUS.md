@@ -471,6 +471,20 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   - Paused earlier (lowest priority): APPEAR-A wf_c94a70f4-71e, LEVELFX wf_21781920-37e, COMBATFX wf_1c0f1639-5fc, STEGO-ART wf_340be69a-017, NET+CHAT wf_129d4a7d-7fc (CHAT fix r2), W2-RAGDOLL.
   - Ready, waiting for the side queue: CAGEICON (after ICONS2).
 
+- 2026-10-21 afternoon (owner):
+  - "game balancing like tuning hp and damage wont make sense until crafting building and skills is done and tuned";
+    "we need to be able to eat, sleep, clean, drink, etc". Order: survival actions, then crafting/building/skills, then
+    balance. LOOP1's bot balance thresholds wait.
+  - "no i want you to use deepseek workers": DeepSeek jobs do the work, scouting included; Claude writes short tasks,
+    reviews, integrates. Idle default: "asset generation and building biomes using our 2D concept art as references".
+  - "the inventory system doesn't match what I asked for in the docs ... a scroll view with slots, 1 item per slot and we
+    can upgrade slots" (INVSLOTS, DeepSeek).
+  - Camera: "yeah merge it" -> merged a7928ce3 (Durango long-lens perspective, pitch 38.7). The phone zoom-out drops from
+    28 m to 18 m (Durango's range); kept as built, the owner may ask for more.
+  - "start switching to the 2D assets. Utilize deepseek workers": SWITCH2D (resources as painted cards, buildings 3D,
+    resource_render "card" by default) and GROUND2D (painted ground cover) started on claude/mmo-switch2d (camera + CARD2D +
+    SPRITES2D merged there); props visuals move to painted cards after the PROPS job.
+
 ## Owner questions (open)
 
 - Female v2 survivor base (PRD: 8 occupations x 2 genders; the shipped v2 is a MAN; an earlier version of this question wrongly asked for a male base): a concept sheet for approval, then a Tripo mesh plus refitting the 3 armour kits, about 250 credits? Before or after extra hairstyles (4 Tripo styles, cap 300)? (2026-10-20; unanswered)

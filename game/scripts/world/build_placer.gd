@@ -665,7 +665,8 @@ func _ground_at(screen_pos: Vector2) -> Dictionary:
 	if cam == null:
 		return {}
 	var from := cam.project_ray_origin(screen_pos)
-	var to := from + cam.project_ray_normal(screen_pos) * 200.0
+	# To the far plane: the perspective camera stands 90-430 m back (the old 200 m ray fell short).
+	var to := from + cam.project_ray_normal(screen_pos) * cam.far
 	var q := PhysicsRayQueryParameters3D.create(from, to)
 	return get_tree().root.get_world_3d().direct_space_state.intersect_ray(q)
 
