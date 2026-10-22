@@ -166,17 +166,21 @@ static func plant_at(rt: IslandRuntime, family: String, role: String, pos: Vecto
 	rt._node_tiles[str(node.node_id)] = {"tile": tile, "base": IslandTerrain.tile_type_at_world(rt, pos.x, pos.z)}
 	rt._harvest_nodes[str(node.node_id)] = node
 	rt._used_tiles[tile] = true
-	if models.size() > 0:
+	if cards_enabled():
+		# SWITCH2D: under resource_render "card" no resource draws as a 3D model. The family's painted
+		# sprite when it has one, else its BAKED card (families without art yet borrow their role's).
+		var vis: Dictionary = CardProp.visual_for(family, pos)
+		if str(vis.get("kind", "")) != "":
+			_attach_card_visual(rt, node, vis, role_s, family, pos)
+		else:
+			print("[world] %s has no painted sprite or baked card (drawn bare)" % family)
+	elif models.size() > 0:
 		var model := models[(rt.harvest_count + rt._used_tiles.size()) % models.size()]
 		if model == "":
 			model = models[0]
 		var path := _nature_path(model)
 		if ResourceLoader.exists(path):
-			var card_id := "" if not cards_enabled() else CardProp.card_for_model(path)
-			if card_id != "" and CardProp.baked(card_id):
-				_attach_card(rt, node, card_id, path, role_s, family, pos)
-			else:
-				_attach_batched(rt, node, path, role_s, family, pos)
+			_attach_batched(rt, node, path, role_s, family, pos)
 		else:
 			print("[world] missing nature %s" % path)
 	return 1
@@ -228,30 +232,40 @@ static func _attach_batched(rt: IslandRuntime, node: HarvestNode, path: String, 
 	if role.begins_with("tree") or family == "tree_stump":
 		rt._tree_disc_xforms.append(Transform3D(Basis.IDENTITY, pos + Vector3(0, 0.08, 0)))
 
-## CARD2D: rules.json resource_render "card", or --cards for a lab run. Default "model" is today's
-## look, so nothing changes until the owner approves the trial.
+## SWITCH2D: rules.json resource_render "card" (the default since the 2D switch), or --models for a
+## lab run that draws the old 3D props. Under "card" every resource is a flat card.
 static func cards_enabled() -> bool:
-	if "--cards" in OS.get_cmdline_user_args():
-		return true
-	return str(Data.world_rules.get("resource_render", "model")) == "card"
+	if "--models" in OS.get_cmdline_user_args():
+		return false
+	return str(Data.world_rules.get("resource_render", "card")) == "card"
 
-## One harvest node drawn as a baked swaying card, scaled to the family's usual height and opt-in to
-## the see-through fade. Tapping and gathering use the node's own collision and TapZone, untouched.
-static func _attach_card(rt: IslandRuntime, node: HarvestNode, card_id: String, model_path: String, role: String, family: String, pos: Vector3) -> void:
+## One harvest node drawn as a swaying card, scaled to the family's usual height and opt-in to the
+## see-through fade. `vis` is CardProp.visual_for(): a painted sprite from the owner's cut art, or a
+## BAKED card. Tapping and gathering use the node's own collision and TapZone, untouched.
+static func _attach_card_visual(rt: IslandRuntime, node: HarvestNode, vis: Dictionary, role: String, family: String, pos: Vector3) -> void:
 	var card := CardProp.new()
 	card.name = "Card_%s" % str(node.node_id)
 	rt.add_child(card)
 	card.position = pos
 	var height := _target_height(rt, role, family)
-	if not card.setup(card_id, height):
+	var ok := false
+	if str(vis.get("kind", "")) == "painted":
+		ok = card.setup_painted(vis.get("row", {}) as Dictionary, height)
+	else:
+		ok = card.setup(str(vis.get("card", "")), height)
+	if not ok:
 		card.queue_free()
 		return
 	# The family's depleted model (bush-berries-a -> bush-berries-a-empty) becomes its empty card.
 	var variants: Dictionary = Data.nature_families.get(family, {}).get("depleted_models", {})
 	var empty_card: CardProp = null
-	var empty_model := str(variants.get(model_path, ""))
-	var empty_id := CardProp.card_for_model(empty_model) if empty_model != "" else ""
-	if empty_id != "" and CardProp.baked(empty_id):
+	var empty_id := ""
+	for model_path in variants.keys():
+		var cand := CardProp.card_for_model(str(variants[model_path]))
+		if cand != "" and CardProp.baked(cand):
+			empty_id = cand
+			break
+	if empty_id != "":
 		empty_card = CardProp.new()
 		empty_card.name = "Empty_%s" % str(node.node_id)
 		rt.add_child(empty_card)

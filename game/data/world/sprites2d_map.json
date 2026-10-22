@@ -1,0 +1,21 @@
+{
+  "_about": "SWITCH2D per-family art overrides for the flat resource cards (scripts/world/card_prop.gd visual_for()). A family row wins over the family's own painted art; \"role_fallback\" is used when a family's art has not been cut yet, so no resource is ever drawn as a 3D model under resource_render \"card\". Keys are nature family ids from game/data/nature_manifest.json; sprite ids are ids from game/data/world/sprites2d.json (read at runtime, never hard-coded in code).",
+  "families": {
+    "tree_stump": {"sprite": "palms_19_broken_palm_stump"},
+    "TreeStump_Moss": {"sprite": "palms_19_broken_palm_stump"},
+    "Lilypad": {"sprite": "jungle-plants_22_white_lily_plant"},
+    "mud": {"sprite": "resources_03_clay_mound"}
+  },
+  "role_fallback": {
+    "tree": ["card", "tree-common-a"],
+    "tree_dead": ["card", "tree-common-dead"],
+    "bush": ["card", "bush-berries-b-empty"],
+    "rock": ["card", "rock-moss-a"],
+    "plant": ["card", "plant-a"],
+    "ground": ["card", "grass-a"],
+    "crop": ["card", "plant-a"],
+    "water": ["sprite", "jungle-plants_22_white_lily_plant"],
+    "prop": ["card", "plant-a"],
+    "node": ["card", "rock-moss-a"]
+  }
+}

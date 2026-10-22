@@ -1,22 +1,43 @@
 class_name CardProp
 extends Node3D
-## CARD2D (spec 25 §1, trial): one resource prop drawn as a baked, swaying card instead of a GLB.
+## CARD2D (spec 25 §1, owner 2026-10-21: "keep buildings 3D and make resources 2D"): one resource
+## prop drawn as a flat, swaying card instead of a GLB. Two art sources:
+##   PAINTED  the owner's cut 2D sprites (assets/nature/sprites2d, data/world/sprites2d.json): the
+##            texture is the PNG, the world size follows height_m and the PNG's aspect, and the
+##            manifest's pivot pixel is the ground point.
+##   BAKED    the CARD2D bake of a 3D model (data/card2d.json): albedo + normal, used for a family
+##            that has no painted art yet.
 ## The quad is anchored at its ground point and kept PARALLEL to the camera's view plane every frame
-## (owner 2026-10-21: "make the flat assets align with the camera angle at all times"), so it is a
-## full camera-facing card, not a Y-axis billboard: the card's basis becomes the active camera's
-## basis, which also holds if the camera moves to Durango's lower angle. Alpha-scissor keeps it in
-## the opaque pass, the baked normal map lets the moving sun shade it, the sway is in the vertex
-## shader. The bake reads the angle from IsoCamera, so a camera change only needs a re-bake.
-## Data: game/data/card2d.json. Buildings stay 3D; creatures and characters are untouched.
+## (owner: "make the flat assets align with the camera angle at all times"), so it is a full
+## camera-facing card, not a Y-axis billboard: the card's basis becomes the active camera's basis.
+## The camera's angle, focus and parallax reach the shader as the global shader parameters IsoCamera
+## publishes ([shader_globals]); nothing here hard-codes a pitch, yaw or projection.
+## Alpha-scissor keeps it in the opaque pass, the sway is in the vertex shader. Buildings stay 3D;
+## creatures and characters are untouched.
 
 const DATA_PATH := "res://data/card2d.json"
+const SPRITES_PATH := "res://data/world/sprites2d.json"
+const SPRITES_MAP_PATH := "res://data/world/sprites2d_map.json"
 const SHADER_PATH := "res://shaders/card_sway.gdshader"
 
+## Shading for painted art (see card_sway.gdshader). 1 = lit through a flat camera-facing normal:
+## one shade over the whole sprite from the sun's own colour and energy, so it darkens at night and
+## under shade but the paint never gets a second, invented 3D shading. 2 = unlit (emission only),
+## the comparison the brief asks for.
+const SHADE_PAINTED := 1
+const SHADE_PAINTED_UNLIT := 2
+
 static var _data: Dictionary = {}
-## The game camera's basis, read from an IsoCamera instance once and kept (the card is baked from
-## the same angle, so a camera change only needs a re-bake; nothing here hard-codes it).
-static var _default_basis: Basis = Basis()
-static var _default_read := false
+static var _sprite_rows: Array = []
+static var _sprite_index: Dictionary = {}  # kind (nature family id) -> Array[Dictionary]
+static var _sprite_loaded := false
+static var _map: Dictionary = {}
+static var _map_loaded := false
+
+## The shader without the fade body: the same card_sway.gdshader minus the CARD_FADE_* lines and the
+## occlusion include. No instance uniform, so GLES3's per-instance budget (a few thousand) is spent
+## only on the tall cards that can fade, not on every grass tuft on the island.
+static var _plain_shader: Shader = null
 
 var _quad: MeshInstance3D
 var _quad_size := Vector2.ONE
@@ -58,17 +79,48 @@ static func card_for_model(path: String) -> String:
 			return str(id)
 	return ""
 
-## The angle the cards are baked from and drawn to when no camera is in the tree yet: IsoCamera's.
+## The angle a card is built at before a camera exists: the camera package's declared globals
+## ([shader_globals], the values IsoCamera publishes). Never a constant of this script; a live card
+## takes the active camera's own basis every frame.
 static func default_basis() -> Basis:
-	if not _default_read:
-		_default_read = true
-		var cam := IsoCamera.new()
-		var tree := Engine.get_main_loop() as SceneTree
-		if tree and tree.root:
-			tree.root.add_child(cam)
-			_default_basis = cam.global_basis.orthonormalized()
-			cam.queue_free()
-	return _default_basis
+	var pitch := global_float(&"camera_pitch_deg")
+	var yaw := global_float(&"camera_yaw_deg")
+	return Basis.from_euler(Vector3(deg_to_rad(pitch), deg_to_rad(yaw), 0.0))
+
+## A camera global's declared value: project.godot [shader_globals], the same parameter IsoCamera
+## publishes to the shaders every frame. Used only for a card built before a camera has published
+## anything (a headless test, the first frames of a lab); the live camera's basis, not this, is what
+## keeps a real card facing the view (_process reads the active Camera3D). RenderingServer's getter is
+## editor-only (it errors outside the editor), so the declared value is the honest fallback here.
+static func global_float(name: StringName) -> float:
+	var declared: Variant = ProjectSettings.get_setting("shader_globals/%s" % name, null)
+	if declared is Dictionary:
+		var d: Variant = (declared as Dictionary).get("value", 0.0)
+		if d is float or d is int:
+			return float(d)
+	return 0.0
+
+## card_sway.gdshader with the CARD_FADE_INCLUDE line and every CARD_FADE_BEGIN..END block removed.
+static func fade_free_shader() -> Shader:
+	if _plain_shader != null:
+		return _plain_shader
+	var src := FileAccess.get_file_as_string(SHADER_PATH)
+	var out := PackedStringArray()
+	var skipping := false
+	for line in src.split("\n"):
+		if line.contains("CARD_FADE_BEGIN"):
+			skipping = true
+			continue
+		if line.contains("CARD_FADE_END"):
+			skipping = false
+			continue
+		if skipping or line.contains("CARD_FADE_INCLUDE"):
+			continue
+		out.append(line)
+	var sh := Shader.new()
+	sh.code = "\n".join(out)
+	_plain_shader = sh
+	return sh
 
 static func kind_params(kind: String) -> Dictionary:
 	var kinds: Variant = data().get("kinds", {})
@@ -115,6 +167,197 @@ static func content_height(name: String) -> float:
 			return world_size(name).y * px / tex
 	return world_size(name).y * maxf(0.05, pivot_uv(name).y)
 
+# ---------------------------------------------------------------- painted sprites
+
+## The family's row in data/nature_manifest.json (role, height, models). Read through the Data
+## autoload node so this script also parses outside a full project boot (--check-only).
+static func family_row(family: String) -> Dictionary:
+	var tree := Engine.get_main_loop() as SceneTree
+	var d: Node = tree.root.get_node_or_null("Data") if tree and tree.root else null
+	var fams: Variant = d.get("nature_families") if d else null
+	if fams is Dictionary:
+		var row: Variant = (fams as Dictionary).get(family, {})
+		if row is Dictionary:
+			return row
+	return {}
+
+static func family_role(family: String) -> String:
+	return str(family_row(family).get("role", ""))
+
+## Every row of data/world/sprites2d.json (the manifest arrives in parts; read it, never hard-code).
+static func sprites() -> Array:
+	if not _sprite_loaded:
+		_sprite_loaded = true
+		var f := FileAccess.open(SPRITES_PATH, FileAccess.READ)
+		if f == null:
+			push_error("[switch2d] cannot read %s" % SPRITES_PATH)
+			return _sprite_rows
+		var parsed: Variant = JSON.parse_string(f.get_as_text())
+		if parsed is Dictionary:
+			var rows: Variant = (parsed as Dictionary).get("sprites", [])
+			if rows is Array:
+				for r in rows:
+					if not (r is Dictionary):
+						continue
+					var row := r as Dictionary
+					var file := str(row.get("file", ""))
+					if file == "" or not file.begins_with("res://"):
+						continue
+					_sprite_rows.append(row)
+					var kind := str(row.get("kind", ""))
+					var list: Array = _sprite_index.get(kind, [])
+					list.append(row)
+					_sprite_index[kind] = list
+	return _sprite_rows
+
+## Painted sprites whose manifest kind is this nature family id (may be empty).
+static func sprites_for_family(family: String) -> Array:
+	sprites()
+	var list: Variant = _sprite_index.get(family, [])
+	return list if list is Array else []
+
+## True when the family has painted art to draw (the PNGs imported).
+static func has_painted(family: String) -> bool:
+	for row in sprites_for_family(family):
+		if ResourceLoader.exists(str(row.get("file", ""))):
+			return true
+	return false
+
+## One painted sprite for this family, chosen deterministically from the node's ground point (a
+## stable hash), so neighbours mix variants while a node always draws the same one.
+static func pick_painted(family: String, pos: Vector3) -> Dictionary:
+	var rows := sprites_for_family(family)
+	if rows.is_empty():
+		return {}
+	var pick := int(abs(hash(Vector3i(roundi(pos.x * 10.0), roundi(pos.y * 10.0), roundi(pos.z * 10.0))))) % rows.size()
+	return rows[pick] as Dictionary
+
+## A painted sprite row by manifest id ({} when the manifest has no such id).
+static func sprite(id: String) -> Dictionary:
+	var rows := sprites()
+	for r in rows:
+		if str((r as Dictionary).get("id", "")) == id:
+			return r as Dictionary
+	return {}
+
+## data/world/sprites2d_map.json: family -> sprite/card overrides plus the per-role fallbacks, for
+## families whose art has not been cut yet. Empty is fine; the defaults below then apply.
+static func sprite_map() -> Dictionary:
+	if not _map_loaded:
+		_map_loaded = true
+		if ResourceLoader.exists(SPRITES_MAP_PATH):
+			var f := FileAccess.open(SPRITES_MAP_PATH, FileAccess.READ)
+			if f != null:
+				var parsed: Variant = JSON.parse_string(f.get_as_text())
+				if parsed is Dictionary:
+					_map = parsed
+	return _map
+
+## ASSUMPTION: no resource draws as a 3D model under resource_render "card", so a family whose own
+## painted art has not been cut yet borrows the closest look of the same role (a card where one is
+## baked, else a painted sprite). Overridable per family in data/world/sprites2d_map.json.
+const ROLE_FALLBACK := {
+	"tree": ["card", "tree-common-a"],
+	"tree_dead": ["card", "tree-common-dead"],
+	"bush": ["card", "bush-berries-b-empty"],
+	"rock": ["card", "rock-moss-a"],
+	"plant": ["card", "plant-a"],
+	"ground": ["card", "grass-a"],
+	"crop": ["card", "plant-a"],
+	"water": ["sprite", "jungle-plants_22_white_lily_plant"],
+	"prop": ["card", "plant-a"],
+	"node": ["card", "rock-moss-a"],
+}
+
+## What a node of `family` standing at `pos` should draw under resource_render "card":
+##   {"kind": "painted", "row": <manifest row>}   the owner's painted sprite (deterministic variant)
+##   {"kind": "card", "card": <card2d.json id>}   a BAKED card (family has no painted art)
+##   {"kind": ""}                                   nothing (no art at all)
+## Never a 3D model: buildings do not come through here, so they stay 3D.
+static func visual_for(family: String, pos: Vector3) -> Dictionary:
+	var map := sprite_map()
+	var by_family: Variant = map.get("families", {})
+	var override: Dictionary = {}
+	if by_family is Dictionary and (by_family as Dictionary).get(family) is Dictionary:
+		override = (by_family as Dictionary)[family] as Dictionary
+	var role := family_role(family)
+	# 1. An explicit sprite override, 2. the family's own painted art.
+	var sprite_id := str(override.get("sprite", ""))
+	if sprite_id != "":
+		var row := sprite(sprite_id)
+		if not row.is_empty():
+			return {"kind": "painted", "row": row}
+	if not sprites_for_family(family).is_empty():
+		var picked: Dictionary = pick_painted(family, pos)
+		if not picked.is_empty():
+			return {"kind": "painted", "row": picked}
+	# 3. An explicit baked-card override, 4. the family's own baked card.
+	var card_id := str(override.get("card", ""))
+	if card_id != "" and baked(card_id):
+		return {"kind": "card", "card": card_id}
+	var own := card_for_family(family)
+	# A family whose only card is its depleted look (Bush -> bush-berries-b-empty) keeps it.
+	if own != "" and baked(own):
+		return {"kind": "card", "card": own}
+	# 5. The role's fallback (map overrides first).
+	var roles: Variant = map.get("role_fallback", {})
+	var fb: Variant = (roles as Dictionary).get(role, null) if roles is Dictionary else null
+	if fb is Array and (fb as Array).size() >= 2:
+		var kind := str((fb as Array)[0])
+		var id := str((fb as Array)[1])
+		if kind == "sprite":
+			var frow := sprite(id)
+			if not frow.is_empty():
+				return {"kind": "painted", "row": frow}
+		elif baked(id):
+			return {"kind": "card", "card": id}
+	var def: Variant = ROLE_FALLBACK.get(role, null)
+	if def is Array and (def as Array).size() >= 2:
+		var dkind := str((def as Array)[0])
+		var did := str((def as Array)[1])
+		if dkind == "sprite":
+			var drow := sprite(did)
+			if not drow.is_empty():
+				return {"kind": "painted", "row": drow}
+		elif baked(did):
+			return {"kind": "card", "card": did}
+	return {"kind": ""}
+
+## The manifest pivot pixel as normalized UV (u from the left, v from the top).
+static func sprite_pivot_uv(row: Dictionary) -> Vector2:
+	var px: Variant = row.get("px", [])
+	var pivot: Variant = row.get("pivot", [])
+	if px is Array and pivot is Array and (px as Array).size() >= 2 and (pivot as Array).size() >= 2:
+		var w := maxf(1.0, float(px[0]))
+		var h := maxf(1.0, float(px[1]))
+		return Vector2(clampf(float(pivot[0]) / w, 0.0, 1.0), clampf(float(pivot[1]) / h, 0.0, 1.0))
+	return Vector2(0.5, 1.0)
+
+## The sprite's whole rectangle in metres for `height_m` of visible content (height_m is the sprite's
+## own manifest height_m, i.e. the art's full pixel height): width follows the PNG's aspect.
+static func sprite_world_size(row: Dictionary, height_m: float) -> Vector2:
+	var px: Variant = row.get("px", [])
+	var w := 1.0
+	var h := 1.0
+	if px is Array and (px as Array).size() >= 2:
+		w = maxf(1.0, float(px[0]))
+		h = maxf(1.0, float(px[1]))
+	return Vector2(maxf(0.05, height_m) * w / h, maxf(0.05, height_m))
+
+## The sway kind for a nature family, from its role in the manifest (trees slow and wide, grass fast,
+## rocks still) - the same kinds card2d.json carries.
+static func sway_kind(family: String) -> String:
+	var role := family_role(family)
+	if role.begins_with("tree"):
+		return "tree"
+	if role == "bush":
+		return "bush"
+	if role == "rock":
+		return "rock"
+	if role == "ground":
+		return "grass"
+	return "plant"
+
 ## Builds the card for `card_id`, `height_m` metres of visible content. False when it is not baked.
 func setup(card_id: String, height_m: float = 0.0) -> bool:
 	if not baked(card_id):
@@ -132,16 +375,54 @@ func setup(card_id: String, height_m: float = 0.0) -> bool:
 		if ch > 0.001:
 			sc = height_m / ch
 	var pivot := pivot_uv(card_id)
+	var w := size.x * sc
+	var h := size.y * sc
 	var mat := ShaderMaterial.new()
 	mat.shader = load(SHADER_PATH) as Shader
 	mat.set_shader_parameter("albedo_tex", load(albedo_path(card_id)) as Texture2D)
 	mat.set_shader_parameter("normal_tex", load(normal_path(card_id)) as Texture2D)
+	mat.set_shader_parameter("shading_mode", 0)
+	_apply_sway(mat, params, sc, height_m if height_m > 0.0 else h)
+	set_meta(&"card_id", card_id)
+	return _place(mat, pivot, Vector2(w, h), bool(params.get("cast_shadow", kind == "tree")))
+
+## Builds the card for one painted sprite row (data/world/sprites2d.json), `height_m` metres of the
+## sprite's visible art. The texture is the PNG itself, the size follows the PNG's aspect and the
+## manifest pivot pixel sits on the node's origin. False when the PNG is missing.
+func setup_painted(row: Dictionary, height_m: float, shade_mode: int = SHADE_PAINTED) -> bool:
+	var file := str(row.get("file", ""))
+	if file == "" or not ResourceLoader.exists(file):
+		return false
+	Occlusion._ensure_driver()
+	var tex := load(file) as Texture2D
+	if tex == null:
+		return false
+	var family := str(row.get("kind", ""))
+	var params := kind_params(sway_kind(family))
+	var size := sprite_world_size(row, height_m)
+	var mat := ShaderMaterial.new()
+	mat.shader = load(SHADER_PATH) as Shader
+	mat.set_shader_parameter("albedo_tex", tex)
+	# Painted art has no baked normal: the flat, camera-facing normal is the shading (see the shader).
+	mat.set_shader_parameter("shading_mode", shade_mode)
+	_apply_sway(mat, params, 1.0, size.y)
+	set_meta(&"card_id", str(row.get("id", "")))
+	set_meta(&"sprite", str(row.get("id", "")))
+	return _place(mat, sprite_pivot_uv(row), size, bool(params.get("cast_shadow", false)))
+
+## Sway is in metres of the quad: the amplitude grows with the card's scale (a 10 m palm sways farther
+## than a 1 m fern of the same kind). card_height is the visible art height the parallax measures in.
+func _apply_sway(mat: ShaderMaterial, params: Dictionary, sc: float, card_height: float) -> void:
 	mat.set_shader_parameter("sway_amplitude", float(params.get("amplitude", 0.0)) * sc)
 	mat.set_shader_parameter("sway_speed", float(params.get("speed", 1.0)))
+	mat.set_shader_parameter("card_height", card_height)
+
+## The quad, its material and the ground pivot; shared by both art sources.
+func _place(mat: ShaderMaterial, pivot: Vector2, size: Vector2, cast_shadow: bool) -> bool:
+	# Only a card tall enough to hide the survivor gets the fade body (and its instance uniform).
+	if size.y < Occlusion.TALL_M:
+		mat.shader = fade_free_shader()
 	mat.set_shader_parameter("pivot_uv", pivot)
-	mat.set_shader_parameter("card_height", height_m if height_m > 0.0 else world_size(card_id).y)
-	var w := size.x * sc
-	var h := size.y * sc
 	_pivot = pivot
 	var mi := get_node_or_null("Card") as MeshInstance3D
 	if mi == null:
@@ -150,17 +431,18 @@ func setup(card_id: String, height_m: float = 0.0) -> bool:
 		add_child(mi)
 	var quad := PlaneMesh.new()
 	quad.orientation = PlaneMesh.FACE_Z
-	quad.size = Vector2(w, h)
+	quad.size = size
 	mi.mesh = quad
 	mi.material_override = mat
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(params.get("cast_shadow", kind == "tree")) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if cast_shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Every card is its own mesh (no MultiMesh batching like VegBatch's cells), so far ones must cull:
+	# the same distance rule as the tree discs, never nearer than half a screen of ground.
+	mi.visibility_range_end = IsoCamera.cull_range(maxf(40.0, size.y * 2.0))
 	# PlaneMesh is centred; its offset from the ground point follows the camera's screen axes (see
 	# _face_camera), which runs now and every frame after.
 	_quad = mi
-	_quad_size = Vector2(w, h)
+	_quad_size = size
 	_face_camera(default_basis())
-	_feed_camera()
-	set_meta(&"card_id", card_id)
 	return true
 
 ## The card's basis and offset for camera basis `b` (x = screen right, y = screen up, z = towards
@@ -184,41 +466,8 @@ func _process(_delta: float) -> void:
 	if cam == null:
 		return
 	var b := cam.global_basis.orthonormalized()
-	if _basis_used == null or not _basis_used.is_equal_approx(b):
+	if not _basis_used.is_equal_approx(b):
 		_face_camera(b)
-	# Parallax follows the camera's ground focus as it scrolls.
-	_feed_camera()
-
-## Camera state shared by every card: computed once per frame (the first card that asks), not 150
-## times. The focus is the active camera's own ground point, so the projection and pitch are never
-## assumed here; only the strength is a setting (project.godot [card2d] parallax_strength) until the
-## camera package publishes it as a global shader parameter.
-static var _frame_seen: int = -1
-static var _focus := Vector3.ZERO
-static var _strength := 0.055
-
-## The camera's ground focus: project the view ray forward from the camera until it meets y = 0.
-static func camera_state(cam: Camera3D) -> void:
-	if _frame_seen == Engine.get_process_frames():
-		return
-	_frame_seen = Engine.get_process_frames()
-	_strength = float(ProjectSettings.get_setting("card2d/parallax_strength", 0.006))
-	_focus = Vector3.ZERO
-	if cam == null:
-		return
-	var f := -cam.global_basis.z
-	if absf(f.y) > 0.001:
-		_focus = cam.global_position + f * maxf(0.0, -cam.global_position.y / f.y)
-
-func _feed_camera() -> void:
-	var mi := _quad
-	if mi == null or not (mi.material_override is ShaderMaterial):
-		return
-	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-	camera_state(cam)
-	var mat := mi.material_override as ShaderMaterial
-	mat.set_shader_parameter("camera_focus", _focus)
-	mat.set_shader_parameter("parallax_strength", _strength)
 
 ## Short shiver after a gather (HarvestNode.mark_gathered calls this).
 func rustle(seconds: float = 0.6) -> void:
@@ -226,7 +475,7 @@ func rustle(seconds: float = 0.6) -> void:
 	if mi == null or not (mi.material_override is ShaderMaterial):
 		return
 	var mat := mi.material_override as ShaderMaterial
-	# Rocks do not sway: card2d.json gives them amplitude 0, and they do not shiver either.
+	# Rocks do not sway: the sway kind gives them amplitude 0, and they do not shiver either.
 	if float(mat.get_shader_parameter("sway_amplitude")) <= 0.0:
 		return
 	mat.set_shader_parameter("rustle", 1.0)

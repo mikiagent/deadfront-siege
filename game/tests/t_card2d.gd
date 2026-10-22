@@ -219,8 +219,14 @@ func _test_parallax() -> void:
 	_expect(code.contains("card_height"), "the parallax reads card_height")
 	_expect(code.contains("PARALLAX_MAX_SHARE"), "the parallax is clamped to a share of the card")
 	# Compute the shader's formula here for the two cases the brief names: a 0.5 m card 15 m out,
-	# and an 8 m tree at the same distance, strength from project settings.
-	var strength := float(ProjectSettings.get_setting("card2d/parallax_strength", 0.006))
+	# and an 8 m tree at the same distance, strength from the camera's published global (IsoCamera
+	# writes parallax_strength every frame; the [card2d] project section is gone).
+	# Headless there is no camera publishing the global yet, so the check uses the camera's own value
+	# at the default zoom (gain * sin(pitch) / distance): the same number the shader would receive.
+	var strength: float = CP.global_float(&"parallax_strength")
+	if strength <= 0.0:
+		strength = IsoCamera.PARALLAX_GAIN * sin(deg_to_rad(absf(IsoCamera.pitch_deg()))) / IsoCamera.distance_for(IsoCamera.DEFAULT_SIZE)
+	_expect(strength > 0.0, "the parallax strength is the camera's published lean (%.5f)" % strength)
 	var max_share := 0.15
 	var plant := minf(15.0 * strength * 0.5, max_share * 0.5)
 	var tree := minf(15.0 * strength * 8.0, max_share * 8.0)
@@ -247,9 +253,10 @@ func _test_card_prop_async() -> void:
 
 func _test_islands() -> void:
 	var rules: Dictionary = get_root().get_node("Data").world_rules
-	var keep: Variant = rules.get("resource_render", "model")
-	# Default: "model", and nothing on an island is a card.
+	var keep: Variant = rules.get("resource_render", "card")
+	# SWITCH2D made "card" the default; the old 3D look stays reachable through the rule.
 	var IS: GDScript = load("res://scripts/world/island_scatter.gd")
+	rules["resource_render"] = "model"
 	_expect(not IS.cards_enabled(), "with resource_render=model the card path is off")
 	_expect(await _island_cards(true) == 0, "with resource_render=model a home island draws no cards")
 	# "card": every carded family draws a card, and the nodes still gather through the real path.

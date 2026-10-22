@@ -410,6 +410,12 @@ func _spawn_log() -> void:
 		parent.add_child(log_n)
 	var attrs := yield_attributes.duplicate(true)
 	log_n.setup(StringName("%s_log" % node_id), &"wood_log", 1, 2, attrs, &"none", Color(0.42, 0.28, 0.16), 1.0, 0.0, "WoodLog_Moss", false, 6)
+	# SWITCH2D: under resource_render "card" the felled log is a card too, never a 3D model.
+	if IslandScatter.cards_enabled() and parent is IslandRuntime:
+		var vis: Dictionary = CardProp.visual_for("WoodLog_Moss", global_position)
+		if str(vis.get("kind", "")) != "":
+			IslandScatter._attach_card_visual(parent as IslandRuntime, log_n, vis, "prop", "WoodLog_Moss", global_position)
+			return
 	var path := "res://assets/nature/WoodLog_Moss.glb"
 	if ResourceLoader.exists(path):
 		log_n.set_visual(path)
