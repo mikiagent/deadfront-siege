@@ -16,7 +16,7 @@ const BASE_SLOTS := 100
 
 ## Nothing a worn item adds to the bag.
 static func empty_breakdown() -> Dictionary:
-	return {"def_id": "", "bag_id": "", "level": 0, "base": 0, "pocket": 0, "capacity": 0, "storage": {}, "other": 0, "total": 0}
+	return {"def_id": "", "bag_id": "", "level": 0, "base": 0, "pocket": 0, "pocket_level": 0, "capacity": 0, "storage": {}, "other": 0, "total": 0}
 
 ## The storage an item adds while worn, itemised: {"def_id", "bag_id", "level", "base", "pocket",
 ## "capacity", "storage" (other inherited keys), "other" (type bonus), "total"}.
@@ -61,6 +61,7 @@ static func of_stack(s: ItemStack) -> Dictionary:
 		total += added
 	var pocket_lv := pocket_level(s)
 	if bag_id == &"" or BagDef.can_inherit(bag_id, &"pocket"):
+		out["pocket_level"] = pocket_lv
 		out["pocket"] = pocket_lv * BagDef.slots_per_point("pocket")
 		total += int(out["pocket"])
 	if bag_id != &"":
@@ -107,7 +108,18 @@ static func count(inv: Inventory) -> int:
 
 ## The bag type of an item id ("" for ordinary gear).
 static func bag_id_of(def_id: StringName) -> StringName:
-	return BagDef.id_of(Data.item(def_id) if Data else null)
+	var d: Variant = _item_def(def_id)
+	return BagDef.id_of(d as ItemDef) if d is ItemDef else &""
+
+## The catalog autoload by name: `--script` tests compile before autoload identifiers exist, so the
+## Data singleton cannot be named at compile time here.
+static func _item_def(def_id: StringName) -> Variant:
+	var loop := Engine.get_main_loop()
+	if loop is SceneTree:
+		var data: Node = (loop as SceneTree).get_root().get_node_or_null("Data")
+		if data != null and data.has_method("item"):
+			return data.call("item", def_id)
+	return null
 
 static func is_bag(def_id: StringName) -> bool:
 	return bag_id_of(def_id) != &""

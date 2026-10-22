@@ -10,6 +10,7 @@ var _owner_player: Player
 var _selected: int = -1
 var _storage_opts: Dictionary = {}
 var _food_inspector: FoodInspector
+var _bag_inspector: BagInspect
 
 var _panel: Panel
 var _title: Label
@@ -227,7 +228,7 @@ func _ready() -> void:
 	_equip_btn = _action("EQUIP", _on_equip_pressed)
 	_food1_btn = _action("Food 1", func () -> void: _set_quick(0))
 	_food2_btn = _action("Food 2", func () -> void: _set_quick(1))
-	_inspect_btn = _action("Inspect", _on_inspect_food)
+	_inspect_btn = _action("Inspect", _on_inspect)
 	_eat_btn = _action("Eat", _on_eat_food)
 	_feed_btn = _action("Feed", _on_feed_pet)
 	_place_btn = _action("Place", _on_place_pressed)
@@ -245,6 +246,10 @@ func _ready() -> void:
 		if _owner_player:
 			_owner_player.feed_summoned_pet_slot(idx)
 	)
+	# Spec 31 §9: a bag's inspect panel (level, capacity breakdown, quality, durability, comparison).
+	_bag_inspector = BagInspect.new()
+	_bag_inspector.name = "BagInspector"
+	add_child(_bag_inspector)
 	resized.connect(_layout_safe)
 	_layout_safe()
 	rebuild()
@@ -634,7 +639,10 @@ func _select(index: int) -> void:
 	_store_btn.visible = _can_store_selected()
 	var d := stack.def()
 	var is_food := Food.is_food(stack)
-	_inspect_btn.visible = is_food
+	var is_bag := BagCapacity.is_bag(stack.def_id)
+	_inspect_btn.visible = is_food or is_bag
+	if is_bag and not is_food:
+		_inspect_btn.text = "Inspect bag"
 	_eat_btn.visible = is_food
 	_food1_btn.visible = is_food
 	_food2_btn.visible = is_food
@@ -694,6 +702,26 @@ func _set_quick(i: int) -> void:
 	if st == null or not Food.is_food(st):
 		return
 	inventory.set_quick_food(i, st.def_id)
+
+## Spec 31 §9/§11: one Inspect action opens the right panel; a bag shows its storage breakdown and
+## the capacity change against the worn bag. Ordinary gear/food keeps the food inspector.
+func _on_inspect() -> void:
+	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
+		return
+	var stack := inventory.slots[_selected]
+	if stack != null and BagCapacity.is_bag(stack.def_id):
+		_on_inspect_bag()
+		return
+	_on_inspect_food()
+
+func _on_inspect_bag() -> void:
+	if inventory == null or _selected < 0:
+		return
+	var stack := inventory.slots[_selected]
+	if stack == null or not BagCapacity.is_bag(stack.def_id):
+		return
+	print("[bags] inspect %s\n%s" % [stack.def_id, BagInspect.text_for(stack, inventory)])
+	_bag_inspector.show_stack(stack, _selected, inventory)
 
 func _on_inspect_food() -> void:
 	if inventory == null or _selected < 0:

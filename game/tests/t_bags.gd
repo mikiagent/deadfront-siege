@@ -331,6 +331,7 @@ func _test_header() -> void:
 	root.add_child(ui)
 	ui.bind(inv, null)
 	_expect(ui._cap_label != null and ui._cap_label.text == "0 / 100", "15: the Bag header reads 0 / 100 (%s)" % (ui._cap_label.text if ui._cap_label else "no label"))
+	_expect(ui._bag_inspector != null, "15: the bag screen carries the bag inspect panel")
 	inv.add(IS.make(&"basic_bag", 1, {}, 1))
 	var cap1: int = 100 + BD.base_capacity(&"basic_bag", 1)
 	inv.equip_at(inv.find_first(&"basic_bag"))
@@ -339,6 +340,35 @@ func _test_header() -> void:
 	_expect(ui._cap_label.text == "1 / %d" % cap1, "15: the header's used count follows the bag (%s)" % ui._cap_label.text)
 	inv.unequip(&"accessory1")
 	_expect(ui._cap_label.text == "2 / 100", "15: taking the bag off shrinks the header at once (%s)" % ui._cap_label.text)
+	# 15 + §9: the bag inspect panel shows level, the breakdown and the comparison; tap targets >= 64 px.
+	var spare = IS.make(&"specialized_storage_bag", 1, {"pocket": 2}, 30)
+	inv.add(spare)
+	var s_idx: int = inv.find_first(&"specialized_storage_bag")
+	ui._select(s_idx)
+	_expect(ui._inspect_btn.visible and ui._inspect_btn.text == "Inspect bag", "15: the Inspect action offers the bag panel (%s)" % ui._inspect_btn.text)
+	ui._on_inspect_bag()
+	var bi = ui._bag_inspector
+	_expect(bi != null and bi.visible and bi.shown_bag_id == &"specialized_storage_bag", "15: inspecting a bag opens the bag panel (%s)" % (bi.shown_bag_id if bi else "none"))
+	if bi != null:
+		_expect(str(bi._body.text).contains("Level 30") and str(bi._body.text).contains("Storage Capacity: +%d" % int(bi.shown_breakdown.get("total", 0))), "15: the panel shows level and storage capacity apart (%s)" % bi._body.text.replace("\n", " | "))
+		_expect(str(bi._body.text).contains("Base Capacity: +%d" % int(bi.shown_breakdown.get("base", 0))) and str(bi._body.text).contains("Pocket Lv. 2: +12"), "15: the panel itemises base and Pocket (%s)" % bi._body.text.replace("\n", " | "))
+		_expect(str(bi._body.text).contains("Crafting Quality:") and str(bi._body.text).contains("Durability:"), "15: the panel shows quality and durability (%s)" % bi._body.text.replace("\n", " | "))
+		_expect(bi.shown_change == int(bi.shown_breakdown.get("total", 0)) and str(bi._compare.text).contains("Capacity change: +%d" % bi.shown_change), "15: with no bag worn the comparison reads +%d (%s)" % [bi.shown_change, str(bi._compare.text).replace("\n", " | ")])
+		_expect(bi._compare.visible and bi.shown_min_px >= 64.0, "15: the comparison line shows and Close is a 64 px tap target (%s px)" % bi.shown_min_px)
+		bi.hide_panel()
+	# Now wear a small bag and compare a bigger one against it: the change line and its colour.
+	inv.unequip(&"accessory1")
+	inv.add(IS.make(&"basic_bag", 1, {}, 1))
+	inv.equip_at(inv.find_first(&"basic_bag"), &"accessory1")
+	var cur_total: int = BC.inventory_total(inv).get("bag", 0)
+	ui._select(s_idx)
+	ui._on_inspect_bag()
+	if bi != null and bi.visible:
+		var want_change: int = int(bi.shown_breakdown.get("total", 0)) - cur_total
+		_expect(bi.shown_worn_total == cur_total and bi.shown_change == want_change and want_change > 0, "15: comparison against the worn bag reads %+d (%d vs %d)" % [bi.shown_change, bi.shown_new_total, bi.shown_worn_total])
+		var bi_script: GDScript = load("res://scripts/ui/bag_inspect.gd")
+		_expect(bi._compare.get_theme_color("font_color") == Color(bi_script.UP), "15: an improvement is shown in green (%s)" % bi._compare.get_theme_color("font_color"))
+		bi.hide_panel()
 	ui.queue_free()
 
 ## 16. A bigger bag adds spaces; it never merges individually stored resources.
