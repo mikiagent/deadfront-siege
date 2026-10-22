@@ -354,7 +354,7 @@
         1.0
       ],
       "art_status": "REPLACE",
-      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
+      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
     },
     "wall": {
       "model": "structure",
@@ -370,7 +370,7 @@
         0.228
       ],
       "art_status": "REPLACE",
-      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
+      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
     },
     "wall_doorway": {
       "model": "structure-metal-doorway",
@@ -385,7 +385,7 @@
         0.25
       ],
       "art_status": "REPLACE",
-      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
+      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
     },
     "roof": {
       "model": "structure-roof",
@@ -400,7 +400,7 @@
         1.036
       ],
       "art_status": "REPLACE",
-      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
+      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
     },
     "fishing_stand": {
       "model": "campfire-fishing-stand",
@@ -683,6 +683,231 @@
         1
       ],
       "note": "W2-BUILDFLOW: an unfinished blueprint's site. The blueprint in data/blueprints.json owns the real footprint; this row only reserves it on the build grid until the art pipeline ships site_small_0/1/2."
+    },
+    "makeshift_workbench": {
+      "footprint": [
+        2,
+        1
+      ],
+      "glb": "res://assets/props/blender/makeshift_workbench.glb",
+      "aabb_m": [
+        1.174,
+        0.857,
+        0.631
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (440 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "workbench tier 0: lashed sticks and a flat stone slab; starter recipes"
+    },
+    "basic_workbench": {
+      "footprint": [
+        2,
+        1
+      ],
+      "glb": "res://assets/props/blender/basic_workbench.glb",
+      "aabb_m": [
+        1.858,
+        0.994,
+        0.814
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (448 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "workbench tier 1: rough planks on pillars with strap lashings"
+    },
+    "journeyman_workbench": {
+      "footprint": [
+        2,
+        1
+      ],
+      "glb": "res://assets/props/blender/journeyman_workbench.glb",
+      "aabb_m": [
+        1.8,
+        1.525,
+        1.013
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (728 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "workbench tier 2: trimmed planks, nailed, with a vice and a tool rack"
+    },
+    "expert_workbench": {
+      "footprint": [
+        2,
+        1
+      ],
+      "glb": "res://assets/props/blender/expert_workbench.glb",
+      "aabb_m": [
+        2.0,
+        1.11,
+        0.925
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (868 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "workbench tier 3: processed planks, iron fittings, drawers and glue pots"
+    },
+    "kiln": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/kiln.glb",
+      "aabb_m": [
+        2.097,
+        1.69,
+        1.6
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (696 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "kiln station: clay dome with a firebox mouth and a chimney"
+    },
+    "loom": {
+      "footprint": [
+        2,
+        1
+      ],
+      "glb": "res://assets/props/blender/loom.glb",
+      "aabb_m": [
+        1.718,
+        1.55,
+        0.5
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (460 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "loom station: upright frame loom with warp threads and a partly woven cloth"
+    },
+    "large_loom": {
+      "footprint": [
+        3,
+        2
+      ],
+      "glb": "res://assets/props/blender/large_loom.glb",
+      "aabb_m": [
+        2.526,
+        1.6,
+        1.058
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (684 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "large loom station: wider frame with a weaver's bench and a cloth roll"
+    },
+    "oven": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/oven.glb",
+      "aabb_m": [
+        1.814,
+        1.36,
+        1.434
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (584 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "oven station: stone bread oven with a firebox mouth and a flue"
+    },
+    "large_drying_rack": {
+      "footprint": [
+        3,
+        1
+      ],
+      "glb": "res://assets/props/blender/large_drying_rack.glb",
+      "aabb_m": [
+        2.961,
+        2.032,
+        0.621
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (928 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "large drying rack: two-bay rack on trimmed pillars"
+    },
+    "site_small_0": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/site_small_0.glb",
+      "aabb_m": [
+        2.07,
+        0.56,
+        2.06
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (496 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (2x2), stage 0: staked-out ground with a string outline and a pile of logs and straps"
+    },
+    "site_small_1": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/site_small_1.glb",
+      "aabb_m": [
+        2.07,
+        1.176,
+        2.06
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (704 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (2x2), stage 1: scaffold frame half up, smaller material piles"
+    },
+    "site_small_2": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/site_small_2.glb",
+      "aabb_m": [
+        2.007,
+        2.07,
+        2.005
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (544 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (2x2), stage 2: scaffold at full height with partial plank cladding"
+    },
+    "site_large_0": {
+      "footprint": [
+        3,
+        3
+      ],
+      "glb": "res://assets/props/blender/site_large_0.glb",
+      "aabb_m": [
+        3.07,
+        0.639,
+        3.06
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (544 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (3x3), stage 0: staked-out ground with a string outline and a pile of logs and straps"
+    },
+    "site_large_1": {
+      "footprint": [
+        3,
+        3
+      ],
+      "glb": "res://assets/props/blender/site_large_1.glb",
+      "aabb_m": [
+        3.07,
+        1.426,
+        3.06
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (752 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (3x3), stage 1: scaffold frame half up, smaller material piles"
+    },
+    "site_large_2": {
+      "footprint": [
+        3,
+        3
+      ],
+      "glb": "res://assets/props/blender/site_large_2.glb",
+      "aabb_m": [
+        3.007,
+        2.525,
+        3.005
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (600 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (3x3), stage 2: scaffold at full height with partial plank cladding"
     }
   },
   "tools": {
