@@ -3,16 +3,38 @@
   "display_name": "Unstable Temperate",
   "climate": "temperate",
   "tier": 25,
-  "size_m": 240,
+  "size_m": 368,
   "permanent": false,
   "kind": "unstable",
   "lifetime_seconds": 7200,
   "sail_cost": 5,
-  "harbour": [72.5, 0, 177.5],
+  "harbour": [
+    43.5,
+    0,
+    150.5
+  ],
   "_harbour_note": "Dock arrival point on the coast; see home_grassland.json.",
-  "camp": [0, 0, 12],
-  "crater": [0, 0, -185],
+  "camp": [
+    0,
+    0,
+    12
+  ],
+  "crater": [
+    0,
+    0,
+    -95
+  ],
   "creatures": [
-    {"species": "utahraptor", "count": 1, "pack": false, "at": [18, 0, -172]}
-  ]
+    {
+      "species": "utahraptor",
+      "count": 1,
+      "pack": false,
+      "at": [
+        18,
+        0,
+        -84
+      ]
+    }
+  ],
+  "seed": 2521
 }

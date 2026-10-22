@@ -132,7 +132,8 @@ func _rebuild() -> void:
 		for x in range(_region.position.x, _region.end.x):
 			var tile := Vector2i(x, z)
 			var pos := BuildGrid.tile_centre(tile, runtime)
-			if not runtime.spawn_ok(pos, false):
+			# The dock's approach strip is walkable though it lies on the beach (spawn_ok(false)'s rule).
+			if not runtime.is_dry(pos) and not runtime.on_harbour_approach(pos):
 				_terrain_blocked[tile] = true
 				_astar.set_point_solid(tile, true)
 				continue
@@ -193,11 +194,19 @@ func _apply(tile: Vector2i) -> void:
 		return
 	_astar.set_point_solid(tile, _blocked(tile))
 
+## The walkable grid covers the DRY bounding box (the shaped island is elongated and off-centre;
+## a land_radius circle left 300-1,800 dry tiles outside the grid). Falls back to the radius.
 func _build_region() -> Rect2i:
-	var rad: int = 80
-	if runtime.has_method("land_radius"):
-		rad = int(ceil(float(runtime.land_radius()))) + REBUILD_MARGIN
-	var region := Rect2i(Vector2i(-rad, -rad), Vector2i(rad * 2 + 1, rad * 2 + 1))
+	var region := Rect2i()
+	if runtime.has_method("dry_bbox"):
+		var bb: Rect2i = runtime.dry_bbox()
+		if bb.size.x > 0 and bb.size.y > 0:
+			region = bb.grow(REBUILD_MARGIN)
+	if region.size.x <= 0:
+		var rad: int = 80
+		if runtime.has_method("land_radius"):
+			rad = int(ceil(float(runtime.land_radius()))) + REBUILD_MARGIN
+		region = Rect2i(Vector2i(-rad, -rad), Vector2i(rad * 2 + 1, rad * 2 + 1))
 	if runtime.has_method("harbour_approach_rect"):  # the dock's approach can lie past the land radius
 		region = region.merge(runtime.harbour_approach_rect())
 	return region

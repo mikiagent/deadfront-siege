@@ -245,7 +245,10 @@ static func _family_biomes(family: String, role: String) -> PackedStringArray:
 
 static func _plant_family(rt: IslandRuntime, family: String, role: String, n: int, fallback_id: StringName, tool: StringName, climate: String, tier: int, size: float, rng: RandomNumberGenerator, color: Color) -> int:
 	var placed := 0
-	var half := size * 0.40
+	# Scatter windows: the grid square minus a 15 m sea margin (the shaped island's dry bounding box
+	# is ~0.90 x 0.73 of the square; spawn_ok rejects the water anyway, but a tighter window keeps
+	# the rejection loop from burning its tries in the sea).
+	var half := size * 0.5 - 15.0
 	var tries := 0
 	var palms := family != "PalmTree" and role.begins_with("tree") and not (climate in ["tundra", "volcanic"]) and _models("PalmTree").size() > 0
 	while placed < n and tries < n * 30:
@@ -258,7 +261,8 @@ static func _plant_family(rt: IslandRuntime, family: String, role: String, n: in
 		if Vector2(cx - rt._camp_hint.x, cz - rt._camp_hint.z).length() < 9.0:
 			continue
 		var fam := family
-		if palms and Vector2(cx, cz).length() > rt.land_radius() * 0.70:
+		# Palms grow near the shore: the outer 20 % of the effective radius (not a circle).
+		if palms and rt.rad_at(cx, cz) > rt.land_radius() * 0.78:
 			fam = "PalmTree"
 		# Biome gate: a weighted role is accepted with probability weight (so trees thin out on
 		# savanna and rock piles on rocky ground), and a family with preferred biomes must be inside
@@ -510,93 +514,6 @@ static func _family_regen_seconds(family: String, role: String) -> float:
 		return 240.0
 	return 120.0
 
-## Ground cover (grass, flowers) in 32 m cells, one MultiMesh per cell per model, 120 m range and no
-## shadows, exactly like VegBatch does for trees. Replaces one island-wide MultiMesh culled at 48 m
-## from the origin, which is why anything past ~50 m from the middle had no cover at all (scout 3b).
-## Density comes from props.json scatter.ground_cover; placement retries on water, rock and the camp.
-static func _ground_cover(rt: IslandRuntime, family: String, size: float, rng: RandomNumberGenerator, climate: String) -> void:
-	var clim: Dictionary = Data.world_climates.get(climate, {})
-	var veg: Array = clim.get("vegetation", [])
-	# No grass where the climate has none (the plan's look item 2).
-	if family == "Grass":
-		var has_grass := false
-		for v in veg:
-			if str(v).begins_with("Grass"):
-				has_grass = true
-				break
-		if not has_grass and veg.size() > 0:
-			return
-	var models := _models(family)
-	if models.is_empty():
-		return
-	var gc: Variant = IslandProps.scatter_row("ground_cover", {})
-	var dense: Dictionary = gc as Dictionary if gc is Dictionary else {}
-	var per_ha := float(dense.get("grass_per_ha" if family == "Grass" else "flower_per_ha", 900.0 if family == "Grass" else 90.0))
-	var land_m2 := _land_area_m2(rt)
-	var want := int(round(per_ha * land_m2 / 10000.0))
-	var half := size * 0.47
-	var paths := PackedStringArray()
-	for m in models:
-		var p := _nature_path(str(m))
-		if ResourceLoader.exists(p):
-			paths.append(p)
-	if paths.is_empty():
-		return
-	if rt._foliage_mat == null:
-		rt._foliage_mat = ShaderMaterial.new()
-		rt._foliage_mat.shader = FOLIAGE_SHADER
-	var batches: Array[VegBatch] = []
-	for p in paths:
-		var b := VegBatch.get_for(rt, p)
-		if b == null:
-			continue
-		b.material_override = rt._foliage_mat
-		if not rt._batches.has(b):
-			rt._batches.append(b)
-		batches.append(b)
-	if batches.is_empty():
-		return
-	var tries := 0
-	var placed := 0
-	var max_tries := maxi(want * 2, 200)
-	while placed < want and tries < max_tries:
-		tries += 1
-		var ox := rng.randf_range(-half, half)
-		var oz := rng.randf_range(-half, half)
-		var y := rt.surface_y(ox, oz)
-		if not rt.spawn_ok(Vector3(ox, y, oz), false):
-			continue
-		if IslandTerrain.slope_deg(rt, ox, oz) > 32.0:
-			continue
-		if IslandClaims.is_grass(family) and rt.is_claimed(BuildGrid.tile_of(Vector3(ox, y, oz))):
-			continue  # CLAIMS2: claimed land is bare
-		var t := Transform3D.IDENTITY
-		t.origin = Vector3(ox, y, oz)
-		t.basis = _basis_from_normal(IslandTerrain.normal_at(rt, ox, oz), rng.randf() * TAU)
-		xforms.append(t)
-	if xforms.is_empty():
-		return
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = src_mesh
-	mm.instance_count = xforms.size()
-	for i in xforms.size():
-		mm.set_instance_transform(i, xforms[i])
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	mmi.visibility_range_end = IsoCamera.cull_range(8.0)  # 48 m on the old 40 m camera
-	if family == "Grass" or family == "Flowers":
-		if rt._foliage_mat == null:
-			rt._foliage_mat = ShaderMaterial.new()
-			rt._foliage_mat.shader = FOLIAGE_SHADER
-		mmi.material_override = rt._foliage_mat
-	rt.add_child(mmi)
-	rt.mm_count += 1
-	if IslandClaims.is_grass(family):
-		rt.grass_mm.append(mmi)  # CLAIMS2: a new claim drops the instances inside it
-
-## Ground-cover instances within `r` metres of a world point (the plan's near/far cover check:
-## cover must exist far from the origin, not only around it).
 static func cover_within(rt: IslandRuntime, centre: Vector3, r: float) -> int:
 	if rt == null:
 		return 0
