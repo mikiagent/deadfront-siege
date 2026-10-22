@@ -39,6 +39,14 @@ var _home_buildings_cache: Array = []
 ## island builds them, saved under home.camp_layout.
 var camp_layout: Dictionary = {}
 var _save_acc: float = 0.0
+## Map fog + trail per island (spec 25), keyed by island id. `map_fog` is the current island's.
+## Saved under the save's "map" field; an old save has none and starts with the camp area known.
+var map_fogs: Dictionary = {}
+var map_fog: MapFog = null
+## Set when a save without fog was loaded: the first island built then starts with the camp area
+## revealed, instead of fully grey. A fresh world gets no such gift.
+var _reveal_camp_on_new_fog: bool = false
+var _walk_acc: float = 0.0
 ## True from a fresh start until character creation AND the first island pick have finished. No save
 ## may be written before that: the 60 s autosave did once, on the creation screen, and a reload then
 ## skipped both and loaded a default "Survivor" (playtest 2026-10-21).
@@ -69,6 +77,13 @@ func _process(delta: float) -> void:
 		var p := _player()
 		if p and not p.dead:
 			Objectives.settle(p)
+	# Fog/trail: 4 Hz is a smooth brush at walking speed and costs one small circle test per tick.
+	_walk_acc += delta
+	if _walk_acc >= 0.25:
+		_walk_acc = 0.0
+		var w := _player()
+		if w and not w.dead and runtime and runtime.has_method("surface_y"):
+			note_map_walk(w.global_position)
 	_save_acc += delta
 	if _save_acc >= 60.0:
 		_save_acc = 0.0
@@ -164,6 +179,10 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 		at.y = ir.surface_y(at.x, at.z) + 1.0
 		player.global_position = at
 		_apply_harvested(ir)
+	# An unknown island starts with the camp known (spec 25: your base is on the map), not the
+	# harbour you happened to arrive at.
+	var camp_at: Variant = ir.get("_camp_pos")
+	_ensure_map_fog(ir, camp_at if camp_at is Vector3 and (camp_at as Vector3) != Vector3.ZERO else (player.global_position if player else at))
 	print("[world] island %s nodes=%d creatures=%d terrain=%s" % [
 		id, int(ir.harvest_count), int(ir.creature_count), terrain])
 	island_changed.emit(id)
@@ -349,6 +368,67 @@ func _apply_harvested(ir: Node) -> void:
 	var tiles_v: Variant = harvested.get("__tiles", {})
 	if tiles_v is Dictionary and ir.has_method("apply_harvest_tile_snapshot"):
 		ir.apply_harvest_tile_snapshot(tiles_v as Dictionary)
+
+## The current island's fog, made on first visit (or when the land mask is for a bigger island).
+## An island never seen before starts with the camp area known (spec 25: the camp is your base).
+func _ensure_map_fog(ir: Node3D, camp: Vector3) -> void:
+	var key := str(island_id)
+	var size_m: float = float(ir.get("_size")) if ir and ir.get("_size") != null else 200.0
+	var f: Variant = map_fogs.get(key, null)
+	if f == null or not (f is MapFog) or not (f as MapFog).matches(size_m):
+		f = MapFog.new()
+		(f as MapFog).setup(key, size_m)
+		map_fogs[key] = f
+		if _reveal_camp_on_new_fog and camp != Vector3.ZERO:
+			(f as MapFog).reveal(camp, MapFog.OLD_SAVE_REVEAL_M)
+			_reveal_camp_on_new_fog = false
+	map_fog = f as MapFog
+	map_fog.land_from(ir)
+
+## One step of the fog/trail (called from _process, the HUD minimap and the lab). Cheap enough at
+## 4 Hz: one circle test over a handful of 2 m cells.
+func note_map_walk(pos: Vector3) -> void:
+	if map_fog == null or creation_pending:
+		return
+	map_fog.walk(pos)
+
+func map_map() -> Dictionary:
+	var rows := {}
+	for key in map_fogs:
+		var f: Variant = map_fogs[key]
+		if f is MapFog:
+			rows[str(key)] = (f as MapFog).to_dict()
+	return {"islands": rows}
+
+## Rows come from a user-editable file: keep only plausible islands (<= 1 km, <= 200 kB of fog,
+## trail points inside the world) before building a bitmap from them (SaveSanitizer is out of this
+## task's scope, so the cap lives here where the row is read).
+func load_map_map(row: Dictionary) -> void:
+	map_fogs.clear()
+	map_fog = null
+	var islands: Variant = row.get("islands", {})
+	if not islands is Dictionary:
+		return
+	for key in (islands as Dictionary).keys():
+		var d: Variant = (islands as Dictionary)[key]
+		if not d is Dictionary:
+			continue
+		var f: Dictionary = d as Dictionary
+		var size_v: Variant = f.get("size", 160.0)
+		if not (size_v is int or size_v is float) or not is_finite(float(size_v)) or float(size_v) <= 0.0 or float(size_v) > 1000.0:
+			continue
+		if str(f.get("fog", "")).length() > 200000:
+			continue
+		var clean := {"id": str(f.get("id", key)), "size": float(size_v), "fog": str(f.get("fog", "")), "trail": []}
+		var pts: Variant = f.get("trail", [])
+		if pts is Array:
+			for p in pts:
+				if p is Array and (p as Array).size() >= 2:
+					var a: Variant = (p as Array)[0]
+					var b: Variant = (p as Array)[1]
+					if (a is int or a is float) and (b is int or b is float) and is_finite(float(a)) and is_finite(float(b)) and absf(float(a)) <= 1000.0 and absf(float(b)) <= 1000.0:
+						clean["trail"].append([float(a), float(b)])
+		map_fogs[str(key)] = MapFog.from_dict(clean)
 
 func _clear_runtime() -> void:
 	if runtime and is_instance_valid(runtime):
