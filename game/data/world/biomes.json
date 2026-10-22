@@ -28,7 +28,7 @@
   },
   "forest": {
    "id": 1,
-   "tint": "#5d8c4a",
+   "tint": "#86a86e",
    "mix": {
     "ground": 0.82,
     "dirt": 0.14,
@@ -70,7 +70,7 @@
   },
   "canyon": {
    "id": 3,
-   "tint": "#c9724c",
+   "tint": "#a85636",
    "mix": {
     "ground": 0.3,
     "dirt": 0.2,
@@ -91,7 +91,7 @@
   },
   "basalt": {
    "id": 4,
-   "tint": "#2c2c30",
+   "tint": "#4a4a50",
    "mix": {
     "ground": 0.22,
     "dirt": 0.16,
@@ -112,7 +112,7 @@
   },
   "wetland": {
    "id": 5,
-   "tint": "#6f9c58",
+   "tint": "#8fb877",
    "mix": {
     "ground": 0.62,
     "dirt": 0.3,
@@ -154,7 +154,7 @@
   },
   "rocky": {
    "id": 7,
-   "tint": "#b0aa9c",
+   "tint": "#c4bcae",
    "mix": {
     "ground": 0.24,
     "dirt": 0.14,
@@ -305,7 +305,7 @@
     "beach": 6
    },
    "tints": {
-    "canyon": "#b4603c",
+    "canyon": "#9c4a30",
     "wetland": "#6f9a52"
    }
   }
@@ -552,8 +552,8 @@
     "beach": 14
    },
    "tints": {
-    "savanna": "#dcc27c",
-    "canyon": "#b4603c",
+    "savanna": "#c9a860",
+    "canyon": "#9c4a30",
     "meadow": "#b8a874",
     "wetland": "#7fa06a",
     "rocky": "#9a8a74",
@@ -793,12 +793,12 @@
     "beach": 12
    },
    "tints": {
-    "basalt": "#3a3a3e",
-    "wetland": "#5e7a58",
-    "rocky": "#6a6660",
-    "savanna": "#8a8272",
-    "beach": "#b0aaa0",
-    "meadow": "#6f7a5c"
+    "basalt": "#4c4a50",
+    "wetland": "#7fa374",
+    "rocky": "#9a948c",
+    "savanna": "#a49a88",
+    "beach": "#b8b2a8",
+    "meadow": "#8a9474"
    }
   }
  }

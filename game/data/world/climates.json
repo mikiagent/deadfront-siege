@@ -374,11 +374,11 @@
     ],
     "day_night": true,
     "palette": {
-      "grass": "#b9a46a",
-      "dry": "#c9b07a",
-      "dirt": "#a07a52",
-      "sand": "#e0c48e",
-      "rock": "#9a7a5c"
+      "grass": "#a8925c",
+      "dry": "#b89e68",
+      "dirt": "#8f6c46",
+      "sand": "#d8bc88",
+      "rock": "#8a6c50"
     }
   },
   "swamp": {
@@ -577,11 +577,11 @@
     ],
     "day_night": true,
     "palette": {
-      "grass": "#4a4a3c",
-      "dry": "#5e5648",
-      "dirt": "#3a3330",
-      "sand": "#4c4844",
-      "rock": "#2e2c2c"
+      "grass": "#6f6a52",
+      "dry": "#80785f",
+      "dirt": "#5d534b",
+      "sand": "#6e6963",
+      "rock": "#514e4c"
     }
   }
 }
