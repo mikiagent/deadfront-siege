@@ -22,7 +22,7 @@ static var abort_for_test := false
 const SHAPE := {
 	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0}, "position": []},
 	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
-	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}},
+	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
 	"player_name": "", "occupation": "", "t_stones": 0, "visited_islands": {}, "raid_victory": false,

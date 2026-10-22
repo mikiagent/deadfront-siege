@@ -8,6 +8,11 @@ var islands: Dictionary = {} ## id string -> Dictionary
 var island_id: StringName = &""
 var island_def: Dictionary = {}
 var home_terrain: StringName = &""
+## ISLANDPICK / spec 29 section 4: the five Tamed Island shapes (data/world/island_shapes.json)
+## and the one picked at character creation. "" on a save from before the picker and on a new
+## world until the pick: def_of then builds the stock island (seed 17), so old saves keep theirs.
+var home_shapes: Array = []
+var home_shape: StringName = &""
 var t_stones: int = 20 ## ASSUMPTION: starting T-stones
 var pioneer_level: int = 0
 var pioneer_xp: int = 0
@@ -58,6 +63,7 @@ const CARGO_FEE := 2 ## ASSUMPTION: T-stones to cargo-warp a bag of unstable goo
 
 func _ready() -> void:
 	_load_islands("res://data/islands")
+	_load_shapes()
 	_ensure_fade()
 	call_deferred("_boot")
 
@@ -97,8 +103,58 @@ func is_home() -> bool:
 func is_unstable() -> bool:
 	return str(island_def.get("kind", "")) == "unstable"
 
+## The home island carries the chosen Tamed Island shape: its seed drives the landmass, its
+## display name the island title. Every other island is the catalogue row unchanged.
 func def_of(id: StringName) -> Dictionary:
-	return islands.get(str(id), {}) as Dictionary
+	var d := islands.get(str(id), {}) as Dictionary
+	if str(id) == "home_grassland" and home_shape != &"":
+		var s := shape_def(home_shape)
+		if not s.is_empty():
+			d = d.duplicate(true)
+			d["seed"] = int(s.get("seed", d.get("seed", 17)))
+			d["display_name"] = str(s.get("display_name", d.get("display_name", "Private Island")))
+			d["home_shape"] = str(home_shape)
+	return d
+
+func shape_def(id: StringName) -> Dictionary:
+	for row in home_shapes:
+		if row is Dictionary and str((row as Dictionary).get("id", "")) == str(id):
+			return row as Dictionary
+	return {}
+
+## The shapes in catalogue order; a card each on the pick screen.
+func shape_ids() -> Array[String]:
+	var out: Array[String] = []
+	for row in home_shapes:
+		if row is Dictionary:
+			out.append(str((row as Dictionary).get("id", "")))
+	return out
+
+## Takes the one permanent pick: the home island's terrain row and landmass seed. Returns false
+## once a shape is held - the choice is final (PRD 4.2, "Terrain selection is final").
+func pick_shape(id: StringName) -> bool:
+	if home_shape != &"":
+		return false
+	var s := shape_def(id)
+	if s.is_empty():
+		return false
+	home_shape = id
+	home_terrain = StringName(str(s.get("terrain", id)))
+	return true
+
+func _load_shapes() -> void:
+	home_shapes.clear()
+	var f := FileAccess.open("res://data/world/island_shapes.json", FileAccess.READ)
+	if f == null:
+		push_error("[world] missing data/world/island_shapes.json")
+		return
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	if not parsed is Dictionary:
+		push_error("[world] data/world/island_shapes.json is not an object")
+		return
+	for row in (parsed as Dictionary).get("shapes", []):
+		if row is Dictionary and str((row as Dictionary).get("id", "")) != "":
+			home_shapes.append(row)
 
 func _boot() -> void:
 	if Game.smoke_test:
@@ -135,6 +191,7 @@ func finish_creation() -> void:
 func start_new(host: Node) -> void:
 	creation_pending = true
 	home_terrain = &""
+	home_shape = &""
 	island_id = &"home_grassland"
 	visited_islands.clear()
 	raid_victory = false
@@ -151,7 +208,17 @@ func start_new(host: Node) -> void:
 		if p and p.skills:
 			p.skills.apply_occupation(occ)
 		print("[world] new survivor %s (%s, %s)" % [nm, occ, gender])
-		load_island(host, island_id, Vector3(0, 1, 18), true)
+		# ISLANDPICK: the Tamed Island shape step sits inside character creation's own sheet (the
+		# old free-standing terrain panel would open over it). It hands back the one permanent pick.
+		var ip = (load("res://scripts/ui/island_pick.gd") as GDScript).instance_on(host)
+		ip.picked.connect(func (shape_id: StringName) -> void:
+			if pick_shape(shape_id):
+				print("[world] tamed island shape=%s seed=%d" % [shape_id, int(shape_def(shape_id).get("seed", 17))])
+			load_island(host, island_id, Vector3(0, 1, 18), false)
+			finish_creation()  # creation and the pick are done: saving starts here
+			_save_now()
+		)
+		ip.open()
 	)
 
 func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) -> void:
