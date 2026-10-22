@@ -418,38 +418,6 @@ func setup_painted(row: Dictionary, height_m: float, shade_mode: int = SHADE_PAI
 	set_meta(&"sprite", str(row.get("id", "")))
 	return _place(mat, sprite_pivot_uv(row), size, bool(params.get("cast_shadow", false)))
 
-## PROPS2D: a non-resource prop drawn as its painted card. Same quad, pivot and camera-following as
-## setup_painted, but the sway kind and the tint are the prop layer's: a cliff formation stands still
-## (sway "rock"), and every scenery card carries a slightly darker tint than the same art used as a
-## harvestable resource, so a prop never reads as something to tap (owner: only resources have UI).
-## False when the PNG is missing.
-func setup_prop(row: Dictionary, height_m: float, sway: String, tint: Color) -> bool:
-	var file := str(row.get("file", ""))
-	if file == "" or not ResourceLoader.exists(file):
-		return false
-	Occlusion._ensure_driver()
-	var tex := load(file) as Texture2D
-	if tex == null:
-		return false
-	var params := kind_params(sway)
-	var size := sprite_world_size(row, height_m)
-	var mat := ShaderMaterial.new()
-	mat.shader = load(SHADER_PATH) as Shader
-	mat.set_shader_parameter("albedo_tex", tex)
-	mat.set_shader_parameter("shading_mode", SHADE_PAINTED)
-	mat.set_shader_parameter("tint", tint)
-	_apply_sway(mat, params, 1.0, size.y)
-	set_meta(&"card_id", str(row.get("id", "")))
-	set_meta(&"sprite", str(row.get("id", "")))
-	set_meta(&"prop_shade", sway)
-	return _place(mat, sprite_pivot_uv(row), size, bool(params.get("cast_shadow", false)))
-
-## Recolours a built card (PROPS2D's scenery tint, a biome's dry-season tint).
-func set_tint(c: Color) -> void:
-	var mi := get_node_or_null("Card") as MeshInstance3D
-	if mi != null and mi.material_override is ShaderMaterial:
-		(mi.material_override as ShaderMaterial).set_shader_parameter("tint", c)
-
 ## Sway is in metres of the quad: the amplitude grows with the card's scale (a 10 m palm sways farther
 ## than a 1 m fern of the same kind). card_height is the visible art height the parallax measures in.
 func _apply_sway(mat: ShaderMaterial, params: Dictionary, sc: float, card_height: float) -> void:
