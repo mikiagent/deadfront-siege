@@ -838,6 +838,11 @@ def main():
                 side = os.path.join(p, f + ".import")
                 if os.path.exists(side):
                     os.remove(side)
+        # Godot also leaves a sidecar behind when the PNG itself was deleted by hand or by an
+        # older run of this script; an orphan .import makes the editor import a ghost file.
+        for f in os.listdir(p):
+            if f.endswith(".png.import") and not os.path.exists(os.path.join(p, f[:-len(".import")])):
+                os.remove(os.path.join(p, f))
     os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
     with open(MANIFEST, "w") as f:
         json.dump({"sprites": all_rows}, f, indent=1)
