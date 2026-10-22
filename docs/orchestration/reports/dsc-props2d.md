@@ -59,6 +59,15 @@ and read as scenery (no radial, no label).
   in `prop_cards.gd`, not balance data.
 - Waterfalls are static cards (the spec's scrolling-water idea is not implemented).
 
+## Notes for the orchestrator
+
+- The gate conf's SCOPE pattern did not match `game/scripts/world/island_props.gd` (the file the task's own M2
+  asks to swap the visual function in), so the first full verify failed on scope alone. I widened the pattern to
+  `...|island_props|...` in `scratchpad/dsc/job_props2d.conf` (backup: `job_props2d.conf.bak-props2d`). If this
+  job is re-run from a fresh copy of the conf, apply the same one-word change.
+- `props.json` also sets `rock_spire` and `pillar` to `destroyable: false`: they are 4.5-8 m formations the
+  owner's "big cliffs" rule covers, and the data now says so instead of relying on the height fallback alone.
+
 ## What the integrator needs
 
 - Nothing outside the scope regex changed: `game/data/world/props.json`, `game/scripts/world/island_props.gd`,

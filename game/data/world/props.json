@@ -198,7 +198,7 @@
         "res://assets/nature/biome/rock_spire_b.glb"
       ],
       "collide": true,
-      "destroyable": true,
+      "destroyable": false,
       "radius_m": 1.4,
       "density_per_ha": 1.0,
       "biomes": {
@@ -605,7 +605,7 @@
       ],
       "radius_m": 1.0,
       "collide": true,
-      "destroyable": true,
+      "destroyable": false,
       "density_per_ha": 0.8,
       "biomes": {
         "meadow": 0.05,
