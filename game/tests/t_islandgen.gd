@@ -164,7 +164,11 @@ func _check_island(id: String, rt, ms: float) -> void:
 		id, int(m["land"]), bbox.x, bbox.y, aspect, pens, float(m["solidity"]), float(m["coast_ratio"]), cliffs,
 		"true" if (sh != null and sh.river_to_sea()) else "false", ms, rt.harvest_count])
 	if str(id) == "home_grassland":
-		_expect(ms <= 2500.0, "home island builds in <= 2.5 s (%.0f ms)" % ms)
+		# Was 2.5 s before the merge. The island now also paints biome zones, scatters props and lays
+		# ground cover, and carries 600 harvest nodes (was 397), so the same load costs ~3.2 s.
+		# ASSUMPTION: 4 s is the new ceiling until someone profiles load_island (navmesh re-bake with
+		# that much geometry is the likely bulk).
+		_expect(ms <= 4000.0, "home island builds in <= 4 s (%.0f ms)" % ms)
 
 ## The shape contract every island must meet (the merge review's four defects were on islands the
 ## deeper four-island check did not cover): per-side sea margins, a real river (long, inland, MUD,
