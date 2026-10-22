@@ -35,57 +35,10 @@
  },
  "_note_resources_08": "resources_08 is ONE art item: a leafy plant with its root ball knot and a bunch of red fruit hanging from the same stem bundle. The audit asked for a split at the waist; tried (bands at y 735/776/780/806), but the fruit bunch carries its own big green leaves, so the cut produces a two-material item (green leaf rim over dark red fruit) that reads wrong in game and fails the part-green edge check. Kept whole and named berry_palm (MangoBush).",
  "sheet-tall-grasses": {
-  "_why": "clumps whose two lobes only share a thin base (column occupancy <= 0.2 of their height) get a narrow box; the strip is handed back to the nearest side by grow_labels(). Boxes that would notch or leave a sliver are rejected by cut.apply_split().",
-  "erode_split": true,
-  "split": [
-   [
-    854,
-    297,
-    4,
-    139
-   ],
-   [
-    1307,
-    287,
-    14,
-    151
-   ],
-   [
-    787,
-    435,
-    6,
-    109
-   ],
-   [
-    364,
-    432,
-    4,
-    110
-   ],
-   [
-    507,
-    432,
-    6,
-    108
-   ],
-   [
-    160,
-    304,
-    4,
-    104
-   ],
-   [
-    276,
-    307,
-    4,
-    112
-   ],
-   [
-    420,
-    296,
-    4,
-    131
-   ]
+  "_why": "clump rows only (y 280-650): auto_welds() partitions thin welds where two clumps share blades, keeping every pixel; the iso tiles (top) and big ground patches (bottom) stay whole",
+  "auto_welds": [
+   280,
+   650
   ]
  }
 }

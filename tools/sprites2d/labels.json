@@ -1793,7 +1793,7 @@
     "src_rect": [
      8,
      7,
-     310,
+     320,
      268
     ],
     "name": "fern_cluster",
@@ -1809,9 +1809,9 @@
    {
     "id": "jungle-plants_02_fern_cluster_b",
     "src_rect": [
-     338,
+     328,
      7,
-     322,
+     332,
      270
     ],
     "name": "fern_cluster_b",
@@ -1820,7 +1820,7 @@
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     130,
+     140,
      269
     ]
    },
@@ -1992,7 +1992,7 @@
      704,
      453,
      180,
-     159
+     160
     ],
     "name": "broadleaf_shrub_b",
     "kind": "Plant",
@@ -2000,8 +2000,8 @@
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     117,
-     158
+     121,
+     159
     ]
    },
    {
@@ -2023,21 +2023,21 @@
     ]
    },
    {
-    "id": "jungle-plants_14_red_flower_pair",
+    "id": "jungle-plants_14_item",
     "src_rect": [
-     586,
+     530,
      494,
-     123,
-     118
+     293,
+     341
     ],
-    "name": "red_flower_pair",
-    "kind": "Plant",
-    "height_m": 1.1,
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     38,
-     117
+     154,
+     340
     ]
    },
    {
@@ -2077,25 +2077,7 @@
     ]
    },
    {
-    "id": "jungle-plants_17_broadleaf_shrub_c",
-    "src_rect": [
-     530,
-     624,
-     293,
-     211
-    ],
-    "name": "broadleaf_shrub_c",
-    "kind": "Plant",
-    "height_m": 1.2,
-    "blocks": false,
-    "destroyable": true,
-    "pivot": [
-     154,
-     210
-    ]
-   },
-   {
-    "id": "jungle-plants_18_tall_grass_b",
+    "id": "jungle-plants_17_tall_grass_b",
     "src_rect": [
      971,
      630,
@@ -2113,7 +2095,7 @@
     ]
    },
    {
-    "id": "jungle-plants_19_tall_grass",
+    "id": "jungle-plants_18_tall_grass",
     "src_rect": [
      1156,
      658,
@@ -2131,7 +2113,7 @@
     ]
    },
    {
-    "id": "jungle-plants_20_ivy_mound",
+    "id": "jungle-plants_19_ivy_mound",
     "src_rect": [
      7,
      757,
@@ -2149,7 +2131,7 @@
     ]
    },
    {
-    "id": "jungle-plants_21_aloe_rosette",
+    "id": "jungle-plants_20_aloe_rosette",
     "src_rect": [
      478,
      760,
@@ -2167,7 +2149,7 @@
     ]
    },
    {
-    "id": "jungle-plants_22_bromeliad_red",
+    "id": "jungle-plants_21_bromeliad_red",
     "src_rect": [
      786,
      726,
@@ -2185,7 +2167,7 @@
     ]
    },
    {
-    "id": "jungle-plants_23_log_tangle_roots",
+    "id": "jungle-plants_22_log_tangle_roots",
     "src_rect": [
      366,
      863,
@@ -2203,7 +2185,7 @@
     ]
    },
    {
-    "id": "jungle-plants_24_ivy_on_branch",
+    "id": "jungle-plants_23_ivy_on_branch",
     "src_rect": [
      567,
      833,
@@ -2221,7 +2203,7 @@
     ]
    },
    {
-    "id": "jungle-plants_25_white_lily_plant",
+    "id": "jungle-plants_24_white_lily_plant",
     "src_rect": [
      900,
      856,
@@ -2239,7 +2221,7 @@
     ]
    },
    {
-    "id": "jungle-plants_26_red_flower_shrub",
+    "id": "jungle-plants_25_red_flower_shrub",
     "src_rect": [
      1013,
      861,
@@ -2257,7 +2239,7 @@
     ]
    },
    {
-    "id": "jungle-plants_27_mossy_rock_plant",
+    "id": "jungle-plants_26_mossy_rock_plant",
     "src_rect": [
      1144,
      857,
@@ -2275,7 +2257,7 @@
     ]
    },
    {
-    "id": "jungle-plants_28_log_tangle_ivy",
+    "id": "jungle-plants_27_log_tangle_ivy",
     "src_rect": [
      6,
      898,
@@ -2293,7 +2275,7 @@
     ]
    },
    {
-    "id": "jungle-plants_29_broadleaf_plant_c",
+    "id": "jungle-plants_28_broadleaf_plant_c",
     "src_rect": [
      1153,
      922,
@@ -2311,7 +2293,7 @@
     ]
    },
    {
-    "id": "jungle-plants_30_fern_e",
+    "id": "jungle-plants_29_fern_e",
     "src_rect": [
      957,
      1002,
@@ -2329,7 +2311,7 @@
     ]
    },
    {
-    "id": "jungle-plants_31_fern_f",
+    "id": "jungle-plants_30_fern_f",
     "src_rect": [
      1116,
      998,
@@ -2347,7 +2329,7 @@
     ]
    },
    {
-    "id": "jungle-plants_32_leaf",
+    "id": "jungle-plants_31_leaf",
     "src_rect": [
      11,
      1089,
@@ -2365,7 +2347,7 @@
     ]
    },
    {
-    "id": "jungle-plants_33_leaf_b",
+    "id": "jungle-plants_32_leaf_b",
     "src_rect": [
      158,
      1100,
@@ -2383,7 +2365,7 @@
     ]
    },
    {
-    "id": "jungle-plants_34_leaf_c",
+    "id": "jungle-plants_33_leaf_c",
     "src_rect": [
      252,
      1088,
@@ -2401,7 +2383,7 @@
     ]
    },
    {
-    "id": "jungle-plants_35_frond_small",
+    "id": "jungle-plants_34_frond_small",
     "src_rect": [
      385,
      1089,
@@ -2419,7 +2401,7 @@
     ]
    },
    {
-    "id": "jungle-plants_36_leaf_d",
+    "id": "jungle-plants_35_leaf_d",
     "src_rect": [
      499,
      1100,
@@ -2437,7 +2419,7 @@
     ]
    },
    {
-    "id": "jungle-plants_37_leaf_e",
+    "id": "jungle-plants_36_leaf_e",
     "src_rect": [
      711,
      1101,
@@ -2455,7 +2437,7 @@
     ]
    },
    {
-    "id": "jungle-plants_38_leaf_f",
+    "id": "jungle-plants_37_leaf_f",
     "src_rect": [
      817,
      1089,
@@ -2473,7 +2455,7 @@
     ]
    },
    {
-    "id": "jungle-plants_39_leaf_g",
+    "id": "jungle-plants_38_leaf_g",
     "src_rect": [
      579,
      1122,
@@ -2491,7 +2473,7 @@
     ]
    },
    {
-    "id": "jungle-plants_40_leaf_h",
+    "id": "jungle-plants_39_leaf_h",
     "src_rect": [
      851,
      1117,
@@ -2509,7 +2491,7 @@
     ]
    },
    {
-    "id": "jungle-plants_41_leaf_j",
+    "id": "jungle-plants_40_leaf_j",
     "src_rect": [
      1022,
      1118,
@@ -2527,7 +2509,7 @@
     ]
    },
    {
-    "id": "jungle-plants_42_leaf_leafy",
+    "id": "jungle-plants_41_leaf_leafy",
     "src_rect": [
      1104,
      1119,
@@ -2545,7 +2527,7 @@
     ]
    },
    {
-    "id": "jungle-plants_43_fern_frond",
+    "id": "jungle-plants_42_fern_frond",
     "src_rect": [
      1138,
      1123,
@@ -2563,7 +2545,7 @@
     ]
    },
    {
-    "id": "jungle-plants_44_leaf_k",
+    "id": "jungle-plants_43_leaf_k",
     "src_rect": [
      586,
      1171,
@@ -2581,7 +2563,7 @@
     ]
    },
    {
-    "id": "jungle-plants_45_moss_mound",
+    "id": "jungle-plants_44_moss_mound",
     "src_rect": [
      1204,
      1167,
@@ -2691,21 +2673,21 @@
     ]
    },
    {
-    "id": "jungle-trees_06_palm_pair_leaning",
+    "id": "jungle-trees_06_item",
     "src_rect": [
      19,
-     416,
+     412,
      371,
-     329
+     593
     ],
-    "name": "palm_pair_leaning",
-    "kind": "PalmTree",
-    "height_m": 6.0,
-    "blocks": true,
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
     "destroyable": true,
     "pivot": [
-     92,
-     328
+     98,
+     447
     ]
    },
    {
@@ -2799,25 +2781,7 @@
     ]
    },
    {
-    "id": "jungle-trees_12_vine_draped_tree",
-    "src_rect": [
-     21,
-     749,
-     257,
-     256
-    ],
-    "name": "vine_draped_tree",
-    "kind": "prop:tree_small",
-    "height_m": 8.0,
-    "blocks": true,
-    "destroyable": true,
-    "pivot": [
-     127,
-     255
-    ]
-   },
-   {
-    "id": "jungle-trees_13_tree_fern",
+    "id": "jungle-trees_12_tree_fern",
     "src_rect": [
      267,
      749,
@@ -2835,43 +2799,25 @@
     ]
    },
    {
-    "id": "jungle-trees_14_cycad_tree",
+    "id": "jungle-trees_13_item",
     "src_rect": [
      432,
-     752,
-     178,
-     249
-    ],
-    "name": "cycad_tree",
-    "kind": "prop:cycad",
-    "height_m": 4.5,
-    "blocks": true,
-    "destroyable": true,
-    "pivot": [
-     91,
-     248
-    ]
-   },
-   {
-    "id": "jungle-trees_15_broadleaf_tree",
-    "src_rect": [
-     624,
      749,
-     209,
+     401,
      252
     ],
-    "name": "broadleaf_tree",
-    "kind": "prop:tree_small",
-    "height_m": 5.0,
-    "blocks": true,
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
     "destroyable": true,
     "pivot": [
-     104,
+     194,
      251
     ]
    },
    {
-    "id": "jungle-trees_16_bromeliad_tree",
+    "id": "jungle-trees_14_bromeliad_tree",
     "src_rect": [
      803,
      747,
@@ -2889,43 +2835,25 @@
     ]
    },
    {
-    "id": "jungle-trees_17_fan_palm_understorey",
+    "id": "jungle-trees_15_item",
     "src_rect": [
-     1024,
-     755,
-     166,
-     238
-    ],
-    "name": "fan_palm_understorey",
-    "kind": "prop:fan_palm",
-    "height_m": 4.5,
-    "blocks": true,
-    "destroyable": true,
-    "pivot": [
-     97,
-     237
-    ]
-   },
-   {
-    "id": "jungle-trees_18_vine_draped_tree",
-    "src_rect": [
-     1204,
+     879,
      752,
-     146,
+     471,
      246
     ],
-    "name": "vine_draped_tree",
-    "kind": "prop:tree_small",
-    "height_m": 5.5,
-    "blocks": true,
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
     "destroyable": true,
     "pivot": [
-     64,
-     245
+     370,
+     233
     ]
    },
    {
-    "id": "jungle-trees_19_fan_palm_cluster_understorey",
+    "id": "jungle-trees_16_fan_palm_cluster_understorey",
     "src_rect": [
      1333,
      754,
@@ -2943,43 +2871,7 @@
     ]
    },
    {
-    "id": "jungle-trees_20_tree_fern_b",
-    "src_rect": [
-     879,
-     778,
-     131,
-     215
-    ],
-    "name": "tree_fern_b",
-    "kind": "prop:tree_fern",
-    "height_m": 4.5,
-    "blocks": true,
-    "destroyable": true,
-    "pivot": [
-     78,
-     214
-    ]
-   },
-   {
-    "id": "jungle-trees_21_stem_fragment_d",
-    "src_rect": [
-     1204,
-     819,
-     43,
-     31
-    ],
-    "name": "stem_fragment_d",
-    "kind": "unused",
-    "height_m": 0.7,
-    "blocks": false,
-    "destroyable": true,
-    "pivot": [
-     9,
-     30
-    ]
-   },
-   {
-    "id": "jungle-trees_22_stem_fragment_e",
+    "id": "jungle-trees_17_stem_fragment_e",
     "src_rect": [
      18,
      892,
@@ -2994,24 +2886,6 @@
     "pivot": [
      21,
      59
-    ]
-   },
-   {
-    "id": "jungle-trees_23_stem_fragment_f",
-    "src_rect": [
-     624,
-     885,
-     29,
-     55
-    ],
-    "name": "stem_fragment_f",
-    "kind": "unused",
-    "height_m": 0.6,
-    "blocks": false,
-    "destroyable": true,
-    "pivot": [
-     2,
-     54
     ]
    }
   ],
@@ -4011,29 +3885,47 @@
     ]
    },
    {
-    "id": "tall-grasses_11_grass_clump_a",
+    "id": "tall-grasses_11_item",
     "src_rect": [
      18,
-     306,
-     170,
-     101
+     335,
+     68,
+     64
     ],
-    "name": "grass_clump_a",
-    "kind": "WildGrass",
-    "height_m": 1.2,
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     113,
+     67,
+     63
+    ]
+   },
+   {
+    "id": "tall-grasses_12_item",
+    "src_rect": [
+     86,
+     306,
+     110,
+     101
+    ],
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
+    "destroyable": true,
+    "pivot": [
+     45,
      100
     ]
    },
    {
-    "id": "tall-grasses_12_grass_clump_b",
+    "id": "tall-grasses_13_grass_clump_b",
     "src_rect": [
-     200,
+     198,
      308,
-     120,
+     122,
      110
     ],
     "name": "grass_clump_b",
@@ -4042,12 +3934,12 @@
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     57,
+     59,
      109
     ]
    },
    {
-    "id": "tall-grasses_13_grass_clump_c",
+    "id": "tall-grasses_14_grass_clump_c",
     "src_rect": [
      321,
      297,
@@ -4065,29 +3957,83 @@
     ]
    },
    {
-    "id": "tall-grasses_14_reed_clump_b",
+    "id": "tall-grasses_15_item",
     "src_rect": [
      478,
-     298,
-     568,
-     137
+     302,
+     108,
+     119
     ],
-    "name": "reed_clump_b",
-    "kind": "ReedPlant",
-    "height_m": 1.8,
-    "blocks": true,
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
     "destroyable": true,
     "pivot": [
-     310,
-     107
+     58,
+     118
     ]
    },
    {
-    "id": "tall-grasses_15_grass_clump_d",
+    "id": "tall-grasses_16_item",
     "src_rect": [
-     1056,
+     586,
+     302,
+     117,
+     127
+    ],
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
+    "destroyable": true,
+    "pivot": [
+     58,
+     126
+    ]
+   },
+   {
+    "id": "tall-grasses_17_item",
+    "src_rect": [
+     703,
+     299,
+     146,
+     130
+    ],
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
+    "destroyable": true,
+    "pivot": [
+     135,
+     129
+    ]
+   },
+   {
+    "id": "tall-grasses_18_item",
+    "src_rect": [
+     849,
+     298,
+     223,
+     137
+    ],
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
+    "destroyable": true,
+    "pivot": [
+     21,
+     136
+    ]
+   },
+   {
+    "id": "tall-grasses_19_grass_clump_d",
+    "src_rect": [
+     1050,
      303,
-     177,
+     183,
      120
     ],
     "name": "grass_clump_d",
@@ -4096,30 +4042,48 @@
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     29,
+     35,
      119
     ]
    },
    {
-    "id": "tall-grasses_16_grass_clump_e",
+    "id": "tall-grasses_20_item",
     "src_rect": [
      1223,
      307,
-     206,
-     130
+     92,
+     121
     ],
-    "name": "grass_clump_e",
-    "kind": "WildGrass",
-    "height_m": 1.1,
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     156,
-     129
+     52,
+     120
     ]
    },
    {
-    "id": "tall-grasses_17_grass_patch_small",
+    "id": "tall-grasses_21_item",
+    "src_rect": [
+     1315,
+     326,
+     114,
+     111
+    ],
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
+    "destroyable": true,
+    "pivot": [
+     64,
+     110
+    ]
+   },
+   {
+    "id": "tall-grasses_22_grass_patch_small",
     "src_rect": [
      15,
      419,
@@ -4137,61 +4101,43 @@
     ]
    },
    {
-    "id": "tall-grasses_18_grass_tuft_a",
+    "id": "tall-grasses_23_item",
     "src_rect": [
-     156,
-     420,
      105,
+     420,
+     156,
      105
     ],
-    "name": "grass_tuft_a",
-    "kind": "WildGrass",
-    "height_m": 0.6,
-    "blocks": false,
-    "destroyable": true,
-    "pivot": [
-     50,
-     104
-    ]
-   },
-   {
-    "id": "tall-grasses_19_reed_bed_pond",
-    "src_rect": [
-     1090,
-     424,
-     344,
-     125
-    ],
-    "name": "reed_bed_pond",
-    "kind": "WildGrass",
-    "height_m": 1.0,
-    "blocks": false,
-    "destroyable": true,
-    "pivot": [
-     250,
-     124
-    ]
-   },
-   {
-    "id": "tall-grasses_20_grass_tuft_b",
-    "src_rect": [
-     42,
-     473,
-     100,
-     69
-    ],
-    "name": "grass_tuft_b",
-    "kind": "WildGrass",
+    "name": "item",
+    "kind": "unused",
     "height_m": 0.5,
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     30,
-     68
+     101,
+     104
     ]
    },
    {
-    "id": "tall-grasses_21_grass_clump_g",
+    "id": "tall-grasses_24_item",
+    "src_rect": [
+     1083,
+     424,
+     195,
+     122
+    ],
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
+    "destroyable": true,
+    "pivot": [
+     160,
+     121
+    ]
+   },
+   {
+    "id": "tall-grasses_25_grass_clump_g",
     "src_rect": [
      269,
      433,
@@ -4209,7 +4155,7 @@
     ]
    },
    {
-    "id": "tall-grasses_22_grass_clump_h",
+    "id": "tall-grasses_26_grass_clump_h",
     "src_rect": [
      424,
      432,
@@ -4227,11 +4173,11 @@
     ]
    },
    {
-    "id": "tall-grasses_23_grass_clump_i",
+    "id": "tall-grasses_27_grass_clump_i",
     "src_rect": [
-     576,
+     568,
      436,
-     99,
+     108,
      87
     ],
     "name": "grass_clump_i",
@@ -4240,34 +4186,52 @@
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     44,
+     52,
      86
     ]
    },
    {
-    "id": "tall-grasses_24_grass_tuft_c",
+    "id": "tall-grasses_28_item",
     "src_rect": [
-     683,
-     444,
-     239,
-     97
+     678,
+     451,
+     125,
+     79
     ],
-    "name": "grass_tuft_c",
-    "kind": "WildGrass",
-    "height_m": 0.6,
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     180,
+     65,
+     78
+    ]
+   },
+   {
+    "id": "tall-grasses_29_item",
+    "src_rect": [
+     803,
+     444,
+     135,
+     97
+    ],
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
+    "destroyable": true,
+    "pivot": [
+     60,
      96
     ]
    },
    {
-    "id": "tall-grasses_25_grass_clump_j",
+    "id": "tall-grasses_30_grass_clump_j",
     "src_rect": [
-     936,
+     924,
      438,
-     144,
+     157,
      106
     ],
     "name": "grass_clump_j",
@@ -4276,12 +4240,48 @@
     "blocks": false,
     "destroyable": true,
     "pivot": [
-     61,
+     73,
      105
     ]
    },
    {
-    "id": "tall-grasses_26_reed_strip_b",
+    "id": "tall-grasses_31_item",
+    "src_rect": [
+     1278,
+     440,
+     156,
+     109
+    ],
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
+    "destroyable": true,
+    "pivot": [
+     66,
+     108
+    ]
+   },
+   {
+    "id": "tall-grasses_32_item",
+    "src_rect": [
+     42,
+     488,
+     63,
+     54
+    ],
+    "name": "item",
+    "kind": "unused",
+    "height_m": 0.5,
+    "blocks": false,
+    "destroyable": true,
+    "pivot": [
+     30,
+     53
+    ]
+   },
+   {
+    "id": "tall-grasses_33_reed_strip_b",
     "src_rect": [
      15,
      548,
@@ -4299,7 +4299,7 @@
     ]
    },
    {
-    "id": "tall-grasses_27_reed_strip_c",
+    "id": "tall-grasses_34_reed_strip_c",
     "src_rect": [
      312,
      548,
@@ -4317,7 +4317,7 @@
     ]
    },
    {
-    "id": "tall-grasses_28_reed_strip_d",
+    "id": "tall-grasses_35_reed_strip_d",
     "src_rect": [
      681,
      554,
@@ -4335,7 +4335,7 @@
     ]
    },
    {
-    "id": "tall-grasses_29_grass_strip",
+    "id": "tall-grasses_36_grass_strip",
     "src_rect": [
      958,
      553,
@@ -4353,7 +4353,7 @@
     ]
    },
    {
-    "id": "tall-grasses_30_cattail_patch",
+    "id": "tall-grasses_37_cattail_patch",
     "src_rect": [
      1112,
      541,
@@ -4371,11 +4371,11 @@
     ]
    },
    {
-    "id": "tall-grasses_31_cattail_patch_b",
+    "id": "tall-grasses_38_cattail_patch_b",
     "src_rect": [
-     1346,
+     1332,
      562,
-     90,
+     104,
      69
     ],
     "name": "cattail_patch_b",
@@ -4384,12 +4384,12 @@
     "blocks": true,
     "destroyable": true,
     "pivot": [
-     43,
+     57,
      68
     ]
    },
    {
-    "id": "tall-grasses_32_grass_patch",
+    "id": "tall-grasses_39_grass_patch",
     "src_rect": [
      13,
      631,
@@ -4407,7 +4407,7 @@
     ]
    },
    {
-    "id": "tall-grasses_33_grass_patch_b",
+    "id": "tall-grasses_40_grass_patch_b",
     "src_rect": [
      323,
      642,
@@ -4425,7 +4425,7 @@
     ]
    },
    {
-    "id": "tall-grasses_34_grass_patch_c",
+    "id": "tall-grasses_41_grass_patch_c",
     "src_rect": [
      438,
      635,
@@ -4443,7 +4443,7 @@
     ]
    },
    {
-    "id": "tall-grasses_35_grass_patch_d",
+    "id": "tall-grasses_42_grass_patch_d",
     "src_rect": [
      693,
      654,
@@ -4461,7 +4461,7 @@
     ]
    },
    {
-    "id": "tall-grasses_36_ground_grass_patch",
+    "id": "tall-grasses_43_ground_grass_patch",
     "src_rect": [
      895,
      649,
@@ -4479,7 +4479,7 @@
     ]
    },
    {
-    "id": "tall-grasses_37_grass_patch_e",
+    "id": "tall-grasses_44_grass_patch_e",
     "src_rect": [
      1034,
      639,
@@ -4497,7 +4497,7 @@
     ]
    },
    {
-    "id": "tall-grasses_38_grass_patch_f",
+    "id": "tall-grasses_45_grass_patch_f",
     "src_rect": [
      1166,
      640,
@@ -4515,7 +4515,7 @@
     ]
    },
    {
-    "id": "tall-grasses_39_ground_patch_large",
+    "id": "tall-grasses_46_ground_patch_large",
     "src_rect": [
      16,
      754,

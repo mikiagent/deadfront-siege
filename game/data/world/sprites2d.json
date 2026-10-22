@@ -2482,11 +2482,11 @@
    "src_rect": [
     8,
     7,
-    322,
+    320,
     268
    ],
    "px": [
-    322,
+    320,
     268
    ],
    "pivot": [
@@ -2505,17 +2505,17 @@
    "sheet": "sheet-jungle-plants",
    "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_02_fern_cluster_b.png",
    "src_rect": [
-    327,
+    328,
     7,
-    333,
+    332,
     270
    ],
    "px": [
-    333,
+    332,
     270
    ],
    "pivot": [
-    145,
+    144,
     270
    ],
    "scale": 1.0,
@@ -2801,27 +2801,27 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_14_red_flower_pair",
+   "id": "jungle-plants_14_item",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_14_red_flower_pair.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_14_item.png",
    "src_rect": [
-    586,
+    530,
     494,
-    123,
-    126
+    293,
+    341
    ],
    "px": [
-    123,
-    126
+    293,
+    341
    ],
    "pivot": [
-    32,
-    126
+    138,
+    341
    ],
    "scale": 1.0,
-   "name": "red_flower_pair",
-   "kind": "Plant",
-   "height_m": 1.1,
+   "name": "item",
+   "kind": "unused",
+   "height_m": 0.5,
    "blocks": false,
    "destroyable": true
   },
@@ -2851,34 +2851,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_16_broadleaf_shrub_c",
+   "id": "jungle-plants_16_fan_palm_cluster",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_16_broadleaf_shrub_c.png",
-   "src_rect": [
-    530,
-    614,
-    293,
-    221
-   ],
-   "px": [
-    293,
-    221
-   ],
-   "pivot": [
-    137,
-    221
-   ],
-   "scale": 1.0,
-   "name": "broadleaf_shrub_c",
-   "kind": "Plant",
-   "height_m": 1.2,
-   "blocks": false,
-   "destroyable": true
-  },
-  {
-   "id": "jungle-plants_17_fan_palm_cluster",
-   "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_17_fan_palm_cluster.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_16_fan_palm_cluster.png",
    "src_rect": [
     280,
     630,
@@ -2901,9 +2876,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_18_tall_grass_b",
+   "id": "jungle-plants_17_tall_grass_b",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_18_tall_grass_b.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_17_tall_grass_b.png",
    "src_rect": [
     971,
     630,
@@ -2926,9 +2901,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_19_tall_grass",
+   "id": "jungle-plants_18_tall_grass",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_19_tall_grass.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_18_tall_grass.png",
    "src_rect": [
     1156,
     658,
@@ -2951,9 +2926,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_20_ivy_mound",
+   "id": "jungle-plants_19_ivy_mound",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_20_ivy_mound.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_19_ivy_mound.png",
    "src_rect": [
     7,
     757,
@@ -2976,9 +2951,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_21_aloe_rosette",
+   "id": "jungle-plants_20_aloe_rosette",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_21_aloe_rosette.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_20_aloe_rosette.png",
    "src_rect": [
     478,
     760,
@@ -3001,9 +2976,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_22_bromeliad_red",
+   "id": "jungle-plants_21_bromeliad_red",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_22_bromeliad_red.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_21_bromeliad_red.png",
    "src_rect": [
     786,
     726,
@@ -3026,9 +3001,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_23_log_tangle_roots",
+   "id": "jungle-plants_22_log_tangle_roots",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_23_log_tangle_roots.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_22_log_tangle_roots.png",
    "src_rect": [
     366,
     863,
@@ -3051,9 +3026,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_24_ivy_on_branch",
+   "id": "jungle-plants_23_ivy_on_branch",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_24_ivy_on_branch.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_23_ivy_on_branch.png",
    "src_rect": [
     567,
     833,
@@ -3076,9 +3051,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_25_white_lily_plant",
+   "id": "jungle-plants_24_white_lily_plant",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_25_white_lily_plant.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_24_white_lily_plant.png",
    "src_rect": [
     900,
     856,
@@ -3101,9 +3076,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_26_red_flower_shrub",
+   "id": "jungle-plants_25_red_flower_shrub",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_26_red_flower_shrub.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_25_red_flower_shrub.png",
    "src_rect": [
     1013,
     861,
@@ -3126,9 +3101,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_27_mossy_rock_plant",
+   "id": "jungle-plants_26_mossy_rock_plant",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_27_mossy_rock_plant.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_26_mossy_rock_plant.png",
    "src_rect": [
     1144,
     857,
@@ -3151,9 +3126,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_28_log_tangle_ivy",
+   "id": "jungle-plants_27_log_tangle_ivy",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_28_log_tangle_ivy.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_27_log_tangle_ivy.png",
    "src_rect": [
     6,
     898,
@@ -3176,9 +3151,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_29_broadleaf_plant_c",
+   "id": "jungle-plants_28_broadleaf_plant_c",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_29_broadleaf_plant_c.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_28_broadleaf_plant_c.png",
    "src_rect": [
     1153,
     922,
@@ -3201,9 +3176,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_30_fern_e",
+   "id": "jungle-plants_29_fern_e",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_30_fern_e.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_29_fern_e.png",
    "src_rect": [
     957,
     1002,
@@ -3226,9 +3201,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_31_fern_f",
+   "id": "jungle-plants_30_fern_f",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_31_fern_f.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_30_fern_f.png",
    "src_rect": [
     1116,
     998,
@@ -3251,9 +3226,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_32_leaf",
+   "id": "jungle-plants_31_leaf",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_32_leaf.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_31_leaf.png",
    "src_rect": [
     11,
     1089,
@@ -3276,9 +3251,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_33_leaf_b",
+   "id": "jungle-plants_32_leaf_b",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_33_leaf_b.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_32_leaf_b.png",
    "src_rect": [
     158,
     1100,
@@ -3301,9 +3276,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_34_leaf_c",
+   "id": "jungle-plants_33_leaf_c",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_34_leaf_c.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_33_leaf_c.png",
    "src_rect": [
     252,
     1088,
@@ -3326,9 +3301,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_35_frond_small",
+   "id": "jungle-plants_34_frond_small",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_35_frond_small.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_34_frond_small.png",
    "src_rect": [
     385,
     1089,
@@ -3351,9 +3326,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_36_leaf_d",
+   "id": "jungle-plants_35_leaf_d",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_36_leaf_d.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_35_leaf_d.png",
    "src_rect": [
     499,
     1100,
@@ -3376,9 +3351,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_37_leaf_e",
+   "id": "jungle-plants_36_leaf_e",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_37_leaf_e.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_36_leaf_e.png",
    "src_rect": [
     711,
     1101,
@@ -3401,9 +3376,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_38_leaf_f",
+   "id": "jungle-plants_37_leaf_f",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_38_leaf_f.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_37_leaf_f.png",
    "src_rect": [
     817,
     1089,
@@ -3426,9 +3401,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_39_leaf_g",
+   "id": "jungle-plants_38_leaf_g",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_39_leaf_g.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_38_leaf_g.png",
    "src_rect": [
     579,
     1122,
@@ -3451,9 +3426,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_40_leaf_h",
+   "id": "jungle-plants_39_leaf_h",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_40_leaf_h.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_39_leaf_h.png",
    "src_rect": [
     851,
     1117,
@@ -3476,9 +3451,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_41_leaf_j",
+   "id": "jungle-plants_40_leaf_j",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_41_leaf_j.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_40_leaf_j.png",
    "src_rect": [
     1022,
     1118,
@@ -3501,9 +3476,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_42_leaf_leafy",
+   "id": "jungle-plants_41_leaf_leafy",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_42_leaf_leafy.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_41_leaf_leafy.png",
    "src_rect": [
     1104,
     1119,
@@ -3526,9 +3501,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_43_fern_frond",
+   "id": "jungle-plants_42_fern_frond",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_43_fern_frond.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_42_fern_frond.png",
    "src_rect": [
     1138,
     1123,
@@ -3551,9 +3526,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_44_leaf_k",
+   "id": "jungle-plants_43_leaf_k",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_44_leaf_k.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_43_leaf_k.png",
    "src_rect": [
     586,
     1171,
@@ -3576,9 +3551,9 @@
    "destroyable": true
   },
   {
-   "id": "jungle-plants_45_moss_mound",
+   "id": "jungle-plants_44_moss_mound",
    "sheet": "sheet-jungle-plants",
-   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_45_moss_mound.png",
+   "file": "res://assets/nature/sprites2d/sheet-jungle-plants/jungle-plants_44_moss_mound.png",
    "src_rect": [
     1204,
     1167,
@@ -5401,27 +5376,27 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_11_grass_clump_a",
+   "id": "tall-grasses_11_item",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_11_grass_clump_a.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_11_item.png",
    "src_rect": [
     18,
-    306,
-    144,
-    101
+    335,
+    68,
+    64
    ],
    "px": [
-    144,
-    101
+    68,
+    64
    ],
    "pivot": [
-    114,
-    101
+    67,
+    64
    ],
    "scale": 1.0,
-   "name": "grass_clump_a",
-   "kind": "WildGrass",
-   "height_m": 1.2,
+   "name": "item",
+   "kind": "unused",
+   "height_m": 0.5,
    "blocks": false,
    "destroyable": true
   },
@@ -5430,18 +5405,18 @@
    "sheet": "sheet-tall-grasses",
    "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_12_item.png",
    "src_rect": [
-    162,
-    319,
-    34,
-    84
+    86,
+    306,
+    110,
+    101
    ],
    "px": [
-    34,
-    84
+    110,
+    101
    ],
    "pivot": [
-    10,
-    84
+    49,
+    101
    ],
    "scale": 1.0,
    "name": "item",
@@ -5451,52 +5426,52 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_13_item",
+   "id": "tall-grasses_13_grass_clump_b",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_13_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_13_grass_clump_b.png",
    "src_rect": [
     198,
     308,
-    82,
+    122,
     110
    ],
    "px": [
-    82,
+    122,
     110
    ],
    "pivot": [
-    55,
+    59,
     110
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "grass_clump_b",
+   "kind": "WildGrass",
+   "height_m": 1.4,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "tall-grasses_14_item",
+   "id": "tall-grasses_14_grass_clump_c",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_14_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_14_grass_clump_c.png",
    "src_rect": [
-    278,
-    320,
-    42,
-    94
+    321,
+    297,
+    148,
+    128
    ],
    "px": [
-    42,
-    94
+    148,
+    128
    ],
    "pivot": [
-    10,
-    94
+    68,
+    128
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "grass_clump_c",
+   "kind": "WildGrass",
+   "height_m": 1.3,
    "blocks": false,
    "destroyable": true
   },
@@ -5505,18 +5480,18 @@
    "sheet": "sheet-tall-grasses",
    "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_15_item.png",
    "src_rect": [
-    321,
-    297,
-    102,
-    128
+    478,
+    302,
+    108,
+    119
    ],
    "px": [
-    102,
-    128
+    108,
+    119
    ],
    "pivot": [
     64,
-    128
+    119
    ],
    "scale": 1.0,
    "name": "item",
@@ -5530,18 +5505,18 @@
    "sheet": "sheet-tall-grasses",
    "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_16_item.png",
    "src_rect": [
-    422,
-    308,
-    47,
-    112
+    586,
+    302,
+    117,
+    127
    ],
    "px": [
-    47,
-    112
+    117,
+    127
    ],
    "pivot": [
-    12,
-    112
+    57,
+    127
    ],
    "scale": 1.0,
    "name": "item",
@@ -5555,18 +5530,18 @@
    "sheet": "sheet-tall-grasses",
    "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_17_item.png",
    "src_rect": [
-    478,
+    703,
     299,
-    378,
-    131
+    146,
+    130
    ],
    "px": [
-    378,
-    131
+    146,
+    130
    ],
    "pivot": [
-    210,
-    131
+    69,
+    130
    ],
    "scale": 1.0,
    "name": "item",
@@ -5580,17 +5555,17 @@
    "sheet": "sheet-tall-grasses",
    "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_18_item.png",
    "src_rect": [
-    856,
+    849,
     298,
-    216,
+    223,
     137
    ],
    "px": [
-    216,
+    223,
     137
    ],
    "pivot": [
-    55,
+    58,
     137
    ],
    "scale": 1.0,
@@ -5632,15 +5607,15 @@
    "src_rect": [
     1223,
     307,
-    93,
+    92,
     121
    ],
    "px": [
-    93,
+    92,
     121
    ],
    "pivot": [
-    49,
+    50,
     121
    ],
    "scale": 1.0,
@@ -5655,17 +5630,17 @@
    "sheet": "sheet-tall-grasses",
    "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_21_item.png",
    "src_rect": [
-    1311,
+    1315,
     326,
-    118,
+    114,
     111
    ],
    "px": [
-    118,
+    114,
     111
    ],
    "pivot": [
-    64,
+    60,
     111
    ],
    "scale": 1.0,
@@ -5705,17 +5680,42 @@
    "sheet": "sheet-tall-grasses",
    "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_23_item.png",
    "src_rect": [
-    42,
+    105,
     420,
-    219,
+    156,
+    105
+   ],
+   "px": [
+    156,
+    105
+   ],
+   "pivot": [
+    92,
+    105
+   ],
+   "scale": 1.0,
+   "name": "item",
+   "kind": "unused",
+   "height_m": 0.5,
+   "blocks": false,
+   "destroyable": true
+  },
+  {
+   "id": "tall-grasses_24_item",
+   "sheet": "sheet-tall-grasses",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_24_item.png",
+   "src_rect": [
+    1083,
+    424,
+    195,
     122
    ],
    "px": [
-    219,
+    195,
     122
    ],
    "pivot": [
-    28,
+    161,
     122
    ],
    "scale": 1.0,
@@ -5726,42 +5726,17 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_24_reed_bed_pond",
+   "id": "tall-grasses_25_grass_clump_g",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_24_reed_bed_pond.png",
-   "src_rect": [
-    1083,
-    424,
-    351,
-    125
-   ],
-   "px": [
-    351,
-    125
-   ],
-   "pivot": [
-    231,
-    125
-   ],
-   "scale": 1.0,
-   "name": "reed_bed_pond",
-   "kind": "WildGrass",
-   "height_m": 1.0,
-   "blocks": false,
-   "destroyable": true
-  },
-  {
-   "id": "tall-grasses_25_item",
-   "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_25_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_25_grass_clump_g.png",
    "src_rect": [
     269,
     433,
-    98,
+    150,
     108
    ],
    "px": [
-    98,
+    150,
     108
    ],
    "pivot": [
@@ -5769,41 +5744,16 @@
     108
    ],
    "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
+   "name": "grass_clump_g",
+   "kind": "WildGrass",
+   "height_m": 1.2,
    "blocks": false,
    "destroyable": true
   },
   {
-   "id": "tall-grasses_26_item",
+   "id": "tall-grasses_26_grass_clump_h",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_26_item.png",
-   "src_rect": [
-    366,
-    442,
-    53,
-    79
-   ],
-   "px": [
-    53,
-    79
-   ],
-   "pivot": [
-    16,
-    79
-   ],
-   "scale": 1.0,
-   "name": "item",
-   "kind": "unused",
-   "height_m": 0.5,
-   "blocks": false,
-   "destroyable": true
-  },
-  {
-   "id": "tall-grasses_27_grass_clump_h",
-   "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_27_grass_clump_h.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_26_grass_clump_h.png",
    "src_rect": [
     424,
     432,
@@ -5826,9 +5776,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_28_grass_clump_i",
+   "id": "tall-grasses_27_grass_clump_i",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_28_grass_clump_i.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_27_grass_clump_i.png",
    "src_rect": [
     568,
     436,
@@ -5851,17 +5801,17 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_29_item",
+   "id": "tall-grasses_28_item",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_29_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_28_item.png",
    "src_rect": [
     678,
     451,
-    114,
+    125,
     79
    ],
    "px": [
-    114,
+    125,
     79
    ],
    "pivot": [
@@ -5876,21 +5826,21 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_30_item",
+   "id": "tall-grasses_29_item",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_30_item.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_29_item.png",
    "src_rect": [
-    790,
+    803,
     444,
-    148,
+    135,
     97
    ],
    "px": [
-    148,
+    135,
     97
    ],
    "pivot": [
-    75,
+    62,
     97
    ],
    "scale": 1.0,
@@ -5901,9 +5851,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_31_grass_clump_j",
+   "id": "tall-grasses_30_grass_clump_j",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_31_grass_clump_j.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_30_grass_clump_j.png",
    "src_rect": [
     924,
     438,
@@ -5926,9 +5876,59 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_32_reed_strip_b",
+   "id": "tall-grasses_31_item",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_32_reed_strip_b.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_31_item.png",
+   "src_rect": [
+    1278,
+    440,
+    156,
+    109
+   ],
+   "px": [
+    156,
+    109
+   ],
+   "pivot": [
+    61,
+    109
+   ],
+   "scale": 1.0,
+   "name": "item",
+   "kind": "unused",
+   "height_m": 0.5,
+   "blocks": false,
+   "destroyable": true
+  },
+  {
+   "id": "tall-grasses_32_item",
+   "sheet": "sheet-tall-grasses",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_32_item.png",
+   "src_rect": [
+    42,
+    488,
+    63,
+    54
+   ],
+   "px": [
+    63,
+    54
+   ],
+   "pivot": [
+    30,
+    54
+   ],
+   "scale": 1.0,
+   "name": "item",
+   "kind": "unused",
+   "height_m": 0.5,
+   "blocks": false,
+   "destroyable": true
+  },
+  {
+   "id": "tall-grasses_33_reed_strip_b",
+   "sheet": "sheet-tall-grasses",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_33_reed_strip_b.png",
    "src_rect": [
     15,
     548,
@@ -5951,9 +5951,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_33_reed_strip_c",
+   "id": "tall-grasses_34_reed_strip_c",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_33_reed_strip_c.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_34_reed_strip_c.png",
    "src_rect": [
     312,
     548,
@@ -5976,9 +5976,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_34_reed_strip_d",
+   "id": "tall-grasses_35_reed_strip_d",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_34_reed_strip_d.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_35_reed_strip_d.png",
    "src_rect": [
     681,
     554,
@@ -6001,9 +6001,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_35_grass_strip",
+   "id": "tall-grasses_36_grass_strip",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_35_grass_strip.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_36_grass_strip.png",
    "src_rect": [
     958,
     553,
@@ -6026,9 +6026,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_36_cattail_patch",
+   "id": "tall-grasses_37_cattail_patch",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_36_cattail_patch.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_37_cattail_patch.png",
    "src_rect": [
     1112,
     541,
@@ -6051,9 +6051,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_37_cattail_patch_b",
+   "id": "tall-grasses_38_cattail_patch_b",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_37_cattail_patch_b.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_38_cattail_patch_b.png",
    "src_rect": [
     1332,
     562,
@@ -6076,9 +6076,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_38_grass_patch",
+   "id": "tall-grasses_39_grass_patch",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_38_grass_patch.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_39_grass_patch.png",
    "src_rect": [
     13,
     631,
@@ -6101,9 +6101,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_39_grass_patch_b",
+   "id": "tall-grasses_40_grass_patch_b",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_39_grass_patch_b.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_40_grass_patch_b.png",
    "src_rect": [
     323,
     642,
@@ -6126,9 +6126,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_40_grass_patch_c",
+   "id": "tall-grasses_41_grass_patch_c",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_40_grass_patch_c.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_41_grass_patch_c.png",
    "src_rect": [
     438,
     635,
@@ -6151,9 +6151,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_41_grass_patch_d",
+   "id": "tall-grasses_42_grass_patch_d",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_41_grass_patch_d.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_42_grass_patch_d.png",
    "src_rect": [
     693,
     654,
@@ -6176,9 +6176,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_42_ground_grass_patch",
+   "id": "tall-grasses_43_ground_grass_patch",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_42_ground_grass_patch.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_43_ground_grass_patch.png",
    "src_rect": [
     895,
     649,
@@ -6201,9 +6201,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_43_grass_patch_e",
+   "id": "tall-grasses_44_grass_patch_e",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_43_grass_patch_e.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_44_grass_patch_e.png",
    "src_rect": [
     1034,
     639,
@@ -6226,9 +6226,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_44_grass_patch_f",
+   "id": "tall-grasses_45_grass_patch_f",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_44_grass_patch_f.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_45_grass_patch_f.png",
    "src_rect": [
     1166,
     640,
@@ -6251,9 +6251,9 @@
    "destroyable": true
   },
   {
-   "id": "tall-grasses_45_ground_patch_large",
+   "id": "tall-grasses_46_ground_patch_large",
    "sheet": "sheet-tall-grasses",
-   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_45_ground_patch_large.png",
+   "file": "res://assets/nature/sprites2d/sheet-tall-grasses/tall-grasses_46_ground_patch_large.png",
    "src_rect": [
     16,
     754,
