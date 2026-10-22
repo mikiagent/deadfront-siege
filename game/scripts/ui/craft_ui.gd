@@ -625,7 +625,7 @@ static func _bag_preview_text(prev: Dictionary) -> String:
 		if k == "pocket":
 			continue
 		lines.append("%s inherited: %s" % [k.capitalize(), str(inherited[key])])
-	lines.append("Pocket Lv. %d: +%d" % [int(prev.get("pocket_level", 0)), int(prev.get("pocket", 0))])
+	lines.append("Pocket %s: +%d" % [LevelDisplay.label(int(prev.get("pocket_level", 0))), int(prev.get("pocket", 0))])
 	if int(prev.get("capacity", 0)) > 0:
 		lines.append("Capacity attribute: +%d" % int(prev.get("capacity", 0)))
 	if int(prev.get("other", 0)) > 0:
