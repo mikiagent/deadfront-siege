@@ -367,7 +367,13 @@ func _finish_one() -> void:
 		player.notice("Craft stopped: its materials left the bag.")
 		_clear_session()
 		return
-	if not Crafting.output_fits(player.inventory, rec, _picks, _burnt, player):
+	# Spec 04 / plan 3.3: the craft's outcome is rolled once, when the work is done. A failed craft
+	# spends the picked instances and makes nothing (spec 25 §8), so it needs no bag room.
+	var outcome := Crafting.roll_outcome(rec, player, player.inventory.slots[_picks[Crafting.primary_index(rec)]], rng)
+	outcome["burnt"] = _burnt
+	var out: ItemStack = null
+	var overflow: Array[ItemStack] = []
+	if bool(outcome.get("success", true)) and not Crafting.output_fits(player.inventory, rec, _picks, _burnt, player):
 		if not _told_full:
 			_told_full = true
 			player.notice("Bag is full: make room to finish the %s." % str(rec.get("display_name", recipe_id)))
@@ -375,9 +381,7 @@ func _finish_one() -> void:
 		return
 	_full_wait = 0.0
 	_told_full = false
-	var consumed := Crafting.consume_for_craft(player.inventory, rec, _picks)
-	var overflow: Array[ItemStack] = []
-	var out := Crafting.finish_craft(player, rec, consumed, _burnt, overflow)
+	out = Crafting.commit_outcome(player, rec, _picks, outcome, rng, overflow)
 	if not overflow.is_empty():
 		# output_fits runs first, so this should be unreachable; if it is ever hit, the units are
 		# held here and retried every tick instead of being dropped silently.

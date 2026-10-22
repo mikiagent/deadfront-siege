@@ -69,6 +69,18 @@
   "gathering_downrank": "node level above Gathering skill level is reduced to the skill level",
   "crafted_level": "floor(mean of consumed material levels), clamped by governing skill level and recipe max_level",
   "rare_attribute_chance": 0.05,
+  "crafting": {
+    "_about": "Spec 04 'Crafting skill vs crafting ability' and plan 3.3 'Crafting'. success = clamp(1-(shortfall/100)^2, 0, 1), shortfall = max(0, required_ability - crafting_ability) (0 -> 100 %, 50 -> 75 %, 80 -> 36 %, 100 -> 0 %). CRAFTFEEL note: a recipe without required_ability needs only its min_level (the category-level gate), so today's recipes stay at 100 % (the skewer of spec 25 8 is 100 %); a recipe that declares required_ability can fall short and fail. A failed craft spends the picked instances and yields nothing (spec 25 8 'if crafting fails, materials disappear'). Flawless is a separate roll on a successful craft (spec 04; its 5 % is plan 3.3's value).",
+    "success_curve_scale": 100.0,
+    "flawless_chance": 0.05,
+    "flawless_stat_bonus": 0.1,
+    "flawless_level_bonus": 1,
+    "_flawless": "A flawless craft keeps its level (a preview must equal the result) and gains stat_bonus: durability x1.1, attributes.quality 'flawless', flags.flawless. flawless_level_bonus only applies to a recipe that sets flawless_level: true.",
+    "rare_attributes": [
+      "black_sheen", "low_vibration", "wide_serration", "narrow_hook", "split_easily", "vivid_inspiration"
+    ],
+    "ability_food_stat": "craft_ability"
+  },
   "unstable_flag": "all materials from unstable islands until cargo-warped",
   "craters": {
     "discover_fatigue": -20,

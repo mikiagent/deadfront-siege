@@ -1173,12 +1173,21 @@
         {
           "category": "raw_meat",
           "count": 1,
-          "primary": true
+          "primary": true,
+          "role": "food",
+          "label": "Food"
         },
         {
           "category": "handle",
           "count": 1,
-          "primary": false
+          "primary": false,
+          "role": "tool",
+          "label": "Tool",
+          "allowed_ids": [
+            "branch",
+            "raptor_bone",
+            "bone"
+          ]
         }
       ],
       "output": {
@@ -1200,12 +1209,21 @@
         {
           "category": "meat",
           "count": 1,
-          "primary": true
+          "primary": true,
+          "role": "food",
+          "label": "Food"
         },
         {
           "category": "handle",
           "count": 1,
-          "primary": false
+          "primary": false,
+          "role": "tool",
+          "label": "Tool",
+          "allowed_ids": [
+            "branch",
+            "raptor_bone",
+            "bone"
+          ]
         }
       ],
       "output": {

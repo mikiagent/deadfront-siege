@@ -6,6 +6,119 @@ const STATION_RANGE := 2.0
 ## ASSUMPTION: a master cook (skill 60) burns a quarter as often as a novice.
 const BURN_SKILL_CUT := 0.75
 
+## data/world/rules.json's "crafting" block (spec 04, plan 3.3): curve scale, flawless chance, rare traits.
+static func rules() -> Dictionary:
+	if Data == null:
+		return {}
+	var cfg: Variant = Data.world_rules.get("crafting", {})
+	return cfg as Dictionary if cfg is Dictionary else {}
+
+## "Crafting Ability" of spec 04: base attributes, tools, specialization and food add to it, and the
+## category level is the base. # ASSUMPTION: this build has no attribute/gear ability stat yet, so the
+## base is the governing skill level, plus learned nodes' "craft_ability" abilities, plus food buffs.
+static func crafting_ability(player: Player, rec: Dictionary) -> float:
+	var base := float(skill_level_for(rec, player))
+	var p := player
+	if p == null:
+		p = _player()
+	if p == null:
+		return base
+	if p.skills:
+		base += float(SkillRules.ability(p.skills, str(rules().get("ability_food_stat", "craft_ability"))))
+	base += p.food_buffs.added("craft_ability")
+	return base
+
+## The ability a recipe asks for. A recipe without required_ability only has its category-level gate
+## (min_level), so it always succeeds: "Success Rate 100 %" on the skewer (spec 25 §8).
+static func required_ability(rec: Dictionary) -> float:
+	return maxf(0.0, float(rec.get("required_ability", 0.0)))
+
+## Spec 04's preserved curve: shortfall = max(0, required - actual); success = clamp(1-(shortfall/100)^2, 0, 1).
+## 0 -> 1.0, 50 -> 0.75, 80 -> 0.36, 100 -> 0.0.
+static func success_chance(rec: Dictionary, ability: float) -> float:
+	var shortfall := maxf(0.0, required_ability(rec) - ability)
+	var scale := maxf(1.0, float(rules().get("success_curve_scale", 100.0)))
+	return clampf(1.0 - pow(shortfall / scale, 2.0), 0.0, 1.0)
+
+static func success_for(rec: Dictionary, player: Player = null) -> float:
+	return success_chance(rec, crafting_ability(player, rec))
+
+## Flawless is a separate roll on a successful craft (spec 04), plan 3.3's 5 %.
+static func flawless_chance() -> float:
+	return clampf(float(rules().get("flawless_chance", 0.05)), 0.0, 1.0)
+
+## The rare (green) material traits, rules.json crafting.rare_attributes (spec 04's list).
+static func rare_attributes() -> Array:
+	var rows: Variant = rules().get("rare_attributes", [])
+	return rows as Array if rows is Array else []
+
+static func is_rare_attribute(attr: StringName) -> bool:
+	return str(attr) in rare_attributes()
+
+## One craft's outcome. `rng` reproduces it (tests, server); a craft that cannot fall short
+## (required_ability 0) never fails, and a failed craft is never flawless.
+## Rare trait: the primary material's own rare attribute always carries (spec 04 "rare attributes
+## may pass from a single eligible primary material"); otherwise `rare_attribute_chance` (rules.json,
+## 5 %) rolls one.
+static func roll_outcome(rec: Dictionary, player: Player, primary: ItemStack, rng: RandomNumberGenerator = null, ability: float = NAN) -> Dictionary:
+	var ab := ability if not is_nan(ability) else crafting_ability(player, rec)
+	var rand := rng if rng else RandomNumberGenerator.new()
+	if rng == null:
+		rand.randomize()
+	var success := rand.randf() < success_chance(rec, ab)
+	var flawless := success and rand.randf() < flawless_chance()
+	var rare := &""
+	for attr: Variant in Inventory.traits(primary).keys():
+		if is_rare_attribute(StringName(str(attr))):
+			rare = StringName(str(attr))
+			break
+	if rare == &"" and rand.randf() < float(Data.world_rules.get("rare_attribute_chance", 0.05)):
+		var pool := rare_attributes()
+		if not pool.is_empty():
+			rare = StringName(str(pool[rand.randi_range(0, pool.size() - 1)]))
+	return {"success": success, "flawless": flawless, "rare": rare}
+
+## The deterministic quality a recipe card advertises: the success and flawless chances, and the
+## primary trait the result inherits. Never rolls anything, so a preview cannot disagree with itself.
+static func preview_quality(rec: Dictionary, player: Player, primary: ItemStack = null) -> Dictionary:
+	var inherited: Array[String] = []
+	if primary:
+		for attr: Variant in Inventory.traits(primary).keys():
+			inherited.append(str(attr))
+	return {
+		"success": success_for(rec, player),
+		"flawless": flawless_chance(),
+		"required_ability": required_ability(rec),
+		"ability": crafting_ability(player, rec),
+		"inherited": inherited,
+		"loses_materials": true,
+	}
+
+## Flawless (spec 04 "stat improvement"): the item keeps its level (so a previewed level can never
+## disagree with the result) and gains the recipe's stat bump - durability plus the quality attribute
+## that bag_inspect and the item tooltip already read. A recipe that allows it may also raise the
+## level by rules.json crafting.flawless_level_bonus (# ASSUMPTION: none of today's recipes do).
+static func apply_outcome(out: ItemStack, rec: Dictionary, outcome: Dictionary, player: Player = null) -> ItemStack:
+	if out == null or outcome.is_empty():
+		return out
+	if bool(outcome.get("flawless", false)):
+		var bonus := float(rules().get("flawless_stat_bonus", 0.1))
+		out.attributes["quality"] = "flawless"
+		out.attributes["flawless_bonus"] = bonus
+		out.set_flag(&"flawless", true)
+		if out.max_durability > 0:
+			out.max_durability = maxi(out.max_durability, int(round(float(out.max_durability) * (1.0 + bonus))))
+			out.durability = out.max_durability
+		if bool(rec.get("flawless_level", false)):
+			var bump := int(rules().get("flawless_level_bonus", 1))
+			out.level = mini(int(rec.get("max_level", 60)), out.level + bump)
+			out.apply_level_stats()
+	var rare := StringName(str(outcome.get("rare", "")))
+	if rare != &"" and not out.attributes.has(str(rare)):
+		# A rare trait the primary already carried keeps its own level; a rolled one starts at 1.
+		out.attributes[str(rare)] = 1
+	return out
+
 static func recipe(id: StringName) -> Dictionary:
 	return Data.recipes.get(id, {}) as Dictionary
 
@@ -38,7 +151,8 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
 		if not slot is Dictionary:
 			return []
 		cats.append(StringName(str(slot.get("category", ""))))
-		cands.append(inv.find_by_category(cats[-1]).filter(func(idx: int) -> bool: return not inv.slots[idx].is_locked()))
+		# Spec 25 §8: the skewer's Tool slot takes a stick or a leg bone, not any handle (a club).
+		cands.append(inv.find_by_category(cats[-1]).filter(func(idx: int) -> bool: return not inv.slots[idx].is_locked() and _allowed(slot, inv.slots[idx])))
 	var remaining: Dictionary = {}
 	var plan: Array[Dictionary] = []
 	var prefer := StringName(str(rec.get("input_id", "")))
@@ -96,6 +210,13 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
 			return []
 		plan.append({"lead": int(parts[0].idx), "parts": parts})
 	return plan
+
+## A slot's allowed_ids (recipes.json) narrow its category to listed item defs; no list = any.
+static func _allowed(slot: Dictionary, s: ItemStack) -> bool:
+	var ids: Variant = slot.get("allowed_ids", null)
+	if not ids is Array or (ids as Array).is_empty() or s == null:
+		return true
+	return str(s.def_id) in (ids as Array).map(func(v: Variant) -> String: return str(v))
 
 ## The default-pick sort key, ascending: the recipe's own input, then value (spend_key) and the
 ## number of the recipe's categories the item serves, in the order the plan pass asks for.
@@ -381,15 +502,35 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
 	else:
 		World.add_xp(6 + int(recipe_seconds(rec)))
 
+## One craft (spec 04, plan 3.3): roll the outcome first, then commit it. A failed craft spends the
+## picked instances exactly once and makes nothing; a successful one makes the previewed item, plus
+## the flawless stat bump or the inherited rare trait. XP is paid once, by finish_craft, on success.
 static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: RandomNumberGenerator = null) -> ItemStack:
 	if not can_make(player, rec, picks):
 		return null
+	var outcome := roll_outcome(rec, player, player.inventory.slots[picks[primary_index(rec)]], rng)
+	return commit_outcome(player, rec, picks, outcome, rng)
+
+## The deterministic half: a caller that already rolled (server, lab, test) passes its outcome.
+static func commit_outcome(player: Player, rec: Dictionary, picks: Array[int], outcome: Dictionary, rng: RandomNumberGenerator = null, overflow: Array[ItemStack] = []) -> ItemStack:
+	if not can_make(player, rec, picks):
+		return null
 	var burnt := rolls_burn(rec, skill_level_for(rec, player), rng)
+	if not bool(outcome.get("success", true)):
+		# Spec 25 §8: "if crafting fails, materials disappear." Taken in one step, nothing made.
+		var lost := consume_for_craft(player.inventory, rec, picks)
+		var names: PackedStringArray = []
+		for s in lost:
+			names.append("%s x%d" % [str(s.def_id), s.count])
+		print("[craft] failed %s: lost %s" % [rec.get("id", ""), ", ".join(names)])
+		if player:
+			player.notice("Crafting failed: the materials are lost.")
+		return null
 	if not output_fits(player.inventory, rec, picks, burnt, player):
 		refuse_full(player, rec)
 		return null
 	var consumed := consume_for_craft(player.inventory, rec, picks)
-	return finish_craft(player, rec, consumed, burnt)
+	return finish_craft(player, rec, consumed, burnt, overflow, outcome)
 
 ## Would the output still fit after the inputs leave the bag? Checked on a scratch copy so a
 ## full bag refuses before anything is consumed (sec-loss-08).
@@ -483,9 +624,9 @@ static func bag_preview(inv: Inventory, rec: Dictionary, picks: Array[int], play
 		"storage": b.get("storage", {}), "other": int(b.get("other", 0)),
 		"bonus": int(b.get("total", 0)), "inherited": BagCapacity.inherited_attributes(out_id, primary),
 		"total_capacity": worn_now - replaced + int(b.get("total", 0)),
-		# ASSUMPTION: this build has no success-chance or flawless roll in Crafting (spec 04's
-		# ability curve is not implemented yet), so a craft either happens or is refused: 1.0 / 0.0.
-		"slot": str(slot), "success": 1.0, "flawless": 0.0,
+		# Spec 04 / plan 3.3: the card's success and flawless chances come from the same functions
+		# the craft rolls, so the preview can never advertise a chance the result does not use.
+		"slot": str(slot), "success": success_for(rec, player), "flawless": flawless_chance(),
 	}
 
 ## -1 when the bag cannot make it: the UI must not advertise a level it cannot reach (craft-04).
@@ -549,7 +690,7 @@ static func consume_for_craft(inv: Inventory, rec: Dictionary, picks: Array[int]
 
 ## Units that do not fit go to `overflow`: the caller owns them and must put them back (StationCraft
 ## re-adds them after the craft). output_fits should make this unreachable: it is a last resort.
-static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemStack], burnt: bool = false, overflow: Array[ItemStack] = []) -> ItemStack:
+static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemStack], burnt: bool = false, overflow: Array[ItemStack] = [], outcome: Dictionary = {}) -> ItemStack:
 	if rec.is_empty() or consumed.is_empty():
 		return null
 	var primary := consumed[0]
@@ -559,6 +700,7 @@ static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemSt
 			for _n in s.count:
 				levels.append(s.level)
 	var out := build_output(rec, primary, crafted_level_for(rec, levels, player), consumed, burnt)
+	apply_outcome(out, rec, outcome, player)
 	if not out.is_fungible() and out.uid == "":  # in-place output keeps its instance identity
 		out.stamp_identity("craft", World.player_name)
 	var gained := out.count
