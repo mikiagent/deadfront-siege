@@ -15,6 +15,9 @@
 # (stats, skills, crafting, materials, food, animals, capture, building, gathering, world). It is
 # background, not a data dump: its README requires provenance on every reconstructed value and forbids
 # passing reconstruction numbers off as original balancing. Jobs below name the file that covers them.
+# Extraction is dead (site 404, no public repo, no archive snapshot): see EXTRACTION_STATUS.md in that
+# folder. Use the pack as a TEMPLATE for each system's shape; quantities stay # ASSUMPTION unless a PRD
+# or a durango-prompts spec gives them, and nobody invents 918 skill nodes or 720 recipes to fill it.
 project:
   repo: ~/Documents/deadfront-siege
   base: claude/mmo-overhaul
