@@ -95,6 +95,11 @@ static func preview_texture(shape: Dictionary) -> ImageTexture:
 ## Shows the layer (it may have been built before the pick step was reached).
 func open() -> void:
 	visible = true
+	_i = self
+	# WorldUI re-opens the old terrain sheet whenever creation is pending and no creation layer is
+	# up; the pick is that layer now, so it stands in for character creation while it is open.
+	if not is_in_group(&"character_creation"):
+		add_to_group(&"character_creation")
 	if _cards.is_empty():
 		_build()
 
@@ -141,13 +146,18 @@ func _build() -> void:
 	sub.add_theme_font_size_override("font_size", _px(14 if short else 17))
 	sub.add_theme_color_override("font_color", Color(0.82, 0.84, 0.82))
 	box.add_child(sub)
-	var row := HFlowContainer.new()
+	var row := HBoxContainer.new()
 	row.name = "ShapeCards"
-	row.alignment = FlowContainer.ALIGNMENT_CENTER
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("h_separation", _px(8))
 	row.add_theme_constant_override("v_separation", _px(6))
-	box.add_child(row)
+	# Cards centred in the space between the subtitle and the footer (at 1600x900 the block used
+	# to sit at the top with half the screen empty).
+	var mid := CenterContainer.new()
+	mid.name = "CardCentre"
+	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	mid.add_child(row)
+	box.add_child(mid)
 	for shape in World.home_shapes:
 		var id := str(shape.get("id", ""))
 		if id == "":
@@ -157,17 +167,19 @@ func _build() -> void:
 		_cards[id] = card
 	# The reference's bottom bar: warning triangle + "Terrain selection is final.", and the
 	# confirm button on the right (stacks on a narrow phone).
-	var footer := HFlowContainer.new()
+	var footer := HBoxContainer.new()
 	footer.name = "Footer"
-	footer.alignment = FlowContainer.ALIGNMENT_CENTER
-	footer.add_theme_constant_override("h_separation", _px(10))
-	footer.add_theme_constant_override("v_separation", _px(4))
-	box.add_child(footer)
+	footer.alignment = BoxContainer.ALIGNMENT_CENTER
+	footer.add_theme_constant_override("h_separation", _px(14))
+	var foot_centre := CenterContainer.new()
+	foot_centre.name = "FooterCentre"
+	foot_centre.add_child(footer)
+	box.add_child(foot_centre)
 	_warning = Label.new()
 	_warning.name = "FinalWarning"
 	_warning.text = "!  Terrain selection is final."
 	_warning.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_warning.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_warning.add_theme_font_size_override("font_size", _px(14 if short else 16))
 	_warning.add_theme_color_override("font_color", WARN)
 	footer.add_child(_warning)
@@ -188,44 +200,56 @@ func _card(shape: Dictionary, short: bool) -> Button:
 	var card := Button.new()
 	card.name = "Shape_%s" % id
 	card.toggle_mode = true
-	card.custom_minimum_size = Vector2(_px(126 if short else 150), _px(64))
+	# Square-ish cards: the map fills the width and the text sits under it (a stretched card left
+	# wide empty bands above and below each preview at 1600x900).
+	card.custom_minimum_size = Vector2(_px(126 if short else 196), _px(150 if short else 340))
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.add_theme_font_size_override("font_size", _px(15))
-	var stack := VBoxContainer.new()
-	stack.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	stack.offset_left = _px(4)
-	stack.offset_right = -_px(4)
-	stack.offset_top = _px(4)
-	stack.offset_bottom = -_px(4)
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_theme_constant_override("separation", _px(2))
-	card.add_child(stack)
+	# Two anchored blocks, not a VBox: the map fills the card above a fixed-height text block, so
+	# every card's title and blurb sit on one line however long the blurb is (a VBox let a wrapped
+	# blurb push its own title down and clipped the neighbour's).
+	var text_h := _px(58 if short else 92)
 	var tex := preview_texture(shape)
 	_previews[id] = tex
 	var prev := TextureRect.new()
 	prev.name = "Preview"
 	prev.texture = tex
+	prev.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	prev.offset_left = _px(4)
+	prev.offset_right = -_px(4)
+	prev.offset_top = _px(4)
+	prev.offset_bottom = -(text_h + _px(4))
 	prev.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	prev.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	prev.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	prev.custom_minimum_size = Vector2(_px(96 if short else 120), _px(64))
+	prev.custom_minimum_size = Vector2(_px(96 if short else 120), _px(60 if short else 150))
 	prev.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_child(prev)
+	card.add_child(prev)
+	var text_block := VBoxContainer.new()
+	text_block.name = "Text"
+	text_block.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	text_block.offset_left = _px(4)
+	text_block.offset_right = -_px(4)
+	text_block.offset_top = -(text_h + _px(2))
+	text_block.offset_bottom = -_px(2)
+	text_block.add_theme_constant_override("separation", 0)
+	text_block.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(text_block)
 	var name_l := Label.new()
 	name_l.text = str(shape.get("display_name", id))
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_l.add_theme_font_size_override("font_size", _px(14 if short else 16))
 	name_l.add_theme_color_override("font_color", UiTokens.TEXT)
 	name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_child(name_l)
+	text_block.add_child(name_l)
 	var blurb := Label.new()
 	blurb.text = str(shape.get("blurb", ""))
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	blurb.custom_minimum_size = Vector2(0, _px(32 if short else 36))
 	blurb.add_theme_font_size_override("font_size", _px(12 if short else 13))
 	blurb.add_theme_color_override("font_color", UiTokens.META)
 	blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_child(blurb)
+	text_block.add_child(blurb)
 	var tick := Label.new()
 	tick.name = "Tick"
 	tick.text = "SELECTED"
@@ -233,7 +257,10 @@ func _card(shape: Dictionary, short: bool) -> Button:
 	tick.add_theme_font_size_override("font_size", _px(12 if short else 13))
 	tick.add_theme_color_override("font_color", GOLD)
 	tick.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_child(tick)
+	# The tick overlays the blurb's tail on tiny cards; short and desktop both have room for it
+	# under the title, above the blurb start.
+	tick.size_flags_vertical = Control.SIZE_SHRINK_END
+	text_block.add_child(tick)
 	card.pressed.connect(func () -> void: _select(id))
 	return card
 
@@ -260,6 +287,7 @@ func _confirm() -> void:
 	if _selected == &"":
 		return
 	picked.emit(_selected)
+	remove_from_group(&"character_creation")
 	queue_free()
 
 ## What the lab measures: the five previews actually shown, the warning text on screen, and the

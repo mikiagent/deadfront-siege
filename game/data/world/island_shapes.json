@@ -6,7 +6,7 @@
       "display_name": "Meadow Isle",
       "terrain": "meadow",
       "seed": 17,
-      "blurb": "Open grass, wide bays",
+      "blurb": "Open grass and wide bays",
       "accent": "#6f8f4f"
     },
     {
@@ -14,7 +14,7 @@
       "display_name": "Forest Isle",
       "terrain": "forest",
       "seed": 2311,
-      "blurb": "Deep wood, one long ridge",
+      "blurb": "Deep wood, one ridge",
       "accent": "#3f6f3a"
     },
     {
@@ -22,7 +22,7 @@
       "display_name": "Rocky Isle",
       "terrain": "rocky",
       "seed": 4703,
-      "blurb": "Stone highlands, cliffs",
+      "blurb": "Stone highlands and cliffs",
       "accent": "#77756c"
     },
     {
@@ -30,7 +30,7 @@
       "display_name": "River Isle",
       "terrain": "riverside",
       "seed": 6907,
-      "blurb": "A river to the sea",
+      "blurb": "A river runs to the sea",
       "accent": "#4f7d5a"
     },
     {
