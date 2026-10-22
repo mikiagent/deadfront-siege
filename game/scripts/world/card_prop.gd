@@ -44,6 +44,14 @@ var _quad_size := Vector2.ONE
 var _pivot := Vector2(0.5, 1.0)
 var _basis_used: Basis = Basis()
 
+## The active camera's basis, resolved once per frame for every card on the island instead of once per
+## card: 270-odd cards each doing a viewport camera lookup and an orthonormalize every frame is pure
+## script cost for a value they all share. `_cam_frame` marks which physics/process frame the cached
+## basis belongs to (Engine.get_process_frames), and a missing camera leaves it stale (`_cam_valid`).
+static var _cam_basis: Basis = Basis()
+static var _cam_frame: int = -1
+static var _cam_valid: bool = false
+
 ## Parsed card2d.json, cached for the run (static data).
 static func data() -> Dictionary:
 	if _data.is_empty():
@@ -462,12 +470,19 @@ func _face_camera(b: Basis) -> void:
 ## Re-align while the active camera's basis differs from the one last applied (also covers a camera
 ## that switches from orthographic iso to a perspective Durango view: the card follows its angle).
 func _process(_delta: float) -> void:
-	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-	if cam == null:
+	if not is_inside_tree():
 		return
-	var b := cam.global_basis.orthonormalized()
-	if not _basis_used.is_equal_approx(b):
-		_face_camera(b)
+	var f := Engine.get_process_frames()
+	if f != _cam_frame:
+		_cam_frame = f
+		var cam := get_viewport().get_camera_3d()
+		_cam_valid = cam != null
+		if _cam_valid:
+			_cam_basis = cam.global_basis.orthonormalized()
+	if not _cam_valid:
+		return
+	if not _basis_used.is_equal_approx(_cam_basis):
+		_face_camera(_cam_basis)
 
 ## Short shiver after a gather (HarvestNode.mark_gathered calls this).
 func rustle(seconds: float = 0.6) -> void:

@@ -40,9 +40,9 @@ CARD2D cards where it does not. Buildings (`placed_building`), creatures and the
 
 - `t_switch2d` PASS (script error free), `t_card2d` PASS, and the related `t_stepover`, `t_occlude` PASS.
 - Lab, windowed, at **1600x900** and **844x390** (the phone viewport):
-  `painted_nodes=267 baked_nodes=234 model_nodes=0 grey_cards=0 ms_cards 12.4-14.0 ms_models 13.3-14.5
-  tap_ok=1 empty_ok=1 facing_err_deg=0.02 shots=6` at each size (final run; frame times move a few percent
-  with whatever else is on the box). Six PNGs per resolution:
+  `painted_nodes=267 baked_nodes=234 model_nodes=0 grey_cards=0 ms_cards 13.25-13.54 ms_models 13.22-13.88
+  tap_ok=1 empty_ok=1 facing_err_deg<=0.02 shots=6` at each size (final full-gate run; frame times move a
+  few percent with whatever else is on the box). Six PNGs per resolution:
   `switch2d_home_grassland_cards.png`, `..._models.png`, `switch2d_tropical_25_cards.png`,
   `..._models.png`, `switch2d_night_cards.png`, `switch2d_painted_shading.png`.
 - Frame time: cards cost about what the old 3D props cost in the same view (sum of per-island medians,
@@ -82,9 +82,19 @@ CARD2D cards where it does not. Buildings (`placed_building`), creatures and the
   shot frames the camp instead of the patch and the cards/models pair is not like-for-like.
 - Thin, distant sprites (hanging vines, bamboo) cover a few pixels; `MIN_RECT_PX` (scaled by the frame
   height, so a phone-sized viewport keeps judging) and the 25 m distance cut keep them out.
-- Frame timing needs repeats (best of `PERF_PASSES` = 5 medians): a single pass is at the mercy of
-  whatever else is running on the machine. Three passes were not enough — a full-gate run once read
-  cards 17.3 ms vs models 15.1 ms because one card phase landed inside another agent's load spike.
+- Frame timing was the one flaky number and needed real work, not a looser assert:
+  - `PERF_PASSES` = 20 short passes of 30 frames, best median wins. A load spike inside a long sample
+    drags that whole median up; with short passes the clean ones still happen and the best-of picks
+    them (load can only inflate a pass, never make it read faster than the scene is).
+  - `_warmup()` (120 discarded frames) before each island's first timed phase, so the phase that runs
+    first does not pay for the island's post-load pipeline/texture settle.
+  - The mode timed first alternates per island (`_islands.find(island) % 2`), so a fixed order can no
+    longer hand that residual cost to the same mode on every island.
+  - `CardProp._process` resolves the active camera's basis ONCE per frame (static, `Engine.get_process_frames`)
+    instead of once per card: ~270 cards each doing a viewport camera lookup plus an orthonormalize
+    every frame was pure script cost for a value they all share.
+  With those, ten consecutive lab/gate runs kept cards level with or under the models; before them,
+  full-gate runs flipped between 0.9x and 1.15x at random.
 
 ## Integrator notes
 

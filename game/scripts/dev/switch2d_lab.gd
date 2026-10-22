@@ -14,13 +14,19 @@ extends Node3D
 const ISLANDS: Array[String] = ["home_grassland", "tropical_25"]
 ## The lab quits itself: a stuck setup must not hold the gate's window open.
 const WATCHDOG_S := 115.0
-## Frames timed per mode (the first ones compile pipelines and stream the island in).
+## Frames timed per pass (the first PERF_WARMUP of them compile pipelines and stream the island in).
 const PERF_WARMUP := 20
-const PERF_FRAMES := 150
-## Passes per mode, best median wins (see _time_mode). Five, not three: this box runs several agents'
-## Godot instances, so a whole card or model phase can land inside someone else's load spike; more
-## passes give both modes the same chance of a clean one (the best pass can only be inflated by load).
-const PERF_PASSES := 5
+const PERF_FRAMES := 30
+## Passes per mode, best median wins (see _time_mode). Many short ones, not a few long ones: this box
+## runs several agents' Godot instances, and a load spike inside a long sample drags that whole median
+## up, while with short passes the clean ones still happen and the best-of picks them (load can only
+## inflate a pass, never make it faster than the scene really is).
+const PERF_PASSES := 20
+## Frames thrown away before the FIRST timed phase of an island. The card phase is timed first, right
+## after an island load, and the first seconds after a load are the slow ones (pipeline and texture
+## streaming still settling): without this the card phase paid for the warm-up of the whole island and
+## read ~15 % slower than the model phase even though both draw the same scene. Measured, not guessed.
+const PERF_PRESTART := 120
 ## Cards flat enough to draw as "grey" in the image test: a real painted card is never this flat.
 const GREY_STDDEV := 6.0
 ## On-screen rects smaller than this are not judged: a hanging vine or a grass tuft a few pixels
@@ -125,10 +131,27 @@ func _report() -> void:
 		for f in _fails:
 			print("[switch2d] FAIL %s" % f)
 
-## One island in both modes: cards first (count, judge, tap, empty, shots, timing), then the old 3D
-## look for the frame-time comparison and its shot.
+## One island in both modes: every resource as a card (count, judge, tap, empty, shots, timing), then
+## the old 3D props from the same camera (shot, timing). The mode timed first alternates per island:
+## whichever phase runs first pays for the island's warm-up, and this box's background load drifts, so
+## a fixed order would hand that cost to the same mode every time.
 func _measure_island(island: String) -> void:
-	_rules["resource_render"] = "card"
+	var cards_first := _islands.find(island) % 2 == 0
+	if cards_first:
+		await _load_mode(island, "card")
+		await _run_cards(island)
+		await _load_mode(island, "model")
+		await _run_models(island)
+	else:
+		await _load_mode(island, "model")
+		await _run_models(island)
+		await _load_mode(island, "card")
+		await _run_cards(island)
+
+## Loads `island` in the requested render mode and puts the survivor, camera and patch back where the
+## measurements and shots want them (the mode switch is a full reload).
+func _load_mode(island: String, mode: String) -> void:
+	_rules["resource_render"] = mode
 	World.home_terrain = &"meadow"
 	World.load_island(self, StringName(island), Vector3(0, 1, 18), false)
 	await _settle(1.5)
@@ -138,6 +161,9 @@ func _measure_island(island: String) -> void:
 	await _settle(0.6)
 	_stand_in_props()
 	await _settle(0.5)
+
+## The card pass: count what drew, judge the frame, tap a card, show the empty card, shoot, time it.
+func _run_cards(island: String) -> void:
 	_count_cards(island)
 	_check_buildings(island)
 	await _settle(0.3)
@@ -148,20 +174,13 @@ func _measure_island(island: String) -> void:
 	if island == _islands[0]:
 		await _shoot_shading()
 		await _shoot_night()
+	await _warmup()
 	await _time_mode(&"perf_cards")
-	# The same island and camera with the old 3D props: the like-for-like frame-time comparison.
-	_rules["resource_render"] = "model"
-	World.load_island(self, StringName(island), Vector3(0, 1, 18), false)
-	await _settle(1.5)
-	_player.reset_physics_interpolation()
-	_cam.set("_target", _player)
-	_cam.call("_snap")
-	await _settle(0.6)
-	# The reload puts the survivor back at the spawn, so walk him into the patch again: otherwise the
-	# "model" shot frames the camp while the "card" shot frames the patch, and the pair is not fair.
-	_stand_in_props()
-	await _settle(0.5)
+
+## The same island and camera with the old 3D props: the like-for-like frame-time comparison.
+func _run_models(island: String) -> void:
 	await _shoot("%s_models" % island)
+	await _warmup()
 	await _time_mode(&"perf_models")
 
 ## Stands the survivor in the island's densest patch of resources and points the camera at it, so
@@ -482,6 +501,13 @@ func _shoot(name: String) -> void:
 	_shot_n += 1
 	print("[switch2d] %s shot %s" % [_elapsed(), path])
 
+## Draws PERF_PRESTART frames and throws them away, so the first timed phase starts on a settled scene.
+func _warmup() -> void:
+	_phase = &"idle"
+	for i in PERF_PRESTART:
+		await get_tree().process_frame
+	print("[switch2d] %s warm-up %d frames done" % [_elapsed(), PERF_PRESTART])
+
 ## Median frame time over PERF_FRAMES frames in this mode (after PERF_WARMUP), best of PERF_PASSES.
 ## The same island and camera are timed in both modes, so the pair is the like-for-like comparison; the
 ## best pass is used because these labs share the machine with other agents' Godot instances, and load
@@ -498,7 +524,9 @@ func _time_mode(mode: StringName) -> void:
 		arr = arr.slice(mini(PERF_WARMUP, arr.size()))
 		_phase = &"idle"
 		var med := _median(arr)
-		print("[switch2d] %s %s pass %d frames=%d median=%.2f ms" % [_elapsed(), mode, pass_i + 1, arr.size(), med])
+		var draws := int(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+		var objs := int(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME))
+		print("[switch2d] %s %s pass %d frames=%d median=%.2f ms draws=%d objects=%d" % [_elapsed(), mode, pass_i + 1, arr.size(), med, draws, objs])
 		best = minf(best, med)
 	if mode == &"perf_cards":
 		_ms_cards.append(best)
