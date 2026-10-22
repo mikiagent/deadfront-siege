@@ -22,7 +22,8 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
 ## a unit that a later slot still needs (a cheap reed is also the recipe's lashing) is left for it.
 ## When a slot still runs short, plan again with dedicated materials first (the order before W2-INV).
 ## A locked instance is spent only as the player's own pick (spec 13:229 "protect valuable items from
-## ... crafting consumption"), never as a default lead or fill.
+## ... crafting consumption"), never as a default lead or fill. An in-place primary with no processing
+## left (W2-PROCESS) sorts last, so the card previews the instance a station will really use.
 static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
 	var plan := _plan_ordered(inv, rec, picks, true)
 	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
@@ -41,6 +42,7 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
 	var remaining: Dictionary = {}
 	var plan: Array[Dictionary] = []
 	var prefer := StringName(str(rec.get("input_id", "")))
+	var pi := primary_index(rec)
 	for i in slots.size():
 		var slot: Dictionary = slots[i]
 		var cat := cats[i]
@@ -60,7 +62,8 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
 		candidates.assign(cands[i])
 		var first := -1 # the least valuable unit left: the lead when none is picked
 		for idx in candidates:
-			keys[idx] = _pick_key(inv.slots[idx], preferred, cats, value_first) + [-int(remaining.get(idx, inv.slots[idx].count)), idx]
+			var spent := 1 if i == pi and processing_left(rec, inv.slots[idx]) == 0 else 0
+			keys[idx] = [spent] + _pick_key(inv.slots[idx], preferred, cats, value_first) + [-int(remaining.get(idx, inv.slots[idx].count)), idx]
 			if int(remaining.get(idx, inv.slots[idx].count)) > 0 and (first < 0 or keys[idx] < keys[first]):
 				first = idx
 		if first < 0:
@@ -131,7 +134,27 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
 	return missing
 
 static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
-	return not _plan(inv, rec, picks).is_empty()
+	if _plan(inv, rec, picks).is_empty():
+		return false
+	var pi := primary_index(rec)
+	return pi >= picks.size() or picks[pi] < 0 or processing_left(rec, inv.slots[picks[pi]]) != 0
+
+## In-place processing (spec 08 §2): drying, smoking, steaming... change the chosen instance itself
+## and spend one of its processing opportunities. Which steps are in place is processing.json data.
+static func is_in_place(rec: Dictionary) -> bool:
+	var steps: Array = (ProcessStation.rules().get("in_place", {}) as Dictionary).get("steps", [])
+	return str(rec.get("process_step", "")) in steps
+
+## Opportunities an instance has left for an in-place recipe: -1 when the recipe is not in place.
+## The steps already taken live in attributes.processed (the instance's processing history).
+## # ASSUMPTION: 2 opportunities (spec 08: a reconstruction estimate, not a confirmed constant);
+## the PRD's steam-steam question (open question 13) stays open, so steam spends one like any step.
+static func processing_left(rec: Dictionary, stack: ItemStack) -> int:
+	if stack == null or not is_in_place(rec):
+		return -1
+	var total := int((ProcessStation.rules().get("in_place", {}) as Dictionary).get("opportunities", 2))
+	var done: Variant = stack.attributes.get("processed", [])
+	return maxi(0, total - ((done as Array).size() if done is Array else 0))
 
 static func primary_index(rec: Dictionary) -> int:
 	var slots: Array = rec.get("slots", [])
@@ -226,6 +249,22 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 		out.process_count = primary.process_count + int(rec.get("process_add", 1))
 	else:
 		out.process_count = int(rec.get("process_add", 1))
+	if primary and is_in_place(rec):
+		# Same instance, next state: identity, provenance and properties carry, one opportunity spent.
+		var done: Variant = primary.attributes.get("processed", [])
+		var hist: Array = (done as Array).duplicate() if done is Array else []
+		hist.append(str(rec.get("process_step", "")))
+		out.attributes["processed"] = hist
+		# Spec 11 §8: "For in-place processing, use the existing item as the base; only change level
+		# when the actual process rules require it." No rule here does, so a lv 31 meat stays lv 31.
+		out.level = primary.level
+		out.uid = primary.uid
+		out.origin = primary.origin
+		out.creator = primary.creator
+		out.created_at = primary.created_at
+		out.set_flag(&"raw", false)
+	else:
+		out.attributes.erase("processed")  # a new food starts with fresh opportunities
 	var buff := str(rec.get("buff_id", ""))
 	if buff != "":
 		out.attributes["food_buff"] = buff
@@ -377,6 +416,15 @@ static func recipe_seconds(rec: Dictionary) -> float:
 		return maxf(0.1, float(rec.get("seconds", 3.0)))
 	return 3.0
 
+## The time a recipe card shows: a process station's job time (processing.json) when the recipe runs on
+## one, otherwise recipes.json's stand-and-craft time; a minute or more as m:ss ("10:00", "8.0s").
+## recipe_seconds stays the stand-and-craft time: it also sets the XP (6 + seconds).
+static func preview_time(rec: Dictionary) -> String:
+	var secs := ProcessStation.job_seconds(StringName(station_id(rec)), StringName(str(rec.get("id", ""))))
+	if secs <= 0.0:
+		secs = recipe_seconds(rec)
+	return ProcessStation.mmss(roundi(secs)) if secs >= 60.0 else "%.1fs" % secs
+
 static func recipes_for_station(sid: StringName) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var want := str(sid)
@@ -511,7 +559,7 @@ static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemSt
 			for _n in s.count:
 				levels.append(s.level)
 	var out := build_output(rec, primary, crafted_level_for(rec, levels, player), consumed, burnt)
-	if not out.is_fungible():
+	if not out.is_fungible() and out.uid == "":  # in-place output keeps its instance identity
 		out.stamp_identity("craft", World.player_name)
 	var gained := out.count
 	var left := player.inventory.add(out)

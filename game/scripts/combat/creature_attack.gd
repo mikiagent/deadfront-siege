@@ -7,7 +7,8 @@ extends RefCounted
 static func apply_for(attacker: Creature, clip: StringName, target: Node) -> bool:
 	if attacker == null or attacker.def == null or target == null:
 		return false
-	if target is Node3D and not MeleeQuery.clear(attacker, target as Node3D):
+	# A structure is the obstacle itself (and stands on its own foundation), so only reach applies.
+	if target is Node3D and not StructureHealth.is_structure(target) and not MeleeQuery.clear(attacker, target as Node3D):
 		print("[combat] %s %s blocked: no clear reach to %s" % [attacker.def.id, clip, target.name])
 		return false
 	if not _deal_damage(attacker, target, clip):
@@ -60,10 +61,13 @@ static func mitigated(atk: float, defense: float) -> float:
 	return maxf(atk * float(t.get("min_damage_frac", 0.05)), atk - defense * float(t.get("defense_factor", 0.5)))
 
 static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"attack_primary") -> bool:
-	if target is FieldCatapult:
-		(target as FieldCatapult).receive_siege_hit(attacker.attack_for(false) * attacker.statuses.attack_mult())
-		return true
 	var atk := attacker.attack_for(false) * attacker.statuses.attack_mult()
+	# Every structure (modular piece, catapult, kit) takes creature damage only through its
+	# StructureHealth, which applies the tier's creature multiplier and destroys it at 0.
+	var structure := StructureHealth.of(target, true)
+	if structure:
+		structure.take_damage(atk, attacker)
+		return true
 	if attacker.is_pet and attacker.pet_record:
 		atk = attacker.pet_record.stat_value(&"melee_attack") * attacker.statuses.attack_mult()
 	var crit_mult := CombatTuning.num("creature_melee", "crit_mult", 1.5)

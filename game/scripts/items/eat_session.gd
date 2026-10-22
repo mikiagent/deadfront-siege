@@ -87,6 +87,8 @@ func _apply_energy(amount: float) -> void:
 func _finish() -> void:
 	_roll_raw_risk()
 	Food.apply_buffs(player, _stack_snapshot)
+	if player.vitals:
+		player.vitals.rest(Food.fatigue_relief(_stack_snapshot))  # dried/smoked: the property's own relief
 	_apply_full()
 	print("[food] eat done +%.1f energy=%.0f" % [_applied_energy, player.vitals.energy])
 	_clear()

@@ -26,7 +26,7 @@ static func buildings(rows: Array, schema: int) -> void:
 			continue
 		var normalized := _normalize(row as Dictionary, schema)
 		var kind := StringName(str(normalized.get("kind", "")))
-		var why := "" if kits.has(kind) else "unknown kind"
+		var why := "" if (kits.has(kind) or kind == &"construction_site") else "unknown kind"
 		if why == "" and grid:
 			why = grid.can_place(kind, cell_of(normalized), int(normalized.get("rot", 0)))
 		if why != "":
@@ -59,6 +59,8 @@ static func spawn(row: Dictionary) -> Node3D:
 			return TamingPen.from_dict(row)
 		&"field_small", &"field_large":
 			return FieldPlot.from_dict(row)
+		&"construction_site":
+			return ConstructionSite.from_dict(row)
 		_:
 			return (load("res://scripts/world/placed_building.gd") as GDScript).from_dict(row)
 
@@ -89,7 +91,8 @@ static func _kits_by_kind() -> Dictionary:
 			out[def.place_as] = id
 	return out
 
-## Every item a row holds: its kit, storage contents, a pen's captured animal, a field's seed.
+## Every item a row holds: its kit, storage contents, a pen's captured animal, a field's seed, a
+## process station's jobs and outputs.
 static func _items_of(row: Dictionary, kit: StringName) -> Array[ItemStack]:
 	var back: Array[ItemStack] = []
 	if kit != &"":
@@ -100,6 +103,9 @@ static func _items_of(row: Dictionary, kit: StringName) -> Array[ItemStack]:
 	var occupant: Variant = row.get("occupant")
 	if occupant is Dictionary: # shaped by SaveSanitizer._stack
 		back.append(ItemStack.from_dict(occupant))
+	var process: Variant = row.get("process")
+	if process is Dictionary: # what hung on a drying rack, smoker, crock pot or steamer
+		back.append_array(ProcessStation.saved_stacks(process))
 	var crop := str(row.get("crop_id", ""))
 	if crop != "" and not bool(row.get("failed", false)):
 		# ASSUMPTION: a planted crop comes back as the seed it took, whatever its growth.

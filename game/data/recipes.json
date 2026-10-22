@@ -1,4 +1,95 @@
 {
+  "repairs": [
+    {
+      "tier": "stone",
+      "station": "workbench",
+      "slots": [
+        {
+          "category": "tier_stone",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "bone",
+      "station": "workbench",
+      "slots": [
+        {
+          "category": "bone",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "flint",
+      "station": "workbench",
+      "slots": [
+        {
+          "category": "tier_flint",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "obsidian",
+      "station": "workbench",
+      "slots": [
+        {
+          "category": "tier_obsidian",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "copper",
+      "station": "anvil",
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "bronze",
+      "station": "anvil",
+      "slots": [
+        {
+          "category": "tier_bronze",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "iron",
+      "station": "anvil",
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "steel",
+      "station": "anvil",
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    }
+  ],
+  "_repairs_about": "Per-tier repair cost: one unit of the tier's material at the station restores restore_fraction of max durability. ASSUMPTION values; read by the repair hook (W2-PROCESS/W2-CRAFT).",
   "recipes": [
     {
       "id": "improvised_stone_knife",
@@ -4655,7 +4746,7 @@
       "seconds": 3.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 §2/§10 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
     },
     {
       "id": "small_pouch",
@@ -4683,7 +4774,7 @@
       "seconds": 2.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 §2/§10 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
     },
     {
       "id": "large_pouch",
@@ -4716,7 +4807,7 @@
       "seconds": 4.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 §2/§10 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
     },
     {
       "id": "advanced_backpack",
@@ -4754,7 +4845,7 @@
       "seconds": 6.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 §2/§10 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
     },
     {
       "id": "specialized_storage_bag",
@@ -4792,98 +4883,126 @@
       "seconds": 8.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 §2/§10 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+    },
+    {
+      "id": "plank_shape",
+      "display_name": "Plank Shape",
+      "skill": "construction",
+      "tree": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "log",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "plank_shape",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "shape",
+      "process_add": 1
+    },
+    {
+      "id": "pillar_shape",
+      "display_name": "Pillar Shape",
+      "skill": "construction",
+      "tree": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "log",
+          "count": 2,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "pillar_shape",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "shape",
+      "process_add": 1
+    },
+    {
+      "id": "strap",
+      "display_name": "Strap",
+      "skill": "construction",
+      "tree": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "strap_material",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "strap",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 0.5,
+      "process_step": "twist",
+      "process_add": 1
+    },
+    {
+      "id": "trimmed_plank",
+      "display_name": "Trimmed Plank",
+      "skill": "processing",
+      "tree": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "plank_shape",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "trimmed_plank",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 12.0,
+      "process_step": "trim",
+      "process_add": 1,
+      "station_tags": [
+        "workbench"
+      ],
+      "station_level": 1,
+      "requires_node": "workbench"
+    },
+    {
+      "id": "fine_plank",
+      "display_name": "Fine Plank",
+      "skill": "processing",
+      "tree": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "plank_shape",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "fine_plank",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 12.0,
+      "process_step": "trim",
+      "process_add": 1,
+      "station_tags": [
+        "workbench"
+      ],
+      "station_level": 2
     }
-  ],
-  "repairs": [
-    {
-      "tier": "stone",
-      "station": "workbench",
-      "slots": [
-        {
-          "category": "tier_stone",
-          "count": 1
-        }
-      ],
-      "restore_fraction": 0.5
-    },
-    {
-      "tier": "bone",
-      "station": "workbench",
-      "slots": [
-        {
-          "category": "bone",
-          "count": 1
-        }
-      ],
-      "restore_fraction": 0.5
-    },
-    {
-      "tier": "flint",
-      "station": "workbench",
-      "slots": [
-        {
-          "category": "tier_flint",
-          "count": 1
-        }
-      ],
-      "restore_fraction": 0.5
-    },
-    {
-      "tier": "obsidian",
-      "station": "workbench",
-      "slots": [
-        {
-          "category": "tier_obsidian",
-          "count": 1
-        }
-      ],
-      "restore_fraction": 0.5
-    },
-    {
-      "tier": "copper",
-      "station": "anvil",
-      "slots": [
-        {
-          "category": "tier_copper",
-          "count": 1
-        }
-      ],
-      "restore_fraction": 0.5
-    },
-    {
-      "tier": "bronze",
-      "station": "anvil",
-      "slots": [
-        {
-          "category": "tier_bronze",
-          "count": 1
-        }
-      ],
-      "restore_fraction": 0.5
-    },
-    {
-      "tier": "iron",
-      "station": "anvil",
-      "slots": [
-        {
-          "category": "tier_iron",
-          "count": 1
-        }
-      ],
-      "restore_fraction": 0.5
-    },
-    {
-      "tier": "steel",
-      "station": "anvil",
-      "slots": [
-        {
-          "category": "tier_steel",
-          "count": 1
-        }
-      ],
-      "restore_fraction": 0.5
-    }
-  ],
-  "_repairs_about": "Per-tier repair cost: one unit of the tier's material at the station restores restore_fraction of max durability. ASSUMPTION values; read by the repair hook (W2-PROCESS/W2-CRAFT)."
+  ]
 }

@@ -39,6 +39,9 @@ var skills: SkillState
 var equipment: PlayerEquipment
 var ui: InventoryUI
 var craft_ui
+## The Craft/Build construction menu (BuildUI); HuntHud creates it on first use, so a lab without
+## the HUD still opens sites through actions.building_interact only when one exists.
+var build_ui
 var station_craft: StationCraft
 var eat_session: EatSession
 var food_buffs := FoodBuffState.new()

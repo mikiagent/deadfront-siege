@@ -23,6 +23,7 @@ const NO_LEVEL := LevelDisplay.NONE
 const FOOTER_H := 64.0
 
 var player: Player
+## The Craft/Build menu (BuildUI). Its row at the top of the station list opens it.
 var _station: String = ""
 var _root: VBoxContainer
 var _body: GridContainer
@@ -172,6 +173,19 @@ func _refresh_tabs() -> void:
 	for c in _tabs.get_children():
 		_tabs.remove_child(c)  # detach first: focus_first and finds must not see rows about to go
 		c.queue_free()
+	# Spec 30 §2: the Build (blueprint) menu is a row here, above the station groups; it is the
+	# whole construction flow, so it never reads as "no station built".
+	if player:
+		var bb := _mk_btn("Build\nblueprints · construction", _open_build, Vector2(228 if _single_pane() else 190, 64))
+		bb.name = "BuildRow"
+		bb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		bb.clip_text = true
+		bb.icon = HexButton.symbol(["hammer", "workbench_kit"])
+		bb.material = HexButton.white_material()
+		bb.expand_icon = true
+		bb.add_theme_constant_override("icon_max_width", 28)
+		bb.add_theme_color_override("font_color", UiTokens.TEAL)
+		_tabs.add_child(bb)
 	for row in STATIONS:
 		var sid: String = row[0]
 		var info := _station_info(sid)
@@ -200,6 +214,13 @@ func _refresh_tabs() -> void:
 			b.add_theme_color_override("font_color", UiTokens.TEXT)
 			b.add_theme_stylebox_override("normal", UiTokens.button_style(true))
 		_tabs.add_child(b)
+
+## The Build menu is created on first press, so the craft sheet works before anything is built.
+func _open_build() -> void:
+	hide_ui()
+	var ui := BuildUI.ensure(player)
+	if ui:
+		ui.open()
 
 func _pick_station(sid: String) -> void:
 	_station = sid
@@ -230,6 +251,10 @@ func _refresh_list() -> void:
 	_title.text = "Craft · %s" % name
 	if _station == "":
 		_hint.text = "Hand recipes craft anywhere. The hex over the survivor fills once per item."
+	elif info["near"] and ProcessStation.of(info.get("node", null)) != null and ProcessStation.of(info.get("node", null)).capacity() > 0:
+		# Spec 30 §13: the station's own job queue, so a queued job is visible where it was started.
+		var ps := ProcessStation.of(info.get("node", null))
+		_hint.text = "%s in reach · %d/%d jobs running, %d ready · %s" % [name, ps.running_count(), ps.capacity(), ps.ready_count(), ps.time_left_text() if ps.time_left_text() != "" else "queue free"]
 	elif info["near"]:
 		_hint.text = "%s in reach. Pick a recipe: the hex over it fills once per item." % name
 	elif info["exists"]:
@@ -257,6 +282,13 @@ func _block_reason(rec: Dictionary, info: Dictionary) -> String:
 	var blocked := Crafting.progression_block(player, rec)
 	if blocked != "":
 		return "Locked"
+	# Spec 30 §10-11: a station's tags and its level gate the recipe, and the row says which.
+	if _station != "":
+		var st: Variant = info.get("node", null)
+		if st is CraftStation:
+			var gate := CraftStation.station_gate(rec, (st as CraftStation).station_tags, (st as CraftStation).station_level, StringName(_station))
+			if gate != "":
+				return gate + "  " + str(rec.get("id", "")).replace("_", " ").capitalize()
 	if not Crafting.picks_valid(player.inventory, rec, Crafting.default_picks(player.inventory, rec)):
 		return "Missing items"
 	if _station != "" and not info["exists"]:
@@ -307,7 +339,7 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	text.add_child(name)
 	var meta := Label.new()
 	meta.name = "RecipeMeta"
-	meta.text = "%s · %.1fs%s" % [LevelDisplay.recipe_label(player.inventory, rec), Crafting.recipe_seconds(rec), ("  ·  " + reason) if reason != "" else ""]
+	meta.text = "%s · %s%s" % [LevelDisplay.recipe_label(player.inventory, rec), Crafting.preview_time(rec), ("  ·  " + reason) if reason != "" else ""]
 	meta.clip_text = true
 	meta.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	meta.add_theme_font_size_override("font_size", UiTokens.meta(view))
@@ -403,9 +435,9 @@ func _station_info(sid: String) -> Dictionary:
 		return {"exists": true, "near": true, "dist": 0.0}
 	var n := Crafting.nearest_station(player, StringName(sid))
 	if n == null:
-		return {"exists": false, "near": false, "dist": 0.0}
+		return {"exists": false, "near": false, "dist": 0.0, "node": null}
 	var d := player.global_position.distance_to(n.global_position)
-	return {"exists": true, "near": d <= Crafting.STATION_RANGE + 0.35, "dist": d}
+	return {"exists": true, "near": d <= Crafting.STATION_RANGE + 0.35, "dist": d, "node": n}
 
 func _show_detail(info: Dictionary) -> void:
 	if _detail == null:
@@ -442,7 +474,7 @@ func _show_detail(info: Dictionary) -> void:
 	_detail.add_child(icon)
 	var title := Label.new()
 	title.name = "DetailTitle"
-	title.text = "%s\n%s · %.1fs    ×%d" % [out_name, LevelDisplay.recipe_label(player.inventory, rec), Crafting.recipe_seconds(rec), int(out_row.get("count", 1))]
+	title.text = "%s\n%s · %s    ×%d" % [out_name, LevelDisplay.recipe_label(player.inventory, rec), Crafting.preview_time(rec), int(out_row.get("count", 1))]
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 	title.add_theme_color_override("font_color", UiTokens.TEXT)

@@ -851,6 +851,7 @@ func _toggle_sheet(kind: StringName) -> void:
 			title.text = "Menu"
 			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
 			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
+			_sheet_btn(box, "Build", func () -> void: _close_sheet(); var b := BuildUI.ensure(player); if b: b.toggle())
 			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
 			# spec 29 section 2: Gameplay HUD -> Main Menu -> Domain.
 			_sheet_btn(box, "Domain", func () -> void: _close_sheet(); _open_domain())
@@ -903,16 +904,26 @@ func _toggle_sheet(kind: StringName) -> void:
 				if fp is Array and (fp as Array).size() >= 2:
 					fp_txt = "  %d×%d" % [int(fp[0]), int(fp[1])]
 				_sheet_btn(box, "%s%s  ×%d" % [def.display_name, fp_txt, s.count], func () -> void: _close_sheet(); player.placer.begin(kind_id))
+			StructureSheet.fill_build(player, func (t: String, cb: Callable) -> void: _sheet_btn(box, t, cb), _refresh_sheet, _close_sheet)
+			any = true  # modular pieces are always buildable from materials: no "no kits" note eating the rows
 			if not any:
 				# Under the rows, wrapped to the sheet's width (in the two-column grid it stretched the sheet to 708 px).
 				var l := Label.new()
 				l.text = "No building kits in the bag. Craft one at the workbench."
 				l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				outer.add_child(l)
+		&"structure":
+			title.text = StructureSheet.fill_card(box, player, func (t: String, cb: Callable) -> void: _sheet_btn(box, t, cb), _close_sheet)
 	add_child(_sheet)
 	_layout()
 	await get_tree().process_frame
 	_layout()
+
+## A tapped modular piece (W2-BUILDSYS): its card in the bottom sheet.
+func open_structure(sp: StructurePiece) -> void:
+	StructureSheet.card = sp
+	_close_sheet()
+	_toggle_sheet(&"structure")
 
 func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
 	var b := Button.new()

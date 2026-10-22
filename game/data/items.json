@@ -3818,7 +3818,7 @@
       "market_category": "clothing",
       "rarity": "uncommon",
       "bag_def": "basic_bag",
-      "_about": "Spec 31 \u00a72 migration: the old stand-in bag. Saves that hold it load as a Basic Bag of the same level (ItemStack.from_dict). New bags are the five defined in data/bags.json."
+      "_about": "Spec 31 §2 migration: the old stand-in bag. Saves that hold it load as a Basic Bag of the same level (ItemStack.from_dict). New bags are the five defined in data/bags.json."
     },
     {
       "id": "basic_bag",
@@ -3899,6 +3899,74 @@
       "market_category": "clothing",
       "rarity": "epic",
       "bag_def": "specialized_storage_bag"
+    },
+    {
+      "id": "plank_shape",
+      "display_name": "Plank Shape",
+      "categories": [
+        "component",
+        "plank_shape",
+        "wood"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "construction",
+      "rarity": "common"
+    },
+    {
+      "id": "pillar_shape",
+      "display_name": "Pillar Shape",
+      "categories": [
+        "component",
+        "pillar_shape",
+        "wood"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "construction",
+      "rarity": "common"
+    },
+    {
+      "id": "strap",
+      "display_name": "Strap",
+      "categories": [
+        "component",
+        "strap",
+        "lashing"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "construction",
+      "rarity": "common"
+    },
+    {
+      "id": "trimmed_plank",
+      "display_name": "Trimmed Plank",
+      "categories": [
+        "wood",
+        "trimmed_plank"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "construction",
+      "rarity": "common"
+    },
+    {
+      "id": "fine_plank",
+      "display_name": "Fine Plank",
+      "categories": [
+        "wood",
+        "fine_plank"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "construction",
+      "rarity": "common"
     }
   ]
 }

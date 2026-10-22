@@ -354,7 +354,7 @@
         1.0
       ],
       "art_status": "REPLACE",
-      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
+      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
     },
     "wall": {
       "model": "structure",
@@ -370,7 +370,7 @@
         0.228
       ],
       "art_status": "REPLACE",
-      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
+      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
     },
     "wall_doorway": {
       "model": "structure-metal-doorway",
@@ -385,7 +385,7 @@
         0.25
       ],
       "art_status": "REPLACE",
-      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
+      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
     },
     "roof": {
       "model": "structure-roof",
@@ -400,7 +400,7 @@
         1.036
       ],
       "art_status": "REPLACE",
-      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
+      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
     },
     "fishing_stand": {
       "model": "campfire-fishing-stand",
@@ -675,6 +675,14 @@
       "art_status": "REVIEW",
       "upgrade": "low-poly hand-built Blender (1924 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "harbour dock: plank pier on log piles with a canvas shed, 3x6 like HarbourSite.FOOTPRINT; deck 1.2 m above the pile feet, seaward end towards -Z. HarbourSite keeps it on the coast"
+    },
+    "construction_site": {
+      "model": "construction_site",
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "W2-BUILDFLOW: an unfinished blueprint's site. The blueprint in data/blueprints.json owns the real footprint; this row only reserves it on the build grid until the art pipeline ships site_small_0/1/2."
     }
   },
   "tools": {

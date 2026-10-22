@@ -22,6 +22,7 @@ static var _pack_cooldown_until: Dictionary = {} ## pack_id -> seconds
 var creature: Creature
 var state: StringName = &"roam"
 var attack_target: Node3D
+var _siege_cd := 0.0  # next time _approach may ask StructureHealth.siege_target
 var perception: float = 12.0
 var profile: Dictionary = {}
 var _roam_cd: float = 0.0
@@ -114,7 +115,7 @@ func _flees_on_sight() -> bool:
 func aggro_radius() -> float:
 	var leader := _pack_leader()
 	var src: CreatureBrain = leader.brain if leader and leader != creature and leader.brain else self
-	return maxf(26.0 if attack_target is FieldCatapult else 0.0, src._effective_perception() * float(src.profile.get("leash_mult", 2.2)))
+	return maxf(26.0 if StructureHealth.is_structure(attack_target) else 0.0, src._effective_perception() * float(src.profile.get("leash_mult", 2.2)))
 
 ## True while this creature is actively on the survivor (ring shown).
 func hunting_player() -> bool:
@@ -122,7 +123,7 @@ func hunting_player() -> bool:
 		return false
 	var on_player := attack_target is Player and not (attack_target as Player).dead
 	var on_pet := attack_target is Creature and (attack_target as Creature).is_pet and not (attack_target as Creature).health.dead
-	var on_siege := attack_target is FieldCatapult and (attack_target as FieldCatapult).hp > 0
+	var on_siege := StructureHealth.is_structure(attack_target) and not StructureHealth.of(attack_target, true).dead
 	if not (on_player or on_pet or on_siege):
 		return false
 	return state in [&"alert", &"approach", &"attack", &"retreat"]
@@ -155,8 +156,18 @@ func _face_target(delta: float) -> void:
 func tick(dt: float) -> void:
 	_dt = dt
 	if not _pre_think(dt):
+		_break_in()
 		_think(dt)
 	creature.brain_state = state
+
+## W2-BUILDSYS: prey behind walls the creature cannot path around: the blocking wall comes down first.
+func _break_in() -> void:
+	if not _valid_target() or StructureHealth.is_structure(attack_target) or _now_s() < _siege_cd:
+		return
+	_siege_cd = _now_s() + 1.0  # one TilePath query a second per hunter, not one per think
+	var wall := StructureHealth.siege_target(creature, attack_target.global_position)
+	if wall:
+		attack_target = wall
 
 ## THINK_HZ, staggered by _think_phase; a timed move (_full_rate) thinks every frame.
 func _should_think(frame: int) -> bool:
