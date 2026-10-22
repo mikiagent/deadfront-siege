@@ -14,8 +14,10 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 	var home := str(def.get("kind", "")) == "private"
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 17 if home else 25
-	_multimesh_family(rt, "Grass", int(counts.get("grass", 260 if not home else 140)), size, rng)
-	_multimesh_family(rt, "Flowers", int(counts.get("flower", 40 if not home else 24)), size, rng)
+	# GROUND2D: the grass and flower families are painted ground cover now (scripts/world/ground_cover.gd):
+	# dense camera-facing cards per 32 m cell, thinned with distance instead of switched off at a range,
+	# never colliding. The counts stay data (ground_cover.json holds the density per m2).
+	GroundCover.install(rt, climate, 17 if home else 25)
 	# Durango's islands are dense: every family keeps a floor even when the island data is sparse.
 	# Denser islands (owner asked for resources everywhere): home floors up 3-4x, unstable up ~1.5x.
 	var floors := {"tree": 40 if home else 64, "bush": 36 if home else 44, "rock": 20 if home else 26, "plant": 24 if home else 24, "wild_grass": 48 if home else 60}
