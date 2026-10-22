@@ -18,6 +18,9 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 	# dense camera-facing cards per 32 m cell, thinned with distance instead of switched off at a range,
 	# never colliding. The counts stay data (ground_cover.json holds the density per m2).
 	GroundCover.install(rt, climate, int(def.get("seed", 17 if home else 25)))
+	# BIOMEDRESS: the biome zones' own painted dressing (reeds at the water, termites on savanna,
+	# basalt and crystals on volcanic, palms and ferns on tropical), from data/world/biome_dress.json.
+	BiomeDress.install(rt, int(def.get("seed", 17 if home else 25)))
 	# Durango's islands are dense: every family keeps a floor even when the island data is sparse.
 	# Denser islands (owner asked for resources everywhere): home floors up 3-4x, unstable up ~1.5x.
 	# Owner wants islands that read full: counts come from area x props.json scatter.nodes_target. The
