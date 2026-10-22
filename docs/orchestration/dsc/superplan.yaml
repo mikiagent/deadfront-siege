@@ -11,6 +11,10 @@
 # Not in the plan: the two MiniMax first-pass reviews (scratch trees SP/trees/rev-w2gather, rev-w2buildsys) and
 # webpack2 (waits on an owner decision: the 512 px texture cap also changes desktop/iOS).
 # Gate scripts live in {sp}/dsc (backup copies: docs/orchestration/dsc/gates/).
+# Research pack: docs/reference/durango0-wiki/ - 12 source-linked topic files on Durango:0 Homecoming
+# (stats, skills, crafting, materials, food, animals, capture, building, gathering, world). It is
+# background, not a data dump: its README requires provenance on every reconstructed value and forbids
+# passing reconstruction numbers off as original balancing. Jobs below name the file that covers them.
 project:
   repo: ~/Documents/deadfront-siege
   base: claude/mmo-overhaul
@@ -365,6 +369,8 @@ phases:
         task_body: |
           # Task: FOODFX: eating and drinking have effects beyond a flat Energy number
           Owner: "add this to the docs and plan" (spec docs/design/durango-prompts/32_food_drink_consumption_effects.md).
+          Research: docs/reference/durango0-wiki/06_FOOD_DRINK_TASTE_AND_BUFF_FORMULAS.md (digestion, taste grades,
+          the buff keys) - reconstruction values stay tagged, never presented as original constants.
           Extend the systems that exist; do not build a second food, inventory or status architecture.
           Today: game/scripts/items/food.gd (Energy only: base x (1 + 0.35 x process_count) x level), eat_session.gd
           (3 s eat, move cancels the remaining restore, raw-food risk past half), a flat BUFFS table in
@@ -410,6 +416,8 @@ phases:
         verify: "bash -c 'echo placeholder: the orchestrator writes the balance task after p1/p2/p5 merge; exit 0'"
         task_body: |
           # BALANCE: placeholder until the systems land
+          Research pack for this pass: docs/reference/durango0-wiki/ 02 (stats, action costs), 03 (918 skill nodes,
+          SP economy), 04 (craft probability), 07 (animal stats, combat, butchering), 11 (world/climate).
           The owner: "game balancing like tuning hp and damage wont make sense until crafting building and skills is done
           and tuned". The orchestrator writes this task (measured before-numbers from a bot run, the islands plan P6/LOOP1
           thresholds in docs/design/islands-and-loop-plan.md 3.4 and section 5, staged gates and a verify) once p1, p2 and
