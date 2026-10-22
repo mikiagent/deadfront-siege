@@ -35,8 +35,8 @@ static var _map: Dictionary = {}
 static var _map_loaded := false
 
 ## The shader without the fade body: the same card_sway.gdshader minus the CARD_FADE_* lines and the
-## occlusion include. No instance uniform, so GLES3's per-instance budget (a few thousand) is spent
-## only on the tall cards that can fade, not on every grass tuft on the island.
+## occlusion include. It contains no instance uniform. Short cards use it everywhere; web uses it for
+## every card because Compatibility's 1,024-item buffer cannot hold a populated island's tall cards.
 static var _plain_shader: Shader = null
 
 var _quad: MeshInstance3D
@@ -370,9 +370,10 @@ static func sway_kind(family: String) -> String:
 func setup(card_id: String, height_m: float = 0.0) -> bool:
 	if not baked(card_id):
 		return false
-	# The card shader includes the occlusion fade body, whose global uniforms only exist once the
-	# Occlusion driver is up. Register them here so a card renders on its own (a bare lab, a beach).
-	Occlusion._ensure_driver()
+	# The full card shader includes the occlusion fade body, whose globals must exist before rendering.
+	# Web uses the fade-free shader and must not start the driver or register those globals.
+	if Occlusion.enabled:
+		Occlusion._ensure_driver()
 	var row := card(card_id)
 	var kind := str(row.get("kind", "plant"))
 	var params := kind_params(kind)
@@ -401,7 +402,8 @@ func setup_painted(row: Dictionary, height_m: float, shade_mode: int = SHADE_PAI
 	var file := str(row.get("file", ""))
 	if file == "" or not ResourceLoader.exists(file):
 		return false
-	Occlusion._ensure_driver()
+	if Occlusion.enabled:
+		Occlusion._ensure_driver()
 	var tex := load(file) as Texture2D
 	if tex == null:
 		return false
@@ -427,8 +429,9 @@ func _apply_sway(mat: ShaderMaterial, params: Dictionary, sc: float, card_height
 
 ## The quad, its material and the ground pivot; shared by both art sources.
 func _place(mat: ShaderMaterial, pivot: Vector2, size: Vector2, cast_shadow: bool) -> bool:
-	# Only a card tall enough to hide the survivor gets the fade body (and its instance uniform).
-	if size.y < Occlusion.TALL_M:
+	# Only an occluder tall enough to hide the survivor gets the per-instance fade body. Web disables
+	# that path, so even tall cards must use the instance-uniform-free material.
+	if not Occlusion.enabled or size.y < Occlusion.TALL_M:
 		mat.shader = fade_free_shader()
 	mat.set_shader_parameter("pivot_uv", pivot)
 	_pivot = pivot
