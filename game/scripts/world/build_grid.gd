@@ -88,6 +88,12 @@ func can_place(kind: StringName, cell: Vector2i, rot: int) -> String:
 		for c in cells:
 			if not runtime.is_claimed(c):
 				return "unclaimed"
+	# Scenery props: a clearable one is emptied when the build is confirmed (BuildPlacer.confirm), a
+	# cliff or mesa refuses the spot (owner: "most props can be destroyed except for like really big
+	# cliffs"). Without "props" on the cell, the check costs one get() on the runtime.
+	var prop_block := _prop_blocker(cells)
+	if prop_block != "":
+		return prop_block
 	# A kit may stand on a foundation floor (all of it, never half on the ground) or on bare ground.
 	var on_floor := 0
 	for c in cells:
@@ -112,6 +118,15 @@ func can_place(kind: StringName, cell: Vector2i, rot: int) -> String:
 	if not _slope_ok(kind, cell, rot):
 		return "slope"
 	return ""
+
+## "cliff" when an indestructible prop (cliff, mesa, basalt column) stands on these cells, else "".
+## A clearable prop never refuses a spot: BuildPlacer.confirm clears it after the kit is paid, so the
+## player sees what they are building on disappear rather than a code they cannot act on.
+func _prop_blocker(cells: Array[Vector2i]) -> String:
+	var p: Variant = runtime.get("props") if is_instance_valid(runtime) else null
+	if p == null or not is_instance_valid(p) or not p.has_method("blocking_kind_at_cells"):
+		return ""
+	return "cliff" if str(p.call("blocking_kind_at_cells", cells)) != "" else ""
 
 func occupy(node: Node, cells: Array[Vector2i]) -> void:
 	release(node)

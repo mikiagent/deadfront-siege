@@ -43,6 +43,11 @@ var _harvest_nodes: Dictionary = {}
 var _bare_tiles: Dictionary = {}
 var spawn_rejected: int = 0
 var build_grid: BuildGrid
+## Scenery layer (non-resource props): IslandProps node, null until build() has scattered it.
+var props
+## Ground-cover instance positions (grass, flowers) as scattered, for the lab and t_props density
+## checks. The visuals themselves live in VegBatch cells; this is the placement record only.
+var cover_points: PackedVector3Array = PackedVector3Array()
 var pathing
 var _height_tex: ImageTexture
 var _water_mat: ShaderMaterial
@@ -141,6 +146,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 		build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo_basket.position), 0)
 	IslandClaims.setup(self, def)
 	IslandScatter.scatter(self, def, terrain, _climate, _tier, size)
+	props = IslandProps.build(self)
 	_setup_pathing()
 	IslandSpawns.spawn_all(self, def)
 	if crater_v is Array:
@@ -373,9 +379,17 @@ func harvest_tile_snapshot() -> Dictionary:
 			"node_id": node_id,
 			"regen_left": left,
 		})
-	return {"bare_tiles": arr}
+	# Scenery props cleared by this save (owner: most props can be destroyed except big cliffs). They
+	# ride this snapshot so no save key and no schema bump is needed; IslandProps reads it back.
+	var snap := {"bare_tiles": arr}
+	if props != null and is_instance_valid(props) and props.has_method("snapshot"):
+		snap["props"] = props.snapshot()
+	return snap
 
 func apply_harvest_tile_snapshot(snap: Dictionary) -> void:
+	var pv: Variant = snap.get("props", null)
+	if pv is Dictionary and props != null and is_instance_valid(props) and props.has_method("apply_snapshot"):
+		props.apply_snapshot(pv as Dictionary)
 	var arr: Variant = snap.get("bare_tiles", [])
 	if not arr is Array:
 		return

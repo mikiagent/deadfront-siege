@@ -20,7 +20,10 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 	GroundCover.install(rt, climate, 17 if home else 25)
 	# Durango's islands are dense: every family keeps a floor even when the island data is sparse.
 	# Denser islands (owner asked for resources everywhere): home floors up 3-4x, unstable up ~1.5x.
-	var floors := {"tree": 40 if home else 64, "bush": 36 if home else 44, "rock": 20 if home else 26, "plant": 24 if home else 24, "wild_grass": 48 if home else 60}
+	# Owner wants islands that read full: counts come from area x props.json scatter.nodes_target. The
+	# floors below stay as the old minimum for a tiny or a data-poor island.
+	var target: Dictionary = _target_counts(rt, counts, home)
+	var floors := {"tree": 24, "bush": 20, "rock": 12, "plant": 20, "wild_grass": 40}
 	var tree_families: Array[String] = []
 	for fam in families:
 		var fs := str(fam)
@@ -40,21 +43,21 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 		var col := Color(0.35, 0.22, 0.1)
 		match role:
 			"tree", "tree_dead":
-				n = maxi(int(counts.get("tree", 0)), int(floors["tree"])) / maxi(1, tree_families.size())
+				n = maxi(int(target.get("tree", 0)), int(floors["tree"])) / maxi(1, tree_families.size())
 			"bush":
-				n = maxi(int(counts.get("bush", 0)), int(floors["bush"]))
+				n = maxi(int(target.get("bush", 0)), int(floors["bush"]))
 				fallback = &"fibre_stalk"
 				tool = &"knife"
 				col = Color(0.2, 0.45, 0.18)
 			"rock":
-				n = maxi(int(counts.get("rock", 0)), int(floors["rock"]))
+				n = maxi(int(target.get("rock", 0)), int(floors["rock"]))
 				fallback = &"stone"
 				tool = &"pick"
 				col = Color(0.5, 0.5, 0.48)
 			"prop":
 				n = 0
 			_:
-				n = int(floors["wild_grass"]) if fs == "WildGrass" else int(floors["plant"])
+				n = maxi(int(target.get("wild_grass", 0)), int(floors["wild_grass"])) if fs == "WildGrass" else maxi(int(target.get("plant", 0)), int(floors["plant"]))
 				fallback = &"dry_grass" if fs == "WildGrass" else &"herb_leaf"
 				tool = &"none"
 				col = Color(0.55, 0.62, 0.3) if fs == "WildGrass" else Color(0.35, 0.55, 0.25)
@@ -67,6 +70,7 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 			continue
 		rt.harvest_count += _plant_family(rt, fs, role, n, fallback, tool, climate, tier, size, rng, col)
 	_scatter_special_tiles(rt, climate, tier, rng)
+	_top_up(rt, total_target(counts, rt, home), climate, tier, size, rng)
 	for b in rt._batches:
 		b.commit()
 	for node in rt._harvest_nodes.values():
@@ -76,6 +80,169 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 
 ## Plants a family in clumps of 3-6 (thickets and clearings, like the reference), on free
 ## dry tiles, avoiding the camp. Tree clumps near the shore become palms where the climate allows.
+## The island's HarvestNode target (biome weights are acceptance probabilities, so the families above
+## land short of it; the top-up fills the rest with small plant-role nodes).
+static func total_target(counts: Dictionary, rt: IslandRuntime, home: bool) -> int:
+	var t: Dictionary = _target_counts(rt, counts, home)
+	var n := 0
+	for k in t.keys():
+		n += int(t[k])
+	return n
+
+## Small plant-role nodes on free dry ground until the island reaches its target. Keeps the total in
+## the plan's band without touching the expensive tree and bush meshes.
+static func _top_up(rt: IslandRuntime, target: int, climate: String, tier: int, size: float, rng: RandomNumberGenerator) -> void:
+	if rt.harvest_count >= target:
+		return
+	var clim: Dictionary = Data.world_climates.get(climate, {})
+	var families: Array = clim.get("vegetation", [])
+	var pick: Array[String] = []
+	for f in families:
+		var fs := str(f)
+		var role := str(Data.nature_families.get(fs, {}).get("role", ""))
+		if role == "plant" or role == "bush":
+			pick.append(fs)
+	if pick.is_empty():
+		pick.append("Plant")
+	var half := size * 0.42
+	var placed := 0
+	var tries := 0
+	var need := maxi(1, target - rt.harvest_count)
+	while rt.harvest_count < target and tries < need * 60:
+		tries += 1
+		var ox := rng.randf_range(-half, half)
+		var oz := rng.randf_range(-half, half)
+		var pos := Vector3(ox, rt.surface_y(ox, oz), oz)
+		if not rt.spawn_ok(pos, false) or rt.near_harbour(pos):
+			continue
+		if IslandTerrain.slope_deg(rt, ox, oz) > 30.0:
+			continue
+		var tile := BuildGrid.tile_of(pos)
+		if rt._used_tiles.has(tile):
+			continue
+		if Vector2(ox - rt._camp_hint.x, oz - rt._camp_hint.z).length() < 9.0:
+			continue
+		var b := IslandProps.biome_of(rt, ox, oz)
+		if IslandProps.biome_weight(b, "plant") <= 0.15:
+			continue
+		var fam := pick[placed % pick.size()]
+		var role := str(Data.nature_families.get(fam, {}).get("role", "plant"))
+		var fallback := &"herb_leaf"
+		var tool := &"none"
+		var col := Color(0.35, 0.55, 0.25)
+		if role == "bush":
+			fallback = &"fibre_stalk"
+			tool = &"knife"
+			col = Color(0.2, 0.45, 0.18)
+		var made := plant_at(rt, fam, "topup_%d" % placed, pos, fallback, tool, climate, rt.material_level(pos, tier), col)
+		placed += made
+		rt.harvest_count += made
+
+## Biome weighting thins a role in a biome (trees on savanna) but must not shrink the island's total.
+## Scale the role's target by the inverse of its area-weighted mean weight, capped so a role that can
+## only stand in one small zone stays a find instead of a carpet.
+static func _role_scale(rt: IslandRuntime, channel: String) -> float:
+	if rt._tile_span <= 0:
+		return 1.0
+	var sum := 0.0
+	var n := 0
+	for tz in range(0, rt._tile_span, 8):
+		for tx in range(0, rt._tile_span, 8):
+			var t := int(rt.tile_types[IslandTerrain.tile_idx(rt, tx, tz)])
+			if t == IslandTerrain.TileType.DEEP or t == IslandTerrain.TileType.SHALLOW:
+				continue
+			var wx := -rt._size * 0.5 + float(tx) + 0.5
+			var wz := -rt._size * 0.5 + float(tz) + 0.5
+			sum += IslandProps.biome_weight(IslandProps.biome_of(rt, wx, wz), channel)
+			n += 1
+	if n <= 0:
+		return 1.0
+	var mean := sum / float(n)
+	if mean <= 0.02:
+		return 1.0
+	return clampf(1.0 / mean, 1.0, 2.6)
+
+## Per-island HarvestNode target split by role: land area (dry tiles) x scatter.nodes_target.per_ha,
+## clamped to min/max, then role_share. Biome weights still decide where each family may stand
+## (_role_weight / _biome_allows); the target keeps the total at the plan's 400-600 per island.
+static func _target_counts(rt: IslandRuntime, counts: Dictionary, home: bool = false) -> Dictionary:
+	var sc: Variant = IslandProps.scatter_row("nodes_target", {})
+	var tgt: Dictionary = sc as Dictionary if sc is Dictionary else {}
+	var land_m2 := 0.0
+	if rt._tile_span > 0:
+		for tz in range(0, rt._tile_span, 3):
+			for tx in range(0, rt._tile_span, 3):
+				var t := int(rt.tile_types[IslandTerrain.tile_idx(rt, tx, tz)])
+				if t == IslandTerrain.TileType.DEEP or t == IslandTerrain.TileType.SHALLOW:
+					continue
+				land_m2 += 9.0
+	var per_ha := float(tgt.get("per_ha", 300.0))
+	var total := int(round(per_ha * land_m2 / 10000.0))
+	# Plan P4: home 450-600 HarvestNodes, unstable 500-750. The max here keeps both inside the
+	# 400-600 band this package was scoped to.
+	var lo := int(tgt.get("min", 420))
+	var hi := int(tgt.get("max", 600))
+	total = clampi(total, lo, hi)
+	var share: Variant = IslandProps.scatter_row("role_share", {})
+	var shares: Dictionary = share as Dictionary if share is Dictionary else {}
+	var out := {}
+	var raw_total := 0.0
+	for role in ["tree", "bush", "rock", "plant", "wild_grass"]:
+		var s := float(shares.get(role, 0.2))
+		var channel := "plant"
+		if role == "tree":
+			channel = "tree"
+		elif role == "wild_grass":
+			channel = "wild_grass"
+		elif role != "bush" and role != "rock":
+			channel = "plant"
+		elif role == "bush":
+			channel = "bush"
+		elif role == "rock":
+			channel = "rock"
+		var v := float(total) * s * _role_scale(rt, channel)
+		out[role] = v
+		raw_total += v
+	# The role scaling must not lift the island's total: renormalise back to the target.
+	var norm := float(total) / maxf(1.0, raw_total)
+	for role in out.keys():
+		out[role] = int(round(float(out[role]) * norm))
+	return out
+
+## Biome weight for a role at a world point (props.json scatter.weights). 0 means "never here";
+## a family whose role is not weighted (ore nodes, crater plants) falls back to 0.35 so it stays a find.
+static func _role_weight(rt: IslandRuntime, role: String, x: float, z: float) -> float:
+	var b := IslandProps.biome_of(rt, x, z)
+	var channel := "plant"
+	if role.begins_with("tree"):
+		channel = "tree"
+	elif role == "bush":
+		channel = "bush"
+	elif role == "rock":
+		channel = "rock"
+	elif role == "wild_grass":
+		channel = "wild_grass"
+	var w := IslandProps.biome_weight(b, channel)
+	return w
+
+## Where a family belongs: trees in forest/meadow, reeds and flax by water (wetland), ore and crystal
+## nodes on rocky/canyon/basalt ground. Empty = anywhere the climate allows.
+static func _family_biomes(family: String, role: String) -> PackedStringArray:
+	var out := PackedStringArray()
+	var row: Dictionary = Data.nature_families.get(family, {})
+	var n := str(family).to_lower()
+	if n.contains("reed") or n.contains("flax") or n.contains("lily") or n.contains("clay") or n.contains("mud"):
+		out.append_array(["wetland", "beach"])
+	elif n.contains("ore") or n.contains("crystal") or n.contains("obsidian") or n.contains("flint") or n.contains("copper") or n.contains("iron") or n.contains("silver") or n.contains("salt") or n.contains("sulphur") or n.contains("lava") or n.contains("sandstone") or n.contains("ochre") or n.contains("ice") or n.contains("peat"):
+		out.append_array(["rocky", "canyon", "basalt"])
+	elif role.begins_with("tree"):
+		out.append_array(["forest", "meadow"])
+	elif role == "rock":
+		out.append_array(["rocky", "canyon", "basalt", "meadow"])
+	elif n.contains("cactus") or n.contains("aloe") or n.contains("drygrass") or n.contains("acacia"):
+		out.append_array(["savanna", "canyon"])
+	return out
+
 static func _plant_family(rt: IslandRuntime, family: String, role: String, n: int, fallback_id: StringName, tool: StringName, climate: String, tier: int, size: float, rng: RandomNumberGenerator, color: Color) -> int:
 	var placed := 0
 	var half := size * 0.40
@@ -93,6 +260,22 @@ static func _plant_family(rt: IslandRuntime, family: String, role: String, n: in
 		var fam := family
 		if palms and Vector2(cx, cz).length() > rt.land_radius() * 0.70:
 			fam = "PalmTree"
+		# Biome gate: a weighted role is accepted with probability weight (so trees thin out on
+		# savanna and rock piles on rocky ground), and a family with preferred biomes must be inside
+		# one of them somewhere nearby (reeds and flax by water, ore on rock).
+		var w := _role_weight(rt, role, cx, cz)
+		if w <= 0.02:
+			continue
+		if w < 0.999 and rng.randf() > w:
+			continue
+		var prefer := _family_biomes(family, role)
+		if prefer.size() > 0 and not (IslandProps.biome_of(rt, cx, cz) in prefer):
+			if prefer.has("wetland"):
+				# Water-loving families also take the MUD/WET/SHALLOW tiles next to their zone.
+				if IslandTerrain.tile_type_at_world(rt, cx, cz) != IslandTerrain.TileType.MUD:
+					continue
+			else:
+				continue
 		var clump := rng.randi_range(3, 6) if (role.begins_with("tree") or role == "bush") else rng.randi_range(1, 3)
 		var spread := 3.2 if role.begins_with("tree") else 2.4
 		for k in clump:
@@ -327,31 +510,63 @@ static func _family_regen_seconds(family: String, role: String) -> float:
 		return 240.0
 	return 120.0
 
-static func _multimesh_family(rt: IslandRuntime, family: String, n: int, size: float, rng: RandomNumberGenerator) -> void:
+## Ground cover (grass, flowers) in 32 m cells, one MultiMesh per cell per model, 120 m range and no
+## shadows, exactly like VegBatch does for trees. Replaces one island-wide MultiMesh culled at 48 m
+## from the origin, which is why anything past ~50 m from the middle had no cover at all (scout 3b).
+## Density comes from props.json scatter.ground_cover; placement retries on water, rock and the camp.
+static func _ground_cover(rt: IslandRuntime, family: String, size: float, rng: RandomNumberGenerator, climate: String) -> void:
+	var clim: Dictionary = Data.world_climates.get(climate, {})
+	var veg: Array = clim.get("vegetation", [])
+	# No grass where the climate has none (the plan's look item 2).
+	if family == "Grass":
+		var has_grass := false
+		for v in veg:
+			if str(v).begins_with("Grass"):
+				has_grass = true
+				break
+		if not has_grass and veg.size() > 0:
+			return
 	var models := _models(family)
-	if models.is_empty() or n <= 0:
+	if models.is_empty():
 		return
-	var path := _nature_path(models[0])
-	if not ResourceLoader.exists(path):
-		print("[world] missing nature %s" % path)
+	var gc: Variant = IslandProps.scatter_row("ground_cover", {})
+	var dense: Dictionary = gc as Dictionary if gc is Dictionary else {}
+	var per_ha := float(dense.get("grass_per_ha" if family == "Grass" else "flower_per_ha", 900.0 if family == "Grass" else 90.0))
+	var land_m2 := _land_area_m2(rt)
+	var want := int(round(per_ha * land_m2 / 10000.0))
+	var half := size * 0.47
+	var paths := PackedStringArray()
+	for m in models:
+		var p := _nature_path(str(m))
+		if ResourceLoader.exists(p):
+			paths.append(p)
+	if paths.is_empty():
 		return
-	var packed := load(path)
-	var inst: Node = packed.instantiate() if packed is PackedScene else null
-	var src_mesh: Mesh
-	if inst:
-		src_mesh = _first_mesh(inst)
-		inst.queue_free()
-	if src_mesh == null:
+	if rt._foliage_mat == null:
+		rt._foliage_mat = ShaderMaterial.new()
+		rt._foliage_mat.shader = FOLIAGE_SHADER
+	var batches: Array[VegBatch] = []
+	for p in paths:
+		var b := VegBatch.get_for(rt, p)
+		if b == null:
+			continue
+		b.material_override = rt._foliage_mat
+		if not rt._batches.has(b):
+			rt._batches.append(b)
+		batches.append(b)
+	if batches.is_empty():
 		return
-	var xforms: Array[Transform3D] = []
-	var half := size * 0.42
-	for i in n:
+	var tries := 0
+	var placed := 0
+	var max_tries := maxi(want * 2, 200)
+	while placed < want and tries < max_tries:
+		tries += 1
 		var ox := rng.randf_range(-half, half)
 		var oz := rng.randf_range(-half, half)
 		var y := rt.surface_y(ox, oz)
 		if not rt.spawn_ok(Vector3(ox, y, oz), false):
 			continue
-		if (family == "Grass" or family == "Flowers") and IslandTerrain.slope_deg(rt, ox, oz) > 35.0:
+		if IslandTerrain.slope_deg(rt, ox, oz) > 32.0:
 			continue
 		if IslandClaims.is_grass(family) and rt.is_claimed(BuildGrid.tile_of(Vector3(ox, y, oz))):
 			continue  # CLAIMS2: claimed land is bare
@@ -379,6 +594,30 @@ static func _multimesh_family(rt: IslandRuntime, family: String, n: int, size: f
 	rt.mm_count += 1
 	if IslandClaims.is_grass(family):
 		rt.grass_mm.append(mmi)  # CLAIMS2: a new claim drops the instances inside it
+
+## Ground-cover instances within `r` metres of a world point (the plan's near/far cover check:
+## cover must exist far from the origin, not only around it).
+static func cover_within(rt: IslandRuntime, centre: Vector3, r: float) -> int:
+	if rt == null:
+		return 0
+	var n := 0
+	var r2 := r * r
+	for p in rt.cover_points:
+		if Vector2(p.x - centre.x, p.z - centre.z).length_squared() <= r2:
+			n += 1
+	return n
+
+## Dry land in m2, from the tile map (every 3rd tile, like the resource target).
+static func _land_area_m2(rt: IslandRuntime) -> float:
+	if rt._tile_span <= 0:
+		return 0.0
+	var n := 0
+	for tz in range(0, rt._tile_span, 3):
+		for tx in range(0, rt._tile_span, 3):
+			var t := int(rt.tile_types[IslandTerrain.tile_idx(rt, tx, tz)])
+			if t != IslandTerrain.TileType.DEEP and t != IslandTerrain.TileType.SHALLOW:
+				n += 1
+	return float(n * 9)
 
 static func _basis_from_normal(up: Vector3, yaw: float) -> Basis:
 	var n := up.normalized()
