@@ -88,8 +88,10 @@ func _run() -> void:
 	# ---- Declare, through the screen: its Declare button opens the ground preview.
 	cap = int(_rt.call("claim_cap"))
 	var first: Array = IslandClaims.eligible_cells(_rt)
+	# The card covers the left of the screen: take the eligible cells furthest east, so the picked
+	# cells (white) sit in the open ground beside it.
 	first.sort_custom(func (a: Vector2i, b: Vector2i) -> bool:
-		return a.distance_squared_to(camp_cell) < b.distance_squared_to(camp_cell))
+		return a.x > b.x if a.x != b.x else a.y < b.y)
 	_press("Declare")
 	await get_tree().create_timer(0.5).timeout
 	var pv: DomainPreview = _screen.preview
@@ -112,12 +114,14 @@ func _run() -> void:
 	for c: Vector2i in take:
 		pv.pick(c)
 	await get_tree().process_frame
+	await get_tree().process_frame  # the picks repaint the mesh; count after it
 	var counts: Dictionary = pv.counts()
 	eligible_shown = int(counts["eligible"])
 	invalid_shown = int(counts["invalid"])
-	_player.global_position = BuildGrid.tile_centre(IslandClaims.cell_rect(_rt, take[0]).get_center(), _rt) + Vector3(0, 1, 0)
+	_player.global_position = BuildGrid.tile_centre(IslandClaims.cell_rect(_rt, take[1] if take.size() > 1 else take[0]).get_center(), _rt) + Vector3(0, 1, 0)
 	await get_tree().physics_frame
-	await get_tree().create_timer(0.4).timeout
+	await get_tree().create_timer(0.5).timeout
+	_logs.append("preview picked=%d note=%s" % [pv.selected_cells().size(), str(_screen.get("_note").text)])
 	await _shot_now("02_preview")
 	_press("Confirm")
 	await get_tree().create_timer(0.5).timeout
@@ -163,6 +167,7 @@ func _run() -> void:
 			break
 		_press("Confirm")
 		await get_tree().create_timer(0.2).timeout
+		_logs.append("expand %d: used=%d" % [guard, int(_rt.call("claim_used"))])
 	claimed = int(_rt.call("claim_used"))
 	# The full domain, framed on the survivor.
 	var own := Rect2i()
@@ -218,7 +223,17 @@ func _run() -> void:
 	grass_in_claim = IslandClaims.grass_in(_rt, _rt.claims)
 	other_nodes_kept = 1 if bush == 1 and _node_alive_at(bush_at, "Bush") else 0
 	_logs.append("grass_in_claim=%d bush_alive=%d" % [grass_in_claim, other_nodes_kept])
-	await get_tree().create_timer(0.3).timeout
+	# Framed on the border of the claimed block, so the bare claim and the grassy land beside it
+	# both show.
+	_screen.close()  # the no-grass shot is about the ground: the card would cover most of a phone
+	await get_tree().process_frame
+	# Just outside the block's east side, so the gold boundary dashes cross the middle of the frame
+	# with the bare claim behind them and the grassy land in front.
+	var edge: Vector2i = own.get_center()  # inside the claimed block: its bare ground is the subject
+	_player.global_position = BuildGrid.tile_centre(edge, _rt) + Vector3(0, 1, 0)
+	await get_tree().physics_frame
+	await get_tree().create_timer(0.6).timeout
+	_logs.append("shot04: domain %s survivor tile %s" % [own, BuildGrid.tile_of(_player.global_position)])
 	await _shot_now("04_claimed_no_grass")
 	# ---- The record survives the sanitizer and an island reload.
 	var record: Dictionary = IslandClaims.to_save(_rt)

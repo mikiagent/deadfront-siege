@@ -21,6 +21,13 @@ const TABS := [
 ]
 ## ASSUMPTION: spec 29 says the other three territory types are later phases. Their tabs exist (the
 ## screen has four, per the acceptance criteria) and say so instead of pretending to work.
+## Full label on a wide canvas, short one on a phone (a tab rail clips otherwise).
+const TAB_LABEL := {
+	"tamed_island": ["Tamed Island", "Tamed"],
+	"civilized_island": ["Civilized Island", "Civilized"],
+	"clan": ["Clan", "Clan"],
+	"outpost": ["Outpost", "Outpost"],
+}
 const PHASE_NOTE := {
 	"civilized_island": "Phase E: shared-world claims, rent and renewal. Not in this build.",
 	"clan": "Phase F: clan Enclaves, unlocked at Clan Level 5. Not in this build.",
@@ -50,6 +57,7 @@ var _confirm: Button
 var _cancel: Button
 var _close: Button
 var _root_panel: Panel
+var _backdrop: ColorRect
 
 var _previewing := false
 var _last_reason := ""
@@ -64,7 +72,16 @@ func _ready() -> void:
 	_root_panel = Panel.new()
 	_root_panel.name = "Card"
 	_root_panel.add_theme_stylebox_override("panel", UiTokens.panel_style(0.95))
+	# An opaque backdrop under the card: what is behind it must not read through the copy, and the
+	# card covers the HUD's own panels (the quest card sits in the same corner on a phone).
+	_backdrop = ColorRect.new()
+	_backdrop.name = "Backdrop"
+	_backdrop.color = Color(0.02, 0.025, 0.03, 0.90)
+	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_backdrop)
+	move_child(_backdrop, 0)
 	_root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_root_panel.clip_contents = true
 	add_child(_root_panel)
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
@@ -122,6 +139,7 @@ func _ready() -> void:
 	_body.name = "Body"
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_body.clip_text = true
 	_body.add_theme_color_override("font_color", UiTokens.META)
 	_content.add_child(_body)
 	_note = Label.new()
@@ -238,6 +256,9 @@ func _refresh() -> void:
 		lines.append("Declare  pick any valid cell next to your camp land")
 	if _previewing:
 		lines.append("Preview  tap cells to select; Confirm stakes them as one batch")
+	# A landscape phone has ~230 px of card left under the tabs: keep the lines that decide anything.
+	if UiTokens.is_compact(get_viewport_rect().size):
+		lines = lines.slice(2)
 	_body.text = "\n".join(lines)
 	if World.is_home():
 		_note.text = "Claim limit reached: raise your Pioneer rank to claim more." if used >= cap and own else ""
@@ -293,6 +314,7 @@ func _start_preview(mode: String) -> void:
 	_last_reason = ""
 	_picked = 0
 	_refresh()
+	_layout()  # the card widens back / narrows for the preview
 
 func _on_selection_changed(count: int) -> void:
 	_picked = count
@@ -316,11 +338,13 @@ func _on_confirm() -> void:
 	_previewing = false
 	_end_preview()
 	_refresh()
+	_layout()
 
 func _on_cancel() -> void:
 	_previewing = false
 	_end_preview()
 	_refresh()
+	_layout()
 
 func _end_preview() -> void:
 	if preview != null and is_instance_valid(preview):
@@ -346,6 +370,10 @@ func _update_footer() -> void:
 		return
 	var cap: int = rt.call("claim_cap") if rt != null else DomainRules.cap()
 	var used: int = rt.call("claim_used") if rt != null else 0
+	# The count comes from the preview itself: a signalled count went stale once (a shot said
+	# "Selected 0" with three cells picked, i.e. the label lagged the grid).
+	if preview != null and is_instance_valid(preview):
+		_picked = preview.selected_cells().size()
 	var head := "Selected %d · holds %d / %d" % [_picked, used, cap]
 	_note.text = head if _last_reason == "" else "%s — %s" % [head, _last_reason]
 	_confirm.disabled = _picked == 0
@@ -376,6 +404,8 @@ func _layout() -> void:
 		(b as Button).add_theme_font_size_override("font_size", UiTokens.body(view))
 	for id in _tab_buttons.keys():
 		(_tab_buttons[id] as Button).add_theme_font_size_override("font_size", UiTokens.body(view))
+		# A landscape phone has ~200 px a tab: "Tamed", "Civilized", "Clan", "Outpost" fit.
+		(_tab_buttons[id] as Button).text = str(TAB_LABEL[id][1] if compact else TAB_LABEL[id][0])
 	var btn_h := 64.0 if compact else 56.0
 	for b in [_declare, _expand, _renew, _release, _confirm, _cancel, _close]:
 		(b as Button).custom_minimum_size = Vector2(0.0, btn_h)
@@ -384,10 +414,25 @@ func _layout() -> void:
 		var b: Button = _tab_buttons[id]
 		b.custom_minimum_size = Vector2(0.0, btn_h if compact else 48.0)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var card_w := view.x - pad * 2.0 if phone else minf(620.0, maxf(520.0, view.x * 0.42))
+	# A landscape phone is compact but not "phone" (844 wide), and a 520 px card there squeezed the
+	# tab row and clipped the copy: compact canvases get the full width and tighter margins.
+	var margin_px := 8 if compact else UiTokens.SPACE * 2
+	var margin := _root_panel.get_node_or_null("Margin") as MarginContainer
+	if margin != null:
+		for side in ["left", "right", "top", "bottom"]:
+			margin.add_theme_constant_override("margin_" + side, margin_px)
+	# Compact: full width up to 600 px (a phone's body text over ~700 px is too long a measure, and
+	# the ground has to stay visible for the preview); wide: a 520-620 px card on the left.
+	var card_w := minf(600.0, view.x - pad * 2.0) if (phone or compact) else minf(620.0, maxf(520.0, view.x * 0.42))
+	# While previewing, the ground grid is the point: the card gives up width (a phone) so the cells
+	# the survivor is picking stay visible beside it.
+	if _previewing and (phone or compact):
+		card_w = minf(card_w, maxf(360.0, view.x * 0.45))
 	var card_h := view.y - pad * 2.0
 	_root_panel.position = Vector2(pad, pad)
 	_root_panel.size = Vector2(card_w, card_h)
+	_backdrop.position = _root_panel.position
+	_backdrop.size = _root_panel.size
 	_set_axis(compact)
 	if not compact:
 		(_tabs_box as Control).custom_minimum_size = Vector2(196.0, 0.0)
@@ -404,7 +449,8 @@ func _set_axis(horizontal_tabs: bool) -> void:
 	var need_swap: bool = (_outer is HBoxContainer) != want_outer
 	if need_swap:
 		var kids: Array[Node] = _outer.get_children()
-		var fresh: BoxContainer = VBoxContainer.new() if want_outer else HBoxContainer.new()
+		# want_outer = a row of tabs | content (wide canvas); otherwise the tabs stack above it.
+		var fresh: BoxContainer = HBoxContainer.new() if want_outer else VBoxContainer.new()
 		fresh.name = "Outer"
 		fresh.add_theme_constant_override("separation", UiTokens.SPACE)
 		fresh.size_flags_vertical = Control.SIZE_EXPAND_FILL

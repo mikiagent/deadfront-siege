@@ -22,6 +22,11 @@ const ELIGIBLE_COLOR := Color(0.16, 0.86, 0.80, 0.34)
 const ELIGIBLE_EDGE := Color(0.42, 1.0, 0.94, 0.85)
 const INVALID_COLOR := Color(0.95, 0.18, 0.12, 0.30)
 const INVALID_EDGE := Color(1.0, 0.36, 0.28, 0.80)
+## A cell that is merely not adjacent is not a refusal the survivor has to act on (the whole window
+## outside the domain is like that): it draws as a faint neutral cell so the red is reserved for
+## water, cliffs, the island's edge and other owners' land.
+const NEUTRAL_COLOR := Color(1.0, 1.0, 1.0, 0.06)
+const NEUTRAL_EDGE := Color(0.85, 0.92, 1.0, 0.30)
 const PICKED_COLOR := Color(1.0, 1.0, 1.0, 0.55)
 const PICKED_EDGE := Color(1.0, 1.0, 1.0, 1.0)
 const EDGE_W := 0.16  ## metres of border inside each cell's own edge
@@ -78,8 +83,9 @@ func refresh() -> void:
 		if invalid >= MAX_INVALID:
 			break
 		invalid += 1
-		info[cell] = {"state": "invalid", "reason": str(row["reason"])}
-		_quads.append([cell, INVALID_COLOR, INVALID_EDGE])
+		var why := str(row["reason"])
+		info[cell] = {"state": "invalid", "reason": why}
+		_quads.append([cell, NEUTRAL_COLOR, NEUTRAL_EDGE] if why == "not_adjacent" else [cell, INVALID_COLOR, INVALID_EDGE])
 	var elig: Array = look["eligible"]
 	elig.sort_custom(func (a: Vector2i, b: Vector2i) -> bool: return a.y < b.y if a.y != b.y else a.x < b.x)
 	for c: Vector2i in elig:
