@@ -16,7 +16,9 @@ extends SceneTree
 const SPRITES_PATH := "res://data/world/sprites2d.json"
 const SHADER_PATH := "res://shaders/card_sway.gdshader"
 ## Families a climate scatter actually plants (the painted set the owner has cut so far).
-const PAINTED_QUICK := ["PalmTree", "Plant", "WildGrass", "VinePlant", "MangoBush", "HerbPlant",
+## VinePlant is deliberately absent: the only vine art cut is prop:vine_hanging (a hanging curtain) and
+## a sapling, neither of which is a ground vine plant, so it falls back to its painted card.
+const PAINTED_QUICK := ["PalmTree", "Plant", "WildGrass", "MangoBush", "HerbPlant",
 	"GraniteBoulder", "WoodLog", "WoodLog_Moss", "clay", "TreeStump"]
 ## A family with no painted art: must fall back to its baked card, never a model.
 const NO_PAINTED := "CommonTree"

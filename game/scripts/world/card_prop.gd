@@ -222,16 +222,7 @@ static func sprites() -> Array:
 static func sprites_for_family(family: String) -> Array:
 	sprites()
 	var list: Variant = _sprite_index.get(family, [])
-	if list is Array and not (list as Array).is_empty():
-		return list
-	# A family whose art is aliased in sprites2d_map.json ("families": {family: {sprite: <id>}}): the
-	# rows' own kind names the art ("prop:vine_hanging"), not the family, so index alone cannot see it.
-	var fam: Variant = (sprite_map().get("families", {}) as Dictionary).get(family, null)
-	if fam is Dictionary:
-		var row := sprite(str((fam as Dictionary).get("sprite", "")))
-		if not row.is_empty():
-			return [row]
-	return [] if not list is Array else list
+	return list if list is Array else []
 
 ## True when the family has painted art to draw (the PNGs imported).
 static func has_painted(family: String) -> bool:

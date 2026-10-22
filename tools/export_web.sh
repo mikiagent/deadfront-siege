@@ -14,7 +14,10 @@ if [[ "${1:-}" == "--soak" ]]; then
   PRESET="WebSoak"
   SOAK_ARG=(--soak)
 fi
-MAX_MB="${PAYLOAD_MAX_MB:-220}"
+# Owner decision 2026-10-22: ship the current art as-is. The 220 MB cap was the W1-WEB target and the
+# build has been ~320 MB since (textures: survivor 69, generated nature 51, resources 33). Raise the
+# default rather than silently passing PAYLOAD_MAX_MB on every deploy; revisit with the 512 px cap work.
+MAX_MB="${PAYLOAD_MAX_MB:-330}"
 G="${GODOT_WEB_PATH:-$HOME/Applications/Godot-4.7.1.app/Contents/MacOS/Godot}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/export/web"
