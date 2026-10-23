@@ -229,6 +229,12 @@ func _interaction_controls_case(layer: CanvasLayer) -> void:
 			bag_button.emit_signal("pressed")
 			await process_frame
 			_expect(inv.visible, "the Bag button opens inventory")
+			var drop_button := inv.find_child("DropButton", true, false) as Button
+			var destroy_button := inv.find_child("DestroyButton", true, false) as Button
+			_expect(drop_button != null, "a selected inventory item has a Drop action")
+			_expect(destroy_button != null, "a selected inventory item has a Destroy action")
+			if drop_button and destroy_button:
+				await _inventory_discard_case(inv, drop_button, destroy_button)
 			var view: Vector2 = inv.get_viewport_rect().size
 			var panel: Panel = inv.get("_panel")
 			_expect(panel != null and panel.get_global_rect().position.x >= view.x * 0.25,
@@ -239,6 +245,63 @@ func _interaction_controls_case(layer: CanvasLayer) -> void:
 	near.queue_free()
 	far.queue_free()
 	await process_frame
+
+## Drop moves the exact selected instance to a persistent world bag. Destroy needs two taps, and
+## Lock prevents either action.
+func _inventory_discard_case(inv: Control, drop_button: Button, destroy_button: Button) -> void:
+	var world := get_root().get_node("World")
+	var old_runtime: Node3D = world.get("runtime")
+	world.set("runtime", host)
+	var stack_script := load("res://scripts/items/item_stack.gd") as GDScript
+	var drop_index := _empty_inventory_slot()
+	player.inventory.add(stack_script.make(&"branch", 1, {"control_test": "drop"}, 13))
+	inv._on_bag_slot_tapped(drop_index)
+	_expect(drop_button.visible and not drop_button.disabled, "an unlocked selected item enables Drop")
+	drop_button.pressed.emit()
+	await process_frame
+	var dropped_bag: Node = null
+	for candidate in get_nodes_in_group(&"placed_building"):
+		if str(candidate.get("kind")) == "loot_bag" and candidate.get_parent() == host:
+			dropped_bag = candidate
+			break
+	var dropped_storage: Variant = dropped_bag.get("storage") if dropped_bag else null
+	var exact_drop: bool = dropped_storage != null and dropped_storage.used_slots() == 1 \
+		and dropped_storage.slots[0].level == 13 \
+		and str(dropped_storage.slots[0].attributes.get("control_test", "")) == "drop"
+	_expect(player.inventory.slots[drop_index] == null and exact_drop,
+		"Drop removes the selected instance and preserves it in a world loot bag")
+	if dropped_bag:
+		dropped_bag.free()
+
+	var destroy_index := _empty_inventory_slot()
+	player.inventory.add(stack_script.make(&"stone", 1, {"control_test": "destroy"}, 14))
+	inv._on_bag_slot_tapped(destroy_index)
+	destroy_button.pressed.emit()
+	_expect(player.inventory.slots[destroy_index] != null and destroy_button.text == "Destroy?",
+		"Destroy's first tap asks for confirmation and keeps the item")
+	destroy_button.pressed.emit()
+	_expect(player.inventory.slots[destroy_index] == null,
+		"Destroy's second tap permanently removes the selected instance")
+
+	var locked_index := _empty_inventory_slot()
+	player.inventory.add(stack_script.make(&"branch", 1, {"control_test": "locked"}, 15))
+	player.inventory.slots[locked_index].set_flag(&"locked", true)
+	player.inventory.changed.emit()
+	inv._on_bag_slot_tapped(locked_index)
+	_expect(drop_button.disabled and destroy_button.disabled, "Lock disables Drop and Destroy")
+	drop_button.pressed.emit()
+	destroy_button.pressed.emit()
+	destroy_button.pressed.emit()
+	_expect(player.inventory.slots[locked_index] != null, "a locked item cannot be dropped or destroyed")
+	player.inventory.slots[locked_index].set_flag(&"locked", false)
+	player.inventory.remove_at(locked_index, player.inventory.slots[locked_index].count)
+	world.set("runtime", old_runtime)
+
+func _empty_inventory_slot() -> int:
+	for i in player.inventory.slot_count:
+		if player.inventory.slots[i] == null:
+			return i
+	return -1
 
 func _options() -> Array:
 	return [

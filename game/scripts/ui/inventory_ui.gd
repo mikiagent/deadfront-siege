@@ -30,6 +30,8 @@ var _eat_btn: Button
 var _inspect_btn: Button
 var _feed_btn: Button
 var _store_btn: Button
+var _drop_btn: Button
+var _destroy_btn: Button
 var _take_all_btn: Button
 var _equip_btn: Button
 var _food1_btn: Button
@@ -47,6 +49,7 @@ var _stat_rows: Array[Label] = []
 var _slot_px: float = 64.0
 var _action_px: float = 44.0
 var _band_no_storage := 0.0
+var _destroy_armed_index := -1
 const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
 const INK := Color(0.95, 0.95, 0.93)
 ## ASSUMPTION: the sheet may use 68% of the view, capped at 1120 px, so the live world remains
@@ -236,6 +239,11 @@ func _ready() -> void:
 	_feed_btn = _action("Feed", _on_feed_pet)
 	_place_btn = _action("Place", _on_place_pressed)
 	_store_btn = _action("Store", _store_selected)
+	_drop_btn = _action("Drop", _drop_selected)
+	_drop_btn.name = "DropButton"
+	_destroy_btn = _action("Destroy", _destroy_selected)
+	_destroy_btn.name = "DestroyButton"
+	_destroy_btn.add_theme_color_override("font_color", UiTokens.DANGER)
 	_take_all_btn = _action("Take all", _take_all_storage)
 	_food_inspector = FoodInspector.new()
 	_food_inspector.name = "FoodInspector"
@@ -608,7 +616,7 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 		if _split:
 			_split.custom_minimum_size = Vector2.ZERO
 	_slot_px = slot
-	for b: Button in [_lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn, _store_btn, _take_all_btn]:
+	for b: Button in [_lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn, _store_btn, _drop_btn, _destroy_btn, _take_all_btn]:
 		b.custom_minimum_size = Vector2(0, _action_px)
 	if _equip_grid:
 		_equip_grid.columns = equip_cols if not compact else 5
@@ -679,9 +687,10 @@ func _refresh_equipped() -> void:
 # ---------------------------------------------------------------- selection + actions
 
 func _select(index: int) -> void:
+	_disarm_destroy()
 	_selected = index
 	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
-	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
+	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn, _drop_btn, _destroy_btn]:
 		b.visible = false
 	if _grid:
 		_grid.set_selected(index if not none else -1)
@@ -693,6 +702,12 @@ func _select(index: int) -> void:
 	_lock_btn.visible = true
 	_lock_btn.text = "Unlock" if stack.is_locked() else "Lock"
 	_store_btn.visible = _can_store_selected()
+	_drop_btn.visible = true
+	_drop_btn.disabled = not _can_drop_selected()
+	_drop_btn.tooltip_text = "Unlock this item before dropping it." if stack.is_locked() else "Drop this item in a loot bag."
+	_destroy_btn.visible = true
+	_destroy_btn.disabled = not _can_remove_selected()
+	_destroy_btn.tooltip_text = "Unlock this item before destroying it." if stack.is_locked() else "Permanently destroy this item. Requires a second tap."
 	var d := stack.def()
 	var is_food := Food.is_food(stack)
 	var is_bag := BagCapacity.is_bag(stack.def_id)
@@ -824,6 +839,73 @@ func _on_place_pressed() -> void:
 	hide_ui()
 	_owner_player.placer.begin(def.place_as)
 	TouchControls.set_context(&"place")
+
+## Drop preserves the exact selected instance in the world's persistent loot-bag format. Destroy is
+## deliberately a two-tap action. A locked item refuses both, matching the inventory contract.
+# ASSUMPTION: both actions apply to the whole selected slot; the current inventory has no quantity picker.
+func _can_remove_selected() -> bool:
+	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
+		return false
+	var stack := inventory.slots[_selected]
+	if stack == null or stack.def_id == Inventory.LOCK or stack.is_locked():
+		return false
+	return _owner_player == null or _owner_player.actions == null or not _owner_player.actions.online
+
+func _can_drop_selected() -> bool:
+	return _can_remove_selected() and _owner_player != null and World.runtime != null
+
+func _drop_selected() -> void:
+	if not _can_drop_selected():
+		return
+	var index := _selected
+	var source := inventory.slots[index]
+	var count := source.count
+	var id := source.def_id
+	var item_name := source.def().display_name if source.def() else str(id).capitalize()
+	_selected = -1
+	_disarm_destroy()
+	var dropped := inventory.remove_at(index, count)
+	if dropped == null:
+		return
+	# ASSUMPTION: an inventory drop lands at the survivor's feet rather than being thrown.
+	LootBag.drop(_owner_player.global_position, [dropped])
+	_clear_empty_shortcuts(id)
+	_owner_player.notice("Dropped %s." % item_name)
+	print("[item] dropped %s x%d" % [id, count])
+
+func _destroy_selected() -> void:
+	if not _can_remove_selected():
+		return
+	if _destroy_armed_index != _selected:
+		_destroy_armed_index = _selected
+		_destroy_btn.text = "Destroy?"
+		_destroy_btn.tooltip_text = "Tap again to permanently destroy this item."
+		return
+	var index := _selected
+	var source := inventory.slots[index]
+	var count := source.count
+	var id := source.def_id
+	var item_name := source.def().display_name if source.def() else str(id).capitalize()
+	_selected = -1
+	_disarm_destroy()
+	if inventory.remove_at(index, count) == null:
+		return
+	_clear_empty_shortcuts(id)
+	if _owner_player:
+		_owner_player.notice("Destroyed %s." % item_name)
+	print("[item] destroyed %s x%d" % [id, count])
+
+func _disarm_destroy() -> void:
+	_destroy_armed_index = -1
+	if _destroy_btn:
+		_destroy_btn.text = "Destroy"
+
+func _clear_empty_shortcuts(id: StringName) -> void:
+	if inventory == null or inventory.count_of(id) > 0:
+		return
+	for i in 2:
+		if StringName(str(inventory.quick_food[i])) == id:
+			inventory.set_quick_food(i, &"")
 
 # ---------------------------------------------------------------- storage
 
