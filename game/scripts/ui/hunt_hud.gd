@@ -1552,12 +1552,15 @@ func _draw_minimap() -> void:
 			var f0 := Vector2((pp.x - half + size_m * 0.5) / cell_m, (pp.z - half + size_m * 0.5) / cell_m)
 			c.draw_texture_rect_region(fog_tex, Rect2(Vector2(-span_px * 0.5, -span_px * 0.5), Vector2(span_px, span_px)), Rect2(f0, Vector2(half * 2.0 / cell_m, half * 2.0 / cell_m)))
 		var trail_pts: Array = []
+		var trail_alphas: Array[float] = []
 		if fog:
-			for tp in fog.trail:
+			for i in fog.trail.size():
+				var tp := fog.trail[i]
 				var q := Vector2((tp.x - pp.x) / MAP_SCALE, (tp.y - pp.z) / MAP_SCALE)
 				if q.length() <= MAP_PX * 0.5:
 					trail_pts.append(q)
-			MapIcons.trail(c, trail_pts, 1.6)
+					trail_alphas.append(fog.trail_alpha(i))
+			MapIcons.trail(c, trail_pts, 1.6, trail_alphas)
 		var marker_r := MAP_PX * 0.5 - 5.0
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")
