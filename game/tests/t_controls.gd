@@ -168,12 +168,12 @@ func _interaction_controls_case(layer: CanvasLayer) -> void:
 	var near = load("res://scripts/world/harvest_node.gd").new()
 	near.name = "NearestBranchPile"
 	near.setup(&"nearest_branch", &"branch", 1, 1, {}, &"none", Color.WHITE, 0.2, 60.0, "BranchPile", false, 2)
-	near.position = Vector3(1.0, 0.0, 0.0)
+	near.position = Vector3(8.0, 0.0, 0.0)
 	host.add_child(near)
 	var far = load("res://scripts/world/harvest_node.gd").new()
 	far.name = "FarBranchPile"
 	far.setup(&"far_branch", &"branch", 1, 1, {}, &"none", Color.WHITE, 0.2, 60.0, "BranchPile", false, 2)
-	far.position = Vector3(2.0, 0.0, 0.0)
+	far.position = Vector3(14.0, 0.0, 0.0)
 	host.add_child(far)
 	await process_frame
 	var held = player.station_craft.held_slot if player.station_craft else null
@@ -187,7 +187,15 @@ func _interaction_controls_case(layer: CanvasLayer) -> void:
 		release.button_index = MOUSE_BUTTON_LEFT
 		release.pressed = false
 		held._gui_input(release)
-		_expect(player.gather_target == near, "HANDS gathers the nearest available resource")
+		_expect(player.gather_target == near, "HANDS selects the nearest resource inside its seek radius")
+		_expect(player.nav_active, "HANDS pathfinds to a resource outside immediate gather reach")
+		var expected_goal: Vector3 = player.sim.closest_nav_point(near.global_position)
+		_expect(player._path_goal.distance_to(expected_goal) < 0.1,
+			"the gather route ends at the resource's nearest navigable point")
+		player.actions.cancel_work()
+		near.position = Vector3(13.0, 0.0, 0.0)
+		_expect(player.controls._nearest_harvest_node(float(player.controls.QUICK_GATHER_RADIUS)) == null,
+			"HANDS ignores resources outside its seek radius")
 
 		var bag_button := held.get_node_or_null("InventoryButton") as Control
 		_expect(bag_button != null, "a Bag button sits with the HANDS control")

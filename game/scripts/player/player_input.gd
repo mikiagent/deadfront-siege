@@ -8,6 +8,9 @@ const HOLD_WALK_DELAY := 0.25
 const HOLD_WALK_RETARGET := 0.15
 const TAP_PICK_RADIUS := 1.0
 const INTERACT_GATHER_RANGE := 2.6
+# ASSUMPTION: HANDS/Space may seek a visible nearby resource within 12 m, then the normal gather
+# route walks to the node. The ordinary interact key keeps its close 2.6 m reach.
+const QUICK_GATHER_RADIUS := 12.0
 const FORCE_CLIPS: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
 	&"hit_react", &"knockdown", &"death", &"alert",
@@ -397,9 +400,9 @@ func toggle_inventory() -> void:
 ## Space / HANDS: gather the nearest live resource. Single-yield nodes start immediately; nodes
 ## such as berry bushes still open their choice wheel.
 func gather_nearest() -> void:
-	var node := _nearest_harvest_node()
+	var node := _nearest_harvest_node(QUICK_GATHER_RADIUS)
 	if node == null:
-		p.notice("Nothing to gather nearby")
+		p.notice("No resource within %d m" % int(QUICK_GATHER_RADIUS))
 		return
 	var opts := node.options()
 	if opts.size() == 1:
@@ -460,10 +463,10 @@ func interact() -> void:
 	if pet:
 		p.pets.interact(pet)
 
-## The closest harvest node within reach that still has something to give.
-func _nearest_harvest_node() -> HarvestNode:
+## The closest harvest node within `radius` that still has something to give.
+func _nearest_harvest_node(radius: float = INTERACT_GATHER_RANGE) -> HarvestNode:
 	var best: HarvestNode = null
-	var best_d := INTERACT_GATHER_RANGE
+	var best_d := radius
 	for n in p.get_tree().get_nodes_in_group("harvest"):
 		var hn := n as HarvestNode
 		if hn == null or not is_instance_valid(hn) or hn.pool_units_left() <= 0:
