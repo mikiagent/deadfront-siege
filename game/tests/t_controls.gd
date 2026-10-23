@@ -68,6 +68,7 @@ func _run() -> void:
 	layer.add_child(hud)
 	await process_frame
 	await _target_focus_case()
+	await _status_layout_case()
 	await _mode_toggle_case()
 	await _interaction_controls_case(layer)
 	# Walks in from each side of the screen: the nameplate passes the node from left, right, above, below.
@@ -121,6 +122,21 @@ func _target_focus_case() -> void:
 		"camera returns to the survivor when selection clears")
 	creature.queue_free()
 	resource.queue_free()
+	await process_frame
+
+## Player conditions belong to the survivor's vitals, not the unrelated minimap on the other side
+## of the screen. Keep the row directly under the top-left vitals panel on every canvas shape.
+func _status_layout_case() -> void:
+	player.statuses.apply(&"wet")
+	hud.queue_redraw()
+	await process_frame
+	var vitals: Rect2 = hud.drawn_blocks.get("vitals", Rect2())
+	var statuses: Rect2 = hud.drawn_blocks.get("statuses", Rect2())
+	_expect(statuses.has_area(), "an active player status draws a HUD status row")
+	_expect(statuses.position.y >= vitals.end.y and statuses.position.y <= vitals.end.y + 16.0
+		and statuses.position.x >= vitals.position.x and statuses.end.x <= vitals.end.x,
+		"player statuses sit directly under the health/stamina panel (vitals=%s statuses=%s)" % [vitals, statuses])
+	player.statuses.clear_id(&"wet")
 	await process_frame
 
 ## Sprint and combat are persistent, thumb-sized bottom-right modes rather than hold-only actions.

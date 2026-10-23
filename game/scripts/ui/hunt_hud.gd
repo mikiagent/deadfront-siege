@@ -1244,14 +1244,13 @@ func _draw() -> void:
 	_fatigue_rect = Rect2(x, face_pos.y - 14.0, bar_w, maxf(UiTokens.TARGET_MIN, yy + small - face_pos.y + 14.0))
 	if _fatigue_panel and _fatigue_panel.visible:
 		_fatigue_panel.position = Vector2(_fatigue_rect.position.x, _fatigue_rect.end.y + 8.0)
-	# status badges live under the minimap (right side), left of the Claim hex; on a landscape phone
-	# End Combat stands there, so they go under the vitals, after the whistle row
-	var mp0 := _minimap.position
-	var sx := mp0.x
-	var sy := mp0.y + MAP_PX + 50.0
+	# Player conditions belong with the player's vitals, directly beneath the top-left panel. On a
+	# landscape phone with pet commands visible, keep the row after those commands so they do not
+	# occupy the same strip; both remain within the wide compact vitals block.
+	var sx := vitals.position.x + 8.0
+	var sy := vitals.end.y + 8.0
 	if HudLayout.landscape_phone(r):
-		sx = 16.0 + inset.w + (3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0)
-		sy = vitals.end.y + 8.0
+		sx += 3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0
 	if player.statuses:
 		var sx0 := sx
 		for inst in player.statuses.instances():
