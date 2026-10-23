@@ -26,6 +26,7 @@ var cam: Camera3D
 var player
 var radial
 var node: Node3D
+var hud
 
 func _process(_delta: float) -> bool:
 	if _started:
@@ -62,7 +63,12 @@ func _run() -> void:
 	host.add_child(layer)
 	radial = load("res://scripts/ui/gather_radial.gd").new()
 	layer.add_child(radial)
+	hud = load("res://scripts/ui/hunt_hud.gd").new()
+	hud.bind(player)
+	layer.add_child(hud)
 	await process_frame
+	await _target_focus_case()
+	await _mode_toggle_case()
 	# Walks in from each side of the screen: the nameplate passes the node from left, right, above, below.
 	var right := cam.global_basis.x * Vector3(1, 0, 1)
 	var down := cam.global_basis.z * Vector3(1, 0, 1)
@@ -77,6 +83,72 @@ func _run() -> void:
 	else:
 		print("[t_controls] FAIL count=%d" % failures.size())
 		quit(1)
+
+## Selecting work or prey biases the framing toward it without taking the survivor off-screen.
+func _target_focus_case() -> void:
+	var resource = load("res://scripts/world/harvest_node.gd").new()
+	resource.name = "SelectedResource"
+	host.add_child(resource)
+	player.global_position = Vector3.ZERO
+	resource.global_position = Vector3(10.0, 0.0, 0.0)
+	player.gather_target = resource
+	cam._snap()
+	var resource_shift: Vector3 = cam.focus_point() - player.global_position
+	_expect(resource_shift.x > 0.5 and resource_shift.x < 10.0,
+		"selected resource shifts camera toward it without centring it (%.2f m)" % resource_shift.x)
+	player.gather_target = null
+
+	var creature = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
+	host.add_child(creature)
+	creature.global_position = Vector3(-10.0, 0.0, 0.0)
+	creature.spawn(get_root().get_node("Data").creature(&"compsognathus"))
+	creature.set_physics_process(false)
+	if creature.brain:
+		creature.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	player.hunt.start(creature)
+	cam._snap()
+	var animal_shift: Vector3 = cam.focus_point() - player.global_position
+	_expect(animal_shift.x < -0.5 and animal_shift.x > -10.0,
+		"selected animal shifts camera toward it without centring it (%.2f m)" % animal_shift.x)
+	player.hunt.stop()
+	cam._snap()
+	_expect(cam.focus_point().distance_to(player.global_position) < 0.05,
+		"camera returns to the survivor when selection clears")
+	creature.queue_free()
+	resource.queue_free()
+	await process_frame
+
+## Sprint and combat are persistent, thumb-sized bottom-right modes rather than hold-only actions.
+func _mode_toggle_case() -> void:
+	var sprint = hud.get_node_or_null("SprintToggle")
+	var combat = hud.get_node_or_null("CombatToggle")
+	_expect(sprint != null and combat != null, "HUD has Sprint and Combat toggles")
+	if sprint == null or combat == null:
+		return
+	var view: Vector2 = hud.get_viewport_rect().size
+	for button in [sprint, combat]:
+		var centre: Vector2 = button.position + button.size * 0.5
+		_expect(button.size.x >= 64.0 and button.size.y >= 64.0,
+			"%s is at least 64 px" % button.name)
+		_expect(centre.x > view.x * 0.5 and centre.y > view.y * 0.5,
+			"%s is in the bottom-right quadrant" % button.name)
+	sprint.pressed.emit()
+	_expect(bool(player.get("sprint_toggled")), "Sprint toggle latches sprint on")
+	sprint.pressed.emit()
+	_expect(not bool(player.get("sprint_toggled")), "Sprint toggle latches sprint off")
+	var creature = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
+	host.add_child(creature)
+	creature.global_position = player.global_position + Vector3(4.0, 0.0, 0.0)
+	creature.spawn(get_root().get_node("Data").creature(&"compsognathus"))
+	creature.set_physics_process(false)
+	if creature.brain:
+		creature.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	combat.pressed.emit()
+	_expect(player.hunt.target == creature, "Combat toggle targets a nearby wild animal")
+	combat.pressed.emit()
+	_expect(player.hunt.target == null, "Combat toggle disengages on the second tap")
+	creature.queue_free()
+	await process_frame
 
 func _options() -> Array:
 	return [

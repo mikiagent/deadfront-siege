@@ -226,7 +226,10 @@ func tap_world() -> StringName:
 	return &"ground"
 
 func _walk_to_tile(at: Vector3) -> void:
-	var nav_pos := p.sim.closest_nav_point(BuildGrid.tile_centre(BuildGrid.tile_of(at), World.runtime))
+	var tile_pos := BuildGrid.tile_centre(BuildGrid.tile_of(at), World.runtime)
+	# Water is outside the baked land navigation mesh. Keep its real tile as the goal; PlayerSim
+	# steers directly through water instead of snapping a water tap back to the shore.
+	var nav_pos := tile_pos if WaterAccess.in_water(tile_pos) else p.sim.closest_nav_point(tile_pos)
 	p.actions.cancel_work()
 	if p.hunt:
 		p.hunt.stop()

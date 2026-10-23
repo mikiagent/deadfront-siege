@@ -48,6 +48,9 @@ const PARALLAX_GAIN := 1.0
 ## (the fade starts at 16.8 m); zoomed in to 7 m, crowns above 8.4 m fade.
 # ASSUMPTION: 1.2 m per metre of zoom, the reading of the owner's words above.
 const TALL_FADE_PER_SIZE := 1.2
+## ASSUMPTION: selection owns 35 % of the frame, capped at 6 m so the survivor stays readable.
+const SELECTION_BIAS := 0.35
+const SELECTION_MAX_SHIFT_M := 6.0
 
 ## The dev flag, read once: every IsoCamera and every static helper agree on the projection.
 static var ortho: bool = "--cam-ortho" in OS.get_cmdline_user_args()
@@ -138,7 +141,7 @@ func _process(delta: float) -> void:
 	if _target:
 		# Interpolated origin: the survivor moves on physics ticks, the camera every frame. Without
 		# this the survivor stepped 60 Hz under a 120 Hz camera and read as a doubled, smeared image.
-		focus = focus.lerp(_target.get_global_transform_interpolated().origin, clampf(follow_lerp * delta, 0.0, 1.0))
+		focus = focus.lerp(_desired_focus(true), clampf(follow_lerp * delta, 0.0, 1.0))
 	global_position = focus + global_basis.z * distance
 	_publish()
 
@@ -168,6 +171,20 @@ func ground_half_depth() -> float:
 ## Where the camera looks: its smoothed follow point.
 func focus_point() -> Vector3:
 	return global_position - global_basis.z * distance
+
+func _desired_focus(interpolated: bool = false) -> Vector3:
+	if _target == null:
+		return focus_point()
+	var base := _target.get_global_transform_interpolated().origin if interpolated else _target.global_position
+	if not _target.has_method("camera_interest"):
+		return base
+	var interest: Variant = _target.call("camera_interest")
+	if not interest is Node3D or not is_instance_valid(interest):
+		return base
+	var shift: Vector3 = (interest as Node3D).global_position - base
+	shift.y = 0.0
+	shift = (shift * SELECTION_BIAS).limit_length(SELECTION_MAX_SHIFT_M)
+	return base + shift
 
 ## The camera for every shader that has to line up with it (shaders/camera/camera.gdshaderinc).
 func _publish() -> void:
@@ -199,7 +216,7 @@ func _update_shake(delta: float) -> void:
 
 func _snap() -> void:
 	_apply_zoom()
-	global_position = _target.global_position + global_basis.z * distance
+	global_position = _desired_focus() + global_basis.z * distance
 	_publish()
 
 ## Wheel zoom: 12 % a notch, inside min_size..max_size.

@@ -52,6 +52,10 @@ var _saddle_view: CreatureView
 var rolling: bool = false
 ## Feet under the water plane (river or sea); PlayerSim sets it every physics frame (WaterAccess).
 var in_water: bool = false
+## Deep enough that the survivor is buoyant rather than wading; PlayerSim owns the transition.
+var swimming: bool = false
+## Persistent mobile/desktop sprint mode. The keyboard/gamepad hold action still works alongside it.
+var sprint_toggled: bool = false
 ## The climate of the island the survivor is on, set by the island each frame. The fatigue panel reads it.
 var current_climate: String = ""
 ## True from the fatal hit until respawn(): no input, no regen, creatures lose interest,
@@ -157,6 +161,41 @@ func half_height() -> float:
 
 func feet_position() -> Vector3:
 	return global_position - Vector3(0.0, half_height(), 0.0)
+
+func is_swimming() -> bool:
+	return swimming
+
+## The selected resource or animal that the follow camera should leave room for.
+func camera_interest() -> Node3D:
+	if hunt and hunt.target and is_instance_valid(hunt.target):
+		return hunt.target
+	if tame_target and is_instance_valid(tame_target):
+		return tame_target
+	if gather_target and is_instance_valid(gather_target):
+		return gather_target
+	if _gather_radial and _gather_radial.has_method("active_node"):
+		var radial_target: Variant = _gather_radial.active_node()
+		if radial_target is Node3D and is_instance_valid(radial_target):
+			return radial_target as Node3D
+	return null
+
+func toggle_sprint() -> bool:
+	sprint_toggled = not sprint_toggled
+	return sprint_toggled
+
+## Combat mode targets the nearest wild animal; a second tap cleanly disengages.
+func toggle_combat() -> bool:
+	if hunt == null:
+		return false
+	if hunt.target and is_instance_valid(hunt.target):
+		hunt.stop()
+		return false
+	var target := actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
+	if target == null:
+		notice("No animal in range")
+		return false
+	hunt.start(target)
+	return true
 
 # ---------------------------------------------------------------- movement, facing
 

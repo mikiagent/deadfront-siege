@@ -29,6 +29,8 @@ var _animal_screen: AnimalScreen
 var _inspector: Panel
 # combat
 var _end_btn: Button
+var _sprint_hex: HexButton
+var _combat_hex: HexButton
 var _skill_hexes: Array[HexButton] = []
 var _auto_hex: HexButton
 var _chase_hex: HexButton
@@ -216,6 +218,11 @@ func _layout() -> void:
 		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + DayNightDial.DISC + 8.0)  # under the dial
 	# Chase joins the quick-food row (slot 2): at the rail's left edge it sat on the first food hex.
 	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
+	# Persistent movement/combat modes stay under the right thumb. Portrait lifts them one row so
+	# they do not cover the four-item menu rail.
+	var mode_y := y - (HEX + CAPTION_H + 10.0 if UiTokens.is_narrow(r) else 0.0)
+	_combat_hex.position = Vector2(r.x - 16.0 - inset.x - HEX, mode_y)
+	_sprint_hex.position = _combat_hex.position - Vector2(HEX + 10.0, 0.0)
 	if HudLayout.landscape_phone(r):
 		HudLayout.place_landscape_phone(self, r, inset)
 	elif UiTokens.is_narrow(r):
@@ -342,6 +349,26 @@ func _open_animals() -> void:
 	_animal_screen.open(player)
 
 func _build_combat() -> void:
+	_sprint_hex = HexButton.new(HEX)
+	_sprint_hex.name = "SprintToggle"
+	_sprint_hex.glyph = "»"
+	_sprint_hex.caption = "SPRINT"
+	_sprint_hex.pressed.connect(func () -> void:
+		if player:
+			_sprint_hex.selected = player.toggle_sprint()
+			_sprint_hex.queue_redraw()
+	)
+	add_child(_sprint_hex)
+	_combat_hex = HexButton.new(HEX)
+	_combat_hex.name = "CombatToggle"
+	_combat_hex.icon = UiIcons.icon(&"attack")
+	_combat_hex.caption = "COMBAT"
+	_combat_hex.pressed.connect(func () -> void:
+		if player:
+			_combat_hex.selected = player.toggle_combat()
+			_combat_hex.queue_redraw()
+	)
+	add_child(_combat_hex)
 	_end_btn = Button.new()
 	_end_btn.text = "End Combat"
 	_end_btn.custom_minimum_size = Vector2(184, 64)
@@ -1096,6 +1123,12 @@ func _process(delta: float) -> void:
 		return
 	_tick_death(delta)
 	var hunting := player.hunt != null and player.hunt.target != null and is_instance_valid(player.hunt.target)
+	if _sprint_hex.selected != player.sprint_toggled:
+		_sprint_hex.selected = player.sprint_toggled
+		_sprint_hex.queue_redraw()
+	if _combat_hex.selected != hunting:
+		_combat_hex.selected = hunting
+		_combat_hex.queue_redraw()
 	if hunting != _in_combat:
 		_in_combat = hunting
 		_end_btn.visible = hunting

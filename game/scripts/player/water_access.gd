@@ -10,6 +10,11 @@ extends RefCounted
 const PATH := "res://data/water.json"
 ## Hidden grime count on the Player (Object meta).
 const GRIME := &"water_grime"
+## ASSUMPTION: below 0.75 m the survivor wades; at/above it they swim. Wading is 60 % pace,
+## swimming 45 %, tuned for readable movement on the mobile camera rather than simulation.
+const SWIM_DEPTH_M := 0.75
+const WADE_SPEED_MULT := 0.60
+const SWIM_SPEED_MULT := 0.45
 
 static var _data: Dictionary = {}
 
@@ -25,6 +30,21 @@ static func data() -> Dictionary:
 static func in_water(pos: Vector3) -> bool:
 	var rt := World.runtime as IslandRuntime
 	return rt != null and rt.surface_y(pos.x, pos.z) < HarbourSite.WATER_Y
+
+static func depth(pos: Vector3) -> float:
+	var rt := World.runtime as IslandRuntime
+	if rt == null:
+		return 0.0
+	return maxf(0.0, HarbourSite.WATER_Y - rt.surface_y(pos.x, pos.z))
+
+static func is_swimming(pos: Vector3) -> bool:
+	return depth(pos) >= SWIM_DEPTH_M
+
+static func movement_speed_multiplier(pos: Vector3) -> float:
+	var d := depth(pos)
+	if d <= 0.0:
+		return 1.0
+	return SWIM_SPEED_MULT if d >= SWIM_DEPTH_M else WADE_SPEED_MULT
 
 ## River water. IslandTerrain marks the river channel and its banks MUD (the mouth's shallows too);
 ## the open sea never is. The fresh-water mask is kept from the build, so a harvested tile stays fresh.
