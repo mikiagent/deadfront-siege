@@ -71,8 +71,10 @@ func handle_unhandled(event: InputEvent) -> void:
 			p.get_viewport().set_input_as_handled()
 			return
 	if event.is_action_pressed("inventory"):
-		if p.ui:
-			p.ui.visible = not p.ui.visible
+		toggle_inventory()
+		return
+	if event.is_action_pressed("gather_nearest"):
+		gather_nearest()
 		return
 	if event.is_action_pressed("roll"):
 		p.sim.try_roll(p.sim.cam_dir(p.sim.input_vector()))
@@ -387,6 +389,24 @@ func _force_clip(i: int) -> void:
 		c.anim.play_clip(FORCE_CLIPS[i], true)
 
 # ---------------------------------------------------------------- interact key
+
+func toggle_inventory() -> void:
+	if p.ui:
+		p.ui.visible = not p.ui.visible
+
+## Space / HANDS: gather the nearest live resource. Single-yield nodes start immediately; nodes
+## such as berry bushes still open their choice wheel.
+func gather_nearest() -> void:
+	var node := _nearest_harvest_node()
+	if node == null:
+		p.notice("Nothing to gather nearby")
+		return
+	var opts := node.options()
+	if opts.size() == 1:
+		node.select_option(0)
+		p.actions.begin_gather(node)
+	elif not opts.is_empty() and p._gather_radial:
+		p._gather_radial.open(node, opts, p.inventory)
 
 ## E / pad A: the nearest thing in reach, in priority order. Lets a controller (or keyboard)
 ## player do everything a tap does without a pointer.

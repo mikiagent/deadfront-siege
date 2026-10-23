@@ -1,6 +1,6 @@
 class_name InventoryUI
 extends Control
-## The bag screen (spec 13): profile column, a scrolling bag grid at the real capacity (one item
+## The right-side bag sheet (spec 13): profile column, a scrolling bag grid at the real capacity (one item
 ## instance per slot, empty slots drawn, "used / capacity" in the header), the equipment column and
 ## a storage/pet-cargo grid of the same design that opens below. Escape or Close dismisses.
 
@@ -49,6 +49,11 @@ var _action_px: float = 44.0
 var _band_no_storage := 0.0
 const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
 const INK := Color(0.95, 0.95, 0.93)
+## ASSUMPTION: the sheet may use 68% of the view, capped at 1120 px, so the live world remains
+## visible on the left while the existing bag and equipment controls retain usable widths.
+const SHEET_SHARE := 0.68
+const SHEET_MIN_PX := 520.0
+const SHEET_MAX_PX := 1120.0
 
 var _split: GridContainer
 var _load_row: HBoxContainer
@@ -57,17 +62,13 @@ var _page_scroll: ScrollContainer
 
 func _ready() -> void:
 	visible = false
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	if Game.shot_path.contains("bag"):
 		get_tree().create_timer(0.9).timeout.connect(func () -> void: visible = true; rebuild())
-	var dim := ColorRect.new()
-	dim.color = Color(0.0, 0.0, 0.0, 0.55)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(dim)
 	_panel = Panel.new()
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_panel.add_theme_stylebox_override("panel", UiTokens.panel_style())
 	add_child(_panel)
 	var scroll := ScrollContainer.new()
@@ -355,10 +356,11 @@ func _layout_safe() -> void:
 		return
 	var r := get_viewport_rect().size
 	var safe := UiTokens.safe_insets(get_viewport())
-	_panel.offset_left = 12.0 + safe.w
-	_panel.offset_top = 12.0 + safe.z
-	_panel.offset_right = -(12.0 + safe.x)
-	_panel.offset_bottom = -(12.0 + safe.y)
+	var sheet := side_sheet_rect(r, safe)
+	_panel.offset_left = sheet.position.x
+	_panel.offset_top = sheet.position.y
+	_panel.offset_right = sheet.end.x - r.x
+	_panel.offset_bottom = sheet.end.y - r.y
 	_panel.scale = Vector2.ONE
 	if _split:
 		_split.columns = 1 if UiTokens.is_phone(r) else 3
@@ -388,6 +390,15 @@ func _layout_safe() -> void:
 	_apply_slot_metrics(r, safe)
 	if inventory != null:
 		_refresh_profile()
+
+static func side_sheet_rect(view: Vector2, safe: Vector4 = Vector4.ZERO) -> Rect2:
+	var left := 12.0 + safe.w
+	var right := view.x - 12.0 - safe.x
+	var top := 12.0 + safe.z
+	var bottom := view.y - 12.0 - safe.y
+	var available := maxf(0.0, right - left)
+	var width := minf(available, clampf(view.x * SHEET_SHARE, SHEET_MIN_PX, SHEET_MAX_PX))
+	return Rect2(Vector2(right - width, top), Vector2(width, maxf(0.0, bottom - top)))
 
 # ---------------------------------------------------------------- rebuild
 
@@ -494,7 +505,7 @@ func _refresh_profile() -> void:
 
 func _name_column_width(view: Vector2) -> float:
 	var safe := UiTokens.safe_insets(get_viewport())
-	var panel_w := view.x - (24.0 + safe.w + safe.x)
+	var panel_w := side_sheet_rect(view, safe).size.x
 	if UiTokens.is_phone(view):
 		return maxf(160.0, panel_w - 8.0)
 	var used := 0.0
@@ -510,8 +521,9 @@ func _name_column_width(view: Vector2) -> float:
 func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 	var sep := float(UiTokens.SPACE)
 	var compact := UiTokens.is_compact(view)
-	var panel_w := maxf(280.0, view.x - (24.0 + safe.w + safe.x))
-	var panel_h := maxf(280.0, view.y - (24.0 + safe.z + safe.y))
+	var sheet := side_sheet_rect(view, safe)
+	var panel_w := maxf(280.0, sheet.size.x)
+	var panel_h := maxf(280.0, sheet.size.y)
 	var slot := 64.0
 	var equip_cols := 4
 	var equip_slot := 64.0

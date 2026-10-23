@@ -69,6 +69,7 @@ func _run() -> void:
 	await process_frame
 	await _target_focus_case()
 	await _mode_toggle_case()
+	await _interaction_controls_case(layer)
 	# Walks in from each side of the screen: the nameplate passes the node from left, right, above, below.
 	var right := cam.global_basis.x * Vector3(1, 0, 1)
 	var down := cam.global_basis.z * Vector3(1, 0, 1)
@@ -148,6 +149,67 @@ func _mode_toggle_case() -> void:
 	combat.pressed.emit()
 	_expect(player.hunt.target == null, "Combat toggle disengages on the second tap")
 	creature.queue_free()
+	await process_frame
+
+## Tap routes walk unless Sprint is latched. HANDS gathers the nearest resource, and its Bag button
+## opens a right-side inventory sheet while leaving a useful strip of the game visible.
+func _interaction_controls_case(layer: CanvasLayer) -> void:
+	player.clear_nav()
+	player.global_position = Vector3.ZERO
+	player.velocity = Vector3.ZERO
+	player.sprint_toggled = false
+	player.nav_active = true
+	_expect(not player.sim.wants_sprint(), "tap-to-walk respects Sprint off")
+	player.sprint_toggled = true
+	_expect(player.sim.wants_sprint(), "tap-to-walk respects Sprint on")
+	player.sprint_toggled = false
+	player.clear_nav()
+
+	var near = load("res://scripts/world/harvest_node.gd").new()
+	near.name = "NearestBranchPile"
+	near.setup(&"nearest_branch", &"branch", 1, 1, {}, &"none", Color.WHITE, 0.2, 60.0, "BranchPile", false, 2)
+	near.position = Vector3(1.0, 0.0, 0.0)
+	host.add_child(near)
+	var far = load("res://scripts/world/harvest_node.gd").new()
+	far.name = "FarBranchPile"
+	far.setup(&"far_branch", &"branch", 1, 1, {}, &"none", Color.WHITE, 0.2, 60.0, "BranchPile", false, 2)
+	far.position = Vector3(2.0, 0.0, 0.0)
+	host.add_child(far)
+	await process_frame
+	var held = player.station_craft.held_slot if player.station_craft else null
+	_expect(held != null, "the HANDS control exists")
+	if held:
+		var press := InputEventMouseButton.new()
+		press.button_index = MOUSE_BUTTON_LEFT
+		press.pressed = true
+		held._gui_input(press)
+		var release := InputEventMouseButton.new()
+		release.button_index = MOUSE_BUTTON_LEFT
+		release.pressed = false
+		held._gui_input(release)
+		_expect(player.gather_target == near, "HANDS gathers the nearest available resource")
+
+		var bag_button := held.get_node_or_null("InventoryButton") as Control
+		_expect(bag_button != null, "a Bag button sits with the HANDS control")
+		if bag_button:
+			_expect(bag_button.size.x >= 64.0 and bag_button.size.y >= 64.0, "the Bag button is a 64 px touch target")
+			_expect(bag_button.global_position.y < held.global_position.y, "the Bag button is above HANDS")
+			var inv = (load("res://scenes/ui/inventory.tscn") as PackedScene).instantiate()
+			layer.add_child(inv)
+			player.ui = inv
+			inv.bind(player.inventory, player)
+			bag_button.emit_signal("pressed")
+			await process_frame
+			_expect(inv.visible, "the Bag button opens inventory")
+			var view: Vector2 = inv.get_viewport_rect().size
+			var panel: Panel = inv.get("_panel")
+			_expect(panel != null and panel.get_global_rect().position.x >= view.x * 0.25,
+				"inventory is a right-side sheet that leaves the game visible")
+			inv.hide_ui()
+			inv.queue_free()
+	player.actions.cancel_work()
+	near.queue_free()
+	far.queue_free()
 	await process_frame
 
 func _options() -> Array:

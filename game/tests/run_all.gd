@@ -510,7 +510,7 @@ func _test_dot_respects_capture_window() -> void:
 
 ## The pad layout and fullscreen key exist, and keyboard play is unchanged.
 func _test_gamepad_bindings() -> void:
-	for action in ["interact", "attack", "roll", "craft", "inventory", "pause", "map", "sprint", "tactic_1", "tactic_2", "place_confirm", "place_cancel"]:
+	for action in ["interact", "gather_nearest", "attack", "roll", "craft", "inventory", "pause", "map", "sprint", "tactic_1", "tactic_2", "place_confirm", "place_cancel"]:
 		_expect(InputMap.has_action(action), "action exists: " + action)
 	var a := InputEventJoypadButton.new()
 	a.button_index = JOY_BUTTON_A
@@ -534,6 +534,13 @@ func _test_gamepad_bindings() -> void:
 	var w := InputEventKey.new()
 	w.physical_keycode = KEY_W
 	_expect(InputMap.event_is_action(w, "move_up"), "keyboard W still moves up")
+	var space := InputEventKey.new()
+	space.physical_keycode = KEY_SPACE
+	_expect(InputMap.event_is_action(space, "gather_nearest"), "Space gathers the nearest resource")
+	_expect(not InputMap.event_is_action(space, "roll"), "Space no longer rolls instead of gathering")
+	var q := InputEventKey.new()
+	q.physical_keycode = KEY_Q
+	_expect(InputMap.event_is_action(q, "roll"), "keyboard Q rolls after Space becomes gather")
 	var f11 := InputEventKey.new()
 	f11.physical_keycode = KEY_F11
 	_expect(InputMap.has_action("fullscreen") and InputMap.event_is_action(f11, "fullscreen"), "F11 toggles fullscreen")

@@ -155,10 +155,11 @@ func _walk(delta: float) -> void:
 	var dir := cam_dir(input)
 	if p.sprint_toggled and (p.vitals.energy <= 0.0 or p.statuses.has_flag(&"no_sprint")):
 		p.sprint_toggled = false
-	var can_sprint := (Input.is_action_pressed("sprint") or p.sprint_toggled) \
-		and not p.statuses.has_flag(&"no_sprint") and not p.in_water
-	running = can_sprint or (p.nav_active and not p.statuses.has_flag(&"no_sprint") and not p.in_water)
-	# Stamina: sprint 9/s, tap-run 3/s; empty -> walk until it refills.
+	var can_sprint := wants_sprint()
+	# A tap route uses the same mode as direct movement. Sprint off means walk; Sprint on or held
+	# means sprint. The old nav_active branch silently forced every screen click into a run.
+	running = can_sprint
+	# Stamina: sprint 9/s; empty -> walk until it refills.
 	p.vitals.in_combat = (p.hunt != null and p.hunt.target != null) or (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 5.0
 	if running and p.velocity.length_squared() > 0.5:
 		if not p.vitals.drain_energy(9.0 if can_sprint else 3.0, delta):
@@ -196,6 +197,10 @@ func _walk(delta: float) -> void:
 	shoreline_guard()
 	if p.anim:
 		p.anim._physics_tick(Vector2(p.velocity.x, p.velocity.z).length(), running)
+
+func wants_sprint() -> bool:
+	return (Input.is_action_pressed("sprint") or p.sprint_toggled) \
+		and not p.statuses.has_flag(&"no_sprint") and not p.in_water
 
 ## Buoyancy, continuous swimming stamina, and the exhausted-swimming health consequence.
 ## ASSUMPTION: swimming costs 6 Energy/s and drowning strain deals 5 Health once per second.
