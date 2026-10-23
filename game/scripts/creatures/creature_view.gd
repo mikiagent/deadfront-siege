@@ -33,8 +33,23 @@ var _fx_darken: float = 0.0
 var _fx_tint: Color = Color.WHITE
 var _wobble: float = 0.0
 var _mount: Marker3D
+var _saddle: Array[MeshInstance3D] = []
+var _rider_bone: int = -1
+var _rider_offset: Transform3D = Transform3D.IDENTITY
 var _hit_flash_left: float = 0.0
 var _flinch_tw: Tween
+## Per-individual natural coloration (null = neutral, the species texture as authored).
+var coloration: CreatureColoration
+## One shared shader for every individual; each individual gets its own ShaderMaterial per surface.
+const COLOR_SHADER := preload("res://scripts/creatures/creature_color.gdshader")
+var _skin_mats: Array[ShaderMaterial] = []
+## Authored material per surface, captured before the first colour override (_rebind_glb_surfaces).
+var _originals: Dictionary = {}
+## Rest-pose mesh already bound per MeshInstance3D (see rest_mesh()).
+var _rest_of: Dictionary = {}
+## Rest-pose copy of each species mesh (CUSTOM0 = authored vertex position), rebuilt once per mesh
+## resource and shared by every individual of that species. Patterns read it, so they never slide.
+static var _rest_meshes: Dictionary = {}
 
 ## Procedural hurt: a quick shove back and a nod, then settle. Used instead of the synthesised
 ## hit_react clip ("death 0-35 % reversed") that made transplanted species start collapsing on
@@ -83,6 +98,11 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 		# Placeholder nose sits at +Z; yaw the view so it still faces Godot -Z like before.
 		rotation_degrees.y = 180.0
 		_build_placeholder()
+	apply_coloration(coloration)
+	# Coloration recursively replaces mesh materials. Add the shared eyeshine material afterwards;
+	# the old order stripped it and left the oversized spheres as plain blue-grey geometry.
+	if using_glb:
+		_add_eyes()
 	_mount = Marker3D.new()
 	_mount.name = "MountSocket"
 	if using_glb and rig and rig.hips_socket:
@@ -92,6 +112,38 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 		_mount.position = Vector3(0.0, def.height_meters * 0.85, 0.0)
 		add_child(_mount)
 
+## Eyeshine dots on the Head bone; only species whose JSON has an "eyes" block get them.
+## The block is read straight from the species file: it is a presentation detail, and CreatureDef
+## is the stats contract the other agents share.
+static var _eyes_cache: Dictionary = {}
+
+static func eyes_block(id: StringName) -> Dictionary:
+	if _eyes_cache.has(id):
+		return _eyes_cache[id]
+	var path := "res://data/creatures/%s.json" % id
+	var block: Dictionary = {}
+	if FileAccess.file_exists(path):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if parsed is Dictionary:
+			var raw: Variant = (parsed as Dictionary).get("eyes", {})
+			if raw is Dictionary:
+				block = raw
+	_eyes_cache[id] = block
+	return block
+
+func _add_eyes() -> void:
+	if def == null:
+		return
+	var block := eyes_block(def.id)
+	if block.is_empty():
+		return
+	var eyes := CreatureEyes.new()
+	eyes.name = "Eyes"
+	add_child(eyes)
+	if not eyes.setup(self, block):
+		eyes.queue_free()
+		return
+
 func animation_player() -> AnimationPlayer:
 	if using_glb and rig:
 		return rig.anim_player
@@ -99,6 +151,203 @@ func animation_player() -> AnimationPlayer:
 
 func mount_socket() -> Marker3D:
 	return _mount
+
+## Saddled mount (assets/creatures/<id>/mount/mount.json): attaches the saddle skinned to this skeleton and
+## returns true; the rider then follows rider_transform() on rig.skeleton.skeleton_updated. False means no
+## saddle for this species, so the caller keeps the hips-socket path.
+func begin_ride() -> bool:
+	var path := "res://assets/creatures/%s/mount/mount.json" % def.id
+	if not (using_glb and rig and rig.skeleton and FileAccess.file_exists(path)):
+		return false
+	var mj: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not (mj is Dictionary and (mj as Dictionary).has("rider_in_mount")):
+		return false
+	var sk := rig.skeleton
+	_rider_bone = sk.find_bone(str(mj.get("socket", "")))
+	if _rider_bone < 0:
+		return false
+	end_ride()
+	_saddle = RiggedModel.attach_skinned(sk, "%s/%s" % [path.get_base_dir(), str(mj.get("saddle", "saddle.glb"))])
+	# rider_in_mount is the rider's root in the mount's glTF model space at rest (NOT rider_offset, which is in
+	# Blender's re-oriented bone frames). Express it relative to the socket bone's rest pose at the live scale.
+	var m: Array = mj["rider_in_mount"]
+	var in_model := Transform3D(Basis(Vector3(m[0], m[1], m[2]), Vector3(m[4], m[5], m[6]), Vector3(m[8], m[9], m[10])), Vector3(m[12], m[13], m[14]))
+	var bone_rest_world := sk.global_transform * sk.get_bone_global_rest(_rider_bone)
+	_rider_offset = bone_rest_world.affine_inverse() * rig.mesh_root.global_transform * in_model
+	return true
+
+func end_ride() -> void:
+	for mi in _saddle:
+		mi.queue_free()
+	_saddle.clear()
+
+## Rest-pose positions for the pattern shader. The skin moves VERTEX, and Tripo UVs are arbitrary,
+## so the pattern has to come from the authored position of each vertex: copy it once into CUSTOM0
+## (ARRAY_CUSTOM_RGB_FLOAT) and cache the rebuilt mesh by the original resource, so it happens once
+## per species rather than once per animal.
+##
+## What survives the rebuild: materials (re-set per surface) and the shadow mesh (re-attached
+## below). What does not: surface LODs. Godot 4.7 has no public ArrayMesh LOD accessor (only the
+## internal `_surface_get_lods`), so `surface_get_arrays` cannot carry them over. These creature
+## GLBs import as one LOD0 skin surface each (checked on the velociraptor), so nothing is lost
+## today; if a future asset ships LODs/CSG, bake the rest channel at import (ImporterMesh +
+## generate_lods) instead of rebuilding here.
+static func rest_mesh(mesh: Mesh) -> ArrayMesh:
+	if mesh == null:
+		return null
+	if _rest_meshes.has(mesh):
+		return _rest_meshes[mesh]
+	if not (mesh is ArrayMesh):
+		return null
+	var out := ArrayMesh.new()
+	out.resource_name = "%s_rest" % mesh.resource_name
+	for surf in mesh.get_surface_count():
+		var arrays: Array = mesh.surface_get_arrays(surf)
+		if arrays.size() <= Mesh.ARRAY_VERTEX or arrays[Mesh.ARRAY_VERTEX] == null:
+			continue
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var rest := PackedFloat32Array()
+		rest.resize(verts.size() * 3)
+		for i in verts.size():
+			var v: Vector3 = verts[i]
+			rest[i * 3] = v.x
+			rest[i * 3 + 1] = v.y
+			rest[i * 3 + 2] = v.z
+		var copy: Array = arrays.duplicate(true)
+		copy[Mesh.ARRAY_CUSTOM0] = rest
+		var flags: int = Mesh.ARRAY_CUSTOM_RGB_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+		var material: Material = mesh.surface_get_material(surf)
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, copy, [], {}, flags)
+		if material != null:
+			out.surface_set_material(out.get_surface_count() - 1, material)
+		if mesh is ArrayMesh and (mesh as ArrayMesh).surface_get_name(surf) != "":
+			out.surface_set_name(out.get_surface_count() - 1, (mesh as ArrayMesh).surface_get_name(surf))
+	var shadow := (mesh as ArrayMesh).get_shadow_mesh()
+	if shadow != null:
+		out.set_shadow_mesh(shadow)
+	_rest_meshes[mesh] = out
+	return out
+
+## The individual's natural colours. Called by Creature.spawn() after setup() (and by the pet summon
+## path). GLB rigs: every mesh surface gets its own copy of the original material, re-bound to the
+## HSV-shift shader, so one individual never repaints another. Placeholders: the same shift on _tint.
+func apply_coloration(col: CreatureColoration) -> void:
+	coloration = col
+	_skin_mats.clear()
+	if using_glb and rig and rig.mesh_root:
+		_rebind_glb_surfaces(rig.mesh_root)
+	_apply_fx()
+
+## HSL/HSV shift for one surface: copies the albedo, normal, roughness and metallic of `src`.
+func _color_material(src: Material, col: CreatureColoration) -> ShaderMaterial:
+	var sm := ShaderMaterial.new()
+	sm.shader = COLOR_SHADER
+	if col != null:
+		sm.set_shader_parameter("hue_shift", col.hue_deg / 360.0)
+		sm.set_shader_parameter("sat_scale", col.sat)
+		sm.set_shader_parameter("val_scale", col.val)
+	var std := src as StandardMaterial3D
+	if std == null:
+		# Not a standard PBR material (or none): keep its colour as flat albedo when we can read one.
+		if src is BaseMaterial3D:
+			sm.set_shader_parameter("albedo_color", (src as BaseMaterial3D).albedo_color)
+		return sm
+	sm.set_shader_parameter("albedo_color", std.albedo_color)
+	var albedo := std.albedo_texture
+	if albedo != null:
+		sm.set_shader_parameter("use_albedo", true)
+		sm.set_shader_parameter("albedo_tex", albedo)
+	sm.set_shader_parameter("use_vertex_color", std.vertex_color_use_as_albedo)
+	var nm := std.normal_texture
+	if nm != null:
+		sm.set_shader_parameter("use_normal", true)
+		sm.set_shader_parameter("normal_tex", nm)
+		sm.set_shader_parameter("normal_strength", std.normal_scale)
+	var rm := std.roughness_texture
+	if rm != null:
+		sm.set_shader_parameter("use_roughness_tex", true)
+		sm.set_shader_parameter("roughness_tex", rm)
+		sm.set_shader_parameter("roughness_channel", int(std.roughness_texture_channel))
+	var mm := std.metallic_texture
+	if mm != null:
+		sm.set_shader_parameter("use_metallic_tex", true)
+		sm.set_shader_parameter("metallic_tex", mm)
+		sm.set_shader_parameter("metallic_channel", int(std.metallic_texture_channel))
+	sm.set_shader_parameter("roughness", std.roughness)
+	sm.set_shader_parameter("metallic", std.metallic)
+	sm.set_shader_parameter("specular", std.metallic_specular)
+	if std.uv1_scale != Vector3.ONE or std.uv1_offset != Vector3.ZERO:
+		sm.set_shader_parameter("uv_scale", Vector2(std.uv1_scale.x, std.uv1_scale.y))
+		sm.set_shader_parameter("uv_offset", Vector2(std.uv1_offset.x, std.uv1_offset.y))
+	return sm
+
+## Walks the rig's meshes (nested under skeleton or node roots) and overrides every surface. The
+## authored material of each surface is remembered on first bind: a second apply (a pet summon, a
+## re-roll) must copy the original textures again, not the shader material bound a moment ago.
+func _rebind_glb_surfaces(node: Node) -> void:
+	# Eyeshine is a shared presentation material, not skin. Re-coloring an individual must not strip it.
+	if node.has_meta(&"creature_eyeshine"):
+		return
+	var mi := node as MeshInstance3D
+	if mi != null and mi.mesh != null:
+		mi.material_override = null
+		var count := mi.mesh.get_surface_count()
+		# Only ever rebuild once per mesh instance: a second apply (the lab forcing a profile, a pet
+		# summon) must reuse the rest mesh it already has, not rebuild a mesh from itself.
+		var rest: ArrayMesh = _rest_of.get(mi, null)
+		if rest == null:
+			rest = rest_mesh(mi.mesh)
+			if rest != null:
+				mi.mesh = rest
+				_rest_of[mi] = rest
+			count = mi.mesh.get_surface_count() if rest != null else count
+		else:
+			mi.mesh = rest
+			count = rest.get_surface_count()
+		var originals: Array = _originals.get(mi, [])
+		if originals.is_empty():
+			for i in count:
+				originals.append(mi.get_active_material(i))
+			_originals[mi] = originals
+		for i in count:
+			var src: Material = originals[i] if i < originals.size() else mi.get_active_material(i)
+			var sm := _color_material(src, coloration)
+			_apply_pattern(sm, mi.mesh)
+			mi.set_surface_override_material(i, sm)
+			_skin_mats.append(sm)
+	for child in node.get_children():
+		_rebind_glb_surfaces(child)
+
+## Pattern uniforms: kind, scale, strength, tone and seed from the profile, plus the mesh bounds the
+## shader normalises the rest positions by (body axis = the longest bounds axis, up = +Y).
+func _apply_pattern(sm: ShaderMaterial, mesh: Mesh) -> void:
+	var kind := 0
+	if coloration != null:
+		kind = CreatureColoration.PATTERNS.find(String(coloration.pattern)) + 1
+	sm.set_shader_parameter("pattern_kind", kind)
+	if coloration != null:
+		sm.set_shader_parameter("pattern_scale", coloration.pattern_scale)
+		sm.set_shader_parameter("pattern_strength", coloration.pattern_strength if kind > 0 else 0.0)
+		sm.set_shader_parameter("pattern_tone", coloration.pattern_tone)
+		sm.set_shader_parameter("pattern_seed", coloration.pattern_seed)
+	var aabb := mesh.get_aabb() if mesh != null else AABB(Vector3.ZERO, Vector3.ONE)
+	sm.set_shader_parameter("pattern_min", aabb.position)
+	sm.set_shader_parameter("pattern_size", aabb.size)
+	var axis := 2
+	if aabb.size.x >= aabb.size.y and aabb.size.x >= aabb.size.z:
+		axis = 0
+	elif aabb.size.y >= aabb.size.z:
+		axis = 1
+	sm.set_shader_parameter("pattern_axis", axis)
+
+## Where the rider's model root goes this frame. Read it on skeleton_updated, not in _process.
+## The basis is orthonormalised: _rider_offset carries the mount's own scale (the game scales the GLB to
+## height_meters, K = 1 only for the T. rex), and the survivor rig must not inherit it. The translation
+## keeps it, so a scaled saddle still places the rider at the right spot in world space.
+func rider_transform() -> Transform3D:
+	var sk := rig.skeleton
+	var t := sk.global_transform * sk.get_bone_global_pose(_rider_bone) * _rider_offset
+	return Transform3D(t.basis.orthonormalized(), t.origin)
 
 func set_status_fx(darken: float, tint: Color, wobble: float) -> void:
 	_fx_darken = darken
@@ -200,12 +449,20 @@ func _apply_pose() -> void:
 func _apply_fx() -> void:
 	if _hit_flash_left > 0.0:
 		_hit_flash_left = maxf(0.0, _hit_flash_left - get_process_delta_time())
+	var tint_amount := 0.35 if _fx_tint != Color.WHITE else 0.0
+	var flash_amount := 0.65 if _hit_flash_left > 0.0 else 0.0
 	for mat in _base_mats:
-		var c := _tint.darkened(_fx_darken)
-		c = c.lerp(_fx_tint, 0.35 if _fx_tint != Color.WHITE else 0.0)
-		if _hit_flash_left > 0.0:
-			c = c.lerp(Color(1.0, 0.2, 0.2), 0.65)
+		# The placeholder path carries the colour profile itself: shift the base tint, then FX on top.
+		var c := coloration.shift_color(_tint) if coloration != null else _tint
+		c = c.darkened(_fx_darken)
+		c = c.lerp(_fx_tint, tint_amount)
+		if flash_amount > 0.0:
+			c = c.lerp(Color(1.0, 0.2, 0.2), flash_amount)
 		mat.albedo_color = c
-	if using_glb:
-		# Placeholder-only materials; GLB tint is a child overlay later.
-		pass
+	for sm in _skin_mats:
+		if not is_instance_valid(sm):
+			continue
+		sm.set_shader_parameter("darken", _fx_darken)
+		sm.set_shader_parameter("tint_color", _fx_tint)
+		sm.set_shader_parameter("tint_amount", tint_amount)
+		sm.set_shader_parameter("flash_amount", flash_amount)

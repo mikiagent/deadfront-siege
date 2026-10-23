@@ -1,0 +1,1958 @@
+{
+ "_about": "Rendered item art (W1-ICONART). Regenerate with tools/render_icons.py; models are procedural bpy builders in tools/blender/items/.",
+ "quality": "procedural_v1 = low-poly bpy primitives, a placeholder tier; every item is to be replaced by higher-quality art. 'replace' marks the weakest first; 'missing' lists items.json ids with no render yet (they show the flat white symbol).",
+ "rig": {
+  "name": "studio_v1",
+  "engine": "CYCLES",
+  "device": "CPU",
+  "samples": 128,
+  "seed": 0,
+  "threads": 1,
+  "emission_sampling": "NONE",
+  "render_px": 512,
+  "out_px": 256,
+  "camera": "orthographic, view dir (0.42,-1,0.62), fit to projected bounds, margin 0.085",
+  "lights": "key area 520W warm (-3,-4,5), fill area 170W cool (4,-2,1.5), rim area 700W (1,5,4), gradient world 0.45",
+  "view_transform": "Standard",
+  "post": "4px dark outline at 512, 2x box downsample, zeroed border rows, deterministic PNG encode"
+ },
+ "blender": "5.2.0 LTS",
+ "items": {
+  "_unknown": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "_unknown",
+   "png": "res://assets/icons/render/_unknown.png",
+   "sha256": "300438fc120884c5a462a8e1799f982b2103504caff2a5430954e2d17969416a",
+   "bytes": 4565,
+   "rect": [
+    44,
+    21,
+    168,
+    214
+   ],
+   "quality": "procedural_v1"
+  },
+  "armor_scute": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "armor_scute",
+   "png": "res://assets/icons/render/armor_scute.png",
+   "sha256": "135ac7a26bc60d4cca5fe87c2215298f67f2910bd0ec6e680a0ace1c78586836",
+   "bytes": 34974,
+   "rect": [
+    19,
+    42,
+    218,
+    172
+   ],
+   "quality": "procedural_v1",
+   "replace": "flat plate, no bony texture"
+  },
+  "bamboo": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "bamboo",
+   "png": "res://assets/icons/render/bamboo.png",
+   "sha256": "1df8976f6725dda95a9f84e99a100f14c6301c608c33fbc5e237d14693c46725",
+   "bytes": 30602,
+   "rect": [
+    65,
+    19,
+    126,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bandage": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "bandage",
+   "png": "res://assets/icons/render/bandage.png",
+   "sha256": "af7bbe5ece76bfaa50d92c8614df8d95061305658dfe559d532c9a30d1344a1c",
+   "bytes": 45147,
+   "rect": [
+    23,
+    19,
+    210,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "barbed_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "barbed_knife",
+   "png": "res://assets/icons/render/barbed_knife.png",
+   "sha256": "9c464f17a93386c5bf70544f13060546008a88c5ac22a850284b60669e381d5c",
+   "bytes": 17469,
+   "rect": [
+    79,
+    19,
+    98,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "basket_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "basket_kit",
+   "png": "res://assets/icons/render/basket_kit.png",
+   "sha256": "148f21c42868ec901620c3eadef91977b7ef3551961ca6180d2da8cbd8d8be93",
+   "bytes": 65343,
+   "rect": [
+    19,
+    23,
+    218,
+    210
+   ],
+   "quality": "procedural_v1"
+  },
+  "berries": {
+   "script": "tools/blender/items/food.py",
+   "builder": "berries",
+   "png": "res://assets/icons/render/berries.png",
+   "sha256": "8c4ecae5c52a991aec9d5c0d95590c2568ff2701bb06c0043f6e8f33c382f49a",
+   "bytes": 47821,
+   "rect": [
+    42,
+    19,
+    172,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "berry": {
+   "script": "tools/blender/items/food.py",
+   "builder": "berry",
+   "png": "res://assets/icons/render/berry.png",
+   "sha256": "01462c2fd919205f26e93e7ff4bc241c50d9c14f0540f8600dea1741ae9d7315",
+   "bytes": 48363,
+   "rect": [
+    19,
+    22,
+    218,
+    211
+   ],
+   "quality": "procedural_v1",
+   "replace": "plain blue sphere, no stem, leaf or cluster"
+  },
+  "berry_seed": {
+   "script": "tools/blender/items/food.py",
+   "builder": "berry_seed",
+   "png": "res://assets/icons/render/berry_seed.png",
+   "sha256": "ca2946b6366d5fc1640bbdb9dac72c52c77363fc94b5d4e554141c54f1372a87",
+   "bytes": 46714,
+   "rect": [
+    19,
+    35,
+    218,
+    186
+   ],
+   "quality": "procedural_v1"
+  },
+  "black_iron": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "black_iron",
+   "png": "res://assets/icons/render/black_iron.png",
+   "sha256": "027f039253a4267a0fc1a10488c7a78243dc872118c321077c8f1bfc151564ec",
+   "bytes": 31685,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1",
+   "replace": "dark crystal, not distinguishable from obsidian at slot size"
+  },
+  "blue_dye": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "blue_dye",
+   "png": "res://assets/icons/render/blue_dye.png",
+   "sha256": "e6d05a5ddf4883a18abe05d4f4faa1f9d35d8681f1a223ad71aae045eec3b1e0",
+   "bytes": 44597,
+   "rect": [
+    21,
+    19,
+    214,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "boiled_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "boiled_meat",
+   "png": "res://assets/icons/render/boiled_meat.png",
+   "sha256": "99e0cd24a1f923ced9f2d51d7a1e69d915845b2a1023fd8bffa4507808a2641b",
+   "bytes": 50561,
+   "rect": [
+    19,
+    29,
+    218,
+    198
+   ],
+   "quality": "procedural_v1"
+  },
+  "bone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "bone",
+   "png": "res://assets/icons/render/bone.png",
+   "sha256": "7d427a8acf8d16e31bcfa87f2cd8f5bb2827c0d4643f37bfb52c016629929579",
+   "bytes": 27125,
+   "rect": [
+    25,
+    19,
+    206,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bone_hammer": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bone_hammer",
+   "png": "res://assets/icons/render/bone_hammer.png",
+   "sha256": "c191e5bd2a5b6eeeada130b3b9eb11082b2ed98fc554bbdc3f02c34e2a5276ed",
+   "bytes": 23482,
+   "rect": [
+    43,
+    19,
+    170,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bonfire_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "bonfire_kit",
+   "png": "res://assets/icons/render/bonfire_kit.png",
+   "sha256": "d29fc2851a78965e01e31852ab4bddae5f2f4f95b19bef09ba03b6416820480a",
+   "bytes": 48329,
+   "rect": [
+    25,
+    19,
+    206,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "branch": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "branch",
+   "png": "res://assets/icons/render/branch.png",
+   "sha256": "28a828974c85e7a72936ff6a0ee6f2d7ff0e705dd436f77fe0fb9bcde6593559",
+   "bytes": 18733,
+   "rect": [
+    48,
+    19,
+    160,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bronze_ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "bronze_ingot",
+   "png": "res://assets/icons/render/bronze_ingot.png",
+   "sha256": "473a8e2fd3cad8ecdd3bc1aab5b966af6e245a049137b1955f857ebcf148c557",
+   "bytes": 41784,
+   "rect": [
+    19,
+    39,
+    218,
+    178
+   ],
+   "quality": "procedural_v1"
+  },
+  "burnt_food": {
+   "script": "tools/blender/items/food.py",
+   "builder": "burnt_food",
+   "png": "res://assets/icons/render/burnt_food.png",
+   "sha256": "b709e1e5e28db0657ccc1517c7d0e12d5d9d90dd4defffe7081f1bab4385c740",
+   "bytes": 42676,
+   "rect": [
+    26,
+    19,
+    204,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "glowing lava-crack texture shared with lava / raid_maul; reads as a fire item"
+  },
+  "cactus_flesh": {
+   "script": "tools/blender/items/food.py",
+   "builder": "cactus_flesh",
+   "png": "res://assets/icons/render/cactus_flesh.png",
+   "sha256": "220d425b9179aca7530409c3cb2af6b8d2ae4548d19d3693bbd3c3b094b3f9f2",
+   "bytes": 33516,
+   "rect": [
+    58,
+    19,
+    140,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "camp_stew": {
+   "script": "tools/blender/items/food.py",
+   "builder": "camp_stew",
+   "png": "res://assets/icons/render/camp_stew.png",
+   "sha256": "0ed583e28435f3b21bef15558720c80a99a138fa906053317083c9f146cacbb5",
+   "bytes": 48774,
+   "rect": [
+    19,
+    37,
+    218,
+    182
+   ],
+   "quality": "procedural_v1"
+  },
+  "campfire_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "campfire_kit",
+   "png": "res://assets/icons/render/campfire_kit.png",
+   "sha256": "0f0b66bdbcd346d4618df21eb5a67b3687b6a759533df5df8c37832a5ac1d6dd",
+   "bytes": 44814,
+   "rect": [
+    19,
+    36,
+    218,
+    184
+   ],
+   "quality": "procedural_v1"
+  },
+  "capture_net_i": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "capture_net_i",
+   "png": "res://assets/icons/render/capture_net_i.png",
+   "sha256": "ada1efbc6ea25df1566fa9c1bdad710c1abf2abce07c4c04d9a137577c142f2e",
+   "bytes": 45600,
+   "rect": [
+    44,
+    19,
+    168,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "capture_net_ii": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "capture_net_ii",
+   "png": "res://assets/icons/render/capture_net_ii.png",
+   "sha256": "baf031e7e7adff57a9e231d6dc2fd3e93db2d0dd0242a1575f0ac5e95b210ff2",
+   "bytes": 45764,
+   "rect": [
+    44,
+    19,
+    168,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "not distinguishable from capture_net_i at slot size"
+  },
+  "catapult_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "catapult_kit",
+   "png": "res://assets/icons/render/catapult_kit.png",
+   "sha256": "7d0060fcef60fc6129a38c7634c4a5145b0b6ee4ad88fe0e1d70436d068cc499",
+   "bytes": 37598,
+   "rect": [
+    41,
+    19,
+    174,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "charcoal": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "charcoal",
+   "png": "res://assets/icons/render/charcoal.png",
+   "sha256": "1e830debf741da50ab0fb7eb8464f278ee62c3c3b9c6261eb9522e483c64a030",
+   "bytes": 30551,
+   "rect": [
+    19,
+    44,
+    218,
+    169
+   ],
+   "quality": "procedural_v1"
+  },
+  "claim_stake": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "claim_stake",
+   "png": "res://assets/icons/render/claim_stake.png",
+   "sha256": "292ab0d46b75bfa3b042853ad099b71958d6cda5ec001a0fd5a4f09ce4b37183",
+   "bytes": 21063,
+   "rect": [
+    75,
+    19,
+    106,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "clay": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "clay",
+   "png": "res://assets/icons/render/clay.png",
+   "sha256": "8d55b1882f9930cd3084621c75732a19302d508638f5b7a3c5d3f5383b83f643",
+   "bytes": 32694,
+   "rect": [
+    19,
+    47,
+    218,
+    162
+   ],
+   "quality": "procedural_v1",
+   "replace": "untextured blob, low poly"
+  },
+  "cloth": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "cloth",
+   "png": "res://assets/icons/render/cloth.png",
+   "sha256": "391dfe111f786115eedce46d6a87a8a235885d2f60dd6b9903785d89af5e0922",
+   "bytes": 42399,
+   "rect": [
+    19,
+    42,
+    218,
+    171
+   ],
+   "quality": "procedural_v1",
+   "replace": "stacked coloured slabs, no fold or weave"
+  },
+  "club": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "club",
+   "png": "res://assets/icons/render/club.png",
+   "sha256": "c66ef64c1ba6bc77591a9ffbe9a740b3e00e9467e338c5a79db16489a07bfc05",
+   "bytes": 24347,
+   "rect": [
+    44,
+    19,
+    168,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "coconut": {
+   "script": "tools/blender/items/food.py",
+   "builder": "coconut",
+   "png": "res://assets/icons/render/coconut.png",
+   "sha256": "5c30da43d53b6de8255dc67551ab22d55b57d28f681ab9aae24b88f5475a1583",
+   "bytes": 34191,
+   "rect": [
+    19,
+    33,
+    218,
+    190
+   ],
+   "quality": "procedural_v1"
+  },
+  "copper_ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "copper_ingot",
+   "png": "res://assets/icons/render/copper_ingot.png",
+   "sha256": "68e8521dca55b3237bfa7887b2e3f955f09f81d0af041f5c9f10c4dd1dc58bc3",
+   "bytes": 40401,
+   "rect": [
+    19,
+    39,
+    218,
+    178
+   ],
+   "quality": "procedural_v1"
+  },
+  "copper_ore": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "copper_ore",
+   "png": "res://assets/icons/render/copper_ore.png",
+   "sha256": "7a55990a1ac43ffa60bba08135a9f14c3b743b032fb3f94cb7c688a2b6754846",
+   "bytes": 38363,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1"
+  },
+  "coral": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "coral",
+   "png": "res://assets/icons/render/coral.png",
+   "sha256": "336a8038e20228115b1ea84ed5d6e81e1efe1792764cf82405e37658deafbbfc",
+   "bytes": 30123,
+   "rect": [
+    64,
+    19,
+    128,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "corn": {
+   "script": "tools/blender/items/food.py",
+   "builder": "corn",
+   "png": "res://assets/icons/render/corn.png",
+   "sha256": "c267c7172701d1fc1f57d9e9182658e9e4efb3800687687b46d35b6569ea0d8a",
+   "bytes": 47370,
+   "rect": [
+    19,
+    24,
+    218,
+    208
+   ],
+   "quality": "procedural_v1"
+  },
+  "corn_seed": {
+   "script": "tools/blender/items/food.py",
+   "builder": "corn_seed",
+   "png": "res://assets/icons/render/corn_seed.png",
+   "sha256": "6ff62af628bfd6d7dd0eeef20f788ba91f9a30fed4ff291813c65146c3f02ff3",
+   "bytes": 54120,
+   "rect": [
+    19,
+    35,
+    218,
+    186
+   ],
+   "quality": "procedural_v1"
+  },
+  "crock_pot_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "crock_pot_kit",
+   "png": "res://assets/icons/render/crock_pot_kit.png",
+   "sha256": "59b7c5c5e4901b0f4a2f69fea617caa0ea45792b1e10c239f16b714203658d2d",
+   "bytes": 40673,
+   "rect": [
+    20,
+    19,
+    216,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "dense_bone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "dense_bone",
+   "png": "res://assets/icons/render/dense_bone.png",
+   "sha256": "093f6812a707ee79471d36e337d0f03c6644fdf0497c09d5a9559677302a5854",
+   "bytes": 31569,
+   "rect": [
+    37,
+    19,
+    182,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "not distinguishable from bone at slot size"
+  },
+  "dried_hide": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "dried_hide",
+   "png": "res://assets/icons/render/dried_hide.png",
+   "sha256": "673b5db8f9f5457a13b7a43e3ab727115f85788a0b1c590676ce186b459ec831",
+   "bytes": 31771,
+   "rect": [
+    19,
+    41,
+    218,
+    174
+   ],
+   "quality": "procedural_v1",
+   "replace": "flat slab with painted stripes"
+  },
+  "dried_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "dried_meat",
+   "png": "res://assets/icons/render/dried_meat.png",
+   "sha256": "81340765b79efcd37eb361551603b0ac36b6f7730fc2033890b952413de6541a",
+   "bytes": 49827,
+   "rect": [
+    19,
+    23,
+    218,
+    210
+   ],
+   "quality": "procedural_v1"
+  },
+  "dry_grass": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "dry_grass",
+   "png": "res://assets/icons/render/dry_grass.png",
+   "sha256": "6f39d1648ade761359834257ffa4fd8dcf38097e217982fcc07a79b24dddd938",
+   "bytes": 33227,
+   "rect": [
+    55,
+    19,
+    146,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "drying_rack_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "drying_rack_kit",
+   "png": "res://assets/icons/render/drying_rack_kit.png",
+   "sha256": "4af6e4c2864b12ae1ca02299c8242728556be276fabcede17a446102d2db2292",
+   "bytes": 30039,
+   "rect": [
+    22,
+    19,
+    213,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "empty_bucket": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "empty_bucket",
+   "png": "res://assets/icons/render/empty_bucket.png",
+   "sha256": "cc6c562bc911a98da1af4ae24420ae807a32ee147259ff08865ac0fcc4462f8b",
+   "bytes": 60469,
+   "rect": [
+    29,
+    19,
+    198,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "fence_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "fence_kit",
+   "png": "res://assets/icons/render/fence_kit.png",
+   "sha256": "b7c80f8acb082904804346939c56e61fefbc6bb3c4966e19ce7c8934b3c20735",
+   "bytes": 29280,
+   "rect": [
+    51,
+    19,
+    154,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "fibre_stalk": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "fibre_stalk",
+   "png": "res://assets/icons/render/fibre_stalk.png",
+   "sha256": "34504b17e374ba16d921b90c0ec77de7e9696e85b2b6148e6977ad80907a4de1",
+   "bytes": 28969,
+   "rect": [
+    60,
+    19,
+    136,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "fish": {
+   "script": "tools/blender/items/food.py",
+   "builder": "fish",
+   "png": "res://assets/icons/render/fish.png",
+   "sha256": "c4a4437d8c60b834ee6f29e22ad3f12bcf19d537997bf4e19a1a990ea57070ca",
+   "bytes": 33737,
+   "rect": [
+    19,
+    34,
+    218,
+    188
+   ],
+   "quality": "procedural_v1",
+   "replace": "noisy camouflage-like blotches, reads poorly"
+  },
+  "flax": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "flax",
+   "png": "res://assets/icons/render/flax.png",
+   "sha256": "711be8472fd839b49d55d2acc9b9e38a29944fe933d34cb4db401ff577f61193",
+   "bytes": 27137,
+   "rect": [
+    60,
+    19,
+    136,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "flax_seed": {
+   "script": "tools/blender/items/food.py",
+   "builder": "flax_seed",
+   "png": "res://assets/icons/render/flax_seed.png",
+   "sha256": "337f8dd2f1a03d2bf58bb8a67f1d03fe3a661ece2c14f376a0c9e191b9f00737",
+   "bytes": 50730,
+   "rect": [
+    19,
+    34,
+    218,
+    188
+   ],
+   "quality": "procedural_v1"
+  },
+  "flint": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "flint",
+   "png": "res://assets/icons/render/flint.png",
+   "sha256": "4396abef128fbd56afc50b645a2ff974b29cf4dd205bed7e67f16fe361255278",
+   "bytes": 29552,
+   "rect": [
+    19,
+    42,
+    218,
+    172
+   ],
+   "quality": "procedural_v1"
+  },
+  "forager_hood": {
+   "script": "glb:game/assets/characters/survivor/armor/forager/helmet.glb",
+   "builder": "forager_hood",
+   "png": "res://assets/icons/render/forager_hood.png",
+   "sha256": "dea62f0c6f4386aa2bac7239af06755611fd7b36734318f945420a0e70c4bcdb",
+   "bytes": 50666,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "model_v2"
+  },
+  "forager_leggings": {
+   "script": "glb:game/assets/characters/survivor/armor/forager/legs.glb",
+   "builder": "forager_leggings",
+   "png": "res://assets/icons/render/forager_leggings.png",
+   "sha256": "726208c4da01c1843bbeecc0a4645ed0075516f5a10eacb51577bab311d168b4",
+   "bytes": 35900,
+   "rect": [
+    66,
+    19,
+    124,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "forager_vest": {
+   "script": "glb:game/assets/characters/survivor/armor/forager/chest.glb",
+   "builder": "forager_vest",
+   "png": "res://assets/icons/render/forager_vest.png",
+   "sha256": "857e79770c58efc6a2c36017196663f73e137ffa4600ac2662e9ad3a73d96c23",
+   "bytes": 59723,
+   "rect": [
+    41,
+    19,
+    174,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "forager_wraps": {
+   "script": "glb:game/assets/characters/survivor/armor/forager/arms.glb",
+   "builder": "forager_wraps",
+   "png": "res://assets/icons/render/forager_wraps.png",
+   "sha256": "c4d54843aabc6e521bb8179afb834c68505e86175c978098ecf98d8fcd5fcb27",
+   "bytes": 31139,
+   "rect": [
+    19,
+    30,
+    218,
+    196
+   ],
+   "quality": "model_v2",
+   "replace": "worn-pose arm piece: reads as two arms with hands, not an item; stage as one crossed pair"
+  },
+  "gate_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "gate_kit",
+   "png": "res://assets/icons/render/gate_kit.png",
+   "sha256": "2f3e14355f1605b0c84ef49f7d59fb9bd0706a58694d7f58386c11651bf61871",
+   "bytes": 28887,
+   "rect": [
+    57,
+    19,
+    142,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "grilled_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "grilled_meat",
+   "png": "res://assets/icons/render/grilled_meat.png",
+   "sha256": "34905116a3d0dea5369c406a7a5a7c3eadf38a2eff8bff359f3149303df3bcf3",
+   "bytes": 35575,
+   "rect": [
+    19,
+    50,
+    218,
+    156
+   ],
+   "quality": "procedural_v1",
+   "replace": "striped disc, does not read as meat"
+  },
+  "heavy_snare": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "heavy_snare",
+   "png": "res://assets/icons/render/heavy_snare.png",
+   "sha256": "d1f45791ccee955efe63dda304970b7c3000e5e02fc8efd33bc1ba3a5a9c6f53",
+   "bytes": 35154,
+   "rect": [
+    19,
+    21,
+    218,
+    214
+   ],
+   "quality": "procedural_v1",
+   "replace": "low-detail frame, reads poorly at slot size"
+  },
+  "herb_buff_meal": {
+   "script": "tools/blender/items/food.py",
+   "builder": "herb_buff_meal",
+   "png": "res://assets/icons/render/herb_buff_meal.png",
+   "sha256": "7fd1b6b13d7d2f50f04153d6700c249f8dda0521cddfd88989302166666250a8",
+   "bytes": 57192,
+   "rect": [
+    19,
+    44,
+    218,
+    168
+   ],
+   "quality": "procedural_v1"
+  },
+  "herb_leaf": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "herb_leaf",
+   "png": "res://assets/icons/render/herb_leaf.png",
+   "sha256": "0e6ab299296c91dd68a1bbc76d39422ad3b7cdf6190e566a4542126e1dfb91b7",
+   "bytes": 27423,
+   "rect": [
+    74,
+    19,
+    108,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "hide_bone_bracers": {
+   "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/arms.glb",
+   "builder": "hide_bone_bracers",
+   "png": "res://assets/icons/render/hide_bone_bracers.png",
+   "sha256": "6996b80cd9a9952c98fbaf04d9ec7c400d4f27c68f4ff126f57d4b605626933c",
+   "bytes": 34367,
+   "rect": [
+    19,
+    25,
+    218,
+    206
+   ],
+   "quality": "model_v2",
+   "replace": "worn-pose arm piece: with the skin cut away, pauldrons and bracers float apart; stage as one crossed pair"
+  },
+  "hide_bone_cuirass": {
+   "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/chest.glb",
+   "builder": "hide_bone_cuirass",
+   "png": "res://assets/icons/render/hide_bone_cuirass.png",
+   "sha256": "c0634ab602f4a378ef46251697be88fe44d46eb83b7d0b475cfef74cd93ae8cb",
+   "bytes": 62913,
+   "rect": [
+    41,
+    19,
+    174,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "hide_bone_greaves": {
+   "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/legs.glb",
+   "builder": "hide_bone_greaves",
+   "png": "res://assets/icons/render/hide_bone_greaves.png",
+   "sha256": "df70df7a9db03635c53ffabaef69b0afed7dd32481d929ab981a59bb296be71a",
+   "bytes": 40838,
+   "rect": [
+    64,
+    19,
+    128,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "hide_bone_helm": {
+   "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/helmet.glb",
+   "builder": "hide_bone_helm",
+   "png": "res://assets/icons/render/hide_bone_helm.png",
+   "sha256": "a1fda38f788fd876d5e4f1455c0bb27eb61766dd018d0facf9498b6dc3c565d8",
+   "bytes": 58570,
+   "rect": [
+    40,
+    19,
+    176,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "hide_strap": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "hide_strap",
+   "png": "res://assets/icons/render/hide_strap.png",
+   "sha256": "0a39c5255cf58c2667d5f3bacedd951357249b44dab253f618aabe303396db3f",
+   "bytes": 28146,
+   "rect": [
+    19,
+    46,
+    218,
+    164
+   ],
+   "quality": "procedural_v1"
+  },
+  "hoe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "hoe",
+   "png": "res://assets/icons/render/hoe.png",
+   "sha256": "6ebad5b56d1ab6d3bdc5ea27f82fea372e7535d62c87e59c2c5ad59972e47483",
+   "bytes": 19091,
+   "rect": [
+    41,
+    19,
+    174,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "ice": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "ice",
+   "png": "res://assets/icons/render/ice.png",
+   "sha256": "5ee3807565e9efe8ccd5f76a8b3b02f1b9b40f2585b0807e976cef3107b0dc94",
+   "bytes": 32896,
+   "rect": [
+    19,
+    28,
+    218,
+    200
+   ],
+   "quality": "procedural_v1"
+  },
+  "ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "ingot",
+   "png": "res://assets/icons/render/ingot.png",
+   "sha256": "20572a792ebfd97ba2ea477578f3f5649559937495e4870e01259c5a69b09902",
+   "bytes": 41260,
+   "rect": [
+    19,
+    39,
+    218,
+    178
+   ],
+   "quality": "procedural_v1",
+   "replace": "generic ingot duplicate of the metal ingots"
+  },
+  "iron_ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "iron_ingot",
+   "png": "res://assets/icons/render/iron_ingot.png",
+   "sha256": "cd469d7dd57b9c94531da4da3bf702954ce61ea6e3689e20109f4ec50c3c96ff",
+   "bytes": 33399,
+   "rect": [
+    19,
+    39,
+    218,
+    178
+   ],
+   "quality": "procedural_v1",
+   "replace": "grey bar stack, not distinguishable from steel_ingot / ingot at slot size"
+  },
+  "lava": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "lava",
+   "png": "res://assets/icons/render/lava.png",
+   "sha256": "79be10f8a14b38c697c045c38d092a75f4a7eb0f06565d851a4d4e91add0629a",
+   "bytes": 52031,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1"
+  },
+  "mango": {
+   "script": "tools/blender/items/food.py",
+   "builder": "mango",
+   "png": "res://assets/icons/render/mango.png",
+   "sha256": "4d23e5692428f7d47ae46d36ac15a2c8a28cd9c7a5793f989323f5c95b2a7cf3",
+   "bytes": 36129,
+   "rect": [
+    56,
+    19,
+    144,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "noisy green/orange blotches, reads poorly"
+  },
+  "meatball": {
+   "script": "tools/blender/items/food.py",
+   "builder": "meatball",
+   "png": "res://assets/icons/render/meatball.png",
+   "sha256": "11aec5dd9c288115c8a7a4c5c1efdf36a190481ea9122140248df367e599efce",
+   "bytes": 53534,
+   "rect": [
+    19,
+    42,
+    218,
+    172
+   ],
+   "quality": "procedural_v1"
+  },
+  "meatball_mix": {
+   "script": "tools/blender/items/food.py",
+   "builder": "meatball_mix",
+   "png": "res://assets/icons/render/meatball_mix.png",
+   "sha256": "39bea2be1c55464bc151b03dc0e1df8421e02417cec58fb230eb455a9cb1821e",
+   "bytes": 61653,
+   "rect": [
+    19,
+    31,
+    218,
+    194
+   ],
+   "quality": "procedural_v1"
+  },
+  "metal_shard": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "metal_shard",
+   "png": "res://assets/icons/render/metal_shard.png",
+   "sha256": "d90e3e9a14fc5002376a597ff4371d05de368fcbbe79df0e545355e27842a0d8",
+   "bytes": 20632,
+   "rect": [
+    56,
+    19,
+    144,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "two flat grey slabs; reads as nothing at slot size"
+  },
+  "mortar_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "mortar_kit",
+   "png": "res://assets/icons/render/mortar_kit.png",
+   "sha256": "bcb8737f7e877541264f0ef186e63c78b688460182031eea826cd0991265632f",
+   "bytes": 47771,
+   "rect": [
+    19,
+    27,
+    218,
+    202
+   ],
+   "quality": "procedural_v1"
+  },
+  "mushroom": {
+   "script": "tools/blender/items/food.py",
+   "builder": "mushroom",
+   "png": "res://assets/icons/render/mushroom.png",
+   "sha256": "0e813bb11b9bb97139064eaab26b2f1ec685ff1fad0a30e572e2f497b1de36bc",
+   "bytes": 43041,
+   "rect": [
+    20,
+    19,
+    216,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "obsidian": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "obsidian",
+   "png": "res://assets/icons/render/obsidian.png",
+   "sha256": "8ad111468d8417c0205372a9ff55346432f1c6d18b1a3a51ae42453dda8abb7b",
+   "bytes": 30320,
+   "rect": [
+    30,
+    19,
+    196,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "dark crystal, not distinguishable from black_iron at slot size"
+  },
+  "ore": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "ore",
+   "png": "res://assets/icons/render/ore.png",
+   "sha256": "dcce1727d53f07717a05d0ee6a894b023a424aec88b0ef35093b42112cc0dc95",
+   "bytes": 39380,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1"
+  },
+  "palm_frond": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "palm_frond",
+   "png": "res://assets/icons/render/palm_frond.png",
+   "sha256": "6ac4187a983e264d0c5cdb76da2e05912ec92592f1ba2eced858cc130057dcaa",
+   "bytes": 32673,
+   "rect": [
+    40,
+    19,
+    176,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "pearl": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "pearl",
+   "png": "res://assets/icons/render/pearl.png",
+   "sha256": "d475cec3e4a9af1a026e0ce219c147bc52fce687a5c5b4ae567a110fd15d019b",
+   "bytes": 59972,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1"
+  },
+  "pillar": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "pillar",
+   "png": "res://assets/icons/render/pillar.png",
+   "sha256": "aa479fedcd7b4acc7c5ebbdd132c6a88f4834d4d2be3d178a8b5292b7b15945c",
+   "bytes": 21997,
+   "rect": [
+    80,
+    19,
+    96,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "plain box with straps, low detail"
+  },
+  "pine_log": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "pine_log",
+   "png": "res://assets/icons/render/pine_log.png",
+   "sha256": "9883defe77a688df61ac529b87e98389aae058f614c3251238b923ec99026877",
+   "bytes": 36711,
+   "rect": [
+    19,
+    42,
+    218,
+    172
+   ],
+   "quality": "procedural_v1",
+   "replace": "not distinguishable from wood_log at slot size"
+  },
+  "plank": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "plank",
+   "png": "res://assets/icons/render/plank.png",
+   "sha256": "a398aa5a2d8cd077f6e175c871970265706628e3f9cc2c2e9b3327024f4c18c4",
+   "bytes": 38721,
+   "rect": [
+    19,
+    30,
+    218,
+    196
+   ],
+   "quality": "procedural_v1"
+  },
+  "predator_tendon": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "predator_tendon",
+   "png": "res://assets/icons/render/predator_tendon.png",
+   "sha256": "0387284c61201bc591de79a4782bffc4c9a1ed051015e28240179b39f22cdef1",
+   "bytes": 60277,
+   "rect": [
+    22,
+    19,
+    212,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "raid_cuirass": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "raid_cuirass",
+   "png": "res://assets/icons/render/raid_cuirass.png",
+   "sha256": "a78f60bdaf2bf7e7b38dab1925633ed7173543d615feb5b2eb2f1ad11f648acf",
+   "bytes": 42345,
+   "rect": [
+    42,
+    19,
+    172,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "brown slab with bone dots; epic gear that reads as scrap"
+  },
+  "raid_greaves": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "raid_greaves",
+   "png": "res://assets/icons/render/raid_greaves.png",
+   "sha256": "b4e4b938ad93b887859b684ed68797e9b255448211b318cca30133faa7bf3265",
+   "bytes": 34644,
+   "rect": [
+    63,
+    19,
+    130,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "brown slabs with bone dots; epic gear that reads as scrap"
+  },
+  "raid_helm": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "raid_helm",
+   "png": "res://assets/icons/render/raid_helm.png",
+   "sha256": "35a1d8533210759ec07391c590d656410bf411f9c3101da97a474a530846b3c1",
+   "bytes": 33776,
+   "rect": [
+    38,
+    19,
+    180,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "plain brown dome with two horns; epic gear that reads worse than common model art"
+  },
+  "raid_maul": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "raid_maul",
+   "png": "res://assets/icons/render/raid_maul.png",
+   "sha256": "c81d1739251ec4c1b2b7e50244c2f7b00edecd46f2c3dd2a64fcfd48e591e286",
+   "bytes": 36392,
+   "rect": [
+    41,
+    19,
+    174,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "raptor_bone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "raptor_bone",
+   "png": "res://assets/icons/render/raptor_bone.png",
+   "sha256": "52e6d0645ab145ee6ca08120ae7b663f72fe7020dd3aae25d0f82e081c78ff1b",
+   "bytes": 22283,
+   "rect": [
+    33,
+    19,
+    190,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "raptor_hide": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "raptor_hide",
+   "png": "res://assets/icons/render/raptor_hide.png",
+   "sha256": "9a72b4a48848591f0e8e9dcf50142fccd8098d69828d4543ce02d7dfcf8fe9dc",
+   "bytes": 30746,
+   "rect": [
+    66,
+    19,
+    124,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "flat striped cut-out, no fur or edge detail"
+  },
+  "raptor_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "raptor_meat",
+   "png": "res://assets/icons/render/raptor_meat.png",
+   "sha256": "d0b687425ffea574967536dd2de3f6ffa33d0c7de2963bd8f9c293d51ac9c38d",
+   "bytes": 34533,
+   "rect": [
+    26,
+    19,
+    204,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "raptor_talon": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "raptor_talon",
+   "png": "res://assets/icons/render/raptor_talon.png",
+   "sha256": "39de4a68751df3059b0c2fe7391274c7f61d4e5379d36f69275574afeead78c2",
+   "bytes": 20724,
+   "rect": [
+    70,
+    19,
+    117,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "raw_hide": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "raw_hide",
+   "png": "res://assets/icons/render/raw_hide.png",
+   "sha256": "bca9b97178ddea2c9bbcc2b800caa3f8f52fd7a68c9f59d0738a1782e9bcc87b",
+   "bytes": 27176,
+   "rect": [
+    66,
+    19,
+    124,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "flat single-colour cut-out, no fur or edge detail"
+  },
+  "raw_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "raw_meat",
+   "png": "res://assets/icons/render/raw_meat.png",
+   "sha256": "f71c34cd665d73320534254b7b48f653a5694d9ae2dac4d6df1b9fbc5168b489",
+   "bytes": 40022,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1"
+  },
+  "resin": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "resin",
+   "png": "res://assets/icons/render/resin.png",
+   "sha256": "6a76727faa60bcddfa84521b2bd8ca403a3cfdfad65b1ca84d58c8af4c6b7c27",
+   "bytes": 29390,
+   "rect": [
+    31,
+    19,
+    194,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "roast": {
+   "script": "tools/blender/items/food.py",
+   "builder": "roast",
+   "png": "res://assets/icons/render/roast.png",
+   "sha256": "821e5c7aeaa9fae96396c6d4439dadd920772d937c13f981cc292cd7283312ba",
+   "bytes": 33441,
+   "rect": [
+    26,
+    19,
+    204,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "rope": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "rope",
+   "png": "res://assets/icons/render/rope.png",
+   "sha256": "557682ce9653f36f580784381f82cc48fa665a5a40387a200176727c92c14912",
+   "bytes": 59630,
+   "rect": [
+    19,
+    29,
+    218,
+    198
+   ],
+   "quality": "procedural_v1"
+  },
+  "rope_snare": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "rope_snare",
+   "png": "res://assets/icons/render/rope_snare.png",
+   "sha256": "c362b1356a9f0445cba98a8aac382e71e630e7a351d60ea48b6804c373bbd277",
+   "bytes": 31895,
+   "rect": [
+    19,
+    25,
+    218,
+    206
+   ],
+   "quality": "procedural_v1"
+  },
+  "salt": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "salt",
+   "png": "res://assets/icons/render/salt.png",
+   "sha256": "0166ecb44fe29b742930890e20a792aa8bde0f2eed2306768c722628e59a4096",
+   "bytes": 27517,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1"
+  },
+  "sandstone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "sandstone",
+   "png": "res://assets/icons/render/sandstone.png",
+   "sha256": "11f1bda2024ced5f16489f263dfdc437adc99ab1c4a8241c61fbaf63010af17d",
+   "bytes": 49912,
+   "rect": [
+    19,
+    25,
+    218,
+    206
+   ],
+   "quality": "procedural_v1"
+  },
+  "sashimi": {
+   "script": "tools/blender/items/food.py",
+   "builder": "sashimi",
+   "png": "res://assets/icons/render/sashimi.png",
+   "sha256": "6318eaa678a42536ab7e04c0a8275b5336deb2b5ade47927a18cbbed07c0c933",
+   "bytes": 54908,
+   "rect": [
+    19,
+    42,
+    218,
+    172
+   ],
+   "quality": "procedural_v1"
+  },
+  "seasoned_roast": {
+   "script": "tools/blender/items/food.py",
+   "builder": "seasoned_roast",
+   "png": "res://assets/icons/render/seasoned_roast.png",
+   "sha256": "56f587ba3d3b7811ea5eaced3237a91745119a047561e4b4abba02bf0781d6f0",
+   "bytes": 36401,
+   "rect": [
+    26,
+    19,
+    204,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "not distinguishable from roast / smoked_meat at slot size"
+  },
+  "sign_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "sign_kit",
+   "png": "res://assets/icons/render/sign_kit.png",
+   "sha256": "ced499411954f24b61eb270cfe72c8295c5da2a01c7cdadab9513ea3f79edbd5",
+   "bytes": 21258,
+   "rect": [
+    52,
+    19,
+    151,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "bare plank on a post, low detail"
+  },
+  "silver_ore": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "silver_ore",
+   "png": "res://assets/icons/render/silver_ore.png",
+   "sha256": "162a200172a3432d9934e3e89239c71c38310cf91de7836bb313003205098a06",
+   "bytes": 36672,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1"
+  },
+  "skewer": {
+   "script": "tools/blender/items/food.py",
+   "builder": "skewer",
+   "png": "res://assets/icons/render/skewer.png",
+   "sha256": "b281fe2ec13e246c5ff9f74f0fc76c708825164d7879ba3f71c1404c5975bc9f",
+   "bytes": 25572,
+   "rect": [
+    23,
+    19,
+    209,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "slingshot": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "slingshot",
+   "png": "res://assets/icons/render/slingshot.png",
+   "sha256": "7afb73e52598f2b8d7ca9f189eed9a185f47374be083aec1a7e21523af8f877b",
+   "bytes": 21310,
+   "rect": [
+    76,
+    19,
+    104,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "smoked_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "smoked_meat",
+   "png": "res://assets/icons/render/smoked_meat.png",
+   "sha256": "3b8dd6af663d5286a845f2e8e1001980ce85b656ee713bc950d51ab94230d687",
+   "bytes": 53086,
+   "rect": [
+    19,
+    23,
+    218,
+    210
+   ],
+   "quality": "procedural_v1",
+   "replace": "not distinguishable from roast / seasoned_roast at slot size"
+  },
+  "spiced_skewer": {
+   "script": "tools/blender/items/food.py",
+   "builder": "spiced_skewer",
+   "png": "res://assets/icons/render/spiced_skewer.png",
+   "sha256": "a74f3e95b825ab44468d9d8374aeb1dd46005609c96f2b5c5a9d147bd23257e2",
+   "bytes": 27782,
+   "rect": [
+    23,
+    19,
+    209,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "splint": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "splint",
+   "png": "res://assets/icons/render/splint.png",
+   "sha256": "2686faa99a90b62cc76d49bba3f5e152b1568c3cde6da4ba26be07ce7c088015",
+   "bytes": 33178,
+   "rect": [
+    42,
+    19,
+    172,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "split_wood": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "split_wood",
+   "png": "res://assets/icons/render/split_wood.png",
+   "sha256": "78bf07eb666f0b83350c20de7e1787e8d868500059b95e5e29ff9561e829843b",
+   "bytes": 44056,
+   "rect": [
+    19,
+    34,
+    218,
+    188
+   ],
+   "quality": "procedural_v1"
+  },
+  "steamed_food": {
+   "script": "tools/blender/items/food.py",
+   "builder": "steamed_food",
+   "png": "res://assets/icons/render/steamed_food.png",
+   "sha256": "f6919e1ef1d9f057f953b6b3e8838aee38d6cdd96ac9ef536018bc3e85ddd760",
+   "bytes": 60787,
+   "rect": [
+    19,
+    25,
+    218,
+    206
+   ],
+   "quality": "procedural_v1"
+  },
+  "steel_ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "steel_ingot",
+   "png": "res://assets/icons/render/steel_ingot.png",
+   "sha256": "aaf7648ab85a817cd2d838ec72ce166790a70e8bb6e4fa806a6b0fd9b2f45d5d",
+   "bytes": 40936,
+   "rect": [
+    19,
+    39,
+    218,
+    178
+   ],
+   "quality": "procedural_v1",
+   "replace": "grey bar stack, not distinguishable from iron_ingot / ingot at slot size"
+  },
+  "stone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "stone",
+   "png": "res://assets/icons/render/stone.png",
+   "sha256": "c7f57a68ed7eee2e7653e63c9e18f12e0ed4b3138e7e347e2e5513c1e38d61a8",
+   "bytes": 37806,
+   "rect": [
+    19,
+    44,
+    218,
+    168
+   ],
+   "quality": "procedural_v1"
+  },
+  "stone_grill_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "stone_grill_kit",
+   "png": "res://assets/icons/render/stone_grill_kit.png",
+   "sha256": "856e4cf7bf5c0a0d318bd52b205b468307c02df5ff281b1b66d36869a741c964",
+   "bytes": 36659,
+   "rect": [
+    19,
+    41,
+    218,
+    174
+   ],
+   "quality": "procedural_v1"
+  },
+  "stone_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "stone_knife",
+   "png": "res://assets/icons/render/stone_knife.png",
+   "sha256": "b5a6833cde888d7b1cb272dbd461cc763e9cfd9ced1dafd105b063c60a1f42db",
+   "bytes": 23180,
+   "rect": [
+    27,
+    19,
+    202,
+    218
+   ],
+   "quality": "procedural_v1",
+   "replace": "dark grey blade on the near-black slot interior; brighten the blade"
+  },
+  "stone_knife_work": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "stone_knife_work",
+   "png": "res://assets/icons/render/stone_knife_work.png",
+   "sha256": "be9a319a27c9c01867720c328cff26506caf040adeead773129d151a4cb17ffc",
+   "bytes": 30136,
+   "rect": [
+    38,
+    19,
+    181,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "stone_shot": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "stone_shot",
+   "png": "res://assets/icons/render/stone_shot.png",
+   "sha256": "7595c82071697fd7fdaa082b03a45e8f761ed57bf981e21940028da7a0ccaf0e",
+   "bytes": 40989,
+   "rect": [
+    19,
+    25,
+    218,
+    206
+   ],
+   "quality": "procedural_v1"
+  },
+  "straw_roll_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "straw_roll_kit",
+   "png": "res://assets/icons/render/straw_roll_kit.png",
+   "sha256": "48867f485ebbbbec27c9569d979773a7d3f858712c7798db4a9a07b8c89733aa",
+   "bytes": 56403,
+   "rect": [
+    19,
+    27,
+    218,
+    202
+   ],
+   "quality": "procedural_v1"
+  },
+  "sulphur": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "sulphur",
+   "png": "res://assets/icons/render/sulphur.png",
+   "sha256": "07475283ffe77bd07e09e39e218d6757650491066e8e05e0ba4735b45ce31ac2",
+   "bytes": 43843,
+   "rect": [
+    21,
+    19,
+    214,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "tent_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "tent_kit",
+   "png": "res://assets/icons/render/tent_kit.png",
+   "sha256": "9e3380ffa1ec75446940ecec09cf24fa4b6df95c6b97f16140d0ab6333b7ccde",
+   "bytes": 40013,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1",
+   "replace": "flat cloth plane on sticks, reads poorly"
+  },
+  "thread": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "thread",
+   "png": "res://assets/icons/render/thread.png",
+   "sha256": "bd453c673c890ce0165a5fde6aa1ed6ca12aed55cf96bc7171ec388d282079e4",
+   "bytes": 48090,
+   "rect": [
+    19,
+    22,
+    218,
+    212
+   ],
+   "quality": "procedural_v1"
+  },
+  "toxin_coating": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "toxin_coating",
+   "png": "res://assets/icons/render/toxin_coating.png",
+   "sha256": "862de66d4af839147db12d85550bdac1f8589f269bdbf17777b9f46910bbfdca",
+   "bytes": 26277,
+   "rect": [
+    54,
+    19,
+    148,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "toxin_pot": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "toxin_pot",
+   "png": "res://assets/icons/render/toxin_pot.png",
+   "sha256": "14c50b454379acf8635ae1215f3947f894993ac23298f4e2599b9f9072311890",
+   "bytes": 45749,
+   "rect": [
+    19,
+    27,
+    218,
+    202
+   ],
+   "quality": "procedural_v1"
+  },
+  "travel_shirt": {
+   "script": "glb:game/assets/characters/survivor/armor/travel_clothes/chest.glb",
+   "builder": "travel_shirt",
+   "png": "res://assets/icons/render/travel_shirt.png",
+   "sha256": "6581f5368cfcda9240d8bbae0bb2c56a9e2f62332a4e59c48bfe5787edbe2586",
+   "bytes": 50491,
+   "rect": [
+    48,
+    19,
+    160,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "travel_sleeves": {
+   "script": "glb:game/assets/characters/survivor/armor/travel_clothes/arms.glb",
+   "builder": "travel_sleeves",
+   "png": "res://assets/icons/render/travel_sleeves.png",
+   "sha256": "7158cc060c961bee123e7b580904f191699d5fb6ee7ef45ede4c8891f1ec12e0",
+   "bytes": 23315,
+   "rect": [
+    19,
+    33,
+    218,
+    190
+   ],
+   "quality": "model_v2",
+   "replace": "worn-pose arm piece: with the skin cut away, two sleeve cuffs and two gloves float apart and read as slivers at slot size; stage as one crossed pair"
+  },
+  "travel_trousers": {
+   "script": "glb:game/assets/characters/survivor/armor/travel_clothes/legs.glb",
+   "builder": "travel_trousers",
+   "png": "res://assets/icons/render/travel_trousers.png",
+   "sha256": "a00d8135e26d4c15c2b4890b6a0def9a42913e12097802099c2c1b5653c00c44",
+   "bytes": 34118,
+   "rect": [
+    68,
+    19,
+    120,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "twine": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "twine",
+   "png": "res://assets/icons/render/twine.png",
+   "sha256": "0a1a699f5e73cd17572acb8b7785e14f80ff4b575fc2772f84e5a84007d5c012",
+   "bytes": 59785,
+   "rect": [
+    19,
+    23,
+    218,
+    210
+   ],
+   "quality": "procedural_v1"
+  },
+  "venom_gland": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "venom_gland",
+   "png": "res://assets/icons/render/venom_gland.png",
+   "sha256": "5957879aadcd6ab405353e86573eee6b4b64f72ad84ef31b67b51bfbc4203804",
+   "bytes": 35303,
+   "rect": [
+    35,
+    19,
+    186,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "water_bucket": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "water_bucket",
+   "png": "res://assets/icons/render/water_bucket.png",
+   "sha256": "3bb19c28f96f9432243d8a8e471d61882634f431f01b21d3686405be5ee50cae",
+   "bytes": 58118,
+   "rect": [
+    29,
+    19,
+    198,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "well_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "well_kit",
+   "png": "res://assets/icons/render/well_kit.png",
+   "sha256": "9255b8c36a0b1a7cdf9e132c23065141c39f24accbb255e16fa3dd123a95b87c",
+   "bytes": 51099,
+   "rect": [
+    34,
+    19,
+    188,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "wheat": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "wheat",
+   "png": "res://assets/icons/render/wheat.png",
+   "sha256": "5ba4058c453e67b6d7dcbcd4f58fe707708c42a38bba161285e7a7c52ae7206f",
+   "bytes": 29642,
+   "rect": [
+    62,
+    19,
+    132,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "wheat_seed": {
+   "script": "tools/blender/items/food.py",
+   "builder": "wheat_seed",
+   "png": "res://assets/icons/render/wheat_seed.png",
+   "sha256": "fd83c85ec418d9fe52132ed5599519ba516f0844fd69591402c865d489de0d6e",
+   "bytes": 55615,
+   "rect": [
+    19,
+    34,
+    218,
+    188
+   ],
+   "quality": "procedural_v1"
+  },
+  "wood_log": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "wood_log",
+   "png": "res://assets/icons/render/wood_log.png",
+   "sha256": "bf2ab0354bc994f44bb7e94b2d7ab7e30b0b96733f69fbb9ace528bb6a94eeb5",
+   "bytes": 32358,
+   "rect": [
+    19,
+    42,
+    218,
+    172
+   ],
+   "quality": "procedural_v1"
+  },
+  "work_axe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "work_axe",
+   "png": "res://assets/icons/render/work_axe.png",
+   "sha256": "f78cd974b0a070334c29a9e3f59f3cdb8420ad50ffc3a446af541393da46039c",
+   "bytes": 25333,
+   "rect": [
+    19,
+    24,
+    218,
+    208
+   ],
+   "quality": "procedural_v1"
+  },
+  "work_pick": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "work_pick",
+   "png": "res://assets/icons/render/work_pick.png",
+   "sha256": "d59c34336a1ca1e92739495c7f50b8ba4f9c42caf8817629c91745b66568c961",
+   "bytes": 20185,
+   "rect": [
+    50,
+    19,
+    156,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "workbench_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "workbench_kit",
+   "png": "res://assets/icons/render/workbench_kit.png",
+   "sha256": "f9f85c0c4d166038c7f0323d8fb519474b88b4a9eebb955fb5029e0819fe0f76",
+   "bytes": 44206,
+   "rect": [
+    19,
+    22,
+    218,
+    212
+   ],
+   "quality": "procedural_v1"
+  }
+ },
+ "missing": [
+  "acacia_wood",
+  "advanced_backpack",
+  "ash",
+  "bark_strip",
+  "basic_bag",
+  "cabin_bed_kit",
+  "cactus_spine",
+  "canvas_tent_kit",
+  "captured_animal",
+  "carnivore_feed",
+  "cloth_scrap",
+  "field_large_kit",
+  "field_small_kit",
+  "fruit_fertilizer",
+  "herbivore_feed",
+  "large_pouch",
+  "leech",
+  "log_shelter_kit",
+  "makeshift_taming_pen",
+  "marsh_herb",
+  "mud",
+  "ochre",
+  "peat",
+  "petals",
+  "pressure_dressing",
+  "reed",
+  "root",
+  "small_pouch",
+  "smoker_kit",
+  "snow_pine",
+  "specialized_storage_bag",
+  "spice_herb",
+  "steamer_kit",
+  "stone_fire_pit_kit",
+  "strap",
+  "tamed_animal",
+  "vine",
+  "willow_wood",
+  "woven_bag"
+ ]
+}

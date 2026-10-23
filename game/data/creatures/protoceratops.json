@@ -27,6 +27,40 @@
     "protoceratops_pink",
     "protoceratops_juvenile"
   ],
+  "coloration": {
+    "hue_deg": 16,
+    "sat": 0.18,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "pale",
+      "dark"
+    ],
+    "patterns": [
+      {
+        "id": "saddle",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "stripes",
+        "weight": 2.0,
+        "scale": 0.8,
+        "strength": 0.46
+      },
+      {
+        "id": "countershade",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
+  },
   "rig_note": "Quadruped. Rigged by skeleton transplant from the Quaternius Triceratops rig; no Meshy rigging involved.",
   "prompt": "Protoceratops, 2 meter ceratopsian dinosaur the size of a sheep, stocky barrel body on four sturdy legs, large bony neck frill without horns, deep parrot-like hooked beak, small cheek horn bosses, short thick tail, pebbled scaly hide with a row of low scutes along the spine, dusty tan with darker frill markings and a cream underbelly, standing four-legged in a neutral alert pose, stylized realism, game-ready low-poly creature, clean topology, facing forward, no base, no scenery",
   "texture_prompt": "dusty tan pebbled scaly hide, darker brown frill with pale radiating markings, cream underbelly, horn-coloured beak, matte surface",

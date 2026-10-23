@@ -1,0 +1,17 @@
+{
+ "_about": "rows for crops that have no label yet, keyed sheet|x,y,w,h (src_rect in sheet pixels): [name, kind, height_m] - read from the art, not from index",
+ "items": {
+  "sheet-jungle-trees|879,752,471,246": ["understorey_cluster", "prop:tree_small", 4.5],
+  "sheet-tall-grasses|18,335,68,64": ["grass_tuft_small", "WildGrass", 0.5],
+  "sheet-tall-grasses|478,302,108,119": ["straw_clump", "WildGrass", 1.2],
+  "sheet-tall-grasses|586,302,117,127": ["reed_clump", "ReedPlant", 1.6],
+  "sheet-tall-grasses|703,299,146,130": ["reed_clump_b", "ReedPlant", 1.6],
+  "sheet-tall-grasses|849,298,223,137": ["reed_bed", "ReedPlant", 1.8],
+  "sheet-tall-grasses|1223,307,92,121": ["reed_tuft_tall", "ReedPlant", 1.7],
+  "sheet-tall-grasses|1315,326,114,111": ["cattail_clump", "ReedPlant", 1.6],
+  "sheet-tall-grasses|678,451,125,79": ["grass_tuft_c", "WildGrass", 0.6],
+  "sheet-tall-grasses|803,444,135,97": ["straw_grass_clump", "WildGrass", 1.0],
+  "sheet-tall-grasses|1278,440,156,109": ["reed_tuft", "ReedPlant", 1.5],
+  "sheet-tall-grasses|42,488,63,54": ["grass_tuft_d", "WildGrass", 0.4]
+ }
+}

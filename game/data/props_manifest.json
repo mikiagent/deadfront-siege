@@ -1,5 +1,5 @@
 {
-  "_about": "Kenney Survival Kit 2.0, CC0. Models under res://assets/props/kenney/<name>.glb, metres, Y up. Buildings reference these for their visuals; footprints are grid cells (1 m). Models were re-exported at 4x the kit's native scale with the colormap embedded (tools/glb_rescale_embed.py); sizes below are metres (x,z footprint, y height in Blender order x,y,z=up).",
+  "_about": "Building visuals. `glb` (res:// path) is the hand-built Blender structure set (tools/blender/structures, one shared 1024 atlas) and wins when present; `aabb_m` is its measured size in Godot axes (x, y up, z) for colliders; `stages` lists per-stage GLBs for processing stations. `model` is the old Kenney Survival Kit 2.0 (CC0) name under res://assets/props/kenney/<name>.glb, kept as the fallback; rows whose art_status is REPLACE are marked for replacement (docs/orchestration/mmo/asset-replacement.md): Kenney rows, and the Blender building-system stand-ins. Every Blender row carries `upgrade`, its low-poly upgrade path. Footprints are grid cells (1 m). model_sizes_m are the Kenney sizes (Blender x, y, z=up). `farm` holds the farm kit models (dsc farmkit: field plots, crop stages, path tiles and farm props). They are not placeable building kinds; the game picks them up by name.",
   "buildings": {
     "bonfire": {
       "model": "campfire-pit",
@@ -7,7 +7,15 @@
         1,
         1
       ],
-      "note": "cook/cauterise station"
+      "note": "cook/cauterise station",
+      "glb": "res://assets/props/blender/bonfire.glb",
+      "aabb_m": [
+        0.941,
+        0.984,
+        0.995
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (460 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "campfire_stand": {
       "model": "campfire-stand",
@@ -15,21 +23,46 @@
         1,
         1
       ],
-      "note": "cooking upgrade"
+      "note": "cooking upgrade of the campfire: stone fire, spit and hanging pot",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/campfire_stand.glb",
+      "aabb_m": [
+        0.932,
+        0.942,
+        0.908
+      ],
+      "upgrade": "low-poly hand-built Blender (796 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "workbench": {
       "model": "workbench",
       "footprint": [
         2,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/workbench.glb",
+      "aabb_m": [
+        1.917,
+        1.015,
+        0.715
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (424 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "technical_workbench": {
       "model": "workbench-anvil",
       "footprint": [
         2,
         1
-      ]
+      ],
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/technical_workbench.glb",
+      "aabb_m": [
+        1.78,
+        1.247,
+        0.84
+      ],
+      "upgrade": "low-poly hand-built Blender (644 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "heavy workbench with anvil, vise, hammer and tongs"
     },
     "grindstone": {
       "model": "workbench-grind",
@@ -37,7 +70,15 @@
         1,
         1
       ],
-      "note": "tool repair later"
+      "note": "tool repair station: cranked round stone with a water trough",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/grindstone.glb",
+      "aabb_m": [
+        0.873,
+        0.714,
+        0.49
+      ],
+      "upgrade": "low-poly hand-built Blender (448 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "drying_rack": {
       "model": "structure-canvas",
@@ -45,7 +86,33 @@
         2,
         1
       ],
-      "note": "use the canvas frame as a rack until a dedicated model exists"
+      "note": "Blender rack in four stages (empty, raw red strips, darker drying strips, dark dried strips); `stages[i].glb` is the model per stage, swapped by W2-PROCESS",
+      "glb": "res://assets/props/blender/drying_rack.glb",
+      "aabb_m": [
+        1.94,
+        1.759,
+        0.794
+      ],
+      "art_status": "REVIEW",
+      "stages": [
+        {
+          "id": "empty",
+          "glb": "res://assets/props/blender/drying_rack.glb"
+        },
+        {
+          "id": "raw",
+          "glb": "res://assets/props/blender/drying_rack_raw.glb"
+        },
+        {
+          "id": "drying",
+          "glb": "res://assets/props/blender/drying_rack_drying.glb"
+        },
+        {
+          "id": "dried",
+          "glb": "res://assets/props/blender/drying_rack_dried.glb"
+        }
+      ],
+      "upgrade": "low-poly hand-built Blender (268 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "tent": {
       "model": "tent",
@@ -53,7 +120,15 @@
         3,
         3
       ],
-      "note": "field tent, six completed sleeps before it wears out"
+      "note": "field tent, six completed sleeps before it wears out",
+      "glb": "res://assets/props/blender/tent.glb",
+      "aabb_m": [
+        2.934,
+        2.317,
+        2.937
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (556 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "tent_canvas": {
       "model": "tent-canvas",
@@ -61,7 +136,15 @@
         3,
         2
       ],
-      "note": "cheap shade tent"
+      "note": "cheap shade tent: canvas fly on poles with open sides",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/tent_canvas.glb",
+      "aabb_m": [
+        2.897,
+        2.266,
+        1.851
+      ],
+      "upgrade": "low-poly hand-built Blender (804 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "bedroll": {
       "model": "bedroll",
@@ -69,7 +152,15 @@
         1,
         2
       ],
-      "note": "minimal rest"
+      "note": "minimal rest: hide bedroll with a pillow and a blanket",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/bedroll.glb",
+      "aabb_m": [
+        0.84,
+        0.379,
+        1.94
+      ],
+      "upgrade": "low-poly hand-built Blender (304 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "basket": {
       "model": "box-open",
@@ -77,7 +168,15 @@
         1,
         1
       ],
-      "note": "storage ~60 slots"
+      "note": "storage ~60 slots",
+      "glb": "res://assets/props/blender/basket.glb",
+      "aabb_m": [
+        0.86,
+        0.899,
+        0.82
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (232 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "large_box": {
       "model": "box-large-open",
@@ -85,7 +184,15 @@
         2,
         1
       ],
-      "note": "storage ~120 slots"
+      "note": "bulk storage, ~120 slots: plank crate on skids, rope handles, lid propped open",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/large_box.glb",
+      "aabb_m": [
+        1.95,
+        1.46,
+        1.048
+      ],
+      "upgrade": "low-poly hand-built Blender (568 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "chest": {
       "model": "chest",
@@ -93,7 +200,15 @@
         1,
         1
       ],
-      "note": "locked storage"
+      "note": "locked storage: plank chest with iron straps and a lock plate",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/chest.glb",
+      "aabb_m": [
+        0.83,
+        0.48,
+        0.624
+      ],
+      "upgrade": "low-poly hand-built Blender (432 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "barrel": {
       "model": "barrel-open",
@@ -101,14 +216,31 @@
         1,
         1
       ],
-      "note": "water / brine"
+      "note": "water/brine barrel, part filled; not a drink source, fill it from a well or the sea",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/barrel.glb",
+      "aabb_m": [
+        0.766,
+        0.899,
+        0.766
+      ],
+      "upgrade": "low-poly hand-built Blender (308 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "bucket": {
       "model": "bucket",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/bucket.glb",
+      "aabb_m": [
+        0.355,
+        0.454,
+        0.34
+      ],
+      "upgrade": "low-poly hand-built Blender (396 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "small wooden bucket with a rope bail"
     },
     "fence": {
       "model": "fence",
@@ -116,21 +248,51 @@
         2,
         1
       ],
-      "note": "2 m segment"
+      "note": "2 m segment",
+      "glb": "res://assets/props/blender/fence.glb",
+      "aabb_m": [
+        2.006,
+        1.47,
+        0.211
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (384 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "fence_gate": {
       "model": "fence-doorway",
       "footprint": [
         2,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/gate.glb",
+      "aabb_m": [
+        2.055,
+        1.842,
+        0.341
+      ],
+      "art_status": "REVIEW",
+      "nodes": {
+        "leaf_left": "LeafL",
+        "leaf_right": "LeafR",
+        "note": "leaf origins sit on the hinges; swing about local Y"
+      },
+      "upgrade": "low-poly hand-built Blender (528 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "fence_fortified": {
       "model": "fence-fortified",
       "footprint": [
         2,
         1
-      ]
+      ],
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/fence_fortified.glb",
+      "aabb_m": [
+        2.059,
+        2.22,
+        0.561
+      ],
+      "upgrade": "low-poly hand-built Blender (1052 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "fortified palisade run, 2 m; neighbours meet end to end like the plain fence"
     },
     "taming_pen": {
       "model": "fence-fortified",
@@ -138,28 +300,61 @@
         4,
         4
       ],
-      "note": "assemble 4x4 fortified fence ring with a doorway; centre marker for the animal"
+      "note": "ring of 2 m Blender fence segments (fence.glb) with the gate as doorway; centre marker for the animal",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/fence.glb",
+      "aabb_m": [
+        4.05,
+        1.84,
+        4.12
+      ],
+      "upgrade": "low-poly hand-built Blender (384 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "sign": {
       "model": "signpost-single",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/sign.glb",
+      "aabb_m": [
+        0.86,
+        1.64,
+        0.271
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (100 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "signpost": {
       "model": "signpost",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/signpost.glb",
+      "aabb_m": [
+        1.007,
+        1.872,
+        0.343
+      ],
+      "upgrade": "low-poly hand-built Blender (336 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "wooden signpost with two carved boards (placeable, decorative)"
     },
     "floor": {
       "model": "floor",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/floor.glb",
+      "aabb_m": [
+        1.0,
+        0.2,
+        1.0
+      ],
+      "art_status": "REPLACE",
+      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
     },
     "wall": {
       "model": "structure",
@@ -167,28 +362,61 @@
         1,
         1
       ],
-      "note": "wall-house segment"
+      "note": "wall-house segment",
+      "glb": "res://assets/props/blender/wall.glb",
+      "aabb_m": [
+        1.0,
+        2.397,
+        0.228
+      ],
+      "art_status": "REPLACE",
+      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
     },
     "wall_doorway": {
       "model": "structure-metal-doorway",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/wall_doorway.glb",
+      "aabb_m": [
+        1.0,
+        2.4,
+        0.25
+      ],
+      "art_status": "REPLACE",
+      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
     },
     "roof": {
       "model": "structure-roof",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/roof.glb",
+      "aabb_m": [
+        1.0,
+        0.673,
+        1.036
+      ],
+      "art_status": "REPLACE",
+      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
     },
     "fishing_stand": {
       "model": "campfire-fishing-stand",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/fishing_stand.glb",
+      "aabb_m": [
+        0.94,
+        1.066,
+        0.732
+      ],
+      "upgrade": "low-poly hand-built Blender (1512 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "fish-drying rack over a smoulder pit (placeable, decorative)"
     },
     "field_small": {
       "model": "bedroll",
@@ -196,7 +424,15 @@
         2,
         2
       ],
-      "note": "small farm field (hoe+mud)"
+      "note": "small tilled farm plot (hoe + seed) inside a log border",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/field_small.glb",
+      "aabb_m": [
+        1.793,
+        0.34,
+        1.798
+      ],
+      "upgrade": "low-poly hand-built Blender (756 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "field_large": {
       "model": "tent-canvas",
@@ -204,7 +440,15 @@
         3,
         3
       ],
-      "note": "large farm field"
+      "note": "large tilled farm plot inside a log border",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/field_large.glb",
+      "aabb_m": [
+        2.793,
+        0.34,
+        2.798
+      ],
+      "upgrade": "low-poly hand-built Blender (1008 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "mortar": {
       "model": "workbench-grind",
@@ -212,7 +456,15 @@
         1,
         1
       ],
-      "note": "placed mortar unlocks raw-meat grinding; placeholder Kenney grindstone"
+      "note": "placed mortar unlocks raw-meat grinding",
+      "glb": "res://assets/props/blender/mortar.glb",
+      "aabb_m": [
+        0.69,
+        1.068,
+        0.782
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (208 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "stone_grill": {
       "model": "campfire-stand",
@@ -220,7 +472,15 @@
         2,
         2
       ],
-      "note": "flat stone grill with temporary Kenney cooking-stand visual"
+      "note": "flat stone grill over a hearth ring",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/stone_grill.glb",
+      "aabb_m": [
+        1.345,
+        0.54,
+        1.349
+      ],
+      "upgrade": "low-poly hand-built Blender (840 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "steamer": {
       "model": "barrel-open",
@@ -228,7 +488,15 @@
         1,
         1
       ],
-      "note": "steam station"
+      "note": "steam station",
+      "glb": "res://assets/props/blender/steamer.glb",
+      "aabb_m": [
+        0.712,
+        1.198,
+        0.71
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (616 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "well": {
       "model": "barrel-open",
@@ -236,7 +504,15 @@
         2,
         2
       ],
-      "note": "placed water source for fill-bucket recipe; placeholder Kenney barrel, no finite water reserve"
+      "note": "placed water source for fill-bucket recipe; no finite water reserve",
+      "glb": "res://assets/props/blender/well.glb",
+      "aabb_m": [
+        1.96,
+        2.461,
+        1.639
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (612 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "straw_roll": {
       "model": "bedroll",
@@ -244,7 +520,15 @@
         1,
         2
       ],
-      "note": "temporary single-use rest, replaced by generated straw-roll asset later"
+      "note": "single-use straw rest roll",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/straw_roll.glb",
+      "aabb_m": [
+        0.82,
+        0.468,
+        1.86
+      ],
+      "upgrade": "low-poly hand-built Blender (324 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "crock_pot": {
       "model": "campfire-stand",
@@ -252,7 +536,15 @@
         2,
         2
       ],
-      "note": "temporary Kenney cooking stand until dedicated crock-pot art passes in-world pixel check"
+      "note": "crock-pot cooking station",
+      "glb": "res://assets/props/blender/crock_pot.glb",
+      "aabb_m": [
+        1.477,
+        1.311,
+        1.461
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (728 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "stone_fire_pit": {
       "model": "campfire-pit",
@@ -260,7 +552,15 @@
         2,
         2
       ],
-      "note": "persistent stone-lined cook/cauterise fire; shares bonfire station recipes"
+      "note": "persistent stone-lined cook/cauterise fire; shares bonfire station recipes",
+      "glb": "res://assets/props/blender/stone_fire_pit.glb",
+      "aabb_m": [
+        1.96,
+        0.955,
+        1.581
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (824 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "campfire": {
       "model": "campfire-pit",
@@ -268,7 +568,15 @@
         1,
         1
       ],
-      "note": "temporary cooking fire, 120 active seconds then disappears"
+      "note": "temporary cooking fire, 120 active seconds then disappears",
+      "glb": "res://assets/props/blender/campfire.glb",
+      "aabb_m": [
+        0.982,
+        0.529,
+        0.918
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (360 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "canvas_tent": {
       "model": "tent-canvas",
@@ -276,7 +584,15 @@
         3,
         3
       ],
-      "note": "twelve completed sleeps, eight seconds each; temporary Kenney visual"
+      "note": "twelve completed sleeps, eight seconds each",
+      "glb": "res://assets/props/blender/tent.glb",
+      "aabb_m": [
+        2.934,
+        2.317,
+        2.937
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (556 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "log_shelter": {
       "model": "structure-canvas",
@@ -284,7 +600,15 @@
         4,
         4
       ],
-      "note": "staged placeholder; repair mechanic absent, sleep disabled"
+      "note": "small log hut with a thatch roof and an open front",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/log_shelter.glb",
+      "aabb_m": [
+        3.389,
+        3.137,
+        3.329
+      ],
+      "upgrade": "low-poly hand-built Blender (1636 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "cabin_bed": {
       "model": "bedroll-frame",
@@ -292,7 +616,15 @@
         2,
         2
       ],
-      "note": "staged placeholder; enclosure validation absent, sleep disabled"
+      "note": "wooden bed with a hide mattress and fur blanket",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/cabin_bed.glb",
+      "aabb_m": [
+        2.042,
+        1.15,
+        1.29
+      ],
+      "upgrade": "low-poly hand-built Blender (620 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "smoker": {
       "model": "campfire-stand",
@@ -300,14 +632,527 @@
         2,
         2
       ],
-      "note": "smoking station; Kenney stand placeholder, no fuel/weather system yet"
+      "note": "smoking station; no fuel/weather system yet",
+      "glb": "res://assets/props/blender/smoker.glb",
+      "aabb_m": [
+        1.585,
+        2.178,
+        1.709
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (360 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "catapult": {
       "footprint": [
         3,
         3
       ],
-      "note": "Manual destructible siege platform; procedural placeholder visual"
+      "note": "Manual destructible siege platform",
+      "glb": "res://assets/props/blender/catapult.glb",
+      "aabb_m": [
+        2.7,
+        1.83,
+        1.76
+      ],
+      "art_status": "REVIEW",
+      "nodes": {
+        "arm": "Arm",
+        "note": "arm origin on its axle; throw = rotate about local Z"
+      },
+      "upgrade": "low-poly hand-built Blender (928 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "harbour": {
+      "footprint": [
+        3,
+        6
+      ],
+      "glb": "res://assets/props/blender/pier.glb",
+      "aabb_m": [
+        2.75,
+        3.3,
+        6.02
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (1924 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "harbour dock: plank pier on log piles with a canvas shed, 3x6 like HarbourSite.FOOTPRINT; deck 1.2 m above the pile feet, seaward end towards -Z. HarbourSite keeps it on the coast"
+    },
+    "construction_site": {
+      "model": "resource-planks",
+      "footprint": [
+        2,
+        1
+      ],
+      "art_status": "REPLACE",
+      "note": "W2-BUILDFLOW: an unfinished blueprint's site. The blueprint in data/blueprints.json owns the real footprint; this row only reserves it on the build grid. ConstructionSite renders site_small_N/site_large_N directly (assets/props/blender), not this row's model."
+    },
+    "makeshift_workbench": {
+      "footprint": [
+        2,
+        1
+      ],
+      "glb": "res://assets/props/blender/makeshift_workbench.glb",
+      "aabb_m": [
+        1.174,
+        0.857,
+        0.631
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (440 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "workbench tier 0: lashed sticks and a flat stone slab; starter recipes"
+    },
+    "basic_workbench": {
+      "footprint": [
+        2,
+        1
+      ],
+      "glb": "res://assets/props/blender/basic_workbench.glb",
+      "aabb_m": [
+        1.858,
+        0.994,
+        0.814
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (448 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "workbench tier 1: rough planks on pillars with strap lashings"
+    },
+    "journeyman_workbench": {
+      "footprint": [
+        2,
+        1
+      ],
+      "glb": "res://assets/props/blender/journeyman_workbench.glb",
+      "aabb_m": [
+        1.8,
+        1.525,
+        1.013
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (728 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "workbench tier 2: trimmed planks, nailed, with a vice and a tool rack"
+    },
+    "expert_workbench": {
+      "footprint": [
+        2,
+        1
+      ],
+      "glb": "res://assets/props/blender/expert_workbench.glb",
+      "aabb_m": [
+        2.0,
+        1.11,
+        0.925
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (868 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "workbench tier 3: processed planks, iron fittings, drawers and glue pots"
+    },
+    "kiln": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/kiln.glb",
+      "aabb_m": [
+        2.097,
+        1.69,
+        1.6
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (696 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "kiln station: clay dome with a firebox mouth and a chimney"
+    },
+    "loom": {
+      "footprint": [
+        2,
+        1
+      ],
+      "glb": "res://assets/props/blender/loom.glb",
+      "aabb_m": [
+        1.718,
+        1.55,
+        0.5
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (460 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "loom station: upright frame loom with warp threads and a partly woven cloth"
+    },
+    "large_loom": {
+      "footprint": [
+        3,
+        2
+      ],
+      "glb": "res://assets/props/blender/large_loom.glb",
+      "aabb_m": [
+        2.526,
+        1.6,
+        1.058
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (684 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "large loom station: wider frame with a weaver's bench and a cloth roll"
+    },
+    "oven": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/oven.glb",
+      "aabb_m": [
+        1.814,
+        1.36,
+        1.434
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (584 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "oven station: stone bread oven with a firebox mouth and a flue"
+    },
+    "large_drying_rack": {
+      "footprint": [
+        3,
+        1
+      ],
+      "glb": "res://assets/props/blender/large_drying_rack.glb",
+      "aabb_m": [
+        2.961,
+        2.032,
+        0.621
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (928 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "large drying rack: two-bay rack on trimmed pillars"
+    },
+    "site_small_0": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/site_small_0.glb",
+      "aabb_m": [
+        2.07,
+        0.56,
+        2.06
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (496 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (2x2), stage 0: staked-out ground with a string outline and a pile of logs and straps"
+    },
+    "site_small_1": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/site_small_1.glb",
+      "aabb_m": [
+        2.07,
+        1.176,
+        2.06
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (704 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (2x2), stage 1: scaffold frame half up, smaller material piles"
+    },
+    "site_small_2": {
+      "footprint": [
+        2,
+        2
+      ],
+      "glb": "res://assets/props/blender/site_small_2.glb",
+      "aabb_m": [
+        2.007,
+        2.07,
+        2.005
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (544 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (2x2), stage 2: scaffold at full height with partial plank cladding"
+    },
+    "site_large_0": {
+      "footprint": [
+        3,
+        3
+      ],
+      "glb": "res://assets/props/blender/site_large_0.glb",
+      "aabb_m": [
+        3.07,
+        0.639,
+        3.06
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (544 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (3x3), stage 0: staked-out ground with a string outline and a pile of logs and straps"
+    },
+    "site_large_1": {
+      "footprint": [
+        3,
+        3
+      ],
+      "glb": "res://assets/props/blender/site_large_1.glb",
+      "aabb_m": [
+        3.07,
+        1.426,
+        3.06
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (752 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (3x3), stage 1: scaffold frame half up, smaller material piles"
+    },
+    "site_large_2": {
+      "footprint": [
+        3,
+        3
+      ],
+      "glb": "res://assets/props/blender/site_large_2.glb",
+      "aabb_m": [
+        3.007,
+        2.525,
+        3.005
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (600 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "construction site (3x3), stage 2: scaffold at full height with partial plank cladding"
+    },
+    "house_foundation": {
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "stone plinth under a house module; sinks up to 0.5 m into the ground",
+      "glb": "res://assets/props/blender/house_foundation.glb",
+      "aabb_m": [
+        2.02,
+        0.505,
+        2.02
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (696 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_floor": {
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "plank floor deck of a 2 x 2 m house module",
+      "glb": "res://assets/props/blender/house_floor.glb",
+      "aabb_m": [
+        2,
+        0.13,
+        2
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (132 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "log wall of a 2 m house module (2.4 m storey)",
+      "glb": "res://assets/props/blender/house_wall.glb",
+      "aabb_m": [
+        2.064,
+        2.4,
+        0.228
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (300 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_window": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "log wall with a glazed 0.9 x 0.9 m window",
+      "glb": "res://assets/props/blender/house_wall_window.glb",
+      "aabb_m": [
+        2.0,
+        2.397,
+        0.34
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (324 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_doorway": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "log wall with a 1.0 x 2.0 m doorway",
+      "glb": "res://assets/props/blender/house_wall_doorway.glb",
+      "aabb_m": [
+        2.0,
+        2.4,
+        0.3
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (540 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_door": {
+      "footprint": [
+        1,
+        1
+      ],
+      "note": "hinged plank door leaf; its origin is the hinge",
+      "glb": "res://assets/props/blender/house_door.glb",
+      "aabb_m": [
+        0.95,
+        2.0,
+        0.155
+      ],
+      "nodes": {
+        "leaf": "house_door",
+        "note": "leaf origin is the hinge; swing about local Y"
+      },
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (164 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_roof": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "thatch roof slope of a 2 m house module",
+      "glb": "res://assets/props/blender/house_roof.glb",
+      "aabb_m": [
+        2.0,
+        0.734,
+        1.109
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (228 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_roof_corner": {
+      "footprint": [
+        1,
+        1
+      ],
+      "note": "thatch hip cap for a roof corner",
+      "glb": "res://assets/props/blender/house_roof_corner.glb",
+      "aabb_m": [
+        1.154,
+        0.679,
+        1.154
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (100 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_roof_gable": {
+      "footprint": [
+        1,
+        2
+      ],
+      "note": "boarded gable end that closes the roof",
+      "glb": "res://assets/props/blender/house_roof_gable.glb",
+      "aabb_m": [
+        0.33,
+        0.6,
+        2.029
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (80 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_stairs": {
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "timber stair up to a house floor",
+      "glb": "res://assets/props/blender/house_stairs.glb",
+      "aabb_m": [
+        1.323,
+        1.603,
+        1.404
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (136 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_timber": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "timber-frame wall of a 2 m house module",
+      "glb": "res://assets/props/blender/house_wall_timber.glb",
+      "aabb_m": [
+        2.02,
+        2.4,
+        0.28
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (152 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_window_timber": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "timber-frame wall with a glazed window",
+      "glb": "res://assets/props/blender/house_wall_window_timber.glb",
+      "aabb_m": [
+        2.02,
+        2.4,
+        0.31
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (252 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_roof_timber": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "dark shingle roof slope of a 2 m house module",
+      "glb": "res://assets/props/blender/house_roof_timber.glb",
+      "aabb_m": [
+        2.0,
+        0.726,
+        1.103
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (144 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_stone": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "stone wall of a 2 m house module",
+      "glb": "res://assets/props/blender/house_wall_stone.glb",
+      "aabb_m": [
+        2.0,
+        2.36,
+        0.3
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (540 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_window_stone": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "stone wall with a glazed window",
+      "glb": "res://assets/props/blender/house_wall_window_stone.glb",
+      "aabb_m": [
+        1.96,
+        2.36,
+        0.35
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (864 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_roof_stone": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "slate roof slope of a 2 m house module",
+      "glb": "res://assets/props/blender/house_roof_stone.glb",
+      "aabb_m": [
+        2.0,
+        0.73,
+        1.106
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (144 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     }
   },
   "tools": {
@@ -756,6 +1601,192 @@
     "club": {
       "model": "kenney/tool-hammer",
       "status": "stand-in"
+    }
+  },
+  "farm": {
+    "field_tilled": {
+      "glb": "res://assets/props/blender/field_tilled.glb",
+      "aabb_m": [
+        2.3,
+        0.182,
+        2.3
+      ],
+      "tris": 420,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): tilled 2 x 2 m plot: dark furrowed soil, furrow rows, raised earth edge. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (420 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "field_crop_0": {
+      "glb": "res://assets/props/blender/field_crop_0.glb",
+      "aabb_m": [
+        2.3,
+        0.23,
+        2.3
+      ],
+      "tris": 1188,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): plot with seedlings (growth stage 0). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (1188 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "field_crop_1": {
+      "glb": "res://assets/props/blender/field_crop_1.glb",
+      "aabb_m": [
+        2.3,
+        0.38,
+        2.3
+      ],
+      "tris": 1380,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): plot with young plants (growth stage 1). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (1380 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "field_crop_2": {
+      "glb": "res://assets/props/blender/field_crop_2.glb",
+      "aabb_m": [
+        2.3,
+        0.54,
+        2.3
+      ],
+      "tris": 1380,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): plot with grown plants (growth stage 2). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (1380 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "field_crop_3": {
+      "glb": "res://assets/props/blender/field_crop_3.glb",
+      "aabb_m": [
+        2.3,
+        0.6,
+        2.3
+      ],
+      "tris": 2340,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): plot with ripe plants (growth stage 3, harvestable). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (2340 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "path_dirt": {
+      "glb": "res://assets/props/blender/path_dirt.glb",
+      "aabb_m": [
+        2.0,
+        0.046,
+        2.0
+      ],
+      "tris": 104,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): 2 x 2 m packed dirt path tile, edges blend into the grass. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (104 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "path_dirt_corner": {
+      "glb": "res://assets/props/blender/path_dirt_corner.glb",
+      "aabb_m": [
+        2,
+        0.042,
+        2
+      ],
+      "tris": 96,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): dirt path corner tile: the strip turns, grass inside the turn. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (96 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "path_stone": {
+      "glb": "res://assets/props/blender/path_stone.glb",
+      "aabb_m": [
+        2.009,
+        0.047,
+        2.019
+      ],
+      "tris": 132,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): 2 x 2 m flat stone path tile. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (132 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "path_stone_corner": {
+      "glb": "res://assets/props/blender/path_stone_corner.glb",
+      "aabb_m": [
+        2.019,
+        0.047,
+        2.0
+      ],
+      "tris": 144,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): stone path corner tile: the stones turn, grass inside the turn. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (144 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "fence_post_rail": {
+      "glb": "res://assets/props/blender/fence_post_rail.glb",
+      "aabb_m": [
+        2.006,
+        1.41,
+        0.211
+      ],
+      "tris": 272,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): 2 m rail fence run with lashed posts. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (272 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "fence_post_rail_gate": {
+      "glb": "res://assets/props/blender/fence_post_rail_gate.glb",
+      "aabb_m": [
+        2.041,
+        1.711,
+        0.306
+      ],
+      "tris": 428,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): 2 m gate run with a hinged leaf (node Leaf, origin on the hinge). Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (428 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "nodes": {
+        "leaf": "Leaf",
+        "note": "leaf origin sits on the hinge; swing about local Y"
+      }
+    },
+    "trellis": {
+      "glb": "res://assets/props/blender/trellis.glb",
+      "aabb_m": [
+        1.278,
+        1.723,
+        0.41
+      ],
+      "tris": 380,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): bean trellis with climbing vines. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (380 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "scarecrow": {
+      "glb": "res://assets/props/blender/scarecrow.glb",
+      "aabb_m": [
+        1.06,
+        1.9,
+        0.38
+      ],
+      "tris": 260,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): scarecrow on a cross frame. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (260 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "compost_heap": {
+      "glb": "res://assets/props/blender/compost_heap.glb",
+      "aabb_m": [
+        1.003,
+        0.864,
+        0.761
+      ],
+      "tris": 464,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): slatted compost bin with a fork leaning on it. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (464 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "water_trough": {
+      "glb": "res://assets/props/blender/water_trough.glb",
+      "aabb_m": [
+        1.5,
+        0.52,
+        0.63
+      ],
+      "tris": 140,
+      "art_status": "REVIEW",
+      "note": "farm kit model (dsc farmkit): wooden water trough with iron bands. Sizes are an assumption: a field module is 2 x 2 m and a path tile 2 x 2 m, at most 0.05 m high",
+      "upgrade": "low-poly hand-built Blender (140 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     }
   }
 }

@@ -1,13 +1,15 @@
 class_name HeldItemSlot
 extends Control
-## Bottom-right hex showing the held gather tool. Tap cycles to the next tool in the bag,
-## long-press unequips. Gathering auto-equips the tool the node needs (Player._auto_equip_tool),
-## so this is mostly for choosing a weapon or checking what is in hand.
+## Bottom-right hex showing the held gather tool. Tap gathers the nearest resource and long-press
+## unequips. A separate Bag hex sits directly above it.
 
 signal equip_requested(slot_index: int)
 signal unequip_requested
+signal gather_requested
+signal inventory_requested
 
 const SLOT := 64.0
+const RAIL_HEXES := 4.0  ## hexes in the HUD's bottom-left rail (menu, animals, build, skills)
 
 var player: Player
 var _icon: Texture2D
@@ -15,12 +17,20 @@ var _caption: String = "TOOL"
 var _pressing: bool = false
 var _long_left: float = 0.0
 var _fired_long: bool = false
+var _inventory_button: HexButton
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(SLOT, SLOT)
 	size = custom_minimum_size
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_inventory_button = HexButton.new(SLOT)
+	_inventory_button.name = "InventoryButton"
+	_inventory_button.icon = UiIcons.icon(&"bag")
+	_inventory_button.caption = "BAG"
+	_inventory_button.position = Vector2(0.0, -SLOT - 18.0)
+	_inventory_button.pressed.connect(func () -> void: inventory_requested.emit())
+	add_child(_inventory_button)
 
 func bind(p: Player) -> void:
 	player = p
@@ -88,7 +98,7 @@ func _gui_input(event: InputEvent) -> void:
 		_long_left = 0.5
 	elif release:
 		if _pressing and not _fired_long:
-			cycle()
+			gather_requested.emit()
 		_pressing = false
 	accept_event()
 	queue_redraw()
@@ -96,6 +106,20 @@ func _gui_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if player and player.inventory.equipped_gather_tool() == null and _fighting() != _fighting_shown:
 		refresh()
+	# Off while a HUD sheet is open: this layer sits above the HUD's, and on a landscape phone the
+	# slot covered the sheet's Close (a tap there swapped the held tool instead of closing).
+	# Also off under character creation (layer 60, below this one): HANDS drew on its cards.
+	# Or under the CLAIM confirm (CLAIMFIX): on a 390 px canvas that panel stands where this slot lands,
+	# and this layer sits above the HUD's, so HANDS drew over the panel. Left on while placing: the
+	# ROTATE / PLACE / CANCEL row keeps off it.
+	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
+	var asking: bool = hud != null and hud.has_method("claim_panel_open") and bool(hud.call("claim_panel_open"))
+	var inventory_open := player != null and player.ui != null and player.ui.visible
+	var covered: bool = asking or inventory_open or (hud != null and hud.sheet_open()) \
+		or get_tree().get_first_node_in_group(&"character_creation") != null
+	if visible == covered:
+		visible = not covered
+		_pressing = false
 	var safe := DisplayServer.get_display_safe_area()
 	var vp := get_viewport_rect().size
 	var win := Vector2(DisplayServer.window_get_size())
@@ -103,6 +127,17 @@ func _process(delta: float) -> void:
 	var right := 16.0 + maxf(0.0, win.x - float(safe.end.x)) * scale.x
 	var bottom := 108.0 + maxf(0.0, win.y - float(safe.end.y)) * scale.y
 	position = Vector2(vp.x - right - SLOT, vp.y - bottom - SLOT)
+	if UiTokens.is_phone(vp):
+		# Portrait: the HUD draws its level line right-aligned just above the rail (hunt_hud.gd:976),
+		# where the caption sat; lift the slot so the caption clears it.
+		position.y -= 24.0
+	if UiTokens.is_compact(vp) and not UiTokens.is_narrow(vp):
+		# Landscape phone: under the map the claim hex and the context row fill the bottom-right
+		# corner (the slot sat on the claim hex), so the slot stacks above the rail's last hex. At the
+		# rail's end its caption ran into the HUD's centred level line on 804 px and notched canvases.
+		# ASSUMPTION: mirrors hunt_hud.gd _layout's rail (four 64 px hexes, 10 px apart, 96 px up).
+		var inset := UiTokens.safe_insets(get_viewport())
+		position = Vector2(16.0 + inset.w + (RAIL_HEXES - 1.0) * (SLOT + 10.0), vp.y - 96.0 - inset.y - SLOT - 34.0)
 	if _pressing:
 		_long_left -= delta
 		if _long_left <= 0.0:
@@ -149,7 +184,3 @@ func _draw() -> void:
 			cx = minf(cx, size.x + 6.0 - w)  # right-edge hex: end the word at the hex edge
 		cx = maxf(cx, 4.0 - gx)
 		draw_string(font, Vector2(cx, c.y + r + 15.0), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
-		var bc := c + Vector2(r * 0.55, -r * 0.55)
-		draw_circle(bc, r * 0.24, Color(0.2, 0.22, 0.26, 0.95))
-		var sw := font.get_string_size("⇄", HORIZONTAL_ALIGNMENT_CENTER, -1, 11).x
-		draw_string(font, Vector2(bc.x - sw * 0.5, bc.y + 4.0), "⇄", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.95, 0.95, 0.9))

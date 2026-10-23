@@ -1,0 +1,641 @@
+# DEADFRONT superplan (2026-10-21 evening). dsc plan check|lint|run docs/orchestration/dsc/superplan.yaml
+#
+# Owner rules this plan encodes:
+#   - Order: systems (survival actions, inventory, claims, building, crafting, skills) before balance.
+#   - DeepSeek/MiniMax do the work; Claude orchestrates (approve / reject with fix lists / edit this file).
+#   - Merges into claude/mmo-overhaul only after review (merge: orchestrator); no pushes by the runner.
+# Jobs p1-p4 were started by hand (launch.sh / cook) and are ADOPTED: their trees exist, their in-tree TASK files
+# already end with the shared rules, and the runner attaches to a live worker ("already running") instead of
+# starting a second one. Jobs in p5+ are new: the runner creates their trees from claude/mmo-overhaul and appends
+# docs/orchestration/dsc/common-footer.md ({key}, {lab} filled).
+# Not in the plan: the two MiniMax first-pass reviews (scratch trees SP/trees/rev-w2gather, rev-w2buildsys) and
+# webpack2 (waits on an owner decision: the 512 px texture cap also changes desktop/iOS).
+# Gate scripts live in {sp}/dsc (backup copies: docs/orchestration/dsc/gates/).
+# Research pack: docs/reference/durango0-wiki/ - 12 source-linked topic files on Durango:0 Homecoming
+# (stats, skills, crafting, materials, food, animals, capture, building, gathering, world). It is
+# background, not a data dump: its README requires provenance on every reconstructed value and forbids
+# passing reconstruction numbers off as original balancing. Jobs below name the file that covers them.
+# Extraction is dead (site 404, no public repo, no archive snapshot): see EXTRACTION_STATUS.md in that
+# folder. Use the pack as a TEMPLATE for each system's shape; quantities stay # ASSUMPTION unless a PRD
+# or a durango-prompts spec gives them, and nobody invents 918 skill nodes or 720 recipes to fill it.
+project:
+  repo: ~/Documents/deadfront-siege
+  base: claude/mmo-overhaul
+  worktrees: ~/Documents/deadfront-siege/.claude/worktrees
+  prefix: mmo-
+  branch_prefix: claude/mmo-
+  merge: orchestrator
+  integration_gate: "bash {sp}/run_gates.sh {tree} {out}"
+vars:
+  sp: /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad
+resources:
+  godot: 8 # jobs that run Godot; gslot.sh shares 5 engine slots between them
+  blender: 4
+  model:minimax/minimax-m3.1-flash:free: 3 # free model: rate limited
+  model:deepseek/deepseek-v4.1-flash-1017: 12
+defaults:
+  model: deepseek/deepseek-v4.1-flash-1017
+  effort: medium
+  budget_usd: 6
+  max_hours: 6
+  max_rounds: 3
+  adopt: true
+  review: orchestrator
+  dsc_json:
+    watchdogIdleSec: 0
+    maxTurns: 300
+    checkpointExclude:
+      [
+        "*_Image_*.jpg",
+        "game/assets/props/meshy/*",
+        "*.pyc",
+        "__pycache__/**",
+        "*.orig",
+        "*.rej",
+        "*.blend1"
+      ]
+    protectedPaths:
+      [
+        "docs/reference/**",
+        "game/project.godot",
+        "game/override.cfg",
+        "game/tests/t_save.gd",
+        "game/scripts/camera/iso_camera.gd"
+      ]
+    mapIgnore:
+      [
+        "game/assets/creatures/**",
+        "game/assets/characters/**",
+        "archive/**",
+        "assets/**",
+        "research/**",
+        "hosting/**"
+      ]
+
+phases:
+  # ---------------------------------------------------------------- running now (adopted)
+  - id: p1-systems
+    goal: "Survival actions, inventory and bags, claims, building pipeline, skills
+      feedback, map, UI follow-ups"
+    jobs:
+      - key: invslots
+        title: "Bag = scrolling slot grid, 1 item per slot (layout and action-row
+          fixes)"
+        task: docs/orchestration/dsc/invslots-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh invslots"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh invslots {n}"
+        priority: 10
+      - key: bags
+        title: "Spec 31: bag types, levels, inherited storage, Pocket +6/level,
+          inspect/compare/craft preview"
+        task: docs/orchestration/dsc/bags-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh bags"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh bags {n}"
+        priority: 10
+      - key: needs
+        title: "Eat, drink, wash, fill, sleep, dry off, feed pets end to end (no rate
+          changes)"
+        task: docs/orchestration/dsc/needs-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh needs"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh needs {n}"
+        priority: 10
+      - key: claims2
+        title: "Spec 29: 4x4-tile cells, 13-cell cap, Domain menu, preview, no grass on
+          claims"
+        task: docs/orchestration/dsc/claims2-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh claims2"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh claims2 {n}"
+        priority: 9
+      - key: buildflow
+        title: "Spec 30: components, construction site, Basic Workbench, station job"
+        task: docs/orchestration/dsc/buildflow-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh buildflow"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh buildflow {n}"
+        priority: 9
+        dsc_json:
+          watchdogIdleSec: 0
+          maxTurns: 300
+          checkpointExclude:
+            [
+              "*_Image_*.jpg",
+              "game/assets/props/meshy/*",
+              "*.pyc",
+              "__pycache__/**",
+              "*.orig",
+              "*.rej",
+              "*.blend1"
+            ]
+          mapIgnore:
+            [
+              "game/assets/creatures/**",
+              "game/assets/characters/**",
+              "archive/**",
+              "assets/**",
+              "research/**",
+              "hosting/**"
+            ]
+          protectedPaths:
+            [
+              "docs/reference/**",
+              "game/project.godot",
+              "game/override.cfg",
+              "game/scripts/camera/iso_camera.gd",
+              "game/scripts/world/island_claims.gd"
+            ]
+      - key: skillfeel
+        title: "Skill XP toasts, FULL at the cap, Skills hex pulse, first-hour node
+          table"
+        task: docs/orchestration/dsc/skillfeel-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh skillfeel"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh skillfeel {n}"
+        priority: 8
+      - key: mapui
+        title: "Map fog revealed by walking, trail dots, claim/campfire/facility icons"
+        task: docs/orchestration/dsc/mapui-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh mapui"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh mapui {n}"
+        priority: 6
+      - key: gatherglide
+        title: "Gather radial glides (<= 8 px/frame), no side swaps, phone lab set-up"
+        task: docs/orchestration/dsc/gatherglide-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh gatherglide"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh gatherglide {n}"
+        priority: 5
+      - key: occlude2
+        title: "Roofs and bushes fade so the survivor stays visible"
+        task: docs/orchestration/dsc/occlude2-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh occlude2"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh occlude2 {n}"
+        priority: 5
+
+  - id: p2-2d
+    goal: "Resources and ground cover as the owner's painted 2D cards; buildings
+      stay 3D; creature looks"
+    jobs:
+      - key: sprites2d
+        title: "Seven painted sheets cut into sprites (despill, splits, labels by
+          src_rect)"
+        task: docs/orchestration/dsc/sprites2d-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_sprites2d.sh"
+        milestone_verify: "bash {sp}/dsc/verify_sprites2d_ms.sh {n}"
+        priority: 8
+      - key: switch2d
+        title: "Resources as painted 2D cards facing the camera; buildings 3D; card
+          shader on camera globals"
+        task: docs/orchestration/dsc/switch2d-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh switch2d"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh switch2d {n}"
+        priority: 8
+        dsc_json:
+          # switch2d owns game/project.godot ([card2d] -> camera globals)
+          watchdogIdleSec: 0
+          maxTurns: 300
+          checkpointExclude:
+            [
+              "*_Image_*.jpg",
+              "game/assets/props/meshy/*",
+              "*.pyc",
+              "__pycache__/**",
+              "*.orig",
+              "*.rej",
+              "*.blend1"
+            ]
+          mapIgnore:
+            [
+              "game/assets/creatures/**",
+              "game/assets/characters/**",
+              "archive/**",
+              "assets/**",
+              "research/**",
+              "hosting/**"
+            ]
+          protectedPaths:
+            [
+              "docs/reference/**",
+              "game/override.cfg",
+              "game/tests/t_save.gd",
+              "game/scripts/camera/iso_camera.gd"
+            ]
+      - key: ground2d
+        title: "Painted ground cover per climate; never on claimed land"
+        task: docs/orchestration/dsc/ground2d-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_job.sh ground2d"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh ground2d {n}"
+        priority: 7
+      - key: colors
+        title: "Natural colour variation, rare morphs, patterns; tames keep colours (fix
+          round)"
+        task: docs/orchestration/dsc/colors-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_colors.sh"
+        priority: 5
+      - key: eyeglow
+        title: "Glowing predator eyes at night (fix round)"
+        task: docs/orchestration/dsc/eyeglow-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_eyeglow.sh"
+        milestone_verify: "bash {sp}/dsc/verify_eyeglow_ms.sh {n}"
+        priority: 4
+
+  - id: p3-art
+    goal: "Headless-Blender kits: crafting stations and sites, modular houses,
+      farms, biome props"
+    jobs:
+      - key: stationart
+        title: "15 models: workbench tiers, kiln, loom, oven, large drying rack,
+          construction sites (fix round)"
+        kind: blender
+        model: minimax/minimax-m3.1-flash:free
+        fallback_model: deepseek/deepseek-v4.1-flash-1017
+        task: docs/orchestration/dsc/stationart-TASK.md
+        verify: "bash {sp}/dsc/verify_stationart.sh"
+        milestone_verify: "bash {sp}/dsc/verify_stationart_ms.sh {n}"
+        dsc_json: &blender_json
+          watchdogIdleSec: 0
+          maxTurns: 300
+          checkpointExclude:
+            [
+              "*_Image_*.jpg",
+              "game/assets/props/meshy/*",
+              "*.pyc",
+              "__pycache__/**",
+              "*.orig",
+              "*.rej",
+              "*.blend1"
+            ]
+          protectedPaths:
+            [
+              "docs/reference/**",
+              "game/project.godot",
+              "game/override.cfg",
+              "game/scripts/**",
+              "game/tests/**"
+            ]
+      - key: housekit
+        title: "Modular house parts in 3 tiers (log/thatch, timber, stone)"
+        kind: blender
+        model: minimax/minimax-m3.1-flash:free
+        fallback_model: deepseek/deepseek-v4.1-flash-1017
+        task: docs/orchestration/dsc/housekit-TASK.md
+        verify: "bash {sp}/dsc/verify_blender.sh housekit"
+        milestone_verify: "bash {sp}/dsc/verify_blender.sh housekit m{n}"
+        dsc_json: *blender_json
+      - key: farmkit
+        title: "Field plots with crop stages, paths, fences, farm props"
+        kind: blender
+        model: minimax/minimax-m3.1-flash:free
+        fallback_model: deepseek/deepseek-v4.1-flash-1017
+        task: docs/orchestration/dsc/farmkit-TASK.md
+        verify: "bash {sp}/dsc/verify_blender.sh farmkit"
+        milestone_verify: "bash {sp}/dsc/verify_blender.sh farmkit m{n}"
+        dsc_json: *blender_json
+      - key: biomeassets
+        title: "Biome props from the concept art: natural red cliff, capped basalt,
+          aloe, crystals (fix round)"
+        task: docs/orchestration/dsc/biomeassets-TASK.md
+        resources: [ godot, blender ]
+        verify: "bash {sp}/dsc/verify_biomeassets.sh"
+
+  - id: p4-world
+    goal: "Island shapes, props, biome zones (fix rounds)"
+    jobs:
+      - key: islandgen
+        title: "Larger non-circular islands: headlands, rivers, terraces, cliffs (fix
+          round)"
+        task: docs/orchestration/dsc/islandgen-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_islandgen.sh"
+      - key: props
+        title: "Non-resource props: placement, collision, destroyable except big cliffs
+          (fix round)"
+        task: docs/orchestration/dsc/props-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_props.sh"
+      - key: biomezones
+        title: "Biome zones painted on every island; volcanic basalt black; home zones
+          visible (fix round)"
+        task: docs/orchestration/dsc/biomezones-TASK.md
+        resources: [ godot ]
+        verify: "bash {sp}/dsc/verify_biomezones.sh"
+
+  # ---------------------------------------------------------------- next (new trees, start when their inputs are approved)
+  - id: p5-next
+    goal: "Crafting feel, domain progression, painted props, dressed biomes, island
+      shape choice"
+    jobs:
+      - key: craftfeel
+        title: "Craft success rate, failure loses materials, flawless and rare traits,
+          skewer slots (spec 04, 08, 25 s8)"
+        adopt: false
+        after: [ { job: buildflow, state: merged }, { job: bags, state: merged } ]
+        resources: [ godot ]
+        rules_footer: common-footer.md
+        vars: { lab: craftfeel_lab }
+        verify: "bash {sp}/dsc/verify_job.sh craftfeel"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh craftfeel {n}"
+        priority: 9
+        task_body: |
+          # Task: CRAFTFEEL: crafting has stakes (success rate, failure, flawless, rare traits, skewer slots)
+          Design truth: docs/design/islands-and-loop-plan.md section 3.3 "Crafting" and package P7; specs 04 (success =
+          clamp(1 - (shortfall/100)^2, 0, 1) where shortfall is how far the crafting ability falls short of the recipe),
+          08 (skewer: Food slot meat + Tool slot Long Stick/Stick/Short Stick or a leg bone; the result shows inherited
+          traits) and 25 section 8 ("if crafting fails, materials disappear"). Flawless 5 % with a stat bump and rare
+          attribute chance 5 % at gather (rules rare_attribute_chance) are the plan's values: keep them in data.
+          Read game/scripts/items/crafting.gd (the craft path, level/attribute inheritance; BUILDFLOW and BAGS changed it
+          - reuse their preview functions) and craft_ui.gd / craft_card.gd. Do not tune XP or other balance numbers.
+          Milestones: M1 game/tests/t_craftfeel.gd (the success curve at shortfall 0/50/100; a failed craft consumes the
+          picked instances exactly once and makes nothing; flawless and rare-trait rates within +-2 % over 2000 seeded
+          crafts; skewer slot rules; the preview equals the result; craft XP paid once). M2 the rules in crafting.gd. M3
+          the preview in the craft UI (chance, flawless chance, "materials are lost on failure"). M4
+          game/scripts/dev/craftfeel_lab.gd + scene printing `[craftfeel] RESULT success_curve_ok= fail_consumes=
+          flawless_rate= rare_trait_rate= skewer_slots_ok= preview_matches= xp_once= ui_min_px=` with shots of the
+          preview, a failure and a flawless result. M5 report and the full verify.
+      - key: domaind
+        title: "Spec 29 phase D: Personal Communications Center raises Pioneer rank and
+          the plot cap"
+        adopt: false
+        after: [ { job: claims2, state: merged }, { job: buildflow, state: merged } ]
+        resources: [ godot ]
+        rules_footer: common-footer.md
+        vars: { lab: domaind_lab }
+        verify: "bash {sp}/dsc/verify_job.sh domaind"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh domaind {n}"
+        priority: 7
+        task_body: |
+          # Task: DOMAIN-D: the Personal Communications Center raises Pioneer rank and the Tamed Island plot cap
+          The owner's spec docs/design/durango-prompts/29_domain_land_claiming_and_territories.md section 4 "Island
+          progression / Personal Communications Center" and section 10: a contribution-driven upgrade track; completing an
+          upgrade raises the plot CAPACITY (rank caps from game/data/world/domains.json: 1->13, 2->17, 6->23, 7->30,
+          historical, provisional), it never assigns land by itself. The center is a building made through the BUILDFLOW
+          construction pipeline (construction site -> deposit -> work -> finished structure); the contributions are exact
+          item instances consumed once. Contribution costs per rank are NOT documented: put them in data as # ASSUMPTION
+          and list them in the report for the owner. Milestones: M1 game/tests/t_domaind.gd (rank 1 -> 2 after the
+          required contributions; cap 13 -> 17; contributions consumed exactly once; no cell is claimed automatically;
+          save/load keeps rank and contributions). M2 data + the center's contribution UI. M3 wiring to the Domain screen
+          (cells used / cap updates). M4 game/scripts/dev/domaind_lab.gd + scene printing `[domaind] RESULT center_built=
+          rank_before= rank_after= cap_before= cap_after= contrib_consumed_once= no_auto_cells= save_roundtrip= ui_min_px=`
+          with shots. M5 report and the full verify.
+      - key: props2d
+        title: "Non-resource props as the owner's painted cards (cliffs, arches,
+          waterfalls, vines, logs, shells)"
+        adopt: false
+        after:
+          [
+            { job: switch2d, state: merged },
+            { job: props, state: merged },
+            { job: sprites2d, state: merged }
+          ]
+        resources: [ godot ]
+        rules_footer: common-footer.md
+        vars: { lab: props2d_lab }
+        verify: "bash {sp}/dsc/verify_job.sh props2d"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh props2d {n}"
+        priority: 7
+        task_body: |
+          # Task: PROPS2D: props draw as the owner's painted 2D cards
+          Owner: "resources 2D but realistic and kind of look 3D", "Not every plant/rock/etc is a resource, the resources
+          have the UI that is clickable and the props do not. Some props cause collision and some dont", "most props can be
+          destroyed except for like really big cliffs". Specs 27 and 28. Today PROPS places props with 3D meshes behind one
+          visual function, SWITCH2D draws resources as painted cards (CardProp + sprites2d.json), and SPRITES2D cut the
+          sheets (kind prop:* rows with height_m, blocks, destroyable, pivot). Swap prop visuals to painted cards per kind
+          (variants by position hash), keep their collision/destroy rules from data, keep them unclickable, and never let a
+          prop look like a tappable resource (tint/darken or pick distinct art). Milestones: M1 game/tests/t_props2d.gd
+          (every prop kind with painted sprites maps to one; no prop draws a 3D mesh; blocks/destroyable follow
+          sprites2d.json; big cliffs >= 4 m cannot be destroyed; props are never clickable). M2 the swap. M3
+          game/scripts/dev/props2d_lab.gd + scene on home and tropical_25 printing `[props2d] RESULT painted_props=
+          model_props= grey_cards= blocks_ok= destroy_ok= cliff_indestructible= clickable_props= ms_frame= ms_base=` with
+          shots. M4 look at every shot; report; full verify.
+      - key: biomedress
+        title: "Dress every biome zone from the concept art with painted resources,
+          props and ground cover"
+        adopt: false
+        after:
+          [
+            { job: ground2d, state: merged },
+            { job: biomezones, state: merged },
+            { job: props2d, state: approved }
+          ]
+        resources: [ godot ]
+        rules_footer: common-footer.md
+        vars: { lab: biomedress_lab }
+        verify: "bash {sp}/dsc/verify_job.sh biomedress"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh biomedress {n}"
+        priority: 6
+        task_body: |
+          # Task: BIOMEDRESS: each biome zone looks like the owner's concept art
+          Owner: "start focusing on asset generation and building biomes using our 2D concept art as references for what to
+          generate and how to make them". References: docs/reference/biome-concept-*.webp, docs/reference/2d-assets/sheet-*
+          and specs 26-28; zones from BIOMEZONES (game/data/world/biomes.json), ground cover from GROUND2D, painted props
+          from PROPS2D, painted resources from SWITCH2D. Build per-zone dressing data (which sprite kinds, densities,
+          clustering like the concept art: reed beds along water, termite mounds on savanna, basalt and crystals on volcanic,
+          palms and ferns on tropical) and the scatter that applies it; nothing on claimed land; inside the perf budget.
+          Milestones: M1 game/tests/t_biomedress.gd (every zone has a dressing set with >= 4 sprite kinds; nothing on claimed
+          tiles; wrong-biome kinds never placed; deterministic per seed). M2 data + scatter. M3
+          game/scripts/dev/biomedress_lab.gd + scene: a top shot and a game-camera shot per zone on home and two other
+          islands, printing `[biomedress] RESULT zones_total= zones_dressed= sprite_kinds_min= grass_in_claim= prims_camp=
+          ms_frame= ms_base= wrong_biome=`. M4 put each shot next to its concept image (write the comparison in NOTES.md),
+          fix, report, full verify.
+      - key: islandpick
+        title: "Choose your Tamed Island from five shapes at character creation (Durango
+          Domain screen)"
+        adopt: false
+        after: [ { job: islandgen, state: merged } ]
+        resources: [ godot ]
+        rules_footer: common-footer.md
+        vars: { lab: islandpick_lab }
+        verify: "bash {sp}/dsc/verify_job.sh islandpick"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh islandpick {n}"
+        priority: 5
+        task_body: |
+          # Task: ISLANDPICK: pick one of five Tamed Island shapes, permanently
+          Reference: docs/reference/durango-domain-tamed-island-select.webp ("Get Your Own Tamed Island! Select the desired
+          terrain of your Tamed Island." five island previews, "Terrain selection is final.", "Select and move"); spec 29
+          section 4 ("Durango let players choose among five island shapes"); PRD section 4.2 (the home terrain pick is
+          permanent). ISLANDGEN made the shape generator (game/scripts/world/island_shape.gd and the home island data):
+          expose five home shapes as data, render a top-down preview of each, and add the pick screen to character
+          creation (it may replace or sit beside today's terrain pick - keep one permanent choice, read
+          game/scripts/ui/character_creation.gd). Old saves keep their island. Milestones: M1 game/tests/t_islandpick.gd
+          (five shapes; the pick persists through save/load; old saves load unchanged; the choice cannot be changed later).
+          M2 shapes + previews. M3 the pick screen (>= 64 px targets on 844x390, a "final" warning) and
+          game/scripts/dev/islandpick_lab.gd + scene printing `[islandpick] RESULT shapes= previews_shown= pick_persists=
+          final_warning= old_save_ok= ui_min_px=` with shots. M4 look next to the reference; report; full verify.
+      - key: biomeprops
+        title: "BIOMEASSETS props: vertex-colour albedo and scale fixed, then placed on
+          the island again"
+        adopt: false
+        resources:
+          - blender
+        rules_footer: common-footer.md
+        vars:
+          lab: biomeprops_lab
+        verify: bash {sp}/dsc/verify_job.sh biomeprops
+        milestone_verify: bash {sp}/dsc/verify_job_ms.sh biomeprops {n}
+        priority: 6
+        task_body: >
+          # Task: BIOMEPROPS - the BIOMEASSETS models must render correctly
+          before they are placed again
+
+          Owner, 2026-10-22, on the deployed build: "props are broken". Cause:
+          game/data/world/props.json named
+
+          the BIOMEASSETS models by the hyphen convention (spire-a, mesa-a,
+          basalt-column-a...) which never
+
+          existed, so rock_spire, mesa_cliff, basalt_column, termite_mound and
+          aloe were never placed. Pointing
+
+          the paths at the shipped underscore files made them appear - as giant
+          untextured slabs - so the remap
+
+          was reverted. This job fixes the models, then re-enables the paths.
+
+          The models carry one Principled material "biome_vcol" whose base
+          colour is the COLOR_0 vertex
+
+          attribute (per-vertex paint, no texture;
+          tools/blender/biome_props/bp_lib.py). Godot does not use
+
+          COLOR_0 as albedo unless the imported material says so, which is why
+          they render flat grey/black.
+
+          Milestones:
+
+          M1 game/tests/t_biomeprops.gd: for every kind in props.json that
+          points at res://assets/nature/biome/,
+
+          the model exists, loads, has a MeshInstance3D with a material, that
+          material uses vertex colour as
+
+          albedo, and the mesh AABB fits the kind's declared radius_m (height
+          between 0.5x and 3x of it). Fails
+
+          before the fix. Stage 1.
+
+          M2 the fix: make the imported biome_vcol material use vertex colour as
+          albedo (an export step in
+
+          tools/blender/biome_props/ or a documented Godot import pass like
+
+          tools/blender/structures/godot_import_settings.py), and rescale any
+          model whose AABB is out of band.
+
+          Do not repaint art; the vertex colours are the owner-approved palette.
+          Stage 1.
+
+          M3 re-enable the paths in game/data/world/props.json (hyphen ->
+          shipped underscore ids, one dropped
+
+          where no stand-in exists) and make island_props place them; M1 green.
+          Stage 1.
+
+          M4 game/scripts/dev/biomeprops_lab.gd + scene: a game-camera shot of
+          each fixed kind on the home
+
+          island, printing `[biomeprops] RESULT kinds= vcol_ok= scale_ok=
+          placed= missing_files=` and saving
+
+          at least 2 PNGs into --shot-dir. Look at the PNGs and record a verdict
+          in .dsc/NOTES.md. Stage 2.
+
+          M5 report docs/orchestration/reports/dsc-biomeprops.md and the full
+          verify.
+
+  # ---------------------------------------------------------------- food and drink effects (spec 32)
+  # Waits for the three systems it extends. Not part of phase p1's exit: it has its own phase so that adding it
+  # does not reopen a phase that is already finishing, and so the balance pass can wait on it.
+  - id: p7-food
+    goal: "Eating and drinking do something: immediate vs digested Energy, timed
+      buffs with slots, drinks, taste"
+    after_phase: [ p1-systems ]
+    jobs:
+      - key: foodfx
+        title: "Spec 32: consumption effects - instant/digested Energy, buff slots,
+          drinks, bad food, taste"
+        adopt: false
+        after:
+          [
+            { job: needs, state: merged },
+            { job: craftfeel, state: merged },
+            { job: bags, state: merged }
+          ]
+        resources: [ godot ]
+        rules_footer: common-footer.md
+        vars: { lab: foodfx_lab }
+        verify: "bash {sp}/dsc/verify_job.sh foodfx"
+        milestone_verify: "bash {sp}/dsc/verify_job_ms.sh foodfx {n}"
+        priority: 7
+        task_body: |
+          # Task: FOODFX: eating and drinking have effects beyond a flat Energy number
+          Owner: "add this to the docs and plan" (spec docs/design/durango-prompts/32_food_drink_consumption_effects.md).
+          Research: docs/reference/durango0-wiki/06_FOOD_DRINK_TASTE_AND_BUFF_FORMULAS.md (digestion, taste grades,
+          the buff keys) - reconstruction values stay tagged, never presented as original constants.
+          Extend the systems that exist; do not build a second food, inventory or status architecture.
+          Today: game/scripts/items/food.gd (Energy only: base x (1 + 0.35 x process_count) x level), eat_session.gd
+          (3 s eat, move cancels the remaining restore, raw-food risk past half), a flat BUFFS table in
+          game/data/food_buffs.json, and game/scripts/status/status_def.gd + combat/status_effects.gd for timed
+          statuses. BAGS and CRAFTFEEL change the item/craft path - read them first and reuse their preview functions.
+          Do not tune balance numbers; every value spec 32 does not give is `# ASSUMPTION` and configurable, and every
+          example from the reconstruction keeps its provenance tag (spec 32 s15 and s13).
+          Milestones:
+          M1 game/tests/t_foodfx.gd: instant + digested Energy split at release ratio 0/0.4/1; the delayed share is never
+          paid twice across a save/load or a second eat intent; an interrupted eat consumes nothing and grants nothing;
+          eating twice quickly cannot consume one instance twice; a Maximum Fatigue buff expiring clamps current fatigue
+          and never touches base stat values; a drink that lowers current fatigue and a drink that raises the maximum are
+          different effects; same-container foods replace each other while Enhanced Ability and Enhanced Survival coexist;
+          a plain Energy food leaves an unrelated buff alive; a profession ability buff changes a real ability check
+          without granting category levels; raw bad food can apply Stomach Pain. Stage 1.
+          M2 the effect bundle + evaluator in data-driven code (consumption channels, per-field transforms, caps and
+          conflict validation as in spec 32 s8), delayed-digestion persistence, buff slots. Stage 1.
+          M3 consumption transaction: validate -> timed action with interrupt -> atomic consume of the exact instance ->
+          immediate effects -> schedule digestion -> buff slot replacement -> taste/temperature -> persist. Stage 2.
+          M4 game/scripts/dev/foodfx_lab.gd + scene printing `[foodfx] RESULT instant_split_ok= digest_once_ok=
+          interrupt_refunds= double_eat_blocked= buff_slots_ok= maxfatigue_expiry_ok= fatigue_vs_maxfatigue_ok=
+          buff_coexist_ok= plain_food_keeps_buff= ability_check_moves= bad_food_status= taste_grade_ok=
+          save_roundtrip= ui_min_px=` with shots of the food inspect panel and the two drinks. Stage 2.
+          M5 report (before/after, the shots, every assumption and provenance) and the full verify.
+          Data slice, not dozens of foods: water, tea, coffee, a raw berry, cooked meat, one profession-buff meal, one
+          fatigue restorative. The UI is spec 32 s12: item level, exact traits, Energy immediate/over time, fullness,
+          thirst, health, fatigue, max-stat effects, ability bonuses, negative effects, buff group, duration and
+          consumption time, plus a line saying when this food would replace an active buff.
+
+  # ---------------------------------------------------------------- last (owner: systems before balance)
+  - id: p6-balance
+    goal: "HP, damage, pacing, XP curve, LOOP1 bot thresholds - only after the
+      systems are done and tuned"
+    after_phase: [ p1-systems, p2-2d, p5-next, p7-food ]
+    exit: manual
+    jobs:
+      - key: balance
+        title: "Balance pass: HP, damage, pacing, XP and the LOOP1 bot thresholds"
+        adopt: false
+        after:
+          [
+            { job: craftfeel, state: merged },
+            { job: buildflow, state: merged },
+            { job: needs, state: merged }
+          ]
+        resources: [ godot ]
+        # Passes on purpose: a passing baseline marks the job already_done, so no worker starts on this placeholder.
+        # Replace verify and task_body with the real ones when p1, p2 and p5 are merged.
+        verify: "bash -c 'echo placeholder: the orchestrator writes the balance task
+          after p1/p2/p5 merge; exit 0'"
+        task_body: |
+          # BALANCE: placeholder until the systems land
+          Research pack for this pass: docs/reference/durango0-wiki/ 02 (stats, action costs), 03 (918 skill nodes,
+          SP economy), 04 (craft probability), 07 (animal stats, combat, butchering), 11 (world/climate).
+          The owner: "game balancing like tuning hp and damage wont make sense until crafting building and skills is done
+          and tuned". The orchestrator writes this task (measured before-numbers from a bot run, the islands plan P6/LOOP1
+          thresholds in docs/design/islands-and-loop-plan.md 3.4 and section 5, staged gates and a verify) once p1, p2 and
+          p5 are merged; until then this job waits on its phase gate and its deps.

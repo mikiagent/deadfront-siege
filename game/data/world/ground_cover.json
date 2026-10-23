@@ -1,0 +1,214 @@
+{
+  "_about": "GROUND2D ground cover (islands plan P2 row 2, spec 28 'Tall grasses on terrain'). Kinds name sprite ids or manifest names from data/world/sprites2d.json; density is instances per m2 at full density, height multiplies the sprite's own height_m, scale is the per-instance multiplier range, sway is metres of travel at the top of a 1 m card, tint multiplies the painted colour. Climates list the kinds that grow there; a climate not listed (desert, tundra, volcanic) grows none.",
+  "kinds": {
+    "grass": {
+      "sprites": [
+        "jungle-plants_17_tall_grass_b",
+        "jungle-plants_18_tall_grass"
+      ],
+      "density": 0.44,
+      "height": 1.0,
+      "scale": [
+        0.55,
+        1.45
+      ],
+      "sway": 0.09,
+      "speed": 1.5,
+      "tint": [
+        0.95,
+        1.02,
+        0.86
+      ]
+    },
+    "weed": {
+      "sprites": [
+        "jungle-plants_07_broadleaf_plant",
+        "jungle-plants_15_broadleaf_shrub",
+        "jungle-plants_19_ivy_mound"
+      ],
+      "density": 0.18,
+      "height": 0.75,
+      "scale": [
+        0.6,
+        1.3
+      ],
+      "sway": 0.05,
+      "speed": 1.2,
+      "tint": [
+        0.9,
+        1.0,
+        0.82
+      ]
+    },
+    "fern": {
+      "sprites": [
+        "jungle-plants_01_fern_cluster",
+        "jungle-plants_02_fern_cluster_b"
+      ],
+      "density": 0.2,
+      "height": 0.9,
+      "scale": [
+        0.6,
+        1.3
+      ],
+      "sway": 0.05,
+      "speed": 1.1,
+      "tint": [
+        0.88,
+        1.0,
+        0.84
+      ]
+    },
+    "flower": {
+      "sprites": [
+        "jungle-plants_08_red_flower_plant",
+        "jungle-plants_21_bromeliad_red",
+        "jungle-plants_24_white_lily_plant"
+      ],
+      "density": 0.05,
+      "height": 0.8,
+      "scale": [
+        0.6,
+        1.2
+      ],
+      "sway": 0.05,
+      "speed": 1.3,
+      "tint": [
+        1.0,
+        0.98,
+        0.96
+      ]
+    },
+    "litter": {
+      "sprites": [
+        "jungle-plants_33_leaf_c",
+        "jungle-plants_35_leaf_d",
+        "jungle-plants_36_leaf_e",
+        "jungle-plants_38_leaf_g",
+        "jungle-plants_39_leaf_h",
+        "jungle-plants_40_leaf_j",
+        "jungle-plants_34_frond_small"
+      ],
+      "density": 0.12,
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.5
+      ],
+      "sway": 0.02,
+      "speed": 0.8,
+      "tint": [
+        0.95,
+        0.92,
+        0.8
+      ]
+    },
+    "dry": {
+      "sprites": [
+        "jungle-plants_18_tall_grass",
+        "jungle-plants_17_tall_grass_b"
+      ],
+      "density": 0.38,
+      "height": 0.95,
+      "scale": [
+        0.55,
+        1.35
+      ],
+      "sway": 0.08,
+      "speed": 1.6,
+      "tint": [
+        1.12,
+        1.04,
+        0.66
+      ]
+    },
+    "reed": {
+      "sprites": [
+        "jungle-plants_17_tall_grass_b",
+        "jungle-plants_18_tall_grass",
+        "jungle-plants_03_cycad"
+      ],
+      "density": 0.34,
+      "height": 1.15,
+      "scale": [
+        0.75,
+        1.45
+      ],
+      "sway": 0.1,
+      "speed": 1.35,
+      "tint": [
+        0.88,
+        1.04,
+        0.8
+      ]
+    }
+  },
+  "climates": {
+    "grassland": {
+      "kinds": [
+        "grass",
+        "weed",
+        "fern",
+        "flower",
+        "litter"
+      ]
+    },
+    "temperate": {
+      "kinds": [
+        "grass",
+        "weed",
+        "fern",
+        "flower",
+        "litter"
+      ]
+    },
+    "snowfield": {
+      "kinds": [
+        "grass",
+        "weed",
+        "litter"
+      ]
+    },
+    "blue_tropical": {
+      "kinds": [
+        "grass",
+        "fern",
+        "flower",
+        "litter"
+      ]
+    },
+    "savannah": {
+      "kinds": [
+        "dry",
+        "weed",
+        "grass"
+      ]
+    },
+    "swamp": {
+      "kinds": [
+        "reed",
+        "grass",
+        "fern",
+        "litter"
+      ]
+    },
+    "tropical": {
+      "kinds": [
+        "fern",
+        "grass",
+        "weed",
+        "flower",
+        "litter"
+      ]
+    },
+    "desert": {
+      "kinds": []
+    },
+    "tundra": {
+      "kinds": []
+    },
+    "volcanic": {
+      "kinds": []
+    }
+  }
+}

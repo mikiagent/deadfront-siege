@@ -77,6 +77,17 @@ func start_sleep() -> void:
 	_busy = false
 	play_clip(&"sleep_down" if rig and rig.has_clip(&"sleep_down") else &"sleep", true)
 
+## Exit the wake pose without waiting for the clip's finished signal. The survivor is immobile while
+## _waking (PlayerSim.tick holds still), so a missed signal - a clip that did not load, a paused
+## player, a renderer that skipped the frame - traps the player for good. PlayerSim calls this when the
+## wake clip is not playing or has overrun its length.
+func force_awake() -> void:
+	_waking = false
+	_sleeping = false
+	_ground_sleep_visual(false)
+	if not _dead:
+		play_idle()
+
 func wake_from_sleep() -> void:
 	if not _sleeping or _dead:
 		return
@@ -196,7 +207,7 @@ func _play(clip: StringName) -> void:
 	current_clip = resolved
 	var speed := 1.0
 	if clip == &"attack_primary":
-		speed = 1.5
+		speed = 1.0  # v2 clip is 1.21 s; the 1.5 floor was for the 3 s Meshy swing. The weapon-rate fit below still applies.
 	elif clip == &"punch":
 		speed = 1.3
 	elif _resolved_missing and clip in [&"attack_heavy", &"roll", &"gather", &"knockdown"]:

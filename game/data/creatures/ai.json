@@ -21,7 +21,32 @@
     "weak_to": [],
     "resists": [],
     "_effectiveness": "weak_to: damage types that hit x1.5 (orange numbers); resists: x0.6 (grey). Types: slashing, blunt.",
-    "_leash": "Aggro leash = perception x leash_mult (the red dotted ring). 1.5 keeps the ring on screen at the default zoom; 2.2 put it off-screen."
+    "_leash": "Aggro leash = perception x leash_mult (the red dotted ring). 1.5 keeps the ring on screen at the default zoom; 2.2 put it off-screen.",
+    "flee_speed_mult": 1.0,
+    "wake_m": 3.0,
+    "woken_awake_s": 30.0,
+    "_chase": "chase_speed_mult is today's 0.7 per carnivore archetype until the owner decides (gap dino-ai-06: a walking survivor outruns it).",
+    "_sleep": "ASSUMPTION: grazers asleep at night wake at dawn or when a survivor/pet comes within wake_m of the body; a woken grazer stays up woken_awake_s."
+  },
+  "temperaments": {
+    "_about": "ASSUMPTION (gap dino-ai-12): grazer temperaments. skittish flees on sight and fights back after provoke_hits hits; defensive ignores you until hit, then fights (its herd joins); territorial also charges anyone inside territory_m. flee_min_mps 6.5: a worst-IV (85 %) zebraceratops flees at 5.44 m/s on the multiplier alone, under the 5.5 m/s survivor walk; 6.2 still ended 7.5 m ahead (path wiggle), 6.5 matches an average-IV flight.",
+    "skittish": {
+      "provoke_hits": 3,
+      "flee_on_sight": true,
+      "flee_speed_mult": 1.6,
+      "flee_min_mps": 6.5
+    },
+    "defensive": {
+      "provoke_hits": 1,
+      "flee_on_sight": false,
+      "flee_speed_mult": 1.2
+    },
+    "territorial": {
+      "provoke_hits": 1,
+      "flee_on_sight": false,
+      "flee_speed_mult": 1.2,
+      "territory_m": 6.0
+    }
   },
   "archetypes": {
     "pack_raptor": {
@@ -30,7 +55,8 @@
       "weak_to": [
         "slashing"
       ],
-      "resists": []
+      "resists": [],
+      "chase_speed_mult": 0.7
     },
     "pack_flanker": {
       "attack_range": 2.0,
@@ -38,7 +64,8 @@
       "weak_to": [
         "slashing"
       ],
-      "resists": []
+      "resists": [],
+      "chase_speed_mult": 0.7
     },
     "apex_raptor": {
       "attack_range": 2.2,
@@ -47,7 +74,8 @@
       "weak_to": [
         "slashing"
       ],
-      "resists": []
+      "resists": [],
+      "chase_speed_mult": 0.7
     },
     "swarm": {
       "attack_range": 1.4,
@@ -65,28 +93,32 @@
       "weak_to": [
         "slashing"
       ],
-      "resists": []
+      "resists": [],
+      "chase_speed_mult": 0.7
     },
     "venom_ranged": {
       "attack_range": 2.4,
       "weak_to": [
         "blunt"
       ],
-      "resists": []
+      "resists": [],
+      "chase_speed_mult": 0.7
     },
     "saber_cat": {
       "attack_range": 2.0,
       "weak_to": [
         "slashing"
       ],
-      "resists": []
+      "resists": [],
+      "chase_speed_mult": 0.7
     },
     "tyrant": {
       "attack_range": 2.6,
       "weak_to": [],
       "resists": [
         "slashing"
-      ]
+      ],
+      "chase_speed_mult": 0.7
     },
     "pack_mule": {
       "is_herbivore": true,
@@ -96,7 +128,8 @@
       ],
       "resists": [
         "slashing"
-      ]
+      ],
+      "temperament": "skittish"
     },
     "spiked_tail": {
       "is_herbivore": true,
@@ -106,7 +139,8 @@
       ],
       "resists": [
         "slashing"
-      ]
+      ],
+      "temperament": "defensive"
     },
     "runner": {
       "is_herbivore": true,
@@ -114,7 +148,8 @@
       "weak_to": [
         "slashing"
       ],
-      "resists": []
+      "resists": [],
+      "temperament": "skittish"
     },
     "antlered": {
       "is_herbivore": true,
@@ -122,7 +157,8 @@
       "weak_to": [
         "blunt"
       ],
-      "resists": []
+      "resists": [],
+      "temperament": "skittish"
     },
     "club_tail": {
       "is_herbivore": true,
@@ -132,7 +168,8 @@
       ],
       "resists": [
         "slashing"
-      ]
+      ],
+      "temperament": "defensive"
     },
     "horned_charger": {
       "is_herbivore": true,
@@ -142,7 +179,8 @@
       ],
       "resists": [
         "slashing"
-      ]
+      ],
+      "temperament": "territorial"
     },
     "titan": {
       "is_herbivore": true,
@@ -151,7 +189,8 @@
       "weak_to": [],
       "resists": [
         "slashing"
-      ]
+      ],
+      "temperament": "defensive"
     }
   }
 }

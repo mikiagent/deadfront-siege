@@ -1,0 +1,24 @@
+export const meta = {
+  name: 'deadfront-deploy',
+  description: 'Export claude/mmo-overhaul at a fixed sha to web, play the loop in a local browser, deploy to Vercel production if nothing blocks, verify the alias stamp; independent production check',
+  phases: [{ title: 'Ship', detail: 'export, local playtest, deploy, verify' }, { title: 'Verify', detail: 'independent production check' }],
+}
+const OSP = '/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad'
+const SP = '/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad'
+const REPO = '/Users/milankinzy/Documents/deadfront-siege'
+const SHA = args.sha
+const SHIP = { type: 'object', properties: { deployed: { type: 'boolean' }, sha: { type: 'string' }, stamp: { type: 'string' }, deployment: { type: 'string' }, url: { type: 'string' }, pack_mb: { type: 'number' }, player_can: { type: 'array', items: { type: 'string' } }, defects: { type: 'array', items: { type: 'string' } }, blockers: { type: 'array', items: { type: 'string' } }, shots: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } }, required: ['deployed', 'sha', 'summary'] }
+const VER = { type: 'object', properties: { live_ok: { type: 'boolean' }, stamp: { type: 'string' }, notes: { type: 'string' }, shots: { type: 'array', items: { type: 'string' } } }, required: ['live_ok', 'notes'] }
+phase('Ship')
+const s = await agent(`Project: DEADFRONT, a Godot 4.7.1 dinosaur survival game (game/ is the project), shipped as a web build at https://durango-like.vercel.app (Vercel project durango-like, scope mikiagents-projects). The OWNER asked for this deploy today: "get the game to a shippable state soon. You're taking forever to push updates to vercel". Live is 31c064a08/2284b9bf56 from 2026-10-20 16:35.
+Ship claude/mmo-overhaul at ${SHA} (it moves while you work; use exactly this sha). Procedure (docs/orchestration/mmo/HANDOFF.md section 6 and STATUS "Releases" in the repo describe the last deploy):
+1. Throwaway tree: bash ${SP}/mkscratch.sh deploy ${SHA}. Godot only through ${OSP}/gslot.sh with its own timeout (perl -e 'alarm N; exec @ARGV'), silent, never --editor.
+2. Export: tools/export_web.sh in that tree (the pack was 254 MB last time and needed PAYLOAD_MAX_MB=260; use the same if needed and record the size; do not trim assets in this deploy). Read tools/deploy_web.sh to see what it does before running anything.
+3. Local playtest in a real browser before deploying: serve the export locally (the export folder's own server/headers needs - see tools/web_soak and earlier releases) and play as a new player at 1600x900 and at a 844x390 landscape viewport: character creation -> island pick -> world -> gather (tree/branch, stone, berries) -> craft a better tool -> level a skill -> build something -> drink/wash at a river -> open the bag. Read the browser console. Take screenshots and look at them. A BLOCKER is: it does not boot to the world, a crash or freeze, a console error that breaks play, or a core loop step that cannot be done. Anything else is a defect to list.
+4. If no blocker: deploy exactly as tools/deploy_web.sh does (npx vercel deploy <export dir> --prod --project durango-like --scope mikiagents-projects --archive=tgz), then verify the alias: curl -s https://durango-like.vercel.app/ | grep -o 'build=[^)]*' must show the new stamp; open the production URL in a browser once and reach the world. If there is a blocker: do NOT deploy; return deployed=false with the blockers and evidence.
+Rules: never touch the owner's real save or browser profile data beyond a fresh local test profile, ${REPO}'s main checkout or ~/Documents/deadfront; never commit to claude/mmo-overhaul or main (other agents integrate there); never use SendMessage; never claim a check you did not run; quote decisive lines (export size, stamp, deployment id). Return deployed, sha, stamp, deployment, url, pack_mb, player_can (what a new player can actually do in this build, plainly), defects, blockers, shots, summary.`, { label: 'ship', phase: 'Ship', schema: SHIP, effort: 'high' })
+if (!s) return { stopped: 'cut at ship' }
+if (!s.deployed) return { deployed: false, ship: s }
+phase('Verify')
+const v = await agent(`Independently verify a production web deploy of DEADFRONT. Expected build stamp contains ${SHA.slice(0, 9)} (reported: ${s.stamp}). Run curl -s https://durango-like.vercel.app/ | grep -o 'build=[^)]*' and quote the output. Then open https://durango-like.vercel.app in a browser at 1600x900, create a character, reach the world, gather once, and read the console; take two screenshots and look at them. Do not change anything anywhere; never use SendMessage. Return live_ok, stamp, notes, shots.`, { label: 'verify', phase: 'Verify', schema: VER })
+return { deployed: true, ship: s, verify: v }

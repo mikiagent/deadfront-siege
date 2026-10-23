@@ -2,6 +2,9 @@
 
 Three agents work here. Read this file first, then the plan.
 
+**MMO program (2026-10-20): start with `docs/orchestration/mmo/HANDOFF.md`** - where everything is, what is merged,
+what is half done on which branch, and what has not started.
+
 | Agent | Owns | Never touches |
 |---|---|---|
 | Claude Code | `docs/orchestration/`, contracts, reviews, merges, Meshy credit approvals | — |
@@ -23,3 +26,13 @@ Engine choice and why: `docs/engine-decision.md`
 - When a task ends, write `docs/orchestration/reports/<agent>-<task>.md`: what shipped, what failed, credits spent, what the next agent needs. That report is how the other agents hear from you.
 - Do not invent lore, species, or mechanics that are not in the PRDs. If the PRD is silent, pick the simplest thing, mark it `# ASSUMPTION:` in code, and list it in your report.
 - Commit with a clear message per milestone. Do not rewrite history.
+
+## Tools available to every agent
+
+- **dsc (deepseek-code)**, https://github.com/mikiagent/deepseekcli — a Claude Code style agent on DeepSeek V4.1 Flash
+  via OpenRouter. Cheap, slow, prone to overthinking; use it for long mechanical tasks with a verify command
+  (rigging and animation in Blender, retargeting, batch asset work), not for design decisions. Install: clone,
+  `./install.sh`, then `dsc` once for the OpenRouter key. Write the task as a `TASK.md` (see `TASK.example.md`
+  in the repo) and run `dsc task TASK.md --verify "tools/smoke.sh" --budget 5 --worktree --commit`; the exit
+  code is 0 only when verify passed. `dsc cook start/status/attach/pause/resume/stop` runs it unattended.
+  Keep `.dsc/` and `.dsc.json` out of git. Reference task set-ups: `~/Documents/DeepseekCLI/survivor-v2/anim`.

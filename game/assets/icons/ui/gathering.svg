@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "gathering". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+<path d="M18 57 C22 44 28 32 40 20"/>
+</g>
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path d="M23 42 Q22.56 24.96 6 29 Q6.44 46.04 23 42 Z"/>
+<path d="M29 33 Q38 43.8 47 33 Q38 22.2 29 33 Z"/>
+<path d="M39 21 Q56.5 23.7 56 6 Q38.5 3.3 39 21 Z"/>
+</g>
+</svg>

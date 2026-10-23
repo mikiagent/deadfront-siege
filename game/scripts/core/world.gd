@@ -13,6 +13,10 @@ var pioneer_level: int = 0
 var pioneer_xp: int = 0
 var home_claims: Array = []  # [[x, z, w, d], ...] tile rects on the home island (saved)
 var unstable_claims: Array = []  # same, current unstable island only (not saved)
+## CLAIMS2 / spec 29: the domain record saved for the Tamed Island and for the island the survivor is
+## standing on. The legacy rects above stay as a mirror (and are what an old save is migrated from).
+var home_domain: Dictionary = {}
+var away_domain: Dictionary = {}
 var free_claim_used: bool = false
 var objective: int = 0 ## index into Data.world_objectives; the survivor's standing orders
 var visited_islands: Dictionary = {} ## persistent voyage log
@@ -35,6 +39,18 @@ var _home_buildings_cache: Array = []
 ## island builds them, saved under home.camp_layout.
 var camp_layout: Dictionary = {}
 var _save_acc: float = 0.0
+## Map fog + trail per island (spec 25), keyed by island id. `map_fog` is the current island's.
+## Saved under the save's "map" field; an old save has none and starts with the camp area known.
+var map_fogs: Dictionary = {}
+var map_fog: MapFog = null
+## Set when a save without fog was loaded: the first island built then starts with the camp area
+## revealed, instead of fully grey. A fresh world gets no such gift.
+var _reveal_camp_on_new_fog: bool = false
+var _walk_acc: float = 0.0
+## True from a fresh start until character creation AND the first island pick have finished. No save
+## may be written before that: the 60 s autosave did once, on the creation screen, and a reload then
+## skipped both and loaded a default "Survivor" (playtest 2026-10-21).
+var creation_pending: bool = false
 var _fade: ColorRect
 
 const SAVE_PATH := "user://save_1.json"
@@ -46,6 +62,8 @@ func _ready() -> void:
 	call_deferred("_boot")
 
 func _process(delta: float) -> void:
+	if map_fog != null:
+		map_fog.advance_trail(delta)
 	if str(island_def.get("kind", "")) == "unstable" and remaining_lifetime > 0.0:
 		remaining_lifetime = maxf(0.0, remaining_lifetime - delta)
 		var warn_at := float(Data.world_rules.get("sink_warning_seconds", 60))
@@ -61,9 +79,18 @@ func _process(delta: float) -> void:
 		var p := _player()
 		if p and not p.dead:
 			Objectives.settle(p)
+	# Fog/trail: 4 Hz is a smooth brush at walking speed and costs one small circle test per tick.
+	_walk_acc += delta
+	if _walk_acc >= 0.25:
+		_walk_acc = 0.0
+		var w := _player()
+		if w and not w.dead and runtime and runtime.has_method("surface_y"):
+			note_map_walk(w.global_position)
 	_save_acc += delta
 	if _save_acc >= 60.0:
 		_save_acc = 0.0
+		if creation_pending:
+			return  # nothing exists to save yet; SaveGame refuses too, this keeps the log quiet
 		_save_now()
 
 func is_home() -> bool:
@@ -87,12 +114,28 @@ func _boot() -> void:
 		return  # downloader shell is showing; shell/boot.gd calls _boot once the game scene is up
 	if runtime != null and is_instance_valid(runtime):
 		return  # already booted
-	if _save_exists() and not ("--new-game" in OS.get_cmdline_user_args()):
-		_load_now(host)
-	else:
-		start_new(host)
+	ensure_survivor(host)
+
+## Boot's one decision: load a real survivor, or open character creation. A save written before the
+## survivor existed (the bug's 60 s autosave, or a save from before creation existed) counts as no
+## save: it opens creation again, keeping the file until the new world's first save replaces it.
+## Returns true when a save was loaded, false when creation is opening.
+func ensure_survivor(host: Node) -> bool:
+	var sg := load("res://scripts/core/save_game.gd") as GDScript
+	var saved := _save_exists() and not ("--new-game" in OS.get_cmdline_user_args())
+	if saved and not sg.has_precreation_save():
+		_load_now(host)  # a real save: SaveGame._apply also lifts "creation pending"
+		return true
+	start_new(host)
+	return false
+
+## Character creation and the first island pick are done: the world may save from here on.
+func finish_creation() -> void:
+	creation_pending = false
+	_save_acc = 0.0
 
 func start_new(host: Node) -> void:
+	creation_pending = true
 	home_terrain = &""
 	island_id = &"home_grassland"
 	visited_islands.clear()
@@ -138,6 +181,10 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 		at.y = ir.surface_y(at.x, at.z) + 1.0
 		player.global_position = at
 		_apply_harvested(ir)
+	# An unknown island starts with the camp known (spec 25: your base is on the map), not the
+	# harbour you happened to arrive at.
+	var camp_at: Variant = ir.get("_camp_pos")
+	_ensure_map_fog(ir, camp_at if camp_at is Vector3 and (camp_at as Vector3) != Vector3.ZERO else (player.global_position if player else at))
 	print("[world] island %s nodes=%d creatures=%d terrain=%s" % [
 		id, int(ir.harvest_count), int(ir.creature_count), terrain])
 	island_changed.emit(id)
@@ -174,6 +221,8 @@ func travel(to_id: StringName, mode: StringName) -> void:
 		if is_home(): _save_now()
 		remaining_lifetime = 0.0 # each destination starts its own island lifetime
 		load_island(host, to_id, pos, false)
+		if runtime and runtime.has_method("arrival_point"):
+			player.global_position = runtime.arrival_point() + Vector3.UP
 		if is_home():
 			(load("res://scripts/core/save_game.gd") as GDScript)._restore_buildings(_home_buildings_cache, SaveMigrations.CURRENT_SCHEMA)
 		_save_now()
@@ -322,13 +371,81 @@ func _apply_harvested(ir: Node) -> void:
 	if tiles_v is Dictionary and ir.has_method("apply_harvest_tile_snapshot"):
 		ir.apply_harvest_tile_snapshot(tiles_v as Dictionary)
 
+## The current island's fog, made on first visit (or when the land mask is for a bigger island).
+## An island never seen before starts with the camp area known (spec 25: the camp is your base).
+func _ensure_map_fog(ir: Node3D, camp: Vector3) -> void:
+	var key := str(island_id)
+	var size_m: float = float(ir.get("_size")) if ir and ir.get("_size") != null else 200.0
+	var f: Variant = map_fogs.get(key, null)
+	if f == null or not (f is MapFog) or not (f as MapFog).matches(size_m):
+		f = MapFog.new()
+		(f as MapFog).setup(key, size_m)
+		map_fogs[key] = f
+		if _reveal_camp_on_new_fog and camp != Vector3.ZERO:
+			(f as MapFog).reveal(camp, MapFog.OLD_SAVE_REVEAL_M)
+			_reveal_camp_on_new_fog = false
+	map_fog = f as MapFog
+	map_fog.land_from(ir)
+
+## One step of the fog/trail (called from _process, the HUD minimap and the lab). Cheap enough at
+## 4 Hz: one circle test over a handful of 2 m cells.
+func note_map_walk(pos: Vector3) -> void:
+	if map_fog == null or creation_pending:
+		return
+	map_fog.walk(pos)
+
+func map_map() -> Dictionary:
+	var rows := {}
+	for key in map_fogs:
+		var f: Variant = map_fogs[key]
+		if f is MapFog:
+			rows[str(key)] = (f as MapFog).to_dict()
+	return {"islands": rows}
+
+## Rows come from a user-editable file: keep only plausible islands (<= 1 km, <= 200 kB of fog,
+## trail points inside the world) before building a bitmap from them (SaveSanitizer is out of this
+## task's scope, so the cap lives here where the row is read).
+func load_map_map(row: Dictionary) -> void:
+	map_fogs.clear()
+	map_fog = null
+	var islands: Variant = row.get("islands", {})
+	if not islands is Dictionary:
+		return
+	for key in (islands as Dictionary).keys():
+		var d: Variant = (islands as Dictionary)[key]
+		if not d is Dictionary:
+			continue
+		var f: Dictionary = d as Dictionary
+		var size_v: Variant = f.get("size", 160.0)
+		if not (size_v is int or size_v is float) or not is_finite(float(size_v)) or float(size_v) <= 0.0 or float(size_v) > 1000.0:
+			continue
+		if str(f.get("fog", "")).length() > 200000:
+			continue
+		var clean := {"id": str(f.get("id", key)), "size": float(size_v), "fog": str(f.get("fog", "")), "trail": []}
+		var pts: Variant = f.get("trail", [])
+		if pts is Array:
+			for p in pts:
+				if p is Array and (p as Array).size() >= 2:
+					var a: Variant = (p as Array)[0]
+					var b: Variant = (p as Array)[1]
+					if not ((a is int or a is float) and (b is int or b is float) and is_finite(float(a)) and is_finite(float(b)) and absf(float(a)) <= 1000.0 and absf(float(b)) <= 1000.0):
+						continue
+					var clean_point: Array = [float(a), float(b)]
+					if (p as Array).size() >= 3:
+						var age: Variant = (p as Array)[2]
+						if not (age is int or age is float) or not is_finite(float(age)):
+							continue
+						clean_point.append(maxf(0.0, float(age)))
+					clean["trail"].append(clean_point)
+		map_fogs[str(key)] = MapFog.from_dict(clean)
+
 func _clear_runtime() -> void:
 	if runtime and is_instance_valid(runtime):
 		runtime.queue_free()
 	runtime = null
 
 func _player() -> Player:
-	return get_tree().get_first_node_in_group("player") as Player
+	return PlayerRegistry.local()
 
 func _ensure_fade() -> void:
 	var layer := CanvasLayer.new()
@@ -404,6 +521,9 @@ func _load_islands(_dir: String) -> void:
 
 func claims_for_current() -> Array:
 	return home_claims if is_home() else unstable_claims
+
+func domain_for_current() -> Dictionary:
+	return home_domain if is_home() else away_domain
 
 ## One player level. Every skill-tree XP grant (gathering, fighting, crafting, cooking, building,
 ## farming...) also lands here (SkillState.add_xp), so the bottom bar moves with everything.

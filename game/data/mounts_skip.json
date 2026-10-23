@@ -1,0 +1,6 @@
+{
+ "_note": "Mount-role species whose saddle would have to carry a rider on an animal too small for them. Rule (task SADDLES): rider 1.78 m taller than back height x 1.6 -> no saddle, the game keeps the hips-socket fallback. Numbers measured on the game GLB at the in-game scale (height_meters); prefer mount/mount.json for everything not listed here.",
+ "rider_height_m": 1.78,
+ "limit": 1.6,
+ "skip": {}
+}

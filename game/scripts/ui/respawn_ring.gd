@@ -36,7 +36,4 @@ func _draw() -> void:
 		# remaining time sweeps down clockwise from 12 o'clock
 		draw_arc(c, r, -PI * 0.5, -PI * 0.5 + TAU * frac, 40, Color(0.55, 0.9, 1.0), 4.0, true)
 	var secs := "%ds" % int(ceil(rec.respawn_left))
-	var f := ThemeDB.fallback_font
-	var fs := 14
-	var w := f.get_string_size(secs, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	draw_string(f, c + Vector2(-w * 0.5, fs * 0.38), secs, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color.WHITE)
+	UiTokens.draw_centered(self, ThemeDB.fallback_font, c, secs, 14, Color.WHITE)

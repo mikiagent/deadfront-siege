@@ -1,9 +1,15 @@
 extends Node3D
 ## Pet respawn cooldown acceptance: a dead pet shows the circular countdown ring in the PETS
-## sheet and cannot be summoned until the timer runs out.
+## sheet and cannot be summoned until the timer runs out. Headless: five checks, exit 1 if any fails.
 
 var _player: Player
 var _hud: HuntHud
+var _fails: Array[String] = []
+
+func _check(ok: bool, what: String) -> bool:
+	if not ok:
+		_fails.append(what)
+	return ok
 
 func _ready() -> void:
 	var kit := LabKit.build(self)
@@ -29,20 +35,22 @@ func _demo() -> void:
 	var out_before := _player.live_pets().size()
 	_player.summon_pet(1)
 	var blocked := _player.live_pets().size() == out_before
-	print("[petslab] summon blocked while down: %s" % ("yes" if blocked else "NO"))
+	print("[petslab] summon blocked while down: %s" % ("yes" if _check(blocked, "summon blocked while down") else "NO"))
 	# Save round trip preserves the remaining cooldown.
 	var copy := PetRecord.from_dict(down.to_dict())
-	print("[petslab] save round trip: %s" % ("yes" if copy.respawning() and is_equal_approx(copy.respawn_left, down.respawn_left) else "NO"))
+	var kept := copy.respawning() and is_equal_approx(copy.respawn_left, down.respawn_left)
+	print("[petslab] save round trip: %s" % ("yes" if _check(kept, "save round trip keeps the cooldown") else "NO"))
 	# Timer ticks down and releases.
 	down.tick_respawn(PetRecord.RESPAWN_TIME)
-	print("[petslab] respawning after full tick: %s" % ("yes" if down.respawning() else "no"))
+	var released := _check(not down.respawning(), "cooldown ends after RESPAWN_TIME")
+	print("[petslab] respawning after full tick: %s" % ("no" if released else "yes"))
 	# Re-arm for the visual: mid-countdown ring in the open sheet.
 	down.respawn_left = PetRecord.RESPAWN_TIME * 0.6
 	_hud._toggle_sheet(&"pets")
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var ring := _find_ring(_hud)
-	print("[petslab] ring in sheet: %s text_secs=%.0f" % ["yes" if ring != null else "NO", down.respawn_left])
+	print("[petslab] ring in sheet: %s text_secs=%.0f" % ["yes" if _check(ring != null, "ring in sheet") else "NO", down.respawn_left])
 	# Finish the countdown while the sheet is open: it rebuilds with Summon back.
 	down.respawn_left = 0.0
 	await get_tree().process_frame
@@ -53,14 +61,16 @@ func _demo() -> void:
 		for b in _hud._sheet.find_children("*", "Button", true, false):
 			if (b as Button).text.begins_with("Summon"):
 				has_summon = true
+	_check(ring2 == null and has_summon, "sheet rebuilt without ring, Summon back")
 	print("[petslab] sheet rebuilt without ring: %s summon-back: %s" % ["yes" if ring2 == null else "NO", "yes" if has_summon else "NO"])
 	# Re-arm a fresh countdown for the screenshot, then reopen.
 	down.respawn_left = PetRecord.RESPAWN_TIME * 0.6
 	_hud._refresh_sheet()
 	await get_tree().process_frame
 	await get_tree().process_frame
+	print("[petslab] %s" % ("PASS 5/5" if _fails.is_empty() else "FAIL " + "; ".join(PackedStringArray(_fails))))
 	if DisplayServer.get_name() == "headless":
-		get_tree().quit(0 if blocked and has_summon else 1)
+		get_tree().quit(0 if _fails.is_empty() else 1)
 	# headed --shot run: Game autoload takes the screenshot after its delay.
 
 func _find_ring(root: Node) -> RespawnRing:

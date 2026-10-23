@@ -1,0 +1,67 @@
+{
+ "pass": false,
+ "summary": "Round 2 review: not a pass. 4 major and 6 minor findings.\n\nChecks I ran in the package tree. Every one passed:\n- t_uiicons: `[t_uiicons] PASS ids=168 files=113 glyphs=54 code_ids=39 worst_iou=0.80 notice/save`\n- Headless lab: `[uiicons_lab] icons=113 bad=[] fallback=true`\n- run_all.gd: `[tests] PASS`\n- `tools/smoke.sh --no-import`: `SMOKE PASS`\n- build_lab: `[build] PASS`\n- island_lab: exits 0 with zero SCRIPT ERRORs, through `option gather done units=1`.\n\nI could not use the base island_lab run as a comparison: in the mmo-overhaul tree it prints unrelated SCRIPT ERRORs (`world.gd:124 'new'`, `hunt_hud.gd:965 'tile_of'`).\n\nWhat works: the set is a real improvement over the emoji. It is all white, has one solid-silhouette family and renders the same in Forward+ and gl_compatibility. The 128 px mipmapped import stays crisp from 16 to 64 px. The loader, the manifest and the test are solid.\n\nWhy it fails:\n1. Hook 5 is presented as exact but does not compile. `knife` in creature_plates is a Label, which has no `icon` property, and `unlocked` is out of scope at line 273.\n2. Several icons are still not recognisable without their labels: roll, feed, deafened, harbour, cargo and heel. Roll and feed are in the core combat cluster.\n3. Hook 3 replaces the auto hex's only label (\"Auto\") with an abstract icon and adds no caption.\n4. 60 of the 113 SVGs are machine-generated polygon dumps, not hand-written. Their generator scripts exist only in the /private/tmp scratchpad, so nobody can maintain the set after this session.\n\nCaveat on the before/after pairs: they match resolution and renderer but not the exact scene. The base tree has no icon lab, and the package changes no UI script. Until the hooks land, the real game in the package tree looks exactly like the before shots.",
+ "findings": [
+  {
+   "severity": "major",
+   "where": "docs/orchestration/reports/claude-mmo-w1-uiicons.md, Integrator hooks item 5 (creature_plates.gd:94 and :273)",
+   "problem": "The hook is presented as exact, but it does not compile. `knife` is a `Label` (`var knife := e.get(\"knife\", null) as Label`, `var knife := Label.new()`), and Label has no `icon` property, so `knife.icon = UiIcons.icon(...)` is a typed-GDScript parse error. At line 273 `unlocked` is not in scope. The hook also ignores the comment at :269-270, which warns that a TextureRect there 'produced a giant world knife'. _test_hook_ids only checks the ids, so it cannot catch this. Round 1 also found a broken hook (hook 3).",
+   "fix": "Rewrite hook 5b: either swap the Label for a fixed 16x16 TextureRect (expand_mode = EXPAND_IGNORE_SIZE, stretch_mode = KEEP_ASPECT_CENTERED, texture_filter mipmaps), setting `texture` at :94 inside the `unlocked` scope and `UiIcons.icon(&\"butcher\")` at :273; or draw the icon in a _draw. Apply each hook to a scratch copy of the UI scripts and parse it (gslot Godot --headless --check-only or a run_all pass) before calling it exact."
+  },
+  {
+   "severity": "major",
+   "where": "game/assets/icons/ui/{roll,feed,deafened,harbour,cargo,heel}.svg",
+   "problem": "The brief requires every icon to be recognisable without its label, and several still are not. I checked my own 64 px and 24 px zooms (rev2/z64_a.png, z64_b.png, zp4_r.png, z_after_iconhud_fwd_1600.png). roll reads as a handstand or desk-lamp/robot arm. feed reads as a bone in a boat or bowl. deafened is an oval bean with a slash and a J, with no ear. harbour breaks into crossed strokes over waves at 24 px or less. cargo reads as a barrel or accordion. heel is a hook arrow into an unclear claw. roll and feed sit in the main combat cluster, and round 1 already flagged both as misreads.",
+   "fix": "Redraw roll as the conventional dodge: a tucked ball-figure inside a curved motion arrow. Draw feed as a hand holding out the drumstick that `eat` already uses, or the drumstick with an arrow toward a raptor head. Draw deafened as a recognisable ear (helix C-curve) with the slash. Draw harbour as one unbroken canoe hull on a water line, without the paddle cutting the hull. Draw heel as a paw print returning to a figure. Then run a blind label-free read: show the 24 px icons without ids and record what each one reads as."
+  },
+  {
+   "severity": "major",
+   "where": "game/scripts/ui/hunt_hud.gd:306 via Integrator hook 3 (`_auto_hex.glyph = \"Auto\"` -> icon)",
+   "problem": "The auto hex has no caption; its glyph text 'Auto' is its only label (rev2/z_before_hunt_fwd_1600.png). The hook replaces that text with the claw-slashes-in-a-cycle icon and adds no caption, so on the owner's phone the auto-combat toggle becomes an unlabelled abstract ~20 px icon (rev2/zp_after_iconhud_gl_phone.png). This is a usability regression introduced by this package's wiring.",
+   "fix": "Add `_auto_hex.caption = \"AUTO\"` to hook 3 next to the icon line. While there, check every hook that replaces a word glyph (FEED already has a caption; F/V/C/S keep captions)."
+  },
+  {
+   "severity": "major",
+   "where": "game/assets/icons/ui/*.svg (60 of 113 solid icons); report 'What is left' last bullet",
+   "problem": "The brief asks for hand-written SVGs. The 60 solid icons are machine-generated polygon dumps: circles are 40-50 point polylines with 2-decimal coordinates (roll.svg, chop.svg; infected.svg is 9.4 KB). The generators (uiicons_tools/icons_*.py, geo.py, geo2.py, write.py) exist only in the session scratchpad under /private/tmp, and the report says 'the SVGs are the source of truth'. Once that scratchpad is cleared, nobody can adjust a stroke, radius or proportion without redrawing the icon from scratch. That defeats the owner's goal of iterating on the icon set.",
+   "fix": "Commit the generator sources inside the allowed directory, for example game/assets/icons/ui/_src/ with a .gdignore, plus a one-line regenerate command in the report. Or re-emit the SVGs with real primitives (<circle>, <rect rx>, short paths) so a person can edit them by hand. Optionally, have t_uiicons check that each SVG regenerates byte-identical from the sources."
+  },
+  {
+   "severity": "minor",
+   "where": "Integrator hook 3, quick-food block (hunt_hud.gd:242-248)",
+   "problem": "The hook says that comparing against `want` 'stops the per-frame reassign and redraw'. It does not: the condition still includes `h.bottom_text != str(n)` while it sets `h.bottom_text = \"\u00d7%d\" % n`, so the comparison is always true and the block reassigns and redraws every frame.",
+   "fix": "Compare `h.bottom_text != \"\u00d7%d\" % n` in the hook, and correct the explanatory sentence."
+  },
+  {
+   "severity": "minor",
+   "where": "settings, save, lock, unlock, chat, sound, mute, zoom_in/out, market, infected, tackle, skills, use .svg",
+   "problem": "About a third of the set is still stock modern pictograms with no bone, stone, hide or rope motif. Examples: a Material-style gear, the download-tray 'save' (the report calls it a carved slab, but it does not read as one), a padlock, a speech bubble, a speaker, a magnifier, balance scales, a coronavirus-style 'infected', and a plain starburst 'tackle' that is just the old \ud83d\udca5 in white. Next to the period-drawn tools (chop, mine, dig, claim, tailoring) the set reads as two families.",
+   "fix": "Keep the conventions players need (gear, x, check, magnifier) but give them material: a chipped-stone edge on the gear, a lashed-bone x, a slab outline for save, a wound with spores for infected, and two bodies colliding or a horn impact for tackle."
+  },
+  {
+   "severity": "minor",
+   "where": "chop, butcher, fire_ranged, coat, mine vs pen, cargo, construction, station_well (24-32 px)",
+   "problem": "Optical weight is uneven. The thin diagonal tool icons fill much less of the hex than the block icons (sizes_fwd_p0.png, after_sheet_fwd_1600.png), so the rail looks inconsistent at HUD size. t_uiicons checks centring but not ink coverage.",
+   "fix": "Add an ink-area or bounding-box-diagonal band to t_uiicons (for example, mean alpha coverage within \u00b135% of the set median at 24 px) and thicken or enlarge the thin tool icons to fit it."
+  },
+  {
+   "severity": "minor",
+   "where": "game/tests/t_uiicons.gd _test_hook_ids; report 'Labs to register'",
+   "problem": "A permanent test reads docs/orchestration/reports/claude-mmo-w1-uiicons.md, so editing or archiving the report breaks the test. The report also gives no integrator hook to add t_uiicons to run_all.gd or the gates, so the guarantees it encodes will not run after merge.",
+   "fix": "Move the hook ids into a const list in the test (or a small JSON beside ui_icons.json). Add a hook: register t_uiicons in run_all.gd or the gate script."
+  },
+  {
+   "severity": "minor",
+   "where": "game/scripts/dev/ui_icons_lab.gd sheet/sizes modes",
+   "problem": "The live HeldItemSlot ('HANDS') and the player model draw on top of the sheet and size-ladder pages (bottom-right hex overlaps the survival/construction rows; the player shows through the station_steamer and enraged rows), which muddies the acceptance screenshots.",
+   "fix": "Hide HeldItemSlot and the player (or put the canvas over an opaque backdrop) outside 'hud' mode."
+  },
+  {
+   "severity": "minor",
+   "where": "cauterise.svg vs bleed.svg; wet.svg vs auto.svg",
+   "problem": "cauterise (an outline drop inside a flame) reads as a drop at 24 px, right beside the solid bleed drop it is meant to cure. wet's three slashes repeat the claw-slash motif of auto.",
+   "fix": "Draw cauterise as a flame or brand over a wound line, and wet as falling drops or a drip line without slash marks."
+  }
+ ],
+ "unmet": []
+}

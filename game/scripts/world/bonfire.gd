@@ -52,6 +52,16 @@ static func from_dict(d: Dictionary) -> Bonfire:
 	b.build_rot = int(d.get("rot", 0))
 	return b
 
+func pack_up(player: Player) -> bool:
+	return BuildPlacer.pack_up_node(self, player)
+
+# ASSUMPTION: a temporary campfire is consumed as it burns, so only an unlit one repacks
+# (otherwise pack + place would reset its 120 s forever).
+func pack_up_block_reason() -> String:
+	if kind == &"campfire" and seconds_left < CAMPFIRE_SECONDS:
+		return "A lit campfire can't be repacked"
+	return ""
+
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	build_cell = cell
 	build_rot = posmod(rot, 4)
@@ -74,6 +84,21 @@ func cauterise(player: Player) -> void:
 	player.vitals.take_damage(5.0)
 	player.statuses.clear_id(&"deep_bleed")
 	print("[status] %s -deep_bleed cauterise" % player.name)
+
+## PRD :285: a bonfire clears Wet. The HUD's Dry off hex calls this; a fire out of reach does nothing.
+const DRY_OFF_REACH := 3.2
+
+func dry_off(player: Player) -> bool:
+	if player == null or not is_instance_valid(player) or player.statuses == null:
+		return false
+	if player.global_position.distance_to(global_position) > DRY_OFF_REACH:
+		return false
+	if not player.statuses.has(&"wet"):
+		return false
+	player.statuses.clear_id(&"wet")
+	player.notice("Dry off: warmed by the fire")
+	print("[status] %s -wet bonfire" % player.name)
+	return true
 
 func _setup_fire_light() -> void:
 	_fire_light = OmniLight3D.new()

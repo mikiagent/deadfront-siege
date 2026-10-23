@@ -17,7 +17,7 @@ func run(host: Node) -> void:
 	World.home_terrain = &"meadow"
 	World.load_island(host, &"home_grassland", Vector3(0, 1, 18), false)
 	await get_tree().create_timer(0.3).timeout
-	player = get_tree().get_first_node_in_group("player") as Player
+	player = PlayerRegistry.local()
 	for creature in get_tree().get_nodes_in_group("creatures"): creature.queue_free()
 	player.inventory = Inventory.new(20)
 	for pair in [[&"weapon", &"raid_maul"], [&"head", &"raid_helm"], [&"body", &"raid_cuirass"], [&"legs", &"raid_greaves"]]:
@@ -44,7 +44,7 @@ func run(host: Node) -> void:
 	sp.position = player.global_position + Vector3(1.8, 0, 0)
 	World.runtime.add_child(sp)
 	boss = sp.spawn_now()[0]
-	boss.genetics = CreatureGenetics.from_dict({})
+	boss.genetics = CreatureGenetics.neutral()
 	boss.health.setup(boss.def.hp)
 	print("[raidfight] fixture neutral genetics/catalogue stats")
 	player.hunt.start(boss)

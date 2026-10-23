@@ -1,0 +1,442 @@
+diff --git a/game/assets/icons/ui/_src/build.py b/game/assets/icons/ui/_src/build.py
+index 8f8bc0e3..016131cd 100644
+--- a/game/assets/icons/ui/_src/build.py
++++ b/game/assets/icons/ui/_src/build.py
+@@ -6,7 +6,7 @@
+ Each icons_*.py module fills a dict I of id -> {"l": [line elements], "s": [solid elements]} with
+ coordinates placed by hand on the 64 grid; geo.py and geo2.py only spell out the path syntax
+ (capsules, arcs, bands, knockout cuts). icons_a..f are the first pass (5-unit lines plus solids,
+-nudged by offsets.py); icons_g, icons_h and icons_i are solid drawings centred optically by geo2.place.
++nudged by offsets.py); icons_g, icons_h, icons_i and icons_j are solid drawings centred optically by geo2.place.
+ Every id is drawn in exactly one module. To change an icon, edit its module and run build.py.
+ """
+ import os
+@@ -18,8 +18,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
+ OUT = os.path.dirname(HERE)
+ sys.path.insert(0, HERE)
+ from geo import f  # noqa: E402
+-MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h", "icons_i"]
+-SOLID = {"icons_g", "icons_h", "icons_i"}
++MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h", "icons_i", "icons_j"]
++SOLID = {"icons_g", "icons_h", "icons_i", "icons_j"}
+ HEAD = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">\n'
+ NOTE_LINE = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->\n'
+ NOTE_SOLID = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, solid shapes, white only. -->\n'
+diff --git a/game/data/statuses.json b/game/data/statuses.json
+index ffe5c7ce..065a56df 100644
+--- a/game/data/statuses.json
++++ b/game/data/statuses.json
+@@ -295,6 +295,92 @@
+       "weakness_rank": 2,
+       "cleared_by": [],
+       "fx": "none"
++    },
++    {
++      "id": "dirty",
++      "display_name": "Dirty",
++      "dps": 0.0,
++      "duration": 9999.0,
++      "max_stacks": 1,
++      "flags": [],
++      "move_mult": 1.0,
++      "defense_mult": 1.0,
++      "accuracy_mult": 1.0,
++      "fatigue_mult": 1.2,
++      "weakness_rank": 2,
++      "cleared_by": [
++        "wash"
++      ],
++      "fx": "none",
++      "_note": "PRD 6.4 / research bestiary 4.2: until washed, fatigue gain +20%. What makes you dirty is an ASSUMPTION (data/water.json dirt)."
++    },
++    {
++      "id": "very_dirty",
++      "display_name": "Very Dirty",
++      "dps": 0.0,
++      "duration": 9999.0,
++      "max_stacks": 1,
++      "flags": [],
++      "move_mult": 1.0,
++      "defense_mult": 1.0,
++      "accuracy_mult": 1.0,
++      "fatigue_mult": 1.5,
++      "weakness_rank": 3,
++      "cleared_by": [
++        "wash"
++      ],
++      "fx": "none",
++      "_note": "PRD 6.4 / research bestiary 4.2: until washed, fatigue gain +50%."
++    },
++    {
++      "id": "thirsty",
++      "display_name": "Thirsty",
++      "dps": 0.0,
++      "duration": 9999.0,
++      "max_stacks": 1,
++      "flags": [],
++      "move_mult": 1.0,
++      "defense_mult": 1.0,
++      "accuracy_mult": 1.0,
++      "fatigue_mult": 1.2,
++      "weakness_rank": 2,
++      "cleared_by": [
++        "drink"
++      ],
++      "fx": "none",
++      "_note": "PRD 6.3; research bestiary 4.2: until fresh water, fatigue gain +20%. Nothing applies it yet: wading in the sea gives Wet (PRD :284), and the research ties seawater thirst to drinking it, which the game has no verb for. Drink clears it."
++    },
++    {
++      "id": "quenched",
++      "display_name": "Quenched",
++      "dps": 0.0,
++      "duration": 360.0,
++      "max_stacks": 1,
++      "flags": [],
++      "move_mult": 1.0,
++      "defense_mult": 1.0,
++      "accuracy_mult": 1.0,
++      "heat_fatigue_mult": 0.8,
++      "weakness_rank": 1,
++      "cleared_by": [],
++      "fx": "none",
++      "_note": "PRD 6.3, :314: drinking fresh water cuts heat fatigue. ASSUMPTION: heat fatigue -20% (Wet's documented heat cut) for 6 min (Clean's length); the PRD gives no numbers."
++    },
++    {
++      "id": "clean",
++      "display_name": "Clean",
++      "dps": 0.0,
++      "duration": 360.0,
++      "max_stacks": 1,
++      "flags": [],
++      "move_mult": 1.0,
++      "defense_mult": 1.0,
++      "accuracy_mult": 1.0,
++      "fatigue_mult": 0.8,
++      "weakness_rank": 1,
++      "cleared_by": [],
++      "fx": "none",
++      "_note": "PRD 6.4 Cleanliness (washed): 6 min, fatigue gain -20%."
+     }
+   ]
+ }
+diff --git a/game/data/ui_icons.json b/game/data/ui_icons.json
+index 018431f9..3171cf7e 100644
+--- a/game/data/ui_icons.json
++++ b/game/data/ui_icons.json
+@@ -36,6 +36,7 @@
+ 		"snare": "res://assets/icons/ui/snare.svg",
+ 		"drink": "res://assets/icons/ui/drink.svg",
+ 		"wash": "res://assets/icons/ui/wash.svg",
++		"fill": "res://assets/icons/ui/station_well.svg",
+ 		"sleep": "res://assets/icons/ui/sleep.svg",
+ 		"sleeping": "res://assets/icons/ui/sleep.svg",
+ 		"cook": "res://assets/icons/ui/cook.svg",
+@@ -148,6 +149,11 @@
+ 		"full": "res://assets/icons/ui/full.svg",
+ 		"stomachache": "res://assets/icons/ui/stomachache.svg",
+ 		"tastes_bad": "res://assets/icons/ui/tastes_bad.svg",
++		"dirty": "res://assets/icons/ui/dirty.svg",
++		"very_dirty": "res://assets/icons/ui/dirty.svg",
++		"thirsty": "res://assets/icons/ui/thirsty.svg",
++		"quenched": "res://assets/icons/ui/drink.svg",
++		"clean": "res://assets/icons/ui/wash.svg",
+ 		"survival": "res://assets/icons/ui/survival.svg",
+ 		"gathering": "res://assets/icons/ui/gathering.svg",
+ 		"butchering": "res://assets/icons/ui/butcher.svg",
+diff --git a/game/scripts/combat/status_effects.gd b/game/scripts/combat/status_effects.gd
+index 685f0c26..8dbe4761 100644
+--- a/game/scripts/combat/status_effects.gd
++++ b/game/scripts/combat/status_effects.gd
+@@ -161,6 +161,21 @@ func evasion_add() -> float:
+ 			e += def.evasion_add
+ 	return e
+ 
++## Fatigue gain multipliers of the active statuses (Dirty, Clean, Thirsty; Quenched for heat).
++func fatigue_mult() -> float:
++	return _product(&"fatigue_mult")
++
++func heat_fatigue_mult() -> float:
++	return _product(&"heat_fatigue_mult")
++
++func _product(field: StringName) -> float:
++	var m := 1.0
++	for inst in _active:
++		var def := Data.status(inst.id)
++		if def:
++			m *= float(def.get(field))
++	return m
++
+ func blocks_regen() -> bool:
+ 	return has_flag(&"blocks_regen")
+ 
+diff --git a/game/scripts/player/player.gd b/game/scripts/player/player.gd
+index 70ddf6cb..27e000c5 100644
+--- a/game/scripts/player/player.gd
++++ b/game/scripts/player/player.gd
+@@ -47,6 +47,7 @@ var mounted_on: Creature
+ ## Saddled mounts (mount.json): the rig follows the saddle bone while this is set.
+ var _saddle_view: CreatureView
+ var rolling: bool = false
++## Feet under the water plane (river or sea); PlayerSim sets it every physics frame (WaterAccess).
+ var in_water: bool = false
+ ## The climate of the island the survivor is on, set by the island each frame. The fatigue panel reads it.
+ var current_climate: String = ""
+@@ -337,6 +338,7 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
+ 	if skills:
+ 		skills.add_xp("defense", 1)
+ 	vitals.add_fatigue(2.0, &"combat")
++	WaterAccess.soil(self, &"hit")
+ 	_flinch()
+ 	sim.on_hit()
+ 
+@@ -453,4 +455,5 @@ func tick_climate_fatigue(delta: float, climate: String) -> void:
+ 	var group := "heat" if Game.phase_name() == &"day" else "cold"
+ 	var points := float(short[group])
+ 	if points > 0.0:
+-		vitals.add_fatigue(delta * points * (per_min / 60.0), StringName("climate_" + group))
++		var mult := statuses.heat_fatigue_mult() if group == "heat" else 1.0  # Quenched (PRD :314)
++		vitals.add_fatigue(delta * points * (per_min / 60.0) * mult, StringName("climate_" + group))
+diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
+index 3bfbb398..b2f961bc 100644
+--- a/game/scripts/player/player_actions.gd
++++ b/game/scripts/player/player_actions.gd
+@@ -1,7 +1,7 @@
+ class_name PlayerActions
+ extends RefCounted
+ ## The survivor's command layer: every verb that changes the bag, gear, the world or a creature
+-## (gather, loot, craft, place, equip, eat, tame, attack) goes through here. Offline each verb
++## (gather, loot, craft, place, equip, eat, tame, attack, drink, wash) goes through here. Offline each verb
+ ## applies locally exactly as before. Online (W3-SRVACT) the same call becomes an `act.<verb>`
+ ## intent for the server (contracts.md section 0.3) and nothing changes locally until the
+ ## server's delta arrives. To add a verb (W2-ACTION: swing, dodge, block, aim): add one method
+@@ -186,6 +186,7 @@ func finish_gather() -> void:
+ 		World.add_xp(2)
+ 	p.toast(stack.def_id, gained)
+ 	p.vitals.add_fatigue(GATHER_FATIGUE_PER_UNIT, &"gather")
++	WaterAccess.soil(p, &"gather")
+ 	if gt.pool_units_left() <= 0:
+ 		stop_gather_cycle()
+ 		p.gather_target = null
+@@ -404,9 +405,28 @@ func loot(corpse: Corpse, slot: int) -> int:
+ 		p.skills.add_xp("butchering", 3)
+ 	else:
+ 		World.add_xp(3)
++	WaterAccess.soil(p, &"butcher")
+ 	p.toast(def_id, moved)
+ 	return moved
+ 
++# ---------------------------------------------------------------- water (spec 17)
++
++## Drink, wash, or fill an empty bucket at fresh water (PRD :105, :314). The rules are WaterAccess's.
++func drink() -> bool:
++	if online:
++		return _send(&"drink", {})
++	return WaterAccess.drink(p)
++
++func wash() -> bool:
++	if online:
++		return _send(&"wash", {})
++	return WaterAccess.wash(p)
++
++func fill_water() -> bool:
++	if online:
++		return _send(&"fill", {})
++	return WaterAccess.fill(p)
++
+ # ---------------------------------------------------------------- craft, eat, equip, place
+ 
+ func craft(rid: StringName, count: int = 1) -> bool:
+diff --git a/game/scripts/player/player_input.gd b/game/scripts/player/player_input.gd
+index 53380b23..e550c697 100644
+--- a/game/scripts/player/player_input.gd
++++ b/game/scripts/player/player_input.gd
+@@ -465,12 +465,11 @@ func context_actions() -> Array:
+ 	for snare in [&"rope_snare", &"heavy_snare"]:
+ 		if inv.count_of(snare) > 0:
+ 			out.append({"id": str(snare), "glyph": "S", "label": "Heavy snare" if snare == &"heavy_snare" else "Rope snare"})
+-	var near_water := p.in_water
+-	if not near_water and World.runtime and World.runtime.has_method("surface_y"):
+-		near_water = World.runtime.surface_y(p.global_position.x, p.global_position.z) < 0.15
+-	if near_water:
++	if WaterAccess.near_fresh(p.global_position):
+ 		out.append({"id": "drink", "glyph": "💧", "label": "Drink"})
+ 		out.append({"id": "wash", "glyph": "🫧", "label": "Wash"})
++		if inv.count_of(&"empty_bucket") > 0:
++			out.append({"id": "fill", "label": "Fill"})
+ 	var sleep_spot := p.sim.nearest_sleep_spot()
+ 	if sleep_spot:
+ 		var left := int(sleep_spot.get("sleeps_left"))
+@@ -506,14 +505,13 @@ func context_action(id: String) -> void:
+ 		"dismount":
+ 			p.dismount()
+ 		"drink":
+-			# Water remains a small stamina pickup; there is no thirst meter.
+-			p.vitals.energy = minf(p.vitals.max_energy, p.vitals.energy + 5.0)
+-			print("[item] drink energy=%.0f" % p.vitals.energy)
++			p.actions.drink()
++		"fill":
++			p.actions.fill_water()
+ 		"sleep":
+ 			p.sim.start_sleep()
+ 		"wash":
+-			p.vitals.rest(2.0)
+-			print("[item] wash fatigue=%.0f" % p.vitals.fatigue)
++			p.actions.wash()
+ 		"cook":
+ 			var fire := p._nearest_group("bonfire")
+ 			if fire:
+diff --git a/game/scripts/player/player_sim.gd b/game/scripts/player/player_sim.gd
+index 1595640d..cc94d94e 100644
+--- a/game/scripts/player/player_sim.gd
++++ b/game/scripts/player/player_sim.gd
+@@ -55,6 +55,10 @@ func tick_survival_xp(delta: float) -> void:
+ 
+ func tick(delta: float) -> void:
+ 	var anim := p.anim
++	if p.statuses != null and p.vitals != null:
++		# Before any branch returns, so mounted, rolling and staggered survivors see current statuses.
++		p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult()
++	p.in_water = WaterAccess.in_water(p.global_position)
+ 	if p._sleep_left > 0.0 and p.statuses != null and p.vitals != null:
+ 		_tick_sleep(delta)
+ 		return
+@@ -142,7 +146,6 @@ func _walk(delta: float) -> void:
+ 		# ASSUMPTION: walking 0.05/s, tap-running 0.09/s, sprint 0.2/s (was 0.25-0.8/s, which
+ 		# filled the bar in a few minutes and then blocked gathering).
+ 		p.vitals.add_fatigue(delta * (0.2 if can_sprint else (0.09 if running else 0.05)), &"walk")
+-	p.vitals.fatigue_gain_mult = 0.5 if _in_coziness() else 1.0
+ 	if p.in_water:
+ 		_wet_acc += delta
+ 		var need := float(Data.world_rules.get("wet_after_seconds_in_water", 5))
+diff --git a/game/scripts/status/status_def.gd b/game/scripts/status/status_def.gd
+index c22123f8..b6ca1cb2 100644
+--- a/game/scripts/status/status_def.gd
++++ b/game/scripts/status/status_def.gd
+@@ -14,6 +14,9 @@ extends Resource
+ @export var attack_mult: float = 1.0
+ @export var max_health_mult: float = 1.0
+ @export var fatigue_per_min: float = 0.0
++## Multiplies every fatigue gain while active (PRD 6.4: Dirty 1.2, Clean 0.8); heat_ only heat fatigue.
++@export var fatigue_mult: float = 1.0
++@export var heat_fatigue_mult: float = 1.0
+ @export var evasion_add: float = 0.0
+ @export var weakness_rank: int = 1
+ @export var cleared_by: Array[StringName] = []
+@@ -36,6 +39,8 @@ static func from_dict(d: Dictionary) -> StatusDef:
+ 	s.attack_mult = float(d.get("attack_mult", 1.0))
+ 	s.max_health_mult = float(d.get("max_health_mult", 1.0))
+ 	s.fatigue_per_min = float(d.get("fatigue_per_min", 0.0))
++	s.fatigue_mult = float(d.get("fatigue_mult", 1.0))
++	s.heat_fatigue_mult = float(d.get("heat_fatigue_mult", 1.0))
+ 	s.evasion_add = float(d.get("evasion_add", 0.0))
+ 	s.weakness_rank = int(d.get("weakness_rank", 1))
+ 	s.cleared_by = ItemDef._names(d.get("cleared_by", []))
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index 80b01e5b..1748db87 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -1024,7 +1024,8 @@ func _draw() -> void:
+ 		var sx0 := sx
+ 		for inst in player.statuses.instances():
+ 			HudStatusChip.draw(self, _font, Vector2(sx, sy), inst.id, Color(1, 0.75, 0.45))
+-			draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
++			if inst.time_left < 3600.0:  # "until washed / treated" statuses (9999 s) show no countdown
++				draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
+ 			sx += 30
+ 		if sx > sx0:
+ 			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
+diff --git a/game/scripts/world/island_runtime.gd b/game/scripts/world/island_runtime.gd
+index 55ec6a4c..8d7d3c21 100644
+--- a/game/scripts/world/island_runtime.gd
++++ b/game/scripts/world/island_runtime.gd
+@@ -20,7 +20,6 @@ var raining: bool:
+ var _size: float = 240.0
+ var _res: int = 65
+ var _heights: PackedFloat32Array = PackedFloat32Array()
+-var _wet_area: Area3D
+ var _climate: String = "temperate"
+ var _tier: int = 25
+ var _level_override: int = 0
+@@ -32,6 +31,8 @@ var _crater_hint: Vector3 = Vector3.ZERO
+ var _ridge_dir: Vector2 = Vector2.RIGHT
+ var _tile_span: int = 0
+ var tile_types: PackedByteArray = PackedByteArray()
++## 1 on the river's MUD tiles as built; IslandTerrain.fresh_water_at_world reads it, harvesting never changes it.
++var fresh_water: PackedByteArray = PackedByteArray()
+ var _tile_map_image: Image
+ var _tile_map_tex: ImageTexture
+ var _terrain_mat: ShaderMaterial
+@@ -100,7 +101,6 @@ func build(def: Dictionary, terrain: StringName) -> void:
+ 	sun = lighting.sun
+ 	world_env = lighting.world_env
+ 	IslandTerrain.build(self, size, _climate)
+-	_river_trigger()
+ 	IslandTerrain.bake_nav(self)
+ 	build_grid = BuildGrid.new()
+ 	build_grid.name = "BuildGrid"
+@@ -190,26 +190,6 @@ func material_level(pos: Vector3, tier: int) -> int:
+ 	var off := int(row.get("level_offset", 0))
+ 	return clampi(tier + off, 1, int(Data.world_rules.get("level_cap", 60)))
+ 
+-func _river_trigger() -> void:
+-	_wet_area = Area3D.new()
+-	_wet_area.name = "Wet"
+-	_wet_area.monitoring = true
+-	var cs := CollisionShape3D.new()
+-	var box := BoxShape3D.new()
+-	box.size = Vector3(_size, 2.0, 10.0)
+-	cs.shape = box
+-	cs.position.y = -0.2
+-	_wet_area.add_child(cs)
+-	_wet_area.body_entered.connect(func (b: Node) -> void:
+-		if b is Player:
+-			(b as Player).in_water = true
+-	)
+-	_wet_area.body_exited.connect(func (b: Node) -> void:
+-		if b is Player:
+-			(b as Player).in_water = false
+-	)
+-	add_child(_wet_area)
+-
+ func _setup_pathing() -> void:
+ 	if pathing and is_instance_valid(pathing):
+ 		pathing.queue_free()
+diff --git a/game/scripts/world/island_terrain.gd b/game/scripts/world/island_terrain.gd
+index 3ad34103..4bb1e09d 100644
+--- a/game/scripts/world/island_terrain.gd
++++ b/game/scripts/world/island_terrain.gd
+@@ -313,6 +313,8 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
+ 	rt._tile_span = maxi(1, int(round(rt._size)))
+ 	var types := PackedByteArray()
+ 	types.resize(rt._tile_span * rt._tile_span)
++	var fresh := PackedByteArray()
++	fresh.resize(types.size())
+ 	rt._tile_map_image = Image.create(rt._tile_span, rt._tile_span, false, Image.FORMAT_R8)
+ 	rt._tile_map_image.fill(Color.BLACK)
+ 	var has_ash := _climate_has_material(climate, "ash")
+@@ -347,8 +349,10 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
+ 				t = TileType.DIRT
+ 			var idx := x + z * rt._tile_span
+ 			types[idx] = t
++			fresh[idx] = 1 if t == TileType.MUD else 0
+ 			rt._tile_map_image.set_pixel(x, z, Color(float(t) / 255.0, 0.0, 0.0))
+ 	rt.tile_types = types
++	rt.fresh_water = fresh
+ 	rt._tile_map_tex = ImageTexture.create_from_image(rt._tile_map_image)
+ 
+ static func _terrain_material(rt: IslandRuntime) -> ShaderMaterial:
+@@ -407,6 +411,14 @@ static func tile_type_at_world(rt: IslandRuntime, x: float, z: float) -> int:
+ 	var tz := clampi(int(floor(z + rt._size * 0.5)), 0, rt._tile_span - 1)
+ 	return int(rt.tile_types[tile_idx(rt, tx, tz)])
+ 
++## River water as built (WaterAccess): a harvested node's BARE tile in the channel stays fresh.
++static func fresh_water_at_world(rt: IslandRuntime, x: float, z: float) -> bool:
++	if rt.fresh_water.is_empty():
++		return false
++	var tx := clampi(int(floor(x + rt._size * 0.5)), 0, rt._tile_span - 1)
++	var tz := clampi(int(floor(z + rt._size * 0.5)), 0, rt._tile_span - 1)
++	return rt.fresh_water[tile_idx(rt, tx, tz)] == 1
++
+ static func set_tile_type(rt: IslandRuntime, tile: Vector2i, tile_type: int) -> void:
+ 	if rt.tile_types.is_empty():
+ 		return

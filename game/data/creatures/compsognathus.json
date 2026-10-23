@@ -35,6 +35,40 @@
     "compsognathus_tropical",
     "compsognathus_desert"
   ],
+  "coloration": {
+    "hue_deg": 16,
+    "sat": 0.2,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "pale"
+    ],
+    "patterns": [
+      {
+        "id": "stripes",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.3
+      },
+      {
+        "id": "spots",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.48
+      },
+      {
+        "id": "countershade",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
+  },
   "pipeline": {
     "route": "skeleton_transplant_v3",
     "forward_axis": "+Z",
@@ -117,5 +151,26 @@
     "window_seconds": 45,
     "requires_pen": false
   },
-  "balance_note": "Attack 18 -> 7 on 2026-09-22: a bot playthrough showed four of them killing an unarmed level-0 survivor in ~3 s on the starting island and cancelling every gather. A swarm is still dangerous bare-handed, but survivable."
+  "balance_note": "Attack 18 -> 7 on 2026-09-22: a bot playthrough showed four of them killing an unarmed level-0 survivor in ~3 s on the starting island and cancelling every gather. A swarm is still dangerous bare-handed, but survivable.",
+  "eyes": {
+    "bone": "Head",
+    "points": [
+      [
+        0.1083,
+        0.0327,
+        0.1276
+      ],
+      [
+        0.0491,
+        0.0325,
+        0.1601
+      ]
+    ],
+    "radius": 0.03,
+    "color": [
+      1.0,
+      0.15,
+      0.1
+    ]
+  }
 }

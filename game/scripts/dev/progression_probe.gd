@@ -24,7 +24,7 @@ func run(host: Node) -> void:
 	World.objective = 0
 	World.load_island(host, &"home_grassland", Vector3(0, 1, 18), false)
 	await get_tree().create_timer(0.5).timeout
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	var ui: CanvasLayer = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure()
 	World.t_stones = 100
 	player.skills.trees["survival"]["level"] = 0
@@ -82,7 +82,8 @@ func run(host: Node) -> void:
 	check(Objectives.current(player)["done"], "final standing order reads victory")
 	World.island_id = &"home_grassland"
 	World._save_now()
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(World.SAVE_PATH))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(SaveGame.path))  # probes save under user://runs/
+	var data: Dictionary = parsed if parsed is Dictionary else {}
 	check(bool(data.get("raid_victory", false)) and data.get("visited_islands", {}).size() == 15, "save includes victory and all voyages")
 	World.raid_victory = false
 	World.visited_islands.clear()

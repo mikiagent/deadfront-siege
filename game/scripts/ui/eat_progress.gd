@@ -64,6 +64,4 @@ func _draw() -> void:
 	if _icon:
 		draw_texture_rect(_icon, Rect2(c - Vector2(22, 22), Vector2(44, 44)), false)
 	else:
-		var font := ThemeDB.fallback_font
-		if font:
-			draw_string(font, c + Vector2(0, 5), "Eat", HORIZONTAL_ALIGNMENT_CENTER, 60.0, 14, Color(0.95, 0.95, 0.9))
+		UiTokens.draw_centered(self, ThemeDB.fallback_font, c, "Eat", 14, Color(0.95, 0.95, 0.9))

@@ -1,0 +1,7 @@
+{
+  "id": "tropical_40",
+  "harbour": [-181.5, 0, -22.5],
+  "_harbour_note": "Dock arrival point on the coast; the rest of this island is world/islands.json. See home_grassland.json.",
+  "seed": 4013,
+  "size_m": 416
+}

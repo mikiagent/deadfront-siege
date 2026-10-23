@@ -4,6 +4,7 @@ game/export/
 /export/
 *.blend1
 tools/__pycache__/
+tools/blender/biome_props/__pycache__/
 
 tools/blob.env
 game/export/packs/
@@ -16,3 +17,8 @@ game/assets/**/work/
 
 # Local dependencies for the production web soak harness.
 tools/web_soak/node_modules/
+.dsc/
+.dsc.json
+.dsc-plan/
+.dsc-task/
+.dsc.local.json

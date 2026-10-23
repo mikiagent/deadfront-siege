@@ -30,6 +30,66 @@
     "velociraptor_crested",
     "velociraptor_juvenile"
   ],
+  "coloration": {
+    "hue_deg": 14,
+    "sat": 0.18,
+    "val": 0.12,
+    "morphs": [
+      {
+        "id": "dark",
+        "weight": 1.0,
+        "hue_deg": 8,
+        "sat": 0.1,
+        "val": [
+          -0.22,
+          -0.1
+        ]
+      },
+      {
+        "id": "pale",
+        "weight": 1.0,
+        "hue_deg": 8,
+        "sat": [
+          -0.22,
+          -0.08
+        ],
+        "val": [
+          0.08,
+          0.18
+        ]
+      }
+    ],
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "pale",
+      "rufous"
+    ],
+    "patterns": [
+      {
+        "id": "stripes",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.3
+      },
+      {
+        "id": "spots",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.48
+      },
+      {
+        "id": "countershade",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
+  },
   "prompt": "Velociraptor, 2 meter dromaeosaur dinosaur the size of a large turkey, slender lightweight build, long low snout with small serrated teeth, large eyes, S-curved neck, arms folded like wings with long clawed fingers and palms facing inward, single curved sickle claw on second toe of each foot, long stiff tail held straight out for balance, fully feathered body with pennaceous wing feathers on the forearms and a fan of feathers at the tail tip, bare scaly feet, sandy tan with dark brown stripes and a rufous head crest, alert crouched posture with spine horizontal, stylized realism, game-ready low-poly creature, clean topology, neutral stance facing forward, no base, no scenery",
   "texture_prompt": "sandy tan feathers with dark brown barred stripes, rufous red head and crest, cream throat, bare yellow-grey scaly feet, black claws, matte surface",
   "clips": {
@@ -150,5 +210,26 @@
     "feeds_needed": 3,
     "window_seconds": 45,
     "requires_pen": false
+  },
+  "eyes": {
+    "bone": "Head",
+    "points": [
+      [
+        0.0964,
+        -0.0181,
+        0.094
+      ],
+      [
+        0.0269,
+        -0.0182,
+        0.132
+      ]
+    ],
+    "radius": 0.012,
+    "color": [
+      0.75,
+      1.0,
+      0.2
+    ]
   }
 }

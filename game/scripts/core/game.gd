@@ -29,6 +29,9 @@ var shot_delay_override: float = -1.0  # --shot-delay=SECONDS
 var pointer: Vector2 = Vector2.ZERO
 var creature_ui: CanvasLayer
 
+## Labs that take their own --shot (they run a frame sequence first): card_bake, card2d_lab.
+const SELF_SHOT_LABS := ["card_bake", "card2d_lab"]
+
 var _last_phase: StringName = &""
 var _perf: Label
 var _bg_unix: int = 0
@@ -62,7 +65,7 @@ func _ready() -> void:
 	_make_perf()
 	if smoke_test:
 		get_tree().create_timer(2.0).timeout.connect(_finish_smoke)
-	elif shot_path != "":
+	elif shot_path != "" and not (lab_name in SELF_SHOT_LABS):
 		# hunt_lab needs a beat after alert→damage so plates show a white chunk.
 		var shot_delay := 3.2 if lab_name == "hunt_lab" else (2.8 if lab_name == "capture_lab" else 2.6)
 		if shot_delay_override > 0.0:
@@ -109,7 +112,7 @@ func _make_perf() -> void:
 
 func _ready_controller_notice() -> void:
 	Input.joy_connection_changed.connect(func (device: int, connected: bool) -> void:
-		var player := get_tree().get_first_node_in_group("player") as Player
+		var player := _local_player()
 		var pad := Input.get_joy_name(device)
 		print("[input] controller %s: %s" % ["connected" if connected else "disconnected", pad])
 		if player and player.has_method("notice"):
@@ -193,7 +196,7 @@ func _take_shot() -> void:
 	get_tree().quit(0)
 
 func _finish_smoke() -> void:
-	var player := get_tree().get_first_node_in_group("player") as Node3D
+	var player := PlayerRegistry.local()
 	var ok := player != null and player.global_position.y > -1.0
 	print("[smoke] %s player_pos=%s phase=%s" % ["ok" if ok else "FAIL", player.global_position if player else "none", phase_name()])
 	get_tree().quit(0 if ok else 1)
@@ -215,3 +218,8 @@ func reveal_creature_plate(creature: Creature, seconds: float = 3.0) -> void:
 	ensure_creature_plates()
 	if creature_ui and creature_ui.has_method("reveal_creature"):
 		creature_ui.reveal_creature(creature, seconds)
+
+func _local_player() -> Player:
+	# Indirection: Godot 4.7.1 Mono crashes while tearing down the engine at headless exit when this
+	# lambda captures its player straight from a static call (see W2-PLAYER report); behaviour is identical.
+	return PlayerRegistry.local()

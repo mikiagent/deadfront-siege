@@ -58,9 +58,17 @@ func show_stack(stack: ItemStack, index: int, can_feed: bool = false) -> void:
 	_eat_btn.disabled = Food.can_eat(_player_from_tree(), stack) != ""
 	_feed_btn.visible = can_feed
 	visible = true
-	# Centre-ish for phone one-hand reach.
+	# Centre-ish for phone one-hand reach, and always fully on screen: on a 844x390 canvas the card
+	# used to run past the bottom edge, so Close (the way out) was half off-screen.
 	var vp := get_viewport_rect().size
-	position = Vector2(maxi(16, int(vp.x * 0.5 - 160)), maxi(80, int(vp.y * 0.25)))
+	var short := vp.y < 520.0
+	custom_minimum_size.y = minf(260.0, vp.y - 24.0)
+	_body.custom_minimum_size.y = 60.0 if short else 100.0
+	reset_size()
+	var h := maxf(size.y, get_combined_minimum_size().y)
+	position = Vector2(
+		maxi(16, int(vp.x * 0.5 - 160)),
+		int(clampf(vp.y * 0.25, 12.0, maxf(12.0, vp.y - 12.0 - h))))
 
 func hide_panel() -> void:
 	visible = false
@@ -68,4 +76,4 @@ func hide_panel() -> void:
 	closed.emit()
 
 func _player_from_tree() -> Player:
-	return get_tree().get_first_node_in_group("player") as Player
+	return PlayerRegistry.local()
