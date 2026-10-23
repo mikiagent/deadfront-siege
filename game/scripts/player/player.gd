@@ -173,8 +173,8 @@ func camera_interest() -> Node3D:
 		return tame_target
 	if gather_target and is_instance_valid(gather_target):
 		return gather_target
-	if _gather_radial and _gather_radial.has_method("active_node"):
-		var radial_target: Variant = _gather_radial.active_node()
+	if _gather_radial:
+		var radial_target: Variant = _gather_radial.focus_node()
 		if radial_target is Node3D and is_instance_valid(radial_target):
 			return radial_target as Node3D
 	return null

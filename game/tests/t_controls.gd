@@ -89,14 +89,18 @@ func _run() -> void:
 func _target_focus_case() -> void:
 	var resource = load("res://scripts/world/harvest_node.gd").new()
 	resource.name = "SelectedResource"
+	resource.setup(&"selected_resource", &"branch", 1, 1, {}, &"none", Color.WHITE, 0.2, 60.0, "BranchPile", false, 2)
 	host.add_child(resource)
 	player.global_position = Vector3.ZERO
 	resource.global_position = Vector3(10.0, 0.0, 0.0)
-	player.gather_target = resource
+	player.controls.interact_tap_target(resource)
+	_expect(player._gather_radial != null and player._gather_radial.is_open(),
+		"clicking a resource opens its gather radial")
 	cam._snap()
 	var resource_shift: Vector3 = cam.focus_point() - player.global_position
 	_expect(resource_shift.x > 0.5 and resource_shift.x < 10.0,
-		"selected resource shifts camera toward it without centring it (%.2f m)" % resource_shift.x)
+		"clicking a resource shifts the camera toward it without centring it (%.2f m)" % resource_shift.x)
+	player._gather_radial.close()
 	player.gather_target = null
 
 	var creature = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
