@@ -24,6 +24,8 @@
 
 These three families are **counter identities**, not literally an automatically cyclic rock-paper-scissors 3×3 formula. To form interesting decisions, the attack must trade **damage/recovery, stamina/energy, reach, area coverage, status, accuracy and counterplay**. Resistances and armor must not erase the player's equipment-level gate or differences in skill/IV.
 
+**Armor and anatomy clarification:** [06 Equipment and Armor](06-inventory-equipment-and-storage.md) proposes **Light / Medium / Heavy worn protective gear** separately from a species' **natural** exposed/mobile/plated body profile and independently of **DI/DP/DS/MI/MP/MS offense**. A mobile raptor may be *analogous to* Light armor but does not literally have a crafted Light equip piece; an Ankylosaurus has innate plates and might later also wear compatible barding with costs. Heavy armor is **relatively** vulnerable to Impact via shock/guard, yet retains better baseline protection than being unarmored. The new armor weight system is still owner-reviewable and **not implemented**.
+
 ## 2. Offensive framework: inherited aptitude × contact verb
 
 | Intrinsic inherited IV | Impact (I) | Pierce (P) | Slash (S) |
