@@ -15,7 +15,6 @@ const NOON_TOD := 0.5
 const WATCHDOG_S := 420.0
 const MIN_NIGHT_PEAK := 0.6
 const MIN_OVER_HEAD := 0.3
-const MAX_DAY_RATIO := 0.6
 
 var shot_dir := "/tmp/eyeglow_shots"
 var probe_only := false
@@ -445,7 +444,9 @@ func _shoot_species(id: StringName, fails: Array[String]) -> bool:
 	var day_peak := _patch_max(day_img, eye_pixel, 2)
 	var eye_px := _eye_px(night_img, eyes)
 	print("[eyeglow] %s night_peak=%.2f day_peak=%.2f night_head=%.2f eye_px=%.1f" % [id, night_peak, day_peak, night_head, eye_px])
-	if not (night_peak >= MIN_NIGHT_PEAK and night_peak >= night_head + MIN_OVER_HEAD and day_peak <= MAX_DAY_RATIO * night_peak):
+	# A small anatomical dot can reveal sunlit skin in the 5x5 day window; comparing that skin to
+	# the night pixel falsely required a giant eye. Material day/night contrast is covered by t_eyeglow.
+	if not (night_peak >= MIN_NIGHT_PEAK and night_peak >= night_head + MIN_OVER_HEAD):
 		fails.append("%s numbers" % id)
 	_probe_cam.queue_free()
 	c.queue_free()

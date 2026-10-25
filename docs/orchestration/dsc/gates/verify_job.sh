@@ -5,6 +5,9 @@
 #   1        = the job's unit test passes with no SCRIPT ERROR
 #   2        = + its lab, windowed at 1600x900 and 844x390, prints "[<key>] RESULT k=v ..." whose numbers pass the conf's
 #              LAB_ASSERT (python over dict v and string res), and saves at least MIN_SHOTS PNGs in --shot-dir
+#              When $D/HEADLESS_ONLY exists, the owner has reserved the machine for multitasking: visual labs are
+#              explicitly deferred and the remaining headless checks still run. The orchestrator must not treat that as
+#              visual approval.
 #   no stage = + the related tests (exit 0 and their PASS line), smoke, the report and the scope check
 K=$1; S=${2:-3}
 D=$(cd "$(dirname "$0")" && pwd)
@@ -18,6 +21,9 @@ for f in $REQUIRE_FILES; do [ -e "$f" ] || fail "$f is missing (the task names i
 "$G" perl -e 'alarm 600; exec @ARGV' "$GD" --headless --path game --script "res://tests/$TEST.gd" > "$OUT/$TEST.log" 2>&1
 grep -q "\[$TEST\] PASS" "$OUT/$TEST.log" && ! grep -q "SCRIPT ERROR" "$OUT/$TEST.log" || fail "$TEST did not PASS cleanly (see $OUT/$TEST.log)"
 [ "$S" -lt 2 ] && { echo "VERIFY STAGE 1 PASS"; exit 0; }
+if [ -e "$D/HEADLESS_ONLY" ]; then
+  echo "VERIFY HEADLESS-ONLY: visual lab deferred by owner"
+else
 for res in 1600x900 844x390; do
   rm -rf "$OUT/shots_$res"; mkdir -p "$OUT/shots_$res"
   "$G" perl -e "alarm ${LAB_ALARM:-400}; exec @ARGV" "$GD" --path game --resolution "$res" --rendering-method gl_compatibility -- \
@@ -38,6 +44,7 @@ PY
   n=$(ls "$OUT/shots_$res"/*.png 2>/dev/null | wc -l | tr -d ' ')
   [ "$n" -ge "${MIN_SHOTS:-1}" ] || fail "only $n screenshots at $res in $OUT/shots_$res (need ${MIN_SHOTS:-1})"
 done
+fi
 [ "$S" -lt 3 ] && { echo "VERIFY STAGE 2 PASS"; exit 0; }
 [ -s "docs/orchestration/reports/dsc-$K.md" ] || fail "report docs/orchestration/reports/dsc-$K.md is missing"
 base=${BASE:-$(git merge-base HEAD claude/mmo-overhaul)}

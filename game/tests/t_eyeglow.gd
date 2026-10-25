@@ -11,6 +11,10 @@ const SPECIES: Array[StringName] = [&"tyrannosaurus", &"utahraptor", &"deinonych
 	&"velociraptor", &"coelophysis", &"compsognathus"]
 const PLAIN: Array[StringName] = [&"zebraceratops"]
 const DRIFT_LIMIT_M := 0.001
+const EYE_RADIUS_PER_HEIGHT := 0.006
+const MIN_WORLD_EYE_RADIUS_M := 0.006
+const MAX_WORLD_EYE_RADIUS_M := 0.025
+const MAX_SURFACE_PUSH_M := 0.005
 
 var _fails: PackedStringArray = []
 var _started := false
@@ -114,6 +118,19 @@ func _test_species(id: StringName) -> void:
 		_expect(att.bone_name == "Head", "%s attachment is on the Head bone (not %s)" % [id, att.bone_name])
 		_expect(att.get_parent() is Skeleton3D, "%s attachment is parented to the Skeleton3D" % id)
 	_expect(eyes.dots.size() == 2, "%s has two dots (got %d)" % [id, eyes.dots.size()])
+	var allowed_radius := clampf(float(c.def.height_meters) * EYE_RADIUS_PER_HEIGHT,
+		MIN_WORLD_EYE_RADIUS_M, MAX_WORLD_EYE_RADIUS_M)
+	for dot in eyes.dots:
+		var ball := (dot as MeshInstance3D).mesh as SphereMesh
+		var scale3: Vector3 = (dot as Node3D).global_basis.get_scale()
+		var world_radius := ball.radius * maxf(scale3.x, maxf(scale3.y, scale3.z)) if ball else INF
+		_expect(world_radius <= allowed_radius + 0.0005,
+			"%s eye radius stays anatomical (%.3f m <= %.3f m)" % [id, world_radius, allowed_radius])
+		_expect((dot as MeshInstance3D).material_override == eyes.eye_material,
+			"%s glow material survives coloration setup" % id)
+	var constants: Dictionary = EYES.get_script_constant_map()
+	_expect(float(constants.get("SURFACE_PUSH_M", constants.get("PUSH_M", INF))) <= MAX_SURFACE_PUSH_M,
+		"%s eye glow sits on the painted eye instead of protruding" % id)
 	# Brightness in the frames the eye material actually uses.
 	WL.night = 0.0
 	EYES.apply_night()

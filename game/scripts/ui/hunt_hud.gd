@@ -29,6 +29,8 @@ var _animal_screen: AnimalScreen
 var _inspector: Panel
 # combat
 var _end_btn: Button
+var _sprint_hex: HexButton
+var _combat_hex: HexButton
 var _skill_hexes: Array[HexButton] = []
 var _auto_hex: HexButton
 var _chase_hex: HexButton
@@ -216,6 +218,11 @@ func _layout() -> void:
 		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + DayNightDial.DISC + 8.0)  # under the dial
 	# Chase joins the quick-food row (slot 2): at the rail's left edge it sat on the first food hex.
 	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
+	# Persistent movement/combat modes stay under the right thumb. Portrait lifts them one row so
+	# they do not cover the four-item menu rail.
+	var mode_y := y - (HEX + CAPTION_H + 10.0 if UiTokens.is_narrow(r) else 0.0)
+	_combat_hex.position = Vector2(r.x - 16.0 - inset.x - HEX, mode_y)
+	_sprint_hex.position = _combat_hex.position - Vector2(HEX + 10.0, 0.0)
 	if HudLayout.landscape_phone(r):
 		HudLayout.place_landscape_phone(self, r, inset)
 	elif UiTokens.is_narrow(r):
@@ -342,6 +349,26 @@ func _open_animals() -> void:
 	_animal_screen.open(player)
 
 func _build_combat() -> void:
+	_sprint_hex = HexButton.new(HEX)
+	_sprint_hex.name = "SprintToggle"
+	_sprint_hex.glyph = "»"
+	_sprint_hex.caption = "SPRINT"
+	_sprint_hex.pressed.connect(func () -> void:
+		if player:
+			_sprint_hex.selected = player.toggle_sprint()
+			_sprint_hex.queue_redraw()
+	)
+	add_child(_sprint_hex)
+	_combat_hex = HexButton.new(HEX)
+	_combat_hex.name = "CombatToggle"
+	_combat_hex.icon = UiIcons.icon(&"attack")
+	_combat_hex.caption = "COMBAT"
+	_combat_hex.pressed.connect(func () -> void:
+		if player:
+			_combat_hex.selected = player.toggle_combat()
+			_combat_hex.queue_redraw()
+	)
+	add_child(_combat_hex)
 	_end_btn = Button.new()
 	_end_btn.text = "End Combat"
 	_end_btn.custom_minimum_size = Vector2(184, 64)
@@ -1096,6 +1123,12 @@ func _process(delta: float) -> void:
 		return
 	_tick_death(delta)
 	var hunting := player.hunt != null and player.hunt.target != null and is_instance_valid(player.hunt.target)
+	if _sprint_hex.selected != player.sprint_toggled:
+		_sprint_hex.selected = player.sprint_toggled
+		_sprint_hex.queue_redraw()
+	if _combat_hex.selected != hunting:
+		_combat_hex.selected = hunting
+		_combat_hex.queue_redraw()
 	if hunting != _in_combat:
 		_in_combat = hunting
 		_end_btn.visible = hunting
@@ -1211,14 +1244,13 @@ func _draw() -> void:
 	_fatigue_rect = Rect2(x, face_pos.y - 14.0, bar_w, maxf(UiTokens.TARGET_MIN, yy + small - face_pos.y + 14.0))
 	if _fatigue_panel and _fatigue_panel.visible:
 		_fatigue_panel.position = Vector2(_fatigue_rect.position.x, _fatigue_rect.end.y + 8.0)
-	# status badges live under the minimap (right side), left of the Claim hex; on a landscape phone
-	# End Combat stands there, so they go under the vitals, after the whistle row
-	var mp0 := _minimap.position
-	var sx := mp0.x
-	var sy := mp0.y + MAP_PX + 50.0
+	# Player conditions belong with the player's vitals, directly beneath the top-left panel. On a
+	# landscape phone with pet commands visible, keep the row after those commands so they do not
+	# occupy the same strip; both remain within the wide compact vitals block.
+	var sx := vitals.position.x + 8.0
+	var sy := vitals.end.y + 8.0
 	if HudLayout.landscape_phone(r):
-		sx = 16.0 + inset.w + (3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0)
-		sy = vitals.end.y + 8.0
+		sx += 3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0
 	if player.statuses:
 		var sx0 := sx
 		for inst in player.statuses.instances():
@@ -1552,12 +1584,15 @@ func _draw_minimap() -> void:
 			var f0 := Vector2((pp.x - half + size_m * 0.5) / cell_m, (pp.z - half + size_m * 0.5) / cell_m)
 			c.draw_texture_rect_region(fog_tex, Rect2(Vector2(-span_px * 0.5, -span_px * 0.5), Vector2(span_px, span_px)), Rect2(f0, Vector2(half * 2.0 / cell_m, half * 2.0 / cell_m)))
 		var trail_pts: Array = []
+		var trail_alphas: Array[float] = []
 		if fog:
-			for tp in fog.trail:
+			for i in fog.trail.size():
+				var tp := fog.trail[i]
 				var q := Vector2((tp.x - pp.x) / MAP_SCALE, (tp.y - pp.z) / MAP_SCALE)
 				if q.length() <= MAP_PX * 0.5:
 					trail_pts.append(q)
-			MapIcons.trail(c, trail_pts, 1.6)
+					trail_alphas.append(fog.trail_alpha(i))
+			MapIcons.trail(c, trail_pts, 1.6, trail_alphas)
 		var marker_r := MAP_PX * 0.5 - 5.0
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")

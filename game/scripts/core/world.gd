@@ -62,6 +62,8 @@ func _ready() -> void:
 	call_deferred("_boot")
 
 func _process(delta: float) -> void:
+	if map_fog != null:
+		map_fog.advance_trail(delta)
 	if str(island_def.get("kind", "")) == "unstable" and remaining_lifetime > 0.0:
 		remaining_lifetime = maxf(0.0, remaining_lifetime - delta)
 		var warn_at := float(Data.world_rules.get("sink_warning_seconds", 60))
@@ -426,8 +428,15 @@ func load_map_map(row: Dictionary) -> void:
 				if p is Array and (p as Array).size() >= 2:
 					var a: Variant = (p as Array)[0]
 					var b: Variant = (p as Array)[1]
-					if (a is int or a is float) and (b is int or b is float) and is_finite(float(a)) and is_finite(float(b)) and absf(float(a)) <= 1000.0 and absf(float(b)) <= 1000.0:
-						clean["trail"].append([float(a), float(b)])
+					if not ((a is int or a is float) and (b is int or b is float) and is_finite(float(a)) and is_finite(float(b)) and absf(float(a)) <= 1000.0 and absf(float(b)) <= 1000.0):
+						continue
+					var clean_point: Array = [float(a), float(b)]
+					if (p as Array).size() >= 3:
+						var age: Variant = (p as Array)[2]
+						if not (age is int or age is float) or not is_finite(float(age)):
+							continue
+						clean_point.append(maxf(0.0, float(age)))
+					clean["trail"].append(clean_point)
 		map_fogs[str(key)] = MapFog.from_dict(clean)
 
 func _clear_runtime() -> void:

@@ -26,6 +26,7 @@ var cam: Camera3D
 var player
 var radial
 var node: Node3D
+var hud
 
 func _process(_delta: float) -> bool:
 	if _started:
@@ -62,7 +63,14 @@ func _run() -> void:
 	host.add_child(layer)
 	radial = load("res://scripts/ui/gather_radial.gd").new()
 	layer.add_child(radial)
+	hud = load("res://scripts/ui/hunt_hud.gd").new()
+	hud.bind(player)
+	layer.add_child(hud)
 	await process_frame
+	await _target_focus_case()
+	await _status_layout_case()
+	await _mode_toggle_case()
+	await _interaction_controls_case(layer)
 	# Walks in from each side of the screen: the nameplate passes the node from left, right, above, below.
 	var right := cam.global_basis.x * Vector3(1, 0, 1)
 	var down := cam.global_basis.z * Vector3(1, 0, 1)
@@ -77,6 +85,223 @@ func _run() -> void:
 	else:
 		print("[t_controls] FAIL count=%d" % failures.size())
 		quit(1)
+
+## Selecting work or prey biases the framing toward it without taking the survivor off-screen.
+func _target_focus_case() -> void:
+	var resource = load("res://scripts/world/harvest_node.gd").new()
+	resource.name = "SelectedResource"
+	resource.setup(&"selected_resource", &"branch", 1, 1, {}, &"none", Color.WHITE, 0.2, 60.0, "BranchPile", false, 2)
+	host.add_child(resource)
+	player.global_position = Vector3.ZERO
+	resource.global_position = Vector3(10.0, 0.0, 0.0)
+	player.controls.interact_tap_target(resource)
+	_expect(player._gather_radial != null and player._gather_radial.is_open(),
+		"clicking a resource opens its gather radial")
+	cam._snap()
+	var resource_shift: Vector3 = cam.focus_point() - player.global_position
+	_expect(resource_shift.x > 0.5 and resource_shift.x < 10.0,
+		"clicking a resource shifts the camera toward it without centring it (%.2f m)" % resource_shift.x)
+	player._gather_radial.close()
+	player.gather_target = null
+
+	var creature = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
+	host.add_child(creature)
+	creature.global_position = Vector3(-10.0, 0.0, 0.0)
+	creature.spawn(get_root().get_node("Data").creature(&"compsognathus"))
+	creature.set_physics_process(false)
+	if creature.brain:
+		creature.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	player.hunt.start(creature)
+	cam._snap()
+	var animal_shift: Vector3 = cam.focus_point() - player.global_position
+	_expect(animal_shift.x < -0.5 and animal_shift.x > -10.0,
+		"selected animal shifts camera toward it without centring it (%.2f m)" % animal_shift.x)
+	player.hunt.stop()
+	cam._snap()
+	_expect(cam.focus_point().distance_to(player.global_position) < 0.05,
+		"camera returns to the survivor when selection clears")
+	creature.queue_free()
+	resource.queue_free()
+	await process_frame
+
+## Player conditions belong to the survivor's vitals, not the unrelated minimap on the other side
+## of the screen. Keep the row directly under the top-left vitals panel on every canvas shape.
+func _status_layout_case() -> void:
+	player.statuses.apply(&"wet")
+	hud.queue_redraw()
+	await process_frame
+	var vitals: Rect2 = hud.drawn_blocks.get("vitals", Rect2())
+	var statuses: Rect2 = hud.drawn_blocks.get("statuses", Rect2())
+	_expect(statuses.has_area(), "an active player status draws a HUD status row")
+	_expect(statuses.position.y >= vitals.end.y and statuses.position.y <= vitals.end.y + 16.0
+		and statuses.position.x >= vitals.position.x and statuses.end.x <= vitals.end.x,
+		"player statuses sit directly under the health/stamina panel (vitals=%s statuses=%s)" % [vitals, statuses])
+	player.statuses.clear_id(&"wet")
+	await process_frame
+
+## Sprint and combat are persistent, thumb-sized bottom-right modes rather than hold-only actions.
+func _mode_toggle_case() -> void:
+	var sprint = hud.get_node_or_null("SprintToggle")
+	var combat = hud.get_node_or_null("CombatToggle")
+	_expect(sprint != null and combat != null, "HUD has Sprint and Combat toggles")
+	if sprint == null or combat == null:
+		return
+	var view: Vector2 = hud.get_viewport_rect().size
+	for button in [sprint, combat]:
+		var centre: Vector2 = button.position + button.size * 0.5
+		_expect(button.size.x >= 64.0 and button.size.y >= 64.0,
+			"%s is at least 64 px" % button.name)
+		_expect(centre.x > view.x * 0.5 and centre.y > view.y * 0.5,
+			"%s is in the bottom-right quadrant" % button.name)
+	sprint.pressed.emit()
+	_expect(bool(player.get("sprint_toggled")), "Sprint toggle latches sprint on")
+	sprint.pressed.emit()
+	_expect(not bool(player.get("sprint_toggled")), "Sprint toggle latches sprint off")
+	var creature = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
+	host.add_child(creature)
+	creature.global_position = player.global_position + Vector3(4.0, 0.0, 0.0)
+	creature.spawn(get_root().get_node("Data").creature(&"compsognathus"))
+	creature.set_physics_process(false)
+	if creature.brain:
+		creature.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	combat.pressed.emit()
+	_expect(player.hunt.target == creature, "Combat toggle targets a nearby wild animal")
+	combat.pressed.emit()
+	_expect(player.hunt.target == null, "Combat toggle disengages on the second tap")
+	creature.queue_free()
+	await process_frame
+
+## Tap routes walk unless Sprint is latched. HANDS gathers the nearest resource, and its Bag button
+## opens a right-side inventory sheet while leaving a useful strip of the game visible.
+func _interaction_controls_case(layer: CanvasLayer) -> void:
+	player.clear_nav()
+	player.global_position = Vector3.ZERO
+	player.velocity = Vector3.ZERO
+	player.sprint_toggled = false
+	player.nav_active = true
+	_expect(not player.sim.wants_sprint(), "tap-to-walk respects Sprint off")
+	player.sprint_toggled = true
+	_expect(player.sim.wants_sprint(), "tap-to-walk respects Sprint on")
+	player.sprint_toggled = false
+	player.clear_nav()
+
+	var near = load("res://scripts/world/harvest_node.gd").new()
+	near.name = "NearestBranchPile"
+	near.setup(&"nearest_branch", &"branch", 1, 1, {}, &"none", Color.WHITE, 0.2, 60.0, "BranchPile", false, 2)
+	near.position = Vector3(8.0, 0.0, 0.0)
+	host.add_child(near)
+	var far = load("res://scripts/world/harvest_node.gd").new()
+	far.name = "FarBranchPile"
+	far.setup(&"far_branch", &"branch", 1, 1, {}, &"none", Color.WHITE, 0.2, 60.0, "BranchPile", false, 2)
+	far.position = Vector3(14.0, 0.0, 0.0)
+	host.add_child(far)
+	await process_frame
+	var held = player.station_craft.held_slot if player.station_craft else null
+	_expect(held != null, "the HANDS control exists")
+	if held:
+		var press := InputEventMouseButton.new()
+		press.button_index = MOUSE_BUTTON_LEFT
+		press.pressed = true
+		held._gui_input(press)
+		var release := InputEventMouseButton.new()
+		release.button_index = MOUSE_BUTTON_LEFT
+		release.pressed = false
+		held._gui_input(release)
+		_expect(player.gather_target == near, "HANDS selects the nearest resource inside its seek radius")
+		_expect(player.nav_active, "HANDS pathfinds to a resource outside immediate gather reach")
+		var expected_goal: Vector3 = player.sim.closest_nav_point(near.global_position)
+		_expect(player._path_goal.distance_to(expected_goal) < 0.1,
+			"the gather route ends at the resource's nearest navigable point")
+		player.actions.cancel_work()
+		near.position = Vector3(13.0, 0.0, 0.0)
+		_expect(player.controls._nearest_harvest_node(float(player.controls.QUICK_GATHER_RADIUS)) == null,
+			"HANDS ignores resources outside its seek radius")
+
+		var bag_button := held.get_node_or_null("InventoryButton") as Control
+		_expect(bag_button != null, "a Bag button sits with the HANDS control")
+		if bag_button:
+			_expect(bag_button.size.x >= 64.0 and bag_button.size.y >= 64.0, "the Bag button is a 64 px touch target")
+			_expect(bag_button.global_position.y < held.global_position.y, "the Bag button is above HANDS")
+			var inv = (load("res://scenes/ui/inventory.tscn") as PackedScene).instantiate()
+			layer.add_child(inv)
+			player.ui = inv
+			inv.bind(player.inventory, player)
+			bag_button.emit_signal("pressed")
+			await process_frame
+			_expect(inv.visible, "the Bag button opens inventory")
+			var drop_button := inv.find_child("DropButton", true, false) as Button
+			var destroy_button := inv.find_child("DestroyButton", true, false) as Button
+			_expect(drop_button != null, "a selected inventory item has a Drop action")
+			_expect(destroy_button != null, "a selected inventory item has a Destroy action")
+			if drop_button and destroy_button:
+				await _inventory_discard_case(inv, drop_button, destroy_button)
+			var view: Vector2 = inv.get_viewport_rect().size
+			var panel: Panel = inv.get("_panel")
+			_expect(panel != null and panel.get_global_rect().position.x >= view.x * 0.25,
+				"inventory is a right-side sheet that leaves the game visible")
+			inv.hide_ui()
+			inv.queue_free()
+	player.actions.cancel_work()
+	near.queue_free()
+	far.queue_free()
+	await process_frame
+
+## Drop moves the exact selected instance to a persistent world bag. Destroy needs two taps, and
+## Lock prevents either action.
+func _inventory_discard_case(inv: Control, drop_button: Button, destroy_button: Button) -> void:
+	var world := get_root().get_node("World")
+	var old_runtime: Node3D = world.get("runtime")
+	world.set("runtime", host)
+	var stack_script := load("res://scripts/items/item_stack.gd") as GDScript
+	var drop_index := _empty_inventory_slot()
+	player.inventory.add(stack_script.make(&"branch", 1, {"control_test": "drop"}, 13))
+	inv._on_bag_slot_tapped(drop_index)
+	_expect(drop_button.visible and not drop_button.disabled, "an unlocked selected item enables Drop")
+	drop_button.pressed.emit()
+	await process_frame
+	var dropped_bag: Node = null
+	for candidate in get_nodes_in_group(&"placed_building"):
+		if str(candidate.get("kind")) == "loot_bag" and candidate.get_parent() == host:
+			dropped_bag = candidate
+			break
+	var dropped_storage: Variant = dropped_bag.get("storage") if dropped_bag else null
+	var exact_drop: bool = dropped_storage != null and dropped_storage.used_slots() == 1 \
+		and dropped_storage.slots[0].level == 13 \
+		and str(dropped_storage.slots[0].attributes.get("control_test", "")) == "drop"
+	_expect(player.inventory.slots[drop_index] == null and exact_drop,
+		"Drop removes the selected instance and preserves it in a world loot bag")
+	if dropped_bag:
+		dropped_bag.free()
+
+	var destroy_index := _empty_inventory_slot()
+	player.inventory.add(stack_script.make(&"stone", 1, {"control_test": "destroy"}, 14))
+	inv._on_bag_slot_tapped(destroy_index)
+	destroy_button.pressed.emit()
+	_expect(player.inventory.slots[destroy_index] != null and destroy_button.text == "Destroy?",
+		"Destroy's first tap asks for confirmation and keeps the item")
+	destroy_button.pressed.emit()
+	_expect(player.inventory.slots[destroy_index] == null,
+		"Destroy's second tap permanently removes the selected instance")
+
+	var locked_index := _empty_inventory_slot()
+	player.inventory.add(stack_script.make(&"branch", 1, {"control_test": "locked"}, 15))
+	player.inventory.slots[locked_index].set_flag(&"locked", true)
+	player.inventory.changed.emit()
+	inv._on_bag_slot_tapped(locked_index)
+	_expect(drop_button.disabled and destroy_button.disabled, "Lock disables Drop and Destroy")
+	drop_button.pressed.emit()
+	destroy_button.pressed.emit()
+	destroy_button.pressed.emit()
+	_expect(player.inventory.slots[locked_index] != null, "a locked item cannot be dropped or destroyed")
+	player.inventory.slots[locked_index].set_flag(&"locked", false)
+	player.inventory.remove_at(locked_index, player.inventory.slots[locked_index].count)
+	world.set("runtime", old_runtime)
+
+func _empty_inventory_slot() -> int:
+	for i in player.inventory.slot_count:
+		if player.inventory.slots[i] == null:
+			return i
+	return -1
 
 func _options() -> Array:
 	return [
