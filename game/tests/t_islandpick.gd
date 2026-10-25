@@ -250,22 +250,41 @@ func _test_five_shapes() -> void:
 		for n in root.find_children("ArrivalWelcome", "CanvasLayer", true, false):
 			n.free()
 
-## A forged save cannot choose an island: home.shape must be one of the five ids. A row of the
-## wrong type or an unknown id lands as no choice (""), the world then holds the stock island, and a
-## new survivor may still pick once. (SaveSanitizer's SHAPE table does not list home.shape, so the
-## row reaches SaveGame._apply as-is; the load path is where it is validated and narrowed.)
+## home.shape is part of the save's trust boundary: SaveSanitizer.clean keeps every catalogue id and
+## erases anything else (wrong type, unknown id, empty) before the loader sees it. The world then
+## holds the stock island, keeps an old save without the row compatible, and a survivor that does not
+## exist yet may still pick once.
 func _test_sanitizer() -> void:
-	var base: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v0.json"))
-	# A good row survives the sanitizer unchanged.
 	var ss := load("res://scripts/core/save_sanitizer.gd") as GDScript
-	var good := base.duplicate(true)
-	(good["home"] as Dictionary)["shape"] = "forest"
-	_expect(str((ss.call("clean", good.duplicate(true))["home"] as Dictionary).get("shape", "")) == "forest", "a catalogue shape survives the sanitizer")
-	for bad in ["volcano", "", ["forest"], 42, null, {"id": "forest"}]:
+	var base: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v0.json"))
+	# The allowlist comes from the catalogue the sanitizer reads itself (no autoload needed).
+	var ids: PackedStringArray = ss.call("shape_ids")
+	_expect(ids.size() == 5, "the sanitizer knows the five catalogue ids (got %d)" % ids.size())
+	for id in _world.call("shape_ids"):
+		_expect(ids.has(id), "the sanitizer allowlist has %s" % id)
+		var good := base.duplicate(true)
+		(good["home"] as Dictionary)["shape"] = id
+		var clean: Dictionary = ss.call("clean", good)
+		_expect(str((clean["home"] as Dictionary).get("shape", "")) == id, "clean() preserves the catalogue shape %s" % id)
+	# A forged row never reaches the loader: the wrong type is erased by the shape pass, an unknown or
+	# empty id by the allowlist, and the row is simply absent afterwards (old saves look the same).
+	for bad in ["volcano", "", "Forest", " forest", ["forest"], 42, null, {"id": "forest"}]:
+		var d := base.duplicate(true)
+		(d["home"] as Dictionary)["shape"] = bad
+		var clean: Dictionary = ss.call("clean", d)
+		var kept: Variant = (clean["home"] as Dictionary).get("shape", null)
+		_expect(kept == null, "clean() removes the forged home.shape %s (kept %s)" % [bad, kept])
+	# An old save without the row stays compatible and gains nothing.
+	var old := base.duplicate(true)
+	(old["home"] as Dictionary).erase("shape")
+	var old_clean: Dictionary = ss.call("clean", old)
+	_expect(not (old_clean["home"] as Dictionary).has("shape"), "clean() leaves an old save without home.shape alone")
+	# The real load path runs the sanitizer first: forge the file, load, fall back safely.
+	for bad in ["volcano", "", 42, null, ["forest"], {"id": "forest"}]:
 		_clean()
 		var forged := base.duplicate(true)
 		(forged["home"] as Dictionary)["shape"] = bad
-		_put(JSON.stringify(forged))
+		_put(JSON.stringify(forged)) # raw, exactly as a tampered file would be: SaveMigrations.read cleans it
 		_world.set("home_shape", &"")
 		_world.set("home_terrain", &"")
 		_world.set("runtime", null)

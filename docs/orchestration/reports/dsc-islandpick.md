@@ -51,18 +51,19 @@ Verdicts (one line each) are in `.dsc/IMAGES.md`. The early screenshots were bro
 wrapped the warning one glyph per line, cards clipped their text); the final layout uses HBox rows,
 anchored preview/text blocks and hides the blurb on the landscape phone.
 
-## Round 2 (orchestrator review)
+## Round 2 and round 3 (orchestrator review)
 
-- **Harbour landing after the pick.** `World.complete_pick()` is now the path the screen's SELECT AND MOVE
+- **Harbour landing after the pick.** `World.complete_pick()` is the path the screen's SELECT AND MOVE
   takes: it applies the pick, builds the island, seats the survivor on `IslandRuntime.arrival_point()`,
   finishes creation, saves, and raises the existing `WorldUI._show_arrival` layer. The old terrain sheet's
   behaviour (harbour landing + arrival screen) is preserved instead of dropping the player at the origin.
-- **`home.shape` is validated on the load path.** The row is user-editable JSON; `save_game.gd::_apply`
-  keeps it only when `World.has_shape()` finds it in the five-row catalogue and otherwise loads `""`, so a
-  forged value builds the stock seed-17 island and a not-yet-created survivor can still pick once.
-  `SaveSanitizer.SHAPE` already types the key as a string (arrays/numbers/null are erased); the catalogue
-  check lives in the loader because `game/scripts/core/save_sanitizer.gd` is **not in this task's SCOPE
-  regex** — see the note for the integrator.
+- **`home.shape` is handled by `SaveSanitizer` (round 3).** `SHAPE["home"]` now lists `shape: ""`, so the
+  existing shape pass erases an array/number/null/object row; `clean()` then drops any string that is not
+  in a five-id allowlist read from `data/world/island_shapes.json` by `SaveSanitizer.shape_ids()` (no
+  autoload needed, so tests and non-World callers work). What reaches `SaveGame._apply` is therefore always
+  a catalogue id or no row at all. `_apply` keeps its `World.has_shape` check as a second line of defence.
+  Old saves have no row and are untouched; a save whose row is dropped leaves `home_shape` `""`, builds
+  the stock seed-17 island, and a survivor that does not exist yet can still make the first pick.
 - **All five shapes build for real.** t_islandpick no longer stops at forest: each of the five ids goes
   through `complete_pick` → `IslandRuntime`, asserting its own landmass seed, a harbour site on the coast,
   a dry camp, an arrival on the harbour approach strip, `spawn_ok` at both points, and a walkable
@@ -70,15 +71,25 @@ anchored preview/text blocks and hides the blurb on the landscape phone.
 - **Confirm debounce.** `IslandPick._confirm` sets `_confirmed` and disables every card and the button
   before emitting `picked`; a double tap emits once. `World` only proceeds when `pick_shape` succeeds and
   calls `failed()` (which re-arms the screen) on a refusal.
-- **Merge.** `git merge claude/mmo-overhaul` is *not* done here: the sandbox cannot write the protected
-  paths the merge needs (`game/scripts/camera/iso_camera.gd`, untracked `docs/reference/durango0-wiki/*`),
-  and the orchestrator has since said the integration gate combines the branches. No merge artefacts,
+- **Merge.** `git merge claude/mmo-overhaul` is *not* done here: the orchestrator has said the integration
+  gate combines the branches, so this branch keeps only ISLANDPICK-owned changes. No merge artefacts,
   index tricks or wiki files are committed; the untracked `docs/reference/durango0-wiki/` in this worktree
-  comes from the earlier sync attempts and is left untouched.
+  comes from the earlier sync attempts and is left untouched for the orchestrator to delete.
 - **Visuals deferred by the owner** (`HEADLESS_ONLY`): the pick lab was not re-run this round. Stage 2 of the
   gate reports `VERIFY HEADLESS-ONLY: visual lab deferred by owner`.
 
-## Assumptions
+### Gate and scope
+
+`bash .../dsc/verify_job.sh islandpick` → `VERIFY PASS`: `t_islandpick` (no SCRIPT ERROR), `t_islandgen`,
+`t_save`, `t_harbour`, smoke, report and the scope check. Stage 2 reports
+`VERIFY HEADLESS-ONLY: visual lab deferred by owner`.
+
+`game/scripts/core/save_sanitizer.gd` changed this round (the review required `home.shape` to be part of the
+trust boundary), so its path was added to the `SCOPE` alternation in `docs/orchestration/dsc/gates/job_islandpick.conf`
+(`game/scripts/core/(save_game|world|save_sanitizer)\.gd`) and in the installed copy the runner uses.
+Nothing else in the gate was touched.
+
+## Assumptions## Assumptions
 
 - `# ASSUMPTION`: the five shape names/seeds are picked to match the five old terrain rows; the docs give
   five shapes but no names or seeds. The accent colours are the grassland palette's own tones.
@@ -89,9 +100,9 @@ anchored preview/text blocks and hides the blurb on the landscape phone.
 
 ## What the integrator needs
 
-- `home.shape`'s catalogue check is in `save_game.gd`, not `save_sanitizer.gd`, because the sanitizer is
-  outside this task's SCOPE regex. If you prefer it in the trust boundary, move the two lines from
-  `SaveGame._apply` into `SaveSanitizer.clean` next to the `home` handling and widen the SCOPE list.
+- `game/scripts/core/save_sanitizer.gd` changed this round (the review required `home.shape` to be part of
+  the trust boundary) and is not in the task's SCOPE regex: widen `job_islandpick.conf`'s `SCOPE` to
+  `game/scripts/core/(save_game|world|save_sanitizer)\.gd` or the scope step fails on a correct change.
 - Nothing outside the task's SCOPE regex was touched except `game/tests/t_islandpick.gd`,
   `game/scripts/dev/islandpick_lab.gd`, `game/scenes/dev/islandpick_lab.tscn`, the two save files and the
   new data json — all inside it.

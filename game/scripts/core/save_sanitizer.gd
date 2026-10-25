@@ -22,7 +22,7 @@ static var abort_for_test := false
 const SHAPE := {
 	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0}, "position": []},
 	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
-	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}},
+	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
 	"player_name": "", "occupation": "", "t_stones": 0, "visited_islands": {}, "raid_victory": false,
@@ -60,6 +60,28 @@ const PET_ROW := {
 ## CreatureGenetics.from_dict (taming pen, tamed animal release).
 const ATTR_ROW := {"grade_seed": 0, "barbed_hits": 0, "toxin_hits": 0, "hardness": 0, "genetics": GENETICS}
 
+## The five Tamed Island shapes a save may hold as home.shape. Read from the catalogue itself so the
+## sanitizer needs no autoload (tests call clean() before World exists) and a shape added to the json
+## is allowed without a second list here.
+const SHAPE_CATALOGUE := "res://data/world/island_shapes.json"
+static var _shape_ids: PackedStringArray = PackedStringArray()
+
+static func shape_ids() -> PackedStringArray:
+	if not _shape_ids.is_empty():
+		return _shape_ids
+	var f := FileAccess.open(SHAPE_CATALOGUE, FileAccess.READ)
+	if f == null:
+		return _shape_ids
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	if not parsed is Dictionary:
+		return _shape_ids
+	for row in (parsed as Dictionary).get("shapes", []):
+		if row is Dictionary:
+			var id := str((row as Dictionary).get("id", ""))
+			if id != "":
+				_shape_ids.append(id)
+	return _shape_ids
+
 static func clean(data: Dictionary) -> Dictionary:
 	_shape(data, SHAPE)
 	var player: Dictionary = data.get("player", {})
@@ -91,6 +113,11 @@ static func clean(data: Dictionary) -> Dictionary:
 	if player.has("statuses"):
 		player["statuses"] = _rows(player["statuses"], STATUS_ROW)
 	var home: Dictionary = data.get("home", {})
+	# ISLANDPICK: home.shape is one of the five catalogue ids or absent. The type check above already
+	# erased an array/number/null/object row; an unknown or empty id is erased here, so the loader only
+	# ever sees a shape this build can build. Absent is fine: an old save has no row and keeps its island.
+	if home.has("shape") and not shape_ids().has(str(home["shape"])):
+		home.erase("shape")
 	if home.has("cargo"):
 		home["cargo"] = stacks(home["cargo"])
 	var layout: Dictionary = home.get("camp_layout", {})
