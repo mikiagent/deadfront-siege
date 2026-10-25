@@ -28,14 +28,14 @@
 **CONFIRMED logistics risk rule (2026-10-25):** The remote resource-gathering settlement is **fully raidable** in its applicable contested PvE/PvPvE zone. **A transport boat already in transit toward the protected private home island cannot be raided, intercepted, looted, sunk by attackers, or otherwise attacked during that homeward voyage.** The home island and its stockpiles are also protected. The exact implementation of worker-assigned boat routes, loading and departure timing remains **PROPOSED**; there is no implemented boat system yet.
 
 **Proposed logistics loop:**
-1. Discover/unlock harbor access, build a dock at home and the risky settlement, acquire/construct a boat or transport slot.
+1. Discover/unlock harbor access, build docks at home and the raidable settlement, and obtain boats. **The boat's level/traits and the remote harbor's level/traits constrain how much can depart per voyage**, with exact formula not yet set.
 2. Assign one or more tribe workers (possible guards/pack dinosaurs later) to a **cargo route**: origin storage/stockpile -> vessel -> destination home storage.
 3. Set material/trait/level filters, minimum reserve at source, boat capacity, route frequency and risk tolerance in a logistics/monitoring interface. Never silently take a prized item reserved for crafting.
-4. A job claims concrete inventory stacks with unique IDs and reserves them against local consumption and other haulers. Workers physically move those items to the dock; the vessel carries a real manifest.
+4. A job claims concrete inventory stacks with unique IDs and reserves them against local consumption and other haulers. Workers physically load the vessel with a real cargo manifest up to the **boat-and-harbor capacity**. Merely reserving items does not protect them from an ongoing raid.
 5. From the moment a shipment **successfully departs** the remote dock for the protected home island, its manifest is safe from raids throughout transit. On arrival, unload it into permanently protected home storage. Never duplicate or teleport cargo in the accounting model. Actual travel time, capacity and cost can still matter even though combat interception does not.
 6. Log departures, arrivals, delays, losses, assigned crew, material quality, fuel/maintenance where applicable and obstruction reasons.
 
-**LOCKED threat boundary:** Hostile players/NPCs can raid the **remote settlement, resource sites, warehouses and material stockpiles** according to its PvE/PvPvE zone rules, including materials awaiting loading. They **cannot attack the homebound boat or its in-transit cargo/crew after confirmed departure**. A successful transfer of ownership from remote inventory into an actual vessel manifest at departure must be atomic and auditable. Avoid making queued shipping orders function as instant, unlimited raid-escape storage. **OPEN:** precise dock-loading vulnerability, whether departures are permitted once a raid has begun, departure countdowns, boat fleet/crew/cargo costs, offline transport, and whether voyages *outbound from home* follow the same protection rule. No ocean-combat, piracy or escort requirement for the protected homebound transit leg. Abstract harbor-route transit with a visible boat is fine.
+**LOCKED threat boundary (owner clarified 2026-10-25):** Hostile players/NPCs can raid the **remote settlement, resource sites, warehouses and material stockpiles** according to its PvE/PvPvE zone rules, including materials awaiting loading. **The defender may launch a loaded transport boat even in the middle of an active raid**. They **cannot attack the homebound boat or its in-transit cargo/crew after confirmed departure**. Evacuated volume is limited by **boat and harbor levels and special traits**, not by the amount of loot on site. A successful transfer of ownership from remote inventory into an actual vessel manifest at departure must be atomic and auditable. Avoid making queued shipping orders function as instant, unlimited raid-escape storage. **OPEN:** precise dock-loading vulnerability/interruptions, departure loading time and cooldowns, boat fleet/crew/cargo costs, offline transport, and whether voyages *outbound from home* follow the same protection rule. **NOT OPEN:** actual homeward departure is allowed during a raid, and confirmed homebound transit is invulnerable. No ocean-combat, piracy or escort requirement for the protected homebound transit leg. Abstract harbor-route transit with a visible boat is fine.
 
 **Economy interaction:** The distance and risk of transporting premium materials increases their value. Trait-aware sorting and preservation must continue from contested quarry to home storage to a crafted prized crossbow. The transport system depends on meaningful material stacks, work orders, reservations, inventory and stable storage IDs.
 
@@ -45,11 +45,20 @@
 | Location/state | Can raiders attack it? | Design interpretation |
 |---|---|---|
 | Remote mining/lumbering site and warehouse | **Yes** | Valuable materials and on-site human/dinosaur workers are exposed under zone rules |
-| Cargo awaiting pickup or being staged at the contested dock | **Yes, until confirmed departure** | No immunity from merely assigning a shipment; precise loading mechanics still to design |
-| Boat confirmed underway **toward protected home** | **No** | No ambush, PvE/PvP interception, cargo theft or loss to combat during transit |
+| Cargo awaiting pickup or being staged at the contested dock | **Yes, until confirmed departure** | No immunity from merely assigning a shipment; boat/harbor level and traits cap evacuation capacity |
+| Boat confirmed underway **toward protected home** | **No** | May depart while siege is active; no ambush, PvE/PvP interception, cargo theft or combat loss in transit |
 | Shipment received in home storage | **No** | Permanently protected with the private island |
 
 **Design implication:** The strategy is protecting a remote extraction base, deciding how much stock to hold there, and arranging transport before the next raid. Boat travel has a logistical time/capacity cost, **not another combat hazard**. Raiding the remote base must not be bypassed by converting its entire inventory into invulnerable 'pending' shipments in one frame.
+
+
+### Under-siege escape cargo and anti-exploit rule
+
+**CONFIRMED:** Defenders may evacuate cargo aboard a boat while attackers are already raiding. **CONFIRMED:** Total volume moved per voyage is constrained by the **boat's level and signed traits together with the origin harbor's level and signed traits**. In-progress outbound orders do not gain boat-travel immunity before actual departure. All details of speed, voyage frequency and whether boats carry workers or dinosaurs are pending balance.
+
+**PROPOSED implementation:** Build an immutable server-controlled departure manifest at the instant the loaded vessel leaves the dock. Remove each shipped lot atomically from vulnerable dock/staging inventory, then store it in a protected in-transit shipment with ETA. Lower-tier boats and ports make fewer goods escapable under siege. Higher-tier boats, upgraded harbor handling equipment, and rare capacity/handling traits improve the amount saved. No instant warehouse-to-boat teleport, infinite departure spam, manifest duplication or alteration during transit. Once departed, attackers may still plunder the **remaining** contested base.
+
+**Workshopping:** see [local alphas and fair sieges](pvp-raiding-local-alphas-and-siege-fairness.md) for how evacuation, attacker commitments, defended raid windows and power brackets fit together.
 
 ## 3. Offspring stages, food quality and education
 
@@ -112,7 +121,7 @@
 
 ## 7. Decisions to settle next
 
-- **Boat exposure (RESOLVED):** Remote gathering bases are fully raidable; **homebound boats in transit are not attackable or interceptable**. **Still OPEN:** vulnerability during dock loading, whether departure is allowed while a raid is underway, and whether outbound trips share this immunity.
+- **Boat exposure and siege departure (RESOLVED):** Remote gathering bases are fully raidable; **homebound boats in transit are not attackable or interceptable, even when they departed during an active raid**. Shipments are capacity-limited by **boat and harbor level/traits**. **Still OPEN:** time/vulnerability of dock loading, loading/departure cooldowns, and whether outbound trips share this immunity.
 - **Offline safety:** If the player is offline, may remote settlements/workers be raided, and does the boat keep operating?
 - **Nursery pacing:** Rough real-time target from offspring to playable adult (hours, days, weeks); minimum food/care tier, quality and consequences of shortfalls?
 - **Stat discovery:** Reveal numeric current stats and some qualitative hereditary clues, while concealing exact growth ceilings, or hide more?
