@@ -38,6 +38,8 @@ Do not silently turn a proposal, historical observation or example number into a
 
 **New owner direction (2026-10-25):** **General-purpose attributes should affect both fighting and craftsmanship**: Strength supports heavy forging and melee, Precision supports tailoring/fine crafts and ranged weapons. **Proposed expanded attribute families, shared EV training and per-recipe weights still require confirmation.** Learned profession skill, material traits and workstation/weapon quality remain separate factors. [Read the character/attribute draft](02-characters-levels-and-age.md).
 
+**New owner combat and research direction (2026-10-25):** Weapons use **Strength or Precision** as primary application attribute, crossed with **Blunt, Point, Slash** channels (internally existing blunt/pierce/cut). **Endurance** is connected to construction labor/Exhaustion; **Intelligence** to research, coordination, alpha leadership and rallies. Existing raptor packs pick alphas by physical strength/tier and share/flank targets; adding Intelligence is still a proposed change. [Combat and leadership integration](15-pve-exploration-and-combat.md), [shared attributes](02-characters-levels-and-age.md).
+
 ## Proposed chapter library
 
 The following are **planned chapter paths**. The files do not yet exist unless linked elsewhere. Create and lock them incrementally after the relevant owner questions are answered, rather than scaffolding empty or fabricated specifications.
@@ -58,7 +60,7 @@ The following are **planned chapter paths**. The files do not yet exist unless l
 | `12-expedition-mounts-and-command.md` | Three slots, riders as composites, human followers, inventory, mounted behavior |
 | `13-workers-automation-and-logistics.md` | Mining/lumber sites, monitoring stand, work orders, tool durability, boat shipping |
 | `14-vitals-rest-status-and-medicine.md` | Exhaustion, Energy, continuous sleep, Sit, effect tooltip, medical/education buffs |
-| `15-pve-exploration-and-combat.md` | Level ladders, hunting, capture, hazards, guards, PvE raids |
+| [15-pve-exploration-and-combat.md](15-pve-exploration-and-combat.md) | Level ladders, hunting, capture, hazards, guards, PvE raids |
 | [16-pvp-frontier-siege-and-captives.md](16-pvp-frontier-siege-and-captives.md) | Level-60 entry, power class, local alphas, raid economics, capture and defender rules |
 | `17-economy-market-and-trading.md` | Currency, island sinks, sales, anti-progression bypass, profitable non-PvP economy |
 | `18-ui-controls-accessibility.md` | Desktop/touch/gamepad, menus, hover/tap, compact HUD, status and trait visibility |
