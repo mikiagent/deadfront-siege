@@ -107,6 +107,8 @@ Player must be able to select **specific lots**, not have recipe auto-spend the 
 
 **Common negative counterpart ideas:** Brittle (fractures/breaks faster), Fractured (less structural force), Dull (lower Slash), Blunted (less Pierce), Warped/Knotted (accuracy, handling and beam defects), Rotting (durability), Frayed (tension), Rigid (armor movement cost), Cracked (scute protection), Porous (weather damage), Impure/Slag-Ridden (forge yield/quality), Degraded (processing loss). Negative traits should not all be silently converted to one generic durability penalty.
 
+**Dedicated real-time spoilage and food preservation chapter now exists:** [07 Crafting, Processing and Food](07-crafting-processing-and-food.md). It specifies perishables decaying in inventory/storage/boats and offline, separate `Freshness` from tool durability, **rotten material on expiry**, actual initial food lifetime targets, drying/smoking/salting/canning options, cold earthenware and ice-box storage modifiers, full signed food positive/negative trait mapping, food safety/consumable caps and a FOOD-01..FOOD-12 implementation backlog. This elaborates the signed trait catalog below; it is **documentation only**.
+
 ## 4. COOKING: food perks and drawbacks
 
 **Player fantasy:** gather uncommon delicious/nutritious/medicinal ingredients; choose **two or more real ingredients** in the Crock Pot, Grill, Smoker or other appropriate station; make an actual dish with a predictable Energy value and a **short-lived buff**. Long-term trait-hunting still prioritizes durable equipment/buildings: food should not require five clicks of min-maxing every meal.
@@ -120,13 +122,13 @@ Player must be able to select **specific lots**, not have recipe auto-spend the 
 | **Nutrient-Rich** | dinosaur meat, berries, tubers | More Energy restored by final dish | Immediate effect, not permanent IV/level |
 | **Aromatic** | herbs, spices, fragrant berries | Longer duration of an existing compatible meal buff | Does not give every buff in the game |
 | **Hearty** | rich meat, hearty root | More Energy and/or longer Full status/less need to eat again | Must not permanently increase max HP |
-| **Fresh** | fruit, recently butchered meat | Lower spoiled/poisoned risk for uncooked or stored input | Effects disappear after spoilage threshold |
+| **Fresh** | fruit, recently butchered meat | Eligible material lot quality that can reduce a decay/risk factor | **Distinct from changing numeric `freshness% 0..100`**; never grants a refill on transfer |
 | **Warming** | pungent herbs/spice | Stronger or longer **Warming Meal** (`cold_resist`) | Applies only where recipe makes the warming buff |
 | **Cooling** | cooling fruit, herbs | Stronger or longer **Cooling Meal** (`heat_resist`) | Weather resistance remains conditional |
 | **Fortifying** | specific meat/herbs | Improves existing **Sturdy Meal** (`defense`) magnitude/duration | Resist permanent defense inflation |
 | **Invigorating** | strong herbs/berries | Improves compatible **Gather Haste** duration or Energy recovery | Existing food-buff hooks, not new speed stat |
 | **Pure** | clean water, clean herbs | Reduced sickness/contamination chance in final dish | Raw danger not always fully neutralized |
-| **Preservable** | dry meat, low-moisture produce, salt-friendly ingredients | Longer ingredient/dish spoilage time **when spoilage exists** | **Spoilage is not yet a finished comprehensive system** |
+| **Preservable** | dry meat, low-moisture produce, salt-friendly ingredients | Lower spoilage-rate multiplier for appropriate preserved food once new code is implemented | Full logic, container modifiers, expiration and rotten outputs in [07](07-crafting-processing-and-food.md) |
 | **Tender** | favorable meat | Higher edible yield or easier cooking/energy efficiency | Recipe must track cook method |
 | **Medicinal** | appropriate herb/fruit | Better medicine/food remedy effect or shorter negative food debuff | Medicine remains primary direct Health restoration |
 
