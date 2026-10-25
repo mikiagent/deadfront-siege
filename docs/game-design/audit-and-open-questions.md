@@ -155,3 +155,18 @@ Could selling additional survivor slots, houses, worker capacity, livestock capa
 - **Q30. Worker and combat split:** Are cross-trained worksite workers capable of switching to fighting using their generic attributes but limited by separately trained combat technique, gear equip level and garrison orders? That would make an exceptional smith a potential defender without free expert warrior status.
 
 **Do not infer:** a confirmed six-attribute roster, EV transfer rate, named skills, profession quality formula or passive female/male stat bonuses. The owner established the **shared-attribute principle** with Strength/Precision examples; everything beyond that is a proposal.
+
+## G. Combat taxonomy and actual Godot hooks (2026-10-25)
+
+**Owner design directions, not implemented:** **Endurance** for construction work shifts, **Intelligence** for research/technology and pack/party alpha leadership with **Strength or Precision** combat credibility; and six precise weapon styles: Precision/Blunt (boulder thrower, catapult, slingshot), Precision/Point (bow, gun, blowdart), Precision/Slash (whip, throwing axe), Strength/Blunt (hammer/boxing), Strength/Point (javelin/spear), Strength/Slash (sword/axe).
+
+**Existing code fact:** [Combat counter table](../../game/data/combat_counters.json) already distinguishes `blunt`, `pierce`, `cut`; no need to invent a new damage-type array. [CreatureBrain](../../game/scripts/creatures/brains/creature_brain.gd) chooses a wild pack leader by tier, HP, attack and defense, **not Intelligence**. [RaptorPackBrain](../../game/scripts/creatures/brains/raptor_pack_brain.gd) coordinates same-target pursuit and flanking. [BuildPlacer](../../game/scripts/world/build_placer.gd) currently instantly places a building and gives Construction XP, so **Endurance-driven building labor requires the separately confirmed unfinished-worksite implementation first**. Skill-tree research gates are metadata, not a staffed research gameplay system. [Full implementation bridge](15-pve-exploration-and-combat.md).
+
+- **Q31. Alpha selection:** Should Intelligence participate in **choosing** the strongest leader if the candidate also has combat credibility, or should the physically strongest always lead while Intelligence improves their tactics and rallies?
+- **Q32. Rally outcomes:** Target-switching/flank/retreat/formation AI only, or timed accuracy/defense/stamina buffs as well? Can an intelligent human lead both humans and dinosaurs via one command?
+- **Q33. Construction Endurance:** Reduce Exhaustion/allow longer labor shifts only, or also build quality and speed? Future worksite must remain material- and Construction-skill-gated.
+- **Q34. Research ownership:** Tech unlocked globally for tribe while personal Research + Intelligence determines contribution (recommended), or individually discovered knowledge? Which current trees require formal research projects?
+- **Q35. Weapon modes and mastery:** Swinging vs throwing same axe uses Strength/Slash vs Precision/Slash, and how does proficiency transfer between Melee and Ranged? Catapult is existing siege hardware, not just handheld Precision weapon.
+- **Q36. Genetic/stat migration:** Current creature IV schema has seven combat stats and no Intelligence; should wild and owned dinos inherit new coordination IQ, or should Intelligence exist only for selected species/handlers?
+
+**No determined coefficients, alpha selection score, new status buff, genetic schema changes, or shipped features are implied by this audit.**
