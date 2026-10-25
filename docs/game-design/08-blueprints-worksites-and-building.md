@@ -234,6 +234,22 @@ and separate functional room ambience; shared structure supports navigation.
 
 **Important:** diagrams are conceptual, not a literal grid embedding of incompatible widths. Actual doorway socket alignment, cell width and walkable connections must be validated in game before committing the arrangement.
 
+## 9A. NEW attached building-economy direction: completed prefabs are packable, tradable products
+
+**The owner's new uploaded `BUILDING SYSTEM DESIGN: PREFAB CONSTRUCTION & PLAYER ECONOMY` explicitly makes this a fundamental requested feature:** Each **completed manufactured building** retains a persistent creator/owner/material quality/trait/durability identity across **deployed → packaged item → traded/transported → redeployed**, with no second charge for the original construction materials. This is an **owner-supplied forward-looking requirement**, not existing runtime behavior. Preserve creator attribution after sale. Manufacturing is an economic profession, including housing, workshops, defensive towers, dinosaur pens and **automatic/crewed turret platforms**. Source details are user-provided, not independently verified historical Durango behavior.
+
+**Lifecycle reconciled with earlier worksite direction:** `Blueprint learned → cheap blueprint item → place unfinished worksite → deposit actual processed parts → Construction labor → finished BuildingInstance → optional Pack Building → packaged BuildingInstance item → trade/boat cargo → deploy same BuildingInstance`. Building instantiation, direct operator use and packing are distinct state transitions. Packaging does **not** mean building a second free house, and it is **not** the same as dismantling for salvage. Packing preserves appearance, maker, owner, custom variant, health/durability, upgrade levels and **installed material trait snapshot**; after trade, owner changes, maker unchanged.
+
+**Pack restrictions:** completed and authorized buildings only; can't package in active combat/raids or while other players/tribe/pets are inside the building or operating turret; storage containers and attached turret ammo magazines must be **empty** or unloaded to validated real inventory space; remove/unassign crew and worker jobs, release grid occupancy/path reservations, preserve state atomically. Heavy buildings are still tradable but package mass/bulk and hauling/boat/harbor capacity can limit practical transport. No magic condition repair on packing, no infinite nested portable bags, no skill requirement to redeploy an already manufactured structure beyond legitimate territory/weight/crew runtime skills. More expensive structures may need **deployment assembly labor/time**, but never the original full materials again.
+
+**Saved entity requirements:** `BuildingDefinition` static recipe/model/footprint and skills; `BuildingInstance` persistent unique ID, original maker, owner, used lot provenance/quality, attributes, structural durability, components/upgrades, customization, condition; `PackagedBuilding` holds one canonical serializable instance, not a second independent building duplicating state. `Worksite` retains its separate construction stages and ledger. Current `PlacedBuilding` and `*_kit` scripts do **not** support the full manufactured packaged-building identity; need migration.
+
+**Home replacement is separate:** Existing **CONFIRMED** paid bigger private-home migration automatically dismantles original structures and refunds **100% of invested materials** into the special salvage-only vault; it is **not** also a free distribution of all the completed packaged buildings. The attached proposal's **unstable-island reset destroys structures/resources left behind** conflicts with earlier [WORLD-01](decisions.md) **unstable reset auto-dismantle into special recovery vault**. **DO NOT pick one quietly:** leave refund-vs-destruction for unstable island as a surfaced owner decision. A player who packs and successfully evacuates a completed portable structure **before** the reset keeps it under either model; an unpacked structure's reset treatment remains OPEN. Turrets follow [24 Turrets / Crew / Ammo](24-turrets-siege-ammunition-and-guard-crews.md).
+
+**BUILD-13** Design/build one persistent serializable structure instance usable as `deployed / packaged / transferred / redeployed`; atomically retire/add exactly one representation, preserve original maker, owner changes, invested material levels/traits, durability, upgrades/appearance and strict raid/occupancy/unload constraints. Include marketplace listing and boat/harbor package bulk; full duplication/lost-saves tests.
+
+**BUILD-14** Reconcile **all prefab packing** with connected 2×2/3×3/4×4 **modular room groups**: pack individual modules only if no unsupported shared door/floor/wall/load connection, or define a multi-module package with authoritative contents; prevent disconnecting structural support and double-refunding shared panels. Decide whether larger attached household group packages as a single assembled sale item. Handle replacement-home dismantle **without both material refund and intact package** and owner-open unstable reset conflicting policies. Neither feature is currently shipped.
+
 ## 10. Schema contracts and implementation worklist for Claude
 
 ### 10.1 Proposed data structures (illustrative, not existing schema)
@@ -289,6 +305,8 @@ This does **not** imply all source lots must be serialized as huge repeated ance
 - **BUILD-10** Home-island atomic paid replacement + 100% original invested material **salvage-only vault** transfer, unfinished worksite cancellation, existing building-kit save migration, and distinct unstable island/reset/ransom/raid rules.
 - **BUILD-11** Save/load and offline worker/time integration, door/path/navmesh updates, move/layout validations, connect/disconnect/refurbishment consistency, dynamic structure collision versus dinosaur size.
 - **BUILD-12** Automated visual/behavioral acceptance tests and controlled migrations for legacy player kits/placed buildings, old recipe IDs, role materials, placement exploits and room ambience.
+- **BUILD-13** Packaged unique BuildingInstance + persistent material traits/quality/creator + trade/boat/deployment economy with atomic pack/deploy, unload inventory and raid restrictions; see §9A.
+- **BUILD-14** Reconcile modular attached rooms, shared panels and turrets during pack/move/salvage, prevent duplicate materials/packages and explicitly resolve unstable island reset destruction versus old recovery-vault policy; see §9A.
 
 ### 10.3 Test requirements
 
@@ -307,7 +325,7 @@ This does **not** imply all source lots must be serialized as huge repeated ance
 13. Food in kitchen/pantry decays at correct container multiplier even if the home cannot be attacked; spoiled food doesn't inherit kitchen ambience as a fresh edible.
 14. A visually armored stone door cannot be passed through by a dinosaur physically too big for the opening; regular human worker route remains valid with door socket/path updates.
 
-**Complete implementation means the relevant blueprints, component items, worksite deposits, staged labor, room appearance, functional ambience, save compatibility and automated tests all exist.** A .md file alone does NOT implement the mechanic.
+**Complete implementation now also includes the owner-supplied packaged manufactured-building economy described in §9A, with persistent creator identity, portability/trading and atomic conversions, once its conflicts are resolved.** A .md file alone does NOT implement the mechanic.
 
 ## 11. Open owner decisions for later balancing
 
@@ -319,6 +337,8 @@ This does **not** imply all source lots must be serialized as huge repeated ance
 - **Construction material level contribution**, builder skill vs labor, load-bearing support density, failure/sag of gigantic unsupported roofs; choose readable lightweight abstraction, not fragile physics sim.
 - **Passive building time-wear** on protected private homes: user-provided Durango description offers no passive private home wear. Propose protected home no hostile damage (already confirmed) and optional no passive weather decay (NOT confirmed), whereas frontier ambient/raid exposure can be tuned.
 - **Cancellation, repair and manual demolition refunds** vs guaranteed 100% **paid home replacement** refund, new half-built worksites, originally fused composite lots and blueprint items. Avoid duplication.
+- **Packing completed modular buildings for a resale economy:** individual room modules versus grouped housing, and transported weight restrictions for especially large buildings.
+- **How unstable-island reset treats un-packed completed structures:** latest supplied text says destroyed/lost; prior owner decision WORLD-01 auto-recovers building materials to vault. Flag explicit conflict, don't change the policy silently.
 - **Permitted zones / claim rights** for remote outposts and module connections. Cannot directly import Durango domain protection that invalidates Deadfront frontier rules.
 
 **Historical statement handling:** The source message describes Durango's specific room dimensions, skill, door connection, materials-driven looks, room ambience, cooperative help and private-island passive durability as historical reference. This chapter treats those as inspiration; the Deadfront rules above are explicitly tagged as confirmed or proposed. No web source verification or game runtime changes occurred while writing this chapter.
