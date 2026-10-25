@@ -145,20 +145,20 @@ Could selling additional survivor slots, houses, worker capacity, livestock capa
 
 ## F. Cross-domain character attributes (owner direction, 2026-10-25)
 
-**Design intent newly raised:** Strength should have utility both in melee and force-intensive craftsmanship (smithing); Precision should have utility both in ranged combat and detail-intensive craftsmanship (tailoring). This belongs in the same individual **IV/EV, age/level, professions and worker assignment** architecture, not new completely isolated combat and crafting stat pools. Refer to [character attributes draft](02-characters-levels-and-age.md).
+**Design intent newly raised:** Might should have utility both in melee and force-intensive craftsmanship (smithing); Precision should have utility both in ranged combat and detail-intensive craftsmanship (tailoring). This belongs in the same individual **IV/EV, age/level, professions and worker assignment** architecture, not new completely isolated combat and crafting stat pools. Refer to [character attributes draft](02-characters-levels-and-age.md).
 
 **NEW owner questions:**
 
-- **Q27. Shared attribute EV training:** Does repeated smithing contribute a **small amount of Strength EV** usable in melee, and does shooting or fine crafting contribute a **small amount of Precision EV** usable across domains? Or are generic EVs earned only through dedicated exercises and upbringing? Cross-domain AFK exploit risk.
+- **Q27. Shared attribute EV training:** Does repeated smithing contribute a **small amount of Might EV** usable in melee, and does shooting or fine crafting contribute a **small amount of Precision EV** usable across domains? Or are generic EVs earned only through dedicated exercises and upbringing? Cross-domain AFK exploit risk.
 - **Q28. Craft attribute impact:** Should generic stats mostly affect **work speed/energy**, **quality/defects**, **special trait control**, or a mix? How to ensure profession skill/material input remain dominant for premium outputs?
-- **Q29. Primary attribute roster:** Should the final set be Strength, Precision, Agility, Endurance, Insight, and an optional Care/Empathy value, or another narrower set? Generic Care could be learned profession expertise instead of innate aptitude.
+- **Q29. Primary attribute roster:** Should the final set be Might, Precision, Agility, Endurance, Insight, and an optional Care/Empathy value, or another narrower set? Generic Care could be learned profession expertise instead of innate aptitude.
 - **Q30. Worker and combat split:** Are cross-trained worksite workers capable of switching to fighting using their generic attributes but limited by separately trained combat technique, gear equip level and garrison orders? That would make an exceptional smith a potential defender without free expert warrior status.
 
-**Do not infer:** a confirmed six-attribute roster, EV transfer rate, named skills, profession quality formula or passive female/male stat bonuses. The owner established the **shared-attribute principle** with Strength/Precision examples; everything beyond that is a proposal.
+**Do not infer:** a confirmed six-attribute roster, EV transfer rate, named skills, profession quality formula or passive female/male stat bonuses. The owner established the **shared-attribute principle** with Might/Precision examples; everything beyond that is a proposal.
 
 ## G. Combat taxonomy and actual Godot hooks (2026-10-25)
 
-**Owner design directions, not implemented:** **Endurance** for construction work shifts, **Intelligence** for research/technology and pack/party alpha leadership with **Strength or Precision** combat credibility; and six precise weapon styles: Precision/Blunt (boulder thrower, catapult, slingshot), Precision/Point (bow, gun, blowdart), Precision/Slash (whip, throwing axe), Strength/Blunt (hammer/boxing), Strength/Point (javelin/spear), Strength/Slash (sword/axe).
+**Owner design directions, not implemented:** **Endurance** for construction work shifts, **Intelligence** for research/technology and pack/party alpha leadership with **Might or Precision** combat credibility; and six precise weapon styles: Precision/Blunt (boulder thrower, catapult, slingshot), Precision/Impale (bow, gun, blowdart), Precision/Slash (whip, throwing axe), Might/Blunt (hammer/boxing), Might/Impale (javelin/spear), Might/Slash (sword/axe).
 
 **Existing code fact:** [Combat counter table](../../game/data/combat_counters.json) already distinguishes `blunt`, `pierce`, `cut`; no need to invent a new damage-type array. [CreatureBrain](../../game/scripts/creatures/brains/creature_brain.gd) chooses a wild pack leader by tier, HP, attack and defense, **not Intelligence**. [RaptorPackBrain](../../game/scripts/creatures/brains/raptor_pack_brain.gd) coordinates same-target pursuit and flanking. [BuildPlacer](../../game/scripts/world/build_placer.gd) currently instantly places a building and gives Construction XP, so **Endurance-driven building labor requires the separately confirmed unfinished-worksite implementation first**. Skill-tree research gates are metadata, not a staffed research gameplay system. [Full implementation bridge](15-pve-exploration-and-combat.md).
 
@@ -166,7 +166,9 @@ Could selling additional survivor slots, houses, worker capacity, livestock capa
 - **Q32. Rally outcomes:** Target-switching/flank/retreat/formation AI only, or timed accuracy/defense/stamina buffs as well? Can an intelligent human lead both humans and dinosaurs via one command?
 - **Q33. Construction Endurance:** Reduce Exhaustion/allow longer labor shifts only, or also build quality and speed? Future worksite must remain material- and Construction-skill-gated.
 - **Q34. Research ownership:** Tech unlocked globally for tribe while personal Research + Intelligence determines contribution (recommended), or individually discovered knowledge? Which current trees require formal research projects?
-- **Q35. Weapon modes and mastery:** Swinging vs throwing same axe uses Strength/Slash vs Precision/Slash, and how does proficiency transfer between Melee and Ranged? Catapult is existing siege hardware, not just handheld Precision weapon.
+- **Q35. Weapon modes and mastery:** Swinging vs throwing same axe uses Might/Slash vs Precision/Slash, and how does proficiency transfer between Melee and Ranged? Catapult is existing siege hardware, not just handheld Precision weapon.
 - **Q36. Genetic/stat migration:** Current creature IV schema has seven combat stats and no Intelligence; should wild and owned dinos inherit new coordination IQ, or should Intelligence exist only for selected species/handlers?
 
 **No determined coefficients, alpha selection score, new status buff, genetic schema changes, or shipped features are implied by this audit.**
+
+**Naming resolved (2026-10-25):** General combat attributes **Precision (P)** and **Might (M)**; damage types **Blunt (B)**, **Impale (I)**, **Slash (S)**; classes **PB, PI, PS, MB, MI, MS**. Earlier working *Strength* and *Point* are superseded only as **player-facing combat/attribute terms**, not as current engine tokens. `pierce`/`cut` still drive existing counters. This is no longer an owner question.
