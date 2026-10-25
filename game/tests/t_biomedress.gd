@@ -68,6 +68,7 @@ func _run() -> void:
 	_rt = _world.runtime
 	await _plan_checks()
 	await _node_checks()
+	await _live_claim_check()
 	await _signature_checks()
 	await _climate_checks()
 	_done = true
@@ -227,6 +228,58 @@ func _node_checks() -> void:
 		_expect(on_claim == 0, "a plot staked over dressed land plans nothing on it (%d)" % on_claim)
 		_rt.claims.resize(before)
 		_rt.claims = _rt.claims.slice(0, before) if before > 0 else []
+
+## The live claim reaction (CLAIMS2's IslandRuntime.claims_changed): claim a plot at runtime over
+## dressed land and the cards on it must collapse at once, not on the next rebuild.
+func _live_claim_check() -> void:
+	var bd = _rt.get_node_or_null("BiomeDress")
+	_expect(bd != null, "the home island has dressing to claim over")
+	if bd == null:
+		return
+	var saved_claims: Array = _rt.claims.duplicate()
+	var saved_domain: Dictionary = _rt.domain.duplicate(true)
+	_rt.claims.clear()
+	_rt.domain = {}
+	var all := Rect2i(-4096, -4096, 8192, 8192)
+	var total_before: int = bd.drawn_cards_in(all)
+	_expect(total_before > 0, "the home island draws cards before the claim (%d)" % total_before)
+	# A claimable plot that actually holds dressing (the strongest case: cards have to leave).
+	var target := Rect2i()
+	var on_plot := 0
+	# Only a cell that may actually be staked now: a Declare grows from the camp's own claim
+	# (spec 29 section 2), so the candidate must share an edge with the land already held.
+	var held: Dictionary = IC.occupied_cells(_rt)
+	for cell in _rt.claim_eligible_cells():
+		if not IC.adjacent_to(cell, held):
+			continue
+		var rect: Rect2i = IC.cell_rect(_rt, cell)
+		var n: int = bd.drawn_cards_in(rect)
+		if n >= 2:
+			target = rect
+			on_plot = n
+			break
+	_expect(target.has_area(), "a claimable plot stands under dressed land")
+	if not target.has_area():
+		_rt.claims = saved_claims
+		_rt.domain = saved_domain
+		bd.rebuild()
+		return
+	var out: Dictionary = _rt.claim_domain([IC.cell_of(_rt, target.get_center())])
+	_expect(bool(out["ok"]), "the plot claim goes through (reason %s)" % [out["reason"]])
+	_expect(IC.is_claimed(_rt, target.get_center()), "the claimed plot reads as claimed")
+	_expect(bd.claimed_instances() == 0, "the live claim leaves no card on claimed land (%d)" % bd.claimed_instances())
+	_expect(bd.drawn_cards_in(target) == 0, "the live claim clears the cards it landed on (%d of %d left)" % [bd.drawn_cards_in(target), on_plot])
+	_expect(bd.drawn_cards_in(all) == total_before - on_plot, "the live claim clears only its own plot (%d -> %d, %d removed)" % [total_before, bd.drawn_cards_in(all), on_plot])
+	# And a rebuild keeps the claimed plot bare.
+	_rt.domain = {}
+	_rt.claims = saved_claims.duplicate()
+	_rt.claims.append(target)
+	bd.rebuild()
+	_expect(bd.drawn_cards_in(target) == 0, "a rebuild keeps the claimed plot bare (%d cards)" % bd.drawn_cards_in(target))
+	_rt.claims = saved_claims
+	_rt.domain = saved_domain
+	bd.rebuild()
+	_expect(bd.drawn_cards_in(all) == total_before, "restoring the claim brings the cards back (%d vs %d)" % [bd.drawn_cards_in(all), total_before])
 
 func _climate_checks() -> void:
 	# The concept art's climates: savanna (termite mounds), volcanic (obsidian/basalt), swamp

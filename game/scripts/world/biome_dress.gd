@@ -38,6 +38,9 @@ const TILE_PX := 256
 const GUTTER_PX := 8
 ## Water cards float on the water plane instead of the (submerged) river bed.
 const WATER_Y := 0.06
+## A tile record that a cleared slot stands for: the slot keeps its index (the MultiMesh is thinned,
+## never rebuilt) but no longer counts as a drawn card.
+const CLEARED_TILE := Vector2i(-2147483648, -2147483648)
 
 static var _json: Dictionary = {}
 static var _manifest: Dictionary = {}
@@ -620,6 +623,7 @@ func _clear_slot(tile: Vector2i, p: Vector3) -> void:
 		if list[i] != tile:
 			continue
 		mmi.multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 0.001), Vector3.ZERO))
+		list[i] = CLEARED_TILE
 		changed = true
 	if changed:
 		mmi.multimesh = mmi.multimesh
@@ -629,6 +633,23 @@ func rebuild() -> void:
 	if _rt == null or not is_instance_valid(_rt):
 		return
 	build(_rt, _seed)
+
+## Cards actually standing (not collapsed) on tiles inside `rect` — the drawn truth, as opposed to
+## the record list: a claim reaction that only forgot the records would still be counted here.
+## (Headless reads multimesh transforms back as the origin, so this counts tile records, not
+## transforms: a collapsed slot's tile is replaced by CLEARED_TILE.)
+func drawn_cards_in(rect: Rect2i) -> int:
+	var n := 0
+	for key: Vector2i in _keys:
+		var mmi := _cells.get(key) as MultiMeshInstance3D
+		if mmi == null or not is_instance_valid(mmi) or mmi.multimesh == null:
+			continue
+		var list: Array = _tiles.get(key, [])
+		for i in mini(list.size(), mmi.multimesh.instance_count):
+			var tile: Vector2i = list[i]
+			if tile != CLEARED_TILE and rect.has_point(tile):
+				n += 1
+	return n
 
 ## Cells the node currently draws (a second build must not double this).
 func cell_count() -> int:
