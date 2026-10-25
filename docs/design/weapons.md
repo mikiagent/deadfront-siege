@@ -34,3 +34,18 @@ This is **owner-provided taxonomy**, not verification that every item is impleme
 **OPEN:** damage/accuracy formulas, secondary stat weights, support rally mechanics, whether crossbows use this Pierce family as suggested, and catapult siege-team proficiencies. Do not treat all of these example weapons as existing items.
 
 **LATEST owner-approved terminology:** **Dexterity** and **Might** are inherited IVs; **Impact**, **Pierce** and **Slash** label attack actions. Final shorthand **DI, DP, DS, MI, MP, MS**. An individual creature may have more than one mode. **Stegosaurus** spiked tail should chiefly Pierce: heavy **MP**, aimed **DP**; optional glancing rake **DS** is proposed. Future **Brontosaurus** example has **DS** tail whip and **MI** stomp, huge HP but low defense vulnerable to Slash; current **Brachiosaurus** does not yet work that way. [Species and mechanics](../game-design/15-pve-exploration-and-combat.md).
+
+## 2026-10-25 owner-accepted weapon classification and dinosaur matchup test
+
+**Owner selected the six-class framework as the working weapon design direction:** **Dexterity = control**; **Might = force**, both valid for **melee and ranged**, crossed with **Impact = disrupt**, **Pierce = penetrate**, **Slash = shred**. A weapon/attack mode has **one primary IV** (D or M), **one damage verb** (I/P/S), and **independent delivery** (melee/ranged/siege) and **behavior** (speed, range, spread, burst/automatic, windup/recovery). **Do not categorize solely by firing speed.** Avoid making Might synonymous with melee.
+
+|  | **Impact (I)** | **Pierce (P)** | **Slash (S)** |
+|---|---|---|---|
+| **Dexterity (D): controlled operations** | **DI** slingshot, portable grenade/rocket launcher, aimed catapult | **DP** bow, crossbow, rifle, sniper | **DS** shotgun or shred-pattern scattergun, throwing blade, supported Gatling |
+| **Might (M): force/heavy handling** | **MI** hammer/maul, heavy handheld demolition cannon, powered hammer | **MP** spear/lance, heavy harpoon gun | **MS** greatsword/chainblade, physically carried heavy rotary/minigun |
+
+**Proposed gun distinction:** Shotgun/Gatling 'Slash' is an *intentional videogame shredding abstraction*; bullets physically penetrate, so later realism-first design may choose different ammo/modes. A mounted Gatling may be **DS**, its carried heavy-handling variant **MS**, provided the mass/stabilization/stamina/recovery differences actually exist. DI portable explosive launcher versus MI heavy mobile cannon similarly differ by what IV determines operation; Might can still enjoy **ranged endgame**.
+
+**Proposed armor matchup bands:** **Slash -> Exposed + Light; Pierce -> Light + Medium; Impact -> Medium + Heavy**, while attack contact, reach, mobility and defensive armor totals remain independent of weakness. **All 19 existing animal species** have proposed best **D** and **M** weapons, with current counters and unimplemented firearm status marked, in [Dinosaur Weapon Matchups](dinosaur-weapon-matchups.md).
+
+**Status:** The six archetype names/definitions and independence of fire rate, delivery and defense are owner accepted as *design direction*. The example firearms, powered weapons, animal matchups, exact ammo types, fire rates, numerics and crafting unlocks are still speculative. No runtime weapons added.
