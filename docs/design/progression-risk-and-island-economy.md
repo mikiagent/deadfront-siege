@@ -18,18 +18,18 @@
 
 **CONFIRMED:**
 - Every player receives a private, permanently **unraidable** home island; people, dinosaurs, gear, buildings and stored loot kept there are not subject to hostile PvP/PvE raids.
-- The player can **buy larger private islands for a hefty price**. This should be a meaningful late-stage use of economic wealth, not a real-money shortcut.
+- The player can **buy a larger, fresh private home island for a hefty in-game price**, which contains **higher-level natural resources**. Purchasing means **abandoning the old island**, not adding land to it. This is a meaningful wealth sink, not a real-money shortcut.
 - A larger island increases viable space for housing, farms, manufacturing, pens, education, storage, staging and logistics. Supporting population also needs buildings/food/infrastructure; raw land alone does not guarantee free unlimited inhabitants.
 - All materials recovered from remote regions may be secured at home.
 
 **PROPOSED island-upgrade loop:**
 1. Start with a modest island that is sufficient for early survival, a handful of stations and people.
 2. Earn a hefty **in-game resource/currency** requirement and optional economic infrastructure prerequisites to purchase a larger private island.
-3. Expand the productive base: more house sites, warehouses, large workshops, nurseries, farms, docks and dinosaur facilities, all physically built and supplied, not automatically granted at purchase.
+3. **Abandon the former private island** and start again on a fresh larger private island with higher-level nodes. Dismantled old-island **building materials** transfer through a dedicated **Ender Chest-like salvage box**, separate from ordinary gathered-item storage. Migration of residents, dinosaurs, inventories, live worksites and non-dismantled buildings is OPEN. No free automatic rebuild or item duplication.
 4. The larger home makes maintaining more skilled workers, high-value bloodlines, advanced education and safe material stockpiling convenient. More space is economic throughput and planning flexibility, **not a direct PvP combat stat bonus**.
 5. Make island-scale progression a high-value **non-PvP sink** for the game's simulated economy. A player must not be compelled to enter PvPvE to obtain a reasonably satisfying private island.
 
-**OPEN:** Upgrade the same landmass seamlessly vs move the protected base to a purchased larger island with faithful building relocation vs own multiple private islands; number of size tiers; currency/resource prices; maximum safe land; how coastline/docks and terrain types work; build density and performance caps. All are design decisions, not silently approved mechanics.
+**RESOLVED:** Purchases replace the old home with a fresh larger, higher-resource-tier island; the old home is abandoned. Dismantled construction inputs go to the special salvage-only recovery chest, **not an automatic transfer of intact buildings**. **OPEN:** number of island size/resource tiers; price currency and amounts; salvage yield (full or partial); whether purchases wait for dismantling; transfer of humans/dinosaurs/inventories/crops/eggs/unfinished worksites; chest capacity; coastline, map procedural generation and performance caps. [Canonical decision](../game-design/decisions.md).
 
 ## 3. Age is connected to level without making newborns instant adults
 
@@ -45,15 +45,13 @@
 
 ## 4. No market or loot progression bypass through high-level equipment
 
-**CONFIRMED:** Dropped, bought, traded, gifted, crafted or raided equipment must not let an underleveled **individual** skip earned progression. Consider either:
-- **Strict personal-level equip gate:** an item of level L cannot be equipped before the survivor's personal required level (possibly also skill proficiency).
-- **Effective-level cap:** the survivor can equip a high-level item, but every relevant stat, trait synergy and ability is scaled/capped to that character's earned level.
+**CONFIRMED (owner settled): Strict personal-level equip gate, NO downscaling alternative.** A human cannot equip a weapon, armor piece, power accessory or power-bearing tool above their **own earned level**, whether acquired by gathering, crafting, trading, purchase, gifting, raid or inheritance. A level-5 descendant may store, carry, inspect and trade a level-40 crossbow but cannot **equip or activate** it. No special passive or gear-triggered effect should remain usable by an underleveled human to bypass the restriction.
 
-**PROPOSED recommendation:** **Strict equip gate** for weapons, armor, accessories and power-bearing tools is simpler to understand and enforce, and prevents a rich tribe from handing a new low-level body an endgame crossbow. Such items may be owned, stored, transported and sold; they just cannot be equipped early. Apply the rule to **NPC humans and players alike** (including recruits, captured or inherited characters). Enforce skill/profession prerequisites where high-tier crafting and station production would otherwise bypass career progression. Locked power includes trait effects and equipment-triggered skills, not just base damage.
+The rule must apply to **players and NPC human workers/companions** and not depend on tribe wealth or a predecessor's level. Enforce skill/profession prerequisites where high-tier crafting/station production could otherwise bypass personal experience. **OPEN** exceptions for building materials, consumables, boats, dinosaurs, construction blueprints and whether a definition's minimum required level always equals its item level.
 
 **Market purpose:** People should still buy and sell supplies, food, inputs, blueprints and aspirational rare materials, specialize economically and trade legitimately. The market substitutes for some labor, **not for individual levels, training, education, cultivation, genetics or dangerous-area eligibility**. Keep the economy useful without letting wealthy accounts create instantly max-powered successors.
 
-**OPEN:** Owner chooses strict equip gate vs scaled use; whether consumables have lower or no personal-level requirements; what skills gate work tools and station operation; whether raw rare material and high-tier recipes have crafting requirements; what happens when an adult with equipped gear is affected by downscaling in a lower PvP league.
+**OPEN:** exact treatment of consumables, ammo and power-bearing tools; whether skill/profession gates accompany strict item-level gating; whether raw premium materials can be used at lower levels; how regional PvP power brackets interact with gear that remains individually level-legal.
 
 ## 5. Contested expansion: disposable investments, not civilization-wide catastrophe
 
@@ -61,10 +59,10 @@
 - Remote gathering settlements are **raidable** in their applicable PvE/PvPvE regions. People and dinosaurs deployed there may permanently die and are potentially **capturable** through raid mechanics.
 - Players may **depart homebound by boat during an active raid**, limited by boat and harbor **level and traits**. Once an actually loaded boat has departed toward protected home, ship, personnel and cargo cannot be attacked in transit.
 - **No player-declared PvP raid vulnerability windows.** The owner answered **NO** to raid windows/appointments; do not reintroduce them as mandatory timers.
-- The owner suggested that **PvP may unlock only in late game**. This is a strong direction to explore, but the exact unlock and whether every endgame player opts in remain **OPEN**.
+- **CONFIRMED:** PvPvE access is locked behind **reaching personal level 60 and unlocking level-60 islands**. No earlier PvPvE. Players can remain PvE-only after unlocking if they prefer. **OPEN:** whether a level-60 zone unlock remains with the tribe once the player adopts a personally lower-level descendant, and whether companions/worker garrisons need level-60 access individually.
 - Raiding should be difficult, costly and potentially valuable to an attacker, with a realistically strong defender advantage. It must not be a cheap path to exponential wealth compared with industry and non-PvP adventure.
 
-**PROPOSED practical progression path:** protected home economy -> increasingly risky **PvE** expeditions and outposts -> advanced logistical/worker/defense skills -> **late-game opt-in PvPvE frontier**, entered deliberately via a territorial claim/license and displayed loss-risk terms. A developed safe home remains a viable endgame alternative. This gives time to learn siege AI, trade, breeding, crafting and valuable item traits before PvP.
+**PROPOSED practical progression path:** protected home economy -> increasingly risky **PvE** expeditions and outposts -> reach **personal level 60** and unlock **level-60 islands** -> optionally establish a **PvPvE frontier** outpost, entered deliberately via a territorial claim/license and displayed loss-risk terms. A developed safe home remains a viable endgame alternative. This gives time to learn siege AI, trade, breeding, crafting and valuable item traits before PvP.
 
 **Workshops not yet decided:** zone-weight classes vs rated attacks vs hybrid; how power classes behave for offline settlements; PvE raid frequency; attacker siege permit/stake and cooldowns; whether an open PvPvE outpost can be attacked fully offline; permanent-death/capture loss limits; if defenders receive advance scouting signals (not windows).
 
@@ -110,11 +108,11 @@ An owner's private island is outside this system. No "low-level" attacker may br
 
 ## 9. High-leverage design decisions awaiting owner answers
 
-1. **Gear rule:** Strict cannot equip until required personal level, or allow equipping with complete stat/trait level-capping? Recommended: **strict gate** for power-bearing equipment.
+1. **Gear rule (RESOLVED):** Strict unequippable until the **individual's** required level. **Still OPEN:** consumables and skill requirements, level legal on NPCs, and item/equip level mismatch.
 2. **Age map:** Should a level-1 new adult appear about 18–20 and a level-60 character appear older/seasoned, or should level correspond directly to literal age? How do real-time childhood timers and veteran aging interact?
-3. **Late PvP opt-in:** Unlock PvPvE claims only after a progress milestone (character level, home island infrastructure, several completed PvE sieges, or a combination)? Optional forever, or required for certain materials?
+3. **Late PvP entry (RESOLVED in part):** Reach **personal level 60** to unlock **level-60 islands**, where PvPvE is available, always optional to participate. **OPEN:** does the island permission survive switching to a newly low-level descendant, or must the currently controlled character reach 60 to enter?
 4. **Attack rate without raid windows:** Spend scarce siege permissions/items and have long attacker cooldowns, or allow constant attempts where costs are the only deterrent? Should offline-garrison defense be separately protected/capped?
 5. **Capture and salvage:** Can attackers take multiple deployed humans/dinosaurs in a single raid, and does captured person retain old loyalty/skills with a chance of rescue/escape? How much of structures is recoverable? Can they capture a *domain claim*?
-6. **Big-island purchase:** Seamlessly expand existing private island, exchange/relocate entire safe base to a bigger island, or own multiple separate protected islands? What counts as a hefty price in the economic curve?
+6. **Big-island purchase (RESOLVED in part):** Abandon prior private island for fresh larger higher-resource-level home; store **dismantled building materials only** in a special salvage vault. **OPEN:** upgrade cost/size ladder, whether all property must be dismantled, resource refund fraction and logistics of survivors/dinosaurs/stored items.
 
 **Next step:** Owner workshop choices followed by per-subsystem specs with exact data ownership, save schema/migrations, training/gear requirements, UI details and fairness tests. Do not turn any undecided mechanic into a shipping rule by default.
