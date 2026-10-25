@@ -207,3 +207,15 @@ The owner may reorder stages. No system should be marked shipped before targeted
 5. **Automation:** offline work, tool safety in combat, allowed autonomous repair, monitoring stand scope and override semantics.
 6. **Companions:** fate of a mount after rider death, slot behavior after dismount and whether the playable survivor's personal mount counts.
 7. **Trait charms:** whether "+20%" means relative probability or +20 percentage points, how charms are acquired, and whether they stack.
+
+## 13. Ownership risk and market/level controls (2026-10-25 update)
+
+See [core progression and risk spec](progression-risk-and-island-economy.md) and [local-alpha siege workshop](pvp-raiding-local-alphas-and-siege-fairness.md).
+
+**Owner-confirmed:** Every tribe starts with permanently safe private island housing and production and may purchase a **larger safe island at great in-game cost**. The player's strategic norm is to protect **elite humans, rare breeding dinosaurs, primary gear and best materials at home**, voluntarily bringing replaceable people/animals/structures and recoverable gear to PvE or potentially late-game PvPvE extraction outposts.
+
+Human offspring still grow via timers/food quality and education, but **age/maturity should also correlate with earned character level**. New adults remain personally inexperienced, veteran adults retain their earned levels. Exact age model is open.
+
+**Personal equipment restriction to prevent market bypass:** owner wants either a **hard equip-level gate** for bought/dropped/looted gear or a **full effective-level clamp** on all stats/traits/abilities, so wealthy tribes cannot instantly equip fresh descendants with exceptional weapons. Apply individual requirements to workers/companions/captives as well as player avatar. Hard gating is recommended but not owner-finalized.
+
+**PvP direction:** no defender-selected raid windows. **Late-game-only optional PvPvE** is being considered, allowing early/midgame focus on production, breeding, crafting and PvE defense. Raid loot categories may include salvage from **dismantling exposed outpost buildings**, captured exposed **adult** humans, captured dinosaurs, unshipped resources, equipped items/accessories. Human age limitation, extraction/capture mechanics, loyalty and recovery are still proposed. Victim safety comes from controlling what they risk plus matching/fairness rules; expensive, limited attacker opportunities must prevent raiding being the leading source of wealth. Full multiplayer still needs an authoritative server.
