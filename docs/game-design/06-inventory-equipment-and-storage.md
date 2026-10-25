@@ -97,3 +97,11 @@ The game's **natural defense weakness** and an attacker's **offensive channel** 
 5. Are **dinosaur saddles/barding** included in armor weights, with body-part protection and rider/animal separate hit boxes, or deferred until the human armor system is balanced?
 
 **Nothing here changes runtime code, in-game armor parameters or approved existing creature stats.**
+
+## 8. New dinosaur armor and load request (2026-10-25, future mechanic)
+
+The owner explicitly wants **dinosaur barding and a weight system with meaningful trade-offs**, including a hypothetical **heavily armored Brontosaurus**, plus mass-dependent stomp/trap and raptor pounce mechanics. The full, newest dedicated specification is [22 Dinosaur Mass, Armor and Grappling](22-dinosaur-mass-armor-and-grappling.md).
+
+**Reconcile human gear with creature protection:** human `Head/Body/Legs` slots remain as implemented, while dinosaurs would need **fitted animal-equipment slots** and local body coverage. Separate **body mass** from **armor mass**, **saddle mass**, **rider/cargo** and relative **comfortable carry capacity**. One dinosaur may have exposed legs (Slash favored) plus Heavy plates over the torso (Impact favored). Armor should improve protection but reduce **turning/acceleration and stamina or cargo headroom** at sufficient loads; avoid punitive stacking of every mobility penalty. Fitted protection does not make an unarmored sauropod a naturally plated Ankylosaurus or change the rider's reach.
+
+**Guardrail:** Heavily armored Brontosaurus retains lethal huge DS tail reach and MI footfall pressure, but turning/recovery plus visible attack windows, weak leg zones, high upkeep and carried burden give opponents counterplay. A giant's foot can trample multiple tiny bodies only at actual planted footprint contacts, not a passive body-aura. Pin/Gore and raptor Maul are separate attack/control move events, not new IV/damage types. **None of this is implemented today.**
