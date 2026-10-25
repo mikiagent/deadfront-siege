@@ -19,7 +19,7 @@
 | PVP-01 | **Islands themselves are not raidable.** Only placed **PvPvE settlements** may be raided by players; **PvE settlements** may be raided by **dinosaurs/animals**. The protected private home is never raid target. | Humanoid NPC raiders in earlier design are superseded unless reapproved. Offline garrison and settlement siege scope OPEN. |
 | PVP-02 | **NO player-declared vulnerability or scheduled raid windows.** | Attacker-side expensive siege permits/cooldowns, server alerts, offline defender AI and no-grief recovery period OPEN. |
 | PVP-03 | Local alphas should feel strong relative to their region; larger players must not cheaply punch down against newbies. Raiding must be **hard, expensive, potentially lucrative, and realistically defensible**. | Exact level brackets, region ceilings, force power evaluation, payouts, defender edge, cooldown OPEN. |
-| PVP-04 | Exposed-settlement raid rewards may include salvage from dismantled buildings, **captured humans/dinosaurs**, unshipped goods and equipped accessories/gear. Captured humans/dinosaurs enter a **prisoner/captive state** with possible **recruitment, exchange or ransom**, not automatic loyal transfer. | **Automatic ransom/buyback offers** are a tentative idea, not yet approved. Rescue, allegiance, capture limits, costs and recoverability OPEN. |
+| PVP-04 | Winning PvPvE settlement raids may yield exposed-building salvage, deployed human/dinosaur **captives**, unshipped stock, equipment/accessories. Captured units initially become **prisoners**, with **recruitment, exchange and time-limited ransom** available. **If the defender fails to pay ransom by the deadline, the attacker gains the right to acquire/claim that human or dinosaur**. No free immediate loyal recruitment at capture. | Deadline length/clock, ransom price/escrow, automatic notifications, whether transfer happens automatically on expiry or needs manual claim, rescue and captive ownership/loyalty OPEN. |
 | PVP-05 | Players should keep exceptional individuals, breeding stock, gear and materials at safe home and risk only disposable/recoverable frontier assets. **Raiding must not become the best way to progress.** | Whether dangerous zone-exclusive resources are necessary for late-stage lineages/home islands OPEN. |
 | LOG-01 | A boat **may depart toward private home during an ongoing raid**. The boat, crew and cargo **cannot be attacked/intercepted once underway homeward**. | Protection of *outbound* boat, loading and dock danger, voyage time, offline jobs OPEN. |
 | LOG-02 | Amount of goods saved by a departing boat is constrained by the **boat's level and traits plus the harbor's level and traits**. | Weight/slots formula, inventory reservation behavior, load rates and logistics UI OPEN. |
@@ -50,6 +50,10 @@
 8. **Code reality vs target design**: current Godot project is solo-first with existing skill/item inventory and home island logic. This ledger does not establish that future switching, genetics, remote raid capture, larger islands or player-market protection already exist.
 
 ## Most recent owner answers (2026-10-25)
+
+**Newest prisoner clarification:** A capture triggers a **limited ransom opportunity**. If defender does not pay before expiry, **attacker may acquire that captive**. This is a **confirmed outcome**, while exact deadline, amount, notifications, manual claim vs automatic transfer and allegiance are OPEN. See [captive and siege chapter](16-pvp-frontier-siege-and-captives.md).
+
+
 
 - **Q01:** Yes to a preview/confirmation **followed by automatic dismantling and transfer**; the previous private island is abandoned.
 - **Q02:** Yes to **100% building-material refunds** for the paid private-home upgrade and separate transfer of inhabitants/animals/ordinary storage. Salvage chest is for dismantling-derived materials.
