@@ -41,6 +41,8 @@ Do not silently turn a proposal, historical observation or example number into a
 **New owner combat and research direction (2026-10-25):** **Latest final combat framework:** weapon/tool handling **Dexterity (D) IV** and physical power/heavy-tool **Might (M) IV**, crossed with **Impact (I), Pierce (P), Slash (S)** attack verbs, producing **DI, DP, DS, MI, MP, MS**. Underlying engine counters remain `blunt/pierce/cut`. **Endurance** is connected to construction labor/Exhaustion; **Intelligence** to research, coordination, alpha leadership and rallies. Existing raptor packs pick alphas by physical strength/tier and share/flank targets; adding Intelligence is still a proposed change. [Combat and leadership integration](15-pve-exploration-and-combat.md), [shared attributes](02-characters-levels-and-age.md).
 
 
+**New dinosaur body/defense proposal (2026-10-25):** **big, slow, fleshy -> Slash**, **armored/plated -> Impact**, **fast/evasive -> Pierce**. A **small swarm** may favor **wide-area Impact**, but single tiny creatures should not magically be weak to any hammer regardless of hitbox. This is a **proposed defensive weakness per species**, separate from an animal's own **Dexterity/Might × Impact/Pierce/Slash** attack modes. [Nineteen-species vulnerability and attack catalog](11-dinosaurs-and-genetics.md) maps all present JSON species, notes conflicts with the old resistance table and keeps Brontosaurus separate from existing Brachiosaurus.
+
 **Species illustration (owner direction):** The proposed **Brontosaurus** should have giant HP but relatively low defense, rewarding Slash attacks. Its tail whip is **DS** and stomp **MI**. Existing **Brachiosaurus** is not a Brontosaurus and currently resists Slash due to its `giant` counter family; no balance table has been changed. Proposed Stegosaurus is chiefly **Pierce**: **MP** heavy spike, **DP** controlled spike, with optional **DS** rake. [Full combat chapter](15-pve-exploration-and-combat.md).
 
 ## Proposed chapter library
@@ -59,7 +61,7 @@ The following are **planned chapter paths**. The files do not yet exist unless l
 | `08-blueprints-worksites-and-building.md` | Unlocks, craftable blueprint items, material deposits, labor, dismantling |
 | `09-tribe-population-and-recruitment.md` | Unique persons, housing/support capacity, exiled wanderers, allegiance |
 | `10-human-genetics-upbringing-and-education.md` | Parentage, expense, food stages, inherited potential, visibility and physical variation |
-| `11-dinosaurs-and-genetics.md` | Wild captures, spiky stats, species AI, husbandry, breeding, permanence |
+| [11-dinosaurs-and-genetics.md](11-dinosaurs-and-genetics.md) | Wild captures, spiky stats, species AI, husbandry, breeding, permanence |
 | `12-expedition-mounts-and-command.md` | Three slots, riders as composites, human followers, inventory, mounted behavior |
 | `13-workers-automation-and-logistics.md` | Mining/lumber sites, monitoring stand, work orders, tool durability, boat shipping |
 | `14-vitals-rest-status-and-medicine.md` | Exhaustion, Energy, continuous sleep, Sit, effect tooltip, medical/education buffs |
