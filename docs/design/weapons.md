@@ -22,13 +22,13 @@ Design rule from the PRD: ranged is safer and lower DPS than a good melee set, a
 
 ## 2026-10-25 owner direction: six archetypes, tied to current damage channels
 
-The canonical future-system specification is [Combat, Pack Leadership and Existing Godot Integration](../game-design/15-pve-exploration-and-combat.md). **Weapons are classified by primary use attribute (Precision or Strength) and damage channel (Blunt, Point, Slash):**
+The canonical future-system specification is [Combat, Pack Leadership and Existing Godot Integration](../game-design/15-pve-exploration-and-combat.md). **Weapons are classified by primary use attribute (Precision or Might) and damage channel (Blunt, Impale, Slash):**
 
-| Primary stat | Blunt | Point | Slash |
+| Primary stat | Blunt **B** | Impale **I** | Slash **S** |
 |---|---|---|---|
-| **Precision** | **Boulder thrower**, **catapult**, **slingshot** | **Bow**, **gun**, **blowdart**, proposed crossbow family | **Whip**, **throwing axe** |
-| **Strength** | **Hammer warrior**, **boxer** | **Javelin**, **spear** | **Sword**, **axe** |
+| **Precision (P)** | **PB:** boulder thrower, catapult, slingshot | **PI:** bow, gun, blowdart, crossbow (proposed) | **PS:** whip, throwing axe |
+| **Might (M)** | **MB:** hammer warrior, boxer | **MI:** javelin, spear | **MS:** sword, axe |
 
-This is **owner-provided taxonomy**, not verification that every item is implemented. Current [combat counter values](../../game/data/combat_counters.json) use `blunt`, `pierce`, `cut` internally, so UI Point -> `pierce`, Slash -> `cut`/`slashing`. A swung axe may be Strength/Slash while its throwing attack is Precision/Slash if mode-based attributes are approved. Keep **Melee/Ranged skill and personal equip levels** separate from raw attributes. **Precision** supports aiming/catapult targeting, while Endurance affects the constructor operating/loading it; **Intelligence** can support commander coordination. See the full chapter for current raptor-pack AI and planned research/worksite dependencies.
+This is **owner-provided taxonomy**, not verification that every item is implemented. Current [combat counter values](../../game/data/combat_counters.json) use `blunt`, `pierce`, `cut` internally, so **displayed Impale -> internal `pierce`**, **displayed Slash -> internal `cut`/`slashing`**. A swung axe may be Might/Slash while its throwing attack is Precision/Slash if mode-based attributes are approved. Keep **Melee/Ranged skill and personal equip levels** separate from raw attributes. **Precision** supports aiming/catapult targeting, while Endurance affects the constructor operating/loading it; **Intelligence** can support commander coordination. See the full chapter for current raptor-pack AI and planned research/worksite dependencies.
 
-**OPEN:** damage/accuracy formulas, secondary stat weights, support rally mechanics, whether crossbows use this Point family as suggested, and catapult siege-team proficiencies. Do not treat all of these example weapons as existing items.
+**OPEN:** damage/accuracy formulas, secondary stat weights, support rally mechanics, whether crossbows use this Impale family as suggested, and catapult siege-team proficiencies. Do not treat all of these example weapons as existing items.
