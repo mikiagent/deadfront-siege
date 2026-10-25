@@ -65,3 +65,13 @@ Sailing to unstable islands, warp hops, opening craters, market listing fees, an
 2. The same salt at the Frontier Post is worth a fifth as much.
 3. A level-30 knife lists for about 2.8× a level-1 knife of the same recipe.
 4. An `unstable` item cannot be listed until cargo-warped.
+
+## 2026-10-25 progression protection and protected-island wealth sinks
+
+See [Skyblock-like island economy and frontier risk](progression-risk-and-island-economy.md).
+
+**Confirmed owner intention:** Market trade, gifted items, drops, raid loot and inheritance must **not bypass individual earned progression**. The design will enforce either **strict personal level requirements** before equipping high-level weapons/tools/armor/accessories, or **effective-item-level capping** including every powerful trait/ability; user has not selected between them. Apply rules to all individual humans, not solely current avatar. Purchased raw inputs can still be economic inputs and trade specialization should remain valuable; avoid unlocking advanced professions simply through cash or high-tier shop-bought tools.
+
+**Confirmed:** A player may purchase **larger permanently protected private islands** for a hefty amount of **in-game wealth/resources**. This should be a meaningful recurring economic sink that supports a large population and secure industrial expansion, without forcing PvP participation. Starting private island remains accessible by default; safe land scaling must be paid for and built out rather than automatically supplying top-level items.
+
+**Balance goal:** Manufacturing, PvE gathering, agriculture, animal breeding, legitimate trading and private-island industry should generally provide more reliable long-run economic returns than raiding. PvP might unlock only at late progression. Raiders may attempt expensive, finite-opportunity sieges of *voluntarily exposed* frontier stock, equipment, captured adult tribe members/dinosaurs and salvage from demolished outpost structures. **No defender-scheduled PvP vulnerability windows**. Design meaningful attacker costs/opportunity restrictions and honest at-risk loot; do not let repeated cheap attacks outperform the normal economy. Captives must not instantly become permanently loyal/fully usable simply because taken in a raid; capture handling/retention are open.
