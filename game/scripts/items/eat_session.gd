@@ -180,10 +180,12 @@ func _apply_bundle() -> Dictionary:
 		if digested > 0.0:
 			digestion.schedule(_stack_snapshot.def_id, digested, float(bundle.get("digest_seconds", 0.0)))
 	# --- Fullness, thirst, health, life, fatigue, capacity deltas.
+	# A finished meal always applies Full (the rule before spec 32); the bundle may only lengthen it.
+	# Fullness as a value is carried for the panel and the report: this build has no satiety meter
+	# (PRD :72/:1030 forbids one), so it is the same Full status with the food's own duration.
 	var fullness := float(bundle.get("fullness", 0.0))
-	if stacks != null and fullness > 0.0:
-		var full_row := {"fullness": fullness, "duration": float(bundle.get("full_seconds", 10.0))}
-		_apply_status(stacks, &"full", float(full_row["duration"]))
+	if stacks != null:
+		_apply_status(stacks, &"full", float(bundle.get("full_seconds", 10.0)))
 		out["fullness"] = fullness
 	var thirst := float(bundle.get("thirst", 0.0))
 	if stacks != null and thirst > 0.0:
