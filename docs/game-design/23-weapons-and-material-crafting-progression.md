@@ -113,7 +113,7 @@ raptor_talon -> + stone [Workbench] honed_talon_set
 
 ### Late game: forged shaped metal + reinforced dinosaur composites (suggested ~45–60)
 
-**The critical rule: the final weapon assembly contains **processed components only**, with neither raw resource nor coarse `iron_ingot` consumed at the last step.** Iron ore currently lacks an item/source. `iron_ingot` item is already defined but not genuinely smeltable in a specific iron process, and `refined_iron_bar` plus downstream parts are entirely new. The following six weapon recipes replace earlier direct iron-ingot/raw-dinosaur recipes.
+**Critical late-game rule:** The final weapon assembly contains **processed components only**, with neither raw resources nor coarse `iron_ingot` consumed at the last step. Iron ore currently lacks an item/source. `iron_ingot` item is already defined but not genuinely smeltable in a specific iron process, and `refined_iron_bar` plus downstream parts are entirely new. The following six weapon recipes replace earlier direct iron-ingot/raw-dinosaur recipes.
 
 | Code | Defining weapon (output id) | **Final assembly input list (all processed components)** | Implementation dependencies | Weapon role |
 |---|---|---|---|---|
