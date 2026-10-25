@@ -55,6 +55,8 @@ Do not silently turn a proposal, historical observation or example number into a
 
 **T. rex + consecutive-hit + mount height owner clarifications (2026-10-25):** **T. rex is intended to be tameable AND rideable** as a Tyrant mount; existing `tyrannosaurus.json` presently contradicts this (`tameable: false`, no `mount` role) and needs a future implementation reconciliation without trivializing its current raid boss. **Very large mounts create rider-weapon reach limits:** a sword on a high T. rex saddle cannot strike ground Compys merely because the Rex's jaws/stomp can. Rider hit geometry and dinosaur natural attack reach are independent. **Melee Slash should reward successive landed attacks** through a capped Combo/Rend, while **Berserker Frenzy** emphasizes maintained consecutive-hit pressure; misses or disruptions can break a streak. T. rex Tyrant remains a deliberate bite/stomp threat, not an automatic Berserker. Detailed design and still-unapproved numbers: [Mount geometry, Rex and Frenzy](12-expedition-mounts-and-command.md).
 
+**Latest dinosaur physical-combat idea (2026-10-25):** A new **natural body mass + added equipment load + species carrying capacity/encumbrance** system supports **footprint-based trample against multiple tiny animals, relative-size Pin against smaller prey, and raptor Pounce -> Pin -> Maul/Gore** where the animal's anatomy and hitbox actually permit contact. Add **fitted Light/Medium/Heavy dinosaur barding** with protected body regions and true carrying/mobility/energy/turning trade-offs. Showcase **heavily armored Brontosaurus**, with Heavy-protected back/flanks countered relatively by Impact, while exposed legs still reward Slash; enormous mass and long DS whip/MI stomp remain dangerous but become less agile under load. **Status names already exist in code**, not these mass/armor/contact mechanics. [New mass, armor and trapping chapter](22-dinosaur-mass-armor-and-grappling.md). Specific weight formulas, geometry and implementation unapproved.
+
 ## Proposed chapter library
 
 The following are **planned chapter paths**. The files do not yet exist unless linked elsewhere. Create and lock them incrementally after the relevant owner questions are answered, rather than scaffolding empty or fabricated specifications.
@@ -81,6 +83,7 @@ The following are **planned chapter paths**. The files do not yet exist unless l
 | `18-ui-controls-accessibility.md` | Desktop/touch/gamepad, menus, hover/tap, compact HUD, status and trait visibility |
 | `19-save-data-network-and-security.md` | Character IDs, home migration, items/vault, authority, market, raid anti-exploits |
 | `20-monetization-and-live-operations.md` | Fair cosmetics, identity/account, anti-pay-to-win, analytics, live balancing |
+| [22-dinosaur-mass-armor-and-grappling.md](22-dinosaur-mass-armor-and-grappling.md) | Natural mass, footprint trample, relative-size pins, raptor Pounce/Maul, dinosaur armor/barding/load, armored Brontosaurus |
 | `21-tutorial-missions-and-progression-tests.md` | Teaching systems, levels 1-60, first tame, island upgrade, optional PvPvE teaching |
 
 ## Format for each future chapter
