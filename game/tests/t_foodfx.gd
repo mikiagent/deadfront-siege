@@ -70,6 +70,16 @@ func _run() -> void:
 	(kit["nav"] as Node).queue_free()
 	await process_frame
 	await physics_frame
+	# PlayerView creates the eat session during its own deferred UI setup. On a full integrated island
+	# that can land after the first physics frame, so wait for the real prerequisite instead of racing it.
+	var setup_frames := 0
+	while _player.eat_session == null and setup_frames < 240:
+		await process_frame
+		setup_frames += 1
+	if _player.eat_session == null:
+		_expect(false, "the player creates an EatSession before FOODFX acceptance runs")
+		_finish()
+		return
 	# The food clock is driven explicitly: a headless frame's delta is not the seconds these need.
 	_player.eat_session.set_process(false)
 	_test_split()

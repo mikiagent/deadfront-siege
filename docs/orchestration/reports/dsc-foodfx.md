@@ -153,6 +153,9 @@ Re-run results this round (all headless): `t_foodfx` PASS (133 ok, 0 SCRIPT ERRO
 3. **Blast-radius result.** `process_lab` passes the restored active-meal and fatigue assertions headlessly.
    Its only remaining failure is `4 dried meat in the bag`; it reproduces unchanged on the integration base,
    before FOODFX, and is logged as unrelated process-lab debt. There is no FOODFX parse or script error.
+4. **Integrated test startup is deterministic.** `t_foodfx` now waits for PlayerView's actual
+   `EatSession` setup rather than assuming it exists after one physics frame. This removes the integrated
+   island-load race without changing gameplay code.
 
 ## What the next agent needs
 - **Run stage 2 windowed** on a free machine: `bash docs/orchestration/dsc/gates/verify_job.sh foodfx 2`.
