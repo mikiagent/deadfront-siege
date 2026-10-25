@@ -7,13 +7,16 @@ extends Node3D
 ## Saves DIR/<island>-<zone>-top.png and -game.png for every dressed zone (>= 5 PNGs), plus the home
 ## camp perf frames, and prints exactly one line:
 ##   [biomedress] RESULT zones_total= zones_dressed= sprite_kinds_min= grass_in_claim= prims_camp=
-##   ms_frame= ms_base= wrong_biome=
+##   ms_frame= ms_base= wrong_biome= zones_home_grassland= cards_home_grassland= ... (one pair of
+##   keys per island visited, so the gate sees each island's own numbers, never a cumulative total)
 ## All numbers are measured from the live scene: zones_total = BiomeZones.zone_count();
 ## zones_dressed = zones with placed cards on the islands visited; sprite_kinds_min = the fewest
 ## distinct sprite ids in any dressed zone; grass_in_claim = cards on claimed tiles on every island
 ## visited; prims_camp = primitives drawn at the home camp (shadow pass off for that sample);
 ## ms_frame / ms_base = median frame time with the dressing shown and hidden, alternating per frame;
-## wrong_biome = cards standing outside the zone their kind lists.
+## wrong_biome = cards standing outside the zone their kind lists. The per-island keys are
+## zones_<island> (zones that island dressed) and cards_<island> (cards it drew), measured after that
+## island is built and reset before the next one, and every island is also printed on its own line.
 
 const TOP_SIZE := 46.0
 const TOP_H := 120.0
@@ -42,6 +45,13 @@ var _dressed: Dictionary = {}
 var _kinds_min := 999
 var _grass_in_claim := 0
 var _wrong := 0
+## Per island: zones it dressed and cards it drew, measured on that island only.
+var _island_zones: Dictionary = {}
+var _island_cards: Dictionary = {}
+## A headless run has a dummy renderer: no frame_post_draw, no viewport image. Everything except the
+## pixels still measures (per-island cards, zones, claims, wrong zone), so the gate keeps a headless
+## accounting check; the Forward+/GL screenshots are the windowed (deferred) part.
+var _headless := false
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -57,6 +67,7 @@ func _ready() -> void:
 	TouchControls.enabled = false
 	(kit["ui"] as CanvasLayer).visible = false
 	Game.debug_overlay = false
+	_headless = DisplayServer.get_name() == "headless"
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	_top = Camera3D.new()
 	_top.name = "TopCam"
@@ -79,6 +90,9 @@ func _run() -> void:
 		_bd = bd
 		_grass_in_claim += bd.claimed_instances()
 		_wrong += bd.wrong_biome_instances()
+		var island_zones := 0
+		var island_kinds := 999
+		var island_cards := bd.instance_count()
 		if id == ISLANDS[0]:
 			await _perf_camp(bd)
 		for zone in BiomeZones.ZONE_NAMES:
@@ -86,14 +100,29 @@ func _run() -> void:
 			if spot.is_empty():
 				continue
 			_dressed[zone] = true
+			island_zones += 1
 			var kinds := bd.sprites_in_zone(zone).size()
+			island_kinds = mini(island_kinds, kinds)
 			_kinds_min = mini(_kinds_min, kinds)
 			await _shot_zone(str(id), zone, spot["point"] as Vector3, spot["centroid"] as Vector3)
+		_island_zones[str(id)] = island_zones
+		_island_cards[str(id)] = island_cards
+		print("[biomedress] island %s zones=%d cards=%d kinds_min=%d (own numbers, not cumulative)" % [
+			str(id), island_zones, island_cards, 0 if island_kinds == 999 else island_kinds])
 	if _kinds_min == 999:
 		_kinds_min = 0
-	print("[biomedress] RESULT zones_total=%d zones_dressed=%d sprite_kinds_min=%d grass_in_claim=%d prims_camp=%d ms_frame=%.2f ms_base=%.2f wrong_biome=%d" % [
-		zones_total, _dressed.size(), _kinds_min, _grass_in_claim, _prims_camp, _ms_frame, _ms_base, _wrong])
-	print("[biomedress] shots=%d islands=%d kinds_min_zone=%s" % [_shots, ISLANDS.size(), ",".join(_dressed.keys())])
+	var per_island := ""
+	for id in ISLANDS:
+		per_island += " zones_%s=%d cards_%s=%d" % [str(id), int(_island_zones.get(str(id), 0)),
+			str(id), int(_island_cards.get(str(id), 0))]
+	print("[biomedress] RESULT zones_total=%d zones_dressed=%d sprite_kinds_min=%d grass_in_claim=%d prims_camp=%d ms_frame=%.2f ms_base=%.2f wrong_biome=%d%s" % [
+		zones_total, _dressed.size(), _kinds_min, _grass_in_claim, _prims_camp, _ms_frame, _ms_base, _wrong, per_island])
+	print("[biomedress] shots=%d islands=%d zones_dressed=%s" % [_shots, ISLANDS.size(), ",".join(_dressed.keys())])
+	# Headless draws no pixels, so the PNG count cannot be the exit condition there; the windowed run
+	# still has to produce the shots.
+	if _headless:
+		get_tree().quit(0 if _dressed.size() >= 5 else 1)
+		return
 	get_tree().quit(0 if _shots >= 5 else 1)
 
 func _load(id: StringName) -> void:
@@ -125,7 +154,7 @@ func _shot_zone(island: String, zone: String, point: Vector3, centroid: Vector3)
 	await _shot("%s-%s-game" % [island, zone])
 
 func _shot(tag: String) -> void:
-	if _shot_dir == "":
+	if _shot_dir == "" or _headless:
 		return
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
@@ -144,6 +173,9 @@ func _perf_camp(bd: BiomeDress) -> void:
 	_cam._snap()
 	for i in 8:
 		await get_tree().process_frame
+	if _headless:
+		print("[biomedress] headless: prims and frame timing need a renderer (deferred)")
+		return
 	await _measure_prims()
 	await _timing(bd)
 
