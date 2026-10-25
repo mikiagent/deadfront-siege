@@ -9,14 +9,14 @@
 
 | ID | Earlier docs/ambiguity | New owner decision and remaining action |
 |---|---|---|
-| C01 | [World design](../design/world-design.md) describes one private island, fixed terrain options; [progression proposal](../design/progression-risk-and-island-economy.md) lists *expand/migrate/multiple island* as undecided. | **RESOLVED:** player purchases a **fresh, larger, higher-resource-level home** and **abandons** the previous. Dismantled building resources move to dedicated salvage Ender Chest. Migration semantics remain OPEN. |
-| C02 | [World](../design/world-design.md) assumes 160x160m private starting home and only lower-tier home resources, while old Durango rules treat unstable islands as source of level-tier resources. | **RESOLVED in principle:** new purchased protected homes have **higher-level nodes**. Need resource scaling, limits and non-PvP endgame availability. |
-| C03 | [PvP workshop](../design/pvp-raiding-local-alphas-and-siege-fairness.md) still depicts player class matchmaking as the major gate and earlier late PvP as tentative. | **RESOLVED:** personal level **60 and level-60 island unlock** required before PvPvE. Regional anti-stomp classification still OPEN. |
+| C01 | Earlier briefs treated expansion versus moving to a fresh private island as undecided. | **RESOLVED:** new higher-level-resource island purchased; **automatic dismantling after preview/confirmation**, abandon old land; **100% return of building materials to salvage-only vault**; workers/animals/regular inventory transfer separately. Failure/crop/unfinished construction rules OPEN. |
+| C02 | [World](../design/world-design.md) assumed starter-tier private-home resources and a 1–60 world resource ladder. | **RESOLVED:** paid higher-tier private islands can reach **level 50–55 resource nodes**, while **level 60+ is obtained elsewhere**. Need reconcile possible >60 resource levels with the current scale, and clarify safe PvE sources. |
+| C03 | Earlier notes treated level-60 PvPvE access as merely a suggested unlock. | **RESOLVED:** tribe retains the unlock permanently once any level-60 person earns it, but **current controlled person must be level 60 to enter**. NPC companion levels and active-transition exploit controls OPEN. |
 | C04 | [Skills](../design/skills.md) and [progression](../design/progression-risk-and-island-economy.md) present full item downscaling versus equip-level gate as alternatives. | **RESOLVED:** **unequippable** unless individual's level meets item requirement. Skills, traits, equip errors and NPC/boat effects still require specs. |
 | C05 | Previous [PvP](../design/pvp-raiding-local-alphas-and-siege-fairness.md) suggested selected raid windows. | **RESOLVED:** owner says **NO scheduled player-selected windows**. Needs protection based on attacker scarcity/cost and robust garrison rather than online appointments. |
 | C06 | [Durango systems PRD](../prd/durango-wild-lands-systems-prd.md) describes historic Savage/Combat Island and early/late PvP rules, plus no shipped breeding. | Research only. Do not copy as Deadfront. Current design explicitly wants **human and dinosaur breeding** and late, opt-in PvPvE outposts. |
 | C07 | [World design](../design/world-design.md) states harbor **route list, never sailing**, while new boat/cargo specs require in-transit manifests. | No technical contradiction if harbor routes remain abstract with visible boats, but explicitly decide **map travel simulation vs steerable voyage**. Homebound vessel combat immunity is CONFIRMED. |
-| C08 | [World](../design/world-design.md) describes **unstable islands sinking after 6-24 hours** while new design features constructed, defendable, persistent **remote outposts**. | **OPEN** distinction between transient expedition islands and persistent contested territory; cannot put long-lived towns on islands that sink every few hours without rules. |
+| C08 | [World design](../design/world-design.md) historically says unstable islands sink and reappear, while newer design suggests persistent contestable outposts. | **RESOLVED target fantasy:** unstable islands **reset resources and dismantle all placed bases automatically to salvage vault**; **islands cannot be raided**, only PvPvE settlements by players and PvE settlements by dinosaurs/animals. Need design rules for terrain regeneration, residents/storage and reset refund percentage. |
 | C09 | [Economy](../design/economy.md) adds 25% price per latent attribute; [new material brief](../design/2026-10-25-systems-vision-and-open-decisions.md) requires **mostly negative traits**. | Market must price signed practical utility and levels, not every attribute as positive. Trait transfer and valuation still OPEN. |
 | C10 | [Orchestration plan](../orchestration/plan.md) says solo-first/no PvP, mobile-first/no web, historic split agents; [HANDOFF](../../HANDOFF.md) uses deployed web as primary test. | Historical plans are not current product scope. Canonical design target supports future authoritative PvPvE while shipping strategy/platform/implementation sequencing remain OPEN. |
 | C11 | [Ship readiness](../release/ship-readiness.md) suggests purchasing **extra character slots** as convenience; expanded tribe/population/gene system now makes capacity a major power source. | **OPEN** whether selling slots/housing/worker capacity is de facto pay-to-win. Do not approve purchased capacity until tribe economy and monetization fairness are resolved. |
@@ -26,17 +26,17 @@
 
 ### Critical: world, character, irreversible loss
 
-**Q01. Private island purchase and ownership.**
-When the player buys the next larger island, is **migration automatic after a confirmation** or must they manually dismantle and prepare everything first? Does the previous island disappear immediately or is there a one-time grace/inspection period? Can one upgrade before fully clearing it?
+**Q01. Protected-island move: RESOLVED in principle.**
+**Confirmed:** Show a transfer preview, obtain explicit confirmation, then **automatically dismantle the old home**, abandon it, and move to a fresh larger island with higher-resource nodes. **Still OPEN:** whether the transfer can be cancelled after confirmation, what happens to unfinished construction/crops/temporary structures, how long it takes and how rollback works after a failed save or interruption.
 
-**Q02. Dedicated dismantling vault and property transfer.**
-Do dismantled buildings refund **100% of their original materials, a reduced fraction, or some quality-dependent amount**? Does the Ender Chest carry only dismantling refunds as you said, with regular inventory/storage transported separately? What becomes of livestock, humans, unfinished worksites and unclaimed storage at the former island? No copy/duplication allowed.
+**Q02. Salvage vault and asset transfer: RESOLVED in principle.**
+**Confirmed:** All materials originally invested in buildings dismantled during **paid home upgrade** are returned at **100%** to a **special Ender Chest-like vault dedicated to dismantling refunds**. People, dinosaurs and ordinary inventory/storage transfer **separately**. **Still OPEN:** when dismantling includes crafted subcomponents or consumed blueprint items, unfinished building resources, chest capacity and UI, empty/missing container handling, and whether **unstable-island resets** also give 100% material refunds (not explicitly answered).
 
-**Q03. Higher-level safe-home resources and scarcity.**
-Does a purchased island's resource **level cap** follow a tier ladder, reaching level 60 eventually? Are these nodes lower yield/rarer positives than frontier materials, or can careful safe-island play eventually access **all resource levels and beneficial traits** without PvP? Otherwise PvP becomes a hidden requirement.
+**Q03. Highest home resource level: RESOLVED in principle.**
+**Confirmed:** The most expensive protected private islands yield **level 50–55 resource nodes**; **level 60+ nodes are elsewhere**. **Still OPEN:** exact island tier-price ladder, rare traits/biomes, whether level 60+ signifies numbers **above the historical level-60 cap**, and whether level-60 materials are obtainable in **PvE** without opting into PvPvE.
 
-**Q04. Personal versus tribe-level-60 PvPvE unlock.**
-Once **one playable person reaches level 60**, does their tribe keep **account/tribe permission to access level-60 PvPvE islands** when control switches to a new level-1 adult? If so, can that low-level person enter (and risk death) but only equip appropriate gear, or must the *currently played person* also be level 60 to enter? Can lower-level companions/workers accompany a level-60 leader?
+**Q04. Level-60 island unlock with successor: RESOLVED.**
+**Confirmed:** The **tribe permanently keeps the level-60 island unlock** earned by any level-60 human; nevertheless, the **currently controlled individual must personally be level 60** to enter PvPvE. The player may switch back to a veteran level-60 human to participate. **Still OPEN:** which lower-level NPC companions, logistic crews, captive units or remote worker deployments can enter under that veteran's authorization and whether entry is locked on switching during an active deployment.
 
 **Q05. Character level, skill and research jurisdiction.**
 Does the character's personal **level** control equipment, island entry, recipe ability, skill maximum and genetic trait realization? Which crafting **blueprint unlocks/knowledge** persist as shared tribe achievements after a body switch, versus require personal training? Ensure veteran artisans remain productive.
@@ -44,8 +44,8 @@ Does the character's personal **level** control equipment, island entry, recipe 
 **Q06. Offline raid consequences without raid windows.**
 May other players kill/capture remote deployed tribe members and dinosaurs **while the owner is entirely offline**? If yes, can defenses fight at full trained potential, should there be a cap on irreversible loss per successful raid, and how does a defender learn the settlement was attacked? The home is always safe.
 
-**Q07. Captive humans and dinosaurs: status and recovery.**
-When seized in a frontier raid, is a **captured adult human or dinosaur** permanently converted to the attacker's tribe, held as a **prisoner** for rescue/ransom/exchange, or available as a temporary uncooperative laborer? What rules prevent captive farming from trivializing rare breeding/education? Can a player-controlled avatar be captured? What if all external members are seized?
+**Q07. Prisoner outcomes: RESOLVED in principle.**
+**Confirmed:** Captured humans and dinosaurs enter a **prisoner/captive state**; they can subsequently be **recruited, exchanged or ransomed**. They do not automatically become loyal employees or pets. **Proposal, NOT confirmed:** the original owner might get **automatic ransom/buyback offers** through an NPC/escrow system. **Still OPEN:** who sets ransom price, ability to reject, timing/expiration, preventing captive breeding/enslavement bypass, ransom payment safety, player-character capture, rescue mechanics and attacker inventory/transport costs.
 
 **Q08. Region power fairness.**
 Given level-60-only PvPvE, do weight classes still matter *inside* level 60? E.g. fresh 60 vs fifth-generation 60 with superior tool traits/boats/defenders. Would you prefer different **territory risk classes**, a limit on deployed assault power, matchups based on entire participating tribe, or a hybrid? Can local alphas hold a defensible position indefinitely?
@@ -58,8 +58,8 @@ Does the displayed age represent **real years**, career experience, or both? How
 **Q10. Personal gear restriction details.**
 Must required level equal item level in all gear categories, or can item definitions have a lower explicit `equip_required_level`? Do tools, ranged weapons, food, accessories, ammunition, mounts and building/boat operations follow the same gate? Can an NPC worker wear gear above their current level (recommend no)?
 
-**Q11. Remote outposts and unstable geography.**
-Where do players establish **persistent** PvE/PvPvE outposts: on stable claimable zones distinct from **timed sinking islands**, or temporary gathering installations destined to disappear? Are level-60 PvPvE islands temporary or permanent, and can the owner abandon an outpost freely?
+**Q11. Island lifecycle versus raid scope: RESOLVED at product-rule level.**
+**Confirmed:** **An island itself cannot be raided. Only constructed settlements can be attacked**: player raids target **PvPvE settlements**, while **PvE settlements can be attacked by dinosaurs/animals**. Unstable islands are **periodically reset** (resources refreshed), and **any base on them is automatically dismantled into the special Ender Chest-like dismantling recovery box**. **Still OPEN:** whether the same island footprint/land seed remains or regenerates, whether people/dinosaurs and ordinary stored items are auto-evacuated before reset, how much refund a reset returns, whether PvPvE settlements can also be attacked by wildlife, and whether any settlements persist across resets. These remain distinct from protected private-home purchases.
 
 **Q12. Siege and losses.**
 Can raiders fully demolish an entire optional outpost, or only attack specified structures and withdraw? What fraction of materials can be salvaged, how many people/creatures can be captured, and what permanently happens to a contested land claim after defeat?
@@ -126,3 +126,16 @@ Could selling additional survivor slots, houses, worker capacity, livestock capa
 - For island migration in particular, write a full **atomic transfer test matrix**: old private island, Ender Chest containing salvage-only, nested containers, regular inventory, humans/animals/eggs, boats, stations/unfinished sites, jobs, building traits, rollback, save/load and failure.
 - For PvPvE, build **power-tier and gear equip exploit tests**: level-60 veteran unlock -> control level-1 offspring -> bought level-60 weapon, allied attackers, super-bred mounts, captured humans, PvPvE attempt. A safe island must remain attack-proof in every combination.
 - Before choosing a monetary balance, run **economic stress examples** comparing island upgrade prices and base production against raid costs, probability of victory, loot/salvage values, boat escape rates and offline exposure.
+
+## E. Owner decisions incorporated, 2026-10-25
+
+**Settled this turn:** Q01 automatic confirmed move/dismantle; Q02 100% paid-home building-material refund, separate transport of people/animals/ordinary goods; Q03 level 50–55 ceiling for expensive private-home resources, level 60+ outside; Q04 tribal unlock persists but the controlled human must be personally 60 to enter; Q07 prisoner with recruit/exchange/ransom; Q11 only built settlements are raided, while unstable islands reset their nodes and dismantle placed bases into the dedicated recovery chest. **Q06 remains unsettled:** automatic ransom offers were floated as a possibility, but not approved; offline permanent-loss handling is still open.
+
+**New nontrivial design interactions surfaced:** 
+- A full 100% **safe-home upgrade refund** does not automatically imply 100% return from **unstable reset** or **enemy-dismantled outpost**.
+- Protected private-home island purchase **does not mean the old landmass itself is raided**; it is simply abandoned.
+- A level-60 tribe unlock must coexist with individual-level entry, strict item equip requirements, autonomous NPC workers and player body switching, without level laundering.
+- The old document's island `sink` lifecycle is a **historical implementation/reference**, while current design wants **resetting resources**. Whether terrain layout disappears and recreates remains unresolved.
+- Distinguish **wildlife assault in PvE settlements**, **PvP raids of PvPvE settlements** and **non-raid exploration on shared islands**.
+- **Ransom** offers a recovery path for permanent-loss stakes but can become captive-farming unless both sides have incentives, caps and secure settlement.
+ 
