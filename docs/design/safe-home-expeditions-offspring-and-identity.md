@@ -1,0 +1,108 @@
+# DEADFRONT: protected home, contested domains, cargo logistics, maturation and identity
+
+**Design status:** 2026-10-25 owner-directed refinement. **CONFIRMED** means explicitly requested; **PROPOSED** means a design interpretation to review; **OPEN** means no owner decision yet.
+**Companion specifications:** [Tribe, lineage, domains and labor](tribe-lineage-domain-and-labor.md), [systems vision](2026-10-25-systems-vision-and-open-decisions.md), [world design](world-design.md).
+**Scope:** Planning only. Nothing here claims implemented AI, boats, online PvP, inheritance, or sex-based balance.
+
+## 1. The fundamental risk bargain
+
+**CONFIRMED: Every player owns a permanent, completely protected private home island by default.** This is the tribe's safe harbor for human workers, raised children, dinosaurs, workstations, gear, buildings, resources and stored loot. It is **not** a raidable settlement, cannot be attacked by hostile PvE enemies or PvP players, and should never force the player to expose workers to combat. Materials gathered or recovered from elsewhere can be stored safely once they reach the home island.
+
+**CONFIRMED: Going beyond the island is an explicit voluntary risk-reward choice.** Players can claim/build additional **contested settlements** in two broad kinds of territory:
+- **PvE contested territory:** enemy raiders/environmental threats attack vulnerable outposts; better resource access and production justify defense.
+- **PvPvE contested territory:** other players and AI threats can compete over settlements, logistics and resources. Real PvP requires a server-authoritative multiplayer implementation; never fake online opponents in the local game.
+
+**Design principle:** Safe home enables gradual growth for risk-averse players. Contested domains should be lucrative and more efficient, **not a mandatory gate for basic tribe survival**. They reward deliberate investment in guards, defenses, equipment, worker logistics and logistics routes. PvE/PvPvE exposure applies to specific people, goods and structures *assigned to or passing through contested space*, not to every member of the owner's protected tribe.
+
+**PROPOSED tiered reward profile:** home gathers renewable starter-level materials slowly; PvE expeditions/outposts yield higher levels, unusual biomes and rarer trait pools; PvPvE may offer exclusive market opportunities or favorable concentration of scarce endgame inputs. The *exact* access to all late-game resources while playing safely remains OPEN; do not make PvP mandatory by assumption.
+
+**Critical edge cases:**
+- Home never becomes raidable due to wealth, prestige, island level, raider attention, or a full tribe wipe.
+- Residents who never leave home must not die to hostile raids or player combat. Normal voluntary combat outside home remains risky.
+- A worker or dinosaur deliberately dispatched off-island can suffer the danger of that assignment, including permanent combat death in applicable territories.
+- Contested outposts may be damaged, looted or destroyed under explicit zone-specific rules. The protected home is separate from them.
+- On total human tribe extinction, the default mediocre survivor must respawn at the protected home and can rebuild from home assets; losses suffered in contested settlements remain losses. This is the proposed direct consequence of a genuinely safe private island; owner should still confirm specific survivor/inheritance and claim rules.
+
+## 2. Boats, routes and physical cargo transfer
+
+**CONFIRMED concept:** The player can safely keep *any* gathered materials on the private home island; **transport worker(s) and boats** are an attractive potential automation method for moving goods from contested outposts to home. The owner phrased boat transport as an idea, so detailed mechanics remain **PROPOSED**, not approved.
+
+**Proposed logistics loop:**
+1. Discover/unlock harbor access, build a dock at home and the risky settlement, acquire/construct a boat or transport slot.
+2. Assign one or more tribe workers (possible guards/pack dinosaurs later) to a **cargo route**: origin storage/stockpile -> vessel -> destination home storage.
+3. Set material/trait/level filters, minimum reserve at source, boat capacity, route frequency and risk tolerance in a logistics/monitoring interface. Never silently take a prized item reserved for crafting.
+4. A job claims concrete inventory stacks with unique IDs and reserves them against local consumption and other haulers. Workers physically move those items to the dock; the vessel carries a real manifest.
+5. Once the shipment arrives at the home island and is unloaded into home storage, the resources are permanently safe from raids. Never duplicate or teleport the cargo in the accounting model.
+6. Log departures, arrivals, delays, losses, assigned crew, material quality, fuel/maintenance where applicable and obstruction reasons.
+
+**Risk model remains OPEN:** boats might be attacked/intercepted in dangerous territories or on routes, or risk could be limited to loading/unloading at contested docks. Either is viable. Do not invent ocean simulation requirements: an abstract harbor-route transit with visible boat representations can satisfy the fantasy at much lower technical cost. State what is simulated vs animated. Remote-worker death, cargo insurance, escorting, and offline shipments require explicit policy.
+
+**Economy interaction:** The distance and risk of transporting premium materials increases their value. Trait-aware sorting and preservation must continue from contested quarry to home storage to a crafted prized crossbow. The transport system depends on meaningful material stacks, work orders, reservations, inventory and stable storage IDs.
+
+## 3. Offspring stages, food quality and education
+
+**CONFIRMED:** Human offspring mature through **timed development stages** with food requirements. **Food quality during particular growth phases contributes to final stats**. Children eventually enter a **youth education/training phase** during which they can learn, then become eligible as adult workers/warriors/playable survivors. Breeding and upbringing remain expensive even late-game.
+
+**Proposed stages (duration values all OPEN):**
+- **Infancy:** shelter, caregivers and adequate nutrition. Poor supply may slow growth or limit potential realization; avoid unavoidable infant death from short, routine player absences without clear warnings.
+- **Childhood:** ongoing food supply, housing and care quality; nutrition influences eventual physical development, health and perhaps growth trajectory within inherited genetic limits.
+- **Adolescence / young learner:** timed education in tribal facilities and assigned mentors. The person learns limited early skills, behavioral tendencies and disciplines such as medicine, crafting, combat drills, farming and navigation. Training should not instantly grant an adult master's levels.
+- **Adulthood:** full career, worksite job eligibility, equipment, combat assignment, reproduction eligibility under separate rules and optional adoption as the player-controlled survivor. A newly controlled adult still starts **low personal level**, unless owner-approved educational head start is explicitly defined.
+
+**Growth model:** genes set *potential distributions*, nutrition affects *expressed development*, teachers/mentors affect *learned foundation and aptitude activation*, real activity produces adult XP and mastery. Education must not trivially bypass the principle that a fresh playable descendant needs to level and learn.
+
+**Suggested care economy:** Different food categories offer varied nutrition profiles and inherited-lot food traits modify quality/effects. A *balanced and sustained feeding history* across phases should matter more than one last-second rare meal; track quality in rolling developmental phase records. Existing food/trait/cooking features should feed the upbringing system rather than generate a parallel unconnected nutrition currency.
+
+**Proposed meaningful support infrastructure:** childcare shelter/nursery, school or training hall, food stores/kitchen, clinic/healer station, and caregivers/teachers. **Successful caregiver, educator and healer roles provide substantial tribe-wide benefits**, such as better growth outcomes, health/recovery, and training quality, rather than functioning as decorative buffs. Effects should be bounded, visible and linked to the skill and coverage of the actual supporting individual.
+
+**OPEN:** What is a full upbringing duration? Can time pass while offline? Can the player speed a stage through care/education investment? Are offspring born from two specifically chosen adult parents? Which specific traits respond to protein/vegetables/medicinal foods? What happens if food is insufficient? How early do apprentices gain XP; are they deployable only once adults?
+
+## 4. Body and role diversity (fictional game rules, not statements about real people)
+
+**CONFIRMED design preference:** Human tribe members should have recognizable male/female physical differences as a default. Men trend **taller, heavier and physically stronger**, while baseline intelligence is comparable across sexes. Women lean toward strong **nurturer/support specializations**, such as nursing, healing, teaching, medical/pharmaceutical work and related morale/health/education bonuses. Men lean toward physical labor, craftsmanship and heavy-frontline fighting. **Support and frontline roles are synergistic**: warriors are not at full effectiveness without good healers, caretakers and logistical support.
+
+**Additional CONFIRMED combat clarification:** Women **can absolutely be warriors**. Bows, crossbows, guns/firearms, positional combat, training and equipment let women compete as effective combatants despite an intended **average** unarmed/heavy-melee physical disadvantage. A female ranged specialist should be a desirable member of a fighting party, not a token second-class fighter. A talented woman can also specialize in melee; a man can be a nurse, teacher or healer.
+
+**Recommended implementation of that preference:**
+- For this *fictional* game's population, use overlapping **stat distributions**, not a male-only Warrior or female-only Healer toggle. Sex is neither a job lock nor an intelligence modifier. A physically strong woman or gifted male educator should be possible and valuable.
+- Role effectiveness should depend primarily on developed skills, intrinsic aptitudes, gear quality, facility quality and teamwork. Sex can shift starting probabilities for strength/body size, labor/nurture inclinations or selected perks without guaranteeing an outcome or deciding individual worth.
+- Distinguish **support skills** (medical care, nutrition, teaching, morale, logistics) from a fixed innate sex stat if possible, so players can deliberately educate exceptional specialists of any sex. If there are direct sex-linked bonuses, tune them to avoid rendering whole playstyles noncompetitive.
+- Distinct physiques from gene expression: height, shoulder/body build, musculature, facial silhouette, stance, voice and equipment fit where feasible. These affect art/animation plus a small readable set of gameplay properties; do not make *every* visual tell mathematically deterministic.
+
+**Presentation and fairness risk:** The game should explicitly treat these as chosen fictional balancing tendencies, not universal factual claims about real populations. Keep broad individual variation and no forced life role. Female armor, bows, crossbows and firearms should perform according to actual item/skill stats, not suffer a hidden blanket damage tax simply because of sex.
+
+## 5. Observable physique vs hidden genetic potential
+
+**Owner uncertainty:** The user likes both (a) a mostly weak, small, slow starting tribe that visibly develops taller/stronger/buffer individuals over generations, and (b) randomized appearances with partially hidden underlying stats so discovery and surprise remain fun. Neither preference needs to be discarded.
+
+**PROPOSED hybrid:** 
+- **Visible phenotype:** height, muscularity, body composition, posture, gait and age/sex presentation are sampled from **genes + upbringing + personal variation**. Build tends to **correlate**, not perfectly determine, with physical stat potential and training.
+- **Displayed current ability:** when owned, a person has inspectable *current/earned* health, stamina, strength, work speed, learned skills, gear and roles. Player should know why an assignment works.
+- **Hidden inherited potential:** long-term ceiling, dormant alleles, rare trait combinations and mutation chance are partly concealed until adulthood, training milestones, repeated use or a specialized research/education facility reveals estimates. Parents and broad growth reports give useful hints without perfect forecasts.
+- **Aesthetics need diversity:** naturally short strong people, tall gentle educators, muscular healers, slim elite archers and taller weak workers should exist. Avoid a rigid "buff = mathematically best" pipeline, which erases surprise and visual variety.
+- **Readable feedback:** family trees and development summaries explain **which** growth-phase food, mentoring, training or traits mattered after a stage resolves; do not hide all numbers behind opaque randomness.
+
+**Optional rare late-game systems:** advanced examination/genetics labs that reveal greater confidence intervals for heritable potential and pedigree strengths. Avoid monetized pay-to-reveal hidden character stats.
+
+**OPEN:** Should players see exact base stats at birth, only qualitative aptitudes, or measured stats that become more accurate with training? How much of morphology is heritable versus individually random? Can nutrition affect adult height/build beyond ancestry? 
+
+## 6. Non-negotiable end-to-end scenarios
+
+1. A tribe of valuable human workers and dinosaurs remains at the default home island indefinitely without enemy attacks or PvP losses. All materials stored there remain safe.
+2. The player builds a remote PvE mining site, recruits workers, equips miners, and operates it for better ore. Raiders may threaten that remote site but never teleport an attack onto the safe home.
+3. A dangerous PvPvE settlement has better trade/resource rewards, but the player may choose not to establish one. Losing the external site does not delete home assets.
+4. A boat convoy reserves premium ore, transports a traceable cargo manifest, deposits it in protected home storage, and the ore keeps its level and exceptional signed traits. A failure cannot duplicate the cargo.
+5. Two genetically similar children experience different quality nutrition in growth phases and reach adulthood with detectably different **expressed** stat outcomes, without overwriting their distinct genes. Youth education conveys initial knowledge but not free veteran mastery.
+6. The starting population has varied recognizable body types and average sex-linked physical tendencies, with significant overlap and no barred careers. A female ranged warrior and a male doctor are both viable, effective and valuable to the tribe.
+7. A veteran warrior benefits measurably from nutrition, healer/recovery and education/coordination systems. Support specialists are consequential even if they never join a fighting party.
+8. A seemingly weak-looking person can reveal unexpectedly good potential; a large muscular person can lack particular skills. Visuals are informative but not an infallible genetics readout.
+9. Total loss of every human abroad respawns a baseline playable survivor at the protected home, where remaining home equipment and infrastructure persist. Exactly how dinosaur ownership works on total tribe wipe needs clarification.
+
+## 7. Decisions to settle next
+
+- **Boat exposure:** Can cargo ships themselves be ambushed/sunk while traveling, or is the dangerous portion only the loading and road/harbor portions in contested territory?
+- **Offline safety:** If the player is offline, may remote settlements/workers be raided, and does the boat keep operating?
+- **Nursery pacing:** Rough real-time target from offspring to playable adult (hours, days, weeks); minimum food/care tier, quality and consequences of shortfalls?
+- **Stat discovery:** Reveal numeric current stats and some qualitative hereditary clues, while concealing exact growth ceilings, or hide more?
+- **Combat attributes:** How large should overlapping male/female strength distributions differ in balance terms, relative to weapons, professions and learned skills?
+- **Risk-reward access:** Can the highest-quality breeding and crafting materials be obtained solo in safe expeditions/PvE, or are some exclusive to PvPvE territories?
