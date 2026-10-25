@@ -4,8 +4,9 @@ Headless only:  /Applications/Blender.app/Contents/MacOS/Blender -b --factory-st
 Blender is Z up, metres. Geometry is authored with z = 0 at the ground and the footprint centred on
 x = y = 0, so the exported GLB has its origin at the ground centre and is Y up (export_yup).
 Colour is baked per vertex (a COLOR_0 attribute) and read by one Principled material per asset,
-"biome_vcol" (base colour = attribute "Col", roughness 0.72). glTF stores COLOR_0 as linear and
-`srgb()` converts an authored sRGB shade to linear before it is written (see STORE_SRGB note).
+"biome_vcol" (base colour = attribute "Col", roughness 0.72). COLOR_0 stores the authored sRGB
+shade verbatim; Godot's importer reads COLOR_0 as sRGB (vertex_color_is_srgb) and linearises it (see
+the note above paint()).
 No image textures: the GLBs are a few KB each, which the mobile web build needs.
 """
 import math
@@ -131,20 +132,23 @@ def finalize(bm, name, smooth=False, flat_above=None, double_sided=False, rough=
     return ob
 
 
-# Measured, not assumed: writing COLOR_0 as raw sRGB made every asset wash out light in Godot's
-# gl_compatibility renderer (sandstone turned peach, granite near white), i.e. Godot takes COLOR_0 as
-# linear and does not convert it. So the authored sRGB value is converted to linear here, once.
-# sheet.py (Blender) therefore previews slightly darker than the game; the Godot look render
-# (/tmp/bp_godot_look.png) is the authority for colour.
+# Measured, not assumed (BIOMEPROPS, Godot 4.7.1 + gl_compatibility): the glTF importer sets the
+# imported material's vertex_color_is_srgb = true, i.e. it takes COLOR_0 as sRGB and converts it to
+# linear itself. Storing linear numbers here therefore darkened every prop twice (sandstone came out
+# a grey slab, basalt near black) on the deployed build. The authored sRGB value is stored verbatim;
+# tests/t_biomeprops.gd fails if a model's stored paint is not sRGB.
+# sheet.py (Blender) previews these numbers as linear, so its renders read lighter than the game;
+# Godot is the authority for colour.
 
 
 def paint(bm, fn):
-    """fn(co) -> sRGB (r, g, b) for every vertex, stored in the COLOR_0 attribute."""
+    """fn(co) -> sRGB (r, g, b) for every vertex, stored in the COLOR_0 attribute as sRGB."""
     layer = bm.verts.layers.float_color.get(COLOR_ATTR)
     if layer is None:
         layer = bm.verts.layers.float_color.new(COLOR_ATTR)
     for v in bm.verts:
-        v[layer] = srgb(fn(Vector(v.co)))
+        c = fn(Vector(v.co))
+        v[layer] = (max(0.0, min(1.0, c[0])), max(0.0, min(1.0, c[1])), max(0.0, min(1.0, c[2])), 1.0)
     return bm
 
 
