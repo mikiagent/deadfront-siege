@@ -29,7 +29,12 @@
 - PvE raids can eventually run in a single-player simulation. Genuine PvP raids and ownership require a future authoritative multiplayer server; do not present scripted NPC raiders as multiplayer.
 - A domain outside protected starting territory can be damaged or captured under zone rules once defined. Death and asset-loss policies need to be explicit and fair.
 
-**OPEN:** Is the original home island always protected, with advanced claimable PvE/PvP domains placed elsewhere, or can the home eventually become exposed? What triggers raids, how often can they occur, must the player be online, and can enemies destroy/steal infrastructure? Should wanderer arrivals correlate with domain prestige, available housing, fame, or rescue actions?
+**CONFIRMED (owner correction, 2026-10-25):** Every player has a permanent, **unraidable private home island** where workers, dinosaurs, infrastructure and stockpiled materials can be kept safe. PvE and PvPvE danger belongs only to voluntarily built settlements and deployments **outside** that island. Contested settlements create reward and liability; the private home never becomes raidable by attaining wealth. **OPEN:** raid triggers and timing, offline attacks in contested areas, warning periods, and what attackers may destroy/steal outside home. See [protected-home, cargo, upbringing, and identity design](safe-home-expeditions-offspring-and-identity.md). Should wanderer arrivals correlate with domain prestige, available housing, fame, or rescue actions?
+
+
+### Home-to-frontier cargo logistics (owner idea, pending mechanics)
+
+A protected home storage island should accept materials gathered in every region. Transport workers assigned to boats/routes may ferry tagged material lots from vulnerable outposts to safe home storage. Keep real manifests, reserved stack IDs and provenance; unloading at home ends exposure to territory raids. **OPEN:** whether ships themselves can be attacked, how route transit is shown, escorts and offline timing. The marine supply loop is described in [protected-home, cargo, upbringing, and identity design](safe-home-expeditions-offspring-and-identity.md).
 
 ## 3. Tribe roster, roles, population and durable identity
 
@@ -72,7 +77,14 @@
 - Use a bounded inheritance system with sensible soft caps, trade-offs, and mutations; lineage improvement should be important, but not turn PvP into pure birth-stat supremacy with no counterplay.
 - Avoid unbounded exponential stats, breeding loops that bypass resource cost, mandatory lengthy idle timers without gameplay, or punishments that make extinction unrecoverable.
 
-**OPEN:** Are two eligible adult tribe members required? Is offspring timing a pregnancy/childhood calendar, a project with a fast-forward transition, or a hybrid? How does consent/relationship compatibility work? Do inherited traits have hidden recessive alleles, visible probability previews or both? What can training improve, and what is hard genetic potential? Can any adult be controlled immediately? Can the currently played human parent offspring without losing control?
+**CONFIRMED (owner correction):** Offspring develop automatically on a **timer**, consuming food. **Food quality in successive growth phases influences their final realized stats.** In a youth/young learner phase they can be **educated and trained**; they become playable adults with their own low personal level. **OPEN:** exact timers, food deficits, two-parent/relationship eligibility, mentor slots, whether teen education grants introductory XP, and which genetic potentials are fully visible. See [protected-home, cargo, upbringing, and identity design](safe-home-expeditions-offspring-and-identity.md).
+
+
+### 2026-10-25 clarification: body type, sex differences and non-exclusive careers
+
+**Owner preferences for the game's population:** Male/female characters should be visibly distinguishable in stature/build, with men tending taller and stronger on average and no default intelligence gap. Men are more likely to excel in strength-demanding heavy labor, craftsmanship and heavy melee; women have an intended average advantage in caretaker/support roles (nursing, medicine, teaching, healing and tribe-wide development). Support specialists must give major measurable benefits to the tribe and its warriors. **Women can be formidable warriors**, especially through bows, crossbows, firearms, good positioning, training and equipment; exceptional female melee specialists and male healers are possible.
+
+**Balance recommendation, NOT a numeric requirement:** Model these as overlapping distributions and trainable skills in the *fictional game simulation*, never sex-locked jobs, blanket female weapon damage penalties or intellectual differences. Genetics, upbringing, education and work experience should dominate the outcome for an individual. Visuals (height, muscle, build) should sometimes suggest strength without serving as a perfect stat scanner: a slim elite archer, tall weak worker or short powerful fighter can surprise the player. Reveal earned current skills and useful qualitative potential hints while keeping some hereditary potential undisclosed until growth or assessment. See [protected-home, cargo, upbringing, and identity design](safe-home-expeditions-offspring-and-identity.md) for detailed acceptance scenarios.
 
 ## 5. Dinosaur genetics and combat loss
 
@@ -108,7 +120,7 @@
 
 **Infrastructure:** Resource extractors / lumber yards should have zones, production/regeneration rules and input-output logistics; a site is not unlimited free ore or timber. Work sites and crafted blueprints can be stocked by haulers. Equipment improves quality/throughput and can inherit material traits. Worker exhaust/needs should connect to sit, sleep, food and housing.
 
-**OPEN:** Does the 1-durability safety floor also apply to worker combat and gathering risks, or only assigned work? Can players override it? Does a person automatically repair/re-equip from storage? Is there a job cap, and what happens while the player is offline? What is the Monitoring Stand's max scope and authority (per worker, per structure, global)?
+**OPEN:** Does the 1-durability safety floor also apply to worker combat and gathering risks, or only assigned work? Can players override it? Does a person automatically repair/re-equip from storage? Is there a job cap, and what happens while the player is offline? What is the Monitoring Stand's max scope and authority (per worker, per structure, global)? **CONFIRMED logistics context:** home workers and stores can remain safe, while optional remote deployments expose workers to danger. **PROPOSED:** boat transporters can move real reserved cargo from contested outposts to protected home storage, with exact route vulnerability still open. See [protected-home, cargo, upbringing, and identity design](safe-home-expeditions-offspring-and-identity.md).
 
 ## 7. Expedition slots: human, dinosaur, mounted pair
 
@@ -147,7 +159,7 @@
 **To formalize (OPEN):**
 - A living tribe member is eligible to become the player avatar; transfer does not reset world or character records.
 - On last-human death, create a fresh baseline survivor. It starts personally low-level and underpowered, allowing eventual rebuilding of strong lineages.
-- Exactly which claim rights, structures, remaining storage, dinosaurs, research, supplies and site ownership survive a wipe is an open loss/insurance rule. No specification should assume automatic total wipe *or* perfect safety of assets.
+- **CONFIRMED:** The private home island and any people/items/structures/creatures remaining there are outside enemy-raid and PvP danger. **PROPOSED** as the consistent wipe fallback: respawn the baseline survivor at protected home with its surviving stockpile, buildings and livestock intact. **OPEN:** how external PvE/PvPvE claims, gear carried by the dead, and property rights transfer after the wipe.
 - Determine what happens in PvP if a raid destroys the last active member, to prevent protected-respawn abuse or instant return to a besieged base.
 - Unowned wanderers and other options may accelerate rebuilding, but the fallback must function even if the island has no resources.
 
@@ -155,7 +167,7 @@
 
 | Stage | Design / deliverable | Dependencies and proof |
 |---|---|---|
-| D0 | Decide domain safe-zone, loss policy, breeding/growth pacing, genetics framework, active-slot rules | Owner design review. Current build is solo-first; PvP remains conceptual |
+| D0 | Lock contested-zone loss policy, timed food-dependent growth rates, genetic visibility, PvE/PvPvE cargo-route danger and party edge cases | **Home-island permanent safety is already settled**; actual PvP remains conceptual until authoritative networking |
 | D1 | Persistent human ID/Tribe registry, separable avatar controller, death + baseline survivor fallback | Save migration and switching lab; prior avatars remain valid workers |
 | D2 | Housing and settlement support cap, wanderer recruitment and domain attention in PvE | No deadlocked population; meaningful alerts and housing limits |
 | D3 | Worker job reservations, mining/lumber sites, equip/durability safety, Monitoring Stand | No resource duplication, valid pathing, worker skill use |
@@ -179,10 +191,10 @@ The owner may reorder stages. No system should be marked shipped before targeted
 
 ## 12. Decisions requiring the next owner answers
 
-1. **Territory risk:** protected starter island plus raidable off-island domains, or can any home territory be raided? How much can be lost in PvP/PvE?
-2. **Reproduction and raising:** two adult parents and real-time childhood, accelerated training stages, or another mechanism? What actual endgame bottleneck keeps it expensive?
-3. **Genetic balance:** which innate human/dinosaur stats are inheritable, how visible are alleles/odds, how high may later generations exceed wild limits, and how do lower-tier players counter strong lineages?
-4. **Wipe persistence:** if the tribe loses every human, what survives of claims, storage, living dinosaurs, technology and equipment?
+1. **Territory risk:** Home is **always safe and never raidable**. How much can be lost in **optional contested** PvE/PvPvE outposts, and can boat cargo/crews be ambushed along a sea route?
+2. **Reproduction and raising:** Timed, food-dependent maturation and youth education are **confirmed**. What is the full timer, how do food quality/mentors change *realized* stats, and what resource cost keeps reproduction expensive at endgame?
+3. **Genetics and looks:** How visible are hereditary abilities, and how do height/musculature and adult appearance correlate without perfectly revealing potential? How strong can lineages become while allowing training/gear and ranged tactics to compete?
+4. **Wipe persistence:** Safe-home assets remain protected; which **contested claims and outpost possessions** survive a full wipe, and what happens to the lost member's carried equipment?
 5. **Automation:** offline work, tool safety in combat, allowed autonomous repair, monitoring stand scope and override semantics.
 6. **Companions:** fate of a mount after rider death, slot behavior after dismount and whether the playable survivor's personal mount counts.
 7. **Trait charms:** whether "+20%" means relative probability or +20 percentage points, how charms are acquired, and whether they stack.
