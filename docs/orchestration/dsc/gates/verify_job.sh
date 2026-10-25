@@ -51,7 +51,13 @@ base=${BASE:-$(git merge-base HEAD claude/mmo-overhaul)}
 bad=$( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u | grep -vE '\.(uid|import)$|_Image_[0-9]+\.jpg$|^game/assets/props/meshy/' | grep -vE "$SCOPE")
 [ -z "$bad" ] || fail "files outside your scope changed: $(echo $bad | head -c 400)"
 for t in $RELATED; do
-  "$G" perl -e 'alarm 600; exec @ARGV' "$GD" --headless --path game --script "res://tests/$t.gd" > "$OUT/$t.log" 2>&1 || fail "$t exited non-zero (see $OUT/$t.log)"
+  if [ "$t" = "t_save" ]; then
+    # All gslot slots share one Godot user-data directory. Serialize save tests so
+    # parallel jobs cannot quarantine or overwrite each other's fixtures.
+    lockf -s /tmp/deadfront-dsc-t_save.lock "$G" perl -e 'alarm 600; exec @ARGV' "$GD" --headless --path game --script "res://tests/$t.gd" > "$OUT/$t.log" 2>&1 || fail "$t exited non-zero (see $OUT/$t.log)"
+  else
+    "$G" perl -e 'alarm 600; exec @ARGV' "$GD" --headless --path game --script "res://tests/$t.gd" > "$OUT/$t.log" 2>&1 || fail "$t exited non-zero (see $OUT/$t.log)"
+  fi
   grep -qE "\] PASS" "$OUT/$t.log" || fail "$t printed no PASS line (see $OUT/$t.log)"
 done
 # run_all is left to the integrator: dsc's runner kills a verify after 20 min, and slot waits add up.
