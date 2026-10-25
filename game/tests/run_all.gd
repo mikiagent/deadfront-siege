@@ -4,6 +4,18 @@ var failures: Array[String] = []
 var _capture_done := false
 
 func _init() -> void:
+	# Autoload-dependent tests wait for the first frame (`_process` below): `--script` compiles and
+	# instantiates this file before the engine creates the autoloads. Only the frame check runs here.
+	pass
+
+## FieldTame references the Data autoload. `godot --script` compiles this file before
+## singletons exist, so the capture checks load that class on the first frame.
+func _process(_delta: float) -> bool:
+	if _capture_done:
+		return true
+	if get_root() == null or get_root().get_node_or_null("Data") == null:
+		return false
+	_capture_done = true
 	_test_save_migrations()
 	_test_food_buffs()
 	_test_exhaustion()
@@ -14,15 +26,6 @@ func _init() -> void:
 	_test_starter_island_levels_and_resource_stacks()
 	_test_hud_event_state()
 	_test_ui_tokens()
-
-## FieldTame references the Data autoload. `godot --script` compiles this file before
-## singletons exist, so the capture checks load that class on the first frame.
-func _process(_delta: float) -> bool:
-	if _capture_done:
-		return true
-	if get_root() == null or get_root().get_node_or_null("Data") == null:
-		return false
-	_capture_done = true
 	_test_hide_strap_no_self_input()
 	_test_json_attribute_merging()
 	_test_storage_transfer()
@@ -408,7 +411,9 @@ func _test_starter_island_levels_and_resource_stacks() -> void:
 
 
 func _test_hud_event_state() -> void:
-	var events := HudEventState.new()
+	# Loaded dynamically: HudEventState depends on SkillState/LevelDisplay, which reference the Data
+	# and World autoloads. A static reference would compile this chain before the first frame.
+	var events = (load("res://scripts/ui/hud_event_state.gd") as GDScript).new()
 	events.add_toast(&"wood", 2)
 	events.add_toast(&"wood", 3)
 	_expect(events.toasts.size() == 1 and int(events.toasts[0]["n"]) == 5, "nearby item toasts coalesce")

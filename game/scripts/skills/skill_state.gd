@@ -39,12 +39,29 @@ var refund_day: int = -1     # UTC day refunds_today counts (optional save field
 var refunds_today: int = 0
 var _rules_cache: Dictionary = {} # SkillRules' lookups over trees.json and Data.recipes (built once, see SkillRules._index)
 
+## The World autoload, resolved at runtime. `--script` test entry points compile this file before
+## the engine registers autoloads; a bare `World` reference is a compile error in that phase, so
+## neither gameplay nor the tests may depend on the global identifier existing at parse time.
+static func world() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("World")
+
+## The Data autoload, resolved the same way as world() and for the same reason.
+static func data() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("Data")
+
 func _ready() -> void:
 	_load()
-	if World and World.has_signal("island_changed"):
-		World.island_changed.connect(func (_id: StringName) -> void: add_xp("survival", 5))
-	if World and World.has_signal("pioneer_changed"):
-		World.pioneer_changed.connect(func (_lv: int) -> void: _on_character_level())
+	var w := world()
+	if w and w.has_signal("island_changed"):
+		w.island_changed.connect(func (_id: StringName) -> void: add_xp("survival", 5))
+	if w and w.has_signal("pioneer_changed"):
+		w.pioneer_changed.connect(func (_lv: int) -> void: _on_character_level())
 
 func _load() -> void:
 	var root: Dictionary = {}
@@ -77,8 +94,9 @@ func xp_of(tree: String) -> float:
 func add_xp(tree: String, amount: float, mirrored: bool = false) -> void:
 	if not trees.has(tree) or amount <= 0.0:
 		return
-	if not mirrored and World and World.has_method("add_xp"):
-		World.add_xp(int(ceil(amount)))  # every skill gain is also general player XP (one bar)
+	var w := world()
+	if not mirrored and w and w.has_method("add_xp"):
+		w.add_xp(int(ceil(amount)))  # every skill gain is also general player XP (one bar)
 	if tree != "survival":
 		add_xp("survival", amount, true) # any play advances the passive route proficiency
 	var t: Dictionary = trees[tree]
@@ -274,11 +292,14 @@ func _roll_day() -> void:
 		refunds_today = 0
 
 func _mirror_survival(node_id: String, on: bool) -> void:
-	if Data.survival_nodes.has(StringName(node_id)):
-		Data.set_survival_unlocked(StringName(node_id), on)
+	var d := data()
+	if d == null:
+		return
+	if d.survival_nodes.has(StringName(node_id)):
+		d.set_survival_unlocked(StringName(node_id), on)
 	var roman := _roman_id(node_id)
-	if roman != "" and Data.survival_nodes.has(StringName(roman)):
-		Data.set_survival_unlocked(StringName(roman), on)
+	if roman != "" and d.survival_nodes.has(StringName(roman)):
+		d.set_survival_unlocked(StringName(roman), on)
 
 static func occupations() -> Array:
 	if not FileAccess.file_exists(OCCUPATIONS_PATH):
@@ -310,12 +331,13 @@ func apply_occupation(id: String) -> void:
 ## Character level 1-60 (spec 03): the one player level every screen shows (LevelDisplay, fed by
 ## every skill XP grant through World.add_xp). With no World (pure data checks) nothing caps.
 func character_level() -> int:
-	if World == null:
+	if world() == null:
 		return MAX_LEVEL
 	return clampi(LevelDisplay.player_level(), MIN_LEVEL, MAX_LEVEL)
 
 func character_progress() -> float:
-	return World.pioneer_progress() if World else 0.0
+	var w := world()
+	return w.pioneer_progress() if w else 0.0
 
 func to_dict() -> Dictionary:
 	var out := {"rev": REV, "occupation": occupation, "sp_available": sp_available, "sp_spent": sp_spent, "sp_earned": sp_earned, "sp_extra": sp_extra, "refund_day": refund_day, "refunds_today": refunds_today, "trees": {}}
