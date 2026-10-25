@@ -9,3 +9,15 @@ Research gates: past skill 20, every fifth level needs a timed research before t
 Refunds: 5 free unlearns a day, then 30 Warp Gems, max 10 a day. Unlearning capture nodes does **not** release bonded animals in Durango; we keep that as-is (PRD §12.2 exploit) until it proves abusive.
 
 Capture ladder lives in Survival (tiers I–V, PRD §12.1 numbers), as do island access and the bonded-animal cap ranks.
+
+
+## Persistent human careers and inherited potential (2026-10-25 owner direction)
+
+The existing twelve-tree skills research concerns **individual earned proficiency**. [Tribe/lineage design](tribe-lineage-domain-and-labor.md) now establishes a larger model:
+
+- A human character owns a durable ID, earned level/XP, learned skills, equipment and occupation. **Switching the playable body does not reset or erase any career.** A former avatar's high crafting skill still makes them valuable as an assigned worker. The new avatar begins at its own low level and must learn its own skills.
+- Genetics influence inherited *potential / aptitudes / stat distributions*, not transfer of completed research XP/skills from one parent to offspring. Which knowledge is tribe-wide versus individual is **OPEN** and should be made explicit.
+- Housing, childcare and productive infrastructure impose lasting population and breeding costs. Human and dinosaur breeding should reward selective lineage development without making generations identical or effectively perfect.
+- The baseline-survivor fallback on full human-tribe extinction preserves the ability to continue, with exact remaining tribe/domain/world state **OPEN**.
+
+**Implementation prerequisite:** separate the controller from the human character record, then migrate all save data and make skill allocation, equipment and labor actions reference specific character IDs. Do not keep singleton avatar skill/XP as the sole authoritative source once switching is supported.
