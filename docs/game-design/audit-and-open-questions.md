@@ -189,3 +189,11 @@ Could selling additional survivor slots, houses, worker capacity, livestock capa
 - **Q41:** Which attack modes can the same creature train/choose, and do active moves depend on genetic aptitudes, species physiology, individual levels and trained skill without making every unit able to perform every archetype?
 
 No numerical combat tuning, actual breeding algorithm or new attack animations were introduced by documentation.
+
+## I. Dinosaur defensive taxonomy review (2026-10-25 proposal, NOT yet approved per species)
+
+**Working taxonomy proposed by owner:** **big and slow -> Slash weakness; heavily armored or small -> Impact weakness; lightly armored or fast -> Pierce weakness.** Design clarification: large **unarmored** slow giants are Slash-weak while **fast** lightly armored targets are Pierce-weak; tiny **grouped swarms** can be Impact-weak due to area effects, but tiny lone targets are not necessarily susceptible to a narrow hammer swing. Defense vulnerability and the creature's attack labels must remain **independent**.
+
+**Audit completed:** [Full 19-existing-species proposed matchup/attack catalog](11-dinosaurs-and-genetics.md) cross-checks actual `game/data/creatures/*.json`, `game/data/combat_counters.json` and genetic schema. Baseline `fast_hunter` currently favors `cut` (Slash) rather than proposed fast -> Pierce; `giant` heavily resists `cut` rather than Brontosaurus-style Slash weakness; `armored` already favors Impact. **Keep these existing data values until mechanics/prototypes are reviewed**, not replace family multipliers globally.
+
+**New decisions:** Does a raptor pack universally become Pierce-weak while its attacks remain mostly Slash/Pierce? Does a Compsognathus swarm need **Impact area** instead of global Impact vulnerability? Do Tyrannosaurus and Tarbosaurus become Slash-weak, or remain Impact-weak as protected bosses? Should the Codex expose only `Weak: Impact` or detailed current multipliers? Can every species have a single primary weakness with neutral secondary channels before unique resistance kits are authored?
