@@ -160,3 +160,16 @@ The latest owner-directed synthesis is [core progression, risk and island econom
 **Zone exposure:** Optional PvE outposts progress first; PvPvE could unlock only in the late game (owner exploring). Never raid the private island. No player-chosen declared raid windows (owner **NO**). Exposed remote buildings can be dismantled for salvage; attackers may win exposed cargo/equipped accessories and capture deployed humans/dinosaurs if the costly siege succeeds. Loot/capture must be scarce, expensive and counterable; field scarce/replacement-value workers instead of irreplaceable breeders. Defender's cargo boat may depart **during active siege** and is safe en route home with manifest capacity based on **boat+harbor level/traits**. Anti-stomp regional league + whole-force eligibility remains a proposal, not a decided algorithm.
 
 **Development dependencies:** decide island size/upgrade/migration economics -> personal gear requirement/equipment UI and market enforcement -> individual appearance/level growth -> PvE outpost+worker logistics+garrison -> owner-tested economy ROI of non-PvP vs raid -> server-authoritative optional PvPvE and secure captives/loot resolution. Save migrations and GAUNTLET tests required before shipping.
+
+
+## 13. Canonical v2 design workspace and Oct 25 decisions
+
+Read [`docs/game-design/README.md`](../game-design/README.md), [decision register](../game-design/decisions.md), and [open-questions audit](../game-design/audit-and-open-questions.md) before new future-gameplay tickets. Latest product decisions **supersede** the prior historical milestone table without changing shipped code:
+
+1. **Protected home purchase:** replace/abandon the old private island for a fresh **larger, higher-resource-level** island; dismantled building materials go to a **salvage-only Ender Chest box**. Exactly how inventories, tribe/animals, docks, unfinished worksites and undismantled property transfer remains OPEN.
+2. **PvPvE entry:** personal **level 60 and unlocking level-60 islands** required. PvPvE remains a voluntary risk of external claims, never home. Body-switch permission persistence is OPEN.
+3. **Market protection:** strict personal-level **UNEQUIPPABLE** gear restriction for underleveled people regardless of source; remove level-capped-equippable alternative. NPC equipment, consumable exceptions and skill gates need exact contracts.
+4. **Raids:** no defender-scheduled attack windows, late-only PvPvE, costly defensible sieges with anti-punching-down. Human/dinosaur capture and dismantled exposed outpost salvage are potential loot; rates/limits remain open.
+5. **Economy:** Skyblock-like home improvement, Durango gathering/material craft, ARK species/breeding/remote optional danger. Safe productive growth must compete economically with frontier raids.
+
+**Do not implement ambiguous island migrations, item gates or multiplayer locks from guesses.** Design the systems first, then plan save migrations and acceptance labs.
