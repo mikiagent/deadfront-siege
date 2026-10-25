@@ -424,6 +424,7 @@ phases:
         title: "Dress every biome zone from the concept art with painted resources,
           props and ground cover"
         adopt: false
+        max_rounds: 4
         after:
           [
             { job: ground2d, state: merged },
