@@ -379,3 +379,12 @@ Use this nine-step rig and animation service for every creature:
 7. Export only accepted clips, with exact source/action and file recorded.
 8. For missing or bad clips, use approved Text to Motion when its cap covers it, then Astra-authored Blender rig/weight/animation surgery. Mark rejected fallbacks rather than silently shipping them.
 9. Import into Godot, run the creature lab, and inspect desktop gameplay pixels for anatomy, scale, material, foot contact, plate/tail deformation and every required state before `INTEGRATED`.
+
+### 2026-10-25 economic core, item gates and optional PvP refinement (DESIGN ONLY)
+
+Latest design authority: [`docs/design/progression-risk-and-island-economy.md`](docs/design/progression-risk-and-island-economy.md). Owner comparison is **Minecraft Skyblock + Durango + ARK**: permanently safe private island hosts progressively more complex automation/tribe/breeding, with **very expensive in-game purchases of larger private islands**; Durango-style expedition materials/trading; ARK-style species/genetics/remote outposts. Cautious play can thrive without raiding; rational players keep exceptional workers/animals/gear and materials at home, risking only disposable capital in frontier production.
+
+**Owner-directed:** Human apparent age/maturity should correlate with individual level, though timed food/education childhood remains. Bought/looted/traded/equipped items may not skip personal leveling: **hard equip minimum or effective-level/trait cap** are the two open choices, applied to each individual, not an account-global level. Home economic power does not magically level a new descendant.
+
+**PvP:** Owner explicitly says **NO defender-set raiding windows**. Strongly consider **optional late-game PvPvE**, after meaningful protected-home/PvE mastery (exact unlock undecided). Raid loot categories could include salvage of exposed structures, captured exposed humans/dinos, unshipped materials and equipped items/accessories. Unlike the winner-take-all model, limiting/costing raid opportunities and attacker losses is critical to preserve PvE/progression as the better reliable income path. The owner allows boat departure during raids with capacity from boat+harbor level and traits; homebound journey safe. **Nothing in this paragraph describes implemented gameplay.**
+
