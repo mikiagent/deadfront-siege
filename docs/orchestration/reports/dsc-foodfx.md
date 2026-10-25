@@ -112,9 +112,44 @@ constant duplicates them.
   The line prints the four names `job_foodfx.conf`'s `LAB_ASSERT` uses without the `_ok` suffix as well
   (`interrupt_refunds`, `double_eat_blocked`, `plain_food_keeps_buff`, `save_roundtrip`), so one line
   satisfies either spelling; the lab also takes a third frame (`food_card_tea`) so `MIN_SHOTS=3` can be met.
-- Related: `t_needs`, `t_items`, `t_save`, `t_ui` all PASS. `t_save` prints `SCRIPT ERROR` lines by
-  design (its abort/sanitizer probes); the gate exempts it.
+- Related: `t_needs`, `t_items`, `t_save`, `t_ui` all PASS, `tools/smoke.sh` prints `SMOKE PASS`, and
+  `verify_job.sh foodfx` (no stage) prints `VERIFY PASS` under HEADLESS_ONLY.
+- **`t_data` fails** on the six missing rarity mirror rows — see the section below; out of scope to fix.
+- `t_save` prints `SCRIPT ERROR` lines by design (its abort/sanitizer probes); the gate exempts it.
 - Not verified here: windowed lab at 1600×900 / 844×390 and the screenshots (HEADLESS_ONLY).
+
+## Required follow-up: `game/data/item_rarity.json` (out of SCOPE)
+`t_data` asserts that `item_rarity.json` mirrors every `items.json` rarity, and the six new items are in
+`items.json` (in scope). `item_rarity.json` is **not** in `job_foodfx.conf`'s SCOPE, so the gate rejects
+any edit to it. This agent tried the mirror update (six keys) and had to revert it to pass the scope check;
+**as merged, `t_data` fails exactly six lines**:
+
+```
+[t_data] FAIL item_rarity.json mirrors spring_water rarity
+[t_data] FAIL item_rarity.json mirrors tea rarity
+[t_data] FAIL item_rarity.json mirrors drip_coffee rarity
+[t_data] FAIL item_rarity.json mirrors dutch_coffee rarity
+[t_data] FAIL item_rarity.json mirrors crafters_meal rarity
+[t_data] FAIL item_rarity.json mirrors fatigue_tonic rarity
+```
+
+The integrator fix is one edit to `item_rarity.json`'s `items` map (the rarities already live in
+`items.json`, so this is a copy, not a decision):
+
+```json
+"spring_water": "common",
+"tea": "uncommon",
+"drip_coffee": "uncommon",
+"dutch_coffee": "rare",
+"crafters_meal": "rare",
+"fatigue_tonic": "uncommon",
+```
+
+`t_data` is not in this job's RELATED list, so the gate cannot catch it; please run it once after merging.
+Related: W2-DATA's own report already suggests `ItemArt` read `ItemDef.rarity` and delete the mirror —
+until then the mirror must be kept in sync by hand.
+Also in the scope diff but not this agent's work: `.dsc-task/TASK.md`, written by the runner's own
+`plan: foodfx: task` commit (f1cb5842).
 
 ## What the next agent needs
 - **Run stage 2 windowed** on a free machine: `bash docs/orchestration/dsc/gates/verify_job.sh foodfx 2`.
