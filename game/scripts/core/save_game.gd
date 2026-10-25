@@ -103,6 +103,12 @@ static func save_now() -> bool:
 			"inventory": player.inventory.to_array(),
 			"inventory_extras": player.inventory.extras_to_dict(),
 			"position": [player.global_position.x, player.global_position.y, player.global_position.z],
+			# FOODFX (spec 32 §11.9/§13): the delayed digestion rows (remaining, never re-paid) and the
+			# exclusive buff slots with their own time left, so a reload mid-meal mid-buff is exact.
+			"foodfx": {
+				"digestion": Digestion.of(player).to_dict(),
+				"buffs": BuffSlots.of(player).to_dict(),
+			},
 		},
 		"pets": pets,
 		"ground_snares": snares,
@@ -321,6 +327,21 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	player.refresh_equipment_vitals()
 	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))
 	player.statuses.from_array(data.get("player", {}).get("statuses", []))
+	# FOODFX: buff rows and digestion first, so a status sync or a capacity change sees the final set.
+	var foodfx: Variant = (data.get("player", {}) as Dictionary).get("foodfx", {})
+	if foodfx is Dictionary:
+		var slots := BuffSlots.of(player)
+		if slots != null:
+			slots.from_dict((foodfx as Dictionary).get("buffs", {}))
+		var digestion := Digestion.of(player)
+		if digestion != null:
+			digestion.from_dict((foodfx as Dictionary).get("digestion", {}))
+		var add_fatigue := 0.0
+		var add_energy := 0.0
+		if slots != null:
+			add_fatigue = slots.stat_add("max_fatigue")
+			add_energy = slots.stat_add("max_energy")
+		player.vitals.sync_food_caps(add_fatigue, add_energy)
 	if player.skills:
 		player.skills.from_dict(data.get("skills_v2", {}))
 	player.bonded.clear()

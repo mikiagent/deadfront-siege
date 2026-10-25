@@ -1,0 +1,209 @@
+class_name BuffSlots
+extends RefCounted
+## Spec 32 §4/§13 BuffSlotManager: timed food buffs in exclusive *groups*.
+##
+## The recovered rules distinguish an Enhanced Ability container (ordinary attribute/profession
+## meals) and an Enhanced Survival container (survival drinks). They may be active at once; eating
+## another food of the same group replaces that group's buff and only that one. A food that only
+## restores Energy carries no buff, so it replaces nothing.
+##
+## Player.food_buffs (FoodBuffState) stays the mirror the rest of the game already reads (crafting
+## ability, heat/cold resistance): every tick this node rewrites its own rows into that mirror, so
+## there is still exactly one store the readers see and one owner of food-buff expiry.
+##
+## The store lives on the Player node as metadata ("foodfx_slots"), so no player.gd edit is needed
+## and a survivor made with new() in a test has the same state a scene one does.
+## On expiry, capacities are recomputed from the remaining rows and *current* values are clamped:
+## a Maximum Fatigue bonus never subtracts from current fatigue and never touches a base stat
+## (spec 32 §4 "Critical").
+
+const META := "foodfx_slots"
+
+var _rows: Array[Dictionary] = []
+## Spec 32 §7 taste memory: flavour -> {"score": run length, "t": unix seconds}.
+var taste_memory: Dictionary = {}
+var _mirrored: Array[String] = []
+
+## The survivor's slots, created on first use and kept on the node.
+static func of(player: Player) -> BuffSlots:
+	if player == null:
+		return null
+	if player.has_meta(META):
+		var s: Variant = player.get_meta(META)
+		if s is BuffSlots:
+			return s as BuffSlots
+	var made := BuffSlots.new()
+	player.set_meta(META, made)
+	return made
+
+func rows() -> Array[Dictionary]:
+	return _rows
+
+func ids() -> Array[String]:
+	var out: Array[String] = []
+	for r in _rows:
+		out.append(str(r.get("id", "")))
+	return out
+
+func get_row(id: String) -> Dictionary:
+	for r in _rows:
+		if str(r.get("id", "")) == id:
+			return r
+	return {}
+
+func by_group(group: String) -> Dictionary:
+	for r in _rows:
+		if str(r.get("group", "")) == group:
+			return r
+	return {}
+
+## The buffs in `bundle_buffs` that would replace an active buff of their own group, in order:
+## [{"group", "group_name", "old", "new"}]. The panel prints this as "replaces ..." (spec 32 §12).
+func would_replace(bundle_buffs: Array) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for b: Variant in bundle_buffs:
+		if not b is Dictionary:
+			continue
+		var row: Dictionary = b as Dictionary
+		var group := str(row.get("group", "enhanced_ability"))
+		var old := by_group(group)
+		if old.is_empty():
+			continue
+		if str(old.get("id", "")) == str(row.get("id", "")):
+			continue
+		out.append({
+			"group": group,
+			"group_name": str(row.get("group_name", group)),
+			"old": str(old.get("display_name", old.get("id", ""))),
+			"new": str(row.get("display_name", row.get("id", ""))),
+		})
+	return out
+
+## Apply one bundle's buffs: each replaces its own group only. Returns what was replaced.
+func apply(player: Player, bundle_buffs: Array) -> Array[Dictionary]:
+	var replaced: Array[Dictionary] = []
+	for b: Variant in bundle_buffs:
+		if not b is Dictionary:
+			continue
+		var row: Dictionary = b as Dictionary
+		var id := str(row.get("id", ""))
+		var group := str(row.get("group", "enhanced_ability"))
+		if id == "" or float(row.get("duration", 0.0)) <= 0.0:
+			continue
+		var old := by_group(group)
+		if not old.is_empty():
+			if str(old.get("id", "")) == id:
+				# Same food again: refresh rather than replace (spec 32 §11 step 7: only the group).
+				old["time_left"] = float(row.get("duration", 0.0))
+				old["duration"] = float(row.get("duration", 0.0))
+				old["stats"] = (row.get("stats", {}) as Dictionary).duplicate(true)
+				_sync(player)
+				return replaced
+			replaced.append({"group": group, "old": str(old.get("id", "")), "new": id})
+			_rows.erase(old)
+		_rows.append({
+			"id": id,
+			"group": group,
+			"group_name": str(row.get("group_name", group)),
+			"display_name": str(row.get("display_name", id)),
+			"duration": float(row.get("duration", 0.0)),
+			"time_left": float(row.get("duration", 0.0)),
+			"stats": (row.get("stats", {}) as Dictionary).duplicate(true),
+		})
+	_sync(player)
+	return replaced
+
+## Sum of one stat's `add` (minus `sub`) over active rows; 0.0 for a stat no buff carries.
+func stat_add(stat: String) -> float:
+	var total := 0.0
+	for r in _rows:
+		var stats: Dictionary = r.get("stats", {})
+		if not stats.has(stat):
+			continue
+		var ops: Dictionary = stats[stat]
+		total += float(ops.get("add", 0.0)) - float(ops.get("sub", 0.0))
+	return total
+
+func stat_mult(stat: String) -> float:
+	var m := 1.0
+	for r in _rows:
+		var stats: Dictionary = r.get("stats", {})
+		if stats.has(stat):
+			m *= float((stats[stat] as Dictionary).get("mult", 1.0))
+	return m
+
+func tick(player: Player, delta: float) -> void:
+	if _rows.is_empty():
+		return
+	var expired: Array[Dictionary] = []
+	for r in _rows:
+		r["time_left"] = float(r.get("time_left", 0.0)) - delta
+		if float(r["time_left"]) <= 0.0:
+			expired.append(r)
+	if not expired.is_empty():
+		for r in expired:
+			_rows.erase(r)
+			print("[foodfx] buff expired %s (%s)" % [str(r.get("id", "")), str(r.get("group_name", ""))])
+	_sync(player)
+
+## Write the rows into the FoodBuffState mirror the rest of the game reads and recompute capacities.
+func _sync(player: Player) -> void:
+	if player == null or player.food_buffs == null:
+		return
+	var mirror: Dictionary = player.food_buffs.to_dict()
+	for key in _mirrored:
+		mirror.erase(key)
+	_mirrored.clear()
+	for r in _rows:
+		var stats: Dictionary = r.get("stats", {})
+		# Capacities are owned here (vitals bonus below), so they are not mirrored twice.
+		var row := {}
+		for stat: Variant in stats:
+			var name := str(stat)
+			if name == "max_fatigue" or name == "max_energy":
+				continue
+			var dst := FoodEffects.player_stat(name)
+			if dst == "":
+				continue
+			var ops: Dictionary = stats[stat]
+			var acc: Dictionary = row.get(dst, {})
+			if ops.has("add"):
+				acc["add"] = float(acc.get("add", 0.0)) + float(ops["add"])
+			if ops.has("sub"):
+				acc["add"] = float(acc.get("add", 0.0)) - float(ops["sub"])
+			if ops.has("mult"):
+				acc["mult"] = float(acc.get("mult", 1.0)) * float(ops["mult"])
+			acc["stat"] = dst
+			row[dst] = acc
+		for dst: Variant in row:
+			var key := "fx_%s_%s" % [str(r.get("id", "")), str(dst)]
+			var acc2: Dictionary = row[dst]
+			acc2["stat"] = str(dst)
+			acc2["duration"] = float(r.get("duration", 0.0))
+			mirror[key] = {"time_left": float(r.get("duration", 0.0)), "row": acc2}
+			_mirrored.append(key)
+	player.food_buffs.from_dict(mirror)
+	if player.vitals != null:
+		player.vitals.sync_food_caps(stat_add("max_fatigue"), stat_add("max_energy"))
+
+# ---------------------------------------------------------------- persistence
+
+func to_dict() -> Dictionary:
+	return {
+		"buffs": _rows.duplicate(true),
+		"taste_memory": taste_memory.duplicate(true),
+	}
+
+func from_dict(raw: Dictionary) -> void:
+	_rows.clear()
+	var list: Variant = raw.get("buffs", [])
+	if list is Array:
+		for r: Variant in list:
+			if not r is Dictionary:
+				continue
+			var row: Dictionary = (r as Dictionary).duplicate(true)
+			if str(row.get("id", "")) == "" or float(row.get("time_left", 0.0)) <= 0.0:
+				continue
+			_rows.append(row)
+	var mem: Variant = raw.get("taste_memory", {})
+	taste_memory = (mem as Dictionary).duplicate(true) if mem is Dictionary else {}

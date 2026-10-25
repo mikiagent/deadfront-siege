@@ -3824,7 +3824,7 @@
       "market_category": "clothing",
       "rarity": "uncommon",
       "bag_def": "basic_bag",
-      "_about": "Spec 31 §2 migration: the old stand-in bag. Saves that hold it load as a Basic Bag of the same level (ItemStack.from_dict). New bags are the five defined in data/bags.json.",
+      "_about": "Spec 31 \u00a72 migration: the old stand-in bag. Saves that hold it load as a Basic Bag of the same level (ItemStack.from_dict). New bags are the five defined in data/bags.json.",
       "source_pending": true
     },
     {
@@ -3974,6 +3974,116 @@
       "base_level": 1,
       "market_category": "building_kit",
       "rarity": "common"
+    },
+    {
+      "id": "spring_water",
+      "display_name": "Spring Water",
+      "categories": [
+        "water",
+        "drink",
+        "food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 4,
+      "market_category": "food_raw",
+      "rarity": "common",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station."
+    },
+    {
+      "id": "tea",
+      "display_name": "Tea",
+      "categories": [
+        "drink",
+        "food",
+        "brew"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 44,
+      "market_category": "food_cooked",
+      "rarity": "uncommon",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "drip_coffee",
+      "display_name": "Drip Coffee",
+      "categories": [
+        "drink",
+        "food",
+        "brew"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 56,
+      "market_category": "food_cooked",
+      "rarity": "uncommon",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "dutch_coffee",
+      "display_name": "Dutch Coffee",
+      "categories": [
+        "drink",
+        "food",
+        "brew",
+        "buff_food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 56,
+      "market_category": "food_cooked",
+      "rarity": "rare",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "crafters_meal",
+      "display_name": "Crafter's Meal",
+      "categories": [
+        "food",
+        "cooked",
+        "meal",
+        "buff_food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 30,
+      "market_category": "food_cooked",
+      "rarity": "rare",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "fatigue_tonic",
+      "display_name": "Fatigue Restorative",
+      "categories": [
+        "drink",
+        "medicine",
+        "food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 0,
+      "market_category": "medicine",
+      "rarity": "uncommon",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station."
     }
   ]
 }

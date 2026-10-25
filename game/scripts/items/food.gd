@@ -23,6 +23,10 @@ static func is_raw(stack: ItemStack) -> bool:
 		return false
 	if &"raw" in stack.flags:
 		return true
+	# Spec 32 §9: the bundle can name a food raw even when the item def predates the risk (a berry).
+	var bundle := FoodEffects.entry_for(stack.def_id)
+	if bool(bundle.get("raw", false)):
+		return true
 	var d := stack.def()
 	return d != null and d.raw
 
@@ -128,8 +132,9 @@ static func raw_risk_roll(stack: ItemStack, rng: RandomNumberGenerator = null) -
 	if stack == null or not is_raw(stack):
 		return &""
 	var d := stack.def()
-	var poison_p := d.poison_chance if d else 0.0
-	var bad_p := d.tastes_bad_chance if d else 0.0
+	var bundle := FoodEffects.entry_for(stack.def_id)
+	var poison_p := float(bundle.get("poison_chance", d.poison_chance if d else 0.0))
+	var bad_p := float(bundle.get("tastes_bad_chance", d.tastes_bad_chance if d else 0.0))
 	if is_poisoned(stack) or (poison_p > 0.0 and _roll(rng) < poison_p):
 		return &"stomachache"
 	if bad_p > 0.0 and _roll(rng) < bad_p:
