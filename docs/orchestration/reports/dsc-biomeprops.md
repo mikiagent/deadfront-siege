@@ -91,6 +91,14 @@ a headless rebuild (`Blender --background --factory-startup -P build_all.py`) an
   also the run that should decide the colour-space question above.
 - The gate treats the missing visual pass as deferred, not as approval.
 
+## Integration correction
+
+The initial placement check recognized a placed biome prop only when its live row still held a
+`res://assets/nature/biome/` model path. PROPS2D correctly clears that path after it draws the same
+kind as a painted card, so the merged test would falsely fail on home grassland. The integration
+test keys placement on the declared biome kind and accepts either a valid card or a batch cell. The
+structural GLB checks remain unchanged.
+
 ## Assumptions
 
 - The size rule is the task's: model AABB height in `0.5 * radius_m .. 3 * radius_m`. Fixing the

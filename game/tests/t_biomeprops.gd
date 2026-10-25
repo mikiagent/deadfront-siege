@@ -130,9 +130,11 @@ func _test_models() -> void:
 			inst.free()
 	print("[t_biomeprops] models checked=%d kinds=%d" % [checked, kinds.size()])
 
-## island_props places the re-enabled kinds. The home island is grassland, so its biome weights have
-## no canyon/basalt ground: mesa_cliff and basalt_column only appear where props.json allows them
-## (desert_35 = canyon, volcanic_60 = basalt). A kind that appears on none of the three is a dead row.
+## island_props places the kinds that own biome GLBs. PROPS2D can draw an otherwise-valid biome kind
+## as a painted card, so the live row's path becomes empty. Placement therefore keys on the declared
+## kind, then accepts either a live card or a live batch cell. The home island is grassland, so
+## mesa_cliff and basalt_column only appear where props.json allows them (desert_35 = canyon,
+## volcanic_60 = basalt). A kind that appears on none of the three is a dead row.
 const ISLANDS := [&"home_grassland", &"desert_35", &"volcanic_60"]
 
 func _test_placement() -> void:
@@ -142,6 +144,7 @@ func _test_placement() -> void:
 	var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(host, 6.0)
 	(kit["nav"] as Node).queue_free()
 	var world: Node = root.get_node("World")
+	var biome_kinds := _kinds()
 	var anywhere := {}
 	for id: StringName in ISLANDS:
 		world.load_island(host, id, Vector3(0, 1, 18), false)
@@ -159,16 +162,21 @@ func _test_placement() -> void:
 		var biome_rows := 0
 		for r in props.get("_rows"):
 			var kind := str(r.get("kind", ""))
-			if not str(r.get("path", "")).begins_with(BIOME_DIR):
+			if not biome_kinds.has(kind):
 				continue
 			biome_rows += 1
 			placed[kind] = int(placed.get(kind, 0)) + 1
 			anywhere[kind] = int(anywhere.get(kind, 0)) + 1
-			var batch: Variant = r.get("batch")
-			var good := batch != null
+			var sprite: Dictionary = r.get("sprite", {}) as Dictionary
+			var good := int(r.get("card_idx", -1)) >= 0 and not sprite.is_empty()
 			if good:
-				good = (batch as VegBatch).cell_for(int(r.get("idx", -1))) != null
-			_expect(good, "%s/%s: the placed prop is drawn by a batch cell" % [id, kind])
+				good = ResourceLoader.exists(str(sprite.get("file", "")))
+			else:
+				var batch: Variant = r.get("batch")
+				good = batch != null
+				if good:
+					good = (batch as VegBatch).cell_for(int(r.get("idx", -1))) != null
+			_expect(good, "%s/%s: the placed prop is drawn by a card or batch cell" % [id, kind])
 		print("[t_biomeprops] placed %s=%s" % [id, placed])
 		_expect(biome_rows > 0, "%s places biome props at all (got %d)" % [id, biome_rows])
 	print("[t_biomeprops] placed anywhere=%s" % anywhere)
