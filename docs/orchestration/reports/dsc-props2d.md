@@ -36,6 +36,7 @@ SWITCH2D/CARD2D; the scenery layer (`IslandProps`) still drew MultiMeshed GLBs b
 | grey cards (art missing) | n/a | **0** |
 | clickable props | 0 | **0** |
 | indestructible props (home) | 3 cliffs | 1 cliff (the cliff kinds place rarely; every prop >= 4 m is enforced indestructible) |
+| web (Compatibility) instance-uniform geometry from prop cards, home island | 509 instances -> 8,144 shader-variable buffer items (limit 1,024) | **0 instances, 0 items** |
 
 Lab RESULT (1600x900 / 844x390):
 `painted_props=2132 model_props=0 grey_cards=0 blocks_ok=1 destroy_ok=1 cliff_indestructible=1
@@ -48,6 +49,21 @@ with `PropCards` invisible), well inside the gate's 1.1x.
 `props2d_home_props`, `props2d_home_close`, `props2d_tropical_camp`, `props2d_tropical_props`. Verdicts are in
 `.dsc/IMAGES.md`; all PASS: cards are planted on their pivots, camera-facing, lit by the sun, never grey,
 and read as scenery (no radial, no label).
+
+## Web / Compatibility fix (review round 1)
+
+`claude/mmo-overhaul` landed `Occlusion.enabled_for(web, forced_off)` plus `t_webshader`, which builds a
+real home island with occlusion off and fails if any material expands to an instance uniform. `PropCards`
+stripped its fade body only for *short* cards, so on web every tall card (509 of them on home) still declared
+`instance uniform float occl_fade`, and Compatibility reserves 16 shader-variable buffer items per such
+geometry instance: 8,144 items against a 1,024 limit.
+
+The card material now follows `CardProp._place`: the fade body is used only when a card is tall **and**
+`Occlusion.enabled` (`Occlusion.enabled_for` already turns it off on web and under `--no-occlusion`). Native
+tall cards keep fading through `Occlusion.auto_fade`; web builds the fade-free shader for every card.
+`t_props2d` asserts both directions (occlusion off: short and tall share one instance-uniform-free shader;
+occlusion on: only tall cards get the fade body), and it fails on the unfixed code. Measured with
+`t_webshader`: before 509 instances / 8,144 items, after **0 / 0** (geometry 1,597).
 
 ## Assumptions
 
