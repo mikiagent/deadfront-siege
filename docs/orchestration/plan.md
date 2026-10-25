@@ -113,3 +113,19 @@ This section is a **new owner-directed planning addendum**; the milestone table 
 **Proposed sequencing:** A recovery/status clarity -> B inventory selection and trait visibility -> C consequential material/food traits -> D craftable blueprints and worksites -> E work-order NPCs -> F Tribe/Creatures roster separation and mixed party -> G lineage and successor progression. These are design workstreams, not implementation assignments.
 
 **Decision gate:** Answer the open questions in the linked design brief before recording balance numbers, inheritance formulas, active rider-slot accounting, or worksite refunds as binding rules. Then update the canonical subsystem design docs, data schema, save migrations, and per-phase acceptance tests. No existing implementation is declared complete by this addendum.
+
+
+## 9. Confirmed 2026-10-25 owner decisions and system dependencies
+
+**Owner answers captured:** [Tribe, Lineage, Domain and Labor](../design/tribe-lineage-domain-and-labor.md), with the [updated multi-system brief](../design/2026-10-25-systems-vision-and-open-decisions.md). This is design work, not a commit to write/run gameplay code now.
+
+- **No prestige reset:** Transfer play to a new, personally low-level human while keeping every other human's earned career, built base, gear, technology, dinosaurs and settlement continuity. The prior survivor can take a base worker job. A last-human wipe creates a new mediocre default survivor, with *world/claim loss policy not yet decided*.
+- **Costs and risks:** Reproduction/raising remains expensive even late; housing/infrastructure constrains tribe population; humans and tamed dinosaurs can die permanently. Future PvE/PvP-zone domains attract raiders and exiled wanderers.
+- **Labor:** Assignable NPC humans with equipment, autonomous best-fit jobs, mining/lumbering sites, Monitoring Stand priorities, and automatic work-tool preservation at 1 durability.
+- **Genes:** Rare high-quality wild animals have spiky stats; breeding humans and dinosaurs can improve inherited potential. A descendant's *earned personal skills/levels* do not magically carry over from parents. Genetics formulas remain TBD.
+- **Expedition:** Three shared active companion slots. A human mounted on a dinosaur uses one slot; rider improves coordination/pathing and switches combat to controlled mounted weapons at the expense of wild dinosaur attacks. 1+1~1.5 is a qualitative design target, not an arithmetic buff.
+- **Items:** Traits materially affect long-lived structures, work gear and primary weapons; food traits modify temporary buffs. Rare targeted beneficial-trait charms may bias harvest rolls. Exact odds math remains TBD.
+
+**Design dependency chain:** persistent human identity/Tribe roster and baseline-survivor recovery -> population/housing/recruitment -> worker labor + equipment + sites -> genetics + costly breeding + growth -> mixed Expedition mount AI -> truly server-authoritative PvP domains when pursued. Trait/bulk-inventory and unified blueprint/worksite design run in parallel and join worker logistics.
+
+**Explicitly unresolved:** safety of home vs zone-specific domain claims, full-tribe-wipe property persistence, recruitment/raid frequency and offline danger, human raising times/costs, inheritance/caps, mounted survivor slot rules, and charm odds. Resolve before treating the above as implementation tickets.
