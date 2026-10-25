@@ -61,7 +61,9 @@ func _run() -> void:
 	_test_explicit_pick_bypass()
 	_test_full_bag_retry()
 	_test_uid_preservation()
-	_test_live_card()
+	await _test_live_card()
+	await _test_station_retry()
+	await _test_station_uid_left()
 	await _test_online_parity()
 	_finish()
 
@@ -455,6 +457,80 @@ func _test_live_card() -> void:
 	_expect(ring >= 64.0, "the card's material ring is a 64 px phone target (%.0f px)" % ring)
 	_expect(bool((sc._plan.get("outcome", {}) as Dictionary).has("success")), "the live craft planned its outcome once at start")
 	sc.cancel_and_refund()
+
+## A full bag at the end of a live station craft: the craft holds with the inputs untouched and the
+## retry lands on the same plan (the outcome and the burn are never re-rolled). The inputs are stacks
+## the craft only takes one unit from, so spending them frees no slot for the output the way a real
+## bag does when it is full of partial stacks.
+func _test_station_retry() -> void:
+	_clear_bag()
+	_player.global_position = _fire.global_position + Vector3(1.2, 0, 0.9)
+	var inv = _player.inventory
+	var wide: int = inv.slot_count
+	inv.slot_count = 3
+	inv.slots.resize(3)
+	inv.slots[0] = IS.make(&"raptor_meat", 2, {}, 20)
+	inv.slots[1] = IS.make(&"branch", 2, {}, 20)
+	var sc = _player.station_craft
+	sc.begin(&"skewer", 1)
+	await physics_frame
+	if sc._plan.is_empty():
+		sc._start_craft_cycle()
+	await process_frame
+	var plan: Dictionary = sc._plan.duplicate(true)
+	_expect(not plan.is_empty() and sc.crafting, "the live craft planned its picks")
+	if plan.is_empty():
+		sc.cancel_and_refund()
+		inv.slot_count = wide
+		inv.slots.resize(wide)
+		return
+	# The bag fills while the survivor works (a pickup lands in the last free slot).
+	inv.slots[2] = IS.make(&"berry", 1, {}, 1)
+	var fulls := 0
+	for _k in 2:
+		sc._finish_one()
+		if not sc.crafting or inv.count_of(&"skewer") > 0:
+			break
+		fulls += 1
+	print("[t_craftfeel] station full-bag holds=%d crafting=%s same_plan=%s" % [fulls, sc.crafting, str(sc._plan) == str(plan)])
+	_expect(fulls == 2 and sc.crafting, "a full bag holds the live craft instead of finishing or losing the inputs")
+	_expect(inv.count_of(&"raptor_meat") == 2 and inv.count_of(&"branch") == 2, "the held craft consumed nothing")
+	_expect(sc._plan == plan, "the retry keeps the plan (outcome and burn not re-rolled)")
+	# Room appears; the same plan finishes, spending the inputs exactly once.
+	inv.remove_at(2, 1)
+	sc._finish_one()
+	_expect(inv.count_of(&"skewer") == 1, "the same plan lands once there is room")
+	_expect(inv.count_of(&"raptor_meat") == 1 and inv.count_of(&"branch") == 1, "landing spent one of each input")
+	_expect(sc._plan.is_empty() and not sc.crafting, "a finished live craft clears its plan and session")
+	inv.slot_count = wide
+	inv.slots.resize(wide)
+
+## A planned instance that leaves the bag during the work stops the craft with nothing consumed and
+## no substitution of the other stick-like item in the bag.
+func _test_station_uid_left() -> void:
+	_clear_bag()
+	_player.global_position = _fire.global_position + Vector3(1.2, 0, 0.9)
+	_player.inventory.add(IS.make(&"raptor_meat", 1, {}, 20))
+	_player.inventory.add(IS.make(&"branch", 1, {}, 20))
+	var sc = _player.station_craft
+	sc.begin(&"skewer", 1)
+	await physics_frame
+	sc._start_craft_cycle()
+	await process_frame
+	_expect(not sc._plan.is_empty(), "the live craft planned its picks")
+	if sc._plan.is_empty():
+		sc.cancel_and_refund()
+		return
+	var branch_idx: int = _player.inventory.find_first(&"branch")
+	var gone: String = _player.inventory.slots[branch_idx].uid
+	_player.inventory.remove_at(branch_idx, 1)
+	_player.inventory.add(IS.make(&"raptor_bone", 1, {}, 20))  # a legal substitute the craft must not take
+	sc._finish_one()
+	var bone_left: int = _player.inventory.count_of(&"raptor_bone")
+	print("[t_craftfeel] station uid left=%s crafting=%s bone=%d" % [gone, sc.crafting, bone_left])
+	_expect(not sc.crafting and sc._plan.is_empty(), "a planned instance that left the bag stops the craft")
+	_expect(_player.inventory.count_of(&"raptor_meat") == 1 and bone_left == 1,
+		"nothing was consumed and no substitute was taken")
 
 ## Review (2): online crafting runs the same rule. A shortfall fails and loses exactly the picked
 ## units; a success pays XP once; a disallowed explicit pick is refused; a failure reports failed=true.

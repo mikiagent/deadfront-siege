@@ -441,6 +441,8 @@ func _finish_one() -> void:
 		return
 	crafting = false
 	progress = 0.0
+	_plan = {}
+	_burnt = false
 	if queue_left > 0:
 		queue_left -= 1
 		_start_craft_cycle()
