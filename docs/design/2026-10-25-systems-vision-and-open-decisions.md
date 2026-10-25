@@ -1,13 +1,13 @@
 # DEADFRONT systems vision: meaningful materials, living base, and generational survival
 
-**Status:** Owner-directed design direction captured 2026-10-25; **NOT an implementation order**. Exact rates, inheritance rules, roster limits, and edge cases remain proposals pending owner answers.
+**Status:** Owner-directed design direction captured 2026-10-25 and **partly resolved** by explicit follow-up answers on the same date; **NOT an implementation order**. Newly confirmed rules are distinguished from unresolved implementation formulas and zone/loss policies. See the companion [Tribe, Lineage, Domain and Labor spec](tribe-lineage-domain-and-labor.md).
 **Applies to:** Future DEADFRONT design and execution plans. No gameplay code was changed by this document.
 **Read with:** `HANDOFF.md`, `GAUNTLET.md`, `docs/design/world-design.md`, `docs/design/skills.md`, `docs/design/economy.md`, `docs/design/durango-informed-improvements.md`, and `docs/release/ship-readiness.md`.
 **Authority:** New owner intent supersedes older design where it conflicts; do not treat suggested implementation details or sample probabilities as approved balance numbers. The Durango systems PRD is historical research, not the source of truth for DEADFRONT-specific additions.
 
 ## 0. Sharpened fantasy and design pillars
 
-**Proposed pitch:** Survive a prehistoric archipelago, gather imperfect and exceptional materials, build a working settlement of humans and dinosaurs, and grow a lineage of survivors whose inherited potential makes each new life a deeper run through the world.
+**Refined pitch:** Survive a prehistoric archipelago, gather imperfect and exceptional materials, defend and develop a persistent settlement, and build a vulnerable tribe of skilled people and bred dinosaurs. Generations of stronger survivors inherit potential but must personally learn professions; existing people, equipment, territory and civilization progress never reset when control transfers.
 
 The player should have recurring reasons to inspect each harvest, ingredient, craft, citizen, and creature instead of treating all like interchangeable quantities. The home island becomes a living economy, not only a decorative storage area. Generational progression should reward mastering existing systems and enable fresh strategic choices, not merely multiplying stats until all danger disappears.
 
@@ -70,6 +70,8 @@ Pillars:
 
 **Dependencies:** trait taxonomy and rule data -> harvest assignment -> inventory tooltip/filter/stack semantics -> crafting/food inheritance -> market valuation and storage behavior -> bot-based drop-rate/retention tests. Existing `ItemStack.attributes` and exact-match merge behavior are a starting point, not a finished system.
 
+**2026-10-25 owner refinement:** Durable outputs such as main weapons, crossbows, workhorse tools and buildings are the primary material-trait endgame. Food/one-use consumables should usually change/improve potion-like buffs and remain quick to manage. Rare treasure charms may target a chosen beneficial trait and raise its gathering odds (example: "+20% chance" is not yet defined as relative or percentage points). [Detailed trait endgame](tribe-lineage-domain-and-labor.md#8-resource-quality-and-targeted-trait-discovery).
+
 ## 4. Inventory batch selection (near-term UX, prerequisite for traits)
 
 **Owner intent, confirmed:** Select multiple items and perform Lock, Drop, and Destroy in bulk.
@@ -102,68 +104,76 @@ The present `BUILD` interface may survive **only as a spatial placement/layout m
 
 ## 6. Human base workers (major new system)
 
-**Owner intent, confirmed:** NPC workers with individual stats can be assigned to the base for crafting, hauling/transport, and other productive jobs, inspired by Palworld's assignment loop.
+**Owner-confirmed:** Workers are persistent human Tribe members with the same skill and equipment possibilities as playable humans. Build dedicated mining and lumbering sites and future production facilities. Workers automatically attempt tasks they **can** do, preferring tasks matching their aptitudes, levels and equipment. A built **Monitoring Stand** lets the player explicitly permit, prohibit and prioritize work.
 
-**Proposed core jobs:** gathering at permitted local nodes, hauling materials between worksite/stations/storage, constructing worksites, operating stations/crafting queued recipes, farming, cooking, maintaining gear/buildings, and guarding. Phase them rather than launching all together.
+Workers stop **automatic equipment use** just before breakage: a 250-durability tool used for labor should be left at **1/250**, not consumed by mindless job repetition. Show why a worker is idle, which task and tool they use, and what station/material blocks production. Hauling and worksite material delivery require real item reservations and transport, never free generation or duplication.
 
-Each human has a saved identity, stats/aptitudes, learned skills, relevant traits, work priorities, job eligibility, carrying capacity, Energy/Exhaustion and needs. Assignment UI shows job, destination/station, stock/input requirements, work-rate calculation, rest/safety state, and blockers. Use visible travel/carry/drop-off behavior. No teleporting goods, conjuring inputs, or duplicating materials. Workers use worksite inventory and storage permissions rather than reading arbitrary global inventory.
+**Proposed future sub-systems:** per-human work priorities and eligibility, mining/lumbering production limits, station queues, item inventory, equipped gear, sleep/exhaustion, food/upkeep, zone safety, worksite jobs, maintenance/repair. A veteran character who was previously controlled by the player can remain a skilled worker with their accumulated personal abilities.
 
-**Suggested phased automation:** (A) one worker + one hauling route; (B) supply a worksite; (C) craft from a queued recipe and deliver output; (D) priorities, work shifts, needs/food/rest, skill growth; (E) specialized jobs and multi-worker coordination.
+**Open:** whether tool preservation also applies in combat, where repairs are sourced, offline production, Monitoring Stand geographic scope, housing/support needs, and work hazards. See [detailed labor spec](tribe-lineage-domain-and-labor.md#6-worker-economy-and-self-directed-task-ai).
 
-**Open:** how people join tribe (recruitment, rescue, births), how many may work at once, their salary/upkeep/food/housing, worker autonomy versus micro-management, whether work progresses offline, hazards/death, and whether workers are all eligible to become playable characters.
+## 7. Tribe and generations: persistent lineage, **not a prestige reset**
 
-## 7. Tribe and generations: a playable new-game-plus loop (long-term pillar)
+**Owner-confirmed:** Humans and dinosaurs have distinct owned rosters, permanent identities and breeding systems. A tribe's domain in PvE/PvP territory draws **raiders** and **exiled wanderers** seeking to join. Human population is **limited by houses and other support infrastructure**, not unlimited roster capacity. Humans and dinosaurs can die in PvE/PvP battles.
 
-**Owner intent, confirmed:** Add a **human tribe system separate from dinosaurs**, with the ability to create and raise new playable survivors that inherit stats from their parents. Each new generation should feel like a new-game-plus run in which understanding of existing systems and inherited potential make the player stronger. Tribe members can also work at the base or travel in the active party.
+Human reproduction is **extremely resource-consuming** and remains taxing at endgame. The player develops a lineage by intentionally selecting parents with useful inherited potential; wild dinosaurs likewise tend to have spiky/uneven stats, and selective breeding over generations can create stronger dinosaurs. Offspring do **not** automatically inherit their parents' earned levels and career XP.
 
-**Proposed model (subject to design discussion):**
-- A persistent **Tribe** roster holds people, genealogy/parentage, inherited attributes, acquired skills, equipment, work preferences, relationship/parent eligibility and activity state. The **Creatures** roster separately holds tamed dinosaurs/pets and their current genetics system.
-- A new playable successor is produced by the player-selected parentage/lineage mechanism. A clear growth/raising loop determines how and when the successor becomes controllable. No arbitrary implicit replacement of the currently played survivor.
-- Distinguish **inherited potential** (aptitudes, ceilings, strengths/weaknesses, possibly recessive traits) from **earned ability** (XP, actual craft mastery and gear). Use meaningful trade-offs and diminishing returns/soft caps, not unlimited flat stat multiplication.
-- **Generation transition:** the player voluntarily chooses a successor. The permanent base, discovered knowledge, tribe members, infrastructure and any explicitly designated legacy items persist. Personal level/skill allocation/progression reset partially or wholly only after the owner defines a rewarding reason to replay.
-- Successors can specialize differently: one life might be a hunter, the next a builder/researcher who benefits from the foundation of the previous life. Better lineage should unlock viable strategies, not trivialize the world or force repeated idle breeding.
-- Treat child growth, passing of time, parental selection, co-parent conditions, retirement/permadeath, kinship restrictions and relationship tone as **explicit open decisions**, not implied by the term "breeding." Abstract/fast-forward growth is a valid design direction for a survival game.
+**Absolutely no reset on character adoption:** The base, equipment, research/world state, dinosaurs, all other living humans, and every prior character's hard-earned levels and skills **remain**. Control transfers to a new, individually low-level survivor who gains XP and skills in their own career. The former avatar can work at base stations using their existing training and gear. This is an ongoing civilization and roster, not a New Game+ that erases anything. Transfer can also conceptually occur between existing eligible survivors; final switching restrictions remain open.
 
-**Major risks to resolve before design lock:** how to prevent infinite stat creep and exploit chains; balancing dynamic island difficulty against stronger generations; avoiding mandatory/repetitive grinds; save schema and permanent identity for each character; player attachment to a particular survivor; compatibility with future multiplayer/tribal co-op; keeping the system approachable on mobile.
+**Tribe-wipe fallback:** If all human tribe members die, a **new default playable survivor** with mediocre baseline innate stats appears, allowing the player to rebuild. Exactly how much property, research and territory survives a full wipe remains **open**.
 
-## 8. Party roster and navigation
+**Genetic intent:** Innate potential and weaknesses matter over generations; excellent combinations should be rare and costly, not unlimited inflation. Humans should remain valuable individuals with jobs and identities rather than disposable stat tokens. The specific inheritance, raising, relationship and breeding formulas are **not yet locked**.
 
-**Owner intent, confirmed:** Current **three active animal slots** may also hold human tribe members, including a tribe member riding a mount. Tribe humans and dinosaurs remain separate management systems.
+The canonical detailed spec is [Tribe, Lineage, Domain and Labor](tribe-lineage-domain-and-labor.md).
 
-**Proposed UI names:**
-- **Expedition** or **Party** = three active companion/deployment slots across humans, dinosaurs, and human-plus-mount combinations.
-- **Tribe** = full human roster, family/generations, roles and assignments.
-- **Creatures** = dinosaur collection, taming, genetics and growth.
+## 8. Expedition and separate rosters
 
-Rename the current **Animals** command to **Companions** or **Expedition** only after selecting whether that screen manages the active three, the creature roster, or both. A clean proposal is three surface tabs `Expedition | Tribe | Creatures`.
+**Owner-confirmed:** Three active **Expedition** companion slots can hold humans, dinosaurs, or a **mounted human+dinosaur pair as ONE composite slot**. The playable survivor's own mount/slot accounting remains to be decided. Human **Tribe** management stays separate from dinosaur **Creatures** management.
 
-**Open slot semantics:** Does a mounted human + their dinosaur use one composite deployment slot or two? Who controls the mount? Can the playable survivor itself ride a mount without consuming a slot? Are non-deployed workers always base-bound? A single definition must govern UI, combat balance, persistence, and summons.
+**Mounted combat is a trade:** An unmounted dinosaur fights according to its species instincts and AI (berserker predator, ramming charger, defensive herbivore with buck/tackle/tail swipe). A human rider improves coordination, intelligence and navigation, can attack with compatible mounted weapons such as spears, and shifts the pair toward controlled rider-led combat **at the expense of some autonomous dinosaur-style attacks**. The owner's "1+1 = about 1.5, not 3" describes desired synergy; **do not implement it as a universal numerical multiplier**.
+
+**Suggested UI:** `Expedition | Tribe | Creatures`, with a single slot showing both mount/rider portraits and independent health/gear. Decide the name of the legacy Animals button once Expedition navigation is prototyped.
+
+**Open:** fate of surviving mount when rider dies, player-character mount accounting, dismount, mount weapon limitations and save semantics. See [Expedition specification](tribe-lineage-domain-and-labor.md#7-expedition-slots-human-dinosaur-mounted-pair).
 
 ## 9. Dependency-aware roadmap (proposal, not approved schedule)
 
-| Phase | Outcome | Why this order |
+| Phase | Design outcome | Key proof |
 |---|---|---|
-| A. Clarity & recovery | Continuous sleep relief, Sit action, status numerical tooltips | Small visible wins; establish Energy/Exhaustion truth |
-| B. Item agency | Bulk select/lock/drop/destroy, trait taxonomy and legible tooltips | Protect and sort unusual finds before increasing item variants |
-| C. Meaningful materials | Trait rolls and transfer through processing, cooking, craft/equipment and value | Makes gathering decisions meaningful rather than cosmetic |
-| D. Unified construction | Craftable blueprints, placeable worksites, delivery and manual build | Establishes durable work-order model |
-| E. Worker automation | Worker roster, haul to worksite, station jobs, rest/skills | Leverages existing construction and crafting queues |
-| F. Expedition + tribe foundations | Separate human/dino rosters, generalized three-slot party, mounted composition | Provides stable identity and deployment before inheritance |
-| G. Generational NG+ | Parentage, raising, inheritance, successor transition, progression carryover | Highest-cost balancing/data change; build on a functioning tribe |
+| A | Live sleep/sitting, accurate effect tooltips | Partial rest and interruptions reflect actual Energy/Exhaustion |
+| B | Inventory bulk selection/locks, visible traits and filters | Rare lots are protected and sorted correctly |
+| C | Consequential materials, food buffs and rare trait-targeting charms | Long-lived gear differs materially; single-use food stays low-friction |
+| D | One crafting menu, blueprint items, placed worksites and material delivery | No double-charges, save/load, no premature finished building |
+| E | Persistent humans, housing, baseline survivor fallback, work assignments and Monitoring Stand | Old avatars retain skills; work stops tools at 1 durability |
+| F | Mining/lumber sites, logistics and domain PvE danger/recruitment | Workers consume real inputs and survive meaningful territorial pressure |
+| G | Separate Tribe/Creatures genetics, breeding and childhood/raising progression | Cost remains meaningful late-game; individual growth, no stat exploit |
+| H | Three Expedition slots with mounted pairs and individual AI combat | Rider+mount counts one; meaningful changes to coordinated attacks |
+| I | Zone-specific PvP/domain ownership and combat loss | Server-authoritative if real multiplayer, with recovery and fairness |
 
-Before any phase ships: exact gameplay scenario, schema/save-migration plan, headless targeted lab, unit/smoke pass, desktop pixel test, phone tap test, and exact deploy/alias-stamp verification per GAUNTLET. Since this is a **design-only** document, none of those implementation tests have been run for these additions.
+**Dependencies:** separate character identity from controller before character transfers; define durable inventories and AI work orders before automatic construction; decide housing/raid safe-zone policy before domain PvE; define genetics, limits and cost before breeding. PvP is a long-term server-backed feature, not a present ability of the single-player client.
 
-## 10. Decisions to make with the owner, in order
+Before shipping a phase, define save migration, exact visible flow, focused testing lab, UI behavior, and deployment release gate. See [detailed roadmap](tribe-lineage-domain-and-labor.md#10-dependency-driven-delivery-roadmap).
 
-1. **Core motivation:** Is the ultimate fantasy breeding stronger *playable* survivors, directing a thriving tribe, or both equally? What does a satisfying generation transition look like?
-2. **Generation mechanics:** Are offspring produced through two selected adult tribe members with relationships/time/raising, a more abstract legacy-combination system, or another rule? How quickly do they become playable?
-3. **Carryover and difficulty:** Exactly which things persist after switching (base, discoveries, skills, personal level, items, creatures, jobs), and which reset? How does the next generation stay challenging?
-4. **Party slots:** Does rider + mount count as one slot or two, and does the current playable survivor count?
-5. **Materials:** Should 100% of gathered lots have a downside (positive+negative permitted), or allow a tiny clean/neutral percentage? What feels truly rare for positives: 1 in 100, 1 in 1,000, or another rate?
-6. **Trait propagation:** Can processing improve/remove negative traits, can good traits transfer, and how do you prevent one exceptional input from endlessly replicating bonuses?
-7. **Construction:** After unlocking a structure, is the blueprint itself a one-use craftable item, with all physical costs paid at the worksite?
-8. **Workers:** Do all workers belong to the Tribe roster? Should they need shelter, food, rest, wages or other upkeep? Can they perform work when the player is offline?
-9. **Rest/safety:** Are sitting and sleeping available during nearby danger, and what counts as a shelter's used sleep when interrupted?
-10. **Drop/destroy:** Are locked items protected only from disposal, or also from equipping/crafting? How long should dropped items remain recoverable?
+## 10. Owner responses, settled rules, and next decisions
 
-**Design lock gate:** Once answered, convert each phase into a canonical spec with explicit numbers, UI states, data schema, save migration and acceptance tests. Do not silently implement these open questions as guesses.
+### Resolved by owner on 2026-10-25
+
+1. **Domain attention:** PvE/PvP zone domains attract hostile raiders and exiled wanderers who can join.
+2. **Generational succession:** No existing civilization or human career progress resets when control transfers. New playable humans start personally inexperienced; veteran humans can become skilled base workers. Tribe populations depend on structures/infrastructure.
+3. **Reproduction/selection:** Very costly even in late game; heritable strengths/weaknesses matter in both humans and dinosaurs. Typical wild dinosaurs have uneven stat potential. Tribe members and dinosaurs can die; human extinction yields a default mediocre survivor.
+4. **Items:** Long-lasting gear and structures especially reward top-level, beneficial-trait materials. Consumables are less strategically important, while food traits enhance buff/potion-style effects. Rare treasure charms target specific desirable material traits.
+5. **Workers:** Sites such as mining/lumbering, self-directed aptitude-based work, human equipment, 1-durability no-break automatic work policy, and buildable Monitoring Stand for controlling priorities.
+6. **Expedition:** Three active mixed slots, mounted human+dinosaur pair counts as one slot. Mounted tactics improve pathfinding and control but substitute rider weapons for some independent dinosaur attacks; combined advantage is meaningful but far less than two fully independent fighters.
+
+### Remaining high-leverage choices
+
+1. **Territory:** Is the original home island protected while advanced PvE/PvP domain claims are vulnerable, or does any territory become raidable? Can raids kill the entire roster offline?
+2. **Parenthood/raising:** Which adult parents are eligible and what are the stages, duration, upkeep and resource bottlenecks for a child to become a playable adult?
+3. **Tribe wipe:** What survives when every human dies: the domain, gear, structures, surviving dinosaurs and collective knowledge?
+4. **Genetics:** How does inheritance combine innate potentials and drawbacks? What prevents escalating to perfect creatures and characters after a few generations?
+5. **Worker autonomy and losses:** What happens in offline time; do workers stop using weapons at 1 durability too; can a Monitoring Stand override safety?
+6. **Charm odds:** Does "+20% chance" mean `p -> 1.2p` (relative) or `p -> p+0.20` (percentage points), and may bonuses stack?
+7. **Rider edge cases:** Does a mount stay deployed or return home if its rider dies, and does the player-controlled survivor's own mount occupy an active companion slot?
+
+**Next design gate:** Resolve the high-impact questions before locking genetics formulas, permanent-death and infrastructure persistence rules, raider scheduling, offspring progression and server/PvP implementation. [Detailed specification and acceptance scenarios](tribe-lineage-domain-and-labor.md).
+
