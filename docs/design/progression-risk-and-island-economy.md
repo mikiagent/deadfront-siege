@@ -3,6 +3,8 @@
 **Status:** Owner-directed design clarification, 2026-10-25. This document separates **CONFIRMED** requirements from **PROPOSED** solutions and **OPEN** balance choices. No gameplay systems are claimed to be implemented.
 **Related:** [World](world-design.md), [Economy](economy.md), [Skills](skills.md), [Safe Home / Logistics / Upbringing](safe-home-expeditions-offspring-and-identity.md), [Tribe / Lineage](tribe-lineage-domain-and-labor.md), [PvP / Sieges](pvp-raiding-local-alphas-and-siege-fairness.md).
 
+**2026-10-25 latest owner decision:** Paid private-home moves **automatically dismantle old buildings after preview/confirmation, refund 100% of invested building materials into the dedicated salvage-only recovery box**, and move people/dinosaurs/ordinary goods separately. Most expensive safe home resource nodes top out at about level 50–55; level-60+ sources remain outside. Tribe retains level-60 island unlock permanently, but **current playable human must personally be level 60** for PvPvE entry. Only **PvPvE settlements, not islands**, face player raids; **PvE settlements** may be attacked by dinosaurs/animals. Unstable resource islands periodically reset and dismantle bases into salvage recovery (reset refund percentage OPEN). **Captives**: ransom countdown, return on payment, attacker can acquire the prisoner if the defender does not pay by expiry (clock and price OPEN). See [canonical decisions](../game-design/decisions.md), [world](../game-design/04-world-biomes-and-travel.md) and [prisoners](../game-design/16-pvp-frontier-siege-and-captives.md).
+
 ## 1. Product synthesis
 
 **Owner framing:** Think **Minecraft Skyblock mixed with Durango and ARK: Survival Evolved**.
