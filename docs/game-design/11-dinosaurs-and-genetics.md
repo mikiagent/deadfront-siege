@@ -39,6 +39,8 @@ These three families are **counter identities**, not literally an automatically 
 
 **OPEN:** Which secondary IV influences any given attack; whether training EVs augment expression without changing inherited IV; which moves become selectable; thresholds/cooldowns/attack clip assets; whether all dinosaur species have breeding at every progression stage. Keep existing individual identity, levels and genetic pedigree.
 
+**Owner correction about T. rex (2026-10-25):** **Tyrannosaurus rex is tameable and rideable in intended game design** and naturally belongs to the **Tyrant** mount role; the present species JSON still says `tameable: false`, `capture_tier: 0`, `tamed_role: []`, so current shipped capture eligibility **must be changed in a separate implementation task**, preserving wild tier-60 raid-boss challenge. Huge rider saddle height means human swords/spears cannot auto-hit little prey far below; mount bites/stomps are distinct from rider weapons. **Berserker** (e.g. Utahraptor/Smilodon) is different, with an owner's proposed **Frenzy** damage ramp for successive direct melee Slash hits, capped and resettable. [Full mounted reach/Frenzy design](12-expedition-mounts-and-command.md).
+
 ## 3. Proposed first-pass catalog of all 19 existing animal/creature JSON species
 
 **Status of this entire table: PROPOSED NEW DESIGN except the current species and present move descriptions.** The proposed vulnerability assignment deliberately does *not* yet match the current combat-counter family for every species. **Attack-mode labels are draft interpretations**, not proof that code presently uses DI/DP/DS/MI/MP/MS.
