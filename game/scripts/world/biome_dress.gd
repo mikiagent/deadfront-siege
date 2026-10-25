@@ -566,6 +566,10 @@ func _clear_cells() -> void:
 	for key: Vector2i in _keys:
 		var mmi := _cells.get(key) as MultiMeshInstance3D
 		if mmi != null and is_instance_valid(mmi):
+			# Detach now, then free: queue_free() alone leaves the node a child until the end of the
+			# frame, so a immediate second build would still measure the old cells as duplicates.
+			if mmi.get_parent() == self:
+				remove_child(mmi)
 			mmi.queue_free()
 	_cells.clear()
 	_tiles.clear()

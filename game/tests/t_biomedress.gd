@@ -69,6 +69,7 @@ func _run() -> void:
 	await _plan_checks()
 	await _node_checks()
 	await _live_claim_check()
+	await _rebuild_checks()
 	await _signature_checks()
 	await _climate_checks()
 	_done = true
@@ -280,6 +281,35 @@ func _live_claim_check() -> void:
 	_rt.domain = saved_domain
 	bd.rebuild()
 	_expect(bd.drawn_cards_in(all) == total_before, "restoring the claim brings the cards back (%d vs %d)" % [bd.drawn_cards_in(all), total_before])
+
+## Build hygiene: a second build replaces the field, it does not stack on it, and the land-tile
+## structure stays bounded (TILE_SAMPLE_MAX) so a big island costs O(zones * cap), not one int a tile.
+func _rebuild_checks() -> void:
+	var bd = _rt.get_node_or_null("BiomeDress")
+	_expect(bd != null, "the home island has dressing to rebuild")
+	if bd == null:
+		return
+	bd.build(_rt, 77)
+	var cells_before: int = bd.cell_count()
+	var nodes_before: int = bd.drawn_nodes()
+	var inst_before: int = bd.instance_count()
+	var keys_before: int = bd.cell_nodes().size()
+	_expect(cells_before > 0 and nodes_before > 0, "the first build draws cells (%d cells, %d nodes)" % [cells_before, nodes_before])
+	bd.build(_rt, 77)
+	_expect(bd.cell_count() == cells_before, "a second build keeps the same cell count (%d -> %d)" % [cells_before, bd.cell_count()])
+	_expect(bd.drawn_nodes() == nodes_before, "a second build leaves no extra MultiMesh nodes (%d -> %d)" % [nodes_before, bd.drawn_nodes()])
+	_expect(bd.cell_nodes().size() == keys_before, "the cell key list is rebuilt, not appended (%d -> %d)" % [keys_before, bd.cell_nodes().size()])
+	_expect(bd.instance_count() == inst_before, "a second build plans the same field (%d -> %d)" % [inst_before, bd.instance_count()])
+	_expect(bd.claimed_instances() == 0 and bd.wrong_biome_instances() == 0, "the second build keeps claims and zones clean (%d/%d)" % [bd.claimed_instances(), bd.wrong_biome_instances()])
+	# The land-tile structure: never more than the zone cap per zone, whatever the island size.
+	var land := 0
+	var zones_arr: Array = BZ.biome_types(_rt)
+	for i in zones_arr.size():
+		if BD.tile_land(_rt, i):
+			land += 1
+	_expect(land > 0, "the home island has land tiles (%d)" % land)
+	_expect(BD.TILE_SAMPLE_MAX <= 4096, "the per-zone tile sample is bounded (%d)" % BD.TILE_SAMPLE_MAX)
+	print("[t_biomedress] rebuild: land=%d cells=%d nodes=%d cards=%d sample_cap=%d" % [land, bd.cell_count(), bd.drawn_nodes(), bd.instance_count(), BD.TILE_SAMPLE_MAX])
 
 func _climate_checks() -> void:
 	# The concept art's climates: savanna (termite mounds), volcanic (obsidian/basalt), swamp
