@@ -2,23 +2,41 @@ extends SceneTree
 ## W1-BIOME: biomes.json covers every climate with real textures and sane allowlists;
 ## the 1k bakes ship at process/size_limit=512 (pack budget), so the imported texture is 512 px;
 ## shader defaults still reproduce the pre-biome look; BiomeMaterial builds both materials.
+## Run: Godot --headless --path game --script res://tests/t_biome.gd -> "[t_biome] PASS", exit 0/1.
+## Scripts are load()ed on the first frame: `--script` compiles this file before the autoloads and the
+## global class cache exist, so naming Data/World/BiomeMaterial/BiomeZones/BiomePatch at compile time
+## fails the build with "Identifier not found" (t_domain's pattern).
 
 var failures: Array[String] = []
+var _started := false
+var BM: GDScript
+var BZ: GDScript
+var BP: GDScript
 
-func _init() -> void:
+func _process(_delta: float) -> bool:
+	if _started or root == null or root.get_node_or_null("Data") == null:
+		return false
+	_started = true
+	_run()
+	return false
+
+func _run() -> void:
+	BM = load("res://scripts/world/biome_material.gd")
+	BZ = load("res://scripts/world/biome_zones.gd")
+	BP = load("res://scripts/dev/biome_patch.gd")
 	var climates: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/world/climates.json"))
-	var rows := BiomeMaterial.rows()
+	var rows: Dictionary = BM.rows()
 	var water_only: Array = rows.get("water_only_families", [])
 	for climate in climates:
 		if str(climate).begins_with("_"):
 			continue
 		var c: Dictionary = climates[climate]
-		var r := BiomeMaterial.row(climate)
+		var r: Dictionary = BM.row(climate)
 		if r.is_empty():
 			failures.append("%s has no biomes.json row" % climate)
 			continue
 		var veg: Array = c.get("vegetation", [])
-		for layer in BiomeMaterial.LAYERS:
+		for layer in BM.LAYERS:
 			var path := str(r.get("textures", {}).get(layer, ""))
 			var tex := load(path) as Texture2D if ResourceLoader.exists(path) else null
 			if tex == null or tex.get_width() != 512:
@@ -40,7 +58,7 @@ func _init() -> void:
 		_check_keys(climate, r)
 		_check_import(climate, r)
 	for dry in ["desert", "volcanic", "tundra", "snowfield"]:
-		if not BiomeMaterial.row(dry).get("palm_allowlist", []).is_empty():
+		if not BM.row(dry).get("palm_allowlist", []).is_empty():
 			failures.append("%s allows palms" % dry)
 	_check_defaults()
 	_check_materials()
@@ -48,7 +66,7 @@ func _init() -> void:
 	_check_zone_palette()
 	_check_detail()
 	if failures.is_empty():
-		print("[t_biome] PASS %d climates" % BiomeMaterial.climates().size())
+		print("[t_biome] PASS %d climates" % BM.climates().size())
 		quit(0)
 	else:
 		for f in failures:
@@ -59,11 +77,11 @@ func _init() -> void:
 ## has no renderer to ask for defaults, so this reads the declarations.
 func _check_defaults() -> void:
 	var lines := {
-		BiomeMaterial.TERRAIN_SHADER: ["uniform float slope_dry_lo = 0.12;", "uniform float slope_dry_hi = 0.30;",
+		BM.TERRAIN_SHADER: ["uniform float slope_dry_lo = 0.12;", "uniform float slope_dry_hi = 0.30;",
 			"uniform float slope_rock_lo = 0.32;", "uniform float slope_rock_hi = 0.50;",
 			"uniform float macro_strength = 0.20;", "uniform float macro_scale = 12.0;",
 			"albedo *= 1.0 - macro_strength * 0.5 + texture(noise_tex, p / macro_scale).r * macro_strength;"],
-		BiomeMaterial.FOLIAGE_SHADER: ["uniform vec3 tip_tint : source_color = vec3(1.0);",
+		BM.FOLIAGE_SHADER: ["uniform vec3 tip_tint : source_color = vec3(1.0);",
 			"uniform float root_dark = 0.75;", "uniform float tip_gain = 0.35;",
 			"ALBEDO = tint * mix(vec3(1.0), tip_tint, y) * (root_dark + tip_gain * y);"],
 	}
@@ -75,7 +93,7 @@ func _check_defaults() -> void:
 ## Every palette key must be a tint_<key> uniform and every knob a uniform, or
 ## set_shader_parameter drops the typo silently.
 func _check_keys(climate: String, r: Dictionary) -> void:
-	var names := _uniforms(BiomeMaterial.TERRAIN_SHADER)
+	var names := _uniforms(BM.TERRAIN_SHADER)
 	for key in r.get("palette", {}):
 		if not ("tint_%s" % key) in names:
 			failures.append("%s palette key %s has no tint_%s uniform" % [climate, key, key])
@@ -97,7 +115,7 @@ func _uniforms(sh: Shader) -> PackedStringArray:
 ## terrain_tiles samples with filter_linear_mipmap, so the sets must import with mipmaps
 ## (VRAM compressed keeps each set under 3 MB per platform).
 func _check_import(climate: String, r: Dictionary) -> void:
-	for layer in BiomeMaterial.LAYERS:
+	for layer in BM.LAYERS:
 		var cfg := ConfigFile.new()
 		var path := str(r.get("textures", {}).get(layer, "")) + ".import"
 		if cfg.load(path) != OK:
@@ -113,9 +131,9 @@ func _check_import(climate: String, r: Dictionary) -> void:
 ## The lab patch must reach every climate's rock band, or the rock layer never shows in a shot.
 func _check_lab_slope() -> void:
 	var need := 0.50
-	for climate in BiomeMaterial.climates():
-		need = maxf(need, float(BiomeMaterial.row(climate).get("shader", {}).get("slope_rock_hi", 0.50)))
-	var got: float = BiomePatch.max_slope()
+	for climate in BM.climates():
+		need = maxf(need, float(BM.row(climate).get("shader", {}).get("slope_rock_hi", 0.50)))
+	var got: float = float(BP.max_slope())
 	if got < need:
 		failures.append("biome_lab steepest v_slope %.2f is under slope_rock_hi %.2f" % [got, need])
 	else:
@@ -124,14 +142,14 @@ func _check_lab_slope() -> void:
 ## Every climate's zone palette must tint the zones differently from the plain baked set, or the
 ## ground painting is a no-op; the shader must also still default to painting (biome_on = 1).
 func _check_zone_palette() -> void:
-	for climate in BiomeMaterial.climates():
-		var img := BiomeZones.palette_image(climate)
+	for climate in BM.climates():
+		var img: Image = BZ.palette_image(climate)
 		var tints := {}
-		for i in BiomeZones.zone_count():
+		for i in BZ.zone_count():
 			tints[img.get_pixel(i, 0).to_html()] = true
 		if tints.size() < 4:
 			failures.append("%s zone palette has only %d distinct tints" % [climate, tints.size()])
-	if not BiomeMaterial.TERRAIN_SHADER.code.contains("uniform float biome_on = 1.0;"):
+	if not BM.TERRAIN_SHADER.code.contains("uniform float biome_on = 1.0;"):
 		failures.append("terrain shader does not default biome_on to 1")
 
 ## Pixel detail (mean |lum - 3x3 blur| / mean lum) on the centre 128 px of each source image must
@@ -145,9 +163,9 @@ func _check_detail() -> void:
 	var ref := {}
 	for layer in REFERENCE:
 		ref[layer] = _detail("res://assets/terrain/" + REFERENCE[layer])
-	for climate in BiomeMaterial.climates():
-		var tex: Dictionary = BiomeMaterial.row(climate).get("textures", {})
-		for layer in BiomeMaterial.LAYERS:
+	for climate in BM.climates():
+		var tex: Dictionary = BM.row(climate).get("textures", {})
+		for layer in BM.LAYERS:
 			var against: String = "sand" if layer == "ground" and climate in SAND_LIKE else layer
 			var d := _detail(str(tex.get(layer, "")))
 			if d < float(ref[against]) * 0.9:
@@ -181,19 +199,19 @@ func _detail(path: String) -> float:
 
 func _check_materials() -> void:
 	var img := Image.create(4, 4, false, Image.FORMAT_R8)
-	var m := BiomeMaterial.terrain("desert", 40.0, ImageTexture.create_from_image(img))
+	var m: ShaderMaterial = BM.terrain("desert", 40.0, ImageTexture.create_from_image(img))
 	var g := m.get_shader_parameter("grass_tex") as Texture2D
 	if g == null or g.resource_path != "res://assets/terrain/desert/ground.jpg":
 		failures.append("desert terrain grass_tex is %s" % [g.resource_path if g else "null"])
 	var vt: Variant = m.get_shader_parameter("tex_scale")
 	if vt == null or absf(float(vt) - 6.0) > 0.001:
 		failures.append("desert tex_scale knob not applied: %s" % [vt])
-	var fol := BiomeMaterial.foliage("savannah")
+	var fol: ShaderMaterial = BM.foliage("savannah")
 	var tint: Variant = fol.get_shader_parameter("tint")
 	if not (tint is Color) or (tint as Color).to_html(false) != "a0944e":
 		failures.append("savannah foliage tint is %s" % [tint])
-	var snow := BiomeMaterial.row("snowfield")
-	if BiomeMaterial.compat_gain(snow, "gl_compatibility") >= 0.9 or BiomeMaterial.compat_gain(snow, "forward_plus") != 1.0:
+	var snow: Dictionary = BM.row("snowfield")
+	if BM.compat_gain(snow, "gl_compatibility") >= 0.9 or BM.compat_gain(snow, "forward_plus") != 1.0:
 		failures.append("snowfield compat_gain must dim compat only")
-	if BiomeMaterial.apply_terrain(ShaderMaterial.new(), "no_such_climate"):
+	if BM.apply_terrain(ShaderMaterial.new(), "no_such_climate"):
 		failures.append("unknown climate applied")

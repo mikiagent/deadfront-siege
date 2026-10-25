@@ -120,7 +120,21 @@ func _data_checks() -> void:
 	_expect(BD.zone_kinds("savanna").has("termite_mound"), "savanna grows termite mounds")
 	_expect(BD.zone_kinds("canyon").has("crystal_cluster"), "canyon grows crystal clusters")
 	_expect(BD.zone_kinds("basalt").has("obsidian_crystal"), "basalt grows obsidian crystals")
+	_expect(BD.zone_kinds("wetland").has("white_lily"), "wetland floats lilies on the water")
+	_expect(BD.zone_kinds("basalt").has("basalt_chunk"), "basalt grows basalt chunks")
 	_expect(BD.zone_kinds("forest").has("fern_cluster"), "forest grows ferns")
+	# Every sprite id the data file configures, whether or not a zone resolves it: sprites_of() drops
+	# an unknown id silently, so a typo in a row no zone happens to draw would only show as a thinner
+	# set at runtime (that is how the wrong shell_pile id survived round 1).
+	var ids: Array[String] = BD.all_sprite_ids()
+	var missing: Array[String] = []
+	_expect(ids.size() >= 30, "the data file configures many sprite ids (%d)" % ids.size())
+	for sid in ids:
+		var row: Dictionary = BD.sprite(sid)
+		var path := str(row.get("file", ""))
+		if row.is_empty() or path.is_empty() or not ResourceLoader.exists(path):
+			missing.append(sid)
+	_expect(missing.is_empty(), "every configured sprite id resolves to a file (missing: %s)" % ",".join(missing))
 
 # ---------------------------------------------------------------- 2. the plan
 
