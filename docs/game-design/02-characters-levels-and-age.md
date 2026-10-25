@@ -16,9 +16,9 @@
 | **Strength** | Melee power, carrying heavy arms, grappling | Forging heavy metal, mining impact, hauling | Helps force-dependent jobs; not a universal 'best crafter' stat |
 | **Precision** | Ranged accuracy, weak-point targeting, controlled weapon handling | Fine tailoring, detailed leatherwork, fine assembly, carpentry joints | Fine control rather than generic speed |
 | **Agility** | Evasion, repositioning, attack responsiveness | Agile hunting/gathering, quick manual tasks | Keep distinct from fine-accuracy precision |
-| **Endurance** | Fatigue and stamina tolerance in extended fights | Sustained shifts, low exhaustion, demanding physical labor | Impacts **how long** one performs, not guaranteed quality |
-| **Intelligence / Insight** | Tactical decisions, trap knowledge, complex-device use | Advanced engineering, medicine, planning/diagnosis | Same baseline distribution across character sexes; learned skills remain distinct |
-| **Care / Social aptitude** | Healing, teammate support and coordination | Nursing, tutoring, childcare, taming/animal handling | PROPOSED; could instead be a bundle of learned support skills, not a universal inherited stat |
+| **Endurance** | Energy/Exhaustion resistance and sustained fights | **Construction worksite labor**, extended manual shifts | Especially affects how long builders can work before rest, not instant construction quality or material refunds |
+| **Intelligence** | **Alpha/pack coordination, tactical leadership, rally/support orders** with credible Strength or Precision and trained Command | **Research, technology development, blueprints**, engineering and education | Separate underlying Intelligence from learned Command and Research skills; existing pack alpha has no Intelligence stat yet |
+| **Care / Social aptitude (OPTIONAL)** | Healer assistance, morale support | Nursing, tutoring, childcare, taming/handling | Prefer starting with learned care professions influenced by Intelligence/Precision rather than assuming a mandatory sixth inherited stat |
 
 These six are a **working taxonomy** rather than confirmed six-stat UI. Alternatives: combine Agility/Precision into Dexterity, combine Endurance with Constitution, or handle Care entirely through skills. Each named stat must earn its keep by influencing multiple genuine decisions. Avoid needless UI complexity.
 
@@ -40,6 +40,22 @@ These six are a **working taxonomy** rather than confirmed six-stat UI. Alternat
 | Navigating an expedition | Insight | Endurance | Exploration | Route assessment, hazards and expedition resilience |
 
 Examples are gameplay proposals, not a fixed recipe list or data schema. Some work requires both force and fine control (smithing is not **only** Strength; bows require equipment and training). Jobs should vary by specialization and progression, preventing one dominant stat from taking over the economy.
+
+## 3A. Tie the abstract attributes to current game mechanics
+
+**The owner specified Endurance for Construction and Intelligence for Research and pack/team leadership, along with a six-way Precision/Strength weapon taxonomy.** Detailed combat/AI integration and weapon definitions are in [15 Combat, Leadership and Current-System Integration](15-pve-exploration-and-combat.md).
+
+| Owner idea | Existing implementation verified in the Godot repository | Future integration (PROPOSED) |
+|---|---|---|
+| **Endurance -> building** | [BuildPlacer](../../game/scripts/world/build_placer.gd) currently places complete buildings from kits and awards +8 Construction XP; [Vitals](../../game/scripts/combat/vitals.gd) manages Energy/Exhaustion and fatigue penalties | Use Endurance for sustainable **blueprint worksite** construction shifts, resting/rotation and reduced exertion fatigue. Construction skill still governs proficiency and unlocks; new unfinished-worksite labor doesn't exist yet |
+| **Intelligence -> research** | [12 skill trees](../../game/data/skills/trees.json) include research-gate **metadata** and unlock nodes, while [SkillState](../../game/scripts/skills/skill_state.gd) handles proficiency/SP; a staffed Research worksite/tech project is not an existing implementation | Intelligence + learned Research skill support tribe-wide research projects, within skill/item-level and resource gates |
+| **Intelligence + Strength/Precision -> alpha leader** | [CreatureBrain](../../game/scripts/creatures/brains/creature_brain.gd) selects strongest alpha by species tier, HP, attack/defense; [RaptorPackBrain](../../game/scripts/creatures/brains/raptor_pack_brain.gd) inherits targets and coordinates flanking; [PetBrain](../../game/scripts/creatures/brains/pet_brain.gd) implements Guard/Attack/Heel | Add leadership intelligence controlling target priority, rally and coordinated formations; preserve combat credibility. Whether Intelligence affects alpha **selection** or only tactics remains OPEN |
+| **Precision/Strength × 3 damage types** | [Combat counters](../../game/data/combat_counters.json) already model **blunt/pierce/cut** against creature families; [weapons](../design/weapons.md) include bows, axes, clubs, spear, crossbow | Primary-use attribute + damage channel per weapon **attack mode**, using Point -> pierce and Slash -> cut mapping, learned Melee/Ranged separately; see the owner's exact 6-cell matrix in [15](15-pve-exploration-and-combat.md) |
+| **IV/EV cross-domain potential** | [CreatureGenetics](../../game/scripts/creatures/creature_genetics.gd) currently saves seven combat-specific stats including Accuracy, but **no Intelligence and no human shared-attribute data** | New human IV/EV schema and potentially new creature Intelligence/genetic stat must be designed explicitly, without silently replacing current save data |
+
+**Skill-tree preservation:** Maintain the twelve existing categories unless the owner approves a redesign. Attributes modify fitness for a task; **profession practice is still earned**. Example: a high-Int human with no Command training isn't magically a perfect alpha; an Endurance-rich builder without Construction skills cannot erect sophisticated structures. Keep item level gates strict.
+
+**Leadership effects should be behavioral and bounded:** Focus Fire, Rally, coordinated Flank, Hold/Retreat and Protect Support can reuse existing commands and pack target selection. No indefinite global damage buffs or unlimited Expedition slots. Distinguish wild-animal instinct leadership from trainable human/dino expedition command.
 
 ## 4. One character, four fundamentally different progression sources
 
