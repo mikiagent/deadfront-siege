@@ -22,13 +22,15 @@ Design rule from the PRD: ranged is safer and lower DPS than a good melee set, a
 
 ## 2026-10-25 owner direction: six archetypes, tied to current damage channels
 
-The canonical future-system specification is [Combat, Pack Leadership and Existing Godot Integration](../game-design/15-pve-exploration-and-combat.md). **Weapons are classified by primary use attribute (Precision or Might) and damage channel (Blunt, Impale, Slash):**
+The canonical future-system specification is [Combat, Pack Leadership and Existing Godot Integration](../game-design/15-pve-exploration-and-combat.md). **Weapons are classified by primary use attribute (Dexterity or Might) and damage channel (Impact, Pierce, Slash):**
 
-| Primary stat | Blunt **B** | Impale **I** | Slash **S** |
+| Primary inherited IV | Impact **I** | Pierce **P** | Slash **S** |
 |---|---|---|---|
-| **Precision (P)** | **PB:** boulder thrower, catapult, slingshot | **PI:** bow, gun, blowdart, crossbow (proposed) | **PS:** whip, throwing axe |
-| **Might (M)** | **MB:** hammer warrior, boxer | **MI:** javelin, spear | **MS:** sword, axe |
+| **Dexterity (D)** | **DI:** boulder thrower, catapult, slingshot | **DP:** bow, gun, blowdart, crossbow (proposed) | **DS:** whip, throwing axe |
+| **Might (M)** | **MI:** hammer warrior, boxer, stomp | **MP:** javelin, spear, Stegosaurus tail spikes | **MS:** sword, axe |
 
-This is **owner-provided taxonomy**, not verification that every item is implemented. Current [combat counter values](../../game/data/combat_counters.json) use `blunt`, `pierce`, `cut` internally, so **displayed Impale -> internal `pierce`**, **displayed Slash -> internal `cut`/`slashing`**. A swung axe may be Might/Slash while its throwing attack is Precision/Slash if mode-based attributes are approved. Keep **Melee/Ranged skill and personal equip levels** separate from raw attributes. **Precision** supports aiming/catapult targeting, while Endurance affects the constructor operating/loading it; **Intelligence** can support commander coordination. See the full chapter for current raptor-pack AI and planned research/worksite dependencies.
+This is **owner-provided taxonomy**, not verification that every item is implemented. Current [combat counter values](../../game/data/combat_counters.json) use `blunt`, `pierce`, `cut` internally, so **displayed Impact -> internal `blunt`**, **Pierce -> `pierce`**, **Slash -> `cut`/`slashing`**. A swung axe may be Might/Slash while its throwing attack is Dexterity/Slash if mode-based attributes are approved. Keep **Melee/Ranged skill and personal equip levels** separate from raw attributes. **Dexterity** supports aiming/catapult targeting, while Endurance affects the constructor operating/loading it; **Intelligence** can support commander coordination. See the full chapter for current raptor-pack AI and planned research/worksite dependencies.
 
-**OPEN:** damage/accuracy formulas, secondary stat weights, support rally mechanics, whether crossbows use this Impale family as suggested, and catapult siege-team proficiencies. Do not treat all of these example weapons as existing items.
+**OPEN:** damage/accuracy formulas, secondary stat weights, support rally mechanics, whether crossbows use this Pierce family as suggested, and catapult siege-team proficiencies. Do not treat all of these example weapons as existing items.
+
+**LATEST owner-approved terminology:** **Dexterity** and **Might** are inherited IVs; **Impact**, **Pierce** and **Slash** label attack actions. Final shorthand **DI, DP, DS, MI, MP, MS**. An individual creature may have more than one mode. **Stegosaurus** spiked tail should chiefly Pierce: heavy **MP**, aimed **DP**; optional glancing rake **DS** is proposed. Future **Brontosaurus** example has **DS** tail whip and **MI** stomp, huge HP but low defense vulnerable to Slash; current **Brachiosaurus** does not yet work that way. [Species and mechanics](../game-design/15-pve-exploration-and-combat.md).
