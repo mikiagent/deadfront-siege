@@ -10,6 +10,23 @@ Read `HANDOFF.md` (same folder) first.** 2026-10-20 night: the loop resumed from
 Integration branch: `claude/mmo-overhaul` (worktree `.claude/worktrees/mmo-overhaul`), cut from
 local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 
+## 2026-10-25 headless dsc update
+
+The current headless fleet has integrated painted props, crafting outcomes, domain progression,
+biome dressing, private-island shape choice, and biome-prop size coverage. The latest merge is
+`d4b7e60a` (BIOMEPROPS). It leaves the shipped GLBs and Blender exporter untouched. The correct
+vertex-colour encoding still needs a visible game-lighting review, so no visual approval is claimed.
+
+FOODFX is in a repair round. Review found that its six new items were missing from the required
+rarity mirror, so `t_data` failed even though the first task gate passed. The worker now owns that
+fix and an isolated `t_save` retry. All workers run headless through `gslot.sh`, with Dummy audio,
+timeouts and a writable scratch HOME. A read-only reviewer that launched Godot without that setup
+caused the 09:44 Codex-hosted aborts; no product-code defect caused those crashes.
+
+Test-suite debt remains: `run_all` and `t_bags` can print unexpected `SCRIPT ERROR` lines while
+ending with PASS. The same output reproduces on the pre-island-choice base, so it is not an
+ISLANDPICK regression. Repair the general gate before treating a green aggregate suite as enough.
+
 ## Constraints found so far
 
 - Engine stays Godot 4.7.1 typed GDScript (the owner's prompt says "Three.js and the existing

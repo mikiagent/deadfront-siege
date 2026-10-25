@@ -5,6 +5,16 @@
 
 Each job: worktree `~/Documents/deadfront-siege/.claude/worktrees/mmo-<key>` on branch `claude/mmo-<key>`, task
 `docs/orchestration/dsc/<key>-TASK.md` in that tree. SP = `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad`.
+
+## Fleet update, 2026-10-25
+
+P5 is integrated through `d4b7e60a`: PROPS2D, CRAFTFEEL, DOMAIN-D, BIOMEDRESS, ISLANDPICK and
+BIOMEPROPS. FOODFX is in round two after its reviewer found a false-green `t_data` omission.
+It must fix the six new rarity-mirror rows and rerun a locked, isolated save test before review.
+
+Every worker is headless. Use `gslot.sh`, `--headless`, Dummy audio, a timeout and a writable scratch
+HOME for engine commands. Never launch Godot from a `dsc --readonly` review. The visible visual labs
+are deferred, not approved. Cost through this point is $7.32, with no Meshy spend.
 - **Check:** `dsc cook status` in a tree.
 - **Talk to it:** `dsc cook say "..."`.
 - **Resume:** `dsc cook resume` after a pause, or `dsc cook start <task> --once --resume <session id> --verify ...` after it finished.

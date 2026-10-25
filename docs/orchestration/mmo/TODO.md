@@ -4,6 +4,20 @@ What is left, in priority order, and what you need to read before starting each 
 `a01e41ed3/5bf3729622` (https://durango-like.vercel.app). The integration branch is `claude/mmo-overhaul` (worktree
 `~/Documents/deadfront-siege/.claude/worktrees/mmo-overhaul`); the owner's copy is `~/Documents/deadfront`.
 
+## Current headless fleet, 2026-10-25
+
+1. **FOODFX repair and review.** It must retain the six `item_rarity.json` mirror entries, make
+   `t_data` a related gate, and show a freshly isolated `t_save` PASS. Do not merge while either
+   check is missing. Visual food-panel review waits until a window is available.
+2. **Repair false-green aggregate tests.** `run_all` and `t_bags` currently return success after
+   unexpected script errors. Prove the errors are handled or fail the gate. `t_save` remains the
+   documented exception because it deliberately tests corrupt-save errors.
+3. **Do deferred visual review.** BIOMEPROPS needs a game-lighting lab at desktop and phone
+   landscape sizes to settle vertex-colour encoding. Do not regenerate GLBs or alter the Blender
+   exporter until that comparison has evidence.
+4. **Balance begins only after FOODFX merges.** The balance job is intentionally blocked until the
+   food package has passed its corrected gate.
+
 ## Context every item needs
 
 - **Read first:** `docs/orchestration/mmo/STATUS.md` (owner decisions, merge log, releases, open questions) and
