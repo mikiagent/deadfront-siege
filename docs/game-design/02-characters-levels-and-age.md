@@ -11,7 +11,7 @@
 
 **Critical distinction:** A shared attribute is an **aptitude and performance modifier**, NOT a free substitute for mastery, gear, material quality or an item-level requirement. A powerful warrior with zero Smithing skill is not automatically a master smith. A skilled tailor with high Precision has ranged potential but must learn weapon use and access level-appropriate equipment.
 
-## 2. Proposed general-purpose attributes (NAMES AND COUNT UNAPPROVED)
+## 2. Proposed general-purpose attribute roster (Might and Precision names confirmed; remainder open)
 
 | Attribute | Combat advantage | Civilian advantage | Design notes |
 |---|---|---|---|
