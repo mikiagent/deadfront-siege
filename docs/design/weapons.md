@@ -55,3 +55,19 @@ This is **owner-provided taxonomy**, not verification that every item is impleme
 **Proposed armor matchup bands:** **Slash -> Exposed + Light; Pierce -> Light + Medium; Impact -> Medium + Heavy**, while attack contact, reach, mobility and defensive armor totals remain independent of weakness. **All 19 existing animal species** have proposed best **D** and **M** weapons, with current counters and unimplemented firearm status marked, in [Dinosaur Weapon Matchups](dinosaur-weapon-matchups.md).
 
 **Status:** The six archetype names/definitions and independence of fire rate, delivery and defense are owner accepted as *design direction*. The example firearms, powered weapons, animal matchups, exact ammo types, fire rates, numerics and crafting unlocks are still speculative. No runtime weapons added.
+
+## Conditional Weapon Mastery Bonuses (owner requested 2026-10-25; values unapproved)
+
+Owner now asks for **some weapons to reward skillful conditions**, particularly **MP** mounted lance/spear/javelin hits as rider/mount speed builds, and **DI** (Dexterity/Impact) accurately landed long-distance stones/projectiles. The bonus is a **per-attack optional mechanic**, *not* an automatic rule about all Pierce being speed dependent or all Impact being long-range. The existing six classes remain unchanged.
+
+| Example | Type | Skill condition | Intended payoff |
+|---|---|---|---|
+| Mounted lance/spear | **MP** | Forward closing speed, straight committed run-up, aligned strike contact | **Momentum Strike**: extra capped hit or stagger, mount may miss/collide/overrun; requires rider timing |
+| Forward-thrown heavy javelin | **MP** | Genuine forward motion and release control, projectile reaches target | **Running Throw**: limited launch-force benefit; no automatic bonus for throwing farther |
+| Sling stone | **DI** | Accurate projectile hit after traveling through demanding fraction of sling's effective range | **Longshot**: limited precision-hit damage or stagger; aim difficulty increases with distance |
+| Bow/crossbow | **DP** | Optional accurate weak-point distant shot | **Sharpshot** rather than blanket range damage |
+| Charging club/hammer | **MI** | Valid committed body momentum or breakable defensive posture | **Collision Break** stagger (not a free constant buff) |
+| Two-hand axe/sword | **MS** | Correct flank timing or genuine multi-target cleave | **Follow-through** for sustained Slash |
+| Controlled whip / thrown cutting blade | **DS** | Timed passing sweep / target positioning | **Passing Cut**, situational accuracy/arc reward |
+
+**Crucial gameplay distinction:** effective velocity **toward** target and attack alignment, not the mount's maximum speed or a speed meter in isolation. Distance bonus rewards **rare precision successes**; the projectile doesn't become magically more powerful simply for traveling farther. Any actual bonuses need caps, projectile range/accuracy constraints, and no auto-boost vs stationary enormous bosses. A mounted human+dinosaur is still one companion unit with limited independent mount attacks, not two full damage dealers. Late primitive weapons, high-grade tame training and skills can remain viable without guns. Full behavior spec: [12 Mounted Combat: Mastery Bonuses](../game-design/12-expedition-mounts-and-command.md). No new skills, item definitions or stats implemented.
