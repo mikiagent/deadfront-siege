@@ -22,7 +22,7 @@
 | **Intelligence** | **Alpha/pack coordination, tactical leadership, rally/support orders** with credible Might or Precision and trained Command | **Research, technology development, blueprints**, engineering and education | Separate underlying Intelligence from learned Command and Research skills; existing pack alpha has no Intelligence stat yet |
 | **Care / Social aptitude (OPTIONAL)** | Healer assistance, morale support | Nursing, tutoring, childcare, taming/handling | Prefer starting with learned care professions influenced by Intelligence/Precision rather than assuming a mandatory sixth inherited stat |
 
-These six are a **working taxonomy** rather than confirmed six-stat UI. Alternatives: combine Agility/Precision into Dexterity, combine Endurance with Constitution, or handle Care entirely through skills. Each named stat must earn its keep by influencing multiple genuine decisions. Avoid needless UI complexity.
+The six-row roster is a **working taxonomy** rather than a confirmed six-stat UI. **Might and Precision are confirmed names**; Agility, Endurance, Intelligence and optional Care are still being defined as general-purpose attributes. Alternatives: combine Agility/Precision into Dexterity, combine Endurance with Constitution, or handle Care entirely through skills. Each named stat must earn its keep by influencing multiple genuine decisions. Avoid needless UI complexity.
 
 ## 3. Work recipes declare what matters
 
