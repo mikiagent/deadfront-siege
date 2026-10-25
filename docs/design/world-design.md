@@ -2,6 +2,8 @@
 
 **Status:** v1, 2026-09-17. Owner-directed. Machine-readable twin: `game/data/world/` (climates, islands, material rules, spawn tables). Sources: systems PRD §4 (islands, climates, craters), §8.4 (item level), §11 (ecology), §17 (progression geography); roster PRD §2 (tiers per species). Numbers marked *design* are ours, not Durango's.
 
+> **2026-10-25 pending refinement:** [Continuous sleep and sitting design direction](2026-10-25-systems-vision-and-open-decisions.md#1-resting-and-exhaustive-recovery-near-term-ux) supersedes the fixed-at-completion Exhaustion restoration mechanic when implemented. Sleeping should visibly drain Exhaustion over its duration; the new Sit action should slowly reduce Exhaustion and restore Energy on safe ground. The fixed-duration/finite-use shelter table below documents the existing starting point, **not a finalized interrupted-sleep charging policy**. Do not rebalance, change saves, or reinterpret unfinished shelter tiers without settling the open decisions in the linked brief.
+
 ## Survivor exhaustion (owner-directed, 2026-09-25)
 
 The survivor has Health, Energy, and **Exhaustion** (the saved `fatigue` value).
