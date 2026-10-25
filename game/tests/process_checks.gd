@@ -100,32 +100,38 @@ func run(root: Node) -> Dictionary:
 
 	# Review r3: nothing checked collect pays XP exactly once per job (spec 08:126 "repeated XP"; a
 	# mutation paying it twice passed every gate). A fresh SkillState banks every point (helper below).
+	# SkillState compiles only once the autoloads exist, so a caller must run this after that frame
+	# (run_all's `_process` gate, t_process's phase 0). If the scripts failed to compile, record the
+	# failure instead of dying on `.new()` and letting the runner report a false PASS.
 	var PLAYER: GDScript = load("res://scripts/player/player.gd")
 	var SK: GDScript = load("res://scripts/skills/skill_state.gd")
 	var CR: GDScript = load("res://scripts/items/crafting.gd")
-	var who = PLAYER.new()
-	var sk = SK.new()
-	who.add_child(sk)
-	who.skills = sk
-	sk._load()
-	var per: int = 6 + int(CR.recipe_seconds(CR.recipe(&"dry_meat")))
-	var rack2: Node3D = CS.make(&"drying_rack")
-	root.add_child(rack2)
-	var p2 = PS.of(rack2)
-	var xp: Array[float] = []
-	for _r in 2:
-		var src = INV.new(4)
-		for i in 2:
-			src.add(IS.make(&"raw_meat", 1))
-		p2.load_from(src, &"dry_meat", 2)
-		p2.advance(PS.now_s() + secs + 1.0)
-		p2.collect_into(INV.new(8), who)
+	var skills_ok := SK != null and CR != null and PLAYER != null and SK.can_instantiate()
+	out["the process XP check loads the real SkillState and Crafting (SK %s, CR %s)" % [SK != null, CR != null]] = skills_ok
+	if skills_ok:
+		var who = PLAYER.new()
+		var sk = SK.new()
+		who.add_child(sk)
+		who.skills = sk
+		sk._load()
+		var per: int = 6 + int(CR.recipe_seconds(CR.recipe(&"dry_meat")))
+		var rack2: Node3D = CS.make(&"drying_rack")
+		root.add_child(rack2)
+		var p2 = PS.of(rack2)
+		var xp: Array[float] = []
+		for _r in 2:
+			var src = INV.new(4)
+			for i in 2:
+				src.add(IS.make(&"raw_meat", 1))
+			p2.load_from(src, &"dry_meat", 2)
+			p2.advance(PS.now_s() + secs + 1.0)
+			p2.collect_into(INV.new(8), who)
+			xp.append(_tree_xp(sk, "processing"))
+		p2.collect_into(INV.new(8), who)  # nothing left: pays nothing
 		xp.append(_tree_xp(sk, "processing"))
-	p2.collect_into(INV.new(8), who)  # nothing left: pays nothing
-	xp.append(_tree_xp(sk, "processing"))
-	out["collect pays %d Processing XP per dried meat, once: 2 -> %.0f, 4 -> %.0f, empty collect -> %.0f (want %d, %d, %d)" % [per, xp[0], xp[1], xp[2], 2 * per, 4 * per, 4 * per]] = xp == [2.0 * per, 4.0 * per, 4.0 * per]
-	rack2.free()
-	who.free()
+		out["collect pays %d Processing XP per dried meat, once: 2 -> %.0f, 4 -> %.0f, empty collect -> %.0f (want %d, %d, %d)" % [per, xp[0], xp[1], xp[2], 2 * per, 4 * per, 4 * per]] = xp == [2.0 * per, 4.0 * per, 4.0 * per]
+		rack2.free()
+		who.free()
 
 	# Review r3: only t_process round-tripped a loaded station through CraftStation.to_dict; run_all
 	# passed with the "process" key dropped from the save row.
