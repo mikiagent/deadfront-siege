@@ -68,7 +68,7 @@ The following are **planned chapter paths**. The files do not yet exist unless l
 | `09-tribe-population-and-recruitment.md` | Unique persons, housing/support capacity, exiled wanderers, allegiance |
 | `10-human-genetics-upbringing-and-education.md` | Parentage, expense, food stages, inherited potential, visibility and physical variation |
 | [11-dinosaurs-and-genetics.md](11-dinosaurs-and-genetics.md) | Wild captures, spiky stats, species AI, husbandry, breeding, permanence |
-| `12-expedition-mounts-and-command.md` | Three slots, riders as composites, human followers, inventory, mounted behavior |
+| [12-expedition-mounts-and-command.md](12-expedition-mounts-and-command.md) | Three slots, riders as composites, human followers, inventory, mounted behavior |
 | `13-workers-automation-and-logistics.md` | Mining/lumber sites, monitoring stand, work orders, tool durability, boat shipping |
 | `14-vitals-rest-status-and-medicine.md` | Exhaustion, Energy, continuous sleep, Sit, effect tooltip, medical/education buffs |
 | [15-pve-exploration-and-combat.md](15-pve-exploration-and-combat.md) | Level ladders, hunting, capture, hazards, guards, PvE raids |
