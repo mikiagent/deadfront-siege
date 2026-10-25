@@ -216,6 +216,18 @@ func _recipe_for(id: StringName) -> Dictionary:
 			return r
 	return {}
 
+## Valid picks for every recipe slot: the first instance of each category the recipe needs. A slot
+## whose category has no instance is reported as a failure and picked as -1 (never an unchecked [0]).
+func _picks_for(inv, rec: Dictionary) -> Array[int]:
+	var picks: Array[int] = []
+	var slots: Array = rec.get("slots", [])
+	for i in slots.size():
+		var want := StringName(str(slots[i].get("category", "")))
+		var cands: Array[int] = inv.find_by_category(want)
+		_expect(not cands.is_empty(), "recipe category '%s' has a pickable instance" % want)
+		picks.append(cands[0] if not cands.is_empty() else -1)
+	return picks
+
 ## 11. A bag crafted from individually picked materials: primary attributes are inherited, level
 ## follows the material rule, Pocket comes only from the material.
 func _test_craft_picks() -> void:
@@ -231,19 +243,8 @@ func _test_craft_picks() -> void:
 	inv.add(IS.make(&"fibre_stalk", 1, {}, 12))
 	inv.add(IS.make(&"fibre_stalk", 1, {}, 12))
 	inv.add(IS.make(&"twine", 1, {}, 12))
-	var picks: Array[int] = []
-	var slots: Array = rec.get("slots", [])
-	for i in slots.size():
-		var want := StringName(str(slots[i].get("category", "")))
-		var pick := -1
-		for idx in inv.find_by_category(want):
-			if want == &"dried_hide" and idx == hide_idx:
-				pick = idx
-			elif want == &"fibre" and pick < 0:
-				pick = idx
-			elif want == &"lashing" and pick < 0:
-				pick = idx
-		picks.append(pick)
+	var picks := _picks_for(inv, rec)
+	_expect(picks.size() == (rec.get("slots", []) as Array).size(), "11: every recipe slot is picked (%s)" % [picks])
 	_expect(CR.picks_valid(inv, rec, picks), "11: the picked material instances satisfy the recipe (%s)" % [picks])
 	var out = CR.preview(inv, rec, picks)
 	_expect(out != null and out.def_id == &"basic_bag", "11: the recipe makes a basic bag (%s)" % (out.def_id if out else "none"))
@@ -264,16 +265,14 @@ func _test_preview_matches_result() -> void:
 		_expect(false, "12: no bag recipe to preview")
 		return
 	var inv = INV.new()
-	inv.add(IS.make(&"raw_hide", 1, {"pocket": 2}, 25))
-	inv.add(IS.make(&"raw_hide", 1, {}, 25))
+	inv.add(IS.make(&"dried_hide", 1, {"pocket": 2}, 25))
+	inv.add(IS.make(&"dried_hide", 1, {}, 25))
 	inv.add(IS.make(&"fibre_stalk", 1, {}, 25))
 	inv.add(IS.make(&"fibre_stalk", 1, {}, 25))
 	inv.add(IS.make(&"fibre_stalk", 1, {}, 25))
 	inv.add(IS.make(&"twine", 1, {}, 25))
-	var picks: Array[int] = []
-	for i in (rec.get("slots", []) as Array).size():
-		var want := StringName(str(rec["slots"][i].get("category", "")))
-		picks.append(inv.find_by_category(want)[0])
+	var picks := _picks_for(inv, rec)
+	_expect(picks.size() == (rec.get("slots", []) as Array).size() and CR.picks_valid(inv, rec, picks), "12: every basic_bag category has a pickable instance (%s)" % [picks])
 	# The preview must be shown for the survivor who will craft: their crafting skill sets the level.
 	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	get_root().add_child(p)

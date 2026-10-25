@@ -8,8 +8,24 @@ extends RefCounted
 ## Shown where a level cannot be worked out yet (a recipe the bag cannot make).
 const NONE := "Lv. —"
 
+## The World autoload, resolved at runtime: `--script` test entry points compile this file before
+## the engine registers autoloads, where a bare `World` identifier is a compile error.
+static func world() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("World")
+
+## The Data autoload, resolved at runtime for the same reason as world().
+static func data() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("Data")
+
 static func player_level() -> int:
-	return shown(World.pioneer_level)
+	var w := world()
+	return shown(int(w.get("pioneer_level")) if w else 0)
 
 ## The level a stored pioneer level reads as. World.pioneer_changed carries the stored value; a
 ## handler that formats it goes through here instead of re-reading World.
@@ -47,7 +63,8 @@ static func recipe_label(inv: Inventory, rec: Dictionary) -> String:
 
 ## Readable name for an item id or ingredient category ("lashing" -> "Lashing").
 static func nice_name(id: String) -> String:
-	var d := Data.item(StringName(id))
+	var catalog := data()
+	var d: ItemDef = catalog.item(StringName(id)) if catalog else null
 	if d and d.display_name != "":
 		return d.display_name
 	return id.replace("_", " ").capitalize()
