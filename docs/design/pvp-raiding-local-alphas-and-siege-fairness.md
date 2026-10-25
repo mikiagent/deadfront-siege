@@ -6,6 +6,8 @@
 
 **2026-10-25 owner clarification, superseding any broad island-raid wording:** **Islands are not raided as landmasses.** Only *built PvPvE settlements* can be raided by players. **PvE settlements** can be attacked by dinosaurs/animals, not by players. Unstable islands periodically reset resources and automatically dismantle any base placed there into the special Ender Chest-style material recovery box. **Captive ransom is now confirmed:** seized humans/dinosaurs enter prisoner status with a ransom deadline; paying on time returns them, but nonpayment lets the attacker acquire/claim them. It is **not yet decided** how long the defender has, how ransom is priced, whether the attacker manually claims, or when the prisoner becomes an effective loyal worker/mount. See [canonical world chapter](../game-design/04-world-biomes-and-travel.md) and [ransom design](../game-design/16-pvp-frontier-siege-and-captives.md).
 
+**Confirmed ransom economics, 2026-10-25:** For a captured human/dinosaur, the game computes a ransom price and the original owner gets **72 real-world hours** to pay. Payment returns the original captive with **level, learned skills, earned EVs, and inherited IVs preserved**. On nonpayment the attacking player may acquire them but receives **inherited IV genetic potential only as an advancement asset**: the new owner must **recruit, re-level and retrain EVs/skills**. This avoids raids cheaply transferring expert trained labor or master fighters. The ransom formula and claim/notification rules remain open. [Canonical prisoner chapter](../game-design/16-pvp-frontier-siege-and-captives.md).
+
 ## 1. Design intent and confirmed boundaries
 
 **CONFIRMED FROM OWNER:**
