@@ -72,6 +72,9 @@ Pillars:
 
 **2026-10-25 owner refinement:** Durable outputs such as main weapons, crossbows, workhorse tools and buildings are the primary material-trait endgame. Food/one-use consumables should usually change/improve potion-like buffs and remain quick to manage. Rare treasure charms may target a chosen beneficial trait and raise its gathering odds (example: "+20% chance" is not yet defined as relative or percentage points). [Detailed trait endgame](tribe-lineage-domain-and-labor.md#8-resource-quality-and-targeted-trait-discovery).
 
+
+**LATEST user-requested elaboration (2026-10-25):** The user wants **Processing to combine two trait-bearing materials into one processed component that inherits the traits of BOTH input lots**, positive and negative. Examples include `carved_bone_rib×2 -> reinforced_bone_block`, `treated_plank×2 -> composite_plank`, and `refined_iron_bar×2 -> masterwork_iron_billet`, with proper station/catalyst recipes. Use stage-limited production graphs and capped merging of duplicates to block infinite attribute multiplication; retain source traceability, item levels and processing cost. Also expand named positive/negative perk candidates to **food/cooking**, **buildings/constructs**, saddle/dinosaur barding, boats/harbors, farming/medicine and storage. Food modifies immediate Energy and **current timed meal buffs**; structures derive strength/upkeep/efficiency from **physically delivered worksite materials**, not crafted paper blueprints. **These are design proposals, NOT live Godot behavior or approved numeric values.** Canonical elaboration [05-material-level-traits-and-loot.md](../game-design/05-material-level-traits-and-loot.md).
+
 ## 4. Inventory batch selection (near-term UX, prerequisite for traits)
 
 **Owner intent, confirmed:** Select multiple items and perform Lock, Drop, and Destroy in bulk.
