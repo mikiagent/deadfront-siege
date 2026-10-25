@@ -65,6 +65,7 @@ func _run() -> void:
 	await _test_station_retry()
 	await _test_station_uid_left()
 	await _test_online_parity()
+	_test_online_stakes()
 	_finish()
 
 func _finish() -> void:
@@ -618,6 +619,67 @@ func _test_online_parity() -> void:
 	var failed: bool = not fplan.is_empty() and not bool((fplan["outcome"] as Dictionary)["success"])
 	print("[t_craftfeel] online failure plan=%s success=%s" % [not fplan.is_empty(), not failed])
 	_expect(failed, "a hopeless server plan rolls a failure")
+
+## Online stakes through the shipped server op: a shortfall loses exactly the picked unit and pays no
+## XP; a success pays XP once and can be flawless / carry a rare trait; the picked instance is the
+## one that goes when the bag holds two. A shipped recipe's gate cannot guarantee a failure, so the
+## failure is pinned with a test recipe on the same op (the curve is the data one either way).
+func _test_online_stakes() -> void:
+	var WF: GDScript = load("res://scripts/server/world_facade.gd")
+	var ST: GDScript = load("res://scripts/server/character_store.gd")
+	var world = WF.new()
+	var store = ST.new(world, "", 7)
+	store.apply("char.create", 2, {"name": "Stakes"}, 1)
+	var ch = store.character(2)
+	ch.d.skills["processing"] = {"level": 5, "xp": 0.0, "unlocked": []}
+	var fail_rec := {
+		"id": "t_online_fail", "display_name": "Test", "skill": "processing", "max_level": 60,
+		"slots": [{"category": "stone", "count": 1, "primary": true}],
+		"output": {"id": "stone_knife_work", "count": 1}, "seconds": 1.0, "required_ability": 100000.0,
+	}
+	var win_rec := fail_rec.duplicate(true)
+	win_rec["id"] = "t_online_win"
+	win_rec["required_ability"] = 0.0
+	var data = root.get_node("Data")
+	data.recipes[&"t_online_fail"] = fail_rec
+	data.recipes[&"t_online_win"] = win_rec
+	ch.d.bag[0] = IS.make(&"stone", 1, {}, 6).to_dict()
+	ch.d.bag[1] = IS.make(&"stone", 1, {}, 9).to_dict()
+	var xp0: float = _skill_xp(ch, "processing")
+	var lost: Dictionary = store.apply("act.craft", 2, {"recipe_id": "t_online_fail", "picks": [1]}, 5)
+	var after = store.character(2)
+	var r: Dictionary = lost.get("r", {}) if lost.get("r", {}) is Dictionary else {}
+	print("[t_craftfeel] online stakes ok=%s failed=%s err=%s" % [bool(lost.get("ok", false)), bool(r.get("failed", false)), str(lost.get("err", ""))])
+	_expect(bool(lost.get("ok", false)) and bool(r.get("failed", false)),
+		"an online failure is reported as failed=true, not an error (%s)" % str(lost.get("err", "")))
+	_expect(int(r.get("made", -1)) == 0 and str(r.get("item", "x")) == "", "a failed online craft makes nothing")
+	var bag = after.inventory()
+	_expect(bag.count_of(&"stone") == 1, "the failed online craft lost exactly one picked unit")
+	_expect(bag.slots[0] != null and int(bag.slots[0].level) == 6 and bag.slots[1] == null,
+		"the unpicked instance survives, the picked one is the one that went")
+	_expect(is_equal_approx(_skill_xp(after, "processing"), xp0), "an online failure pays no XP")
+	# A success through the same op: XP once, at most one craft's worth.
+	var before_xp: float = _skill_xp(after, "processing")
+	var won: Dictionary = store.apply("act.craft", 2, {"recipe_id": "t_online_win", "picks": [0]}, 6)
+	var b2 = store.character(2)
+	var paid: float = _skill_xp(b2, "processing") - before_xp
+	print("[t_craftfeel] online win ok=%s made=%d paid=%.1f" % [bool(won.get("ok", false)), int((won.get("r", {}) as Dictionary).get("made", 0)), paid])
+	_expect(bool(won.get("ok", false)) and int((won.get("r", {}) as Dictionary).get("made", 0)) == 1, "an online success makes its item (%s)" % str(won.get("err", "")))
+	_expect(paid > 0.0 and paid <= 7.0 + 0.001, "an online success pays one craft's XP once (%.1f)" % paid)
+	_expect(b2.inventory().count_of(&"stone_knife_work") == 1, "the online success landed in the server bag")
+	# Flawless and the rare trait ride the same run_plan the op calls, on a server-shaped bag.
+	var bag3 = store.character(2).inventory()
+	bag3.add(IS.make(&"stone", 1, {"black_sheen": 1}, 6))
+	var fplan: Dictionary = CR.plan_craft(win_rec, bag3, CR.default_picks(bag3, win_rec), CR.ability_of(20), 20, 20, RandomNumberGenerator.new())
+	_expect(not fplan.is_empty(), "the online fixture plans a craft")
+	if not fplan.is_empty():
+		fplan["outcome"] = {"success": true, "flawless": true, "rare": &"black_sheen"}
+		var fres: Dictionary = CR.run_plan(win_rec, bag3, fplan)
+		var fit = fres.get("item")
+		_expect(fit != null and &"flawless" in fit.flags and fit.attributes.has(&"black_sheen"),
+			"the online path applies flawless and the inherited rare trait")
+	data.recipes.erase(&"t_online_fail")
+	data.recipes.erase(&"t_online_win")
 
 ## A server character's skill XP (CharacterState keeps the plain state dict; SkillState owns xp_of).
 func _skill_xp(ch, tree: String) -> float:
