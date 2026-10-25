@@ -34,6 +34,8 @@ The existing [counter table](../../game/data/combat_counters.json) provides tang
 
 **Latest categorization proposal:** Defensive matchups use **Slash** for huge slow exposed HP tanks, **Impact** for heavy armor and suitably clustered small swarms, and **Pierce** for fast/low-armored mobile prey; vulnerability and a dinosaur's attack verb are independent. Current `fast_hunter` and `giant` multipliers conflict with this new generalized scheme. **All nineteen existing creatures** are now provisionally categorized with their attack moves, present stats, and migration risks in [11 Dinosaur Taxonomy & Genetics](11-dinosaurs-and-genetics.md). **Nothing has been balanced/implemented yet.**
 
+**Equipment layer (new proposal):** **Light / Medium / Heavy** worn armor would add mobility, Energy/Exhaustion, coverage and damage-channel protection on top of a species' *natural* flesh/mobile/plated vulnerability. Heavy protects against Slash/Pierce but is relatively Impact-stagger vulnerable; Light evades some slow Impact but risks Pierce on hit; Medium offers material-dependent balance. This does **not** overwrite the confirmed **D/M × I/P/S** offense matrix or the current three-slot equipment/raid set mechanics. [Armor and equipment proposal](06-inventory-equipment-and-storage.md). Neither armor tiers nor multipliers are currently implemented/approved.
+
 ## 3A. Dinosaur attack modes and matchup strategy: sauropods and Stegosaurus
 
 **OWNER DESIGN EXAMPLE: a future Brontosaurus** should be a **very-high-HP, low-defense** creature that is **particularly vulnerable to Slash**. It has at least two distinctly classified attacks:
