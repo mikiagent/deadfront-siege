@@ -18,3 +18,17 @@
 Crossbow recipe (flexible slots, Weapon/Tools 30 + Ranged 35, technical workbench): **stock** (wood with `straight`, primary), **prod** (bone, horn or copper), **string** (tendon or twine), **trigger** (copper or black iron part). Level = mean of the four. Bolts: **shaft** (branch or bamboo, primary) + **head** (bone, copper, iron) at any workbench.
 
 Design rule from the PRD: ranged is safer and lower DPS than a good melee set, and the default for group hunts and raids. The crossbow is the exception that trades rate for burst, so a solo player can open a Utahraptor fight from range and still pay in reload time.
+
+
+## 2026-10-25 owner direction: six archetypes, tied to current damage channels
+
+The canonical future-system specification is [Combat, Pack Leadership and Existing Godot Integration](../game-design/15-pve-exploration-and-combat.md). **Weapons are classified by primary use attribute (Precision or Strength) and damage channel (Blunt, Point, Slash):**
+
+| Primary stat | Blunt | Point | Slash |
+|---|---|---|---|
+| **Precision** | **Boulder thrower**, **catapult**, **slingshot** | **Bow**, **gun**, **blowdart**, proposed crossbow family | **Whip**, **throwing axe** |
+| **Strength** | **Hammer warrior**, **boxer** | **Javelin**, **spear** | **Sword**, **axe** |
+
+This is **owner-provided taxonomy**, not verification that every item is implemented. Current [combat counter values](../../game/data/combat_counters.json) use `blunt`, `pierce`, `cut` internally, so UI Point -> `pierce`, Slash -> `cut`/`slashing`. A swung axe may be Strength/Slash while its throwing attack is Precision/Slash if mode-based attributes are approved. Keep **Melee/Ranged skill and personal equip levels** separate from raw attributes. **Precision** supports aiming/catapult targeting, while Endurance affects the constructor operating/loading it; **Intelligence** can support commander coordination. See the full chapter for current raptor-pack AI and planned research/worksite dependencies.
+
+**OPEN:** damage/accuracy formulas, secondary stat weights, support rally mechanics, whether crossbows use this Point family as suggested, and catapult siege-team proficiencies. Do not treat all of these example weapons as existing items.
