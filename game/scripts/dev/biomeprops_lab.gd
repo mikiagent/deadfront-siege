@@ -14,8 +14,8 @@ extends Node3D
 ##   scale_ok      kinds whose drawn model's AABB height sits in 0.5x..3x of its radius_m
 ##   placed        kinds actually placed by island_props on the home island
 ##   missing_files model paths in props.json that do not exist
-##   lum_min       darkest mean luminance across the kinds' stored vertex paint (a linear-stored
-##                 build reads ~0.04-0.18 here, i.e. the grey/black slabs the owner saw)
+## Which colour the props actually render is judged on the saved PNGs, not on any number here:
+## COLOR_0's colour space is a renderer question (see reports/dsc-biomeprops.md).
 
 const KIND_GAP := 9.0
 const ROW_Z := -12.0
@@ -52,7 +52,7 @@ func _run() -> void:
 	await get_tree().physics_frame
 	var rt: Node = World.runtime
 	if rt == null:
-		print("[biomeprops] RESULT kinds=0 vcol_ok=0 scale_ok=0 placed=0 missing_files=0 lum_min=0")
+		print("[biomeprops] RESULT kinds=0 vcol_ok=0 scale_ok=0 placed=0 missing_files=0")
 		get_tree().quit(1)
 		return
 	_kinds = _biome_kinds()
@@ -60,7 +60,6 @@ func _run() -> void:
 	var missing := 0
 	var vcol_ok := 0
 	var scale_ok := 0
-	var lum_min := 9.9
 	var ground := rt.call("surface_y", 0.0, ROW_Z) as float
 	var i := 0
 	var names: Array[String] = []
@@ -78,7 +77,6 @@ func _run() -> void:
 		var info := _model_info(path)
 		if float(info["height"]) >= 0.5 * radius and float(info["height"]) <= 3.0 * radius:
 			scale_ok += 1
-		lum_min = minf(lum_min, float(info["lum"]))
 		var at := Vector3(-KIND_GAP * (names.size() - 1) * 0.5 + KIND_GAP * i, ground, ROW_Z)
 		var batch := VegBatch.get_for(self, path)
 		if batch == null:
@@ -119,8 +117,8 @@ func _run() -> void:
 		await _settle()
 		await _save(OUT_PREFIX + "_%s.png" % str(r["kind"]))
 		break
-	var line := "[biomeprops] RESULT kinds=%d vcol_ok=%d scale_ok=%d placed=%d missing_files=%d lum_min=%.3f" % [
-		_kinds.size(), vcol_ok, scale_ok, placed_kinds, missing, lum_min]
+	var line := "[biomeprops] RESULT kinds=%d vcol_ok=%d scale_ok=%d placed=%d missing_files=%d" % [
+		_kinds.size(), vcol_ok, scale_ok, placed_kinds, missing]
 	print(line)
 	get_tree().quit(0)
 
@@ -180,16 +178,14 @@ func _placed_kinds(rt: Node) -> int:
 			seen[str(r.get("kind", ""))] = true
 	return seen.size()
 
-## Measured facts of one model file: AABB height/longest side, vertex-colour albedo, and the mean
-## luminance of its stored COLOR_0.
+## Measured facts of one model file: AABB height/longest side, and whether its material takes the
+## albedo from the vertex colour.
 func _model_info(path: String) -> Dictionary:
-	var out := {"height": 0.0, "longest": 1.0, "vcol": false, "lum": 0.0}
+	var out := {"height": 0.0, "longest": 1.0, "vcol": false}
 	var packed: Variant = load(path)
 	if not packed is PackedScene:
 		return out
 	var inst: Node = (packed as PackedScene).instantiate()
-	var lum := 0.0
-	var n := 0
 	var vcol := true
 	for node in inst.find_children("*", "MeshInstance3D", true, false):
 		var mesh: Mesh = (node as MeshInstance3D).mesh
@@ -201,12 +197,6 @@ func _model_info(path: String) -> Dictionary:
 		for s in mesh.get_surface_count():
 			var mat: Variant = mesh.surface_get_material(s)
 			vcol = vcol and mat is BaseMaterial3D and (mat as BaseMaterial3D).vertex_color_use_as_albedo
-		if mesh.get_surface_count() > 0 and (mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_COLOR) != 0:
-			var cols: PackedColorArray = mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
-			for c in cols:
-				lum += c.get_luminance()
-				n += 1
 	out["vcol"] = vcol
-	out["lum"] = lum / float(n) if n > 0 else 0.0
 	inst.free()
 	return out

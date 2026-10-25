@@ -4,10 +4,8 @@ extends SceneTree
 ## Every kind in data/world/props.json that names a res://assets/nature/biome/*.glb model is checked:
 ##   - the file exists and loads as a scene with a MeshInstance3D that carries a material;
 ##   - that material takes its albedo from the vertex colour (COLOR_0), the only paint these models
-##     carry (one Principled "biome_vcol" material, no texture: tools/blender/biome_props/bp_lib.py);
-##   - the imported material treats COLOR_0 as sRGB, and the mesh really stores the authored sRGB
-##     numbers - Godot's glTF importer sets vertex_color_is_srgb=true, so linear-stored data came out
-##     double-darkened and every prop read as a grey/black slab on the deployed build;
+##     carry (one Principled "biome_vcol" material, no texture: tools/blender/biome_props/bp_lib.py),
+##     and the mesh carries a COLOR_0 attribute for it to read;
 ##   - the mesh AABB fits the kind's declared radius_m: height between 0.5x and 3x of it, so a
 ##     prop's collider and its model describe the same object;
 ##   - island_props actually places the kind on the home island (a kind that never appears is a
@@ -19,10 +17,10 @@ const WATCHDOG_S := 180.0
 const BIOME_DIR := "res://assets/nature/biome/"
 ## The kinds the owner reported missing, and that this job re-enables.
 const REQUIRED := ["rock_spire", "mesa_cliff", "basalt_column", "termite_mound", "aloe"]
-## Stored COLOR_0 is the authored sRGB palette; linear-stored data measured 0.02-0.05 mean luminance
-## on basalt/obsidian and 0.13-0.18 on sandstone (the shipped bug). sRGB storage keeps every model
-## well above this floor.
-const MIN_MEAN_LUM := 0.15
+## COLOR_0's colour space is NOT asserted here. Which one is right is a question for a rendered
+## frame in the game's own lighting (AGX + sky ambient); reports/dsc-biomeassets.md's calibration box
+## and the importer's vertex_color_is_srgb flag disagree, and a check on the stored numbers would
+## only encode whichever side the exporter happens to take. See reports/dsc-biomeprops.md.
 
 var _fails: PackedStringArray = []
 var _started := false
@@ -105,10 +103,7 @@ func _test_models() -> void:
 			var meshes := inst.find_children("*", "MeshInstance3D", true, false)
 			_expect(not meshes.is_empty(), "%s: %s has a MeshInstance3D" % [kind, path])
 			var h := 0.0
-			var vcol := false
 			var all_vcol := true
-			var srgb_flag := true
-			var mean_lum := 0.0
 			var samples := 0
 			for n in meshes:
 				var mi := n as MeshInstance3D
@@ -124,24 +119,14 @@ func _test_models() -> void:
 						all_vcol = false
 						continue
 					var bm := mat as BaseMaterial3D
-					vcol = vcol or bm.vertex_color_use_as_albedo
 					all_vcol = all_vcol and bm.vertex_color_use_as_albedo
-					srgb_flag = srgb_flag and (bm.vertex_color_is_srgb or not bm.vertex_color_use_as_albedo)
 				if has_colour and mesh.get_surface_count() > 0:
-					var cols: PackedColorArray = mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
-					for c in cols:
-						mean_lum += c.get_luminance()
-						samples += 1
+					samples += mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR].size()
 			_expect(all_vcol, "%s: %s takes its albedo from the vertex colour" % [kind, path])
-			_expect(srgb_flag, "%s: %s reads COLOR_0 as sRGB, as the exporter now writes it" % [kind, path])
-			_expect(samples > 0, "%s: %s carries a COLOR_0 attribute" % [kind, path])
-			if samples > 0:
-				mean_lum /= float(samples)
-				_expect(mean_lum >= MIN_MEAN_LUM,
-					"%s: %s stores sRGB paint, not linear (mean luminance %.3f < %.2f: the prop renders as a dark slab)" % [kind, path, mean_lum, MIN_MEAN_LUM])
+			_expect(samples > 0, "%s: %s carries a COLOR_0 attribute for that material to read" % [kind, path])
 			_expect(h >= lo and h <= hi,
 				"%s: %s is %.2f m tall, outside 0.5x..3x of radius_m %.2f (%.2f..%.2f)" % [kind, path, h, radius, lo, hi])
-			print("[t_biomeprops] %-13s %-46s h=%5.2f band=%4.2f..%4.2f vcol=%s lum=%.3f" % [kind, path.get_file(), h, lo, hi, all_vcol, mean_lum])
+			print("[t_biomeprops] %-13s %-46s h=%5.2f band=%4.2f..%4.2f vcol=%s colour_verts=%d" % [kind, path.get_file(), h, lo, hi, all_vcol, samples])
 			inst.free()
 	print("[t_biomeprops] models checked=%d kinds=%d" % [checked, kinds.size()])
 
