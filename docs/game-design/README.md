@@ -1,6 +1,6 @@
 # DEADFRONT | Canonical game design (v2)
 
-**Status:** New design workspace created 2026-10-25. First detailed drafts exist for **private-island migration, world resets, and PvPvE prisoners/ransom**. The rest are still planned chapters. Do not treat drafts as implemented/approved formulas. **Do not implement chapters that have not been reviewed and approved by the product owner.**
+**Status:** New design workspace created 2026-10-25. Detailed drafts exist for **unified attributes/individual progression, private-island migration, world resets, and PvPvE prisoners/ransom**. The rest are still planned chapters. Do not treat drafts as implemented/approved formulas. **Do not implement chapters that have not been reviewed and approved by the product owner.**
 
 ## Purpose
 
@@ -35,6 +35,9 @@ Do not silently turn a proposal, historical observation or example number into a
 
 **Confirmed custody balance (2026-10-25):** Human/dinosaur captives receive a **72-real-world-hour** ransom window at a **game-calculated price**. A successful ransom preserves **inherited IVs, original level/XP, trained EVs and learned skills**. If unpaid, attacker acquisition yields a **level-1 adult retaining the same mature physical appearance, identity and inherited IVs**, but previous earned XP, skills and EVs reset and must be trained anew. The ransom formula, transfer/claim action, notices, and loyalty training costs remain **OPEN**. [Detailed state and abuse tests](16-pvp-frontier-siege-and-captives.md). [Detailed state and abuse checks](16-pvp-frontier-siege-and-captives.md).
 
+
+**New owner direction (2026-10-25):** **General-purpose attributes should affect both fighting and craftsmanship**: Strength supports heavy forging and melee, Precision supports tailoring/fine crafts and ranged weapons. **Proposed expanded attribute families, shared EV training and per-recipe weights still require confirmation.** Learned profession skill, material traits and workstation/weapon quality remain separate factors. [Read the character/attribute draft](02-characters-levels-and-age.md).
+
 ## Proposed chapter library
 
 The following are **planned chapter paths**. The files do not yet exist unless linked elsewhere. Create and lock them incrementally after the relevant owner questions are answered, rather than scaffolding empty or fabricated specifications.
@@ -42,7 +45,7 @@ The following are **planned chapter paths**. The files do not yet exist unless l
 | Draft chapter | Scope |
 |---|---|
 | `01-core-loop-and-onboarding.md` | First hour, fantasy, beginner experience, PvE vs PvPvE choice |
-| `02-characters-levels-and-age.md` | Individual level, XP, skill trees, adult age, equipment requirements, level-60 entry |
+| [02-characters-levels-and-age.md](02-characters-levels-and-age.md) | Personal level, body maturity, **shared combat/crafting attributes**, IVs/EVs, professions, equipment gates and level-60 entry |
 | [03-private-islands-and-upgrade-migration.md](03-private-islands-and-upgrade-migration.md) | Protected homes, island size tiers, abandonment, salvage vault, map generation |
 | [04-world-biomes-and-travel.md](04-world-biomes-and-travel.md) | PvE regions, level-60 frontier, instability, ports, route unlocking |
 | `05-material-level-traits-and-loot.md` | Signed trait rolls, rarity, charm odds, gathering, processing, premium material hunting |
