@@ -18,6 +18,8 @@ its Energy value. Medicine, not food, remains the direct Health restore. Sleepin
 plan below. Simply standing in a tent does not sleep.
 These rates and thresholds are design assumptions, not historical Durango facts.
 
+**2026-10-25 updated authority:** [Canonical world/instability design](../game-design/04-world-biomes-and-travel.md), [protected-home migration](../game-design/03-private-islands-and-upgrade-migration.md). Unstable islands **periodically reset resources and automatically dismantle bases into the Ender Chest-style recovery vault**; the historical explanation that islands physically *sink* is not binding for the new design. **Islands themselves cannot be raided**: PvPvE *settlements* can be attacked by players; PvE settlements can be attacked by wild dinosaurs/animals. A purchased protected-home upgrade displays a confirmation then **automatically dismantles** old buildings with **100% invested-material refunds**, separately migrates residents and regular goods, and abandons old home for a fresh larger higher-level-resource island. Top home resources are level 50–55; level 60+ must be sourced outside. Refund rate on *unstable resets* remains OPEN.
+
 ## 1. The shape of the world
 
 Two kinds of land, exactly as Durango shipped: **stable** (your home island, later city islands) and **unstable** (islands that appear at a tier and climate, live for hours, then sink). Travel is a harbour route list, never sailing. Every island is one climate and one tier.
