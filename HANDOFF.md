@@ -233,6 +233,14 @@ The companion [Tribe, Lineage, Domain and Labor specification](docs/design/tribe
 Long-term permanent death, genetics, raid safety, childcare duration, tribe wipe property retention and true online PvP have unresolved decisions. None of these are shipped. Traits are intended especially for durable tools/structures/weapons and as food-buff modifiers; rare treasure charms can favor a named beneficial gather trait, but the example "+20% chance" still needs its probability interpretation. Keep the existing code/release state separate from this planning direction.
 
 
+### 2026-10-25 protected-home, upbringing, physique and warfare clarifications (DESIGN ONLY)
+
+Newest source: [`docs/design/safe-home-expeditions-offspring-and-identity.md`](docs/design/safe-home-expeditions-offspring-and-identity.md). **Every player owns a completely safe and permanent private home island** for workers, dinosaurs, buildings, and stored materials. **Only voluntarily established settlements in contested PvE or PvPvE regions are exposed to raids or enemy attack.** Returning gathered materials to safe home makes them protected. Automated worker-run **boat cargo routes** from contested outposts to home are an appealing *proposed* logistics mechanic; route ambush/loss/offline policy is **not decided**.
+
+Human offspring mature **on timers**, consuming food; sustained food **quality through development stages influences their adult realized stats**. Young learners receive education/mentoring before adulthood. Reproduction and care remain costly even in late-game; personal skill/level must be earned, while no existing base/gear/career progress resets on body switch. **Appearance:** intended distinguishable male/female silhouettes and overlapping fictional stat distributions; men trend taller/stronger on average, intelligence averages equal. Caretaking/medical/teaching specialties should offer strong actual tribe-wide buffs, and male/female role preferences are *not hard locks*. **Women can absolutely be warriors**, including competitive bows, crossbows, firearms and tactical specialization, and individuals of either sex may defy average traits. Physique partly hints at strength but random diversity and hidden potential preserve discovery. Do not treat this as real-world claims about people or as fixed balancing numbers.
+
+Neither boat logistics, growing humans, role modifiers nor contested online warfare is implemented by these documents. Open: convoy danger/offline shipment, duration of offspring stages, education/food shortfalls, genetic/appearance visibility, remote domain loss rules, and safe-PvE vs PvPvE endgame access.
+
 ## 9. Product direction and open queue
 
 Execute in this priority order unless Milan overrides it.
