@@ -245,6 +245,11 @@ Neither boat logistics, growing humans, role modifiers nor contested online warf
 
 See [`docs/design/pvp-raiding-local-alphas-and-siege-fairness.md`](docs/design/pvp-raiding-local-alphas-and-siege-fairness.md). Owner wants **locally dominant players** who feel strong/weak depending on region, **without high-tier tribes punching down against low-tier settlements**. Raids must cost meaningful resources, remain potentially profitable, and strongly reward prepared defenders. Proposal is regional PvP leagues plus effective-force rating including body/lineage, weapon traits, dinosaur mounts, siege technology and allies. Combat class caps, online/offline raid vulnerability, attacker stake, loot limits and cooldown specifics remain open; do not claim implemented or decided. **Confirmed:** remote production/storage is raidable, protected home remains safe, and a loaded boat **can leave during active siege** with **boat+harbor-level/trait bounded cargo**, becoming wholly protected in transit toward home.
 
+### Canonical game design v2 started 2026-10-25 (DESIGN WORKSPACE)
+
+**Future product authority:** [`docs/game-design/README.md`](docs/game-design/README.md), [decisions](docs/game-design/decisions.md), [audit and 26 open questions](docs/game-design/audit-and-open-questions.md). Latest owner answers: buy a **fresh, larger, higher-resource-tier protected home**, **abandon previous island**, retain **dismantled building materials** in a special **salvage-only Ender Chest-style box** (other migration behaviors OPEN); require reaching **player level 60** to unlock **level-60 islands/PvPvE** (whether permission persists across playable body switching OPEN); and **STRICTLY DISALLOW equipping above that individual's level**, no downscaling alternative. No PvP raid windows. Non-PvP production/breeding and protected-island upgrades remain primary gameplay. Current code has NOT been updated to reflect these future rules. Do not treat the Sept PRD/agent plan as future product binding when they conflict.
+
+
 ## 9. Product direction and open queue
 
 Execute in this priority order unless Milan overrides it.
