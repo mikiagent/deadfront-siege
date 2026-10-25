@@ -34,7 +34,7 @@
 
 ### Home-to-frontier cargo logistics (owner idea, pending mechanics)
 
-A protected home storage island should accept materials gathered in every region. Transport workers assigned to boats/routes may ferry tagged material lots from vulnerable outposts to safe home storage. Keep real manifests, reserved stack IDs and provenance; unloading at home ends exposure to territory raids. **OPEN:** whether ships themselves can be attacked, how route transit is shown, escorts and offline timing. The marine supply loop is described in [protected-home, cargo, upbringing, and identity design](safe-home-expeditions-offspring-and-identity.md).
+A protected home storage island should accept materials gathered in every region. The **contested frontier resource base is fully raidable** (stockpiles, production sites, deployed workers and dinosaurs subject to zone rules). Workers may load boats to move exact reserved cargo lots, preserving levels and traits. **CONFIRMED: a boat underway toward the private home island is unraidable and cannot be ambushed/intercepted in transit.** Successful shipment departure marks the risk boundary; home storage is safe after arrival. **OPEN:** dock loading, departing during an ongoing raid, cargo route schedule/cost, outbound boat risk and offline transport. See [the locked transit contract](safe-home-expeditions-offspring-and-identity.md#2-boats-routes-and-physical-cargo-transfer).
 
 ## 3. Tribe roster, roles, population and durable identity
 
@@ -120,7 +120,7 @@ A protected home storage island should accept materials gathered in every region
 
 **Infrastructure:** Resource extractors / lumber yards should have zones, production/regeneration rules and input-output logistics; a site is not unlimited free ore or timber. Work sites and crafted blueprints can be stocked by haulers. Equipment improves quality/throughput and can inherit material traits. Worker exhaust/needs should connect to sit, sleep, food and housing.
 
-**OPEN:** Does the 1-durability safety floor also apply to worker combat and gathering risks, or only assigned work? Can players override it? Does a person automatically repair/re-equip from storage? Is there a job cap, and what happens while the player is offline? What is the Monitoring Stand's max scope and authority (per worker, per structure, global)? **CONFIRMED logistics context:** home workers and stores can remain safe, while optional remote deployments expose workers to danger. **PROPOSED:** boat transporters can move real reserved cargo from contested outposts to protected home storage, with exact route vulnerability still open. See [protected-home, cargo, upbringing, and identity design](safe-home-expeditions-offspring-and-identity.md).
+**OPEN:** Does the 1-durability safety floor also apply to worker combat and gathering risks, or only assigned work? Can players override it? Does a person automatically repair/re-equip from storage? Is there a job cap, and what happens while the player is offline? What is the Monitoring Stand's max scope and authority (per worker, per structure, global)? **CONFIRMED logistics context:** home workers and stores can remain safe, while optional remote deployments expose workers to danger. **PROPOSED:** boat transporters can move real reserved cargo from contested outposts to protected home storage, with **homeward transit attack immunity confirmed**, while loading/departure and offline rules remain open. See [protected-home, cargo, upbringing, and identity design](safe-home-expeditions-offspring-and-identity.md).
 
 ## 7. Expedition slots: human, dinosaur, mounted pair
 
@@ -167,7 +167,7 @@ A protected home storage island should accept materials gathered in every region
 
 | Stage | Design / deliverable | Dependencies and proof |
 |---|---|---|
-| D0 | Lock contested-zone loss policy, timed food-dependent growth rates, genetic visibility, PvE/PvPvE cargo-route danger and party edge cases | **Home-island permanent safety is already settled**; actual PvP remains conceptual until authoritative networking |
+| D0 | Lock contested-zone loss policy, timed food-dependent growth rates, genetic visibility, contested-dock loading rules, homebound-safe shipping and party edge cases | **Home-island permanent safety is already settled**; actual PvP remains conceptual until authoritative networking |
 | D1 | Persistent human ID/Tribe registry, separable avatar controller, death + baseline survivor fallback | Save migration and switching lab; prior avatars remain valid workers |
 | D2 | Housing and settlement support cap, wanderer recruitment and domain attention in PvE | No deadlocked population; meaningful alerts and housing limits |
 | D3 | Worker job reservations, mining/lumber sites, equip/durability safety, Monitoring Stand | No resource duplication, valid pathing, worker skill use |
@@ -191,7 +191,7 @@ The owner may reorder stages. No system should be marked shipped before targeted
 
 ## 12. Decisions requiring the next owner answers
 
-1. **Territory risk:** Home is **always safe and never raidable**. How much can be lost in **optional contested** PvE/PvPvE outposts, and can boat cargo/crews be ambushed along a sea route?
+1. **Territory risk:** Home is always safe, **optional contested outposts are raidable**, and a boat **in transit home is never ambushed**. What can raiders steal/destroy at the outpost and dock, and may cargo ships depart during an active raid?
 2. **Reproduction and raising:** Timed, food-dependent maturation and youth education are **confirmed**. What is the full timer, how do food quality/mentors change *realized* stats, and what resource cost keeps reproduction expensive at endgame?
 3. **Genetics and looks:** How visible are hereditary abilities, and how do height/musculature and adult appearance correlate without perfectly revealing potential? How strong can lineages become while allowing training/gear and ranged tactics to compete?
 4. **Wipe persistence:** Safe-home assets remain protected; which **contested claims and outpost possessions** survive a full wipe, and what happens to the lost member's carried equipment?
