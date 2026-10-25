@@ -32,6 +32,8 @@ The existing [counter table](../../game/data/combat_counters.json) provides tang
 
 **Confirmed:** player-facing **Impact** maps to internal `blunt`, **Pierce** maps to internal `pierce`, and **Slash** maps to internal `cut`/`slashing`. **OPEN:** canonicalizing legacy `slashing` versus `cut` tags on disk is a serialization problem, not a new damage category; avoid silent save-schema breaks.
 
+**Latest categorization proposal:** Defensive matchups use **Slash** for huge slow exposed HP tanks, **Impact** for heavy armor and suitably clustered small swarms, and **Pierce** for fast/low-armored mobile prey; vulnerability and a dinosaur's attack verb are independent. Current `fast_hunter` and `giant` multipliers conflict with this new generalized scheme. **All nineteen existing creatures** are now provisionally categorized with their attack moves, present stats, and migration risks in [11 Dinosaur Taxonomy & Genetics](11-dinosaurs-and-genetics.md). **Nothing has been balanced/implemented yet.**
+
 ## 3A. Dinosaur attack modes and matchup strategy: sauropods and Stegosaurus
 
 **OWNER DESIGN EXAMPLE: a future Brontosaurus** should be a **very-high-HP, low-defense** creature that is **particularly vulnerable to Slash**. It has at least two distinctly classified attacks:
