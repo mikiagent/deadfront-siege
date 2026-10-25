@@ -243,3 +243,11 @@ The owner explicitly corrected the earlier tentative statement: **Tyrannosaurus 
 - **Mount availability:** rider and mount gear slots, species roles, capacity/height, training, breeding/IV influence and separate death/capture costs.
 
 **No game code, item data, counters, creature species JSON, breeding, armor numbers or skill unlock levels changed in this design pass.**
+
+## 11. Dinosaur mass, trapped prey and armor load (newest owner direction, 2026-10-25)
+
+The owner wants meaningful **size- and mass-dependent physical combat**: a giant planted foot can **trample multiple tiny dinosaurs** actually standing inside its footprint; a medium-sized target physically caught by a far larger dinosaur can become **Pinned** and threatened by a subsequent anatomy-compatible follow-up (another stomp, a true horn/spike **Gore**, or a jaw bite that can geometrically reach); a raptor's **Pounce -> Pin -> Maul/Rake** is a signature predatory play pattern and ties to Berserker **Frenzy**. An animal must be able to contact and physically overpower the target. A raptor cannot globally Pin a sauropod; a Brontosaurus shouldn't acquire a carnivore's gore animation.
+
+**There should also be dinosaur armor with weight trade-offs**, not only natural anatomy. A heavily armored **Brontosaurus** could have a protected Heavy torso yet exposed Slash-weak legs, with the extra plate/saddle/cargo mass burdening **acceleration, turning, stamina, tail-whip recovery and transport capacity**. Huge baseline mass still provides dangerous impact, but slower motion and telegraphs give faster Cavalry or foot fighters real counterplay. Armor class on the struck body part determines relative **I/P/S** matchup; added load and natural mass are separate; rider+saddle height retains physical attack-reach rules. Pinned is an existing status, but mass checks, per-foot multi-hit and extra barding aren't implemented.
+
+Full canonical mechanics, qualitative matchups, distinct animal roles, load formulas/geometry risks and code migration: [22 Dinosaur Mass, Armor and Grappling](22-dinosaur-mass-armor-and-grappling.md). **No stats/formulas/capture eligibility approved here.**
