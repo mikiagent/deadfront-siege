@@ -27,6 +27,8 @@ Four regional markets (PRD §4.2), each reachable from the harbour of its region
 | **Frontier Post** | desert, savannah 45 | wood, reed, clay, herbs, water items | salt, copper, sandstone, cactus |
 | **Northern Depot** | tundra, snowfield | bamboo, coconut, cactus flesh, cloth, herbs | fur, resin, pine, ice, silver |
 
+> **2026-10-25 trait-system design change (pending):** The current `attribute_bonus` prices below assume positive latent attributes. The owner's [new trait vision](2026-10-25-systems-vision-and-open-decisions.md#3-every-material-has-traits-mostly-negative-core-systems-priority) calls for almost all gathered lots to have signed and consequential negative properties, exceptionally rare positive properties, and nearly no neutral lots. Market valuation must eventually use a trait-aware signed utility/quality model and preserve visibility of rare properties; do not keep the old +25% for every attribute when implementing it. The formula below documents the existing plan until replaced by an approved balance spec.
+
 ### Prices
 
 `price = base(category) × level_factor(level) × attribute_bonus × regional_demand(market, category) × saturation(market, item)`
