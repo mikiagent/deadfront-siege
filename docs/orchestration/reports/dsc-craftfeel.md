@@ -12,10 +12,9 @@ materials disappear"). Branch: `craftfeel` worktree; 5 commits, one per mileston
   `shortfall = max(0, required_ability - ability)`. Measured: 0 -> 100 %, 50 -> 75 %, 80 -> 36 %, 100 -> 0 %.
 - `crafting_ability(player, rec)` = governing skill level + learned `craft_ability` node abilities + food
   `craft_ability` buffs (see assumptions).
-- `required_ability(rec)` = the recipe's `required_ability` key. **No recipe in the repo declares one**, and a
-  recipe without it only has the existing `min_level` category gate, so live play still reads 100 % — the
-  skewer of spec 25 §8 included. Exposing the curve to live recipes is a data/tuning decision, left to the
-  owner (see "integrator needs").
+- `required_ability(rec)` = the recipe's `required_ability` key. 34 recipes now declare one (review round 1,
+  below); a recipe without it only has the existing `min_level` category gate, so it reads 100 % — the
+  skewer of spec 25 §8 included.
 - `roll_outcome()` rolls success, then flawless (only on success), then the rare trait: a rare trait the
   primary already carries always passes; otherwise `rare_attribute_chance` (5 %) picks one of spec 04's six.
 - `commit_outcome(player, rec, picks, outcome, rng, overflow)` is the single commit path. A failure consumes
@@ -30,10 +29,8 @@ materials disappear"). Branch: `craftfeel` worktree; 5 commits, one per mileston
 - `_plan` honours a slot's new `allowed_ids`.
 - `bag_preview` now reports the real success/flawless (was hard-coded 1.0 / 0.0).
 
-**Live craft path (`game/scripts/items/station_craft.gd`)** — `_finish_one` now rolls the outcome once when
-the work completes (reproducible `rng`), asks `Crafting.commit_outcome` to commit it, and waits for bag room
-only when the craft can succeed (a failure never needs room). Before: it finished through
-`finish_craft` directly, so the curve could not apply to the real (walk/hex) craft.
+**Live craft path (`game/scripts/items/station_craft.gd`)** — the plan is built once when the work starts and
+reused (see review round 1 below); a failure never needs bag room.
 
 **Data**
 - `game/data/world/rules.json`: `crafting` = `success_curve_scale 100`, `flawless_chance 0.05`,
@@ -59,7 +56,7 @@ only when the craft can succeed (a failure never needs room). Before: it finishe
 
 | | Before | After |
 |---|---|---|
-| Success chance | always 100 % (no roll) | spec 04 curve; 100 % for recipes without `required_ability` |
+| Success chance | always 100 % (no roll) | spec 04 curve; 34 gated recipes reach it (lowest 0.840 at its own gate) |
 | Failure | impossible | spends the picked instances once, makes nothing, notice, no XP |
 | Flawless | none | 5 % per successful craft, +10 % durability, quality marker (measured 5.35 % / 2000) |
 | Rare trait | none from crafting | primary carries it (always) else 5 % roll (measured 4.85 % / 2000) |
@@ -67,7 +64,7 @@ only when the craft can succeed (a failure never needs room). Before: it finishe
 | Preview | level/energy only | + success %, flawless %, inherited traits, loss warning |
 | Craft screen smallest target, 844x390 | 48-60 px | 64 px |
 
-## Verified
+## Verified (round 0)
 - `game/tests/t_craftfeel.gd` (new, gate stage 1): curve 0/50/80/100; a `min_level` gate still refuses
   before rolling; a failure spends each picked instance exactly once and makes nothing, no XP; 2000 seeded
   crafts at 5.35 % flawless / 4.85 % rare (±2 pp); a primary's rare trait is inherited; the skewer's Food +
@@ -83,24 +80,88 @@ only when the craft can succeed (a failure never needs room). Before: it finishe
 - Related tests: `t_items`, `t_data`, `t_process`, `t_needs` PASS; `tools/smoke.sh` PASS; full
   `verify_job.sh craftfeel` PASS.
 
+## Review round 1 (findings 1)-(6) + regressions
+
+The first round shipped the rules but left the loop open at four points. All are fixed:
+**the curve had no reachable failure in shipped data**, **a retry could re-roll the craft**, **the craft
+card only existed in the dev lab**, and **online play still used the old direct path**.
+
+**Data (finding 1).** `game/data/recipes.json`: every recipe with `min_level >= 10` now declares an
+explicit `required_ability = min_level + 40` (34 recipes; the four `min_level 55` raid pieces take 95).
+Below that, the gate is still the category level alone, so early crafting is unchanged. The lowest
+shipped success at a recipe's own gate is now **0.840** (`raid_maul`, level 55, ability 55 vs 95) and a
+survivor several levels short fails outright; the curve is reachable in shipped data with no code path
+needed. Documented as an ASSUMPTION in `rules.json` `crafting._about`: the values are gate level + a
+fixed shortfall headroom, not a balance pass, and the owner can retune per recipe with no code change.
+
+**One roll, reused (findings 2, 4, 5).** `Crafting` now splits planning from running:
+- `plan_craft(rec, inv, picks, ability, level, burn_skill, rng)` returns one dict with the picks, their
+  uids and defs, the outcome (success/flawless/rare), the burn result and the output level. One outcome
+  roll, one burn roll, decided once.
+- `plan_picks(inv, rec, plan)` re-resolves the plan's instances **by uid** wherever the bag moved them (a
+  fungible stack falls back to def + slot); it returns `[]` when one left the bag, so the craft stops
+  with nothing consumed instead of substituting a different stack (spec 08:98).
+- `plan_fits(inv, rec, plan)` checks room using the plan's own burn and level; `run_plan` consumes,
+  builds, applies flawless/rare and **never rolls**; `report_plan` is the notice + XP half (XP once, on
+  success only).
+- `finish_craft` (a dead duplicate) is gone; `craft`, `commit_plan`, `commit_outcome` and the server all
+  run through one plan.
+- `StationCraft` builds the plan in `_start_craft_cycle` and keeps it: a full bag holds the craft
+  (`_full_wait`, one notice, inputs untouched) and the retry finishes on **the same** plan.
+- Explicit picks are no longer a bypass: `_plan_ordered` requires an explicit pick to pass the slot's own
+  `allowed_ids`, so a club named as the skewer's Tool cannot slip past the rule that rejects it.
+
+**Live card (finding 3).** `StationCraft._show_card` runs at craft start in real play (not only in the
+lab) and `set_progress` updates every frame: success %, flawless %, inherited traits, the loss warning,
+and the material ring raised from 28 to **32 px radius (64 px box)**, the phone floor.
+
+**Server parity (finding 6).** `IntentHandlers._craft` now builds the same `Crafting.plan_craft` (ability
+from `craft_ability(ch.level_of(tree))`, the char's tree level as burn skill) and runs `run_plan` on the
+server bag, then `ch.commit`. A failure returns `ok({failed:true, made:0, uids})` — materials gone, no XP,
+no error; a full bag is `bag_full` with nothing consumed; a planned instance that left is
+`insufficient_items`. Flawless and the inherited rare trait ride the same `apply_outcome`.
+
+**Bug found while testing:** a finished live craft kept its spent `_plan`, so a queued or new craft could
+reuse it. `_finish_one` now clears `_plan`/`_burnt` on completion.
+
+## Verified (round 1)
+- `game/tests/t_craftfeel.gd`, 99 assertions, all PASS; it now asserts the round-1 regressions:
+  shipped-data reachability (34 gated recipes, lowest 0.840 at its own gate, value read from data);
+  explicit club pick refused; two full-bag retries holding then landing on one plan; one burn value per
+  plan (a `grill` plan with `burnt=true` yields burnt food, `false` yields grilled meat, no second roll);
+  uid preservation across a bag sort and a "left" stop with a legal substitute in the bag; the live card
+  visible with Success/Flawless/loss text and a >= 64 px ring; a live station craft that fills its bag
+  mid-work holds twice and lands once room appears; online parity (shared curve, twine success pays XP
+  once, club pick -> `insufficient_items`) and online stakes (a pinned failure recipe through the real
+  `store.apply("act.craft")` loses exactly the picked unit by level, pays no XP; a success makes 1 and
+  pays 7.0 XP once; flawless + `black_sheen` applied by the server path).
+- Mutation check: making `run_plan` roll its own burn fails 4 of those assertions, so the no-re-roll
+  tests can actually fail.
+- Related: `t_items`, `t_data`, `t_process`, `t_server_domain` PASS; `verify_job.sh craftfeel` PASS.
+
 ## Assumptions (`# ASSUMPTION` in code)
-- **No recipe re-tuned.** The curve is in place but every live recipe has no `required_ability`, so it reads
-  100 % (matching spec 25 §8's skewer). Adding requirements to recipes is balance, which the owner reserved.
-- **Crafting Ability** has no attribute/gear stat in this build; the base is the governing skill level, plus
-  learned `craft_ability` abilities and food `craft_ability` buffs. Tools and specialization can be added to
-  `crafting_ability` later without touching the curve.
-- **Flawless stat bump** = +10 % max durability plus the quality marker (no damage/armor formula changed).
-  Level stays put so the preview equals the result; `flawless_level: true` opts a recipe into +1 level.
-- **Rare trait value** on the output is 1 when it was rolled (a carried trait keeps its level); no conversion
-  into equipment effects (Vital Strike etc.) — spec 04 lists those as reference conversions, not this task.
-- **Skewer materials** map the docs' "Long Stick, Stick, Short Stick or a leg bone" onto the repo's items:
-  `branch` (the stick family's item) and `raptor_bone` / `bone` (leg bones). No new items were invented.
-- Server `intent_handlers._craft` is outside this job's scope and still uses the old direct path.
+- **`required_ability = min_level + 40`** on the 34 recipes with `min_level >= 10` is a deliberate
+  ASSUMPTION (documented in `rules.json` `crafting._about`) to make the curve reachable in shipped data.
+  It is not a balance pass: early recipes (min_level 0) keep 100 %, and every value can be retuned in
+  data alone.
+- **Crafting Ability** has no attribute/gear stat in this build; the base is the governing skill level,
+  plus learned `craft_ability` abilities and food `craft_ability` buffs.
+- **Flawless** = +10 % max durability plus the quality marker; level stays put so the preview equals the
+  result (`flawless_level: true` opts a recipe into +1 level).
+- **Rare trait** value on the output is 1 when it was rolled (a carried trait keeps its level).
+- **Skewer materials** map the docs' "Long Stick, Stick, Short Stick or a leg bone" onto `branch` and
+  `raptor_bone` / `bone`; no items were invented.
+
+## Deferred
+- **Visual lab gate.** The owner reserved the machine for this round (`HEADLESS_ONLY`): no window may be
+  opened, so the 1600x900 / 844x390 lab shots and the `[craftfeel] RESULT ... ui_min_px` line are
+  **deferred to the orchestrator**. Every headless stage passes; the ring size (64 px) and the card text
+  are asserted headlessly instead.
+- The report's earlier lab numbers (`ui_min_px=48` at 1600x900) predate the ring change and are not a
+  fresh measurement this round.
 
 ## What the integrator needs
-1. **Data decision (owner):** which recipes get `required_ability` and at what values. Once one is set, the
-   curve, failure, flawless and the UI all follow with no code change. Until then the live game reads 100 %.
-2. **Server:** move `intent_handlers.gd::_craft` onto `Crafting.roll_outcome` + `commit_outcome` (same seed
-   and picks) so an online craft fails and gains traits like an offline one. That file is out of this scope.
-3. The lab's `ui_min_px` measurement is the smallest visible Button on the craft sheet; other screens were not
-   audited.
+1. Re-run the visual lab when the machine is free: it prints `[craftfeel] RESULT ... ui_min_px=64` at
+   844x390; expected shots are the craft sheet with odds, the live craft card, and the loss notice.
+2. Tuning only: the 34 `required_ability` values are the owner's to adjust; no code depends on the exact
+   numbers (the test reads the data value, it does not hard-code 50/95).
