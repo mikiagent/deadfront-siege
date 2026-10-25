@@ -89,7 +89,6 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 				rig.mesh_root.scale = Vector3.ONE * float(def.pipeline["stand_in_model_scale"])
 			using_glb = true
 			rig.fill_missing(CreatureClips.CONTRACT)
-			_add_eyes()
 		else:
 			rig.queue_free()
 			rig = null
@@ -100,6 +99,10 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 		rotation_degrees.y = 180.0
 		_build_placeholder()
 	apply_coloration(coloration)
+	# Coloration recursively replaces mesh materials. Add the shared eyeshine material afterwards;
+	# the old order stripped it and left the oversized spheres as plain blue-grey geometry.
+	if using_glb:
+		_add_eyes()
 	_mount = Marker3D.new()
 	_mount.name = "MountSocket"
 	if using_glb and rig and rig.hips_socket:
@@ -282,6 +285,9 @@ func _color_material(src: Material, col: CreatureColoration) -> ShaderMaterial:
 ## authored material of each surface is remembered on first bind: a second apply (a pet summon, a
 ## re-roll) must copy the original textures again, not the shader material bound a moment ago.
 func _rebind_glb_surfaces(node: Node) -> void:
+	# Eyeshine is a shared presentation material, not skin. Re-coloring an individual must not strip it.
+	if node.has_meta(&"creature_eyeshine"):
+		return
 	var mi := node as MeshInstance3D
 	if mi != null and mi.mesh != null:
 		mi.material_override = null

@@ -214,6 +214,11 @@ func set_progress(frac: float) -> void:
 func active_node() -> Node3D:
 	return node if _open and active_index >= 0 else null
 
+## The resource selected by the open radial, even before an option is picked. Camera framing follows
+## this; active_node() stays reserved for a gather cycle with a chosen option.
+func focus_node() -> Node3D:
+	return node if _open and node is HarvestNode else null
+
 ## Partial hexagon outline just outside a hex button, clockwise from its top vertex.
 static func _hex_sweep(c: Vector2, r: float, frac: float) -> PackedVector2Array:
 	var hex := PackedVector2Array()

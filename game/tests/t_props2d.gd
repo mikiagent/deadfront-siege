@@ -68,6 +68,7 @@ func _run() -> void:
 	_test_collision_rules()
 	_test_cliffs()
 	await _test_clearable()
+	_test_web_material()
 	_test_not_clickable()
 	_finish()
 
@@ -323,6 +324,66 @@ func _test_not_clickable() -> void:
 	_expect(radial_before == false, "no radial is open before the tap")
 	_expect(not radial_after, "a tap on a prop opens no radial")
 	_expect(str(hit) != "interact", "a tap on a prop is not an interaction (got %s)" % str(hit))
+
+## Web/Compatibility holds only 1,024 shader-variable buffer items and reserves 16 for every geometry
+## instance whose material declares an instance uniform, so with occlusion off (every web build) not
+## one prop card may carry one - tall cards included. With occlusion on, only tall cards fade.
+func _test_web_material() -> void:
+	var kept := Occlusion.enabled
+	var layer := PropCards.new()
+	layer.name = "TProps2dWebCheck"
+	root.add_child(layer)
+	Occlusion.enabled = false
+	var short_web: ShaderMaterial = layer.call("_material", false)
+	var tall_web: ShaderMaterial = layer.call("_material", true)
+	_expect(short_web != null and tall_web != null, "the card layer builds its short and tall materials")
+	if short_web != null and tall_web != null:
+		_expect(short_web.shader == tall_web.shader, "with occlusion off, tall cards share the fade-free shader")
+		_expect(not _shader_uses_instance_uniform(short_web), "web: a short prop card has no instance uniform")
+		_expect(not _shader_uses_instance_uniform(tall_web), "web: a tall prop card has no instance uniform either")
+	Occlusion.enabled = true
+	var native_layer := PropCards.new()
+	native_layer.name = "TProps2dNativeCheck"
+	root.add_child(native_layer)
+	var native_short: ShaderMaterial = native_layer.call("_material", false)
+	var native_tall: ShaderMaterial = native_layer.call("_material", true)
+	if native_short != null and native_tall != null:
+		_expect(not _shader_uses_instance_uniform(native_short), "native: a short prop card has no instance uniform")
+		_expect(native_tall.shader != native_short.shader, "native: a tall prop card gets the fade body")
+		_expect(_shader_uses_instance_uniform(native_tall), "native: a tall prop card keeps the occlusion fade")
+	else:
+		_expect(false, "the card layer builds its native materials")
+	Occlusion.enabled = kept
+	layer.queue_free()
+	native_layer.queue_free()
+
+func _shader_uses_instance_uniform(mat: ShaderMaterial) -> bool:
+	var shader := mat.shader
+	if shader == null:
+		return false
+	return _expand_includes(shader.code, "", {}).contains("instance uniform")
+
+func _expand_includes(source: String, base: String, seen: Dictionary) -> String:
+	var out := PackedStringArray()
+	for line in source.split("\n"):
+		var trimmed := line.strip_edges()
+		if not trimmed.begins_with("#include"):
+			out.append(line)
+			continue
+		var first := trimmed.find('"')
+		var last := trimmed.find('"', first + 1)
+		if first < 0 or last <= first:
+			out.append(line)
+			continue
+		var path := trimmed.substr(first + 1, last - first - 1)
+		if not path.begins_with("res://"):
+			path = base.path_join(path).simplify_path()
+		if seen.has(path):
+			continue
+		seen[path] = true
+		var included := FileAccess.get_file_as_string(path)
+		out.append(_expand_includes(included, path.get_base_dir(), seen))
+	return "\n".join(out)
 
 func _radial_open() -> bool:
 	for n in get_nodes_in_group("gather_radial"):

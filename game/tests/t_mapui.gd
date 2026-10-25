@@ -9,6 +9,8 @@ const FOG_R := 25.0
 ## Mirrors of MapFog's ASSUMPTION defaults, restated here so the test can fail if they move.
 const STEP := 8.0
 const CAP := 200
+## Mirrors MapFog's assumed lifetime so the regression test proves both fading and expiry.
+const TRAIL_LIFETIME_S := 30.0
 
 var _fails: PackedStringArray = []
 var _started := false
@@ -140,6 +142,17 @@ func _test_trail() -> void:
 	_expect(g.trail.size() == CAP, "the trail keeps the last %d dots (got %d)" % [CAP, g.trail.size()])
 	_expect(g.trail[g.trail.size() - 1].y >= z - STEP - 1.0, "the newest dot is at the survivor")
 	_expect(g.trail[0].y > -200.0, "the oldest dots are dropped first")
+	# Footsteps must fade with simulated game time and disappear instead of accumulating forever.
+	var fading = _fog()
+	fading.walk(Vector3.ZERO)
+	_expect(fading.has_method("advance_trail") and fading.has_method("trail_alpha"), "the trail exposes deterministic time aging")
+	if fading.has_method("advance_trail") and fading.has_method("trail_alpha"):
+		var fresh_alpha := float(fading.call("trail_alpha", 0))
+		fading.call("advance_trail", TRAIL_LIFETIME_S * 0.5)
+		var faded_alpha := float(fading.call("trail_alpha", 0)) if not fading.trail.is_empty() else 0.0
+		_expect(fading.trail.size() == 1 and faded_alpha < fresh_alpha and faded_alpha > 0.0, "a footprint fades before it expires")
+		fading.call("advance_trail", TRAIL_LIFETIME_S * 0.51)
+		_expect(fading.trail.is_empty(), "a footprint disappears after %.0f seconds" % TRAIL_LIFETIME_S)
 	print("[t_mapui] trail step=%.0f m cap=%d kept=%d" % [STEP, CAP, g.trail.size()])
 
 # ---------------------------------------------------------------- serialisation
@@ -150,6 +163,8 @@ func _test_round_trip() -> void:
 	f.walk(Vector3(10, 0, 10))
 	f.walk(Vector3(20, 0, 14))
 	f.walk(Vector3(40, 0, 20))
+	f.advance_trail(7.5)
+	var saved_alpha: float = f.trail_alpha(0)
 	var d: Dictionary = f.to_dict()
 	_expect(str(d.get("id", "")) == "home_grassland", "the saved fog names its island")
 	_expect(str(d.get("fog", "")).length() > 10, "the fog is stored compactly (base64, %d chars for %d cells)" % [str(d.get("fog", "")).length(), f.span * f.span])
@@ -162,8 +177,9 @@ func _test_round_trip() -> void:
 	for i in mini(back.trail.size(), f.trail.size()):
 		same = same and back.trail[i].distance_to(f.trail[i]) < 0.11
 	_expect(same, "trail dots keep their places")
+	_expect(absf(back.trail_alpha(0) - saved_alpha) < 0.01, "trail age survives the save round trip")
 	# Hostile JSON is clamped, not fatal.
-	var junk = FG.from_dict({"id": "x", "size": -5.0, "fog": "$$$", "trail": [["a"], [1, 2], 7]})
+	var junk = FG.from_dict({"id": "x", "size": -5.0, "fog": "$$$", "trail": [["a"], [1, 2], [3, 4, TRAIL_LIFETIME_S], 7]})
 	_expect(junk.span > 0 and junk.revealed_count() == 0 and junk.trail.size() == 1, "a malformed fog row loads empty, keeping only well-formed dots")
 	print("[t_mapui] round trip cells=%d trail=%d bytes=%d" % [back.revealed_count(), back.trail.size(), str(d.get("fog", "")).length()])
 

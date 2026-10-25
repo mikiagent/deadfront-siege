@@ -5,7 +5,8 @@ extends RefCounted
 ## field. A save without it (older builds) starts with everything near the camp revealed.
 ##
 ## The bitmap is a bitset: bit i = cell (i % span, i / span) has been walked. Reveal is a circle
-## of BRUSH_M around the survivor; the trail keeps one dot per TRAIL_STEP_M, last TRAIL_MAX.
+## of BRUSH_M around the survivor; the trail keeps one dot per TRAIL_STEP_M, last TRAIL_MAX, and
+## fades each dot until it expires.
 
 const CELL_M := 2.0
 ## ASSUMPTION: no doc gives a reveal radius; 25 m reads as a visible brush stroke on a 160 m island.
@@ -14,6 +15,9 @@ const BRUSH_M := 25.0
 const TRAIL_STEP_M := 8.0
 ## ASSUMPTION: "the last ~200 kept" from the task brief.
 const TRAIL_MAX := 200
+## ASSUMPTION: the docs require a footstep trail but give no duration; 30 s leaves a useful recent
+## route without turning the minimap into a permanent field of black dots.
+const TRAIL_LIFETIME_S := 30.0
 ## ASSUMPTION: what an old save knows when it has no fog at all (the camp area, not the whole island).
 const OLD_SAVE_REVEAL_M := 40.0
 
@@ -26,6 +30,8 @@ var span: int = 0
 ## One byte per cell: 0 unrevealed, 1 revealed. Serialised as a packed bitset.
 var cells := PackedByteArray()
 var trail: Array[Vector2] = []
+## Kept parallel to `trail`; simulation time makes fading deterministic in tests.
+var trail_ages: Array[float] = []
 ## Bumped on every change; the drawing side rebuilds its fog texture only when this moves.
 var version: int = 0
 ## 1 = island land, 0 = sea; fog over sea is transparent (the reference keeps the coastline read).
@@ -47,6 +53,7 @@ func setup(id: String, island_size: float) -> void:
 	land.resize(span * span)
 	land.fill(1)
 	trail.clear()
+	trail_ages.clear()
 	version = 0
 	_tex = null
 	_tex_version = -1
@@ -104,9 +111,27 @@ func walk(pos: Vector3) -> void:
 	var p := Vector2(pos.x, pos.z)
 	if trail.is_empty() or trail[trail.size() - 1].distance_to(p) >= TRAIL_STEP_M:
 		trail.append(p)
+		trail_ages.append(0.0)
 		while trail.size() > TRAIL_MAX:
 			trail.remove_at(0)
+			trail_ages.remove_at(0)
 		version += 1
+
+## Ages existing dots and removes expired ones. Renderers redraw every frame, so age-only changes do
+## not invalidate the fog texture cache.
+func advance_trail(delta: float) -> void:
+	if delta <= 0.0 or trail.is_empty():
+		return
+	for i in range(trail_ages.size() - 1, -1, -1):
+		trail_ages[i] += delta
+		if trail_ages[i] >= TRAIL_LIFETIME_S:
+			trail_ages.remove_at(i)
+			trail.remove_at(i)
+
+func trail_alpha(index: int) -> float:
+	if index < 0 or index >= trail_ages.size():
+		return 0.0
+	return clampf(1.0 - trail_ages[index] / TRAIL_LIFETIME_S, 0.0, 1.0)
 
 func revealed_count() -> int:
 	var n := 0
@@ -155,8 +180,9 @@ func to_dict() -> Dictionary:
 		if cells[i] != 0:
 			bytes[i >> 3] = bytes[i >> 3] | (1 << (i & 7))
 	var pts: Array = []
-	for p in trail:
-		pts.append([snappedf(p.x, 0.1), snappedf(p.y, 0.1)])
+	for i in trail.size():
+		var p := trail[i]
+		pts.append([snappedf(p.x, 0.1), snappedf(p.y, 0.1), snappedf(trail_ages[i], 0.01)])
 	return {"id": island_id, "size": size_m, "fog": Marshalls.raw_to_base64(bytes), "trail": pts}
 
 static func from_dict(d: Dictionary) -> MapFog:
@@ -179,9 +205,20 @@ static func from_dict(d: Dictionary) -> MapFog:
 				continue
 			if not (is_finite(float(a)) and is_finite(float(b))):
 				continue
+			# Rows from older saves contain only x/z and start fresh under the new finite lifetime.
+			var age := 0.0
+			if (p as Array).size() >= 3:
+				var c: Variant = (p as Array)[2]
+				if not (c is int or c is float) or not is_finite(float(c)):
+					continue
+				age = maxf(0.0, float(c))
+			if age >= TRAIL_LIFETIME_S:
+				continue
 			f.trail.append(Vector2(float(a), float(b)))
+			f.trail_ages.append(age)
 	while f.trail.size() > TRAIL_MAX:
 		f.trail.remove_at(0)
+		f.trail_ages.remove_at(0)
 	f.version += 1
 	return f
 

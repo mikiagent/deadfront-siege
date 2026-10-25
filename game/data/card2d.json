@@ -1,6 +1,6 @@
 {
   "_about": "CARD2D trial (spec 25 §1): resource props as flat camera-facing cards baked from the 3D GLBs. Each entry names one GLB, the sway kind it uses, the families that use it and, after a bake, the texture geometry. card_bake.gd (--lab=card_bake) renders game/assets/nature/cards/<name>_albedo.png and <name>_normal.png and rewrites pivot/world_size/content/baked below; the other keys are hand-edited and kept. pivot is the ground point in normalized texture UV (u from the left, v from the top); world_size is the whole texture rectangle in metres at scale 1; content is the visible part in texture pixels. Buildings stay 3D (out of scope).",
-  "_kinds": "Sway per role: trees slow and wide, bushes in between, grass/plants fast and small, rocks none. amplitude is the tip's sideways travel in metres.",
+  "_kinds": "Only trees and grasses sway. Bushes, plants, branch piles, and rocks remain still. Amplitude is the tip's sideways travel in metres.",
   "cards": {
     "berry-sprig": {
       "content": {
@@ -651,7 +651,7 @@
   },
   "kinds": {
     "bush": {
-      "amplitude": 0.1,
+      "amplitude": 0.0,
       "cast_shadow": false,
       "speed": 1.15
     },
@@ -661,7 +661,7 @@
       "speed": 2.1
     },
     "plant": {
-      "amplitude": 0.06,
+      "amplitude": 0.0,
       "cast_shadow": false,
       "speed": 1.7
     },

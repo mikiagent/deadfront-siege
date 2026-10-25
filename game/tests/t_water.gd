@@ -67,11 +67,14 @@ func _run() -> void:
 	var river: Vector3 = _find_shallow(true)
 	var bank: Vector3 = _bank(river)
 	var sea: Vector3 = _find_shallow(false)
-	print("[t_water] spots river=%s bank=%s (water %.1f m away) sea=%s" % [river, bank, _water_dist(bank), sea])
+	var deep: Vector3 = _find_deep()
+	print("[t_water] spots river=%s bank=%s (water %.1f m away) sea=%s deep=%s" % [river, bank, _water_dist(bank), sea, deep])
 	_expect(river != Vector3.ZERO and sea != Vector3.ZERO, "the home island has wadeable river and sea water")
+	_expect(deep != Vector3.ZERO, "the home island has deep swimmable water")
 	_test_hexes(river, bank, sea)
 	_test_bare_river_tile(river)
 	await _test_in_water_and_thirst(river, sea)
+	await _test_wading_and_swimming(river, deep)
 	await _test_staggered(river)
 	_test_drink(bank)
 	_test_wash(bank)
@@ -122,6 +125,24 @@ func _find_shallow(river: bool) -> Vector3:
 					best = Vector3(x, h, z)
 			z += 0.5
 		x += 0.5
+	return best
+
+func _find_deep() -> Vector3:
+	var best := Vector3.ZERO
+	var best_d := INF
+	var half: float = rt._size * 0.5 - 1.0
+	var x := -half
+	while x < half:
+		var z := -half
+		while z < half:
+			var h: float = rt.surface_y(x, z)
+			if h < WATER_Y - 1.0:
+				var d := Vector2(x, z).length()
+				if d < best_d:
+					best_d = d
+					best = Vector3(x, h, z)
+			z += 1.0
+		x += 1.0
 	return best
 
 ## Dry ground 1 m past the river's edge, walking out of the water the short way along z.
@@ -223,6 +244,29 @@ func _test_in_water_and_thirst(river: Vector3, sea: Vector3) -> void:
 	await _frames(10)
 	_expect(player.statuses.has(&"wet") and not player.statuses.has(&"thirsty"), "5 s in the sea: Wet, not Thirsty (PRD :284; seawater thirst is for drinking it) %s" % [_status_ids()])
 	player.statuses.from_array([])
+
+func _test_wading_and_swimming(shallow: Vector3, deep: Vector3) -> void:
+	_expect(WA != null and WA.has_method("depth") and WA.has_method("movement_speed_multiplier"),
+		"water access distinguishes shallow and deep water")
+	_expect(player.has_method("is_swimming"), "player exposes swimming state")
+	if WA == null or not WA.has_method("depth") or not WA.has_method("movement_speed_multiplier") or not player.has_method("is_swimming"):
+		return
+	var shallow_depth: float = WA.depth(shallow)
+	var deep_depth: float = WA.depth(deep)
+	var wade_mult: float = WA.movement_speed_multiplier(shallow)
+	var swim_mult: float = WA.movement_speed_multiplier(deep)
+	_expect(shallow_depth > 0.0 and deep_depth > shallow_depth, "water depth follows the terrain (%.2f m / %.2f m)" % [shallow_depth, deep_depth])
+	_expect(wade_mult < 1.0 and swim_mult <= wade_mult, "wading and swimming slow movement (x%.2f / x%.2f)" % [wade_mult, swim_mult])
+	await _stand(shallow)
+	_expect(not player.is_swimming(), "shallow water is wading, not swimming")
+	await _stand(deep)
+	_expect(player.is_swimming(), "deep water enters swimming state")
+	var hp0: float = player.vitals.health
+	player.vitals.energy = 0.0
+	player.sim._swim_damage_acc = 0.95
+	await _frames(10)
+	_expect(player.vitals.health < hp0, "swimming while out of energy damages the survivor")
+	player.vitals.energy = player.vitals.max_energy
 
 ## Harvesting a node turns its tile BARE until it regrows; a river tile must stay fresh water.
 func _test_bare_river_tile(river: Vector3) -> void:

@@ -41,7 +41,7 @@ const SHADER_SRC := """
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque, diffuse_lambert, specular_disabled;
 #include "res://shaders/camera/camera.gdshaderinc"
-#include "res://shaders/occlusion/occlusion.gdshaderinc"
+#include "res://shaders/occlusion/occlusion.gdshaderinc" // CARD_FADE_INCLUDE
 uniform sampler2D atlas : source_color, filter_linear_mipmap, repeat_disable;
 uniform vec4 tint : source_color = vec4(1.0);
 uniform float sway_speed = 1.2;
@@ -215,7 +215,8 @@ func _build_cell(key: Vector2i) -> void:
 	if tallest >= Occlusion.TALL_M and not tall:
 		tall = true
 		mmi.material_override = _material(true)
-		Occlusion.auto_fade(mmi, tallest)
+		if Occlusion.enabled:
+			Occlusion.auto_fade(mmi, tallest)
 
 static var _quad_mesh: PlaneMesh
 static func _quad() -> PlaneMesh:
@@ -226,29 +227,37 @@ static func _quad() -> PlaneMesh:
 	return _quad_mesh
 
 ## The card material: one for short cards (no fade body, no instance uniform) and one for tall ones
-## (the fade body, its per-instance shares coming from Occlusion's slots).
+## (the fade body, its per-instance shares coming from Occlusion's slots). `tall` is refused when
+## Occlusion is off (web/Compatibility, or --no-occlusion): Compatibility's shader-variable buffer
+## holds 1,024 items and reserves 16 per geometry instance with an instance uniform, so even a tall
+## card must then compile with zero instance uniforms (CardProp._place uses the same rule).
 func _material(tall: bool) -> ShaderMaterial:
-	var key := "tall" if tall else "short"
+	var fade := tall and Occlusion.enabled
+	var key := "tall" if fade else "short"
 	var cached := _mats.get(key, null) as ShaderMaterial
 	if cached != null:
 		return cached
 	var lines := PackedStringArray()
 	var skipping := false
 	for line in SHADER_SRC.split("\n"):
-		if line.contains("CARD_FADE_BEGIN"):
-			skipping = tall
+		if line.contains("CARD_FADE_INCLUDE"):
+			if not fade:
+				continue
+		elif line.contains("CARD_FADE_BEGIN"):
+			skipping = true
 			continue
-		if line.contains("CARD_FADE_END"):
+		elif line.contains("CARD_FADE_END"):
 			skipping = false
 			continue
-		if skipping:
+		elif skipping:
 			continue
 		lines.append(line)
 	var sh := Shader.new()
 	sh.code = "\n".join(lines)
 	var m := ShaderMaterial.new()
 	m.shader = sh
-	Occlusion._ensure_driver()
+	if fade:
+		Occlusion._ensure_driver()
 	m.set_shader_parameter("atlas", _atlas)
 	m.set_shader_parameter("tint", SCENERY_TINT)
 	m.set_shader_parameter("sway_speed", SWAY_SPEED)

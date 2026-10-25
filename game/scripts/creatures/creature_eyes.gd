@@ -6,19 +6,22 @@ extends Node3D
 ## model scale, so the dots scale with the animal). Spec: docs/design/durango-prompts/
 ## 27_2d_asset_sheets_glowing_eyes.md, "Glowing eyes".
 
-## Emission at full night. UNSHADED mode draws albedo only (emission is ignored there), so the dot
-## is per-pixel shaded with a black albedo: lights add nothing, and the emission colour keeps its
-## hue instead of clipping to white. A red eye needs this much energy to clear the 0.6 luminance
-## the readability gate asks for.
-const NIGHT_ENERGY := 3.2
+## HDR intensity at full night. Compatibility ignores StandardMaterial emission in unshaded mode,
+## so paint() drives both albedo and emission. Small anatomical dots need this stronger value to
+## remain legible at the gameplay camera without returning to oversized eye geometry.
+const NIGHT_ENERGY := 20.0
 ## ASSUMPTION: a faint glint by day (the owner asked for "especially in the dark"): the dot is
-## still there, and dark enough that the painted head reads through it. AgX compresses the low end,
-## so a linear 3 % of the night level still shows as a dim coloured dot on a sunlit skull.
-static var day_fraction := 0.03
+## still there, and dark enough that the painted head reads through it. AgX compresses the low end.
+static var day_fraction := 0.01
 ## Pushed this far (metres, in world space after the model scale) out of the painted eye so the dot
 ## never z-fights or sinks into the skull; the billboard quad is flat against the camera, so a dot
 ## left on the surface comes out a crescent.
-const PUSH_M := 0.03
+const SURFACE_PUSH_M := 0.005
+## ASSUMPTION: glow geometry is a highlight over the authored eye, not a replacement eyeball.
+## Cap its world radius by animal height and an absolute 2.5 cm ceiling across every species.
+const EYE_RADIUS_PER_HEIGHT := 0.006
+const MIN_WORLD_RADIUS_M := 0.006
+const MAX_WORLD_RADIUS_M := 0.025
 
 static var _materials: Dictionary = {} ## colour html -> shared StandardMaterial3D
 static var _applied_night := -1.0
@@ -42,24 +45,31 @@ func setup(view: CreatureView, eyes: Dictionary) -> bool:
 	var pts: Array = eyes.get("points", [])
 	if pts.size() < 2:
 		return false
-	radius_model = float(eyes.get("radius", 0.02))
+	var requested_radius := float(eyes.get("radius", 0.02))
 	var col := Color.WHITE
 	var raw: Variant = eyes.get("color", [1.0, 1.0, 1.0])
 	if raw is Array and (raw as Array).size() >= 3:
 		col = Color(float(raw[0]), float(raw[1]), float(raw[2]))
 	eye_material = material_for(col)
 	var scale := maxf(view.rig.mesh_root.scale.x, 0.0001) if view.rig.mesh_root else 1.0
+	var height_m := view.def.height_meters if view.def else 1.0
+	var max_world_radius := clampf(height_m * EYE_RADIUS_PER_HEIGHT, MIN_WORLD_RADIUS_M, MAX_WORLD_RADIUS_M)
+	radius_model = minf(requested_radius, max_world_radius / scale)
 	attachment = BoneAttachment3D.new()
 	attachment.name = "EyeSocket"
 	sk.add_child(attachment)
 	attachment.bone_name = bone
-	# Out along the head's side (the model's X axis, forward is Z), not along the line from the bone
-	# origin: on a big skull that line runs through the cheek and buried the dot.
+	# Out from the midpoint between the two authored eyes. Several transplanted head bones are rotated,
+	# so model X is not their lateral axis; pushing both along +X buried the far-side small species.
+	var eye_mid := (_vec(pts[0]) + _vec(pts[1])) * 0.5
 	for p in pts:
 		var v: Vector3 = _vec(p)
-		var out := Vector3(signf(v.x), 0.0, 0.0) if absf(v.x) > 0.0001 else Vector3.RIGHT
-		var at := v + out * (PUSH_M / scale)
+		var out := (v - eye_mid).normalized()
+		if out.length_squared() < 0.0001:
+			out = Vector3.RIGHT
+		var at := v + out * (SURFACE_PUSH_M / scale)
 		var mi := MeshInstance3D.new()
+		mi.set_meta(&"creature_eyeshine", true)
 		# A sphere, not a camera-facing quad: a quad half buried in the skull came out as a crescent
 		# from the side, and a ball reads as a dot from every angle.
 		var ball := SphereMesh.new()
@@ -90,9 +100,9 @@ static func material_for(col: Color) -> StandardMaterial3D:
 	if have != null:
 		return have
 	var m := StandardMaterial3D.new()
-	# Per-pixel with a black albedo: the material is its emission (unshaded would ignore it), and no
-	# light can brighten the dot back up.
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	# Unshaded HDR albedo keeps a tiny dot legible in the Compatibility renderer, where emission-only
+	# StandardMaterials rendered black. `paint` drives both albedo and emission from the night factor.
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_color = Color.BLACK
 	m.metallic = 0.0
 	m.roughness = 1.0
@@ -109,8 +119,10 @@ static func material_for(col: Color) -> StandardMaterial3D:
 
 ## Writes one species' colour at night factor n into its shared material.
 static func paint(m: StandardMaterial3D, col: Color, n: float) -> void:
+	var energy := NIGHT_ENERGY * lerpf(day_fraction, 1.0, clampf(n, 0.0, 1.0))
+	m.albedo_color = Color(col.r * energy, col.g * energy, col.b * energy, 1.0)
 	m.emission = col
-	m.emission_energy_multiplier = NIGHT_ENERGY * lerpf(day_fraction, 1.0, clampf(n, 0.0, 1.0))
+	m.emission_energy_multiplier = energy
 
 ## Writes the current night factor into every shared eye material (once per change).
 static func apply_night() -> void:

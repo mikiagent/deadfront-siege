@@ -31,9 +31,16 @@ var _roll_buffer_dir := Vector3.ZERO
 var _stagger_left: float = 0.0
 var _stagger_immune_until: float = -1.0
 var _wet_acc: float = 0.0
+var _swim_damage_acc: float = 0.0
 var _survival_acc: float = 0.0
-var _shoreline_logged: bool = false
 var _sleep_spot: Node3D
+## Seconds spent in the wake pose; a guard in tick() releases the player if the clip never ends.
+var _wake_elapsed: float = 0.0
+## A sleep spot the survivor is walking to; sleep starts when the route ends.
+var _sleep_pending: Node3D
+## Capsule-centre height above the ground the survivor had when they lay down (the sleep pose moves
+## the visual, not the body), reused so waking puts them back on their feet at the same height.
+var _stand_offset: float = 0.9
 var _autofeed_cd: float = 0.0
 
 func _init(player: Player) -> void:
@@ -59,16 +66,41 @@ func tick(delta: float) -> void:
 		# Before any branch returns, so mounted, rolling and staggered survivors see current statuses.
 		p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult()
 	p.in_water = WaterAccess.in_water(p.global_position)
+	p.swimming = p.in_water and WaterAccess.is_swimming(p.global_position)
+	_tick_swimming(delta)
+	if _sleep_pending != null:
+		# Walking to the bedding: finish on arrival even if the route stalls at the tent's edge, and
+		# drop the errand if the bedding vanished (its last use spent elsewhere) .
+		if not is_instance_valid(_sleep_pending) or int(_sleep_pending.get("sleeps_left")) == 0:
+			_sleep_pending = null
+			clear_nav()
+		else:
+			var anchor: Vector3 = _sleep_pending.sleep_anchor() if _sleep_pending.has_method("sleep_anchor") else _sleep_pending.global_position
+			if p.global_position.distance_to(anchor) <= SLEEP_REACH:
+				clear_nav()
+				var spot := _sleep_pending
+				_sleep_pending = null
+				start_sleep(spot)
+				return
 	if p._sleep_left > 0.0 and p.statuses != null and p.vitals != null:
 		_tick_sleep(delta)
 		return
 	if anim and anim._waking:
+		_wake_elapsed += delta
+		# The wake clip is ~1 s. If its finished signal never arrives (a clip that failed to load, a
+		# paused player), the survivor would hold still forever; release them instead. Give playback a
+		# few frames to start before treating "not playing" as a dead clip.
+		var ap: AnimationPlayer = anim.rig.anim_player if anim.rig else null
+		if _wake_elapsed > 3.0 or (_wake_elapsed > 0.25 and (ap == null or not ap.is_playing())):
+			anim.force_awake()
+			_wake_elapsed = 0.0
 		hold_still(delta)
 		return
+	_wake_elapsed = 0.0
 	if p.statuses == null or p.vitals == null:
 		p.move_and_slide()
 		return
-	if not p.is_on_floor() and p.mounted_on == null:
+	if not p.is_on_floor() and p.mounted_on == null and not p.swimming:
 		p.velocity += p.get_gravity() * delta
 	if _roll_left > 0.0:
 		_roll_left -= delta
@@ -121,9 +153,13 @@ func _walk(delta: float) -> void:
 		p.view.clear_ground_marker()
 		p.actions.cancel_work()
 	var dir := cam_dir(input)
-	var can_sprint := Input.is_action_pressed("sprint") and not p.statuses.has_flag(&"no_sprint")
-	running = can_sprint or (p.nav_active and not p.statuses.has_flag(&"no_sprint"))
-	# Stamina: sprint 9/s, tap-run 3/s; empty -> walk until it refills.
+	if p.sprint_toggled and (p.vitals.energy <= 0.0 or p.statuses.has_flag(&"no_sprint")):
+		p.sprint_toggled = false
+	var can_sprint := wants_sprint()
+	# A tap route uses the same mode as direct movement. Sprint off means walk; Sprint on or held
+	# means sprint. The old nav_active branch silently forced every screen click into a run.
+	running = can_sprint
+	# Stamina: sprint 9/s; empty -> walk until it refills.
 	p.vitals.in_combat = (p.hunt != null and p.hunt.target != null) or (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 5.0
 	if running and p.velocity.length_squared() > 0.5:
 		if not p.vitals.drain_energy(9.0 if can_sprint else 3.0, delta):
@@ -133,7 +169,7 @@ func _walk(delta: float) -> void:
 		running = false
 		can_sprint = false
 	var target_speed := p.sprint_speed if can_sprint else (p.run_speed if running else p.walk_speed)
-	target_speed *= p.statuses.move_mult()
+	target_speed *= p.statuses.move_mult() * WaterAccess.movement_speed_multiplier(p.global_position)
 	if p.nav_active:
 		dir = _nav_dir(delta, dir)
 	var horizontal := Vector3(p.velocity.x, 0.0, p.velocity.z)
@@ -162,11 +198,41 @@ func _walk(delta: float) -> void:
 	if p.anim:
 		p.anim._physics_tick(Vector2(p.velocity.x, p.velocity.z).length(), running)
 
+func wants_sprint() -> bool:
+	return (Input.is_action_pressed("sprint") or p.sprint_toggled) \
+		and not p.statuses.has_flag(&"no_sprint") and not p.in_water
+
+## Buoyancy, continuous swimming stamina, and the exhausted-swimming health consequence.
+## ASSUMPTION: swimming costs 6 Energy/s and drowning strain deals 5 Health once per second.
+func _tick_swimming(delta: float) -> void:
+	if not p.swimming or p.vitals == null:
+		_swim_damage_acc = 0.0
+		return
+	p.velocity.y = 0.0
+	var ground_y: float = World.runtime.surface_y(p.global_position.x, p.global_position.z) if World.runtime else -INF
+	var float_y := maxf(HarbourSite.WATER_Y + 0.08, ground_y + p.half_height() + 0.05)
+	p.global_position.y = move_toward(p.global_position.y, float_y, 4.0 * delta)
+	if p.vitals.drain_energy(6.0, delta):
+		_swim_damage_acc = 0.0
+		return
+	_swim_damage_acc += delta
+	while _swim_damage_acc >= 1.0:
+		_swim_damage_acc -= 1.0
+		p.vitals.take_damage(5.0)
+
 ## Steering while routed. Neither router promises a walkable answer: the tile graph returns a
 ## degenerate route when the goal tile is occupied (a bush and its collider sit on it), and
 ## NavigationAgent3D does the same when its map is not ready. Walk straight at the goal in both
 ## cases, and give up rather than freeze.
 func _nav_dir(delta: float, dir: Vector3) -> Vector3:
+	if p.swimming or WaterAccess.in_water(p._path_goal):
+		var water_remain := p._path_goal - p.global_position
+		water_remain.y = 0.0
+		if water_remain.length() <= _arrive_tolerance():
+			p.nav_active = false
+			p.actions.on_arrived()
+			return Vector3.ZERO
+		return water_remain.normalized()
 	var next_dir := Vector3.ZERO
 	var finished := false
 	if use_tile_path():
@@ -197,6 +263,10 @@ func _nav_dir(delta: float, dir: Vector3) -> Vector3:
 	if finished:
 		p.nav_active = false
 		p.actions.on_arrived()
+		if _sleep_pending != null:
+			var spot := _sleep_pending
+			_sleep_pending = null
+			start_sleep(spot)
 		return Vector3.ZERO
 	return next_dir if next_dir.length_squared() > 0.0 else dir
 
@@ -330,7 +400,9 @@ func nav_to(pos: Vector3) -> void:
 	_path_blocked_left = 0.0
 	_path_stuck = 0.0
 	_unreachable_said = false
-	if use_tile_path():
+	if WaterAccess.in_water(pos):
+		_path_points = PackedVector3Array()
+	elif use_tile_path():
 		_request_tile_path()
 	else:
 		p.agent.target_position = pos
@@ -466,7 +538,9 @@ func _tick_sleep(delta: float) -> void:
 	if input_vector().length_squared() > 0.04 or p.nav_active or p.vitals.in_combat or hurt or p.dead \
 			or not is_instance_valid(_sleep_spot) or p.global_position.distance_to(_sleep_spot.global_position) > 3.2:
 		p._sleep_left = 0.0
+		var left := _sleep_spot
 		_sleep_spot = null
+		_wake_at(left)
 		if p.anim:
 			p.anim.wake_from_sleep()
 		p.notice("Sleep interrupted")
@@ -478,6 +552,7 @@ func _tick_sleep(delta: float) -> void:
 	if p._sleep_left <= 0.0:
 		var spot := _sleep_spot
 		_sleep_spot = null
+		_wake_at(spot)
 		p.vitals.rest(spot.sleep_restore())
 		spot.complete_sleep()
 		if p.anim:
@@ -497,14 +572,31 @@ func nearest_sleep_spot() -> Node3D:
 			best_d = d
 	return best
 
+## How close the survivor must be to the bedding to lie down. The route ends at the tent's collision
+## edge, which is ~1.5 m from its centre (2.2 m footprint + capsule radius), so this is a little wider;
+## the step onto the anchor below is what actually places them on the bedding.
+const SLEEP_REACH := 2.2
+
 func start_sleep(spot: Node3D = null) -> void:
 	if spot == null:
 		spot = nearest_sleep_spot()
 	if spot == null or not is_instance_valid(spot) or not spot.is_in_group("sleep_spot") or int(spot.get("sleeps_left")) == 0:
 		return
-	if p.global_position.distance_to(spot.global_position) > 3.2:
-		p.notice("Move closer to sleep")
+	var anchor: Vector3 = spot.sleep_anchor() if spot.has_method("sleep_anchor") else spot.global_position
+	if p.global_position.distance_to(anchor) > SLEEP_REACH:
+		# Sleep from anywhere: walk to the bedding, then lie down (the route ending calls start_sleep).
+		_sleep_pending = spot
+		p.gather_target = null
+		nav_to(anchor)
+		p.notice("Walking to sleep")
 		return
+	_sleep_pending = null
+	# Lie IN the bedding: step onto its centre at the survivor's own standing height. The anchor is a
+	# GROUND point (a tent's origin is its ground centre), so copying it verbatim drops the capsule
+	# through the floor.
+	if p.global_position.distance_to(anchor) > 0.15:
+		_stand_offset = p.global_position.y - _surface_y(p.global_position)
+		p.global_position = Vector3(anchor.x, _surface_y(anchor) + _stand_offset, anchor.z)
 	if p.vitals.in_combat or (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 5.0 or p.dead:
 		p.notice("Can't sleep in combat")
 		return
@@ -519,9 +611,23 @@ func start_sleep(spot: Node3D = null) -> void:
 		p.anim.start_sleep()
 	p.notice("Sleeping - move to wake")
 
+func _surface_y(at: Vector3) -> float:
+	if World.runtime and World.runtime.has_method("surface_y"):
+		return float(World.runtime.surface_y(at.x, at.z))
+	return at.y
+
+## Stand up outside the bedding: the tent is too low to stand in, so waking steps the survivor out
+## onto the door side before the wake clip plays.
+func _wake_at(spot: Node3D) -> void:
+	if spot == null or not is_instance_valid(spot):
+		return
+	var at: Vector3 = spot.wake_anchor() if spot.has_method("wake_anchor") else spot.global_position
+	p.global_position = Vector3(at.x, _surface_y(at) + _stand_offset, at.z)
+
 func interrupt_sleep() -> void:
 	p._sleep_left = 0.0
 	_sleep_spot = null
+	_sleep_pending = null
 
 # ---------------------------------------------------------------- autofeed
 
@@ -571,18 +677,5 @@ func fall_guard() -> void:
 	print("[player] fell out of the world; re-seated at y=%.2f" % y)
 
 func shoreline_guard() -> void:
-	if World.runtime == null or not World.runtime.has_method("surface_y"):
-		return
-	if World.runtime.surface_y(p.global_position.x, p.global_position.z) >= -0.40:
-		return  # ankle-deep wading is fine (reference); deeper is blocked
-	var out := Vector2(p.global_position.x, p.global_position.z)
-	if out.length_squared() < 0.0001:
-		out = Vector2(0.0, 1.0)
-	var inward := -out.normalized()
-	p.global_position.x += inward.x * 0.55
-	p.global_position.z += inward.y * 0.55
-	p.velocity.x = 0.0
-	p.velocity.z = 0.0
-	if not _shoreline_logged and Game.debug_overlay:
-		_shoreline_logged = true
-		print("[world] shoreline blocked")
+	# Kept as a call-site-compatible hook: deep water is now traversable by swimming.
+	pass
