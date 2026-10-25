@@ -62,6 +62,10 @@ func _report() -> void:
 			"maxfatigue_expiry", "fatigue_vs_maxfatigue", "buff_coexist", "plain_food_keeps_buff",
 			"ability_check_moves", "bad_food_status", "taste_grade", "save_roundtrip"]:
 		line += " %s_ok=%d" % [k, int(_ok[k])]
+	# The gate's LAB_ASSERT also names four of these without the _ok suffix; print both spellings so the
+	# same measured value answers either name.
+	for k in ["interrupt_refunds", "double_eat_blocked", "plain_food_keeps_buff", "save_roundtrip"]:
+		line += " %s=%d" % [k, int(_ok[k])]
 	line += " ui_min_px=%d" % int(round(_ui_min_px))
 	print(line)
 	for n in _notes:
@@ -293,5 +297,14 @@ func _check_panel() -> void:
 	_notes.append("panel min tap px=%.0f fits=%s" % [_ui_min_px, str(panel.shown_fits)])
 	await _shot("food_inspect_panel")
 	panel.hide_panel()
+	# A second card, for a food in the other buff group, so the windowed gate gets its third frame.
+	await get_tree().process_frame
+	var tea := _give(&"tea")
+	if tea >= 0:
+		panel.show_stack(_player.inventory.slots[tea], tea, false)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		await _shot("food_card_tea")
+		panel.hide_panel()
 	layer.queue_free()
 	await get_tree().process_frame
