@@ -142,4 +142,16 @@ Could selling additional survivor slots, houses, worker capacity, livestock capa
 - The old document's island `sink` lifecycle is a **historical implementation/reference**, while current design wants **resetting resources**. Whether terrain layout disappears and recreates remains unresolved.
 - Distinguish **wildlife assault in PvE settlements**, **PvP raids of PvPvE settlements** and **non-raid exploration on shared islands**.
 - **Ransom** offers a recovery path for permanent-loss stakes but can become captive-farming unless both sides have incentives, caps and secure settlement.
- 
+
+## F. Cross-domain character attributes (owner direction, 2026-10-25)
+
+**Design intent newly raised:** Strength should have utility both in melee and force-intensive craftsmanship (smithing); Precision should have utility both in ranged combat and detail-intensive craftsmanship (tailoring). This belongs in the same individual **IV/EV, age/level, professions and worker assignment** architecture, not new completely isolated combat and crafting stat pools. Refer to [character attributes draft](02-characters-levels-and-age.md).
+
+**NEW owner questions:**
+
+- **Q27. Shared attribute EV training:** Does repeated smithing contribute a **small amount of Strength EV** usable in melee, and does shooting or fine crafting contribute a **small amount of Precision EV** usable across domains? Or are generic EVs earned only through dedicated exercises and upbringing? Cross-domain AFK exploit risk.
+- **Q28. Craft attribute impact:** Should generic stats mostly affect **work speed/energy**, **quality/defects**, **special trait control**, or a mix? How to ensure profession skill/material input remain dominant for premium outputs?
+- **Q29. Primary attribute roster:** Should the final set be Strength, Precision, Agility, Endurance, Insight, and an optional Care/Empathy value, or another narrower set? Generic Care could be learned profession expertise instead of innate aptitude.
+- **Q30. Worker and combat split:** Are cross-trained worksite workers capable of switching to fighting using their generic attributes but limited by separately trained combat technique, gear equip level and garrison orders? That would make an exceptional smith a potential defender without free expert warrior status.
+
+**Do not infer:** a confirmed six-attribute roster, EV transfer rate, named skills, profession quality formula or passive female/male stat bonuses. The owner established the **shared-attribute principle** with Strength/Precision examples; everything beyond that is a proposal.
