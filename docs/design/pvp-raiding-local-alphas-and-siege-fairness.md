@@ -16,7 +16,9 @@
 - **Transport boats may depart even during an active raid.** Once a boat has **actually departed on its voyage toward the protected home island**, the boat, crew, and cargo are **not attackable or interceptable**. Any remaining goods, workers and buildings at the remote base stay exposed.
 - **Boat and harbor level and their special traits limit how much cargo can be evacuated per voyage.** Creating a shipment order is not equivalent to loading/departure. The quantity and logistics throughput matter in a siege.
 
-**Unsettled:** precise matchmaking formula, zone boundaries, PvP windows/offline risk, attacker stake and defender loot, percentage of available resources that can be taken, structural destruction and reoccupation, mechanics for declaring a siege, allied attackers, frequency/cooldowns and scope of population deaths.
+**Confirmed additional owner direction (2026-10-25):** The world loop is **Skyblock-like protected island economy + Durango exploration/crafting + ARK dinosaur and lineage progression**. Owners may **buy larger private islands for a hefty in-game price**. PvP is **suggested as a late-game opt-in unlock** (precise gate still open), and must not become the best way to acquire wealth. Defenders should ideally deploy replaceable laborers, backups and expendable stock to frontier bases while keeping elite humans/dinosaurs/gear safe at home. No owner-selected PvP raid windows or siege appointments. **Candidate raid prizes:** materials recovered by disassembling exposed outpost structures, captured exposed adult humans, captured dinosaurs, unstored/unshipped resources, and equipped items/accessories. Exact capture/salvage/looting rules and power brackets remain OPEN.
+
+**Unsettled:** precise matchmaking formula, zone boundaries, offline raid consequences, attacker stake and rewards, percentage of exposed assets that can be taken, structural salvage/capture, allied attackers, raid frequency/cooldowns and scope of combat deaths. **Declaring a scheduled raid window was explicitly declined by owner.**
 
 ## 2. Local alphas: regional dominance, not global invincibility
 
@@ -52,7 +54,7 @@
 **B. Commit resources and disclose risk**
 - Attacker invests consumable **siege supplies** (explosives/ram/temporary field camp/transport equipment as appropriate for world tier), incurs preparation cost, and places its own humans, gear and dinosaurs at risk. A declared siege cannot be spammed for free.
 - Recommend a server-controlled **raid bond/stake** paid at the start, with a portion going to successful defenders. Exact amount/currency and whether attacker equipment is already sufficient at-risk stake are OPEN.
-- If the PvP system uses declaration/warning windows, the attacker cannot immediately start killing workers after a single hidden click.
+- **No mandatory declared raid windows/appointments.** An attacker may still require a costly siege permit, preparatory construction, vulnerable muster/deployment, clear siege objectives and telegraphed tactical advance to allow defense. Don't implement a time-of-day vulnerability choice after the owner declined it.
 
 **C. Tactical assault and live evacuation**
 - Attacker must get past outer defenses, traps, chokepoints, guard AI, mounted patrols and active players to reach **contested** stockpiles and possibly a domain capture objective. Defense is inherently advantaged because it has prepared ground and fixed infrastructure.
@@ -62,8 +64,8 @@
 - Ensure no bulk instant-loading exploit: goods require time, capacity and real reservations; a one-click "send all" operation cannot mark 100% of stock safe in a frame.
 
 **D. Resolution, rewards and recovery**
-- Attacker wins a **specific siege objective** such as taking a stockpile, holding an exposed control point, or demolishing a particular contested facility. Do not assume a victory automatically destroys the entire settlement or wipes every human.
-- Loot is constrained by **exposed contested goods**, region league and raid objective/limits. Never raid protected home assets or goods already shipped home.
+- Attacker wins a **specific siege objective** such as taking a stockpile, holding an exposed control point, **capturing an exposed adult human or dinosaur**, or dismantling particular **contested** facilities for recoverable materials. Do not assume a victory automatically destroys every structure or transfers every person. Capturing trained people/bred dinosaurs must be **rare, difficult, costly and limited** to prevent raiding from becoming the fastest bloodline-acquisition strategy; containment, escape/rescue, handling and loyalty are unresolved.
+- Loot may include **exposed contested goods not yet shipped home, equipped accessories/weapons, recovered materials from dismantled frontier buildings and captured exposed humans/dinosaurs**. Constrain the obtainable amount by actual raid objectives, siege time/capacity, defender power class and possible loot/capture limits. Never raid protected home assets or goods already shipped home. Owner-approved categories are *possible*, not a mandate for total stripping or guaranteed capturing.
 - Successful defense should offer meaningful **defender rewards**: recovered siege supplies, captured attack gear, reputation/prestige, settlement stability, and raid cooldown/protection, with reward quantities OPEN.
 - A raid has a definite end, retreat rules, and cooldowns, so players cannot be griefed by continuous siege chaining.
 - Allow expensive siege assaults to be **net losses to attackers** if they choose a well-defended target or attack badly.
@@ -92,15 +94,18 @@
 
 Do not tie matchmaking to nominal level alone or solely to a defender's stored loot. A highly optimized breeder / powerful settlement should feel strong in its intended league without having access to stomping brand-new settlements for free. Conversely, a deliberately lightly equipped elite may choose an honest lower-tier contest within the zone's hard cap; that player's knowledge/tactics can still outperform locals, but high wealth has much less direct effect and raid rewards scale to actual challenge.
 
-## 6. Offline raid options requiring a real product decision
+## 6. Persistent frontier risk WITHOUT player-declared raid windows
 
-**Option A, preferred for early PvP:** **Defender-declared raid vulnerability windows** with a notice period; actual PvP sieges can happen only during selected windows, at a minimum number per week. Outside windows the contested territory may still face ordinary non-siege PvE hazards, but no surprise complete PvP dismantling of a base while the owner sleeps. To avoid invulnerability abuse, players cannot freely cancel windows after an attacker legitimately commits.
+**CONFIRMED: The owner does not want selected vulnerability windows or mutually scheduled siege appointments.** Do not recommend such windows as the default or claim they remain undecided. Risk is a property of the **voluntary frontier PvPvE settlement**, not a calendar appointment. Players who refuse this risk can keep their critical people/creatures/materials on the private home island and progress via Skyblock-like expansion, production, trading, breeding and PvE.
 
-**Option B:** Persistent raiding, but an automated defense AI protects the camp when the owner is absent, with strict loot caps and no permanent destruction of their entire remote settlement offline. Hard to balance with permadeath and high genetic investment.
+**Proposed PvP gating:** Unlock the PvPvE frontier **late in progression** after demonstrable PvE siege defense, housing and harbor investment, and/or a significant personal/tribal level threshold. The owner suggested this but has not settled exact criteria or whether any endgame resources are exclusive to PvP. Joining PvP should remain a deliberate opt-in by placing a contested outpost; regular PvE should stay substantial.
 
-**Option C:** PvP domains always exposed but attacks require substantial in-game scouting, warning, and real-time siege progression (including when offline). This has stronger persistent-world fantasy but very high grief/retention risk.
+**Open offline policy (not raid windows):**
+- **Persistent threats with NPC garrison:** An attacked offline outpost defends itself via assigned guards, prepared traps, walls, mounted units, medical supplies and logistics AI. The live defender may also participate. Simulate honestly, without arbitrary attacker instant-win.
+- **Loss protection by outcome, not schedule:** Reduce excessive snowballing with limited recoverable stock, contestable siege objectives, attacker-paid siege permits/cooldowns, and recovery protection **after** an attack. The owner has not approved any exact cap.
+- **High-risk option:** True full offline permanent deaths/capture at optional PvPvE outposts might be allowed, but permanent genetic loss without chance to react can damage retention. Keep exact offline character capture/death and claim-destruction rules OPEN.
 
-**Decision needed:** The user has not yet selected a raid schedule or offline policy. **Do not silently select Option A as binding.** PvE raids may have separate telegraphed rules.
+**Anti-grief scheduling substitute:** Scarce/earned siege charges, substantial material/worker exposure, region-specific attack cost and cooldowns, plus defender loot/reputation on success. These restrict the *attacker's frequency and economics*, not the defender's login schedule. Avoid PvP as the dominant strategy.
 
 ## 7. Anti-punching-down guardrails and outcomes
 
@@ -125,17 +130,33 @@ Do not tie matchmaking to nominal level alone or solely to a defender's stored l
 4. Two invaders together cannot exceed the league's raid army budget by splitting across accounts/guilds or swapping gear midfight.
 5. Two vulnerable warehouses hold rare ore when siege begins. The defender starts evacuation; the boat's **boat+harbor level and traits** cap cargo. Raid pressure can capture goods not yet loaded/departed. A ship that leaves while the battle is ongoing cannot be attacked in transit.
 6. All remaining at-risk residents/dinosaurs can defend; casualties are persistent. The safe-home roster and all safe-home stock remain unchanged.
-7. A successful defense creates a meaningful reward/cooldown, and attackers cannot immediately repeat the same raid as a profitable grief tactic.
+7. A successful defense creates meaningful recovered supplies/prestige and a post-raid recovery/cooldown, while expensive attack permits/supplies cap farming frequency **without scheduled defender vulnerability windows**.
 8. Simulate solo vs solo, veteran vs beginner, multiple attackers vs a solo defender, optimized lineage vs average genetics, online vs offline with clear telemetry: attack success by class and power ratio, human/dino losses, defender retention, voluntary frontier adoption, resource profit/loss, and frequency of repeat targeting.
+
+## 9. Protecting the primary economy from raiding incentives
+
+**Owner priority:** Most expected wealth and long-term progression must come from **protected-home development, larger-island upgrades, production, gathering, crafting, food, research, teaching, selective breeding, and legitimate trade**. Frontier outposts carry replaceable capital, not a mandatory all-in wager. An optimized raider should not have a simple, reliable profit advantage over players who master PvE production.
+
+**Proposed balance levers:**
+1. **Expensive attacker-only siege permission/supplies and meaningful casualty risk**, with a finite number of raids per time period but **not** defender-selected raid hours.
+2. **Actual stock is the ceiling**: the attacked frontier outpost may contain modest replaceable assets. Never draw from protected-home vaults or steal a family's exceptional safe-home breeders.
+3. **Actual salvage, not full reimbursement**: dismantling an exposed base costs time/tool use and yields only salvageable material fractions. No endless recycled building farms.
+4. **Human/dinosaur capture is a long and risky extra objective**: elite specimens should usually be kept at home; prisoner handling and animal taming remain separate requirements. A successful raid should not automatically create a loyal high-stat workforce.
+5. **Supply exit matters**: the defender can launch level/trait-capacity-limited boats home even while under attack; the attackers can seize only goods not yet shipped.
+6. **Avoid market loopholes**: all characters have personal earned-level requirements for effective weapons/equipment, with strict equip gating vs comprehensive stat capping pending decision.
+7. **Skill and class checks** include whole attacking group/companions/gear/genes/siege, not simply a level-1 newly adopted descendant.
+8. **PvP is optional late-game** as an explored direction; substantial PvE and protected-island upgrade paths remain competitive.
+
+A well-defended outpost should be a poor target for an impatient attacker and an impressive local-alpha accomplishment for its owner. Compare **net raid return after casualties/costs** against equivalent production/trading hours in playtest simulations.
 
 ## 9. Priority decisions for the next owner discussion
 
 1. **Where does the power-class restriction live?** Would you rather bracket **territories themselves** (Stone/Flint/Metal frontier, with combat caps inside each) or match **each raid by involved tribes' true army power**, while any tribe may settle any region? A hybrid can use both.
-2. **When may PvP raiding happen?** Selected vulnerability windows / announced siege appointments, persistent attacks with strong NPC auto-defense, or a hybrid? Can rare bred humans/dinosaurs die during an offline raid?
-3. **What can winning attackers actually take?** Primarily **exposed stockpiles**, or also special building parts, a temporary tax, or even the contested territory claim? Should there be a maximum-per-raid loss cap?
+2. **PvP without windows (CONFIRMED):** Persistent exposure applies when a player voluntarily owns a PvPvE outpost. What degree of offline permanent death/capture and NPC garrison resilience should be allowed, and should expensive raid permits/cooldowns control frequency?
+3. **Raid loot categories (CONFIRMED):** Exposed resources not homebound, salvaged materials of demolished frontier buildings, equipped weapons/accessories, captured deployed humans and dinosaurs. Should there be quantitative raid/capture limits, allegiance/rescue mechanics, and permission to claim the outpost territory itself?
 4. **What does the failed attacker lose?** Consumable siege supplies only; combat casualties/gear; a stake transferred to defenders; or some combination?
 5. **How many people can raid?** One avatar plus three mixed Expedition slots per side, a larger declared siege force using home worker garrisons, or group/guild warfare? How are attackers with different tribe strengths pooled?
 6. **When does a boat become protected?** Current proposed precise boundary: after physical loading and confirmed departure, even if battle is ongoing; before that the dock/warehouse/loading workers are vulnerable. Are dock departure cooldowns/physical queue desirable, or should every ready boat be able to depart immediately?
 7. **What is a local alpha's reward?** Prestige, political influence, rare wanderer interest, better economic output, an optional bounty, or better chances to attract rival challenges? Avoid giving compounding raw combat damage that worsens regional monopolies.
 
-**Suggested workshop order:** Start with regional class approach, siege scheduling/offline deaths, and tangible raid loot limits. These define whether players can safely choose PvP, how quickly they can be wiped, and whether becoming a local alpha is enjoyable for everyone.
+**Suggested workshop order:** Start with optional late-PvP unlock criteria, region/force class limits, persistent/offline raid consequences, and bounded capture/salvage economics. **Do not reopen mandatory defender raid windows without an explicit change of mind.** These define whether players can safely choose PvP, how quickly they can be wiped, and whether becoming a local alpha is enjoyable for everyone.
