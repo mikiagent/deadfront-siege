@@ -43,7 +43,7 @@ A protected home storage island should accept materials gathered in every region
 
 **Proposed approach:** Regional frontier power bands plus eligibility based on **actual deployed personnel, gear, companion dinosaurs, inherited expressed traits, siege technology and allied contributions**, not solely on the current survivor's level. Siege supply costs, defender terrain advantages, readable warnings, and limited loot of **exposed contested goods** help avoid griefing. Avoid forcing an alpha to abandon a region for being strong: cap offensive power crossing into under-tier contests rather than flattening all local rewards. PvP requires an eventual authoritative server and meaningful anti-alt/coalition protection.
 
-**Open owner decisions:** regional cap vs party-matched rating vs hybrid; raid windows/offline PvP and permanent death; attack objectives and exposed loot limits; coalition and defender roster sizes. [Full workshop and prototype tests](pvp-raiding-local-alphas-and-siege-fairness.md).
+**Open owner decisions:** regional cap vs party-matched rating vs hybrid; **offline PvP and permanent death** (defender-chosen raid windows were explicitly rejected); attack objectives and exposed loot/captive limits; coalition and defender roster sizes. [Full workshop and prototype tests](pvp-raiding-local-alphas-and-siege-fairness.md).
 
 ## 3. Tribe roster, roles, population and durable identity
 
@@ -183,7 +183,7 @@ A protected home storage island should accept materials gathered in every region
 | D4 | Generalized Expedition slots, species/rider AI split, mounted combat | 1 composite slot; 2 identities; visibly distinct combat patterns |
 | D5 | Human and dinosaur genotype/phenotype records, pedigree and offspring simulation | Bounded improvements; signed inherited downsides; deterministic tests |
 | D6 | Resource-heavy breeding and childhood/training systems, playable successor transfer | High opportunity cost; all world and previous-human careers persist |
-| D7 | PvP domain leagues, local alphas, costly siege commitments and defended raids with server-authoritative multiplayer if pursued | Anti-punching-down rating based on whole deployed force, protected home, bounded exposed loot, raid windows/alerts TBD; see [siege spec](pvp-raiding-local-alphas-and-siege-fairness.md) |
+| D7 | PvP domain leagues, local alphas, costly siege commitments and defended raids with server-authoritative multiplayer if pursued | Anti-punching-down rating based on whole deployed force, protected home, bounded exposed loot; **no defender-set raid windows**; offline resilience/attacker cooldowns and alerts remain TBD; see [siege spec](pvp-raiding-local-alphas-and-siege-fairness.md) |
 
 The owner may reorder stages. No system should be marked shipped before targeted labs, UI tests, save migration and exact release verification.
 
