@@ -66,6 +66,21 @@ Related: [Weapons](../design/weapons.md), [Armor](06-inventory-equipment-and-sto
 
 **Optional aspirational prestige materials NOT currently available:** `ceratops_horn` and `predator_tooth`; a `muscle_fiber` material is **not** necessary just to say 'muscle': **predator_tendon** is already a credible extracted sinew/structural tension resource, while raw meat becomes pet food. If adding muscle later, give it a biologically coherent use such as processed glue/collagen, not implausible structural metal replacement. `raptor_talon` and `predator_tendon` are already real butcher items.
 
+## 2A. Work tools follow the same material eras, without becoming additional weapon classes
+
+The user also wants **tools** made from dinosaur materials and stone/wood. These are **civilian/work progression examples**, separate from the **18 defining combat weapons**. Do not multiply the six combat classes by every mining/skin-gathering variant.
+
+| Stage | Work tool | Exact proposed ingredient example | Status and why this matters |
+|---|---|---|---|
+| **Early** | **Stone Work Knife** (`stone_knife_work`) | `stone ×1 + branch ×1 + twine ×1` | **Existing item + hand recipe** (generic `blade_mat, handle, lashing`); harvest plants and process hides |
+| **Early** | **Stone Pick** (`work_pick`) | `stone ×1 + branch ×1 + twine ×1` | **Existing item + workbench recipe**; enables progression to stone/clay and ultimately ore nodes |
+| **Mid** | **Raptor Talon Skinning/Combat Knife** (`barbed_knife`) | `raptor_talon ×1 + branch ×1 + hide_strap ×1` | **Existing item + workbench recipe**. Has `tool_class: knife` and bleed-capable weapon stats; verify its actual harvest-tool ability in gameplay before advertising as improved skinning yield |
+| **First copper** | **Copper Quarry Pick** (`copper_pick` **[ADD]**) | `copper_ingot ×2 + dense_bone ×1 + branch ×1 + hide_strap ×2` | **New tool/recipe after Smelter**. Copper pick is durable vs stone, but should not simply be the best iron-mining tool; tune tier and ore hardness instead of an implausible copper-beats-all progression |
+| **Late** | **Iron Quarry Pick** (`iron_quarry_pick` **[ADD]**) | `iron_ingot ×3 + armor_scute ×1 + branch ×2 + hide_strap ×2` | **New item/recipe after iron forge**; enables effective hard-rock and higher-level frontier mining |
+| **Late** | **Iron Lumber Axe** (`iron_lumber_axe` **[ADD]**) | `iron_ingot ×2 + dense_bone ×1 + branch ×2 + hide_strap ×2` | **New item/recipe**. Longer durability and higher resource throughput while retaining the living wood/hide/bone supply chain |
+
+**New tool backlog WPN-20:** Add `copper_pick`, `iron_quarry_pick` and `iron_lumber_axe` definitions/recipes, actual gathered-node hardness/tool-tier progression, and repair/durability costs; test whether existing `barbed_knife` is a valid harvesting knife before making economic yield promises. These are **additional work tools**, not new attack-class letters. Ensure early `work_pick` can legally gather enough copper ore to bootstrap copper refining; iron requires higher ore-tier access. If resource hardness rules are added, never deadlock an era by demanding an iron tool before any iron can be obtained.
+
 ## 3. Verified ingredient sources and provenance
 
 | Actual item ids | Existing declared source | Expected access |
