@@ -221,6 +221,10 @@ Newest instruction supersedes older contradictions.
 - Do not let first-run/tutorial presentation look like a crash.
 - Maintain a testing/showcase route for models, animations and assets.
 
+### 2026-10-25 design direction (not built, questions open)
+
+See [`docs/design/2026-10-25-systems-vision-and-open-decisions.md`](docs/design/2026-10-25-systems-vision-and-open-decisions.md). Milan requested a planning pass, not a code change: continuous sleep relief, ground sitting, numeric hover/tap effect details, consequential mostly-negative gathered traits with rare positives affecting food and crafting, bulk inventory actions, one crafting-to-blueprint-to-worksite construction flow, statted assignable human workers, a separate human Tribe with inherited playable generations/new-game-plus, and a mixed three-slot expedition party for people, dinosaurs and mounted riders. The document distinguishes confirmed direction from unresolved balance/slot/lineage decisions. Do not call these systems shipped or replace older save/placement behavior without migration and targeted regression coverage. The priority queue below is older execution guidance, not approval to skip these product decisions.
+
 ## 9. Product direction and open queue
 
 Execute in this priority order unless Milan overrides it.
