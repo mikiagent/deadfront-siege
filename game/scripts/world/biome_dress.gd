@@ -25,6 +25,11 @@ const SPOT_TRIES := 14
 const MEMBER_TRIES := 4
 ## Water margin inspected for "edge" and "coast" kinds (tiles either side).
 const MARGIN_TILES := 3
+## The lowest ground a land card may stand on (below it is the beach lip / water).
+const MIN_GROUND_Y := 0.2
+## A zone keeps at most this many tile indices for spot picking (reservoir sample): bounded memory on a
+## big island, still a uniform sample of the zone's land.
+const TILE_SAMPLE_MAX := 2048
 ## Per-instance tint brightness band, so no card is a black or white stamp.
 const TINT_MIN := 0.9
 const TINT_MAX := 1.1
@@ -96,6 +101,16 @@ static func kind_data(id: String) -> Dictionary:
 			return row
 	return {}
 
+## Every sprite id the data file configures, whether or not any zone resolves it (the test walks
+## this so a typo in an unused row cannot hide).
+static func all_sprite_ids() -> Array[String]:
+	var out: Array[String] = []
+	for id in (data().get("kinds", {}) as Dictionary).keys():
+		for ref in kind_data(str(id)).get("sprites", []):
+			if not out.has(str(ref)):
+				out.append(str(ref))
+	return out
+
 ## The manifest rows a kind draws from; unknown or missing files are skipped, never fatal.
 static func sprites_of(id: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
@@ -150,7 +165,10 @@ static func plan(rt: IslandRuntime, seed_value: int) -> Array[Dictionary]:
 		return out
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
-	# Land tiles per zone (water tiles excluded: they only feed the water/edge filters).
+	# Land tiles per zone, as {count, sample}: `count` is the real tile count (density is per tile of
+	# the zone), `sample` is a bounded reservoir of indices, so a big island costs O(zones * SAMPLE_CAP)
+	# memory instead of one int per land tile, and appends stay amortised O(1) on an Array (the old
+	# PackedInt32Array append-then-reassign copied the whole buffer every tile).
 	var by_zone: Dictionary = {}
 	for i in zones_arr.size():
 		var t := int(rt.tile_types[i])
@@ -158,69 +176,109 @@ static func plan(rt: IslandRuntime, seed_value: int) -> Array[Dictionary]:
 			continue
 		var z := int(zones_arr[i])
 		if not by_zone.has(z):
-			by_zone[z] = PackedInt32Array()
-		var arr: PackedInt32Array = by_zone[z]
-		arr.append(i)
-		by_zone[z] = arr
+			by_zone[z] = {"count": 0, "sample": []}
+		var row: Dictionary = by_zone[z]
+		var seen := int(row["count"])
+		row["count"] = seen + 1
+		var sample: Array = row["sample"]
+		if sample.size() < TILE_SAMPLE_MAX:
+			sample.append(i)
+		else:
+			# Reservoir sampling: a uniform, deterministic (rng is seeded) sample of the zone's tiles.
+			var j := rng.randi_range(0, seen)
+			if j < TILE_SAMPLE_MAX:
+				sample[j] = i
 	var span := rt._tile_span
 	var half := rt._size * 0.5
 	var zone_count := BiomeZones.zone_count()
 	for z in range(zone_count):
 		if not by_zone.has(z):
 			continue
-		var tiles: PackedInt32Array = by_zone[z]
-		if tiles.size() < min_zone_tiles():
+		var row: Dictionary = by_zone[z]
+		if int(row["count"]) < min_zone_tiles():
 			continue
+		var tiles: Array = row["sample"]
 		var zone := BiomeZones.zone_name(z)
 		for id in zone_kinds(zone):
-			var rows := sprites_of(id)
-			var want := maxi(2, int(round(density_of(zone, id) * float(tiles.size()))))
-			var made := 0
-			for _spot in want:
-				if made >= want:
-					break
-				var centre := Vector3.INF
-				for _try in SPOT_TRIES:
-					var idx := tiles[rng.randi_range(0, tiles.size() - 1)]
-					var tx := idx % span
-					var tz := idx / span
-					var wx := -half + float(tx) + 0.5 + rng.randf_range(-0.45, 0.45)
-					var wz := -half + float(tz) + 0.5 + rng.randf_range(-0.45, 0.45)
-					var p := spot_ok(rt, zone, id, wx, wz)
-					if p != Vector3.INF:
-						centre = p
-						break
-				if centre == Vector3.INF:
-					continue
-				var counts: Variant = kind_data(id).get("clump", [1, 2])
-				var lo := 1
-				var hi := 2
-				if counts is Array and (counts as Array).size() >= 2:
-					lo = maxi(1, int((counts as Array)[0]))
-					hi = maxi(lo, int((counts as Array)[1]))
-				var members := rng.randi_range(lo, hi)
-				var spread := float(kind_data(id).get("spread", 1.0))
-				for m in members:
-					if made >= want:
-						break
-					var p := centre
-					if m > 0:
-						p = Vector3.INF
-						for _mtry in MEMBER_TRIES:
-							var ox := rng.randf_range(-spread, spread)
-							var oz := rng.randf_range(-spread, spread)
-							var q := spot_ok(rt, zone, id, centre.x + ox, centre.z + oz)
-							if q != Vector3.INF:
-								p = q
-								break
-						if p == Vector3.INF:
-							continue
-					var item := _instance_of(id, zone, rows[rng.randi_range(0, rows.size() - 1)], p, rng)
-					if item.is_empty():
-						continue
-					out.append(item)
-					made += 1
+			var want := maxi(2, int(round(density_of(zone, id) * float(row["count"]))))
+			_plan_kind(rt, zone, id, want, float(row["count"]), tiles, span, half, rng, out)
 	return out
+
+## The same placement loop plan() uses, exposed so a test can force a signature kind with a known
+## count on a real island (a deterministic fixture) instead of hoping a density rolls it.
+static func plan_kind(rt: IslandRuntime, zone: String, id: String, want: int, seed_value: int) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var zones_arr := BiomeZones.biome_types(rt)
+	if rt == null or zones_arr.is_empty():
+		return out
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var tiles: Array = []
+	var span := rt._tile_span
+	var half := rt._size * 0.5
+	for i in mini(zones_arr.size(), rt.tile_types.size()):
+		if BiomeZones.zone_name(int(zones_arr[i])) == zone and tile_land(rt, i):
+			tiles.append(i)
+			if tiles.size() >= TILE_SAMPLE_MAX:
+				break
+	if tiles.is_empty():
+		return out
+	_plan_kind(rt, zone, id, maxi(1, want), float(tiles.size()), tiles, span, half, rng, out)
+	return out
+
+static func tile_land(rt: IslandRuntime, idx: int) -> bool:
+	var t := int(rt.tile_types[idx])
+	return t != IslandTerrain.TileType.DEEP and t != IslandTerrain.TileType.SHALLOW
+
+static func _plan_kind(rt: IslandRuntime, zone: String, id: String, want: int, _zone_tiles: float, tiles: Array, span: int, half: float, rng: RandomNumberGenerator, out: Array[Dictionary]) -> void:
+	var rows := sprites_of(id)
+	if rows.is_empty() or tiles.is_empty():
+		return
+	var made := 0
+	for _spot in want:
+		if made >= want:
+			break
+		var centre := Vector3.INF
+		for _try in SPOT_TRIES:
+			var idx := int(tiles[rng.randi_range(0, tiles.size() - 1)])
+			var tx := idx % span
+			var tz := idx / span
+			var wx := -half + float(tx) + 0.5 + rng.randf_range(-0.45, 0.45)
+			var wz := -half + float(tz) + 0.5 + rng.randf_range(-0.45, 0.45)
+			var p := spot_ok(rt, zone, id, wx, wz)
+			if p != Vector3.INF:
+				centre = p
+				break
+		if centre == Vector3.INF:
+			continue
+		var counts: Variant = kind_data(id).get("clump", [1, 2])
+		var lo := 1
+		var hi := 2
+		if counts is Array and (counts as Array).size() >= 2:
+			lo = maxi(1, int((counts as Array)[0]))
+			hi = maxi(lo, int((counts as Array)[1]))
+		var members := rng.randi_range(lo, hi)
+		var spread := float(kind_data(id).get("spread", 1.0))
+		for m in members:
+			if made >= want:
+				break
+			var p := centre
+			if m > 0:
+				p = Vector3.INF
+				for _mtry in MEMBER_TRIES:
+					var ox := rng.randf_range(-spread, spread)
+					var oz := rng.randf_range(-spread, spread)
+					var q := spot_ok(rt, zone, id, centre.x + ox, centre.z + oz)
+					if q != Vector3.INF:
+						p = q
+						break
+				if p == Vector3.INF:
+					continue
+			var item := _instance_of(id, zone, rows[rng.randi_range(0, rows.size() - 1)], p, rng)
+			if item.is_empty():
+				continue
+			out.append(item)
+			made += 1
 
 ## Whether `id` (of `zone`) may stand at (x, z), and the ground point if so.
 static func spot_ok(rt: IslandRuntime, zone: String, id: String, x: float, z: float) -> Vector3:
@@ -259,7 +317,7 @@ static func spot_ok(rt: IslandRuntime, zone: String, id: String, x: float, z: fl
 	if IslandTerrain.slope_deg(rt, x, z) > 30.0:
 		return Vector3.INF
 	var y := rt.surface_y(x, z)
-	if y < 0.2:
+	if y < MIN_GROUND_Y:
 		return Vector3.INF
 	return Vector3(x, y, z)
 
@@ -346,10 +404,19 @@ static func install(rt: IslandRuntime, seed_value: int = 0) -> BiomeDress:
 	bd._rt = rt
 	bd._seed = seed_value
 	rt.add_child(bd)
+	# CLAIMS2 emits claims_changed once per new claim batch: the dressing inside it goes at once, as
+	# the owner's rule is bare claimed land (GROUND2D's cover listens the same way).
+	if rt.has_signal("claims_changed"):
+		rt.connect("claims_changed", bd._on_claims_changed)
 	bd.build(rt, seed_value)
 	return bd
 
 func build(rt: IslandRuntime, seed_value: int) -> void:
+	_rt = rt
+	_seed = seed_value
+	# A second build on the same node must replace the first field, never stack a second set of cells
+	# on top of it (the old cells, keys, tiles and instance records all go).
+	_clear_cells()
 	var items := plan(rt, seed_value)
 	_points = PackedVector3Array()
 	_kinds.clear()
@@ -490,6 +557,90 @@ static func _quad() -> PlaneMesh:
 		_quad_mesh.orientation = PlaneMesh.FACE_Z
 		_quad_mesh.size = Vector2.ONE
 	return _quad_mesh
+
+## Drops every drawn cell and every placement record (a rebuild or a fresh build starts clean).
+func _clear_cells() -> void:
+	for key: Vector2i in _keys:
+		var mmi := _cells.get(key) as MultiMeshInstance3D
+		if mmi != null and is_instance_valid(mmi):
+			mmi.queue_free()
+	_cells.clear()
+	_tiles.clear()
+	_keys.clear()
+	_points = PackedVector3Array()
+	_rec_kinds = PackedStringArray()
+	_rec_sprites = PackedStringArray()
+	_kinds.clear()
+	_zones.clear()
+	_missing = 0
+
+# ---------------------------------------------------------------- claims
+
+## A claim batch landed (CLAIMS2's IslandRuntime.claims_changed): collapse the cards standing on the
+## new claimed tiles, then drop those records so claimed_instances() stays 0 too.
+func _on_claims_changed(rect: Rect2i) -> void:
+	clear_rect(rect)
+
+## Clears every card on a claimed tile inside `rect` (tile coordinates). Returns how many went.
+## Public so a test can claim a plot on a built island and see the dressing leave it.
+func clear_rect(rect: Rect2i) -> int:
+	if _rt == null or not is_instance_valid(_rt):
+		return 0
+	var gone := 0
+	var keep_p := PackedVector3Array()
+	var keep_k := PackedStringArray()
+	var keep_s := PackedStringArray()
+	for i in mini(_points.size(), _rec_kinds.size()):
+		var p := _points[i]
+		var tile := BuildGrid.tile_of(p)
+		if rect.has_point(tile) and IslandClaims.is_claimed(_rt, tile):
+			gone += 1
+			_clear_slot(tile, p)
+			continue
+		keep_p.append(p)
+		keep_k.append(_rec_kinds[i])
+		keep_s.append(_rec_sprites[i])
+	if gone > 0:
+		_points = keep_p
+		_rec_kinds = keep_k
+		_rec_sprites = keep_s
+	return gone
+
+## Collapses the instance(s) of `p` in its cell MultiMesh. The cell keeps its slot count (thinned
+## instances are a visible count, not a rebuild), so the card is scaled to nothing instead.
+func _clear_slot(tile: Vector2i, p: Vector3) -> void:
+	var key := Vector2i(floori(p.x / CELL_M), floori(p.z / CELL_M))
+	var mmi := _cells.get(key) as MultiMeshInstance3D
+	if mmi == null or not is_instance_valid(mmi):
+		return
+	var list: Array = _tiles.get(key, [])
+	var n := mini(list.size(), mmi.multimesh.instance_count)
+	var changed := false
+	for i in n:
+		if list[i] != tile:
+			continue
+		mmi.multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 0.001), Vector3.ZERO))
+		changed = true
+	if changed:
+		mmi.multimesh = mmi.multimesh
+
+## Rebuilds the dressing from the same island and seed (a fresh plan already skips claimed tiles).
+func rebuild() -> void:
+	if _rt == null or not is_instance_valid(_rt):
+		return
+	build(_rt, _seed)
+
+## Cells the node currently draws (a second build must not double this).
+func cell_count() -> int:
+	return _keys.size()
+
+## MultiMeshInstance3D children actually under the node (catches duplicates a rebuild left behind).
+func drawn_nodes() -> int:
+	var n := 0
+	for c in get_children():
+		if c is MultiMeshInstance3D:
+			n += 1
+	return n
 
 # ---------------------------------------------------------------- queries (tests, the lab)
 

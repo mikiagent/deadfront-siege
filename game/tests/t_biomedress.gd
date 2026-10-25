@@ -68,6 +68,7 @@ func _run() -> void:
 	_rt = _world.runtime
 	await _plan_checks()
 	await _node_checks()
+	await _signature_checks()
 	await _climate_checks()
 	_done = true
 	if _fails.is_empty():
@@ -165,6 +166,37 @@ func _plan_checks() -> void:
 	for it in a:
 		kinds[str(it["kind"])] = true
 	_expect(kinds.size() >= 6, "the home island dresses with several kinds (%d)" % kinds.size())
+
+## The concept art's signatures must be *proved*, not hoped for: plan_kind() forces a signature kind
+## at a known count with a fixed seed, so a tiny island that would not roll the rarer kind still has
+## to place it inside its own zone. Deterministic fixtures, one island per climate.
+func _signature_checks() -> void:
+	var cases := [
+		[&"savannah_15", "savanna", "termite_mound"],
+		[&"volcanic_60", "basalt", "obsidian_crystal"],
+		[&"swamp_55", "wetland", "reed_bed"],
+	]
+	for c in cases:
+		_world.load_island(_host, c[0], Vector3(0, 1, 18), false)
+		await process_frame
+		await process_frame
+		var rt: Node3D = _world.runtime
+		var got: Array[Dictionary] = BD.plan_kind(rt, str(c[1]), str(c[2]), 12, 4242)
+		_expect(got.size() >= 4, "%s places %s on demand (%d cards)" % [str(c[0]), str(c[2]), got.size()])
+		var outside := 0
+		var claimed := 0
+		for it in got:
+			var p: Vector3 = it["pos"]
+			if str(BZ.zone_name(BZ.biome_at(rt, p.x, p.z))) != str(c[1]):
+				outside += 1
+			if IC.is_claimed(rt, BG.tile_of(p)):
+				claimed += 1
+		_expect(outside == 0, "%s keeps %s inside %s (%d outside)" % [str(c[0]), str(c[2]), str(c[1]), outside])
+		_expect(claimed == 0, "%s keeps %s off claimed land (%d)" % [str(c[0]), str(c[2]), claimed])
+		# Same seed, same fixture: the forced scatter is deterministic too.
+		var again: Array[Dictionary] = BD.plan_kind(rt, str(c[1]), str(c[2]), 12, 4242)
+		_expect(again.size() == got.size(), "%s repeats %s for the same seed (%d vs %d)" % [str(c[0]), str(c[2]), got.size(), again.size()])
+	_rt = null
 
 # ---------------------------------------------------------------- 3. the built node
 
