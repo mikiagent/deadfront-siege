@@ -4,6 +4,8 @@
 **Read with:** [Protected home and cargo rules](safe-home-expeditions-offspring-and-identity.md), [Tribe, Lineage, Domain and Labor](tribe-lineage-domain-and-labor.md), [World Design](world-design.md), and [Orchestration Plan](../orchestration/plan.md).
 **Authoritative multiplayer requirement:** PvP attack eligibility, siege scheduling, item ownership, manifest transfers, casualty outcomes and loot must eventually be enforced by an authoritative server. The current Godot solo-first client cannot make fair or secure PvP guarantees.
 
+**2026-10-25 owner clarification, superseding any broad island-raid wording:** **Islands are not raided as landmasses.** Only *built PvPvE settlements* can be raided by players. **PvE settlements** can be attacked by dinosaurs/animals, not by players. Unstable islands periodically reset resources and automatically dismantle any base placed there into the special Ender Chest-style material recovery box. **Captive ransom is now confirmed:** seized humans/dinosaurs enter prisoner status with a ransom deadline; paying on time returns them, but nonpayment lets the attacker acquire/claim them. It is **not yet decided** how long the defender has, how ransom is priced, whether the attacker manually claims, or when the prisoner becomes an effective loyal worker/mount. See [canonical world chapter](../game-design/04-world-biomes-and-travel.md) and [ransom design](../game-design/16-pvp-frontier-siege-and-captives.md).
+
 ## 1. Design intent and confirmed boundaries
 
 **CONFIRMED FROM OWNER:**
