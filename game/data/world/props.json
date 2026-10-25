@@ -104,6 +104,8 @@
   "kinds": {
     "pebbles": {
       "_about": "scattered stones: walk-through detail",
+      "sprite_kind": "prop:rock_chip",
+      "sway": "rock",
       "models": [
         "Rock_5",
         "Rock_6",
@@ -129,6 +131,9 @@
       "radius_m": 0.2
     },
     "boulder": {
+      "_about": null,
+      "sprite_kind": "prop:boulder",
+      "sway": "rock",
       "models": [
         "Rock_1",
         "Rock_2",
@@ -156,6 +161,8 @@
     },
     "cliff_rock": {
       "_about": "rock breaking out of a cliff face; ISLANDGEN's CLIFF tiles when they exist, steep rock/ash today. Big enough that it stays: 'really big cliffs'",
+      "sprite_kind": "prop:cliff_block",
+      "sway": "rock",
       "models": [
         "res://assets/nature/biome/cliff_chunk_red.glb",
         "res://assets/nature/biome/rock_spire_a.glb",
@@ -183,12 +190,15 @@
       ]
     },
     "rock_spire": {
+      "_about": null,
+      "sprite_kind": "prop:pillar",
+      "sway": "rock",
       "models": [
         "res://assets/nature/biome/rock_spire_a.glb",
         "res://assets/nature/biome/rock_spire_b.glb"
       ],
       "collide": true,
-      "destroyable": true,
+      "destroyable": false,
       "radius_m": 1.4,
       "density_per_ha": 1.0,
       "biomes": {
@@ -208,6 +218,8 @@
     },
     "mesa_cliff": {
       "_about": "the big sandstone/basalt formation: indestructible",
+      "sprite_kind": "prop:cliff_big",
+      "sway": "rock",
       "models": [
         "res://assets/nature/biome/mesa_sandstone.glb",
         "res://assets/nature/biome/mesa_basalt.glb",
@@ -233,6 +245,9 @@
       ]
     },
     "basalt_column": {
+      "_about": null,
+      "sprite_kind": "prop:pillar",
+      "sway": "rock",
       "models": [
         "res://assets/nature/biome/basalt_columns.glb",
         "res://assets/nature/biome/basalt_columns.glb"
@@ -257,6 +272,9 @@
       ]
     },
     "termite_mound": {
+      "_about": null,
+      "sprite_kind": "prop:moss_rock",
+      "sway": "rock",
       "models": [
         "res://assets/nature/biome/termite_mound_a.glb",
         "res://assets/nature/biome/termite_mound_b.glb"
@@ -281,6 +299,9 @@
       ]
     },
     "fallen_log": {
+      "_about": null,
+      "sprite_kind": "prop:fallen_trunk",
+      "sway": "plant",
       "models": [
         "WoodLog_Moss",
         "WoodLog",
@@ -307,6 +328,11 @@
       ]
     },
     "tree_stump": {
+      "_about": null,
+      "sprites": [
+        "palms_18_broken_palm_stump"
+      ],
+      "sway": "plant",
       "models": [
         "TreeStump_Moss",
         "TreeStump"
@@ -331,6 +357,9 @@
       ]
     },
     "driftwood": {
+      "_about": null,
+      "sprite_kind": "prop:driftwood",
+      "sway": "plant",
       "models": [
         "WoodLog",
         "res://assets/nature/biome/fallen_log_dry.glb"
@@ -355,6 +384,9 @@
       "radius_m": 0.25
     },
     "fern": {
+      "_about": null,
+      "sprite_kind": "prop:fern",
+      "sway": "plant",
       "models": [
         "res://assets/nature/biome/fern_clump_a.glb",
         "res://assets/nature/biome/fern_clump_b.glb",
@@ -381,6 +413,12 @@
       "radius_m": 0.3
     },
     "reeds": {
+      "_about": null,
+      "sprites": [
+        "tall-grasses_24_reed_bed_pond",
+        "tall-grasses_15_straw_clump"
+      ],
+      "sway": "grass",
       "models": [
         "res://assets/nature/biome/reed_clump_a.glb",
         "res://assets/nature/biome/reed_clump_b.glb",
@@ -412,6 +450,9 @@
       "radius_m": 0.35
     },
     "plume_grass": {
+      "_about": null,
+      "sprite_kind": "WildGrass",
+      "sway": "grass",
       "models": [
         "res://assets/nature/biome/plume_grass.glb",
         "Grass_2",
@@ -437,6 +478,11 @@
       "radius_m": 0.3
     },
     "lily_pad": {
+      "_about": null,
+      "sprites": [
+        "jungle-plants_24_white_lily_plant"
+      ],
+      "sway": "grass",
       "models": [
         "Lilypad"
       ],
@@ -464,6 +510,11 @@
       "radius_m": 0.4
     },
     "aloe": {
+      "_about": null,
+      "sprites": [
+        "jungle-plants_20_aloe_rosette"
+      ],
+      "sway": "plant",
       "models": [
         "res://assets/nature/biome/aloe_flower.glb",
         "res://assets/nature/biome/aloe_flower.glb",
@@ -489,6 +540,9 @@
       "radius_m": 0.3
     },
     "mossy_stone": {
+      "_about": null,
+      "sprite_kind": "prop:moss_rock",
+      "sway": "rock",
       "models": [
         "Rock_Moss_1",
         "Rock_Moss_2",
@@ -516,6 +570,8 @@
     },
     "stone_arch": {
       "_about": "painted card (owner 2026-10-21: props switch to 2D cards, sprites2d.json kind prop:*). No GLB yet: skipped until the card exists.",
+      "sprite_kind": "prop:arch",
+      "sway": "rock",
       "card": "prop:stone_arch",
       "models": [],
       "size_m": [
@@ -539,6 +595,8 @@
     },
     "pillar": {
       "_about": "painted card (prop:pillar); weathered stone pillar on canyon and volcanic ground",
+      "sprite_kind": "prop:pillar",
+      "sway": "rock",
       "card": "prop:pillar",
       "models": [],
       "size_m": [
@@ -547,7 +605,7 @@
       ],
       "radius_m": 1.0,
       "collide": true,
-      "destroyable": true,
+      "destroyable": false,
       "density_per_ha": 0.8,
       "biomes": {
         "meadow": 0.05,
@@ -562,6 +620,8 @@
     },
     "waterfall": {
       "_about": "painted card (prop:waterfall) at a cliff face or the river's hill end; scenery only, the water itself is the terrain shader",
+      "sprite_kind": "prop:waterfall",
+      "sway": "rock",
       "card": "prop:waterfall",
       "models": [],
       "size_m": [
@@ -586,6 +646,8 @@
     },
     "vines": {
       "_about": "painted card (prop:vines) hanging on cliff faces and big trunks",
+      "sprite_kind": "prop:vine_hanging",
+      "sway": "plant",
       "card": "prop:vines",
       "models": [],
       "size_m": [
@@ -610,6 +672,8 @@
     },
     "shells": {
       "_about": "painted card (prop:shells) on the beach",
+      "sprite_kind": "prop:shells",
+      "sway": "rock",
       "card": "prop:shells",
       "models": [],
       "size_m": [
@@ -631,5 +695,6 @@
         "rocky": 0.0
       }
     }
-  }
+  },
+  "_kinds_about": "PROPS2D: the painted 2D card this non-resource prop draws as (specs 27/28 sheets cut by SPRITES2D). sprite_kind picks every data/world/sprites2d.json row whose kind is that value; sprites names rows by id when no prop:* kind fits. The card's size and pivot come from the row; `collide` and `destroyable` stay this kind's contract (see island_props.gd), except that a prop 4 m or taller is never destroyable (owner: big cliffs)."
 }
