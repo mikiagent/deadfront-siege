@@ -34,37 +34,111 @@ Related: [Weapons](../design/weapons.md), [Armor](06-inventory-equipment-and-sto
 
 **Early acquisition loop, specifically grounded:** Grassland home sources yield branches, stones and fibers. **Home Compys** yield `bone, raw_hide, predator_tendon`; **home Zebraceratops** yield `raptor_bone, raw_hide, dense_bone, armor_scute`. `twine` (`fibre ×2`) and `hide_strap` (`uncut_hide ×1`, workbench) already have processing recipes. A player can obtain **ingredients** for every Early recipe through declared home sources; the bold **NEW** weapons and arrow/knife recipes are **not yet craftable in shipped game**. A new weapon with `stone_knife` as output should respect current `stone_knife_work` vs combat distinction.
 
-### Mid game: hunter composites, horn/talon tension weapons, first refined copper (suggested ~25–44)
+### Intermediate material processing: the NEW backbone of mid/late crafting
 
-| Code | Defining weapon (output id) | Concrete ingredient counts, all items defined now except an explicitly blocked copper ingot | Status | Why it changes play |
+**Owner correction (2026-10-25): no final endgame weapon recipe may directly use raw `dense_bone`, `branch`, `raptor_talon`, `predator_tendon`, `raw_hide`, `wood_log`, `copper_ore`, `iron_ore`, or even unshaped `iron_ingot` as an assembly component.** Those belong upstream in **Processing, Tailoring, Carpentry, Lamination or Smithing**. Endgame weapons must assemble **processed parts** that represent manufactured wood, bone, sinew, hide and forged metal. Early primitive items intentionally still use crude gathered inputs. Mid composite weapons introduce worked wood, sinew and bone and First Copper. All named components **[ADD]** below are **NOT in `items.json` or `recipes.json`** unless marked **EXISTS**.
+
+**Existing processing operations, verified in `recipes.json`:**
+- `wood_log ×1 -> split_wood ×2`, Workbench (existing); `split_wood ×2 -> plank ×1`, Workbench (existing).
+- `fibre_stalk ×2 -> twine ×1`, Hand (existing category `fibre`); `raw_hide ×1 -> dried_hide ×1`, Drying Rack (existing category `green_hide`).
+- `dried_hide ×1 -> hide_strap ×2`, Workbench (**existing recipe accepts general `uncut_hide`, including raw hide**, so the stricter dried-hide path must be enforced for advanced crafting).
+- `wood_log ×2 -> charcoal ×1`, existing general `burnable ×2` charcoal recipe. **Current item/recipe supports charcoal, but dedicated fuel rules for a new Smelter remain to implement.**
+
+**NEW processed animal/wood items and exact proposed recipes:**
+
+| Stage | Output item [ADD] | Inputs, counts and output | Processing station / requirement | Actual role |
 |---|---|---|---|---|
-| **DI** | **Scute Staff Sling** (`scute_staff_sling` **[ADD]**) | `dense_bone ×1 + armor_scute ×1 + branch ×2 + predator_tendon ×2 + hide_strap ×1`; fires `stone_shot` | **NEW**; ingredients already have sources | Longer-range Impact, reliable **Longshot** mastery; animal bone braces/staff |
-| **DP** | **Copper-Trigger Crossbow** (`copper_crossbow` **[ADD]**) | `plank ×2 + dense_bone ×2 + predator_tendon ×3 + copper_ingot ×1 + hide_strap ×1`; **Bone Bolt Bundle** `branch ×1 + raptor_bone ×1 + twine ×1 -> bone_bolts ×3` **[ADD]** | **NEW + COPPER REFINING PIPELINE NEEDED**. `copper_ingot` item exists but **no real copper_ingot smelt recipe** | First technological **step change**: high impulse, crossbow prod/trigger, reload trade-off |
-| **DS** | **Talon Whip** (`talon_whip` **[ADD]**) | `raptor_talon ×2 + predator_tendon ×3 + hide_strap ×2 + branch ×1` | **NEW**; `raptor_talon` is a rare real Velociraptor/Deinonychus butcher drop | Reach and skillful repeated controlled **Slash**; risk-reward and Combo eligible if melee |
-| **MI** | **Scute Warhammer** (`scute_warhammer` **[ADD]**) | `dense_bone ×2 + armor_scute ×3 + branch ×2 + hide_strap ×2` | **NEW**; existing species drop scutes/dense bone | Heavy-plate disruption and stagger; animal composite Impact |
-| **MP** | **Talon War Lance** (`talon_war_lance` **[ADD]**) | `raptor_bone ×2 + raptor_talon ×1 + branch ×2 + predator_tendon ×2 + hide_strap ×1` | **NEW**; all resource items obtainable by declared routes, talon rare | First serious **mounted Momentum Strike** weapon; heavy Pierce/bracing |
-| **MS** | **Obsidian Great Axe** (`obsidian_great_axe` **[ADD]**) | `obsidian ×2 + dense_bone ×1 + branch ×2 + hide_strap ×2 + predator_tendon ×1` | **NEW**; obsidian gathered from **Tropical ~25** `ObsidianNode` | Extremely sharp Slash, heavy arcs and slower Combo/Rend, but brittle/repair-intensive |
+| Mid | `binding_pitch` | `resin ×2 + charcoal ×1 -> binding_pitch ×2` | Campfire, Processing ~15 | Resin/charcoal adhesive for composite pieces; resin sourced from temperate/tundra pine |
+| Mid | `carved_bone_rib` | `dense_bone ×2 + stone ×1 -> carved_bone_rib ×1` | Workbench, Processing ~20 | A truly shaped rigid bow prod, crosspiece, warhammer insert or tool rib |
+| Mid | `sinew_cord` | `predator_tendon ×2 + twine ×1 -> sinew_cord ×1` | Workbench, Processing ~15 | Dried/twisted tension component; not loose muscle |
+| Mid | `honed_talon_set` | `raptor_talon ×2 + stone ×1 -> honed_talon_set ×1` | Workbench, Processing ~25 | Polished/cut piercing or cutting edge blanks. Rare talon supply stays meaningful |
+| Mid | `treated_plank` | `plank ×2 + resin ×1 -> treated_plank ×2` | Drying Rack (resin coat + cure), Processing ~25 | Water/weather-resistant stiff structural wood |
+| Mid | `cured_hide_binding` | `dried_hide ×1 + resin ×1 -> cured_hide_binding ×2` | Drying Rack, Processing ~25 | Better bindings/grip than green hide straps |
+| Mid | `braided_sinew_cable` | `sinew_cord ×2 + binding_pitch ×1 -> braided_sinew_cable ×1` | Drying Rack or later Lamination Press, Processing ~35 | Repeatable high-tension string/cable for engineered launchers |
+| Mid, Copper | `refined_copper_bar` | `copper_ingot ×1 + charcoal ×1 -> refined_copper_bar ×1` | **Forge [ADD]**, Processing ~30; copper ore must first be smelted | Heat-worked copper stock for small fittings |
+| Mid, Copper | `copper_trigger_assembly` | `refined_copper_bar ×1 + carved_bone_rib ×1 + cured_hide_binding ×1 -> copper_trigger_assembly ×1` | Forge, Weapon/Tools ~35 | Crossbow trigger/sear and braced mechanical fittings, not a spring magically produced from raw copper |
+| Late | `reinforced_bone_block` | `carved_bone_rib ×2 + binding_pitch ×1 + cured_hide_binding ×1 -> reinforced_bone_block ×1` | **Lamination Press [ADD]**, Processing ~40 | **Bone block**: shaped/interlocked bone laminated and bound as a shock-resistant core. Not literal molten bone |
+| Late | `reinforced_stock` | `treated_plank ×2 + reinforced_bone_block ×1 + cured_hide_binding ×1 -> reinforced_stock ×1` | Workbench, Weapon/Tools ~45 | Rigid launcher/crossbow frame |
+| Late | `reinforced_haft` | `treated_plank ×1 + carved_bone_rib ×1 + cured_hide_binding ×1 -> reinforced_haft ×1` | Workbench, Weapon/Tools ~40 | Maul/greatblade/chain-whip grip |
+| Late | `long_lance_shaft` | `treated_plank ×3 + braided_sinew_cable ×1 + cured_hide_binding ×1 -> long_lance_shaft ×1` | Workbench, Weapon/Tools ~45 | Reinforced tall riding lance shaft, stiff and light relative to full metal |
+| Late | `refined_iron_bar` | `iron_ingot ×2 + charcoal ×1 -> refined_iron_bar ×1` | **Forge [ADD]**, Processing ~45; iron ore -> iron ingot smelting first | **Refined metal bar**: consolidated/bloom-refined and reheated into workable metal stock, distinct from crude ingot |
+| Late | `forged_iron_fittings` | `refined_iron_bar ×1 -> forged_iron_fittings ×2` | Forge, Weapon/Tools ~45 | Pins, ring fittings, reinforcement plates |
+| Late | `iron_trigger_mechanism` | `refined_iron_bar ×2 + treated_plank ×1 -> iron_trigger_mechanism ×1` | Forge, Weapon/Tools ~50 | Stronger bow/sear/winding mechanism; no modern firearm needed |
+| Late | `iron_bolt_magazine` | `refined_iron_bar ×1 + treated_plank ×1 -> iron_bolt_magazine ×1` | Forge, Weapon/Tools ~50 | Simple gravity-fed repeating-bolt channel (magazine refill/reload balanced separately) |
+| Late | `iron_chain_links` | `refined_iron_bar ×2 -> iron_chain_links ×2` | Forge, Weapon/Tools ~50 | Controlled chain whip links with no unsafe use of raw ingots as finished weapon |
+| Late | `forged_maul_head` | `refined_iron_bar ×3 + reinforced_bone_block ×1 -> forged_maul_head ×1` | Forge, Weapon/Tools ~50 | Iron striking shell over shock-managing dinosaur bone core |
+| Late | `forged_spearhead` | `refined_iron_bar ×2 + honed_talon_set ×1 -> forged_spearhead ×1` | Forge, Weapon/Tools ~50 | Long metal point with fitted talon barb |
+| Late | `forged_greatblade` | `refined_iron_bar ×3 + honed_talon_set ×1 -> forged_greatblade ×1` | Forge, Weapon/Tools ~50 | Forged blade with properly mounted talon tooth-barb edges (not bone substituted for steel) |
+| Late, tools | `forged_iron_axehead` | `refined_iron_bar ×2 + reinforced_bone_block ×1 -> forged_iron_axehead ×1` | Forge, Weapon/Tools ~50 | Durable lumber axe blade assembly, distinct from greatblade |
 
-**Mid acquisition loop:** first visit tropical Tier 25 for **obsidian** and **bamboo** (bamboo may be an optional flexible stock for the bow, but it is not required in the recipe); hunt or butcher raptors for rare **talons** and tendons, ceratopsians for scutes/dense bone; access **Desert Tier 35** for **copper_ore**. Current Ranged tree already *lists* bow unlock at 10 and crossbow at 35, **but actual bow/crossbow weapon items/recipes are absent**. Refined copper is the first coherent mechanical crossbow trigger/fitting, not a freely swapped generic ingot. For Mid 25–34, five dinosaur/stone-composite weapons can work without a smelter; Copper Crossbow is the Tier ~35 **breakthrough** after a proper furnace unlock.
+**New processing stations and world dependencies:** existing Workbench/Drying Rack/Campfire suffice for many early and Mid components. **Forge, Furnace/Smelter and Lamination Press must be craftable/buildable, unlocked and recognized by `CraftStation`, with station-specific queue/nearby checks and processing costs**. A creature-only bone block can first be shaped at Workbench then laminated at a press. Metal needs **ore extraction -> furnace smelt into coarse ingot -> forge refinement into bar -> forge shaping of final functional component**. All endgame recipes below consume shaped components, never raw fossils or ore.
 
-**Optional first-metal upgrades, not additional defining weapon classes:** forge copper fittings onto the **Scute Staff Sling, Talon Whip, Warhammer, War Lance and Obsidian Great Axe**. These should improve durability, fitting/repair, some animation or armor control but do **not** reclassify the weapon. Implement via recipes that preserve primary-item level/material traits once the player has a forge. Do not gate the five base Mid designs behind nonexistent copper.
+**Required crude-metal chain (currently incomplete):**
+```text
+Desert copper_ore x2 + charcoal x1
+   -> [Smelter] copper_ingot x1
+   -> + charcoal x1 [Forge] refined_copper_bar x1
+   -> + carved_bone_rib + cured_hide_binding [Forge] copper_trigger_assembly
 
-### Late game: iron forging, hardened mechanisms and rare dinosaur trophy upgrades (suggested ~45–60)
+Higher-tier iron_ore x3 + charcoal x2  [iron_ore and source must be ADDED]
+   -> [Smelter/Bloomery] iron_ingot x1
+   -> x2 iron_ingot + charcoal x1 [Forge] refined_iron_bar x1
+   -> [Forge: shape] iron fittings / trigger / magazine / chain / maul head / spearhead / blade
 
-**Important:** `iron_ingot` item **already exists**, but the current game has **no `iron_ore` item/source or specific iron-ingot refinement recipe**. The iron progression below is **BLOCKED pending added world content and metallurgy**, not currently craftable. Base recipes use real **existing dinosaur items** wherever possible. Optional horns/teeth require new drops (tracked in backlog).
+dense_bone -> carved_bone_rib -> + binding_pitch + cured_hide_binding
+   -> [Lamination Press] reinforced_bone_block
+wood_log -> split_wood -> plank -> + resin [Drying Rack] treated_plank
+predator_tendon -> sinew_cord -> + binding_pitch [Drying Rack] braided_sinew_cable
+raw_hide -> dried_hide -> + resin [Drying Rack] cured_hide_binding
+raptor_talon -> + stone [Workbench] honed_talon_set
+```
 
-| Code | Defining weapon (output id) | Exact proposed ingredients | Implementation dependencies | Defining late-game advantage |
+**Processing by specialized careers:** Butchering supplies rare quality bone/scute/talon/sinew, Gathering supplies lumber/ore/resin and fuel, Processing cures and laminates, Weapon/Tools shapes and assembles, Tailoring helps bind/grip, Construction builds workstations. The material level/provenance and rare traits need a defined inheritance rule through multi-stage processing so a high-quality talon doesn't turn into a generic level-one finished weapon. Processing quality should matter while avoiding unlimited repeated processing for infinite item levels.
+
+### Mid game: worked dinosaur composites and first copper (suggested ~25–44)
+
+| Code | Defining weapon (output id) | **Actual assembly recipe, now uses processed materials** | Status | Why it changes play |
 |---|---|---|---|---|
-| **DI** | **Iron Torsion Stonecaster** (`iron_stonecaster` **[ADD]**) | `iron_ingot ×2 + plank ×3 + predator_tendon ×4 + dense_bone ×2 + hide_strap ×2`; ammo existing `stone_shot` or future heavier shot | **NEW WEAPON + missing iron loop** | More accurate, hard-hitting engineered **Impact**, deliberate launch/reload; not a modern rocket launcher |
-| **DP** | **Iron Repeating Crossbow** (`iron_repeating_crossbow` **[ADD]**) | `iron_ingot ×4 + plank ×3 + predator_tendon ×4 + armor_scute ×1 + hide_strap ×2`; fires `bone_bolts` or future `iron_bolts` | **NEW WEAPON + iron loop + bolt ammo** | Controlled short volley of high-Pierce bolts, longer refill/reload; strict cost and stamina/reload balance |
-| **DS** | **Iron Talon Chain Whip** (`iron_talon_whip` **[ADD]**) | `iron_ingot ×3 + raptor_talon ×2 + predator_tendon ×3 + hide_strap ×2` | **NEW WEAPON + iron forging / link shaping** | Extended controlled **Slash** with heavy wear resistance, contact combos and movement timing |
-| **MI** | **Scute-Core Iron Siege Maul** (reuse existing `raid_maul`, **RECIPE REVISION**) | `iron_ingot ×5 + armor_scute ×2 + dense_bone ×2 + branch ×2 + hide_strap ×2` | **CURRENT `raid_maul` EXISTS + generic 8-metal recipe**, needs targeted upgrade/new variant + iron source/station | Massive **Impact**, break Heavy body plating, stagger; advanced forged head reinforced by bone/scute core |
-| **MP** | **Forged War Lance** (`iron_war_lance` **[ADD]**) | `iron_ingot ×2 + dense_bone ×2 + raptor_talon ×1 + branch ×2 + predator_tendon ×2 + hide_strap ×2` | **NEW + iron loop**; optional true `ceratops_horn` variant **[ADD DROP]** from Styracosaurus/Triceratops | Reinforced **Pierce**, largest controlled mounted **Momentum Strike** without needing futuristic weapons |
-| **MS** | **Iron Talon Greatblade** (`iron_talon_greatblade` **[ADD]**) | `iron_ingot ×4 + dense_bone ×1 + raptor_talon ×2 + predator_tendon ×2 + hide_strap ×2` | **NEW + iron loop**; optional `predator_tooth` prestige variant **[ADD DROP]** from higher predators | Wide heavy **Slash** with durability, deliberate Combo/Rend and Berserker follow-through |
+| **DI** | **Scute Staff Sling** (`scute_staff_sling` **[ADD]**) | `carved_bone_rib ×1 + armor_scute ×1 + plank ×2 + sinew_cord ×1 + hide_strap ×1`; fires existing `stone_shot` | NEW weapon + intermediate processing items | Longer-range Impact, Longshot mastery |
+| **DP** | **Copper-Trigger Crossbow** (`copper_crossbow` **[ADD]**) | `plank ×2 + carved_bone_rib ×2 + braided_sinew_cable ×1 + copper_trigger_assembly ×1 + cured_hide_binding ×1`; **Bone Bolts [ADD]**: `branch ×1 + raptor_bone ×1 + twine ×1 -> bone_bolts ×3` at workbench | NEW weapon/ammo; **real copper Smelter+Forge chain mandatory** | First high-force engineered Pierce shot with slow reload |
+| **DS** | **Talon Whip** (`talon_whip` **[ADD]**) | `honed_talon_set ×1 + sinew_cord ×2 + hide_strap ×2 + plank ×1` | NEW; intermediate animal processing items | Dexterity control, repeated Slash, range/position |
+| **MI** | **Scute Warhammer** (`scute_warhammer` **[ADD]**) | `carved_bone_rib ×2 + armor_scute ×3 + plank ×2 + hide_strap ×2` | NEW; worked bone, scute and processed wood | Impact control and armored target stagger |
+| **MP** | **Talon War Lance** (`talon_war_lance` **[ADD]**) | `carved_bone_rib ×1 + honed_talon_set ×1 + plank ×2 + sinew_cord ×1 + hide_strap ×1` | NEW; rare talons/prepared point and weapon shaft | Mounted Momentum Strike with serious Pierce reach |
+| **MS** | **Obsidian Great Axe** (`obsidian_great_axe` **[ADD]**) | `obsidian ×2 + carved_bone_rib ×1 + plank ×2 + hide_strap ×2 + sinew_cord ×1` | NEW; obsidian is a **raw cutting head** until worked directly into an axe, acceptable for MID | Big Slash combo, brittle but sharp |
 
-**Late acquisition loop:** high-tier **iron ore** must become obtainable from a genuinely gated Tier ~45–50 frontier node, rather than falsely reusing all `ore` from trivial sources. Tier-60 **Volcanic** has `black_iron`, enabling **prestige black-iron** enhancements AFTER its own furnace/forge refining recipe exists. Current `bronze_ingot` and `steel_ingot` item definitions **are not evidence of usable recipes or raw material sources**. Bronze additionally needs **tin** or a grounded alternate source; steel needs a deliberate **iron + carbon/charcoal** process, not an imaginary spontaneously smelted ingot. Late primitive weapons must still use **dense bone, scutes, talons, tendon and hides** for grips, laminates, braces and bone horn/trophy shapes.
+**Mid-era exception:** `armor_scute` and `obsidian` can be consumed in a worked composite weapon at this tier. **By Late, use fully shaped components**, with scutes captured within cores or forging and talons pre-honed rather than raw natural drops in the last assembly step. If desired later, add `shaped_scute_plate` as an optional Mid processing component, but it is not required to unblock the 18 baseline designs.
 
-**Optional aspirational prestige materials NOT currently available:** `ceratops_horn` and `predator_tooth`; a `muscle_fiber` material is **not** necessary just to say 'muscle': **predator_tendon** is already a credible extracted sinew/structural tension resource, while raw meat becomes pet food. If adding muscle later, give it a biologically coherent use such as processed glue/collagen, not implausible structural metal replacement. `raptor_talon` and `predator_tendon` are already real butcher items.
+**Mid sourcing:** Existing Compy and Zebraceratops provide bone/tendon/scutes for initial progression; Temperate provides pine `resin`; Tropical Tier25 has obsidian; rare raptor talon from Velociraptor and beyond. Copper from Desert Tier35 can only be used after proper smelting+refining; five other Mid weapons stay available without metal so the transition remains satisfying.
+
+### Late game: forged shaped metal + reinforced dinosaur composites (suggested ~45–60)
+
+**The critical rule: the final weapon assembly contains **processed components only**, with neither raw resource nor coarse `iron_ingot` consumed at the last step.** Iron ore currently lacks an item/source. `iron_ingot` item is already defined but not genuinely smeltable in a specific iron process, and `refined_iron_bar` plus downstream parts are entirely new. The following six weapon recipes replace earlier direct iron-ingot/raw-dinosaur recipes.
+
+| Code | Defining weapon (output id) | **Final assembly input list (all processed components)** | Implementation dependencies | Weapon role |
+|---|---|---|---|---|
+| **DI** | **Iron Torsion Stonecaster** (`iron_stonecaster` **[ADD]**) | `forged_iron_fittings ×2 + reinforced_stock ×1 + braided_sinew_cable ×2 + reinforced_bone_block ×1 + cured_hide_binding ×1`; uses `stone_shot` ammo | NEW item/recipe/attack + processed stock/metal fittings | Precise long-range Impact and Longshot |
+| **DP** | **Iron Repeating Crossbow** (`iron_repeating_crossbow` **[ADD]**) | `iron_trigger_mechanism ×1 + iron_bolt_magazine ×1 + reinforced_stock ×1 + braided_sinew_cable ×2 + cured_hide_binding ×1`; `bone_bolts` / new iron bolts | NEW item/recipe/bolt delivery + forge and magazine | Accurate multi-bolt Pierce; longer magazine refill |
+| **DS** | **Iron Talon Chain Whip** (`iron_talon_whip` **[ADD]**) | `iron_chain_links ×2 + honed_talon_set ×2 + braided_sinew_cable ×1 + reinforced_haft ×1 + cured_hide_binding ×2` | NEW item/recipe/chain weapon animation | Controlled Slash reach and timed consecutive-hit combos |
+| **MI** | **Scute-Core Iron Siege Maul** (existing `raid_maul`, **UPGRADE RECIPE**) | `forged_maul_head ×1 + reinforced_haft ×1 + cured_hide_binding ×2` | `raid_maul` item exists, but generic `metal ×8` recipe must be replaced, gated or made a legacy low-tier variant | Crushing Impact vs armored dinosaurs |
+| **MP** | **Forged War Lance** (`iron_war_lance` **[ADD]**) | `forged_spearhead ×1 + long_lance_shaft ×1 + cured_hide_binding ×2` | NEW item/recipe/extended physical mounted-hit geometry | Heavy braced Pierce, true movement Momentum Strike |
+| **MS** | **Iron Talon Greatblade** (`iron_talon_greatblade` **[ADD]**) | `forged_greatblade ×1 + reinforced_haft ×1 + cured_hide_binding ×2 + honed_talon_set ×1` | NEW item/recipe/Slash Combo + refit geometry | Masterwork heavy Slash with sustained combos |
+
+**Example endgame player-visible craft tree: Iron Talon Greatblade**
+```text
+Mine iron_ore -> charcoal smelt -> iron_ingot -> forge refine -> refined_iron_bar
+                -> forge greatblade with pre-honed talons -> forged_greatblade
+Hunt raptors -> rare raptor_talon -> hone/polish -> honed_talon_set
+Hunt ceratopsians -> dense_bone -> carve -> carved_bone_rib
+Gather wood -> split -> plank -> resin treat -> treated_plank
+Gather hide -> drying rack -> dried_hide -> resin cure -> cured_hide_binding
+Treated plank + carved bone rib + cured hide binding -> reinforced_haft
+Assembly: forged_greatblade + reinforced_haft + cured_hide_binding + honed_talon_set
+   -> IRON TALON GREATBLADE (MS)
+```
+
+**Quality/economy:** Rare large dinosaur materials can yield higher-level/more durable components with appropriate skills, but the weapon should have a coherent **material contribution and cap** after processing. An iron weapon needs the chain for metal parts as well as biological parts, not merely one iron ingot in a cosmetic slot. Progressing into refined metal means players now coordinate mining, charcoal burning, furnace smelting, forge refining, specialized shaping, lamination and assembly.
+
+**Endgame tech ceiling:** This is all achievable in a mostly primitive iron-age/advanced workshop civilization. No rocket launchers, mechs, modern ammo factories or miniguns required.
 
 ## 2A. Work tools follow the same material eras, without becoming additional weapon classes
 
@@ -75,9 +149,9 @@ The user also wants **tools** made from dinosaur materials and stone/wood. These
 | **Early** | **Stone Work Knife** (`stone_knife_work`) | `stone ×1 + branch ×1 + twine ×1` | **Existing item + hand recipe** (generic `blade_mat, handle, lashing`); harvest plants and process hides |
 | **Early** | **Stone Pick** (`work_pick`) | `stone ×1 + branch ×1 + twine ×1` | **Existing item + workbench recipe**; enables progression to stone/clay and ultimately ore nodes |
 | **Mid** | **Raptor Talon Skinning/Combat Knife** (`barbed_knife`) | `raptor_talon ×1 + branch ×1 + hide_strap ×1` | **Existing item + workbench recipe**. Has `tool_class: knife` and bleed-capable weapon stats; verify its actual harvest-tool ability in gameplay before advertising as improved skinning yield |
-| **First copper** | **Copper Quarry Pick** (`copper_pick` **[ADD]**) | `copper_ingot ×2 + dense_bone ×1 + branch ×1 + hide_strap ×2` | **New tool/recipe after Smelter**. Copper pick is durable vs stone, but should not simply be the best iron-mining tool; tune tier and ore hardness instead of an implausible copper-beats-all progression |
-| **Late** | **Iron Quarry Pick** (`iron_quarry_pick` **[ADD]**) | `iron_ingot ×3 + armor_scute ×1 + branch ×2 + hide_strap ×2` | **New item/recipe after iron forge**; enables effective hard-rock and higher-level frontier mining |
-| **Late** | **Iron Lumber Axe** (`iron_lumber_axe` **[ADD]**) | `iron_ingot ×2 + dense_bone ×1 + branch ×2 + hide_strap ×2` | **New item/recipe**. Longer durability and higher resource throughput while retaining the living wood/hide/bone supply chain |
+| **First copper** | **Copper Quarry Pick** (`copper_pick` **[ADD]**) | `refined_copper_bar ×2 + carved_bone_rib ×1 + plank ×1 + hide_strap ×2` | **New tool/recipe after copper Smelter + Forge and shaped bone**. Copper pick is durable vs stone, but should not simply be the best iron-mining tool; tune tier and ore hardness instead of an implausible copper-beats-all progression |
+| **Late** | **Iron Quarry Pick** (`iron_quarry_pick` **[ADD]**) | `forged_iron_fittings ×2 + reinforced_haft ×1 + reinforced_bone_block ×1 + cured_hide_binding ×1` | **New item/recipe after bone lamination + iron forge**; enables effective hard-rock and higher-level frontier mining |
+| **Late** | **Iron Lumber Axe** (`iron_lumber_axe` **[ADD]**) | `forged_iron_axehead ×1 + reinforced_haft ×1 + cured_hide_binding ×1` | **New item/recipe and forged shaped axehead**. Longer durability and higher resource throughput while retaining the living wood/hide/bone supply chain |
 
 **New tool backlog WPN-20:** Add `copper_pick`, `iron_quarry_pick` and `iron_lumber_axe` definitions/recipes, actual gathered-node hardness/tool-tier progression, and repair/durability costs; test whether existing `barbed_knife` is a valid harvesting knife before making economic yield promises. These are **additional work tools**, not new attack-class letters. Ensure early `work_pick` can legally gather enough copper ore to bootstrap copper refining; iron requires higher ore-tier access. If resource hardness rules are added, never deadlock an era by demanding an iron tool before any iron can be obtained.
 
@@ -113,11 +187,13 @@ The user also wants **tools** made from dinosaur materials and stone/wood. These
 - **Steel** (optional after iron): `iron_ingot + charcoal` at upgraded forge plus fuel/time/processing requirements, outputs existing `steel_ingot` if adopted. Additional steps and carbon control are compressed gameplay abstractions.
 - **Bronze**: existing `bronze_ingot` needs **tin ore or coherent trading/loot source** and copper/tin alloy recipe. **NOT a usable era until source exists.**
 
-**Metal Stage D: meaningful outputs:** Copper enables reliable trigger/limb fittings, stronger armor components, metal-tipped spearpoints, forge-repair and improved durability. Iron unlocks tougher edge geometry, solid armor-breaking heads, chain links, larger crossbow mechanisms, heavier mass-bearing components and specialized attack properties. Dinosaur bone/tendon remains essential because metal has weight/material cost, and tension/wrap/bracing still benefits from biological materials.
+**Metal Stage D: refine and shape:** Copper `copper_ingot -> refined_copper_bar -> copper_trigger_assembly`. Iron `iron_ingot -> refined_iron_bar -> forged_iron_fittings / iron_trigger_mechanism / iron_bolt_magazine / iron_chain_links / forged_maul_head / forged_spearhead / forged_greatblade`. Copper enables reliable trigger/limb fittings, stronger armor components and forge repair. Iron unlocks tougher edge geometry, solid armor-breaking heads, chain links, larger crossbow mechanisms, heavier mass-bearing components and specialized attack properties. **The late weapon recipes consume these forged parts and worked organic materials only.** Dinosaur bone/tendon remains essential because metal has weight/material cost, and tension/wrap/bracing still benefits from biological materials.
 
 **Metal Stage E: visible economy:** Different regions and dangerous hunts create **complementary supply chains**. Smelter fuel and transport/research matter; workers and player remain bound by individual equipment-level gates. Preserve current crafting level inherited from input materials and rare signed traits; high-level base recipes shouldn't be craftable by a new level-1 survivor simply buying iron.
 
 ## 5. Exact implementation backlog (THIS IS THE 'REMEMBER TO ADD' LIST)
+
+**Processing chain priority:** The user now expressly requires advanced weapons and tools to use **finished components, not raw material piles**. This expands the WPN backlog with **WPN-21..WPN-24** for reusable production recipes and station tech. **The final six rows above are now authoritative** for all late-game weapon ingredients. Earlier versions which used coarse `iron_ingot`, `dense_bone`, `predator_tendon`, `branch` or `raptor_talon` directly in a final Late recipe are superseded.
 
 **P0, MUST before claiming even stone/early set is complete:**
 - **WPN-01** Add `sinew_shortbow` weapon item, recipe, equipped ranged aim/projectile, and `stone_arrows` ammo item/recipe; connect Range skill `bow_1` unlock to actual recipe and attack.
@@ -129,14 +205,14 @@ The user also wants **tools** made from dinosaur materials and stone/wood. These
 **P1, MID hunter composite sets:**
 - **WPN-06** Add `scute_staff_sling` (DI), `talon_whip` (DS), `scute_warhammer` (MI), `talon_war_lance` (MP), `obsidian_great_axe` (MS), complete recipes, unique animation/hit geometry/status roles.
 - **WPN-07** Add `copper_crossbow` (DP), `bone_bolts` ammo and an actual reload/aim/projectile model; skill level ~35. **Blocked by metallurgy until WPN-08.**
-- **WPN-08** Add Smelter/Furnace+Forge stations/kits and relevant recipes; enforce real `copper_ore` and `charcoal` inputs; item-level/Processing requirements. Replace generic workbench `ingot` placeholder so copper and iron require different source/mining/quality.
+- **WPN-08** Add Smelter/Furnace+Forge stations/kits and **`refined_copper_bar`, `copper_trigger_assembly` processes**; enforce real `copper_ore`, `copper_ingot`, `charcoal` and processed bone/hide inputs; item-level/Processing requirements. Replace generic workbench `ingot` placeholder so copper and iron require different source/mining/quality.
 - **WPN-09** Optional forge **copper reinforcement** variants for the five Mid dinosaur-composite weapons, preserving individual crafted level, durability, provenance and signed item traits.
 
 **P2, LATE iron and prestige weapons:**
 - **WPN-10** Add **`iron_ore` item + harvest node + truly higher-tier source** in Tier ~45–50 world, with gear/gathering gate; enable ore rather than giving ingots as free loot. Ensure home/early temperate nodes don't spawn iron by accident.
-- **WPN-11** Add `iron_ingot` process from `iron_ore+charcoal` at Smelter/Bloomery plus usable iron forging tools/station. The item itself already exists, but processing/source do NOT.
-- **WPN-12** Add `iron_stonecaster` (DI), `iron_repeating_crossbow` (DP), `iron_talon_whip` (DS), `iron_war_lance` (MP), `iron_talon_greatblade` (MS), animations, actual player weapon hit/equip and ranged ammo. Make sure **Might** remains compelling late and rider height constrains reach.
-- **WPN-13** Integrate existing **`raid_maul`** into MI late progression by **specific iron+scute+dense-bone recipe** or a new Scute-Core Iron Maul variant. Existing `raid_maul` generic `metal ×8` recipe is **not** the new proposed trophy-core crafting, and can be satisfied with wrong metal types.
+- **WPN-11** Add `iron_ingot` process from `iron_ore+charcoal` at Smelter/Bloomery, then `refined_iron_bar` from `iron_ingot+charcoal` at Forge, then shaped weapon-part recipes. The item itself already exists, but processing/source do NOT.
+- **WPN-12** Add `iron_stonecaster` (DI), `iron_repeating_crossbow` (DP), `iron_talon_whip` (DS), `iron_war_lance` (MP), `iron_talon_greatblade` (MS) with FINAL ASSEMBLY consuming only intermediate worked materials, animations, actual player weapon hit/equip and ranged ammo. Make sure **Might** remains compelling late and rider height constrains reach.
+- **WPN-13** Integrate existing **`raid_maul`** into MI late progression by a **`forged_maul_head + reinforced_haft + cured_hide_binding` final assembly** or new Scute-Core Iron Maul variant. Existing `raid_maul` generic `metal ×8` recipe is **not** the new proposed trophy-core crafting, and can be satisfied with wrong metal types.
 - **WPN-14** Add genuine late reward `black_iron_ingot` item + Volcanic black iron refining and optional prestige upgrades; keep base iron weapons feasible without the level-60 volcanic material.
 
 **P3, prestige creature drops and additional materials (NOT mandatory to build base 18):**
@@ -145,6 +221,12 @@ The user also wants **tools** made from dinosaur materials and stone/wood. These
 - **WPN-17** Clarify `predator_tendon` = harvestable sinew in anatomy/codex. If requested, add a **bone glue/collagen** processed material from bone/hide; **do not invent an unsupported muscle fiber item** to simulate bow tension when tendon already exists. Raw meat remains food/animal feed.
 - **WPN-18** Bronze requires `tin_ore` location/drop and bronze alloy recipe if bronze age desired. Steel needs iron/charcoal forge process. Neither is assumed to be shipped despite current ingot item IDs.
 - **WPN-19** Test biome and creature drop source paths **in a real loaded world**; repair incorrect `nature_manifest` IDs and enforce rare butcher skill gates so crafted ingredient sources and progression aren't misleading.
+
+**P0/P1/P2 cross-tier processing pipeline, NEW required tracked additions:**
+- **WPN-21** Add **all new processed component item definitions and recipes**: `binding_pitch`, `carved_bone_rib`, `sinew_cord`, `honed_talon_set`, `treated_plank`, `cured_hide_binding`, `braided_sinew_cable`, `reinforced_bone_block`, `reinforced_stock`, `reinforced_haft`, `long_lance_shaft`. Make sure input IDs are real, the outputs use correct categories and downstream recipes can't substitute raw variants.
+- **WPN-22** Add actual **refined bars and shaped metal component** definitions/recipes: `refined_copper_bar`, `copper_trigger_assembly`, `refined_iron_bar`, `forged_iron_fittings`, `iron_trigger_mechanism`, `iron_bolt_magazine`, `iron_chain_links`, `forged_maul_head`, `forged_spearhead`, `forged_greatblade`, `forged_iron_axehead`. Each metal part must depend on forged bar and every bar on the correct smelted ingot; do not smelt metal at Workbench.
+- **WPN-23** Add **Lamination Press** as a craftable building/station for reinforced bone blocks; complete build/unlock and proximity/UI/recipe flow for **Smelter and Forge**. Existing Workbench, Drying Rack and Campfire handle earlier steps; ensure processing/Tool/Career skill tree gates and proper processing work time/fuel. Do not force all intermediate steps to invent separate stations unnecessarily.
+- **WPN-24** **Recipe integrity/economic chain validation:** enforce exact-item and material-stage requirements, audit all dependency edges, prevent raw bone/ore/log substitution at late final assembly, carry level/quality attributes through multi-stage inputs, avoid unlimited reprocessing level inflation, balance refining yields/craft times/fuel, and test ore/charcoal/wood resin/butchery supply and accessibility at intended unlock level. Ensure final six Late recipes consume **only prepared parts**, not coarse ingots or raw loot. Update tool recipes (`copper_pick`, `iron_quarry_pick`, `iron_lumber_axe`) to follow same principle.
 
 **Engine contract caveats from inspected code:**
 - Current `Crafting._plan()` matches **input categories**, not a required exact item ID; `prefer_id` biases selection but does **not strictly lock** it. Without a new `require_id` or a new required `category` on ingots/items, a recipe stating `iron_ingot ×2` **cannot** be enforced with broad `metal` category; copper/generic ingot may substitute. New strict slot validation is required for the tech gate.
@@ -158,10 +240,12 @@ The user also wants **tools** made from dinosaur materials and stone/wood. These
 1. **Home-only early crafting:** starting with no advanced stations, a player can gather branch/stone/fibre, hunt Compy/Zebraceratops, butcher, process twine/straps and craft six legitimate early-class weapons as their skill/item access unlocks. No nonexistent feathers/tooth/horn/mineral required for any **base early item**.
 2. **Materials make sense:** tendon tension for strings/whips, bone/scute for stiff ribs/heads, hide straps for binding/grip, stone/obsidian for sharp brittle edges, metal for durable sharp edges, pivots and reinforced armor breaking.
 3. **Mid early access:** five Tier25–34 composite weapons become feasible from real bone/scute/talon/obsidian sources with rare/field costs. Copper Crossbow visibly requires Tier35 desert ore, charcoal, smelting and smithing rather than just crafting at the starter workbench.
-4. **Late source chain:** genuinely high-tier iron ore nodes, iron ingot smelting and shaped forging lead to all six Late weapons; no broad `metal` recipe allows an early copper/generic ingot to replace iron.
+4. **Late source chain:** genuinely high-tier iron ore nodes -> specific iron ingot smelting -> refined iron bar -> forged functional head/trigger/fittings; dinosaur dense bone -> worked ribs -> laminated bone block; logs -> split wood -> planks -> cured/treated stock; tendon -> braided sinew, hide -> cured bindings. **No raw bone, log, ore, talon, tendon or simple ingot in final late-weapon assembly.** These chains lead to all six Late weapons; no broad `metal` recipe allows an early copper/generic ingot to replace iron.
 5. **Class combat:** each of DI/DP/DS/MI/MP/MS has an animated attack mode, real damage type, actual D/M IV scaling, correct armor matchups, weapon range and attack timing. Distinct move rewards **Longshot, Momentum, Combo/Frenzy, stagger, precision** matter and maintain equal-tier combat choices.
 6. **Mount realism:** mounted spear hit depends on approach geometry; tall T. rex rider cannot sword-swing into a Compy far below; dinosaur attack is separate; rider+mount occupies one party slot.
 7. **Metal feels different:** copper/iron weapons make more than a generic +damage number change, while nonmetal weapons still have early resource economy and situational high-tier roles when using great-quality dinosaur materials.
 8. **Save/rarity/economy:** recipes consume real stacks and respect material trait provenance, output personal equip level and progression, durability/repair, no duplicative ammo/ingot loopholes, and clear status for incomplete content.
+
+**All exact processing outputs, quantities, unlock levels and new station names are design proposals requiring implementation. Existing split-wood/plank/charcoal/drying stages are verified data, but advanced bone blocks/treated planks/refined bars and processed final assemblies are NOT currently craftable.**
 
 **THIS IS A PROPOSAL/BACKLOG.** None of these new items, stations, nodes, crafting recipes, status changes or weapon modes have been added to the game by writing this chapter.
