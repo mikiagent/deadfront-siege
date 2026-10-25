@@ -58,7 +58,7 @@
 
 **PROPOSED implementation:** Build an immutable server-controlled departure manifest at the instant the loaded vessel leaves the dock. Remove each shipped lot atomically from vulnerable dock/staging inventory, then store it in a protected in-transit shipment with ETA. Lower-tier boats and ports make fewer goods escapable under siege. Higher-tier boats, upgraded harbor handling equipment, and rare capacity/handling traits improve the amount saved. No instant warehouse-to-boat teleport, infinite departure spam, manifest duplication or alteration during transit. Once departed, attackers may still plunder the **remaining** contested base.
 
-**Workshopping:** see [local alphas and fair sieges](pvp-raiding-local-alphas-and-siege-fairness.md) for how evacuation, attacker commitments, defended raid windows and power brackets fit together.
+**Workshopping:** see [local alphas and fair sieges](pvp-raiding-local-alphas-and-siege-fairness.md) for how evacuation, attacker costs/cooldowns, automated defense and power brackets fit together. **The owner rejected defender-scheduled raid windows.**
 
 ## 3. Offspring stages, food quality and education
 
