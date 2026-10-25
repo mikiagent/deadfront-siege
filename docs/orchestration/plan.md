@@ -128,7 +128,7 @@ This section is a **new owner-directed planning addendum**; the milestone table 
 
 **Design dependency chain:** persistent human identity/Tribe roster and baseline-survivor recovery -> population/housing/recruitment -> worker labor + equipment + sites -> genetics + costly breeding + growth -> mixed Expedition mount AI -> truly server-authoritative PvP domains when pursued. Trait/bulk-inventory and unified blueprint/worksite design run in parallel and join worker logistics.
 
-**Explicitly unresolved:** contested-domain raid windows and offline casualties (private home safety is settled), attack loot and costs, full-tribe-wipe property persistence at exposed outposts, recruitment/raid frequency, human raising times/costs, inheritance/caps, mounted survivor slot rules, and charm odds. Resolve before treating the above as implementation tickets.
+**Explicitly unresolved:** contested-domain offline casualties and attacker availability/cost **without player-set raid windows** (private home safety and no windows are settled), salvage/captive limits and raid costs, full-tribe-wipe exposed-outpost persistence, recruitment/raid frequency, human raising times/costs, inheritance/caps, mounted survivor slot rules, and charm odds. Resolve before treating the above as implementation tickets.
 
 
 ## 10. 2026-10-25: safe home, frontier logistics, upbringing and character diversity
