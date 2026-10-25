@@ -122,8 +122,16 @@
 ## 7. Decisions to settle next
 
 - **Boat exposure and siege departure (RESOLVED):** Remote gathering bases are fully raidable; **homebound boats in transit are not attackable or interceptable, even when they departed during an active raid**. Shipments are capacity-limited by **boat and harbor level/traits**. **Still OPEN:** time/vulnerability of dock loading, loading/departure cooldowns, and whether outbound trips share this immunity.
-- **Offline safety:** If the player is offline, may remote settlements/workers be raided, and does the boat keep operating?
+- **Offline safety:** No defender-chosen PvP raid windows (owner declined them). If a player is offline, may a remote PvPvE settlement and its guards suffer permanent losses, and does the boat keep operating?
 - **Nursery pacing:** Rough real-time target from offspring to playable adult (hours, days, weeks); minimum food/care tier, quality and consequences of shortfalls?
 - **Stat discovery:** Reveal numeric current stats and some qualitative hereditary clues, while concealing exact growth ceilings, or hide more?
 - **Combat attributes:** How large should overlapping male/female strength distributions differ in balance terms, relative to weapons, professions and learned skills?
 - **Risk-reward access:** Can the highest-quality breeding and crafting materials be obtained solo in safe expeditions/PvE, or are some exclusive to PvPvE territories?
+
+## 8. Private-island upgrades and what is exposed (2026-10-25)
+
+[Core-loop economic progression](progression-risk-and-island-economy.md). Every player begins with an **unraidable private production island** and may purchase **larger protected islands for a hefty in-game price** to build housing, industry, education, storage and safe dinosaur breeding facilities. The Skyblock-like progression is building a self-sufficient home economy; harvesting/crafting is Durango-like and dinosaurs/breeding/frontier survival borrow the ARK design shape.
+
+A rational player puts their **best workers, rare bred dinosaurs, prized gear, advanced nurseries and premium resources at home**, using more replaceable laborers, animals, tools and materials in voluntarily raidable frontier outposts. Raids target only what is **actually exposed**. Cargo vessels may depart the contested harbor during active attacks, with the number/weight of safely evacuated items limited by the **boat and harbor levels and their special traits**. Once departed **homeward**, a ship and its manifest are safe in transit.
+
+The owner rejected player-scheduled PvP raid windows; PvP may be **late-game opt-in** as a current suggested direction (exact gate open). Offline risk, attacker siege charges/cooldowns and capture/loss remain a balance workshop rather than a finalized system. Larger island upgrade behavior (expansion, relocation or multiple protected islands) is not yet selected.
