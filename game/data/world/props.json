@@ -171,7 +171,7 @@
       ],
       "collide": true,
       "destroyable": false,
-      "radius_m": 1.2,
+      "radius_m": 3.0,
       "density_per_ha": 2.5,
       "cliff": true,
       "biomes": {
@@ -199,7 +199,7 @@
       ],
       "collide": true,
       "destroyable": false,
-      "radius_m": 1.4,
+      "radius_m": 3.2,
       "density_per_ha": 1.0,
       "biomes": {
         "canyon": 1.0,
@@ -281,7 +281,7 @@
       ],
       "collide": true,
       "destroyable": true,
-      "radius_m": 1.1,
+      "radius_m": 1.2,
       "density_per_ha": 1.6,
       "biomes": {
         "savanna": 1.0,
@@ -381,7 +381,7 @@
         1.0,
         2.2
       ],
-      "radius_m": 0.25
+      "radius_m": 0.35
     },
     "fern": {
       "_about": null,
@@ -410,7 +410,7 @@
         0.5,
         1.0
       ],
-      "radius_m": 0.3
+      "radius_m": 0.5
     },
     "reeds": {
       "_about": null,
@@ -447,7 +447,7 @@
         1.0,
         1.8
       ],
-      "radius_m": 0.35
+      "radius_m": 0.7
     },
     "plume_grass": {
       "_about": null,
@@ -475,7 +475,7 @@
         0.8,
         1.5
       ],
-      "radius_m": 0.3
+      "radius_m": 0.6
     },
     "lily_pad": {
       "_about": null,
@@ -537,7 +537,7 @@
         0.5,
         1.0
       ],
-      "radius_m": 0.3
+      "radius_m": 0.6
     },
     "mossy_stone": {
       "_about": null,
