@@ -29,6 +29,10 @@ var eat_seconds: float = Food.EAT_SECONDS
 var bundle: Dictionary = {}
 ## What the last committed meal actually did, for tests, the lab and the HUD.
 var last_paid: Dictionary = {}
+## Compatibility snapshot for the established processing lab. FOODFX pays this latent amount as an
+## instant/digested split at commit, but callers that inspect an active meal still need its full
+## stored Energy value. Do not use this to apply an effect.
+var _total_energy: float = 0.0
 var _slot_index: int = -1
 var _stack_snapshot: ItemStack
 ## The exact instance in the bag this transaction is about; commit verifies it is still there.
@@ -96,6 +100,7 @@ func begin_eat(slot_index: int) -> bool:
 	# The bundle is evaluated once here for the preview; the commit evaluates it again from the same
 	# instance, so the panel and the payment cannot disagree about the instance's state.
 	bundle = FoodEffects.preview(stack, player)
+	_total_energy = float(bundle.get("latent_energy", Food.energy_restore(stack)))
 	_slot_index = slot_index
 	_instance = stack
 	_stack_snapshot = stack.duplicate_stack()
@@ -179,6 +184,12 @@ func _apply_bundle() -> Dictionary:
 		v.energy = clampf(v.energy + instant, 0.0, v.effective_max_energy())
 		if digested > 0.0:
 			digestion.schedule(_stack_snapshot.def_id, digested, float(bundle.get("digest_seconds", 0.0)))
+		# Preserve the established Energy break and process-property relief for foods that have no
+		# spec-32 bundle (notably dried/smoked station outputs). Bundled foods own their fatigue
+		# effects explicitly in foods.json, so this cannot silently add an old effect to new data.
+		if not FoodEffects.has_bundle(_stack_snapshot):
+			v.eat(maxf(0.0, instant + digested) * 1.5)
+			v.rest(Food.fatigue_relief(_stack_snapshot))
 	# --- Fullness, thirst, health, life, fatigue, capacity deltas.
 	# A finished meal always applies Full (the rule before spec 32); the bundle may only lengthen it.
 	# Fullness as a value is carried for the panel and the report: this build has no satiety meter
@@ -277,5 +288,6 @@ func _clear() -> void:
 	_slot_index = -1
 	_instance = null
 	_stack_snapshot = null
+	_total_energy = 0.0
 	if progress_ui:
 		progress_ui.hide_eat()

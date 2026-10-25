@@ -82,6 +82,7 @@ func _run() -> void:
 	await _test_max_fatigue_expiry()
 	await _test_tonic_vs_cap()
 	await _test_plain_food_keeps_buff()
+	await _test_unbundled_food_keeps_legacy_fatigue_relief()
 	_test_mirror_has_no_stale_keys()
 	_test_ability_buff()
 	await _test_bad_food()
@@ -402,6 +403,19 @@ func _test_plain_food_keeps_buff() -> void:
 	_give(&"grilled_meat", 1)
 	_expect(_eat_slot(player_stack(&"grilled_meat")), "a plain grilled meat is eaten")
 	_expect(slots.ids() == before, "an Energy-only food erases no unrelated buff (before %s, after %s)" % [str(before), str(slots.ids())])
+
+## Processed station output predates spec 32 and has no foods.json bundle. Its Energy break and
+## the Dry processing property's fatigue relief must survive the new consumption path.
+func _test_unbundled_food_keeps_legacy_fatigue_relief() -> void:
+	print("[t_foodfx] -- unbundled legacy food")
+	_fresh()
+	var dried = IS.make(&"dried_meat", 1)
+	dried.attributes["processed"] = ["dry"]
+	var expected_relief: float = FOOD.energy_restore(dried) * 1.5 * 0.25 + FOOD.fatigue_relief(dried)
+	_player.inventory.add(dried)
+	_player.vitals.fatigue = 70.0
+	_expect(_eat_slot(player_stack(&"dried_meat")), "a processed food without a bundle is eaten")
+	_expect(_player.vitals.fatigue <= 70.0 - expected_relief + 0.01, "an unbundled processed food keeps its legacy fatigue relief (%.1f -> %.1f, relief %.1f)" % [70.0, _player.vitals.fatigue, expected_relief])
 
 # ---------------------------------------------------------------- 10b. the mirror keeps no stale keys
 

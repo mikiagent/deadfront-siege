@@ -97,7 +97,7 @@ the meal's 20 min duration, and the fatigue tonic's magnitude. Tune them in `foo
 constant duplicates them.
 
 ## Verified (headless, this worktree)
-- `game/tests/t_foodfx.gd` **PASS**, 120 `ok`, no `SCRIPT ERROR`: split 0 / 0.4 / 1 and the clamp;
+- `game/tests/t_foodfx.gd` **PASS**, 133 `ok`, no `SCRIPT ERROR`: split 0 / 0.4 / 1 and the clamp;
   bundle data + provenance + conflict warning; instant vs digested measured on real Energy; the delayed
   share paid exactly once (and once after a reload); interrupt consumes and grants nothing; a second
   intent is blocked; group replace and group coexist; max-fatigue expiry clamps and never touches the
@@ -137,8 +137,22 @@ constant duplicates them.
 5. Every Godot command in this round went through `gslot.sh` with `--headless`, a timeout and a writable
    scratch HOME. **No visible Godot or Blender process was launched and visual approval stays deferred.**
 
-Re-run results this round (all headless): `t_foodfx` PASS (120 ok, 0 SCRIPT ERROR), `t_data` PASS,
+Re-run results this round (all headless): `t_foodfx` PASS (133 ok, 0 SCRIPT ERROR), `t_data` PASS,
 `t_needs` PASS, `t_items` PASS, `t_ui` PASS, `t_save` PASS.
+
+## Final integration review corrections
+1. **Processing compatibility is retained.** FOODFX had removed `EatSession._total_energy`, an active-meal
+   snapshot that `process_lab.gd` reads. That made the established lab fail to parse. The field now holds the
+   evaluated latent Energy for the in-flight item and is cleared with the session; it is inspection-only and
+   cannot pay an effect.
+2. **Unbundled station food keeps its old fatigue behaviour.** Dried/smoked station output deliberately has
+   no `foods.json` bundle. Its old Energy break and its stored processing-property relief must therefore
+   remain on the FOODFX path. The consume transaction applies those only when there is no bundle; bundle data
+   remains the authority for new FOODFX rows. `t_foodfx` now has a real dried-meat regression using the Dry
+   processing property. Fresh result: **133 ok, PASS**.
+3. **Blast-radius result.** `process_lab` passes the restored active-meal and fatigue assertions headlessly.
+   Its only remaining failure is `4 dried meat in the bag`; it reproduces unchanged on the integration base,
+   before FOODFX, and is logged as unrelated process-lab debt. There is no FOODFX parse or script error.
 
 ## What the next agent needs
 - **Run stage 2 windowed** on a free machine: `bash docs/orchestration/dsc/gates/verify_job.sh foodfx 2`.
@@ -153,3 +167,7 @@ Re-run results this round (all headless): `t_foodfx` PASS (120 ok, 0 SCRIPT ERRO
   is no single XP grant path to multiply. Both are gaps to close with the attribute system, not faked here.
 - **Out-of-scope follow-up:** if `scripts/player/food_buff_state.gd` is ever rewritten, `BuffSlots._sync`
   is the only writer of the `fx_` rows and must move with it.
+- **Online consumption contract:** FOODFX verified the offline `EatSession` path. The existing online action
+  sends `slot`, while `IntentHandlers._eat` reads `bag_slot`, and its server response still exposes the old
+  flat Energy/buff shape. Reconcile that client/server contract as an online-system task; it predates this
+  package and is outside this job's server scope.
