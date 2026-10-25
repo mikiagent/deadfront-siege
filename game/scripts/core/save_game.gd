@@ -103,6 +103,12 @@ static func save_now() -> bool:
 			"inventory": player.inventory.to_array(),
 			"inventory_extras": player.inventory.extras_to_dict(),
 			"position": [player.global_position.x, player.global_position.y, player.global_position.z],
+			# FOODFX (spec 32 §11.9/§13): the delayed digestion rows (remaining, never re-paid) and the
+			# exclusive buff slots with their own time left, so a reload mid-meal mid-buff is exact.
+			"foodfx": {
+				"digestion": Digestion.of(player).to_dict(),
+				"buffs": BuffSlots.of(player).to_dict(),
+			},
 		},
 		"pets": pets,
 		"ground_snares": snares,
@@ -331,6 +337,17 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	player.refresh_equipment_vitals()
 	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))
 	player.statuses.from_array(data.get("player", {}).get("statuses", []))
+	# FOODFX: buff rows and digestion first, so a status sync or a capacity change sees the final set.
+	var foodfx: Variant = (data.get("player", {}) as Dictionary).get("foodfx", {})
+	if foodfx is Dictionary:
+		var slots := BuffSlots.of(player)
+		if slots != null:
+			# restore() = from_dict + publish: rows, the FoodBuffState mirror Crafting/climate read,
+			# and the capacity bonuses. Loading the rows alone would leave a saved ability buff inert.
+			slots.restore(player, (foodfx as Dictionary).get("buffs", {}))
+		var digestion := Digestion.of(player)
+		if digestion != null:
+			digestion.from_dict((foodfx as Dictionary).get("digestion", {}))
 	if player.skills:
 		player.skills.from_dict(data.get("skills_v2", {}))
 	player.bonded.clear()
