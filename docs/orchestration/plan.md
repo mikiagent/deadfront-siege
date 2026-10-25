@@ -129,3 +129,17 @@ This section is a **new owner-directed planning addendum**; the milestone table 
 **Design dependency chain:** persistent human identity/Tribe roster and baseline-survivor recovery -> population/housing/recruitment -> worker labor + equipment + sites -> genetics + costly breeding + growth -> mixed Expedition mount AI -> truly server-authoritative PvP domains when pursued. Trait/bulk-inventory and unified blueprint/worksite design run in parallel and join worker logistics.
 
 **Explicitly unresolved:** safety of home vs zone-specific domain claims, full-tribe-wipe property persistence, recruitment/raid frequency and offline danger, human raising times/costs, inheritance/caps, mounted survivor slot rules, and charm odds. Resolve before treating the above as implementation tickets.
+
+
+## 10. 2026-10-25: safe home, frontier logistics, upbringing and character diversity
+
+The owner refined the design in [Protected Home, Contested Territories, Offspring and Identity](../design/safe-home-expeditions-offspring-and-identity.md):
+
+1. **Permanent protected island for every player.** No raid/PvP/PvE attack risk for workers, dinosaurs, buildings and stored resources kept at home. This is not a question awaiting design approval.
+2. **Optional frontier outposts:** PvE and mixed PvPvE territories allow dangerous but lucrative gathering, bases and resource extraction. Pushing farther into these regions must be an explicit risk choice, not a forced vulnerability for a casual home-based tribe.
+3. **Cargo logistic proposal:** boat/harbor worker routes can move materials and their signed traits from contested stockpiles back to safe home stores, with true inventory reservations/manifest. Ship risk/escorts/underway representation remain open. No cargo or items may duplicate on travel, loss or save.
+4. **Timer/food upbringing:** children mature over stages, consuming food whose sustained quality in the phases influences mature stats. Adolescents/young adults have an education/mentorship stage, then enter adulthood with their own low career level. No lost civilization progression.
+5. **Individual variety:** visibly different male/female silhouettes in the fictional population (average male size/strength, same baseline intelligence), overlapping role aptitudes, strong tribe-wide gains from nursing/teaching/medicine, and **no sex-locked careers**. Women are valid warriors, with bows/crossbows/firearms, positioning and training enabling competition; elite examples of either sex can break the average. Body build is partly indicative, partly randomized; hidden hereditary potential provides discovery.
+6. **Design gates:** decide cargo convoy ambush/offline policy, full maturation duration and shortage effects, stat visibility/phenotype variability, contested-region loss limits, and whether the safest play route can access all resource tiers through PvE.
+
+This section supersedes historical `D5` as a **future direction** without claiming current Godot gameplay has server PvP. Keep prior historical milestones for provenance.
