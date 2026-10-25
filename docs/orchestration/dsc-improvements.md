@@ -3,6 +3,11 @@
 One dated entry per dsc job: job, outcome, cost, time, cause, and a paste-ready prompt for the DeepseekCLI repo
 (https://github.com/mikiagent/deepseekcli). GAUNTLET.md "DeepSeek workers" lists the prompts already due.
 
+- 2026-10-25 test-reliability: launched headlessly from `claude/mmo-overhaul`, capped at $2 / 2 hours. It has a
+  pre-run strict gate for the existing false-green `t_bags` and `run_all` paths: valid PASS marker plus zero
+  unexpected `SCRIPT ERROR` lines, with smoke. Scope is test fixtures and the two direct `World` load-boundary
+  scripts only; the worker must prove the `process_checks` dependency chain rather than suppressing errors.
+
 - 2026-10-20 mmo-camp (18 Blender camp pieces): success, $0.51, 0.8 h. Narrow kit-based build with a hash-guarded gate.
   Review later found the game's dirt disc hid the fields: gate should render previews with the in-game ground disc.
 - 2026-10-20 quads-loco2 (quad walk/run): success, $1.26, 2.4 h. Gate measured stride in mesh units, skin stretch and hips.
