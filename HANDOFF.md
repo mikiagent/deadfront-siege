@@ -254,6 +254,10 @@ See [`docs/design/pvp-raiding-local-alphas-and-siege-fairness.md`](docs/design/p
 
 Design authority: [world](docs/game-design/04-world-biomes-and-travel.md), [paid private-home migration](docs/game-design/03-private-islands-and-upgrade-migration.md), [siege + captive ransom](docs/game-design/16-pvp-frontier-siege-and-captives.md). Owner approved **automatic old-home building dismantling after confirmation, 100% material return to salvage-only Ender Chest**, with residents, animals and normal inventory moved separately. Safe private homes eventually produce level 50-55 materials; level 60+ outside. Tribe retains level-60 unlock, but current player body must itself be level 60 to enter PvPvE. **Only built PvPvE settlements are player-raid targets**; PvE settlements suffer wild animal/dino raids. Unstable islands **reset resources and automatically dismantle bases** into salvage box (percentage open). **Captives have a ransom deadline**: timely payment returns them; if unpaid, attacker **can claim/acquire**. Timers/prices and transfer mechanics open. Nothing is implemented by this markdown.
 
+### Time-limited captive ransom: 72h, game-priced, IV/EV separation (DESIGN ONLY, 2026-10-25)
+
+[Canonical prisoner specification](docs/game-design/16-pvp-frontier-siege-and-captives.md) and [decision register](docs/game-design/decisions.md). **Confirmed** for human and dinosaur capture at optional exposed PvPvE settlements: **72 real-world hours** for original owner to pay a **game-calculated ransom**. Timely payment restores **original level, learned skills, trained EVs and inherited IVs**. If unpaid at expiry, attacker **can acquire** the captive, but must **recruit, level and train from fresh progression while keeping inherited IVs**; a stolen level-60 master warrior is not instantly another tribe's level-60 warrior. Ransom formula, starting level, manual-vs-automatic attacker claim, offline notices and training/loyalty costs remain open. This markdown does not implement multiplayer, custody or timer mechanics.
+
 ## 9. Product direction and open queue
 
 Execute in this priority order unless Milan overrides it.
