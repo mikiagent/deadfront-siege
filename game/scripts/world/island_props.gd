@@ -45,9 +45,10 @@ var _cell_props: Dictionary = {}       # Vector2i -> Array[int] (centre cell + f
 var _cleared: Dictionary = {}          # "x:y" -> {"x","y","kind"}
 var _biome_area: Dictionary = {}       # biome id -> m2
 var _noise: FastNoiseLite
-var _batches: Dictionary = {}          # model path -> VegBatch
-var _card_batches: Dictionary = {}     # model path -> VegBatch (CARD2D stand-in)
+var _batches: Dictionary = {}          # model path -> VegBatch (a kind with no painted art only)
 var _rng := RandomNumberGenerator.new()
+## PROPS2D: the painted cards every prop draws as (prop_cards.gd), one MultiMesh per sprite per cell.
+var cards: PropCards
 
 # ------------------------------------------------------------------ data
 
@@ -219,6 +220,9 @@ func _build_all() -> void:
 		seed_v = int(def.get("seed", 17))
 	# Home keeps a stable layout across builds; its seed comes from the island row when present.
 	_rng.seed = seed_v
+	cards = PropCards.new()
+	cards.name = "PropCards"
+	add_child(cards)
 	_sample_biomes()
 	# Want per kind first, then one proportional cut to MAX_PROPS: a budget spent in dict order
 	# would give everything to pebbles and nothing to the cliffs.
@@ -231,7 +235,8 @@ func _build_all() -> void:
 		if rows.is_empty():
 			continue
 		var models := _existing_models(rows)
-		if models.is_empty():
+		# A kind with painted art always places, even when its GLBs are missing or removed.
+		if models.is_empty() and not has_cards(kind):
 			continue
 		var biomes: Variant = rows.get("biomes", {})
 		if not biomes is Dictionary:
@@ -258,13 +263,13 @@ func _build_all() -> void:
 	for entry in plan:
 		var n: int = maxi(1, int(round(float(entry["n"]) * scale)))
 		_place_kind(str(entry["kind"]), entry["rows"], entry["models"], n)
+	if cards != null:
+		cards.commit()
 	for b: VegBatch in _batches.values():
 		b.commit()
-	for b: VegBatch in _card_batches.values():
-		b.commit()
-	print("[props] built id=%s kinds=%d props=%d colliding=%d destroyable=%d cleared=%d batches=%d by_kind=%s" % [
+	print("[props] built id=%s kinds=%d props=%d colliding=%d destroyable=%d cleared=%d cards=%d batches=%d by_kind=%s" % [
 		str(runtime._climate), _kind_count(), _rows.size(), colliding_count(), destroyable_count(),
-		cleared_count, _batches.size() + _card_batches.size(), _by_kind_line()])
+		cleared_count, cards.instance_count() if cards != null else 0, _batches.size(), _by_kind_line()])
 
 ## Land area per biome, sampled every 2 m (the terrain is 1 m tile-indexed; 4 m per sample is
 ## enough to weight densities and keeps the build under a few ms per 100k samples).
@@ -325,6 +330,121 @@ func _existing_models(rows: Dictionary) -> PackedStringArray:
 		if out.size() >= 3:
 			break
 	return out
+
+# ---------------------------------------------------------------- painted cards (PROPS2D)
+
+## A prop 4 m or taller that the data marks as scenery is a big cliff formation: it blocks and it
+## never breaks (owner: "most props can be destroyed except for like really big cliffs").
+## ASSUMPTION: 4 m, the height from which the cut cliffs, arches, pillars and mesas start (their
+## sprite rows' own height_m is 5-18 m; boulders, logs and plants stay below it).
+const CLIFF_INDESTRUCTIBLE_M := 4.0
+
+static var _sprite_by_id: Dictionary = {}
+## kind -> the rows it resolves to (one island asks the same question for every prop it places).
+static var _card_cache: Dictionary = {}
+
+## Every sprites2d.json row a prop kind draws as, in manifest order, keeping only art that exists.
+## props.json names them: "sprite_kind" (all rows of that kind, e.g. "prop:boulder") and/or "sprites"
+## (explicit ids, for a kind no prop:* row describes, e.g. a reed clump). Older rows that only carry
+## "card": "prop:<id>" resolve through that id. Empty = the kind has no painted art yet.
+static func card_sprites(kind: String) -> Array[Dictionary]:
+	var cached: Variant = _card_cache.get(kind, null)
+	if cached is Array:
+		return cached as Array[Dictionary]
+	var out := _resolve_card_sprites(kind)
+	_card_cache[kind] = out
+	return out
+
+static func _resolve_card_sprites(kind: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var row := kind_row(kind)
+	if row.is_empty():
+		return out
+	var sid := str(row.get("sprite_kind", ""))
+	var ids: Variant = row.get("sprites", [])
+	# Older rows only carry "card": "prop:<kind>" (no sprite_kind); it names the sprite kind then.
+	if sid == "":
+		var card := str(row.get("card", ""))
+		if card.begins_with("prop:"):
+			sid = card
+	for r in _sprite_rows():
+		var s := r as Dictionary
+		if str(s.get("kind", "")) == sid and sid != "":
+			out.append(s)
+	if ids is Array:
+		for v in ids:
+			var s2 := sprite_row(str(v))
+			if not s2.is_empty() and not out.has(s2):
+				out.append(s2)
+	# Only art that is actually on disk counts as a painted card.
+	var art: Array[Dictionary] = []
+	for s3 in out:
+		if ResourceLoader.exists(str(s3.get("file", ""))):
+			art.append(s3)
+	return art
+
+## True when the kind draws as painted cards (its props never draw a 3D mesh).
+static func has_cards(kind: String) -> bool:
+	return not card_sprites(kind).is_empty()
+
+## Every row of data/world/sprites2d.json (read once; the manifest arrives in parts, never hard-code).
+static func _sprite_rows() -> Array:
+	if _sprites.has("sprites") and _sprites["sprites"] is Array:
+		return _sprites["sprites"]
+	_sprites_data()
+	var rows: Variant = _sprites.get("sprites", [])
+	return rows as Array if rows is Array else []
+
+## One manifest row by id.
+static func sprite_row(id: String) -> Dictionary:
+	if id == "":
+		return {}
+	if _sprite_by_id.is_empty():
+		for r in _sprite_rows():
+			if r is Dictionary:
+				_sprite_by_id[str((r as Dictionary).get("id", ""))] = r
+	var row: Variant = _sprite_by_id.get(id, {})
+	return row if row is Dictionary else {}
+
+## The painted card for one prop of `kind` at `pos`: a variant picked by a stable hash of the ground
+## point, so neighbours mix sprites while a prop always draws the same one (a redraw is identical).
+static func pick_card_sprite(kind: String, pos: Vector3) -> Dictionary:
+	var rows := card_sprites(kind)
+	if rows.is_empty():
+		return {}
+	var pick := int(abs(hash(Vector3i(roundi(pos.x * 10.0), roundi(pos.y * 10.0), roundi(pos.z * 10.0))))) % rows.size()
+	return rows[pick]
+
+## The card's visible height in metres: the sprite row's own height_m (the art was cut at that size),
+## else the kind's size_m midpoint.
+static func card_height(kind: String, sprite: Dictionary) -> float:
+	var h := float(sprite.get("height_m", 0.0))
+	if h > 0.02:
+		return h
+	var size: Array = kind_row(kind).get("size_m", [1.0, 1.0]) as Array
+	if size.size() >= 2:
+		return 0.5 * (float(size[0]) + float(size[1]))
+	return 1.0
+
+## The card sway kind: the prop kind's `sway` in props.json (rock formations stand still).
+static func card_sway(kind: String) -> String:
+	var s := str(kind_row(kind).get("sway", "plant"))
+	return s if s != "" else "plant"
+
+## What one prop instance of `kind` does to the world, decided by data and art together:
+##   blocks      props.json `collide` or the sprite row's `blocks` (either saying yes makes it solid;
+##               a boulder's cut art is drawn as a non-blocking decal but the prop is a boulder)
+##   destroyable props.json `destroyable` AND the sprite row's `destroyable`, and never at 4 m or more
+static func prop_rules(kind: String, sprite: Dictionary, height: float) -> Dictionary:
+	var row := kind_row(kind)
+	var blocks := bool(row.get("collide", false)) or bool(sprite.get("blocks", false))
+	var destroyable := bool(row.get("destroyable", true)) and bool(sprite.get("destroyable", true))
+	# Owner: "most props can be destroyed except for like really big cliffs". Spec 28 puts the big
+	# cliffs, arches and pillars in that group and keeps boulders, slabs, vines and shells breakable,
+	# so the line is the cliff formations: a blocking card 4 m or taller never breaks.
+	if blocks and height >= CLIFF_INDESTRUCTIBLE_M:
+		destroyable = false
+	return {"blocks": blocks, "destroyable": destroyable}
 
 ## The 2D card a kind draws as, "" when it has none yet. A kind's card is either a res:// path to a
 ## PNG/WebP, or "prop:<id>" naming a row of data/sprites2d.json (the owner's painted props, drawn by
@@ -432,7 +552,8 @@ func _place_kind(kind: String, rows: Dictionary, models: PackedStringArray, n: i
 		if collide and radius >= 1.0 and _cells_taken(tile, int(round(radius))):
 			continue
 		var want_h := _rng.randf_range(h0, h1)
-		var path := models[_rng.randi_range(0, models.size() - 1)]
+		# A painted-card kind needs no model: the sprite carries the size.
+		var path := "" if models.is_empty() else models[_rng.randi_range(0, models.size() - 1)]
 		var longest := 1.0 if path == "" else maxf(0.02, VegBatch.mesh_longest(path))
 		var sc := clampf(want_h / longest, 0.02, 60.0)
 		_spawn(kind, path, Vector3(wx, h, wz), sc, collide, destroyable, radius, want_h)
@@ -463,12 +584,24 @@ func _tile_name(x: float, z: float) -> String:
 	return "GRASS"
 
 func _spawn(kind: String, path: String, pos: Vector3, scale: float, collide: bool, destroyable: bool, radius: float, size_m: float) -> void:
-	# A painted-card kind has no mesh: its card is `size_m` tall (the card batch scales it).
+	# A painted-card kind has no mesh: its card is the sprite's own height_m. A kind with no art yet
+	# keeps its GLB (t_props2d requires none of the home kinds to be left there).
 	var h := size_m
 	if path != "":
 		h = VegBatch.mesh_height(path) * scale
 	if h <= 0.02:
 		h = size_m
+	var sprite := pick_card_sprite(kind, pos)
+	if not sprite.is_empty():
+		var ch := card_height(kind, sprite)
+		h = ch
+		var rules := prop_rules(kind, sprite, ch)
+		collide = bool(rules["blocks"])
+		destroyable = bool(rules["destroyable"])
+		# The card's footprint is its art width, so two boulders do not share a tile.
+		var px: Array = sprite.get("px", [1, 1]) as Array
+		var w := ch * float(px[0]) / maxf(1.0, float(px[1]))
+		radius = maxf(radius, 0.5 * minf(w, ch))
 	var yaw := _rng.randf() * TAU
 	var basis := Basis.IDENTITY.rotated(Vector3.UP, yaw).scaled(Vector3.ONE * scale)
 	var xf := Transform3D(basis, pos)
@@ -483,13 +616,14 @@ func _spawn(kind: String, path: String, pos: Vector3, scale: float, collide: boo
 		"radius": radius,
 		"batch": null,
 		"idx": -1,
+		"card_idx": -1,
 		"body": null,
 		"path": path,
 		"xf": xf,
+		"sprite": sprite,
 	}
-	# ONE visual entry point. Today a prop draws as a VegBatch instance of its GLB (or a card PNG
-	# listed on the kind); the CARD2D follow-up swaps the body of _draw_prop for a CardProp sprite and
-	# nothing else in this file changes. The row keeps its transform so a redraw is one call.
+	# ONE visual entry point (PROPS2D): a prop draws as a painted 2D card (cards.add) or, only when
+	# its kind has no cut art at all, as a batched GLB. Nothing else in this file sees the difference.
 	_draw_prop(row)
 	var i := _rows.size()
 	_rows.append(row)
@@ -506,20 +640,23 @@ func _spawn(kind: String, path: String, pos: Vector3, scale: float, collide: boo
 		row["body"] = _make_body(row, h)
 		_add_blocked(cells)
 
-## Draws row["path"] at row["xf"] and records the batch handle on the row. Every prop visual in the
-## island goes through here (see the note in _spawn): the CARD2D job replaces this body with
-## CardProp.make(kind) sprites, keyed by the kind's card id in sprites2d.json (kind "prop:*").
+## Draws one prop: its painted card (the sprite row picked for this spot, at the art's own height and
+## with the kind's sway kind) or, when its kind has no art, the old batched model. Records the handle
+## on the row so a clear is one call.
 func _draw_prop(row: Dictionary) -> void:
 	var kind := str(row.get("kind", ""))
-	var path := str(row.get("path", ""))
-	var xf: Transform3D = row.get("xf", Transform3D.IDENTITY)
+	var sprite: Dictionary = row.get("sprite", {}) as Dictionary
 	var h := float(row.get("height", 1.0))
-	var batch: VegBatch = null
-	var card := _card_path(kind_row(kind))
-	if card != "":
-		batch = _card_batch(card, float(row.get("scale", 1.0)), h)
-	else:
-		batch = _batch_for(path)
+	if not sprite.is_empty():
+		if cards != null:
+			row["card_idx"] = cards.add(sprite, row["pos"] as Vector3, h, card_sway(kind))
+			row["path"] = ""
+		return
+	var path := str(row.get("path", ""))
+	if path == "":
+		return
+	var xf: Transform3D = row.get("xf", Transform3D.IDENTITY)
+	var batch := _batch_for(path)
 	if batch == null:
 		return
 	row["batch"] = batch
@@ -539,32 +676,6 @@ func _batch_for(path: String) -> VegBatch:
 		# node, so a player never mistakes a prop for something to tap (owner: only resources have UI).
 		b.overlay_color = SCENERY_TINT
 		_batches[path] = b
-	return b
-
-## CARD2D stand-in: a billboard quad from a PNG/WebP card, same batch/cell/collider rules as a GLB.
-## (# ASSUMPTION: the card is drawn `card_height_m` tall and as wide as its aspect ratio.)
-func _card_batch(card_path: String, _scale: float, height: float = 1.6) -> VegBatch:
-	if _card_batches.has(card_path):
-		return _card_batches[card_path]
-	var tex := load(card_path) as Texture2D
-	if tex == null:
-		return null
-	var h := height
-	var w := h * (float(tex.get_width()) / maxf(1.0, float(tex.get_height())))
-	var quad := QuadMesh.new()
-	quad.size = Vector2(w, h)
-	quad.center_offset = Vector3(0, h * 0.5, 0)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = tex
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	mat.alpha_scissor_threshold = 0.5
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	quad.material = mat
-	var b := VegBatch.get_for_mesh(self, card_path, quad)
-	if b != null:
-		b.overlay_color = SCENERY_TINT
-		_card_batches[card_path] = b
 	return b
 
 func _footprint_cells(row: Dictionary) -> Array:
@@ -749,6 +860,8 @@ func _clear_index(i: int, record: bool) -> bool:
 	var batch: VegBatch = row.get("batch")
 	if batch != null and int(row.get("idx", -1)) >= 0:
 		batch.set_shown(int(row["idx"]), false)
+	if cards != null and int(row.get("card_idx", -1)) >= 0:
+		cards.set_shown(int(row["card_idx"]), false)
 	var body: Variant = row.get("body")
 	if body != null and is_instance_valid(body):
 		(body as Node).queue_free()
@@ -795,11 +908,25 @@ func apply_snapshot(snap: Dictionary) -> void:
 			_clear_index(_rows.find(p), false)
 
 ## Place one prop of `kind` at a world point through the normal path (tests and the lab use this to
-## get a cliff or a log exactly where they need it). False when the kind has no existing model.
+## get a cliff or a log exactly where they need it). `want_size` is the art height in metres; a card
+## tall enough to be a cliff follows the cliff rule (blocks, never breaks). False when the kind has
+## neither painted art nor an existing model.
 func add_prop(kind: String, pos: Vector3, want_size: float = 2.0) -> bool:
 	var rows := kind_row(kind)
 	if rows.is_empty():
 		return false
+	if has_cards(kind):
+		if pos.y < -100.0:
+			pos.y = runtime.surface_y(pos.x, pos.z)
+		# A hand-placed prop of want_size: the sprite keeps its art, blocks/destroyable come from
+		# prop_rules at this height, so a 4 m card of a boulder blocks and never breaks too.
+		_spawn(kind, "", pos, 1.0, bool(rows.get("collide", false)),
+			bool(rows.get("destroyable", true)), float(rows.get("radius_m", 0.6)), want_size)
+		if cards != null:
+			cards.commit()
+		if runtime != null:
+			runtime.mark_pathing_dirty()
+		return true
 	var models := _existing_models(rows)
 	if models.is_empty():
 		return false
