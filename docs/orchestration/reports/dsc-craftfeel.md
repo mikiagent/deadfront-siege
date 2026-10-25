@@ -12,7 +12,7 @@ materials disappear"). Branch: `craftfeel` worktree; 5 commits, one per mileston
   `shortfall = max(0, required_ability - ability)`. Measured: 0 -> 100 %, 50 -> 75 %, 80 -> 36 %, 100 -> 0 %.
 - `crafting_ability(player, rec)` = governing skill level + learned `craft_ability` node abilities + food
   `craft_ability` buffs (see assumptions).
-- `required_ability(rec)` = the recipe's `required_ability` key. 34 recipes now declare one (review round 1,
+- `required_ability(rec)` = the recipe's `required_ability` key. 35 recipes now declare one (review round 1,
   below); a recipe without it only has the existing `min_level` category gate, so it reads 100 % — the
   skewer of spec 25 §8 included.
 - `roll_outcome()` rolls success, then flawless (only on success), then the rare trait: a rare trait the
@@ -56,7 +56,7 @@ reused (see review round 1 below); a failure never needs bag room.
 
 | | Before | After |
 |---|---|---|
-| Success chance | always 100 % (no roll) | spec 04 curve; 34 gated recipes reach it (lowest 0.840 at its own gate) |
+| Success chance | always 100 % (no roll) | spec 04 curve; 35 gated recipes reach it (lowest 0.840 at its own gate) |
 | Failure | impossible | spends the picked instances once, makes nothing, notice, no XP |
 | Flawless | none | 5 % per successful craft, +10 % durability, quality marker (measured 5.35 % / 2000) |
 | Rare trait | none from crafting | primary carries it (always) else 5 % roll (measured 4.85 % / 2000) |
@@ -87,7 +87,7 @@ The first round shipped the rules but left the loop open at four points. All are
 card only existed in the dev lab**, and **online play still used the old direct path**.
 
 **Data (finding 1).** `game/data/recipes.json`: every recipe with `min_level >= 10` now declares an
-explicit `required_ability = min_level + 40` (34 recipes; the four `min_level 55` raid pieces take 95).
+explicit `required_ability = min_level + 40` (35 recipes; the four `min_level 55` raid pieces take 95).
 Below that, the gate is still the category level alone, so early crafting is unchanged. The lowest
 shipped success at a recipe's own gate is now **0.840** (`raid_maul`, level 55, ability 55 vs 95) and a
 survivor several levels short fails outright; the curve is reachable in shipped data with no code path
@@ -126,7 +126,7 @@ reuse it. `_finish_one` now clears `_plan`/`_burnt` on completion.
 
 ## Verified (round 1)
 - `game/tests/t_craftfeel.gd`, 99 assertions, all PASS; it now asserts the round-1 regressions:
-  shipped-data reachability (34 gated recipes, lowest 0.840 at its own gate, value read from data);
+  shipped-data reachability (35 gated recipes, lowest 0.840 at its own gate, value read from data);
   explicit club pick refused; two full-bag retries holding then landing on one plan; one burn value per
   plan (a `grill` plan with `burnt=true` yields burnt food, `false` yields grilled meat, no second roll);
   uid preservation across a bag sort and a "left" stop with a legal substitute in the bag; the live card
@@ -140,7 +140,7 @@ reuse it. `_finish_one` now clears `_plan`/`_burnt` on completion.
 - Related: `t_items`, `t_data`, `t_process`, `t_server_domain` PASS; `verify_job.sh craftfeel` PASS.
 
 ## Assumptions (`# ASSUMPTION` in code)
-- **`required_ability = min_level + 40`** on the 34 recipes with `min_level >= 10` is a deliberate
+- **`required_ability = min_level + 40`** on the 35 recipes with `min_level >= 8` is a deliberate
   ASSUMPTION (documented in `rules.json` `crafting._about`) to make the curve reachable in shipped data.
   It is not a balance pass: early recipes (min_level 0) keep 100 %, and every value can be retuned in
   data alone.
@@ -163,5 +163,5 @@ reuse it. `_finish_one` now clears `_plan`/`_burnt` on completion.
 ## What the integrator needs
 1. Re-run the visual lab when the machine is free: it prints `[craftfeel] RESULT ... ui_min_px=64` at
    844x390; expected shots are the craft sheet with odds, the live craft card, and the loss notice.
-2. Tuning only: the 34 `required_ability` values are the owner's to adjust; no code depends on the exact
+2. Tuning only: the 35 `required_ability` values are the owner's to adjust; no code depends on the exact
    numbers (the test reads the data value, it does not hard-code 50/95).

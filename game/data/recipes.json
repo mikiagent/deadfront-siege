@@ -4832,6 +4832,7 @@
       "skill": "tailoring",
       "max_level": 60,
       "min_level": 8,
+      "required_ability": 48,
       "slots": [
         {
           "category": "dried_hide",

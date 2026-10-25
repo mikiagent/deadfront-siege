@@ -301,7 +301,7 @@ func _test_shipped_ability() -> void:
 	var worst_id := ""
 	for rec: Dictionary in CR.all_recipes():
 		var ml := int(rec.get("min_level", 0))
-		if ml < 10:
+		if ml < 8:
 			continue
 		gated += 1
 		var req := float(rec.get("required_ability", 0.0))
