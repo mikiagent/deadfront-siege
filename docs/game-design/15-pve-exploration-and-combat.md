@@ -11,7 +11,7 @@ Weapons have **two independent dimensions**:
 - **Primary application attribute:** how effectiveness is generated, **Might** (force/body impact) or **Precision** (aim/control/targeting). A secondary attribute can influence handling, timing or load.
 - **Damage channel:** **Blunt**, **Impale** (player-facing term for existing `pierce`), or **Slash** (player-facing term for existing `cut` / `slashing`). The channel is the counter to armor, monster anatomy and resistance, **not** a separate stat to level in isolation.
 
-The current engine already uses **Blunt / Pierce / Cut** channels in [`game/data/combat_counters.json`](../../game/data/combat_counters.json), with `CombatCounters.channel` mapping `slashing` to `cut`. **Do not add three competing new damage types named point/slash**. Change only UI terminology or map content labels at the data boundary. Poison/bleed remain status/DOT channels, not extra cells in this six-category weapon grid.
+The current engine already uses **Blunt / Pierce / Cut** channels in [`game/data/combat_counters.json`](../../game/data/combat_counters.json), with `CombatCounters.channel` mapping `slashing` to `cut`. **Do not add new internal damage enum values for the display labels Impale or Slash**. Change only UI terminology or map content labels at the data boundary. Poison/bleed remain status/DOT channels, not extra cells in this six-category weapon grid.
 
 ## 2. Six archetypes (owner-provided examples)
 
