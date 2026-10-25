@@ -354,7 +354,9 @@ phases:
           traits) and 25 section 8 ("if crafting fails, materials disappear"). Flawless 5 % with a stat bump and rare
           attribute chance 5 % at gather (rules rare_attribute_chance) are the plan's values: keep them in data.
           Read game/scripts/items/crafting.gd (the craft path, level/attribute inheritance; BUILDFLOW and BAGS changed it
-          - reuse their preview functions) and craft_ui.gd / craft_card.gd. Do not tune XP or other balance numbers.
+          - reuse their preview functions), craft_ui.gd / craft_card.gd, and the authoritative online craft handler in
+          game/scripts/server/intent_handlers.gd. Offline and online crafting must execute the same validated outcome rule.
+          Do not tune XP or other balance numbers.
           Milestones: M1 game/tests/t_craftfeel.gd (the success curve at shortfall 0/50/100; a failed craft consumes the
           picked instances exactly once and makes nothing; flawless and rare-trait rates within +-2 % over 2000 seeded
           crafts; skewer slot rules; the preview equals the result; craft XP paid once). M2 the rules in crafting.gd. M3
