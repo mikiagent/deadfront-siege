@@ -25,19 +25,31 @@
 
 ## 2. Boats, routes and physical cargo transfer
 
-**CONFIRMED concept:** The player can safely keep *any* gathered materials on the private home island; **transport worker(s) and boats** are an attractive potential automation method for moving goods from contested outposts to home. The owner phrased boat transport as an idea, so detailed mechanics remain **PROPOSED**, not approved.
+**CONFIRMED logistics risk rule (2026-10-25):** The remote resource-gathering settlement is **fully raidable** in its applicable contested PvE/PvPvE zone. **A transport boat already in transit toward the protected private home island cannot be raided, intercepted, looted, sunk by attackers, or otherwise attacked during that homeward voyage.** The home island and its stockpiles are also protected. The exact implementation of worker-assigned boat routes, loading and departure timing remains **PROPOSED**; there is no implemented boat system yet.
 
 **Proposed logistics loop:**
 1. Discover/unlock harbor access, build a dock at home and the risky settlement, acquire/construct a boat or transport slot.
 2. Assign one or more tribe workers (possible guards/pack dinosaurs later) to a **cargo route**: origin storage/stockpile -> vessel -> destination home storage.
 3. Set material/trait/level filters, minimum reserve at source, boat capacity, route frequency and risk tolerance in a logistics/monitoring interface. Never silently take a prized item reserved for crafting.
 4. A job claims concrete inventory stacks with unique IDs and reserves them against local consumption and other haulers. Workers physically move those items to the dock; the vessel carries a real manifest.
-5. Once the shipment arrives at the home island and is unloaded into home storage, the resources are permanently safe from raids. Never duplicate or teleport the cargo in the accounting model.
+5. From the moment a shipment **successfully departs** the remote dock for the protected home island, its manifest is safe from raids throughout transit. On arrival, unload it into permanently protected home storage. Never duplicate or teleport cargo in the accounting model. Actual travel time, capacity and cost can still matter even though combat interception does not.
 6. Log departures, arrivals, delays, losses, assigned crew, material quality, fuel/maintenance where applicable and obstruction reasons.
 
-**Risk model remains OPEN:** boats might be attacked/intercepted in dangerous territories or on routes, or risk could be limited to loading/unloading at contested docks. Either is viable. Do not invent ocean simulation requirements: an abstract harbor-route transit with visible boat representations can satisfy the fantasy at much lower technical cost. State what is simulated vs animated. Remote-worker death, cargo insurance, escorting, and offline shipments require explicit policy.
+**LOCKED threat boundary:** Hostile players/NPCs can raid the **remote settlement, resource sites, warehouses and material stockpiles** according to its PvE/PvPvE zone rules, including materials awaiting loading. They **cannot attack the homebound boat or its in-transit cargo/crew after confirmed departure**. A successful transfer of ownership from remote inventory into an actual vessel manifest at departure must be atomic and auditable. Avoid making queued shipping orders function as instant, unlimited raid-escape storage. **OPEN:** precise dock-loading vulnerability, whether departures are permitted once a raid has begun, departure countdowns, boat fleet/crew/cargo costs, offline transport, and whether voyages *outbound from home* follow the same protection rule. No ocean-combat, piracy or escort requirement for the protected homebound transit leg. Abstract harbor-route transit with a visible boat is fine.
 
 **Economy interaction:** The distance and risk of transporting premium materials increases their value. Trait-aware sorting and preservation must continue from contested quarry to home storage to a crafted prized crossbow. The transport system depends on meaningful material stacks, work orders, reservations, inventory and stable storage IDs.
+
+
+### Example: exposure boundary and raid resolution (owner-confirmed rule)
+
+| Location/state | Can raiders attack it? | Design interpretation |
+|---|---|---|
+| Remote mining/lumbering site and warehouse | **Yes** | Valuable materials and on-site human/dinosaur workers are exposed under zone rules |
+| Cargo awaiting pickup or being staged at the contested dock | **Yes, until confirmed departure** | No immunity from merely assigning a shipment; precise loading mechanics still to design |
+| Boat confirmed underway **toward protected home** | **No** | No ambush, PvE/PvP interception, cargo theft or loss to combat during transit |
+| Shipment received in home storage | **No** | Permanently protected with the private island |
+
+**Design implication:** The strategy is protecting a remote extraction base, deciding how much stock to hold there, and arranging transport before the next raid. Boat travel has a logistical time/capacity cost, **not another combat hazard**. Raiding the remote base must not be bypassed by converting its entire inventory into invulnerable 'pending' shipments in one frame.
 
 ## 3. Offspring stages, food quality and education
 
@@ -91,7 +103,7 @@
 1. A tribe of valuable human workers and dinosaurs remains at the default home island indefinitely without enemy attacks or PvP losses. All materials stored there remain safe.
 2. The player builds a remote PvE mining site, recruits workers, equips miners, and operates it for better ore. Raiders may threaten that remote site but never teleport an attack onto the safe home.
 3. A dangerous PvPvE settlement has better trade/resource rewards, but the player may choose not to establish one. Losing the external site does not delete home assets.
-4. A boat convoy reserves premium ore, transports a traceable cargo manifest, deposits it in protected home storage, and the ore keeps its level and exceptional signed traits. A failure cannot duplicate the cargo.
+4. A boat loads premium ore from a **raidable** remote stockpile; hostile raiders may seize goods before departure. After successful departure homeward, the vessel/crew/cargo are **unattackable throughout transit**. It delivers an unchanged traceable manifest with levels/traits into permanently protected home storage. Delayed or failed orders never duplicate goods.
 5. Two genetically similar children experience different quality nutrition in growth phases and reach adulthood with detectably different **expressed** stat outcomes, without overwriting their distinct genes. Youth education conveys initial knowledge but not free veteran mastery.
 6. The starting population has varied recognizable body types and average sex-linked physical tendencies, with significant overlap and no barred careers. A female ranged warrior and a male doctor are both viable, effective and valuable to the tribe.
 7. A veteran warrior benefits measurably from nutrition, healer/recovery and education/coordination systems. Support specialists are consequential even if they never join a fighting party.
@@ -100,7 +112,7 @@
 
 ## 7. Decisions to settle next
 
-- **Boat exposure:** Can cargo ships themselves be ambushed/sunk while traveling, or is the dangerous portion only the loading and road/harbor portions in contested territory?
+- **Boat exposure (RESOLVED):** Remote gathering bases are fully raidable; **homebound boats in transit are not attackable or interceptable**. **Still OPEN:** vulnerability during dock loading, whether departure is allowed while a raid is underway, and whether outbound trips share this immunity.
 - **Offline safety:** If the player is offline, may remote settlements/workers be raided, and does the boat keep operating?
 - **Nursery pacing:** Rough real-time target from offspring to playable adult (hours, days, weeks); minimum food/care tier, quality and consequences of shortfalls?
 - **Stat discovery:** Reveal numeric current stats and some qualitative hereditary clues, while concealing exact growth ceilings, or hide more?
