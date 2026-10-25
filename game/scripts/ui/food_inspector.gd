@@ -16,6 +16,7 @@ signal closed
 var slot_index: int = -1
 var _title: Label
 var _body: Label
+var _scroll: ScrollContainer
 var _eat_btn: Button
 var _feed_btn: Button
 var _close_btn: Button
@@ -42,10 +43,17 @@ func _ready() -> void:
 	_title = Label.new()
 	_title.add_theme_font_size_override("font_size", 18)
 	box.add_child(_title)
+	# The body scrolls: a card with every s12 line is taller than a landscape phone, and the way out
+	# (Close) must never be pushed off the canvas.
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.custom_minimum_size = Vector2(320, 90)
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(_scroll)
 	_body = Label.new()
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_body.custom_minimum_size = Vector2(320, 120)
-	box.add_child(_body)
+	_body.custom_minimum_size = Vector2(320, 0)
+	_scroll.add_child(_body)
 	_eat_btn = Button.new()
 	_eat_btn.text = "Eat"
 	_eat_btn.custom_minimum_size = Vector2(320, 64)
@@ -73,14 +81,17 @@ func show_stack(stack: ItemStack, index: int, can_feed: bool = false) -> void:
 	# used to run past the bottom edge, so Close (the way out) was half off-screen.
 	var vp := get_viewport_rect().size
 	var short := vp.y < 520.0
-	custom_minimum_size.y = minf(300.0, vp.y - 24.0)
-	_body.custom_minimum_size.y = 70.0 if short else 120.0
+	# Content floor: title + scroll floor + three 64 px buttons + separations.
+	var floor_h := 24.0 + 90.0 + 3.0 * 64.0 + 32.0 + 24.0
+	custom_minimum_size.y = clampf(vp.y - 24.0, minf(floor_h, vp.y - 24.0), 480.0)
+	_scroll.custom_minimum_size.y = 90.0 if short else 160.0
 	reset_size()
 	var h := maxf(size.y, get_combined_minimum_size().y)
 	position = Vector2(
 		maxi(16, int(vp.x * 0.5 - 180)),
 		int(clampf(vp.y * 0.12, 12.0, maxf(12.0, vp.y - 12.0 - h))))
 	_measure()
+	print("[foodfx] card at %s size %s canvas %s" % [str(position), str(size), str(vp)])
 
 ## Measured tap targets and layout, after the panel has laid out.
 func _measure() -> void:

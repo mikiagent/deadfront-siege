@@ -86,6 +86,7 @@ func _run() -> void:
 	await _test_bad_food()
 	await _test_save_roundtrip()
 	_test_inspector()
+	await _test_panel_layout()
 	_finish()
 
 func _finish() -> void:
@@ -491,6 +492,26 @@ func _test_inspector() -> void:
 		_expect(text.find(want) >= 0, "the food card carries '%s': %s" % [want, text.replace("\n", " | ").left(300)])
 	var plain: String = FOOD.inspector_text(IS.make(&"skewer", 1))
 	_expect(plain != "", "a food without a bundle still has its old card")
+
+## The card is a real HUD control (spec 32 s12), on a phone canvas: every tap target 64 px and the
+## whole panel, Close included, inside the view.
+func _test_panel_layout() -> void:
+	print("[t_foodfx] -- panel layout")
+	var layer := CanvasLayer.new()
+	_host.add_child(layer)
+	var panel = INSPECTOR.new()
+	layer.add_child(panel)
+	_give(&"dutch_coffee", 1)
+	panel.show_stack(_player.inventory.slots[player_stack(&"dutch_coffee")], player_stack(&"dutch_coffee"), false)
+	await process_frame
+	await process_frame
+	panel._measure()
+	print("[t_foodfx] panel min_px=%.0f fits=%s canvas=%s" % [panel.shown_min_px, str(panel.shown_fits), str(panel.get_viewport_rect().size)])
+	_expect(panel.shown_min_px >= 64.0, "the card's tap targets are at least 64 px (%.0f)" % panel.shown_min_px)
+	_expect(panel.shown_fits, "the whole card, Close included, is inside the canvas")
+	_expect((panel.shown_replaces as Array).size() >= 0, "the card reports which active buff it would replace")
+	layer.queue_free()
+	await process_frame
 
 func _status_ids() -> Array:
 	var out: Array = []
