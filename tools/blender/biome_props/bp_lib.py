@@ -136,16 +136,10 @@ def finalize(bm, name, smooth=False, flat_above=None, double_sided=False, rough=
 # linear and does not convert it. So the authored sRGB value is converted to linear here, once.
 # sheet.py (Blender) therefore previews slightly darker than the game; the Godot look render
 # (/tmp/bp_godot_look.png) is the authority for colour.
-#
-# BIOMEPROPS note: that calibration (reports/dsc-biomeassets.md, "Colour space: unverified in Godot")
-# is a single calibration box under a linear tonemap, and the imported material does report
-# vertex_color_is_srgb = true, so the two readings disagree. Nothing was changed here on that
-# evidence alone: the colour space stays as calibrated until someone looks at the props in the real
-# AGX + sky lighting and says which one matches the palette. Sizes and placement are separate.
 
 
 def paint(bm, fn):
-    """fn(co) -> sRGB (r, g, b) for every vertex, stored in the COLOR_0 attribute as linear."""
+    """fn(co) -> sRGB (r, g, b) for every vertex, stored in the COLOR_0 attribute."""
     layer = bm.verts.layers.float_color.get(COLOR_ATTR)
     if layer is None:
         layer = bm.verts.layers.float_color.new(COLOR_ATTR)

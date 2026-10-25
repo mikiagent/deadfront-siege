@@ -16,7 +16,7 @@ and its collider, plus test coverage that would have caught it.
 | `game/tests/t_biome.gd` | Replaced with the BIOMEDRESS version (ad8bb5c4) of the same test, which load()s its classes on the first frame instead of naming them at compile time. The old copy printed 5 SCRIPT ERRORs ("Identifier not found: World / Data") before its PASS, so no gate that forbids SCRIPT ERROR could accept it. The new copy is the same test, same assertions, PASS with zero SCRIPT ERRORs. |
 | `game/scripts/dev/biomeprops_lab.gd`, `game/scenes/dev/biomeprops_lab.tscn` | Lab: a row of every kind on the home island from the game camera, PNGs into `--shot-dir`, one `[biomeprops] RESULT ...` line. |
 | `docs/orchestration/dsc/gates/job_biomeprops.conf` | The gate settings, committed to the branch so the integration gate runs the same checks (TEST/LAB/LAB_ASSERT/RELATED/SCOPE). |
-| `tools/blender/biome_props/bp_lib.py` | **Unchanged behaviour** (the `srgb()` linear storage the BIOMEASSETS calibration chose); only a comment records the open colour-space question and points at this report. |
+| `game/assets/nature/biome/*.glb`, `tools/blender/biome_props/bp_lib.py` | **Byte-identical to the integration base.** No GLB is regenerated and the exporter source is untouched; see "Colour space" below for why. |
 
 ## Size fix (the defect this job closes)
 
@@ -57,7 +57,10 @@ Both readings are single measurements under different tonemapping (the calibrati
 tonemapping and a constant ambient, not the game's AGX + sky ambient). A headless test cannot settle
 it: a check on the stored numbers only encodes whichever convention the exporter happens to use,
 which is why the test asserts nothing about colour space and the lab no longer prints a luminance
-key. **No colour-space change is shipped on this branch.** The props keep the BIOMEASSETS
+key. **No colour-space change is shipped on this branch.** Binary and source art are unchanged
+because the question is unresolved: every `game/assets/nature/biome/*.glb` and
+`tools/blender/biome_props/bp_lib.py` is byte-identical to the integration base, and the new test
+passes against those shipped originals. The props keep the BIOMEASSETS
 calibration until someone looks at them in the real lighting and picks a side; if raw sRGB turns out
 to be right, it is one line in `bp_lib.paint()` (`v[layer] = srgb(fn(...))` → store the raw triple),
 a headless rebuild (`Blender --background --factory-startup -P build_all.py`) and a reimport.
@@ -66,8 +69,14 @@ a headless rebuild (`Blender --background --factory-startup -P build_all.py`) an
 
 - `t_biomeprops` PASS; `t_biome` PASS (10 climates, zero SCRIPT ERROR); `t_props` PASS; `t_biomes`
   PASS; `tools/smoke.sh --no-import` -> `SMOKE PASS`.
-- `verify_job.sh biomeprops` (full, no stage argument): **VERIFY PASS**, with
-  `VERIFY HEADLESS-ONLY: visual lab deferred by owner` in place of the windowed lab pass.
+- `bash docs/orchestration/dsc/gates/verify_job.sh biomeprops 1` -> **VERIFY STAGE 1 PASS**
+  (`t_biomeprops` PASS, zero SCRIPT ERROR). The windowed stage 2 was not run: owner instruction is
+  headless only, so the lab's PNG look stays deferred (see below).
+- Re-run on the final tree, after the art was restored to base: `t_biomeprops` PASS,
+  `t_biome` exit 0 + PASS with 0 SCRIPT ERROR, `t_props` exit 0 + PASS, `smoke.sh --no-import`
+  `SMOKE PASS`.
+- `git diff <integration base>` touches nothing under `game/assets/nature/biome/` and nothing in
+  `tools/blender/biome_props/`: the GLBs and the exporter are byte-identical to the base.
 - Lab, headless (numbers measured from the live scene):
   `[biomeprops] RESULT kinds=11 vcol_ok=11 scale_ok=11 placed=8 missing_files=0`.
   `placed` is the home-island count; mesa_cliff and basalt_column have no canyon/basalt ground
