@@ -180,7 +180,48 @@ Natural body and added gear should be separately represented, and **covered zone
 
 **Requested behavior is approved as qualitative design direction; numbers, exact protection regions, mobility losses, AI states, damage/stagger ratios and data migrations remain UNAPPROVED. No runtime files changed.**
 
-## 9. OPEN for owner refinement
+## 9. Owner refinement: relative-mass stomp mitigation, stability and armored approach (2026-10-25)
+
+**Qualitative rules from owner, adopted as design direction:**
+
+1. **Stomps/body-weight attacks are two-sided mass contests**, not fixed damage. Heavy **attacker** mass improves the force/damage of a planted stomp, tackle or body slam; heavy **defender** mass lowers **damage received**, the knockback and likelihood of a stagger/knockdown. Calculate the attacking and defending combat masses **at impact**, including meaningful physically carried armor/saddle/rider/cargo, but keep sane damping/caps.
+2. **A similarly massive and adequately armored defender should often stand firm** when struck by a stomp that would flatten a tiny/light creature. Heavy gear improves **stability/poise**, preventing ordinary stomp staggers under a sufficient mass/stability threshold (rather than just reducing animation duration). This makes reaching a powerful enemy feasible through **uninterrupted forward pressure**, even as Heavy gear makes turning, sprinting and evasive reactions worse.
+3. **Heavy armor still blocks ordinary raptor Pounce -> Pin** at genuinely protected impact zones; this is a distinct **contact/hold deflection**, not identical to the mass-based stomp mitigation or poise mechanics. Ordinary stomps, tackles, piercing attacks and large jaw grabs still have their own rules.
+
+### A. Coherent hit-resolution order
+
+1. **Is there a hit?** A real animated planted foot/shoulder/horn needs target contact; attack telegraph and dodge remain valid.
+2. **Which physical move?** Stomp/trample (MI), body tackle/ram (MI) or weapon-based lance/arrow/slash; only **body-weight attacks** receive this specific attack/defense mass contest, not every Impact move. A small handheld hammer still uses the weapon's own force and armor matchup.
+3. **Read attacker effective mass and defender effective mass** from natural physiology plus actually supported carried gear, with a carrying/encumbrance burden that scales relative to species. Use a **bounded mass-advantage curve** (e.g. attacker_mass ÷ defender_mass after safe clamping/log compression), not an unbounded raw ratio. When **defender mass increases**, held attacker attack/animation/velocity constant, **received stomp damage decreases**.
+4. **Calculate body contact severity** from move, support stance, relative forward velocity for tackles, planted-foot momentum for stomps, and actual foot/shoulder contact location. Don't count full attacker mass and then multiply by the full same mass ratio a second time: double-dipping creates absurd numbers.
+5. **Apply covered-zone armor as its own protection layer** on HP damage. The existing **Impact is relatively favored against Heavy plate** combat matchup still applies to **plate destruction, posture or local damage vs Slash/Pierce** where appropriate; it does **not** cancel a heavy defender's separate fundamental **mass advantage against a smaller body's stomp**. Avoid simultaneous full flat armor + whole-body mitigation + percentage reduction making every Heavy enemy immortal.
+6. **Resolve stagger/knockback separately from HP.** Compare delivered impact impulse with defender **stability/poise** (body mass, stance/bracing, species behavior, Heavy armor integrity and terrain). Ordinary stomp may damage a well-armored heavy mount yet **not interrupt or push it backward**. An overwhelmingly larger attacker, exposed joint, forced off-balance state or powerful enough committed stomp can still cause stagger. Do not make Heavy universal boss-stomp immunity.
+7. **Resolve pin/trap state independently:** only if mass ratio, foot/body hold geometry and escape rules permit; Heavy body armor's **raptor Pounce deflection** occurs before any pounce-related Knockdown or Pin status.
+8. **Set counterplay/recovery:** stance/rider-controlled bracing, side-stepping huge feet, aggressive light mount flanking, or target disengaging remain relevant. Wearing too much gear makes chasing, repositioning and fleeing harder.
+
+### B. Armor and body mass roles are intentionally different
+
+| Defender | Comparable attacker stomp | Attacker much heavier | Tactical identity |
+|---|---|---|---|
+| **Light fast Courser / raptor** | Higher recoil, stagger and damage than a heavy/braced peer, but can usually escape a telegraphed footprint more readily | Dangerous/crushing direct stomp if caught | Dodge the hit |
+| **Medium armored Charger** | Moderate attenuation to HP/stagger with physical mass and brace | Can still be knocked aside/pinned if physically outmatched | Choose timing and committed return charge |
+| **Heavy Bulwark/Tank** | Significantly lower received stomp force/damage, high poise; **often no stagger** so it can keep closing | Huge titan foot can still stagger/damage if mass advantage and footprint are sufficient | Endure contact and press forward |
+| **Enormous armored Titan** | Great stability and less relative-mass body damage | Counter-titan collisions still threatening; enormous exposed or vulnerable body parts | Slow moving fortress, but poor agility/turning |
+
+**Illustrative comparison, NOT approved percentages:** The SAME stomp landing on a Light Utahraptor versus a substantially heavier plated Triceratops should do **materially less HP damage and often fail to stagger the Triceratops**. If the exact same Triceratops changes from Light load to Heavy plate, **its stomp resistance goes up** and its movement/recovery suffers. If a Brontosaurus stomps a human in Heavy armor, however, the mass mismatch remains so vast that gear usually cannot prevent severe damage just by adding a small amount of weight.
+
+### C. New close-combat fantasy and constraints
+
+- **Tank/Bulwark bonus is 'Unstoppable Approach' (working descriptive name, NOT another damage type):** It doesn't literally move faster. It is **less frequently interrupted by smaller/equal-weight stomp or tackle effects**, so it can maintain *net forward progress* and reach enemy weak zones in a hostile advance.
+- **Exposed attack routes remain meaningful:** Heavy Brontosaurus barding on the back/flanks counters Slash there, but Slash against an exposed leg may still work; Impact attacks remain strategically preferred against its covered plating when attacker force and gear allow.
+- **Brontosaurus armor load affects both sides:** Heavy armor raises its own stomp force, raises defensive stability and mass mitigating similarly sized stomps, but burdens tail/body turning, accelerations, endurance and cargo. It still cannot sidestep a fast flank attack like an unburdened lighter dinosaur.
+- **Armor cannot create infinite mass:** Gear only contributes actual defined physical mass within sane load constraints. A mountain of backpacked rocks cannot indefinitely overpower a larger dinosaur or stack invisible armor/stomp multipliers. A tiny dinosaur in Heavy barding does not become T. rex-sized.
+- **Tactical difference:** Courser earns safe contact by avoiding stomp; Bulwark earns safe contact by sometimes withstanding a stomp without stagger. Both can be valid, with very different speed, stamina and resource costs.
+- **Visual feedback:** `STAGGER RESISTED`, clear grounded brace/impact animation, `HEAVY POUNCE DEFLECTED`, a damage float that reflects mass matchup, and optionally `Impact Force`/ `Stability` in creature inspection. Do not hide no-stagger outcomes behind animation bugs.
+
+**No numeric formula locked:** body mass estimates, added gear contribution, soft curve, no-stagger thresholds, stance/bracing, damage type interaction, pounce location checks and player/mount controls require prototyping.
+
+## 10. OPEN for owner refinement
 
 - Is player-visible **weight** best shown as **Mass + Carry Load + Encumbrance%**, or only **Load** to keep UI compact? Recommended visible `Load x/y`, show mass details in Codex.
 - Which animals have anatomy that **actually permits pinning**, and when is footpin a ground control move versus crushing trample? No species-wide universal foot aura.
@@ -188,6 +229,7 @@ Natural body and added gear should be separately represented, and **covered zone
 - Armor zones: simplified **Front/Side/Legs/Tail** hit regions versus precise anatomical mesh collider coverage, and whether the rider can target weak leg locations in a full mobile fight.
 - **Resolved qualitatively by owner:** Added actual mass SHOULD strengthen valid stomps/tackles/other body-weight attacks, not only burden the animal. **Still open:** nonlinear scaling/cap, movement cost, body-part force contribution and meaningful trade-offs.
 - Exact weight class thresholds, acceleration penalty, turn rate, whip tail recovery, endurance, terrain/heat and fatigue cost caps remain undecided and require playtesting.
+- **Newest owner resolution:** heavier defenders **take less stomp damage and are harder to stagger/knock back**, especially with Heavy plating and bracing. Open are the bounded relative-mass function, stability thresholds and how much armor plate and stance matter versus sheer physiological mass.
 - Future Brontosaurus's capture/taming/saddle sizes, armoring restrictions and availability are separate unimplemented questions.
 
 **This is game-system design only. No runtime file was altered.**
