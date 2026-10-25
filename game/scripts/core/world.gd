@@ -183,6 +183,37 @@ func ensure_survivor(host: Node) -> bool:
 	start_new(host)
 	return false
 
+## The permanent Tamed Island pick, taken once at creation: build the chosen island, land the
+## survivor at its harbour (the same landing the old terrain sheet used), finish creation, save and
+## open the arrival welcome. False when the pick is refused (already held, unknown shape), so the
+## caller can leave the screen up instead of building a second island.
+func complete_pick(host: Node, shape_id: StringName) -> bool:
+	if not pick_shape(shape_id):
+		return false
+	var dest := def_of(&"home_grassland")
+	var harbour: Array = dest.get("harbour", [0, 0, 18])
+	var at := Vector3(float(harbour[0]), 1.0, float(harbour[2]))
+	load_island(host, &"home_grassland", at, false)
+	var p := _player()
+	if p and runtime != null and runtime.has_method("arrival_point"):
+		p.global_position = (runtime as IslandRuntime).arrival_point() + Vector3.UP
+	finish_creation()  # creation and the pick are done: saving starts here
+	_save_now()
+	_show_arrival(host)
+	print("[world] tamed island shape=%s seed=%d arrival=%s" % [
+		home_shape, int(shape_def(home_shape).get("seed", 17)),
+		str(p.global_position if p else at)])
+	return true
+
+## The "YOU MADE IT" welcome the shared world UI already owns (layer 92); reused, not duplicated.
+func _show_arrival(host: Node) -> void:
+	var ui = (load("res://scripts/ui/world_ui.gd") as GDScript).instance_on(host)
+	if ui != null and ui.has_method("_show_arrival"):
+		ui.call("_show_arrival", host)
+
+func has_shape(id: StringName) -> bool:
+	return not shape_def(id).is_empty()
+
 ## Character creation and the first island pick are done: the world may save from here on.
 func finish_creation() -> void:
 	creation_pending = false
@@ -212,11 +243,12 @@ func start_new(host: Node) -> void:
 		# old free-standing terrain panel would open over it). It hands back the one permanent pick.
 		var ip = (load("res://scripts/ui/island_pick.gd") as GDScript).instance_on(host)
 		ip.picked.connect(func (shape_id: StringName) -> void:
-			if pick_shape(shape_id):
-				print("[world] tamed island shape=%s seed=%d" % [shape_id, int(shape_def(shape_id).get("seed", 17))])
-			load_island(host, island_id, Vector3(0, 1, 18), false)
-			finish_creation()  # creation and the pick are done: saving starts here
-			_save_now()
+			# Only a pick the world accepts proceeds: the screen re-enables itself otherwise.
+			if not complete_pick(host, shape_id):
+				print("[world] tamed island pick refused: shape=%s" % shape_id)
+				ip.failed()
+				return
+			ip.close()
 		)
 		ip.open()
 	)

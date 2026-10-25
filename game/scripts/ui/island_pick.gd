@@ -29,6 +29,9 @@ static func instance_on(host: Node) -> IslandPick:
 	return _i
 
 var _selected: StringName = &""
+## One confirm per screen: a second tap while the first pick is being built (the island takes
+## about a second) must not load and save a second world.
+var _confirmed := false
 var _cards: Dictionary = {}
 var _start: Button
 var _check: TextureRect
@@ -287,11 +290,33 @@ func _select(id: String) -> void:
 	_start.disabled = false
 
 func _confirm() -> void:
-	if _selected == &"":
+	if _selected == &"" or _confirmed:
 		return
+	_confirmed = true
+	# Dead while the world builds the island: a double tap lands on a disabled button.
+	_set_targets_enabled(false)
 	picked.emit(_selected)
+	# The world builds the island synchronously and calls close() on success; on a refused pick it
+	# calls failed() and the screen comes back live.
+
+## The world refused the pick: stay up, let the player choose again.
+func failed() -> void:
+	_confirmed = false
+	_set_targets_enabled(true)
+
+func _set_targets_enabled(on: bool) -> void:
+	if _start:
+		_start.disabled = not on
+	for key in _cards:
+		(_cards[key] as Button).disabled = not on
+
+## The pick landed: nothing more to do on this screen.
+func close() -> void:
 	remove_from_group(&"character_creation")
 	queue_free()
+
+func is_confirmed() -> bool:
+	return _confirmed
 
 ## What the lab measures: the five previews actually shown, the warning text on screen, and the
 ## smallest tap target (logical px) the layout drew.

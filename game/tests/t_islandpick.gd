@@ -36,7 +36,7 @@ func _run() -> void:
 	_sg = load("res://scripts/core/save_game.gd")
 	_pick = load("res://scripts/ui/island_pick.gd")
 	_shape = load("res://scripts/world/island_shape.gd")
-	var watchdog := create_timer(60.0)
+	var watchdog := create_timer(180.0)
 	watchdog.timeout.connect(func () -> void: quit(2))
 	_world = root.get_node("World")
 	_world.set("creation_pending", false)
@@ -54,7 +54,10 @@ func _run() -> void:
 	_world.set("home_terrain", &"")
 	_test_catalogue()
 	await _test_previews_and_screen()
+	await _test_debounce()
 	await _test_pick_persists()
+	await _test_five_shapes()
+	await _test_sanitizer()
 	await _test_old_save()
 	_clean()
 	_finish()
@@ -129,7 +132,8 @@ func _test_previews_and_screen() -> void:
 	_expect(got.size() == 1 and StringName(got[0]) == &"forest", "the screen hands back the tapped shape (%s)" % [got])
 
 ## The pick is permanent: the second call is refused, and it survives a save + load with the right
-## landmass (the shape's seed drives the generated island).
+## landmass (the shape's seed drives the generated island). It also lands the survivor at the chosen
+## island's harbour and opens the arrival flow, exactly as the old terrain sheet did.
 func _test_pick_persists() -> void:
 	_forest_seed = int((_world.call("shape_def", &"forest") as Dictionary).get("seed", 0))
 	var ok: bool = _world.call("pick_shape", &"forest")
@@ -140,8 +144,8 @@ func _test_pick_persists() -> void:
 	_expect(not again, "a second pick is refused: the choice is final")
 	_expect(_world.get("home_shape") == &"forest", "a refused pick leaves the held shape (got '%s')" % _world.get("home_shape"))
 	_expect(not bool(_world.call("pick_shape", &"nonsense")), "an unknown shape id is refused")
-	# Build the island the pick describes and check the landmass is that shape's.
-	_world.call("finish_creation")
+	# The real flow from the pick screen: build, land at the harbour, finish creation, save, welcome.
+	_world.set("creation_pending", false)
 	_world.call("load_island", _host, &"home_grassland", Vector3(0, 1, 18), false)
 	await process_frame
 	await process_frame
@@ -167,6 +171,148 @@ func _test_pick_persists() -> void:
 	if rt2:
 		var sh2 = rt2.get("_shape")
 		_expect(sh2 != null and sh2.seed == _forest_seed, "the reloaded island is the same landmass (seed %s)" % (sh2.seed if sh2 else -1))
+	# The arrival: complete_pick is the path the screen's SELECT AND MOVE takes. From a fresh world it
+	# must put the survivor on the harbour arrival point and raise the existing arrival welcome.
+	_world.set("home_shape", &"")
+	_world.set("home_terrain", &"")
+	_world.set("creation_pending", true)
+	for n in root.find_children("ArrivalWelcome", "CanvasLayer", true, false):
+		n.free()
+	_world.set("runtime", null)
+	var landed: bool = _world.call("complete_pick", _host, &"coastal")
+	_expect(landed, "complete_pick(coastal) accepts the first pick")
+	var rt3: Node3D = _world.get("runtime")
+	_expect(rt3 != null, "complete_pick built the home island")
+	var arrived := Vector3.ZERO
+	if rt3:
+		arrived = rt3.call("arrival_point")
+		_expect(Vector2(arrived.x, arrived.z).length() > 20.0, "the coastal island has a harbour arrival away from the origin (%s)" % arrived)
+		var at: Vector3 = _player.global_position
+		_expect(Vector2(at.x - arrived.x, at.z - arrived.z).length() < 2.0 and absf(at.y - (rt3.call("surface_y", arrived.x, arrived.z) + 1.0)) < 1.0,
+			"the survivor lands on the chosen island's harbour arrival point (%s vs %s)" % [at, arrived])
+		_expect(rt3.call("is_dry", arrived), "the harbour arrival is dry ground")
+	await process_frame
+	await process_frame
+	var welcome: Array[Node] = root.find_children("ArrivalWelcome", "CanvasLayer", true, false)
+	_expect(welcome.size() == 1, "the arrival welcome is up after the pick (got %d)" % welcome.size())
+	var go_text := ""
+	if not welcome.is_empty():
+		for l in welcome[0].find_children("*", "Label", true, false):
+			if (l as Label).text == "YOU MADE IT":
+				go_text = "YOU MADE IT"
+		_expect(go_text != "", "the arrival welcome carries the YOU MADE IT flow")
+		welcome[0].free()
+	# Double taps: the same complete_pick twice builds and saves once - the second call is refused.
+	_world.set("home_shape", &"")
+	_world.set("home_terrain", &"")
+	_world.set("creation_pending", true)
+	_world.set("runtime", null)
+	for n in root.find_children("ArrivalWelcome", "CanvasLayer", true, false):
+		n.free()
+	var first: bool = _world.call("complete_pick", _host, &"rocky")
+	var second: bool = _world.call("complete_pick", _host, &"rocky")
+	_expect(first and not second, "a repeated complete_pick is refused (first=%s second=%s)" % [first, second])
+	_expect(root.find_children("ArrivalWelcome", "CanvasLayer", true, false).size() == 1, "one arrival welcome, not two")
+	for n in root.find_children("ArrivalWelcome", "CanvasLayer", true, false):
+		n.free()
+
+## Every shape builds for real (not just its preview): harbour site on a legal coast, dry camp, dry
+## arrival, walkable spawn rules and a camp -> arrival path.
+func _test_five_shapes() -> void:
+	for id in _world.call("shape_ids"):
+		_clean()
+		_world.set("home_shape", &"")
+		_world.set("home_terrain", &"")
+		_world.set("creation_pending", true)
+		_world.set("runtime", null)
+		var ok: bool = _world.call("complete_pick", _host, StringName(id))
+		_expect(ok, "shape %s is pickable" % id)
+		var rt: Node3D = _world.get("runtime")
+		_expect(rt != null, "shape %s built a runtime" % id)
+		if rt == null:
+			continue
+		var sh = rt.get("_shape")
+		var want_seed := int((_world.call("shape_def", StringName(id)) as Dictionary).get("seed", 0))
+		_expect(sh != null and int(sh.seed) == want_seed, "shape %s built its own landmass seed %d (got %s)" % [id, want_seed, sh.seed if sh else -1])
+		_expect(rt.get("harbour") != null, "shape %s found a harbour site on its coast" % id)
+		var arrival: Vector3 = rt.call("arrival_point")
+		var camp: Vector3 = rt.get("_camp_pos")
+		_expect(rt.call("is_dry", camp), "shape %s camp is dry (%s)" % [id, camp])
+		_expect(arrival.y > -0.05 and bool(rt.call("on_harbour_approach", arrival)), "shape %s harbour arrival is the approach sand behind the dock (%s)" % [id, arrival])
+		_expect(rt.call("spawn_ok", camp, false), "shape %s camp passes the spawn rules" % id)
+		_expect(rt.call("spawn_ok", arrival, false), "shape %s arrival passes the spawn rules" % id)
+		_expect(float(rt.call("surface_y", camp.x, camp.z)) > 0.0, "shape %s camp sits above the waterline (%.2f)" % [id, rt.call("surface_y", camp.x, camp.z)])
+		var pts: PackedVector3Array = rt.get("pathing").path(camp, arrival, 0)
+		_expect(pts.size() > 0 and bool(rt.get("pathing").last_reachable), "shape %s camp reaches the harbour on foot (%d points)" % [id, pts.size()])
+		var def: Dictionary = _world.get("island_def")
+		_expect(float(def.get("size_m", 0.0)) > 0.0, "shape %s island def has a size" % id)
+		print("[t_islandpick] shape=%s seed=%d camp=%s arrival=%s path=%d" % [id, want_seed, camp.snapped(Vector3.ONE), arrival.snapped(Vector3.ONE), pts.size()])
+		for n in root.find_children("ArrivalWelcome", "CanvasLayer", true, false):
+			n.free()
+
+## A forged save cannot choose an island: home.shape must be one of the five ids. A row of the
+## wrong type or an unknown id lands as no choice (""), the world then holds the stock island, and a
+## new survivor may still pick once. (SaveSanitizer's SHAPE table does not list home.shape, so the
+## row reaches SaveGame._apply as-is; the load path is where it is validated and narrowed.)
+func _test_sanitizer() -> void:
+	var base: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v0.json"))
+	# A good row survives the sanitizer unchanged.
+	var ss := load("res://scripts/core/save_sanitizer.gd") as GDScript
+	var good := base.duplicate(true)
+	(good["home"] as Dictionary)["shape"] = "forest"
+	_expect(str((ss.call("clean", good.duplicate(true))["home"] as Dictionary).get("shape", "")) == "forest", "a catalogue shape survives the sanitizer")
+	for bad in ["volcano", "", ["forest"], 42, null, {"id": "forest"}]:
+		_clean()
+		var forged := base.duplicate(true)
+		(forged["home"] as Dictionary)["shape"] = bad
+		_put(JSON.stringify(forged))
+		_world.set("home_shape", &"")
+		_world.set("home_terrain", &"")
+		_world.set("runtime", null)
+		_sg.call("load_now", _host)
+		await process_frame
+		await process_frame
+		_expect(str(_sg.get("blocked_reason")) == "", "forged shape %s does not block the save" % [bad])
+		_expect(_world.get("home_shape") == &"", "forged shape %s falls back to no choice (got '%s')" % [bad, _world.get("home_shape")])
+		var rt: Node3D = _world.get("runtime")
+		if rt:
+			var sh = rt.get("_shape")
+			_expect(sh != null and int(sh.seed) == 17, "forged shape %s builds the stock island (seed %s)" % [bad, sh.seed if sh else -1])
+	# The fallback must not permanently prevent a choice: with no shape held, a pick still works.
+	var picked: bool = _world.call("pick_shape", &"riverside")
+	_expect(picked and _world.get("home_shape") == &"riverside", "a save with a dropped shape can still make the pick")
+	_world.set("home_shape", &"")
+	_world.call("finish_creation")
+	_expect(bool(_sg.call("save_now")), "the fallback world saves")
+	var bytes: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(_sg.get("path")))
+	_expect(str(((bytes.get("home", {}) as Dictionary).get("shape", "x"))) == "", "the re-save holds no forged shape")
+
+## The pick screen confirms once: the confirm button dies on the first tap and a second tap emits
+## nothing, so a double tap cannot build and save the island twice. A refused pick re-arms it.
+func _test_debounce() -> void:
+	for n in get_nodes_in_group(&"island_pick"):
+		n.free()
+	var pick: Node = _pick.call("instance_on", _host)
+	pick.call("open")
+	await process_frame
+	await process_frame
+	var got: Array = []
+	pick.connect("picked", func (id: StringName) -> void: got.append(id))
+	var card := pick.find_child("Shape_forest", true, false) as Button
+	card.pressed.emit()
+	var go := pick.find_child("SelectAndMove", true, false) as Button
+	go.pressed.emit()
+	go.pressed.emit()
+	await process_frame
+	_expect(got.size() == 1, "two taps on SELECT AND MOVE emit one pick (got %d)" % got.size())
+	_expect(bool(pick.call("is_confirmed")), "the screen is marked confirmed")
+	_expect(go.disabled, "the confirm button is dead while the island builds")
+	_expect(card.disabled, "the shape cards are dead while the island builds")
+	# The world refused this pick (it was never applied): failed() must let the player try again.
+	pick.call("failed")
+	_expect(not bool(pick.call("is_confirmed")) and not go.disabled, "a refused pick re-arms the screen")
+	pick.queue_free()
+	await process_frame
 
 ## An old save has no shape row: it loads the island it always had (seed 17, legacy core), is not
 ## sent back to the pick, and re-saves with an empty shape so nothing about it moves.

@@ -238,8 +238,12 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	var schema := source_schema
 	World.home_terrain = StringName(str(data.get("home", {}).get("terrain", "")))
 	# ISLANDPICK: an old save has no shape row; it keeps the island it always had (home_shape ""),
-	# and the pick is never offered again because the survivor already exists.
-	World.home_shape = StringName(str(data.get("home", {}).get("shape", "")))
+	# and the pick is never offered again because the survivor already exists. The row is user
+	# editable JSON, so it only counts when it names one of the five catalogue shapes: an unknown id
+	# loads the stock island instead of driving the landmass from a forged value. (SaveSanitizer is
+	# the general trust boundary but is outside this task's SCOPE; see the report.)
+	var shape_row := str((data.get("home", {}) as Dictionary).get("shape", ""))
+	World.home_shape = StringName(shape_row if World.has_shape(StringName(shape_row)) else "")
 	World.pioneer_crafts = data.get("pioneer_crafts", {})
 	World.pioneer_buildings = data.get("pioneer_buildings", {})
 	World.t_stones = int(data.get("t_stones", 20))
