@@ -89,7 +89,43 @@ The **civilization's possible primitive ceiling** should allow exceptional genet
 8. **Species size realism:** a small mount need not resist giant stomp and may expose rider to tail strikes; large mount trades reach and ability to withstand stress for slower turning/bigger target.
 9. **Era constraint:** tests succeed with **no firearms, rocket launchers, Gatling guns, exosuits or giant mechanized vehicles**. They may remain optional unrelated future technologies, only on subsequent owner approval.
 
-## 7. Owner decisions remaining OPEN
+## 7. Proposed mount battlefield archetypes (2026-10-25 workshop, NOT owner approved per species)
+
+**New user request:** picture **fast cavalry, tank, berserker** and ask "what would a T. rex be?" Recommended answer: **Tyrant / Apex Dominator** (not an ordinary Tank or Berserker). The mount classes below are **battlefield roles** determined by anatomy/behavior/training, **not** another competing weapon damage matrix; each individual and rider still has **D/M IV × Impact/Pierce/Slash** modes.
+
+| Mount role | Example species | Combat promise | Weakness and tradeoff | Preferred rider synergy |
+|---|---|---|---|---|
+| **Cavalry / Courser** | Gallimimus, Megaloceros | Highest traversal/repositioning; repeat drive-by attacks, evades giant stomps by leaving danger footprint | Fragile and little protection when caught; poor sustained brawling | **MP** lance passing attack; **DP** mounted archery if trained |
+| **Skirmisher / Flanker** | Velociraptor, Deinonychus | Tight turns, side attack, pack pursuit, feints, chase down isolated prey | Loses stand-up fights with large targets; rider must manage attack range and high-speed control | **DS** timed cutter/throwing axe; **DP** accurately placed bow; **MP** light spears |
+| **Charger / Breaker** | Styracosaurus, Triceratops | Frontloaded mass and horn charge, knocks targets out of position, commits to lane | Requires approach space, vulnerable while turning/recovering and to side attacks | **MP** lance timed with mount charge; **MI** heavy head/shoulder disruption |
+| **Bulwark / Tank** | Ankylosaurus, Stegosaurus | Plates absorb ordinary hits, control narrow approach, protect foot followers, strong body blocking | Slow, big hitbox, poor stomp evasion, Impact susceptibility; meaningful turn/recovery | **MI** hard strike/shield protection; **DP** bow for rider if armor blocks close reach |
+| **Berserker / Ravager** | Utahraptor, Smilodon; **Allosaurus only if later made tameable** | High attack frequency, pounce/bleed combos, damage while aggressively pursuing prey | High stamina cost, thin protection, self-exposure if interrupted | **MS** heavy cleave to follow pin/bleed; **MP** timed finishing thrust |
+| **Tyrant / Apex Dominator** | **Tyrannosaurus rex only if exceptionally unlocked**, Tarbosaurus special-case | **Commanding threat radius**, huge deliberate **MP** bite, **MI** stomp, roar or intimidation; single devastating committed grabs/finishes if later animated | Huge collision footprint, slow pivots/recovery, food/maintenance burden, poor precision against tiny prey; **not** agile and **not** automatically invincible because of HP | Rider acts like tactical commander, setting target facing, bite windows, rally; limited reach with hand weapons due to high rider position |
+| **Titan / Siege Beast** | Future Brontosaurus; existing Brachiosaurus only if exceptional future mount system | Very long-range limb/tail attack arcs, mass pressure, huge-area access denial | Extremely slow, vulnerable to planned counters, obstructed by tight terrain, near-leg danger zones; ordinarily a boss/environmental-scale role rather than standard horse-like mount | Command and support rather than ordinary lance/sword swings; saddle/platform weapon details remain open |
+
+**Core taxonomy distinction:** **Tank** survives and guards, **Berserker** commits to high-frequency attacks, **Tyrant** enforces a threatening territory around massive committed single attacks, **Titan** changes the physical scale of the battle, **Charger** wins a run-up, **Cavalry** constantly changes position, **Skirmisher** flanks and hunts down targets. They should **feel different without fixed damage multipliers masquerading as classes**.
+
+**T. rex specifics, proposed for a hypothetical rideable apex variant:** huge body/HP does not make it an Ankylosaurus-style plated **Tank**, and it isn't an always-fast-combo **Berserker**. Give it a recognizable **Apex/Tyrant** combat loop: claim attention or cause short disorganization through roar, angle its enormous head to telegraph a decisive bite, bite/clamp (if new animation) or stomp on commitment, then recover while opponents can evade/reposition. The rider primarily **selects targets and controls orientation/spacing**. Because the saddle is high, the rider **may not reach ground targets with ordinary swords or axes**, making its elevated status a tradeoff. Massive animal upkeep and narrow-space access maintain smaller mounts' value. **Existing T. rex is non-tameable, without `mount` role, and is a raid boss**. A future rideable T. rex must be explicitly unlocked as a separate design decision, possibly kept wild-only.
+
+**Important current species eligibility:** `mount` role exists in current JSON for **Gallimimus, Megaloceros, Velociraptor, Deinonychus, Utahraptor, Smilodon, Styracosaurus, Triceratops**, along with some early/small specimens **Zebraceratops, Coelophysis and Protoceratops**. Physically small animals must **not** be assumed to carry human-sized riders without species-size feasibility work. **Ankylosaurus and Stegosaurus** currently have bag/combat roles but no `mount`; their use as rider tanks is **new proposed eligibility**. **Allosaurus, Brachiosaurus and T. rex** are currently **non-tameable**. **Tarbosaurus** is tameable for combat but does **not** currently have `mount`. Keep current data unchanged until the owner decides.
+
+**Building a usable class system:** Creature **anatomy determines baseline mobility, armor, mass, reach and behavior**, not a cosmetic class name; **individual inherited IVs, rider skills/training, traits and tack** specialize within physiological limits. Two Triceratops may have differing Might-focused charge force, obedience and equipment, but neither should outrun an equally developed Gallimimus by reclassifying itself a Courser.
+
+### Prototype encounter roles against a future Brontosaurus
+
+- **Courser:** bait tail windup, sprint out of sweeping arc and move the rider into exposed flank during recovery.
+- **Skirmisher:** circle to weak side and trigger timed pounces/bleed windows; susceptible to one giant contact.
+- **Charger:** synchronized thrust into soft leg/flank after Brontosaurus has committed to tail whip; must avoid close-range stomp on recovery.
+- **Tank:** potentially endure one less-dangerous swipe and hold an approach lane for followers, but cannot ignore a huge stomp merely due to heavy plates.
+- **Berserker:** high reward if it remains on exposed flanks during opening, terrible outcome if caught during extended claws/bite animation.
+- **Tyrant:** large enough to pressure a giant's flank with jaws and drawing attention, but huge body is a dangerous target for the tail/foot. T. rex is not automatically the perfect Brontosaurus counter.
+- **Titan:** if ever tameable, slow huge platform for siege/support and counter-titan fights, not a universally better mount.
+
+**Party fit:** With only **three active expedition companion slots**, players can build a **Courser + Bulwark + Berserker** group or **Charger + Skirmisher + Tyrant** group; every rider+dinosaur counts as **one composite slot**, and rider attack choices trade away some autonomous beast attacks so all slots remain comparable. A rare Tyrant must not erase the strategic reason to deploy a Courser or Bulwark. Rider skills and dinosaur commands should strongly distinguish tactical player agency from a wild Tyrant's own autonomous aggression.
+
+**Test before owner class approval:** is every class best at a distinct task? Does a T. rex have unavoidable superior HP/DPS/reach to all earlier tames, or is its size legitimately burdensome? Do tanks withstand hits without ignoring the massive Brontosaurus stomp? Can both Might and Dexterity riders play effectively? Is an unmounted dinosaur a legitimate choice in a three-slot party?
+
+## 8. Owner decisions remaining OPEN
 
 - **Tech ceiling:** stone/bronze/iron/steel, advanced bows and crossbows; any firearms at all? No hard ceiling locked.
 - **Mounted damage reward:** mostly positional uptime/reach and timed windows (preferred) vs explicit limited charge bonus?
