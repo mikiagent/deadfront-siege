@@ -27,7 +27,8 @@ COLOR_ATTR = "Col"
 
 
 def srgb(c):
-    """sRGB triplet -> linear, as glTF COLOR_0 and Godot's importer expect."""
+    """sRGB triplet -> linear. The GLBs no longer use this for COLOR_0 (see paint()); it stays for
+    tools that need linear numbers, e.g. sheet.py's Blender previews."""
     out = []
     for x in c[:3]:
         x = max(0.0, min(1.0, x))
