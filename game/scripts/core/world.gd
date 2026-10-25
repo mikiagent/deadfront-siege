@@ -17,6 +17,10 @@ var unstable_claims: Array = []  # same, current unstable island only (not saved
 ## standing on. The legacy rects above stay as a mirror (and are what an old save is migrated from).
 var home_domain: Dictionary = {}
 var away_domain: Dictionary = {}
+## DOMAIN-D / spec 29 section 4: the Tamed Island's Personal Communications Center record - the
+## island's Pioneer rank and the exact instances held for the unfinished upgrade step. Saved under
+## home.comm_center only once it has progress, so an old save keeps its exact shape.
+var home_comm_center: Dictionary = {}
 var free_claim_used: bool = false
 var objective: int = 0 ## index into Data.world_objectives; the survivor's standing orders
 var visited_islands: Dictionary = {} ## persistent voyage log

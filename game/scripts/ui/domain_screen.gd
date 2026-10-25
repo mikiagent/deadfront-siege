@@ -51,6 +51,9 @@ var _tab_buttons: Dictionary = {}
 var _actions: HBoxContainer
 var _declare: Button
 var _expand: Button
+## DOMAIN-D / spec 29 section 4: the Personal Communications Center's contribution panel.
+var _center: Button
+var center_ui: CommCenterUI
 var _renew: Button
 var _release: Button
 var _confirm: Button
@@ -167,6 +170,8 @@ func _ready() -> void:
 	_confirm = _action("CONFIRM", true, _on_confirm, "Confirm")
 	_cancel = _action("CANCEL", false, _on_cancel, "Cancel")
 	_close = _action("CLOSE", false, _on_close, "Close")
+	# DOMAIN-D: behind the rank/cap line - the contribution track that raises both.
+	_center = _action("CENTER", true, _on_center, "Center")
 
 	resized.connect(_layout)
 	get_viewport().size_changed.connect(_layout)
@@ -204,12 +209,32 @@ func open(p: Player) -> void:
 	_previewing = false
 	_last_reason = ""
 	_picked = 0
+	_shown_rank = DomainRules.pioneer_rank()
+	_shown_cap = int(rt.call("claim_cap")) if rt != null else DomainRules.cap()
 	_refresh()
 	_layout()
 	UiTokens.focus_first([_tab_buttons["tamed_island"]])
 
+## DOMAIN-D / spec 29 section 4: the contribution panel raises the rank, and the capacity shown here
+## must follow it while the screen stays open. One record read and a compare per frame is cheap.
+var _shown_rank := -1
+var _shown_cap := -1
+
+func _process(_delta: float) -> void:
+	if not visible:
+		return
+	var rank: int = DomainRules.pioneer_rank()
+	var cap: int = rt.call("claim_cap") if rt != null and is_instance_valid(rt) else DomainRules.cap()
+	if rank == _shown_rank and cap == _shown_cap:
+		return
+	_shown_rank = rank
+	_shown_cap = cap
+	_refresh()
+
 func close() -> void:
 	_end_preview()
+	if center_ui != null and is_instance_valid(center_ui):
+		center_ui.close()
 	visible = false
 
 func is_open() -> bool:
@@ -238,16 +263,31 @@ func _refresh() -> void:
 		_stats.text = ""
 		_body.text = str(PHASE_NOTE.get(tab, ""))
 		_note.text = ""
+		# The center belongs to the Tamed Island: leave the tab and its button goes with it.
+		_center.visible = false
 		_set_actions(false, false, false, false, false, false, true)
 		return
 	var own: bool = rt != null and IslandClaims.has_domain(rt)
 	var used: int = rt.call("claim_used") if rt != null else 0
 	var cap: int = rt.call("claim_cap") if rt != null else DomainRules.cap()
-	_stats.text = "Plots  %d / %d" % [used, cap]
+	# DOMAIN-D / spec 29 section 4: the rank the Personal Communications Center has raised, and the
+	# cap the next documented step would bring (the capacity the center raises; land still comes
+	# only from Declare/Expand here).
+	var rank: int = DomainRules.pioneer_rank()
+	var next: Array = DomainRules.next_milestone(rank)
+	_stats.text = "Plots  %d / %d   ·   Pioneer rank %d" % [used, cap, rank]
 	var lines: Array[String] = []
 	lines.append("Owner  %s   ·   %s" % [str(World.player_name), "personal Tamed Island" if World.is_home() else "visited island"])
 	lines.append("Grid  %d x %d tiles a cell on the island's origin grid" % [DomainRules.cell_tiles(), DomainRules.cell_tiles()])
 	lines.append("Upkeep  none on a Tamed Island" % [])
+	if World.is_home():
+		if next.size() >= 2 and int(next[0]) > 0:
+			var next_rank := int(next[0])
+			var step: Dictionary = CommCenter.step_for(next_rank)
+			var how := "contribute at the Communications Center" if step.is_empty() or CommCenter.built(rt) else "build the Communications Center, then contribute"
+			lines.append("Capacity  Pioneer rank %d -> %d plots at rank %d (%s)" % [rank, int(next[1]), next_rank, how])
+		else:
+			lines.append("Capacity  every documented Pioneer step is done" % [])
 	if own:
 		lines.append("Land  %d cell%s held, %d more until the cap" % [used, "" if used == 1 else "s", maxi(0, cap - used)])
 		lines.append("Grow  edge-adjacent cells only: no diagonal, no hop across water")
@@ -265,8 +305,10 @@ func _refresh() -> void:
 	else:
 		_note.text = "Visiting an island: land you claim here is not your Tamed Island domain."
 	_set_actions(not _previewing and tab == "tamed_island", not _previewing and tab == "tamed_island", false, not _previewing and own, _previewing, _previewing, true)
+	_center.disabled = _previewing or tab != "tamed_island" or not World.is_home()
 	_declare.visible = not _previewing and not own
 	_expand.visible = not _previewing and own
+	_center.visible = not _previewing and tab == "tamed_island" and World.is_home()
 	_renew.visible = false
 	_release.visible = not _previewing and own
 	_confirm.visible = _previewing
@@ -361,6 +403,26 @@ func _on_later() -> void:
 	_last_reason = "Renewal belongs to Civilized Island claims (Phase E)."
 	_update_footer()
 
+func _on_center() -> void:
+	if center_ui == null or not is_instance_valid(center_ui):
+		center_ui = CommCenterUI.new()
+		add_child(center_ui)
+		center_ui.closed.connect(_on_center_closed)
+	# The panel is a modal on top of this card (both are the same screen's text): the card and its
+	# scrim hide while it is up, and one Close brings the Domain screen back with its capacity
+	# already updated. The screen node itself stays visible: hiding it would zero the panel's layout.
+	_root_panel.visible = false
+	_backdrop.visible = false
+	center_ui.open(player)
+
+func _on_center_closed() -> void:
+	if not visible:
+		return
+	_root_panel.visible = true
+	_backdrop.visible = true
+	_refresh()
+	_layout()
+
 func _on_close() -> void:
 	close()
 
@@ -400,14 +462,14 @@ func _layout() -> void:
 	_stats.add_theme_font_size_override("font_size", head)
 	for l in [_body, _note]:
 		(l as Label).add_theme_font_size_override("font_size", UiTokens.body(view))
-	for b in [_declare, _expand, _renew, _release, _confirm, _cancel, _close]:
+	for b in [_declare, _expand, _renew, _release, _confirm, _cancel, _close, _center]:
 		(b as Button).add_theme_font_size_override("font_size", UiTokens.body(view))
 	for id in _tab_buttons.keys():
 		(_tab_buttons[id] as Button).add_theme_font_size_override("font_size", UiTokens.body(view))
 		# A landscape phone has ~200 px a tab: "Tamed", "Civilized", "Clan", "Outpost" fit.
 		(_tab_buttons[id] as Button).text = str(TAB_LABEL[id][1] if compact else TAB_LABEL[id][0])
 	var btn_h := 64.0 if compact else 56.0
-	for b in [_declare, _expand, _renew, _release, _confirm, _cancel, _close]:
+	for b in [_declare, _expand, _renew, _release, _confirm, _cancel, _close, _center]:
 		(b as Button).custom_minimum_size = Vector2(0.0, btn_h)
 		(b as Button).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for id in _tab_buttons.keys():
@@ -480,7 +542,7 @@ func _set_axis(horizontal_tabs: bool) -> void:
 ## Smallest interactive control height on screen (the gate's tap-target check).
 func min_target_px() -> float:
 	var low := INF
-	for b in [_declare, _expand, _confirm, _cancel, _close]:
+	for b in [_declare, _expand, _confirm, _cancel, _close, _center]:
 		var btn := b as Button
 		if btn.visible:
 			low = minf(low, btn.size.y)

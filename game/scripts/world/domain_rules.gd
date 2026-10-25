@@ -44,11 +44,14 @@ static func rank_caps() -> Dictionary:
 	var row: Variant = tamed_island().get("rank_caps", {})
 	return row as Dictionary if row is Dictionary else {}
 
-## The player's Pioneer rank for cap purposes. World.pioneer_level is the survivor's level and
-## starts at 0; spec 29's table starts at rank 1 (its upgrade track is a later job), so rank 0 reads
-## as rank 1: the starting cap.
+## The Tamed Island's Pioneer rank for cap purposes. It comes from one place only: the Personal
+## Communications Center's contribution track (CommCenter.rank(), DOMAIN-D, spec 29 section 4). The
+## survivor's character level (World.pioneer_level) is the player level, NOT the island's Pioneer
+## rank, and is deliberately not read here: a level-60 survivor starts at rank 1 with 13 plots until
+## the center's steps are contributed. Nothing here claims land. The documented level-60 association
+## of the historical track is data (CommCenter.level_association()), never a rank.
 static func pioneer_rank() -> int:
-	return maxi(1, int(World.pioneer_level))
+	return CommCenter.rank()
 
 ## Claim cap at a Pioneer rank: the highest documented milestone at or below it (a rank between two
 ## milestones keeps the previous cap, spec 29 section 4), never below the starting cap.

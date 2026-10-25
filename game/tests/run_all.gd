@@ -51,6 +51,7 @@ func _process(_delta: float) -> bool:
 	_test_empty_bucket_recipe()
 	_test_multistack_crafting()
 	_test_process_stations()
+	_test_comm_center_registration()
 	_finish()
 	return true
 
@@ -866,6 +867,44 @@ func _test_declared_craft_xp() -> void:
 	for rec in data.recipe_list:
 		if rec.has("skill") and not rec.has("tree"):
 			_expect(craft.tree_for_recipe(rec) == str(rec["skill"]),"craft XP matches skill gate %s" % rec.get("id","?"))
+
+
+## DOMAIN-D / spec 29 section 4. Two properties the review asked for, both of which a fresh session
+## (no Domain screen, no lab) must satisfy on its own:
+##   1. the center's blueprint is in the Build menu's data as soon as blueprints load, with no query
+##      side effect: `Blueprints.of("comm_center")` is non-empty before anything calls CommCenter;
+##   2. the island's Pioneer rank comes only from the contribution track. A level-60 survivor is
+##      still rank 1 with the 13-plot starting cap, and a forged rank clamps to the documented track.
+func _test_comm_center_registration() -> void:
+	# Read data/blueprints.json directly: no CommCenter call has happened in this run.
+	var bp: Dictionary = (load("res://scripts/items/blueprints.gd") as GDScript).of(&"comm_center")
+	_expect(not bp.is_empty(), "comm_center ships in data/blueprints.json (a fresh Build menu lists it)")
+	_expect(str((bp.get("station", {}) as Dictionary).get("kind", "")) == "workbench", "the center's station kind is the kit-backed workbench")
+	_expect("comm_center" in ((bp.get("station", {}) as Dictionary).get("tags", []) as Array), "the finished station carries the comm_center tag")
+	var world: Node = get_root().get_node("World")
+	var dr := load("res://scripts/world/domain_rules.gd") as GDScript
+	var cc := load("res://scripts/world/comm_center.gd") as GDScript
+	var level_was: int = int(world.get("pioneer_level"))
+	var rec_was: Variant = (world.get("home_comm_center") as Dictionary).duplicate(true)
+	world.set("home_comm_center", {})
+	world.set("pioneer_level", 60)  # a max-level survivor
+	_expect(int(dr.pioneer_rank()) == 1, "character level 60 does not grant an island Pioneer rank (rank %d)" % int(dr.pioneer_rank()))
+	_expect(int(dr.cap()) == 13, "character level 60 keeps the 13-plot starting cap (cap %d)" % int(dr.cap()))
+	_expect(int(cc.rank()) == 1, "the center's own rank is 1 too (rank %d)" % int(cc.rank()))
+	_expect(int(cc.level_association()) == 60, "the documented level-60 association is data (%d)" % int(cc.level_association()))
+	# A forged record cannot invent a rank or held items.
+	var san := load("res://scripts/core/save_sanitizer.gd") as GDScript
+	var forged: Dictionary = san.clean({"home": {"comm_center": {"rank": 99, "steps": {
+		"2": [[{"id": "not_an_item", "count": 1}], [{"id": "stone", "count": 1}]]}}}})
+	var row: Dictionary = (forged.get("home", {}) as Dictionary).get("comm_center", {})
+	_expect(int(row.get("rank", 0)) == int(san.MAX_RANK), "a forged rank clamps to the last documented one (got %s)" % str(row.get("rank")))
+	var steps: Dictionary = row.get("steps", {})
+	_expect((steps.get("2", []) as Array).size() >= 1 and ((steps["2"] as Array)[0] as Array).is_empty(), "an unknown item id is dropped from the held contributions")
+	world.set("home_comm_center", {"rank": 99, "steps": {}})
+	_expect(int(dr.pioneer_rank()) == int(cc.MAX_RANK) and int(dr.cap()) == 30, "a forged in-memory rank is clamped to the track (rank %d, cap %d)" % [int(dr.pioneer_rank()), int(dr.cap())])
+	world.set("pioneer_level", level_was)
+	world.set("home_comm_center", rec_was)
+	print("[tests] comm_center: blueprint listed=%s level60 rank=%d cap=%d forged rank=%d" % [str(not bp.is_empty()), int(cc.rank()), int(dr.cap()), int(row.get("rank", 0))])
 
 func _test_storage_transfer() -> void:
 	var inv = load("res://scripts/items/inventory.gd") as GDScript

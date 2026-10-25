@@ -103,11 +103,18 @@ func _test_rank_caps() -> void:
 	for rank in wants:
 		var got: int = DR.cap_for_rank(rank)
 		_expect(got == int(wants[rank]), "Pioneer rank %d -> cap %d (got %d)" % [rank, wants[rank], got])
-	var was: int = _world.pioneer_level
-	for rank in [1, 2, 4, 6, 7]:
-		_world.pioneer_level = rank
-		_expect(int(DR.cap()) == int(wants[rank]), "the live cap at level %d is %d (got %d)" % [rank, wants[rank], DR.cap()])
-	_world.pioneer_level = was
+	# DOMAIN-D / spec 29 section 4: the live cap follows the island's Pioneer rank, which only the
+	# Personal Communications Center's contribution track raises. The character level is the player
+	# level and never grants a rank, so the track's record is what moves the cap here.
+	var was_rec: Variant = (_world.home_comm_center as Dictionary).duplicate(true)
+	var was_level: int = int(_world.pioneer_level)
+	_world.pioneer_level = 60
+	_expect(int(DR.cap()) == 13, "a level-60 survivor with no contributions keeps the 13-plot cap (got %d)" % int(DR.cap()))
+	for rank in [2, 4, 6, 7]:
+		_world.home_comm_center = {"rank": rank, "steps": {}}
+		_expect(int(DR.cap()) == int(wants[rank]), "the live cap at Pioneer rank %d is %d (got %d)" % [rank, wants[rank], DR.cap()])
+	_world.home_comm_center = was_rec
+	_world.pioneer_level = was_level
 	print("[t_claims2] caps: %s" % [wants])
 
 # ---------------------------------------------------------------- declare / expand
@@ -201,7 +208,7 @@ func _test_refusals() -> void:
 	else:
 		print("[t_claims2] no water cell near the camp on this island; terrain refusal not sampled")
 	# Fill to the cap (13 at rank 1), then one more is refused for the cap - never silently.
-	_world.pioneer_level = 1
+	_world.home_comm_center = {}
 	var guard := 0
 	while _rt.claim_used() < int(DR.cap()) and guard < 200:
 		guard += 1
