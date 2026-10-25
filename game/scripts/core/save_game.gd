@@ -332,16 +332,12 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	if foodfx is Dictionary:
 		var slots := BuffSlots.of(player)
 		if slots != null:
-			slots.from_dict((foodfx as Dictionary).get("buffs", {}))
+			# restore() = from_dict + publish: rows, the FoodBuffState mirror Crafting/climate read,
+			# and the capacity bonuses. Loading the rows alone would leave a saved ability buff inert.
+			slots.restore(player, (foodfx as Dictionary).get("buffs", {}))
 		var digestion := Digestion.of(player)
 		if digestion != null:
 			digestion.from_dict((foodfx as Dictionary).get("digestion", {}))
-		var add_fatigue := 0.0
-		var add_energy := 0.0
-		if slots != null:
-			add_fatigue = slots.stat_add("max_fatigue")
-			add_energy = slots.stat_add("max_energy")
-		player.vitals.sync_food_caps(add_fatigue, add_energy)
 	if player.skills:
 		player.skills.from_dict(data.get("skills_v2", {}))
 	player.bonded.clear()

@@ -22,7 +22,7 @@ var _ok := {
 	"instant_split": 0, "digest_once": 0, "interrupt_refunds": 0, "double_eat_blocked": 0,
 	"buff_slots": 0, "maxfatigue_expiry": 0, "fatigue_vs_maxfatigue": 0, "buff_coexist": 0,
 	"plain_food_keeps_buff": 0, "ability_check_moves": 0, "bad_food_status": 0, "taste_grade": 0,
-	"save_roundtrip": 0,
+	"save_roundtrip": 0, "save_keeps_ability_mirror": 0,
 }
 var _ui_min_px := 0.0
 var _notes: Array[String] = []
@@ -220,15 +220,21 @@ func _check_fatigue_effects() -> void:
 	await _shot("drink_effects")
 	_player.statuses.clear_id(&"full")
 
-func _check_ability_and_taste() -> void:
-	_fresh()
-	var rec: Dictionary = {}
+## The first recipe that really demands an ability (mirrors the test helper).
+func _ability_recipe() -> Dictionary:
 	var recipes: Dictionary = Data.recipes
 	for rid: Variant in recipes:
 		var row: Dictionary = recipes[rid]
 		if float(row.get("required_ability", 0.0)) > 0.0:
-			rec = row
-			break
+			return row
+	return {}
+
+func _craft_ability() -> float:
+	return Crafting.crafting_ability(_player, _ability_recipe())
+
+func _check_ability_and_taste() -> void:
+	_fresh()
+	var rec: Dictionary = _ability_recipe()
 	var before: float = Crafting.crafting_ability(_player, rec)
 	var chance_before: float = Crafting.success_for(rec, _player)
 	_eat(_give(&"crafters_meal"))
@@ -265,6 +271,9 @@ func _check_save() -> void:
 	_eat(_give(&"tea"))
 	_player.statuses.clear_id(&"full")
 	_eat(_give(&"dutch_coffee"))
+	_player.statuses.clear_id(&"full")
+	_eat(_give(&"crafters_meal"))
+	var ability_before: float = _craft_ability()
 	var digest_before := Digestion.of(_player).total_remaining()
 	var buffs_before: Array = BuffSlots.of(_player).ids()
 	var cap_before: float = _player.vitals.effective_max_fatigue()
@@ -275,10 +284,13 @@ func _check_save() -> void:
 	_player.eat_session.set_process(false)
 	var digest_after := Digestion.of(_player).total_remaining()
 	var same_buffs: bool = BuffSlots.of(_player).ids() == buffs_before
+	var ability_after: float = _craft_ability()
+	_ok["save_keeps_ability_mirror"] = 1 if same_buffs and ability_before > 1.0 and absf(ability_after - ability_before) < 0.01 else 0
 	_player.vitals.energy = 0.0
 	_tick(float(FoodEffects.defaults().get("digest_seconds", 300.0)) + 1.0)
 	var paid: float = _player.vitals.energy
 	_ok["save_roundtrip"] = 1 if saved and absf(digest_after - digest_before) < 0.5 and same_buffs and absf(_player.vitals.effective_max_fatigue() - cap_before) < 0.5 and absf(paid - digest_after) < 0.6 else 0
+	_notes.append("save/load craft ability %.1f -> %.1f (FoodBuffState repopulated)" % [ability_before, ability_after])
 	_notes.append("save/load digestion %.1f -> %.1f, paid %.1f once, buffs same=%s, cap %.1f -> %.1f" % [digest_before, digest_after, paid, str(same_buffs), cap_before, _player.vitals.effective_max_fatigue()])
 
 func _check_panel() -> void:

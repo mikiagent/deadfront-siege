@@ -82,6 +82,7 @@ func _run() -> void:
 	await _test_max_fatigue_expiry()
 	await _test_tonic_vs_cap()
 	await _test_plain_food_keeps_buff()
+	_test_mirror_has_no_stale_keys()
 	_test_ability_buff()
 	await _test_bad_food()
 	await _test_save_roundtrip()
@@ -107,8 +108,7 @@ func _expect(ok: bool, what: String) -> void:
 ## Reset the survivor to a clean food state: no statuses, no buff slots, no digestion, low energy.
 func _fresh() -> void:
 	_player.statuses.from_array([])
-	SLOTS.of(_player).from_dict({})
-	SLOTS.of(_player).apply(_player, [])  # clear the FoodBuffState mirror too, not only the rows
+	SLOTS.of(_player).restore(_player, {})  # rows + mirror + capacities, one API
 	DIG.of(_player).from_dict({})
 	_player.vitals.energy = 20.0
 	_player.vitals.fatigue = 0.0
@@ -403,18 +403,49 @@ func _test_plain_food_keeps_buff() -> void:
 	_expect(_eat_slot(player_stack(&"grilled_meat")), "a plain grilled meat is eaten")
 	_expect(slots.ids() == before, "an Energy-only food erases no unrelated buff (before %s, after %s)" % [str(before), str(slots.ids())])
 
+# ---------------------------------------------------------------- 10b. the mirror keeps no stale keys
+
+## Two mirrored buffs (both land on craft_ability) in different groups: replacing one and expiring the
+## other must leave FoodBuffState holding exactly the live rows, never a dead one that keeps paying.
+func _test_mirror_has_no_stale_keys() -> void:
+	print("[t_foodfx] -- mirror bookkeeping")
+	_fresh()
+	var slots = SLOTS.of(_player)
+	slots.apply(_player, [{"id": "probe_ability", "group": "enhanced_ability", "display_name": "Probe", "duration": 100.0, "stats": {"weapon_crafting_ability": {"add": 20.0}}}])
+	slots.apply(_player, [{"id": "probe_survival", "group": "enhanced_survival", "display_name": "Probe", "duration": 100.0, "stats": {"cooking_ability": {"add": 10.0}}}])
+	_expect(absf(_player.food_buffs.added("craft_ability") - 30.0) < 0.01, "two mirrored buffs both reach FoodBuffState (%.1f)" % _player.food_buffs.added("craft_ability"))
+	# Replace the ability group: the old row's mirrored key must go with it.
+	slots.apply(_player, [{"id": "probe_ability2", "group": "enhanced_ability", "display_name": "Probe 2", "duration": 100.0, "stats": {"tailoring_ability": {"add": 5.0}}}])
+	_expect(absf(_player.food_buffs.added("craft_ability") - 15.0) < 0.01, "the replaced buff stops paying (%.1f = 5 + 10, not 20 + 5 + 10)" % _player.food_buffs.added("craft_ability"))
+	_expect(_mirror_keys().size() == 2, "FoodBuffState holds one row per live buff, not one per buff ever applied (%s)" % str(_mirror_keys()))
+	# Expire both: nothing may survive in the mirror.
+	_tick(101.0)
+	_expect(_mirror_keys().is_empty(), "expiry clears every mirrored key (%s)" % str(_mirror_keys()))
+	_expect(absf(_player.food_buffs.added("craft_ability")) < 0.01, "and no expired buff still pays an ability (%.1f)" % _player.food_buffs.added("craft_ability"))
+
+## The keys BuffSlots owns inside FoodBuffState (its own namespace only).
+func _mirror_keys() -> Array:
+	var out: Array = []
+	for k: Variant in _player.food_buffs.to_dict().keys():
+		if str(k).begins_with("fx_"):
+			out.append(str(k))
+	return out
+
 # ---------------------------------------------------------------- 11. ability buff on a real check
 
-func _test_ability_buff() -> void:
-	print("[t_foodfx] -- ability check")
-	_fresh()
-	var rec: Dictionary = {}
+## The first recipe that really demands an ability: the check the ability buff must move.
+func _ability_recipe() -> Dictionary:
 	var recipes: Dictionary = DATA.recipes
 	for rid: Variant in recipes:
 		var row: Dictionary = recipes[rid]
 		if float(row.get("required_ability", 0.0)) > 0.0:
-			rec = row
-			break
+			return row
+	return {}
+
+func _test_ability_buff() -> void:
+	print("[t_foodfx] -- ability check")
+	_fresh()
+	var rec: Dictionary = _ability_recipe()
 	_expect(not rec.is_empty(), "a recipe with a real required ability exists (%s)" % str(rec.get("id", "")))
 	var level_before: int = _player.skills.level_of(str(rec.get("tree", rec.get("skill", "cooking"))))
 	var before: float = CR.crafting_ability(_player, rec)
@@ -459,6 +490,11 @@ func _test_save_roundtrip() -> void:
 	_player.statuses.clear_id(&"full")
 	_give(&"dutch_coffee", 1)
 	_eat_slot(player_stack(&"dutch_coffee"))
+	_player.statuses.clear_id(&"full")
+	_give(&"crafters_meal", 1)
+	_expect(_eat_slot(player_stack(&"crafters_meal")), "a profession ability meal is eaten before the save")
+	var ability_before: float = CR.crafting_ability(_player, _ability_recipe())
+	_expect(ability_before > 1.0, "the ability buff is paying before the save (%.1f)" % ability_before)
 	var digest_before: float = DIG.of(_player).total_remaining()
 	var buffs_before: Array = SLOTS.of(_player).ids()
 	var cap_before: float = _player.vitals.effective_max_fatigue()
@@ -467,6 +503,9 @@ func _test_save_roundtrip() -> void:
 	var saved: bool = SG.save_now()
 	_expect(saved, "the save writes")
 	_player.vitals.energy = 0.0
+	# A reload starts a *fresh* survivor: its FoodBuffState is empty, so only the save can refill it.
+	_player.food_buffs.from_dict({})
+	_expect(absf(_player.food_buffs.added("craft_ability")) < 0.01, "the mirror is empty before the load, as in a new process")
 	SG.load_now(_host)
 	await process_frame
 	await physics_frame
@@ -475,6 +514,12 @@ func _test_save_roundtrip() -> void:
 	_expect(absf(digest_after - digest_before) < 0.5, "the loaded save keeps the unpaid digestion (%.1f -> %.1f)" % [digest_before, digest_after])
 	_expect(SLOTS.of(_player).ids() == buffs_before, "the loaded save keeps the buff slots (%s)" % str(SLOTS.of(_player).ids()))
 	_expect(absf(_player.vitals.effective_max_fatigue() - cap_before) < 0.5, "and the capacity the buff grants survives too (%.1f -> %.1f)" % [cap_before, _player.vitals.effective_max_fatigue()])
+	# The reload must also re-publish the buffs: the ability consumer reads FoodBuffState, not the slots.
+	var rec: Dictionary = _ability_recipe()
+	_expect(not rec.is_empty(), "a recipe with a real required ability exists for the reload check")
+	var ability_after: float = CR.crafting_ability(_player, rec)
+	_expect(absf(ability_after - ability_before) < 0.01, "a loaded profession buff still moves the real craft ability (%.1f -> %.1f)" % [ability_before, ability_after])
+	_expect(absf(_player.food_buffs.added("craft_ability") - 20.0) < 0.01, "and the loaded save repopulated FoodBuffState (%.1f)" % _player.food_buffs.added("craft_ability"))
 	# Paying it after the load pays it once, not twice.
 	_player.vitals.energy = 0.0
 	_tick(float(FX.defaults().get("digest_seconds", 300.0)) + 1.0)

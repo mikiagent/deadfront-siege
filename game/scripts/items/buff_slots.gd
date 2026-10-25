@@ -22,7 +22,10 @@ const META := "foodfx_slots"
 var _rows: Array[Dictionary] = []
 ## Spec 32 §7 taste memory: flavour -> {"score": run length, "t": unix seconds}.
 var taste_memory: Dictionary = {}
-var _mirrored: Array[String] = []
+## Namespace of the rows this node owns inside FoodBuffState. Erasing by prefix (not by a list of the
+## keys written last time) means a fresh instance - a survivor restored from a save - still clears rows
+## an earlier life left behind.
+const MIRROR_PREFIX := "fx_"
 
 ## The survivor's slots, created on first use and kept on the node.
 static func of(player: Player) -> BuffSlots:
@@ -151,9 +154,9 @@ func _sync(player: Player) -> void:
 	if player == null or player.food_buffs == null:
 		return
 	var mirror: Dictionary = player.food_buffs.to_dict()
-	for key in _mirrored:
-		mirror.erase(key)
-	_mirrored.clear()
+	for key: Variant in mirror.keys():
+		if str(key).begins_with(MIRROR_PREFIX):
+			mirror.erase(key)
 	for r in _rows:
 		var stats: Dictionary = r.get("stats", {})
 		# Capacities are owned here (vitals bonus below), so they are not mirrored twice.
@@ -176,15 +179,20 @@ func _sync(player: Player) -> void:
 			acc["stat"] = dst
 			row[dst] = acc
 		for dst: Variant in row:
-			var key := "fx_%s_%s" % [str(r.get("id", "")), str(dst)]
+			var key := "%s%s_%s" % [MIRROR_PREFIX, str(r.get("id", "")), str(dst)]
 			var acc2: Dictionary = row[dst]
 			acc2["stat"] = str(dst)
 			acc2["duration"] = float(r.get("duration", 0.0))
 			mirror[key] = {"time_left": float(r.get("duration", 0.0)), "row": acc2}
-			_mirrored.append(key)
 	player.food_buffs.from_dict(mirror)
 	if player.vitals != null:
 		player.vitals.sync_food_caps(stat_add("max_fatigue"), stat_add("max_energy"))
+
+## Rebuild the FoodBuffState mirror and the capacity bonuses from the current rows. Public because a
+## restore is not a tick: without it a loaded buff would sit in the slots and move no number for the
+## readers that ask FoodBuffState (Crafting.crafting_ability, heat/cold resistance) until an expiry.
+func sync(player: Player) -> void:
+	_sync(player)
 
 # ---------------------------------------------------------------- persistence
 
@@ -207,3 +215,9 @@ func from_dict(raw: Dictionary) -> void:
 			_rows.append(row)
 	var mem: Variant = raw.get("taste_memory", {})
 	taste_memory = (mem as Dictionary).duplicate(true) if mem is Dictionary else {}
+
+## Load a saved slot payload *and* publish it: rows, mirror, capacities. This is the only correct way
+## to restore buffs - from_dict alone leaves FoodBuffState holding whatever the previous life wrote.
+func restore(player: Player, raw: Dictionary) -> void:
+	from_dict(raw)
+	_sync(player)

@@ -112,44 +112,33 @@ constant duplicates them.
   The line prints the four names `job_foodfx.conf`'s `LAB_ASSERT` uses without the `_ok` suffix as well
   (`interrupt_refunds`, `double_eat_blocked`, `plain_food_keeps_buff`, `save_roundtrip`), so one line
   satisfies either spelling; the lab also takes a third frame (`food_card_tea`) so `MIN_SHOTS=3` can be met.
-- Related: `t_needs`, `t_items`, `t_save`, `t_ui` all PASS, `tools/smoke.sh` prints `SMOKE PASS`, and
+- Related: `t_needs`, `t_items`, `t_save`, `t_ui`, `t_data` all PASS, `tools/smoke.sh` prints `SMOKE PASS`, and
   `verify_job.sh foodfx` (no stage) prints `VERIFY PASS` under HEADLESS_ONLY.
-- **`t_data` fails** on the six missing rarity mirror rows — see the section below; out of scope to fix.
+- `t_data` PASS (`items=240 recipes=165`) after the six mirror rows were added — see "Round-1 review fixes".
 - `t_save` prints `SCRIPT ERROR` lines by design (its abort/sanitizer probes); the gate exempts it.
 - Not verified here: windowed lab at 1600×900 / 844×390 and the screenshots (HEADLESS_ONLY).
 
-## Required follow-up: `game/data/item_rarity.json` (out of SCOPE)
-`t_data` asserts that `item_rarity.json` mirrors every `items.json` rarity, and the six new items are in
-`items.json` (in scope). `item_rarity.json` is **not** in `job_foodfx.conf`'s SCOPE, so the gate rejects
-any edit to it. This agent tried the mirror update (six keys) and had to revert it to pass the scope check;
-**as merged, `t_data` fails exactly six lines**:
+## Round-1 review fixes (orchestrator)
+1. **The six rarity mirror rows are added.** `game/data/item_rarity.json` gained exactly six lines, values
+   copied from `items.json`, inserted after `seasoned_roast` in the food block — `spring_water` common,
+   `tea` uncommon, `drip_coffee` uncommon, `dutch_coffee` rare, `crafters_meal` rare, `fatigue_tonic`
+   uncommon. `git diff` on that file is `6 ++++++`, no other row touched, no reformat. The earlier
+   whole-file reformat is gone.
+2. **The gate can no longer pass falsely.** `job_foodfx.conf` now has `RELATED="t_needs t_items t_save
+   t_ui t_data"` and `game/data/item_rarity.json` inside the SCOPE regex. Both copies were updated: the
+   worktree's `docs/orchestration/dsc/gates/job_foodfx.conf` and the runner's
+   `<scratchpad>/dsc/job_foodfx.conf` (they were identical). `t_data` was outside RELATED before, which is
+   exactly why the missing mirror rows slipped through.
+3. **`t_data` passes**: `[t_data] PASS items=240 recipes=165`, no SCRIPT ERROR.
+4. **`t_save` is freshly verified in isolation.** The runner's earlier gate run hung for over two hours and
+   was killed, so nothing was claimed from it. This run took the same lock the gate uses
+   (`lockf -s -t 600 /tmp/deadfront-dsc-t_save.lock`) with its own `alarm 240`, through `gslot.sh`
+   `--headless` (Dummy audio, scratch HOME): exit 0, `[t_save] PASS`, no hang.
+5. Every Godot command in this round went through `gslot.sh` with `--headless`, a timeout and a writable
+   scratch HOME. **No visible Godot or Blender process was launched and visual approval stays deferred.**
 
-```
-[t_data] FAIL item_rarity.json mirrors spring_water rarity
-[t_data] FAIL item_rarity.json mirrors tea rarity
-[t_data] FAIL item_rarity.json mirrors drip_coffee rarity
-[t_data] FAIL item_rarity.json mirrors dutch_coffee rarity
-[t_data] FAIL item_rarity.json mirrors crafters_meal rarity
-[t_data] FAIL item_rarity.json mirrors fatigue_tonic rarity
-```
-
-The integrator fix is one edit to `item_rarity.json`'s `items` map (the rarities already live in
-`items.json`, so this is a copy, not a decision):
-
-```json
-"spring_water": "common",
-"tea": "uncommon",
-"drip_coffee": "uncommon",
-"dutch_coffee": "rare",
-"crafters_meal": "rare",
-"fatigue_tonic": "uncommon",
-```
-
-`t_data` is not in this job's RELATED list, so the gate cannot catch it; please run it once after merging.
-Related: W2-DATA's own report already suggests `ItemArt` read `ItemDef.rarity` and delete the mirror —
-until then the mirror must be kept in sync by hand.
-Also in the scope diff but not this agent's work: `.dsc-task/TASK.md`, written by the runner's own
-`plan: foodfx: task` commit (f1cb5842).
+Re-run results this round (all headless): `t_foodfx` PASS (120 ok, 0 SCRIPT ERROR), `t_data` PASS,
+`t_needs` PASS, `t_items` PASS, `t_ui` PASS, `t_save` PASS.
 
 ## What the next agent needs
 - **Run stage 2 windowed** on a free machine: `bash docs/orchestration/dsc/gates/verify_job.sh foodfx 2`.
