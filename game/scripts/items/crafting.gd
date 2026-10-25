@@ -522,70 +522,157 @@ static func ability_of(skill_level: int, node_bonus: float = 0.0, food_bonus: fl
 static func plan_craft(rec: Dictionary, inv: Inventory, picks: Array[int], ability: float, level: int, burn_skill: int = 0, rng: RandomNumberGenerator = null) -> Dictionary:
 	if rec.is_empty() or inv == null or not picks_valid(inv, rec, picks):
 		return {}
+	var rows := _plan(inv, rec, picks)
+	if rows.is_empty():
+		return {}
+	# Every unit the craft will take, not just one lead per recipe slot: a slot with count 2 can be
+	# filled by a lead plus a supplemental stack, and a delayed retry must spend those same units with
+	# their own level and attributes, never whatever the bag happens to hold when the work finishes.
+	var parts: Array[Dictionary] = []
 	var uids: Array[String] = []
 	var defs: Array[String] = []
-	for i in picks.size():
-		var s: ItemStack = inv.slots[picks[i]] if picks[i] >= 0 and picks[i] < inv.slot_count else null
-		uids.append(s.uid if s else "")
-		defs.append(str(s.def_id) if s else "")
+	for i in rows.size():
+		var row: Dictionary = rows[i]
+		var lead: int = int(row["lead"])
+		var lead_stack: ItemStack = inv.slots[lead]
+		uids.append(lead_stack.uid)
+		defs.append(str(lead_stack.def_id))
+		for part: Dictionary in row["parts"]:
+			var at := int(part["idx"])
+			var st: ItemStack = inv.slots[at]
+			parts.append({"slot": i, "uid": st.uid, "def": str(st.def_id), "count": int(part["count"]), "at": at})
 	var primary: ItemStack = inv.slots[picks[primary_index(rec)]] if primary_index(rec) < picks.size() else null
 	return {
 		"recipe": str(rec.get("id", "")),
 		"picks": picks.duplicate(),
 		"uids": uids,
 		"defs": defs,
+		"parts": parts,
 		"outcome": roll_outcome_for(rec, primary, ability, rng),
 		"burnt": rolls_burn(rec, burn_skill, rng),
 		"level": level,
 	}
 
-## The instances a plan selected, wherever the bag has moved them since. [] when one of them left
-## the bag: the craft then fails safely instead of substituting a different stack (spec 08:98).
-static func plan_picks(inv: Inventory, rec: Dictionary, plan: Dictionary) -> Array[int]:
+## The plan's exact units resolved against the bag as it is now, keyed by the recipe slot they fill.
+## [] when any planned unit (or part of its count) has left the bag: a caller then stops the craft
+## untouched instead of spending a different instance of the same def (spec 08:98).
+static func plan_parts(inv: Inventory, rec: Dictionary, plan: Dictionary) -> Array[Dictionary]:
 	if inv == null or rec.is_empty() or plan.is_empty():
 		return []
-	var uids: Array = plan.get("uids", [])
-	var defs: Array = plan.get("defs", [])
-	var old: Array = plan.get("picks", [])
-	if old.is_empty():
+	var rows: Array = plan.get("parts", [])
+	var slots: Array = rec.get("slots", [])
+	if rows.is_empty() or slots.is_empty():
 		return []
-	var picks: Array[int] = []
-	for i in old.size():
-		var uid := str(uids[i]) if i < uids.size() else ""
-		var def_id := str(defs[i]) if i < defs.size() else ""
-		var idx := -1
-		if uid != "":
-			for j in inv.slot_count:
-				if inv.slots[j] and inv.slots[j].uid == uid:
-					idx = j
-					break
-		else:
-			# A fungible stack has no identity: the same def in the same slot is the same material.
-			var was := int(old[i])
-			if was >= 0 and was < inv.slot_count and inv.slots[was] and str(inv.slots[was].def_id) == def_id:
-				idx = was
-			else:
-				idx = inv.find_first(StringName(def_id))
+	# One pass over the bag: uid -> slot, def -> slots. Resolution stays O(bag + parts).
+	var by_uid: Dictionary = {}
+	var by_def: Dictionary = {}
+	for j in inv.slot_count:
+		var s: ItemStack = inv.slots[j]
+		if s == null:
+			continue
+		if s.uid != "":
+			by_uid[s.uid] = j
+		var d := str(s.def_id)
+		if not by_def.has(d):
+			by_def[d] = []
+		(by_def[d] as Array).append(j)
+	var out: Array[Dictionary] = []
+	var taken: Dictionary = {}
+	var per_slot: Dictionary = {}
+	for row: Variant in rows:
+		if not row is Dictionary:
+			return []
+		var slot_i := int((row as Dictionary).get("slot", -1))
+		if slot_i < 0 or slot_i >= slots.size() or not slots[slot_i] is Dictionary:
+			return []
+		var def_id := str((row as Dictionary).get("def", ""))
+		var count := int((row as Dictionary).get("count", 0))
+		if count <= 0:
+			return []
+		var uid := str((row as Dictionary).get("uid", ""))
+		var idx := int(by_uid.get(uid, -1))
+		if uid != "" and idx < 0:
+			# An identified instance that left the bag is not replaced by another of the same def.
+			return []
+		if idx < 0:
+			# A fungible stack has no identity: the same def is the same material; prefer the slot it
+			# was planned in, then any other stack of that def.
+			var at := int((row as Dictionary).get("at", -1))
+			if at >= 0 and at < inv.slot_count and inv.slots[at] and str(inv.slots[at].def_id) == def_id:
+				idx = at
+			elif by_def.has(def_id) and not (by_def[def_id] as Array).is_empty():
+				idx = int((by_def[def_id] as Array)[0])
 		if idx < 0 or inv.slots[idx] == null or str(inv.slots[idx].def_id) != def_id:
 			return []
-		picks.append(idx)
-	return picks if picks_valid(inv, rec, picks) else []
+		var slot_def: Dictionary = slots[slot_i]
+		var cat := StringName(str(slot_def.get("category", "")))
+		if not inv.slots[idx].def().has_category(cat) or not _allowed(slot_def, inv.slots[idx]):
+			return []
+		var used := int(taken.get(idx, 0))
+		if inv.slots[idx].count - used < count:
+			return []
+		taken[idx] = used + count
+		per_slot[slot_i] = int(per_slot.get(slot_i, 0)) + count
+		out.append({"slot": slot_i, "idx": idx, "count": count})
+	for i in slots.size():
+		if int(per_slot.get(i, 0)) < int((slots[i] as Dictionary).get("count", 1)):
+			return []
+	return out
 
-## Does the planned output still fit once the plan's inputs leave the bag? Checked on a scratch bag,
-## with the plan's own burn result and level, so a retry never re-rolls either.
+## The lead slot of each recipe slot in the plan, resolved. [] when a planned unit has left.
+static func plan_picks(inv: Inventory, rec: Dictionary, plan: Dictionary) -> Array[int]:
+	var parts := plan_parts(inv, rec, plan)
+	if parts.is_empty():
+		return []
+	var slots: Array = rec.get("slots", [])
+	var picks: Array[int] = []
+	picks.resize(slots.size())
+	picks.fill(-1)
+	for part in parts:
+		var i := int(part["slot"])
+		if picks[i] < 0:
+			picks[i] = int(part["idx"])
+	if picks.has(-1):
+		return []
+	return picks
+
+## Consume exactly the resolved parts (primary slot first, for output attribute/process inheritance).
+static func consume_parts(inv: Inventory, rec: Dictionary, parts: Array[Dictionary]) -> Array[ItemStack]:
+	var refund: Array[ItemStack] = []
+	var pi := primary_index(rec)
+	var order: Array = parts.duplicate()
+	order.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var ap := 0 if int(a["slot"]) == pi else 1
+		var bp := 0 if int(b["slot"]) == pi else 1
+		return ap < bp)
+	for part: Variant in order:
+		var taken := inv.remove_at(int((part as Dictionary)["idx"]), int((part as Dictionary)["count"]))
+		if taken:
+			refund.append(taken)
+	return refund
+
+## Does the planned output still fit once the plan's own units leave the bag? Checked on a scratch bag
+## with the plan's burn result and level, so a retry never re-rolls either and never frees a different
+## slot than run_plan will.
 static func plan_fits(inv: Inventory, rec: Dictionary, plan: Dictionary) -> bool:
 	if inv == null or rec.is_empty() or plan.is_empty():
 		return false
-	var picks := plan_picks(inv, rec, plan)
-	if picks.is_empty():
+	var parts := plan_parts(inv, rec, plan)
+	if parts.is_empty():
 		return false
 	var scratch := Inventory.new(inv.slot_count)
 	for i in inv.slot_count:
 		if inv.slots[i]:
 			scratch.slots[i] = inv.slots[i].duplicate_stack()
-	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
+	var pi := primary_index(rec)
+	var primary_idx := -1
+	for part in parts:
+		if int(part["slot"]) == pi:
+			primary_idx = int(part["idx"])
+			break
+	var primary: ItemStack = scratch.slots[primary_idx].duplicate_stack() if primary_idx >= 0 else null
 	var out := build_output(rec, primary, int(plan.get("level", 1)), [], bool(plan.get("burnt", false)))
-	consume_for_craft(scratch, rec, picks)
+	consume_parts(scratch, rec, parts)
 	return scratch.can_accept(out)
 
 ## Execute a plan: consume its exact instances and add the result. No XP and no notices (the callers
@@ -597,12 +684,12 @@ static func plan_fits(inv: Inventory, rec: Dictionary, plan: Dictionary) -> bool
 static func run_plan(rec: Dictionary, inv: Inventory, plan: Dictionary, overflow: Array[ItemStack] = []) -> Dictionary:
 	if rec.is_empty() or inv == null or plan.is_empty():
 		return {"status": "left", "item": null}
-	var picks := plan_picks(inv, rec, plan)
-	if picks.is_empty():
+	var parts := plan_parts(inv, rec, plan)
+	if parts.is_empty():
 		return {"status": "left", "item": null}
 	var outcome: Dictionary = plan.get("outcome", {})
 	if not bool(outcome.get("success", true)):
-		var lost := consume_for_craft(inv, rec, picks)
+		var lost := consume_parts(inv, rec, parts)
 		var names: PackedStringArray = []
 		for s in lost:
 			names.append("%s x%d" % [str(s.def_id), s.count])
@@ -611,7 +698,9 @@ static func run_plan(rec: Dictionary, inv: Inventory, plan: Dictionary, overflow
 	if not plan_fits(inv, rec, plan):
 		print("[craft] refused %s: bag full" % rec.get("id", ""))
 		return {"status": "full", "item": null}
-	var consumed := consume_for_craft(inv, rec, picks)
+	var consumed := consume_parts(inv, rec, parts)
+	if consumed.is_empty():
+		return {"status": "left", "item": null}
 	var out := build_output(rec, consumed[0], int(plan.get("level", 1)), consumed, bool(plan.get("burnt", false)))
 	apply_outcome(out, rec, outcome)
 	if not out.is_fungible() and out.uid == "":  # in-place output keeps its instance identity

@@ -65,6 +65,7 @@ func _run() -> void:
 	await _test_station_retry()
 	await _test_station_uid_left()
 	await _test_online_parity()
+	_test_supplement_pinning()
 	_test_online_stakes()
 	_finish()
 
@@ -680,6 +681,93 @@ func _test_online_stakes() -> void:
 			"the online path applies flawless and the inherited rare trait")
 	data.recipes.erase(&"t_online_fail")
 	data.recipes.erase(&"t_online_win")
+
+## Review round 2 (BLOCKING): a slot with count 2 can be filled by a lead plus a supplemental stack.
+## The plan must pin every part it will spend, so a delayed retry consumes those exact units (uid,
+## level, attributes) and never a different eligible stack that appeared since.
+func _test_supplement_pinning() -> void:
+	var rec := _rec(0.0, {
+		"id": "t_supplement",
+		"slots": [{"category": "stone", "count": 2, "primary": true}],
+		"output": {"id": "stone_knife_work", "count": 1},
+	})
+	var inv = INV.new(6)
+	var a = IS.make(&"stone", 1, {}, 5)
+	var b = IS.make(&"stone", 1, {}, 40)
+	var c = IS.make(&"stone", 1, {}, 60)
+	a.stamp_identity("loot", "tester", "laaa0000000000001")
+	b.stamp_identity("loot", "tester", "lbbb0000000000002")
+	c.stamp_identity("loot", "tester", "lccc0000000000003")
+	inv.slots[0] = a
+	inv.slots[1] = b
+	var picks: Array[int] = CR.default_picks(inv, rec)
+	var levels: Array[int] = [5, 40]
+	var want_level: int = CR.crafted_level_for(rec, levels, _player)
+	var plan: Dictionary = CR.plan_craft(rec, inv, picks, CR.ability_of(30), want_level, 30, RandomNumberGenerator.new())
+	_expect(not plan.is_empty(), "a two-unit plan is built from two stacks")
+	if plan.is_empty():
+		return
+	var pinned: Array = plan.get("parts", [])
+	var pinned_uids: Array[String] = []
+	var pinned_total := 0
+	for part: Dictionary in pinned:
+		pinned_uids.append(str(part.get("uid", "")))
+		pinned_total += int(part.get("count", 0))
+	print("[t_craftfeel] supplement pinned=%s total=%d level=%d" % [str(pinned_uids), pinned_total, int(plan.get("level", 0))])
+	_expect(pinned.size() == 2 and pinned_total == 2, "the plan pins both units of the two-count slot (%d parts, %d units)" % [pinned.size(), pinned_total])
+	_expect("laaa0000000000001" in pinned_uids and "lbbb0000000000002" in pinned_uids,
+		"the plan pins the lead and the supplement by uid (%s)" % str(pinned_uids))
+	var plan_level := int(plan.get("level", 0))
+	_expect(plan_level == want_level, "the plan's level is the pinned units' (%d vs %d)" % [plan_level, want_level])
+	var pinned_parts: Array = CR.plan_parts(inv, rec, plan)
+	var sum_levels := 0
+	for part: Dictionary in pinned_parts:
+		sum_levels += int(inv.slots[int(part["idx"])].level)
+	_expect(sum_levels == 45, "the pinned units keep their own levels (5 + 40, got %d)" % sum_levels)
+	# A better stack appears and the bag is reordered: an unpinned retry would take C and level the
+	# output to 60; the plan must still take A and B.
+	inv.slots[2] = c
+	inv.slots[0] = c
+	inv.slots[1] = b
+	inv.slots[2] = a
+	var resolved: Array = CR.plan_parts(inv, rec, plan)
+	var resolved_uids: Array[String] = []
+	for part: Dictionary in resolved:
+		resolved_uids.append(str(inv.slots[int(part["idx"])].uid))
+	_expect(resolved.size() == 2 and "laaa0000000000001" in resolved_uids and "lbbb0000000000002" in resolved_uids
+			and not ("lccc0000000000003" in resolved_uids),
+		"a reordered bag with a better stack resolves the pinned units only (%s)" % str(resolved_uids))
+	_expect(CR.plan_fits(inv, rec, plan), "the output fits once the pinned units leave")
+	# Fill every other slot so only the space the two pinned units free is available.
+	var res: Dictionary = CR.run_plan(rec, inv, plan)
+	_expect(str(res.get("status", "")) == "made", "the craft lands (%s)" % str(res.get("status", "")))
+	_expect(int(res.get("item").level) == plan_level, "the output level is the pinned units' (%d)" % int(res.get("item").level))
+	var left_uids: Array[String] = []
+	for i in inv.slot_count:
+		if inv.slots[i]:
+			left_uids.append(str(inv.slots[i].uid))
+	print("[t_craftfeel] supplement consumed A+B, left=%s" % str(left_uids))
+	_expect(not ("laaa0000000000001" in left_uids) and not ("lbbb0000000000002" in left_uids),
+		"the pinned units are exactly the ones consumed")
+	_expect("lccc0000000000003" in left_uids, "the unpinned better stack is untouched")
+	# Removing a pinned supplement (the plan's own B) stops the craft with nothing consumed.
+	var inv2 = INV.new(6)
+	var a2 = IS.make(&"stone", 1, {}, 5)
+	var b2 = IS.make(&"stone", 1, {}, 40)
+	a2.stamp_identity("loot", "tester", "laaa0000000000011")
+	b2.stamp_identity("loot", "tester", "lbbb0000000000012")
+	inv2.slots[0] = a2
+	inv2.slots[1] = b2
+	var plan2: Dictionary = CR.plan_craft(rec, inv2, CR.default_picks(inv2, rec), CR.ability_of(30), 30, 30, RandomNumberGenerator.new())
+	_expect(not plan2.is_empty(), "the second fixture plans")
+	if plan2.is_empty():
+		return
+	inv2.slots[1] = null
+	inv2.slots[3] = IS.make(&"stone", 1, {}, 40)  # an eligible substitute the craft must not take
+	var gone: Dictionary = CR.run_plan(rec, inv2, plan2)
+	_expect(str(gone.get("status", "")) == "left", "a plan whose pinned supplement left stops instead of substituting (%s)" % str(gone.get("status", "")))
+	_expect(inv2.count_of(&"stone") == 2 and int(inv2.slots[0].level) == 5, "the lead and the substitute are untouched")
+	_expect(inv2.count_of(&"stone_knife_work") == 0, "nothing was made")
 
 ## A server character's skill XP (CharacterState keeps the plain state dict; SkillState owns xp_of).
 func _skill_xp(ch, tree: String) -> float:

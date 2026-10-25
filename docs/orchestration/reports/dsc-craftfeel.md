@@ -124,6 +124,43 @@ no error; a full bag is `bag_full` with nothing consumed; a planned instance tha
 **Bug found while testing:** a finished live craft kept its spent `_plan`, so a queued or new craft could
 reuse it. `_finish_one` now clears `_plan`/`_burnt` on completion.
 
+## Review round 2 (BLOCKING): every planned unit is pinned, not just one lead per slot
+
+A recipe slot can need 2+ units, and `_plan` fills that from a lead plus supplemental stacks. Round 1
+pinned only the lead's uid/def per slot, so `plan_picks` resolved leads and then
+`run_plan`/`plan_fits`/`consume_for_craft` recomputed the supplements from the bag **as it is at retry
+time**: a full-bag wait (or a server op that lands later) could spend a different identified stack —
+another level, other attributes, another uid — while keeping the original output level. What went in
+did not match what the plan (and the card) said.
+
+Fix, in `game/scripts/items/crafting.gd`:
+- `plan_craft` now stores the complete part list it will spend, per slot, with each part's `uid`, `def`,
+  `count`, the recipe slot it fills and the bag slot it was planned in:
+  `parts: [{slot, uid, def, count, at}, ...]`. The lead uid/def lists stay for the card and the tests.
+- New `plan_parts(inv, rec, plan)` resolves those exact parts against the current bag and is the only
+  thing `plan_picks`, `plan_fits` and `run_plan` use. An **identified** part whose uid is gone makes it
+  return `[]` with no mutation, even if the same def sits elsewhere (no substitution, spec 08:98); a
+  fungible part (no uid) still resolves by def, preferring the slot it was planned in. It also re-checks
+  the category/`allowed_ids` of the slot and that the stack still holds >= the pinned count. It runs in
+  one pass over the bag plus the parts (uid map), not O(parts x bag).
+- New `consume_parts(inv, rec, parts)` spends exactly the resolved parts, primary slot first (output
+  attribute/process inheritance keeps its old order); `run_plan` and `plan_fits` both call it, so the
+  fit simulation and the real consume free the identical slots.
+- `run_plan` returns `left` with nothing consumed when a part cannot be resolved, before any consume.
+
+## Verified (round 2)
+- New `_test_supplement_pinning` in `t_craftfeel`: a slot with `count: 2` gets an identified lead
+  (level 5, uid `laaa…1`) and an identified supplement (level 40, uid `lbbb…2`); the plan pins **both**
+  units and carries the level those units give. A better identified stack C (level 60) is then inserted
+  and the bag reordered: `plan_parts` still resolves A+B only, `run_plan` consumes exactly A+B, C
+  survives untouched, and the output level is the plan's (not C's 60). Removing the pinned B and adding
+  an eligible level-40 substitute returns `left` with the lead and the substitute untouched and nothing
+  made.
+- Mutation checks: dropping the "identified uid gone -> []" rule, or ignoring pinned uids entirely,
+  each fail the assertions (the second fails 5+ of them), so the pinning is genuinely load-bearing.
+- Related: `t_items`, `t_data`, `t_process`, `t_inventory`, `t_server_domain` PASS; `verify_job.sh
+  craftfeel` stage 1 + stage 2 (headless-deferred) PASS.
+
 ## Verified (round 1)
 - `game/tests/t_craftfeel.gd`, 99 assertions, all PASS; it now asserts the round-1 regressions:
   shipped-data reachability (35 gated recipes, lowest 0.840 at its own gate, value read from data);
