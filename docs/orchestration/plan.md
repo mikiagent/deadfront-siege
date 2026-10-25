@@ -173,3 +173,14 @@ Read [`docs/game-design/README.md`](../game-design/README.md), [decision registe
 5. **Economy:** Skyblock-like home improvement, Durango gathering/material craft, ARK species/breeding/remote optional danger. Safe productive growth must compete economically with frontier raids.
 
 **Do not implement ambiguous island migrations, item gates or multiplayer locks from guesses.** Design the systems first, then plan save migrations and acceptance labs.
+
+
+## 14. Settled world-cycle and captive ransom contracts (2026-10-25)
+
+[Canonical game design v2](../game-design/README.md) now has full **draft chapters** for [private-home paid migration](../game-design/03-private-islands-and-upgrade-migration.md), [unstable world resets](../game-design/04-world-biomes-and-travel.md) and [PvPvE captive/ransom](../game-design/16-pvp-frontier-siege-and-captives.md).
+
+Owner confirmed preview + auto dismantling on safe-home purchase with **100% invested construction material refund** into a salvage-only Ender Chest-like vault; people, dinos and normal goods transfer separately. Larger private homes can yield level 50–55 natural nodes; level 60+ sources must be elsewhere. The **tribe owns the earned level-60 unlock**, but the **currently controlled person must personally be level 60** before entering PvPvE.
+
+**Raid scope** is **built settlements, not islands**. PvE settlements face dinosaurs/animals; PvPvE settlements can face other players. Unstable islands **reset resources and automatically dismantle their bases** into material recovery (reset refund fraction remains OPEN). A human or dino captured at an eligible settlement first becomes a **prisoner**. **Ransom is due by a deadline**. If the defender pays on time, captive returns; if they fail to pay, the attacker gains the right to **acquire/claim** that captive. Deadline, ransom price/escrow, manual vs automatic attacker claim and new allegiance remain undecided.
+
+None of the above describes shipped code. Do not repurpose historical island sinking and raider language as current design authority; ensure save/migration atomics and server-validated custody transactions before implementation.
