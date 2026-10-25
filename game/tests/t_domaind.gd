@@ -25,7 +25,9 @@ var IS: GDScript
 var BF: GDScript
 var BP: GDScript
 var SG: GDScript
+var SAN: GDScript
 var CELL := Vector2i.ZERO
+var _land_at_start := 0
 
 func _process(_delta: float) -> bool:
 	if _started or root.get_node_or_null("Data") == null or root.get_node_or_null("World") == null:
@@ -50,6 +52,7 @@ func _run() -> void:
 	BF = load("res://scripts/items/build_flow.gd")
 	BP = load("res://scripts/items/blueprints.gd")
 	SG = load("res://scripts/core/save_game.gd")
+	SAN = load("res://scripts/core/save_sanitizer.gd")
 	_world = root.get_node("World")
 	_host = Node3D.new()
 	_host.name = "TDomaindHost"
@@ -71,11 +74,13 @@ func _run() -> void:
 	var grid: Variant = _rt.get("build_grid")
 	grid.ignore_distance = true
 	_learn_workbench()
+	_land_at_start = IC.used(_rt)
 	_test_data()
 	await _build_center()
 	await _test_contributions()
 	await _test_cap_rises_without_land()
 	_test_save_round_trip()
+	await _test_forged_save()
 	if _fails.is_empty():
 		print("[t_domaind] PASS")
 		quit(0)
@@ -98,6 +103,10 @@ func _give(id: StringName, n: int) -> void:
 	for i in n:
 		_player.inventory.add(IS.make(id, 1, {}, 12))
 
+func grid_can_place(c: Vector2i) -> String:
+	var grid: Variant = _rt.get("build_grid")
+	return str(grid.can_place(CC.grid_kind(), c, 0))
+
 func _find_cell() -> Vector2i:
 	var first: Rect2i = _rt.claims[0]
 	var grid: Variant = _rt.get("build_grid")
@@ -112,8 +121,20 @@ func _find_cell() -> Vector2i:
 
 func _test_data() -> void:
 	var bp: Dictionary = CC.blueprint()
-	_expect(not bp.is_empty() and str(bp.get("id", "")) == "comm_center", "comm_center.json carries the build blueprint")
+	_expect(not bp.is_empty() and str(bp.get("id", "")) == "comm_center", "data/blueprints.json carries the center's build blueprint")
 	_expect(not BP.of(CC.KIND).is_empty(), "the blueprint is visible to the BUILDFLOW pipeline (Blueprints.of)")
+	var listed := false
+	for row: Dictionary in BF.menu_rows(_player):
+		if str(row.get("id", "")) == "comm_center":
+			listed = true
+	_expect(listed, "a fresh Build menu lists the center (BuildFlow.menu_rows, no Domain screen opened)")
+	# Character level never grants the island rank: the contribution track is the only source.
+	var level_was: int = int(_world.pioneer_level)
+	_world.pioneer_level = 60
+	_expect(CC.rank() == 1 and DR.pioneer_rank() == 1, "character level 60 leaves the island at rank 1 (%d/%d)" % [CC.rank(), DR.pioneer_rank()])
+	_expect(int(DR.cap()) == 13, "character level 60 leaves the cap at 13 (got %d)" % int(DR.cap()))
+	_expect(int(CC.level_association()) == 60, "the documented level-60 association is data (%d)" % int(CC.level_association()))
+	_world.pioneer_level = level_was
 	var steps: Array = CC.steps()
 	_expect(steps.size() >= 1 and int(steps[0]["rank"]) == 2, "the first documented step is Pioneer rank 2 (got %s)" % [steps.map(func (r: Dictionary) -> int: return int(r["rank"]))])
 	_expect(int(DR.cap_for_rank(2)) == 17 and int(DR.cap_for_rank(1)) == 13, "domains.json keeps 13 at rank 1 and 17 at rank 2")
@@ -125,7 +146,7 @@ func _test_data() -> void:
 
 func _build_center() -> void:
 	CELL = _find_cell()
-	_expect(CELL != Vector2i.ZERO or _rt.claims[0].has_point(CELL), "a free claimed cell for the center")
+	_expect(_rt.claims[0].has_point(CELL) and (grid_can_place(CELL) == ""), "a free claimed cell for the center at %s (%s)" % [CELL, grid_can_place(CELL)])
 	var why: String = BF.place_reason(_player, CC.KIND, CELL, 0)
 	_site = BF.place_site(_player, CC.KIND, CELL, 0)
 	_expect(_site != null, "placing the center makes a construction site (%s)" % why)
@@ -210,13 +231,58 @@ func _test_cap_rises_without_land() -> void:
 	_expect(cap == 17, "the live island cap follows the rank (%d)" % cap)
 	_expect(used <= cap, "the island holds %d cells, cap %d" % [used, cap])
 	# Rank is capacity only: the step claimed nothing, and claiming still needs the Domain screen.
-	var cells: int = (IC.owned_cells(_rt) as Dictionary).size()
-	_expect(cells == used, "no cell was claimed by the upgrade (record holds %d, cap %d)" % [cells, cap])
-	var claims_now: int = _rt.claims.size()
-	_expect(claims_now >= 1, "the camp land is still the land that exists (%d rects)" % claims_now)
+	# The land that exists now is exactly the land the camp had before the center was built.
+	_expect(used == _land_at_start, "the upgrade claimed no cell: %d used now, %d before the center (%d -> %d)" % [used, _land_at_start, _land_at_start, used])
+	_expect(used < cap, "the upgrade leaves %d of %d plots unclaimed for the survivor to stake" % [cap - used, cap])
 	# Room above the old cap: the upgrade made the land claimable, it did not claim it.
 	_expect(cap > 13, "capacity grew beyond the starting 13 (%d)" % cap)
+	# ...and a claim at the new capacity still goes through the Domain screen's own path.
+	var before: int = int(IC.used(_rt))
+	var zero_out: Dictionary = _rt.claim_domain([])
+	_expect(not bool(zero_out["ok"]) and int(IC.used(_rt)) == before, "an empty claim batch changes nothing (reason %s)" % str(zero_out["reason"]))
 	print("[t_domaind] land: %d cells held, cap %d" % [used, cap])
+
+
+# ---------------------------------------------------------------- the real load path, forged
+
+## The save file is user-editable: a forged home.comm_center must not buy a rank the contribution
+## track has not reached, nor hand the center an item the game does not have. This runs the real
+## SaveGame.load_now path (migration + SaveSanitizer + CommCenter.from_save), not a direct call.
+func _test_forged_save() -> void:
+	var rank_was: int = CC.rank()
+	_expect(SG.save_now(), "a save is written before the forgery")
+	var raw := FileAccess.get_file_as_string(SG.path)
+	var saved: Variant = JSON.parse_string(raw)
+	if not saved is Dictionary:
+		_expect(false, "the save file parses")
+		return
+	var data: Dictionary = saved as Dictionary
+	var home: Dictionary = (data.get("home", {}) as Dictionary)
+	home["comm_center"] = {"rank": 99, "steps": {"2": [
+		[{"id": "not_an_item", "count": 3}, {"id": "stone", "count": 1, "level": 999}],
+	]}}
+	(data.get("player", {}) as Dictionary)["position"] = [0.0, 1.0, 18.0]
+	var f := FileAccess.open(SG.path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(data))
+	f.close()
+	SG.load_now(_host)
+	await process_frame
+	await physics_frame
+	_rt = _world.runtime
+	_expect(CC.rank() == CC.MAX_RANK, "a forged rank 99 loads clamped to the last documented rank %d (got %d)" % [CC.MAX_RANK, CC.rank()])
+	_expect(int(DR.cap()) <= 30, "a forged rank cannot raise the cap past the last milestone (cap %d)" % int(DR.cap()))
+	var held: Array = CC.held_rows(2)
+	var ids: Array = []
+	var levels_ok := true
+	for col: Array in held:
+		for st: Variant in col:
+			ids.append(str((st as Object).get("def_id")))
+			if int((st as Object).get("level")) > int(SAN.MAX_LEVEL):
+				levels_ok = false
+	_expect(not ids.has("not_an_item"), "an item the game does not have is dropped from the loaded record (%s)" % [str(ids)])
+	_expect(levels_ok, "held instances keep the normal item level clamp")
+	_expect(CC.rank() >= rank_was, "the load keeps the rank the track had reached (%d)" % CC.rank())
+	print("[t_domaind] forged save: rank %d cap %d held %s" % [CC.rank(), int(DR.cap()), str(ids)])
 
 # ---------------------------------------------------------------- save / load
 

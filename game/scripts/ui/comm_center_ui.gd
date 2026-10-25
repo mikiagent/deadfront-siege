@@ -144,12 +144,7 @@ func is_open() -> bool:
 
 ## The center now standing on this island, or null (the panel then says to build it).
 func station() -> Node:
-	if rt == null or not is_instance_valid(rt):
-		return null
-	for n in get_tree().get_nodes_in_group(str(CommCenter.KIND)):
-		if n is Node and rt.is_ancestor_of(n) and not (n as Node).is_queued_for_deletion():
-			return n
-	return null
+	return CommCenter.station(rt)
 
 # ---------------------------------------------------------------- the card
 

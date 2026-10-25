@@ -14,11 +14,13 @@ extends RefCounted
 ## held here, and completing a step consumes exactly those units once - never a clone, never twice.
 
 const PATH := "res://data/world/comm_center.json"
-## The blueprint's id; its finished station carries this as a station TAG on a workbench-kind station
-## (spec 30 section 10), which is how it is found again after a save/load.
+## The blueprint id in data/blueprints.json; its finished station carries this as a station TAG on a
+## workbench-kind station (spec 30 section 10), which is how it is found again after a save/load.
 const KIND := &"comm_center"
 const TAG := &"comm_center"
 const START_RANK := 1
+## The documented top rank (data/world/domains.json's last milestone). A rank above it is forged.
+const MAX_RANK := 7
 
 static var _data: Dictionary = {}
 
@@ -29,32 +31,22 @@ static func data() -> Dictionary:
 			_data = parsed
 	return _data
 
-## The build blueprint (BUILDFLOW): the same slot shape data/blueprints.json uses.
+## The build blueprint (BUILDFLOW), read straight from data/blueprints.json so the Build menu sees it
+## in a fresh session (the Domain screen and this track never have to be opened first).
 static func blueprint() -> Dictionary:
-	register_blueprint()
-	var row: Variant = data().get("blueprint", {})
-	return row as Dictionary if row is Dictionary else {}
-
-## # ASSUMPTION: data/blueprints.json is outside this job's files, so the center's row ships in
-## data/world/comm_center.json and is folded into the loaded blueprint set here, once. BuildFlow,
-## BuildUI and the Build menu then treat it like any other blueprint. The integrator may move the
-## row into blueprints.json and delete this hook (then it must be called before the menu opens).
-static var _registered := false
+	return Blueprints.of(KIND)
 
 ## The BuildGrid kind (and the finished station's kind) the blueprint places: the workbench kind,
 ## which has a footprint in props_manifest and a kit, so the site and later the center restore.
 static func grid_kind() -> StringName:
-	return StringName(str((blueprint().get("station", {}) as Dictionary).get("kind", "workbench")))
+	var st: Variant = blueprint().get("station", {})
+	return StringName(str((st as Dictionary).get("kind", "workbench")))
 
-static func register_blueprint() -> void:
-	if _registered:
-		return
-	_registered = true
-	var raw: Variant = data().get("blueprint", {})
-	var row: Dictionary = raw as Dictionary if raw is Dictionary else {}
-	if row.is_empty():
-		return
-	Blueprints.all()[str(KIND)] = row
+## Spec 29 section 4: the historical track "was associated with level-60 progression". That is a
+## data fact about the building, never a mapping from the character level onto the island rank: the
+## rank moves only when a contribution step is completed.
+static func level_association() -> int:
+	return maxi(0, int((data().get("level_association", {}) as Dictionary).get("player_level", 0)))
 
 ## Documented steps in rank order: [{rank, requires}].
 static func steps() -> Array[Dictionary]:
@@ -95,7 +87,7 @@ static func _mutable() -> Dictionary:
 ## The Tamed Island's Pioneer rank from the center (character level may be higher; DomainRules takes
 ## whichever is higher).
 static func rank() -> int:
-	return maxi(START_RANK, int(record().get("rank", START_RANK)))
+	return clampi(int(record().get("rank", START_RANK)), START_RANK, MAX_RANK)
 
 ## The next documented step above the current rank, or {} when the track is finished for now.
 static func next_step() -> Dictionary:
@@ -359,7 +351,7 @@ static func from_save(row: Variant) -> void:
 								col_out.append(s)
 					cols_in.append(col_out)
 			steps_in[str(key)] = cols_in
-	World.home_comm_center = {"rank": maxi(START_RANK, int(src.get("rank", START_RANK))), "steps": steps_in}
+	World.home_comm_center = {"rank": clampi(int(src.get("rank", START_RANK)), START_RANK, MAX_RANK), "steps": steps_in}
 
 static func _bag() -> Inventory:
 	var p := PlayerRegistry.local()

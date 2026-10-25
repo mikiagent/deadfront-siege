@@ -12,9 +12,11 @@ Nothing is claimed by an upgrade: land still comes only from Domain → Declare/
 
 | file | what |
 |---|---|
-| `game/data/world/comm_center.json` (new) | the build blueprint row + the rank steps; all costs are `# ASSUMPTION` |
+| `game/data/blueprints.json` | the center's BUILDFLOW blueprint row (id `comm_center`); listed in a fresh Build menu |
+| `game/data/world/comm_center.json` (new) | the contribution track (rank steps, costs `# ASSUMPTION`) + the level-60 association as data |
 | `game/scripts/world/comm_center.gd` (new) | data, the saved record, exact-instance deposit/withdraw/complete, `station()`/`built()`, nameboard |
-| `game/scripts/world/domain_rules.gd` | `pioneer_rank()` = max(character level, center rank); registers the center's blueprint |
+| `game/scripts/world/domain_rules.gd` | `pioneer_rank()` = the center's rank only; character level never grants rank |
+| `game/scripts/core/save_sanitizer.gd` | `home.comm_center`: rank clamped to the track, held rows through the normal item validator |
 | `game/scripts/ui/comm_center_ui.gd` (new) | the modal contribution panel |
 | `game/scripts/ui/domain_screen.gd` | rank in the stats line, a Capacity line, CENTER action, live re-read of rank/cap while open |
 | `game/scripts/core/world.gd`, `save_game.gd` | `home_comm_center` record; saved as `home.comm_center` only when it has progress |
@@ -59,17 +61,50 @@ Nothing is claimed by an upgrade: land still comes only from Domain → Declare/
    on its own has no `props_manifest` row and no kit, so a reload would refund it instead of rebuilding it.
    It therefore gets the workbench model plus a `Label3D` nameboard, and the HUD's station pill still names
    it "Workbench" (`hud_pills.gd` names a node by its kind — outside this job's files).
-4. Rank = max(character Pioneer level, center rank), so a leveled survivor never loses capacity and the
-   center can raise an under-leveled one. The record's `max_cells` stays a floor, as CLAIMS2 wrote it.
+4. Rank comes from the contribution track only: `DomainRules.pioneer_rank()` is `CommCenter.rank()`.
+   `World.pioneer_level` is the character level and is never converted into an island rank, so a
+   level-60 survivor is still rank 1 with 13 plots until steps are contributed. Spec 29's level-60
+   association is data (`level_association` in `comm_center.json`, `CommCenter.level_association()`),
+   informational. The record's `max_cells` stays a floor, as CLAIMS2 wrote it.
 5. No record is written for an island that never used the center, so old saves re-save unchanged.
 
 ## For the integrator
 
-- `data/blueprints.json` is outside this job's SCOPE, so the center's blueprint row lives in
-  `data/world/comm_center.json` and `CommCenter.register_blueprint()` folds it into `Blueprints.all()`.
-  Moving the row into `blueprints.json` is a straight cleanup (then delete the hook).
+- The center's blueprint is an ordinary `data/blueprints.json` row; there is no query-time
+  registration and nothing overwrites `Blueprints.all()` (review round 1).
+- `structures.json`'s `placed_kinds.comm_center` row was removed: the finished station's kind is
+  `workbench`, so that row was unreachable (durability/repair come from `placed_kinds.workbench`).
+  A dedicated center kind would need its own props_manifest row and kit.
 - A world tap on the center still opens the generic station/craft menu (`player_actions.gd:680`, outside
   SCOPE). Routing a tap on a `comm_center`-tagged station to `CommCenterUI` is one branch there.
 - A dedicated center model/icon is art work: `data/props_manifest.json` needs a `comm_center` row with a
   `glb` if one is ever made; the tag-based lookup keeps working either way.
 - `t_save`'s goldens are untouched (`home.comm_center` is absent when there is no progress).
+
+## Review round 1 fixes
+
+1. **Rank is not the character level.** `DomainRules.pioneer_rank()` is `CommCenter.rank()` only. The
+   level-60 association is data (`comm_center.json` → `level_association`, `CommCenter.level_association()`).
+   Regressions: `t_domaind` (character level 60 → rank 1, cap 13), `run_all._test_comm_center_registration`,
+   and `t_claims2` (a level-60 survivor keeps 13; the record's rank moves the live cap).
+2. **Blueprint in a fresh Build menu.** The row moved into `game/data/blueprints.json`; the
+   query-time `register_blueprint()` hook is gone. `t_domaind` asserts `BuildFlow.menu_rows` lists it
+   with no Domain screen; `run_all` asserts it before any `CommCenter` call.
+3. **Save trust boundary.** `SaveSanitizer._comm_center` clamps the rank to 1..7 and passes every held
+   row through `_stack` (unknown ids dropped, counts/levels clamped). `t_domaind._test_forged_save`
+   writes a forged `home.comm_center` (rank 99, a fabricated item) and loads it through the real
+   `SaveGame.load_now` path: rank lands on 7, the fabricated item is gone.
+4. **Dead structure row / group lookup.** `structures.json`'s `comm_center` placed_kind row is removed
+   (the station's kind is `workbench`, so the row could never be read). `CommCenterUI.station()` now
+   calls `CommCenter.station(rt)`, which finds the station by the `comm_center` station tag, not by a
+   nonexistent node group.
+5. **Tests registered.** `run_all.gd` calls `_test_comm_center_registration` (blueprint registration in
+   a fresh session, level/rank separation, forged rank clamp). `t_domaind`'s always-true
+   `CELL != ZERO or claims[0].has_point(CELL)` assertion is replaced by a real grid check plus a
+   real no-auto-claim comparison against the cell count taken before the center was built.
+6. **CENTER button** hides on any tab other than Tamed Island (and when the screen is not home).
+
+Preserved: exact-instance contributions, consume-once, no automatic land claims, the modal panel and
+its 64 px phone targets. Verified headless: `t_domaind`, `run_all` (`[tests] PASS`), `t_claims2`,
+`t_buildflow`, `t_save`, `tools/smoke.sh --no-import` (`SMOKE PASS`). The windowed lab (screenshots)
+is deferred to the orchestrator per the owner's headless-only instruction.

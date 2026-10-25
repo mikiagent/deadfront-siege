@@ -263,6 +263,8 @@ func _refresh() -> void:
 		_stats.text = ""
 		_body.text = str(PHASE_NOTE.get(tab, ""))
 		_note.text = ""
+		# The center belongs to the Tamed Island: leave the tab and its button goes with it.
+		_center.visible = false
 		_set_actions(false, false, false, false, false, false, true)
 		return
 	var own: bool = rt != null and IslandClaims.has_domain(rt)

@@ -12,6 +12,7 @@ const WORLD_LIMIT := 2000.0 # ASSUMPTION: metres from the island origin; islands
 const DEFAULT_POSITION := [0.0, 1.0, 12.0] # the loader's own fallback spawn
 const MAX_CLAIM_TILES := 14 # IslandRuntime.claim_at's plot side; a bigger rect is forged
 const SLOT_LOCK := "_slot_lock" # placeholder Inventory.add writes behind a multi-slot item
+const MAX_RANK := 7 # the last documented Pioneer milestone (data/world/domains.json)
 ## Set by clean() as its last statement: SaveMigrations.read applies only data that carries it.
 const CHECKED := "__sanitized"
 ## Test hook: makes clean() hit a script error just before CHECKED, as a missed edge case would.
@@ -22,7 +23,7 @@ static var abort_for_test := false
 const SHAPE := {
 	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0}, "position": []},
 	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
-	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}},
+	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
 	"player_name": "", "occupation": "", "t_stones": 0, "visited_islands": {}, "raid_victory": false,
@@ -93,6 +94,11 @@ static func clean(data: Dictionary) -> Dictionary:
 	var home: Dictionary = data.get("home", {})
 	if home.has("cargo"):
 		home["cargo"] = stacks(home["cargo"])
+	# DOMAIN-D / spec 29 section 4: the Personal Communications Center's record. It is a record of
+	# exact item instances held for one contribution step, so every held row goes through the same
+	# item validation as a bag slot, and the rank is clamped to the documented track.
+	if home.has("comm_center"):
+		home["comm_center"] = _comm_center(home["comm_center"])
 	var layout: Dictionary = home.get("camp_layout", {})
 	for key in layout.keys():
 		var row: Variant = layout[key]
@@ -346,6 +352,36 @@ static func _shape(data: Dictionary, shape: Dictionary) -> void:
 			data.erase(key)
 		elif want is Dictionary and not (want as Dictionary).is_empty():
 			_shape(got, want)
+
+## One center record from disk: {"rank", "steps"}, where steps maps a target rank to one array of
+## held instances per required slot. Anything that is not a rank of the documented track, a valid
+## item instance, or a sane slot row is dropped, so a forged save can neither raise the rank past the
+## track nor hand the center an item the game does not have.
+static func _comm_center(v: Variant) -> Dictionary:
+	if not v is Dictionary:
+		return {}
+	var d: Dictionary = v
+	var out_steps: Dictionary = {}
+	var raw: Variant = d.get("steps", {})
+	if raw is Dictionary:
+		for key in raw:
+			var rank := int(str(key))
+			if rank < 2 or rank > MAX_RANK:
+				continue
+			var rows: Variant = (raw as Dictionary)[key]
+			if not rows is Array:
+				continue
+			var cols: Array = []
+			for col: Variant in rows:
+				var held: Array = []
+				if col is Array:
+					for row: Variant in col:
+						var s: Variant = _stack(row)
+						if s != null:
+							held.append(s)
+				cols.append(held)
+			out_steps[str(rank)] = cols
+	return {"rank": _int(d.get("rank", 1), 1, MAX_RANK), "steps": out_steps}
 
 ## A domain record from disk, coerced: {} when it carries no usable cells (an island with no domain).
 ## A forged cell list clamps to the world limit and drops repeated cells; the cap keeps its number

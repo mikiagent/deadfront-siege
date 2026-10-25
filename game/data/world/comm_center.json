@@ -1,74 +1,13 @@
 {
   "_about": "Spec 29 section 4 (Island progression / Personal Communications Center) and section 10: a contribution-driven island upgrade track. Completing a step raises the Tamed Island's Pioneer rank, and the plot capacity follows the documented milestones in data/world/domains.json (rank 2 -> 17, 6 -> 23, 7 -> 30). An upgrade raises CAPACITY only: it never claims a cell (spec 29 section 4). Only the documented ranks have steps; a rank between two milestones keeps the previous cap, so there is no invented intermediate table.",
   "_contributions": "Each step's item costs are # ASSUMPTION: spec 29 says the intervening ranks/costs are not established by any source. Quantities are deliberately small so the track can be walked through in one session and are tuned in this file alone. Contributions are exact item instances (spec 29 section 10): one unit leaves the bag, is held by the center, and is consumed exactly once when that step is completed.",
-  "_building": "The center is an ordinary BUILDFLOW build (construction site -> exact-instance deposits -> work -> finished structure), so its slots below are the site's deposit slots. blueprint.station.kind is the finished station's kind and its grid kind. The skill gate is the Construction tree's workbench node, the same gate the Basic Workbench has (data/blueprints.json), and construction_level 20 is the tutorial's building level.",
-  "blueprint": {
-    "id": "comm_center",
-    "display_name": "Personal Communications Center",
-    "category": "storage_workbench",
-    "categories": [
-      "Construction Parts",
-      "Storage Unit / Workbench",
-      "Installation / Decoration"
-    ],
-    "construction_level": 20,
-    "_construction_level_source": "historical tutorial building level (spec 30 section 2), the same gate the Basic Workbench carries",
-    "skill_node": "workbench",
-    "footprint": [
-      2,
-      1
-    ],
-    "_footprint": "the workbench grid kind: 2x1 cells for both the site and the finished station",
-    "work_seconds": 20.0,
-    "_work_seconds": "# ASSUMPTION: spec 29 gives no build timer",
-    "level_min": 1,
-    "level_max": 60,
-    "xp": 60.0,
-    "station": {
-      "kind": "workbench",
-      "tags": [
-        "workbench",
-        "comm_center"
-      ],
-      "_tags": "spec 30 section 10: capabilities are data-driven tags. The finished center is a workbench-built station that also carries the comm_center tag, which is how CommCenter.built() and the save/restore find it (kind workbench is a kit-backed kind, so a reload rebuilds it instead of refunding it).",
-      "level_from_result": true,
-      "supports_queued_jobs": false
-    },
-    "slots": [
-      {
-        "slot_id": "planks",
-        "label": "Plank Shape",
-        "accepted_tags": [
-          "plank_shape"
-        ],
-        "quantity": 2,
-        "min_level": 1,
-        "role": "main",
-        "level_contributing": true
-      },
-      {
-        "slot_id": "straps",
-        "label": "Strap",
-        "accepted_tags": [
-          "strap"
-        ],
-        "quantity": 4,
-        "min_level": 1,
-        "role": "support",
-        "level_contributing": false
-      },
-      {
-        "slot_id": "stone",
-        "label": "Stone",
-        "accepted_tags": [
-          "stone"
-        ],
-        "quantity": 6,
-        "min_level": 1,
-        "role": "support",
-        "level_contributing": false
-      }
-    ]
+  "_building": "The center is an ordinary BUILDFLOW build (construction site -> exact-instance deposits -> work -> finished structure); steps() below are its contribution track, not the site's build slots (those are in data/blueprints.json with the blueprint). The finished station is the workbench grid kind plus the comm_center tag.",
+  "_blueprint": "The BUILDFLOW blueprint row lives in data/blueprints.json (id \"comm_center\"), so the Build menu lists it in a fresh session without opening the Domain screen first.",
+  "blueprint_id": "comm_center",
+  "_level_association": "Spec 29 section 4: the historical Personal Communications Center track was associated with level-60 progression (\"It was associated with level-60 progression\"). That is recorded here, as data, for display and for any future gate. It does NOT map the character Pioneer level onto the island Pioneer rank: the rank only moves when a contribution step is completed.",
+  "level_association": {
+    "player_level": 60,
+    "_note": "the level the historical track was associated with; informational, never read as the island rank"
   },
   "ranks": [
     {

@@ -2196,20 +2196,6 @@
           "quantity": 4
         }
       ]
-    },
-    "comm_center": {
-      "max_durability": 600,
-      "_durability": "# ASSUMPTION: spec 29 gives no durability for the center; it is a mid-sized building, between a basket (150) and a log shelter (900)",
-      "repair": [
-        {
-          "item": "plank",
-          "quantity": 3
-        },
-        {
-          "item": "stone",
-          "quantity": 4
-        }
-      ]
     }
   }
 }
