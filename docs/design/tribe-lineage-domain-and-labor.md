@@ -150,6 +150,12 @@ A protected home storage island should accept materials gathered in every region
 
 **OPEN:** If rider dies but dinosaur survives, does the dinosaur remain on the expedition as one slot, flee, or auto-return home? Is a human without a mount a combat-capable follower? Can the current player ride an animal without occupying a companion slot? Which mounts permit spears vs ranged weapons? How do rider-controlled T. rex animations/attacks work?
 
+### Latest 2026-10-25 mounted-weapon fantasy and primitive tech direction
+
+Owner wants **mounted riders to remain relevant in giant dinosaur melee**, rather than making ranged weapons the only viable high-tier option. A Brontosaurus's huge damaging **DS tail whip** threatens at long reach; a close **MI stomp** punishes careless fighters near the feet. Rider+dinosaur tactical pair should earn access to **flank openings through speed, body height and spear/axe reach**, and may gain **attack uptime** by striking after clearly telegraphed recovery, **without global automatic extra damage**. Mount and rider each have own health/risks; rider may fall if whip connects, a large mount presents a big stomp target. Keep existing **one pair = one of three companion slots** and **1+1 ≈ 1.5 feel** rather than doubling AI attack sources.
+
+Owner also suggests the civilization may stay primitive. **Might early** gives survival weapons immediate utility; **Dexterity later** gives expanding craftable ranged/precision choices. Late Might stays relevant through masterwork polearms/axes, physically braced weapons, coordinated mounted charges and domesticated dinosaur specialization. Guns, Gatling guns, rockets, exosuits and mechs previously mentioned are **not approved technology progression**. [Detailed mounted combat chapter](../game-design/12-expedition-mounts-and-command.md). Exact tech cap, charge physics, foot-versus-mounted damage, species saddle eligibility and Brontosaurus move hitboxes remain OPEN.
+
 ## 8. Resource quality and targeted trait discovery
 
 **CONFIRMED:** Trait rolls are central to **durable investments**, especially a new main crossbow, high-tier tools and long-lived buildings. Food and consumables should have effects, but their value is usually immediate and much less worthy of min/max scrutiny. A material's *level* and traits both affect its long-term usefulness.
