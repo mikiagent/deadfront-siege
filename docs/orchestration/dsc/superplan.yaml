@@ -339,6 +339,7 @@ phases:
         title: "Craft success rate, failure loses materials, flawless and rare traits,
           skewer slots (spec 04, 08, 25 s8)"
         adopt: false
+        max_rounds: 4
         after: [ { job: buildflow, state: merged }, { job: bags, state: merged } ]
         resources: [ godot ]
         rules_footer: common-footer.md
