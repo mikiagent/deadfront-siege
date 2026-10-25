@@ -14,40 +14,45 @@ Separate **five dimensions**:
 
 The game's **natural defense weakness** and an attacker's **offensive channel** remain entirely independent. A **Stegosaurus** may be **Impact-weak** thanks to natural plates but wield a **Might/Pierce thagomizer**.
 
-## 2. Proposed Light, Medium, Heavy armor classes
+## 2. UPDATED overlapping armor-counter bands (owner's 2026-10-25 direction)
 
-| Armor | Typical look/crafting | Defensive identity | Tradeoff | Best archetypes |
+**Latest owner preference, still a balancing proposal:** **Slash is good against Exposed and Light**, **Pierce is good against Light and Medium**, and **Impact is good against Medium and Heavy**. Each channel has **exactly two favorable defensive tiers**, which gives Slash equal theoretical category coverage. This supersedes this chapter's previous **Light -> Pierce only / Medium -> neutral-only** model.
+
+**Exposed is not wearable armor.** It is an unarmored or unprotected body category, suited to large soft-bodied sauropods. Wearable categories are **Light**, **Medium**, **Heavy**; natural dinosaur body profiles can be classified analogously without pretending dinosaur plates are equippable items.
+
+| Defender tier | Slash (S) | Pierce (P) | Impact (I) | Intended visual/body profile |
 |---|---|---|---|---|
-| **Unarmored / Exposed** (baseline, not an equipment class) | Bare skin, very thin clothing, huge soft-body hides | Low raw protection. **Slow high-HP exposed bodies tend to be Slash-weak**; exposed fast prey can instead be Pierce-weak | Full mobility; zero worn gear protection | Future Brontosaurus / exposed giant |
-| **Light** | Woven cloth, reinforced hide, light leather, flexible fur | **High mobility**, short recovery and usable dodge against telegraphed Impact; limited armor coverage can make accurate **Pierce** attacks dangerous **when they connect** | Lower fixed damage reduction; less stagger resistance; status exposure | Scout, archer, fast raptor defensive analogy |
-| **Medium** | Layered hide, stitched/scute inserts, reinforced flexible plates | **Balanced** reliable defense and movement; can be tailored by materials toward Slash, Pierce or Impact rather than gaining a built-in universal immunity | Neither fastest nor toughest; sustained Energy costs in between | Mixed human expedition fighters, versatile NPC guards |
-| **Heavy** | Large scute/bone plates, metal plates, thick protective layers | **High fixed protection against Slash/Pierce** and good guard/stagger protection; **Impact** is the relative counter through transmitted force, posture damage or stagger, NOT automatically a bigger absolute hit than unarmored | Slower sprint/recovery/dodge, higher exertion/heat burden, heavier carrying/mount logistics | Shield/guard, heavy infantry, naturally plated Ankylosaurus or Stegosaurus |
+| **Exposed / Unarmored** | **Favored** | Neutral | Neutral | Bare flesh, especially giant slow HP sponges like proposed Brontosaurus |
+| **Light** | **Favored** | **Favored** | Neutral | Cloth/hide/light leather, fast agile bodies, relatively limited coverage |
+| **Medium** | Neutral | **Favored** | **Favored** | Layered hide, reinforced leather, flexible scute/plate combinations |
+| **Heavy** | Neutral | Neutral | **Favored** | Thick scute/bone/metal plating, rigid protective shells/frills |
 
-**Important non-RPS caveat:** **Medium armor is balanced, not an obligatory third vulnerability** just to fill a 3×3 chart. We should not force an unnatural rule saying every medium outfit is weak to Slash if real armor construction would protect from Slash. A useful decision can be **Light mobility vs Medium flexibility vs Heavy raw protection** plus the **enemy's attack channel and encounter geometry**. The defender's class determines a tradeoff, not absolute immunity.
+**Design check:** **Slash -> Exposed + Light**; **Pierce -> Light + Medium**; **Impact -> Medium + Heavy**. These are preferential matchups, *not* automatic hits. Neutral is ordinary damage after the defender's baseline protection. **Heavy still has higher armor than Exposed in its unfavorable Impact matchup**; Impact beats heavy alternatives by more effective stagger/guard damage or *relative* penetration, not by making armor worse than none.
 
-**Important hit vs dodge distinction:** Light armor does not magically resist the force of a hammer once struck. Light armor may enable **dodging the slow telegraphed Impact**, while high-control **Pierce** attacks may have reach/targeting capable of punishing its mobility. The actual hit calculation must honor animations, range and aiming. A fast raptor remains fast whether or not a gear label is displayed.
+## 3. Prevent Slash from becoming the weakest option again
 
-## 3. Countertable for readability (proposed, qualitative)
+**PROPOSED distinct combat jobs:**
+- **Slash = soft-body sustained pressure.** Useful against exposed and lightly protected targets, with high uptime, bleeding where biologically appropriate, or sweeping multi-target contact. Suits soft massive high-HP Brontosaurus and ordinary Light bodies. **Bleed is a separate status**, not a Slash-only automatic trait, and it needs boss caps so fractional-max-HP bleeding does not trivialize giant raid bosses.
+- **Pierce = reliable focus.** Good against **Light and Medium** contact, with targeted reach, fast target interception, strong single-target accuracy and potential specific vulnerable-point attacks. Against a fast Light raptor, Pierce can connect more easily than a slow/short Slash despite **both channels** being favorable on contact.
+- **Impact = guard and structure breaker.** Good against **Medium and Heavy**, knockback/stagger/guard disruption. Great for armored Stegosaurus/Ankylosaurus while higher wind-up or narrow melee reach can make it harder to land on agile Light targets.
 
-| Defender | Impact | Pierce | Slash |
-|---|---|---|---|
-| **Large, unarmored, slow** | Neutral / strong single hit | Neutral | **Weak** |
-| **Light, mobile** | **Easier to evade** if slow/telegraphed (not impact resistance) | **Weak on connection** if gaps/openings exposed | Some mitigation from hide/cloth; profile-dependent |
-| **Medium, layered** | Moderate | Moderate | Moderate; material can favor one counter |
-| **Heavy, plated** | **Relative weakness** via shock/stagger/guard | Strong protection absent weak-point aim | Strong protection |
-| **Tiny swarm** (situational) | **Weak to area-control Impact**, not every narrow hammer swing | Vulnerable if individually hit | Vulnerable if individually hit |
+**Armor mobility is separate from intrinsic contact damage.** Light wearers may dodge slow Impact swings better, but that is movement/telegraph timing, not magical reduction after a successful hit. Medium can maintain an important customizable-material niche, even though both Pierce and Impact are favorable when they connect.
 
-A **gameplay weakness should be legible before attacking** from silhouette/codex, with one clear primary counter (and special enemy phase exceptions). For bosses and extreme levels, attack properties, stamina and stats all matter; tags do **not** guarantee an equal-level win.
+**Important category tension:** Light and Medium each have **two** incoming favored channels while Exposed and Heavy each have one, but this doesn't make them automatically weak gear. Exposed has essentially no base defense; Light gains mobility; Medium gains substantially more fixed protection; Heavy maximizes protection but has larger fatigue/weight/movement cost. A **matched weapon level, same-quality material, equal-hit** test should confirm that equipping Medium still makes a survivor tougher overall than equipping Light.
+
+**Tiny clustered swarms are an AoE exception, not another armor tier:** Impact sweeping/area attacks may hit multiple Compsognathus, but a narrow slow blunt hit isn't guaranteed to land on an individual tiny fast creature. Species anatomy, Dodge and natural armor still vary above and below the band defaults.
+
+**Current Godot conflict:** The prior `game/data/combat_counters.json` numbers (`fast_hunter` currently Slash-favored, `armored` Impact-favored) are **existing damage-family modifiers**, not implementation of this **new wearable 4-band countertable**. Do not globally replace values or double-count protection. Distinguish on-hit type effects from hit chance, status and natural dinosaur resistance when designing the formula.
 
 ## 4. Match concrete Deadfront animals and humans
 
 - **Brontosaurus (owner future fantasy):** **Exposed/large/slow**, huge HP but low defense -> primary **Slash** weakness; attacks **DS tail whip** and **MI stomp**. This **is not** current Brachiosaurus, which has `titan` boss-like protection and already resists Slash.
-- **Velociraptor:** **naturally light/mobile**, likely **Pierce** counter by reach, controlled timing and vulnerability to contact; its own **DS claw** or **DP bite** is a separate attack identity. Current `fast_hunter` counters do not yet assign Pierce weakness, so this is proposed.
+- **Velociraptor:** **naturally Light/mobile**, exposed to **both Slash and Pierce on contact**, but Pierce's accuracy/reach should make it the more reliable anti-raptor counter; its own **DS claw** or **DP bite** is a separate offensive identity. The current `fast_hunter` data is Slash-favored; **adding Pierce favor is a proposal**, not shipped.
 - **Stegosaurus:** **naturally plated/heavy**, **Impact**-weak defensively, **MP** or **DP** spike Pierce offense (plus existing `deep_bleed` status). Natural plates are not removable worn gear.
 - **Ankylosaurus:** heavy plating, **Impact** counter, **MI** tail club offense; explicitly distinct from a giant Slash-weak soft body.
-- **Human scout:** **Light** leather/hide, relies on evasion and precise ranged aim; vulnerable to accurate Pierce once caught.
+- **Human scout:** **Light** leather/hide, relies on evasion and precise ranged aim; both **Slash and Pierce** deal favorable damage on contact, Pierce more reliable against evasive movement.
 - **Human defender:** **Heavy** reinforced scute/metal plating for frontier siege defense. Survives Slash/Pierce much better at cost of mobility and prolonged exertion; a big Might IV may **reduce some heavy handling penalties** if so balanced, but does not change its innate IV.
-- **Medium-armored spearman:** mixed flexibility, modest burden, broadly usable; not necessarily strictly superior to either class, and should be buildable through Tailoring/Processing/Weapon-Tools specializations.
+- **Medium-armored spearman:** mixed flexibility and protection, but both **Pierce and Impact** are relatively effective against its layers. Material traits and learned defensive technique help maintain a useful middle tier.
 - **Dinosaur barding (future):** optional harness/plate equipment with species-specific fit/weight/coverage and cargo/riding costs. A tiny raptor should not freely wear a huge ankylosaur-style metal shell without gameplay tradeoffs. Tamed dinosaur gear requires separate item/slot/level/capture rules; **not present now**.
 
 ## 5. Stats and costs that make armor meaningful
@@ -85,10 +90,10 @@ A **gameplay weakness should be legible before attacking** from silhouette/codex
 
 ## 7. Owner questions
 
-1. Should Light, Medium and Heavy be **three distinct gear tiers**, with **Unarmored/Exposed** as a baseline, or should **Exposed, Mobile, Plated** be the three core **defensive profiles** independent of armor weight class (recommended separate axes)?
+1. **Proposed answer based on owner direction:** Exposed baseline plus wearable Light/Medium/Heavy, and analogous natural creature body profiles. Confirm whether **armor tiers also apply to animal outfitting** or merely biological categories for wild animals.
 2. Should **Heavy armor's Impact weakness** primarily appear as **stagger/guard-break**, **extra HP damage**, or both? Recommend stagger/guard and reduced mitigation so Heavy always protects more than being naked.
 3. How should **Might IV** influence Heavy armor? Recommended: higher carrying/handling comfort and lower mobility/exertion penalties, **but it never removes equipment level gates**.
-4. Should medium armor have **material-customizable type resistance** as its selling point, or a defined specialty? Recommend material choice over forced weaknesses.
+4. Medium has **both Pierce and Impact vulnerability in the new band proposal**. Does material customization or fixed protection and balanced speed offer enough utility?
 5. Are **dinosaur saddles/barding** included in armor weights, with body-part protection and rider/animal separate hit boxes, or deferred until the human armor system is balanced?
 
 **Nothing here changes runtime code, in-game armor parameters or approved existing creature stats.**
