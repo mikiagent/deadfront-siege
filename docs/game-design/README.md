@@ -45,6 +45,8 @@ Do not silently turn a proposal, historical observation or example number into a
 
 **Species illustration (owner direction):** The proposed **Brontosaurus** should have giant HP but relatively low defense, rewarding Slash attacks. Its tail whip is **DS** and stomp **MI**. Existing **Brachiosaurus** is not a Brontosaurus and currently resists Slash due to its `giant` counter family; no balance table has been changed. Proposed Stegosaurus is chiefly **Pierce**: **MP** heavy spike, **DP** controlled spike, with optional **DS** rake. [Full combat chapter](15-pve-exploration-and-combat.md).
 
+**New armor-design proposal (2026-10-25):** separate **Light, Medium, Heavy** worn armor weight from **natural dinosaur body protection** and **the animal's offensive attack type**. Light favors speed/evasion but is vulnerable to Pierce when struck; Medium trades speed for broadly balanced protection; Heavy blocks Slash/Pierce well but is relatively susceptible to Impact shock/guard-break and incurs heavy stamina/mobility costs. **Unarmored exposed slow giants** remain Slash-vulnerable. None of these weights/resistance matrices is owner-confirmed or implemented. Existing Godot `Head/Body/Legs` equipment, total `armor_value`, Energy/Exhaustion and Raid Hide set are integration anchors. [Equipment and armor draft](06-inventory-equipment-and-storage.md).
+
 ## Proposed chapter library
 
 The following are **planned chapter paths**. The files do not yet exist unless linked elsewhere. Create and lock them incrementally after the relevant owner questions are answered, rather than scaffolding empty or fabricated specifications.
@@ -56,7 +58,7 @@ The following are **planned chapter paths**. The files do not yet exist unless l
 | [03-private-islands-and-upgrade-migration.md](03-private-islands-and-upgrade-migration.md) | Protected homes, island size tiers, abandonment, salvage vault, map generation |
 | [04-world-biomes-and-travel.md](04-world-biomes-and-travel.md) | PvE regions, level-60 frontier, instability, ports, route unlocking |
 | `05-material-level-traits-and-loot.md` | Signed trait rolls, rarity, charm odds, gathering, processing, premium material hunting |
-| `06-inventory-equipment-and-storage.md` | Stacking, bag slots, batch selection, locks, overflow, death drops, vault |
+| [06-inventory-equipment-and-storage.md](06-inventory-equipment-and-storage.md) | Stacking, bag slots, batch selection, locks, overflow, death drops, vault |
 | `07-crafting-processing-and-food.md` | Recipes, inheritance, item level, crafting quality, buffs, agriculture |
 | `08-blueprints-worksites-and-building.md` | Unlocks, craftable blueprint items, material deposits, labor, dismantling |
 | `09-tribe-population-and-recruitment.md` | Unique persons, housing/support capacity, exiled wanderers, allegiance |
