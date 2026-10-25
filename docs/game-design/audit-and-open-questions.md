@@ -145,20 +145,20 @@ Could selling additional survivor slots, houses, worker capacity, livestock capa
 
 ## F. Cross-domain character attributes (owner direction, 2026-10-25)
 
-**Design intent newly raised:** Might should have utility both in melee and force-intensive craftsmanship (smithing); Precision should have utility both in ranged combat and detail-intensive craftsmanship (tailoring). This belongs in the same individual **IV/EV, age/level, professions and worker assignment** architecture, not new completely isolated combat and crafting stat pools. Refer to [character attributes draft](02-characters-levels-and-age.md).
+**Design intent newly raised:** Might should have utility both in melee and force-intensive craftsmanship (smithing); Dexterity should have utility both in ranged combat and detail-intensive craftsmanship (tailoring). This belongs in the same individual **IV/EV, age/level, professions and worker assignment** architecture, not new completely isolated combat and crafting stat pools. Refer to [character attributes draft](02-characters-levels-and-age.md).
 
 **NEW owner questions:**
 
-- **Q27. Shared attribute EV training:** Does repeated smithing contribute a **small amount of Might EV** usable in melee, and does shooting or fine crafting contribute a **small amount of Precision EV** usable across domains? Or are generic EVs earned only through dedicated exercises and upbringing? Cross-domain AFK exploit risk.
+- **Q27. Shared attribute EV training:** Does repeated smithing contribute a **small amount of Might EV** usable in melee, and does shooting or fine crafting contribute a **small amount of Dexterity EV** usable across domains? Or are generic EVs earned only through dedicated exercises and upbringing? Cross-domain AFK exploit risk.
 - **Q28. Craft attribute impact:** Should generic stats mostly affect **work speed/energy**, **quality/defects**, **special trait control**, or a mix? How to ensure profession skill/material input remain dominant for premium outputs?
-- **Q29. Primary attribute roster:** Should the final set be Might, Precision, Agility, Endurance, Insight, and an optional Care/Empathy value, or another narrower set? Generic Care could be learned profession expertise instead of innate aptitude.
+- **Q29. Primary attribute roster:** Should the final set be Might, Dexterity, Agility, Endurance, Insight, and an optional Care/Empathy value, or another narrower set? Generic Care could be learned profession expertise instead of innate aptitude.
 - **Q30. Worker and combat split:** Are cross-trained worksite workers capable of switching to fighting using their generic attributes but limited by separately trained combat technique, gear equip level and garrison orders? That would make an exceptional smith a potential defender without free expert warrior status.
 
-**Do not infer:** a confirmed six-attribute roster, EV transfer rate, named skills, profession quality formula or passive female/male stat bonuses. The owner established the **shared-attribute principle** with Might/Precision examples; everything beyond that is a proposal.
+**Do not infer:** a confirmed six-attribute roster, EV transfer rate, named skills, profession quality formula or passive female/male stat bonuses. The owner established the **shared-attribute principle** with Might/Dexterity examples; everything beyond that is a proposal.
 
 ## G. Combat taxonomy and actual Godot hooks (2026-10-25)
 
-**Owner design directions, not implemented:** **Endurance** for construction work shifts, **Intelligence** for research/technology and pack/party alpha leadership with **Might or Precision** combat credibility; and six precise weapon styles: Precision/Blunt (boulder thrower, catapult, slingshot), Precision/Impale (bow, gun, blowdart), Precision/Slash (whip, throwing axe), Might/Blunt (hammer/boxing), Might/Impale (javelin/spear), Might/Slash (sword/axe).
+**Owner design directions, not implemented:** **Endurance** for construction work shifts, **Intelligence** for research/technology and pack/party alpha leadership with **Might or Dexterity** combat credibility; and six precise weapon styles: Dexterity/Impact (boulder thrower, catapult, slingshot), Dexterity/Pierce (bow, gun, blowdart), Dexterity/Slash (whip, throwing axe), Might/Impact (hammer/boxing), Might/Pierce (javelin/spear), Might/Slash (sword/axe).
 
 **Existing code fact:** [Combat counter table](../../game/data/combat_counters.json) already distinguishes `blunt`, `pierce`, `cut`; no need to invent a new damage-type array. [CreatureBrain](../../game/scripts/creatures/brains/creature_brain.gd) chooses a wild pack leader by tier, HP, attack and defense, **not Intelligence**. [RaptorPackBrain](../../game/scripts/creatures/brains/raptor_pack_brain.gd) coordinates same-target pursuit and flanking. [BuildPlacer](../../game/scripts/world/build_placer.gd) currently instantly places a building and gives Construction XP, so **Endurance-driven building labor requires the separately confirmed unfinished-worksite implementation first**. Skill-tree research gates are metadata, not a staffed research gameplay system. [Full implementation bridge](15-pve-exploration-and-combat.md).
 
@@ -166,9 +166,26 @@ Could selling additional survivor slots, houses, worker capacity, livestock capa
 - **Q32. Rally outcomes:** Target-switching/flank/retreat/formation AI only, or timed accuracy/defense/stamina buffs as well? Can an intelligent human lead both humans and dinosaurs via one command?
 - **Q33. Construction Endurance:** Reduce Exhaustion/allow longer labor shifts only, or also build quality and speed? Future worksite must remain material- and Construction-skill-gated.
 - **Q34. Research ownership:** Tech unlocked globally for tribe while personal Research + Intelligence determines contribution (recommended), or individually discovered knowledge? Which current trees require formal research projects?
-- **Q35. Weapon modes and mastery:** Swinging vs throwing same axe uses Might/Slash vs Precision/Slash, and how does proficiency transfer between Melee and Ranged? Catapult is existing siege hardware, not just handheld Precision weapon.
+- **Q35. Weapon modes and mastery:** Swinging vs throwing same axe uses Might/Slash vs Dexterity/Slash, and how does proficiency transfer between Melee and Ranged? Catapult is existing siege hardware, not just handheld Dexterity weapon.
 - **Q36. Genetic/stat migration:** Current creature IV schema has seven combat stats and no Intelligence; should wild and owned dinos inherit new coordination IQ, or should Intelligence exist only for selected species/handlers?
 
 **No determined coefficients, alpha selection score, new status buff, genetic schema changes, or shipped features are implied by this audit.**
 
-**Naming resolved (2026-10-25):** General combat attributes **Precision (P)** and **Might (M)**; damage types **Blunt (B)**, **Impale (I)**, **Slash (S)**; classes **PB, PI, PS, MB, MI, MS**. Earlier working *Strength* and *Point* are superseded only as **player-facing combat/attribute terms**, not as current engine tokens. `pierce`/`cut` still drive existing counters. This is no longer an owner question.
+**Naming superseded and locked (owner latest choice, 2026-10-25):** Inherited IVs **Dexterity (D)** and **Might (M)**; attack verbs **Impact (I)**, **Pierce (P)**, **Slash (S)**; six cells **DI, DP, DS, MI, MP, MS**. Do not reuse provisional **Precision**, **Blunt** or **Impale** as current UI names. Internal `blunt/pierce/cut` engine tokens remain unchanged. This is no longer an owner naming question.
+
+## H. Inherited Dexterity/Might and dinosaur attack modes (owner latest decision)
+
+**Confirmed:** **Dexterity (D)** for weapon/tool handling and ranged action control, and **Might (M)** for physical weapon strength and heavy tools, are intrinsic **IVs**. **Impact/Pierce/Slash** are **attack categories / verbs**, not another three individual IVs. Every move can be tagged with one IV and one damage verb. Same species can have multiple attacks and thus multiple cells: a heavy tail spike is **MP**, an accurately placed spike **DP**, and a careful grazing rake **DS** (last is proposal).
+
+**Owner's Brontosaurus example:** exceptionally high HP, low defense, **Slash is effective**. Its whipping tail = **DS**, stomping foot = **MI**. **Conflict:** current data contains Brachiosaurus, with the `titan` family (high defense, Slash-resistant giant 0.5× cut). **Do not reinterpret or modify Brachiosaurus silently**. Make a distinct Brontosaurus entry or a species-specific vulnerable-flesh resistance profile and confirm balancing.
+
+**Stegosaurus factual project state:** Current `stegosaurus.json` uses `spiked_tail`, 8500 HP, defense 300, spiked-tail sweep and `deep_bleed`. Candidate **MP heavy puncture** and **DP precision puncture** both retain Pierce category but offer distinct stat expression. Optional **DS rake** rewards positioning and bleeding (requires a different animation/hit contact). Species is currently a defensive armored enemy weak to Impact in `combat_counters.json`, which is consistent with an armored spiked defender.
+
+**New balance questions:**
+- **Q37:** Stegosaurus: should it default to **MP** with **DP** as a precision-bred alternative and **DS** as a trained rake, or should its sweeping tail be **DS** first, with **Pierce** reserved for deliberate targeted thrusts?
+- **Q38:** Does the game's counter triangle treat **Impact -> hardened armor**, **Pierce -> fast/mobile enemies and weak points**, **Slash -> soft high-HP low-defense bodies**? What are concrete tradeoffs so each matters and no universal best attack exists?
+- **Q39:** What is the **IV/EV separation** for Dexterity and Might? Inherited base values locked, and training can improve **separate expressive EVs**, or IV-only physical limits plus learned proficiencies? Existing 7-stat creature IV schema needs backwards-compatible migration.
+- **Q40:** Is Brontosaurus a **new distinct species** with its own tail-whip clips and `soft_titan` defense family, leaving current **Brachiosaurus** stomp-only tank intact?
+- **Q41:** Which attack modes can the same creature train/choose, and do active moves depend on genetic aptitudes, species physiology, individual levels and trained skill without making every unit able to perform every archetype?
+
+No numerical combat tuning, actual breeding algorithm or new attack animations were introduced by documentation.
