@@ -48,8 +48,10 @@ static func anchor(ci: CanvasItem, at: Vector2, r: float, col: Color, ring: Colo
 static func dot(ci: CanvasItem, at: Vector2, r: float, col: Color) -> void:
 	ci.draw_circle(at, r, col)
 
-## A trail: black dots at each recorded step.
-static func trail(ci: CanvasItem, pts: Array, radius: float = 1.8) -> void:
-	var col := Color(0.04, 0.04, 0.04, 0.9)
-	for p in pts:
-		ci.draw_circle(p as Vector2, radius, col)
+## A trail: black dots at each recorded step, optionally faded by one 0..1 alpha per point.
+static func trail(ci: CanvasItem, pts: Array, radius: float = 1.8, alphas: Array = []) -> void:
+	for i in pts.size():
+		var alpha := clampf(float(alphas[i]), 0.0, 1.0) if i < alphas.size() else 1.0
+		if alpha <= 0.0:
+			continue
+		ci.draw_circle(pts[i] as Vector2, radius, Color(0.04, 0.04, 0.04, 0.9 * alpha))

@@ -66,8 +66,17 @@ const SLOT_NAMES: Array[StringName] = [&"occl_slot_0", &"occl_slot_1", &"occl_sl
 ## Longest sight line tested, metres along the view ray.
 const REACH_MAX_M := 60.0
 
-## --no-occlusion turns the system off (baseline frame time and pixels for comparisons).
-static var enabled: bool = not ("--no-occlusion" in OS.get_cmdline_user_args())
+## Compatibility/Web only exposes 1,024 global shader-variable buffer items and Godot reserves 16
+## for every geometry instance that uses an instance uniform. A populated island is far beyond that
+## ceiling, so web uses instance-uniform-free materials until the fade path is globally indexed.
+## `--no-occlusion` remains the native baseline switch for frame-time and pixel comparisons.
+static func enabled_for(web: bool, forced_off: bool) -> bool:
+	return not web and not forced_off
+
+static var enabled: bool = enabled_for(
+	OS.has_feature("web"),
+	"--no-occlusion" in OS.get_cmdline_user_args()
+)
 static var _driver: Occlusion
 static var _globals_ready := false
 ## "<source id>" -> WeakRef(ShaderMaterial): props share one derived material per source, and it

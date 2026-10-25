@@ -421,10 +421,13 @@ func _draw() -> void:
 	var f := _fog()
 	if f:
 		var trail_pts: Array = []
-		for p in f.trail:
+		var trail_alphas: Array[float] = []
+		for i in f.trail.size():
+			var p := f.trail[i]
 			trail_pts.append(Vector2(p.x * s, p.y * s))
+			trail_alphas.append(f.trail_alpha(i))
 		# Dots grow with the map scale: 2 px at phone zoom, ~3.5 px on a desktop atlas.
-		MapIcons.trail(self, trail_pts, clampf(s * 1.6, 1.8, 3.6))
+		MapIcons.trail(self, trail_pts, clampf(s * 1.6, 1.8, 3.6), trail_alphas)
 	# resource dots: trees dark green, rocks grey, bushes/plants light green
 	for n in get_tree().get_nodes_in_group("harvest"):
 		var hn := n as HarvestNode

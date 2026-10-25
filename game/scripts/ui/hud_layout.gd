@@ -16,7 +16,7 @@ static func place_landscape_phone(hud: HuntHud, r: Vector2, inset: Vector4) -> v
 	hud._end_btn.custom_minimum_size = Vector2(HuntHud.MAP_PX, UiTokens.TARGET_PRIMARY)
 	hud._end_btn.size = hud._end_btn.custom_minimum_size
 	hud._end_btn.position = hud._minimap.position + Vector2(0.0, HuntHud.MAP_PX + 42.0)
-	var row_y := r.y - 8.0 - HuntHud.CAPTION_H - HuntHud.SKILL_HEX - inset.y
+	var row_y := r.y - 8.0 - HuntHud.CAPTION_H - HuntHud.SKILL_HEX - inset.y - HuntHud.HEX - HuntHud.CAPTION_H - 10.0
 	var x := r.x - 16.0 - inset.x - HuntHud.SKILL_HEX
 	for i in range(hud._skill_hexes.size() - 1, -1, -1):  # ROLL at the right edge, NET leftmost
 		hud._skill_hexes[i].position = Vector2(x, row_y)
@@ -59,7 +59,7 @@ static func place_desktop(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 	hud._end_btn.position = Vector2(r.x - 200.0 - inset.x, r.y * 0.42)
 	# Honeycomb cluster bottom-right: net / tackle / kick / roll, Auto below-right, stance text.
 	var cx := r.x - 250.0 - inset.x
-	var cy := r.y - 170.0 - inset.y  # 20 px higher than before so the stance line fits under Auto's caption
+	var cy := r.y - 250.0 - inset.y  # leave the bottom-right mode toggles unobstructed
 	var slots := [Vector2(-90, -60), Vector2(-10, -20), Vector2(-90, 40), Vector2(70, -50)]
 	for i in hud._skill_hexes.size():
 		hud._skill_hexes[i].position = Vector2(cx, cy) + slots[i]

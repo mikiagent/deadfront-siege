@@ -8,6 +8,9 @@ const HOLD_WALK_DELAY := 0.25
 const HOLD_WALK_RETARGET := 0.15
 const TAP_PICK_RADIUS := 1.0
 const INTERACT_GATHER_RANGE := 2.6
+# ASSUMPTION: HANDS/Space may seek a visible nearby resource within 12 m, then the normal gather
+# route walks to the node. The ordinary interact key keeps its close 2.6 m reach.
+const QUICK_GATHER_RADIUS := 12.0
 const FORCE_CLIPS: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
 	&"hit_react", &"knockdown", &"death", &"alert",
@@ -71,8 +74,10 @@ func handle_unhandled(event: InputEvent) -> void:
 			p.get_viewport().set_input_as_handled()
 			return
 	if event.is_action_pressed("inventory"):
-		if p.ui:
-			p.ui.visible = not p.ui.visible
+		toggle_inventory()
+		return
+	if event.is_action_pressed("gather_nearest"):
+		gather_nearest()
 		return
 	if event.is_action_pressed("roll"):
 		p.sim.try_roll(p.sim.cam_dir(p.sim.input_vector()))
@@ -226,7 +231,10 @@ func tap_world() -> StringName:
 	return &"ground"
 
 func _walk_to_tile(at: Vector3) -> void:
-	var nav_pos := p.sim.closest_nav_point(BuildGrid.tile_centre(BuildGrid.tile_of(at), World.runtime))
+	var tile_pos := BuildGrid.tile_centre(BuildGrid.tile_of(at), World.runtime)
+	# Water is outside the baked land navigation mesh. Keep its real tile as the goal; PlayerSim
+	# steers directly through water instead of snapping a water tap back to the shore.
+	var nav_pos := tile_pos if WaterAccess.in_water(tile_pos) else p.sim.closest_nav_point(tile_pos)
 	p.actions.cancel_work()
 	if p.hunt:
 		p.hunt.stop()
@@ -385,6 +393,24 @@ func _force_clip(i: int) -> void:
 
 # ---------------------------------------------------------------- interact key
 
+func toggle_inventory() -> void:
+	if p.ui:
+		p.ui.visible = not p.ui.visible
+
+## Space / HANDS: gather the nearest live resource. Single-yield nodes start immediately; nodes
+## such as berry bushes still open their choice wheel.
+func gather_nearest() -> void:
+	var node := _nearest_harvest_node(QUICK_GATHER_RADIUS)
+	if node == null:
+		p.notice("No resource within %d m" % int(QUICK_GATHER_RADIUS))
+		return
+	var opts := node.options()
+	if opts.size() == 1:
+		node.select_option(0)
+		p.actions.begin_gather(node)
+	elif not opts.is_empty() and p._gather_radial:
+		p._gather_radial.open(node, opts, p.inventory)
+
 ## E / pad A: the nearest thing in reach, in priority order. Lets a controller (or keyboard)
 ## player do everything a tap does without a pointer.
 func interact() -> void:
@@ -437,10 +463,10 @@ func interact() -> void:
 	if pet:
 		p.pets.interact(pet)
 
-## The closest harvest node within reach that still has something to give.
-func _nearest_harvest_node() -> HarvestNode:
+## The closest harvest node within `radius` that still has something to give.
+func _nearest_harvest_node(radius: float = INTERACT_GATHER_RANGE) -> HarvestNode:
 	var best: HarvestNode = null
-	var best_d := INTERACT_GATHER_RANGE
+	var best_d := radius
 	for n in p.get_tree().get_nodes_in_group("harvest"):
 		var hn := n as HarvestNode
 		if hn == null or not is_instance_valid(hn) or hn.pool_units_left() <= 0:

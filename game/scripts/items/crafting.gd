@@ -62,6 +62,11 @@ static func is_rare_attribute(attr: StringName) -> bool:
 ## 5 %) rolls one.
 static func roll_outcome(rec: Dictionary, player: Player, primary: ItemStack, rng: RandomNumberGenerator = null, ability: float = NAN) -> Dictionary:
 	var ab := ability if not is_nan(ability) else crafting_ability(player, rec)
+	return roll_outcome_for(rec, primary, ab, rng)
+
+## The same roll from an ability the caller already knows: the server has a character, not a Player.
+static func roll_outcome_for(rec: Dictionary, primary: ItemStack, ability: float, rng: RandomNumberGenerator = null) -> Dictionary:
+	var ab := ability
 	var rand := rng if rng else RandomNumberGenerator.new()
 	if rng == null:
 		rand.randomize()
@@ -167,7 +172,9 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
 		var lead := -1
 		if not picks.is_empty():
 			lead = picks[i]
-			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat):
+			# An explicit pick must obey the slot's own rules too: a club is a handle, but the
+			# skewer's Tool slot lists branch/bone only, so naming the club must fail, not slip past.
+			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat) or not _allowed(slot, inv.slots[lead]):
 				return []
 			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
 				return []
@@ -502,35 +509,184 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
 	else:
 		World.add_xp(6 + int(recipe_seconds(rec)))
 
-## One craft (spec 04, plan 3.3): roll the outcome first, then commit it. A failed craft spends the
-## picked instances exactly once and makes nothing; a successful one makes the previewed item, plus
-## the flawless stat bump or the inherited rare trait. XP is paid once, by finish_craft, on success.
-static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: RandomNumberGenerator = null) -> ItemStack:
-	if not can_make(player, rec, picks):
-		return null
-	var outcome := roll_outcome(rec, player, player.inventory.slots[picks[primary_index(rec)]], rng)
-	return commit_outcome(player, rec, picks, outcome, rng)
+## The Crafting Ability of a survivor whose governing skill level, learned-node bonus and food bonus
+## are known: offline and the server both build it here, so one outcome rule serves both.
+static func ability_of(skill_level: int, node_bonus: float = 0.0, food_bonus: float = 0.0) -> float:
+	return float(skill_level) + node_bonus + food_bonus
 
-## The deterministic half: a caller that already rolled (server, lab, test) passes its outcome.
-static func commit_outcome(player: Player, rec: Dictionary, picks: Array[int], outcome: Dictionary, rng: RandomNumberGenerator = null, overflow: Array[ItemStack] = []) -> ItemStack:
-	if not can_make(player, rec, picks):
-		return null
-	var burnt := rolls_burn(rec, skill_level_for(rec, player), rng)
+## One craft, decided once (spec 04, plan 3.3): the exact picked instances, the success/flaw/flare
+## roll and the burn roll, and the output level. A caller that has to wait (a full bag, a time
+## gate, a server op) keeps this plan and reuses it: it is never re-rolled, so a retry cannot turn
+## a good craft into a burnt one or a failure into a success.
+## {} when the picks do not fit the recipe (missing material, a disallowed instance, no processing left).
+static func plan_craft(rec: Dictionary, inv: Inventory, picks: Array[int], ability: float, level: int, burn_skill: int = 0, rng: RandomNumberGenerator = null) -> Dictionary:
+	if rec.is_empty() or inv == null or not picks_valid(inv, rec, picks):
+		return {}
+	var uids: Array[String] = []
+	var defs: Array[String] = []
+	for i in picks.size():
+		var s: ItemStack = inv.slots[picks[i]] if picks[i] >= 0 and picks[i] < inv.slot_count else null
+		uids.append(s.uid if s else "")
+		defs.append(str(s.def_id) if s else "")
+	var primary: ItemStack = inv.slots[picks[primary_index(rec)]] if primary_index(rec) < picks.size() else null
+	return {
+		"recipe": str(rec.get("id", "")),
+		"picks": picks.duplicate(),
+		"uids": uids,
+		"defs": defs,
+		"outcome": roll_outcome_for(rec, primary, ability, rng),
+		"burnt": rolls_burn(rec, burn_skill, rng),
+		"level": level,
+	}
+
+## The instances a plan selected, wherever the bag has moved them since. [] when one of them left
+## the bag: the craft then fails safely instead of substituting a different stack (spec 08:98).
+static func plan_picks(inv: Inventory, rec: Dictionary, plan: Dictionary) -> Array[int]:
+	if inv == null or rec.is_empty() or plan.is_empty():
+		return []
+	var uids: Array = plan.get("uids", [])
+	var defs: Array = plan.get("defs", [])
+	var old: Array = plan.get("picks", [])
+	if old.is_empty():
+		return []
+	var picks: Array[int] = []
+	for i in old.size():
+		var uid := str(uids[i]) if i < uids.size() else ""
+		var def_id := str(defs[i]) if i < defs.size() else ""
+		var idx := -1
+		if uid != "":
+			for j in inv.slot_count:
+				if inv.slots[j] and inv.slots[j].uid == uid:
+					idx = j
+					break
+		else:
+			# A fungible stack has no identity: the same def in the same slot is the same material.
+			var was := int(old[i])
+			if was >= 0 and was < inv.slot_count and inv.slots[was] and str(inv.slots[was].def_id) == def_id:
+				idx = was
+			else:
+				idx = inv.find_first(StringName(def_id))
+		if idx < 0 or inv.slots[idx] == null or str(inv.slots[idx].def_id) != def_id:
+			return []
+		picks.append(idx)
+	return picks if picks_valid(inv, rec, picks) else []
+
+## Does the planned output still fit once the plan's inputs leave the bag? Checked on a scratch bag,
+## with the plan's own burn result and level, so a retry never re-rolls either.
+static func plan_fits(inv: Inventory, rec: Dictionary, plan: Dictionary) -> bool:
+	if inv == null or rec.is_empty() or plan.is_empty():
+		return false
+	var picks := plan_picks(inv, rec, plan)
+	if picks.is_empty():
+		return false
+	var scratch := Inventory.new(inv.slot_count)
+	for i in inv.slot_count:
+		if inv.slots[i]:
+			scratch.slots[i] = inv.slots[i].duplicate_stack()
+	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
+	var out := build_output(rec, primary, int(plan.get("level", 1)), [], bool(plan.get("burnt", false)))
+	consume_for_craft(scratch, rec, picks)
+	return scratch.can_accept(out)
+
+## Execute a plan: consume its exact instances and add the result. No XP and no notices (the callers
+## own those, offline and online alike). Status:
+##   "made"    the item was added (item set)
+##   "failed"  spec 25 §8: the picked instances are gone and nothing was made,
+##   "full"    no room; nothing consumed, the plan is still good,
+##   "left"    a planned instance is no longer in the bag; nothing consumed, no substitution.
+static func run_plan(rec: Dictionary, inv: Inventory, plan: Dictionary, overflow: Array[ItemStack] = []) -> Dictionary:
+	if rec.is_empty() or inv == null or plan.is_empty():
+		return {"status": "left", "item": null}
+	var picks := plan_picks(inv, rec, plan)
+	if picks.is_empty():
+		return {"status": "left", "item": null}
+	var outcome: Dictionary = plan.get("outcome", {})
 	if not bool(outcome.get("success", true)):
-		# Spec 25 §8: "if crafting fails, materials disappear." Taken in one step, nothing made.
-		var lost := consume_for_craft(player.inventory, rec, picks)
+		var lost := consume_for_craft(inv, rec, picks)
 		var names: PackedStringArray = []
 		for s in lost:
 			names.append("%s x%d" % [str(s.def_id), s.count])
 		print("[craft] failed %s: lost %s" % [rec.get("id", ""), ", ".join(names)])
-		if player:
-			player.notice("Crafting failed: the materials are lost.")
+		return {"status": "failed", "item": null}
+	if not plan_fits(inv, rec, plan):
+		print("[craft] refused %s: bag full" % rec.get("id", ""))
+		return {"status": "full", "item": null}
+	var consumed := consume_for_craft(inv, rec, picks)
+	var out := build_output(rec, consumed[0], int(plan.get("level", 1)), consumed, bool(plan.get("burnt", false)))
+	apply_outcome(out, rec, outcome)
+	if not out.is_fungible() and out.uid == "":  # in-place output keeps its instance identity
+		out.stamp_identity("craft", World.player_name)
+	var gained := out.count
+	var left := inv.add(out)
+	if left > 0:
+		print("[craft] bag full remainder=%d" % left)
+		var rest := out.duplicate_stack()
+		rest.count = left
+		overflow.append(rest)
+		gained -= left
+	print("[item] +%d %s" % [gained, out.def_id])
+	print("[craft] %s level=%d burnt=%s" % [out.def_id, out.level, bool(plan.get("burnt", false))])
+	out.count = gained
+	return {"status": "made", "item": out if gained > 0 else null}
+
+## The player-facing half of a finished plan: the notice a phone needs, and the once-per-success XP.
+static func report_plan(player: Player, rec: Dictionary, res: Dictionary) -> void:
+	match str(res.get("status", "")):
+		"failed":
+			if player:
+				player.notice("Crafting failed: the materials are lost.")
+			return
+		"full":
+			refuse_full(player, rec)
+			return
+		"left":
+			if player:
+				player.notice("Craft stopped: its materials left the bag.")
+			return
+	if str(res.get("status", "")) != "made":
+		return
+	World.note_craft(StringName(str(rec.get("id", ""))))
+	grant_craft_xp(player, rec)
+
+## The ability, output level and burn skill of a local survivor for a recipe's picks.
+static func _plan_ability(player: Player, rec: Dictionary) -> float:
+	return crafting_ability(player, rec)
+
+static func plan_for_player(player: Player, rec: Dictionary, picks: Array[int], rng: RandomNumberGenerator = null) -> Dictionary:
+	if player == null or not can_make(player, rec, picks):
+		return {}
+	var level := crafted_level_for(rec, consumed_levels(player.inventory, rec, picks), player)
+	return plan_craft(rec, player.inventory, picks, _plan_ability(player, rec), level, skill_level_for(rec, player), rng)
+
+## One craft (spec 04, plan 3.3): plan it once, then run the plan. A failed craft spends the picked
+## instances exactly once and makes nothing; a successful one makes the previewed item, plus the
+## flawless stat bump or the inherited rare trait. XP is paid once, on success.
+static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: RandomNumberGenerator = null) -> ItemStack:
+	var plan := plan_for_player(player, rec, picks, rng)
+	if plan.is_empty():
 		return null
-	if not output_fits(player.inventory, rec, picks, burnt, player):
-		refuse_full(player, rec)
+	return commit_plan(player, rec, plan)
+
+## Run an already-decided plan for a local survivor (the bag-full retry path reuses the same one).
+static func commit_plan(player: Player, rec: Dictionary, plan: Dictionary) -> ItemStack:
+	if player == null or plan.is_empty():
 		return null
-	var consumed := consume_for_craft(player.inventory, rec, picks)
-	return finish_craft(player, rec, consumed, burnt, overflow, outcome)
+	var res := run_plan(rec, player.inventory, plan)
+	report_plan(player, rec, res)
+	return res.get("item", null)
+
+## A craft whose outcome the caller already decided (tests, labs, a replay): the plan is built from
+## the given outcome, so the same validated consume/build path runs as in play.
+static func commit_outcome(player: Player, rec: Dictionary, picks: Array[int], outcome: Dictionary, rng: RandomNumberGenerator = null, overflow: Array[ItemStack] = []) -> ItemStack:
+	if player == null or not can_make(player, rec, picks) or picks.is_empty():
+		return null
+	var plan := plan_craft(rec, player.inventory, picks, _plan_ability(player, rec), crafted_level_for(rec, consumed_levels(player.inventory, rec, picks), player), skill_level_for(rec, player), rng)
+	if plan.is_empty():
+		return null
+	plan["outcome"] = outcome
+	var res := run_plan(rec, player.inventory, plan, overflow)
+	report_plan(player, rec, res)
+	return res.get("item", null)
 
 ## Would the output still fit after the inputs leave the bag? Checked on a scratch copy so a
 ## full bag refuses before anything is consumed (sec-loss-08).

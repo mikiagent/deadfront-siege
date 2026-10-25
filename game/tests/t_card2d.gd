@@ -73,7 +73,13 @@ func _test_data() -> void:
 		_expect(cards.has(id), "card %s exists" % id)
 	for k in ["tree", "bush", "grass", "plant", "rock"]:
 		_expect(kinds.has(k), "sway kind %s exists" % k)
-	_expect(float((kinds.get("rock", {}) as Dictionary).get("amplitude", -1.0)) == 0.0, "rock amplitude is 0")
+	for still_kind in ["rock", "plant", "bush"]:
+		_expect(float((kinds.get(still_kind, {}) as Dictionary).get("amplitude", -1.0)) == 0.0,
+			"%s cards do not sway" % still_kind)
+	var branch: Dictionary = cards.get("branch-pile", {})
+	var branch_kind: Dictionary = kinds.get(str(branch.get("kind", "")), {})
+	_expect(not branch.is_empty() and is_zero_approx(float(branch_kind.get("amplitude", -1.0))),
+		"branch piles do not sway")
 	_expect(float((kinds.get("tree", {}) as Dictionary).get("speed", 99.0)) < float((kinds.get("grass", {}) as Dictionary).get("speed", -99.0)),
 		"trees sway slower than grass")
 	_expect(float((kinds.get("tree", {}) as Dictionary).get("amplitude", 0.0)) > float((kinds.get("grass", {}) as Dictionary).get("amplitude", 99.0)),

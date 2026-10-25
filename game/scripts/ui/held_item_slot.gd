@@ -1,11 +1,12 @@
 class_name HeldItemSlot
 extends Control
-## Bottom-right hex showing the held gather tool. Tap cycles to the next tool in the bag,
-## long-press unequips. Gathering auto-equips the tool the node needs (Player._auto_equip_tool),
-## so this is mostly for choosing a weapon or checking what is in hand.
+## Bottom-right hex showing the held gather tool. Tap gathers the nearest resource and long-press
+## unequips. A separate Bag hex sits directly above it.
 
 signal equip_requested(slot_index: int)
 signal unequip_requested
+signal gather_requested
+signal inventory_requested
 
 const SLOT := 64.0
 const RAIL_HEXES := 4.0  ## hexes in the HUD's bottom-left rail (menu, animals, build, skills)
@@ -16,12 +17,20 @@ var _caption: String = "TOOL"
 var _pressing: bool = false
 var _long_left: float = 0.0
 var _fired_long: bool = false
+var _inventory_button: HexButton
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(SLOT, SLOT)
 	size = custom_minimum_size
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_inventory_button = HexButton.new(SLOT)
+	_inventory_button.name = "InventoryButton"
+	_inventory_button.icon = UiIcons.icon(&"bag")
+	_inventory_button.caption = "BAG"
+	_inventory_button.position = Vector2(0.0, -SLOT - 18.0)
+	_inventory_button.pressed.connect(func () -> void: inventory_requested.emit())
+	add_child(_inventory_button)
 
 func bind(p: Player) -> void:
 	player = p
@@ -89,7 +98,7 @@ func _gui_input(event: InputEvent) -> void:
 		_long_left = 0.5
 	elif release:
 		if _pressing and not _fired_long:
-			cycle()
+			gather_requested.emit()
 		_pressing = false
 	accept_event()
 	queue_redraw()
@@ -105,7 +114,9 @@ func _process(delta: float) -> void:
 	# ROTATE / PLACE / CANCEL row keeps off it.
 	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
 	var asking: bool = hud != null and hud.has_method("claim_panel_open") and bool(hud.call("claim_panel_open"))
-	var covered: bool = asking or (hud != null and hud.sheet_open()) or get_tree().get_first_node_in_group(&"character_creation") != null
+	var inventory_open := player != null and player.ui != null and player.ui.visible
+	var covered: bool = asking or inventory_open or (hud != null and hud.sheet_open()) \
+		or get_tree().get_first_node_in_group(&"character_creation") != null
 	if visible == covered:
 		visible = not covered
 		_pressing = false
@@ -173,6 +184,3 @@ func _draw() -> void:
 			cx = minf(cx, size.x + 6.0 - w)  # right-edge hex: end the word at the hex edge
 		cx = maxf(cx, 4.0 - gx)
 		draw_string(font, Vector2(cx, c.y + r + 15.0), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
-		var bc := c + Vector2(r * 0.55, -r * 0.55)
-		draw_circle(bc, r * 0.24, Color(0.2, 0.22, 0.26, 0.95))
-		UiTokens.draw_centered(self, font, bc, "⇄", UiTokens.TYPE_MIN, Color(0.95, 0.95, 0.9))
