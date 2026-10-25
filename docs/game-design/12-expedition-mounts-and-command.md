@@ -89,7 +89,7 @@ The **civilization's possible primitive ceiling** should allow exceptional genet
 8. **Species size realism:** a small mount need not resist giant stomp and may expose rider to tail strikes; large mount trades reach and ability to withstand stress for slower turning/bigger target.
 9. **Era constraint:** tests succeed with **no firearms, rocket launchers, Gatling guns, exosuits or giant mechanized vehicles**. They may remain optional unrelated future technologies, only on subsequent owner approval.
 
-## 7. Proposed mount battlefield archetypes (2026-10-25 workshop, NOT owner approved per species)
+## 7. Mount battlefield archetypes (2026-10-25 role names accepted; species assignments and abilities proposed)
 
 **New user request:** picture **fast cavalry, tank, berserker** and ask "what would a T. rex be?" Recommended answer: **Tyrant / Apex Dominator** (not an ordinary Tank or Berserker). The mount classes below are **battlefield roles** determined by anatomy/behavior/training, **not** another competing weapon damage matrix; each individual and rider still has **D/M IV × Impact/Pierce/Slash** modes.
 
@@ -125,7 +125,62 @@ The **civilization's possible primitive ceiling** should allow exceptional genet
 
 **Test before owner class approval:** is every class best at a distinct task? Does a T. rex have unavoidable superior HP/DPS/reach to all earlier tames, or is its size legitimately burdensome? Do tanks withstand hits without ignoring the massive Brontosaurus stomp? Can both Might and Dexterity riders play effectively? Is an unmounted dinosaur a legitimate choice in a three-slot party?
 
-## 8. Owner decisions remaining OPEN
+## 8. Conditional weapon Mastery Bonuses: momentum, distance and skillful execution (2026-10-25 owner direction)
+
+**Owner proposed both examples:** **speed-dependent damage for mounted javelins/spears** and **additional reward for accurate long-distance Dexterity/Impact attacks** (historically described by owner as "Impact/Precision", now **DI Dexterity/Impact** under the locked terminology). Treat these as **conditional move properties**, not more damage types, separate classes or generic rules attaching to every Pierce/Impact action. User accepted the **seven mount role names as good**. Which specific animal inhabits which role, formulas, damage bonuses and attack animations are still subject to design/testing.
+
+### A. Momentum Strike: moving cavalry spear, mounted javelin or charge attack
+
+- **Example type:** **MP Might/Pierce** lance, long spear on a galloping mount; **MP** thrown heavy javelin *if the weapon design is Might-primary*, with bonus to initial launch velocity when thrown forward. **MI** shoulder/body ram is another move that may justify kinetic charge properties, but does **not** become Pierce merely due to speed.
+- **Fantasy:** speed and mass combine with force. The rider has to **build speed, maintain heading and make deliberate contact**, not circle in place waiting for a speed stat.
+- **Primary trigger:** measure the **forward closing velocity of attacker relative to target**, projected onto strike direction at attack initiation/contact. Reward an attack which is aligned with the approach and uses **actual sustained movement**, not just high maximum-speed statistics. Optional **short minimum run-up** to make the choice readable; the enemy and terrain must have time to react.
+- **Reward:** extra damage or posture/stagger proportional to effective closing velocity, with a capped maximum, rather than a permanent mounted damage multiplier. Rider Might IV contributes to **bracing, holding control and translating momentum**, trained riding skill to timing/accuracy, mount speed/endurance/mass to safe delivery. Species genetics matter; a fast Courser may generate high speed, a heavier Charger may leverage mass but with stricter steering.
+- **Counterplay:** tight terrain, forced turn, interrupted charge, enemy sidestep, giant tail swing, or stomping the intended lane removes the opportunity. Attacker can miss, overrun, be stopped, thrown/dismounted or strike a hard defended angle. Impact of running at an immobile stationary dinosaur still uses the mount's own forward component; retreating toward the rider should not create infinite bonus via easily exploitable enemy movement.
+- **Thrown javelin caution:** moving forward may improve initial projectile speed, but damage does **not** scale with distance traveled; projectile travel/falloff and launch angle need a consistent ballistic/gameplay rule. Do not automatically award both full mounted thrust bonus **and** full thrown projectile bonus for the same throw.
+- **Sample non-final tuning for playtest ONLY:** smooth `bonus = up to +30% damage` after meaningful straight-line run-up and closing-speed threshold; +0 at standstill; faster speed increases toward a cap, with some momentum committed to stagger instead of stacking huge damage. Attack eligibility and approach direction must be validated server-side in competitive settings.
+
+### B. Longshot: difficult long-distance direct hits
+
+- **Example type:** **DI Dexterity/Impact** sling stone or accurate blunt throw; **DP Dexterity/Pierce** aimed arrow is also a plausible longshot weapon, but the **owner's initial example specifically prefers DI**. Players should recognize that the reward tracks **landing a difficult shot**, not kinetic impact power increasing with distance.
+- **Trigger:** target acquired and projectile **actually travels** at least a designated fraction of its weapon's **effective range**, with valid line of sight and a live accurate hit. The target should not be trivially hittable by firing at an immobile oversized hitbox; can add a limited **target difficulty factor** (movement, hit-zone size, or aiming time) later, but avoid hidden complexity as a mandatory prerequisite.
+- **Reward:** a bounded **precision-hit / weak-point / stagger bonus**, optional small damage bonus and **clear LONGSHOT feedback**. The distance criterion is weapon-relative (a sling and a crossbow should not have identical absolute meters). Make normal-range shots still useful and allow different mastery mechanics for weapons lacking precise fire.
+- **Risks and checks:** accuracy, projectile travel time, gravity/drop and moving-target lead make longer hits more challenging. Prevent point-blank shots from receiving longshot damage, don't let firing at permanently stationary oversized bosses become a free max-range DPS exploit, and don't let projectile bounce, teleport, mount motion or artificial distance count multiple times.
+- **Sample non-final tuning ONLY:** `+0 to +20% on successful hit` scaling through the final third of effective range, with additional stagger rather than raw damage if boss DPS inflation is a concern. At distance beyond effective range, accuracy is poor and the bonus does not extend infinitely.
+
+### C. Small optional move tags for the six archetypes
+
+| Weapon attack/mode | Primary class | Mastery trigger | Player-readable reward | Tradeoff |
+|---|---|---|---|---|
+| **Mounted lance / thrusting spear** | **MP** | Closing speed + approach alignment | **Momentum Strike**, heavier burst/posture | Run-up, hit commitment, mount collision/dismount risk |
+| **Forward-thrown heavy javelin** | **MP** (owner's heavy-javelin concept) | Clean forward throw while traveling | **Running Throw**, modest initial throw force / contact effect | Limited ammo, windup, actual projectile accuracy |
+| **Sling stone** | **DI** | Long-distance accurate hit | **Longshot**, improved precision damage or stagger | Projectile travel/drop, aims harder at range |
+| **Bow/crossbow** | **DP** | Distant aimed weak-point hit, optional separate weapon property | **Sharpshot**, accurate opening hit | Aim time/reload, moving targets |
+| **Heavy mounted club / body shoulder strike** | **MI** | Committed charge + real contact | **Collision Break**, extra stagger or guard pressure | Slower recovery, heavier mount hitbox |
+| **Heavy cleaving axe** | **MS** | Timed strike across exposed flank or several valid close targets | **Follow-through/Cleave**, sustained Slash damage | Close exposure and stamina |
+| **Accurate whip or passed slicing blade** | **DS** | Good lateral movement timing + arc contact | **Passing Cut**, controlled sweep | Short hit window, less raw hit force |
+| **Mounted aimed stone throw** | **DI** | Well-timed thrown shot while moving | **Ride-by Aim**, separate optional precision skill | Aim stability and smaller accuracy window |
+
+**Do NOT introduce eight distinct player-facing skill trees.** These are optional **weapon/attack-mode mastery tags**, possibly surfaced on item tooltips or in combat feedback while continuing to use existing skills, genetics and move animations. Most weapons might have **no special bonus**, one bonus, or a custom special. Avoid universal stacked damage multipliers or selling traits that trivialize defense classes.
+
+### D. Animal-role synergy without making class a flat buff
+
+- **Cavalry/Courser:** excellent **MP Momentum Strike** with a rider; superior approach speed, escape and room to run, but fragile when contacted.
+- **Charger/Breaker:** great **MP lance thrust** or **MI collision** through mass/commitment; less able to correct direction at the last instant than a Courser.
+- **Skirmisher/Flanker:** gains **DS passing cuts / DP moving aim** through lateral accuracy and flank access rather than the largest impact-force bonus.
+- **Bulwark/Tank:** better at **bracing** a spear against an incoming charge, resisting posture break and enabling allies to take shots; do not pretend it is as fast as Cavalry.
+- **Berserker/Ravager:** gains **follow-up/on-hit cadence** during commitment and short flank exposures; mistakes generate counterattack openings.
+- **Tyrant/Apex Dominator:** benefits from a large **single committed bite or body impact** at a close controlled range; **does not** automatically get a huge horseback-like lance damage bonus and isn't the fastest mount.
+- **Titan/Siege Beast:** primarily exploits **reach, space and mass**; enormous threat zones/telegraphs, not an invitation to easy giant-sized critical multipliers.
+
+### E. Brontosaurus test
+
+**Suggested coordinated sequence (gameplay example):** A Gallimimus cavalry rider starts well outside the Brontosaurus's tail arc with **MP** spear. A DI sling ally lands a skillful **Longshot**, drawing the giant's head/attention. As the Brontosaurus winds up its **DS long tail whip**, the rider avoids the committed sweep, builds approach speed into the opening behind the moving tail, lands **MP Momentum Strike** on exposed flank/leg and escapes the near-leg **MI stomp** window. Another slower heavy mount may hold a braced zone while a foot Might/Slash fighter exploits recovery. This rewards **the right preparation and position**, not merely owning faster mounts or firing from farther away.
+
+**Key failure case to test:** Spear rider spams tight circles around a stationary Brontosaurus and obtains full charge bonus every second without a real approach, while the Longshot user stays at maximal range against a giant stationary target and receives a free damage multiplier on every shot. Neither should dominate ordinary play or make foot melee irrelevant.
+
+**Balance sign-off required:** user chose the overall concept; max percentages, falloff, trigger distance, minimum run-up, relative velocity rules, precision difficulty and how rewards are split between raw damage versus stagger remain **proposed**. The current Godot game does **not** implement these mastery tags or rider attack bonuses.
+
+## 9. Owner decisions remaining OPEN
 
 - **Tech ceiling:** stone/bronze/iron/steel, advanced bows and crossbows; any firearms at all? No hard ceiling locked.
 - **Mounted damage reward:** mostly positional uptime/reach and timed windows (preferred) vs explicit limited charge bonus?
