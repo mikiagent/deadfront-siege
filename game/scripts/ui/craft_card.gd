@@ -2,7 +2,8 @@ class_name CraftCard
 extends PanelContainer
 ## Compact unprojected craft panel above a station: name, ingredient slots with rings.
 
-const SLOT_R := 28.0
+## 64 px phone tap/reading target: the ring is drawn inside a 2R+4 box (DESIGN mobile rule).
+const SLOT_R := 32.0
 const RING_W := 4.0
 
 var recipe_name: String = ""

@@ -844,38 +844,6 @@ static func consume_for_craft(inv: Inventory, rec: Dictionary, picks: Array[int]
 			if taken: refund.append(taken)
 	return refund
 
-## Units that do not fit go to `overflow`: the caller owns them and must put them back (StationCraft
-## re-adds them after the craft). output_fits should make this unreachable: it is a last resort.
-static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemStack], burnt: bool = false, overflow: Array[ItemStack] = [], outcome: Dictionary = {}) -> ItemStack:
-	if rec.is_empty() or consumed.is_empty():
-		return null
-	var primary := consumed[0]
-	var levels: Array[int] = []
-	for s in consumed:
-		if s:
-			for _n in s.count:
-				levels.append(s.level)
-	var out := build_output(rec, primary, crafted_level_for(rec, levels, player), consumed, burnt)
-	apply_outcome(out, rec, outcome, player)
-	if not out.is_fungible() and out.uid == "":  # in-place output keeps its instance identity
-		out.stamp_identity("craft", World.player_name)
-	var gained := out.count
-	var left := player.inventory.add(out)
-	if left > 0:
-		print("[craft] bag full remainder=%d" % left)
-		var rest := out.duplicate_stack()
-		rest.count = left
-		overflow.append(rest)
-		gained -= left
-	print("[item] +%d %s" % [gained, out.def_id])
-	print("[craft] level=%d from %s" % [out.level, levels])
-	print("[craft] %s from primary=%s %s process=%d" % [out.def_id, primary.def_id, primary.attributes, out.process_count])
-	World.note_craft(StringName(str(rec.get("id", ""))))
-	grant_craft_xp(player, rec)
-	# Restore count for callers (toast) since add() empties a fully-accepted stack.
-	out.count = gained
-	return out if gained > 0 else null
-
 static func _category_hint(cat: StringName) -> String:
 	match str(cat):
 		"meat", "raw_meat":

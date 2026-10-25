@@ -162,7 +162,16 @@ func _loot(ch: CharacterState, a: Dictionary) -> Dictionary:
 	count("minted", stack.def_id, gained)
 	return ok({"item": str(stack.def_id), "gained": gained, "uids": uids})
 
-## act.craft {recipe_id, picks?}: Crafting's own plan, consume and build_output on the server bag.
+## The Crafting Ability of a server character: the governing skill level. # ASSUMPTION: learned
+## node bonuses and food buffs are still client-side state (SkillState), so online crafting reads
+## the category level alone; the curve, the roll and the outcome rule are Crafting's own, so a
+## shortfall is judged exactly as offline.
+static func craft_ability(skill_level: int) -> float:
+	return Crafting.ability_of(maxi(1, skill_level))
+
+## act.craft {recipe_id, picks?}: Crafting's own plan, run_plan and XP on the server bag, so online
+## crafting has the offline stakes: a shortfall can fail (materials lost), a success can be flawless
+## or inherit a rare trait, and only the picked instances are consumed.
 func _craft(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var rid: Variant = text(a, "recipe_id")
 	if rid == null:
@@ -199,20 +208,35 @@ func _craft(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var level := ProgressionScaling.crafted_level(Crafting.consumed_levels(inv, rec, picks), int(rec.get("max_level", 60)), maxi(1, ch.level_of(tree)))
 	if minimum > 0 and level < minimum:
 		return no("not_ready", "needs materials and crafting skill for level %d" % minimum)
-	var consumed := Crafting.consume_for_craft(inv, rec, picks)
-	var out := Crafting.build_output(rec, consumed[0], level, consumed, Crafting.rolls_burn(rec, ch.level_of(tree), rng))
-	var made := out.count
-	var out_id := out.def_id
-	if out.def() == null or made <= 0:
-		return no("server_error", "recipe %s has no valid output" % rid)
-	if inv.add(out) > 0:
-		return no("bag_full", "no room for %s" % out_id)
+	# One plan, decided once: the roll, the burn roll and the level. run_plan executes it on the
+	# server bag through the same code offline uses (Crafting.run_plan).
+	var taken: Dictionary = {}
+	for part in Crafting.slot_level_contributions(inv, rec, picks):
+		taken[str(part.def_id)] = int(taken.get(str(part.def_id), 0)) + int(part.count)
+	var plan := Crafting.plan_craft(rec, inv, picks, craft_ability(ch.level_of(tree)), level, ch.level_of(tree), rng)
+	if plan.is_empty():
+		return no("insufficient_items", "missing %s" % Crafting.missing_ingredient_name(inv, rec))
+	var res := Crafting.run_plan(rec, inv, plan)
+	var status := str(res.get("status", ""))
+	if status == "left":
+		return no("insufficient_items", "picks must still hold the materials")
+	if status == "full":
+		return no("bag_full", "no room for %s" % str((rec.get("output", {}) as Dictionary).get("id", rid)))
 	var uids := ch.commit(inv, "craft", seq)
-	for part in consumed:
-		count("consumed", part.def_id, part.count)
-	count("minted", out_id, made)
+	for id in taken:
+		count("consumed", id, int(taken[id]))
+	if status == "failed":
+		# Spec 25 §8 online: the picked instances are gone and the survivor gets nothing.
+		return ok({"item": "", "made": 0, "failed": true, "level": level, "uids": uids})
+	var out: ItemStack = res.get("item", null)
+	if out == null:
+		return no("bag_full", "no room for %s" % str((rec.get("output", {}) as Dictionary).get("id", rid)))
+	count("minted", out.def_id, out.count)
 	ch.add_xp(Crafting.tree_for_recipe(rec), 6 + int(Crafting.recipe_seconds(rec)))
-	return ok({"item": str(out_id), "made": made, "level": level, "uids": uids})
+	return ok({
+		"item": str(out.def_id), "made": out.count, "level": out.level, "uids": uids,
+		"flawless": &"flawless" in out.flags,
+	})
 
 ## act.place {kind, cell: [x, z], rot}: spends one kit whose place_as is `kind`.
 # shortcut: kits only; the branch+twine fallbacks in BuildPlacer move here with W3-SRVACT.
