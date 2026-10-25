@@ -148,6 +148,40 @@ Fix, in `game/scripts/items/crafting.gd`:
   fit simulation and the real consume free the identical slots.
 - `run_plan` returns `left` with nothing consumed when a part cannot be resolved, before any consume.
 
+## Review round 3 (BLOCKING): fungible units are pinned by value, not by slot
+
+Round 2 pinned uid-carrying parts exactly, but an **uid-less** (fungible) part was still resolved by
+"the same def in the recorded slot, else the first same-def stack". Two same-def stacks may legally
+differ in level, process count, attributes, flags and durability and sit in separate slots
+(`ItemStack.can_merge_with` says so), so after a reorder the resolver could hand the craft stack C while
+`run_plan` kept the plan's original output level and inherited C's traits: the plan said B, the game spent
+C.
+
+Fix, in `game/scripts/items/crafting.gd`:
+- Every planned part now carries the value fingerprint of the stack it came from, alongside its uid:
+  `level`, `process_count`, `attributes`, `flags` (as strings), `durability`, `max_durability`, plus
+  `def`, `count`, the recipe `slot` and the bag slot `at` it was planned in (`_pinned_part`).
+- `_same_good(row, stack)` compares exactly what `ItemStack.can_merge_with` compares (def, level,
+  process, durability/max, flags, attributes ignoring the `climate` bookkeeping key), and rejects an
+  identified stack as a stand-in for a fungible part.
+- `plan_parts` resolves a fungible part only to an equivalent stack: the recorded slot first when it
+  still holds the same good, then any other equivalent stack of that def; otherwise it returns `[]` with
+  no mutation, so `plan_fits`/`run_plan` return `full`/`left` untouched instead of substituting.
+  UID parts behave exactly as in round 2.
+- The resolution is still one pass over the bag plus the parts (uid map + per-def candidate lists), so
+  the added fingerprint comparison only runs for the parts actually being resolved.
+
+## Verified (round 3)
+- New `_test_fungible_fingerprint` in `t_craftfeel`: three uid-less `stone` stacks, A (level 5, firm 1),
+  B (level 40, firm 4), C (level 60, firm 9). The plan pins A+B with their own level and attributes; then
+  C is moved into B's old slot and the bag is reordered. `plan_parts` resolves A+B only (never C), `run_plan`
+  consumes exactly A+B, C survives, and the output level is the pin's (not 60) with firm != 9. Replacing B
+  with C (same def, other value) makes `run_plan` return `left` with nothing consumed and nothing made.
+- Mutation check: a def-only `_same_good` fails 5 of these assertions (C accepted in B's slot, level 60,
+  firm 9 inherited, no `left`), so the fingerprint is load-bearing.
+- Related: `t_items`, `t_data`, `t_process`, `t_inventory`, `t_server_domain` PASS; `t_craftfeel` PASS
+  with no SCRIPT ERROR.
+
 ## Verified (round 2)
 - New `_test_supplement_pinning` in `t_craftfeel`: a slot with `count: 2` gets an identified lead
   (level 5, uid `laaa…1`) and an identified supplement (level 40, uid `lbbb…2`); the plan pins **both**

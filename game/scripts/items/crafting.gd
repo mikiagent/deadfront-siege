@@ -540,7 +540,7 @@ static func plan_craft(rec: Dictionary, inv: Inventory, picks: Array[int], abili
 		for part: Dictionary in row["parts"]:
 			var at := int(part["idx"])
 			var st: ItemStack = inv.slots[at]
-			parts.append({"slot": i, "uid": st.uid, "def": str(st.def_id), "count": int(part["count"]), "at": at})
+			parts.append(_pinned_part(i, st, int(part["count"]), at))
 	var primary: ItemStack = inv.slots[picks[primary_index(rec)]] if primary_index(rec) < picks.size() else null
 	return {
 		"recipe": str(rec.get("id", "")),
@@ -552,6 +552,48 @@ static func plan_craft(rec: Dictionary, inv: Inventory, picks: Array[int], abili
 		"burnt": rolls_burn(rec, burn_skill, rng),
 		"level": level,
 	}
+
+## One planned unit: its identity plus, for a fungible (uid-less) stack, the value fingerprint that
+## makes it a different good from any other stack of the same def (ItemStack.can_merge_with's rule).
+static func _pinned_part(slot_i: int, st: ItemStack, count: int, at: int) -> Dictionary:
+	return {
+		"slot": slot_i, "uid": st.uid, "def": str(st.def_id), "count": count, "at": at,
+		"level": st.level, "process_count": st.process_count,
+		"attributes": st.attributes.duplicate(true),
+		"flags": _flag_strings(st.flags),
+		"durability": st.durability, "max_durability": st.max_durability,
+	}
+
+static func _flag_strings(flags: Array) -> Array:
+	var out: Array = []
+	for f: Variant in flags:
+		out.append(str(f))
+	return out
+
+## Is `st` the same good as the planned fungible unit? Def, level, process, attributes (climate aside),
+## flags and durability all count, exactly as a merge would: a same-def stack with another level or
+## another trait is a different unit, not a valid stand-in.
+static func _same_good(row: Dictionary, st: ItemStack) -> bool:
+	if st == null or str(st.def_id) != str(row.get("def", "")):
+		return false
+	if st.uid != "":
+		return false
+	if int(st.level) != int(row.get("level", 1)) or int(st.process_count) != int(row.get("process_count", 0)):
+		return false
+	if int(st.durability) != int(row.get("durability", 0)) or int(st.max_durability) != int(row.get("max_durability", 0)):
+		return false
+	if str(_flag_strings(st.flags)) != str(row.get("flags", [])):
+		return false
+	var want: Dictionary = row.get("attributes", {}) as Dictionary
+	var got: Dictionary = {}
+	var want_plain: Dictionary = {}
+	for k: Variant in st.attributes:
+		if str(k) not in ItemStack.MERGE_IGNORED_ATTRS:
+			got[str(k)] = st.attributes[k]
+	for k: Variant in want:
+		if str(k) not in ItemStack.MERGE_IGNORED_ATTRS:
+			want_plain[str(k)] = want[k]
+	return str(got) == str(want_plain)
 
 ## The plan's exact units resolved against the bag as it is now, keyed by the recipe slot they fill.
 ## [] when any planned unit (or part of its count) has left the bag: a caller then stops the craft
@@ -595,13 +637,19 @@ static func plan_parts(inv: Inventory, rec: Dictionary, plan: Dictionary) -> Arr
 			# An identified instance that left the bag is not replaced by another of the same def.
 			return []
 		if idx < 0:
-			# A fungible stack has no identity: the same def is the same material; prefer the slot it
-			# was planned in, then any other stack of that def.
+			# A fungible stack has no identity, but it does have a value: the same def at another level,
+			# process, attributes, flags or durability is a different unit. Take the stack it was planned
+			# in only if it still holds that same value, else another equivalent one, else stop.
 			var at := int((row as Dictionary).get("at", -1))
-			if at >= 0 and at < inv.slot_count and inv.slots[at] and str(inv.slots[at].def_id) == def_id:
+			if at >= 0 and at < inv.slot_count and _same_good(row as Dictionary, inv.slots[at]):
 				idx = at
-			elif by_def.has(def_id) and not (by_def[def_id] as Array).is_empty():
-				idx = int((by_def[def_id] as Array)[0])
+			elif by_def.has(def_id):
+				for cand: int in (by_def[def_id] as Array):
+					if _same_good(row as Dictionary, inv.slots[cand]):
+						idx = cand
+						break
+			if idx < 0:
+				return []
 		if idx < 0 or inv.slots[idx] == null or str(inv.slots[idx].def_id) != def_id:
 			return []
 		var slot_def: Dictionary = slots[slot_i]

@@ -66,6 +66,7 @@ func _run() -> void:
 	await _test_station_uid_left()
 	await _test_online_parity()
 	_test_supplement_pinning()
+	_test_fungible_fingerprint()
 	_test_online_stakes()
 	_finish()
 
@@ -768,6 +769,80 @@ func _test_supplement_pinning() -> void:
 	_expect(str(gone.get("status", "")) == "left", "a plan whose pinned supplement left stops instead of substituting (%s)" % str(gone.get("status", "")))
 	_expect(inv2.count_of(&"stone") == 2 and int(inv2.slots[0].level) == 5, "the lead and the substitute are untouched")
 	_expect(inv2.count_of(&"stone_knife_work") == 0, "nothing was made")
+
+## Review round 3 (BLOCKING): a fungible (uid-less) stack has no identity, but it does have a value.
+## A same-def stack at another level/attribute is a different unit, so a plan that pinned B must spend B
+## (or an equivalent), never whatever same-def stack moved into B's old slot.
+func _test_fungible_fingerprint() -> void:
+	var rec := _rec(0.0, {
+		"id": "t_fungible",
+		"slots": [{"category": "stone", "count": 2, "primary": true}],
+		"output": {"id": "stone_knife_work", "count": 1},
+	})
+	var inv = INV.new(6)
+	var a = IS.make(&"stone", 1, {"firm": 1}, 5)
+	var b = IS.make(&"stone", 1, {"firm": 4}, 40)
+	var c = IS.make(&"stone", 1, {"firm": 9}, 60)
+	_expect(a.uid == "" and b.uid == "" and c.uid == "", "the fixture stacks are fungible (uid-less)")
+	inv.slots[0] = a
+	inv.slots[1] = b
+	var levels: Array[int] = [5, 40]
+	var want_level: int = CR.crafted_level_for(rec, levels, _player)
+	var plan: Dictionary = CR.plan_craft(rec, inv, CR.default_picks(inv, rec), CR.ability_of(30), want_level, 30, RandomNumberGenerator.new())
+	_expect(not plan.is_empty(), "a two-unit fungible plan is built")
+	if plan.is_empty():
+		return
+	var pinned: Array = plan.get("parts", [])
+	var pinned_levels: Array[int] = []
+	var pinned_attrs: Array = []
+	for part: Dictionary in pinned:
+		pinned_levels.append(int(part.get("level", -1)))
+		pinned_attrs.append(part.get("attributes", {}).get("firm", -1))
+	print("[t_craftfeel] fungible pinned levels=%s firm=%s" % [str(pinned_levels), str(pinned_attrs)])
+	_expect(pinned.size() == 2 and 5 in pinned_levels and 40 in pinned_levels,
+		"the plan pins both units with their own level (%s)" % str(pinned_levels))
+	_expect(1 in pinned_attrs and 4 in pinned_attrs and not (9 in pinned_attrs),
+		"the plan pins the attributes it will spend (%s)" % str(pinned_attrs))
+	# C takes B's old slot, and A/B move: a slot-only resolver would spend C (level 60, firm 9).
+	inv.slots[1] = c
+	inv.slots[2] = b
+	inv.slots[0] = a
+	var resolved: Array = CR.plan_parts(inv, rec, plan)
+	var got_levels: Array[int] = []
+	var got_firm: Array = []
+	for part: Dictionary in resolved:
+		var st = inv.slots[int(part["idx"])]
+		got_levels.append(int(st.level))
+		got_firm.append(st.attributes.get("firm", -1))
+	print("[t_craftfeel] fungible resolved levels=%s firm=%s" % [str(got_levels), str(got_firm)])
+	_expect(resolved.size() == 2 and 5 in got_levels and 40 in got_levels and not (60 in got_levels),
+		"C in the pinned slot is not accepted; the equivalent B is (%s)" % str(got_levels))
+	_expect(9 not in got_firm, "the replacement's traits are not inherited (%s)" % str(got_firm))
+	_expect(CR.plan_fits(inv, rec, plan), "the output fits once the pinned units leave")
+	var res: Dictionary = CR.run_plan(rec, inv, plan)
+	_expect(str(res.get("status", "")) == "made", "the craft lands (%s)" % str(res.get("status", "")))
+	var out = res.get("item")
+	_expect(out != null and int(out.level) == want_level, "the output level is the pinned units' (%d)" % int(out.level) if out != null else "no output")
+	_expect(out != null and int(out.attributes.get("firm", 0)) != 9, "the output does not inherit the replacement's trait")
+	var left_levels: Array[int] = []
+	for i in inv.slot_count:
+		if inv.slots[i]:
+			left_levels.append(int(inv.slots[i].level))
+	_expect(60 in left_levels and not (40 in left_levels) and not (5 in left_levels),
+		"exactly A and B were consumed, C survives (%s)" % str(left_levels))
+	# B removed (a non-equivalent stack in its place): left, nothing consumed, nothing substituted.
+	var inv2 = INV.new(6)
+	inv2.slots[0] = IS.make(&"stone", 1, {"firm": 1}, 5)
+	inv2.slots[1] = IS.make(&"stone", 1, {"firm": 4}, 40)
+	var plan2: Dictionary = CR.plan_craft(rec, inv2, CR.default_picks(inv2, rec), CR.ability_of(30), want_level, 30, RandomNumberGenerator.new())
+	_expect(not plan2.is_empty(), "the second fungible fixture plans")
+	if plan2.is_empty():
+		return
+	inv2.slots[1] = IS.make(&"stone", 1, {"firm": 9}, 60)  # same def, another value: not a stand-in
+	var gone: Dictionary = CR.run_plan(rec, inv2, plan2)
+	_expect(str(gone.get("status", "")) == "left", "a plan whose pinned fungible unit left stops (%s)" % str(gone.get("status", "")))
+	_expect(inv2.count_of(&"stone") == 2 and inv2.count_of(&"stone_knife_work") == 0,
+		"nothing was consumed and nothing was made")
 
 ## A server character's skill XP (CharacterState keeps the plain state dict; SkillState owns xp_of).
 func _skill_xp(ch, tree: String) -> float:
