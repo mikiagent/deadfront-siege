@@ -2,7 +2,8 @@ class_name CraftCard
 extends PanelContainer
 ## Compact unprojected craft panel above a station: name, ingredient slots with rings.
 
-const SLOT_R := 28.0
+## 64 px phone tap/reading target: the ring is drawn inside a 2R+4 box (DESIGN mobile rule).
+const SLOT_R := 32.0
 const RING_W := 4.0
 
 var recipe_name: String = ""
@@ -13,6 +14,7 @@ var station: Node3D
 var follow_station: bool = true
 
 var _title: Label
+var _odds: Label
 var _slots_row: HBoxContainer
 var _slot_draws: Array[Control] = []
 var _icons: Dictionary = {}
@@ -39,13 +41,23 @@ func _ready() -> void:
 	_title.add_theme_font_size_override("font_size", 14)
 	_title.add_theme_color_override("font_color", Color(0.95, 0.95, 0.92))
 	box.add_child(_title)
+	# CRAFTFEEL: the stakes on the card itself, so they are visible while the survivor works.
+	_odds = Label.new()
+	_odds.name = "CraftOdds"
+	_odds.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_odds.add_theme_font_size_override("font_size", 12)
+	_odds.add_theme_color_override("font_color", Color(0.95, 0.85, 0.5))
+	_odds.visible = false
+	box.add_child(_odds)
 	_slots_row = HBoxContainer.new()
 	_slots_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_slots_row.add_theme_constant_override("separation", 10)
 	box.add_child(_slots_row)
 	_load_icons()
 
-func show_recipe(st: Node3D, name: String, slot_rows: Array[Dictionary], p_progress: float = 0.0, queue: int = 1) -> void:
+## `odds` is CraftUI.craftfeel_text's line set (CRAFTFEEL): "Success 100%   Flawless 5%" and the
+## "materials are lost" warning. Empty (or the old 4-argument call) draws no line at all.
+func show_recipe(st: Node3D, name: String, slot_rows: Array[Dictionary], p_progress: float = 0.0, queue: int = 1, odds: String = "") -> void:
 	station = st
 	recipe_name = name
 	slots = slot_rows
@@ -54,6 +66,9 @@ func show_recipe(st: Node3D, name: String, slot_rows: Array[Dictionary], p_progr
 	follow_station = true
 	_rebuild_slots()
 	_title.text = recipe_name if queue_count <= 1 else "%s  ×%d" % [recipe_name, queue_count]
+	if _odds:
+		_odds.text = odds
+		_odds.visible = odds != ""
 	visible = true
 	modulate = Color.WHITE
 	_update_screen_pos()

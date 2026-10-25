@@ -69,7 +69,8 @@ func _ready() -> void:
 	_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_hint.clip_text = true
 	header.add_child(_hint)
-	header.add_child(_mk_btn("Close", hide_ui, Vector2(120, 56)))
+	# CRAFTFEEL: 64 px on a phone (a landscape phone is compact too), 56 px on desktop.
+	header.add_child(_mk_btn("Close", hide_ui, Vector2(120, 64 if _pinned_actions() else 56)))
 	_body = GridContainer.new()
 	_body.columns = 3
 	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -304,7 +305,8 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	var phone := UiTokens.is_compact(view)
 	var row := Button.new()
 	row.toggle_mode = false
-	row.custom_minimum_size = Vector2(0, 60)
+	# CRAFTFEEL: a phone row is a 64 px tap target (these rows are the recipe pickers on the list).
+	row.custom_minimum_size = Vector2(0, 64 if UiTokens.is_compact(view) else 60)
 	row.add_theme_stylebox_override("normal", UiTokens.button_style(chosen))
 	row.pressed.connect(_choose_recipe.bind(str(rec.get("id", ""))))
 	var h := HBoxContainer.new()
@@ -349,7 +351,8 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 		var label := "Craft"
 		if _station != "" and not info["near"]:
 			label = "Walk & craft" if not phone else "Walk"
-		var b := _mk_btn(label, _start.bind(rec, 1), Vector2(96 if phone else 132, 48))
+		# CRAFTFEEL: a phone tap target is 64 px, never the desktop 48 px row button.
+		var b := _mk_btn(label, _start.bind(rec, 1), Vector2(96 if phone else 132, 64 if phone else 48))
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(b)
 	return row
@@ -479,6 +482,21 @@ func _show_detail(info: Dictionary) -> void:
 	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 	title.add_theme_color_override("font_color", UiTokens.TEXT)
 	_detail.add_child(title)
+	# CRAFTFEEL (plan §3.3, specs 04/25 §8): a craft has stakes, so the detail says the odds and the
+	# price of failing before the player presses Craft. The numbers come from Crafting's own functions,
+	# the same ones the craft rolls, so the preview cannot advertise a chance the result does not use.
+	var picks := Crafting.default_picks(player.inventory, rec)
+	var primary: ItemStack = null
+	if picks.size() > Crafting.primary_index(rec) and picks[Crafting.primary_index(rec)] >= 0:
+		primary = player.inventory.slots[picks[Crafting.primary_index(rec)]]
+	var qual := Crafting.preview_quality(rec, player, primary)
+	var odds := Label.new()
+	odds.name = "DetailChance"
+	odds.text = craftfeel_text(qual)
+	odds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	odds.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+	odds.add_theme_color_override("font_color", Color(0.95, 0.85, 0.5) if float(qual["success"]) < 0.999 else UiTokens.TEXT)
+	_detail.add_child(odds)
 	var stats := LevelDisplay.stat_lines(out_def)
 	if not stats.is_empty():
 		var st := Label.new()
@@ -611,6 +629,25 @@ func _mk_btn(text: String, cb: Callable, minsz: Vector2) -> Button:
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
 	b.pressed.connect(cb)
 	return b
+
+## CRAFTFEEL: the stake lines of a recipe card. Success, flawless, the inherited primary traits, and —
+## only when a failure is possible — that the materials are lost. A recipe that cannot fall short
+## (required_ability 0, every recipe today) reads "Success 100 %", like the skewer in spec 25 §8.
+static func craftfeel_text(qual: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	lines.append("Success %d%%   Flawless %d%%" % [int(round(float(qual.get("success", 1.0)) * 100.0)), int(round(float(qual.get("flawless", 0.0)) * 100.0))])
+	var req := float(qual.get("required_ability", 0.0))
+	if req > 0.0:
+		lines.append("Ability %.0f / %.0f needed" % [float(qual.get("ability", 0.0)), req])
+	var inherited: Array = qual.get("inherited", [])
+	if not inherited.is_empty():
+		var names: PackedStringArray = []
+		for a: Variant in inherited:
+			names.append(str(a).replace("_", " ").capitalize())
+		lines.append("Inherits: %s" % ", ".join(names))
+	if bool(qual.get("loses_materials", false)):
+		lines.append("Materials are lost on failure.")
+	return "\n".join(lines)
 
 ## Spec 31 §10 preview lines: expected level, base storage, inherited storage attributes, Pocket,
 ## other modifiers, final expected capacity, and the survivor's capacity wearing it. Numbers come from

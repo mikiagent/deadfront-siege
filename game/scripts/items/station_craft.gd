@@ -33,6 +33,9 @@ var _hand_tool: Node3D
 var _hand_craft: bool = false  # recipe with no station: crafts in place over the survivor
 var _batch_total: int = 1
 var _burnt: bool = false
+## The craft's decided plan (Crafting.plan_for_player): outcome, burn and level, kept across a
+## full-bag wait so a retry can never re-roll them.
+var _plan: Dictionary = {}
 ## Injectable for reproducible burn rolls (tests, server).
 var rng: RandomNumberGenerator = null
 
@@ -233,6 +236,17 @@ func _start_craft_cycle() -> void:
 		_load_process_station(ps, rec)
 		return
 	_picks = Crafting.default_picks(player.inventory, rec)
+	# The card's previewed instances, wherever the bag moved them while the survivor walked over.
+	# Only the batch's first craft: a queued repeat takes whatever the bag holds then.
+	if queue_left + 1 == _batch_total:
+		for i in mini(_picks.size(), _pick_uids.size()):
+			if _pick_uids[i] != "":
+				var moved := _bag_index_of(_pick_uids[i])
+				if moved < 0:
+					player.notice("Craft stopped: its materials left the bag.")
+					_clear_session()
+					return
+				_picks[i] = moved
 	var blocked := Crafting.progression_block(player, rec)
 	if blocked != "":
 		player.notice(blocked)
@@ -247,8 +261,15 @@ func _start_craft_cycle() -> void:
 		print("[craft] blocked %s: needs %s" % [recipe_id, Crafting.missing_ingredient_name(player.inventory, rec)])
 		_clear_session()
 		return
-	_burnt = Crafting.rolls_burn(rec, Crafting.skill_level_for(rec, player), rng)
-	if not Crafting.output_fits(player.inventory, rec, _picks, _burnt, player):
+	# CRAFTFEEL: the outcome, the burn roll and the output level are decided once, when the work
+	# starts, and kept: a full bag waits for room and then reuses this plan instead of re-rolling.
+	_plan = Crafting.plan_for_player(player, rec, _picks, rng)
+	_burnt = bool(_plan.get("burnt", false))
+	if _plan.is_empty():
+		Crafting.refuse_full(player, rec)
+		_clear_session()
+		return
+	if not Crafting.plan_fits(player.inventory, rec, _plan):
 		Crafting.refuse_full(player, rec)
 		_clear_session()
 		return
@@ -257,7 +278,10 @@ func _start_craft_cycle() -> void:
 	_full_wait = 0.0
 	_told_full = false
 	crafting = true
-	print("[craft] start %s %.1fs" % [recipe_id, duration])
+	print("[craft] start %s %.1fs burn=%s success=%s" % [recipe_id, duration, _burnt, bool((_plan.get("outcome", {}) as Dictionary).get("success", true))])
+	# CRAFTFEEL (plan §3.3): the odds and the loss warning ride on the live craft card, not only on
+	# the menu's detail pane, so the stakes stay on screen while the survivor works.
+	_show_card(rec)
 	if player.anim:
 		player.anim.on_gather(&"craft")
 	if station and is_instance_valid(station):
@@ -323,7 +347,16 @@ func _show_card(rec: Dictionary) -> void:
 			"icon": card.icon_for(def_id),
 			"glyph": str(def_id).substr(0, 1).to_upper() if str(def_id) != "" else "?",
 		})
-	card.show_recipe(station, str(rec.get("display_name", recipe_id)), rows, progress, queue_left + 1)
+	# CRAFTFEEL: the card carries the same stake lines the detail pane showed (CraftUI.craftfeel_text),
+	# built from the plan's own picks so the card and the craft describe one craft.
+	var picks := _picks
+	if picks.is_empty() or not Crafting.picks_valid(player.inventory, rec, picks):
+		picks = Crafting.default_picks(player.inventory, rec)
+	var primary: ItemStack = null
+	if picks.size() > Crafting.primary_index(rec) and picks[Crafting.primary_index(rec)] >= 0:
+		primary = player.inventory.slots[picks[Crafting.primary_index(rec)]]
+	var odds: String = CraftUI.craftfeel_text(Crafting.preview_quality(rec, player, primary))
+	card.show_recipe(station, str(rec.get("display_name", recipe_id)), rows, progress, queue_left + 1, odds)
 
 ## Overflow units waiting for a free slot (see _finish_one); put back as soon as the bag takes them.
 func _flush_overflow() -> void:
@@ -355,21 +388,33 @@ func _process(delta: float) -> void:
 			return
 		progress = minf(1.0, progress + delta / maxf(0.05, duration))
 		_show_ring(Crafting.recipe(recipe_id))
+		if card and card.visible:
+			card.set_progress(progress)
 		if progress >= 1.0:
 			_full_wait -= delta
 			if _full_wait <= 0.0:
 				_finish_one()
 
-## Consume the inputs and add the output in one step. A full bag pauses the finished craft
-## (inputs untouched) until there is room; inputs that left the bag stop it.
+## Finish the craft that was planned when the work started. A full bag pauses it (inputs untouched,
+## the same plan re-checked) until there is room; a planned instance that left the bag stops it with
+## no substitution (spec 08:98). The outcome is never re-rolled on a retry.
 func _finish_one() -> void:
 	var rec := Crafting.recipe(recipe_id)
-	_picks = Crafting.default_picks(player.inventory, rec)
-	if not Crafting.picks_valid(player.inventory, rec, _picks):
+	if _plan.is_empty():
+		_plan = Crafting.plan_for_player(player, rec, Crafting.default_picks(player.inventory, rec), rng)
+		if _plan.is_empty():
+			player.notice("Craft stopped: its materials left the bag.")
+			_clear_session()
+			return
+	var picks := Crafting.plan_picks(player.inventory, rec, _plan)
+	if picks.is_empty():
 		player.notice("Craft stopped: its materials left the bag.")
 		_clear_session()
 		return
-	if not Crafting.output_fits(player.inventory, rec, _picks, _burnt, player):
+	_picks = picks
+	# A failure spends the picked instances and needs no bag room (spec 25 §8).
+	var success := bool((_plan.get("outcome", {}) as Dictionary).get("success", true))
+	if success and not Crafting.plan_fits(player.inventory, rec, _plan):
 		if not _told_full:
 			_told_full = true
 			player.notice("Bag is full: make room to finish the %s." % str(rec.get("display_name", recipe_id)))
@@ -377,21 +422,27 @@ func _finish_one() -> void:
 		return
 	_full_wait = 0.0
 	_told_full = false
-	var consumed := Crafting.consume_for_craft(player.inventory, rec, _picks)
 	var overflow: Array[ItemStack] = []
-	var out := Crafting.finish_craft(player, rec, consumed, _burnt, overflow)
+	var res := Crafting.run_plan(rec, player.inventory, _plan, overflow)
+	Crafting.report_plan(player, rec, res)
+	var out: ItemStack = res.get("item", null)
 	if not overflow.is_empty():
-		# output_fits runs first, so this should be unreachable; if it is ever hit, the units are
+		# plan_fits runs first, so this should be unreachable; if it is ever hit, the units are
 		# held here and retried every tick instead of being dropped silently.
-		push_error("[craft] output_fits passed but %d units overflowed; retrying the add" % overflow[0].count)
+		push_error("[craft] plan_fits passed but %d units overflowed; retrying the add" % overflow[0].count)
 		for left in overflow:
 			_pending_overflow.append(left)
 	if out:
 		if toast:
 			toast.show_gain(out.def_id, out.count)
 		player.toast(out.def_id, out.count)
+	if str(res.get("status", "")) == "left":
+		_clear_session()
+		return
 	crafting = false
 	progress = 0.0
+	_plan = {}
+	_burnt = false
 	if queue_left > 0:
 		queue_left -= 1
 		_start_craft_cycle()
@@ -418,6 +469,7 @@ func _clear_session() -> void:
 	_hand_craft = false
 	_picks.clear()
 	_pick_uids.clear()
+	_plan = {}
 	if card:
 		card.hide_card()
 	_hide_ring()

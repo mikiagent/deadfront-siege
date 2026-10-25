@@ -1173,12 +1173,21 @@
         {
           "category": "raw_meat",
           "count": 1,
-          "primary": true
+          "primary": true,
+          "role": "food",
+          "label": "Food"
         },
         {
           "category": "handle",
           "count": 1,
-          "primary": false
+          "primary": false,
+          "role": "tool",
+          "label": "Tool",
+          "allowed_ids": [
+            "branch",
+            "raptor_bone",
+            "bone"
+          ]
         }
       ],
       "output": {
@@ -1200,12 +1209,21 @@
         {
           "category": "meat",
           "count": 1,
-          "primary": true
+          "primary": true,
+          "role": "food",
+          "label": "Food"
         },
         {
           "category": "handle",
           "count": 1,
-          "primary": false
+          "primary": false,
+          "role": "tool",
+          "label": "Tool",
+          "allowed_ids": [
+            "branch",
+            "raptor_bone",
+            "bone"
+          ]
         }
       ],
       "output": {
@@ -1662,7 +1680,8 @@
       "seconds": 12,
       "process_step": "bind",
       "process_add": 1,
-      "requires_node": "iron_weapons"
+      "requires_node": "iron_weapons",
+      "required_ability": 95
     },
     {
       "id": "raid_helm",
@@ -1697,7 +1716,8 @@
       "seconds": 12,
       "process_step": "bind",
       "process_add": 1,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 95
     },
     {
       "id": "raid_cuirass",
@@ -1732,7 +1752,8 @@
       "seconds": 12,
       "process_step": "bind",
       "process_add": 1,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 95
     },
     {
       "id": "raid_greaves",
@@ -1767,7 +1788,8 @@
       "seconds": 12,
       "process_step": "bind",
       "process_add": 1,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 95
     },
     {
       "id": "bone_hammer",
@@ -2165,7 +2187,8 @@
       "station": "workbench",
       "seconds": 8,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "required_ability": 50
     },
     {
       "id": "forager_vest",
@@ -2198,7 +2221,8 @@
       "station": "workbench",
       "seconds": 8,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "required_ability": 50
     },
     {
       "id": "forager_wraps",
@@ -2231,7 +2255,8 @@
       "station": "workbench",
       "seconds": 8,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "required_ability": 50
     },
     {
       "id": "forager_leggings",
@@ -2264,7 +2289,8 @@
       "station": "workbench",
       "seconds": 8,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "required_ability": 50
     },
     {
       "id": "hide_bone_helm",
@@ -2297,7 +2323,8 @@
       "station": "workbench",
       "seconds": 8,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "required_ability": 70
     },
     {
       "id": "hide_bone_cuirass",
@@ -2330,7 +2357,8 @@
       "station": "workbench",
       "seconds": 8,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "required_ability": 70
     },
     {
       "id": "hide_bone_bracers",
@@ -2363,7 +2391,8 @@
       "station": "workbench",
       "seconds": 8,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "required_ability": 70
     },
     {
       "id": "hide_bone_greaves",
@@ -2396,7 +2425,8 @@
       "station": "workbench",
       "seconds": 8,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "required_ability": 70
     },
     {
       "id": "bone_knife",
@@ -3357,7 +3387,8 @@
       "process_step": "bind",
       "process_add": 1,
       "tree": "tailoring",
-      "min_level": 20
+      "min_level": 20,
+      "required_ability": 60
     },
     {
       "id": "leather_cuirass",
@@ -3390,7 +3421,8 @@
       "process_step": "bind",
       "process_add": 1,
       "tree": "tailoring",
-      "min_level": 20
+      "min_level": 20,
+      "required_ability": 60
     },
     {
       "id": "leather_bracers",
@@ -3423,7 +3455,8 @@
       "process_step": "bind",
       "process_add": 1,
       "tree": "tailoring",
-      "min_level": 20
+      "min_level": 20,
+      "required_ability": 60
     },
     {
       "id": "leather_greaves",
@@ -3456,7 +3489,8 @@
       "process_step": "bind",
       "process_add": 1,
       "tree": "tailoring",
-      "min_level": 20
+      "min_level": 20,
+      "required_ability": 60
     },
     {
       "id": "copper_helm",
@@ -3490,7 +3524,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 35,
-      "requires_node": "armor_1"
+      "requires_node": "armor_1",
+      "required_ability": 75
     },
     {
       "id": "copper_cuirass",
@@ -3524,7 +3559,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 35,
-      "requires_node": "armor_1"
+      "requires_node": "armor_1",
+      "required_ability": 75
     },
     {
       "id": "copper_bracers",
@@ -3558,7 +3594,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 35,
-      "requires_node": "armor_1"
+      "requires_node": "armor_1",
+      "required_ability": 75
     },
     {
       "id": "copper_greaves",
@@ -3592,7 +3629,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 35,
-      "requires_node": "armor_1"
+      "requires_node": "armor_1",
+      "required_ability": 75
     },
     {
       "id": "bronze_helm",
@@ -3626,7 +3664,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 40,
-      "requires_node": "armor_1"
+      "requires_node": "armor_1",
+      "required_ability": 80
     },
     {
       "id": "bronze_cuirass",
@@ -3660,7 +3699,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 40,
-      "requires_node": "armor_1"
+      "requires_node": "armor_1",
+      "required_ability": 80
     },
     {
       "id": "bronze_bracers",
@@ -3694,7 +3734,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 40,
-      "requires_node": "armor_1"
+      "requires_node": "armor_1",
+      "required_ability": 80
     },
     {
       "id": "bronze_greaves",
@@ -3728,7 +3769,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 40,
-      "requires_node": "armor_1"
+      "requires_node": "armor_1",
+      "required_ability": 80
     },
     {
       "id": "iron_helm",
@@ -3762,7 +3804,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 50,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 90
     },
     {
       "id": "iron_cuirass",
@@ -3796,7 +3839,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 50,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 90
     },
     {
       "id": "iron_bracers",
@@ -3830,7 +3874,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 50,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 90
     },
     {
       "id": "iron_greaves",
@@ -3864,7 +3909,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 50,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 90
     },
     {
       "id": "steel_helm",
@@ -3898,7 +3944,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 55,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 95
     },
     {
       "id": "steel_cuirass",
@@ -3932,7 +3979,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 55,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 95
     },
     {
       "id": "steel_bracers",
@@ -3966,7 +4014,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 55,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 95
     },
     {
       "id": "steel_greaves",
@@ -4000,7 +4049,8 @@
       "process_add": 1,
       "tree": "tailoring",
       "min_level": 55,
-      "requires_node": "scute_armor"
+      "requires_node": "scute_armor",
+      "required_ability": 95
     },
     {
       "id": "forge_kit",
@@ -4782,6 +4832,7 @@
       "skill": "tailoring",
       "max_level": 60,
       "min_level": 8,
+      "required_ability": 48,
       "slots": [
         {
           "category": "dried_hide",
@@ -4845,7 +4896,8 @@
       "seconds": 6.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe).",
+      "required_ability": 60
     },
     {
       "id": "specialized_storage_bag",
@@ -4883,7 +4935,8 @@
       "seconds": 8.0,
       "process_step": "sew",
       "process_add": 1,
-      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe)."
+      "_about": "Spec 31 \u00a72/\u00a710 (BAGS): a crafted bag is an instance; its storage comes from data/bags.json's curve at its level plus storage attributes inherited from the primary material. ASSUMPTION materials and counts (the PRDs give no bag recipe).",
+      "required_ability": 70
     },
     {
       "id": "plank_shape",
