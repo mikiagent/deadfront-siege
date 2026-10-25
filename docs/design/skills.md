@@ -21,3 +21,10 @@ The existing twelve-tree skills research concerns **individual earned proficienc
 - The baseline-survivor fallback on full human-tribe extinction preserves the ability to continue, with exact remaining tribe/domain/world state **OPEN**.
 
 **Implementation prerequisite:** separate the controller from the human character record, then migrate all save data and make skill allocation, equipment and labor actions reference specific character IDs. Do not keep singleton avatar skill/XP as the sole authoritative source once switching is supported.
+
+
+## Growth-phase education and sex-independent careers (2026-10-25)
+
+In the new [offspring and identity design](safe-home-expeditions-offspring-and-identity.md), children grow on **timers** using sustained food supplies; food **quality in each growth phase** influences expression of future stats. During a youth-learning period they can study with assigned mentors, teachers or facilities. When adults become controllable they retain **their own personally earned low level and growth history**, not their parents' mastered skills. Nursery and education facilities may enable social/professional opportunities but cannot instantly clone a veteran.
+
+Human sex affects a proposed overlapping *starting distribution* for stature/strength and certain caretaker/heavy-labor role inclinations; **all skills and careers remain available to everyone**. Both sexes have the same baseline intelligence distribution. Women can be capable warriors with bows, crossbows, firearms and tactical training, with exceptional melee warriors possible. Men can specialize as doctors, nurses and educators. Effective educators, nurses, doctors and pharmacists should provide measurable development, recovery and combat-readiness benefits. These are fictional game design parameters, **not claims about real-world universal ability differences**. Numeric probabilities and role modifiers are unapproved until balancing.
