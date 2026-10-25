@@ -120,7 +120,7 @@ Human reproduction is **extremely resource-consuming** and remains taxing at end
 
 **Absolutely no reset on character adoption:** The base, equipment, research/world state, dinosaurs, all other living humans, and every prior character's hard-earned levels and skills **remain**. Control transfers to a new, individually low-level survivor who gains XP and skills in their own career. The former avatar can work at base stations using their existing training and gear. This is an ongoing civilization and roster, not a New Game+ that erases anything. Transfer can also conceptually occur between existing eligible survivors; final switching restrictions remain open.
 
-**Tribe-wipe fallback:** If all human tribe members die, a **new default playable survivor** with mediocre baseline innate stats appears, allowing the player to rebuild. Exactly how much property, research and territory survives a full wipe remains **open**.
+**Tribe-wipe fallback:** If all human tribe members die, a **new default playable survivor** with mediocre baseline innate stats appears. **The private home island is permanently protected**, with its stored resources and resident workers safe from enemy attack. Contested outpost losses and post-wipe ownership still need detailed policy; see [protected home / logistics / upbringing](safe-home-expeditions-offspring-and-identity.md).
 
 **Genetic intent:** Innate potential and weaknesses matter over generations; excellent combinations should be rare and costly, not unlimited inflation. Humans should remain valuable individuals with jobs and identities rather than disposable stat tokens. The specific inheritance, raising, relationship and breeding formulas are **not yet locked**.
 
@@ -135,6 +135,9 @@ The canonical detailed spec is [Tribe, Lineage, Domain and Labor](tribe-lineage-
 **Suggested UI:** `Expedition | Tribe | Creatures`, with a single slot showing both mount/rider portraits and independent health/gear. Decide the name of the legacy Animals button once Expedition navigation is prototyped.
 
 **Open:** fate of surviving mount when rider dies, player-character mount accounting, dismount, mount weapon limitations and save semantics. See [Expedition specification](tribe-lineage-domain-and-labor.md#7-expedition-slots-human-dinosaur-mounted-pair).
+
+
+**Additional owner answers, 2026-10-25:** Every player has a permanently safe private island; PvE and PvPvE **outposts are optional high-reward risk**, with a possible boat-based worker transport route back to home for permanent material storage. Human offspring grow by **timer + sustained food-quality requirements**, with childhood/youth education shaping eventual abilities. Fictional human male/female models should visibly differ on average in size/strength and preferred roles, **without any innate intelligence gap or locked profession**; women are combat-viable through firearms, bows, crossbows, tactics and training, with significant overlap and exceptional individuals of either sex. Physique should partly signal but never perfectly disclose stats. See [design specification](safe-home-expeditions-offspring-and-identity.md).
 
 ## 9. Dependency-aware roadmap (proposal, not approved schedule)
 
@@ -167,10 +170,10 @@ Before shipping a phase, define save migration, exact visible flow, focused test
 
 ### Remaining high-leverage choices
 
-1. **Territory:** Is the original home island protected while advanced PvE/PvP domain claims are vulnerable, or does any territory become raidable? Can raids kill the entire roster offline?
-2. **Parenthood/raising:** Which adult parents are eligible and what are the stages, duration, upkeep and resource bottlenecks for a child to become a playable adult?
-3. **Tribe wipe:** What survives when every human dies: the domain, gear, structures, surviving dinosaurs and collective knowledge?
-4. **Genetics:** How does inheritance combine innate potentials and drawbacks? What prevents escalating to perfect creatures and characters after a few generations?
+1. **Territory (partly resolved):** Home island is **always unraidable and permanent**. Only voluntary external outposts have PvE/PvPvE exposure. Can raiders attack contested outposts and assigned workers while offline, and can shipments be intercepted?
+2. **Parenthood/raising (partly resolved):** Offspring mature **on timers**, consuming food. **Growth-phase food quality affects expressed final stats**, and a **youth education phase** builds knowledge. Who may become parents and what are the timing/care costs?
+3. **Tribe wipe:** Protected-home resources/structures must remain safe. Which external territorial claims and combat-deployed possessions survive when every human dies?
+4. **Genetics:** Visible height/build may correlate with genes, but some appearance and hidden potential should remain surprising. How does inheritance combine potentials and drawbacks without creating perfect lineages?
 5. **Worker autonomy and losses:** What happens in offline time; do workers stop using weapons at 1 durability too; can a Monitoring Stand override safety?
 6. **Charm odds:** Does "+20% chance" mean `p -> 1.2p` (relative) or `p -> p+0.20` (percentage points), and may bonuses stack?
 7. **Rider edge cases:** Does a mount stay deployed or return home if its rider dies, and does the player-controlled survivor's own mount occupy an active companion slot?
