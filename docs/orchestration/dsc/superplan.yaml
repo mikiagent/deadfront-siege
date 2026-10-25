@@ -427,7 +427,7 @@ phases:
           [
             { job: ground2d, state: merged },
             { job: biomezones, state: merged },
-            { job: props2d, state: approved }
+            { job: props2d, state: merged }
           ]
         resources: [ godot ]
         rules_footer: common-footer.md
