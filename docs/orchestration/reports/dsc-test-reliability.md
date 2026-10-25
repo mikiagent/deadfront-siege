@@ -61,6 +61,11 @@ Files touched (all inside scope):
   first-frame `_process` gate that waits for the `Data` autoload (same pattern as `t_domain.gd`). No
   assertion removed. `_test_hud_event_state` loads `hud_event_state.gd` dynamically (the file already
   documented "Dynamic load avoids compiling Crafting before autoload Data exists" for its other labs).
+- `game/tests/process_checks.gd` — the XP block now records an explicit
+  `"the process XP check loads the real SkillState and Crafting"` result and only runs the collect
+  path when `SkillState`/`Crafting`/`Player` load and `SK.can_instantiate()`. Previously a failed
+  compile made `.new()` error and the runner still PASSed. The real
+  `collect pays Processing XP per dried meat, once` assertion is unchanged.
 - `game/scripts/skills/skill_state.gd` — added `static func world()` / `static func data()` that resolve
   the autoloads through `Engine.get_main_loop().root.get_node_or_null(...)`; `_ready()`, `add_xp()`,
   `character_level()`, `character_progress()` and `_mirror_survival()` now use them. Behaviour is
