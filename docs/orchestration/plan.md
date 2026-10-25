@@ -93,3 +93,23 @@ Order of execution (updated 2026-09-17 evening): Cursor M4a → M5 → M4 → M6
 - **Godot's headless run cannot show animation.** Visual acceptance for M1 and beyond happens in the editor window through `launch_editor` / `run_project`, with Claude Code looking at the running scene and the debug output.
 - **Codex's Meshy key** in `~/.codex/config.toml` differs from the one Claude Code and Cursor use, and the roster PRD notes an earlier key was revoked. Verify it before C1 or copy the working key across.
 - **Two agents on one working tree.** Folder ownership avoids conflicts; each agent commits only its own folders. If a prompt needs a cross-folder change, Claude Code makes it.
+
+
+## 8. 2026-10-25 design expansion (discovery, not implementation)
+
+**New design direction:** [Meaningful materials, recovery, unified construction, human workers and generations](../design/2026-10-25-systems-vision-and-open-decisions.md).
+
+This section is a **new owner-directed planning addendum**; the milestone table above is retained as historical orchestration and is not a fresh backlog. Do not assume its mobile-vs-web prioritization or old split agent assignments supersede the current `HANDOFF.md` and `GAUNTLET.md`.
+
+**Requested product shifts:**
+- Show Exhaustion falling continuously while sleeping; Sit anywhere safe to recover Exhaustion slowly and Energy; expose live numerical status effect tooltips under Health (hover, tap, keyboard focus).
+- Make almost every gathered lot carry impactful negative traits, with very rare positives and very few or no neutral results. Show results clearly and propagate/transform traits through food, materials, crafting, construction and valuation.
+- Let the player multi-select inventory items and bulk lock/unlock, drop or destroy safely.
+- Use **one Crafting catalog** for tools/food/structures: unlock and craft a blueprint item, place it as an unfinished worksite, deliver construction materials, and complete the build through labor. Retain placement/layout interaction but not a second building-recipe menu.
+- Give NPC workers individual stats, jobs and needs; assign them to base crafting/hauling/construction and future work orders.
+- Separate the **human Tribe** from the dinosaur collection. Let human descendants inherit aptitudes, grow into playable successors, and drive an intentional generational new-game-plus loop.
+- Generalize the three active animal slots into a **mixed expedition party**, potentially including human companions and human riders on mounts. Name and rider-slot rules are open.
+
+**Proposed sequencing:** A recovery/status clarity -> B inventory selection and trait visibility -> C consequential material/food traits -> D craftable blueprints and worksites -> E work-order NPCs -> F Tribe/Creatures roster separation and mixed party -> G lineage and successor progression. These are design workstreams, not implementation assignments.
+
+**Decision gate:** Answer the open questions in the linked design brief before recording balance numbers, inheritance formulas, active rider-slot accounting, or worksite refunds as binding rules. Then update the canonical subsystem design docs, data schema, save migrations, and per-phase acceptance tests. No existing implementation is declared complete by this addendum.
