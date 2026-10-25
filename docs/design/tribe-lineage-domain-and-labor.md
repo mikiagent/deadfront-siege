@@ -156,6 +156,9 @@ Owner wants **mounted riders to remain relevant in giant dinosaur melee**, rathe
 
 Owner also suggests the civilization may stay primitive. **Might early** gives survival weapons immediate utility; **Dexterity later** gives expanding craftable ranged/precision choices. Late Might stays relevant through masterwork polearms/axes, physically braced weapons, coordinated mounted charges and domesticated dinosaur specialization. Guns, Gatling guns, rockets, exosuits and mechs previously mentioned are **not approved technology progression**. [Detailed mounted combat chapter](../game-design/12-expedition-mounts-and-command.md). Exact tech cap, charge physics, foot-versus-mounted damage, species saddle eligibility and Brontosaurus move hitboxes remain OPEN.
 
+
+**2026-10-25 conditional mastery addition (owner idea):** Mounted Might/Pierce lance/spear/javelin should reward genuine **aligned closing speed and a real run-up** with a capped **Momentum Strike** rather than give every rider flat extra damage. Accurate long-distance **Dexterity/Impact** sling attacks can earn a limited **Longshot** bonus (hit quality/reward, not stone physics becoming stronger at range). The seven mount-role labels are endorsed as design names; each species/skill assignment remains a proposal. Keep **one composite rider+animal = one expedition slot** and reduce some independent mount attacks. [Role and mastery specification](../game-design/12-expedition-mounts-and-command.md).
+
 ## 8. Resource quality and targeted trait discovery
 
 **CONFIRMED:** Trait rolls are central to **durable investments**, especially a new main crossbow, high-tier tools and long-lived buildings. Food and consumables should have effects, but their value is usually immediate and much less worthy of min/max scrutiny. A material's *level* and traits both affect its long-term usefulness.
