@@ -58,7 +58,7 @@ for t in $RELATED; do
   else
     "$G" perl -e 'alarm 600; exec @ARGV' "$GD" --headless --path game --script "res://tests/$t.gd" > "$OUT/$t.log" 2>&1 || fail "$t exited non-zero (see $OUT/$t.log)"
   fi
-  grep -qE "\] PASS" "$OUT/$t.log" || fail "$t printed no PASS line (see $OUT/$t.log)"
+  grep -qE "\] PASS" "$OUT/$t.log" && ! grep -q "SCRIPT ERROR" "$OUT/$t.log" || fail "$t did not PASS cleanly (see $OUT/$t.log)"
 done
 # run_all is left to the integrator: dsc's runner kills a verify after 20 min, and slot waits add up.
 "$G" perl -e 'alarm 900; exec @ARGV' bash tools/smoke.sh --no-import > "$OUT/smoke.log" 2>&1
