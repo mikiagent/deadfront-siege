@@ -197,3 +197,12 @@ recipes should point to real products before placing the models. Generated art
 replaces the Kenney placeholders only after in-world pixel checks. New economy
 outputs, fuel rates, storage size, spoilage time and late tiers remain design
 assumptions to playtest, not shipped mechanics.
+
+
+## Domain attention, raiders, exiles and housing (2026-10-25 design direction)
+
+See the [binding-direction / open-mechanics specification](tribe-lineage-domain-and-labor.md#2-domain-pressure-raiders-and-exiled-wanderers). Tribes claim/support domains in PvE and ultimately PvP zones. A developed domain attracts raiders **and exiled wanderers seeking to join**. Humans and dinosaurs can be killed in combat, making housing, defensive infrastructure and stored equipment meaningful. The human population is constrained by **houses and supporting infrastructure**, with reproduction a major resource sink even at the endgame.
+
+**Do not silently repeal the protected-home rule above:** whether the original home island is always protected and advanced domain claims are vulnerable is **OPEN**. Define zone safety, raid warning, offline raiding, siege loss, claim persistence and fallback baseline-survivor location before implementing attacks. Real PvP requires a trusted server; NPC raids are PvE. The current home island layout and creature spawn rules remain as documented until an owner decision and migration plan are approved.
+
+**Proposed construction dependencies:** shelters and housing -> supported population, materials/food and childcare infrastructure -> new members, storage/logistics -> autonomous mining/lumbering/crafting, fortifications -> defense. Do not equate a placed bed with an unlimited worker.
