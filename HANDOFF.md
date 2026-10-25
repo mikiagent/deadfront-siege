@@ -225,6 +225,14 @@ Newest instruction supersedes older contradictions.
 
 See [`docs/design/2026-10-25-systems-vision-and-open-decisions.md`](docs/design/2026-10-25-systems-vision-and-open-decisions.md). Milan requested a planning pass, not a code change: continuous sleep relief, ground sitting, numeric hover/tap effect details, consequential mostly-negative gathered traits with rare positives affecting food and crafting, bulk inventory actions, one crafting-to-blueprint-to-worksite construction flow, statted assignable human workers, a separate human Tribe with inherited playable generations/new-game-plus, and a mixed three-slot expedition party for people, dinosaurs and mounted riders. The document distinguishes confirmed direction from unresolved balance/slot/lineage decisions. Do not call these systems shipped or replace older save/placement behavior without migration and targeted regression coverage. The priority queue below is older execution guidance, not approval to skip these product decisions.
 
+
+### Owner answers: generational tribe, labor, domain and mounted party (2026-10-25)
+
+The companion [Tribe, Lineage, Domain and Labor specification](docs/design/tribe-lineage-domain-and-labor.md) records the newest user-approved *direction*, overriding earlier hypothetical reset and mount rules: switching playable humans **never resets** pre-existing world/gear/base/tribe/career progression; the new person has their own low level and learns skills. Former player characters remain trainable workers, keeping acquired crafting skills. Human population requires houses/infrastructure; reproduction remains costly even at endgame; human/dinosaur breeding selectively improves heritable potential; ordinary wild dinosaurs have spiky, usually mediocre stats. Tribe members and dinosaurs can die in PvE/PvP; a human wipe produces a new low/mediocre baseline survivor. PvE/PvP-zone domains attract hostile raiders and exiled wanderers who may join. Workers use self-directed skill-suitable jobs, mining/lumbering facilities, equipment, Monitoring Stand priorities, and halt work-tool use at **1 durability**. A rider+dinosaur is **one of three Expedition companion slots**, with better coordination and rider-led combat but reduced independent beast attacks; "1+1=1.5" is *a qualitative synergy target*.
+
+Long-term permanent death, genetics, raid safety, childcare duration, tribe wipe property retention and true online PvP have unresolved decisions. None of these are shipped. Traits are intended especially for durable tools/structures/weapons and as food-buff modifiers; rare treasure charms can favor a named beneficial gather trait, but the example "+20% chance" still needs its probability interpretation. Keep the existing code/release state separate from this planning direction.
+
+
 ## 9. Product direction and open queue
 
 Execute in this priority order unless Milan overrides it.
