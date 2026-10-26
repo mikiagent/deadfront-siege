@@ -16,6 +16,7 @@ var PetRecordS: GDScript
 var ItemStackS: GDScript
 var InventoryS: GDScript
 var CorpseS: GDScript
+var HarvestNodeScene: PackedScene
 
 func _process(_delta: float) -> bool:
 	if _started:
@@ -28,6 +29,7 @@ func _process(_delta: float) -> bool:
 	ItemStackS = load("res://scripts/items/item_stack.gd")
 	InventoryS = load("res://scripts/items/inventory.gd")
 	CorpseS = load("res://scripts/creatures/corpse.gd")
+	HarvestNodeScene = load("res://scenes/world/harvest_node.tscn")
 	_run.call_deferred()
 	return false
 
@@ -67,6 +69,7 @@ func _run() -> void:
 	player.vitals.max_health = 1000.0
 	player.vitals.health = 1000.0
 	await _test_grounded()
+	await _test_tree_resource_pools()
 	await _test_roll()
 	await _test_hold_and_manual_swing()
 	await _test_f_skips_pets()
@@ -110,6 +113,53 @@ func _reset_at(pos: Vector3) -> void:
 	player.global_position = pos
 	player.vitals.energy = player.vitals.max_energy
 	await _frames(20)
+
+## gather-tree-01: selecting wood logs equips an axe and may consume every log, but the tree
+## must remain both visible and selectable while it still has branches. It only disappears once
+## all of its resource pools are empty.
+func _test_tree_resource_pools() -> void:
+	await _reset_at(Vector3(0, 1.0, 0))
+	var tree = HarvestNodeScene.instantiate()
+	tree.setup(&"test_common_tree", &"wood_log", 1, 1, {"level": 1, "climate": "temperate"}, &"axe", Color(0.35, 0.6, 0.25), 0.1, 8.0, "CommonTree", false, 2)
+	tree.position = Vector3(1.2, 0.0, 0.0)
+	host.add_child(tree)
+	await physics_frame
+	var log_option := _harvest_option(tree, &"wood_log")
+	var branch_option := _harvest_option(tree, &"branch")
+	_expect(log_option >= 0 and branch_option >= 0, "CommonTree offers separate log and branch choices")
+	if log_option < 0 or branch_option < 0:
+		tree.queue_free()
+		return
+	tree.restore_pools({
+		"pools": {"wood_log": 2.0, "branch": 2.0},
+		"maxes": {"wood_log": 2, "branch": 2},
+		"regen": {},
+	})
+	if not player.inventory.has_tool_class(&"axe"):
+		player.inventory.add(ItemStackS.make(&"work_axe", 1))
+	var started: bool = player.actions.gather(tree, log_option)
+	var held = player.inventory.equipped_gather_tool()
+	_expect(started and held != null and held.def().tool_class == &"axe", "choosing logs automatically equips an axe")
+	player.actions.finish_gather()
+	player.actions.finish_gather()
+	_expect(tree.units_left_for(&"wood_log") == 0, "each gather cycle consumes one selected log")
+	_expect(tree.units_left_for(&"branch") == 2 and not tree.depleted and tree.visible, "the last log leaves a branch-bearing tree alive and visible")
+	var nearest = player.controls._nearest_harvest_node(2.6)
+	_expect(nearest == tree, "the hands shortcut can still select a tree with branches after its logs are gone")
+	var branch_started: bool = player.actions.gather(tree, branch_option)
+	_expect(branch_started, "the remaining branch choice starts gathering on the same tree")
+	player.actions.finish_gather()
+	player.actions.finish_gather()
+	_expect(tree.depleted and not tree.visible, "the tree disappears only after every resource pool is empty")
+	tree.queue_free()
+	await process_frame
+
+func _harvest_option(node, item: StringName) -> int:
+	var options: Array = node.options()
+	for i in options.size():
+		if StringName(str(options[i].get("item", ""))) == item:
+			return i
+	return -1
 
 ## pc-anim-01: the rig's lowest bone sits on the floor at idle (was 0.95 m above it).
 func _test_grounded() -> void:

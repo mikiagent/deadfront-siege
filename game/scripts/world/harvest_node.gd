@@ -181,6 +181,12 @@ func _all_empty() -> bool:
 			return false
 	return true
 
+## A node stays selectable until every one of its resource pools is exhausted. Callers that only
+## inspect `pool_units_left()` accidentally treat an empty active choice (for example wood logs)
+## as a depleted tree even when branches or fruit remain.
+func has_harvests_left() -> bool:
+	return not _all_empty()
+
 func units_left_for(item: StringName) -> int:
 	if pools.has(str(item)):
 		return maxi(0, int(floor(float(pools[str(item)]) + 0.0001)))
@@ -471,7 +477,9 @@ func refresh_batched_visual() -> void:
 
 func _apply_batch() -> void:
 	if _empty_batch:
-		var full := berries_available()
+		# An empty visual represents an exhausted node, not merely an exhausted berry choice. A
+		# multi-yield tree or bush must stay in its full state while any other resource remains.
+		var full := has_harvests_left()
 		_batch.set_shown(_batch_idx, visible and full)
 		_empty_batch.set_shown(_empty_batch_idx, visible and not full)
 	elif _batch:

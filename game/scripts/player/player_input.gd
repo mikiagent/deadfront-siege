@@ -469,7 +469,7 @@ func _nearest_harvest_node(radius: float = INTERACT_GATHER_RANGE) -> HarvestNode
 	var best_d := radius
 	for n in p.get_tree().get_nodes_in_group("harvest"):
 		var hn := n as HarvestNode
-		if hn == null or not is_instance_valid(hn) or hn.pool_units_left() <= 0:
+		if hn == null or not is_instance_valid(hn) or not hn.has_harvests_left():
 			continue
 		var d := p.global_position.distance_to(hn.global_position)
 		if d < best_d:
