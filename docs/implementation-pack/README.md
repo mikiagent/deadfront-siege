@@ -12,6 +12,8 @@
 4. [02-SPEC-CONTRACT.md](02-SPEC-CONTRACT.md): the mandatory specification format for each complex mechanic.
 5. [03-EXECUTION-PROTOCOL.md](03-EXECUTION-PROTOCOL.md): how a coding agent loads only relevant specs, develops, tests and reports.
 6. [04-CLAUDE-BOOTSTRAP-PROMPT.md](04-CLAUDE-BOOTSTRAP-PROMPT.md): copyable entry prompt for a future fresh-build repository.
+7. [06-WORKED-EXAMPLE-PLATFORM-SADDLE.md](06-WORKED-EXAMPLE-PLATFORM-SADDLE.md): example rules, state transitions, shared ammo invariants and numerical mass fixtures, explicitly marked unapproved.
+8. [07-CLAUDE-ROOT-TEMPLATE.md](07-CLAUDE-ROOT-TEMPLATE.md): persistent context template to copy into a **new** repo as `CLAUDE.md`, without changing this live project's agent instructions.
 
 ## What the agent receives per task
 
