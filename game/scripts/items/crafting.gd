@@ -129,7 +129,11 @@ static func slot_level_contributions(inv: Inventory, rec: Dictionary, picks: Arr
 	for i in plan.size():
 		for part in plan[i]["parts"]:
 			var stack := inv.slots[int(part["idx"])]
-			out.append({"slot": i, "level": stack.level, "count": int(part["count"]), "def_id": str(stack.def_id)})
+			out.append({
+				"slot": i, "level": stack.level, "count": int(part["count"]),
+				"def_id": str(stack.def_id), "attributes": stack.attributes.duplicate(true),
+				"primary": i == primary_index(rec) and int(part["idx"]) == int(plan[i]["lead"]),
+			})
 	return out
 
 static func skill_level_for(rec: Dictionary, player: Player = null) -> int:

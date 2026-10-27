@@ -42,6 +42,13 @@ func _shot_setup() -> void:
 		_player.anim.on_gather()
 	if _player.station_craft:
 		_player.station_craft._sync_hand_tool()
+	if Game.shot_path.contains("material_preview"):
+		_player.inventory.add(ItemStack.make(&"raw_meat", 1, {"quality": -2}, 3))
+		_player.inventory.add(ItemStack.make(&"branch", 1, {"grain": "straight"}, 4))
+		_player.craft_ui.show_for_station(&"bonfire")
+		_player.craft_ui._choose_recipe("skewer")
+		print("[ui] material preview shot ready")
+		return
 	if Game.shot_path.contains("held"):
 		if _player.station_craft and _player.station_craft.held_slot:
 			_player.station_craft.held_slot.refresh()

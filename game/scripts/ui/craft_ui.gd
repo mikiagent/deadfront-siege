@@ -438,6 +438,7 @@ func _show_detail(info: Dictionary) -> void:
 	need.add_theme_color_override("font_color", UiTokens.META)
 	_detail.add_child(need)
 	_detail.add_child(_ingredients_row(rec))
+	_add_material_preview(rec)
 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
 	if missing != "":
 		var lock := Label.new()
@@ -453,6 +454,48 @@ func _show_detail(info: Dictionary) -> void:
 		lock.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)
 		_detail.add_child(lock)
+
+## These are the current automatic picks, not a reservation: they can change
+## before the player reaches a station or between queued crafts.
+func _add_material_preview(rec: Dictionary) -> void:
+	var picks := Crafting.default_picks(player.inventory, rec)
+	var lots := Crafting.slot_level_contributions(player.inventory, rec, picks)
+	if lots.is_empty():
+		return
+	var heading := Label.new()
+	heading.text = "MATERIALS FOR NEXT CRAFT"
+	heading.add_theme_font_size_override("font_size", _material_font_size(UiTokens.meta(get_viewport_rect().size)))
+	heading.add_theme_color_override("font_color", UiTokens.META)
+	_detail.add_child(heading)
+	for lot: Dictionary in lots:
+		var item := Data.item(StringName(str(lot.get("def_id", ""))))
+		var item_name := item.display_name if item and item.display_name != "" else str(lot.get("def_id", ""))
+		var line := Label.new()
+		line.text = "%s ×%d · Lv %d%s" % [item_name, int(lot.get("count", 0)), int(lot.get("level", 1)), " · primary" if bool(lot.get("primary", false)) else ""]
+		var attributes: Dictionary = lot.get("attributes", {})
+		if not attributes.is_empty():
+			var attribute_lines: PackedStringArray = []
+			for key: Variant in attributes:
+				attribute_lines.append("%s: %s" % [str(key).replace("_", " ").capitalize(), str(attributes[key])])
+			line.text += "\n" + " · ".join(attribute_lines)
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.add_theme_font_size_override("font_size", _material_font_size(UiTokens.body(get_viewport_rect().size)))
+		line.add_theme_color_override("font_color", UiTokens.TEXT)
+		_detail.add_child(line)
+	var note := Label.new()
+	note.text = "The primary material supplies the output's attributes. Picks may change before crafting starts or between queued crafts."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_font_size_override("font_size", _material_font_size(UiTokens.meta(get_viewport_rect().size)))
+	note.add_theme_color_override("font_color", UiTokens.META)
+	_detail.add_child(note)
+
+func _material_font_size(base: int) -> int:
+	if not OS.has_feature("mobile") and "--touch" not in OS.get_cmdline_user_args():
+		return base
+	var window_width := float(DisplayServer.window_get_size().x)
+	if window_width <= 0.0:
+		return base
+	return int(ceil(float(base) * maxf(1.0, get_viewport_rect().size.x / window_width)))
 
 func _selected_recipe() -> Dictionary:
 	for rec in Crafting.recipes_for_station(StringName(_station)):
