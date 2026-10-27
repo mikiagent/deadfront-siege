@@ -1,10 +1,10 @@
 species,kind,item,min,max,butcher_skill,attributes
 zebraceratops,base,raptor_meat,2,3,,
-zebraceratops,base,raptor_bone,2,3,,"hardness=2, tint=#e8dcc8"
+zebraceratops,base,raptor_bone,2,3,,hardness=2;tint=#e8dcc8
 zebraceratops,base,raw_hide,1,2,,tint=#4a4a4a
 zebraceratops,base,dense_bone,1,2,,
 zebraceratops,base,armor_scute,1,1,,
-zebraceratops,rare,raptor_bone,1,1,1,"hardness=4, frill=1, tint=#e9d9c2"
+zebraceratops,rare,raptor_bone,1,1,1,hardness=4;frill=1;tint=#e9d9c2
 compsognathus,base,raw_meat,2,4,,
 compsognathus,base,bone,1,2,,
 compsognathus,base,raw_hide,1,1,,
@@ -14,16 +14,16 @@ coelophysis,base,bone,1,2,,
 coelophysis,base,raw_hide,1,1,,
 coelophysis,base,predator_tendon,1,2,,
 protoceratops,base,raptor_meat,3,4,,
-protoceratops,base,raptor_bone,2,3,,"hardness=2, tint=#e8dcc8"
+protoceratops,base,raptor_bone,2,3,,hardness=2;tint=#e8dcc8
 protoceratops,base,raw_hide,1,2,,tint=#c4b08a
 protoceratops,base,dense_bone,1,2,,
 protoceratops,base,armor_scute,1,1,,
-protoceratops,rare,raptor_bone,1,1,1,"hardness=4, frill=1, tint=#efe6d4"
+protoceratops,rare,raptor_bone,1,1,1,hardness=4;frill=1;tint=#efe6d4
 velociraptor,base,raptor_meat,2,3,,
-velociraptor,base,raptor_bone,1,2,,"hardness=2, tint=#d4c4a8"
-velociraptor,base,raptor_hide,1,1,,"feathered=1, tint=#6b5a3e"
+velociraptor,base,raptor_bone,1,2,,hardness=2;tint=#d4c4a8
+velociraptor,base,raptor_hide,1,1,,feathered=1;tint=#6b5a3e
 velociraptor,base,predator_tendon,1,2,,
-velociraptor,rare,raptor_talon,1,1,1,"hardness=3, tint=#c9b48a"
+velociraptor,rare,raptor_talon,1,1,1,hardness=3;tint=#c9b48a
 gallimimus,base,raw_meat,4,7,,
 gallimimus,base,bone,2,3,,
 gallimimus,base,raw_hide,1,2,,
@@ -31,8 +31,8 @@ megaloceros,base,raw_meat,2,4,,
 megaloceros,base,bone,1,2,,
 megaloceros,base,raw_hide,1,1,,
 deinonychus,base,raptor_meat,2,4,,
-deinonychus,base,raptor_bone,1,2,,"hardness=2, tint=#cbb892"
-deinonychus,base,raptor_hide,1,1,,"feathered=1, tint=#5a4630"
+deinonychus,base,raptor_bone,1,2,,hardness=2;tint=#cbb892
+deinonychus,base,raptor_hide,1,1,,feathered=1;tint=#5a4630
 deinonychus,base,predator_tendon,1,2,,
 deinonychus,rare,raptor_talon,1,1,1,hardness=3
 dilophosaurus,base,raw_meat,4,7,,
@@ -63,8 +63,8 @@ ankylosaurus,base,raw_hide,2,4,,
 ankylosaurus,base,dense_bone,1,2,,
 ankylosaurus,base,armor_scute,1,1,,
 utahraptor,base,raptor_meat,3,5,,
-utahraptor,base,raptor_bone,2,3,,"hardness=3, tint=#c2b089"
-utahraptor,base,raptor_hide,1,2,,"feathered=1, tint=#4a3a28"
+utahraptor,base,raptor_bone,2,3,,hardness=3;tint=#c2b089
+utahraptor,base,raptor_hide,1,2,,feathered=1;tint=#4a3a28
 utahraptor,base,predator_tendon,1,2,,
 utahraptor,rare,raptor_talon,1,1,2,hardness=4
 triceratops,base,raw_meat,8,14,,

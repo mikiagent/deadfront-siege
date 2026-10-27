@@ -1,8 +1,8 @@
 station,label,slots,fx,recipe,seconds
-crock_pot,Stewing,1,steam,camp_stew,{'seconds': 180}
-drying_rack,Drying,4,smoke,dried_hide,{'seconds': 600}
-drying_rack,Drying,4,smoke,dry_meat,{'seconds': 600}
-smoker,Smoking,4,smoke,smoke_meat,{'seconds': 900}
-steamer,Steaming,2,steam,steam,{'seconds': 60}
-workbench,Crafting,1,,fine_plank,{'seconds': 12}
-workbench,Crafting,1,,trimmed_plank,{'seconds': 12}
+crock_pot,Stewing,1,steam,camp_stew,180
+drying_rack,Drying,4,smoke,dried_hide,600
+drying_rack,Drying,4,smoke,dry_meat,600
+smoker,Smoking,4,smoke,smoke_meat,900
+steamer,Steaming,2,steam,steam,60
+workbench,Crafting,1,,fine_plank,12
+workbench,Crafting,1,,trimmed_plank,12
