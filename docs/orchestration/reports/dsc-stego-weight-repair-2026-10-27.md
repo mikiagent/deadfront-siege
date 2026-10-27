@@ -62,23 +62,24 @@ centroid moves away from the body surface, in metres, beyond its rest gap.
 | clip | max before → after | p99 before → after | bone p99.5 before → after | plate sep before → after |
 |---|---|---|---|---|
 | idle | 1.07 → 1.06 | 1.02 → 1.01 | 1.05 → 1.02 | 0.001 → 0.001 |
-| walk | 4.65 → 2.55 | 1.33 → 1.17 | 2.80 → 1.98 | 0.001 → 0.001 |
-| run | 5.74 → 3.15 | 1.62 → 1.23 | 3.51 → 2.42 | 0.001 → 0.001 |
-| alert | 1.12 → 1.13 | 1.03 → 1.03 | 1.10 → 1.08 | 0.000 → 0.001 |
-| attack_primary | 1.69 → 1.54 | 1.15 → 1.10 | 1.48 → 1.26 | 0.009 → 0.013 |
-| attack_heavy | 1.98 → 1.83 | 1.22 → 1.15 | 1.68 → 1.38 | 0.012 → 0.015 |
-| hit_react | 1.10 → 1.11 | 1.04 → 1.03 | 1.09 → 1.07 | 0.000 → 0.001 |
-| knockdown | 2.08 → 1.40 | 1.14 → 1.06 | 1.54 → 1.17 | 0.002 → 0.002 |
-| death | 2.08 → 1.40 | 1.14 → 1.06 | 1.54 → 1.17 | 0.002 → 0.002 |
+| walk | 4.65 → 3.04 | 1.33 → 1.22 | 2.80 → 2.66 | 0.001 → 0.001 |
+| run | 5.74 → 4.04 | 1.62 → 1.34 | 3.51 → 3.27 | 0.001 → 0.001 |
+| alert | 1.12 → 1.13 | 1.03 → 1.03 | 1.10 → 1.09 | 0.000 → 0.001 |
+| attack_primary | 1.69 → 1.61 | 1.15 → 1.11 | 1.48 → 1.29 | 0.009 → 0.013 |
+| attack_heavy | 1.98 → 1.85 | 1.22 → 1.15 | 1.68 → 1.40 | 0.012 → 0.015 |
+| hit_react | 1.10 → 1.11 | 1.04 → 1.03 | 1.09 → 1.08 | 0.000 → 0.001 |
+| knockdown | 2.08 → 1.44 | 1.14 → 1.07 | 1.54 → 1.22 | 0.002 → 0.002 |
+| death | 2.08 → 1.44 | 1.14 → 1.07 | 1.54 → 1.22 | 0.002 → 0.002 |
 
 Plate-local edge ratio in the attack clips: 1.31 → 1.00 (heavy), 1.22 → 1.00
-(primary) — plates are now rigid. Worst-clip p99 strain 1.62 → 1.23.
+(primary) — plates are now rigid. Worst-clip p99 strain 1.62 → 1.34.
 
-Leakage: body vertices carrying leg weight 7.1% → 6.4% overall (measured on all
-non-plate non-leg verts; the remaining share is the actual upper-leg/toe skin),
-midline 1.0% → 1.8% (the relaxation pass spreads a little into the midline),
-plates with leg weight 0.0% → 0.0%, plates spine-only 100%. Max influences 4,
-weight sum error 1.7e-07, 23 groups used, all 39 bones exported.
+Leakage: body vertices carrying >0.05 leg weight 7.1% → 6.7%, >0.15 leg weight
+4.9% → 2.6%, mean leg mass on body verts 0.020 → 0.015, verts outside the leg
+span (neck/head ahead of the front legs, tail behind the hind legs) still
+carrying >0.15 leg weight 2.5% → 1.6%, midline 1.0% → 0.9%, plates with leg
+weight 0.0% → 0.0%, plates spine-only 100%. Max influences 4, weight sum error
+1.7e-07, 23 groups used, all 39 bones exported.
 
 Project gate: `tools/check_rig_audit.py` on the repaired base + the stock clips
 prints `RIG QA PASS: 1 creatures, 9 exported clips` (max <= 10, p99 <= 2.1, no
@@ -87,22 +88,23 @@ ground penetration, no rest mismatch, no loop seam). Reports:
 
 ## Remaining risks (blunt)
 
-- **walk/run are still strained.** Peak edge 2.55/3.15 (target would be near
-  1.3-1.5) and single-bone p99.5 1.98/2.42 on the hip/rear-leg seam of the near
-  hind leg. Rendering shows no tearing or worm shear at these numbers and the
-  silhouette holds, but the hip crease is the weakest area and a fast run cycle
-  at 24 fps will still bulge there. Fixing it properly needs either a hip
-  "thigh" helper weight falloff tuned per-vertex (a small second stage) or, more
-  likely, shorter stride in the run clip itself — that is a clip change, not a
-  weight change.
+- **walk/run are still strained.** Peak edge 3.04/4.04 (target would be near
+  1.3-1.5) and single-bone p99.5 2.66/3.27 on the hind-leg/hip crease. Renders
+  show no tearing or worm shear and the silhouette holds, but the hip fold is
+  the weakest area and a fast run cycle at 24 fps will still pull there. The
+  trade-off was measured: clamping leg weight to the strict anatomical gate
+  drops flank leakage but raises the crease peak to 4.0/3.8; leaving relaxation
+  unclamped lowers the peak to 3.15/2.55 but pushes flank leakage above the
+  shipped weights. `LEG_HEADROOM` (0.06) is the middle setting and the best
+  combination of the two. Fixing the peak itself needs a shorter stride in the
+  run clip or a dedicated hip helper stage — a clip change, not a weight change.
 - **Plate row scissoring.** Rigid plates mean neighbouring plates can scissor
   slightly during the thagomizer sweep (attack_heavy plates translate up to
   1.5 cm relative to the body surface at the peak, vs 1.2 cm before). It reads
   as a plate fanning off its base rather than a torn plate; acceptable but not
   invisible.
-- **Midline bleed increased** slightly (1.0% → 1.8% of midline verts carry a
-  leg weight above 0.05) because of the spatial relaxation. Below the level the
-  renders show.
+- Spatial relaxation still leaves a small amount of leg weight on the flanks
+  (6.7% of body verts above 0.05, mean mass 0.015). Invisible in the renders.
 - The repaired file has not been tested inside Godot. Import flags, material
   sampler behaviour and the runtime's `source_height_m` scaling are untested;
   the QA was Blender-only.

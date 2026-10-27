@@ -62,6 +62,7 @@ PREVIEW_CLIPS = ["idle", "walk", "attack_heavy", "knockdown"]
 PLATE_HEIGHT = 0.085      # above the local spine line => plate/spike fin
 DIST_IN, DIST_OUT = 0.045, 0.105   # distance falloff around a leg chain
 MIDLINE_IN, MIDLINE_OUT = 0.030, 0.060  # keep leg weights off the midline
+LEG_HEADROOM = 0.06       # leg weight allowed on top of the anatomical gate
 
 
 def log(*args):
@@ -399,6 +400,32 @@ def build_weights(mesh, arm, rest):
             weights[int(vi)] = {n: v for n, v in w.items() if v > 1e-5}
     del index_of
 
+    # Guard rail: relaxation drags a little leg weight into the flank. Clamp
+    # each body vertex's total leg weight to what the anatomical gate allows
+    # before smoothing, and push the excess back onto the spine bones.
+    # LEG_HEADROOM is the portion of the hip crease the anatomical gate would
+    # otherwise denude: carved away entirely the crease tears (run peak 3.8),
+    # left fully relaxed it leaks leg weight onto the flank (6.7% -> 7.1%+).
+    for i in body_idx:
+        allowed = float(leg_total[i]) + LEG_HEADROOM
+        w = weights[int(i)]
+        leg_sum = sum(v for n, v in w.items() if n in LEG_BONES)
+        if leg_sum <= allowed + 1e-9:
+            continue
+        scale = allowed / leg_sum
+        legs_now = {n: v * scale for n, v in w.items() if n in LEG_BONES}
+        spine_now = {n: v for n, v in w.items() if n not in LEG_BONES}
+        spine_sum = sum(spine_now.values())
+        if spine_sum <= 1e-9:      # keep the skin rigid to its local spine bone
+            spine_now = pair_weights(samples, float(s_all[int(i)]))
+            spine_sum = sum(spine_now.values())
+        want = 1.0 - sum(legs_now.values())
+        spine_now = {n: v * want / spine_sum for n, v in spine_now.items()}
+        merged = dict(spine_now)
+        for n, v in legs_now.items():
+            merged[n] = merged.get(n, 0.0) + v
+        weights[int(i)] = {n: v for n, v in merged.items() if v > 1e-5}
+
     # Rigid plates: each fin copies the smoothed body weights at its own root,
     # so the plate/body seam carries no weight discontinuity.
     pinned = 0
@@ -472,15 +499,27 @@ def weight_table(mesh):
                    key=lambda kv: -kv[1]) for v in mesh.data.vertices]
 
 
-def leakage(mesh, rest, plate_mask):
+def leakage(mesh, rest, plate_mask, arm):
     w = weight_table(mesh)
     dominant = np.array([x[0][0] if x else "" for x in w])
     any_leg = np.array([any(n in LEG_BONES and v > 0.05 for n, v in x) for x in w])
+    heavy_leg = np.array([any(n in LEG_BONES and v > 0.15 for n, v in x) for x in w])
+    leg_mass = np.array([sum(v for n, v in x if n in LEG_BONES) for x in w])
     is_leg = np.array([bool(d) and d in LEG_BONES for d in dominant])
     midline = np.abs(rest[:, 0]) < 0.25 * np.abs(rest[:, 0]).max()
     body = ~plate_mask & ~is_leg
+    # Neck/head ahead of the front legs and tail behind the hind legs: no leg
+    # bone may drive skin there. This is the leak that tore the neck in the
+    # shipped weights (e.g. Neck+Shoulders+FrontUpLeg on one vertex).
+    ys = [float(arm.data.bones[b].head_local.y) for bones in LIMBS.values()
+          for b in bones[:1]]
+    y_lo, y_hi = min(ys), max(ys)
+    outside = ~plate_mask & ~is_leg & ((rest[:, 1] < y_lo) | (rest[:, 1] > y_hi))
     return {
         "body_leg_fraction": round(float(any_leg[body].mean()) if body.any() else 0.0, 4),
+        "body_heavy_leg_fraction": round(float(heavy_leg[body].mean()) if body.any() else 0.0, 4),
+        "neck_tail_leg_fraction": round(float(heavy_leg[outside].mean()) if outside.any() else 0.0, 4),
+        "body_leg_mass": round(float(leg_mass[body].sum() / max(1, body.sum())), 4),
         "midline_leg_fraction": round(float(any_leg[midline & ~is_leg].mean())
                                       if (midline & ~is_leg).any() else 0.0, 4),
         "plate_leg_fraction": round(float(any_leg[plate_mask].mean()) if plate_mask.any() else 0.0, 4),
@@ -497,7 +536,7 @@ def audit(mesh, arm, rest, plate_comps, plate_mask, actions, label):
     edges = np.array([e.vertices[:] for e in mesh.data.edges], dtype=int)
     rest_len = np.linalg.norm(rest[edges[:, 0]] - rest[edges[:, 1]], axis=1)
     valid = rest_len > 1e-5
-    leak, wtab = leakage(mesh, rest, plate_mask)
+    leak, wtab = leakage(mesh, rest, plate_mask, arm)
     dominant = np.array([x[0][0] if x else "" for x in wtab])
     same_bone = dominant[edges[:, 0]] == dominant[edges[:, 1]]
     comp_of = np.full(len(rest), -1)
@@ -579,7 +618,9 @@ def print_table(label, report):
             f"{c['worst_bone_ratio']:>11.2f}{c['plate_edge_ratio']:>11.2f}"
             f"{c['plate_sep_growth']:>10.3f}  {c['worst_bone']}")
     leak = report["leaks"]
-    log(f"leaks: body verts w/ leg weight {leak['body_leg_fraction'] * 100:.1f}%, "
+    log(f"leaks: body verts w/ leg weight >0.05 {leak['body_leg_fraction'] * 100:.1f}% "
+        f"(>0.15 {leak['body_heavy_leg_fraction'] * 100:.1f}%, mean mass "
+        f"{leak['body_leg_mass']:.3f}), neck/tail {leak['neck_tail_leg_fraction'] * 100:.1f}%, "
         f"midline {leak['midline_leg_fraction'] * 100:.1f}%, "
         f"plates {leak['plate_leg_fraction'] * 100:.1f}% "
         f"(spine-only plate verts {leak['plate_spine_only'] * 100:.1f}%)")
