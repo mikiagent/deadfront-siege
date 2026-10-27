@@ -69,6 +69,13 @@ def write_csv(path: Path, header, rows) -> None:
         w.writerows(rows)
 
 
+def dict_cell(v) -> str:
+    """A dict/list rendered JSON for a CSV cell; empty stays truly empty."""
+    if not v:
+        return ""
+    return json.dumps(v)
+
+
 def energy_cell(f) -> str:
     en = f.get("energy") or {}
     if not en:
@@ -101,7 +108,7 @@ def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
             times = kind.get("recipes", {})
             if times:
                 a("")
-                a("Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: " + ", ".join("`%s` %ss" % (rid, t) for rid, t in sorted(times.items())) + ".")
+                a("Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: " + ", ".join("`%s` %ss" % (rid, td.get("seconds", "?")) for rid, td in sorted(times.items())) + ".")
         a("")
         a("| recipe | output | inputs | skill | time (s) | process |")
         a("|---|---|---|---|---|---|")
@@ -139,9 +146,9 @@ def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
                 (r.get("slots") or [{}])[0].get("count", 1), r.get("restore_fraction", "")] for r in reps])
     write_csv(sheets / "processing.csv",
               ["station", "label", "slots", "fx", "recipe", "seconds"],
-              [[sid, k.get("label", ""), k.get("slots", ""), k.get("fx", ""), rid, secs]
+              [[sid, k.get("label", ""), k.get("slots", ""), k.get("fx", ""), rid, td.get("seconds", "")]
                for sid, k in sorted(proc.get("stations", {}).items())
-               for rid, secs in sorted((k.get("recipes") or {}).items())])
+               for rid, td in sorted((k.get("recipes") or {}).items())])
 
 
 # ------------------------------------------------------------------ biomes
@@ -244,7 +251,9 @@ def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
         sp = str(d.get("species")).lower().replace(" ", "_")
         for kind in ("base", "rare"):
             for x in b.get(kind, []):
-                rows.append([sp, kind, x["id"], x.get("min", ""), x.get("max", ""), x.get("skill", ""), attrs(x.get("attributes", {}))])
+                at = x.get("attributes") or {}
+                rows.append([sp, kind, x["id"], x.get("min", ""), x.get("max", ""), x.get("skill", ""),
+                             ";".join("%s=%s" % kv for kv in at.items())])
     write_csv(sheets / "butchering.csv", ["species", "kind", "item", "min", "max", "butcher_skill", "attributes"], rows)
 
 
@@ -325,7 +334,7 @@ def gen_items(data: Path, docs: Path, sheets: Path) -> None:
               [[fid, f.get("display_name", ""), f.get("provenance", ""), ";".join(str(x) for x in f.get("channels", [])),
                 (f.get("energy") or {}).get("instant_release_ratio", ""), (f.get("energy") or {}).get("digest_seconds", ""),
                 f.get("thirst", ""), f.get("fullness", ""), f.get("eat_seconds", ""), f.get("taste_score", ""),
-                json.dumps(f.get("buffs", "")), json.dumps(f.get("statuses", ""))] for fid, f in sorted(foods.items())])
+                dict_cell(f.get("buffs")), dict_cell(f.get("statuses"))] for fid, f in sorted(foods.items())])
 
 
 # ------------------------------------------------------------------ sheets notes
