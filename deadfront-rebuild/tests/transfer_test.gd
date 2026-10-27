@@ -47,6 +47,8 @@ func run(t: TestCase) -> void:
 	_test_competing_final_unit(t)
 	_test_one_authoritative_location(t)
 	_test_invalid_commands_reject_atomically(t)
+	_test_fnd_001_receipt_shape(t)
+	_test_provenance_survives_chained_splits(t)
 
 
 func _test_fnd_001(t: TestCase) -> void:
@@ -195,6 +197,57 @@ func _test_one_authoritative_location(t: TestCase) -> void:
 		t.ok(lot.location != null and not lot.location.is_consumed(), "lot has a live location")
 		counted += lot.quantity
 	t.eq(counted, 8, "per-lot quantities sum to the conserved total")
+
+
+## FND-001's receipt is a fixture: exact moves, quantity and revisions.
+func _test_fnd_001_receipt_shape(t: TestCase) -> void:
+	var world: Fnd001World = Fnd001World.new()
+	var receipt: Receipt = world.bus.execute(world.t1())
+	t.dict_eq(receipt.to_dict(), {
+		"command_id": "T1",
+		"status": int(Receipt.Status.COMMITTED),
+		"error": int(Receipt.ErrorCode.NONE),
+		"moves": [
+			{
+				"lot_id": "lot:3",
+				"source_lot_id": "lot:1",
+				"def_id": "fiber",
+				"quantity": 2,
+				"to": "inv:2",
+				"split": true,
+			},
+			{
+				"lot_id": "lot:4",
+				"source_lot_id": "lot:2",
+				"def_id": "stone",
+				"quantity": 1,
+				"to": "inv:2",
+				"split": true,
+			},
+		],
+		"source_revision_after": 1,
+		"target_revision_after": 1,
+		"source_used_after": 5,
+		"target_used_after": 3,
+	}, "FND-001 receipt matches the fixture exactly")
+
+
+## Splitting an already-split lot must keep the original provenance, not drop it.
+func _test_provenance_survives_chained_splits(t: TestCase) -> void:
+	var world: Fnd001World = Fnd001World.new()
+	world.bus.execute(world.t1())
+	var third: Inventory = world.ledger.create_inventory("third hop")
+	var escrow: Inventory = world.ledger.get_inventory(world.escrow_id)
+	var cmd: TransferCommand = TransferCommand.create(&"T-hop2", world.actor_id, world.escrow_id, third.id, escrow.revision) \
+		.with_line(FIBER, 1)
+	var receipt: Receipt = world.bus.execute(cmd)
+	t.ok(receipt.is_committed(), "second hop commits")
+	var hopped: Array[MaterialLot] = _lots_of_def(world.ledger, third.id, FIBER)
+	t.eq(hopped.size(), 1, "third inventory holds one fiber lot")
+	t.dict_eq(hopped[0].provenance, {"origin": "fixture-fiber"}, "chained split keeps origin provenance")
+	t.eq(hopped[0].quantity, 1, "chained split quantity is 1")
+	t.eq(_qty_of_def(world.ledger, world.escrow_id, FIBER), 1, "escrow keeps the remaining 1 fiber")
+	t.eq(world.ledger.total_of(FIBER), 5, "fiber still conserved after two hops")
 
 
 ## Every invalid command shape must reject and leave state untouched.
