@@ -1,6 +1,6 @@
 # DEADFRONT build handoff for Claude Fable
 
-**Source-of-truth snapshot:** 2026-09-21, prepared from `main` at `ab489b0ccfa53fed3ea7ee0e31fe8e8fd22d91f5` plus the focused raptor, post-kill retreat, Stegosaurus silhouette, and AI regression patch described below.
+**Source-of-truth snapshot:** reconciled 2026-10-27 against local `main` (`aaca9aa1`, four tidy-up commits on top of the Oct 22 work tree named in section 7). Sections 3, 7, 9 and 10 carry current truth; the 2026-09-21 claims that moved are superseded by those sections.
 
 Use this file as standing context with Milan's next message. Milan's newest explicit request wins. If a request conflicts with this file, stop and call out the conflict instead of silently merging the two.
 
@@ -70,10 +70,12 @@ The cleanup established typed subsystem classes and JSON-driven definitions, but
 
 Largest remaining concentration points at this snapshot:
 
-- `player/player.gd` (~2,023 lines): movement, combat, gathering, build/context actions, death/respawn and much UI coordination. New independent behavior should move into a focused component/state object.
-- `world/island_runtime.gd` (~1,478): terrain, island population, navigation and runtime world orchestration. Extract new biome/ecology services rather than adding another mode.
-- `ui/hunt_hud.gd` (~1,150): HUD composition and screen coordination. Keep new screens/components independent.
-- `creatures/creature.gd` (~768), `build_placer.gd` (~617), `creature_brain.gd` (~600), `creature_plates.gd` (~560), `inventory_ui.gd` (~529).
+Measured 2026-10-27 (brains moved out of creature.gd into `creatures/brains/` — keep extracting that way):
+
+- `player/player.gd` (~2,331 lines): movement, combat, gathering, tame/feed, pets, mounts, build/context actions, death/respawn and much UI coordination. New independent behavior should move into a focused component/state object.
+- `world/island_runtime.gd` (~1,527): terrain, vegetation scatter, creature spawn, props, weather. Extract new biome/ecology services rather than adding another mode.
+- `ui/hunt_hud.gd` (~1,483): HUD composition and every sheet panel inside one class. Keep new screens/components independent.
+- `ui/inventory_ui.gd` (~826), `dev/bot_survivor.gd` (~769), `creatures/creature.gd` (~812), `world/build_placer.gd` (~696), `ui/creature_plates.gd` (~634), `creatures/brains/creature_brain.gd` (~613), `items/crafting.gd` (~427).
 
 Before a split, protect behavior with a lab. Keep data definitions in `game/data`, reusable domain logic in its subsystem, and presentation in `ui` or view classes. Avoid cross-subsystem calls through scene-tree path guessing; use typed references/signals and existing autoload contracts.
 
@@ -168,27 +170,23 @@ git format-patch -1 --stdout HEAD > /tmp/deadfront.patch
 
 Always include `%cI` with future patches. Do not claim origin is synced until remote readback returns the exact SHA.
 
-## 7. Shipped state at `ab489b0c`
+## 7. Shipped state (reconciled 2026-10-27)
 
-Live big desktop update:
+Fully verified big desktop release on the production alias remains `ab489b0c` (stamp `ab489b0cc/f375312413`, immutable URL <https://durango-like-80ugcha6b-mikiagents-projects.vercel.app>). Work since then is committed to `main` but has **not** been re-deployed, re-soaked or stamp-verified unless a playtest doc says so. Theme summary of everything shipped since `ab489b0c` (evidence: git log, `docs/playtests/`):
 
-- Durango-style inventory/character family: stats panel, 5x4 bag, loadout and 3x3 equipment grid.
-- Animals + Growth screen: unlimited owned roster, three equipped/active, genetics and level-growth presentation.
-- Full map branded as World Atlas.
-- Desktop workbench interaction fixed at the root: Chrome's touch-plus-click duplication no longer toggles the radial closed.
-- Stegosaurus worm removed; a safe procedural body shipped as a temporary fallback. Milan rejected its first box-like reading.
-- Capture/feed eligibility changed to knocked out **and below 30% HP**.
-- Base dinosaur AI disengages immediately when a survivor leaves the visible aggro radius.
-- One-buffer streaming loader, DEADFRONT splash and visible commit/pack stamp retained.
+- **Biome-distinct gatherables (former P1) — done deep.** 10 climates in `game/data/world/climates.json`; 60+ families in `game/data/nature_manifest.json` with per-climate models, harvest-yield tables and mineral nodes (obsidian→tropical, copper→desert, silver→snowfield, black iron→volcanic, coral/pearl→blue-tropical); `island_runtime` scatters from the climate tables; climate palette + climate fatigue. Starter island stays level 1 via `level_override` (regression-tested).
+- **Creature AI.** Raptor radius disengage and post-kill retreat (≥14 m, re-homed) shipped and regression-locked in `ai_validation_lab`; brains split into `creatures/brains/` (`raptor_pack_brain.gd`: alpha election, flank slots, post-kill retargeting; `tyrant_brain.gd`; `pet_brain.gd`).
+- **Taming/pets.** Capture requires knockdown **and <30% HP**; preferred/accepted feed loop with window timer and rage-fail; net-capture tiers I–V gated by skills; unlimited roster, 3 active (`MAX_PETS_OUT`), pet XP/grades; genetics/IVs (0–31, EV caps, D-→S+) persist through save schema v3.
+- **Playtest bot.** `dev/bot_survivor.gd` plays the real game loop through a 14-rung ladder with its own throwaway save; bugs it found got fixed: cargo capacity, hide-strap recycle exploit, corpse material quality, harvest pathing, storage training, craft-skill XP routing, camp travel, save merges.
+- **Sleep and fatigue.** Explicit tent sleep button, retargeted sleep clips, fatigue gains tuned per owner (×0.5), stronger tired/exhausted penalties, fatigue scaled by island level gap and climate, fatigue breakdown panel.
+- **Nature art waves.** Berry bush full/empty pair, common/palm/pine/willow/birch/acacia trees incl. snow variants, ground plants, rocks, stumps/logs, mineral and plant resource nodes. True snow bush asset still open.
+- **Tyrannosaurus.** Stand-in replaced by Tripo-converted mesh with DeepSeek (dsc) rig transplant; final heavy-animation judgment still needs hands-on review.
+- **UI pass (Oct 17–22, committed 2026-10-27).** Animals screen rebuild (pinned actives, roster + detail, hex portraits), menu sheet (Save, display toggle, Controls page, new-survivor tip), named bag cards, item icon manifest; screens captured under `docs/design/current-ui/`. Still not redesigned: craft sheet, World Atlas, build placement, death/respawn screen, HUD nav labels, settings screens; gamepad focus on the 4 HUD hexes.
+- **Platform.** Fullscreen (F11) and gamepad bindings; TestFlight release uploaded (installs remain blocked by the Apple support case; iOS parked; iOS is secondary, desktop Chrome is the ship gate).
+- **Stegosaurus.** 48-credit mesh generated and transplanted onto the Quaternius Triceratops donor skeleton under `game/assets/creatures/stegosaurus/`; catastrophic weights mean `creature_view.gd` still forces the procedural fallback (plate row + thagomizer); the animated clip set loads in-engine. Weight repair is the open asset task.
+- **Zebraceratops.** Build completed at 48 of the authorized 96-credit cap, no paid rigging (`game/assets/creatures/zebraceratops/work/art_direction.json`).
 
-Focused patch prepared with this handoff and required before the next release:
-
-- `RaptorPackBrain` enforces the same hard radius boundary before combat-memory refresh or alpha target inheritance. This fixes Velociraptor's override bypassing `CreatureBrain._think`.
-- `ai_validation_lab` now runs a Velociraptor-specific radius regression and continues to verify base behavior.
-- When the player dies, every engaged wild dinosaur clears combat/provocation memory and retreats to valid island terrain at least 14 m away and at least `aggro_radius + 4 m`; the retreat destination becomes its local home to prevent immediate walking back.
-- Stegosaurus procedural fallback gains a dorsal plate row and four tail spikes so it reads as a rough Stegosaurus rather than a literal box while the real asset is pending.
-
-At preparation time the focused gates passed: full tests, smoke, `raptor_radius_deaggro=true`, `post_kill_retreat=true` at 24.33 m, and AI lab PASS. It still requires commit, deployment, desktop production soak, exact stamp verification, and visual pixel inspection before it can be called live.
+The 2026-09-21 "focused patch required before next release" (raptor override radius, post-kill re-home, stego plate row) shipped and is covered by the AI lab; that paragraph is superseded by this section.
 
 ## 8. Binding gameplay and presentation rules
 
@@ -221,49 +219,18 @@ Newest instruction supersedes older contradictions.
 - Do not let first-run/tutorial presentation look like a crash.
 - Maintain a testing/showcase route for models, animations and assets.
 
-## 9. Product direction and open queue
+## 9. Work queue (reconciled 2026-10-27)
 
-Execute in this priority order unless Milan overrides it.
+Status of the old P0–P7 list: P0 done (raptor radius/retreat shipped); P1 done deep (biome gatherables, climate data, mineral nodes); P2 partial (herds, per-island spawn tables, population caps exist; habitat/diet/wild-feeding data absent); P3 absent beyond level-math quality and a random burn roll; P4 half done (playtest bot yes, in-world companion no); P5 thin (mount/dismount + MountSocket + 10 species tagged, no saddle items or stamina); P6 restarted as simulated-economy-first per Milan 2026-10-27; P7 mostly shipped via the icon manifest, rule not code-enforced. The queue below contains only open work, in this order unless Milan overrides:
 
-### P0 - stabilize current release
-
-1. Ship and verify Velociraptor radius disengage, post-kill retreat, and the readable Stegosaurus fallback.
-2. Replace the fallback with the approved real Stegosaurus asset after Gate 1 approval and live credit verification.
-
-### P1 - biome gatherables, approved design
-
-Implement distinct gatherables by biome/climate, not palette-swapped copies. Preserve level-1 starter access and clear silhouettes. Resource-node identity, yield, required tool, climate/biome, level, rarity and visual variant belong in data. Integrate with existing island spawning, gather radial, inventory item colors and level-scaling. Prevent overlap and stale invisible interaction nodes. The approved design brief is available as the private project File previously shared with Milan; if it is not accessible to Fable, ask for its contents rather than guessing.
-
-Acceptance: each biome reads differently at walking distance; starter gatherables remain available at level 1; colors represent items; action glyphs stay white; full gather loop works and persists.
-
-### P2 - dinosaur ecology
-
-Build data-driven habitats, feeding, wandering, herd/pack grouping, predator-prey selection, alpha leadership, territorial/aggression differences and population limits. Avoid omniscient target acquisition. Preserve species-specific brains and radius behavior. Ecology should create observable stories without turning the starter island into constant combat.
-
-### P3 - mistake and quality system
-
-Make crafting/cooking quality respond to player choices and specialist skill rather than a flat timer. Define clear mistake windows, recoverable errors, quality tiers, material/tool/skill influence and readable feedback. Never make errors feel random when the UI implied success. Keep outputs and formulas data-driven and test deterministic boundaries.
-
-### P4 - player bot / companion
-
-Tracked as `todo-01M33A1W96ZQ88SZV3PNA7MKM4`.
-
-Two related outcomes:
-
-- Autonomous playtesting/grind bot that can gather, craft, fight, tame, progress and log time/resource/death/stall metrics. It must expose bad pacing and unreachable loops, not cheat around them.
-- In-world companion capable of co-op support and trade. Treat it as a real game actor with explicit inventory ownership, permissions, failure states and networking boundary. Do not fake global multiplayer state inside a local UI.
-
-### P5 - mounts
-
-Use large tameable dinosaurs for travel and utility. First define eligible species, saddle/equipment, mount/dismount, collision/camera, stamina/speed, combat limits and save state. Do not scale creatures arbitrarily just to make riding fit.
-
-### P6 - global trading
-
-Design server-authoritative listing, escrow, settlement, cancellation, abuse/rate limits, item identity, duplication prevention, offline delivery and audit logs before UI. This requires backend work and cannot be honestly shipped as a local-only screen.
-
-### P7 - coherent icon set
-
-Finish item/resource/gear/status icons using the color rule. Meshy-made or rendered object icons may be used for items; action icons stay white. Verify every icon at actual inventory/HUD size and against dark/light contexts.
+1. **Housekeeping decisions** (owner input needed): `game/addons/` (55 MB: GD-Sync, godot_ai, kanban_tasks, terrain_3d — none enabled in project.godot, but terrain_3d ships a .gdextension that auto-loads) and `game/demo/` (24 MB Sep 2026 Codex demo kit, referenced by nothing). Commit, gitignore, or delete each.
+2. **Stegosaurus weight repair** (asset task): Blender bone/weight surgery on the transplanted mesh per section 13; lift the `creature_view.gd` forced placeholder once deformation is clean; creature lab + desktop pixel inspection; then set INDEX.md to INTEGRATED with the real route.
+3. **UI gap pass**: craft sheet, World Atlas, build placement, death/respawn screen, HUD nav labels/density, settings screens (graphics/volume/UI size/reduced motion/colorblind/gamepad), gamepad focus model for the 4 HUD hexes. Spec: `docs/design/ui-ux-spec.md`.
+4. **Ecology (P2 remainder)**: habitat/diet fields per species JSON, wild feeding loop, predator–prey selection data, population-pressure stories; keep species brains and radius behavior supreme.
+5. **Quality/mistake system (P3)**: deterministic quality tiers, mistake windows, skill/tool influence, readable feedback; never random when the UI implied success; feed proposals from `docs/design/durango-informed-improvements.md` items 6–7.
+6. **Simulated economy (was P6, Milan decision 2026-10-27)**: regional markets per `docs/design/economy.md`, wired to `data/world/market.json` (currently loaded by no script); listing fee, price formula, buy side, unstable-goods gate, T-stone sinks. No server work, no public trading, until the simulation proves the formulas.
+7. **P4 remainder / P5 remainder / P7b**: in-world companion actor; saddle items + recipes, stamina, mount save state; enforce colour=things / white=actions on icons.
+8. **Release gates still open**: production soak on the exact commit, 390x844 pass for touched screens, grove label density, save-migration soak, first-human-tame onboarding check, true snow bush asset, T-rex heavy-animation confirmation.
 
 ## 10. Asset pipeline and credit constraints
 
@@ -277,11 +244,12 @@ Gate 1 proves one asset end to end before batch production: approved concept/ref
 
 Batch 2 begins only after Gate 1 proves the pipeline. Keep source, processed GLB, import settings, license/source notes, scale and animation mapping recoverable. Reject assets with broken anatomy, unreadable silhouette, baked labels, gray materials, bad pivots, missing textures or animation deformation before integration.
 
-### Stegosaurus status
+### Stegosaurus status (2026-10-27)
 
-A Gate 1 concept/reference sheet is pending Milan's approval: unsaddled realistic adult, olive/sand body, rust-charcoal plates, clear side/front/top/rear-three-quarter views, long raised tail, staggered plates and four-spike thagomizer. No Meshy generation was started and zero credits were spent. The live balance check was blocked until local midnight; the previously recorded API figure of 3,823 is stale and must not authorize spend.
-
-After approval, crop/export clean side/front/top input views so labels and sheet layout do not enter generation. Do not generate before live web balance confirmation.
+- Gate 1 journal art: concept and the idle+combat two-scene pattern authenticated in `assets/concept-art/INDEX.md`; approval anchor recorded there.
+- Mesh: `work/stegosaurus_i2m_v1.glb` generated and transplanted onto the Quaternius Triceratops donor skeleton (`skeleton_transplant_v3` in `game/data/creatures/stegosaurus.json`), 48 credits. The animated clip set (idle/walk/run/attack/alert/hit_react/knockdown/death/feed) loads in-engine.
+- Blocker: catastrophic bone weights cause worm-like stretching, so `creature_view.gd` deliberately forces the procedural fallback. The route forward is Blender weight surgery per the section 13 pipeline (bone mapping, donor vertex-group transfer, per-clip deformation audit); do not spend on regeneration before the repair route is judged futile.
+- Triangle budgets: `assets/concept-art/STYLE.md` was reconciled 2026-10-27 to the measured Durango table in `docs/art/durango-asset-benchmarks-and-tripo-prompts.md` (small 1.2–1.8k, medium 1.8–2.5k, large/boss 2.5–4k tris, 512² textures, matcap-first). Current creatures measure 24–31k tris and owe remeshing.
 
 ### Astra hybrid verdict
 
