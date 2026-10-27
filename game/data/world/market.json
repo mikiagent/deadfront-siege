@@ -33,6 +33,8 @@
     "over_20pct": 1,
     "over_50pct": null
   },
+  "sell_slope_window": 0.2,
+  "never_above_ratio": 1.5,
   "animal_grade_multiplier": {
     "S": 2.0,
     "A": 1.5,

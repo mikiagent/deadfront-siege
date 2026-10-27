@@ -200,16 +200,19 @@ func settle_hours(ask_unit: float, price_unit: float) -> float:
 	if price_unit <= 0.0:
 		return NEVER
 	var ratio := ask_unit / price_unit
-	var at_price := float((_data.get("sell_time_hours", {}) as Dictionary).get("at_price", 0))
-	var over_20 := float((_data.get("sell_time_hours", {}) as Dictionary).get("over_20pct", 1))
+	var hours: Dictionary = _data.get("sell_time_hours", {})
+	var at_price := float(hours.get("at_price", 0))
 	if ratio <= 1.0:
 		return at_price
-	# ASSUMPTION: the slope between the two documented anchors (1.0 -> 0 h, 1.2 -> 1 h) is linear
-	# and keeps climbing to the 1.5x hard stop instead of jumping to "never" at 1.2x.
-	var h := over_20 * (ratio - 1.0) / 0.2
-	if ratio >= 1.5:
+	# over_50pct: null in the data means "at that ratio a listing never sells".
+	var over_50: Variant = hours.get("over_50pct", null)
+	if over_50 == null and ratio >= float(_data.get("never_above_ratio", 1.5)):
 		return NEVER
-	return snappedf(h, 0.01)
+	# ASSUMPTION: the slope between the two documented anchors (1.0 -> at_price, 1.2 -> over_20pct)
+	# stays linear, so 1.3x asks about 1.5 h rather than jumping to "never" at 1.2x.
+	var window := float(_data.get("sell_slope_window", 0.2))
+	var over_20 := float(hours.get("over_20pct", 1))
+	return snappedf(at_price + over_20 * (ratio - 1.0) / maxf(0.0001, window), 0.01)
 
 func can_list(market_id: StringName, stack: ItemStack) -> String:
 	if stack == null or stack.def_id == &"":
@@ -364,7 +367,13 @@ func state_dict() -> Dictionary:
 
 func restore_state(state: Dictionary) -> void:
 	var sat: Variant = state.get("saturation", {})
-	_saturation = (sat as Dictionary).duplicate(true) if sat is Dictionary else {}
+	_saturation = {}
+	if sat is Dictionary:
+		# A hand-edited or corrupt save must not be able to price items above full value.
+		for key in (sat as Dictionary).keys():
+			var v := float((sat as Dictionary)[key])
+			if v > 0.0 and v <= 1.0:
+				_saturation[str(key)] = v
 	_listings.clear()
 	for row in state.get("listings", []):
 		if row is Dictionary:

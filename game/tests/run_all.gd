@@ -1032,6 +1032,11 @@ func _test_market_listing_fee_and_settlement() -> void:
 	_expect(bool(absurd.get("ok", false)) and str(absurd.get("reason", "")) == "never_sells", "50% over the price never sells")
 	never.tick(1000.0)
 	_expect(never.pending_listings() == 1, "a never-listing stays open")
+	# 1.3x ask: the linear slope from the doc's anchors gives 1.5 h, and the data's never-threshold governs the stop.
+	_expect(is_equal_approx(never.settle_hours(unit * 1.3, unit), 1.5), "a 30% over ask settles in about an hour and a half")
+	_expect(never.settle_hours(unit * 1.45, unit) > 2.0, "just under the never threshold still owes hours")
+	_expect(never.settle_hours(unit * 0.9, unit) == 0.0, "an undercut sells at once")
+	_expect(never.settle_hours(unit, 0.0) == -1.0, "a zero price never settles")
 	var broke = _market().load_default()
 	_expect(str(broke.list_stack(&"temperate_exchange", salt).get("reason", "")) == "no_funds", "a fee needs T-stones")
 
@@ -1109,6 +1114,13 @@ func _test_market_price_memory() -> void:
 	_expect(is_equal_approx(restored.balance(), market.balance()), "the market wallet survives a save round trip")
 	_expect(restored.price(&"northern_depot", &"cloth", 5) == market.price(&"northern_depot", &"cloth", 5),
 		"a restored market prices identically")
+	var corrupt = _market().load_default()
+	corrupt.restore_state({"saturation": {"tropic_bazaar|salt": 4.0, "tropic_bazaar|cloth": -1.0, "tropic_bazaar|herb": 0.5, "bad": "x"},
+		"balance": "abc", "listings": "nope"})
+	_expect(is_equal_approx(corrupt.saturation(&"tropic_bazaar", &"salt"), 1.0), "a saved saturation above 1.0 is dropped")
+	_expect(is_equal_approx(corrupt.saturation(&"tropic_bazaar", &"cloth"), 1.0), "a saved saturation at or below 0 is dropped")
+	_expect(is_equal_approx(corrupt.saturation(&"tropic_bazaar", &"herb"), 0.5), "a valid saved saturation is kept")
+	_expect(is_zero_approx(corrupt.balance()) and corrupt.pending_listings() == 0, "malformed wallet and listings are ignored")
 	var fresh = _market().load_default()
 	fresh.restore_state({})
 	_expect(is_equal_approx(fresh.saturation(&"northern_depot", &"cloth"), 1.0), "an empty save starts unsated")
