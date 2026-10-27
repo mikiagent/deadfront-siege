@@ -54,15 +54,19 @@ The hybrid world makes these loops visible across spaces: safe homes for permane
 
 **V-16: Exceptional late-game revival.** A dead player-controlled human or human tribe member can be restored at extraordinary cost, used rarely. The method, remains requirement, life/skill restoration, rarity ceiling and numeric formula remain OPEN. **Not a decision to revive dinosaurs.**
 
-### Round 3: math and permanence decisions
+### Round 3: owner answers confirmed (2026-10-27)
 
-**M-01: Revival constraints.** Must remains be recovered from where the person died, or can a distant remains/death record enable resurrection through a substantially more expensive procedure? Does the resurrected person retain all learned skill and level?
+**M-01: C, Two revival paths.** The normal path retrieves the individual's physical remains and is very costly. Missing or inaccessible remains do **not** categorically prevent revival: a second path is possible but **extraordinarily more expensive** and must preserve unique identity. The resurrection method, evidence required for the fallback, retained level/skills/EVs, eligibility window, repeat limits and numerical cost are still OPEN.
 
-**M-02: Trait economy.** Should nearly all harvested material lots have at least one drawback (e.g. 96% candidate) while positives are very rare (e.g. 7% candidate)? Can a skilled process remove a drawback at a substantial cost?
+**M-02: C, Scarcity plus costly purification.** Most raw lots carry drawbacks and exceptional positive traits are rare. Skilled processors can **reduce or remove eligible negative properties**, but only at substantial material/labor/station expense. Purification is deliberate and cannot freely create positive traits or duplicate valuable materials. Specific negative odds (96% candidate), positive odds (7% candidate), treatment permissions and costs are still OPEN.
 
-**M-03: Autonomous worksite quality.** Should skill predominantly raise gathering *speed*, tilt the level rolls toward the site's maximum, improve trait chances, or modestly improve all three?
+**M-03: C, Three dimensions of gathering expertise.** Better miners and loggers work faster, shift item-level quality toward the **site's existing upper bound** and have a **modestly increased chance of rare positive source traits**. A level-50 site still yields only level-45 through level-50 resources. Exact productivity, quality and trait-odds curves remain OPEN.
 
-**M-04: Combat pace.** Which feel is the priority: deliberate telegraphed timing and strong weapon counters, quick action-RPG combat, or a hybrid with different weapons and dinosaurs?
+**M-04: Combat pace.** No owner answer yet. Remains OPEN in the [Open Questions register](WildLandsMMO_Open_Questions.md).
+
+### How to handle undecided questions
+
+When the owner is unsure, **record the question, relevant options, existing constraints and effects of the decision** in [WildLands MMO Open Questions](WildLandsMMO_Open_Questions.md). Do not pressure for an immediate choice, invent an answer, or mistake a proposed formula for an approved value.
 
 ### Follow-up themes once these are decided
 
@@ -94,7 +98,13 @@ The hybrid world makes these loops visible across spaces: safe homes for permane
 
 **2026-10-27, Round 2 and systems owner answers:** V-04=C; V-07=meaningful loss/recoverable drops with basic recruitment and animal supply; V-09=A; V-15=automated mining/logging, bounded item-level site yields; V-16=rare, extremely costly late-game dead-human revival.
 
-**Next owner answers requested:** M-01 revival eligibility and restored progression, M-02 trait frequency/negative purification, M-03 worksite quality, M-04 combat feel. Candidate numerical models are not owner-approved.
+**2026-10-27, Round 3 answers:** M-01=C (remains normally, vastly costlier fallback without remains); M-02=C (rare positives/common drawbacks, costly skill-based mitigation/removal); M-03=C (worker speed, bounded level quality and modest positive trait odds). No exact coefficients were approved.
+
+**Unresolved:** M-04 combat feel and the detailed numerical and eligibility questions from M-01 to M-03. Track these in [WildLands MMO Open Questions](WildLandsMMO_Open_Questions.md) rather than repeating them as forced choices.
+
+## Open questions backlog
+
+See [WildLands MMO Open Questions](WildLandsMMO_Open_Questions.md). It consolidates undecided choices from this workshop and the system-specific proposal chapters, including combat pace, trait probabilities, skill-quality curves and resurrection progression/costs.
 
 ## Numerical proposals awaiting owner calibration
 

@@ -12,6 +12,8 @@ The game's identity lies in the connections among survival, people, creatures, m
 
 **The central fantasy:** Start with nothing. Learn to survive. Tame the wilderness. Master a craft. Raise a tribe. Build an industry. Connect with other civilizations. Venture beyond safety, and decide what your legacy will become.
 
+**Outstanding decisions:** [Open Questions](WildLandsMMO_Open_Questions.md). Unknowns are recorded there for future review, not treated as settled simply because a candidate formula exists.
+
 **Detailed balance workshop companions:** [Material traits, gathering and processing math](WildLandsMMO_Traits_Gathering_Processing_Math.md) · [Crafting and construction math](WildLandsMMO_Crafting_Building_Math.md) · [Combat and mass math](WildLandsMMO_Combat_Math.md) · [Loss, recruitment, ransom and revival](WildLandsMMO_Loss_Recruitment_Revival.md). These offer **proposed** formulas and tunable values; they do not turn unapproved coefficients into canonical rules.
 
 ---
@@ -211,7 +213,7 @@ This supports a world where field laborers and basic expedition followers are re
 
 Expedition disasters can kill trained humans and dinosaurs. Dropped loot can be recovered through another risky journey, but it is not automatically returned. A death can end a valuable individual's career; replacement recruits, new animal tames, descendants and the functioning protected home preserve the civilization. If a tribe loses every human, a new baseline survivor provides a path to recovery.
 
-**Very late in the game, a highly developed civilization can pursue an exceptionally costly and seldom-used means to revive a dead human survivor or tribe member.** The person is not an ordinary free respawn. The need to secure rare resources, infrastructure and perhaps remains should make revival a hard economic choice. Its lore, eligibility, retained skills and exact cost are still to be decided. **Dinosaur revival is not part of this approved request.** A living captive and a dead survivor are distinct states, with different ransom and revival rules.
+**Very late in the game, a highly developed civilization can pursue an exceptionally costly and seldom-used means to revive a dead human survivor or tribe member.** Recovering the deceased person's remains is the **normal, still-expensive route**. If the remains are missing or irrecoverable, an **extraordinarily more expensive alternate revival** is possible, subject to a secure way to establish the individual's unique identity. Neither route is an ordinary free respawn. The lore, actual resources, revival deadline, identity-evidence requirements, retained skills and exact costs remain [open questions](WildLandsMMO_Open_Questions.md). **Dinosaur revival is not part of this approved request.** A living captive and a dead survivor remain distinct states with separate ransom and revival rules.
 
 See the [loss, recovery, recruitment and revival proposal](WildLandsMMO_Loss_Recruitment_Revival.md).
 
@@ -282,6 +284,8 @@ A central processing concept joins **two eligible material lots into one composi
 For example, a resilient bone piece and a shock-absorbing piece can yield a reinforced component with both advantages. A brittle input may pass that weakness into the finished component even if the other input is extraordinary.
 
 When an identical trait is inherited from multiple sources, its total benefit is bounded by diminishing returns. Repeated processing cannot infinitely duplicate a single rare property. The origin of useful qualities matters.
+
+**Specialist material processing can mitigate or entirely remove eligible negative traits, but only through a separate costly, deliberate transformation.** Purification is not free and does not conjure new rare positive traits. Ordinary fusion still inherits both strengths and weaknesses; high-level craftsmanship can make the hard choice to invest scarce fuel, catalysts, time and skilled labor to rescue a valuable flawed material. The exact costs, restrictions and whether all defects can be treated remain open.
 
 The precise chance of trait rolls, numerical scaling, merging curve and trait catalog are still part of the balancing vision, rather than settled universal values.
 
@@ -379,7 +383,7 @@ Workers can gather, mine, fell trees, farm, craft, haul, build, research, guard,
 
 A **Monitoring Stand** gives the settlement a recognizable place for directing worker preferences and job priorities. Workers may favor their specializations but remain bound by their actual capabilities.
 
-**Autonomous mining and logging worksites** function as physical production locations. As in the labor fantasy of colony automation games, assigned workers continue gathering as long as resources, valid tools, energy, space and access permit. Workers vary by speed and by the quality of lots they produce, while the **gathering site's level sets the attainable item level band**. For example, a **level-50 site yields level-45 through level-50 items**. Superior workers may gather faster or favor the higher end of that band, not invent resources above the site's cap.
+**Autonomous mining and logging worksites** function as physical production locations. As in the labor fantasy of colony automation games, assigned workers continue gathering as long as resources, valid tools, energy, space and access permit. Workers vary by speed and by the quality of lots they produce, while the **gathering site's level sets the attainable item level band**. For example, a **level-50 site yields level-45 through level-50 items**. Superior workers may gather faster, favor the higher end of that band **and gain a modest, bounded improvement in rare positive trait odds**. They do not invent resources above the site's cap or guarantee perfect materials. All three dimensions of worker excellence matter, but their exact relative strengths remain proposals.
 
 The active player may organize a resource economy instead of personally swinging a pickaxe for every unit, but the underlying source and storage limits remain meaningful. The proposed throughput and level curves are described in [Materials, Gathering and Processing Math](WildLandsMMO_Traits_Gathering_Processing_Math.md).
 

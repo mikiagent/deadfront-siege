@@ -1,7 +1,7 @@
 # WildLands MMO | Loss, Recovery, Recruitment, Captivity and Late-Game Revival
 
 > **Status:** OWNER-CONFIRMED EXPERIENCE + WORKSHOP PROPOSALS (numerical balance and exact procedures undecided).  
-> **Owner's latest direction:** Taming begins through open-world discovery, not a forced guided grant. PvE deaths can lose companions or tribe members; dropped loot is recoverable. Basic dinosaurs and people have many replacement paths. Mediocre/basic human recruits occasionally arrive by boat at safe private homes; more and better candidates arrive at frontier/PvPvE outposts. Tribe workers autonomously mine/log, with variable pace and item quality set partly by site level. Solo play is fully viable; late-game multiplayer, co-op, raids, outposts and PvPvE are additional choices. Killed human survivors/tribe members should have an **extremely costly, seldom-used late-game revival route**.  
+> **Owner's latest direction:** Taming begins through open-world discovery, not a forced guided grant. PvE deaths can lose companions or tribe members; dropped loot is recoverable. Basic dinosaurs and people have many replacement paths. Mediocre/basic human recruits occasionally arrive by boat at safe private homes; more and better candidates arrive at frontier/PvPvE outposts. Tribe workers autonomously mine/log, with variable pace, within-site quality bias and modest rare trait odds gains. Solo play is fully viable; late-game multiplayer, co-op, raids, outposts and PvPvE are additional choices. Killed human survivors/tribe members have a **very costly, seldom-used late-game revival system with two paths: retrieve remains normally, or pay extraordinarily more without remains**.  
 > **Existing locked captive rule:** Prisoners have a **72-real-hour game-priced ransom window**. Paid ransom returns the same individual with their original IV, personal levels, learned skills and EVs. Unpaid captives claimed by attackers become level-1 adults retaining identity, appearance, pedigree and inherited IVs but resetting earned progression. Being **captured** is different from being **dead**.
 
 ## Why loss matters without becoming a dead end
@@ -70,7 +70,7 @@ An elite expedition is a different decision: a renowned breeder's perfect mount,
 
 ## Rare late-game human revival
 
-**Owner-confirmed intent:** Killed player-controlled human survivors and human tribe members may eventually be brought back, but this is **extraordinarily expensive and should be used sparingly**. No magic/medicine/technology explanation, corpse deadline, revival availability scope, exact cost, limitations or progression-retention rule is finalized.
+**Owner-confirmed intent:** Killed player-controlled human survivors and human tribe members may eventually be revived, but this is **extraordinarily expensive and should be used sparingly**. **Two paths exist:** (1) recover identifiable remains and undertake a costly late-game revival, or (2) if remains are unavailable, attempt an **extraordinarily more expensive** alternate revival tied to the same person's unique identity. No magic/medicine/technology explanation, corpse deadline, evidence protocol without remains, exact cost, limitations or progression-retention rule is finalized.
 
 ### Proposed player experience: The Remembrance Rite (working name)
 
@@ -82,10 +82,10 @@ The rite would be meaningful because an exceptional human has a lifetime of prog
 
 - Revival applies to **confirmed deceased humans**, not to captives. Ransom must not be bypassed by declaring a prisoner dead.
 - The revived person is the **same unique individual**. Duplicate copies, simultaneous active/dead states and repeat reward claims are impossible.
-- **Proposal:** Recovering identifiable remains/death record from the expedition is required. A separate more costly remote-memory option could exist, but has not been approved.
+- **CONFIRMED:** Remains retrieval is the ordinary revival path, and a vastly more costly route is available without remains. The alternate route must still unambiguously identify the deceased; the identity evidence and lore are OPEN. The fallback must not bypass being actually dead, resurrection costs or custody of a living prisoner.
 - **Proposal:** The restored human keeps identity, pedigree, innate IVs, personal levels and learned skills, with a temporary serious recovery injury or reduced readiness. Retention of trained EVs and permanent penalties is an open choice.
 - Revival requires late-game knowledge, infrastructure and **consumable high-risk materials**. It should not be an ordinary cash fee that wealthy players can ignore.
-- Individual revival frequency may face a meaningful cooldown or escalating repeat cost. If recovery of remains is impossible, that loss may remain final unless the owner chooses another rule.
+- Individual revival frequency may face a meaningful cooldown or escalating repeat cost. **Irretrievable remains alone do not categorically rule out revival**, but the fallback must be far more demanding, so a death without a recoverable body remains a severe setback.
 - Private homes remain protected from attack. Revival should not become an exploit for transporting captives or duplicating loot across islands.
 
 ### Proposed extraordinary cost curve
@@ -101,15 +101,22 @@ With `Base_rare_material_cost = 100`:
 
 These are **index units**, not prices, drop rates or an approved resource catalog. The same rite could also require a scarce nontradable catalyst, a purpose-built facility, a major labor/time cost, and retrieval risk. A valuable elite should be expensive enough to prompt a genuine "Is this person worth reviving?" decision.
 
+### Proposed fallback cost for missing remains
+
+**Owner-approved relationship:** The **without-remains path is substantially more costly** than the remains path, not an ordinary convenience upgrade. A *candidate* multiplier is **3–5× the already steep recovery cost**, together with a stricter high-tier facility, unique identification record or rare additional catalyst. With the level-60 first-revival candidate above (index 500), that would mean a missing-remains cost index of **1,500–2,500**, before special prerequisites. These numbers are illustrations, not approved prices.
+
+A fallback without remains should *not* make deliberate corpse abandonment optimal. Whether it imposes additional recovery time, an irreversible injury, limits per person or a scarcity cap remains OPEN. Neither path grants copies of loot or living captives.
+
 **Economic constraint:** A rare-level revival must not become cheaper and faster than developing the next generation or replacing a typical field worker. However, recovering an irreplaceable veteran may sometimes be rational.
 
-### Timing and corpse-status possibilities (all open)
+### Remaining timing and identity questions (all open)
 
-- **Short recovery window:** Physical remains must be retrieved within a few real days; failure makes loss permanent.
-- **Permanent death ledger, limited revival slots:** Death record remains but extremely scarce catalysts cap total revivals.
-- **Remains + memory vault:** Protected home can preserve genetic/identity information but still requires physically recovering the right evidence and expensive ingredients.
+- How long do **physical remains** last in each island type, and may they be recovered after an unstable-island reset?
+- What legally establishes a **unique dead person's identity** for a revival without remains: protected home registry, prior memory record, witness, lineage record or another requirement?
+- Is either path time-limited? Does a late revival restore earlier career XP, learned skills and trained EVs, or impose a recovery penalty?
+- Must revival require a limited ritual ingredient, research breakthrough, special facility, cooldown or per-person limit **on top of** its large economic cost?
 
-These are mutually exclusive or combinable options for workshop discussion. **The existing 72-hour ransom rule is NOT a revival deadline.**
+Both **revival routes** are confirmed in principle. These questions determine how costly, rare and practical they become. **The existing 72-hour ransom rule is NOT a revival deadline.**
 
 ## A solo-friendly world with optional group power
 
@@ -121,11 +128,11 @@ There is no contradiction between an extremely capable single-player civilizatio
 
 ## Balance and workshop decisions
 
-1. **Revival access:** Recover the corpse/remains, preserve a death record, or use both with very different costs?
-2. **Revival retention:** All progression restored with long recovery; some EV/skill penalty; or level reduction?
-3. **Revival rarity:** Which is the strongest constraint: rare ingredients, fixed per-person limit, cooldown, extraordinary cost, retrieval danger or all of them?
+1. **ANSWERED: two routes.** Normal physical-remains retrieval, with vastly more costly revival when remains cannot be recovered. **OPEN:** how identity is verified without remains, eligibility and deadlines.
+2. **OPEN: revival retention.** Full levels/skills/EVs with recovery time, trained-stat penalties, or another outcome?
+3. **OPEN: revival rarity.** Which additional limitation is most important: rare ingredients, per-person limit, cooldown, extreme cost, recovery work or some combination?
 4. **Recruitment rate:** Should a basic home have occasional arrivals on a predictable timetable, or random boats when housing/food allow? How much stronger are PvPvE recruitment odds?
 5. **Risk recovery:** How long does recoverable expedition loot remain available, including through unstable-island resets?
 6. **Solo frontier:** May a sufficiently developed NPC-led solo tribe participate in the hardest cooperative/PvPvE objectives, or do any modes explicitly require allied human players?
 
-> Owner decisions above are experience-level commitments. This document's numbers, roles, rituals and recovery details are designed for comparison, **not** automatic implementation.
+> Owner decisions above are experience-level commitments. This document's numbers, roles, rituals and recovery details are designed for comparison, **not** automatic implementation. Unanswered decisions are consolidated in [Open Questions](WildLandsMMO_Open_Questions.md).
