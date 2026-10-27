@@ -1,0 +1,136 @@
+{
+  "metadata": {
+    "version": "candidate-0.1.0",
+    "approval_status": "PROPOSED_NOT_OWNER_APPROVED",
+    "units": {
+      "bp": "basis points; 10000=100%",
+      "kg": "kilograms",
+      "seconds": "real seconds",
+      "currency": "integer minor units"
+    },
+    "rounding": "round_half_up_positive",
+    "note": "All gameplay constants and formula coefficients are workshop candidates, do not ship without owner signoff."
+  },
+  "domains": {
+    "characters": {
+      "xp_formula": "round_half_up(100*(level-1)^1.65)",
+      "max_level_candidate": 60,
+      "equip_gate": "actor.level>=item.equip_required_level",
+      "ev_effective_attribute_factor": 0.25,
+      "ev_effective_cap": 40
+    },
+    "materials": {
+      "roll_weights": {
+        "negative": 9000,
+        "positive": 800,
+        "neutral": 200
+      },
+      "same_trait_secondary_weight_bp": 2500,
+      "third_weight_bp": 1250,
+      "trait_cap_bp": null,
+      "output_level_formula": "min(recipe_level_cap,floor((level_a+level_b)/2))",
+      "origin_deduplication": true
+    },
+    "food": {
+      "shelf_lives_seconds": {
+        "raw_meat": 43200,
+        "cooked_meat": 86400,
+        "smoked_meat": 259200,
+        "dried_meat": 432000,
+        "salt_preserved_meat": 604800
+      },
+      "cold_storage_rate_bp": 5000,
+      "formula": "F_next=max(0,F_old-round_half_up(10000*dt_seconds*env_rate*storage_rate*trait_rate/base_life_seconds))"
+    },
+    "crafting": {
+      "work_speed_skill_coefficient": 0.005,
+      "minimum_duration_multiplier": 0.5,
+      "formula": "ceil(base_ticks*max(0.50,1-0.005*profession_level))"
+    },
+    "building": {
+      "work_formula": "base_hours*(1+footprint_cells/16)/clamp(1+0.01*construction_skill,1,2)",
+      "room_ambience_formula": "min(cap,sum(furniture_points*condition*trait_efficiency))",
+      "home_move_refund_bp": 10000,
+      "unstable_reset_refund_bp": null
+    },
+    "tribe": {
+      "housing_occupancy": "floor(sum(beds*condition))-dependent_slots",
+      "recruit_supply_days": 2
+    },
+    "genetics": {
+      "iv_min": 1,
+      "iv_max": 100,
+      "seeded_delta_min": -8,
+      "seeded_delta_max": 8,
+      "formula": "clamp(round_half_up((p1_iv+p2_iv)/2+seeded_delta),1,100)",
+      "child_level": 1,
+      "child_learned_xp": 0
+    },
+    "workers": {
+      "stop_work_tool_at_durability": 1,
+      "productivity_formula": "base*(0.75+0.005*skill)*energy_fraction*tool_efficiency",
+      "offline_max_seconds": null
+    },
+    "combat": {
+      "attribute_power_coeff": 0.004,
+      "attribute_max_bonus_bp": 2000,
+      "armor_mitigation_cap_bp": 7500,
+      "favorable_channel_multiplier_bp": 11500,
+      "resistant_multiplier_bp": 9000,
+      "combo_followup_add_bp": 500,
+      "combo_max_add_bp": 2000
+    },
+    "mass": {
+      "strain_start_ratio": 0.7,
+      "strain_end_ratio": 1.2,
+      "mobility_max_penalty_bp": 4000,
+      "body_force_scale_cap": 1.35,
+      "defensive_mass_factor_min": 0.6,
+      "defensive_mass_factor_max": 2.5
+    },
+    "mounted": {
+      "momentum_bonus_cap_bp": 3000,
+      "momentum_min_runup_m": 3,
+      "momentum_min_closing_mps": 2,
+      "momentum_full_closing_mps": 10,
+      "longshot_bonus_cap_bp": 2000,
+      "longshot_start_range_fraction": 0.67
+    },
+    "weapons": {
+      "quality_component_weight_bp": 4500,
+      "quality_workmanship_weight_bp": 3500,
+      "quality_station_weight_bp": 2000,
+      "quality_multiplier_min_bp": 7500,
+      "quality_multiplier_max_bp": 12500
+    },
+    "turrets": {
+      "crewed_slots_max": 1,
+      "auto_slots_max": 2,
+      "shared_ammo_boxes_max": 1,
+      "gunner_seat_count": 1,
+      "driver_seat_count": 1
+    },
+    "logistics": {
+      "capacity_formula": "min(boat_base_kg*(1+boat_trait_bonus),harbor_export_limit_kg*(1+harbor_trait_bonus))",
+      "boat_homebound_uninterceptable": true
+    },
+    "economy": {
+      "candidate_market_tax_bp": 300,
+      "buyer_debit_formula": "sale_price",
+      "seller_credit_formula": "sale_price-floor(sale_price*tax_bp/10000)"
+    },
+    "pvp": {
+      "personal_level_gate": 60,
+      "ransom_window_seconds": 259200,
+      "ransom_formula_candidate": "round_half_up(base_ransom*(1+0.02*original_level+0.005*rare_iv_sum))",
+      "paid_restores": "original XP,skills,EV,IV",
+      "claim_restores": "original IV/appearance,level=1,XP=0,EV=0,skills=0"
+    },
+    "rest": {
+      "sit_exhaustion_reduction_per_second": 0.25,
+      "sit_energy_increase_per_second": 0.2,
+      "sleep_exhaustion_reduction_per_second": 1,
+      "sleep_energy_increase_per_second": 0.5
+    }
+  }
+}

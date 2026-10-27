@@ -1,0 +1,237 @@
+{
+  "metadata": {
+    "version": "candidate-0.1.0",
+    "approval_status": "PROPOSED",
+    "source_check": "Some identifiers in the source chapter are proposed or not yet in current game/data. Do not claim all items/stations already exist.",
+    "staging": "demonstration chain only; not the full 18 weapon matrix"
+  },
+  "source_definitions": [
+    {
+      "id": "wood_log",
+      "origin": "tree harvest",
+      "status": "VERIFY_IN_EXISTING_DATA"
+    },
+    {
+      "id": "dense_bone",
+      "origin": "butchery",
+      "status": "VERIFY_OR_CREATE"
+    },
+    {
+      "id": "predator_tendon",
+      "origin": "butchery",
+      "status": "VERIFY_OR_CREATE"
+    },
+    {
+      "id": "iron_ore",
+      "origin": "Tier45-50 mining",
+      "status": "MISSING_SOURCE_BACKLOG"
+    },
+    {
+      "id": "binding_pitch",
+      "origin": "resin/pitch work",
+      "status": "PROPOSED"
+    }
+  ],
+  "processing": [
+    {
+      "id": "split_wood",
+      "inputs": [
+        {
+          "id": "wood_log",
+          "qty": 1
+        }
+      ],
+      "outputs": [
+        {
+          "id": "split_wood",
+          "qty": 2
+        }
+      ],
+      "station": "woodworking",
+      "stage": 1,
+      "status": "VERIFY_QUANTITY"
+    },
+    {
+      "id": "plane_planks",
+      "inputs": [
+        {
+          "id": "split_wood",
+          "qty": 2
+        }
+      ],
+      "outputs": [
+        {
+          "id": "plank",
+          "qty": 2
+        }
+      ],
+      "station": "woodworking",
+      "stage": 2,
+      "status": "VERIFY_QUANTITY"
+    },
+    {
+      "id": "treat_plank",
+      "inputs": [
+        {
+          "id": "plank",
+          "qty": 1
+        },
+        {
+          "id": "binding_pitch",
+          "qty": 1
+        }
+      ],
+      "outputs": [
+        {
+          "id": "treated_plank",
+          "qty": 1
+        }
+      ],
+      "station": "treatment",
+      "stage": 3,
+      "status": "PROPOSED"
+    },
+    {
+      "id": "carve_bone_rib",
+      "inputs": [
+        {
+          "id": "dense_bone",
+          "qty": 1
+        }
+      ],
+      "outputs": [
+        {
+          "id": "carved_bone_rib",
+          "qty": 1
+        }
+      ],
+      "station": "carver",
+      "stage": 2,
+      "status": "PROPOSED"
+    },
+    {
+      "id": "laminate_bone_block",
+      "inputs": [
+        {
+          "id": "carved_bone_rib",
+          "qty": 2,
+          "distinct_trait_lots": true
+        },
+        {
+          "id": "binding_pitch",
+          "qty": 1,
+          "catalyst": true
+        }
+      ],
+      "outputs": [
+        {
+          "id": "reinforced_bone_block",
+          "qty": 1
+        }
+      ],
+      "station": "lamination_bench",
+      "stage": 3,
+      "status": "PROPOSED_OWNER_DIRECTION_FUSION"
+    },
+    {
+      "id": "sinew_cord",
+      "inputs": [
+        {
+          "id": "predator_tendon",
+          "qty": 1
+        }
+      ],
+      "outputs": [
+        {
+          "id": "sinew_cord",
+          "qty": 1
+        }
+      ],
+      "station": "braiding",
+      "stage": 2,
+      "status": "PROPOSED"
+    },
+    {
+      "id": "braid_sinew",
+      "inputs": [
+        {
+          "id": "sinew_cord",
+          "qty": 2,
+          "distinct_trait_lots": true
+        }
+      ],
+      "outputs": [
+        {
+          "id": "braided_sinew_cable",
+          "qty": 1
+        }
+      ],
+      "station": "braiding",
+      "stage": 3,
+      "status": "PROPOSED"
+    },
+    {
+      "id": "smelt_iron",
+      "inputs": [
+        {
+          "id": "iron_ore",
+          "qty": 2
+        },
+        {
+          "id": "charcoal",
+          "qty": 1
+        }
+      ],
+      "outputs": [
+        {
+          "id": "iron_ingot",
+          "qty": 1
+        }
+      ],
+      "station": "smelter",
+      "stage": 3,
+      "status": "MISSING_SOURCE"
+    },
+    {
+      "id": "refine_iron",
+      "inputs": [
+        {
+          "id": "iron_ingot",
+          "qty": 1
+        },
+        {
+          "id": "charcoal",
+          "qty": 1
+        }
+      ],
+      "outputs": [
+        {
+          "id": "refined_iron_bar",
+          "qty": 1
+        }
+      ],
+      "station": "forge",
+      "stage": 4,
+      "status": "PROPOSED"
+    },
+    {
+      "id": "shape_iron_head",
+      "inputs": [
+        {
+          "id": "refined_iron_bar",
+          "qty": 1
+        }
+      ],
+      "outputs": [
+        {
+          "id": "shaped_iron_head",
+          "qty": 1
+        }
+      ],
+      "station": "forge",
+      "stage": 5,
+      "status": "PROPOSED"
+    }
+  ],
+  "quality_policy": "Always preserve signed lots from every functional ingredient, including second primary input and catalyst where effect has defined role. Stage DAG never recycles to earlier tier and multiplies free rare traits."
+}
