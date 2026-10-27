@@ -12,10 +12,14 @@ Emits (all generated files carry a generation header; never hand-edit them):
 Run from the canon repo root:  python3 tools/docs_wiki/gen_game_data.py
 After editing a sheet, ask the agent to sync it back; the sync validates ids and
 rewrites only the changed values (the round-trip lives in sync_game_data.py).
+Generation refuses to replace a differing existing sheet or sheet notes unless
+--force-sheets is explicitly passed. Sync owner edits first; forcing may discard them.
 """
 import argparse
 import csv
 import json
+import shutil
+import tempfile
 from collections import OrderedDict
 from datetime import date
 from pathlib import Path
@@ -370,25 +374,50 @@ def main() -> None:
     ap.add_argument("--data", default=str(here / "game/data"))
     ap.add_argument("--docs", default=str(here / "docs/current"))
     ap.add_argument("--sheets", default=str(here / "game/data_sheets"))
+    ap.add_argument("--force-sheets", action="store_true",
+                    help="replace differing sheets and notes, discarding unsynced edits")
     args = ap.parse_args()
     data, docs, sheets = Path(args.data), Path(args.docs), Path(args.sheets)
-    docs.mkdir(parents=True, exist_ok=True)
 
-    gen_items(data, docs, sheets)
-    gen_recipes(data, docs, sheets)
-    gen_biomes(data, docs, sheets)
-    write_sheet_notes(sheets, [
-        SheetDoc("recipes", "data/recipes.json", "craft inputs/outputs, times, gates"),
-        SheetDoc("repairs", "data/recipes.json ·repairs", "per-tier repair cost/restore"),
-        SheetDoc("processing", "data/processing.json", "station labels, slots, real convergence times"),
-        SheetDoc("items", "data/items.json", "stack sizes, levels, rarity, default attributes"),
-        SheetDoc("foods", "data/foods.json", "FOODFX channels/effects per consumable"),
-        SheetDoc("islands", "data/islands/*.json", "island roster, tiers, lifetimes"),
-        SheetDoc("climates", "data/world/climates.json", "tiers, resists, flora families, materials"),
-        SheetDoc("creatures", "data/creatures/*.json", "species tier/climate rows"),
-        SheetDoc("butchering", "data/butchering.json", "kill drops per species"),
-    ])
-    print("wrote docs/current/{items-traits,recipes,world-biomes}.md and %d sheets" % len(list(sheets.glob("*.csv"))))
+    # Stage every output before touching the destinations: even docs must not be
+    # refreshed if a sheet conflict prevents completing the same generation.
+    with tempfile.TemporaryDirectory(prefix="wildlands-docs-") as tmp:
+        staged_docs, staged_sheets = Path(tmp) / "docs", Path(tmp) / "sheets"
+        staged_docs.mkdir()
+        staged_sheets.mkdir()
+        gen_items(data, staged_docs, staged_sheets)
+        gen_recipes(data, staged_docs, staged_sheets)
+        gen_biomes(data, staged_docs, staged_sheets)
+        write_sheet_notes(staged_sheets, [
+            SheetDoc("recipes", "data/recipes.json", "craft inputs/outputs, times, gates"),
+            SheetDoc("repairs", "data/recipes.json ·repairs", "per-tier repair cost/restore"),
+            SheetDoc("processing", "data/processing.json", "station labels, slots, real convergence times"),
+            SheetDoc("items", "data/items.json", "stack sizes, levels, rarity, default attributes"),
+            SheetDoc("foods", "data/foods.json", "FOODFX channels/effects per consumable"),
+            SheetDoc("islands", "data/islands/*.json", "island roster, tiers, lifetimes"),
+            SheetDoc("climates", "data/world/climates.json", "tiers, resists, flora families, materials"),
+            SheetDoc("creatures", "data/creatures/*.json", "species tier/climate rows"),
+            SheetDoc("butchering", "data/butchering.json", "kill drops per species"),
+        ])
+        conflicts = [p.name for p in sorted(staged_sheets.iterdir())
+                     if (sheets / p.name).exists()
+                     and (sheets / p.name).read_bytes() != p.read_bytes()]
+        if conflicts and not args.force_sheets:
+            ap.exit(1, "Refusing to overwrite differing sheets or notes: %s\n"
+                    "No outputs were written. Review and sync edits first, or use "
+                    "--force-sheets to discard them explicitly.\n" % ", ".join(conflicts))
+
+        for source_dir, dest_dir in ((staged_docs, docs), (staged_sheets, sheets)):
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            for source in source_dir.iterdir():
+                destination = dest_dir / source.name
+                # Existing sheets and notes passed preflight; leave them alone so an edit
+                # made after that check is not overwritten by a redundant copy.
+                if source_dir == staged_sheets and destination.exists() and not args.force_sheets:
+                    continue
+                shutil.copyfile(source, destination)
+        print("wrote docs/current/{items-traits,recipes,world-biomes}.md and %d sheets"
+              % len(list(staged_sheets.glob("*.csv"))))
 
 
 if __name__ == "__main__":
