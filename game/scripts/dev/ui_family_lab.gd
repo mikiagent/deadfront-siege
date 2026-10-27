@@ -35,7 +35,7 @@ func _ready() -> void:
 		layer.add_child(animal)
 		animal.open(player)
 		await get_tree().process_frame
-		var animal_ok := animal.visible and animal._list.get_child_count() == 3 and animal._detail.text.contains("GROWTH / POTENTIAL")
+		var animal_ok := animal.visible and animal._list.get_child_count() == 3 and animal.detail_text().to_lower().contains("growth potential")
 		var inventory_ok := player.ui != null and player.ui._profile != null and player.ui._grid.columns == 5
 		var stego: PetRecord = player.bonded[2]
 		print("[uifamily] inventory=%s animals=%s unlimited=%s active_cap=%d stego=%s" % [inventory_ok, animal_ok, unlimited_ok, Player.MAX_PETS_OUT, stego.species])

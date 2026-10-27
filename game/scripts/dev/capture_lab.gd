@@ -61,7 +61,12 @@ func _demo() -> void:
 	if Game and Game.has_method("reveal_creature_plate"):
 		Game.reveal_creature_plate(a, 8.0)
 	if shot:
-		# Leave berries so the plate shows Tame 0/3 with food icon.
+		# Leave berries so the plate shows Tame 0/3 with food icon. Target the downed animal and weaken it
+		# below the capture line so the top plate shows the capture line and the taming steps.
+		a.health.hp = a.health.max_hp * 0.2
+		var hud := get_tree().get_first_node_in_group("hud")
+		if hud:
+			hud.set("_last_target", a)
 		return
 	# Successful field tame: three preferred berries.
 	for _i in 3:

@@ -43,6 +43,10 @@ var _equip_pad: Control
 var _stat_box: VBoxContainer
 var _stat_rows: Array[Label] = []
 var _slot_px: float = 64.0
+var _eq_px: float = 64.0
+var _xp_bar: ProgressBar
+var _bag_bar: ProgressBar
+var _hint: Label
 const EQUIP_LABELS := {"head": "Head", "body": "Body", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
 const INK := Color(0.95, 0.95, 0.93)
 
@@ -65,6 +69,10 @@ func _ready() -> void:
 	add_child(_panel)
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.offset_left = UiTokens.SPACE * 2
+	scroll.offset_right = -UiTokens.SPACE * 2
+	scroll.offset_top = UiTokens.SPACE * 1.5
+	scroll.offset_bottom = -UiTokens.SPACE * 1.5
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_panel.add_child(scroll)
 	var root := VBoxContainer.new()
@@ -87,7 +95,7 @@ func _ready() -> void:
 	load.add_theme_constant_override("separation", UiTokens.SPACE)
 	root.add_child(load)
 	_tab_title = Label.new()
-	_tab_title.text = "GEAR  1"
+	_tab_title.text = "GEAR SET"
 	_tab_title.add_theme_color_override("font_color", INK)
 	load.add_child(_tab_title)
 	for i in 3:
@@ -97,9 +105,9 @@ func _ready() -> void:
 		load.add_child(loadout)
 	_split = GridContainer.new()
 	_split.columns = 3
-	_split.add_theme_constant_override("h_separation", UiTokens.SPACE * 2)
+	_split.add_theme_constant_override("h_separation", UiTokens.SPACE * 5)
 	_split.add_theme_constant_override("v_separation", UiTokens.SPACE * 2)
-	_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_split.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(_split)
 	var col_p := VBoxContainer.new()
@@ -120,14 +128,25 @@ func _ready() -> void:
 	_stat_box.add_theme_constant_override("separation", UiTokens.SPACE)
 	_stat_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col_p.add_child(_stat_box)
-	for _i in 4:
+	_xp_bar = _make_bar(UiTokens.TEAL)
+	col_p.add_child(_xp_bar)
+	col_p.move_child(_xp_bar, 1)  # directly under the name and level line
+	for stat_name in ["Health", "Energy", "Gathering", "Bag"]:
+		var row := HBoxContainer.new()
+		row.custom_minimum_size = Vector2(0, 40)
+		var name_label := Label.new()
+		name_label.text = stat_name
+		name_label.add_theme_color_override("font_color", UiTokens.META)
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_label)
 		var stat := Label.new()
 		stat.add_theme_color_override("font_color", INK)
-		stat.clip_text = true
-		stat.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		stat.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_stat_box.add_child(stat)
+		stat.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(stat)
+		_stat_box.add_child(row)
 		_stat_rows.append(stat)
+	_bag_bar = _make_bar(Color(0.85, 0.70, 0.29))
+	_stat_box.add_child(_bag_bar)
 	var col_b := VBoxContainer.new()
 	col_b.add_theme_constant_override("separation", UiTokens.SPACE)
 	col_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -188,7 +207,11 @@ func _ready() -> void:
 	_tip.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_tip.custom_minimum_size = Vector2(180, 24)
 	_tip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col_e.add_child(_tip)
+	var tip_card := PanelContainer.new()
+	tip_card.add_theme_stylebox_override("panel", UiTokens.panel_style(0.9))
+	tip_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tip_card.add_child(_tip)
+	col_e.add_child(tip_card)
 	_storage_title = Label.new()
 	_storage_title.add_theme_color_override("font_color", INK)
 	root.add_child(_storage_title)
@@ -214,6 +237,14 @@ func _ready() -> void:
 	_place_btn = _action("Place", _on_place_pressed)
 	_store_btn = _action("Store", _store_selected)
 	_take_all_btn = _action("Take all", _take_all_storage)
+	_style_btn(_close_btn, false)
+	_style_btn(_equip_btn, true)
+	for plain in [_lock_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn, _store_btn, _take_all_btn]:
+		_style_btn(plain, false)
+	_hint = Label.new()
+	_hint.text = "Tap an item to select it.     Close: Esc or B"
+	_hint.add_theme_color_override("font_color", UiTokens.META)
+	root.add_child(_hint)
 	_food_inspector = FoodInspector.new()
 	_food_inspector.name = "FoodInspector"
 	add_child(_food_inspector)
@@ -229,6 +260,35 @@ func _ready() -> void:
 	resized.connect(_layout_safe)
 	_layout_safe()
 	rebuild()
+
+func _make_bar(fill: Color) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.max_value = 1.0
+	bar.custom_minimum_size = Vector2(0, 10)
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(0.11, 0.12, 0.13)
+	back.set_corner_radius_all(5)
+	var front := StyleBoxFlat.new()
+	front.bg_color = fill
+	front.set_corner_radius_all(5)
+	bar.add_theme_stylebox_override("background", back)
+	bar.add_theme_stylebox_override("fill", front)
+	return bar
+
+## Teal for the one main action on a screen, quiet ink for the rest.
+func _style_btn(b: Button, primary: bool) -> void:
+	var normal := UiTokens.button_style(false)
+	if primary:
+		normal.bg_color = UiTokens.TEAL
+		normal.border_color = UiTokens.TEAL
+	b.add_theme_stylebox_override("normal", normal)
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = normal.bg_color.lightened(0.12)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", UiTokens.button_style(true))
+	b.add_theme_color_override("font_color", Color(0.02, 0.12, 0.12) if primary else UiTokens.TEXT)
+	b.add_theme_color_override("font_hover_color", Color(0.02, 0.12, 0.12) if primary else UiTokens.TEXT)
 
 func _label(text: String, pos: Vector2, size_px: int) -> Label:
 	var l := Label.new()
@@ -359,6 +419,8 @@ func _layout_safe() -> void:
 		_storage_note.add_theme_font_size_override("font_size", UiTokens.meta(r))
 	if _profile:
 		_profile.add_theme_constant_override("line_spacing", UiTokens.SPACE)
+	if _hint:
+		_hint.add_theme_font_size_override("font_size", UiTokens.meta(r))
 	if _bag_label:
 		_bag_label.add_theme_font_size_override("font_size", UiTokens.meta(r))
 	if _equip_label:
@@ -393,7 +455,8 @@ func rebuild() -> void:
 				pip = "L "
 			if s.is_unstable():
 				pip += "U "
-			ItemIcons.style_slot(btn, s.def_id, "%s%d" % [pip, s.count])
+			var shown_name := s.def().display_name if s.def() else str(s.def_id)
+			ItemIcons.style_slot_named(btn, s.def_id, shown_name, "%s%d" % [pip, s.count], _slot_px, clampi(int(_slot_px * 0.42), 28, 44))
 			btn.tooltip_text = s.tooltip()
 	for c in _pet_grid.get_children():
 		c.queue_free()
@@ -438,11 +501,15 @@ func _refresh_profile() -> void:
 	_profile.custom_minimum_size = Vector2(minf(180.0, name_w), body_px * 2 + UiTokens.SPACE)
 	_profile.text = "%s\n%s  ·  Lv. %d" % [name, occupation, World.pioneer_level + 1]
 	var lines: PackedStringArray = [
-		"HP        %.0f" % hp,
-		"Energy    %.0f" % energy,
-		"Gathering %d" % gathering,
-		"Bag       %d / %d" % [inventory.used_slots(), inventory.slot_count],
+		"%.0f" % hp,
+		"%.0f" % energy,
+		"%d" % gathering,
+		"%d / %d" % [inventory.used_slots(), inventory.slot_count],
 	]
+	if _xp_bar:
+		_xp_bar.value = World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
+	if _bag_bar:
+		_bag_bar.value = float(inventory.used_slots()) / maxf(1.0, float(inventory.slot_count))
 	for i in _stat_rows.size():
 		_stat_rows[i].text = lines[i] if i < lines.size() else ""
 		_stat_rows[i].add_theme_font_size_override("font_size", body_px)
@@ -463,12 +530,18 @@ func _name_column_width(view: Vector2) -> float:
 func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 	var sep := float(UiTokens.SPACE)
 	var phone := UiTokens.is_phone(view)
-	var panel_w := maxf(280.0, view.x - (24.0 + safe.w + safe.x))
-	var panel_h := maxf(280.0, view.y - (24.0 + safe.z + safe.y))
+	# The scroll area sits SPACE * 2 inside the panel on each side, so the usable width is smaller.
+	var panel_w := maxf(280.0, view.x - (24.0 + safe.w + safe.x) - UiTokens.SPACE * 4.0)
+	var panel_h := maxf(280.0, view.y - (24.0 + safe.z + safe.y) - UiTokens.SPACE * 3.0)
 	var slot := 64.0
+	_eq_px = 64.0
 	if phone:
 		slot = floorf((panel_w - sep * 4.0) / 5.0)
 		slot = clampf(slot, 56.0, 80.0)
+		_eq_px = slot
+		if _profile_col:
+			_profile_col.custom_minimum_size = Vector2.ZERO
+			_profile_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		if _bag_col:
 			_bag_col.custom_minimum_size = Vector2.ZERO
 			_bag_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -486,9 +559,13 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 		var grid_h := panel_h - chrome - label_h - sep * 2.0
 		var by_h := floorf((grid_h - sep * 3.0) / 4.0)
 		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / 8.0)
-		slot = maxf(64.0, minf(by_w, by_h))
+		slot = clampf(minf(by_w, by_h), 72.0, 104.0)
+		_eq_px = minf(slot, 84.0)
+		if _profile_col:
+			_profile_col.custom_minimum_size = Vector2(300, 0)
+			_profile_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		var bag_w := 5.0 * slot + sep * 4.0
-		var equip_w := 3.0 * slot + sep * 2.0
+		var equip_w := 3.0 * _eq_px + sep * 2.0
 		if _bag_col:
 			_bag_col.custom_minimum_size = Vector2(bag_w, 0)
 			_bag_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -500,13 +577,14 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 	for child in _grid.get_children():
 		if child is Control:
 			(child as Control).custom_minimum_size = sz
+	var eq_sz := Vector2(_eq_px, _eq_px)
 	for key in _equip_slots.keys():
 		var button: Button = _equip_slots[key]
-		button.custom_minimum_size = sz
+		button.custom_minimum_size = eq_sz
 		var cell := button.get_parent()
 		if cell and cell.get_child_count() > 0 and cell.get_child(0) is Label:
 			var cap := cell.get_child(0) as Label
-			cap.custom_minimum_size = Vector2(slot, 0)
+			cap.custom_minimum_size = Vector2(_eq_px, 0)
 			cap.add_theme_font_size_override("font_size", UiTokens.meta(view))
 	for child in _pet_grid.get_children():
 		if child is Control:

@@ -48,6 +48,18 @@ static func texture(id: StringName) -> Texture2D:
 	return tex
 
 ## Apply icon-on-top + caption styling to a slot button.
+## Bag cell with the icon on top, then the item name and the count on two short lines.
+## max_w is the cell width, so a long name is trimmed instead of spilling past the cell.
+static func style_slot_named(b: Button, id: StringName, item_name: String, caption: String, max_w: float, icon_px: int = 40) -> void:
+	var tex := texture(id)
+	b.icon = tex
+	b.expand_icon = true
+	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+	b.add_theme_constant_override("icon_max_width", icon_px)
+	var shown := UiTokens.ellipsis(ThemeDB.fallback_font, item_name, maxf(24.0, max_w - 12.0), 12)
+	b.text = "%s\n%s" % [shown, caption]
+
 static func style_slot(b: Button, id: StringName, caption: String) -> void:
 	var tex := texture(id)
 	b.icon = tex

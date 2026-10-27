@@ -62,8 +62,8 @@ func _audit_size(player: Player, size: Vector2i) -> void:
 	await get_tree().process_frame
 	_audit_tree(animals, view, "animals")
 	_expect(animals._list.get_child_count() == 3, "animal roster count at %s" % size)
-	_expect(animals._detail.text.contains("GROWTH / POTENTIAL"), "growth header stays visible at %s" % size)
-	_expect(animals._detail.text.contains("Ranged Defense") or animals._detail.text.contains("Ranged defense"), "long stat name is reserved at %s" % size)
+	_expect(animals.detail_text().to_lower().contains("growth potential"), "growth header stays visible at %s" % size)
+	_expect(animals.detail_text().to_lower().contains("ranged defense"), "long stat name is reserved at %s" % size)
 	_expect(animals._active.get_child_count() == Player.MAX_PETS_OUT, "three active slots are pinned at %s" % size)
 	await _shot(host, "animals_%dx%d" % [size.x, size.y])
 	animals.queue_free()
@@ -81,6 +81,15 @@ func _audit_size(player: Player, size: Vector2i) -> void:
 	host.add_child(hud)
 	await get_tree().process_frame
 	await _shot(host, "hud_%dx%d" % [size.x, size.y])
+	hud._toggle_sheet(&"menu")
+	for _f in 4:
+		await get_tree().process_frame
+	await _shot(host, "menu_%dx%d" % [size.x, size.y])
+	hud._toggle_sheet(&"controls")
+	for _f in 4:
+		await get_tree().process_frame
+	await _shot(host, "controls_%dx%d" % [size.x, size.y])
+	hud._close_sheet()
 	hud.open_map()
 	await get_tree().process_frame
 	var map := hud.get_node_or_null("MapLayer/MapScreen") as MapScreen

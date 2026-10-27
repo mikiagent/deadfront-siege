@@ -58,6 +58,21 @@ var _death_note: Label
 var _death_alpha: float = 0.0
 var _death_btn: Button
 
+## What the Controls page lists: action, keyboard and mouse, then gamepad.
+const CONTROLS_HELP := [
+	["Move", "WASD or left stick"],
+	["Interact, gather", "E or A"],
+	["Attack", "F or X"],
+	["Roll", "Space or B"],
+	["Sprint", "Shift or left stick click"],
+	["Tackle and kick", "1, 2 or LB, RB"],
+	["Craft", "C or Y"],
+	["Bag", "I or Back"],
+	["Map", "M or right stick click"],
+	["Menu", "Esc or Start"],
+	["Full screen", "F11"],
+]
+
 const MAP_PX := 154.0
 const MAP_SCALE := 0.95  # metres per pixel
 const HEX := 64.0
@@ -77,6 +92,11 @@ func _ready() -> void:
 	_build_death()
 	add_to_group("hud")
 	_load_level_data()
+	# Esc and Start are not on screen, so a new survivor gets one quiet pointer to the menu.
+	if World.pioneer_level <= 1 and not Game.smoke_test and Game.shot_path == "":
+		get_tree().create_timer(6.0).timeout.connect(func () -> void:
+			if player != null and is_instance_valid(player) and not player.dead:
+				player.notice("Tip: tap MENU, or press Esc or Start, for save, full screen and controls."))
 	if World.has_signal("pioneer_changed"):
 		World.pioneer_changed.connect(_on_level_up)
 	if Game.shot_path.contains("skills") or Game.shot_path.contains("tree"):
@@ -680,7 +700,7 @@ func _toggle_sheet(kind: StringName) -> void:
 	sb.content_margin_bottom = 12
 	_sheet.add_theme_stylebox_override("panel", sb)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
+	box.add_theme_constant_override("separation", 5)
 	_sheet.add_child(box)
 	var title := Label.new()
 	title.add_theme_font_size_override("font_size", 20)
@@ -688,11 +708,38 @@ func _toggle_sheet(kind: StringName) -> void:
 	match kind:
 		&"menu":
 			title.text = "Menu"
-			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
-			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
-			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
-			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
+			var how := Label.new()
+			how.text = "Esc or Start opens this menu"
+			how.add_theme_font_size_override("font_size", 13)
+			how.add_theme_color_override("font_color", UiTokens.META)
+			box.add_child(how)
+			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible, "I")
+			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle(), "C")
+			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map(), "M")
+			_sheet_btn(box, "Animals", func () -> void: _close_sheet(); _open_animals())
+			_sheet_btn(box, "Skills", func () -> void: _close_sheet(); _toggle_skills())
+			box.add_child(HSeparator.new())
+			_sheet_btn(box, "Save game", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
+			_sheet_btn(box, DisplayMode.label(), func () -> void: DisplayMode.toggle(); _close_sheet(), "F11")
+			_sheet_btn(box, "Controls", func () -> void: _close_sheet(); _toggle_sheet(&"controls"))
 			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
+		&"controls":
+			title.text = "Controls"
+			for pair in CONTROLS_HELP:
+				var row := HBoxContainer.new()
+				row.add_theme_constant_override("separation", 12)
+				var what := Label.new()
+				what.text = str(pair[0])
+				what.add_theme_font_size_override("font_size", 16)
+				what.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				row.add_child(what)
+				var keys := Label.new()
+				keys.text = str(pair[1])
+				keys.add_theme_font_size_override("font_size", 14)
+				keys.add_theme_color_override("font_color", UiTokens.META)
+				row.add_child(keys)
+				box.add_child(row)
+			_sheet_btn(box, "Back to menu", func () -> void: _close_sheet(); _toggle_sheet(&"menu"))
 		&"pets":
 			title.text = "ANIMALS  %d owned" % player.bonded.size()
 			if player.bonded.is_empty():
@@ -744,21 +791,35 @@ func _toggle_sheet(kind: StringName) -> void:
 				var l := Label.new()
 				l.text = "No building kits in the bag. Craft one at the workbench."
 				box.add_child(l)
-	var close := Button.new()
-	close.text = "Close"
-	close.custom_minimum_size = Vector2(240, 56)
-	close.pressed.connect(_close_sheet)
-	box.add_child(close)
+	_sheet_btn(box, "Close", _close_sheet)
 	add_child(_sheet)
-	_sheet.size = Vector2(320, 0)
+	_sheet.size = Vector2(440 if kind == &"controls" else 340, 0)
 	await get_tree().process_frame
 	_layout()
 
-func _sheet_btn(box: VBoxContainer, text: String, cb: Callable) -> void:
+## A menu row. key is the keyboard shortcut, drawn small on the right of the row.
+func _sheet_btn(box: VBoxContainer, text: String, cb: Callable, key: String = "") -> void:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(300, 60)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.custom_minimum_size = Vector2(300, 46)
 	b.add_theme_font_size_override("font_size", 18)
+	b.add_theme_stylebox_override("normal", UiTokens.button_style(false))
+	var hover := UiTokens.button_style(false)
+	hover.bg_color = Color(0.13, 0.15, 0.17, 0.98)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", UiTokens.button_style(true))
+	if key != "":
+		var k := Label.new()
+		k.text = key
+		k.set_anchors_preset(Control.PRESET_FULL_RECT)
+		k.offset_right = -14.0
+		k.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		k.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		k.add_theme_font_size_override("font_size", 13)
+		k.add_theme_color_override("font_color", UiTokens.META)
+		k.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(k)
 	b.pressed.connect(cb)
 	box.add_child(b)
 
@@ -1056,6 +1117,11 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 			var hp := "%.0f / %.0f" % [t.health.hp, t.health.max_hp]
 			var hw := _font.get_string_size(hp, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 			draw_string(_font, Vector2(px + pw * 0.5 - hw * 0.5, py + 61), hp, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, a))
+			var tameable := t.def.tameable and not t.is_pet
+			if tameable:
+				# The capture line: below it the animal can be knocked over and fed.
+				var tick_x := px + pw * FieldTame.CAPTURE_HEALTH_FRAC
+				draw_rect(Rect2(tick_x - 1.0, py + 40.0, 2.0, 30.0), Color(UiTokens.TEAL, a))
 			if t.brain is TyrantBrain:
 				var label := (t.brain as TyrantBrain).opening_label()
 				draw_rect(Rect2(px,py+108,pw,26),Color(0.1,0.1,0.12,0.9*a))
@@ -1066,6 +1132,47 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 					draw_rect(Rect2(ix, py + 74, 26, 26), Color(0.1, 0.1, 0.12, 0.85 * a))
 					draw_string(_font, Vector2(ix + 4, py + 93), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.6, 0.5, a))
 					ix += 30
+			if tameable and not t.health.dead:
+				_draw_tame_guide(t, a, Vector2(16.0 + _safe_insets().w, 108.0))
+
+## "Taming": the three steps, with the one you are on highlighted. Wear the animal down below the
+## capture line, knock it over, then feed it. Drawn under the target plate while a tameable animal is targeted.
+func _draw_tame_guide(t: Creature, a: float, origin: Vector2) -> void:
+	var r := get_viewport_rect().size
+	var meta_px := UiTokens.meta(r)
+	var body_px := UiTokens.body(r)
+	var weak := FieldTame.health_allows_capture(t.health.fraction())
+	var down := t.statuses != null and t.statuses.has(&"knockdown")
+	var food := str(FieldTame.preferred_need(t)).replace("_", " ")
+	var feed_text := "Take it to a pen" if t.def.requires_pen else "Feed it %s" % food
+	if not t.def.requires_pen and int(t.def.feeds_needed) > 1:
+		feed_text += "  %d / %d" % [int(t.tame_feeds), int(t.def.feeds_needed)]
+	var steps: Array = [["Wear it down", weak], ["Knock it over", weak and down], [feed_text, false]]
+	var w := 200.0 if UiTokens.is_phone(r) else 260.0
+	var h := 40.0 + 32.0 * float(steps.size()) + 6.0
+	var bg := UiTokens.INK
+	bg.a *= a
+	draw_rect(Rect2(origin, Vector2(w, h)), bg)
+	draw_string(_font, origin + Vector2(14, 24), "TAMING", HORIZONTAL_ALIGNMENT_LEFT, -1, meta_px, Color(UiTokens.META, a))
+	var now_i := -1
+	for i in steps.size():
+		if not bool(steps[i][1]):
+			now_i = i
+			break
+	for i in steps.size():
+		var done: bool = bool(steps[i][1])
+		var cy := origin.y + 52.0 + 32.0 * float(i)
+		var cx := origin.x + 26.0
+		var col := Color(0.37, 0.75, 0.40, a) if done else (Color(UiTokens.TEAL, a) if i == now_i else Color(0.45, 0.47, 0.49, a))
+		if done:
+			draw_circle(Vector2(cx, cy), 11.0, col)
+			draw_polyline(PackedVector2Array([Vector2(cx - 5.0, cy), Vector2(cx - 1.5, cy + 4.0), Vector2(cx + 5.5, cy - 4.0)]), Color(0.03, 0.09, 0.04, a), 2.2)
+		else:
+			draw_arc(Vector2(cx, cy), 10.0, 0.0, TAU, 20, col, 2.0)
+			draw_string(_font, Vector2(cx - 4.0, cy + 5.0), str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, meta_px, col)
+		var text := UiTokens.ellipsis(_font, str(steps[i][0]), w - 62.0, body_px)
+		var text_col := Color(0.37, 0.75, 0.40, a) if done else (Color(1, 1, 1, a) if i == now_i else Color(UiTokens.META, a))
+		draw_string(_font, Vector2(origin.x + 48.0, cy + 6.0), text, HORIZONTAL_ALIGNMENT_LEFT, w - 58.0, body_px, text_col)
 
 func _draw_quest(r: Vector2, mp: Vector2) -> void:
 	var phone := UiTokens.is_phone(r)
