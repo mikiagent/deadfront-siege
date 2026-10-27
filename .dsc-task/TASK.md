@@ -1,48 +1,43 @@
-# M0-FOUNDATION / core transaction worker
+# M0-FOUNDATION / persistence worker
 
-You are one worker in a strictly isolated M0 proof. Work only on the
-branch and worktree supplied by the superplan. Do not create a browser,
-open a visible Godot window, use desktop control, deploy, push, merge,
-or delegate to another agent. Run Godot only headlessly.
+Work only in the isolated superplan worktree. The owner permits a
+visible Godot window and desktop interaction for this M0 project.
+Automated tests must remain headless and repeatable. Do not deploy,
+git push, merge, or delegate. The prior M0 core phase is your base;
+preserve its behavior unless a real defect requires a compatible repair.
 
-Read before editing:
-- AGENTS.md
-- docs/specs/README.md
-- docs/specs/MASTER-CONTEXT.md
-- docs/specs/ARCHITECTURE.md
-- docs/specs/REGISTRY.md
-- docs/specs/MILESTONES.md (M0 only)
-- docs/specs/QA-CONTRACT.md
-- docs/specs/systems/00-identity-persistence.md
+Re-read the M0 sections of docs/specs/README.md, MASTER-CONTEXT.md,
+ARCHITECTURE.md, REGISTRY.md, MILESTONES.md, QA-CONTRACT.md, and
+systems/00-identity-persistence.md before editing.
 
-Implement only the engineering-only M0 core in a NEW isolated Godot
-project rooted at deadfront-rebuild/. Do not touch game/, hosting/,
-existing top-level application files, legacy tests, assets, deployment,
-or any gameplay system. Use Godot 4.7.1 typed GDScript only; no C#.
+Implement only persistence engineering inside deadfront-rebuild/:
+- A versioned snapshot containing enough M0 state to restore IDs,
+  inventories, ownership/location links, revisions, command receipts,
+  ruleset reference, simulation tick, and schema version.
+- Canonical deterministic serialization plus an integrity checksum/hash.
+- Explicit migration chain for known old schemas and rejection of unknown
+  future schemas without changing the source save.
+- Atomic-save behavior using a temporary file and retained last-known-good
+  backup. A corrupt primary must recover from a valid backup without
+  overwriting that backup; unrecoverable corruption must fail safely.
+- Journal/recovery semantics sufficient for synchronous M0 transfer:
+  no partial debit on failed validation and no double application after
+  an interrupted/reloaded receipt.
 
-Deliver the smallest deep modules needed for:
-1. Stable, non-recycled, typed entity IDs and an entity lookup/store.
-2. One authoritative owner/location reference per material lot.
-3. Atomic transfer planning/commit with source revision and target
-   capacity validation. A rejected transfer must change nothing.
-4. A synchronous command bus whose receipt ledger makes a repeated
-   command_id return the original receipt without a second mutation.
-5. Deterministic tests: ID uniqueness, FND-001 in-memory transfer and
-   replay, competing final-unit transfers with exactly one winner, and
-   a seeded 1,000-operation conservation property test.
+Expand the deterministic tests and fixture data to prove the mandated
+M0 scenario exactly: human A begins with 5 fiber and 3 stone; T1 moves
+2 fiber and 1 stone to escrow preserving lot provenance; replaying T1
+before AND after save/reload changes nothing and returns its original
+receipt; oversized T2 rejects atomically. Compare the canonical final
+state hash against a checked-in M0 fixture. Also prove corrupted-primary
+backup recovery and future-schema rejection are non-destructive.
 
-Use only M0 fixture values explicitly required by MILESTONES/QA:
-5 fiber, 3 stone, and the stated transfer quantities. Do not introduce
-crafting, item balance, stats, combat, PvP, markets, or other unapproved
-formulas. Test-only capacities may exist solely to prove atomic rejection
-and must be named/documented as harness limits, not game balance.
+Do not add crafting outcomes, character progression, combat, PvP, market
+systems, content balance, or approval claims. Do not touch game/ or any
+legacy/deployment path. Update README and provide
+deadfront-rebuild/tools/verify_persistence.sh
+that first runs the existing core verification, then clean imports and
+runs persistence tests headlessly with a truthful PASS marker.
 
-Keep domain logic independent of scene nodes and avoid a god-object.
-Add a concise deadfront-rebuild/README.md describing boundaries and the
-exact core verify command. Add deadfront-rebuild/tools/verify_core.sh;
-it must clean-import headlessly before running the typed test runner and
-print a clear PASS marker only if every required core test passes.
-
-Stay within this job's planned scope. Run the supplied verify command,
-inspect its real exit status, commit only your verified change with a
-clear M0-core commit message, and stop for review.
+Run the supplied verify command, record no invented results, commit only
+this verified phase with a clear message, and stop for review.
