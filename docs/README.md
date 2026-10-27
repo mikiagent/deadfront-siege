@@ -1,38 +1,32 @@
-# DEADFRONT docs — the wiki's live tracks
+# DEADFRONT docs — the archive line
 
-## Two tracks (what the wiki loads by default)
+This line (`main`) is the **deep archive**: orchestration prompts, session reports,
+playtests, PRDs, superseded designs. It is one deliberate search away through the wiki's
+**deep** toggle and `git show main:<path>` — it is never edited in place and never loaded
+by default.
 
-### `vision/` — permanent, evolving design
-What the game **should** be, at the experience and rule level. Currently anchored by the
-owner-authored `WildLandsMMO_*` spec set (2026-10-27):
+## Where the truth lives instead
 
-- `WildLandsMMO_Game_Vision.md` — umbrella encyclopedia; experience design is canon
-- `WildLandsMMO_Loss_Recruitment_Revival.md` — owner-confirmed rules (72 h ransom window, two
-  revival routes, first tame by discovery, solo-friendly frontier tiering)
-- `WildLandsMMO_Combat_Math.md`, `WildLandsMMO_Crafting_Building_Math.md`,
-  `WildLandsMMO_Traits_Gathering_Processing_Math.md` — workshop **proposals**: formulas and
-  percentages are candidates until the balance workshop approves them; do not quote their numbers
-  as shipped fact
-- The umbrella doc references a `WildLandsMMO_Open_Questions.md` decision register (not yet in
-  this repo — pending)
+The **canon line** owns everything true today, single-homed (2026-10-27 consolidation —
+one source of truth, updated once):
 
-### `current/` — how the build works today
-One doc per system, facts and numbers only, each citing the code path that owns it. Start:
-`survival-needs.md`, `hud.md`. New one lands whenever a system changes in a way that matters.
+- the `claude/mmo-overhaul` worktree: `.claude/worktrees/mmo-overhaul/`
+- its `docs/vision/` — owner's `WildLandsMMO_*` spec set
+- its `docs/current/` — per-system today-truth, including `controls.md` and the generated
+  data pages
+- its `docs/reference/`, `docs/design/` — build-consumed corpora (sprites2d inputs,
+  code-cited prompt specs)
+- its `tools/docs_wiki/` — the wiki server itself, rerooted to treat this checkout as the
+  deep archive it deep-searches (run from the canon root:
+  `python3 tools/docs_wiki/docs_wiki.py serve` → http://localhost:8899)
 
-## Everything else is deep history — search, don't load
-The rest of `docs/` (orchestration, reports, playtests, old PRDs, design notes) is **not indexed
-by the wiki by default**. It stays one deliberate search away ("deep" toggle in the wiki header)
-for provenance, but nothing in it should sit in a working session's context. Old implementations
-and superseded design decisions belong there, not in the top-level load set.
+## Rules for this line
 
-## `archive/` — parked for good
-Any folder named `archive` is skipped by the wiki scanner entirely (closed tabs in
-`tools/docs_wiki/docs_wiki.py`). Stale-marked docs move here, e.g. the superseded
-dinosaur-roster PRD (Meshy pipeline era), `orchestration/plan.md`'s historical numbering and
-`engine-decision.md`'s historical import specifics.
-
-## Flow
-Mark docs in the wiki (http://localhost:8899) → stale ones get `git mv`-ed into `archive/` →
-the promoted truths get rewritten as a `current/` doc so a fresh session reads one page instead
-of twenty sessions of history.
+- Archived docs **don't get updated** — they are the record of what was true when written.
+  The `docs/controls.md` copy here is the historical input sheet; canon's
+  `docs/current/controls.md` is the live one.
+- If a canon doc goes stale, `git mv` it here in the same commit; never keep twins. The
+  wiki auto-flags any path that exists on both lines with different bytes — every one of
+  those flags means a redundant copy to reconcile.
+- Rebuild-from-history is always possible: every historical version is in this line's git
+  history.
