@@ -87,13 +87,57 @@ static func write_snapshot(save_path: String, data: Dictionary, current_schema: 
 			return error
 	return DirAccess.rename_absolute(ProjectSettings.globalize_path(staged), ProjectSettings.globalize_path(save_path))
 
+## Restore only a missing or invalid primary. Keep the backup and preserve the
+## original bytes under a unique name before replacing a damaged primary.
+static func restore_backup(save_path: String, current_schema: int) -> Dictionary:
+	var original_status: String = inspect(save_path, current_schema).status
+	if original_status != "invalid" and original_status != "missing":
+		return {"ok": false, "error": ERR_FILE_CORRUPT, "archive": ""}
+	var backup_path := save_path + ".bak"
+	if inspect(backup_path, current_schema).status != "valid":
+		return {"ok": false, "error": ERR_INVALID_DATA, "archive": ""}
+	var backup_bytes := FileAccess.get_file_as_bytes(backup_path)
+	if FileAccess.get_open_error() != OK:
+		return {"ok": false, "error": ERR_CANT_OPEN, "archive": ""}
+	var staged := _unused_path(save_path + ".restore-pending-")
+	var error := _write_checked(staged, backup_bytes, current_schema)
+	if error != OK:
+		return {"ok": false, "error": error, "archive": ""}
+	var archive := ""
+	var original := PackedByteArray()
+	if original_status == "invalid":
+		original = FileAccess.get_file_as_bytes(save_path)
+		if FileAccess.get_open_error() != OK:
+			return {"ok": false, "error": ERR_CANT_OPEN, "archive": ""}
+		archive = _unused_path(save_path + ".corrupt-")
+		error = _write_raw_checked(archive, original)
+		if error != OK:
+			return {"ok": false, "error": error, "archive": archive}
+	# Do not promote if another writer changed either source while staging.
+	if inspect(save_path, current_schema).status != original_status:
+		return {"ok": false, "error": ERR_BUSY, "archive": archive}
+	if original_status == "invalid" and FileAccess.get_file_as_bytes(save_path) != original:
+		return {"ok": false, "error": ERR_BUSY, "archive": archive}
+	if FileAccess.get_file_as_bytes(backup_path) != backup_bytes:
+		return {"ok": false, "error": ERR_BUSY, "archive": archive}
+	error = DirAccess.rename_absolute(ProjectSettings.globalize_path(staged), ProjectSettings.globalize_path(save_path))
+	return {"ok": error == OK, "error": error, "archive": archive}
+
 static func _unused_path(prefix: String) -> String:
 	var candidate := prefix + str(Time.get_ticks_usec())
-	while FileAccess.file_exists(candidate):
+	while FileAccess.file_exists(candidate) or DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(candidate)):
 		candidate += "-1"
 	return candidate
 
 static func _write_checked(target: String, bytes: PackedByteArray, current_schema: int) -> int:
+	var error := _write_raw_checked(target, bytes)
+	if error != OK:
+		return error
+	if inspect(target, current_schema).status != "valid":
+		return ERR_INVALID_DATA
+	return OK
+
+static func _write_raw_checked(target: String, bytes: PackedByteArray) -> int:
 	var file := FileAccess.open(target, FileAccess.WRITE)
 	if file == null:
 		return FileAccess.get_open_error()
@@ -106,6 +150,4 @@ static func _write_checked(target: String, bytes: PackedByteArray, current_schem
 	var written := FileAccess.get_file_as_bytes(target)
 	if FileAccess.get_open_error() != OK or written != bytes:
 		return ERR_FILE_CANT_WRITE
-	if inspect(target, current_schema).status != "valid":
-		return ERR_INVALID_DATA
 	return OK

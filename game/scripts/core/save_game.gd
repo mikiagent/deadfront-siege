@@ -230,21 +230,51 @@ static func _show_save_error(host: Node, reason: String) -> void:
 		"invalid": description = "the save is damaged or incomplete"
 		"future": description = "the save belongs to a newer game version"
 		"unreadable": description = "the save could not be read"
-	var backup_note := "No backup was found."
-	if FileAccess.file_exists(path + ".bak"):
+	var primary: Dictionary = Recovery.inspect(path, SCHEMA)
+	var backup: Dictionary = Recovery.inspect(path + ".bak", SCHEMA)
+	var can_restore: bool = not _is_bot() and primary.status in ["missing", "invalid"] and backup.status == "valid"
+	var backup_note := "No usable backup was found."
+	if backup.status == "valid":
 		backup_note = "A backup is available at:\n%s" % ProjectSettings.globalize_path(path + ".bak")
-	message.text = "Save protection stopped saving: %s.\n\nThe existing save has not been replaced. This session is not being saved.\n%s\n\nBack up your files before making changes, or use a compatible game version." % [description, backup_note]
+	if can_restore:
+		message.text = "Save protection stopped saving: %s.\n\nRestore the last backup to continue. Progress since that backup will be lost. Any damaged save will be kept as a separate file." % description
+	else:
+		message.text = "Save protection stopped saving: %s.\n\nThe existing save has not been replaced. This session is not being saved.\n%s\n\nBack up your files before making changes, or use a compatible game version." % [description, backup_note]
 	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	message.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	panel.add_child(message)
+	var restore_button: Button = null
+	if can_restore:
+		restore_button = Button.new()
+		restore_button.name = "RestoreBackupButton"
+		restore_button.text = "Restore backup"
+		restore_button.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		panel.add_child(restore_button)
+		var recovery_path := path
+		restore_button.pressed.connect(func () -> void:
+			restore_button.disabled = true
+			if path != recovery_path:
+				message.text = "The save location changed. Restart the game before restoring a backup."
+				return
+			var result: Dictionary = Recovery.restore_backup(recovery_path, SCHEMA)
+			if not bool(result.get("ok", false)):
+				message.text = "The backup could not be restored (error %d). The existing save and backup have been kept. Check storage and try again." % int(result.get("error", FAILED))
+				restore_button.disabled = false
+				return
+			load_now(host)
+			if not _save_blocked:
+				layer.queue_free()
+			else:
+				message.text = "The backup was restored but could not be loaded. Saving remains disabled. Your backup and the preserved save file are still available."
+		)
 	layer.add_child(panel)
 	host.add_child(layer)
-	panel.resized.connect(func () -> void: _layout_save_message(message))
-	_layout_save_message(message)
+	panel.resized.connect(func () -> void: _layout_save_message(message, restore_button))
+	_layout_save_message(message, restore_button)
 
-static func _layout_save_message(message: Label) -> void:
+static func _layout_save_message(message: Label, restore_button: Button = null) -> void:
 	if not is_instance_valid(message) or message.get_viewport() == null:
 		return
 	var viewport := message.get_viewport()
@@ -256,8 +286,14 @@ static func _layout_save_message(message: Label) -> void:
 	message.offset_left = safe.w + padding
 	message.offset_top = safe.z + padding
 	message.offset_right = -safe.x - padding
-	message.offset_bottom = -safe.y - padding
+	message.offset_bottom = -safe.y - padding - (88.0 * scale if restore_button != null else 0.0)
 	message.add_theme_font_size_override("font_size", int(ceil(22.0 * scale)))
+	if is_instance_valid(restore_button):
+		restore_button.offset_left = safe.w + padding
+		restore_button.offset_right = -safe.x - padding
+		restore_button.offset_bottom = -safe.y - padding
+		restore_button.offset_top = restore_button.offset_bottom - 72.0 * scale
+		restore_button.add_theme_font_size_override("font_size", int(ceil(22.0 * scale)))
 
 static func _restore_buildings(rows: Array, schema: int) -> void:
 	if World.runtime == null:

@@ -16,6 +16,44 @@ func _ready() -> void:
 		save.load_now(self)
 		# The existing --shot mechanism captures the resulting recovery screen.
 		return
+	if "--c0-restore-ui" in OS.get_cmdline_user_args() or "--c0-restore-action" in OS.get_cmdline_user_args():
+		LabKit.build(self, 30.0)
+		var backup := FileAccess.open(fixture_path + ".bak", FileAccess.WRITE)
+		backup.store_string(FileAccess.get_file_as_string("res://tests/fixtures/save_v3_c0.json"))
+		backup.close()
+		var broken := FileAccess.open(fixture_path, FileAccess.WRITE)
+		broken.store_string('{"schema":3,"player":')
+		broken.close()
+		save.load_now(self)
+		if "--c0-restore-action" in OS.get_cmdline_user_args():
+			var button := find_child("RestoreBackupButton", true, false) as Button
+			if button == null:
+				print("C0 RESTORE ACTION FAIL: restore button missing")
+				get_tree().quit(1)
+				return
+			button.pressed.emit()
+			var player: Player = World._player()
+			var stack := player.inventory.find_first(&"branch") if player != null else -1
+			if bool(save._save_blocked) or stack < 0 or FileAccess.get_file_as_string(fixture_path + ".bak") != FileAccess.get_file_as_string(fixture_path):
+				print("C0 RESTORE ACTION FAIL: backup did not load")
+				get_tree().quit(1)
+				return
+			var directory := DirAccess.open("/private/tmp")
+			var archive_found := false
+			for filename: String in directory.get_files():
+				if filename.begins_with(fixture_path.get_file() + ".corrupt-"):
+					var archive_path := "/private/tmp".path_join(filename)
+					archive_found = FileAccess.get_file_as_string(archive_path) == '{"schema":3,"player":'
+					DirAccess.remove_absolute(archive_path)
+			DirAccess.remove_absolute(fixture_path)
+			DirAccess.remove_absolute(fixture_path + ".bak")
+			if not archive_found:
+				print("C0 RESTORE ACTION FAIL: damaged save was not preserved")
+				get_tree().quit(1)
+				return
+			print("C0 RESTORE ACTION PASS")
+			get_tree().quit(0)
+		return
 	var kit := LabKit.build(self, 30.0)
 	var player: Player = kit["player"]
 	World.home_terrain = &"meadow"
