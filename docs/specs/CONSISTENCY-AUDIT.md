@@ -33,7 +33,7 @@ The `system-graph.v0.json` dependency network contains loops by **game design**,
 
 A first draft of `candidate-recipes.v0.json` was compared to original chapter 23: corrected plank output **2 split_wood→1 plank**, shaped bone source **dense_bone×2 +stone×1**, sinew cord **tendon×2+twine×1**, treated plank **plank×2+resin×1→2**, laminated bone both binding pitch and cured hide, iron smelting **iron_ore×3 +charcoal×2**, refinement **iron_ingot×2 +charcoal×1**. All are historical **proposed or existing-reference** recipes, NOT tested against current `game/data/recipes.json`.
 
-The 18-weapon candidate matrix mirrors documented six archetypes × three eras and marks existing/new output status from source, not an independent items.json audit. Missing iron ore and Smelter, Forge, Lamination Press must be created and tested before era completion.
+The 18-weapon candidate matrix mirrors documented six archetypes × three eras. A subsequent static cross-check against live items.json/recipes.json is recorded in CONTENT-AUDIT.md, with per-weapon existence flags. This still does not validate runtime functionality. Missing iron ore and Smelter, Forge, Lamination Press must be created and tested before era completion.
 
 ## Ship/no-ship conclusion
 

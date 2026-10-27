@@ -3,7 +3,12 @@
     "version": "candidate-0.1.0",
     "approval_status": "PROPOSED_NOT_OWNER_APPROVED",
     "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
-    "warning": "These are source-documented illustrative weapon ingredients and item IDs. Existing data not re-verified from live items/recipes in this turn. Stage skill gates, labor, numeric damage, ammo counts, trait engineering and all missing sources remain open."
+    "warning": "Source chapter23 weapon ingredient proposals cross-checked against current item IDs and recipe outputs; new definitions/recipes are NOT built. Category alternatives are placeholders, not def IDs; numerical balancing still PROPOSED.",
+    "checked_against": [
+      "game/data/items.json",
+      "game/data/recipes.json"
+    ],
+    "checked_at": "2026-10-26"
   },
   "attack_classes": [
     "DI",
@@ -40,7 +45,12 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": true,
+      "live_recipe_output_exists": true,
+      "unresolved_ingredient_def_ids": [
+        "twine_or_bark_strip_or_root"
+      ]
     },
     {
       "era": "early",
@@ -63,7 +73,10 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": []
     },
     {
       "era": "early",
@@ -86,7 +99,10 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": true,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": []
     },
     {
       "era": "early",
@@ -109,7 +125,12 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": true,
+      "live_recipe_output_exists": true,
+      "unresolved_ingredient_def_ids": [
+        "lashing"
+      ]
     },
     {
       "era": "early",
@@ -136,7 +157,10 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": []
     },
     {
       "era": "early",
@@ -159,7 +183,12 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": true,
+      "live_recipe_output_exists": true,
+      "unresolved_ingredient_def_ids": [
+        "lashing"
+      ]
     },
     {
       "era": "mid",
@@ -190,7 +219,13 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "carved_bone_rib",
+        "sinew_cord"
+      ]
     },
     {
       "era": "mid",
@@ -221,7 +256,15 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "carved_bone_rib",
+        "braided_sinew_cable",
+        "copper_trigger_assembly",
+        "cured_hide_binding"
+      ]
     },
     {
       "era": "mid",
@@ -248,7 +291,13 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "honed_talon_set",
+        "sinew_cord"
+      ]
     },
     {
       "era": "mid",
@@ -275,7 +324,12 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "carved_bone_rib"
+      ]
     },
     {
       "era": "mid",
@@ -306,7 +360,14 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "carved_bone_rib",
+        "honed_talon_set",
+        "sinew_cord"
+      ]
     },
     {
       "era": "mid",
@@ -337,7 +398,13 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "carved_bone_rib",
+        "sinew_cord"
+      ]
     },
     {
       "era": "late",
@@ -368,7 +435,16 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "forged_iron_fittings",
+        "reinforced_stock",
+        "braided_sinew_cable",
+        "reinforced_bone_block",
+        "cured_hide_binding"
+      ]
     },
     {
       "era": "late",
@@ -399,7 +475,16 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "iron_trigger_mechanism",
+        "iron_bolt_magazine",
+        "reinforced_stock",
+        "braided_sinew_cable",
+        "cured_hide_binding"
+      ]
     },
     {
       "era": "late",
@@ -430,7 +515,16 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "iron_chain_links",
+        "honed_talon_set",
+        "braided_sinew_cable",
+        "reinforced_haft",
+        "cured_hide_binding"
+      ]
     },
     {
       "era": "late",
@@ -453,7 +547,14 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": true,
+      "live_recipe_output_exists": true,
+      "unresolved_ingredient_def_ids": [
+        "forged_maul_head",
+        "reinforced_haft",
+        "cured_hide_binding"
+      ]
     },
     {
       "era": "late",
@@ -476,7 +577,14 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "forged_spearhead",
+        "long_lance_shaft",
+        "cured_hide_binding"
+      ]
     },
     {
       "era": "late",
@@ -503,7 +611,15 @@
         }
       ],
       "approval": "PROPOSED",
-      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+      "live_item_exists": false,
+      "live_recipe_output_exists": false,
+      "unresolved_ingredient_def_ids": [
+        "forged_greatblade",
+        "reinforced_haft",
+        "cured_hide_binding",
+        "honed_talon_set"
+      ]
     }
   ]
 }

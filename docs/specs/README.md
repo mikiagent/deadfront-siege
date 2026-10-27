@@ -23,6 +23,8 @@
 - [MILESTONES.md](MILESTONES.md) | Dependency-ordered Claude coding tickets, isolated clean build
 - [CLAUDE-HANDOFF.md](CLAUDE-HANDOFF.md) | Copy/paste first Claude task and session rules
 - [QA-CONTRACT.md](QA-CONTRACT.md) | Goldens, simulation, no-duplication properties and release verification
+- [CONSISTENCY-AUDIT.md](CONSISTENCY-AUDIT.md) | Canonical rule and conflict cross-check
+- [CONTENT-AUDIT.md](CONTENT-AUDIT.md) | Live item/recipe coverage and 18-weapon missing IDs
 - [data/](data/) | Machine-readable candidate balance, fixtures, validation support
 - [systems/](systems/) | One contract per domain, specific formulas, state transitions and abuse tests
 
