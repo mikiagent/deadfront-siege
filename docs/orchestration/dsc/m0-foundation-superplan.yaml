@@ -1,0 +1,232 @@
+# M0 only. This superplan operates exclusively in the codex/m0-foundation
+# implementation branch and its worker worktrees. It must never change game/.
+project:
+  repo: /Users/milankinzy/Documents/deadfront-siege/.claude/worktrees/m0-foundation
+  base: codex/m0-foundation
+  worktrees: /Users/milankinzy/Documents/deadfront-siege/.claude/worktrees/m0-plan-jobs
+  prefix: m0-
+  branch_prefix: dsc/m0-
+  merge: orchestrator
+  integration_gate: "git -C {tree} diff --check"
+budget_usd: 16
+resources:
+  godot: 1
+  model:deepseek/deepseek-v4.1-flash-1017: 1
+defaults:
+  model: deepseek/deepseek-v4.1-flash-1017
+  effort: medium
+  budget_usd: 5
+  max_hours: 2
+  max_rounds: 2
+  dsc_json: {watchdogIdleSec: 0, maxTurns: 160}
+  review: auto-if-verify-passes
+phases:
+  - id: m0-core
+    goal: "Establish the isolated typed-GDScript identity, ownership, transaction, and in-memory idempotence core."
+    exit: all_merged
+    jobs:
+      - key: core
+        title: "Build M0's deterministic ownership and atomic transfer core"
+        kind: code
+        resources: [godot]
+        priority: 100
+        scope: '^(deadfront-rebuild/(project\.godot|README\.md|domain/(identity|inventory)/|application/|tests/|tools/verify_core\.sh).*)$'
+        verify: "bash deadfront-rebuild/tools/verify_core.sh"
+        task_body: |
+          # M0-FOUNDATION / core transaction worker
+
+          You are one worker in a strictly isolated M0 proof. Work only on the
+          branch and worktree supplied by the superplan. Do not create a browser,
+          open a visible Godot window, use desktop control, deploy, push, merge,
+          or delegate to another agent. Run Godot only headlessly.
+
+          Read before editing:
+          - AGENTS.md
+          - docs/specs/README.md
+          - docs/specs/MASTER-CONTEXT.md
+          - docs/specs/ARCHITECTURE.md
+          - docs/specs/REGISTRY.md
+          - docs/specs/MILESTONES.md (M0 only)
+          - docs/specs/QA-CONTRACT.md
+          - docs/specs/systems/00-identity-persistence.md
+
+          Implement only the engineering-only M0 core in a NEW isolated Godot
+          project rooted at deadfront-rebuild/. Do not touch game/, hosting/,
+          existing top-level application files, legacy tests, assets, deployment,
+          or any gameplay system. Use Godot 4.7.1 typed GDScript only; no C#.
+
+          Deliver the smallest deep modules needed for:
+          1. Stable, non-recycled, typed entity IDs and an entity lookup/store.
+          2. One authoritative owner/location reference per material lot.
+          3. Atomic transfer planning/commit with source revision and target
+             capacity validation. A rejected transfer must change nothing.
+          4. A synchronous command bus whose receipt ledger makes a repeated
+             command_id return the original receipt without a second mutation.
+          5. Deterministic tests: ID uniqueness, FND-001 in-memory transfer and
+             replay, competing final-unit transfers with exactly one winner, and
+             a seeded 1,000-operation conservation property test.
+
+          Use only M0 fixture values explicitly required by MILESTONES/QA:
+          5 fiber, 3 stone, and the stated transfer quantities. Do not introduce
+          crafting, item balance, stats, combat, PvP, markets, or other unapproved
+          formulas. Test-only capacities may exist solely to prove atomic rejection
+          and must be named/documented as harness limits, not game balance.
+
+          Keep domain logic independent of scene nodes and avoid a god-object.
+          Add a concise deadfront-rebuild/README.md describing boundaries and the
+          exact core verify command. Add deadfront-rebuild/tools/verify_core.sh;
+          it must clean-import headlessly before running the typed test runner and
+          print a clear PASS marker only if every required core test passes.
+
+          Stay within this job's planned scope. Run the supplied verify command,
+          inspect its real exit status, commit only your verified change with a
+          clear M0-core commit message, and stop for review.
+
+  - id: m0-persistence
+    goal: "Add versioned snapshots, safe recovery, and persisted command replay on top of the merged core."
+    after_phase: m0-core
+    exit: all_merged
+    jobs:
+      - key: persistence
+        title: "Implement M0 versioned save/load, corruption recovery, and persisted idempotence"
+        kind: code
+        resources: [godot]
+        priority: 90
+        scope: '^(deadfront-rebuild/(README\.md|project\.godot|autoload/|domain/(identity|inventory|persistence)/|application/|tests/|fixtures/|tools/verify_(core|persistence)\.sh).*)$'
+        verify: "bash deadfront-rebuild/tools/verify_persistence.sh"
+        task_body: |
+          # M0-FOUNDATION / persistence worker
+
+          Work only in the isolated superplan worktree. Do not use a browser,
+          desktop control, visible Godot UI, deployment, git push, merging, or
+          delegation. Godot commands must be headless. The prior M0 core phase is
+          your base; preserve its public behavior unless a real defect requires a
+          compatible repair.
+
+          Re-read the M0 sections of docs/specs/README.md, MASTER-CONTEXT.md,
+          ARCHITECTURE.md, REGISTRY.md, MILESTONES.md, QA-CONTRACT.md, and
+          systems/00-identity-persistence.md before editing.
+
+          Implement only persistence engineering inside deadfront-rebuild/:
+          - A versioned snapshot containing enough M0 state to restore IDs,
+            inventories, ownership/location links, revisions, command receipts,
+            ruleset reference, simulation tick, and schema version.
+          - Canonical deterministic serialization plus an integrity checksum/hash.
+          - Explicit migration chain for known old schemas and rejection of unknown
+            future schemas without changing the source save.
+          - Atomic-save behavior using a temporary file and retained last-known-good
+            backup. A corrupt primary must recover from a valid backup without
+            overwriting that backup; unrecoverable corruption must fail safely.
+          - Journal/recovery semantics sufficient for synchronous M0 transfer:
+            no partial debit on failed validation and no double application after
+            an interrupted/reloaded receipt.
+
+          Expand the deterministic tests and fixture data to prove the mandated
+          M0 scenario exactly: human A begins with 5 fiber and 3 stone; T1 moves
+          2 fiber and 1 stone to escrow preserving lot provenance; replaying T1
+          before AND after save/reload changes nothing and returns its original
+          receipt; oversized T2 rejects atomically. Compare the canonical final
+          state hash against a checked-in M0 fixture. Also prove corrupted-primary
+          backup recovery and future-schema rejection are non-destructive.
+
+          Do not add crafting outcomes, character progression, combat, PvP, market
+          systems, content balance, or approval claims. Do not touch game/ or any
+          legacy/deployment path. Update README and provide
+          deadfront-rebuild/tools/verify_persistence.sh
+          that first runs the existing core verification, then clean imports and
+          runs persistence tests headlessly with a truthful PASS marker.
+
+          Run the supplied verify command, record no invented results, commit only
+          this verified phase with a clear message, and stop for review.
+
+  - id: m0-shell
+    goal: "Expose the verified engineering proof through a minimal non-gameplay Godot scene and complete M0 documentation."
+    after_phase: m0-persistence
+    exit: all_merged
+    jobs:
+      - key: shell
+        title: "Add a minimal playable M0 foundation shell and final verification report"
+        kind: code
+        resources: [godot]
+        priority: 80
+        scope: '^(deadfront-rebuild/(README\.md|project\.godot|autoload/|application/|domain/|presentation/|scenes/|tests/|fixtures/|tools/verify_.*\.sh).*)$|^docs/orchestration/reports/dsc-m0-foundation\.md$'
+        verify: "bash deadfront-rebuild/tools/verify_m0.sh"
+        task_body: |
+          # M0-FOUNDATION / playable shell worker
+
+          Work solely in this plan worktree and only within the scoped isolated
+          deadfront-rebuild/ project. Do not edit game/, historical project files,
+          hosting, assets, deployment, or docs/specs. Do not open a browser or a
+          visible Godot window, use desktop control, push, merge, or delegate.
+          Use headless Godot only.
+
+          Read the M0 direction in README.md, MASTER-CONTEXT.md, ARCHITECTURE.md,
+          REGISTRY.md, MILESTONES.md, QA-CONTRACT.md, and 00-identity-persistence.
+          Preserve the verified core and persistence contracts from prior phases.
+
+          Add a minimal actual Godot scene shell that demonstrates the foundation
+          without turning it into gameplay: a plainly labelled person/actor marker,
+          source and escrow inventory counters, and one InputMap action that sends
+          the M0 transfer command through the command bus. The presentation layer
+          must display projections/receipts only and never mutate domain state
+          directly. Clearly label the scene as an engineering proof; do not add
+          health, stamina, combat, crafting, currency, creature, XP, loot, or
+          unapproved gameplay formulas. Keyboard is enough for this M0 shell;
+          record that target platform/touch layout is an M1 UX decision.
+
+          Add a headless integration test that instantiates the scene/application
+          path and proves the input intent reaches the existing idempotent command
+          handler. Provide tools/verify_m0.sh that clean-imports, runs all M0 core,
+          persistence, property, migration, and scene-shell tests headlessly, and
+          fails on script errors. Do not report visual inspection that you cannot
+          perform headlessly.
+
+          Update deadfront-rebuild/README.md with exact commands, fixture meaning,
+          save location behavior, known M1 design blockers, and the strict M0
+          boundary. Create docs/orchestration/reports/dsc-m0-foundation.md with
+          exact commands actually run, exit results, commit reference, assumptions,
+          explicit unimplemented systems, and M1 requirements from MILESTONES.
+
+          The full script is deadfront-rebuild/tools/verify_m0.sh. Run the supplied
+          full verify command, ensure output is real, commit the
+          verified shell/report with a clear message, and stop for review.
+
+  - id: m0-audit
+    goal: "Independently verify the completed isolated M0 proof and its scope boundary."
+    after_phase: m0-shell
+    exit: all_merged
+    jobs:
+      - key: audit
+        title: "Audit M0 determinism, fixture evidence, and no-live-game boundary"
+        kind: review
+        resources: [godot]
+        priority: 70
+        scope: '^docs/orchestration/reports/dsc-m0-foundation-audit\.md$'
+        verify: "bash deadfront-rebuild/tools/verify_m0.sh"
+        task_body: |
+          # M0-FOUNDATION / independent audit
+
+          This is an independent verification-only worker. Do not modify any
+          production code, game/, existing deployment files, docs/specs, or the
+          deadfront-rebuild implementation. Do not use a browser, visible UI,
+          desktop control, push, merge, or delegation. Run only headless checks.
+
+          Read docs/specs/README.md, MASTER-CONTEXT.md, ARCHITECTURE.md,
+          REGISTRY.md, MILESTONES.md, QA-CONTRACT.md, systems/00-identity-persistence.md,
+          and the final deadfront-rebuild/README.md plus M0 report.
+
+          Audit against the written M0 contract. Re-run
+          deadfront-rebuild/tools/verify_m0.sh, the full verify command
+          independently. Inspect the committed implementation and test fixtures for:
+          stable non-reused IDs; exactly one ownership/location reference; atomic
+          rejection; command receipt replay before/after reload; 1,000-operation
+          deterministic conservation; T1/T2 exact fixture behavior; corruption
+          recovery; future-schema preservation; and an input-routed scene shell.
+          Confirm the diff from the blueprint branch contains no modifications to
+          game/, hosting/, legacy root app files, deployment settings, or gameplay
+          systems. Do not weaken tests or fix code in this audit task.
+
+          Write docs/orchestration/reports/dsc-m0-foundation-audit.md with exact
+          commands/results, evidence by requirement, remaining risks, and a clear
+          PASS or NEEDS-FIX verdict. Commit that report with a clear message, then
+          stop for orchestrator review.
