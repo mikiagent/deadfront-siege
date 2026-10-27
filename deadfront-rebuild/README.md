@@ -80,7 +80,9 @@ Capacities exist **only** to prove atomic rejection and are labelled
 - `tests/property_test.gd` — inventories 7 (12 units) and 8 (20 units).
 
 Fixture quantities are exactly the M0 ones from `MILESTONES.md` / `QA-CONTRACT.md`
-(FND-001): 5 fiber, 3 stone, transfer 2 fiber + 1 stone.
+(FND-001): 5 fiber, 3 stone, transfer 2 fiber + 1 stone. The fixture lives in
+`tests/fixtures/fnd_001.json` so expectations can be reviewed (and later hashed)
+without reading GDScript.
 
 ## Tests
 
@@ -88,6 +90,8 @@ Fixture quantities are exactly the M0 ones from `MILESTONES.md` / `QA-CONTRACT.m
 |---|---|
 | `tests/identity_test.gd` | typed unique IDs, no recycling, lookup + duplicate refusal, allocation order |
 | `tests/transfer_test.gd` | FND-001 transfer, replay, provenance, oversized/capacity/stale-revision atomic rejection, competing final unit (one winner), single location per lot |
+| `tests/fnd001_fixture_test.gd` | FND-001 driven from `tests/fixtures/fnd_001.json`: exact per-inventory quantities, provenance, totals, receipt count, T1 replay inert, rejected T2 inert |
+| `tests/idempotence_test.gd` | reused command_id returns the original receipt even with a different payload; rejected IDs stay sticky; distinct IDs both apply; competing same-revision transfers |
 | `tests/property_test.gd` | seeded 1,000-operation conservation, no negative/empty/homeless lots, capacity respected, replay inert, no recycled lot identity |
 
 The PRNG is a local 32-bit LCG (high bits used for draws) with recorded seed
