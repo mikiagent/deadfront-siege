@@ -15,6 +15,7 @@ enum ErrorCode {
 	INSUFFICIENT_SUPPLY = 6,
 	CAPACITY_EXCEEDED = 7,
 	REVISION_MISMATCH = 8,
+	UNAUTHORIZED = 9,
 }
 
 var command_id: StringName

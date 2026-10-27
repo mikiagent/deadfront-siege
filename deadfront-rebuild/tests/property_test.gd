@@ -55,6 +55,7 @@ class World:
 	var committed: int = 0
 	var rejected: int = 0
 	var reject_reasons: Dictionary = {}
+	var unowned_mutation: bool = false
 
 	func _init(p_seed: int) -> void:
 		rng = Lcg.new(p_seed)
@@ -65,7 +66,7 @@ class World:
 			var capacity: int = -1
 			if i == CAPACITY_INVENTORY:
 				capacity = CAPACITY_UNITS
-			inventories.append(ledger.create_inventory("inv %d" % i, capacity).id)
+			inventories.append(ledger.create_inventory("inv %d" % i, capacity, actor_id).id)
 		# Seed every inventory so most draws are legal transfers and the run is not
 		# dominated by insufficient-supply rejections.
 		for i: int in INVENTORY_COUNT:
@@ -96,16 +97,27 @@ class World:
 		if mode == 3:
 			qty = 1000  # larger than every fixture total
 		var source: Inventory = ledger.get_inventory(inventories[src_idx])
+		# Every property inventory is owned by the property actor, so ownership
+		# must never be the rejection reason here: any such rejection means the
+		# authorization rule is misfiring on legitimate transfers.
+		if not source.is_owned_by(actor_id):
+			unowned_mutation = true
 		var expected_rev: int = source.revision if mode != 1 else source.revision + 1
 		var cmd: TransferCommand = TransferCommand.create(
 			StringName("op-%04d" % op), actor_id, source.id, inventories[dst_idx], expected_rev
 		).with_line(def_id, qty)
+		# Every 9th operation repeats the same line to exercise line normalization
+		# and prove repeated lines never drain a lot to zero.
+		if op % 9 == 0:
+			cmd.with_line(def_id, qty)
 		var receipt: Receipt = bus.execute(cmd)
 		if receipt.is_committed():
 			committed += 1
 		else:
 			rejected += 1
 			reject_reasons[receipt.error] = int(reject_reasons.get(receipt.error, 0)) + 1
+			if receipt.error == Receipt.ErrorCode.UNAUTHORIZED:
+				unowned_mutation = true
 		return cmd
 
 	## Deterministic scan starting at `start`, returning the first inventory with
@@ -196,6 +208,7 @@ func _test_seeded_conservation(t: TestCase, seed: int, name: String) -> void:
 	t.ok(world.committed > 0, "%s committed at least one transfer" % name)
 	t.ok(world.rejected > 0, "%s rejected at least one illegal transfer" % name)
 	t.eq(world.bus.receipt_count(), OPERATIONS, "%s has one receipt per command_id" % name)
+	t.ok(not world.unowned_mutation, "%s never moved material from an unowned/foreign source" % name)
 	print("  property[0x%X]: %d committed, %d rejected, lots=%d, reasons=%s" % [
 		seed, world.committed, world.rejected, world.ledger.lots_of_any().size(),
 		str(world.reject_reasons)

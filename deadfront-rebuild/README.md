@@ -14,8 +14,11 @@ the deployment pipeline are untouched.
 deadfront-rebuild/tools/verify_core.sh
 ```
 
-It deletes `.godot/`, clean-imports headlessly, runs the typed test runner, and
-prints `M0 CORE VERIFY PASS` only if import and every required test pass. Logs
+It deletes `.godot/`, clean-imports headlessly, runs five typed suites (identity,
+transfers, the FND-001 fixture, idempotence, the seeded property run), and
+prints `M0 CORE VERIFY PASS` only if the import succeeded, no Godot script error
+appeared, every declared suite actually ran, the runner reported
+`0 failures`, and it printed its own PASS marker. Logs
 land in `deadfront-rebuild/.verify-logs/`. Godot is found at
 `$GODOT` (default `/Applications/Godot_mono.app/Contents/MacOS/Godot`). The
 script sets `HOME` to a project-local scratch dir because Godot derives `user://`
@@ -46,22 +49,38 @@ bash docs/orchestration/dsc/gates/verify_m0_phase.sh core
   `provenance`, one `location`, `revision`.
 - `domain/inventory/inventory.gd` — a place that holds lots; membership is
   **derived** from lot locations, so ownership cannot desync from a second list.
+  It also carries the minimal M0 `owner_id` authorization fixture (the actor
+  allowed to spend from it). There is no role/tribe/permission model.
 - `domain/inventory/ledger.gd` — collections + lookups + derived totals only.
   Rules live elsewhere; this is not a god-object.
 - `application/transfer_command.gd` — command with `command_id`,
   `expected_source_revision` and per-definition lines.
-- `application/transfer_planner.gd` — `plan()` validates (supply, capacity,
-  revision, ids) and mutates nothing; `commit()` applies an accepted plan.
+- `application/transfer_planner.gd` — one entry point, `execute()`, which
+  validates (ids, authorization, quantities, revision, supply, capacity),
+  normalizes lines, then applies. Validation is private: no caller can hold a
+  plan and commit it later. The apply step re-checks every revision and every op
+  against the live ledger before its first mutation.
 - `application/command_bus.gd` — `execute()`: ledger hit returns the stored
-  receipt; otherwise plan → commit → record. Rejections are recorded too.
+  receipt; otherwise planner execute → record. Rejections are recorded too.
 
 ### Atomicity
 
-Validation happens entirely in `plan()`, so a rejected transfer performs no
-mutation at all: no partial debit, no orphaned split lot, no revision bump. A
-moved *portion* of a lot becomes a new lot ID carrying the source lot's
-provenance (IDs are never reused and a lot never has two owners); a whole-lot
-move keeps its ID.
+Validation precedes every mutation, so a rejected transfer performs no mutation
+at all: no partial debit, no orphaned split lot, no revision bump. A plan held
+across another mutation is refused by the same re-check, so a stale plan cannot
+partially commit. A moved *portion* of a lot becomes a new lot ID carrying the
+source lot's provenance (IDs are never reused and a lot never has two owners); a
+whole-lot move keeps its ID.
+
+### Lines, authorization
+
+Command lines are normalized per definition to **one op per source lot**: a lot
+is either moved whole or split exactly once, so repeated lines can never drain a
+lot to zero (repeated `fiber 1` three times equals one `fiber 3` line and yields
+the same state). The only authorization rule is the fixture one FND requires: an
+actor may move material **out of an inventory it owns**; an unowned inventory is
+nobody's to spend from (default deny). Putting material *into* an inventory does
+not require owning it — FND-001 moves A's goods into escrow.
 
 ### Idempotence
 
@@ -89,7 +108,7 @@ without reading GDScript.
 | Suite | Proves |
 |---|---|
 | `tests/identity_test.gd` | typed unique IDs, no recycling, lookup + duplicate refusal, allocation order |
-| `tests/transfer_test.gd` | FND-001 transfer, replay, provenance, oversized/capacity/stale-revision atomic rejection, competing final unit (one winner), single location per lot |
+| `tests/transfer_test.gd` | FND-001 transfer, replay, provenance, oversized/capacity/stale-revision/unauthorized atomic rejection, unowned-source deny, repeated-line normalization, never-zero-a-lot drain, stale-plan refusal, competing final unit (one winner), single location per lot |
 | `tests/fnd001_fixture_test.gd` | FND-001 driven from `tests/fixtures/fnd_001.json`: exact per-inventory quantities, provenance, totals, receipt count, T1 replay inert, rejected T2 inert |
 | `tests/idempotence_test.gd` | reused command_id returns the original receipt even with a different payload; rejected IDs stay sticky; distinct IDs both apply; competing same-revision transfers |
 | `tests/property_test.gd` | seeded 1,000-operation conservation on four seeds (`0x5EED0001` primary, plus `0x5EED0002`, `0x5EED0003`, `0xC0DE`), no negative/empty/homeless lots, capacity respected, 200-command replay inert, no recycled lot identity |
@@ -104,8 +123,13 @@ workload is auditable.
 
 ## Assumptions
 
-- `# ASSUMPTION:` M0 has no permission model; a valid `actor_id` may move
-  material between the two inventories it names. Authorization is M1+.
+- `# ASSUMPTION:` the only authorization rule is source-inventory ownership
+  (`Inventory.owner_id`, set at fixture construction). Roles, tribes, shared
+  storage and escrow policy are M1+ and deliberately absent; target ownership is
+  never checked.
+- `# ASSUMPTION:` command lines are summed per definition and executed as one
+  op per source lot. Which lot a definition draws from is lot-ID order within
+  the source inventory.
 - `# ASSUMPTION:` sequence numbers start at 1 so a default/empty ID can never
   name a real entity.
 

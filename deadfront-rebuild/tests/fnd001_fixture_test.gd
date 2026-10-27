@@ -70,7 +70,9 @@ func _build(fixture: Dictionary) -> Scenario:
 	scenario.bus = CommandBus.new(scenario.ledger)
 	scenario.actor_id = scenario.ledger.create_actor(String(fixture["actor_label"])).id
 	for spec: Dictionary in fixture["inventories"]:
-		var inv: Inventory = scenario.ledger.create_inventory(String(spec["label"]))
+		# Only the inventory the fixture marks owned belongs to the actor.
+		var owner: EntityId = scenario.actor_id if bool(spec.get("owned_by_actor", false)) else null
+		var inv: Inventory = scenario.ledger.create_inventory(String(spec["label"]), -1, owner)
 		scenario.slots[String(spec["slot"])] = inv.id
 		scenario.inventory_objects[String(spec["slot"])] = inv
 	for lot_spec: Dictionary in fixture["initial_lots"]:

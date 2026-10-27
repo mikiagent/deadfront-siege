@@ -52,7 +52,8 @@ func _test_lookup(t: TestCase) -> void:
 
 func _test_allocation_order(t: TestCase) -> void:
 	var ledger: Ledger = Ledger.new()
-	var inv: Inventory = ledger.create_inventory("source")
+	var owner: EntityId = ledger.create_actor("owner").id
+	var inv: Inventory = ledger.create_inventory("source", -1, owner)
 	var lot: MaterialLot = ledger.add_lot(&"fiber", 5, {}, inv.id)
 	t.eq(lot.id.to_key(), "lot:1", "first lot is lot:1")
 	t.eq(ledger.get_lot(lot.id), lot, "ledger lookup finds the lot")

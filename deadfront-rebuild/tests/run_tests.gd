@@ -20,6 +20,7 @@ func _initialize() -> void:
 	var t: TestCase = TestCase.new()
 	var started: int = Time.get_ticks_msec()
 	print("[m0-core] running %d suites" % SUITES.size())
+	var suites_run: int = 0
 
 	for path: String in SUITES:
 		var script: Script = load(path) as Script
@@ -34,9 +35,16 @@ func _initialize() -> void:
 			continue
 		print("[m0-core] suite %s" % path)
 		suite_obj.call("run", t)
+		suites_run += 1
 
 	var elapsed: int = Time.get_ticks_msec() - started
+	print("[m0-core] suites run: %d/%d" % [suites_run, SUITES.size()])
 	print("[m0-core] %d checks, %d failures, %d ms" % [t.checks, t.failures.size(), elapsed])
+	# A suite that silently did nothing would otherwise look like a pass.
+	if suites_run != SUITES.size():
+		t.failures.append("runner: only %d of %d suites ran" % [suites_run, SUITES.size()])
+	if t.checks == 0:
+		t.failures.append("runner: no checks were executed")
 	if t.failures.is_empty():
 		print("M0 CORE TESTS PASS")
 		quit(0)

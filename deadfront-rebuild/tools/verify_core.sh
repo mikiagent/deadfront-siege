@@ -60,6 +60,10 @@ if grep -Eq "SCRIPT ERROR|Parse Error|Invalid call|Attempt to call" "${TEST_LOG}
   echo "[verify_core] runner output contains script errors; log: ${TEST_LOG}" >&2
   exit 1
 fi
+if ! grep -Eq "^\[m0-core\] [0-9]+ checks, 0 failures" "${TEST_LOG}"; then
+  echo "[verify_core] runner did not report zero failures; log: ${TEST_LOG}" >&2
+  exit 1
+fi
 if ! grep -q "M0 CORE TESTS PASS" "${TEST_LOG}"; then
   echo "[verify_core] runner did not print its PASS marker; log: ${TEST_LOG}" >&2
   exit 1

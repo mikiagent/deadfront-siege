@@ -21,7 +21,7 @@ class World:
 		ledger = Ledger.new()
 		bus = CommandBus.new(ledger)
 		actor_id = ledger.create_actor("human A").id
-		source_id = ledger.create_inventory("source").id
+		source_id = ledger.create_inventory("source", -1, actor_id).id
 		target_id = ledger.create_inventory("escrow").id
 		ledger.add_lot(FIBER, 5, {"origin": "fixture-fiber"}, source_id)
 		ledger.add_lot(STONE, 3, {"origin": "fixture-stone"}, source_id)

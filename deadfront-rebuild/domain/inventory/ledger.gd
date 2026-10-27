@@ -28,8 +28,8 @@ func get_actor(id: EntityId) -> Actor:
 	return _actors.get(id.to_key())
 
 
-func create_inventory(label: String, capacity_units: int = -1) -> Inventory:
-	var inv: Inventory = Inventory.create(store.allocate(&"inv"), label, capacity_units)
+func create_inventory(label: String, capacity_units: int = -1, owner_id: EntityId = null) -> Inventory:
+	var inv: Inventory = Inventory.create(store.allocate(&"inv"), label, capacity_units, owner_id)
 	_inventories[inv.id.to_key()] = inv
 	store.add(inv.id, inv)
 	return inv

@@ -25,8 +25,11 @@ class Fnd001World:
 		bus = CommandBus.new(ledger)
 		var actor: Actor = ledger.create_actor("human A")
 		actor_id = actor.id
-		source_id = ledger.create_inventory("human A bag").id
-		escrow_id = ledger.create_inventory("escrow").id
+		source_id = ledger.create_inventory("human A bag", -1, actor_id).id
+		# Escrow is owned by A as well; FND-001 only fixes the quantities, and a
+		# chained split test needs an authorized source. Target ownership is never
+		# checked, so this does not weaken the authorization tests below.
+		escrow_id = ledger.create_inventory("escrow", -1, actor_id).id
 		fiber_lot = ledger.add_lot(FIBER, 5, {"origin": "fixture-fiber"}, source_id)
 		stone_lot = ledger.add_lot(STONE, 3, {"origin": "fixture-stone"}, source_id)
 
@@ -49,6 +52,11 @@ func run(t: TestCase) -> void:
 	_test_invalid_commands_reject_atomically(t)
 	_test_fnd_001_receipt_shape(t)
 	_test_provenance_survives_chained_splits(t)
+	_test_unauthorized_actor_rejects(t)
+	_test_unowned_source_is_untouchable(t)
+	_test_repeated_lines_normalize(t)
+	_test_lines_never_zero_a_lot(t)
+	_test_stale_plan_cannot_commit(t)
 
 
 func _test_fnd_001(t: TestCase) -> void:
@@ -168,7 +176,7 @@ func _test_competing_final_unit(t: TestCase) -> void:
 
 	# A second race where both are valid on revision but only one unit exists.
 	var world2: Fnd001World = Fnd001World.new()
-	var one_unit_victim: Inventory = world2.ledger.create_inventory("single unit source")
+	var one_unit_victim: Inventory = world2.ledger.create_inventory("single unit source", -1, world2.actor_id)
 	var one_unit_dest: Inventory = world2.ledger.create_inventory("single unit dest")
 	world2.ledger.add_lot(STONE, 1, {"origin": "last-unit"}, one_unit_victim.id)
 	var rev2: int = one_unit_victim.revision
@@ -248,6 +256,147 @@ func _test_provenance_survives_chained_splits(t: TestCase) -> void:
 	t.eq(hopped[0].quantity, 1, "chained split quantity is 1")
 	t.eq(_qty_of_def(world.ledger, world.escrow_id, FIBER), 1, "escrow keeps the remaining 1 fiber")
 	t.eq(world.ledger.total_of(FIBER), 5, "fiber still conserved after two hops")
+
+
+## FND requires an unauthorized actor to reject; M0's only rule is source
+## inventory ownership (no roles, tribes or permissions invented).
+func _test_unauthorized_actor_rejects(t: TestCase) -> void:
+	var world: Fnd001World = Fnd001World.new()
+	var intruder: Actor = world.ledger.create_actor("human B")
+	var source: Inventory = world.ledger.get_inventory(world.source_id)
+	var before: Dictionary = world.ledger.debug_state()
+	var cmd: TransferCommand = TransferCommand.create(
+		&"T-intruder", intruder.id, world.source_id, world.escrow_id, source.revision
+	).with_line(FIBER, 1)
+	var receipt: Receipt = world.bus.execute(cmd)
+	t.eq(receipt.error, Receipt.ErrorCode.UNAUTHORIZED, "a non-owner actor is rejected")
+	t.dict_eq(world.ledger.debug_state(), before, "unauthorized transfer changed nothing")
+	t.eq(world.ledger.total_of(FIBER), 5, "fiber untouched by the unauthorized actor")
+	# The same command from the owner still commits (rejection is not sticky here).
+	var owner_cmd: TransferCommand = TransferCommand.create(
+		&"T-owner", world.actor_id, world.source_id, world.escrow_id, source.revision
+	).with_line(FIBER, 1)
+	t.ok(world.bus.execute(owner_cmd).is_committed(), "the owner's equivalent command commits")
+
+
+## An inventory with no owner is spendable by nobody (default deny).
+func _test_unowned_source_is_untouchable(t: TestCase) -> void:
+	var world: Fnd001World = Fnd001World.new()
+	var loose: Inventory = world.ledger.create_inventory("unowned crate")
+	world.ledger.add_lot(STONE, 2, {"origin": "loose"}, loose.id)
+	var before: Dictionary = world.ledger.debug_state()
+	var cmd: TransferCommand = TransferCommand.create(
+		&"T-unowned", world.actor_id, loose.id, world.escrow_id, loose.revision
+	).with_line(STONE, 1)
+	t.eq(world.bus.execute(cmd).error, Receipt.ErrorCode.UNAUTHORIZED, "unowned source rejects")
+	t.dict_eq(world.ledger.debug_state(), before, "unowned-source rejection changed nothing")
+
+
+## Repeated lines for the same definition must behave exactly like one summed
+## line: no double spend, no lost units, no extra lot.
+func _test_repeated_lines_normalize(t: TestCase) -> void:
+	var world: Fnd001World = Fnd001World.new()
+	var source: Inventory = world.ledger.get_inventory(world.source_id)
+	var repeated: TransferCommand = TransferCommand.create(
+		&"T-repeat", world.actor_id, world.source_id, world.escrow_id, source.revision
+	).with_line(FIBER, 1).with_line(FIBER, 1).with_line(FIBER, 1).with_line(STONE, 1)
+	var receipt: Receipt = world.bus.execute(repeated)
+	t.ok(receipt.is_committed(), "repeated-line command commits")
+	t.eq(_qty_of_def(world.ledger, world.escrow_id, FIBER), 3, "three 1-fiber lines move exactly 3")
+	t.eq(_qty_of_def(world.ledger, world.escrow_id, STONE), 1, "stone line moves exactly 1")
+	t.eq(world.ledger.total_of(FIBER), 5, "fiber conserved with repeated lines")
+	t.eq(world.ledger.total_units(), 8, "total units conserved with repeated lines")
+	t.eq(receipt.moves.size(), 2, "one op per source lot, not one per line")
+	for lot: MaterialLot in world.ledger.lots_of_any():
+		t.ok(lot.quantity > 0, "no zero-quantity lot after repeated lines")
+
+	# Same total asked as a single line: identical resulting state.
+	var single_world: Fnd001World = Fnd001World.new()
+	var single_source: Inventory = single_world.ledger.get_inventory(single_world.source_id)
+	var single: TransferCommand = TransferCommand.create(
+		&"T-single", single_world.actor_id, single_world.source_id, single_world.escrow_id, single_source.revision
+	).with_line(FIBER, 3).with_line(STONE, 1)
+	single_world.bus.execute(single)
+	t.eq(
+		_quantities_by_location(single_world),
+		_quantities_by_location(world),
+		"repeated lines produce the same quantities as one summed line"
+	)
+
+
+## Repeated lines that consume a whole lot must move it, not split it into
+## nothing: the lot's ID survives the move and no zero lot is left behind.
+func _test_lines_never_zero_a_lot(t: TestCase) -> void:
+	var world: Fnd001World = Fnd001World.new()
+	var source: Inventory = world.ledger.get_inventory(world.source_id)
+	var stone_lot_id: EntityId = world.stone_lot.id
+	var cmd: TransferCommand = TransferCommand.create(
+		&"T-drain", world.actor_id, world.source_id, world.escrow_id, source.revision
+	).with_line(STONE, 1).with_line(STONE, 1).with_line(STONE, 1)
+	var receipt: Receipt = world.bus.execute(cmd)
+	t.ok(receipt.is_committed(), "three 1-stone lines over a 3-stone lot commit")
+	t.eq(receipt.moves.size(), 1, "the lot is moved once, not split three times")
+	t.eq(_qty_of_def(world.ledger, world.escrow_id, STONE), 3, "all 3 stone arrived")
+	t.eq(_qty_of_def(world.ledger, world.source_id, STONE), 0, "no stone left in the source")
+	var moved: MaterialLot = world.ledger.get_lot(stone_lot_id)
+	t.ok(moved != null and moved.quantity == 3, "the original lot ID survived the whole-lot move")
+	t.eq(world.ledger.lots_of(world.source_id).size(), 1, "source keeps only its fiber lot")
+	for lot: MaterialLot in world.ledger.lots_of_any():
+		t.ok(lot.quantity > 0, "no zero-quantity lot after draining repeated lines")
+
+	# Asking for more than the lot holds must reject, not drain it to zero.
+	var over: TransferCommand = TransferCommand.create(
+		&"T-over", world.actor_id, world.source_id, world.escrow_id, source.revision
+	).with_line(FIBER, 3).with_line(FIBER, 3)
+	var before: Dictionary = world.ledger.debug_state()
+	t.eq(world.bus.execute(over).error, Receipt.ErrorCode.INSUFFICIENT_SUPPLY,
+		"repeated lines exceeding supply reject")
+	t.dict_eq(world.ledger.debug_state(), before, "over-supply repeated lines changed nothing")
+
+
+## The planner exposes no public plan/commit pair, but even if an internal plan
+## is held across another mutation (simulated here by calling the private
+## helpers) the apply step must refuse it, not partially commit.
+func _test_stale_plan_cannot_commit(t: TestCase) -> void:
+	var world: Fnd001World = Fnd001World.new()
+	var source: Inventory = world.ledger.get_inventory(world.source_id)
+	var cmd: TransferCommand = TransferCommand.create(
+		&"T-stale-plan", world.actor_id, world.source_id, world.escrow_id, source.revision
+	).with_line(FIBER, 2)
+	var error: Array[int] = []
+	var held_plan: TransferPlanner.Plan = TransferPlanner._plan(world.ledger, cmd, error)
+	t.ok(held_plan != null, "internal plan is built")
+	t.eq(held_plan.ops.size(), 1, "internal plan holds one op")
+
+	# Another command lands in between, advancing the source revision.
+	var other: TransferCommand = TransferCommand.create(
+		&"T-interleaved", world.actor_id, world.source_id, world.escrow_id, source.revision
+	).with_line(STONE, 1)
+	t.ok(world.bus.execute(other).is_committed(), "interleaved command commits")
+	var before: Dictionary = world.ledger.debug_state()
+
+	# _apply is the only mutation path used by execute(), so applying the held
+	# plan directly proves the guard is wired into the real commit path.
+	var stale_receipt: Receipt = TransferPlanner._apply(world.ledger, held_plan)
+	t.ok(not stale_receipt.is_committed(), "a plan held across another mutation is refused")
+	t.eq(stale_receipt.error, Receipt.ErrorCode.REVISION_MISMATCH, "refusal reason is a revision mismatch")
+	t.dict_eq(world.ledger.debug_state(), before, "refusing a stale plan mutated nothing")
+	t.eq(world.ledger.lots_of(world.source_id).size(), 2, "no split was applied from the stale plan")
+
+	# The same intent under a fresh command_id applies once, normally.
+	var fresh: TransferCommand = TransferCommand.create(
+		&"T-stale-retry", world.actor_id, world.source_id, world.escrow_id, source.revision
+	).with_line(FIBER, 2)
+	t.ok(world.bus.execute(fresh).is_committed(), "a fresh command applies the same intent")
+	t.eq(world.ledger.total_of(FIBER), 5, "fiber conserved after the stale-plan episode")
+
+
+func _quantities_by_location(world: Fnd001World) -> Array:
+	var out: Array = []
+	for lot: MaterialLot in world.ledger.lots_of_any():
+		out.append([lot.location.to_key(), String(lot.def_id), lot.quantity])
+	out.sort()
+	return out
 
 
 ## Every invalid command shape must reject and leave state untouched.

@@ -4,7 +4,7 @@
   "note": "M0 fixture values only. No gameplay balance is implied by these numbers.",
   "actor_label": "human A",
   "inventories": [
-    {"slot": "source", "label": "human A bag"},
+    {"slot": "source", "label": "human A bag", "owned_by_actor": true},
     {"slot": "escrow", "label": "escrow"}
   ],
   "initial_lots": [

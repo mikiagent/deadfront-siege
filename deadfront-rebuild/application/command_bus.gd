@@ -33,17 +33,9 @@ func execute(cmd: TransferCommand) -> Receipt:
 		_receipts[key] = missing
 		return missing
 
-	var error_out: Array = []
-	var accepted: TransferPlanner.Plan = TransferPlanner.plan(ledger, cmd, error_out)
-	var receipt: Receipt
-	if accepted == null:
-		var code: int = int(Receipt.ErrorCode.INVALID_COMMAND)
-		if not error_out.is_empty():
-			code = int(error_out[0])
-		receipt = Receipt.rejected(cmd.command_id, code)
-	else:
-		receipt = TransferPlanner.commit(ledger, accepted)
-
+	# Validate and apply in one synchronous call; the planner re-checks the
+	# revisions and every op against the live ledger immediately before mutating.
+	var receipt: Receipt = TransferPlanner.execute(ledger, cmd)
 	_receipts[key] = receipt
 	return receipt
 
