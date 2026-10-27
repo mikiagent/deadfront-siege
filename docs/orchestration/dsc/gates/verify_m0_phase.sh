@@ -11,21 +11,24 @@ if [[ $# -ne 1 ]]; then
   exit 64
 fi
 
+verifier=""
 case "$1" in
   core)
-    target="deadfront-rebuild/tools/verify_core.sh"
+    verifier="verify_core.sh"
     ;;
   persistence)
-    target="deadfront-rebuild/tools/verify_persistence.sh"
+    verifier="verify_persistence.sh"
     ;;
   shell|audit)
-    target="deadfront-rebuild/tools/verify_m0.sh"
+    verifier="verify_m0.sh"
     ;;
   *)
     echo "unknown M0 phase: $1" >&2
     exit 64
     ;;
 esac
+
+target="deadfront-rebuild/tools/${verifier}"
 
 if [[ ! -f "$target" ]]; then
   echo "[m0-phase-gate] waiting for phase verifier: $target" >&2
