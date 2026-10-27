@@ -1,0 +1,266 @@
+{
+  "metadata": {
+    "kind": "current-code-continuation",
+    "baseline_commit": "923657262cd335fefee9126df61dd0fff4b93321",
+    "baseline_branch": "main",
+    "repo": "mikiagent/deadfront-siege",
+    "build_mode": "IN_PLACE_EXISTING_GODOT_PROJECT",
+    "save_schema": 3,
+    "not_executed": "These are static code findings and design tasks; no Godot tests or deployment executed.",
+    "status": "PROPOSED_DOCS"
+  },
+  "components": [
+    {
+      "id": "SAVE",
+      "current_files": [
+        "game/scripts/core/save_game.gd",
+        "game/scripts/core/save_migrations.gd"
+      ],
+      "state": "EXISTING",
+      "next_milestone": "C0",
+      "note": "save schema3/migrations 0-3"
+    },
+    {
+      "id": "WORLD",
+      "current_files": [
+        "game/scripts/core/world.gd",
+        "game/scripts/world/island_runtime.gd"
+      ],
+      "state": "PARTIAL",
+      "next_milestone": "C10",
+      "note": "islands, T-stones, cargo warp, instability"
+    },
+    {
+      "id": "DATA",
+      "current_files": [
+        "game/scripts/core/data.gd",
+        "game/data/items.json",
+        "game/data/recipes.json"
+      ],
+      "state": "EXISTING",
+      "next_milestone": "C1/C3",
+      "note": "data catalog for items/creatures/recipes"
+    },
+    {
+      "id": "ITEM_STACK",
+      "current_files": [
+        "game/scripts/items/item_stack.gd"
+      ],
+      "state": "PARTIAL",
+      "next_milestone": "C1/C2",
+      "note": "attributes level process_count flags durability"
+    },
+    {
+      "id": "INVENTORY",
+      "current_files": [
+        "game/scripts/items/inventory.gd",
+        "game/scripts/ui/inventory_ui.gd"
+      ],
+      "state": "EXISTING",
+      "next_milestone": "C1/C4",
+      "note": "fixed slots partial transfers equipment by def"
+    },
+    {
+      "id": "CRAFT",
+      "current_files": [
+        "game/scripts/items/crafting.gd",
+        "game/scripts/items/station_craft.gd"
+      ],
+      "state": "PARTIAL",
+      "next_milestone": "C1/C3",
+      "note": "category recipes, primary attribute inheritance"
+    },
+    {
+      "id": "FOOD",
+      "current_files": [
+        "game/scripts/items/food.gd",
+        "game/scripts/combat/vitals.gd"
+      ],
+      "state": "PARTIAL",
+      "next_milestone": "C2",
+      "note": "food buffs/rest; no all-container spoil state"
+    },
+    {
+      "id": "BUILD",
+      "current_files": [
+        "game/scripts/world/build_grid.gd",
+        "game/scripts/world/build_placer.gd",
+        "game/scripts/world/placed_building.gd"
+      ],
+      "state": "PARTIAL",
+      "next_milestone": "C4",
+      "note": "grid kit buildings and sleep/storage"
+    },
+    {
+      "id": "TRIBE",
+      "current_files": [
+        "game/scripts/player/player.gd",
+        "game/scripts/skills/skill_state.gd"
+      ],
+      "state": "DESIGN_ONLY",
+      "next_milestone": "C5",
+      "note": "one avatar, no true human tribe roster"
+    },
+    {
+      "id": "WORKERS",
+      "current_files": [
+        "game/scripts/world/harvest_node.gd",
+        "game/scripts/items/crafting.gd"
+      ],
+      "state": "DESIGN_ONLY",
+      "next_milestone": "C5",
+      "note": "no real human labor scheduler"
+    },
+    {
+      "id": "LINEAGE",
+      "current_files": [
+        "game/scripts/creatures/creature_genetics.gd"
+      ],
+      "state": "DESIGN_ONLY",
+      "next_milestone": "C6",
+      "note": "current genetics are dinosaur-only"
+    },
+    {
+      "id": "DINO",
+      "current_files": [
+        "game/scripts/creatures/creature.gd",
+        "game/scripts/pets/pet_record.gd",
+        "game/data/creatures"
+      ],
+      "state": "PARTIAL",
+      "next_milestone": "C7",
+      "note": "captures, bonded pets and genetics"
+    },
+    {
+      "id": "MOUNT",
+      "current_files": [
+        "game/scripts/player/player.gd",
+        "game/scripts/creatures/creature_view.gd"
+      ],
+      "state": "PARTIAL",
+      "next_milestone": "C8",
+      "note": "one rider and mount socket"
+    },
+    {
+      "id": "COMBAT",
+      "current_files": [
+        "game/scripts/combat/hunt.gd",
+        "game/scripts/combat/combat_counters.gd",
+        "game/scripts/combat/status_effects.gd"
+      ],
+      "state": "PARTIAL",
+      "next_milestone": "C7",
+      "note": "legacy damage channels, status"
+    },
+    {
+      "id": "SIEGE",
+      "current_files": [
+        "game/scripts/world/field_catapult.gd",
+        "game/scripts/combat/siege_projectile.gd"
+      ],
+      "state": "PARTIAL",
+      "next_milestone": "C9",
+      "note": "placed manual catapult"
+    },
+    {
+      "id": "PLATFORM",
+      "current_files": [
+        "game/scripts/player/player.gd",
+        "game/scripts/pets/pet_record.gd",
+        "game/scripts/world/field_catapult.gd"
+      ],
+      "state": "DESIGN_ONLY",
+      "next_milestone": "C9",
+      "note": "two-person deck 1/2/1 not built"
+    },
+    {
+      "id": "BOATS",
+      "current_files": [
+        "game/scripts/world/harbour.gd",
+        "game/scripts/core/world.gd"
+      ],
+      "state": "DESIGN_ONLY",
+      "next_milestone": "C11",
+      "note": "travel and cargo warp not shipments"
+    },
+    {
+      "id": "ECON",
+      "current_files": [
+        "game/data/world/market.json",
+        "game/scripts/core/world.gd"
+      ],
+      "state": "PARTIAL",
+      "next_milestone": "C11",
+      "note": "T-stones and market config not full trade"
+    },
+    {
+      "id": "PVP",
+      "current_files": [
+        "game/scripts/core/world.gd",
+        "game/scripts/combat/hunt.gd"
+      ],
+      "state": "DESIGN_ONLY",
+      "next_milestone": "C12",
+      "note": "pve tyrant raid flag not server player raid"
+    },
+    {
+      "id": "UI",
+      "current_files": [
+        "game/scripts/ui/hunt_hud.gd",
+        "game/scripts/ui/craft_ui.gd",
+        "game/scripts/ui/inventory_ui.gd"
+      ],
+      "state": "EXISTING",
+      "next_milestone": "C1-C13",
+      "note": "existing responsive hex HUD"
+    },
+    {
+      "id": "QA",
+      "current_files": [
+        "game/tests/run_all.gd",
+        "game/scripts/dev",
+        "tools/test.sh",
+        "tools/smoke.sh",
+        "tools/production_soak.mjs"
+      ],
+      "state": "EXISTING",
+      "next_milestone": "ALL",
+      "note": "headless tests labs browser visual"
+    },
+    {
+      "id": "EXPORT",
+      "current_files": [
+        "tools/export_web.sh",
+        "tools/deploy_web.sh",
+        "tools/web_pack_for_vercel.py"
+      ],
+      "state": "EXISTING",
+      "next_milestone": "RELEASE_ONLY",
+      "note": "pack hash/alias pipeline"
+    }
+  ],
+  "must_preserve": {
+    "project": "game/project.godot",
+    "main_scene": "res://shell/boot.tscn",
+    "autoloads": [
+      "ShellLoader",
+      "InputSetup",
+      "Data",
+      "Game",
+      "World",
+      "TouchControls"
+    ],
+    "save_file": "user://save_1.json",
+    "bot_save": "user://bot_save.json",
+    "migration_versions": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "test_script": "tools/test.sh",
+    "smoke_script": "tools/smoke.sh",
+    "export": "tools/export_web.sh"
+  },
+  "no_rebuild": true
+}
