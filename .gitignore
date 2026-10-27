@@ -24,3 +24,9 @@ tools/web_soak/node_modules/
 .dsc-plan/
 .dsc-task/
 .dsc.local.json
+
+# docs wiki (tools/docs_wiki): the owner's live curation marks; Export writes portable copies.
+tools/docs_wiki/state.json
+
+# Playtest and soak artifact outputs (checkpoints, console logs).
+artifacts/
