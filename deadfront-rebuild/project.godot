@@ -1,0 +1,14 @@
+; DEADFRONT M0 engineering proof project.
+; Isolated from the legacy game. Headless domain tests only; no gameplay.
+config_version=5
+
+[application]
+
+config/name="DEADFRONT M0 Core"
+config/description="Isolated M0 proof: stable IDs, one owner per lot, atomic transfers, idempotent command bus."
+run/main_scene=""
+
+[debug]
+
+gdscript/warnings/untyped_declaration=1
+gdscript/warnings/unsafe_property_access=1
