@@ -22,11 +22,44 @@ func _ready() -> void:
 	_bonfire.position = Vector3(2, 0, 2)
 	add_child(_bonfire)
 	print("[boot] lab=craft_lab")
+	if "--c1-craft-layout-check" in OS.get_cmdline_user_args():
+		call_deferred("_check_phone_layout")
+		return
 	if Game.shot_path != "":
 		call_deferred("_shot_setup")
 		return
 	if DisplayServer.get_name() == "headless":
 		get_tree().create_timer(0.4).timeout.connect(_demo)
+
+func _check_phone_layout() -> void:
+	_player.inventory.add(ItemStack.make(&"raw_meat", 1, {"quality": -2}, 3))
+	_player.inventory.add(ItemStack.make(&"branch", 1, {}, 4))
+	_player.craft_ui.show_for_station(&"bonfire")
+	_player.craft_ui._choose_recipe("skewer")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var observed: Dictionary = {}
+	for node: Node in _player.craft_ui.find_children("*", "Button", true, false):
+		if node.is_queued_for_deletion() or not node.is_visible_in_tree():
+			continue
+		var button := node as Button
+		if button.text in ["Close", "Details", "Craft", "Walk & craft", "×5"]:
+			var view: Vector2 = _player.craft_ui.get_viewport_rect().size
+			var window: Vector2 = Vector2(DisplayServer.window_get_size())
+			var physical_height: float = button.size.y * window.x / view.x
+			var physical_width: float = button.size.x * window.x / view.x
+			observed["Craft" if button.text == "Walk & craft" else button.text] = true
+			if physical_height < 63.0 or physical_width < 63.0:
+				print("C1 CRAFT LAYOUT FAIL: %s is %.1f × %.1f px" % [button.text, physical_width, physical_height])
+				get_tree().quit(1)
+				return
+	for name: String in ["Close", "Details", "Craft", "×5"]:
+		if not observed.has(name):
+			print("C1 CRAFT LAYOUT FAIL: %s button missing" % name)
+			get_tree().quit(1)
+			return
+	print("C1 CRAFT LAYOUT PASS")
+	get_tree().quit(0)
 
 func _shot_setup() -> void:
 	await get_tree().process_frame

@@ -191,7 +191,10 @@ static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: i
 		s.level = ProgressionScaling.resolved_item_level(lvl, d.base_level)
 		s.apply_level_stats()
 	for k in attrs:
-		s.attributes[k] = attrs[k]
+		if str(k) == "material_lot" and attrs[k] is Dictionary:
+			s.attributes[k] = (attrs[k] as Dictionary).duplicate(true)
+		else:
+			s.attributes[k] = attrs[k]
 	return s
 
 static func _attrs_equal(a: Dictionary, b: Dictionary) -> bool:
@@ -200,6 +203,10 @@ static func _attrs_equal(a: Dictionary, b: Dictionary) -> bool:
 	for k in a:
 		if not b.has(k):
 			return false
+		if str(k) == "material_lot":
+			if not _material_value_equal(a[k], b[k]):
+				return false
+			continue
 		# JSON restores integer attributes as floats. Equal numeric quality must
 		# still merge with a newly harvested integer-stamped stack.
 		if (a[k] is int or a[k] is float) and (b[k] is int or b[k] is float):
@@ -209,6 +216,29 @@ static func _attrs_equal(a: Dictionary, b: Dictionary) -> bool:
 		if str(a[k]) != str(b[k]):
 			return false
 	return true
+
+## Lot metadata survives JSON's integer-to-float conversion and dictionary
+## key reordering; different source or trait records must never merge.
+static func _material_value_equal(a: Variant, b: Variant) -> bool:
+	if (a is int or a is float) and (b is int or b is float):
+		return float(a) == float(b)
+	if typeof(a) != typeof(b):
+		return false
+	if a is Dictionary:
+		if a.size() != b.size():
+			return false
+		for key: Variant in a:
+			if not b.has(key) or not _material_value_equal(a[key], b[key]):
+				return false
+		return true
+	if a is Array:
+		if a.size() != b.size():
+			return false
+		for i in a.size():
+			if not _material_value_equal(a[i], b[i]):
+				return false
+		return true
+	return a == b
 
 static func _flags_equal(a: Array[StringName], b: Array[StringName]) -> bool:
 	if a.size() != b.size():

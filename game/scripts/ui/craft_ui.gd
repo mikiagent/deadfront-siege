@@ -261,7 +261,7 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
 	var out_name := out_def.display_name if out_def and out_def.display_name != "" else str(rec.get("display_name", rec.get("id", "?")))
 	var view := get_viewport_rect().size
-	var name_px := UiTokens.body(view)
+	var name_px := _material_font_size(UiTokens.body(view))
 	var font := ThemeDB.fallback_font
 	var level := Crafting.preview_level(player.inventory, rec)
 	var seconds := Crafting.recipe_seconds(rec)
@@ -288,10 +288,7 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	meta.add_theme_font_size_override("font_size", name_px)
 	meta.add_theme_color_override("font_color", Color.WHITE if can else Color(0.75, 0.75, 0.75))
 	line.add_child(meta)
-	var pick := Button.new()
-	pick.text = "Details"
-	pick.custom_minimum_size = Vector2(88, 44)
-	pick.pressed.connect(_choose_recipe.bind(str(rec.get("id", ""))))
+	var pick := _mk_btn("Details", _choose_recipe.bind(str(rec.get("id", ""))), Vector2(88, 44))
 	actions.add_child(pick)
 	var btn_text := "Craft"
 	if blocked != "":
@@ -348,7 +345,7 @@ func _ingredients_row(rec: Dictionary) -> Control:
 		var d := Data.item(sample_id)
 		var nm := d.display_name if d and d.display_name != "" else str(cat).replace("_", " ")
 		l.text = "%s %d/%d" % [nm, mini(have, need), need]
-		l.add_theme_font_size_override("font_size", 14)
+		l.add_theme_font_size_override("font_size", _material_font_size(14))
 		l.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
 		cell.add_child(l)
 		row.add_child(cell)
@@ -407,14 +404,14 @@ func _show_detail(info: Dictionary) -> void:
 		c.queue_free()
 	var head := Label.new()
 	head.text = "RESULT"
-	head.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+	head.add_theme_font_size_override("font_size", _material_font_size(UiTokens.meta(get_viewport_rect().size)))
 	head.add_theme_color_override("font_color", UiTokens.META)
 	_detail.add_child(head)
 	var rec := _selected_recipe()
 	if rec.is_empty():
 		var empty := Label.new()
 		empty.text = "Select a recipe."
-		empty.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+		empty.add_theme_font_size_override("font_size", _material_font_size(UiTokens.body(get_viewport_rect().size)))
 		_detail.add_child(empty)
 		return
 	var out_row: Dictionary = rec.get("output", {})
@@ -429,12 +426,12 @@ func _show_detail(info: Dictionary) -> void:
 	var title := Label.new()
 	title.text = "%s\nLv %d    ×%d" % [out_name, Crafting.preview_level(player.inventory, rec), int(out_row.get("count", 1))]
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+	title.add_theme_font_size_override("font_size", _material_font_size(UiTokens.body(get_viewport_rect().size)))
 	title.add_theme_color_override("font_color", UiTokens.TEXT)
 	_detail.add_child(title)
 	var need := Label.new()
 	need.text = "INGREDIENTS"
-	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+	need.add_theme_font_size_override("font_size", _material_font_size(UiTokens.meta(get_viewport_rect().size)))
 	need.add_theme_color_override("font_color", UiTokens.META)
 	_detail.add_child(need)
 	_detail.add_child(_ingredients_row(rec))
@@ -444,14 +441,14 @@ func _show_detail(info: Dictionary) -> void:
 		var lock := Label.new()
 		lock.text = "Needs %s" % missing.replace("_", " ")
 		lock.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		lock.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+		lock.add_theme_font_size_override("font_size", _material_font_size(UiTokens.body(get_viewport_rect().size)))
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)
 		_detail.add_child(lock)
 	elif _station != "" and not bool(info.get("exists", false)):
 		var lock := Label.new()
 		lock.text = "Station not built. The recipe stays listed."
 		lock.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		lock.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+		lock.add_theme_font_size_override("font_size", _material_font_size(UiTokens.body(get_viewport_rect().size)))
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)
 		_detail.add_child(lock)
 
@@ -541,14 +538,18 @@ func _layout_safe() -> void:
 		if scroll:
 			scroll.custom_minimum_size = Vector2(0.0 if phone else scroll.custom_minimum_size.x, section_h)
 	if _title:
-		_title.add_theme_font_size_override("font_size", UiTokens.heading(view))
+		_title.add_theme_font_size_override("font_size", _material_font_size(UiTokens.heading(view)))
 	if _hint:
-		_hint.add_theme_font_size_override("font_size", UiTokens.meta(view))
+		_hint.add_theme_font_size_override("font_size", _material_font_size(UiTokens.meta(view)))
 
 func _mk_btn(text: String, cb: Callable, minsz: Vector2) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = minsz
+	if OS.has_feature("mobile") or "--touch" in OS.get_cmdline_user_args():
+		var target := float(_material_font_size(64))
+		b.custom_minimum_size = Vector2(maxf(minsz.x, target), maxf(minsz.y, target))
+		b.add_theme_font_size_override("font_size", _material_font_size(16))
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
 	b.pressed.connect(cb)
 	return b
