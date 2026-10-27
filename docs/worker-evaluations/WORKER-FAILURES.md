@@ -82,3 +82,6 @@
 - Classification: context/attention and evidence-verification limits. The
   requested single-read task did not ask it to inspect evidence, so the latter
   limitation is also an orchestration constraint rather than a model defect.
+- After the handoff report was written, a second bounded review of the updated
+  log and report (`20261027-043408-eq4o`, $0.00172757376) reached `max_turns`
+  without a final review. Neither attempt reviewed the conversation transcript.
