@@ -1,0 +1,382 @@
+{
+  "metadata": {
+    "version": "candidate-0.1.0",
+    "approval_status": "PROPOSED",
+    "balance_ref": "candidate-balancing.v0.json",
+    "rounding": "round_half_up_positive",
+    "status": "test_vectors_not_run_in_Godot"
+  },
+  "fixtures": [
+    {
+      "id": "FND-001",
+      "op": "transfer",
+      "input": {
+        "fiber": 5,
+        "stone": 3,
+        "transfer_fiber": 2,
+        "transfer_stone": 1,
+        "repeat_command": true
+      },
+      "expected": {
+        "fiber": 3,
+        "stone": 2,
+        "escrow_fiber": 2,
+        "escrow_stone": 1,
+        "duplicate_effects": 0
+      }
+    },
+    {
+      "id": "CHR-001",
+      "op": "equip",
+      "input": {
+        "human_level": 20,
+        "item_equip_required_level": 21
+      },
+      "expected": {
+        "authorized": false
+      }
+    },
+    {
+      "id": "CHR-002",
+      "op": "xp_threshold",
+      "input": {
+        "level": 3
+      },
+      "expected": {
+        "cumulative_xp_to_level": 314
+      }
+    },
+    {
+      "id": "CHR-003",
+      "op": "attribute",
+      "input": {
+        "iv": 70,
+        "ev": 20
+      },
+      "expected": {
+        "effective": 75
+      }
+    },
+    {
+      "id": "ISL-001",
+      "op": "paid_home_salvage",
+      "input": {
+        "stone": 8,
+        "treated_plank": 5
+      },
+      "expected": {
+        "vault_stone": 8,
+        "vault_treated_plank": 5,
+        "refund_bp": 10000
+      }
+    },
+    {
+      "id": "MAT-001",
+      "op": "duplicate_trait",
+      "input": {
+        "primary_magnitude_bp": 800,
+        "secondary_magnitude_bp": 400,
+        "cap_bp": 1000,
+        "secondary_weight_bp": 2500
+      },
+      "expected": {
+        "effective_bp": 900
+      }
+    },
+    {
+      "id": "MAT-002",
+      "op": "fusion_level",
+      "input": {
+        "level_a": 41,
+        "level_b": 40,
+        "recipe_level_cap": 60
+      },
+      "expected": {
+        "output_level": 40
+      }
+    },
+    {
+      "id": "INV-001",
+      "op": "capacity",
+      "input": {
+        "max_kg": 30,
+        "used_kg": 22,
+        "incoming_kg": 9
+      },
+      "expected": {
+        "accepted": false,
+        "unchanged_used_kg": 22
+      }
+    },
+    {
+      "id": "FOD-001",
+      "op": "spoiling",
+      "input": {
+        "freshness_bp": 10000,
+        "base_life_seconds": 43200,
+        "elapsed_seconds": 21600,
+        "rate": 1
+      },
+      "expected": {
+        "freshness_bp": 5000
+      }
+    },
+    {
+      "id": "FOD-002",
+      "op": "cold_remainder",
+      "input": {
+        "freshness_bp": 5000,
+        "base_life_seconds": 43200,
+        "elapsed_seconds": 43200,
+        "rate": 0.5
+      },
+      "expected": {
+        "freshness_bp": 0,
+        "transforms_to": "rotten_meat"
+      }
+    },
+    {
+      "id": "CRF-001",
+      "op": "work_ticks",
+      "input": {
+        "base_ticks": 200,
+        "profession_level": 20
+      },
+      "expected": {
+        "ticks": 180
+      }
+    },
+    {
+      "id": "BLD-001",
+      "op": "work_hours",
+      "input": {
+        "base_stage_hours": 2,
+        "footprint_cells": 9,
+        "worker_skill": 0
+      },
+      "expected": {
+        "hours": 3.125
+      }
+    },
+    {
+      "id": "BLD-002",
+      "op": "ambience",
+      "input": {
+        "furniture_points": [
+          10,
+          5
+        ],
+        "condition": [
+          1,
+          1
+        ],
+        "efficiency": [
+          1,
+          1
+        ],
+        "cap": 12
+      },
+      "expected": {
+        "score": 12
+      }
+    },
+    {
+      "id": "TRB-001",
+      "op": "housing",
+      "input": {
+        "beds": 4,
+        "adults": 3,
+        "dependent_slots": 0
+      },
+      "expected": {
+        "available": 1
+      }
+    },
+    {
+      "id": "GEN-001",
+      "op": "offspring",
+      "input": {
+        "iv_a": 60,
+        "iv_b": 80,
+        "seeded_delta": 4
+      },
+      "expected": {
+        "iv_child": 74,
+        "level": 1
+      }
+    },
+    {
+      "id": "WRK-001",
+      "op": "work_tool_stop",
+      "input": {
+        "start_durability": 3,
+        "cost_per_action": 1,
+        "stop_floor": 1
+      },
+      "expected": {
+        "successful_actions": 2,
+        "final_durability": 1
+      }
+    },
+    {
+      "id": "DIN-001",
+      "op": "breed_iv",
+      "input": {
+        "parent_a": 60,
+        "parent_b": 80,
+        "seeded_delta": 3
+      },
+      "expected": {
+        "child_iv": 73
+      }
+    },
+    {
+      "id": "MNT-001",
+      "op": "momentum_bonus",
+      "input": {
+        "closing_mps": 6,
+        "runup_m": 4,
+        "aligned_deg": 0
+      },
+      "expected": {
+        "bonus_bp": 1500
+      }
+    },
+    {
+      "id": "CBT-001",
+      "op": "damage",
+      "input": {
+        "base": 100,
+        "attribute": 50,
+        "armor_mitigation_bp": 2000,
+        "channel_favorable_multiplier_bp": 11500
+      },
+      "expected": {
+        "hp_damage": 92
+      }
+    },
+    {
+      "id": "PHY-001",
+      "op": "carrying",
+      "input": {
+        "load_kg": 930,
+        "comfortable_capacity_kg": 1000
+      },
+      "expected": {
+        "ratio": 0.93,
+        "mobility_multiplier": 0.816
+      }
+    },
+    {
+      "id": "PHY-002",
+      "op": "body_force",
+      "input": {
+        "body_mass_kg": 5000,
+        "carried_mass_kg": 1250
+      },
+      "expected": {
+        "force_multiplier_approx": 1.118034
+      }
+    },
+    {
+      "id": "WPN-001",
+      "op": "quality",
+      "input": {
+        "components_mean": 0.8,
+        "workmanship": 0.6,
+        "station": 1
+      },
+      "expected": {
+        "quality": 0.77,
+        "raw_multiplier": 1.135,
+        "damage_100": 114
+      }
+    },
+    {
+      "id": "SGE-001",
+      "op": "shared_box_ledger",
+      "input": {
+        "initial": 6,
+        "load_each": 1,
+        "weapon_count": 3,
+        "fired": 1
+      },
+      "expected": {
+        "box": 3,
+        "loaded": 2,
+        "fired": 1,
+        "conservation": 6
+      }
+    },
+    {
+      "id": "PLT-001",
+      "op": "platform_load",
+      "input": {
+        "saddle": 300,
+        "main": 180,
+        "auto_a": 90,
+        "auto_b": 90,
+        "box": 40,
+        "ammo": 50,
+        "humans": [
+          80,
+          70
+        ],
+        "cargo": 30
+      },
+      "expected": {
+        "load_kg": 930
+      }
+    },
+    {
+      "id": "LOG-001",
+      "op": "cargo_cap",
+      "input": {
+        "boat_kg": 120,
+        "harbor_kg": 100,
+        "traits": 0
+      },
+      "expected": {
+        "cap_kg": 100
+      }
+    },
+    {
+      "id": "ECO-001",
+      "op": "sale",
+      "input": {
+        "price_minor_units": 1000,
+        "tax_bp": 300
+      },
+      "expected": {
+        "buyer_debit": 1000,
+        "seller_credit": 970,
+        "treasury_tax": 30
+      }
+    },
+    {
+      "id": "PVP-001",
+      "op": "captive_expiry",
+      "input": {
+        "captured_at": 1000000,
+        "elapsed_seconds": 259200
+      },
+      "expected": {
+        "deadline_utc": 1259200,
+        "last_valid_payment_utc": 1259199
+      }
+    },
+    {
+      "id": "UX-001",
+      "op": "sit",
+      "input": {
+        "exhaustion": 50,
+        "energy": 40,
+        "seconds": 20
+      },
+      "expected": {
+        "exhaustion": 45,
+        "energy": 44
+      }
+    }
+  ]
+}

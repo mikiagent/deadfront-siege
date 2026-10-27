@@ -1,0 +1,265 @@
+{
+  "metadata": {
+    "revision": "candidate-0.1.0",
+    "status": "PROPOSED",
+    "source": "docs/specs/REGISTRY.md"
+  },
+  "domains": [
+    {
+      "id": "FND",
+      "path": "docs/specs/systems/00-identity-persistence.md",
+      "dependencies": [],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "CHR",
+      "path": "docs/specs/systems/01-characters-levels.md",
+      "dependencies": [
+        "FND"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "ISL",
+      "path": "docs/specs/systems/02-islands-world.md",
+      "dependencies": [
+        "FND",
+        "INV",
+        "BLD"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "MAT",
+      "path": "docs/specs/systems/03-materials-traits.md",
+      "dependencies": [
+        "FND",
+        "INV"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "INV",
+      "path": "docs/specs/systems/04-inventory-equipment.md",
+      "dependencies": [
+        "FND",
+        "MAT",
+        "CHR"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "FOD",
+      "path": "docs/specs/systems/05-food-spoilage.md",
+      "dependencies": [
+        "FND",
+        "INV",
+        "MAT"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "CRF",
+      "path": "docs/specs/systems/06-crafting-production.md",
+      "dependencies": [
+        "INV",
+        "MAT",
+        "CHR",
+        "FOD"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "BLD",
+      "path": "docs/specs/systems/07-building-packaging.md",
+      "dependencies": [
+        "FND",
+        "MAT",
+        "INV",
+        "CRF",
+        "WRK"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "TRB",
+      "path": "docs/specs/systems/08-tribe-population.md",
+      "dependencies": [
+        "FND",
+        "CHR",
+        "INV"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "GEN",
+      "path": "docs/specs/systems/09-lineage-education.md",
+      "dependencies": [
+        "TRB",
+        "CHR",
+        "FOD"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "WRK",
+      "path": "docs/specs/systems/10-workers-automation.md",
+      "dependencies": [
+        "TRB",
+        "INV",
+        "CRF"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "DIN",
+      "path": "docs/specs/systems/11-dinosaurs-genetics.md",
+      "dependencies": [
+        "FND",
+        "CHR",
+        "CBT"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "MNT",
+      "path": "docs/specs/systems/12-expedition-mounts.md",
+      "dependencies": [
+        "DIN",
+        "TRB",
+        "CHR"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "CBT",
+      "path": "docs/specs/systems/13-combat-damage.md",
+      "dependencies": [
+        "CHR",
+        "INV",
+        "DIN"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "PHY",
+      "path": "docs/specs/systems/14-mass-armor-grappling.md",
+      "dependencies": [
+        "CBT",
+        "DIN",
+        "MNT"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "WPN",
+      "path": "docs/specs/systems/15-weapons-progression.md",
+      "dependencies": [
+        "CRF",
+        "CBT"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "SGE",
+      "path": "docs/specs/systems/16-turrets-siege.md",
+      "dependencies": [
+        "INV",
+        "CBT",
+        "TRB"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "PLT",
+      "path": "docs/specs/systems/17-platform-saddles.md",
+      "dependencies": [
+        "DIN",
+        "MNT",
+        "PHY",
+        "SGE"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "LOG",
+      "path": "docs/specs/systems/18-logistics-boats.md",
+      "dependencies": [
+        "ISL",
+        "INV",
+        "WRK"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "ECO",
+      "path": "docs/specs/systems/19-markets-economy.md",
+      "dependencies": [
+        "INV",
+        "BLD",
+        "LOG"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "PVP",
+      "path": "docs/specs/systems/20-pvp-custody.md",
+      "dependencies": [
+        "ISL",
+        "CHR",
+        "CBT",
+        "LOG",
+        "ECO"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "UX",
+      "path": "docs/specs/systems/21-ux-controls.md",
+      "dependencies": [
+        "INV",
+        "CHR"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "TUT",
+      "path": "docs/specs/systems/22-tutorial-progression.md",
+      "dependencies": [
+        "UX",
+        "CRF",
+        "DIN"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    },
+    {
+      "id": "OPS",
+      "path": "docs/specs/systems/23-platform-liveops.md",
+      "dependencies": [
+        "UX",
+        "ECO",
+        "PVP"
+      ],
+      "stage": "NEEDS_OWNER_DECISION"
+    }
+  ],
+  "cycle_notes": [
+    "BLD↔WRK is domain dependency feedback, broken by command/events and stable IDs, not import circularity",
+    "DIN↔CBT and ISL↔INV/BLD similarly define interfaces before implementation; M0 must establish DTO contracts."
+  ],
+  "implementation_milestones": [
+    "M0 FND",
+    "M1 CHR/ISL/UX",
+    "M2 MAT/INV/CRF",
+    "M3 FOD",
+    "M4 DIN/CBT",
+    "M5 BLD/WRK",
+    "M6 MNT",
+    "M7 PHY/WPN",
+    "M8 TRB/GEN/ECO",
+    "M9 LOG/ISL resets",
+    "M10 SGE/PLT",
+    "M11 PVP server-ready",
+    "M12 OPS"
+  ]
+}

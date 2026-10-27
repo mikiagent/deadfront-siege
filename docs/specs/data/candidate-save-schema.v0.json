@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DEADFRONT Candidate Persistent Snapshot v0",
+  "description": "Proposal for engineering review, not authoritative final runtime migration.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "save_schema_version",
+    "ruleset_version",
+    "simulation_tick",
+    "last_trusted_utc",
+    "entities",
+    "command_receipts"
+  ],
+  "properties": {
+    "save_schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ruleset_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "simulation_tick": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_trusted_utc": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "entities": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(human|dino|item|lot|structure|island|shipment|captive|tribe|turret):"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/entity"
+      }
+    },
+    "command_receipts": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/receipt"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^(human|dino|item|lot|structure|island|shipment|captive|tribe|turret):[A-Za-z0-9-]+$"
+    },
+    "location": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "inventory_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "inventory"
+            },
+            "inventory_id": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "island_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "world"
+            },
+            "island_id": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "shipment_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "transit"
+            },
+            "shipment_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "equipped",
+                "prison",
+                "consumed",
+                "packaged"
+              ]
+            },
+            "holder_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "entity": {
+      "type": "object",
+      "required": [
+        "id",
+        "def_id",
+        "revision",
+        "location"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "def_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "owner_id": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "traits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/trait"
+          }
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "trait": {
+      "type": "object",
+      "required": [
+        "id",
+        "magnitude_bp",
+        "origin_lot_id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "magnitude_bp": {
+          "type": "integer"
+        },
+        "origin_lot_id": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "additionalProperties": false
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "command_id",
+        "status",
+        "world_revision"
+      ],
+      "properties": {
+        "command_id": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "success",
+            "rejected",
+            "failed"
+          ]
+        },
+        "world_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
