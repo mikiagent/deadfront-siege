@@ -5,6 +5,7 @@ var _capture_done := false
 
 func _init() -> void:
 	_test_save_migrations()
+	_test_save_recovery_validation()
 	_test_food_buffs()
 	_test_exhaustion()
 	_test_fatigue_level_gap()
@@ -90,6 +91,12 @@ func _test_save_migrations() -> void:
 
 	var future := SaveMigrations.migrate({"schema": SaveMigrations.CURRENT_SCHEMA + 1})
 	_expect(future.is_empty(), "future schemas are rejected rather than misread")
+
+func _test_save_recovery_validation() -> void:
+	var recovery: GDScript = load("res://scripts/core/save_recovery.gd")
+	for fixture: String in ["save_v0.json", "save_v2.json"]:
+		var result: Dictionary = recovery.inspect("res://tests/fixtures/" + fixture, SaveMigrations.CURRENT_SCHEMA)
+		_expect(result.get("status") == "valid", "%s is accepted by save validation" % fixture)
 
 func _test_food_buffs() -> void:
 	var buffs := FoodBuffState.new()

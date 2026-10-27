@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "player": {
+    "position": [1, 2, 3],
+    "inventory": [{"id": "branch", "count": 5, "level": 7, "process_count": 0, "attributes": {"grain": "test"}, "flags": ["unstable"], "durability": 0, "max_durability": 0}]
+  },
+  "home": {"buildings": [{"kind": "basket", "x": 4, "z": 8}], "cargo": []},
+  "pets": [{"species": "velociraptor", "level": 4, "genetics": {"ivs": {"health": 7}, "evs": {"health": 2}, "level_gains": {}}, "bag": []}],
+  "t_stones": 23,
+  "island_id": "home_grassland"
+}

@@ -4,6 +4,8 @@ extends RefCounted
 ## The bot plays on its own throwaway save, deleted at launch, so every bot run is a true first hour
 ## and none of them can write into the real save.
 static var path: String = _pick_path()
+static var _save_blocked: bool = false
+const Recovery := preload("res://scripts/core/save_recovery.gd")
 
 static func _pick_path() -> String:
 	if "--bot" in OS.get_cmdline_user_args():
@@ -15,9 +17,26 @@ static func _pick_path() -> String:
 const SCHEMA := SaveMigrations.CURRENT_SCHEMA
 
 static func exists() -> bool:
-	return FileAccess.file_exists(path)
+	return FileAccess.file_exists(path) or (not _is_bot() and FileAccess.file_exists(path + ".bak"))
+
+static func _is_bot() -> bool:
+	return "--bot" in OS.get_cmdline_user_args()
 
 static func save_now() -> void:
+	if _save_blocked:
+		print("[world] save blocked: existing save needs recovery")
+		return
+	var check: Dictionary = Recovery.inspect(path, SCHEMA)
+	if check.status != "valid" and check.status != "missing":
+		_save_blocked = true
+		print("[world] save blocked: existing save needs recovery")
+		_show_save_error(World.get_tree().current_scene, str(check.status))
+		return
+	if check.status == "missing" and not _is_bot() and FileAccess.file_exists(path + ".bak"):
+		_save_blocked = true
+		print("[world] save blocked: primary is missing but a backup exists")
+		_show_save_error(World.get_tree().current_scene, "primary missing; backup available")
+		return
 	var player := _player()
 	if player == null:
 		return
@@ -85,32 +104,40 @@ static func save_now() -> void:
 		"clock": Game.time_of_day,
 		"saved_unix": int(Time.get_unix_time_from_system()),
 	}
+	var error: int = Recovery.write_snapshot(path, payload, SCHEMA, not _is_bot())
+	if error != OK:
+		print("[world] save failed (%d); previous save and backup retained" % error)
+		_save_blocked = true
+		_show_save_error(World.get_tree().current_scene, "save write failed; check storage")
+		return
 	if World.is_home():
 		World._home_buildings_cache = buildings
-	var f := FileAccess.open(path, FileAccess.WRITE)
-	if f == null:
-		print("[world] save failed")
-		return
-	f.store_string(JSON.stringify(payload))
 	World.last_save_unix = int(payload["saved_unix"])
 	print("[world] saved schema=%d island=%s" % [SCHEMA, World.island_id])
 
 static func load_now(host: Node) -> void:
-	var f := FileAccess.open(path, FileAccess.READ)
-	if f == null:
+	var check: Dictionary = Recovery.inspect(path, SCHEMA)
+	if check.status == "missing":
+		if not _is_bot() and FileAccess.file_exists(path + ".bak"):
+			_save_blocked = true
+			_show_save_error(host, "primary missing; backup available")
+			return
 		World.start_new(host)
 		return
-	var parsed: Variant = JSON.parse_string(f.get_as_text())
-	if typeof(parsed) != TYPE_DICTIONARY:
-		World.start_new(host)
+	if check.status != "valid":
+		_save_blocked = true
+		_show_save_error(host, str(check.status))
 		return
-	var raw_data: Dictionary = parsed
+	var raw_data: Dictionary = check.data
 	var source_schema := int(raw_data.get("schema", 0))
 	var data := SaveMigrations.migrate(raw_data)
 	if data.is_empty():
-		print("[world] unsupported save schema=%d; starting new world" % source_schema)
-		World.start_new(host)
+		_save_blocked = true
+		_show_save_error(host, "migration failed")
 		return
+	# A valid outer JSON object can still contain malformed nested data or fail
+	# while the world is being restored. Never autosave a partially loaded world.
+	_save_blocked = true
 	if source_schema != SCHEMA:
 		print("[world] migrated save schema=%d -> %d" % [source_schema, SCHEMA])
 	var schema := source_schema
@@ -182,7 +209,55 @@ static func load_now(host: Node) -> void:
 			if n is FieldPlot:
 				(n as FieldPlot).advance_offline(float(elapsed))
 		print("[farm] offline catch-up %ds" % elapsed)
+	_save_blocked = false
 	print("[world] loaded island=%s terrain=%s pioneer=%d" % [iid, World.home_terrain, World.pioneer_level])
+
+static func _show_save_error(host: Node, reason: String) -> void:
+	print("[world] save unavailable (%s); original file preserved, saving disabled" % reason)
+	if host == null:
+		return
+	if host.get_node_or_null("SaveRecoveryError") != null:
+		return
+	var layer := CanvasLayer.new()
+	layer.name = "SaveRecoveryError"
+	layer.layer = 120
+	var panel := ColorRect.new()
+	panel.color = Color(0.04, 0.05, 0.06, 0.96)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var message := Label.new()
+	var description := reason
+	match reason:
+		"invalid": description = "the save is damaged or incomplete"
+		"future": description = "the save belongs to a newer game version"
+		"unreadable": description = "the save could not be read"
+	var backup_note := "No backup was found."
+	if FileAccess.file_exists(path + ".bak"):
+		backup_note = "A backup is available at:\n%s" % ProjectSettings.globalize_path(path + ".bak")
+	message.text = "Save protection stopped saving: %s.\n\nThe existing save has not been replaced. This session is not being saved.\n%s\n\nBack up your files before making changes, or use a compatible game version." % [description, backup_note]
+	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	message.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.add_child(message)
+	layer.add_child(panel)
+	host.add_child(layer)
+	panel.resized.connect(func () -> void: _layout_save_message(message))
+	_layout_save_message(message)
+
+static func _layout_save_message(message: Label) -> void:
+	if not is_instance_valid(message) or message.get_viewport() == null:
+		return
+	var viewport := message.get_viewport()
+	var logical := viewport.get_visible_rect().size
+	var window := Vector2(DisplayServer.window_get_size())
+	var scale := maxf(1.0, logical.x / window.x) if window.x > 0.0 else 1.0
+	var safe := UiTokens.safe_insets(viewport)
+	var padding := 18.0 * scale
+	message.offset_left = safe.w + padding
+	message.offset_top = safe.z + padding
+	message.offset_right = -safe.x - padding
+	message.offset_bottom = -safe.y - padding
+	message.add_theme_font_size_override("font_size", int(ceil(22.0 * scale)))
 
 static func _restore_buildings(rows: Array, schema: int) -> void:
 	if World.runtime == null:
