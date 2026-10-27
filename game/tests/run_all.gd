@@ -19,6 +19,7 @@ func _process(_delta: float) -> bool:
 	_test_save_migrations()
 	_test_food_buffs()
 	_test_exhaustion()
+	_test_exhaust_treadmill()
 	_test_fatigue_level_gap()
 	_test_climate_palette()
 	_test_creature_genetics()
@@ -354,6 +355,27 @@ func _test_exhaustion() -> void:
 		_expect(is_equal_approx(v.stamina_cap_mult(), row[1]) and is_equal_approx(v.stamina_regen_mult(), row[2]), "fatigue stage penalties at %s" % row[0])
 	v.free()
 	restored.free()
+
+func _test_exhaust_treadmill() -> void:
+	# Owner 2026-10-27 "treadmill style UI": direction from the net drift's sign, belt speed from
+	# how fast exhaustion changes, a one-off rest (sleep/meal) sweeps then eases under its fast
+	# forget clock, a stalled sink freezes the belt.
+	_expect(ExhaustTreadmill.direction(0.02) == 1 and ExhaustTreadmill.direction(-0.02) == -1 and ExhaustTreadmill.direction(0.0) == 0, "treadmill direction carries the drift's sign")
+	_expect(ExhaustTreadmill.direction(0.003) == 0, "sub-deadband jitter holds the belt still")
+	_expect(ExhaustTreadmill.direction(Vitals.EXHAUSTION_PER_SEC * Vitals.FATIGUE_ACCUMULATION_MULT) == 1, "the idle baseline creeps right while awake")
+	_expect(ExhaustTreadmill.speed_px(0.05) < ExhaustTreadmill.speed_px(0.5) and ExhaustTreadmill.speed_px(0.5) <= ExhaustTreadmill.MAX_PX, "belt speed grows with the drift and clamps")
+	_expect(ExhaustTreadmill.speed_px(Vitals.EXHAUSTION_PER_SEC * Vitals.FATIGUE_ACCUMULATION_MULT) >= ExhaustTreadmill.MIN_PX, "the idle baseline is visible, not a stall")
+	var r := 0.0
+	for i in 300:
+		r = ExhaustTreadmill.sample_rate(r, 0.2, 1.0 / 60.0, 0.0)
+	_expect(r > 0.16 and r < 0.23, "the drift EMA settles toward the true rate")
+	var slow := ExhaustTreadmill.sample_rate(0.0, 30.0, 1.0 / 60.0, 0.0)
+	var fast := ExhaustTreadmill.sample_rate(0.0, 30.0, 1.0 / 60.0, ExhaustTreadmill.FORGET_HOLD_S)
+	for i in 180:
+		slow = ExhaustTreadmill.sample_rate(slow, 0.0, 1.0 / 60.0, 0.0)
+		fast = ExhaustTreadmill.sample_rate(fast, 0.0, 1.0 / 60.0, ExhaustTreadmill.FORGET_HOLD_S)
+	_expect(fast < slow * 0.4, "a one-off rest fades under the fast-forget clock")
+	_expect(ExhaustTreadmill.phase(100.0, 0.1, 1.0) > 110.0 and ExhaustTreadmill.phase(100.0, -0.1, 1.0) < 100.0 and is_equal_approx(ExhaustTreadmill.phase(100.0, 0.0, 1.0), 100.0), "the belt scrolls with the drift and freezes when it stalls")
 
 func _test_climate_palette() -> void:
 	var palette := ClimatePalette.resolve({"palette": {"grass": "#ffffff", "sand": "#123456"}})

@@ -21,6 +21,10 @@ var _skills_hex: HexButton
 var _inspect_hex: HexButton
 var _fatigue_rect := Rect2() ## screen rect of the fatigue face and bar, recorded in _draw; a tap opens the panel
 var _fatigue_panel: FatiguePanel
+var _fat_rate := 0.0 ## EMA of d(fatigue)/dt, pt/s: rises while working awake, plunges on a sleep
+var _fat_prev := -1.0e9 ## last sampled fatigue; sentinel until the first frame
+var _fat_forgive := 0.0 ## countdown of fast forgetting after a one-off step (sleep/meal)
+var _belt_phase := 0.0 ## treadmill belt scroll position, px
 var _sheet: PanelContainer
 var _sheet_rows: ScrollContainer  ## the open sheet's rows; on a short canvas they scroll under a pinned header
 var _sheet_kind: StringName = &""
@@ -1122,6 +1126,19 @@ func _process(delta: float) -> void:
 	if player == null:
 		return
 	_tick_death(delta)
+	# Exhaustion drift sampling (ExhaustTreadmill): sleep/meals arrive as one-off steps, work and
+	# climate as a steady creep; the EMA over fatigue deltas drives the belt's direction and speed.
+	if not player.dead and player.vitals != null:
+		var vf := player.vitals.fatigue
+		if _fat_prev > -1.0e8:
+			if absf(vf - _fat_prev) >= ExhaustTreadmill.STEP_AFTER:
+				_fat_forgive = ExhaustTreadmill.FORGET_HOLD_S
+			_fat_rate = ExhaustTreadmill.sample_rate(_fat_rate, (vf - _fat_prev) / maxf(delta, 1.0 / 240.0), delta, _fat_forgive)
+		_fat_prev = vf
+		_fat_forgive = maxf(0.0, _fat_forgive - delta)
+		_belt_phase = ExhaustTreadmill.phase(_belt_phase, _fat_rate, delta)
+		if _fatigue_panel != null:
+			_fatigue_panel.rate = _fat_rate
 	var hunting := player.hunt != null and player.hunt.target != null and is_instance_valid(player.hunt.target)
 	if _sprint_hex.selected != player.sprint_toggled:
 		_sprint_hex.selected = player.sprint_toggled
@@ -1216,7 +1233,6 @@ func _draw() -> void:
 	var panel_w := vitals.size.x
 	var bar_w := 232.0 if not phone else maxf(88.0, panel_w - 54.0)
 	var big := 16.0 if not phone else 12.0
-	var small := 10.0 if not phone else 8.0
 	var gap := 6.0
 	var num_px := UiTokens.body(r) - 1 if not phone else 12
 	var bar_px := UiTokens.meta(r) if not phone else 12
@@ -1240,8 +1256,12 @@ func _draw() -> void:
 	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
 	draw_string(_font, Vector2(x + 27.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, bar_w - 30.0, bar_px, face_col)
 	yy += 22.0
-	_bar(Vector2(x, yy), Vector2(bar_w, small), strain, face_col, "", "%d%%" % int(strain * 100.0), bar_px)
-	_fatigue_rect = Rect2(x, face_pos.y - 14.0, bar_w, maxf(UiTokens.TARGET_MIN, yy + small - face_pos.y + 14.0))
+	# Owner 2026-10-27: this row is a treadmill — the tread chevrons point and scroll right while
+	# exhaustion rises (work, climate, wet) and left while it eases (sleep, meals); scroll speed
+	# carries how fast it is changing. The drift is sampled in _process; the face's
+	# RESTED/WORN/TIRED/EXHAUSTED tier stays one row above.
+	ExhaustTreadmill.draw_belt(self, Rect2(Vector2(x, yy), Vector2(bar_w, ExhaustTreadmill.BELT_H)), _fat_rate, _belt_phase, strain, face_col, _font, bar_px)
+	_fatigue_rect = Rect2(x, face_pos.y - 14.0, bar_w, maxf(UiTokens.TARGET_MIN, yy + ExhaustTreadmill.BELT_H - face_pos.y + 14.0))
 	if _fatigue_panel and _fatigue_panel.visible:
 		_fatigue_panel.position = Vector2(_fatigue_rect.position.x, _fatigue_rect.end.y + 8.0)
 	# Player conditions belong with the player's vitals, directly beneath the top-left panel. On a

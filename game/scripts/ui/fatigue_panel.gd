@@ -15,6 +15,7 @@ const SOURCE_NAMES := {
 	"combat": "Fighting",
 	"climate_heat": "Heat",
 	"climate_cold": "Cold",
+	"food": "Foods & drinks",
 }
 const SOURCE_REMEDIES := {
 	"time": "Sleep in a tent or bed. Only sleep clears this fully.",
@@ -23,10 +24,14 @@ const SOURCE_REMEDIES := {
 	"combat": "Avoid hits: roll, flank, end fights early.",
 	"climate_heat": "Eat a Cooling Meal or learn light heat clothing.",
 	"climate_cold": "Eat a Warming Meal or learn fur cold clothing.",
+	"food": "Check the item's fatigue note; many meals ease it instead.",
 }
 const DEFAULT_REMEDY := "Wait it out, or cure the status."
 
 var player: Player
+## Latest HUD-side exhaustion drift (pt/s; negative while it eases). HuntHud writes it every
+## frame from ExhaustTreadmill's EMA; refresh() turns it into one sentence in the context line.
+var rate := 0.0
 var _rows: VBoxContainer
 var _header: Label
 var _context: Label
@@ -77,7 +82,7 @@ func refresh() -> void:
 	if player == null or player.vitals == null or _rows == null:
 		return
 	var v := player.vitals
-	_context.text = context_text(v, player)
+	_context.text = context_text(v, player, rate)
 	for child in _rows.get_children():
 		child.queue_free()
 	var shown: Array[Dictionary] = []
@@ -90,9 +95,15 @@ func refresh() -> void:
 	for row in shown:
 		_rows.add_child(_row(str(row["source"]), float(row["share"])))
 
-## The island and climate sentence, separate so a test can read it without building nodes.
-static func context_text(v: Vitals, p: Player) -> String:
+## The island/climate sentence plus the live drift direction, separate so a test can read it
+## without building nodes. `rate` is HUD-sampled d(fatigue)/dt in pt/s (<= 0 eases).
+static func context_text(v: Vitals, p: Player, rate: float = 0.0) -> String:
 	var parts: Array[String] = []
+	var drift := ExhaustTreadmill.direction(rate)
+	if drift != 0:
+		var per_min := absf(rate) * 60.0
+		var how := "slowly" if per_min < 0.5 else ("steadily" if per_min < 1.8 else "fast")
+		parts.append("Exhaustion is %s %s (+%.1f/min)." % ["falling" if drift < 0 else "rising", how, per_min])
 	if v.gap_zone_level > 0:
 		var pct := int(round((v.level_gap_mult - 1.0) * 100.0))
 		# No second "your level" here: the gap uses the skill-tree average, which is not the player
