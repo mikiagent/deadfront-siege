@@ -46,6 +46,7 @@ func run(t: TestCase) -> void:
 	_test_stale_revision_rejects(t)
 	_test_competing_final_unit(t)
 	_test_one_authoritative_location(t)
+	_test_invalid_commands_reject_atomically(t)
 
 
 func _test_fnd_001(t: TestCase) -> void:
@@ -194,6 +195,47 @@ func _test_one_authoritative_location(t: TestCase) -> void:
 		t.ok(lot.location != null and not lot.location.is_consumed(), "lot has a live location")
 		counted += lot.quantity
 	t.eq(counted, 8, "per-lot quantities sum to the conserved total")
+
+
+## Every invalid command shape must reject and leave state untouched.
+func _test_invalid_commands_reject_atomically(t: TestCase) -> void:
+	var world: Fnd001World = Fnd001World.new()
+	var source: Inventory = world.ledger.get_inventory(world.source_id)
+	var before: Dictionary = world.ledger.debug_state()
+	var ghost: EntityId = EntityId.create(&"inv", 999)
+
+	var unknown_source: TransferCommand = TransferCommand.create(&"T-x1", world.actor_id, ghost, world.escrow_id, 0) \
+		.with_line(FIBER, 1)
+	t.eq(world.bus.execute(unknown_source).error, Receipt.ErrorCode.UNKNOWN_SOURCE,
+		"unknown source inventory rejects")
+
+	var unknown_target: TransferCommand = TransferCommand.create(&"T-x2", world.actor_id, world.source_id, ghost, source.revision) \
+		.with_line(FIBER, 1)
+	t.eq(world.bus.execute(unknown_target).error, Receipt.ErrorCode.UNKNOWN_TARGET,
+		"unknown target inventory rejects")
+
+	var same_place: TransferCommand = TransferCommand.create(&"T-x3", world.actor_id, world.source_id, world.source_id, source.revision) \
+		.with_line(FIBER, 1)
+	t.eq(world.bus.execute(same_place).error, Receipt.ErrorCode.SOURCE_IS_TARGET,
+		"source == target rejects")
+
+	var no_lines: TransferCommand = TransferCommand.create(&"T-x4", world.actor_id, world.source_id, world.escrow_id, source.revision)
+	t.eq(world.bus.execute(no_lines).error, Receipt.ErrorCode.INVALID_QUANTITY,
+		"command with no lines rejects")
+
+	var zero_line: TransferCommand = TransferCommand.create(&"T-x5", world.actor_id, world.source_id, world.escrow_id, source.revision) \
+		.with_line(FIBER, 0)
+	t.eq(world.bus.execute(zero_line).error, Receipt.ErrorCode.INVALID_QUANTITY,
+		"zero-quantity line rejects")
+
+	var null_actor: TransferCommand = TransferCommand.create(&"T-x6", null, world.source_id, world.escrow_id, source.revision) \
+		.with_line(FIBER, 1)
+	t.eq(world.bus.execute(null_actor).error, Receipt.ErrorCode.INVALID_COMMAND,
+		"command without a resolvable actor rejects")
+
+	t.dict_eq(world.ledger.debug_state(), before, "no invalid command mutated the ledger")
+	t.eq(world.ledger.total_units(), 8, "all 8 fixture units still present")
+	t.eq(world.bus.receipt_count(), 6, "each rejected command_id got one receipt")
 
 
 func _qty_of_def(ledger: Ledger, inventory_id: EntityId, def_id: StringName) -> int:
