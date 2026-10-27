@@ -52,7 +52,6 @@ LIMBS = {
     "Back.L": ["BackUpLeg.L", "BackLowLeg.L", "BackFoot.L"],
     "Back.R": ["BackUpLeg.R", "BackLowLeg.R", "BackFoot.R"],
 }
-HIP_BONE = {"Front": "FrontUpLeg", "Back": "BackUpLeg"}
 LEG_BONES = {b for bones in LIMBS.values() for b in bones}
 CLIPS = ["alert", "attack_heavy", "attack_primary", "death", "hit_react",
          "idle", "knockdown", "run", "walk"]
@@ -204,7 +203,6 @@ def components(mesh, keep=None):
 
 def spine_polyline(arm):
     """Ordered centre-line through the spine bones, plus per-bone arc centres."""
-    mids, tails = [], []
     pts = [np.array(arm.data.bones["Head"].tail_local)]
     for name in SPINE:
         b = arm.data.bones.get(name)
@@ -284,8 +282,7 @@ def plate_components(mesh, rest, arm):
     fins are disconnected from each other (and from the body core top), so
     connected components over that mask recover one component per plate.
     """
-    poly, cuts, centres, names = spine_polyline(arm)
-    _, spine_d = project_arc(rest, poly, cuts)
+    poly, cuts, _centres, _names = spine_polyline(arm)
     body_axis_y = rest[:, 1]
     local_z = np.interp(body_axis_y, poly[:, 1], poly[:, 2])
     mask = (rest[:, 2] - local_z) > PLATE_HEIGHT
@@ -387,7 +384,6 @@ def build_weights(mesh, arm, rest):
                 for _co, j, d in kd.find_range(Vector(rest[vi]), radius)]
         total = sum(w for _, w in near)
         neighbours.append([(j, w / total) for j, w in near] if total > 0 else [(int(vi), 1.0)])
-    index_of = {int(vi): k for k, vi in enumerate(body_idx)}
     for _ in range(6):
         updated = []
         for vi, near in zip(body_idx, neighbours):
@@ -398,7 +394,6 @@ def build_weights(mesh, arm, rest):
             updated.append(dict(acc))
         for vi, w in zip(body_idx, updated):
             weights[int(vi)] = {n: v for n, v in w.items() if v > 1e-5}
-    del index_of
 
     # Guard rail: relaxation drags a little leg weight into the flank. Clamp
     # each body vertex's total leg weight to what the anatomical gate allows
