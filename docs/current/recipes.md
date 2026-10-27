@@ -62,7 +62,7 @@
 
 ## Crafting (workbench)
 
-Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: `fine_plank` {'seconds': 12}s, `trimmed_plank` {'seconds': 12}s.
+Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: `fine_plank` 12s, `trimmed_plank` 12s.
 
 | recipe | output | inputs | skill | time (s) | process |
 |---|---|---|---|---|---|
@@ -125,7 +125,7 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 
 ## Drying (drying_rack)
 
-Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: `dried_hide` {'seconds': 600}s, `dry_meat` {'seconds': 600}s.
+Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: `dried_hide` 600s, `dry_meat` 600s.
 
 | recipe | output | inputs | skill | time (s) | process |
 |---|---|---|---|---|---|
@@ -134,7 +134,7 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 
 ## Smoking (smoker)
 
-Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: `smoke_meat` {'seconds': 900}s.
+Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: `smoke_meat` 900s.
 
 | recipe | output | inputs | skill | time (s) | process |
 |---|---|---|---|---|---|
@@ -142,7 +142,7 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 
 ## Stewing (crock_pot)
 
-Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: `camp_stew` {'seconds': 180}s.
+Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: `camp_stew` 180s.
 
 | recipe | output | inputs | skill | time (s) | process |
 |---|---|---|---|---|---|
@@ -197,7 +197,7 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 
 ## Steaming (steamer)
 
-Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: `steam` {'seconds': 60}s.
+Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: `steam` 60s.
 
 | recipe | output | inputs | skill | time (s) | process |
 |---|---|---|---|---|---|
