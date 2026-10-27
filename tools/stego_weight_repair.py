@@ -697,6 +697,9 @@ def render_previews(out_dir):
         light.data.size = span * 1.5
         light.rotation_euler = (center - light.location).to_track_quat("-Z", "Y").to_euler()
     out_dir.mkdir(parents=True, exist_ok=True)
+    for stale in out_dir.glob("*.png"):
+        if any(stale.stem.startswith(clip + "_") for clip in PREVIEW_CLIPS):
+            stale.unlink()      # drop renders from an older sampling spec
     views = {"side": (1, -0.05, 0.06), "three_quarter": (1, -1, 0.6)}
     for clip in PREVIEW_CLIPS:
         path = ASSET / "anim" / f"{clip}.glb"
@@ -713,7 +716,7 @@ def render_previews(out_dir):
         for tr in list(arm.animation_data.nla_tracks):
             arm.animation_data.nla_tracks.remove(tr)
         f0, f1 = act.frame_range
-        for frac in (0.35, 0.6):
+        for frac in (0.25, 0.5, 0.75):
             frame = f0 + (f1 - f0) * frac
             scene.frame_set(int(frame), subframe=float(frame % 1))
             bpy.context.view_layer.update()

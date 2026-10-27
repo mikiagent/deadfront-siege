@@ -44,8 +44,8 @@ the shipped file:
    (`weights.method` in `game/data/creatures/stegosaurus.json` unchanged).
 5. Exports `work/stegosaurus_repaired.glb` (mesh + skin, no clips, +Z forward,
    same 39-joint donor skeleton, no topology change beyond the existing mesh).
-6. Renders 16 lit 1280x720 QA frames (idle, walk, attack_heavy, knockdown ×
-   2 times × side/three-quarter) into `work/qa/weight-repair-v1/`, then prints
+6. Renders 24 lit 1280x720 QA frames (idle, walk, attack_heavy, knockdown ×
+   3 times × side/three-quarter) into `work/qa/weight-repair-v1/`, then prints
    BEFORE and AFTER tables.
 
 Nothing under `game/scripts/`, `game/scenes/`, `game/data/` or the clip files was
@@ -137,7 +137,7 @@ done. Concretely, to adopt it:
    stage rather than re-paint everything.
 
 Files: `tools/stego_weight_repair.py`, `game/assets/creatures/stegosaurus/work/stegosaurus_repaired.glb`,
-`game/assets/creatures/stegosaurus/work/qa/weight-repair-v1/` (16 PNGs + 2 audits).
+`game/assets/creatures/stegosaurus/work/qa/weight-repair-v1/` (24 PNGs + 2 audits).
 Verify: `bash .dsc/verify_stego.sh` (re-measures BEFORE/AFTER, checks renders are
 1280x720, runs `tools/check_rig_audit.py` on the repaired base, and parses the
 exported GLB for skin attributes, joint count and absence of clips).
