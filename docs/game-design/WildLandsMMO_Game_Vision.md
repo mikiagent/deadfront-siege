@@ -64,13 +64,39 @@ These dimensions complement rather than replace one another. A veteran may becom
 | High-end expeditions | Advanced animals, materials and equipment open difficult territory | Personal leveling, elite creatures, specialized expedition parties |
 | Optional frontier | Prepared settlements face costly competition and siege | Defensible outposts, siege logistics, risky cargo and captivity |
 
-The journey is not a rigid campaign. Players may emphasize exploration, breeding, crafting, building, trade or combat while still participating in the wider world.
+The journey is not a rigid campaign. Players may emphasize exploration, breeding, crafting, building, trade or combat while still participating in the wider world. **After an introductory period, the player owns the agenda.** Professions and interests are playstyles, not chores that everyone must complete in the same sequence.
 
-### The essential recurring cycle
+### The first 20 to 30 minutes: three promises, one discovery
 
-A survivor prepares at home, travels with a deliberate goal, encounters environmental challenges, finds resources or opportunities, makes choices about risk and carrying capacity, returns or extracts valuables, and uses the results to improve people, animals, equipment or settlement capabilities. Those improvements enable more ambitious expeditions and better economic specialization.
+The intended opening is a **deliberate combination** of surviving a prehistoric wilderness, discovering the pleasure of gathering and making useful things, and experiencing the presence and possibility of bonding with a dinosaur. The opening should communicate why each of these matters to the other two, rather than serving as three disconnected tutorials.
 
-Every excursion can advance both the personal character and the permanent civilization. Every valuable item has a story of how it was found, produced or acquired.
+The new survivor encounters manageable danger, learns that collecting and processing resources can improve immediate survival, and experiences dinosaurs as more than background decoration. A visible, consequential dinosaur encounter should make companionship and future taming feel worth pursuing. A secure private home provides the player with a lasting destination and a place to build upon early success.
+
+One *illustrative* opening might weave together finding food, making a first tool, escaping or observing a dangerous creature, encountering a potentially tameable animal, and beginning a personal home. **This is not an approved mandatory sequence**, a guaranteed free dinosaur, or a fixed scripted quest. The exact method and timing of the first bond remain open.
+
+The opening succeeds when players feel that they have survived something, created something useful, discovered a living prehistoric world, and found a reason to choose their next adventure.
+
+### The recurring gameplay is a sandbox, not a required itinerary
+
+A typical 30 to 60 minute session has **no mandated expedition, base-management quota, combat encounter or profession rotation**. Players pursue the goals that interest them. Short sessions can improve a workshop, prepare food, train an animal, trade goods or plan a building; long sessions might be devoted to hunting, breeding, group exploration or a dangerous expedition.
+
+Several connected loops support this freedom:
+
+| Chosen pursuit | Satisfying player journey | How it changes the wider game |
+|---|---|---|
+| Exploration and extraction | Prepare → explore → confront danger → gather, hunt or tame → extract | New materials, discoveries and creatures enable more ambitious choices |
+| Craftsmanship and trade | Source distinctive materials → process → manufacture → use or sell | Expertise and scarce quality goods develop an economy |
+| Dinosaur care and breeding | Discover → bond → feed and train → select lineage or role | A living companion becomes a distinct and valuable individual |
+| Settlement and tribe growth | Design → supply → build or assign real workers → improve | The home becomes more productive, personal and expressive |
+| Social or group play | Encounter other players → cooperate, socialize or exchange goods → pursue shared or separate goals | Professions and civilizations connect without requiring everyone to fight |
+
+These loops intersect without one being universally compulsory. For example, an explorer can sell rare material to a builder who never visited that island, and a breeder can create a valuable mount for someone who prefers expeditions. Each activity should provide a satisfying next choice, not merely feed a single linear power ladder.
+
+### The expedition loop remains important, but optional
+
+When a player **chooses** an expedition, the memorable rhythm is preparation, travel, discovery, risk, decisions about what to carry or abandon, successful extraction, and then putting the gains to work. That is one signature experience among several, not the definition of every play session.
+
+A player might stay home to perfect crafting or breed dinosaurs for an entire session. Their progression still matters. The world is broad enough that what one player chooses to do creates meaningful opportunities for another.
 
 ---
 
@@ -90,6 +116,16 @@ Wildlife inhabits places according to species behavior. Small pack predators cre
 | **PvPvE frontier settlement** | Optional high-end outpost and strategic holding | Hostile wildlife and player-directed settlement raids |
 
 The island itself is not the target of a player raid. In the frontier, the vulnerable assets are **placed settlements, infrastructure, personnel and exposed cargo**, not the permanent terrain.
+
+### One hybrid world, different ways to be together
+
+WildLands MMO is a **hybrid multiplayer world**. A player's private home offers a protected, persistent personal space. Expedition instances offer focused adventures and gathering opportunities. Public shared zones and social or trading hubs allow players to encounter one another, and exposed frontier settlements bring optional competitive territory into the same broader economy.
+
+The player's civilization matters across these contexts: a creature trained at home might accompany an instanced expedition; materials found there might be sold to a stranger in a shared market; a building produced by a specialist might later be deployed at another player's settlement.
+
+Private ownership does not mean isolation from the MMO. Shared areas should make other people's presence and specializations tangible, while personal homes preserve the sense of permanent ownership and safety.
+
+**Still open:** which exact island categories are instanced, whether public exploration zones persist continuously, how parties enter the same instance, how frequently strangers appear outside hubs, population limits, and the rules for visiting another player's home. The hybrid structure is established; its social density and technical boundaries are not.
 
 ### Unstable islands
 
@@ -473,7 +509,11 @@ The game's economy is supported by persistent ownership and meaningful productio
 
 A player should be able to pursue prosperity through non-PvP economic activity. The optional frontier introduces more risk and rare opportunities but should not invalidate peaceful specializations or turn raiding into the only rational way to progress.
 
-How players physically meet, communicate, list goods, form guild-like relationships or share open-world spaces remains a subject for the multiplayer vision workshop.
+### Social presence in the hybrid world
+
+The shared world gives trade, specialization and reputation places to become visible. Public hubs and shared zones are opportunities to meet other players, interact with their creatures or goods, find collaborators and take part in a wider player economy. A character may spend an entire session working privately at home, then enter a shared space to sell what they made or embark with others.
+
+The specific methods of communication, cooperative instancing, market listings, guild membership and how often strangers appear are still open design questions. Shared social life complements the protected personal settlement rather than replacing it.
 
 ---
 
@@ -571,6 +611,12 @@ A well-prepared tribe ventures into PvPvE territory to secure a valuable remote 
 
 **Progress has a home.** A player's private island, family wealth and long-term efforts are protected from other players' raids.
 
+**The first minutes reveal the whole fantasy.** Early survival, the usefulness of crafting and the wonder of dinosaurs appear together, rather than hiding the real game behind one narrow activity.
+
+**The player chooses the daily goal.** Expedition, breeding, building, manufacturing, trading and social play form connected but independently meaningful sandbox pursuits.
+
+**The MMO is hybrid.** Protected private homes and expedition instances coexist with shared public spaces, markets and optional frontier conflict.
+
 **People are individual.** Careers, inherited potential, learning, aging and generations matter.
 
 **Dinosaurs are living partners.** Their ecology, anatomy, genetics, training, mass and physical roles shape the world.
@@ -593,9 +639,9 @@ A well-prepared tribe ventures into PvPvE territory to secure a valuable remote 
 
 The encyclopedia is a vision of the *finished* WildLands MMO world. Some systems exist in the current game in simpler form; others are intended future features. The following questions shape the finished experience and are not yet settled by this wiki:
 
-- **Multiplayer identity:** Which parts of the world are shared and simultaneous? Do players inhabit persistent public islands, enter instances, or visit one another through hubs and markets?
-- **First-hour hook:** Is the immediate fantasy survival danger, first dinosaur bond, satisfying gathering/crafting, or the beginning of a safe home?
-- **Primary long-term rhythm:** How much time should players typically spend exploring, managing workers, crafting, trading and fighting?
+- **Hybrid multiplayer details:** Protected private homes, expedition instances, shared public zones/hubs and optional frontier are established. The frequency of stranger encounters, shared-region persistence, party instancing and home visits are still open.
+- **Opening pacing and first bond:** Survival, useful gathering/crafting and dinosaur discovery are all part of the first 20 to 30 minutes. The exact opening order, whether the first tame is earned in the wild, and its consequences remain open.
+- **Sandbox accessibility and progression:** Typical sessions are open-ended, with no required time split. What makes each chosen profession rewarding, how goals are communicated, and how solo and group play interoperate remain open.
 - **Island-reset salvage:** What fraction of materials or finished buildings left on unstable islands is recoverable at reset?
 - **Technological ceiling:** How primitive does the setting remain, and whether firearms, sealed preservation or other advanced devices belong in the world?
 - **Social structure:** Do tribes mean a player's personal human population, an organization of many players, or both under different names?
