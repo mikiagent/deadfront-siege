@@ -1,0 +1,509 @@
+{
+  "metadata": {
+    "version": "candidate-0.1.0",
+    "approval_status": "PROPOSED_NOT_OWNER_APPROVED",
+    "source": "docs/game-design/23-weapons-and-material-crafting-progression.md",
+    "warning": "These are source-documented illustrative weapon ingredients and item IDs. Existing data not re-verified from live items/recipes in this turn. Stage skill gates, labor, numeric damage, ammo counts, trait engineering and all missing sources remain open."
+  },
+  "attack_classes": [
+    "DI",
+    "DP",
+    "DS",
+    "MI",
+    "MP",
+    "MS"
+  ],
+  "eras": [
+    "early",
+    "mid",
+    "late"
+  ],
+  "weapons": [
+    {
+      "era": "early",
+      "attack_class": "DI",
+      "item_def_id": "slingshot",
+      "display_name": "Bone Slingshot",
+      "content_status": "EXISTING_ITEM_RECIPE_REFERENCE",
+      "assembly_ingredients": [
+        {
+          "def_id": "bone",
+          "qty": 1
+        },
+        {
+          "def_id": "branch",
+          "qty": 1
+        },
+        {
+          "def_id": "twine_or_bark_strip_or_root",
+          "qty": 2
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "early",
+      "attack_class": "DP",
+      "item_def_id": "sinew_shortbow",
+      "display_name": "Sinew Shortbow",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "branch",
+          "qty": 2
+        },
+        {
+          "def_id": "predator_tendon",
+          "qty": 2
+        },
+        {
+          "def_id": "hide_strap",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "early",
+      "attack_class": "DS",
+      "item_def_id": "stone_knife",
+      "display_name": "Stone Combat Knife",
+      "content_status": "EXISTING_ITEM_NEW_COMBAT_RECIPE",
+      "assembly_ingredients": [
+        {
+          "def_id": "stone",
+          "qty": 1
+        },
+        {
+          "def_id": "branch",
+          "qty": 1
+        },
+        {
+          "def_id": "hide_strap",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "early",
+      "attack_class": "MI",
+      "item_def_id": "bone_hammer",
+      "display_name": "Dense Bone Hammer",
+      "content_status": "EXISTING_ITEM_RECIPE_REFERENCE",
+      "assembly_ingredients": [
+        {
+          "def_id": "dense_bone",
+          "qty": 2
+        },
+        {
+          "def_id": "branch",
+          "qty": 1
+        },
+        {
+          "def_id": "lashing",
+          "qty": 2
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "early",
+      "attack_class": "MP",
+      "item_def_id": "bone_spear",
+      "display_name": "Bone Spear",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "raptor_bone",
+          "qty": 2
+        },
+        {
+          "def_id": "branch",
+          "qty": 2
+        },
+        {
+          "def_id": "predator_tendon",
+          "qty": 1
+        },
+        {
+          "def_id": "hide_strap",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "early",
+      "attack_class": "MS",
+      "item_def_id": "work_axe",
+      "display_name": "Stone Axe",
+      "content_status": "EXISTING_ITEM_RECIPE_REFERENCE",
+      "assembly_ingredients": [
+        {
+          "def_id": "stone",
+          "qty": 1
+        },
+        {
+          "def_id": "branch",
+          "qty": 1
+        },
+        {
+          "def_id": "lashing",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "mid",
+      "attack_class": "DI",
+      "item_def_id": "scute_staff_sling",
+      "display_name": "Scute Staff Sling",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "carved_bone_rib",
+          "qty": 1
+        },
+        {
+          "def_id": "armor_scute",
+          "qty": 1
+        },
+        {
+          "def_id": "plank",
+          "qty": 2
+        },
+        {
+          "def_id": "sinew_cord",
+          "qty": 1
+        },
+        {
+          "def_id": "hide_strap",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "mid",
+      "attack_class": "DP",
+      "item_def_id": "copper_crossbow",
+      "display_name": "Copper-Trigger Crossbow",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "plank",
+          "qty": 2
+        },
+        {
+          "def_id": "carved_bone_rib",
+          "qty": 2
+        },
+        {
+          "def_id": "braided_sinew_cable",
+          "qty": 1
+        },
+        {
+          "def_id": "copper_trigger_assembly",
+          "qty": 1
+        },
+        {
+          "def_id": "cured_hide_binding",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "mid",
+      "attack_class": "DS",
+      "item_def_id": "talon_whip",
+      "display_name": "Talon Whip",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "honed_talon_set",
+          "qty": 1
+        },
+        {
+          "def_id": "sinew_cord",
+          "qty": 2
+        },
+        {
+          "def_id": "hide_strap",
+          "qty": 2
+        },
+        {
+          "def_id": "plank",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "mid",
+      "attack_class": "MI",
+      "item_def_id": "scute_warhammer",
+      "display_name": "Scute Warhammer",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "carved_bone_rib",
+          "qty": 2
+        },
+        {
+          "def_id": "armor_scute",
+          "qty": 3
+        },
+        {
+          "def_id": "plank",
+          "qty": 2
+        },
+        {
+          "def_id": "hide_strap",
+          "qty": 2
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "mid",
+      "attack_class": "MP",
+      "item_def_id": "talon_war_lance",
+      "display_name": "Talon War Lance",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "carved_bone_rib",
+          "qty": 1
+        },
+        {
+          "def_id": "honed_talon_set",
+          "qty": 1
+        },
+        {
+          "def_id": "plank",
+          "qty": 2
+        },
+        {
+          "def_id": "sinew_cord",
+          "qty": 1
+        },
+        {
+          "def_id": "hide_strap",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "mid",
+      "attack_class": "MS",
+      "item_def_id": "obsidian_great_axe",
+      "display_name": "Obsidian Great Axe",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "obsidian",
+          "qty": 2
+        },
+        {
+          "def_id": "carved_bone_rib",
+          "qty": 1
+        },
+        {
+          "def_id": "plank",
+          "qty": 2
+        },
+        {
+          "def_id": "hide_strap",
+          "qty": 2
+        },
+        {
+          "def_id": "sinew_cord",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "late",
+      "attack_class": "DI",
+      "item_def_id": "iron_stonecaster",
+      "display_name": "Iron Torsion Stonecaster",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "forged_iron_fittings",
+          "qty": 2
+        },
+        {
+          "def_id": "reinforced_stock",
+          "qty": 1
+        },
+        {
+          "def_id": "braided_sinew_cable",
+          "qty": 2
+        },
+        {
+          "def_id": "reinforced_bone_block",
+          "qty": 1
+        },
+        {
+          "def_id": "cured_hide_binding",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "late",
+      "attack_class": "DP",
+      "item_def_id": "iron_repeating_crossbow",
+      "display_name": "Iron Repeating Crossbow",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "iron_trigger_mechanism",
+          "qty": 1
+        },
+        {
+          "def_id": "iron_bolt_magazine",
+          "qty": 1
+        },
+        {
+          "def_id": "reinforced_stock",
+          "qty": 1
+        },
+        {
+          "def_id": "braided_sinew_cable",
+          "qty": 2
+        },
+        {
+          "def_id": "cured_hide_binding",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "late",
+      "attack_class": "DS",
+      "item_def_id": "iron_talon_whip",
+      "display_name": "Iron Talon Chain Whip",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "iron_chain_links",
+          "qty": 2
+        },
+        {
+          "def_id": "honed_talon_set",
+          "qty": 2
+        },
+        {
+          "def_id": "braided_sinew_cable",
+          "qty": 1
+        },
+        {
+          "def_id": "reinforced_haft",
+          "qty": 1
+        },
+        {
+          "def_id": "cured_hide_binding",
+          "qty": 2
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "late",
+      "attack_class": "MI",
+      "item_def_id": "raid_maul",
+      "display_name": "Scute-Core Iron Siege Maul",
+      "content_status": "EXISTING_ITEM_RECIPE_REPLACEMENT",
+      "assembly_ingredients": [
+        {
+          "def_id": "forged_maul_head",
+          "qty": 1
+        },
+        {
+          "def_id": "reinforced_haft",
+          "qty": 1
+        },
+        {
+          "def_id": "cured_hide_binding",
+          "qty": 2
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "late",
+      "attack_class": "MP",
+      "item_def_id": "iron_war_lance",
+      "display_name": "Forged War Lance",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "forged_spearhead",
+          "qty": 1
+        },
+        {
+          "def_id": "long_lance_shaft",
+          "qty": 1
+        },
+        {
+          "def_id": "cured_hide_binding",
+          "qty": 2
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    },
+    {
+      "era": "late",
+      "attack_class": "MS",
+      "item_def_id": "iron_talon_greatblade",
+      "display_name": "Iron Talon Greatblade",
+      "content_status": "NEW",
+      "assembly_ingredients": [
+        {
+          "def_id": "forged_greatblade",
+          "qty": 1
+        },
+        {
+          "def_id": "reinforced_haft",
+          "qty": 1
+        },
+        {
+          "def_id": "cured_hide_binding",
+          "qty": 2
+        },
+        {
+          "def_id": "honed_talon_set",
+          "qty": 1
+        }
+      ],
+      "approval": "PROPOSED",
+      "source": "docs/game-design/23-weapons-and-material-crafting-progression.md"
+    }
+  ]
+}
