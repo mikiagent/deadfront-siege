@@ -42,29 +42,45 @@ The hybrid world makes these loops visible across spaces: safe homes for permane
 - **V-02: C.** Self-directed sandbox sessions. Expeditions are one available loop, not a daily checklist.
 - **V-03: C.** Hybrid MMO: private homes, instanced expeditions, shared public locations/hubs and optional frontier settlements.
 
-### Round 2: highest-leverage questions
+### Round 2: owner answers confirmed (2026-10-27)
 
-**V-04: What is the first dinosaur bonding experience?** Does a player capture a wild creature with meaningful effort, receive an early guided introduction that still requires taming, rescue a creature, or begin with one? The choice sets the emotional payoff and progression cadence of onboarding.
+**V-04: C, Open-world first tame.** The first animal is found and tamed through exploration, not granted or obtained through a forced guided introduction. An early dinosaur encounter remains an opening promise even if the tame itself comes later.
 
-**V-07: What happens when a PvE expedition fails?** How much carried gear, cargo, companions and invested effort can be lost or recovered, and what does failure feel like for a new versus experienced player? This defines the risk that makes preparation and extraction matter.
+**V-07: Meaningful but recoverable setbacks.** Human and dinosaur companions can die or be captured; dropped equipment and cargo can be **recovered**, not guaranteed returned. The game provides many replacement avenues: ordinary tamable dinosaurs, mediocre/basic tribe recruits arriving intermittently by boat at private homes, worker production, and better recruitment odds or volumes at exposed PvPvE outposts. Protect prize loot and choose which resources and individuals to risk. Living captives keep the 72-real-hour game-priced ransom system. Death of a human may eventually allow an extraordinarily costly late-game revival. Recovery durations, death eligibility and rates are not yet confirmed.
 
-**V-09: How important is cooperation?** Can a determined solo player enjoy the complete non-PvP game, with cooperation mainly improving efficiency/social experience, or should some content deliberately require multiple human players? The hybrid world needs a recognizable answer.
+**V-09: A, Strongly solo-friendly.** Survival, breeding, work, settlements and peaceful progress are complete activities for a solo player. Late-game multiplayer, group raids, cooperative play, outposts, PvP and PvPvE create meaningful shared opportunities rather than an obligatory beginner group.
+
+**V-15: Autonomous gathering.** Physically present tribe workers operate mining/logging sites automatically, with distinct speeds and quality outcomes. A level-50 site can produce items in the level-45 to level-50 range. The *exact distribution*, how skills alter it and production-rate formula remain OPEN.
+
+**V-16: Exceptional late-game revival.** A dead player-controlled human or human tribe member can be restored at extraordinary cost, used rarely. The method, remains requirement, life/skill restoration, rarity ceiling and numeric formula remain OPEN. **Not a decision to revive dinosaurs.**
+
+### Round 3: math and permanence decisions
+
+**M-01: Revival constraints.** Must remains be recovered from where the person died, or can a distant remains/death record enable resurrection through a substantially more expensive procedure? Does the resurrected person retain all learned skill and level?
+
+**M-02: Trait economy.** Should nearly all harvested material lots have at least one drawback (e.g. 96% candidate) while positives are very rare (e.g. 7% candidate)? Can a skilled process remove a drawback at a substantial cost?
+
+**M-03: Autonomous worksite quality.** Should skill predominantly raise gathering *speed*, tilt the level rolls toward the site's maximum, improve trait chances, or modestly improve all three?
+
+**M-04: Combat pace.** Which feel is the priority: deliberate telegraphed timing and strong weapon counters, quick action-RPG combat, or a hybrid with different weapons and dinosaurs?
 
 ### Follow-up themes once these are decided
 
 | ID | Topic | Why it changes the player experience | State |
 |---|---|---|---|
-| V-04 | First tame | Wild capture, rescue, guided-but-earned tame, starting companion? | **NEXT: Round 2** |
+| V-04 | First tame | Wild discovered and tamed through exploration | **CONFIRMED: C** |
 | V-05 | The protagonist | Does the player begin with one character and eventually control descendants, or choose a party-style avatar early? | OPEN |
 | V-06 | Economic independence | How much can an explorer, builder, breeder or merchant progress without PvP? | Direction confirmed, specifics OPEN |
-| V-07 | Risk and death | What happens to inventory, mounts and crew on failed PvE expedition? | **NEXT: Round 2** |
+| V-07 | Risk and death | Human/dino loss possible; dropped loot recoverable; captives ransomed; rare revival | **DIRECTION CONFIRMED; DETAILS OPEN** |
 | V-08 | Expedition resets | Can a player predict resets, and what percentage of unextracted building materials reaches the recovery vault? | OPEN; conflicting source material |
-| V-09 | Social play | Solo-friendly with optional cooperation, tightly coupled co-op, or guild-driven MMO? | **NEXT: Round 2** |
+| V-09 | Social play | Solo-friendly core; late-game cooperative play and optional conflict | **CONFIRMED: A** |
 | V-10 | Tribe terminology | Is a "tribe" the personal NPC population or a multi-player guild? | OPEN |
 | V-11 | World cadence | How does food spoilage, breeding and island reset work for someone who cannot log in daily? | OPEN |
 | V-12 | Tech ceiling | Primarily primitive weapons, early metal, optional firearms, mechanical turret sophistication? | OPEN |
 | V-13 | Progression cap | Is level 60 the permanent character cap or a major gateway to further progression? | OPEN |
 | V-14 | Naming | WildLands MMO vs WildLandsMMO vs a more distinctive title. | Working title only |
+| V-15 | Worker gather sites | Automatic mining/logging, variable worker speed and quality, level-50 site produces 45–50 | **DIRECTION CONFIRMED; MATH OPEN** |
+| V-16 | Rare human revival | Extremely costly late-game resurrection for killed human survivors/members | **DIRECTION CONFIRMED; MATH OPEN** |
 
 ## Decision entries
 
@@ -76,7 +92,18 @@ The hybrid world makes these loops visible across spaces: safe homes for permane
 
 **Implementation status:** These are confirmed *desired game experience* decisions, not proof that multiplayer infrastructure, tutorials or every sandbox profession is currently implemented. The working-title rebrand affects vision documents only; it does not rename the current Godot project, game assets, repository or deployment.
 
-**Next owner answers requested:** V-04 first tame; V-07 expedition failure; V-09 solo versus cooperative design. Each should be recorded without silently inventing drop rates, revive costs, instance sizes, or party requirements.
+**2026-10-27, Round 2 and systems owner answers:** V-04=C; V-07=meaningful loss/recoverable drops with basic recruitment and animal supply; V-09=A; V-15=automated mining/logging, bounded item-level site yields; V-16=rare, extremely costly late-game dead-human revival.
+
+**Next owner answers requested:** M-01 revival eligibility and restored progression, M-02 trait frequency/negative purification, M-03 worksite quality, M-04 combat feel. Candidate numerical models are not owner-approved.
+
+## Numerical proposals awaiting owner calibration
+
+- [Signed traits, gathering, site-level rolls and fusion](WildLandsMMO_Traits_Gathering_Processing_Math.md)
+- [Crafting, worksite labor, construction and rooms](WildLandsMMO_Crafting_Building_Math.md)
+- [Combat, armor, anatomy, mass and siege](WildLandsMMO_Combat_Math.md)
+- [Loss, replacement recruitment, ransom and rare revival](WildLandsMMO_Loss_Recruitment_Revival.md)
+
+Each distinguishes locked gameplay intent from proposed examples. No example odds or formulas are approved merely by appearing in these files.
 
 ## How this document evolves
 

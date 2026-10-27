@@ -63,6 +63,22 @@
 | CRAFT-01 | Building blueprints must be craftable/unlocked in the **main Crafting menu**; place the blueprint as an unfinished worksite, then deliver construction inputs/labor. No competing building-recipe menu. | Blueprint consumption/learning, dismantling/transfer and material-quality effects OPEN. |
 | UX-01 | Sleep removes exhaustion *continuously*, Sit anywhere valid slowly removes exhaustion and restores Energy; status effects have hover/tap explanations with real numbers; inventory has batch Select -> lock/drop/destroy. | Exact rates, interruption/use rules, object stacking/drop behavior and touch UI OPEN. |
 
+## WildLands MMO follow-up vision decisions (2026-10-27)
+
+These are **owner-confirmed intended experiences**, not claims of live Godot implementation. WildLands MMO is currently a working-title documentation rebrand; the existing repository/project may still use DEADFRONT identifiers. Specific balances are isolated in the four `WildLandsMMO_*_Math.md` proposal chapters and the loss/revival chapter, not locked here.
+
+| Key | Owner-confirmed intended rule | Deliberately OPEN specifics |
+|---|---|---|
+| VISION-01 | First 20–30 minutes combine prehistoric survival, practical crafting and dinosaur presence; after onboarding sessions are an **open sandbox**, not a mandatory expedition itinerary. | Opening beats, timing, challenge pacing |
+| VISION-02 | Hybrid MMO world with protected private homes, expedition instances, shared public spaces/trade hubs and optional frontier settlements. Primarily **solo-friendly**, with late-game cooperative play, raids, PvP and PvPvE. | Shared density, group-only apex activities, instancing scale |
+| TAME-01 | **First dinosaur tame is discovered and accomplished in the open world**, not a forced guided giveaway. Basic dinosaurs should be available through multiple avenues. | Taming difficulty and accessible species |
+| LOSS-01 | Human tribe members and dinosaurs may be lost on expeditions; **dropped loot can be recovered** through risk/retrieval, not returned automatically. Exceptional goods/lineages should motivate conservative loadouts; ordinary replacements remain attainable. | Loot timeout, unstable-island reset interaction, exact insurance/bag mechanics |
+| RECRUIT-01 | **Potential basic human recruits occasionally arrive by boat at protected private homes**, often with weak/mediocre inherited potential. More frequent arrivals and higher likelihood of excellent potential occur at PvPvE outposts where they are exposed to risk. | Arrival rate, capacity, housing/food gates, PvE alternatives, trait distribution |
+| WORK-03 | **Automated mining and logging sites** allow physical assigned workers to gather over time; throughput and item quality vary by worker, site, tools and conditions. **Example owner level band: site level 50 → items level 45–50**. | Probability curves, worker quality bias, depletion, offline progression limits |
+| REVIVE-01 | A **very costly, infrequently used, late-game means of reviving deceased human survivors or tribe members** is intended. Death is distinct from a living captive's 72-hour ransom case. | Mechanism/lore, remains requirement, expiry, identity/skill/EV retention, resource formula, repeat limits; no dinosaur revival rule approved |
+
+[Vision wiki](WildLandsMMO_Game_Vision.md) · [Workshop and unresolved questions](WildLandsMMO_Vision_Workshop.md) · [Materials and Gathering Math](WildLandsMMO_Traits_Gathering_Processing_Math.md) · [Crafting/Building Math](WildLandsMMO_Crafting_Building_Math.md) · [Combat Math](WildLandsMMO_Combat_Math.md) · [Risk/Revival](WildLandsMMO_Loss_Recruitment_Revival.md)
+
 ## Conflict-resolution notes
 
 1. **Private island:** After confirmation the upgrade **automatically dismantles** the old home; a new larger higher-resource private home replaces it. The special salvage vault receives **100% returned building materials**, while residents, animals and ordinary inventory transfer separately. Unfinished construction and failure recovery OPEN.

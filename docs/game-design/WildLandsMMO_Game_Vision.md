@@ -12,6 +12,8 @@ The game's identity lies in the connections among survival, people, creatures, m
 
 **The central fantasy:** Start with nothing. Learn to survive. Tame the wilderness. Master a craft. Raise a tribe. Build an industry. Connect with other civilizations. Venture beyond safety, and decide what your legacy will become.
 
+**Detailed balance workshop companions:** [Material traits, gathering and processing math](WildLandsMMO_Traits_Gathering_Processing_Math.md) · [Crafting and construction math](WildLandsMMO_Crafting_Building_Math.md) · [Combat and mass math](WildLandsMMO_Combat_Math.md) · [Loss, recruitment, ransom and revival](WildLandsMMO_Loss_Recruitment_Revival.md). These offer **proposed** formulas and tunable values; they do not turn unapproved coefficients into canonical rules.
+
 ---
 
 ## Contents
@@ -70,7 +72,7 @@ The journey is not a rigid campaign. Players may emphasize exploration, breeding
 
 The intended opening is a **deliberate combination** of surviving a prehistoric wilderness, discovering the pleasure of gathering and making useful things, and experiencing the presence and possibility of bonding with a dinosaur. The opening should communicate why each of these matters to the other two, rather than serving as three disconnected tutorials.
 
-The new survivor encounters manageable danger, learns that collecting and processing resources can improve immediate survival, and experiences dinosaurs as more than background decoration. A visible, consequential dinosaur encounter should make companionship and future taming feel worth pursuing. A secure private home provides the player with a lasting destination and a place to build upon early success.
+The new survivor encounters manageable danger, learns that collecting and processing resources can improve immediate survival, and experiences dinosaurs as more than background decoration. A visible, consequential dinosaur encounter should make companionship and future taming feel worth pursuing. **The first dinosaur must be discovered and tamed through open-world play rather than awarded through a mandatory guided encounter.** A secure private home provides the player with a lasting destination and a place to build upon early success.
 
 One *illustrative* opening might weave together finding food, making a first tool, escaping or observing a dangerous creature, encountering a potentially tameable animal, and beginning a personal home. **This is not an approved mandatory sequence**, a guaranteed free dinosaur, or a fixed scripted quest. The exact method and timing of the first bond remain open.
 
@@ -199,9 +201,19 @@ Growing children require time, nourishment and care. Food quality during develop
 
 Generations carry identity and history. A famous warrior's descendant may possess promising innate talent yet still be untested; an elderly artisan may be less suited to expeditions but invaluable as a mentor.
 
-### Continuity after loss
+### Arrivals, new members and expendability
 
-Individual humans may be lost through dangerous frontier activity. If a tribe loses every human, a new baseline survivor gives the player a way to recover. The protected home remains a foundation even after severe personal setbacks.
+Ordinary human recruits periodically arrive **by boat** at the private home. These arrivals are typically weak or mediocre in inherited potential, and only rarely exceptional, but they keep recovery and population growth accessible without PvP. More frequent arrivals and a better chance of exceptional individuals occur at exposed PvPvE outposts, where new recruits are themselves valuable assets at risk. A peaceful civilization may still build strong careers and lineages through training, care, breeding and sustained development.
+
+This supports a world where field laborers and basic expedition followers are replaceable without making *exceptional* people meaningless. Housing, food and other needs still constrain the number of individuals a tribe can support.
+
+### Continuity after loss and costly revival
+
+Expedition disasters can kill trained humans and dinosaurs. Dropped loot can be recovered through another risky journey, but it is not automatically returned. A death can end a valuable individual's career; replacement recruits, new animal tames, descendants and the functioning protected home preserve the civilization. If a tribe loses every human, a new baseline survivor provides a path to recovery.
+
+**Very late in the game, a highly developed civilization can pursue an exceptionally costly and seldom-used means to revive a dead human survivor or tribe member.** The person is not an ordinary free respawn. The need to secure rare resources, infrastructure and perhaps remains should make revival a hard economic choice. Its lore, eligibility, retained skills and exact cost are still to be decided. **Dinosaur revival is not part of this approved request.** A living captive and a dead survivor are distinct states, with different ransom and revival rules.
+
+See the [loss, recovery, recruitment and revival proposal](WildLandsMMO_Loss_Recruitment_Revival.md).
 
 ---
 
@@ -214,6 +226,8 @@ Dinosaurs are central to life in WildLands MMO. They are creatures with anatomy,
 Species occupy suitable regions and behave according to their roles. A solitary territorial apex predator creates a different encounter from coordinated raptors. Enormous herbivores can be threatening through physical mass and reach even if they are not aggressive hunters.
 
 ### Capture and bonds
+
+**The first tame is an open-world discovery and accomplishment, not an automatically gifted starting companion or compulsory guided taming sequence.** Basic species remain obtainable through multiple reasonable paths, leaving a player free to specialize in creature care early or delay it.
 
 Taming is species-dependent. Preparation, combat control, food, timing, special conditions and animal handling may be important to a successful capture. A captured dinosaur becomes a persistent individual with its own attributes, experience, feeding needs, equipment, training and future value.
 
@@ -364,6 +378,10 @@ A mature settlement functions as a production network populated by actual humans
 Workers can gather, mine, fell trees, farm, craft, haul, build, research, guard, handle animals and operate equipment. Jobs depend on the worker's aptitude, skill, energy, gear and access to physical resources. Materials have to reach a worksite before production can occur.
 
 A **Monitoring Stand** gives the settlement a recognizable place for directing worker preferences and job priorities. Workers may favor their specializations but remain bound by their actual capabilities.
+
+**Autonomous mining and logging worksites** function as physical production locations. As in the labor fantasy of colony automation games, assigned workers continue gathering as long as resources, valid tools, energy, space and access permit. Workers vary by speed and by the quality of lots they produce, while the **gathering site's level sets the attainable item level band**. For example, a **level-50 site yields level-45 through level-50 items**. Superior workers may gather faster or favor the higher end of that band, not invent resources above the site's cap.
+
+The active player may organize a resource economy instead of personally swinging a pickaxe for every unit, but the underlying source and storage limits remain meaningful. The proposed throughput and level curves are described in [Materials, Gathering and Processing Math](WildLandsMMO_Traits_Gathering_Processing_Math.md).
 
 ### Tools and resource conservation
 
@@ -527,6 +545,12 @@ WildLands MMO distinguishes secure ownership from chosen exposure.
 
 **Remote PvPvE outpost:** Exposed to wildlife and eligible attacks from other players. The terrain itself is not raided, only the settlement and its vulnerable assets.
 
+### A solo-friendly world with late-game multiplayer choices
+
+The core survival, taming, building, breeding and production sandbox is **highly solo-friendly**. Players can create thriving civilizations with personally controlled characters, real tribe workers and dinosaurs. Public trade and casual social contact are available without compulsory guild participation.
+
+Advanced multiplayer introduces cooperative expeditions, player alliances, group battles, exposed outposts, PvP and PvPvE settlement raids as additional activities. The degree to which the most extreme encounters *require* other human players remains undecided, but ordinary economic and PvE progression does not demand one.
+
 ### Frontier access and fairness
 
 The tribe can retain its endgame geographic unlock permanently, but the personally controlled human needs their own qualifying level to enter the level-60 frontier.
@@ -554,6 +578,10 @@ The original owner has **72 real-world hours** to redeem a captive at a **game-c
 Ransom pricing, exchange, notification, allegiance, claiming and server-authoritative custody still require final design decisions.
 
 The system creates an unusual distinction between a person's valuable innate lineage and their lifetime of acquired skill.
+
+### Death is not captivity
+
+A dead human may be eligible for **exceptionally expensive, late-game revival**, a separate and rare recovery path that does **not** cancel or bypass the custody and ransom rules of a **living captive**. Revival costs, progression retention, remains retrieval and limits are [workshop proposals](WildLandsMMO_Loss_Recruitment_Revival.md), not locked numbers.
 
 ---
 
@@ -611,11 +639,13 @@ A well-prepared tribe ventures into PvPvE territory to secure a valuable remote 
 
 **Progress has a home.** A player's private island, family wealth and long-term efforts are protected from other players' raids.
 
-**The first minutes reveal the whole fantasy.** Early survival, the usefulness of crafting and the wonder of dinosaurs appear together, rather than hiding the real game behind one narrow activity.
+**The first minutes reveal the whole fantasy.** Early survival, the usefulness of crafting and the wonder of dinosaurs appear together, rather than hiding the real game behind one narrow activity. The first successful dinosaur tame is earned through discovery in the wilderness.
 
 **The player chooses the daily goal.** Expedition, breeding, building, manufacturing, trading and social play form connected but independently meaningful sandbox pursuits.
 
-**The MMO is hybrid.** Protected private homes and expedition instances coexist with shared public spaces, markets and optional frontier conflict.
+**The MMO is hybrid and primarily solo-friendly.** Protected private homes and expedition instances coexist with shared public spaces, markets, cooperation and optional late-game frontier conflict.
+
+**Losses matter, but civilization persists.** Recruits arrive, basic animals can be tamed again, materials can be gathered by workers and dropped loot may be recovered; rare people and creatures still deserve protection. Exceptional human revival is a costly late-game exception, not routine respawning.
 
 **People are individual.** Careers, inherited potential, learning, aging and generations matter.
 
@@ -640,13 +670,15 @@ A well-prepared tribe ventures into PvPvE territory to secure a valuable remote 
 The encyclopedia is a vision of the *finished* WildLands MMO world. Some systems exist in the current game in simpler form; others are intended future features. The following questions shape the finished experience and are not yet settled by this wiki:
 
 - **Hybrid multiplayer details:** Protected private homes, expedition instances, shared public zones/hubs and optional frontier are established. The frequency of stranger encounters, shared-region persistence, party instancing and home visits are still open.
-- **Opening pacing and first bond:** Survival, useful gathering/crafting and dinosaur discovery are all part of the first 20 to 30 minutes. The exact opening order, whether the first tame is earned in the wild, and its consequences remain open.
+- **Opening pacing and first bond:** Survival, useful gathering/crafting and dinosaur discovery are all part of the first 20 to 30 minutes. **The first actual tame is earned through open-world discovery.** Its difficulty, timing and consequences remain open.
 - **Sandbox accessibility and progression:** Typical sessions are open-ended, with no required time split. What makes each chosen profession rewarding, how goals are communicated, and how solo and group play interoperate remain open.
 - **Island-reset salvage:** What fraction of materials or finished buildings left on unstable islands is recoverable at reset?
 - **Technological ceiling:** How primitive does the setting remain, and whether firearms, sealed preservation or other advanced devices belong in the world?
 - **Social structure:** Do tribes mean a player's personal human population, an organization of many players, or both under different names?
 - **Economic geography:** Where do other players physically interact and trade, and how much trade is asynchronous or through markets?
-- **Mortality and custody:** Which losses are permanent outside the home, and which have recovery routes?
+- **Mortality, recoverable loot and revival:** Humans and dinosaurs can die; expedition loot is recoverable, and living captives have separate 72-hour ransom. How long loot remains available, which deaths can be revived, what the rite costs and which career traits are restored are open.
+- **Recruitment and worksite yields:** Basic low-stat boat arrivals at safe homes and richer frontier recruitment are established. Arrival rates, worker quality and specific mining/logging level distributions are proposed math, not confirmed coefficients.
+- **Solo versus endgame groups:** Everyday progression is strongly solo-friendly; whether any elite endgame objectives strictly require other players is open.
 - **Session cadence:** How do real-time jobs, food spoilage, breeding, world resets and voyages remain compelling without requiring constant attention?
 - **Commercial identity:** WildLands MMO / WildLandsMMO is a working title; a distinctive final name and brand presentation have not yet been selected.
 
