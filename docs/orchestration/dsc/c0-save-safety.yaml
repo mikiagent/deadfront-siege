@@ -11,11 +11,11 @@ resources:
   godot: 1
 defaults:
   model: deepseek/deepseek-v4.1-flash-1017
-  effort: medium
+  effort: low
   budget_usd: 5
   max_hours: 3
   max_rounds: 3
-  dsc_json: {watchdogIdleSec: 0, maxTurns: 250}
+  dsc_json: {watchdogIdleSec: 0, maxTurns: 250, maxOutputTokens: 4096}
   review: orchestrator
 phases:
   - id: c0
