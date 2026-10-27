@@ -83,8 +83,21 @@ weight 0.0% → 0.0%, plates spine-only 100%. Max influences 4, weight sum error
 
 Project gate: `tools/check_rig_audit.py` on the repaired base + the stock clips
 prints `RIG QA PASS: 1 creatures, 9 exported clips` (max <= 10, p99 <= 2.1, no
-ground penetration, no rest mismatch, no loop seam). Reports:
-`work/qa/weight-repair-v1/after_audit.json`, `before_audit.json`.
+ground penetration, no rest mismatch, no loop seam). Both sides of the gate are
+recorded with the project's own audit tool — stage the base as
+`<stage>/stegosaurus/stegosaurus.glb` next to `anim/`, then:
+
+```
+CREATURE_ASSET_ROOT=<stage> Blender --background   --python tools/audit_creature_deformation.py -- <out>.json stegosaurus
+python3 tools/check_rig_audit.py <repaired>.json --baseline <shipped>.json
+```
+
+Outputs: `work/qa/weight-repair-v1/before_audit.json` (shipped GLB + stock
+clips) and `after_audit.json` (repaired GLB + the same clips). The shipped
+baseline already passes the gate's loose limits (max <= 10, p99 <= 2.1) — the
+gate never caught this defect; the worm look is a *quality* failure inside the
+limits, which is why the stricter max/p99/collapse comparisons and the renders
+above are the real evidence.
 
 ## Remaining risks (blunt)
 
