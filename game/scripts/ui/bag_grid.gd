@@ -3,7 +3,7 @@ extends Control
 ## The bag, storage and pet-cargo grid (spec 13 s5, s12; spec 05: one item instance per slot).
 ## A ScrollContainer (touch drag, wheel, scrollbar) over a grid of exactly `capacity` compartments,
 ## one per bag slot: empty slots stay visible, a unique instance shows its level, a green mark means
-## an instance trait, a selection gets gold corner brackets. No count pills and no grouping: two
+## an instance trait, gold brackets the single selection, cool blue ones a batch mark. No count pills and no grouping: two
 ## identical stones are two slots. Bound to one Inventory; read-only grids ignore taps.
 
 signal selected(index: int)
@@ -18,6 +18,10 @@ var gap := 6.0
 var columns := 5
 var selected_index := -1
 var readonly := false
+## Select mode (owner 2026-10-27): taps toggle membership in `multi` instead of moving the single
+## selection, so several items can be locked, dropped or destroyed in one batch pass.
+var multi_mode := false
+var multi: Array[int] = []
 
 var inventory: Inventory
 
@@ -41,6 +45,12 @@ class Cell extends Control:
 			if selected != v:
 				selected = v
 				queue_redraw()
+	## Batch membership (Feature A): cooler brackets than the single gold selection.
+	var member := false:
+		set(v):
+			if member != v:
+				member = v
+				queue_redraw()
 	var font_px := 13
 
 	func _init() -> void:
@@ -61,6 +71,8 @@ class Cell extends Control:
 		if stack == null:
 			if selected:
 				_brackets(r)
+			if member:
+				_brackets(r, BATCH_COL)
 			return
 		var tex := ItemIcons.texture(stack.def_id)
 		if tex:
@@ -82,9 +94,13 @@ class Cell extends Control:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -4), c + Vector2(4, 0), c + Vector2(0, 4), c + Vector2(-4, 0)]), Color(0.36, 0.86, 0.38, 1.0))
 		if selected:
 			_brackets(r)
+		if member:
+			_brackets(r, BATCH_COL)
 
-	func _brackets(r: Rect2) -> void:
-		var gold := Color(0.90, 0.75, 0.33, 1.0)
+	const SEL_COL := Color(0.90, 0.75, 0.33, 1.0)
+	const BATCH_COL := Color(0.42, 0.80, 0.92, 1.0)
+
+	func _brackets(r: Rect2, col: Color = SEL_COL) -> void:
 		var arm := clampf(r.size.x * 0.22, 8.0, 20.0)
 		var w := clampf(r.size.x * 0.035, 2.0, 4.0)
 		var pts := [
@@ -94,7 +110,7 @@ class Cell extends Control:
 			[Vector2(r.position.x, r.end.y), Vector2(r.position.x + arm, r.end.y)], [Vector2(r.position.x, r.end.y), Vector2(r.position.x, r.end.y - arm)],
 		]
 		for pair: Array in pts:
-			draw_line(pair[0], pair[1], gold, w)
+			draw_line(pair[0], pair[1], col, w)
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
@@ -119,6 +135,7 @@ func bind(inv: Inventory) -> void:
 	if inventory:
 		inventory.changed.connect(rebuild)
 	selected_index = -1
+	multi.clear()
 	rebuild()
 
 ## The number of compartments drawn (= the bag's capacity).
@@ -140,6 +157,39 @@ func set_selected(index: int) -> void:
 	selected_index = index
 	for c in _cells:
 		c.selected = c.index == index
+
+## Select mode (Feature A): taps toggle batch membership rather than the single selection.
+func set_multi_mode(on: bool) -> void:
+	multi_mode = on
+	if not on:
+		clear_multi()
+
+## Toggle one slot into the batch. A locked item may still join (its actions skip it and say so),
+## but empty compartments and lock-marker slots refuse so the counts track actionable items.
+func toggle_multi(index: int) -> bool:
+	if inventory == null or index < 0 or index >= _cells.size() or index >= inventory.slots.size():
+		return false
+	var s: ItemStack = inventory.slots[index]
+	if s == null or s.def_id == Inventory.LOCK:
+		return false
+	if multi.has(index):
+		multi.erase(index)
+	else:
+		multi.append(index)
+	for c in _cells:
+		c.member = multi.has(c.index)
+	return multi.has(index)
+
+func clear_multi() -> void:
+	multi.clear()
+	for c in _cells:
+		c.member = false
+
+## The marked batch as ascending indices (stable order for the destructive passes).
+func multi_list() -> Array[int]:
+	var out := multi.duplicate()
+	out.sort()
+	return out
 
 ## Builds (or reuses) exactly `inventory.slot_count` compartments, one per bag index.
 func rebuild() -> void:
@@ -165,6 +215,7 @@ func rebuild() -> void:
 			_empty += 1
 		_cells[i].set_stack(s, i)
 		_cells[i].selected = i == selected_index
+		_cells[i].member = multi.has(i)
 	_place()
 
 func _on_cell_input(event: InputEvent, c: Cell) -> void:
@@ -182,6 +233,9 @@ func _on_cell_input(event: InputEvent, c: Cell) -> void:
 		return # released over another cell (or a drag left this one)
 	_press_cell = -1
 	if at.distance_to(_press_pos) > TAP_DEADZONE or c.stack == null:
+		return
+	if multi_mode:
+		toggle_multi(c.index) # the host repaints its batch bar from multi_list()
 		return
 	selected_index = c.index
 	for k in _cells:

@@ -20,6 +20,7 @@ func _process(_delta: float) -> bool:
 	_test_food_buffs()
 	_test_exhaustion()
 	_test_exhaust_treadmill()
+	_test_bag_multiselect()
 	_test_fatigue_level_gap()
 	_test_climate_palette()
 	_test_creature_genetics()
@@ -376,6 +377,43 @@ func _test_exhaust_treadmill() -> void:
 		fast = ExhaustTreadmill.sample_rate(fast, 0.0, 1.0 / 60.0, ExhaustTreadmill.FORGET_HOLD_S)
 	_expect(fast < slow * 0.4, "a one-off rest fades under the fast-forget clock")
 	_expect(ExhaustTreadmill.phase(100.0, 0.1, 1.0) > 110.0 and ExhaustTreadmill.phase(100.0, -0.1, 1.0) < 100.0 and is_equal_approx(ExhaustTreadmill.phase(100.0, 0.0, 1.0), 100.0), "the belt scrolls with the drift and freezes when it stalls")
+
+func _test_bag_multiselect() -> void:
+	# Feature A (owner 2026-10-27): mark several bag items at once for Lock/Drop/Destroy.
+	# batch_check mirrors the single-item gates: empty slots and locked items skip with a reason,
+	# destroy is offline-only like the single action, a drop also needs the live world (loot bag).
+	var inv = load("res://scripts/items/inventory.gd") as GDScript
+	var stack = load("res://scripts/items/item_stack.gd") as GDScript
+	var ui = (load("res://scripts/ui/inventory_ui.gd") as GDScript).new()
+	var src = inv.new(4)
+	src.add(stack.make(&"stone", 1))
+	src.add(stack.make(&"stone_knife", 1))
+	src.slots[1].set_flag(&"locked", true)
+	var all: Array[int] = [0, 1, 2, 3]
+	var res: Dictionary = ui.batch_check(src, all, "lock", true, true)
+	_expect((res["ok"] as Array) == [0], "batch lock passes only the unlocked, real item")
+	var skip := res["skip"] as Dictionary
+	_expect(str(skip[1]) == "locked" and str(skip[2]) == "empty" and str(skip[3]) == "empty", "locked and empty slots skip with reasons")
+	res = ui.batch_check(src, all, "destroy", false, true)
+	_expect((res["ok"] as Array).is_empty() and str((res["skip"] as Dictionary)[0]) == "online", "destroy refuses while online, like the single action")
+	var pair: Array[int] = [0, 2]
+	res = ui.batch_check(src, pair, "drop", true, false)
+	_expect((res["ok"] as Array).is_empty() and str((res["skip"] as Dictionary)[0]) == "world", "drop without a world skips (no loot bag to land in)")
+	_expect(ui._skip_text({0: "locked", 1: "empty", 2: "empty", 3: "online"}) == "1 locked, 2 empty, 1 while online", "the skip summary reads like a sentence")
+	# The grid layer: membership toggles, ascending order, empty slots refuse.
+	var grid = (load("res://scripts/ui/bag_grid.gd") as GDScript).new()
+	grid.multi_mode = true
+	grid.bind(src)
+	_expect(grid.toggle_multi(0), "a real item joins the batch")
+	_expect(grid.toggle_multi(1), "a locked item still joins (its actions skip it)")
+	_expect(not grid.toggle_multi(3), "an empty slot refuses the batch")
+	_expect(grid.multi_list() == [0, 1], "the batch keeps ascending order")
+	_expect(not grid.toggle_multi(1), "a marked slot toggles back off")
+	_expect(grid.multi_list() == [0], "toggling off removes it from the batch")
+	grid.clear_multi()
+	_expect(grid.multi.is_empty(), "clear releases every mark")
+	grid.free()
+	ui.free()
 
 func _test_climate_palette() -> void:
 	var palette := ClimatePalette.resolve({"palette": {"grass": "#ffffff", "sand": "#123456"}})

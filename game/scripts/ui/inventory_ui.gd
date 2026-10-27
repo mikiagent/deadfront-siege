@@ -33,6 +33,14 @@ var _store_btn: Button
 var _drop_btn: Button
 var _destroy_btn: Button
 var _take_all_btn: Button
+## Feature A: Select mode + batch bar (taps mark; Lock/Drop/Destroy then apply to the whole batch).
+var _select_btn: Button
+var _batch_row: HBoxContainer
+var _batch_label: Label
+var _batch_lock_btn: Button
+var _batch_drop_btn: Button
+var _batch_destroy_btn: Button
+var _batch_destroy_armed := false
 var _equip_btn: Button
 var _food1_btn: Button
 var _food2_btn: Button
@@ -93,6 +101,9 @@ func _ready() -> void:
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_title.add_theme_color_override("font_color", INK)
 	header.add_child(_title)
+	_select_btn = _btn("Select", Vector2(72, 44))
+	_select_btn.pressed.connect(_on_toggle_multi)
+	header.add_child(_select_btn)
 	_close_btn = _btn("✕", Vector2(44, 44))
 	_close_btn.pressed.connect(hide_ui)
 	header.add_child(_close_btn)
@@ -245,6 +256,20 @@ func _ready() -> void:
 	_destroy_btn.name = "DestroyButton"
 	_destroy_btn.add_theme_color_override("font_color", UiTokens.DANGER)
 	_take_all_btn = _action("Take all", _take_all_storage)
+	_batch_row = HBoxContainer.new()
+	_batch_row.add_theme_constant_override("separation", UiTokens.SPACE)
+	root.add_child(_batch_row)
+	_batch_label = Label.new()
+	_batch_label.text = "0 selected"
+	_batch_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_batch_label.add_theme_color_override("font_color", INK)
+	_batch_label.custom_minimum_size = Vector2(120, 0)
+	_batch_row.add_child(_batch_label)
+	_batch_lock_btn = _batch_btn("Lock", _on_batch_lock)
+	_batch_drop_btn = _batch_btn("Drop", _on_batch_drop)
+	_batch_destroy_btn = _batch_btn("Destroy", _on_batch_destroy)
+	_batch_destroy_btn.add_theme_color_override("font_color", UiTokens.DANGER)
+	_batch_row.visible = false
 	_food_inspector = FoodInspector.new()
 	_food_inspector.name = "FoodInspector"
 	add_child(_food_inspector)
@@ -286,6 +311,14 @@ func _action(text: String, cb: Callable) -> Button:
 	b.pressed.connect(cb)
 	b.visible = false
 	_actions.add_child(b)
+	return b
+
+## Batch-bar button: same height as the action row but never hidden by _select — that row is the
+## single-selection row, these act only on the marked batch.
+func _batch_btn(text: String, cb: Callable) -> Button:
+	var b := _btn(text, Vector2(0, _action_px))
+	b.pressed.connect(cb)
+	_batch_row.add_child(b)
 	return b
 
 func _slot_style(b: Button, selected: bool = false) -> void:
@@ -335,6 +368,7 @@ func hide_ui() -> void:
 	visible = false
 	pet_bag = null
 	_storage_opts = {}
+	_set_multi_mode(false)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
@@ -476,9 +510,16 @@ func rebuild() -> void:
 	_take_all_btn.disabled = _readonly_reason() != "" or pet_bag == null or pet_bag.used_slots() <= 0
 	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
 	_select(_selected)
+	_update_batch_bar()
 
-## A tap on a compartment: select that exact instance (one item per slot).
+## A tap on a compartment: select that exact instance (one item per slot); in Select mode it
+## toggles the batch membership instead (Feature A).
 func _on_bag_slot_tapped(index: int) -> void:
+	if _grid.multi_mode:
+		_grid.toggle_multi(index)
+		_disarm_batch_destroy()
+		_update_batch_bar()
+		return
 	_select(index)
 
 func _refresh_profile() -> void:
@@ -616,7 +657,7 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 		if _split:
 			_split.custom_minimum_size = Vector2.ZERO
 	_slot_px = slot
-	for b: Button in [_lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn, _store_btn, _drop_btn, _destroy_btn, _take_all_btn]:
+	for b: Button in [_lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn, _store_btn, _drop_btn, _destroy_btn, _take_all_btn, _batch_lock_btn, _batch_drop_btn, _batch_destroy_btn]:
 		b.custom_minimum_size = Vector2(0, _action_px)
 	if _equip_grid:
 		_equip_grid.columns = equip_cols if not compact else 5
@@ -695,7 +736,7 @@ func _select(index: int) -> void:
 	if _grid:
 		_grid.set_selected(index if not none else -1)
 	if none:
-		_tip.text = "Tap an item."
+		_tip.text = "Select mode: tap items to mark a batch." if (_grid != null and _grid.multi_mode) else "Tap an item."
 		return
 	var stack := inventory.slots[index]
 	_tip.text = stack.tooltip()
@@ -906,6 +947,178 @@ func _clear_empty_shortcuts(id: StringName) -> void:
 	for i in 2:
 		if StringName(str(inventory.quick_food[i])) == id:
 			inventory.set_quick_food(i, &"")
+
+# ---------------------------------------------------------------- batch (Feature A)
+
+## Owner 2026-10-27: mark several bag items at once, then Lock / Drop / Destroy them in one pass.
+## Select mode is explicit (a header toggle) so the normal single-tap flow is untouched; every
+## per-item rule holds — a batch action skips an item for exactly the reason the single action
+## would refuse it, and the tip reports what was skipped and why.
+
+func _on_toggle_multi() -> void:
+	_set_multi_mode(_grid == null or not _grid.multi_mode)
+
+## Mode swap: the batch bar replaces the item-action row, which is left unselected while Select
+## mode is active (taps there mark, they don't pick). Done returns to the single-selection flow.
+func _set_multi_mode(on: bool) -> void:
+	if _grid == null or _batch_row == null:
+		return
+	_grid.set_multi_mode(on)
+	_disarm_batch_destroy()
+	_select_btn.text = "Done" if on else "Select"
+	_batch_row.visible = on
+	_batch_label.text = "0 selected"
+	_update_batch_bar()
+	if on:
+		_select(-1)
+		_tip.text = "Select mode: tap items to mark a batch."
+	else:
+		_select(_selected)
+
+## The bar mirrors the grid's marks; the destroy button arms itself here and anywhere else the
+## marks change (a second tap on the same marks is what confirms).
+func _update_batch_bar() -> void:
+	if _batch_row == null:
+		return
+	var on := _grid != null and _grid.multi_mode
+	_batch_row.visible = on
+	if not on:
+		return
+	var n := _grid.multi.size()
+	_batch_label.text = "%d selected" % n
+	_batch_lock_btn.disabled = n == 0
+	_batch_drop_btn.disabled = n == 0
+	_batch_destroy_btn.disabled = n == 0
+	if _batch_destroy_armed:
+		_batch_destroy_btn.text = "Confirm destroy"
+	else:
+		_batch_destroy_btn.text = "Destroy"
+
+func _disarm_batch_destroy() -> void:
+	_batch_destroy_armed = false
+	if _batch_destroy_btn:
+		_batch_destroy_btn.text = "Destroy"
+
+## The single-item call gates (_can_remove_selected / _can_drop_selected) as batch context:
+## destroying and dropping are solo-camp actions, and a drop additionally needs the live world
+## (the loot bag it lands in).
+func _batch_gates() -> Array:
+	var act: Variant = _owner_player.actions if _owner_player else null
+	var offline: bool = act == null or not act.online
+	return [offline, _owner_player != null and World.runtime != null]
+
+func _on_batch_lock() -> void:
+	if inventory == null or _grid == null:
+		return
+	var gates := _batch_gates()
+	var res := batch_check(inventory, _grid.multi_list(), "lock", bool(gates[0]), bool(gates[1]))
+	for idx: int in res["ok"]:
+		inventory.slots[idx].set_flag(&"locked", true)
+	inventory.changed.emit()
+	_finish_batch(res, "Locked")
+
+func _on_batch_drop() -> void:
+	if inventory == null or _grid == null:
+		return
+	var gates := _batch_gates()
+	var res := batch_check(inventory, _grid.multi_list(), "drop", bool(gates[0]), bool(gates[1]))
+	var pos: Vector3 = _owner_player.global_position if _owner_player else Vector3.ZERO
+	var done := 0
+	for idx: int in res["ok"]:
+		var s: ItemStack = inventory.slots[idx]
+		var dropped := inventory.remove_at(idx, s.count)
+		if dropped == null:
+			continue
+		LootBag.drop(pos, [dropped])
+		_clear_empty_shortcuts(dropped.def_id)
+		done += 1
+	if done > 0 and _owner_player:
+		_owner_player.notice("Dropped %d item(s)." % done)
+		_selected = -1
+	_finish_batch(res, "Dropped", done)
+
+func _on_batch_destroy() -> void:
+	if inventory == null or _grid == null:
+		return
+	var gates := _batch_gates()
+	# Re-checked at both taps, so only what is still there and still eligible is destroyed.
+	var res := batch_check(inventory, _grid.multi_list(), "destroy", bool(gates[0]), bool(gates[1]))
+	if not _batch_destroy_armed:
+		_batch_destroy_armed = true
+		_update_batch_bar()
+		_tip.text = "Destroy %d item(s)? Tap Confirm again." % (res["ok"] as Array).size()
+		return
+	var done := 0
+	var ids := {}
+	for idx: int in res["ok"]:
+		var s: ItemStack = inventory.slots[idx]
+		var gone := inventory.remove_at(idx, s.count)
+		if gone == null:
+			continue
+		ids[str(gone.def_id)] = true
+		done += 1
+	for id in ids.keys():
+		_clear_empty_shortcuts(StringName(str(id)))
+	if done > 0:
+		_selected = -1
+		if _owner_player:
+			_owner_player.notice("Destroyed %d item(s)." % done)
+	_finish_batch(res, "Destroyed", done)
+
+## After a pass: release the marks, keep Select mode on for the next batch, and summarise what was
+## skipped in the tip (or confirm the whole batch went through).
+func _finish_batch(res: Dictionary, verb: String, done: int = -1) -> void:
+	_disarm_batch_destroy()
+	_grid.clear_multi()
+	_update_batch_bar()
+	var skip := res.get("skip", {}) as Dictionary
+	var skipped := _skip_text(skip)
+	if done == 0:
+		_tip.text = "Nothing to %s: %s." % [verb.to_lower(), skipped]
+	elif skipped == "":
+		_tip.text = "%s %d item(s)." % [verb, done]
+	else:
+		_tip.text = "%s %d item(s); skipped %d (%s)." % [verb, done, skip.size(), skipped]
+
+## "1 locked, 2 empty, 1 while online" — the skip reasons read like a sentence, most common first.
+static func _skip_text(skip: Dictionary) -> String:
+	var words := {"locked": "locked", "empty": "empty", "online": "while online", "world": "no world"}
+	var parts: Array[String] = []
+	for why in ["locked", "empty", "online", "world"]:
+		var n := 0
+		for k in skip.keys():
+			if str(skip[k]) == why:
+				n += 1
+		if n > 0:
+			parts.append("%d %s" % [n, words[why]])
+	return ", ".join(parts)
+
+## Batch eligibility in one place. It mirrors the single-item gates: empty slots and lock markers
+## never join ("empty"), a locked item refuses everything until unlocked ("locked"), destroy is
+## offline-only like the single action ("online" when refused) and a drop also needs the live world
+## ("world"). Returns {"ok": ascending Array[int], "skip": {index: reason}} for the tip.
+static func batch_check(inv: Inventory, indices: Array[int], action: String, offline: bool, world: bool) -> Dictionary:
+	var ok: Array[int] = []
+	var skip := {}
+	for i in indices:
+		var s: ItemStack = null
+		if inv != null and i >= 0 and i < inv.slots.size():
+			s = inv.slots[i]
+		if s == null or s.def_id == Inventory.LOCK:
+			skip[i] = "empty"
+			continue
+		if s.is_locked():
+			skip[i] = "locked"
+			continue
+		if action != "lock":
+			if not offline:
+				skip[i] = "online"
+				continue
+			if action == "drop" and not world:
+				skip[i] = "world"
+				continue
+		ok.append(i)
+	return {"ok": ok, "skip": skip}
 
 # ---------------------------------------------------------------- storage
 
