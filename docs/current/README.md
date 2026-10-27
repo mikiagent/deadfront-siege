@@ -8,6 +8,7 @@ trawling history. When the build changes a system, update its doc in the same co
 |---|---|---|
 | Survival needs (exhaustion, sleep, food) | `survival-needs.md` | needs writing (gradual sleep drain landed in code `88d5e9`) |
 | HUD & vitals UI | `hud.md` | needs writing (treadmill gauge landed in code `6fe26`) |
+| Controls & input | `controls.md` | truth inherited from the old layout (moves with any `input_setup.gd` change) |
 | Items, traits & food effects | `items-traits.md` | **generated 2026-10-27** — 240-item catalog, rarity/attrs, FOODFX with provenance tags; *editable source*: `game/data_sheets/items.csv` + `foods.csv` (canon) |
 | Crafting & processing | `recipes.md` | **generated 2026-10-27** — 168 recipes grouped by station + 8 repair tiers; *editable source*: `game/data_sheets/recipes.csv` + `repairs.csv` + `processing.csv` (canon) |
 | World, islands, climate, flora & fauna | `world-biomes.md` | **generated 2026-10-27** — 15 islands, 10 climates with flora/materials, 19 fauna, butchering per species; *editable source*: `game/data_sheets/islands.csv` + `climates.csv` + `creatures.csv` + `butchering.csv` (canon) |
