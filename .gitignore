@@ -6,6 +6,8 @@ game/export/
 tools/__pycache__/
 tools/blender/biome_props/__pycache__/
 
+tools/docs_wiki/__pycache__/
+
 tools/blob.env
 game/export/packs/
 
