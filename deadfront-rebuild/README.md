@@ -92,12 +92,15 @@ without reading GDScript.
 | `tests/transfer_test.gd` | FND-001 transfer, replay, provenance, oversized/capacity/stale-revision atomic rejection, competing final unit (one winner), single location per lot |
 | `tests/fnd001_fixture_test.gd` | FND-001 driven from `tests/fixtures/fnd_001.json`: exact per-inventory quantities, provenance, totals, receipt count, T1 replay inert, rejected T2 inert |
 | `tests/idempotence_test.gd` | reused command_id returns the original receipt even with a different payload; rejected IDs stay sticky; distinct IDs both apply; competing same-revision transfers |
-| `tests/property_test.gd` | seeded 1,000-operation conservation, no negative/empty/homeless lots, capacity respected, replay inert, no recycled lot identity |
+| `tests/property_test.gd` | seeded 1,000-operation conservation on four seeds (`0x5EED0001` primary, plus `0x5EED0002`, `0x5EED0003`, `0xC0DE`), no negative/empty/homeless lots, capacity respected, 200-command replay inert, no recycled lot identity |
 
-The PRNG is a local 32-bit LCG (high bits used for draws) with recorded seed
-`0x5EED0001`, because the QA contract requires reproducible seeds and treats
-engine PRNG details as unapproved. The run prints its commit/reject mix and
-rejection reasons so the generated workload is auditable.
+The PRNG is a local 32-bit LCG (high bits used for draws) with recorded seeds,
+because the QA contract requires reproducible seeds and treats engine PRNG
+details as unapproved. The workload is weighted (about 70% valid transfers) and
+forces each guard on purpose — stale revision, over-capacity target, oversized
+quantity — so rejections are exercised deterministically rather than by luck.
+The run prints its commit/reject mix and rejection reasons so the generated
+workload is auditable.
 
 ## Assumptions
 
