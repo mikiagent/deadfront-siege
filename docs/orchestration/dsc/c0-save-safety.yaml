@@ -27,6 +27,7 @@ phases:
         kind: code
         resources: [godot]
         scope: '^(game/scripts/core/(save_game|save_migrations|save_recovery)\.gd|game/scripts/dev/save_recovery_lab\.gd|game/scenes/dev/save_recovery_lab\.tscn|game/tests/(run_all\.gd|fixtures/save_[^/]+\.json|save_[^/]+\.gd)|docs/orchestration/reports/dsc-c0-save-safety\.md)$'
+        outputs: [game/scenes/dev/save_recovery_lab.tscn, docs/orchestration/reports/dsc-c0-save-safety.md]
         verify: "bash docs/orchestration/dsc/gates/verify_c0_save_safety.sh"
         task_body: |
           # C0 save safety in the existing game
