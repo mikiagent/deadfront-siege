@@ -10,8 +10,10 @@ const ACTIONS: Dictionary = {
 	"move_left": [KEY_A, KEY_LEFT],
 	"move_right": [KEY_D, KEY_RIGHT],
 	"sprint": [KEY_SHIFT],
-	"roll": [KEY_SPACE],
+	# ASSUMPTION: Q takes the keyboard roll after the owner assigned Space to quick gather.
+	"roll": [KEY_Q],
 	"interact": [KEY_E],
+	"gather_nearest": [KEY_SPACE],
 	"attack": [KEY_F],
 	"tactic_1": [KEY_1],
 	"tactic_2": [KEY_2],

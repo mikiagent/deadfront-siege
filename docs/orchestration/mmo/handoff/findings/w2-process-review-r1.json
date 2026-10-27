@@ -1,0 +1,56 @@
+{
+  "review": "W2-PROCESS r1",
+  "status": "partial",
+  "reviewed_sha": "d6e00e69",
+  "note": "The branch moved during the review (0cf5f8e9 -> ccf9a9bf -> d6e00e69 -> 95a23aac). Code was read and gates were run at d6e00e69, judged against spec 08 per the coordinator (no spoil timer, ~2 in-place processing opportunities, no invented buffs). Stopped early on the owner's clean-stop request.",
+  "pass": false,
+  "gates_d6e00e69_clean_export": {
+    "merge_tree": "clean (tree e43995c1 vs claude/mmo-overhaul 1c89134a)",
+    "seen_lines": ["[tests] PASS (run_all, merged tree)", "[t_process] PASS (merged tree)", "[t_uiicons] PASS ids=169 (merged tree)"],
+    "earlier_run_0cf5f8e9_export": ["[tests] PASS", "SMOKE PASS", "[process_lab] PASS", "[kitchen_lab] PASS", "[craft_lab] PASS", "every t_*.gd PASS except t_uiicons (base, fixed on the current base) and t_web (export artefact: it reads ../hosting, which the export leaves out; PASS in the worktree run)"],
+    "not_rerun_on_d6e00e69": "smoke, process_lab, kitchen_lab and craft_lab were not rerun on d6e00e69 head itself"
+  },
+  "not_done": [
+    "windowed screenshots (1600x900 Forward+ and glc, 844x390 glc) and the blind A/B against claude/mmo-overhaul",
+    "runtime break tests: the scratch harness failed to compile (autoload identifiers in a --script file), so every break claim below comes from reading the code, with no runtime repro",
+    "anything after d6e00e69 (95a23aac report commit)"
+  ],
+  "findings": [
+    {
+      "severity": "blocker",
+      "where": "game/scripts/player/player_actions.gd:568 (building_interact, shift-tap at home) -> BuildPlacer.pack_up_node; game/scripts/world/craft_station.gd pack_up",
+      "problem": "The only in-game pack-up path calls BuildPlacer.pack_up_node(b, p) directly. CraftStation.pack_up, which returns what is on the station first, is never called in game (grep finds no caller). pack_up_node returns only the kit (plus storage/occupant) and then queue_free()s the station, so every input and finished output on a drying rack, smoker, crock pot or steamer is destroyed. t_process covers ProcessStation.return_all directly, so it misses this. Item loss (from reading the code; no runtime repro).",
+      "fix": "Add CraftStation.pack_up_block_reason() returning e.g. 'Collect what is on the drying rack first' while ProcessStation.of(self).contents() is not empty. pack_up_blocker already calls it, so no BUILDSYS file changes. Alternatively, have pack_up_node call n.pack_up when the node defines it (but that file is W2-BUILDSYS's). Add a t_process case that packs up through BuildPlacer.pack_up_node with jobs on the rack."
+    },
+    {
+      "severity": "major",
+      "where": "game/scripts/world/craft_station.gd pack_up",
+      "problem": "return_all runs before pack_up_node's own checks (land, cargo, kit fits in bag). When pack_up_node then refuses, e.g. because the returned inputs filled the bag and the kit no longer fits, the station stays standing but every running job is cancelled and its progress is lost. No items are lost.",
+      "fix": "Check BuildPlacer.pack_up_blocker plus a fits_in_bag dry run over (kit + contents) before return_all, or use the blocker approach from the blocker fix and drop return_all from pack-up."
+    },
+    {
+      "severity": "major",
+      "where": "game/data/processing.json station times vs grilled_meat/cooked food (items.json energies)",
+      "problem": "Under spec 08 there is no spoilage and no buff, so drying (10 min, dried_meat 17 energy) loses to the campfire grill (seconds, grilled_meat 24). Smoking (15 min, 23) and steaming also lose to it. Both spend the same in-place opportunity. The owner's bar ('processing must feel impactful ... the result matters') is not met: the slow stations are strictly worse choices, so on the next web push nobody has a reason to use them.",
+      "fix": "Give the station outputs a payoff from data the owner allows: higher stored energy or satiety for dried/smoked, a market value, or shorter # ASSUMPTION times (e.g. 2-3 min) until the owner rules. Ask the owner which one, since spec 08 removed spoilage."
+    },
+    {
+      "severity": "minor",
+      "where": "game/scripts/world/process_station.gd load_from / Crafting.build_output (in-place)",
+      "problem": "An in-place output keeps primary.uid while the input stack is held on the station and replaced only at _finish. That is correct today, but nothing asserts that no second instance with the same uid exists after collect (spec 08/04 ask for duplication tests).",
+      "fix": "Add a t_process case: a uid-stamped raw instance -> rack -> collect, and assert one stack with that uid in the bag and none on the station or in the save row."
+    },
+    {
+      "severity": "minor",
+      "where": "game/scripts/world/process_station.gd now_s / load_dict",
+      "problem": "Jobs run on the device wall clock. Moving the system clock forward finishes every job, and a clock moved back stalls them until it catches up. That is acceptable single-player, but the server-authoritative plan (contracts v2) will need a server clock.",
+      "fix": "Note it for W3-SRVACT. Clamp a negative elapsed time so a clock moved back does not show a timer above the job length."
+    },
+    {
+      "severity": "minor",
+      "where": "game/scripts/items/station_craft.gd _on_menu_action collect",
+      "problem": "COLLECT shows a toast for outputs[0].def_id with the total moved, so mixed outputs (rack: dried_meat + dried_hide) are shown as a single item.",
+      "fix": "Toast per def_id moved, or a generic 'Collected N'."
+    }
+  ]
+}

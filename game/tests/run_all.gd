@@ -50,6 +50,7 @@ func _process(_delta: float) -> bool:
 	_test_mortar_well_kit_routes()
 	_test_empty_bucket_recipe()
 	_test_multistack_crafting()
+	_test_process_stations()
 	_finish()
 	return true
 
@@ -509,7 +510,7 @@ func _test_dot_respects_capture_window() -> void:
 
 ## The pad layout and fullscreen key exist, and keyboard play is unchanged.
 func _test_gamepad_bindings() -> void:
-	for action in ["interact", "attack", "roll", "craft", "inventory", "pause", "map", "sprint", "tactic_1", "tactic_2", "place_confirm", "place_cancel"]:
+	for action in ["interact", "gather_nearest", "attack", "roll", "craft", "inventory", "pause", "map", "sprint", "tactic_1", "tactic_2", "place_confirm", "place_cancel"]:
 		_expect(InputMap.has_action(action), "action exists: " + action)
 	var a := InputEventJoypadButton.new()
 	a.button_index = JOY_BUTTON_A
@@ -533,6 +534,13 @@ func _test_gamepad_bindings() -> void:
 	var w := InputEventKey.new()
 	w.physical_keycode = KEY_W
 	_expect(InputMap.event_is_action(w, "move_up"), "keyboard W still moves up")
+	var space := InputEventKey.new()
+	space.physical_keycode = KEY_SPACE
+	_expect(InputMap.event_is_action(space, "gather_nearest"), "Space gathers the nearest resource")
+	_expect(not InputMap.event_is_action(space, "roll"), "Space no longer rolls instead of gathering")
+	var q := InputEventKey.new()
+	q.physical_keycode = KEY_Q
+	_expect(InputMap.event_is_action(q, "roll"), "keyboard Q rolls after Space becomes gather")
 	var f11 := InputEventKey.new()
 	f11.physical_keycode = KEY_F11
 	_expect(InputMap.has_action("fullscreen") and InputMap.event_is_action(f11, "fullscreen"), "F11 toggles fullscreen")
@@ -573,6 +581,15 @@ func _test_multistack_crafting() -> void:
 	if script == null: return
 	var lab: RefCounted = script.new()
 	var results: Dictionary = lab.call("run")
+	for label in results:
+		_expect(bool(results[label]), str(label))
+
+## W2-PROCESS: a wall-clock rack job and hand-edited process rows on the load and refund paths.
+func _test_process_stations() -> void:
+	var script: GDScript = load("res://tests/process_checks.gd") as GDScript
+	_expect(script != null, "process checks load")
+	if script == null: return
+	var results: Dictionary = script.new().call("run", get_root())
 	for label in results:
 		_expect(bool(results[label]), str(label))
 
@@ -662,7 +679,8 @@ func _test_counter_supplies() -> void:
 	_expect(not pl.coat_weapon(), "cannot overwrite active coating")
 	var restored = (load("res://scripts/items/inventory.gd") as GDScript).new(20)
 	restored.load_array(inv.to_array())
-	_expect(int(restored.slots[restored.find_first(&"barbed_knife")].attributes.get("toxin_hits", 0)) == 3, "toxin charges survive item reload")
+	restored.extras_from_dict(JSON.parse_string(JSON.stringify(inv.extras_to_dict()))) # W2-INV: the worn knife saves with the extras
+	_expect(int(restored.equipped_weapon().attributes.get("toxin_hits", 0)) == 3, "toxin charges survive item reload")
 	var cr = (load("res://scripts/creatures/creature.gd") as GDScript).new()
 	cr.def = (load("res://scripts/creatures/creature_def.gd") as GDScript).new()
 	cr.def.archetype = &"pack_raptor"
@@ -854,9 +872,9 @@ func _test_storage_transfer() -> void:
 	var stack = load("res://scripts/items/item_stack.gd") as GDScript
 	var src = inv.new(3)
 	var dst = inv.new(1)
-	src.add(stack.make(&"branch",8,{},55))
+	src.add(stack.make(&"stone_shot",8,{},55)) # W2-INV: ammunition still stacks; materials are one per slot
 	var original = src.slots[0].to_dict()
-	dst.add(stack.make(&"stone",1))
+	dst.add(stack.make(&"stone_shot",1))
 	_expect(src.transfer_to(dst,0) == 0 and src.slots[0].to_dict() == original,"full storage leaves original unchanged")
 	dst.remove_at(0,1)
 	src.slots[0].set_flag(&"locked",true)
@@ -864,7 +882,7 @@ func _test_storage_transfer() -> void:
 	src.slots[0].set_flag(&"locked",false)
 	_expect(src.transfer_to(src,0) == 0,"self storage refuses")
 	_expect(src.transfer_to(dst,0) == 8 and src.slots[0] == null and dst.slots[0].level == 55,"whole stack preserves quality")
-	src.add(stack.make(&"branch",5,{},55))
+	src.add(stack.make(&"stone_shot",5,{},55))
 	var cap = dst.slots[0].def().stack_max
 	dst.slots[0].count = cap-2
 	_expect(src.transfer_to(dst,0) == 2 and src.slots[0].count == 3 and dst.slots[0].count == cap,"partial storage leaves remainder in original slot")
@@ -875,8 +893,9 @@ func _test_storage_transfer() -> void:
 	_expect(not ui._can_store_selected(),"corpse/default storage stays take-only")
 	ui._storage_opts = {"allow_deposit":true}
 	_expect(ui._can_store_selected(),"basket permits deposit")
-	src.equip(&"weapon",&"branch")
-	_expect(not ui._can_store_selected(),"equipped item cannot be accidentally stored")
+	src.add(stack.make(&"stone_knife",1))
+	var knife: int = src.find_first(&"stone_knife")
+	_expect(src.equip_at(knife) and src.slots[knife] == null and src.equipped_in(&"weapon") != null,"equipped item leaves the bag, so it cannot be stored")
 	src.unequip(&"weapon")
 	ui._storage_opts["readonly_reason"] = "need knife"
 	_expect(not ui._can_store_selected(),"read-only storage cannot accept deposits")
@@ -900,11 +919,16 @@ func _test_hide_strap_no_self_input() -> void:
 	var bag = inv.new(5)
 	bag.add(stack.make(&"hide_strap",10,{},55))
 	_expect(not craft.picks_valid(bag,rec,craft.default_picks(bag,rec)),"straps cannot double through own recipe")
-	for id in [&"raw_hide",&"raptor_hide",&"dried_hide"]:
+	# PRD 8.3 "Hide -> dried hide -> straps": raw hide must be dried first.
+	for id in [&"raw_hide",&"raptor_hide"]:
+		var green = inv.new(5)
+		green.add(stack.make(id,1,{},55))
+		_expect(not craft.picks_valid(green,rec,craft.default_picks(green,rec)),"raw hide %s is dried before cutting straps" % id)
+	for id in [&"dried_hide"]:
 		var material = inv.new(5)
 		material.add(stack.make(id,1,{},55))
 		var picks = craft.default_picks(material,rec)
-		_expect(craft.picks_valid(material,rec,picks),"uncut hide remains eligible %s" % id)
+		_expect(craft.picks_valid(material,rec,picks),"dried hide is eligible %s" % id)
 		var parts = craft.consume_for_craft(material,rec,picks)
 		var out = craft.build_output(rec,parts[0],55,parts)
 		_expect(out.def_id == &"hide_strap" and out.count == 2 and out.level == 55,"hide processing preserves quality and output")

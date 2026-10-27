@@ -5,6 +5,7 @@ var kind: StringName = &"catapult"
 var persist_building := true
 var build_cell := Vector2i.ZERO
 var build_rot := 0
+var max_hp := 200.0
 var hp := 200.0
 var reload_left := 0.0
 var operator: Player
@@ -18,7 +19,9 @@ func _ready() -> void:
 	shape.shape = box
 	shape.position.y = 0.6
 	add_child(shape)
+	var model := PropVisuals.attach_model(self, kind)  # Blender catapult (manifest glb); primitives are the fallback
 	for spec in [[Vector3(2.0,0.25,2.0),Vector3(0,0.25,0)],[Vector3(0.25,1.5,0.25),Vector3(-0.7,1.0,0)],[Vector3(0.25,1.5,0.25),Vector3(0.7,1.0,0)],[Vector3(0.2,0.2,2.4),Vector3(0,1.4,0)]]:
+		if model != null: continue
 		var mesh := MeshInstance3D.new()
 		var b := BoxMesh.new()
 		b.size = spec[0]
@@ -29,6 +32,7 @@ func _ready() -> void:
 		mesh.material_override = mat
 		add_child(mesh)
 	for x in [-0.85,0.85]:
+		if model != null: continue
 		for z in [-0.65,0.65]:
 			var wheel := MeshInstance3D.new()
 			var cylinder := CylinderMesh.new()
@@ -47,16 +51,25 @@ func _ready() -> void:
 	label.pixel_size = 0.006
 	label.outline_size = 8
 	add_child(label)
+	_refresh_label()
 
 func _physics_process(delta: float) -> void:
 	reload_left = maxf(0, reload_left-delta)
+	_refresh_label()
+
+func _refresh_label() -> void:
 	var label := get_node_or_null("Label") as Label3D
 	if label:
-		var text := "Catapult %.0f/200%s" % [hp, " Reload%d" % ceili(reload_left) if reload_left > 0 else ""]
+		var text := "Catapult %.0f/%.0f%s" % [hp, max_hp, " Reload%d" % ceili(reload_left) if reload_left > 0 else ""]
 		if label.text != text: label.text = text
 
+## Kept for callers that hit the platform directly; damage goes through its StructureHealth.
 func receive_siege_hit(amount: float) -> void:
-	hp = maxf(0,hp-amount)
+	var h := StructureHealth.of(self, true)
+	if h:
+		h.take_damage(amount)
+		return
+	hp = maxf(0, hp - amount)  # off the island (tests build platforms outside the tree): no health node
 	if hp <= 0:
 		queue_free()
 
@@ -87,6 +100,15 @@ func fire(player: Player, victim: Creature, poison: bool = false) -> bool:
 	victim.brain.on_siege_fire(self)
 	return true
 
+func pack_up(player: Player) -> bool:
+	return BuildPlacer.pack_up_node(self, player)
+
+# ASSUMPTION: there is no repair yet, so only an undamaged platform repacks (no free repair by kit).
+func pack_up_block_reason() -> String:
+	if hp < max_hp:
+		return "A damaged catapult can't be packed up"
+	return ""
+
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	build_cell = cell
 	build_rot = posmod(rot,4)
@@ -104,6 +126,6 @@ static func from_dict(row: Dictionary) -> FieldCatapult:
 	var cell: Array = row.get("cell",[0,0])
 	if cell.size() >= 2: result.build_cell = Vector2i(int(cell[0]),int(cell[1]))
 	result.build_rot = posmod(int(row.get("rot",0)),4)
-	result.hp = clampf(float(row.get("hp",200)),0,200)
+	result.hp = clampf(float(row.get("hp",result.max_hp)),0,result.max_hp)
 	result.reload_left = clampf(float(row.get("reload_left",0)),0,3)
 	return result

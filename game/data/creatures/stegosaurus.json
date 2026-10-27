@@ -34,69 +34,93 @@
     "alert": "Plated dinosaur raises its head and stiffens its plates"
   },
   "pipeline": {
-    "route": "skeleton_transplant_v3",
-    "forward_axis": "+Z",
-    "version": 1,
-    "mesh_source": "res://assets/creatures/stegosaurus/work/stegosaurus_i2m_v1.glb",
-    "reference": {
-      "side": "01a0b1e5-6f1d-707f-9f2c-ee881667be29",
-      "front": "01a0b1e6-147c-75b5-9cd1-396a3e2a7ced"
-    },
-    "i2m": "01a0b1e6-7687-7190-971e-cc13a025eaec",
-    "i2m_params": {
-      "model": "meshy-7 multi-image",
-      "polycount": 20000,
-      "texture": "2k PBR"
-    },
-    "credits_spent": 48,
-    "donor_rig": "tools/standins/quaternius/Triceratops.fbx",
-    "transplant_tool": "tools/transplant_rig.py",
-    "source_height_m": 0.8458,
-    "source_length_m": 1.9033,
-    "repair": {
-      "loose_removed": 585,
-      "doubles_merged": 8544,
-      "holes_filled": 141,
-      "verts_before": 19546,
-      "islands": 1403,
-      "verts_after": 10417
-    },
-    "warp": {
-      "mode": "quadruped_landmarks",
-      "front_foot_y": -0.4540534277552182,
-      "back_foot_y": -0.0801313034627051,
-      "foot_half_width": 0.1013064906001091,
-      "hip_z": 0.5260375618934632,
-      "shoulder_z": 0.44456521421670914,
-      "head_z": 0.40566354990005493
-    },
-    "weights": {
-      "direct_fraction": 1.0,
-      "method": "continuous anatomical spine and single-limb weights, max four"
-    },
+    "route": "tripo_mesh_opus_rig",
+    "version": 2,
+    "forward_axis": "-Z",
+    "source_height_m": 6.4,
+    "mesh": "Tripo H3.1 mesh (orchestrator session), rotated to face -Z, scaled to 6.4 m, seams welded; textures 2048",
+    "rig_and_animation": "Opus builder in Blender: 34 bones incl. jaw and 7 tail bones, IK feet, heat weights with rigid plates/spikes",
+    "recolour": "gentle global hue grade of Tripo's original colour map (work/tripo_grade.py), no masks",
     "clips": [
-      "alert",
-      "attack_heavy",
-      "attack_primary",
-      "death",
-      "hit_react",
       "idle",
-      "knockdown",
+      "walk",
       "run",
-      "walk"
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
     ],
-    "authored_clips": {
-      "knockdown": "90-degree side collapse ending with grounded hold",
-      "hit_react": "0.6s dedicated recoil; fixed foot targets; no body roll",
-      "alert": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
-      "attack_heavy": "0.36s held anticipation then thagomizer sweep",
-      "attack_primary": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
-      "death": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
-      "idle": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
-      "walk": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
-      "run": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps"
-    },
-    "rig_revision": 3
+    "verifier": "creature-verify.mjs --height 6.4: ALL HARD CHECKS PASSED (feed, sleep, tail_swipe optional, missing)",
+    "provenance": "/Users/milankinzy/Documents/DeepseekCLI/bakeoff/stegosaurus-v2/out/REPORT.md (outside repo)",
+    "review_video": "/Users/milankinzy/Documents/DeepseekCLI/bakeoff/review/steg2_tripo_v3/all.mp4 (outside repo)",
+    "v1": {
+      "route": "skeleton_transplant_v3",
+      "forward_axis": "+Z",
+      "version": 1,
+      "mesh_source": "res://assets/creatures/stegosaurus/work/stegosaurus_i2m_v1.glb",
+      "reference": {
+        "side": "01a0b1e5-6f1d-707f-9f2c-ee881667be29",
+        "front": "01a0b1e6-147c-75b5-9cd1-396a3e2a7ced"
+      },
+      "i2m": "01a0b1e6-7687-7190-971e-cc13a025eaec",
+      "i2m_params": {
+        "model": "meshy-7 multi-image",
+        "polycount": 20000,
+        "texture": "2k PBR"
+      },
+      "credits_spent": 48,
+      "donor_rig": "tools/standins/quaternius/Triceratops.fbx",
+      "transplant_tool": "tools/transplant_rig.py",
+      "source_height_m": 0.8458,
+      "source_length_m": 1.9033,
+      "repair": {
+        "loose_removed": 585,
+        "doubles_merged": 8544,
+        "holes_filled": 141,
+        "verts_before": 19546,
+        "islands": 1403,
+        "verts_after": 10417
+      },
+      "warp": {
+        "mode": "quadruped_landmarks",
+        "front_foot_y": -0.4540534277552182,
+        "back_foot_y": -0.0801313034627051,
+        "foot_half_width": 0.1013064906001091,
+        "hip_z": 0.5260375618934632,
+        "shoulder_z": 0.44456521421670914,
+        "head_z": 0.40566354990005493
+      },
+      "weights": {
+        "direct_fraction": 1.0,
+        "method": "continuous anatomical spine and single-limb weights, max four"
+      },
+      "clips": [
+        "alert",
+        "attack_heavy",
+        "attack_primary",
+        "death",
+        "hit_react",
+        "idle",
+        "knockdown",
+        "run",
+        "walk"
+      ],
+      "authored_clips": {
+        "knockdown": "90-degree side collapse ending with grounded hold",
+        "hit_react": "0.6s dedicated recoil; fixed foot targets; no body roll",
+        "alert": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+        "attack_heavy": "0.36s held anticipation then thagomizer sweep",
+        "attack_primary": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+        "death": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+        "idle": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+        "walk": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+        "run": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps"
+      },
+      "rig_revision": 3,
+      "note": "v1 glb, textures and anim moved to res://assets/creatures/stegosaurus/v1/"
+    }
   },
   "taming": {
     "preferred_food": [
@@ -109,5 +133,39 @@
     "feeds_needed": 6,
     "window_seconds": 45,
     "requires_pen": true
+  },
+  "coloration": {
+    "hue_deg": 12,
+    "sat": 0.18,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "pale",
+      "dark"
+    ],
+    "patterns": [
+      {
+        "id": "saddle",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "stripes",
+        "weight": 2.0,
+        "scale": 0.8,
+        "strength": 0.24
+      },
+      {
+        "id": "countershade",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
   }
 }

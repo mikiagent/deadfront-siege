@@ -8,7 +8,7 @@
   "tier": 60,
   "climate": "volcanic",
   "archetype": "tyrant",
-  "tameable": false,
+  "tameable": true,
   "capture_tier": 0,
   "verb": "three-phase raid: stomp, roar, tail",
   "status_applied": [
@@ -22,7 +22,9 @@
     "defense": 400,
     "speed": 450
   },
-  "tamed_role": [],
+  "tamed_role": [
+    "mount"
+  ],
   "look": "12 meter Tyrannosaurus rex, massive deep skull, tiny two-fingered arms, huge legs, thick tail, ash-dark scales with a rust-red back and pale belly,",
   "texture_prompt": "ash-dark scaly hide with rust-red dorsal colouring, pale belly, matte surface",
   "clips": {
@@ -44,8 +46,82 @@
     "requires_pen": true
   },
   "pipeline": {
-    "stand_in": "Quaternius Trex, existing repository asset",
     "forward_axis": "-Z",
-    "stand_in_model_scale": 0.5450177880180564
+    "source_height_m": 8.0,
+    "mesh": "Tripo P1 multiview, task c7aea80d-714b-49f6-b59b-645c87f8a6c9, 50 Tripo credits",
+    "mesh_views": "ref/tyrannosaurus_{front,back,left,right}.png (Codex, from the approved sheet)",
+    "reference_sheet": "ref/tyrannosaurus_sheet_v1.png (Codex, user-approved)",
+    "rig_and_animation": "DeepSeek V4.1 Flash via dsc harness in Blender, 30 bones incl. Jaw and Tail1-7, about $0.29",
+    "accepted_mesh": "tyrannosaurus.glb",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert",
+      "feed",
+      "tail_swipe",
+      "sleep"
+    ],
+    "provenance": "work/pipeline.json, work/REPORT.md"
+  },
+  "coloration": {
+    "hue_deg": 10,
+    "sat": 0.14,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "pale"
+    ],
+    "patterns": [
+      {
+        "id": "stripes",
+        "weight": 3.0,
+        "scale": 0.85,
+        "strength": 0.26
+      },
+      {
+        "id": "spots",
+        "weight": 1.0,
+        "scale": 0.9,
+        "strength": 0.48
+      },
+      {
+        "id": "countershade",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.5
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
+  },
+  "eyes": {
+    "bone": "Head",
+    "points": [
+      [
+        0.4838,
+        1.0528,
+        0.8699
+      ],
+      [
+        -0.4838,
+        1.0528,
+        0.8699
+      ]
+    ],
+    "radius": 0.065,
+    "color": [
+      1.0,
+      0.55,
+      0.1
+    ]
   }
 }

@@ -28,7 +28,9 @@ void fragment() {
 	float depth = max(0.0, water_y - ground);
 	float d = clamp(depth / 1.6, 0.0, 1.0);
 	vec3 col = mix(shallow_col, deep_col, d);
-	float alpha = mix(0.22, 0.90, smoothstep(0.0, 1.3, depth));
+	// Shallow water is still water: the river is only ~0.3 m deep over its bed and used to read as
+	// a brown trench of mud. The floor is high enough that a channel reads blue-green at a glance.
+	float alpha = mix(0.62, 0.95, smoothstep(0.0, 1.3, depth));
 
 	float t = TIME;
 	float f1 = texture(noise_tex, world_pos.xz / 7.0 + vec2(t * 0.05, t * 0.03)).r;

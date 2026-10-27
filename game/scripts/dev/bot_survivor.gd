@@ -33,9 +33,10 @@ const LADDER: Array[Dictionary] = [
 
 ## Concrete items the bot will try to gather for a recipe category, best first.
 const CATEGORY_ITEMS := {
-	"blade_mat": ["stone", "flint"],
+	"blade_mat": ["stone"],
 	"handle": ["branch"],
 	"lashing": ["bark_strip", "vine", "reed", "root", "twine"],
+	"twine": ["twine"],  # rope takes twine only; no node yields it, so the recipe fallback twists it
 	"herb": ["herb_leaf", "berries", "berry", "petals"],
 	"cloth": ["cloth_scrap", "cloth"],
 	"wood": ["wood_log", "branch"],
@@ -82,7 +83,7 @@ func run(host: Node) -> void:
 	if World.island_id == &"" or World.runtime == null:
 		World.load_island(host, &"home_grassland", Vector3(0, 1, 18), false)
 	await get_tree().create_timer(1.0).timeout
-	player = get_tree().get_first_node_in_group("player") as Player
+	player = PlayerRegistry.local()
 	if player == null:
 		print("[bot] FAIL no player")
 		get_tree().quit(1)
@@ -399,9 +400,10 @@ func _build(kind: StringName) -> String:
 	for a in player.context_actions():
 		acts.append(str(a["id"]))
 	if acts.has("claim"):
-		player.context_action("claim")
+		# CLAIMFIX: with land held CLAIM opens the expand panel; the bot confirms it like a player would.
+		if player.actions.claim_confirmed():
+			_event("claim", "claimed the plot under the survivor")
 		await _beat(0.4)
-		_event("claim", "claimed the plot under the survivor")
 	var before := get_tree().get_nodes_in_group("placed_building").size()
 	placer.begin(kind)
 	await _beat(0.4)

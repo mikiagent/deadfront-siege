@@ -1,0 +1,25 @@
+{
+ "pass": true,
+ "summary": "W1-SRVDOM review, round 2 (HEAD ec18d33): pass. All seven r1 minors are closed. (1) _attack reads CombatTuning.section(\"player_melee\") and CombatTuning.hit_chance, combat_tuning.json is in DATA_FILES, and REACH_SLACK 0.5 is kept as a stated server allowance. (2) clear and reset must be real bools, otherwise bad_request. (3) The server-only char.settled {uid} drops exported_assets records. (4) IntentHandlers.ARG_KEYS plus known_args() trim args before they run or reach the journal; a 200 KB junk key now writes a 242-byte line. (5) Capture is gone from the fuzz must-succeed list and a scripted _capture_checks() covers it. (6) domain_checks.gd moved to game/tests/srvdom_checks.gd, which every export preset excludes through tests/*. The duplicate runner is left as an integrator hook in the report. (7) _craft uses Crafting.rolls_burn(rec, level, rng) and seed_global is deleted. The diff since dee1bbe touches only game/scripts/server/, game/tests/ (srvdom_checks, t_server_domain, and test files from base merges) and the report. I found no regressions. Gates I ran on HEAD: run_all '[tests] PASS'; all 15 game/tests/t_*.gd exit 0 with a PASS line ('[t_srvdom] PASS', '[t_server_domain] PASS'; t_lighting prints '[t_light] PASS'); tools/smoke.sh --no-import 'SMOKE PASS'. t_srvdom: 'hostile rows=153 ops_covered=16 matched=153 script_errors=0 unchanged=true', 'replay lines=3230 byte_identical=true', capture captured=true, and no SCRIPT ERROR lines. git merge-tree --write-tree claude/mmo-overhaul HEAD exits 0 with no conflicts. The dsc branch claude/mmo-w1-srvdom-dsc1 (61f55fc) has nothing that main lacks. Its HOSTILE table landed in 97f8dc6, and main is ahead of it: it has the deposit pet_uid bad_request fix, and the dsc branch's extra `not got.has(\"missing\")` assert is always true. verify_hostile.sh and TASK.md stay off main, which is correct.",
+ "findings": [
+  {
+   "severity": "nit",
+   "where": "game/scripts/server/intent_handlers.gd _settled; character_store.gd _run",
+   "problem": "char.settled goes through _run, so it needs an account that has an online character. Any account can settle any uid, because the record's owner is not checked, and the call's rid lands in that account's rid cache. The vault bridge is trusted server code, so nothing can be exploited. Still, the contract does not say which account the bridge should pass.",
+   "fix": "W3 vault bridge: pass the depositing account. Optionally store the depositor's account in exported_assets and refuse a mismatch. A one-line note in the integrator hooks is enough."
+  },
+  {
+   "severity": "nit",
+   "where": "game/scripts/server/intent_handlers.gd _attack -> CombatTuning.hit_chance",
+   "problem": "CombatTuning.hit_chance honours the process-wide static CombatTuning.force_dodge, a dev and test override. If anything in the server process sets it, journaled attacks replay differently. Today only dev labs and srvdom_checks set it, and the checks reset it.",
+   "fix": "When W3 builds the server process, make sure no dev lab loads there, or have the server compute accuracy x (1 - dodge) from section values without the override."
+  },
+  {
+   "severity": "nit",
+   "where": "game/tests/t_server_domain.gd + t_srvdom.gd",
+   "problem": "Both runners still exist, so a t_*.gd glob runs the 6.5 s suite twice. The report records this as an integrator hook, which is acceptable.",
+   "fix": "Integrator: keep one runner once the wave-1 runner no longer names t_srvdom."
+  }
+ ],
+ "unmet": []
+}

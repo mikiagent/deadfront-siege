@@ -95,8 +95,10 @@ static func context_text(v: Vitals, p: Player) -> String:
 	var parts: Array[String] = []
 	if v.gap_zone_level > 0:
 		var pct := int(round((v.level_gap_mult - 1.0) * 100.0))
-		var how := "no change" if pct == 0 else ("%+d%% fatigue" % pct)
-		parts.append("Island level %d, you are level %d: %s." % [v.gap_zone_level, maxi(1, v.gap_char_level), how])
+		# No second "your level" here: the gap uses the skill-tree average, which is not the player
+		# level the HUD and atlas show (LevelDisplay), so naming it again showed a third number.
+		var how := "no change to fatigue" if pct == 0 else ("%+d%% fatigue" % pct)
+		parts.append("Island %s: %s." % [LevelDisplay.label(v.gap_zone_level), how])
 	if p != null and p.current_climate != "":
 		var short := p.climate_shortfall(p.current_climate)
 		var heat := float(short.get("heat", 0.0))

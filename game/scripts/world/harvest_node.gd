@@ -18,6 +18,10 @@ var yield_max: int = 1
 var yield_attributes: Dictionary = {}
 var family: String = ""
 var falls_to_log: bool = false
+## Seconds per unit before tool power; gather_seconds is what the survivor actually waits.
+var _base_seconds: float = 1.2
+## Seconds a refill waits while someone stands in the node's footprint (phys-node-01).
+const OCCUPIED_RETRY := 2.0
 
 var depleted: bool = false
 var pool: float = 0.0
@@ -34,6 +38,9 @@ var _batch: VegBatch
 var _batch_idx: int = -1
 var _empty_batch: VegBatch
 var _empty_batch_idx: int = -1
+## CARD2D: the card drawing this node and, when the family swaps models on depletion, its empty card.
+var _card: CardProp
+var _card_empty: CardProp
 var _tile: Vector2i = Vector2i.ZERO
 var _regen_left: float = 0.0
 
@@ -46,6 +53,7 @@ func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Di
 	required_tool_class = tool
 	placeholder_color = color
 	gather_seconds = gather
+	_base_seconds = gather
 	regen_seconds = regen
 	family = p_family
 	falls_to_log = p_falls
@@ -76,7 +84,7 @@ func _ready() -> void:
 	else:
 		_tile = BuildGrid.tile_of(global_position)
 	add_to_group("harvest")
-	collision_layer = 1
+	collision_layer = 1 if blocks_movement() else 0
 	collision_mask = 0
 	pool_max = _resolve_pool_max(pool_max)
 	if pool <= 0.0:
@@ -89,7 +97,8 @@ func _ready() -> void:
 		shape.name = "Shape"
 		var box := BoxShape3D.new()
 		var tap := _collision_size()
-		box.size = Vector3(0.9 if _is_rock() else 0.55, tap.y, 0.9 if _is_rock() else 0.55)
+		var trunk := _trunk_width()
+		box.size = Vector3(trunk, tap.y, trunk)
 		shape.shape = box
 		shape.position.y = box.size.y * 0.5
 		add_child(shape)
@@ -126,6 +135,10 @@ func _process(delta: float) -> void:
 	var refilled := false
 	for item in _pool_regen.keys():
 		var left: float = float(_pool_regen[item]) - delta * Game.fast_regen_mult
+		if left <= 0.0 and depleted and _occupied():
+			# Regrowing now would wrap the collider around whoever stands here.
+			_pool_regen[item] = OCCUPIED_RETRY
+			continue
 		if left <= 0.0:
 			pools[item] = float(pool_maxes.get(item, pool_max))
 			_pool_regen.erase(item)
@@ -201,7 +214,7 @@ func restore_pools(snap: Dictionary) -> void:
 ## so gating stone behind a pick that itself needs stone made a fresh survivor unable to
 ## craft anything at all. A pick still pays off (ProgressionScaling.tool_power = faster
 ## passes and richer yields) and still gates ore and clay.
-const OPTION_TOOLS := {"wood_log": "axe", "ore_chunk": "pick", "clay": "pick", "bark_strip": "knife", "hide": "knife"}
+const OPTION_TOOLS := {"wood_log": "axe", "pine_log": "axe", "snow_pine": "axe", "willow_wood": "axe", "acacia_wood": "axe", "ore_chunk": "pick", "clay": "pick", "bark_strip": "knife", "hide": "knife"}
 ## One unit per pass; seconds per unit by item (bare-handed picks are quick, tool work is slow).
 const OPTION_SECONDS := {"berries": 1.1, "berry": 1.1, "mushroom": 1.0, "petals": 1.0, "dry_grass": 0.9, "fibre_stalk": 1.3, "herb_leaf": 1.2, "reed": 1.2, "branch": 1.6, "palm_frond": 1.5, "coconut": 2.0, "root": 1.8, "cactus_flesh": 1.6, "bark_strip": 2.2, "clay": 2.4, "stone": 2.8, "wood_log": 3.0, "ore_chunk": 3.2, "hide": 2.4}
 
@@ -214,9 +227,23 @@ func options() -> Array:
 			var id := StringName(str(k))
 			if Data.item(id) == null:
 				continue
-			var tool := str(OPTION_TOOLS.get(str(k), "none"))
+			var tier := min_pick_tier(id)
+			var tool := "pick" if tier != &"" else str(OPTION_TOOLS.get(str(k), "none"))
 			var secs := float(OPTION_SECONDS.get(str(k), 3.0 if tool != "none" else 1.6))
-			out.append({"item": str(id), "min": 1, "max": 1, "tool": tool, "seconds": secs})
+			# The manifest's [min, max] per pass (gather-02); a bare number is a fixed yield.
+			var pair: Variant = harvest[k]
+			var amin := 1
+			var amax := 1
+			if pair is Array and (pair as Array).size() >= 2:
+				amin = maxi(0, int(pair[0]))
+				amax = maxi(amin, int(pair[1]))
+			elif pair is float or pair is int:
+				amin = maxi(1, int(pair))
+				amax = amin
+			var row := {"item": str(id), "min": amin, "max": amax, "tool": tool, "seconds": secs}
+			if tier != &"":
+				row["min_tier"] = str(tier)
+			out.append(row)
 	if out.is_empty():
 		out.append({"item": str(yield_def_id), "min": yield_min, "max": yield_max, "tool": str(required_tool_class), "seconds": gather_seconds})
 	for o in out:
@@ -240,18 +267,87 @@ func select_option(index: int) -> void:
 	yield_max = int(o["max"])
 	required_tool_class = StringName(str(o["tool"]))
 	gather_seconds = float(o["seconds"])
+	_base_seconds = gather_seconds
+
+## Lowest pick tier that can work this item here, from the family's manifest "min_pick_tier"
+## (flint, obsidian, copper, iron). &"" means bare hands are fine, like loose stone.
+func min_pick_tier(item: StringName) -> StringName:
+	var gates: Variant = Data.nature_families.get(family, {}).get("min_pick_tier", {})
+	if gates is Dictionary and (gates as Dictionary).has(str(item)):
+		var tier := StringName(str(gates[str(item)]))
+		return tier if tier in ProgressionScaling.TOOL_TIERS else &""
+	return &""
+
+## Best usable pick in the bag by tier, then level.
+static func best_pick(inv: Inventory) -> ItemStack:
+	var best: ItemStack = null
+	for s in inv.slots:
+		if s == null or s.is_locked() or s.is_broken() or s.def() == null or s.def().tool_class != &"pick":
+			continue
+		if best == null:
+			best = s
+			continue
+		var ti := ProgressionScaling.tier_index(s.material_tier())
+		var bi := ProgressionScaling.tier_index(best.material_tier())
+		if ti > bi or (ti == bi and s.level > best.level):
+			best = s
+	return best
+
+## The tool this node would work with from `inv`: the best pick on rock, else the class tool.
+func work_tool(inv: Inventory) -> ItemStack:
+	if _is_rock():
+		return best_pick(inv)
+	return inv.find_gather_tool(required_tool_class)
+
+## Seconds per unit with the bag's tool (what the survivor waits; the server reuses it).
+func seconds_for(inv: Inventory, skill_level: int = 1) -> float:
+	var tool := work_tool(inv)
+	var zone_level := int(yield_attributes.get("level", 1))
+	return ProgressionScaling.gather_seconds(_base_seconds, zone_level, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, skill_level))
 
 func can_gather(inv: Inventory) -> String:
 	if pool_units_left() <= 0:
 		return "depleted" if _all_empty() else "no %s left" % str(yield_def_id).replace("_", " ")
-	if not inv.has_tool_class(required_tool_class):
+	var need := min_pick_tier(yield_def_id)
+	if need != &"":
+		var pick := best_pick(inv)
+		if pick == null or ProgressionScaling.tier_index(pick.material_tier()) < ProgressionScaling.tier_index(need):
+			return "needs %s pick" % need
+		# Swap only when the equipped pick cannot work this node: a deliberately held lower-tier
+		# pick that qualifies (to spare a better one's durability) stays in hand.
+		# shortcut: equips from a query because player.gd (protected) swings the equipped slot; move to PlayerActions (W2-PLAYER).
+		var held := inv.equipped_gather_tool()
+		var held_ok := held != null and held.def().tool_class == &"pick" \
+				and ProgressionScaling.tier_index(held.material_tier()) >= ProgressionScaling.tier_index(need)
+		var idx := inv.slots.find(pick)
+		if not held_ok and idx >= 0:
+			inv.set_equipped_tool_index(idx)
+	elif not inv.has_tool_class(required_tool_class):
 		return "need tool %s" % required_tool_class
+	# A gathering technique the survivor has not learned refuses its material: "Needs Mining 1 (Gathering
+	# Lv. 10, 8 SP)". Only the tap/walk paths that reach this are local and offline; the online gather
+	# intent never asks can_gather and needs the same check server-side (W3).
+	var local := PlayerRegistry.local()
+	if local and local.skills:
+		var locked := SkillRules.gather_block(local.skills, str(yield_def_id))
+		if locked != "":
+			return locked
+	gather_seconds = _base_seconds
+	if _is_rock() and (required_tool_class == &"none" or required_tool_class == &""):
+		# Loose stone stays bare-handed, but a held pick still works it faster.
+		# shortcut: primes gather_seconds because player.gd (protected) reads the field; move to PlayerActions (W2-PLAYER).
+		var pick := best_pick(inv)
+		if pick:
+			gather_seconds = _base_seconds / ProgressionScaling.tool_power(pick.level, pick.material_tier())
 	return ""
 
-func roll_yield() -> ItemStack:
-	var n := randi_range(yield_min, yield_max)
+func roll_yield(rng: RandomNumberGenerator = null) -> ItemStack:
+	var n := rng.randi_range(yield_min, yield_max) if rng else randi_range(yield_min, yield_max)
 	var material_level := int(yield_attributes.get("level", 1))
-	var stack := ItemStack.make(yield_def_id, n, yield_attributes, material_level)
+	var attrs := yield_attributes.duplicate(true)
+	for k in ItemStack.MERGE_IGNORED_ATTRS:
+		attrs.erase(k)
+	var stack := ItemStack.make(yield_def_id, n, attrs, material_level)
 	if World and World.is_unstable():
 		stack.set_flag(&"unstable", true)
 	return stack
@@ -269,6 +365,8 @@ func consume_unit() -> bool:
 	else:
 		pool = maxf(0.0, pool - 1.0)
 	session_gathered += 1
+	if _card:
+		_card.rustle()
 	if _all_empty():
 		_on_pool_empty()
 	elif _empty_batch:
@@ -312,6 +410,12 @@ func _spawn_log() -> void:
 		parent.add_child(log_n)
 	var attrs := yield_attributes.duplicate(true)
 	log_n.setup(StringName("%s_log" % node_id), &"wood_log", 1, 2, attrs, &"none", Color(0.42, 0.28, 0.16), 1.0, 0.0, "WoodLog_Moss", false, 6)
+	# SWITCH2D: under resource_render "card" the felled log is a card too, never a 3D model.
+	if IslandScatter.cards_enabled() and parent is IslandRuntime:
+		var vis: Dictionary = CardProp.visual_for("WoodLog_Moss", global_position)
+		if str(vis.get("kind", "")) != "":
+			IslandScatter._attach_card_visual(parent as IslandRuntime, log_n, vis, "prop", "WoodLog_Moss", global_position)
+			return
 	var path := "res://assets/nature/WoodLog_Moss.glb"
 	if ResourceLoader.exists(path):
 		log_n.set_visual(path)
@@ -338,8 +442,32 @@ func berries_available() -> bool:
 			return true
 	return false
 
+## CARD2D: this node draws as a card (island_scatter when resource_render is "card"). An empty card
+## is shown while the node is depleted, the way the batched path swaps to the family's depleted GLB.
+func set_card_visual(card: CardProp, empty_card: CardProp = null) -> void:
+	_card = card
+	_card_empty = empty_card
+	if _mesh:
+		_mesh.visible = false
+	_apply_card_state()
+	_apply_batch()
+
+## True when this node draws an "-empty" card while depleted (CARD2D).
+func has_empty_card() -> bool:
+	return _card_empty != null and is_instance_valid(_card_empty)
+
+## The full card while the node has something left, the empty one while it is regrowing.
+func _apply_card_state() -> void:
+	if _card == null or not is_instance_valid(_card):
+		return
+	var full := visible and not depleted
+	_card.visible = full
+	if _card_empty and is_instance_valid(_card_empty):
+		_card_empty.visible = visible and depleted
+
 func refresh_batched_visual() -> void:
 	_apply_batch()
+	_apply_card_state()
 
 func _apply_batch() -> void:
 	if _empty_batch:
@@ -350,9 +478,19 @@ func _apply_batch() -> void:
 		_batch.set_shown(_batch_idx, visible and not depleted)
 	_set_tap_zone(visible and not depleted)
 
+## The cards are children of the island runtime, not of this node (they keep their own transforms),
+## so freeing this node must free them too or they stay standing with nothing to harvest.
+func _exit_tree() -> void:
+	for c in [_card, _card_empty]:
+		if c != null and is_instance_valid(c):
+			c.queue_free()
+	_card = null
+	_card_empty = null
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
 		_apply_batch()
+		_apply_card_state()
 
 func set_visual(path: String) -> void:
 	if not ResourceLoader.exists(path):
@@ -396,7 +534,7 @@ func _on_pool_empty() -> void:
 		visible = false
 		queue_free()
 		return
-	if _empty_batch:
+	if _empty_batch or _card_empty:
 		_sync_visual_state()
 		return
 	visible = false
@@ -405,24 +543,49 @@ func _on_pool_empty() -> void:
 func _sync_visual_state() -> void:
 	depleted = _all_empty()
 	if depleted:
-		visible = _empty_batch != null
+		# A depleted berry bush keeps showing its empty model (or, in the card path, its -empty card);
+		# only a node with neither disappears.
+		visible = _empty_batch != null or has_empty_card()
 		collision_layer = 0
 		_apply_batch()
+		_apply_card_state()
 		return
 	if falls_to_log:
 		rotation = Vector3.ZERO
 		_falling = false
 	visible = true
-	collision_layer = 1
+	collision_layer = 1 if blocks_movement() else 0
 	_apply_batch()
+	_apply_card_state()
 
 func regen_left() -> float:
 	return _regen_left
 
+## Tap box. Height follows the manifest's "height" span (rocks are knee-high, not 1.6 m).
 func _collision_size() -> Vector3:
 	var wide := _is_tree_or_rock()
 	var w := 1.4 if wide else 1.0
-	return Vector3(w, 1.6, w)
+	var span: Variant = Data.nature_families.get(family, {}).get("height", null)
+	var h := 1.3 if _is_rock() else 1.6  # island_runtime's rock default tops out at 1.3 m
+	if span is Array and (span as Array).size() >= 2:
+		h = clampf(float(span[1]), 0.4, 1.6)
+	return Vector3(w, h, w)
+
+## Physics box: rocks as wide as they are tall (capped), trunks slim so paths never jam.
+func _trunk_width() -> float:
+	if _is_rock():
+		return clampf(_collision_size().y * 0.8, 0.5, 0.9)
+	return 0.55
+
+func _occupied() -> bool:
+	var reach := _trunk_width() * 0.5 + 0.45
+	for group in [&"player", &"creatures"]:
+		for n in get_tree().get_nodes_in_group(group):
+			if n is Node3D:
+				var d := (n as Node3D).global_position - global_position
+				if Vector2(d.x, d.z).length() < reach:
+					return true
+	return false
 
 ## Survivor work clip for this node: chop for trees, mine for rocks, the bush reach otherwise.
 func gather_kind() -> StringName:
@@ -432,6 +595,21 @@ func gather_kind() -> StringName:
 	if role == "rock":
 		return &"mine"
 	return &"gather"
+
+## Owner 2026-10-21: animals got stuck on grass. Small resources (grass, fibre, herbs, bushes, low rocks,
+## stumps) are stepped over; trees and anything taller than BLOCK_HEIGHT keep a solid trunk and block paths
+## (tile_path skips nodes on layer 0). The tap zone (layer 2) is unchanged, so every node stays tappable.
+const BLOCK_HEIGHT := 1.25  # ASSUMPTION: m; ore nodes and boulders (1.3-1.4 m) block, flax (1.2 m) does not
+func blocks_movement() -> bool:
+	var fam: Dictionary = Data.nature_families.get(family, {})
+	var role := str(fam.get("role", ""))
+	if role.begins_with("tree"):
+		return true
+	var span: Variant = fam.get("height", null)
+	var top := 1.3 if role == "rock" else 0.0  # a rock without a height span is a full boulder (1.3 m)
+	if span is Array and (span as Array).size() >= 2:
+		top = float(span[1])
+	return top > BLOCK_HEIGHT
 
 func _is_rock() -> bool:
 	return str(Data.nature_families.get(family, {}).get("role", "")) == "rock"

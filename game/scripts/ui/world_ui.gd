@@ -32,7 +32,7 @@ func _ready() -> void:
 	add_child(_panel)
 
 func _unhandled_input(event: InputEvent) -> void:
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	if player and player.placer and player.placer.placing != &"" and event.is_action_pressed("pause"):
 		return
 	if event.is_action_pressed("map"):
@@ -50,6 +50,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			show_pause()
 		get_viewport().set_input_as_handled()
+
+## A survivor made this session must not save before picking an island (defect 1: the 60 s autosave
+## did, and the reload skipped the pick). Whenever nothing is open at the end of a frame and the pick
+## was never made, put the pick back up — closing it without choosing changes nothing.
+func _process(_delta: float) -> void:
+	# Only after character creation has closed, so the island pick never covers it.
+	if World.creation_pending and _mode == &"" and get_tree().get_nodes_in_group(&"character_creation").is_empty():
+		show_terrain()
 
 func hide_all() -> void:
 	_mode = &""
@@ -112,12 +120,14 @@ func show_terrain() -> void:
 		var id: StringName = row[4]
 		b.pressed.connect(func () -> void: _choose_terrain(id))
 		cards.add_child(b)
+	UiTokens.focus_first(cards.get_children())
 
 func _choose_terrain(id: StringName) -> void:
 	World.home_terrain = id
 	var host: Node = World.runtime.get_parent() if World.runtime else get_tree().current_scene
 	var harbour: Array = World.island_def.get("harbour", [0, 0, 18])
 	World.load_island(host, &"home_grassland", Vector3(float(harbour[0]), 1.0, float(harbour[2])), false)
+	World.finish_creation()  # creation and the pick are done: saving starts here
 	(load("res://scripts/core/save_game.gd") as GDScript).save_now()
 	hide_all()
 	_show_arrival(host)
@@ -161,7 +171,7 @@ func _show_arrival(host: Node) -> void:
 
 func show_harbour() -> void:
 	var rows: Array = []
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	var level := player.skills.level_of("survival") if player and player.skills else 0
 	if not World.is_home():
 		rows.append(["Free return home", &"home"])
@@ -195,12 +205,12 @@ func show_map() -> void:
 		return
 	var life := "permanent" if World.is_home() else "%.0fs left" % World.remaining_lifetime
 	var crater := "yes" if World.crater_discovered else "no"
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	var fat := 0.0
 	if player:
 		fat = player.vitals.fatigue
 	var body := "Island %s\n%s\nPioneer %d   T-stones %d\nFatigue %.0f  (walk / gather / climate)\nCrater discovered: %s" % [
-		World.island_id, life, World.pioneer_level, World.t_stones, fat, crater]
+		World.island_id, life, LevelDisplay.player_level(), World.t_stones, fat, crater]
 	var rows: Array = [["Warp home", &"warp"], ["Harbour routes", &"harbour"]]
 	if World.is_unstable():
 		rows.append(["Return to camp", &"camp"])
@@ -306,3 +316,4 @@ func _fill(title: String, rows: Array, cb: Callable) -> void:
 		var id: StringName = row[1]
 		b.pressed.connect(func () -> void: cb.call(id))
 		actions.add_child(b)
+	UiTokens.focus_first(actions.get_children())

@@ -1,5 +1,7 @@
 {
-  "_about": "Material level and island archetype rules (docs/design/world-design.md \u00a72\u20133). The island generator applies ring offsets to the island tier; crafting uses the mean-of-materials rule from the systems PRD \u00a78.4.",
+  "_about": "Material level and island archetype rules (docs/design/world-design.md §2–3). The island generator applies ring offsets to the island tier; crafting uses the mean-of-materials rule from the systems PRD §8.4.",
+  "resource_render": "card",
+  "_resource_render_note": "SWITCH2D (owner 2026-10-21: \"keep buildings 3D and make resources 2D\"): \"card\" draws every resource prop as a flat, camera-facing card - the owner's painted sprites (data/world/sprites2d.json) where a family's art is cut, else its baked CARD2D card (data/card2d.json), with data/world/sprites2d_map.json for overrides. \"model\" is the old 3D GLB look (--models on a lab run). Buildings stay 3D either way.",
   "island_size_m": {
     "unstable": 240,
     "home": 160
@@ -53,6 +55,8 @@
     }
   },
   "level_cap": 60,
+  "wild_level_stat_rate": 0.08,
+  "_wild_level": "ASSUMPTION: each level a wild animal sits above its species tier adds this fraction to its health, attack and defense (5 levels = +40 %, ProgressionScaling.LEVEL_STAT_RATE). At or below the tier it keeps its listed stats, so the level-1 starter island is unchanged.",
   "fatigue": {
     "_about": "ASSUMPTION: our own starting values, tune in playtests. Level gap = zone level minus character level. Each level over adds gap_up_rate to every non-baseline fatigue gain, each level under removes gap_down_rate, clamped to [gap_min, gap_max]. Climate fatigue = unmet resistance points x climate_per_min. Window is the seconds a source keeps counting in the breakdown panel.",
     "gap_up_rate": 0.06,
@@ -93,9 +97,8 @@
     ],
     "loot": [
       "cloth_scrap",
-      "wire",
-      "medicine",
-      "rare_seed"
+      "pressure_dressing",
+      "wheat_seed"
     ]
   },
   "lifetime_hours": {
@@ -107,6 +110,11 @@
   "creature_cap_mobile": 24,
   "night_predator_perception_bonus": 0.5,
   "wet_after_seconds_in_water": 5,
+  "harbour": {
+    "_about": "The harbour stands on the coast (HarbourSite). Its 3x6 footprint's landward row 0 is on land, every cell from dock_from_row to the tip is over water (so the base is within dock_from_row metres of the shoreline), and the tip is at least boat_depth_m below the water line. A pose that breaks this is refused: island build snaps to the nearest legal coast, BuildGrid.can_place answers dock_needs_water / needs_shore. The island json 'harbour' is a hint plus the travel arrival point; t_harbour keeps it on the resolved site.",
+    "dock_from_row": 2,
+    "boat_depth_m": 0.4
+  },
   "attributes": {
     "light": "faster tool swing",
     "straight": "better pillars and planks",

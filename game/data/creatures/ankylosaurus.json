@@ -44,5 +44,39 @@
     "feeds_needed": 6,
     "window_seconds": 45,
     "requires_pen": true
+  },
+  "coloration": {
+    "hue_deg": 12,
+    "sat": 0.16,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "pale",
+      "dark"
+    ],
+    "patterns": [
+      {
+        "id": "saddle",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "stripes",
+        "weight": 2.0,
+        "scale": 0.8,
+        "strength": 0.24
+      },
+      {
+        "id": "countershade",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
   }
 }

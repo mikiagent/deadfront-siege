@@ -1,6 +1,7 @@
 class_name ItemStack
 extends RefCounted
 ## One inventory occupant. Merges only when def, level, attributes, flags and durability match (D7).
+## Non-fungible stacks carry an instance identity (contracts v2 §0.5) and never merge.
 
 var def_id: StringName = &""
 var count: int = 1
@@ -10,6 +11,14 @@ var attributes: Dictionary = {}
 var flags: Array[StringName] = []
 var durability: int = 0
 var max_durability: int = 0
+## Instance identity: empty for fungible stacks. The server issues "i<seq>"; offline mints "l<hex>".
+var uid: String = ""
+var origin: String = ""  # one of ORIGINS
+const ORIGINS := ["gather", "loot", "craft", "tame", "breed", "settlers", "objective", "market"]
+var creator: String = ""
+var created_at: int = 0
+## Where a stack came from does not make it a different good (inv-01): climate never splits stacks.
+const MERGE_IGNORED_ATTRS := ["climate"]
 
 func duplicate_stack() -> ItemStack:
 	var s := ItemStack.new()
@@ -21,6 +30,10 @@ func duplicate_stack() -> ItemStack:
 	s.flags = flags.duplicate()
 	s.durability = durability
 	s.max_durability = max_durability
+	s.uid = uid
+	s.origin = origin
+	s.creator = creator
+	s.created_at = created_at
 	return s
 
 func def() -> ItemDef:
@@ -31,16 +44,21 @@ func apply_level_stats() -> void:
 	if d == null:
 		return
 	if d.max_durability > 0:
-		max_durability = d.max_durability_at(level)
+		max_durability = maxi(1, int(round(float(d.max_durability) * stat_multiplier())))
 		durability = max_durability
+
+## Level and material tier both scale finished gear (ladder-02, level-01); item_def's
+## stats_per_level stays for data that predates this rule.
+func stat_multiplier() -> float:
+	return ProgressionScaling.stat_multiplier(level, material_tier())
 
 func scaled_damage() -> float:
 	var d := def()
-	return d.damage_at(level) if d else 0.0
+	return d.damage * stat_multiplier() if d else 0.0
 
 func scaled_armor() -> float:
 	var d := def()
-	return d.armor_value_at(level) if d else 0.0
+	return d.armor_value * stat_multiplier() if d else 0.0
 
 func scaled_food_energy() -> float:
 	var d := def()
@@ -51,6 +69,24 @@ func material_tier() -> StringName:
 
 func gather_power() -> float:
 	return ProgressionScaling.tool_power(level, material_tier())
+
+func is_fungible() -> bool:
+	var d := def()
+	return d == null or d.stack_max > 1
+
+## Give this stack an instance identity. Pass the server's uid when one exists.
+func stamp_identity(p_origin: String, p_creator: String = "", p_uid: String = "") -> void:
+	uid = p_uid if p_uid != "" else "l" + Crypto.new().generate_random_bytes(8).hex_encode()
+	origin = p_origin
+	creator = p_creator
+	created_at = int(Time.get_unix_time_from_system())
+
+## After a split the taken units are a new instance: keeping the source uid gave both halves the
+## same identity (probe: '[probe] split shares uid=true'), which vault and market key on.
+func remint_uid() -> void:
+	if uid == "":
+		return
+	uid = "l" + Crypto.new().generate_random_bytes(8).hex_encode()
 
 func slot_span() -> int:
 	var d := def()
@@ -87,6 +123,8 @@ func wear(amount: int) -> bool:
 func can_merge_with(other: ItemStack) -> bool:
 	if other == null:
 		return false
+	if uid != "" or other.uid != "":
+		return false
 	if def_id != other.def_id:
 		return false
 	if level != other.level:
@@ -113,7 +151,7 @@ func take_into(other: ItemStack) -> int:
 func tooltip() -> String:
 	var d := def()
 	var title := d.display_name if d else str(def_id)
-	var lines: PackedStringArray = ["%s x%d" % [title, count], "lv %d  process %d" % [level, process_count]]
+	var lines: PackedStringArray = ["%s x%d" % [title, count] if count > 1 else title, "lv %d  process %d" % [level, process_count]]
 	if d and d.place_as != &"":
 		lines.append("footprint %dx%d" % [d.footprint.x, d.footprint.y])
 	if d and d.has_category(&"tool"):
@@ -142,8 +180,13 @@ func tooltip() -> String:
 			lines.append("buffs %s" % ", ".join(bn))
 	elif scaled_food_energy() != 0.0:
 		lines.append("energy %.1f" % scaled_food_energy())
-	if not attributes.is_empty():
-		lines.append("attr %s" % str(attributes))
+	# Traits by name (W2-INV): the raw attribute dict showed bookkeeping such as the tint to players.
+	var named := PackedStringArray()
+	var tr := Inventory.traits(self)
+	for k: Variant in tr:
+		named.append("%s %s" % [str(k).capitalize(), str(tr[k])])
+	if not named.is_empty():
+		lines.append(", ".join(named))
 	if not flags.is_empty():
 		var flag_s: PackedStringArray = []
 		for f in flags:
@@ -155,7 +198,7 @@ func to_dict() -> Dictionary:
 	var flag_s: Array = []
 	for f in flags:
 		flag_s.append(str(f))
-	return {
+	var out := {
 		"id": str(def_id),
 		"count": count,
 		"level": level,
@@ -165,6 +208,13 @@ func to_dict() -> Dictionary:
 		"durability": durability,
 		"max_durability": max_durability,
 	}
+	# Fungible rows keep the old save shape byte for byte.
+	if uid != "":
+		out["uid"] = uid
+		out["origin"] = origin
+		out["creator"] = creator
+		out["created_at"] = created_at
+	return out
 
 static func from_dict(d: Dictionary) -> ItemStack:
 	var s := make(StringName(str(d.get("id", ""))), int(d.get("count", 1)), d.get("attributes", {}), int(d.get("level", 1)))
@@ -176,7 +226,24 @@ static func from_dict(d: Dictionary) -> ItemStack:
 	if raw is Array:
 		for f in raw:
 			s.flags.append(StringName(str(f)))
+	# Provenance is trusted later by vault and market: null becomes "", unknown origins are blanked,
+	# a uid must be a string in the minted format, and a timestamp is clamped to now + slack.
+	var u: Variant = d.get("uid")
+	s.uid = u if u is String and UID_RE.search(u) != null else ""
+	var o := _text(d.get("origin"))
+	s.origin = o if o in ORIGINS else ""
+	s.creator = _text(d.get("creator"))
+	var t: Variant = d.get("created_at", 0)
+	var stamp := int(t) if (t is int or t is float) and is_finite(float(t)) else 0
+	s.created_at = clampi(stamp, 0, int(Time.get_unix_time_from_system()) + CREATED_AT_SLACK_S)
 	return s
+
+static var UID_RE := RegEx.create_from_string("^[il][0-9a-f]+\\z") # \z, not $: $ also matches before a final newline
+## A save cannot claim to have been made in the future: clock skew plus a day of slack.
+const CREATED_AT_SLACK_S := 86400
+
+static func _text(v: Variant) -> String:
+	return "" if v == null else str(v)
 
 static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: int = -1) -> ItemStack:
 	var s := ItemStack.new()
@@ -189,15 +256,19 @@ static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: i
 	if d:
 		s.attributes = d.default_attributes.duplicate(true)
 		s.level = ProgressionScaling.resolved_item_level(lvl, d.base_level)
-		s.apply_level_stats()
 	for k in attrs:
 		s.attributes[k] = attrs[k]
+	# After attrs: durability depends on the material tier they carry.
+	s.apply_level_stats()
 	return s
 
 static func _attrs_equal(a: Dictionary, b: Dictionary) -> bool:
-	if a.size() != b.size():
-		return false
+	for k in b:
+		if not a.has(k) and str(k) not in MERGE_IGNORED_ATTRS:
+			return false
 	for k in a:
+		if str(k) in MERGE_IGNORED_ATTRS:
+			continue
 		if not b.has(k):
 			return false
 		# JSON restores integer attributes as floats. Equal numeric quality must

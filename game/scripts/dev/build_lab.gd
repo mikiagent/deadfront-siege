@@ -30,25 +30,41 @@ func _give_build_kits() -> void:
 	LabKit.give(_player, &"fence_kit", 3)
 	LabKit.give(_player, &"gate_kit", 1)
 
+var _fails: PackedStringArray = []
+
+func _expect(ok: bool, what: String) -> void:
+	if not ok:
+		_fails.append(what)
+		print("[build] FAIL %s" % what)
+
 func _demo() -> void:
 	await _await_nav_ready()
 	var grid := _grid()
 	if grid == null:
+		print("[build] FAIL no build grid")
 		get_tree().quit(1)
 		return
 	var anchor := _find_anchor_cell()
 	_player.global_position = BuildGrid.tile_centre(anchor + Vector2i(3, 3), World.runtime) + Vector3(0.0, 1.0, 0.0)
-	_place(&"tent", anchor)
-	_place(&"basket", anchor + Vector2i(4, 0))
+	_expect(_place(&"tent", anchor), "tent placed")
+	_expect(_place(&"basket", anchor + Vector2i(4, 0)), "basket placed")
 	var fence0 := anchor + Vector2i(0, 4)
-	_place(&"fence", fence0)
-	_place(&"fence", fence0 + Vector2i(2, 0))
-	_place(&"fence", fence0 + Vector2i(4, 0), 1)
-	_place(&"gate", fence0 + Vector2i(6, 0), 3)
-	_place(&"basket", anchor + Vector2i(4, 0)) # overlap
+	_expect(_place(&"fence", fence0), "fence 1 placed")
+	_expect(_place(&"fence", fence0 + Vector2i(2, 0)), "fence 2 placed")
+	_expect(_place(&"fence", fence0 + Vector2i(4, 0), 1), "fence 3 placed")
+	_expect(_last_rot(&"fence") == 1, "manual fence rotation kept (rot=%d)" % _last_rot(&"fence"))
+	_expect(_place(&"gate", fence0 + Vector2i(6, 0), 3), "gate placed")
+	_expect(_last_rot(&"gate") == 3, "manual gate rotation kept (rot=%d)" % _last_rot(&"gate"))
+	_expect(not _place(&"basket", anchor + Vector2i(4, 0)), "overlap rejected") # overlap
+	_expect(_player.placer.reason == "overlap", "overlap reason (got %s)" % _player.placer.reason)
+	# Water inside a claimed rect: claim the shore so the water check, not the claim check, refuses it.
 	var water_cell := _find_water_probe_cell(anchor)
+	World.runtime.claims.append(Rect2i(water_cell - Vector2i(6, 3), Vector2i(8, 7)))
 	_player.global_position = BuildGrid.tile_centre(water_cell + Vector2i(-4, 0), World.runtime) + Vector3(0.0, 1.0, 0.0)
-	_place(&"basket", water_cell)
+	_expect(World.runtime.is_claimed(water_cell), "water probe cell is claimed")
+	_expect(not _place(&"basket", water_cell), "water rejected")
+	_expect(_player.placer.reason == "water", "water reason (got %s)" % _player.placer.reason)
+	_player.placer.cancel()
 	var SG := load("res://scripts/core/save_game.gd") as GDScript
 	SG.save_now()
 	SG.load_now(self)
@@ -56,27 +72,53 @@ func _demo() -> void:
 	var restored := 0
 	for n in World.runtime.get_tree().get_nodes_in_group("placed_building"):
 		var keep := bool(n.get("persist_building")) if n and n.has_method("get") else true
-		if keep and not bool(n.get("is_cargo")):
+		if keep and not bool(n.get("is_cargo")) and not n.is_queued_for_deletion():
 			restored += 1
 	print("[build] restored %d" % restored)
-	get_tree().quit(0)
+	_expect(restored == 6, "6 buildings restored (got %d)" % restored)
+	if _fails.is_empty():
+		print("[build] PASS")
+		get_tree().quit(0)
+	else:
+		print("[build] FAIL count=%d" % _fails.size())
+		get_tree().quit(1)
 
+func _last_rot(kind: StringName) -> int:
+	var best: Node = null
+	for n in get_tree().get_nodes_in_group(str(kind)):
+		best = n
+	return int(best.get("build_rot")) if best else -1
+
+## Shot staging: a fence run with a gate (opened when the shot name contains "open") and an
+## invalid basket ghost on a fence cell, so the rejection label is in frame.
 func _stage_ghost_for_shot() -> void:
 	var grid := _grid()
 	if grid == null:
 		return
 	var anchor := _find_anchor_cell()
-	_player.global_position = BuildGrid.tile_centre(anchor + Vector2i(3, 3), World.runtime) + Vector3(0.0, 1.0, 0.0)
-	var ghost_at := BuildGrid.tile_centre(anchor, World.runtime)
-	Game.pointer = _cam.unproject_position(ghost_at)
-	_player.placer.begin(&"tent")
+	_player.global_position = BuildGrid.tile_centre(anchor + Vector2i(3, 1), World.runtime) + Vector3(0.0, 1.0, 0.0)
+	var row := anchor + Vector2i(0, 4)
+	LabKit.give(_player, &"fence_kit", 2)
+	_place(&"fence", row)
+	_place(&"gate", row + Vector2i(2, 0))
+	_place(&"fence", row + Vector2i(4, 0))
+	if Game.shot_path.contains("open"):
+		for g in get_tree().get_nodes_in_group("gate"):
+			g.call("set_gate_open", true)
+	# Frame the gate at the game's default zoom (15 m), not the lab's wide 26 m.
+	_player.global_position = BuildGrid.tile_centre(row + Vector2i(3, 2), World.runtime) + Vector3(0.0, 1.0, 0.0)
+	_cam.size = 15.0
 	_cam._snap()
+	var ghost_at := BuildGrid.tile_centre(row + Vector2i(5, 0), World.runtime)
+	Game.pointer = _cam.unproject_position(ghost_at)
+	_player.placer.begin(&"basket")
 
-func _place(kind: StringName, at: Vector2i, rot: int = 0) -> void:
+func _place(kind: StringName, at: Vector2i, rot: int = 0) -> bool:
 	_player.placer.begin(kind)
 	_player.placer.cell = at
-	_player.placer.rot_step = rot
-	_player.placer.confirm(_player)
+	for i in posmod(rot, 4):
+		_player.placer.rotate_clockwise()  # a real player rotation, not a poke at rot_step
+	return _player.placer.confirm(_player)
 
 func _find_anchor_cell() -> Vector2i:
 	var grid := _grid()
@@ -101,17 +143,16 @@ func _find_anchor_cell() -> Vector2i:
 			return c
 	return around + Vector2i(4, 2)
 
+## Walk east from the camp to the first tile the island refuses (shore water), so the probe is
+## a real water cell next to dry land rather than a guess at the land radius.
 func _find_water_probe_cell(anchor: Vector2i) -> Vector2i:
 	if World.runtime == null:
 		return anchor + Vector2i(10, 0)
-	var land := int(World.runtime.land_radius())
-	for ring in range(maxi(10, land - 4), land + 10):
-		var water := Vector2i(ring, 0)
-		var dry := Vector2i(ring - 4, 0)
-		var water_ok: bool = World.runtime.spawn_ok(BuildGrid.tile_centre(water, World.runtime), false)
-		var dry_ok: bool = World.runtime.spawn_ok(BuildGrid.tile_centre(dry, World.runtime), false)
-		if not water_ok and dry_ok:
-			return water
+	var land := int(World.runtime.land_radius()) + 10
+	for dx in range(1, land * 2):
+		var c := anchor + Vector2i(dx, 0)
+		if not World.runtime.spawn_ok(BuildGrid.tile_centre(c, World.runtime), false):
+			return c
 	return anchor + Vector2i(land, 0)
 
 func _grid() -> BuildGrid:

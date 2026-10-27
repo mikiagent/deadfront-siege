@@ -1,0 +1,1 @@
+{"schema":1,"player":{"inventory":[{"id":"stone","count":3,"level":1},null,{"id":"branch","count":2}],"position":[2.0,1.0,14.0]},"home":{"terrain":"meadow","buildings":[{"kind":"basket","x":2.5,"z":9.5,"contents":[{"id":"flint","count":2}]}],"cargo":[],"claims":[]},"unstable":{},"t_stones":25,"pioneer_level":1,"island_id":"home_grassland"}

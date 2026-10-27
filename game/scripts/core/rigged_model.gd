@@ -281,3 +281,39 @@ func _bone_marker(label: String, names: Array) -> BoneAttachment3D:
 	mark.name = label
 	att.add_child(mark)
 	return att
+
+## Attach every MeshInstance3D of a GLB skinned to the same bone names (armor piece, body region, saddle)
+## under `skel`, keeping its pose relative to its own skeleton so it follows every clip. Returns the meshes.
+static func attach_skinned(skel: Skeleton3D, path: String) -> Array[MeshInstance3D]:
+	var out: Array[MeshInstance3D] = []
+	if skel == null or not ResourceLoader.exists(path):
+		return out
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return out
+	var inst := packed.instantiate()
+	var src := inst.find_child("Skeleton3D", true, false) as Skeleton3D
+	for node in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var rel := _relative_to(mi, src) if src else mi.transform
+		var skin := mi.skin
+		mi.owner = null
+		mi.get_parent().remove_child(mi)
+		skel.add_child(mi)
+		mi.transform = rel
+		mi.skin = skin
+		mi.skeleton = NodePath("..")
+		out.append(mi)
+	inst.free()
+	return out
+
+## Transform of `n` relative to `ancestor` from local transform chains (works outside the tree, and when
+## mesh and skeleton are siblings).
+static func _relative_to(n: Node3D, ancestor: Node3D) -> Transform3D:
+	var chain := func(x: Node) -> Transform3D:
+		var t := Transform3D.IDENTITY
+		while x != null and x is Node3D:
+			t = (x as Node3D).transform * t
+			x = x.get_parent()
+		return t
+	return (chain.call(ancestor) as Transform3D).affine_inverse() * (chain.call(n) as Transform3D)

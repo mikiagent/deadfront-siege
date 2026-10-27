@@ -159,5 +159,60 @@
     "feeds_needed": 6,
     "window_seconds": 45,
     "requires_pen": true
+  },
+  "coloration": {
+    "hue_deg": 12,
+    "sat": 0.16,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "rufous"
+    ],
+    "patterns": [
+      {
+        "id": "stripes",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.3
+      },
+      {
+        "id": "spots",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.48
+      },
+      {
+        "id": "countershade",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.5
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
+  },
+  "eyes": {
+    "bone": "Head",
+    "points": [
+      [
+        0.1112,
+        0.0196,
+        0.1113
+      ],
+      [
+        0.0352,
+        0.0192,
+        0.1535
+      ]
+    ],
+    "radius": 0.011,
+    "color": [
+      0.75,
+      1.0,
+      0.2
+    ]
   }
 }

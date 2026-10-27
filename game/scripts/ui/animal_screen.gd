@@ -70,30 +70,38 @@ func _ready() -> void:
 	_close.pressed.connect(close_screen)
 	add_child(_close)
 	resized.connect(_layout)
+	get_viewport().size_changed.connect(_layout)
+	# CanvasLayer children do not inherit a Control parent size.
+	size = get_viewport_rect().size
 	_layout()
 
 func _layout() -> void:
 	var view := get_viewport_rect().size
+	# Keep the modal root real-sized so its dimmer blocks the HUD and world.
+	position = Vector2.ZERO
+	size = view
 	var phone := UiTokens.is_phone(view)
+	var compact_landscape := phone and view.x > view.y
 	var pad := 24.0
 	_title.add_theme_font_size_override("font_size", UiTokens.heading(view))
+	_title.position = Vector2(pad, 12.0 if compact_landscape else 28.0)
 	_title.size = Vector2(view.x - pad * 2.0, 36)
 	var detail_scroll := get_node_or_null("DetailScroll") as Control
 	_detail.add_theme_font_size_override("font_size", UiTokens.body(view))
 	_summon.add_theme_font_size_override("font_size", UiTokens.body(view))
 	_close.add_theme_font_size_override("font_size", UiTokens.body(view))
-	_active.position = Vector2(pad, 72)
+	_active.position = Vector2(pad, 48.0 if compact_landscape else 72.0)
 	_active.size = Vector2(view.x - pad * 2.0, 64)
 	var bar_h := maxf(_summon.custom_minimum_size.y, _close.custom_minimum_size.y)
 	var bottom_margin := bar_h + float(UiTokens.SPACE)
 	_apply_detail_margin(detail_scroll, int(bottom_margin))
 	if phone:
-		_list.position = Vector2(pad, 148)
-		_list.size = Vector2(view.x - pad * 2.0, 180)
+		_list.position = Vector2(pad, 116.0 if compact_landscape else 148.0)
+		_list.size = Vector2(view.x - pad * 2.0, 96.0 if compact_landscape else 180.0)
 		_summon.position = Vector2(pad, view.y - 76.0)
 		_close.position = Vector2(view.x - pad - 160.0, view.y - 76.0)
 		if detail_scroll:
-			var scroll_top := 340.0
+			var scroll_top := 228.0 if compact_landscape else 340.0
 			var scroll_bottom := _summon.position.y - float(UiTokens.SPACE)
 			detail_scroll.position = Vector2(pad, scroll_top)
 			detail_scroll.size = Vector2(view.x - pad * 2.0, maxf(120.0, scroll_bottom - scroll_top))
@@ -139,6 +147,8 @@ func _rebuild() -> void:
 	for child in _active.get_children():
 		child.queue_free()
 	_pin_active()
+	if player != null: # spec 09:50: bonded count and max in the pets UI ("3 / 4")
+		_title.text = "ANIMALS    ·    BONDED %d / %d    ·    GROWTH" % [player.bonded.size(), Data.bonded_cap()]
 	if player == null or player.bonded.is_empty():
 		_detail.text = "No bonded animals yet. Knock one down and feed it to add it to your roster."
 		_summon.visible = false
@@ -220,7 +230,8 @@ func _show_detail(rec: PetRecord) -> void:
 			growth += "%s\n    %s    +%d growth    EV %d\n" % [stat_name, genes.tier_for(stat), int(genes.level_gains.get(stat, 0)), int(genes.evs.get(stat, 0))]
 	var name := str(rec.species).capitalize()
 	_detail.text = "%s\nLv. %d          Grade %s\nXP %.0f / %.0f\n\nHP              %.0f\nAttack          %.0f\nDefense         %.0f\nSpeed           %.0f\nHunger          %.0f / %.0f\n\nGROWTH / POTENTIAL\n%s\nLevel-ups add three random growth points. Training can focus EVs up to the species limits." % [name, rec.level, rec.grade, rec.xp, xp_need, rec.hp, rec.attack, rec.defense, rec.speed, rec.hunger, rec.hunger_max, growth]
-	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (%d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
+	# "ACTIVE": the title's BONDED n / cap is the roster; this is how many are out (W2-SKILLS H10).
+	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (ACTIVE %d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
 	_summon.disabled = not _is_out(rec) and player.live_pets().size() >= Player.MAX_PETS_OUT
 
 func _is_out(rec: PetRecord) -> bool:

@@ -53,7 +53,7 @@ func explode(at: Vector3, direct: Creature = null) -> void:
 	for node in get_tree().get_nodes_in_group("creatures"):
 		var victim := node as Creature
 		if victim == null or victim.health.dead or victim.is_pet: continue
-		if victim != direct and victim.global_position.distance_to(at) > 2.0: continue
+		if victim != direct and MeleeQuery.point_gap(victim, at) > 2.0: continue  # body edge, not feet
 		# Ground burst must still have line of sight to the target, not reach through walls.
 		var query := PhysicsRayQueryParameters3D.create(at+Vector3.UP*0.3,victim.global_position+Vector3.UP)
 		if is_instance_valid(platform): query.exclude = [platform.get_rid()]

@@ -1,0 +1,7 @@
+{
+  "id": "desert_50",
+  "harbour": [-171.5, 0, -36.5],
+  "_harbour_note": "Dock arrival point on the coast; the rest of this island is world/islands.json. See home_grassland.json.",
+  "seed": 5003,
+  "size_m": 464
+}

@@ -1,44 +1,228 @@
 class_name IsoCamera
 extends Camera3D
-## Fixed-angle orthographic camera that follows a target. Classic 2:1-ish
-## isometric look: pitch -35.264, yaw 45. Zoom with the mouse wheel.
+## The follow camera, matched to Durango: Wild Lands from the owner's screenshots (method and
+## numbers: docs/orchestration/reports/claude-mmo-camera.md). Durango draws with a long-lens
+## PERSPECTIVE camera: pitch 38.7 deg down, a vertical field of view of about 4.3 deg, yawed 45 deg
+## to the build grid. At that lens the ground recedes gently (the top of a 16:9 screen ~9 % smaller
+## than the bottom), tall things fan out a few degrees towards the screen edges, and a crown slides
+## against the ground as the camera moves past it (the parallax the owner pointed at).
+## `size` stays the zoom in both projections: metres of view height at the focus. In perspective the
+## camera stands distance_for(size) back, so labs, the wheel and pinch zoom keep setting size.
+## Each frame it publishes the camera as global shader parameters (shaders/camera/camera.gdshaderinc)
+## for tall props and CARD2D cards, and keeps a tight near/far around the focus (WorldLighting fits
+## the shadow splits to it).
+## --cam-ortho (dev, for comparison): the old orthographic iso camera, pitch -35.264, 40 m back,
+## zoom 10-28 m, no parallax. --cam-size=<m> starts at that zoom.
+
+## Measured from the references (a pinhole fit to the straight ground lines of three screenshots: the
+## placing grid, two domain borders): pitch 38.55-38.85 deg; 38 deg from a fire pit's ellipse. Euler x,
+## so negative looks down.
+const PITCH_DEG := -38.7
+## The build grid's diagonal runs up the screen in every reference (its tiles are symmetric diamonds).
+const YAW_DEG := 45.0
+## Vertical field of view (keep_aspect KEEP_HEIGHT): 3.7-4.6 deg from how the parallel ground lines
+## converge (an orthographic camera fits those lines 10-25x worse).
+const FOV_DEG := 4.3
+const PROJECTION: Camera3D.ProjectionType = Camera3D.PROJECTION_PERSPECTIVE
+## The old camera, behind --cam-ortho.
+const ORTHO_PITCH_DEG := -35.264
+const ORTHO_DISTANCE := 40.0
+const ORTHO_MIN_SIZE := 10.0
+const ORTHO_MAX_SIZE := 28.0
+const ORTHO_DEFAULT_SIZE := 15.0
+## Zoom, metres of view height at the focus. Durango's survivor stands 10-15 % of the screen height in its
+## usual views (median 13 %) and 23-26 % zoomed right in; ours (~1.8 m on the image plane at this pitch)
+## is 13 % at 14 m, 26 % at 7 m and 10 % at 18 m. The old camera's game view was 17 m at 35.3 deg (11 %).
+const MIN_SIZE := 7.0
+const DEFAULT_SIZE := 14.0
+const MAX_SIZE := 18.0
+## Labs zoom out to ~30 m for overview shots; cull ranges cover that (cull_range).
+const LAB_MAX_SIZE := 30.0
+## Extra sideways lean of tall props as a multiple of the lean the lens gives them (published as
+## parallax_strength). Durango's jungle trees stand 15-20 m and ours 7-11 m, so the lens alone slides our
+## crowns half as far: doubling it gives a 10 m crown the slide of a 20 m one.
+# ASSUMPTION: gain 1.0 (Durango's own trees show no exaggeration; 0.0 is the lens alone).
+const PARALLAX_GAIN := 1.0
+## Tall props dither out above this many metres per metre of zoom (published as tall_fade_height).
+## Owner (spec 25): "the tall trees fade out of zoom". At the default zoom (14 m) nothing of ours fades
+## (the fade starts at 16.8 m); zoomed in to 7 m, crowns above 8.4 m fade.
+# ASSUMPTION: 1.2 m per metre of zoom, the reading of the owner's words above.
+const TALL_FADE_PER_SIZE := 1.2
+## ASSUMPTION: selection owns 35 % of the frame, capped at 6 m so the survivor stays readable.
+const SELECTION_BIAS := 0.35
+const SELECTION_MAX_SHIFT_M := 6.0
+
+## The dev flag, read once: every IsoCamera and every static helper agree on the projection.
+static var ortho: bool = "--cam-ortho" in OS.get_cmdline_user_args()
+## What the current camera last published (Occlusion bends its sight test by the same lean).
+static var focus := Vector3.ZERO
+static var parallax := 0.0
+static var right := Vector3.RIGHT
 
 @export var target_path: NodePath
-@export var distance: float = 40.0
+## Camera to focus along the view, metres. Perspective: distance_for(size), every frame. Ortho: a lab may set it.
+@export var distance: float = ORTHO_DISTANCE
 @export var follow_lerp: float = 8.0
-@export var min_size: float = 10.0
-@export var max_size: float = 28.0
-@export var default_size: float = 15.0
+@export var min_size: float = MIN_SIZE
+@export var max_size: float = MAX_SIZE
+@export var default_size: float = DEFAULT_SIZE
 
 var _target: Node3D
+## 0..1 impact shake; decays linearly, offset grows with trauma^2 so small knocks stay subtle.
+var trauma: float = 0.0
+var _shake_t: float = 0.0
+
+## The view angle of the camera this run uses, in degrees (Euler x; negative looks down).
+static func pitch_deg() -> float:
+	return ORTHO_PITCH_DEG if ortho else PITCH_DEG
+
+## The camera's rotation: x = screen right, y = screen up, z = towards the viewer. From the constants
+## (not a live node), so offline tools (CARD2D's card bake) and the running game cannot drift apart.
+static func view_basis() -> Basis:
+	return Basis.from_euler(Vector3(deg_to_rad(pitch_deg()), deg_to_rad(YAW_DEG), 0.0))
+
+## The projection this run uses (PROJECTION, or orthographic under --cam-ortho).
+static func projection_mode() -> Camera3D.ProjectionType:
+	return Camera3D.PROJECTION_ORTHOGONAL if ortho else PROJECTION
+
+## How far back the camera stands to show `view_height` metres at its focus.
+static func distance_for(view_height: float) -> float:
+	if ortho:
+		return ORTHO_DISTANCE
+	return view_height / (2.0 * tan(deg_to_rad(FOV_DEG) * 0.5))
+
+## A visibility_range_end that keeps everything within `radius_m` of the focus drawn at every zoom
+## up to LAB_MAX_SIZE (the old 40 m camera's ranges were 40 + radius).
+static func cull_range(radius_m: float) -> float:
+	return distance_for(LAB_MAX_SIZE) + radius_m
+
+## Shake the camera that follows `subject` (no-op on a headless server or for other bodies).
+static func shake(subject: Node, amount: float) -> void:
+	if subject == null or not subject.is_inside_tree():
+		return
+	var cam := subject.get_viewport().get_camera_3d() as IsoCamera
+	if cam and cam._target == subject:
+		cam.add_trauma(amount)
+
+func add_trauma(amount: float) -> void:
+	trauma = clampf(trauma + amount, 0.0, 1.0)
 
 func _ready() -> void:
-	projection = PROJECTION_ORTHOGONAL
+	projection = projection_mode()
+	if ortho:
+		min_size = ORTHO_MIN_SIZE
+		max_size = ORTHO_MAX_SIZE
+		default_size = ORTHO_DEFAULT_SIZE
+	else:
+		fov = FOV_DEG
+	keep_aspect = Camera3D.KEEP_HEIGHT
+	# Moved every frame after the target's interpolated transform, so it is not interpolated itself:
+	# interpolated, unproject_position() in _process read last frame's camera and screen UI trailed the world.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if size <= 1.0:
 		size = default_size  # Camera3D.size defaults to 1 m, which is a face-full of capsule
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--cam-size="):  # screenshot runs: start zoomed out
+		if a.begins_with("--cam-size="):  # screenshot runs: start at this zoom
 			size = clampf(float(a.substr(11)), min_size, max_size)
-	rotation_degrees = Vector3(-35.264, 45.0, 0.0)
+	basis = view_basis()
+	_apply_zoom()
 	_target = get_node_or_null(target_path) as Node3D
 	if _target:
-		global_position = _target.global_position - global_basis.z * -distance
 		_snap()
+	_publish()
 
 func _process(delta: float) -> void:
-	if not _target:
+	_update_shake(delta)
+	# The follow eases the focus, and the camera stands `distance` back from it: with a fixed distance this
+	# is the old position lerp, and a zoom (a new distance) takes effect at once instead of gliding in
+	# behind the fingers.
+	var focus := focus_point()
+	_apply_zoom()
+	if _target:
+		# Interpolated origin: the survivor moves on physics ticks, the camera every frame. Without
+		# this the survivor stepped 60 Hz under a 120 Hz camera and read as a doubled, smeared image.
+		focus = focus.lerp(_desired_focus(true), clampf(follow_lerp * delta, 0.0, 1.0))
+	global_position = focus + global_basis.z * distance
+	_publish()
+
+## Perspective: the distance follows the zoom, and near/far hug the focus. A tight depth range keeps
+## depth precise at 90-430 m out, and WorldLighting's shadow splits are fractions of near..far.
+func _apply_zoom() -> void:
+	if projection != Camera3D.PROJECTION_PERSPECTIVE:
 		return
-	# Interpolated origin: the survivor moves on physics ticks, the camera every frame. Without
-	# this the survivor stepped 60 Hz under a 120 Hz camera and read as a doubled, smeared image.
-	var desired := _target.get_global_transform_interpolated().origin + (-global_basis.z) * -distance
-	global_position = global_position.lerp(desired, clampf(follow_lerp * delta, 0.0, 1.0))
+	distance = distance_for(size)
+	near = maxf(0.5, distance - near_margin())
+	far = distance + far_margin()
+
+## Metres in front of the focus that stay inside the view: the ground to the screen's bottom edge
+## plus the crown of a 20 m tree standing just below it.
+func near_margin() -> float:
+	return ground_half_depth() + 35.0
+
+## Metres behind the focus: the ground to the screen's top edge plus terrain relief.
+func far_margin() -> float:
+	return ground_half_depth() + 30.0
+
+## Depth from the focus to the ground at the screen's top (or bottom) edge.
+func ground_half_depth() -> float:
+	var pitch := maxf(absf(rotation_degrees.x), 5.0)
+	return 0.5 * size / tan(deg_to_rad(pitch))
+
+## Where the camera looks: its smoothed follow point.
+func focus_point() -> Vector3:
+	return global_position - global_basis.z * distance
+
+func _desired_focus(interpolated: bool = false) -> Vector3:
+	if _target == null:
+		return focus_point()
+	var base := _target.get_global_transform_interpolated().origin if interpolated else _target.global_position
+	if not _target.has_method("camera_interest"):
+		return base
+	var interest: Variant = _target.call("camera_interest")
+	if not interest is Node3D or not is_instance_valid(interest):
+		return base
+	var shift: Vector3 = (interest as Node3D).global_position - base
+	shift.y = 0.0
+	shift = (shift * SELECTION_BIAS).limit_length(SELECTION_MAX_SHIFT_M)
+	return base + shift
+
+## The camera for every shader that has to line up with it (shaders/camera/camera.gdshaderinc).
+func _publish() -> void:
+	if not current or not is_inside_tree():
+		return
+	var persp := projection == Camera3D.PROJECTION_PERSPECTIVE
+	focus = focus_point()
+	right = Vector3(global_basis.x.x, 0.0, global_basis.x.z).normalized()
+	# The lens leans a prop h m tall standing s m right of the focus by h * s * sin(pitch) / distance.
+	parallax = PARALLAX_GAIN * sin(deg_to_rad(absf(rotation_degrees.x))) / distance if persp and distance > 1.0 else 0.0
+	RenderingServer.global_shader_parameter_set(&"camera_focus", focus)
+	RenderingServer.global_shader_parameter_set(&"camera_pitch_deg", rotation_degrees.x)
+	RenderingServer.global_shader_parameter_set(&"camera_yaw_deg", rotation_degrees.y)
+	RenderingServer.global_shader_parameter_set(&"camera_distance", distance)
+	RenderingServer.global_shader_parameter_set(&"parallax_strength", parallax)
+	RenderingServer.global_shader_parameter_set(&"tall_fade_height", TALL_FADE_PER_SIZE * size if persp else 0.0)
+
+## Screen-space offsets, so the shake never fights the follow lerp.
+func _update_shake(delta: float) -> void:
+	if trauma <= 0.0:
+		h_offset = 0.0
+		v_offset = 0.0
+		return
+	trauma = maxf(0.0, trauma - CombatTuning.num("camera", "trauma_decay_per_s", 1.4) * delta)
+	_shake_t += delta
+	var amp := trauma * trauma * CombatTuning.num("camera", "max_offset_m", 0.45)
+	h_offset = amp * sin(_shake_t * 57.0)
+	v_offset = amp * sin(_shake_t * 43.0 + 1.3)
 
 func _snap() -> void:
-	global_position = _target.global_position + (-global_basis.z) * -distance
+	_apply_zoom()
+	global_position = _desired_focus() + global_basis.z * distance
+	_publish()
 
+## Wheel zoom: 12 % a notch, inside min_size..max_size.
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			size = clampf(size - 2.0, min_size, max_size)
+			size = clampf(size / 1.12, min_size, max_size)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			size = clampf(size + 2.0, min_size, max_size)
+			size = clampf(size * 1.12, min_size, max_size)

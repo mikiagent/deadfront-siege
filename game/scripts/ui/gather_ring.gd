@@ -188,12 +188,8 @@ func _draw() -> void:
 	if _icon:
 		draw_texture_rect(_icon, Rect2(c - Vector2(11, 24), Vector2(22, 22)), false)
 	else:
-		var font0 := ThemeDB.fallback_font
-		if font0:
-			draw_string(font0, c + Vector2(0, -8), _yield_text, HORIZONTAL_ALIGNMENT_CENTER, 64.0, 11, Color(1, 1, 1, 0.85))
-	var font := ThemeDB.fallback_font
-	if font:
-		draw_string(font, c + Vector2(0, 15), _pool_text, HORIZONTAL_ALIGNMENT_CENTER, 64.0, 15, Color(1, 1, 1, 0.98))
+		UiTokens.draw_centered(self, ThemeDB.fallback_font, c + Vector2(0, -13), _yield_text, UiTokens.TYPE_MIN, Color(1, 1, 1, 0.85))
+	UiTokens.draw_centered(self, ThemeDB.fallback_font, c + Vector2(0, 10), _pool_text, 15, Color(1, 1, 1, 0.98))
 
 func _load_icons_manifest() -> void:
 	var path := "res://data/icons_manifest.json"
