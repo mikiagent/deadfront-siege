@@ -8,6 +8,11 @@ Reads the live files on every request — nothing is copied — so the site alwa
 shows the current bytes of each doc. Curated state lives in state.json next to
 this file (gitignored; Export in the UI writes a portable copy).
 
+Single source of truth (owner 2026-10-27): the canon line — the checkout this
+tool lives in — owns every doc that is true today. The `main` checkout is the
+archive line: the wiki deep-searches its historical corpus but never auto-loads
+it as context.
+
   python3 tools/docs_wiki.py serve [--port 8899] [--open]
 
 Uses only the Python standard library. Binds 127.0.0.1 only.
@@ -27,7 +32,7 @@ from urllib.parse import urlparse, parse_qs
 
 APP_DIR = Path(__file__).resolve().parent
 STATE_PATH = APP_DIR / "state.json"
-ROOT = APP_DIR.parent.parent  # the main checkout
+ROOT = APP_DIR.parent.parent  # this checkout = the canon line (curated truth)
 
 DATE_RE = re.compile(r"20[0-9]{2}-[01][0-9]-[0-3][0-9]")
 BANNER_RE = re.compile(r"superseded|historical record|archived|do not trust|historical", re.I)
@@ -35,9 +40,9 @@ SCAN_PATTERNS = ["*.md", "docs/**/*.md", "assets/concept-art/*.md", "research/*.
 SKIP_PARTS = {".git", ".godot", ".dsc", "node_modules", "artifacts", "export", "work"}
 
 
-def canon_root() -> Path | None:
-    """The worktree holding the claude/mmo-overhaul branch (same lookup the
-    desktop launcher uses). Falls back to none when it is not checked out."""
+def main_root() -> Path | None:
+    """The worktree holding the `main` branch — the archive line whose
+    historical docs the wiki deep-searches but never auto-loads."""
     try:
         out = subprocess.run(
             ["git", "-C", str(ROOT), "worktree", "list", "--porcelain"],
@@ -49,7 +54,7 @@ def canon_root() -> Path | None:
     for line in out.splitlines():
         if line.startswith("worktree "):
             candidate_root = Path(line[len("worktree "):])
-        elif line == "branch refs/heads/claude/mmo-overhaul" and candidate_root:
+        elif line == "branch refs/heads/main" and candidate_root:
             return candidate_root
     return None
 
@@ -136,6 +141,7 @@ def scan_line(checkout: Path, line_name: str) -> list[dict]:
             out.append({
                 "key": f"{line_name}:{rel}",
                 "line": line_name,
+                "deep": line_name == "main",
                 "path": rel,
                 "title": title_of(f, head),
                 "system": system_of(rel, head),
@@ -148,16 +154,16 @@ def scan_line(checkout: Path, line_name: str) -> list[dict]:
 
 
 def build_index() -> dict:
-    canon = canon_root()
+    archive = main_root()
     entries: dict[str, dict] = {}
-    for line_name, checkout in (("main", ROOT), ("canon", canon)):
+    for line_name, checkout in (("canon", ROOT), ("main", archive)):
         for e in scan_line(checkout, line_name):
             entries[e["key"]] = e
     # inbound links within each line: markdown links that resolve to another indexed doc
     inbound: dict[str, int] = {k: 0 for k in entries}
     broken: dict[str, int] = {k: 0 for k in entries}
     for key, e in entries.items():
-        checkout = ROOT if e["line"] == "main" else (canon or ROOT)
+        checkout = ROOT if e["line"] == "canon" else (archive or ROOT)
         f = checkout / e["path"]
         try:
             text = f.read_text(errors="replace")
@@ -183,7 +189,7 @@ def build_index() -> dict:
         idents = set()
         for k in keys:
             line = entries[k]["line"]
-            checkout = ROOT if line == "main" else (canon or ROOT)
+            checkout = ROOT if line == "canon" else (archive or ROOT)
             f = checkout / entries[k]["path"]
             try:
                 idents.add(hashlib.sha1(f.read_bytes()).hexdigest()[:8])
@@ -198,7 +204,8 @@ def build_index() -> dict:
         systems[s].sort(key=lambda k: entries[k]["title"].lower())
     return {
         "generated": int(time.time()),
-        "canon_root": str(canon) if canon else "",
+        "canon_root": str(ROOT),
+        "archive_root": str(archive) if archive else "",
         "docs": dict(sorted(entries.items())),
         "inbound": inbound,
         "broken": broken,
@@ -303,7 +310,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(404, b"unknown doc", "text/plain")
                 return
             e = idx["docs"][key]
-            checkout = ROOT if e["line"] == "main" else Path(idx["canon_root"] or ROOT)
+            checkout = ROOT if e["line"] == "canon" else Path(idx["archive_root"] or ROOT)
             f = checkout / e["path"]
             try:
                 text = f.read_text(errors="replace")
@@ -332,9 +339,10 @@ class Handler(BaseHTTPRequestHandler):
 
 def serve(port: int, open_browser: bool) -> None:
     idx = get_index()
-    print(f"[wiki] main={ROOT}")
-    print(f"[wiki] canon={idx['canon_root'] or '(not checked out)'}")
-    print(f"[wiki] docs={len(idx['docs'])} cross-line-diffs={len(idx['cross_line_diffs'])}")
+    print(f"[wiki] truth (curated, this line)={ROOT}")
+    print(f"[wiki] deep archive={idx['archive_root'] or '(main not checked out)'}")
+    print(f"[wiki] docs={len(idx['docs'])} deep={sum(1 for e in idx['docs'].values() if e['deep'])} "
+          f"cross-line-diffs={len(idx['cross_line_diffs'])}")
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://localhost:{srv.server_port}"
     print(f"[wiki] serving {url}  (Ctrl-C stops)")
