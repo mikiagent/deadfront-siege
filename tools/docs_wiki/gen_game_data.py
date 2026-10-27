@@ -9,7 +9,7 @@ Emits (all generated files carry a generation header; never hand-edit them):
   <data>/../data_sheets/*.csv   the same rows as flat spreadsheets the owner can edit
                                 (Numbers / Excel / Google Sheets all open CSV natively)
 
-Run from the main repo root:  python3 tools/docs_wiki/gen_game_data.py
+Run from the canon repo root:  python3 tools/docs_wiki/gen_game_data.py
 After editing a sheet, ask the agent to sync it back; the sync validates ids and
 rewrites only the changed values (the round-trip lives in sync_game_data.py).
 """
@@ -365,11 +365,11 @@ class SheetDoc:
 
 
 def main() -> None:
-    here = Path(__file__).resolve().parent.parent.parent  # main repo root
+    here = Path(__file__).resolve().parent.parent.parent  # this repo's root
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", default=str(here / ".claude/worktrees/mmo-overhaul/game/data"))
+    ap.add_argument("--data", default=str(here / "game/data"))
     ap.add_argument("--docs", default=str(here / "docs/current"))
-    ap.add_argument("--sheets", default=str(here / ".claude/worktrees/mmo-overhaul/game/data_sheets"))
+    ap.add_argument("--sheets", default=str(here / "game/data_sheets"))
     args = ap.parse_args()
     data, docs, sheets = Path(args.data), Path(args.docs), Path(args.sheets)
     docs.mkdir(parents=True, exist_ok=True)
