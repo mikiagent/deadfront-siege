@@ -1,5 +1,7 @@
 # Orchestration plan: the Durango-like in Godot
 
+> HISTORICAL RECORD, written 2026-09-17. Read-only as of 2026-10-27. The milestone numbering here (M8 = skills, M9 = market, M10 = islands) diverges from the executed prompt series (M8a–e, M9a–b, M10), and the mobile-first / no-web-export decisions below were later reversed by [`HANDOFF.md`](../../HANDOFF.md). Executed history lives in `docs/playtests/` and git log, not here.
+
 **Owner:** Claude Code (orchestrator). **Date:** 2026-09-17.
 **Inputs:** `docs/engine-decision.md`, `docs/prd/durango-wild-lands-systems-prd.md`, `docs/prd/dinosaur-roster-and-3d-pipeline.md`, `game/data/creatures/SCHEMA.md`.
 

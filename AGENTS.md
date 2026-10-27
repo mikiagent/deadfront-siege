@@ -17,7 +17,7 @@ Engine choice and why: `docs/engine-decision.md`
 
 - The old game is `index.html` plus ~90 HTML snapshots. Treat it as a **spec to read**, never as code to extend. Nothing new goes in the repo root.
 - Godot 4.7.1 (Mono build), **typed GDScript**. No C# unless the plan says so.
-- **Mobile is the primary target.** All input goes through InputMap actions; the autoloaded touch layer presses them. Tap targets 64 px or larger, respect the safe area, no hover-only UI. Test with `--touch` after `--` on the command line (mouse emulates touch).
+- **Desktop Chrome (1600x900, real mouse, 16:9) is the primary acceptance target and ship gate; mobile/touch stays a supported secondary target.** All input goes through InputMap actions; the autoloaded touch layer presses them. Tap targets 64 px or larger, respect the safe area, no hover-only UI. Test with `--touch` after `--` on the command line (mouse emulates touch).
 - Headless check before you report done: `tools/smoke.sh` must print `SMOKE PASS`.
 - Meshy costs credits. Every task that spends them has a cap in its prompt. Stop and report when you hit the cap; do not "try one more".
 - When a task ends, write `docs/orchestration/reports/<agent>-<task>.md`: what shipped, what failed, credits spent, what the next agent needs. That report is how the other agents hear from you.

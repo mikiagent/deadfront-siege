@@ -1,5 +1,7 @@
 # Dinosaur Roster, Status Effects, and the Meshy 3D Pipeline
 
+> SUPERSEDED 2026-10-27: keep this as design history, not as current direction. The real-species-only policy was dropped — Zebraceratops shipped and is canonical. The Meshy text-to-3D / UI-API pipeline described here was superseded by web-subscription generations, the later Tripo route, and Quaternius donor-skeleton transplants. Per-creature triangle numbers are superseded by the measured budgets in [`docs/art/durango-asset-benchmarks-and-tripo-prompts.md`](../art/durango-asset-benchmarks-and-tripo-prompts.md).
+
 **Status:** v0.2, design spec (not research)
 **Pipeline status:** Meshy key is live (3,895 credits at last check). §4.2 rewritten after three failed generations — **text-to-3D cannot produce correct theropod anatomy and the roster must be built through image-to-3D.** Measured evidence in §4.5.
 **Depends on:** [`research/durango-wild-lands-bestiary-combat.md`](../../research/durango-wild-lands-bestiary-combat.md), [`docs/prd/durango-wild-lands-systems-prd.md`](./durango-wild-lands-systems-prd.md)

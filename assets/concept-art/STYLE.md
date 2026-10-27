@@ -40,8 +40,12 @@ Use realistic materials with controlled simplification. Player-made objects shou
 ## Runtime target
 
 - Desktop/laptop Chrome is the current native target; mobile must not break.
-- PBR materials.
+- PBR materials. *(superseded 2026-10-27 — see "Budgets update" below)*
 - 2K authoring maximum for hero creatures; target 1K or atlased runtime output where quality holds.
-- Rough triangle targets: 10k-20k ordinary creatures, 20k-35k bosses.
+- Rough triangle targets: 10k-20k ordinary creatures, 20k-35k bosses. *(superseded 2026-10-27 — see "Budgets update" below)*
 - One material where practical, clean topology, LODs, correct real-world scale, grounded feet, stable pivot, and source facing aligned to the game's import contract.
 - Every animated asset must pass inspected-pixel review in Blender and Godot, including deformation, foot contact, loop seams, attack timing, death pose, root motion, bounds, collisions, and mounted clearance where applicable.
+
+## Budgets update (2026-10-27)
+
+Measured budgets replace the rough numbers in "Runtime target" above. Small creatures under 2 m: 1,200-1,800 triangles. Medium creatures 3-6 m: 1,800-2,500. Large creatures and bosses 8 m and up: 2,500-4,000. Rig for 25-45 bones, keep creature textures at 512², and light with matcap-first shaders rather than full PBR — that is how the target look reads at isometric distance with this few triangles. The current Meshy creatures measure 24k-31k triangles and are owed remeshing down to these numbers. Measurement source and the per-asset breakdown: [`docs/art/durango-asset-benchmarks-and-tripo-prompts.md`](../../docs/art/durango-asset-benchmarks-and-tripo-prompts.md).

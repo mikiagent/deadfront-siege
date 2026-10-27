@@ -4,6 +4,10 @@ Status values: `DRAFT`, `APPROVED`, `GENERATED`, `REJECTED`, `INTEGRATED`.
 
 Approval is version-specific. `Milan review anchor` records the authenticated message that approved the exact sheet. A blank approval anchor means no credit-bearing generation is authorized.
 
+## Ledger status (2026-10-27)
+
+This ledger is behind production, so treat every row below as historical until it is backfilled. It still lists four species as `DRAFT`, while roughly 19 creatures have shipped through playtests, the later Tripo route, and Quaternius donor-skeleton transplants. Stegosaurus is the clearest example: its row says the Meshy route is "Not started" with 0 credits, but the shipped asset is a 48-credit transplanted mesh under `game/assets/creatures/stegosaurus/` (recorded as `skeleton_transplant_v3`, 48 credits, in `game/data/creatures/stegosaurus.json`). Do not infer clip coverage from this table or from the clip matrix below; read the species JSON `pipeline` block and the shipped files instead.
+
 ## Creatures
 
 | Species | Concept version | Status | Milan review anchor | Meshy route/task | Credits | Model output | Rig status | Clip matrix |
