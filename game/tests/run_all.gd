@@ -50,6 +50,16 @@ func _process(_delta: float) -> bool:
 	_test_mortar_well_kit_routes()
 	_test_empty_bucket_recipe()
 	_test_multistack_crafting()
+	_test_market_data_load()
+	_test_market_price_formula()
+	_test_market_determinism()
+	_test_market_saturation_and_recovery()
+	_test_market_listing_fee_and_settlement()
+	_test_market_unstable_gate()
+	_test_market_buy_side()
+	_test_market_animal_grade()
+	_test_market_tstone_sink()
+	_test_market_price_memory()
 	_finish()
 	return true
 
@@ -908,3 +918,204 @@ func _test_hide_strap_no_self_input() -> void:
 		var parts = craft.consume_for_craft(material,rec,picks)
 		var out = craft.build_output(rec,parts[0],55,parts)
 		_expect(out.def_id == &"hide_strap" and out.count == 2 and out.level == 55,"hide processing preserves quality and output")
+
+# --- Simulated Island Market (docs/design/economy.md, data/world/market.json) ----------------
+
+func _test_market_data_load() -> void:
+	# `godot --script` compiles this file before autoloads exist, so reach the Data node at runtime.
+	var data: Node = get_root().get_node_or_null("Data")
+	var raw: Variant = data.get("market") if data else null
+	_expect(raw is Dictionary and (raw as Dictionary).has("markets") and (raw as Dictionary).has("level_slope"),
+		"Data loads market.json")
+	var script: GDScript = load("res://scripts/world/market_system.gd") as GDScript
+	var market = script.load_default()
+	_expect(market.is_loaded(), "market system loads its regions")
+	_expect(market.market_ids().size() == 4, "four regional markets")
+	for id in [&"temperate_exchange", &"tropic_bazaar", &"frontier_post", &"northern_depot"]:
+		_expect(market.has_market(id), "market exists %s" % id)
+	_expect(market.markets_for_climates(["desert"]).map(func(x): return str(x)) == ["frontier_post"],
+		"desert maps to the Frontier Post")
+	_expect(market.markets_for_climates(["tundra"]).has(&"northern_depot"), "tundra maps to the Northern Depot")
+	_expect(_market().from_data({}).is_loaded() == false, "empty market data stays inert")
+
+func _test_market_price_formula() -> void:
+	var market = _market().load_default()
+	# base(category via item) * (1 + 0.06*level) * attributes * regional demand * saturation
+	_expect(is_equal_approx(market.level_factor(1), 1.06), "level 1 factor is 1.06")
+	_expect(is_equal_approx(market.level_factor(40), 3.4), "level 40 factor is 3.4")
+	_expect(is_equal_approx(market.attribute_multiplier({}), 1.0), "no attributes is a 1x bonus")
+	_expect(is_equal_approx(market.attribute_multiplier({"hard": "yes"}), 1.25), "latent attribute adds 25%")
+	_expect(is_equal_approx(market.attribute_multiplier({"hard": "yes", "rare": ["hard"]}), 2.0), "rare attribute adds 100%")
+	_expect(is_equal_approx(market.attribute_multiplier({"climate": "desert", "level": 1, "hard": "yes"}), 1.25),
+		"climate and level attributes are not latent pips")
+	# 26 (obsidian) * 1.06 (level 1) * 1.25 (one latent pip) * 3.0 (scarce at the Exchange) = 103.35
+	_expect(is_equal_approx(market.price(&"temperate_exchange", &"obsidian", 1, {"hard": "yes"}), 103.35),
+		"obsidian price at the Temperate Exchange")
+	# 10 (salt has no priced category, so its item_base_price row) * 1.06 * 3.0 (scarce there) = 31.8
+	_expect(is_equal_approx(market.price(&"temperate_exchange", &"salt", 1), 31.8), "salt is scarce at the Exchange")
+	# same salt at the Frontier Post is abundant: * 0.5
+	_expect(is_equal_approx(market.price(&"frontier_post", &"salt", 1), 5.3), "salt is cheap at the Frontier Post")
+	# A level-30 knife against a level-1 knife: (1 + 0.06*30) / (1 + 0.06) = 2.64 (doc acceptance #3)
+	var low = market.price(&"temperate_exchange", &"stone_knife_work", 1)
+	var high = market.price(&"temperate_exchange", &"stone_knife_work", 30)
+	_expect(is_equal_approx(high / low, 2.8 / 1.06), "crafted level raises the ask by the level factor")
+	_expect(market.price(&"temperate_exchange", &"no_such_item") > 0.0, "unknown item falls back to the generic base")
+
+func _test_market_determinism() -> void:
+	var a = _market().load_default()
+	var b = _market().load_default()
+	var first = a.price(&"tropic_bazaar", &"raw_hide", 12, {"climate": "swamp", "level": 12, "pliant": "yes"})
+	for i in 3:
+		_expect(first == a.price(&"tropic_bazaar", &"raw_hide", 12, {"climate": "swamp", "level": 12, "pliant": "yes"}),
+			"same inputs price the same on every call")
+	a.apply_sale(&"tropic_bazaar", &"raw_hide", 25)
+	a.tick(2.0)
+	b.apply_sale(&"tropic_bazaar", &"raw_hide", 25)
+	b.tick(2.0)
+	_expect(a.price(&"tropic_bazaar", &"raw_hide", 12) == b.price(&"tropic_bazaar", &"raw_hide", 12),
+		"two markets fed the same sales and ticks agree")
+	_expect(a.saturation(&"tropic_bazaar", &"raw_hide") == b.saturation(&"tropic_bazaar", &"raw_hide"),
+		"saturation recovery is driven by ticks, not by time or chance")
+
+func _test_market_saturation_and_recovery() -> void:
+	var market = _market().load_default()
+	var base = market.price(&"temperate_exchange", &"salt", 1)
+	_expect(is_equal_approx(market.saturation(&"temperate_exchange", &"salt"), 1.0), "unsold item starts unsated")
+	var after = market.apply_sale(&"temperate_exchange", &"salt", 40)
+	_expect(is_equal_approx(after, pow(0.98, 40.0)), "40 units cost 2% each")
+	_expect(market.price(&"temperate_exchange", &"salt", 1) < base * 0.5, "dumping 40 units roughly halves the price")
+	_expect(is_equal_approx(market.price(&"temperate_exchange", &"salt", 1), snappedf(base * after, 0.01)),
+		"saturation multiplies the price")
+	_expect(is_equal_approx(market.saturation(&"frontier_post", &"salt"), 1.0), "sales do not leak between markets")
+	_expect(is_equal_approx(market.price(&"frontier_post", &"salt", 1),
+		snappedf(market.base_price(&"salt") * 1.06 * 0.5, 0.01)), "saturation is per market and item")
+	market.tick(1.0)
+	var recovered = market.saturation(&"temperate_exchange", &"salt")
+	_expect(is_equal_approx(recovered, 1.0 - (1.0 - after) * 0.9), "an hour recovers 10% of the gap")
+	_expect(recovered > after and market.price(&"temperate_exchange", &"salt", 1) > base * after,
+		"recovery raises the price again")
+	market.tick(10.0)
+	# 1 - (1 - recovered) * 0.9^10 = 1 - 0.499 * 0.3487 = 0.826
+	_expect(is_equal_approx(market.saturation(&"temperate_exchange", &"salt"), 1.0 - (1.0 - recovered) * pow(0.9, 10.0)),
+		"ten more hours recover ten more tenths of the gap")
+	_expect(market.saturation(&"temperate_exchange", &"salt") > 0.8, "ten hours recover most of the gap")
+	_expect(market.saturation(&"temperate_exchange", &"salt") < 1.0, "but never above full price in one tick")
+	var floored = _market().load_default()
+	floored.apply_sale(&"frontier_post", &"salt", 400)
+	_expect(is_equal_approx(floored.saturation(&"frontier_post", &"salt"), 0.2), "saturation stops at the data floor")
+	floored.tick(1e6)
+	_expect(floored.saturation(&"frontier_post", &"salt") <= 1.0, "long recovery never exceeds 1.0")
+
+func _test_market_listing_fee_and_settlement() -> void:
+	var market = _market().load_default()
+	var salt = _stack().make(&"salt", 10, {}, 1)
+	var unit = market.price_stack(&"temperate_exchange", salt)
+	_expect(is_equal_approx(market.listing_fee(unit, 10), snappedf(unit * 0.5, 0.01)), "listing fee is 5% of the ask")
+	market.credit(1000.0)
+	var sold = market.list_stack(&"temperate_exchange", salt)
+	_expect(bool(sold.get("ok", false)), "an affordable listing is accepted")
+	_expect(bool(sold.get("sold", false)) and market.pending_listings() == 0, "an ask at the price sells at once")
+	_expect(is_equal_approx(float(sold["fee"]), snappedf(unit * 10.0 * 0.05, 0.01)), "fee is charged up front")
+	_expect(market.saturation(&"temperate_exchange", &"salt") < 1.0, "settled units saturate that market")
+	var over = _market().load_default()
+	over.credit(1000.0)
+	var slow = over.list_stack(&"temperate_exchange", salt, unit * 1.2)
+	_expect(bool(slow.get("ok", false)) and is_equal_approx(float(slow["hours"]), 1.0), "20% over the price sells in about an hour")
+	_expect(over.pending_listings() == 1, "an overpriced listing waits")
+	over.tick(0.5)
+	_expect(over.pending_listings() == 1, "half an hour is not enough")
+	over.tick(0.6)
+	_expect(over.pending_listings() == 0 and over.sold_value() > 0.0, "the buyer takes it after the hour")
+	var never = _market().load_default()
+	never.credit(1000.0)
+	var absurd = never.list_stack(&"temperate_exchange", salt, unit * 1.5)
+	_expect(bool(absurd.get("ok", false)) and str(absurd.get("reason", "")) == "never_sells", "50% over the price never sells")
+	never.tick(1000.0)
+	_expect(never.pending_listings() == 1, "a never-listing stays open")
+	var broke = _market().load_default()
+	_expect(str(broke.list_stack(&"temperate_exchange", salt).get("reason", "")) == "no_funds", "a fee needs T-stones")
+
+func _test_market_unstable_gate() -> void:
+	var market = _market().load_default()
+	market.credit(1000.0)
+	var loot = _stack().make(&"salt", 5, {}, 1)
+	loot.set_flag(&"unstable", true)
+	_expect(market.can_list(&"temperate_exchange", loot) == "unstable", "unstable cargo is refused")
+	var refused = market.list_stack(&"temperate_exchange", loot)
+	_expect(not bool(refused.get("ok", true)) and str(refused.get("reason", "")) == "unstable", "the listing is denied")
+	_expect(market.pending_listings() == 0 and is_zero_approx(market.fees_paid()), "a refused listing costs nothing")
+	loot.set_flag(&"unstable", false) # cargo-warped home
+	_expect(market.can_list(&"temperate_exchange", loot) == "", "warped goods may be listed")
+	_expect(bool(market.list_stack(&"temperate_exchange", loot).get("ok", false)), "warped goods list")
+	_expect(market.can_list(&"nowhere", loot) == "no_market", "an unknown market is refused")
+
+func _test_market_buy_side() -> void:
+	var market = _market().load_default()
+	var price = market.price(&"temperate_exchange", &"salt", 1)
+	# scarce 2.5x, abundant 1.3x, otherwise 1.8x
+	_expect(is_equal_approx(market.buy_price(&"temperate_exchange", &"salt", 1), snappedf(price * 2.5, 0.01)),
+		"scarce goods are dear to buy")
+	var cheap = market.price(&"frontier_post", &"salt", 1)
+	_expect(is_equal_approx(market.buy_price(&"frontier_post", &"salt", 1), snappedf(cheap * 1.3, 0.01)),
+		"abundant goods are cheap to buy")
+	var normal = market.price(&"frontier_post", &"cloth", 1)
+	_expect(is_equal_approx(market.buy_price(&"frontier_post", &"cloth", 1), snappedf(normal * 1.8, 0.01)),
+		"ordinary goods sit between the two")
+	market.credit(100.0)
+	var bought = market.buy(&"frontier_post", &"salt", 2)
+	_expect(bool(bought.get("ok", false)) and is_equal_approx(market.balance(), 100.0 - float(bought["cost"])),
+		"buying spends T-stones")
+	var poor = _market().load_default()
+	_expect(str(poor.buy(&"frontier_post", &"salt").get("reason", "")) == "no_funds", "buying needs T-stones")
+
+func _test_market_animal_grade() -> void:
+	var market = _market().load_default()
+	_expect(is_equal_approx(market.animal_price(400.0, &"S"), 800.0), "S grade doubles the animal price")
+	_expect(is_equal_approx(market.animal_price(400.0, &"A"), 600.0), "A grade is 1.5x")
+	_expect(is_equal_approx(market.animal_price(400.0, &"B"), 400.0), "B grade is the species base")
+	_expect(is_equal_approx(market.animal_price(400.0, &"C"), 280.0), "C grade is 0.7x")
+	_expect(market.animal_price(400.0, &"D") == 0.0, "an unknown grade is refused rather than guessed")
+	market.credit(1000.0)
+	var listed = market.list_animal(&"tropic_bazaar", &"S", 400.0)
+	_expect(bool(listed.get("ok", false)) and is_equal_approx(float(listed["price"]), 800.0), "an S animal lists at its grade price")
+	_expect(is_equal_approx(float(listed["fee"]), 40.0), "the animal listing pays the same 5% fee")
+	_expect(not bool(market.list_animal(&"tropic_bazaar", &"D", 400.0).get("ok", true)), "a bad grade cannot be listed")
+	_expect(not bool(market.list_animal(&"nowhere", &"S", 400.0).get("ok", true)), "an unknown market cannot list")
+
+func _test_market_tstone_sink() -> void:
+	var market = _market().load_default()
+	var salt = _stack().make(&"salt", 10, {}, 1)
+	market.credit(50.0)
+	_expect(is_zero_approx(market.fees_paid()), "no fees before the first listing")
+	var first = market.list_stack(&"temperate_exchange", salt)
+	var fee = float(first["fee"])
+	_expect(fee > 0.0 and is_equal_approx(market.balance(), 50.0 - fee + float(first["total"])),
+		"an instant sale banks the ask after the fee left the wallet")
+	_expect(is_equal_approx(market.fees_paid(), fee), "the fee is the market's T-stone sink")
+	var before = market.balance()
+	_expect(market.debit(1000.0) == false and is_equal_approx(market.balance(), before), "the wallet cannot go negative")
+	_expect(market.debit(1.0) and is_equal_approx(market.balance(), before - 1.0), "the wallet pays sinks")
+	market.credit(1.0)
+
+func _test_market_price_memory() -> void:
+	var market = _market().load_default()
+	market.credit(500.0)
+	market.apply_sale(&"northern_depot", &"cloth", 30)
+	var state = market.state_dict()
+	var restored = _market().load_default()
+	restored.restore_state(state)
+	_expect(is_equal_approx(restored.saturation(&"northern_depot", &"cloth"), market.saturation(&"northern_depot", &"cloth")),
+		"price memory survives a save round trip")
+	_expect(is_equal_approx(restored.balance(), market.balance()), "the market wallet survives a save round trip")
+	_expect(restored.price(&"northern_depot", &"cloth", 5) == market.price(&"northern_depot", &"cloth", 5),
+		"a restored market prices identically")
+	var fresh = _market().load_default()
+	fresh.restore_state({})
+	_expect(is_equal_approx(fresh.saturation(&"northern_depot", &"cloth"), 1.0), "an empty save starts unsated")
+
+## MarketSystem and ItemStack name the Data autoload, so they are loaded at runtime, not at compile time.
+func _market() -> GDScript:
+	return load("res://scripts/world/market_system.gd") as GDScript
+
+func _stack() -> GDScript:
+	return load("res://scripts/items/item_stack.gd") as GDScript
