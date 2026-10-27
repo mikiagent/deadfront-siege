@@ -1,0 +1,12 @@
+diff --git a/docs/orchestration/dsc/worker-read-first.md b/docs/orchestration/dsc/worker-read-first.md
+new file mode 100644
+--- /dev/null
++++ b/docs/orchestration/dsc/worker-read-first.md
+@@ -0,0 +1,7 @@
++# Source analysis worker footer
++
++Read every named source file before describing its behavior. Cite the actual
++file and line numbers for each important claim. If a file or tool is unavailable,
++say so and stop rather than inventing its contents. Keep unverified assumptions
++separate from observed facts. Do not change files unless the task specifically
++authorizes changes.
