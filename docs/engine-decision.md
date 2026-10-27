@@ -1,5 +1,7 @@
 # Engine decision: Godot 4, not Three.js
 
+> SUPERSEDED IN PART 2026-10-27: the engine decision stands — Godot 4.7, as chosen here. What is superseded is the Meshy text-to-3D / API-generated import specifics and the export tooling notes below; neither matches how the game was actually built. Current pipeline authority is [`HANDOFF.md`](../HANDOFF.md).
+
 **Decision:** build the Durango-like in **Godot 4.7** (already installed on this machine, Mono build, with .NET 10).
 **Status:** recommended, pending your call.
 **Applies to:** the rebuild described in [`docs/prd/durango-wild-lands-systems-prd.md`](./prd/durango-wild-lands-systems-prd.md) and [`docs/prd/dinosaur-roster-and-3d-pipeline.md`](./prd/dinosaur-roster-and-3d-pipeline.md).
