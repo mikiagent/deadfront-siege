@@ -97,11 +97,11 @@ phases:
         task_body: |
           # M0-FOUNDATION / persistence worker
 
-          Work only in the isolated superplan worktree. Do not use a browser,
-          desktop control, visible Godot UI, deployment, git push, merging, or
-          delegation. Godot commands must be headless. The prior M0 core phase is
-          your base; preserve its public behavior unless a real defect requires a
-          compatible repair.
+          Work only in the isolated superplan worktree. The owner permits a
+          visible Godot window and desktop interaction for this M0 project.
+          Automated tests must remain headless and repeatable. Do not deploy,
+          git push, merge, or delegate. The prior M0 core phase is your base;
+          preserve its behavior unless a real defect requires a compatible repair.
 
           Re-read the M0 sections of docs/specs/README.md, MASTER-CONTEXT.md,
           ARCHITECTURE.md, REGISTRY.md, MILESTONES.md, QA-CONTRACT.md, and
@@ -156,9 +156,9 @@ phases:
 
           Work solely in this plan worktree and only within the scoped isolated
           deadfront-rebuild/ project. Do not edit game/, historical project files,
-          hosting, assets, deployment, or docs/specs. Do not open a browser or a
-          visible Godot window, use desktop control, push, merge, or delegate.
-          Use headless Godot only.
+          hosting, assets, deployment, or docs/specs. The owner permits visible
+          Godot windows and desktop interaction for this isolated project. Do
+          not deploy, push, merge, or delegate. Keep automated tests headless.
 
           Read the M0 direction in README.md, MASTER-CONTEXT.md, ARCHITECTURE.md,
           REGISTRY.md, MILESTONES.md, QA-CONTRACT.md, and 00-identity-persistence.
@@ -178,8 +178,9 @@ phases:
           path and proves the input intent reaches the existing idempotent command
           handler. Provide tools/verify_m0.sh that clean-imports, runs all M0 core,
           persistence, property, migration, and scene-shell tests headlessly, and
-          fails on script errors. Do not report visual inspection that you cannot
-          perform headlessly.
+          fails on script errors. Launch the playable shell visibly for inspection
+          when available; report actual evidence and any visual checks you could
+          not perform. The orchestrator will independently check real inputs.
 
           Update deadfront-rebuild/README.md with exact commands, fixture meaning,
           save location behavior, known M1 design blockers, and the strict M0
@@ -208,8 +209,10 @@ phases:
 
           This is an independent verification-only worker. Do not modify any
           production code, game/, existing deployment files, docs/specs, or the
-          deadfront-rebuild implementation. Do not use a browser, visible UI,
-          desktop control, push, merge, or delegation. Run only headless checks.
+          deadfront-rebuild implementation. The owner permits visible Godot and
+          desktop interaction for this isolated project. Do not push, merge, or
+          delegate. Keep automated tests headless and report visual evidence only
+          when actually observed.
 
           Read docs/specs/README.md, MASTER-CONTEXT.md, ARCHITECTURE.md,
           REGISTRY.md, MILESTONES.md, QA-CONTRACT.md, systems/00-identity-persistence.md,
