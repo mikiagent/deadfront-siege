@@ -5,6 +5,8 @@ game/export/
 *.blend1
 tools/__pycache__/
 
+tools/docs_wiki/__pycache__/
+
 tools/blob.env
 game/export/packs/
 
