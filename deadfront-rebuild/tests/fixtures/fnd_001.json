@@ -1,0 +1,52 @@
+{
+  "fixture_id": "FND-001",
+  "source": "docs/specs/QA-CONTRACT.md golden fixture catalog; docs/specs/MILESTONES.md M0 required demonstration",
+  "note": "M0 fixture values only. No gameplay balance is implied by these numbers.",
+  "actor_label": "human A",
+  "inventories": [
+    {"slot": "source", "label": "human A bag", "owned_by_actor": true},
+    {"slot": "escrow", "label": "escrow"}
+  ],
+  "initial_lots": [
+    {"def_id": "fiber", "quantity": 5, "inventory": "source", "provenance": {"origin": "fixture-fiber"}},
+    {"def_id": "stone", "quantity": 3, "inventory": "source", "provenance": {"origin": "fixture-stone"}}
+  ],
+  "commands": [
+    {
+      "command_id": "T1",
+      "kind": "transfer",
+      "from": "source",
+      "to": "escrow",
+      "lines": [
+        {"def_id": "fiber", "quantity": 2},
+        {"def_id": "stone", "quantity": 1}
+      ],
+      "expect": "committed",
+      "replay": "inert"
+    },
+    {
+      "command_id": "T2",
+      "kind": "transfer",
+      "from": "source",
+      "to": "escrow",
+      "lines": [
+        {"def_id": "fiber", "quantity": 4},
+        {"def_id": "stone", "quantity": 1}
+      ],
+      "expect": "rejected",
+      "expect_error": "INSUFFICIENT_SUPPLY",
+      "replay": "inert"
+    }
+  ],
+  "expected": {
+    "source": {"fiber": 3, "stone": 2, "units": 5},
+    "escrow": {"fiber": 2, "stone": 1, "units": 3},
+    "totals": {"fiber": 5, "stone": 3},
+    "total_units": 8,
+    "receipts": 2
+  },
+  "expected_provenance": {
+    "source": {"fiber": {"origin": "fixture-fiber"}, "stone": {"origin": "fixture-stone"}},
+    "escrow": {"fiber": {"origin": "fixture-fiber"}, "stone": {"origin": "fixture-stone"}}
+  }
+}
