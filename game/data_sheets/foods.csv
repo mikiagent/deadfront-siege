@@ -1,0 +1,13 @@
+id,display_name,provenance,channels,energy_instant_release_ratio,digest_seconds,thirst,fullness,eat_seconds,taste_score,buffs,statuses
+berry,Wild Berry,new-design,energy;taste,0.6,240.0,,,,58,"""""",""""""
+camp_stew,Camp Stew,new-design,energy;fullness;health,0.5,,,30.0,,62,"""""",""""""
+crafters_meal,Crafter's Meal,new-design,energy;fullness;ability;taste,0.5,,,25.0,3.0,70,"[{""id"": ""crafters_meal_ability"", ""group"": ""enhanced_ability"", ""display_name"": ""Crafter's Meal: Ability"", ""duration"": 1200.0, ""stats"": {""weapon_crafting_ability"": {""add"": 20.0}}, ""spec_keys"": {""weapon_crafting_ability"": ""Weapon Crafting Ability""}, ""assumption"": ""Spec 32 s3's own example (+20 Weapon Crafting Ability, not 20 category levels) with a 20 min buff; the meal's Energy/Fullness are ASSUMPTION.""}]",""""""
+drip_coffee,Drip Coffee,restoration-evaluated,energy;fatigue;status;taste,0.851,300.0,,,2.5,56,"""""","[{""id"": ""caffeinated"", ""duration"": 600.0}]"
+dutch_coffee,Dutch Coffee,restoration-evaluated,energy;status;taste;max_fatigue,0.851,300.0,,,2.5,56,"[{""id"": ""dutch_coffee_max_fatigue"", ""group"": ""enhanced_survival"", ""display_name"": ""Dutch Coffee: Maximum Fatigue"", ""duration"": 1200.0, ""stats"": {""max_fatigue"": {""add"": 132.8}}, ""assumption"": ""Maximum Fatigue +132.8 for 20 min at level 60 is the reconstruction's evaluated Dutch Coffee row (spec 32 s4/s5), restoration-evaluated. Its 15 min Caffeinated is ASSUMPTION.""}]","[{""id"": ""caffeinated"", ""duration"": 900.0}]"
+fatigue_tonic,Fatigue Restorative,restoration-evaluated,fatigue;taste,,,,,1.5,30,"""""",""""""
+grilled_meat,Grilled Meat,new-design,energy;fullness;taste,0.7,300.0,,25.0,,66,"""""",""""""
+herb_buff_meal,Herbed Meal,new-design,energy;fullness,0.5,,,20.0,,60,"""""",""""""
+raw_meat,Raw Meat,restoration-evaluated,energy,0.25,300.0,,,,20,"""""",""""""
+skewer,Skewer,new-design,energy;fullness,0.6,,,20.0,,58,"""""",""""""
+spring_water,Spring Water,new-design,energy;thirst,1.0,0.0,35.0,,1.5,40,"""""",""""""
+tea,Tea,restoration-evaluated,energy;thirst;taste,0.5,300.0,20.0,,2.5,62,"""""",""""""

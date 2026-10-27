@@ -1,0 +1,169 @@
+id,display_name,skill,max_level,station,seconds,slots,output_id,output_count,process_step,process_add
+improvised_stone_knife,Improvised Stone Knife,weapon_tools,60,hand,2.0,blade_mat=1; handle=1; lashing=1,stone_knife_work,1,bind,1
+work_axe,Work Axe,weapon_tools,60,workbench,3.0,blade_mat=1; handle=1; lashing=1,work_axe,1,bind,1
+work_pick,Work Pick,weapon_tools,60,workbench,3.0,blade_mat=1; handle=1; lashing=1,work_pick,1,bind,1
+club,Wooden Club,weapon_tools,60,hand,1.5,handle=1; lashing=1,club,1,bind,1
+bandage,Bandage,tailoring,60,hand,1.0,herb=1; cloth=1,bandage,1,bind,1
+pressure_dressing,Pressure Dressing,tailoring,60,hand,1.5,herb=1; cloth=2,pressure_dressing,1,bind,1
+splint,Splint,tailoring,60,hand,1.5,wood=1; cloth=1,splint,1,bind,1
+capture_net_i,Capture Net I,weapon_tools,60,hand,2.0,lashing=2; handle=1,capture_net_i,1,twist,1
+twine,Twine,processing,60,hand,1.0,fibre=2,twine,1,twist,1
+rope,Rope,processing,60,workbench,2.0,twine=3,rope,1,twist,1
+thread,Thread,tailoring,60,hand,1.0,fibre=2,thread,1,twist,1
+cloth,Cloth,tailoring,60,workbench,2.0,thread=2,cloth,1,twist,1
+dried_hide,Dried Hide,processing,60,drying_rack,4.0,green_hide=1,dried_hide,1,dry,1
+dry_meat,Dry Meat,processing,60,drying_rack,8.0,raw_meat=1,dried_meat,1,dry,1
+smoke_meat,Smoke Meat,processing,60,smoker,12.0,raw_meat=1,smoked_meat,1,smoke,1
+camp_stew,Camp Stew,cooking,60,crock_pot,6.0,raw_meat=1; herb=1; fruit=1,camp_stew,1,stew,1
+hide_strap,Hide Strap,processing,60,workbench,2.0,dried_hide=1,hide_strap,2,split,1
+split_wood,Split Wood,processing,60,workbench,2.0,log=1,split_wood,2,split,1
+plank,Plank,processing,60,workbench,2.0,split=2,plank,1,hammer,1
+charcoal,Charcoal,processing,60,hand,3.0,burnable=2,charcoal,1,bake,1
+ingot,Crude Ingot,processing,60,forge,4.0,rough_ore=2; fuel=1,ingot,1,smelt,1
+campfire_kit,Campfire Kit,construction,60,hand,1.5,wood=2; tinder=1,campfire_kit,1,bind,1
+bonfire_kit,Bonfire Kit,construction,60,hand,1.5,wood=2; fibre=1,bonfire_kit,1,bind,1
+stone_fire_pit_kit,Stone Fire Pit Kit,construction,60,hand,2.5,stone=6; wood=2,stone_fire_pit_kit,1,stack,1
+stone_grill_kit,Flat Stone Grill Kit,construction,60,hand,3.0,stone=4; wood=2,stone_grill_kit,1,bind,1
+makeshift_taming_pen_kit,Makeshift Taming Pen Kit,construction,60,hand,2.5,wood=4; lashing=2,makeshift_taming_pen,1,bind,1
+workbench_kit,Workbench Kit,construction,60,hand,2.0,wood=4; lashing=2,workbench_kit,1,bind,1
+mortar_kit,Mortar and Pestle Kit,construction,60,hand,3.0,stone=3; wood=1,mortar_kit,1,bind,1
+well_kit,Simple Well Kit,construction,60,hand,3.0,stone=6; wood=4; lashing=2,well_kit,1,bind,1
+drying_rack_kit,Meat Drying Rack Kit,construction,60,hand,1.5,wood=4; lashing=2,drying_rack_kit,1,bind,1
+smoker_kit,Smoker Kit,construction,60,hand,4.0,wood=6; stone=3; lashing=2,smoker_kit,1,bind,1
+crock_pot_kit,Crock Pot Kit,construction,60,hand,3.0,pot_clay=4; stone=2; wood=2,crock_pot_kit,1,shape,1
+straw_roll_kit,Straw Roll,construction,60,hand,1.5,fibre=3; lashing=1,straw_roll_kit,1,bind,1
+tent_kit,Tent Kit,tailoring,60,hand,2.0,cured_hide=2; wood=2; lashing=1,tent_kit,1,bind,1
+canvas_tent_kit,Canvas Tent Kit,tailoring,60,hand,3.0,fibre=6; wood=3; lashing=2,canvas_tent_kit,1,bind,1
+log_shelter_kit,Log Shelter Kit (Planned),construction,60,hand,4.0,log=8; fibre=6; lashing=3,log_shelter_kit,1,bind,1
+cabin_bed_kit,Cabin Bed Kit (Planned),construction,60,hand,4.0,plank=6; fibre=4; cured_hide=2,cabin_bed_kit,1,bind,1
+basket_kit,Basket Kit,construction,60,hand,1.5,fibre=4; wood=1,basket_kit,1,twist,1
+fence_kit,Fence Segment,construction,60,hand,1.0,wood=2,fence_kit,1,bind,1
+gate_kit,Gate,construction,60,hand,1.5,wood=3; lashing=1,gate_kit,1,bind,1
+sign_kit,Sign,construction,60,hand,1.0,wood=1,sign_kit,1,hammer,1
+campfire_skewer,Campfire Skewer,cooking,19,campfire,3.0,raw_meat=1; handle=1,skewer,1,cook,1
+skewer,Skewer,cooking,19,bonfire,3.0,meat=1; handle=1,skewer,1,cook,1
+meatball_mix,Meatball Mix,cooking,60,mortar,1.5,raw_meat=1,meatball_mix,1,mince,1
+cook_meatball,Cook Meatball,cooking,60,bonfire,2.5,meat=1,meatball,1,cook,1
+stone_grill,Stone-Plate Grill,cooking,60,stone_grill,3.0,raw_meat=1,grilled_meat,1,grill,1
+steam,Steam,cooking,60,steamer,2.5,food=1,steamed_food,1,steam,1
+sashimi,Sashimi,cooking,60,bonfire,2.0,raw_meat=1,sashimi,3,sashimi,0
+boil,Boil,cooking,60,bonfire,3.0,meat=1; water=1,boiled_meat,1,boil,1
+roast,Roast,cooking,60,stone_grill,4.0,raw_meat=1,roast,1,roast,1
+seasoned_roast,Seasoned Roast,cooking,60,stone_grill,4.5,raw_meat=1; spice=1,seasoned_roast,1,roast,1
+herbed_meal,Herbed Meal,cooking,60,bonfire,3.0,meat=1; herb=1,herb_buff_meal,1,cook,1
+spiced_skewer,Spiced Skewer,cooking,19,bonfire,3.0,meat=1; handle=1; spice=1,spiced_skewer,1,cook,1
+carnivore_feed,Carnivore Feed,cooking,60,mortar,2.0,raw_meat=1; water=1,carnivore_feed,2,mix,0
+herbivore_feed,Herbivore Feed,cooking,60,hand,1.5,fruit=1; stalk=1,herbivore_feed,2,mix,0
+field_small,Small Field,farming,1,hand,2.0,earth=2,field_small_kit,1,till,0
+field_large,Large Field,farming,1,hand,3.0,earth=4,field_large_kit,1,till,0
+empty_bucket,Empty Bucket,construction,60,workbench,2.0,wood=2; lashing=1,empty_bucket,1,bind,1
+fill_bucket,Fill Bucket,construction,60,well,1.0,bucket=1,water_bucket,1,fill,0
+raid_maul,Raid Maul,weapon_tools,60,workbench,12,tier_steel=4; handle=2; lashing=4,raid_maul,1,bind,1
+raid_helm,Raid Helm,tailoring,60,workbench,12,tier_steel=2; cured_hide=4; lashing=2,raid_helm,1,bind,1
+raid_cuirass,Raid Cuirass,tailoring,60,workbench,12,tier_steel=4; cured_hide=8; lashing=4,raid_cuirass,1,bind,1
+raid_greaves,Raid Greaves,tailoring,60,workbench,12,tier_steel=2; cured_hide=4; lashing=2,raid_greaves,1,bind,1
+bone_hammer,Dense Bone Hammer,weapon_tools,60,workbench,5,dense_bone=2; handle=1; lashing=2,bone_hammer,1,bind,1
+barbed_knife,Barbed Talon Knife,weapon_tools,60,workbench,4,talon=1; handle=1; lashing=1,barbed_knife,1,bind,1
+toxin_coating,Herb Toxin Coating,processing,60,hand,4,herb=4,toxin_coating,1,bind,1
+venom_coating,Venom Toxin Coating,processing,60,hand,4,venom=1; herb=1,toxin_coating,3,mix,1
+rope_snare,Rope Snare,weapon_tools,60,hand,4,tendon=1; lashing=2; handle=1,rope_snare,1,bind,1
+heavy_snare,Heavy Cable Snare,weapon_tools,60,workbench,4,scute=2; metal=2; lashing=2,heavy_snare,1,bind,1
+slingshot,Bone Slingshot,weapon_tools,60,hand,3,bone=1; handle=1; lashing=2,slingshot,1,bind,1
+stone_shot,Stone Shot,weapon_tools,60,hand,1,stone=1,stone_shot,5,bind,1
+catapult_kit,Field Catapult Kit,weapon_tools,60,workbench,8,wood=8; dense_bone=2; lashing=6,catapult_kit,1,bind,1
+toxin_pot,Toxin Pot,weapon_tools,60,workbench,4,venom=1; stone=2,toxin_pot,1,bind,1
+travel_shirt,Travel Shirt,tailoring,60,workbench,4,cloth=4; fibre=4,travel_shirt,1,bind,1
+travel_sleeves,Travel Sleeves,tailoring,60,workbench,4,cloth=2; fibre=2,travel_sleeves,1,bind,1
+travel_trousers,Travel Trousers,tailoring,60,workbench,4,cloth=4; fibre=4,travel_trousers,1,bind,1
+forager_hood,Forager Hood,tailoring,60,workbench,8,cloth=3; fibre=3; cured_hide=1,forager_hood,1,bind,1
+forager_vest,Forager Vest,tailoring,60,workbench,8,cloth=6; fibre=6; cured_hide=2,forager_vest,1,bind,1
+forager_wraps,Forager Arm Wraps,tailoring,60,workbench,8,cloth=3; fibre=3; cured_hide=1,forager_wraps,1,bind,1
+forager_leggings,Forager Leggings,tailoring,60,workbench,8,cloth=6; fibre=6; cured_hide=2,forager_leggings,1,bind,1
+hide_bone_helm,Hide and Bone Helm,tailoring,60,workbench,8,cured_hide=4; bone=3; lashing=2,hide_bone_helm,1,bind,1
+hide_bone_cuirass,Hide and Bone Cuirass,tailoring,60,workbench,8,cured_hide=8; bone=6; lashing=4,hide_bone_cuirass,1,bind,1
+hide_bone_bracers,Hide and Bone Bracers,tailoring,60,workbench,8,cured_hide=4; bone=3; lashing=2,hide_bone_bracers,1,bind,1
+hide_bone_greaves,Hide and Bone Greaves,tailoring,60,workbench,8,cured_hide=8; bone=6; lashing=4,hide_bone_greaves,1,bind,1
+bone_knife,Bone Knife,weapon_tools,60,workbench,4.0,tier_bone=1; handle=1; lashing=1,bone_knife,1,bind,1
+bone_axe,Bone Axe,weapon_tools,60,workbench,4.0,tier_bone=2; handle=1; lashing=1,bone_axe,1,bind,1
+bone_pick,Bone Pick,weapon_tools,60,workbench,4.0,tier_bone=2; handle=1; lashing=1,bone_pick,1,bind,1
+bone_spear,Bone Spear,weapon_tools,60,workbench,4.0,tier_bone=3; handle=1; lashing=2,bone_spear,1,bind,1
+flint_knife,Flint Knife,weapon_tools,60,workbench,3.0,tier_flint=1; handle=1; lashing=1,flint_knife,1,bind,1
+flint_axe,Flint Axe,weapon_tools,60,workbench,3.0,tier_flint=2; handle=1; lashing=1,flint_axe,1,bind,1
+flint_pick,Flint Pick,weapon_tools,60,workbench,3.0,tier_flint=2; handle=1; lashing=1,flint_pick,1,bind,1
+flint_spear,Flint Spear,weapon_tools,60,workbench,3.0,tier_flint=3; handle=1; lashing=2,flint_spear,1,bind,1
+obsidian_knife,Obsidian Knife,weapon_tools,60,workbench,3.0,tier_obsidian=1; handle=1; lashing=1,obsidian_knife,1,bind,1
+obsidian_axe,Obsidian Axe,weapon_tools,60,workbench,3.0,tier_obsidian=2; handle=1; lashing=1,obsidian_axe,1,bind,1
+obsidian_pick,Obsidian Pick,weapon_tools,60,workbench,3.0,tier_obsidian=2; handle=1; lashing=1,obsidian_pick,1,bind,1
+obsidian_spear,Obsidian Spear,weapon_tools,60,workbench,3.0,tier_obsidian=3; handle=1; lashing=2,obsidian_spear,1,bind,1
+copper_knife,Copper Knife,weapon_tools,60,anvil,4.0,tier_copper=1; handle=1; lashing=1,copper_knife,1,bind,1
+copper_axe,Copper Axe,weapon_tools,60,anvil,4.0,tier_copper=2; handle=1; lashing=1,copper_axe,1,bind,1
+copper_pick,Copper Pick,weapon_tools,60,anvil,4.0,tier_copper=2; handle=1; lashing=1,copper_pick,1,bind,1
+copper_sword,Copper Sword,weapon_tools,60,anvil,4.0,tier_copper=3; handle=1; lashing=2,copper_sword,1,bind,1
+bronze_knife,Bronze Knife,weapon_tools,60,anvil,4.0,tier_bronze=1; handle=1; lashing=1,bronze_knife,1,bind,1
+bronze_axe,Bronze Axe,weapon_tools,60,anvil,4.0,tier_bronze=2; handle=1; lashing=1,bronze_axe,1,bind,1
+bronze_pick,Bronze Pick,weapon_tools,60,anvil,4.0,tier_bronze=2; handle=1; lashing=1,bronze_pick,1,bind,1
+bronze_sword,Bronze Sword,weapon_tools,60,anvil,4.0,tier_bronze=3; handle=1; lashing=2,bronze_sword,1,bind,1
+iron_knife,Iron Knife,weapon_tools,60,anvil,4.0,tier_iron=1; handle=1; lashing=1,iron_knife,1,bind,1
+iron_axe,Iron Axe,weapon_tools,60,anvil,4.0,tier_iron=2; handle=1; lashing=1,iron_axe,1,bind,1
+iron_pick,Iron Pick,weapon_tools,60,anvil,4.0,tier_iron=2; handle=1; lashing=1,iron_pick,1,bind,1
+iron_sword,Iron Sword,weapon_tools,60,anvil,4.0,tier_iron=3; handle=1; lashing=2,iron_sword,1,bind,1
+steel_knife,Steel Knife,weapon_tools,60,anvil,4.0,tier_steel=1; handle=1; lashing=1,steel_knife,1,bind,1
+steel_axe,Steel Axe,weapon_tools,60,anvil,4.0,tier_steel=2; handle=1; lashing=1,steel_axe,1,bind,1
+steel_pick,Steel Pick,weapon_tools,60,anvil,4.0,tier_steel=2; handle=1; lashing=1,steel_pick,1,bind,1
+steel_sword,Steel Sword,weapon_tools,60,anvil,4.0,tier_steel=3; handle=1; lashing=2,steel_sword,1,bind,1
+leather_helm,Leather Helm,tailoring,60,workbench,6.0,cured_hide=3; lashing=2; thread=1,leather_helm,1,bind,1
+leather_cuirass,Leather Cuirass,tailoring,60,workbench,6.0,cured_hide=6; lashing=4; thread=2,leather_cuirass,1,bind,1
+leather_bracers,Leather Bracers,tailoring,60,workbench,6.0,cured_hide=3; lashing=2; thread=1,leather_bracers,1,bind,1
+leather_greaves,Leather Greaves,tailoring,60,workbench,6.0,cured_hide=6; lashing=4; thread=2,leather_greaves,1,bind,1
+copper_helm,Copper Helm,tailoring,60,anvil,6.0,tier_copper=2; cured_hide=1; lashing=1,copper_helm,1,bind,1
+copper_cuirass,Copper Cuirass,tailoring,60,anvil,6.0,tier_copper=4; cured_hide=2; lashing=2,copper_cuirass,1,bind,1
+copper_bracers,Copper Bracers,tailoring,60,anvil,6.0,tier_copper=2; cured_hide=1; lashing=1,copper_bracers,1,bind,1
+copper_greaves,Copper Greaves,tailoring,60,anvil,6.0,tier_copper=4; cured_hide=2; lashing=2,copper_greaves,1,bind,1
+bronze_helm,Bronze Helm,tailoring,60,anvil,6.0,tier_bronze=2; cured_hide=1; lashing=1,bronze_helm,1,bind,1
+bronze_cuirass,Bronze Cuirass,tailoring,60,anvil,6.0,tier_bronze=4; cured_hide=2; lashing=2,bronze_cuirass,1,bind,1
+bronze_bracers,Bronze Bracers,tailoring,60,anvil,6.0,tier_bronze=2; cured_hide=1; lashing=1,bronze_bracers,1,bind,1
+bronze_greaves,Bronze Greaves,tailoring,60,anvil,6.0,tier_bronze=4; cured_hide=2; lashing=2,bronze_greaves,1,bind,1
+iron_helm,Iron Helm,tailoring,60,anvil,6.0,tier_iron=2; cured_hide=1; lashing=1,iron_helm,1,bind,1
+iron_cuirass,Iron Cuirass,tailoring,60,anvil,6.0,tier_iron=4; cured_hide=2; lashing=2,iron_cuirass,1,bind,1
+iron_bracers,Iron Bracers,tailoring,60,anvil,6.0,tier_iron=2; cured_hide=1; lashing=1,iron_bracers,1,bind,1
+iron_greaves,Iron Greaves,tailoring,60,anvil,6.0,tier_iron=4; cured_hide=2; lashing=2,iron_greaves,1,bind,1
+steel_helm,Steel Helm,tailoring,60,anvil,6.0,tier_steel=2; cured_hide=1; lashing=1,steel_helm,1,bind,1
+steel_cuirass,Steel Cuirass,tailoring,60,anvil,6.0,tier_steel=4; cured_hide=2; lashing=2,steel_cuirass,1,bind,1
+steel_bracers,Steel Bracers,tailoring,60,anvil,6.0,tier_steel=2; cured_hide=1; lashing=1,steel_bracers,1,bind,1
+steel_greaves,Steel Greaves,tailoring,60,anvil,6.0,tier_steel=4; cured_hide=2; lashing=2,steel_greaves,1,bind,1
+forge_kit,Forge,construction,60,hand,8.0,stone=10; pot_clay=4; fuel=2,forge_kit,1,bind,1
+anvil_kit,Anvil,construction,60,workbench,8.0,stone=6; ingot=2,anvil_kit,1,bind,1
+smelt_tin,Tin Ingot,processing,60,forge,8.0,tin_ore=2; fuel=1,tin_ingot,1,smelt,1
+smelt_copper,Copper Ingot,processing,60,forge,8.0,copper_ore_mat=2; fuel=1,copper_ingot,1,smelt,1
+alloy_bronze,Bronze Ingot,processing,60,forge,10.0,tier_copper=2; tin=1; fuel=1,bronze_ingot,2,alloy,1
+smelt_iron,Iron Ingot,processing,60,forge,24.0,iron_ore=2; fuel=1,iron_ingot,1,smelt,1
+refine_steel,Steel Ingot,processing,60,forge,14.0,tier_iron=2; fuel=2,steel_ingot,1,alloy,1
+metal_shards,Metal Shards,processing,60,anvil,4.0,ingot=1,metal_shard,2,hammer,1
+capture_net_ii,Capture Net II,weapon_tools,60,workbench,4.0,rope=2; handle=1; lashing=1,capture_net_ii,1,bind,1
+capture_net_iii,Capture Net III,weapon_tools,60,workbench,5.0,rope=3; tendon=1; handle=1,capture_net_iii,1,bind,1
+capture_net_iv,Capture Net IV,weapon_tools,60,workbench,6.0,rope=3; tendon=2; metal=2,capture_net_iv,1,bind,1
+capture_net_v,Capture Net V,weapon_tools,60,workbench,8.0,rope=4; tendon=2; scute=2; tier_bronze=1,capture_net_v,1,bind,1
+steamer_kit,Steamer,construction,60,hand,5.0,wood=3; lashing=2; pot_clay=1,steamer_kit,1,bind,1
+hoe,Hoe,weapon_tools,60,hand,3.0,blade_mat=1; handle=1; lashing=1,hoe,1,bind,1
+stone_knife,Stone Knife,weapon_tools,60,workbench,3.0,tier_stone=2; handle=1; lashing=2,stone_knife,1,bind,1
+pillar,Pillar,construction,60,workbench,4.0,log=2,pillar,1,bind,1
+cloth_scrap,Cloth Scrap,tailoring,60,hand,2.0,fibre=2,cloth_scrap,1,bind,1
+claim_stake,Claim Stake,construction,60,hand,3.0,wood=2; lashing=1,claim_stake,1,bind,1
+blue_dye,Blue Dye,processing,60,mortar,3.0,coral=1,blue_dye,2,grind,1
+fruit_fertilizer,Fruit Fertilizer,farming,60,mortar,3.0,fruit=2; earth=1,fruit_fertilizer,1,grind,1
+seeds_flax,Flax Seed,farming,60,hand,2.0,flax_crop=1,flax_seed,2,extract,1
+seeds_corn,Corn Seed,farming,60,hand,2.0,corn_crop=1,corn_seed,2,extract,1
+seeds_wheat,Wheat Seed,farming,60,hand,2.0,wheat_crop=1,wheat_seed,2,extract,1
+seeds_berry,Berry Seed,farming,60,hand,2.0,berry_crop=1,berry_seed,2,extract,1
+antivenom,Antivenom,cooking,60,mortar,4.0,venom=1; herb=2,antivenom,1,grind,1
+antibiotic,Antibiotic,cooking,60,mortar,4.0,herb=3; mushroom=1,antibiotic,1,grind,1
+basic_bag,Basic Bag,tailoring,60,hand,3.0,dried_hide=2; fibre=3; lashing=1,basic_bag,1,sew,1
+small_pouch,Small Pouch,tailoring,60,hand,2.0,dried_hide=1; fibre=2,small_pouch,1,sew,1
+large_pouch,Large Pouch,tailoring,60,workbench,4.0,dried_hide=2; fibre=4; lashing=2,large_pouch,1,sew,1
+advanced_backpack,Advanced Backpack,tailoring,60,workbench,6.0,cured_hide=2; cloth=2; lashing=2; fibre=2,advanced_backpack,1,sew,1
+specialized_storage_bag,Specialized Storage Bag,tailoring,60,workbench,8.0,cured_hide=3; cloth=3; rope=1; fibre=2,specialized_storage_bag,1,sew,1
+plank_shape,Plank Shape,construction,60,hand,1.5,log=1,plank_shape,1,shape,1
+pillar_shape,Pillar Shape,construction,60,hand,2.0,log=2,pillar_shape,1,shape,1
+strap,Strap,construction,60,hand,0.5,strap_material=1,strap,1,twist,1
+trimmed_plank,Trimmed Plank,processing,60,workbench,12.0,plank_shape=1,trimmed_plank,1,trim,1
+fine_plank,Fine Plank,processing,60,workbench,12.0,plank_shape=1,fine_plank,1,trim,1
