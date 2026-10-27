@@ -4,9 +4,11 @@ Task: fix the transplanted Stegosaurus weights that made the runtime fall back t
 `force_safe_placeholder` in `game/scripts/creatures/creature_view.gd` because the
 mesh stretched "worm-like" on animation.
 
-Status: **weights repaired and measured; not yet swapped into the runtime.** The
-runtime bypass is still in place by instruction (no `game/scripts/` writes), and
-one clip family (walk/run) still exceeds the project's p99 strain target.
+Status: **weights repaired, measured and QA'd; not yet swapped into the
+runtime.** The runtime bypass is still in place by instruction (no
+`game/scripts/` writes). Every clip now passes the project's deformation gate,
+but walk/run still carry the highest local strain (hip crease) and need a human
+eye in-engine before the bypass is removed.
 
 ## What was wrong
 
@@ -138,6 +140,13 @@ done. Concretely, to adopt it:
 
 Files: `tools/stego_weight_repair.py`, `game/assets/creatures/stegosaurus/work/stegosaurus_repaired.glb`,
 `game/assets/creatures/stegosaurus/work/qa/weight-repair-v1/` (24 PNGs + 2 audits).
-Verify: `bash .dsc/verify_stego.sh` (re-measures BEFORE/AFTER, checks renders are
-1280x720, runs `tools/check_rig_audit.py` on the repaired base, and parses the
-exported GLB for skin attributes, joint count and absence of clips).
+Verify: `bash .dsc/verify_stego.sh`. It re-runs the tool headlessly (the
+repaired GLB lives under gitignored `work/`, so the gate regenerates it and all
+24 renders), asserts the BEFORE→AFTER improvements listed above, checks every
+PNG is 1280x720, audits both the shipped and repaired base against the stock
+clips and gates them with `tools/check_rig_audit.py`, and parses the exported
+GLB for skin attributes, 39 joints and absence of clips. Last run:
+`STEGO REPAIR VERIFY PASS`.
+
+Not verified here: `tools/smoke.sh` cannot run in this sandbox (Godot exits 134
+with `Failed to open 'user://logs/...'`), so in-engine behaviour is untested.
