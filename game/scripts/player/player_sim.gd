@@ -33,9 +33,12 @@ var _stagger_immune_until: float = -1.0
 var _wet_acc: float = 0.0
 var _swim_damage_acc: float = 0.0
 var _survival_acc: float = 0.0
-var _sleep_spot: Node3D
+
 ## Seconds spent in the wake pose; a guard in tick() releases the player if the clip never ends.
 var _wake_elapsed: float = 0.0
+var _sleep_spot: Node3D
+var _sleep_dur := 0.0 ## the spot's full sleep duration, stored for the gradual-onset payout
+var _sleep_drained := 0.0 ## exhaustion already paid out of this sleep
 ## A sleep spot the survivor is walking to; sleep starts when the route ends.
 var _sleep_pending: Node3D
 ## Capsule-centre height above the ground the survivor had when they lay down (the sleep pose moves
@@ -532,12 +535,15 @@ func _track_tile_blocked(delta: float) -> bool:
 
 ## ASSUMPTION: straw rolls take 12 seconds and restore 65 exhaustion once;
 ## tents take 10 seconds and restore 100. Only a completed, uninterrupted sleep
-## spends a use. No time skip, no partial restoration on interruption.
+## spends a use. No time skip; an interrupted sleep keeps the exhaustion already
+## paid out (the restore drains gradually, owner 2026-10-27 — the HUD treadmill
+## should run left through the whole sleep, not snap at wake).
 func _tick_sleep(delta: float) -> void:
 	var hurt := (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 1.0
 	if input_vector().length_squared() > 0.04 or p.nav_active or p.vitals.in_combat or hurt or p.dead \
 			or not is_instance_valid(_sleep_spot) or p.global_position.distance_to(_sleep_spot.global_position) > 3.2:
 		p._sleep_left = 0.0
+		_sleep_drained = 0.0
 		var left := _sleep_spot
 		_sleep_spot = null
 		_wake_at(left)
@@ -545,15 +551,23 @@ func _tick_sleep(delta: float) -> void:
 			p.anim.wake_from_sleep()
 		p.notice("Sleep interrupted")
 		return
+	# Payout across the duration: every tick eases exhaustion linearly, so a straw
+	# roll (65 pts / 12 s) drops ~5.4 pts per second and the belt reads the slope
+	# directly. A completed sleep lands the tiny float remainder exactly.
+	var spot: Node3D = _sleep_spot
+	if _sleep_dur > 0.0 and _sleep_drained < spot.sleep_restore():
+		var step: float = spot.sleep_restore() * delta / _sleep_dur
+		p.vitals.rest(step)
+		_sleep_drained += step
 	p._sleep_left = maxf(0.0, p._sleep_left - delta)
 	p.velocity.x = 0.0
 	p.velocity.z = 0.0
 	p.move_and_slide()
 	if p._sleep_left <= 0.0:
-		var spot := _sleep_spot
 		_sleep_spot = null
 		_wake_at(spot)
-		p.vitals.rest(spot.sleep_restore())
+		p.vitals.rest(maxf(0.0, spot.sleep_restore() - _sleep_drained))
+		_sleep_drained = 0.0
 		spot.complete_sleep()
 		if p.anim:
 			p.anim.wake_from_sleep()
@@ -606,7 +620,9 @@ func start_sleep(spot: Node3D = null) -> void:
 	p.clear_nav()
 	p.actions.cancel_work()
 	_sleep_spot = spot
-	p._sleep_left = spot.sleep_duration()
+	_sleep_dur = maxf(0.01, spot.sleep_duration())
+	_sleep_drained = 0.0
+	p._sleep_left = _sleep_dur
 	if p.anim:
 		p.anim.start_sleep()
 	p.notice("Sleeping - move to wake")
