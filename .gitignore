@@ -18,3 +18,9 @@ game/assets/**/work/
 tools/web_soak/node_modules/
 .dsc/
 .dsc.json
+
+# dsc superplan/cook working state (events, logs, merge dirs) — many GB, local only.
+.dsc-plan/
+
+# Playtest and soak artifact outputs (checkpoints, console logs).
+artifacts/
