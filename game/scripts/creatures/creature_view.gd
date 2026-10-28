@@ -74,6 +74,9 @@ var pose_t: float = 0.0:
 		pose_t = v
 		_apply_pose()
 
+## Lab-only (ragdoll_lab): build the stegosaurus from its GLB despite the in-game override below.
+static var allow_stegosaurus_rig := false
+
 var def: CreatureDef
 var variant: StringName = &""
 var using_glb: bool = false
@@ -131,7 +134,7 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	var glb := "res://assets/creatures/%s/%s.glb" % [def.id, def.id]
 	# The current transplanted Stegosaurus skin has catastrophic weights (worm-like stretching).
 	# Keep it playable with the procedural quadruped until the asset-upgrade replacement lands.
-	var force_safe_placeholder := def.id == &"stegosaurus"
+	var force_safe_placeholder := def.id == &"stegosaurus" and not allow_stegosaurus_rig
 	if ResourceLoader.exists(glb) and not force_safe_placeholder:
 		rotation = Vector3.ZERO
 		rig = RiggedModel.new()

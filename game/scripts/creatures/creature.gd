@@ -983,11 +983,14 @@ func _on_died(_source: Node) -> void:
 	stop_move()
 	# Bonded animals enter their respawn cooldown without creating a harvestable corpse or
 	# loot bag. Wild kills still use the normal corpse/loot flow.
+	var corpse: Corpse = null
 	if not is_pet:
-		var corpse := Corpse.new()
+		corpse = Corpse.new()
 		corpse.setup(self)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
+	# Client-side presentation: hit reaction, ragdoll (or death clip) and the corpse's resting place.
+	Ragdoll.on_death(self, _source, corpse)
 
 ## ALPHAS: an alpha's kill pays ai.json alpha.xp_mult times the XP (bonus XP); 1.0 otherwise.
 func kill_xp_mult() -> float:
