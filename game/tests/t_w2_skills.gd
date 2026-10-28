@@ -512,13 +512,13 @@ func _test_field_tame_cap() -> void:
 	var pets: Control = (load("res://scripts/ui/animal_screen.gd") as GDScript).new()
 	get_root().add_child(pets)
 	pets.open(p)
-	_expect(str(pets._title.text).contains("3 / 3"), "the pets screen shows bonded / cap (title '%s')" % pets._title.text)
-	_expect(str(pets._summon.text).contains("ACTIVE 0 / "), "the equip button names its counter, so it cannot be read as the bonded cap ('%s')" % pets._summon.text)
+	_expect(str(pets._bonded.text).contains("3 / 3"), "the pets screen shows bonded / cap (header '%s')" % pets._bonded.text)
+	_expect(str(pets._summon.text).to_upper().contains("ACTIVE 0 / "), "the equip button names its counter, so it cannot be read as the bonded cap ('%s')" % pets._summon.text)
 	(p.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")
 	hint = FT.plate_hint(c, p.inventory)
 	_expect(str(hint.get("kind", "")) == "tame", "Animal Handling I (cap 4) offers the tame again (got %s '%s')" % [hint.get("kind", ""), hint.get("text", "")])
 	pets.open(p)
-	_expect(str(pets._title.text).contains("3 / 4"), "the pets screen follows the cap (title '%s')" % pets._title.text)
+	_expect(str(pets._bonded.text).contains("3 / 4"), "the pets screen follows the cap (header '%s')" % pets._bonded.text)
 	for n in [pets, hud, p]:
 		get_root().remove_child(n)
 		n.free()
@@ -561,12 +561,10 @@ func _test_sheet_rows() -> void:
 		_expect(autos.begins_with("Learned automatically: "), "%s at Lv. 1: the learned AUTO nodes share one line ('%s')" % [tree, autos])
 	# XP banked at the cap shows as a full bar, like Durango's skill screen, not "200 / 28 XP".
 	sk.add_xp("melee", 200.0, true)
-	sheet.open(sk)
-	var melee: Node = sheet._box.find_child("Skill_melee", true, false)
-	var xp_text := ""
-	for l in (melee.find_children("*", "Label", true, false) if melee else []):
-		xp_text = (l as Label).text if (l as Label).text.ends_with(" XP") else xp_text
-	_expect(xp_text == "28 / 28 XP", "melee at the cap with 200 XP banked reads a full bar ('%s')" % xp_text)
+	sheet.open(sk, "melee")
+	var xp_label: Label = sheet.find_child("SkillXp", true, false)
+	var xp_text := xp_label.text if xp_label else ""
+	_expect(xp_text == "28 / 28", "melee at the cap with 200 XP banked reads a full bar ('%s')" % xp_text)
 	_done_with(sk)
 	sk = _fresh(59)
 	_grant(sk, "processing", 25)
@@ -634,9 +632,9 @@ func _test_craft_card_lock() -> void:
 	var text := lock.text if lock else ""
 	var ingredients := -1
 	for c in ui._detail.get_children():
-		if c is Label and (c as Label).text == "INGREDIENTS":
+		if c.name == "DetailMaterialsHead":  # UICRAFT: the "Materials" bar heads the ingredients
 			ingredients = c.get_index()
-	var above := lock != null and lock.get_index() < ingredients
+	var above := lock != null and (lock if lock.get_parent() == ui._detail else lock.get_parent()).get_index() < ingredients
 	_expect(text.begins_with("Learn Charcoal (Processing Lv. 10, 1 SP); you have 0 SP") and above, "the charcoal craft card says what unlocks it, above the ingredients: '%s'" % text)
 	for n in [ui, p]:
 		get_root().remove_child(n)

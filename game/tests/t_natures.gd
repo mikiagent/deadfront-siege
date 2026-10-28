@@ -245,13 +245,14 @@ func _test_nature_tag() -> void:
 	await process_frame
 	var row_chip: Control = null
 	var row_text := ""
-	for b in screen.find_children("*", "Button", true, false):
-		if (b as Button).text.contains("Velociraptor") or (b as Button).text.contains("Lv."):
-			row_text = (b as Button).text
-			var holder := b.get_parent()
-			if holder:
-				row_chip = holder.get_node_or_null("NatureChip") as Control
-			break
+	# E1 rebuild: a pack card per pet; its Info column is Name, then the NatureChip directly under it.
+	var card := screen.find_child("PackCard0", true, false)
+	var info := card.find_child("Info", true, false) if card else null
+	if info:
+		var nm := info.get_node_or_null("Name") as Label
+		row_text = nm.text if nm else ""
+		row_chip = info.get_node_or_null("NatureChip") as Control
+		_expect(nm != null and row_chip != null and row_chip.get_index() == nm.get_index() + 1, "the Animals row's chip is directly under the name")
 	var detail_chip := screen.get("_detail_chip") as Control
 	var detail_name := screen.get("_detail_name") as Label
 	print("[t_natures] animals: row '%s' chip '%s'; detail name '%s' chip '%s'" % [row_text, _chip_text(row_chip), detail_name.text if detail_name else "", _chip_text(detail_chip)])
