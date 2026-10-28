@@ -91,7 +91,9 @@ func _test_table() -> void:
 	var want := ["timid", "brave", "aggressive", "loyal", "stubborn", "docile"]
 	for id in want:
 		_expect(rows.has(id), "natures.json has no '%s' nature" % id)
-		_expect(NR.label(StringName(id)) == String(id).capitalize(), "%s label reads '%s'" % [id, NR.label(StringName(id))])
+		# Owner 2026-10-28: the `loyal` id is shown as "Territorial"; every other label is its id capitalised.
+		var want_label := "Territorial" if String(id) == "loyal" else String(id).capitalize()
+		_expect(NR.label(StringName(id)) == want_label, "%s label reads '%s'" % [id, NR.label(StringName(id))])
 	_expect(NR.ids().size() == 6, "six natures in the table (got %d)" % NR.ids().size())
 	# The neutral row: an animal whose nature says nothing behaves exactly as before.
 	var d: Dictionary = NR.knobs(&"")
