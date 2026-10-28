@@ -25,6 +25,8 @@ const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"
 var equipment: Dictionary = {}
 ## Two quick-food def ids for the HUD food hexes + auto-feed.
 var quick_food: Array = ["", ""]
+## Character -> Gear numbered loadouts (GearPresets): {"active": int, "sets": [{slot: uid}]}; {} until used.
+var presets: Dictionary = {}
 ## uids taken while loading (home cargo, then this bag): a worn row repeating one is reminted.
 var load_uids: Dictionary = {}
 
@@ -123,7 +125,10 @@ func extras_to_dict() -> Dictionary:
 	for slot in equipment:
 		if equipment[slot] is ItemStack:
 			w[slot] = (equipment[slot] as ItemStack).to_dict()
-	return {"worn": w, "quick_food": quick_food.duplicate(), "tool_index": equipped_tool_index}
+	var out := {"worn": w, "quick_food": quick_food.duplicate(), "tool_index": equipped_tool_index}
+	if not presets.is_empty():
+		out["presets"] = presets.duplicate(true) # additive: a save that never used presets is unchanged
+	return out
 
 ## Call after load_array: worn gear (InventoryEquipment.load_worn, which also migrates the
 ## pre-W2-INV def-id form), quick food and the chosen tool.
@@ -138,6 +143,7 @@ func extras_from_dict(d: Dictionary) -> void:
 	var q: Variant = d.get("quick_food", [])
 	if q is Array and (q as Array).size() >= 2:
 		quick_food = [str(q[0]), str(q[1])]
+	presets = GearPresets.sanitize(d.get("presets", null))
 	changed.emit()
 
 # ---------------------------------------------------------------- tools

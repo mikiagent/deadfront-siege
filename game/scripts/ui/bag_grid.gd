@@ -1,10 +1,13 @@
 class_name BagGrid
 extends Control
-## The bag, storage and pet-cargo grid (spec 13 s5, s12; spec 05: one item instance per slot).
+## The bag, storage and pet-cargo grid (spec 13 s5-8, s12; spec 05: one item instance per slot).
 ## A ScrollContainer (touch drag, wheel, scrollbar) over a grid of exactly `capacity` compartments,
-## one per bag slot: empty slots stay visible, a unique instance shows its level, a green mark means
-## an instance trait, gold brackets the single selection, cool blue ones a batch mark. No count pills and no grouping: two
-## identical stones are two slots. Bound to one Inventory; read-only grids ignore taps.
+## one per bag slot: empty slots stay visible, a unique instance shows "Lv. N" (small, grey, top
+## right), a fresh one a blue NEW tag (top left), a green rare trait a green corner mark, a locked
+## one a small lock; gold brackets the single selection, cool blue ones a batch mark. No count pills
+## and no grouping: two identical stones are two slots. Bound to one Inventory; read-only grids
+## ignore taps. Auto Sort and the filter (spec 13 s9) change only the order cells are drawn in
+## (`sort_key`, `filter_id`): every cell keeps its real slot index, nothing in the bag moves.
 
 signal selected(index: int)
 
@@ -24,6 +27,18 @@ var multi_mode := false
 var multi: Array[int] = []
 
 var inventory: Inventory
+## Presentation order (spec 13 s9): "" = bag order, else one of SORTS. Never moves an item.
+var sort_key := ""
+## "" = every slot, else one of FILTERS: only matching instances are drawn.
+var filter_id := ""
+## uids the host flags as freshly acquired (blue NEW tag); the host clears them on acknowledge.
+var new_uids: Dictionary = {}
+const SORTS := ["", "type", "level", "name"]
+const SORT_LABELS := {"": "Bag order", "type": "Type", "level": "Level", "name": "Name"}
+const FILTERS := ["", "materials", "food", "gear", "tools", "building", "rare", "locked"]
+const FILTER_LABELS := {"": "All", "materials": "Materials", "food": "Food", "gear": "Gear", "tools": "Tools", "building": "Building", "rare": "Rare", "locked": "Locked"}
+## Cell for each drawn slot index (the view may skip or reorder slots).
+var _cell_of: Dictionary = {}
 
 var _scroll: ScrollContainer
 var _grid: GridContainer
@@ -34,6 +49,8 @@ var _empty := 0
 var _press_cell := -1
 var _press_pos := Vector2.ZERO
 const TAP_DEADZONE := 12.0
+## Room kept for the vertical scrollbar when counting columns.
+const SCROLLBAR_PX := 12.0
 
 ## One compartment: faint frame, item art, "Lv. N" bottom-right, green rare diamond top-right,
 ## gold corner brackets when selected. It passes pointer events through, so a drag scrolls.
@@ -52,6 +69,7 @@ class Cell extends Control:
 				member = v
 				queue_redraw()
 	var font_px := 13
+	var is_new := false
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_PASS
@@ -66,37 +84,47 @@ class Cell extends Control:
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
-		draw_rect(r, Color(0.10, 0.11, 0.13, 1.0), true)
+		draw_rect(r, Color(0.16, 0.155, 0.13, 1.0), true)
 		draw_rect(r, Color(0.34, 0.33, 0.29, 0.9), false, 1.0)
-		if stack == null:
-			if selected:
-				_brackets(r)
-			if member:
-				_brackets(r, BATCH_COL)
-			return
-		var tex := ItemIcons.texture(stack.def_id)
-		if tex:
-			var side := size.x * 0.58
-			draw_texture_rect(tex, Rect2((size - Vector2(side, side)) * 0.5, Vector2(side, side)), false)
-		else:
-			# No art for this id: its name, at most two lines, never the raw id.
-			var d := stack.def()
-			var label := d.display_name if d and d.display_name != "" else str(stack.def_id).capitalize()
-			var mid: float = size.y * 0.5 - (float(font_px) if label.length() > 12 else 0.0)
-			draw_string(ThemeDB.fallback_font, Vector2(2, mid), label, HORIZONTAL_ALIGNMENT_CENTER, size.x - 4, font_px)
-		# Level label (spec 13 s6): only for an instance that has a meaningful level.
-		if stack.level > 1 and not stack.is_fungible():
-			var txt := "Lv %d" % stack.level
-			draw_string(ThemeDB.fallback_font, Vector2(3, size.y - 3), txt, HORIZONTAL_ALIGNMENT_RIGHT, size.x - 6, font_px)
-		# Rare/green mark (spec 13 s9): the instance carries a trait the def does not give every one.
-		if not Inventory.traits(stack).is_empty():
-			var c := Vector2(size.y - 7, 7)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -4), c + Vector2(4, 0), c + Vector2(0, 4), c + Vector2(-4, 0)]), Color(0.36, 0.86, 0.38, 1.0))
+		if selected:
+			draw_rect(r.grow(-2), Color(SEL_COL, 0.12), true)
+		if stack != null:
+			var tex := ItemIcons.texture(stack.def_id)
+			if tex:
+				var side := size.x * 0.58
+				draw_texture_rect(tex, Rect2((size - Vector2(side, side)) * Vector2(0.5, 0.55), Vector2(side, side)), false)
+			else:
+				# No art for this id: its name, at most two lines, never the raw id.
+				var d := stack.def()
+				var label := d.display_name if d and d.display_name != "" else str(stack.def_id).capitalize()
+				var mid: float = size.y * 0.5 - (float(font_px) if label.length() > 12 else 0.0)
+				draw_string(ThemeDB.fallback_font, Vector2(2, mid), label, HORIZONTAL_ALIGNMENT_CENTER, size.x - 4, font_px)
+			# Level label (spec 13 s6): small, grey, top right; only for an instance with a meaningful level.
+			if stack.level > 1 and not stack.is_fungible():
+				draw_string(ThemeDB.fallback_font, Vector2(3, font_px + 1), LevelDisplay.label(stack.level), HORIZONTAL_ALIGNMENT_RIGHT, size.x - 6, font_px, LV_COL)
+			# NEW tag (spec 13 s7): blue, white uppercase, top left, at most a third of the cell wide.
+			if is_new:
+				var tw := ThemeDB.fallback_font.get_string_size("NEW", HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x
+				var tag := Rect2(Vector2(2, 2), Vector2(minf(tw + 6.0, size.x * 0.45), font_px + 3))
+				draw_rect(tag, NEW_COL, true)
+				draw_string(ThemeDB.fallback_font, tag.position + Vector2(3, font_px), "NEW", HORIZONTAL_ALIGNMENT_LEFT, tag.size.x - 4, font_px, Color.WHITE)
+			# Rare mark (spec 13 s11): a green corner, much quieter than the brackets.
+			if InvAttributes.has_rare(stack):
+				var e := r.end - Vector2(2, 2)
+				var k := size.x * 0.16
+				draw_colored_polygon(PackedVector2Array([e, e - Vector2(k, 0), e - Vector2(0, k)]), Color(InvAttributes.COLORS["rare"], 0.9))
+			if stack.is_locked():
+				var lk := UiIcons.icon(&"lock")
+				if lk:
+					var ls := size.x * 0.2
+					draw_texture_rect(lk, Rect2(Vector2(3, size.y - ls - 3), Vector2(ls, ls)), false)
 		if selected:
 			_brackets(r)
 		if member:
 			_brackets(r, BATCH_COL)
 
+	const LV_COL := Color(0.65, 0.65, 0.61, 1.0)
+	const NEW_COL := Color(0.09, 0.41, 0.59, 1.0)
 	const SEL_COL := Color(0.90, 0.75, 0.33, 1.0)
 	const BATCH_COL := Color(0.42, 0.80, 0.92, 1.0)
 
@@ -150,13 +178,14 @@ func filled() -> int:
 func empty_visible() -> int:
 	return _empty
 
+## The cell drawing bag slot `index` (null when the view hides it).
 func cell_for(index: int) -> Cell:
-	return _cells[index] if index >= 0 and index < _cells.size() else null
+	return _cell_of.get(index) as Cell
 
 func set_selected(index: int) -> void:
 	selected_index = index
 	for c in _cells:
-		c.selected = c.index == index
+		c.selected = c.index == index and index >= 0
 
 ## Select mode (Feature A): taps toggle batch membership rather than the single selection.
 func set_multi_mode(on: bool) -> void:
@@ -167,7 +196,7 @@ func set_multi_mode(on: bool) -> void:
 ## Toggle one slot into the batch. A locked item may still join (its actions skip it and say so),
 ## but empty compartments and lock-marker slots refuse so the counts track actionable items.
 func toggle_multi(index: int) -> bool:
-	if inventory == null or index < 0 or index >= _cells.size() or index >= inventory.slots.size():
+	if inventory == null or index < 0 or index >= inventory.slots.size():
 		return false
 	var s: ItemStack = inventory.slots[index]
 	if s == null or s.def_id == Inventory.LOCK:
@@ -191,11 +220,13 @@ func multi_list() -> Array[int]:
 	out.sort()
 	return out
 
-## Builds (or reuses) exactly `inventory.slot_count` compartments, one per bag index.
+## Builds (or reuses) one compartment per drawn slot: every bag index in bag order, or the sorted /
+## filtered view (view_order).
 func rebuild() -> void:
 	if inventory == null:
 		return
-	var want := inventory.slot_count
+	var view := view_order(inventory, sort_key, filter_id)
+	var want := view.size()
 	while _cells.size() < want:
 		var c := Cell.new()
 		c.name = "Slot%d" % _cells.size()
@@ -207,16 +238,82 @@ func rebuild() -> void:
 		_grid.remove_child(c)
 		c.queue_free()
 	_empty = 0
-	for i in want:
+	_cell_of.clear()
+	for k in want:
+		var i: int = view[k]
 		var s: ItemStack = inventory.slots[i] if i < inventory.slots.size() else null
 		if s != null and s.def_id == Inventory.LOCK:
 			s = null
 		if s == null:
 			_empty += 1
-		_cells[i].set_stack(s, i)
-		_cells[i].selected = i == selected_index
-		_cells[i].member = multi.has(i)
+		_cells[k].set_stack(s, i)
+		_cells[k].is_new = s != null and s.uid != "" and new_uids.has(s.uid)
+		_cells[k].selected = i == selected_index
+		_cells[k].member = multi.has(i)
+		_cell_of[i] = _cells[k]
 	_place()
+
+## Slot indices in draw order. No sort and no filter: 0..slot_count-1. A sort draws the occupied
+## slots in key order, then the empty ones (capacity stays visible); a filter draws matches only.
+static func view_order(inv: Inventory, key: String, filter: String) -> Array[int]:
+	var out: Array[int] = []
+	var empties: Array[int] = []
+	for i in inv.slot_count:
+		var s: ItemStack = inv.slots[i] if i < inv.slots.size() else null
+		if s == null or s.def_id == Inventory.LOCK:
+			if filter == "":
+				empties.append(i)
+			continue
+		if filter == "" or matches(s, filter):
+			out.append(i)
+	if key == "":
+		if filter == "":
+			out.clear()
+			for i in inv.slot_count:
+				out.append(i)
+		return out
+	var keyed := out.map(func(i: int) -> Array: return [sort_value(inv.slots[i], key), i])
+	keyed.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0] if a[0] != b[0] else a[1] < b[1])
+	out.clear()
+	for row: Array in keyed:
+		out.append(int(row[1]))
+	out.append_array(empties)
+	return out
+
+## Comparable key: type = first category then name; level = highest first; name = display name.
+static func sort_value(s: ItemStack, key: String) -> String:
+	var d := s.def()
+	var nm := (d.display_name if d and d.display_name != "" else str(s.def_id)).to_lower()
+	match key:
+		"type":
+			return "%s|%s|%03d" % [str(d.categories[0]) if d and not d.categories.is_empty() else "~", nm, 999 - s.level]
+		"level":
+			return "%03d|%s" % [999 - s.level, nm]
+	return "%s|%03d" % [nm, 999 - s.level]
+
+## Whether an instance shows under a filter (spec 13 s9 "filter by relevant item categories").
+static func matches(s: ItemStack, filter: String) -> bool:
+	var d := s.def()
+	var food := Food.is_food(s)
+	var gear := d != null and Inventory.slot_for(d) not in [&"", &"weapon"] # worn armour, clothes, bags
+	var tool := d != null and ((d.tool_class != &"" and d.tool_class != &"none") or d.has_category(&"tool") or d.has_category(&"weapon"))
+	var building := d != null and (d.place_as != &"" or d.has_category(&"building"))
+	match filter:
+		"food":
+			return food
+		"gear":
+			return gear
+		"tools":
+			return tool
+		"building":
+			return building
+		"rare":
+			return InvAttributes.has_rare(s)
+		"locked":
+			return s.is_locked()
+		"materials":
+			return not (food or gear or tool or building)
+	return true
 
 func _on_cell_input(event: InputEvent, c: Cell) -> void:
 	if readonly or inventory == null or c.index < 0:
@@ -247,7 +344,7 @@ func is_tap(press: Vector2, release: Vector2) -> bool:
 	return press.distance_to(release) <= TAP_DEADZONE
 
 func _relayout() -> void:
-	var w := maxf(size.x, 1.0)
+	var w := maxf(size.x - SCROLLBAR_PX, 1.0)
 	columns = maxi(1, int((w + gap) / (cell_px + gap)))
 	_grid.columns = columns
 	_place()
@@ -261,5 +358,7 @@ func _place() -> void:
 	for c in _cells:
 		c.custom_minimum_size = sz
 	var rows := int(ceil(float(_cells.size()) / float(maxi(1, columns))))
-	_grid.custom_minimum_size = Vector2(size.x, maxf(1.0, rows * cell_px + maxf(0.0, rows - 1) * gap))
+	# Width 0: the ScrollContainer fills it; a width of size.x plus the scrollbar grew the grid past
+	# its panel every layout pass (t_invscreens overflow check).
+	_grid.custom_minimum_size = Vector2(0.0, maxf(1.0, rows * cell_px + maxf(0.0, rows - 1) * gap))
 	_grid.columns = columns
