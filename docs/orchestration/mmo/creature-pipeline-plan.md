@@ -78,6 +78,11 @@ Per species numbers (stride, cadence, jaw angles) live in `<species>.json` next 
   does not move (`measure_skin.py --where` on the head).
 - **Grounding and loops:** existing checks (lowest vertex at 0, loop first == last frame).
 
+### 5b. Commit what Godot unpacks
+After replacing a creature GLB, run `Godot --headless --path game --import` and commit the textures it extracts next
+to the GLB (`<species>_<Color|NormalGL|ORM>_<task>.*`) with their `.import` files, plus the `.import` of every new
+clip. Untracked, a checkout with a stale import cache cannot load the creature.
+
 ### 6. Review gate (GAUNTLET)
 Matched before/after renders and short clips per species (`tools/jaw/render_head.py` for the head,
 `render_clip.py` for gaits), blind A/B judge with sides flipped per scene; the new version must win. Then the anim
