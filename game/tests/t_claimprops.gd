@@ -62,8 +62,8 @@ func _run() -> void:
 	await _test_claim_clears_props(props)
 	await _test_expand_clears_props(props)
 	await _test_harvestable_node_stays(props)
-	await _test_rebuild_is_clean(props)
-	await _test_no_regrow(props)
+	await _test_rebuild_is_clean()
+	await _test_no_regrow()
 	_finish()
 
 func _finish() -> void:
@@ -123,9 +123,14 @@ func _gatherable(node: Node) -> bool:
 		return false
 	for o in (node.call("options") as Array):
 		var item := StringName(str((o as Dictionary).get("item", "")))
-		if item != &"" and Data.item(item) != null:
+		if item != &"" and _item_exists(item):
 			return true
 	return false
+
+## Data is an autoload: it has no identifier at compile time in a --script test.
+func _item_exists(item: StringName) -> bool:
+	var d: Node = root.get_node_or_null("Data")
+	return d != null and (d as Object).call("item", item) != null
 
 ## A harvest node with no gather route at all: the kind of thing the owner calls a prop.
 func _make_dud_node(tile: Vector2i) -> Node:
@@ -219,7 +224,7 @@ func _test_harvestable_node_stays(props: Node) -> void:
 
 ## A saved claim is re-applied before the props are scattered, so a rebuild from the same seed puts
 ## nothing on the claimed tiles: the cleaning is a build-time filter, not a save-format change.
-func _test_rebuild_is_clean(props: Node) -> void:
+func _test_rebuild_is_clean() -> void:
 	var cells: Array = (IC.owned_cells(_rt).keys() as Array).duplicate()
 	_expect(cells.size() >= 3, "the domain holds the cells claimed above (%d)" % cells.size())
 	var record: Dictionary = _rt.domain_record()
@@ -245,12 +250,15 @@ func _test_rebuild_is_clean(props: Node) -> void:
 
 # ---------------------------------------------------------------- nothing regrows on claimed land
 
-func _test_no_regrow(props: Node) -> void:
-	var was: float = Game.fast_regen_mult
-	Game.fast_regen_mult = 60.0
+func _test_no_regrow() -> void:
+	var game: Node = root.get_node_or_null("Game")
+	var was: float = float(game.get("fast_regen_mult")) if game != null else 1.0
+	if game != null:
+		game.set("fast_regen_mult", 60.0)
 	for i in 8:
 		await process_frame
-	Game.fast_regen_mult = was
+	if game != null:
+		game.set("fast_regen_mult", was)
 	_expect(_props_on_claimed() == 0, "no prop regrows on claimed land over simulated regrow time (%d found)" % _props_on_claimed())
 	var regrown_dud := 0
 	for n in _rt._harvest_nodes.values():
