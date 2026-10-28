@@ -75,7 +75,8 @@
         "icon": "venom",
         "particles": "bubbles",
         "vignette": false
-      }
+      },
+      "nonlethal": true
     },
     {
       "id": "fracture",
@@ -441,7 +442,8 @@
         "icon": "stomachache",
         "particles": "tint",
         "vignette": false
-      }
+      },
+      "nonlethal": true
     },
     {
       "id": "tastes_bad",
@@ -799,7 +801,8 @@
         "particles": "bubbles",
         "vignette": false
       },
-      "_note": "FOODCAT: the fan catalog's raw Mushroom 'Poisoned Lv4' (spec 32 s9 'some raw food may inflict ... poison'). Survivor food poisoning, distinct from the creature-only poisoned_target. 0.2 HP/s per level and 5 min copy Stomachache's numbers: # ASSUMPTION, not a catalog figure."
+      "_note": "FOODCAT: the fan catalog's raw Mushroom 'Poisoned Lv4' (spec 32 s9 'some raw food may inflict ... poison'). Survivor food poisoning, distinct from the creature-only poisoned_target. 0.2 HP/s per level and 5 min copy Stomachache's numbers: # ASSUMPTION, not a catalog figure.",
+      "nonlethal": true
     },
     {
       "id": "well_rested",
@@ -825,6 +828,30 @@
         "vignette": false
       },
       "_note": "Owner 2026-10-28: after a sleep, exhaustion does not accumulate for a while (the treadmill pauses); recovery still works. ASSUMPTION: no doc gives a length; PlayerSim grants it on waking with a time from data/rest.json well_rested (secs per point of exhaustion the sleep removed, clamped), so this duration is only the fallback. weakness_rank 6 so the 3-status cap never drops it for a minor status."
+    },
+    {
+      "id": "starving",
+      "display_name": "Starving",
+      "kind": "effect",
+      "desc": "Nothing left in your stomach: losing 0.25 Health a second, more the longer it lasts (up to x3). Eat to end it. It cannot take your last Health point.",
+      "dps": 0.25,
+      "duration": 9999.0,
+      "max_stacks": 3,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "weakness_rank": 9,
+      "cleared_by": [],
+      "nonlethal": true,
+      "fx": {
+        "body": "none",
+        "color": "#b07a2a",
+        "icon": "starving",
+        "particles": "none",
+        "vignette": true
+      },
+      "_note": "Owner 2026-10-28: 'if you're starving, it should show up like a status effect and you should lose health'; 'starving and poison cant directly kill you but they can get you to 1HP'. PlayerSim applies it while Digestion's state is empty and clears it on leaving empty; a stack every 120 s of starving, max 3 (0.25 / 0.5 / 0.75 HP/s). ASSUMPTION: rate, growth and cap; no spec gives a starvation rule."
     }
   ]
 }

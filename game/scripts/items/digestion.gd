@@ -28,6 +28,7 @@ static func of(player: Player) -> Digestion:
 		if d is Digestion:
 			return d as Digestion
 	var made := Digestion.new()
+	made.seed_starter()  # STARVING: every survivor starts fed; a save's own record replaces this on load
 	player.set_meta(META, made)
 	return made
 

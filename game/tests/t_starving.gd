@@ -1,0 +1,170 @@
+extends SceneTree
+## STARVING acceptance (owner 2026-10-28: "if you're starving, it should show up like a status effect and you
+## should lose health"; "starving and poison cant directly kill you but they can get you to 1HP"):
+##   Starving appears only while Digestion's state is empty and clears when a meal lifts her out of it; it
+##   grows a stack every 120 s (max 3); each tick takes 0.25 HP/s per stack at the status's own amber colour
+##   (never green, never the poison purple); its box beside her and the vignette show and go with it.
+##   Starving and poison stop at 1 HP; bleed still kills; at 1 HP from starving a creature bite still kills.
+## Usage: godot --headless --path game --script res://tests/t_starving.gd -> "[t_starving] PASS", exit 0/1.
+
+var _fails: Array[String] = []
+var _started := false
+var _host: Node3D
+var _player
+var _hud
+var _data: Node
+var DIG: GDScript
+var TOK: GDScript
+
+func _process(_delta: float) -> bool:
+	if _started:
+		return false
+	if root == null or root.get_node_or_null("Data") == null or root.get_node_or_null("World") == null:
+		return false
+	_started = true
+	_run.call_deferred()
+	return false
+
+func _expect(ok: bool, what: String) -> void:
+	if not ok:
+		_fails.append(what)
+	print("[t_starving] %s %s" % ["ok" if ok else "FAIL", what])
+
+func _frames(n: int) -> void:
+	for i in n:
+		await process_frame
+
+func _run() -> void:
+	_data = root.get_node("Data")
+	DIG = load("res://scripts/items/digestion.gd")
+	TOK = load("res://scripts/ui/ui_tokens.gd")
+	_host = Node3D.new()
+	root.add_child(_host)
+	var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(_host, 4.0)
+	_player = kit["player"]
+	for c in (kit["ui"] as CanvasLayer).get_children():
+		if c.has_method("hands_spot"):
+			_hud = c
+	root.get_node("World").load_island(_host, &"home_grassland", Vector3(0, 1, 18), false)
+	(kit["nav"] as Node).queue_free()
+	await process_frame
+	await physics_frame
+	_player.process_mode = Node.PROCESS_MODE_DISABLED  # the test drives PlayerSim and the ticks
+	root.size = Vector2i(1600, 900)
+	root.content_scale_size = Vector2i(1600, 900)
+	_test_data()
+	await _test_appears_and_clears()
+	await _test_nonlethal()
+	if _fails.is_empty():
+		print("[t_starving] PASS")
+		quit(0)
+	else:
+		print("[t_starving] FAIL count=%d" % _fails.size())
+		quit(1)
+
+func _test_data() -> void:
+	var def = _data.status(&"starving")
+	_expect(def != null and def.kind == &"effect" and def.nonlethal and def.fx_vignette and is_equal_approx(def.dps, 0.25) and def.max_stacks == 3, "starving: an effect, nonlethal, vignette, 0.25 HP/s, up to 3 stacks")
+	var c: Color = def.fx_color
+	_expect(c.is_equal_approx(TOK.STARVING), "its colour is UiTokens.STARVING (%s)" % c)
+	_expect(not (c.s > 0.25 and c.h > 0.2 and c.h < 0.47) and not c.is_equal_approx(TOK.POISON), "not green, not the poison purple (hue %.2f)" % c.h)
+	var icons: GDScript = load("res://scripts/ui/ui_icons.gd")
+	_expect(icons.path_for(def.fx_icon).ends_with("starving.svg"), "its own glyph (%s)" % icons.path_for(def.fx_icon))
+	for id in [&"venom", &"poisoned", &"stomachache", &"starving"]:
+		_expect(_data.status(id).nonlethal, "%s is nonlethal" % id)
+	for id in [&"bleed", &"deep_bleed", &"pinned"]:
+		_expect(not _data.status(id).nonlethal, "%s stays lethal" % id)
+
+func _sim(dt: float = 0.0) -> void:
+	_player.sim.tick(dt)
+
+func _test_appears_and_clears() -> void:
+	var dig = DIG.of(_player)
+	var v = _player.vitals
+	v.health = v.effective_max_health()
+	dig.rows().clear()
+	var meal: Dictionary = dig.schedule(&"roast", 60.0, 300.0)  # normal
+	_sim()
+	_expect(v.fullness_state == &"normal" and not _player.statuses.has(&"starving"), "fed: no Starving")
+	meal["remaining"] = 15.0  # 0.125: hungry
+	_sim()
+	_expect(v.fullness_state == &"hungry" and not _player.statuses.has(&"starving"), "hungry: no Starving yet")
+	dig.rows().clear()
+	_sim()
+	_expect(v.fullness_state == &"empty" and _player.statuses.has(&"starving") and _player.statuses.get_instance(&"starving").stacks == 1, "empty: Starving, one stack")
+	await _frames(4)
+	var sx = _hud.get("_status_fx")
+	_expect(sx.boxes.has(&"starving"), "its box shows beside her")
+	_expect(sx.vignette_alpha > 0.0, "the vignette shows (%.2f)" % sx.vignette_alpha)
+	# The rate: 0.5 s ticks of 0.25 HP/s per stack, numbers in its own colour.
+	var inst = _player.statuses.get_instance(&"starving")
+	for stacks in [1, 3]:
+		_player.sim.starving_s = 0.0 if stacks == 1 else 250.0
+		_sim()
+		_expect(inst.stacks == stacks, "%.0f s starving: %d stack(s) (%d)" % [_player.sim.starving_s, stacks, inst.stacks])
+		var hp: float = v.health
+		var before: int = _hud.get("_events").player_floats.size()
+		_player.statuses._dot(inst)
+		_expect(absf((hp - v.health) - 0.125 * stacks) < 0.0001, "a tick at %d stack(s) takes %.3f HP (%.3f)" % [stacks, 0.125 * stacks, hp - v.health])
+		var floats: Array = _hud.get("_events").player_floats
+		if floats.size() == before + 1:
+			_expect((floats[floats.size() - 1]["col"] as Color).is_equal_approx(TOK.STARVING), "its tick number is the starving amber")
+		else:
+			_expect(false, "a tick adds one number (%d -> %d)" % [before, floats.size()])
+	# Eating lifts her out of empty: Starving clears at once, the box and the vignette go.
+	dig.schedule(&"roast", 60.0, 300.0)
+	_sim()
+	_expect(v.fullness_state != &"empty" and not _player.statuses.has(&"starving") and _player.sim.starving_s == 0.0, "a meal clears Starving (%s)" % v.fullness_state)
+	await _frames(4)
+	_expect(not sx.boxes.has(&"starving") and sx.vignette_alpha == 0.0, "its box and the vignette are gone")
+
+func _test_nonlethal() -> void:
+	var dig = DIG.of(_player)
+	var v = _player.vitals
+	# Starving alone stops at 1 HP.
+	dig.rows().clear()
+	_sim()
+	v.health = 1.3
+	var inst = _player.statuses.get_instance(&"starving")
+	for i in 20:
+		_player.statuses._dot(inst)
+	_expect(is_equal_approx(v.health, 1.0) and not v.dead, "starving alone stops at 1 HP (%.2f)" % v.health)
+	# Poison alone stops at 1 HP.
+	dig.schedule(&"roast", 60.0, 300.0)
+	_sim()
+	_player.statuses.apply(&"venom")
+	v.health = 2.0
+	for i in 20:
+		_player.statuses._dot(_player.statuses.get_instance(&"venom"))
+	_expect(is_equal_approx(v.health, 1.0) and not v.dead, "venom alone stops at 1 HP (%.2f)" % v.health)
+	_player.statuses.clear_id(&"venom")
+	# Bleed still kills.
+	_player.statuses.apply(&"bleed")
+	v.health = 0.5
+	for i in 20:
+		if v.dead:
+			break
+		_player.statuses._dot(_player.statuses.get_instance(&"bleed"))
+	_expect(v.dead, "bleed can still kill (health %.2f, dead %s)" % [v.health, v.dead])
+	_player.statuses.from_array([])
+	v.revive(1.0)
+	_player.dead = false
+	await _frames(2)
+	# Starved to 1 HP, a creature bite still kills.
+	dig.rows().clear()
+	_sim()
+	v.health = 1.2
+	for i in 10:
+		_player.statuses._dot(_player.statuses.get_instance(&"starving"))
+	_expect(is_equal_approx(v.health, 1.0), "starved down to 1 HP")
+	var raptor = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
+	_host.add_child(raptor)
+	raptor.global_position = _player.global_position + Vector3(1.0, 0.0, 0.0)
+	raptor.spawn(_data.creature(&"velociraptor"))
+	raptor.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	var CA: GDScript = load("res://scripts/combat/creature_attack.gd")
+	for i in 60:  # the hit roll can miss; keep biting until one lands
+		if CA._deal_damage(raptor, _player):
+			break
+	_expect(v.dead, "at 1 HP from starving, a creature bite still kills (health %.2f)" % v.health)
+	raptor.queue_free()

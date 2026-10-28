@@ -60,6 +60,12 @@ func _run() -> void:
 	rt = world.runtime
 	player = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	host.add_child(player)
+	# STARVING: an empty stomach is the Starving DoT (and x2 fatigue). Hold her fed with one meal that never
+	# digests, so the rest rates below are measured alone.
+	var dig = load("res://scripts/items/digestion.gd").of(player)
+	dig.rows().clear()  # the starter meal every survivor gets would drain over the test
+	dig.starter_given = true
+	dig.schedule(&"starter", 1.0, 1.0e9)
 	player.global_position = rt._camp_pos + Vector3(0, 1, 0)
 	await _frames(5)
 	_clear_creatures()
