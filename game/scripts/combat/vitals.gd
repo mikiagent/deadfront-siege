@@ -36,6 +36,10 @@ var blocks_regen: bool = false
 ## dropped; reductions (rest, meals, sleep) still apply. Owner 2026-10-28.
 var blocks_fatigue_gain: bool = false
 var fatigue_gain_mult: float = 1.0
+## FULLFATIGUE: the stomach state (Digestion.state_for) and its fatigue-gain factor, set by PlayerSim each
+## frame and already inside fatigue_gain_mult; kept apart for the breakdown panel. Derived, never saved.
+var fullness_state: StringName = &"normal"
+var fullness_mult: float = 1.0
 var fatigue_log: Dictionary = {}
 ## Island level versus survivor level, set by the island each frame (ProgressionScaling.fatigue_level_factor).
 ## Applies to every gain except the baseline clock, so over-levelled ground tires you faster.
@@ -86,9 +90,11 @@ func stamina_cap_mult() -> float:
 	var strain := fatigue / maxf(1.0, effective_max_fatigue())
 	return 0.5 if strain >= 0.75 else (0.65 if strain >= 0.5 else (0.85 if strain >= 0.25 else 1.0))
 
+## Refill by exhaustion (combat_tuning movement.stamina_regen_by_strain, fresh fast -> exhausted slow).
 func stamina_regen_mult() -> float:
 	var strain := fatigue / maxf(1.0, effective_max_fatigue())
-	return 0.2 if strain >= 0.75 else (0.35 if strain >= 0.5 else (0.5 if strain >= 0.25 else 1.0))
+	var tiers: Array = CombatTuning.section("movement").get("stamina_regen_by_strain", [1.0, 0.5, 0.35, 0.2])
+	return float(tiers[mini(3, int(strain / 0.25))])
 
 func _sync_exhausted() -> void:
 	var on := fatigue >= effective_max_fatigue() * 0.75

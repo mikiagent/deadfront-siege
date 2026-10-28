@@ -13,7 +13,8 @@ extends RefCounted
 ## ASSUMPTION: a fresh survivor gets one cut; every ten Butchering levels adds one more.
 const CUTS_BASE := 1
 const LEVELS_PER_CUT := 10
-## ASSUMPTION: a cut takes as long as the shipped corpse take (PlayerActions.CORPSE_TAKE_SECONDS).
+## ASSUMPTION: a stone-knife cut at Butchering 0 takes as long as the shipped corpse take
+## (PlayerActions.CORPSE_TAKE_SECONDS); cut_seconds shortens it.
 const CUT_SECONDS := 1.6
 ## The most cuts a budget ever reaches (level 60 -> 7); also the clamp a save row is held to.
 const CUTS_MAX := CUTS_BASE + 60 / LEVELS_PER_CUT
@@ -21,6 +22,16 @@ const CUTS_MAX := CUTS_BASE + 60 / LEVELS_PER_CUT
 ## Cuts a carcass offers this survivor: 1 + floor(Butchering level / 10).
 static func cut_budget(skill_level: int) -> int:
 	return CUTS_BASE + maxi(0, skill_level) / LEVELS_PER_CUT
+
+## Seconds one cut takes for this context: CUT_SECONDS shortened by the knife tier and Butchering level
+## (loot_tables.json butcher.cut_speed_*). Upgrades change the speed, never the one part a cut gives.
+static func cut_seconds(ctx: Dictionary) -> float:
+	var cfg := LootTables.butcher_cfg()
+	var tier: StringName = ctx.get("knife_tier", &"")
+	var tier_idx := ProgressionScaling.tier_index(tier) if tier != &"" else 0
+	var speed := 1.0 + float(cfg.get("cut_speed_bonus_per_tier", 0.0)) * float(maxi(0, tier_idx)) \
+			+ float(cfg.get("cut_speed_bonus_per_skill_level", 0.0)) * float(maxi(0, int(ctx.get("skill", 0))))
+	return CUT_SECONDS / maxf(1.0, speed)
 
 ## The part list of a carcass: game/data/butchering.json's base rows, then its rare rows. One entry
 ## per item id (protoceratops lists raptor_bone twice: its rare row is the same cut's rare outcome).
@@ -105,8 +116,8 @@ static func context(p: Player, level: int, no_meat: bool, cuts_left: int, cut: A
 		"cut": cut,
 	}
 
-## One chosen cut: only this part's own stacks, rolled now with the knife tier and Butchering level
-## (LootRoller.roll_part), plus its rare row rolled once for this cut. A rare-only part (a talon) rolls
+## One chosen cut: exactly one instance of this part (LootRoller.roll_part), its rare row rolled once
+## for this cut (a hit makes that one instance the rare one; knife tier and Butchering raise the odds). A rare-only part (a talon) rolls
 ## its odds to exist at all; a miss still spends the cut. Returns
 ## {"ok", "reason", "stacks": Array[ItemStack], "rares": Array[StringName], "missed": bool}.
 static func cut(part: Dictionary, ctx: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
@@ -140,7 +151,7 @@ static func cut(part: Dictionary, ctx: Dictionary, rng: RandomNumberGenerator) -
 			if rng.randf() < LootRoller.part_rare_chance(rare, tier, skill):
 				var rs := LootRoller.roll_part(rare, level, tier, node_tier, skill, no_meat, rng)
 				if rs != null:
-					stacks.append(rs)
+					stacks = [rs]  # one part per cut: the rare roll upgrades it, never adds a second
 					rares.append(id)
 	return {"ok": true, "reason": "", "stacks": stacks, "rares": rares, "missed": missed}
 

@@ -26,7 +26,7 @@ const SHAPE := {
 	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
-	"player_name": "", "occupation": "", "character_look": {}, "t_stones": 0, "visited_islands": {}, "raid_victory": false,
+	"player_name": "", "player_title": "", "occupation": "", "character_look": {}, "t_stones": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
 	"clock": 0.0, "saved_unix": 0,
@@ -36,7 +36,7 @@ const SHAPE := {
 ## "open" is the overhaul tip's gate flag (placed_building.gd), listed ahead of the merge.
 const BUILDING_ROW := {
 	"kind": "", "rot": 0, "x": 0.0, "z": 0.0, "sleeps_left": 0, "hp": 0.0, "reload_left": 0.0,
-	"seconds_left": 0.0, "growth": 0.0, "watered": 0.0, "fertilizer": 0.0, "fertilizer_overflow": 0.0,
+	"seconds_left": 0.0, "fuel_seconds": 0.0, "durability": 0.0, "growth": 0.0, "watered": 0.0, "fertilizer": 0.0, "fertilizer_overflow": 0.0,
 	"remaining": 0.0, "cargo": false, "running": false, "mature": false, "failed": false, "open": false,
 }
 const SNARE_ROW := {"heavy": false, "life_left": 0.0, "arm_left": 0.0}
@@ -57,6 +57,7 @@ const PET_ROW := {
 	"speed": 0.0, "level": 0, "xp": 0.0, "respawn_left": 0.0, "tamed_role": [], "bag": [],
 	"tamed_at": 0, "wild_level": 0, "genetics": GENETICS,
 	"nature": "", # NATURES: optional (an old row has none; PetRecord.from_dict derives one from the uid)
+	"gear": {}, # SADDLES: optional {slot: item row}; an old row has none
 }
 ## Stack attributes read with int() (taming pen, hunt, material tier) or handed to
 ## CreatureGenetics.from_dict (taming pen, tamed animal release).
@@ -279,6 +280,13 @@ static func _pets(rows: Array) -> Array:
 			p["level"] = _int(p["level"], 1, MAX_LEVEL)
 		if p.has("bag"):
 			p["bag"] = stacks(p["bag"])
+		if p.has("gear"):
+			var gear := {}
+			for k in p["gear"]:
+				var st: Variant = _stack(p["gear"][k])
+				if st != null:
+					gear[str(k)] = st
+			p["gear"] = gear
 		out.append(p)
 	return out
 

@@ -1,10 +1,13 @@
 {
-  "_about": "W2-GATHER rare results and butcher yield scaling. Owned by game/scripts/gather/. Every item id must exist in items.json and every tier name in ProgressionScaling.TOOL_TIERS (t_gather checks). Chances are per gathered item (rare_trait), per gathered pass (gather_rare finds) or per carcass (butcher).",
+  "_about": "W2-GATHER rare results and butcher yield scaling. Owned by game/scripts/gather/. Every item id must exist in items.json and every tier name in ProgressionScaling.TOOL_TIERS (t_gather checks). Every gather pass gives exactly one item (ONEGATHER). Chances are per gathered item (rare_trait), per gathered pass (gather_rare finds) or per carcass (butcher).",
   "_assumption": "The docs set one gather rarity: world-design.md:55 'Every material stamped with attributes: always climate and level; ... 5% chance of a rare extra (green pip)' and PRD:541 'Rare extra attributes = green pip, low chance' (rare_trait, the green traits of spec 04:11). Finds are a node's secondary materials (spec 12:38 'material drop tables'; 12:39 'a tree may yield leaf, branch, log, fruit, sap, or specialized material'). ASSUMPTION: the find odds are illustrative, about one per 20-30 passes.",
   "rare_trait": {
     "_doc": "world-design.md:55, PRD:541: each gathered item has this chance of one green rare trait; spec 04:11 names the six. Spec 12:42: Gathering level never raises it. Keys are INVUI's inv_ui.json attribute_classes of class rare, value true.",
-    "_assumption": "ASSUMPTION: the docs do not say which trait a material gets, so each of the six is equally likely on any gathered material, and tool tier leaves the 5% alone. RAREATTR narrows that: a material rolls only from by_material[item], its own list, and traits stays the shared fallback for an item with no list (an id added to a node's harvest before its row here).",
+    "_assumption": "ASSUMPTION: the docs do not say which trait a material gets, so each of the six is equally likely on any gathered material (tool tier scales the 5% since ONEGATHER, see _tool_tier_bonus). RAREATTR narrows that: a material rolls only from by_material[item], its own list, and traits stays the shared fallback for an item with no list (an id added to a node's harvest before its row here).",
     "chance": 0.05,
+    "_tool_tier_bonus": "ONEGATHER (owner 2026-10-28: 'cap it to 1 per harvest and upgrades can change the speed and quality of the materials you harvest, not the amount'). ASSUMPTION: a gathering tool's material tier is the quality lever: each tier above stone raises a unit's rare-trait odds by 15% of the base (the old count multiplier's tier step, gather_rare's tool_tier_bonus), so a steel tool rolls 5% x 2.05 = 10.25%, capped at max_chance. Bare hands and stone keep the documented 5%. Gathering level still never raises it (spec 12:42); level speeds the pass instead.",
+    "tool_tier_bonus": 0.15,
+    "max_chance": 0.15,
     "traits": ["black_sheen", "low_vibration", "wide_serration", "narrow_hook", "split_easily", "vivid_inspiration"],
     "_by_material": "RAREATTR: each gatherable material's own rare-attribute list (spec 04:33 'rare attributes may pass from a single eligible primary material'). ASSUMPTION, since spec 04:25 names conversions for five of the six: a combat material (stone, ore, metal, crystal, ice, pearl) rolls black_sheen or low_vibration (Vital Strike / Throw Dirt, Sadism / Pain Averse); a tool-shaping material (timber, fibre, cordage) rolls wide_serration or narrow_hook (gathering effects); a workpiece (timber, earth, clay, resin) also rolls split_easily (workstation effects); vivid_inspiration has no documented conversion, so every material can roll it. The 5% chance and its key names are unchanged; a recipe's own rare roll (world/rules.json rare_attribute_chance) still draws from the full six.",
     "by_material": {
@@ -88,10 +91,8 @@
     "rare_skill_bonus_per_level": 0.0,
     "rare_tool_tier_bonus": 0.15,
     "max_rare_chance": 0.6,
-    "_count_bonus": "ASSUMPTION: the docs say a better knife and Butchering level yield more parts but give no numbers (spec 12 s2). Each knife tier above stone adds 15% to the base part counts and each Butchering level 1%.",
-    "count_bonus_per_tier": 0.15,
-    "count_bonus_per_skill_level": 0.01,
-    "_no_knife": "ASSUMPTION: the docs give no bare-hands butchering rule. As gathering makes bare hands 1.35x slower (gather_rules.json), a carcass cut without a knife gives about 1/1.35 of the stone knife's base parts.",
-    "no_knife_count_mult": 0.75
+    "_cut_speed": "ASSUMPTION (owner 2026-10-28: one per harvest, upgrades change speed and quality, not the amount): every cut gives exactly one part. Each knife tier above stone makes a cut 15% faster and each Butchering level 1% (the old part-count bonuses, now on speed); a better knife's quality shows as its rare-part odds (rare_tool_tier_bonus).",
+    "cut_speed_bonus_per_tier": 0.15,
+    "cut_speed_bonus_per_skill_level": 0.01
   }
 }

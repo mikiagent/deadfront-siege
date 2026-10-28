@@ -17,7 +17,9 @@ const GATHER_FATIGUE_PER_UNIT := PlayerActions.GATHER_FATIGUE_PER_UNIT
 @export var run_speed: float = 7.0
 @export var sprint_speed: float = 8.5
 @export var accel: float = 30.0
-@export var turn_speed: float = 14.0
+## Owner: "player has the turn speed glitch too". ASSUMPTION: 720 deg/s on foot, so a 180 deg turn
+## takes 0.25 s (PlayerSim.face_tick is the one writer of her facing while she walks).
+@export var turn_rate_deg: float = 720.0
 
 @onready var visual: Node3D = $Visual
 @onready var rig: RiggedModel = $Visual/Rig
@@ -85,6 +87,12 @@ var _field_radial_opts: Array = []
 # Tap-to-walk route (PlayerSim keeps the waypoints).
 var nav_active: bool = false
 var _path_goal: Vector3 = Vector3.ZERO
+## [owner 2026-10-28] A ground click/tap put her on a move order: auto-attack and auto-chase never
+## pull her off that path (Hunt checks this), until she arrives, a new order comes, she takes a real
+## hit (not a status tick), or the move is otherwise replaced. Cleared by PlayerSim when the route ends.
+var move_order: bool = false
+## The creature whose hit broke a move order in the hurt stun, fought once the stun lets her act.
+var _retaliate_target: Creature
 
 ## Pets out right now (PlayerPets keeps the list). `summoned_pet` is the first one, for old callers.
 var summoned_pets: Array[Creature]:
@@ -114,6 +122,11 @@ func _ready() -> void:
 		set_process_unhandled_input(false)
 		return
 	add_to_group(PlayerRegistry.GROUP)
+	# Owner 2026-10-28: running is faster (combat_tuning movement.run_speed_mult); every reader of
+	# run_speed / sprint_speed (the mount floor included) sees the scaled numbers.
+	var run_mult := CombatTuning.num("movement", "run_speed_mult", 1.0)
+	run_speed *= run_mult
+	sprint_speed *= run_mult
 	if agent == null:
 		agent = _child(NavigationAgent3D.new(), "Agent")
 	vitals = _child(Vitals.new(), "Vitals")
@@ -206,13 +219,6 @@ func nav_to(pos: Vector3) -> void:
 
 func clear_nav() -> void:
 	sim.clear_nav()
-
-## Turn toward a point over time (combat facing while swinging).
-func face_world_smooth(pos: Vector3, delta: float, speed: float = 12.0) -> void:
-	var to := pos - global_position
-	to.y = 0.0
-	if to.length_squared() > 0.0001:
-		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(-to.x, -to.z), clampf(speed * delta, 0.0, 1.0))
 
 func face_world(pos: Vector3) -> void:
 	var to := pos - global_position
@@ -366,6 +372,11 @@ func display_name() -> String:
 		return World.player_name
 	return str(view.survivor_meta().get("display_name", "Survivor"))
 
+## The title line over the nameplate's name ("" = no line). Any plate owner (tribe members, other
+## players) answers this too, and HudLayout.draw_nameplate draws it the same way.
+func display_title() -> String:
+	return LevelDisplay.worn_title()
+
 # ---------------------------------------------------------------- damage, death, respawn
 
 ## Worn gear's health bonus, plus the skill nodes whose stat effect the game runs (Defense's Max Health I-III,
@@ -391,8 +402,23 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	if who and who.def:
 		downed_by = str(who.def.id).replace("_", " ").capitalize()
 	actions.cancel_work()
+	# [owner 2026-10-28] Taking a hit breaks a click-to-move order: the walk ends and she turns on the
+	# creature that hit her (or, with no live source, the nearest hostile). A status tick never reaches
+	# here (Player._on_vitals_damaged returns before the flinch for ticks), so bleed stays a walk.
+	if move_order and not dead:
+		move_order = false
+		clear_nav()
+		var foe: Creature = who if (who != null and is_instance_valid(who) and not who.is_pet \
+				and not who.health.dead \
+				and global_position.distance_to(who.global_position) <= PlayerActions.ATTACK_SEEK_RANGE) else null
+		if foe == null:
+			# Unknown, gone, or out of reach: turn on the nearest hostile instead.
+			foe = actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
+		if foe and hunt:
+			hunt.start(foe)
+			print("[combat] retaliate %s" % foe.def.id)
 	# Self-defence: bitten with no live target -> turn on the biter (auto-attack takes it from there).
-	if not dead and hunt and who and not who.is_pet and not who.health.dead:
+	if not dead and hunt and who and not who.is_pet and not who.health.dead and hunt.target != who:
 		var cur := hunt.target
 		if cur == null or not is_instance_valid(cur) or cur.health.dead or global_position.distance_to(cur.global_position) > 6.0:
 			hunt.start(who)

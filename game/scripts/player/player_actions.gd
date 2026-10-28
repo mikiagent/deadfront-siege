@@ -156,11 +156,7 @@ func finish_gather() -> void:
 			stop_gather_cycle()
 			p.gather_target = null
 			return
-	var stack := gt.roll_yield()
-	var yield_mult := _gather_yield_multiplier(gt)
-	stack.count = maxi(1, int(floor(float(stack.count) * yield_mult)))
-	if randf() < fmod(yield_mult, 1.0):
-		stack.count += 1
+	var stack := gt.roll_yield()  # ONEGATHER: one instance per pass, never more
 	if p.skills:
 		# rules.json gathering_downrank: a node above your Gathering level yields at your level.
 		# ASSUMPTION: floor of 5 so a fresh survivor still gets usable materials.
@@ -211,9 +207,6 @@ static func gather_pass_xp(seconds: float) -> int:
 func _scaled_gather_seconds(node: HarvestNode) -> float:
 	return GatherService.unit_seconds(p, node)  # W2-GATHER: role tool helps, bare hands slower
 
-func _gather_yield_multiplier(node: HarvestNode) -> float:
-	return GatherService.yield_multiplier(p, node)
-
 func _start_gather_cycle(seconds: float) -> void:
 	p._gathering = true
 	_gather_unit_time = maxf(0.1, seconds)
@@ -255,7 +248,7 @@ func _update_gather_ring(progress: float) -> void:
 	else:
 		p._gather_ring.fade_out()
 
-## A hex picked on the shared radial: a field action, a corpse stack or a gather option.
+## A hex picked on the shared radial: a field action, a carcass part to cut or a gather option.
 func on_option_picked(anchor: Node3D, index: int) -> void:
 	if anchor == null or not is_instance_valid(anchor):
 		return
@@ -268,9 +261,16 @@ func on_option_picked(anchor: Node3D, index: int) -> void:
 		p._field_radial_opts.clear()
 		return
 	if anchor is Corpse:
-		var opts := (anchor as Corpse).loot_options(p.inventory)
-		if index < opts.size():
-			begin_corpse_take(anchor as Corpse, int(opts[index]["slot"]))
+		# LOOTRADIAL: a part hex starts that part's timed cut (the carcass's own clock pie-fills the hex).
+		var c := anchor as Corpse
+		var opts := c.radial_options(p)
+		var why := "" if index < opts.size() else "nothing left"
+		if why == "":
+			auto_equip_tool(&"knife")
+			why = c.begin_cut(StringName(str(opts[index]["item"])), p)
+		if why != "":
+			p.notice(why.left(1).to_upper() + why.substr(1))
+			p._gather_radial.refresh()
 		return
 	if anchor is HarvestNode:
 		gather(anchor as HarvestNode, index)

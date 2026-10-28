@@ -3,6 +3,7 @@ extends Node3D
 ## The survivor cannot die, tire or exhaust here (god mode, this lab only) so clips can be watched up close.
 ## --species=deinonychus[,velociraptor...] spawns only those (one each) instead of the default roster.
 ## --ride=deinonychus spawns that species as a saddled pet and puts the survivor on it.
+## Key N (or --enrage) enrages the nearest wild creature.
 ## Key 0 plays bite_combo (chomp, Chomp, CHOMP) on the mount, or else the nearest creature that has one.
 ## Wild deinonychus fight with TacticalBrain (circle, feint, lunge, pounce, combo); F3 prints each move.
 ## --seq=DIR saves a frame every 0.25 s for 25 s (named by the nearest creature's brain state), then quits;
@@ -20,6 +21,7 @@ func _ready() -> void:
 	_obstacle(Vector3(6, 1, 0))
 	_obstacle(Vector3(-8, 1, 5))
 	_obstacle(Vector3(3, 1, -10))
+	LabKit.bake(self)  # the crates carve the navmesh, so ground taps route around them
 	var only := ""
 	var ride := ""
 	for a in OS.get_cmdline_user_args():
@@ -29,6 +31,8 @@ func _ready() -> void:
 			ride = a.substr(7)
 		elif a.begins_with("--seq="):
 			_seq_dir = a.substr(6)
+		elif a == "--enrage":
+			get_tree().create_timer(1.0).timeout.connect(_enrage_nearest)
 	if ride != "":
 		_ride.call_deferred(StringName(ride))
 		if only == "":
@@ -68,10 +72,20 @@ func _process(_dt: float) -> void:
 		_player.vitals.exhausted = false
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_N:
+		_enrage_nearest()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_0:
 		var c: Creature = _player.mounted_on if _player.mounted_on else _player.actions.nearest_creature(9999.0, true)
 		if c:
 			_play_combo(c)
+
+## N (or --enrage at start): enrage the nearest wild creature (blood fx, the enraged tactics, Timid runs).
+func _enrage_nearest() -> void:
+	var c: Creature = _player.actions.nearest_creature(9999.0, true)
+	if c:
+		c.statuses.apply(&"enraged", _player)
+		print("[creature_lab] %s enraged (%s)" % [c.def.id, c.nature])
 
 func _play_combo(c: Creature) -> void:
 	if not c.anim.has_state(&"bite_combo"):
@@ -85,6 +99,7 @@ func _ride(id: StringName) -> void:
 		push_warning("creature_lab: %s is not a tameable species" % id)
 		return
 	var rec := PetRecord.from_def(def, &"A")
+	rec.fit_saddle()  # SADDLES: riding needs one
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	_player.get_parent().add_child(c)
 	c.is_pet = true

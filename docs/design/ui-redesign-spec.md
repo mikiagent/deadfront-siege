@@ -282,3 +282,42 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
   - The MENU hex carries a notification badge at its top-right for skills (unspent SP, level-ups), buy/sell (market events) and similar: a count in a small filled circle. ASSUMPTION (owner undecided on colour): GOLD for normal notices, LIFE red only for urgent ones.
   - The pet whistle row and quick slots stay as §6 says where they do not collide with the above.
 - [owner 2026-10-28] In-combat tap retargets; swords only out of combat. Out of combat a tap on an enemy selects it and the red swords hex (or ATTACK NEAREST) starts combat; in combat a tap on another enemy switches the target to it immediately, no swords hex shows on enemies, and ATTACK NEAREST retargets to the nearest valid enemy.
+- [owner 2026-10-28] **Click-to-move outranks combat.** A tap on the ground is a move order and is
+  always honoured: while it is live the hunt neither auto-chases nor auto-swings, even with a target
+  in reach. A tap on an enemy during the walk still selects (out of combat) or retargets (in combat)
+  and does not cancel the move. **Real damage ends it**: a creature hit cancels the order after the
+  hurt stun and she attacks the damage source if it is within `ATTACK_SEEK_RANGE` (28 m), else the
+  nearest hostile. Bleed and other DoT ticks are not real damage and leave the walk alone. Keys and
+  stick movement are direct input, not a move order, so ordinary auto-attack/auto-chase behaviour
+  stays while steering that way. See `../current/controls.md` § Move orders and interacting.
+- [owner 2026-10-28] A ground click **cancels any pending interact pathfind**: if she is walking to a
+  tent to sleep and you click somewhere else, the sleep intent and its path both drop and she never
+  sleeps; same for gather, loot, mount/tame and a queued station craft. A craft already started at
+  the bench keeps running. Steering with the keys/stick cancels the same way. Owned by
+  `PlayerSim.cancel_errand()`, `PlayerActions.cancel_work()` and `PlayerSim.drop_pending_craft()`.
+- [owner 2026-10-28] Status effects (afflictions: bleed, venom, fracture, stun-type) show **only on the
+  player** — the boxes beside the survivor (`status_fx.gd`), never under the health bar. The row under the
+  health bar is reserved for **buffs, boons and debuffs** (Well Rested, food buffs, Maximum Fatigue, Stomach
+  Pain...); each chip explains itself in a tooltip: hover shows it, a click pins/unpins it, a tap toggles it
+  on touch. `statuses.json` `kind` (`effect` / `buff` / `boon` / `debuff`) and `desc` drive it.
+- [owner 2026-10-28] A **circular stomach indicator** to the right of the health bar: a ring that empties as
+  hunger grows, a white stomach glyph inside (`hud_stomach.gd`).
+- [owner 2026-10-28] **Orders hide in combat** unless the fight fulfils them (e.g. a kill-deinonychus order
+  stays while fighting a deinonychus); `objectives.json` `fight` names the creature ids ("*" = any).
+- [owner 2026-10-28] DoT damage numbers take the **colour of the status causing them** (its fx colour).
+  **No negative status is green**: green is reserved for healing and positive restores (`UiTokens.HEAL`);
+  poison, venom and sickness are purple (`UiTokens.POISON`, #a36bd9).
+- [owner 2026-10-28] Orders are **collapsible into the minimap** ("They are annoying and cover too much of
+  the screen"): collapsed by default to a badge on the minimap's corner (glyph + "3/28"); tap to expand,
+  tap the card to collapse (`hud_orders_badge.gd`).
+- [owner 2026-10-28] Orders **auto-expand while you work on them** (gathering, crafting, fighting the
+  ordered creature) and collapse again 4 s (ASSUMPTION) after progress stops; a manual collapse during
+  the activity sticks.
+- [owner 2026-10-28] The **mounted energy bar** is segmented (10 segments, ASSUMPTION) and a darker blue
+  (`UiTokens.MOUNT_ENERGY`) than the survivor's own stamina bar (`UiTokens.PLAYER_ENERGY`).
+- [owner 2026-10-28] The stomach indicator is a circular bar: **red overfull, green full, yellow hungry,
+  red empty**. This green is the one sanctioned exception to "green = healing" (`UiTokens.STOMACH_*`).
+  It **degrades clockwise**: full is a complete green circle, and the gap opens from 12 o'clock
+  clockwise. The **glyph changes with the state**: shrunken when empty, big when full, swollen when
+  overfull, easing in scale between them. **Saturation** is a thin yellow outer ring that drains like a
+  cooldown while the last meal digests.

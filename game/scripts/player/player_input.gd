@@ -252,11 +252,14 @@ func _walk_to_tile(at: Vector3) -> void:
 	# Water is outside the baked land navigation mesh. Keep its real tile as the goal; PlayerSim
 	# steers directly through water instead of snapping a water tap back to the shore.
 	var nav_pos := tile_pos if WaterAccess.in_water(tile_pos) else p.sim.closest_nav_point(tile_pos)
+	# [owner 2026-10-28] A ground click is the player's order: it drops every interact errand she was
+	# walking to do (sleep at a tent, gather, craft at a station) so none of them finishes later.
 	p.actions.cancel_work()
+	p.sim.cancel_errand()
+	PlayerSim.drop_pending_craft(p)
 	selection.clear()
-	if p.hunt:
-		p.hunt.stop()
 	p.nav_to(nav_pos)
+	p.move_order = true  # the hunt keeps its target and re-engages when the order ends (Hunt._process)
 	p.view.show_ground_marker(BuildGrid.tile_centre(BuildGrid.tile_of(nav_pos), World.runtime))
 
 func interact_tap_target(col: Object) -> void:

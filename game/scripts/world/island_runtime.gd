@@ -194,6 +194,10 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	IslandScatter.scatter(self, def, terrain, _climate, _tier, size)
 	PerfTrace.mark("scatter")
 	props = IslandProps.build(self)
+	# CLAIMPROPS: a save's claimed land is bare. The domain is set up before the scatter and the props
+	# build, so the filter is already in place; this sweep is the belt to that braces (a node type that
+	# appears after a claim, and the lab's authored props).
+	IslandClaims.clean_claimed(self)
 	PerfTrace.mark("props")
 	var t4 := Time.get_ticks_usec()
 	_setup_pathing()

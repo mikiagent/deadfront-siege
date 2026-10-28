@@ -2,7 +2,7 @@
 
 > Generated 2026-10-27 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
 
-Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/creatures/*.json`, `game/data/butchering.json`.
+Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/world/rules.json` (weather), `game/data/creatures/*.json`, `game/data/butchering.json`.
 
 ## Island roster (15)
 
@@ -87,6 +87,62 @@ Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data
 
 A climate's `materials` list is what its island generator may place; gather yields per family are the gather-system's own table (`world/rules.json`).
 
+### One per harvest (ONEGATHER)
+
+Every gather pass at a resource node lands **exactly one** item instance (owner 2026-10-28: "cap it to 1 per harvest and upgrades can change the speed and quality of the materials you harvest, not the amount"). The manifest's `[min, max]` per pass (`nature_manifest.json` `harvest`) no longer counts, and the old tool/skill count multiplier (up to ×4, so a [2, 4] rock gave up to 12 stone a pass) is gone, on the client (`PlayerActions.finish_gather`) and the server (`act.gather`) alike. A node's pool (how many passes it gives before it depletes) is unchanged: a Rock or tree still gives 30, a Bush 12.
+
+- **Speed** — the tool and Gathering level shorten a pass (`ProgressionScaling.gather_seconds`): a Rock pass at Gathering 1 takes 3.78 s by hand, 2.80 s with a stone pick, 2.24 s flint, 1.73 s copper, 1.32 s iron, 1.14 s steel.
+- **Quality** — the tool's material tier raises each unit's rare-trait odds (5% at stone, +15% of that per tier, 10.25% at steel; `items-traits.md`). Gathering level never does (spec 12:42).
+- **Feed** — each pass shows "+1 Item" in the top-middle column; repeats of one item still collapse ("+1" then "+2").
+
+Code: `game/scripts/world/harvest_node.gd` (`roll_yield`), `game/scripts/gather/gather_service.gd`, `game/scripts/gather/loot_roller.gd` (`trait_chance`). Test: `game/tests/t_onegather.gd`.
+
+## Claimed land is clear of scenery
+
+A domain cell (spec 29) is bare of decoration the moment it is staked, and stays that way:
+
+- **Props go.** Claiming or expanding removes every scenery prop whose footprint overlaps the new
+  cells — fallen logs, tree stumps, boulders, reeds, clutter cards, and even a cliff/mesa that an attack
+  cannot clear (a claim is not an attack). The sweep is `IslandClaims.clean_claimed()` →
+  `IslandProps.clear_claimed()`; the props layer also refuses to place a prop on a claimed tile or with
+  a footprint reaching in (`IslandProps._claimed_footprint`).
+- **Resources stay.** Trees, rocks, bushes and plants that really can be gathered remain on owned land:
+  spec 29 gives the owner the right to build and manage, not a stripped plot. A "harvest node" with no
+  valid gather option is a prop and is removed with the rest.
+- **Grass stays off.** Grass families and the ground-cover instances are cleared separately
+  (`IslandClaims._clear_grass_cells`, `GroundCover`), and never scattered back on a claim.
+- **Loads and rebuilds match.** A save stores only the domain cells, never the absence of props; the
+  domain is restored before the props regenerate from the island seed, so a reloaded island has no
+  scenery inside its claims and nothing regrows there later. No save-format change.
+
+## Weather
+
+Code: `game/scripts/world/world_weather.gd` (state), `game/scripts/world/weather_fx.gd` (screen layer, light pulse, camera shake), `game/shaders/weather/`. Numbers: `game/data/world/rules.json` `weather`. Test: `game/tests/t_weather.gd`; lab: `scenes/dev/weather_lab.tscn`.
+
+- **Rain**: every 50.0-90.0 s (first check 40.0 s) the island rolls its climate's rain chance; a spell lasts 18.0-30.0 s, applies Wet, dims the sun by up to half and lays a grey wash.
+- **Storm** (rain and lightning): a rain spell is a storm on the climate's storm roll and lasts 30.0-45.0 s. A strike every 8.0-20.0 s, 400.0-3000.0 m away: a double flicker of the screen and the sun (the moon at night), then thunder distance / 343.0 m/s later (1.2-8.7 s) with a camera rumble up to 0.12 m. `WorldWeather.lightning` / `thunder` are the sound hooks (no audio yet).
+- **Heat** (by day where the climate asks for heat resistance): an orange screen edge in the combat red edge's style, a warm wash, a heat shimmer (high quality) and a slow sway up to 0.012 m.
+- **Cold** (any hour where it asks for cold resistance): a blue-white edge, frost creeping in from the borders (corners first) and a shiver (0.05 m) on getting cold, on defrosting, and every 14.0-28.0 s while cold.
+- **Strength**: severity = resistance need / 3 (0.4-1) x (0.4 + 0.6 x unmet share); the unmet share counts while climate fatigue charges it (heat by day, cold otherwise). Wet and Quenched cool the heat, sitting by a fire warms the cold.
+- **Screen rules**: the layer is canvas layer -1, under every HUD layer, so HUD rects and the combat red edge draw over it; during a hunt or a red-edge status the weather edges drop to 35 %. Weather shake never exceeds 0.15 m; `--reduce-shake` turns off every camera shake (combat too).
+- **Idle by mood**: standing still, the survivor plays `idle_exhausted` (fatigue 75 %+) > `idle_cold` / `idle_heat` (weather feel 0.5+, the stronger) > `idle_tired` (50 %+) > `idle`, each only when its clip exists in `assets/characters/survivor/anim/` (the next in line otherwise), blended over 0.5 s; moving and busy clips win (`PlayerAnim.pick_idle`).
+- **Debug**: `--weather=clear|rain|storm|heat|cold` holds a state; `--weather-quality=low|high` (low drops the shimmer; default low on iOS / Android).
+
+| climate | rain chance per check | storm share of spells | heat look by day | cold look |
+|---|---|---|---|---|
+| blue_tropical | 1.0 | 0.5 | 0.40-1.00 | - |
+| desert | 0 | 0 | 0.40-1.00 | - |
+| grassland | 1.0 | 0.15 | - | - |
+| savannah | 0 | 0 | 0.16-0.40 | - |
+| snowfield | 0 | 0 | - | 0.40-1.00 |
+| swamp | 1.0 | 0.25 | 0.27-0.67 | - |
+| temperate | 1.0 | 0.2 | - | 0.16-0.40 |
+| tropical | 1.0 | 0.45 | 0.27-0.67 | - |
+| tundra | 0 | 0 | - | 0.27-0.67 |
+| volcanic | 0 | 0 | 0.40-1.00 | - |
+
+The look columns run from fully resisted to fully unmet.
+
 ## Fauna (19 species)
 
 | tier | species | climate | clade | period | length (m) |
@@ -113,12 +169,12 @@ A climate's `materials` list is what its island generator may place; gather yiel
 
 ## Butchering: choosing what to cut
 
-A kill leaves a carcass. Tapping it opens the **part picker** (`game/scripts/ui/butcher_picker.gd`): one 64 px hex per part that species offers, its icon, the seconds the cut takes, how many units are still on the carcass, and a red reason under any part that cannot be cut now. The "Loot chest" button on the picker opens the older chest screen (bag on the left, carcass on the right, Take all), so old muscle memory still works.
+A kill leaves a carcass. Tapping it, its name pill, or BUTCHER opens the **gather radial** on it (LOOTRADIAL, `game/scripts/ui/gather_radial.gd`, the same fan a harvest node opens; see `hud.md`): one hex per part that species offers, its icon, the seconds a cut takes on top, how many are still on the carcass at the bottom, a gold ★ on a rare part, and a red ⊘ with the reason on the label of any part that cannot be cut now. The cut budget is on the title ("Lv. 3 · 2 cuts left"). The old boxy part picker and its "Loot chest" button are gone; a carcass with no part table still opens the chest screen.
 
-Picking a part starts a timed cut (1.6 s, the gathering ring runs over the carcass). The survivor must stay in reach; walking away or cancel takes nothing and spends nothing. A finished cut hands over **only that part** — the other parts stay on the carcass:
+Picking a part starts a timed cut (the picked hex pie-fills, the others lock, the gain shows in the top-middle feed). The survivor must stay in reach; walking away or cancel takes nothing and spends nothing. A finished cut hands over **only that part** — the other parts stay on the carcass:
 
 - **Cut budget** — `1 + floor(Butchering level / 10)` cuts per carcass (Lv1 → 1, Lv10 → 2, Lv30 → 4, Lv60 → 7). When it runs out the carcass is spent; the parts never cut are lost (`# ASSUMPTION`, the spec is silent on carcass size).
-- **Yield** — the shipped scaling per cut: the part's `base` rows count, +15% per knife tier above stone, 0.75x with no knife, never below 1, plus +1% per Butchering level.
+- **Yield** — exactly **one** part instance per cut (owner rule 2026-10-28, one per harvest; `# ASSUMPTION` that it applies to butchering). The knife and Butchering level change the cut's **speed** (1.6 s / (1 + 15% per knife tier above stone + 1% per Butchering level), `butcher.cut_speed_*`) and its **quality** (the rare-part odds below), never the count. A part's rare roll replaces that one instance with the rare one.
 - **Rare parts** — one rare roll per chosen part, at that part's `rare` row odds (default 0.12, +15% per knife tier, cap 0.6) and only once its butcher skill node is learned.
 - **Blocked parts** — a part gated by a Butchering skill node, a part already cut, a carcass with no cuts left, or spoiled meat from a poisonous species reads its reason on the hex.
 - **Saves** — the carcass's species, its cuts left and which parts were cut round-trip through save/load (`docs/current/saves-persistence.md`); loading into a scene respawns the carcass with that state.

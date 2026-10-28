@@ -1267,6 +1267,14 @@
           ],
           "source": "docs/design/islands-and-loop-plan.md",
           "note": "Owner 2026-10-28, for the polish and performance patch. Cheap: a few low-poly or card pteranodons on looped high paths with real shadows; a scrolling cloud-shadow texture in the terrain shader or a decal. Must fit the web budget."
+        },
+        {
+          "id": "camera-rotate-25d",
+          "title": "Rotatable camera (e.g. 45° steps) with the 2.5D look kept: 2D assets stay camera-facing",
+          "status": "later",
+          "depends": [],
+          "source": "docs/vision/WildLandsMMO_Open_Questions.md",
+          "note": "Owner: 'the 2D assets maintain the same angle relative to the camera such that we can change perspectives'. Today: CARD2D resource/prop cards (card_sway.gdshader, card_prop.gd, prop_cards.gd) and ground cover already face the camera via the camera globals, so they would follow a rotation. Creatures, the survivor, trees/rocks GLBs, buildings and terrain are 3D meshes and rotate fine. Cost to check: IsoCamera assumes one yaw (occlusion, shadows fit, parallax, map/HUD north, input mapping of move directions, TilePath screen picks, sky shadows and weather screen effects)."
         }
       ]
     },

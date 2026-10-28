@@ -9,18 +9,20 @@ const NEAR_DIST := 10.0
 const BASE_WIDTH := 176.0
 const DAMAGE_CHUNK_SECONDS := 0.6
 const STATUS_GLYPH_SCRIPT: GDScript = preload("res://scripts/ui/status_glyph.gd")
-## Rows of a full plate: name 0-16, nature tag 16-29 (NATURES: a chip under the name, absent while the
-## animal has no nature), HP bar 29-43, pet XP 43-47, status glyphs 47-73, tame 73-93.
-const FULL_H := 94.0
-## The nature tag sits directly under the name line, left-aligned with it. It takes no extra height:
-## the rows under it moved up by the chip's 13 px, so the plate keeps its 176x94 budget.
-const CHIP_POS := Vector2(8, 16)
+## Rows of a full plate: name 0-20 (the 14 px font's ascent + descent: at 16 the tag hid the name's
+## descenders), nature tag 20-34 (NATURES: a chip under the name, absent while the animal has no
+## nature), a 4 px gap, HP bar 38-52, pet XP 52-56, status glyphs 56-82, tame 82-102.
+## Without a nature the rows below the name move up by the chip and its gap (bar at 22).
+const FULL_H := 102.0
+## The nature tag sits directly under the name line, left-aligned with it.
+const CHIP_POS := Vector2(8, 20)
+## ASSUMPTION: 4 px between the nature tag and the HP bar; touching, the bar read as covering the tag.
+const CHIP_GAP := 4.0
 ## Far plates shrink, but never below the 12 px type floor for their 14 px text.
 const MIN_SCALE := 0.86
 
 var _root: Control
 var _entries: Dictionary = {} ## creature instance id -> Dictionary
-var _corpse_entries: Dictionary = {} ## corpse instance id -> Dictionary
 var _icons: Dictionary = {}
 var _icon_cache: Dictionary = {}
 var _emphasis_id: int = 0
@@ -49,8 +51,7 @@ func _process(delta: float) -> void:
 	# This layer (58) is above the HUD's: a plate drew over an open HUD sheet.
 	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
 	_root.visible = hud == null or not hud.sheet_open()
-	_tick_creatures(cam, player, delta)
-	_tick_corpses(cam, player, delta)
+	_tick_creatures(cam, player, delta)  # a carcass has a HUD name pill (HudPills, LOOTRADIAL), no plate
 
 func _tick_creatures(cam: Camera3D, player: Player, delta: float) -> void:
 	var now := _now_s()
@@ -81,42 +82,6 @@ func _tick_creatures(cam: Camera3D, player: Player, delta: float) -> void:
 		if seen.has(key):
 			continue
 		_remove_entry(int(key))
-
-func _tick_corpses(cam: Camera3D, player: Player, delta: float) -> void:
-	var seen: Dictionary = {}
-	for n in get_tree().get_nodes_in_group("corpse"):
-		var corpse := n as Corpse
-		if corpse == null:
-			continue
-		var dist := player.global_position.distance_to(corpse.global_position)
-		if dist > MAX_DIST:
-			continue
-		seen[corpse.get_instance_id()] = true
-		var e := _ensure_corpse_entry(corpse)
-		var show := dist <= 14.0 or corpse.tapped_recently(3.0)
-		var alpha := float(e.get("alpha", 0.0))
-		alpha = move_toward(alpha, 1.0 if show else 0.0, delta * 4.5)
-		e["alpha"] = alpha
-		var node := e["node"] as Control
-		node.visible = alpha > 0.02
-		node.modulate.a = alpha
-		var knife := e.get("knife", null) as TextureRect
-		if knife:
-			knife.visible = corpse.tapped_recently(4.0)
-			var unlocked := player.inventory.has_tool_class(&"knife")
-			# White knife = ready to butcher; red and dim = needs a knife first.
-			knife.modulate = Color.WHITE if unlocked else Color(1.0, 0.4, 0.35, 0.8)
-			var want := UiIcons.icon(&"butcher" if unlocked else &"lock")
-			if knife.texture != want:
-				knife.texture = want
-		var world := corpse.plate_anchor()
-		var screen := cam.unproject_position(world)
-		node.position = screen + Vector2(-70, -28)
-		_corpse_entries[corpse.get_instance_id()] = e
-	for key in _corpse_entries.keys():
-		if seen.has(key):
-			continue
-		_remove_corpse_entry(int(key))
 
 func _separate_visible_creature_plates() -> void:
 	# Keep nearby herd members readable. Greedily lift a plate until its name/HP block no
@@ -234,7 +199,7 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	root.add_child(chip)
 	var bar_bg := ColorRect.new()
 	bar_bg.name = "BarBg"
-	bar_bg.position = Vector2(8, 29)
+	bar_bg.position = Vector2(8, bar_top(false))
 	bar_bg.size = Vector2(160, 14)
 	bar_bg.color = Color(0.04, 0.04, 0.04, 0.82)
 	root.add_child(bar_bg)
@@ -337,38 +302,6 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	_entries[key] = entry
 	return entry
 
-func _ensure_corpse_entry(corpse: Corpse) -> Dictionary:
-	var key := corpse.get_instance_id()
-	if _corpse_entries.has(key):
-		return _corpse_entries[key]
-	var node := Control.new()
-	node.custom_minimum_size = Vector2(140, 22)
-	node.size = node.custom_minimum_size
-	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var label := Label.new()
-	label.position = Vector2.ZERO
-	label.size = node.size
-	label.text = "Loot · %s" % corpse.species_display_name()
-	label.add_theme_color_override("font_color", Color(0.85, 0.9, 0.78))
-	node.add_child(label)
-	# Small butcher symbol in the bag corner. EXPAND_IGNORE_SIZE keeps the 16 px box: a TextureRect
-	# that kept the source image minimum once drew a giant world knife.
-	var knife := TextureRect.new()
-	knife.name = "KnifeLock"
-	knife.texture = UiIcons.icon(&"butcher")
-	knife.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	knife.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	knife.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	knife.custom_minimum_size = Vector2(16, 16)
-	knife.size = Vector2(16, 16)
-	knife.position = Vector2(node.size.x - 17.0, 3.0)
-	knife.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	node.add_child(knife)
-	_root.add_child(node)
-	var entry := {"node": node, "alpha": 0.0, "knife": knife}
-	_corpse_entries[key] = entry
-	return entry
-
 func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player, dist: float, delta: float) -> void:
 	var root := entry["node"] as Control
 	var alpha := float(entry.get("alpha", 0.0))
@@ -401,10 +334,13 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 			chip.position = CHIP_POS
 	var bar_bg := root.get_node_or_null("BarBg") as ColorRect
 	if bar_bg:
-		# Fixed rows: the chip row is always reserved, so a plate never resizes between creatures
-		# and nothing jumps when the tag appears or the name changes.
-		bar_bg.position = Vector2(8, CHIP_POS.y + NatureChip.CHIP_H if full else 2)
+		# Every row under the name hangs off the bar: tag, gap, bar; no tag, the bar right under the name.
+		var by := bar_top(chip != null and chip.visible) if full else 2.0
+		entry["bar_y"] = by
+		bar_bg.position = Vector2(8, by)
 		bar_bg.size = Vector2(160 if full else 96, 14 if full else 6)
+		(entry["line3"] as Control).position = Vector2(8, by + 18.0)
+		(entry["tame_row"] as Control).position = Vector2(8, by + 44.0)
 	root.size = Vector2(BASE_WIDTH, FULL_H if full else 18)
 	root.custom_minimum_size = root.size
 	var frac := c.health.fraction()
@@ -452,6 +388,10 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	_tick_floaters(entry, delta)
 	_fit_pill(entry, full)
 
+## Top of a full plate's HP bar: under the nature tag and its gap, else right under the name.
+static func bar_top(has_nature: bool) -> float:
+	return CHIP_POS.y + NatureChip.CHIP_H + CHIP_GAP if has_nature else CHIP_POS.y + 2.0
+
 ## Pill behind whatever rows are showing (compact: just the short bar).
 func _fit_pill(entry: Dictionary, full: bool) -> void:
 	var pill := entry.get("pill", null) as Control
@@ -461,16 +401,17 @@ func _fit_pill(entry: Dictionary, full: bool) -> void:
 		pill.position = Vector2(4, -2)
 		pill.size = Vector2(104, 10)
 		return
-	var bottom := CHIP_POS.y + NatureChip.CHIP_H + 17.0  # name, nature tag, then the HP bar at 29-43
+	var by := float(entry.get("bar_y", bar_top(false)))
+	var bottom := by + 17.0  # name, nature tag, then the HP bar
 	var line3 := entry.get("line3", null) as Control
 	if line3 and line3.visible:
 		for g in line3.get_children():
 			if (g as Control).visible:
-				bottom = 73.0
+				bottom = by + 44.0
 				break
 	var tame_row := entry.get("tame_row", null) as Control
 	if tame_row and tame_row.visible:
-		bottom = 93.0
+		bottom = by + 64.0
 	pill.position = Vector2(2, -2)
 	pill.size = Vector2(BASE_WIDTH - 4.0, bottom + 2.0)
 
@@ -515,7 +456,7 @@ func _tick_xp(entry: Dictionary, c: Creature, full: bool) -> void:
 	bg.visible = show
 	if not show:
 		return
-	bg.position = Vector2(8, 36 if full else 10)
+	bg.position = Vector2(8, float(entry.get("bar_y", bar_top(false))) + 14.0 if full else 10.0)
 	bg.size = Vector2(160 if full else 96, 4)
 	var need := PetRecord.xp_to_next(c.pet_record.level)
 	var frac := clampf(c.pet_record.xp / maxf(1.0, need), 0.0, 1.0)
@@ -592,9 +533,9 @@ func _status_rows(c: Creature) -> Array[Dictionary]:
 		_add_status(out, c.statuses, &"bleed", "B", Color(0.95, 0.3, 0.3))
 	if out.is_empty():
 		_add_status(out, c.statuses, &"bleeding_target", "B", Color(0.95, 0.3, 0.3))
-	_add_status(out, c.statuses, &"venom", "V", Color(0.45, 0.95, 0.35))
+	_add_status(out, c.statuses, &"venom", "V", UiTokens.POISON)
 	if not _has_status(c.statuses, &"venom"):
-		_add_status(out, c.statuses, &"poisoned_target", "V", Color(0.45, 0.95, 0.35))
+		_add_status(out, c.statuses, &"poisoned_target", "V", UiTokens.POISON)
 	_add_status(out, c.statuses, &"knockdown", "K", Color(1.0, 0.72, 0.4))
 	_add_status(out, c.statuses, &"groggy", "G", Color(1.0, 0.86, 0.35))
 	if not _has_status(c.statuses, &"groggy"):
@@ -751,15 +692,6 @@ func _remove_entry(key: int) -> void:
 	if node and is_instance_valid(node):
 		node.queue_free()
 	_entries.erase(key)
-
-func _remove_corpse_entry(key: int) -> void:
-	if not _corpse_entries.has(key):
-		return
-	var e: Dictionary = _corpse_entries[key]
-	var node := e.get("node", null) as Control
-	if node and is_instance_valid(node):
-		node.queue_free()
-	_corpse_entries.erase(key)
 
 func _load_icon_manifest() -> void:
 	var path := "res://data/icons_manifest.json"

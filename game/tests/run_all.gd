@@ -319,6 +319,7 @@ func _test_temporary_campfire() -> void:
 	_expect(is_equal_approx(float(fire.get("seconds_left")), 120.0), "campfire starts with two active minutes")
 	get_root().add_child(fire)
 	fire.set_process(false) # Keep a fixed lifetime for the save round-trip assertion.
+	fire.set("fuel_seconds", 53.0)  # FIREPITS: fuel_seconds is the saved burn time; seconds_left mirrors it
 	fire.set("seconds_left", 53.0)
 	var saved: Dictionary = fire.to_dict()
 	var restored: Node = fire_script.from_dict(saved)
@@ -353,7 +354,9 @@ func _test_exhaustion() -> void:
 	_expect(is_equal_approx(v.fatigue, 10.0), "positive exertion fatigue is halved")
 	v.rest(5.0)
 	_expect(is_equal_approx(v.fatigue, 5.0), "rest reduction is not halved")
-	for row in [[24.0, 1.0, 1.0], [25.0, 0.85, 0.5], [50.0, 0.65, 0.35], [75.0, 0.5, 0.2]]:
+	# Refill per strain tier is data since the owner's 2026-10-28 rule (combat_tuning movement.stamina_regen_by_strain).
+	var regen: Array = CombatTuning.section("movement").get("stamina_regen_by_strain", [1.0, 0.5, 0.35, 0.2])
+	for row in [[24.0, 1.0, float(regen[0])], [25.0, 0.85, float(regen[1])], [50.0, 0.65, float(regen[2])], [75.0, 0.5, float(regen[3])]]:
 		v.fatigue = row[0]
 		_expect(is_equal_approx(v.stamina_cap_mult(), row[1]) and is_equal_approx(v.stamina_regen_mult(), row[2]), "fatigue stage penalties at %s" % row[0])
 	v.free()

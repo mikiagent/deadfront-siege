@@ -134,6 +134,10 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 		genetics = CreatureGenetics.roll(null, def.coloration, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
 	# One colour profile per individual, kept on the genetics record so taming carries it over.
 	view.apply_coloration(genetics.coloration if genetics.coloration != null else CreatureColoration.neutral())
+	if pet_record:  # SADDLES: the equipped saddle shows on the back, ridden or not
+		_on_gear_changed()
+		if not pet_record.gear.changed.is_connected(_on_gear_changed):
+			pet_record.gear.changed.connect(_on_gear_changed)
 	level = _spawn_level(p_runtime, p_tier_offset)
 	health.setup(stat_value(&"health"))
 	health.healed.connect(_on_healed)
@@ -174,6 +178,10 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 ## reuses the genetics record), while a herd at different points and a respawned individual at the
 ## same point both come out as new animals instead of clones.
 static var _spawn_serial: int = 0
+
+func _on_gear_changed() -> void:
+	if pet_record and is_instance_valid(view):
+		view.show_saddle(pet_record.saddle())
 
 static func spawn_colour_key(species: StringName, at: Vector3) -> String:
 	_spawn_serial += 1
@@ -222,6 +230,14 @@ func face_towards(world_pos: Vector3, _delta: float) -> void:
 	var before := rotation.y
 	rotation.y = rotate_toward(before, target_yaw, _turn_left)
 	_turn_left = maxf(0.0, _turn_left - absf(angle_difference(before, rotation.y)))
+
+## Turn toward a heading at turn_rate with FACE_SLACK_RAD of slack: reversals inside the slack (the
+## wobble a low-pass leaves, a rider's stick noise) cannot dither the yaw.
+func face_heading(heading: Vector3, delta: float) -> void:
+	var err := angle_difference(rotation.y, atan2(-heading.x, -heading.z))
+	if absf(err) > FACE_SLACK_RAD:
+		var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
+		face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
 
 func turn_rate() -> float:
 	return def.turn_rate if def else 3.0
@@ -332,6 +348,10 @@ func setup_energy() -> void:
 func energy_frac() -> float:
 	return energy / maxf(1.0, energy_max)
 
+## ai.json energy.run_speed_mult: every creature's run (and a ridden mount's) is this much faster.
+static func run_speed_mult() -> float:
+	return float(energy_rules().get("run_speed_mult", 1.0))
+
 func can_sprint() -> bool:
 	return not winded and energy > 0.0
 
@@ -375,7 +395,9 @@ func tick_energy(delta: float, is_running: bool) -> void:
 		if energy <= energy_max * float(r.get("stop_frac", 0.05)):
 			winded = true
 	else:
-		energy = minf(energy_max, energy + energy_regen_per_s * delta)
+		# Refill by exhaustion: fresh refills fast, a winded animal slowly (ASSUMPTION multipliers).
+		var regen_mult := float(r.get("regen_mult_winded", 1.0)) if winded else float(r.get("regen_mult_fresh", 1.0))
+		energy = minf(energy_max, energy + energy_regen_per_s * regen_mult * delta)
 		if winded and energy >= energy_max * float(r.get("resume_frac", 0.4)):
 			winded = false
 
@@ -486,6 +508,8 @@ func _physics_process(delta: float) -> void:
 	if sprint and not can_sprint():
 		speed = minf(speed, walk_mps(base_speed))
 		sprint = false
+	elif sprint:
+		speed *= run_speed_mult()  # owner 2026-10-28: running is faster for every creature
 	var locomote := Vector3.ZERO
 	if _path_active:
 		if _use_tile_path():
@@ -509,14 +533,13 @@ func _physics_process(delta: float) -> void:
 		if brain and not is_pet and brain.strafe_face and is_instance_valid(brain.strafe_face):
 			face_towards(brain.strafe_face.global_position, delta)  # TACTICS: sidestep facing the prey
 		elif _face_vel.length() > FACE_MIN_SPEED_MPS:
-			# Slack: the heading follows the smoothed velocity but ignores reversals inside
-			# FACE_SLACK_RAD, so the wobble the low-pass leaves cannot dither the yaw.
-			var err := angle_difference(rotation.y, atan2(-_face_vel.x, -_face_vel.z))
-			if absf(err) > FACE_SLACK_RAD:
-				var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
-				face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
-		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide).
-		anim.set_move_velocity(dir * speed, global_basis)
+			face_heading(_face_vel, delta)
+		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide); a
+		# brain's named gait (the charge) wins when the rig has it.
+		if brain and not is_pet and brain.gait_clip != &"":
+			anim.set_gait_clip(brain.gait_clip, speed, dir * speed, global_basis)
+		else:
+			anim.set_move_velocity(dir * speed, global_basis)
 		running = sprint
 	else:
 		velocity.x = 0.0
@@ -637,19 +660,52 @@ func _status_fx() -> void:
 	else:
 		_fx_drip.emitting = false
 	if statuses.has(&"venom") or statuses.has(&"poisoned_target"):
-		tint = Color(0.35, 0.85, 0.3)
-	if statuses.has(&"enraged"):
-		tint = Color(0.9, 0.25, 0.15)
+		tint = UiTokens.POISON  # owner 2026-10-28: no green debuffs
 	if statuses.has(&"groggy") or statuses.has(&"dizziness"):
 		wobble = 1.0
 	if statuses.has(&"fracture"):
 		ap.speed_scale = 0.65
+	_sync_status_emitters()
 	# set_status_fx rewrites every material; call it on change, or while the hit flash decays.
 	var fx := Vector2(dark, wobble)
 	if fx != _fx_last or tint != _fx_tint_last or view._hit_flash_left > 0.0:
 		_fx_last = fx
 		_fx_tint_last = tint
 		view.set_status_fx(dark, tint, wobble)
+
+## Status particle presets on the body (statuses.json fx.particles, e.g. enraged "blood"): a body
+## emitter that drips and a mouth emitter that flecks, sized to the animal. Cheap CPU particles
+## (Compatibility renderer), at most STATUS_EMITTERS_MAX per creature, freed when the status ends.
+const STATUS_EMITTERS_MAX := 2
+var status_emitters: Dictionary = {}  ## status id -> Array[CPUParticles3D]
+
+func _sync_status_emitters() -> void:
+	var want: Dictionary = {}
+	if not health.dead:
+		for inst in statuses.instances():
+			var sd := Data.status(inst.id)
+			if sd and sd.fx_particles == &"blood" and want.is_empty():  # one blood set (2 emitters) at most
+				want[inst.id] = sd
+	for id in status_emitters.keys():
+		if not want.has(id):
+			for e in status_emitters[id]:
+				if is_instance_valid(e):
+					(e as Node).queue_free()
+			status_emitters.erase(id)
+	for id in want:
+		if status_emitters.has(id):
+			continue
+		var col: Color = (want[id] as StatusDef).fx_color
+		var body := StatusFx.make_emitter(&"drip", col)
+		body.emission_sphere_radius = body_radius() * 0.8
+		body.position = Vector3(0.0, def.height_meters * 0.5, 0.0)
+		var mouth := StatusFx.make_emitter(&"blood", col)
+		mouth.emission_sphere_radius = 0.15
+		mouth.position = Vector3(0.0, def.height_meters * 0.75, -body_radius() - 0.2)  # the head end (the body faces -Z)
+		for e in [body, mouth]:
+			(e as CPUParticles3D).name = "StatusFx_%s" % id
+			add_child(e)
+		status_emitters[id] = [body, mouth]
 
 func _blood_trail() -> void:
 	if not statuses.has(&"bleeding_target"):
@@ -819,6 +875,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 			brain.on_aggro(source)
 
 func _on_died(_source: Node) -> void:
+	_sync_status_emitters()  # the dead stop bleeding with rage
 	if not is_pet:
 		var credited := _source
 		if _source is FieldCatapult and is_instance_valid((_source as FieldCatapult).operator):

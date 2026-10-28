@@ -172,7 +172,10 @@ func _test_part_only() -> void:
 			continue
 		checked += 1
 		_expect(got.all(func(g: String) -> bool: return g == str(id)), "cutting %s gives only %s (gave %s)" % [id, id, got])
-		_expect(not (res["stacks"] as Array).is_empty(), "a chosen base part always cuts at least one unit (%s gave none)" % id)
+		var units := 0
+		for st in res["stacks"]:
+			units += st.count
+		_expect(units == 1, "a chosen base part cuts exactly one unit (%s gave %d)" % [id, units])
 	_expect(checked >= 2, "the protoceratops's open base parts cut through (%d did; the scutes and dense bone wait on nodes)" % checked)
 	# A locked part is refused with its reason and gives nothing.
 	var locked: Array = CP.parts(&"triceratops")
@@ -204,6 +207,10 @@ func _test_corpse_cut() -> void:
 	_expect(before > 0, "the rolled carcass holds meat to cut (%d)" % before)
 	var other_before: int = c.loot.count_of(&"raptor_hide")
 	var got: Array = c.cut_part(&"raptor_meat", _player)
+	var got_n := 0
+	for st in got:
+		got_n += st.count
+	_expect(got_n == 1, "a carcass cut gives exactly one part (%d)" % got_n)
 	var got_ids := []
 	for st in got:
 		got_ids.append(str(st.def_id))
@@ -237,7 +244,7 @@ func _test_corpse_cut() -> void:
 	c.free()
 	_finished += 1
 
-# ---------------------------------------------------------------- 5. knife tier scales the cut
+# ---------------------------------------------------------------- 5. knife tier speeds the cut
 
 func _test_knife_scales() -> void:
 	var rows: Array = CP.parts(&"velociraptor")
@@ -245,6 +252,7 @@ func _test_knife_scales() -> void:
 	for part in rows:
 		if part["id"] == &"raptor_meat":
 			meat = part
+	# Owner rule 2026-10-28 (one per harvest): a better knife cuts faster, never more.
 	var stone := 0
 	var flint := 0
 	var runs := 400
@@ -259,10 +267,15 @@ func _test_knife_scales() -> void:
 			stone += st.count
 		for st in b["stacks"]:
 			flint += st.count
-	var stone_avg := float(stone) / runs
-	var flint_avg := float(flint) / runs
-	print("[t_butcher] raptor meat per cut: stone %.2f, flint %.2f" % [stone_avg, flint_avg])
-	_expect(flint_avg > stone_avg, "a flint knife cuts more meat per cut than a stone knife (%.2f vs %.2f)" % [flint_avg, stone_avg])
+	print("[t_butcher] raptor meat per cut: stone %.2f, flint %.2f" % [float(stone) / runs, float(flint) / runs])
+	_expect(stone == runs and flint == runs, "every cut gives exactly one part, whatever the knife (stone %d, flint %d of %d)" % [stone, flint, runs])
+	var s_stone: float = CP.cut_seconds(_ctx(inv_stone))
+	var s_flint: float = CP.cut_seconds(_ctx(inv_flint))
+	var c_slow: Dictionary = _ctx(inv_flint)
+	c_slow["skill"] = 0
+	print("[t_butcher] cut seconds: stone %.2f, flint %.2f, flint at Butchering 0 %.2f" % [s_stone, s_flint, CP.cut_seconds(c_slow)])
+	_expect(s_flint < s_stone and s_stone <= CP.CUT_SECONDS, "a flint knife cuts faster than a stone knife (%.2f vs %.2f s)" % [s_flint, s_stone])
+	_expect(CP.cut_seconds(c_slow) > s_flint, "Butchering levels make the cut faster too")
 	# Bare hands: no knife is refused (the corpse's knife rule), so the cut is not a free pick.
 	var res: Dictionary = CP.cut(meat, _ctx(_bag_with(&"")), rng)
 	_expect(not res["ok"] and (res["stacks"] as Array).is_empty(), "bare hands cannot cut a part off (refused: %s)" % res["reason"])
@@ -437,10 +450,11 @@ func _test_timed_cut() -> void:
 	await process_frame
 	_finished += 1
 
-# ---------------------------------------------------------------- 9. the part picker
+# ---------------------------------------------------------------- 9. the part fan
 
-## The picker the corpse interact opens: one 64 px hex per data part, the budget on screen, the
-## locked part blocked with its reason, and a tap on an open part starting the cut.
+## The fan the corpse interact opens (LOOTRADIAL: the gather radial): one hex per data part, each a
+## 64 px tap target or larger, the locked part blocked with its reason, and a tap on an open part
+## starting the cut.
 func _test_picker() -> void:
 	_clear_bag()
 	_player.inventory.add(IS.make(&"stone_knife_work", 1, {"material_tier": "flint"}, 1))
@@ -449,68 +463,33 @@ func _test_picker() -> void:
 	await process_frame
 	c.open_loot(_player)
 	await process_frame
-	var picker = c.picker()
-	_expect(picker != null and picker.is_open(), "the corpse interact opens the part picker")
-	if picker == null:
+	var fan = _player._gather_radial
+	_expect(fan != null and fan.is_open() and fan.node == c, "the corpse interact opens the part fan")
+	if fan == null or not fan.is_open():
 		c.free()
 		_finished += 1
 		return
-	var hexes: Array = picker.part_buttons()
-	var sizes := []
+	var hexes: Array = fan._buttons
+	_expect(hexes.size() == CP.parts(&"triceratops").size(), "the fan shows one hex per data part (%d of %d)" % [hexes.size(), CP.parts(&"triceratops").size()])
 	var smallest := 9999.0
 	for b in hexes:
-		sizes.append("%s %sx%s" % [b.name, b.size.x, b.size.y])
 		smallest = minf(smallest, minf(b.size.x, b.size.y))
-	print("[t_butcher] picker hexes: %s" % [sizes])
-	_expect(hexes.size() == CP.parts(&"triceratops").size(), "the picker shows one hex per data part (%d of %d)" % [hexes.size(), CP.parts(&"triceratops").size()])
 	_expect(smallest >= 64.0, "every part hex is a 64 px tap target (smallest %.0f)" % smallest)
-	var scute = null
-	for b in hexes:
-		if str(b.name) == "Part_armor_scute":
-			scute = b
-	_expect(scute != null and scute.disabled and picker.blocked_reason(&"armor_scute") != "", "a part its Butchering node has not opened is blocked with the reason (%s)" % (picker.blocked_reason(&"armor_scute") if scute else "no hex"))
-	# The name the hex draws itself must not run into its neighbour's: no two caption boxes overlap,
-	# and each hex's own box is the 64 px tap target.
-	var clashes := []
-	var tap_ok := true
-	var inner := true
-	for i in hexes.size():
-		# Untyped on purpose: naming HexButton here would compile it before the autoloads exist.
-		var a = hexes[i]
-		tap_ok = tap_ok and a.size.x >= 64.0 and a.size.y >= 64.0
-		for j in range(i + 1, hexes.size()):
-			var b = hexes[j]
-			if a.hex_rect().intersects(b.hex_rect()) or a.get_global_rect().intersects(b.get_global_rect()):
-				inner = false
-	_expect(tap_ok, "every part hex is a 64 px tap target")
-	_expect(inner, "the part hexes never overlap each other")
-	# The name under each hex stays inside its own cell: no two part names run together.
-	var names := []
-	for id in ["raw_meat", "bone", "raw_hide", "dense_bone", "armor_scute"]:  # triceratops parts
-		var l = picker.name_label(StringName(id))
-		if l != null:
-			names.append(l)
-	for i in names.size():
-		for j in range(i + 1, names.size()):
-			if names[i].get_global_rect().intersects(names[j].get_global_rect()):
-				clashes.append("%s/%s" % [names[i].text, names[j].text])
-	_expect(names.size() == hexes.size(), "every part shows its name under the hex (%d of %d)" % [names.size(), hexes.size()])
-	_expect(clashes.is_empty(), "no two part names overlap (%s)" % [clashes])
-	_expect(picker.can_cut(&"raw_meat") and not picker.can_cut(&"armor_scute"), "the picker offers the open parts and blocks the locked ones")
-	# A tap on an open hex starts the cut (the hex's own pressed signal, as a finger would).
-	var meat_hex = null
-	for b in hexes:
-		if str(b.name) == "Part_raw_meat":
-			meat_hex = b
-	_expect(meat_hex != null, "the picker has the meat hex")
-	if meat_hex != null:
-		meat_hex.pressed.emit()
+	var by_id := {}
+	for i in fan.options.size():
+		by_id[str(fan.options[i]["item"])] = i
+	var scute: int = by_id.get("armor_scute", -1)
+	_expect(scute >= 0 and hexes[scute].disabled and str(fan._labels[scute]["reason"]) != "", "a part its Butchering node has not opened is blocked with the reason (%s)" % (fan._labels[scute]["reason"] if scute >= 0 else "no hex"))
+	var meat: int = by_id.get("raw_meat", -1)
+	_expect(meat >= 0 and not hexes[meat].disabled, "the fan offers the open parts")
+	if meat >= 0:
+		hexes[meat].pressed.emit()  # the hex's own pressed signal, as a finger would
 		await process_frame
-		print("[t_butcher] picker tap: running %s, part %s" % [c.cut_running, c.cutting_part()])
+		print("[t_butcher] fan tap: running %s, part %s" % [c.cut_running, c.cutting_part()])
 		_expect(c.cut_running and c.cutting_part() == &"raw_meat", "tapping a part hex starts that cut")
-		picker.close()
+		fan.close()
 		await _await_cut(c)
-		_expect(_player.inventory.count_of(&"raw_meat") > 0, "the picked part reached the bag through the picker")
+		_expect(_player.inventory.count_of(&"raw_meat") > 0, "the picked part reached the bag through the fan")
 	c.free()
 	await process_frame
 	_finished += 1

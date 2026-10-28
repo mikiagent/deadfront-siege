@@ -47,6 +47,21 @@ const LIFE := Color(0.847, 0.314, 0.227, 1.0)
 const ENERGY := Color(0.373, 0.659, 0.816, 1.0)
 const XP := Color(0.561, 0.816, 0.910, 1.0)
 const MUTED := Color(0.604, 0.651, 0.678, 1.0)        # secondary labels
+## Status palette (owner 2026-10-28): green is reserved for healing and positive restores; no negative
+## status is ever green, poison/venom/sickness are purple. statuses.json fx colours follow it.
+const PLAYER_ENERGY := Color(0.20, 0.45, 0.80, 1.0)  # the survivor's own stamina bar
+## Owner 2026-10-28: the mounted energy bar is "segmented and darker blue to indicate mounted energy".
+const MOUNT_ENERGY := Color(0.11, 0.24, 0.50, 1.0)
+const MOUNT_ENERGY_SEGMENTS := 10  # ASSUMPTION: a tick every 10 %
+const HEAL := Color(0.373, 0.827, 0.416, 1.0)         # healing numbers, positive restores (= OK_GREEN)
+const POISON := Color(163.0 / 255.0, 107.0 / 255.0, 217.0 / 255.0, 1.0)  # #a36bd9: venom, poison, sickness
+## Stomach ring (owner 2026-10-28: "red is too full stomach, green is full, yellow is hungry, and red (again) is
+## empty stomach"): the one owner-sanctioned green outside healing. Saturation is the yellow outer ring.
+const STOMACH_FULL := Color(0.373, 0.827, 0.416, 1.0)
+const STOMACH_HUNGRY := Color(0.957, 0.808, 0.247, 1.0)
+const STOMACH_EMPTY := LIFE
+const STOMACH_OVERFULL := LIFE
+const SATURATION := Color(0.957, 0.769, 0.188, 1.0)
 
 ## Trait chips (owner rule §1.4). bg / fg pairs; never reuse for item colour (spec 35).
 const TRAIT_NEG_BG := Color(0.243, 0.263, 0.275, 1.0)
@@ -562,3 +577,16 @@ static func ui_font_bold() -> FontVariation:
 static func ui_face(weight: int = WEIGHT_REGULAR) -> Font:
 	var f := ui_font(weight)
 	return f if f != null else ThemeDB.fallback_font
+
+## Italic cut of the UI face: the variable TTF has no italic axis Godot exposes, so a 0.2 skew
+## (the slant Roboto's own italic uses). Fallback font when the TTF is missing.
+static func ui_italic(weight: int = WEIGHT_REGULAR) -> Font:
+	var key := "italic%d" % weight
+	if not _fonts.has(key):
+		var f := ui_font(weight)
+		if f == null:
+			return ThemeDB.fallback_font
+		var it := f.duplicate() as FontVariation
+		it.variation_transform = Transform2D(Vector2(1.0, 0.2), Vector2(0.0, 1.0), Vector2.ZERO)
+		_fonts[key] = it
+	return _fonts[key]

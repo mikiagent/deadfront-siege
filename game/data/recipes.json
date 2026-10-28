@@ -5503,6 +5503,115 @@
       "seconds": 3.0,
       "process_step": "mix",
       "process_add": 0
+    },
+    {
+      "id": "saddle_small",
+      "display_name": "Small Saddle",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "max_level": 60,
+      "min_level": 1,
+      "slots": [
+        {
+          "category": "dried_hide",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "saddle_small",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 6.0,
+      "process_step": "sew",
+      "process_add": 1,
+      "_about": "SADDLES: one saddle per tame size class; riding needs a fitting one equipped. Colour follows the primary hide's natural tint (spec 35, build_output copies its attributes). ASSUMPTION materials, counts, levels and station (the PRDs give no saddle recipe)."
+    },
+    {
+      "id": "saddle_medium",
+      "display_name": "Medium Saddle",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "max_level": 60,
+      "min_level": 12,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 5,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "wood",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "saddle_medium",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8.0,
+      "process_step": "sew",
+      "process_add": 1,
+      "_about": "SADDLES: one saddle per tame size class; riding needs a fitting one equipped. Colour follows the primary hide's natural tint (spec 35, build_output copies its attributes). ASSUMPTION materials, counts, levels and station (the PRDs give no saddle recipe).",
+      "required_ability": 55
+    },
+    {
+      "id": "saddle_large",
+      "display_name": "Large Saddle",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "max_level": 60,
+      "min_level": 25,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "wood",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "bone",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "saddle_large",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 10.0,
+      "process_step": "sew",
+      "process_add": 1,
+      "_about": "SADDLES: one saddle per tame size class; riding needs a fitting one equipped. Colour follows the primary hide's natural tint (spec 35, build_output copies its attributes). ASSUMPTION materials, counts, levels and station (the PRDs give no saddle recipe).",
+      "required_ability": 65
     }
   ]
 }

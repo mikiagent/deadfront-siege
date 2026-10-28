@@ -1,5 +1,5 @@
 extends SceneTree
-## W2-GATHER: role tools speed hand-pickable nodes, tier raises yields, the green rare trait rolls the
+## W2-GATHER: role tools speed hand-pickable nodes, tier speeds a pass (ONEGATHER: one per pass), the green rare trait rolls the
 ## documented 5% per item, finds roll their data odds (never the node's own yield, none at home), carcass
 ## parts scale with knife and skill. Then live, on a real survivor: after_unit reads the node's climate,
 ## downranks a find like the main yield and keeps to free slots; a finish_gather pays only the base 2
@@ -165,10 +165,11 @@ func _test_tools() -> void:
 	var stone_axe = _bag(&"work_axe", "stone")
 	var flint_axe = _bag(&"work_axe", "flint")
 	_expect(GS.unit_seconds_for(stone_axe, tree, 1) < GS.unit_seconds_for(hands, tree, 1), "an axe takes branches faster than hands")
-	var ys: float = GS.yield_multiplier_for(stone_axe, tree, 1)
-	var yf: float = GS.yield_multiplier_for(flint_axe, tree, 1)
-	print("[t_gather] branch yield mult stone %.2f flint %.2f" % [ys, yf])
-	_expect(yf > ys, "a flint axe yields more per pass than a stone axe")
+	# ONEGATHER: a better tier gathers faster and rolls better quality, never more per pass (t_onegather).
+	var ss: float = GS.unit_seconds_for(stone_axe, tree, 1)
+	var sf: float = GS.unit_seconds_for(flint_axe, tree, 1)
+	print("[t_gather] branch seconds stone axe %.2f flint axe %.2f" % [ss, sf])
+	_expect(sf < ss and tree.roll_yield().count == 1, "a flint axe takes a branch faster than a stone axe, one per pass")
 	var rock = _node("Rock", &"stone")
 	var pick = _bag(&"work_pick", "stone")
 	_expect(GS.effective_tool(pick, rock) != null and GS.unit_seconds_for(pick, rock, 1) < GS.unit_seconds_for(hands, rock, 1), "a pick works loose stone faster than hands")
@@ -340,9 +341,8 @@ func _test_carcass() -> void:
 		talons += 1 if (r["rares"] as Array).has(&"raptor_talon") else 0
 	var talon_rate := float(talons) / float(runs)
 	print("[t_gather] raptor meat per carcass: no knife %.2f stone knife %.2f flint knife %.2f; talon rate %.3f" % [float(meat_none) / runs, float(meat_stone) / runs, float(meat_flint) / runs, talon_rate])
-	_expect(meat_flint > meat_stone, "a flint knife cuts more meat than a stone knife")
-	# loot_tables.json no_knife_count_mult: bare hands butcher less, as they gather slower.
-	_expect(meat_none < meat_stone * 0.85, "no knife cuts less meat than a stone knife (%.2f vs %.2f)" % [float(meat_none) / runs, float(meat_stone) / runs])
+	# Owner rule 2026-10-28 (one per harvest): every part is one instance, whatever the knife.
+	_expect(meat_none == runs and meat_stone == runs and meat_flint == runs, "a carcass holds one meat whatever the knife (%d/%d/%d of %d)" % [meat_none, meat_stone, meat_flint, runs])
 	_expect(talon_rate > 0.05 and talon_rate < 0.5, "the rare talon rolls odds instead of always dropping (got %.3f)" % talon_rate)
 	var locked: Dictionary = LR.roll_carcass(base, rare, 5, &"flint", 0, 1, false, rng)
 	_expect(_count(locked["stacks"], &"raptor_talon") == 0, "the talon stays locked without its Butchering node")
@@ -500,7 +500,8 @@ func _test_butcher_hook() -> void:
 	player.inventory.add(IS.make(&"stone_knife_work", 1, {"material_tier": "flint"}, 1))
 	var flint := _carcasses(&"triceratops", 150, ids)
 	print("[t_gather] roll_into x150 triceratops: no knife %s, flint knife %s" % [none, flint])
-	_expect(flint[&"raw_meat"] > none[&"raw_meat"], "the survivor's flint knife cuts more meat than no knife (%d vs %d)" % [flint[&"raw_meat"], none[&"raw_meat"]])
+	# Owner rule 2026-10-28 (one per harvest): the knife changes speed and quality, never the count.
+	_expect(flint[&"raw_meat"] == 150 and none[&"raw_meat"] == 150, "one meat per carcass with or without the survivor's knife (%d vs %d)" % [flint[&"raw_meat"], none[&"raw_meat"]])
 	# Scutes and dense bone wait on the survivor's Butchering nodes (SKILLBUY), whatever the knife.
 	_expect(flint[&"armor_scute"] == 0 and flint[&"dense_bone"] == 0, "without their Butchering nodes no scutes or dense bone come off, even with a flint knife")
 	var opened: Array = []
@@ -515,8 +516,8 @@ func _test_butcher_hook() -> void:
 		(player.skills.trees[o[0]]["unlocked"] as Array).erase(o[1])
 	print("[t_gather] roll_into x150 triceratops, flint knife, nodes learned: %s" % [learned])
 	_expect(learned[&"armor_scute"] > 0 and learned[&"dense_bone"] > 0, "with their Butchering nodes learned the flint knife cuts scutes and dense bone")
-	# One instance per part (W2-INV): a triceratops rolls more parts than Corpse's 12 starting slots, and
-	# the carcass grows to hold them all; the same seed through LootRoller says how many it rolled.
+	# One instance per part (W2-INV, one per harvest 2026-10-28): the carcass holds every part it rolled;
+	# the same seed through LootRoller says how many it rolled.
 	var c = CORPSE.new()
 	c.species = &"triceratops"
 	c.level = 1
@@ -532,7 +533,7 @@ func _test_butcher_hook() -> void:
 	for st in c.loot.slots:
 		kept += st.count if st else 0
 	print("[t_gather] triceratops carcass: rolled %d parts, kept %d in %d slots" % [rolled, kept, c.loot.slot_count])
-	_expect(rolled > 12 and kept == rolled, "a carcass keeps every part it rolled past Corpse's 12 slots (%d of %d)" % [kept, rolled])
+	_expect(rolled > 0 and kept == rolled, "a carcass keeps every part it rolled (%d of %d)" % [kept, rolled])
 	c.free()
 	_finished += 1
 

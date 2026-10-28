@@ -3,6 +3,8 @@ extends Control
 ## Tap a node → a hexagonal selection outline on its tile with name + level, and a fan of
 ## hex option buttons (icon, seconds on top, count below, label to the right). Blocked
 ## options carry a red badge and the reason. Reference: docs/reference/durango-gather-reference.webp
+## LOOTRADIAL: a carcass opens the same fan (open_carcass), one hex per part to cut, its cut budget
+## on the title's second line; the picked part pie-fills on the carcass's own cut clock.
 
 signal picked(anchor: Node3D, index: int)
 signal closed
@@ -12,6 +14,10 @@ var options: Array = []
 var title: String = ""
 var level: int = 1
 var anchor_height: float = 1.0
+## Text after the level on the title's second line ("2 cuts left" on a carcass, "" on a harvest node).
+var note: String = ""
+## The survivor cutting the open carcass (its knife and Butchering level judge the parts).
+var _cutter: Player = null
 var _buttons: Array[HexButton] = []
 var _labels: Array[Dictionary] = []
 var _label_left: Array[bool] = []  ## the side each label was solved on (a flip glides it alone)
@@ -84,11 +90,13 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 	anchor_height = p_height
 	options = p_options
 	_inventory = inv
+	note = ""
 	_hex = hex_px(get_viewport_rect().size)
 	for i in options.size():
 		var o: Dictionary = options[i]
 		var b := HexButton.new(_hex)
 		var item_id := StringName(str(o.get("item", "")))
+		b.name = "Opt_%s" % item_id
 		b.icon = _icon_for(item_id)
 		b.color_icon = b.icon != null
 		if b.icon == null:
@@ -104,7 +112,7 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		var reason := ("needs %s" % tool) if blocked else str(o.get("blocked_reason", ""))
 		blocked = blocked or reason != ""
 		b.disabled = blocked
-		b.badge = "⊘" if blocked else ""
+		_set_badge(b, blocked, bool(o.get("rare", false)))
 		b.pressed.connect(_on_pick.bind(i))
 		add_child(b)
 		_buttons.append(b)
@@ -116,6 +124,20 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 	_solve()  # a new menu: placed at once, then held against its node
 	_paint(_anchor())
 	queue_redraw()
+
+## A carcass: one hex per part to cut (Corpse.radial_options), its cut budget under the title.
+func open_carcass(p: Player, c: Corpse) -> void:
+	open_options(c, c.species_display_name(), c.level, 1.0, c.radial_options(p), p.inventory)
+	_cutter = p
+	note = c.budget_text()
+	_solve()  # the title's second line grew by the note
+	_paint(_anchor())
+
+## Red ⊘ on a locked option, else a gold ★ on a rare part.
+static func _set_badge(b: HexButton, blocked: bool, rare: bool) -> void:
+	b.badge = "⊘" if blocked else ("★" if rare else "")
+	b.badge_color = Color(0.85, 0.15, 0.12, 0.95) if blocked else UiTokens.GOLD
+	b.badge_ink = Color.WHITE if blocked else UiTokens.CTA_INK
 
 ## Hexagon flat on the terrain under the node (1.15 m), rebuilt on open; the mesh is depth-tested,
 ## so the trunk/bush occludes the far edge and the ring reads as sitting on the ground.
@@ -176,6 +198,7 @@ func close() -> void:
 	_labels.clear()
 	active_index = -1
 	_progress = 0.0
+	_cutter = null
 	if _open:
 		_open = false
 		closed.emit()
@@ -184,7 +207,7 @@ func close() -> void:
 
 func _on_pick(i: int) -> void:
 	var n := node
-	if n is HarvestNode:
+	if n is HarvestNode or n is Corpse:
 		active_index = i
 		_progress = 0.0
 		_lock_others()
@@ -197,9 +220,17 @@ func _on_pick(i: int) -> void:
 ## Unit progress for the active hex's outline (0 resets after each unit lands in the bag).
 ## After each unit lands: re-read the node's pools so counts, labels and blocked badges update.
 func refresh() -> void:
-	if not _open or not (node is HarvestNode):
+	if not _open or not (node is HarvestNode or node is Corpse):
 		return
-	var opts := (node as HarvestNode).options()
+	var opts := (node as HarvestNode).options() if node is HarvestNode else (node as Corpse).radial_options(_cutter)
+	if node is Corpse:
+		var c := node as Corpse
+		note = c.budget_text()
+		if not c.cut_running:  # the cut landed, was cancelled or refused: the fan is free again
+			active_index = -1
+			_progress = 0.0
+			for b in _buttons:
+				b.fill_ratio = 0.0
 	for i in mini(opts.size(), _buttons.size()):
 		var o: Dictionary = opts[i]
 		var b := _buttons[i]
@@ -209,7 +240,7 @@ func refresh() -> void:
 		if reason == "" and tool != &"none" and tool != &"" and _inventory != null and not _inventory.has_tool_class(tool):
 			reason = "needs %s" % tool
 		b.disabled = reason != ""
-		b.badge = "⊘" if reason != "" else ""
+		_set_badge(b, reason != "", bool(o.get("rare", false)))
 		b.queue_redraw()
 		if i < _labels.size():
 			var item_id := StringName(str(o.get("item", "")))
@@ -315,7 +346,8 @@ func _solve() -> void:
 	var view := get_viewport_rect().size
 	var tf := ThemeDB.fallback_font
 	var ns := UiTokens.body(view)
-	var tw := tf.get_string_size(UiTokens.ellipsis(tf, _node_name(), 168.0, ns), HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x + 20.0
+	var tw := maxf(tf.get_string_size(UiTokens.ellipsis(tf, _node_name(), 168.0, ns), HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x,
+			tf.get_string_size(_sub_line(), HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.meta(view)).x) + 20.0
 	var avoid := UiTokens.hud_reserved(view)
 	var plate := nameplate()
 	if plate.has_area():
@@ -340,18 +372,19 @@ func _solve() -> void:
 	var lw := 0.0
 	var lp := _label_px(view)
 	for l in _labels:
-		lw = maxf(lw, tf.get_string_size(UiTokens.ellipsis(tf, str(l["text"]), 148.0, lp), HORIZONTAL_ALIGNMENT_LEFT, -1, lp).x)
+		lw = maxf(lw, tf.get_string_size(UiTokens.ellipsis(tf, str(l["text"]), _label_cap(), lp), HORIZONTAL_ALIGNMENT_LEFT, -1, lp).x)
 	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), _hex, tw, avoid, lw)
 	var labels: Array[Rect2] = []
 	for i in spots.size():
-		var text: String = UiTokens.ellipsis(tf, str(_labels[i]["text"]), 148.0, lp)
+		var text: String = UiTokens.ellipsis(tf, str(_labels[i]["text"]), _label_cap(), lp)
 		var w := tf.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, lp).x
 		var blockers: Array[Rect2] = [box, plate]
 		blockers.append_array(UiTokens.hud_reserved(view))
 		for j in spots.size():
 			if j != i:
 				blockers.append(Rect2(spots[j], Vector2(_hex, _hex)))
-		labels.append(pick_label_rect(ContextRadial.label_on_left(spots[i], _hex, view, anchor), Rect2(spots[i], Vector2(_hex, _hex)), w, view, blockers, [src]))
+		# Labels already placed weigh four times (five carcass parts on a phone: a label hid its neighbour's).
+		labels.append(pick_label_rect(ContextRadial.label_on_left(spots[i], _hex, view, anchor), Rect2(spots[i], Vector2(_hex, _hex)), w, view, blockers, [src], labels.duplicate()))
 	_hold.solve(box, spots, labels, _hex)
 	_hold.anchored(anchor)
 
@@ -367,14 +400,18 @@ func _check_label_sides(anchor: Vector2, view: Vector2) -> void:
 		var left := ContextRadial.label_on_left(hex.position, _hex, view, anchor)
 		if left == _label_left[i]:
 			continue
-		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, ts)
+		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), _label_cap(), ts)
 		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
 		var blockers: Array[Rect2] = [title_box, nameplate()]
 		blockers.append_array(UiTokens.hud_reserved(view))
 		for j in _buttons.size():
 			if j != i:
 				blockers.append(Rect2(_hold.drawn(1 + j).position, Vector2(_hex, _hex)))
-		var r := pick_label_rect(left, hex, w, view, blockers, [src])
+		var firm: Array = []
+		for j in _buttons.size():
+			if j != i:
+				firm.append(_hold.drawn(1 + _buttons.size() + j))
+		var r := pick_label_rect(left, hex, w, view, blockers, [src], firm)
 		_label_left[i] = left
 		_hold.set_label_goal(i, r)
 
@@ -408,16 +445,17 @@ func _draw() -> void:
 	var name := UiTokens.ellipsis(font, _node_name(), 168.0, UiTokens.body(view))
 	var ns := UiTokens.body(view)
 	var nw := font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x
-	var name_pos := title_box.position + Vector2(10.0, float(ns))
-	var lv := LevelDisplay.label(level)
+	var mid := title_box.get_center().x
+	var name_pos := Vector2(mid - nw * 0.5, title_box.position.y + float(ns))
+	var lv := _sub_line()
 	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.meta(view)).x
 	# One backing for both lines: the level alone sat on the bright bush and did not read.
 	draw_rect(title_box, UiTokens.INK)
 	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
-	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
+	draw_string(font, Vector2(mid - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
 	for i in _buttons.size():
 		var ts := _label_px(view)
-		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, ts)
+		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), _label_cap(), ts)
 		var reason: String = str(_labels[i]["reason"])
 		var lr := label_rects[i]
 		draw_rect(lr, UiTokens.HUD_FILL)
@@ -425,6 +463,10 @@ func _draw() -> void:
 
 func _node_name() -> String:
 	return title
+
+## The title's second line: the level, then the note ("Lv. 3 · 2 cuts left").
+func _sub_line() -> String:
+	return LevelDisplay.label(level) + (" · " + note if note != "" else "")
 
 ## Where the name + level box goes: under the source's selection ring, or above the plant where the
 ## bottom edge, the HUD or the nameplate is in the way (in the middle of the ring it hid the plant
@@ -507,6 +549,11 @@ func _icon_for(id: StringName) -> Texture2D:
 static func label_h(hex: Rect2) -> float:
 	return 34.0 if hex.size.y >= 100.0 else 26.0
 
+## The widest a hex's label may run before it is cut with "…": the 21 px desktop type cut a locked
+## part's reason ("Armor Scute…") at the phone's 148 px.
+func _label_cap() -> float:
+	return 340.0 if _hex >= 100.0 else 148.0
+
 ## Label type size for this canvas: the body size on a phone, 21 px beside the 124 px desktop hexes.
 func _label_px(view: Vector2) -> int:
 	return 21 if _hex >= 100.0 else UiTokens.body(view)
@@ -525,7 +572,8 @@ static func label_rect(hex: Rect2, label_w: float, left: bool, view_w: float) ->
 ## If nothing is clear, take the on-screen spot that covers the least blocker area (the preferred side
 ## on a tie): keeping the preferred side put a label on HANDS when the other side was nearly clear.
 ## `soft` blockers (the plant) count a tenth: a label may lie over leaves before it covers text.
-static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view: Vector2, blockers: Array = [], soft: Array = []) -> Rect2:
+## `firm` blockers (other labels) count four times: one label over another hides both texts.
+static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view: Vector2, blockers: Array = [], soft: Array = [], firm: Array = []) -> Rect2:
 	var w := label_w + 12.0
 	var lh := label_h(hex)
 	var cx := clampf(hex.get_center().x - w * 0.5, 8.0, maxf(8.0, view.x - w - 8.0))
@@ -539,10 +587,15 @@ static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view:
 	# "Berries" above its hex touched the gather title by 2 px).
 	var lo := minf(hex.position.x, hex.end.x - w)
 	var hi := maxf(hex.position.x, hex.end.x - w)
-	for blocker in blockers + soft:
+	for blocker in blockers + soft + firm:
 		for x in [(blocker as Rect2).end.x + 2.0, (blocker as Rect2).position.x - w - 2.0]:
 			for y in [hex.position.y - lh - 4.0, hex.end.y + 4.0]:
 				candidates.append(Rect2(Vector2(clampf(x, lo, hi), y), Vector2(w, lh)))
+	# Last, either side a row up or down (five carcass parts on a phone left no other clear spot).
+	for left in [prefer_left, not prefer_left]:
+		var side := label_rect(hex, label_w, left, view.x)
+		for dy in [-(lh + 4.0), lh + 4.0]:
+			candidates.append(Rect2(side.position + Vector2(0.0, dy), side.size))
 	var best := candidates[0]
 	var best_cover := INF
 	for rect in candidates:
@@ -555,6 +608,8 @@ static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view:
 			cover += rect.intersection(blocker as Rect2).get_area()
 		for blocker in soft:
 			cover += rect.intersection(blocker as Rect2).get_area() * 0.1  # ASSUMPTION: leaves weigh a tenth of text
+		for blocker in firm:
+			cover += rect.intersection(blocker as Rect2).get_area() * 4.0  # ASSUMPTION: a label weighs four of a HUD box
 		if cover <= 0.0:
 			return rect
 		if cover < best_cover:

@@ -33,6 +33,8 @@ var raid_victory: bool = false ## persists only a player/pet T-rex kill on volca
 var objective_best: int = 0 ## high-water progress on the current order (materials get spent)
 var _objective_acc: float = 0.0
 var player_name: String = ""
+## The title she chose to wear over her name (a titles.json value); "" = none. Saved as "player_title".
+var player_title: String = ""
 ## Character creation's look (CharacterLook: gender, height, colours, parts, portrait); saved as "character_look".
 var look: Dictionary = {}
 var occupation: String = ""  # gathers +1, crafts +10, buildings +15; bar wraps every 100 (ASSUMPTION)
@@ -254,6 +256,7 @@ func start_new(host: Node) -> void:
 			p.skills.apply_occupation(occ)
 		if p:
 			CharacterLook.apply(p.rig, look)
+			Digestion.of(p).seed_starter()  # FULLFATIGUE: she starts "normal", not "empty" at x2 exhaustion
 		print("[world] new survivor %s (%s, %s)" % [nm, occ, gender])
 		# ISLANDPICK: the Tamed Island shape step sits inside character creation's own sheet (the
 		# old free-standing terrain panel would open over it). It hands back the one permanent pick.

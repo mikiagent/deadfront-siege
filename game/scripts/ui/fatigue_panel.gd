@@ -28,6 +28,8 @@ const SOURCE_REMEDIES := {
 }
 const DEFAULT_REMEDY := "Wait it out, or cure the status."
 
+## FULLFATIGUE: the stomach state's word in the context line.
+const STOMACH_WORD := {&"empty": "Empty stomach", &"hungry": "Hungry", &"normal": "Fed", &"full": "Full", &"overfull": "Overfull, sluggish"}
 var player: Player
 ## Latest HUD-side exhaustion drift (pt/s; negative while it eases). HuntHud writes it every
 ## frame from ExhaustTreadmill's EMA; refresh() turns it into one sentence in the context line.
@@ -136,6 +138,9 @@ static func context_text(v: Vitals, p: Player, rate: float = 0.0) -> String:
 		# level the HUD and atlas show (LevelDisplay), so naming it again showed a third number.
 		var how := "no change to fatigue" if pct == 0 else ("%+d%% fatigue" % pct)
 		parts.append("Island %s: %s." % [LevelDisplay.label(v.gap_zone_level), how])
+	var stomach := fullness_line(v)
+	if stomach != "":
+		parts.append(stomach)
 	if p != null and p.current_climate != "":
 		var short := p.climate_shortfall(p.current_climate)
 		var heat := float(short.get("heat", 0.0))
@@ -144,7 +149,13 @@ static func context_text(v: Vitals, p: Player, rate: float = 0.0) -> String:
 			parts.append("Heat resistance is %d short." % int(ceil(heat)))
 		if cold > 0.0:
 			parts.append("Cold resistance is %d short." % int(ceil(cold)))
-	return " ".join(parts) if not parts.is_empty() else "Level and climate are not adding fatigue here."
+	return " ".join(parts) if not parts.is_empty() else "Level, climate and food are not adding fatigue here."
+
+## FULLFATIGUE: "Hungry: +50% exhaustion." for the stomach's factor; "" when it changes nothing.
+static func fullness_line(v: Vitals) -> String:
+	if v == null or is_equal_approx(v.fullness_mult, 1.0):
+		return ""
+	return "%s: %+d%% exhaustion." % [STOMACH_WORD.get(v.fullness_state, str(v.fullness_state).capitalize()), int(round((v.fullness_mult - 1.0) * 100.0))]
 
 func _plain(text: String) -> Label:
 	var l := Label.new()

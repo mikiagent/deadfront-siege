@@ -21,13 +21,19 @@ mark cannot drift into decoration.
 
 ## Coverage numbers (2026-10-28)
 
-The 213 previously imported playable nodes: **36 functional, 19 partial, 158 defined.**
+ONEGATHER (owner 2026-10-28, one per harvest): no node raises the **count** of a gather or a cut any
+more. Butchering `yield_1` / `yield_2` now read "+20% / +40% cut speed (still one part per cut)";
+`yield_1` dropped from functional to defined (cut speed comes from the Butchering level today, the node
+adds no bonus of its own yet). Gathering `great_success_1` / `_2` read "a finer material, never extra
+units" and stay defined.
+
+The 213 previously imported playable nodes: **35 functional, 19 partial, 159 defined.**
 
 | Tree | Playable | Functional | Partial | Defined |
 |---|---:|---:|---:|---:|
 | Survival | 27 | 10 | 5 | 12 |
 | Gathering | 21 | 8 | 0 | 13 |
-| Butchering | 22 | 6 | 5 | 11 |
+| Butchering | 22 | 5 | 5 | 12 |
 | Processing | 38 | 4 | 9 | 25 |
 | Melee | 10 | 0 | 0 | 10 |
 | Ranged | 13 | 0 | 0 | 13 |
