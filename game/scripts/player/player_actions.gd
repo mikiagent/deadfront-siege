@@ -234,11 +234,16 @@ func stop_gather_cycle(fade_ring: bool = true) -> void:
 	if fade_ring and radial and radial.is_open() and radial.active_index >= 0:
 		radial.close()  # the gather ended (cancelled, pool empty, bag full): drop the menu
 
-## While the radial is open on this node the picked hex shows the unit progress; otherwise
-## the floating hex over the node does.
+## The picked hex on the radial pie-fills with the unit progress (UIGATHER, spec §4). A gather that
+## started without the fan (INTERACT, Space) opens it on its node with that option running.
+## ASSUMPTION (spec open question 7): the floating gather ring is retired for harvest nodes; it stays
+## only as the fallback when there is no radial (taming and crafting still use it).
 func _update_gather_ring(progress: float) -> void:
 	var radial := p._gather_radial
-	if radial and radial.is_open() and p.gather_target and radial.active_node() == p.gather_target:
+	var gt := p.gather_target
+	if radial and gt and is_instance_valid(gt) and radial.active_node() != gt:
+		radial.show_running(gt, p.inventory)
+	if radial and radial.is_open() and gt and radial.active_node() == gt:
 		radial.set_progress(progress)
 		if p._gather_ring:
 			p._gather_ring.clear_now()

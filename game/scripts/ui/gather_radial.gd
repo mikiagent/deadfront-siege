@@ -33,7 +33,9 @@ var _offs_prev: Array[Vector2] = []  ## each part's offset from the node as draw
 ## How many times the held layout had to be solved again (the lab gates the glide instead of a jump).
 var solves := 0
 
-const HEX := 64.0
+const HEX := 64.0  ## phone landscape hex (spec §2 keeps every tap target >= 64 px)
+const HEX_DESKTOP := 124.0  ## spec §2: gather hex 124x108 at 1600x900 (flat-top, so 124 wide)
+var _hex := HEX
 const RING_R := 1.15  # selection hexagon radius on the ground, m
 const RING_W := 0.07
 
@@ -68,6 +70,10 @@ func open(p_node: HarvestNode, p_options: Array, inv: Inventory) -> void:
 	var fam := p_node.family if p_node.family != "" else str(p_node.node_id)
 	open_options(p_node, fam.replace("_", " ").capitalize(), int(p_node.yield_attributes.get("level", 1)), p_node.top_of_node(), p_options, inv)
 
+## Hex size for this canvas: 124 px on desktop, 64 on a compact (phone) canvas.
+static func hex_px(view: Vector2) -> float:
+	return HEX if UiTokens.is_compact(view) else HEX_DESKTOP
+
 ## Generic: any Node3D anchor (corpse, station) with option dicts
 ## {item, min, max, tool, seconds, [blocked_reason]}.
 func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: float, p_options: Array, inv: Inventory) -> void:
@@ -78,14 +84,19 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 	anchor_height = p_height
 	options = p_options
 	_inventory = inv
+	_hex = hex_px(get_viewport_rect().size)
 	for i in options.size():
 		var o: Dictionary = options[i]
-		var b := HexButton.new(HEX)
+		var b := HexButton.new(_hex)
 		var item_id := StringName(str(o.get("item", "")))
 		b.icon = _icon_for(item_id)
 		b.color_icon = b.icon != null
 		if b.icon == null:
 			b.glyph = str(_display_name(item_id)).left(1)
+		b.icon_grey = true  # spec §4.3: the resource symbol greyed out until it is gathered
+		b.rim_color = UiTokens.HUD_RIM
+		b.rim_width = 4.0 if _hex >= 70.0 else 3.0
+		b.fill = UiTokens.HUD_FILL
 		b.top_text = "%.1fs" % float(o.get("seconds", 1.8))
 		b.bottom_text = str(int(o["left"])) if o.has("left") else ""  # units left on this yield
 		var tool := StringName(str(o.get("tool", "none")))
@@ -97,7 +108,7 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		b.pressed.connect(_on_pick.bind(i))
 		add_child(b)
 		_buttons.append(b)
-		_labels.append({"text": "%s  %s" % [_display_name(item_id), LevelDisplay.label(level)], "reason": reason})
+		_labels.append(label_for(_display_name(item_id), reason))
 	_open = true
 	visible = true
 	_show_ring3d()
@@ -176,9 +187,7 @@ func _on_pick(i: int) -> void:
 	if n is HarvestNode:
 		active_index = i
 		_progress = 0.0
-		for j in _buttons.size():
-			_buttons[j].selected = j == i
-			_buttons[j].queue_redraw()
+		_lock_others()
 		picked.emit(n, i)
 		queue_redraw()
 		return
@@ -204,12 +213,50 @@ func refresh() -> void:
 		b.queue_redraw()
 		if i < _labels.size():
 			var item_id := StringName(str(o.get("item", "")))
-			_labels[i] = {"text": "%s  %s" % [_display_name(item_id), LevelDisplay.label(level)], "reason": reason}
+			_labels[i] = label_for(_display_name(item_id), reason)
+	_lock_others()
 	queue_redraw()
+
+## A hex's label (spec §4.3): the resource name; a locked option says why in the same line
+## ("Log · Needs an axe"), drawn in DANGER.
+static func label_for(name: String, reason: String) -> Dictionary:
+	if reason == "":
+		return {"text": name, "reason": ""}
+	return {"text": "%s · %s" % [name, reason.left(1).to_upper() + reason.substr(1)], "reason": reason}
+
+## Spec §4.4: while one option is gathering the other hexes stay disabled; the running one shows
+## its pie and keeps its normal rim.
+func _lock_others() -> void:
+	if active_index < 0:
+		return
+	for j in _buttons.size():
+		if j != active_index:
+			_buttons[j].disabled = true
+			_buttons[j].fill_ratio = 0.0
+			_buttons[j].queue_redraw()
 
 func set_progress(frac: float) -> void:
 	_progress = clampf(frac, 0.0, 1.0)
+	if active_index >= 0 and active_index < _buttons.size():
+		_buttons[active_index].fill_ratio = _progress  # spec §4.4: the pressed hex pie-fills 0 -> 1
+		_buttons[active_index].queue_redraw()
 	queue_redraw()
+
+## A gather that started without the fan (INTERACT, Space, a one-option node): open it on the node
+## with that option running, so the hex pie carries the progress (spec §4: the hex replaces the old
+## floating gather ring for harvest nodes).
+func show_running(p_node: HarvestNode, inv: Inventory) -> void:
+	var opts := p_node.options()
+	if opts.is_empty():
+		return
+	open(p_node, opts, inv)
+	var idx := 0
+	for i in opts.size():
+		if StringName(str((opts[i] as Dictionary).get("item", ""))) == p_node.yield_def_id:
+			idx = i
+	active_index = idx
+	_progress = 0.0
+	_lock_others()
 
 func active_node() -> Node3D:
 	return node if _open and active_index >= 0 else null
@@ -291,20 +338,21 @@ func _solve() -> void:
 	avoid.append(src)
 	avoid.append(box)
 	var lw := 0.0
+	var lp := _label_px(view)
 	for l in _labels:
-		lw = maxf(lw, tf.get_string_size(UiTokens.ellipsis(tf, str(l["text"]), 148.0, ns), HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x)
-	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX, tw, avoid, lw)
+		lw = maxf(lw, tf.get_string_size(UiTokens.ellipsis(tf, str(l["text"]), 148.0, lp), HORIZONTAL_ALIGNMENT_LEFT, -1, lp).x)
+	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), _hex, tw, avoid, lw)
 	var labels: Array[Rect2] = []
 	for i in spots.size():
-		var text: String = UiTokens.ellipsis(tf, str(_labels[i]["text"]), 148.0, ns)
-		var w := tf.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
+		var text: String = UiTokens.ellipsis(tf, str(_labels[i]["text"]), 148.0, lp)
+		var w := tf.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, lp).x
 		var blockers: Array[Rect2] = [box, plate]
 		blockers.append_array(UiTokens.hud_reserved(view))
 		for j in spots.size():
 			if j != i:
-				blockers.append(Rect2(spots[j], Vector2(HEX, HEX)))
-		labels.append(pick_label_rect(ContextRadial.label_on_left(spots[i], HEX, view, anchor), Rect2(spots[i], Vector2(HEX, HEX)), w, view, blockers, [src]))
-	_hold.solve(box, spots, labels)
+				blockers.append(Rect2(spots[j], Vector2(_hex, _hex)))
+		labels.append(pick_label_rect(ContextRadial.label_on_left(spots[i], _hex, view, anchor), Rect2(spots[i], Vector2(_hex, _hex)), w, view, blockers, [src]))
+	_hold.solve(box, spots, labels, _hex)
 	_hold.anchored(anchor)
 
 ## A label whose hex has moved to its other side glides across on its own: the hexes do not re-solve.
@@ -312,11 +360,11 @@ func _check_label_sides(anchor: Vector2, view: Vector2) -> void:
 	if not _hold.held or _hold.gliding():
 		return
 	var font := ThemeDB.fallback_font
-	var ts := UiTokens.body(view)
+	var ts := _label_px(view)
 	var src := source_rect()
 	for i in mini(_buttons.size(), _label_left.size()):
-		var hex := Rect2(_hold.drawn(1 + i).position, Vector2(HEX, HEX))
-		var left := ContextRadial.label_on_left(hex.position, HEX, view, anchor)
+		var hex := Rect2(_hold.drawn(1 + i).position, Vector2(_hex, _hex))
+		var left := ContextRadial.label_on_left(hex.position, _hex, view, anchor)
 		if left == _label_left[i]:
 			continue
 		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, ts)
@@ -325,7 +373,7 @@ func _check_label_sides(anchor: Vector2, view: Vector2) -> void:
 		blockers.append_array(UiTokens.hud_reserved(view))
 		for j in _buttons.size():
 			if j != i:
-				blockers.append(Rect2(_hold.drawn(1 + j).position, Vector2(HEX, HEX)))
+				blockers.append(Rect2(_hold.drawn(1 + j).position, Vector2(_hex, _hex)))
 		var r := pick_label_rect(left, hex, w, view, blockers, [src])
 		_label_left[i] = left
 		_hold.set_label_goal(i, r)
@@ -368,15 +416,12 @@ func _draw() -> void:
 	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
 	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
 	for i in _buttons.size():
-		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, UiTokens.body(view))
+		var ts := _label_px(view)
+		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, ts)
 		var reason: String = str(_labels[i]["reason"])
-		var ts := UiTokens.body(view)
-		var pos := label_rects[i].position + Vector2(4.0, 14.0)
-		draw_rect(label_rects[i], UiTokens.INK)
-		draw_string(font, pos + Vector2(2, 6), text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.95, 0.95, 0.95) if reason == "" else Color(0.75, 0.75, 0.75))
-		if reason != "":
-			var short := UiTokens.ellipsis(font, reason, 148.0, UiTokens.meta(view))
-			draw_string(font, pos + Vector2(2, 24), short, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.DANGER)
+		var lr := label_rects[i]
+		draw_rect(lr, UiTokens.HUD_FILL)
+		draw_string(font, Vector2(lr.position.x + 6.0, lr.get_center().y + float(ts) * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, UiTokens.TEXT if reason == "" else UiTokens.DANGER)
 
 func _node_name() -> String:
 	return title
@@ -458,11 +503,20 @@ func _icon_for(id: StringName) -> Texture2D:
 	_icon_cache[key] = tex
 	return tex
 
+## A label's box height: 26 px beside a phone hex, 34 beside a desktop one (B1 mockup).
+static func label_h(hex: Rect2) -> float:
+	return 34.0 if hex.size.y >= 100.0 else 26.0
+
+## Label type size for this canvas: the body size on a phone, 21 px beside the 124 px desktop hexes.
+func _label_px(view: Vector2) -> int:
+	return 21 if _hex >= 100.0 else UiTokens.body(view)
+
 ## Where a hex's label is drawn on one side of it, after the same clamp the draw uses.
 static func label_rect(hex: Rect2, label_w: float, left: bool, view_w: float) -> Rect2:
 	var x := hex.position.x - label_w - 14.0 if left else hex.end.x + 8.0
 	x = clampf(x, 8.0, maxf(8.0, view_w - label_w - 16.0))
-	return Rect2(Vector2(x - 4.0, hex.position.y + hex.size.y * 0.5 - 14.0), Vector2(label_w + 12.0, 26.0))
+	var h := label_h(hex)
+	return Rect2(Vector2(x - 4.0, hex.position.y + hex.size.y * 0.5 - h * 0.5 - 1.0), Vector2(label_w + 12.0, h))
 
 ## Where a hex's label goes. ContextRadial.label_on_left only looks at where the hex is, not how wide its
 ## label is, so a label that could not fit beside its hex was clamped back over it and lost its first
@@ -473,12 +527,13 @@ static func label_rect(hex: Rect2, label_w: float, left: bool, view_w: float) ->
 ## `soft` blockers (the plant) count a tenth: a label may lie over leaves before it covers text.
 static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view: Vector2, blockers: Array = [], soft: Array = []) -> Rect2:
 	var w := label_w + 12.0
+	var lh := label_h(hex)
 	var cx := clampf(hex.get_center().x - w * 0.5, 8.0, maxf(8.0, view.x - w - 8.0))
 	var candidates: Array[Rect2] = [
 		label_rect(hex, label_w, prefer_left, view.x),
 		label_rect(hex, label_w, not prefer_left, view.x),
-		Rect2(Vector2(cx, hex.position.y - 30.0), Vector2(w, 26.0)),
-		Rect2(Vector2(cx, hex.end.y + 4.0), Vector2(w, 26.0)),
+		Rect2(Vector2(cx, hex.position.y - lh - 4.0), Vector2(w, lh)),
+		Rect2(Vector2(cx, hex.end.y + 4.0), Vector2(w, lh)),
 	]
 	# Above or below, the label may slide along its hex to just clear a blocker's edge (at 844x390
 	# "Berries" above its hex touched the gather title by 2 px).
@@ -486,8 +541,8 @@ static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view:
 	var hi := maxf(hex.position.x, hex.end.x - w)
 	for blocker in blockers + soft:
 		for x in [(blocker as Rect2).end.x + 2.0, (blocker as Rect2).position.x - w - 2.0]:
-			for y in [hex.position.y - 30.0, hex.end.y + 4.0]:
-				candidates.append(Rect2(Vector2(clampf(x, lo, hi), y), Vector2(w, 26.0)))
+			for y in [hex.position.y - lh - 4.0, hex.end.y + 4.0]:
+				candidates.append(Rect2(Vector2(clampf(x, lo, hi), y), Vector2(w, lh)))
 	var best := candidates[0]
 	var best_cover := INF
 	for rect in candidates:

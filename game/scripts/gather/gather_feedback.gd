@@ -317,8 +317,9 @@ static func show_yield(p: Player, at: Vector3, id: StringName, n: int, finds: Ar
 		var nm := "%s %s" % [trait_name(t), item_name(id)]
 		lines.append([trait_name(t) if compact else nm, GREEN, true])
 		owed.append(["Rare trait: %s" % nm, GREEN])
-	if not (compact and not owed.is_empty()):
-		lines.append(["+%d %s" % [n, item_name(id)], CREAM, false])
+	# UIGATHER: the yield card says "+n Item" now, so the stack carries only the rare results.
+	if lines.is_empty():
+		return
 	_popup_or_notice(p, at, lines, owed)
 
 ## Rare parts off a carcass: gold lines over it (the caller toasts pickups).

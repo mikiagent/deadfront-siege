@@ -10,9 +10,9 @@ const OWNED := [
 	"res://scripts/ui/station_menu.gd", "res://scripts/ui/station_radial.gd", "res://scripts/ui/skills_sheet.gd",
 	"res://scripts/ui/map_screen.gd", "res://scripts/ui/fatigue_panel.gd", "res://scripts/ui/world_ui.gd",
 	"res://scripts/ui/creature_plates.gd", "res://scripts/ui/context_radial.gd", "res://scripts/ui/gather_radial.gd",
-	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
+	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/respawn_ring.gd",
 	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
-	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd",
+	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd", "res://scripts/ui/yield_card.gd",
 	"res://scripts/ui/pet_radial.gd", "res://scripts/ui/pet_rename_dialog.gd",
 ]
 const TYPE_MIN := 12

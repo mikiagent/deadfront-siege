@@ -985,7 +985,7 @@ func _test_hud_draw() -> void:
 	host.add_child(h)
 	h.remove_from_group("hud")  # GatherFeedback.notice keeps reaching the recording stand-in
 	h.bind(player)
-	var na = _planted("Bush", &"fibre_stalk", "grassland", &"none", Vector3(1.2, 0, 0))
+	var na = _planted("Bush", &"fibre_stalk", "grassland", &"none", Vector3(1.2, 0, -0.5))  # UIGATHER: shorter hex labels (name only); half a metre back keeps a label on the HUD-only spot
 	var nb = _planted("Bush", &"fibre_stalk", "grassland", &"none", Vector3(-3, 0, 0))
 	player.gather_target = na
 	h.notice("Rare find: Flint", GF.GOLD)
