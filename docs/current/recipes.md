@@ -6,6 +6,61 @@
 
 These rows describe game data; a row alone does not prove that its output is playable. `min skill` is the recipe's minimum level gate when greater than zero; the gate also checks the resulting item level. Other gates may apply. `ability target` affects success chance rather than imposing a hard gate. `recipe max_level` is the configured output-level cap; the actual result also depends on materials, skill, and runtime bounds. Absent values use the defaults in `game/scripts/items/crafting.gd`: minimum 0, ability 0, and output cap 60.
 
+## Cook roles (COOKROLES)
+
+A cooking recipe's slots can carry a **role**, and a recipe that opts in (`"inherit": true`) carries
+traits from the exact ingredient instance it consumed. Data: `game/data/cook_roles.json` (the six
+roles, their accepted and excluded categories, per-role default inheritance flags, the trait →
+FOODFX effect table, the role bonuses). Code: `game/scripts/items/cook_roles.gd` (`CookRoles`),
+called from two seams in `game/scripts/items/crafting.gd` — `CookRoles.role_accepts` inside the
+slot check and `CookRoles.apply_to_output` at the tail of the output build — plus
+`game/scripts/items/food_effects.gd` for the dish's FOODFX bundle.
+
+| role | accepts (item categories) | inherits by default |
+|---|---|---|
+| main | meat, fruit, crop, mushroom, cooked, vegetable (never spice) | traits, processed, flags |
+| topping | fruit, herb, crop, mushroom, berry_crop | nothing (adds its role bonus) |
+| sauce | juice, sauce, drink | nothing (adds its role bonus) |
+| broth | water, broth | nothing (adds its role bonus) |
+| spice | spice | nothing (adds its role bonus) |
+| support | any | nothing |
+
+- A role narrows a slot on top of the slot's own category check; it never replaces it, so a spice
+  cannot fill a main slot.
+- Inheritance is per slot, from that instance: `traits` (all non-rare, or a list of keys),
+  `processed` (in-place cooking history), `flags`, and `rare` (the green attributes, off unless the
+  slot says so). First carrier of a trait key wins in slot order; nothing stacks or averages, and a
+  later duplicate is recorded as dropped.
+- The dish stores what it inherited in `attributes.cooked_roles` and its role bonuses in
+  `attributes.cooked_buffs`; `FoodEffects` evaluates the dish from that stored state, so a save and
+  reload keep it.
+- The six roled recipes in the tables below are `roled_grilled_meat` (main), `roled_berry_glazed_meat`
+  (main + topping), `roled_broth_soup` (main + broth), `roled_spiced_stew` (main + spice + broth),
+  `roled_herb_roast` (main + topping + support) and `roled_salad` (two topping slots, no inheritance).
+  Test: `game/tests/t_cookroles.gd`.
+
+## Outputs by primary material (OUTPUTS)
+
+**Mechanism only, no recipe uses it yet.** Which families get keyed outputs, and whether a keyed output
+needs its own cost and requirements, is an open question (Open Questions, 2026-10-28, A6).
+
+One recipe can make a different item depending on the instance in its primary (slot 1) slot
+(docs/design/durango-informed-improvements.md §7). A recipe adds `outputs_by_primary`, a map from a key
+to an output row (`{"id", "count"}`); `output` stays as the fallback.
+
+- Lookup: `Crafting.output_for(recipe, slot1_instance)` in `game/scripts/items/crafting.gd`. It tries the
+  primary's declared tier (a `tier_<t>` category), then its item categories in def order, then its computed
+  material tier (`ProgressionScaling.material_tier`, which reads untagged metal_shard as flint by hardness),
+  and falls back to `output` when nothing matches or slot 1 is empty.
+- Everything reads the output through that function: `build_output` (so the preview, the offline craft,
+  `plan_fits`, `bag_preview` and the server `act.craft` op), and the craft screens through
+  `CraftUI.output_row` (D1 list and detail, D3 result card, the station radial).
+- Each output keeps its own item def (icon, mesh, stats). Slot-1 traits, `material_tier`, cook roles and
+  rare-attribute carry work as before.
+- `Data._load_recipes` logs an error when a keyed row names no item.
+- A keyed row has no cost or requirements of its own: it uses the recipe's slots, station, skill node and gates.
+- Test: `game/tests/t_outputs.gd` (builds keyed copies of the work knife/axe/pick recipes in memory).
+
 ## Hand crafting
 
 | recipe | output | inputs | skill | min skill | ability target | recipe max_level | time (s) | process |

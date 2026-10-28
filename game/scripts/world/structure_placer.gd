@@ -115,12 +115,86 @@ static func can_pay(inv: Inventory, cost: Dictionary) -> bool:
 			return false
 	return true
 
+## The exact bag units a def's `n` units would spend, least valuable first (Inventory.spend_key):
+## [[bag index, units], ...]. Empty while the bag is short of `n`.
+static func pick_units(inv: Inventory, id: StringName, n: int) -> Array:
+	if inv == null or n <= 0:
+		return []
+	var rows: Array = []
+	for i in inv.slot_count:
+		var s: ItemStack = inv.slots[i]
+		if s == null or s.def_id != id or s.is_locked():
+			continue
+		rows.append([i, s])
+	rows.sort_custom(func (a: Array, b: Array) -> bool: return Inventory.spend_key(a[1]) < Inventory.spend_key(b[1]))
+	var out: Array = []
+	var left := n
+	for row in rows:
+		if left <= 0:
+			break
+		var take: int = mini(left, (row[1] as ItemStack).count)
+		out.append([int(row[0]), take])
+		left -= take
+	return out if left <= 0 else []
+
+## Pay a cost in the least valuable exact instances of each def (spec 05:23: a default pick never
+## spends the rarest piece first), so the level a piece gets comes from the units it really took.
 static func pay(inv: Inventory, cost: Dictionary) -> bool:
-	if not can_pay(inv, cost):
+	if inv == null or not can_pay(inv, cost):
 		return false
+	var plan: Array = []
 	for id in cost:
-		inv.consume(id, int(cost[id]))
+		var rows := pick_units(inv, id, int(cost[id]))
+		if rows.is_empty():
+			return false
+		plan.append_array(rows)
+	# Highest index first: removing an earlier unit shifts the indices behind it.
+	plan.sort_custom(func (a: Array, b: Array) -> bool: return int(a[0]) > int(b[0]))
+	for row in plan:
+		inv.remove_at(int(row[0]), int(row[1]))
 	return true
+
+## The levels of the exact units `kind`/`tier` would spend, one entry per level-contributing unit
+## (structures.json material_slots: counts_for_level, else the primary/main row).
+static func material_levels(kind: StringName, tier: StringName, inv: Inventory) -> Array[int]:
+	var out: Array[int] = []
+	for row: Variant in _cost_slots(kind, tier, true):
+		var slot: Dictionary = row
+		var id := StringName(str(slot.get("item", "")))
+		var units := pick_units(inv, id, int(slot.get("quantity", 0)))
+		for u: Array in units:
+			var s: ItemStack = inv.slots[int(u[0])]
+			for _n in int(u[1]):
+				out.append(maxi(1, s.level))
+	return out
+
+## The traits the primary (main) material passes to the building, from the units it would spend.
+static func material_traits(kind: StringName, tier: StringName, inv: Inventory) -> Array:
+	for row: Variant in _cost_slots(kind, tier, false):
+		var slot: Dictionary = row
+		if str(slot.get("role", "primary")) not in ["primary", "main"]:
+			continue
+		var units := pick_units(inv, StringName(str(slot.get("item", ""))), int(slot.get("quantity", 0)))
+		for u: Array in units:
+			var s: ItemStack = inv.slots[int(u[0])]
+			var tr := Inventory.traits(s)
+			if not tr.is_empty():
+				return BuildingQuality.attribute_rows(tr)
+	return []
+
+## A blueprint's material slots, restricted to the ones that count for the level (`only_level`).
+static func _cost_slots(kind: StringName, tier: StringName, only_level: bool) -> Array:
+	var out: Array = []
+	for row: Variant in StructurePiece.blueprint(kind, tier).get("material_slots", []):
+		if not row is Dictionary:
+			continue
+		var slot: Dictionary = row
+		if str(slot.get("item", "")) == "":
+			continue
+		if only_level and not bool(slot.get("counts_for_level", str(slot.get("role", "primary")) in ["primary", "main"])):
+			continue
+		out.append(slot)
+	return out
 
 ## Materials to bring a damaged structure back to full: a piece pays repair_fraction of its tier's
 ## blueprint, a kit its placed_kinds repair list, both scaled by the missing fraction, rounded up.
@@ -149,6 +223,7 @@ static func repair_cost(target: Node) -> Dictionary:
 # ------------------------------------------------------------------ actions
 
 ## Spawn a piece at a snap result, paying its tier's blueprint. The piece joins the grid at once.
+## Spec 10 §§2-3: its level and inherited traits come from the exact instances the payment spends.
 static func place(sg: StructureGrid, parent: Node, kind: StringName, tier: StringName, at: Dictionary, player: Node) -> Dictionary:
 	if str(at.get("reason", "no_socket")) != "":
 		return {"reason": str(at.get("reason", "no_socket"))}
@@ -159,16 +234,56 @@ static func place(sg: StructureGrid, parent: Node, kind: StringName, tier: Strin
 	var cost := StructurePiece.cost(kind, tier)
 	if not can_pay(inv, cost):
 		return {"reason": "missing_materials"}
+	var levels := material_levels(kind, tier, inv)
+	var traits := material_traits(kind, tier, inv)
 	var p := StructurePiece.make(kind, tier, at["slot"], int(at["rot"]), float(at["floor0"]), int(at.get("variant", 0)))
 	p.span = int(at.get("span", 0))
 	pay(inv, cost)
+	apply_quality(p, levels, traits, _construction_level(player))
 	parent.add_child(p)
 	sg.register(p)
 	var skills: Variant = player.get("skills")
 	if skills:
 		(skills as SkillState).add_xp("construction", float(StructurePiece.piece_def(kind).get("xp", 1)))
-	print("[struct] placed %s %s at %s rot=%d" % [tier, kind, p.slot, p.rot])
+	print("[struct] placed %s %s at %s rot=%d lv=%d traits=%s" % [tier, kind, p.slot, p.rot, p.build_level, p.inherited_attributes])
 	return {"reason": "", "piece": p}
+
+## The Construction category level that caps a piece's level (1 when the node has no skills).
+static func _construction_level(player: Node) -> int:
+	var skills: Variant = player.get("skills") if player else null
+	return maxi(1, int((skills as SkillState).level_of("construction"))) if skills else 1
+
+## Give a piece the level and inherited traits its materials produced (spec 10 §§2-3), and the
+## durability its traits add where the blueprint supports it. Called by place, upgrade and the load
+## path, so a preview and a finished piece always agree.
+static func apply_quality(p: StructurePiece, levels: Array, traits: Array, construction_level: int) -> void:
+	var bp := StructurePiece.blueprint(p.kind, p.tier)
+	var lo := int(bp.get("minimum_level", 1))
+	var hi := int(bp.get("maximum_level", 60))
+	p.build_level = BuildingQuality.level(levels, lo, hi, construction_level) if not levels.is_empty() else 1
+	p.inherited_attributes = traits.duplicate(true)
+	var eff := BuildingQuality.effects(_supported(p.kind, bp), traits, false)
+	p.quality_durability = int(eff.get("durability", 0))
+	p.quality_storage = int(eff.get("storage_space", 0))
+	if p.health:
+		var share := clampf(p.health.hp / maxf(1.0, p.health.max_hp), 0.0, 1.0)
+		p.health.setup(maxf(1.0, StructurePiece.max_durability(p.kind, p.tier) + float(p.quality_durability)), -1.0,
+			float(StructurePiece.tier_def(p.tier).get("creature_mult", 1.0)))
+		p.health.hp = clampf(p.health.max_hp * share, 0.0, p.health.max_hp)
+	p.apply_storage_bonus()
+
+## What a piece's blueprint lets its inherited traits do: its supported_building_effects, plus
+## storage_space for a kind that has storage slots at all. # ASSUMPTION: the piece_tiers rows do not
+## list storage_space, and rewriting all 14 of them to would change data the building tests pin.
+static func _supported(kind: StringName, bp: Dictionary) -> Array:
+	var out: Array = BuildingQuality.supported(bp).duplicate()
+	if int(StructurePiece.piece_def(kind).get("storage_slots", 0)) > 0 and not ("storage_space" in out):
+		out.append("storage_space")
+	return out
+
+## The line a piece's card shows: "Wood Wall  Lv 12 · High Density 3".
+static func quality_text(p: StructurePiece) -> String:
+	return BuildingQuality.summary(p.build_level, p.inherited_attributes)
 
 ## Upgrade in place to a higher tier for that tier's full blueprint cost.
 # ASSUMPTION: an upgrade costs the new tier's whole blueprint (as in ARK), with no credit for the old one.

@@ -49,12 +49,13 @@ func gliding() -> bool:
 			return true
 	return false
 
-## The radial solved a layout: title box, hex positions (64 px squares) and label boxes. The first solve
-## of a menu places everything at once; a later one keeps the drawn parts and glides them there.
-func solve(title: Rect2, hexes: Array[Vector2], labels: Array[Rect2]) -> void:
+## The radial solved a layout: title box, hex positions (`hex` px squares: 64 on a phone, 124 on
+## desktop) and label boxes. The first solve of a menu places everything at once; a later one keeps the
+## drawn parts and glides them there.
+func solve(title: Rect2, hexes: Array[Vector2], labels: Array[Rect2], hex: float = 64.0) -> void:
 	var goals: Array[Rect2] = [title]
 	for h in hexes:
-		goals.append(Rect2(h, Vector2(64.0, 64.0)))
+		goals.append(Rect2(h, Vector2(hex, hex)))
 	_labels_at = goals.size()
 	for r in labels:
 		goals.append(r)

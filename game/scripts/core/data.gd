@@ -170,6 +170,13 @@ func _load_recipes(path: String) -> void:
 		# Their sleep prerequisites must exist before a player can spend resources.
 		if str(row.get("implementation_status", "")) == "staged":
 			continue
+		# OUTPUTS: a keyed output must name a real item, or the craft would mint nothing.
+		var by: Variant = row.get("outputs_by_primary", null)
+		if by is Dictionary:
+			for k: Variant in by:
+				var o: Variant = (by as Dictionary)[k]
+				if not o is Dictionary or item(StringName(str((o as Dictionary).get("id", "")))) == null:
+					push_error("recipe %s: outputs_by_primary[%s] names no item" % [id, k])
 		recipes[id] = row
 		recipe_list.append(row)
 

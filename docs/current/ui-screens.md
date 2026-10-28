@@ -6,6 +6,13 @@ Every screen the build opens, captured from the real home island in the landscap
 `~/Documents/deadfront-ui-screens/`, WebP copies to `docs/current/screens/`). The lab walks the UI
 gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones it does not open.
 
+Every full-screen screen is opened from the MENU nav menu (`game/scripts/ui/nav_menu.gd`, B3):
+Character, Skills, Craft, Build, Bag, Animals on the left; World Atlas, Domain, Orders,
+Communication, Island Market, Save on the right. Each screen's ‹ returns to the menu; ✕ or Esc goes
+back to the HUD. `HuntHud` holds the entry points (`open_character`, `open_skills(tree)`,
+`open_orders`, `open_animals(rec)`, `open_atlas`, `open_market(tab)`, `open_menu`). The menu draws on
+canvas layer 90 with the HUD faded out; screens sit on layer 96.
+
 ## HUD
 
 **`hud`** — idle HUD: vitals, fatigue belt, quest card, minimap, day/night dial, hex rail
@@ -38,7 +45,7 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 **`sheet_menu`** — MENU nav menu (B3, `nav_menu.gd`): two columns of entries over the live world,
 header with the debug gear and T-stone balance, CLOSE where MENU sits. The WebP below predates it
-(old row sheet); current captures at both sizes: `docs/orchestration/reports/uinav/b3_nav_menu_*.png`.
+(old row sheet); current captures at both sizes are in `docs/orchestration/reports/uinav/` (b3_nav_menu_1600x900.png, b3_nav_menu_844x390.png).
 
 ![sheet_menu](screens/sheet_menu.webp)
 
@@ -112,13 +119,30 @@ in the bag and the Construction level along the bottom. A tile starts the ghost 
 open: "Pick a building spot" over the world, the cost bar at the bottom (in the drawer's bottom line
 on a phone), and the HUD's ROTATE / SAVE / CANCEL row beside the ghost, kept off the drawer. A
 construction site's sheet (slots, Work / Withdraw / Cancel site / Finish) opens in the same drawer.
-The old BUILD bottom sheet (`sheet_build`) is still reachable from code but no control opens it.
+The old BUILD bottom sheet (`sheet_build`) is still built by `HuntHud._toggle_sheet(&"build")`, but no
+player control opens it any more: only the dev labs call it (`game/scripts/dev/ui_real_capture_lab.gd`,
+`game/scripts/dev/web_soak.gd`).
 
+
+## Shared sheet chrome (UICHROME, 2026-10-28)
+
+One helper draws the §8 chrome of every full-screen sheet: `game/scripts/ui/sheet_chrome.gd`
+(`SheetChrome`). Header band 88 px desktop / 64 px phone (plus the top safe inset), HEADER fill with
+the torn edge hanging under it; thin stroke ‹ (back, to the MENU) and ✕ (to the HUD) as 64 px
+targets; title in Roboto Condensed 500 at 40 / 26 px; header tabs with a GOLD 3 px underline when on;
+a counter and a `right` slot (pills, presets, Build) that grow leftwards, a hairline before ✕. Body
+parts: `backdrop()` (blurred world + SCREEN_DIM), `panel_style()` / `panel()`, `parchment_style()`,
+`gold_button()` / `ghost_button()` / `action_button()` / `style_action()`, `Brackets`, `Card`,
+`label()` / `text()`, `chip()`, `thin_bar()`. Three ways in: a `SheetChrome` instance (Animals,
+Harbour, Market, Craft), `build()` + `fit()` (Character, Skills, Orders), the `UiWorldSheet` base
+(Domain, Communication, Radio University, Taming Pen). The World Atlas uses its backdrop, cards and ✕
+only. `tests/t_uichrome.gd` checks the three paths match and that nothing else draws a torn header.
+Shots: `docs/orchestration/reports/uichrome/`.
 
 ## Character, Skills, Orders (UICHAR, spec §7 C1/C3/C4)
 
-Full-screen sheets with the §8 chrome (`uichar_chrome.gd`: dimmed world, HEADER bar with "‹ Title"
-and torn edge, ✕, PANEL boxes, parchment detail headers, GOLD primary button, gold corner brackets).
+Full-screen sheets with the shared §8 chrome (`SheetChrome.build()` / `fit()`, see "Shared sheet
+chrome" below).
 ‹ reopens the MENU; ✕ / Esc returns to the HUD. Captures:
 `docs/orchestration/reports/uichar/*_1600x900.png` and `*_844x390.png` (`--lab=uichar_lab`).
 
@@ -150,7 +174,7 @@ and torn edge, ✕, PANEL boxes, parchment detail headers, GOLD primary button, 
 ## Creatures, pets, combat
 
 **`animals`** — E1 Animals (UIANIMALS rebuild, `animal_screen.gd`; spec §7 E1). Sheet chrome
-(`sheet_chrome.gd`: blurred world + SCREEN_DIM, HEADER with torn edge, back icon -> MENU, ✕ -> HUD,
+(shared `SheetChrome`, see below: ‹ -> MENU, ✕ -> HUD,
 tabs Pack / Taming Pen (disabled: no E2 screen yet), counter "Bonded n / cap (grows to 7)").
 Left: pack slots = the bonded roster (spec 09 cap 3-7), one card per pet (swatch, name, NatureChip
 directly under it, "Species · Lv. n · grade", status Out / Resting / Down / hungry), empty slots up to
@@ -196,8 +220,6 @@ routes (+ Warp home away from home) and zoom − / +. Open: `HuntHud.open_atlas(
 
 ![atlas](screens/atlas.webp)
 
-**`claim`** — CLAIM confirm panel (B4 restyle: parchment header, Cancel outlined, GOLD Expand;
-current captures `docs/orchestration/reports/uinav/b4_claim_*.png`)
 **`harbour`** — Harbour (`world_ui.gd show_harbour()`; owner §11 rebuilt the stretched "Sail ..." rows):
 sheet chrome "Harbour" with "Survival n · T-stones n", then a 4-column (phone: 3) grid of route cards:
 island, level · climate, the requirement line (red when short), and a Sail button (GOLD when it can
@@ -205,7 +227,8 @@ go, `route_id` meta, disabled with the reason on the card). Away from home: Free
 Return to camp cards first. Back returns to the atlas. Shots:
 `../orchestration/reports/uianimals/f2-harbour-*.png`.
 
-**`claim`** — CLAIM confirm panel
+**`claim`** — CLAIM confirm panel (B4 restyle: parchment header, Cancel outlined, GOLD Expand;
+current captures in `docs/orchestration/reports/uinav/`)
 
 ![claim](screens/claim.webp)
 
@@ -256,26 +279,51 @@ CHARCREATE restyle; recapture it.
 ![island_pick](screens/island_pick.webp)
 
 
+## Restyled world screens (UIWORLD, 2026-10-28)
+
+Built to [`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §7 F1 / F3 / E2 / A2 on the
+`UiWorldSheet` base (`game/scripts/ui/uiworld_sheet.gd`: open/relayout lifecycle on the shared
+`SheetChrome`, GOLD-numbered rich counter in the header's right slot). Shots at 1600x900 and 844x390: `docs/orchestration/reports/uiworld/`; lab
+`game/scripts/dev/uiworld_lab.gd`; test `game/tests/t_uiworld.gd`.
+
+| Screen | Script | Opened by | What it shows |
+|---|---|---|---|
+| F1 Domain | `domain_screen.gd` | `HuntHud.open_domain()` | Left icon tabs (Tamed / Civilized / Clan / Outpost locked). No domain: GOLD headline, body, quote, **Declare Domain**, island art. Domain held: 7x7 plot grid (Domain GOLD, can-expand outline, water blue, camp land), Plots used/cap, Pioneer rank, upkeep, plot size, next rank, **Communications Center →** (spec-29 contribution panel), Expand / Build here / Release. Declare and Expand step aside to a Confirm / Cancel card over the ground preview. Footer: the edge-adjacent growth rule. |
+| F3 Communication | `comms_ui.gd` | `HuntHud.open_comms()` | Five factions from `data/world/factions.json` with a trust bar each; selected faction's parchment header (name, tone), three offers from its mission pool with Accept, support-crate band, Reroll offers / Contribute → / Track on HUD; header "Active missions 0 / 4 · Free rerolls 3". No mission or trust logic exists: trust is rank 0, Accept/Reroll/Track are disabled and say why. |
+| F3 Radio University | `radio_university_ui.gd` | `HuntHud.open_radio_university()` or Communication → Radio University | Dr. Lamar, career guides only (seven from data, +2 SP each), no crates; progress is not tracked yet. Back returns to Communication. |
+| E2 Taming Pen | `taming_pen_ui.gd` | tapping a pen (`PlayerActions.pen_interact` → `HuntHud.open_taming_pen(pen)`) | Left: captured animal (species, level, nature, pack n / cap, diet and role tiles, clade line, food and pen time). Right: "Tame it now, or keep it caged?", pen space n / 1, read-only mood slider with the pen time, pen grid (pen occupant + every caged animal in the bag, tap to pick), Store / Tame; once running: "Taming started", live countdown, Feed meat / OK. |
+| A2 Island pick | `island_pick.gd` | character creation | Square cards on a sea well, GOLD brackets on the pick, blurb and top scatter kinds, "! Terrain choice is final.", GOLD **Select and move**. |
+
+Not captured: the death/respawn ring and the skill debug overlay (dev only).
 B4 toasts, radials and dialogs (UINAV, `game/scripts/dev/uinav_lab.gd`, desktop 1600x900 and phone
 844x390 in `docs/orchestration/reports/uinav/`): warnings on dark red with a warning glyph and green
 ok notices, the station radial (main action gold-rimmed, 96 px hexes on desktop), eating as a hex
 pie with seconds left and the food's energy, the pet respawn ring (dark red disc, LIFE arc,
 "seconds"), the fatigue panel and the death card.
 
+B1 field HUD and gathering, B2 combat and net ready (UIGATHER, `game/scripts/dev/uigather_lab.gd`,
+desktop 1600x900 and phone 844x390 in `docs/orchestration/reports/uigather/`): tappable harvest pills,
+the hex gather fan with the running hex pie-filled, the yield card and the left XP feed; the restyled
+combat hexes with the NET hex GOLD inside the capture window, the gold target bar and the capture line.
+
 Not captured by `tools/ui_screens.sh`: the death card, the respawn ring and the skill debug overlay (dev only).
 
-## Tokens available for restyled sheets (not yet applied)
+## Tokens used by the restyled sheets
 
 `game/scripts/ui/ui_tokens.gd` carries the token set and chrome helpers of
-[`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §2/§8; no sheet uses them yet.
+[`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §2/§8. The sheets use them:
+`sheet_chrome.gd` and `uichar_chrome.gd` build the HEADER bar, torn edge, dim and back/close for the
+Character, Skills, Orders, Animals, Atlas, Harbour, Market and Craft screens, `craft_ui.gd` its own
+header, `market/market_screen.gd` the rail; the older row sheets and the field HUD still draw their
+own colours.
 
 - Palette: `HUD_FILL`, `HUD_RIM`, `HEADER`, `SCREEN_DIM`, `PANEL`, `GOLD`, `GOLD_DIM`, `CTA_INK`,
   `PARCHMENT_TOP` / `PARCHMENT_BOTTOM` / `PARCHMENT_INK`, `OK_GREEN`, `LIFE`, `ENERGY`, `XP`, `MUTED`;
   existing `INK` / `TEAL` / `DIVIDER` unchanged.
 - Chrome: `header_style()` (the HEADER bar) with `draw_torn_edge()` under it, `draw_brackets()` for a
   selection (four 18 px GOLD corners), `trait_chip_style(polarity)` / `trait_chip_prefix()` for the
-  grey / yellow / green trait chips, and `ui_font(400|700)` / `ui_face()` for Roboto Condensed (the TTF
-  is not in this branch yet; these return null and the engine fallback there).
+  grey / yellow / green trait chips, and `ui_font(400|700)` / `ui_face()` for Roboto Condensed
+  (`game/assets/fonts/RobotoCondensed-Variable.ttf`), with the engine fallback when it is missing.
 - `HexButton` (also used by the sheets) has `flat_top`, `rim_color` / `rim_width`, `fill_ratio`,
   `icon_grey` and `key_hint`; a hex that sets `rim_color` selects in GOLD instead of TEAL. Defaults
   keep the shipped look; the one global change is that default hexes are flat-top (`HEX_FLAT_TOP`).

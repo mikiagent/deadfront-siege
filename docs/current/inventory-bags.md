@@ -27,7 +27,7 @@ One occupant is `game/scripts/items/item_stack.gd` (`ItemStack`). Rules data: `g
 - A split mints a fresh uid for the removed unit (`Inventory.remove_at` → `remint_uid`).
 
 ## Slots & capacity
-- Base bag `Inventory.BASE_SLOTS` = 100 slots (a `Player` constructs `Inventory.new()`).
+- Base bag `Inventory.BASE_SLOTS` = 100 slots (the survivor's `Inventory`, built once per `Player`).
 - Total = 100 + Σ storage of worn gear (`BagCapacity.inventory_total`, `count`). Only worn gear
   counts; items sitting in the bag add nothing.
 - A bag type's storage = curve(level) + inherited storage attributes (points × slots per point) +

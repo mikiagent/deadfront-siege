@@ -67,6 +67,12 @@ func _extra_screens(logical: Vector2) -> void:
 		if domain.center_ui:
 			domain.center_ui.close()
 		domain.close()
+	# market: the Island Market (menu -> Island Market), offline state
+	var market := _hud.call("open_market", &"buy") as Control
+	if market:
+		await _settle()
+		await _capture("market", [], logical)
+		market.call("close_screen")
 	# build: the construction menu (menu -> Build)
 	var build := BuildUI.ensure(_player)
 	if build:

@@ -13,7 +13,6 @@ var player: Player
 var menu: StationMenu
 var radial: StationRadial
 var card: CraftCard
-var toast: PickupToast
 var held_slot: HeldItemSlot
 
 var station: Node3D
@@ -53,9 +52,6 @@ func setup(p: Player, layer: CanvasLayer) -> void:
 	card = CraftCard.new()
 	card.name = "CraftCard"
 	layer.add_child(card)
-	toast = PickupToast.new()
-	toast.name = "PickupToast"
-	layer.add_child(toast)
 	held_slot = HeldItemSlot.new()
 	held_slot.name = "HeldItemSlot"
 	layer.add_child(held_slot)
@@ -68,7 +64,7 @@ func setup(p: Player, layer: CanvasLayer) -> void:
 func reparent_ui(layer: CanvasLayer) -> void:
 	if layer == null:
 		return
-	for n in [menu, radial, card, toast, held_slot]:
+	for n in [menu, radial, card, held_slot]:
 		if n and is_instance_valid(n) and n.get_parent() != layer:
 			n.reparent(layer)
 
@@ -436,9 +432,7 @@ func _finish_one() -> void:
 		for left in overflow:
 			_pending_overflow.append(left)
 	if out:
-		if toast:
-			toast.show_gain(out.def_id, out.count)
-		player.toast(out.def_id, out.count)
+		player.toast(out.def_id, out.count)  # UIGATHER: the HUD's yield card (PickupToast retired)
 	if str(res.get("status", "")) == "left":
 		_clear_session()
 		return

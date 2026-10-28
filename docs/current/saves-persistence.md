@@ -11,10 +11,10 @@ rules for the world: `game/scripts/core/save_restore.gd`. Validation after migra
 - Automated runs (`--lab`, `--shot`, `--smoke`, `--bot`, `--web-soak`, `*probe`, `*-test`,
   `--script <file>`): `user://runs/<name>/save_1.json`, and the folder is wiped on launch
   (`SaveMigrations.wipe_dir`), so each run starts from a fresh world.
-- Engine user dir: `game/override.cfg` sets `use_custom_user_dir=true` and
-  `custom_user_dir_name="deadfront-mmo-currentdocs"`, so `user://` resolves to
-  `~/Library/Application Support/deadfront-mmo-currentdocs/` on macOS. The game code never reads
-  that file; it is engine config.
+- Engine user dir: no custom user dir is configured (`game/project.godot` sets only
+  `config/name="WildLands MMO"` and no `custom_user_dir_name`), so Godot's default applies and
+  `user://` resolves to `~/Library/Application Support/Godot/app_userdata/WildLands MMO/` on
+  macOS. The game code never reads that path; it is engine config.
 - Siblings of the save: `.tmp` (write target), `.bak` (previous good save), and
   `.corrupt-<unix>` quarantined copies. There is no separate autosave file — the autosave writes
   the same `save_1.json`.
@@ -36,6 +36,7 @@ rules for the world: `game/scripts/core/save_restore.gd`. Validation after migra
 | `player` | `vitals`, `statuses`, `inventory`, `inventory_extras` (`worn`, `quick_food`, `tool_index`), `position`, `foodfx` (digestion, buffs) |
 | `pets` | bonded pet rows (`PetRecord.to_dict`, incl. each pet's bag) |
 | `ground_snares` | snare rows |
+| `carcasses` (pending) | BUTCHER: carcasses still lying on the island — `species`, `position`, `cuts_left` of `cuts_budget`, which part ids were already cut, and the units left on each. Sanitized by `SaveSanitizer._carcasses` (known species, part ids and counts clamped, off-island rows dropped); `SaveRestore.carcasses` respawns them through `CarcassParts.corpse_from_row`. The sanitizer and the restore hook ship; the two `save_game.gd` call sites sit outside that job's SCOPE and come as `docs/orchestration/reports/dsc-butcher-save-hook.patch`. |
 | `skills` | legacy survival ids → bool |
 | `skills_v2` | skill trees |
 | `home` | terrain, shape, buildings (with their storage `contents`), cargo, claims, camp layout, optional domain / comm center |

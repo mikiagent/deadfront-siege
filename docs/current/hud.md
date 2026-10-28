@@ -39,14 +39,15 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Hex sizes follow spec §2 (`HudField.PX`): desktop rail 100, INTERACT 150, ATTACK 100, SPRINT 100,
   quick slot 80, whistle 66, CLAIM 52; compact canvases (`UiTokens.is_compact`: 844x390 and portrait)
   use 64 / 96 / 72 / 64 / 64 / 64 / 64, so every phone tap target is 64 px or more. All flat-top.
-- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD (opens the build drawer, `BuildUI`), BAG, captions under. Skills and Animals are
-  entries in the MENU sheet (no rail hexes; no hotkeys existed for them). BAG opens the bag (also I).
+- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD (opens the build drawer, `BuildUI`), BAG, captions under. Skills,
+  Animals, Character and Orders are entries in the MENU nav menu (`nav_menu.gd`), not rail hexes. BAG opens the bag (also I).
 - MENU notice badge (`HudField.notify` / `HuntHud.notify_menu`): a count in a filled circle at the
   hex's top-right, GOLD with ink text, LIFE red while any notice is urgent (ASSUMPTION, owner
   undecided), "9+" past nine. Skills notices: each skill level-up (`skill_leveled`) and each time SP
   starts to afford a node (`SkillRules.affordable_now`, rechecked every 0.25 s); cleared when Skills
-  opens; the nav menu's Skills entry carries the same count as its own badge. Market (buy/sell) notices: hook only,
-  `notify_menu(&"market")` — no client-side market event exists yet. Nothing is urgent today.
+  opens; the nav menu's Skills entry carries the same count as its own badge. Market (buy/sell) notices: the
+  hook (`notify_menu(&"market")`) and its badge exist but nothing calls it — the offline market generates no
+  client event. Nothing is urgent today.
 - Quick slots above the rail: two quick-food hexes (×count, unchanged), CHASE in the third slot in a
   fight, HANDS (held tool; tap gathers nearest, long-press unequips) in the fourth (`hands_spot`).
 - Bottom-right (`hud_field.gd`): one large INTERACT hex in the corner. It shows what
@@ -70,8 +71,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   It draws `OrdersSheet.hud_step(player)`: the running order, or a later one the player picked with
   "Track on HUD" in Orders (C4, `orders_sheet.gd`; session-only, a load follows the running order).
   Only the running order completes and pays out (`Objectives.settle`).
-- MENU sheet entries added by UICHAR: Character, Skills, Orders (`HuntHud.open_character()`,
-  `open_skills(tree)`, `open_orders()`); ‹ on those screens reopens the MENU.
+- The nav menu's entries: Character, Skills, Orders (`HuntHud.open_character()`, `open_skills(tree)`,
+  `open_orders()`), Craft (`craft_ui.gd`), Build (`BuildUI`), Bag, Animals (`open_animals`), World Atlas
+  (`open_atlas`), Domain, Communication, Island Market (`open_market(tab)`) and Save; ‹ on those screens
+  reopens the MENU (`HuntHud.open_menu`).
 
 ## The centre band (`HudLayout.centre_band`)
 - Landscape phones: the strip between the vitals and the minimap carries the quest card; the target
@@ -91,6 +94,14 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Whistle row SIC / HEEL / GUARD while a pet is out, selected state mirroring the pet's brain mode:
   desktop a row beside the rail (spec §6); landscape phone a row under the vitals; portrait a
   mid-screen row with End Combat at its right.
+- B2 restyle (UIGATHER): the skill hexes, AUTO, FEED and CHASE take the HUD fill and light rim (4 px,
+  3 under 70 px); ROLL shows its "Q" key cap on desktop (ASSUMPTION: tactic_1..4 are bound but nothing
+  reads them, so no caps on NET / TACKLE / KICK). The NET hex turns GOLD-filled with a dark net and a
+  GOLD rim while a throw is allowed (spec 09: stunned or at or under 30 %, and a net and technique cover
+  the tier); its bottom line stays empty for a taming-odds figure. The target plate's HP bar turns GOLD
+  in the same window, its status chips show icon and name with a rim in the status colour, and a gold
+  line by the animal reads "Weaken to 30% to capture" / "Capturable — throw the net!" (drawn before the
+  pills, on a free spot off the plates; skipped where none is free).
 - Targets [owner 2026-10-28]: out of combat a tap on a wild animal only selects it and the red swords
   hex (or ATTACK NEAREST, E, F) starts the fight; in combat a tap on another enemy switches the target
   to it at once (`PlayerActions.attack`) and no swords hex shows. End Combat disengages.
@@ -132,9 +143,32 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   level-gap sentence, the climate shortfall and the live drift ("Exhaustion is falling slowly
   (+x/min)"). Vitals owns the rows; the decay window is `fatigue.breakdown_window_s` (180 s).
 
+## Gather radial and yield card (UIGATHER, spec §4, B1)
+- Tapping a node (or its pill) opens `gather_radial.gd`: the node's title and level under it, one
+  flat-top hex per option around it — 124 px on desktop, 64 on a compact canvas — with the gather
+  seconds on top, the resource symbol greyed in the middle, the node's units left at the bottom, and
+  the resource name in a box beside it (21 px on desktop; a locked option reads "Log · Needs an axe" in
+  DANGER). The running option's hex pie-fills 0 → 1 per unit (`HexButton.fill_ratio`); the others are
+  disabled while it runs. One unit lands per fill.
+- A gather started without the fan (INTERACT, Space, a one-option node) opens it on its node with that
+  option running (`GatherRadial.show_running`), so the hex carries the progress for every harvest. The
+  floating `gather_ring.gd` is retired for harvest nodes (ASSUMPTION, spec open question 7) and stays for
+  tame feeding and crafting progress.
+- The camera already leans toward the selected or worked node (`Player.camera_interest`, IsoCamera
+  `SELECTION_BIAS` 0.35, follow lerp 8/s); UIGATHER leaves those values as they are.
+- Yield card (`yield_card.gd`, replaces the top-centre "+n Item" toast and the retired
+  `pickup_toast.gd`): on each gain, a 300 px card (220 on a phone) above the worked node — else above
+  the survivor (crafts, loot) — on a free spot off `taken_rects` and the open radial, ~3 s or until the
+  next gain. Thumbnail tinted with the lot's natural colour (`ItemStack.tint_color`), the item name,
+  "Wood · Lv. 1 · +2" (first category, lot level, count in GOLD), then the trait chips of every instance
+  that gain added (`InvAttributes.sections`: rare ✦ green first, positive + gold, negative − grey) and a
+  3 px top edge in the best chip's colour. GatherFeedback's "+n Item" rise over the node is unchanged.
+
 ## Notices, toasts, hits, level-up
-- Pickup toasts ("+n Item"), skill XP lines (16 px) and tree level-ups (22 px, gold, ▲) rise near
-  the top-centre (phones: under the vitals), each taking a free spot off `taken_rects`; notices
+- Skill XP lines (left feed, owner §1.6, UIGATHER): under the vitals, one 44 px row per tree gain (34 on
+  a phone) — a small hex with the skill's initial, "Gathering +6 XP Lv. 1" and a thin XP bar of that
+  tree's progress; a tree level-up is the same row in GOLD with ▲. Each row takes a free spot off
+  `taken_rects`. Item gains are the yield card (above); notices
   (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
   confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders
   on the HUD fill with an OK_GREEN edge and a check (`HudEventState.draw_notice`, B4). Nothing covers
@@ -167,7 +201,11 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Level-up (`World.pioneer_changed`): a gold stack at the top-left for ~6 s — level, title line,
   XP, T-stones, SP, per-stat gains; landscape phones show a one-line banner in the centre band
   instead. Gains land via `Vitals.grant_level_bonus` (saved).
-- HUD pills (`game/scripts/ui/hud_pills.gd`) label buildings and nodes within 8 m; the domain
+- HUD pills (`game/scripts/ui/hud_pills.gd`) label buildings and nodes within 8 m (UIGATHER, spec
+  §4.1): a dark box, a harvest node's pill leading with its resource symbol greyed (dimmed when picked
+  clean, red-tinted without the tool), 30 px tall with 18 px type on desktop, 22 / 14 on a phone. A
+  harvest pill is tappable (`HudPills.node_at` from `HuntHud._input`): it selects the node exactly like
+  a tap on the node (opens the gather radial, the camera leans toward it). The domain
   banner (`domain_banner.gd`) announces "<owner>'s Domain" entering claimed land; your own portrait
   there is `PortraitService.of_player()` (a headshot of your character look), others a silhouette. All of it yields
   to toasts, plates and the open sheets.
@@ -180,9 +218,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   toggle, ASSUMPTION) and the T-stone balance, and a CLOSE hex where MENU sits. It draws on canvas
   layer 90 and fades the HUD's own drawing and hexes out while open; the world keeps running. A tap
   on the world, CLOSE or Esc closes it. Each entry badges notices of its own kind
-  (`HudField.notices`, GOLD / LIFE). Orders and Friends show greyed (no screen yet); Character opens
-  the bag's Character page, Communication the Domain screen's Communications Center (ASSUMPTIONS).
-  Compact canvases fold each side into two columns of three 72 px rows.
+  (`HudField.notices`, GOLD / LIFE). No entry is greyed today (`NavMenu.DISABLED` is empty): Orders opens
+  its own sheet and the Friends slot holds Island Market (ASSUMPTION, `nav_menu.gd` RIGHT — Friends has no
+  system yet); Character opens the Character screen the bag's Character tab also opens, Communication the
+  Domain screen's Communications Center. Compact canvases fold each side into two columns of three 72 px rows.
 - Sheets (BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
   scrolling when short; landscape phones lay them out as a two-column grid. HANDS and the creature
   plates hide while one (or the nav menu) is open.
@@ -210,12 +249,13 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 
 ![b3_nav_menu](../orchestration/reports/uinav/b3_nav_menu_844x390.png)
 
-## Tokens available (not yet applied)
+## Tokens used by the field HUD and the sheets
 
-`game/scripts/ui/ui_tokens.gd` now also carries the hex-HUD language from
+`game/scripts/ui/ui_tokens.gd` carries the hex-HUD language from
 [`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §2/§3/§8. The field controls (rail,
 INTERACT / ATTACK / SPRINT, context hexes, CLAIM) use `HUD_RIM` / `GOLD` rims and the MENU badge
-`GOLD` / `LIFE` / `CTA_INK`; the rest stays opt-in for later packages.
+`GOLD` / `LIFE` / `CTA_INK`; the sheets share the same token set through `sheet_chrome.gd` /
+`uichar_chrome.gd` (see [ui-screens.md](ui-screens.md)).
 
 - Palette: `HUD_FILL`, `HUD_RIM`, `HEADER`, `SCREEN_DIM`, `PANEL`, `GOLD`, `GOLD_DIM`, `CTA_INK`,
   `PARCHMENT_TOP` / `PARCHMENT_BOTTOM` / `PARCHMENT_INK`, `OK_GREEN`, `LIFE`, `ENERGY`, `XP`, `MUTED`;
@@ -223,7 +263,7 @@ INTERACT / ATTACK / SPRINT, context hexes, CLAIM) use `HUD_RIM` / `GOLD` rims an
 - Trait chips: `TRAIT_NEG_*` (grey = negative), `TRAIT_POS_*` (yellow = positive), `TRAIT_RARE_*`
   (green = rare), with `trait_chip_style(polarity)` (0 radius, 3x8 padding) and `trait_chip_prefix()`
   (`−`, `+`, U+2726). Exhaustion tints: `MOOD[4]`. Type: `ui_font(400/700)`, `ui_face()` over
-  `res://assets/fonts/RobotoCondensed-Variable.ttf` (the file itself is not in this branch yet).
+  `res://assets/fonts/RobotoCondensed-Variable.ttf` (shipped).
 - Hex geometry: `HEX_FLAT_TOP` (true, owner decision 2026-10-28), `hex_points(center, r, flat_top)`,
   `hex_radius_at(a, r, flat_top)`, `pie_points(center, r, f, flat_top)` — the gather pie fill.
 - Chrome: `draw_brackets(ci, rect)` (18 px gold corners), `header_style()`, `draw_torn_edge()`

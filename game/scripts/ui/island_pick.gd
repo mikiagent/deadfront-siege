@@ -13,8 +13,14 @@ extends CanvasLayer
 signal picked(shape_id: StringName)
 
 const TARGET := 64.0  ## spec: every tap target is at least this many logical px
-const GOLD := Color(1.0, 0.82, 0.36)
-const WARN := Color(1.0, 0.72, 0.38)
+const GOLD := UiTokens.GOLD
+const WARN := Color(0.96, 0.62, 0.20)
+## A2 restyle (ui-redesign-spec §7 A2): sea-blue preview well, dark text block, GOLD brackets on the
+## pick. The cards keep their generated previews (IslandShape), not the canvas's placeholder blobs.
+const SEA := Color(0.13, 0.25, 0.35)
+const CARD_TEXT_BG := Color(0.07, 0.09, 0.11, 0.96)
+## Scatter kinds as the card's third line ("Grass · Bushes · Trees"), heaviest first.
+const KIND_WORDS := {"tree": "Trees", "bush": "Bushes", "grass": "Grass", "rock": "Rocks", "flower": "Flowers"}
 const PREVIEW_RES := 81
 const PREVIEW_PX := 160
 
@@ -122,9 +128,12 @@ func _build() -> void:
 	root.name = "IslandPickRoot"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	var th := Theme.new()
+	th.default_font = UiTokens.ui_face()  # Roboto Condensed for every label and button on the pick
+	root.theme = th
 	add_child(root)
 	var bg := ColorRect.new()
-	bg.color = Color(0.025, 0.035, 0.045, 0.97)
+	bg.color = Color(UiTokens.HEADER.lerp(UiTokens.SCREEN_DIM, 0.35), 0.97)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(bg)
 	var margin := MarginContainer.new()
@@ -137,22 +146,23 @@ func _build() -> void:
 	box.add_theme_constant_override("separation", _px(4 if short else 10))
 	margin.add_child(box)
 	var title := Label.new()
-	title.text = "GET YOUR OWN TAMED ISLAND!"
+	title.text = "Get your own Tamed Island"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", _px(20 if phone else 30))
+	title.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
+	title.add_theme_font_size_override("font_size", _px(24 if short else 46))
 	title.add_theme_color_override("font_color", GOLD)
 	box.add_child(title)
 	var sub := Label.new()
-	sub.text = "Select the desired terrain of your Tamed Island."
+	sub.text = "Choose its terrain. Your Tamed Island has no upkeep."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	sub.add_theme_font_size_override("font_size", _px(14 if short else 17))
+	sub.add_theme_font_size_override("font_size", _px(14 if short else 21))
 	sub.add_theme_color_override("font_color", Color(0.82, 0.84, 0.82))
 	box.add_child(sub)
 	var row := HBoxContainer.new()
 	row.name = "ShapeCards"
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("h_separation", _px(8))
+	row.add_theme_constant_override("separation", _px(10 if short else 18))
 	row.add_theme_constant_override("v_separation", _px(6))
 	# Cards centred in the space between the subtitle and the footer (at 1600x900 the block used
 	# to sit at the top with half the screen empty).
@@ -180,18 +190,17 @@ func _build() -> void:
 	box.add_child(foot_centre)
 	_warning = Label.new()
 	_warning.name = "FinalWarning"
-	_warning.text = "!  Terrain selection is final."
+	_warning.text = "! Terrain choice is final."
 	_warning.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_warning.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_warning.add_theme_font_size_override("font_size", _px(14 if short else 16))
+	_warning.add_theme_font_size_override("font_size", _px(14 if short else 20))
 	_warning.add_theme_color_override("font_color", WARN)
 	footer.add_child(_warning)
-	_start = Button.new()
+	_start = SheetChrome.gold_button("Select and move")
 	_start.name = "SelectAndMove"
-	_start.text = "SELECT AND MOVE"
 	_start.disabled = true
-	_start.custom_minimum_size = Vector2(_px(240 if phone else 300), _px(64))
-	_start.add_theme_font_size_override("font_size", _px(18 if short else 20))
+	_start.custom_minimum_size = Vector2(_px(240 if phone else 320), _px(64 if short else 76))
+	_start.add_theme_font_size_override("font_size", _px(20 if short else 28))
 	_start.pressed.connect(_confirm)
 	footer.add_child(_start)
 	if not _cards.is_empty():
@@ -205,23 +214,45 @@ func _card(shape: Dictionary, short: bool) -> Button:
 	card.toggle_mode = true
 	# Square-ish cards: the map fills the width and the text sits under it (a stretched card left
 	# wide empty bands above and below each preview at 1600x900).
-	card.custom_minimum_size = Vector2(_px(126 if short else 196), _px(150 if short else 340))
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.custom_minimum_size = Vector2(_px(140 if short else 260), _px(196 if short else 350))
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	card.add_theme_font_size_override("font_size", _px(15))
 	# Two anchored blocks, not a VBox: the map fills the card above a fixed-height text block, so
 	# every card's title and blurb sit on one line however long the blurb is (a VBox let a wrapped
 	# blurb push its own title down and clipped the neighbour's).
-	var text_h := _px(52 if short else 92)
+	var text_h := _px(52 if short else 118)
+	var well := Panel.new()
+	well.name = "Sea"
+	var well_sb := StyleBoxFlat.new()
+	well_sb.bg_color = SEA
+	well.add_theme_stylebox_override("panel", well_sb)
+	well.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	well.offset_bottom = -text_h
+	well.offset_left = 2  # inside the card's edge, so the GOLD border of the pick shows
+	well.offset_top = 2
+	well.offset_right = -2
+	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(well)
+	var text_bg := ColorRect.new()
+	text_bg.name = "TextBg"
+	text_bg.color = CARD_TEXT_BG
+	text_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	text_bg.offset_top = -text_h
+	text_bg.offset_left = 2
+	text_bg.offset_right = -2
+	text_bg.offset_bottom = -2
+	text_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(text_bg)
 	var tex := preview_texture(shape)
 	_previews[id] = tex
 	var prev := TextureRect.new()
 	prev.name = "Preview"
 	prev.texture = tex
 	prev.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	prev.offset_left = _px(4)
-	prev.offset_right = -_px(4)
-	prev.offset_top = _px(4)
-	prev.offset_bottom = -(text_h + _px(4))
+	prev.offset_left = _px(14)
+	prev.offset_right = -_px(14)
+	prev.offset_top = _px(14)
+	prev.offset_bottom = -(text_h + _px(14))
 	prev.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	prev.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	prev.custom_minimum_size = Vector2(_px(96 if short else 120), _px(60 if short else 150))
@@ -232,15 +263,16 @@ func _card(shape: Dictionary, short: bool) -> Button:
 	text_block.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	text_block.offset_left = _px(4)
 	text_block.offset_right = -_px(4)
-	text_block.offset_top = -(text_h + _px(2))
+	text_block.offset_top = -(text_h - _px(8 if short else 14))
 	text_block.offset_bottom = -_px(6)
 	text_block.add_theme_constant_override("separation", 0)
 	text_block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(text_block)
 	var name_l := Label.new()
+	name_l.name = "Name"
 	name_l.text = str(shape.get("display_name", id))
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_l.add_theme_font_size_override("font_size", _px(14 if short else 16))
+	name_l.add_theme_font_size_override("font_size", _px(15 if short else 26))
 	name_l.add_theme_color_override("font_color", UiTokens.TEXT)
 	name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text_block.add_child(name_l)
@@ -251,43 +283,65 @@ func _card(shape: Dictionary, short: bool) -> Button:
 	blurb.visible = not short
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	blurb.custom_minimum_size = Vector2(0, _px(36))
-	blurb.add_theme_font_size_override("font_size", _px(12 if short else 13))
-	blurb.add_theme_color_override("font_color", UiTokens.META)
+	blurb.add_theme_font_size_override("font_size", _px(12 if short else 17))
+	blurb.add_theme_color_override("font_color", UiTokens.TEXT)
 	blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text_block.add_child(blurb)
-	var tick := Label.new()
-	tick.name = "Tick"
-	tick.text = "SELECTED"
-	tick.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tick.add_theme_font_size_override("font_size", _px(12 if short else 13))
-	tick.add_theme_color_override("font_color", GOLD)
-	tick.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# The tick overlays the blurb's tail on tiny cards; short and desktop both have room for it
-	# under the title, above the blurb start.
-	tick.size_flags_vertical = Control.SIZE_SHRINK_END
-	text_block.add_child(tick)
+	var kinds := Label.new()
+	kinds.name = "Kinds"
+	kinds.text = kinds_line(str(shape.get("terrain", "")))
+	kinds.visible = not short
+	kinds.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	kinds.add_theme_font_size_override("font_size", _px(14))
+	kinds.add_theme_color_override("font_color", UiTokens.MUTED)
+	kinds.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text_block.add_child(kinds)
+	var mark := SheetChrome.Brackets.new()
+	mark.name = "Brackets"
+	mark.arm = float(_px(24))
+	card.add_child(mark)
+	# The brackets sit just outside the card's edge (mockup A2); set after _ready's full-rect anchors.
+	mark.ready.connect(func () -> void:
+		mark.offset_left = -_px(6)
+		mark.offset_top = -_px(6)
+		mark.offset_right = _px(6)
+		mark.offset_bottom = _px(6))
 	card.pressed.connect(func () -> void: _select(id))
 	return card
 
-## Selected card: the reference's warm frame, a gold tick and, on desktop, a check badge.
+## Selected card: GOLD corner brackets just outside it, a thin GOLD edge and a GOLD name.
 func _select(id: String) -> void:
 	_selected = StringName(id)
 	for key in _cards:
 		var card: Button = _cards[key]
-		card.button_pressed = key == id
+		var on: bool = key == id
+		card.button_pressed = on
 		var normal := StyleBoxFlat.new()
-		normal.bg_color = Color(0.09, 0.12, 0.13, 0.96) if key != id else Color(0.13, 0.18, 0.17, 0.98)
-		normal.set_corner_radius_all(_px(10))
-		normal.set_border_width_all(_px(3) if key == id else _px(1))
-		normal.border_color = GOLD if key == id else Color(0.35, 0.40, 0.38, 0.7)
-		card.add_theme_stylebox_override("normal", normal)
-		card.add_theme_stylebox_override("hover", normal)
-		card.add_theme_stylebox_override("pressed", normal)
-		var tick := card.find_child("Tick", true, false) as Label
-		if tick:
-			tick.visible = key == id
+		normal.bg_color = SEA
+		normal.set_corner_radius_all(0)
+		normal.set_border_width_all(maxi(1, _px(2)) if on else 1)
+		normal.border_color = GOLD if on else Color(1, 1, 1, 0.08)
+		normal.draw_center = false
+		for st in ["normal", "hover", "pressed", "disabled"]:
+			card.add_theme_stylebox_override(st, normal)
+		var mark := card.find_child("Brackets", true, false) as Control
+		if mark:
+			mark.visible = on
+		var nl := card.find_child("Name", true, false) as Label
+		if nl:
+			nl.add_theme_color_override("font_color", GOLD if on else UiTokens.TEXT)
 	_start.disabled = false
+
+## The card's third line: the terrain's three heaviest scatter kinds (home_grassland "terrains").
+static func kinds_line(terrain: String) -> String:
+	var rows: Dictionary = (World.islands.get("home_grassland", {}) as Dictionary).get("terrains", {})
+	var weights: Dictionary = rows.get(terrain, {})
+	var keys: Array = weights.keys()
+	keys.sort_custom(func (a: Variant, b: Variant) -> bool: return float(weights[a]) > float(weights[b]))
+	var words: Array[String] = []
+	for k in keys.slice(0, 3):
+		words.append(str(KIND_WORDS.get(str(k), str(k).capitalize())))
+	return " · ".join(words)
 
 func _confirm() -> void:
 	if _selected == &"" or _confirmed:

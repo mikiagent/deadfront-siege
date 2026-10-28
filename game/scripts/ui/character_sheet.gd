@@ -9,7 +9,6 @@ extends Control
 ## Hosted by InventoryUI (it shares the bag's inventory and player); open it with
 ## InventoryUI.open_character() or HuntHud.open_character().
 
-const Chrome := preload("res://scripts/ui/uichar_chrome.gd")
 
 signal bag_requested    ## "Open bag ›"
 signal close_requested  ## ✕ / Esc
@@ -61,12 +60,12 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	z_index = 46  # over the HUD hexes where the bag shares the HUD's canvas layer (labs)
 	visible = false
-	_c = Chrome.build(self, "Character")
+	_c = SheetChrome.build(self, "Character")
 	(_c["back"] as Button).pressed.connect(func () -> void: back_requested.emit())
 	(_c["close"] as Button).name = "CharacterClose"
 	(_c["close"] as Button).pressed.connect(func () -> void: close_requested.emit())
 	for t: String in TABS:
-		var b := Chrome.flat_button(t)
+		var b := SheetChrome.flat_button(t)
 		b.name = "Tab" + t
 		b.pressed.connect(func () -> void: _tab = t; refresh())
 		(_c["tabs"] as Control).add_child(b)
@@ -84,7 +83,7 @@ func _ready() -> void:
 func _build_left(row: HBoxContainer) -> void:
 	_left = PanelContainer.new()
 	_left.name = "CharacterStatsPanel"
-	_left.add_theme_stylebox_override("panel", Chrome.panel_box())
+	_left.add_theme_stylebox_override("panel", SheetChrome.panel_style())
 	row.add_child(_left)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 0)
@@ -95,12 +94,12 @@ func _build_left(row: HBoxContainer) -> void:
 	var pv := VBoxContainer.new()
 	pv.add_theme_constant_override("separation", 0)
 	_profile.add_child(pv)
-	_name = Chrome.label("", 30, UiTokens.PARCHMENT_INK, true)
+	_name = SheetChrome.label("", 30, UiTokens.PARCHMENT_INK, true)
 	_name.name = "ProfileName"
 	_name.clip_text = true
 	_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	pv.add_child(_name)
-	_sub = Chrome.label("", 17, UiTokens.PARCHMENT_INK)
+	_sub = SheetChrome.label("", 17, UiTokens.PARCHMENT_INK)
 	_sub.name = "ProfileSub"
 	_sub.clip_text = true
 	_sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -124,9 +123,9 @@ func _build_left(row: HBoxContainer) -> void:
 	_preset_grid.add_theme_constant_override("separation", 4)
 	(_c["right"] as Control).add_child(_preset_grid)
 	for k in GearPresets.count():
-		var b := Chrome.dark_button(str(k + 1))
+		var b := SheetChrome.action_button(str(k + 1), &"ghost", false)
 		b.name = "Preset%d" % (k + 1)
-		b.custom_minimum_size = Vector2(Chrome.TAP, Chrome.TAP)
+		b.custom_minimum_size = Vector2(SheetChrome.TAP, SheetChrome.TAP)
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		b.pressed.connect(_on_preset.bind(k))
 		_preset_grid.add_child(b)
@@ -135,7 +134,7 @@ func _build_left(row: HBoxContainer) -> void:
 func _build_centre(row: HBoxContainer) -> void:
 	_centre = PanelContainer.new()
 	_centre.name = "CharacterEquipPanel"
-	_centre.add_theme_stylebox_override("panel", Chrome.panel_box(12.0))
+	_centre.add_theme_stylebox_override("panel", SheetChrome.panel_style(UiTokens.PANEL, 12.0))
 	_centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_centre)
 	var stack := Control.new()
@@ -188,18 +187,18 @@ func _build_centre(row: HBoxContainer) -> void:
 	var bh := HBoxContainer.new()
 	bh.add_theme_constant_override("separation", 8)
 	_bar.add_child(bh)
-	_sel_label = Chrome.label("", 20)
+	_sel_label = SheetChrome.label("", 20)
 	_sel_label.name = "SelectedPiece"
 	_sel_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sel_label.clip_text = true
 	_sel_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_sel_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	bh.add_child(_sel_label)
-	_unequip_btn = Chrome.dark_button("Unequip")
+	_unequip_btn = SheetChrome.action_button("Unequip", &"ghost", false)
 	_unequip_btn.name = "UnequipButton"
 	_unequip_btn.pressed.connect(_on_unequip_pressed)
 	bh.add_child(_unequip_btn)
-	_bag_btn = Chrome.flat_button("Open bag ›")
+	_bag_btn = SheetChrome.flat_button("Open bag ›")
 	_bag_btn.name = "OpenBag"
 	_bag_btn.add_theme_color_override("font_color", UiTokens.GOLD)
 	_bag_btn.pressed.connect(func () -> void: bag_requested.emit())
@@ -211,7 +210,7 @@ func _build_centre(row: HBoxContainer) -> void:
 	stack.add_child(_titles_view)
 	# ASSUMPTION: the game has no decorative (cosmetic) gear yet, so Appearance says so instead of
 	# inventing slots (INVSCREENS' Decorative tab; spec 13 s13: only what the game supports).
-	_deco_note = Chrome.label("No decorative gear yet. Your look is set when you create your survivor.", 20, UiTokens.MUTED)
+	_deco_note = SheetChrome.label("No decorative gear yet. Your look is set when you create your survivor.", 20, UiTokens.MUTED)
 	_deco_note.name = "AppearanceNote"
 	_deco_note.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_deco_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -232,7 +231,7 @@ func _slot(s: String) -> VBoxContainer:
 	b.clip_text = true
 	b.pressed.connect(_on_equip_slot_pressed.bind(s))
 	v.add_child(b)
-	var l := Chrome.label(str(LABELS[s]), 16, UiTokens.TEXT)
+	var l := SheetChrome.label(str(LABELS[s]), 16, UiTokens.TEXT)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(l)
 	_slots[s] = b
@@ -242,7 +241,7 @@ func _slot(s: String) -> VBoxContainer:
 func _build_right(row: HBoxContainer) -> void:
 	_right = PanelContainer.new()
 	_right.name = "CharacterSurvivalPanel"
-	_right.add_theme_stylebox_override("panel", Chrome.panel_box())
+	_right.add_theme_stylebox_override("panel", SheetChrome.panel_style())
 	row.add_child(_right)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 0)
@@ -254,7 +253,7 @@ func _build_right(row: HBoxContainer) -> void:
 	hsb.content_margin_top = 10
 	hsb.content_margin_bottom = 10
 	head.add_theme_stylebox_override("panel", hsb)
-	head.add_child(Chrome.label("Survival", 22))
+	head.add_child(SheetChrome.label("Survival", 22))
 	head.name = "SurvivalHead"
 	col.add_child(head)
 	var scroll := ScrollContainer.new()
@@ -274,7 +273,7 @@ func _build_right(row: HBoxContainer) -> void:
 	foot.name = "StatusFoot"
 	foot.add_theme_stylebox_override("panel", hsb.duplicate())
 	col.add_child(foot)
-	_status = Chrome.label("", 19, UiTokens.OK_GREEN)
+	_status = SheetChrome.label("", 19, UiTokens.OK_GREEN)
 	_status.name = "StatusLine"
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	foot.add_child(_status)
@@ -301,21 +300,21 @@ func _apply_sizes() -> void:
 	if _c.is_empty():
 		return
 	var view := get_viewport_rect().size
-	Chrome.layout(_c, view, UiTokens.safe_insets(get_viewport()))
-	var compact := Chrome.compact(view)
+	SheetChrome.fit(_c, view, UiTokens.safe_insets(get_viewport()))
+	var compact := SheetChrome.compact(view)
 	(_c["body"] as Control).get_child(0).add_theme_constant_override("separation", 8 if compact else 20)
 	_left.custom_minimum_size = Vector2(196 if compact else 380, 0)
 	_right.custom_minimum_size = Vector2(212 if compact else 474, 0)
-	_profile.add_theme_stylebox_override("panel", Chrome.parchment_box(8.0 if compact else 18.0))
-	_name.add_theme_font_size_override("font_size", Chrome.px(view, 30, 17))
-	_sub.add_theme_font_size_override("font_size", Chrome.px(view, 17, 12))
+	_profile.add_theme_stylebox_override("panel", SheetChrome.parchment_style(8.0 if compact else 18.0, 8.0 if compact else 18.0))
+	_name.add_theme_font_size_override("font_size", SheetChrome.px(view, 30, 17))
+	_sub.add_theme_font_size_override("font_size", SheetChrome.px(view, 17, 12))
 	for m: MarginContainer in [_stats.get_parent(), _needs.get_parent()]:
 		for side in ["left", "right", "top", "bottom"]:
 			m.add_theme_constant_override("margin_" + side, 8 if compact else 20)
 	for b: Button in _preset_btns:
-		b.add_theme_font_size_override("font_size", Chrome.px(view, 16, 13))
+		b.add_theme_font_size_override("font_size", SheetChrome.px(view, 16, 13))
 	# A phone has no room for labels under the slots: an empty slot shows its name inside instead.
-	var slot_px := Chrome.TAP if compact else 96.0
+	var slot_px := SheetChrome.TAP if compact else 96.0
 	for g: GridContainer in _slot_grids:
 		g.columns = 2 if compact else 1
 		g.add_theme_constant_override("v_separation", 4 if compact else 14)
@@ -326,14 +325,14 @@ func _apply_sizes() -> void:
 		(_slot_labels[s] as Label).visible = not compact
 		(_slot_labels[s] as Label).add_theme_font_size_override("font_size", 16)
 	_foods.add_theme_constant_override("separation", 16 if compact else 40)
-	_sel_label.add_theme_font_size_override("font_size", Chrome.px(view, 20, 13))
-	_unequip_btn.add_theme_font_size_override("font_size", Chrome.px(view, 18, 13))
-	_bag_btn.add_theme_font_size_override("font_size", Chrome.px(view, 20, 14))
-	_deco_note.add_theme_font_size_override("font_size", Chrome.px(view, 20, 14))
-	_status.add_theme_font_size_override("font_size", Chrome.px(view, 19, 13))
-	(_right.get_child(0).get_child(0).get_child(0) as Label).add_theme_font_size_override("font_size", Chrome.px(view, 22, 15))
+	_sel_label.add_theme_font_size_override("font_size", SheetChrome.px(view, 20, 13))
+	_unequip_btn.add_theme_font_size_override("font_size", SheetChrome.px(view, 18, 13))
+	_bag_btn.add_theme_font_size_override("font_size", SheetChrome.px(view, 20, 14))
+	_deco_note.add_theme_font_size_override("font_size", SheetChrome.px(view, 20, 14))
+	_status.add_theme_font_size_override("font_size", SheetChrome.px(view, 19, 13))
+	(_right.get_child(0).get_child(0).get_child(0) as Label).add_theme_font_size_override("font_size", SheetChrome.px(view, 22, 15))
 	var fig := 84.0 if compact else 300.0
-	_centre.add_theme_stylebox_override("panel", Chrome.panel_box(6.0 if compact else 12.0))
+	_centre.add_theme_stylebox_override("panel", SheetChrome.panel_style(UiTokens.PANEL, 6.0 if compact else 12.0))
 	(_equip_view.get_child(0) as HBoxContainer).add_theme_constant_override("separation", 6 if compact else 12)
 	_figure.custom_minimum_size = Vector2(fig, fig)
 
@@ -345,7 +344,7 @@ func refresh() -> void:
 	var view := get_viewport_rect().size
 	_apply_sizes()
 	for t: String in _tab_btns:
-		Chrome.tab_style(_tab_btns[t], t == _tab, Chrome.px(view, 24, 10))
+		SheetChrome.tab_style(_tab_btns[t], t == _tab, SheetChrome.compact(view))
 	_equip_view.visible = _tab == "Equipment"
 	_titles_view.visible = _tab == "Titles"
 	_deco_note.visible = _tab == "Appearance"
@@ -386,16 +385,18 @@ func _fill_stats(view: Vector2) -> void:
 	for c in _stats.get_children():
 		_stats.remove_child(c)
 		c.queue_free()
-	var compact := Chrome.compact(view)
+	var compact := SheetChrome.compact(view)
 	for r: Array in stat_rows():
 		var h := HBoxContainer.new()
 		h.custom_minimum_size = Vector2(0, 30 if compact else 51)
-		var a := Chrome.label(str(r[0]), Chrome.px(view, 21, 13))
+		var a := SheetChrome.label(str(r[0]), SheetChrome.px(view, 21, 13))
 		a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		a.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		a.clip_text = true
 		h.add_child(a)
-		var b := Chrome.label(str(r[1]), Chrome.px(view, 21, 13))
+		if str(r[0]) == "Skill points":  # the brain glyph is the skill point (Skills sheet, Spend)
+			h.add_child(SheetChrome.icon_rect(&"brain", SheetChrome.px(view, 24, 16)))
+		var b := SheetChrome.label(str(r[1]), SheetChrome.px(view, 21, 13))
 		b.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		h.add_child(b)
 		_stats.add_child(h)
@@ -440,7 +441,7 @@ func worn_in(slot: String) -> ItemStack:
 ## Real art (and Lv.) when worn; a faded silhouette when empty (its name inside on a phone, where
 ## the label under it is hidden); gold brackets and a gold label on the selected slot.
 func _refresh_equipped() -> void:
-	var compact := Chrome.compact(get_viewport_rect().size)
+	var compact := SheetChrome.compact(get_viewport_rect().size)
 	for slot: String in _slots:
 		var b: Button = _slots[slot]
 		var st := worn_in(slot)
@@ -453,11 +454,11 @@ func _refresh_equipped() -> void:
 		for k in ["normal", "hover", "pressed", "disabled", "focus"]:
 			b.add_theme_stylebox_override(k, sb)
 		for c in b.get_children():
-			if c is Chrome.Brackets:
+			if c is SheetChrome.Brackets:
 				b.remove_child(c)
 				c.queue_free()
 		if on:
-			b.add_child(Chrome.Brackets.new())
+			b.add_child(SheetChrome.Brackets.new())
 		(_slot_labels[slot] as Label).add_theme_color_override("font_color", UiTokens.GOLD if on else UiTokens.TEXT)
 		var label := str(LABELS[slot])
 		if st:
@@ -534,13 +535,13 @@ func _fill_titles(view: Vector2) -> void:
 	for k: Variant in keys:
 		var t := str((parsed as Dictionary)[k])
 		var h := HBoxContainer.new()
-		h.custom_minimum_size = Vector2(0, 40 if Chrome.compact(view) else 56)
+		h.custom_minimum_size = Vector2(0, 40 if SheetChrome.compact(view) else 56)
 		var earned := int(k) <= lv
-		var a := Chrome.label(t, Chrome.px(view, 22, 14), UiTokens.GOLD if t == have else (UiTokens.TEXT if earned else UiTokens.MUTED))
+		var a := SheetChrome.label(t, SheetChrome.px(view, 22, 14), UiTokens.GOLD if t == have else (UiTokens.TEXT if earned else UiTokens.MUTED))
 		a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		a.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		h.add_child(a)
-		var b := Chrome.label(("Held" if t == have else "Earned") if earned else LevelDisplay.label(int(k)), Chrome.px(view, 18, 13), UiTokens.MUTED)
+		var b := SheetChrome.label(("Held" if t == have else "Earned") if earned else LevelDisplay.label(int(k)), SheetChrome.px(view, 18, 13), UiTokens.MUTED)
 		b.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		h.add_child(b)
 		_titles_view.add_child(h)
@@ -578,14 +579,14 @@ func _fill_needs(view: Vector2) -> void:
 		col.name = "Need_" + str(r["name"])
 		col.add_theme_constant_override("separation", 4)
 		var h := HBoxContainer.new()
-		var a := Chrome.label(str(r["name"]), Chrome.px(view, 22, 14))
+		var a := SheetChrome.label(str(r["name"]), SheetChrome.px(view, 22, 14))
 		a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(a)
-		h.add_child(Chrome.label(str(r["value"]), Chrome.px(view, 20, 13), r["color"]))
+		h.add_child(SheetChrome.label(str(r["value"]), SheetChrome.px(view, 20, 13), r["color"]))
 		col.add_child(h)
 		if float(r["frac"]) >= 0.0:
-			col.add_child(Chrome.thin_bar(float(r["frac"]), r["color"], 5.0))
-		var n := Chrome.label(str(r["note"]), Chrome.px(view, 16, 12), UiTokens.MUTED)
+			col.add_child(SheetChrome.thin_bar(float(r["frac"]), r["color"], 5.0))
+		var n := SheetChrome.label(str(r["note"]), SheetChrome.px(view, 16, 12), UiTokens.MUTED)
 		n.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		col.add_child(n)
 		_needs.add_child(col)

@@ -32,10 +32,7 @@ func _ready() -> void:
 	col.add_theme_constant_override("separation", 10)
 	panel.add_child(col)
 	var parch := PanelContainer.new()
-	var ps := StyleBoxFlat.new()
-	ps.bg_color = UiTokens.PARCHMENT_TOP
-	ps.set_content_margin_all(14)
-	parch.add_theme_stylebox_override("panel", ps)
+	parch.add_theme_stylebox_override("panel", SheetChrome.parchment_style(14, 14))
 	col.add_child(parch)
 	var pv := VBoxContainer.new()
 	parch.add_child(pv)

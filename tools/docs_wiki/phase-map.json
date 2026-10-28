@@ -224,7 +224,7 @@
         {
           "id": "inventory-screens",
           "title": "Durango inventory screens: Bag inspect panel, Character -> Gear, Equipment / My Info, storage and cargo views (spec 13)",
-          "status": "next",
+          "status": "done",
           "depends": [
             "bag-slots"
           ],
@@ -234,7 +234,7 @@
         {
           "id": "rare-attributes",
           "title": "Rare material attributes: 5% green-pip roll wired at gather, traits carried into crafts via primary slots",
-          "status": "later",
+          "status": "done",
           "depends": [
             "gather-stacks",
             "craft-outcomes"
@@ -255,7 +255,7 @@
         {
           "id": "butchering-parts",
           "title": "Butchering: choose carcass parts instead of a random roll (spec 12 §2)",
-          "status": "later",
+          "status": "done",
           "depends": [
             "gather-stacks"
           ],
@@ -276,7 +276,7 @@
         {
           "id": "construction-quality",
           "title": "Construction quality: building level from materials, traits to building effects, storage, comfort/antibiotic, workstation levels and job slots, durability and repair (spec 10)",
-          "status": "later",
+          "status": "done",
           "depends": [
             "construction-sites",
             "craft-outcomes"
@@ -287,7 +287,7 @@
         {
           "id": "cooking-recipes",
           "title": "Cooking recipes: slot roles main/topping/sauce/broth/spice with inheritance flags (spec 08 §2-4)",
-          "status": "later",
+          "status": "done",
           "depends": [
             "food-effects",
             "process-stations"
@@ -446,7 +446,7 @@
         {
           "id": "rest-action",
           "title": "Rest: sit to heal and lower exhaustion anywhere (owner bug: it did nothing on Vercel)",
-          "status": "next",
+          "status": "done",
           "depends": [
             "needs-actions"
           ],
@@ -496,7 +496,7 @@
         {
           "id": "taming-odds",
           "title": "Taming odds: S-curve on level gap and remaining health, odds shown before you commit, grade earned by preparation",
-          "status": "later",
+          "status": "done",
           "depends": [
             "capture-rule"
           ],
@@ -589,7 +589,7 @@
         {
           "id": "creature-natures",
           "title": "Creature natures: Timid, Brave, Aggressive, Loyal, Stubborn, Docile change wild and companion AI and taming, shown in the name",
-          "status": "next",
+          "status": "done",
           "depends": [
             "creature-roster"
           ],
@@ -609,7 +609,7 @@
         {
           "id": "gait-gate",
           "title": "Gait gate: walk/run clips play forwards with alternating legs (tools/audit_gaits.py --gate in run_all when headless-safe); deinonychus rebuild with jaw bone, roar and bite",
-          "status": "next",
+          "status": "done",
           "depends": [
             "creature-roster"
           ],
@@ -619,7 +619,7 @@
         {
           "id": "tactical-combat",
           "title": "Tactical creature combat and cooldowns: circle/strafe, feint, lunge, pounce with a rollable telegraph, retreat when hurt, raptor packs, natures modulate aggression; cooldowns on basic and special attacks for player and dinosaurs; stun chaining limited; tackle/kick valid with a cooldown",
-          "status": "next",
+          "status": "done",
           "depends": [
             "creature-roster",
             "creature-natures"
@@ -835,7 +835,7 @@
         {
           "id": "exchange-ui",
           "title": "Island Market screens: Buy / My Market / Sell, one row per instance, Receive All (spec 06, 14)",
-          "status": "later",
+          "status": "done",
           "depends": [
             "market-system",
             "inventory-screens"
@@ -1124,7 +1124,7 @@
         {
           "id": "character-creation",
           "title": "Character creation: Durango gender/profession screen, size, colours, rendered portrait (spec 19)",
-          "status": "next",
+          "status": "done",
           "depends": [],
           "source": "docs/design/durango-prompts/19_character_creation.md",
           "note": "CHARCREATE passed review r1 (blind A/B 4-0) on 10-21, never merged; APPEAR-A follows. A female v2 base waits on the owner."
@@ -1132,7 +1132,7 @@
         {
           "id": "hamburger-menu",
           "title": "In-game hamburger menu with the three-currency header (spec 33)",
-          "status": "later",
+          "status": "done",
           "depends": [],
           "source": "docs/design/durango-prompts/33_ingame_hamburger_menu.md",
           "note": ""
@@ -1286,7 +1286,7 @@
         {
           "id": "ui-gather-pie",
           "title": "Gather radial with pie fill, clickable name pills, camera pan, yield card above the node with trait chips, skill-XP left feed (§4, §5)",
-          "status": "later",
+          "status": "done",
           "depends": [
             "ui-tokens-hex",
             "gather-stacks"
@@ -1297,7 +1297,7 @@
         {
           "id": "ui-field-hud",
           "title": "Field HUD: INTERACT hex (context gather/open/talk/mount), ATTACK NEAREST, SPRINT toggle, left rail MENU/BUILD/BAG with a notification badge, Skills + Animals in the nav menu, XP strip, treadmill visuals",
-          "status": "later",
+          "status": "done",
           "depends": [
             "ui-tokens-hex"
           ],
@@ -1307,7 +1307,7 @@
         {
           "id": "ui-build-row",
           "title": "Build placement row: ROTATE icon-only, SAVE green check, CANCEL; blueprint drawer as hex tiles (§7 D2)",
-          "status": "later",
+          "status": "done",
           "depends": [
             "ui-tokens-hex"
           ],
@@ -1317,7 +1317,7 @@
         {
           "id": "ui-sheets",
           "title": "Bag, Character, Skills, Craft and material placement sheets on the shared chrome (§7 C1-C3, D1, D3)",
-          "status": "later",
+          "status": "done",
           "depends": [
             "ui-tokens-hex",
             "inventory-screens"
@@ -1328,7 +1328,7 @@
         {
           "id": "ui-world-screens",
           "title": "Domain, World Atlas, Communication (separate screen) and Animals restyles (§7 E1, F1-F3)",
-          "status": "later",
+          "status": "done",
           "depends": [
             "ui-tokens-hex"
           ],
@@ -1348,7 +1348,7 @@
         {
           "id": "ui-stretched-sheets",
           "title": "Rebuild every stretched full-width-row sheet to the spec: Harbour / sail list (world_ui.gd), build list (build_ui.gd), skills_sheet.gd, animal_screen.gd and any other sheet with edge-to-edge rows",
-          "status": "next",
+          "status": "done",
           "depends": [
             "ui-tokens-hex"
           ],

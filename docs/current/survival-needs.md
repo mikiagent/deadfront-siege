@@ -60,7 +60,13 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
 | tastes_horrible / tastes_disgusting | fatigue ×1.2 / ×1.3 | 300 s |
 
 Rates are on the 0-100 fatigue scale; all multipliers of one kind multiply together
-(`StatusEffects._product`). Washing clears dirty/very_dirty and grants Clean; drinking clears
+(`StatusEffects._product`). `game/data/statuses.json` defines 33 statuses in all; the fatigue
+ones are above, the rest are the damage and capture conditions (bleed, deep_bleed, venom, fracture,
+pinned, deafened, groggy, knockdown, snared, dizziness, enraged), the target-side variants
+(bleeding_target, poisoned_target, poisoned), the food states (full, stomachache, caffeinated, the
+five `tastes_*` and `hot_food` / `cold_food`, vigor) and the cleanliness pair (dirty / very_dirty
+are above, clean is too). Each status's `fx` block gives its HUD colour, icon, particles and
+vignette (see [hud.md](hud.md)). Washing clears dirty/very_dirty and grants Clean; drinking clears
 Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 
 ## Food & relief

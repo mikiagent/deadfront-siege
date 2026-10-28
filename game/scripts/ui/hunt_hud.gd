@@ -45,6 +45,7 @@ var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
 var _stance_label: Label
 var _events := HudEventState.new()
+var _yield := YieldCard.new()  ## UIGATHER: the B1 yield card (spec §4.5)
 var _rest_fx := HudRestBox.new()
 var _status_fx := StatusFx.new()
 var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
@@ -162,6 +163,7 @@ func _ready() -> void:
 
 func bind(p: Player) -> void:
 	player = p
+	_yield.sync(p)
 	_watch_skills()
 
 ## Skill feedback (spec 25 §7, islands-and-loop-plan §3.3): the XP toast and the bigger level-up toast
@@ -413,6 +415,10 @@ func _build_combat() -> void:
 		var h := HexButton.new(SKILL_HEX)
 		h.icon = UiIcons.icon(StringName(str(s[0])))
 		h.caption = s[1]
+		_combat_style(h)
+		# ASSUMPTION (UIGATHER): only ROLL gets a desktop key cap; the canvas's 1/2/4 caps have no
+		# handler behind them (tactic_1..4 are bound but nothing reads them), so they would lie.
+		h.key_hint = "Q" if s[0] == "roll" else ""
 		h.visible = false
 		h.pressed.connect(_on_skill.bind(StringName(s[0])))
 		add_child(h)
@@ -420,6 +426,7 @@ func _build_combat() -> void:
 	_auto_hex = HexButton.new(64.0)
 	_auto_hex.icon = UiIcons.icon(&"auto")
 	_auto_hex.caption = "AUTO"
+	_combat_style(_auto_hex)
 	_auto_hex.visible = false
 	_auto_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
@@ -443,6 +450,7 @@ func _build_combat() -> void:
 	_feed_hex = HexButton.new(64.0)
 	_feed_hex.icon = UiIcons.icon(&"feed")
 	_feed_hex.caption = "FEED"
+	_combat_style(_feed_hex)
 	_feed_hex.visible = false
 	_feed_hex.pressed.connect(func () -> void:
 		if player and player.hunt and player.hunt.target and FieldTame.can_attempt(player.hunt.target):
@@ -459,6 +467,7 @@ func _build_combat() -> void:
 	_chase_hex = HexButton.new(HEX)
 	_chase_hex.glyph = "🏃"
 	_chase_hex.caption = "CHASE"
+	_combat_style(_chase_hex)
 	_chase_hex.visible = false
 	_chase_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
@@ -578,6 +587,20 @@ func _draw_death() -> void:
 	if r.x < 2.0:
 		r = get_viewport_rect().size
 	_death_panel.draw_rect(Rect2(Vector2.ZERO, r), Color(0.02, 0.025, 0.03, 0.88))
+
+## B2 hex restyle (spec §2/§3): HUD fill, light 3-4 px rim, gold when selected.
+static func _combat_style(h: HexButton) -> void:
+	h.rim_color = UiTokens.HUD_RIM
+	h.rim_width = 4.0 if h.size.x >= 70.0 else 3.0
+	h.fill = UiTokens.HUD_FILL
+
+## Spec §7 B2 / spec 09: the NET hex turns GOLD-filled (dark net, GOLD rim) while a throw is allowed —
+## the target is stunned or at or under 30 % and a net and technique cover its tier (the hex is enabled).
+## TAMINGODDS: the hex's bottom_text is left free for a capture-odds figure.
+static func _net_gold(h: HexButton, on: bool) -> void:
+	h.fill = UiTokens.GOLD if on else UiTokens.HUD_FILL
+	h.rim_color = UiTokens.GOLD if on else UiTokens.HUD_RIM
+	h.glyph_color = UiTokens.CTA_INK if on else Color.WHITE
 
 func _on_skill(id: StringName) -> void:
 	if player == null or player.hunt == null:
@@ -701,6 +724,7 @@ func notice(text: String, tint: Color = Color(0, 0, 0, 0)) -> void:
 func toast(id: StringName, n: int) -> void:
 	print("[ui] toast %s +%d" % [id, n])
 	_events.add_toast(id, n)
+	_yield.show_gain(player, id, n)
 
 func _on_context(id: String) -> void:
 	if id != "claim":
@@ -1241,6 +1265,54 @@ func _open_domain() -> void:
 func domain_screen() -> DomainScreen:
 	return _domain_screen
 
+# ---------------------------------------------------------------- UIWORLD screens (nav menu entry points)
+
+var _world_sheets: Dictionary = {}  ## StringName -> UiWorldSheet, made on first open
+
+## The sheet `key`, made once with `make`, on its own canvas layer at the Domain screen's depth.
+func _world_sheet(key: StringName, make: Callable) -> UiWorldSheet:
+	var s: UiWorldSheet = _world_sheets.get(key)
+	if s != null and is_instance_valid(s):
+		return s
+	var layer := get_node_or_null("WorldSheetLayer") as CanvasLayer
+	if layer == null:
+		layer = CanvasLayer.new()
+		layer.name = "WorldSheetLayer"
+		layer.layer = 96
+		add_child(layer)
+	s = make.call()
+	layer.add_child(s)
+	s.back_pressed.connect(_back_to_menu)  # ‹ returns to the nav menu (§8)
+	_world_sheets[key] = s
+	return s
+
+## F1: open the Domain screen (never toggles it shut, unlike the old menu path).
+func open_domain() -> DomainScreen:
+	_close_sheet()
+	if _domain_screen == null or not _domain_screen.is_open():
+		_open_domain()
+	return _domain_screen
+
+## F3: the Communication screen (factions, trust, offers).
+func open_comms() -> CommsUI:
+	_close_sheet()
+	var s := _world_sheet(&"comms", func () -> UiWorldSheet: return CommsUI.new()) as CommsUI
+	s.open(player)
+	return s
+
+## F3: Radio University (career guides), its own screen; Back returns to Communication.
+func open_radio_university() -> RadioUniversityUI:
+	var comms := open_comms()
+	comms.open_radio()
+	return comms.radio
+
+## E2: the Taming Pen screen for `pen` (PlayerActions.pen_interact calls this; null = bag only).
+func open_taming_pen(pen: TamingPen = null) -> TamingPenUI:
+	_close_sheet()
+	var s := _world_sheet(&"pen", func () -> UiWorldSheet: return TamingPenUI.new()) as TamingPenUI
+	s.open(player, pen)
+	return s
+
 # ---------------------------------------------------------------- per frame
 
 func _build_fatigue_panel() -> void:
@@ -1254,6 +1326,12 @@ func _input(event: InputEvent) -> void:
 	if player == null or player.dead or _fatigue_panel == null:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var pill := HudPills.node_at(event.position)  # UIGATHER: a harvest pill is tappable like its node
+		if pill and not sheet_open() and not player.controls.tap_blocked():
+			player.controls._desktop_click_fallback_pending = false  # the pill took it: no world tap behind
+			player._interact_tap_target(pill)
+			get_viewport().set_input_as_handled()
+			return
 		if _fatigue_rect.has_point(event.position):
 			_fatigue_panel.player = player
 			_fatigue_panel.toggle()
@@ -1318,6 +1396,7 @@ func _process(delta: float) -> void:
 			_skill_hexes[0].caption = "SIEGE %d" % player.inventory.count_of(&"stone_shot")
 			_skill_hexes[0].icon = UiIcons.icon(&"siege")
 			_skill_hexes[0].disabled = catapult.reload_left > 0 or player.inventory.count_of(&"stone_shot") == 0
+		_net_gold(_skill_hexes[0], not ranged and not siege and not _skill_hexes[0].disabled)
 		_skill_hexes[0].queue_redraw()
 		_skill_hexes[1].disabled = (catapult.reload_left > 0 or player.inventory.count_of(&"toxin_pot") == 0) if siege else player.hunt._tackle_cd > 0.0
 		_skill_hexes[2].disabled = player.hunt._kick_cd > 0.0
@@ -1344,6 +1423,7 @@ func _process(delta: float) -> void:
 			_levelup_t = -1.0
 	GatherFeedback.tick_notices(_events.notices, player, drawn_blocks)  # W2-GATHER: rare notice life, off _draw
 	_events.tick(delta)
+	_yield.tick(delta)
 	_rest_fx.tick(player, _events, delta)
 	_status_fx.tick(player, _events, delta)  # STATUSFX: boxes' slots, the emitters on her, tick numbers  # REST: recovery floats over her while she rests or sleeps
 	_pulse_check -= delta
@@ -1508,64 +1588,17 @@ func _draw() -> void:
 	var sfx := _status_fx.draw_boxes(self, _font, player, HudLayout.figure_rect(self), taken_rects(), r)
 	if sfx.has_area():
 		drawn_blocks["statusfx"] = sfx
-	# --- pickup toasts near the top-centre, rising and fading, then the notices: each takes the nearest
-	# free spot up or down its column, off every block and hex (on a landscape phone they crossed the
-	# quest card at y 100-128). On a phone the toasts stack under the vitals instead: in the centre
-	# they covered the survivor. One with no room left on screen is skipped.
-	# ASSUMPTION: pickup toasts may move to the left edge on a phone (no reference for it).
+	# --- the left XP feed and the yield card, then the notices: each takes the nearest free spot off
+	# every block and hex. One with no room left on screen is skipped.
 	var taken := taken_rects()
-	var toast_left := UiTokens.is_compact(r)
 	var cx := band.get_center().x if band.has_area() else r.x * 0.5  # a phone's free middle, off HANDS and the map
-	# --- skill XP and tree level-up toasts (spec 25 §7 "it gives you an xp amount", islands-and-loop-plan
-	# §3.3). They take their spot first, so a pickup toast gives way rather than covering one. A level-up
-	# line is bigger and gold; the small XP lines sit under it. Every one is drawn only on a free spot,
-	# so none covers the vitals, the map, the plate or the survivor.
-	var skill_rows: Array = _events.skill_toasts
-	for i in skill_rows.size():
-		var e: Dictionary = skill_rows[i]
-		var age := float(e["t"])
-		var life := float(e["life"])
-		var alpha := 1.0 - smoothstep(life * 0.6, life, age)
-		var is_big := bool(e["big"])
-		var px := 22 if is_big else 16
-		var label := str(e["text"])
-		if is_big:
-			label = "▲ " + label
-		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, px).x
-		var rise := 26.0 * (1.0 - minf(age, 1.0))
-		var h := float(px) + 12.0
-		var cand := Rect2(cx - tw * 0.5 - 12.0, 64.0 + rise, tw + 24.0, h)
-		if toast_left:
-			cand.position = Vector2(vitals.position.x, vitals.end.y + 8.0 + rise)
-		var box := UiTokens.free_spot(cand, taken, r)
-		if not box.has_area():
-			continue
-		taken.append(box)
-		drawn_blocks["skilltoast%d" % i] = box
-		draw_rect(box, Color(0.05, 0.06, 0.08, (0.86 if is_big else 0.74) * alpha))
-		if is_big:
-			draw_rect(Rect2(box.position, Vector2(4.0, box.size.y)), Color(1.0, 0.85, 0.35, alpha))
-		var col := Color(1.0, 0.87, 0.45, alpha) if is_big else Color(1, 1, 1, alpha)
-		draw_string(_font, box.position + Vector2(12.0, box.size.y * 0.5 + float(px) * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, px, col)
-
-	for i in _events.toasts.size():
-		var t: Dictionary = _events.toasts[i]
-		var k: float = t["t"]
-		var alpha := 1.0 - smoothstep(0.7, 1.3, k)
-		var def := Data.item(t["id"])
-		var label := "+%d  %s" % [int(t["n"]), def.display_name if def else str(t["id"])]
-		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, 18).x
-		var rise := 35.0 * (1.0 - minf(k, 1.0))
-		var cand := Rect2(cx - tw * 0.5 - 10, 65.0 + rise, tw + 20, 28)
-		if toast_left:
-			cand.position = Vector2(vitals.position.x, vitals.end.y + 8.0 + rise)
-		var box := UiTokens.free_spot(cand, taken, r)
-		if not box.has_area():
-			continue
-		taken.append(box)
-		drawn_blocks["toast%d" % i] = box
-		draw_rect(box, Color(0.05, 0.06, 0.08, 0.8 * alpha))
-		draw_string(_font, box.position + Vector2(10, 20), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
+	# UIGATHER (spec §6, owner §1.6): skill XP lines are the left feed under the vitals; item gains are
+	# the yield card above the node (YieldCard, spec §4.5) instead of the top-centre toast.
+	drawn_blocks.merge(YieldCard.draw_feed(self, _font, _events.skill_toasts, Vector2(vitals.position.x, vitals.end.y + 8.0), taken, player.skills), true)
+	var yb := _yield.draw(self, _font, cam, taken + GatherFeedback.radial_rects(player))
+	if yb.has_area():
+		taken.append(yb)
+		drawn_blocks["toast0"] = yb
 	if player.placer and player.placer.layout_mode:
 		var hint := "Layout mode: drag a building to move it · tap one to rotate · blue = ok, red = blocked · DONE saves" if player.placer.moving == null else "Release to drop (red snaps it back)"
 		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
@@ -1597,12 +1630,37 @@ func _draw() -> void:
 		HudEventState.draw_notice(self, _font, box, txt, 17, alpha, bool(n.get("ok", false)))  # B4 warning / ok row
 	# --- label pills on buildings and nodes within 8 m (reference: base building), last: they give way
 	# to everything above and to the open radials
+	if _combat_alpha > 0.01:
+		_draw_capture_hint(cam, taken, _combat_alpha)  # before the pills, so they give way to it
+		if drawn_blocks.has("capturehint"):
+			taken.append(drawn_blocks["capturehint"])
 	HudPills.draw(self, cam, taken)
 	# --- combat layer
 	if _combat_alpha > 0.01:
 		var a := _combat_alpha
 		draw_rect(Rect2(0, 0, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
 		draw_rect(Rect2(0, r.y - 6, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
+
+## B2: a gold line by the fought animal saying whether the net can go now (spec 09 window).
+func _draw_capture_hint(cam: Camera3D, taken: Array[Rect2], a: float) -> void:
+	var t: Creature = player.hunt.target if player.hunt else null
+	if cam == null or t == null or not is_instance_valid(t) or t.def == null or not t.def.tameable or t.is_pet:
+		return
+	var at := t.global_position + Vector3.UP * 1.2
+	if cam.is_position_behind(at):
+		return
+	var text := "Capturable — throw the net!" if FieldTame.capture_window(t) else "Weaken to %d%% to capture" % int(round(FieldTame.CAPTURE_HEALTH_FRAC * 100.0))
+	var view := get_viewport_rect().size
+	var px := UiTokens.body(view)
+	var w := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 16.0
+	var sp := cam.unproject_position(at)
+	var box := UiTokens.free_spot(Rect2(sp.x - w * 0.5, sp.y - float(px) - 18.0, w, float(px) + 10.0), taken + GatherFeedback.plate_rects(4.0), view, true)
+	drawn_blocks.erase("capturehint")
+	if not box.has_area():
+		return
+	drawn_blocks["capturehint"] = box
+	draw_string(_font, Vector2(box.position.x + 9.0, box.end.y - 6.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(0, 0, 0, 0.7 * a))
+	draw_string(_font, Vector2(box.position.x + 8.0, box.end.y - 7.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(UiTokens.GOLD, a))
 
 func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 	var r := get_viewport_rect().size
@@ -1628,7 +1686,8 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			draw_texture_rect(UiIcons.icon(&"animals"), Rect2(px + pw - 54, py + 2, 40, 40), false, Color(1, 1, 1, a))
 			var frac := clampf(t.health.hp / maxf(1.0, t.health.max_hp), 0.0, 1.0)
 			draw_rect(Rect2(px, py + 44, pw, 22), Color(0.12, 0.05, 0.05, 0.9 * a))
-			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(0.80, 0.12, 0.12, 0.95 * a))
+			var window := FieldTame.capture_window(t)  # spec 09: stunned or <= 30 %, the bar turns GOLD
+			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(UiTokens.GOLD, 0.95 * a) if window else Color(0.80, 0.12, 0.12, 0.95 * a))
 			var hp := "%.0f / %.0f" % [t.health.hp, t.health.max_hp]
 			var hw := _font.get_string_size(hp, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 			draw_string(_font, Vector2(px + pw * 0.5 - hw * 0.5, py + 61), hp, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, a))
@@ -1640,9 +1699,9 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			var ix := px
 			if t.statuses:
 				for inst in t.statuses.instances():
-					HudStatusChip.draw(self, _font, Vector2(ix, py + 74), inst.id, Color(1, 0.6, 0.5), a)
-					block = block.merge(Rect2(ix, py + 74.0, 26.0, 26.0))
-					ix += 30
+					var chip := HudStatusChip.draw_named(self, _font, Vector2(ix, py + 74), inst.id, a, 13 if band.has_area() else 15)
+					block = block.merge(chip)
+					ix += chip.size.x + 6.0
 			drawn_blocks["plate"] = block
 
 func _draw_quest(r: Vector2, mp: Vector2) -> void:

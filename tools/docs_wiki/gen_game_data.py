@@ -116,6 +116,8 @@ def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
         a("|---|---|---|---|---|---|---|---|---|")
         for r in list_:
             out_row = "%s x%s" % (name(r["output"]["id"]), r["output"].get("count", 1))
+            if r.get("outputs_by_primary"):
+                out_row += " (by slot 1: %s)" % ", ".join("%s → %s" % (k, name(v["id"])) for k, v in r["outputs_by_primary"].items())
             skill = r.get("skill", "processing")
             step = []
             if r.get("process_step"):

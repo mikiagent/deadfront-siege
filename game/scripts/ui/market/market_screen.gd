@@ -27,7 +27,7 @@ var client: MarketClient
 var tab := &"buy"
 var m := {} ## metrics for this canvas (metrics())
 var wallet := {} ## the last wallet.get answer
-var header: Control
+var header: SheetChrome
 var back_btn: Button
 var close_btn: Button
 var title: Label
@@ -68,32 +68,12 @@ static func lbl(text: String, px: int, color: Color = UiTokens.TEXT, bold: bool 
 
 ## A flat dark button (secondary) or the GOLD primary, CTA_INK text (§8). Tap height >= 64.
 static func btn(text: String, px: int, primary: bool = false) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size.y = 64
-	b.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD if primary else UiTokens.WEIGHT_REGULAR))
+	var b := SheetChrome.action_button(text, &"cta" if primary else &"ghost", false)
 	b.add_theme_font_size_override("font_size", px)
-	var fill := UiTokens.GOLD if primary else UiTokens.HEADER
-	for s in ["normal", "hover", "pressed", "focus", "disabled"]:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = fill.lightened(0.08) if s == "hover" else (Color(fill, 0.35) if s == "disabled" else fill)
-		sb.border_color = UiTokens.GOLD if s == "focus" else Color(UiTokens.HUD_RIM, 0.35)
-		sb.set_border_width_all(2 if s == "focus" else (0 if primary else 1))
-		sb.content_margin_left = 16
-		sb.content_margin_right = 16
-		b.add_theme_stylebox_override(s, sb)
-	var ink := UiTokens.CTA_INK if primary else UiTokens.TEXT
-	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		b.add_theme_color_override(c, ink)
-	b.add_theme_color_override("font_disabled_color", Color(ink, 0.5))
 	return b
 
 static func panel_box(alpha: float = 0.82) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(UiTokens.PANEL, alpha)
-	sb.border_color = Color(UiTokens.HUD_RIM, 0.12)
-	sb.set_border_width_all(1)
-	return sb
+	return SheetChrome.panel_style(Color(UiTokens.PANEL, alpha))
 
 ## Sizes at this canvas: desktop at 1600x900, compact (phone landscape 844x390) scaled down, every tap >= 64.
 static func metrics(view: Vector2) -> Dictionary:
@@ -109,43 +89,26 @@ func _ready() -> void:
 	name = "MarketScreen"
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var dim := ColorRect.new()
+	var dim := SheetChrome.backdrop()
 	dim.name = "Dim"
-	dim.color = Color(0.05, 0.06, 0.07, 0.97)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
-	var wash := ColorRect.new()
-	wash.color = UiTokens.SCREEN_DIM
-	wash.set_anchors_preset(Control.PRESET_FULL_RECT)
-	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(wash)
-	header = Control.new()
-	header.name = "Header"
-	header.draw.connect(func () -> void:
-		var r := Rect2(Vector2.ZERO, header.size)
-		header.draw_rect(r, UiTokens.HEADER)
-		UiTokens.draw_torn_edge(header, Rect2(0, r.size.y, r.size.x, UiTokens.TORN_MAX)))
-	add_child(header)
-	back_btn = MarketGlyphButton.new(&"back")
-	back_btn.name = "Back"
-	back_btn.pressed.connect(func () -> void:
+	var chrome := SheetChrome.new("")
+	chrome.name = "Header"
+	chrome.back_pressed.connect(func () -> void:
 		close_screen()
 		back_pressed.emit())
-	header.add_child(back_btn)
-	title = lbl("", 28, UiTokens.TEXT)
-	title.name = "Title"
-	title.clip_text = true
-	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	header.add_child(title)
+	chrome.close_pressed.connect(close_screen)
+	add_child(chrome)
+	header = chrome
+	back_btn = chrome.back
+	close_btn = chrome.close
+	title = chrome.title
 	pill = Control.new()
 	pill.name = "Wallet"
+	pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pill.draw.connect(_draw_pill)
-	header.add_child(pill)
-	close_btn = MarketGlyphButton.new(&"close")
-	close_btn.name = "Close"
-	close_btn.pressed.connect(close_screen)
-	header.add_child(close_btn)
+	chrome.right.add_child(pill)
 	for id: StringName in TABS:
 		var t := MarketRailTab.new(id, TAB_NAMES[id])
 		t.name = "Tab_" + str(id)
@@ -265,23 +228,8 @@ func _layout() -> void:
 	m = metrics(view)
 	var ins := UiTokens.safe_insets(get_viewport()) # right, bottom, top, left
 	var hh: float = m.header_h + ins.z
-	header.position = Vector2.ZERO
-	header.size = Vector2(view.x, hh)
-	var left: float = ins.w + m.margin * 0.5
-	var right: float = view.x - ins.x - m.margin * 0.5
-	back_btn.position = Vector2(left, ins.z + (m.header_h - 64.0) * 0.5)
-	back_btn.size = Vector2(64, 64)
-	close_btn.position = Vector2(right - 64.0, back_btn.position.y)
-	close_btn.size = Vector2(64, 64)
-	var pill_w := 150.0 if m.compact else 220.0
-	var pill_h := 40.0 if m.compact else 48.0
-	pill.position = Vector2(close_btn.position.x - m.gap - pill_w, ins.z + (m.header_h - pill_h) * 0.5)
-	pill.size = Vector2(pill_w, pill_h)
-	title.add_theme_font_size_override("font_size", m.title)
-	title.position = Vector2(left + 64.0, ins.z)
-	title.size = Vector2(pill.position.x - title.position.x - m.gap, m.header_h)
-	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	header.queue_redraw()
+	pill.custom_minimum_size = Vector2(150.0 if m.compact else 220.0, 40.0 if m.compact else 48.0)
+	header.layout(view, ins)
 	pill.queue_redraw()
 	var top: float = hh + UiTokens.TORN_MAX + m.gap
 	var body := Rect2(ins.w + m.margin, top, view.x - ins.w - ins.x - m.margin * 2.0, view.y - top - ins.y - m.gap)

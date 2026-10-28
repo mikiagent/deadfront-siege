@@ -383,6 +383,11 @@ Channels name what an item does; every number carries its `provenance` (`extract
 
 Hand-written section (not from `gen_game_data.py`); re-add it after a regeneration until the generator emits it.
 
+**As shipped today** (measured in `game/tests/t_rareattr.gd`): 52 of the gatherable ids have their own
+`by_material` list and none names a key outside the six; 0 of 20 000 seeded gathers drew an off-list
+trait and none drew two; 180 of 180 recipes mark slot 1 `primary`, so a slot-1 rare attribute reaches
+the output and a slot-2 or slot-3 one never does.
+
 **The roll.** Every gathered unit rolls once at gather (`game/scripts/gather/gather_service.gd` `stamp_traits` →
 `loot_roller.gd` `roll_trait`): a **5 %** chance of **one** rare attribute (`game/data/loot_tables.json`
 `rare_trait.chance`, world-design.md:55, PRD:541). There is no bonus from Gathering level (spec 12:42) or tool tier.

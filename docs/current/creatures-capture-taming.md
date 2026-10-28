@@ -56,7 +56,23 @@ completion.
   (provoke after 1 hit, ×1.2), territorial (1 hit, ×1.2, inside `territory_m` 6.0).
 - Specialised brains: `raptor_pack_brain.gd` (alpha + followers), `tyrant_brain.gd` (bite windup
   0.7 s, stomp 1.2 s, stagger after 3 blunt hits poisoned / 6 unpoisoned), `pet_brain.gd`
-  (guard radius 9.0 m, drop target at 45.0 m, follow slots in `ai.json` `follow`), `brain_flight.gd`, `brain_rest.gd`.
+  (guard radius 9.0 m, drop target at 45.0 m, follow slots in `ai.json` `follow`),
+  `tactical_brain.gd` (the class profiles below), `brain_flight.gd`, `brain_rest.gd`.
+- Brain selection (`Creature._make_brain`, `game/scripts/creatures/creature.gd`): pet → `PetBrain`;
+  tyrannosaurus → `TyrantBrain`; any other species whose archetype row has a `tactics` block →
+  `TacticalBrain` (`TacticalBrain.has_tactics`); a `raptor_pack` archetype → `RaptorPackBrain`; else
+  `CreatureBrain`. Today only `pack_flanker` (deinonychus) carries `tactics`.
+- Tactical AI: a `TacticalBrain` animal closes to a stand-off ring (`ring_m` 5.5 for the deinonychus),
+  strafes around it, and picks its strongest off-cooldown, affordable, in-range attack from
+  `attack_priority` (deinonychus: combo, pounce, bite). Every move has its own cooldown in the
+  archetype's `tactics` block; when nothing is ready it backs off with a backward leap (`hop`),
+  strafes, flips direction or feints. The pounce telegraphs 0.8 s, leaps and hits for `pounce_mult`
+  1.5×; the combo's three hits scale 1.0 / 1.3 / 1.8. Below `retreat_frac` 0.4 of max HP it retreats
+  facing the prey, then circles wider. Its states (`circle`, `feint`, `lunge`, `pounce`, `combo`,
+  `attack`, `retreat`, `approach`, `hop`) are full-rate thinking states. Natures scale it through the
+  `tactic_*` knobs in `natures.json`. Code: `game/scripts/creatures/brains/tactical_brain.gd`, data:
+  `game/data/creatures/ai.json` `archetypes.<archetype>.tactics`, test: `game/tests/t_tactical.gd`;
+  the full profile is [enemy-ai-template.md](enemy-ai-template.md).
 
 ## Tactical AI by class ([enemy-ai-template.md](enemy-ai-template.md))
 Driven by the archetype (`ai.json archetypes.<a>.tactics`), not by per-species code. Families from
@@ -90,13 +106,39 @@ A "berserker" is a nature (Aggressive: shorter cooldowns, more charges), not a c
 3. `Inventory.best_capture_net` must hold a net whose `capture_tier` ≥ the species'
    `capture_tier`; nets are `capture_net_i` … `capture_net_v` (tiers 1–5) in `game/data/items.json`.
 4. The survivor needs the matching capture technique (`Data.has_capture_technique`).
-5. Chance (`CaptureSystem.chance_for`, actual HP) = `TIER_BASE`[net tier] × (1.5 − HP fraction), clamped 0.05–0.90, where `TIER_BASE` =
-   1:0.35, 2:0.45, 3:0.55, 4:0.65, 5:0.75 (an assumption in code).
+5. Chance (`CaptureSystem.chance_for`), on the animal's actual HP:
+   - with a survivor (the normal throw) it is the taming S-curve, `TamingOdds.odds_for` — see
+     "Taming odds" below; `attempt` rolls exactly the number the plate shows;
+   - with no survivor (labs, the server holding no skills) the older shape is kept:
+     `TIER_BASE`[net tier] × (1.5 − HP fraction), clamped 0.05–0.90, `TIER_BASE` =
+     1:0.35, 2:0.45, 3:0.55, 4:0.65, 5:0.75 (an assumption in code).
 6. Success consumes 1 net and puts a `captured_animal` stack (species, variant, level, genetics,
    `slot_span` 4) into the bag. Failure clears capturability and applies `enraged`.
 
 Nets do not damage. `Hunt.use_net` refuses with "Stun it or weaken it to 30% health to capture it."
 Knockdown itself comes from tackle/kick/stagger — see `game/scripts/combat/combat_tactics.gd`.
+
+## Taming odds (`TamingOdds`, `game/data/taming_odds.json`)
+
+One logistic curve on `(Survival level − creature level)`, shifted by remaining health and by the net
+tier, clamped to [0.05, 0.95]. Roadmap: `docs/design/durango-informed-improvements.md` 5.
+
+- `level_z(gap)`: log-odds on each side of an even gap, with separate slopes so the doc's anchors hold —
+  50 % at an even gap, 85 % ten levels ahead, 10 % ten levels behind (`level_odds(gap)`).
+- `health_z(hp)`: `hp_logit_per_hp` × (0.30 − HP fraction), i.e. 0 at the capture threshold and higher
+  as the animal weakens. The 0.30 is read from `FieldTame.CAPTURE_HEALTH_FRAC`, never re-defined here,
+  so the anchors hold at exactly the threshold; the copy in the JSON is a sanity check the test
+  compares.
+- `tier_z(net_tier)`: `tier_logit_per_tier` per tier above I.
+- `odds_for(target, player, net_tier)` is the whole thing; `odds_for_values(level, hp, survival, tier)`
+  takes numbers; `raw_odds` skips the clamp; `succeeds(p, rng)` is the single roll (seeded when a
+  `RandomNumberGenerator` is passed); `caption(p)` is the plate text, "Tame 64%".
+- Shown == rolled: `FieldTame.plate_hint` puts the odds in `hint.odds` and the caption in `hint.text`,
+  `CreaturePlates._tick_tame_hint` prints it (green at ≥ 50 %, amber below, with the feed progress
+  while feeds are still owed), and `CaptureSystem.attempt` rolls `TamingOdds.succeeds(chance, rng)`.
+- ASSUMPTION: the levels in the JSON besides the doc's three anchors (health slope 1.5, tier slope
+  0.25, clamp band) are first-pass numbers, not balance. Balance is the owner's, after skills/building.
+- The capture-open rule did not move: 0.30 opens, 0.31 stays closed, odds never open a 31 % animal.
 
 ## Field tame (`FieldTame`)
 - `can_attempt`: alive, `tameable`, not a pet, no tame cooldown, inside `capture_window()`.
@@ -108,6 +150,12 @@ Knockdown itself comes from tackle/kick/stagger — see `game/scripts/combat/com
   `requires_pen` species never complete in the field.
 - Success (`_complete`) builds a `PetRecord` (origin `tame`, wild level carried), bonds it and
   summons it. Expiry (`fail`) releases the knockdown, applies `enraged`, 60.0 s cooldown.
+- Grade by preparation: a `bait`-category item in the bag (`leech`) is spent on the completed tame and
+  adds `bait_iv_bonus` (6) to every IV before the record is built, so
+  `PetRecord.grade = genetics.overall_tier()` comes out higher (B → A for a neutral animal). No bait
+  leaves the genetics alone; an unfinished tame (a `requires_pen` species fed in the field) keeps its
+  bait. ASSUMPTION: the doc says the grade improves with preparation but not by how much, so this is
+  bait yes / no only.
 
 ## Pen (`TamingPen`, building `makeshift_taming_pen`)
 - `try_insert` takes one `captured_animal` from the bag; `BASE_SECONDS` = 30 min of real time,
@@ -187,8 +235,11 @@ Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"`
 - Specials: `special_cost(clip)` is the species' own cost, else `special_cost_frac` × pool
   (attack_heavy 0.3, deinonychus `bite_combo` 0.35). Everything else is free. API for the brains:
   `can_use_special(cost)`, `spend_energy(cost)`, `try_special(clip)` (checks, then spends),
-  `can_sprint()`, `energy_frac()`. **The brains do not call these yet.** The tactical-combat package
-  owns the brains and wires heavies to `try_special`.
+  `can_sprint()`, `energy_frac()`. `TacticalBrain` is the brain that calls them: the pounce and the
+  bite_combo go through `try_special` and gate on `can_use_special`, and the lunge, feint and charge
+  dashes need `can_sprint()` (`game/scripts/creatures/brains/tactical_brain.gd`). `energy.sprint_states`
+  lists the states that drain the pool: approach, attack, flee, retreat, chase, lunge, feint.
+  `special_cost_frac` also prices pounce at 0.3 of the pool.
 - Not saved: a reload starts every animal at full, since the pool refills in 11–32 s.
 - `# ASSUMPTION`: all of these numbers are a first pass.
 
@@ -219,13 +270,15 @@ Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"`
   [saves-persistence.md](saves-persistence.md)).
 - Following (owner 2026-10-28: pets follow "within a certain radius of the player, not directly on
   top of the player"): each summoned pet holds its own follow slot behind/beside the survivor, by
-  summon order (0 right, 1 left, 2 behind; more fan to the rear by `slot_arc_deg`). Slot distance =
-  (`slot_m` 3.0 + `slot_size_mult` × body radius) × `follow_dist_mult` × `heel_mult` on HEEL, so a
-  big tame hangs back further and a Loyal pet stands closer. It walks only past `outer_m` 4.5 from
+  summon order (0 right, 1 left, 2 behind; more fan to the rear by `slot_arc_deg` 50°). Slot distance =
+  (`slot_m` 3.0 + `slot_size_mult` 1.0 × body radius) × `follow_dist_mult` × `heel_mult` 0.7 on HEEL,
+  so a big tame hangs back further and a Loyal pet stands closer (measured: velociraptor 3.72 m,
+  triceratops 5.16 m, compsognathus 3.36 m, a Loyal raptor 2.60 m). It walks only past `outer_m` 4.5 from
   the slot and stops inside `inner_m` 2.0 (both scaled by body size, the nature knob squared, and the
   band; a pet between the two does not move), goes round the survivor's clearance circle rather than
   through it, and steps out to `player radius + pet radius + clearance_margin_m` 0.3 when the
-  survivor walks into it. Numbers: `data/creatures/ai.json` `follow` (every one an `# ASSUMPTION`).
+  survivor walks into it (`step_aside_m` 0.8 past that line). Numbers: `game/data/creatures/ai.json`
+  `follow` (every one an `# ASSUMPTION`).
   Code: `PetBrain.slot_distance/follow_slot/follow_inner/follow_outer/player_clearance/_follow`;
   `PlayerPets.summon` places a new pet at its slot; `Creature._apply_pet_passthrough` also lets a
   survivor's pets pass through each other. Test: `tests/t_petfollow.gd`.

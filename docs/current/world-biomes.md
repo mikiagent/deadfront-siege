@@ -111,9 +111,23 @@ A climate's `materials` list is what its island generator may place; gather yiel
 | 60 | **Tarbosaurus** | tundra | Tyrannosauridae | Late Cretaceous | 20.0 |
 | 60 | **Tyrannosaurus rex** | volcanic | Tyrannosauridae | Late Cretaceous | 24.0 |
 
-## Butchering drops per species
+## Butchering: choosing what to cut
 
-`base` drops fall on every kill, counts scaled by the local survivor's best knife tier (+15% per tier above stone, 0.75x with no knife, never below 1) and Butchering level (+1% per level); `rare` drops need butcher skill at least the listed level and then roll a chance (default 0.12, +15% per knife tier, cap 0.6). Any part a Butchering skill node gates waits until that node is learned. Numbers: `game/data/loot_tables.json` `butcher`; code: `game/scripts/gather/loot_roller.gd` `roll_carcass`.
+A kill leaves a carcass. Tapping it opens the **part picker** (`game/scripts/ui/butcher_picker.gd`): one 64 px hex per part that species offers, its icon, the seconds the cut takes, how many units are still on the carcass, and a red reason under any part that cannot be cut now. The "Loot chest" button on the picker opens the older chest screen (bag on the left, carcass on the right, Take all), so old muscle memory still works.
+
+Picking a part starts a timed cut (1.6 s, the gathering ring runs over the carcass). The survivor must stay in reach; walking away or cancel takes nothing and spends nothing. A finished cut hands over **only that part** — the other parts stay on the carcass:
+
+- **Cut budget** — `1 + floor(Butchering level / 10)` cuts per carcass (Lv1 → 1, Lv10 → 2, Lv30 → 4, Lv60 → 7). When it runs out the carcass is spent; the parts never cut are lost (`# ASSUMPTION`, the spec is silent on carcass size).
+- **Yield** — the shipped scaling per cut: the part's `base` rows count, +15% per knife tier above stone, 0.75x with no knife, never below 1, plus +1% per Butchering level.
+- **Rare parts** — one rare roll per chosen part, at that part's `rare` row odds (default 0.12, +15% per knife tier, cap 0.6) and only once its butcher skill node is learned.
+- **Blocked parts** — a part gated by a Butchering skill node, a part already cut, a carcass with no cuts left, or spoiled meat from a poisonous species reads its reason on the hex.
+- **Saves** — the carcass's species, its cuts left and which parts were cut round-trip through save/load (`docs/current/saves-persistence.md`); loading into a scene respawns the carcass with that state.
+
+Numbers: `game/data/loot_tables.json` `butcher`; code: `game/scripts/gather/carcass_parts.gd` (`CarcassParts.parts/cut_budget/cut`), `game/scripts/creatures/corpse.gd` (the cut in flight), `game/scripts/gather/loot_roller.gd` (`roll_part`). Test: `game/tests/t_butcher.gd`.
+
+`base` rows fall on a cut of that part and `rare` rows need butcher skill at least the listed level.
+
+## Butchering drops per species
 
 - **Zebraceratops** — base: `raptor_meat` 2–3; `raptor_bone` 2–3; `raw_hide` 1–2; `dense_bone` 1–2; `armor_scute` 1–1; rare: `raptor_bone` 1–1 (skill 1)
 - **Compsognathus** — base: `raw_meat` 2–4; `bone` 1–2; `raw_hide` 1–1; `predator_tendon` 1–2; rare: 
