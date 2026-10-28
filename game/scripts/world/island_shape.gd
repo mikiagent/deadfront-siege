@@ -350,13 +350,15 @@ func compute() -> void:
 	PerfTrace.mark("shape.margins")
 	# Iterate the two-axis extent correction: scaling x and y moves the shape's own outline too,
 	# so one pass lands a few percent short (and the lobes make that non-linear).
-	for round_i in 3:
+	# Two calibrated passes decide the scale; the heightmap is then filled ONCE from the final
+	# coastline. Only the waterline bbox needs the heights, and the margin settle below measures the
+	# analytic coastline (no heights at all), so the intermediate fill of the old third pass - and
+	# the refill _settle_margins used to trigger - were a whole extra ~330 ms on the home island.
+	for round_i in 2:
 		_build_river()
 		PerfTrace.mark("shape.river")
 		_fill_heightmap()
 		PerfTrace.mark("shape.fill")
-		if round_i >= 2:
-			break
 		var bb := _waterline_bbox()
 		if bb.x < 1.0 or bb.y < 1.0:
 			break
@@ -371,9 +373,11 @@ func compute() -> void:
 			sz *= fx
 	# The scaling above can nudge a headland back toward an edge: settle the real margins once
 	# more, rebuilding the river if the coast moved under it (the mouth must stay at the sea).
-	if _settle_margins():
+	var settled := _settle_margins()
+	PerfTrace.mark("shape.margins")
+	if settled:
 		_build_river()
-		_fill_heightmap()
+	_fill_heightmap()
 	PerfTrace.mark("shape.resettle")
 	_slopes(size / float(res - 1))
 	PerfTrace.mark("shape.slopes")

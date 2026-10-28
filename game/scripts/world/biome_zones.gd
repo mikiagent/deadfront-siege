@@ -280,20 +280,21 @@ static func fast_state(ctx: Dictionary) -> Array:
 	ctx["_fast"] = st
 	return st
 
-## Zone counts of tile column `c` between rows sz0..sz1 into `cols` at index `base`, water skipped.
-static func _col_counts(cols: PackedInt32Array, base: int, c: int, sz0: int, sz1: int, span: int,
+## Zone counts of tile column `c` between rows sz0..sz1, packed 8 bits per zone, into cols[slot].
+## Water tiles are never counted.
+static func _col_pack(cols: PackedInt64Array, slot: int, c: int, sz0: int, sz1: int, span: int,
 		types: PackedByteArray, current: PackedByteArray, nz: int) -> void:
-	for b in nz:
-		cols[base + b] = 0
+	var acc := 0
 	var tsz := types.size()
 	for zz in range(sz0, sz1 + 1):
 		var nidx := c + zz * span
 		var nt := int(types[nidx]) if nidx < tsz else 0
-		if _is_water(nt):
+		if nt == IslandTerrain.TileType.SHALLOW or nt == IslandTerrain.TileType.DEEP:
 			continue
-		var b2 := int(current[nidx])
-		if b2 < nz:
-			cols[base + b2] += 1
+		var b := int(current[nidx])
+		if b < nz:
+			acc += 1 << (b * 8)
+	cols[slot] = acc
 
 ## `zone_of` on a `fast_state` Array. Same rule order, same numbers, same result.
 static func zone_of_state(st: Array, wx: float, wz: float, h: float, slope: float, river_d: float) -> int:
@@ -344,45 +345,41 @@ static func smooth(rt: IslandRuntime, radius: int = -1) -> void:
 		var nz := zone_count()
 		var tsz := types.size()
 		var wspan := mini(span, 2 * r + 1)
-		var cols := PackedInt32Array()
-		cols.resize(nz * wspan)
-		var counts := PackedInt32Array()
-		counts.resize(nz)
+		# Zone counts are packed 8 bits apiece into one int per window column (5 columns x at most
+		# 7 rows of one zone = 35, so a sum of the columns never carries into the next field). The
+		# window sum is then one add per column, not a loop over zones per column.
+		var cols := PackedInt64Array()
+		cols.resize(wspan)
 		for z in span:
 			var sz0 := maxi(0, z - r)
 			var sz1 := mini(span - 1, z + r)
-			# Bucket (c mod wspan) holds the zone counts of rows sz0..sz1 of tile column c; `counts`
-			# is the sum over the columns of the current window, so a step only drops the column
-			# that leaves and adds the one that enters - never a rescan of the 25 cells.
-			counts.fill(0)
+			var total := 0
 			for c in mini(span, r + 1):
-				var b0 := (c % wspan) * nz
-				_col_counts(cols, b0, c, sz0, sz1, span, types, current, nz)
-				for b in nz:
-					counts[b] += cols[b0 + b]
+				_col_pack(cols, c % wspan, c, sz0, sz1, span, types, current, nz)
+				total += cols[c % wspan]
 			for x in span:
 				var idx := x + z * span
 				var t := int(types[idx]) if idx < tsz else 0
-				if not _is_water(t):
+				if t != IslandTerrain.TileType.SHALLOW and t != IslandTerrain.TileType.DEEP:
 					var best := int(current[idx])
 					var best_n := 0
+					var v := total
 					for b in nz:
-						if counts[b] > best_n:
-							best_n = counts[b]
+						var n := v & 0xFF
+						if n > best_n:
+							best_n = n
 							best = b
+						v = v >> 8
 					dst[idx] = best
 				# Slide one column right: out with x-r, in with x+r+1 (bounded by the grid).
 				var out_c := x - r
 				if out_c >= 0:
-					var bo := (out_c % wspan) * nz
-					for b in nz:
-						counts[b] -= cols[bo + b]
+					total -= cols[out_c % wspan]
 				var in_c := x + r + 1
 				if in_c < span:
-					var bi := (in_c % wspan) * nz
-					_col_counts(cols, bi, in_c, sz0, sz1, span, types, current, nz)
-					for b in nz:
-						counts[b] += cols[bi + b]
+					var bi := in_c % wspan
+					_col_pack(cols, bi, in_c, sz0, sz1, span, types, current, nz)
+					total += cols[bi]
 	PerfTrace.mark("smooth.filter")
 	_merge_small(rt, dst, int(rules().get("min_region_tiles", 400)))
 	PerfTrace.mark("smooth.merge")

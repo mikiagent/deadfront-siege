@@ -318,18 +318,21 @@ static func _ground(rt: IslandRuntime, x: float, z: float, radius: float) -> Vec
 		return Vector3.INF
 	if CAMP_CLEAR_M > 0.0 and Vector2(x - rt._camp_hint.x, z - rt._camp_hint.z).length() < CAMP_CLEAR_M:
 		return Vector3.INF
+	# Cheapest refusals first: the tile test and the claim test are array/rect reads, the height and
+	# slope pass is two bilinear samples of five grid points (~1.7 us) and most spots on a coast or a
+	# rock face are already refused by the tile alone. Same predicates, same result.
+	if not soil(rt, x, z):
+		return Vector3.INF
+	# Owner 2026-10-21: "claimed land shouldn't have the grass". Claimed tiles stay bare so a
+	# buildable plot reads as swept ground, and a plot staked later clears the cover inside it.
+	if IslandClaims.is_claimed(rt, BuildGrid.tile_of(Vector3(x, 0.0, z))):
+		return Vector3.INF
 	# Height and slope in one pass over the height array: _ground runs ~90k times per island.
 	var hs := IslandTerrain.height_and_slope(rt, x, z)
 	var y := hs.x
 	if y < 0.4:
 		return Vector3.INF
 	if hs.y > MAX_SLOPE_DEG:
-		return Vector3.INF
-	if not soil(rt, x, z):
-		return Vector3.INF
-	# Owner 2026-10-21: "claimed land shouldn't have the grass". Claimed tiles stay bare so a
-	# buildable plot reads as swept ground, and a plot staked later clears the cover inside it.
-	if IslandClaims.is_claimed(rt, BuildGrid.tile_of(Vector3(x, 0.0, z))):
 		return Vector3.INF
 	return Vector3(x, y, z)
 

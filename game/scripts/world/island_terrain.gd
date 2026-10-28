@@ -258,6 +258,8 @@ static func normal_at(rt: IslandRuntime, x: float, z: float) -> Vector3:
 ## the slope is exactly slope_deg(x, z).
 const SLOPE_D := 0.75
 
+## Surface height and slope in degrees from one grid read set (the fused form of surface_y +
+## slope_deg: same samples, same arithmetic, one pass over the height array).
 static func height_and_slope(rt: IslandRuntime, x: float, z: float) -> Vector2:
 	var arr := rt._heights
 	if arr.is_empty():
@@ -266,36 +268,62 @@ static func height_and_slope(rt: IslandRuntime, x: float, z: float) -> Vector2:
 	var cell := rt._size / float(res - 1)
 	var half := rt._size * 0.5
 	var last := float(res - 1)
-	# Unrolled: the point itself, then -d/+d in x and -d/+d in z (slope_deg's order). No per-call
-	# array allocation - this runs ~90k times per island build (cover plan, pathing rebuild).
 	var u := clampf((x + half) / cell, 0.0, last)
 	var v := clampf((z + half) / cell, 0.0, last)
-	var x0 := int(u)
-	var z0 := int(v)
-	var x1 := mini(x0 + 1, res - 1)
-	var z1 := mini(z0 + 1, res - 1)
-	var tx := u - float(x0)
-	var tz := v - float(z0)
-	var row0 := z0 * res
-	var row1 := z1 * res
-	var h0 := _bil(arr, x0, x1, row0, row1, tx, tz)
-	var hu0 := clampf((x - SLOPE_D + half) / cell, 0.0, last)
-	var hv0 := clampf((z - SLOPE_D + half) / cell, 0.0, last)
-	var hu1 := clampf((x + SLOPE_D + half) / cell, 0.0, last)
-	var hv1 := clampf((z + SLOPE_D + half) / cell, 0.0, last)
-	var h1 := _bil_at(arr, res, hu0, v)
-	var h2 := _bil_at(arr, res, hu1, v)
-	var h3 := _bil_at(arr, res, u, hv0)
-	var h4 := _bil_at(arr, res, u, hv1)
+	var h0 := _bil_at(arr, res, u, v)
+	var h1 := _bil_at(arr, res, clampf((x - SLOPE_D + half) / cell, 0.0, last), v)
+	var h2 := _bil_at(arr, res, clampf((x + SLOPE_D + half) / cell, 0.0, last), v)
+	var h3 := _bil_at(arr, res, u, clampf((z - SLOPE_D + half) / cell, 0.0, last))
+	var h4 := _bil_at(arr, res, u, clampf((z + SLOPE_D + half) / cell, 0.0, last))
+	return Vector2(h0, _slope_deg_of(h1, h2, h3, h4))
+
+## The same pair from grid coordinates (u, v), for a caller that already has them (the tile loops).
+static func height_and_slope_grid(rt: IslandRuntime, u: float, v: float, cell: float) -> Vector2:
+	var arr := rt._heights
+	if arr.is_empty():
+		return Vector2.ZERO
+	var res := rt._res
+	var last := float(res - 1)
+	var d := SLOPE_D / cell
+	var h0 := _bil_at(arr, res, u, v)
+	var h1 := _bil_at(arr, res, clampf(u - d, 0.0, last), v)
+	var h2 := _bil_at(arr, res, clampf(u + d, 0.0, last), v)
+	var h3 := _bil_at(arr, res, u, clampf(v - d, 0.0, last))
+	var h4 := _bil_at(arr, res, u, clampf(v + d, 0.0, last))
+	return Vector2(h0, _slope_deg_of(h1, h2, h3, h4))
+
+static func _slope_deg_of(h1: float, h2: float, h3: float, h4: float) -> float:
 	var dx := (h2 - h1) / (2.0 * SLOPE_D)
 	var dz := (h4 - h3) / (2.0 * SLOPE_D)
-	return Vector2(h0, rad_to_deg(atan(sqrt(dx * dx + dz * dz))))
+	return rad_to_deg(atan(sqrt(dx * dx + dz * dz)))
 
-## Bilinear sample of the corner quad (x0/x1 columns, z0/z1 rows) at the grid fractions tx/tz.
-static func _bil(arr: PackedFloat32Array, x0: int, x1: int, row0: int, row1: int, tx: float, tz: float) -> float:
-	return lerpf(lerpf(arr[x0 + row0], arr[x1 + row0], tx), lerpf(arr[x0 + row1], arr[x1 + row1], tx), tz)
+## The point sample alone (surface_y's rule) for callers that do not need the slope.
+static func height_at(rt: IslandRuntime, x: float, z: float) -> float:
+	var arr := rt._heights
+	if arr.is_empty():
+		return 0.0
+	var res := rt._res
+	return _bil_at(arr, res, clampf((x + rt._size * 0.5) / (rt._size / float(res - 1)), 0.0, float(res - 1)),
+		clampf((z + rt._size * 0.5) / (rt._size / float(res - 1)), 0.0, float(res - 1)))
 
-## Bilinear sample at raw grid coordinates (u, v): the same arithmetic as the inline point sample.
+## slope_deg's rule on the height array: +-SLOPE_D in x and z, in degrees.
+static func slope_at(rt: IslandRuntime, x: float, z: float) -> float:
+	var arr := rt._heights
+	if arr.is_empty():
+		return 0.0
+	var res := rt._res
+	var cell := rt._size / float(res - 1)
+	var half := rt._size * 0.5
+	var last := float(res - 1)
+	var u := clampf((x + half) / cell, 0.0, last)
+	var v := clampf((z + half) / cell, 0.0, last)
+	var h1 := _bil_at(arr, res, clampf((x - SLOPE_D + half) / cell, 0.0, last), v)
+	var h2 := _bil_at(arr, res, clampf((x + SLOPE_D + half) / cell, 0.0, last), v)
+	var h3 := _bil_at(arr, res, u, clampf((z - SLOPE_D + half) / cell, 0.0, last))
+	var h4 := _bil_at(arr, res, u, clampf((z + SLOPE_D + half) / cell, 0.0, last))
+	return _slope_deg_of(h1, h2, h3, h4)
+
+## Bilinear sample at raw grid coordinates (u, v).
 static func _bil_at(arr: PackedFloat32Array, res: int, u: float, v: float) -> float:
 	var x0 := int(u)
 	var z0 := int(v)
@@ -303,7 +331,7 @@ static func _bil_at(arr: PackedFloat32Array, res: int, u: float, v: float) -> fl
 	var z1 := mini(z0 + 1, res - 1)
 	var tx := u - float(x0)
 	var tz := v - float(z0)
-	return _bil(arr, x0, x1, z0 * res, z1 * res, tx, tz)
+	return lerpf(lerpf(arr[x0 + z0 * res], arr[x1 + z0 * res], tx), lerpf(arr[x0 + z1 * res], arr[x1 + z1 * res], tx), tz)
 
 static func slope_deg(rt: IslandRuntime, x: float, z: float) -> float:
 	var d := 0.75

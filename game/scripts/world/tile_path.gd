@@ -147,29 +147,39 @@ func _rebuild() -> void:
 	for z in range(_region.position.y, _region.end.y):
 		for x in range(_region.position.x, _region.end.x):
 			var tile := Vector2i(x, z)
-			var pos := BuildGrid.tile_centre(tile, runtime)
-			var hs := Vector2(pos.y, 0.0)
-			var tile_type := -1
-			if fast:
-				var tx := int(floor(pos.x + half))
-				var tz := int(floor(pos.z + half))
-				var idx := clampi(tx, 0, span - 1) + clampi(tz, 0, span - 1) * span
-				hs = IslandTerrain.height_and_slope(runtime, pos.x, pos.z)
-				pos.y = hs.x
-				tile_type = int(types[idx])
-				var dry := pos.x >= -half and pos.z >= -half and pos.x < half and pos.z < half and int(walk[idx]) == 1
-				if not dry and not (_on_approach(tile, approach, has_approach) and hs.x > HarbourSite.WATER_Y):
-					_terrain_blocked[tile] = true
-					_astar.set_point_solid(tile, true)
-					continue
-			else:
+			var pos := Vector3((float(x) + 0.5) * BuildGrid.CELL_SIZE, 0.0, (float(z) + 0.5) * BuildGrid.CELL_SIZE)
+			if not fast:
+				pos = BuildGrid.tile_centre(tile, runtime)
 				# The dock's approach strip is walkable though it lies on the beach (spawn_ok(false)'s rule).
 				if not runtime.is_dry(pos) and not runtime.on_harbour_approach(pos):
 					_terrain_blocked[tile] = true
 					_astar.set_point_solid(tile, true)
 					continue
+				# Weight is set even under blockers so a released cell keeps its terrain cost.
+				_astar.set_point_weight_scale(tile, _weight(pos))
+				_astar.set_point_solid(tile, _blocked(tile))
+				continue
+			var tx := int(floor(pos.x + half))
+			var tz := int(floor(pos.z + half))
+			var idx := clampi(tx, 0, span - 1) + clampi(tz, 0, span - 1) * span
+			var dry := pos.x >= -half and pos.z >= -half and pos.x < half and pos.z < half and int(walk[idx]) == 1
+			var hs: Vector2
+			if dry:
+				hs = IslandTerrain.height_and_slope(runtime, pos.x, pos.z)
+			elif _on_approach(tile, approach, has_approach) and IslandTerrain.height_at(runtime, pos.x, pos.z) > HarbourSite.WATER_Y:
+				# On the dock strip: walkable, and its height is what the weight reads (slope 0 there,
+				# the strip is flat deck) - so only the cheap point sample is needed.
+				hs = Vector2(IslandTerrain.height_at(runtime, pos.x, pos.z), 0.0)
+			else:
+				# Not dry and not on the approach: solid. Its height is never read (no weight is set
+				# for a blocked tile), so the fused height+slope pass is skipped for it - on home
+				# that is 44 % of the rebuild region.
+				_terrain_blocked[tile] = true
+				_astar.set_point_solid(tile, true)
+				continue
+			pos.y = hs.x
 			# Weight is set even under blockers so a released cell keeps its terrain cost.
-			_astar.set_point_weight_scale(tile, _weight_fast(pos, tile_type, hs.y) if fast else _weight(pos))
+			_astar.set_point_weight_scale(tile, _weight_fast(pos, int(types[idx]), hs.y))
 			_astar.set_point_solid(tile, _blocked(tile))
 	PerfTrace.mark("pathing.loop")
 

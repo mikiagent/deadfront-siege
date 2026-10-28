@@ -284,17 +284,73 @@ static func _plan_kind(rt: IslandRuntime, zone: String, id: String, want: int, _
 			made += 1
 
 ## Whether `id` (of `zone`) may stand at (x, z), and the ground point if so.
+## The tile index, the walk mask, the tile type and the zone all come from the same tile: they are
+## read once here instead of through is_dry / _wet / tile_type_at_world / biome_at, which each
+## re-derive the same index and clamp. Same predicates, same answer. The height and the slope come
+## from one fused grid pass. A runtime without a walk mask (a bare lab host) keeps the old path.
 static func spot_ok(rt: IslandRuntime, zone: String, id: String, x: float, z: float) -> Vector3:
 	var row := kind_data(id)
 	if row.is_empty() or not (row.get("zones", []) as Array).has(zone):
 		return Vector3.INF
-	if rt == null or not rt.is_dry(Vector3(x, 0.0, z)) and not _wet(rt, x, z):
+	if rt == null:
+		return Vector3.INF
+	if rt.dry_walk.is_empty():
+		return _spot_ok_slow(rt, zone, id, x, z)
+	var span := rt._tile_span
+	if span <= 0:
+		return Vector3.INF
+	var half := rt._size * 0.5
+	var ix := int(floor(x + half))
+	var iz := int(floor(z + half))
+	var idx := clampi(ix, 0, span - 1) + clampi(iz, 0, span - 1) * span
+	var t := int(rt.tile_types[idx])
+	var wet_tile := t == IslandTerrain.TileType.MUD or t == IslandTerrain.TileType.SHALLOW \
+		or t == IslandTerrain.TileType.WET
+	var dry := ix >= 0 and iz >= 0 and ix < span and iz < span and int(rt.dry_walk[idx]) == 1
+	if not dry and not wet_tile:
 		return Vector3.INF
 	# The zone is re-read at the exact point: a jittered or clumped member never leaks across a border.
+	var bio := BiomeZones.biome_types(rt)
+	if BiomeZones.zone_name(int(bio[idx]) if idx < bio.size() else 0) != zone:
+		return Vector3.INF
+	if IslandClaims.is_claimed(rt, BuildGrid.tile_of(Vector3(x, 0.0, z))):
+		return Vector3.INF
+	var where := str(row.get("where", "ground"))
+	match where:
+		"water":
+			if not wet_tile:
+				return Vector3.INF
+			return Vector3(x, WATER_Y, z)
+		"edge":
+			if t == IslandTerrain.TileType.DEEP or t == IslandTerrain.TileType.SHALLOW:
+				return Vector3.INF
+			if not _near_water(rt, x, z):
+				return Vector3.INF
+		"coast":
+			if not _near_sand(rt, x, z):
+				return Vector3.INF
+		"ground":
+			if not soil(t):
+				return Vector3.INF
+		"any":
+			pass
+	var hs := IslandTerrain.height_and_slope(rt, x, z)
+	if hs.y > 30.0:
+		return Vector3.INF
+	if hs.x < MIN_GROUND_Y:
+		return Vector3.INF
+	return Vector3(x, hs.x, z)
+
+## The pre-tile-map rule (no dry mask): the helper-by-helper form, kept for a bare lab host.
+static func _spot_ok_slow(rt: IslandRuntime, zone: String, id: String, x: float, z: float) -> Vector3:
+	var row := kind_data(id)
+	if row.is_empty() or not (row.get("zones", []) as Array).has(zone):
+		return Vector3.INF
+	if not rt.is_dry(Vector3(x, 0.0, z)) and not _wet(rt, x, z):
+		return Vector3.INF
 	if BiomeZones.zone_name(BiomeZones.biome_at(rt, x, z)) != zone:
 		return Vector3.INF
-	var tile := BuildGrid.tile_of(Vector3(x, 0.0, z))
-	if IslandClaims.is_claimed(rt, tile):
+	if IslandClaims.is_claimed(rt, BuildGrid.tile_of(Vector3(x, 0.0, z))):
 		return Vector3.INF
 	var t := IslandTerrain.tile_type_at_world(rt, x, z)
 	var where := str(row.get("where", "ground"))
