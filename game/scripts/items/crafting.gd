@@ -370,9 +370,10 @@ static func rolls_burn(rec: Dictionary, skill_level: int, rng: RandomNumberGener
 ## `roles` is CookRoles.collect()'s record of what the recipe's slots may pass (COOKROLES); {} keeps
 ## the old wholesale primary-attribute copy every earlier recipe relies on.
 ## OUTPUTS (design §7): the output row ({id, count}) that this slot-1 instance makes. A recipe's
-## `outputs_by_primary` is keyed by the primary's item categories (in def order), then its material
-## tier; no match, no key or no primary falls back to `output`. Every caller (build_output and so the
-## preview, the offline craft and the server intent; the craft screens) reads the output through here.
+## `outputs_by_primary` is keyed by the primary's declared tier (a `tier_<t>` category gives key `<t>`),
+## then its item categories (in def order), then its computed material tier; no match, no key or no
+## primary falls back to `output`. Every caller (build_output and so the preview, the offline craft and
+## the server intent; the craft screens) reads the output through here.
 static func output_for(rec: Dictionary, primary: ItemStack) -> Dictionary:
 	var fallback: Dictionary = rec.get("output", {})
 	var by: Variant = rec.get("outputs_by_primary", null)
@@ -382,7 +383,10 @@ static func output_for(rec: Dictionary, primary: ItemStack) -> Dictionary:
 	var pd := primary.def()
 	if pd:
 		for c in pd.categories:
-			keys.append(str(c))
+			if str(c).begins_with("tier_"):
+				keys.push_front(str(c).trim_prefix("tier_"))  # flint (categories stone, tier_flint) is flint
+			else:
+				keys.append(str(c))
 	keys.append(str(ProgressionScaling.material_tier(primary.def_id, primary.attributes)))
 	for k in keys:
 		var row: Variant = (by as Dictionary).get(k, null)
