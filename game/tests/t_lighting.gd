@@ -33,8 +33,11 @@ func _process(_delta: float) -> bool:
 	_test_rain_streaks()
 	_test_env_reused(host, wl)
 	_test_sun_moves_every_frame(wl)
+	# Both tags: t_light.gd is an alias that extends this file, and the gates grep for the running
+	# file's name (job confs use both TEST=t_lighting and RELATED="t_light").
 	if failures.is_empty():
 		print("[t_light] PASS")
+		print("[t_lighting] PASS")
 		quit(0)
 	else:
 		for f in failures:
