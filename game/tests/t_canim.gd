@@ -13,7 +13,7 @@ const WALK_FRAC := 0.4
 ## such clips are listed here (STATUS, DSC-CLIPS) so the list stays honest: they must still glide, everyone else must not.
 ## The protoceratops and megaloceros walk/run are being redone by the dsc job quads-loco2; drop them when it lands.
 const MAX_CADENCE := 3.0
-const KNOWN_GLIDERS: Array[StringName] = [&"protoceratops", &"megaloceros"]
+const KNOWN_GLIDERS: Array[StringName] = [&"protoceratops"]  # megaloceros: footfall-planned walk/gallop, no longer glides (2026-10-28)
 
 var failures: Array[String] = []
 var _started := false

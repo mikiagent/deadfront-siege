@@ -20,7 +20,15 @@ extends Resource
 @export var evasion_add: float = 0.0
 @export var weakness_rank: int = 1
 @export var cleared_by: Array[StringName] = []
+## The old body hint ("drip_darken", "limp"...): fx.body in statuses.json, or a bare string there.
 @export var fx: StringName = &"none"
+## STATUSFX: how the status shows on the survivor (StatusFx), all from its statuses.json fx block:
+## the box tint, the white icon id in the box, the particle preset (drip, bubbles, embers, tint, none)
+## and whether its ticks pulse a red screen edge.
+@export var fx_color: Color = Color(0.604, 0.651, 0.678)
+@export var fx_icon: StringName = &""
+@export var fx_particles: StringName = &"none"
+@export var fx_vignette: bool = false
 @export var on_untreated_expire: StringName = &""
 @export var on_untreated_chance: float = 0.0
 
@@ -44,7 +52,17 @@ static func from_dict(d: Dictionary) -> StatusDef:
 	s.evasion_add = float(d.get("evasion_add", 0.0))
 	s.weakness_rank = int(d.get("weakness_rank", 1))
 	s.cleared_by = ItemDef._names(d.get("cleared_by", []))
-	s.fx = StringName(str(d.get("fx", "none")))
+	var fx: Variant = d.get("fx", "none")
+	if fx is Dictionary:
+		s.fx = StringName(str(fx.get("body", "none")))
+		s.fx_color = Color.from_string(str(fx.get("color", "")), s.fx_color)
+		s.fx_icon = StringName(str(fx.get("icon", "")))
+		s.fx_particles = StringName(str(fx.get("particles", "none")))
+		s.fx_vignette = bool(fx.get("vignette", false))
+	else:
+		s.fx = StringName(str(fx))
+	if s.fx_icon == &"":
+		s.fx_icon = s.id
 	s.on_untreated_expire = StringName(str(d.get("on_untreated_expire", "")))
 	s.on_untreated_chance = float(d.get("on_untreated_chance", 0.0))
 	return s

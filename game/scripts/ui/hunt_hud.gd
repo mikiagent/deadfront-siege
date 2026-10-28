@@ -46,6 +46,7 @@ var _last_target: Creature  # top plate stays on the last creature attacked unti
 var _stance_label: Label
 var _events := HudEventState.new()
 var _rest_fx := HudRestBox.new()
+var _status_fx := StatusFx.new()
 var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
 var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
@@ -144,6 +145,12 @@ func _ready() -> void:
 			queue_redraw())
 	if Game.shot_path.contains("levelup"):
 		get_tree().create_timer(0.8).timeout.connect(func () -> void: World.pioneer_level += 1; World.pioneer_changed.emit(World.pioneer_level))
+	if Game.shot_path.contains("statusfx"):  # STATUSFX captures: she bleeds (x3), and is poisoned too on "poison"
+		get_tree().create_timer(0.6).timeout.connect(func () -> void:
+			if player:
+				player.statuses.apply(&"bleed_3")
+				if Game.shot_path.contains("poison"):
+					player.statuses.apply(&"venom"))
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 	if "--bite-test" in OS.get_cmdline_user_args():  # screenshot runs: snap the jaws every 0.45 s
@@ -636,7 +643,9 @@ func _draw_bites(cam: Camera3D) -> void:
 		var a := 1.0 - smoothstep(0.55, 0.95, k)
 		var txt: String = str(f["txt"]) if f.has("txt") else "-%d" % int(round(float(f["n"])))
 		var col: Color = f.get("col", Color(1.0, 0.25, 0.2))
-		var fs := 22
+		var fs := int(f.get("px", 22))
+		if f.get("pop", false):
+			fs = roundi(float(fs) * lerpf(0.7, 1.0, smoothstep(0.0, 0.15, k)))
 		var w := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
 		var p := chest + Vector2(float(f["x"]) - w * 0.5, -30.0 - k * 46.0 + float(f.get("dy", 0.0)))
 		draw_string(_font, p + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.8 * a))
@@ -1261,7 +1270,8 @@ func _process(delta: float) -> void:
 			_levelup_t = -1.0
 	GatherFeedback.tick_notices(_events.notices, player, drawn_blocks)  # W2-GATHER: rare notice life, off _draw
 	_events.tick(delta)
-	_rest_fx.tick(player, _events, delta)  # REST: recovery floats over her while she rests or sleeps
+	_rest_fx.tick(player, _events, delta)
+	_status_fx.tick(player, _events, delta)  # STATUSFX: boxes' slots, the emitters on her, tick numbers  # REST: recovery floats over her while she rests or sleeps
 	_pulse_check -= delta
 	if _pulse_check <= 0.0:
 		_pulse_check = SKILL_PULSE_TICK
@@ -1275,6 +1285,7 @@ func _draw() -> void:
 		return
 	var r := get_viewport_rect().size
 	drawn_blocks.clear()
+	_status_fx.draw_vignette(self, player, r)  # STATUSFX: under everything the HUD draws
 	var v := player.vitals
 	if player.placer and player.placer.placing != &"":
 		draw_rect(Rect2(Vector2.ZERO, r), Color(0.02, 0.03, 0.04, 0.28))
@@ -1394,6 +1405,7 @@ func _draw() -> void:
 		var at := (drawn_blocks["nameplate"] as Rect2).position + Vector2(0.0, NAME_PX)
 		draw_string(_font, at + Vector2.ONE, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0, 0, 0, 0.7))
 		draw_string(_font, at, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0.95, 0.95, 0.95))
+	_status_fx.draw_tint(self, player, HudLayout.figure_rect(self))
 	_draw_bites(cam)
 	# --- level-up: a gold stack top-left under the bars; on a landscape phone a short banner in the
 	# centre band (its 13 lines ran over the rail and off the bottom of a 390 px canvas)
@@ -1418,6 +1430,10 @@ func _draw() -> void:
 			drawn_blocks["levelup"] = stack
 	# --- the domain banner, before the moving text so it keeps off the banner
 	_domain.draw(self)
+	# --- STATUSFX: the status boxes beside her, before the moving text so toasts keep off them
+	var sfx := _status_fx.draw_boxes(self, _font, player, HudLayout.figure_rect(self), taken_rects(), r)
+	if sfx.has_area():
+		drawn_blocks["statusfx"] = sfx
 	# --- pickup toasts near the top-centre, rising and fading, then the notices: each takes the nearest
 	# free spot up or down its column, off every block and hex (on a landscape phone they crossed the
 	# quest card at y 100-128). On a phone the toasts stack under the vitals instead: in the centre

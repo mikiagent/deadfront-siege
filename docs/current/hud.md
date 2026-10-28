@@ -128,8 +128,31 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Pickup toasts ("+n Item"), skill XP lines (16 px) and tree level-ups (22 px, gold, ▲) rise near
   the top-centre (phones: under the vitals), each taking a free spot off `taken_rects`; notices
   (refusals) render under them on dark red. Nothing covers the fixed blocks.
-- A creature's hit on the survivor covers her chest with Pokémon-style jaws and red damage numbers;
+- A creature's hit on the survivor covers her chest with Pokémon-style jaws and red damage numbers (22 px);
   heavy hits flash the screen red.
+- Status effects on the survivor (STATUSFX, owner 2026-10-28; `ui/status_fx.gd`, driven from
+  `HuntHud._process` / `_draw`). Every look comes from the status's `fx` block in
+  `data/statuses.json` (`color`, `icon`, `particles`: drip / bubbles / embers / tint / none,
+  `vignette`; `body` keeps the old hint), parsed into `StatusDef.fx_*`; a new status needs only data.
+  - Boxes: one square per active status beside her figure (`HudLayout.figure_rect`), 10 px off it,
+    the first at her shoulders and the rest stacked down (42 px desktop, 32 px on compact canvases).
+    HUD ink fill, a 2 px rim and a 4 px time-left bar in the status colour, its white icon inside,
+    a stack-count disc on the outer corner. The column keeps its side (right, else left) until that
+    side is blocked, slides up/down off `taken_rects` via `UiTokens.free_spot`, is skipped with no
+    room, and is a drawn block (`statusfx`) so toasts keep off it. A box that loses the one above it
+    glides up (8 slots/s) instead of jumping.
+  - Bleed's icon is the claw mark (`claw.svg`, `_src/icons_n.py`); the HUD chip row uses it too.
+  - Colours (ASSUMPTION, from the spec tokens): bleed red (LIFE), poison/sickness green, hot orange,
+    wet/cold blue, positive buffs GOLD, Well Rested soft gold, other negatives MUTED grey.
+  - Particles: one CPUParticles3D per status (at most 3, 8-10 unshaded spheres each) under the player,
+    freed the frame the status ends: bleed red drips, venom/poison green bubbles, hot food embers
+    (ASSUMPTION: no burn status exists). "tint" statuses (fracture, groggy, wet...) draw a faint
+    colour glow over her figure instead.
+  - Vignette: while a `vignette` status is on (bleed, deep bleed) a red screen edge (14 % of the short
+    side, alpha 0.16) brightens to 0.42 on each tick and fades back.
+  - Tick numbers: `StatusEffects.ticked(id, amount)` fires per damage-over-time tick on the player with
+    the Health it took; `HudEventState.add_tick` floats a red 16 px "-N" ("-0.2" for a fraction) on the
+    hit numbers' path (pops in from 70 %, rises, fades); two ticks on one frame stand side by side.
 - Level-up (`World.pioneer_changed`): a gold stack at the top-left for ~6 s — level, title line,
   XP, T-stones, SP, per-stat gains; landscape phones show a one-line banner in the centre band
   instead. Gains land via `Vitals.grant_level_bonus` (saved).
