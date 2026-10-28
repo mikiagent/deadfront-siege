@@ -5056,6 +5056,157 @@
         "workbench"
       ],
       "station_level": 2
+    },
+    {
+      "id": "fruit_juice",
+      "slots": [
+        {
+          "category": "fruit",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "water",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "fruit_juice",
+        "count": 1
+      },
+      "display_name": "Fruit Juice",
+      "skill": "cooking",
+      "max_level": 60,
+      "station": "mortar",
+      "seconds": 2.0,
+      "process_step": "mix",
+      "process_add": 0
+    },
+    {
+      "id": "cactus_juice",
+      "slots": [
+        {
+          "category": "cactus",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "water",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "cactus_juice",
+        "count": 1
+      },
+      "display_name": "Cactus Juice",
+      "skill": "cooking",
+      "max_level": 60,
+      "station": "mortar",
+      "seconds": 2.0,
+      "process_step": "mix",
+      "process_add": 0
+    },
+    {
+      "id": "meat_broth",
+      "slots": [
+        {
+          "category": "raw_meat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "water",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "meat_broth",
+        "count": 1
+      },
+      "display_name": "Meat Broth",
+      "skill": "cooking",
+      "max_level": 60,
+      "station": "bonfire",
+      "seconds": 3.0,
+      "process_step": "brew",
+      "process_add": 0
+    },
+    {
+      "id": "salad",
+      "slots": [
+        {
+          "category": "fruit",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "herb",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "salad",
+        "count": 1
+      },
+      "display_name": "Salad",
+      "skill": "cooking",
+      "max_level": 60,
+      "station": "workbench",
+      "seconds": 2.0,
+      "process_step": "mix",
+      "process_add": 0
+    },
+    {
+      "id": "herbal_tea",
+      "slots": [
+        {
+          "category": "herb",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "water",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "herbal_tea",
+        "count": 1
+      },
+      "display_name": "Herbal Tea",
+      "skill": "cooking",
+      "max_level": 60,
+      "station": "bonfire",
+      "seconds": 2.5,
+      "process_step": "brew",
+      "process_add": 0
+    },
+    {
+      "id": "shaved_ice",
+      "slots": [
+        {
+          "category": "ice",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "shaved_ice",
+        "count": 1
+      },
+      "display_name": "Shaved Ice",
+      "skill": "cooking",
+      "max_level": 60,
+      "station": "mortar",
+      "seconds": 1.5,
+      "process_step": "mix",
+      "process_add": 0
     }
   ]
 }

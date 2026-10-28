@@ -1,4 +1,4 @@
-/* DEADFRONT web diagnostics. Loaded before the Godot engine starts. */
+/* WildLands MMO web diagnostics. Loaded before the Godot engine starts. */
 (function () {
 	'use strict';
 	if (window.__deadfrontDiagnostics) return;
@@ -18,7 +18,7 @@
 		overlay.setAttribute('role', 'alert');
 		overlay.style.cssText = 'display:none;position:fixed;z-index:2147483647;inset:0;background:#140b0df2;color:#ffe8e8;padding:max(16px,env(safe-area-inset-top)) 16px 16px;overflow:auto;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap';
 		const heading = document.createElement('strong');
-		heading.textContent = 'DEADFRONT hit an error';
+		heading.textContent = 'WildLands MMO hit an error';
 		heading.style.cssText = 'display:block;font:700 18px/1.3 system-ui;margin-bottom:10px';
 		body = document.createElement('div');
 		const actions = document.createElement('div');

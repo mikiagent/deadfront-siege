@@ -465,7 +465,7 @@
       "display_name": "Hot Food",
       "dps": 0.0,
       "duration": 600.0,
-      "max_stacks": 1,
+      "max_stacks": 4,
       "flags": [],
       "move_mult": 1.0,
       "defense_mult": 1.0,
@@ -473,7 +473,7 @@
       "weakness_rank": 1,
       "cleared_by": [],
       "fx": "none",
-      "_note": "FOODFX spec 32 s9: a hot meal's condition status. Spec 32 forbids inventing universal temperature-resistance percentages where the original formulas are unverified, so it carries no modifier until the climate system reads it."
+      "_note": "FOODFX spec 32 s9: a hot meal's condition status. Spec 32 forbids inventing universal temperature-resistance percentages where the original formulas are unverified, so it carries no modifier until the climate system reads it. FOODCAT: stacks carry the catalog level (Hot Food Lv1-Lv4 on the mapped meals); max 4 = the highest level the catalog uses. Levels change no number yet."
     },
     {
       "id": "cold_food",
@@ -488,7 +488,37 @@
       "weakness_rank": 1,
       "cleared_by": [],
       "fx": "none",
-      "_note": "FOODFX spec 32 s9: a cold drink's condition status. No invented temperature percentage (spec 32 s9)."
+      "_note": "FOODFX spec 32 s9: a cold drink's condition status. No invented temperature percentage (spec 32 s9). FOODCAT: stacks carry the catalog level; the only mapped cold food (Shaved Ice, catalog 'Cold Food Lv60') reads Lv60 as the evaluation level, so it applies Lv1. # ASSUMPTION"
+    },
+    {
+      "id": "vigor",
+      "display_name": "Vigor",
+      "dps": 0.0,
+      "duration": 600.0,
+      "max_stacks": 2,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "weakness_rank": 1,
+      "cleared_by": [],
+      "fx": "none",
+      "_note": "FOODCAT: the fan catalog's 'Vigor Lv1/Lv2' (dried persimmon, cakes, samgyetang; docs/reference/durango-food-catalog-level60.csv). The catalog names it but gives no effect, so it carries none (no invented numbers). Stacks = catalog level. 10 min is # ASSUMPTION."
+    },
+    {
+      "id": "poisoned",
+      "display_name": "Poisoned",
+      "dps": 0.2,
+      "duration": 300.0,
+      "max_stacks": 4,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "weakness_rank": 4,
+      "cleared_by": [],
+      "fx": "tint_sick",
+      "_note": "FOODCAT: the fan catalog's raw Mushroom 'Poisoned Lv4' (spec 32 s9 'some raw food may inflict ... poison'). Survivor food poisoning, distinct from the creature-only poisoned_target. 0.2 HP/s per level and 5 min copy Stomachache's numbers: # ASSUMPTION, not a catalog figure."
     }
   ]
 }

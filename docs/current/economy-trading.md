@@ -32,7 +32,8 @@ There is no selling, no vendor NPC and no trade with other survivors in client c
 flag on materials is removed by cargo warp, not by selling.
 
 ## Market data — `game/data/world/market.json`
-Data only. **No market UI, listing flow, order book or price engine exists on this line.** The
+Data only for the client. **No market UI exists on this line**; the server-side market engine
+(below, "Island Market engine") prices from its own `game/data/economy/` files, not this one. The
 file is read by one test (`game/tests/t_data.gd`) that checks every item's `market_category`
 against the base-price table; the game loader (`game/scripts/core/data.gd`) does not load it. All
 "market" references in scripts are forward-looking comments (item origin `market`, `ItemDef.
@@ -63,8 +64,24 @@ the loader loads neither file.
 - Objectives pay XP and T-stones automatically when their step completes (`Objectives.settle`).
 - The camp cargo warp moves unstable goods into home cargo for the flat fee above; a full cargo
   basket accepts nothing and the fee is not charged.
-- The server-side intent set has wallet-shaped ops (`char.wallet`, `act.deposit`, `char.receive`,
-  `char.settled` in `game/scripts/server/intent_handlers.gd`) that mirror an economy vault; there
-  is no vault, ledger or trade transport in this repo — see [server-contract.md](server-contract.md).
+- The Island Market engine (below) moves T-stones and items between server characters.
 - Cargo and storage capacity, which bound what can be traded at all, are in
   [inventory-bags.md](inventory-bags.md).
+
+## Island Market engine (online only) — `game/scripts/economy/`
+Server-side and in-process, like `game/scripts/server/` (no transport, no host). Nothing in the
+live single-player game calls it: offline play has no market. Entry points:
+- `EconStore` (journal + snapshots under a data dir) wraps `MarketEngine` (ledger, fixed listings,
+  auctions, buy orders, Settlers NPC orders flagged `npc: true`, price history, search).
+- `VaultBridge` is the only path between a server character (`CharacterStore`) and the books:
+  `client(op, account, args, ts)` is the one relay for client frames; `vault.deposit` /
+  `vault.withdraw` run `act.deposit` / `char.receive` / `char.grant` (all server-only ops) under a
+  `bridge.begin` mark, and `recover()` finishes or undoes a cut move at boot or right after a fault.
+- Money rules (`game/data/economy/market_rules.json`): starting wallet 20, all bound
+  (`starting_wallet_bound`); objective rewards are bound and fire only from the server
+  (`objective.claim` is a system op); bound T-stones pay sinks (listing fees, `wallet.spend`), never
+  buys, bids or order escrow; `trade_lock_s` 1800 from account creation (wall clock, `# ASSUMPTION`).
+- Deposit whitelist (`game/data/economy/limits.json`): attributes, flags (`raw`, `poisoned`,
+  `repacked`, `flawless`; `locked` and `unstable` refused), instance fields, per-def caps.
+- Tests: `game/tests/t_econ.gd` (both stores, fuzz, crash recovery) and `economy_tests.gd` (run by
+  `run_all.gd`).

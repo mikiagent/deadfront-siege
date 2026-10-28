@@ -127,7 +127,8 @@ static func can_eat(player: Player, stack: ItemStack) -> String:
 		return "full"
 	return ""
 
-## The raw-food roll alone: &"stomachache", &"tastes_bad" or &"". Seed `rng` to reproduce it.
+## The raw-food roll alone: the bundle's risk status (&"stomachache" unless it names another, e.g.
+## &"poisoned"), &"tastes_bad" or &"". Seed `rng` to reproduce it.
 static func raw_risk_roll(stack: ItemStack, rng: RandomNumberGenerator = null) -> StringName:
 	if stack == null or not is_raw(stack):
 		return &""
@@ -136,7 +137,7 @@ static func raw_risk_roll(stack: ItemStack, rng: RandomNumberGenerator = null) -
 	var poison_p := float(bundle.get("poison_chance", d.poison_chance if d else 0.0))
 	var bad_p := float(bundle.get("tastes_bad_chance", d.tastes_bad_chance if d else 0.0))
 	if is_poisoned(stack) or (poison_p > 0.0 and _roll(rng) < poison_p):
-		return &"stomachache"
+		return FoodEffects.risk_status(bundle)
 	if bad_p > 0.0 and _roll(rng) < bad_p:
 		return &"tastes_bad"
 	return &""
@@ -144,7 +145,9 @@ static func raw_risk_roll(stack: ItemStack, rng: RandomNumberGenerator = null) -
 static func apply_raw_risks(player: Player, stack: ItemStack, rng: RandomNumberGenerator = null) -> StringName:
 	var hit := raw_risk_roll(stack, rng)
 	if hit != &"" and player and player.statuses:
-		player.statuses.apply(hit, player)
+		# The catalog level ("Lv4") is the status's stacks; tastes_bad has no level.
+		var level := int(FoodEffects.entry_for(stack.def_id).get("risk_level", 1)) if hit != &"tastes_bad" else 1
+		player.statuses.apply(hit, player, maxi(1, level))
 		print("[food] %s from %s" % [hit, stack.def_id])
 	return hit
 

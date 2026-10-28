@@ -9,8 +9,10 @@ extends RefCounted
 # ASSUMPTION: error codes beyond contract §2 (out_of_range, depleted, missing_tool, bag_full,
 # not_ready) are new stable strings for intents; the orchestrator adds them to the contract.
 
-const CLIENT_OPS := ["act.gather", "act.loot", "act.craft", "act.place", "act.equip", "act.eat", "act.tame", "act.capture", "act.attack", "act.deposit", "char.import", "char.get"]
-const SYSTEM_OPS := ["char.create", "char.move", "char.wallet", "char.receive", "char.settled"] ## the server itself, never relayed from a client
+const CLIENT_OPS := ["act.gather", "act.loot", "act.craft", "act.place", "act.equip", "act.eat", "act.tame", "act.capture", "act.attack", "char.import", "char.get"]
+## The server itself, never relayed from a client. act.deposit runs only inside VaultBridge
+## (clients send vault.deposit), so an asset never leaves a character without a vault to take it.
+const SYSTEM_OPS := ["char.create", "char.move", "char.wallet", "char.receive", "char.settled", "char.grant", "act.deposit"]
 const READ_OPS := ["char.get"]
 const GATHER_REACH := PlayerInput.INTERACT_GATHER_RANGE ## 2.6 m, the client's own gather reach
 const LOOT_REACH := 2.6 ## Player corpse reach
@@ -31,7 +33,7 @@ const ARG_KEYS := {
 	"act.tame": ["net_id", "food"], "act.capture": ["net_id"], "act.attack": ["net_id"],
 	"act.deposit": ["bag_slot", "count", "pet_uid", "slot_dict", "pet_dict", "item", "pet", "stack", "asset", "save", "bag", "pets"],
 	"char.import": [], "char.get": [], "char.create": ["name"], "char.move": ["p", "reset"],
-	"char.wallet": ["wallet"], "char.receive": ["asset"], "char.settled": ["uid"],
+	"char.wallet": ["wallet"], "char.receive": ["asset"], "char.settled": ["uid"], "char.grant": ["asset"],
 }
 
 var world: WorldFacade
@@ -77,6 +79,7 @@ func run(op: String, ch: CharacterState, a: Dictionary) -> Dictionary:
 		"char.wallet": return _wallet(ch, a)
 		"char.receive": return _receive(ch, a)
 		"char.settled": return _settled(a)
+		"char.grant": return _grant(ch, a)
 	return no("bad_request", "unknown op %s" % op)
 
 # --- intents -----------------------------------------------------------------------------
@@ -514,7 +517,7 @@ func _deposit(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var taken := inv.remove_at(int(i), mini(int(n), int(row.count)))
 	var asset := taken.to_dict()
 	if taken.count >= int(row.count):
-		Provenance.stamp(asset, str(row.uid), str(row.origin), int(row.seq))
+		asset = (row as Dictionary).duplicate(true) # the instance itself: every field it carries leaves with it
 	else:
 		Provenance.stamp(asset, Provenance.item_uid(seq, 0), str(row.origin), seq) # a part gets a new uid
 	ch.commit(inv, str(row.origin), seq)
@@ -567,7 +570,8 @@ func _wallet(ch: CharacterState, a: Dictionary) -> Dictionary:
 ## char.receive {asset}: the economy hands back an asset act.deposit exported (a vault that
 ## refused it, or a withdrawal). Only the exact body act.deposit recorded under that uid comes
 ## back, once. Economy-minted assets (market, settlers, objective) have no entry: see the report.
-# shortcut: an item that lands in a new stack gets a fresh uid (merged units take the stack's, as everywhere).
+## An item that lands as its own row is the exported body again, uid and seq included (W2-INV:
+## every material is an instance); units that merge into a stack take that stack's, as everywhere.
 func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var asset: Variant = a.get("asset")
 	if not Provenance.is_server(asset):
@@ -579,9 +583,10 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 				return no("conflict", "pet %s is already held" % uid)
 	if str(s.exported_assets.get(uid, "")) != CharacterStore.canon(asset):
 		return no("invalid_asset", "%s is not an asset this server exported (or it was edited)" % uid)
-	if uid.begins_with("p"):
+	if uid.begins_with("p"): # the roster cap is VaultBridge's: a refused deposit coming back is no new bond
 		s.exported_assets.erase(uid)
 		ch.d.pets[uid] = (asset as Dictionary).duplicate(true)
+		ch.d.pets[uid].owner = str(account) # a bought pet answers to its new owner; tamer keeps the lineage
 		s.pets_exported = int(s.pets_exported) - 1
 		return ok({"kind": "pet", "pet_uid": uid})
 	var stack := ItemStack.from_dict(Provenance.strip(asset))
@@ -593,8 +598,39 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return no("bag_full", "no room for %s" % stack.def_id)
 	s.exported_assets.erase(uid)
 	var uids := ch.commit(inv, str(asset.origin), seq)
+	var row := ch.find_uid(uids[0]) if uids.size() == 1 else -1
+	if row >= 0 and int(ch.d.bag[row].count) == n: # landed as its own row: the same instance comes home
+		ch.d.bag[row] = (asset as Dictionary).duplicate(true) # the exact body act.deposit recorded
+		uids = [uid]
 	count("exported", stack.def_id, -n)
 	return ok({"kind": "item", "item": str(stack.def_id), "count": n, "uids": uids})
+
+## char.grant {asset}: units the economy split off an export (a partial buy, a part listing,
+## an order fill, the seller's remainder, part of a stack) come home. Server-only: VaultBridge
+## calls it after the vault let go of those units, so they count as exported units coming back,
+## like char.receive, and never more than are out: the grant cannot mint.
+func _grant(ch: CharacterState, a: Dictionary) -> Dictionary:
+	var asset: Variant = a.get("asset")
+	if not asset is Dictionary or str((asset as Dictionary).get("uid", "")).begins_with("p"):
+		return no("bad_request", "asset must be an item stack")
+	var stack := ItemStack.from_dict(Provenance.strip(asset))
+	if stack.def() == null or stack.count < 1 or stack.count > stack.def().stack_max:
+		return no("invalid_asset", "not a valid stack")
+	var n := stack.count
+	if int(s.exported.get(str(stack.def_id), 0)) < n:
+		return no("invalid_asset", "only %d %s are out in the economy" % [int(s.exported.get(str(stack.def_id), 0)), stack.def_id])
+	var inv := ch.inventory()
+	if inv.add(stack) > 0:
+		return no("bag_full", "no room for %s" % stack.def_id)
+	var origin := str(asset.get("origin", ""))
+	var uids := ch.commit(inv, origin if origin in Provenance.ORIGINS else "market", seq)
+	var row := ch.find_uid(uids[0]) if uids.size() == 1 else -1
+	if row >= 0 and int(ch.d.bag[row].count) == n: # its own row: the part keeps every per-instance field escrow kept (creator, created_at, ...)
+		for k: String in asset:
+			if not (ch.d.bag[row] as Dictionary).has(k):
+				ch.d.bag[row][k] = asset[k]
+	count("exported", stack.def_id, -n)
+	return ok({"item": str(stack.def_id), "count": n, "uids": uids})
 
 ## char.settled {uid}: the vault bridge reports that the economy kept an exported asset for
 ## good (sold, consumed). It can never come back, so its exported_assets record is dropped and

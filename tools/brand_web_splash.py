@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replace Godot's generic web splash with DEADFRONT mobile-first branding."""
+"""Replace Godot's generic web splash with WildLands MMO mobile-first branding."""
 from pathlib import Path
 import sys
 
@@ -39,10 +39,10 @@ css = r'''
 '''
 brand = r'''
 <div id="deadfront-brand">
-  <div id="deadfront-mark">D</div>
+  <div id="deadfront-mark">W</div>
   <div id="deadfront-kicker">SURVIVE THE RIFT</div>
-  <h1 id="deadfront-title">DEADFRONT</h1>
-  <div id="deadfront-subtitle">DURANGO PROTOCOL</div>
+  <h1 id="deadfront-title">WILDLANDS</h1>
+  <div id="deadfront-subtitle">MMO</div>
   <div id="deadfront-rule"></div>
   <div id="deadfront-loading"><span>Preparing the island</span><span>Stay alive</span></div>
 </div>
@@ -52,6 +52,6 @@ needle = '<img id="status-splash" class="show-image--true fullsize--true use-fil
 if needle not in html:
     raise SystemExit("Godot splash image hook not found")
 html = html.replace(needle, needle + brand, 1)
-html = html.replace("<title>Durango-like (working title)</title>", "<title>DEADFRONT · Durango Protocol</title>", 1)
+html = html.replace("<title>Durango-like (working title)</title>", "<title>WildLands MMO</title>", 1)  # older exports still carry the old name
 path.write_text(html)
-print("branded DEADFRONT web splash")
+print("branded WildLands MMO web splash")

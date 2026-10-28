@@ -75,7 +75,7 @@
             "save-schema"
           ],
           "source": "docs/design/islands-and-loop-plan.md",
-          "note": "Generator landed; confirm its gates (0 dry tiles outside the walkable grid, camp within 40 m of the dock) before marking done."
+          "note": "SHAPEGATES measured on the current generator: rivers break into dry stretches (head, camp disc, beach) and heads sit on lowland. Folded into country-islands."
         },
         {
           "id": "climate-material-base",
@@ -325,6 +325,38 @@
           ],
           "source": "docs/design/islands-and-loop-plan.md",
           "note": "Vision §1: the first tame is earned through open-world discovery, not a scripted award; the capture step must respect that."
+        },
+        {
+          "id": "material-appearance",
+          "title": "Material appearance data: wood species with a natural colour identity and per-log variation, a separate dimension from level and traits",
+          "status": "next",
+          "depends": [
+            "instance-inventory",
+            "gather-stacks"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": "Owner spec 35 (2026-10-28). Species palette + instance appearance carried from the tree you cut. Additive item-instance field: save gate for Milan if old saves change."
+        },
+        {
+          "id": "crafted-tint",
+          "title": "Crafted items take their look from the chosen materials: preview colour before crafting, per-part ingredient control (no averaging)",
+          "status": "later",
+          "depends": [
+            "material-appearance",
+            "craft-outcomes"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": "Major visual direction: blind A/B in front of Milan before merging."
+        },
+        {
+          "id": "material-inspect",
+          "title": "Inspect panel: species, colour family, grain swatch next to level and the grey/yellow/green trait boxes",
+          "status": "later",
+          "depends": [
+            "material-appearance"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": ""
         }
       ]
     },
@@ -390,6 +422,16 @@
           ],
           "source": "docs/design/durango-prompts/32_food_drink_consumption_effects.md",
           "note": "FOODFX dc850762: instant vs digested Energy, buff slots, drinks, bad food, taste."
+        },
+        {
+          "id": "food-catalog",
+          "title": "Food catalog and effects: map the owner's Durango L60 food sheet onto our foods, every effect type working through FOODFX",
+          "status": "done",
+          "depends": [
+            "food-effects"
+          ],
+          "source": "docs/design/durango-prompts/32_food_drink_consumption_effects.md",
+          "note": "FOODCAT merged e0c6ddd6: 34 foods mapped (6 new), every catalog effect type works through FOODFX, catalog numbers scaled into our ranges (energy_k, fatigue_k, health_k ASSUMPTION, editable in the owner sheets)."
         },
         {
           "id": "survival-pacing",
@@ -480,7 +522,7 @@
             "instance-inventory"
           ],
           "source": "docs/design/durango-prompts/02_dinosaur_taming_and_companions.md",
-          "note": "Owner 2026-10-19: tames repackage into cages to sell, cages can be released as wild fights, mob and player caps per area."
+          "note": "Owner 2026-10-19: tames repackage into cages to sell, cages can be released as wild fights, mob and player caps per area. ECON trades pets as pet records today; switch the market to caged items here."
         },
         {
           "id": "stagger-meter",
@@ -545,6 +587,16 @@
           "note": "Owner yes: wild dinosaurs attack blocking structures. Branch claude/mmo-w2-eco is early."
         },
         {
+          "id": "creature-natures",
+          "title": "Creature natures: Timid, Brave, Aggressive, Loyal, Stubborn, Docile change wild and companion AI and taming, shown in the name",
+          "status": "next",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": "Owner 2026-10-28 (Durango named variants like Timid/Alpha Raptor). Layers on ai.json temperaments; behaviour and data only. In progress on claude/mmo-natures; PetRecord gains an additive nature field."
+        },
+        {
           "id": "creature-art",
           "title": "Creature art queue: Triceratops mesh, Stegosaurus v2 shown, Deinonychus rebuild",
           "status": "next",
@@ -570,6 +622,16 @@
           ],
           "source": "docs/design/islands-and-loop-plan.md",
           "note": "island_shape.gd target_long/short by tier; Tamed Island shape picked from five at creation (ISLANDPICK cdeaeab1)."
+        },
+        {
+          "id": "country-islands",
+          "title": "Country-like islands: long, ragged, Japan/Croatia-style coasts, more and bigger islands; starter stays modest",
+          "status": "next",
+          "depends": [
+            "shape-generator"
+          ],
+          "source": "docs/design/durango-prompts/15_island_map_scale.md",
+          "note": "Owner 2026-10-28. In progress on claude/mmo-islands2, which also fixes the broken river channels SHAPEGATES measured. Saves gate if land moves under saved claims."
         },
         {
           "id": "zone-terrain",
@@ -621,7 +683,7 @@
             "climate-material-base"
           ],
           "source": "docs/design/islands-and-loop-plan.md",
-          "note": "Built on claude/aaa-lighting-grade (filmic tonemap, grade, golden hour, --tod flag) but cut from an old main, not from this line; port it, do not merge it."
+          "note": "LIGHTPORT built on claude/mmo-lightport (9ecf2e2e, gates PASS headless): filmic grade, glow, fog sun scatter, golden hour on canon lighting. Held for a blind A/B with the owner before merge (visual change)."
         },
         {
           "id": "forest-structure",
@@ -690,6 +752,17 @@
           ],
           "source": "docs/design/durango-prompts/15_island_map_scale.md",
           "note": "SAILUI branch passed review 10-21 but predates ISLANDPICK; rebase."
+        },
+        {
+          "id": "building-material-look",
+          "title": "Buildings and prefabs inherit material appearance per part (walls, roofs, floors, doors, fences, beams), kept through pack, trade and redeploy",
+          "status": "later",
+          "depends": [
+            "crafted-tint",
+            "construction-sites"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": "Prefab save rows gain appearance: save gate for Milan. Blind A/B before merge."
         }
       ]
     },
@@ -730,13 +803,13 @@
         {
           "id": "market-system",
           "title": "Regional markets: simulated demand, price = base x level x attributes x regional demand x saturation, listing fee, buy side, animal grades (ECON)",
-          "status": "next",
+          "status": "done",
           "depends": [
             "gather-stacks",
             "cargo-warp"
           ],
           "source": "docs/design/economy.md",
-          "note": "Now first in the merge queue (W2-GATHER landed 8c2f001f). Branch claude/mmo-econ (+44): review r3 blocker (client could send act.deposit), untested WIP fix, contract items unmet. limits.json must whitelist the six trait keys W2-GATHER adds."
+          "note": "ECON merged aa849333 (via econ2): server-side market, auctions, buy orders, ledger, VaultBridge, crash recovery; review r3 closed with mutant-proven tests. Online only. Open: traded pets move as pet records, owner rule says cages (switch with caged-pets); trait-level bound 1..60 is an ASSUMPTION."
         },
         {
           "id": "exchange-ui",
@@ -1025,7 +1098,7 @@
             "items-ladder"
           ],
           "source": "docs/design/durango-prompts/13_inventory_equipment_ui.md",
-          "note": "ICONS2 (65 renders done; armor_scute not deterministic) and CAGEICON (a dinosaur visibly in the cage) on their branches."
+          "note": "ICONS3 merged 2026-10-28: 65 ICONS2 renders landed, 164 of 240 items rendered, armor_scute deterministic; 76 items still unrendered (list in dsc-icons3.md). CAGEICON (a dinosaur visibly in the cage) still open."
         },
         {
           "id": "character-creation",
@@ -1161,6 +1234,83 @@
           "status": "decided-against",
           "depends": [],
           "source": "docs/design/islands-and-loop-plan.md",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "phase": 7,
+      "title": "Hex HUD and screens (UI redesign)",
+      "theme": "The owner-reviewed Durango-style hex HUD and screens: one token set, hex buttons everywhere, gather pie fill with yield cards, a calmer field HUD, and every sheet on shared chrome. Each visual package gets a blind A/B for the owner before merging.",
+      "features": [
+        {
+          "id": "ui-tokens-hex",
+          "title": "Tokens, HexButton extensions (rim, pie fill, grey icon, key hint, orientation flag) and shared chrome helpers (§2, §3, §8)",
+          "status": "next",
+          "depends": [],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "Package 1. Orientation flag defaults to pointy-top until the owner picks."
+        },
+        {
+          "id": "ui-gather-pie",
+          "title": "Gather radial with pie fill, clickable name pills, camera pan, yield card above the node with trait chips, skill-XP left feed (§4, §5)",
+          "status": "later",
+          "depends": [
+            "ui-tokens-hex",
+            "gather-stacks"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "Retires gather_ring.gd (ASSUMPTION: the hex's remaining count shows depletion)."
+        },
+        {
+          "id": "ui-field-hud",
+          "title": "Field HUD: rail collapses into MENU, CLAIM by the minimap, quick slots without counts, XP strip, treadmill visuals (§6)",
+          "status": "later",
+          "depends": [
+            "ui-tokens-hex"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": ""
+        },
+        {
+          "id": "ui-build-row",
+          "title": "Build placement row: ROTATE icon-only, SAVE green check, CANCEL; blueprint drawer as hex tiles (§7 D2)",
+          "status": "later",
+          "depends": [
+            "ui-tokens-hex"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": ""
+        },
+        {
+          "id": "ui-sheets",
+          "title": "Bag, Character, Skills, Craft and material placement sheets on the shared chrome (§7 C1-C3, D1, D3)",
+          "status": "later",
+          "depends": [
+            "ui-tokens-hex",
+            "inventory-screens"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "Builds on the inventory-screens package."
+        },
+        {
+          "id": "ui-world-screens",
+          "title": "Domain, World Atlas, Communication (separate screen) and Animals restyles (§7 E1, F1-F3)",
+          "status": "later",
+          "depends": [
+            "ui-tokens-hex"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "Animals uses the 3->7 bonded rule (owner, spec 09); the code header's 'three active' is outdated."
+        },
+        {
+          "id": "ui-party-frames",
+          "title": "Party frames with a leader crown (layout only until a party system exists)",
+          "status": "later",
+          "depends": [
+            "net-core"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
           "note": ""
         }
       ]

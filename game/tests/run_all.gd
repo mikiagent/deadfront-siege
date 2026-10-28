@@ -57,6 +57,8 @@ func _process(_delta: float) -> bool:
 	_test_multistack_crafting()
 	_test_process_stations()
 	_test_comm_center_registration()
+	var econ := load("res://tests/economy_tests.gd") as GDScript # needs Data, so after the first frame
+	failures.append_array(econ.new().run() if econ != null and econ.can_instantiate() else ["econ: economy_tests.gd does not compile"])
 	_finish()
 	return true
 
