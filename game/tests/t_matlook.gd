@@ -83,7 +83,8 @@ func _test_species_table() -> void:
 		if ML.species_for(str(fam), "") == "":
 			unmapped.append(str(fam))
 	_expect(kinds > 0 and unmapped.is_empty(), "every tree kind in nature_manifest maps to a species (%d kinds, unmapped: %s)" % [kinds, ", ".join(unmapped)])
-	# And the reverse: a mapped kind that the manifest does not have is dead weight.
+	# And the reverse: a mapped kind that the manifest does not have is dead weight (a stump is a
+	# prop, not a tree, but it drops wood_log and is mapped on purpose).
 	var ghosts: PackedStringArray = []
 	for fam: Variant in ML.tree_kinds():
 		if not (DATA.get("nature_families") as Dictionary).has(str(fam)):
@@ -117,6 +118,7 @@ func _test_tree_gather() -> void:
 	_expect(snow.get("species", "") == "snow_pine" and ML.validate(snow) == "", "PineTree_Snow is snow pine (%s)" % str(snow))
 	var unset: String = ML.species_for("Willow_Dead", "swamp")
 	_expect(unset == "willow", "a dead tree keeps its kind's species (%s)" % unset)
+	_expect(ML.species_for("tree_stump", "") == "oak", "a lone stump's wood_log gets the default wood (%s)" % ML.species_for("tree_stump", ""))
 	node.free()
 	# Only wood drops get a look: a bush's berries are not wood.
 	var bush = NODE.instantiate()
