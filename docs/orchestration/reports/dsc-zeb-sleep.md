@@ -34,13 +34,23 @@ where the Tripo skin binds sole vertices partly to `Shoulders`/`Back` (see below
   to poke through the belly.
 - `--ignore Jaw,Head` hides the head and mouth, which move by design.
 
-## feed.glb
+## feed.glb (kept unchanged)
 
-Left as it is. It is under the 300 gate (261) and its worst edges are the same paw/ankle seam
-(`BackFoot.L=44`, `BackFoot.R=39`, `FrontFoot.R=37`, `FrontFoot.L=33`) plus a `Neck` bend from bobbing
-its head down to eat. Bringing it under 120 with the sleep recipe would mean re-authoring the whole
-eating motion (head to the ground, step-through) rather than a pose change, which is outside this task;
-the number is recorded here so the next agent can pick it up.
+Measured 261 (worst frame 41); the task said keep it unless over2 could be brought under 120 "the same
+way". It cannot: the same 2 mm paw/ankle seam is the floor. `work/sleep/feed_damp.py` damps the
+Neck/Head rotation frame by frame and re-scores the real mesh:
+
+| Neck/Head rotation scale | over2 (worst frame) |
+|---|---|
+| 1.0 (shipped) | 268 |
+| 0.7 | 224 |
+| 0.5 | 212 |
+| 0.35 | 212 |
+
+Past 0.5 the count stops falling — the remainder is `BackFoot.L/R` (86-88 edges) moving over the body,
+which damping the neck cannot fix. Reaching 120 would mean re-authoring the eating motion (paws pinned
+and the whole body stepping through the lunge) rather than a pose tweak, and feed is already inside the
+300 gate, so feed.glb and feed.glb.import are untouched.
 
 ## Renders (judged by eye)
 
