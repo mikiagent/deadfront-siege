@@ -79,6 +79,38 @@ No new UI widget.
 - No balance numbers were tuned: chance bases, 30 % threshold, 50 % hint point all as they were / as the
   spec names them.
 
-## Shots
+## Lab (visual gate)
 
-See `.dsc/NOTES.md` for the capture_lab PNG paths and the one-line verdicts.
+`game/scripts/dev/capture_lab.gd` now runs its demo in every mode, checks the rule on live scene
+creatures, saves shots into `--shot-dir` and prints one measured line. Windowed at 1600x900 and
+844x390 (`--rendering-method gl_compatibility`), no SCRIPT/SHADER ERROR:
+
+```
+[capture09] RESULT window_stun80=1 window_hp30=1 window_hp31=0 hp_stun80=80 hp_hp30=30 hp_hp31=31
+  chance_stun80=0.24 chance_hp20=0.45 dot_skips_stun80=1 net_label=1 hint_fires=1 hint_text=1
+  hint_above50=0 shot_hp=82 shot_window=1 refusal_text=1 ui_min_px=72 shots=2
+```
+
+Shots (paths and verdicts in `.dsc/NOTES.md`):
+
+- `capture09_01_stunned_80_hp_net_ready_1600x900.png` — raptor held in knockdown at 82 % HP, plate shows
+  the status, NET hex lit. The spec-09 case is visible on the real HUD.
+- `capture09_02_refused_unstunned_1600x900.png` — same animal unstunned at 70 %: NET greyed, notice
+  "Stun it or weaken it to 30% health to capture it."
+- `…_844x390.png` pair — landscape phone: NET hex 72 px inside the safe area, plate and wheel legible.
+
+Note: the runner's gate reported `HEADLESS_ONLY` for stage 2 in this session, so these windowed runs were
+done by hand with the same command the gate uses; the integrator should re-run stage 2 where a window is
+allowed.
+
+## Verified
+
+- `bash .../verify_job.sh capture09` stage 1: PASS. Stage 2 (lab) run by hand: PASS at both resolutions.
+- Tests: t_capture09 PASS; t_tame PASS; t_combat PASS; t_srvdom PASS.
+- Lab headless (`--lab=capture_lab`): `[capture] PASS bonded+=2` with the five new rule checks.
+
+## Remaining
+
+- `run_all.gd` boundary lines (see "What the integrator must do").
+- Server `act.capture` still computes the chance inline rather than via `CaptureSystem.chance_for`;
+  same formula, left alone to keep the diff small.
