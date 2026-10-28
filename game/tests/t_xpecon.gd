@@ -277,6 +277,12 @@ func _test_build_xp() -> void:
 	print("[t_xpecon] basket beside the aged twin: construction +%.0f character +%d" % [float(again["sxp"]), int(again["wxp"])])
 	_expect(bool(again["ok"]), "the aged-window basket places")
 	_expect(int(again["sxp"]) == int(_cfg.get("build_repeat", 8)), "the same kit beside a twin older than 60 s pays the repeat +%d (got %.0f)" % [int(_cfg.get("build_repeat", 8)), float(again["sxp"])])
+	# The tank is per kind: another kind right beside the basket is not spam.
+	var fence_cell := _free_cell(&"fence", first["pos"] as Vector3, 0.0, 2.0)
+	var fence := _build_once(&"fence", fence_cell)
+	print("[t_xpecon] fence beside the basket: construction +%.0f character +%d" % [float(fence["sxp"]), int(fence["wxp"])])
+	_expect(bool(fence["ok"]), "the fence places")
+	_expect(int(fence["sxp"]) == int(_cfg.get("build_first", 30)), "the spam rule is per kind: a fence beside a basket pays first-of-kind +%d (got %.0f)" % [int(_cfg.get("build_first", 30)), float(fence["sxp"])])
 	# A different kit is first-of-kind again.
 	var sign := _build_once(&"sign", _free_cell(&"sign"))
 	print("[t_xpecon] first sign: construction +%.0f character +%d" % [float(sign["sxp"]), int(sign["wxp"])])
