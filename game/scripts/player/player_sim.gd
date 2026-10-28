@@ -206,7 +206,7 @@ func _walk(delta: float) -> void:
 		_wet_acc += delta
 		var need := float(Data.world_rules.get("wet_after_seconds_in_water", 5))
 		if _wet_acc >= need:
-			p.statuses.apply(&"wet", null)
+			WorldWeather.soak(p, 3)  # in the water: soaked through
 			_wet_acc = need - 1.0  # keep refreshing while in water, once a second rather than every frame
 	else:
 		_wet_acc = 0.0

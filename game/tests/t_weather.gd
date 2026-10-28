@@ -87,6 +87,7 @@ func _run() -> void:
 	_expect(float(m.get_shader_parameter("heat")) == 0.0 and float(m.get_shader_parameter("cold")) == 0.0 and _w.pending.is_empty(), "rain: no heat, cold or lightning")
 
 	_test_rain_modes(WW)
+	await _test_wet(WW)
 
 	WW.forced = &"storm"
 	var flashes: Array = []
@@ -101,6 +102,8 @@ func _run() -> void:
 	var on_t := func (d: float) -> void: claps.append([clock[0], d])
 	_w.lightning.connect(on_l)
 	_w.thunder.connect(on_t)
+	WW.soak(_player, 3)  # the storm keeps her wet: her drips emitter is there before the count
+	await process_frame
 	await process_frame
 	var nodes0 := Performance.get_monitor(Performance.OBJECT_NODE_COUNT)
 	var lit := false
@@ -312,3 +315,60 @@ func _test_rain_modes(WW: GDScript) -> void:
 		var mm: StringName = _w.roll_mode("tropical")
 		counts[mm] = int(counts.get(mm, 0)) + 1
 	_expect(counts.size() == 3 and int(counts[&"pour"]) > int(counts[&"drizzle"]), "per-climate mode weights: the tropics pour more than they drizzle (%s)" % counts)
+
+## Wet (owner 2026-10-28: "an effect for wetness" like bleed and poison): rain soaks her by mode, she dries
+## faster by a burning fire and in heat than in the open, a blue (never green) box and drips show while wet.
+func _test_wet(WW: GDScript) -> void:
+	var st = _player.statuses
+	var got := {}
+	for mode in [&"drizzle", &"rain", &"pour"]:
+		st.clear_id(&"wet")
+		WW.forced = mode
+		_sim(2.5)
+		var inst = st.get_instance(&"wet")
+		got[mode] = inst.stacks if inst else 0
+	_expect(got[&"drizzle"] == 1 and got[&"rain"] == 2 and got[&"pour"] == 3, "rain soaks by mode: drizzle 1, rain 2, pour 3 stacks (%s)" % got)
+	var def = root.get_node("Data").status(&"wet")
+	var tokens: GDScript = load("res://scripts/ui/ui_tokens.gd")
+	var c: Color = tokens.WET
+	_expect(def.kind == &"effect" and def.fx_icon == &"water_drop" and def.fx_particles == &"water" and def.desc != "", "Wet is an effect box: water_drop icon, water drips, a tooltip line")
+	_expect(c.b > c.g + 0.1 and c.b > c.r + 0.3 and def.fx_color.is_equal_approx(c), "Wet is water blue, not green (%s)" % c.to_html(false))
+	await process_frame
+	await process_frame
+	var sfx = _hud._status_fx
+	_expect(sfx.boxes.has(&"wet") and sfx.emitters.has(&"wet") and is_instance_valid(sfx.emitters[&"wet"]), "wet: a box beside her and drips on her")
+	sfx.pinned = &"wet"
+	_hud.queue_redraw()
+	await process_frame
+	_expect(sfx.tip_rect.has_area(), "a press on the Wet box opens its tooltip")
+	sfx.pinned = &""
+	WW.forced = &"clear"
+	var fires: Array = get_nodes_in_group("bonfire").filter(func (n: Node) -> bool: return n.burning())
+	var fire = fires[0] if not fires.is_empty() else null
+	var home: Vector3 = _player.global_position
+	var times := {}
+	for how in ["open", "heat", "fire"]:
+		st.clear_id(&"wet")
+		WW.soak(_player, 3)
+		_w.rain_amount = 0.0
+		var hot := 1.0 if how == "heat" else 0.0
+		if how == "fire" and fire:
+			_player.global_position = fire.global_position + Vector3(2.5, 0.0, 0.0)
+		var t := 0.0
+		while st.has(&"wet") and t < 400.0:
+			st._process(0.25)
+			_w.dry(_player, 0.25, hot)
+			t += 0.25
+		times[how] = t
+		_player.global_position = home
+	print("[t_weather] seconds to dry a soaked survivor: %s (fire %s)" % [times, fire])
+	_expect(fire != null, "a burning fire on the home island (the camp's)")
+	_expect(times["open"] >= 150.0 and times["heat"] < times["open"] * 0.5 and times["fire"] < times["open"] * 0.5, "dries faster by a fire and in heat than in the open (%s)" % times)
+	await process_frame
+	await process_frame
+	_expect(not sfx.boxes.has(&"wet") and not sfx.emitters.has(&"wet"), "dry: the box and the drips are gone")
+	var cold_dry: Vector2 = WW.temp_targets(_player, "tundra", &"night")
+	WW.soak(_player, 1)
+	var cold_wet: Vector2 = WW.temp_targets(_player, "tundra", &"night")
+	st.clear_id(&"wet")
+	_expect(cold_wet.y > cold_dry.y and is_equal_approx(_player.statuses.cold_fatigue_mult(), 1.0), "wet makes the cold bite harder (%.2f -> %.2f)" % [cold_dry.y, cold_wet.y])

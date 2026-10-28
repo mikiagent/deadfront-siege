@@ -179,8 +179,10 @@ func tick(rt: IslandRuntime, delta: float) -> void:
 		# Refresh once a second, not every frame, so the status log and its bookkeeping stay quiet.
 		_wet_refresh -= delta
 		if _wet_refresh <= 0.0 or not p.statuses.has(&"wet"):
-			p.statuses.apply(&"wet", null)
+			soak(p, rain_level())
 			_wet_refresh = 1.0
+	elif p:
+		dry(p, delta, heat)
 	if _rain_fx:
 		if raining and p:
 			_rain_fx.global_position = p.global_position + Vector3(0, 10, 0)
@@ -203,6 +205,40 @@ func tick(rt: IslandRuntime, delta: float) -> void:
 			var fatigue_cfg: Dictionary = Data.world_rules.get("fatigue", {}) as Dictionary
 			p.vitals.breakdown_window_s = float(fatigue_cfg.get("breakdown_window_s", 180.0))
 			p.vitals.level_gap_mult = ProgressionScaling.fatigue_level_factor(zone_level, char_level, fatigue_cfg)
+
+## Wet her to `level` stacks (drizzle 1, rain 2, pour or water 3): never drier than she is, timer full.
+static func soak(p: Player, level: int) -> void:
+	if p == null or p.statuses == null or level <= 0:
+		return
+	var inst := p.statuses.get_instance(&"wet")
+	if inst == null:
+		p.statuses.apply(&"wet", null, mini(level, 3))
+		return
+	inst.stacks = maxi(inst.stacks, mini(level, 3))
+	inst.time_left = Data.status(&"wet").duration
+
+## Out of the rain she dries a stack per Wet duration (the status's own timer), faster within
+## drying.fire_m of a burning fire and in heat; the last stack's end clears it.
+func dry(p: Player, delta: float, heat_now: float) -> void:
+	var inst := p.statuses.get_instance(&"wet") if p.statuses else null
+	if inst == null:
+		return
+	var mult := drying_mult(p, heat_now)
+	inst.time_left -= delta * (mult - 1.0)  # StatusEffects already takes delta off
+	if inst.time_left <= 0.5 + delta * mult and inst.stacks > 1:  # before StatusEffects ends the whole instance
+		inst.stacks -= 1
+		inst.time_left = Data.status(&"wet").duration
+
+## How many times faster than in the open she dries now (rules.json weather.drying).
+func drying_mult(p: Player, heat_now: float) -> float:
+	var d: Dictionary = _cfg.get("drying", {}) as Dictionary
+	var m := 1.0 + float(d.get("heat_mult", 3.0)) * clampf(heat_now, 0.0, 1.0)
+	var reach := float(d.get("fire_m", 4.0))
+	for n in p.get_tree().get_nodes_in_group("bonfire"):
+		if n is Bonfire and (n as Bonfire).burning() and (n as Node3D).global_position.distance_to(p.global_position) <= reach:
+			m += float(d.get("fire_mult", 4.0))
+			break
+	return m
 
 ## The climate's chance of `kind` ("rain" per check, "storm" per rain spell), 0 when it lists none.
 func chance(climate: String, kind: String) -> float:
@@ -393,7 +429,7 @@ func _shiver() -> void:
 ## ASSUMPTION: severity = the climate's resistance need / 3 (0.4..1), times 0.4 for being there plus 0.6
 ## times the unmet share. Heat shows by day only (climate fatigue charges heat by day); cold shows at any
 ## hour where the climate asks for it, its unmet share only off the day phase (when fatigue charges it).
-## Wet / Quenched cool the heat and sitting by a fire warms the cold, as they scale the fatigue.
+## Wet / Quenched cool the heat, Wet sharpens the cold and sitting by a fire warms it, as they scale the fatigue.
 static func temp_targets(p: Player, climate: String, phase: StringName) -> Vector2:
 	var need := p.climate_needs(climate)
 	var short := p.climate_shortfall(climate)
@@ -407,6 +443,7 @@ static func temp_targets(p: Player, climate: String, phase: StringName) -> Vecto
 	if nc > 0.0:
 		c = clampf(nc / 3.0, 0.4, 1.0) * (0.4 + (0.0 if day else 0.6 * float(short["cold"]) / nc))
 		c *= p.sim.rest.climate_mult("cold") if p.sim else 1.0
+		c *= p.statuses.cold_fatigue_mult()  # Wet: the cold bites harder
 	return Vector2(clampf(h, 0.0, 1.0), clampf(c, 0.0, 1.0))
 
 ## The camera offset the weather asks for at time t (metres): thunder's rumble (scaled by how near the

@@ -154,7 +154,8 @@
       "blue_tropical": {"rain": 1.0, "storm": 0.5}
     },
     "shake_m": {"thunder": 0.12, "heat": 0.012, "shiver": 0.05, "max": 0.15},
-    "shiver_gap_s": [14.0, 28.0]
+    "shiver_gap_s": [14.0, 28.0],
+    "drying": {"_note": "Wet dries a stack per its duration in the open; x(1 + heat_mult x heat) in heat, + fire_mult within fire_m of a burning fire. ASSUMPTION.", "fire_m": 4.0, "fire_mult": 4.0, "heat_mult": 3.0}
   },
   "harbour": {
     "_about": "The harbour stands on the coast (HarbourSite). Its 3x6 footprint's landward row 0 is on land, every cell from dock_from_row to the tip is over water (so the base is within dock_from_row metres of the shoreline), and the tip is at least boat_depth_m below the water line. A pose that breaks this is refused: island build snaps to the nearest legal coast, BuildGrid.can_place answers dock_needs_water / needs_shore. The island json 'harbour' is a hint plus the travel arrival point; t_harbour keeps it on the resolved site.",

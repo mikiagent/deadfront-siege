@@ -22,13 +22,16 @@ extends Resource
 ## Multiplies every fatigue gain while active (PRD 6.4: Dirty 1.2, Clean 0.8); heat_ only heat fatigue.
 @export var fatigue_mult: float = 1.0
 @export var heat_fatigue_mult: float = 1.0
+## WEATHER: Wet makes the cold bite harder (PRD :284) and resting recover slower.
+@export var cold_fatigue_mult: float = 1.0
+@export var rest_mult: float = 1.0
 @export var evasion_add: float = 0.0
 @export var weakness_rank: int = 1
 @export var cleared_by: Array[StringName] = []
 ## The old body hint ("drip_darken", "limp"...): fx.body in statuses.json, or a bare string there.
 @export var fx: StringName = &"none"
 ## STATUSFX: how the status shows on the survivor (StatusFx), all from its statuses.json fx block:
-## the box tint, the white icon id in the box, the particle preset (drip, bubbles, embers, tint, none)
+## the box tint, the white icon id in the box, the particle preset (drip, bubbles, embers, water, tint, none)
 ## and whether its ticks pulse a red screen edge.
 @export var fx_color: Color = Color(0.604, 0.651, 0.678)
 @export var fx_icon: StringName = &""
@@ -56,6 +59,8 @@ static func from_dict(d: Dictionary) -> StatusDef:
 	s.fatigue_per_min = float(d.get("fatigue_per_min", 0.0))
 	s.fatigue_mult = float(d.get("fatigue_mult", 1.0))
 	s.heat_fatigue_mult = float(d.get("heat_fatigue_mult", 1.0))
+	s.cold_fatigue_mult = float(d.get("cold_fatigue_mult", 1.0))
+	s.rest_mult = float(d.get("rest_mult", 1.0))
 	s.evasion_add = float(d.get("evasion_add", 0.0))
 	s.weakness_rank = int(d.get("weakness_rank", 1))
 	s.cleared_by = ItemDef._names(d.get("cleared_by", []))
