@@ -63,7 +63,6 @@ func setup(p: Player, layer: CanvasLayer) -> void:
 	held_slot.equip_requested.connect(_on_equip)
 	held_slot.unequip_requested.connect(_on_unequip)
 	held_slot.gather_requested.connect(player.controls.gather_nearest)
-	held_slot.inventory_requested.connect(player.controls.toggle_inventory)
 	set_process(true)
 
 func reparent_ui(layer: CanvasLayer) -> void:

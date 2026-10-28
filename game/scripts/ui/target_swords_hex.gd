@@ -63,7 +63,8 @@ func _shown_for() -> Creature:
 	if (hud and (hud.sheet_open() or (hud._animal_screen and hud._animal_screen.visible))) or (player.ui and player.ui.visible):
 		return null  # a screen covers the world: E and SIC fall through to it
 	var c := player.controls.selection.current()
-	if c == null or (player.hunt and player.hunt.target == c) or FieldTame.can_attempt(c):
+	# [owner 2026-10-28] swords only out of combat: in a fight a tap on an animal retargets at once.
+	if c == null or (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) or FieldTame.can_attempt(c):
 		return null
 	if player.global_position.distance_to(c.global_position) > PlayerActions.ATTACK_SEEK_RANGE:
 		return null  # the hunt drops past this range, so the swords would start nothing
