@@ -62,6 +62,11 @@ func _run() -> void:
 	rt = world.runtime
 	player = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	host.add_child(player)
+	# FULLFATIGUE: an empty stomach doubles every fatigue gain. Hold her at "normal" (x1.0) with one meal that
+	# never digests, so each status multiplier below is checked alone.
+	var dig = load("res://scripts/items/digestion.gd").of(player)
+	dig.starter_given = true
+	dig.schedule(&"starter", 1.0, 1.0e9)
 	player.global_position = rt._camp_pos + Vector3(0, 1, 0)
 	await _frames(5)
 	var river: Vector3 = _find_shallow(true)

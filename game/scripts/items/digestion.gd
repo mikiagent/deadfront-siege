@@ -34,6 +34,72 @@ static func of(player: Player) -> Digestion:
 func rows() -> Array[Dictionary]:
 	return _rows
 
+## FULLFATIGUE (owner 2026-10-28: "fullness should affect exhaustion"): the stomach model the HUD ring and the
+## fatigue rate share. ASSUMPTION: no satiety meter exists (PRD :72/:1030), so fullness is what still digests:
+## each row's foods.json `fullness` (0-100, cap defaults.caps.fullness) x its undigested Energy share, summed,
+## over the cap. 0 = empty, 1 = a full stomach, above 1 = overfull. Band edges are ASSUMPTION.
+const FALLBACK_FULLNESS := 10.0  ## a digesting food with no foods.json fullness counts as a snack
+const EMPTY_BELOW := 0.1
+const HUNGRY_BELOW := 0.4
+const NORMAL_BELOW := 0.7
+const OVERFULL_ABOVE := 1.0
+const STATES: Array[StringName] = [&"empty", &"hungry", &"normal", &"full", &"overfull"]
+## A new survivor (and an old save with nothing digesting, once) starts with one starter meal digesting so
+## she begins "normal", not "empty" at x2 exhaustion. ASSUMPTION: fullness 60 for 15 min, 1 Energy in all
+## (it reads normal ~5 min, hungry until ~12.5 min, then empty); the flag is saved so it is given once.
+const STARTER_ID := "starter"
+const STARTER_FULLNESS := 60.0
+const STARTER_SECONDS := 900.0
+var starter_given: bool = false
+
+## Seed the starter meal if it was never given and nothing digests. Marks it given either way.
+func seed_starter() -> bool:
+	if starter_given:
+		return false
+	starter_given = true
+	if not _rows.is_empty():
+		return false
+	schedule(StringName(STARTER_ID), 1.0, STARTER_SECONDS)
+	return true
+
+func fullness() -> float:
+	var cap := maxf(1.0, FoodEffects.cap_for("fullness"))
+	var sum := 0.0
+	for row in _rows:
+		var total := float(row.get("total", 0.0))
+		if total <= 0.0:
+			continue
+		var id := str(row.get("def_id", ""))
+		var full := STARTER_FULLNESS if id == STARTER_ID else float(FoodEffects.entry_for(StringName(id)).get("fullness", FALLBACK_FULLNESS))
+		sum += full * clampf(float(row.get("remaining", 0.0)) / total, 0.0, 1.0)
+	return sum / cap
+
+## 0..1: the longest digestion's time left over its digest time (0 when nothing digests).
+func saturation() -> float:
+	var best := 0.0
+	for row in _rows:
+		var secs := float(row.get("seconds", 0.0))
+		var rate := float(row.get("rate", -1.0))
+		if secs > 0.0 and rate > 0.0:
+			best = maxf(best, clampf(float(row.get("remaining", 0.0)) / rate / secs, 0.0, 1.0))
+	return best
+
+static func state_for(f: float) -> StringName:
+	if f > OVERFULL_ABOVE:
+		return &"overfull"
+	if f >= NORMAL_BELOW:
+		return &"full"
+	if f >= HUNGRY_BELOW:
+		return &"normal"
+	if f >= EMPTY_BELOW:
+		return &"hungry"
+	return &"empty"
+
+## The fatigue-gain multiplier for a state: rules.json fatigue.fullness_mult, 1.0 when unset.
+static func fatigue_mult_for(state: StringName) -> float:
+	var table: Variant = (Data.world_rules.get("fatigue", {}) as Dictionary).get("fullness_mult", {})
+	return float((table as Dictionary).get(str(state), 1.0)) if table is Dictionary else 1.0
+
 func total_remaining() -> float:
 	var t := 0.0
 	for r in _rows:
@@ -83,7 +149,7 @@ func tick(player: Player, delta: float) -> float:
 # ---------------------------------------------------------------- persistence
 
 func to_dict() -> Dictionary:
-	return {"rows": _rows.duplicate(true), "next_id": _next_id}
+	return {"rows": _rows.duplicate(true), "next_id": _next_id, "starter_given": starter_given}
 
 func from_dict(raw: Dictionary) -> void:
 	_rows.clear()
@@ -97,3 +163,4 @@ func from_dict(raw: Dictionary) -> void:
 				continue
 			_rows.append(row)
 	_next_id = maxi(1, int(raw.get("next_id", _rows.size() + 1)))
+	starter_given = bool(raw.get("starter_given", false))

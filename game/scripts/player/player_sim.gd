@@ -72,7 +72,11 @@ func tick(delta: float) -> void:
 	var anim := p.anim
 	if p.statuses != null and p.vitals != null:
 		# Before any branch returns, so mounted, rolling and staggered survivors see current statuses.
-		p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult()
+		# FULLFATIGUE (owner 2026-10-28): an empty stomach tires her much faster, a hungry one moderately.
+		var dig := Digestion.of(p)
+		p.vitals.fullness_state = Digestion.state_for(dig.fullness())
+		p.vitals.fullness_mult = Digestion.fatigue_mult_for(p.vitals.fullness_state)
+		p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult() * p.vitals.fullness_mult
 	p.in_water = WaterAccess.in_water(p.global_position)
 	p.swimming = p.in_water and WaterAccess.is_swimming(p.global_position)
 	_tick_swimming(delta)

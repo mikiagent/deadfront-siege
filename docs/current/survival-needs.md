@@ -29,7 +29,26 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
   EXHAUSTED ≥75% of it.
 - Every positive gain multiplies: amount × 0.5 (owner halving, `FATIGUE_ACCUMULATION_MULT`) ×
   statuses' `fatigue_mult` product (and ×0.5 again inside a shelter's `coziness` area) ×
-  `level_gap_mult`. Reductions (`rest`, meals, sleep) are never halved.
+  the stomach factor × `level_gap_mult`. Reductions (`rest`, meals, sleep) are never halved.
+- Stomach factor (FULLFATIGUE, owner 2026-10-28): `PlayerSim.tick` reads `Digestion.fullness()`, sets
+  `Vitals.fullness_state` (`Digestion.state_for`) and `Vitals.fullness_mult` from `rules.json`
+  `fatigue.fullness_mult`, and folds it into `fatigue_gain_mult`, so it reaches every gain including the
+  idle baseline. Values are ASSUMPTIONs (Open Questions A16):
+
+| state | fullness | fatigue gain |
+|---|---|---|
+| empty | < 0.1 | ×2.0 |
+| hungry | 0.1–0.4 | ×1.5 |
+| normal | 0.4–0.7 | ×1.0 |
+| full | 0.7–1.0 | ×0.85 |
+| overfull | > 1.0 | ×1.1 (sluggish) |
+
+  Fullness = Σ over digesting meals of the food's foods.json `fullness` × its undigested Energy share,
+  over the fullness cap (100). The HUD ring shows the same value and state. The breakdown panel's context
+  line names the factor ("Hungry: +50% exhaustion."). A survivor with nothing digesting is "empty". A new survivor, and an old save loaded with nothing
+  digesting, gets one starter meal once (`Digestion.seed_starter`, flag `starter_given` saved in the
+  digestion record). It has fullness 60, lasts 15 min and carries 1 Energy, so she starts "normal" for
+  about 5 min, is hungry until about 12.5 min, then empty. ASSUMPTION.
 - Baseline idle: `EXHAUSTION_PER_SEC` = 100 pts per 45 min before the halving — 100 pts in ~90 min.
   Tagged `time`; the level gap never applies to it.
 - Movement per s (before the halving): walk 0.05, run 0.09, sprint 0.2 (`player_sim._walk`).

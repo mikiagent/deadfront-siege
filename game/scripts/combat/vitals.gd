@@ -36,6 +36,10 @@ var blocks_regen: bool = false
 ## dropped; reductions (rest, meals, sleep) still apply. Owner 2026-10-28.
 var blocks_fatigue_gain: bool = false
 var fatigue_gain_mult: float = 1.0
+## FULLFATIGUE: the stomach state (Digestion.state_for) and its fatigue-gain factor, set by PlayerSim each
+## frame and already inside fatigue_gain_mult; kept apart for the breakdown panel. Derived, never saved.
+var fullness_state: StringName = &"normal"
+var fullness_mult: float = 1.0
 var fatigue_log: Dictionary = {}
 ## Island level versus survivor level, set by the island each frame (ProgressionScaling.fatigue_level_factor).
 ## Applies to every gain except the baseline clock, so over-levelled ground tires you faster.

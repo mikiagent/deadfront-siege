@@ -354,6 +354,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 		var digestion := Digestion.of(player)
 		if digestion != null:
 			digestion.from_dict((foodfx as Dictionary).get("digestion", {}))
+			digestion.seed_starter()  # FULLFATIGUE: an old save with nothing digesting starts "normal", once
 	player.sim.rest.load_saved(data.get("player", {}).get("resting", false))  # spec 01:22: seated or standing, as saved
 	if player.skills:
 		player.skills.from_dict(data.get("skills_v2", {}))

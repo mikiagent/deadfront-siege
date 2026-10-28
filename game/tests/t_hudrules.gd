@@ -74,6 +74,7 @@ func _run() -> void:
 		await _test_stomach(Vector2(size))
 		await _test_orders(Vector2(size))
 	await _test_tick_colours()
+	await _test_fullness_fatigue()
 	root.size = was_size
 	root.content_scale_size = was_scale
 	if _fails.is_empty():
@@ -401,6 +402,50 @@ func _test_orders(view: Vector2) -> void:
 	_world.objective = was_obj
 	_world.objective_best = 0
 	await _orders_calm()
+
+## FULLFATIGUE: the stomach state scales fatigue gain (empty > hungry > normal > full), the breakdown panel
+## names it, and the HUD ring shows the model's own value and state.
+func _test_fullness_fatigue() -> void:
+	_reset()
+	var dig = DIG.of(_player)
+	var v = _player.vitals
+	var FP: GDScript = load("res://scripts/ui/fatigue_panel.gd")
+	var gains := {}
+	for st in [[[], &"empty"], [[0.5], &"hungry"], [[1.0], &"normal"], [[1.0, 1.0], &"full"], [[1.0, 1.0, 1.0], &"overfull"]]:
+		dig.rows().clear()
+		for share in st[0]:
+			var r: Dictionary = dig.schedule(&"roast", 60.0, 300.0)
+			r["remaining"] = 60.0 * float(share)
+		_player.sim.tick(0.0)  # PlayerSim sets the stomach state and folds its factor into fatigue_gain_mult
+		_expect(v.fullness_state == st[1], "%s: the model's state (%s)" % [st[1], v.fullness_state])
+		v.fatigue = 0.0
+		v.blocks_fatigue_gain = false
+		v.add_fatigue(1.0, &"walk")
+		gains[st[1]] = v.fatigue
+		var line: String = FP.context_text(v, _player)
+		var want: String = {&"empty": "Empty stomach: +100% exhaustion.", &"hungry": "Hungry: +50% exhaustion.", &"normal": "", &"full": "Full: -15% exhaustion.", &"overfull": "Overfull, sluggish: +10% exhaustion."}[st[1]]
+		_expect((want == "" and not line.contains("exhaustion.")) or line.contains(want), "%s: the breakdown panel reads \"%s\" (%s)" % [st[1], want, line])
+		await _frames(2)
+		_expect(absf(_hud.stomach_fill - dig.fullness()) < 0.0001 and _hud.stomach_state == v.fullness_state, "%s: the ring shows the model (%.2f %s)" % [st[1], _hud.stomach_fill, _hud.stomach_state])
+	print("[t_hudrules] fatigue per 1.0 walk gain by stomach: %s" % gains)
+	_expect(gains[&"empty"] > gains[&"hungry"] and gains[&"hungry"] > gains[&"normal"] and gains[&"normal"] > gains[&"full"], "fatigue gain is ordered empty > hungry > normal > full (%s)" % gains)
+	_expect(absf(gains[&"empty"] / gains[&"normal"] - 2.0) < 0.001 and absf(gains[&"overfull"] / gains[&"normal"] - 1.1) < 0.001, "empty doubles it, overfull adds 10 %%")
+	# A new survivor and an old save with nothing digesting start "normal" (a starter meal), once.
+	var fresh = DIG.new()
+	_expect(fresh.seed_starter() and DIG.state_for(fresh.fullness()) == &"normal", "a new survivor starts normal (%.2f)" % fresh.fullness())
+	_expect(not fresh.seed_starter() and fresh.rows().size() == 1, "the starter meal is given once")
+	var old = DIG.new()
+	old.from_dict({"rows": [], "next_id": 4})  # a save from before the flag, nothing digesting
+	_expect(old.seed_starter() and DIG.state_for(old.fullness()) == &"normal", "an old save with nothing digesting loads normal")
+	var again = DIG.new()
+	again.from_dict({"rows": [], "next_id": 9, "starter_given": true})
+	_expect(not again.seed_starter() and again.rows().is_empty() and DIG.state_for(again.fullness()) == &"empty", "a later save with nothing digesting stays empty (no free meal per load)")
+	var rt = DIG.new()
+	rt.from_dict(fresh.to_dict())
+	_expect(rt.starter_given and rt.rows().size() == 1, "the flag and the starter row survive a save")
+	dig.rows().clear()
+	v.fatigue = 0.0
+	_player.sim.tick(0.0)
 
 ## Each DoT's tick number takes its status's fx colour.
 func _test_tick_colours() -> void:
