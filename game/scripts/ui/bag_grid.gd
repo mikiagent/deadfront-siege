@@ -10,6 +10,10 @@ extends Control
 ## (`sort_key`, `filter_id`): every cell keeps its real slot index, nothing in the bag moves.
 
 signal selected(index: int)
+## Select mode began from the grid itself (a long press or a Shift-press); the host shows its batch bar.
+signal multi_started
+## The batch marks changed (paint, tap toggle).
+signal multi_changed
 
 ## Height of a compartment in logical px; the host keeps it >= 64 on a phone.
 var cell_px := 64.0:
@@ -48,6 +52,17 @@ var _empty := 0
 ## pointer stayed inside the deadzone, so dragging a storage box never takes the item under the finger.
 var _press_cell := -1
 var _press_pos := Vector2.ZERO
+var _press_ms := 0
+var _last_pos := Vector2.ZERO
+## Paint gesture state: the marks before it, the cells it passed in order.
+var _painting := false
+var _pre: Array[int] = []
+var _path: Array[int] = []
+var _tap_toggle := false
+## Hold this long without moving to enter select mode.
+var long_press_s := 0.45
+const EDGE_PX := 36.0
+const AUTOSCROLL_PX_S := 420.0
 const TAP_DEADZONE := 12.0
 ## Room kept for the vertical scrollbar when counting columns.
 const SCROLLBAR_PX := 12.0
@@ -142,6 +157,7 @@ class Cell extends Control:
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
+	set_process(false)
 	_scroll = ScrollContainer.new()
 	_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -318,6 +334,16 @@ static func matches(s: ItemStack, filter: String) -> bool:
 func _on_cell_input(event: InputEvent, c: Cell) -> void:
 	if readonly or inventory == null or c.index < 0:
 		return
+	var mm := event as InputEventMouseMotion
+	if mm != null:
+		var at_m: Vector2 = c.get_global_rect().position + mm.position
+		_last_pos = at_m
+		if _painting:
+			paint_to(_index_at(at_m))
+			c.accept_event() # the finger paints; the ScrollContainer must not scroll
+		elif _press_cell >= 0 and at_m.distance_to(_press_pos) > TAP_DEADZONE:
+			_press_cell = -1 # it became a scroll: no long-press
+		return
 	var mb := event as InputEventMouseButton
 	if mb == null or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
@@ -325,6 +351,20 @@ func _on_cell_input(event: InputEvent, c: Cell) -> void:
 	if mb.pressed:
 		_press_cell = c.index
 		_press_pos = at
+		_last_pos = at
+		_press_ms = Time.get_ticks_msec()
+		# In select mode (or with Shift held) a press paints at once; else a long press enters it.
+		if multi_mode or mb.shift_pressed:
+			if not multi_mode:
+				multi_started.emit()
+				set_multi_mode(true)
+			begin_paint(c.index)
+			c.accept_event()
+		set_process(true)
+		return
+	if _painting:
+		end_paint()
+		c.accept_event()
 		return
 	if _press_cell != c.index:
 		return # released over another cell (or a drag left this one)
@@ -333,11 +373,89 @@ func _on_cell_input(event: InputEvent, c: Cell) -> void:
 		return
 	if multi_mode:
 		toggle_multi(c.index) # the host repaints its batch bar from multi_list()
+		multi_changed.emit()
 		return
 	selected_index = c.index
 	for k in _cells:
 		k.selected = k.index == selected_index
 	selected.emit(c.index)
+
+## Long press and edge auto-scroll run here while a finger is down.
+func _process(delta: float) -> void:
+	if _press_cell >= 0 and not _painting and Time.get_ticks_msec() - _press_ms >= int(long_press_s * 1000.0):
+		var start := _press_cell
+		_press_cell = -1
+		if not multi_mode:
+			multi_started.emit()
+			set_multi_mode(true)
+		begin_paint(start)
+	if _painting:
+		var r := get_global_rect()
+		var dir := 0.0
+		if _last_pos.y < r.position.y + EDGE_PX:
+			dir = -1.0
+		elif _last_pos.y > r.end.y - EDGE_PX:
+			dir = 1.0
+		if dir != 0.0:
+			_scroll.scroll_vertical += int(dir * AUTOSCROLL_PX_S * delta)
+			paint_to(_index_at(_last_pos))
+	elif _press_cell < 0:
+		set_process(false)
+
+## Paint selection (owner 2026-10-27, "hold/drag to select multiple"): the gesture's path starts at
+## `index`; each cell the pointer enters joins the batch, and moving back onto a cell already on the
+## path un-paints everything after it (they return to how they were before the gesture).
+func begin_paint(index: int) -> void:
+	_painting = true
+	_pre = multi.duplicate()
+	_path.clear()
+	_tap_toggle = true
+	paint_to(index)
+
+func paint_to(index: int) -> void:
+	if not _painting or index < 0 or inventory == null:
+		return
+	var at := _path.find(index)
+	if at >= 0:
+		if at == _path.size() - 1:
+			return
+		for k in range(_path.size() - 1, at, -1):
+			var gone: int = _path.pop_back()
+			if not _pre.has(gone):
+				multi.erase(gone)
+		_tap_toggle = false
+	else:
+		var s: ItemStack = inventory.slots[index] if index < inventory.slots.size() else null
+		if s == null or s.def_id == Inventory.LOCK:
+			return # empty compartments never join (they would only skew the count)
+		_path.append(index)
+		if _path.size() > 1:
+			_tap_toggle = false
+		if not multi.has(index):
+			multi.append(index)
+	for c in _cells:
+		c.member = multi.has(c.index)
+	multi_changed.emit()
+
+## End of the gesture. A one-cell press that started on an already-marked cell is a tap: it unmarks.
+func end_paint() -> void:
+	if not _painting:
+		return
+	_painting = false
+	_press_cell = -1
+	if _tap_toggle and _path.size() == 1 and _pre.has(_path[0]):
+		multi.erase(_path[0])
+	for c in _cells:
+		c.member = multi.has(c.index)
+	_path.clear()
+	multi_changed.emit()
+
+## The slot index drawn under a global point, -1 for none.
+func _index_at(p: Vector2) -> int:
+	for c in _cells:
+		if c.is_visible_in_tree() and c.get_global_rect().has_point(p):
+			return c.index
+	return -1
 
 ## Whether a press/release pair counts as a tap (used by the lab to drive the same path as touch).
 func is_tap(press: Vector2, release: Vector2) -> bool:

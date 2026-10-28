@@ -44,6 +44,7 @@ func _run() -> void:
 	_test_sort_filter()
 	_test_presets()
 	await _test_screen()
+	await _test_paint()
 	if _fails.is_empty():
 		print("[t_invscreens] PASS")
 		quit(0)
@@ -286,3 +287,110 @@ func _in_scroll(c: Node, stop: Node) -> bool:
 			return true
 		p = p.get_parent()
 	return false
+
+# ---------------------------------------------------------------- hold / drag select
+
+func _mouse(cell: Control, at_global: Vector2, pressed: Variant) -> void:
+	var ev: InputEvent
+	if pressed == null:
+		var mm := InputEventMouseMotion.new()
+		mm.button_mask = MOUSE_BUTTON_MASK_LEFT
+		ev = mm
+	else:
+		var mb := InputEventMouseButton.new()
+		mb.button_index = MOUSE_BUTTON_LEFT
+		mb.pressed = bool(pressed)
+		ev = mb
+	(ev as InputEventMouse).position = at_global - cell.get_global_rect().position
+	cell.gui_input.emit(ev)
+
+## Owner 2026-10-27: a long press enters Select mode, a drag paints cells in, dragging back
+## un-paints them, and the batch actions then act on the painted set (locked items skipped).
+func _test_paint() -> void:
+	get_root().size = Vector2i(844, 390)
+	get_root().content_scale_size = Vector2i(844, 390)
+	var host := Node3D.new()
+	get_root().add_child(host)
+	var world: Node = get_root().get_node("World")
+	var old_rt: Variant = world.get("runtime")
+	world.set("runtime", host)
+	var inv = INV.new(30)
+	for k in 12:
+		inv.add(IS.make(&"stone", 1, {}, 2 + k))
+	var ui = load("res://scenes/ui/inventory.tscn").instantiate()
+	get_root().add_child(ui)
+	ui.bind(inv, null)
+	ui.visible = true
+	ui.rebuild()
+	await process_frame
+	await process_frame
+	var g = ui._grid
+	g.long_press_s = 0.05
+	var c0: Control = g.cell_for(0)
+	var mid := func (i: int) -> Vector2: return (g.cell_for(i) as Control).get_global_rect().get_center()
+	_mouse(c0, mid.call(0), true)
+	await create_timer(0.15).timeout
+	await process_frame
+	_expect(g.multi_mode and g.multi == [0] and ui._select_btn.text == "Done", "a long press enters Select mode with that cell (%s)" % [g.multi])
+	for i in range(1, 10):
+		_mouse(c0, mid.call(i), null)
+	_expect(g.multi.size() == 10, "dragging over 10 cells selects 10 (%d)" % g.multi.size())
+	_expect(ui._batch_label.visible and ui._batch_label.text == "10 selected", "the toolbar counts them (%s)" % ui._batch_label.text)
+	_mouse(c0, mid.call(5), null)
+	_expect(g.multi_list() == [0, 1, 2, 3, 4, 5], "dragging back un-paints (%s)" % [g.multi_list()])
+	_mouse(c0, mid.call(0), null)
+	_expect(g.multi_list() == [0], "back to the start leaves only it (%s)" % [g.multi_list()])
+	for i in range(1, 10):
+		_mouse(c0, mid.call(i), null)
+	_mouse(c0, mid.call(9), false)
+	_expect(g.multi.size() == 10 and not g._painting, "release keeps the 10 (%d)" % g.multi.size())
+	# A plain tap in Select mode toggles one cell.
+	var c11: Control = g.cell_for(11)
+	_mouse(c11, mid.call(11), true)
+	_mouse(c11, mid.call(11), false)
+	_expect(g.multi.has(11) and g.multi.size() == 11, "a tap adds one")
+	_mouse(c11, mid.call(11), true)
+	_mouse(c11, mid.call(11), false)
+	_expect(not g.multi.has(11) and g.multi.size() == 10, "a second tap removes it")
+	# Batch drop: the 10 go to loot bags, two locked ones stay; nothing is lost.
+	inv.slots[2].set_flag(&"locked", true)
+	inv.slots[7].set_flag(&"locked", true)
+	var before: Dictionary = inv.uids()
+	ui._on_batch_drop()
+	var dropped := {}
+	for b in host.get_children():
+		if b.get("storage") != null:
+			dropped.merge(b.storage.uids())
+	_expect(dropped.size() == 8 and inv.used_slots() == 4 and inv.slots[2] != null and inv.slots[7] != null, "batch drop drops 8, skips the 2 locked (%d dropped)" % dropped.size())
+	_expect(inv.uids().merged(dropped) == before, "batch drop conserves every instance")
+	# Batch Store and Transfer to Bag on a box.
+	var box = INV.new(10)
+	ui.show_storage(box, null, {"title": "Small Box", "allow_deposit": true})
+	ui._show_page("bag", "bag")
+	ui._set_multi_mode(true)
+	for i in inv.slot_count:
+		if inv.slots[i] != null:
+			g.toggle_multi(i)
+	ui._update_batch_bar()
+	ui._update_toolbar()
+	_expect(ui._batch_store_btn.visible, "an open box adds Store to the batch bar")
+	var all_before: Dictionary = inv.uids().merged(box.uids())
+	ui._on_batch_store()
+	_expect(box.used_slots() == 2 and inv.used_slots() == 2, "batch Store moves the unlocked ones (box %d)" % box.used_slots())
+	ui._set_multi_mode(false)
+	ui._show_page("bag", "store")
+	ui._set_multi_mode(true)
+	ui._pet_grid.toggle_multi(0)
+	ui._pet_grid.toggle_multi(1)
+	ui._update_batch_bar()
+	ui._update_toolbar()
+	_expect(ui._batch_take_btn.visible and not ui._batch_take_btn.disabled, "the box tab's batch bar offers Transfer to Bag")
+	ui._on_batch_take()
+	_expect(box.used_slots() == 0 and inv.uids().merged(box.uids()) == all_before, "batch Transfer to Bag brings them back, nothing lost")
+	await _layout(ui, Vector2i(844, 390), "box select mode")
+	ui.hide_ui()
+	ui.queue_free()
+	world.set("runtime", old_rt)
+	host.queue_free()
+	await process_frame
+	get_root().content_scale_size = Vector2i(1600, 900)

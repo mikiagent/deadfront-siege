@@ -63,6 +63,8 @@ var _batch_lock_btn: Button
 var _batch_drop_btn: Button
 var _batch_destroy_btn: Button
 var _batch_destroy_armed := false
+var _batch_store_btn: Button
+var _batch_take_btn: Button
 var _equip_btn: Button
 var _food1_btn: Button
 var _food2_btn: Button
@@ -273,6 +275,19 @@ func _build_bag_page() -> void:
 	_batch_destroy_btn.add_theme_color_override("font_color", UiTokens.DANGER)
 	_batch_destroy_btn.pressed.connect(_on_batch_destroy)
 	_toolbar.add_child(_batch_destroy_btn)
+	_batch_store_btn = _btn("Store", Vector2(84, TAP))
+	_batch_store_btn.name = "BatchStoreButton"
+	_batch_store_btn.pressed.connect(_on_batch_store)
+	_toolbar.add_child(_batch_store_btn)
+	_batch_take_btn = _btn("Transfer to Bag", Vector2(150, TAP))
+	_batch_take_btn.name = "BatchTakeButton"
+	_batch_take_btn.pressed.connect(_on_batch_take)
+	_toolbar.add_child(_batch_take_btn)
+	# Hold-and-drag selection (owner 2026-10-27): a long press or a Shift-press on either grid
+	# enters Select mode there; painting the cells updates the "N selected" count.
+	for g: BagGrid in [_grid, _pet_grid]:
+		g.multi_started.connect(func () -> void: _set_multi_mode(true))
+		g.multi_changed.connect(func () -> void: _disarm_batch_destroy(); _update_batch_bar())
 
 func _build_card() -> void:
 	_card = ItemInspectPanel.new()
@@ -571,7 +586,7 @@ func _layout_card() -> void:
 func _all_buttons() -> Array[Button]:
 	var out: Array[Button] = [_bag_tab, _store_tab, _char_tab, _close_btn, _sort_btn, _filter_btn, _select_btn, _lock_btn,
 		_destroy_btn, _take_all_btn, _batch_lock_btn, _batch_drop_btn, _batch_destroy_btn, _stats_btn, _gear_tab, _deco_tab,
-		_unequip_btn, _equip_btn, _eat_btn, _inspect_btn, _food1_btn, _food2_btn, _feed_btn, _place_btn, _store_btn, _take_btn, _drop_btn]
+		_unequip_btn, _batch_store_btn, _batch_take_btn, _equip_btn, _eat_btn, _inspect_btn, _food1_btn, _food2_btn, _feed_btn, _place_btn, _store_btn, _take_btn, _drop_btn]
 	out.append_array(_preset_btns)
 	for b: Button in _equip_slots.values():
 		out.append(b)
@@ -629,19 +644,22 @@ func rebuild() -> void:
 ## Toolbar for the active tab: the bag's tools, or the container's Take all.
 func _update_toolbar() -> void:
 	var store := _tab == "store"
-	var multi := _grid != null and _grid.multi_mode
 	var g := _active_grid()
+	var multi := g != null and g.multi_mode
 	_sort_btn.text = "Auto Sort: %s" % str(BagGrid.SORT_LABELS.get(g.sort_key, "Bag order"))
 	_filter_btn.text = str(BagGrid.FILTER_LABELS.get(g.filter_id, "All"))
 	_sort_btn.visible = not multi
 	_filter_btn.visible = not multi
-	_select_btn.visible = not store
+	_select_btn.visible = true
 	_lock_btn.visible = not store and not multi
 	_destroy_btn.visible = not store and not multi
 	_take_all_btn.visible = store and bool(_storage_opts.get("take_all", false))
 	for b: Button in [_batch_lock_btn, _batch_drop_btn, _batch_destroy_btn]:
 		b.visible = multi and not store
-	_batch_label.visible = multi and not store
+	_batch_store_btn.visible = multi and not store and pet_bag != null and bool(_storage_opts.get("allow_deposit", false)) and _readonly_reason() == ""
+	_batch_take_btn.visible = multi and store
+	_take_all_btn.visible = _take_all_btn.visible and not multi
+	_batch_label.visible = multi
 
 func _active_grid() -> BagGrid:
 	return _pet_grid if _tab == "store" and pet_bag != null else _grid
@@ -1089,14 +1107,18 @@ func _clear_empty_shortcuts(id: StringName) -> void:
 ## would refuse it, and the tip reports what was skipped and why.
 
 func _on_toggle_multi() -> void:
-	_set_multi_mode(_grid == null or not _grid.multi_mode)
+	_set_multi_mode(_grid == null or not _active_grid().multi_mode)
 
 ## Mode swap: the batch bar replaces the item-action row, which is left unselected while Select
 ## mode is active (taps there mark, they don't pick). Done returns to the single-selection flow.
 func _set_multi_mode(on: bool) -> void:
 	if _grid == null or _batch_row == null:
 		return
-	_grid.set_multi_mode(on)
+	if on:
+		_active_grid().set_multi_mode(true)
+	else:
+		_grid.set_multi_mode(false)
+		_pet_grid.set_multi_mode(false)
 	_disarm_batch_destroy()
 	_select_btn.text = "Done" if on else "Select"
 	_batch_label.text = "0 selected"
@@ -1113,11 +1135,13 @@ func _set_multi_mode(on: bool) -> void:
 func _update_batch_bar() -> void:
 	if _batch_row == null:
 		return
-	var on := _grid != null and _grid.multi_mode
+	var on := _grid != null and _active_grid().multi_mode
 	if not on:
 		return
-	var n := _grid.multi.size()
+	var n := _active_grid().multi.size()
 	_batch_label.text = "%d selected" % n
+	_batch_take_btn.disabled = n == 0 or _readonly_reason() != ""
+	_batch_store_btn.disabled = n == 0
 	_batch_lock_btn.disabled = n == 0
 	_batch_drop_btn.disabled = n == 0
 	_batch_destroy_btn.disabled = n == 0
@@ -1137,7 +1161,7 @@ func _disarm_batch_destroy() -> void:
 func _batch_gates() -> Array:
 	var act: Variant = _owner_player.actions if _owner_player else null
 	var offline: bool = act == null or not act.online
-	return [offline, _owner_player != null and World.runtime != null]
+	return [offline, World.runtime != null] # the loot bag lands at the survivor, else at the origin
 
 func _on_batch_lock() -> void:
 	if inventory == null or _grid == null:
@@ -1196,6 +1220,39 @@ func _on_batch_destroy() -> void:
 		if _owner_player:
 			_owner_player.notice("Destroyed %d item(s)." % done)
 	_finish_batch(res, "Destroyed", done)
+
+## Batch Store: every marked, unlocked bag instance into the open container, in slot order;
+## a full container leaves the rest in the bag (Inventory.transfer_to moves only what fits).
+func _on_batch_store() -> void:
+	if inventory == null or pet_bag == null or _readonly_reason() != "" or not bool(_storage_opts.get("allow_deposit", false)):
+		return
+	var res := batch_check(inventory, _grid.multi_list(), "lock", true, true) # lock's gate: not empty, not locked
+	var done := 0
+	for idx: int in res["ok"]:
+		if idx == inventory.equipped_tool_index:
+			continue
+		if inventory.transfer_to(pet_bag, idx) > 0:
+			done += 1
+	if done < (res["ok"] as Array).size() and _owner_player:
+		_owner_player.notice("Storage is full.")
+	_finish_batch(res, "Stored", done)
+
+## Batch take from the open container: each marked instance into the bag; what does not fit stays.
+func _on_batch_take() -> void:
+	if pet_bag == null or inventory == null or _readonly_reason() != "":
+		return
+	var marks := _pet_grid.multi_list()
+	var done := 0
+	for i in range(marks.size() - 1, -1, -1):
+		var s := pet_bag.slots[marks[i]] if marks[i] < pet_bag.slot_count else null
+		if s == null or s.is_locked():
+			continue
+		if pet_bag.transfer_to(inventory, marks[i]) > 0:
+			done += 1
+	_pet_grid.clear_multi()
+	_tip.text = "Took %d item(s)." % done
+	_update_batch_bar()
+	_notify_storage_take()
 
 ## After a pass: release the marks, keep Select mode on for the next batch, and summarise what was
 ## skipped in the tip (or confirm the whole batch went through).

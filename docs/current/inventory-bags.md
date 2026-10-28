@@ -68,23 +68,57 @@ grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in
 - Cargo warp (the camp chest, `game/scripts/world/cargo_warp.gd`) ships unstable goods to home
   cargo for a T-stone fee — see [economy-trading.md](economy-trading.md).
 
+## Bag screens (spec 13, `inventory_ui.gd`, INVSCREENS)
+- One sheet docked on the right (68 % of the view, 520-1120 px). Header: Bag tab, `used / capacity`
+  (`Inventory.capacity()`, danger colour when full), the open container's tab, Character, close.
+- Bag page: `BagGrid` + bottom toolbar: Auto Sort (cycles bag order / type / level / name), Filter
+  (all, materials, food, gear, tools, building, rare, locked), Select, Lock, Destroy (two taps);
+  Take all on a take-all container's tab. Sort and filter change only the draw order
+  (`BagGrid.view_order`); every cell keeps its real slot index and nothing in the bag moves.
+- Cells: `Lv. N` grey top right (level > 1, non-fungible), blue NEW tag top left, green corner for
+  a rare trait, small lock for a locked item, gold brackets for the selection, blue for batch marks.
+- NEW: uids that enter the bag after `bind` (worn gear coming off is not new). A tap acknowledges
+  one; closing the bag acknowledges all. Not saved: a load shows nothing as NEW.
+- Item card (`item_inspect_panel.gd`): floats left of the sheet over the world (over the sheet's
+  left half when the strip is under 220 px). Tan title band, art + level + kind, durability,
+  processing left, damage / armour / storage, food energy and raw/poisoned, traits classed by
+  `InvAttributes` (gold positive and grey negative from `game/data/inv_ui.json`, green rare from
+  `rules.json crafting.rare_attributes`), then only the valid actions (`InventoryUI.valid_actions`:
+  eat / food1 / food2 / inspect / feed / equip / place / store / take / drop). `look_row` +
+  `show_look()` is the empty hook for spec 35's material swatch.
+- Containers (`show_storage`, `show_pet_bag` = "<name> cargo"): their own tab with the same grid;
+  a tap selects, the card's "Transfer to Bag" / "Transfer to <title>" moves that exact instance.
+  A take-only container closes when emptied; a deposit container stays open.
+- Character page (full view): portrait, name, title, level, occupation, XP bar, Combat / Crafting /
+  Gathering Power (highest skill in each `inv_ui.json powers` group), My Info Attack / Defense /
+  Accuracy (`InvStats`, computed from what is worn), Detailed Stats; Gear | Decorative tabs
+  (no decorative gear exists yet: the tab says so), presets 1-4 (open at shown level 1/10/30/50),
+  ten slots with faded silhouettes when empty; a tapped worn slot shows its line and Unequip.
+- Every button is >= 64 px; t_invscreens proves no overflow at 844x390 and 1600x900.
+
 ## Multi-select, locking, transfer (`bag_grid.gd`, `inventory_ui.gd`)
-- Cell size: 64 px default, never under 48; tap vs drag separated at `TAP_DEADZONE` = 12 px.
-- Select mode (`multi_mode`, `multi: Array[int]`): taps toggle membership instead of moving the
-  single selection; `set_multi_mode`, `toggle_multi`, `clear_multi`, `multi_list`. Empty slots and
-  `_slot_lock` markers cannot join. Gold brackets = single selection, cool blue = batch mark.
-- Batch actions: `_on_batch_lock`, `_on_batch_drop` (spawns a `LootBag`), `_on_batch_destroy`
-  (needs a second tap: "armed"). `batch_check` returns `{ok, skip}` with a reason per index
-  (`locked`, `empty`, `online`, `world`).
+- Cell size: 64 px on a phone, up to 120 on desktop; tap vs drag separated at `TAP_DEADZONE` = 12 px.
+- Select mode (`multi_mode`, `multi: Array[int]`) from the toolbar's Select, a long press
+  (`long_press_s` = 0.45 s without moving) or a Shift-press on a cell. In Select mode a press paints:
+  every cell the pointer passes joins, moving back onto a cell already on the gesture's path
+  un-paints the cells after it, a plain tap toggles one. Painting accepts the events so the grid does
+  not scroll; near the grid's top or bottom edge it auto-scrolls. Outside Select mode a drag scrolls.
+  Empty slots and `_slot_lock` markers never join. Works on the bag grid and a container's grid.
+- Batch actions (bag): Lock, Drop (loot bag at the survivor), Destroy (second tap confirms), Store
+  (into an open deposit container); container tab: Transfer to Bag. `batch_check` returns `{ok, skip}`
+  with a reason per index (`locked`, `empty`, `online`, `world`); locked items may be marked but every
+  destructive or moving action skips them.
 - Lock is the `locked` flag on an instance (`ItemStack.is_locked`, toggled by `_toggle_lock`).
-  Locked items refuse drop/destroy/transfer, are skipped by default craft picks and by the
-  auto-picked gather tool. A locked item may still be *in* a batch; its actions skip it.
+  Locked items refuse drop/destroy/transfer/equip, are skipped by default craft picks and by the
+  auto-picked gather tool.
 - `Inventory.transfer_to` moves one slot to another container, refusing locked items and markers.
 
 ## Saves
 - Bag rows: `player.inventory`, one array row per slot including nulls (`Inventory.to_array`);
   `Inventory.load_array` restores positions.
-- `player.inventory_extras` = `{worn, quick_food, tool_index}`.
+- `player.inventory_extras` = `{worn, quick_food, tool_index}` plus `presets`
+  (`{active, sets: [{slot: uid}]}`, `GearPresets`) only once a preset was used; `GearPresets.sanitize`
+  cleans it on load (known slots, `^[il][0-9a-f]+$` uids, at most 4 sets) and an old save loads with {}.
 - `home.cargo` = the home cargo rows; building storage saves as each building row's `contents`;
   pet bags save inside each pet row. See [saves-persistence.md](saves-persistence.md).
 - Loading (`game/scripts/items/inventory_migration.gd`, `load_into`): keeps slot positions, grows
