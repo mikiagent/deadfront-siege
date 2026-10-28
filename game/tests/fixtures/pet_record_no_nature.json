@@ -1,0 +1,67 @@
+{
+  "_about": "NATURES fixture: one bonded pet row exactly as a build without natures wrote it (no 'nature' key). PetRecord.from_dict must load it whole, give it the nature its uid derives, and keep that nature on every later load.",
+  "pets": [
+    {
+      "uid": "p_1a2b3c4d5e6f7a8b",
+      "owner": "pioneer-1",
+      "origin": "tame",
+      "tamer": "Tess",
+      "tamed_at": 1719000000,
+      "wild_level": 1,
+      "name": "Rex II",
+      "parent_uids": [],
+      "species": "velociraptor",
+      "variant": "",
+      "grade": "B",
+      "hunger": 40.0,
+      "hunger_max": 40.0,
+      "hunger_efficiency": 1.0,
+      "xp_rate": 1.0,
+      "hp": 120.0,
+      "hp_now": -1.0,
+      "attack": 12.0,
+      "defense": 10.0,
+      "ranged_defense": 10.0,
+      "ranged_attack": 12.0,
+      "accuracy": 100.0,
+      "speed": 500.0,
+      "genetics": {
+        "evs": {
+          "accuracy": 0.0,
+          "health": 0.0,
+          "melee_attack": 0.0,
+          "melee_defense": 0.0,
+          "ranged_attack": 0.0,
+          "ranged_defense": 0.0,
+          "speed": 0.0
+        },
+        "ivs": {
+          "accuracy": 26.0,
+          "health": 18.0,
+          "melee_attack": 27.0,
+          "melee_defense": 29.0,
+          "ranged_attack": 11.0,
+          "ranged_defense": 5.0,
+          "speed": 11.0
+        },
+        "level_gains": {
+          "accuracy": 0.0,
+          "health": 0.0,
+          "melee_attack": 0.0,
+          "melee_defense": 0.0,
+          "ranged_attack": 0.0,
+          "ranged_defense": 0.0,
+          "speed": 0.0
+        }
+      },
+      "tamed_role": [
+        "mount",
+        "scout"
+      ],
+      "bag": [],
+      "level": 1,
+      "xp": 0.0,
+      "respawn_left": 0.0
+    }
+  ]
+}

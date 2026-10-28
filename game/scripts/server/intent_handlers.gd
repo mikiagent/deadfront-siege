@@ -380,15 +380,23 @@ func _tame(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if idx < 0:
 		return no("insufficient_items", "no %s in the bag" % food_id)
 	inv.remove_at(idx, 1)
+	# NATURES: the same animal's nature rules the wild side too (natures.json, multiplied onto the
+	# species' numbers by one function), so a server tame and a local tame agree. A creature row
+	# without a nature reads the neutral defaults.
+	var nature := StringName(str(c.get("nature", "")))
+	var knobs: Dictionary = CreatureNatures.knobs(nature)
+	var needed := maxf(1.0, def.feeds_needed * float(knobs.get("feeds_mult", 1.0)))
 	var feeds := float(c.get("feeds", 0.0)) + value
-	var r := {"feeds": feeds, "needed": def.feeds_needed}
-	if def.requires_pen or feeds + 0.001 < def.feeds_needed:
+	var r := {"feeds": feeds, "needed": needed}
+	if def.requires_pen or feeds + 0.001 < needed:
 		_write("set_tame_feeds", [net_id, feeds])
 	else:
 		# Wild genetics come from the island when it has rolled them, else from this op's RNG.
 		var g: Variant = c.get("genetics")
 		var genetics := CreatureGenetics.from_dict(g) if g is Dictionary and not (g as Dictionary).is_empty() else CreatureGenetics.roll(rng, def.coloration)
 		var pet := PetRecord.from_def(def, genetics.overall_tier(), StringName(str(c.get("variant", ""))), genetics).to_dict()
+		# NATURES: the pet keeps the nature it rolled in the wild (a row without one derives it).
+		pet["nature"] = str(nature) if CreatureNatures.is_valid(nature) else str(CreatureNatures.from_uid(str(pet.get("uid", "")), def.id))
 		# W1-TAME's PetRecord stamps the wall clock and a blank owner; the op's ts and account keep replay exact.
 		pet["tamed_at"] = now
 		pet["owner"] = str(account)

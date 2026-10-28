@@ -174,6 +174,18 @@ func _test_name() -> void:
 	_sections += 1
 
 func _test_old_save() -> void:
+	# The checked-in fixture: a whole pet block exactly as a build without natures wrote it.
+	var fixture: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/pet_record_no_nature.json"))
+	_expect(fixture is Dictionary and (fixture as Dictionary).get("pets", []) is Array, "fixture res://tests/fixtures/pet_record_no_nature.json does not load")
+	var frow: Dictionary = (fixture as Dictionary).get("pets", [])[0] if fixture is Dictionary and not ((fixture as Dictionary).get("pets", []) as Array).is_empty() else {}
+	_expect(not frow.has("nature"), "the no-nature fixture carries a nature already")
+	var fpet: RefCounted = PR.from_dict(frow)
+	var want_f: StringName = NR.from_uid("p_1a2b3c4d5e6f7a8b", &"velociraptor")
+	_expect(fpet.nature == want_f and NR.is_valid(fpet.nature), "the fixture pet loaded with nature '%s', want '%s'" % [fpet.nature, want_f])
+	_expect(fpet.name == "Rex II" and fpet.uid == "p_1a2b3c4d5e6f7a8b" and fpet.level == 1 and fpet.tamed_role == [&"mount", &"scout"], "the fixture pet lost a field (name '%s', uid %s, level %d, roles %s)" % [fpet.name, fpet.uid, fpet.level, fpet.tamed_role])
+	_expect(PR.from_dict(frow).nature == fpet.nature, "the fixture pet loads with a different nature the second time")
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(fpet.to_dict()))
+	_expect(saved.get("nature", "") == str(want_f), "a re-saved pet does not carry its nature (%s)" % saved.get("nature", "<none>"))
 	# A pet record saved before natures: no "nature" key. It loads with a deterministic nature from
 	# its uid, keeps every other field, and round-trips with its nature from then on.
 	var def: CreatureDef = data.creature(&"velociraptor")
