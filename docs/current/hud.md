@@ -93,6 +93,13 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   along the bottom between the rail and SPRINT / ATTACK, their captions clear of the XP line; Auto and
   Feed above the NET / TACKLE seam; the stance text right of Auto. Desktop: the skill cluster sits
   480 px in from the right, left of SPRINT.
+- World creature plates (`creature_plates.gd`, 176 px pill): name line, then the animal's NATURE as a
+  small chip directly under it (owner 2026-10-28; `ui/nature_chip.gd`, spec §5 trait chip in its gold
+  style, short label only — "Timid"), then the HP bar and, on a target or tameable animal, pet XP,
+  status glyphs and the tame row. The name never contains the nature ("Alpha Velociraptor" keeps
+  "Alpha"). The 176x94 pill is unchanged and the chip row is always reserved, so a plate does not
+  resize between creatures; an animal without a nature draws no chip. A landscape phone's bar-only
+  plate has no chip.
 - Target plate top-centre (≤520 px): creature name + "Lv. n" (pets show their tier), an HP bar, a
   species-letter tile, the target's status chips and a Tyrant's opening label. It lingers on the
   last creature attacked (within 40 m) until it dies or a new one is hit.

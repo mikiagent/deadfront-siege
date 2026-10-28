@@ -1,7 +1,8 @@
 class_name CreatureNatures
 extends RefCounted
-## Creature natures (owner 2026-10-28): a temperament that changes AI behaviour and shows as a
-## prefix on the animal's name ("Timid Velociraptor"). Natures LAYER ON TOP of the ai.json
+## Creature natures (owner 2026-10-28): a temperament that changes AI behaviour and shows as a TAG
+## under the animal's name (owner 2026-10-28: "the nature is a tag under the name, not part of the
+## name"; the chip is ui/nature_chip.gd). Natures LAYER ON TOP of the ai.json
 ## archetypes and temperaments: they only supply multipliers the brains already read, so a nature
 ## row starts from `default` (every knob neutral) and an animal with no nature behaves as before.
 ##
@@ -162,20 +163,19 @@ static func variant_word(variant: StringName, species: StringName) -> String:
 		v = v.substr(sp.length() + 1)
 	return v.replace("_", " ").capitalize()
 
-## "Brave Alpha Velociraptor": nature, then variant (an Alpha pack leader included), then species.
-static func display_name(nature: StringName, variant_label: String, species_text: String) -> String:
+## "Alpha Velociraptor", "Crested Raptor": the animal's NAME. A nature is never part of it — it is a
+## tag under the name (owner 2026-10-28). The variant word ("Alpha" for a pack leader, a colour
+## variant) stays in the name.
+static func display_name(variant_label: String, species_text: String) -> String:
 	var parts: PackedStringArray = []
-	var nat := label(nature)
-	if nat != "":
-		parts.append(nat)
 	if variant_label != "":
 		parts.append(variant_label)
 	if species_text != "":
 		parts.append(species_text)
 	return " ".join(parts)
 
-## The full displayed name of a living animal (plate and screens): its nature, "Alpha" when it
-## leads its pack, its colour variant when it has one, then the species.
+## The name shown on a plate and on the screens: "Alpha" when it leads its pack, its colour variant
+## when it has one, then the species. The nature is deliberately absent (the chip carries it).
 static func display_title(c: Node) -> String:
 	if c == null:
 		return ""
@@ -187,7 +187,18 @@ static func display_title(c: Node) -> String:
 	var vw := variant_word(StringName(str(c.get("variant"))), def.id if def != null else &"")
 	if vw != "":
 		words.append(vw)
-	return display_name(c.call("nature_id"), " ".join(words), species_text)
+	return display_name(" ".join(words), species_text)
+
+## The nature TAG under a living animal's name ("Timid"): the plate's chip and every screen read
+## this, so the word under the name and the name can never disagree.
+static func tag_for(c: Node) -> String:
+	if c == null or not c.has_method("nature_id"):
+		return ""
+	return tag(StringName(str(c.call("nature_id"))))
+
+## The nature tag for an id: its short label, "" for no nature.
+static func tag(nature: StringName) -> String:
+	return label(nature)
 
 static func _is_pack_alpha(c: Node) -> bool:
 	if not c.has_method("nature_id"):

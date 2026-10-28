@@ -6,7 +6,9 @@ extends SceneTree
 ##   retreat, Aggressive engages unprovoked inside its radius, Loyal follows closer, Stubborn needs
 ##   more feeds and ignores fear, Docile needs fewer feeds and deals less damage; the roll from a
 ##   spawn seed is deterministic, the name reads nature -> variant (Alpha) -> species, and an old pet
-##   record with no nature loads with a deterministic one and keeps everything else.
+##   record with no nature loads with a deterministic one and keeps everything else; and the nature is a
+##   TAG under the name (owner 2026-10-28), never a word in it, on the world plate, the Animals screen
+##   and the pet radial.
 ## Run: Godot --headless --path game --script res://tests/t_natures.gd -> "[t_natures] PASS", exit 0/1.
 ## Scripts are load()ed on the first frame: `--script` compiles this file before the autoloads exist.
 
@@ -42,6 +44,7 @@ func _run() -> void:
 	_test_table()
 	await _test_roll()
 	await _test_name()
+	await _test_nature_tag()
 	_test_old_save()
 	await _test_wild_timid_flees_sooner()
 	await _test_brave_ridden_keeps_fighting()
@@ -55,7 +58,7 @@ func _run() -> void:
 	_finish()
 
 func _finish() -> void:
-	var want := 13
+	var want := 14
 	_expect(_sections == want, "only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if _fails.is_empty():
 		print("[t_natures] PASS")
@@ -151,19 +154,23 @@ func _test_roll() -> void:
 	_sections += 1
 
 func _test_name() -> void:
-	_expect(NR.display_name(&"timid", "", "Velociraptor") == "Timid Velociraptor", "name reads '%s', want 'Timid Velociraptor'" % NR.display_name(&"timid", "", "Velociraptor"))
-	_expect(NR.display_name(&"", "", "Velociraptor") == "Velociraptor", "no nature: '%s'" % NR.display_name(&"", "", "Velociraptor"))
-	_expect(NR.display_name(&"brave", "Alpha", "Raptor") == "Brave Alpha Raptor", "ordering: '%s', want 'Brave Alpha Raptor'" % NR.display_name(&"brave", "Alpha", "Raptor"))
+	# Owner 2026-10-28: the nature is a tag UNDER the name, not part of the name.
+	_expect(NR.display_name("", "Velociraptor") == "Velociraptor", "name reads '%s', want 'Velociraptor'" % NR.display_name("", "Velociraptor"))
+	_expect(NR.display_name("Alpha", "Raptor") == "Alpha Raptor", "ordering: '%s', want 'Alpha Raptor'" % NR.display_name("Alpha", "Raptor"))
+	_expect(NR.display_name("Crested", "Velociraptor") == "Crested Velociraptor", "variant first: '%s'" % NR.display_name("Crested", "Velociraptor"))
 	_expect(NR.variant_word(&"velociraptor_crested", &"velociraptor") == "Crested", "variant word '%s'" % NR.variant_word(&"velociraptor_crested", &"velociraptor"))
-	# The living animal's plate title: nature, then Alpha (the pack leader), then its colour variant.
+	_expect(NR.tag(&"timid") == "Timid" and NR.tag(&"") == "", "the nature tag reads '%s' / '%s'" % [NR.tag(&"timid"), NR.tag(&"")])
+	# The living animal's plate title: Alpha (the pack leader) and its colour variant, then the
+	# species — and NO nature word anywhere in it; the nature comes back as the tag under the name.
 	var alpha := _creature(&"velociraptor", Vector3(20, 1, 20), &"brave", 11)
 	var beta := _creature(&"velociraptor", Vector3(22, 1, 20), &"timid", 11)
 	beta.variant = &"velociraptor_crested"
 	var title_a: String = NR.display_title(alpha)
 	var title_b: String = NR.display_title(beta)
-	print("[t_natures] names: leader='%s' follower='%s'" % [title_a, title_b])
-	_expect(title_a.begins_with("Brave ") and title_a.ends_with("Velociraptor"), "leader plate reads '%s'" % title_a)
-	_expect(title_b.begins_with("Timid ") and "Crested" in title_b, "variant plate reads '%s', want the nature then the variant" % title_b)
+	print("[t_natures] names: leader='%s' follower='%s' tags '%s'/'%s'" % [title_a, title_b, NR.tag_for(alpha), NR.tag_for(beta)])
+	_expect(not title_a.contains("Brave") and title_a.ends_with("Velociraptor"), "leader plate reads '%s' (the nature belongs in its tag '%s')" % [title_a, NR.tag_for(alpha)])
+	_expect(not title_b.contains("Timid") and "Crested" in title_b and title_b.ends_with("Velociraptor"), "variant plate reads '%s' (the nature belongs in its tag '%s')" % [title_b, NR.tag_for(beta)])
+	_expect(NR.tag_for(alpha) == "Brave" and NR.tag_for(beta) == "Timid", "plate tags read '%s' / '%s'" % [NR.tag_for(alpha), NR.tag_for(beta)])
 	# The pack leader is the Alpha whatever the roster order (strongest first), so the alpha's own
 	# title carries "Alpha" exactly when the brain names it the leader.
 	var is_leader: bool = alpha.brain._is_pack_leader()
@@ -172,6 +179,122 @@ func _test_name() -> void:
 	beta.free()
 	await process_frame
 	_sections += 1
+
+## Owner 2026-10-28: "for animal's natures, put it as a tag under their name, not in the name itself."
+## MEASURED on the live nodes, not on the strings the helpers return: the world plate's name label and
+## its chip, the Animals screen's row and detail, and the pet radial's centre disc.
+func _test_nature_tag() -> void:
+	var p: Node = load("res://scenes/player/player.tscn").instantiate()
+	p.process_mode = Node.PROCESS_MODE_DISABLED
+	root.add_child(p)
+	p.global_position = Vector3(-200, 1, 0)
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.position = p.global_position + Vector3(0, 8, 9)
+	cam.look_at(p.global_position + Vector3(0, 1, 0))
+	cam.current = true
+	# --- the world plate: the name has no nature word, the chip under it carries it.
+	var pet := _creature(&"velociraptor", Vector3(-200, 1, 0), &"timid", 3)
+	var rec: RefCounted = PR.from_def(pet.def, &"", &"", null, 1)
+	rec.name = ""
+	rec.nature = &"timid"
+	pet.become_pet(rec)
+	p.bonded.clear()
+	p.bonded.append(rec)
+	rec.summoned = true
+	var plates: Node = load("res://scripts/ui/creature_plates.gd").new()
+	root.add_child(plates)
+	await process_frame
+	var entry: Dictionary = plates._ensure_entry(pet)
+	plates._emphasis_id = pet.get_instance_id()
+	plates._update_entry(entry, pet, cam, p, 4.0, 0.016)
+	var line1 := entry.get("line1", null) as Label
+	var chip := entry.get("chip", null) as Control
+	print("[t_natures] plate: name '%s', chip '%s' at %s" % [line1.text if line1 else "", _chip_text(chip), chip.position if chip else Vector2.ZERO])
+	_expect(line1 != null and not line1.text.contains("Timid") and line1.text.contains("Velociraptor"), "the plate's name reads '%s', want the species without the nature" % (line1.text if line1 else "<none>"))
+	_expect(chip != null and chip.visible and _chip_text(chip) == "Timid", "the plate shows no 'Timid' tag under the name (chip %s '%s')" % [chip.visible if chip else "missing", _chip_text(chip)])
+	var plates_s: GDScript = load("res://scripts/ui/creature_plates.gd")
+	var bar := entry.get("node", null) as Control
+	var bar_node: Control = (bar.get_node_or_null("BarBg") as Control) if bar else null
+	_expect(chip != null and bar_node != null and chip.position.y >= 0.0 and chip.position.y + chip.size.y <= bar_node.position.y + 1.0,
+		"the tag is under the name and above the HP bar (chip %s-%s, bar at %s)" % [chip.position.y if chip else -1, (chip.position.y + chip.size.y) if chip else -1, bar_node.position.y if bar_node else -1])
+	_expect(bar != null and is_equal_approx(bar.size.y, plates_s.FULL_H), "the plate keeps its %s px budget with the tag (%.0f)" % [plates_s.FULL_H, bar.size.y if bar else -1])
+	# A nature-less animal: no chip, and the plate is the same size (nothing jumps between creatures).
+	var plain := _creature(&"velociraptor", Vector3(-204, 1, 0), &"", 3)
+	var pe: Dictionary = plates._ensure_entry(plain)
+	plates._emphasis_id = plain.get_instance_id()
+	plates._update_entry(pe, plain, cam, p, 4.0, 0.016)
+	var plain_chip := pe.get("chip", null) as Control
+	_expect(plain_chip != null and not plain_chip.visible and is_equal_approx((pe["node"] as Control).size.y, plates_s.FULL_H), "a nature-less animal draws no tag and the plate keeps its size")
+	# The variant word ("Alpha" for a pack leader, a colour variant) STAYS in the name; only the nature moved.
+	var alpha := _creature(&"velociraptor", Vector3(-208, 1, -2), &"brave", 21)
+	alpha.variant = &"velociraptor_crested"
+	var ae: Dictionary = plates._ensure_entry(alpha)
+	plates._emphasis_id = alpha.get_instance_id()
+	plates._update_entry(ae, alpha, cam, p, 4.0, 0.016)
+	var aline := ae.get("line1", null) as Label
+	print("[t_natures] plate variant: name '%s', chip '%s', leader=%s" % [aline.text if aline else "", _chip_text(ae.get("chip", null)), alpha.brain._is_pack_leader()])
+	_expect(aline != null and aline.text.contains("Crested") and not aline.text.contains("Brave"), "a variant's plate reads '%s' (the variant stays in the name, Brave in the tag)" % (aline.text if aline else ""))
+	_expect(NR.display_title(alpha).contains("Crested") and NR.display_title(alpha).ends_with("Velociraptor") and not NR.display_title(alpha).contains("Brave"), "a variant's title reads '%s'" % NR.display_title(alpha))
+	_expect(aline != null and (aline.text.contains("Alpha") == alpha.brain._is_pack_leader()), "the pack leader's 'Alpha' stays in the name ('%s', leader=%s)" % [aline.text if aline else "", alpha.brain._is_pack_leader()])
+	# --- the Animals screen: the row's name and the detail's name carry no nature; a chip does.
+	var screen: Node = load("res://scripts/ui/animal_screen.gd").new()
+	root.add_child(screen)
+	await process_frame
+	screen.open(p)
+	await process_frame
+	var row_chip: Control = null
+	var row_text := ""
+	for b in screen.find_children("*", "Button", true, false):
+		if (b as Button).text.contains("Velociraptor") or (b as Button).text.contains("Lv."):
+			row_text = (b as Button).text
+			var holder := b.get_parent()
+			if holder:
+				row_chip = holder.get_node_or_null("NatureChip") as Control
+			break
+	var detail_chip := screen.get("_detail_chip") as Control
+	var detail_name := screen.get("_detail_name") as Label
+	print("[t_natures] animals: row '%s' chip '%s'; detail name '%s' chip '%s'" % [row_text, _chip_text(row_chip), detail_name.text if detail_name else "", _chip_text(detail_chip)])
+	_expect(row_text != "" and not row_text.contains("Timid"), "the Animals row reads '%s', want the name without the nature" % row_text)
+	_expect(row_chip != null and row_chip.visible and _chip_text(row_chip) == "Timid", "the Animals row has no 'Timid' tag under the name (%s)" % _chip_text(row_chip))
+	_expect(detail_name != null and not detail_name.text.contains("Timid") and detail_name.text.contains("Velociraptor"), "the detail's name reads '%s'" % (detail_name.text if detail_name else "<none>"))
+	_expect(detail_chip != null and detail_chip.visible and _chip_text(detail_chip) == "Timid", "the detail has no 'Timid' tag under the name (%s)" % _chip_text(detail_chip))
+	# --- the pet radial: the centre disc's name has no nature, the tag sits under it.
+	var radial: Control = load("res://scripts/ui/pet_radial.gd").new()
+	root.add_child(radial)
+	await process_frame
+	radial.show_for(pet, [{"id": &"animals", "label": "Animals", "icon": "animals"}])
+	await process_frame
+	var r_chip := radial.get("_chip") as Control
+	var centre: Vector2 = radial.centre
+	var r_name_y: float = centre.y + float(radial.r_in) * 0.3
+	print("[t_natures] radial: chip '%s' at %s, centre %s" % [_chip_text(r_chip), r_chip.position if r_chip else Vector2.ZERO, centre])
+	_expect(r_chip != null and r_chip.visible and _chip_text(r_chip) == "Timid", "the pet radial shows no 'Timid' tag under the name (%s)" % _chip_text(r_chip))
+	_expect(r_chip != null and r_chip.position.y > r_name_y and r_chip.position.y + r_chip.size.y <= centre.y + float(radial.r_in),
+		"the radial's tag is under the name (%s) and inside the disc (chip %s-%s, disc ends %s)" % [r_name_y, r_chip.position.y if r_chip else -1, (r_chip.position.y + r_chip.size.y) if r_chip else -1, centre.y + float(radial.r_in)])
+	# A pet with no nature: no tag, and the ring's own layout is untouched.
+	rec.nature = &""
+	pet.nature = &""
+	radial.show_for(pet, [{"id": &"animals", "label": "Animals", "icon": "animals"}])
+	await process_frame
+	_expect(r_chip != null and not r_chip.visible, "a nature-less pet draws no radial tag")
+	radial.hide_menu()
+	plates.free()
+	screen.free()
+	radial.free()
+	pet.free()
+	plain.free()
+	alpha.free()
+	cam.free()
+	p.bonded.clear()
+	p.free()
+	await process_frame
+	_sections += 1
+
+func _chip_text(chip: Control) -> String:
+	if chip == null or not chip.has_method("chip_text"):
+		return "<none>"
+	return str(chip.call("chip_text"))
 
 func _test_old_save() -> void:
 	# The checked-in fixture: a whole pet block exactly as a build without natures wrote it.
