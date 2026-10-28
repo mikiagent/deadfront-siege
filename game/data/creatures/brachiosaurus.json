@@ -20,6 +20,7 @@
     "defense": 500,
     "speed": 300
   },
+  "turn_rate": 1.2,
   "tamed_role": [],
   "look": "22 meter Brachiosaurus, enormous long neck held high, small head with a domed crest, front legs longer than the hind legs, massive column-like legs, long tail, grey-green hide with a paler belly,",
   "texture_prompt": "grey-green wrinkled hide, paler cream belly, darker back, matte surface",

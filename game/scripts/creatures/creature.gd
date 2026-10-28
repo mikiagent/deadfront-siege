@@ -88,6 +88,13 @@ var _path_active: bool = false
 var _path_replan_left: float = 0.0
 var _path_blocked_left: float = 0.0
 var _path_anchor: Vector3 = Vector3.ZERO
+## Turning: the yaw budget left this physics frame (see face_towards) and the low-passed velocity
+## the locomotion faces. ASSUMPTION: 0.15 s smoothing and no turning below 0.3 m/s (PRDs give none).
+const FACE_VEL_TAU_S := 0.15
+const FACE_MIN_SPEED_MPS := 0.3
+var _turn_frame: int = -1
+var _turn_left: float = 0.0
+var _face_vel: Vector3 = Vector3.ZERO
 
 ## p_runtime: the IslandRuntime placing this spawn (Spawner passes its parent), so ring level
 ## offsets apply even before World.runtime is assigned. p_tier_offset: the island row's tier_offset.
@@ -181,6 +188,9 @@ func stop_move() -> void:
 	_path_index = 0
 	agent.target_position = global_position
 
+## Steps yaw toward world_pos at def.turn_rate (rad/s), never snapping. Every caller in one physics
+## frame shares one budget of turn_rate * physics step, so a brain and the locomotion facing the same
+## frame cannot add up to more than the species can turn. delta is kept for the callers' signature.
 func face_towards(world_pos: Vector3, _delta: float) -> void:
 	var p := world_pos
 	p.y = global_position.y
@@ -188,7 +198,16 @@ func face_towards(world_pos: Vector3, _delta: float) -> void:
 		return
 	var to := (p - global_position).normalized()
 	var target_yaw := atan2(-to.x, -to.z)
-	rotation.y = lerp_angle(rotation.y, target_yaw, minf(1.0, _delta * 10.0))
+	var frame := Engine.get_physics_frames()
+	if frame != _turn_frame:
+		_turn_frame = frame
+		_turn_left = turn_rate() * get_physics_process_delta_time()
+	var before := rotation.y
+	rotation.y = rotate_toward(before, target_yaw, _turn_left)
+	_turn_left = maxf(0.0, _turn_left - absf(angle_difference(before, rotation.y)))
+
+func turn_rate() -> float:
+	return def.turn_rate if def else 3.0
 
 func apply_species_on_hit(clip: StringName, target: Node) -> void:
 	CreatureAttack.apply_for(self, clip, target)
@@ -366,12 +385,16 @@ func _physics_process(delta: float) -> void:
 		var dir := locomote.normalized()
 		velocity.x = dir.x * speed
 		velocity.z = dir.z * speed
-		face_towards(global_position + dir, delta)
+		# Face a low-passed velocity, not the raw nav step: path jitter must not become yaw jitter.
+		_face_vel = _face_vel.lerp(Vector3(velocity.x, 0.0, velocity.z), 1.0 - exp(-delta / FACE_VEL_TAU_S))
+		if _face_vel.length() > FACE_MIN_SPEED_MPS:
+			face_towards(global_position + _face_vel, delta)
 		var frac := clampf(speed / 8.0, 0.0, 1.0)
 		anim.play_locomotion(frac)
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
+		_face_vel = _face_vel.lerp(Vector3.ZERO, 1.0 - exp(-delta / FACE_VEL_TAU_S))
 		if not anim._busy and not anim._forced:
 			anim.play_idle()
 	_slide()

@@ -19,6 +19,8 @@ extends Resource
 @export var attack: float = 10.0
 @export var defense: float = 10.0
 @export var speed: float = 400.0
+## Max yaw rate in rad/s (Creature.face_towards steps toward the goal at this rate, never snaps).
+@export var turn_rate: float = 3.0
 @export var bag_slots: int = 0
 @export var tamed_role: Array[StringName] = []
 @export var variants: Array[StringName] = []
@@ -60,6 +62,7 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.defense = float(stats.get("defense", 10.0))
 	c.speed = float(stats.get("speed", 400.0))
 	c.bag_slots = int(stats.get("bag_slots", 0))
+	c.turn_rate = float(d.get("turn_rate", default_turn_rate(c.real_length_m)))
 	c.tamed_role = ItemDef._names(d.get("tamed_role", []))
 	c.variants = ItemDef._names(d.get("variants", []))
 	c.clips = d.get("clips", {})
@@ -68,6 +71,15 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.coloration = colour if colour is Dictionary else {}
 	c._apply_taming(d)
 	return c
+
+## ASSUMPTION: the PRDs give no turn rates. Size bands on real_length_m: small raptors and
+## compsognathus turn at 5 rad/s, mid-size animals at 3, the giants at 1.4.
+static func default_turn_rate(length_m: float) -> float:
+	if length_m <= 8.0:
+		return 5.0
+	if length_m <= 14.0:
+		return 3.0
+	return 1.4
 
 func mapped_archetype() -> StringName:
 	# ASSUMPTION: JSON uses pack_raptor / pack_flanker / apex_raptor; SCHEMA lists raptor_pack.

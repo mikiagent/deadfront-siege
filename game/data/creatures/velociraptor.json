@@ -21,6 +21,7 @@
     "defense": 40,
     "speed": 700
   },
+  "turn_rate": 5.0,
   "tamed_role": [
     "mount",
     "scout"

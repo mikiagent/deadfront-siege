@@ -21,6 +21,7 @@
     "speed": 760,
     "bag_slots": 40
   },
+  "turn_rate": 4.5,
   "tamed_role": [
     "mount",
     "bag"
