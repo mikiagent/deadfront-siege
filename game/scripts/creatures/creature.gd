@@ -55,6 +55,18 @@ const WILD_REGEN_DELAY_S := 8.0
 const WILD_REGEN_RATE := 0.01
 var _wild_regen_pool: float = 0.0
 
+## ENERGY (owner 2026-10-28): running and special moves spend it, rest and walking refill it. No
+## exhaustion. Below stop_frac the animal is winded: it cannot run or start a special until the pool
+## is back above resume_frac (hysteresis). Numbers: ai.json "energy" (size default) or the species'
+## own "energy" block. Not saved: a reload starts full (the pool refills in 10-30 s anyway).
+var energy: float = 100.0
+var energy_max: float = 100.0
+var energy_regen_per_s: float = 10.0
+var energy_drain_per_s: float = 10.0
+var winded: bool = false
+## Set by whoever moved the animal at a run this frame; ticked (drain or regen) next physics frame.
+var running: bool = false
+
 @onready var agent: NavigationAgent3D = $Agent
 @onready var view: CreatureView = $View
 @onready var health: Health = $Health
@@ -123,6 +135,7 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	level = _spawn_level(p_runtime, p_tier_offset)
 	health.setup(stat_value(&"health"))
 	health.healed.connect(_on_healed)
+	setup_energy()
 	# ASSUMPTION: pet hunger budget is 0.4 * wild HP when JSON has no hunger field.
 	hunger_max = def.hp * 0.4
 	hunger = hunger_max
@@ -297,6 +310,76 @@ func dodge_chance() -> float:
 func move_speed_mps() -> float:
 	return stat_value(&"speed") / 100.0
 
+# ---------------------------------------------------------------- energy
+
+static func energy_rules() -> Dictionary:
+	return Data.creature_ai.get("energy", {}) if Data else {}
+
+## Pool and rates from the size default (bigger = larger pool, slower refill) or the species block.
+func setup_energy() -> void:
+	var r := energy_rules()
+	var own: Dictionary = def.energy if def else {}
+	var length := def.real_length_m if def else 1.0
+	energy_max = float(own.get("max", float(r.get("pool_base", 80.0)) + float(r.get("pool_per_m", 6.0)) * length))
+	var refill_s := float(r.get("refill_s_base", 10.0)) + float(r.get("refill_s_per_m", 0.5)) * length
+	energy_regen_per_s = float(own.get("regen_per_s", energy_max / maxf(1.0, refill_s)))
+	energy_drain_per_s = float(own.get("run_drain_per_s", r.get("run_drain_per_s", 10.0)))
+	energy = energy_max
+	winded = false
+
+func energy_frac() -> float:
+	return energy / maxf(1.0, energy_max)
+
+func can_sprint() -> bool:
+	return not winded and energy > 0.0
+
+func can_use_special(cost: float) -> bool:
+	return cost <= 0.0 or (not winded and energy >= cost)
+
+func spend_energy(cost: float) -> void:
+	energy = maxf(0.0, energy - cost)
+	if energy <= energy_max * float(energy_rules().get("stop_frac", 0.05)):
+		winded = true
+
+## Energy a special move costs: the species' clip entry {"energy_cost": n} or energy.costs[clip],
+## else ai.json special_cost_frac[clip] x the pool. 0 = not a special (free).
+func special_cost(clip: StringName) -> float:
+	if def:
+		var entry: Variant = def.clips.get(str(clip))
+		if entry is Dictionary and (entry as Dictionary).has("energy_cost"):
+			return float(entry["energy_cost"])
+		var costs: Dictionary = def.energy.get("costs", {})
+		if costs.has(str(clip)):
+			return float(costs[str(clip)])
+	return float((energy_rules().get("special_cost_frac", {}) as Dictionary).get(str(clip), 0.0)) * energy_max
+
+## Spend a special's cost if the animal can afford it. False = refused (play a basic move instead).
+func try_special(clip: StringName) -> bool:
+	var cost := special_cost(clip)
+	if not can_use_special(cost):
+		return false
+	spend_energy(cost)
+	return true
+
+## Walking pace: walk_frac of the run speed (ASSUMPTION 0.5). Winded animals and an unhurried mount move at it.
+func walk_mps(run_mps: float) -> float:
+	return run_mps * float(energy_rules().get("walk_frac", 0.5))
+
+## One step of the pool: drain while running, else refill; winded clears at resume_frac.
+func tick_energy(delta: float, is_running: bool) -> void:
+	var r := energy_rules()
+	if is_running:
+		energy = maxf(0.0, energy - energy_drain_per_s * delta)
+		if energy <= energy_max * float(r.get("stop_frac", 0.05)):
+			winded = true
+	else:
+		energy = minf(energy_max, energy + energy_regen_per_s * delta)
+		if winded and energy >= energy_max * float(r.get("resume_frac", 0.4)):
+			winded = false
+
+func _is_sprint_state() -> bool:
+	return brain != null and str(brain.state) in (energy_rules().get("sprint_states", []) as Array)
+
 ## Fleeing ground speed from the already-slowed base (`base_mps`) and the slow factor. The floor is
 ## here, not inline in _physics_process, so a test can call the physics code path (t_ai).
 ## flee_min_mps: a low-IV grazer still outruns a walking survivor (traps and statuses still slow it).
@@ -355,6 +438,9 @@ func _physics_process(delta: float) -> void:
 	FieldTame.tick(self, delta)
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+	if not ridden:  # a ridden mount's pool is ticked by PlayerPets.mounted_move
+		tick_energy(delta, running)
+		running = false
 	if ridden:
 		# PlayerPets.mounted_move drives a ridden mount: its velocity, facing, slide and locomotion clip.
 		current_clip = anim.current_clip
@@ -369,6 +455,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var slow := statuses.move_mult() * (trap_move_mult if trap_left > 0.0 else 1.0)
 	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * slow
+	var base_speed := speed
 	if not is_pet and brain:
 		match brain.state:
 			# ASSUMPTION (owner decision pending, dino-ai-06): chase at chase_speed_mult (0.7) so a survivor can outrun.
@@ -376,6 +463,11 @@ func _physics_process(delta: float) -> void:
 			&"flee": speed = flee_speed(speed, slow)
 	if is_pet and hunger <= 0.0:
 		speed *= 0.85
+	# ENERGY: a chase / flee / retreat runs on the pool; winded, it drops to a walk.
+	var sprint := _is_sprint_state()
+	if sprint and not can_sprint():
+		speed = minf(speed, walk_mps(base_speed))
+		sprint = false
 	var locomote := Vector3.ZERO
 	if _path_active:
 		if _use_tile_path():
@@ -404,6 +496,7 @@ func _physics_process(delta: float) -> void:
 				var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
 				face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
 		anim.set_move_speed(speed)  # stride-matched gait and cadence (no glide at in-between speeds)
+		running = sprint
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
