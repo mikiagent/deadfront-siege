@@ -47,3 +47,18 @@ Only gallimimus, once, after the torn-snout render; the retuned run replaced it 
 ## Verification log (this run)
 `tools/jaw/verify_jaws.sh coelophysis` -> JAWS PASS; `... compsognathus` -> JAWS PASS; `... gallimimus` ->
 JAWS PASS; `... utahraptor` -> JAWS PASS; all four together -> JAWS PASS.
+
+## How to re-check
+```
+export HOME=$TMPDIR/deadfront-smoke-home   # sandbox only: Godot cannot write Application Support
+tools/jaw/verify_jaws.sh coelophysis compsognathus gallimimus utahraptor   # -> JAWS PASS
+```
+Per-species render commands (one line each, same as the task):
+```
+B=/Applications/Blender.app/Contents/MacOS/Blender
+$B -b --python tools/jaw/render_head.py -- game/assets/creatures/<sp>/<sp>.glb \
+   game/assets/creatures/<sp>/anim/alert.glb /tmp/chk/<sp> --frames 24 --views threeq \
+   --span 0.6 --forward 0.12 --down -0.08
+```
+The PNGs quoted above live in /tmp and are not committed (only species assets and this report are in scope).
+Re-run the commands to regenerate them; gallimimus must use `--min-head 0.95 --slices 12` on add_jaw.
