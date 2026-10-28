@@ -21,6 +21,7 @@ var _hits: Array = []  ## [sim_t, clip, index, mult]
 var _combo_start := -1.0
 var _combo_hits: Array = []  ## [t since combo start, index, mult] of the first combo
 var _states: Dictionary = {}
+var _combo_tell := -1.0  ## t since combo start of the first combo's tell (its last bite's ring)
 
 func _process(_delta: float) -> bool:
 	if _started:
@@ -98,6 +99,9 @@ func _test_fight() -> void:
 		_hits.append([_sim_t, clip, i, m])
 		if clip == &"bite_combo" and _combo_start >= 0.0 and _combo_hits.size() < 3:
 			_combo_hits.append([_sim_t - _combo_start, i, m]))
+	dino.anim.attack_windup.connect(func(clip: StringName) -> void:
+		if clip == &"bite_combo" and _combo_start >= 0.0 and _combo_tell < 0.0:
+			_combo_tell = _sim_t - _combo_start)
 	dino.anim.attack_hit.connect(func(clip: StringName) -> void:
 		if clip == &"attack_primary":
 			_bites.append(_sim_t))
@@ -156,6 +160,12 @@ func _test_fight() -> void:
 		for i in 3:
 			var want: float = float(fracs[i]) * clip_len
 			_expect(absf(_combo_hits[i][0] - want) <= 0.12, "combo bite %d at %.2fs (hit frac %.3f of %.2fs = %.2fs)" % [i + 1, _combo_hits[i][0], fracs[i], clip_len, want])
+	var tell: Array = data.anim_events["clips"]["bite_combo"].get("tell_fracs", [])
+	if tell.size() == 2:
+		var tell_t: float = float(tell[0]) * clip_len
+		_expect(absf(_combo_tell - tell_t) <= 0.12 and _combo_tell < float(fracs[2]) * clip_len, "combo tell (last bite's ring) at %.2fs, tell_fracs[0] %.3f = %.2fs" % [_combo_tell, tell[0], tell_t])
+	else:
+		_expect(false, "anim_events bite_combo has tell_fracs [start, end]")
 
 func _test_energy_gate() -> void:
 	var b = dino.brain

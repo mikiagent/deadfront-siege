@@ -31,6 +31,7 @@ var _wide_left := 0.0
 var _retreat_cd := 0.0
 var _telegraph: Telegraph
 var last_bite_s := -999.0
+var _last_special: StringName = &""
 
 static func tactics_for(archetype: StringName) -> Dictionary:
 	var row: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(archetype), {})
@@ -142,7 +143,8 @@ func _circle(delta: float) -> void:
 	strafe_face = attack_target
 	speed_override = creature.walk_mps(creature.move_speed_mps()) * _t("circle_speed_frac", 0.8)
 	var step := deg_to_rad(_t("circle_step_deg", 35.0)) * _circle_sign
-	creature.move_to(attack_target.global_position + _to_me().rotated(Vector3.UP, step) * ring_m())
+	# Steering at a point `step` ahead settles at radius * cos(step); aim past the ring so it holds the ring.
+	creature.move_to(attack_target.global_position + _to_me().rotated(Vector3.UP, step) * ring_m() / cos(step))
 	# Prey that walks into its jaws gets bitten (also the only attack left while winded).
 	if d <= reach_to(attack_target) and _ready_to(&"bite") and _can_swing():
 		_bite()
@@ -162,11 +164,14 @@ func _choose(d: float) -> void:
 		_circle_sign = -_circle_sign
 	var feint := _t("feint_chance", 0.25) * creature.nature_knob("tactic_feint_mult", 1.0)
 	var dash_ok := creature.can_sprint() and _can_swing() and _wide_left <= 0.0
-	if dash_ok and _ready_to(&"pounce") and d >= _t("pounce_min_m", 4.5) and d <= _t("pounce_max_m", 8.0) + _size_excess(attack_target) \
-			and creature.can_use_special(creature.special_cost(&"pounce")) and randf() < _t("pounce_chance", 0.5):
+	var can_pounce := dash_ok and _ready_to(&"pounce") and d >= _t("pounce_min_m", 4.5) and d <= _t("pounce_max_m", 8.0) + _size_excess(attack_target) \
+			and creature.can_use_special(creature.special_cost(&"pounce")) and randf() < _t("pounce_chance", 0.5)
+	var can_combo := dash_ok and _ready_to(&"combo") and _ready_to(&"lunge") and creature.anim.has_state(&"bite_combo") \
+			and creature.can_use_special(creature.special_cost(&"bite_combo")) and randf() < _t("combo_chance", 0.6)
+	# Specials alternate when both are on offer, so neither starves the other of energy.
+	if can_pounce and not (can_combo and _last_special == &"pounce"):
 		_start_pounce()
-	elif dash_ok and _ready_to(&"combo") and _ready_to(&"lunge") and creature.anim.has_state(&"bite_combo") \
-			and creature.can_use_special(creature.special_cost(&"bite_combo")) and randf() < _t("combo_chance", 0.6):
+	elif can_combo:
 		_start_lunge(&"bite_combo")
 	elif dash_ok and randf() < feint:
 		_start_feint()
@@ -174,6 +179,8 @@ func _choose(d: float) -> void:
 		_start_lunge(&"attack_primary")
 	else:
 		_left = randf_range(0.3, 0.7)  # nothing ready: keep circling
+	if OS.has_environment("TA_DEBUG"):
+		print("[dbg] d=%.1f e=%.0f/%.0f pcd=%.1f ccd=%.1f -> %s" % [d, creature.energy, creature.energy_max, cooldown_left(&"pounce"), cooldown_left(&"combo"), state])
 
 func _start_feint() -> void:
 	_set_state(&"feint")
@@ -234,6 +241,7 @@ func _combo() -> void:
 	creature.anim.play_clip(&"bite_combo")
 	_start_cd(&"combo")
 	_start_cd(&"bite")
+	_last_special = &"combo"
 	_set_state(&"combo")
 	_mark_pack()
 	tactic.emit(&"combo")
@@ -261,6 +269,7 @@ func _start_pounce() -> void:
 	creature.anim.play_timed_attack(&"attack_heavy", _left + _t("pounce_leap_s", 0.4))
 	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("pounce_radius_m", 1.6) + _size_excess(attack_target), _left + _t("pounce_leap_s", 0.4))
 	_start_cd(&"pounce")
+	_last_special = &"pounce"
 	_mark_pack()
 	tactic.emit(&"pounce")
 	_log("[ai] %s pounce windup" % creature.def.id)
@@ -310,9 +319,9 @@ func _pounce_land() -> void:
 	if _flat_dist(tgt) > reach_to(tgt) + 0.3:
 		_log("[ai] %s pounce missed" % creature.def.id)
 		return
-	if tgt is Player and ((tgt as Player).dead or (tgt as Player).rolling):
-		_log("[ai] %s pounce rolled through" % creature.def.id)
+	if tgt is Player and (tgt as Player).dead:
 		return
+	# A roll is judged by CreatureAttack against the roll's opening window (RollRules), as for any bite.
 	var mult := _t("pounce_mult", 1.5)
 	tactic_hit.emit(&"pounce", 0, mult)
 	if CreatureAttack.apply_for(creature, &"attack_heavy", tgt, mult) and tgt is Player:

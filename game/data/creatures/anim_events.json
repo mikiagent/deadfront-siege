@@ -23,6 +23,10 @@
         0.361,
         0.82
       ],
+      "tell_fracs": [
+        0.532,
+        0.677
+      ],
       "windup": true,
       "note": "chomp left, chomp right, MEGA chomp in the middle: the third winds up for 10 frames (frames 33-42 of 62, the tell) and snaps straight ahead with the widest jaw. Authored for deinonychus (tools/jaw/make_combo.py)."
     }

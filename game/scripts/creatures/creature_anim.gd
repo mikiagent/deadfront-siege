@@ -44,6 +44,7 @@ var _os_t := 0.0
 var _os_last := -1.0
 var _os_hit_done := true
 var _os_fracs: Array[float] = []
+var _os_windup_frac := -1.0
 ## Index of the hit attack_hit just fired for (0, 1, 2 for bite_combo's three bites; 0 otherwise).
 var hit_index := 0
 
@@ -130,6 +131,8 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		_os_last = -1.0
 		_os_hit_done = state not in ATTACKS
 		_os_fracs = CreatureClips.hit_fracs(state)
+		var tell: Variant = ((Data.anim_events.get("clips", {}) as Dictionary).get(str(state), {}) as Dictionary).get("tell_fracs")
+		_os_windup_frac = float((tell as Array)[0]) if state in ATTACKS and tell is Array and not (tell as Array).is_empty() else -1.0
 		hit_index = 0
 
 func release_knockdown() -> void:
@@ -191,14 +194,15 @@ func _poll_oneshot() -> void:
 	var pos := _playback.get_current_play_position()
 	_os_t = pos if _os_last < 0.0 else _os_t + (fposmod(pos - _os_last, length) if length > 0.0 else 0.0)
 	_os_last = pos
+	# tell_fracs [start, end] (anim_events): the tell before a combo's last bite raises its ring at start.
+	if _os_windup_frac >= 0.0 and _os_t >= length * _os_windup_frac:
+		_os_windup_frac = -1.0
+		attack_windup.emit(_os_state)
 	while not _os_hit_done and hit_index < _os_fracs.size() and _os_t >= length * _os_fracs[hit_index]:
 		var clip := _os_state
 		attack_hit.emit(clip)
 		hit_index += 1
 		_os_hit_done = hit_index >= _os_fracs.size()
-		# The last bite of a multi-hit combo is telegraphed: its ring goes up as the one before lands.
-		if hit_index == _os_fracs.size() - 1 and _os_fracs.size() > 1:
-			attack_windup.emit(clip)
 	if _os_state == &"":
 		return
 	if _os_t >= length - 0.001 or pos >= length - 0.001:

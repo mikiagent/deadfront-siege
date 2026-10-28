@@ -13,9 +13,13 @@ static func show_for(creature: Creature, clip: StringName) -> void:
 	var t := Telegraph.new()
 	t.name = "Telegraph"
 	creature.get_parent().add_child(t)
-	var impact := creature.global_position + -creature.global_transform.basis.z * (2.2 if clip == &"attack_heavy" else 1.2)
-	t.global_position = impact
+	var ahead := 2.2 if clip == &"attack_heavy" else 1.2
 	var radius := 1.8 if clip == &"attack_heavy" else 1.1
+	if clip == &"bite_combo":  # the MEGA chomp snaps straight ahead, just past the snout
+		ahead = creature.body_radius() + 1.0
+		radius = 1.4
+	var impact := creature.global_position + -creature.global_transform.basis.z * ahead
+	t.global_position = impact
 	t._build(radius, creature)
 	t.visible = not (player and player.statuses.has_flag(&"hide_telegraphs"))
 	t.clip = clip

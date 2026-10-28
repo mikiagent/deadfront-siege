@@ -82,7 +82,7 @@
         "feint_s": 0.7,
         "pounce_cd": 9.0,
         "pounce_chance": 0.5,
-        "pounce_min_m": 4.5,
+        "pounce_min_m": 4.0,
         "pounce_max_m": 8.0,
         "pounce_telegraph_s": 0.8,
         "pounce_leap_s": 0.4,
