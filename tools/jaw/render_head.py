@@ -43,6 +43,7 @@ sc = bpy.context.scene
 sc.render.engine = "BLENDER_WORKBENCH"
 sc.display.shading.light = "STUDIO"; sc.display.shading.color_type = "TEXTURE"
 sc.display.shading.show_cavity = True
+sc.display.shading.show_backface_culling = True  # like the game: a flipped face shows as a hole
 sc.render.resolution_x = sc.render.resolution_y = a.size
 w = bpy.data.worlds.new("W"); w.color = (0.93, 0.93, 0.9); sc.world = w
 cd = bpy.data.cameras.new("C"); cd.type = "ORTHO"; cd.ortho_scale = a.span
@@ -62,7 +63,7 @@ for fr in [int(x) for x in a.frames.split(",")]:
     tgt = tgt + fwd * (a.span * 0.12 if a.forward is None else a.forward) - Vector((0, 0, a.down))
     for v in a.views.split(","):
         # yaw measured from the animal's left side (-X in Blender for +Y facing), degrees
-        yaw, pitch = {"side": (0, 0), "threeq": (40, 15), "front": (85, 8), "below": (30, -30)}[v]
+        yaw, pitch = {"side": (0, 0), "threeq": (40, 15), "front": (85, 8), "below": (30, -30), "top": (20, 70), "back": (150, 25)}[v]
         base = math.atan2(fwd.y, fwd.x) + math.pi / 2  # left side of the head
         ang = base - math.radians(yaw)
         d = Vector((math.cos(ang), math.sin(ang), math.tan(math.radians(pitch)))).normalized()
