@@ -97,7 +97,8 @@ static func stamp_traits(inv: Inventory, had: Dictionary, landed: ItemStack, gai
 	# shortcut: a stacking-category item (inventory.json) has no uid to find, so it rolls no trait; no nature node yields one today.
 	var fresh := inv.slots.filter(func(s: ItemStack) -> bool: return s != null and s.def_id == landed.def_id and s.uid != "" and not had.has(s.uid))
 	for s: ItemStack in fresh.slice(0, gained):
-		var t := LootRoller.roll_trait(r)
+		# The roll comes from that material's own list (RAREATTR), not one pool for everything.
+		var t := LootRoller.roll_trait(r, s.def_id)
 		if t != &"":
 			s.attributes[str(t)] = true
 			out.append(t)

@@ -36,7 +36,9 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ![fatigue](screens/fatigue.webp)
 
-**`sheet_menu`** — MENU sheet
+**`sheet_menu`** — MENU nav menu (B3, `nav_menu.gd`): two columns of entries over the live world,
+header with the debug gear and T-stone balance, CLOSE where MENU sits. The WebP below predates it
+(old row sheet); current captures at both sizes: `docs/orchestration/reports/uinav/b3_nav_menu_*.png`.
 
 ![sheet_menu](screens/sheet_menu.webp)
 
@@ -47,7 +49,7 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ## Bag & items
 
-**`bag`** — bag and equipment
+**`bag`** — bag (its Character tab now opens the Character sheet above)
 
 ![bag](screens/bag.webp)
 
@@ -62,9 +64,24 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ## Crafting, stations, building
 
-**`craft`** — hand crafting
+**`craft`** — Craft / Build (UICRAFT, spec §7 D1 / D3; `craft_ui.gd`, `craft_place.gd`)
 
 ![craft](screens/craft.webp)
+
+Full-screen sheet: HEADER bar with torn edge, Back, "Craft / Build", the station hint (desktop),
+Build and ✕. Left: station chooser (By hand / Workbench n m / Bonfire n m ..., scrolls sideways;
+the chosen one gold-rimmed) over a 2-column category grid (All + the six recipe `skill` values; gold
+brackets on the chosen tile). Middle: search over the recipe list grouped by what it makes (tool
+class, else the output's first category), two cells a row, gold brackets + wash on the selection.
+Right: parchment header, level · time · count, Max Level / Related Skill / Station / Time · Success ·
+Flawless, the skill lock line, the Materials bar with ✓/✕ have / need rows, the CRAFTFEEL stake lines
+and bag preview, and Craft (GOLD) / Craft ×5 pinned under the scroll. "Materials · Place materials"
+opens **place materials** (D3): completion %, one chevron per slot (OK_GREEN once placed), the
+slot's candidates (level, rarity pips, gold order badges), a parchment focus card with trait chips,
+the expected result (traits from slot 1 only), a 1-10 stepper, the success rate, then Place
+material → Craft; the placed instances lead their slots (`StationCraft.begin(..., uids)`).
+Shots: `docs/orchestration/reports/uicraft/`. Every tap target is 64 px or more at 1600x900 and
+844x390 (`game/tests/t_uicraft.gd`).
 
 **`camp_bonfire`** — camp labels by the bonfire
 
@@ -82,21 +99,67 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ![station_workbench](screens/station_workbench.webp)
 
-**`build`** — construction menu (Build)
+**`build`** — build mode drawer (UICRAFT, spec §7 D2; `build_ui.gd`)
 
 ![build](screens/build.webp)
 
+Opened by the BUILD rail hex, MENU › Build or Craft / Build's Build button. An opaque drawer down
+the left edge (494 px desktop, 312 phone): "Build", Move buildings, ✕; tier tabs Thatch Lv. 1 /
+Wood Constr. 5 / Stone Constr. 20 / Metal Constr. 35 (`structures.json`; GOLD underline on the
+chosen tier, red level when locked); flat-top hex tiles under Parts (the tier's pieces, cost
+under the name), Stations (kits in the bag) and Blueprints (construction sites); the tier's materials
+in the bag and the Construction level along the bottom. A tile starts the ghost and the drawer stays
+open: "Pick a building spot" over the world, the cost bar at the bottom (in the drawer's bottom line
+on a phone), and the HUD's ROTATE / SAVE / CANCEL row beside the ghost, kept off the drawer. A
+construction site's sheet (slots, Work / Withdraw / Cancel site / Finish) opens in the same drawer.
+The old BUILD bottom sheet (`sheet_build`) is still reachable from code but no control opens it.
 
-## Skills
 
-**`skills`** — skills sheet
+## Character, Skills, Orders (UICHAR, spec §7 C1/C3/C4)
+
+Full-screen sheets with the §8 chrome (`uichar_chrome.gd`: dimmed world, HEADER bar with "‹ Title"
+and torn edge, ✕, PANEL boxes, parchment detail headers, GOLD primary button, gold corner brackets).
+‹ reopens the MENU; ✕ / Esc returns to the HUD. Captures:
+`docs/orchestration/reports/uichar/*_1600x900.png` and `*_844x390.png` (`--lab=uichar_lab`).
+
+- **Character** (`character_sheet.gd`, hosted by the bag's `InventoryUI`; open with
+  `HuntHud.open_character()` / `InventoryUI.open_character()` / the bag's Character tab). Tabs
+  Equipment / Titles / Appearance (Appearance: "No decorative gear yet"). Left: name, level, occupation
+  and title on parchment, then the stats list (Life, Energy, Attack, Defense, Accuracy, Critical chance,
+  Held tool power, Heat / Cold resistance, the three Powers, Carry, Skill points). Centre: the figure
+  (the survivor's portrait) with Head, Body, Arms, Legs left, Weapon, Tool, Ring, Bag right and Food 1,
+  Food 2 under it; the selected slot's bar (name · Lv. · Attack · durability, Unequip, Open bag ›).
+  Gear sets 1-4 sit in the header. Right: Survival (Exhaustion meter; Food, Thirst, Hygiene as status
+  states, since the build has no hunger, thirst or hygiene meters) and a status footer. On 844x390
+  the slot labels move inside empty slots.
+- **Skills** (`skills_sheet.gd`; `HuntHud.open_skills(tree)`). A 4-column grid of the 12 skills (name,
+  gold unread dot when a node is buyable now, white symbol, thin XP bar, Lv., "FULL · n XP" when XP is
+  banked at the cap); right, the selected skill: parchment name + Lv., Skill XP, SP spent here, what
+  levels it, the unlock list (Unlock / Refund / lock reason per node, auto-learned line, not-in-game
+  rows) and the GOLD "Spend n SP on <next node>". F7 `skill_debug.gd` is unchanged.
+- **Orders** (`orders_sheet.gd`; `HuntHud.open_orders()`). The standing orders of
+  `data/world/objectives.json`: numbered rows (check when done, gold ring on the running one), title,
+  hint, progress; right, the parchment title, how-to line, reward chips (+XP, +T-stones) and
+  "Track on HUD" / "Tracking on HUD" / "Done".
+
+**`skills`** — skills sheet (pre-UICHAR capture; recapture with `tools/ui_screens.sh`)
 
 ![skills](screens/skills.webp)
 
 
 ## Creatures, pets, combat
 
-**`animals`** — owned-animal roster
+**`animals`** — E1 Animals (UIANIMALS rebuild, `animal_screen.gd`; spec §7 E1). Sheet chrome
+(`sheet_chrome.gd`: blurred world + SCREEN_DIM, HEADER with torn edge, back icon -> MENU, ✕ -> HUD,
+tabs Pack / Taming Pen (disabled: no E2 screen yet), counter "Bonded n / cap (grows to 7)").
+Left: pack slots = the bonded roster (spec 09 cap 3-7), one card per pet (swatch, name, NatureChip
+directly under it, "Species · Lv. n · grade", status Out / Resting / Down / hungry), empty slots up to
+the cap, one "n – 7 · locked" row, then "Waiting to bond" (captured / tamed animal items in the bag and
+occupied taming pens). Centre: name, NatureChip, species · diet, grade box, the pet's live 3D model
+(`animal_stage.gd`, drag to turn), growth XP bar, role and potential chips. Right: stats (with the
+genetics tier), needs (fullness, health), Feed (GOLD) / Ride / Summon-Dismiss / Release (disabled: no
+bond-breaking exists). Open: `HuntHud.open_animals(rec = null)`. The wiki shot below predates the
+rebuild; current shots: `../orchestration/reports/uianimals/e1-animals-*.png`.
 
 ![animals](screens/animals.webp)
 
@@ -123,9 +186,24 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ## Map, land, island
 
-**`atlas`** — world atlas
+**`atlas`** — F2 World Atlas (UIANIMALS rebuild, `map_screen.gd`; spec §7 F2). Left column: "World
+Atlas", "You X · Y · Lv. · T-stones", one card per catalogue island (current first, GOLD brackets on the
+selected; level · climate · Tamed/Unstable, resources, species, status: You are here / Harbour route ·
+n T-stones / Needs Survival n), foot: Island time, Islands visited, GOLD "Back to camp" on an unstable
+island. Centre: the north-up map on its own sea colour. Right: compass + ✕, legend panel, Harbour
+routes (+ Warp home away from home) and zoom − / +. Open: `HuntHud.open_atlas()` (opens) or
+`open_map()` (toggles). Current shots: `../orchestration/reports/uianimals/f2-world-atlas-*.png`.
 
 ![atlas](screens/atlas.webp)
+
+**`claim`** — CLAIM confirm panel (B4 restyle: parchment header, Cancel outlined, GOLD Expand;
+current captures `docs/orchestration/reports/uinav/b4_claim_*.png`)
+**`harbour`** — Harbour (`world_ui.gd show_harbour()`; owner §11 rebuilt the stretched "Sail ..." rows):
+sheet chrome "Harbour" with "Survival n · T-stones n", then a 4-column (phone: 3) grid of route cards:
+island, level · climate, the requirement line (red when short), and a Sail button (GOLD when it can
+go, `route_id` meta, disabled with the reason on the card). Away from home: Free return home and
+Return to camp cards first. Back returns to the atlas. Shots:
+`../orchestration/reports/uianimals/f2-harbour-*.png`.
 
 **`claim`** — CLAIM confirm panel
 
@@ -139,6 +217,31 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ![comm_center](screens/comm_center.webp)
 
+
+## Island Market
+
+Menu -> Island Market (`HuntHud.open_market(tab)`, or `MarketScreen.open_for(host, tab, uid)` for any
+nav menu). Scripts: `game/scripts/ui/market/` (`market_screen.gd` chrome, rail, offline card;
+`market_buy.gd`, `market_mine.gd`, `market_sell.gd`; `market_row.gd` one row = one instance;
+`market_confirm.gd`). §8 chrome: HEADER bar with ‹ and the island name, the T-stones pill, ✕, torn
+edge; left rail Buy / My Market / Sell (GOLD brackets on the active tab). The market lives on the
+game server only: in the single-player build every tab shows an **Island Market offline** card and
+sends nothing (owner 2026-10-20). Screens with listings come from the local test server
+(`scripts/dev/market_harness.gd`, labelled "Local test server, not the live market" on the rail).
+Test: `game/tests/t_uimarket.gd`. Shots (1600x900 and 844x390): `docs/orchestration/reports/uimarket/`.
+
+- **Buy**: category column (View All, Tools, Weapons, Food, Wood, Stone, Fibre, Bone, Hide, Animals),
+  search field, Level / Durability / Price sort headers (active one GOLD), one row per listed instance
+  (icon in its natural tint, gold name, type line, Lv., cur/max durability, coin + price). A row opens
+  the confirm: parchment header, trait chips, seller, price, tradable T-stones, **Buy for n** (one unit).
+- **My Market**: Active (tap to cancel) / Sold / Expired / History, "n waiting" and **Receive All**
+  (withdraws everything in market storage into the server bag, one rid per item).
+- **Sell**: the server character's bag and bonded animals (equipped gear left out, locked rows greyed),
+  price field, duration (12/24/48/72 h, default 24), fee / tax-when-sold / you-receive preview from
+  `market_rules.json`, GOLD **List on market** (deposit + list exactly one unit).
+
+![market offline](../orchestration/reports/uimarket/market_offline_1600x900.png)
+![market buy](../orchestration/reports/uimarket/market_buy_1600x900.png)
 
 ## New character
 
@@ -170,6 +273,13 @@ corner brackets). Shots at 1600x900 and 844x390: `docs/orchestration/reports/uiw
 | A2 Island pick | `island_pick.gd` | character creation | Square cards on a sea well, GOLD brackets on the pick, blurb and top scatter kinds, "! Terrain choice is final.", GOLD **Select and move**. |
 
 Not captured: the death/respawn ring and the skill debug overlay (dev only).
+B4 toasts, radials and dialogs (UINAV, `game/scripts/dev/uinav_lab.gd`, desktop 1600x900 and phone
+844x390 in `docs/orchestration/reports/uinav/`): warnings on dark red with a warning glyph and green
+ok notices, the station radial (main action gold-rimmed, 96 px hexes on desktop), eating as a hex
+pie with seconds left and the food's energy, the pet respawn ring (dark red disc, LIFE arc,
+"seconds"), the fatigue panel and the death card.
+
+Not captured by `tools/ui_screens.sh`: the death card, the respawn ring and the skill debug overlay (dev only).
 
 ## Tokens available for restyled sheets (not yet applied)
 

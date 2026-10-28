@@ -18,7 +18,13 @@
     "damage_dealt_mult": 1.0,
     "tactic_cooldown_mult": 1.0,
     "tactic_feint_mult": 1.0,
-    "tactic_standoff_mult": 1.0
+    "tactic_standoff_mult": 1.0,
+    "tactic_hold_mult": 1.0,
+    "tactic_backoff_mult": 1.0,
+    "tactic_overshoot_mult": 1.0,
+    "tactic_w_pounce": 1.0,
+    "tactic_w_charge": 1.0,
+    "tactic_w_combo": 1.0
   },
   "_masking": {
     "_about": "ASSUMPTION: 'never' drops a nature for an archetype, 'only' limits it to a list, 'rare_for' allows it at rarity_weight_mult of the normal weight. A defensive or territorial grazer that rolls Aggressive charges on sight, where today it waits to be hit.",
@@ -61,14 +67,19 @@
       ],
       "_about": "Avoids combat, more likely to flee. A T. rex or a titan never rolls it, and a territorial charger neither.",
       "tactic_standoff_mult": 1.3,
-      "tactic_feint_mult": 1.5
+      "tactic_feint_mult": 1.5,
+      "tactic_backoff_mult": 2.0,
+      "tactic_w_charge": 0.4,
+      "tactic_w_pounce": 1.5
     },
     "brave": {
       "label": "Brave",
       "flee_threshold_mult": 0.6,
       "retreat_threshold_mult": 0.5,
       "protect_rider_below_hp": 1.0,
-      "_about": "Protects its rider even when wounded: a ridden pet never retreats for its own HP."
+      "_about": "Protects its rider even when wounded: a ridden pet never retreats for its own HP.",
+      "tactic_hold_mult": 1.5,
+      "tactic_w_combo": 1.5
     },
     "aggressive": {
       "label": "Aggressive",
@@ -85,7 +96,11 @@
       ],
       "_about": "Attacks nearby threats without orders: engages anything inside its (wider) aggro radius unprovoked. Herbivore archetypes roll it a tenth as often (a charging bull is rare, a pack of raptors is not).",
       "tactic_cooldown_mult": 0.7,
-      "tactic_feint_mult": 0.5
+      "tactic_feint_mult": 0.5,
+      "tactic_hold_mult": 1.5,
+      "tactic_overshoot_mult": 1.6,
+      "tactic_w_charge": 2.0,
+      "tactic_w_combo": 1.5
     },
     "loyal": {
       "label": "Loyal",

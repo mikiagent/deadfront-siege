@@ -170,19 +170,17 @@ func _test_full() -> void:
 	sk.add_xp("melee", 200.0)  # more than Lv. 1 -> 3 needs: the rest is banked (spec 03:7)
 	var sheet: Control = (load("res://scripts/ui/skills_sheet.gd") as GDScript).new()
 	get_root().add_child(sheet)
-	sheet.open(sk)
-	var melee: Node = sheet._box.find_child("Skill_melee", true, false)
+	sheet.open(sk, "melee")
+	var melee: Node = sheet.find_child("Skill_melee", true, false)
 	var full: Node = melee.find_child("SkillFull_melee", true, false) if melee else null
-	var xp_text := ""
-	for l in (melee.find_children("*", "Label", true, false) if melee else []):
-		if (l as Label).text.ends_with(" XP"):
-			xp_text = (l as Label).text
+	var xp_label: Label = sheet.find_child("SkillXp", true, false)
+	var xp_text := xp_label.text if xp_label else ""
 	print("[t_skillfeel] cap: melee Lv. %d of cap %d, banked %.0f, FULL label %s, xp \"%s\"" % [sk.level_of("melee"), sk.level_cap("melee"), sk.xp_of("melee"), full != null, xp_text])
 	_expect(sk.level_of("melee") == sk.level_cap("melee"), "melee stops at the character level (Lv. %d of %d)" % [sk.level_of("melee"), sk.level_cap("melee")])
 	_expect(full != null and str((full as Label).text).begins_with("FULL"), "a tree at the cap reads FULL (got \"%s\")" % (str((full as Label).text) if full else "-"))
 	_expect(full != null and str((full as Label).text).contains("%d XP" % int(sk.xp_of("melee"))) and int(sk.xp_of("melee")) > 52, "the FULL line shows the banked XP (got \"%s\" for %d banked)" % [str((full as Label).text) if full else "-", int(sk.xp_of("melee"))])
-	_expect(xp_text == "%d / %d XP" % [int(SkillStateS.xp_to_next(sk.level_of("melee"))), int(SkillStateS.xp_to_next(sk.level_of("melee")))], "the capped row still shows the XP of the rung it waits on (\"%s\")" % xp_text)
-	var gathering: Node = sheet._box.find_child("Skill_gathering", true, false)
+	_expect(xp_text == "%d / %d" % [int(SkillStateS.xp_to_next(sk.level_of("melee"))), int(SkillStateS.xp_to_next(sk.level_of("melee")))], "the capped row still shows the XP of the rung it waits on (\"%s\")" % xp_text)
+	var gathering: Node = sheet.find_child("Skill_gathering", true, false)
 	var gfull: Node = gathering.find_child("SkillFull_gathering", true, false) if gathering else null
 	_expect(gfull == null, "a tree below the cap has no FULL label (gathering Lv. %d of %d)" % [sk.level_of("gathering"), sk.level_cap("gathering")])
 	# A character level-up lifts the cap and the tree spends its bank at once; FULL goes with it.
@@ -190,7 +188,7 @@ func _test_full() -> void:
 	_world().pioneer_changed.emit(6)
 	sk._on_character_level()
 	sheet.open(sk)
-	melee = sheet._box.find_child("Skill_melee", true, false)
+	melee = sheet.find_child("Skill_melee", true, false)
 	full = melee.find_child("SkillFull_melee", true, false) if melee else null
 	print("[t_skillfeel] after the character level: melee Lv. %d of cap %d, FULL %s" % [sk.level_of("melee"), sk.level_cap("melee"), full != null])
 	_expect(sk.level_of("melee") > 3, "melee spends the banked XP after the character level-up (Lv. %d)" % sk.level_of("melee"))

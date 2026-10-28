@@ -14,7 +14,13 @@
       "cleared_by": [
         "bandage"
       ],
-      "fx": "drip_darken",
+      "fx": {
+        "body": "drip_darken",
+        "color": "#d8503a",
+        "icon": "claw",
+        "particles": "drip",
+        "vignette": true
+      },
       "on_untreated_expire": "infected_wound",
       "on_untreated_chance": 0.25
     },
@@ -35,7 +41,13 @@
         "pressure_dressing",
         "cauterise"
       ],
-      "fx": "drip_darken"
+      "fx": {
+        "body": "drip_darken",
+        "color": "#d8503a",
+        "icon": "deep_bleed",
+        "particles": "drip",
+        "vignette": true
+      }
     },
     {
       "id": "venom",
@@ -51,7 +63,13 @@
       "cleared_by": [
         "antivenom"
       ],
-      "fx": "tint_green"
+      "fx": {
+        "body": "tint_green",
+        "color": "#8fd14f",
+        "icon": "venom",
+        "particles": "bubbles",
+        "vignette": false
+      }
     },
     {
       "id": "fracture",
@@ -71,7 +89,13 @@
         "splint",
         "residence"
       ],
-      "fx": "limp"
+      "fx": {
+        "body": "limp",
+        "color": "#9aa6ad",
+        "icon": "fracture",
+        "particles": "tint",
+        "vignette": false
+      }
     },
     {
       "id": "pinned",
@@ -90,7 +114,13 @@
         "struggle",
         "pet_aggro"
       ],
-      "fx": "none"
+      "fx": {
+        "body": "none",
+        "color": "#9aa6ad",
+        "icon": "pinned",
+        "particles": "tint",
+        "vignette": false
+      }
     },
     {
       "id": "deafened",
@@ -106,7 +136,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 4,
       "cleared_by": [],
-      "fx": "mute"
+      "fx": {
+        "body": "mute",
+        "color": "#9aa6ad",
+        "icon": "deafened",
+        "particles": "tint",
+        "vignette": false
+      }
     },
     {
       "id": "infected_wound",
@@ -124,7 +160,13 @@
       "cleared_by": [
         "antibiotic"
       ],
-      "fx": "tint_sick"
+      "fx": {
+        "body": "tint_sick",
+        "color": "#8fd14f",
+        "icon": "infected_wound",
+        "particles": "tint",
+        "vignette": false
+      }
     },
     {
       "id": "bleeding_target",
@@ -141,7 +183,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 3,
       "cleared_by": [],
-      "fx": "drip_darken"
+      "fx": {
+        "body": "drip_darken",
+        "color": "#d8503a",
+        "icon": "bleeding_target",
+        "particles": "drip",
+        "vignette": false
+      }
     },
     {
       "id": "groggy",
@@ -155,7 +203,13 @@
       "accuracy_mult": 0.85,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "wobble"
+      "fx": {
+        "body": "wobble",
+        "color": "#9aa6ad",
+        "icon": "groggy",
+        "particles": "tint",
+        "vignette": false
+      }
     },
     {
       "id": "knockdown",
@@ -171,7 +225,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 6,
       "cleared_by": [],
-      "fx": "knockdown"
+      "fx": {
+        "body": "knockdown",
+        "color": "#9aa6ad",
+        "icon": "knockdown",
+        "particles": "tint",
+        "vignette": false
+      }
     },
     {
       "id": "snared",
@@ -187,7 +247,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 6,
       "cleared_by": [],
-      "fx": "none"
+      "fx": {
+        "body": "none",
+        "color": "#9aa6ad",
+        "icon": "snared",
+        "particles": "tint",
+        "vignette": false
+      }
     },
     {
       "id": "poisoned_target",
@@ -203,7 +269,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 5,
       "cleared_by": [],
-      "fx": "tint_green"
+      "fx": {
+        "body": "tint_green",
+        "color": "#8fd14f",
+        "icon": "poisoned_target",
+        "particles": "bubbles",
+        "vignette": false
+      }
     },
     {
       "id": "dizziness",
@@ -218,7 +290,13 @@
       "evasion_add": -40.0,
       "weakness_rank": 2,
       "cleared_by": [],
-      "fx": "wobble"
+      "fx": {
+        "body": "wobble",
+        "color": "#9aa6ad",
+        "icon": "dizziness",
+        "particles": "tint",
+        "vignette": false
+      }
     },
     {
       "id": "enraged",
@@ -233,7 +311,13 @@
       "attack_mult": 1.2,
       "weakness_rank": 2,
       "cleared_by": [],
-      "fx": "tint_red"
+      "fx": {
+        "body": "tint_red",
+        "color": "#e8962a",
+        "icon": "enraged",
+        "particles": "tint",
+        "vignette": false
+      }
     },
     {
       "id": "wet",
@@ -249,7 +333,13 @@
       "_note": "PRD :284: Wet changes climate fatigue (heat -20 %; the cold +30 % / humidity +30 % halves are not modelled yet) and adds no fatigue of its own. It used to carry 0.3/min, which the status tick charged as 30/min while rain kept Wet refreshed.",
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#5fa8d0",
+        "icon": "wet",
+        "particles": "tint",
+        "vignette": false
+      },
       "heat_fatigue_mult": 0.8
     },
     {
@@ -266,7 +356,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none"
+      "fx": {
+        "body": "none",
+        "color": "#f4c430",
+        "icon": "full",
+        "particles": "none",
+        "vignette": false
+      }
     },
     {
       "id": "stomachache",
@@ -280,7 +376,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 4,
       "cleared_by": [],
-      "fx": "tint_sick"
+      "fx": {
+        "body": "tint_sick",
+        "color": "#8fd14f",
+        "icon": "stomachache",
+        "particles": "tint",
+        "vignette": false
+      }
     },
     {
       "id": "tastes_bad",
@@ -295,7 +397,13 @@
       "fatigue_per_min": 0.5,
       "weakness_rank": 2,
       "cleared_by": [],
-      "fx": "none"
+      "fx": {
+        "body": "none",
+        "color": "#9aa6ad",
+        "icon": "tastes_bad",
+        "particles": "none",
+        "vignette": false
+      }
     },
     {
       "id": "dirty",
@@ -312,7 +420,13 @@
       "cleared_by": [
         "wash"
       ],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#9aa6ad",
+        "icon": "dirty",
+        "particles": "none",
+        "vignette": false
+      },
       "_note": "PRD 6.4 / research bestiary 4.2: until washed, fatigue gain +20%. What makes you dirty is an ASSUMPTION (data/water.json dirt)."
     },
     {
@@ -330,7 +444,13 @@
       "cleared_by": [
         "wash"
       ],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#9aa6ad",
+        "icon": "very_dirty",
+        "particles": "none",
+        "vignette": false
+      },
       "_note": "PRD 6.4 / research bestiary 4.2: until washed, fatigue gain +50%."
     },
     {
@@ -348,7 +468,13 @@
       "cleared_by": [
         "drink"
       ],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#9aa6ad",
+        "icon": "thirsty",
+        "particles": "none",
+        "vignette": false
+      },
       "_note": "PRD 6.3; research bestiary 4.2: until fresh water, fatigue gain +20%. Nothing applies it yet: wading in the sea gives Wet (PRD :284), and the research ties seawater thirst to drinking it, which the game has no verb for. Drink clears it."
     },
     {
@@ -364,7 +490,13 @@
       "heat_fatigue_mult": 0.8,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#f4c430",
+        "icon": "quenched",
+        "particles": "none",
+        "vignette": false
+      },
       "_note": "PRD 6.3, :314: drinking fresh water cuts heat fatigue. ASSUMPTION: heat fatigue -20% (Wet's documented heat cut) for 6 min (Clean's length); the PRD gives no numbers."
     },
     {
@@ -380,7 +512,13 @@
       "fatigue_mult": 0.8,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#f4c430",
+        "icon": "clean",
+        "particles": "none",
+        "vignette": false
+      },
       "_note": "PRD 6.4 Cleanliness (washed): 6 min, fatigue gain -20%."
     },
     {
@@ -395,7 +533,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#f4c430",
+        "icon": "caffeinated",
+        "particles": "none",
+        "vignette": false
+      },
       "_note": "FOODFX spec 32 s5: Drip Coffee's status. The reconstruction names the status, not its effect, so it carries none (no invented numbers); the coffee's own Energy is on the item."
     },
     {
@@ -410,7 +554,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#f4c430",
+        "icon": "tastes_great",
+        "particles": "none",
+        "vignette": false
+      },
       "_note": "FOODFX spec 32 s7: the grade's +5% EXP (restoration-evaluated; grade thresholds are reconstructed). The XP multiplier lives in data/foods.json taste_grades and is carried, not applied: no XP consumer reads it yet."
     },
     {
@@ -425,7 +575,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#f4c430",
+        "icon": "tastes_delicious",
+        "particles": "none",
+        "vignette": false
+      },
       "_note": "FOODFX spec 32 s7: +3% EXP (restoration-evaluated, thresholds reconstructed), carried in data/foods.json; no XP consumer yet."
     },
     {
@@ -440,7 +596,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#9aa6ad",
+        "icon": "tastes_horrible",
+        "particles": "none",
+        "vignette": false
+      },
       "fatigue_mult": 1.2,
       "_note": "FOODFX spec 32 s7: +20% fatigue gain for 300 s (restoration-evaluated; the grade thresholds are reconstructed). Read by StatusEffects.fatigue_mult -> PlayerSim -> Vitals.fatigue_gain_mult."
     },
@@ -456,7 +618,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#9aa6ad",
+        "icon": "tastes_disgusting",
+        "particles": "none",
+        "vignette": false
+      },
       "fatigue_mult": 1.3,
       "_note": "FOODFX spec 32 s7: +30% fatigue gain for 300 s (restoration-evaluated). Read by StatusEffects.fatigue_mult."
     },
@@ -472,7 +640,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#e8962a",
+        "icon": "hot_food",
+        "particles": "embers",
+        "vignette": false
+      },
       "_note": "FOODFX spec 32 s9: a hot meal's condition status. Spec 32 forbids inventing universal temperature-resistance percentages where the original formulas are unverified, so it carries no modifier until the climate system reads it. FOODCAT: stacks carry the catalog level (Hot Food Lv1-Lv4 on the mapped meals); max 4 = the highest level the catalog uses. Levels change no number yet."
     },
     {
@@ -487,7 +661,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#5fa8d0",
+        "icon": "cold_food",
+        "particles": "none",
+        "vignette": false
+      },
       "_note": "FOODFX spec 32 s9: a cold drink's condition status. No invented temperature percentage (spec 32 s9). FOODCAT: stacks carry the catalog level; the only mapped cold food (Shaved Ice, catalog 'Cold Food Lv60') reads Lv60 as the evaluation level, so it applies Lv1. # ASSUMPTION"
     },
     {
@@ -502,7 +682,13 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none",
+      "fx": {
+        "body": "none",
+        "color": "#f4c430",
+        "icon": "vigor",
+        "particles": "none",
+        "vignette": false
+      },
       "_note": "FOODCAT: the fan catalog's 'Vigor Lv1/Lv2' (dried persimmon, cakes, samgyetang; docs/reference/durango-food-catalog-level60.csv). The catalog names it but gives no effect, so it carries none (no invented numbers). Stacks = catalog level. 10 min is # ASSUMPTION."
     },
     {
@@ -517,9 +703,37 @@
       "accuracy_mult": 1.0,
       "weakness_rank": 4,
       "cleared_by": [],
-      "fx": "tint_sick",
+      "fx": {
+        "body": "tint_sick",
+        "color": "#8fd14f",
+        "icon": "poisoned",
+        "particles": "bubbles",
+        "vignette": false
+      },
       "_note": "FOODCAT: the fan catalog's raw Mushroom 'Poisoned Lv4' (spec 32 s9 'some raw food may inflict ... poison'). Survivor food poisoning, distinct from the creature-only poisoned_target. 0.2 HP/s per level and 5 min copy Stomachache's numbers: # ASSUMPTION, not a catalog figure."
     },
-    {"id": "well_rested", "display_name": "Well Rested", "dps": 0.0, "duration": 180.0, "max_stacks": 1, "flags": ["no_fatigue_gain"], "move_mult": 1.0, "defense_mult": 1.0, "accuracy_mult": 1.0, "weakness_rank": 6, "cleared_by": [], "fx": "none", "_note": "Owner 2026-10-28: after a sleep, exhaustion does not accumulate for a while (the treadmill pauses); recovery still works. ASSUMPTION: no doc gives a length; PlayerSim grants it on waking with a time from data/rest.json well_rested (secs per point of exhaustion the sleep removed, clamped), so this duration is only the fallback. weakness_rank 6 so the 3-status cap never drops it for a minor status."}
+    {
+      "id": "well_rested",
+      "display_name": "Well Rested",
+      "dps": 0.0,
+      "duration": 180.0,
+      "max_stacks": 1,
+      "flags": [
+        "no_fatigue_gain"
+      ],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "weakness_rank": 6,
+      "cleared_by": [],
+      "fx": {
+        "body": "none",
+        "color": "#f0d78c",
+        "icon": "well_rested",
+        "particles": "none",
+        "vignette": false
+      },
+      "_note": "Owner 2026-10-28: after a sleep, exhaustion does not accumulate for a while (the treadmill pauses); recovery still works. ASSUMPTION: no doc gives a length; PlayerSim grants it on waking with a time from data/rest.json well_rested (secs per point of exhaustion the sleep removed, clamped), so this duration is only the fallback. weakness_rank 6 so the 3-status cap never drops it for a minor status."
+    }
   ]
 }

@@ -9,7 +9,7 @@ extends PanelContainer
 ## The panel lives in the HUD (hunt_hud.gd), over the empty centre, clear of the rail, map and XP line.
 
 signal answered(confirmed: bool)
-const SIZE := Vector2(340.0, 196.0)
+const SIZE := Vector2(500.0, 270.0)
 const PHONE_SIZE := Vector2(272.0, 166.0)  ## a 390 px canvas: narrow enough to stand left of the map column
 const TITLE := "Claim this land?"
 
@@ -45,38 +45,69 @@ static func _inner_tiles(plots: Array, rect: Rect2i) -> int:
 	return n
 
 func open(plots: Array, tile: Vector2i, rect: Rect2i, why: String, stake: bool) -> void:
+	# B4 look (ui-redesign-spec §7 B4, §8): parchment header, body on the HUD fill, Cancel outlined and
+	# the action a GOLD button with CTA ink.
 	name = "ClaimPanel"
 	custom_minimum_size = SIZE
 	size = SIZE
-	add_theme_stylebox_override("panel", UiTokens.panel_style(0.97))
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(UiTokens.HUD_FILL, 0.96)
+	sb.border_color = Color(1, 1, 1, 0.08)
+	sb.set_border_width_all(1)
+	add_theme_stylebox_override("panel", sb)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	var compact := UiTokens.is_compact(get_viewport_rect().size)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
+	box.add_theme_constant_override("separation", 0)
 	add_child(box)
+	var head := PanelContainer.new()
+	var hs := StyleBoxFlat.new()
+	hs.bg_color = UiTokens.PARCHMENT_TOP
+	hs.border_color = UiTokens.PARCHMENT_BOTTOM
+	hs.border_width_bottom = 4
+	hs.content_margin_left = 20
+	hs.content_margin_right = 20
+	hs.content_margin_top = 8 if compact else 14
+	hs.content_margin_bottom = 8 if compact else 14
+	head.add_theme_stylebox_override("panel", hs)
+	box.add_child(head)
 	var title := Label.new()
 	title.name = "ClaimTitle"
 	title.text = TITLE
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", UiTokens.TEXT)
-	box.add_child(title)
+	title.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
+	title.add_theme_font_size_override("font_size", 18 if compact else UiTokens.HEADER_PX)
+	title.add_theme_color_override("font_color", UiTokens.PARCHMENT_INK)
+	head.add_child(title)
+	var inner := MarginContainer.new()
+	for side in ["left", "right"]:
+		inner.add_theme_constant_override("margin_" + side, 20)
+	inner.add_theme_constant_override("margin_top", 10 if compact else 16)
+	inner.add_theme_constant_override("margin_bottom", 10 if compact else 16)
+	inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(inner)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10 if compact else 14)
+	inner.add_child(col)
 	_body = Label.new()
 	_body.name = "ClaimBody"
 	_body.text = describe(plots, tile, rect, why, stake)
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_body.add_theme_font_size_override("font_size", 13)
-	_body.add_theme_color_override("font_color", UiTokens.META)
+	_body.add_theme_font_size_override("font_size", 13 if compact else 16)
+	_body.add_theme_color_override("font_color", UiTokens.TEXT)
+	_body.add_theme_constant_override("line_spacing", 2)
 	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(_body)
+	col.add_child(_body)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	box.add_child(row)
-	_cancel = _button("Close", false)
+	row.add_theme_constant_override("separation", 12)
+	col.add_child(row)
+	_cancel = _button("Cancel", false)
 	_cancel.name = "ClaimCancel"
 	_cancel.pressed.connect(func () -> void: answered.emit(false))
 	row.add_child(_cancel)
-	var ok_btn := _button("EXPAND" if why == "" else "", true)
+	var ok_btn := _button("Expand", true)  # greyed when the plot would not expand (the body says why)
 	ok_btn.name = "ClaimConfirm"
 	ok_btn.disabled = why != ""
+	ok_btn.size_flags_stretch_ratio = 1.6
 	ok_btn.pressed.connect(func () -> void: answered.emit(true))
 	row.add_child(ok_btn)
 	_confirm = ok_btn
@@ -89,13 +120,26 @@ func body_text() -> String:
 func _button(text: String, primary: bool) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(0.0, UiTokens.TARGET_PRIMARY)
+	b.custom_minimum_size = Vector2(0.0, 64.0)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.add_theme_font_size_override("font_size", 16)
-	var sb := UiTokens.button_style(primary)
-	b.add_theme_stylebox_override("normal", sb)
-	b.add_theme_stylebox_override("hover", sb)
-	b.add_theme_stylebox_override("pressed", UiTokens.button_style(not primary))
+	b.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD if primary else UiTokens.WEIGHT_REGULAR))
+	b.add_theme_font_size_override("font_size", 20)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = UiTokens.GOLD if primary else Color(0, 0, 0, 0.35)
+	sb.border_color = UiTokens.GOLD if primary else Color(1, 1, 1, 0.55)
+	sb.set_border_width_all(0 if primary else 1)
+	var down := sb.duplicate() as StyleBoxFlat
+	down.bg_color = sb.bg_color.darkened(0.15) if primary else Color(UiTokens.GOLD_DIM, 0.3)
+	var off := sb.duplicate() as StyleBoxFlat
+	off.bg_color = Color(1, 1, 1, 0.06) if primary else sb.bg_color
+	for st in ["normal", "hover", "focus"]:
+		b.add_theme_stylebox_override(st, sb)
+	b.add_theme_stylebox_override("pressed", down)
+	b.add_theme_stylebox_override("disabled", off)
+	var ink := UiTokens.CTA_INK if primary else UiTokens.TEXT
+	for st in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(st, ink)
+	b.add_theme_color_override("font_disabled_color", Color(UiTokens.MUTED, 0.6))
 	return b
 
 ## Room for the panel on this canvas: the strip under the vitals / quest band (top 120 px) and over the

@@ -5207,6 +5207,302 @@
       "seconds": 1.5,
       "process_step": "mix",
       "process_add": 0
+    },
+    {
+      "id": "roled_grilled_meat",
+      "display_name": "Grilled Cut",
+      "skill": "cooking",
+      "tree": "cooking",
+      "max_level": 60,
+      "_about": "COOKROLES example 1 (spec 08 \u00a73): a single main slot, nothing else. The dish keeps only what the main instance's rule lets through (traits + in-place cooking history), and refuses a spice: a spice is not a main ingredient. # ASSUMPTION: seconds, and the main role's trait inheritance (spec 08 \u00a73 says only qualifying mains transfer, so this is the qualifying case).",
+      "inherit": true,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true,
+          "role": "main",
+          "inherit": {
+            "traits": true,
+            "processed": true,
+            "flags": true,
+            "rare": false
+          },
+          "allowed_ids": [
+            "raw_meat",
+            "raptor_meat",
+            "fish",
+            "dried_meat",
+            "smoked_meat",
+            "grilled_meat",
+            "sashimi"
+          ]
+        }
+      ],
+      "output": {
+        "id": "grilled_meat",
+        "count": 1
+      },
+      "station": "stone_grill",
+      "seconds": 3.0,
+      "process_step": "grill",
+      "process_add": 1
+    },
+    {
+      "id": "roled_berry_glazed_meat",
+      "display_name": "Berry-Glazed Cut",
+      "skill": "cooking",
+      "tree": "cooking",
+      "max_level": 60,
+      "_about": "COOKROLES example 2 (spec 08 \u00a73/\u00a74): a main that inherits, plus a fruit topping that does NOT inherit but adds its own role bonus (cook_roles.json role_bonus.topping.fruit -> fruit_glaze). Two mains are not allowed here (count 1), so no averaging question arises. # ASSUMPTION: output reuses seasoned_roast so FOODFX already has a Hot-Food bundle for it.",
+      "inherit": true,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true,
+          "role": "main",
+          "inherit": {
+            "traits": true,
+            "processed": true,
+            "flags": true,
+            "rare": false
+          },
+          "allowed_ids": [
+            "raw_meat",
+            "raptor_meat",
+            "fish",
+            "dried_meat",
+            "smoked_meat",
+            "grilled_meat",
+            "sashimi"
+          ]
+        },
+        {
+          "category": "fruit",
+          "count": 1,
+          "role": "topping",
+          "inherit": {
+            "traits": false,
+            "processed": false,
+            "flags": false,
+            "rare": false
+          },
+          "allowed_ids": [
+            "berry",
+            "berries",
+            "mango",
+            "coconut"
+          ]
+        }
+      ],
+      "output": {
+        "id": "seasoned_roast",
+        "count": 1
+      },
+      "station": "stone_grill",
+      "seconds": 4.0,
+      "process_step": "glaze",
+      "process_add": 1
+    },
+    {
+      "id": "roled_broth_soup",
+      "display_name": "Broth Soup",
+      "skill": "cooking",
+      "tree": "cooking",
+      "max_level": 60,
+      "_about": "COOKROLES example 3 (spec 08 \u00a73): a broth slot carrying water and a main that opts OUT of inheritance (inherit false on the slot), so this soup keeps no meat trait: exactly the 'support explicit recipes that do not inherit' case. The water broth grants no bonus (cook_roles.json role_bonus.broth keys only the broth category). # ASSUMPTION: the opt-out and the timer.",
+      "inherit": true,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true,
+          "role": "main",
+          "inherit": {
+            "traits": false,
+            "processed": false,
+            "flags": false,
+            "rare": false
+          },
+          "allowed_ids": [
+            "raw_meat",
+            "raptor_meat",
+            "fish",
+            "dried_meat",
+            "smoked_meat",
+            "grilled_meat",
+            "sashimi"
+          ]
+        },
+        {
+          "category": "water",
+          "count": 1,
+          "role": "broth",
+          "allowed_ids": [
+            "water_bucket",
+            "spring_water"
+          ]
+        }
+      ],
+      "output": {
+        "id": "meat_broth",
+        "count": 1
+      },
+      "station": "crock_pot",
+      "seconds": 6.0,
+      "process_step": "brew",
+      "process_add": 1
+    },
+    {
+      "id": "roled_spiced_stew",
+      "display_name": "Spiced Stew",
+      "skill": "cooking",
+      "tree": "cooking",
+      "max_level": 60,
+      "_about": "COOKROLES example 4 (spec 08 \u00a73/\u00a74): main + spice + broth. The main inherits, the spice adds cook_roles.json's spice_warmth (Enhanced Survival) and nothing else. This is the recipe the role gate protects: a spice_herb in the main slot is refused by the role's category list, and the main's allowed_ids refuse a spice too even though spice_herb carries the herb category. # ASSUMPTION: counts, station and timer.",
+      "inherit": true,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true,
+          "role": "main",
+          "inherit": {
+            "traits": true,
+            "processed": true,
+            "flags": true,
+            "rare": false
+          },
+          "allowed_ids": [
+            "raw_meat",
+            "raptor_meat",
+            "fish",
+            "dried_meat",
+            "smoked_meat",
+            "grilled_meat",
+            "sashimi"
+          ]
+        },
+        {
+          "category": "spice",
+          "count": 1,
+          "role": "spice",
+          "allowed_ids": [
+            "spice_herb"
+          ]
+        },
+        {
+          "category": "water",
+          "count": 1,
+          "role": "broth",
+          "allowed_ids": [
+            "water_bucket",
+            "spring_water"
+          ]
+        }
+      ],
+      "output": {
+        "id": "camp_stew",
+        "count": 1
+      },
+      "station": "crock_pot",
+      "seconds": 7.0,
+      "process_step": "stew",
+      "process_add": 1
+    },
+    {
+      "id": "roled_herb_roast",
+      "display_name": "Herb Roast",
+      "skill": "cooking",
+      "tree": "cooking",
+      "max_level": 60,
+      "_about": "COOKROLES example 5 (spec 08 \u00a73): main + herb topping + support (the skewer stick is the support slot, which accepts anything its category lists and inherits nothing). The herb topping adds herbal_zing. # ASSUMPTION: station and timer; the support-slot handle mirrors the existing skewer recipe.",
+      "inherit": true,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true,
+          "role": "main",
+          "inherit": {
+            "traits": true,
+            "processed": true,
+            "flags": true,
+            "rare": false
+          },
+          "allowed_ids": [
+            "raw_meat",
+            "raptor_meat",
+            "fish",
+            "dried_meat",
+            "smoked_meat",
+            "grilled_meat",
+            "sashimi"
+          ]
+        },
+        {
+          "category": "herb",
+          "count": 1,
+          "role": "topping"
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "role": "support",
+          "allowed_ids": [
+            "branch"
+          ]
+        }
+      ],
+      "output": {
+        "id": "herb_buff_meal",
+        "count": 1
+      },
+      "station": "bonfire",
+      "seconds": 4.0,
+      "process_step": "cook",
+      "process_add": 1
+    },
+    {
+      "id": "roled_salad",
+      "display_name": "Gathered Salad",
+      "skill": "cooking",
+      "tree": "cooking",
+      "max_level": 60,
+      "_about": "COOKROLES example 6 (spec 08 \u00a72's salad path): two slots, both toppings/fruit, no main at all and no inheritance (inherit false at recipe level), so a valuable berry's trait is deliberately NOT spent into the salad. # ASSUMPTION: recipe-level opt-out, workbench station (spec 08 \u00a76 says salads use a workbench or container).",
+      "inherit": false,
+      "slots": [
+        {
+          "category": "fruit",
+          "count": 1,
+          "primary": true,
+          "role": "topping",
+          "allowed_ids": [
+            "berry",
+            "berries",
+            "mango",
+            "coconut",
+            "corn"
+          ]
+        },
+        {
+          "category": "herb",
+          "count": 1,
+          "role": "topping",
+          "allowed_ids": [
+            "herb_leaf"
+          ]
+        }
+      ],
+      "output": {
+        "id": "salad",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "mix",
+      "process_add": 0
     }
   ]
 }

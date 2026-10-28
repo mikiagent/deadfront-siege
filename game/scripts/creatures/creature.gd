@@ -118,6 +118,8 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	platform_wall_layers = 0
 	def = p_def
 	variant = p_variant
+	_slide_counter += 1
+	_slide_phase = _slide_counter
 	pack_id = p_pack
 	add_to_group("creatures")
 	view.setup(def, variant)
@@ -513,7 +515,8 @@ func _physics_process(delta: float) -> void:
 			if absf(err) > FACE_SLACK_RAD:
 				var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
 				face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
-		anim.set_move_speed(speed)  # stride-matched gait and cadence (no glide at in-between speeds)
+		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide).
+		anim.set_move_velocity(dir * speed, global_basis)
 		running = sprint
 	else:
 		velocity.x = 0.0
@@ -563,10 +566,14 @@ func _physics_process(delta: float) -> void:
 ## A fading creature has a collapsed scale; sliding it inverts a singular basis and logged an
 ## engine error every physics frame (found by the survivor bot).
 const IDLE_SLIDE_EVERY := 8
+## Which of the IDLE_SLIDE_EVERY frames this animal slides on: spawn order, not the instance id, so a
+## replay (t_tactical) slides on the same frames.
+static var _slide_counter: int = 0
+var _slide_phase: int = 0
 
 func _slide() -> void:
 	if not health.dead and is_on_floor() and velocity.length_squared() < 0.000001 \
-			and (Engine.get_physics_frames() + get_instance_id()) % IDLE_SLIDE_EVERY != 0:
+			and (Engine.get_physics_frames() + _slide_phase) % IDLE_SLIDE_EVERY != 0:
 		return
 	if absf(global_transform.basis.determinant()) > 0.0001:
 		move_and_slide()

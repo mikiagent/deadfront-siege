@@ -76,34 +76,13 @@ var _known_uids: Dictionary = {}
 var _new_uids: Dictionary = {}
 
 # Character page
-var _char_page: HBoxContainer
-var _info_col: VBoxContainer
-var _portrait: TextureRect
-var _profile: Label
-var _level_label: Label
-var _xp_bar: ProgressBar
-var _power_rows: Array[Label] = []
-var _myinfo: Array[Label] = []
-var _power_grid: GridContainer
-var _stats_btn: Button
-var _stats_scroll: ScrollContainer
-var _stats_label: Label
-var _gear_tab: Button
-var _deco_tab: Button
-var _deco_note: Label
-var _preset_btns: Array[Button] = []
-var _equip_grid: GridContainer
-var _equip_slots: Dictionary = {}  # slot name -> Button
-var _gear_sel := ""
-var _gear_sel_label: Label
-var _unequip_btn: Button
-var _deco := false
+## C1 Character (character_sheet.gd): split out of this sheet; the Character tab opens it.
+var _character: CharacterSheet
+## ‹ on the Character sheet: the HUD reopens its MENU (hunt_hud.gd open_character connects it).
+signal menu_requested
 
 const TAP := 64.0
-const EQUIP_ORDER := ["head", "body", "arms", "legs", "weapon", "tool", "accessory1", "accessory2", "food1", "food2"]
 const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
-## Faded silhouettes for empty gear slots (spec 13 s14): a representative item's art at low alpha.
-const SILHOUETTES := {"head": &"forager_hood", "body": &"forager_vest", "arms": &"forager_wraps", "legs": &"forager_leggings", "weapon": &"stone_knife", "tool": &"work_pick", "accessory1": &"basic_bag", "accessory2": &"basic_bag", "food1": &"berry", "food2": &"berry"}
 const INK := Color(0.95, 0.95, 0.93)
 const GOLD := Color("#E6BE54")
 const PANEL := Color("#39392F")
@@ -164,15 +143,25 @@ func _ready() -> void:
 	header.add_child(spacer)
 	_char_tab = _btn("Character", Vector2(112, TAP))
 	_char_tab.name = "CharacterTab"
-	_char_tab.pressed.connect(func () -> void: _show_page("character", _tab))
+	_char_tab.pressed.connect(open_character)
 	header.add_child(_char_tab)
 	_close_btn = _btn("✕", Vector2(TAP, TAP))
 	_close_btn.name = "CloseButton"
 	_close_btn.pressed.connect(hide_ui)
 	header.add_child(_close_btn)
 	_build_bag_page()
-	_build_char_page()
 	_build_card()
+	_character = CharacterSheet.new()
+	_character.name = "CharacterSheet"
+	add_child(_character)
+	_character.bag_requested.connect(func () -> void: _show_page("bag", "bag"))
+	_character.close_requested.connect(hide_ui)
+	_character.back_requested.connect(func () -> void: hide_ui(); menu_requested.emit())
+	_character.eat_requested.connect(func (idx: int) -> void:
+		hide_ui()
+		if _owner_player:
+			_owner_player.begin_eat_slot(idx)
+	)
 	_food_inspector = FoodInspector.new()
 	_food_inspector.name = "FoodInspector"
 	add_child(_food_inspector)
@@ -307,134 +296,6 @@ func _build_card() -> void:
 	_drop_btn = _action("Drop", _drop_selected)
 	_drop_btn.name = "DropButton"
 
-func _build_char_page() -> void:
-	_char_page = HBoxContainer.new()
-	_char_page.name = "CharacterPage"
-	_char_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_char_page.add_theme_constant_override("separation", 10)
-	_char_page.visible = false
-	_root.add_child(_char_page)
-	_info_col = VBoxContainer.new()
-	_info_col.add_theme_constant_override("separation", 4)
-	_char_page.add_child(_info_col)
-	var who := HBoxContainer.new()
-	who.add_theme_constant_override("separation", 8)
-	_info_col.add_child(who)
-	_portrait = TextureRect.new()
-	_portrait.name = "Portrait"
-	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	_portrait.custom_minimum_size = Vector2(TAP, TAP)
-	who.add_child(_portrait)
-	_profile = Label.new()
-	_profile.name = "Profile"
-	_profile.clip_text = true
-	_profile.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_profile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_profile.add_theme_color_override("font_color", INK)
-	who.add_child(_profile)
-	_level_label = Label.new()
-	_level_label.add_theme_color_override("font_color", INK)
-	_info_col.add_child(_level_label)
-	_xp_bar = ProgressBar.new()
-	_xp_bar.name = "XpBar"
-	_xp_bar.show_percentage = false
-	_xp_bar.max_value = 1.0
-	_xp_bar.custom_minimum_size = Vector2(0, 8)
-	var track := StyleBoxFlat.new()
-	track.bg_color = Color("#0C0F0C")
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color("#3E8E3A")
-	_xp_bar.add_theme_stylebox_override("background", track)
-	_xp_bar.add_theme_stylebox_override("fill", fill)
-	_info_col.add_child(_xp_bar)
-	# Powers (left) beside My Info (spec 13 s15: Attack / Defense / Accuracy, right), one row each.
-	_power_grid = GridContainer.new()
-	_power_grid.name = "MyInfo"
-	_power_grid.columns = 2
-	_power_grid.add_theme_constant_override("h_separation", 10)
-	_power_grid.add_theme_constant_override("v_separation", 2)
-	_info_col.add_child(_power_grid)
-	for _i in 3:
-		var l := Label.new()
-		l.add_theme_color_override("font_color", INK)
-		l.clip_text = true
-		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_power_grid.add_child(l)
-		_power_rows.append(l)
-		var m := Label.new()
-		m.add_theme_color_override("font_color", GOLD)
-		_power_grid.add_child(m)
-		_myinfo.append(m)
-	_stats_scroll = ScrollContainer.new()
-	_stats_scroll.name = "DetailedStats"
-	_stats_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_stats_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_stats_scroll.visible = false
-	_info_col.add_child(_stats_scroll)
-	_stats_label = Label.new()
-	_stats_label.add_theme_color_override("font_color", INK)
-	_stats_scroll.add_child(_stats_label)
-	_stats_btn = _btn("Detailed Stats", Vector2(0, TAP))
-	_stats_btn.name = "DetailedStatsButton"
-	_stats_btn.pressed.connect(_toggle_stats)
-	_info_col.add_child(_stats_btn)
-	# Right: Gear | Decorative Gear, presets, the worn slots, the selected piece and Unequip.
-	var gear := VBoxContainer.new()
-	gear.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	gear.add_theme_constant_override("separation", 6)
-	_char_page.add_child(gear)
-	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 4)
-	gear.add_child(tabs)
-	_gear_tab = _btn("Gear", Vector2(88, TAP))
-	_gear_tab.pressed.connect(func () -> void: _deco = false; _refresh_character())
-	tabs.add_child(_gear_tab)
-	_deco_tab = _btn("Decorative", Vector2(104, TAP))
-	_deco_tab.pressed.connect(func () -> void: _deco = true; _refresh_character())
-	tabs.add_child(_deco_tab)
-	for k in GearPresets.count():
-		var b := _btn(str(k + 1), Vector2(TAP, TAP))
-		b.name = "Preset%d" % (k + 1)
-		b.pressed.connect(_on_preset.bind(k))
-		tabs.add_child(b)
-		_preset_btns.append(b)
-	_equip_grid = GridContainer.new()
-	_equip_grid.columns = 5
-	_equip_grid.add_theme_constant_override("h_separation", 6)
-	_equip_grid.add_theme_constant_override("v_separation", 6)
-	gear.add_child(_equip_grid)
-	for slot_name: String in EQUIP_ORDER:
-		var b := _btn("", Vector2(TAP, TAP))
-		b.name = "Equip_%s" % slot_name
-		b.clip_text = true
-		b.expand_icon = true
-		b.pressed.connect(_on_equip_slot_pressed.bind(slot_name))
-		_equip_grid.add_child(b)
-		_equip_slots[slot_name] = b
-	# ASSUMPTION: the game has no decorative (cosmetic) gear yet, so its tab says so instead of
-	# inventing slots (spec 13 s13: only what the game supports).
-	_deco_note = Label.new()
-	_deco_note.text = "No decorative gear yet."
-	_deco_note.add_theme_color_override("font_color", UiTokens.META)
-	_deco_note.visible = false
-	gear.add_child(_deco_note)
-	var sel := HBoxContainer.new()
-	sel.add_theme_constant_override("separation", 6)
-	gear.add_child(sel)
-	_gear_sel_label = Label.new()
-	_gear_sel_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_gear_sel_label.clip_text = true
-	_gear_sel_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_gear_sel_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_gear_sel_label.custom_minimum_size = Vector2(0, TAP)
-	_gear_sel_label.add_theme_color_override("font_color", INK)
-	sel.add_child(_gear_sel_label)
-	_unequip_btn = _btn("Unequip", Vector2(112, TAP))
-	_unequip_btn.name = "UnequipButton"
-	_unequip_btn.pressed.connect(_on_unequip_pressed)
-	sel.add_child(_unequip_btn)
-
 func _btn(text: String, minsz: Vector2) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -486,6 +347,9 @@ func hide_ui() -> void:
 	_page = "bag"
 	if _card:
 		_card.hide_card()
+	if _character:
+		_panel.visible = true # the next open (HUD BAG, I key) shows the bag, not the Character sheet
+		_character.visible = false
 	_set_multi_mode(false)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -510,6 +374,12 @@ func show_storage(inv: Inventory, owner_player: Player = null, opts: Dictionary 
 	visible = true
 	rebuild()
 
+## C1: the Character sheet over the whole view (the bag hides while it shows). Public: the HUD's
+## nav menu opens it through HuntHud.open_character().
+func open_character() -> void:
+	visible = true
+	_show_page("character", _tab)
+
 func _show_page(page: String, tab: String) -> void:
 	_page = page
 	_tab = tab if pet_bag != null else "bag"
@@ -517,14 +387,13 @@ func _show_page(page: String, tab: String) -> void:
 	_layout_safe()
 	rebuild()
 
-## The sheet: the Bag page docks on the right (the world and the item card on its left); the
-## Character page takes the whole view like the reference.
+## The sheet: the Bag page docks on the right (the world and the item card on its left).
 func _layout_safe() -> void:
 	if _panel == null:
 		return
 	var r := get_viewport_rect().size
 	var safe := UiTokens.safe_insets(get_viewport())
-	var sheet := side_sheet_rect(r, safe) if _page == "bag" else full_rect(r, safe)
+	var sheet := side_sheet_rect(r, safe)
 	_panel.offset_left = sheet.position.x
 	_panel.offset_top = sheet.position.y
 	_panel.offset_right = sheet.end.x - r.x
@@ -533,7 +402,7 @@ func _layout_safe() -> void:
 	var body := 14 if compact else UiTokens.body(r)
 	for b: Button in _all_buttons():
 		b.add_theme_font_size_override("font_size", body)
-	for l: Label in [_cap_label, _tip, _storage_note, _profile, _level_label, _stats_label, _gear_sel_label, _deco_note] + _power_rows + _myinfo:
+	for l: Label in [_cap_label, _tip, _storage_note]:
 		if l:
 			l.add_theme_font_size_override("font_size", body)
 			l.add_theme_constant_override("line_spacing", 0) # the game theme's spacing made each line 29 px
@@ -541,11 +410,6 @@ func _layout_safe() -> void:
 	var cell := 64.0 if compact else clampf(floorf((sheet.size.x - 12.0 - 6.0 * 7.0) / 8.0), 64.0, 120.0)
 	_grid.cell_px = cell
 	_pet_grid.cell_px = cell
-	_info_col.custom_minimum_size = Vector2(320.0 if compact else 460.0, 0)
-	# Icon over the slot's name inside a 64 px cell (the art's own size made the gear rows 93 px).
-	for b: Button in _equip_slots.values():
-		b.add_theme_constant_override("icon_max_width", 30 if compact else 56)
-		b.custom_minimum_size = Vector2(TAP, TAP) if compact else Vector2(96, 96)
 	_card.set_scale_for(r)
 	_layout_card()
 
@@ -557,10 +421,6 @@ static func side_sheet_rect(view: Vector2, safe: Vector4 = Vector4.ZERO) -> Rect
 	var available := maxf(0.0, right - left)
 	var width := minf(available, clampf(view.x * SHEET_SHARE, SHEET_MIN_PX, SHEET_MAX_PX))
 	return Rect2(Vector2(right - width, top), Vector2(width, maxf(0.0, bottom - top)))
-
-static func full_rect(view: Vector2, safe: Vector4 = Vector4.ZERO) -> Rect2:
-	var p := Vector2(12.0 + safe.w, 12.0 + safe.z)
-	return Rect2(p, Vector2(maxf(0.0, view.x - 24.0 - safe.w - safe.x), maxf(0.0, view.y - 24.0 - safe.z - safe.y)))
 
 ## Where the item card sits: between the world's left edge and the docked bag (addendum 2), or over
 ## the bag's left half when the world strip is too narrow for it.
@@ -585,11 +445,8 @@ func _layout_card() -> void:
 
 func _all_buttons() -> Array[Button]:
 	var out: Array[Button] = [_bag_tab, _store_tab, _char_tab, _close_btn, _sort_btn, _filter_btn, _select_btn, _lock_btn,
-		_destroy_btn, _take_all_btn, _batch_lock_btn, _batch_drop_btn, _batch_destroy_btn, _stats_btn, _gear_tab, _deco_tab,
-		_unequip_btn, _batch_store_btn, _batch_take_btn, _equip_btn, _eat_btn, _inspect_btn, _food1_btn, _food2_btn, _feed_btn, _place_btn, _store_btn, _take_btn, _drop_btn]
-	out.append_array(_preset_btns)
-	for b: Button in _equip_slots.values():
-		out.append(b)
+		_destroy_btn, _take_all_btn, _batch_lock_btn, _batch_drop_btn, _batch_destroy_btn,
+		_batch_store_btn, _batch_take_btn, _equip_btn, _eat_btn, _inspect_btn, _food1_btn, _food2_btn, _feed_btn, _place_btn, _store_btn, _take_btn, _drop_btn]
 	return out
 
 # ---------------------------------------------------------------- rebuild
@@ -620,8 +477,8 @@ func rebuild() -> void:
 	_storage_title.text = str(_storage_opts.get("title", "")) if has_storage else ""
 	_title.text = "Bag" if not has_storage else "Bag  ·  %s" % _storage_title.text
 	var on_bag := _page == "bag"
-	_bag_page.visible = on_bag
-	_char_page.visible = not on_bag
+	_panel.visible = on_bag
+	_character.visible = not on_bag
 	_grid.visible = on_bag and _tab == "bag"
 	_pet_grid.visible = on_bag and _tab == "store"
 	_storage_note.text = _readonly_reason()
@@ -638,7 +495,8 @@ func rebuild() -> void:
 			_select(_selected)
 	else:
 		_card.hide_card()
-		_refresh_character()
+		_character.bind(inventory, _owner_player)
+		_character.refresh()
 	_update_batch_bar()
 
 ## Toolbar for the active tab: the bag's tools, or the container's Take all.
@@ -810,139 +668,6 @@ func _select_store(index: int) -> void:
 	_take_btn.tooltip_text = _readonly_reason()
 	_card.show_stack(stack, str(_storage_opts.get("title", "Storage")))
 	_layout_card()
-
-# ---------------------------------------------------------------- character page
-
-func _refresh_character() -> void:
-	if inventory == null or _char_page == null:
-		return
-	var nm := _owner_player.display_name() if _owner_player else (World.player_name if World.player_name != "" else "Survivor")
-	var title := LevelDisplay.current_title(LevelDisplay.player_level())
-	var clan := World.occupation.capitalize() if World.occupation != "" else "Survivor"
-	_profile.text = "%s\n%s" % [nm, title]
-	_profile.max_lines_visible = 2
-	_portrait.texture = PlayerPortrait.texture_for({"own": true, "id": "self"}, self) if _owner_player else PlayerPortrait.silhouette()
-	_level_label.text = "%s  ·  %s  ·  XP %d%%" % [LevelDisplay.player_label(), clan, roundi(World.pioneer_progress() * 100.0)]
-	_xp_bar.value = World.pioneer_progress()
-	var snap := InvStats.snapshot(_owner_player)
-	var groups := InvStats.powers_data()
-	var keys := ["combat", "crafting", "gathering"]
-	for i in _power_rows.size():
-		var g: Dictionary = groups.get(keys[i], {})
-		_power_rows[i].text = "%s   %d" % [str(g.get("label", keys[i].capitalize())), int(snap.get(keys[i] + "_power", 0))]
-	var mi := ["attack", "defense", "accuracy"]
-	for i in _myinfo.size():
-		var lab := str(InvStats.ROWS[i][1])
-		_myinfo[i].text = "%s %s" % [lab, InvStats.fmt(mi[i], snap.get(mi[i], 0))] if not snap.is_empty() else "%s -" % lab
-	var lines: PackedStringArray = []
-	for r: Array in InvStats.ROWS:
-		if snap.has(r[0]):
-			lines.append("%s   %s" % [r[1], InvStats.fmt(str(r[0]), snap[r[0]])])
-	_stats_label.text = "\n".join(lines) if not lines.is_empty() else "No survivor bound."
-	_tab_style(_gear_tab, not _deco)
-	_tab_style(_deco_tab, _deco)
-	_equip_grid.visible = not _deco
-	_deco_note.visible = _deco
-	var lv := LevelDisplay.player_level()
-	var active := GearPresets.active(inventory, lv)
-	for k in _preset_btns.size():
-		var b := _preset_btns[k]
-		var open := k < GearPresets.unlocked_count(lv)
-		b.disabled = not open
-		b.text = str(k + 1) if open else LevelDisplay.label(GearPresets.unlock_level(k))
-		b.tooltip_text = "Preset %d" % (k + 1) if open else "Preset %d unlocks at %s." % [k + 1, LevelDisplay.label(GearPresets.unlock_level(k))]
-		_tab_style(b, open and k == active and not inventory.presets.is_empty())
-	_refresh_equipped()
-
-func _toggle_stats() -> void:
-	_stats_scroll.visible = not _stats_scroll.visible
-	_power_grid.visible = not _stats_scroll.visible
-	_stats_btn.text = "Back" if _stats_scroll.visible else "Detailed Stats"
-
-func _on_preset(k: int) -> void:
-	if inventory == null:
-		return
-	var why := GearPresets.switch(inventory, k)
-	_tip.text = why
-	if why != "" and _owner_player:
-		_owner_player.notice(why)
-	_refresh_character()
-
-## A worn slot's item (food slots show the first of the chosen food).
-func _worn_in(slot: String) -> ItemStack:
-	match slot:
-		"weapon":
-			return inventory.equipped_weapon()
-		"tool":
-			return inventory.equipped_gather_tool()
-		"food1", "food2":
-			var fid := str(inventory.quick_food[0 if slot == "food1" else 1])
-			var idx := inventory.find_first(StringName(fid)) if fid != "" else -1
-			return inventory.slots[idx] if idx >= 0 else null
-	return inventory.equipped_in(StringName(slot))
-
-## The worn slots: real art and Lv. when worn, a faded silhouette and the slot's name when empty,
-## gold brackets (a gold frame) on the selected one.
-func _refresh_equipped() -> void:
-	for slot: String in _equip_slots.keys():
-		var b: Button = _equip_slots[slot]
-		var st := _worn_in(slot)
-		var sb := UiTokens.slot_style(slot == _gear_sel)
-		sb.bg_color = Color("#141810")
-		if slot == _gear_sel:
-			sb.border_color = GOLD
-			sb.set_border_width_all(3)
-		for k in ["normal", "hover", "pressed", "disabled", "focus"]:
-			b.add_theme_stylebox_override(k, sb)
-		if st:
-			b.icon = ItemIcons.texture(st.def_id)
-			b.text = LevelDisplay.label(st.level) if st.level > 1 else ""
-			b.tooltip_text = st.tooltip()
-			b.self_modulate = Color.WHITE
-		else:
-			b.icon = ItemIcons.texture(SILHOUETTES.get(slot, &""))
-			b.text = str(EQUIP_LABELS.get(slot, slot))
-			b.tooltip_text = "%s: empty" % str(EQUIP_LABELS.get(slot, slot))
-			b.self_modulate = Color(1, 1, 1, 0.35)
-		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-	var sel := _worn_in(_gear_sel) if _gear_sel != "" else null
-	_gear_sel_label.text = "%s %s%s" % [sel.def().display_name if sel.def() else str(sel.def_id), LevelDisplay.label(sel.level),
-		"  Dur %d/%d" % [sel.durability, sel.max_durability] if sel.max_durability > 0 else ""] if sel else "Tap a slot."
-	_unequip_btn.visible = sel != null and _gear_sel not in ["food1", "food2", "tool"]
-
-func _on_unequip_pressed() -> void:
-	if inventory == null or _gear_sel == "":
-		return
-	if inventory.equipment.has(_gear_sel) and not inventory.unequip(StringName(_gear_sel)) and _owner_player:
-		_owner_player.notice("Bag is full.") # the gear stays worn (W2-INV: never dropped)
-	_refresh_character()
-
-## Character page: a worn armour/weapon slot selects it (Unequip below); the tool slot cycles the
-## held tool; a food slot eats its food (or clears the empty shortcut), as before.
-func _on_equip_slot_pressed(slot: String) -> void:
-	if inventory == null:
-		return
-	match slot:
-		"tool":
-			var tools := inventory.gather_tools_in_bag()
-			if not tools.is_empty():
-				var pos := -1
-				for i in tools.size():
-					if int(tools[i]["index"]) == inventory.equipped_tool_index:
-						pos = i
-				inventory.set_equipped_tool_index(int(tools[(pos + 1) % tools.size()]["index"]))
-		"food1", "food2":
-			var fid := str(inventory.quick_food[0 if slot == "food1" else 1])
-			var idx := inventory.find_first(StringName(fid)) if fid != "" else -1
-			if idx >= 0 and _owner_player:
-				hide_ui()
-				_owner_player.begin_eat_slot(idx)
-				return
-			elif fid != "":
-				inventory.set_quick_food(0 if slot == "food1" else 1, &"")
-	_gear_sel = slot
-	_refresh_character()
 
 func _on_equip_pressed() -> void:
 	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:

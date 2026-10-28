@@ -218,6 +218,21 @@ static func _stack(row: Variant) -> Variant:
 		if (attrs as Dictionary).has("species") and Data.creature(StringName(str(attrs["species"]))) == null:
 			return null
 		_shape(attrs, ATTR_ROW)
+		# COOKROLES (spec 08 §3/§9): a dish's inheritance record is exact data, and a save is untrusted.
+		# Rebuild it through CookRoles so a forged file can neither add a trait this build does not
+		# read nor mint a level the game never produces; a dish with no record keeps none.
+		if (attrs as Dictionary).has("cooked_roles"):
+			var rec_rows := CookRoles.sanitize_record((attrs as Dictionary)["cooked_roles"])
+			if rec_rows.is_empty():
+				(attrs as Dictionary).erase("cooked_roles")
+			else:
+				(attrs as Dictionary)["cooked_roles"] = rec_rows
+		if (attrs as Dictionary).has("cooked_buffs"):
+			var buffs := CookRoles.sanitize_buffs((attrs as Dictionary)["cooked_buffs"])
+			if buffs.is_empty():
+				(attrs as Dictionary).erase("cooked_buffs")
+			else:
+				(attrs as Dictionary)["cooked_buffs"] = buffs
 		_genetics((attrs as Dictionary).get("genetics"))
 	if s.has("durability") or s.has("max_durability"):
 		# A fresh stack of the same id, level and attributes knows the real ceiling.

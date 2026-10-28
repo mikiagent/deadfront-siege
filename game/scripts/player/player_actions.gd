@@ -458,7 +458,10 @@ func rest() -> bool:
 
 # ---------------------------------------------------------------- craft, eat, equip, place
 
-func craft(rid: StringName, count: int = 1) -> bool:
+## `uids`: the instance that leads each recipe slot (empty = default picks).
+## ASSUMPTION: online crafts send no picks yet (the server intent takes recipe_id + count); the server
+## uses its default picks, the same ones the craft card showed before the place-materials view.
+func craft(rid: StringName, count: int = 1, uids: Array[String] = []) -> bool:
 	if p.station_craft == null:
 		return false
 	if online:
@@ -466,7 +469,7 @@ func craft(rid: StringName, count: int = 1) -> bool:
 	cancel_work()
 	if p.hunt:
 		p.hunt.stop()
-	p.station_craft.begin(rid, count)
+	p.station_craft.begin(rid, count, uids)
 	return true
 
 ## COLLECT on a process station (drying rack, smoker, crock pot, steamer): its finished outputs into

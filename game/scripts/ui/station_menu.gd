@@ -75,6 +75,9 @@ func show_for(st: Node3D, actions: Array) -> void:
 		btn.color_icon = false
 		btn.glyph = "" if btn.icon else str(row.get("glyph", "?"))
 		btn.bottom_text = str(row.get("label", ""))
+		btn.rim_color = UiTokens.GOLD if _buttons.is_empty() else UiTokens.HUD_RIM  # B4: the station's main action is gold-rimmed (COOK)
+		btn.rim_width = 4.0 if _buttons.is_empty() else 3.0
+		HudField.fit(btn, hex_px(get_viewport_rect().size))
 		var aid := StringName(str(row.get("id", "")))
 		btn.pressed.connect(_on_pressed.bind(aid))
 		add_child(btn)
@@ -137,10 +140,35 @@ func _update_screen_pos() -> void:
 		return
 	var anchor := cam.unproject_position(world)
 	var view := get_viewport_rect().size
-	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX_SIZE, 0.0, UiTokens.hud_reserved(view))
+	var hx := hex_px(view)
+	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), hx, 0.0, UiTokens.hud_reserved(view))
 	for i in _buttons.size():
+		HudField.fit(_buttons[i], hx)
 		if i < spots.size():
 			_buttons[i].position = spots[i]
+
+## Station radial hexes (spec §2 sizes: 64 px floor on a phone, larger on desktop like the canvas).
+static func hex_px(view: Vector2) -> float:
+	return HEX_SIZE if UiTokens.is_compact(view) else 96.0
+
+## A station's name pill in a ring's centre: "● Bonfire" (B4), a green dot = usable here. The recipe
+## radial draws it; the action menu leaves the name to the world label (HudPills) beside it.
+static func pill_width(text: String, view: Vector2) -> float:
+	if text == "":
+		return 0.0
+	return UiTokens.ui_face().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.body(view)).x + 40.0
+
+static func draw_pill(ci: CanvasItem, center: Vector2, text: String, view: Vector2, dot: Color = UiTokens.OK_GREEN) -> Rect2:
+	if text == "":
+		return Rect2()
+	var font := UiTokens.ui_face()
+	var px := UiTokens.body(view)
+	var box := Rect2(center - Vector2(pill_width(text, view), px + 14.0) * 0.5, Vector2(pill_width(text, view), px + 14.0))
+	ci.draw_rect(box, UiTokens.HUD_FILL)
+	ci.draw_circle(Vector2(box.position.x + 14.0, box.get_center().y), 4.0, dot)
+	ci.draw_string(font, Vector2(box.position.x + 26.0, box.get_center().y + px * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, UiTokens.TEXT)
+	return box
+
 
 ## Ground selection ring shared visually with gathering. It grows from the station on first tap;
 ## the action hex sits above it and needs its own second tap.

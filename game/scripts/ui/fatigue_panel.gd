@@ -7,7 +7,7 @@ extends PanelContainer
 const REFRESH_S := 0.5
 const MAX_ROWS := 4
 const MIN_SHARE := 0.03 ## a cause under 3% is noise, not worth a row
-const PANEL_W := 300.0
+const PANEL_W := 340.0
 const SOURCE_NAMES := {
 	"time": "Time awake",
 	"walk": "Walking",
@@ -38,31 +38,57 @@ var _context: Label
 var _elapsed := 0.0
 
 func _ready() -> void:
+	# B4 look (ui-redesign-spec §7 B4): HUD fill, a muted kicker, the title, GOLD share bars.
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	add_theme_stylebox_override("panel", UiTokens.panel_style(0.96))
+	var view := get_viewport_rect().size
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(UiTokens.HUD_FILL, 0.94)
+	sb.border_color = Color(1, 1, 1, 0.1)
+	sb.set_border_width_all(1)
+	for side in [SIDE_LEFT, SIDE_RIGHT]:
+		sb.set_content_margin(side, 18.0)
+	sb.set_content_margin(SIDE_TOP, 12.0)
+	sb.set_content_margin(SIDE_BOTTOM, 14.0)
+	add_theme_stylebox_override("panel", sb)
 	custom_minimum_size.x = PANEL_W
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
 	add_child(box)
+	var top := HBoxContainer.new()
+	box.add_child(top)
+	var heads := VBoxContainer.new()
+	heads.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heads.add_theme_constant_override("separation", 0)
+	top.add_child(heads)
+	var kicker := Label.new()
+	kicker.text = "FATIGUE"
+	kicker.add_theme_font_size_override("font_size", UiTokens.meta(view))
+	kicker.add_theme_color_override("font_color", UiTokens.MUTED)
+	heads.add_child(kicker)
 	_header = Label.new()
-	_header.text = "What is tiring you"
-	_header.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
-	box.add_child(_header)
+	_header.text = "What's tiring you"
+	_header.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
+	_header.add_theme_font_size_override("font_size", UiTokens.heading(view))
+	heads.add_child(_header)
+	var close := Button.new()
+	close.name = "FatigueClose"
+	close.icon = UiIcons.icon(&"close")
+	close.add_theme_constant_override("icon_max_width", 26)
+	close.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	close.flat = true
+	close.custom_minimum_size = Vector2(64.0, 64.0)
+	close.pressed.connect(hide)
+	top.add_child(close)
 	_context = Label.new()
 	_context.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_context.custom_minimum_size.x = PANEL_W - 24.0
-	_context.add_theme_constant_override("line_spacing", -4)
-	_context.add_theme_color_override("font_color", UiTokens.META)
-	_context.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+	_context.custom_minimum_size.x = PANEL_W - 36.0
+	_context.add_theme_constant_override("line_spacing", -2)
+	_context.add_theme_color_override("font_color", UiTokens.TEXT)
+	_context.add_theme_font_size_override("font_size", UiTokens.meta(view))
 	box.add_child(_context)
 	_rows = VBoxContainer.new()
-	_rows.add_theme_constant_override("separation", 6)
+	_rows.add_theme_constant_override("separation", 8)
 	box.add_child(_rows)
-	var close := Button.new()
-	close.text = "Close"
-	close.custom_minimum_size = Vector2(0.0, UiTokens.TARGET_MIN)
-	close.pressed.connect(hide)
-	box.add_child(close)
 	refresh()
 
 func _process(delta: float) -> void:
@@ -140,14 +166,22 @@ func _row(source: String, share: float) -> Control:
 	top.add_child(pct)
 	box.add_child(top)
 	box.add_theme_constant_override("separation", 2)
+	var pct_col := UiTokens.GOLD
+	pct.add_theme_color_override("font_color", pct_col)
 	var bar := ProgressBar.new()
 	bar.show_percentage = false
 	bar.max_value = 1.0
 	bar.value = share
 	bar.custom_minimum_size = Vector2(0.0, 8.0)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(1, 1, 1, 0.12)
+	var fg := StyleBoxFlat.new()
+	fg.bg_color = pct_col
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fg)
 	box.add_child(bar)
 	var hint := _plain(str(SOURCE_REMEDIES.get(source, DEFAULT_REMEDY)))
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.custom_minimum_size.x = PANEL_W - 24.0
+	hint.custom_minimum_size.x = PANEL_W - 36.0
 	box.add_child(hint)
 	return box

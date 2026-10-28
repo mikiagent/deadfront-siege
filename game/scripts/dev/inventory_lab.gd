@@ -165,7 +165,9 @@ func _check() -> void:
 	_expect(after == units, "grouping merged nothing: every unit is where it was")
 	# Tapping the worn helm with a full bag keeps it worn and says why (it was refused silently).
 	inv.add(ItemStack.make(&"branch", 1))
-	ui._on_equip_slot_pressed("head")
+	ui._character.bind(inv, ui._owner_player)
+	ui._character._on_equip_slot_pressed("head")  # C1: the Character sheet selects, Unequip takes it off
+	ui._character._on_unequip_pressed()
 	var hud := get_tree().get_first_node_in_group("hud")
 	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
 	_expect(inv.equipped_in(&"head") != null and inv.used_slots() == 100 and notices.contains("Bag is full"), "unequip into a full bag: the helm stays worn and 'Bag is full' shows")

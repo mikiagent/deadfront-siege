@@ -226,21 +226,16 @@ func _test_screen() -> void:
 		ui._on_toggle_multi()
 		await _layout(ui, view, "select mode")
 		ui._on_toggle_multi()
-		# Character page: gear tab, presets, a worn piece selected with Unequip, Detailed Stats, deco.
+		# Character tab: opens the C1 Character sheet (character_sheet.gd, UICHAR; its own test is
+		# t_uichar). Presets, a worn piece selected with Unequip.
 		inv.equip_at(inv.find_first(&"stone_knife"))
-		ui._show_page("character", "bag")
-		ui._on_equip_slot_pressed("weapon")
-		_expect(ui._unequip_btn.visible and ui._gear_sel_label.text.begins_with("Stone Knife"), "%s: a worn knife selected shows Unequip (%s)" % [view, ui._gear_sel_label.text])
-		await _layout(ui, view, "character")
-		_expect(not ui._preset_btns[0].disabled, "%s: preset 1 is open at level 1" % view)
-		ui._toggle_stats()
-		_expect(ui._stats_scroll.visible and ui._stats_btn.text == "Back", "%s: Detailed Stats opens" % view)
-		await _layout(ui, view, "detailed stats")
-		ui._toggle_stats()
-		ui._deco = true
-		ui._refresh_character()
-		await _layout(ui, view, "decorative")
-		ui._unequip_btn.pressed.emit()
+		ui._char_tab.pressed.emit()
+		var ch = ui._character
+		_expect(ch.visible and not ui._panel.visible, "%s: the Character tab opens the Character sheet" % view)
+		ch._on_equip_slot_pressed("weapon")
+		_expect(ch._unequip_btn.visible and ch._sel_label.text.contains("Stone Knife"), "%s: a worn knife selected shows Unequip (%s)" % [view, ch._sel_label.text])
+		_expect(not ch._preset_btns[0].disabled, "%s: preset 1 is open at level 1" % view)
+		ch._unequip_btn.pressed.emit()
 		_expect(inv.worn(&"weapon") == null and inv.find_first(&"stone_knife") >= 0, "%s: Unequip puts the knife back in the bag" % view)
 		ui.hide_ui()
 		ui.queue_free()

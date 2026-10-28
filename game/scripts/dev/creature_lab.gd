@@ -5,7 +5,8 @@ extends Node3D
 ## --ride=deinonychus spawns that species as a saddled pet and puts the survivor on it.
 ## Key 0 plays bite_combo (chomp, Chomp, CHOMP) on the mount, or else the nearest creature that has one.
 ## Wild deinonychus fight with TacticalBrain (circle, feint, lunge, pounce, combo); F3 prints each move.
-## --seq=DIR saves a frame every 0.25 s for 25 s (named by the nearest creature's brain state), then quits.
+## --seq=DIR saves a frame every 0.25 s for 25 s (named by the nearest creature's brain state), then quits;
+## a lurking ambusher is stepped into its ambush radius after a second so the capture shows the fight.
 
 var _player: Player
 var _seq_dir := ""
@@ -49,7 +50,12 @@ func _process(_dt: float) -> void:
 		_seq_t += _dt
 		if _seq_t >= 1.5 + 0.25 * _seq_n:
 			var c: Creature = _player.actions.nearest_creature(9999.0, true)
-			var tag := str(c.brain.state) if c and c.brain else "none"
+			var tag := str(c.brain_state) if c else "none"
+			if _seq_n == 4 and c and c.brain is TacticalBrain and (c.brain as TacticalBrain).lurking:
+				# An ambusher lurks until prey comes close: step it into the ambush radius for the capture.
+				var away := c.global_position - _player.global_position
+				away.y = 0.0
+				c.global_position = _player.global_position + away.normalized() * 5.0
 			get_viewport().get_texture().get_image().save_png("%s/f%03d_%s.png" % [_seq_dir, _seq_n, tag])
 			_seq_n += 1
 			if _seq_n >= 100:
