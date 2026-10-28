@@ -132,7 +132,7 @@ func heal(where: StringName, delta: float) -> void:
 ## conditions affect recovery). ASSUMPTION: statuses.json fatigue_mult inverted, so Dirty (1.2), Very
 ## Dirty (1.5) and Thirsty (1.2) slow it and Clean (0.8) speeds it.
 func fatigue_per_min(where: StringName) -> float:
-	return float(rates(where).get("fatigue_per_min", 0.0)) / maxf(0.1, p.statuses.fatigue_mult())
+	return float(rates(where).get("fatigue_per_min", 0.0)) / maxf(0.1, p.statuses.fatigue_mult()) * p.statuses.rest_mult()  # Wet: x0.85
 
 ## Health per second while she rests at `where`: the rest's rate plus passive regen, less what her
 ## statuses deal. A damage tick also pauses passive regen (vitals.gd REGEN_LOCK_S); blocks_regen stops both.

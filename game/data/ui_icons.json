@@ -149,6 +149,8 @@
 		"stomach_empty": "res://assets/icons/ui/stomach_empty.svg",
 		"stomach_hungry": "res://assets/icons/ui/stomach_hungry.svg",
 		"stomach_overfull": "res://assets/icons/ui/stomach_overfull.svg",
+		"water_drop": "res://assets/icons/ui/water_drop.svg",
+		"smoke_inhalation": "res://assets/icons/ui/smoke_inhalation.svg",
 		"bleed_deep": "res://assets/icons/ui/bleed_deep.svg",
 		"deep_bleed": "res://assets/icons/ui/bleed_deep.svg",
 		"bleeding_target": "res://assets/icons/ui/bleed.svg",

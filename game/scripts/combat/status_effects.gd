@@ -181,6 +181,13 @@ func fatigue_mult() -> float:
 func heat_fatigue_mult() -> float:
 	return _product(&"heat_fatigue_mult")
 
+func cold_fatigue_mult() -> float:
+	return _product(&"cold_fatigue_mult")
+
+## Multiplies rest recovery (Wet 0.85).
+func rest_mult() -> float:
+	return _product(&"rest_mult")
+
 func _product(field: StringName) -> float:
 	var m := 1.0
 	for inst in _active:

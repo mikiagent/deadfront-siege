@@ -1383,6 +1383,12 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		queue_redraw()
 		return
+	if not sheet_open() and _status_fx.input(event):  # a press on a status box pins its tooltip
+		if player.controls:
+			player.controls._desktop_click_fallback_pending = false
+		get_viewport().set_input_as_handled()
+		queue_redraw()
+		return
 	if not sheet_open() and _buff_row.input(event):  # HUDRULES: chip hover / click / tap toggles its tooltip
 		if player.controls:
 			player.controls._desktop_click_fallback_pending = false  # the chip took it: no world tap behind
@@ -1672,6 +1678,9 @@ func _draw() -> void:
 	var sfx := _status_fx.draw_boxes(self, _font, player, HudLayout.figure_rect(self), taken_rects(), r)
 	if sfx.has_area():
 		drawn_blocks["statusfx"] = sfx
+	var sfx_tip := _status_fx.draw_tip(self, _font, taken_rects(), r)  # the status box's tooltip
+	if sfx_tip.has_area():
+		drawn_blocks["statusfx_tip"] = sfx_tip
 	# HUDRULES: the open chip tooltip, before the moving text so the feed and the toasts keep off it
 	var tip := _buff_row.draw_tooltip(self, _font, taken_rects(), r)
 	if tip.has_area():

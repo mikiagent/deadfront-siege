@@ -127,7 +127,7 @@ func _target_focus_case() -> void:
 ## Player conditions belong to the survivor's vitals, not the unrelated minimap on the other side
 ## of the screen. Keep the row directly under the top-left vitals panel on every canvas shape.
 func _status_layout_case() -> void:
-	player.statuses.apply(&"wet")
+	player.statuses.apply(&"dirty")  # a debuff (the chip row); Wet is an effect box now (WEATHER)
 	hud.queue_redraw()
 	await process_frame
 	var vitals: Rect2 = hud.drawn_blocks.get("vitals", Rect2())
@@ -136,7 +136,7 @@ func _status_layout_case() -> void:
 	_expect(statuses.position.y >= vitals.end.y and statuses.position.y <= vitals.end.y + 16.0
 		and statuses.position.x >= vitals.position.x and statuses.end.x <= vitals.end.x,
 		"player statuses sit directly under the health/stamina panel (vitals=%s statuses=%s)" % [vitals, statuses])
-	player.statuses.clear_id(&"wet")
+	player.statuses.clear_id(&"dirty")
 	await process_frame
 
 ## Sprint is a persistent toggle and ATTACK NEAREST a thumb-sized bottom-right hex (owner layout

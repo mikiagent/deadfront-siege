@@ -93,6 +93,8 @@ void vertex() {
 	v_slope = 1.0 - clamp(wn.y, 0.0, 1.0);
 }
 
+global uniform float weather_wet;  // WEATHER: 0 dry .. 1 soaked (WorldWeather.wet_ground)
+
 void fragment() {
 	vec2 p = world_pos.xz;
 	float n = texture(noise_tex, p / 9.0).r - 0.5;
@@ -181,7 +183,7 @@ void fragment() {
 	float fade = 1.0 - smoothstep(grid_fade * 0.7, grid_fade, distance(p, focus_pos.xz));
 	albedo *= (1.0 - 0.10 * grid_enabled * line * fade);
 
-	ALBEDO = albedo;
-	ROUGHNESS = mix(0.55, 1.0, smoothstep(h_wet - 0.05, h_wet + 0.12, h));
-	SPECULAR = 0.05;
+	ALBEDO = albedo * (1.0 - 0.22 * weather_wet);  // rain darkens the ground and gives it a sheen
+	ROUGHNESS = mix(mix(0.55, 1.0, smoothstep(h_wet - 0.05, h_wet + 0.12, h)), 0.35, 0.6 * weather_wet);
+	SPECULAR = mix(0.05, 0.3, weather_wet);
 }

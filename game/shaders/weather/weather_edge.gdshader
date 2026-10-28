@@ -74,6 +74,6 @@ void fragment() {
 			o = over(o, fc, (m * (0.3 + 0.45 * grain) + crust * 0.18 + sp * m) * min(1.0, edge_scale + 0.3));
 		}
 	}
-	o = over(o, vec3(0.86, 0.91, 1.0), flash * (0.22 + 0.2 * (1.0 - UV.y)));
+	o = over(o, vec3(0.86, 0.91, 1.0), flash * (0.12 + 0.14 * (1.0 - UV.y)));
 	COLOR = o;
 }

@@ -45,6 +45,93 @@ This is a visual direction for the owner to review before merging. Nothing has b
   - `docs/current/world-biomes.md` has a new Weather section with a per-climate odds and look table.
   - The section is also added to `tools/docs_wiki/gen_game_data.py`, so it comes back if the page is regenerated.
 
+## Round 2 (2026-10-28): real lightning, rain modes, the Wet effect, rain on fires, smoke inhalation
+
+The owner asked for five more things:
+- "sometimes make the thunder and lightning closer together, sometimes further apart. Spawn actual lightning strike and use the position from the lightning strike to determine this"
+- "make the rain have different modes: drizzle, rain, pouring (heavy rain)"
+- "the same way we have effects for bleed and poison, there should be an effect for wetness"
+- "have rain affect fire somehow" / "fires under a roof will build up smoke though"
+- "the smoke should make you take damage tbh"
+
+All five are on `claude/mmo-weather`, with canon merged in. The dial changes live in this branch, because canon already has the dial.
+
+- **Lightning strikes** (`world_weather.gd` `strike_at`, `lightning_bolt.gd`)
+  - Every strike lands at a real ground point around the survivor. The distance is drawn from bands in `rules.json` `lightning_bands`:
+    - close: 20 %, 6-40 m;
+    - mid: 55 %, 40-700 m;
+    - far: 25 %, 0.7-2.5 km.
+  - Thunder lands the strike's horizontal distance / 343 m/s after the flash. A near strike claps at once; one 2.5 km away claps 7.3 s later.
+  - The rumble shake falls with log distance. The test measured 0.12 m at 12 m, 0.035 m at 300 m and 0.007 m at 2 km. It is still clamped and still off with `--reduce-shake`.
+  - Each strike spawns a `LightningBolt` at the ground point:
+    - a jagged emissive ribbon from 70 m up, with two branches;
+    - a ground flash;
+    - a scorch mark that fades out over 6 s, after which the node is freed (at most 3 alive at once).
+  - The bolt is built from unshaded additive quads, so it is safe on gl_compatibility. There are no decals.
+  - A no-shadow `LightningLight` lights the scene from the strike's direction. The earlier sun pulse is gone.
+  - `lightning(position, distance_m)` now carries the strike's position. `WorldWeather.last_strike` holds it too.
+  - The dial draws its bolt on the side the strike landed (`DayNightDial.strike_side`).
+  - **ASSUMPTION:** strikes damage nothing.
+- **Rain modes** (`rules.json` `weather.rain_modes`, `default_modes`, per-climate `modes`)
+  - Drizzle, rain and pour each set their own particle share (0.25 / 0.55 / 1.0 of 900), drop size and speed, darkening (0.3 / 0.65 / 1.0) and wet-ground strength.
+  - The terrain shader reads the `weather_wet` global, which darkens the ground and gives it a sheen.
+  - Only pouring rain makes splashes. Storms are pouring rain plus lightning.
+  - `WorldWeather.rain_mode` / `rain_level()` expose the mode, and `rain_mode_changed` is the sound hook.
+  - `--weather=drizzle|rain|pour` holds a mode.
+  - The dial draws a third, two thirds or all of its streaks per mode, longer and faster as the mode gets heavier. Its clouds follow `rain_amount`.
+- **Wet** is now kind `effect`, shown as a box beside her instead of a chip under the vitals.
+  - It has a new `water_drop` glyph (made with the icon `_src` generator) and is `UiTokens.WET` #4a9fe0, blue rather than green.
+  - On her body it shows `water` drip particles and a blue sheen. Pressing or hovering the box shows a tooltip (`StatusFx.input` / `draw_tip`).
+  - Rain soaks her to 1, 2 or 3 stacks by mode, and water to 3.
+  - Each stack lasts 60 s in the open. She dries faster in heat (4x at full heat) and within 4 m of a burning fire (+4x). Measured: 178 s in the open, 45 s in heat, 36 s by the fire.
+  - Wet keeps heat fatigue x0.8. It adds cold fatigue and the cold look x1.3 (PRD :284) and makes resting recover x0.85. **ASSUMPTION:** the 0.85.
+- **Rain on fires** (`game/scripts/world/fire_weather.gd`, `rules.json` `fire_weather`, all numbers ASSUMPTION)
+  - An unsheltered fire burns fuel and wears faster by mode. The stone firepit feels half of that extra.
+  - Only pouring rain and storms soak a fire. A bonfire or campfire goes out in about 90 s of pouring rain (60 s in a storm); the firepit takes about 5 min.
+  - In the rain the flame shrinks and sputters and steam rises off it. `WorldWeather.fire_out` is the hiss hook.
+  - A roof or ceiling over the fire's module keeps all of this off.
+  - Lighting a fire is blocked in pouring rain without a roof: the build ghost reason `too_wet`, and no loading wood into a cold firepit. Plain rain does not block it.
+- **Smoke under a roof**
+  - Smoke pools toward 0.15 + 0.85 x enclosure over 90 s, and clears in 12 s once the fire is out or the space is open.
+  - Enclosure counts walls (1), windows (0.8) and doorways (0.5) on the four edges of the fire's module. A roof with no walls stays at 0.15, so an open-sided shelter vents.
+  - The smoke shows as two grey sheets under the roof.
+  - From a density of 0.3, a survivor under the roof within 3 m gets **Smoke Inhalation** (`smoke_inhalation`):
+    - an ash-grey #9a9a9e effect box with a smoke-cloud glyph, cough puffs, and grey tick numbers (the tick colour follows the status colour);
+    - the tooltip reads "Breathing thick smoke hurts you ... Ventilate the space or leave it.";
+    - 0.4 Health a second per stack, with stacks 1-3 rising with density;
+    - it ends 3 s after she leaves.
+  - **Shortcut:** only the fire's own module counts as the enclosed space.
+
+Tests: `t_weather` covers all of the above:
+- thunder delay = distance / 343 for every strike, and a visible bolt node at the strike position;
+- shake falls with distance, every bolt is freed, and the node count does not grow;
+- drizzle < rain < pour in particles, drop length, darkening and wet ground, with splashes only in pour;
+- rain applies Wet by mode, and she dries faster by a fire and in heat; the box, drips and tooltip show and are gone when dry; Wet is not green;
+- fuel drain is ordered drizzle < rain < pour, and the firepit burns slower than a bonfire;
+- only pour and storm put a fire out in 150 s; the firepit survives 150 s of pour and goes out in about 5 min;
+- a roofed fire burns as if dry;
+- smoke pools under walls and vents under an open roof; damage rises with density, stops when she leaves, and clears once the fire is out;
+- no lighting a fire in pour in the open;
+- the dial's bolt follows the strike side.
+
+`t_daynight_dial` adds a check that drizzle < rain < pour in streaks, alpha and clouds.
+
+`t_controls` now uses Dirty for its status-row case, because Wet is a box now. `t_statusfx` accepts the new `water` and `cough` presets.
+
+Round 2 captures, in `docs/orchestration/reports/weather/round2/`:
+- `rain_drizzle_1600x900.png`, `rain_rain_1600x900.png`, `rain_pour_1600x900.png`.
+- The pour shot also shows the Wet x3 box and her sheen, a bonfire in the rain, a smoky three-walled shelter (`--fire`), and steam off the camp fire.
+- `strike_near_bolt_1600x900.png`: a 7 m strike with its bolt in view.
+- `strike_near_6frames.png`: flash, the second stroke, afterglow and the scorch mark; the thunder is near-instant.
+- `strike_far_6frames.png`: a 1.5 km strike, with 4.4 s from the flash to the clap.
+- `weather/storm_near_far_strikes.mp4`: 11 s, a near strike then a far one.
+
+Round 2 risks:
+- From the iso camera, only strikes within about 12 m of her are on screen. Mid and far strikes show as the flash, the directional light and the dial's bolt.
+- The smoke sheets inside a walled shelter read weakly from outside, because the walls fade for occlusion. I did not tune that.
+- `t_rest`'s "Stomachache walk to the bedding" check fails on canon 22594181 as well, so it was not caused by this round.
+- The `weather_wet` shader global was added to `project.godot`.
+
 ## Gates
 
 Every gate passes, including after the merge:

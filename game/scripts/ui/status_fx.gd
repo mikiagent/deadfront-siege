@@ -18,13 +18,17 @@ const MAX_EMITTERS := 3    ## particle presets alive at once (the debuff cap is 
 const TICK_COL := Color(1.0, 0.28, 0.22)  ## fallback only: a tick takes its status's fx colour (owner 2026-10-28)
 const BADGE := 10.0        ## the stack-count disc pokes this far right of a box; the column reserves it
 const SLOT_SPEED := 8.0    ## slots per second a box glides when one above it ends
-const PARTICLE_PRESETS: Array[StringName] = [&"drip", &"bubbles", &"embers", &"blood"]
+const PARTICLE_PRESETS: Array[StringName] = [&"drip", &"bubbles", &"embers", &"blood", &"water", &"cough"]
 
 ## Drawn this frame, for the HUD's taken rects and the tests: status id -> box rect, and the column.
 var boxes: Dictionary = {}
 var column: Rect2 = Rect2()
 ## status id -> CPUParticles3D under the player.
 var emitters: Dictionary = {}
+## WEATHER: the box tooltip, pinned by a press on a box or shown under the pointer, and its rect.
+var pinned: StringName = &""
+var hovered: StringName = &""
+var tip_rect := Rect2()
 ## The vignette's edge alpha drawn this frame (0 = none).
 var vignette_alpha := 0.0
 var _slot: Dictionary = {}
@@ -138,6 +142,30 @@ static func make_emitter(preset: StringName, col: Color) -> CPUParticles3D:
 			e.scale_amount_max = 1.5
 			e.lifetime = 1.3
 			e.amount = 8
+		&"water":  # WEATHER, Wet: clear drops run off her and fall, pale water blue
+			c = col.lerp(Color.WHITE, 0.35)
+			e.direction = Vector3.DOWN
+			e.spread = 15.0
+			e.gravity = Vector3(0.0, -6.0, 0.0)
+			e.initial_velocity_min = 0.2
+			e.initial_velocity_max = 0.6
+			e.scale_amount_min = 0.4
+			e.scale_amount_max = 0.8
+			e.lifetime = 0.6
+			e.amount = 8
+		&"cough":  # Smoke Inhalation: grey puffs pushed out from her face in short bursts
+			e.position = Vector3(0.0, 1.45, 0.0)
+			e.emission_sphere_radius = 0.08
+			e.direction = Vector3(0.0, 0.3, 1.0)
+			e.spread = 25.0
+			e.gravity = Vector3(0.0, 0.4, 0.0)
+			e.initial_velocity_min = 0.5
+			e.initial_velocity_max = 1.0
+			e.scale_amount_min = 0.8
+			e.scale_amount_max = 1.6
+			e.explosiveness = 0.7
+			e.lifetime = 0.9
+			e.amount = 6
 		&"embers":  # small sparks rise
 			e.direction = Vector3.UP
 			e.spread = 40.0
@@ -172,18 +200,21 @@ func draw_vignette(ci: CanvasItem, p: Player, r: Vector2) -> void:
 		var j := (k + 1) % 4
 		ci.draw_polygon(PackedVector2Array([o[k], o[j], n[j], n[k]]), PackedColorArray([edge, edge, clear, clear]))
 
-## A faint colour over her for a status whose preset is "tint" (fracture, groggy, wet...).
+## A faint colour over her for a status whose preset is "tint" (fracture, groggy...) or whose body is
+## "sheen" (Wet: a light blue gloss, stronger the more soaked she is).
 func draw_tint(ci: CanvasItem, p: Player, fig: Rect2) -> void:
 	if not fig.has_area():
 		return
-	var def := _first(p, func (d: StatusDef) -> bool: return d.fx_particles == &"tint")
+	var def := _first(p, func (d: StatusDef) -> bool: return d.fx_particles == &"tint" or d.fx == &"sheen")
 	if def == null:
 		return
+	var inst := p.statuses.get_instance(def.id)
+	var a := 0.16 if def.fx != &"sheen" or inst == null else 0.1 + 0.05 * float(inst.stacks)
 	var c := fig.get_center()
 	var rx := fig.size.x * 0.75
 	var ry := fig.size.y * 0.55
 	var pts := PackedVector2Array([c])
-	var cols := PackedColorArray([Color(def.fx_color, 0.16)])
+	var cols := PackedColorArray([Color(def.fx_color.lerp(Color.WHITE, 0.25) if def.fx == &"sheen" else def.fx_color, a)])
 	for k in 25:
 		var ang := TAU * float(k) / 24.0
 		pts.append(c + Vector2(cos(ang) * rx, sin(ang) * ry))
@@ -250,6 +281,62 @@ func _draw_box(ci: CanvasItem, font: Font, b: Rect2, inst: StatusInstance, def: 
 		var c := Vector2(b.end.x + 1.0, b.position.y + 9.0)
 		ci.draw_circle(c, 8.0, def.fx_color)
 		ci.draw_string(font, c + Vector2(-8.0, 4.5), str(inst.stacks), HORIZONTAL_ALIGNMENT_CENTER, 16.0, 12, UiTokens.CTA_INK)
+
+## The box under a press or the pointer: its status id, else &"".
+func box_at(pos: Vector2) -> StringName:
+	for id in boxes:
+		if (boxes[id] as Rect2).grow(6.0).has_point(pos):
+			return id
+	return &""
+
+## A click or tap on a box pins its tooltip (again unpins it); the pointer over a box shows it.
+## Returns true when the event was the boxes'.
+func input(event: InputEvent) -> bool:
+	if event is InputEventMouseMotion:
+		hovered = box_at((event as InputEventMouseMotion).position)
+		return false
+	var pos := Vector2.INF
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		pos = (event as InputEventMouseButton).position
+	elif event is InputEventScreenTouch and event.pressed:
+		pos = (event as InputEventScreenTouch).position
+	if pos == Vector2.INF:
+		return false
+	var id := box_at(pos)
+	if id == &"":
+		pinned = &""
+		return false
+	pinned = &"" if pinned == id else id
+	return true
+
+## The open box's tooltip (its name, stacks and desc) beside the column, off `taken`.
+func draw_tip(ci: CanvasItem, font: Font, taken: Array[Rect2], r: Vector2) -> Rect2:
+	tip_rect = Rect2()
+	var id := pinned if pinned != &"" else hovered
+	if id == &"" or not boxes.has(id):
+		return tip_rect
+	var def := Data.status(id)
+	if def == null:
+		return tip_rect
+	var inst: StatusInstance = _watched.get_instance(id) if _watched else null
+	var w := 220.0 if UiTokens.is_compact(r) else 280.0
+	var px := UiTokens.meta(r)
+	var head := UiTokens.body(r)
+	var body_h := font.get_multiline_string_size(def.desc, HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, px).y
+	var size := Vector2(w, 10.0 + head + 6.0 + body_h + 10.0)
+	var b: Rect2 = boxes[id]
+	for x in [b.end.x + BADGE + 6.0, b.position.x - w - 6.0]:
+		tip_rect = UiTokens.free_spot(Rect2(Vector2(clampf(x, 8.0, r.x - w - 8.0), clampf(b.position.y, 8.0, r.y - size.y - 8.0)), size), taken, r)
+		if tip_rect.has_area():
+			break
+	if not tip_rect.has_area():
+		return tip_rect
+	ci.draw_rect(tip_rect, UiTokens.HUD_FILL)
+	ci.draw_rect(Rect2(tip_rect.position, Vector2(w, 3.0)), def.fx_color)
+	var title := def.display_name + (" x%d" % inst.stacks if inst and inst.stacks > 1 else "")
+	ci.draw_string(font, tip_rect.position + Vector2(10.0, 10.0 + head * 0.8), title, HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, head, Color.WHITE)
+	ci.draw_multiline_string(font, tip_rect.position + Vector2(10.0, 16.0 + head + px * 0.8), def.desc, HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, px, -1, UiTokens.TEXT)
+	return tip_rect
 
 ## HUDRULES: the afflictions (kind "effect") only; buffs, boons and debuffs live in the chip row.
 static func effects(p: Player) -> Array:

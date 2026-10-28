@@ -82,7 +82,7 @@ func _test_data() -> void:
 		var fx: Variant = s.get("fx")
 		var def = data.status(StringName(str(s["id"])))
 		_expect(fx is Dictionary and def != null and str(fx.get("color", "")).begins_with("#")
-			and str(fx.get("particles", "")) in ["drip", "bubbles", "embers", "blood", "tint", "none"]
+			and str(fx.get("particles", "")) in ["drip", "bubbles", "embers", "blood", "water", "cough", "tint", "none"]
 			and icons.path_for(def.fx_icon) != "", "%s has an fx block with a colour, a preset and an icon" % s["id"])
 
 func _test_at(view: Vector2) -> void:
