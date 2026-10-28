@@ -5,14 +5,11 @@ extends CanvasLayer
 ## wash, the shimmer (high quality) and a slow sway. Cold: a blue-white edge and frost creeping in from the
 ## borders, with shivers. Storm: the lightning flash, then the thunder's rumble. While a hunt or a red-edge
 ## status is on, the weather edges drop to 35 % so the red one reads first.
-## It also pulses the sun (or the moon at night) on a strike and dims the sun in rain, on top of what
-## WorldLighting wrote this frame (process_priority runs it after), and hands the camera its weather shake.
+## It also dims the sun in rain, on top of what WorldLighting wrote this frame (process_priority runs it
+## after), and hands the camera its weather shake. A strike's own light is WorldWeather.light.
 
 const LAYER := -1
 const COMBAT_EDGE_SCALE := 0.35
-## Light added at a full flash, on top of the profile's sun / moon energy.
-const FLASH_SUN := 1.8
-const FLASH_MOON := 3.0
 ## Sun energy lost at full rain (a storm): an overcast day.
 const RAIN_DIM := 0.5
 ## High: the heat shimmer (one screen copy and one full-screen pass while it is hot). Low: everything else.
@@ -105,6 +102,4 @@ func _light(w: WorldWeather) -> void:
 	# Only on values WorldLighting rewrote this frame: a paused lighting must not compound the dimming.
 	if not (wl.is_processing() and wl.can_process()):
 		return
-	wl.sun.light_energy = wl.sun.light_energy * (1.0 - RAIN_DIM * w.rain_amount) + (w.flash * FLASH_SUN if wl.sun.visible else 0.0)
-	if wl.moon and wl.moon.visible:
-		wl.moon.light_energy += w.flash * FLASH_MOON
+	wl.sun.light_energy *= 1.0 - RAIN_DIM * w.rain_amount

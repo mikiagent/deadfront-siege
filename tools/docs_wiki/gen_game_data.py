@@ -185,14 +185,23 @@ def weather_section(w, cl, a) -> None:
     a("Code: `game/scripts/world/world_weather.gd` (state), `game/scripts/world/weather_fx.gd` (screen layer, light pulse, camera shake), "
       "`game/shaders/weather/`. Numbers: `game/data/world/rules.json` `weather`. Test: `game/tests/t_weather.gd`; lab: `scenes/dev/weather_lab.tscn`.")
     a("")
-    a("- **Rain**: every %s-%s s (first check %s s) the island rolls its climate's rain chance; a spell lasts %s-%s s, "
-      "applies Wet, dims the sun by up to half and lays a grey wash." % (
-          w["rain_check_s"][0], w["rain_check_s"][1], w["first_check_s"], w["rain_len_s"][0], w["rain_len_s"][1]))
-    a("- **Storm** (rain and lightning): a rain spell is a storm on the climate's storm roll and lasts %s-%s s. A strike every "
-      "%s-%s s, %s-%s m away: a double flicker of the screen and the sun (the moon at night), then thunder distance / %s m/s later "
-      "(1.2-8.7 s) with a camera rumble up to %s m. `WorldWeather.lightning` / `thunder` are the sound hooks (no audio yet)." % (
+    modes = w.get("rain_modes", {})
+    a("- **Rain** in three modes: every %s-%s s (first check %s s) the island rolls its climate's rain chance; a spell lasts "
+      "%s-%s s in a mode picked by the climate's weights (default %s). Each mode has its own particle share, drop size and speed, "
+      "darkening (grey wash and sun dimming up to half) and wet-ground strength (the terrain darkens and gets a sheen through the "
+      "`weather_wet` shader global); only pouring rain splashes. Modes: %s. `WorldWeather.rain_mode` / `rain_level()` (1-3) are "
+      "what the day/night dial reads; `rain_mode_changed` is the sound hook." % (
+          w["rain_check_s"][0], w["rain_check_s"][1], w["first_check_s"], w["rain_len_s"][0], w["rain_len_s"][1],
+          w.get("default_modes"), "; ".join("%s particles x%s, dark %s, wet %s" % (k, v["amount"], v["dark"], v["wet"]) for k, v in modes.items())))
+    a("- **Storm** (pouring rain and lightning): a rain spell is a storm on the climate's storm roll and lasts %s-%s s. A strike "
+      "every %s-%s s lands at a real ground point around the survivor, at a distance from the bands %s ([share, min m, max m]: "
+      "some close, most mid, some far). It spawns a jagged bolt with two branches, a ground flash and a scorch that fades over 6 s "
+      "(`LightningBolt`, unshaded additive quads, gl_compatibility-safe), a double flicker of the screen and a light from the "
+      "strike's direction. Thunder lands the strike's distance / %s m/s later (near: at once; 2.5 km: 7.3 s) and the camera "
+      "rumble scales down with log distance (up to %s m). `WorldWeather.lightning(position, distance)` / `thunder(distance)` are "
+      "the sound hooks (no audio yet). ASSUMPTION: strikes damage nothing." % (
           w["storm_len_s"][0], w["storm_len_s"][1], w["lightning_gap_s"][0], w["lightning_gap_s"][1],
-          w["lightning_m"][0], w["lightning_m"][1], w["sound_mps"], w["shake_m"]["thunder"]))
+          w["lightning_bands"], w["sound_mps"], w["shake_m"]["thunder"]))
     a("- **Heat** (by day where the climate asks for heat resistance): an orange screen edge in the combat red edge's style, a warm "
       "wash, a heat shimmer (high quality) and a slow sway up to %s m." % w["shake_m"]["heat"])
     a("- **Cold** (any hour where it asks for cold resistance): a blue-white edge, frost creeping in from the borders (corners first) "
@@ -204,7 +213,7 @@ def weather_section(w, cl, a) -> None:
       "during a hunt or a red-edge status the weather edges drop to 35 %. Weather shake never exceeds %s m; `--reduce-shake` turns "
       "off every camera shake (combat too)." % w["shake_m"]["max"])
     a("- **Idle by mood**: standing still, the survivor plays `idle_exhausted` (fatigue 75 %+) > `idle_cold` / `idle_heat` (weather feel 0.5+, the stronger) > `idle_tired` (50 %+) > `idle`, each only when its clip exists in `assets/characters/survivor/anim/` (the next in line otherwise), blended over 0.5 s; moving and busy clips win (`PlayerAnim.pick_idle`).")
-    a("- **Debug**: `--weather=clear|rain|storm|heat|cold` holds a state; `--weather-quality=low|high` (low drops the shimmer; "
+    a("- **Debug**: `--weather=clear|drizzle|rain|pour|storm|heat|cold` holds a state; `--weather-quality=low|high` (low drops the shimmer; "
       "default low on iOS / Android).")
     a("")
     a("| climate | rain chance per check | storm share of spells | heat look by day | cold look |")

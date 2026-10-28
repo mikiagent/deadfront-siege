@@ -1,7 +1,8 @@
 extends SceneTree
 ## WEATHER acceptance on the home island (headless, simulated time):
 ##   each forced state (--weather= / WorldWeather.forced) sets the right overlay and params; thunder lands
-##   distance / sound_mps after its lightning; a flash adds to the sun after WorldLighting; heat shows the
+##   distance / sound_mps after its lightning, which lands at a world point with a bolt; the shake falls with
+##   distance; rain modes are ordered drizzle < rain < pour; heat shows the
 ##   shimmer only on high quality; cold grows frost and shivers getting cold and defrosting; the camera
 ##   offset stays under shake_m.max and is zero with reduce-shake (combat trauma too); the layer sits under
 ##   the HUD; a red-edge status halves the weather edges; heat / cold follow the climate's unmet resistance
@@ -85,46 +86,75 @@ func _run() -> void:
 	_expect(_player.statuses.has(&"wet"), "rain: Wet")
 	_expect(float(m.get_shader_parameter("heat")) == 0.0 and float(m.get_shader_parameter("cold")) == 0.0 and _w.pending.is_empty(), "rain: no heat, cold or lightning")
 
+	_test_rain_modes(WW)
+
 	WW.forced = &"storm"
 	var flashes: Array = []
 	var claps: Array = []
 	var clock := [0.0]
-	var on_l := func (d: float) -> void: flashes.append([clock[0], d])
+	var where_ok := [true]
+	var on_l := func (pos: Vector3, d: float) -> void:
+		flashes.append([clock[0], d])
+		var me: Vector3 = _player.global_position
+		var b = _w.bolts.back() if not _w.bolts.is_empty() else null
+		where_ok[0] = where_ok[0] and absf(Vector2(pos.x - me.x, pos.z - me.z).length() - d) < 0.01 and b != null and b.is_inside_tree() and b.global_position.distance_to(pos) < 0.01 and b.get_node("Bolt").visible
 	var on_t := func (d: float) -> void: claps.append([clock[0], d])
 	_w.lightning.connect(on_l)
 	_w.thunder.connect(on_t)
+	await process_frame
 	var nodes0 := Performance.get_monitor(Performance.OBJECT_NODE_COUNT)
 	var lit := false
-	var sun_lift := 0.0
+	var near_n := 0
+	var far_n := 0
 	var n := int(120.0 / DT)
 	for i in n:
 		clock[0] += DT
-		_rt.lighting.drive(game.time_of_day, false)
-		var base: float = _rt.lighting.sun.light_energy
 		_w.tick(_rt, DT)
 		_fx._process(DT)
 		top = maxf(top, _fx.shake.length())
 		if _w.flash > 0.3:
-			lit = lit or float(m.get_shader_parameter("flash")) > 0.3
-			sun_lift = maxf(sun_lift, _rt.lighting.sun.light_energy - base * (1.0 - _fx.RAIN_DIM * _w.rain_amount))
-	var nodes1 := Performance.get_monitor(Performance.OBJECT_NODE_COUNT)
-	_expect(_w.storm and flashes.size() >= 4 and flashes.size() <= 16, "storm: %d strikes in 2 min (gap %s s)" % [flashes.size(), cfg["lightning_gap_s"]])
-	_expect(lit and sun_lift > 1.0, "storm: a strike lights the edge's flash and lifts the sun +%.2f over WorldLighting's value" % sun_lift)
+			lit = lit or (float(m.get_shader_parameter("flash")) > 0.3 and _w.light.visible and _w.light.light_energy > 0.7)
+		if i % 20 == 0:
+			await process_frame  # let freed bolts go
+	for f in flashes:
+		near_n += 1 if float(f[1]) < 40.0 else 0
+		far_n += 1 if float(f[1]) > 700.0 else 0
+	_expect(_w.storm and _w.rain_mode == &"pour" and flashes.size() >= 4 and flashes.size() <= 16, "storm: pouring, %d strikes in 2 min (gap %s s)" % [flashes.size(), cfg["lightning_gap_s"]])
+	_expect(where_ok[0], "storm: each strike's distance is its ground point to the survivor, with a visible bolt node there")
+	_expect(lit, "storm: a strike lights the edge's flash and the lightning light")
 	var lag_ok := claps.size() >= flashes.size() - 1 and claps.size() > 0
 	for k in claps.size():
 		var want: float = flashes[k][0] + float(flashes[k][1]) / float(cfg["sound_mps"])
 		lag_ok = lag_ok and absf(float(claps[k][0]) - want) <= DT * 1.5 and is_equal_approx(float(claps[k][1]), float(flashes[k][1]))
-	_expect(lag_ok, "storm: every thunder lands distance / %.0f m/s after its flash (%d flashes, %d claps; first %s)" % [float(cfg["sound_mps"]), flashes.size(), claps.size(), [flashes[0], claps[0]] if claps.size() > 0 else []])
-	_expect(nodes1 <= nodes0, "storm: no node growth over 2 simulated minutes (%d -> %d)" % [nodes0, nodes1])
+	_expect(lag_ok, "storm: every thunder lands its strike's distance / %.0f m/s after the flash (%d strikes: %s)" % [float(cfg["sound_mps"]), flashes.size(), flashes.map(func (f: Array) -> String: return "%.0fm" % f[1])])
 	_w.lightning.disconnect(on_l)
 	_w.thunder.disconnect(on_t)
-	_w.strike(400.0)
-	var rumble_top := 0.0
-	for i in int(2.0 / DT):
-		_w.tick(_rt, DT)
-		_fx._process(DT)
-		rumble_top = maxf(rumble_top, _fx.shake.length())
-	_expect(rumble_top > 0.05 and rumble_top <= max_m + 0.0001, "storm: a near clap shakes the camera %.3f m (<= %.2f)" % [rumble_top, max_m])
+	# The same strike near and far: the far one claps later and shakes less.
+	var shake_at := {}
+	for d in [12.0, 300.0, 2000.0]:
+		_w._flash_cd = 1.0e9
+		var gap := [0.0, -1.0]
+		var on_c := func (_d: float) -> void: gap[1] = gap[0]
+		_w.thunder.connect(on_c)
+		_w.strike(d)
+		var peak := 0.0
+		for i in int(8.0 / DT):
+			_w.tick(_rt, DT)
+			_fx._process(DT)
+			gap[0] += DT
+			peak = maxf(peak, _fx.shake.length())
+		_w.thunder.disconnect(on_c)
+		shake_at[d] = [gap[1], peak]
+	print("[t_weather] strike distance -> [thunder gap s, peak shake m]: %s" % shake_at)
+	_expect(shake_at[12.0][0] < 0.1 and absf(shake_at[300.0][0] - 300.0 / 343.0) <= DT * 1.5 and absf(shake_at[2000.0][0] - 2000.0 / 343.0) <= DT * 1.5, "near strike: thunder at once; far: 5.8 s later")
+	_expect(shake_at[12.0][1] > shake_at[300.0][1] and shake_at[300.0][1] > shake_at[2000.0][1] and shake_at[2000.0][1] > 0.0 and shake_at[12.0][1] <= max_m + 0.0001, "the shake falls with distance and stays <= %.2f m" % max_m)
+	WW.forced = &"clear"
+	_sim(7.0)
+	await process_frame
+	await process_frame
+	var nodes1 := Performance.get_monitor(Performance.OBJECT_NODE_COUNT)
+	_expect(_w.bolts.is_empty() and nodes1 <= nodes0, "every bolt freed after its %.0f s; no node growth over the storm (%d -> %d)" % [6.0, nodes0, nodes1])
+	WW.forced = &"storm"
 
 	WW.forced = &"heat"
 	_set_quality(true)
@@ -151,6 +181,7 @@ func _run() -> void:
 	_expect(shivers >= 1, "cold: a shiver on getting cold (%d)" % shivers)
 	WW.forced = &"clear"
 	var thaw := 0
+	_w._shiver_cd = 1.0e9  # only the defrost shiver counts here, not a periodic one
 	for i in int(10.0 / DT):
 		_w.tick(_rt, DT)
 		_fx._process(DT)
@@ -259,3 +290,25 @@ func _test_mood_idles(WW: GDScript) -> void:
 	rig.library.add_animation(&"idle_cold", cold_clip)
 	WW.forced = &"clear"
 	_sim(12.0)
+
+## Drizzle < rain < pour in particles, drop size, darkening and wet ground; only pour splashes; the
+## mode is exposed for the dial (rain_mode, rain_level).
+func _test_rain_modes(WW: GDScript) -> void:
+	var rows := {}
+	for mode in [&"drizzle", &"rain", &"pour"]:
+		WW.forced = mode
+		_sim(12.0)
+		rows[mode] = [_w._rain_fx.amount_ratio, _w._drop.size.y, _w.rain_amount, _w.wet_ground, _w.rain_level(), _w._splash_fx.emitting]
+	print("[t_weather] modes [particles, drop m, dark, wet, level, splash]: %s" % rows)
+	var ok := true
+	for k in 4:
+		ok = ok and float(rows[&"drizzle"][k]) < float(rows[&"rain"][k]) and float(rows[&"rain"][k]) < float(rows[&"pour"][k])
+	_expect(ok, "drizzle < rain < pour in particle share, drop length, darkening and wet ground")
+	_expect(rows[&"drizzle"][4] == 1 and rows[&"rain"][4] == 2 and rows[&"pour"][4] == 3 and _w.rain_mode == &"pour", "rain_level 1 / 2 / 3 and rain_mode exposed")
+	_expect(not rows[&"drizzle"][5] and not rows[&"rain"][5] and rows[&"pour"][5], "only pouring rain splashes")
+	_expect(ProjectSettings.has_setting("shader_globals/weather_wet") and "global uniform float weather_wet" in FileAccess.get_file_as_string("res://scripts/world/terrain_tiles.gdshader"), "the terrain reads the ground's wetness (weather_wet global, %.2f in pour)" % _w.wet_ground)
+	var counts := {}
+	for i in 400:
+		var mm: StringName = _w.roll_mode("tropical")
+		counts[mm] = int(counts.get(mm, 0)) + 1
+	_expect(counts.size() == 3 and int(counts[&"pour"]) > int(counts[&"drizzle"]), "per-climate mode weights: the tropics pour more than they drizzle (%s)" % counts)

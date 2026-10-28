@@ -2,26 +2,41 @@ class_name WorldWeather
 extends RefCounted
 ## Island weather (WEATHER, owner 2026-10-28: rain; rain and lightning, infrequent, the ground shaking when
 ## the thunder arrives after the flash; heat with an orange edge, a shimmer and a slight shake; cold with a
-## blue-white edge, frost around the outside and infrequent shivers when getting cold and defrosting).
-## This holds the state: rain spells (particles, the Wet status), storms (lightning, then thunder after the
-## sound's travel time), and the heat / cold the survivor feels, from the same unmet climate resistance
-## that climate fatigue charges. WeatherFx draws it. The per-frame climate and level-gap fatigue feed for
-## the player rides the same tick. Numbers: data/world/rules.json "weather".
+## blue-white edge, frost around the outside and infrequent shivers when getting cold and defrosting;
+## rain in three modes, drizzle / rain / pouring; real lightning strikes whose distance sets the thunder gap).
+## This holds the state: rain spells in a mode (particles, splashes, the Wet status, wet ground), storms
+## (pouring plus lightning: a bolt at a world position, then thunder after the sound's travel time to the
+## survivor), and the heat / cold she feels, from the same unmet climate resistance that climate fatigue
+## charges. WeatherFx draws the screen side. The per-frame climate and level-gap fatigue feed for the player
+## rides the same tick. Numbers: data/world/rules.json "weather".
 
-## Sound hooks (no audio assets exist yet): a strike, and its thunder distance / sound_mps later.
-signal lightning(distance_m: float)
+## Sound hooks (no audio assets exist yet): a strike at a world position, its thunder distance / sound_mps
+## later, and the rain's mode (&"" when it stops).
+signal lightning(position: Vector3, distance_m: float)
 signal thunder(distance_m: float)
+signal rain_mode_changed(mode: StringName)
 
-const STATES: Array[StringName] = [&"clear", &"rain", &"storm", &"heat", &"cold"]
-## --weather=rain|storm|heat|cold|clear holds that state (labs, shots, tests); &"" lets the climate roll.
+const STATES: Array[StringName] = [&"clear", &"drizzle", &"rain", &"pour", &"storm", &"heat", &"cold"]
+const RAIN_MODES: Array[StringName] = [&"drizzle", &"rain", &"pour"]
+const MAX_BOLTS := 3
+## Rain particles at amount_ratio 1 (pour); a mode's "amount" is its share.
+const RAIN_PARTICLES := 900
+## --weather=drizzle|rain|pour|storm|heat|cold|clear holds that state (labs, shots, tests); &"" lets the
+## climate roll.
 static var forced: StringName = &""
 
 var raining: bool = false
 var storm: bool = false
+## &"drizzle" | &"rain" | &"pour" while raining, else &"". The day/night dial reads it (rain_level()).
+var rain_mode: StringName = &""
 var _rain_left: float = 0.0
 var _rain_cd: float = 40.0
 var _wet_refresh: float = 0.0
 var _rain_fx: GPUParticles3D
+var _splash_fx: GPUParticles3D
+var _rain_mat: ParticleProcessMaterial
+var _drop: QuadMesh
+var _rt: IslandRuntime
 var _climate := "grassland"
 var _cfg: Dictionary = {}
 var _flash_cd := 3.0
@@ -31,10 +46,12 @@ var _flash_peak := 0.0
 var flash := 0.0
 ## [seconds left, distance m] per thunder clap still on its way.
 var pending: Array = []
-## 0..1 rumble of the latest thunder, gone in 1.5 s.
+## 0..1 rumble of the latest thunder (bigger the nearer the strike), gone in 1.5 s.
 var rumble := 0.0
-## 0..1, eased: the grey wash and sun dimming of rain (1 in a storm).
+## 0..1, eased: the grey wash and sun dimming of the rain's mode (pour and storm 1).
 var rain_amount := 0.0
+## 0..1, eased: how wet the ground looks (global shader parameter weather_wet, the terrain reads it).
+var wet_ground := 0.0
 var heat := 0.0
 var cold := 0.0
 ## Creeps in behind cold (about 8 s) and melts a little faster.
@@ -44,49 +61,120 @@ var shiver := 0.0
 var _chilled := false
 var _shiver_cd := 0.0
 var fx: WeatherFx
+## The latest strike's ground point, and the visuals of strikes still showing (LightningBolt).
+var last_strike := Vector3.ZERO
+var bolts: Array[LightningBolt] = []
+## Lights the scene from the latest strike's direction while it flashes (no shadows).
+var light: DirectionalLight3D
 
 func install(rt: IslandRuntime) -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--weather="):
 			forced = StringName(a.substr(10))
+	_rt = rt
 	_climate = rt._climate
 	_cfg = Data.world_rules.get("weather", {}) as Dictionary
 	_rain_cd = float(_cfg.get("first_check_s", 40.0))
 	_rain_fx = GPUParticles3D.new()
+	_rain_fx.name = "Rain"
 	_rain_fx.emitting = false
-	_rain_fx.amount = 400
+	_rain_fx.amount = RAIN_PARTICLES
 	_rain_fx.lifetime = 0.9
 	_rain_fx.visibility_aabb = AABB(Vector3(-40, -4, -40), Vector3(80, 20, 80))
-	var mat := ParticleProcessMaterial.new()
-	mat.direction = Vector3(0, -1, 0)
-	mat.spread = 4.0
-	mat.initial_velocity_min = 8.0
-	mat.initial_velocity_max = 12.0
-	mat.gravity = Vector3(0, -14, 0)
-	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	mat.emission_box_extents = Vector3(18, 0.2, 18)
-	mat.color = Color(0.65, 0.75, 0.9, 0.7)
-	_rain_fx.process_material = mat
-	# A 2-triangle streak (was a 4,224-triangle sphere) whose material takes the particle colour;
-	# without vertex_color_use_as_albedo every drop rendered plain white.
-	var draw := QuadMesh.new()
-	draw.size = Vector2(0.025, 0.5)
+	_rain_mat = ParticleProcessMaterial.new()
+	_rain_mat.direction = Vector3(0, -1, 0)
+	_rain_mat.spread = 4.0
+	_rain_mat.gravity = Vector3(0, -14, 0)
+	_rain_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	_rain_mat.emission_box_extents = Vector3(18, 0.2, 18)
+	_rain_mat.color = Color(0.65, 0.75, 0.9, 0.7)
+	_rain_fx.process_material = _rain_mat
+	# A 2-triangle streak whose material takes the particle colour; without vertex_color_use_as_albedo
+	# every drop rendered plain white.
+	_drop = QuadMesh.new()
+	_drop.size = Vector2(0.025, 0.5)
+	_drop.material = _streak_mat()
+	_rain_fx.draw_pass_1 = _drop
+	_rain_fx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	rt.add_child(_rain_fx)
+	_splash_fx = _make_splash()
+	rt.add_child(_splash_fx)
+	light = DirectionalLight3D.new()
+	light.name = "LightningLight"
+	light.light_color = Color(0.78, 0.86, 1.0)
+	light.shadow_enabled = false
+	light.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	light.visible = false
+	rt.add_child(light)
+	_apply_mode(&"rain")
+	fx = WeatherFx.new()
+	fx.weather = self
+	rt.add_child(fx)
+
+static func _streak_mat() -> StandardMaterial3D:
 	var streak := StandardMaterial3D.new()
 	streak.vertex_color_use_as_albedo = true
 	streak.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	streak.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
 	streak.cull_mode = BaseMaterial3D.CULL_DISABLED
-	draw.material = streak
-	_rain_fx.draw_pass_1 = draw
-	_rain_fx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	rt.add_child(_rain_fx)
-	fx = WeatherFx.new()
-	fx.weather = self
-	rt.add_child(fx)
+	streak.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	return streak
+
+## Pouring rain's splashes: short white flecks hopping off the ground around her.
+func _make_splash() -> GPUParticles3D:
+	var s := GPUParticles3D.new()
+	s.name = "RainSplash"
+	s.emitting = false
+	s.amount = 160
+	s.lifetime = 0.3
+	s.visibility_aabb = AABB(Vector3(-20, -2, -20), Vector3(40, 6, 40))
+	var m := ParticleProcessMaterial.new()
+	m.direction = Vector3(0, 1, 0)
+	m.spread = 60.0
+	m.initial_velocity_min = 0.8
+	m.initial_velocity_max = 1.6
+	m.gravity = Vector3(0, -9, 0)
+	m.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	m.emission_box_extents = Vector3(12, 0.05, 12)
+	m.color = Color(0.85, 0.9, 1.0, 0.55)
+	s.process_material = m
+	var q := QuadMesh.new()
+	q.size = Vector2(0.06, 0.06)
+	q.material = _streak_mat()
+	s.draw_pass_1 = q
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return s
+
+## The mode's row in rules.json weather.rain_modes.
+func mode_cfg(mode: StringName) -> Dictionary:
+	return ((_cfg.get("rain_modes", {}) as Dictionary).get(str(mode), {}) as Dictionary)
+
+## 0 dry, 1 drizzle, 2 rain, 3 pour (and storm).
+func rain_level() -> int:
+	return RAIN_MODES.find(rain_mode) + 1 if raining else 0
+
+func _apply_mode(mode: StringName) -> void:
+	var c := mode_cfg(mode)
+	if _rain_fx == null or c.is_empty():
+		return
+	_rain_fx.amount_ratio = float(c.get("amount", 0.6))
+	_drop.size = Vector2(float(c.get("drop_w", 0.025)), float(c.get("drop_len", 0.5)))
+	var v := float(c.get("speed", 11.0))
+	_rain_mat.initial_velocity_min = v * 0.8
+	_rain_mat.initial_velocity_max = v * 1.1
+
+func _set_mode(mode: StringName) -> void:
+	if mode == rain_mode:
+		return
+	rain_mode = mode
+	if mode != &"":
+		_apply_mode(mode)
+	rain_mode_changed.emit(mode)
 
 func tick(rt: IslandRuntime, delta: float) -> void:
 	var p := PlayerRegistry.local()
 	_tick_sky(delta)
+	_set_mode((&"pour" if storm else (rain_mode if rain_mode != &"" else &"rain")) if raining else &"")
 	if raining and p:
 		# Refresh once a second, not every frame, so the status log and its bookkeeping stay quiet.
 		_wet_refresh -= delta
@@ -96,9 +184,13 @@ func tick(rt: IslandRuntime, delta: float) -> void:
 	if _rain_fx:
 		if raining and p:
 			_rain_fx.global_position = p.global_position + Vector3(0, 10, 0)
+			_splash_fx.global_position = p.global_position + Vector3(0, 0.1, 0)
 		_rain_fx.emitting = raining
-		_rain_fx.amount_ratio = 1.0 if storm else 0.6
-	rain_amount = move_toward(rain_amount, (1.0 if storm else 0.7) if raining else 0.0, delta / 3.0)
+		_splash_fx.emitting = raining and bool(mode_cfg(rain_mode).get("splash", false))
+	var mc := mode_cfg(rain_mode)
+	rain_amount = move_toward(rain_amount, float(mc.get("dark", 0.7)) if raining else 0.0, delta / 3.0)
+	wet_ground = move_toward(wet_ground, float(mc.get("wet", 0.8)) if raining else 0.0, delta / (6.0 if raining else 40.0))
+	RenderingServer.global_shader_parameter_set(&"weather_wet", wet_ground)
 	_tick_storm(delta)
 	_tick_temp(p, delta)
 	if p:
@@ -114,18 +206,36 @@ func tick(rt: IslandRuntime, delta: float) -> void:
 
 ## The climate's chance of `kind` ("rain" per check, "storm" per rain spell), 0 when it lists none.
 func chance(climate: String, kind: String) -> float:
-	return float(((_cfg.get("climates", {}) as Dictionary).get(climate, {}) as Dictionary).get(kind, 0.0))
+	return float(_climate_cfg(climate).get(kind, 0.0))
+
+func _climate_cfg(climate: String) -> Dictionary:
+	return ((_cfg.get("climates", {}) as Dictionary).get(climate, {}) as Dictionary)
+
+## A rain spell's mode by the climate's weights (rules.json climates.<id>.modes, else default_modes).
+func roll_mode(climate: String) -> StringName:
+	var w: Dictionary = _climate_cfg(climate).get("modes", _cfg.get("default_modes", {"rain": 1.0})) as Dictionary
+	var total := 0.0
+	for m in RAIN_MODES:
+		total += float(w.get(str(m), 0.0))
+	var r := randf() * total
+	for m in RAIN_MODES:
+		r -= float(w.get(str(m), 0.0))
+		if r < 0.0:
+			return m
+	return &"rain"
 
 func _range(key: String, fallback: Vector2) -> float:
 	var r: Variant = _cfg.get(key, [fallback.x, fallback.y])
 	return randf_range(float(r[0]), float(r[1])) if r is Array and (r as Array).size() == 2 else fallback.x
 
 func _tick_sky(delta: float) -> void:
-	if forced == &"rain" or forced == &"storm":
+	if forced in RAIN_MODES or forced == &"storm":
 		if not storm and forced == &"storm":
 			_flash_cd = 2.0
 		raining = true
 		storm = forced == &"storm"
+		if not storm:
+			_set_mode(forced)
 		return
 	if forced != &"":
 		raining = false
@@ -146,15 +256,16 @@ func _tick_sky(delta: float) -> void:
 		return
 	raining = true
 	storm = randf() < chance(_climate, "storm")
+	_set_mode(&"pour" if storm else roll_mode(_climate))
 	_rain_left = _range("storm_len_s" if storm else "rain_len_s", Vector2(18, 30))
 	_flash_cd = 3.0
-	print("[world] rain storm=%s" % storm)
+	print("[world] rain mode=%s storm=%s" % [rain_mode, storm])
 
 func _tick_storm(delta: float) -> void:
 	if storm:
 		_flash_cd -= delta
 		if _flash_cd <= 0.0:
-			strike(_range("lightning_m", Vector2(400, 3000)))
+			strike(pick_distance())
 	if _flash_t >= 0.0:
 		_flash_t += delta
 		flash = _flash_peak * flash_curve(_flash_t)
@@ -166,26 +277,80 @@ func _tick_storm(delta: float) -> void:
 		if pending[i][0] <= 0.0:
 			var d: float = pending[i][1]
 			pending.remove_at(i)
-			rumble = maxf(rumble, 0.35 + 0.65 * _near(d))
+			rumble = maxf(rumble, 0.15 + 0.85 * near(d))
 			thunder.emit(d)
 	rumble = move_toward(rumble, 0.0, delta / 1.5)
+	for i in range(bolts.size() - 1, -1, -1):
+		var b := bolts[i]
+		if not is_instance_valid(b):
+			bolts.remove_at(i)
+			continue
+		b.age += delta
+		if b.done():
+			b.queue_free()
+			bolts.remove_at(i)
+		else:
+			b.update()
+	if light:
+		light.visible = flash > 0.002
+		light.light_energy = flash * float(_cfg.get("lightning_light_energy", 2.5))
 
-## A lightning strike `distance_m` away: the flash now, its thunder distance / sound_mps later.
+## A strike distance from the climate-free bands: some close, most mid, some far (rules.json
+## lightning_bands [share, min m, max m]).
+func pick_distance() -> float:
+	var bands: Array = _cfg.get("lightning_bands", [[1.0, 400.0, 3000.0]]) as Array
+	var r := randf()
+	for b in bands:
+		r -= float(b[0])
+		if r < 0.0:
+			return randf_range(float(b[1]), float(b[2]))
+	var last: Array = bands.back()
+	return randf_range(float(last[1]), float(last[2]))
+
+## A strike `distance_m` from the survivor on a random bearing (strike_at does the work).
 func strike(distance_m: float) -> void:
+	var p := PlayerRegistry.local()
+	var at := p.global_position if p else Vector3.ZERO
+	var ang := randf() * TAU
+	strike_at(at + Vector3(cos(ang), 0.0, sin(ang)) * distance_m)
+
+## A lightning strike at `pos` (x, z; y snaps to the ground): a bolt there, the flash now and a light from
+## its direction, its thunder (horizontal distance to the survivor) / sound_mps later. Damages nothing.
+func strike_at(pos: Vector3) -> void:
+	var p := PlayerRegistry.local()
+	var me := p.global_position if p else Vector3.ZERO
+	if _rt and is_instance_valid(_rt):
+		pos.y = _rt.surface_y(pos.x, pos.z)
+	var d := Vector2(pos.x - me.x, pos.z - me.z).length()
+	last_strike = pos
 	_flash_t = 0.0
-	_flash_peak = 0.55 + 0.45 * _near(distance_m)
+	_flash_peak = 0.45 + 0.55 * near(d)
 	flash = _flash_peak
 	_flash_cd = _range("lightning_gap_s", Vector2(8, 20))
-	pending.append([thunder_delay(distance_m), distance_m])
-	lightning.emit(distance_m)
+	pending.append([thunder_delay(d), d])
+	if _rt and is_instance_valid(_rt):
+		if bolts.size() >= MAX_BOLTS:
+			bolts.pop_front().queue_free()
+		var b := LightningBolt.make(pos, randi())
+		_rt.add_child(b)
+		bolts.append(b)
+	if light:
+		var from := pos + Vector3(0.0, LightningBolt.HEIGHT * 0.6, 0.0)
+		var dir := (me - from).normalized()
+		if dir.length() > 0.5:
+			light.basis = Basis.looking_at(dir, Vector3.UP if absf(dir.y) < 0.99 else Vector3.FORWARD)
+	lightning.emit(pos, d)
 
 func thunder_delay(distance_m: float) -> float:
 	return distance_m / float(_cfg.get("sound_mps", 343.0))
 
-## 1 at the nearest strike distance, 0 at the farthest.
-func _near(distance_m: float) -> float:
-	var r: Variant = _cfg.get("lightning_m", [400.0, 3000.0])
-	return 1.0 - clampf((distance_m - float(r[0])) / maxf(1.0, float(r[1]) - float(r[0])), 0.0, 1.0)
+## 1 at the nearest band's start, 0 at the farthest band's end, falling off with log distance (a strike
+## twice as far is a step quieter, not half as loud).
+func near(distance_m: float) -> float:
+	var bands: Array = _cfg.get("lightning_bands", [[1.0, 400.0, 3000.0]]) as Array
+	var lo := maxf(1.0, float(bands[0][1]))
+	var hi := maxf(lo + 1.0, float(bands.back()[2]))
+	return 1.0 - clampf(log(maxf(distance_m, lo) / lo) / log(hi / lo), 0.0, 1.0)
 
 ## Lightning's double flicker: a bright stroke, a dip, a second stroke, then a quick fade.
 static func flash_curve(t: float) -> float:
@@ -244,8 +409,9 @@ static func temp_targets(p: Player, climate: String, phase: StringName) -> Vecto
 		c *= p.sim.rest.climate_mult("cold") if p.sim else 1.0
 	return Vector2(clampf(h, 0.0, 1.0), clampf(c, 0.0, 1.0))
 
-## The camera offset the weather asks for at time t (metres): thunder's rumble, heat's slow sway, a
-## shiver's fast tremble. Never longer than shake_m.max; zero with IsoCamera.reduce_shake.
+## The camera offset the weather asks for at time t (metres): thunder's rumble (scaled by how near the
+## strike was), heat's slow sway, a shiver's fast tremble. Never longer than shake_m.max; zero with
+## IsoCamera.reduce_shake.
 func shake_offset(t: float) -> Vector2:
 	if IsoCamera.reduce_shake:
 		return Vector2.ZERO

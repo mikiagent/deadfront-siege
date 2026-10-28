@@ -82,6 +82,10 @@ tall_fade_height={
 "type": "float",
 "value": 0.0
 }
+weather_wet={
+"type": "float",
+"value": 0.0
+}
 
 [physics]
 
