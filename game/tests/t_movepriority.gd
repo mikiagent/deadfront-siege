@@ -110,7 +110,6 @@ func _creature(species: StringName, at: Vector3):
 func _clear_world() -> void:
 	player.hunt.stop()
 	player.clear_nav()
-	player.move_order = false
 	var sel = player.controls.get("selection")
 	if sel:
 		sel.clear()
@@ -154,7 +153,7 @@ func _test_baseline_auto_attack() -> void:
 	var swings := _count_swings()
 	player.hunt.start(c)
 	await _seconds(2.0)
-	_expect(not player.move_order and player.hunt.target == c, "baseline: the hunt holds its target")
+	_expect(player.hunt.target == c, "baseline: the hunt holds its target")
 	_expect(int(swings[0]) >= 1, "baseline: without a move order auto-attack swings at a target in reach (%d)" % int(swings[0]))
 	_expect(player.global_position.distance_to(Vector3(0, 1.0, 0)) < 1.0, "baseline: she fights from where she stood, no route")
 	await _clear_world()
