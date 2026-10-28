@@ -367,49 +367,80 @@ func _make_stone_ring() -> Node3D:
 	return ring
 
 func _make_wood_pile() -> Node3D:
+	## Four furze logs laid across the pit's ash, tips meeting in the middle: big and light enough to
+	## read from the iso camera at phone size (a dark teepee disappeared under the flame).
 	var pile := Node3D.new()
 	pile.name = "WoodPile"
 	var bark := StandardMaterial3D.new()
-	bark.albedo_color = Color(0.34, 0.23, 0.14)
-	bark.roughness = 0.92
+	bark.albedo_color = Color(0.52, 0.36, 0.21)
+	bark.roughness = 0.9
 	var charred := StandardMaterial3D.new()
-	charred.albedo_color = Color(0.14, 0.11, 0.09)
+	charred.albedo_color = Color(0.22, 0.16, 0.12)
 	charred.roughness = 1.0
+	var ash := StandardMaterial3D.new()
+	ash.albedo_color = Color(0.30, 0.28, 0.26)
+	ash.roughness = 1.0
+	var bed := MeshInstance3D.new()
+	var bed_mesh := CylinderMesh.new()
+	bed_mesh.top_radius = 0.46
+	bed_mesh.bottom_radius = 0.48
+	bed_mesh.height = 0.06
+	bed_mesh.radial_segments = 14
+	bed.mesh = bed_mesh
+	bed.material_override = ash
+	bed.position = Vector3(0.0, 0.03, 0.0)
+	pile.add_child(bed)
 	for i in 4:
-		var a := TAU * float(i) / 4.0 + 0.3
+		var a := TAU * float(i) / 4.0 + 0.35
 		var mi := MeshInstance3D.new()
 		var m := CylinderMesh.new()
-		m.top_radius = 0.055
-		m.bottom_radius = 0.06
-		m.height = 0.9
-		m.radial_segments = 6
+		m.top_radius = 0.085
+		m.bottom_radius = 0.095
+		m.height = 1.18
+		m.radial_segments = 7
 		mi.mesh = m
-		mi.material_override = bark if i < 3 else charred
-		mi.position = Vector3(cos(a) * 0.12, 0.10, sin(a) * 0.12)
-		mi.rotation = Vector3(deg_to_rad(72.0), a, 0.0)
+		mi.material_override = bark
+		# Laid across the ash bed, the inner end raised a little on the embers.
+		mi.position = Vector3(cos(a) * 0.30, 0.15, sin(a) * 0.30)
+		mi.rotation = Vector3(deg_to_rad(84.0), -a, 0.0)
 		pile.add_child(mi)
+		# A charred end where the log meets the fire.
+		var tip := MeshInstance3D.new()
+		var tm := CylinderMesh.new()
+		tm.top_radius = 0.086
+		tm.bottom_radius = 0.09
+		tm.height = 0.2
+		tm.radial_segments = 7
+		tip.mesh = tm
+		tip.material_override = charred
+		tip.position = Vector3(cos(a) * 0.13, 0.19, sin(a) * 0.13)
+		tip.rotation = Vector3(deg_to_rad(84.0), -a, 0.0)
+		pile.add_child(tip)
 	return pile
 
 func _make_flame() -> Node3D:
+	## A low, bright flame licking between the logs: the wood has to stay readable, so this is a
+	## couple of small cones, not a bonfire column.
 	var flame := Node3D.new()
 	flame.name = "Flame"
 	var hot := StandardMaterial3D.new()
-	hot.albedo_color = Color(1.0, 0.55, 0.16)
+	hot.albedo_color = Color(1.0, 0.62, 0.20)
 	hot.emission_enabled = true
-	hot.emission = Color(1.0, 0.45, 0.10)
-	hot.emission_energy_multiplier = 2.4
+	hot.emission = Color(1.0, 0.48, 0.12)
+	hot.emission_energy_multiplier = 2.6
 	hot.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	hot.cull_mode = BaseMaterial3D.CULL_DISABLED
-	for row in [[0.17, 0.52, 0.26], [0.10, 0.34, 0.16]]:
+	var tongues := [[0.0, 0.0, 0.09, 0.26], [0.10, 0.07, 0.06, 0.18], [-0.09, -0.06, 0.06, 0.16]]
+	for row in tongues:
 		var mi := MeshInstance3D.new()
 		var m := CylinderMesh.new()
-		m.top_radius = 0.01
-		m.bottom_radius = float(row[0])
-		m.height = float(row[1])
+		m.top_radius = 0.005
+		m.bottom_radius = float(row[2])
+		m.height = float(row[3])
 		m.radial_segments = 7
 		mi.mesh = m
 		mi.material_override = hot
-		mi.position = Vector3(0.0, 0.10 + float(row[1]) * 0.5, 0.0)
+		mi.position = Vector3(float(row[0]), 0.16 + float(row[3]) * 0.5, float(row[1]))
 		flame.add_child(mi)
 	flame.visible = false
 	return flame

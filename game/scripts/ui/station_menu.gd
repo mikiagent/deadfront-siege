@@ -37,6 +37,9 @@ const DEFAULT_HEIGHT := 1.45
 
 var station: Node3D
 var player: Player
+## A fire's state line under the ring ("Fuel 4:12 · Burning · Durability 288/300"); stations that
+## have no info_text() keep the old look with no line.
+var info_label: Label
 var _buttons: Array[HexButton] = []
 var _ring3d: MeshInstance3D
 var _expand_elapsed: float = 0.0
@@ -102,13 +105,42 @@ func show_for(st: Node3D, actions: Array) -> void:
 		btn.pressed.connect(_on_pressed.bind(aid))
 		add_child(btn)
 		_buttons.append(btn)
+	_show_info()
 	visible = true
 	_expand_elapsed = 0.0
 	_show_ring3d(0.22)
 	_update_screen_pos()
 	UiTokens.focus_first(_buttons)
 
+## The station's own state line (FIREPITS rule 3: a fire shows the fuel left, and a temporary fire
+## its durability). Built from the station's info_lines(), so the card and the tests read the same text.
+func _show_info() -> void:
+	if info_label != null and is_instance_valid(info_label):
+		info_label.queue_free()
+	info_label = null
+	if station == null or not is_instance_valid(station) or not station.has_method("info_text"):
+		return
+	var text := str(station.call("info_text"))
+	if text == "":
+		return
+	var lbl := Label.new()
+	lbl.name = "StationInfo"
+	lbl.text = text
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.add_theme_font_size_override("font_size", int(UiTokens.meta(get_viewport_rect().size)))
+	lbl.add_theme_color_override("font_color", UiTokens.TEXT)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = UiTokens.HUD_FILL
+	bg.set_content_margin_all(6.0)
+	lbl.add_theme_stylebox_override("normal", bg)
+	add_child(lbl)
+	info_label = lbl
+
 func hide_menu() -> void:
+	if info_label != null and is_instance_valid(info_label):
+		info_label.queue_free()
+	info_label = null
 	_clear()
 	station = null
 	visible = false
@@ -162,6 +194,13 @@ func _update_screen_pos() -> void:
 	var view := get_viewport_rect().size
 	var hx := hex_px(view)
 	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), hx, 0.0, UiTokens.hud_reserved(view))
+	if info_label != null and is_instance_valid(info_label) and info_label.text != "":
+		# Under the ring: measured from the hex spots, so it never covers the actions.
+		info_label.size = Vector2.ZERO
+		info_label.reset_size()
+		var w := info_label.get_minimum_size().x
+		var box_below := anchor.y + hx * 1.6
+		info_label.position = Vector2(clampf(anchor.x - w * 0.5, MARGIN, maxf(MARGIN, view.x - w - MARGIN)), minf(box_below, view.y - info_label.get_minimum_size().y - MARGIN))
 	for i in _buttons.size():
 		HudField.fit(_buttons[i], hx)
 		if i < spots.size():

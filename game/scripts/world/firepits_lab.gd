@@ -85,8 +85,9 @@ func _build_stage() -> void:
 	_cam.current = true
 
 func _run() -> void:
-	await get_tree().create_timer(0.9).timeout
-	print("[firepits] probe start")
+	# Start inside kitchen_lab's first beat: cookroles ends its own run with quit(), which would cut a
+	# probe that is still awaiting shots.
+	await get_tree().create_timer(0.15).timeout
 	# 1. The empty permanent pit: rocks only, no wood, no flame.
 	_measured["pit_wood_empty"] = 1 if bool(_pit.call("wood_visible")) else 0
 	_measured["pit_flame_empty"] = 1 if bool(_pit.call("flame_visible")) else 0
@@ -113,14 +114,10 @@ func _run() -> void:
 	_measured["campfire_flame"] = 1 if bool(_campfire.call("flame_visible")) else 0
 	_measured["bonfire_fuel"] = int(round(float(_bonfire.get("fuel_seconds"))))
 	_measured["campfire_fuel"] = int(round(float(_campfire.get("fuel_seconds"))))
-	print("[firepits] probe step3 done")
 	await _shot("firepits_temporary")
-	print("[firepits] probe step4")
 	# 4. Wear: one measured minute inside a Domain against one outside it (same fire code, the claim
 	#    check swapped on the runtime). Both numbers come off tick() on live nodes.
-	print("[firepits] probe wear begin")
 	var wear := _measure_wear()
-	print("[firepits] probe wear done %s" % str(wear))
 	_measured["wear_inside"] = float(wear[0])
 	_measured["wear_outside"] = float(wear[1])
 	_measured["wear_ratio"] = float(wear[1]) / maxf(0.001, float(wear[0]))
@@ -211,7 +208,6 @@ func _all_ok() -> bool:
 func _shot(shot_name: String) -> void:
 	if _shot_dir == "" or _sub == null:
 		return
-	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	var img := _sub.get_texture().get_image()
 	if img == null:

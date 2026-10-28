@@ -74,7 +74,7 @@ func _run() -> void:
 	_test_burn_out()
 	_test_wear_inside_and_outside()
 	_test_cooking_gate()
-	_test_info_lines()
+	await _test_info_lines()
 	_test_save_load()
 	_test_sanitized_save()
 	_finish()
@@ -224,6 +224,25 @@ func _test_info_lines() -> void:
 	var btext := " | ".join(b.call("info_lines") as PackedStringArray)
 	print("[t_firepits] bonfire info: %s" % btext)
 	_expect(btext.to_lower().contains("fuel") and btext.to_lower().contains("durability"), "a temporary fire's info shows fuel and durability")
+	# The same text is on screen: the hex menu's own state line, over the burning pit and the bonfire.
+	var sc: Variant = _player.get("station_craft")
+	var menu: Variant = sc.get("menu") if sc != null else null
+	_expect(menu != null, "the survivor has a station menu to show the fire's state")
+	if menu != null:
+		menu.call("show_for", pit, SM.filter_actions(pit, SM.actions_for(&"bonfire", _player)))
+		await process_frame
+		var lbl: Label = menu.get("info_label")
+		var shown := "" if lbl == null else lbl.text
+		print("[t_firepits] menu info on screen: \"%s\"" % shown)
+		_expect(shown.to_lower().contains("fuel") and shown.to_lower().contains("burning"), "the pit's menu shows its fuel and burning state on screen")
+		menu.call("show_for", b, SM.filter_actions(b, SM.actions_for(&"bonfire", _player)))
+		await process_frame
+		var lbl2: Label = menu.get("info_label")
+		var shown2 := "" if lbl2 == null else lbl2.text
+		print("[t_firepits] bonfire menu info on screen: \"%s\"" % shown2)
+		_expect(shown2.to_lower().contains("fuel") and shown2.to_lower().contains("durability"), "the bonfire's menu shows fuel and durability on screen")
+		menu.call("hide_menu")
+		await process_frame
 	pit.queue_free()
 	b.queue_free()
 
