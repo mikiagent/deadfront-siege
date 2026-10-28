@@ -264,11 +264,33 @@ CHARCREATE restyle; recapture it.
 ![island_pick](screens/island_pick.webp)
 
 
+## Restyled world screens (UIWORLD, 2026-10-28)
+
+Built to [`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §7 F1 / F3 / E2 / A2 on the
+shared `UiWorldSheet` chrome (`game/scripts/ui/uiworld_sheet.gd`: HEADER bar with torn edge, back
+arrow, title, GOLD-numbered counter, ✕; GOLD primary and ghost buttons; parchment headers; GOLD
+corner brackets). Shots at 1600x900 and 844x390: `docs/orchestration/reports/uiworld/`; lab
+`game/scripts/dev/uiworld_lab.gd`; test `game/tests/t_uiworld.gd`.
+
+| Screen | Script | Opened by | What it shows |
+|---|---|---|---|
+| F1 Domain | `domain_screen.gd` | `HuntHud.open_domain()` | Left icon tabs (Tamed / Civilized / Clan / Outpost locked). No domain: GOLD headline, body, quote, **Declare Domain**, island art. Domain held: 7x7 plot grid (Domain GOLD, can-expand outline, water blue, camp land), Plots used/cap, Pioneer rank, upkeep, plot size, next rank, **Communications Center →** (spec-29 contribution panel), Expand / Build here / Release. Declare and Expand step aside to a Confirm / Cancel card over the ground preview. Footer: the edge-adjacent growth rule. |
+| F3 Communication | `comms_ui.gd` | `HuntHud.open_comms()` | Five factions from `data/world/factions.json` with a trust bar each; selected faction's parchment header (name, tone), three offers from its mission pool with Accept, support-crate band, Reroll offers / Contribute → / Track on HUD; header "Active missions 0 / 4 · Free rerolls 3". No mission or trust logic exists: trust is rank 0, Accept/Reroll/Track are disabled and say why. |
+| F3 Radio University | `radio_university_ui.gd` | `HuntHud.open_radio_university()` or Communication → Radio University | Dr. Lamar, career guides only (seven from data, +2 SP each), no crates; progress is not tracked yet. Back returns to Communication. |
+| E2 Taming Pen | `taming_pen_ui.gd` | tapping a pen (`PlayerActions.pen_interact` → `HuntHud.open_taming_pen(pen)`) | Left: captured animal (species, level, nature, pack n / cap, diet and role tiles, clade line, food and pen time). Right: "Tame it now, or keep it caged?", pen space n / 1, read-only mood slider with the pen time, pen grid (pen occupant + every caged animal in the bag, tap to pick), Store / Tame; once running: "Taming started", live countdown, Feed meat / OK. |
+| A2 Island pick | `island_pick.gd` | character creation | Square cards on a sea well, GOLD brackets on the pick, blurb and top scatter kinds, "! Terrain choice is final.", GOLD **Select and move**. |
+
+Not captured: the death/respawn ring and the skill debug overlay (dev only).
 B4 toasts, radials and dialogs (UINAV, `game/scripts/dev/uinav_lab.gd`, desktop 1600x900 and phone
 844x390 in `docs/orchestration/reports/uinav/`): warnings on dark red with a warning glyph and green
 ok notices, the station radial (main action gold-rimmed, 96 px hexes on desktop), eating as a hex
 pie with seconds left and the food's energy, the pet respawn ring (dark red disc, LIFE arc,
 "seconds"), the fatigue panel and the death card.
+
+B1 field HUD and gathering, B2 combat and net ready (UIGATHER, `game/scripts/dev/uigather_lab.gd`,
+desktop 1600x900 and phone 844x390 in `docs/orchestration/reports/uigather/`): tappable harvest pills,
+the hex gather fan with the running hex pie-filled, the yield card and the left XP feed; the restyled
+combat hexes with the NET hex GOLD inside the capture window, the gold target bar and the capture line.
 
 Not captured by `tools/ui_screens.sh`: the death card, the respawn ring and the skill debug overlay (dev only).
 

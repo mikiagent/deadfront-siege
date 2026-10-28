@@ -30,7 +30,7 @@ const ARG_KEYS := {
 	"act.gather": ["node_id", "option"], "act.loot": ["corpse_id", "slot", "count"],
 	"act.craft": ["recipe_id", "picks"], "act.place": ["kind", "cell", "rot"],
 	"act.equip": ["bag_slot", "slot", "clear"], "act.eat": ["bag_slot"],
-	"act.tame": ["net_id", "food"], "act.capture": ["net_id"], "act.attack": ["net_id"],
+	"act.tame": ["net_id", "food"], "act.capture": ["net_id"], "act.attack": ["net_id", "ms"],
 	"act.roll": ["ms"],
 	"act.deposit": ["bag_slot", "count", "pet_uid", "slot_dict", "pet_dict", "item", "pet", "stack", "asset", "save", "bag", "pets"],
 	"char.import": [], "char.get": [], "char.create": ["name"], "char.move": ["p", "reset"],
@@ -469,6 +469,18 @@ func _attack(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if wd and wd.range_m > 0.0:
 		return no("bad_request", "ranged attacks are not server-side yet")
 	var tune := CombatTuning.section("player_melee")
+	# Basic attack cooldown (owner: no basic spam), the client's Hunt rule: 1/attack_rate, never under
+	# basic_cooldown_s, judged from the stored swing time in server ms (`ms` as in act.roll).
+	var ms: Variant = integer(a, "ms", 0, 999, 0)
+	if ms == null:
+		return no("bad_request", "ms must be an integer 0..999")
+	var at := now * 1000 + int(ms)
+	var rate := wd.attack_rate if wd and wd.attack_rate > 0.0 else 1.0
+	var cd_ms := int(round(maxf(1.0 / maxf(0.2, rate), float(tune.get("basic_cooldown_s", 0.8))) * 1000.0))
+	var since := at - int(ch.d.get("attack_ms", -1000000))
+	if since >= 0 and since < cd_ms:
+		return no("not_ready", "attack on cooldown for another %d ms" % (cd_ms - since))
+	ch.d.attack_ms = at
 	var dmg := w.scaled_damage() if w else float(tune.get("unarmed_damage", 8.0))
 	var dtype := wd.damage_type if wd else &"blunt"
 	if wd and wd.is_work_tool:

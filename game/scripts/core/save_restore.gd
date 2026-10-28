@@ -46,6 +46,20 @@ static func retry_refunds(rows: Array) -> void:
 	for row in rows:
 		_refund(row, kits.get(StringName(str(row.get("kind", ""))), &""), "retry")
 
+## BUTCHER (spec 12 §2): the carcasses a save carried, spawned back on the island with the parts
+## already cut still off them and their cut budget spent. Rows are already shaped by SaveSanitizer
+## (known species, part ids, budget); one that still cannot load (no place, no runtime) is dropped.
+static func carcasses(rows: Array) -> void:
+	if World.runtime == null:
+		return
+	for row in rows:
+		if not row is Dictionary:
+			continue
+		var c := CarcassParts.corpse_from_row(row as Dictionary)
+		if c == null:
+			continue
+		World.runtime.add_child(c)
+
 static func spawn(row: Dictionary) -> Node3D:
 	var kind := StringName(str(row.get("kind", "basket")))
 	match kind:

@@ -94,6 +94,14 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Whistle row SIC / HEEL / GUARD while a pet is out, selected state mirroring the pet's brain mode:
   desktop a row beside the rail (spec §6); landscape phone a row under the vitals; portrait a
   mid-screen row with End Combat at its right.
+- B2 restyle (UIGATHER): the skill hexes, AUTO, FEED and CHASE take the HUD fill and light rim (4 px,
+  3 under 70 px); ROLL shows its "Q" key cap on desktop (ASSUMPTION: tactic_1..4 are bound but nothing
+  reads them, so no caps on NET / TACKLE / KICK). The NET hex turns GOLD-filled with a dark net and a
+  GOLD rim while a throw is allowed (spec 09: stunned or at or under 30 %, and a net and technique cover
+  the tier); its bottom line stays empty for a taming-odds figure. The target plate's HP bar turns GOLD
+  in the same window, its status chips show icon and name with a rim in the status colour, and a gold
+  line by the animal reads "Weaken to 30% to capture" / "Capturable — throw the net!" (drawn before the
+  pills, on a free spot off the plates; skipped where none is free).
 - Targets [owner 2026-10-28]: out of combat a tap on a wild animal only selects it and the red swords
   hex (or ATTACK NEAREST, E, F) starts the fight; in combat a tap on another enemy switches the target
   to it at once (`PlayerActions.attack`) and no swords hex shows. End Combat disengages.
@@ -135,9 +143,32 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   level-gap sentence, the climate shortfall and the live drift ("Exhaustion is falling slowly
   (+x/min)"). Vitals owns the rows; the decay window is `fatigue.breakdown_window_s` (180 s).
 
+## Gather radial and yield card (UIGATHER, spec §4, B1)
+- Tapping a node (or its pill) opens `gather_radial.gd`: the node's title and level under it, one
+  flat-top hex per option around it — 124 px on desktop, 64 on a compact canvas — with the gather
+  seconds on top, the resource symbol greyed in the middle, the node's units left at the bottom, and
+  the resource name in a box beside it (21 px on desktop; a locked option reads "Log · Needs an axe" in
+  DANGER). The running option's hex pie-fills 0 → 1 per unit (`HexButton.fill_ratio`); the others are
+  disabled while it runs. One unit lands per fill.
+- A gather started without the fan (INTERACT, Space, a one-option node) opens it on its node with that
+  option running (`GatherRadial.show_running`), so the hex carries the progress for every harvest. The
+  floating `gather_ring.gd` is retired for harvest nodes (ASSUMPTION, spec open question 7) and stays for
+  tame feeding and crafting progress.
+- The camera already leans toward the selected or worked node (`Player.camera_interest`, IsoCamera
+  `SELECTION_BIAS` 0.35, follow lerp 8/s); UIGATHER leaves those values as they are.
+- Yield card (`yield_card.gd`, replaces the top-centre "+n Item" toast and the retired
+  `pickup_toast.gd`): on each gain, a 300 px card (220 on a phone) above the worked node — else above
+  the survivor (crafts, loot) — on a free spot off `taken_rects` and the open radial, ~3 s or until the
+  next gain. Thumbnail tinted with the lot's natural colour (`ItemStack.tint_color`), the item name,
+  "Wood · Lv. 1 · +2" (first category, lot level, count in GOLD), then the trait chips of every instance
+  that gain added (`InvAttributes.sections`: rare ✦ green first, positive + gold, negative − grey) and a
+  3 px top edge in the best chip's colour. GatherFeedback's "+n Item" rise over the node is unchanged.
+
 ## Notices, toasts, hits, level-up
-- Pickup toasts ("+n Item"), skill XP lines (16 px) and tree level-ups (22 px, gold, ▲) rise near
-  the top-centre (phones: under the vitals), each taking a free spot off `taken_rects`; notices
+- Skill XP lines (left feed, owner §1.6, UIGATHER): under the vitals, one 44 px row per tree gain (34 on
+  a phone) — a small hex with the skill's initial, "Gathering +6 XP Lv. 1" and a thin XP bar of that
+  tree's progress; a tree level-up is the same row in GOLD with ▲. Each row takes a free spot off
+  `taken_rects`. Item gains are the yield card (above); notices
   (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
   confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders
   on the HUD fill with an OK_GREEN edge and a check (`HudEventState.draw_notice`, B4). Nothing covers
@@ -170,7 +201,11 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Level-up (`World.pioneer_changed`): a gold stack at the top-left for ~6 s — level, title line,
   XP, T-stones, SP, per-stat gains; landscape phones show a one-line banner in the centre band
   instead. Gains land via `Vitals.grant_level_bonus` (saved).
-- HUD pills (`game/scripts/ui/hud_pills.gd`) label buildings and nodes within 8 m; the domain
+- HUD pills (`game/scripts/ui/hud_pills.gd`) label buildings and nodes within 8 m (UIGATHER, spec
+  §4.1): a dark box, a harvest node's pill leading with its resource symbol greyed (dimmed when picked
+  clean, red-tinted without the tool), 30 px tall with 18 px type on desktop, 22 / 14 on a phone. A
+  harvest pill is tappable (`HudPills.node_at` from `HuntHud._input`): it selects the node exactly like
+  a tap on the node (opens the gather radial, the camera leans toward it). The domain
   banner (`domain_banner.gd`) announces "<owner>'s Domain" entering claimed land; your own portrait
   there is `PortraitService.of_player()` (a headshot of your character look), others a silhouette. All of it yields
   to toasts, plates and the open sheets.

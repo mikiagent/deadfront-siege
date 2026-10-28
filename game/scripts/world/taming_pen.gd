@@ -68,7 +68,9 @@ static func from_dict(d: Dictionary) -> TamingPen:
 		pen.occupant = ItemStack.from_dict(occ as Dictionary)
 	return pen
 
-func try_insert(player: Player) -> bool:
+## `slot`: the bag slot of the captured animal to put in (the Taming Pen screen's pick); -1 takes the
+## first one in the bag.
+func try_insert(player: Player, slot: int = -1) -> bool:
 	if running or occupant != null:
 		return false  # an animal is already inside; inserting would overwrite (and lose) it
 	# Older saves can hold a tamed_animal item from the pen's old ending; a pen bonds it, then still
@@ -82,6 +84,8 @@ func try_insert(player: Player) -> bool:
 			player.notice("Bonded roster full (%d / %d): the tamed animal stays in your bag." % [player.bonded.size(), Data.bonded_cap()])
 			return true  # at the bonded cap: the legacy item stays, nothing else can start
 	var idx := player.inventory.find_first(&"captured_animal")
+	if slot >= 0 and slot < player.inventory.slots.size() and player.inventory.slots[slot] != null and player.inventory.slots[slot].def_id == &"captured_animal":
+		idx = slot
 	if idx < 0:
 		return false
 	occupant = player.inventory.remove_at(idx, 1)

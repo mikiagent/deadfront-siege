@@ -24,8 +24,8 @@
         0.815
       ],
       "tell_fracs": [
-        0.532,
-        0.677
+        0.5,
+        0.667
       ],
       "windup": true,
       "note": "chomp left, chomp right, MEGA chomp: the front rears up for 12 frames (frames 33-44 of 66, the tell), then the whole body tips down from the hips like an animal drinking and bites at ground level. Exaggerated on purpose (owner: big by default, tune after). tools/jaw/make_combo.py."

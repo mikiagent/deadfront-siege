@@ -50,6 +50,8 @@ Client ops (`CLIENT_OPS`), each validated in full before it mutates anything:
 | `act.tame` | `_tame` | one `FieldTame` feed; the last feed bonds the pet (pen needed if the species requires one) |
 | `act.capture` | `_capture` | `CaptureSystem` chance on a creature inside `FieldTame.window_open` (stunned at any HP, or at or under 30 % HP); success gives a `captured_animal` stack, net consumed |
 | `act.attack` | `_attack` | one melee swing with the client's combat numbers on the server RNG; ranged refused |
+| `act.capture` | `_capture` | `CaptureSystem` chance on a knocked creature under 30% HP; success gives a `captured_animal` stack, net consumed |
+| `act.attack` | `_attack` | one melee swing with the client's combat numbers on the server RNG; ranged refused; `{net_id, ms?}`, `not_ready` inside the basic cooldown (max(1/attack_rate, `basic_cooldown_s`)) |
 | `act.roll` | `_roll` | the survivor rolls: stores the press time (`roll_ms` = op second × 1000 + `ms`), refuses a press inside `RollRules.cooldown_s()` (`not_ready`), answers `iframes_ms` / `cooldown_ms` |
 | `char.get` | — | read-only `CharacterState.view` |
 | `char.import` | — | always refused: an offline save never imports into an online character |
