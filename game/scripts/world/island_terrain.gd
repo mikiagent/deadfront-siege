@@ -315,6 +315,7 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	var camp: Vector3 = rt._camp_hint if _camp_active(rt) else Vector3.ZERO
 	PerfTrace.mark("tiles.ctx")
 	var bctx := BiomeZones.context(rt, climate, camp, _layout_seed(rt, climate))
+	var bstate := BiomeZones.fast_state(bctx)
 	PerfTrace.mark("tiles.ctx2")
 	var has_ash := _climate_has_material(climate, "ash")
 	var half := rt._size * 0.5
@@ -390,7 +391,7 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			if rt._crater_hint != Vector3.ZERO and cdist < 8.5 and h > -0.2:
 				t = TileType.DIRT
 			var idx := x + z * span
-			var b := BiomeZones.zone_of(bctx, wx, wz, h, slope, rd)
+			var b := BiomeZones.zone_of_state(bstate, wx, wz, h, slope, rd)
 			types[idx] = t
 			biomes[idx] = b
 			fresh[idx] = 1 if t == TileType.MUD else 0
@@ -420,13 +421,20 @@ static func _write_tile_image(rt: IslandRuntime) -> void:
 	var span := rt._tile_span
 	if rt._tile_map_image == null or rt._tile_map_image.get_width() != span:
 		rt._tile_map_image = Image.create(span, span, false, Image.FORMAT_RG8)
+	# One RG8 byte buffer built directly: two byte writes per tile instead of a Color and a
+	# set_pixel (0.035 s of the home build). CLIFF keeps writing the GRASS id (see _shader_id).
 	var bio := BiomeZones.biome_types(rt)
-	for z in span:
-		for x in span:
-			var idx := x + z * span
-			var t := int(rt.tile_types[idx]) if idx < rt.tile_types.size() else 0
-			var b := int(bio[idx]) if idx < bio.size() else 0
-			rt._tile_map_image.set_pixel(x, z, Color(float(_shader_id(t)) / 255.0, float(b) / 255.0, 0.0))
+	var px := PackedByteArray()
+	px.resize(span * span * 2)
+	var grass := TileType.GRASS
+	var tsz := rt.tile_types.size()
+	var bsz := bio.size()
+	for idx in span * span:
+		var t := int(rt.tile_types[idx]) if idx < tsz else 0
+		var b := int(bio[idx]) if idx < bsz else 0
+		px[idx * 2] = grass if t == TileType.CLIFF else t
+		px[idx * 2 + 1] = b
+	rt._tile_map_image.set_data(span, span, false, Image.FORMAT_RG8, px)
 
 ## The camp shape in the heightmap and vertex colours belongs to the home island only: the other
 ## islands' generated rim must stay untamed.
