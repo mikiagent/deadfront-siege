@@ -308,7 +308,7 @@ func _build_menu_row() -> void:
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
 	_build_hex = _hex("⌂", HEX, "BUILD")
 	_build_hex.name = "BuildHex"
-	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
+	_build_hex.pressed.connect(func () -> void: var b := BuildUI.ensure(player); if b: b.toggle())  # UICRAFT: the D2 drawer
 	_bag_hex = _hex("", HEX, "BAG")
 	_bag_hex.name = "BagHex"
 	_bag_hex.icon = UiIcons.icon(&"bag")
@@ -601,14 +601,19 @@ func _build_place_hexes() -> void:
 			player.notice("Layout saved.")
 	)
 	add_child(_done_hex)
-	var specs := [["↻", "rotate", "ROTATE", "R"], ["✓", "confirm", "PLACE", "Enter"], ["✕", "cancel", "CANCEL", "Esc"]]
+	# UICRAFT (spec §7 D2, owner §1.9): ROTATE is the icon alone, SAVE a green check, CANCEL a red cross;
+	# the word sits inside the hex, no key letters.
+	var specs := [["↻", "rotate", "", Color.WHITE], ["✓", "confirm", "SAVE", UiTokens.OK_GREEN], ["✕", "cancel", "CANCEL", UiTokens.LIFE]]
 	for sp in specs:
-		var h := HexButton.new(64.0)
+		var h := HexButton.new(PLACE_HEX)
+		h.name = "Place_" + str(sp[1])
 		h.glyph = sp[0]
-		h.caption = sp[2]
-		h.top_text = sp[3]
-		if sp[1] == "confirm":
-			h.accent = UiTokens.TEAL
+		h.bottom_text = sp[2]
+		h.glyph_color = sp[3]
+		h.fill = UiTokens.HUD_FILL
+		h.rim_color = UiTokens.OK_GREEN if sp[1] == "confirm" else UiTokens.HUD_RIM
+		h.rim_width = 4.0
+		h.bottom_scale = 0.27
 		h.visible = false
 		var id: String = sp[1]
 		h.pressed.connect(func () -> void:
@@ -827,11 +832,20 @@ func _refresh_place_hexes() -> void:
 	var ghost: Node3D = player.placer.get("_ghost_root")
 	if cam == null or ghost == null:
 		return
-	var base := HudLayout.placer_anchor(cam.unproject_position(ghost.global_position) + Vector2(0, 40), PLACE_OFFSETS, _placer_rel(), _placer_taken(), get_viewport_rect().size, _safe_insets())
+	var px := 64.0 if UiTokens.is_compact(get_viewport_rect().size) else PLACE_HEX
+	var offs: Array = PLACE_OFFSETS.map(func (o: Vector2) -> Vector2: return o * (px / 64.0))
+	for h in _place_hexes:
+		if h.size.x != px:
+			h.custom_minimum_size = Vector2(px, px)
+			h.size = Vector2(px, px)
+			h.pivot_offset = h.size * 0.5
+	var base := HudLayout.placer_anchor(cam.unproject_position(ghost.global_position) + Vector2(0, 40), offs, _placer_rel(), _placer_taken(), get_viewport_rect().size, _safe_insets())
 	for i in _place_hexes.size():
-		_place_hexes[i].position = base + (PLACE_OFFSETS[i] as Vector2)
+		_place_hexes[i].position = base + (offs[i] as Vector2)
 
+## Offsets for 64 px hexes; a desktop canvas scales them to PLACE_HEX.
 const PLACE_OFFSETS := [Vector2(-105, 0), Vector2(-22, 28), Vector2(60, 0)]
+const PLACE_HEX := 88.0
 
 ## What each placer hex draws relative to its own corner (its hexagon, then its caption box), from the
 ## hexes themselves: the row is placed with the same geometry the check and the drawing use.
@@ -841,7 +855,7 @@ func _placer_rel() -> Array:
 		var hb := h as HexButton
 		var at := hb.position
 		var hex := hb.hex_rect()
-		var cap := hb.caption_rect()
+		var cap := hb.caption_rect() if hb.caption != "" else hex  # SAVE / CANCEL write inside the hex
 		out.append([Rect2(hex.position - at, hex.size), Rect2(cap.position - at, cap.size)])
 	return out
 
@@ -859,7 +873,7 @@ func _placer_taken() -> Array[Rect2]:
 				out.append(h.caption_rect())
 	for c in get_children():
 		var ctl := c as Control
-		if ctl == null or ctl is HexButton or _place_hexes.has(ctl) or not ctl.is_visible_in_tree() or ctl.size.x < 8.0 or ctl.size.y < 8.0:
+		if ctl == null or ctl is HexButton or not ctl.is_visible_in_tree() or ctl.size.x < 8.0 or ctl.size.y < 8.0:
 			continue
 		if ctl is Label and (ctl as Label).text.strip_edges() == "":
 			continue
@@ -867,6 +881,8 @@ func _placer_taken() -> Array[Rect2]:
 	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
 	if held and held.is_visible_in_tree():
 		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
+	if player and player.build_ui and is_instance_valid(player.build_ui) and (player.build_ui as BuildUI).visible:
+		out.append_array((player.build_ui as BuildUI).taken_rects())  # the build drawer stays open beside the ghost
 	var fig := figure_rect()
 	if fig.has_area():
 		out.append(fig)
@@ -1054,6 +1070,8 @@ func _toggle_sheet(kind: StringName) -> void:
 
 ## A tapped modular piece (W2-BUILDSYS): its card in the bottom sheet.
 func open_structure(sp: StructurePiece) -> void:
+	if player and player.build_ui and is_instance_valid(player.build_ui):
+		(player.build_ui as BuildUI).hide_ui()  # the card opens where the build drawer sits
 	StructureSheet.card = sp
 	_close_sheet()
 	_toggle_sheet(&"structure")

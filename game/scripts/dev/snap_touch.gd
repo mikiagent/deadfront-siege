@@ -137,12 +137,24 @@ func _pick_piece(tier_prefix: String, piece: String) -> void:
 	if hud.get("_sheet_kind") != &"":
 		print("[snap] a sheet was still open: tapping its Close")
 		await _tap_control(hud.find_child("SheetClose", true, false) as Control)
-	await _tap_control(hud.get("_build_hex"))
-	if hud.get("_sheet_kind") != &"build":
-		lab.call("_expect", false, "touch: BUILD opens the build sheet")
+	# UICRAFT: BUILD opens the build drawer (BuildUI): tier tabs and hex tiles, open beside the ghost.
+	var drawer: Variant = hud.player.build_ui if hud.player else null
+	if drawer == null or not (drawer as Control).visible:
+		await _tap_control(hud.get("_build_hex"))
+	drawer = hud.player.build_ui
+	if drawer == null or not (drawer as Control).visible:
+		lab.call("_expect", false, "touch: BUILD opens the build drawer")
+		return
+	await _frames(3)
 	if tier_prefix != "":
-		await _tap_button(tier_prefix)
-	await _tap_button(piece + "\n")
+		await _tap_control((drawer as Node).find_child("Tier_" + tier_prefix.to_lower(), true, false) as Control)
+		await _frames(3)
+	var tile := (drawer as Node).find_child("Piece_" + piece.to_lower(), true, false) as Control
+	var sc := (drawer as Node).find_child("BuildScroll", true, false) as ScrollContainer
+	if tile and sc:
+		sc.ensure_control_visible(tile)
+		await _frames(3)
+	await _tap_control(tile)
 
 func _tap_hex(i: int) -> void:
 	var hexes: Array = hud.get("_place_hexes")
