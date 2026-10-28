@@ -224,6 +224,11 @@ def pose(t, f):
         axis = {"pitch": SIDE, "yaw": UP, "roll": FWD}[spec["axis"]]
         cur = pbs[bname].matrix.copy()
         set_matrix(bname, rot_about(cur.translation, axis, ang) @ cur)
+    # held offsets for the whole clip, e.g. a charge's head up and arms swept back: "hold": {"Neck": ["pitch", 12]}
+    for bname, (ax, deg) in clip.get("hold", {}).items():
+        if bname in pbs:
+            cur = pbs[bname].matrix.copy()
+            set_matrix(bname, rot_about(cur.translation, {"pitch": SIDE, "yaw": UP, "roll": FWD}[ax], math.radians(deg)) @ cur)
     # legs
     for name, leg in LEGS.items():
         ankle, pitch_f, planted = foot_plan(name, t)

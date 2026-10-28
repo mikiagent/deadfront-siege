@@ -26,7 +26,7 @@ const SHAPE := {
 	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
-	"player_name": "", "occupation": "", "character_look": {}, "t_stones": 0, "visited_islands": {}, "raid_victory": false,
+	"player_name": "", "player_title": "", "occupation": "", "character_look": {}, "t_stones": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
 	"clock": 0.0, "saved_unix": 0,
@@ -36,7 +36,7 @@ const SHAPE := {
 ## "open" is the overhaul tip's gate flag (placed_building.gd), listed ahead of the merge.
 const BUILDING_ROW := {
 	"kind": "", "rot": 0, "x": 0.0, "z": 0.0, "sleeps_left": 0, "hp": 0.0, "reload_left": 0.0,
-	"seconds_left": 0.0, "growth": 0.0, "watered": 0.0, "fertilizer": 0.0, "fertilizer_overflow": 0.0,
+	"seconds_left": 0.0, "fuel_seconds": 0.0, "durability": 0.0, "growth": 0.0, "watered": 0.0, "fertilizer": 0.0, "fertilizer_overflow": 0.0,
 	"remaining": 0.0, "cargo": false, "running": false, "mature": false, "failed": false, "open": false,
 }
 const SNARE_ROW := {"heavy": false, "life_left": 0.0, "arm_left": 0.0}

@@ -15,7 +15,7 @@ const GAP := 4.0           ## between stacked boxes
 const SIDE_GAP := 10.0     ## between her figure and the column
 const INSET := 6.0
 const MAX_EMITTERS := 3    ## particle presets alive at once (the debuff cap is three anyway)
-const TICK_COL := Color(1.0, 0.28, 0.22)
+const TICK_COL := Color(1.0, 0.28, 0.22)  ## fallback only: a tick takes its status's fx colour (owner 2026-10-28)
 const BADGE := 10.0        ## the stack-count disc pokes this far right of a box; the column reserves it
 const SLOT_SPEED := 8.0    ## slots per second a box glides when one above it ends
 const PARTICLE_PRESETS: Array[StringName] = [&"drip", &"bubbles", &"embers"]
@@ -45,7 +45,7 @@ func tick(p: Player, events: HudEventState, delta: float) -> void:
 	_pulse = move_toward(_pulse, 0.0, delta * 1.8)
 	var live: Dictionary = {}
 	var i := 0
-	for inst in p.statuses.instances():
+	for inst in effects(p):
 		live[inst.id] = true
 		_slot[inst.id] = move_toward(float(_slot.get(inst.id, i)), float(i), delta * SLOT_SPEED)
 		i += 1
@@ -56,9 +56,9 @@ func tick(p: Player, events: HudEventState, delta: float) -> void:
 
 ## A tick landed: its red number over her, and a pulse of the screen edge when the status has one.
 func _on_tick(id: StringName, amount: float) -> void:
-	if _events:
-		_events.add_tick(dot_text(amount), TICK_COL)
 	var def := Data.status(id)
+	if _events:
+		_events.add_tick(dot_text(amount), def.fx_color if def else TICK_COL)
 	if def and def.fx_vignette:
 		_pulse = 1.0
 
@@ -185,7 +185,7 @@ func draw_tint(ci: CanvasItem, p: Player, fig: Rect2) -> void:
 func draw_boxes(ci: CanvasItem, font: Font, p: Player, fig: Rect2, taken: Array[Rect2], r: Vector2) -> Rect2:
 	boxes.clear()
 	column = Rect2()
-	var list: Array = p.statuses.instances() if p and p.statuses else []
+	var list: Array = effects(p)
 	if list.is_empty() or not fig.has_area():
 		return column
 	var side_px := BOX_COMPACT if UiTokens.is_compact(r) else BOX
@@ -239,6 +239,14 @@ func _draw_box(ci: CanvasItem, font: Font, b: Rect2, inst: StatusInstance, def: 
 		var c := Vector2(b.end.x + 1.0, b.position.y + 9.0)
 		ci.draw_circle(c, 8.0, def.fx_color)
 		ci.draw_string(font, c + Vector2(-8.0, 4.5), str(inst.stacks), HORIZONTAL_ALIGNMENT_CENTER, 16.0, 12, UiTokens.CTA_INK)
+
+## HUDRULES: the afflictions (kind "effect") only; buffs, boons and debuffs live in the chip row.
+static func effects(p: Player) -> Array:
+	if p == null or p.statuses == null:
+		return []
+	return p.statuses.instances().filter(func (inst: StatusInstance) -> bool:
+		var def := Data.status(inst.id)
+		return def == null or not def.is_modifier())
 
 func _first(p: Player, pick: Callable) -> StatusDef:
 	if p == null or p.statuses == null:

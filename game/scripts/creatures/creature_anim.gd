@@ -131,6 +131,20 @@ func set_move_velocity(vel: Vector3, basis: Basis) -> void:
 	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
 	_travel(clip)
 
+## A named loop (the charge) stride-matched at mps: natural_speeds.<id>.<clip>, else the run's. Falls
+## back to the direction-aware gait when the rig lacks it.
+func set_gait_clip(clip: StringName, mps: float, vel: Vector3, basis: Basis) -> void:
+	if not _param.has(clip):
+		set_move_velocity(vel, basis)
+		return
+	if not is_finite(mps) or not _can_move():
+		return
+	var nat := CreatureClips.natural_speed(_def, clip)
+	if nat <= 0.0:
+		nat = float(_natural.get(&"run", 0.0))
+	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_travel(clip)
+
 ## Global retime on top of every state's own cadence. Each caller owns a named factor (the limp is
 ## &"fracture", a hit-stop its own key) and the tree plays at their product, so one never erases another.
 func set_time_scale(x: float, factor: StringName = &"base") -> void:

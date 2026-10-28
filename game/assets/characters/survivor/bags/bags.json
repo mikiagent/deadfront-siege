@@ -1,0 +1,46 @@
+{
+  "_doc": "Worn bag meshes, one per game/data/bags.json bag. Skinned to the survivor skeleton like the armour pieces: wear with RiggedModel.attach_skinned(skeleton, <dir>/<file>). Tint: multiply the material \"bag_body\" albedo by the bag's primary-material colour (spec 35); \"bag_trim\" (fibre straps) and \"bag_bone\" (toggles) keep their own colours. Built by tools/blender/bags/build_bags.py.",
+  "tint_material": "bag_body",
+  "bags": {
+    "small_pouch": {
+      "file": "small_pouch.glb",
+      "attach": "skinned",
+      "bones": [
+        "Hips"
+      ],
+      "anchor_bone": "Hips"
+    },
+    "large_pouch": {
+      "file": "large_pouch.glb",
+      "attach": "skinned",
+      "bones": [
+        "Hips"
+      ],
+      "anchor_bone": "Hips"
+    },
+    "basic_bag": {
+      "file": "basic_bag.glb",
+      "attach": "skinned",
+      "bones": [
+        "Spine2"
+      ],
+      "anchor_bone": "Spine2"
+    },
+    "advanced_backpack": {
+      "file": "advanced_backpack.glb",
+      "attach": "skinned",
+      "bones": [
+        "Spine2"
+      ],
+      "anchor_bone": "Spine2"
+    },
+    "specialized_storage_bag": {
+      "file": "specialized_storage_bag.glb",
+      "attach": "skinned",
+      "bones": [
+        "Spine2"
+      ],
+      "anchor_bone": "Spine2"
+    }
+  }
+}

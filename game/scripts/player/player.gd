@@ -17,7 +17,9 @@ const GATHER_FATIGUE_PER_UNIT := PlayerActions.GATHER_FATIGUE_PER_UNIT
 @export var run_speed: float = 7.0
 @export var sprint_speed: float = 8.5
 @export var accel: float = 30.0
-@export var turn_speed: float = 14.0
+## Owner: "player has the turn speed glitch too". ASSUMPTION: 720 deg/s on foot, so a 180 deg turn
+## takes 0.25 s (PlayerSim.face_tick is the one writer of her facing while she walks).
+@export var turn_rate_deg: float = 720.0
 
 @onready var visual: Node3D = $Visual
 @onready var rig: RiggedModel = $Visual/Rig
@@ -120,6 +122,11 @@ func _ready() -> void:
 		set_process_unhandled_input(false)
 		return
 	add_to_group(PlayerRegistry.GROUP)
+	# Owner 2026-10-28: running is faster (combat_tuning movement.run_speed_mult); every reader of
+	# run_speed / sprint_speed (the mount floor included) sees the scaled numbers.
+	var run_mult := CombatTuning.num("movement", "run_speed_mult", 1.0)
+	run_speed *= run_mult
+	sprint_speed *= run_mult
 	if agent == null:
 		agent = _child(NavigationAgent3D.new(), "Agent")
 	vitals = _child(Vitals.new(), "Vitals")
@@ -212,13 +219,6 @@ func nav_to(pos: Vector3) -> void:
 
 func clear_nav() -> void:
 	sim.clear_nav()
-
-## Turn toward a point over time (combat facing while swinging).
-func face_world_smooth(pos: Vector3, delta: float, speed: float = 12.0) -> void:
-	var to := pos - global_position
-	to.y = 0.0
-	if to.length_squared() > 0.0001:
-		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(-to.x, -to.z), clampf(speed * delta, 0.0, 1.0))
 
 func face_world(pos: Vector3) -> void:
 	var to := pos - global_position
@@ -372,6 +372,11 @@ func display_name() -> String:
 		return World.player_name
 	return str(view.survivor_meta().get("display_name", "Survivor"))
 
+## The title line over the nameplate's name ("" = no line). Any plate owner (tribe members, other
+## players) answers this too, and HudLayout.draw_nameplate draws it the same way.
+func display_title() -> String:
+	return LevelDisplay.worn_title()
+
 # ---------------------------------------------------------------- damage, death, respawn
 
 ## Worn gear's health bonus, plus the skill nodes whose stat effect the game runs (Defense's Max Health I-III,
@@ -415,7 +420,8 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	# Self-defence: bitten with no live target -> turn on the biter (auto-attack takes it from there).
 	if not dead and hunt and who and not who.is_pet and not who.health.dead and hunt.target != who:
 		var cur := hunt.target
-		if cur == null or not is_instance_valid(cur) or cur.health.dead or global_position.distance_to(cur.global_position) > 6.0:
+		if hunt.walking_off or cur == null or not is_instance_valid(cur) or cur.health.dead or global_position.distance_to(cur.global_position) > 6.0:
+			clear_nav()  # bitten on a walk-away: the walk ends and she turns on the biter (move priority)
 			hunt.start(who)
 			print("[combat] retaliate %s" % who.def.id)
 	if skills:

@@ -11,15 +11,29 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 ## Fixed layout (per canvas, `HudLayout`)
 - Vitals panel top-left: desktop 300 px wide with 16 px bars and body-size numerals; phone compact
   (min 148 px, the room left of the minimap). An 18 px level disc sits left of the two bars (health
-  red, stamina blue). Below: the exhaustion face + tier word, then the treadmill belt. While Well
+  red, stamina blue). Right of both bars, as tall as the pair (38 px desktop, 30 phone), the stomach
+  ring (HUDRULES, owner 2026-10-28; `hud_stomach.gd`): a GOLD ring filled clockwise from the top that
+  empties as she gets hungry (LIFE red under 25 %), the white stomach glyph (`stomach.svg`,
+  `_src/icons_p.py`) inside. ASSUMPTION: no satiety meter exists (PRD forbids one), so the fill is the
+  share of eaten Energy still digesting (`Digestion` rows, remaining / total): full after a meal, empty
+  once it is digested. Read only; no hunger rule changed. Below: the exhaustion face + tier word, then the treadmill belt. While Well
   Rested the belt pauses (`ExhaustTreadmill.paused_rate`: the drift eases to 0 in ~0.2 s and holds)
   unless exhaustion is falling right then (a rest or a meal still runs it left); the status row shows
   the Well Rested chip (sun over a pillow, `well_rested.svg`) with its countdown.
-- Mounted: the second (energy) bar shows the ridden mount's energy. It turns amber, and on desktop
-  the mount's name leads the numbers (a phone bar shows only the numbers when the name does not fit).
+- Mounted: the second (energy) bar shows the ridden mount's energy. It turns the darker
+  `UiTokens.MOUNT_ENERGY` blue in 10 segments (owner 2026-10-28; ASSUMPTION: a tick every 10 %), and on desktop
+  the mount's name leads the numbers (a phone bar shows only the numbers when the name does not fit; the segmented darker blue still says "mount").
   It goes back to the survivor's blue stamina on dismount (`HuntHud.energy_reading`). The exhaustion
   face and treadmill always belong to the survivor, and the mount running does not move them.
-- Status chips row under the vitals (30 px pitch, a countdown under 3600 s; longer = "until treated").
+- Status chips row under the vitals (HUDRULES, owner 2026-10-28; `hud_buff_row.gd`): **buffs, boons and
+  debuffs only** — statuses whose `statuses.json` `kind` is `buff` / `boon` / `debuff`, then the food buffs
+  (`BuffSlots` rows, `eat` icon, GOLD rim). Afflictions (`kind: effect`) never show here; they are the boxes
+  beside her (below). 30 px pitch, a 1.5 px rim in the status colour, a countdown under 3600 s (longer =
+  "until treated"). Each chip has a tooltip (name, BUFF/BOON/DEBUFF, the food buff's stats, the status
+  `desc`, time left) on a free spot under the chip off `taken_rects` (`buff_tip` block): desktop hover
+  shows it, a click pins / unpins it (GOLD rim while shown); touch: a tap toggles it (the emulated mouse
+  press is ignored). On a compact canvas each chip's touch area is 64x64 around it; where neighbours'
+  areas overlap the nearest chip wins.
   A status that lowers max HP adds its own note line ("Infected Wound: max HP −20%").
   While she rests or sleeps a Resting chip (rest icon) comes first, and a rounded ink pill right under
   the row (under the max-HP note when it shows) reads what she nets at body size: "Resting by the fire
@@ -28,6 +42,15 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   "-N fatigue" (teal) floats rise over her (`HudRestBox.tick` → `HudEventState.add_float`).
 - The name under the survivor hangs from `HudLayout.nameplate_anchor`: the capsule centre, lowered with
   the visual while she sits or lies, so it stays under her instead of across the torso.
+- A worn title rides on its own line above the name (owner: "Titles should display italicized over the
+  player's name"): Roboto Condensed at 13 px (name 15 px), slanted 0.2 (the variable TTF has only a
+  `wght` axis, so `UiTokens.ui_italic` skews it), warm grey `HudLayout.TITLE_INK` (dimmer than the
+  name's white). No title, no line. `HudLayout.nameplate_rect` grows upward by the line and
+  `HudLayout.draw_nameplate(ci, font, rect, who)` draws both; any plate owner answers
+  `display_name()` / `display_title()`, so tribe and other-player plates reuse it when they exist.
+  The title is `World.player_title` (save field `player_title`, "" by default; older saves load with
+  none), picked on the Character sheet's Titles tab: Wear on an earned title (titles.json key at or
+  under her level), Remove on the worn one (gold, italic). The tab scrolls.
 - Minimap top-right: a round 154 px window (`MAP_PX`), drawn camera-up (rotated by camera yaw),
   0.95 m per pixel (`MAP_SCALE`), with fog-of-war, the foot trail, camp flame, harbour anchor,
   crater, creature dots (pets green, wild red, only inside revealed fog) and the player arrow.
@@ -65,7 +88,23 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - The DEBUG hex shows only while `Game.debug_overlay` (phone: lower-right; desktop: under the dial).
 - XP bar 4 px along the bottom edge with the "Lv x, y%" text beside it; the survivor's name draws
   under her feet (15 px, projected from the camera).
-- Quest card: desktop a 240 px card left of the minimap; phones across the centre band — "ORDERS
+- Quest card (HUDRULES, owner 2026-10-28):
+  - Collapsed by default into the minimap: a badge over the map's top-left corner (the `notice` glyph and
+    the shown order's number, "8/28"; `hud_orders_badge.gd`, drawn by the minimap's own draw so it sits
+    over the map). A tap / click on the badge expands the card; a tap on the card collapses it
+    (`HuntHud.orders_tap`). Phone touch area 64x64 from the badge's corner over the map. Session-only
+    (`OrdersSheet.hud_expanded`): no UI-settings store exists and the save format is off-limits. When
+    the order changes, the badge flashes GOLD for 2.4 s.
+  - Auto-expand: while she makes progress on the shown order (its fill rises, polled every 0.25 s — a
+    gathered branch, a crafted knife) or fights an animal that serves it, the card expands and stays up
+    4 s (`ORDERS_AUTO_S`, ASSUMPTION) past the last progress. Collapsing it by hand during that window
+    keeps it down until the activity ends (the window runs out).
+  - Combat: card and badge hide unless the fight serves the shown order — its `objectives.json` `fight`
+    list names the target's creature id, or "*" for any animal (`OrdersSheet.served_by_fight`; shipped:
+    meat "*", tame zebraceratops, volcano raid tyrannosaurus). On a landscape phone the target plate owns
+    the centre band, so a serving order shows as a 40 px strip (ORDERS i/n, title, progress) on a free
+    spot under the chip row (`_draw_quest_strip`), else the badge.
+  - Expanded: desktop a 240 px card left of the minimap; phones across the centre band — "ORDERS
   i/n", the step title, hint, progress and a teal fill; when no objectives run: "NOW / island /
   Survive, then return".
   It draws `OrdersSheet.hud_step(player)`: the running order, or a later one the player picked with
@@ -135,6 +174,21 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   16 px treadmill belt (`BELT_H`): chevrons scroll right while exhaustion rises, left while it
   eases; belt speed = 350 px per pt/s of drift, clamped 3–150 px/s, holding still under 0.004 pt/s
   (`RATE_DEAD`).
+- Belt look (TREADMILL, owner 2026-10-28 "improve the artistry of the treadmill", same size and
+  shape): a recessed rubber belt with lit top, shaded bottom and drums at both ends, slat seams every
+  3 chevrons and stitched edges that travel with it. The strained length fills in the tier colours
+  (`UiTokens.MOOD`, blended, pure at each tier's middle; `tier_color`) and its chevrons light up in
+  them while the rest stay dim; tier notches sit at 25/50/75 %. Fast drift (> 60 px/s) trails two
+  fading chevron ghosts; a sheen sweeps the plates (2.6 s running, slower and fainter standing).
+  Well Rested frosts it over in 0.6 s (ice tint, rimed edge, twinkling crystals). Crossing into a
+  worse tier pulses for 0.7 s (frame flashes the tier colour, fill and needle glow swell).
+- The strain marker is a tall needle (owner: "make it a tall bar"): 4 px wide, 1.6× the belt
+  (`MARKER_TALL`, ASSUMPTION), centred on it, face colour with a crisp dark edge and a tier-colour
+  glow (`ExhaustTreadmill.marker_rect`). The belt rect itself is unchanged (`last_rect`).
+- `ExhaustTreadmill.tick()` (one line in `HuntHud._process`) advances the clock, frost and pulse;
+  drawing is read-only. Cost: ~45 canvas commands, one fixed line buffer, cached percent label;
+  ~86 µs of script time per draw on the dev Mac, nothing kept per frame (`tests/t_treadmill.gd`).
+  Captures: `--lab=treadmill_lab` (`docs/orchestration/reports/treadmill/`).
 - Drift is an EMA over fatigue deltas (2.5 s window, `EMA_TAU`). A jump ≥ 8 pts (`STEP_AFTER`)
   counts as a one-off step (sleep, meal), applied instantly, with a faster forgetting window
   (0.8 s `FORGET_TAU` held 2 s) so the belt eases out of the sweep.
@@ -143,7 +197,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   level-gap sentence, the climate shortfall and the live drift ("Exhaustion is falling slowly
   (+x/min)"). Vitals owns the rows; the decay window is `fatigue.breakdown_window_s` (180 s).
 
-## Gather radial and yield card (UIGATHER, spec §4, B1)
+## Gather radial (UIGATHER, spec §4, B1)
 - Tapping a node (or its pill) opens `gather_radial.gd`: the node's title and level under it, one
   flat-top hex per option around it — 124 px on desktop, 64 on a compact canvas — with the gather
   seconds on top, the resource symbol greyed in the middle, the node's units left at the bottom, and
@@ -156,19 +210,15 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   tame feeding and crafting progress.
 - The camera already leans toward the selected or worked node (`Player.camera_interest`, IsoCamera
   `SELECTION_BIAS` 0.35, follow lerp 8/s); UIGATHER leaves those values as they are.
-- Yield card (`yield_card.gd`, replaces the top-centre "+n Item" toast and the retired
-  `pickup_toast.gd`): on each gain, a 300 px card (220 on a phone) above the worked node — else above
-  the survivor (crafts, loot) — on a free spot off `taken_rects` and the open radial, ~3 s or until the
-  next gain. Thumbnail tinted with the lot's natural colour (`ItemStack.tint_color`), the item name,
-  "Wood · Lv. 1 · +2" (first category, lot level, count in GOLD), then the trait chips of every instance
-  that gain added (`InvAttributes.sections`: rare ✦ green first, positive + gold, negative − grey) and a
-  3 px top edge in the best chip's colour. GatherFeedback's "+n Item" rise over the node is unchanged.
+- Gains show in the top-middle column (TopFeed, below); `yield_card.gd` keeps only the chip helpers
+  (`chips_for`, `layout_chips`, `meta_line`) and the left XP feed (`draw_feed`). The per-node yield card
+  is retired (owner 2026-10-28).
 
 ## Notices, toasts, hits, level-up
 - Skill XP lines (left feed, owner §1.6, UIGATHER): under the vitals, one 44 px row per tree gain (34 on
   a phone) — a small hex with the skill's initial, "Gathering +6 XP Lv. 1" and a thin XP bar of that
   tree's progress; a tree level-up is the same row in GOLD with ▲. Each row takes a free spot off
-  `taken_rects`. Item gains are the yield card (above); notices
+  `taken_rects`. Item gains are TopFeed rows (below); notices
   (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
   confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders
   on the HUD fill with an OK_GREEN edge and a check (`HudEventState.draw_notice`, B4). Nothing covers
@@ -179,6 +229,8 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   `HuntHud._process` / `_draw`). Every look comes from the status's `fx` block in
   `data/statuses.json` (`color`, `icon`, `particles`: drip / bubbles / embers / tint / none,
   `vignette`; `body` keeps the old hint), parsed into `StatusDef.fx_*`; a new status needs only data.
+  - Only `kind: effect` statuses (afflictions) get boxes (`StatusFx.effects`); buffs, boons and debuffs
+    are the chip row. Particles and tints still follow each status's `fx` block (Hot Food's embers).
   - Boxes: one square per active status beside her figure (`HudLayout.figure_rect`), 10 px off it,
     the first at her shoulders and the rest stacked down (42 px desktop, 32 px on compact canvases).
     HUD ink fill, a 2 px rim and a 4 px time-left bar in the status colour, its white icon inside,
@@ -187,7 +239,8 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
     room, and is a drawn block (`statusfx`) so toasts keep off it. A box that loses the one above it
     glides up (8 slots/s) instead of jumping.
   - Bleed's icon is the claw mark (`claw.svg`, `_src/icons_n.py`); the HUD chip row uses it too.
-  - Colours (ASSUMPTION, from the spec tokens): bleed red (LIFE), poison/sickness green, hot orange,
+  - Colours (ASSUMPTION, from the spec tokens; owner 2026-10-28: no green negatives, `UiTokens.HEAL` /
+    `UiTokens.POISON`): bleed red (LIFE), venom/poison/sickness/stomachache purple (#a36bd9), hot orange,
     wet/cold blue, positive buffs GOLD, Well Rested soft gold, other negatives MUTED grey.
   - Particles: one CPUParticles3D per status (at most 3, 8-10 unshaded spheres each) under the player,
     freed the frame the status ends: bleed red drips, venom/poison green bubbles, hot food embers
@@ -196,11 +249,38 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   - Vignette: while a `vignette` status is on (bleed, deep bleed) a red screen edge (14 % of the short
     side, alpha 0.16) brightens to 0.42 on each tick and fades back.
   - Tick numbers: `StatusEffects.ticked(id, amount)` fires per damage-over-time tick on the player with
-    the Health it took; `HudEventState.add_tick` floats a red 16 px "-N" ("-0.2" for a fraction) on the
+    the Health it took; `HudEventState.add_tick` floats a 16 px "-N" in the status's fx colour (owner 2026-10-28) ("-0.2" for a fraction) on the
     hit numbers' path (pops in from 70 %, rises, fades); two ticks on one frame stand side by side.
-- Level-up (`World.pioneer_changed`): a gold stack at the top-left for ~6 s — level, title line,
-  XP, T-stones, SP, per-stat gains; landscape phones show a one-line banner in the centre band
-  instead. Gains land via `Vitals.grant_level_bonus` (saved).
+- Top-middle column (`top_feed.gd`, `HuntHud.top_feed`; owner 2026-10-28): skill category level-ups
+  and every gain, centred on the view (desktop, from under the vitals' bottom, y 112 at 1600x900, 380 px
+  rows) or on the centre band's part left of the day/night dial (phone, under the band, 236 px one-line
+  rows). Rows take the next free spot down off `taken_rects` and the open radial, drawn after the
+  notices, and ease (never snap) when one above leaves; a new row goes under those showing. At most 3
+  rows (2 on a compact canvas); later ones wait, a skill row first. Drawn blocks: `levelup` (a skill
+  row), `toast<i>` (gain rows).
+  - Gain row: item art in the lot colour, name, "+n", trait chips (desktop wraps them under the name;
+    a phone shows the best chip only, before the count). A gain of an item whose row still shows adds to
+    it ("+3" then "+2" Stone is one "+5" row) and re-pops it.
+  - Tiers from the gain's traits, rule in `data/level_fx.json` "gain" (ASSUMPTION): **green** on a rare
+    chip (green pip) or a `flawless` attribute, or a rare find (`GatherFeedback.show_yield` /
+    `announce_rares` call `HuntHud.feed_rare`, which lifts the item's row or adds one); **yellow** on a
+    positive chip; else **grey**. Grey: a small pop (0.9 → 1.04), 2.2 s. Yellow: bigger pop, gold edge,
+    halo and 12 sparks, 3 s. Green: biggest pop, halo, a 14-ray sunburst behind, 26 sparks, 4 s. A phone
+    caps the pop at 1.06. Loot colours are their own (grey / gold / emerald in level_fx.json), never the
+    status colours. With the HUD present, GatherFeedback draws no stack by the node: one popup per gain.
+  - Sound hook: `TopFeed.shown(kind, tier, id)`; nothing plays a sound yet.
+- Character level-up (`World.pioneer_changed`; `level_up_celebration.gd`, LEVELFX): queued one at a time
+  with a light at the survivor (`fx/level_up_fx.gd`: gold pillar, two rings, rays, sparkles, a shadowless
+  OmniLight, 2 s; riding, on the saddle with the rings on the ground). Desktop: "LEVEL UP" and the level
+  pop over a flare, then XP, T-stones, the brain glyph with the skill points ("50 (+10)"), title and stat
+  lines slide in, at the far left (owner 2026-10-28), x = vitals + 16, centred between the vitals and the
+  quick slots; ~6 s (4 s with more queued). The level disc on the vitals pulses gold. Phones: the banner
+  in the centre band (level, LEVEL UP, title, one stat line ending in the brain and the skill points),
+  pushed under a target plate with a fade. Gains land via `Vitals.grant_level_bonus` (saved).
+- Skill category level-up (`SkillState.skill_leveled`): the small light at her feet and a TopFeed row
+  (the category's hex icon under a flare, "Skill Category Level Up", "<Category> Lv. N"); the occupation
+  head start celebrates nothing. Each level-up shown pulses the MENU hex (gold rim, glow, rings off its
+  badge) and, with the nav menu open, rings off the Skills entry's badge, ~2.7 s.
 - HUD pills (`game/scripts/ui/hud_pills.gd`) label buildings and nodes within 8 m (UIGATHER, spec
   §4.1): a dark box, a harvest node's pill leading with its resource symbol greyed (dimmed when picked
   clean, red-tinted without the tool), 30 px tall with 18 px type on desktop, 22 / 14 on a phone. A

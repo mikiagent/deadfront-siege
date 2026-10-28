@@ -295,3 +295,23 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
   sleeps; same for gather, loot, mount/tame and a queued station craft. A craft already started at
   the bench keeps running. Steering with the keys/stick cancels the same way. Owned by
   `PlayerSim.cancel_errand()`, `PlayerActions.cancel_work()` and `PlayerSim.drop_pending_craft()`.
+- [owner 2026-10-28] Status effects (afflictions: bleed, venom, fracture, stun-type) show **only on the
+  player** — the boxes beside the survivor (`status_fx.gd`), never under the health bar. The row under the
+  health bar is reserved for **buffs, boons and debuffs** (Well Rested, food buffs, Maximum Fatigue, Stomach
+  Pain...); each chip explains itself in a tooltip: hover shows it, a click pins/unpins it, a tap toggles it
+  on touch. `statuses.json` `kind` (`effect` / `buff` / `boon` / `debuff`) and `desc` drive it.
+- [owner 2026-10-28] A **circular stomach indicator** to the right of the health bar: a ring that empties as
+  hunger grows, a white stomach glyph inside (`hud_stomach.gd`).
+- [owner 2026-10-28] **Orders hide in combat** unless the fight fulfils them (e.g. a kill-deinonychus order
+  stays while fighting a deinonychus); `objectives.json` `fight` names the creature ids ("*" = any).
+- [owner 2026-10-28] DoT damage numbers take the **colour of the status causing them** (its fx colour).
+  **No negative status is green**: green is reserved for healing and positive restores (`UiTokens.HEAL`);
+  poison, venom and sickness are purple (`UiTokens.POISON`, #a36bd9).
+- [owner 2026-10-28] Orders are **collapsible into the minimap** ("They are annoying and cover too much of
+  the screen"): collapsed by default to a badge on the minimap's corner (glyph + "3/28"); tap to expand,
+  tap the card to collapse (`hud_orders_badge.gd`).
+- [owner 2026-10-28] Orders **auto-expand while you work on them** (gathering, crafting, fighting the
+  ordered creature) and collapse again 4 s (ASSUMPTION) after progress stops; a manual collapse during
+  the activity sticks.
+- [owner 2026-10-28] The **mounted energy bar** is segmented (10 segments, ASSUMPTION) and a darker blue
+  (`UiTokens.MOUNT_ENERGY`) than the survivor's own stamina bar (`UiTokens.PLAYER_ENERGY`).

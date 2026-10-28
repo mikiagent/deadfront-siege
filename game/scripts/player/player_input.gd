@@ -258,8 +258,8 @@ func _walk_to_tile(at: Vector3) -> void:
 	p.sim.cancel_errand()
 	PlayerSim.drop_pending_craft(p)
 	selection.clear()
-	if p.hunt:
-		p.hunt.stop()
+	if p.hunt and p.hunt.target:
+		p.hunt.walking_off = true  # walk there clean, then re-engage (Hunt._process)
 	p.nav_to(nav_pos)
 	p.move_order = true
 	p.view.show_ground_marker(BuildGrid.tile_centre(BuildGrid.tile_of(nav_pos), World.runtime))

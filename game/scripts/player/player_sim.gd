@@ -187,7 +187,7 @@ func _walk(delta: float) -> void:
 	# Stamina: sprint 9/s; empty -> walk until it refills.
 	p.vitals.in_combat = (p.hunt != null and p.hunt.target != null) or (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 5.0
 	if running and p.velocity.length_squared() > 0.5:
-		if not p.vitals.drain_energy(9.0 if can_sprint else 3.0, delta):
+		if not p.vitals.drain_energy((9.0 if can_sprint else 3.0) * CombatTuning.num("movement", "run_stamina_mult", 1.0), delta):
 			running = false
 			can_sprint = false
 	elif running and p.vitals.energy <= 0.0:
@@ -201,9 +201,8 @@ func _walk(delta: float) -> void:
 	horizontal = horizontal.move_toward(dir * target_speed, p.accel * delta)
 	p.velocity.x = horizontal.x
 	p.velocity.z = horizontal.z
+	face_tick(delta, dir)
 	if dir.length_squared() > 0.0:
-		var target_yaw := atan2(-dir.x, -dir.z)  # RiggedModel faces -Z (the old capsule faced +Z)
-		p.visual.rotation.y = lerp_angle(p.visual.rotation.y, target_yaw, p.turn_speed * delta)
 		# ASSUMPTION: walking 0.05/s, tap-running 0.09/s, sprint 0.2/s (was 0.25-0.8/s, which
 		# filled the bar in a few minutes and then blocked gathering).
 		p.vitals.add_fatigue(delta * (0.2 if can_sprint else (0.09 if running else 0.05)), &"walk")
@@ -222,6 +221,38 @@ func _walk(delta: float) -> void:
 	shoreline_guard()
 	if p.anim:
 		p.anim._physics_tick(Vector2(p.velocity.x, p.velocity.z).length(), running)
+
+## The one writer of her facing on foot, each physics frame. Movement (stick or route) owns it; standing
+## still in a fight, the hunt target does. Never from _process (physics interpolation is on, so a
+## _process write fought this one every render), never a snap, never from speed near zero.
+## ASSUMPTION (PRDs give none): the move heading is low-passed over 0.04 s, ignored below 0.3 of full
+## (a stick flip through centre holds the old facing), and the body only turns once it is 3 deg off,
+## as Creature does, so stick noise and path wobble cannot dither the yaw.
+const FACE_TAU_S := 0.04
+const FACE_MIN := 0.3
+const FACE_SLACK_RAD := 0.05
+var _face_dir := Vector3.ZERO
+
+func face_tick(delta: float, move_dir: Vector3) -> void:
+	var goal := Vector3.ZERO
+	var slack := 0.0
+	if move_dir.length_squared() > 0.0:
+		_face_dir = _face_dir.lerp(move_dir, 1.0 - exp(-delta / FACE_TAU_S))
+		if _face_dir.length() > FACE_MIN:
+			goal = _face_dir
+			slack = FACE_SLACK_RAD
+	else:
+		_face_dir = Vector3.ZERO
+		var h := p.hunt
+		if h and h.target and is_instance_valid(h.target) and not h.target.health.dead and not h.walking_off:
+			goal = h.target.global_position - p.global_position
+	goal.y = 0.0
+	if goal.length_squared() < 0.0001:
+		return
+	var yaw := p.visual.rotation.y
+	var err := angle_difference(yaw, atan2(-goal.x, -goal.z))  # RiggedModel faces -Z
+	if absf(err) > slack:
+		p.visual.rotation.y = rotate_toward(yaw, yaw + err - signf(err) * slack, deg_to_rad(p.turn_rate_deg) * delta)
 
 func wants_sprint() -> bool:
 	return (Input.is_action_pressed("sprint") or p.sprint_toggled) \
@@ -261,7 +292,7 @@ func _nav_dir(delta: float, dir: Vector3) -> Vector3:
 		return water_remain.normalized()
 	var next_dir := Vector3.ZERO
 	var finished := false
-	if use_tile_path():
+	if use_tile_path() or _navmesh_ready():
 		next_dir = _tile_nav_dir(delta)
 		finished = next_dir.length_squared() <= 0.0
 	elif not p.agent.is_navigation_finished():
@@ -524,8 +555,18 @@ func closest_nav_point(pos: Vector3) -> Vector3:
 		return pos
 	return NavigationServer3D.map_get_closest_point(map, pos)
 
+## Off an island (labs, the creature lab): no tile router, but a baked navmesh. Its route feeds the
+## same waypoint follower. The agent's own follower never advanced for her: it measures in 3D from the
+## capsule centre, 0.5 m or more above the mesh, against path_desired_distance 0.5, so she stepped
+## back and forth over her first waypoint (owner: "clicking on the ground glitches you out").
+func _navmesh_ready() -> bool:
+	return not use_tile_path() and NavigationServer3D.map_get_iteration_id(p.get_world_3d().navigation_map) > 0
+
 func _request_tile_path() -> void:
 	if not use_tile_path():
+		if _navmesh_ready():
+			_path_points = NavigationServer3D.map_get_path(p.get_world_3d().navigation_map, p.global_position, p._path_goal, true)
+			_path_index = 0
 		return
 	var pathing: Variant = World.runtime.get("pathing")
 	if pathing == null:
@@ -548,7 +589,10 @@ func _request_tile_path() -> void:
 		seg.y = 0.0
 		var rel := p.global_position - p0
 		rel.y = 0.0
-		if seg.dot(rel) > 0.0 and rel.length() < 1.5:
+		# Past it along the segment, however far along (a 1.5 s re-plan mid-way down a long straight leg
+		# sent her back to its start tile), or standing on it (its own tile's centre is a step back
+		# or sideways): skip it. Both were visible jitter on a walk.
+		if (seg.dot(rel) > 0.0 and rel.length() < seg.length() + 1.5) or rel.length() < 0.75:
 			_path_index += 1
 		else:
 			break
