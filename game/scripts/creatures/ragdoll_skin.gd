@@ -255,6 +255,18 @@ static func lift_limbs(ground: Ground, mi: MeshInstance3D, sk: Skeleton3D, body_
 			turns += 1
 	return turns
 
+## Lowest gap (vertical, + = above) between the ground and the posed skin of this mesh, every
+## `stride`-th vertex plus each bone group's hull, using the same cached ground as the conform.
+## INF when nothing is under the skin.
+static func lowest_gap(ground: Ground, mi: MeshInstance3D, sk: Skeleton3D, stride: int) -> float:
+	var pts := posed_points(mi, sk, stride, true)
+	var gap := INF
+	for p in pts:
+		var g0 := ground.at(p)
+		if not g0.is_empty():
+			gap = minf(gap, p.y - float(g0[0]))
+	return gap
+
 ## Lowest gap (vertical, + = above) between the ground and the skin whose dominant bone is one of
 ## `trunk` (bone index -> true): a carcass propped up on a leg reads as raised. INF when none.
 static func trunk_gap(ground: Ground, mi: MeshInstance3D, sk: Skeleton3D, trunk: Dictionary, stride: int) -> float:

@@ -26,6 +26,7 @@ func _run() -> void:
 	await _test_abort_late_lies_down()
 	await _test_cancel_lies_down()
 	await _test_blow_directions()
+	await _test_settle_depth()
 	await _test_corpse_after_ragdoll()
 	await _test_placeholder_body()
 	_test_seam()
@@ -288,6 +289,64 @@ func _test_blow_directions() -> void:
 		await _free_all([c])
 		src.queue_free()
 		await process_frame
+
+## Every species with a ragdoll profile settles ON the ground, not in it: the lowest point of its
+## posed skin (the mesh's own vertices, dense sample) is at most SETTLE_DEPTH_M under the terrain.
+## The T. rex used to sink 0.66 m (head and neck buried, tail up).
+const SETTLE_DEPTH_M := 0.08  # ASSUMPTION: how far a carcass may cut into the terrain at its lowest point
+
+func _test_settle_depth() -> void:
+	var species: Dictionary = R.data()["species"]
+	var at := Vector3(120.0, 0.05, 0.0)
+	var worst := ""
+	var worst_gap := 0.0
+	for id in species:
+		var sid := StringName(id)
+		if data.creature(sid) == null:
+			continue
+		var c = _spawn(sid, at)
+		var src: Node3D = null
+		if sid == &"tyrannosaurus":
+			c.rotation.y = PI  # the review's case: heading 180, hit from its flank (-X)
+			src = Node3D.new()
+			root.add_child(src)
+			src.global_position = at - Vector3.RIGHT * 3.0
+		await _wait(0.4)
+		var sk: Skeleton3D = c.view.rig.skeleton if c.view.using_glb and c.view.rig else null
+		# The review's T. rex case was a blow from its flank (source at -X, heading 180): it buried
+		# its head and neck. Every other species is killed with no attacker (a blow from behind).
+		if src:
+			c.health.take_damage(c.health.hp + 1.0, src)
+		else:
+			_kill(c)
+		await _wait_frozen([c])
+		var rd = _ragdoll(c)
+		var gap := -99.0
+		if sk and rd and rd.mesh_instance():
+			var skin: GDScript = load("res://scripts/creatures/ragdoll_skin.gd")
+			var pts: PackedVector3Array = skin.posed_points(rd.mesh_instance(), sk, 3)
+			var cl: Dictionary = skin.clearance(c.get_world_3d().direct_space_state, pts, [rd.corpse.get_rid()] as Array[RID], 1, 2.0, SETTLE_DEPTH_M)
+			gap = float(cl["min"])
+			_expect(int(cl["hits"]) > 0, "%s: the ground was found under its skin (%d samples)" % [id, int(cl["hits"])])
+		elif rd and rd.mode == &"fallback":
+			gap = -(rd as Node).call("_box_gap", c.get_world_3d().direct_space_state)
+		_expect(rd != null and rd.phase == &"frozen", "%s froze (%s)" % [id, rd.phase if rd else "no ragdoll"])
+		_expect(gap >= -SETTLE_DEPTH_M, "%s settles on the ground (lowest point %+.3f m, max %+.2f)" % [id, gap, -SETTLE_DEPTH_M])
+		if sid == &"tyrannosaurus":
+			_expect(rd != null and rd.mode == &"ragdoll", "the T. rex flank blow simulates a ragdoll (%s)" % (rd.reason if rd else "-"))
+		if gap < worst_gap:
+			worst_gap = gap
+			worst = id
+		if sid == &"tyrannosaurus":
+			var corpse = rd.corpse if rd else null
+			var inv = load("res://scripts/items/inventory.gd").new(8)
+			_expect(corpse != null and not corpse.loot_options(inv).is_empty(), "the settled T. rex is still harvestable (%d stacks)" % (corpse.loot.used_slots() if corpse else 0))
+		await _free_all([c])
+		if src:
+			src.queue_free()
+		if id == "tyrannosaurus":
+			print("[t_ragdoll] settle depth worst so far: %s %+.3f m" % [worst, worst_gap])
+	await _free_all([])
 
 ## After a real ragdoll the corpse keeps its loot, its knife rule and its take path.
 func _test_corpse_after_ragdoll() -> void:
