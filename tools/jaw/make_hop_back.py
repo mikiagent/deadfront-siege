@@ -52,14 +52,14 @@ T_OFF, T_LAND = 0.2, 0.65
 
 def curves(u):
     if u < T_OFF:
-        dz = -0.4 * a.height * smooth(u / T_OFF); air = 0.0
+        dz = -0.2 * a.height * smooth(u / T_OFF); air = 0.0
     elif u < T_LAND:
-        s = (u - T_OFF) / (T_LAND - T_OFF); dz = a.height * 4 * s * (1 - s) - 0.4 * a.height * (1 - smooth(s / 0.25))
+        s = (u - T_OFF) / (T_LAND - T_OFF); dz = a.height * 4 * s * (1 - s) - 0.2 * a.height * (1 - smooth(s / 0.25))
         air = math.sin(math.pi * s)
     elif u < 0.8:
-        dz = -0.5 * a.height * math.sin(math.pi * (u - T_LAND) / 0.3); air = 0.0
+        dz = -0.2 * a.height * math.sin(math.pi * (u - T_LAND) / 0.3); air = 0.0
     else:
-        dz = -0.5 * a.height * math.sin(math.pi * (u - T_LAND) / 0.3) * (1 - smooth((u - 0.8) / 0.2)); air = 0.0
+        dz = -0.2 * a.height * math.sin(math.pi * (u - T_LAND) / 0.3) * (1 - smooth((u - 0.8) / 0.2)); air = 0.0
     return dz, air
 
 act = bpy.data.actions.new(a.name)
@@ -79,17 +79,20 @@ for f in range(a.frames):
             else Matrix.Rotation(math.radians(-sgn_dir * a.pitch * air), 4, side))
     body.matrix = Matrix.Translation((0, 0, dz)) @ Matrix.Translation(piv) @ tilt @ Matrix.Translation(-piv) @ m
     bpy.context.view_layer.update()
-    for nm in ("BackFoot.L", "BackFoot.R"):  # on these rigs the feet are root-parented controllers: lift them too
-        pb = arm.pose.bones.get(nm)
-        if pb is None: continue
-        pb.matrix = Matrix.Translation((0, 0, max(0.0, dz) + 0.35 * a.height * air)) @ pb.matrix
-        bpy.context.view_layer.update()
     for nm in ("BackUpLeg.L", "BackUpLeg.R"):  # tuck the feet up and forward while airborne
         pb = arm.pose.bones.get(nm)
         if pb is None: continue
         m = pb.matrix.copy(); piv = m.translation.copy()
         pb.matrix = Matrix.Translation(piv) @ Matrix.Rotation(math.radians((0.5 if a.side else sgn_dir) * a.tuck * air), 4, side) @ Matrix.Translation(-piv) @ m
         bpy.context.view_layer.update()
+    for sd in ("L", "R"):
+        # on these rigs the feet are root-parented controllers: glue each to the end of its shin, or the skin
+        # between shin and foot stretches into strands. On the ground (crouch, landing) they stay planted.
+        foot, shin = arm.pose.bones.get(f"BackFoot.{sd}"), arm.pose.bones.get(f"BackLowLeg.{sd}")
+        if foot is None or shin is None: continue
+        if dz > 0.0 or air > 0.0:
+            m = foot.matrix.copy(); m.translation = shin.tail.copy(); foot.matrix = m
+            bpy.context.view_layer.update()
     for pb in arm.pose.bones:
         pb.keyframe_insert("location", frame=f + 1); pb.keyframe_insert("rotation_quaternion", frame=f + 1)
 bpy.context.scene.frame_start, bpy.context.scene.frame_end = 1, a.frames
