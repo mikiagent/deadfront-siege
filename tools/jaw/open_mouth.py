@@ -10,15 +10,15 @@ on top of that only stretches the lip faces into a sheet ("tape") when the mouth
   4. rips the lips apart along the mouth line forward of the corner (they still meet when shut),
   5. adds a mouth bag built in slices along the jaw: a palate arch on the Head, a floor trough on the Jaw
      and a throat at the corner that stretches between them, plus a short lining wall behind every torn lip edge,
-  6. textures the bag from a gum-red texel of the creature's own texture (one material, no game change),
+  6. gives the bag its own flat gum-red material (a second surface; the game's colour shader keeps its colour),
   7. exports the same GLB layout (armature + skinned mesh, no animations).
 
 Only the mesh and its weights change; bone names, rest pose and every existing clip stay valid.
 
-  Blender -b --python tools/jaw/open_mouth.py -- <in.glb> <out.glb> [--corner 0.30] [--depth 0.10]
+  Blender -b --python tools/jaw/open_mouth.py -- <in.glb> <out.glb> [--corner 0.125] [--depth 0.04]
       [--inset 0.55] [--teeth-max 400] [--head Head] [--jaw Jaw]
 
---corner: distance (m) along the jaw bone from its pivot where the cut starts; skin behind it stays a
+--corner: distance (x jaw length) along the jaw bone from its pivot where the cut starts; skin behind it stays a
 blended web (the rictus), which stretches only a little because it is near the pivot.
 """
 import argparse, sys
@@ -27,11 +27,11 @@ from mathutils import Vector
 
 ap = argparse.ArgumentParser()
 ap.add_argument("inp"); ap.add_argument("out")
-ap.add_argument("--corner", type=float, default=0.30)
-ap.add_argument("--depth", type=float, default=0.10, help="how far the gum wall goes into the head (m)")
-ap.add_argument("--lining", type=float, default=0.05, help="depth of the wall behind each torn lip edge (m)")
-ap.add_argument("--band", type=float, default=0.35, help="skin this close (m) to the lip line is re-sided by height")
-ap.add_argument("--inset", type=float, default=0.55, help="gum wall pulls x toward the midline by this factor")
+ap.add_argument("--corner", type=float, default=0.125)
+ap.add_argument("--depth", type=float, default=0.04, help="how far the palate/floor sink into the head (x jaw length)")
+ap.add_argument("--lining", type=float, default=0.02, help="depth of the wall behind each torn lip edge (x jaw length)")
+ap.add_argument("--band", type=float, default=0.15, help="skin this close to the lip line is re-sided by height (x jaw length)")
+ap.add_argument("--inset", type=float, default=0.55, help="palate/floor edges pull x toward the midline by this factor")
 ap.add_argument("--teeth-max", type=int, default=400, help="islands with fewer verts are treated as teeth")
 ap.add_argument("--head", default="Head"); ap.add_argument("--jaw", default="Jaw")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
@@ -43,7 +43,8 @@ ob = max((o for o in bpy.data.objects if o.type == "MESH" and o.parent == arm), 
 HI, JI = ob.vertex_groups[a.head].index, ob.vertex_groups[a.jaw].index
 jb = arm.data.bones[a.jaw]
 piv = arm.matrix_world @ jb.head_local
-jdir = (arm.matrix_world.to_3x3() @ (jb.tail_local - jb.head_local)).normalized()
+jvec = arm.matrix_world.to_3x3() @ (jb.tail_local - jb.head_local)
+jdir = jvec.normalized()
 mw = ob.matrix_world
 
 ref = ob.copy(); ref.data = ob.data.copy(); bpy.context.scene.collection.objects.link(ref)  # keeps the shading normals
@@ -57,6 +58,11 @@ print(f"weld: {n0} -> {len(bm.verts)} verts")
 def jw(v): return v[dl].get(JI, 0.0)
 def hw(v): return v[dl].get(HI, 0.0)
 def t_of(v): return (mw @ v.co - piv).dot(jdir)
+
+# lengths are fractions of the measured lower jaw (bone lengths are arbitrary), so one setting fits a T. rex and a raptor
+JL = max(t_of(v) for v in bm.verts if jw(v) > 0.5)
+a.corner *= JL; a.depth *= JL; a.lining *= JL; a.band *= JL
+print(f"lower jaw length {JL:.3f} m")
 
 def set_side(v, jaw):
     tot = jw(v) + hw(v)
@@ -91,16 +97,24 @@ print(f"teeth islands made rigid: {teeth}")
 # where the lips meet: halfway between the upper and lower gum lines, taken from the teeth roots near each point.
 # The weight contour alone sits too low at the chin, so the cut ran across visible chin skin.
 def lip_z(t):
-    up = [z for tt, z, j in roots if not j and abs(tt - t) < 0.35]
-    lo = [z for tt, z, j in roots if j and abs(tt - t) < 0.35]
+    up = [z for tt, z, j in roots if not j and abs(tt - t) < a.band]
+    lo = [z for tt, z, j in roots if j and abs(tt - t) < a.band]
     return (sum(up) / len(up) + sum(lo) / len(lo)) / 2 if up and lo else None
-mouth = [v for v in bm.verts if jw(v) + hw(v) > 0.5 and t_of(v) > a.corner]
+mouth = [v for v in bm.verts if jw(v) + hw(v) > 0.05 and t_of(v) > a.corner]  # raptors share head skin with Neck
+if not roots:  # painted teeth (Meshy): fit a straight lip line through the weight boundary so the cut is not a staircase
+    wside = {v: jw(v) >= 0.5 * (jw(v) + hw(v)) for v in mouth}
+    ms = [((t_of(e.verts[0]) + t_of(e.verts[1])) / 2, ((mw @ e.verts[0].co).z + (mw @ e.verts[1].co).z) / 2)
+          for e in bm.edges if all(v in wside for v in e.verts) and wside[e.verts[0]] != wside[e.verts[1]]]
+    n = len(ms); mt = sum(t for t, _ in ms) / n; mz = sum(z for _, z in ms) / n
+    c1 = sum((t - mt) * (z - mz) for t, z in ms) / max(sum((t - mt) ** 2 for t, _ in ms), 1e-9); c0 = mz - c1 * mt
+    lip_z = lambda t: c0 + c1 * t
+    print(f"lip line fitted through {n} weight-boundary edges")
 side = {}
 for v in mouth:
     lz = None if v in tooth_verts else lip_z(t_of(v))
     z = (mw @ v.co).z
     side[v] = z < lz if lz is not None and abs(z - lz) < a.band else jw(v) >= 0.5 * (jw(v) + hw(v))
-for v, s in side.items(): set_side(v, s)
+for v, s in side.items(): set_side(v, s)  # only the Head/Jaw shares swap; other bones' blend stays or the throat tears
 tape = [f for f in bm.faces if all(v in side for v in f.verts) and len({side[v] for v in f.verts}) == 2]
 old_verts = set(bm.verts)
 cross = {e for f in tape for e in f.edges if side[e.verts[0]] != side[e.verts[1]]}
@@ -127,23 +141,6 @@ for v in cut_verts:  # a torn point belongs to the side of the faces it still ha
 cut_verts = {v for v in cut_verts if v in side}
 print(f"tape faces ripped: {len(tape)}, seam edges: {len(seam)}, torn points: {len(cut_verts)}")
 
-# bag texel: the reddest mid-dark UV the old lip faces used, which is gum / mouth interior
-img = next((n.image for m in ob.data.materials if m and m.use_nodes for n in m.node_tree.nodes
-            if n.type == "TEX_IMAGE" and n.image), None)
-bag_uv = None
-if img and uvl:
-    W, H = img.size; px = img.pixels[:]
-    best = 9
-    for f in bm.faces:
-        if not any(v in cut_verts for v in f.verts): continue
-        for lo in f.loops:
-            u, w = lo[uvl].uv
-            i = (int(min(max(w, 0), 0.9999) * H) * W + int(min(max(u, 0), 0.9999) * W)) * 4
-            r, g, b = px[i:i + 3]; lum = 0.3 * r + 0.6 * g + 0.1 * b
-            score = -(r - (g + b) / 2) + abs(lum - 0.22)  # gum-red, mid-dark (pure black reads as torn holes)
-            if score < best: best, bag_uv = score, (u, w)
-print("bag uv:", bag_uv)
-
 # 5. mouth bag, built in slices along the jaw: a palate arch on the Head, a floor trough on the Jaw,
 # each spanning left lip edge -> midline -> right lip edge, and a throat at the corner that stretches between them
 X = Vector((1, 0, 0))
@@ -152,8 +149,8 @@ def frame(v):
     d = mw @ v.co - piv
     return d.dot(jdir), d.dot(X), d.dot(nrm)
 pts = [(frame(v), side[v]) for v in cut_verts if v.is_valid]
-tmax = max(t for (t, _, _), _ in pts) - 0.2  # stop short of the snout tip so the bag never pokes out of the chin
-K = max(4, int((tmax - a.corner) / 0.12))
+tmax = max(t for (t, _, _), _ in pts) - 0.08 * JL  # stop short of the snout tip so the bag never pokes out of the chin
+K = max(4, int((tmax - a.corner) / (0.05 * JL)))
 rows_h, rows_j = [], []
 for k in range(K + 1):
     tk = a.corner + (tmax - a.corner) * k / K
@@ -162,9 +159,11 @@ for k in range(K + 1):
     if not up or not lo: continue
     wu = max(abs(x) for x, _ in up) * a.inset; zu = min(z for _, z in up)
     wl = max(abs(x) for x, _ in lo) * a.inset; zl = max(z for _, z in lo)
-    taper = min(1.0, (tmax - tk) / 0.4)  # shallower toward the tip, where the snout is thin
+    lz = lip_z(tk)  # the measured lip line is smoother than per-slice extremes (which made a sawtooth rim)
+    if lz is not None: zu = zl = (lz - piv.z - jdir.z * tk) / nrm.z  # world height -> the jaw frame's height
+    taper = min(1.0, (tmax - tk) / (0.17 * JL))  # shallower toward the tip, where the snout is thin
     rows_h.append((tk, [(-wu, zu), (0, zu + a.depth * taper), (wu, zu)]))
-    rows_j.append((tk, [(-wl, zl + 0.02), (0, zl - a.depth * 0.5 * taper), (wl, zl + 0.02)]))
+    rows_j.append((tk, [(-wl, zl + 0.008 * JL), (0, zl - a.depth * 0.5 * taper), (wl, zl + 0.008 * JL)]))
 def mk(t, x, z, bone):
     v = bm.verts.new(mw.inverted() @ (piv + jdir * t + X * x + nrm * z))
     v[dl][bone] = 1.0
@@ -204,10 +203,16 @@ for e in [e for e in bm.edges if e.is_boundary and all(v in inward for v in e.ve
     new_faces.append(bm.faces.new((a2, a1, inward[a1], inward[a2]))); lining += 1
 print(f"lip lining: {lining} faces")
 
+# the bag gets its own flat gum-red material: textures rarely hold a usable mouth colour (raptors have none), and the
+# game's colour shader keeps a texture-less surface's albedo colour
+mouth_mat = bpy.data.materials.new("mouth")
+mouth_mat.use_nodes = True
+bsdf = mouth_mat.node_tree.nodes["Principled BSDF"]
+bsdf.inputs["Base Color"].default_value = (0.20, 0.045, 0.045, 1.0); bsdf.inputs["Roughness"].default_value = 0.55
+ob.data.materials.append(mouth_mat)
+MI = len(ob.data.materials) - 1
 for f in new_faces:
-    f.smooth = True
-    if bag_uv and uvl:
-        for lo in f.loops: lo[uvl].uv = bag_uv
+    f.smooth = True; f.material_index = MI
 bm.verts.index_update(); bag_idx = {v.index for v in bag_verts}
 bm.to_mesh(ob.data); bm.free()
 ob.data.update()

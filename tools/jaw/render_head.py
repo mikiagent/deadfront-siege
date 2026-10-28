@@ -17,6 +17,7 @@ a.add_argument("--frames", default="0"); a.add_argument("--views", default="side
 a.add_argument("--size", type=int, default=900); a.add_argument("--head", default="Head")
 a.add_argument("--span", type=float, default=4.5, help="ortho width in metres")
 a.add_argument("--forward", type=float, default=None, help="aim this far (m) toward the snout from mid-head")
+a.add_argument("--jaw", type=float, default=None, help="force the Jaw bone open by this many degrees (local X)")
 a.add_argument("--down", type=float, default=0.0, help="aim this far (m) below mid-head")
 a = a.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
@@ -33,6 +34,11 @@ if a.clip != "-":
 else:
     arm.animation_data_clear()
 
+for m in bpy.data.materials:  # Workbench shows the active image node: make it the base colour, not emission
+    if not m.use_nodes: continue
+    bsdf = next((n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if bsdf and bsdf.inputs["Base Color"].links:
+        m.node_tree.nodes.active = bsdf.inputs["Base Color"].links[0].from_node
 sc = bpy.context.scene
 sc.render.engine = "BLENDER_WORKBENCH"
 sc.display.shading.light = "STUDIO"; sc.display.shading.color_type = "TEXTURE"
@@ -44,6 +50,11 @@ cam = bpy.data.objects.new("C", cd); sc.collection.objects.link(cam); sc.camera 
 
 for fr in [int(x) for x in a.frames.split(",")]:
     sc.frame_set(fr)
+    if a.jaw is not None:
+        from mathutils import Quaternion
+        jb = arm.pose.bones["Jaw"]; jb.rotation_mode = "QUATERNION"
+        jb.rotation_quaternion = Quaternion((1, 0, 0), math.radians(a.jaw))
+        bpy.context.view_layer.update()
     pb = arm.pose.bones[a.head]
     # aim at the middle of the head bone, pushed a little toward the snout
     tgt = arm.matrix_world @ (pb.head.lerp(pb.tail, 0.5))
