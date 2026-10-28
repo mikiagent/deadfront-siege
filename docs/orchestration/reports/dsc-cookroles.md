@@ -19,8 +19,10 @@ flags, working from exact ingredient instances through the existing crafting slo
 - **`game/scripts/items/food_effects.gd`** — `evaluate()` appends `CookRoles.effect_rows` (inherited
   traits only), adds the slot bonuses as buff rows in group `cooked_role`, and publishes
   `inherited` / `discarded` / `role_bonuses` for the UI.
-- **`game/scripts/items/food.gd`**, **`game/scripts/ui/food_inspector.gd`** — "cooked in:",
-  `inherited:` and `not carried:` lines.
+- **`game/scripts/items/food.gd`** — `Food.inspector_text` adds a `cooked in: <role> <def>: <trait>
+  [..., (kept out)]` line per filled slot, so the food card names what the recipe carried and what
+  it refused. `game/scripts/ui/food_inspector.gd` is outside this job's SCOPE and was left
+  untouched; its bundle-driven card already shows the inherited effects through FOODFX.
 - **`game/scripts/items/inventory.gd`** — `cooked_roles` / `cooked_buffs` added to `PLAIN_ATTRS` so
   the dish's record is named rather than dumped as a material trait.
 - **`game/scripts/core/save_sanitizer.gd`** — dish records are rebuilt from untrusted save input.
@@ -61,10 +63,15 @@ opt-out with no main at all.
 - `verify_job.sh cookroles 2` → `VERIFY HEADLESS-ONLY: visual lab deferred by owner` (a
   `HEADLESS_ONLY` marker sits in the gate dir). The lab itself was run regardless at 1600x900 and
   844x390 with `all_ok=1`; the 1600x900 shots show the cooking card over the bonfire with its three
-  role slots and the food inspector with `inherited: Rich Cut 2` / `not carried: Black Sheen 1`.
+  role slots and the dish's food card with its `cooked in: Main raptor_meat: Rich Cut 2, Black Sheen
+  1 (kept out)` line.
   `[cookroles] RESULT roles_ok=1 inherit_ok=1 differ_ok=1 consume_ok=1 cancel_ok=1 foodfx_ok=1
-  saved_ok=1 dishes=6 ui_min_px=64`.
-- Full gate (`verify_job.sh cookroles`) → see the last section.
+  saved_ok=1 dishes=4 card_lines=2 ui_min_px=64 all_ok=1`.
+- A re-run of the windowed lab outside the gate's `gslot.sh` slot crashed in MoltenVK at launch
+  (before the scene loaded), which is the display-lock the slotting exists to avoid — not a code
+  failure; the gate's own headless checks are unaffected.
+- Full gate: `verify_job.sh cookroles` → `VERIFY PASS` (t_cookroles, related
+  `t_foodfx t_craftfeel t_save t_rest`, smoke, report, scope).
 
 ## Assumptions (every undocumented number is an `# ASSUMPTION` in the data)
 

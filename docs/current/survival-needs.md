@@ -91,8 +91,9 @@ Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 - What a dish inherited is stored on the item in `attributes.cooked_roles` (one row per filled
   slot: def id, level, kept traits, dropped traits, cooking history, flags, role bonus) plus
   `attributes.cooked_buffs`. A roled recipe does **not** keep the primary's wholesale attribute
-  copy, so a dish shows only what its rules let through; the food inspector prints `inherited:`
-  and `not carried:` lines for it (`game/scripts/ui/food_inspector.gd`).
+  copy, so a dish shows only what its rules let through; `Food.inspector_text`
+  (`game/scripts/items/food.gd`) prints a `cooked in:` line naming each slot's role, ingredient and
+  carried traits, marking a refused one `(kept out)`.
 - Role bonuses: topping/sauce/broth/spice ingredients grant a buff when their category matches
   `role_bonus` in `game/data/cook_roles.json` (`fruit_glaze`, `herbal_zing`, `spice_warmth`,
   `broth_comfort`; 600 s, +2 to +4 to one stat). They live in buff group `cooked_role`
