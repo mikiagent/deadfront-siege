@@ -32,6 +32,7 @@ Source: merges into `claude/mmo-overhaul` on 2026-10-28. Each is marked `# ASSUM
 | **A3** | The 30-minute trade lock runs on wall-clock time, not play time. | ECON (carried over) | Affects how fast a fresh survivor can sell. |
 | **A4** | Traded pets move as pet records; the owner rule (2026-10-19) says as cages. Switch with the caged-pets work. | ECON / roadmap `caged-pets` | Contract 6.1 drift. |
 | **A5** | Base butchering parts keep at least 1 unit even with the 0.75x no-knife multiplier. | W2-GATHER `ButcherLoot` | Without it a poison kill could yield nothing. |
+| **A6** | **Open:** keyed outputs by slot-1 material (`outputs_by_primary`, design doc §7) ship as a mechanism only; no recipe uses them. Which recipe families get keyed outputs (for example work knife/axe/pick: stone → stone tool, bone → bone tool), and does a keyed output need its own cost and requirements? | OUTPUTS `Crafting.output_for`, report `claude-outputs.md` | Keying the work recipes by bone would make a bone axe/pick from 1 bone without the `work_pick` node (the `bone_*` recipes cost 2 and need it), and a bone knife by hand without a workbench. |
 
 ## Parked by other docs
 

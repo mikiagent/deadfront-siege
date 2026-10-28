@@ -39,6 +39,28 @@ slot check and `CookRoles.apply_to_output` at the tail of the output build — p
   `roled_herb_roast` (main + topping + support) and `roled_salad` (two topping slots, no inheritance).
   Test: `game/tests/t_cookroles.gd`.
 
+## Outputs by primary material (OUTPUTS)
+
+**Mechanism only, no recipe uses it yet.** Which families get keyed outputs, and whether a keyed output
+needs its own cost and requirements, is an open question (Open Questions, 2026-10-28, A6).
+
+One recipe can make a different item depending on the instance in its primary (slot 1) slot
+(docs/design/durango-informed-improvements.md §7). A recipe adds `outputs_by_primary`, a map from a key
+to an output row (`{"id", "count"}`); `output` stays as the fallback.
+
+- Lookup: `Crafting.output_for(recipe, slot1_instance)` in `game/scripts/items/crafting.gd`. It tries the
+  primary's declared tier (a `tier_<t>` category), then its item categories in def order, then its computed
+  material tier (`ProgressionScaling.material_tier`, which reads untagged metal_shard as flint by hardness),
+  and falls back to `output` when nothing matches or slot 1 is empty.
+- Everything reads the output through that function: `build_output` (so the preview, the offline craft,
+  `plan_fits`, `bag_preview` and the server `act.craft` op), and the craft screens through
+  `CraftUI.output_row` (D1 list and detail, D3 result card, the station radial).
+- Each output keeps its own item def (icon, mesh, stats). Slot-1 traits, `material_tier`, cook roles and
+  rare-attribute carry work as before.
+- `Data._load_recipes` logs an error when a keyed row names no item.
+- A keyed row has no cost or requirements of its own: it uses the recipe's slots, station, skill node and gates.
+- Test: `game/tests/t_outputs.gd` (builds keyed copies of the work knife/axe/pick recipes in memory).
+
 ## Hand crafting
 
 | recipe | output | inputs | skill | min skill | ability target | recipe max_level | time (s) | process |

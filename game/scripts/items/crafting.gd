@@ -369,8 +369,33 @@ static func rolls_burn(rec: Dictionary, skill_level: int, rng: RandomNumberGener
 ## The output stack. `burnt` comes from rolls_burn (decided by the caller so previews never burn).
 ## `roles` is CookRoles.collect()'s record of what the recipe's slots may pass (COOKROLES); {} keeps
 ## the old wholesale primary-attribute copy every earlier recipe relies on.
+## OUTPUTS (design §7): the output row ({id, count}) that this slot-1 instance makes. A recipe's
+## `outputs_by_primary` is keyed by the primary's declared tier (a `tier_<t>` category gives key `<t>`),
+## then its item categories (in def order), then its computed material tier; no match, no key or no
+## primary falls back to `output`. Every caller (build_output and so the preview, the offline craft and
+## the server intent; the craft screens) reads the output through here.
+static func output_for(rec: Dictionary, primary: ItemStack) -> Dictionary:
+	var fallback: Dictionary = rec.get("output", {})
+	var by: Variant = rec.get("outputs_by_primary", null)
+	if primary == null or not by is Dictionary:
+		return fallback
+	var keys: Array[String] = []
+	var pd := primary.def()
+	if pd:
+		for c in pd.categories:
+			if str(c).begins_with("tier_"):
+				keys.push_front(str(c).trim_prefix("tier_"))  # flint (categories stone, tier_flint) is flint
+			else:
+				keys.append(str(c))
+	keys.append(str(ProgressionScaling.material_tier(primary.def_id, primary.attributes)))
+	for k in keys:
+		var row: Variant = (by as Dictionary).get(k, null)
+		if row is Dictionary:
+			return row
+	return fallback
+
 static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int, consumed: Array[ItemStack] = [], burnt: bool = false, roles: Dictionary = {}) -> ItemStack:
-	var out_row: Dictionary = rec.get("output", {})
+	var out_row := output_for(rec, primary)
 	var out_id := StringName(str(out_row.get("id", "")))
 	if bool(rec.get("keep_output_id", false)) and primary:
 		var pd := primary.def()
@@ -926,10 +951,10 @@ static func missing_ingredient_name(inv: Inventory, rec: Dictionary) -> String:
 static func bag_preview(inv: Inventory, rec: Dictionary, picks: Array[int], player: Player = null) -> Dictionary:
 	if inv == null or rec.is_empty() or not picks_valid(inv, rec, picks):
 		return {}
-	var out_id := StringName(str((rec.get("output", {}) as Dictionary).get("id", "")))
+	var primary: ItemStack = inv.slots[picks[primary_index(rec)]]
+	var out_id := StringName(str(output_for(rec, primary).get("id", "")))
 	if not BagCapacity.is_bag(out_id):
 		return {}
-	var primary: ItemStack = inv.slots[picks[primary_index(rec)]]
 	var level := crafted_level_for(rec, consumed_levels(inv, rec, picks), player)
 	var out := build_output(rec, primary, level)
 	var b := BagCapacity.of_stack(out)
