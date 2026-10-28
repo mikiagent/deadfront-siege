@@ -182,6 +182,7 @@ func _test_mounted() -> void:
 	if def == null or rec == null:
 		_expect(false, "mounted: a T. rex mount can be made (def %s, record %s)" % [def, rec])
 		return
+	rec.fit_saddle()  # SADDLES: riding needs one
 	var c: Node3D = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
 	host.add_child(c)
 	c.set("is_pet", true)
