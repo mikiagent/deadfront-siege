@@ -561,12 +561,10 @@ func _test_sheet_rows() -> void:
 		_expect(autos.begins_with("Learned automatically: "), "%s at Lv. 1: the learned AUTO nodes share one line ('%s')" % [tree, autos])
 	# XP banked at the cap shows as a full bar, like Durango's skill screen, not "200 / 28 XP".
 	sk.add_xp("melee", 200.0, true)
-	sheet.open(sk)
-	var melee: Node = sheet._box.find_child("Skill_melee", true, false)
-	var xp_text := ""
-	for l in (melee.find_children("*", "Label", true, false) if melee else []):
-		xp_text = (l as Label).text if (l as Label).text.ends_with(" XP") else xp_text
-	_expect(xp_text == "28 / 28 XP", "melee at the cap with 200 XP banked reads a full bar ('%s')" % xp_text)
+	sheet.open(sk, "melee")
+	var xp_label: Label = sheet.find_child("SkillXp", true, false)
+	var xp_text := xp_label.text if xp_label else ""
+	_expect(xp_text == "28 / 28", "melee at the cap with 200 XP banked reads a full bar ('%s')" % xp_text)
 	_done_with(sk)
 	sk = _fresh(59)
 	_grant(sk, "processing", 25)

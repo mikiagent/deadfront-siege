@@ -112,11 +112,10 @@ func _shot_full() -> void:
 	var xp_text := ""
 	var row: Node = null
 	if sheet:
-		row = sheet.get("_box").find_child("Skill_melee", true, false)
+		row = sheet.find_child("Skill_melee", true, false)
 		full = row.find_child("SkillFull_melee", true, false) if row else null
-		for l in (row.find_children("*", "Label", true, false) if row else []):
-			if (l as Label).text.ends_with(" XP"):
-				xp_text = (l as Label).text
+		var xl: Label = sheet.find_child("SkillXp", true, false)
+		xp_text = xl.text if xl else ""
 	var text := str((full as Label).text) if full else ""
 	print("[skillfeel] FULL: melee Lv. %d of cap %d, banked %.0f, label \"%s\", xp \"%s\"" % [sk.level_of("melee"), sk.level_cap("melee"), sk.xp_of("melee"), text, xp_text])
 	# "FULL · N XP banked" on a desktop, "FULL · N XP" on a compact canvas (the wider line was cut).
