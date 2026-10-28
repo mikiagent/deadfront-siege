@@ -20,7 +20,7 @@ var INV: GDScript
 var data: Node
 ## Each test bumps this on its last line: a SCRIPT ERROR mid-test aborts it and fails the run.
 var _finished := 0
-const GROUPS := 7
+const GROUPS := 9
 
 func _process(_delta: float) -> bool:
 	if _started or root.get_node_or_null("Data") == null or root.get_node_or_null("World") == null:
@@ -46,6 +46,8 @@ func _run() -> void:
 	_test_knife_scales()
 	_test_rare_per_part()
 	_test_save_round_trip()
+	await _test_timed_cut()
+	_test_picker()
 	if _finished != GROUPS:
 		_fails.append("all %d test groups ran to the end (%d did)" % [GROUPS, _finished])
 	if _fails.is_empty():
@@ -67,6 +69,15 @@ func _build_player() -> void:
 	_host = Node3D.new()
 	_host.name = "TButcher"
 	root.add_child(_host)
+	# A floor: the survivor must stand still during a 1.6 s cut, not fall through the world.
+	var floor_body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(80, 1, 80)
+	shape.shape = box
+	floor_body.add_child(shape)
+	floor_body.position = Vector3(0, -0.5, 0)
+	_host.add_child(floor_body)
 	_player = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	_host.add_child(_player)
 	_player.global_position = Vector3(0, 1, 0)
@@ -362,3 +373,117 @@ func _test_save_round_trip() -> void:
 func _clear_bag() -> void:
 	for i in _player.inventory.slot_count:
 		_player.inventory.slots[i] = null
+
+
+# ---------------------------------------------------------------- 8. the timed cut
+
+## A live corpse in the player's reach, rolled from data with a forced 2-cut budget.
+func _live_corpse(species: StringName, at: Vector3, budget: int = 2):
+	var c = CORPSE.new()
+	c.species = species
+	c.level = 2
+	BL.roll_into(c)
+	c.apply_cut_state(budget, budget, [])
+	_host.add_child(c)
+	c.global_position = at
+	return c
+
+## Await the running cut to its end (real frames: Corpse._process owns the clock).
+func _await_cut(c, max_frames: int = 300) -> void:
+	var n := 0
+	while c.cut_running and n < max_frames:
+		await process_frame
+		n += 1
+
+## The cut runs on the carcass's own clock: nothing leaves it until the last tick, a finished cut
+## delivers only the chosen part and spends one cut, and a cancelled cut grants nothing.
+func _test_timed_cut() -> void:
+	_clear_bag()
+	_player.inventory.add(IS.make(&"stone_knife_work", 1, {"material_tier": "flint"}, 1))
+	_player.global_position = Vector3(0, 1, 0)
+	_player.velocity = Vector3.ZERO
+	var c = _live_corpse(&"velociraptor", Vector3(0.9, 0, 0.6))
+	await process_frame
+	var meat_before: int = c.loot.count_of(&"raptor_meat")
+	var hide_before: int = c.loot.count_of(&"raptor_hide")
+	var why: String = c.begin_cut(&"raptor_meat", _player)
+	print("[t_butcher] timed cut start: '%s', running %s, cuts %d" % [why, c.cut_running, c.cuts_left])
+	_expect(why == "" and c.cut_running and c.cutting_part() == &"raptor_meat", "picking a part starts the timed cut ('%s')" % why)
+	# Mid-cut: nothing has left the carcass yet, and no cut is spent.
+	await process_frame
+	await process_frame
+	_expect(c.loot.count_of(&"raptor_meat") == meat_before and c.cuts_left == 2, "a cut grants nothing until it finishes (meat %d, cuts %d)" % [c.loot.count_of(&"raptor_meat"), c.cuts_left])
+	_expect(c.cut_progress() > 0.0 and c.cut_progress() < 1.0, "the running cut reports its progress (%.2f)" % c.cut_progress())
+	await _await_cut(c)
+	print("[t_butcher] timed cut done: meat %d -> %d, hide %d, cuts %d, bag meat %d" % [meat_before, c.loot.count_of(&"raptor_meat"), c.loot.count_of(&"raptor_hide"), c.cuts_left, _player.inventory.count_of(&"raptor_meat")])
+	_expect(not c.cut_running and c.cuts_left == 1, "a finished cut spends one cut (left %d)" % c.cuts_left)
+	_expect(c.loot.count_of(&"raptor_meat") == 0 and _player.inventory.count_of(&"raptor_meat") > 0, "the chosen meat reached the bag (%d) and left the carcass" % _player.inventory.count_of(&"raptor_meat"))
+	_expect(c.loot.count_of(&"raptor_hide") == hide_before, "the parts not chosen stay on the carcass (hide %d)" % c.loot.count_of(&"raptor_hide"))
+	# A cancelled cut: start the hide, then walk out of reach before it ends.
+	var bag_hide: int = _player.inventory.count_of(&"raptor_hide")
+	var why2: String = c.begin_cut(&"raptor_hide", _player)
+	_expect(why2 == "" and c.cut_running, "the second cut starts ('%s')" % why2)
+	await process_frame
+	_player.global_position = Vector3(0, 1, 40)
+	await process_frame
+	await process_frame
+	print("[t_butcher] cancelled cut: running %s, cuts %d, hide on carcass %d" % [c.cut_running, c.cuts_left, c.loot.count_of(&"raptor_hide")])
+	_expect(not c.cut_running and c.cuts_left == 1, "walking away cancels the cut and spends nothing (left %d)" % c.cuts_left)
+	_expect(c.loot.count_of(&"raptor_hide") == hide_before and _player.inventory.count_of(&"raptor_hide") == bag_hide, "a cancelled cut grants nothing")
+	_expect(not c.cut_parts.has(&"raptor_hide"), "a cancelled cut does not mark the part as cut")
+	_player.global_position = Vector3(0, 1, 0)
+	_player.velocity = Vector3.ZERO
+	c.free()
+	await process_frame
+	_finished += 1
+
+# ---------------------------------------------------------------- 9. the part picker
+
+## The picker the corpse interact opens: one 64 px hex per data part, the budget on screen, the
+## locked part blocked with its reason, and a tap on an open part starting the cut.
+func _test_picker() -> void:
+	_clear_bag()
+	_player.inventory.add(IS.make(&"stone_knife_work", 1, {"material_tier": "flint"}, 1))
+	_player.global_position = Vector3(0, 1, 0)
+	var c = _live_corpse(&"triceratops", Vector3(1.0, 0, 0.8))
+	await process_frame
+	c.open_loot(_player)
+	await process_frame
+	var picker = c.picker()
+	_expect(picker != null and picker.is_open(), "the corpse interact opens the part picker")
+	if picker == null:
+		c.free()
+		_finished += 1
+		return
+	var hexes: Array = picker.part_buttons()
+	var sizes := []
+	var smallest := 9999.0
+	for b in hexes:
+		sizes.append("%s %sx%s" % [b.name, b.size.x, b.size.y])
+		smallest = minf(smallest, minf(b.size.x, b.size.y))
+	print("[t_butcher] picker hexes: %s" % [sizes])
+	_expect(hexes.size() == CP.parts(&"triceratops").size(), "the picker shows one hex per data part (%d of %d)" % [hexes.size(), CP.parts(&"triceratops").size()])
+	_expect(smallest >= 64.0, "every part hex is a 64 px tap target (smallest %.0f)" % smallest)
+	var scute = null
+	for b in hexes:
+		if str(b.name) == "Part_armor_scute":
+			scute = b
+	_expect(scute != null and scute.disabled and scute.hint_text != "", "a part its Butchering node has not opened is blocked with the reason (%s)" % (scute.hint_text if scute else "no hex"))
+	_expect(picker.can_cut(&"raw_meat") and not picker.can_cut(&"armor_scute"), "the picker offers the open parts and blocks the locked ones")
+	# A tap on an open hex starts the cut (the hex's own pressed signal, as a finger would).
+	var meat_hex = null
+	for b in hexes:
+		if str(b.name) == "Part_raw_meat":
+			meat_hex = b
+	_expect(meat_hex != null, "the picker has the meat hex")
+	if meat_hex != null:
+		meat_hex.pressed.emit()
+		await process_frame
+		print("[t_butcher] picker tap: running %s, part %s" % [c.cut_running, c.cutting_part()])
+		_expect(c.cut_running and c.cutting_part() == &"raw_meat", "tapping a part hex starts that cut")
+		picker.close()
+		await _await_cut(c)
+		_expect(_player.inventory.count_of(&"raw_meat") > 0, "the picked part reached the bag through the picker")
+	c.free()
+	await process_frame
+	_finished += 1
