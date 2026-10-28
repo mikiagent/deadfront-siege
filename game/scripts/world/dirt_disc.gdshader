@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled, blend_mix, depth_draw_opaque, diffuse_lambert, specular_disabled;
+#include "res://shaders/sky/sky_shadow.gdshaderinc"
 
 // Rough circular dirt patch under structures and trees (Durango reference): the edge is
 // eroded by noise so it never reads as a perfect circle or a tile.
@@ -34,7 +35,7 @@ void fragment() {
 #else
 	vec3 col = tint * (0.11 + 0.22 * detail) * (0.85 + n * 0.3);
 #endif
-	ALBEDO = col * modulate.rgb;
+	ALBEDO = col * modulate.rgb * sky_shade(world_pos.xz);
 	// The disc's triangles face down, so cull_disabled lit the flipped back face from below
 	// (black under sky ambient). Ground decals always face the sky.
 	NORMAL = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);

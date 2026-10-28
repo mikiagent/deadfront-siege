@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_back, diffuse_lambert, specular_schlick_ggx;
+#include "res://shaders/sky/sky_shadow.gdshaderinc"
 
 // Durango-style ground: one continuous surface. Bands come from height (grass -> sand ->
 // wet sand -> shallow bottom -> deep) with noise-perturbed edges; the tile map only
@@ -180,6 +181,9 @@ void fragment() {
 	float line = 1.0 - smoothstep(0.0, grid_width, min(gx, gz));
 	float fade = 1.0 - smoothstep(grid_fade * 0.7, grid_fade, distance(p, focus_pos.xz));
 	albedo *= (1.0 - 0.10 * grid_enabled * line * fade);
+
+	// Cloud cover and flyer shadows (SKYSHADOWS), per pixel: the shapes need it on open ground.
+	albedo *= sky_shade(p);
 
 	ALBEDO = albedo;
 	ROUGHNESS = mix(0.55, 1.0, smoothstep(h_wet - 0.05, h_wet + 0.12, h));

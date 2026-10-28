@@ -20,9 +20,12 @@ uniform float alpha_scissor = 0.5;
 // INSTANCE_CUSTOM is readable in the vertex stage only, so the tile offset travels to the fragment
 // in a varying (one vec2, interpolated flat across the quad's two triangles).
 varying vec2 v_tile_offset;
+#include "res://shaders/sky/sky_shadow.gdshaderinc"
+varying float v_sky;
 
 void vertex() {
 	v_tile_offset = INSTANCE_CUSTOM.xy;
+	v_sky = sky_shade((MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xz);
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	// 0 at the ground pivot row, 1 at the top of the card.
 	// The card's local Y runs from -0.5 (bottom, the ground row) to +0.5 (top), so the sway grows from
@@ -43,7 +46,7 @@ void vertex() {
 void fragment() {
 	vec2 uv = v_tile_offset + clamp(UV, vec2(0.001), vec2(0.999)) * tiles;
 	vec4 tex = texture(atlas, uv);
-	ALBEDO = tex.rgb * COLOR.rgb;
+	ALBEDO = tex.rgb * COLOR.rgb * v_sky;
 	ALPHA = tex.a * COLOR.a;
 	ALPHA_SCISSOR_THRESHOLD = alpha_scissor;
 	ROUGHNESS = 1.0;

@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_back, blend_mix, depth_draw_never, diffuse_lambert, specular_schlick_ggx;
+#include "res://shaders/sky/sky_shadow.gdshaderinc"
 
 // Sea plane: colour and opacity from the water depth over the terrain heightmap,
 // foam where the water is shallow plus scrolling streaks, gentle ripples.
@@ -45,7 +46,7 @@ void fragment() {
 
 	vec3 nrm = normalize(vec3((f1 - 0.5) * 0.18, 1.0, (f2 - 0.5) * 0.18));
 	NORMAL = normalize((VIEW_MATRIX * vec4(nrm, 0.0)).xyz);
-	ALBEDO = col;
+	ALBEDO = col * sky_shade(world_pos.xz);
 	ALPHA = alpha;
 	ROUGHNESS = 0.18;
 	SPECULAR = 0.5;

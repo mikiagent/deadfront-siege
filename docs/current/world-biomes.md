@@ -1,8 +1,8 @@
 # World — islands, biomes, flora & fauna
 
-> Generated 2026-10-27 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
+> Generated 2026-10-28 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
 
-Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/creatures/*.json`, `game/data/butchering.json`.
+Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/world/sky.json`, `game/data/creatures/*.json`, `game/data/butchering.json`.
 
 ## Island roster (15)
 
@@ -86,6 +86,25 @@ Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data
 - Gatherable materials (yellow-pip latent attr when noted): `black_iron` *(attr: hard)*, `lava`, `sulphur`, `ash`.
 
 A climate's `materials` list is what its island generator may place; gather yields per family are the gather-system's own table (`world/rules.json`).
+
+## Sky shadows — cloud cover and pteranodons
+
+Soft cloud shadows drift across the ground with the wind, the sun dips a little while a cloud covers the survivor, and 1-3 pteranodons glide in wide circles overhead. Only their shadows are drawn (the camera's narrow lens would show a flyer mid-screen, not at an edge); everything fades out at night. The terrain, grass, ground cover, dirt pads, water and painted cards darken; 3D props and creatures do not. Off on a phone browser and with `--skyshadows=off`. Code: `game/scripts/world/sky_shadows.gd`, `game/shaders/sky/sky_shadow.gdshaderinc`; numbers: `game/data/world/sky.json` (all ASSUMPTION look values).
+
+| climate | cloud cover | cloud darkening | wind (m/s) | flyers |
+|---|---|---|---|---|
+| blue_tropical | 50% | 0.6 | 1.8, 0.8 | 3 |
+| desert | 12% | 0.6 | 2.6, 0.4 | 3 |
+| grassland | 40% | 0.6 | 1.8, 0.8 | 2 |
+| savannah | 25% | 0.6 | 1.8, 0.8 | 3 |
+| snowfield | 65% | 0.6 | 3.0, 1.2 | 1 |
+| swamp | 65% | 0.5 | 1.0, 0.6 | 1 |
+| temperate | 50% | 0.6 | 1.8, 0.8 | 2 |
+| tropical | 55% | 0.6 | 1.8, 0.8 | 3 |
+| tundra | 60% | 0.6 | 2.8, 1.4 | 1 |
+| volcanic | 55% | 0.66 | 1.8, 0.8 | 2 |
+
+Shared: flyer shadow darkening 0.75, glide 9.0 m/s, sun dip 0.22 at full cover, web-renderer scale 0.7.
 
 ## Fauna (19 species)
 

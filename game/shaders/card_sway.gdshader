@@ -20,6 +20,9 @@ render_mode cull_disabled, depth_draw_opaque, diffuse_lambert, specular_disabled
 // survivor is built from this file WITHOUT these marked lines (CardProp.fade_free_shader(), the same
 // file minus the markers); only a card tall enough to fade carries them (Occlusion.TALL_M).
 #include "res://shaders/occlusion/occlusion.gdshaderinc" // CARD_FADE_INCLUDE
+#include "res://shaders/sky/sky_shadow.gdshaderinc"
+// One sky-shadow value per card, at its ground point (a cloud darkens the whole card at once).
+varying float v_sky;
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_disable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_disable;
@@ -53,6 +56,7 @@ void vertex() {
 	// is camera-facing, so its local X/Y are the screen's right/up and MODEL_MATRIX's rows are
 	// those axes in world space.
 	vec3 ground = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	v_sky = sky_shade(ground.xz);
 	vec2 d = ground.xz - camera_focus.xz;
 	float sr = dot(vec3(d.x, 0.0, d.y), normalize(MODEL_MATRIX[0].xyz));
 	float su = dot(vec3(d.x, 0.0, d.y), normalize(MODEL_MATRIX[1].xyz));
@@ -72,7 +76,7 @@ void vertex() {
 
 void fragment() {
 	vec4 albedo = texture(albedo_tex, UV);
-	ALBEDO = albedo.rgb * tint.rgb;
+	ALBEDO = albedo.rgb * tint.rgb * v_sky;
 	ALPHA = albedo.a * tint.a;
 	ALPHA_SCISSOR_THRESHOLD = alpha_scissor;
 	if (shading_mode == 0) {

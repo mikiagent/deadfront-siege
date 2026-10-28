@@ -42,12 +42,14 @@ shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque, diffuse_lambert, specular_disabled;
 #include "res://shaders/camera/camera.gdshaderinc"
 #include "res://shaders/occlusion/occlusion.gdshaderinc" // CARD_FADE_INCLUDE
+#include "res://shaders/sky/sky_shadow.gdshaderinc"
 uniform sampler2D atlas : source_color, filter_linear_mipmap, repeat_disable;
 uniform vec4 tint : source_color = vec4(1.0);
 uniform float sway_speed = 1.2;
 uniform float alpha_scissor = 0.5;
 varying vec2 v_uv;
 varying vec2 v_pivot;
+varying float v_sky;
 
 void vertex() {
 	vec2 pivot = COLOR.rg;
@@ -71,6 +73,7 @@ void vertex() {
 	VERTEX.z += amp * 0.35 * k * k;
 	// Parallax, from the ground point (MODEL_MATRIX's origin) so neighbours never shear together.
 	vec3 ground = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	v_sky = sky_shade(ground.xz);
 	vec2 d = ground.xz - camera_focus.xz;
 	float sr = dot(vec3(d.x, 0.0, d.y), normalize(MODEL_MATRIX[0].xyz));
 	float su = dot(vec3(d.x, 0.0, d.y), normalize(MODEL_MATRIX[1].xyz));
@@ -88,7 +91,7 @@ void vertex() {
 
 void fragment() {
 	vec4 albedo = texture(atlas, v_uv);
-	ALBEDO = albedo.rgb * tint.rgb;
+	ALBEDO = albedo.rgb * tint.rgb * v_sky;
 	ALPHA = albedo.a * tint.a;
 	ALPHA_SCISSOR_THRESHOLD = alpha_scissor;
 	// Painted art: one flat, camera-facing normal, so the sun lights the whole card and the paint
