@@ -12,6 +12,27 @@
 > Durango references (hex gather fan, material slots, skill grid, construction placement, Domain tabs,
 > Communication list).
 
+## 0. Target screenshots
+
+Rendered from the canvas artboards at 1600×900 (desktop gate size) on 2026-10-28 with headless
+Chrome, files in [`ui-redesign/`](ui-redesign/). **Status: owner-reviewed proposal, not current
+build.** The world backdrop and item icons are placeholder SVG art drawn for the canvas — match the
+UI, not the art. "Variant" shots show an interactive state the default view hides.
+
+| | |
+|---|---|
+| **A1 Create your survivor**<br>![A1](ui-redesign/a1-create-survivor.webp) | **A2 Pick your tamed island**<br>![A2](ui-redesign/a2-island-pick.webp) |
+| **B1 Field HUD** (idle: harvestable name pills)<br>![B1](ui-redesign/b1-field-hud.webp) | **B1 variant — gathering** (camera panned to Rock, Stone hex 62% pie-filled, yield card with trait chips)<br>![B1 gathering](ui-redesign/b1-field-hud-gathering.webp) |
+| **B2 Combat HUD**<br>![B2](ui-redesign/b2-combat-hud.webp) | **B2 variant — net ready** (target ≤30% and groggy, NET hex gold)<br>![B2 net](ui-redesign/b2-combat-hud-net-ready.webp) |
+| **B3 Nav menu**<br>![B3](ui-redesign/b3-nav-menu.webp) | **B4 Toasts, radials & dialogs**<br>![B4](ui-redesign/b4-toasts-radials-dialogs.webp) |
+| **C1 Character**<br>![C1](ui-redesign/c1-character.webp) | **C2 Bag** (one item per cell, colour variants)<br>![C2](ui-redesign/c2-bag.webp) |
+| **C3 Skills**<br>![C3](ui-redesign/c3-skills.webp) | **C4 Orders**<br>![C4](ui-redesign/c4-orders.webp) |
+| **D1 Craft (stations)**<br>![D1](ui-redesign/d1-craft-stations.webp) | **D2 Build mode** (hex blueprint tiles, ROTATE / SAVE / CANCEL)<br>![D2](ui-redesign/d2-build-mode.webp) |
+| **D3 Craft — place materials**<br>![D3](ui-redesign/d3-craft-place-materials.webp) | **E1 Animals & pack**<br>![E1](ui-redesign/e1-animals.webp) |
+| **E2 Taming pen**<br>![E2](ui-redesign/e2-taming-pen.webp) | **E2 variant — taming started**<br>![E2 started](ui-redesign/e2-taming-pen-started.webp) |
+| **F1 Domain — declare**<br>![F1](ui-redesign/f1-domain-declare.webp) | **F1 variant — declared, plot grid**<br>![F1 plots](ui-redesign/f1-domain-plots.webp) |
+| **F2 World atlas**<br>![F2](ui-redesign/f2-world-atlas.webp) | **F3 Communication**<br>![F3](ui-redesign/f3-communication.webp) |
+
 ## 1. Owner direction captured in review
 
 1. **[owner]** In-game buttons are hexagons, not circles. Building UI is hex. Resource gathering is the
@@ -193,6 +214,8 @@ handling). Visual changes only in `hunt_hud.gd`:
 
 ## 7. Screens → scripts
 
+Artboard IDs match the screenshots in §0.
+
 | Canvas artboard | Owning script(s) | Kind of change |
 |---|---|---|
 | A1 Create your survivor | `character_creation.gd` | Restyle: profession list left with gold brackets, preview centre, "Starts: <skill> Lv. 20", body toggle, name field, GOLD **Next**. |
@@ -227,7 +250,7 @@ selection is always GOLD corner brackets. Back (‹) returns to the MENU; ✕ re
 
 ## 9. Open questions
 
-1. Hex orientation: flat-top (canvas, Durango refs) or pointy-top (current build)? (§3)
+1. ~~Hex orientation: flat-top or pointy-top?~~ **Decided 2026-10-28 [owner]: flat-top, globally.** (§3)
 2. Where trait polarity lives in item data. (§5)
 3. Party system: none in code; frames are layout-only until it exists. (§6)
 4. Animals roster rule: "three active" (code) vs 3→7 bonded pack (owner pack rule). (§7 E1)
@@ -238,6 +261,6 @@ selection is always GOLD corner brackets. Back (‹) returns to the MENU; ✕ re
 ## 10. Acceptance per package
 
 Desktop Chrome 1600×900 is the gate (`AGENTS.md`); phone landscape 844×390 stays supported. Each
-package ships with: a screenshot of the restyled screen in the running build next to its canvas
-artboard, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS`, and `../current/hud.md` /
+package ships with: a screenshot of the restyled screen in the running build next to its §0
+target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS`, and `../current/hud.md` /
 `../current/ui-screens.md` updated for what actually shipped.
