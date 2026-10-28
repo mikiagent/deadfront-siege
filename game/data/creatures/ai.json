@@ -28,6 +28,17 @@
     "_chase": "chase_speed_mult is today's 0.7 per carnivore archetype until the owner decides (gap dino-ai-06: a walking survivor outruns it).",
     "_sleep": "ASSUMPTION: grazers asleep at night wake at dawn or when a survivor/pet comes within wake_m of the body; a woken grazer stays up woken_awake_s."
   },
+  "follow": {
+    "_about": "ASSUMPTION (owner 2026-10-28: 'tames should follow within a certain radius of the player, not directly on top of the player'): every summoned pet holds a follow SLOT beside/behind the survivor, fanned by summon order. slot_m + slot_size_mult x pet body radius is how far the slot sits from the survivor (a big tame hangs back further); inner_m and outer_m are the hysteresis radii around that slot, scaled by the same body factor and by the pet's follow_dist_mult nature knob (Loyal closer). A pet walks only when farther than outer from its slot and stops once inside inner, so it does not shuffle while the survivor stands still. clearance_margin_m is the gap on top of survivor radius + pet radius that it never stands inside; step_aside_m is how far past that it moves when the survivor walks into it; heel_mult pulls the slot in on a HEEL order.",
+    "slot_m": 3.0,
+    "slot_size_mult": 1.0,
+    "slot_arc_deg": 50.0,
+    "inner_m": 2.0,
+    "outer_m": 4.5,
+    "heel_mult": 0.7,
+    "clearance_margin_m": 0.3,
+    "step_aside_m": 0.8
+  },
   "temperaments": {
     "_about": "ASSUMPTION (gap dino-ai-12): grazer temperaments. skittish flees on sight and fights back after provoke_hits hits; defensive ignores you until hit, then fights (its herd joins); territorial also charges anyone inside territory_m. flee_min_mps 6.5: a worst-IV (85 %) zebraceratops flees at 5.44 m/s on the multiplier alone, under the 5.5 m/s survivor walk; 6.2 still ended 7.5 m ahead (path wiggle), 6.5 matches an average-IV flight.",
     "skittish": {

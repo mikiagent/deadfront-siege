@@ -419,17 +419,31 @@ func become_pet(rec: PetRecord) -> void:
 ## Pets never body-block the survivor: a mutual collision exception, applied once the
 ## player node is around. Enemies and everything else still collide with pets normally.
 var _pet_passthrough_done: bool = false
+## Bodies this pet already ignores (see _apply_pet_passthrough): the survivor and the other pets.
+var _pet_peers_aware: Dictionary = {}
 ## True while the survivor rides this creature (set by PlayerPets.mount / dismount).
 var ridden: bool = false
 
 func _apply_pet_passthrough() -> void:
-	if _pet_passthrough_done or not is_pet:
+	if not is_pet:
 		return
 	var p := PlayerRegistry.owner_of(self)
-	if p == null:
-		return
-	add_collision_exception_with(p)
-	_pet_passthrough_done = true
+	if p != null and not _pet_passthrough_done:
+		add_collision_exception_with(p)
+		_pet_passthrough_done = true
+	# PETFOLLOW: pets also pass through EACH OTHER. Their body capsules would otherwise let one
+	# pet park in another's follow slot and deadlock the pair; they fan out to distinct slots, so
+	# they still read as separate animals, and an enemy or the survivor still collides normally.
+	# (The survivor's own exception above is kept: it is the one that was already there.)
+	if p != null and not _pet_peers_aware.has(p):
+		_pet_peers_aware[p] = true
+	for n in get_tree().get_nodes_in_group("creatures"):
+		var other := n as Creature
+		if other == null or other == self or not other.is_pet:
+			continue
+		if not _pet_peers_aware.has(other):
+			add_collision_exception_with(other)
+			_pet_peers_aware[other] = true
 
 func _physics_process(delta: float) -> void:
 	tick_trap_control(delta)
