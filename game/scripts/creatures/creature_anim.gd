@@ -11,7 +11,7 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"hit_react", &"alert"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"hit_react", &"alert"]
 const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo"]
 const HUBS: Array[StringName] = [&"idle", &"walk", &"run"]
 const XFADE := 0.08
@@ -96,19 +96,40 @@ func set_move_speed(mps: float) -> void:
 	_scale[gait] = clampf(mps / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
 	_travel(gait)
 
-## Sidestep loop (strafe_left / strafe_right) at cadence mps / its natural speed: natural_speeds.<id>.strafe
-## when baked, else the walk's (ASSUMPTION). Falls back to the stride-matched walk/run without the clip.
-func set_strafe(side: StringName, mps: float) -> void:
-	if not _param.has(side):
+## Direction-aware locomotion (owner 2026-10-28, every species and ridden mounts): the clip follows
+## the velocity against the body's facing. Forward: walk/run (set_move_speed). Against facing
+## (dot < -0.5): walk_back. Mostly sideways (|dot with right| > 0.7): strafe_left / strafe_right.
+## Each is stride-matched; a rig without the clip falls back to the forward gait.
+const BACK_DOT := -0.5
+const SIDE_DOT := 0.7
+
+static func pick_direction(vel: Vector3, basis: Basis) -> StringName:
+	var v := Vector3(vel.x, 0.0, vel.z)
+	if v.length_squared() < 0.0001:
+		return &""
+	v = v.normalized()
+	var side := v.dot(basis.x)  # the body faces -Z, so +X is its right
+	if absf(side) > SIDE_DOT:
+		return &"strafe_right" if side > 0.0 else &"strafe_left"
+	if v.dot(-basis.z) < BACK_DOT:
+		return &"walk_back"
+	return &""
+
+func set_move_velocity(vel: Vector3, basis: Basis) -> void:
+	var mps := Vector2(vel.x, vel.z).length()
+	var clip := pick_direction(vel, basis)
+	if clip == &"" or not _param.has(clip) or mps <= 0.05:
 		set_move_speed(mps)
 		return
-	if not is_finite(mps) or not _can_move():
+	if not _can_move():
 		return
-	var nat := CreatureClips.natural_speed(_def, &"strafe")
+	# Sidesteps and walk_back (the walk reversed) stride like the walk: natural_speeds.<id>.<clip> when
+	# baked, else the walk's natural speed (ASSUMPTION for the strafes).
+	var nat := CreatureClips.natural_speed(_def, clip)
 	if nat <= 0.0:
 		nat = float(_natural.get(&"walk", 0.0))
-	_scale[side] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
-	_travel(side)
+	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_travel(clip)
 
 ## Global retime on top of every state's own cadence. Each caller owns a named factor (the limp is
 ## &"fracture", a hit-stop its own key) and the tree plays at their product, so one never erases another.
@@ -148,6 +169,15 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		var tell: Variant = ((Data.anim_events.get("clips", {}) as Dictionary).get(str(state), {}) as Dictionary).get("tell_fracs")
 		_os_windup_frac = float((tell as Array)[0]) if state in ATTACKS and tell is Array and not (tell as Array).is_empty() else -1.0
 		hit_index = 0
+
+## End a non-attack one-shot now (a brain that timed the move itself, e.g. a leap that has landed).
+func release_oneshot() -> void:
+	if not _busy or timed_attack or current_clip in ATTACKS:
+		return
+	_os_state = &""
+	_busy = false
+	_forced = false
+	play_idle()
 
 func release_knockdown() -> void:
 	_hold_knockdown = false

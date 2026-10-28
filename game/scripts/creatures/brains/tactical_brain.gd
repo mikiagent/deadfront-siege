@@ -17,7 +17,7 @@ signal tactic_hit(clip: StringName, index: int, mult: float)
 ## The attack-selection loop picked this move at distance d (it was the strongest one available).
 signal attack_chosen(move: StringName, d: float)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold"]
 
 var tac: Dictionary = {}
 var _cd: Dictionary = {}  ## move -> seconds until it may start again
@@ -26,31 +26,30 @@ var _circle_sign := 1.0
 var _lunge_into: StringName = &"attack_primary"
 var _feint_out := false
 var _pounce_phase: StringName = &""  ## windup, leap, recover
-var _pounce_from := Vector3.ZERO
-var _pounce_to := Vector3.ZERO
-var _pounce_t := 0.0
 var _wide_left := 0.0
 var _retreat_cd := 0.0
 var _telegraph: Telegraph
 var last_bite_s := -999.0
 var _circle_t := 0.0
-## hop: the backward leap every back-off uses (owner: "it shouldnt walk back, it should jump back").
-var _hop_from := Vector3.ZERO
-var _hop_to := Vector3.ZERO
-var _hop_t := 0.0
+## Leaps (owner: "it shouldnt walk back, it should jump back"): one in flight at a time.
 var _hop_then: StringName = &"circle"
-var _hop_timed := false
-var _leap_t := -1.0  ## leap-in progress (s); < 0 when the lunge runs instead
-var _leap_from := Vector3.ZERO
-var _leap_to := Vector3.ZERO
+var _just_disengaged := false  ## the last move was a back-leap: the next back-off waits for an attack or a hold
+var _leaping := false  ## the lunge is a leap-in
+var _j_from := Vector3.ZERO
+var _j_to := Vector3.ZERO
+var _j_t := 0.0
+var _j_len := 0.55
+var _j_air := Vector2(0.0, 1.0)  ## airborne window as fractions of _j_len
+var _j_height := 0.7
+var _j_timed := false
+var _pounce_hit_u := 1.0
+var _pounce_hit_done := false
 ## AMBUSH (tactics.ambush): lurk beside tree cover, strike first with a long pounce out of it.
 var lurking := false
 var _cover := Vector3.ZERO
 var _cover_cd := 0.0
 var _opening := false
 var _open_left := 0.0  ## seconds the ambush keeps waiting to open with the pounce
-var _hop_air := Vector2(0.0, 1.0)  ## the leap's airborne window as fractions of _hop_len
-var _hop_len := 0.55
 
 static func tactics_for(archetype: StringName) -> Dictionary:
 	var row: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(archetype), {})
@@ -140,6 +139,7 @@ func _think(delta: float) -> void:
 		&"pounce": _pounce(delta)
 		&"retreat": _retreat_tick(delta)
 		&"hop": _hop(delta)
+		&"hold": _hold(delta)
 
 ## AMBUSH: roam is lurking at cover (crouched by a tree near home), not wandering.
 func _roam(delta: float) -> void:
@@ -247,9 +247,6 @@ func _circle(delta: float) -> void:
 	var in_jaws := d <= reach_to(attack_target) and _circle_t >= _t("contact_after_s", 1.0)
 	if (at_ring or in_jaws) and _strike(d):
 		return
-	if not at_ring and not creature.anim._busy and creature.stagger_left <= 0.0:
-		_start_hop()  # inside the ring with nothing to throw: jump back out to it, never reverse-walk
-		return
 	_left -= delta
 	if _left <= 0.0:
 		_move_beat()
@@ -311,14 +308,57 @@ func _strike(d: float) -> bool:
 		return true
 	return false
 
-## Nothing ready: strafe on (sometimes the other way) or feint, then look again.
+## Nothing ready: one weighted pick among hold (stand its ground facing the prey, alert pose), strafe,
+## feint and hop back (owner: "it should be holding its ground sometimes too"). A back-leap needs its
+## own cooldown, a free slot (never two disengages without an attack or a hold between) and room
+## under max_retreat_m. Holding is twice as likely while the prey is not advancing. Natures scale
+## hold (Brave, Aggressive) and back-off (Timid) weights.
 func _move_beat() -> void:
 	_left = randf_range(_t("circle_min_s", 0.8), _t("circle_max_s", 1.6))
-	if randf() < _t("flip_chance", 0.3):
-		_circle_sign = -_circle_sign
-	var feint := _t("feint_chance", 0.25) * creature.nature_knob("tactic_feint_mult", 1.0)
-	if creature.can_sprint() and _flat_dist(attack_target) >= ring_m() - 1.0 and randf() < feint:
+	var d := _flat_dist(attack_target)
+	var w_hold := _t("w_hold", 0.35) * creature.nature_knob("tactic_hold_mult", 1.0) * (1.0 if _prey_advancing() else 2.0)
+	var w_strafe := _t("w_strafe", 0.35)
+	var w_feint := _t("w_feint", 0.15) * creature.nature_knob("tactic_feint_mult", 1.0) if creature.can_sprint() and d >= ring_m() - 1.0 else 0.0
+	var w_hop := _t("w_hop", 0.15) * creature.nature_knob("tactic_backoff_mult", 1.0) if can_disengage() and d < ring_m() - 0.5 else 0.0
+	var r := randf() * (w_hold + w_strafe + w_feint + w_hop)
+	if r < w_hold:
+		_start_hold()
+	elif r < w_hold + w_strafe:
+		if randf() < _t("flip_chance", 0.3):
+			_circle_sign = -_circle_sign
+	elif r < w_hold + w_strafe + w_feint:
 		_start_feint()
+	else:
+		_start_hop()
+
+## A back-leap is allowed: off its cooldown and not straight after another back-leap.
+func can_disengage() -> bool:
+	return _ready_to(&"hop") and not _just_disengaged
+
+## The prey closing in on it (> 0.5 m/s towards it).
+func _prey_advancing() -> bool:
+	var v: Vector3 = attack_target.velocity if attack_target is CharacterBody3D else Vector3.ZERO
+	return Vector3(v.x, 0.0, v.z).dot(_to_me()) > 0.5
+
+func _start_hold() -> void:
+	_set_state(&"hold")
+	_just_disengaged = false
+	_left = randf_range(_t("hold_min_s", 0.8), _t("hold_max_s", 1.6))
+	creature.stop_move()
+	if creature.anim.has_state(&"alert") and not creature.anim._busy:
+		creature.anim.play_clip(&"alert")  # the threat pose (wings flare where the rig has them)
+	tactic.emit(&"hold")
+
+## Standing its ground: face the prey; strike the moment something is ready, else beat again.
+func _hold(delta: float) -> void:
+	creature.stop_move()
+	creature.face_towards(attack_target.global_position, delta)
+	var d := _flat_dist(attack_target)
+	if (d >= ring_m() - 1.0 or d <= reach_to(attack_target)) and _strike(d):
+		return
+	_left -= delta
+	if _left <= 0.0:
+		_enter_circle()
 
 func _start_feint() -> void:
 	_set_state(&"feint")
@@ -335,7 +375,7 @@ func _feint(delta: float) -> void:
 		speed_override = creature.move_speed_mps()
 		creature.move_to(attack_target.global_position + _to_me() * maxf(reach_to(attack_target) + 0.6, ring_m() * 0.5))
 	else:
-		_start_hop()  # the step in is answered by a jump back out
+		_back_off()  # the step in is answered by a jump back out (or it stands there, daring)
 		return
 	if _left <= 0.0:
 		_enter_circle()
@@ -344,32 +384,24 @@ func _start_lunge(into: StringName) -> void:
 	_set_state(&"lunge")
 	_lunge_into = into
 	_left = _t("lunge_max_s", 1.2)
-	_leap_t = -1.0
-	if _t("leap_in_s", 0.0) > 0.0:
+	_leaping = _t("leap_in_max_m", 0.0) > 0.0
+	if _leaping:
 		# Leap-in (ambushers): one long forward arc to biting distance instead of running in.
-		_leap_t = 0.0
-		_leap_from = creature.global_position
-		var dir := -_to_me()
 		var gap := maxf(0.0, _flat_dist(attack_target) - (reach_to(attack_target) - 0.4))
-		_leap_to = _leap_from + dir * minf(gap, _t("leap_in_max_m", 7.0))
 		creature.stop_move()
-		creature.anim.play_timed_attack(&"attack_heavy", _t("leap_in_s", 0.45))
+		_jump_begin(creature.global_position - _to_me() * minf(gap, _t("leap_in_max_m", 6.0)), &"pounce", _t("leap_in_s", 0.45), 0.0)
 	tactic.emit(&"lunge")
-	_log("[ai] %s %s -> %s" % [creature.def.id, "leap-in" if _leap_t >= 0.0 else "lunge", into])
+	_log("[ai] %s %s -> %s" % [creature.def.id, "leap-in" if _leaping else "lunge", into])
 
 ## Short fast dash (or the leap-in arc) at the prey, then the bite or the combo at contact.
 func _lunge(delta: float) -> void:
 	_left -= delta
-	if _leap_t >= 0.0:
+	if _leaping:
 		creature.face_towards(attack_target.global_position, delta)
-		_leap_t += delta
-		var leap_s := _t("leap_in_s", 0.45)
-		_arc_step(_leap_from, _leap_to, clampf(_leap_t / leap_s, 0.0, 1.0), _t("leap_in_height_m", 0.9))
-		if _leap_t < leap_s:
+		if not _jump_tick(delta):
 			return
-		creature.view.position.y = 0.0
-		creature.anim.end_timed_attack()
-		_leap_t = -1.0
+		_jump_end()
+		_leaping = false
 		_left = 0.0  # landed: strike now if in reach, else back out
 	else:
 		speed_override = creature.move_speed_mps() * _t("lunge_speed_mult", 1.0)
@@ -379,13 +411,14 @@ func _lunge(delta: float) -> void:
 			if creature.try_special(&"bite_combo"):
 				_combo()
 			else:
-				_start_hop()
+				_back_off()
 		else:
 			_bite()
 	elif _left <= 0.0:
-		_start_hop() if _flat_dist(attack_target) < ring_m() - 1.0 else _enter_circle()
+		_back_off() if _flat_dist(attack_target) < ring_m() - 1.0 else _enter_circle()
 
 func _bite() -> void:
+	_just_disengaged = false
 	creature.stop_move()
 	creature.anim.play_clip(&"attack_primary")
 	last_bite_s = _now_s()
@@ -395,6 +428,7 @@ func _bite() -> void:
 	tactic.emit(&"bite")
 
 func _combo() -> void:
+	_just_disengaged = false
 	creature.stop_move()
 	creature.anim.play_clip(&"bite_combo")
 	_start_cd(&"combo")
@@ -408,31 +442,40 @@ func _mark_pack() -> void:
 	if _is_pack_member():
 		_pack_cooldown_until[creature.pack_id] = _now_s() + _t("pack_gap_s", 0.6)
 
-## Standing in a bite or the combo: face the prey, back to the ring when the clip ends.
+## Standing in a bite or the combo: face the prey, leap back out when the clip ends.
 func _swing(delta: float) -> void:
 	creature.stop_move()
 	creature.face_towards(attack_target.global_position, delta)
 	if not creature.anim._busy:
-		_start_hop()
+		_back_off()
+
+## The ONE back-off after an attack: a leap back when allowed, else it holds its ground.
+func _back_off() -> void:
+	if can_disengage():
+		_start_hop(&"circle", true)
+	else:
+		_start_hold()
 
 func _start_pounce() -> void:
 	if not creature.try_special(&"pounce"):
 		_enter_circle(0.3)
 		return
 	_set_state(&"pounce")
+	_just_disengaged = false
 	_pounce_phase = &"windup"
 	_left = _t("pounce_telegraph_s", 0.8)
 	creature.stop_move()
-	# The heavy clip is retimed so its strike frame lands with the leap's hit time.
-	creature.anim.play_timed_attack(&"attack_heavy", _left + _t("pounce_leap_s", 0.4))
-	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("pounce_radius_m", 1.6) + _size_excess(attack_target), _left + _t("pounce_leap_s", 0.4))
+	# Windup pose: the heavy clip retimed to reach its strike frame as the windup ends.
+	creature.anim.play_timed_attack(&"attack_heavy", _left)
+	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("pounce_radius_m", 1.6) + _size_excess(attack_target), _left + 1.0)
 	_start_cd(&"pounce")
 	_mark_pack()
 	tactic.emit(&"pounce")
 	_log("[ai] %s pounce windup" % creature.def.id)
 
-## The pounce, every physics frame. Windup: crouched, turning to the prey, ring on the prey. Leap: a
-## fixed-time arc to where the prey stood at take-off. Hit: exactly at the leap's end (a roll avoids it).
+## The pounce, every physics frame. Windup: turning to the prey with the ring on it. Leap: the pounce
+## clip (or a timed arc) to where the prey stood at take-off. Hit: at the pounce clip's hit_frac
+## (anim_events), else the arc's end, a fixed time a roll's window can avoid. Then a short recovery.
 func _pounce(delta: float) -> void:
 	match _pounce_phase:
 		&"windup":
@@ -442,30 +485,33 @@ func _pounce(delta: float) -> void:
 			_left -= delta
 			if _left <= 0.0:
 				_pounce_phase = &"leap"
-				_pounce_t = 0.0
-				_pounce_from = creature.global_position
+				creature.anim.end_timed_attack()
 				var dir := -_to_me()
 				var land := attack_target.global_position - dir * (creature.body_radius() + 0.2)
 				var far := maxf(_t("pounce_max_m", 8.0), _t("ambush_pounce_max_m", 0.0)) + _size_excess(attack_target)
-				if _pounce_from.distance_to(land) > far:
-					land = _pounce_from + (land - _pounce_from).normalized() * far
-				_pounce_to = land
+				var from := creature.global_position
+				if from.distance_to(land) > far:
+					land = from + (land - from).normalized() * far
+				_jump_begin(land, &"pounce", _t("pounce_leap_s", 0.4), 0.0)
+				_pounce_hit_u = _j_air.y if _j_timed else CreatureClips._hit_frac(&"pounce")
+				_pounce_hit_done = false
+				if is_instance_valid(_telegraph):
+					_telegraph._life = _j_len * _pounce_hit_u + Telegraph.LINGER
 				tactic.emit(&"leap")
 		&"leap":
-			var leap_s := _t("pounce_leap_s", 0.4)
-			_pounce_t += delta
-			var f := clampf(_pounce_t / leap_s, 0.0, 1.0)
-			_arc_step(_pounce_from, _pounce_to, f, _t("pounce_height_m", 1.0))
-			if f >= 1.0:
-				creature.view.position.y = 0.0
+			var done := _jump_tick(delta)
+			if not _pounce_hit_done and _j_t >= _j_len * _pounce_hit_u:
+				_pounce_hit_done = true
 				_pounce_land()
+			if done:
+				_jump_end()
 				_pounce_phase = &"recover"
 				_left = _t("pounce_recover_s", 0.7)
 		&"recover":
 			_left -= delta
 			if _left <= 0.0:
 				_end_pounce()
-				_start_hop()
+				_back_off()
 
 func _pounce_land() -> void:
 	var tgt := attack_target
@@ -480,6 +526,47 @@ func _pounce_land() -> void:
 	if CreatureAttack.apply_for(creature, &"attack_heavy", tgt, mult) and tgt is Player:
 		(tgt as Player).receive_creature_hit(creature, &"attack_heavy")
 
+## One leap (pounce, leap-in, hop_back, leap_back) from here to `to`. With the clip the body moves only
+## inside its airborne fracs (anim_events <clip>.airborne); without it the heavy clip is retimed over
+## fallback_s and land_s follows. The arc height scales with the distance (leap_height_per_m).
+func _jump_begin(to: Vector3, clip: StringName, fallback_s: float, land_s: float) -> void:
+	_j_from = creature.global_position
+	_j_to = to
+	_j_t = 0.0
+	_j_height = _t("leap_height_per_m", 0.2) * Vector2(to.x - _j_from.x, to.z - _j_from.z).length()
+	_j_timed = not creature.anim.has_state(clip)
+	if _j_timed:
+		creature.anim.play_timed_attack(&"attack_heavy", fallback_s)
+		_j_len = fallback_s + land_s
+		_j_air = Vector2(0.0, fallback_s / maxf(0.01, _j_len))
+		return
+	creature.anim.play_clip(clip)
+	_j_len = creature.anim.player.get_animation(clip).length / maxf(0.01, creature.anim.cadence(clip))
+	_j_air = Vector2(0.2, 0.65)
+	var air: Variant = ((Data.anim_events.get("clips", {}) as Dictionary).get(str(clip), {}) as Dictionary).get("airborne")
+	if air is Array and (air as Array).size() == 2:
+		_j_air = Vector2(float(air[0]), float(air[1]))
+
+## One frame of the leap; true once the clip (or the timed landing) is over.
+func _jump_tick(delta: float) -> bool:
+	_j_t += delta
+	var u := _j_t / maxf(0.01, _j_len)
+	if u <= _j_air.y:
+		_arc_step(_j_from, _j_to, clampf((u - _j_air.x) / maxf(0.01, _j_air.y - _j_air.x), 0.0, 1.0), _j_height)
+	else:
+		_arc_step(_j_from, _j_to, 1.0, _j_height)
+		creature.view.position.y = 0.0
+	return _j_t >= _j_len
+
+func _jump_end() -> void:
+	if creature and creature.view:
+		creature.view.position.y = 0.0
+	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back"]:
+		creature.anim.release_oneshot()  # landed: the clip's last frame must not hold the next strike
+	if _j_timed:
+		_j_timed = false
+		creature.anim.end_timed_attack()
+
 ## One frame of a leap: along from -> to at fraction f, the body (view) lifted on a sine arc.
 func _arc_step(from: Vector3, to: Vector3, f: float, height: float) -> void:
 	var step := from.lerp(to, f) - creature.global_position
@@ -487,60 +574,36 @@ func _arc_step(from: Vector3, to: Vector3, f: float, height: float) -> void:
 	creature.move_and_collide(step)
 	creature.view.position.y = sin(PI * f) * height
 
-## Backward leap away from the prey, facing it: hop_m in hop_s on a hop_height_m arc, then a short
-## landing before `then` resumes. hop_back plays when the rig has it, else the pounce pose retimed.
-func _start_hop(then: StringName = &"circle", dist_mult: float = 1.0) -> void:
+## Jump back away from the prey, facing it (never a walk back): hop_back over hop_m, or with `long`
+## leap_back over leap_back_m (hop_back, then the timed arc, when the rig lacks it). Then `then` resumes.
+func _start_hop(then: StringName = &"circle", long: bool = false, dist_mult: float = 1.0) -> void:
 	creature.stop_move()
 	_set_state(&"hop")
 	_hop_then = then
-	_hop_t = 0.0
-	_hop_from = creature.global_position
-	_hop_to = _hop_from + _to_me() * _t("hop_m", 3.5) * dist_mult
-	_hop_timed = not creature.anim.has_state(&"hop_back")
-	_hop_air = Vector2(0.0, 1.0)
-	_hop_len = _t("hop_s", 0.4) + _t("hop_land_s", 0.15)
-	if _hop_timed:
-		creature.anim.play_timed_attack(&"attack_heavy", _t("hop_s", 0.4))
-		_hop_air = Vector2(0.0, _t("hop_s", 0.4) / _hop_len)
-	else:
-		# The authored leap: the body moves only between its airborne fracs (anim_events hop_back.airborne).
-		creature.anim.play_clip(&"hop_back")
-		_hop_len = creature.anim.player.get_animation(&"hop_back").length / maxf(0.01, creature.anim.cadence(&"hop_back"))
-		var air: Variant = ((Data.anim_events.get("clips", {}) as Dictionary).get("hop_back", {}) as Dictionary).get("airborne")
-		if air is Array and (air as Array).size() == 2:
-			_hop_air = Vector2(float(air[0]), float(air[1]))
+	var clip := &"leap_back" if long and creature.anim.has_state(&"leap_back") else &"hop_back"
+	var dist := (_t("leap_back_m", 5.0) if long else _t("hop_m", 3.5)) * dist_mult
+	# Never past max_retreat_m from the prey: beyond it, it holds or re-engages instead.
+	dist = clampf(dist, 0.0, maxf(0.0, _t("max_retreat_m", 11.0) - 0.3 - _flat_dist(attack_target)))
+	_start_cd(&"hop")
+	_just_disengaged = true
+	_jump_begin(creature.global_position + _to_me() * dist, clip, _t("hop_s", 0.4), _t("hop_land_s", 0.15))
 	tactic.emit(&"hop")
 
 func _hop(delta: float) -> void:
 	creature.face_towards(attack_target.global_position, delta)
-	_hop_t += delta
-	var u := _hop_t / maxf(0.01, _hop_len)
-	if u <= _hop_air.y:
-		_arc_step(_hop_from, _hop_to, clampf((u - _hop_air.x) / maxf(0.01, _hop_air.y - _hop_air.x), 0.0, 1.0), _t("hop_height_m", 0.7))
+	if not _jump_tick(delta):
 		return
-	creature.view.position.y = 0.0
-	if _hop_timed:
-		_hop_timed = false
-		creature.anim.end_timed_attack()
-	if _hop_t >= _hop_len:
-		if _hop_then == &"retreat":
-			_set_state(&"retreat")
-		else:
-			_enter_circle()
-
-func _end_hop() -> void:
-	if creature and creature.view:
-		creature.view.position.y = 0.0
-	if _hop_timed:
-		_hop_timed = false
-		creature.anim.end_timed_attack()
+	_jump_end()
+	if _hop_then == &"retreat":
+		_set_state(&"retreat")
+	else:
+		_enter_circle()
 
 func _end_pounce() -> void:
 	if _pounce_phase == &"":
 		return
 	_pounce_phase = &""
-	if creature and creature.view:
-		creature.view.position.y = 0.0
+	_jump_end()
 	creature.anim.end_timed_attack()
 	if is_instance_valid(_telegraph):
 		_telegraph.queue_free()
@@ -552,14 +615,15 @@ func _start_retreat(seconds: float) -> void:
 	_retreat_cd = _t("retreat_cd", 10.0)
 	_wide_left = maxf(_wide_left, _t("wide_circle_s", 4.0))
 	tactic.emit(&"retreat")
-	_start_hop(&"retreat", _t("retreat_hop_mult", 1.4))
+	_just_disengaged = false  # being hurt earns a back-leap
+	_start_hop(&"retreat", true, _t("retreat_hop_mult", 1.2))
 
 ## Hurt: jump back (again while still inside the wide ring), then strafe the wide ring facing the prey
 ## until the retreat time is up; the wide ring holds for wide_circle_s before it re-engages.
 func _retreat_tick(delta: float) -> void:
 	_wide_left = maxf(_wide_left, _t("wide_circle_s", 4.0))
-	if _flat_dist(attack_target) < ring_m() - 1.0:
-		_start_hop(&"retreat", _t("retreat_hop_mult", 1.4))
+	if _flat_dist(attack_target) < ring_m() - 1.0 and can_disengage():
+		_start_hop(&"retreat", true, _t("retreat_hop_mult", 1.2))
 		return
 	strafe_face = attack_target
 	speed_override = creature.walk_mps(creature.move_speed_mps()) * _t("retreat_speed_frac", 1.2)
@@ -572,8 +636,9 @@ func _retreat_tick(delta: float) -> void:
 func _on_state_changed(prev: StringName, _next: StringName) -> void:
 	if prev == &"pounce":
 		_end_pounce()
-	elif prev == &"hop":
-		_end_hop()
+	elif prev == &"hop" or prev == &"lunge":
+		_jump_end()
+		_leaping = false
 
 func _exit_tree() -> void:
 	if is_instance_valid(_telegraph):

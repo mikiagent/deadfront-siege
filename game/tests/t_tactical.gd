@@ -25,6 +25,10 @@ var _chosen: Array = []  ## [sim_t, move]
 var _priority_breaks: Array[String] = []
 var _cool_frames := 0
 var _cool_moving := 0
+var _cool_hold := 0
+var _max_d := 0.0
+var _disengage_breaks: Array[String] = []
+var _since_disengage := true  ## an attack or a hold happened since the last back-leap
 var _hop_start := -1.0
 var _hop_d0 := 0.0
 var _hop_best := 0.0  ## most distance gained from the prey within 0.5 s of a hop starting
@@ -107,7 +111,12 @@ func _test_fight() -> void:
 	_expect(dino.anim.has_state(&"bite_combo"), "deinonychus loads the bite_combo clip")
 	b.tactic.connect(func(k: StringName) -> void:
 		_tactics.append([_sim_t, k])
+		if k in [&"bite", &"combo", &"pounce", &"lunge", &"hold"]:
+			_since_disengage = true
 		if k == &"hop":
+			if not _since_disengage:
+				_disengage_breaks.append("%.1fs" % _sim_t)
+			_since_disengage = false
 			_hops += 1
 			_hop_start = _sim_t
 			_hop_d0 = Vector2(dino.global_position.x - player.global_position.x, dino.global_position.z - player.global_position.z).length()
@@ -153,12 +162,16 @@ func _test_fight() -> void:
 		if _hop_start >= 0.0 and _sim_t - _hop_start <= 0.5:
 			_hop_best = maxf(_hop_best, Vector2(v.x, v.z).length() - _hop_d0)
 			_hop_rise = maxf(_hop_rise, dino.view.position.y)
-		if b.state == &"circle" or b.state == &"feint" or b.state == &"hop":
+		if b.state != &"approach" and b.state != &"alert":
+			_max_d = maxf(_max_d, Vector2(v.x, v.z).length())
+		if b.state in [&"circle", &"feint", &"hop", &"hold"]:
 			var all_cooling := true
 			for m in b.attack_priority():
 				all_cooling = all_cooling and b.cooldown_left(StringName(m)) > 0.0
 			if all_cooling:
 				_cool_frames += 1
+				if b.state == &"hold":
+					_cool_hold += 1
 				if Vector2(dino.global_position.x - prev_pos.x, dino.global_position.z - prev_pos.z).length() > 0.3 * dt:
 					_cool_moving += 1
 	Engine.time_scale = 1.0
@@ -185,8 +198,13 @@ func _test_fight() -> void:
 	print("[t_tactical] attack order %s" % ", ".join(order))
 	_expect(cd_breaks.is_empty(), "no attack inside its own cooldown %s" % str(cd_breaks))
 	_expect(_hops >= 2 and _hop_best >= 2.5 and _hop_rise >= 0.3, "backs off by jumping: %d hops, best +%.2fm away within 0.5s, body rose %.2fm" % [_hops, _hop_best, _hop_rise])
-	var moving_frac := float(_cool_moving) / maxf(1.0, float(_cool_frames))
-	_expect(_cool_frames > 30 and moving_frac >= 0.6, "moves while every attack cools down (%.0f%% of %d frames)" % [moving_frac * 100.0, _cool_frames])
+	_expect(_disengage_breaks.is_empty(), "never two back-leaps without an attack or a hold between %s" % str(_disengage_breaks))
+	var hold_frac := float(_cool_hold) / maxf(1.0, float(_cool_frames))
+	_expect(hold_frac >= 0.15, "holds its ground %.0f%% of the cooling time (>= 15%%)" % (hold_frac * 100.0))
+	var max_r: float = float(b.tac.get("max_retreat_m", 11.0))
+	_expect(_max_d <= max_r + 0.3, "never farther than max_retreat_m %.1f from the target (max %.2f)" % [max_r, _max_d])
+	var moving_frac := float(_cool_moving + _cool_hold) / maxf(1.0, float(_cool_frames))
+	_expect(_cool_frames > 30 and moving_frac >= 0.6, "moves or holds deliberately while every attack cools down (%.0f%% of %d frames)" % [moving_frac * 100.0, _cool_frames])
 	_expect(min_gap >= bite_cd - 0.05, "never bites twice inside its %.1fs bite cooldown (min gap %.2fs)" % [bite_cd, min_gap])
 	_expect(circle_ang > PI * 0.5, "circles the target (%.2f rad of travel around it while circling)" % circle_ang)
 	_expect(int(kinds.get(&"lunge", 0)) >= 1, "lunges (%d)" % int(kinds.get(&"lunge", 0)))

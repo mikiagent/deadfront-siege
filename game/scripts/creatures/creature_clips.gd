@@ -6,12 +6,12 @@ const CONTRACT: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
 	&"hit_react", &"knockdown", &"death", &"alert", &"feed",
 ]
-const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"strafe_left", &"strafe_right"]
+const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"strafe_left", &"strafe_right", &"walk_back"]
 ## Authored on some species only; loaded when the GLB exists, CreatureAnim falls back to idle where
 ## missing. bite_combo: deinonychus chomp, Chomp, CHOMP (three hit fracs in anim_events.json).
-## hop_back: the backward leap (airborne fracs in anim_events); strafe_left/right: sidestep loops that keep
-## the body facing the prey (TacticalBrain circling).
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"strafe_left", &"strafe_right"]
+## hop_back / leap_back: short and long backward leaps, pounce: the forward leap (airborne fracs in
+## anim_events); strafe_left/right and walk_back: direction-aware locomotion (CreatureAnim.set_move_velocity).
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"strafe_left", &"strafe_right", &"walk_back"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120
