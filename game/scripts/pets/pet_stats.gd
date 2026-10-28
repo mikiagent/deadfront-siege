@@ -32,7 +32,8 @@ static func base(def: CreatureDef, stat: StringName) -> float:
 static func value(def: CreatureDef, genetics: CreatureGenetics, level: int, stat: StringName) -> float:
 	var lv := clampi(level, 1, MAX_LEVEL)
 	var grow := float(LEVEL_GROWTH.get(stat, 0.0)) * float(lv - 1) + genetics.growth(stat)
-	return base(def, stat) * genetics.iv_multiplier(stat) * (1.0 + grow)
+	# GENETICS: body size moves HP, attack and speed a little (CreatureGenetics.size_factor).
+	return base(def, stat) * genetics.iv_multiplier(stat) * (1.0 + grow) * genetics.size_factor(stat)
 
 ## {stat: value} for every CreatureGenetics stat.
 static func compute(def: CreatureDef, genetics: CreatureGenetics, level: int) -> Dictionary:

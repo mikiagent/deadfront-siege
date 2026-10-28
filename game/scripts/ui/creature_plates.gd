@@ -145,10 +145,10 @@ static func creature_box(cam: Camera3D, c: Creature) -> Rect2:
 	var fwd := Vector3(xf.basis.z.x, 0.0, xf.basis.z.z)  # yaw only: a fading creature's basis collapses
 	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
 	var side := fwd.cross(Vector3.UP) * c.body_radius()
-	fwd *= c.def.real_length_m * 0.5
+	fwd *= c.def.real_length_m * 0.5 * c.size_scale()
 	var out := Rect2()
 	for i in 8:
-		var p := xf.origin + (side if (i & 1) != 0 else -side) + (fwd if (i & 2) != 0 else -fwd) + Vector3(0.0, c.def.height_meters if (i & 4) != 0 else 0.0, 0.0)
+		var p := xf.origin + (side if (i & 1) != 0 else -side) + (fwd if (i & 2) != 0 else -fwd) + Vector3(0.0, c.def.height_meters * c.size_scale() if (i & 4) != 0 else 0.0, 0.0)
 		if cam.is_position_behind(p):
 			return Rect2()
 		var s := cam.unproject_position(p)
@@ -309,7 +309,7 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	root.modulate.a = alpha
 	var scale := _distance_scale(dist)
 	root.scale = Vector2(scale, scale)
-	var top := c.get_global_transform_interpolated().origin + Vector3(0.0, c.def.height_meters + 0.3, 0.0)
+	var top := c.get_global_transform_interpolated().origin + Vector3(0.0, c.def.height_meters * c.size_scale() + 0.3, 0.0)
 	var screen := cam.unproject_position(top)
 	root.position = screen + Vector2(-BASE_WIDTH * 0.5 * scale, -70.0 * scale)
 	var full := c.get_instance_id() == _emphasis_id

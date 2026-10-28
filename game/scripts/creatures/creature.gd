@@ -36,6 +36,8 @@ var hunger: float = 0.0
 var hunger_max: float = 0.0
 var level: int = 1
 var genetics: CreatureGenetics
+## ALPHAS: set by the Spawner before spawn() when this member won its group's alpha roll.
+var alpha_spawn: bool = false
 var spawn_tile: Vector2i = Vector2i.ZERO
 var spawn_home: Vector3 = Vector3.ZERO
 var last_aggro_s: float = -999.0
@@ -131,13 +133,19 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 		# keeps its colours when the caller reuses a seeded genetics roll for it.
 		# Only the colour roll is seeded from the spawn point (a reload keeps the look); the IVs stay
 		# random, as they always were.
-		genetics = CreatureGenetics.roll(null, def.coloration, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
+		# GENETICS: the body size draws from the same seeded stream, after the colours.
+		genetics = CreatureGenetics.for_species(def, null, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
+	if alpha_spawn and not genetics.alpha:
+		genetics.make_alpha()
 	# One colour profile per individual, kept on the genetics record so taming carries it over.
 	view.apply_coloration(genetics.coloration if genetics.coloration != null else CreatureColoration.neutral())
 	if pet_record:  # SADDLES: the equipped saddle shows on the back, ridden or not
 		_on_gear_changed()
 		if not pet_record.gear.changed.is_connected(_on_gear_changed):
 			pet_record.gear.changed.connect(_on_gear_changed)
+	# GENETICS: the model (and everything parented to it: eyes, mount socket, saddle) at the body size;
+	# an alpha's eyes glow brighter.
+	view.apply_genome(size_scale(), float(CreatureGenetics.alpha_rules().get("eye_glow_mult", 2.5)) if is_alpha() else 1.0)
 	level = _spawn_level(p_runtime, p_tier_offset)
 	health.setup(stat_value(&"health"))
 	health.healed.connect(_on_healed)
@@ -256,11 +264,21 @@ func nature_id() -> StringName:
 func nature_knob(knob: String, fallback: float = 1.0) -> float:
 	var base: Variant = CreatureNatures.knobs(&"").get(knob, fallback)
 	if nature_id() == &"":
-		return float(base) if not base is bool else (1.0 if bool(base) else 0.0)
+		return (float(base) if not base is bool else (1.0 if bool(base) else 0.0)) * _alpha_knob(knob)
 	var raw: Variant = CreatureNatures.knobs(nature_id()).get(knob, fallback)
 	if raw is bool:
 		return 1.0 if bool(raw) else 0.0
-	return float(raw)
+	return float(raw) * _alpha_knob(knob)
+
+## ALPHAS: the class profile's alpha modifier (ai.json archetypes.<a>.tactics.alpha) on a wild alpha's
+## tactic_* knobs: shorter cooldowns, heavier sequence weights. 1.0 for everything else.
+func _alpha_knob(knob: String) -> float:
+	if is_pet or not is_alpha() or not knob.begins_with("tactic_") or def == null:
+		return 1.0
+	var arch: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(def.archetype), {})
+	var tac: Variant = (arch as Dictionary).get("tactics", {}) if arch is Dictionary else {}
+	var mod: Variant = (tac as Dictionary).get("alpha", {}) if tac is Dictionary else {}
+	return float((mod as Dictionary).get(knob, 1.0)) if mod is Dictionary else 1.0
 
 ## True when this animal's nature sets a knob to true (auto_engage, protect_owner, fear_immune...).
 func nature_flag(knob: String) -> bool:
@@ -284,7 +302,38 @@ func stat_value(stat: StringName) -> float:
 		&"melee_attack", &"ranged_attack": base = def.attack * _level_factor()
 		&"accuracy": base = 100.0
 		&"speed": base = def.speed
-	return base * (genetics.multiplier(stat) if genetics else 1.0)
+	return base * (genetics.multiplier(stat) if genetics else 1.0) * alpha_stat_mult(stat)
+
+## GENETICS: body size (1.0 = species as authored). Hook for anything sized off the body: the
+## collision capsule, plates, and the ragdoll on its own branch (scale its bones' shapes by this).
+func size_scale() -> float:
+	return genetics.size if genetics != null else 1.0
+
+## ALPHAS: a rare, much bigger and stronger individual (CreatureGenetics.make_alpha).
+func is_alpha() -> bool:
+	return genetics != null and genetics.alpha
+
+## ALPHAS: ai.json alpha.stats for a wild alpha ("on steroids"); 1.0 otherwise. A tame keeps its
+## size and colours but not this (pets read PetStats).
+func alpha_stat_mult(stat: StringName) -> float:
+	if is_pet or not is_alpha():
+		return 1.0
+	var st: Variant = CreatureGenetics.alpha_rules().get("stats", {})
+	return float((st as Dictionary).get(str(stat), 1.0)) if st is Dictionary else 1.0
+
+## ALPHAS: the buff a living wild alpha gives its packmates within alpha.aura.radius_m (key: attack,
+## defense or speed); 1.0 outside the radius, for the alpha itself, for pets and for lone animals.
+func pack_aura_mult(key: String) -> float:
+	if is_pet or pack_id <= 0 or is_alpha() or not is_inside_tree():
+		return 1.0
+	var aura: Variant = CreatureGenetics.alpha_rules().get("aura", {})
+	if not aura is Dictionary:
+		return 1.0
+	var r := float((aura as Dictionary).get("radius_m", 12.0))
+	for m in PackIndex.members(self):
+		if m != self and m.is_alpha() and global_position.distance_squared_to(m.global_position) <= r * r:
+			return float((aura as Dictionary).get(key, 1.0))
+	return 1.0
 
 ## Wild animals above their species tier hit and soak harder (rules.json wild_level_stat_rate).
 ## ASSUMPTION: at or below the tier they keep the listed stats (starter island unchanged).
@@ -296,10 +345,10 @@ func _level_factor() -> float:
 
 ## Collision capsule radius; brains size reach, pack slots and wake distance from it.
 func body_radius() -> float:
-	return maxf(0.18, def.real_length_m * 0.12)
+	return maxf(0.18, def.real_length_m * 0.12 * size_scale())
 
 func defense_for(ranged: bool = false) -> float:
-	return stat_value(&"ranged_defense" if ranged else &"melee_defense")
+	return stat_value(&"ranged_defense" if ranged else &"melee_defense") * pack_aura_mult("defense")
 
 ## NATURES: the one place a nature's damage multiplier applies (Docile is less effective in combat).
 ## Every hit a creature lands reads this, survivors, pets and structures alike; the stat itself is
@@ -308,7 +357,7 @@ func defense_for(ranged: bool = false) -> float:
 func attack_for(ranged: bool = false) -> float:
 	if is_pet and pet_record:
 		return pet_record.stat_value(&"ranged_attack" if ranged else &"melee_attack")
-	return stat_value(&"ranged_attack" if ranged else &"melee_attack") * nature_knob("damage_dealt_mult", 1.0)
+	return stat_value(&"ranged_attack" if ranged else &"melee_attack") * nature_knob("damage_dealt_mult", 1.0) * pack_aura_mult("attack")
 
 func accuracy_chance() -> float:
 	if is_pet and pet_record:
@@ -326,7 +375,7 @@ func dodge_chance() -> float:
 	return clampf(0.04 + (stat_value(&"speed") / maxf(1.0, def.speed) - 0.85) * 0.20, 0.04, 0.10)
 
 func move_speed_mps() -> float:
-	return stat_value(&"speed") / 100.0
+	return stat_value(&"speed") / 100.0 * pack_aura_mult("speed")
 
 # ---------------------------------------------------------------- energy
 
@@ -604,7 +653,7 @@ func _slide() -> void:
 func _size_collision() -> void:
 	var cap := CapsuleShape3D.new()
 	cap.radius = body_radius()
-	cap.height = maxf(cap.radius * 2.0 + 0.1, def.height_meters)
+	cap.height = maxf(cap.radius * 2.0 + 0.1, def.height_meters * size_scale())
 	shape.shape = cap
 	shape.position.y = cap.height * 0.5
 	agent.path_desired_distance = 0.45
@@ -786,7 +835,7 @@ func _update_label() -> void:
 		return  # the text was formatted every frame for every animal even while hidden
 	var st := brain.state if brain else brain_state
 	label.text = "%s\nLv %d %s / %s" % [def.id, level, st, anim.current_clip]
-	label.position.y = def.height_meters + 0.4
+	label.position.y = def.height_meters * size_scale() + 0.4
 
 func _on_windup(clip: StringName) -> void:
 	Telegraph.show_for(self, clip)
@@ -896,7 +945,10 @@ func _on_died(_source: Node) -> void:
 		var owner := PlayerRegistry.credit_for(_source)
 		if owner == null:
 			owner = PlayerRegistry.nearest(global_position)
-		var pets: Array[Creature] = owner.live_pets() if owner else []
+		# Typed fallback: an untyped [] literal raised here when no survivor is around (headless kills).
+		var pets: Array[Creature] = []
+		if owner:
+			pets = owner.live_pets()
 		for pet in pets:
 			if pet == null or pet.pet_record == null or pet.health.dead:
 				continue
@@ -905,6 +957,7 @@ func _on_died(_source: Node) -> void:
 				amount = 10.0 + float(def.tier) / 3.0
 			elif pet.global_position.distance_to(global_position) <= 15.0:
 				amount = 3.0 + float(def.tier) / 6.0  # assist: fighting alongside whoever landed the kill
+			amount *= kill_xp_mult()
 			if amount > 0.0:
 				var gained := pet.pet_record.add_xp(amount)
 				pet.level = pet.pet_record.level
@@ -918,11 +971,12 @@ func _on_died(_source: Node) -> void:
 				print("[pet] +%.0f xp -> lv %d" % [amount, pet.pet_record.level])
 	if not is_pet and (_source is Player or (_source is Creature and (_source as Creature).is_pet)):
 		var p := PlayerRegistry.credit_for(_source)
+		var xp := kill_xp(def.tier)
 		if p and p.skills:
-			p.skills.add_xp("melee", 4 + def.tier / 5)
+			p.skills.add_xp("melee", xp)
 		else:
-			World.add_xp(4 + def.tier / 5)
-		print("[combat] %s killed: +%d xp" % [def.id, 4 + def.tier / 5])
+			World.add_xp(xp)
+		print("[combat] %s killed: +%d xp" % [def.id, xp])
 	view.set_status_fx(0.35, Color(0.62, 0.62, 0.62), 0.0)
 	collision_layer = 0
 	collision_mask = 1
@@ -934,6 +988,14 @@ func _on_died(_source: Node) -> void:
 		corpse.setup(self)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
+
+## ALPHAS: an alpha's kill pays ai.json alpha.xp_mult times the XP (bonus XP); 1.0 otherwise.
+func kill_xp_mult() -> float:
+	return float(CreatureGenetics.alpha_rules().get("xp_mult", 4.0)) if is_alpha() else 1.0
+
+## The survivor's melee XP for this kill: 4 + tier / 5, times kill_xp_mult().
+func kill_xp(tier: int) -> int:
+	return int(round(float(4 + tier / 5) * kill_xp_mult()))
 
 ## Status landed: float its name over the plate and puff a burst in its colour. The lasting
 ## look (blood drip, venom tint, wobble) is _status_fx every frame.

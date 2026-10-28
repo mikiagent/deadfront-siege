@@ -508,6 +508,19 @@ func _show_detail(rec: PetRecord) -> void:
 	_stats.add_child(_stat_row("Attack", "%d" % int(rec.attack), str(g.tier_for(&"melee_attack")) if g else "", view))
 	_stats.add_child(_stat_row("Defense", "%d" % int(rec.defense), str(g.tier_for(&"melee_defense")) if g else "", view))
 	_stats.add_child(_stat_row("Speed", "%d" % int(rec.speed), str(g.tier_for(&"speed")) if g else "", view))
+	if g:
+		# GENETICS: body size and the individual's natural colour swatch.
+		var size_row := _stat_row("Size", CreatureView.size_text(g.size), "", view)
+		var sw := ColorRect.new()
+		sw.name = "Swatch"
+		sw.color = CreatureView.swatch_color(rec.species, rec.coloration())
+		sw.custom_minimum_size = Vector2(22, 22) if UiTokens.is_compact(view) else Vector2(30, 30)
+		sw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		sw.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var hb := size_row.get_child(0) as HBoxContainer
+		hb.add_child(sw)
+		hb.move_child(sw, 1)
+		_stats.add_child(size_row)
 	if rec.bag:
 		_stats.add_child(_stat_row("Carry", "%d slots" % rec.bag.slot_count, "", view))
 	_stats.add_child(SheetChrome.section_label("Needs", view))

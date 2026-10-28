@@ -146,7 +146,7 @@ func _process(delta: float) -> void:
 		ok = false
 	if ok:
 		var genes_raw: Variant = occupant.attributes.get("genetics", {})
-		var genes := CreatureGenetics.from_dict(genes_raw) if genes_raw is Dictionary else CreatureGenetics.roll(null, def.coloration)
+		var genes := CreatureGenetics.from_dict(genes_raw) if genes_raw is Dictionary else CreatureGenetics.for_species(def)
 		var rec := PetRecord.from_def(def, &"", StringName(str(occupant.attributes.get("variant", ""))), genes, int(occupant.attributes.get("level", 1)))
 		rec.origin = &"capture"
 		# NATURES: the animal keeps the nature it had in the field (from_dict derives one otherwise).

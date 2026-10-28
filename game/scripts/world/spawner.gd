@@ -24,6 +24,8 @@ func spawn_now() -> Array[Creature]:
 	var rt: Node = get_parent() if get_parent() and get_parent().has_method("ring_name") else null
 	var tier_offset := _row_tier_offset(rt)
 	var out: Array[Creature] = []
+	# ALPHAS: one roll per spawn group (ai.json alpha.chance_per_group); the winner is member 0.
+	var alpha_idx := CreatureGenetics.alpha_pick(count, null)
 	for i in count:
 		var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 		var ang := TAU * float(i) / float(maxi(1, count))
@@ -31,6 +33,7 @@ func spawn_now() -> Array[Creature]:
 		c.position = at
 		get_parent().add_child(c)
 		c.global_position = at
+		c.alpha_spawn = i == alpha_idx
 		c.spawn(def, variant, pack_id, rt, tier_offset)
 		out.append(c)
 	return out

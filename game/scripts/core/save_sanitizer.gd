@@ -48,7 +48,8 @@ const CAMP_ROW := {"rot": 0}
 ## coloration is the individual's colour profile: numbers, a bool and two short labels (morph, pattern).
 const GENETICS := {"ivs": {}, "evs": {}, "level_gains": {},
 	"coloration": {"hue_deg": 0.0, "sat": 0.0, "val": 0.0, "morph": "", "rare": false,
-		"pattern": "", "pattern_scale": 0.0, "pattern_strength": 0.0, "pattern_tone": 0.0, "pattern_seed": 0.0}}
+		"pattern": "", "pattern_scale": 0.0, "pattern_strength": 0.0, "pattern_tone": 0.0, "pattern_seed": 0.0},
+	"size": 0.0, "alpha": false} # GENETICS / ALPHAS: optional, an old row has neither
 ## PetRecord.from_dict and CreatureGenetics.from_dict cast these with float()/int(). tamed_at and
 ## wild_level are the overhaul tip's (W1-TAME), listed ahead of the merge.
 const PET_ROW := {

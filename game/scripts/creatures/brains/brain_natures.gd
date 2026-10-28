@@ -201,6 +201,9 @@ static func tag(nature: StringName) -> String:
 	return label(nature)
 
 static func _is_pack_alpha(c: Node) -> bool:
+	# ALPHAS: a genetic alpha is always "Alpha", led pack or not; else the pack leader is.
+	if c.has_method("is_alpha") and bool(c.call("is_alpha")):
+		return true
 	if not c.has_method("nature_id"):
 		return false
 	var brain: Variant = c.get("brain")
