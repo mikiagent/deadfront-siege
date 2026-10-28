@@ -23,6 +23,9 @@ func _run() -> void:
 	await _test_missing_profile()
 	await _test_injected_nan()
 	await _test_abort_lies_down()
+	await _test_abort_late_lies_down()
+	await _test_cancel_lies_down()
+	await _test_blow_directions()
 	await _test_corpse_after_ragdoll()
 	await _test_placeholder_body()
 	_test_seam()
@@ -184,6 +187,96 @@ func _test_abort_lies_down() -> void:
 		gap = float(cl["min"])
 	_expect(absf(gap) <= 0.06, "aborted ragdoll's lowest skin vertex on the ground (%+.3f m)" % gap)
 	await _free_all([c])
+
+## An abort deep into the simulation (a body over the speed guard, a joint that tore at 0.6 s) must
+## also end lying down: the death clip takes over where it would be and the conforming lays it out.
+func _test_abort_late_lies_down() -> void:
+	var c = _spawn(&"velociraptor", Vector3(-20.0, 0.05, -60.0))
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var hips: int = sk.find_bone("Hips")
+	await _wait(0.3)
+	var stand: float = (sk.global_transform * sk.get_bone_global_pose(hips).origin).y
+	R.inject_abort_at_s = 0.6
+	_kill(c)
+	await _wait_frozen([c])
+	R.inject_abort_at_s = -1.0
+	var rd = _ragdoll(c)
+	var why: String = str(rd.reason) if rd else "no ragdoll"
+	_expect(rd != null and rd.mode == &"fallback" and why.begins_with("injected abort at 0.6"), "abort at 0.6 s -> fallback (%s)" % why)
+	_expect(rd != null and rd.phase == &"frozen" and not c.anim.tree.active, "the aborted body stops on the death clip pose")
+	var lying: float = (sk.global_transform * sk.get_bone_global_pose(hips).origin).y
+	_expect(lying <= stand * 0.5, "late abort lies down (hips %.2f m, standing %.2f m)" % [lying, stand])
+	var gap := 1.0
+	if rd and rd.mesh_instance():
+		var skin: GDScript = load("res://scripts/creatures/ragdoll_skin.gd")
+		var cl: Dictionary = skin.clearance(c.get_world_3d().direct_space_state, skin.posed_points(rd.mesh_instance(), sk, 7), [rd.corpse.get_rid()] as Array[RID])
+		gap = float(cl["min"])
+	_expect(absf(gap) <= 0.06, "late abort's lowest skin vertex on the ground (%+.3f m)" % gap)
+	await _free_all([c])
+
+## A ragdoll cancelled mid-simulation (the presentation was abandoned) must not leave the body in
+## the half-simulated pose, standing: it lands on the death clip's last frame straight away.
+func _test_cancel_lies_down() -> void:
+	var c = _spawn(&"velociraptor", Vector3(-20.0, 0.05, 0.0))
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var hips: int = sk.find_bone("Hips")
+	await _wait(0.3)
+	var stand: float = (sk.global_transform * sk.get_bone_global_pose(hips).origin).y
+	_kill(c)
+	await _wait(0.9)  # mid-simulation
+	var rd = _ragdoll(c)
+	_expect(rd != null and rd.phase == &"simulate", "cancelled case is mid-simulation (%s)" % (rd.phase if rd else "no ragdoll"))
+	if rd:
+		rd.cancel()
+	await _wait(0.4)
+	if rd:
+		_expect(rd.phase == &"frozen" and rd.mode == &"fallback" and rd.reason == "cancelled", "cancel lands at once (%s/%s)" % [rd.phase, rd.reason])
+		_expect(c.find_children("*", "PhysicalBone3D", true, false).is_empty(), "cancel freed the physical bones")
+	_expect(not c.anim.tree.active, "a cancelled ragdoll does not leave the clip running")
+	var lying: float = (sk.global_transform * sk.get_bone_global_pose(hips).origin).y
+	_expect(lying <= stand * 0.5, "cancelled ragdoll lies down (hips %.2f m, standing %.2f m)" % [lying, stand])
+	var gap := 1.0
+	if rd and rd.mesh_instance():
+		var skin: GDScript = load("res://scripts/creatures/ragdoll_skin.gd")
+		var cl: Dictionary = skin.clearance(c.get_world_3d().direct_space_state, skin.posed_points(rd.mesh_instance(), sk, 7), [rd.corpse.get_rid()] as Array[RID])
+		gap = float(cl["min"])
+	_expect(absf(gap) <= 0.06, "cancelled ragdoll's lowest skin vertex on the ground (%+.3f m)" % gap)
+	await _free_all([c])
+
+## A blow from the front, the back, the left or the right topples the body AWAY from it: the
+## carcass' hips end displaced along the blow's push (the way the body was shoved), never back
+## toward the attacker.
+func _test_blow_directions() -> void:
+	# Facing -Z (the creature's forward), its right is +X.
+	var blows := {
+		"left": Vector3.RIGHT, "right": Vector3.LEFT,
+		"front": Vector3.BACK, "back": Vector3.FORWARD,
+	}
+	var at := Vector3(-90.0, 0.05, 0.0)
+	for name: String in blows:
+		var push: Vector3 = blows[name]  # where the body is shoved, in creature space
+		var src := Node3D.new()
+		root.add_child(src)
+		src.global_position = at - push * 3.0
+		var c = _spawn(&"velociraptor", at)
+		var sk: Skeleton3D = c.view.rig.skeleton
+		var hips: int = sk.find_bone("Hips")
+		await _wait(0.4)
+		var stand: Vector3 = sk.global_transform * sk.get_bone_global_pose(hips).origin
+		c.health.take_damage(c.health.hp + 1.0, src)
+		await _wait_frozen([c])
+		var rd = _ragdoll(c)
+		var rest: Vector3 = sk.global_transform * sk.get_bone_global_pose(hips).origin
+		var moved := Vector2(rest.x - stand.x, rest.z - stand.z)
+		var along := moved.dot(Vector2(push.x, push.z))
+		_expect(rd != null and rd.phase == &"frozen", "%s blow freezes (%s)" % [name, rd.phase if rd else "no ragdoll"])
+		var head: int = sk.find_bone("Neck")
+		var hr: Vector3 = sk.global_transform * sk.get_bone_global_pose(head).origin
+		print("[t_ragdoll] probe %s hips_along=%.2f head_along=%.2f" % [name, along, Vector2(hr.x - stand.x, hr.z - stand.z).dot(Vector2(push.x, push.z))])
+		_expect(along >= 0.2, "%s blow topples the body away from it (hips %.2f m along the shove, %.2f m across)" % [name, along, absf(moved.dot(Vector2(-push.z, push.x)))])
+		await _free_all([c])
+		src.queue_free()
+		await process_frame
 
 ## After a real ragdoll the corpse keeps its loot, its knife rule and its take path.
 func _test_corpse_after_ragdoll() -> void:

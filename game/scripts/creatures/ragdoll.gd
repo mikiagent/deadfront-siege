@@ -17,6 +17,9 @@ static var _simulating: Array[Ragdoll] = []
 ## Tests and the lab force the next starts into a fault: &"nan" poisons one body reading, &"abort"
 ## aborts on the first simulated frame (like a stretch guard tripping at hand-off).
 static var inject_fault: StringName = &""
+## Tests and the lab: abort the next simulation once it has run this long (seconds), like a joint
+## tearing halfway through the fall. <= 0 disables it.
+static var inject_abort_at_s: float = -1.0
 
 var creature: Creature
 var corpse: Corpse
@@ -125,6 +128,14 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_simulating.erase(self)
+	# Freed mid-simulation (the scene went away): never leave the skeleton in the ragdoll's pose
+	# with its AnimationTree switched off.
+	if rig:
+		rig.release()
+		rig.undo_reparent()
+		rig = null
+		if is_instance_valid(creature) and creature.anim and creature.anim.tree:
+			creature.anim.tree.active = true
 
 func _physics_process(delta: float) -> void:
 	since_death += delta
@@ -245,6 +256,9 @@ func _push() -> void:
 func _step(delta: float) -> void:
 	sim_time += delta
 	if _fault == &"abort":
+		_abort("injected abort at %.2f s" % sim_time)
+		return
+	if inject_abort_at_s > 0.0 and sim_time >= inject_abort_at_s:
 		_abort("injected abort at %.2f s" % sim_time)
 		return
 	var guard: Dictionary = _guards()
@@ -385,6 +399,20 @@ func _abort(why: String) -> void:
 	_resume_clip()
 	_fall_back(why)
 
+## Abandons the presentation mid-simulation (the caller no longer wants a ragdoll): the bodies go,
+## the death clip's pose comes back and the body is laid out at once instead of standing.
+func cancel() -> void:
+	if phase == &"frozen":
+		return
+	if rig:
+		rig.release()
+		rig.undo_reparent()
+		rig = null
+	_simulating.erase(self)
+	_resume_clip()
+	_fall_back("cancelled", true)
+	set_physics_process(false)
+
 ## Switching the tree back on restarts its state machine (it sat on Start and the body stayed in the
 ## ragdoll's standing pose), so put it back on the death clip where it would be by now.
 func _resume_clip() -> void:
@@ -406,7 +434,7 @@ func _seek_death(t: float) -> bool:
 	anim.tree.advance(t)
 	return true
 
-func _fall_back(why: String) -> void:
+func _fall_back(why: String, now: bool = false) -> void:
 	reason = why
 	mode = &"fallback"
 	phase = &"fallback"
@@ -419,6 +447,14 @@ func _fall_back(why: String) -> void:
 	_fall_from = creature.view.transform
 	_fall_to = _plan_fallback(clip_s)
 	print("[ragdoll] %s fallback: %s" % [creature.def.id if creature.def else &"?", why])
+	if now:
+		# A cancelled ragdoll may not wait for the clip to play out: put the clip on its last frame
+		# (the pose _plan_fallback read) and land the body there straight away.
+		_seek_death(clip_s)
+		_fallback_left = 0.0
+		_fallback_total = 0.0
+		creature.view.transform = _fall_to
+		_finish()
 
 ## Where a fallback's body ends, so the view can move there while the clip plays. The death clip is
 ## read ahead to its last frame (the tree runs to its end and back to now) and leaned onto the
