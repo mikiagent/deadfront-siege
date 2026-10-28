@@ -1,41 +1,24 @@
-# Task: FOODFX: eating and drinking have effects beyond a flat Energy number
-Owner: "add this to the docs and plan" (spec docs/design/durango-prompts/32_food_drink_consumption_effects.md).
-Research: docs/reference/durango0-wiki/06_FOOD_DRINK_TASTE_AND_BUFF_FORMULAS.md (digestion, taste grades,
-the buff keys) - reconstruction values stay tagged, never presented as original constants.
-Extend the systems that exist; do not build a second food, inventory or status architecture.
-Today: game/scripts/items/food.gd (Energy only: base x (1 + 0.35 x process_count) x level), eat_session.gd
-(3 s eat, move cancels the remaining restore, raw-food risk past half), a flat BUFFS table in
-game/data/food_buffs.json, and game/scripts/status/status_def.gd + combat/status_effects.gd for timed
-statuses. BAGS and CRAFTFEEL change the item/craft path - read them first and reuse their preview functions.
-Do not tune balance numbers; every value spec 32 does not give is `# ASSUMPTION` and configurable, and every
-example from the reconstruction keeps its provenance tag (spec 32 s15 and s13).
-Milestones:
-M1 game/tests/t_foodfx.gd: instant + digested Energy split at release ratio 0/0.4/1; the delayed share is never
-paid twice across a save/load or a second eat intent; an interrupted eat consumes nothing and grants nothing;
-eating twice quickly cannot consume one instance twice; a Maximum Fatigue buff expiring clamps current fatigue
-and never touches base stat values; a drink that lowers current fatigue and a drink that raises the maximum are
-different effects; same-container foods replace each other while Enhanced Ability and Enhanced Survival coexist;
-a plain Energy food leaves an unrelated buff alive; a profession ability buff changes a real ability check
-without granting category levels; raw bad food can apply Stomach Pain. Stage 1.
-M2 the effect bundle + evaluator in data-driven code (consumption channels, per-field transforms, caps and
-conflict validation as in spec 32 s8), delayed-digestion persistence, buff slots. Stage 1.
-M3 consumption transaction: validate -> timed action with interrupt -> atomic consume of the exact instance ->
-immediate effects -> schedule digestion -> buff slot replacement -> taste/temperature -> persist. Stage 2.
-M4 game/scripts/dev/foodfx_lab.gd + scene printing `[foodfx] RESULT instant_split_ok= digest_once_ok=
-interrupt_refunds= double_eat_blocked= buff_slots_ok= maxfatigue_expiry_ok= fatigue_vs_maxfatigue_ok=
-buff_coexist_ok= plain_food_keeps_buff= ability_check_moves= bad_food_status= taste_grade_ok=
-save_roundtrip= ui_min_px=` with shots of the food inspect panel and the two drinks. Stage 2.
-M5 report (before/after, the shots, every assumption and provenance) and the full verify.
-Data slice, not dozens of foods: water, tea, coffee, a raw berry, cooked meat, one profession-buff meal, one
-fatigue restorative. The UI is spec 32 s12: item level, exact traits, Energy immediate/over time, fullness,
-thirst, health, fatigue, max-stat effects, ability bonuses, negative effects, buff group, duration and
-consumption time, plus a line saying when this food would replace an active buff.
+# Task: EYETRAILS — motion trails behind the glowing eyes
+
+Owner (verbatim, 2026-10-28): "Also add trails to the glowing eyes". Glowing eyes (eyeshine at night) live in
+game/scripts/creatures/creature_eyes.gd, with per-species eye points in game/data/creatures/<id>.json "eyes" (do NOT
+change those points — the art thread owns them). Read creature_eyes.gd and t_eyeglow.gd first.
+
+Do: a short fading ribbon / afterimage behind each eye point, in that eye's colour, that shows when the head moves
+fast (lunge, quick turn, run) and is barely visible at idle; it fades out over ~0.15-0.3 s (`# ASSUMPTION`); only
+while the eyes glow (same visibility rule as the eyeshine itself). Cheap on the web Compatibility renderer: no
+particles-per-frame explosion — a small ring buffer of past eye positions drawn as one ImmediateMesh/ribbon per eye
+(or a GPU trail if Compatibility supports it), capped (e.g. <= 12 samples per eye), additive/unshaded, no shadows,
+and disabled beyond a camera distance. Data knobs (length, fade, min speed, max samples) in a small JSON (e.g. extend
+the existing eyeglow data file or add game/data/creatures/eyeglow.json).
+Milestones: M1 game/tests/t_eyetrails.gd ("[t_eyetrails] PASS"): trail sample count stays <= the cap; trail
+length/alpha is ~0 when the head is still and grows when the head moves fast; trail hidden when eyes do not glow;
+per-creature cost bounded (count draw calls/meshes for 20 creatures). Stage 1. M2 implementation. M3 docs/current
+note + report docs/orchestration/reports/dsc-eyetrails.md + full verify. Headless only.
 
 ## How to run Godot (exactly)
-- Headless test: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/gslot.sh perl -e 'alarm 400; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --script res://tests/<t>.gd > /tmp/foodfx_t.log 2>&1` (bash timeout_ms 460000).
-- Labs and screenshots need a window, never --headless (frame_post_draw never fires headless); bash timeout_ms 1020000, and the lab quits itself within 120 s:
-  `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --path game --resolution 1600x900 --rendering-method gl_compatibility -- --lab=foodfx_lab --shot-dir=/tmp/foodfx_shots > /tmp/foodfx_lab.log 2>&1`, and again with --resolution 844x390 (the phone, landscape).
-- After adding a class_name file or an asset: `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --import > /tmp/foodfx_import.log 2>&1`.
+- Headless test: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/gslot.sh perl -e 'alarm 400; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --script res://tests/<t>.gd > /tmp/eyetrails_t.log 2>&1` (bash timeout_ms 460000).
+- After adding a class_name file or an asset: `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --import > /tmp/eyetrails_import.log 2>&1`.
 - Parse-check every new or edited .gd before a long run: `... --headless --path game --check-only --script res://<path>`.
   `--check-only` ALWAYS prints "Identifier not found: Data / World / Game / TouchControls" (autoloads do not exist in that
   mode): ignore those lines; only `Parse Error` lines are real. Real tests run with `--script res://tests/<t>.gd`, where the
@@ -49,13 +32,13 @@ consumption time, plus a line saying when this food would replace an active buff
 - game/tests/t_save.gd prints 5 deliberate SCRIPT ERRORs; that is normal.
 - A lab log with `SHADER ERROR` or `Unknown character` means the shader did not compile and every card draws grey: the
   gate fails on it. GDScript `##` comments are not shader syntax; shaders use `//`.
-- Scratch files go in $TMPDIR/foodfx, never /tmp or docs/. Never `rm -r` a path that has tracked files.
+- Scratch files go in $TMPDIR/eyetrails, never /tmp or docs/. Never `rm -r` a path that has tracked files.
 - Key any per-item data by a stable id (file name, src_rect), never by list order.
 - Write big files in parts (write_file, then edit_file); never python `s.replace()` without checking it matched.
 ## Gates
-- Verify: `bash /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/verify_job.sh foodfx [1|2]` (no argument = the full gate). Read it and
-  `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/job_foodfx.conf` (TEST, LAB, LAB_ASSERT, RELATED, SCOPE) before you start.
-- The lab gets `--shot-dir=<dir>`: save every PNG there. It must print exactly one line `[foodfx] RESULT k=v k=v ...` with every
+- Verify: `bash /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/a2917b6d-2049-454d-9c63-314953df33d7/scratchpad/dsc/verify_job.sh eyetrails [1|2]` (no argument = the full gate). Read it and
+  `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/a2917b6d-2049-454d-9c63-314953df33d7/scratchpad/dsc/job_eyetrails.conf` (TEST, LAB, LAB_ASSERT, RELATED, SCOPE) before you start.
+- The lab gets `--shot-dir=<dir>`: save every PNG there. It must print exactly one line `[eyetrails] RESULT k=v k=v ...` with every
   key LAB_ASSERT reads, MEASURED from the live scene (never constants), then quit.
 - Milestones: write them to .dsc/PLAN.md and call milestone_done after each (milestones before MS_STAGE2 run stage 1, later
   ones stage 2). Anything visual: open the PNG, and write the path and a one-line verdict in .dsc/NOTES.md before ticking.
@@ -65,5 +48,17 @@ consumption time, plus a line saying when this food would replace an active buff
   merge branches, push or deploy. No new dependencies.
 - Do not tune balance numbers (HP, damage, XP, fatigue or energy rates). Owner: "game balancing like tuning hp and damage wont
   make sense until crafting building and skills is done and tuned". Mark every number the docs do not give `# ASSUMPTION`.
-- Report docs/orchestration/reports/dsc-foodfx.md: what shipped, before/after numbers, the shots you looked at, assumptions,
+- Report docs/orchestration/reports/dsc-eyetrails.md: what shipped, before/after numbers, the shots you looked at, assumptions,
   what the integrator needs.
+
+## Review round 2 (orchestrator looked at your shots, 2026-10-28)
+Your own shot pass (`--shot-dir`) shows: (1) flame_head.png — each trail is a flat, evenly segmented, hard-edged
+yellow BAR with visible quad steps, sitting ABOVE the black eye balls instead of streaming from the glowing eye
+dot; (2) flame_game.png (the real game camera) shows NO visible trail at all. Neither reads as a "flame in the wind".
+Fix: the trail must start exactly at each glowing eye dot; taper to a point (width falls to 0 along its length);
+soft edges (alpha falls off across the width too, e.g. a quad strip with per-vertex alpha 0 at both edges and a
+bright core); colour from the eye glow, brighter at the head end, fading out; flicker = noise on width/alpha/
+lateral offset per segment over time, not a uniform bar; enough samples or Catmull-Rom smoothing that no quad steps
+show; visible at the game camera distance at night (scale width with camera distance or a min screen width).
+Re-run your shot pass, LOOK at the PNGs and describe what you see in .dsc/NOTES.md honestly before ticking; keep
+t_eyetrails green.
