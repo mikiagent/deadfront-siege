@@ -410,9 +410,7 @@ func roll_dodge(clip: StringName, who: Creature, lands: bool) -> void:
 	if sim == null:
 		return
 	_roll_dodged_frame = Engine.get_physics_frames()
-	var hud := get_tree().get_first_node_in_group("hud")
-	if hud and hud.has_method("rolled_dodge"):
-		hud.rolled_dodge()
+	notice("Dodged")  # a small "Dodged" line on the HUD: the hit never touched her
 	if lands and skills:
 		skills.add_xp("defense", RollRules.defense_xp())
 	print("[combat] dodged by roll %s %s t=%.2f xp=%s" % [who.def.id if who and who.def else "?", clip, sim.roll_elapsed(), lands])
