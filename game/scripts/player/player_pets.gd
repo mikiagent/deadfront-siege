@@ -111,7 +111,9 @@ func summon(index: int = 0) -> Creature:
 	# Placed before it enters the tree: a body added at the parent's origin is simulated there for
 	# a step and gets launched out of whatever it overlaps (phys-spawn-01, ~90 m/s).
 	var host := p.get_parent()
-	var at := p.global_position + Vector3(1.5 + 1.2 * float(summoned.size()), 0, 0)
+	# PETFOLLOW: a new summon arrives at its own follow slot (behind/beside the survivor, fanned by
+	# summon order, backed off by body size) instead of in a row on top of the survivor.
+	var at := PetBrain.slot_for(p, summoned.size(), maxf(0.18, def.real_length_m * 0.12))
 	var rt := World.runtime
 	at.y = rt.surface_y(at.x, at.z) if rt and rt.has_method("surface_y") else p.feet_position().y
 	c.position = host.to_local(at) if host is Node3D else at

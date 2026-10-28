@@ -56,7 +56,7 @@ completion.
   (provoke after 1 hit, ×1.2), territorial (1 hit, ×1.2, inside `territory_m` 6.0).
 - Specialised brains: `raptor_pack_brain.gd` (alpha + followers), `tyrant_brain.gd` (bite windup
   0.7 s, stomp 1.2 s, stagger after 3 blunt hits poisoned / 6 unpoisoned), `pet_brain.gd`
-  (guard radius 9.0 m, drop target at 45.0 m), `brain_flight.gd`, `brain_rest.gd`.
+  (guard radius 9.0 m, drop target at 45.0 m, follow slots in `ai.json` `follow`), `brain_flight.gd`, `brain_rest.gd`.
 
 ## Spawns
 - `IslandSpawns.spawn_all` places fixed rows from the island def's `creatures[]` and ring-band
@@ -123,7 +123,8 @@ above (it never replaces them and never edits a species' stats). Table:
 - AI: `creature_brain.gd` (`_effective_perception`, `_flees_on_sight`, `damage_threshold`,
   `retreat_fraction`, `note_damage`, `_spot`), `raptor_pack_brain.gd` (retreat line),
   `pet_brain.gd` (`guard_radius`, `_threat_distance`, `nature_keeps_fighting`,
-  `nature_stop_distance`), damage dealt in `Creature.attack_for` for wild animals and in
+  `follow_inner`/`follow_outer`/`slot_distance` for the follow band; `nature_stop_distance` is the
+  old single-point reading of the same knob), damage dealt in `Creature.attack_for` for wild animals and in
   `PetRecord.stat_value` for pets (its one stat source, so a Docile pet hits softer while the
   stored `attack` the PETS sheet shows stays the species number).
 - Taming: `Creature.feeds_needed()/tame_window_seconds()` = species number × nature;
@@ -200,6 +201,18 @@ Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"`
   `game/data/mounts_skip.json` is empty. Riders need no saddle item.
 - Pets, their uids, levels and bags save under the save key `pets` (see
   [saves-persistence.md](saves-persistence.md)).
+- Following (owner 2026-10-28: pets follow "within a certain radius of the player, not directly on
+  top of the player"): each summoned pet holds its own follow slot behind/beside the survivor, by
+  summon order (0 right, 1 left, 2 behind; more fan to the rear by `slot_arc_deg`). Slot distance =
+  (`slot_m` 3.0 + `slot_size_mult` × body radius) × `follow_dist_mult` × `heel_mult` on HEEL, so a
+  big tame hangs back further and a Loyal pet stands closer. It walks only past `outer_m` 4.5 from
+  the slot and stops inside `inner_m` 2.0 (both scaled by body size, the nature knob squared, and the
+  band; a pet between the two does not move), goes round the survivor's clearance circle rather than
+  through it, and steps out to `player radius + pet radius + clearance_margin_m` 0.3 when the
+  survivor walks into it. Numbers: `data/creatures/ai.json` `follow` (every one an `# ASSUMPTION`).
+  Code: `PetBrain.slot_distance/follow_slot/follow_inner/follow_outer/player_clearance/_follow`;
+  `PlayerPets.summon` places a new pet at its slot; `Creature._apply_pet_passthrough` also lets a
+  survivor's pets pass through each other. Test: `tests/t_petfollow.gd`.
 
 ## Screens (phone landscape, [all screens](ui-screens.md))
 
