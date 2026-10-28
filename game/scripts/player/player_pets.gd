@@ -357,6 +357,8 @@ func wants_mount_sprint() -> bool:
 ## walking at Creature.walk_mps of that. It moves here: the creature's own tick runs first (the rider
 ## is its child) and zeroes any velocity its brain did not ask for, so the rider slides it after that
 ## (phys-mount-01).
+const MOUNT_RUN_FLOOR := 1.25
+
 func mounted_move(delta: float) -> void:
 	var m := p.mounted_on
 	var dir := p.sim.cam_dir(p.sim.input_vector())
@@ -366,8 +368,11 @@ func mounted_move(delta: float) -> void:
 	m.tick_energy(delta, run)
 	if dir.length_squared() > 0.0:
 		var speed := m.pet_record.speed / 100.0 if m.pet_record else m.move_speed_mps()
+		# ASSUMPTION (owner: mounts must be worth riding): a ridden mount runs at least 1.25x the survivor's
+		# sprint and walks at least her walk pace, whatever its pet speed stat says.
+		speed = maxf(speed, p.sprint_speed * MOUNT_RUN_FLOOR)
 		if not run:
-			speed = m.walk_mps(speed)
+			speed = maxf(m.walk_mps(speed), p.walk_speed)
 		speed *= m.statuses.move_mult() * (0.85 if m.hunger <= 0.0 else 1.0)
 		m.velocity.x = dir.x * speed
 		m.velocity.z = dir.z * speed
