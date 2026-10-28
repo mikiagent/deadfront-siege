@@ -378,7 +378,10 @@ func mounted_move(delta: float) -> void:
 		speed *= m.statuses.move_mult() * (0.85 if m.hunger <= 0.0 else 1.0)
 		m.velocity.x = dir.x * speed
 		m.velocity.z = dir.z * speed
-		m.face_towards(m.global_position + dir, delta)
+		# The mount's own turn rate on a low-passed heading with slack, as its locomotion: stick noise cannot dither it.
+		m._face_vel = m._face_vel.lerp(dir, 1.0 - exp(-delta / Creature.FACE_VEL_TAU_S))
+		if m._face_vel.length() > 0.3:
+			m.face_heading(m._face_vel, delta)
 		if not m.anim._busy:
 			m.anim.set_move_velocity(dir * speed, m.global_basis)  # direction-aware and stride-matched, as creature.gd
 	else:
