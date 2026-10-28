@@ -218,6 +218,8 @@ func _draw_root() -> void:
 		var urgent := _badge_urgent(id)
 		var px := maxi(UiTokens.TYPE_MIN, int(icon_px * 0.36))
 		var rad := maxf(9.0, float(px) * 0.8)
+		if id == &"skills" and hud:
+			hud._levelups.draw_pulse_rings(root, at, rad)  # LEVELFX: a level-up just showed
 		root.draw_circle(at, rad, UiTokens.LIFE if urgent else UiTokens.GOLD)
 		UiTokens.draw_centered(root, _font, at, t, px, Color.WHITE if urgent else UiTokens.CTA_INK)
 
