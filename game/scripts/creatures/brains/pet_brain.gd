@@ -34,6 +34,8 @@ var order_target: Creature
 ## farther than the outer radius and cleared once it is inside the inner one, so a pet parked
 ## between the two does not start or stop moving every think.
 var _following: bool = false
+## Which way round the survivor this pet passes (-1 / +1), latched for one approach. 0 = not set.
+var _around_sign: float = 0.0
 
 func order(cmd: StringName, target: Creature = null) -> void:
 	mode = cmd
@@ -210,33 +212,60 @@ func _pick_guard_target(player: Player) -> Creature:
 	return best
 
 ## Walking to the slot (or out from under the survivor's feet). Returns true when it moved.
+##
+## The pet goes AROUND the survivor, never through the standing spot: the survivor's capsule is not
+## a wall (pets pass through it, see Creature._apply_pet_passthrough), so a straight line across it
+## would let a pet park on the survivor's feet. The side it passes on is latched for the whole
+## approach (_around_sign), because recomputing it every think flips it at the antipode and the pet
+## paces back and forth instead of getting anywhere.
 func _follow(player: Player, delta: float) -> bool:
 	var slot := follow_slot(player)
 	var d_slot := _flat_distance(creature.global_position, slot)
 	var clear := player_clearance(player)
 	var step := _cfg("step_aside_m")
-	if _flat_distance(creature.global_position, player.global_position) < clear + step:
-		# Underfoot: the survivor walked into the pet. Step straight out of the capsule (never
-		# path through it) and carry on to the slot once clear.
-		var away := creature.global_position - player.global_position
-		away.y = 0.0
-		if away.length_squared() < 0.0001:
-			away = -_forward(player)
-		var out := player.global_position + away.normalized() * (clear + step)
-		_following = true
-		creature.move_to(out)
-		creature.face_towards(out, delta)
-		return true
+	var d_player := _flat_distance(creature.global_position, player.global_position)
+	var rel := creature.global_position - player.global_position
+	rel.y = 0.0
 	if d_slot > follow_outer():
 		_following = true
-	elif d_slot <= follow_inner():
+	elif d_slot <= follow_inner() and d_player >= clear:
 		_following = false
+		_around_sign = 0.0
 	if not _following:
+		if d_player < clear:
+			# The survivor walked into it: step out of the capsule instead of standing underfoot.
+			var out := _tangent_from(player, rel, clear + step)
+			creature.move_to(out)
+			creature.face_towards(out, delta)
+			return true
 		creature.stop_move()
 		return false
-	creature.move_to(slot)
-	creature.face_towards(slot, delta)
+	# Walking to the slot. Latched side, then a tangent waypoint while the straight line would cut
+	# through the survivor's clearance circle.
+	var to_slot := slot - creature.global_position
+	to_slot.y = 0.0
+	if _around_sign == 0.0:
+		_around_sign = 1.0 if rel.cross(to_slot).y >= 0.0 else -1.0
+	var goal := slot
+	if to_slot.length_squared() > 0.0001 and rel.length() > 0.001:
+		var dir := to_slot.normalized()
+		var along := -rel.dot(dir)
+		# The closest approach of the straight line to the survivor: inside the circle and ahead.
+		if along > 0.0 and (rel + dir * along).length() < clear + step:
+			goal = _tangent_from(player, rel, clear + step)
+	creature.move_to(goal)
+	creature.face_towards(goal, delta)
 	return true
+
+## A point `radius` from the survivor, a quarter turn from where the pet stands, on the latched side:
+## the tangent it walks along to get round the capsule.
+func _tangent_from(player: Player, rel: Vector3, radius: float) -> Vector3:
+	var side := _around_sign if _around_sign != 0.0 else 1.0
+	var dir := rel
+	dir.y = 0.0
+	if dir.length_squared() < 0.0001:
+		dir = -_forward(player)
+	return player.global_position + dir.normalized().rotated(Vector3.UP, side * PI * 0.5) * radius
 
 func _think(delta: float) -> void:
 	# PetBrain owns its think loop, so it must also advance the inherited attack cooldown.

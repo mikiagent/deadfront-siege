@@ -185,23 +185,6 @@ func _stray(species: StringName, nature: StringName) -> Node:
 # ---------------------------------------------------------------- 2. settling
 
 func _test_settle() -> void:
-	for pet in _pets():
-		print("[t_petfollow] dbg %s brain=%s proc=%s state=%s path=%s follow=%s pos=%s vel=%s" % [pet.def.id, pet.brain, pet.brain.process_mode, pet.brain.state, pet._path_active, pet.brain.get("_following"), pet.global_position, pet.velocity])
-	var pr: GDScript = load("res://scripts/core/player_registry.gd")
-	var pet0: Node = _pets()[0]
-	print("[t_petfollow] dbg2 owner=%s players=%s brainproc=%s vis=%s" % [pr.owner_of(pet0), get_nodes_in_group("player").size(), pet0.brain.is_physics_processing(), pet0.is_physics_processing()])
-	for k in 300:
-		await physics_frame
-		if k >= 60 and k < 80:
-			var r0: Node = _pets()[0]
-			print("[t_petfollow] dbg5 k=%d pos=(%.2f,%.2f) vel=(%.2f,%.2f) path=%s goal=(%.2f,%.2f) dir=%s navpath=%s st=%s follow=%s" % [k, r0.global_position.x, r0.global_position.z, r0.velocity.x, r0.velocity.z, r0._path_active, r0._path_goal.x, r0._path_goal.z, r0._agent_direction(), r0.agent.get_current_navigation_path(), r0.brain.state, r0.brain._following])
-			print("[t_petfollow] dbg6 speed=%s slow=%s hunger=%.1f stagger=%.2f can_act=%s dead=%s floor=%s ridden=%s" % [r0.pet_record.speed, r0.statuses.move_mult(), r0.hunger, r0.stagger_left, r0.statuses.can_act(), r0.health.dead, r0.is_on_floor(), r0.ridden])
-			for ci in r0.get_slide_collision_count():
-				var col: KinematicCollision3D = r0.get_slide_collision(ci)
-				print("[t_petfollow] dbg7 col=%s pos=%s iscreature=%s" % [col.get_collider(), col.get_collider().global_position, col.get_collider() is Node3D and col.get_collider().is_in_group("creatures")])
-		if k % 60 == 0:
-			for pet in _pets():
-				print("[t_petfollow] dbg3 t=%.1f %s pos=(%.2f,%.2f) slot=(%.2f,%.2f) d=%.2f path=%s goal=(%.2f,%.2f) state=%s player=(%.2f,%.2f)" % [k / 60.0, pet.def.id, pet.global_position.x, pet.global_position.z, _slot_of(pet).x, _slot_of(pet).z, _h(pet.global_position, _slot_of(pet)), pet._path_active, pet._path_goal.x, pet._path_goal.z, pet.brain.state, player.global_position.x, player.global_position.z])
 	var got := await _wait_settle(SETTLE_FRAMES)
 	_expect(got >= 0, "the pets did not settle at their slots within %.0f s" % (SETTLE_FRAMES / 60.0))
 	var pets := _pets()
