@@ -62,9 +62,24 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ## Crafting, stations, building
 
-**`craft`** — hand crafting
+**`craft`** — Craft / Build (UICRAFT, spec §7 D1 / D3; `craft_ui.gd`, `craft_place.gd`)
 
 ![craft](screens/craft.webp)
+
+Full-screen sheet: HEADER bar with torn edge, Back, "Craft / Build", the station hint (desktop),
+Build and ✕. Left: station chooser (By hand / Workbench n m / Bonfire n m ..., scrolls sideways;
+the chosen one gold-rimmed) over a 2-column category grid (All + the six recipe `skill` values; gold
+brackets on the chosen tile). Middle: search over the recipe list grouped by what it makes (tool
+class, else the output's first category), two cells a row, gold brackets + wash on the selection.
+Right: parchment header, level · time · count, Max Level / Related Skill / Station / Time · Success ·
+Flawless, the skill lock line, the Materials bar with ✓/✕ have / need rows, the CRAFTFEEL stake lines
+and bag preview, and Craft (GOLD) / Craft ×5 pinned under the scroll. "Materials · Place materials"
+opens **place materials** (D3): completion %, one chevron per slot (OK_GREEN once placed), the
+slot's candidates (level, rarity pips, gold order badges), a parchment focus card with trait chips,
+the expected result (traits from slot 1 only), a 1-10 stepper, the success rate, then Place
+material → Craft; the placed instances lead their slots (`StationCraft.begin(..., uids)`).
+Shots: `docs/orchestration/reports/uicraft/`. Every tap target is 64 px or more at 1600x900 and
+844x390 (`game/tests/t_uicraft.gd`).
 
 **`camp_bonfire`** — camp labels by the bonfire
 
@@ -82,9 +97,20 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ![station_workbench](screens/station_workbench.webp)
 
-**`build`** — construction menu (Build)
+**`build`** — build mode drawer (UICRAFT, spec §7 D2; `build_ui.gd`)
 
 ![build](screens/build.webp)
+
+Opened by the BUILD rail hex, MENU › Build or Craft / Build's Build button. An opaque drawer down
+the left edge (494 px desktop, 312 phone): "Build", Move buildings, ✕; tier tabs Thatch Lv. 1 /
+Wood Constr. 5 / Stone Constr. 20 / Metal Constr. 35 (`structures.json`; GOLD underline on the
+chosen tier, red level when locked); flat-top hex tiles under Parts (the tier's pieces, cost
+under the name), Stations (kits in the bag) and Blueprints (construction sites); the tier's materials
+in the bag and the Construction level along the bottom. A tile starts the ghost and the drawer stays
+open: "Pick a building spot" over the world, the cost bar at the bottom (in the drawer's bottom line
+on a phone), and the HUD's ROTATE / SAVE / CANCEL row beside the ghost, kept off the drawer. A
+construction site's sheet (slots, Work / Withdraw / Cancel site / Finish) opens in the same drawer.
+The old BUILD bottom sheet (`sheet_build`) is still reachable from code but no control opens it.
 
 
 ## Skills

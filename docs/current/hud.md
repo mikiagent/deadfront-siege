@@ -39,7 +39,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Hex sizes follow spec §2 (`HudField.PX`): desktop rail 100, INTERACT 150, ATTACK 100, SPRINT 100,
   quick slot 80, whistle 66, CLAIM 52; compact canvases (`UiTokens.is_compact`: 844x390 and portrait)
   use 64 / 96 / 72 / 64 / 64 / 64 / 64, so every phone tap target is 64 px or more. All flat-top.
-- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD, BAG, captions under. Skills and Animals are
+- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD (opens the build drawer, `BuildUI`), BAG, captions under. Skills and Animals are
   entries in the MENU sheet (no rail hexes; no hotkeys existed for them). BAG opens the bag (also I).
 - MENU notice badge (`HudField.notify` / `HuntHud.notify_menu`): a count in a filled circle at the
   hex's top-right, GOLD with ink text, LIFE red while any notice is urgent (ASSUMPTION, owner
@@ -108,8 +108,11 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   up, clear of HANDS). CLAIM is a gold-rim hex (52 px desktop, 64 phone) right-aligned under the
   minimap's "X Y" line; icon-only on a landscape phone (ASSUMPTION: no room for a caption there). Claiming while already
   holding land here opens the ClaimPanel confirm; it cancels on walking away, moving placement, or
-  a second tap. Ground-placing anchors a ROTATE / PLACE / CANCEL hex row near the ghost via a
-  scored clear-spot sweep (`HudLayout.placer_anchor`); layout mode shows DONE + a hint bar.
+  a second tap. Ground-placing anchors a ROTATE / SAVE / CANCEL hex row near the ghost via a
+  scored clear-spot sweep (`HudLayout.placer_anchor`), clear of the build drawer (`BuildUI.taken_rects`);
+  88 px hexes on desktop, 64 on a phone (UICRAFT, owner §1.9): ROTATE is the icon alone, SAVE a green
+  check on an OK_GREEN rim, CANCEL a red cross with the word inside; no key letters. Layout mode
+  shows DONE + a hint bar.
 
 ## Exhaustion gauge & breakdown
 - The face is drawn (smile → deep frown across four tiers, green → red by strain). Under it, a
