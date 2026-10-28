@@ -21,6 +21,7 @@ static var no_pack: bool = false
 var _watch: float = 0.0
 
 func _init() -> void:
+	load("res://scripts/core/class_cache_guard.gd").heal()
 	DirAccess.make_dir_recursive_absolute(BUILDS_DIR)
 	if "--no-pack" in OS.get_cmdline_user_args():
 		no_pack = true
