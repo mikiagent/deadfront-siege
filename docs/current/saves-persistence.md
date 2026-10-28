@@ -39,7 +39,7 @@ rules for the world: `game/scripts/core/save_restore.gd`. Validation after migra
 | `carcasses` (pending) | BUTCHER: carcasses still lying on the island — `species`, `position`, `cuts_left` of `cuts_budget`, which part ids were already cut, and the units left on each. Sanitized by `SaveSanitizer._carcasses` (known species, part ids and counts clamped, off-island rows dropped); `SaveRestore.carcasses` respawns them through `CarcassParts.corpse_from_row`. The sanitizer and the restore hook ship; the two `save_game.gd` call sites sit outside that job's SCOPE and come as `docs/orchestration/reports/dsc-butcher-save-hook.patch`. |
 | `skills` | legacy survival ids → bool |
 | `skills_v2` | skill trees |
-| `home` | terrain, shape, buildings (with their storage `contents`), cargo, claims, camp layout, optional domain / comm center |
+| `home` | terrain, shape, buildings (with their storage `contents`), cargo, claims, camp layout, optional domain / comm center. UNCLAIM needs no format change: a released plot is simply absent from `domain.cells` (and from the mirrored `claims` rects), so a save after a release cannot resurrect it and `IslandClaims.setup` rebuilds only what the record still lists. |
 | `pioneer_xp`, `pioneer_level`, `pioneer_crafts`, `pioneer_buildings`, `player_name`, `occupation` | progression |
 | `character_look` | optional (CHARCREATE): `gender`, `height` (0.92-1.08, visual only), `colors` (skin, outfit1-3, eye, lip), `parts`, `portrait` (`pattern`, `bg`). `CharacterLook.clean` coerces every field to what `data/characters/appearance.json` offers; a save without it (older builds) loads with the default look. Namespaced apart from item instances' own `look`. |
 | `t_stones` | currency int |

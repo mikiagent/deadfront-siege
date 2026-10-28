@@ -230,6 +230,18 @@ Return to camp cards first. Back returns to the atlas. Shots:
 **`claim`** — CLAIM confirm panel (B4 restyle: parchment header, Cancel outlined, GOLD Expand;
 current captures in `docs/orchestration/reports/uinav/`)
 
+UNCLAIM (owner: "Also need a way to unclaim land too", 2026-10-28): the same panel in **release
+mode** (`ClaimPanel.open_release`). A CLAIM press while standing on one of your own Domain plots asks
+`Release this plot?` instead of offering an expansion: the body names the plot's size and cell, how
+many plots you keep, that it stops being yours and can be claimed again later, what happens to
+anything built there, and that no claim stake is refunded. **Keep** (Cancel) changes nothing; only
+**Release plot** (GOLD, 64 px) gives the one plot up, through `IslandClaims.release_cell`. The panel
+is 3 short lines of body text so it still reads on a landscape phone's 166 px strip. Rules
+(spec 29 is silent, so `# ASSUMPTION`): the last plot is refused, the camp's own landing plot is
+never a Domain plot, a plot with a building on it (a kit, a construction site or a modular piece) is
+refused until it is packed up, and a release that would cut the Domain into two pieces is refused;
+no T-stones or claim stakes are refunded and there is no cooldown. Test: `game/tests/t_unclaim.gd`.
+
 ![claim](screens/claim.webp)
 
 **`domain`** — Domain screen (Menu -> Domain)
@@ -288,7 +300,7 @@ Built to [`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §7 F1
 
 | Screen | Script | Opened by | What it shows |
 |---|---|---|---|
-| F1 Domain | `domain_screen.gd` | `HuntHud.open_domain()` | Left icon tabs (Tamed / Civilized / Clan / Outpost locked). No domain: GOLD headline, body, quote, **Declare Domain**, island art. Domain held: 7x7 plot grid (Domain GOLD, can-expand outline, water blue, camp land), Plots used/cap, Pioneer rank, upkeep, plot size, next rank, **Communications Center →** (spec-29 contribution panel), Expand / Build here / Release. Declare and Expand step aside to a Confirm / Cancel card over the ground preview. Footer: the edge-adjacent growth rule. |
+| F1 Domain | `domain_screen.gd` | `HuntHud.open_domain()` | Left icon tabs (Tamed / Civilized / Clan / Outpost locked). No domain: GOLD headline, body, quote, **Declare Domain**, island art. Domain held: 7x7 plot grid (Domain GOLD, can-expand outline, water blue, camp land), Plots used/cap, Pioneer rank, upkeep, plot size, next rank, **Communications Center →** (spec-29 contribution panel), Expand / Build here / **Release plot**. Declare and Expand step aside to a Confirm / Cancel card over the ground preview. Footer: the edge-adjacent growth rule. UNCLAIM: a tap on a gold plot picks it (white frame), Release plot asks in the same card with the ClaimPanel's consequence text (Confirm **Release plot** / Cancel **Keep**), and only that confirm gives the one plot up; the old whole-Domain wipe is gone. |
 | F3 Communication | `comms_ui.gd` | `HuntHud.open_comms()` | Five factions from `data/world/factions.json` with a trust bar each; selected faction's parchment header (name, tone), three offers from its mission pool with Accept, support-crate band, Reroll offers / Contribute → / Track on HUD; header "Active missions 0 / 4 · Free rerolls 3". No mission or trust logic exists: trust is rank 0, Accept/Reroll/Track are disabled and say why. |
 | F3 Radio University | `radio_university_ui.gd` | `HuntHud.open_radio_university()` or Communication → Radio University | Dr. Lamar, career guides only (seven from data, +2 SP each), no crates; progress is not tracked yet. Back returns to Communication. |
 | E2 Taming Pen | `taming_pen_ui.gd` | tapping a pen (`PlayerActions.pen_interact` → `HuntHud.open_taming_pen(pen)`) | Left: captured animal (species, level, nature, pack n / cap, diet and role tiles, clade line, food and pen time). Right: "Tame it now, or keep it caged?", pen space n / 1, read-only mood slider with the pen time, pen grid (pen occupant + every caged animal in the bag, tap to pick), Store / Tame; once running: "Taming started", live countdown, Feed meat / OK. |
