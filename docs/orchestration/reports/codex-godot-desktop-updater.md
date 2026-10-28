@@ -1,0 +1,6 @@
+# Godot desktop updater handoff
+
+- Created `~/Desktop/Godot Updater.app`. Its bundled updater checks the latest stable 4.7 Mono patch on launch, provides update and rollback choices, and keeps a backup when replacing the editor. The launcher source and build script are in `tools/`; rebuilding creates a fresh app and does not overwrite an existing one.
+- Added offline verified backup listing and rollback to `tools/update_godot.py`. Tested an actual 4.7.1 to 4.7.2 update and rollback with temporary app copies, backup signature validation, running-editor and invalid-path guards, and recovery from a simulated failed swap. The bundled updater checked the current installation and listed backups successfully. The launcher compiled and was opened; automated inspection of its dialog was unavailable. `tools/smoke.sh` printed `SMOKE PASS`.
+- No Meshy credits spent. No game design assumptions. The actual editor and project pin remain at 4.7.1. Rollback becomes available after the first update creates a backup. The launcher does not migrate the standard web editor, export templates, iOS simulator library, or project pin.
+- Next agent: coordinate those project dependencies if adopting a new engine version. Rebuild the desktop app after changing its source or bundled updater; the installed copy is self-contained and does not automatically track repository edits.

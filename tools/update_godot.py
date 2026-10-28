@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Check or install the latest stable Godot 4.7 Mono editor on macOS.
 
-Usage: tools/update_godot.py [--install] [--version 4.7.2] [--app /path/Godot_mono.app]
-Without --install, this only checks. The project and export templates are not changed.
+Usage: tools/update_godot.py [--install | --list-backups | --rollback BACKUP] [--version 4.7.2] [--app /path/Godot_mono.app]
+Without an action, this only checks. The project and export templates are not changed.
 """
 import argparse
 import hashlib
@@ -47,9 +47,64 @@ def app_version(app):
     return match.group(1), result
 
 
+def verify_signed(app):
+    run("/usr/bin/codesign", "--verify", "--deep", "--strict", str(app))
+    run("/usr/bin/codesign", "--verify", "--test-requirement", '=anchor apple generic and identifier "org.godotengine.godot" and certificate leaf[subject.OU] = "6K46PWY5DM"', str(app))
+
+
+def backups(app):
+    """List only verified Godot backups; never run an unverified executable."""
+    result = []
+    pattern = re.compile(re.escape(app.stem) + r"-backup-\d{8}-\d{6}(?:-\d{6})?\.app$")
+    if not app.parent.is_dir():
+        return result
+    for candidate in sorted(app.parent.iterdir(), reverse=True):
+        if not pattern.fullmatch(candidate.name) or candidate.is_symlink() or not candidate.is_dir():
+            continue
+        try:
+            verify_signed(candidate)
+            _, display = app_version(candidate)
+        except (OSError, ValueError, subprocess.CalledProcessError):
+            continue
+        result.append({"path": str(candidate), "version": display})
+    return result
+
+
+def check_destination(app, other=None):
+    if not app.parent.is_dir() or not os.access(app.parent, os.W_OK):
+        raise ValueError(f"Destination parent must exist and be writable: {app.parent}")
+    processes = run("/bin/ps", "-axo", "command=").splitlines()
+    for bundle in (app, other):
+        if bundle is None:
+            continue
+        executable = str(bundle / "Contents/MacOS/Godot")
+        if any(line.strip() == executable or line.strip().startswith(executable + " ") for line in processes):
+            raise ValueError(f"Quit Godot at {bundle} before proceeding.")
+
+
+def swap_app(app, replacement):
+    """Move the existing app aside and restore it if the replacement move fails."""
+    backup = None
+    if app.exists():
+        backup = app.with_name(f"{app.stem}-backup-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.app")
+        if backup.exists() or backup.is_symlink():
+            raise ValueError(f"Backup already exists: {backup}")
+        app.rename(backup)
+    try:
+        replacement.rename(app)
+    except BaseException:
+        if backup and not app.exists():
+            backup.rename(app)
+        raise
+    return backup
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--install", action="store_true", help="install the selected version, preserving the old app")
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument("--install", action="store_true", help="install the selected version, preserving the old app")
+    action.add_argument("--list-backups", action="store_true", help="list verified backups as JSON")
+    action.add_argument("--rollback", type=Path, metavar="BACKUP", help="restore a verified backup, preserving the current app")
     parser.add_argument("--version", help="specific stable 4.7 version; defaults to latest 4.7 patch")
     parser.add_argument("--app", type=Path, default=Path("/Applications/Godot_mono.app"), help="destination app bundle")
     args = parser.parse_args()
@@ -58,6 +113,23 @@ def main():
     app = args.app.expanduser().absolute()
     if app.suffix != ".app" or app.is_symlink():
         raise ValueError("Destination must be a non-symlink .app bundle.")
+    if args.version and (args.list_backups or args.rollback):
+        raise ValueError("--version cannot be combined with backup actions.")
+    if args.list_backups:
+        print(json.dumps(backups(app)))
+        return
+    if args.rollback:
+        backup = args.rollback.expanduser().absolute()
+        available = {entry["path"]: entry for entry in backups(app)}
+        if str(backup) not in available:
+            raise ValueError("Backup must be a verified Godot backup alongside the destination app.")
+        check_destination(app, backup)
+        displaced = swap_app(app, backup)
+        print(f"Restored {available[str(backup)]['version']} at {app}")
+        if displaced:
+            print(f"Previous app preserved at {displaced}")
+        print("Project pin, standard web editor, export templates and iOS simulator library are not updated.")
+        return
     if args.version:
         selected = version_tuple(args.version)
         if selected[:2] != SERIES:
@@ -100,12 +172,7 @@ def main():
     if current and version_tuple(current) >= version_tuple(target):
         print("Installed version is already at least as new; no changes made.")
         return
-    if not app.parent.is_dir() or not os.access(app.parent, os.W_OK):
-        raise ValueError(f"Destination parent must exist and be writable: {app.parent}")
-    processes = run("/bin/ps", "-axo", "command=").splitlines()
-    executable = str(app / "Contents/MacOS/Godot")
-    if any(line.strip() == executable or line.strip().startswith(executable + " ") for line in processes):
-        raise ValueError(f"Quit Godot at {app} before installing.")
+    check_destination(app)
     name = f"Godot_v{target}-stable_mono_macos.universal.zip"
     assets = [asset for asset in release.get("assets", []) if asset.get("name") == name]
     if len(assets) != 1:
@@ -141,23 +208,12 @@ def main():
         if len(apps) != 1:
             raise ValueError("Expected one app bundle in the archive.")
         staged = apps[0]
-        run("/usr/bin/codesign", "--verify", "--deep", "--strict", str(staged))
-        run("/usr/bin/codesign", "--verify", "--test-requirement", '=anchor apple generic and identifier "org.godotengine.godot" and certificate leaf[subject.OU] = "6K46PWY5DM"', str(staged))
+        verify_signed(staged)
         staged_version, display = app_version(staged)
         if version_tuple(staged_version) != version_tuple(target):
             raise ValueError(f"Downloaded editor reports unexpected version: {display}")
-        backup = None
-        if app.exists():
-            backup = app.with_name(f"{app.stem}-backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}.app")
-            if backup.exists():
-                raise ValueError(f"Backup already exists: {backup}")
-            app.rename(backup)
-        try:
-            staged.rename(app)
-        except BaseException:
-            if backup and not app.exists():
-                backup.rename(app)
-            raise
+        check_destination(app)
+        backup = swap_app(app, staged)
         print(f"Installed {display} at {app}")
         if backup:
             print(f"Previous app preserved at {backup}")
