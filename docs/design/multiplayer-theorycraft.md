@@ -34,6 +34,8 @@ package branches), `docs/vision/WildLandsMMO_Game_Vision.md` §2-3, §18-20,
 5. **The path:** first cut an "intent seam" in the single-player game (no network), then a local
    dedicated server with 2-4 friends on one island, then a small hosted world (tutorial channels, a
    harbour hub, market, chat), and only then MMO-scale orchestration and the PvPvE frontier.
+6. **One global market** outside the island rooms (§7): the existing engine already is one order book
+   with escrow, inbox delivery and anti-dupe rules; offline single-player has no market.
 
 ---
 
@@ -216,7 +218,79 @@ must be decided by the server.** Cosmetic and comfort features can be trusted to
 
 ---
 
-## 7. Scaling and cost (rough, mark as unknown until measured)
+## 7. The Island Market online
+
+Short version: **one global market, run by one service, reachable from any island.** Listings, money
+and items in escrow never live inside an island room; they live in the economy store, so a room can
+crash, sleep or be cheated on without touching anyone's sale.
+
+### One market or many?
+
+| option | verdict |
+|---|---|
+| **One global order book** (recommended) | Everyone sees the same listings and prices, so even a few hundred players make a liquid market. This is what the engine already is: `MarketEngine` has one book, one ledger and one price history, no region field. The UI opens it from the menu anywhere (owner spec 14, Durango style), so it does not depend on which hub channel you are in. |
+| A market per harbour hub / room | Prices would differ per channel, and channels are a crowd-control trick, not a place. A small player base split into several books means empty markets. No. |
+| Regional markets (Temperate Exchange, Tropic Bazaar, Frontier Post, Northern Depot in `market.json`) | Keep them as **flavour on the NPC side**: they set what the Settlers NPC buyer wants and pays per region. Player listings stay global. Later, if logistics becomes a profession (vision §18), delivery could cost time or a fee by distance; that is a design choice, not a technical need. |
+
+### Where things live
+
+- **Money:** one T-stone wallet per account in the economy ledger. Two kinds of coin already exist:
+  *bound* (starting wallet and objective rewards, spend-only on fees and sinks) and *tradable* (earned
+  from other players or Settlers). Online, the character's wallet mirrors the ledger (`char.wallet`),
+  never the other way round.
+- **Items and pets for sale:** to list, the character store *exports* the exact item (with its uid
+  and provenance) into the market vault (`VaultBridge`, `act.deposit`). While listed it exists only in
+  the vault, not in the seller's bag. A sale moves it to the buyer's **inbox**; "Receive All" pulls it
+  into the buyer's bag (`char.receive`). Every hop is journalled, idempotent and crash-recoverable.
+- **Pets** sell as caged items (captured wild vs repackaged tame), owner set to the buyer on receive.
+- **Tribe members** are not on the market in the current design. Captives and ransom (vision §20)
+  will use the same custody pattern later, as server-owned records.
+
+### Players vs NPC prices
+
+- **Player trades** set real prices: fixed listings, auctions (anti-snipe extension), buy orders.
+  Fees: 5 % listing fee (a money sink), 3 % sales tax.
+- **Settlers** is the NPC buyer (account 0). Every hour it posts buy orders priced from
+  `market.json` base prices × regional demand × 0.8, capped at **2,000 T-stones a day** in total. It
+  gives a price floor and a way to sell when no player is buying, without printing unlimited money.
+  Animals and unstable loot are excluded.
+- **Reference price** per item comes from recent trades, ignoring outliers (under 0.25× or over 4×),
+  so one silly sale cannot move it.
+
+### Anti-dupe and anti-exploit (already built unless marked)
+
+| exploit | defence |
+|---|---|
+| Duplicating an item by selling it and keeping it | Export removes it from the bag in the same journalled step; only provenance-stamped items can be listed. |
+| Double buy / double receive on a reconnect | Every write op carries a request id (`rid`); a repeat returns the first answer. Withdrawals keep their full answer so a lost reply can be fetched again. |
+| Crash halfway through a deposit or withdrawal | `bridge.begin` mark plus `recover()` finishes or undoes the move at boot or right after the fault. |
+| Fresh-account money funnels (alts feeding a main) | Starting wallet is bound; 30-minute trade lock on new accounts; wash-trade limit (max 2 trades per account pair per day). |
+| Price manipulation | Outlier trades do not move the reference price; max unit price; listing fees cost something. |
+| Fake rewards | Objective rewards mint only from server-observed state (`objective.claim` is a system op). |
+| Editing local data to fake an item | Offline saves never import; a deposit is the server's own export, never a client's dictionary. |
+| Bots flooding listings | **Open:** per-account rate limits and listing caps. |
+| Cross-room timing (selling an item still in use in a room) | **Open:** the island room must hand the item back to the character store before export (same rule as any island ↔ character move in §5). |
+
+### What happens offline
+
+- **Offline single-player has no market.** The screens show an honest "Market offline" card (owner
+  decision 2026-10-20) and nothing can be sold or bought. This keeps local saves from feeding the
+  shared economy.
+- **When an online player logs off,** their listings stay up, auctions finish, and buy orders keep
+  filling. Proceeds and bought items wait in the inbox (up to 200 entries, kept 7 days per
+  `retention_s`; *unknown:* what happens to an unclaimed entry after that: return to the vault is the
+  safe default).
+- **If the economy service is down,** the market shows offline and islands keep running; nothing that
+  touches money happens until it returns.
+
+### Still to decide
+
+- Can you list and receive from anywhere, or only at a harbour or market stall? (Default: anywhere, as
+  in spec 14. "Harbour only" makes hubs busier and logistics matter.)
+- Does a bought item arrive in your bag, or in home cargo / the harbour, and does distance cost anything?
+- How much the Settlers budget grows with the number of players.
+
+## 8. Scaling and cost (rough, mark as unknown until measured)
 
 - **Server shape:** one headless Godot server build (`--headless`, dedicated server export that strips
   textures and audio), running several island instances per process or one per process. Terrain
@@ -236,7 +310,7 @@ must be decided by the server.** Cosmetic and comfort features can be trusted to
 
 ---
 
-## 8. How existing systems map
+## 9. How existing systems map
 
 Legend: **Ready** = server logic exists; **Seam** = logic is data-driven and only needs routing through
 intents; **Refactor** = state or randomness lives in the wrong place; **New** = nothing yet.
@@ -264,7 +338,7 @@ intents; **Refactor** = state or randomness lives in the wrong place; **New** = 
 
 ---
 
-## 9. Phased path
+## 10. Phased path
 
 ### Phase 0 — the intent seam (no network, now)
 
@@ -308,7 +382,7 @@ Goal: a public test with tens to low hundreds of players.
 
 ---
 
-## 10. Recommendation and trade-offs
+## 11. Recommendation and trade-offs
 
 **Recommended:** island instances (option B) + dedicated server-authoritative islands + client
 prediction for your own survivor + WebSockets everywhere + offline single-player kept as a separate
@@ -323,7 +397,7 @@ weather round 2, butchering) adds to the later refactor.
 | The solo game keeps working offline | Offline survivors never become online ones (two separate progressions) |
 | Matches the existing server code and contracts v2 | Phase 0 plumbing delays visible multiplayer by a package or two |
 
-## 11. Unknowns to measure or decide later
+## 12. Unknowns to measure or decide later
 
 - Memory/CPU per live headless island (measure before hosting).
 - Web client frame budget with other players + creatures in view (today's 6 fps at 60 creatures).
@@ -333,7 +407,7 @@ weather round 2, butchering) adds to the later refactor.
 - Home-visit permissions: can visitors gather, build, open storage? (vision §2 lists it as open).
 - Raid, captive and ransom rules (vision §19-20 open items) — only needed in Phase 3.
 
-## 12. Questions only Milan can answer
+## 13. Questions only Milan can answer
 
 1. **Online and offline: two modes or one?** Recommended: keep offline single-player as its own local
    save forever, and online characters live only on the server (they never mix). The alternative is
