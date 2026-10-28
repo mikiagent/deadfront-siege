@@ -504,7 +504,8 @@ func _roll(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if since >= 0 and since < cooldown_ms:
 		return no("not_ready", "roll on cooldown for another %d ms" % (cooldown_ms - since))
 	ch.roll_press(at)
-	return ok({"roll_ms": at, "iframes_ms": int(round(RollRules.iframes_s() * 1000.0))})
+	# The client's HUD reads the cooldown from the same numbers, so the answer carries them back.
+	return ok({"roll_ms": at, "iframes_ms": int(round(RollRules.iframes_s() * 1000.0)), "cooldown_ms": cooldown_ms})
 
 ## The roll's opening window at an absolute server time in ms: the client's own rule (RollRules) on
 ## the stored press. True = the hit is dodged: no damage, no stagger, Defense XP once (spec 07 §2).

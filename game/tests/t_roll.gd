@@ -308,6 +308,9 @@ func _test_server() -> void:
 	var base: int = ch.roll_ms()
 	print("[t_roll] measure server roll ok=%s roll_ms=%d" % [ok, base])
 	_expect(ok and base == 10200, "act.roll stamps the press (roll_ms %d)" % base)
+	var answered: Dictionary = press.get("r", {})
+	_expect(int(answered.get("cooldown_ms", -1)) == int(ceil(RR.cooldown_s() * 1000.0)) and int(answered.get("iframes_ms", -1)) == int(round(RR.iframes_s() * 1000.0)),
+		"the server answers the roll's own window and cooldown (%s ms / %s ms)" % [answered.get("iframes_ms", -1), answered.get("cooldown_ms", -1)])
 	var agree := true
 	var rows: Array[String] = []
 	for ms in [0, 150, 250, 319, 330, 500, 900]:
