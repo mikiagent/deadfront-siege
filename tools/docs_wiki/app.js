@@ -1,4 +1,4 @@
-/* Wildlands MMO wiki — vanilla JS, no build step. */
+/* WildLands MMO wiki — vanilla JS, no build step. */
 "use strict";
 const STATUSES = ["canon", "useful", "stale", "conflict", "review", "archive"];
 const ST_LABEL = { canon: "Canon", useful: "Useful", stale: "Stale", conflict: "Conflicting", review: "Needs review", archive: "Archive" };
@@ -120,7 +120,7 @@ function renderHome() {
     ["Current implementation", "What the build does today, with paths back to the code and data.", "docs/current/"],
     ["Vision", "The intended experience, confirmed rules, and proposals for future development.", "docs/vision/"],
   ];
-  $("#pane").innerHTML = `<div class="eyebrow">Wildlands MMO · project documentation</div><h1>Welcome to the Wildlands MMO Wiki</h1>
+  $("#pane").innerHTML = `<div class="eyebrow">WildLands MMO · project documentation</div><h1>Welcome to the WildLands MMO Wiki</h1>
     <div class="article-tabs"><span>Overview</span></div>
     <div class="home-intro"><h2>One project, two perspectives</h2><p>Explore the game as it exists today and the vision guiding what comes next. Historical documents are available separately in the archive.</p></div>
     <div class="home-grid">${cards.map(([title, desc, prefix]) => {
@@ -440,7 +440,7 @@ function autoMapSeed() {
 /* ---------- export ---------- */
 function exportAll() {
   const line = (s) => s + "\n";
-  let md = line("# Wildlands MMO canon map");
+  let md = line("# WildLands MMO canon map");
   md += line("");
   md += line(`_Generated from the docs wiki on ${new Date().toISOString().slice(0, 10)}; statuses marked by the owner in tools/docs_wiki._`);
   md += line("");
