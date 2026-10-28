@@ -660,7 +660,20 @@ func _test_phone_quest() -> void:
 	player.controls.get("selection").select(wild)
 	await _frames(4)
 	var blocks: Dictionary = hud.get("drawn_blocks")
-	_expect(blocks.has("quest") and not blocks.has("plate") and _swords_shown(), "phone: a selection alone leaves the centre band to the quest card (quest %s, plate %s)" % [blocks.has("quest"), blocks.has("plate")])
+	# HUDRULES (owner 2026-10-28): orders start collapsed into the minimap badge, so a selection alone leaves
+	# the band to neither the card nor the plate; expanded by the player, the card takes it, clear of the rest.
+	_expect(not blocks.has("quest") and not blocks.has("plate") and blocks.has("orders_badge") and _swords_shown(), "phone: a selection alone draws no plate; collapsed orders sit in the minimap badge (quest %s, plate %s, badge %s)" % [blocks.has("quest"), blocks.has("plate"), blocks.has("orders_badge")])
+	var sheet: GDScript = load("res://scripts/ui/orders_sheet.gd")
+	sheet.hud_expanded = true
+	await _frames(4)
+	blocks = hud.get("drawn_blocks")
+	var q: Rect2 = blocks.get("quest", Rect2())
+	var hit := Rect2()
+	for k in blocks:
+		if k != "quest" and (blocks[k] as Rect2).intersects(q):
+			hit = blocks[k]
+	_expect(q.has_area() and not blocks.has("plate") and not hit.has_area(), "phone: a selection alone leaves the band to the expanded quest card, clear of the HUD (quest %s, plate %s, hits %s)" % [q, blocks.has("plate"), hit])
+	sheet.hud_expanded = false
 	player.actions.attack(wild)
 	await _frames(4)
 	blocks = hud.get("drawn_blocks")

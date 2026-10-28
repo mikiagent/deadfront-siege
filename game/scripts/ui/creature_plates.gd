@@ -603,9 +603,9 @@ func _status_rows(c: Creature) -> Array[Dictionary]:
 		_add_status(out, c.statuses, &"bleed", "B", Color(0.95, 0.3, 0.3))
 	if out.is_empty():
 		_add_status(out, c.statuses, &"bleeding_target", "B", Color(0.95, 0.3, 0.3))
-	_add_status(out, c.statuses, &"venom", "V", Color(0.45, 0.95, 0.35))
+	_add_status(out, c.statuses, &"venom", "V", UiTokens.POISON)
 	if not _has_status(c.statuses, &"venom"):
-		_add_status(out, c.statuses, &"poisoned_target", "V", Color(0.45, 0.95, 0.35))
+		_add_status(out, c.statuses, &"poisoned_target", "V", UiTokens.POISON)
 	_add_status(out, c.statuses, &"knockdown", "K", Color(1.0, 0.72, 0.4))
 	_add_status(out, c.statuses, &"groggy", "G", Color(1.0, 0.86, 0.35))
 	if not _has_status(c.statuses, &"groggy"):

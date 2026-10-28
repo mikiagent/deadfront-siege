@@ -3,6 +3,11 @@ extends Resource
 
 @export var id: StringName = &""
 @export var display_name: String = ""
+## HUDRULES (owner 2026-10-28): "effect" = an affliction, shown only as a box beside the survivor
+## (StatusFx); "buff" / "boon" / "debuff" = a timed modifier, shown only in the chip row under the vitals.
+@export var kind: StringName = &"effect"
+## One short factual line for the chip row's tooltip.
+@export var desc: String = ""
 @export var dps: float = 0.0
 @export var dps_max_hp_frac: float = 0.0
 @export var duration: float = 1.0
@@ -36,6 +41,8 @@ static func from_dict(d: Dictionary) -> StatusDef:
 	var s := StatusDef.new()
 	s.id = StringName(str(d.get("id", "")))
 	s.display_name = str(d.get("display_name", s.id))
+	s.kind = StringName(str(d.get("kind", "effect")))
+	s.desc = str(d.get("desc", ""))
 	s.dps = float(d.get("dps", 0.0))
 	s.dps_max_hp_frac = float(d.get("dps_max_hp_frac", 0.0))
 	s.duration = float(d.get("duration", 1.0))
@@ -66,6 +73,10 @@ static func from_dict(d: Dictionary) -> StatusDef:
 	s.on_untreated_expire = StringName(str(d.get("on_untreated_expire", "")))
 	s.on_untreated_chance = float(d.get("on_untreated_chance", 0.0))
 	return s
+
+## True for a timed modifier (buff, boon, debuff) the chip row shows; false for an affliction.
+func is_modifier() -> bool:
+	return kind != &"effect"
 
 func has_flag(flag: StringName) -> bool:
 	return flag in flags

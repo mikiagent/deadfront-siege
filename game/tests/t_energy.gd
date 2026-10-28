@@ -161,6 +161,10 @@ func _test_mounted() -> void:
 	var read: Dictionary = HH.energy_reading(player)
 	_expect(is_equal_approx(read.value, m.energy) and is_equal_approx(read.max, m.energy_max) and read.name != "",
 		"vitals bar reads the mount (%s %.0f / %.0f)" % [read.name, read.value, read.max])
+	await _frames(2)
+	var TOKS = load("res://scripts/ui/ui_tokens.gd")
+	_expect(hud.energy_bar_color.is_equal_approx(TOKS.MOUNT_ENERGY) and hud.energy_bar_segments == 10, "riding, the bar is the darker MOUNT_ENERGY blue in 10 segments (%s, %d)" % [hud.energy_bar_color, hud.energy_bar_segments])
+	_expect(TOKS.MOUNT_ENERGY.v < TOKS.PLAYER_ENERGY.v and absf(TOKS.MOUNT_ENERGY.h - TOKS.PLAYER_ENERGY.h) < 0.05, "MOUNT_ENERGY is a darker shade of the player's blue")
 	var pe0: float = player.vitals.energy
 	var pf0: float = player.vitals.fatigue
 	Input.action_press("move_up")
@@ -193,3 +197,5 @@ func _test_mounted() -> void:
 	await _frames(3)
 	read = HH.energy_reading(player)
 	_expect(read.name == "" and is_equal_approx(read.value, player.vitals.energy), "after dismount the bar reads the survivor (%.0f)" % read.value)
+	await _frames(2)
+	_expect(hud.energy_bar_color.is_equal_approx(load("res://scripts/ui/ui_tokens.gd").PLAYER_ENERGY) and hud.energy_bar_segments == 0, "on foot the bar is the player's blue, unsegmented")
