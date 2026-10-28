@@ -6,6 +6,13 @@ Every screen the build opens, captured from the real home island in the landscap
 `~/Documents/deadfront-ui-screens/`, WebP copies to `docs/current/screens/`). The lab walks the UI
 gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones it does not open.
 
+Every full-screen screen is opened from the MENU nav menu (`game/scripts/ui/nav_menu.gd`, B3):
+Character, Skills, Craft, Build, Bag, Animals on the left; World Atlas, Domain, Orders,
+Communication, Island Market, Save on the right. Each screen's ‹ returns to the menu; ✕ or Esc goes
+back to the HUD. `HuntHud` holds the entry points (`open_character`, `open_skills(tree)`,
+`open_orders`, `open_animals(rec)`, `open_atlas`, `open_market(tab)`, `open_menu`). The menu draws on
+canvas layer 90 with the HUD faded out; screens sit on layer 96.
+
 ## HUD
 
 **`hud`** — idle HUD: vitals, fatigue belt, quest card, minimap, day/night dial, hex rail

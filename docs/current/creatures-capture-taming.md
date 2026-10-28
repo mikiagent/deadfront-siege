@@ -222,13 +222,15 @@ Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"`
   [saves-persistence.md](saves-persistence.md)).
 - Following (owner 2026-10-28: pets follow "within a certain radius of the player, not directly on
   top of the player"): each summoned pet holds its own follow slot behind/beside the survivor, by
-  summon order (0 right, 1 left, 2 behind; more fan to the rear by `slot_arc_deg`). Slot distance =
-  (`slot_m` 3.0 + `slot_size_mult` × body radius) × `follow_dist_mult` × `heel_mult` on HEEL, so a
-  big tame hangs back further and a Loyal pet stands closer. It walks only past `outer_m` 4.5 from
+  summon order (0 right, 1 left, 2 behind; more fan to the rear by `slot_arc_deg` 50°). Slot distance =
+  (`slot_m` 3.0 + `slot_size_mult` 1.0 × body radius) × `follow_dist_mult` × `heel_mult` 0.7 on HEEL,
+  so a big tame hangs back further and a Loyal pet stands closer (measured: velociraptor 3.72 m,
+  triceratops 5.16 m, compsognathus 3.36 m, a Loyal raptor 2.60 m). It walks only past `outer_m` 4.5 from
   the slot and stops inside `inner_m` 2.0 (both scaled by body size, the nature knob squared, and the
   band; a pet between the two does not move), goes round the survivor's clearance circle rather than
   through it, and steps out to `player radius + pet radius + clearance_margin_m` 0.3 when the
-  survivor walks into it. Numbers: `data/creatures/ai.json` `follow` (every one an `# ASSUMPTION`).
+  survivor walks into it (`step_aside_m` 0.8 past that line). Numbers: `game/data/creatures/ai.json`
+  `follow` (every one an `# ASSUMPTION`).
   Code: `PetBrain.slot_distance/follow_slot/follow_inner/follow_outer/player_clearance/_follow`;
   `PlayerPets.summon` places a new pet at its slot; `Creature._apply_pet_passthrough` also lets a
   survivor's pets pass through each other. Test: `tests/t_petfollow.gd`.
