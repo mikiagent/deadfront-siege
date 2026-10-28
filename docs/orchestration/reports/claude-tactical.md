@@ -69,7 +69,11 @@ hold/strafe/feint/hop 0.5/0.3/0.1/0.1, max_basic_streak 2. Natures (`natures.jso
 `HIT_STUN_IMMUNE_S` 0.8, `basic_cooldown_s` 0.8, tackle/kick `stagger_s` 0.8/0.5.
 
 ## Gates (this branch, after the last canon merge)
-- `t_tactical`: `[t_tactical] PASS` errs=0, 3 runs in a row. It covers:
+- `t_tactical`: `[t_tactical] PASS` errs=0, 5 runs in a row, plus 1 under an 8-process CPU load,
+  all with the same census. It is deterministic: seeded RNGs (global, `CombatTuning.rng`, and a
+  per-brain `TacticalBrain.rng`), `Engine.max_physics_steps_per_frame` 1000 so physics never
+  drops steps, and test creatures animate in the physics step. The pounce-vs-combo damage is
+  checked on resolved hits, not taken from the fight. It covers:
   - the stun length equals the clip length, walk after the stun, no re-stun inside the
     immunity window, tackle and kick land and respect their cooldowns, the player basic
     cooldown;

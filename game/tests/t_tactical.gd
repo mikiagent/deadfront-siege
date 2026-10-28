@@ -61,6 +61,13 @@ func _expect(ok: bool, msg: String) -> void:
 		print("[t_tactical] ok %s" % msg)
 
 func _run() -> void:
+	# Deterministic under load: seeded RNGs, physics never drops steps to catch up with the wall
+	# clock, and every test creature animates in the physics step (see _spawn), so brain, clips and
+	# the simulated clock below advance in lock-step whatever the machine is doing.
+	seed(20261028)
+	load("res://scripts/combat/combat_tuning.gd").rng.seed = 20261028
+	Engine.max_physics_steps_per_frame = 1000
+	Engine.physics_jitter_fix = 0.0
 	host = Node3D.new()
 	get_root().add_child(host)
 	var floor := StaticBody3D.new()
@@ -87,6 +94,7 @@ func _run() -> void:
 	load("res://scripts/combat/combat_tuning.gd").force_accuracy = 1.0
 	dino = _spawn(&"deinonychus", Vector3(0, 0.1, 9), &"loyal")
 	await _test_fight()
+	_test_pounce_damage()
 	_test_energy_gate()
 	await _test_retreat()
 	await _test_ambush()
@@ -107,6 +115,9 @@ func _spawn(id: StringName, at: Vector3, nature: StringName):
 	host.add_child(c)
 	c.global_position = at
 	c.spawn(data.creature(id), &"", 0, null, 0, nature)
+	c.anim.tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS
+	if "rng" in c.brain:
+		c.brain.rng.seed = 20261028
 	return c
 
 func _keep_player_alive() -> void:
@@ -268,14 +279,6 @@ func _test_fight() -> void:
 			beat = false
 	_expect(worst_streak <= int(b.tac.get("max_basic_streak", 2)), "never more than %d basics in a row (worst %d)" % [int(b.tac.get("max_basic_streak", 2)), worst_streak])
 	_expect(no_beat == 0, "a non-attack beat between any two basics (%d without)" % no_beat)
-	var pounce_mult := 0.0
-	var combo_first := 0.0
-	for h in _hits:
-		if h[1] == &"pounce":
-			pounce_mult = maxf(pounce_mult, h[3])
-		elif h[1] == &"bite_combo" and h[2] == 0:
-			combo_first = h[3]
-	_expect(pounce_mult > combo_first and combo_first > 0.0, "pounce hits harder than the combo's first bite (x%.2f vs x%.2f)" % [pounce_mult, combo_first])
 	_expect(cd_breaks.is_empty(), "no attack inside its own cooldown %s" % str(cd_breaks))
 	_expect(_hops >= 2 and _hop_best >= 2.5 and _hop_rise >= 0.3, "backs off by jumping: %d hops, best +%.2fm away within 0.5s, body rose %.2fm" % [_hops, _hop_best, _hop_rise])
 	_expect(_disengage_breaks.is_empty(), "a back-jump is always followed by a strafe, attack, pounce or chase before the next %s" % str(_disengage_breaks))
@@ -321,6 +324,23 @@ func _test_fight() -> void:
 		_expect(absf(_combo_tell - c0 - tell_t) <= 0.07 and _combo_tell - c0 < float(fracs[2]) * clip_len, "combo tell (last bite's ring) at %.2fs into the clip, tell_fracs[0] %.3f = %.2fs" % [_combo_tell - c0, tell[0], tell_t])
 	else:
 		_expect(false, "anim_events bite_combo has tell_fracs [start, end]")
+
+## The pounce's resolved hit against the combo's first bite, both on the same survivor (no fight race).
+func _test_pounce_damage() -> void:
+	var b = dino.brain
+	dino.global_position = player.global_position + Vector3(0, -0.8, -1.5)
+	b.attack_target = player
+	b._pounce_dir = Vector3(0, 0, 1)  # landed facing her
+	_keep_player_alive()
+	var hp0: float = player.vitals.health
+	b._pounce_land()
+	var pounce_dmg: float = hp0 - player.vitals.health
+	_keep_player_alive()
+	hp0 = player.vitals.health
+	load("res://scripts/combat/creature_attack.gd").apply_for(dino, &"bite_combo", player, b.hit_damage_mult(&"bite_combo", 0))
+	var bite_dmg: float = hp0 - player.vitals.health
+	_keep_player_alive()
+	_expect(b._pounce_landed and pounce_dmg > bite_dmg and bite_dmg > 0.0, "the pounce hits harder than the combo's first bite (%.1f vs %.1f damage)" % [pounce_dmg, bite_dmg])
 
 func _test_energy_gate() -> void:
 	var b = dino.brain

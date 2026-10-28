@@ -23,6 +23,9 @@ signal sequence_step(step: StringName)
 const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge"]
 
 var tac: Dictionary = {}
+## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
+## draws from the global RNG.
+var rng := RandomNumberGenerator.new()
 var _cd: Dictionary = {}  ## move -> seconds until it may start again
 var _left := 0.0  ## timer of the current manoeuvre
 var _circle_sign := 1.0
@@ -74,6 +77,7 @@ static func has_tactics(def: CreatureDef) -> bool:
 func setup(c: Creature) -> void:
 	super.setup(c)
 	tac = tactics_for(c.def.archetype)
+	rng.randomize()
 	_circle_sign = _flank_sign
 	state_changed.connect(_on_state_changed)
 
@@ -263,7 +267,7 @@ func _prey_leaving() -> bool:
 func _enter_circle(hold: float = -1.0) -> void:
 	_set_state(&"circle")
 	_circle_t = 0.0
-	_left = hold if hold >= 0.0 else randf_range(_t("circle_min_s", 1.2), _t("circle_max_s", 2.6))
+	_left = hold if hold >= 0.0 else rng.randf_range(_t("circle_min_s", 1.2), _t("circle_max_s", 2.6))
 
 ## Sidestep around the prey on the ring, facing it; pick a manoeuvre when the timer runs out.
 func _circle(delta: float) -> void:
@@ -377,7 +381,7 @@ func pick_sequence(d: float) -> Dictionary:
 		total += w
 	if ok.is_empty():
 		return {}
-	var r := randf() * total
+	var r := rng.randf() * total
 	for pair in ok:
 		r -= float(pair[1])
 		if r <= 0.0:
@@ -503,20 +507,20 @@ func _charge(delta: float) -> void:
 ## under max_retreat_m. Holding is twice as likely while the prey is not advancing. Natures scale
 ## hold (Brave, Aggressive) and back-off (Timid) weights.
 func _move_beat() -> void:
-	_left = randf_range(_t("circle_min_s", 0.8), _t("circle_max_s", 1.6))
+	_left = rng.randf_range(_t("circle_min_s", 0.8), _t("circle_max_s", 1.6))
 	var d := _flat_dist(attack_target)
 	var w_hold := _t("w_hold", 0.35) * creature.nature_knob("tactic_hold_mult", 1.0) * (1.0 if _prey_advancing() else 2.0)
 	var w_strafe := _t("w_strafe", 0.35)
 	var w_feint := _t("w_feint", 0.15) * creature.nature_knob("tactic_feint_mult", 1.0) if creature.can_sprint() and d >= ring_m() - 1.0 else 0.0
 	var w_hop := _t("w_hop", 0.15) * creature.nature_knob("tactic_backoff_mult", 1.0) if can_disengage() and d < ring_m() - 0.5 else 0.0
-	var r := randf() * (w_hold + w_strafe + w_feint + w_hop)
+	var r := rng.randf() * (w_hold + w_strafe + w_feint + w_hop)
 	if r < w_hold:
 		_start_hold()
 	elif r < w_hold + w_strafe:
 		_beat()
 		_just_disengaged = false  # a strafe is the action between two back-jumps
 		tactic.emit(&"strafe")
-		if randf() < _t("flip_chance", 0.3):
+		if rng.randf() < _t("flip_chance", 0.3):
 			_circle_sign = -_circle_sign
 	elif r < w_hold + w_strafe + w_feint:
 		_start_feint()
@@ -542,7 +546,7 @@ func _beat() -> void:
 func _start_hold() -> void:
 	_beat()
 	_set_state(&"hold")
-	_left = randf_range(_t("hold_min_s", 0.8), _t("hold_max_s", 1.6))
+	_left = rng.randf_range(_t("hold_min_s", 0.8), _t("hold_max_s", 1.6))
 	creature.stop_move()
 	if creature.anim.has_state(&"alert") and not creature.anim._busy:
 		creature.anim.play_clip(&"alert")  # the threat pose (wings flare where the rig has them)
@@ -705,7 +709,7 @@ func _pounce(delta: float) -> void:
 				var dir := Vector3(aim.x - from.x, 0.0, aim.z - from.z)
 				dir = dir.normalized() if dir.length_squared() > 0.01 else -_to_me()
 				var land := aim - dir * (creature.body_radius() + 0.2)
-				_overshot = randf() < _t("pounce_overshoot_chance", 0.25) * creature.nature_knob("tactic_overshoot_mult", 1.0)
+				_overshot = rng.randf() < _t("pounce_overshoot_chance", 0.25) * creature.nature_knob("tactic_overshoot_mult", 1.0)
 				if _overshot:
 					land = aim + dir * _t("pounce_overshoot_m", 3.0)
 				var far := maxf(_t("pounce_max_m", 8.0), _t("ambush_pounce_max_m", 0.0)) + _size_excess(attack_target) + (_t("pounce_overshoot_m", 3.0) if _overshot else 0.0)
