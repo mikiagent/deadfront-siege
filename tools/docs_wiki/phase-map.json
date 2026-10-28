@@ -1055,7 +1055,7 @@
             "items-ladder"
           ],
           "source": "docs/design/durango-prompts/13_inventory_equipment_ui.md",
-          "note": "ICONS2 (65 renders done; armor_scute not deterministic) and CAGEICON (a dinosaur visibly in the cage) on their branches."
+          "note": "ICONS3 merged 2026-10-28: 65 ICONS2 renders landed, 164 of 240 items rendered, armor_scute deterministic; 76 items still unrendered (list in dsc-icons3.md). CAGEICON (a dinosaur visibly in the cage) still open."
         },
         {
           "id": "character-creation",
