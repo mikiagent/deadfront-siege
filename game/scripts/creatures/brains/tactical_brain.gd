@@ -139,8 +139,10 @@ func _think(delta: float) -> void:
 	# or backing off while it leaves (owner 2026-10-28).
 	if state in [&"circle", &"hold", &"feint", &"approach"] and _prey_leaving():
 		var d := _flat_dist(attack_target)
-		if not _strike(d, ["pounce"]) and d > reach_to(attack_target):
+		if not _strike(d, ["pounce"]) and d > reach_to(attack_target) and state != &"approach":
 			_set_state(&"approach")
+			_just_disengaged = false  # chasing is a real action between back-jumps
+			tactic.emit(&"chase")
 	match state:
 		&"approach": _approach_ring()
 		&"circle": _circle(delta)
@@ -234,7 +236,8 @@ func _approach_ring() -> void:
 		if creature.can_sprint():
 			speed_override = creature.move_speed_mps()  # a full run after it, not the 0.7 chase pace
 		var d := _flat_dist(attack_target)
-		if d <= reach_to(attack_target) and _strike(d):
+		# A quick bite (or the pounce) on the run; the long combo would only let her walk off.
+		if d <= reach_to(attack_target) and _strike(d, ["pounce", "bite"]):
 			return
 		creature.move_to(attack_target.global_position)
 		return
@@ -357,6 +360,7 @@ func _move_beat() -> void:
 		_start_hold()
 	elif r < w_hold + w_strafe:
 		_beat()
+		_just_disengaged = false  # a strafe is the action between two back-jumps
 		tactic.emit(&"strafe")
 		if randf() < _t("flip_chance", 0.3):
 			_circle_sign = -_circle_sign
@@ -384,7 +388,6 @@ func _beat() -> void:
 func _start_hold() -> void:
 	_beat()
 	_set_state(&"hold")
-	_just_disengaged = false
 	_left = randf_range(_t("hold_min_s", 0.8), _t("hold_max_s", 1.6))
 	creature.stop_move()
 	if creature.anim.has_state(&"alert") and not creature.anim._busy:
@@ -404,6 +407,7 @@ func _hold(delta: float) -> void:
 
 func _start_feint() -> void:
 	_beat()
+	_just_disengaged = false
 	_set_state(&"feint")
 	_feint_out = false
 	_left = _t("feint_s", 0.7)
