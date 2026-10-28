@@ -27,6 +27,9 @@ extends SceneTree
 const BUDGET_PATH := "res://data/perf_budget.json"
 const COVER_CELL_M := 32.0
 const WATCHDOG_S := 540.0
+## Builds per island: the fastest is the island's own cost, the worst is checked against the
+## budget plus build_ms.overrun_pct (this box runs other agents' jobs mid-gate).
+const BUILD_RUNS := 5
 
 var _fails: PackedStringArray = []
 var _started := false
@@ -186,14 +189,14 @@ func _measure(id: StringName, is_home: bool) -> void:
 	# The previous island's nodes and memory are gone before the "before" sample: a delta, not a total.
 	await _frames(3)
 	await physics_frame
-	# Three builds of this island, the FASTEST one is its build_ms: another agent's job on the box
+	# Five builds of this island, the FASTEST one is its build_ms: another agent's job on the box
 	# only ever adds wall-clock time to a build, it never makes one finish early, so the best of
-	# three is the island's own cost while the worst is kept and printed. The last build stays in
+	# five is the island's own cost while the worst is kept and printed. The last build stays in
 	# the tree and every other measure is read from it.
 	var build_best := INF
 	var build_worst := 0.0
 	var mem0 := 0.0
-	for i in 3:
+	for i in BUILD_RUNS:
 		if i > 0:
 			_clear_island()
 			await _frames(3)
@@ -240,7 +243,7 @@ func _measure(id: StringName, is_home: bool) -> void:
 		row["id"], row["kind"], climate, build_ms, build_worst, harvest, scene_nodes,
 		int(cover["instances"]), int(cover["cells"]), creatures, float(row["heap_mb"])])
 	_judge(build_ms <= build_max,
-		"%s builds in %.0f ms (budget %.0f ms, worst of 3 %.0f)" % [id, build_ms, build_max, build_worst],
+		"%s builds in %.0f ms (budget %.0f ms, worst of %d %.0f)" % [id, build_ms, build_max, BUILD_RUNS, build_worst],
 		(m["build_ms"] as Dictionary))
 	_judge(harvest >= int(harvest_band[0]) and harvest <= int(harvest_band[1]),
 		"%s has %d HarvestNodes (budget %d-%d)" % [id, harvest, int(harvest_band[0]), int(harvest_band[1])])
