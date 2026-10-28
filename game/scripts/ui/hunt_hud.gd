@@ -997,6 +997,7 @@ func _toggle_sheet(kind: StringName) -> void:
 			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
 			# spec 29 section 2: Gameplay HUD -> Main Menu -> Domain.
 			_sheet_btn(box, "Domain", func () -> void: _close_sheet(); _open_domain())
+			_sheet_btn(box, "Island Market", func () -> void: _close_sheet(); open_market()) # UIMARKET, owner: Main Menu -> Island Market
 			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
 		&"pets":
@@ -1146,6 +1147,16 @@ func _open_map() -> void:
 
 func open_map() -> void:
 	_open_map()
+
+## UIMARKET: the Island Market on its own layer (tab: buy | my_market | sell); its ‹ comes back to MENU.
+func open_market(tab: StringName = &"buy") -> MarketScreen:
+	var s := MarketScreen.open_for(self, tab)
+	if not s.back_pressed.is_connected(_market_back):
+		s.back_pressed.connect(_market_back)
+	return s
+
+func _market_back() -> void:
+	_toggle_sheet(&"menu")
 
 var _domain_screen: DomainScreen
 
