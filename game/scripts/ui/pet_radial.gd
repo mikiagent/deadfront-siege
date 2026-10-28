@@ -309,6 +309,10 @@ func _label_rect(i: int, font: Font, fs: int) -> Rect2:
 		y = at.y - h if sin(a) < 0.0 else at.y
 	return Rect2(Vector2(x, y), Vector2(w, h))
 
+## A refused row ("Needs a saddle"): greyed, still tappable so the tap says why.
+func _off(i: int) -> bool:
+	return i < rows.size() and bool((rows[i] as Dictionary).get("disabled", false))
+
 func _label_text(i: int, font: Font, fs: int) -> String:
 	return UiTokens.ellipsis(font, str((rows[i] as Dictionary).get("label", "")), UiTokens.LABEL_MAX_W, fs)
 
@@ -331,7 +335,7 @@ func _draw() -> void:
 	for i in n:
 		var tex := _icons[i] if i < _icons.size() else null
 		if tex:
-			draw_texture_rect(tex, Rect2(segment_center(i) - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false)
+			draw_texture_rect(tex, Rect2(segment_center(i) - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, Color(1, 1, 1, 0.35) if _off(i) else Color.WHITE)
 	var font := ThemeDB.fallback_font
 	var fs := UiTokens.body(view)
 	for i in mini(n, label_rects.size()):
@@ -339,7 +343,7 @@ func _draw() -> void:
 		draw_rect(r, UiTokens.INK)
 		if i == hot:
 			draw_rect(r, UiTokens.TEAL, false, 2.0)
-		draw_string(font, r.position + Vector2(7.0, r.size.y * 0.5 + float(fs) * 0.36), _label_text(i, font, fs), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UiTokens.TEXT)
+		draw_string(font, r.position + Vector2(7.0, r.size.y * 0.5 + float(fs) * 0.36), _label_text(i, font, fs), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UiTokens.MUTED if _off(i) else UiTokens.TEXT)
 	_draw_meter(view)
 	_draw_names(view, font)
 

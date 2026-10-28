@@ -37,6 +37,7 @@ static func _dress(hud: HuntHud) -> void:
 		hud._buff_row.pinned = "well_rested"
 	if Game.shot_path.contains("mounted"):  # ride a zebraceratops: the energy bar is the mount's
 		p.bonded.append(PetRecord.from_def(Data.creature(&"zebraceratops"), &"A"))
+		p.bonded[-1].fit_saddle()  # SADDLES: riding needs one
 		var m := p.pets.summon(p.bonded.size() - 1)
 		hud.get_tree().create_timer(0.5).timeout.connect(func () -> void:
 			if is_instance_valid(m):

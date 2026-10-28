@@ -266,7 +266,7 @@ func _layout() -> void:
 	if UiTokens.is_phone(r):
 		_inspect_hex.position = Vector2(r.x - HEX - 16.0 - inset.x, r.y - HEX * 2.0 - 36.0 - inset.y)
 	else:
-		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + DayNightDial.DISC + 8.0)  # under the dial
+		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + _daynight.size.y + 8.0)  # under the dial
 	field.place(r, inset, map_floor())
 	if HudLayout.landscape_phone(r):
 		HudLayout.place_landscape_phone(self, r, inset)
@@ -419,6 +419,23 @@ func open_animals(rec: PetRecord = null) -> void:
 		add_child(layer)
 		layer.add_child(_animal_screen)
 	_animal_screen.open(player, rec)
+
+## SADDLES: a tame's equipment (pet radial Gear, Animals screen Gear). Its own layer above the Animals
+## screen, so ‹ shows the Animals screen again when it was opened from there.
+var _pet_gear: PetGearSheet
+
+func open_pet_gear(rec: PetRecord) -> PetGearSheet:
+	if rec == null:
+		return null
+	if _pet_gear == null or not is_instance_valid(_pet_gear):
+		var layer := CanvasLayer.new()
+		layer.name = "PetGearLayer"
+		layer.layer = 97
+		add_child(layer)
+		_pet_gear = PetGearSheet.new()
+		layer.add_child(_pet_gear)
+	_pet_gear.open(player, rec)
+	return _pet_gear
 
 func _build_combat() -> void:
 	_end_btn = Button.new()
