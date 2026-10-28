@@ -21,12 +21,6 @@ trawling history. When the build changes a system, update its doc in the same co
 | UI screens (every screen, phone landscape) | [ui-screens.md](ui-screens.md) | **captured 2026-10-28** — `docs/current/screens/` (31 WebP at 844x390 drawn 2x) + the newer sheet captures under `docs/orchestration/reports/`; rerun `tools/ui_screens.sh` |
 | Glowing eyes, bloom & trails | [eyes.md](eyes.md) | **written 2026-10-28** — eyeshine dots, rim light, wisp/bloom/embers mesh, per-species `eyes`/`trail` data, cost & tests |
 | Occlusion (see-through props) | [occlusion.md](occlusion.md) | **written 2026-10-28** — the between-camera-and-survivor rule, dither constants, 8 MultiMesh slots, roof fade, tests |
-| Creatures, AI, capture & taming | [creatures-capture-taming.md](creatures-capture-taming.md) | **written 2026-10-28** — 19-species roster table, 10 AI states + archetypes, spawns & 24 cap, capture rule (stunned at any HP or ≤30 %, net tier, tied-to-technique chance), field tame, pen, bonded cap, pets & mounts |
-| Enemy AI template (class profiles, sequences, cooldowns, energy, clip set) | [enemy-ai-template.md](enemy-ai-template.md) | **written 2026-10-28**: TacticalBrain + `ai.json` `tactics`; deinonychus is the first class, with an "adding a new class" checklist |
-| Saves & persistence | [saves-persistence.md](saves-persistence.md) | **written 2026-10-28** — `user://save_1.json` under the override.cfg user dir, schema 4 + 4 migrations, key table, sanitizer clamps, .bak/quarantine rescue, 60 s autosave |
-| Server & multiplayer contract | [server-contract.md](server-contract.md) | **written 2026-10-28** — local in-process engine only (no transport/auth/presence), 12 client + 5 system ops, journal+snapshot store, WorldFacade |
-| Economy & trading | [economy-trading.md](economy-trading.md) | **written 2026-10-28** — single T-stone int, 2 sinks (sail cost, 2-stone cargo warp) + 3 sources, market.json data only (no market UI or engine) |
-| UI screens (every screen, phone landscape) | [ui-screens.md](ui-screens.md) | **captured 2026-10-28** — 31 shots at 844x390 drawn 2x, rerun `tools/ui_screens.sh` |
 
 *(Sheets live in the canon worktree's `game/data_sheets/` — nine CSVs the owner can edit in any
 spreadsheet app, synced back into `game/data/*.json` by the agent. The three generated pages come
