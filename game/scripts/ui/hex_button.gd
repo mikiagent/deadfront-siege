@@ -110,6 +110,12 @@ func _init(size_px: float = 72.0) -> void:
 	# HuntHud.taken_rects finds every hex on screen (HUD, station and gather radials) through this.
 	add_to_group(&"hex_button")
 
+## The rim colour drawn this frame: rim_color when set, else the accent (today's look). Selected draws
+## in GOLD on a restyled hex and TEAL on a shipped one; blocked greys it out.
+func effective_rim(p_selected: bool = false) -> Color:
+	var c := rim_color if rim_color.a > 0.0 else accent
+	return (UiTokens.GOLD if rim_color.a > 0.0 else UiTokens.TEAL) if p_selected else c
+
 ## The hexagon's corners, from the one geometry source (UiTokens.hex_points).
 func _hex(r: float, c: Vector2) -> PackedVector2Array:
 	return UiTokens.hex_points(c, r, flat_top)
@@ -122,12 +128,10 @@ func _draw() -> void:
 	var c := size * 0.5
 	var r := minf(size.x, size.y) * 0.5 - 2.0
 	var f := fill
-	var rim := rim_color if rim_color.a > 0.0 else accent
+	var rim := effective_rim(selected)
 	if disabled or not enabled_look:
 		f = Color(0.05, 0.05, 0.06, 0.8)
 		rim = Color(0.5, 0.5, 0.5, 0.8)
-	if selected:
-		rim = UiTokens.TEAL
 	if _down:
 		f = f.lightened(0.15)
 	# Draw order (spec §3): rim hex, the fill hex inside it, the pie sector, then icon and texts.

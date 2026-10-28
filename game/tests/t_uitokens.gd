@@ -365,9 +365,14 @@ func _test_hex_button_fields() -> void:
 		_expect(b.call("drawn_icon") == grey, "the grey copy is cached per texture")
 	_expect(b.fill == fill_was and b.accent == rim_was, "icon_grey leaves the hex fill and rim alone")
 	_expect(b.call("drawn_icon") != null, "the drawn icon is never dropped")
-	# rim_color/rim_width are just values the draw reads; the default still follows `accent`.
+	# rim_color/rim_width are opt-in: defaults keep `accent`, and a restyled hex selects in GOLD while
+	# a shipped one still selects in TEAL.
+	_expect(b.call("effective_rim") == b.accent, "a default hex's rim is its accent (today's look)")
+	_expect(b.call("effective_rim", true) == UT.TEAL, "a default hex selects in TEAL (today's look)")
 	b.rim_color = UT.HUD_RIM
 	b.rim_width = 4.0
+	_expect(b.call("effective_rim") == UT.HUD_RIM, "a restyled hex draws HUD_RIM")
+	_expect(b.call("effective_rim", true) == UT.GOLD, "a restyled hex selects in GOLD")
 	_expect(b.rim_color == UT.HUD_RIM and b.rim_width == 4.0, "rim_color and rim_width are settable")
 	# The white-symbol path still gets the shader material and no grey copy.
 	var white := Control.new()
