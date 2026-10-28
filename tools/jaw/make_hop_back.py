@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Author an in-place hop_back clip (crouch, backward leap, tucked feet, landing, recovery) from a species' idle pose.
+"""Author an in-place leap clip (hop_back, leap_back, or with --forward a pounce) (crouch, backward leap, tucked feet, landing, recovery) from a species' idle pose.
 
 The clip stays in place like the game's other clips; the game moves the creature backwards while it plays. The body
 rises and falls on a jump arc, pitches nose-up in the air, the thighs tuck the feet up and the tail swings for
@@ -20,6 +20,8 @@ ap.add_argument("--frames", type=int, default=12)
 ap.add_argument("--height", type=float, default=0.08)
 ap.add_argument("--tuck", type=float, default=35)
 ap.add_argument("--pitch", type=float, default=14)
+ap.add_argument("--forward", action="store_true", help="a pounce: nose down in the air, legs trail back")
+ap.add_argument("--name", default="hop_back")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
 b = open(a.idle, "rb").read(); n = struct.unpack("<I", b[12:16])[0]; j = json.loads(b[20:20 + n])
@@ -59,7 +61,8 @@ def curves(u):
         dz = -0.5 * a.height * math.sin(math.pi * (u - T_LAND) / 0.3) * (1 - smooth((u - 0.8) / 0.2)); air = 0.0
     return dz, air
 
-act = bpy.data.actions.new("hop_back")
+act = bpy.data.actions.new(a.name)
+sgn_dir = -1.0 if a.forward else 1.0
 arm.animation_data.action = act
 side = Vector((1, 0, 0))
 for f in range(a.frames):
@@ -71,7 +74,7 @@ for f in range(a.frames):
     body = arm.pose.bones["Body"]
     m = body.matrix.copy(); piv = m.translation.copy()
     # nose up in the air (positive pitch lifts the snout for a -Y facing rig), whole body rises on the arc
-    body.matrix = Matrix.Translation((0, 0, dz)) @ Matrix.Translation(piv) @ Matrix.Rotation(math.radians(-a.pitch * air), 4, side) @ Matrix.Translation(-piv) @ m
+    body.matrix = Matrix.Translation((0, 0, dz)) @ Matrix.Translation(piv) @ Matrix.Rotation(math.radians(-sgn_dir * a.pitch * air), 4, side) @ Matrix.Translation(-piv) @ m
     bpy.context.view_layer.update()
     for nm in ("BackFoot.L", "BackFoot.R"):  # on these rigs the feet are root-parented controllers: lift them too
         pb = arm.pose.bones.get(nm)
@@ -82,7 +85,7 @@ for f in range(a.frames):
         pb = arm.pose.bones.get(nm)
         if pb is None: continue
         m = pb.matrix.copy(); piv = m.translation.copy()
-        pb.matrix = Matrix.Translation(piv) @ Matrix.Rotation(math.radians(a.tuck * air), 4, side) @ Matrix.Translation(-piv) @ m
+        pb.matrix = Matrix.Translation(piv) @ Matrix.Rotation(math.radians(sgn_dir * a.tuck * air), 4, side) @ Matrix.Translation(-piv) @ m
         bpy.context.view_layer.update()
     for pb in arm.pose.bones:
         pb.keyframe_insert("location", frame=f + 1); pb.keyframe_insert("rotation_quaternion", frame=f + 1)
@@ -90,4 +93,4 @@ bpy.context.scene.frame_start, bpy.context.scene.frame_end = 1, a.frames
 bpy.ops.object.select_all(action="DESELECT"); arm.select_set(True)
 bpy.ops.export_scene.gltf(filepath=a.out, export_format="GLB", use_selection=True, export_animations=True,
                           export_animation_mode="ACTIONS", export_force_sampling=True, export_yup=True)
-print(f"HOP {a.frames} frames at {fps} fps ({(a.frames - 1) / fps:.2f} s), airborne {T_OFF:.2f}-{T_LAND:.2f} of the clip")
+print(f"HOP {a.name} {a.frames} frames at {fps} fps ({(a.frames - 1) / fps:.2f} s), airborne {T_OFF:.2f}-{T_LAND:.2f} of the clip")
