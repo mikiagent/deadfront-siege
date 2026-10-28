@@ -390,7 +390,11 @@ the output and a slot-2 or slot-3 one never does.
 
 **The roll.** Every gathered unit rolls once at gather (`game/scripts/gather/gather_service.gd` `stamp_traits` →
 `loot_roller.gd` `roll_trait`): a **5 %** chance of **one** rare attribute (`game/data/loot_tables.json`
-`rare_trait.chance`, world-design.md:55, PRD:541). There is no bonus from Gathering level (spec 12:42) or tool tier.
+`rare_trait.chance`, world-design.md:55, PRD:541) with bare hands or a stone tool. Since ONEGATHER (owner
+2026-10-28: upgrades change the speed and quality of a harvest, not the amount) the working tool's material tier
+is the quality lever: +15% of the base per tier above stone (`rare_trait.tool_tier_bonus`, cap `max_chance` 0.15,
+`# ASSUMPTION`), so bone 5.75%, flint 6.5%, copper 8%, iron 9.5%, steel 10.25% (`LootRoller.trait_chance`).
+There is still no bonus from Gathering level (spec 12:42).
 Since RAREATTR the attribute comes from **that material's own list**, `rare_trait.by_material[<item id>]`, not one pool
 for everything: a stone rolls Black Sheen / Low Vibration / Vivid Inspiration, a log rolls Wide Serration / Split Easily
 / Vivid Inspiration, a fibre rolls Narrow Hook / Wide Serration / Vivid Inspiration. The six-trait pool

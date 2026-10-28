@@ -1110,7 +1110,7 @@
           "level": 30,
           "sp": 18,
           "type": "rate",
-          "unlocks": "+5% great-success gather (extra process count)",
+          "unlocks": "+5% great-success gather: a finer material, never extra units",
           "requires": "mining_2",
           "name": "Great Success 1",
           "auto": false,
@@ -1208,7 +1208,7 @@
           "level": 55,
           "sp": 34,
           "type": "rate",
-          "unlocks": "+10% great-success gather",
+          "unlocks": "+10% great-success gather: a finer material, never extra units",
           "requires": "mining_4",
           "name": "Great Success 2",
           "auto": false,
@@ -1914,7 +1914,7 @@
           "level": 25,
           "sp": 12,
           "type": "rate",
-          "unlocks": "+20% yield",
+          "unlocks": "+20% cut speed (still one part per cut)",
           "requires": "rare_parts_1",
           "name": "Yield 1",
           "auto": false,
@@ -1925,9 +1925,8 @@
               "items": []
             }
           ],
-          "status": "functional",
-          "impl": "functional",
-          "impl_ref": "game/scripts/gather/loot_roller.gd:74"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "teeth_1",
@@ -2042,7 +2041,7 @@
           "level": 45,
           "sp": 22,
           "type": "rate",
-          "unlocks": "+40% yield",
+          "unlocks": "+40% cut speed (still one part per cut)",
           "requires": "quality_bone",
           "name": "Yield 2",
           "auto": false,
@@ -2222,8 +2221,7 @@
           "level": 25,
           "sp": 12,
           "auto": false,
-          "impl": "functional",
-          "impl_ref": "game/scripts/gather/loot_roller.gd:74"
+          "impl": "defined"
         },
         {
           "id": "teeth_1",

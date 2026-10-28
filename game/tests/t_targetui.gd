@@ -117,6 +117,9 @@ func _clear() -> void:
 		c.queue_free()
 	player.velocity = Vector3.ZERO
 	player.global_position = Vector3(0, 1.0, 0)
+	# Facing too: a summoned pet takes its follow slot behind her, so a facing left over from the last
+	# case (she turns at a capped rate now, no snap) moved the pet onto the next case's animal.
+	player.visual.rotation.y = 0.0
 	player.actions.online = false
 	await _frames(10)
 

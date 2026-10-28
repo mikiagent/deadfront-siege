@@ -41,7 +41,7 @@ Client ops (`CLIENT_OPS`), each validated in full before it mutates anything:
 
 | op | handler | does |
 |---|---|---|
-| `act.gather` | `_gather` | one harvest-node pass, tool-class check, yield multiplier, gathering XP |
+| `act.gather` | `_gather` | one harvest-node pass, tool-class check, exactly one instance (ONEGATHER), gathering XP |
 | `act.loot` | `_loot` | move a corpse slot into the bag |
 | `act.craft` | `_craft` | `Crafting.plan_craft` + `run_plan` on the server bag |
 | `act.place` | `_place` | consume one kit whose `place_as` matches the kind, queue a `place` write |

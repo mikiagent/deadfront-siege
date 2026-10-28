@@ -156,11 +156,7 @@ func finish_gather() -> void:
 			stop_gather_cycle()
 			p.gather_target = null
 			return
-	var stack := gt.roll_yield()
-	var yield_mult := _gather_yield_multiplier(gt)
-	stack.count = maxi(1, int(floor(float(stack.count) * yield_mult)))
-	if randf() < fmod(yield_mult, 1.0):
-		stack.count += 1
+	var stack := gt.roll_yield()  # ONEGATHER: one instance per pass, never more
 	if p.skills:
 		# rules.json gathering_downrank: a node above your Gathering level yields at your level.
 		# ASSUMPTION: floor of 5 so a fresh survivor still gets usable materials.
@@ -210,9 +206,6 @@ static func gather_pass_xp(seconds: float) -> int:
 
 func _scaled_gather_seconds(node: HarvestNode) -> float:
 	return GatherService.unit_seconds(p, node)  # W2-GATHER: role tool helps, bare hands slower
-
-func _gather_yield_multiplier(node: HarvestNode) -> float:
-	return GatherService.yield_multiplier(p, node)
 
 func _start_gather_cycle(seconds: float) -> void:
 	p._gathering = true

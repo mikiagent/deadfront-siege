@@ -10,9 +10,10 @@ signal hit_landed(target: Creature)
 
 var target: Creature
 var hold: bool = false
-## A ground tap during the fight (owner: "pathfind to where I want to walk and then re-engage"): the
-## hunt keeps its target but neither chases, swings nor faces until the walk ends, then re-engages.
-var walking_off: bool = false
+## A ground tap during the fight (Player.move_order; owner: "pathfind to where I want to walk and then
+## re-engage"): the hunt keeps its target but neither chases, swings nor faces until the order ends, then
+## re-engages. A hit ends the order and Player.receive_creature_hit retargets (start() clears this).
+var _resume_after_move: bool = false
 var auto: bool = true  # HUD Auto hexagon: auto-attack when in range
 var _ring: MeshInstance3D
 var _ranged_pending := false
@@ -41,14 +42,14 @@ func start(t: Creature) -> void:
 	if t == null or t.health.dead or t.is_pet:
 		return  # F / retaliation / taps never turn the survivor on his own pet
 	target = t
-	walking_off = false
+	_resume_after_move = false
 	_attach_ring(t)
 	started.emit(t)
 	print("[combat] hunt start %s" % t.def.id)
 
 func stop() -> void:
 	target = null
-	walking_off = false
+	_resume_after_move = false
 	if _ring and is_instance_valid(_ring):
 		_ring.queue_free()
 	_ring = null
@@ -95,10 +96,11 @@ func _process(delta: float) -> void:
 	_kick_cd = maxf(0.0, _kick_cd - delta)
 	_net_cd = maxf(0.0, _net_cd - delta)
 	_tactic_lock = maxf(0.0, _tactic_lock - delta)
-	if walking_off:
-		if player.nav_active:
-			return
-		walking_off = false
+	if player.move_order:
+		_resume_after_move = _resume_after_move or target != null
+		return  # [owner 2026-10-28] a click-to-move order outranks combat: no chase, swing or facing
+	if _resume_after_move:
+		_resume_after_move = false
 		if target == null or not is_instance_valid(target) or target.health.dead \
 				or player.global_position.distance_to(target.global_position) > 28.0:
 			var near := player.actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
@@ -129,6 +131,9 @@ static func melee_reach(creature: Creature) -> float:
 	return maxf(2.1, maxf(0.18, creature.def.real_length_m * 0.12) + 0.65)
 
 func _auto_attack() -> void:
+	# A click-to-move order outranks the auto-attack: she keeps her own path to the clicked point.
+	if player.move_order:
+		return
 	# An attended siege platform never fires or chases automatically.
 	var platform := player._nearest_group("catapult") as FieldCatapult
 	if platform and player.global_position.distance_to(platform.global_position) <= 3.0:
@@ -162,7 +167,7 @@ func _auto_attack() -> void:
 ## last swing has recovered, with Auto off or on HOLD too. False = nothing started (out of reach,
 ## cooling down, rolling); auto-attack still walks over when Auto is on and HOLD is off.
 func swing_now() -> bool:
-	if target == null or player.rolling or _tactic_lock > 0.0 or _swing_cd > 0.0 or _swing_pending \
+	if target == null or player.move_order or player.rolling or _tactic_lock > 0.0 or _swing_cd > 0.0 or _swing_pending \
 			or player.statuses.has_flag(&"cannot_act"):
 		return false
 	var w := _weapon()

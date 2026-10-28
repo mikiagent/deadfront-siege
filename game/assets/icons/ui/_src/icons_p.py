@@ -32,22 +32,37 @@ for i, p in enumerate(LINE):
     # 7 at the gullet, swelling to 24 through the body, easing to 8 at the pylorus and the gut
     body = math.sin(math.pi * min(1.0, max(0.0, (t - 0.06) / 0.78))) ** 0.8
     W.append((7.0 if t < 0.45 else 8.0) + 17.0 * body)
-G["stomach"] = [([chaikin(tube(LINE, W), 2)], False)]
+OUTER = chaikin(tube(LINE, W), 2)
 
-# water_drop (WEATHER, owner 2026-10-28: an effect for wetness like bleed and poison): one big falling drop
-# with a highlight knocked out of its left shoulder, and a small drop beside it.
-DROP = path((30, 6), ((36, 16), (48, 26), (48, 38)), ((48, 49), (40, 57), (30, 57)), ((20, 57), (12, 49), (12, 38)),
-            ((12, 26), (24, 16), (30, 6)))
-SHINE = path((19.5, 39), ((19.5, 33), (22.5, 28.5), (25.5, 25)), ((27, 27), (25.5, 32), (25, 40)), ((23.5, 43), (19.5, 42.5), (19.5, 39)))
-SMALL = path((51, 8), ((53.5, 12), (57, 15), (57, 18.5)), ((57, 21.5), (54.5, 23.5), (51, 23.5)), ((47.5, 23.5), (45, 21.5), (45, 18.5)),
-             ((45, 15), (48.5, 12), (51, 8)))
-G["water_drop"] = [([DROP, SHINE], True), ([SMALL], False)]
 
-# smoke_inhalation (owner 2026-10-28: a hazard, "the smoke should make you take damage"): a heavy smoke
-# cloud low down with three wisps curling up out of it.
-CLOUD = [circle(18, 44, 10), circle(31, 39, 13), circle(45, 44, 10), circle(32, 50, 8), capsule((14, 50), (50, 50), 8)]
-WISPS = [band([(22, 28), (19, 21), (23, 14), (20, 7)], 4.6), band([(33, 25), (36, 18), (32, 11), (35, 5)], 4.6),
-         band([(43, 29), (46, 22), (42, 16)], 4.2)]
-G["smoke_inhalation"] = [(CLOUD, False), (WISPS, False)]
+def body(width_k, extra=0.0):
+    """The stomach with its walls scaled by width_k (thin when empty) plus `extra` (swollen when overfull)."""
+    return chaikin(tube(LINE, [max(4.0, w * width_k + extra) for w in W]), 2)
 
-I = place(G)
+
+# HUDRULES round 3 (owner: "stomach symbol should change to different states empty stomach looks shrunk, full
+# stomach looks big"): the shape carries the state; four drawings, since a fifth between hungry and full
+# read as the same silhouette at 24 px (t_uiicons IoU check), so "normal" draws the full stomach a little smaller (HudStomach.GLYPH_SCALE). Empty is a thin, shrunken stomach, each state rounder and
+# bigger, full the round stomach ("stomach"), overfull swollen past it with two pressure marks beside the
+# gullet. Each variant also scales about the full stomach's optical centre (SCALE), so they share one centre.
+SCALE = {"stomach_empty": 0.8, "stomach_hungry": 0.86, "stomach": 1.0, "stomach_overfull": 1.0}
+VARIANTS = {
+    "stomach_empty": [([body(0.55)], False)],
+    "stomach_hungry": [([body(0.68)], False)],
+    "stomach": [([OUTER], False)],
+    "stomach_overfull": [([body(1.0, 5.0)], False), ([capsule((37.0, 15.0), (41.5, 10.0), 3.6), capsule((42.5, 22.0), (48.0, 19.0), 3.6)], False)],
+}
+(ox, oy), lo, hi = optical(VARIANTS["stomach"])
+DX = round((32 - ox) * 2) / 2
+DY = round((32 - oy) * 2) / 2
+I = {}
+for k, groups in VARIANTS.items():
+    groups = [([xf(q, about=(ox, oy), scale=SCALE[k]) for q in polys], eo) for polys, eo in groups]
+    pts = [p for polys, _ in groups for q in polys for p in xf(q, dx=DX, dy=DY)]
+    over = max([6.0 - min(p[0] for p in pts), max(p[0] for p in pts) - 58.0, 6.0 - min(p[1] for p in pts), max(p[1] for p in pts) - 58.0, 0.0])
+    fit = 26.0 / (26.0 + over)  # the swollen state scales about the centre to stay in the 6..58 live area
+    els = []
+    for polys, eo in groups:
+        moved = [xf(xf(q, dx=DX, dy=DY), about=(32.0, 32.0), scale=fit) for q in polys if len(q) >= 3]
+        els += [solid(*moved, eo=True)] if eo else [solid(q) for q in moved]
+    I[k] = {"s": els}

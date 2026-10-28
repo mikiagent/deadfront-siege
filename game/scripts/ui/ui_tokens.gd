@@ -57,6 +57,13 @@ const HEAL := Color(0.373, 0.827, 0.416, 1.0)         # healing numbers, positiv
 const WET := Color(74.0 / 255.0, 159.0 / 255.0, 224.0 / 255.0, 1.0)  # #4a9fe0: the Wet effect, water blue (never green)
 const SMOKE := Color(154.0 / 255.0, 154.0 / 255.0, 158.0 / 255.0, 1.0)  # #9a9a9e: Smoke Inhalation, ash grey (never green)
 const POISON := Color(163.0 / 255.0, 107.0 / 255.0, 217.0 / 255.0, 1.0)  # #a36bd9: venom, poison, sickness
+## Stomach ring (owner 2026-10-28: "red is too full stomach, green is full, yellow is hungry, and red (again) is
+## empty stomach"): the one owner-sanctioned green outside healing. Saturation is the yellow outer ring.
+const STOMACH_FULL := Color(0.373, 0.827, 0.416, 1.0)
+const STOMACH_HUNGRY := Color(0.957, 0.808, 0.247, 1.0)
+const STOMACH_EMPTY := LIFE
+const STOMACH_OVERFULL := LIFE
+const SATURATION := Color(0.957, 0.769, 0.188, 1.0)
 
 ## Trait chips (owner rule §1.4). bg / fg pairs; never reuse for item colour (spec 35).
 const TRAIT_NEG_BG := Color(0.243, 0.263, 0.275, 1.0)
