@@ -683,7 +683,7 @@
             "climate-material-base"
           ],
           "source": "docs/design/islands-and-loop-plan.md",
-          "note": "Built on claude/aaa-lighting-grade (filmic tonemap, grade, golden hour, --tod flag) but cut from an old main, not from this line; port it, do not merge it."
+          "note": "LIGHTPORT built on claude/mmo-lightport (9ecf2e2e, gates PASS headless): filmic grade, glow, fog sun scatter, golden hour on canon lighting. Held for a blind A/B with the owner before merge (visual change)."
         },
         {
           "id": "forest-structure",
