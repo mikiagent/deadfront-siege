@@ -473,17 +473,29 @@ func _test_picker() -> void:
 	# and each hex's own box is the 64 px tap target.
 	var clashes := []
 	var tap_ok := true
+	var inner := true
 	for i in hexes.size():
 		# Untyped on purpose: naming HexButton here would compile it before the autoloads exist.
 		var a = hexes[i]
-		tap_ok = tap_ok and a.hex_rect().size.x >= 64.0 and a.hex_rect().size.y >= 64.0
+		tap_ok = tap_ok and a.size.x >= 64.0 and a.size.y >= 64.0
 		for j in range(i + 1, hexes.size()):
-			var ra: Rect2 = a.caption_rect()
-			var rb: Rect2 = hexes[j].caption_rect()
-			if ra.size.x > 0.0 and rb.size.x > 0.0 and ra.intersects(rb):
-				clashes.append("%s/%s" % [a.caption, hexes[j].caption])
-	_expect(tap_ok, "every part hex draws a 64 px tap target")
-	_expect(clashes.is_empty(), "no two part names overlap under the hexes (%s)" % [clashes])
+			var b = hexes[j]
+			if a.hex_rect().intersects(b.hex_rect()) or a.get_global_rect().intersects(b.get_global_rect()):
+				inner = false
+	_expect(tap_ok, "every part hex is a 64 px tap target")
+	_expect(inner, "the part hexes never overlap each other")
+	# The name under each hex stays inside its own cell: no two part names run together.
+	var names := []
+	for id in ["raw_meat", "bone", "raw_hide", "dense_bone", "armor_scute"]:  # triceratops parts
+		var l = picker.name_label(StringName(id))
+		if l != null:
+			names.append(l)
+	for i in names.size():
+		for j in range(i + 1, names.size()):
+			if names[i].get_global_rect().intersects(names[j].get_global_rect()):
+				clashes.append("%s/%s" % [names[i].text, names[j].text])
+	_expect(names.size() == hexes.size(), "every part shows its name under the hex (%d of %d)" % [names.size(), hexes.size()])
+	_expect(clashes.is_empty(), "no two part names overlap (%s)" % [clashes])
 	_expect(picker.can_cut(&"raw_meat") and not picker.can_cut(&"armor_scute"), "the picker offers the open parts and blocks the locked ones")
 	# A tap on an open hex starts the cut (the hex's own pressed signal, as a finger would).
 	var meat_hex = null

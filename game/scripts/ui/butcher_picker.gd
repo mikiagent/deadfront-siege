@@ -27,6 +27,7 @@ var player: Player
 var _panel: PanelContainer
 var _title: Label
 var _sub: Label
+var _scroll: ScrollContainer
 var _rows: GridContainer
 var _loot_btn: Button
 var _close_btn: Button
@@ -68,6 +69,10 @@ func part_buttons() -> Array[HexButton]:
 	for id in _buttons:
 		out.append(_buttons[id])
 	return out
+
+## The line under that part's hex showing its name, or null. The gates check the names never overlap.
+func name_label(part_id: StringName) -> Label:
+	return _rows.get_node_or_null("Cell_%s/Name_%s" % [part_id, part_id]) as Label
 
 ## Why that part cannot be cut now ("" when it can), as the picker words it under the hex.
 func blocked_reason(part_id: StringName) -> String:
@@ -120,14 +125,11 @@ func _rebuild() -> void:
 		var id := StringName(str(opt["id"]))
 		var b := HexButton.new(HEX_PX)
 		b.name = "Part_%s" % id
-		# Wider than the hex itself, so the part's name (centred under the outline) is not cut short;
-		# the tap target is the hex, still 64 px each way.
-		b.custom_minimum_size = Vector2(CELL_W, HEX_PX)
 		b.icon = ItemIcons.texture(id)
 		b.color_icon = true
 		b.top_text = "%.1fs" % float(opt["seconds"])
 		b.bottom_text = "%d" % int(opt["count"])
-		b.caption = str(opt["name"])
+		b.caption = ""
 		if str(opt["blocked"]) != "":
 			b.set_blocked(str(opt["blocked"]))
 			b.hint_text = ""  # the reason is the label under the cell, not a line run into its neighbour
@@ -136,19 +138,19 @@ func _rebuild() -> void:
 		if corpse.cut_running:
 			b.disabled = true
 		b.pressed.connect(_on_part.bind(id))
+		# One cell per part: the 64 px hex (its own tap target) centred, the part's name under it, and
+		# the blocked reason under that. Its own column, so two names never run together.
 		var cell := VBoxContainer.new()
 		cell.name = "Cell_%s" % id
 		cell.custom_minimum_size = Vector2(CELL_W, CELL_H)
 		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		cell.add_theme_constant_override("separation", 0)
-		cell.add_child(b)
-		# The blocked reason, in the refusal colour under the name the hex draws itself.
-		var why := Label.new()
-		why.name = "Why_%s" % id
-		why.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		why.add_theme_color_override("font_color", UiTokens.DANGER)
-		why.add_theme_font_size_override("font_size", UiTokens.TYPE_MIN)
-		why.text = str(opt["blocked"])
+		cell.add_theme_constant_override("separation", 2)
+		var mid := CenterContainer.new()
+		mid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mid.add_child(b)
+		cell.add_child(mid)
+		cell.add_child(_cell_label("Name_%s" % id, str(opt["name"]), UiTokens.TEXT))
+		var why := _cell_label("Why_%s" % id, str(opt["blocked"]), UiTokens.DANGER)
 		why.visible = str(opt["blocked"]) != ""
 		cell.add_child(why)
 		_rows.add_child(cell)
@@ -196,11 +198,19 @@ func _build() -> void:
 	_sub = Label.new()
 	_sub.add_theme_color_override("font_color", UiTokens.META)
 	col.add_child(_sub)
+	# The hexes live in a scroller: a carcass with many parts on a short landscape phone scrolls
+	# instead of running off the panel (the footer stays visible).
+	_scroll = ScrollContainer.new()
+	_scroll.name = "PartScroll"
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(_scroll)
 	_rows = GridContainer.new()
+	_rows.name = "Parts"
 	_rows.columns = COLS
 	_rows.add_theme_constant_override("h_separation", GAP)
 	_rows.add_theme_constant_override("v_separation", GAP)
-	col.add_child(_rows)
+	_scroll.add_child(_rows)
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", GAP)
 	col.add_child(foot)
@@ -215,6 +225,18 @@ func _build() -> void:
 	_close_btn = _foot_button("Close")
 	foot.add_child(_close_btn)
 	_close_btn.pressed.connect(close)
+
+## A small centred line in a part's cell: the part's name, or why it cannot be cut.
+func _cell_label(id: String, text: String, color: Color) -> Label:
+	var l := Label.new()
+	l.name = id
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	l.add_theme_color_override("font_color", color)
+	l.add_theme_font_size_override("font_size", UiTokens.TYPE_MIN)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
 
 func _foot_button(text: String) -> Button:
 	var b := Button.new()
@@ -232,18 +254,27 @@ func _layout() -> void:
 	var view := get_viewport_rect().size
 	var safe := UiTokens.safe_insets(get_viewport())
 	var compact := UiTokens.is_compact(view) or view.x < 700.0
-	_rows.columns = 2 if compact else COLS
+	# A landscape phone is wide enough for three; a narrow one gets two.
+	_rows.columns = (2 if view.x < 620.0 else 3) if compact else COLS
 	_title.add_theme_font_size_override("font_size", UiTokens.heading(view))
 	_sub.add_theme_font_size_override("font_size", UiTokens.body(view))
+	for id in _buttons:
+		var cell := _rows.get_node_or_null("Cell_%s/Name_%s" % [id, id]) as Label
+		if cell != null:
+			cell.add_theme_font_size_override("font_size", UiTokens.meta(view))
 	for b: Button in [_loot_btn, _close_btn]:
 		b.add_theme_font_size_override("font_size", UiTokens.body(view))
 	var cols := mini(_rows.columns, maxi(1, _rows.get_child_count()))
 	var width := minf(view.x - safe.x - safe.w - 24.0, float(cols) * CELL_W + float(GAP) * float(cols + 1))
 	_panel.custom_minimum_size = Vector2(maxf(280.0, width), 0.0)
+	# How tall the hexes may get before the scroller takes over: the screen less the chrome and margins.
+	var rows := ceili(float(_rows.get_child_count()) / float(maxi(1, _rows.columns)))
+	var want := float(maxi(1, rows)) * (CELL_H + GAP)
+	var room := maxf(CELL_H, view.y - safe.y - safe.z - 24.0 - CHROME_H)
+	_scroll.custom_minimum_size = Vector2(0.0, minf(want, room))
 	_panel.reset_size()
 	var sz := _panel.get_combined_minimum_size()
-	var rows := ceili(float(_rows.get_child_count()) / float(maxi(1, _rows.columns)))
-	var height := sz.y if sz.y > 0.0 else CHROME_H + float(maxi(1, rows)) * (CELL_H + GAP)
+	var height := sz.y if sz.y > 0.0 else CHROME_H + minf(want, room)
 	_panel.position = Vector2(
 		clampf((view.x - sz.x) * 0.5, 12.0 + safe.w, maxf(12.0 + safe.w, view.x - sz.x - 12.0 - safe.x)),
 		clampf((view.y - height) * 0.5, 12.0 + safe.z, maxf(12.0 + safe.z, view.y - height - 12.0 - safe.y)))
