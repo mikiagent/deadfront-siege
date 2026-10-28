@@ -1,0 +1,6 @@
+round2
+scene1 roar: A=old B=new
+scene2 bite: A=new B=old
+scene3 feed: A=old B=new
+scene4 closed: A=new B=old
+roar mp4: A=old B=new; bite mp4: A=new B=old
