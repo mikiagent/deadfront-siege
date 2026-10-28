@@ -41,6 +41,8 @@ CURVES = {  # clip -> flare 0..1 at normalised time u
     "hop_back": airborne("hop_back"),
     "leap_back": airborne("leap_back"),
     "pounce": airborne("pounce"),
+    "dodge_left": airborne("dodge_left"),
+    "dodge_right": airborne("dodge_right"),
 }
 
 def src_fps(path):

@@ -60,6 +60,20 @@
     },
     "walk_back": {
       "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing"
+    },
+    "dodge_left": {
+      "airborne": [
+        0.2,
+        0.65
+      ],
+      "note": "explosive sideways dodge to the left, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side left)"
+    },
+    "dodge_right": {
+      "airborne": [
+        0.2,
+        0.65
+      ],
+      "note": "explosive sideways dodge to the right, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side right)"
     }
   },
   "natural_speeds": {
