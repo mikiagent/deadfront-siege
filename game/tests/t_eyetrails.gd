@@ -266,7 +266,8 @@ func _test_cost_and_cull() -> void:
 	# Both eyes, at most cap + 1 points each, one quad (6 vertices) per pair of neighbours.
 	var budget := (cap + 1) * 2 * 6
 	_expect(worst_vertices <= budget, "per-creature ribbon stays small (%d vertices, budget %d)" % [worst_vertices, budget])
-	_expect(trails.size() >= 18, "%d of 20 animals carry a trail" % trails.size())
+	_expect(trails.size() == eyed, "%d eyed animals, %d trails" % [eyed, trails.size()])
+	_expect(trails.size() >= 17, "%d of 20 animals carry a trail" % trails.size())
 	# Frame cost, measured (not assumed): 20 animals already at full ribbon strength, 240 ticks.
 	var t0 := Time.get_ticks_usec()
 	var frames := 240
