@@ -45,6 +45,7 @@ var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
 var _stance_label: Label
 var _events := HudEventState.new()
+var _yield := YieldCard.new()  ## UIGATHER: the B1 yield card (spec §4.5)
 var _rest_fx := HudRestBox.new()
 var _status_fx := StatusFx.new()
 var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
@@ -162,6 +163,7 @@ func _ready() -> void:
 
 func bind(p: Player) -> void:
 	player = p
+	_yield.sync(p)
 	_watch_skills()
 
 ## Skill feedback (spec 25 §7, islands-and-loop-plan §3.3): the XP toast and the bigger level-up toast
@@ -701,6 +703,7 @@ func notice(text: String, tint: Color = Color(0, 0, 0, 0)) -> void:
 func toast(id: StringName, n: int) -> void:
 	print("[ui] toast %s +%d" % [id, n])
 	_events.add_toast(id, n)
+	_yield.show_gain(player, id, n)
 
 func _on_context(id: String) -> void:
 	if id != "claim":
@@ -1254,6 +1257,12 @@ func _input(event: InputEvent) -> void:
 	if player == null or player.dead or _fatigue_panel == null:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var pill := HudPills.node_at(event.position)  # UIGATHER: a harvest pill is tappable like its node
+		if pill and not sheet_open() and not player.controls.tap_blocked():
+			player.controls._desktop_click_fallback_pending = false  # the pill took it: no world tap behind
+			player._interact_tap_target(pill)
+			get_viewport().set_input_as_handled()
+			return
 		if _fatigue_rect.has_point(event.position):
 			_fatigue_panel.player = player
 			_fatigue_panel.toggle()
@@ -1344,6 +1353,7 @@ func _process(delta: float) -> void:
 			_levelup_t = -1.0
 	GatherFeedback.tick_notices(_events.notices, player, drawn_blocks)  # W2-GATHER: rare notice life, off _draw
 	_events.tick(delta)
+	_yield.tick(delta)
 	_rest_fx.tick(player, _events, delta)
 	_status_fx.tick(player, _events, delta)  # STATUSFX: boxes' slots, the emitters on her, tick numbers  # REST: recovery floats over her while she rests or sleeps
 	_pulse_check -= delta
@@ -1508,64 +1518,17 @@ func _draw() -> void:
 	var sfx := _status_fx.draw_boxes(self, _font, player, HudLayout.figure_rect(self), taken_rects(), r)
 	if sfx.has_area():
 		drawn_blocks["statusfx"] = sfx
-	# --- pickup toasts near the top-centre, rising and fading, then the notices: each takes the nearest
-	# free spot up or down its column, off every block and hex (on a landscape phone they crossed the
-	# quest card at y 100-128). On a phone the toasts stack under the vitals instead: in the centre
-	# they covered the survivor. One with no room left on screen is skipped.
-	# ASSUMPTION: pickup toasts may move to the left edge on a phone (no reference for it).
+	# --- the left XP feed and the yield card, then the notices: each takes the nearest free spot off
+	# every block and hex. One with no room left on screen is skipped.
 	var taken := taken_rects()
-	var toast_left := UiTokens.is_compact(r)
 	var cx := band.get_center().x if band.has_area() else r.x * 0.5  # a phone's free middle, off HANDS and the map
-	# --- skill XP and tree level-up toasts (spec 25 §7 "it gives you an xp amount", islands-and-loop-plan
-	# §3.3). They take their spot first, so a pickup toast gives way rather than covering one. A level-up
-	# line is bigger and gold; the small XP lines sit under it. Every one is drawn only on a free spot,
-	# so none covers the vitals, the map, the plate or the survivor.
-	var skill_rows: Array = _events.skill_toasts
-	for i in skill_rows.size():
-		var e: Dictionary = skill_rows[i]
-		var age := float(e["t"])
-		var life := float(e["life"])
-		var alpha := 1.0 - smoothstep(life * 0.6, life, age)
-		var is_big := bool(e["big"])
-		var px := 22 if is_big else 16
-		var label := str(e["text"])
-		if is_big:
-			label = "▲ " + label
-		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, px).x
-		var rise := 26.0 * (1.0 - minf(age, 1.0))
-		var h := float(px) + 12.0
-		var cand := Rect2(cx - tw * 0.5 - 12.0, 64.0 + rise, tw + 24.0, h)
-		if toast_left:
-			cand.position = Vector2(vitals.position.x, vitals.end.y + 8.0 + rise)
-		var box := UiTokens.free_spot(cand, taken, r)
-		if not box.has_area():
-			continue
-		taken.append(box)
-		drawn_blocks["skilltoast%d" % i] = box
-		draw_rect(box, Color(0.05, 0.06, 0.08, (0.86 if is_big else 0.74) * alpha))
-		if is_big:
-			draw_rect(Rect2(box.position, Vector2(4.0, box.size.y)), Color(1.0, 0.85, 0.35, alpha))
-		var col := Color(1.0, 0.87, 0.45, alpha) if is_big else Color(1, 1, 1, alpha)
-		draw_string(_font, box.position + Vector2(12.0, box.size.y * 0.5 + float(px) * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, px, col)
-
-	for i in _events.toasts.size():
-		var t: Dictionary = _events.toasts[i]
-		var k: float = t["t"]
-		var alpha := 1.0 - smoothstep(0.7, 1.3, k)
-		var def := Data.item(t["id"])
-		var label := "+%d  %s" % [int(t["n"]), def.display_name if def else str(t["id"])]
-		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, 18).x
-		var rise := 35.0 * (1.0 - minf(k, 1.0))
-		var cand := Rect2(cx - tw * 0.5 - 10, 65.0 + rise, tw + 20, 28)
-		if toast_left:
-			cand.position = Vector2(vitals.position.x, vitals.end.y + 8.0 + rise)
-		var box := UiTokens.free_spot(cand, taken, r)
-		if not box.has_area():
-			continue
-		taken.append(box)
-		drawn_blocks["toast%d" % i] = box
-		draw_rect(box, Color(0.05, 0.06, 0.08, 0.8 * alpha))
-		draw_string(_font, box.position + Vector2(10, 20), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
+	# UIGATHER (spec §6, owner §1.6): skill XP lines are the left feed under the vitals; item gains are
+	# the yield card above the node (YieldCard, spec §4.5) instead of the top-centre toast.
+	drawn_blocks.merge(YieldCard.draw_feed(self, _font, _events.skill_toasts, Vector2(vitals.position.x, vitals.end.y + 8.0), taken, player.skills), true)
+	var yb := _yield.draw(self, _font, cam, taken + GatherFeedback.radial_rects(player))
+	if yb.has_area():
+		taken.append(yb)
+		drawn_blocks["toast0"] = yb
 	if player.placer and player.placer.layout_mode:
 		var hint := "Layout mode: drag a building to move it · tap one to rotate · blue = ok, red = blocked · DONE saves" if player.placer.moving == null else "Release to drop (red snaps it back)"
 		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x

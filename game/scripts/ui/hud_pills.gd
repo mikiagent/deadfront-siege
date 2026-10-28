@@ -12,6 +12,21 @@ static var _last_offset := {}
 
 ## The last frame's drawn chips: {node, anchor, rect}. Read by labs that check a chip sits by its object.
 static var last_drawn: Array = []
+## The harvest pills drawn last frame, tappable (UIGATHER, spec §4.1): {node, rect}.
+static var hit_pills: Array = []
+
+## Pill height and type size: a larger box on desktop (B1 mockup), the shipped 22 / 14 on a phone.
+static func pill_metrics(view: Vector2) -> Vector2i:
+	return Vector2i(22, 14) if UiTokens.is_compact(view) else Vector2i(30, 18)
+
+## The harvest node whose pill is under `point` (screen px), else null. A tap there selects the node
+## like a tap on the node itself.
+static func node_at(point: Vector2) -> Node3D:
+	for d: Dictionary in hit_pills:
+		var n: Variant = d["node"]
+		if (d["rect"] as Rect2).grow(4.0).has_point(point) and n is Node3D and is_instance_valid(n):
+			return n as Node3D
+	return null
 
 static func gather_radial_node(hud: HuntHud) -> Node3D:
 	var gr: Variant = hud.player.get("_gather_radial")
@@ -55,6 +70,8 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 			avoid.append_array(gr.label_rects)
 			avoid.append(gr.title_box)
 	var rows: Array = []
+	var pm := pill_metrics(hud.get_viewport_rect().size)
+	var fs := pm.y
 	var pp := hud.player.global_position
 	# A bonfire is in "placed_building", "craft_station" AND "bonfire", so without this the camp
 	# drew three identical labels stacked on one object.
@@ -88,6 +105,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 		var d: float = row[0]
 		var name := ""
 		var dot := Color(0.35, 0.85, 0.35)
+		var glyph: Texture2D = null  # a harvest pill shows its resource symbol, greyed (spec §4.1)
 		var timer := ""
 		var top := 1.2
 		if grp == "harvest":
@@ -95,6 +113,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 			if hn == null:
 				continue
 			name = (hn.family if hn.family != "" else str(hn.node_id)).replace("_", " ").capitalize()
+			glyph = HexButton.grey_texture(ItemIcons.texture(hn.yield_def_id))
 			top = hn.top_of_node()
 			if hn.depleted:
 				dot = Color(0.5, 0.5, 0.5)
@@ -124,14 +143,15 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 		var name_text := ""  # the fallback chip when a status has no spot by its station
 		var name_w := 0.0
 		if status != "":
-			name_text = UiTokens.ellipsis(hud._font, name, UiTokens.LABEL_MAX_W - 28.0, 14)
-			name_w = minf(hud._font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 28.0, UiTokens.LABEL_MAX_W)
+			name_text = UiTokens.ellipsis(hud._font, name, UiTokens.LABEL_MAX_W - 28.0, fs)
+			name_w = minf(hud._font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 28.0, UiTokens.LABEL_MAX_W)
 			name = status
-		var text := UiTokens.ellipsis(hud._font, name, UiTokens.LABEL_MAX_W - 28.0, 14)
-		var tw := hud._font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+		var lead := float(fs) + 20.0 if glyph else 28.0  # the glyph is wider than the status dot
+		var text := UiTokens.ellipsis(hud._font, name, UiTokens.LABEL_MAX_W - lead, fs)
+		var tw := hud._font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var working := (grp == "harvest" and (n3 == hud.player.gather_target or (gather_radial_node(hud) == n3))) or (grp == "corpse" and n3 is Corpse and (n3 as Corpse).tapped_recently(4.0))
 		var tools: Array = tools_for_node(hud, n3, grp) if working else []
-		var w := minf(tw + 28.0, UiTokens.LABEL_MAX_W)
+		var w := minf(tw + lead, UiTokens.LABEL_MAX_W)
 		if timer != "":
 			w = maxf(w, hud._font.get_string_size(timer, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(hud.get_viewport_rect().size)).x + 16.0)
 		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
@@ -141,8 +161,8 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 		var priority := (2000000000 if active_row else 0) + (1000000000 if name == "Workbench" or name == "Cargo Warp" else 0) + int(sp.y * 1000.0)
 		# The box covers what is drawn: tool icons poke 8 px over the pill, a regrow timer hangs under it.
 		pending.append({
-			"anchor": sp, "w": w, "h": 22.0 + (8.0 if not tools.is_empty() else 0.0) + (20.0 if timer != "" else 0.0), "priority": priority,
-			"text": text, "dot": dot, "timer": timer, "tools": tools, "id": n3.get_instance_id(),
+			"anchor": sp, "w": w, "h": float(pm.x) + (8.0 if not tools.is_empty() else 0.0) + (20.0 if timer != "" else 0.0), "priority": priority,
+			"text": text, "dot": dot, "glyph": glyph, "lead": lead, "harvest": grp == "harvest", "timer": timer, "tools": tools, "id": n3.get_instance_id(),
 			"node": n3, "at": sp, "slide": status != "", "name_text": name_text, "name_w": name_w,
 			"a": 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d),
 		})
@@ -169,6 +189,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 			if not _slide_clear(item, hard + soft):
 				pending.erase(item)
 	last_drawn = []
+	hit_pills = []
 	var offsets := {}
 	for item in UiTokens.layout_labels(pending, view, hard, soft):
 		last_drawn.append({"node": item["node"], "anchor": item["at"], "rect": item["rect"]})
@@ -185,15 +206,28 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 		hud.drawn_blocks["pill%d" % pill_i] = box
 		pill_i += 1
 		var tools: Array = item["tools"]
-		var rect := Rect2(box.position + Vector2(0.0, 8.0 if not tools.is_empty() else 0.0), Vector2(box.size.x, 22.0))
+		var rect := Rect2(box.position + Vector2(0.0, 8.0 if not tools.is_empty() else 0.0), Vector2(box.size.x, float(pm.x)))
+		if item["harvest"]:
+			hit_pills.append({"node": item["node"], "rect": rect})
 		var a: float = item["a"] * (0.35 if walking and box.intersects(fig) else 1.0)
 		var text: String = item["text"]
 		var dot: Color = item["dot"]
 		var bg := UiTokens.INK
 		bg.a *= a
 		hud.draw_rect(rect, bg)
-		hud.draw_circle(Vector2(rect.position.x + 10.0, rect.position.y + 11.0), 4.0, Color(dot.r, dot.g, dot.b, a))
-		hud.draw_string(hud._font, Vector2(rect.position.x + 20.0, rect.position.y + 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 24.0, 14, Color(1, 1, 1, a))
+		var glyph: Texture2D = item["glyph"]
+		var mid := rect.position.y + rect.size.y * 0.5
+		if glyph:
+			# Grey symbol; a picked-clean node dims it and a missing tool tints it red (the old dot's cues).
+			var gt := Color(1, 1, 1, a * (0.5 if dot == Color(0.5, 0.5, 0.5) else 1.0))
+			if dot == UiTokens.DANGER:
+				gt = Color(1.0, 0.5, 0.45, a)
+			var gs := float(fs)
+			hud.draw_texture_rect(glyph, Rect2(rect.position.x + 6.0, mid - gs * 0.5, gs, gs), false, gt)
+		else:
+			hud.draw_circle(Vector2(rect.position.x + 10.0, mid), 4.0, Color(dot.r, dot.g, dot.b, a))
+		var lead: float = item["lead"]
+		hud.draw_string(hud._font, Vector2(rect.position.x + lead - 8.0, mid + float(fs) * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - lead + 4.0, fs, Color(1, 1, 1, a))
 		var ix := rect.position.x + rect.size.x - 6.0 - float(tools.size()) * 14.0
 		for t in tools:
 			var tex: Texture2D = t[0]
