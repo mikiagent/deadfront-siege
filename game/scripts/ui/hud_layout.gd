@@ -229,9 +229,16 @@ static func figure_rect(hud: HuntHud) -> Rect2:
 ## The survivor's name under its feet, in screen space. Radial labels keep off it (the gather
 ## radial's option label covered it on a landscape phone).
 static func nameplate_rect(cam: Camera3D, who: Player, font: Font) -> Rect2:
-	var p := cam.unproject_position(who.get_global_transform_interpolated().origin - Vector3(0, 0.05, 0))
+	var p := cam.unproject_position(nameplate_anchor(who))
 	var nw := font.get_string_size(who.display_name(), HORIZONTAL_ALIGNMENT_CENTER, -1, HuntHud.NAME_PX).x
 	return Rect2(p.x - nw * 0.5, p.y + 20.0 - HuntHud.NAME_PX, nw + 1.0, HuntHud.NAME_PX + 6.0)
+
+## The world point the name hangs from. Seated or lying, the visual is lowered to the ground
+## (PlayerAnim._ground_sleep_visual) and the anchor follows it down, so the name stays under her and off
+## the torso (REST pre-merge fix). It rides the visual's tween, so it glides rather than snaps.
+static func nameplate_anchor(who: Player) -> Vector3:
+	var sink := minf(0.0, who.visual.position.y - who.anim._visual_rest_y) if who.visual and who.anim else 0.0
+	return who.get_global_transform_interpolated().origin + Vector3(0, sink - 0.05, 0)
 
 ## Landscape phone level-up: the level, the title it brings and one stat line, in an ink box.
 static func draw_levelup_banner(hud: HuntHud, box: Rect2, a: float) -> void:

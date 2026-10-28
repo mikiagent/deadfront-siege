@@ -59,6 +59,10 @@ func add_bite(amount: float, heavy: bool) -> void:
 	bites.append({"t": 0.0, "heavy": heavy, "x": randf_range(-6.0, 6.0)})
 	player_floats.append({"t": 0.0, "n": amount, "x": randf_range(-18.0, 18.0)})
 
+## A text float over the survivor (REST's recovery: "+3 HP", "-1 fatigue"), `dy` px below the damage row.
+func add_float(text: String, color: Color, dy: float = 0.0) -> void:
+	player_floats.append({"t": 0.0, "txt": text, "col": color, "x": 0.0, "dy": dy})
+
 func add_notice(text: String) -> void:
 	for entry in notices:
 		if entry["text"] == text and entry["t"] < 1.5:

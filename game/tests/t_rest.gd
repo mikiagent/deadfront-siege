@@ -1,16 +1,16 @@
 extends SceneTree
 ## REST acceptance (owner: "resting should sit you down and heal you and lower exhaustion. I tried this
 ## on vercel and it didn't work"). On the home island, in the open, beside the camp bonfire and beside
-## the camp tent: the Rest hex is offered out of combat; Rest sits the survivor down (sleep_down held on
-## the seated frame, grounded, no sliding); Health rises and fatigue falls at data/rest.json's rate for
+## the camp tent: the Rest hex is offered out of combat; Rest sits the survivor down (one upright seated
+## pose at every place, grounded, no sliding, the nameplate under her); Health rises and fatigue falls at data/rest.json's rate for
 ## that place, open < fire < shelter; Health never passes its maximum and fatigue never drops below 0;
 ## moving, a tap-to-walk, damage, a hit (combat) and a creature closing in each end it with the
 ## stand-up; it is refused in combat, but a status that deals damage (a raw-meat Stomachache, a bleed)
 ## neither refuses it nor stands her up: it shows in the chip's net Health rate, and Dirty slows the
 ## fatigue rate (spec 01:19); Sleep at the tent with a Stomachache completes; the hex hides in water;
 ## the X key and online intents go through PlayerActions; the bonfire clears Wet and shifts climate
-## fatigue (PRD :285); the HUD chip shows the live rates right under the chip row (below the Claim hex
-## only when it stands there); a save made mid-rest loads back seated, one made standing loads standing.
+## fatigue (PRD :285); the HUD chip shows the live rates in a body-size pill right under the chip row,
+## and recovery floats ("+N HP", "-N fatigue") rise over her; a save made mid-rest loads back seated, one made standing loads standing.
 ## Sleep at the tent heals and lowers fatigue while asleep, not only on its last frame. Fails on the
 ## base: it has no Rest at all.
 ## Usage: godot --headless --path game --script res://tests/t_rest.gd
@@ -202,6 +202,21 @@ func _test_sleep_recovers(at: Vector3) -> void:
 	_expect(player._sleep_left <= 0.0 and player.vitals.fatigue < 1.0, "a completed tent sleep still clears fatigue (%.2f)" % player.vitals.fatigue)
 	await _seconds(2.2)
 
+## Pre-merge fix: one upright seated pose everywhere (the held sleep_down frame leaned back on one arm
+## and read as a knockdown). Hips low, head straight above them, both hands off the ground, feet down.
+func _expect_upright(where: String) -> void:
+	var sk: Skeleton3D = player.rig.skeleton
+	var g: float = rt.surface_y(player.global_position.x, player.global_position.z)
+	var at := func (b: String) -> Vector3: return sk.global_transform * sk.get_bone_global_pose(sk.find_bone(b)).origin
+	var hips: Vector3 = at.call("Hips")
+	var head: Vector3 = at.call("Head")
+	var v := head - hips
+	var lean := rad_to_deg(v.angle_to(Vector3.UP))
+	var hand_y := minf((at.call("LeftHand") as Vector3).y, (at.call("RightHand") as Vector3).y) - g
+	var foot_y := maxf((at.call("LeftFoot") as Vector3).y, (at.call("RightFoot") as Vector3).y) - g
+	_expect(lean < 10.0 and hips.y - g < 0.45 and head.y - g > 0.75 and hand_y > 0.12 and foot_y < 0.3,
+		"%s: upright sit (torso lean %.1f deg, hips %.2f m, head %.2f m, lowest hand %.2f m, feet %.2f m)" % [where, lean, hips.y - g, head.y - g, hand_y, foot_y])
+
 func _test_sit(at: Vector3) -> void:
 	await _reset(at)
 	var ap: AnimationPlayer = player.rig.anim_player
@@ -210,8 +225,9 @@ func _test_sit(at: Vector3) -> void:
 	_expect(not "rest" in _ids(), "while resting the hex is gone (move to get up, as Sleep)")
 	var p0: Vector3 = player.global_position
 	await _seconds(1.4)
-	_expect(player.anim.current_clip == &"sleep_down" and not ap.is_playing() and absf(ap.current_animation_position - 1.0) < 0.1,
-		"seated: sleep_down held on its seated frame (clip=%s playing=%s t=%.2f), not lying down and not a T-pose" % [player.anim.current_clip, ap.is_playing(), ap.current_animation_position])
+	_expect(player.anim.current_clip == &"sit" and ap.current_animation == &"sit",
+		"seated: the built sit pose holds (clip=%s playing=%s)" % [player.anim.current_clip, ap.current_animation])
+	_expect_upright("seated in the open")
 	_expect(player.visual.position.y < -0.5, "seated on the ground: the visual is grounded as for sleep (y=%.2f)" % player.visual.position.y)
 	await _seconds(1.0)
 	var slid := Vector2(player.global_position.x - p0.x, player.global_position.z - p0.z).length()
@@ -246,6 +262,7 @@ func _test_rate(where: String, at: Vector3, status: StringName = &"") -> void:
 		_expect(chip.size() == 3 and chip[2] == "-%d fatigue/min (%s)" % [roundi(want_fat), status], "the chip names it: %s" % [chip])
 	_expect(rest.resting and absf(hp_rate - want_hp) <= want_hp * RATE_TOL, "%s: Health +%.2f/s (data %.2f)" % [where, hp_rate, want_hp])
 	_expect(absf(fat_rate - want_fat) <= want_fat * RATE_TOL, "%s: fatigue -%.2f/min (data %.2f)" % [where, fat_rate, want_fat])
+	_expect_upright(where)  # the same seated pose at every place
 	player.vitals.health_regen = 0.8
 
 func _gained() -> float:
@@ -360,7 +377,7 @@ func _test_status_ticks(at: Vector3) -> void:
 	var dps: float = float(data.status(&"stomachache").dps)
 	var want: float = _rate(&"shelter", "hp_per_s") - dps  # each tick also pauses passive regen
 	var got: float = (player.vitals.health - hp0) / 3.0
-	_expect(rest.resting and player.anim.is_sitting() and player.anim.current_clip == &"sleep_down",
+	_expect(rest.resting and player.anim.is_sitting() and player.anim.current_clip == &"sit",
 		"4.5 s of Stomachache ticks: still seated (resting=%s clip=%s)" % [rest.resting, player.anim.current_clip])
 	_expect(absf(got - want) <= 0.15 and player.vitals.fatigue < f0 - 1.0,
 		"net Health +%.2f/s (rest %.1f - %.1f dps), fatigue %.2f -> %.2f" % [got, _rate(&"shelter", "hp_per_s"), dps, f0, player.vitals.fatigue])
@@ -382,6 +399,19 @@ func _test_status_ticks(at: Vector3) -> void:
 	_expect(player.statuses.has(&"stomachache") and player._sleep_left <= 0.0 and player.vitals.fatigue < 1.0,
 		"Sleep at the tent with a Stomachache completes: fatigue %.2f (the base woke her on the first tick)" % player.vitals.fatigue)
 	await _seconds(2.2)
+	# From out of reach canon walks her to the bedding first; a tick on the way must not drop the sleep.
+	var tent: Node3D = rt.get_node("CampShed")
+	var far: Vector3 = tent.global_position + (at - tent.global_position).normalized() * 4.0
+	await _reset(far)
+	player.statuses.apply(&"stomachache")
+	player.sim.start_sleep(tent)  # canon's "sleep from anywhere" route to a named bedding
+	var hp_walk: float = player.vitals.health
+	await _seconds(1.2)  # two Stomachache ticks land on the way (each pauses passive regen)
+	_expect(player.vitals.health < hp_walk and player.sim._sleep_pending == tent and player.nav_active,
+		"with a Stomachache, the walk to the bedding survives its ticks (pending=%s nav=%s)" % [player.sim._sleep_pending, player.nav_active])
+	player.clear_nav()
+	player.sim.interrupt_sleep()
+	await _frames(2)
 
 func _test_fire_effects(fire_at: Vector3, open_at: Vector3) -> void:
 	await _reset(fire_at)
@@ -418,6 +448,18 @@ func _test_hud(at: Vector3, open_at: Vector3) -> void:
 	var box: Rect2 = hud.drawn_blocks.get("rest", Rect2())
 	_expect(row.size.y > 0.0 and box.position.y >= row.end.y - 4.0 and box.position.y <= row.end.y + 4.0,
 		"no Claim hex: the rates box sits right under the chip row (row ends %.0f, box starts %.0f)" % [row.end.y, box.position.y])
+	# Pre-merge fix: a readable pill (body-size text, not the 12-13 px meta size) and recovery shown on her.
+	var body_px: int = 14 if hud.get_viewport_rect().size.y < 500.0 else 16
+	_expect(box.size.y >= 3.0 * body_px + 16.0 and box.size.x <= 280.0,
+		"the rest pill is drawn at the body size, three lines (%s, body %d px)" % [box, body_px])
+	var seen := {}
+	var until := Time.get_ticks_msec() + 6000  # by the fire fatigue falls 15/min, a whole point every 4 s
+	while Time.get_ticks_msec() < until:
+		await process_frame
+		for f in hud._events.player_floats:
+			if f.has("txt"):
+				seen[str(f["txt"]).get_slice(" ", 1)] = true
+	_expect(seen.has("HP") and seen.has("fatigue"), "resting shows recovery floats over her: %s" % [seen.keys()])
 	# In the open the Claim hex stands beside the chips: the box goes below it.
 	rest.stop(false)
 	await _reset(open_at)
@@ -433,6 +475,15 @@ func _test_hud(at: Vector3, open_at: Vector3) -> void:
 	box = hud.drawn_blocks.get("rest", Rect2())
 	_expect(claim != null and not Rect2(claim.position, claim.size).intersects(box),
 		"with the Claim hex there the box clears it (hex %s, box %s)" % [Rect2(claim.position, claim.size) if claim else null, box])
+	# Pre-merge fix: seated, the name hangs from the ground under her, not from the capsule centre at
+	# chest height (it sat across the torso). Every name rect is unprojected from this point.
+	await _seconds(1.0)
+	var sk: Skeleton3D = player.rig.skeleton
+	var hips_y: float = (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Hips")).origin).y
+	var anchor: Vector3 = (load("res://scripts/ui/hud_layout.gd") as GDScript).nameplate_anchor(player)  # loaded late: a class reference compiles before the autoloads
+	var ground: float = rt.surface_y(player.global_position.x, player.global_position.z)
+	_expect(player.anim.is_sitting() and anchor.y < hips_y - 0.15 and absf(anchor.y - ground) < 0.2,
+		"seated: the nameplate hangs from the ground under her, below the hips (anchor %.2f m, hips %.2f m above ground)" % [anchor.y - ground, hips_y - ground])
 	layer.queue_free()
 
 func _test_intents(at: Vector3) -> void:

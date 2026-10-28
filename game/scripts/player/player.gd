@@ -407,8 +407,8 @@ func _flinch() -> void:
 		anim.on_damaged()
 
 func _on_vitals_damaged() -> void:
-	if statuses.ticking and (sim.rest.resting or _sleep_left > 0.0):
-		return  # a bleed or stomachache tick hurts, but only hits and fights end a rest or a sleep (spec 01:19)
+	if statuses.ticking and (sim.rest.resting or _sleep_left > 0.0 or sim._sleep_pending != null):
+		return  # a bleed or stomachache tick hurts, but only hits and fights end a rest, a sleep or the walk to bed (spec 01:19)
 	sim.interrupt_sleep()
 	actions.cancel_work()
 	_flinch()
