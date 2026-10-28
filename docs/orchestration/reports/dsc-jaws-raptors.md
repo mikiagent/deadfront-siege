@@ -43,3 +43,7 @@ Only gallimimus, once, after the torn-snout render; the retuned run replaced it 
 - `tools/jaw/verify_jaws.sh` calls Godot without the `HOME` fallback that `tools/smoke.sh` uses; in a sandbox that
   cannot write `$HOME/Library/Application Support`, Godot segfaults and the gate reports `rig imports FAIL`. It passes
   when run with `HOME=$TMPDIR/deadfront-smoke-home`.
+
+## Verification log (this run)
+`tools/jaw/verify_jaws.sh coelophysis` -> JAWS PASS; `... compsognathus` -> JAWS PASS; `... gallimimus` ->
+JAWS PASS; `... utahraptor` -> JAWS PASS; all four together -> JAWS PASS.
