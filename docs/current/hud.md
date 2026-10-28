@@ -113,3 +113,26 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 **MENU sheet**
 
 ![sheet_menu](screens/sheet_menu.webp)
+
+## Tokens available (not yet applied)
+
+`game/scripts/ui/ui_tokens.gd` now also carries the hex-HUD language from
+[`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §2/§3/§8. Nothing on this HUD draws
+with it yet: every value below is opt-in for later packages.
+
+- Palette: `HUD_FILL`, `HUD_RIM`, `HEADER`, `SCREEN_DIM`, `PANEL`, `GOLD`, `GOLD_DIM`, `CTA_INK`,
+  `PARCHMENT_TOP` / `PARCHMENT_BOTTOM` / `PARCHMENT_INK`, `OK_GREEN`, `LIFE`, `ENERGY`, `XP`, `MUTED`;
+  the old `INK`, `TEAL`, `DIVIDER`, `DANGER`, `TEXT`, `META` are unchanged.
+- Trait chips: `TRAIT_NEG_*` (grey = negative), `TRAIT_POS_*` (yellow = positive), `TRAIT_RARE_*`
+  (green = rare), with `trait_chip_style(polarity)` (0 radius, 3x8 padding) and `trait_chip_prefix()`
+  (`−`, `+`, U+2726). Exhaustion tints: `MOOD[4]`. Type: `ui_font(400/700)`, `ui_face()` over
+  `res://assets/fonts/RobotoCondensed-Variable.ttf` (the file itself is not in this branch yet).
+- Hex geometry: `HEX_FLAT_TOP` (true, owner decision 2026-10-28), `hex_points(center, r, flat_top)`,
+  `hex_radius_at(a, r, flat_top)`, `pie_points(center, r, f, flat_top)` — the gather pie fill.
+- Chrome: `draw_brackets(ci, rect)` (18 px gold corners), `header_style()`, `draw_torn_edge()`
+  (0-12 px zig-zag).
+- `HexButton` gained `flat_top`, `rim_color` / `rim_width`, `fill_ratio` (a pie, separate from
+  `cooldown`), `icon_grey` and `key_hint` (a boxed key cap, hidden on phones). Its defaults still draw
+  exactly the shipped hex apart from the orientation: **the default hex is now flat-top**, so every
+  hex on this HUD draws 2r wide and sqrt(3)r tall (rail, quick food, sprint/combat, radials, the
+  placement row). `hex_rect()` follows it, so the layout's hex boxes changed shape with it.
