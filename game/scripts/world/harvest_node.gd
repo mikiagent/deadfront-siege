@@ -347,6 +347,9 @@ func roll_yield(rng: RandomNumberGenerator = null) -> ItemStack:
 	for k in ItemStack.MERGE_IGNORED_ATTRS:
 		attrs.erase(k)
 	var stack := ItemStack.make(yield_def_id, n, attrs, material_level)
+	# Spec 35: a wood drop carries its tree kind's species appearance, its colour jittered per log.
+	# Seeded from the same rng as the count, so a seeded roll is reproducible.
+	MaterialLook.stamp(stack, family, str(yield_attributes.get("climate", "")), rng.randi() if rng else randi())
 	if World and World.is_unstable():
 		stack.set_flag(&"unstable", true)
 	return stack

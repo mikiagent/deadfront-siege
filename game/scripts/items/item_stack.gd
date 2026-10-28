@@ -8,6 +8,10 @@ var count: int = 1
 var level: int = 1
 var process_count: int = 0
 var attributes: Dictionary = {}
+## Spec 35: natural material appearance ({species, color, family, grain}), a dimension of its own:
+## never derived from level, rarity or traits and never read by anything that computes them.
+## Empty for everything that is not gathered wood and for saves written before the field existed.
+var look: Dictionary = {}
 var flags: Array[StringName] = []
 var durability: int = 0
 var max_durability: int = 0
@@ -27,6 +31,7 @@ func duplicate_stack() -> ItemStack:
 	s.level = level
 	s.process_count = process_count
 	s.attributes = attributes.duplicate(true)
+	s.look = look.duplicate(true)
 	s.flags = flags.duplicate()
 	s.durability = durability
 	s.max_durability = max_durability
@@ -135,6 +140,9 @@ func can_merge_with(other: ItemStack) -> bool:
 		return false
 	if not _attrs_equal(attributes, other.attributes):
 		return false
+	# Two mahogany logs are not one stack of "brown wood": a different look is a different unit.
+	if look != other.look:
+		return false
 	return _flags_equal(flags, other.flags)
 
 func take_into(other: ItemStack) -> int:
@@ -208,6 +216,9 @@ func to_dict() -> Dictionary:
 		"durability": durability,
 		"max_durability": max_durability,
 	}
+	# Appearance is additive: a row without a look stays the shape it was saved in.
+	if not look.is_empty():
+		out["look"] = look.duplicate(true)
 	# Fungible rows keep the old save shape byte for byte.
 	if uid != "":
 		out["uid"] = uid
@@ -236,6 +247,8 @@ static func from_dict(d: Dictionary) -> ItemStack:
 	var t: Variant = d.get("created_at", 0)
 	var stamp := int(t) if (t is int or t is float) and is_finite(float(t)) else 0
 	s.created_at = clampi(stamp, 0, int(Time.get_unix_time_from_system()) + CREATED_AT_SLACK_S)
+	# A hand-edited or forged look is dropped, never repaired into a different wood (MaterialLook gate).
+	s.look = MaterialLook.sanitize(d.get("look"))
 	return s
 
 static var UID_RE := RegEx.create_from_string("^[il][0-9a-f]+\\z") # \z, not $: $ also matches before a final newline

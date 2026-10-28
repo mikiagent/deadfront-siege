@@ -1,0 +1,87 @@
+{
+  "_about": "Spec 35 (natural material colour) package 1: the appearance dimension of wood, separate from level, rarity and traits. A tree kind yields one wood species; the species gives a base sRGB colour, a colour family label, a grain tag and the per-log jitter a gathered log may vary within. Fields: species[id] = {name, color '#rrggbb', family, grain, variation{hue_deg[min,max], value[min,max]}, palette}; tree_kinds maps a nature_manifest family id (role tree/tree_dead) to one species; climate_overrides (optional) = {family: {climate: species}}. ASSUMPTION: the owner spec's eight wood palettes (mahogany, almond, oak, palm, maple, pine, walnut, ebony) are illustrative, not sampled game colours, so each species below borrows the spec row named in its 'palette' field and only species our tree kinds actually have are defined (birch, oak, acacia, palm, pine, snow pine, willow). ASSUMPTION: every tree kind maps to exactly one species; dead trees keep their living kind's species (they drop only branches, and a weathered dead-wood look is a later package). ASSUMPTION: the jitter is small (+/-5 deg hue, +/-0.07 value) so two logs of one species read as the same wood; the numbers are ours, the spec only asks for 'subtle natural variation'. ASSUMPTION: 'oak' is the default species for a wood item gathered from an unmapped tree kind; existing saves get no look at all (see docs/current/inventory-bags.md).",
+  "version": 1,
+  "default_species": "oak",
+  "species": {
+    "birch": {
+      "name": "Birch",
+      "color": "#e7ddc8",
+      "family": "pale cream",
+      "grain": "fine straight",
+      "variation": {"hue_deg": [-5, 5], "value": [-0.07, 0.07]},
+      "palette": "spec 35 Oak row (pale cream / whitish)"
+    },
+    "oak": {
+      "name": "Oak",
+      "color": "#c19a63",
+      "family": "warm golden brown",
+      "grain": "open straight",
+      "variation": {"hue_deg": [-5, 5], "value": [-0.07, 0.07]},
+      "palette": "spec 35 Maple row (warm golden brown)"
+    },
+    "acacia": {
+      "name": "Acacia",
+      "color": "#8f4a2c",
+      "family": "warm reddish-brown",
+      "grain": "bold striped",
+      "variation": {"hue_deg": [-5, 5], "value": [-0.07, 0.07]},
+      "palette": "spec 35 Mahogany row (warm reddish-orange / reddish-brown)"
+    },
+    "palm": {
+      "name": "Palm",
+      "color": "#d9bb7d",
+      "family": "light tan",
+      "grain": "coarse fibrous",
+      "variation": {"hue_deg": [-5, 5], "value": [-0.07, 0.07]},
+      "palette": "spec 35 Palm row (light tan / pale yellow)"
+    },
+    "pine": {
+      "name": "Pine",
+      "color": "#d7b268",
+      "family": "light yellow-brown",
+      "grain": "wide soft",
+      "variation": {"hue_deg": [-5, 5], "value": [-0.07, 0.07]},
+      "palette": "spec 35 Pine row (light yellow-brown)"
+    },
+    "snow_pine": {
+      "name": "Snow Pine",
+      "color": "#cdbfa0",
+      "family": "pale grey-yellow",
+      "grain": "tight dry",
+      "variation": {"hue_deg": [-5, 5], "value": [-0.07, 0.07]},
+      "palette": "spec 35 Pine row, bleached for the snowfield kind"
+    },
+    "willow": {
+      "name": "Willow",
+      "color": "#a0917a",
+      "family": "pale grey-brown",
+      "grain": "fine wavy",
+      "variation": {"hue_deg": [-5, 5], "value": [-0.07, 0.07]},
+      "palette": "spec 35 Walnut row, lightened for swamp willow"
+    }
+  },
+  "tree_kinds": {
+    "BirchTree": "birch",
+    "BirchTree_Autumn": "birch",
+    "BirchTree_Snow": "birch",
+    "BirchTree_Dead": "birch",
+    "BirchTree_Dead_Snow": "birch",
+    "CommonTree": "oak",
+    "CommonTree_Autumn": "oak",
+    "CommonTree_Snow": "oak",
+    "CommonTree_Dead": "oak",
+    "CommonTree_Dead_Snow": "oak",
+    "AcaciaTree": "acacia",
+    "PalmTree": "palm",
+    "PineTree": "pine",
+    "PineTree_Autumn": "pine",
+    "PineTree_Snow": "snow_pine",
+    "Willow": "willow",
+    "Willow_Autumn": "willow",
+    "Willow_Snow": "willow",
+    "Willow_Dead": "willow",
+    "Willow_Dead_Snow": "willow"
+  },
+  "climate_overrides": {},
+  "_climate_overrides_about": "ASSUMPTION: empty today (a tree kind yields one species). The loader honours {family: {climate: species}} so a later package can split a kind by climate without a code change."
+}

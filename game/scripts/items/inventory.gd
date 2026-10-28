@@ -340,6 +340,8 @@ func transfer_to(destination: Inventory, index: int) -> int:
 
 ## Visual grouping only (prompt 05: "12 Large Leg Bones" expands to 12 instances): bag slots by
 ## item id, in bag order. Nothing is merged; each entry lists the slots of its instances.
+## Spec 35: a wood's species is part of what the item is to a player (a birch log is not an oak
+## log), so the key is def_id plus species; unlooked items keep the plain def_id key.
 func groups() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var at := {}
@@ -347,10 +349,12 @@ func groups() -> Array[Dictionary]:
 		var s := slots[i]
 		if s == null or s.def_id == LOCK:
 			continue
-		if not at.has(s.def_id):
-			at[s.def_id] = out.size()
-			out.append({"def_id": s.def_id, "slots": [] as Array[int], "units": 0})
-		var g: Dictionary = out[at[s.def_id]]
+		var sp := str(s.look.get("species", ""))
+		var key := "%s|%s" % [str(s.def_id), sp]
+		if not at.has(key):
+			at[key] = out.size()
+			out.append({"def_id": s.def_id, "species": sp, "slots": [] as Array[int], "units": 0})
+		var g: Dictionary = out[at[key]]
 		(g.slots as Array[int]).append(i)
 		g.units = int(g.units) + s.count
 	return out

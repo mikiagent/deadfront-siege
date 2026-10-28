@@ -118,6 +118,9 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if bool(n.get("unstable", false)):
 		stack.set_flag(&"unstable", true)
 	var family := str(n.get("family", ""))
+	# Spec 35 package 1: wood leaves the tree with its species' appearance, jittered per log by this
+	# op's rng (a replay draws the same colours). Non-wood yields and unmapped kinds get none.
+	MaterialLook.stamp(stack, family, str(attrs.get("climate", "")), rng.randi())
 	# W2-GATHER: the same tool rule as the client (the role's tool helps on hand-pickable nodes).
 	var mult := GatherService.yield_multiplier_with(inv, tool_class, family, zone, maxi(1, ch.level_of("gathering")))
 	stack.count = maxi(1, int(floor(float(stack.count) * mult)))
