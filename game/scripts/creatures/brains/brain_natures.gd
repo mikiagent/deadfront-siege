@@ -129,10 +129,11 @@ static func roll(seed_key: String, archetype: StringName = &"") -> StringName:
 static func spawn_key(species: StringName, at: Vector3, pack: int) -> String:
 	return "nature:%s@%d,%d,%d#%d" % [species, roundi(at.x), roundi(at.y), roundi(at.z), pack]
 
-## Nature for a pet saved without one: derived from its uid (stable), so every load agrees.
-static func from_uid(uid: String, species: StringName = &"") -> StringName:
-	var def: CreatureDef = Data.creature(species) if Data else null
-	return roll("uid:" + uid + "@" + str(species), def.archetype if def != null else &"")
+## Nature for a pet saved without one: derived from its uid (stable), so every load agrees. The
+## caller passes the species' archetype when it knows it (PetRecord.from_dict asks Data); this file
+## never names an autoload, so it compiles before they exist (the server handlers load it at boot).
+static func from_uid(uid: String, species: StringName = &"", archetype: StringName = &"") -> StringName:
+	return roll("uid:" + uid + "@" + str(species), archetype)
 
 ## Seeded RNG shared with the colour roll's rule: PCG's first draws are weak right after seeding,
 ## so warm it up before anything reads it.

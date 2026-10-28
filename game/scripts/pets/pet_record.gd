@@ -244,7 +244,8 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	# NATURES: additive optional field. A record saved before natures (or hand-built) has none: it
 	# gets the same nature its uid derives, so nothing is lost and every load agrees.
 	var nat := StringName(str(d.get("nature", "")))
-	r.nature = nat if CreatureNatures.is_valid(nat) else CreatureNatures.from_uid(r.uid, r.species)
+	var def_for_arch := Data.creature(r.species) if Data else null
+	r.nature = nat if CreatureNatures.is_valid(nat) else CreatureNatures.from_uid(r.uid, r.species, def_for_arch.archetype if def_for_arch != null else &"")
 	r.grade = StringName(str(d.get("grade", "B")))
 	r.hunger = float(d.get("hunger", 0.0))
 	r.hunger_max = float(d.get("hunger_max", 0.0))

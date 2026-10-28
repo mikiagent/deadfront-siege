@@ -31,7 +31,7 @@ func _process(_delta: float) -> bool:
 	if game:
 		game.time_of_day = 0.4
 		game.debug_overlay = false
-	NR = load("res://scripts/creatures/creature_natures.gd")
+	NR = load("res://scripts/creatures/brains/brain_natures.gd")
 	PR = load("res://scripts/pets/pet_record.gd")
 	FT = load("res://scripts/pets/field_tame.gd")
 	CA = load("res://scripts/combat/creature_attack.gd")
@@ -180,7 +180,7 @@ func _test_old_save() -> void:
 	var frow: Dictionary = (fixture as Dictionary).get("pets", [])[0] if fixture is Dictionary and not ((fixture as Dictionary).get("pets", []) as Array).is_empty() else {}
 	_expect(not frow.has("nature"), "the no-nature fixture carries a nature already")
 	var fpet: RefCounted = PR.from_dict(frow)
-	var want_f: StringName = NR.from_uid("p_1a2b3c4d5e6f7a8b", &"velociraptor")
+	var want_f: StringName = NR.from_uid("p_1a2b3c4d5e6f7a8b", &"velociraptor", &"pack_raptor")
 	_expect(fpet.nature == want_f and NR.is_valid(fpet.nature), "the fixture pet loaded with nature '%s', want '%s'" % [fpet.nature, want_f])
 	_expect(fpet.name == "Rex II" and fpet.uid == "p_1a2b3c4d5e6f7a8b" and fpet.level == 1 and fpet.tamed_role == [&"mount", &"scout"], "the fixture pet lost a field (name '%s', uid %s, level %d, roles %s)" % [fpet.name, fpet.uid, fpet.level, fpet.tamed_role])
 	_expect(PR.from_dict(frow).nature == fpet.nature, "the fixture pet loads with a different nature the second time")
@@ -195,7 +195,7 @@ func _test_old_save() -> void:
 	var row: Dictionary = rec.to_dict()
 	row.erase("nature")
 	var old: RefCounted = PR.from_dict(JSON.parse_string(JSON.stringify(row)))
-	var want: StringName = NR.from_uid(old.uid, old.species)
+	var want: StringName = NR.from_uid(old.uid, old.species, def.archetype)
 	_expect(old.nature != &"" and NR.is_valid(old.nature), "an old pet record loaded without a nature (%s)" % old.nature)
 	_expect(old.nature == want, "old record nature %s, derived from uid %s" % [old.nature, want])
 	var again: RefCounted = PR.from_dict(JSON.parse_string(JSON.stringify(row)))
@@ -474,5 +474,21 @@ func _test_pet_keeps_nature() -> void:
 	# A pet record without its nature (an old save) drives the brain's knobs from its uid-derived one.
 	c.pet_record.nature = PR.from_dict({"uid": "p_0badf00d", "species": "velociraptor"}).nature
 	_expect(c.nature_id() == c.pet_record.nature and c.nature_id() != &"", "the pet's brain reads %s, its record %s" % [c.nature_id(), c.pet_record.nature])
+	# The tame itself carries it: FieldTame stamps the animal's nature onto the record it makes.
+	var fresh := _creature(&"protoceratops", Vector3(0, 1, -126), &"stubborn")
+	fresh.health.hp = fresh.health.max_hp * 0.2
+	var player: Node = load("res://scenes/player/player.tscn").instantiate()
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	root.add_child(player)
+	player.global_position = Vector3(0, 1, -126)
+	player.inventory.add(load("res://scripts/items/item_stack.gd").make(&"berry", 12))
+	FT.begin_window(fresh)
+	for i in 6:
+		if not fresh.is_pet:
+			FT.apply_feed(player, fresh, &"berry")
+	_expect(fresh.is_pet and fresh.pet_record != null and str(fresh.pet_record.nature) == "stubborn", "a tamed Stubborn animal's pet record reads '%s'" % (fresh.pet_record.nature if fresh.pet_record else "no record"))
+	player.bonded.clear()
+	player.free()
+	fresh.free()
 	c.free()
 	_sections += 1

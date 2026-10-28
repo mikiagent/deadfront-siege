@@ -249,8 +249,11 @@ func body_radius() -> float:
 func defense_for(ranged: bool = false) -> float:
 	return stat_value(&"ranged_defense" if ranged else &"melee_defense")
 
+## NATURES: the one place a nature's damage multiplier applies (Docile is less effective in combat).
+## Every hit a creature lands reads this, survivors, pets and structures alike; the stat itself is
+## unchanged, so the PETS sheet keeps showing the species numbers.
 func attack_for(ranged: bool = false) -> float:
-	return stat_value(&"ranged_attack" if ranged else &"melee_attack")
+	return stat_value(&"ranged_attack" if ranged else &"melee_attack") * nature_knob("damage_dealt_mult", 1.0)
 
 func accuracy_chance() -> float:
 	if is_pet and pet_record:

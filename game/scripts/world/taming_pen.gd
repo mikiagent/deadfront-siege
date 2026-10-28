@@ -147,7 +147,7 @@ func _process(delta: float) -> void:
 		rec.origin = &"capture"
 		# NATURES: the animal keeps the nature it had in the field (from_dict derives one otherwise).
 		var nat := StringName(str(occupant.attributes.get("nature", "")))
-		rec.nature = nat if CreatureNatures.is_valid(nat) else CreatureNatures.from_uid(rec.uid, rec.species)
+		rec.nature = nat if CreatureNatures.is_valid(nat) else CreatureNatures.from_uid(rec.uid, rec.species, def.archetype)
 		rec.tamer = player.display_name()
 		player.bonded.append(rec)
 		player.notice("%s bonded (grade %s, Lv. %d)." % [str(def.species), rec.grade, rec.level])
