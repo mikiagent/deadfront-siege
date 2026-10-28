@@ -11,6 +11,12 @@ const DUSK := 0.72
 const NIGHT := 0.80
 ## The key light never drops below this, so it never points up from under the horizon.
 const MIN_ELEVATION_DEG := 6.0
+## Golden hour (80c3c3a6): the sun, the fog and the sky horizon warm toward amber on the way down,
+## before night turns them blue. The warmth ramps in over these two times of day and holds to NIGHT.
+## It starts after noon and is nil at 0.5, so the afternoon's core stays neutral. ASSUMPTION: the
+## exact ramp is visual tuning the owner judges.
+const GOLDEN_START := 0.56
+const GOLDEN_FULL := 0.64
 ## The sky and fog colours update only on steps at least this large (half a second of a 720 s
 ## day): every write to the sky colours forces a sky radiance update. The lights update every frame.
 const TOD_STEP := 1.0 / 1440.0
@@ -22,6 +28,7 @@ const FALLBACK := {"sun_energy": 2.2, "sun_warm_energy_scale": 0.8, "sun_max_ele
 	"moon_energy": 1.1, "moon_energy_compat": 2.0, "moon_elevation_deg": 55.0, "moon_yaw_deg": -70.0, "ambient_energy": 0.3,
 	"ambient_night_energy": 0.4, "exposure": 1.0, "exposure_compat": 1.0, "exposure_scale": 1.0,
 	"saturation": 1.1, "saturation_compat": 1.1, "glow_intensity": 0.3, "fog_density": 0.0022, "fog_night_density": 0.004,
+	"contrast": 1.08, "glow_strength": 0.9, "glow_bloom": 0.04, "glow_hdr_threshold": 1.0,
 	"sun_color": [1.0, 0.95, 0.86], "sun_warm_color": [1.0, 0.68, 0.42], "moon_color": [0.52, 0.64, 1.0],
 	"fog_color": [0.62, 0.72, 0.82], "fog_dusk_color": [0.74, 0.6, 0.52], "fog_night_color": [0.04, 0.06, 0.11],
 	"sky_top": [0.2, 0.42, 0.66], "sky_horizon": [0.66, 0.78, 0.92],
@@ -199,10 +206,16 @@ func _make_env(reuse: Environment = null) -> Environment:
 	e.ambient_light_sky_contribution = 1.0
 	e.tonemap_mode = Environment.TONE_MAPPER_AGX
 	e.tonemap_exposure = _f("exposure_compat" if _compat else "exposure") * _f("exposure_scale")
+	# Colour grade (80c3c3a6, ASSUMPTION values): a little contrast and a soft glow so fire and the
+	# sky bloom without the sun clipping. AgX already saturates; the profile's saturation is reused.
 	e.glow_enabled = true
 	e.glow_intensity = _f("glow_intensity")
-	e.glow_hdr_threshold = 1.0
+	e.glow_strength = _f("glow_strength", 0.9)
+	e.glow_bloom = _f("glow_bloom", 0.04)
+	e.glow_hdr_threshold = _f("glow_hdr_threshold", 1.0)
+	e.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	e.adjustment_enabled = true
+	e.adjustment_contrast = _f("contrast", 1.08)
 	e.adjustment_saturation = _f("saturation_compat" if _gl else "saturation")  # web renderer only, like moon_energy_compat
 	e.fog_enabled = true
 	e.fog_sun_scatter = _f("fog_sun_scatter")
@@ -245,6 +258,9 @@ func drive(tod: float, sky: bool = true) -> void:
 	# Warm inside the dawn and dusk phases only: it fades out over the last 0.04 of dawn and in
 	# over the first 0.02 of dusk, so the whole day phase (DAY..DUSK) is neutral.
 	var warm := maxf(1.0 - smoothstep(DAY - 0.04, DAY, tod), smoothstep(DUSK, DUSK + 0.02, tod))
+	# Golden hour before night (80c3c3a6): the low sun, the fog and the sky horizon warm toward the
+	# profile's dusk colours while it is still up, then the night lerp takes them blue.
+	var golden := smoothstep(GOLDEN_START, GOLDEN_FULL, tod) * (1.0 - smoothstep(NIGHT - 0.04, NIGHT - 0.01, tod))
 	var night := 1.0 - sun_up
 	WorldLighting.night = night
 	var elevation := maxf(MIN_ELEVATION_DEG, _f("sun_max_elevation_deg") * sin(PI * day_t))
@@ -252,8 +268,10 @@ func drive(tod: float, sky: bool = true) -> void:
 	# caster. The yaw band keeps the sun 80-130 deg off it while it crosses the sky.
 	var yaw_band: Array = profile.get("sun_yaw_deg", [-35.0, -85.0])
 	sun.rotation_degrees = Vector3(-elevation, lerpf(float(yaw_band[0]), float(yaw_band[1]), day_t), 0.0)
-	sun.light_color = _c("sun_color").lerp(_c("sun_warm_color"), warm)
-	sun.light_energy = _f("sun_energy") * lerpf(1.0, _f("sun_warm_energy_scale"), warm) * sun_up
+	# Dawn, golden hour and dusk all use the profile's warm sun; the stronger of the two ramps wins.
+	var warmth := maxf(warm, golden)
+	sun.light_color = _c("sun_color").lerp(_c("sun_warm_color"), warmth)
+	sun.light_energy = _f("sun_energy") * lerpf(1.0, _f("sun_warm_energy_scale"), warmth) * sun_up
 	sun.visible = sun_up > 0.001
 	# The web renderer's night came out a third as bright (lighting_lab night_lum 0.033 vs 0.10).
 	moon.light_energy = _f("moon_energy_compat" if _gl else "moon_energy") * night
@@ -264,7 +282,9 @@ func drive(tod: float, sky: bool = true) -> void:
 	var e := world_env.environment if world_env else null
 	if e == null or not sky:
 		return
-	var dusk_w := warm * sun_up
+	# Dusk and the golden hour are the same intent (an amber sky while the sun is low); dusk only
+	# adds the part of the ramp that runs after DUSK. Take the stronger of the two, never their sum.
+	var dusk_w := maxf(warm * sun_up, golden)
 	e.ambient_light_energy = lerpf(_f("ambient_energy"), _f("ambient_night_energy"), night)
 	e.fog_light_color = _c("fog_color").lerp(_c("fog_dusk_color"), dusk_w).lerp(_c("fog_night_color"), night)
 	_fog_density = lerpf(_f("fog_density"), _f("fog_night_density"), night)
@@ -272,8 +292,8 @@ func drive(tod: float, sky: bool = true) -> void:
 	_sky_mat.sky_top_color = _c("sky_top").lerp(_c("sky_dusk_top"), dusk_w).lerp(_c("sky_night_top"), night)
 	_sky_mat.sky_horizon_color = _c("sky_horizon").lerp(_c("sky_dusk_horizon"), dusk_w).lerp(_c("sky_night_horizon"), night)
 
-func _f(key: String) -> float:
-	return float(profile.get(key, 0.0))
+func _f(key: String, dflt: float = 0.0) -> float:
+	return float(profile.get(key, dflt))
 
 func _c(key: String) -> Color:
 	var a: Variant = profile.get(key, [1.0, 1.0, 1.0])

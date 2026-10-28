@@ -53,6 +53,10 @@ func _ready() -> void:
 			build_stamp = a.substr(8)
 		elif a.begins_with("--shot-delay="):
 			shot_delay_override = float(a.substr(13))
+		elif a.begins_with("--tod="):
+			# LIGHTPORT (80c3c3a6): repeatable time-of-day shots for the islands too; LabKit has had
+			# it for the labs (0.5 noon, 0.25 dawn, 0.66 golden hour, 0.9 night).
+			time_of_day = clampf(float(a.substr(6)), 0.0, 1.0)
 		elif a == "--fast-regen":
 			fast_regen_mult = 20.0
 		elif a.begins_with("--fast-regen="):
