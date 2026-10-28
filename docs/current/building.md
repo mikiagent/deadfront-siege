@@ -84,7 +84,7 @@ Three kit-placed fires share `game/scripts/world/bonfire.gd` (`Bonfire`); their 
   when the fire stands outside a Domain (the same claim check `BuildGrid.can_place` uses), and are
   removed at burn-out or at 0 durability — the game has no ash state.
 - **Cooking** works only while a fire burns: `Bonfire.can_cook()` / `cook_block_reason()`,
-  `StationMenu.filter_actions` drops the COOK hex and `StationCraft.begin` refuses the craft.
+  `StationMenu.filter_actions` drops the COOK hex and `StationMenu._on_pressed` refuses the press.
 - **LOAD WOOD** is a hex on every fire (`StationMenu.actions_for` → `Bonfire.load_wood`); hidden once
   full. The menu also prints the fire's state line (`info_lines`: `Fuel m:ss · Burning/Out` and
   `Durability cur/max` for temporary fires).

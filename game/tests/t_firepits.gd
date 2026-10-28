@@ -221,7 +221,6 @@ func _test_cooking_gate() -> void:
 		_expect(float(cold_pit.get("fuel_seconds")) > 0.0 and bool(cold_pit.call("can_cook")), "LOAD WOOD from the menu lights the pit")
 		menu.call("hide_menu")
 		cold_pit.queue_free()
-	pit.queue_free()
 	# A cook that is under way on the fire stops when the fire goes out, and its inputs stay in the bag.
 	var sc1: Variant = _player.get("station_craft")
 	if sc1 != null:
@@ -233,6 +232,7 @@ func _test_cooking_gate() -> void:
 		print("[t_firepits] cook stopped with the fire: %s branches %d->%d" % [stopped, branches_before, _player.inventory.count_of(&"branch")])
 		_expect(stopped, "a cook running on the pit stops when its fuel runs out")
 		sc1.set("station", null)
+	pit.queue_free()
 	# A temporary fire that has burned out refuses too.
 	var b := _fire(&"bonfire")
 	b.call("tick", float(b.get("fuel_seconds")) + 1.0)
@@ -258,19 +258,16 @@ func _test_info_lines() -> void:
 	_expect(menu != null, "the survivor has a station menu to show the fire's state")
 	if menu != null:
 		menu.call("show_for", pit, SM.filter_actions(pit, SM.actions_for(&"bonfire", _player)))
-		await process_frame
 		var lbl: Label = menu.get("info_label")
 		var shown := "" if lbl == null else lbl.text
 		print("[t_firepits] menu info on screen: \"%s\"" % shown)
 		_expect(shown.to_lower().contains("fuel") and shown.to_lower().contains("burning"), "the pit's menu shows its fuel and burning state on screen")
 		menu.call("show_for", b, SM.filter_actions(b, SM.actions_for(&"bonfire", _player)))
-		await process_frame
 		var lbl2: Label = menu.get("info_label")
 		var shown2 := "" if lbl2 == null else lbl2.text
 		print("[t_firepits] bonfire menu info on screen: \"%s\"" % shown2)
 		_expect(shown2.to_lower().contains("fuel") and shown2.to_lower().contains("durability"), "the bonfire's menu shows fuel and durability on screen")
 		menu.call("hide_menu")
-		await process_frame
 	pit.queue_free()
 	b.queue_free()
 

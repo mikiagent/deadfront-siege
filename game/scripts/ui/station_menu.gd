@@ -86,7 +86,9 @@ func _ready() -> void:
 func show_for(st: Node3D, actions: Array) -> void:
 	station = st
 	_clear()
-	for a in actions:
+	# A fire that is not burning offers no COOK (and a full fire no LOAD WOOD), whatever list the
+	# caller hands over.
+	for a: Variant in filter_actions(st, actions):
 		var row: Dictionary = a
 		var btn := HexButton.new(HEX_SIZE)
 		btn.focus_mode = Control.FOCUS_ALL  # controller menu (HexButton defaults out of focus)

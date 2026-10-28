@@ -10,8 +10,8 @@ out eventually, and loses durability over time (especially if it's outside of a 
 |---|---|
 | The permanent `stone_fire_pit` never decays, hides its wood until wood is loaded, burns while the fuel lasts, goes cold (wood and flame gone, rocks stay) at 0 fuel | `game/scripts/world/bonfire.gd` (`is_permanent`, `load_wood`, `tick`, `_build_fire_nodes`, `WoodPile`, `Flame`) |
 | `bonfire` and `campfire` show wood + flame from placement, burn out after their fuel time, wear over time, wear 2× outside a Domain, are removed at burn-out or 0 durability | same file (`tick`, `_in_domain`) + `structures.json` `placed_kinds` |
-| Cooking only while the fire burns | `Bonfire.can_cook` / `cook_block_reason`, `StationMenu.filter_actions`, `StationCraft.begin` |
-| Loading wood is an action | `LOAD WOOD` hex in `StationMenu.actions_for`, dispatched by `StationCraft._on_menu_action` → `Bonfire.load_wood` |
+| Cooking only while the fire burns | `Bonfire.can_cook` / `cook_block_reason`, `StationMenu.filter_actions` (drops the COOK hex), `StationMenu._on_pressed` (refuses the press on a cold fire) |
+| Loading wood is an action | `LOAD WOOD` hex in `StationMenu.actions_for`, handled in `StationMenu._on_pressed` → `Bonfire.load_wood`, which keeps the menu open so its fuel line updates |
 | Info/inspect text: fuel left, plus durability for temporary fires | `Bonfire.info_lines()` / `info_text()`, shown by the hex menu's new `info_label` |
 | Save/load keeps fuel, burning and durability; old rows load sane | `Bonfire.to_dict` / `from_dict`, `SaveSanitizer.BUILDING_ROW` |
 | Acceptance test | `game/tests/t_firepits.gd` |
@@ -62,8 +62,11 @@ Measured in the windowed lab (`[firepits] RESULT ... all_ok=1` at 1600x900 and 8
 
 - Merge order: this branch only touches `game/scripts/world/bonfire.gd`, the new
   `game/scripts/world/firepits_lab.gd`, `game/scripts/ui/station_menu.gd`,
-  `game/scripts/items/station_craft.gd`, `game/data/structures.json`, `game/scripts/core/save_sanitizer.gd`,
-  `game/tests/t_firepits.gd` and two docs.
+  `game/data/structures.json`, `game/scripts/core/save_sanitizer.gd`,
+  `game/tests/t_firepits.gd` and two docs. `game/scripts/items/station_craft.gd` is **not** touched: it
+  sits outside this job's scope regex, so the cook gate and LOAD WOOD dispatch live inside
+  `station_menu.gd` (`filter_actions`, `show_for`, `_on_pressed`), which every fire menu already goes
+  through.
 - `t_save` passes unchanged: the frozen goldens carry no fire fuel/durability fields and the campfire's
   `seconds_left` still round-trips, so no golden rewrite is needed.
 - The windowed lab probe self-installs from `Bonfire._ready` only when `--lab=kitchen_lab` is run with
