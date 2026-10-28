@@ -51,9 +51,13 @@ func sync() -> void:
 		for r in Tribe.pending:
 			want[r.uid] = [r, true]
 	for uid in live.keys():
-		var m: TribeMember = live[uid]
-		if not is_instance_valid(m) or m.is_queued_for_deletion() or not want.has(uid) or m.pending != bool(want[uid][1]) or m.get_parent() != _host():
-			if is_instance_valid(m) and not m.is_queued_for_deletion():
+		var v: Variant = live[uid]
+		if not is_instance_valid(v):  # freed with the island it stood on (travel, a reload)
+			live.erase(uid)
+			continue
+		var m := v as TribeMember
+		if m.is_queued_for_deletion() or not want.has(uid) or m.pending != bool(want[uid][1]) or m.get_parent() != _host():
+			if not m.is_queued_for_deletion():
 				m.queue_free()
 			live.erase(uid)
 	for uid in want:

@@ -326,12 +326,16 @@ func _work() -> void:
 				_halt(&"idle")  # nothing left to work in the radius: wait for regrowth
 			return
 		_work_node.set_meta(&"tribe_claim", m.uid)
-	var reach := _work_node._trunk_width() * 0.5 + 1.0
+	var reach := work_reach(_work_node)
 	if _flat(global_position, _work_node.global_position) > reach:
 		state = &"walk"
-		_go(_work_node.global_position, false)
+		_go(_stand_near(_work_node.global_position, reach - 0.25), false)
 		return
 	_begin_gather()
+
+## Stand at the node's edge, not inside it: its collision half-width plus the body and a hand's reach.
+static func work_reach(n: HarvestNode) -> float:
+	return n.visual_radius() + RADIUS + 0.3  # ASSUMPTION: 0.3 m arm's reach past the visible edge
 
 func job_center() -> Vector3:
 	var c: Array = record.job.get("center", [0.0, 0.0])
@@ -459,7 +463,7 @@ func _deposit() -> void:
 		return
 	state = &"deposit"
 	if not _near(s):
-		_go(s.global_position, false)
+		_go(_stand_near(s.global_position, 1.5), false)
 		return
 	_moving = false
 	var inv := s.get("storage") as Inventory
@@ -484,7 +488,7 @@ func _eat_from(s: Node3D) -> void:
 	_release_node()
 	state = &"eat"
 	if not _near(s):
-		_go(s.global_position, false)
+		_go(_stand_near(s.global_position, 1.5), false)
 		return
 	_moving = false
 	var inv := s.get("storage") as Inventory
@@ -517,6 +521,14 @@ func _tick_rest(delta: float) -> void:
 		print("[tribe] %s rested" % m.name)
 
 # ---------------------------------------------------------------- movement and clips
+
+## The spot `dist` from `at` on this member's side: walk to the edge of a rock or chest, not into it.
+func _stand_near(at: Vector3, dist: float) -> Vector3:
+	var away := global_position - at
+	away.y = 0.0
+	if away.length_squared() < 0.0001:
+		away = Vector3.BACK
+	return at + away.normalized() * maxf(0.0, dist)
 
 func _halt(s: StringName) -> void:
 	state = s
