@@ -107,10 +107,10 @@
         {
           "id": "current-docs",
           "title": "Current-implementation pages for the five unwritten systems",
-          "status": "next",
+          "status": "done",
           "depends": [],
           "source": "docs/current/README.md",
-          "note": "Five systems still have no current-implementation page: inventory/bags, creatures/AI/capture/taming, saves, server contract, economy. Agents read these instead of trawling history."
+          "note": "CURRENTDOCS merged 080f2617: inventory/bags, creatures/capture/taming, saves, server contract, economy."
         }
       ]
     },
@@ -414,12 +414,12 @@
         {
           "id": "capture-rule",
           "title": "Capture rule: stun at any HP or below 30% (spec 09) in field_tame + capture_system",
-          "status": "next",
+          "status": "done",
           "depends": [
             "creature-roster"
           ],
           "source": "docs/design/islands-and-loop-plan.md",
-          "note": "Code still says knocked out AND under 30 % (hunt.gd:317, status_effects.gd:212). Owner rule 09: stunned at any HP OR <= 30 %."
+          "note": "CAPTURE09 merged 2026-10-28: FieldTame.capture_window is the one rule (stunned at any HP or <= 30 %), chance on actual HP, 50 % stun hint, DoTs spare a capturable animal."
         },
         {
           "id": "target-select",
