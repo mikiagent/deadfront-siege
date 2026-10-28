@@ -1258,6 +1258,7 @@ func _world_sheet(key: StringName, make: Callable) -> UiWorldSheet:
 		add_child(layer)
 	s = make.call()
 	layer.add_child(s)
+	s.back_pressed.connect(_back_to_menu)  # ‹ returns to the nav menu (§8)
 	_world_sheets[key] = s
 	return s
 
