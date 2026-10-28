@@ -64,6 +64,8 @@ var _levelup_t: float = -1.0
 ## target plate, level-up banner), rebuilt every draw. Layout gates check them with the controls, so
 ## nothing mirrors this file's geometry.
 var drawn_blocks: Dictionary = {}
+## The target plate's name, nature tag and HP bar rects from the last draw (layout tests read them).
+var target_rows: Dictionary = {}
 var _titles: Dictionary = {}
 var _level_gains: Dictionary = {}
 # hits on the survivor: bite/crunch jaws + red numbers
@@ -1673,18 +1675,29 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 				pw = band.size.x
 				px = band.position.x
 				py = band.position.y + 8.0
-			var block := Rect2(px, py - 4.0, pw, 70.0)
-			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
+			# NATURES (§11): the nature tag sits under the name; with one, the bar and every row below drop by dy.
+			var nat := t.nature_id()
 			var name_px := UiTokens.heading(r)
+			# The name's Latin line box: the symbol fallbacks inflate _font's own ascent/descent, never this text's.
+			var latin: Font = (_font as FontVariation).base_font if _font is FontVariation else _font
+			var chip_y := py + 29.0 + latin.get_descent(name_px)  # 1 px under the name's line box
+			var dy := maxf(0.0, chip_y + NatureChip.CHIP_H + CreaturePlates.CHIP_GAP - (py + 44.0)) if NatureChip.text_for(nat) != "" else 0.0
+			var block := Rect2(px, py - 4.0, pw, 70.0 + dy)
+			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
 			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
-			draw_rect(Rect2(px, py - 4, pw, 48), Color(UiTokens.INK, 0.75 * a))  # the reference's dark band: the name reads on foliage
+			draw_rect(Rect2(px, py - 4, pw, 48 + dy), Color(UiTokens.INK, 0.75 * a))  # the reference's dark band: the name reads on foliage
 			draw_string(_font, Vector2(px + 12, py + 28), nm, HORIZONTAL_ALIGNMENT_LEFT, pw - 120.0, name_px, Color(1, 1, 1, a))
 			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x
+			var asc := latin.get_ascent(name_px)
+			target_rows = {"name": Rect2(px + 12, py + 28 - asc, nmw, asc + latin.get_descent(name_px))}
+			target_rows["chip"] = NatureChip.draw_at(self, _font, Vector2(px + 12, chip_y), nat, a)
 			draw_string(_font, Vector2(px + 18 + nmw, py + 28), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, UiTokens.DANGER)
 			draw_rect(Rect2(px + pw - 60, py - 4, 52, 52), Color(0.12, 0.12, 0.14, 0.9 * a))
 			# ASSUMPTION: no per-species portrait art exists yet; the Animals head stands in for the reference's portrait.
 			draw_texture_rect(UiIcons.icon(&"animals"), Rect2(px + pw - 54, py + 2, 40, 40), false, Color(1, 1, 1, a))
 			var frac := clampf(t.health.hp / maxf(1.0, t.health.max_hp), 0.0, 1.0)
+			py += dy  # everything below the tag
+			target_rows["bar"] = Rect2(px, py + 44, pw, 22)
 			draw_rect(Rect2(px, py + 44, pw, 22), Color(0.12, 0.05, 0.05, 0.9 * a))
 			var window := FieldTame.capture_window(t)  # spec 09: stunned or <= 30 %, the bar turns GOLD
 			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(UiTokens.GOLD, 0.95 * a) if window else Color(0.80, 0.12, 0.12, 0.95 * a))

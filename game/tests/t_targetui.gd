@@ -85,6 +85,7 @@ func _run() -> void:
 	await _test_screens()
 	await _test_drop()
 	await _test_phone_quest()
+	await _test_nature_rows()
 	host.queue_free()
 	await process_frame
 	if failures.is_empty():
@@ -666,3 +667,67 @@ func _test_phone_quest() -> void:
 	_expect(blocks.has("plate") and not blocks.has("quest"), "phone: the fight's plate takes the band (plate %s, quest %s)" % [blocks.has("plate"), blocks.has("quest")])
 	await _phone(false)
 	await _clear()
+
+## NATURECHIP (owner 2026-10-28): "the animal's nature in the wild is being hidden by the healthbar".
+## Name, then the nature tag, then the HP bar with a clear gap, on the world plate and the target plate,
+## at desktop and landscape phone. MEASURED on the live nodes and the HUD's drawn rects.
+func _test_nature_rows() -> void:
+	var start := [get_root().size, get_root().content_scale_size]
+	var plates_s: GDScript = load("res://scripts/ui/creature_plates.gd")
+	var plates: Node = plates_s.new()
+	host.add_child(plates)
+	for sz in [Vector2i(1600, 900), Vector2i(844, 390)]:
+		get_root().size = sz
+		get_root().content_scale_size = sz
+		var wild = _creature(&"deinonychus", Vector3(3.5, 0, 0))
+		wild.nature = &"timid"
+		await _frames(5)
+		# --- the world plate
+		var e: Dictionary = plates._ensure_entry(wild)
+		plates._emphasis_id = wild.get_instance_id()
+		plates._update_entry(e, wild, cam, player, 4.0, 0.016)
+		var line1 := e["line1"] as Label
+		var chip := e["chip"] as Control
+		var bar := (e["node"] as Control).get_node("BarBg") as Control
+		# The name's Latin line box (the label's own height includes the symbol fallbacks' taller metrics).
+		var ff: Font = ThemeDB.fallback_font
+		var latin: Font = (ff as FontVariation).base_font if ff is FontVariation else ff
+		var name_r := Rect2(line1.position, Vector2(line1.size.x, latin.get_height(14)))
+		var chip_r := Rect2(chip.position, chip.size)
+		var bar_r := Rect2(bar.position, bar.size)
+		var lab := chip.get("label") as Control
+		var text_mid := chip.position.y + lab.position.y + lab.size.y * 0.5
+		_expect(chip.visible and chip_r.position.y >= name_r.end.y and bar_r.position.y - chip_r.end.y >= 4.0 and not chip_r.intersects(bar_r),
+			"%s world plate: name %s, tag %s, HP bar %s (tag under the name, 4 px clear of the bar)" % [sz, name_r, chip_r, bar_r])
+		_expect(absf(text_mid - chip_r.get_center().y) <= 1.0, "%s world plate: the tag's text is centred in its chip (text mid %.1f, chip mid %.1f)" % [sz, text_mid, chip_r.get_center().y])
+		var pill := e["pill"] as Control
+		_expect(pill.position.y + pill.size.y >= bar_r.end.y, "%s world plate: the backing pill covers the bar (pill ends %.0f, bar ends %.0f)" % [sz, pill.position.y + pill.size.y, bar_r.end.y])
+		# --- the target plate: the fight's plate in the HUD
+		player.actions.attack(wild)
+		await _frames(4)
+		var rows: Dictionary = hud.get("target_rows")
+		var tn: Rect2 = rows.get("name", Rect2())
+		var tc: Rect2 = rows.get("chip", Rect2())
+		var tb: Rect2 = rows.get("bar", Rect2())
+		_expect(tc.has_area() and tc.position.y >= tn.end.y and tb.position.y - tc.end.y >= 4.0 and not tc.intersects(tb),
+			"%s target plate: name %s, tag %s, HP bar %s (tag under the name, 4 px clear of the bar)" % [sz, tn, tc, tb])
+		var plate: Rect2 = (hud.get("drawn_blocks") as Dictionary).get("plate", Rect2())
+		_expect(plate.encloses(tb), "%s target plate: its block %s holds the bar %s" % [sz, plate, tb])
+		await _clear()
+	# A nature-less animal: no tag on either plate, and the bar right under the name (no empty row).
+	var plain = _creature(&"deinonychus", Vector3(3.5, 0, 0))
+	plain.nature = &""
+	await _frames(3)
+	var pe: Dictionary = plates._ensure_entry(plain)
+	plates._emphasis_id = plain.get_instance_id()
+	plates._update_entry(pe, plain, cam, player, 4.0, 0.016)
+	var pbar := (pe["node"] as Control).get_node("BarBg") as Control
+	_expect(not (pe["chip"] as Control).visible and pbar.position.y < plates_s.CHIP_POS.y + 4.0, "no nature: no tag and the bar sits under the name (bar at %.0f)" % pbar.position.y)
+	player.actions.attack(plain)
+	await _frames(4)
+	_expect(not (hud.get("target_rows") as Dictionary).get("chip", Rect2()).has_area(), "no nature: the target plate draws no tag")
+	await _clear()
+	plates.queue_free()
+	get_root().size = start[0]
+	get_root().content_scale_size = start[1]
+	await _frames(5)
