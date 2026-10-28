@@ -269,16 +269,24 @@ func _test_grouping() -> void:
 		s.look = ML.look_for_species(str(sp), 1)
 		bag.add(s)
 	bag.add(IS.make(&"wood_log", 1, {}, 4))  # a legacy log with no look
+	# A fourth log: another oak, different jitter — same species, so it belongs to the oak group.
+	var oak2 = IS.make(&"wood_log", 1, {}, 4)
+	oak2.look = ML.look_for_species("oak", 99)
+	bag.add(oak2)
 	var groups: Array = bag.groups()
 	var species_seen: PackedStringArray = []
 	var legacy := 0
+	var oak_units := 0
 	for g: Dictionary in groups:
 		var sp := str(g.get("species", ""))
+		if sp == "oak":
+			oak_units = int(g.get("units", 0))
 		if sp == "":
 			legacy += 1
 		elif sp not in species_seen:
 			species_seen.append(sp)
-	_expect(groups.size() == 3 and legacy == 1, "the bag view keeps oak, birch and an unlooked log apart (%d groups, legacy %d)" % [groups.size(), legacy])
+	_expect(oak_units == 3, "the group key is the species, not the exact colour: 3 oak logs (one a different jitter) are one group (%d)" % oak_units)
+	_expect(groups.size() == 3 and legacy == 1 and oak_units == 3, "the bag view keeps oak, birch and an unlooked log apart (%d groups, legacy %d)" % [groups.size(), legacy])
 	_expect("oak" in species_seen and "birch" in species_seen, "each wood group names its species (%s)" % ", ".join(species_seen))
 	print("[t_matlook] groups=%d species=%s" % [groups.size(), ", ".join(species_seen)])
 
@@ -304,6 +312,11 @@ func _test_econ_gate() -> void:
 	var good_verdict := str(validator.item(good))
 	var bad_verdict := str(validator.item(bad))
 	_expect(bad_verdict != "", "the vault refuses a forged look (%s)" % bad_verdict)
+	# Appearance is not value: two logs of different species, same def and level, quote the same.
+	var other: Dictionary = IS.make(&"wood_log", 1, {}, 5).to_dict()
+	other.look = ML.look_for_species("birch", 5)
+	other.uid = "i8.0"
+	_expect(str(validator.item(other)) == str(validator.item(good)), "one species is not worth more than another at the vault gate (%s vs %s)" % [str(validator.item(good)), str(validator.item(other))])
 	if good_verdict != "":
 		_seen_gap = true
 		print("[t_matlook] GAP vault.item(valid look) = \"%s\": data/economy/limits.json and scripts/economy/asset_validator.gd are outside this job's scope; the integrator must whitelist look there" % good_verdict)
