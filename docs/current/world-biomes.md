@@ -87,6 +87,24 @@ Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data
 
 A climate's `materials` list is what its island generator may place; gather yields per family are the gather-system's own table (`world/rules.json`).
 
+## Claimed land is clear of scenery
+
+A domain cell (spec 29) is bare of decoration the moment it is staked, and stays that way:
+
+- **Props go.** Claiming or expanding removes every scenery prop whose footprint overlaps the new
+  cells — fallen logs, tree stumps, boulders, reeds, clutter cards, and even a cliff/mesa that an attack
+  cannot clear (a claim is not an attack). The sweep is `IslandClaims.clean_claimed()` →
+  `IslandProps.clear_claimed()`; the props layer also refuses to place a prop on a claimed tile or with
+  a footprint reaching in (`IslandProps._claimed_footprint`).
+- **Resources stay.** Trees, rocks, bushes and plants that really can be gathered remain on owned land:
+  spec 29 gives the owner the right to build and manage, not a stripped plot. A "harvest node" with no
+  valid gather option is a prop and is removed with the rest.
+- **Grass stays off.** Grass families and the ground-cover instances are cleared separately
+  (`IslandClaims._clear_grass_cells`, `GroundCover`), and never scattered back on a claim.
+- **Loads and rebuilds match.** A save stores only the domain cells, never the absence of props; the
+  domain is restored before the props regenerate from the island seed, so a reloaded island has no
+  scenery inside its claims and nothing regrows there later. No save-format change.
+
 ## Weather
 
 Code: `game/scripts/world/world_weather.gd` (state), `game/scripts/world/weather_fx.gd` (screen layer, light pulse, camera shake), `game/shaders/weather/`. Numbers: `game/data/world/rules.json` `weather`. Test: `game/tests/t_weather.gd`; lab: `scenes/dev/weather_lab.tscn`.
@@ -114,24 +132,6 @@ Code: `game/scripts/world/world_weather.gd` (state), `game/scripts/world/weather
 | volcanic | 0 | 0 | 0.40-1.00 | - |
 
 The look columns run from fully resisted to fully unmet.
-
-## Claimed land is clear of scenery
-
-A domain cell (spec 29) is bare of decoration the moment it is staked, and stays that way:
-
-- **Props go.** Claiming or expanding removes every scenery prop whose footprint overlaps the new
-  cells — fallen logs, tree stumps, boulders, reeds, clutter cards, and even a cliff/mesa that an attack
-  cannot clear (a claim is not an attack). The sweep is `IslandClaims.clean_claimed()` →
-  `IslandProps.clear_claimed()`; the props layer also refuses to place a prop on a claimed tile or with
-  a footprint reaching in (`IslandProps._claimed_footprint`).
-- **Resources stay.** Trees, rocks, bushes and plants that really can be gathered remain on owned land:
-  spec 29 gives the owner the right to build and manage, not a stripped plot. A "harvest node" with no
-  valid gather option is a prop and is removed with the rest.
-- **Grass stays off.** Grass families and the ground-cover instances are cleared separately
-  (`IslandClaims._clear_grass_cells`, `GroundCover`), and never scattered back on a claim.
-- **Loads and rebuilds match.** A save stores only the domain cells, never the absence of props; the
-  domain is restored before the props regenerate from the island seed, so a reloaded island has no
-  scenery inside its claims and nothing regrows there later. No save-format change.
 
 ## Fauna (19 species)
 

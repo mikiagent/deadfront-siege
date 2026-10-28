@@ -103,11 +103,11 @@
       "tactic_w_combo": 1.5
     },
     "loyal": {
-      "label": "Loyal",
+      "label": "Territorial",
       "follow_dist_mult": 0.7,
       "guard_radius_mult": 1.4,
       "protect_owner": true,
-      "_about": "Stays close and prioritises protecting its owner: a shorter follow leash, and it picks the threat nearest the owner."
+      "_about": "Territorial (owner 2026-10-28; id stays `loyal` so saves need no migration): in the wild it guards its ground and packmates; tamed, it stays close and protects its owner with a shorter follow leash, picking the threat nearest the owner."
     },
     "stubborn": {
       "label": "Stubborn",
