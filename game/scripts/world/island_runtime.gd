@@ -267,7 +267,17 @@ func _tile_at(x: float, z: float) -> Vector3:
 func fixed_spawn_at(at: Vector3) -> Vector3:
 	var crater_data := _crater_hint - _crater_offset
 	if _crater_offset != Vector3.ZERO and Vector2(at.x - crater_data.x, at.z - crater_data.z).length() <= 30.0:
-		return at + _crater_offset
+		var moved := at + _crater_offset
+		# The crater sits on dry land by construction; a guard whose old offset now lands in a bay
+		# stands at the crater's rim instead.
+		if is_dry(moved):
+			return moved
+		var dir := Vector3(moved.x - _crater_hint.x, 0.0, moved.z - _crater_hint.z)
+		for k in range(10, -1, -1):
+			var q := _crater_hint + dir.normalized() * float(k) if dir.length() > 0.01 else _crater_hint
+			if is_dry(q):
+				return q
+		return _crater_hint
 	return at
 
 ## Rings are measured from where the survivor LANDS (the dock's arrival point), not the island

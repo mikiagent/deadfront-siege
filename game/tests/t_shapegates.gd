@@ -153,8 +153,9 @@ func _measure(label: String, id: StringName, is_home: bool) -> void:
 		_expect(false, "%s built a runtime with a shape and TilePath" % label)
 		return
 	var mem_mb := float(OS.get_static_memory_usage() - mem0) / 1048576.0
-	print("[t_shapegates-perf] %s build_ms=%.0f scene_nodes=%d harvest=%d creatures=%d mem_mb=%.1f size=%.0f" % [
-		label, build_ms, _count_nodes(rt), int(rt.harvest_count), int(rt.creature_count), mem_mb, float(rt._size)])
+	print("[t_shapegates-perf] %s build_ms=%.0f scene_nodes=%d harvest=%d creatures=%d mem_mb=%.1f mem_total_mb=%.0f size=%.0f" % [
+		label, build_ms, _count_nodes(rt), int(rt.harvest_count), int(rt.creature_count), mem_mb,
+		float(OS.get_static_memory_usage()) / 1048576.0, float(rt._size)])
 	var png_dir := OS.get_environment("SG_PNG_DIR")
 	if png_dir != "":
 		_save_png(rt, png_dir.path_join("%s.png" % label))

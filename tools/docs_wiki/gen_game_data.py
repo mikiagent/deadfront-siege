@@ -172,7 +172,15 @@ def island_row(i):
 
 def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
     cl = load(data, "world/climates.json")
-    isl = [load(data, "islands/%s" % f.name) for f in sorted(Path(data, "islands").glob("*.json"))]
+    # Each island is its world/islands.json row overlaid with its islands/<id>.json file, the way
+    # World._load_islands merges them (a newer island's climate and tier live only in the catalogue).
+    cat = load(data, "world/islands.json")
+    isl = []
+    for f in sorted(Path(data, "islands").glob("*.json")):
+        row = load(data, "islands/%s" % f.name)
+        base = dict(cat.get(row.get("id", f.stem), {})) if isinstance(cat.get(row.get("id", f.stem)), dict) else {}
+        base.update(row)
+        isl.append(base)
     but = load(data, "butchering.json").get("species", {})
     creatures = []
     for f in sorted(Path(data, "creatures").glob("*.json")):
@@ -187,11 +195,15 @@ def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
     a("")
     a("## Island roster (%d)" % len(isl))
     a("")
-    a("| island | name | climate | tier | kind | permanent | lifetime (s) |")
-    a("|---|---|---|---|---|---|---|")
+    a("| island | name | climate | tier | kind | permanent | lifetime (s) | coast (generator 2) |")
+    a("|---|---|---|---|---|---|---|---|")
     for i in isl:
         r = island_row(i)
-        a("| `%s` | %s | %s | %s | %s | %s | %s |" % tuple(r[:7]))
+        sh = i.get("shape") or {}
+        coast = "%s, %s x %s m land in a %s m square" % (sh.get("type"), sh.get("long_m"), sh.get("short_m"), sh.get("size_m")) if sh else ""
+        a("| `%s` | %s | %s | %s | %s | %s | %s | %s |" % (tuple(r[:7]) + (coast,)))
+    a("")
+    a("Coasts: a new world builds every island on the country-coast generator (`IslandShape` generator 2: `spine` long and curved, `archipelago` with an islet chain and inlets on one flank, `compact` short but ragged); the land box is the main landmass along its own axes, +-10 %. A save made before it (no `shape_gen` stamp) keeps generator 1 for its home and the island it stands on, whose sizes are the `size_m` column of `islands.csv`. Islets are scenery: never walkable, scattered or spawned on.")
     a("")
     a("## Climates — flora & gatherable materials")
     a("")

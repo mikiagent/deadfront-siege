@@ -866,7 +866,7 @@ func _field(px: float, pz: float) -> float:
 		# A chain of long islets parallel to the coast on one flank (stretched noise).
 		var out := across * _islet_side - hw
 		# Starts 18 m off the coast, so the chain stays islands (a sound between) at full resolution.
-		var band := smoothstep(18.0, 34.0, out) * smoothstep(_wid * 1.0, _wid * 0.6, out)
+		var band := smoothstep(18.0, 34.0, out) * smoothstep(_wid * 0.8, _wid * 0.5, out)
 		if band > 0.0:
 			var n := _ni.get_noise_2d(qx * 0.45, qy * 1.5)
 			f = maxf(f, (n - 0.28) * _wid * 0.55 * band - (1.0 - band) * 40.0)
@@ -1271,7 +1271,7 @@ func _coast_from(p: Vector2, dir: Vector2) -> Vector2:
 ## axis-aligned) with a dry camp clearing 26 m behind it. Home: the cove head south of the camp.
 func _pick_landing() -> void:
 	if _camp_fixed:
-		var c := _coast_from(camp_hint, Vector2.DOWN if not _cove2.is_empty() else Vector2.DOWN)
+		var c := _coast_from(camp_hint, Vector2.DOWN)
 		landing = c if c != Vector2.INF else camp_hint + Vector2(0.0, 56.0)
 		_landing_flank = signf(axis_normal(0.5).dot(landing - axis_at(0.5)))
 		if _landing_flank == 0.0:

@@ -4,25 +4,32 @@
 
 Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/creatures/*.json`, `game/data/butchering.json`.
 
-## Island roster (15)
+## Island roster (20)
 
-| island | name | climate | tier | kind | permanent | lifetime (s) |
-|---|---|---|---|---|---|---|
-| `desert_35` | Unstable Desert | desert | 35 | unstable |  |  |
-| `desert_50` | Unstable Desert | desert | 50 | unstable |  |  |
-| `home_grassland` | Private Grassland | grassland | 10 | private | True | 0 |
-| `savannah_15` | Unstable Savannah | savannah | 15 | unstable |  |  |
-| `savannah_45` | Unstable Savannah | savannah | 45 | unstable |  |  |
-| `swamp_55` | Unstable Swamp | swamp | 55 | unstable |  |  |
-| `temperate_20` | Unstable Temperate | temperate | 20 | unstable |  |  |
-| `temperate_25` | Unstable Temperate | temperate | 25 | unstable | False | 7200 |
-| `temperate_35` | Unstable Temperate | temperate | 35 | unstable |  |  |
-| `temperate_45` | Unstable Temperate | temperate | 45 | unstable |  |  |
-| `tropical_25` | Unstable Tropical | tropical | 25 | unstable |  |  |
-| `tropical_40` | Unstable Tropical | tropical | 40 | unstable |  |  |
-| `tundra_30` | Unstable Tundra | tundra | 30 | unstable |  |  |
-| `tundra_55` | Unstable Tundra | tundra | 55 | unstable |  |  |
-| `volcanic_60` | Unstable Volcanic | volcanic | 60 | unstable |  |  |
+| island | name | climate | tier | kind | permanent | lifetime (s) | coast (generator 2) |
+|---|---|---|---|---|---|---|---|
+| `desert_35` | Unstable Desert | desert | 35 | unstable |  |  | spine, 600 x 290 m land in a 672 m square |
+| `desert_50` | Unstable Desert | desert | 50 | unstable |  |  | archipelago, 600 x 305 m land in a 672 m square |
+| `home_grassland` | Private Grassland | grassland | 10 | private | True | 0 | compact, 350 x 290 m land in a 416 m square |
+| `savannah_15` | Unstable Savannah | savannah | 15 | unstable |  |  | compact, 430 x 270 m land in a 544 m square |
+| `savannah_15b` | Unstable Savannah | savannah | 15 | unstable |  |  | spine, 540 x 220 m land in a 608 m square |
+| `savannah_45` | Unstable Savannah | savannah | 45 | unstable |  |  | compact, 520 x 330 m land in a 640 m square |
+| `swamp_45` | Unstable Swamp | swamp | 45 | unstable |  |  | spine, 600 x 270 m land in a 672 m square |
+| `swamp_55` | Unstable Swamp | swamp | 55 | unstable |  |  | compact, 560 x 360 m land in a 672 m square |
+| `swamp_60` | Unstable Swamp | swamp | 60 | unstable |  |  | archipelago, 620 x 330 m land in a 704 m square |
+| `temperate_20` | Unstable Temperate | temperate | 20 | unstable |  |  | spine, 520 x 230 m land in a 608 m square |
+| `temperate_20b` | Unstable Temperate | temperate | 20 | unstable |  |  | compact, 470 x 300 m land in a 576 m square |
+| `temperate_25` | Unstable Temperate | temperate | 25 | unstable | False | 7200 | archipelago, 480 x 260 m land in a 560 m square |
+| `temperate_35` | Unstable Temperate | temperate | 35 | unstable |  |  | archipelago, 580 x 310 m land in a 672 m square |
+| `temperate_45` | Unstable Temperate | temperate | 45 | unstable |  |  | spine, 580 x 260 m land in a 656 m square |
+| `tropical_25` | Unstable Tropical | tropical | 25 | unstable |  |  | spine, 500 x 210 m land in a 576 m square |
+| `tropical_40` | Unstable Tropical | tropical | 40 | unstable |  |  | spine, 590 x 260 m land in a 672 m square |
+| `tundra_30` | Unstable Tundra | tundra | 30 | unstable |  |  | compact, 500 x 330 m land in a 608 m square |
+| `tundra_40` | Unstable Tundra | tundra | 40 | unstable |  |  | archipelago, 580 x 300 m land in a 656 m square |
+| `tundra_55` | Unstable Tundra | tundra | 55 | unstable |  |  | spine, 640 x 270 m land in a 720 m square |
+| `volcanic_60` | Unstable Volcanic | volcanic | 60 | unstable |  |  | compact, 560 x 360 m land in a 672 m square |
+
+Coasts: a new world builds every island on the country-coast generator (`IslandShape` generator 2: `spine` long and curved, `archipelago` with an islet chain and inlets on one flank, `compact` short but ragged); the land box is the main landmass along its own axes, +-10 %. A save made before it (no `shape_gen` stamp) keeps generator 1 for its home and the island it stands on, whose sizes are the `size_m` column of `islands.csv`. Islets are scenery: never walkable, scattered or spawned on.
 
 ## Climates — flora & gatherable materials
 

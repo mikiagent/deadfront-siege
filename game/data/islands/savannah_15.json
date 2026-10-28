@@ -7,8 +7,8 @@
   "shape": {
     "_about": "ISLANDS2 country coast (generator 2): type spine/archipelago/compact, the grid square and the main landmass's box along its own axes (long x short, +-10 %). size_m and harbour above are generator 1's, kept for saves made on it.",
     "type": "compact",
-    "size_m": 576,
-    "long_m": 470,
-    "short_m": 300
+    "size_m": 544,
+    "long_m": 430,
+    "short_m": 270
   }
 }

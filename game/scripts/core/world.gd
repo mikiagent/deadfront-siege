@@ -110,7 +110,7 @@ func _process(delta: float) -> void:
 			return  # nothing exists to save yet; SaveGame refuses too, this keeps the log quiet
 		_save_now()
 
-const SHAPE_GEN_CURRENT := 2
+const SHAPE_GEN_CURRENT := IslandShape.GEN_CURRENT
 
 func is_home() -> bool:
 	return str(island_def.get("kind", "")) == "private"
