@@ -85,7 +85,10 @@ func try_insert(player: Player) -> bool:
 	if idx < 0:
 		return false
 	occupant = player.inventory.remove_at(idx, 1)
-	remaining = BASE_SECONDS
+	# NATURES: the pen wait is the base 30 minutes times the animal's nature (Stubborn longer,
+	# Docile shorter). Read once, at insert: the animal's nature rides on the captured stack.
+	var nat := StringName(str(occupant.attributes.get("nature", "")))
+	remaining = BASE_SECONDS * float(CreatureNatures.knobs(nat).get("pen_time_mult", 1.0))
 	running = true
 	print("[capture] pen start %s" % occupant.attributes.get("species", "?"))
 	return true
@@ -142,6 +145,9 @@ func _process(delta: float) -> void:
 		var genes := CreatureGenetics.from_dict(genes_raw) if genes_raw is Dictionary else CreatureGenetics.roll(null, def.coloration)
 		var rec := PetRecord.from_def(def, &"", StringName(str(occupant.attributes.get("variant", ""))), genes, int(occupant.attributes.get("level", 1)))
 		rec.origin = &"capture"
+		# NATURES: the animal keeps the nature it had in the field (from_dict derives one otherwise).
+		var nat := StringName(str(occupant.attributes.get("nature", "")))
+		rec.nature = nat if CreatureNatures.is_valid(nat) else CreatureNatures.from_uid(rec.uid, rec.species)
 		rec.tamer = player.display_name()
 		player.bonded.append(rec)
 		player.notice("%s bonded (grade %s, Lv. %d)." % [str(def.species), rec.grade, rec.level])

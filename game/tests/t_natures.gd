@@ -49,12 +49,13 @@ func _run() -> void:
 	await _test_stubborn_ignores_fear()
 	await _test_loyal_follows_closer()
 	await _test_taming_numbers()
+	await _test_pen_wait()
 	_test_docile_damage()
 	_test_pet_keeps_nature()
 	_finish()
 
 func _finish() -> void:
-	var want := 12
+	var want := 13
 	_expect(_sections == want, "only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if _fails.is_empty():
 		print("[t_natures] PASS")
@@ -388,6 +389,34 @@ func _test_taming_numbers() -> void:
 		if c.is_pet:
 			player.bonded.clear()
 		(c as Node).free()
+	player.free()
+	await process_frame
+	_sections += 1
+
+## The pen waits the base 30 minutes times the animal's nature (Stubborn longer, Docile shorter).
+func _test_pen_wait() -> void:
+	var pen_s: GDScript = load("res://scripts/world/taming_pen.gd")
+	var player: Node = load("res://scenes/player/player.tscn").instantiate()
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	root.add_child(player)
+	player.global_position = Vector3(-140, 1, 0)
+	var waits := {}
+	for n in [&"", &"stubborn", &"docile"]:
+		for i in player.inventory.slot_count:
+			player.inventory.slots[i] = null
+		var stack: RefCounted = load("res://scripts/items/item_stack.gd").make(&"captured_animal", 1, {"species": "protoceratops", "level": 1, "nature": str(n)})
+		player.inventory.add(stack)
+		var pen = pen_s.make()
+		root.add_child(pen)
+		var took: bool = pen.try_insert(player)
+		waits[str(n)] = pen.remaining
+		_expect(took, "the pen refused a captured protoceratops (nature '%s')" % n)
+		if took:
+			_expect(str(pen.occupant.attributes.get("nature", "")) == str(n), "the pen lost the animal's nature '%s'" % n)
+		pen.free()
+	print("[t_natures] pen: default %.0f s, stubborn %.0f s, docile %.0f s" % [waits[""], waits["stubborn"], waits["docile"]])
+	_expect(is_equal_approx(float(waits[""]), float(pen_s.BASE_SECONDS)), "a nature-less animal waits %.0f s, base %.0f s" % [waits[""], pen_s.BASE_SECONDS])
+	_expect(float(waits["stubborn"]) > float(waits[""]) and float(waits["docile"]) < float(waits[""]), "pen waits: stubborn %.0f s, default %.0f s, docile %.0f s" % [waits["stubborn"], waits[""], waits["docile"]])
 	player.free()
 	await process_frame
 	_sections += 1

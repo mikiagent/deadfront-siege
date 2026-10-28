@@ -373,7 +373,9 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	var rel_col := _relation_color(c)
 	line1.visible = full
 	line1.add_theme_color_override("font_color", rel_col)
-	var raw_name := ("%s  %s  [%s]" % [LevelDisplay.label(c.level), str(c.def.species).capitalize(), c.genetics.overall_tier() if c.genetics else &"?"]) if c.is_pet else ("%s  %s" % [LevelDisplay.label(c.level), str(c.def.species).capitalize()])
+	# NATURES: the plate reads the animal's full title ("Timid Velociraptor", "Brave Alpha Raptor").
+	var title := CreatureNatures.display_title(c)
+	var raw_name := ("%s  %s  [%s]" % [LevelDisplay.label(c.level), title, c.genetics.overall_tier() if c.genetics else &"?"]) if c.is_pet else ("%s  %s" % [LevelDisplay.label(c.level), title])
 	line1.text = UiTokens.ellipsis(ThemeDB.fallback_font, raw_name, BASE_WIDTH - 20.0, 14)
 	var bar_bg := root.get_node_or_null("BarBg") as ColorRect
 	if bar_bg:

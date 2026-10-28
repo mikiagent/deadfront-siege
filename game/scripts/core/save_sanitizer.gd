@@ -56,6 +56,7 @@ const PET_ROW := {
 	"attack": 0.0, "defense": 0.0, "ranged_defense": 0.0, "ranged_attack": 0.0, "accuracy": 0.0,
 	"speed": 0.0, "level": 0, "xp": 0.0, "respawn_left": 0.0, "tamed_role": [], "bag": [],
 	"tamed_at": 0, "wild_level": 0, "genetics": GENETICS,
+	"nature": "", # NATURES: optional (an old row has none; PetRecord.from_dict derives one from the uid)
 }
 ## Stack attributes read with int() (taming pen, hunt, material tier) or handed to
 ## CreatureGenetics.from_dict (taming pen, tamed animal release).
