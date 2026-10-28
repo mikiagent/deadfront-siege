@@ -127,8 +127,9 @@ func _ready() -> void:
 
 ## One "[butcher] RESULT k=v ..." line for the gate, every number measured from this run.
 func _report() -> void:
-	print("[butcher] RESULT parts=%d hexes=%d hex_px=%d cuts=%d cuts_left=%d cut_seconds=%.1f bag_meat=%d bag_hide=%d bag_bone=%d picker_open=%d fails=%d" % [
+	print("[butcher] RESULT parts=%d hexes=%d hex_px=%d panel_px=%d inside=%d cuts=%d cuts_left=%d cut_seconds=%.1f bag_meat=%d bag_hide=%d bag_bone=%d picker_open=%d fails=%d" % [
 		int(_butcher_m.get("parts", 0)), int(_butcher_m.get("hexes", 0)), int(_butcher_m.get("hex_px", 0)),
+		int(_butcher_m.get("panel_px", 0)), int(_butcher_m.get("inside", 0)),
 		int(_butcher_m.get("cuts", 0)), int(_butcher_m.get("cuts_left", 0)), float(_butcher_m.get("cut_seconds", 0.0)),
 		_p.inventory.count_of(&"raptor_meat"), _p.inventory.count_of(&"raptor_hide"), _p.inventory.count_of(&"raptor_bone"),
 		int(_butcher_m.get("picker_open", 0)), _fails.size()])
@@ -460,6 +461,15 @@ func _butcher() -> void:
 	_butcher_m["picker_open"] = 1 if picker.is_open() else 0
 	_check(hexes.size() == carcass_parts, "the picker offers one hex per carcass part (%d of %d)" % [hexes.size(), carcass_parts])
 	_check(smallest >= 64.0, "every part hex is a 64 px tap target (smallest %.0f)" % smallest)
+	# The panel and every hex are on screen (a 844x390 landscape phone is the tight case).
+	var view := get_viewport().get_visible_rect()
+	var panel: Rect2 = picker.panel_rect()
+	var inside := view.encloses(panel)
+	for b in hexes:
+		inside = inside and panel.encloses((b as Control).get_global_rect())
+	_butcher_m["panel_px"] = int(panel.size.x)
+	_butcher_m["inside"] = 1 if inside else 0
+	_check(inside, "the picker and all %d hexes fit the %dx%d screen (panel %s)" % [hexes.size(), int(view.size.x), int(view.size.y), panel])
 	await _capture("picker")
 	# Pick the meat hex as a finger would, then let the timed cut run out.
 	var meat_hex = null

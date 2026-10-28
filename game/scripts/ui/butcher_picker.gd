@@ -19,6 +19,7 @@ const CELL_W := 116.0
 const CELL_H := 108.0
 const GAP := 10.0
 const COLS := 3
+const MAX_COLS := 5
 ## The picker's own height allowance for the title, the budget line and the footer row.
 const CHROME_H := 150.0
 
@@ -253,9 +254,10 @@ func _layout() -> void:
 		return
 	var view := get_viewport_rect().size
 	var safe := UiTokens.safe_insets(get_viewport())
-	var compact := UiTokens.is_compact(view) or view.x < 700.0
-	# A landscape phone is wide enough for three; a narrow one gets two.
-	_rows.columns = (2 if view.x < 620.0 else 3) if compact else COLS
+	# As many cells a row as the width takes (never more than MAX_COLS): a wide landscape phone keeps
+	# all five parts on one row, which is what keeps the panel short enough to fit its screen.
+	var fit := maxi(1, int((view.x - safe.x - safe.w - 24.0 - GAP) / (CELL_W + GAP)))
+	_rows.columns = clampi(fit, 1, MAX_COLS)
 	_title.add_theme_font_size_override("font_size", UiTokens.heading(view))
 	_sub.add_theme_font_size_override("font_size", UiTokens.body(view))
 	for id in _buttons:
@@ -274,7 +276,15 @@ func _layout() -> void:
 	_scroll.custom_minimum_size = Vector2(0.0, minf(want, room))
 	_panel.reset_size()
 	var sz := _panel.get_combined_minimum_size()
-	var height := sz.y if sz.y > 0.0 else CHROME_H + minf(want, room)
+	# The description labels and the footer can still push the panel past a short landscape screen:
+	# give the grid whatever is left, so the panel itself is always inside the safe area.
+	var max_h := view.y - safe.y - safe.z - 24.0
+	if sz.y > max_h:
+		_scroll.custom_minimum_size = Vector2(0.0, maxf(CELL_H, _scroll.custom_minimum_size.y - (sz.y - max_h)))
+		_panel.reset_size()
+		sz = _panel.get_combined_minimum_size()
+	var height := minf(sz.y if sz.y > 0.0 else CHROME_H + minf(want, room), max_h)
+	_panel.size = Vector2(_panel.size.x, height)
 	_panel.position = Vector2(
 		clampf((view.x - sz.x) * 0.5, 12.0 + safe.w, maxf(12.0 + safe.w, view.x - sz.x - 12.0 - safe.x)),
 		clampf((view.y - height) * 0.5, 12.0 + safe.z, maxf(12.0 + safe.z, view.y - height - 12.0 - safe.y)))
