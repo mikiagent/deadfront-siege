@@ -115,10 +115,25 @@ construction site's sheet (slots, Work / Withdraw / Cancel site / Finish) opens 
 The old BUILD bottom sheet (`sheet_build`) is still reachable from code but no control opens it.
 
 
+## Shared sheet chrome (UICHROME, 2026-10-28)
+
+One helper draws the §8 chrome of every full-screen sheet: `game/scripts/ui/sheet_chrome.gd`
+(`SheetChrome`). Header band 88 px desktop / 64 px phone (plus the top safe inset), HEADER fill with
+the torn edge hanging under it; thin stroke ‹ (back, to the MENU) and ✕ (to the HUD) as 64 px
+targets; title in Roboto Condensed 500 at 40 / 26 px; header tabs with a GOLD 3 px underline when on;
+a counter and a `right` slot (pills, presets, Build) that grow leftwards, a hairline before ✕. Body
+parts: `backdrop()` (blurred world + SCREEN_DIM), `panel_style()` / `panel()`, `parchment_style()`,
+`gold_button()` / `ghost_button()` / `action_button()` / `style_action()`, `Brackets`, `Card`,
+`label()` / `text()`, `chip()`, `thin_bar()`. Three ways in: a `SheetChrome` instance (Animals,
+Harbour, Market, Craft), `build()` + `fit()` (Character, Skills, Orders), the `UiWorldSheet` base
+(Domain, Communication, Radio University, Taming Pen). The World Atlas uses its backdrop, cards and ✕
+only. `tests/t_uichrome.gd` checks the three paths match and that nothing else draws a torn header.
+Shots: `docs/orchestration/reports/uichrome/`.
+
 ## Character, Skills, Orders (UICHAR, spec §7 C1/C3/C4)
 
-Full-screen sheets with the §8 chrome (`uichar_chrome.gd`: dimmed world, HEADER bar with "‹ Title"
-and torn edge, ✕, PANEL boxes, parchment detail headers, GOLD primary button, gold corner brackets).
+Full-screen sheets with the shared §8 chrome (`SheetChrome.build()` / `fit()`, see "Shared sheet
+chrome" below).
 ‹ reopens the MENU; ✕ / Esc returns to the HUD. Captures:
 `docs/orchestration/reports/uichar/*_1600x900.png` and `*_844x390.png` (`--lab=uichar_lab`).
 
@@ -150,7 +165,7 @@ and torn edge, ✕, PANEL boxes, parchment detail headers, GOLD primary button, 
 ## Creatures, pets, combat
 
 **`animals`** — E1 Animals (UIANIMALS rebuild, `animal_screen.gd`; spec §7 E1). Sheet chrome
-(`sheet_chrome.gd`: blurred world + SCREEN_DIM, HEADER with torn edge, back icon -> MENU, ✕ -> HUD,
+(shared `SheetChrome`, see below: ‹ -> MENU, ✕ -> HUD,
 tabs Pack / Taming Pen (disabled: no E2 screen yet), counter "Bonded n / cap (grows to 7)").
 Left: pack slots = the bonded roster (spec 09 cap 3-7), one card per pet (swatch, name, NatureChip
 directly under it, "Species · Lv. n · grade", status Out / Resting / Down / hungry), empty slots up to
@@ -259,9 +274,8 @@ CHARCREATE restyle; recapture it.
 ## Restyled world screens (UIWORLD, 2026-10-28)
 
 Built to [`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §7 F1 / F3 / E2 / A2 on the
-shared `UiWorldSheet` chrome (`game/scripts/ui/uiworld_sheet.gd`: HEADER bar with torn edge, back
-arrow, title, GOLD-numbered counter, ✕; GOLD primary and ghost buttons; parchment headers; GOLD
-corner brackets). Shots at 1600x900 and 844x390: `docs/orchestration/reports/uiworld/`; lab
+`UiWorldSheet` base (`game/scripts/ui/uiworld_sheet.gd`: open/relayout lifecycle on the shared
+`SheetChrome`, GOLD-numbered rich counter in the header's right slot). Shots at 1600x900 and 844x390: `docs/orchestration/reports/uiworld/`; lab
 `game/scripts/dev/uiworld_lab.gd`; test `game/tests/t_uiworld.gd`.
 
 | Screen | Script | Opened by | What it shows |
