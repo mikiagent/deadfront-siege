@@ -254,8 +254,8 @@ func _walk_to_tile(at: Vector3) -> void:
 	var nav_pos := tile_pos if WaterAccess.in_water(tile_pos) else p.sim.closest_nav_point(tile_pos)
 	p.actions.cancel_work()
 	selection.clear()
-	if p.hunt:
-		p.hunt.stop()
+	if p.hunt and p.hunt.target:
+		p.hunt.walking_off = true  # walk there clean, then re-engage (Hunt._process)
 	p.nav_to(nav_pos)
 	p.view.show_ground_marker(BuildGrid.tile_centre(BuildGrid.tile_of(nav_pos), World.runtime))
 

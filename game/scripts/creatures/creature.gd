@@ -231,6 +231,14 @@ func face_towards(world_pos: Vector3, _delta: float) -> void:
 	rotation.y = rotate_toward(before, target_yaw, _turn_left)
 	_turn_left = maxf(0.0, _turn_left - absf(angle_difference(before, rotation.y)))
 
+## Turn toward a heading at turn_rate with FACE_SLACK_RAD of slack: reversals inside the slack (the
+## wobble a low-pass leaves, a rider's stick noise) cannot dither the yaw.
+func face_heading(heading: Vector3, delta: float) -> void:
+	var err := angle_difference(rotation.y, atan2(-heading.x, -heading.z))
+	if absf(err) > FACE_SLACK_RAD:
+		var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
+		face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
+
 func turn_rate() -> float:
 	return def.turn_rate if def else 3.0
 
@@ -525,12 +533,7 @@ func _physics_process(delta: float) -> void:
 		if brain and not is_pet and brain.strafe_face and is_instance_valid(brain.strafe_face):
 			face_towards(brain.strafe_face.global_position, delta)  # TACTICS: sidestep facing the prey
 		elif _face_vel.length() > FACE_MIN_SPEED_MPS:
-			# Slack: the heading follows the smoothed velocity but ignores reversals inside
-			# FACE_SLACK_RAD, so the wobble the low-pass leaves cannot dither the yaw.
-			var err := angle_difference(rotation.y, atan2(-_face_vel.x, -_face_vel.z))
-			if absf(err) > FACE_SLACK_RAD:
-				var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
-				face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
+			face_heading(_face_vel, delta)
 		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide); a
 		# brain's named gait (the charge) wins when the rig has it.
 		if brain and not is_pet and brain.gait_clip != &"":
