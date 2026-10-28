@@ -43,6 +43,7 @@ var _press := NO_PRESS
 var _icons: Array[Texture2D] = []
 ## NATURES (owner 2026-10-28): the pet's nature is a TAG under its name in the centre disc.
 var _chip: NatureChip
+var _chip_nature: StringName = &""
 var _faded: Array[Control] = []
 
 func _ready() -> void:
@@ -61,16 +62,14 @@ func show_for(c: Creature, entries: Array) -> void:
 		_icons.append(UiIcons.icon(StringName(str((row as Dictionary).get("icon", "")))))
 	_press = NO_PRESS
 	hot = 0 if UiTokens.wants_focus() else -1
-	if _chip:
-		_chip.configure(c.nature_id() if c else &"")
+	_set_chip(c.nature_id() if c else &"")
 	visible = true
 	_layout()
 	queue_redraw()
 
 func hide_menu() -> void:
 	visible = false
-	if _chip:
-		_chip.configure(&"")
+	_set_chip(&"")
 	pet = null
 	rows.clear()
 	_press = NO_PRESS
@@ -234,7 +233,7 @@ func _place_chip(font: Font) -> void:
 	if pet == null or not is_instance_valid(pet):
 		_chip.visible = false
 		return
-	_chip.configure(pet.nature_id())
+	_set_chip(pet.nature_id())
 	if not _chip.visible:
 		return
 	var view := get_viewport_rect().size
@@ -246,7 +245,16 @@ func _place_chip(font: Font) -> void:
 	if given != "" and species != "":
 		below += float(small)
 	_chip.position = centre + Vector2(-_chip.size.x * 0.5, below + 2.0)
-	_chip.visible = below + _chip.size.y <= r_in
+	# Fits the disc both ways, or it is left out rather than drawn over the ring (a phone's disc is
+	# 52 px: a long nature label would cross the segments).
+	_chip.visible = below + _chip.size.y <= r_in and _chip.size.x <= r_in * 2.0 - 8.0
+
+## The tag's label is measured on configure, so it is rebuilt only when the pet's nature changes.
+func _set_chip(nature: StringName) -> void:
+	if _chip == null or (nature == _chip_nature and _chip.visible == (CreatureNatures.tag(nature) != "")):
+		return
+	_chip_nature = nature
+	_chip.configure(nature)
 
 ## Fades the HUD's hexes and the HANDS slot where the ring or a label covers them (only the HUD's:
 ## other menus animate their own), and brings back the ones it no longer covers; all once it closes.
