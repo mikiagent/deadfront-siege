@@ -45,7 +45,10 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
 
   Fullness = Σ over digesting meals of the food's foods.json `fullness` × its undigested Energy share,
   over the fullness cap (100). The HUD ring shows the same value and state. The breakdown panel's context
-  line names the factor ("Hungry: +50% exhaustion."). A survivor with nothing digesting is "empty".
+  line names the factor ("Hungry: +50% exhaustion."). A survivor with nothing digesting is "empty". A new survivor, and an old save loaded with nothing
+  digesting, gets one starter meal once (`Digestion.seed_starter`, flag `starter_given` saved in the
+  digestion record). It has fullness 60, lasts 15 min and carries 1 Energy, so she starts "normal" for
+  about 5 min, is hungry until about 12.5 min, then empty. ASSUMPTION.
 - Baseline idle: `EXHAUSTION_PER_SEC` = 100 pts per 45 min before the halving — 100 pts in ~90 min.
   Tagged `time`; the level gap never applies to it.
 - Movement per s (before the halving): walk 0.05, run 0.09, sprint 0.2 (`player_sim._walk`).

@@ -430,6 +430,19 @@ func _test_fullness_fatigue() -> void:
 	print("[t_hudrules] fatigue per 1.0 walk gain by stomach: %s" % gains)
 	_expect(gains[&"empty"] > gains[&"hungry"] and gains[&"hungry"] > gains[&"normal"] and gains[&"normal"] > gains[&"full"], "fatigue gain is ordered empty > hungry > normal > full (%s)" % gains)
 	_expect(absf(gains[&"empty"] / gains[&"normal"] - 2.0) < 0.001 and absf(gains[&"overfull"] / gains[&"normal"] - 1.1) < 0.001, "empty doubles it, overfull adds 10 %%")
+	# A new survivor and an old save with nothing digesting start "normal" (a starter meal), once.
+	var fresh = DIG.new()
+	_expect(fresh.seed_starter() and DIG.state_for(fresh.fullness()) == &"normal", "a new survivor starts normal (%.2f)" % fresh.fullness())
+	_expect(not fresh.seed_starter() and fresh.rows().size() == 1, "the starter meal is given once")
+	var old = DIG.new()
+	old.from_dict({"rows": [], "next_id": 4})  # a save from before the flag, nothing digesting
+	_expect(old.seed_starter() and DIG.state_for(old.fullness()) == &"normal", "an old save with nothing digesting loads normal")
+	var again = DIG.new()
+	again.from_dict({"rows": [], "next_id": 9, "starter_given": true})
+	_expect(not again.seed_starter() and again.rows().is_empty() and DIG.state_for(again.fullness()) == &"empty", "a later save with nothing digesting stays empty (no free meal per load)")
+	var rt = DIG.new()
+	rt.from_dict(fresh.to_dict())
+	_expect(rt.starter_given and rt.rows().size() == 1, "the flag and the starter row survive a save")
 	dig.rows().clear()
 	v.fatigue = 0.0
 	_player.sim.tick(0.0)

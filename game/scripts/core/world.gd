@@ -256,6 +256,7 @@ func start_new(host: Node) -> void:
 			p.skills.apply_occupation(occ)
 		if p:
 			CharacterLook.apply(p.rig, look)
+			Digestion.of(p).seed_starter()  # FULLFATIGUE: she starts "normal", not "empty" at x2 exhaustion
 		print("[world] new survivor %s (%s, %s)" % [nm, occ, gender])
 		# ISLANDPICK: the Tamed Island shape step sits inside character creation's own sheet (the
 		# old free-standing terrain panel would open over it). It hands back the one permanent pick.

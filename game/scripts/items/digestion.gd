@@ -44,6 +44,23 @@ const HUNGRY_BELOW := 0.4
 const NORMAL_BELOW := 0.7
 const OVERFULL_ABOVE := 1.0
 const STATES: Array[StringName] = [&"empty", &"hungry", &"normal", &"full", &"overfull"]
+## A new survivor (and an old save with nothing digesting, once) starts with one starter meal digesting so
+## she begins "normal", not "empty" at x2 exhaustion. ASSUMPTION: fullness 60 for 15 min, 1 Energy in all
+## (it reads normal ~5 min, hungry until ~12.5 min, then empty); the flag is saved so it is given once.
+const STARTER_ID := "starter"
+const STARTER_FULLNESS := 60.0
+const STARTER_SECONDS := 900.0
+var starter_given: bool = false
+
+## Seed the starter meal if it was never given and nothing digests. Marks it given either way.
+func seed_starter() -> bool:
+	if starter_given:
+		return false
+	starter_given = true
+	if not _rows.is_empty():
+		return false
+	schedule(StringName(STARTER_ID), 1.0, STARTER_SECONDS)
+	return true
 
 func fullness() -> float:
 	var cap := maxf(1.0, FoodEffects.cap_for("fullness"))
@@ -52,7 +69,8 @@ func fullness() -> float:
 		var total := float(row.get("total", 0.0))
 		if total <= 0.0:
 			continue
-		var full := float(FoodEffects.entry_for(StringName(str(row.get("def_id", "")))).get("fullness", FALLBACK_FULLNESS))
+		var id := str(row.get("def_id", ""))
+		var full := STARTER_FULLNESS if id == STARTER_ID else float(FoodEffects.entry_for(StringName(id)).get("fullness", FALLBACK_FULLNESS))
 		sum += full * clampf(float(row.get("remaining", 0.0)) / total, 0.0, 1.0)
 	return sum / cap
 
@@ -131,7 +149,7 @@ func tick(player: Player, delta: float) -> float:
 # ---------------------------------------------------------------- persistence
 
 func to_dict() -> Dictionary:
-	return {"rows": _rows.duplicate(true), "next_id": _next_id}
+	return {"rows": _rows.duplicate(true), "next_id": _next_id, "starter_given": starter_given}
 
 func from_dict(raw: Dictionary) -> void:
 	_rows.clear()
@@ -145,3 +163,4 @@ func from_dict(raw: Dictionary) -> void:
 				continue
 			_rows.append(row)
 	_next_id = maxi(1, int(raw.get("next_id", _rows.size() + 1)))
+	starter_given = bool(raw.get("starter_given", false))
