@@ -23,11 +23,25 @@ const EYE_RADIUS_PER_HEIGHT := 0.006
 const MIN_WORLD_RADIUS_M := 0.006
 const MAX_WORLD_RADIUS_M := 0.025
 
+## ASSUMPTION (owner: "a subtle rim light on the skull around the eye so the face reads"): one small
+## omni light per eye, just outside the socket, in the eye colour, only at night. Range is this many
+## eye separations; no shadows, so it costs a light per eye and no shadow pass.
+const RIM_RANGE_PER_SEPARATION := 0.8
+const RIM_PUSH_PER_SEPARATION := 0.35
+## Godot's omni falls off with the inverse square of the distance, so a light a few cm from the skull
+## burns the face white; its energy is this level times the push distance squared (metres), which
+## lights every head about as brightly whatever its size.
+const RIM_LEVEL := 1.2
+## Below this night factor the rim lights are off (a faint day glint lights nothing).
+const RIM_MIN_NIGHT := 0.05
+
 static var _materials: Dictionary = {} ## colour html -> shared StandardMaterial3D
 static var _applied_night := -1.0
 
 var attachment: BoneAttachment3D
 var dots: Array[MeshInstance3D] = []
+var rims: Array[OmniLight3D] = []
+var _rim_energy := 0.0
 ## Motion ribbon behind the two dots (EyeTrail); null until setup() has built the dots.
 var trail: EyeTrail
 var eye_color := Color.WHITE
@@ -88,6 +102,7 @@ func setup(view: CreatureView, eyes: Dictionary) -> bool:
 		dots.append(mi)
 	if dots.size() != 2:
 		return false
+	_add_rims(col, scale)
 	# The ribbon lives in world space (top_level), so it hangs off this node, not the bone: a
 	# BoneAttachment3D child would carry every vertex along with the head and never trail.
 	eye_color = col
@@ -96,6 +111,27 @@ func setup(view: CreatureView, eyes: Dictionary) -> bool:
 	add_child(trail)
 	trail.setup(self, dots, radius_model * scale, col, eyes)
 	return true
+
+## One rim light per eye, a little outside the dot, so the skull around the socket catches the glow.
+## Children of the dots (they ride the head bone); the range is in world metres.
+func _add_rims(col: Color, scale: float) -> void:
+	var sep := dots[0].position.distance_to(dots[1].position)
+	var push_m := sep * scale * RIM_PUSH_PER_SEPARATION
+	_rim_energy = RIM_LEVEL * push_m * push_m
+	for dot in dots:
+		var out := (dot.position - (dots[0].position + dots[1].position) * 0.5).normalized()
+		var l := OmniLight3D.new()
+		l.name = "EyeRim"
+		l.light_color = col
+		l.light_energy = 0.0
+		l.light_specular = 0.2
+		l.shadow_enabled = false
+		l.omni_range = sep * scale * RIM_RANGE_PER_SEPARATION
+		l.omni_attenuation = 2.4
+		l.visible = false
+		dot.add_child(l)
+		l.position = out * (sep * RIM_PUSH_PER_SEPARATION)
+		rims.append(l)
 
 static func _vec(p: Variant) -> Vector3:
 	if p is Array and (p as Array).size() >= 3:
@@ -149,6 +185,10 @@ func _process(delta: float) -> void:
 	# Dead or asleep creatures show no eyeshine (ASSUMPTION: the glow is an alert, waking trait).
 	if attachment:
 		attachment.visible = is_awake()
+	var n := clampf(WorldLighting.night, 0.0, 1.0)
+	for l in rims:
+		l.visible = n > RIM_MIN_NIGHT
+		l.light_energy = _rim_energy * n
 	if trail:
 		trail.tick(delta)
 

@@ -61,6 +61,7 @@ func _run() -> void:
 	for id in SPECIES:
 		await _test_species(id, cap)
 	await _test_flame()
+	await _test_shape()
 	await _test_knobs()
 	await _test_cost_and_cull()
 	for c in _creatures:
@@ -136,8 +137,8 @@ func _test_species(id: StringName, cap: int) -> void:
 	_expect(trail.sample_count() == 0, "%s still head keeps no samples (%d)" % [id, trail.sample_count()])
 	_expect(trail.ribbon_length() == 0.0 and trail.trail_alpha() == 0.0,
 		"%s still head draws nothing" % id)
-	_expect(not (trail as Node3D).visible and trail.surface_count() == 0,
-		"%s still head hides the ribbon mesh" % id)
+	_expect(trail.ribbon_vertex_count() == 0 and trail.vertex_count() > 0,
+		"%s still head at night: the eye halo glows, no streak (%d streak verts)" % [id, trail.ribbon_vertex_count()])
 	# A slow drift stays dark.
 	var step_slow := Vector3(0, 0, IDLE_MPS * DT)
 	for _i in 60:
@@ -163,14 +164,14 @@ func _test_species(id: StringName, cap: int) -> void:
 	_expect(peak_alpha > 0.2, "%s the fast ribbon is visible (peak alpha %.2f)" % [id, peak_alpha])
 	_expect(trail.surface_count() == 1 and (trail as Node3D).visible,
 		"%s fast ribbon is one drawn surface" % id)
-	_expect(trail.vertex_count() > 0, "%s fast ribbon has geometry" % id)
+	_expect(trail.ribbon_vertex_count() > 0, "%s fast ribbon has geometry" % id)
 	# Fade: stop dead and the ribbon is gone inside the documented 0.15-0.3 s window (plus slack).
 	var gone_at := -1.0
 	var t := 0.0
 	for _i in int(ceil(GONE_S / DT)) + 2:
 		trail.tick(DT)
 		t += DT
-		if gone_at < 0.0 and trail.surface_count() == 0:
+		if gone_at < 0.0 and trail.ribbon_vertex_count() == 0:
 			gone_at = t
 	_expect(gone_at > 0.0 and gone_at <= GONE_S, "%s ribbon fades out after stopping (%.3f s)" % [id, gone_at])
 	_expect(trail.ribbon_length() == 0.0 or trail.sample_count() == 0,
@@ -244,13 +245,76 @@ func _test_flame() -> void:
 	WL.night = had_night
 	await process_frame
 
-## Moves the animal at a constant fast speed and collects the widest quad per frame.
+## The candle-flame shape, measured on the built mesh (owner: "trails that look like a flame in the
+## wind"): it tapers (tail narrower than the eye end), its edges are feathered (edge vertex alpha 0
+## while the core burns), and from the real game camera (4.3 deg lens, 14 m zoom, ~190 m out) it is
+## several pixels wide, so it can actually be seen; the eye halo it starts from is drawn too.
+func _test_shape() -> void:
+	var had_night: float = WL.night
+	WL.night = 1.0
+	var c := _spawn(&"deinonychus")
+	await process_frame
+	await process_frame
+	var trail = _trail_of(c)
+	_expect(trail != null, "shape test has a trail")
+	if trail == null:
+		return
+	var iso: GDScript = load("res://scripts/camera/iso_camera.gd")
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.fov = float(iso.get_script_constant_map().get("FOV_DEG", 4.3))
+	cam.basis = iso.view_basis()
+	var eyes = c.view.get_node_or_null("Eyes")
+	var eye: Vector3 = (eyes.dots[0] as Node3D).global_position
+	cam.global_position = eye + cam.global_basis.z * float(iso.distance_for(14.0))
+	cam.current = true
+	await process_frame
+	# Still: the halo alone.
+	for _i in 30:
+		trail.tick(DT)
+	_expect(trail.vertex_count() > 0 and trail.ribbon_vertex_count() == 0 and trail.ribbon_length() == 0.0,
+		"a still head at the game camera shows the glowing eye and no streak")
+	# Run sideways across the screen.
+	var right: Vector3 = cam.global_basis.x
+	for _i in 30:
+		c.global_position = c.global_position + right * (FAST_MPS * 1.5 * DT)
+		trail.tick(DT)
+	_expect(trail.tail_width() < trail.head_width() * 0.5,
+		"the flame tapers to a point (tail %.4f m, eye end %.4f m)" % [trail.tail_width(), trail.head_width()])
+	_expect(trail.max_quad_width() > trail.head_width(),
+		"the flame body swells past its base (%.4f vs %.4f m)" % [trail.max_quad_width(), trail.head_width()])
+	_expect(trail.trail_alpha() > 0.5 and trail.edge_alpha_ratio() < 0.05,
+		"the flame edges are feathered (edge/core alpha %.3f, core %.2f)" % [trail.edge_alpha_ratio(), trail.trail_alpha()])
+	# Feathering checked on the actual vertex colours too: some streak vertices are fully transparent.
+	var cols: PackedColorArray = trail.get("_cols")
+	var lo := 1.0
+	var hi := 0.0
+	for k in trail.ribbon_vertex_count():
+		lo = minf(lo, cols[k].a)
+		hi = maxf(hi, cols[k].a)
+	_expect(lo < 0.01 and hi > 0.5, "streak vertex alpha runs from the transparent edge to the core (%.3f..%.2f)" % [lo, hi])
+	var at: Vector3 = (eyes.dots[0] as Node3D).global_position
+	var px_eye := cam.unproject_position(at).distance_to(cam.unproject_position(at + right * trail.head_width() * 2.0))
+	var px_body := cam.unproject_position(at).distance_to(cam.unproject_position(at + right * trail.max_quad_width() * 2.0))
+	print("[t_eyetrails] game camera: flame %.1f px wide at the eye, %.1f px at its widest" % [px_eye, px_body])
+	_expect(px_eye >= 5.0 and px_body >= 8.0,
+		"the flame is visible from the game camera (%.1f px at the eye, %.1f px widest)" % [px_eye, px_body])
+	var len_px := cam.unproject_position(at).distance_to(cam.unproject_position(trail.world_tail()))
+	_expect(len_px >= 30.0, "the flame is long enough to read from the game camera (%.0f px)" % len_px)
+	cam.queue_free()
+	c.queue_free()
+	WL.night = had_night
+	await process_frame
+
+## Moves the animal at a constant fast speed and collects the widest quad per frame, once the streak
+## has reached its full length (the first WARM frames grow it from nothing, which is not flicker).
+const WARM := 20
 func _run_fast(c: Node, trail: Node, frames: int) -> Array[float]:
 	var out: Array[float] = []
-	for _i in frames:
+	for f in frames + WARM:
 		c.global_position = c.global_position + Vector3(FAST_MPS * DT, 0, 0)
 		trail.tick(DT)
-		if trail.surface_count() > 0:
+		if f >= WARM and trail.ribbon_vertex_count() > 0:
 			out.append(trail.max_quad_width())
 	return out
 
@@ -322,7 +386,7 @@ func _test_knobs() -> void:
 	var at_stop: int = tight.sample_count()
 	for _i in int(ceil(0.12 / DT)):
 		tight.tick(DT)
-	_expect(at_stop > 0 and tight.sample_count() == 0 and tight.surface_count() == 0,
+	_expect(at_stop > 0 and tight.sample_count() == 0 and tight.ribbon_vertex_count() == 0,
 		"the overridden fade empties the ribbon in %.2f s (was %d samples)" % [0.12, at_stop])
 	# A bad table cannot spin the buffer or paint the world.
 	var wild: MeshInstance3D = TRAIL.new()
@@ -349,84 +413,116 @@ func _test_knobs() -> void:
 	WL.night = had_night
 	await process_frame
 
-## Renders three frames of a running animal at night so a human can judge the flame. Saves PNGs into
-## the given directory and quits; prints "[t_eyetrails] shots DIR".
+## Look pass (never part of the gate): a night island stand-in (ground, WorldLighting at midnight, the
+## real IsoCamera at its default zoom) with an animal standing, running a curve and snapping round.
+## Saves 800x450 crops of the game-camera frame around the head (same pixels, not rescaled),
+## then quits; prints "[t_eyetrails] shots DIR".
+## Extra user args: --shot-species=a,b  --shot-zoom=<m> (default 14, the game's default zoom).
 func _shot_pass(dir: String) -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
 	WL = load("res://scripts/world/world_lighting.gd")
 	DD = root.get_node("Data")
-	WL.night = 1.0
-	# The shared eye material is only repainted on a night change inside a CreatureEyes tick; a shot pass
-	# that switches the clock itself must repaint it or the dots stay at the day glint (black).
-	var eyes_script: GDScript = load("res://scripts/creatures/creature_eyes.gd")
-	eyes_script.apply_night()
+	var species: PackedStringArray = ["deinonychus", "tyrannosaurus"]
+	var zoom := 14.0
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--shot-species="):
+			species = a.substr(15).split(",")
+		elif a.begins_with("--shot-zoom="):
+			zoom = float(a.substr(12))
+	var game := root.get_node("Game")
+	# A T. rex stands 8 m: at the default 14 m zoom its head leaves the frame, so it gets the max zoom.
+	var zooms := {&"tyrannosaurus": maxf(zoom, 18.0)}
+	game.set("time_of_day", 0.0)
 	var host := Node3D.new()
 	root.add_child(host)
-	var cam := Camera3D.new()
-	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = 3.0
+	var ground := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(400, 400)
+	ground.mesh = plane
+	var gm := StandardMaterial3D.new()
+	gm.albedo_color = Color(0.22, 0.3, 0.16)
+	ground.material_override = gm
+	host.add_child(ground)
+	WL.install(host)
+	var cam_script: GDScript = load("res://scripts/camera/iso_camera.gd")
+	var cam: Camera3D = cam_script.new()
+	cam.size = zoom
 	host.add_child(cam)
-	cam.size = 1.8
 	cam.current = true
-	var light := DirectionalLight3D.new()
-	light.light_energy = 0.25
-	light.rotation_degrees = Vector3(-50, 30, 0)
-	host.add_child(light)
-	var env := WorldEnvironment.new()
-	var e := Environment.new()
-	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.02, 0.03, 0.06)
-	env.environment = e
-	host.add_child(env)
-	var c := _spawn(&"tyrannosaurus")
-	c.global_position = Vector3.ZERO
-	await process_frame
-	await process_frame
-	if c.label:
-		c.label.visible = false
-	var trail = _trail_of(c)
-	var eyes = c.view.get_node_or_null("Eyes")
-	var eye_at: Vector3 = (eyes.dots[0] as Node3D).global_position
-	print("[t_eyetrails] shot eye at %s, head at %s" % [eye_at, _head_of(c)])
-	if trail == null:
-		print("[t_eyetrails] shots: no trail")
-		quit(1)
-		return
-	for i in 90:
-		c.global_position = c.global_position + Vector3(4.0 / 60.0, 0, 0)
-		# The camera rides along, framed on the head: the eye stays in shot while the streak trails
-		# behind it. (The first attempt framed the feet, which showed nothing.)
-		# Side on to the run: the streak trails away along -X in full profile.
-		var at := (eyes.dots[0] as Node3D).global_position
-		cam.global_position = at + Vector3(0.0, 0.0, 2.2)
-		cam.look_at(at, Vector3.UP)
-		trail.tick(1.0 / 60.0)
-		# Also park the real game camera once: 40 m out, 15 m of screen height, the iso view.
-		if i == 79:
-			cam.size = 15.0
-			cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-			cam.rotation_degrees = Vector3(-35.264, 45.0, 0.0)
-			var mid: Vector3 = c.global_position + Vector3(0.0, float(c.def.height_meters) * 0.75, 0.0)
-			cam.global_position = mid + cam.global_basis.z * 40.0
-			await RenderingServer.frame_post_draw
-			var px := cam.unproject_position(trail.world_tail()).distance_to(
-				cam.unproject_position((eyes.dots[0] as Node3D).global_position))
-			print("[t_eyetrails] game-camera streak is %.1f px long" % px)
-			root.get_texture().get_image().save_png("%s/flame_game.png" % dir)
-			# And a side close-up of the head, bright enough to judge the flame's shape.
-			cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-			cam.size = 2.6
-			# Side on: the animal runs along +X, so the streak only reads from Z.
-			cam.global_position = (eyes.dots[0] as Node3D).global_position + Vector3(-0.35, 0.1, 1.5)
-			cam.look_at((eyes.dots[0] as Node3D).global_position, Vector3.UP)
-			await RenderingServer.frame_post_draw
-			root.get_texture().get_image().save_png("%s/flame_head.png" % dir)
-		if i % 20 == 19:
-			await RenderingServer.frame_post_draw
-			var img := root.get_texture().get_image()
-			img.save_png("%s/flame_%02d.png" % [dir, i])
+	for id in species:
+		cam.size = float(zooms.get(StringName(id), zoom))
+		await _shot_species(StringName(id), dir, cam)
 	print("[t_eyetrails] shots %s" % dir)
 	quit(0)
+
+func _shot_species(id: StringName, dir: String, cam: Camera3D) -> void:
+	var c := _spawn(id)
+	c.global_position = Vector3.ZERO
+	c.anim.set_physics_process(true)
+	if c.label:
+		c.label.visible = false
+	# The game camera follows the player, not the animal: frame a point at the animal's mid-height so the
+	# whole body stays in shot, and let the camera's own follow lag do the rest.
+	var focus := Node3D.new()
+	root.add_child(focus)
+	cam.set("_target", focus)
+	var dt := 1.0 / 60.0
+	var speed := 8.0
+	# Start running along the camera's screen-right (yaw -45 deg), so the streak lies across the screen.
+	var yaw := deg_to_rad(-45.0)
+	c.rotation.y = yaw
+	var t := 0.0
+	var idle_peak := 0.0
+	var shots := {0.95: "still", 1.5: "run_a", 1.75: "run_b", 2.0: "run_c", 2.45: "turn"}
+	while t < 2.6:
+		await process_frame
+		t += dt
+		if t > 1.0 and t < 2.1:
+			# Run a gentle left-hand curve, 30 m radius, facing the way it goes (forward is -Z).
+			yaw += speed / 30.0 * dt
+			var vel := Vector3(-sin(yaw), 0.0, -cos(yaw)) * speed
+			c.global_position += vel * dt
+			c.rotation.y = yaw
+			c.anim.set_move_speed(speed)
+		elif t >= 2.1:
+			# Stop and snap the head round: 150 degrees in a quarter second.
+			c.anim.set_move_speed(0.0)
+			if t < 2.35:
+				yaw += deg_to_rad(150.0) / 0.25 * dt
+				c.rotation.y = yaw
+		if t > 0.5 and t < 1.0:
+			idle_peak = maxf(idle_peak, _trail_alpha_of(c))
+		focus.global_position = c.global_position + Vector3(0.0, float(c.def.height_meters) * 0.5, 0.0)
+		for at: float in shots.keys():
+			if absf(t - at) < dt * 0.5:
+				await RenderingServer.frame_post_draw
+				_save_crop(cam, c, "%s/%s_%s.png" % [dir, id, shots[at]])
+				var eyes = c.view.get_node_or_null("Eyes")
+				if eyes and eyes.trail:
+					var e0: Vector3 = (eyes.dots[0] as Node3D).global_position
+					print("[t_eyetrails] %s %s streak %.2f m (%.0f px on screen) alpha %.2f head half-width %.3f m" % [id,
+						shots[at], eyes.trail.ribbon_length(), cam.unproject_position(e0).distance_to(
+						cam.unproject_position(eyes.trail.world_tail())), eyes.trail.trail_alpha(), eyes.trail.head_width() if eyes.trail.has_method("head_width") else 0.0])
+					print("  eye %s tail %s" % [e0, eyes.trail.world_tail()])
+	print("[t_eyetrails] %s idle streak alpha peak %.3f" % [id, idle_peak])
+	c.queue_free()
+	focus.queue_free()
+	await process_frame
+
+func _trail_alpha_of(c: Node) -> float:
+	var eyes = c.view.get_node_or_null("Eyes")
+	return eyes.trail.trail_alpha() if eyes and eyes.trail else 0.0
+
+## An 800x450 crop of the frame around the animal's eye (the game camera's pixels, not rescaled).
+func _save_crop(cam: Camera3D, c: Node, path: String) -> void:
+	var img := root.get_texture().get_image()
+	var eyes = c.view.get_node_or_null("Eyes")
+	var at := cam.unproject_position((eyes.dots[0] as Node3D).global_position if eyes else _head_of(c))
+	var w := mini(800, img.get_width())
+	var h := mini(450, img.get_height())
+	var x := clampi(int(at.x) - w / 2, 0, img.get_width() - w)
+	var y := clampi(int(at.y) - h / 2, 0, img.get_height() - h)
+	img.get_region(Rect2i(x, y, w, h)).save_png(path)
 
 ## World head position of a spawned animal.
 func _head_of(c: Node) -> Vector3:
@@ -504,9 +600,8 @@ func _test_cost_and_cull() -> void:
 	for trail in trails:
 		worst_vertices = maxi(worst_vertices, trail.vertex_count())
 		_expect(trail.surface_count() <= 1, "each creature keeps one ribbon surface (%d)" % trail.surface_count())
-	var cap := int(TRAIL.get_script_constant_map().get("MAX_SAMPLES", 12))
-	# Both eyes, at most cap + 1 points each, one quad (6 vertices) per pair of neighbours.
-	var budget := (cap + 1) * 2 * 6
+	# Both eyes: a fixed number of curve rows x vertex columns, plus the two halos.
+	var budget := int(TRAIL.get_script_constant_map().get("MAX_VERTICES", 0))
 	_expect(worst_vertices <= budget, "per-creature ribbon stays small (%d vertices, budget %d)" % [worst_vertices, budget])
 	_expect(trails.size() == eyed, "%d eyed animals, %d trails" % [eyed, trails.size()])
 	_expect(trails.size() >= 17, "%d of 20 animals carry a trail" % trails.size())
@@ -538,7 +633,8 @@ func _test_cost_and_cull() -> void:
 			"a culled trail stops rebuilding entirely (%d builds)" % (far_trail.build_count() - builds_before))
 		_expect(far_trail.sample_count() == 0 and far_trail.surface_count() == 0,
 			"an animal beyond the camera range builds no ribbon (%.0f m out)" % range_m)
-		animal.global_position = Vector3(0, 0, 4.0)
+		# In front of the camera this time (it looks down -Z): the frustum cull lets it draw.
+		animal.global_position = Vector3(0, -2.0, -14.0)
 		for _i in 40:
 			animal.global_position = animal.global_position + Vector3(FAST_MPS * DT, 0, 0)
 			far_trail.tick(DT)
