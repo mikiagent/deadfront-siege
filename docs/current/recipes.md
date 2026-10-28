@@ -1,8 +1,8 @@
 # Crafting recipes — game data catalog
 
-> Generated 2026-10-27 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
+> Generated 2026-10-28 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
 
-`174 recipes` from `game/data/recipes.json`; station-only workflow times from `game/data/processing.json`.
+`180 recipes` from `game/data/recipes.json`; station-only workflow times from `game/data/processing.json`.
 
 These rows describe game data; a row alone does not prove that its output is playable. `min skill` is the recipe's minimum level gate when greater than zero; the gate also checks the resulting item level. Other gates may apply. `ability target` affects success chance rather than imposing a hard gate. `recipe max_level` is the configured output-level cap; the actual result also depends on materials, skill, and runtime bounds. Absent values use the defaults in `game/scripts/items/crafting.gd`: minimum 0, ability 0, and output cap 60.
 
@@ -125,6 +125,7 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `trimmed_plank` | Trimmed Plank x1 | plank_shape x1 (primary) | processing | 0 | 0 | 60 | 12.0 | trim +1 |
 | `fine_plank` | Fine Plank x1 | plank_shape x1 (primary) | processing | 0 | 0 | 60 | 12.0 | trim +1 |
 | `salad` | Salad x1 | fruit x1 (primary); herb x1 | cooking | 0 | 0 | 60 | 2.0 | mix +0 |
+| `roled_salad` | Salad x1 | fruit x1 (primary); herb x1 | cooking | 0 | 0 | 60 | 3.0 | mix +0 |
 
 ## Drying (drying_rack)
 
@@ -150,6 +151,8 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | recipe | output | inputs | skill | min skill | ability target | recipe max_level | time (s) | process |
 |---|---|---|---|---|---|---|---|---|
 | `camp_stew` | Camp Stew x1 | raw_meat x1 (primary); herb x1; fruit x1 | cooking | 0 | 0 | 60 | 6.0 | stew +1 |
+| `roled_broth_soup` | Meat Broth x1 | meat x1 (primary); water x1 | cooking | 0 | 0 | 60 | 6.0 | brew +1 |
+| `roled_spiced_stew` | Camp Stew x1 | meat x1 (primary); spice x1; water x1 | cooking | 0 | 0 | 60 | 7.0 | stew +1 |
 
 ## forge (forge)
 
@@ -180,6 +183,7 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `spiced_skewer` | Spiced Skewer x1 | meat x1 (primary); handle x1; spice x1 | cooking | 0 | 0 | 19 | 3.0 | cook +1 |
 | `meat_broth` | Meat Broth x1 | raw_meat x1 (primary); water x1 | cooking | 0 | 0 | 60 | 3.0 | brew +0 |
 | `herbal_tea` | Herbal Tea x1 | herb x1 (primary); water x1 | cooking | 0 | 0 | 60 | 2.5 | brew +0 |
+| `roled_herb_roast` | Herbed Meal x1 | meat x1 (primary); herb x1; handle x1 | cooking | 0 | 0 | 60 | 4.0 | cook +1 |
 
 ## mortar (mortar)
 
@@ -202,6 +206,8 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `stone_grill` | Grilled Meat x1 | raw_meat x1 (primary) | cooking | 0 | 0 | 60 | 3.0 | grill +1 |
 | `roast` | Roast x1 | raw_meat x1 (primary) | cooking | 0 | 0 | 60 | 4.0 | roast +1 |
 | `seasoned_roast` | Seasoned Roast x1 | raw_meat x1 (primary); spice x1 | cooking | 0 | 0 | 60 | 4.5 | roast +1 |
+| `roled_grilled_meat` | Grilled Meat x1 | meat x1 (primary) | cooking | 0 | 0 | 60 | 3.0 | grill +1 |
+| `roled_berry_glazed_meat` | Seasoned Roast x1 | meat x1 (primary); fruit x1 | cooking | 0 | 0 | 60 | 4.0 | glaze +1 |
 
 ## Steaming (steamer)
 

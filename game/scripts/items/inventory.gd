@@ -364,7 +364,9 @@ func groups() -> Array[Dictionary]:
 ## Attribute keys that are bookkeeping, not traits. ASSUMPTION: no per-instance trait list exists
 ## in data yet, so any other key (hardness, food_buff, genetics, ...) that differs from the def's
 ## default_attributes marks an instance as special.
-const PLAIN_ATTRS := ["level", "climate", "processed", "material_tier"]
+## cooked_roles / cooked_buffs are the COOKROLES record of what a dish inherited (spec 08 §3): the food
+## card prints them as its own lines, so they are bookkeeping here, not material traits.
+const PLAIN_ATTRS := ["level", "climate", "processed", "material_tier", "cooked_roles", "cooked_buffs"]
 
 ## An instance's traits: attributes that are neither bookkeeping nor the def's own
 ## default_attributes (a stone's tint is not a trait).

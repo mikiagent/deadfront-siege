@@ -39,13 +39,13 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Hex sizes follow spec §2 (`HudField.PX`): desktop rail 100, INTERACT 150, ATTACK 100, SPRINT 100,
   quick slot 80, whistle 66, CLAIM 52; compact canvases (`UiTokens.is_compact`: 844x390 and portrait)
   use 64 / 96 / 72 / 64 / 64 / 64 / 64, so every phone tap target is 64 px or more. All flat-top.
-- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD, BAG, captions under. Skills and Animals are
+- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD (opens the build drawer, `BuildUI`), BAG, captions under. Skills and Animals are
   entries in the MENU sheet (no rail hexes; no hotkeys existed for them). BAG opens the bag (also I).
 - MENU notice badge (`HudField.notify` / `HuntHud.notify_menu`): a count in a filled circle at the
   hex's top-right, GOLD with ink text, LIFE red while any notice is urgent (ASSUMPTION, owner
   undecided), "9+" past nine. Skills notices: each skill level-up (`skill_leveled`) and each time SP
   starts to afford a node (`SkillRules.affordable_now`, rechecked every 0.25 s); cleared when Skills
-  opens; the MENU sheet's entry reads "Skills (n)". Market (buy/sell) notices: hook only,
+  opens; the nav menu's Skills entry carries the same count as its own badge. Market (buy/sell) notices: hook only,
   `notify_menu(&"market")` — no client-side market event exists yet. Nothing is urgent today.
 - Quick slots above the rail: two quick-food hexes (×count, unchanged), CHASE in the third slot in a
   fight, HANDS (held tool; tap gathers nearest, long-press unequips) in the fourth (`hands_spot`).
@@ -67,6 +67,11 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Quest card: desktop a 240 px card left of the minimap; phones across the centre band — "ORDERS
   i/n", the step title, hint, progress and a teal fill; when no objectives run: "NOW / island /
   Survive, then return".
+  It draws `OrdersSheet.hud_step(player)`: the running order, or a later one the player picked with
+  "Track on HUD" in Orders (C4, `orders_sheet.gd`; session-only, a load follows the running order).
+  Only the running order completes and pays out (`Objectives.settle`).
+- MENU sheet entries added by UICHAR: Character, Skills, Orders (`HuntHud.open_character()`,
+  `open_skills(tree)`, `open_orders()`); ‹ on those screens reopens the MENU.
 
 ## The centre band (`HudLayout.centre_band`)
 - Landscape phones: the strip between the vitals and the minimap carries the quest card; the target
@@ -108,8 +113,11 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   up, clear of HANDS). CLAIM is a gold-rim hex (52 px desktop, 64 phone) right-aligned under the
   minimap's "X Y" line; icon-only on a landscape phone (ASSUMPTION: no room for a caption there). Claiming while already
   holding land here opens the ClaimPanel confirm; it cancels on walking away, moving placement, or
-  a second tap. Ground-placing anchors a ROTATE / PLACE / CANCEL hex row near the ghost via a
-  scored clear-spot sweep (`HudLayout.placer_anchor`); layout mode shows DONE + a hint bar.
+  a second tap. Ground-placing anchors a ROTATE / SAVE / CANCEL hex row near the ghost via a
+  scored clear-spot sweep (`HudLayout.placer_anchor`), clear of the build drawer (`BuildUI.taken_rects`);
+  88 px hexes on desktop, 64 on a phone (UICRAFT, owner §1.9): ROTATE is the icon alone, SAVE a green
+  check on an OK_GREEN rim, CANCEL a red cross with the word inside; no key letters. Layout mode
+  shows DONE + a hint bar.
 
 ## Exhaustion gauge & breakdown
 - The face is drawn (smile → deep frown across four tiers, green → red by strain). Under it, a
@@ -127,7 +135,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 ## Notices, toasts, hits, level-up
 - Pickup toasts ("+n Item"), skill XP lines (16 px) and tree level-ups (22 px, gold, ▲) rise near
   the top-centre (phones: under the vitals), each taking a free spot off `taken_rects`; notices
-  (refusals) render under them on dark red. Nothing covers the fixed blocks.
+  (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
+  confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders
+  on the HUD fill with an OK_GREEN edge and a check (`HudEventState.draw_notice`, B4). Nothing covers
+  the fixed blocks.
 - A creature's hit on the survivor covers her chest with Pokémon-style jaws and red damage numbers (22 px);
   heavy hits flash the screen red.
 - Status effects on the survivor (STATUSFX, owner 2026-10-28; `ui/status_fx.gd`, driven from
@@ -160,11 +171,21 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   banner (`domain_banner.gd`) announces "<owner>'s Domain" entering claimed land; your own portrait
   there is `PortraitService.of_player()` (a headshot of your character look), others a silhouette. All of it yields
   to toasts, plates and the open sheets.
-- Death: full-screen layer — "YOU DIED", the downer ("Downed by <who>."), the note "Engaged
-  dinosaurs retreat past their aggro ring. Your bag comes with you." and "Respawn at camp".
-- Sheets (MENU / BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
+- Death: full-screen layer — "YOU DIED" in LIFE, the downer ("Downed by <who>."), the note "Engaged
+  dinosaurs retreat past their aggro ring. Your bag comes with you." and a GOLD "Respawn at camp" on a
+  HUD-fill card with a LIFE top edge (B4).
+- MENU opens the nav menu (`game/scripts/ui/nav_menu.gd`, spec §7 B3): Character, Skills, Craft,
+  Build, Bag, Animals down the left (icon, label), World Atlas, Domain, Orders, Communication,
+  Friends, Save down the right (label, icon), a header band with a settings gear (holds the debug-info
+  toggle, ASSUMPTION) and the T-stone balance, and a CLOSE hex where MENU sits. It draws on canvas
+  layer 90 and fades the HUD's own drawing and hexes out while open; the world keeps running. A tap
+  on the world, CLOSE or Esc closes it. Each entry badges notices of its own kind
+  (`HudField.notices`, GOLD / LIFE). Orders and Friends show greyed (no screen yet); Character opens
+  the bag's Character page, Communication the Domain screen's Communications Center (ASSUMPTIONS).
+  Compact canvases fold each side into two columns of three 72 px rows.
+- Sheets (BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
   scrolling when short; landscape phones lay them out as a two-column grid. HANDS and the creature
-  plates hide while one is open.
+  plates hide while one (or the nav menu) is open.
 
 ## Screens (phone landscape, [all screens](ui-screens.md))
 
@@ -184,9 +205,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 
 ![fatigue](screens/fatigue.webp)
 
-**MENU sheet**
+**MENU nav menu** (B3; desktop 1600x900 capture:
+[`../orchestration/reports/uinav/b3_nav_menu_1600x900.png`](../orchestration/reports/uinav/b3_nav_menu_1600x900.png))
 
-![sheet_menu](screens/sheet_menu.webp)
+![b3_nav_menu](../orchestration/reports/uinav/b3_nav_menu_844x390.png)
 
 ## Tokens available (not yet applied)
 

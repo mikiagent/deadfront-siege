@@ -139,7 +139,8 @@ func _test_badge() -> void:
 	_hud._toggle_sheet(&"menu")
 	await _frames(2)
 	var skills := _sheet_button("Skills")
-	_expect(skills != null and skills.text == "Skills (2)", "the MENU sheet names the skill count (%s)" % (skills.text if skills else "none"))
+	var nav = _hud.get("_sheet")
+	_expect(skills != null and nav != null and nav.badge_text(&"skills") == "2", "the MENU sheet badges Skills with the skill count (%s)" % (nav.badge_text(&"skills") if nav else "none"))
 	if skills:
 		skills.pressed.emit()
 		await _frames(2)

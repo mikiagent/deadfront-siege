@@ -71,12 +71,47 @@ func add_tick(text: String, color: Color) -> void:
 	var same := player_floats.filter(func (e: Dictionary) -> bool: return e.get("pop", false) and float(e["t"]) == 0.0).size()
 	player_floats.append({"t": 0.0, "txt": text, "col": color, "x": randf_range(-5.0, 5.0) + 38.0 * float(same), "dy": 0.0, "px": TICK_PX, "pop": true})
 
-func add_notice(text: String) -> void:
+## A refusal or hint (warning look); `ok` gives a confirmation ("Game saved") the green look instead.
+func add_notice(text: String, ok: bool = false) -> void:
 	for entry in notices:
 		if entry["text"] == text and entry["t"] < 1.5:
 			entry["t"] = 0.0
 			return
-	notices.append({"text": text, "t": 0.0})
+	notices.append({"text": text, "t": 0.0, "ok": ok})
+
+## Notice row (spec §7 B4): a warning on dark red with a LIFE edge and a warning triangle; a
+## confirmation on ink with an OK_GREEN edge and a check. Text left of the glyph; `box` comes from
+## notice_width() so the glyph has room.
+const NOTICE_GLYPH := 16.0
+const WARN_BG := Color(0.36, 0.08, 0.06, 0.9)
+
+## The glyph is desktop only: on a compact canvas the 22 px it adds left no free spot for a second
+## notice beside HANDS and the nameplate (ui_real_capture_lab "busy" at 844x390).
+static func notice_glyph(view: Vector2) -> bool:
+	return not UiTokens.is_compact(view)
+
+static func notice_width(font: Font, text: String, px: int, view: Vector2 = Vector2(1600, 900)) -> float:
+	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	return tw + (NOTICE_GLYPH + 26.0 if notice_glyph(view) else 24.0)  # 8 pad, glyph, 6 gap, text, 12 pad
+
+static func draw_notice(ci: CanvasItem, font: Font, box: Rect2, text: String, px: int, alpha: float, ok: bool) -> void:
+	var edge := UiTokens.OK_GREEN if ok else UiTokens.LIFE
+	ci.draw_rect(box, Color(UiTokens.HUD_FILL, 0.88 * alpha) if ok else Color(WARN_BG, WARN_BG.a * alpha))
+	ci.draw_rect(Rect2(box.position, Vector2(4.0, box.size.y)), Color(edge, alpha))
+	var ink := Color(1, 0.94, 0.88, alpha)
+	if not notice_glyph(ci.get_viewport_rect().size):
+		ci.draw_string(font, Vector2(box.position.x + 12.0, box.get_center().y + px * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, ink)
+		return
+	var c := Vector2(box.position.x + 8.0 + NOTICE_GLYPH * 0.5, box.get_center().y)
+	var g := minf(NOTICE_GLYPH, box.size.y - 8.0) * 0.55
+	if ok:
+		ci.draw_polyline(PackedVector2Array([c + Vector2(-g * 0.6, 0), c + Vector2(-g * 0.15, g * 0.45), c + Vector2(g * 0.65, -g * 0.5)]), Color(edge, alpha), 2.5, true)
+	else:
+		var tri := PackedVector2Array([c + Vector2(0, -g * 0.85), c + Vector2(g * 0.95, g * 0.75), c + Vector2(-g * 0.95, g * 0.75), c + Vector2(0, -g * 0.85)])
+		ci.draw_polyline(tri, ink, 2.0, true)
+		ci.draw_line(c + Vector2(0, -g * 0.3), c + Vector2(0, g * 0.25), ink, 2.0)
+		ci.draw_circle(c + Vector2(0, g * 0.5), 1.4, ink)
+	ci.draw_string(font, Vector2(c.x + NOTICE_GLYPH * 0.5 + 6.0, box.get_center().y + px * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, ink)
 
 func add_toast(id: StringName, count: int) -> void:
 	for entry in toasts:

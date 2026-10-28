@@ -44,6 +44,10 @@ var fill_ratio: float = 0.0
 var icon_grey: bool = false
 ## Small boxed key label at the hex's top-right on desktop ("Esc", "F", "⇧"); hidden on phones.
 var key_hint: String = ""
+## Tint of a white glyph / symbol (the build SAVE check draws OK_GREEN, the CANCEL cross LIFE red).
+var glyph_color: Color = Color.WHITE
+## bottom_text size as a share of the radius (0.40 shipped); a word like CANCEL inside the hex uses less.
+var bottom_scale: float = 0.40
 
 var _down: bool = false
 var _hold: float = 0.0
@@ -156,7 +160,7 @@ func _draw() -> void:
 		# Smaller icon when seconds/count sit above and below it, so the 12 px text clears the rim.
 		var isz := r * (0.8 if has_texts else 1.05)
 		var ic := c + Vector2(0.0, 2.0 if top_text != "" else 0.0)
-		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
+		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0) if color_icon else Color(glyph_color, 0.45 if disabled else 1.0)
 		if icon_grey and not color_icon:
 			tint = tint * Color(0.62, 0.62, 0.62)  # white symbol greyed; own-colour icons use the grey copy
 		elif fill_ratio > 0.0:
@@ -167,11 +171,11 @@ func _draw() -> void:
 		var gs := maxi(UiTokens.TYPE_MIN, int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30)))
 		var w := font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_CENTER, -1, gs).x
 		var gy := c.y + gs * (0.2 if bottom_text != "" else 0.35)
-		draw_string(font, Vector2(c.x - w * 0.5, gy), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(1, 1, 1, 0.5 if disabled else 1.0))
+		draw_string(font, Vector2(c.x - w * 0.5, gy), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(glyph_color, 0.5 if disabled else 1.0))
 	if top_text != "":
 		UiTokens.draw_centered(self, font, Vector2(c.x, c.y - r * 0.52), top_text, int(r * 0.30), Color(0.85, 0.85, 0.85))
 	if bottom_text != "":
-		UiTokens.draw_centered(self, font, Vector2(c.x, c.y + r * 0.62), bottom_text, int(r * 0.40), Color.WHITE)
+		UiTokens.draw_centered(self, font, Vector2(c.x, c.y + r * 0.62), bottom_text, int(r * bottom_scale), Color.WHITE)
 	if caption != "":
 		var at := _caption_at(font)
 		draw_string(font, Vector2(at.x, at.y), _caption_text(font), HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_PX, Color(1, 1, 1, 0.55 if disabled else 1.0))
