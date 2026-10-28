@@ -3,7 +3,7 @@ extends SceneTree
 ## and 844x390: a harvest pill is tappable and opens the hex radial on its node; the gather hexes are
 ## 124 px on desktop and 64 on a phone, on screen and clear of each other and of the labels; the picked
 ## hex pie-fills while the others lock; a gather started without the fan opens it running; a gain shows
-## the yield card (rare chip first, on screen) and an XP line in the left feed; the NET hex is gold only
+## the top-middle gain row (rare chip first, green tier, on screen) and an XP line in the left feed; the NET hex is gold only
 ## inside the capture window (spec 09).
 ## Usage: godot --headless --path game --script res://tests/t_uigather.gd -> "[t_uigather] PASS", exit 0/1.
 
@@ -150,29 +150,34 @@ func _test_radial(view: Vector2) -> void:
 	_player.gather_target = null
 
 func _test_yield_card() -> void:
+	# Owner 2026-10-28: the gain shows in the top-middle column (TopFeed), which retired the per-node
+	# yield card; a rare trait makes it the green tier, its chip first.
 	var view := Vector2(1600, 900)
 	root.size = Vector2i(view)
 	root.content_scale_size = Vector2i(view)
 	await _frames(2)
 	var Stack = load("res://scripts/items/item_stack.gd")
-	var yc = _hud.get("_yield")
-	yc.sync(_player)
+	var feed = _hud.get("top_feed")
+	feed.clear()
+	feed.sync(_player)
 	var stack = Stack.make(&"branch", 1, {"level": 2, "split_easily": true})
 	_player.inventory.add(stack)
 	_player.gather_target = _node()
 	_hud.toast(&"branch", 1)
-	var chips: Array = yc.card.get("chips", [])
-	_expect(not chips.is_empty() and chips[0][1] == &"rare", "the gain's rare trait is the first chip (%s)" % [chips])
-	_expect(yc.edge_color(chips) == load("res://scripts/ui/ui_tokens.gd").TRAIT_RARE_FG, "a rare chip colours the card's top edge")
+	var rows: Array = feed.rows
+	var chips: Array = rows[0].get("chips", []) if not rows.is_empty() else []
+	_expect(rows.size() == 1 and not chips.is_empty() and chips[0][1] == &"rare", "the gain's rare trait is the first chip (%s)" % [chips])
+	_expect(not rows.is_empty() and rows[0]["tier"] == &"green", "a rare trait makes the gain the green tier (%s)" % [rows[0].get("tier") if not rows.is_empty() else "none"])
 	_hud.get("_events").add_skill_xp("gathering", 5.0, 1)
 	_hud.queue_redraw()
 	await _frames(3)
 	var card: Rect2 = _hud.drawn_blocks.get("toast0", Rect2())
-	_expect(card.has_area() and Rect2(Vector2.ZERO, view).encloses(card), "the yield card is drawn on screen (%s)" % card)
-	_expect(card.size.x == 300.0, "the card is 300 px wide on desktop (%s)" % card.size.x)
-	var feed: Rect2 = _hud.drawn_blocks.get("skilltoast0", Rect2())
-	_expect(feed.has_area() and feed.end.x < view.x * 0.35, "the XP line is in the left feed (%s)" % feed)
-	_expect(not feed.intersects(card), "the XP line and the yield card do not overlap")
+	_expect(card.has_area() and Rect2(Vector2.ZERO, view).encloses(card) and card.end.y < view.y * 0.5 and absf(card.get_center().x - view.x * 0.5) < 2.0, "the gain row is drawn at the top middle (%s)" % card)
+	_expect(card.size.x == 380.0, "the row is 380 px wide on desktop (%s)" % card.size.x)
+	var feed_row: Rect2 = _hud.drawn_blocks.get("skilltoast0", Rect2())
+	_expect(feed_row.has_area() and feed_row.end.x < view.x * 0.35, "the XP line is in the left feed (%s)" % feed_row)
+	_expect(not feed_row.intersects(card), "the XP line and the gain row do not overlap")
+	feed.clear()
 	_player.gather_target = null
 
 func _test_net() -> void:

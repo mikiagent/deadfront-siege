@@ -80,6 +80,7 @@ func _run() -> void:
 	await _test_phone()
 	for size in [Vector2i(1600, 900), Vector2i(844, 390)]:
 		await _test_neighbours(size)
+		await _test_top_feed(size)
 	await _test_menu_pulse()
 	await _test_occupation()
 	Engine.time_scale = 1.0
@@ -110,6 +111,9 @@ func _test_character() -> void:
 	_expect(_fxs().is_empty() and player.get_child_count() == children, "character level-up: the light frees itself (children %d, was %d)" % [player.get_child_count(), children])
 	_expect(rec["blocks"] > 0, "character level-up: the HUD draws its block (%d frames)" % rec["blocks"])
 	_expect(float(rec["block_jump"]) == 0.0, "character level-up: the HUD block does not move between frames (max %.2f px)" % rec["block_jump"])
+	var lu_r: Rect2 = rec["block_rect"]
+	var vit: Rect2 = load("res://scripts/ui/hud_layout.gd").vitals_rect(hud, Vector2(get_root().size))
+	_expect(lu_r.has_area() and lu_r.position.x <= vit.position.x + 16.5 and lu_r.position.y >= vit.end.y, "character level-up: the stack hugs the left edge, under the vitals (owner: far left; %s, vitals %s)" % [lu_r, vit])
 	_expect(float(rec["cam_offset"]) == 0.0 and float(rec["trauma"]) == 0.0, "character level-up: no camera shake (offset %.4f, trauma %.3f)" % [rec["cam_offset"], rec["trauma"]])
 	_expect(cam.global_position.distance_to(cam_at) < 0.01 and float(rec["cam_step"]) < 0.001, "character level-up: the camera stays put (moved %.4f m, max step %.5f m)" % [cam.global_position.distance_to(cam_at), rec["cam_step"]])
 	await _quiet()
@@ -257,8 +261,9 @@ func _test_toasts() -> void:
 		var showing: bool = lu.has_area()
 		var now: Dictionary = {}
 		var events = hud.get("_events")
+		var feed_rows: Array = hud.get("top_feed").get("rows").filter(func (r: Dictionary) -> bool: return r["kind"] == &"gain")
 		for kind in ["toast", "notice"]:
-			var list: Array = events.get("toasts" if kind == "toast" else "notices")
+			var list: Array = feed_rows if kind == "toast" else events.get("notices")
 			for i in list.size():
 				var box: Rect2 = blocks.get("%s%d" % [kind, i], Rect2())
 				if not box.has_area():
@@ -275,8 +280,10 @@ func _test_toasts() -> void:
 				if last.has(key):
 					compared += 1
 					var pb: Rect2 = last[key][0]
-					var rise := 35.0 * (minf(k, 1.0) - minf(float(last[key][1]), 1.0)) if kind == "toast" else 0.0
-					var err := absf(box.position.y - pb.position.y + rise) + absf(box.position.x - pb.position.x)
+					# TopFeed rows ease to a new spot when the column changes (never snap): 20 px a frame at most.
+					var err := absf(box.position.y - pb.position.y) + absf(box.position.x - pb.position.x)
+					if kind == "toast":
+						err = maxf(0.0, err - 20.0)
 					if err > worst:
 						worst = err
 						worst_at = "%s at %.2f s" % [kind, t]
@@ -284,7 +291,7 @@ func _test_toasts() -> void:
 		was_showing = showing
 	print("[t_levelfx] toasts: worst move beyond the rise %.2f px (%s), %d frame pairs, seen start %s end %s" % [worst, worst_at, compared, seen_start, seen_end])
 	_expect(seen_start and seen_end and compared > 100, "toasts: toasts were on screen when the skill banner started and ended (start %s, end %s, %d frame pairs)" % [seen_start, seen_end, compared])
-	_expect(worst <= 1.0, "toasts: no toast or notice jumps when a skill banner starts or ends (worst %.2f px beyond its rise, %s)" % [worst, worst_at])
+	_expect(worst <= 1.0, "toasts: no gain row or notice jumps when a skill banner starts or ends (worst %.2f px past an eased step, %s)" % [worst, worst_at])
 	_expect(under == 0, "toasts: no toast or notice under the skill banner (%d frames)" % under)
 	await _quiet()
 
@@ -319,14 +326,17 @@ func _test_phone() -> void:
 		var at := (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2()) as Rect2
 		rec = await _phone_watch(0.8, true, c)
 		_expect(rec["plate_frames"] > 0 and rec["plate_hits"] == 0, "phone %s: a plate appearing never has the banner across it (%d frames with the plate, %d overlaps)" % [kind, rec["plate_frames"], rec["plate_hits"]])
-		_expect(float(rec["seen_jump"]) > 0.0 and float(rec["bad_jump"]) == 0.0, "phone %s: pushed below the plate, the banner moves only while it fades back in (moved %.0f px, %.0f px while shown)" % [kind, rec["seen_jump"], rec["bad_jump"]])
+		if kind == "character":
+			_expect(float(rec["seen_jump"]) > 0.0 and float(rec["bad_jump"]) == 0.0, "phone %s: pushed below the plate, the banner moves only while it fades back in (moved %.0f px, %.0f px while shown)" % [kind, rec["seen_jump"], rec["bad_jump"]])
+		else:
+			_expect(float(rec["step"]) <= 20.0, "phone skill: the top-middle row under the band eases below the plate, never jumps (largest step %.1f px)" % rec["step"])
 		rec = await _phone_watch(0.8, true, null)
 		var back := (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2()) as Rect2
 		_expect(back.is_equal_approx(at), "phone %s: when the plate leaves, the banner is back where it stood (%s, was %s)" % [kind, back, at])
 		if kind == "character":
 			_expect(float(rec["step"]) > 0.0 and float(rec["step"]) < 60.0, "phone character: it glides back up over several frames, height too (largest step %.1f px of 124)" % rec["step"])
 		else:
-			_expect(float(rec["bad_jump"]) == 0.0, "phone skill: back to the tile beside the card, it moves only while it fades back in (%.0f px while shown)" % rec["bad_jump"])
+			_expect(float(rec["step"]) <= 20.0, "phone skill: back under the band, easing (largest step %.1f px)" % rec["step"])
 	await _quiet()
 	c.queue_free()
 	get_root().size = start_size
@@ -422,7 +432,7 @@ func _test_neighbours(size: Vector2i) -> void:
 			for k in last:
 				if blocks.has(k) and (str(k).begins_with("skilltoast") or str(k) == "statusfx" or str(k).begins_with("toast")):
 					var d: float = (blocks[k] as Rect2).position.distance_to((last[k] as Rect2).position)
-					if d > 1.0:
+					if d > (20.0 if str(k).begins_with("toast") else 1.0):  # TopFeed rows ease (<= 20 px a frame)
 						jumps += 1
 						jump_what = "%s %.0f px" % [k, d]
 		last = blocks.duplicate()
@@ -432,6 +442,95 @@ func _test_neighbours(size: Vector2i) -> void:
 	_expect(hits == 0, "%s neighbours: nothing of the HUD under the banner (%d, last %s)" % [tag, hits, hit_what])
 	_expect(jumps == 0, "%s neighbours: the feed, the boxes and the yield card do not jump as a banner starts or ends (%d, %s)" % [tag, jumps, jump_what])
 	player.statuses.clear_all()
+	await _quiet()
+	get_root().size = start_size
+	get_root().content_scale_size = start_canvas
+	await _frames(4)
+
+## Owner 2026-10-28: one top-middle column for skill level-ups and gains. A gain's tier comes from its
+## traits (grey plain, yellow a positive trait, green a rare one or a rare find); a repeat of a showing
+## item collapses into its row; at most max_rows show, the rest wait; a rare trait or find never adds a
+## stack by the node beside the row; the skill row stands at the top middle.
+func _test_top_feed(size: Vector2i) -> void:
+	await _quiet()
+	var start_size := get_root().size
+	var start_canvas := get_root().content_scale_size
+	get_root().size = size
+	get_root().content_scale_size = size
+	await _frames(4)
+	var tag := "%dx%d" % [size.x, size.y]
+	var feed = hud.get("top_feed")
+	var Stack = load("res://scripts/items/item_stack.gd")
+	var tiers := {}
+	for spec in [[&"stone", {}], [&"branch", {"firm": 3}], [&"fibre_stalk", {"split_easily": true}]]:
+		feed.clear()
+		feed.sync(player)
+		player.inventory.add(Stack.make(spec[0], 1, spec[1]))
+		hud.toast(spec[0], 1)
+		tiers[str(spec[0])] = str(feed.rows[0]["tier"]) if not feed.rows.is_empty() else "none"
+	_expect(tiers == {"stone": "grey", "branch": "yellow", "fibre_stalk": "green"}, "%s top feed: tiers from traits, plain grey, a positive trait yellow, a rare one green (%s)" % [tag, tiers])
+	await _frames(3)
+	var row: Rect2 = (hud.get("drawn_blocks") as Dictionary).get("toast0", Rect2())
+	var view := Vector2(size)
+	var band: Rect2 = load("res://scripts/ui/hud_layout.gd").centre_band(hud, view)
+	var cx: float = load("res://scripts/ui/top_feed.gd").column_cx(hud, view)
+	_expect(row.has_area() and absf(row.get_center().x - cx) < 2.0 and row.end.y < view.y * 0.6, "%s top feed: the row stands at the top middle (%s, centre %.0f; band %s, figure %s)" % [tag, row, cx, band, hud.call("figure_rect")])
+	var hits := 0
+	for k in hud.get("drawn_blocks"):
+		var b: Rect2 = hud.get("drawn_blocks")[k]
+		if str(k) != "toast0" and b.has_area() and b.intersects(row):
+			hits += 1
+	_expect(hits == 0, "%s top feed: the row keeps off every other HUD block (%d)" % [tag, hits])
+	# Collapse, then the cap.
+	feed.clear()
+	feed.sync(player)
+	player.inventory.add(Stack.make(&"stone", 3, {}))
+	hud.toast(&"stone", 3)
+	player.inventory.add(Stack.make(&"stone", 2, {}))
+	hud.toast(&"stone", 2)
+	_expect(feed.rows.size() == 1 and int(feed.rows[0]["n"]) == 5, "%s top feed: +3 then +2 Stone collapse into one +5 row (%d rows, n %s)" % [tag, feed.rows.size(), feed.rows[0]["n"] if not feed.rows.is_empty() else "-"])
+	for id in [&"branch", &"fibre_stalk", &"flint", &"resin"]:
+		player.inventory.add(Stack.make(id, 1, {}))
+		hud.toast(id, 1)
+	var cap: int = feed.max_rows(load("res://scripts/ui/ui_tokens.gd").is_compact(view))
+	_expect(feed.rows.size() == cap and feed.waiting.size() == 5 - cap, "%s top feed: at most %d rows show, the rest wait (%d showing, %d waiting)" % [tag, cap, feed.rows.size(), feed.waiting.size()])
+	# A find lifts its row to green; the node gets no second popup.
+	feed.clear()
+	feed.sync(player)
+	player.inventory.add(Stack.make(&"resin", 1, {}))
+	hud.toast(&"resin", 1)
+	var GF = load("res://scripts/gather/gather_feedback.gd")
+	GF.show_yield(player, player.global_position, &"stone", 1, [&"resin"] as Array[StringName], [&"black_sheen"] as Array[StringName])
+	await _frames(2)
+	var layer: Node = current_scene.get_node_or_null("GatherPopups") if current_scene else null
+	var popups := layer.get_child_count() if layer else 0
+	_expect(feed.rows.size() == 1 and feed.rows[0]["tier"] == &"green" and popups == 0, "%s top feed: a rare find turns its row green, one popup per gain (%d rows, tier %s, %d stacks by the node)" % [tag, feed.rows.size(), feed.rows[0]["tier"] if not feed.rows.is_empty() else "-", popups])
+	# The skill row at the top middle.
+	feed.clear()
+	cel.call("push_skill", &"cooking", 3)
+	await _frames(4)
+	var lu: Rect2 = (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2())
+	_expect(lu.has_area() and absf(lu.get_center().x - cx) < 2.0 and lu.position.y < view.y * 0.4, "%s top feed: a skill level-up is a row at the top middle (%s)" % [tag, lu])
+	if not band.has_area():  # the desktop character stack: far left (owner 2026-10-28), off the HUD
+		await _quiet()
+		hud.call("_on_level_up", world.pioneer_level)
+		await create_timer(0.8).timeout
+		var st: Rect2 = (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2())
+		var vit: Rect2 = load("res://scripts/ui/hud_layout.gd").vitals_rect(hud, view)
+		var inset: Vector4 = hud.call("_safe_insets")
+		var over := 0
+		var over_what := ""
+		for k in hud.get("drawn_blocks"):
+			var b: Rect2 = hud.get("drawn_blocks")[k]
+			if str(k) != "levelup" and b.has_area() and b.intersects(st):
+				over += 1
+				over_what = str(k)
+		for h in hud.get_tree().get_nodes_in_group(&"hex_button"):
+			if h.is_visible_in_tree() and h.hex_rect().intersects(st):
+				over += 1
+				over_what = str(h.name)
+		_expect(st.has_area() and st.position.x >= inset.w and st.position.x <= vit.position.x + 16.5 and st.position.y >= vit.end.y and st.end.y <= view.y, "%s character stack: it hugs the left edge, under the vitals, inside the view (%s)" % [tag, st])
+		_expect(over == 0, "%s character stack: nothing of the HUD under it (%d, %s)" % [tag, over, over_what])
 	await _quiet()
 	get_root().size = start_size
 	get_root().content_scale_size = start_canvas
@@ -472,7 +571,7 @@ func _test_occupation() -> void:
 ## that had not faded), the largest move of the drawn block while the same level-up shows, the
 ## camera's shake offset, trauma and largest per-frame step, and the lights' peak energy.
 func _watch(seconds: float, fixed: bool) -> Dictionary:
-	var out := {"order": [], "fx_max": 0, "overlaps": 0, "block_jump": 0.0, "blocks": 0, "cam_offset": 0.0, "trauma": 0.0, "cam_step": 0.0, "light_max": 0.0, "char_meshes": 0, "new_meshes": 0}
+	var out := {"block_rect": Rect2(), "order": [], "fx_max": 0, "overlaps": 0, "block_jump": 0.0, "blocks": 0, "cam_offset": 0.0, "trauma": 0.0, "cam_step": 0.0, "light_max": 0.0, "char_meshes": 0, "new_meshes": 0}
 	var fade := float((_json().get("hud", {}) as Dictionary).get("fade_s", 0.45))
 	var t := 0.0
 	var last_key := ""
@@ -497,6 +596,7 @@ func _watch(seconds: float, fixed: bool) -> Dictionary:
 		var block: Rect2 = (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2())
 		if key != "" and block.has_area():
 			out["blocks"] += 1
+			out["block_rect"] = block
 			if key == last_key and last_block.has_area():
 				out["block_jump"] = maxf(out["block_jump"], block.position.distance_to(last_block.position) + absf(block.size.y - last_block.size.y))
 		if key != "" and key != last_key:

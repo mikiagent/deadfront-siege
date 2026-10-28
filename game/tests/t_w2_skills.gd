@@ -604,9 +604,11 @@ func _test_levelup_banner() -> void:
 		_world().pioneer_level = stored
 		_world().pioneer_changed.emit(stored)
 		var want: int = Rules.paid_for_level(p.skills, stored + 1)
-		var banner := str(hud.get("_levelup_summary"))
-		var lines := ", ".join((hud.get("_levelup_lines") as Array).map(func (l: Array) -> String: return str(l[0])))
-		_expect(p.skills.sp_available == want and banner.ends_with("Skill points %d" % want) and lines.contains("Available Skill Points: %d" % want), "character Lv. %d: the level-up banner shows the %d SP SkillState holds (%d): '%s' | %s" % [stored + 1, want, p.skills.sp_available, banner, lines])
+		var banner := str(hud.get("_levelup_sp"))
+		var brain_rows := (hud.get("_levelup_lines") as Array).filter(func (l: Array) -> bool: return l.size() > 3 and l[3] == &"brain")
+		var lines := ", ".join(brain_rows.map(func (l: Array) -> String: return str(l[0])))
+		# Skill points are the brain glyph (BRAINICON): the phone banner's number and the stack's brain row.
+		_expect(p.skills.sp_available == want and banner == str(want) and brain_rows.size() == 1 and lines.begins_with("%d" % want), "character Lv. %d: the level-up banner shows the %d SP SkillState holds (%d): '%s' | %s" % [stored + 1, want, p.skills.sp_available, banner, lines])
 	for n in [hud, p]:
 		get_root().remove_child(n)
 		n.free()

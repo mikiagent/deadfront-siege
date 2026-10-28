@@ -71,6 +71,7 @@ func _run() -> void:
 		await _mounted(str(phase[0]))
 	Game.time_of_day = 0.45
 	await _wait(0.5)
+	await _gain_tiers()
 	await _burst()
 	await _walking()
 	await _cost()
@@ -96,7 +97,7 @@ func _skill(tag: String) -> void:
 		_player.skills.add_xp("survival", 5000.0, true)
 		await _quiet()
 		lv = s.level_of("processing")
-	_hud.toast(&"fiber", 2)  # a gather pays the skill XP: its pickup toast shows beside the banner
+	_hud.toast(&"fibre_stalk", 2)  # a gather pays the skill XP: its pickup toast shows beside the banner
 	s.add_xp("processing", SkillState.xp_to_next(lv) - s.xp_of("processing"), true)
 	_expect(s.level_of("processing") == lv + 1, "%s: processing rose to Lv. %d" % [tag, s.level_of("processing")])
 	var fx := await _shots_of("skill_%s" % tag)
@@ -139,7 +140,9 @@ func _shots_of(name: String) -> Array:
 	var seen: Array = []
 	var t := 0.0
 	for spec in [["peak", PEAK_S], ["mid", MID_S]]:
-		while t < float(spec[1]):
+		# On the celebration's own clock when one shows: on a loaded machine a windowed frame stalled
+		# for seconds and the lab's count fell behind the HUD's, so the shots missed the banner.
+		while t < float(spec[1]) and _cel_t() < float(spec[1]):
 			await get_tree().process_frame
 			t += get_process_delta_time()
 			for k in _fx_kinds():
@@ -272,6 +275,12 @@ func _showing() -> String:
 	return ""
 
 ## Level-ups queued behind the one showing (a character level releases a capped survival level).
+## Seconds the showing celebration has been up, -1 when none shows.
+func _cel_t() -> float:
+	var cel: Object = _hud.get("_levelups")
+	var cur: Dictionary = cel.get("current") if cel else {}
+	return float(cur.get("t", -1.0))
+
 func _waiting() -> bool:
 	var cel: Object = _hud.get("_levelups")
 	return cel != null and not (cel.get("queue") as Array).is_empty()
@@ -316,6 +325,23 @@ func _expect(ok: bool, msg: String) -> void:
 	if not ok:
 		_fails.append(msg)
 	print("[levelfx] %s %s" % ["ok" if ok else "FAIL", msg])
+
+## TopFeed (owner 2026-10-28): one gain at each tier, shot near its peak: plain stone (grey), a
+## branch with a positive trait (yellow), a fibre stalk with a rare one (green).
+func _gain_tiers() -> void:
+	for spec in [[&"stone", {}, "grey"], [&"branch", {"firm": 3}, "yellow"], [&"fibre_stalk", {"split_easily": true}, "green"]]:
+		await _quiet()
+		_hud.top_feed.clear()
+		_hud.top_feed.sync(_player)
+		_player.inventory.add(ItemStack.make(spec[0], 2, spec[1]))
+		_hud.toast(spec[0], 2)
+		var row: Dictionary = _hud.top_feed.rows[0] if not _hud.top_feed.rows.is_empty() else {}
+		_expect(str(row.get("tier", "")) == spec[2], "gain %s: the %s tier (got %s)" % [spec[0], spec[2], row.get("tier", "none")])
+		while float(row.get("t", 9.0)) < 0.3:
+			await get_tree().process_frame
+		_expect(_hud.drawn_blocks.has("toast0"), "gain %s: its top-middle row is drawn" % spec[0])  # before the shot: a slow capture may outlast a grey row
+		await _shot("gain_%s" % spec[2])
+	_hud.top_feed.clear()
 
 func _finish() -> void:
 	if _fails.is_empty():

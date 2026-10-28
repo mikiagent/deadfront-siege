@@ -257,7 +257,7 @@ static func _dot_texture() -> GradientTexture2D:
 	return _dot
 
 func _process(delta: float) -> void:
-	_t += delta
+	_t += minf(delta, 0.1)  # as LevelUpCelebration.tick: a stalled frame does not skip the light
 	if _t >= life:
 		queue_free()
 		return
