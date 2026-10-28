@@ -27,6 +27,50 @@ const ACTION := Color(1, 1, 1, 1)
 ## Tests turn this on to run the controller focus path without a joypad (wants_focus()).
 static var force_focus := false
 
+## Hex HUD palette (docs/design/ui-redesign-spec.md §2). Kept beside the old tokens: restyled screens
+## opt in, every existing screen keeps drawing with INK/TEAL/DIVIDER until its own package moves it.
+const HUD_FILL := Color(0.039, 0.047, 0.047, 0.92)    # hex interior, HUD panels
+const HUD_RIM := Color(0.933, 0.945, 0.949, 0.85)     # light hex rim
+const HEADER := Color(0.027, 0.031, 0.035, 1.0)       # full-screen header bar with torn bottom edge
+const SCREEN_DIM := Color(0.063, 0.165, 0.243, 0.55)  # wash over the blurred world behind sheets
+const PANEL := Color(0.055, 0.118, 0.173, 0.82)       # sheet panel
+const GOLD := Color(0.957, 0.769, 0.188, 1.0)         # selection brackets, CTA, active state
+const GOLD_DIM := Color(0.957, 0.769, 0.188, 0.12)    # selected row wash
+const CTA_INK := Color(0.078, 0.071, 0.047, 1.0)      # text on GOLD buttons
+const PARCHMENT_TOP := Color(0.804, 0.722, 0.541, 1.0)
+const PARCHMENT_BOTTOM := Color(0.706, 0.620, 0.424, 1.0)
+const PARCHMENT_INK := Color(0.102, 0.090, 0.063, 1.0)
+const OK_GREEN := Color(0.373, 0.827, 0.416, 1.0)     # build SAVE check, filled material chevrons
+const LIFE := Color(0.847, 0.314, 0.227, 1.0)
+const ENERGY := Color(0.373, 0.659, 0.816, 1.0)
+const XP := Color(0.561, 0.816, 0.910, 1.0)
+const MUTED := Color(0.604, 0.651, 0.678, 1.0)        # secondary labels
+
+## Trait chips (owner rule §1.4). bg / fg pairs; never reuse for item colour (spec 35).
+const TRAIT_NEG_BG := Color(0.243, 0.263, 0.275, 1.0)
+const TRAIT_NEG_FG := Color(0.765, 0.796, 0.816, 1.0)
+const TRAIT_POS_BG := Color(0.957, 0.769, 0.188, 0.18)
+const TRAIT_POS_FG := GOLD
+const TRAIT_RARE_BG := Color(0.471, 0.824, 0.431, 0.20)
+const TRAIT_RARE_FG := Color(0.561, 0.863, 0.518, 1.0)
+
+## Exhaustion tiers (face + belt tint), indexed by the existing four tiers in Vitals.
+const MOOD := [Color(0.561, 0.863, 0.518), Color(0.957, 0.769, 0.188),
+		Color(0.910, 0.588, 0.165), Color(0.878, 0.412, 0.310)]
+
+## Hex orientation, one switch for every hex on every screen. Owner decision 2026-10-28: flat-top
+## (the canvas and the Durango references draw flat-top hexes). Pointy-top is still available per hex
+## (HexButton.flat_top, hex_points(..., false)) for tests and comparisons, but no screen picks it.
+const HEX_FLAT_TOP := true
+## Pie-fill sampling: boundary points at least this far apart (radians), plus every vertex passed.
+const PIE_STEP := PI / 30.0
+## Header bar height at 1600x900 (§8) and the torn edge under it.
+const HEADER_H := 88.0
+const TORN_MAX := 12.0
+## Selection bracket arm / stroke (§8).
+const BRACKET_ARM := 18.0
+const BRACKET_W := 3.0
+
 
 ## Under 720 px wide. Kept at its original meaning: the protected HUD, bag and animal screen pick
 ## their portrait layouts with it, and DisplayMode never gives a landscape phone a canvas that
@@ -291,3 +335,182 @@ static func style_label(label: Label, view: Vector2, kind: String) -> void:
 	label.add_theme_color_override("font_color", META if kind == "meta" else TEXT)
 	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	label.clip_text = true
+
+# ---------------------------------------------------------------- hex geometry (§2, §3)
+
+## The six corners of a hex centred on `center` with circumradius `r`, first corner at angle 0
+## (flat-top) or -30 degrees (pointy-top). One source for HexButton, chevrons and pie fills.
+static func hex_points(center: Vector2, r: float, flat_top: bool) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var off := 0.0 if flat_top else -PI / 6.0
+	for i in 6:
+		var a := off + TAU * float(i) / 6.0
+		pts.append(center + Vector2(cos(a), sin(a)) * r)
+	return pts
+
+## Distance from centre to the hex edge along angle `a` (radians), circumradius `r` (spec §4).
+static func hex_radius_at(a: float, r: float, flat_top: bool) -> float:
+	var apothem := r * cos(PI / 6.0)
+	var off := 0.0 if flat_top else PI / 6.0
+	var local := fposmod(a - off, PI / 3.0) - PI / 6.0
+	return apothem / cos(local)
+
+## The six corner angles in the hex_points() order, in [0, TAU).
+static func hex_vertex_angles(flat_top: bool) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var off := 0.0 if flat_top else -PI / 6.0
+	for i in 6:
+		out.append(fposmod(off + TAU * float(i) / 6.0, TAU))
+	return out
+
+## Pie sector inside the hex: the centre plus the boundary from -90 degrees clockwise through
+## 360*f degrees, sampled every PIE_STEP and at every hex vertex the sweep crosses. f = 0 gives
+## just the centre; f = 1 gives the whole hex as a closed polygon (area = the hex's area).
+static func pie_points(center: Vector2, r: float, f: float, flat_top: bool) -> PackedVector2Array:
+	var pts := PackedVector2Array([center])
+	var frac := clampf(f, 0.0, 1.0)
+	if frac <= 0.0:
+		return pts
+	var start := -PI * 0.5
+	var sweep := TAU * frac
+	var stops := PackedFloat32Array()
+	var n := maxi(1, ceili(sweep / PIE_STEP))
+	for i in n + 1:
+		stops.append(start + sweep * float(i) / float(n))
+	for va in hex_vertex_angles(flat_top):
+		# the first crossing of this vertex at or after `start`, while it is inside the sweep
+		var k := ceilf((start - va) / TAU)
+		var at := va + TAU * k
+		if at > start + 0.0001 and at < start + sweep - 0.0001:
+			stops.append(at)
+	stops.sort()
+	var last := -INF
+	for a in stops:
+		if a <= last + 0.0001:
+			continue
+		last = a
+		pts.append(center + Vector2(cos(a), sin(a)) * hex_radius_at(a, r, flat_top))
+	return pts
+
+## Shoelace area of a polygon (absolute).
+static func polygon_area(pts: PackedVector2Array) -> float:
+	if pts.size() < 3:
+		return 0.0
+	var sum := 0.0
+	for i in pts.size():
+		var a := pts[i]
+		var b := pts[(i + 1) % pts.size()]
+		sum += a.x * b.y - b.x * a.y
+	return absf(sum) * 0.5
+
+# ---------------------------------------------------------------- trait chips (§5)
+
+## Chip background/foreground for a trait polarity: &"negative", &"positive" or &"rare".
+## Unknown polarities read as negative (the common case in the data, spec §5).
+static func trait_chip_style(polarity: StringName) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	match polarity:
+		&"positive":
+			sb.bg_color = TRAIT_POS_BG
+			sb.border_color = TRAIT_POS_FG
+		&"rare":
+			sb.bg_color = TRAIT_RARE_BG
+			sb.border_color = TRAIT_RARE_FG
+		_:
+			sb.bg_color = TRAIT_NEG_BG
+			sb.border_color = TRAIT_NEG_FG
+	sb.set_corner_radius_all(0)
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	return sb
+
+## The colour-blind prefix for a chip: minus, plus, four-pointed star (spec §5). The star is built
+## from its code point: a literal here would have to join ui_icons.json's typographic list first.
+static func trait_chip_prefix(polarity: StringName) -> String:
+	match polarity:
+		&"positive":
+			return "+"
+		&"rare":
+			return String.chr(0x2726)
+		_:
+			return "−"
+
+## The chip's text colour (chrome draws the style box, the text takes this).
+static func trait_chip_fg(polarity: StringName) -> Color:
+	match polarity:
+		&"positive":
+			return TRAIT_POS_FG
+		&"rare":
+			return TRAIT_RARE_FG
+		_:
+			return TRAIT_NEG_FG
+
+# ---------------------------------------------------------------- selection brackets (§8)
+
+## The four corner brackets' eight line segments (a, b pairs), so a gate can check the geometry
+## without a drawing pass. `arm` is capped at half the short side.
+static func bracket_segments(rect: Rect2, arm: float = BRACKET_ARM) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	if not rect.has_area():
+		return out
+	var a := minf(arm, minf(rect.size.x, rect.size.y) * 0.5)
+	var l := rect.position.x
+	var r := rect.end.x
+	var t := rect.position.y
+	var b := rect.end.y
+	out.append_array([Vector2(l, t + a), Vector2(l, t), Vector2(l, t), Vector2(l + a, t)])
+	out.append_array([Vector2(r - a, t), Vector2(r, t), Vector2(r, t), Vector2(r, t + a)])
+	out.append_array([Vector2(l, b - a), Vector2(l, b), Vector2(l, b), Vector2(l + a, b)])
+	out.append_array([Vector2(r - a, b), Vector2(r, b), Vector2(r, b), Vector2(r, b - a)])
+	return out
+
+## Four gold corner brackets in `rect`: the selection marker used for grid cells, tabs and slots.
+static func draw_brackets(ci: CanvasItem, rect: Rect2, color: Color = GOLD, arm: float = BRACKET_ARM, w: float = BRACKET_W) -> void:
+	if ci == null:
+		return
+	var segs := bracket_segments(rect, arm)
+	for i in range(0, segs.size(), 2):
+		ci.draw_line(segs[i], segs[i + 1], color, w, true)
+
+# ---------------------------------------------------------------- screen chrome (§8)
+
+## The full-screen header bar: HEADER fill, no radius, room for the title on the left.
+static func header_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = HEADER
+	sb.set_corner_radius_all(0)
+	sb.content_margin_left = SPACE * 2
+	sb.content_margin_right = SPACE * 2
+	sb.content_margin_top = SPACE
+	sb.content_margin_bottom = SPACE
+	return sb
+
+## Deterministic zig-zag along the bottom edge of `rect`: the header's torn paper edge. The teeth
+## vary in depth from 0 to `amp` px (spec §8: 0-12 px), keyed off x, so the same width always tears
+## the same way (no RNG, a redraw is stable).
+static func torn_edge_points(rect: Rect2, amp: float = TORN_MAX, step: float = 16.0) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	if not rect.has_area():
+		return pts
+	var s := maxf(4.0, step)
+	var n := maxi(1, ceili(rect.size.x / s))
+	for i in n + 1:
+		var x := minf(rect.end.x, rect.position.x + s * float(i))
+		var depth := amp * float(abs(sin(float(int(round(x)) % 997) * 0.733)))
+		pts.append(Vector2(x, rect.end.y - depth))
+	return pts
+
+## Draws the torn edge under a header: the header's fill down to the zig-zag plus its outline.
+static func draw_torn_edge(ci: CanvasItem, rect: Rect2, color: Color = HEADER, amp: float = TORN_MAX, step: float = 16.0) -> void:
+	if ci == null or not rect.has_area():
+		return
+	var zig := torn_edge_points(rect, amp, step)
+	if zig.size() < 2:
+		return
+	var poly := PackedVector2Array([Vector2(rect.position.x, rect.position.y), Vector2(rect.end.x, rect.position.y)])
+	for i in range(zig.size() - 1, -1, -1):
+		poly.append(zig[i])
+	ci.draw_colored_polygon(poly, color)
+	ci.draw_polyline(zig, Color(color.lightened(0.35), 0.5), 1.0, true)
