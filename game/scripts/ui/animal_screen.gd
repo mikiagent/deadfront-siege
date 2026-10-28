@@ -6,6 +6,8 @@ var player: Player
 var selected: int = 0
 var _list: VBoxContainer
 var _detail: Label
+var _detail_name: Label
+var _detail_chip: NatureChip
 var _summon: Button
 var _active: HBoxContainer
 var _title: Label
@@ -52,10 +54,24 @@ func _ready() -> void:
 	detail_margin.name = "DetailMargin"
 	detail_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_scroll.add_child(detail_margin)
+	var detail_box := VBoxContainer.new()
+	detail_box.name = "DetailBox"
+	detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_box.add_theme_constant_override("separation", 4)
+	detail_margin.add_child(detail_box)
+	# NATURES (owner 2026-10-28): the name, the nature as a TAG under it, then the stat block.
+	_detail_name = Label.new()
+	_detail_name.name = "DetailName"
+	_detail_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_box.add_child(_detail_name)
+	_detail_chip = NatureChip.new()
+	_detail_chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	detail_box.add_child(_detail_chip)
 	_detail = Label.new()
 	_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	detail_margin.add_child(_detail)
+	detail_box.add_child(_detail)
 	_summon = Button.new()
 	_summon.custom_minimum_size = Vector2(220, 56)
 	_summon.add_theme_stylebox_override("normal", UiTokens.button_style(true))
@@ -152,6 +168,8 @@ func _rebuild() -> void:
 	if player != null: # spec 09:50: bonded count and max in the pets UI ("3 / 4")
 		_title.text = "ANIMALS    ·    BONDED %d / %d    ·    GROWTH" % [player.bonded.size(), Data.bonded_cap()]
 	if player == null or player.bonded.is_empty():
+		_detail_name.text = ""
+		_detail_chip.configure(&"")
 		_detail.text = "No bonded animals yet. Knock one down and feed it to add it to your roster."
 		_summon.visible = false
 		return
@@ -168,6 +186,7 @@ func _rebuild() -> void:
 		var b := Button.new()
 		# The row shows the given name alone (the detail has the species), and it gives way first, so
 		# EQUIPPED stays readable at 844x390 ("Rex II (Zebraceratops)   Lv.1   B-   EQUI...").
+		# NATURES (owner 2026-10-28): the name carries no nature word; the nature is the chip under it.
 		var tail := "   Lv.%d   %s%s" % [rec.level, rec.grade, "   EQUIPPED" if _is_out(rec) else ""]
 		var fs := UiTokens.body(view)
 		var room := minf(300.0, _list.size.x - 32.0) - font.get_string_size(tail, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
@@ -180,7 +199,15 @@ func _rebuild() -> void:
 		b.add_theme_stylebox_override("normal", UiTokens.button_style(i == selected))
 		b.add_theme_color_override("font_color", UiTokens.ACTION)
 		b.pressed.connect(_select_row.bind(i))
-		row.add_child(b)
+		var stack := VBoxContainer.new()
+		stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stack.add_theme_constant_override("separation", 2)
+		stack.add_child(b)
+		var chip := NatureChip.new()
+		chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		chip.configure(rec.nature)
+		stack.add_child(chip)
+		row.add_child(stack)
 		_list.add_child(row)
 	_show_detail(player.bonded[selected])
 
@@ -234,8 +261,11 @@ func _show_detail(rec: PetRecord) -> void:
 		for stat in CreatureGenetics.STATS:
 			var stat_name := _title_words(str(stat))
 			growth += "%s\n    %s    +%d growth    EV %d\n" % [stat_name, genes.tier_for(stat), int(genes.level_gains.get(stat, 0)), int(genes.evs.get(stat, 0))]
+	# NATURES (owner 2026-10-28): the name, then the nature as a TAG under it, then the numbers.
 	var name := _display_name(rec)
-	_detail.text = "%s\nLv. %d          Grade %s\nXP %.0f / %.0f\n\nHP              %.0f\nAttack          %.0f\nDefense         %.0f\nSpeed           %.0f\nHunger          %.0f / %.0f\n\nGROWTH / POTENTIAL\n%s\nLevel-ups add three random growth points. Training can focus EVs up to the species limits." % [name, rec.level, rec.grade, rec.xp, xp_need, rec.hp, rec.attack, rec.defense, rec.speed, rec.hunger, rec.hunger_max, growth]
+	_detail_name.text = name
+	_detail_chip.configure(rec.nature)
+	_detail.text = "Lv. %d          Grade %s\nXP %.0f / %.0f\n\nHP              %.0f\nAttack          %.0f\nDefense         %.0f\nSpeed           %.0f\nHunger          %.0f / %.0f\n\nGROWTH / POTENTIAL\n%s\nLevel-ups add three random growth points. Training can focus EVs up to the species limits." % [rec.level, rec.grade, rec.xp, xp_need, rec.hp, rec.attack, rec.defense, rec.speed, rec.hunger, rec.hunger_max, growth]
 	# "ACTIVE": the title's BONDED n / cap is the roster; this is how many are out (W2-SKILLS H10).
 	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (ACTIVE %d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
 	_summon.disabled = not _is_out(rec) and player.live_pets().size() >= Player.MAX_PETS_OUT

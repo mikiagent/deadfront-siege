@@ -9,11 +9,12 @@ const NEAR_DIST := 10.0
 const BASE_WIDTH := 176.0
 const DAMAGE_CHUNK_SECONDS := 0.6
 const STATUS_GLYPH_SCRIPT: GDScript = preload("res://scripts/ui/status_glyph.gd")
-## Rows of a full plate: name 0-16, nature chip 17-29 (NATURES: a tag under the name, absent while the
-## animal has no nature), HP bar 30-44, pet XP 42-46, status glyphs 46-70, tame 72-92.
+## Rows of a full plate: name 0-16, nature tag 16-29 (NATURES: a chip under the name, absent while the
+## animal has no nature), HP bar 29-43, pet XP 43-47, status glyphs 47-73, tame 73-93.
 const FULL_H := 94.0
-## The nature tag sits directly under the name line, left-aligned with it.
-const CHIP_POS := Vector2(8, 17)
+## The nature tag sits directly under the name line, left-aligned with it. It takes no extra height:
+## the rows under it moved up by the chip's 13 px, so the plate keeps its 176x94 budget.
+const CHIP_POS := Vector2(8, 16)
 ## Far plates shrink, but never below the 12 px type floor for their 14 px text.
 const MIN_SCALE := 0.86
 
@@ -136,7 +137,7 @@ func _separate_visible_creature_plates() -> void:
 	# before it (lifting only, a portrait plate climbed off the top), or hides when there is none.
 	# World pills do not count: the plate is opaque over them on purpose.
 	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
-	var hud_rects: Array[Rect2] = hud.taken_rects(PackedStringArray(["pill"])) if hud else []
+	var hud_rects: Array[Rect2] = hud.taken_rects(PackedStringArray(["pill"])) if hud else ([] as Array[Rect2])
 	var view := get_viewport().get_visible_rect().size
 	for node in visible:
 		var pos := node.position
@@ -222,14 +223,18 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	var line1 := Label.new()
 	line1.name = "Line1"
 	line1.position = Vector2(8, 0)
-	line1.size = Vector2(BASE_WIDTH - 16.0, 18.0)
+	line1.size = Vector2(BASE_WIDTH - 16.0, 16.0)
 	line1.clip_text = true
 	line1.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	line1.add_theme_font_size_override("font_size", 14)
 	root.add_child(line1)
+	# NATURES (owner 2026-10-28): the nature is a TAG under the name, never part of it.
+	var chip := NatureChip.new()
+	chip.position = CHIP_POS
+	root.add_child(chip)
 	var bar_bg := ColorRect.new()
 	bar_bg.name = "BarBg"
-	bar_bg.position = Vector2(8, 20)
+	bar_bg.position = Vector2(8, 29)
 	bar_bg.size = Vector2(160, 14)
 	bar_bg.color = Color(0.04, 0.04, 0.04, 0.82)
 	root.add_child(bar_bg)
@@ -252,13 +257,13 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	root.add_child(hp_dbg)
 	var line3 := HBoxContainer.new()
 	line3.name = "Line3"
-	line3.position = Vector2(8, 44)
+	line3.position = Vector2(8, 47)
 	line3.custom_minimum_size = Vector2(160, 26)
 	line3.add_theme_constant_override("separation", 4)
 	root.add_child(line3)
 	var tame_row := HBoxContainer.new()
 	tame_row.name = "TameRow"
-	tame_row.position = Vector2(8, 72)
+	tame_row.position = Vector2(8, 73)
 	tame_row.custom_minimum_size = Vector2(160, 20)
 	tame_row.visible = false
 	root.add_child(tame_row)
@@ -282,7 +287,7 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	tame_row.add_child(tame_bar)
 	var xp_bg := ColorRect.new()
 	xp_bg.name = "XpBg"
-	xp_bg.position = Vector2(8, 36)
+	xp_bg.position = Vector2(8, 43)
 	xp_bg.size = Vector2(160, 4)
 	xp_bg.color = Color(0.08, 0.08, 0.1, 0.9)
 	xp_bg.visible = false
@@ -306,6 +311,7 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	var entry := {
 		"node": root,
 		"line1": line1,
+		"chip": chip,
 		"bar_fill": bar_fill,
 		"bar_recent": bar_recent,
 		"hp_dbg": hp_dbg,
@@ -376,13 +382,21 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	var rel_col := _relation_color(c)
 	line1.visible = full
 	line1.add_theme_color_override("font_color", rel_col)
-	# NATURES: the plate reads the animal's full title ("Timid Velociraptor", "Brave Alpha Raptor").
+	# NATURES (owner 2026-10-28): the name is the animal's name only ("Alpha Velociraptor") and its
+	# nature is the TAG directly under it ("Timid"); no nature, no chip and no gap.
 	var title := CreatureNatures.display_title(c)
 	var raw_name := ("%s  %s  [%s]" % [LevelDisplay.label(c.level), title, c.genetics.overall_tier() if c.genetics else &"?"]) if c.is_pet else ("%s  %s" % [LevelDisplay.label(c.level), title])
 	line1.text = UiTokens.ellipsis(ThemeDB.fallback_font, raw_name, BASE_WIDTH - 20.0, 14)
+	var chip := entry.get("chip", null) as NatureChip
+	if chip:
+		chip.configure(c.nature_id() if full else &"")
+		if chip.visible:
+			chip.position = CHIP_POS
 	var bar_bg := root.get_node_or_null("BarBg") as ColorRect
 	if bar_bg:
-		bar_bg.position = Vector2(8, 20 if full else 2)
+		# Fixed rows: the chip row is always reserved, so a plate never resizes between creatures
+		# and nothing jumps when the tag appears or the name changes.
+		bar_bg.position = Vector2(8, CHIP_POS.y + NatureChip.CHIP_H if full else 2)
 		bar_bg.size = Vector2(160 if full else 96, 14 if full else 6)
 	root.size = Vector2(BASE_WIDTH, FULL_H if full else 18)
 	root.custom_minimum_size = root.size
@@ -440,16 +454,16 @@ func _fit_pill(entry: Dictionary, full: bool) -> void:
 		pill.position = Vector2(4, -2)
 		pill.size = Vector2(104, 10)
 		return
-	var bottom := 38.0
+	var bottom := CHIP_POS.y + NatureChip.CHIP_H + 17.0  # name, nature tag, then the HP bar at 29-43
 	var line3 := entry.get("line3", null) as Control
 	if line3 and line3.visible:
 		for g in line3.get_children():
 			if (g as Control).visible:
-				bottom = 72.0
+				bottom = 73.0
 				break
 	var tame_row := entry.get("tame_row", null) as Control
 	if tame_row and tame_row.visible:
-		bottom = 94.0
+		bottom = 93.0
 	pill.position = Vector2(2, -2)
 	pill.size = Vector2(BASE_WIDTH - 4.0, bottom + 2.0)
 

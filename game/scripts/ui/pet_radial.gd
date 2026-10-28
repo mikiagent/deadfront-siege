@@ -41,11 +41,16 @@ var hot := -1
 const NO_PRESS := -2
 var _press := NO_PRESS
 var _icons: Array[Texture2D] = []
+## NATURES (owner 2026-10-28): the pet's nature is a TAG under its name in the centre disc.
+var _chip: NatureChip
 var _faded: Array[Control] = []
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_chip = NatureChip.new()
+	_chip.visible = false
+	add_child(_chip)
 	visible = false
 
 func show_for(c: Creature, entries: Array) -> void:
@@ -56,12 +61,16 @@ func show_for(c: Creature, entries: Array) -> void:
 		_icons.append(UiIcons.icon(StringName(str((row as Dictionary).get("icon", "")))))
 	_press = NO_PRESS
 	hot = 0 if UiTokens.wants_focus() else -1
+	if _chip:
+		_chip.configure(c.nature_id() if c else &"")
 	visible = true
 	_layout()
 	queue_redraw()
 
 func hide_menu() -> void:
 	visible = false
+	if _chip:
+		_chip.configure(&"")
 	pet = null
 	rows.clear()
 	_press = NO_PRESS
@@ -214,7 +223,30 @@ func _layout() -> void:
 	label_rects.clear()
 	for r in rel:
 		label_rects.append(Rect2(r.position + centre, r.size))
+	_place_chip(font)
 	_fade_covered()
+
+## The nature tag: directly under the name (and the species line when the pet has a given name),
+## centred on the disc. It takes no room from the ring: it sits inside the centre disc.
+func _place_chip(font: Font) -> void:
+	if _chip == null:
+		return
+	if pet == null or not is_instance_valid(pet):
+		_chip.visible = false
+		return
+	_chip.configure(pet.nature_id())
+	if not _chip.visible:
+		return
+	var view := get_viewport_rect().size
+	var big := UiTokens.heading(view) - 4
+	var small := UiTokens.meta(view)
+	var given := pet.pet_record.name if pet.pet_record else ""
+	var species := str(pet.def.species).capitalize() if pet.def else ""
+	var below := r_in * 0.3 + float(big)
+	if given != "" and species != "":
+		below += float(small)
+	_chip.position = centre + Vector2(-_chip.size.x * 0.5, below + 2.0)
+	_chip.visible = below + _chip.size.y <= r_in
 
 ## Fades the HUD's hexes and the HANDS slot where the ring or a label covers them (only the HUD's:
 ## other menus animate their own), and brings back the ones it no longer covers; all once it closes.
@@ -337,6 +369,8 @@ func _draw_names(view: Vector2, font: Font) -> void:
 	var species := str(pet.def.species).capitalize() if pet.def else ""
 	var given := pet.pet_record.name if pet.pet_record else ""
 	var title := given if given != "" else species
+	# NATURES (owner 2026-10-28): the title is the pet's own name, the species or both — never a nature
+	# word; the nature is the chip drawn under it.
 	var width := r_in * 2.0 - 8.0  # may run onto the ring's inner edge; drawn on top of it
 	var big := UiTokens.heading(view) - 4
 	var small := UiTokens.meta(view)
