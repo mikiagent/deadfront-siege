@@ -134,33 +134,9 @@ func _process(delta: float) -> void:
 		_expires_left = minf(_expires_left, _empty_despawn)
 
 func _roll_loot() -> void:
-	var skill := Data.butchering_level()
-	for row_v in Data.butcher_drops(species):
-		if not (row_v is Dictionary):
-			continue
-		var row := row_v as Dictionary
-		if skill < int(row.get("skill", 0)):
-			continue
-		# A skill node that opens this part (Butchering's Organs, Scutes, Bone II...): the row waits
-		# until it is learned.
-		if not Data.butcher_row_open(str(row.get("id", ""))):
-			continue
-		var item_id := StringName(str(row.get("id", "")))
-		if item_id == &"":
-			continue
-		var item_def := Data.item(item_id)
-		if poison_spoiled and item_def and item_def.has_category(&"meat"): continue
-		var n := randi_range(int(row.get("min", 1)), int(row.get("max", int(row.get("min", 1)))))
-		if n <= 0:
-			continue
-		var attrs: Dictionary = {}
-		var raw_attrs: Variant = row.get("attributes", {})
-		if raw_attrs is Dictionary:
-			attrs = (raw_attrs as Dictionary).duplicate(true)
-		# Preserve the defeated creature's material quality. The catalogue base
-		# is a default for spawned items, not the quality of an earned corpse.
-		attrs["level"] = level
-		loot.add_growing(ItemStack.make(item_id, n, attrs, level)) # W2-INV: n instances, none dropped
+	# W2-GATHER: knife tier + Butchering level scale the parts, rare rows roll real odds; the
+	# Butchering skill-node gate (Data.butcher_row_open) still applies inside LootRoller.
+	ButcherLoot.roll_into(self, _owner)
 
 func _on_take_from_loot() -> void:
 	# Taking from the chest screen trains Butchering (and so the player level), once per take

@@ -1,7 +1,7 @@
 class_name ButcherLoot
 extends RefCounted
 ## Fills a fresh carcass from butchering.json: counts scale with the hunter's best knife tier
-## and Butchering level, premium parts need a good enough knife (loot_tables.json part_min_tier),
+## and Butchering level, premium parts wait on their Butchering skill nodes (Data.butcher_row_open),
 ## and "rare" rows roll their odds instead of always dropping. Rare parts are announced when the
 ## animal falls in the survivor's view; taking them pays the base Butchering XP only.
 ## Corpse._roll_loot calls roll_into (integrator hook).

@@ -51,7 +51,6 @@ static func roll_trait(rng: RandomNumberGenerator) -> StringName:
 static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_tier: StringName, node_tier: int, skill: int, no_meat: bool, rng: RandomNumberGenerator) -> Dictionary:
 	var cfg := LootTables.butcher_cfg()
 	var tier_idx := ProgressionScaling.tier_index(knife_tier) if knife_tier != &"" else -1
-	var gates: Dictionary = cfg.get("part_min_tier", {})
 	var count_mult := 1.0 + float(cfg.get("count_bonus_per_tier", 0.0)) * float(maxi(0, tier_idx)) \
 			+ float(cfg.get("count_bonus_per_skill_level", 0.0)) * float(maxi(0, skill))
 	if tier_idx < 0:
@@ -74,10 +73,9 @@ static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_t
 			continue
 		if no_meat and item_def.has_category(&"meat"):
 			continue
-		if gates.has(str(item_id)):
-			var gate := StringName(str(gates[str(item_id)]))
-			if gate not in ProgressionScaling.TOOL_TIERS or tier_idx < ProgressionScaling.tier_index(gate):
-				continue  # a typo'd gate keeps the part on the carcass rather than opening it to any knife
+		# A Butchering skill node that opens this part (Organs, Scutes, Bone II...): the row waits until it is learned.
+		if not Data.butcher_row_open(str(item_id)):
+			continue
 		var is_rare := i >= base_rows.size()
 		if is_rare:
 			var c := scaled_chance(float(row.get("chance", cfg.get("default_rare_chance", 0.12))), tier_idx, skill,

@@ -299,17 +299,10 @@ static func best_pick(inv: Inventory) -> ItemStack:
 			best = s
 	return best
 
-## The tool this node would work with from `inv`: the best pick on rock, else the class tool.
-func work_tool(inv: Inventory) -> ItemStack:
-	if _is_rock():
-		return best_pick(inv)
-	return inv.find_gather_tool(required_tool_class)
-
 ## Seconds per unit with the bag's tool (what the survivor waits; the server reuses it).
+## One rule with PlayerActions: the role's tool helps, bare hands are slower (W2-GATHER).
 func seconds_for(inv: Inventory, skill_level: int = 1) -> float:
-	var tool := work_tool(inv)
-	var zone_level := int(yield_attributes.get("level", 1))
-	return ProgressionScaling.gather_seconds(_base_seconds, zone_level, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, skill_level))
+	return GatherService.unit_seconds_for(inv, self, skill_level)
 
 func can_gather(inv: Inventory) -> String:
 	if pool_units_left() <= 0:

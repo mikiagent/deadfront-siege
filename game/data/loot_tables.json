@@ -37,12 +37,6 @@
     "count_bonus_per_tier": 0.15,
     "count_bonus_per_skill_level": 0.01,
     "_no_knife": "ASSUMPTION: the docs give no bare-hands butchering rule. As gathering makes bare hands 1.35x slower (gather_rules.json), a carcass cut without a knife gives about 1/1.35 of the stone knife's base parts.",
-    "no_knife_count_mult": 0.75,
-    "_part_gates": "Parts a knife below this tier cannot cut free; they stay out of the carcass loot. ASSUMPTION: Durango gates parts by Butchering nodes (spec 12 s2); until W2-BUTCHER lands those nodes the knife tier stands in.",
-    "part_min_tier": {
-      "dense_bone": "bone",
-      "armor_scute": "flint",
-      "venom_gland": "flint"
-    }
+    "no_knife_count_mult": 0.75
   }
 }

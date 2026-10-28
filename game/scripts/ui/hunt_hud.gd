@@ -649,7 +649,12 @@ func _draw_bites(cam: Camera3D) -> void:
 		if k < 0.2 and heavy:
 			draw_rect(Rect2(0, 0, get_viewport_rect().size.x, get_viewport_rect().size.y), Color(0.9, 0.1, 0.1, 0.18 * (1.0 - k / 0.2)))
 
-func notice(text: String) -> void:
+## tint: a rare result (gold find, green trait), drawn in its colour on ink instead of the red refusal
+## box; GatherFeedback sets how long it lives (W2-GATHER).
+func notice(text: String, tint: Color = Color(0, 0, 0, 0)) -> void:
+	if tint.a > 0.0:
+		GatherFeedback.add_notice(_events.notices, text, tint, player)  # W2-GATHER: a repeat counts up ("x2")
+		return
 	_events.add_notice(text)
 
 func toast(id: StringName, n: int) -> void:
@@ -1205,6 +1210,7 @@ func _process(delta: float) -> void:
 		_levelup_t += delta
 		if _levelup_t > 6.5:
 			_levelup_t = -1.0
+	GatherFeedback.tick_notices(_events.notices, player, drawn_blocks)  # W2-GATHER: rare notice life, off _draw
 	_events.tick(delta)
 	_pulse_clock += delta
 	_pulse_check -= delta
@@ -1421,11 +1427,22 @@ func _draw() -> void:
 		var alpha := 1.0 - smoothstep(2.4, 3.2, k)
 		var txt: String = UiTokens.ellipsis(_font, n["text"], r.x - 48.0, 17)
 		var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
-		var box := UiTokens.free_spot(Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30), taken, r)
+		var cand := Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30)
+		# W2-GATHER: a rare (tinted) notice also keeps off the radial, plates and the survivor, and keeps its side
+		var box := GatherFeedback.notice_box(n, player, cand, taken, r) if n.has("tint") else UiTokens.free_spot(cand, taken, r)
 		if not box.has_area():
 			continue
 		taken.append(box)
 		drawn_blocks["notice%d" % i] = box
+		if n.has("tint"):
+			var pu := GatherFeedback.notice_punch(n)  # lands big and bright, eases back
+			var c := GatherFeedback.notice_colors(n["tint"], alpha, pu.y)
+			draw_set_transform(box.get_center() * (1.0 - pu.x), 0.0, Vector2.ONE * pu.x)
+			draw_rect(box, c[0])
+			draw_rect(box, c[1], false, 2.0)
+			draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, c[2])
+			draw_set_transform(Vector2.ZERO)
+			continue
 		draw_rect(box, Color(0.35, 0.08, 0.06, 0.85 * alpha))
 		draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.8, alpha))
 	# --- label pills on buildings and nodes within 8 m (reference: base building), last: they give way

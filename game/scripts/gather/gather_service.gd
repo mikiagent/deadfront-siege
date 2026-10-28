@@ -24,11 +24,11 @@ static func effective_tool(inv: Inventory, node: HarvestNode) -> ItemStack:
 
 ## effective_tool from a node's required tool class and family (the server only has those).
 static func tool_for(inv: Inventory, need: StringName, family: String) -> ItemStack:
-	if need != &"" and need != &"none":
-		return inv.find_gather_tool(need)
 	var role := role_of_family(family)
 	if role == "rock":
-		return HarvestNode.best_pick(inv)
+		return HarvestNode.best_pick(inv)  # every rock is worked by the best pick (HarvestNode.can_gather)
+	if need != &"" and need != &"none":
+		return inv.find_gather_tool(need)
 	var aff := LootTables.affinity_tool(role)
 	return inv.find_gather_tool(aff) if aff != &"" else null
 

@@ -170,6 +170,7 @@ func finish_gather() -> void:
 			p.skills.add_xp("processing", 1)
 	var attrs := stack.attributes.duplicate(true)
 	var before := stack.count
+	var had := p.inventory.uids()  # W2-GATHER: the units this pass lands are the instances not in it
 	var left := p.inventory.add(stack)
 	var gained := before - left
 	if gained <= 0:
@@ -179,6 +180,7 @@ func finish_gather() -> void:
 		p.gather_target = null
 		return
 	gt.consume_unit()
+	GatherService.after_unit(p, gt, stack, gained, had)  # W2-GATHER: helper-tool wear, rare traits and finds, yield popup
 	if p._gather_radial and p._gather_radial.is_open():
 		p._gather_radial.refresh()
 	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gt.pool_units_left(), gt.pool_max])
@@ -194,16 +196,10 @@ func finish_gather() -> void:
 	_start_gather_cycle(_scaled_gather_seconds(gt))
 
 func _scaled_gather_seconds(node: HarvestNode) -> float:
-	var tool := p.inventory.find_gather_tool(node.required_tool_class)
-	var skill_level := maxi(1, p.skills.level_of("gathering")) if p.skills else 1
-	var zone_level := int(node.yield_attributes.get("level", 1))
-	return ProgressionScaling.gather_seconds(node.gather_seconds, zone_level, tool.level if tool else 1, tool.material_tier() if tool else &"stone", skill_level)
+	return GatherService.unit_seconds(p, node)  # W2-GATHER: role tool helps, bare hands slower
 
 func _gather_yield_multiplier(node: HarvestNode) -> float:
-	var tool := p.inventory.find_gather_tool(node.required_tool_class)
-	var skill_level := maxi(1, p.skills.level_of("gathering")) if p.skills else 1
-	var zone_level := int(node.yield_attributes.get("level", 1))
-	return ProgressionScaling.gather_yield_multiplier(zone_level, tool.level if tool else 1, tool.material_tier() if tool else &"stone", skill_level)
+	return GatherService.yield_multiplier(p, node)
 
 func _start_gather_cycle(seconds: float) -> void:
 	p._gathering = true

@@ -142,11 +142,8 @@ func _test_data_ids() -> void:
 						grows = grows or (fits and not (fd.get("harvest", {}) as Dictionary).has(str(row["item"])))
 				_expect(grows, "%s/%s can roll: a %s node grows in %s and does not yield it itself" % [k, row["item"], k, cl])
 				_expect(row_idx >= need_idx, "%s/%s find gate '%s' is not below its nodes' min_pick_tier (%s)" % [k, row["item"], row.get("min_tool_tier", "none"), PS.TOOL_TIERS[need_idx] if need_idx >= 0 else "none"])
-	var gates: Dictionary = LT.butcher_cfg().get("part_min_tier", {})
-	for k in gates:
-		if data.item(StringName(str(k))) == null:
-			missing.append(str(k))
-		_expect(StringName(str(gates[k])) in PS.TOOL_TIERS, "part_min_tier %s '%s' is a ProgressionScaling tier" % [k, gates[k]])
+	# part_min_tier (knife gates) is gone: SKILLBUY's Butchering nodes gate those parts now.
+	_expect(not LT.butcher_cfg().has("part_min_tier"), "no knife part gates left beside the Butchering node gates")
 	_expect(missing.is_empty(), "every loot_tables.json id exists in items.json (missing %s)" % [missing])
 	_expect(not cfg.get("by_role", {}).is_empty() and LT.affinity_tool("tree") == &"axe", "loot_tables and gather_rules load")
 	# world-design.md:55 "5% chance of a rare extra (green pip)"; spec 04:11 names the six green traits.
@@ -353,16 +350,8 @@ func _test_carcass() -> void:
 	_expect(not (lvl["stacks"] as Array).is_empty() and (lvl["stacks"] as Array)[0].level == 7, "carcass parts keep the animal's level")
 	_expect(_count(LR.roll_carcass(base, [], 5, &"stone", 0, 1, true, rng)["stacks"], &"raptor_meat") == 0, "a poisoned carcass gives no meat")
 	var trike: Dictionary = data.butcher_tables.get("triceratops", {})
-	var tb: Array = trike.get("base", [])
-	var stone_parts: Array = LR.roll_carcass(tb, [], 5, &"stone", 0, 1, false, rng)["stacks"]
-	var flint_parts: Array = LR.roll_carcass(tb, [], 5, &"flint", 0, 1, false, rng)["stacks"]
-	_expect(_count(stone_parts, &"armor_scute") == 0 and _count(stone_parts, &"dense_bone") == 0, "a stone knife cannot cut scutes or dense bone")
-	_expect(_count(flint_parts, &"armor_scute") > 0 and _count(flint_parts, &"dense_bone") > 0, "a flint knife cuts scutes and dense bone")
-	_expect(_count(stone_parts, &"raw_hide") > 0 and _count(stone_parts, &"bone") > 0, "a stone knife still takes hide and bone")
-	# A misspelt part gate keeps the part on the carcass instead of opening it to any knife.
-	_with(LT.butcher_cfg()["part_min_tier"], "armor_scute", "flnit", func() -> void:
-		var typo: Array = LR.roll_carcass(tb, [], 5, &"steel", 0, 1, false, rng)["stacks"]
-		_expect(_count(typo, &"armor_scute") == 0, "a misspelt part_min_tier keeps the scute on the carcass"))
+	var stone_parts: Array = LR.roll_carcass(trike.get("base", []), [], 5, &"stone", 0, 1, false, rng)["stacks"]
+	_expect(_count(stone_parts, &"raw_hide") > 0 and _count(stone_parts, &"bone") > 0, "a stone knife takes hide and bone")
 	_finished += 1
 
 # --- live: a real survivor (player.tscn), a HUD stand-in that records toasts and notices ---------
@@ -512,8 +501,20 @@ func _test_butcher_hook() -> void:
 	var flint := _carcasses(&"triceratops", 150, ids)
 	print("[t_gather] roll_into x150 triceratops: no knife %s, flint knife %s" % [none, flint])
 	_expect(flint[&"raw_meat"] > none[&"raw_meat"], "the survivor's flint knife cuts more meat than no knife (%d vs %d)" % [flint[&"raw_meat"], none[&"raw_meat"]])
-	_expect(none[&"armor_scute"] == 0 and none[&"dense_bone"] == 0, "without a knife no scutes or dense bone come off")
-	_expect(flint[&"armor_scute"] > 0 and flint[&"dense_bone"] > 0, "the survivor's flint knife cuts scutes and dense bone")
+	# Scutes and dense bone wait on the survivor's Butchering nodes (SKILLBUY), whatever the knife.
+	_expect(flint[&"armor_scute"] == 0 and flint[&"dense_bone"] == 0, "without their Butchering nodes no scutes or dense bone come off, even with a flint knife")
+	var opened: Array = []
+	for id in [&"armor_scute", &"dense_bone"]:
+		var gate: Array = load("res://scripts/skills/skill_rules.gd").butcher_gate(player.skills, str(id))
+		_expect(not gate.is_empty(), "%s has a Butchering node gate" % id)
+		if not gate.is_empty() and not player.skills.is_unlocked(gate[0], str(gate[1]["id"])):
+			(player.skills.trees[gate[0]]["unlocked"] as Array).append(str(gate[1]["id"]))
+			opened.append([gate[0], str(gate[1]["id"])])
+	var learned := _carcasses(&"triceratops", 150, ids)
+	for o in opened:
+		(player.skills.trees[o[0]]["unlocked"] as Array).erase(o[1])
+	print("[t_gather] roll_into x150 triceratops, flint knife, nodes learned: %s" % [learned])
+	_expect(learned[&"armor_scute"] > 0 and learned[&"dense_bone"] > 0, "with their Butchering nodes learned the flint knife cuts scutes and dense bone")
 	# One instance per part (W2-INV): a triceratops rolls more parts than Corpse's 12 starting slots, and
 	# the carcass grows to hold them all; the same seed through LootRoller says how many it rolled.
 	var c = CORPSE.new()
@@ -535,18 +536,26 @@ func _test_butcher_hook() -> void:
 	c.free()
 	_finished += 1
 
-## Unlocks every Butchering node (the talon row needs one); returns what to lock again.
+## Unlocks every Butchering node (the talon row needs one): the survival ones, and the skill-tree node
+## that opens the talon (SKILLBUY's Data.butcher_row_open); returns what to lock again.
 func _unlock_butchering() -> Array:
 	var unlocked: Array = []
 	for id in data.survival_nodes:
 		if str(data.survival_nodes[id].get("kind", "")) == "butchering" and not data.is_survival_unlocked(id):
 			data.set_survival_unlocked(id, true)
 			unlocked.append(id)
+	var gate: Array = load("res://scripts/skills/skill_rules.gd").butcher_gate(player.skills, "raptor_talon")
+	if not gate.is_empty() and not player.skills.is_unlocked(gate[0], str(gate[1]["id"])):
+		(player.skills.trees[gate[0]]["unlocked"] as Array).append(str(gate[1]["id"]))
+		unlocked.append([gate[0], str(gate[1]["id"])])
 	return unlocked
 
 func _relock(unlocked: Array) -> void:
 	for id in unlocked:
-		data.set_survival_unlocked(id, false)
+		if id is Array:
+			(player.skills.trees[id[0]]["unlocked"] as Array).erase(id[1])
+		else:
+			data.set_survival_unlocked(id, false)
 
 ## A skill tree parked mid-level, so an XP delta is exact (no level-up resets the bar).
 func _park(tree: String) -> void:
