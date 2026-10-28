@@ -57,7 +57,7 @@ func _build() -> void:
 	name = "TamingPenUI"
 	back_pressed.connect(close)
 	close_pressed.connect(close)
-	_left = UiWorldSheet.panel(Color(UiTokens.HEADER.lightened(0.07), 0.94))
+	_left = SheetChrome.panel(Color(UiTokens.HEADER.lightened(0.07), 0.94))
 	_left.name = "Animal"
 	body.add_child(_left)
 	_l_scroll = ScrollContainer.new()
@@ -69,12 +69,12 @@ func _build() -> void:
 	_l_scroll.add_child(lv)
 	var parch := PanelContainer.new()
 	parch.name = "Parchment"
-	parch.add_theme_stylebox_override("panel", UiWorldSheet.parchment_style())
+	parch.add_theme_stylebox_override("panel", SheetChrome.parchment_style())
 	lv.add_child(parch)
 	var pv := VBoxContainer.new()
 	pv.add_theme_constant_override("separation", 4)
 	parch.add_child(pv)
-	_l_title = UiWorldSheet.label("", 28, UiTokens.PARCHMENT_INK, true)
+	_l_title = SheetChrome.label("", 28, UiTokens.PARCHMENT_INK, true)
 	_l_title.name = "Title"
 	_l_title.clip_text = true
 	pv.add_child(_l_title)
@@ -90,22 +90,22 @@ func _build() -> void:
 	wv.alignment = BoxContainer.ALIGNMENT_CENTER
 	wv.add_theme_constant_override("separation", 0)
 	who.add_child(wv)
-	_l_species = UiWorldSheet.label("", 18, UiTokens.PARCHMENT_INK)
+	_l_species = SheetChrome.label("", 18, UiTokens.PARCHMENT_INK)
 	wv.add_child(_l_species)
-	_l_level = UiWorldSheet.label("", 26, UiTokens.PARCHMENT_INK)
+	_l_level = SheetChrome.label("", 26, UiTokens.PARCHMENT_INK)
 	wv.add_child(_l_level)
 	var sep := ColorRect.new()
 	sep.color = Color(UiTokens.PARCHMENT_INK, 0.25)
 	sep.custom_minimum_size.y = 1
 	pv.add_child(sep)
-	_l_nature = UiWorldSheet.label("", 18, UiTokens.PARCHMENT_INK)
+	_l_nature = SheetChrome.label("", 18, UiTokens.PARCHMENT_INK)
 	_l_nature.name = "Nature"
 	pv.add_child(_l_nature)
 	var bpad := _pad(lv)
 	var bv := VBoxContainer.new()
 	bv.add_theme_constant_override("separation", 10)
 	bpad.add_child(bv)
-	_l_bond = UiWorldSheet.label("", 18, UiTokens.TEXT)
+	_l_bond = SheetChrome.label("", 18, UiTokens.TEXT)
 	_l_bond.name = "Bond"
 	_l_bond.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	bv.add_child(_l_bond)
@@ -115,7 +115,7 @@ func _build() -> void:
 	bv.add_child(_tags)
 	lv.add_child(_band("Info"))
 	var ipad := _pad(lv)
-	_info_line = UiWorldSheet.label("", 18, UiTokens.MUTED.lightened(0.2))
+	_info_line = SheetChrome.label("", 18, UiTokens.MUTED.lightened(0.2))
 	_info_line.name = "Info"
 	_info_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ipad.add_child(_info_line)
@@ -127,7 +127,7 @@ func _build() -> void:
 	_care_eats = _care_row(cv, "Eats")
 	_care_time = _care_row(cv, "Pen time")
 
-	_dlg = UiWorldSheet.panel(Color(UiTokens.HEADER.lightened(0.10), 0.96))
+	_dlg = SheetChrome.panel(Color(UiTokens.HEADER.lightened(0.10), 0.96))
 	_dlg.name = "Dialog"
 	body.add_child(_dlg)
 	var dv := VBoxContainer.new()
@@ -135,15 +135,15 @@ func _build() -> void:
 	_dlg.add_child(dv)
 	var qp := PanelContainer.new()
 	qp.name = "Question"
-	qp.add_theme_stylebox_override("panel", UiWorldSheet.parchment_style())
+	qp.add_theme_stylebox_override("panel", SheetChrome.parchment_style())
 	dv.add_child(qp)
-	_q = UiWorldSheet.label("", 26, UiTokens.PARCHMENT_INK, true)
+	_q = SheetChrome.label("", 26, UiTokens.PARCHMENT_INK, true)
 	_q.name = "Q"
 	_q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_q.clip_text = true
 	qp.add_child(_q)
 	var arow_bg := PanelContainer.new()
-	arow_bg.add_theme_stylebox_override("panel", UiWorldSheet._box(Color(1, 1, 1, 0.04), Color(0, 0, 0, 0), 0))
+	arow_bg.add_theme_stylebox_override("panel", SheetChrome.box(Color(1, 1, 1, 0.04), Color(0, 0, 0, 0), 0))
 	dv.add_child(arow_bg)
 	var arow := HBoxContainer.new()
 	arow.add_theme_constant_override("separation", 16)
@@ -158,11 +158,11 @@ func _build() -> void:
 	av.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	av.add_theme_constant_override("separation", 0)
 	arow.add_child(av)
-	_a_name = UiWorldSheet.label("", 30, UiTokens.GOLD)
+	_a_name = SheetChrome.label("", 30, UiTokens.GOLD)
 	_a_name.name = "AnimalName"
 	_a_name.clip_text = true
 	av.add_child(_a_name)
-	_a_sub = UiWorldSheet.label("", 19, UiTokens.TEXT)
+	_a_sub = SheetChrome.label("", 19, UiTokens.TEXT)
 	av.add_child(_a_sub)
 	_space = RichTextLabel.new()
 	_space.name = "PenSpace"
@@ -190,15 +190,15 @@ func _build() -> void:
 		cell.name = "Cell%d" % i
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		var sb := UiWorldSheet._box(Color(0, 0, 0, 0.18), Color(1, 1, 1, 0.07), 1)
+		var sb := SheetChrome.box(Color(0, 0, 0, 0.18), Color(1, 1, 1, 0.07), 1)
 		for s in ["normal", "hover", "pressed", "disabled"]:
 			cell.add_theme_stylebox_override(s, sb)
-		cell.add_theme_stylebox_override("focus", UiWorldSheet._box(Color(0, 0, 0, 0), UiTokens.GOLD, 1))
+		cell.add_theme_stylebox_override("focus", SheetChrome.box(Color(0, 0, 0, 0), UiTokens.GOLD, 1))
 		cell.expand_icon = true
 		cell.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cell.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		cell.add_theme_constant_override("icon_max_width", 72)
-		var lvl := UiWorldSheet.label("", 14, UiTokens.MUTED)
+		var lvl := SheetChrome.label("", 14, UiTokens.MUTED)
 		lvl.name = "Lv"
 		lvl.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 		lvl.offset_left = -60
@@ -206,7 +206,7 @@ func _build() -> void:
 		lvl.offset_top = 4
 		lvl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		cell.add_child(lvl)
-		var mark := UiWorldSheet.Brackets.new()
+		var mark := SheetChrome.Brackets.new()
 		mark.name = "Brackets"
 		mark.visible = false
 		cell.add_child(mark)
@@ -215,7 +215,7 @@ func _build() -> void:
 		_grid.add_child(cell)
 		_cells.append(cell)
 		_cell_slot.append(-1)
-	_msg = UiWorldSheet.label("", 15, UiTokens.GOLD)
+	_msg = SheetChrome.label("", 15, UiTokens.GOLD)
 	_msg.name = "Message"
 	_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -228,16 +228,16 @@ func _build() -> void:
 	foot.name = "Foot"
 	foot.add_theme_constant_override("separation", 14)
 	fpad.add_child(foot)
-	_store = UiWorldSheet.ghost_button("Store")
+	_store = SheetChrome.ghost_button("Store")
 	_store.name = "Store"
 	_store.pressed.connect(_on_store)
-	_tame = UiWorldSheet.gold_button("Tame")
+	_tame = SheetChrome.gold_button("Tame")
 	_tame.name = "Tame"
 	_tame.pressed.connect(_on_tame)
-	_feed = UiWorldSheet.ghost_button("Feed meat")
+	_feed = SheetChrome.ghost_button("Feed meat")
 	_feed.name = "Feed"
 	_feed.pressed.connect(_on_feed)
-	_ok = UiWorldSheet.gold_button("OK")
+	_ok = SheetChrome.gold_button("OK")
 	_ok.name = "OK"
 	_ok.pressed.connect(close)
 	for b in [_store, _tame, _feed, _ok]:
@@ -257,18 +257,18 @@ func _pad(parent: Control) -> MarginContainer:
 
 func _band(text: String) -> PanelContainer:
 	var band := PanelContainer.new()
-	band.add_theme_stylebox_override("panel", UiWorldSheet._box(Color(0, 0, 0, 0.45), Color(0, 0, 0, 0), 0))
-	var l := UiWorldSheet.label(text, 20, UiTokens.TEXT)
+	band.add_theme_stylebox_override("panel", SheetChrome.box(Color(0, 0, 0, 0.45), Color(0, 0, 0, 0), 0))
+	var l := SheetChrome.label(text, 20, UiTokens.TEXT)
 	l.name = "BandLabel"
 	band.add_child(l)
 	return band
 
 func _care_row(parent: Control, key: String) -> Label:
 	var r := HBoxContainer.new()
-	var k := UiWorldSheet.label(key, 18, UiTokens.TEXT)
+	var k := SheetChrome.label(key, 18, UiTokens.TEXT)
 	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	r.add_child(k)
-	var v := UiWorldSheet.label("", 18, UiTokens.GOLD)
+	var v := SheetChrome.label("", 18, UiTokens.GOLD)
 	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	r.add_child(v)
 	parent.add_child(r)
@@ -488,11 +488,11 @@ func _fill_tags(def: CreatureDef) -> void:
 	var compact := UiTokens.is_compact(get_viewport_rect().size)
 	for t in tags:
 		var tile := PanelContainer.new()
-		tile.add_theme_stylebox_override("panel", UiWorldSheet._box(Color(1, 1, 1, 0.06), Color(0, 0, 0, 0), 0))
+		tile.add_theme_stylebox_override("panel", SheetChrome.box(Color(1, 1, 1, 0.06), Color(0, 0, 0, 0), 0))
 		var v := VBoxContainer.new()
 		v.alignment = BoxContainer.ALIGNMENT_CENTER
-		v.add_child(UiWorldSheet.icon_rect(t[0], 24.0 if compact else 36.0))
-		var l := UiWorldSheet.label(str(t[1]), 12 if compact else 16, UiTokens.TEXT)
+		v.add_child(SheetChrome.icon_rect(t[0], 24.0 if compact else 36.0))
+		var l := SheetChrome.label(str(t[1]), 12 if compact else 16, UiTokens.TEXT)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(l)
 		tile.add_child(v)

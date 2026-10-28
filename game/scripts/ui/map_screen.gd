@@ -226,7 +226,7 @@ func _ready() -> void:
 	_btn_row.name = "Actions"
 	_btn_row.add_theme_constant_override("separation", 12)
 	add_child(_btn_row)
-	_close = SheetChrome.icon_button(&"close")
+	_close = SheetChrome.Glyph.new(&"close")
 	_close.name = "Close"
 	_close.pressed.connect(close)
 	add_child(_close)
@@ -493,7 +493,6 @@ func _place() -> void:
 	# right column: ✕ top right, legend panel, actions + zoom at the foot
 	_close.position = Vector2(r.x - MARGIN - 64.0 + 10.0, MARGIN * 0.5)
 	_close.size = Vector2(64, 64)
-	_close.add_theme_constant_override("icon_max_width", 24 if compact else 32)
 	var zoom_row := get_node_or_null("ZoomRow") as Control
 	for b in _btn_row.get_children():
 		(b as Control).add_theme_font_size_override("font_size", 15 if compact else 20)

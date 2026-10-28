@@ -21,6 +21,7 @@ trawling history. When the build changes a system, update its doc in the same co
 | UI screens (every screen, phone landscape) | [ui-screens.md](ui-screens.md) | **captured 2026-10-28** — `docs/current/screens/` (31 WebP at 844x390 drawn 2x) + the newer sheet captures under `docs/orchestration/reports/`; rerun `tools/ui_screens.sh` |
 | Glowing eyes, bloom & trails | [eyes.md](eyes.md) | **written 2026-10-28** — eyeshine dots, rim light, wisp/bloom/embers mesh, per-species `eyes`/`trail` data, cost & tests |
 | Occlusion (see-through props) | [occlusion.md](occlusion.md) | **written 2026-10-28** — the between-camera-and-survivor rule, dither constants, 8 MultiMesh slots, roof fade, tests |
+| Creature rigs and clips | [creature-clips.md](creature-clips.md) | **generated 2026-10-28** — per species: jaw, wings, and which of the 25 clips ship (bite_combo, leaps, dodges, strafes, walk_back, kick, charge...) |
 
 *(Sheets live in the canon worktree's `game/data_sheets/` — nine CSVs the owner can edit in any
 spreadsheet app, synced back into `game/data/*.json` by the agent. The three generated pages come

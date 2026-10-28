@@ -51,6 +51,10 @@ var uid: String = ""
 var owner_id: String = "local"
 var build_level: int = 1    # spec 10 finished building level
 var inherited_attributes: Array = []
+## What the inherited traits did (BuildingQuality.effects): durability added to max_hp, storage
+## spaces added to the container. Kept so a save row round-trips the building's real numbers.
+var quality_durability: int = 0
+var quality_storage: int = 0
 var door_open: bool = false
 var storage: Inventory      # chests and large boxes (structures.json storage_slots), else null
 var sign_text: String = ""  # signs (structures.json text_max)
@@ -217,6 +221,22 @@ func take_contents() -> Array[ItemStack]:
 	storage.changed.emit()
 	return out
 
+## Reflect the inherited traits in the container's size (Lightweight/Heavy storage spaces, only for
+## kinds that have storage at all — StructurePlacer.apply_effects only grants them there).
+func apply_storage_bonus() -> void:
+	if storage == null:
+		return
+	var base := int(piece_def(kind).get("storage_slots", 0))
+	var want := maxi(1, base + quality_storage)
+	if want > storage.slot_count:
+		storage.grow_to(want)
+		return
+	# A Heavy material shrinks the box: only while the slots it would lose are empty, so a
+	# re-applied or reloaded bonus can never delete stored items (spec 10 §4).
+	while storage.slot_count > want and storage.slots[storage.slot_count - 1] == null:
+		storage.slot_count -= 1
+		storage.slots.resize(storage.slot_count)
+
 func is_wall_type() -> bool:
 	return kind in WALL_KINDS
 
@@ -338,7 +358,9 @@ func set_door_open(on: bool) -> void:
 ## Upgrade in place: same node, slot and pose; new look, colliders and full durability of the tier.
 func set_tier(p_tier: StringName) -> void:
 	tier = p_tier
-	health.setup(max_durability(kind, tier), -1.0, float(tier_def(tier).get("creature_mult", 1.0)))
+	# The inherited traits stay with the piece (they came from its materials); only the tier's own
+	# durability changes, plus what those traits add. # ASSUMPTION: spec 10 gives no re-levelling rule.
+	health.setup(max_durability(kind, tier) + float(quality_durability), -1.0, float(tier_def(tier).get("creature_mult", 1.0)))
 	if is_inside_tree():
 		_rebuild()
 		_apply_layer()
@@ -380,6 +402,8 @@ func to_dict() -> Dictionary:
 		"owner_id": owner_id,
 		"level": build_level,
 		"inherited_attributes": inherited_attributes.duplicate(true),
+		"quality_durability": quality_durability,
+		"quality_storage": quality_storage,
 		"max_durability": health.max_hp,
 		"current_durability": health.hp,
 		"position": [slot.x, slot.y, slot.z, slot.w],
@@ -411,9 +435,17 @@ static func from_dict(row: Dictionary) -> StructurePiece:
 	if str(row.get("id", "")) != "":
 		p.uid = str(row["id"]).left(32)
 	p.owner_id = str(row.get("owner_id", "local")).left(64)
+	# A row from before building quality (no `level`) loads as a sane level-1, trait-less piece.
 	p.build_level = int(_num(row.get("level"), 1.0, 60.0, 1.0))
 	var attrs: Variant = row.get("inherited_attributes", [])
-	p.inherited_attributes = (attrs as Array).duplicate(true) if attrs is Array else []
+	p.inherited_attributes = BuildingQuality.clean_attrs(attrs)
+	var dq: Variant = row.get("quality_durability", 0)
+	p.quality_durability = clampi(int(dq) if dq is int or dq is float else 0, 0, 600)
+	if p.quality_durability != 0:  # only a row that kept its trait bonus gets it back
+		p.health.setup(p.health.max_hp + float(p.quality_durability), -1.0, float(tier_def(p.tier).get("creature_mult", 1.0)))
+	var sq: Variant = row.get("quality_storage", 0)
+	p.quality_storage = clampi(int(sq) if sq is int or sq is float else 0, -p.storage.slot_count if p.storage else 0, 600)
+	p.apply_storage_bonus()
 	p.health.hp = _num(row.get("current_durability"), 0.0, p.health.max_hp, p.health.max_hp)
 	p.door_open = k == &"door" and row.get("open", false) == true
 	var contents: Variant = row.get("contents", [])

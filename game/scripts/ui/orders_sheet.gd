@@ -7,7 +7,6 @@ extends Control
 ## HUD quest card at it (hunt_hud.gd reads OrdersSheet.hud_step).
 ## Public entry: open(player) / close(); HuntHud.open_orders() opens it from the HUD.
 
-const Chrome := preload("res://scripts/ui/uichar_chrome.gd")
 
 ## Back (‹) is pressed: the host returns to its menu. Nothing connected: the sheet just closes.
 signal back_requested
@@ -51,12 +50,12 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	z_index = 45  # above the HUD hexes that share its canvas layer
 	visible = false
-	_c = Chrome.build(self, "Orders")
+	_c = SheetChrome.build(self, "Orders")
 	(_c["back"] as Button).pressed.connect(_on_back)
 	var close_btn: Button = _c["close"]
 	close_btn.name = "OrdersClose"
 	close_btn.pressed.connect(close)
-	_done_label = Chrome.label("", 24, UiTokens.TEXT)
+	_done_label = SheetChrome.label("", 24, UiTokens.TEXT)
 	_done_label.name = "OrdersDone"
 	_done_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	(_c["right"] as Control).add_child(_done_label)
@@ -67,7 +66,7 @@ func _ready() -> void:
 	(_c["body"] as Control).add_child(row)
 	var left := PanelContainer.new()
 	left.name = "OrdersListPanel"
-	left.add_theme_stylebox_override("panel", Chrome.panel_box())
+	left.add_theme_stylebox_override("panel", SheetChrome.panel_style())
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.size_flags_stretch_ratio = 0.75
 	row.add_child(left)
@@ -82,7 +81,7 @@ func _ready() -> void:
 	csb.content_margin_bottom = 8
 	chapter.add_theme_stylebox_override("panel", csb)
 	# ASSUMPTION: objectives.json has no chapters, so the list is headed by what it is.
-	_chapter = Chrome.label("Standing orders", 20, UiTokens.TEXT)
+	_chapter = SheetChrome.label("Standing orders", 20, UiTokens.TEXT)
 	_chapter.name = "OrdersChapter"
 	chapter.add_child(_chapter)
 	lcol.add_child(chapter)
@@ -98,7 +97,7 @@ func _ready() -> void:
 	scroll.add_child(_list)
 	var right := PanelContainer.new()
 	right.name = "OrdersDetail"
-	right.add_theme_stylebox_override("panel", Chrome.panel_box())
+	right.add_theme_stylebox_override("panel", SheetChrome.panel_style())
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(right)
 	var d := VBoxContainer.new()
@@ -107,7 +106,7 @@ func _ready() -> void:
 	_parch = PanelContainer.new()
 	_parch.name = "OrdersParchment"
 	d.add_child(_parch)
-	_title = Chrome.label("", 32, UiTokens.PARCHMENT_INK, true)
+	_title = SheetChrome.label("", 32, UiTokens.PARCHMENT_INK, true)
 	_title.name = "OrdersTitle"
 	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_title.clip_text = true
@@ -125,17 +124,17 @@ func _ready() -> void:
 	var info := VBoxContainer.new()
 	info.add_theme_constant_override("separation", 10)
 	pad.add_child(info)
-	_about = Chrome.label("", 22)
+	_about = SheetChrome.label("", 22)
 	_about.name = "OrdersAbout"
 	_about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(_about)
-	_how_cap = Chrome.label("HOW", 15, UiTokens.MUTED)
+	_how_cap = SheetChrome.label("HOW", 15, UiTokens.MUTED)
 	info.add_child(_how_cap)
-	_how = Chrome.label("", 21)
+	_how = SheetChrome.label("", 21)
 	_how.name = "OrdersHow"
 	_how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(_how)
-	_rew_cap = Chrome.label("REWARD", 15, UiTokens.MUTED)
+	_rew_cap = SheetChrome.label("REWARD", 15, UiTokens.MUTED)
 	info.add_child(_rew_cap)
 	_rewards = HBoxContainer.new()
 	_rewards.name = "OrdersRewards"
@@ -145,7 +144,7 @@ func _ready() -> void:
 	foot.name = "OrdersFooter"
 	d.add_child(foot)
 	# ASSUMPTION: no "Show on map" button: orders carry no place in objectives.json.
-	_track = Chrome.gold_button("Track on HUD")
+	_track = SheetChrome.gold_button("Track on HUD")
 	_track.name = "OrdersTrack"
 	_track.pressed.connect(_on_track)
 	foot.add_child(_track)
@@ -215,25 +214,25 @@ func _layout() -> void:
 	if _c.is_empty():
 		return
 	var view := get_viewport_rect().size
-	Chrome.layout(_c, view, UiTokens.safe_insets(get_viewport()))
-	var compact := Chrome.compact(view)
-	_parch.add_theme_stylebox_override("panel", Chrome.parchment_box(8.0 if compact else 22.0))
+	SheetChrome.fit(_c, view, UiTokens.safe_insets(get_viewport()))
+	var compact := SheetChrome.compact(view)
+	_parch.add_theme_stylebox_override("panel", SheetChrome.parchment_style(8.0 if compact else 22.0, 8.0 if compact else 22.0))
 	_parch.custom_minimum_size = Vector2(0, 48 if compact else 76)
-	_title.add_theme_font_size_override("font_size", Chrome.px(view, 32, 19))
-	_about.add_theme_font_size_override("font_size", Chrome.px(view, 22, 14))
-	_how.add_theme_font_size_override("font_size", Chrome.px(view, 21, 14))
+	_title.add_theme_font_size_override("font_size", SheetChrome.px(view, 32, 19))
+	_about.add_theme_font_size_override("font_size", SheetChrome.px(view, 22, 14))
+	_how.add_theme_font_size_override("font_size", SheetChrome.px(view, 21, 14))
 	for l: Label in [_how_cap, _rew_cap]:
-		l.add_theme_font_size_override("font_size", Chrome.px(view, 15, 12))
-	_done_label.add_theme_font_size_override("font_size", Chrome.px(view, 24, 16))
-	_chapter.add_theme_font_size_override("font_size", Chrome.px(view, 20, 14))
+		l.add_theme_font_size_override("font_size", SheetChrome.px(view, 15, 12))
+	_done_label.add_theme_font_size_override("font_size", SheetChrome.px(view, 24, 16))
+	_chapter.add_theme_font_size_override("font_size", SheetChrome.px(view, 20, 14))
 	var pad := _about.get_parent().get_parent() as MarginContainer
 	for side in ["left", "right", "top", "bottom"]:
 		pad.add_theme_constant_override("margin_" + side, 10 if compact else 24)
 	var foot := _track.get_parent() as MarginContainer
 	for side in ["left", "right", "top", "bottom"]:
 		foot.add_theme_constant_override("margin_" + side, 6 if compact else 18)
-	_track.add_theme_font_size_override("font_size", Chrome.px(view, 28, 16))
-	_track.custom_minimum_size = Vector2(0, 72 if not compact else Chrome.TAP)
+	_track.add_theme_font_size_override("font_size", SheetChrome.px(view, 28, 16))
+	_track.custom_minimum_size = Vector2(0, 72 if not compact else SheetChrome.TAP)
 	if visible:
 		rebuild()
 
@@ -254,14 +253,14 @@ func _build_list() -> void:
 		_list.remove_child(c)
 		c.queue_free()
 	var view := get_viewport_rect().size
-	var compact := Chrome.compact(view)
+	var compact := SheetChrome.compact(view)
 	for i in steps().size():
 		var r := row(player, i)
 		var on := i == _sel
 		var b := Button.new()
 		b.name = "Order_%d" % i
 		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(0, Chrome.TAP if compact else 84.0)
+		b.custom_minimum_size = Vector2(0, SheetChrome.TAP if compact else 84.0)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = UiTokens.GOLD_DIM if on else Color(0, 0, 0, 0)
@@ -295,20 +294,20 @@ func _build_list() -> void:
 		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		h.add_child(col)
 		var done := i < World.objective
-		var t := Chrome.label(str(r["title"]), Chrome.px(view, 22, 14), UiTokens.MUTED if done else UiTokens.TEXT)
+		var t := SheetChrome.label(str(r["title"]), SheetChrome.px(view, 22, 14), UiTokens.MUTED if done else UiTokens.TEXT)
 		t.clip_text = true
 		t.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		col.add_child(t)
-		var hint := Chrome.label(str(r["hint"]), Chrome.px(view, 15, 12), UiTokens.MUTED)
+		var hint := SheetChrome.label(str(r["hint"]), SheetChrome.px(view, 15, 12), UiTokens.MUTED)
 		hint.clip_text = true
 		hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		col.add_child(hint)
-		var p := Chrome.label(str(r["progress"]), Chrome.px(view, 20, 14), UiTokens.GOLD)
+		var p := SheetChrome.label(str(r["progress"]), SheetChrome.px(view, 20, 14), UiTokens.GOLD)
 		p.name = "Progress"
 		p.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		h.add_child(p)
 		if on:
-			b.add_child(Chrome.Brackets.new())
+			b.add_child(SheetChrome.Brackets.new())
 		var idx := i
 		b.pressed.connect(func () -> void:
 			_sel = idx
@@ -336,9 +335,9 @@ func _build_detail() -> void:
 		var pc := PanelContainer.new()
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(1, 1, 1, 0.08)
-		sb.set_content_margin_all(10 if not Chrome.compact(view) else 6)
+		sb.set_content_margin_all(10 if not SheetChrome.compact(view) else 6)
 		pc.add_theme_stylebox_override("panel", sb)
-		pc.add_child(Chrome.label(chip, Chrome.px(view, 21, 14)))
+		pc.add_child(SheetChrome.label(chip, SheetChrome.px(view, 21, 14)))
 		_rewards.add_child(pc)
 	# Done orders cannot be tracked; the one the card already shows reads "Tracking on HUD" (grey).
 	if _sel < World.objective:

@@ -85,7 +85,9 @@ static func complete(player: Player, site: Node) -> CraftStation:
 	var cell := cs.build_cell
 	var rot := cs.build_rot
 	# Compute before consuming: the levels come from the exact instances about to be spent.
-	var level := Blueprints.result_level(bp, cs.contributing_levels(), player.skills.level_of("construction") if player and player.skills else 1)
+	# # ASSUMPTION: a blueprint whose slots all count for attributes but not the level lands on 1.
+	var level := maxi(1, Blueprints.result_level(bp, cs.contributing_levels(), player.skills.level_of("construction") if player and player.skills else 1))
+	var traits := cs.contributing_traits()
 	var station_cfg: Dictionary = bp.get("station", {})
 	var kind := StringName(str(station_cfg.get("kind", "workbench")))
 	# Consume the escrow once; the instances are not copied anywhere else.
@@ -96,6 +98,14 @@ static func complete(player: Player, site: Node) -> CraftStation:
 	var station := CraftStation.make(kind)
 	station.station_level = level
 	station.station_tags = _names(station_cfg.get("tags", ["workbench"]))
+	# Spec 10 §3: the primary material's traits pass to the station; only what the blueprint
+	# supports (plus the station's rare effects) does anything. Set before it enters the tree so its
+	# _ready folds the durability in and hands the job effects to the ProcessStation.
+	var eff := BuildingQuality.effects(BuildingQuality.station_supported(bp), traits, true)
+	station.inherited_attributes = traits.duplicate(true)
+	station.quality_durability = int(eff.get("durability", 0))
+	station.quality_duration_mult = float(eff.get("duration_mult", 1.0))
+	station.quality_slots = int(eff.get("slots", 0))
 	station.build_cell = cell
 	station.build_rot = rot
 	runtime.add_child(station)
@@ -104,7 +114,7 @@ static func complete(player: Player, site: Node) -> CraftStation:
 	station.set_grid_pose(cell, rot)
 	grid.occupy(station, grid.cells_for(kind, cell, rot))
 	cs.queue_free()
-	print("[buildflow] %s complete: %s lv %d from %s" % [cs.site_id, kind, level, spent.map(func (s: ItemStack) -> int: return s.level)])
+	print("[buildflow] %s complete: %s lv %d traits=%s from %s" % [cs.site_id, kind, level, traits, spent.map(func (s: ItemStack) -> int: return s.level)])
 	if player and player.skills:
 		# XP once, on completion only (never per work tick, cancel or reopen).
 		player.skills.add_xp("construction", float(bp.get("xp", 25.0)))
