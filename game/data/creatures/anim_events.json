@@ -38,7 +38,7 @@
       "note": "0.46 s: crouch, backward leap, landing squash; in place, the game moves the creature back during it. tools/jaw/make_hop_back.py (deinonychus first)."
     },
     "strafe_left": {
-      "note": "sidestep loop, body keeps facing the target; tools/gait/make_gait.py with tools/gait/<id>_strafe_left.json"
+      "note": "sidestep loop for every species, body keeps facing; tools/gait/make_gait.py <species>.json walk --as strafe_left --travel 1,0,0"
     },
     "strafe_right": {
       "note": "mirror of strafe_left"
@@ -48,7 +48,7 @@
         0.2,
         0.65
       ],
-      "note": "long backward leap, wings flared; tools/jaw/make_hop_back.py --name leap_back"
+      "note": "long backward leap, 0.79 s, wings fully flared; the game sets the distance (~5 m)"
     },
     "pounce": {
       "airborne": [
@@ -56,7 +56,7 @@
         0.65
       ],
       "hit_frac": 0.7,
-      "note": "ambush pounce: crouch, forward leap nose-down with wings flared, lands on the target; tools/jaw/make_hop_back.py --forward"
+      "note": "ambush pounce, 0.96 s: crouch, long high forward leap nose-down, wings fully flared; the game sets the distance (owner: larger leaps, ~8-10 m from cover)"
     },
     "walk_back": {
       "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing"
@@ -86,15 +86,15 @@
       "run": 2.508
     },
     "deinonychus": {
-      "height_m": 2.8,
-      "run_l": 6.204,
+      "height_m": 2.0,
+      "run_l": 4.432,
       "run_len": 0.5,
-      "run_r": 6.204,
-      "walk_l": 1.316,
+      "run_r": 4.432,
+      "walk_l": 0.94,
       "walk_len": 1.0,
-      "walk_r": 1.316,
-      "walk": 1.316,
-      "run": 6.204
+      "walk_r": 0.94,
+      "walk": 0.94,
+      "run": 4.432
     },
     "gallimimus": {
       "height_m": 3.8,

@@ -10,6 +10,8 @@ usage: Blender -b -P tools/gait/make_gait.py -- <base.glb> <species.json> <clip>
            [--frames-dir DIR]   also render side-view frames of the posed mesh (for strips)
            [--textured]         render those frames textured with Eevee instead of grey Workbench
            [--set key=value ...] override clip parameters (numbers), for quick experiments
+           [--as NAME --travel x,y,z] the same plan carried along another axis, e.g. walk --as strafe_left
+                                --travel 1,0,0 (armature space; the body keeps facing "forward")
 """
 import json
 import math
@@ -24,6 +26,10 @@ BASE, CFG, CLIP, OUT = argv[:4]
 FRAMES_DIR = argv[argv.index("--frames-dir") + 1] if "--frames-dir" in argv else ""
 cfg = json.load(open(CFG))
 clip = dict(cfg["clips"][CLIP])
+# --as NAME --travel x,y,z: reuse a clip's foot plan in another direction (strafe_left/right, walk_back)
+NAME = argv[argv.index("--as") + 1] if "--as" in argv else CLIP
+if "--travel" in argv:
+    cfg["travel"] = [float(x) for x in argv[argv.index("--travel") + 1].split(",")]
 if "--set" in argv:
     for kv in argv[argv.index("--set") + 1:]:
         if "=" not in kv or kv.startswith("--"):
@@ -49,6 +55,7 @@ sc.render.fps = FPS
 pbs = arm.pose.bones
 bones = arm.data.bones
 FWD = Vector(cfg.get("forward", [0, -1, 0]))  # armature-space forward
+TRAVEL = Vector(cfg.get("travel", list(FWD)))  # where the feet carry the body; differs from FWD for strafes and backing up
 UP = Vector((0, 0, 1))
 SIDE = FWD.cross(UP).normalized()
 
@@ -102,18 +109,18 @@ def foot_plan(name, t):
     leg = LEGS[name]
     u = leg_phase(name, t)
     centre = clip.get("foot_offset_" + leg["end"], 0.0)  # + moves this end's footprint forward
-    a0 = leg["ankle0"] + FWD * centre
+    a0 = leg["ankle0"] + TRAVEL * centre
     lift = clip["lift_" + leg["end"]]
     roll = math.radians(clip.get("toe_roll", 25.0))
     curl = math.radians(clip.get("swing_curl_" + leg["end"], 50.0))
     if u < DUTY:  # stance: slide back at ground speed
         s = u / DUTY
-        pos = a0 + FWD * (STANCE * (0.5 - s))
+        pos = a0 + TRAVEL * (STANCE * (0.5 - s))
         # heel lifts over the last part of the stance while the toe stays put
         heel = max(0.0, (s - 0.75) / 0.25)
         return pos, roll * smoothstep(heel), True
     s = (u - DUTY) / (1 - DUTY)  # swing: lift and carry forward
-    pos = a0 + FWD * (STANCE * (smoothstep(s) - 0.5))
+    pos = a0 + TRAVEL * (STANCE * (smoothstep(s) - 0.5))
     pos = pos + UP * (lift * math.sin(math.pi * s) ** clip.get("lift_shape", 0.8))
     pitch = roll + (curl - roll) * math.sin(math.pi * min(1.0, s * 1.6)) if s < 0.625 else curl * (1 - smoothstep((s - 0.625) / 0.375))
     return pos, pitch, False
@@ -135,7 +142,7 @@ def ends_drop(t):
     for name, leg in LEGS.items():
         ankle, pitch, planted = foot_plan(name, t)
         ankle, _ = toe_pivot(leg, ankle, pitch, planted)
-        hip = leg["hip0"] + FWD * clip.get("legroot_" + leg["end"], 0.0) * (ankle - leg["ankle0"]).dot(FWD)
+        hip = leg["hip0"] + TRAVEL * clip.get("legroot_" + leg["end"], 0.0) * (ankle - leg["ankle0"]).dot(TRAVEL)
         reach = REACH * (leg["l1"] + leg["l2"])
         flat = ankle - hip
         horiz = (flat - UP * flat.dot(UP)).length
@@ -225,7 +232,7 @@ def pose(t, f):
         carry = clip.get("legroot_" + leg["end"], 0.0)
         if root and carry:
             cur = pbs[root].matrix.copy()
-            set_matrix(root, Matrix.Translation(FWD * carry * (ankle - leg["ankle0"]).dot(FWD)) @ cur)
+            set_matrix(root, Matrix.Translation(TRAVEL * carry * (ankle - leg["ankle0"]).dot(TRAVEL)) @ cur)
         pole = Vector(leg["pole"])
         solve_leg(name, ankle, pole)
         fm = r @ rest(leg["foot"])
@@ -242,7 +249,7 @@ def key(f):
 
 
 arm.animation_data_create()
-act = bpy.data.actions.new(CLIP)
+act = bpy.data.actions.new(NAME)
 arm.animation_data.action = act
 for f in range(N + 1):
     t = (f % N) / N
@@ -250,7 +257,7 @@ for f in range(N + 1):
     key(f)
 sc.frame_start, sc.frame_end = 0, N
 
-report = {"clip": CLIP, "frames": N, "cycle_s": N / FPS, "duty": DUTY, "stride": STRIDE,
+report = {"clip": NAME, "frames": N, "cycle_s": N / FPS, "duty": DUTY, "stride": STRIDE,
           "ground_speed": STRIDE / (N / FPS), "max_drop": {e: round(max(r[e] for r in smooth), 3) for e in ENDS}}
 print("GAIT", json.dumps(report))
 
@@ -266,7 +273,7 @@ for o in list(bpy.data.objects):
 bpy.ops.object.select_all(action="DESELECT")
 arm.select_set(True)
 bpy.context.view_layer.objects.active = arm
-act.name = CLIP
+act.name = NAME
 bpy.ops.export_scene.gltf(
     filepath=OUT, export_format="GLB", export_apply=False, export_yup=True,
     use_selection=True, export_animations=True, export_animation_mode="ACTIONS",
