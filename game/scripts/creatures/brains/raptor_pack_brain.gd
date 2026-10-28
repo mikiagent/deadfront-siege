@@ -52,8 +52,8 @@ func _think(delta: float) -> void:
 		if dist >= 4.0 + excess and dist <= 7.0 + excess and _heavy_cd <= 0.0 and _is_off_axis():
 			creature.stop_move()
 			creature.anim.play_clip(&"attack_heavy")
-			_heavy_cd = 4.5
-			_attack_cd = 1.8
+			_heavy_cd = 4.5 * _rage_cd()
+			_attack_cd = 1.8 * _rage_cd()
 			_set_state(&"attack")
 		return
 	_set_state(&"attack")
@@ -66,7 +66,7 @@ func _think(delta: float) -> void:
 	elif _pack_ready():
 		creature.stop_move()
 		creature.anim.play_clip(&"attack_primary")
-		_attack_cd = 1.1
+		_attack_cd = 1.1 * _rage_cd()
 		if _is_pack_member():
 			_pack_cooldown_until[creature.pack_id] = _now_s() + 0.25
 

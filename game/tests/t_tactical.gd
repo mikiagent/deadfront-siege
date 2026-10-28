@@ -111,6 +111,7 @@ func _run() -> void:
 	await _test_chase()
 	await _test_overshoot()
 	await _test_pursuit()
+	await _test_enrage()
 	_test_natures()
 	_test_direction_clips()
 	_test_run_and_refill()
@@ -611,6 +612,97 @@ func _test_run_and_refill() -> void:
 		rates.append(v.stamina_regen_mult())
 	v.fatigue = keep
 	_expect(rates[0] > rates[1] and rates[1] > rates[2] and rates[2] > rates[3] and rates[0] > 1.0, "stamina refill falls with exhaustion tier %s (fresh faster than before)" % str(rates))
+
+## ENRAGE: no red body tint, blood particles while it lasts (freed after), more movement attacks and
+## combos per minute than calm with the bite share still capped, natures scale it, Timid runs away.
+func _test_enrage() -> void:
+	player.global_position = Vector3(0, 0.9, 0)
+	player.velocity = Vector3.ZERO
+	var c = _fresh_hunter(Vector3(0, 0.1, -7))
+	c.brain.on_aggro(player)
+	c.statuses.apply(&"enraged", player)
+	for i in 5:
+		await physics_frame
+	var fx: Array = c.status_emitters.get(&"enraged", [])
+	var live: bool = fx.size() == 2
+	for e in fx:
+		live = live and is_instance_valid(e) and e is CPUParticles3D and (e as Node).get_parent() == c
+	_expect(c._fx_tint_last == Color.WHITE, "enraged: no red body tint (tint %s)" % str(c._fx_tint_last))
+	_expect(live, "enraged: blood particles on the body and mouth (%d emitters)" % fx.size())
+	c.statuses.clear_id(&"enraged")
+	for i in 3:
+		await physics_frame
+	var gone: bool = not c.status_emitters.has(&"enraged")
+	for e in fx:
+		gone = gone and not is_instance_valid(e)
+	_expect(gone, "the blood particles are freed when the rage ends")
+	c.queue_free()
+	await physics_frame
+	var calm: Dictionary = await _census(&"loyal", false, 30.0)
+	var mad: Dictionary = await _census(&"loyal", true, 30.0)
+	var aggr: Dictionary = await _census(&"aggressive", true, 30.0)
+	var docile: Dictionary = await _census(&"docile", true, 30.0)
+	print("[t_tactical] enrage census calm=%s enraged=%s aggressive=%s docile=%s" % [calm, mad, aggr, docile])
+	_expect(float(mad.moves) > float(calm.moves), "enraged makes more movement attacks and combos per minute (%.1f vs %.1f calm)" % [mad.moves, calm.moves])
+	_expect(float(aggr.moves) > float(docile.moves), "an enraged Aggressive makes more than an enraged Docile (%.1f vs %.1f)" % [aggr.moves, docile.moves])
+	var share: float = float(_t_tac().get("max_basic_share", 0.15))
+	_expect(float(mad.bite_share) <= share and float(aggr.bite_share) <= share, "the bite share stays capped while enraged (%.2f, %.2f <= %.2f)" % [mad.bite_share, aggr.bite_share, share])
+	# Timid: panics and runs from the threat instead.
+	var shy = _fresh_hunter(Vector3(0, 0.1, -6))
+	shy.nature = &"timid"
+	shy.brain.on_aggro(player)
+	for i in 10:
+		await physics_frame
+	var d0: float = Vector2(shy.global_position.x, shy.global_position.z).length()
+	shy.statuses.apply(&"enraged", player)
+	var fled := false
+	for i in 120:
+		await physics_frame
+		fled = fled or shy.brain.state == &"flee"
+	var d1: float = Vector2(shy.global_position.x, shy.global_position.z).length()
+	_expect(fled and d1 > d0 + 2.0, "an enraged Timid runs away (flee=%s, %.1fm -> %.1fm)" % [fled, d0, d1])
+	shy.queue_free()
+	await physics_frame
+
+func _t_tac() -> Dictionary:
+	return load("res://scripts/creatures/brains/tactical_brain.gd").tactics_for(&"pack_flanker")
+
+## Per minute over `secs` simulated seconds against the stationary survivor: movement attacks and
+## combos (pounce, charge, leap-in, combo, power strafe, back-jump, sequences) and the plain-bite share.
+func _census(nature: StringName, rage: bool, secs: float) -> Dictionary:
+	player.global_position = Vector3(0, 0.9, 0)
+	player.velocity = Vector3.ZERO
+	var c = _fresh_hunter(Vector3(0, 0.1, -8))
+	c.nature = nature
+	var b = c.brain
+	var log: Array = []
+	b.tactic.connect(func(k: StringName) -> void: log.append(k))
+	b.sequence_started.connect(func(_n: String, _s: Array) -> void: log.append(&"sequence"))
+	b.on_aggro(player)
+	Engine.time_scale = TIME_SCALE
+	var step := 1.0 / float(Engine.physics_ticks_per_second) * Engine.time_scale
+	var n := int(round(secs / step))
+	var f0 := Engine.get_physics_frames()
+	while Engine.get_physics_frames() - f0 < n:
+		await physics_frame
+		_keep_player_alive()
+		c.health.hp = c.health.max_hp
+		if rage and not c.statuses.has(&"enraged"):
+			c.statuses.apply(&"enraged", player)
+	Engine.time_scale = 1.0
+	var moves := 0
+	var attacks := 0
+	var bites := 0
+	for k in log:
+		if k in [&"pounce", &"charge", &"lunge", &"combo", &"dodge", &"hop", &"sequence"]:
+			moves += 1
+		if k in [&"pounce", &"charge", &"combo", &"bite"]:
+			attacks += 1
+		if k == &"bite":
+			bites += 1
+	c.queue_free()
+	await physics_frame
+	return {"moves": float(moves) * 60.0 / secs, "bite_share": float(bites) / maxf(1.0, float(attacks))}
 
 func _test_natures() -> void:
 	var calm = _spawn(&"deinonychus", Vector3(20, 0.1, 20), &"loyal")

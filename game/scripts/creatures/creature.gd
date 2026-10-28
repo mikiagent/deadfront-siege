@@ -653,18 +653,51 @@ func _status_fx() -> void:
 		_fx_drip.emitting = false
 	if statuses.has(&"venom") or statuses.has(&"poisoned_target"):
 		tint = UiTokens.POISON  # owner 2026-10-28: no green debuffs
-	if statuses.has(&"enraged"):
-		tint = Color(0.9, 0.25, 0.15)
 	if statuses.has(&"groggy") or statuses.has(&"dizziness"):
 		wobble = 1.0
 	if statuses.has(&"fracture"):
 		ap.speed_scale = 0.65
+	_sync_status_emitters()
 	# set_status_fx rewrites every material; call it on change, or while the hit flash decays.
 	var fx := Vector2(dark, wobble)
 	if fx != _fx_last or tint != _fx_tint_last or view._hit_flash_left > 0.0:
 		_fx_last = fx
 		_fx_tint_last = tint
 		view.set_status_fx(dark, tint, wobble)
+
+## Status particle presets on the body (statuses.json fx.particles, e.g. enraged "blood"): a body
+## emitter that drips and a mouth emitter that flecks, sized to the animal. Cheap CPU particles
+## (Compatibility renderer), at most STATUS_EMITTERS_MAX per creature, freed when the status ends.
+const STATUS_EMITTERS_MAX := 2
+var status_emitters: Dictionary = {}  ## status id -> Array[CPUParticles3D]
+
+func _sync_status_emitters() -> void:
+	var want: Dictionary = {}
+	if not health.dead:
+		for inst in statuses.instances():
+			var sd := Data.status(inst.id)
+			if sd and sd.fx_particles == &"blood" and want.is_empty():  # one blood set (2 emitters) at most
+				want[inst.id] = sd
+	for id in status_emitters.keys():
+		if not want.has(id):
+			for e in status_emitters[id]:
+				if is_instance_valid(e):
+					(e as Node).queue_free()
+			status_emitters.erase(id)
+	for id in want:
+		if status_emitters.has(id):
+			continue
+		var col: Color = (want[id] as StatusDef).fx_color
+		var body := StatusFx.make_emitter(&"drip", col)
+		body.emission_sphere_radius = body_radius() * 0.8
+		body.position = Vector3(0.0, def.height_meters * 0.5, 0.0)
+		var mouth := StatusFx.make_emitter(&"blood", col)
+		mouth.emission_sphere_radius = 0.15
+		mouth.position = Vector3(0.0, def.height_meters * 0.75, -body_radius() - 0.2)  # the head end (the body faces -Z)
+		for e in [body, mouth]:
+			(e as CPUParticles3D).name = "StatusFx_%s" % id
+			add_child(e)
+		status_emitters[id] = [body, mouth]
 
 func _blood_trail() -> void:
 	if not statuses.has(&"bleeding_target"):
@@ -834,6 +867,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 			brain.on_aggro(source)
 
 func _on_died(_source: Node) -> void:
+	_sync_status_emitters()  # the dead stop bleeding with rage
 	if not is_pet:
 		var credited := _source
 		if _source is FieldCatapult and is_instance_valid((_source as FieldCatapult).operator):

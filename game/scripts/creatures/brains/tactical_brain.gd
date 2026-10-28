@@ -98,12 +98,23 @@ func _pre_think(dt: float) -> bool:
 		_end_pounce()
 	return handled
 
+## ENRAGE (owner 2026-10-28: "more aggressive moves (more jumping around and using combo moves)"):
+## while the creature is enraged, tactics.enraged scales a knob, pulled toward 1 by the nature's
+## enrage_mult (Aggressive/Brave most, Docile least): value = 1 + (row - 1) x enrage_mult.
+func _rage(key: String, fallback: float) -> float:
+	if not creature.statuses.has(&"enraged"):
+		return fallback
+	var row: Dictionary = tac.get("enraged", {})
+	if not row.has(key):
+		return fallback
+	return maxf(0.05, 1.0 + (float(row[key]) - 1.0) * creature.nature_knob("enrage_mult", 1.0))
+
 func _t(key: String, fallback: float) -> float:
 	return float(tac.get(key, fallback))
 
 ## Cooldowns scale with the nature (Aggressive shorter).
 func _start_cd(move: StringName) -> void:
-	_cd[move] = _t(str(move) + "_cd", 2.0) * creature.nature_knob("tactic_cooldown_mult", 1.0)
+	_cd[move] = _t(str(move) + "_cd", 2.0) * creature.nature_knob("tactic_cooldown_mult", 1.0) * _rage("cooldown_mult", 1.0)
 
 func cooldown_left(move: StringName) -> float:
 	return float(_cd.get(move, 0.0))
@@ -381,7 +392,8 @@ func pick_sequence(d: float) -> Dictionary:
 		var last := StringName(steps[-1])
 		if not _terminal_ready(last, d):
 			continue
-		var w := float((row as Dictionary).get("weight", 1.0)) * creature.nature_knob("tactic_w_" + str(last), 1.0)
+		var w := float((row as Dictionary).get("weight", 1.0)) * creature.nature_knob("tactic_w_" + str(last), 1.0) \
+			* _rage("w_" + str(last), 1.0) * (_rage("combo_seq_mult", 1.0) if (row["steps"] as Array).size() > 1 else 1.0)
 		if w <= 0.0:
 			continue
 		ok.append([row, w])
@@ -416,7 +428,7 @@ func _offence(d: float, in_jaws: bool) -> bool:
 	# Pressed (owner: "when a player pursues it should strafe and strafe walk to wait for an attack
 	# opening"): while she closes in it repositions until her swing is recovering, her back is
 	# turned, or it has waited wait_max_s; then it commits.
-	if _prey_advancing() and not attack_opening() and _wait_t < _t("wait_max_s", 3.0):
+	if _prey_advancing() and not attack_opening() and _wait_t < _t("wait_max_s", 3.0) * _rage("wait_mult", 1.0):
 		return false
 	_wait_t = 0.0
 	if in_jaws and _strike(d, tac.get("point_blank", ["combo", "bite"])):
@@ -532,16 +544,16 @@ func _charge(delta: float) -> void:
 ## under max_retreat_m. Holding is twice as likely while the prey is not advancing. Natures scale
 ## hold (Brave, Aggressive) and back-off (Timid) weights.
 func _move_beat() -> void:
-	_left = rng.randf_range(_t("circle_min_s", 0.8), _t("circle_max_s", 1.6))
+	_left = rng.randf_range(_t("circle_min_s", 0.8), _t("circle_max_s", 1.6)) * _rage("beat_mult", 1.0)
 	var d := _flat_dist(attack_target)
 	# Reposition (owner): while the basic bite is cooling down, or while she presses it, the filler is
 	# only strafe-walk, the power strafe and one backstep; hold and feint wait for later.
 	var reposition := not _ready_to(&"bite") or _prey_advancing()
 	var w_hold := 0.0 if reposition else _t("w_hold", 0.35) * creature.nature_knob("tactic_hold_mult", 1.0) * (1.0 if _prey_advancing() else 2.0)
-	var w_strafe := _t("w_strafe", 0.35)
-	var w_dodge := _t("w_dodge", 0.3) if creature.can_sprint() else 0.0
+	var w_strafe := _t("w_strafe", 0.35) * _rage("w_strafe", 1.0)
+	var w_dodge := _t("w_dodge", 0.3) * _rage("w_dodge", 1.0) if creature.can_sprint() else 0.0
 	var w_feint := 0.0 if reposition else (_t("w_feint", 0.15) * creature.nature_knob("tactic_feint_mult", 1.0) if creature.can_sprint() and d >= ring_m() - 1.0 else 0.0)
-	var w_hop := _t("w_hop", 0.15) * creature.nature_knob("tactic_backoff_mult", 1.0) if can_disengage() and d < ring_m() - 0.5 else 0.0
+	var w_hop := _t("w_hop", 0.15) * creature.nature_knob("tactic_backoff_mult", 1.0) * _rage("w_hop", 1.0) if can_disengage() and d < ring_m() - 0.5 else 0.0
 	var r := rng.randf() * (w_hold + w_strafe + w_dodge + w_feint + w_hop)
 	if r < w_hold:
 		filler.emit(&"hold")

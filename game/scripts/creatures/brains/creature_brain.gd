@@ -59,6 +59,31 @@ var _awake_until: float = -1.0
 ## Flight, leash and temporary home (see BrainFlight).
 var flight := BrainFlight.new(self)
 
+## ENRAGE x natures (owner 2026-10-28: "timid dinosaurs when they get enraged they run away"): an
+## enraged animal whose nature has enrage_flee panics and runs from its attacker, and comes back to
+## the fight when the rage ends (or it walks home once it is out of range).
+var _enrage_fled := false
+
+func enraged() -> bool:
+	return creature != null and creature.statuses.has(&"enraged")
+
+func _enrage_panic() -> void:
+	if enraged() and creature.nature_flag("enrage_flee") and _valid_target():
+		if state != &"flee":
+			_set_state(&"flee")
+			_enrage_fled = true
+	elif _enrage_fled:
+		_enrage_fled = false
+		if state == &"flee":
+			_set_state(&"approach" if _valid_target() else &"roam")
+
+## The lighter enrage of brains without a tactics profile: attack cooldowns x ai.json
+## default.enraged_cd_mult (ASSUMPTION 0.6), scaled by the nature's enrage_mult.
+func _rage_cd() -> float:
+	if not enraged():
+		return 1.0
+	return clampf(1.0 - (1.0 - float(profile.get("enraged_cd_mult", 0.6))) * creature.nature_knob("enrage_mult", 1.0), 0.2, 1.0)
+
 func _provoked() -> bool:
 	return _now_s() < _provoked_until
 
@@ -226,6 +251,7 @@ func _pre_think(dt: float) -> bool:
 		return false
 	_attack_cd = maxf(0.0, _attack_cd - dt)
 	_combat_memory_left = maxf(0.0, _combat_memory_left - dt)
+	_enrage_panic()
 	flight.tick_home()
 	if state == &"downed":
 		_set_state(&"alert" if _valid_target() else &"roam")
@@ -514,7 +540,7 @@ func _do_attack() -> void:
 	else:
 		_primary_chain += 1
 	creature.anim.play_clip(clip)
-	_attack_cd = 1.2 if clip == &"attack_primary" else 1.8
+	_attack_cd = (1.2 if clip == &"attack_primary" else 1.8) * _rage_cd()
 	if _is_pack_member():
 		_pack_cooldown_until[creature.pack_id] = _now_s() + 0.4
 
@@ -645,7 +671,7 @@ func _cornered() -> bool:
 	return true
 
 func _should_heavy() -> bool:
-	if _primary_chain >= int(profile.get("heavy_after_primaries", 3)):
+	if _primary_chain >= int(profile.get("heavy_after_primaries", 3)) - (1 if enraged() else 0):  # enraged: the special comes sooner
 		return true
 	if not _valid_target():
 		return false

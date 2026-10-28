@@ -24,7 +24,9 @@
     "tactic_overshoot_mult": 1.0,
     "tactic_w_pounce": 1.0,
     "tactic_w_charge": 1.0,
-    "tactic_w_combo": 1.0
+    "tactic_w_combo": 1.0,
+    "enrage_mult": 1.0,
+    "enrage_flee": false
   },
   "_masking": {
     "_about": "ASSUMPTION: 'never' drops a nature for an archetype, 'only' limits it to a list, 'rare_for' allows it at rarity_weight_mult of the normal weight. A defensive or territorial grazer that rolls Aggressive charges on sight, where today it waits to be hit.",
@@ -70,7 +72,8 @@
       "tactic_feint_mult": 1.5,
       "tactic_backoff_mult": 2.0,
       "tactic_w_charge": 0.4,
-      "tactic_w_pounce": 1.5
+      "tactic_w_pounce": 1.5,
+      "enrage_flee": true
     },
     "brave": {
       "label": "Brave",
@@ -79,7 +82,8 @@
       "protect_rider_below_hp": 1.0,
       "_about": "Protects its rider even when wounded: a ridden pet never retreats for its own HP.",
       "tactic_hold_mult": 1.5,
-      "tactic_w_combo": 1.5
+      "tactic_w_combo": 1.5,
+      "enrage_mult": 1.4
     },
     "aggressive": {
       "label": "Aggressive",
@@ -100,14 +104,16 @@
       "tactic_hold_mult": 1.5,
       "tactic_overshoot_mult": 1.6,
       "tactic_w_charge": 2.0,
-      "tactic_w_combo": 1.5
+      "tactic_w_combo": 1.5,
+      "enrage_mult": 1.5
     },
     "loyal": {
       "label": "Loyal",
       "follow_dist_mult": 0.7,
       "guard_radius_mult": 1.4,
       "protect_owner": true,
-      "_about": "Stays close and prioritises protecting its owner: a shorter follow leash, and it picks the threat nearest the owner."
+      "_about": "Stays close and prioritises protecting its owner: a shorter follow leash, and it picks the threat nearest the owner.",
+      "enrage_mult": 1.0
     },
     "stubborn": {
       "label": "Stubborn",
@@ -116,7 +122,8 @@
       "pen_time_mult": 1.4,
       "fear_immune": true,
       "retreat_threshold_mult": 0.6,
-      "_about": "Harder to tame (more feeds, a shorter window, a longer pen wait), resistant to fear (never flees from damage) and slow to back off."
+      "_about": "Harder to tame (more feeds, a shorter window, a longer pen wait), resistant to fear (never flees from damage) and slow to back off.",
+      "enrage_mult": 1.0
     },
     "docile": {
       "label": "Docile",
@@ -124,7 +131,8 @@
       "tame_window_mult": 1.25,
       "pen_time_mult": 0.8,
       "damage_dealt_mult": 0.75,
-      "_about": "Easier to tame (fewer feeds, a longer window, a shorter pen wait), less effective in combat (deals less damage)."
+      "_about": "Easier to tame (fewer feeds, a longer window, a shorter pen wait), less effective in combat (deals less damage).",
+      "enrage_mult": 0.4
     }
   }
 }
