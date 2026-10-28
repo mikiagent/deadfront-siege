@@ -266,7 +266,7 @@ func _layout() -> void:
 	if UiTokens.is_phone(r):
 		_inspect_hex.position = Vector2(r.x - HEX - 16.0 - inset.x, r.y - HEX * 2.0 - 36.0 - inset.y)
 	else:
-		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + DayNightDial.DISC + 8.0)  # under the dial
+		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + _daynight.size.y + 8.0)  # under the dial
 	field.place(r, inset, map_floor())
 	if HudLayout.landscape_phone(r):
 		HudLayout.place_landscape_phone(self, r, inset)
