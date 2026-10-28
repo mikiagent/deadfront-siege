@@ -13,9 +13,13 @@ static func show_for(creature: Creature, clip: StringName) -> void:
 	var t := Telegraph.new()
 	t.name = "Telegraph"
 	creature.get_parent().add_child(t)
-	var impact := creature.global_position + -creature.global_transform.basis.z * (2.2 if clip == &"attack_heavy" else 1.2)
-	t.global_position = impact
+	var ahead := 2.2 if clip == &"attack_heavy" else 1.2
 	var radius := 1.8 if clip == &"attack_heavy" else 1.1
+	if clip == &"bite_combo":  # the MEGA chomp snaps straight ahead, just past the snout
+		ahead = creature.body_radius() + 1.0
+		radius = 1.4
+	var impact := creature.global_position + -creature.global_transform.basis.z * ahead
+	t.global_position = impact
 	t._build(radius, creature)
 	t.visible = not (player and player.statuses.has_flag(&"hide_telegraphs"))
 	t.clip = clip
@@ -103,3 +107,25 @@ func _exit_tree() -> void:
 	_active.erase(self)
 	if is_instance_valid(attacker) and attacker.anim and attacker.anim.attack_hit.is_connected(_on_attacker_hit):
 		attacker.anim.attack_hit.disconnect(_on_attacker_hit)
+
+## TACTICS pounce: a ring on the prey for the windup and the leap (the brain moves it with the prey until
+## take-off). Rolling inside it at the hit time is a dodge (player_dodged), like the heavy ring.
+static func show_pounce(creature: Creature, at: Vector3, radius: float, duration: float) -> Telegraph:
+	var t := Telegraph.new()
+	t.name = "PounceTelegraph"
+	creature.get_parent().add_child(t)
+	t.global_position = at
+	t.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	t._build(radius, creature)
+	t.clip = &"pounce"
+	t._life = duration + LINGER
+	var player := PlayerRegistry.local()
+	t.visible = not (player and player.statuses.has_flag(&"hide_telegraphs"))
+	var label := Label3D.new()
+	label.text = "POUNCE - ROLL!"
+	label.position.y = 2
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 32
+	t.add_child(label)
+	_active.append(t)
+	return t

@@ -461,6 +461,8 @@ func _physics_process(delta: float) -> void:
 			# ASSUMPTION (owner decision pending, dino-ai-06): chase at chase_speed_mult (0.7) so a survivor can outrun.
 			&"approach", &"attack": speed *= float(brain.profile.get("chase_speed_mult", 0.7))
 			&"flee": speed = flee_speed(speed, slow)
+		if brain.speed_override >= 0.0:
+			speed = brain.speed_override * slow  # TACTICS: circle at a walk, lunge at a run
 	if is_pet and hunger <= 0.0:
 		speed *= 0.85
 	# ENERGY: a chase / flee / retreat runs on the pool; winded, it drops to a walk.
@@ -488,7 +490,9 @@ func _physics_process(delta: float) -> void:
 		velocity.z = dir.z * speed
 		# Face a low-passed velocity, not the raw nav step: path jitter must not become yaw jitter.
 		_face_vel = _face_vel.lerp(Vector3(velocity.x, 0.0, velocity.z), 1.0 - exp(-delta / FACE_VEL_TAU_S))
-		if _face_vel.length() > FACE_MIN_SPEED_MPS:
+		if brain and not is_pet and brain.strafe_face and is_instance_valid(brain.strafe_face):
+			face_towards(brain.strafe_face.global_position, delta)  # TACTICS: sidestep facing the prey
+		elif _face_vel.length() > FACE_MIN_SPEED_MPS:
 			# Slack: the heading follows the smoothed velocity but ignores reversals inside
 			# FACE_SLACK_RAD, so the wobble the low-pass leaves cannot dither the yaw.
 			var err := angle_difference(rotation.y, atan2(-_face_vel.x, -_face_vel.z))
@@ -568,6 +572,8 @@ func _make_brain() -> void:
 		brain = PetBrain.new()
 	elif def and def.id == &"tyrannosaurus":
 		brain = TyrantBrain.new()
+	elif def and TacticalBrain.has_tactics(def):
+		brain = TacticalBrain.new()
 	elif def and def.mapped_archetype() == &"raptor_pack":
 		brain = RaptorPackBrain.new()
 	else:
@@ -716,7 +722,8 @@ func _on_hit(clip: StringName) -> void:
 		var offset := global_position - target.global_position
 		if brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3:
 			return
-		apply_species_on_hit(clip, target)
+		if not CreatureAttack.apply_for(self, clip, target, brain.hit_damage_mult(clip, anim.hit_index) if brain else 1.0):
+			return
 		if target is Player:
 			(target as Player).receive_creature_hit(self, clip)
 
@@ -777,7 +784,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		stagger_left = 0.45 if kind == &"crit" else 0.3
 		_stagger_immune_until = _now_s() + 1.0
 		staggered = true
-	if not brain is TyrantBrain and not str(anim.current_clip).begins_with("attack"):
+	if not brain is TyrantBrain and not anim.current_clip in CreatureAnim.ATTACKS:  # a hit never cuts a bite or the combo short
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		# The authored hurt clip plays when the rig has one (the test was inverted), gated by the
 		# stagger's once-a-second immunity so a pinned animal can still fight back.

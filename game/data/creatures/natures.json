@@ -15,7 +15,10 @@
     "pen_time_mult": 1.0,
     "fear_immune": false,
     "retreat_as_flee": false,
-    "damage_dealt_mult": 1.0
+    "damage_dealt_mult": 1.0,
+    "tactic_cooldown_mult": 1.0,
+    "tactic_feint_mult": 1.0,
+    "tactic_standoff_mult": 1.0
   },
   "_masking": {
     "_about": "ASSUMPTION: 'never' drops a nature for an archetype, 'only' limits it to a list, 'rare_for' allows it at rarity_weight_mult of the normal weight. A defensive or territorial grazer that rolls Aggressive charges on sight, where today it waits to be hit.",
@@ -52,8 +55,13 @@
       "retreat_threshold_mult": 1.8,
       "aggro_radius_mult": 0.9,
       "retreat_as_flee": true,
-      "never": ["tyrant", "titan"],
-      "_about": "Avoids combat, more likely to flee. A T. rex or a titan never rolls it, and a territorial charger neither."
+      "never": [
+        "tyrant",
+        "titan"
+      ],
+      "_about": "Avoids combat, more likely to flee. A T. rex or a titan never rolls it, and a territorial charger neither.",
+      "tactic_standoff_mult": 1.3,
+      "tactic_feint_mult": 1.5
     },
     "brave": {
       "label": "Brave",
@@ -67,8 +75,17 @@
       "aggro_radius_mult": 1.3,
       "auto_engage": true,
       "guard_radius_mult": 1.25,
-      "rare_for": ["pack_mule", "spiked_tail", "runner", "antlered", "club_tail", "titan"],
-      "_about": "Attacks nearby threats without orders: engages anything inside its (wider) aggro radius unprovoked. Herbivore archetypes roll it a tenth as often (a charging bull is rare, a pack of raptors is not)."
+      "rare_for": [
+        "pack_mule",
+        "spiked_tail",
+        "runner",
+        "antlered",
+        "club_tail",
+        "titan"
+      ],
+      "_about": "Attacks nearby threats without orders: engages anything inside its (wider) aggro radius unprovoked. Herbivore archetypes roll it a tenth as often (a charging bull is rare, a pack of raptors is not).",
+      "tactic_cooldown_mult": 0.7,
+      "tactic_feint_mult": 0.5
     },
     "loyal": {
       "label": "Loyal",
