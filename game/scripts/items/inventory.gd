@@ -176,6 +176,10 @@ func wear_gather_tool(tool: StringName) -> bool:
 	var s := find_gather_tool(tool)
 	if s == null:
 		return false
+	return wear_tool(s)
+
+## One gather's wear on this tool stack (W2-GATHER wears the helper tool a node's role picked).
+func wear_tool(s: ItemStack) -> bool:
 	var d := s.def()
 	# ASSUMPTION: work tools lose 1 durability per gather; combat weapons used as tools lose 3.
 	var cost := 1

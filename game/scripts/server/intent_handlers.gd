@@ -114,7 +114,9 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var stack := ItemStack.make(def.id, rng.randi_range(int(o.get("min", 1)), int(o.get("max", 1))), attrs, zone)
 	if bool(n.get("unstable", false)):
 		stack.set_flag(&"unstable", true)
-	var mult := ProgressionScaling.gather_yield_multiplier(zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, ch.level_of("gathering")))
+	var family := str(n.get("family", ""))
+	# W2-GATHER: the same tool rule as the client (the role's tool helps on hand-pickable nodes).
+	var mult := GatherService.yield_multiplier_with(inv, tool_class, family, zone, maxi(1, ch.level_of("gathering")))
 	stack.count = maxi(1, int(floor(float(stack.count) * mult)))
 	if rng.randf() < fmod(mult, 1.0):
 		stack.count += 1
@@ -123,16 +125,24 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 		stack.level = cap
 		stack.attributes["level"] = cap
 	var before := stack.count
+	var had := inv.uids()  # W2-GATHER: the units this pass lands are the instances not in it
 	var gained := before - inv.add(stack)
 	if gained <= 0:
 		return no("bag_full", "bag is full")
+	# W2-GATHER: as on the client, a helper tool wears, each item rolls the green rare trait, and the
+	# finds roll on the node's island climate, all with this op's rng.
+	GatherService.wear_role_tool(inv, tool_class, family)
+	var traits := GatherService.stamp_traits(inv, had, stack, gained, rng)
+	var rares := GatherService.add_finds(inv, family, tool_class, str(attrs.get("climate", "")), stack.level, maxi(1, ch.level_of("gathering")), rng)
 	_write("take_node_unit", [node_id, str(def.id)])
 	var uids := ch.commit(inv, "gather", seq)
 	count("minted", def.id, gained)
+	for id in rares:
+		count("minted", id, 1)
 	ch.add_xp("gathering", 2)
-	if str(n.get("family", "")).begins_with("Rock") or str(n.get("family", "")) == "clay":
+	if family.begins_with("Rock") or family == "clay":
 		ch.add_xp("processing", 1)
-	return ok({"item": str(def.id), "gained": gained, "uids": uids})
+	return ok({"item": str(def.id), "gained": gained, "uids": uids, "rares": rares.map(func(id: StringName) -> String: return str(id)), "traits": traits.map(func(t: StringName) -> String: return str(t))})
 
 ## act.loot {corpse_id, slot, count?}: move a corpse slot (or part of it) into the bag.
 func _loot(ch: CharacterState, a: Dictionary) -> Dictionary:

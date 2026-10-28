@@ -226,7 +226,7 @@ def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
     a("")
     a("## Butchering drops per species")
     a("")
-    a("`base` drops fall on every kill; `rare` drops need butcher skill at least the listed level.")
+    a("`base` drops fall on every kill, counts scaled by the local survivor's best knife tier (+15% per tier above stone, 0.75x with no knife, never below 1) and Butchering level (+1% per level); `rare` drops need butcher skill at least the listed level and then roll a chance (default 0.12, +15% per knife tier, cap 0.6). Any part a Butchering skill node gates waits until that node is learned. Numbers: `game/data/loot_tables.json` `butcher`; code: `game/scripts/gather/loot_roller.gd` `roll_carcass`.")
     a("")
     for d, b in creatures:
         if not b:
