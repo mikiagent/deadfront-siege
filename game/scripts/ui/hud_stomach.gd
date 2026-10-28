@@ -1,37 +1,114 @@
 class_name HudStomach
 extends RefCounted
-## HUDRULES (owner 2026-10-28: "add a circular stomach indicator to the right of the health bar"): a ring
-## that empties as hunger grows, a white stomach glyph inside. HuntHud draws it beside the two bars.
-# ASSUMPTION: this build has no satiety meter (PRD :72/:1030, survival-needs.md "Food & relief"), so the ring
-# reads what a meal leaves in her: the share of eaten Energy still digesting (Digestion rows, remaining /
-# total). It is full right after a meal and empties over the food's digest time; empty = nothing in her
-# stomach. No rule changes: it only reads Digestion.
+## HUDRULES (owner 2026-10-28): the stomach indicator right of the health bar. Round 3 (owner: "it should be a
+## circular bar where red is too full stomach, green is full, yellow is hungry, and red (again) is empty
+## stomach. The stomach icon should change depending on hunger. Saturation is a yellow circular bar outside
+## that is like a cooldown until you start getting hungry again"):
+##   inner ring  fullness, coloured by state and blended between the bands (STOPS);
+##   glyph       a stomach drawing by state (GLYPH, `_src/icons_p.py`; normal and full share one, sized apart);
+##   outer ring  saturation, yellow, draining like a cooldown while the last meal digests.
+## It only reads the food system; no hunger rule changes.
+# ASSUMPTION: this build has no satiety meter (PRD :72/:1030, survival-needs.md "Food & relief"). Fullness is
+# what is still in her stomach: each digesting meal's foods.json `fullness` (0-100 scale, cap
+# `defaults.caps.fullness`) times the share of its Energy still undigested, summed, over the cap. Above
+# 1.0 she has eaten more than a full stomach holds (overfull). Saturation is the longest digestion row's
+# time left over its digest time: full on a fresh meal, empty when nothing digests.
 
 const TRACK := Color(0.08, 0.08, 0.1, 0.9)
-const LOW := 0.25  ## under this the ring turns LIFE red
+const FALLBACK_FULLNESS := 10.0  ## ASSUMPTION: a digesting food with no foods.json fullness counts as a snack
+## Band edges (fraction of a full stomach), ASSUMPTION: the model names no hungry / full thresholds.
+const EMPTY_BELOW := 0.1
+const HUNGRY_BELOW := 0.4
+const NORMAL_BELOW := 0.7
+const OVERFULL_ABOVE := 1.0
+## Colour stops: red empty, yellow hungry, green full, red overfull, blended linearly between them.
+const STOPS := [[0.0, UiTokens.STOMACH_EMPTY], [EMPTY_BELOW, UiTokens.STOMACH_EMPTY], [0.3, UiTokens.STOMACH_HUNGRY],
+	[0.5, UiTokens.STOMACH_HUNGRY], [0.8, UiTokens.STOMACH_FULL], [OVERFULL_ABOVE, UiTokens.STOMACH_FULL],
+	[1.2, UiTokens.STOMACH_OVERFULL]]
+## The glyph's drawn size per state (owner: "empty stomach looks shrunk, full stomach looks big"); HuntHud
+## eases the drawn scale toward it (SCALE_SPEED per second) so a state change grows or shrinks the glyph.
+const GLYPH_SCALE := {&"empty": 0.92, &"hungry": 0.95, &"normal": 0.98, &"full": 1.0, &"overfull": 1.06}
+const SCALE_SPEED := 0.6
+const GLYPH := {&"empty": &"stomach_empty", &"hungry": &"stomach_hungry", &"normal": &"stomach",
+	&"full": &"stomach", &"overfull": &"stomach_overfull"}
 
-## 0..1: how full she is.
-static func fill_of(p: Player) -> float:
+## How full she is: 0 = empty, 1 = a full stomach, above 1 = overfull.
+static func fullness_of(p: Player) -> float:
 	var dig := Digestion.of(p)
 	if dig == null:
 		return 0.0
-	var total := 0.0
+	var cap := maxf(1.0, FoodEffects.cap_for("fullness"))
+	var sum := 0.0
 	for row in dig.rows():
-		total += float(row.get("total", 0.0))
-	return clampf(dig.total_remaining() / total, 0.0, 1.0) if total > 0.0 else 0.0
+		var total := float(row.get("total", 0.0))
+		if total <= 0.0:
+			continue
+		var full := float(FoodEffects.entry_for(StringName(str(row.get("def_id", "")))).get("fullness", FALLBACK_FULLNESS))
+		sum += full * clampf(float(row.get("remaining", 0.0)) / total, 0.0, 1.0)
+	return sum / cap
 
-static func color_for(fill: float) -> Color:
-	return UiTokens.LIFE if fill < LOW else UiTokens.GOLD
+## 0..1: the longest digestion's time left over its digest time (0 when nothing digests).
+static func saturation_of(p: Player) -> float:
+	var dig := Digestion.of(p)
+	if dig == null:
+		return 0.0
+	var best := 0.0
+	for row in dig.rows():
+		var secs := float(row.get("seconds", 0.0))
+		var rate := float(row.get("rate", -1.0))
+		if secs > 0.0 and rate > 0.0:
+			best = maxf(best, clampf(float(row.get("remaining", 0.0)) / rate / secs, 0.0, 1.0))
+	return best
 
-## The ring centred on `c` (outer radius `rad`), filled clockwise from the top. Returns its box.
-static func draw(ci: CanvasItem, c: Vector2, rad: float, fill: float) -> Rect2:
-	var w := maxf(3.0, rad * 0.22)
+static func state_of(f: float) -> StringName:
+	if f > OVERFULL_ABOVE:
+		return &"overfull"
+	if f >= NORMAL_BELOW:
+		return &"full"
+	if f >= HUNGRY_BELOW:
+		return &"normal"
+	if f >= EMPTY_BELOW:
+		return &"hungry"
+	return &"empty"
+
+static func color_for(f: float) -> Color:
+	for i in range(1, STOPS.size()):
+		var hi: Array = STOPS[i]
+		if f <= float(hi[0]):
+			var lo: Array = STOPS[i - 1]
+			var t := clampf((f - float(lo[0])) / maxf(0.0001, float(hi[0]) - float(lo[0])), 0.0, 1.0)
+			return (lo[1] as Color).lerp(hi[1] as Color, t)
+	return STOPS[STOPS.size() - 1][1]
+
+## The arc still lit for `frac` (owner: "degrades clockwise"): it always ends at 12 o'clock, and the gap
+## opens from 12 o'clock clockwise as it empties. Returns (start, end) angles, end - start = TAU * frac.
+static func arc_for(frac: float) -> Vector2:
+	var f := clampf(frac, 0.0, 1.0)
+	return Vector2(-PI * 0.5 + TAU * (1.0 - f), -PI * 0.5 + TAU)
+
+## The rings centred on `c` (outer radius `rad`), each lit from where its clockwise gap ends round to
+## 12 o'clock; `glyph_scale` sizes the stomach. Returns the box.
+static func draw(ci: CanvasItem, c: Vector2, rad: float, fullness: float, saturation: float, glyph_scale: float = 1.0) -> Rect2:
+	# Both rings are yellow at times (hungry, saturation), so they differ in weight: a thin outer ring past a
+	# dark gap, a thick inner one.
+	var sw := maxf(2.0, rad * 0.1)    # outer saturation ring
+	var w := maxf(4.0, rad * 0.27)    # inner fullness ring
+	var r_in := rad - sw - 2.5 - w * 0.5
 	ci.draw_circle(c, rad, UiTokens.HUD_FILL)
-	ci.draw_arc(c, rad - w * 0.5, 0.0, TAU, 40, TRACK, w, true)
+	ci.draw_arc(c, rad - sw * 0.5, 0.0, TAU, 40, Color(UiTokens.SATURATION, 0.18), sw, true)
+	if saturation > 0.0:
+		var sa := arc_for(saturation)
+		ci.draw_arc(c, rad - sw * 0.5, sa.x, sa.y, maxi(4, int(40.0 * saturation)), UiTokens.SATURATION, sw, true)
+	ci.draw_arc(c, r_in, 0.0, TAU, 40, TRACK, w, true)
+	if fullness < EMPTY_BELOW:  # empty reads red even with nothing to fill
+		ci.draw_arc(c, r_in, 0.0, TAU, 40, Color(UiTokens.STOMACH_EMPTY, 0.45), w, true)
+	var fill := clampf(fullness, 0.0, 1.0)
 	if fill > 0.0:
-		ci.draw_arc(c, rad - w * 0.5, -PI * 0.5, -PI * 0.5 + TAU * clampf(fill, 0.0, 1.0), maxi(4, int(40.0 * fill)), color_for(fill), w, true)
-	var g := (rad - w) * 1.25
-	var tex := UiIcons.icon(&"stomach") if UiIcons.path_for(&"stomach") != "" else null
+		var fa := arc_for(fill)
+		ci.draw_arc(c, r_in, fa.x, fa.y, maxi(4, int(40.0 * fill)), color_for(fullness), w, true)
+	var g := (r_in - w * 0.5) * 1.6 * glyph_scale
+	var id: StringName = GLYPH[state_of(fullness)]
+	var tex := UiIcons.icon(id) if UiIcons.path_for(id) != "" else null
 	if tex:
 		ci.draw_texture_rect(tex, Rect2(c - Vector2(g, g) * 0.5, Vector2(g, g)), false, Color(1, 1, 1, 0.95))
 	return Rect2(c - Vector2(rad, rad), Vector2(rad, rad) * 2.0)

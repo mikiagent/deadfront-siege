@@ -211,23 +211,83 @@ func _check_tip(view: Vector2, tag: String) -> void:
 
 func _test_stomach(view: Vector2) -> void:
 	var tag := "%dx%d" % [view.x, view.y]
+	var ST: GDScript = load("res://scripts/ui/hud_stomach.gd")
 	var dig = DIG.of(_player)
 	dig.rows().clear()
 	await _frames(2)
-	_expect(is_equal_approx(_hud.stomach_fill, 0.0), "%s empty stomach reads 0 (%.2f)" % [tag, _hud.stomach_fill])
-	dig.schedule(&"t_meal", 80.0, 300.0)
+	_expect(is_equal_approx(_hud.stomach_fill, 0.0) and _hud.stomach_state == &"empty" and is_equal_approx(_hud.stomach_saturation, 0.0), "%s nothing digesting: empty, no saturation (%.2f, %s, %.2f)" % [tag, _hud.stomach_fill, _hud.stomach_state, _hud.stomach_saturation])
+	# A roast (foods.json fullness 50 of a 100 cap), 60 Energy digesting over 300 s.
+	var row: Dictionary = dig.schedule(&"roast", 60.0, 300.0)
 	await _frames(2)
-	_expect(is_equal_approx(_hud.stomach_fill, 1.0), "%s right after a meal the ring is full (%.2f)" % [tag, _hud.stomach_fill])
-	for left in [60.0, 20.0, 0.0]:
-		dig.rows()[0]["remaining"] = left
+	_expect(absf(_hud.stomach_fill - 0.5) < 0.001 and _hud.stomach_state == &"normal", "%s one fresh roast reads half full, normal (%.2f %s)" % [tag, _hud.stomach_fill, _hud.stomach_state])
+	_expect(absf(_hud.stomach_saturation - 1.0) < 0.001, "%s fresh meal: the saturation ring is full (%.2f)" % [tag, _hud.stomach_saturation])
+	for left in [45.0, 30.0, 6.0]:
+		row["remaining"] = left
 		await _frames(2)
-		_expect(absf(_hud.stomach_fill - left / 80.0) < 0.001, "%s %.0f of 80 left reads %.2f" % [tag, left, _hud.stomach_fill])
+		var want_sat: float = left / (60.0 / 300.0) / 300.0
+		_expect(absf(_hud.stomach_fill - 0.5 * left / 60.0) < 0.001, "%s %.0f of 60 left reads %.2f full" % [tag, left, _hud.stomach_fill])
+		_expect(absf(_hud.stomach_saturation - want_sat) < 0.001, "%s saturation follows the digestion time left (%.2f, want %.2f)" % [tag, _hud.stomach_saturation, want_sat])
+	_expect(_hud.stomach_state == &"empty", "%s 6 of 60 left (0.05) is empty" % tag)
+	row["remaining"] = 30.0
+	await _frames(2)
+	_expect(_hud.stomach_state == &"hungry", "%s 0.25 is hungry (%s)" % [tag, _hud.stomach_state])
+	dig.schedule(&"roast", 60.0, 300.0)
+	row["remaining"] = 60.0
+	await _frames(2)
+	_expect(absf(_hud.stomach_fill - 1.0) < 0.001 and _hud.stomach_state == &"full", "%s two roasts: full (%.2f %s)" % [tag, _hud.stomach_fill, _hud.stomach_state])
+	dig.schedule(&"roast", 60.0, 300.0)
+	await _frames(2)
+	_expect(_hud.stomach_fill > 1.4 and _hud.stomach_state == &"overfull", "%s three roasts: overfull (%.2f %s)" % [tag, _hud.stomach_fill, _hud.stomach_state])
 	var ring: Rect2 = _hud.stomach_rect
 	var vit: Rect2 = _hud.drawn_blocks.get("vitals", Rect2())
 	_expect(ring.has_area() and vit.encloses(ring), "%s the ring sits inside the vitals panel (%s in %s)" % [tag, ring, vit])
 	_expect(ring.position.x > vit.position.x + vit.size.x * 0.5 and ring.position.y < vit.position.y + 30.0, "%s the ring is at the right, level with the health bar (%s)" % [tag, ring])
-	_expect(ring.size.x >= 28.0, "%s the ring is %.0f px across" % [tag, ring.size.x])
+	var hit := Rect2()
+	for t: Rect2 in _hud.taken_rects(PackedStringArray(["vitals"])):
+		if t.intersects(ring):
+			hit = t
+	_expect(not hit.has_area(), "%s the ring is off every other HUD rect (hits %s)" % [tag, hit])
 	dig.rows().clear()
+	await _frames(1)
+	if tag != "844x390":
+		return
+	# Band colours (once): red empty, yellow hungry, green full, red overfull, blended between.
+	_expect(ST.color_for(0.0).is_equal_approx(TOK.STOMACH_EMPTY) and ST.color_for(0.05).is_equal_approx(TOK.STOMACH_EMPTY), "empty is red")
+	_expect(ST.color_for(0.4).is_equal_approx(TOK.STOMACH_HUNGRY), "hungry is yellow")
+	_expect(ST.color_for(0.9).is_equal_approx(TOK.STOMACH_FULL) and TOK.STOMACH_FULL.h > 0.25 and TOK.STOMACH_FULL.h < 0.45, "full is green")
+	_expect(ST.color_for(1.3).is_equal_approx(TOK.STOMACH_OVERFULL) and TOK.STOMACH_OVERFULL.h < 0.06, "overfull is red")
+	var mid: Color = ST.color_for(0.65)
+	_expect(not mid.is_equal_approx(TOK.STOMACH_HUNGRY) and not mid.is_equal_approx(TOK.STOMACH_FULL) and mid.g >= TOK.STOMACH_HUNGRY.g - 0.01, "0.65 blends yellow into green (%s)" % mid)
+	var icons: GDScript = load("res://scripts/ui/ui_icons.gd")
+	var seen := {}
+	for st in [&"empty", &"hungry", &"full", &"overfull"]:
+		var gid: StringName = ST.GLYPH[st]
+		_expect(icons.path_for(gid) != "" and icons.icon(gid) != null and not seen.has(gid), "%s has its own glyph %s" % [st, gid])
+		seen[gid] = true
+	_expect(ST.GLYPH[&"normal"] == ST.GLYPH[&"full"] and ST.GLYPH_SCALE[&"normal"] < ST.GLYPH_SCALE[&"full"], "normal draws the full stomach, smaller")
+	for pair in [[0.0, &"empty"], [0.2, &"hungry"], [0.55, &"normal"], [0.85, &"full"], [1.1, &"overfull"]]:
+		_expect(ST.state_of(pair[0]) == pair[1], "%.2f is %s (%s)" % [pair[0], pair[1], ST.state_of(pair[0])])
+	# Degrades clockwise: the lit arc always ends at 12 o'clock and starts later (clockwise) as it empties.
+	var top := -PI * 0.5 + TAU
+	var last := -INF
+	for f in [1.0, 0.75, 0.5, 0.25, 0.0]:
+		var arc: Vector2 = ST.arc_for(f)
+		_expect(is_equal_approx(arc.y, top) and absf(arc.y - arc.x - TAU * f) < 0.0001 and arc.x > last, "%.2f full lights %.2f of the ring, ending at 12 o'clock (%s)" % [f, f, arc])
+		last = arc.x
+	_expect(is_equal_approx(ST.arc_for(0.75).x, 0.0), "at 75 %% the gap runs clockwise from 12 to 3 o'clock")
+	# The glyph's drawn scale follows the state: shrunk empty, big full, bigger overfull.
+	var sc: Dictionary = ST.GLYPH_SCALE
+	_expect(sc[&"empty"] < sc[&"hungry"] and sc[&"hungry"] < sc[&"normal"] and sc[&"normal"] < sc[&"full"] and sc[&"full"] < sc[&"overfull"], "glyph scale grows from empty to overfull (%s)" % sc)
+	var dig2 = DIG.of(_player)
+	for st in [[[], &"empty"], [[1.0, 1.0], &"full"], [[1.0, 1.0, 1.0], &"overfull"], [[0.5], &"hungry"]]:
+		dig2.rows().clear()
+		for share in st[0]:
+			var r2: Dictionary = dig2.schedule(&"roast", 60.0, 300.0)
+			r2["remaining"] = 60.0 * float(share)
+		await _secs(0.6)
+		_expect(_hud.stomach_state == st[1] and absf(_hud.stomach_glyph_scale - float(sc[st[1]])) < 0.001, "%s: glyph %s at scale %.2f (want %.2f)" % [st[1], ST.GLYPH[_hud.stomach_state], _hud.stomach_glyph_scale, sc[st[1]]])
+	dig2.rows().clear()
+	await _frames(1)
 
 func _creature(species: StringName, at: Vector3):
 	var c = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()

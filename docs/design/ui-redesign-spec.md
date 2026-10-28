@@ -302,3 +302,9 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
   the activity sticks.
 - [owner 2026-10-28] The **mounted energy bar** is segmented (10 segments, ASSUMPTION) and a darker blue
   (`UiTokens.MOUNT_ENERGY`) than the survivor's own stamina bar (`UiTokens.PLAYER_ENERGY`).
+- [owner 2026-10-28] The stomach indicator is a circular bar: **red overfull, green full, yellow hungry,
+  red empty**. This green is the one sanctioned exception to "green = healing" (`UiTokens.STOMACH_*`).
+  It **degrades clockwise**: full is a complete green circle, and the gap opens from 12 o'clock
+  clockwise. The **glyph changes with the state**: shrunken when empty, big when full, swollen when
+  overfull, easing in scale between them. **Saturation** is a thin yellow outer ring that drains like a
+  cooldown while the last meal digests.
