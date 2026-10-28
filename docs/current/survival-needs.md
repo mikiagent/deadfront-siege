@@ -76,6 +76,38 @@ Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 - Warming/Cooling meals, dried/smoked relief and capacity buffs (Dutch Coffee's max-fatigue
   ceiling): per-food numbers in items-traits.md; buffs live in `BuffSlots`.
 
+### Cooking roles & per-slot inheritance (`game/scripts/items/cook_roles.gd`, `game/data/cook_roles.json`)
+- A cooking recipe slot may name a **role** — `main`, `topping`, `sauce`, `broth`, `spice`,
+  `support`. The role is an extra restriction on the slot: its `categories` list (and `exclude`
+  list) must also match the item, so a spice can never fill a main slot even when the slot's own
+  category would take it (`CookRoles.role_accepts` in `_allowed`). A recipe with no role on any
+  slot keeps category-only behaviour.
+- Inheritance is per recipe (`"inherit": true`) and per slot (`"inherit": {traits, processed,
+  flags, rare}`), read from **that exact ingredient instance** by `CookRoles.collect` before the
+  units are spent: `traits` copies the instance's attributes by key, `processed` copies its
+  in-place cooking history, `flags` copies its flags, `rare` lets green/rare attributes pass.
+  Key collisions resolve **first wins in slot order** — the same trait on two mains does not add
+  up or average. Slot 0 (`primary`) still carries level/quality for the dish.
+- What a dish inherited is stored on the item in `attributes.cooked_roles` (one row per filled
+  slot: def id, level, kept traits, dropped traits, cooking history, flags, role bonus) plus
+  `attributes.cooked_buffs`. A roled recipe does **not** keep the primary's wholesale attribute
+  copy, so a dish shows only what its rules let through; `Food.inspector_text`
+  (`game/scripts/items/food.gd`) prints a `cooked in:` line naming each slot's role, ingredient and
+  carried traits, marking a refused one `(kept out)`.
+- Role bonuses: topping/sauce/broth/spice ingredients grant a buff when their category matches
+  `role_bonus` in `game/data/cook_roles.json` (`fruit_glaze`, `herbal_zing`, `spice_warmth`,
+  `broth_comfort`; 600 s, +2 to +4 to one stat). They live in buff group `cooked_role`
+  (`game/data/foods.json`), so they neither replace nor are replaced by the dish's own
+  Enhanced Ability/Survival buff. These numbers are ASSUMPTIONs — spec 08 §4 gives no figures.
+- Inherited traits feed the dish's FOODFX bundle: `FoodEffects.evaluate` appends
+  `CookRoles.effect_rows` (`rich_cut`: ×1.15 Energy and +2 Fullness per level; `gamey_cut`:
+  +4 Fullness and +3 Thirst per level; `fresh_cut`: +2 Health per level — all ASSUMPTION) and
+  reports which traits were carried and which were discarded. A raw ingredient carrying the same
+  attribute gets none of this; only the stored dish record counts.
+- Poison survives cooking whatever the flags say. Six example recipes ship as data
+  (`roled_grilled_meat`, `roled_berry_glazed_meat`, `roled_broth_soup`, `roled_spiced_stew`,
+  `roled_herb_roast`, `roled_salad`), listed with their slots in recipes.md.
+
 ## Rest (`game/scripts/player/rest_state.gd`, rates in `game/data/rest.json`)
 - A Rest context hex (and the X key, InputMap action `rest`) anywhere out of combat sits her down
   (`PlayerActions.rest()`; online an `act.rest {"on": bool}` intent, only queued — no server side
