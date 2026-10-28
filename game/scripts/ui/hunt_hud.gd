@@ -48,6 +48,22 @@ var _events := HudEventState.new()
 var _yield := YieldCard.new()  ## UIGATHER: the B1 yield card (spec §4.5)
 var _rest_fx := HudRestBox.new()
 var _status_fx := StatusFx.new()
+var _buff_row := HudBuffRow.new()  ## HUDRULES: buffs / boons / debuffs under the vitals, with tooltips
+var stomach_rect := Rect2()  ## HUDRULES: the fullness ring beside the bars, drawn this frame
+var stomach_fill := 0.0
+var orders_badge_rect := Rect2()  ## HUDRULES: the collapsed orders badge on the minimap, drawn this frame
+var orders_badge_text := ""
+var _orders_badge_px := 12
+var _orders_flash := 0.0
+var _orders_seen := -1
+## HUDRULES (owner: "auto expand when you are doing something to complete the task"): seconds the card
+## stays auto-expanded after the last progress on the shown order (or while the fight serves it).
+var orders_auto_t := 0.0
+var _orders_suppressed := false  # collapsed by hand during this activity: stays collapsed until it ends
+var _orders_frac := -1.0
+var _orders_frac_index := -1
+var _orders_poll := 0.0
+const ORDERS_AUTO_S := 4.0  # ASSUMPTION: the owner asked for "a few seconds"
 var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
 var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
@@ -152,6 +168,8 @@ func _ready() -> void:
 				player.statuses.apply(&"bleed_3")
 				if Game.shot_path.contains("poison"):
 					player.statuses.apply(&"venom"))
+	if Game.shot_path.contains("hudrules"):  # HUDRULES captures: bleed, Well Rested, a food buff (HudrulesShot)
+		get_tree().create_timer(0.6).timeout.connect(func () -> void: HudrulesShot.stage(self))
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 	if "--bite-test" in OS.get_cmdline_user_args():  # screenshot runs: snap the jaws every 0.45 s
@@ -289,6 +307,7 @@ func _build_minimap() -> void:
 	# _draw_minimap; no CanvasItem shader participates in this path.
 	World.island_changed.connect(_refresh_minimap_after_travel)
 	_minimap.draw.connect(_draw_minimap)
+	_minimap.draw.connect(_draw_orders_on_map)  # HUDRULES: after the map, so the badge sits over its corner
 	_minimap.gui_input.connect(func (ev: InputEvent) -> void:
 		if (ev is InputEventScreenTouch and not (ev as InputEventScreenTouch).pressed) or (ev is InputEventMouseButton and not (ev as InputEventMouseButton).pressed and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT):
 			_open_map()
@@ -1325,6 +1344,18 @@ func _build_fatigue_panel() -> void:
 func _input(event: InputEvent) -> void:
 	if player == null or player.dead or _fatigue_panel == null:
 		return
+	if not sheet_open() and _orders_press(event):  # HUDRULES: the orders badge / card collapse toggle
+		if player.controls:
+			player.controls._desktop_click_fallback_pending = false
+		get_viewport().set_input_as_handled()
+		queue_redraw()
+		return
+	if not sheet_open() and _buff_row.input(event):  # HUDRULES: chip hover / click / tap toggles its tooltip
+		if player.controls:
+			player.controls._desktop_click_fallback_pending = false  # the chip took it: no world tap behind
+		get_viewport().set_input_as_handled()
+		queue_redraw()
+		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var pill := HudPills.node_at(event.position)  # UIGATHER: a harvest pill is tappable like its node
 		if pill and not sheet_open() and not player.controls.tap_blocked():
@@ -1338,9 +1369,26 @@ func _input(event: InputEvent) -> void:
 			queue_redraw()
 			get_viewport().set_input_as_handled()
 
+## A tap (touch) or a real click on the orders badge or card toggles it; the mouse press a touch also
+## sends is swallowed without toggling back.
+func _orders_press(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch and event.pressed and _orders_toggle_at(event.position):
+		orders_tap()
+		return true
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and _orders_toggle_at(event.position):
+		if event.device != InputEvent.DEVICE_ID_EMULATION:
+			orders_tap()
+		return true
+	return false
+
 func _process(delta: float) -> void:
 	if player == null:
 		return
+	if World.objective != _orders_seen:  # HUDRULES: a finished order flashes the collapsed badge
+		_orders_flash = HudOrdersBadge.FLASH_S if _orders_seen >= 0 and World.objective > _orders_seen else 0.0
+		_orders_seen = World.objective
+	_orders_flash = maxf(0.0, _orders_flash - delta)
+	_tick_orders_auto(delta)
 	_tick_death(delta)
 	# Exhaustion drift sampling (ExhaustTreadmill): sleep/meals arrive as one-off steps, work and
 	# climate as a steady creep; the EMA over fatigue deltas drives the belt's direction and speed.
@@ -1451,9 +1499,12 @@ func _draw() -> void:
 	# old 176 px / 12 px block "tiny desktop typography"). Phone keeps the compact block.
 	var vitals := HudLayout.vitals_rect(self, r)
 	var panel_w := vitals.size.x
-	var bar_w := 232.0 if not phone else maxf(88.0, panel_w - 54.0)
+	var full_w := 232.0 if not phone else maxf(88.0, panel_w - 54.0)
 	var big := 16.0 if not phone else 12.0
 	var gap := 6.0
+	# HUDRULES: the stomach ring stands right of the health and energy bars, as tall as both.
+	var ring_d := big * 2.0 + gap
+	var bar_w := full_w - ring_d - 6.0
 	var num_px := UiTokens.body(r) - 1 if not phone else 12
 	var bar_px := UiTokens.meta(r) if not phone else 12
 	draw_rect(vitals, UiTokens.INK)
@@ -1472,6 +1523,8 @@ func _draw() -> void:
 		en_text = "%s  %s" % [en.name, en_text]
 	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), Color(0.85, 0.62, 0.20) if en.name != "" else Color(0.20, 0.45, 0.80), "", en_text, num_px)
 	yy += big + gap
+	stomach_fill = HudStomach.fill_of(player)
+	stomach_rect = HudStomach.draw(self, Vector2(x + bar_w + 6.0 + ring_d * 0.5, y + ring_d * 0.5), ring_d * 0.5, stomach_fill)
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
 	var face_pos := Vector2(x + 11.0, yy + 10.0)
 	_draw_exhaustion_face(face_pos, strain)
@@ -1479,14 +1532,14 @@ func _draw() -> void:
 	# 75-99 exhausted); the playtest read "TIRED" a few minutes into a walk and it was 25 %.
 	var face_label := "RESTED" if strain < 0.25 else ("WORN" if strain < 0.5 else ("TIRED" if strain < 0.75 else "EXHAUSTED"))
 	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
-	draw_string(_font, Vector2(x + 27.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, bar_w - 30.0, bar_px, face_col)
+	draw_string(_font, Vector2(x + 27.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, full_w - 30.0, bar_px, face_col)
 	yy += 22.0
 	# Owner 2026-10-27: this row is a treadmill — the tread chevrons point and scroll right while
 	# exhaustion rises (work, climate, wet) and left while it eases (sleep, meals); scroll speed
 	# carries how fast it is changing. The drift is sampled in _process; the face's
 	# RESTED/WORN/TIRED/EXHAUSTED tier stays one row above.
-	ExhaustTreadmill.draw_belt(self, Rect2(Vector2(x, yy), Vector2(bar_w, ExhaustTreadmill.BELT_H)), _fat_rate, _belt_phase, strain, face_col, _font, bar_px)
-	_fatigue_rect = Rect2(x, face_pos.y - 14.0, bar_w, maxf(UiTokens.TARGET_MIN, yy + ExhaustTreadmill.BELT_H - face_pos.y + 14.0))
+	ExhaustTreadmill.draw_belt(self, Rect2(Vector2(x, yy), Vector2(full_w, ExhaustTreadmill.BELT_H)), _fat_rate, _belt_phase, strain, face_col, _font, bar_px)
+	_fatigue_rect = Rect2(x, face_pos.y - 14.0, full_w, maxf(UiTokens.TARGET_MIN, yy + ExhaustTreadmill.BELT_H - face_pos.y + 14.0))
 	if _fatigue_panel and _fatigue_panel.visible:
 		_fatigue_panel.position = Vector2(_fatigue_rect.position.x, _fatigue_rect.end.y + 8.0)
 	# Player conditions belong with the player's vitals, directly beneath the top-left panel. On a
@@ -1502,11 +1555,10 @@ func _draw() -> void:
 		if not rest_lines.is_empty():  # REST: the Resting chip comes first while she rests or sleeps
 			HudRestBox.chip(self, _font, Vector2(sx, sy))
 			sx += 30
-		for inst in player.statuses.instances():
-			HudStatusChip.draw(self, _font, Vector2(sx, sy), inst.id, Color(1, 0.75, 0.45))
-			if inst.time_left < 3600.0:  # "until washed / treated" statuses (9999 s) show no countdown
-				draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
-			sx += 30
+		# HUDRULES: only buffs, boons and debuffs here; afflictions are StatusFx's boxes beside her.
+		var row := _buff_row.draw(self, _font, Vector2(sx, sy), player, r)
+		if row.has_area():
+			sx = row.end.x + 4.0
 		if sx > sx0:
 			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
 		# SAVEFIX: a status that lowers max HP says so under its chip (the number alone was a mystery).
@@ -1539,8 +1591,15 @@ func _draw() -> void:
 		plate_t = player.controls.selection.current()  # a tap selects: its plate shows before any fight (a phone keeps the quest card)
 	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
 		plate_t = _last_target
-	if not band.has_area() or (plate_t == null and _levelup_t < 0.0):
-		_draw_quest(r, mp)
+	# HUDRULES (owner 2026-10-28): in combat the card hides unless the fight serves the shown order.
+	# Collapsed (the default, OrdersSheet.hud_expanded) it is a badge in the minimap's corner.
+	var fight_order := _in_combat and quest_served_by_fight()
+	orders_badge_rect = Rect2()
+	if not _in_combat or fight_order:
+		if orders_expanded() and (not band.has_area() or (plate_t == null and _levelup_t < 0.0)):
+			_draw_quest(r, mp)
+		elif not (orders_expanded() and fight_order and _draw_quest_strip(r)):
+			_draw_orders_badge(mp, meta_px)  # collapsed, or the phone band is taken and no strip fits
 	# --- XP bar along the bottom
 	# One bar: the pioneer level, which every skill XP grant also feeds.
 	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
@@ -1588,6 +1647,10 @@ func _draw() -> void:
 	var sfx := _status_fx.draw_boxes(self, _font, player, HudLayout.figure_rect(self), taken_rects(), r)
 	if sfx.has_area():
 		drawn_blocks["statusfx"] = sfx
+	# HUDRULES: the open chip tooltip, before the moving text so the feed and the toasts keep off it
+	var tip := _buff_row.draw_tooltip(self, _font, taken_rects(), r)
+	if tip.has_area():
+		drawn_blocks["buff_tip"] = tip
 	# --- the left XP feed and the yield card, then the notices: each takes the nearest free spot off
 	# every block and hex. One with no room left on screen is skipped.
 	var taken := taken_rects()
@@ -1703,6 +1766,89 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 					block = block.merge(chip)
 					ix += chip.size.x + 6.0
 			drawn_blocks["plate"] = block
+
+## HUDRULES: true while she fights an animal the shown order's `fight` list names (objectives.json).
+func quest_served_by_fight() -> bool:
+	var t: Creature = player.hunt.target if player and player.hunt and is_instance_valid(player.hunt.target) else null
+	return t != null and OrdersSheet.served_by_fight(OrdersSheet.shown_index(), t)
+
+func _draw_orders_badge(mp: Vector2, px: int) -> void:
+	var step := OrdersSheet.hud_step(player)
+	var text := "%d/%d" % [int(step["index"]) + 1, int(step["count"])] if not step.is_empty() else "Done"
+	orders_badge_text = text
+	_orders_badge_px = px
+	orders_badge_rect = HudOrdersBadge.rect_for(_font, mp, text, px)
+	drawn_blocks["orders_badge"] = orders_badge_rect  # drawn by _draw_minimap: the map control paints over the HUD
+
+## The card shows expanded: by hand (OrdersSheet.hud_expanded), or auto while she works on the order
+## unless she collapsed it during this activity.
+func orders_expanded() -> bool:
+	return OrdersSheet.hud_expanded or (orders_auto_t > 0.0 and not _orders_suppressed)
+
+## A tap on the badge expands; a tap on the card collapses (and keeps an auto-expanded card down).
+func orders_tap() -> void:
+	if orders_expanded():
+		OrdersSheet.hud_expanded = false
+		_orders_suppressed = orders_auto_t > 0.0
+	else:
+		OrdersSheet.hud_expanded = true
+
+## Progress on the shown order (its fill rose) or a fight that serves it keeps the auto timer up.
+func _tick_orders_auto(delta: float) -> void:
+	orders_auto_t = maxf(0.0, orders_auto_t - delta)
+	if orders_auto_t <= 0.0:
+		_orders_suppressed = false
+	_orders_poll -= delta
+	if _orders_poll > 0.0:
+		return
+	_orders_poll = 0.25
+	var step := OrdersSheet.hud_step(player)
+	var i := int(step.get("index", -1))
+	var frac := float(step.get("frac", 0.0))
+	if i == _orders_frac_index and frac > _orders_frac + 0.0001:
+		orders_auto_t = ORDERS_AUTO_S
+	_orders_frac = frac
+	_orders_frac_index = i
+	if _in_combat and quest_served_by_fight():
+		orders_auto_t = ORDERS_AUTO_S
+
+func _draw_orders_on_map() -> void:
+	if orders_badge_rect.has_area():
+		var local := Rect2(orders_badge_rect.position - _minimap.global_position, orders_badge_rect.size)
+		HudOrdersBadge.draw(_minimap, _font, local, orders_badge_text, _orders_badge_px, _orders_flash)
+
+## HUDRULES: a press on the orders badge expands the card; a press on the card collapses it.
+func _orders_toggle_at(pos: Vector2) -> bool:
+	var compact := UiTokens.is_compact(get_viewport_rect().size)
+	var hit := (orders_badge_rect.has_area() and HudOrdersBadge.touch_rect(orders_badge_rect, compact).has_point(pos)) \
+		or (drawn_blocks.has("quest") and (drawn_blocks["quest"] as Rect2).has_point(pos))
+	return hit
+
+## A landscape phone in a fight that serves the order: the plate owns the centre band, so the order shows
+## as a 40 px strip (title and progress) on a free spot under the vitals' chip row. False when none is free.
+func _draw_quest_strip(r: Vector2) -> bool:
+	var step := OrdersSheet.hud_step(player)
+	if step.is_empty():
+		return false
+	var v := HudLayout.vitals_rect(self, r)
+	var top := v.end.y + 8.0
+	for k in ["statuses", "status_maxhp", "rest"]:
+		if drawn_blocks.has(k):
+			top = maxf(top, (drawn_blocks[k] as Rect2).end.y + 6.0)
+	var box := UiTokens.free_spot(Rect2(v.position.x, top, minf(260.0, v.size.x), 40.0), taken_rects(), r)
+	if not box.has_area():
+		return false
+	var px := UiTokens.meta(r)
+	draw_rect(box, UiTokens.INK)
+	draw_rect(Rect2(box.position, Vector2(3.0, box.size.y)), UiTokens.TEAL)
+	draw_rect(Rect2(box.position, Vector2(3.0, box.size.y * float(step["frac"]))), UiTokens.TEAL.lightened(0.3))
+	var prog := str(step["progress"])
+	var pw := _font.get_string_size(prog, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	draw_string(_font, box.position + Vector2(10, 15), "ORDERS %d/%d" % [int(step["index"]) + 1, int(step["count"])], HORIZONTAL_ALIGNMENT_LEFT, -1, px - 2, UiTokens.META)
+	draw_string(_font, box.position + Vector2(10, 33), UiTokens.ellipsis(_font, str(step["title"]), box.size.x - pw - 26.0, px + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, px + 1, UiTokens.TEXT)
+	draw_string(_font, box.position + Vector2(box.size.x - pw - 8.0, 33), prog, HORIZONTAL_ALIGNMENT_LEFT, -1, px, UiTokens.TEAL)
+	drawn_blocks["quest"] = box
+	return true
 
 func _draw_quest(r: Vector2, mp: Vector2) -> void:
 	var phone := UiTokens.is_phone(r)

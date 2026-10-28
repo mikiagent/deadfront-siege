@@ -47,6 +47,10 @@ const LIFE := Color(0.847, 0.314, 0.227, 1.0)
 const ENERGY := Color(0.373, 0.659, 0.816, 1.0)
 const XP := Color(0.561, 0.816, 0.910, 1.0)
 const MUTED := Color(0.604, 0.651, 0.678, 1.0)        # secondary labels
+## Status palette (owner 2026-10-28): green is reserved for healing and positive restores; no negative
+## status is ever green, poison/venom/sickness are purple. statuses.json fx colours follow it.
+const HEAL := Color(0.373, 0.827, 0.416, 1.0)         # healing numbers, positive restores (= OK_GREEN)
+const POISON := Color(163.0 / 255.0, 107.0 / 255.0, 217.0 / 255.0, 1.0)  # #a36bd9: venom, poison, sickness
 
 ## Trait chips (owner rule §1.4). bg / fg pairs; never reuse for item colour (spec 35).
 const TRAIT_NEG_BG := Color(0.243, 0.263, 0.275, 1.0)

@@ -637,7 +637,7 @@ func _status_fx() -> void:
 	else:
 		_fx_drip.emitting = false
 	if statuses.has(&"venom") or statuses.has(&"poisoned_target"):
-		tint = Color(0.35, 0.85, 0.3)
+		tint = UiTokens.POISON  # owner 2026-10-28: no green debuffs
 	if statuses.has(&"enraged"):
 		tint = Color(0.9, 0.25, 0.15)
 	if statuses.has(&"groggy") or statuses.has(&"dizziness"):

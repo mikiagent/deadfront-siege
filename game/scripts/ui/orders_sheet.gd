@@ -14,6 +14,8 @@ signal back_requested
 ## The order the HUD card follows; -1 follows the current one. ASSUMPTION: session-only (not saved),
 ## so the save format is unchanged; a load follows the current order again.
 static var tracked: int = -1
+## HUDRULES: the HUD card is expanded (else the minimap badge). Session-only; starts collapsed.
+static var hud_expanded: bool = false
 
 var player: Player
 var _c: Dictionary = {}
@@ -186,6 +188,17 @@ static func hud_step(p: Player) -> Dictionary:
 	if p == null or i == World.objective:
 		return Objectives.current(p)
 	return row(p, i)
+
+## HUDRULES: does fighting `c` serve order `i`? Its objectives.json `fight` list names creature ids;
+## "*" = any wild animal (an order such as "Hunt something for meat").
+static func served_by_fight(i: int, c: Creature) -> bool:
+	var all := steps()
+	if c == null or c.def == null or i < 0 or i >= all.size():
+		return false
+	var want: Variant = (all[i] as Dictionary).get("fight", [])
+	if not want is Array:
+		return false
+	return "*" in want or str(c.def.id) in want
 
 ## {title, hint, progress, frac, done, index, count, xp, t_stones} for order `i`. Earlier orders are
 ## done; the running one reads Objectives.current (best-held count); a later one reads the bag now.

@@ -3,6 +3,8 @@
     {
       "id": "bleed",
       "display_name": "Bleed",
+      "kind": "effect",
+      "desc": "Losing 0.3 Health a second per stack. A bandage stops it; left untreated it can become an Infected Wound.",
       "dps": 0.3,
       "duration": 20.0,
       "max_stacks": 3,
@@ -27,6 +29,8 @@
     {
       "id": "deep_bleed",
       "display_name": "Deep Bleed",
+      "kind": "effect",
+      "desc": "Losing 1 Health a second per stack, and Health does not regenerate. A pressure dressing or cauterising stops it.",
       "dps": 1.0,
       "duration": 30.0,
       "max_stacks": 3,
@@ -52,6 +56,8 @@
     {
       "id": "venom",
       "display_name": "Venom",
+      "kind": "effect",
+      "desc": "Losing 0.4 Health a second and accuracy -30%. Antivenom cures it.",
       "dps": 0.4,
       "duration": 45.0,
       "max_stacks": 1,
@@ -65,7 +71,7 @@
       ],
       "fx": {
         "body": "tint_green",
-        "color": "#8fd14f",
+        "color": "#a36bd9",
         "icon": "venom",
         "particles": "bubbles",
         "vignette": false
@@ -74,6 +80,8 @@
     {
       "id": "fracture",
       "display_name": "Fracture",
+      "kind": "effect",
+      "desc": "A broken bone: moving -35%, defense -25%, no sprinting or rolling. A splint or a residence treats it.",
       "dps": 0.0,
       "duration": 90.0,
       "max_stacks": 1,
@@ -100,6 +108,8 @@
     {
       "id": "pinned",
       "display_name": "Pinned",
+      "kind": "effect",
+      "desc": "Held down: cannot act and losing 2 Health a second. Struggle free, or a pet can pull the attacker off.",
       "dps": 2.0,
       "duration": 4.0,
       "max_stacks": 1,
@@ -125,6 +135,8 @@
     {
       "id": "deafened",
       "display_name": "Deafened",
+      "kind": "effect",
+      "desc": "Attack warnings are hidden.",
       "dps": 0.0,
       "duration": 12.0,
       "max_stacks": 1,
@@ -147,6 +159,8 @@
     {
       "id": "infected_wound",
       "display_name": "Infected Wound",
+      "kind": "effect",
+      "desc": "Max Health -20% and +0.15 fatigue a minute per stack until treated with an antibiotic.",
       "dps": 0.0,
       "duration": 9999.0,
       "max_stacks": 2,
@@ -162,7 +176,7 @@
       ],
       "fx": {
         "body": "tint_sick",
-        "color": "#8fd14f",
+        "color": "#a36bd9",
         "icon": "infected_wound",
         "particles": "tint",
         "vignette": false
@@ -171,6 +185,8 @@
     {
       "id": "bleeding_target",
       "display_name": "Bleeding",
+      "kind": "effect",
+      "desc": "The animal bleeds 1% of its max Health a second and leaves a blood trail.",
       "dps": 0.0,
       "dps_max_hp_frac": 0.01,
       "duration": 20.0,
@@ -194,6 +210,8 @@
     {
       "id": "groggy",
       "display_name": "Groggy",
+      "kind": "effect",
+      "desc": "Moving -30%, accuracy -15%.",
       "dps": 0.0,
       "duration": 6.0,
       "max_stacks": 1,
@@ -214,6 +232,8 @@
     {
       "id": "knockdown",
       "display_name": "Knockdown",
+      "kind": "effect",
+      "desc": "Knocked over: cannot act.",
       "dps": 0.0,
       "duration": 4.0,
       "max_stacks": 1,
@@ -236,6 +256,8 @@
     {
       "id": "snared",
       "display_name": "Snared",
+      "kind": "effect",
+      "desc": "Caught in a snare: cannot act.",
       "dps": 0.0,
       "duration": 8.0,
       "max_stacks": 1,
@@ -258,6 +280,8 @@
     {
       "id": "poisoned_target",
       "display_name": "Poisoned",
+      "kind": "effect",
+      "desc": "The animal loses 0.5 Health a second and its meat cannot be eaten.",
       "dps": 0.5,
       "duration": 30.0,
       "max_stacks": 1,
@@ -271,7 +295,7 @@
       "cleared_by": [],
       "fx": {
         "body": "tint_green",
-        "color": "#8fd14f",
+        "color": "#a36bd9",
         "icon": "poisoned_target",
         "particles": "bubbles",
         "vignette": false
@@ -280,6 +304,8 @@
     {
       "id": "dizziness",
       "display_name": "Dizziness",
+      "kind": "effect",
+      "desc": "Accuracy -20%, evasion -40.",
       "dps": 0.0,
       "duration": 25.0,
       "max_stacks": 1,
@@ -301,6 +327,8 @@
     {
       "id": "enraged",
       "display_name": "Enraged",
+      "kind": "effect",
+      "desc": "The animal moves and attacks 20% harder.",
       "dps": 0.0,
       "duration": 20.0,
       "max_stacks": 1,
@@ -322,6 +350,8 @@
     {
       "id": "wet",
       "display_name": "Wet",
+      "kind": "debuff",
+      "desc": "Soaked: heat fatigue -20%. Sitting by a fire dries you.",
       "dps": 0.0,
       "duration": 120.0,
       "max_stacks": 1,
@@ -345,6 +375,8 @@
     {
       "id": "full",
       "display_name": "Full",
+      "kind": "debuff",
+      "desc": "Just ate: you cannot eat again until it ends.",
       "dps": 0.0,
       "duration": 10.0,
       "max_stacks": 1,
@@ -367,6 +399,8 @@
     {
       "id": "stomachache",
       "display_name": "Stomachache",
+      "kind": "debuff",
+      "desc": "Stomach pain from raw food: losing 0.2 Health a second.",
       "dps": 0.2,
       "duration": 300.0,
       "max_stacks": 1,
@@ -378,7 +412,7 @@
       "cleared_by": [],
       "fx": {
         "body": "tint_sick",
-        "color": "#8fd14f",
+        "color": "#a36bd9",
         "icon": "stomachache",
         "particles": "tint",
         "vignette": false
@@ -387,6 +421,8 @@
     {
       "id": "tastes_bad",
       "display_name": "Tastes Bad",
+      "kind": "debuff",
+      "desc": "A bad meal: +0.5 fatigue a minute.",
       "dps": 0.0,
       "duration": 60.0,
       "max_stacks": 1,
@@ -408,6 +444,8 @@
     {
       "id": "dirty",
       "display_name": "Dirty",
+      "kind": "debuff",
+      "desc": "Fatigue gain +20% until you wash.",
       "dps": 0.0,
       "duration": 9999.0,
       "max_stacks": 1,
@@ -432,6 +470,8 @@
     {
       "id": "very_dirty",
       "display_name": "Very Dirty",
+      "kind": "debuff",
+      "desc": "Fatigue gain +50% until you wash.",
       "dps": 0.0,
       "duration": 9999.0,
       "max_stacks": 1,
@@ -456,6 +496,8 @@
     {
       "id": "thirsty",
       "display_name": "Thirsty",
+      "kind": "debuff",
+      "desc": "Fatigue gain +20% until you drink fresh water.",
       "dps": 0.0,
       "duration": 9999.0,
       "max_stacks": 1,
@@ -480,6 +522,8 @@
     {
       "id": "quenched",
       "display_name": "Quenched",
+      "kind": "boon",
+      "desc": "Drank fresh water: heat fatigue -20%.",
       "dps": 0.0,
       "duration": 360.0,
       "max_stacks": 1,
@@ -502,6 +546,8 @@
     {
       "id": "clean",
       "display_name": "Clean",
+      "kind": "boon",
+      "desc": "Washed: fatigue gain -20%.",
       "dps": 0.0,
       "duration": 360.0,
       "max_stacks": 1,
@@ -524,6 +570,8 @@
     {
       "id": "caffeinated",
       "display_name": "Caffeinated",
+      "kind": "buff",
+      "desc": "Coffee. No effect of its own yet.",
       "dps": 0.0,
       "duration": 600.0,
       "max_stacks": 1,
@@ -545,6 +593,8 @@
     {
       "id": "tastes_great",
       "display_name": "Phenomenal Flavor",
+      "kind": "buff",
+      "desc": "A phenomenal meal: +5% XP (not yet applied).",
       "dps": 0.0,
       "duration": 300.0,
       "max_stacks": 1,
@@ -566,6 +616,8 @@
     {
       "id": "tastes_delicious",
       "display_name": "Delicious Flavor",
+      "kind": "buff",
+      "desc": "A delicious meal: +3% XP (not yet applied).",
       "dps": 0.0,
       "duration": 300.0,
       "max_stacks": 1,
@@ -587,6 +639,8 @@
     {
       "id": "tastes_horrible",
       "display_name": "Horrible Flavor",
+      "kind": "debuff",
+      "desc": "A horrible meal: fatigue gain +20%.",
       "dps": 0.0,
       "duration": 300.0,
       "max_stacks": 1,
@@ -609,6 +663,8 @@
     {
       "id": "tastes_disgusting",
       "display_name": "Disgusting Flavor",
+      "kind": "debuff",
+      "desc": "A disgusting meal: fatigue gain +30%.",
       "dps": 0.0,
       "duration": 300.0,
       "max_stacks": 1,
@@ -631,6 +687,8 @@
     {
       "id": "hot_food",
       "display_name": "Hot Food",
+      "kind": "buff",
+      "desc": "A hot meal. No effect of its own yet.",
       "dps": 0.0,
       "duration": 600.0,
       "max_stacks": 4,
@@ -652,6 +710,8 @@
     {
       "id": "cold_food",
       "display_name": "Cold Food",
+      "kind": "buff",
+      "desc": "A cold drink. No effect of its own yet.",
       "dps": 0.0,
       "duration": 600.0,
       "max_stacks": 1,
@@ -673,6 +733,8 @@
     {
       "id": "vigor",
       "display_name": "Vigor",
+      "kind": "buff",
+      "desc": "Vigor from food. No effect of its own yet.",
       "dps": 0.0,
       "duration": 600.0,
       "max_stacks": 2,
@@ -694,6 +756,8 @@
     {
       "id": "poisoned",
       "display_name": "Poisoned",
+      "kind": "effect",
+      "desc": "Food poisoning: losing 0.2 Health a second per level.",
       "dps": 0.2,
       "duration": 300.0,
       "max_stacks": 4,
@@ -705,7 +769,7 @@
       "cleared_by": [],
       "fx": {
         "body": "tint_sick",
-        "color": "#8fd14f",
+        "color": "#a36bd9",
         "icon": "poisoned",
         "particles": "bubbles",
         "vignette": false
@@ -715,6 +779,8 @@
     {
       "id": "well_rested",
       "display_name": "Well Rested",
+      "kind": "boon",
+      "desc": "Slept well: exhaustion does not build up. Resting and meals still lower it.",
       "dps": 0.0,
       "duration": 180.0,
       "max_stacks": 1,
