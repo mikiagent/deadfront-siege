@@ -8,6 +8,11 @@ signal day_phase_changed(phase: StringName)
 @export var day_length_seconds: float = 720.0
 
 var time_of_day: float = 0.35  # 0..1, 0 = midnight, 0.5 = noon
+## LIGHTPORT: --tod=0..1 pins the clock for repeatable shots (0.5 noon, 0.27 dawn, 0.66 golden
+## hour, 0.9 night). While pinned the day does not advance and a save's clock does not override it,
+## so a shot taken a few seconds into settling is still on the ramp it was asked for. Off (-1) in
+## play, and only the command line sets it.
+var tod_pin: float = -1.0
 ## Debug labels, HP numbers and the perf line. Off by default; labs and --debug turn it on,
 ## the Menu sheet and the INFO hex toggle it in play.
 var debug_overlay: bool = false
@@ -55,8 +60,9 @@ func _ready() -> void:
 			shot_delay_override = float(a.substr(13))
 		elif a.begins_with("--tod="):
 			# LIGHTPORT (80c3c3a6): repeatable time-of-day shots for the islands too; LabKit has had
-			# it for the labs (0.5 noon, 0.25 dawn, 0.66 golden hour, 0.9 night).
-			time_of_day = clampf(float(a.substr(6)), 0.0, 1.0)
+			# it for the labs.
+			tod_pin = clampf(float(a.substr(6)), 0.0, 1.0)
+			time_of_day = tod_pin
 		elif a == "--fast-regen":
 			fast_regen_mult = 20.0
 		elif a.begins_with("--fast-regen="):
@@ -144,7 +150,9 @@ func _input(event: InputEvent) -> void:
 		pointer = (event as InputEventMouseMotion).position
 
 func _process(delta: float) -> void:
-	time_of_day = fmod(time_of_day + delta / day_length_seconds, 1.0)
+	# A pinned clock (--tod) stays where it was asked to be: World's save load writes its own clock
+	# after _ready, and the frame's advance would drift a shot off its ramp before it is taken.
+	time_of_day = tod_pin if tod_pin >= 0.0 else fmod(time_of_day + delta / day_length_seconds, 1.0)
 	var phase := phase_name()
 	if phase != _last_phase:
 		_last_phase = phase

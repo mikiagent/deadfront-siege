@@ -198,12 +198,22 @@ func _test_key_light_never_from_below(wl) -> void:
 ## LabKit has done for the labs (80c3c3a6). Only asserted when the flag is passed, so the gate's
 ## plain run stays a no-op; the flag run is what proves the parse.
 func _test_tod_flag() -> void:
-	var game := get_root().get_node("Game")
+	var game: Node = get_root().get_node("Game")
+	var pin: float = game.tod_pin
+	var time: float = game.time_of_day
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--tod="):
 			var want := clampf(float(a.substr(6)), 0.0, 1.0)
-			_check(absf(game.time_of_day - want) < 0.001, "--tod=%s gave time_of_day %.3f" % [a.substr(6), game.time_of_day])
-			print("[t_lighting] tod flag=%s -> time_of_day=%.3f" % [a.substr(6), game.time_of_day])
+			_check(absf(time - want) < 0.001 and absf(pin - want) < 0.001,
+				"--tod=%s gave time_of_day %.3f pin %.3f" % [a.substr(6), time, pin])
+			print("[t_lighting] tod flag=%s -> time_of_day=%.3f pin=%.3f" % [a.substr(6), time, pin])
+	# A pinned clock must not drift: a save load or the frame's advance cannot walk a shot off its
+	# ramp before the frame is taken. Unpinned, the day keeps advancing (checked by t_daynight).
+	game.time_of_day = 0.9  # as a save's clock would
+	game._process(0.016)
+	_check(absf(game.time_of_day - pin) < 0.001 if pin >= 0.0 else true,
+		"pinned --tod drifted to %.3f (pin %.3f) after a save-load write and a frame" % [game.time_of_day, pin])
+	game.time_of_day = time
 
 ## WorldLighting's dawn/dusk keys must match Game.phase_name(), which owns the thresholds.
 func _test_phase_thresholds() -> void:
