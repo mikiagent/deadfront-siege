@@ -21,9 +21,13 @@ and hands over only that part.
   shipped `GatherRing.show_for_craft` ring and the same movement / out-of-reach cancel rules;
   `open_picker()` builds the picker on its own `CanvasLayer(95)`; `open_loot()` now opens the picker and
   `open_loot_chest()` keeps the old chest screen (reachable from the picker's "Loot chest" button).
-- `game/scripts/core/save_game.gd`, `save_sanitizer.gd`, `save_restore.gd` — a `carcasses` array in the
-  payload (species, position, cuts left of budget, part ids already cut, units left); sanitized and
-  respawned on load, so a half-butchered carcass survives a save.
+- `game/scripts/core/save_sanitizer.gd`, `save_restore.gd` — a `carcasses` record (species, position,
+  cuts left of budget, part ids already cut, units left): sanitized on load and respawned through
+  `SaveRestore.carcasses`. **The two call sites live in `game/scripts/core/save_game.gd`, which is
+  outside this job's SCOPE regex**, so they ship as
+  `docs/orchestration/reports/dsc-butcher-save-hook.patch` (three hunks: build the rows in `save_now`,
+  add the `carcasses` payload key, call `SaveRestore.carcasses` in `_apply`). Until that patch is applied
+  the record round-trips (tested) but a real save writes no carcasses.
 - `game/scripts/ui/butcher_picker.gd` (new, `ButcherPicker`) — minimal picker on the existing UI tokens:
   one 64 px `HexButton` per part with its icon, seconds, units left, its name under it and a red reason
   under any blocked part; "cuts left n of m"; "Loot chest" and "Close" (64 px). The grid fits as many
@@ -74,6 +78,10 @@ cuts_left=0 cut_seconds=1.6 picker_open=1` (1600x900, fails=0) and the same with
   level bonuses.
 
 ## What the integrator needs
+
+- **Apply `docs/orchestration/reports/dsc-butcher-save-hook.patch`** to `game/scripts/core/save_game.gd`
+  (`git apply`) — the only part of this feature that could not land here, because that file is outside
+  the job's SCOPE.
 
 - The old chest screen still exists behind the picker's "Loot chest" button; `Corpse.open_loot` now opens
   the picker, so anything that expected a chest from that call (`t_player`, `main.gd --combat-test`) was
