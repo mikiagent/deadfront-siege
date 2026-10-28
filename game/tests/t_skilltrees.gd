@@ -88,9 +88,18 @@ func _test_impl_marks() -> void:
 				if impl == "functional" and ok_file:
 					# The node's own id, or the token the code path keys on (a recipe gate, a gather or
 					# butcher row). A functional node that names neither would be an effect nothing reads.
+					# For data-driven gates (requires_node in recipes.json, butcher rows in
+					# butchering.json) the id/token lives in the data file the code path reads.
 					var body := FileAccess.get_file_as_string(script)
 					var token := _effect_token(tree, n)
-					_expect_ref(body.contains(id) or (token != "" and body.contains(token)),
+					var found := body.contains(id) or (token != "" and body.contains(token))
+					if not found:
+						var data_txt := ""
+						for dp in ["res://data/recipes.json", "res://data/butchering.json", "res://data/nature_manifest.json"]:
+							if FileAccess.file_exists(dp):
+								data_txt += JSON.stringify(JSON.parse_string(FileAccess.get_file_as_string(dp)))
+						found = data_txt.contains(id) or (token != "" and data_txt.contains(token))
+					_expect_ref(found,
 						"%s/%s: impl_ref %s mentions neither %s nor its effect token %s" % [tree, id, ref, id, token])
 		counts.functional += c.functional
 		counts.partial += c.partial
@@ -105,6 +114,9 @@ func _test_impl_marks() -> void:
 
 ## The token a code path greps for: the node id itself, or the first recipe/item the effect names
 ## (a recipe gate or a gather/butcher row is read by that key, not by the node id).
+## Some effects are read generically by effect TYPE, not by any id: the survival mirror
+## (skill_state.gd) keys "bonded_slots" and "capture_technique" nodes, Crafting keys the
+## "ability" total. Those get their type string as the token.
 ## impl_ref paths are project-relative ("game/scripts/..."), so res:// drops the "game/" prefix.
 func _effect_token(tree: String, n: Dictionary) -> String:
 	var tokens: PackedStringArray = []
@@ -115,6 +127,9 @@ func _effect_token(tree: String, n: Dictionary) -> String:
 			tokens.append(str(rid))
 		for it in e.get("items", []):
 			tokens.append(str(it))
+		# Read by type, not id: the survival mirror, the ability total, the butcher gate.
+		if str(e.get("type", "")) in ["bonded_slots", "ability", "capture_tier", "butcher", "gather"]:
+			tokens.append(str(e.get("type", "")))
 	if tokens.is_empty():
 		return str(n.get("id", ""))
 	# A token that appears in many nodes (an empty-items gate) is the node id; else the first key.

@@ -290,7 +290,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/core/data.gd:57"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:86"
         },
         {
           "id": "obsidian",
@@ -394,7 +394,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/core/data.gd:57"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:86"
         },
         {
           "id": "alum",
@@ -484,7 +484,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/core/data.gd:57"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:86"
         },
         {
           "id": "animal_management_4",
@@ -504,7 +504,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/core/data.gd:57"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:86"
         }
       ]
     },
@@ -672,7 +672,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/world/harvest_node.gd:331"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
         },
         {
           "id": "mining_1",
@@ -694,7 +694,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/world/harvest_node.gd:331"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
         },
         {
           "id": "herbs_1",
@@ -717,7 +717,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/world/harvest_node.gd:331"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
         },
         {
           "id": "insects",
@@ -739,7 +739,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/world/harvest_node.gd:331"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
         },
         {
           "id": "mining_2",
@@ -762,7 +762,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/world/harvest_node.gd:331"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
         },
         {
           "id": "great_success_1",
@@ -800,7 +800,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/world/harvest_node.gd:331"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
         },
         {
           "id": "rare_plants",
@@ -823,7 +823,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/world/harvest_node.gd:331"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
         },
         {
           "id": "long_branch",
@@ -860,7 +860,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/world/harvest_node.gd:331"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
         },
         {
           "id": "great_success_2",
@@ -916,7 +916,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/gather/loot_roller.gd:123"
         },
         {
           "id": "leather_1",
@@ -952,7 +952,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/gather/loot_roller.gd:123"
         },
         {
           "id": "bone_2",
@@ -974,7 +974,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/gather/loot_roller.gd:123"
         },
         {
           "id": "rare_parts_1",
@@ -996,7 +996,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/gather/loot_roller.gd:123"
         },
         {
           "id": "feather",
@@ -1046,7 +1046,7 @@
           "sp_assumed": true,
           "status": "partial",
           "impl": "partial",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "yield_1",
@@ -1066,7 +1066,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/gather/loot_roller.gd:74"
         },
         {
           "id": "teeth_1",
@@ -1102,7 +1102,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/gather/loot_roller.gd:123"
         },
         {
           "id": "horn",
@@ -1138,7 +1138,7 @@
           "sp_assumed": true,
           "status": "partial",
           "impl": "partial",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "quality_bone",
@@ -1174,7 +1174,7 @@
           "sp_assumed": true,
           "status": "partial",
           "impl": "partial",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "yield_2",
@@ -1238,7 +1238,7 @@
           "sp_assumed": true,
           "status": "partial",
           "impl": "partial",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "trophy",
@@ -1274,7 +1274,7 @@
           "sp_assumed": true,
           "status": "partial",
           "impl": "partial",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         }
       ]
     },
@@ -1303,7 +1303,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
+          "impl_ref": "game/scripts/items/crafting.gd:487"
         },
         {
           "id": "split_wood",
@@ -1353,7 +1353,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
+          "impl_ref": "game/scripts/items/crafting.gd:487"
         },
         {
           "id": "charcoal",
@@ -1375,7 +1375,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
+          "impl_ref": "game/scripts/items/crafting.gd:487"
         },
         {
           "id": "dry_leather",
@@ -1397,7 +1397,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
+          "impl_ref": "game/scripts/items/crafting.gd:487"
         },
         {
           "id": "peeled_bark",
@@ -2486,7 +2486,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
+          "impl_ref": "game/scripts/items/crafting.gd:487"
         },
         {
           "id": "makeshift_shovel_hoe",
@@ -2928,7 +2928,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/player/player.gd:500"
+          "impl_ref": "game/scripts/player/player.gd:501"
         },
         {
           "id": "pressure_dressing",
