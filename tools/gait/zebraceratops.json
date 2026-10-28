@@ -43,7 +43,7 @@
       "end": "front",
       "pole": [
         0,
-        -1,
+        1,
         0
       ]
     },
@@ -55,7 +55,7 @@
       "end": "front",
       "pole": [
         0,
-        -1,
+        1,
         0
       ]
     }
@@ -83,9 +83,9 @@
         "LF": 0.5
       },
       "lift_hind": 0.03,
-      "lift_front": 0.035,
+      "lift_front": 0.025,
       "swing_curl_hind": 25,
-      "swing_curl_front": 15,
+      "swing_curl_front": 8,
       "toe_roll": 15,
       "legroot_front": 0.2,
       "legroot_hind": 0.0,
@@ -108,9 +108,9 @@
         "RF": 0.5
       },
       "lift_hind": 0.05,
-      "lift_front": 0.06,
+      "lift_front": 0.045,
       "swing_curl_hind": 30,
-      "swing_curl_front": 30,
+      "swing_curl_front": 18,
       "toe_roll": 20,
       "legroot_front": 0.2,
       "legroot_hind": 0.05,
