@@ -219,7 +219,12 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
 	return plan
 
 ## A slot's allowed_ids (recipes.json) narrow its category to listed item defs; no list = any.
+## COOKROLES: a cooking slot that names a role (main/topping/sauce/broth/spice) also has to pass
+## that role's category list, so a spice can never fill the main slot even when the slot's own
+## category would let it through (spec 08 §3).
 static func _allowed(slot: Dictionary, s: ItemStack) -> bool:
+	if not CookRoles.role_accepts(slot, s):
+		return false
 	var ids: Variant = slot.get("allowed_ids", null)
 	if not ids is Array or (ids as Array).is_empty() or s == null:
 		return true
@@ -297,7 +302,18 @@ static func preview(inv: Inventory, rec: Dictionary, picks: Array[int]) -> ItemS
 	var pidx := primary_index(rec)
 	var primary := inv.slots[picks[pidx]]
 	var levels := consumed_levels(inv, rec, picks)
-	return build_output(rec, primary, crafted_level_for(rec, levels))
+	var got := CookRoles.collect(rec, inv, plan_parts_flat(inv, rec, picks))
+	return build_output(rec, primary, crafted_level_for(rec, levels), [], false, got)
+
+## COOKROLES: a recipe's filled slots as Crafting.plan_parts rows, built from the bag's own plan.
+## [] when the picks do not fit. Used by the preview paths, which never consume anything.
+static func plan_parts_flat(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[Dictionary]:
+	var rows := _plan(inv, rec, picks)
+	var out: Array[Dictionary] = []
+	for i in rows.size():
+		for part: Variant in rows[i]["parts"]:
+			out.append({"slot": i, "idx": int((part as Dictionary)["idx"]), "count": int((part as Dictionary)["count"])})
+	return out
 
 static func consumed_levels(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[int]:
 	var out: Array[int] = []
@@ -346,7 +362,9 @@ static func rolls_burn(rec: Dictionary, skill_level: int, rng: RandomNumberGener
 	return (rng.randf() if rng else randf()) < chance
 
 ## The output stack. `burnt` comes from rolls_burn (decided by the caller so previews never burn).
-static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int, consumed: Array[ItemStack] = [], burnt: bool = false) -> ItemStack:
+## `roles` is CookRoles.collect()'s record of what the recipe's slots may pass (COOKROLES); {} keeps
+## the old wholesale primary-attribute copy every earlier recipe relies on.
+static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int, consumed: Array[ItemStack] = [], burnt: bool = false, roles: Dictionary = {}) -> ItemStack:
 	var out_row: Dictionary = rec.get("output", {})
 	var out_id := StringName(str(out_row.get("id", "")))
 	if bool(rec.get("keep_output_id", false)) and primary:
@@ -401,6 +419,10 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 	# Clear raw flag on cooked outputs.
 	if out.def() and out.def().has_category(&"cooked"):
 		out.set_flag(&"raw", false)
+	# COOKROLES: a roled recipe keeps only what its slots' inheritance rules allow (the copy above
+	# was the old every-attribute passthrough). `roles` was read from the instances before they left
+	# the bag.
+	CookRoles.apply_to_output(out, rec, roles)
 	return out
 
 static func _player() -> Player:
@@ -719,7 +741,8 @@ static func plan_fits(inv: Inventory, rec: Dictionary, plan: Dictionary) -> bool
 			primary_idx = int(part["idx"])
 			break
 	var primary: ItemStack = scratch.slots[primary_idx].duplicate_stack() if primary_idx >= 0 else null
-	var out := build_output(rec, primary, int(plan.get("level", 1)), [], bool(plan.get("burnt", false)))
+	var got := CookRoles.collect(rec, scratch, parts)
+	var out := build_output(rec, primary, int(plan.get("level", 1)), [], bool(plan.get("burnt", false)), got)
 	consume_parts(scratch, rec, parts)
 	return scratch.can_accept(out)
 
@@ -746,10 +769,12 @@ static func run_plan(rec: Dictionary, inv: Inventory, plan: Dictionary, overflow
 	if not plan_fits(inv, rec, plan):
 		print("[craft] refused %s: bag full" % rec.get("id", ""))
 		return {"status": "full", "item": null}
+	# Read what the slots inherit from the exact instances BEFORE they leave the bag (COOKROLES).
+	var got := CookRoles.collect(rec, inv, parts)
 	var consumed := consume_parts(inv, rec, parts)
 	if consumed.is_empty():
 		return {"status": "left", "item": null}
-	var out := build_output(rec, consumed[0], int(plan.get("level", 1)), consumed, bool(plan.get("burnt", false)))
+	var out := build_output(rec, consumed[0], int(plan.get("level", 1)), consumed, bool(plan.get("burnt", false)), got)
 	apply_outcome(out, rec, outcome)
 	if not out.is_fungible() and out.uid == "":  # in-place output keeps its instance identity
 		out.stamp_identity("craft", World.player_name)
@@ -835,7 +860,8 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
 		if inv.slots[i]:
 			scratch.slots[i] = inv.slots[i].duplicate_stack()
 	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
-	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
+	var got := CookRoles.collect(rec, scratch, plan_parts_flat(scratch, rec, picks))
+	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt, got)
 	consume_for_craft(scratch, rec, picks)
 	return scratch.can_accept(out)
 

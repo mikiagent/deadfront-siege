@@ -189,7 +189,11 @@ static func evaluate(stack: ItemStack, ctx: Dictionary = {}) -> Dictionary:
 	var ratio := float(entry.get("energy", {}).get("instant_release_ratio", fallback_ratio))
 	var digest := float(entry.get("energy", {}).get("digest_seconds", defaults().get("digest_seconds", 300.0)))
 	var energy_fields := {"instant_release_ratio": ratio, "digest_seconds": digest, "latent": latent}
-	for tr: Variant in transforms_for(entry, tags):
+	# COOKROLES (spec 08 §4): a dish that INHERITED a trait through its recipe slots carries that
+	# trait's effect rows; the same attribute on a raw ingredient does nothing here.
+	var trs: Array = transforms_for(entry, tags)
+	trs.append_array(CookRoles.effect_rows(stack))
+	for tr: Variant in trs:
 		var row: Dictionary = tr as Dictionary
 		var field := str(row.get("field", ""))
 		if not energy_fields.has(field):
@@ -208,7 +212,7 @@ static func evaluate(stack: ItemStack, ctx: Dictionary = {}) -> Dictionary:
 	# --- Plain channels (Fullness, Thirst, Health, Life, Fatigue, capacity deltas).
 	for field in ["fullness", "thirst", "health", "life", "fatigue", "max_energy", "max_fatigue"]:
 		var v := float(entry.get(field, 0.0))
-		for tr: Variant in transforms_for(entry, tags):
+		for tr: Variant in trs:
 			var row: Dictionary = tr as Dictionary
 			if str(row.get("field", "")) != field:
 				continue
@@ -219,7 +223,11 @@ static func evaluate(stack: ItemStack, ctx: Dictionary = {}) -> Dictionary:
 	var groups := buff_groups()
 	var taken := {}
 	var buffs: Array = out["buffs"]
-	for row: Variant in entry.get("buffs", []):
+	# A roled recipe's topping/sauce/spice/broth bonus (spec 08 §3): its own bundle rows, evaluated by
+	# the same group rules as the dish's own buffs.
+	var bundled: Array = (entry.get("buffs", []) as Array).duplicate()
+	bundled.append_array(CookRoles.buff_rows(stack))
+	for row: Variant in bundled:
 		if not row is Dictionary:
 			continue
 		var b: Dictionary = (row as Dictionary).duplicate(true)
