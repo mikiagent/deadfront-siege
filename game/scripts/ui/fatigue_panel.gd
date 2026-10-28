@@ -18,7 +18,7 @@ const SOURCE_NAMES := {
 	"food": "Foods & drinks",
 }
 const SOURCE_REMEDIES := {
-	"time": "Sleep in a tent or bed. Only sleep clears this fully.",
+	"time": "Rest (sit down): faster by a fire or a tent. Sleeping in a tent or bed clears it.",
 	"walk": "Make fewer long trips. A mount or a camp stop helps.",
 	"gather": "Eat a meal to ease it, or rest between harvests.",
 	"combat": "Avoid hits: roll, flank, end fights early.",

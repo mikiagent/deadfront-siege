@@ -32,6 +32,9 @@ var exhausted: bool = false
 ## Set on death: no regen, no further damage until revive().
 var dead: bool = false
 var blocks_regen: bool = false
+## Well Rested (a no_fatigue_gain status, StatusEffects._sync_vitals): exhaustion gains of every source are
+## dropped; reductions (rest, meals, sleep) still apply. Owner 2026-10-28.
+var blocks_fatigue_gain: bool = false
 var fatigue_gain_mult: float = 1.0
 var fatigue_log: Dictionary = {}
 ## Island level versus survivor level, set by the island each frame (ProgressionScaling.fatigue_level_factor).
@@ -156,6 +159,8 @@ func eat(amount: float) -> void:
 	rest(amount * 0.25)
 
 func add_fatigue(amount: float, source: StringName = &"") -> void:
+	if amount > 0.0 and blocks_fatigue_gain:
+		return
 	var gap := level_gap_mult if (amount > 0.0 and source != &"time") else 1.0
 	var add := amount * fatigue_gain_mult * gap * (FATIGUE_ACCUMULATION_MULT if amount > 0.0 else 1.0)
 	fatigue = clampf(fatigue + add, 0.0, effective_max_fatigue())

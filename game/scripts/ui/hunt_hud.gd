@@ -47,6 +47,7 @@ var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
 var _stance_label: Label
 var _events := HudEventState.new()
+var _rest_fx := HudRestBox.new()
 var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
 var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
@@ -622,12 +623,13 @@ func _draw_bites(cam: Camera3D) -> void:
 	for f in _events.player_floats:
 		var k: float = f["t"]
 		var a := 1.0 - smoothstep(0.55, 0.95, k)
-		var txt := "-%d" % int(round(float(f["n"])))
+		var txt: String = str(f["txt"]) if f.has("txt") else "-%d" % int(round(float(f["n"])))
+		var col: Color = f.get("col", Color(1.0, 0.25, 0.2))
 		var fs := 22
 		var w := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
-		var p := chest + Vector2(float(f["x"]) - w * 0.5, -30.0 - k * 46.0)
+		var p := chest + Vector2(float(f["x"]) - w * 0.5, -30.0 - k * 46.0 + float(f.get("dy", 0.0)))
 		draw_string(_font, p + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.8 * a))
-		draw_string(_font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.25, 0.2, a))
+		draw_string(_font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(col, a))
 	for b in _events.bites:
 		var k: float = b["t"]
 		var heavy: bool = b["heavy"]
@@ -1147,7 +1149,11 @@ func _process(delta: float) -> void:
 		if _fat_prev > -1.0e8:
 			if absf(vf - _fat_prev) >= ExhaustTreadmill.STEP_AFTER:
 				_fat_forgive = ExhaustTreadmill.FORGET_HOLD_S
-			_fat_rate = ExhaustTreadmill.sample_rate(_fat_rate, (vf - _fat_prev) / maxf(delta, 1.0 / 240.0), delta, _fat_forgive)
+			var instant := (vf - _fat_prev) / maxf(delta, 1.0 / 240.0)
+			if player.vitals.blocks_fatigue_gain:  # Well Rested: the treadmill pauses
+				_fat_rate = ExhaustTreadmill.paused_rate(_fat_rate, instant, delta)
+			else:
+				_fat_rate = ExhaustTreadmill.sample_rate(_fat_rate, instant, delta, _fat_forgive)
 		_fat_prev = vf
 		_fat_forgive = maxf(0.0, _fat_forgive - delta)
 		_belt_phase = ExhaustTreadmill.phase(_belt_phase, _fat_rate, delta)
@@ -1221,6 +1227,7 @@ func _process(delta: float) -> void:
 			_levelup_t = -1.0
 	GatherFeedback.tick_notices(_events.notices, player, drawn_blocks)  # W2-GATHER: rare notice life, off _draw
 	_events.tick(delta)
+	_rest_fx.tick(player, _events, delta)  # REST: recovery floats over her while she rests or sleeps
 	_pulse_clock += delta
 	_pulse_check -= delta
 	if _pulse_check <= 0.0:
@@ -1288,6 +1295,10 @@ func _draw() -> void:
 		sx += 3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0
 	if player.statuses:
 		var sx0 := sx
+		var rest_lines := player.sim.rest.hud_lines() if player.sim else PackedStringArray()
+		if not rest_lines.is_empty():  # REST: the Resting chip comes first while she rests or sleeps
+			HudRestBox.chip(self, _font, Vector2(sx, sy))
+			sx += 30
 		for inst in player.statuses.instances():
 			HudStatusChip.draw(self, _font, Vector2(sx, sy), inst.id, Color(1, 0.75, 0.45))
 			if inst.time_left < 3600.0:  # "until washed / treated" statuses (9999 s) show no countdown
@@ -1297,11 +1308,15 @@ func _draw() -> void:
 			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
 		# SAVEFIX: a status that lowers max HP says so under its chip (the number alone was a mystery).
 		var hp_note: String = player.statuses.max_health_note()
+		var rest_y := sy + 46.0
 		if hp_note != "":
 			var ny := sy + 46.0
 			var nw := _font.get_string_size(hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px).x
 			draw_string(_font, Vector2(sx0, ny), hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px, Color(0.96, 0.62, 0.42))
 			drawn_blocks["status_maxhp"] = Rect2(sx0, ny - bar_px, nw, bar_px + 4.0)
+			rest_y = ny + 8.0
+		if not rest_lines.is_empty():  # REST: its live rates in a box right under the chips (and the max-HP note)
+			drawn_blocks["rest"] = HudRestBox.draw(self, _font, Vector2(sx0, rest_y), UiTokens.body(r), rest_lines)
 	var mp := _minimap.position
 	var top := "Home" if World.is_home() else ("Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
 	if World.island_id == &"":

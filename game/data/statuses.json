@@ -519,6 +519,7 @@
       "cleared_by": [],
       "fx": "tint_sick",
       "_note": "FOODCAT: the fan catalog's raw Mushroom 'Poisoned Lv4' (spec 32 s9 'some raw food may inflict ... poison'). Survivor food poisoning, distinct from the creature-only poisoned_target. 0.2 HP/s per level and 5 min copy Stomachache's numbers: # ASSUMPTION, not a catalog figure."
-    }
+    },
+    {"id": "well_rested", "display_name": "Well Rested", "dps": 0.0, "duration": 180.0, "max_stacks": 1, "flags": ["no_fatigue_gain"], "move_mult": 1.0, "defense_mult": 1.0, "accuracy_mult": 1.0, "weakness_rank": 6, "cleared_by": [], "fx": "none", "_note": "Owner 2026-10-28: after a sleep, exhaustion does not accumulate for a while (the treadmill pauses); recovery still works. ASSUMPTION: no doc gives a length; PlayerSim grants it on waking with a time from data/rest.json well_rested (secs per point of exhaustion the sleep removed, clamped), so this duration is only the fallback. weakness_rank 6 so the 3-status cap never drops it for a minor status."}
   ]
 }

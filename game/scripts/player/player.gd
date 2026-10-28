@@ -407,6 +407,8 @@ func _flinch() -> void:
 		anim.on_damaged()
 
 func _on_vitals_damaged() -> void:
+	if statuses.ticking and (sim.rest.resting or _sleep_left > 0.0 or sim._sleep_pending != null):
+		return  # a bleed or stomachache tick hurts, but only hits and fights end a rest, a sleep or the walk to bed (spec 01:19)
 	sim.interrupt_sleep()
 	actions.cancel_work()
 	_flinch()
@@ -510,4 +512,5 @@ func tick_climate_fatigue(delta: float, climate: String) -> void:
 	var points := float(short[group])
 	if points > 0.0:
 		var mult := statuses.heat_fatigue_mult() if group == "heat" else 1.0  # Quenched (PRD :314)
+		mult *= sim.rest.climate_mult(group)  # sitting by the fire (PRD :285)
 		vitals.add_fatigue(delta * points * (per_min / 60.0) * mult, StringName("climate_" + group))
