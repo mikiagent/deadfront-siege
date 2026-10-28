@@ -22,10 +22,10 @@ orders, and the last order grants their own Tamed Island. Flow: `game/scripts/co
 - While the tutorial runs, `World.travel` refuses every departure from the tutorial island
   ("Finish the orders here first"), and `harbour_routes()` never lists a `kind: tutorial` island.
 
-## The orders (objectives.json "tutorial", 18)
+## The orders (objectives.json "tutorial", 19)
 | # | id | Condition | Pointer (`point_at`) |
 |---|---|---|---|
-| 1 | tut_camp | within 7 m of the camp | world:camp |
+| 1 | tut_camp | within 6 m of the Adventurer's Guild | world:guild |
 | 2 | tut_branches | hold 3 branch | harvest:branch |
 | 3 | tut_stone | hold 2 stone | harvest:stone |
 | 4 | tut_fibre | hold 4 fibre_stalk | harvest:fibre_stalk |
@@ -33,16 +33,17 @@ orders, and the last order grants their own Tamed Island. Flow: `game/scripts/co
 | 6 | tut_eat | 1 committed meal (`did.eat`) | bag while holding berries, else harvest:berries |
 | 7 | tut_rest | resting or sleeping | ctx:rest |
 | 8 | tut_twine | hold 1 twine | ui:MenuHex |
-| 9 | tut_axe | hold 1 work_axe (workbench) | world:bench |
-| 10 | tut_logs | hold 2 wood_log | harvest:wood_log |
-| 11 | tut_hunt | 1 kill by the survivor (`did.kill`) | world:creature |
-| 12 | tut_butcher | hold raw_meat or raptor_meat | world:corpse |
-| 13 | tut_fire | the stone fire pit burns (`Bonfire.burning()`; a fire without it counts as lit) | world:firepit |
-| 14 | tut_cook | hold 1 herb_buff_meal (`roled_herb_roast`: meat main + herb topping + branch support, station bonfire) | herb node, then the pit |
-| 15 | tut_meal | ate a herb_buff_meal (`did.eat:herb_buff_meal`) | ui:BagHex |
-| 16 | tut_skill | 1 skill node with an SP cost learned (`did.skill`) | ui:MenuHex |
-| 17 | tut_build | 1 placement (`did.build`); hint: straw_roll_kit | ui:BuildHex / MenuHex |
-| 18 | tut_ferry | within 7 m of the dock arrival; `grant_home` | world:harbour |
+| 9 | tut_knife | hold 1 stone_knife_work (by hand; a knife is needed to cut meat) | ui:MenuHex |
+| 10 | tut_axe | hold 1 work_axe (workbench) | world:bench |
+| 11 | tut_logs | hold 2 wood_log | harvest:wood_log |
+| 12 | tut_hunt | 1 kill by the survivor (`did.kill`) | world:creature |
+| 13 | tut_butcher | hold raw_meat or raptor_meat | world:corpse |
+| 14 | tut_fire | the stone fire pit burns (`Bonfire.burning()`; a fire without it counts as lit) | world:firepit |
+| 15 | tut_cook | hold 1 herb_buff_meal (`roled_herb_roast`: meat main + herb topping + branch support, station bonfire) | herb node, then the pit |
+| 16 | tut_meal | ate a herb_buff_meal (`did.eat:herb_buff_meal`) | ui:BagHex |
+| 17 | tut_skill | 1 skill node with an SP cost learned (`did.skill`) | ui:MenuHex |
+| 18 | tut_build | 1 placement (`did.build`); hint: straw_roll_kit | ui:BuildHex / MenuHex |
+| 19 | tut_ferry | within 7 m of the dock arrival; `grant_home` | world:harbour |
 Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
 
 `did` counts come from hooks that call `Tutorial.note` only while the tutorial runs:
@@ -50,12 +51,28 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
 `World.note_building` (build), `SkillState.unlock` with cost > 0 (skill).
 
 ## The island (`tutorial_isle.json`)
-- kind `tutorial`, permanent, grassland, tier 15 (330 x 265 m landmass band), `level_override` 1,
-  seed 9091, `size_m` 368; harbour hint (27, 79), camp hint (12, 44).
-- Generated like any island (camp fire, workbench, shed, cargo chest, harbour). `Tutorial.dress`
-  adds a stone fire pit 2 m W / 4.5 m S of the camp (`persist_building = false`), 3 HerbPlant
-  (herb_leaf) and 3 BerrySprig (berries) 6-9 m from the camp.
-- Creatures: 3 fixed compsognathus rows + gathering ring 2 compsognathus, 1 zebraceratops.
+- kind `tutorial`, permanent, grassland, `level_override` 1, seed 9091. Landmass `land_m`
+  795 x 636 m (4.5x the home's 375 x 300; `IslandShape.make` `p_land`), `size_m` 880,
+  `terrain_res` 241 (`IslandTerrain` takes the shape's res). Harbour hint (60, 194), camp (town
+  centre) hint (44, 160): the dock is 36 m from the town.
+- Never claimed: no CLAIM context hex (`player_input.gd`), `claim_confirmed` refuses with a notice.
+  The camp's landing plot stays buildable (the bedroll order places there).
+- Town (`Tutorial.dress`, around the camp): the camp's fire, workbench, shed and cargo chest, plus
+  `TownBuilding`s — Adventurer's Guild (`log_shelter` model, role guild: tap opens the Orders
+  sheet), Market stall (`fishing_stand`, role market: tap opens the Island Market), signpost,
+  barrel, crates — a stone fire pit and a drying rack. All `persist_building = false`: never saved,
+  `StructureHealth.is_structure` false (no damage), pack-up refused, grid cells occupied.
+- 3 HerbPlant, 3 BerrySprig 14-16 m and 2 CommonTree 19 m from the town centre.
+- Wild lands (`wild_zones`, `ZoneSpawner`): 11 groups at 40-360 m from the town, aimed inland —
+  compsognathus (40-60 m), zebraceratops 85, gallimimus 110, protoceratops 140, coelophysis packs
+  210/240, velociraptor 300, deinonychus 360. A zone spawns when the survivor is within 110 m,
+  removes its living animals past 170 m (never her hunt target), respawns 240 s after a kill,
+  checks at 2 Hz and stays inside `Game.max_creatures_per_island` (24).
+- Perf limits (island data): ground cover full within 120 m of the town and 6 % beyond
+  (`cover_full_radius_m`, `cover_far_share`, `GroundCover.plan`), biome dressing 30 %
+  (`dress_share`, `BiomeDress`). Measured headless (t_tutorial / probe): build 8.2-9.0 s, ~66k
+  multimesh instances (52k cover), 609 harvest nodes, ~5.6k scene nodes, ~215 MB static heap
+  added. Home on the same machine: build ~3.9 s.
 - HUD map title reads "Tutorial Island"; the atlas lists island time as "Permanent".
 
 ## Onboarding pointer (`game/scripts/ui/tutorial_pointer.gd`)

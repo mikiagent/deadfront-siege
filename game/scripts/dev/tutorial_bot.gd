@@ -81,7 +81,10 @@ func _do_step(id: String) -> String:
 			var guild: Variant = Tutorial.world_point(player, "guild")
 			if guild == null:
 				return "no guild in the town"
-			return await _walk_to(guild as Vector3, 5.0)
+			var g := await _walk_to(guild as Vector3, 5.0)
+			await _beat(0.8)
+			await capture("02_guild_town")
+			return g
 		"tut_branches":
 			return await _gather_to(&"branch", 3)
 		"tut_stone":
@@ -98,7 +101,7 @@ func _do_step(id: String) -> String:
 			if not WaterAccess.near_fresh(player.global_position):
 				return "reached the bank but Drink is not offered (%s)" % player.global_position.snapped(Vector3.ONE)
 			player.context_action("drink")
-			await capture("02_drink")
+			await capture("02b_drink")
 			await _beat(1.5)
 			return ""
 		"tut_eat":
