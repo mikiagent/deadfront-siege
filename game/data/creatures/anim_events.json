@@ -17,14 +17,14 @@
       "speed": 1.6
     },
     "bite_combo": {
-      "hit_frac": 0.094,
+      "hit_frac": 0.098,
       "hit_fracs": [
-        0.094,
-        0.358,
-        0.811
+        0.098,
+        0.361,
+        0.82
       ],
       "windup": true,
-      "note": "chomp, Chomp, CHOMP: three bites, each wider with a harder lunge; the third has an 8-frame telegraphed wind-up (frames 28-35 of 54) so the player can roll through it. Authored for deinonychus (tools/jaw/make_combo.py)."
+      "note": "chomp left, chomp right, MEGA chomp down: the third rears up for 10 frames (frames 33-42 of 62) as the tell, then drives down. Authored for deinonychus (tools/jaw/make_combo.py)."
     }
   },
   "natural_speeds": {
