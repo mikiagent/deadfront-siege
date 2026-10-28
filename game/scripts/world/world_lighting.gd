@@ -12,9 +12,9 @@ const NIGHT := 0.80
 ## The key light never drops below this, so it never points up from under the horizon.
 const MIN_ELEVATION_DEG := 6.0
 ## Golden hour (80c3c3a6): the sun, the fog and the sky horizon warm toward amber on the way down,
-## before night turns them blue. The warmth ramps in over these two times of day and holds to NIGHT.
-## It starts after noon and is nil at 0.5, so the afternoon's core stays neutral. ASSUMPTION: the
-## exact ramp is visual tuning the owner judges.
+## before night turns them blue. The warmth ramps in over golden_start..golden_full in the profile
+## (below) and holds to NIGHT, so a climate can move it (snow at 0.56, desert can start earlier).
+## ASSUMPTION: the exact ramp is visual tuning the owner judges.
 const GOLDEN_START := 0.56
 const GOLDEN_FULL := 0.64
 ## The sky and fog colours update only on steps at least this large (half a second of a 720 s
@@ -29,6 +29,7 @@ const FALLBACK := {"sun_energy": 2.2, "sun_warm_energy_scale": 0.8, "sun_max_ele
 	"ambient_night_energy": 0.4, "exposure": 1.0, "exposure_compat": 1.0, "exposure_scale": 1.0,
 	"saturation": 1.1, "saturation_compat": 1.1, "glow_intensity": 0.3, "fog_density": 0.0022, "fog_night_density": 0.004,
 	"contrast": 1.08, "glow_strength": 0.9, "glow_bloom": 0.04, "glow_hdr_threshold": 1.0,
+	"golden_start": 0.56, "golden_full": 0.64,
 	"sun_color": [1.0, 0.95, 0.86], "sun_warm_color": [1.0, 0.68, 0.42], "moon_color": [0.52, 0.64, 1.0],
 	"fog_color": [0.62, 0.72, 0.82], "fog_dusk_color": [0.74, 0.6, 0.52], "fog_night_color": [0.04, 0.06, 0.11],
 	"sky_top": [0.2, 0.42, 0.66], "sky_horizon": [0.66, 0.78, 0.92],
@@ -260,7 +261,7 @@ func drive(tod: float, sky: bool = true) -> void:
 	var warm := maxf(1.0 - smoothstep(DAY - 0.04, DAY, tod), smoothstep(DUSK, DUSK + 0.02, tod))
 	# Golden hour before night (80c3c3a6): the low sun, the fog and the sky horizon warm toward the
 	# profile's dusk colours while it is still up, then the night lerp takes them blue.
-	var golden := smoothstep(GOLDEN_START, GOLDEN_FULL, tod) * (1.0 - smoothstep(NIGHT - 0.04, NIGHT - 0.01, tod))
+	var golden := smoothstep(_f("golden_start", GOLDEN_START), _f("golden_full", GOLDEN_FULL), tod) * (1.0 - smoothstep(NIGHT - 0.04, NIGHT - 0.01, tod))
 	var night := 1.0 - sun_up
 	WorldLighting.night = night
 	var elevation := maxf(MIN_ELEVATION_DEG, _f("sun_max_elevation_deg") * sin(PI * day_t))

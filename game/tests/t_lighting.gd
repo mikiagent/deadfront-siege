@@ -29,6 +29,7 @@ func _process(_delta: float) -> bool:
 	_test_shadow_fit_perspective(wl)
 	_test_key_light_never_from_below(wl)
 	_test_phase_thresholds()
+	_test_tod_flag()
 	_test_profiles()
 	_test_fallback_colours()
 	_test_rain_streaks()
@@ -107,6 +108,16 @@ func _test_golden_hour(wl) -> void:
 	# blue than red there (the sun-light colour is not checked at night: the sun is set).
 	var deep := _warmth_at(wl, WL.NIGHT + 0.02)
 	_check(deep["fog"] < 0.0 and deep["horizon"] < 0.0, "night fog/horizon are not blue (R-B %.2f / %.2f)" % [deep["fog"], deep["horizon"]])
+	# The ramp is the profile's, not a constant: a climate that moves it moves the golden hour.
+	var moved: Dictionary = (wl.profile as Dictionary).duplicate()
+	moved["golden_start"] = 0.40
+	moved["golden_full"] = 0.44
+	var keep: Dictionary = wl.profile
+	wl.profile = moved
+	var early := _warmth_at(wl, 0.45)
+	wl.profile = keep
+	_check(early["horizon"] > _warmth_at(wl, 0.45)["horizon"] + 0.1, "a profile's golden_start/golden_full do not move the golden hour")
+	wl.drive(0.5)
 
 ## Red minus blue of the live sun, fog and sky horizon at tod: the warmth the golden hour adds.
 func _warmth_at(wl, tod: float) -> Dictionary:
@@ -182,6 +193,17 @@ func _test_key_light_never_from_below(wl) -> void:
 			if light.visible and light.light_energy > 0.0 and (-light.global_basis.z).y >= 0.0:
 				failures.append("%s points up at tod %.3f" % [light.name, tod])
 				return
+
+## LIGHTPORT: `--tod=0..1` on the command line (after `--`) sets Game.time_of_day for islands, as
+## LabKit has done for the labs (80c3c3a6). Only asserted when the flag is passed, so the gate's
+## plain run stays a no-op; the flag run is what proves the parse.
+func _test_tod_flag() -> void:
+	var game := get_root().get_node("Game")
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--tod="):
+			var want := clampf(float(a.substr(6)), 0.0, 1.0)
+			_check(absf(game.time_of_day - want) < 0.001, "--tod=%s gave time_of_day %.3f" % [a.substr(6), game.time_of_day])
+			print("[t_lighting] tod flag=%s -> time_of_day=%.3f" % [a.substr(6), game.time_of_day])
 
 ## WorldLighting's dawn/dusk keys must match Game.phase_name(), which owns the thresholds.
 func _test_phase_thresholds() -> void:
