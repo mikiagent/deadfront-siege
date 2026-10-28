@@ -224,7 +224,7 @@ print(f"lip lining: {lining} faces")
 mouth_mat = bpy.data.materials.new("mouth")
 mouth_mat.use_nodes = True
 bsdf = mouth_mat.node_tree.nodes["Principled BSDF"]
-bsdf.inputs["Base Color"].default_value = (0.20, 0.045, 0.045, 1.0); bsdf.inputs["Roughness"].default_value = 0.55
+bsdf.inputs["Base Color"].default_value = (0.42, 0.10, 0.09, 1.0); bsdf.inputs["Roughness"].default_value = 0.6
 ob.data.materials.append(mouth_mat)
 MI = len(ob.data.materials) - 1
 for f in new_faces:
