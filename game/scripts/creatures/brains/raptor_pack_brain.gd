@@ -18,7 +18,9 @@ func on_aggro(who: Node) -> void:
 
 func _think(delta: float) -> void:
 	_heavy_cd = maxf(0.0, _heavy_cd - delta)
-	if creature.health.fraction() < 0.30 and creature.def.archetype != &"apex_raptor" and _valid_target():
+	# NATURES: the retreat point is the species' own (ai.json retreat_threshold_frac) times the
+	# animal's nature (Timid backs off sooner, Brave/Stubborn later), not a second hard-coded 0.30.
+	if creature.health.fraction() < retreat_fraction() and creature.def.archetype != &"apex_raptor" and _valid_target():
 		_set_state(&"flee")
 		flight.flee()
 		return
