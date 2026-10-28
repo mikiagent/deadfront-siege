@@ -29,6 +29,9 @@ static func start(label: String) -> void:
 	_ms.clear()
 	_last_usec = Time.get_ticks_usec()
 
+static func is_on() -> bool:
+	return _on
+
 ## Close the phase since the last mark and open a new one named `phase`.
 static func mark(phase: String) -> void:
 	if not _on:

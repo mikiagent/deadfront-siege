@@ -79,8 +79,6 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 	PerfTrace.mark("scatter.special")
 	_top_up(rt, total_target(counts, rt, home), climate, tier, size, rng)
 	PerfTrace.mark("scatter.topup")
-	for b in rt._batches:
-		b.commit()
 	PerfTrace.mark("scatter.commit")
 	for node in rt._harvest_nodes.values():
 		if is_instance_valid(node):

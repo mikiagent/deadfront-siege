@@ -251,6 +251,40 @@ static func normal_at(rt: IslandRuntime, x: float, z: float) -> Vector3:
 	var h3 := rt.surface_y(x, z + d)
 	return Vector3(h0 - h1, 2.0 * d, h2 - h3).normalized()
 
+## Height and slope (deg) at a world point in one call, for the placement loops that ask for both at
+## 90k+ spots: the same arithmetic as surface_y + slope_deg (five bilinear reads, the four slope ones
+## at +-0.75 m), inlined over the packed height array so the two helpers' call, empty-check and
+## clamping repeats go away. Returns Vector2(height, slope_deg): height is exactly surface_y(x, z) and
+## the slope is exactly slope_deg(x, z).
+const SLOPE_D := 0.75
+
+static func height_and_slope(rt: IslandRuntime, x: float, z: float) -> Vector2:
+	var arr := rt._heights
+	if arr.is_empty():
+		return Vector2.ZERO
+	var res := rt._res
+	var cell := rt._size / float(res - 1)
+	var half := rt._size * 0.5
+	var last := float(res - 1)
+	# Offsets: 0 = the point itself, then -d, +d in x and -d, +d in z (slope_deg's order).
+	var ox := PackedFloat32Array([0.0, -SLOPE_D, SLOPE_D, 0.0, 0.0])
+	var oz := PackedFloat32Array([0.0, 0.0, 0.0, -SLOPE_D, SLOPE_D])
+	var h := PackedFloat32Array()
+	h.resize(5)
+	for k in 5:
+		var u := clampf((x + ox[k] + half) / cell, 0.0, last)
+		var v := clampf((z + oz[k] + half) / cell, 0.0, last)
+		var x0 := int(u)
+		var z0 := int(v)
+		var x1 := mini(x0 + 1, res - 1)
+		var z1 := mini(z0 + 1, res - 1)
+		var tx := u - float(x0)
+		var tz := v - float(z0)
+		h[k] = lerpf(lerpf(arr[x0 + z0 * res], arr[x1 + z0 * res], tx), lerpf(arr[x0 + z1 * res], arr[x1 + z1 * res], tx), tz)
+	var dx := (h[2] - h[1]) / (2.0 * SLOPE_D)
+	var dz := (h[4] - h[3]) / (2.0 * SLOPE_D)
+	return Vector2(h[0], rad_to_deg(atan(sqrt(dx * dx + dz * dz))))
+
 static func slope_deg(rt: IslandRuntime, x: float, z: float) -> float:
 	var d := 0.75
 	var dx := (rt.surface_y(x + d, z) - rt.surface_y(x - d, z)) / (2.0 * d)
