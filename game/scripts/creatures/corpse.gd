@@ -1,6 +1,7 @@
 class_name Corpse
 extends StaticBody3D
-## Loot marker + timed corpse lifecycle. The dead creature mesh stays in its death pose.
+## Loot marker + timed corpse lifecycle. The dead creature's Ragdoll poses the body and calls
+## place_settled with where it came to rest; the mesh then keeps that pose until the fade.
 
 var species: StringName = &""
 var level: int = 1
@@ -21,6 +22,8 @@ var poison_spoiled: bool = false
 ## of each item must not pay per unit, so item takes and Take all pay the same.
 var _units_seen: Dictionary = {}
 var _paid_kinds: Dictionary = {}
+## Set once a server placed the corpse (place_settled from_server); the client never overrides it.
+var server_placed := false
 ## BUTCHER (spec 12 §2): the survivor cuts the parts they choose, one cut each, out of a budget of
 ## 1 + floor(Butchering level / 10) (CarcassParts.CUTS_BASE / LEVELS_PER_CUT). Parts never cut are
 ## lost when the carcass despawns.
@@ -43,7 +46,7 @@ func setup(c: Creature) -> void:
 	name = "Corpse_%s" % species
 	poison_spoiled = c.statuses.has_flag(&"meat_inedible")
 	_roll_loot()
-	_snap_owner_to_ground()
+	# The body is placed by the ragdoll (Corpse.place_settled), not snapped to the tile centre.
 	# BUTCHER (spec 12 §2): the cut budget is the killer's, fixed at death like the loot roll.
 	var p := PlayerRegistry.local()
 	cuts_budget = CarcassParts.cut_budget(maxi(0, p.skills.level_of("butchering")) if p != null and p.skills != null else 0)
@@ -540,12 +543,17 @@ func _place_on_tile() -> void:
 	if _marker:
 		_marker.position = Vector3(0.0, 0.08, 0.0)
 
-func _snap_owner_to_ground() -> void:
-	if _owner == null or World.runtime == null:
+## The one seam for the corpse's authoritative resting place: the ragdoll calls it when the body
+## settles (the ground under its hips); a server calls it with from_server = true, and from then on
+## the client's ragdoll result no longer moves it (the ragdoll moves its posed body there instead).
+## The loot marker moves there and the dead body's root follows, keeping its pose.
+func place_settled(world_pos: Vector3, from_server: bool = false) -> void:
+	if server_placed and not from_server:
 		return
-	var tile := BuildGrid.tile_of(_owner.global_position)
-	var ground := BuildGrid.tile_centre(tile, World.runtime)
-	_owner.global_position = ground + Vector3(0.0, 0.1, 0.0)
+	server_placed = server_placed or from_server
+	global_position = world_pos
+	if _owner and is_instance_valid(_owner) and _owner.is_inside_tree():
+		_owner.global_position = world_pos
 
 func _begin_fade() -> void:
 	if _fading:
