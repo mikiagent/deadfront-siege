@@ -214,12 +214,12 @@
         {
           "id": "xp-economy",
           "title": "XP economy: gather XP follows pass seconds, build XP pays first-of-kind well and punishes fence spam",
-          "status": "next",
+          "status": "done",
           "depends": [
             "survival-pacing"
           ],
           "source": "docs/design/islands-and-loop-plan.md",
-          "note": "Buildable now that LOOP1 landed. Pair with the skill XP toasts SKILLFEEL already shows."
+          "note": "XPECON merged 2026-10-28: gather XP 1 + seconds the pass took, build XP 30/8/0 (spam within 10 m and 60 s), rules.json xp block."
         },
         {
           "id": "inventory-screens",
@@ -615,6 +615,17 @@
           ],
           "source": "docs/design/world-design.md",
           "note": "Art thread branch claude/mmo-jaws: reversed walk/run fixed for coelophysis, compsognathus, gallimimus, utahraptor, velociraptor; merges after the owner OKs the clips. Velociraptor and T. rex jaw changes wait for their blind tests."
+        },
+        {
+          "id": "tactical-combat",
+          "title": "Tactical creature combat and cooldowns: circle/strafe, feint, lunge, pounce with a rollable telegraph, retreat when hurt, raptor packs, natures modulate aggression; cooldowns on basic and special attacks for player and dinosaurs; stun chaining limited; tackle/kick valid with a cooldown",
+          "status": "next",
+          "depends": [
+            "creature-roster",
+            "creature-natures"
+          ],
+          "source": "docs/design/durango-prompts/07_combat_and_animal_capture.md",
+          "note": "Owner 2026-10-28: 'Combat isn't fun if you get stunlocked by enemies.' Starts after the turn-rate fix (creaturefix) and the roll i-frames (roll) land, since all three touch the creature brains and combat tactics."
         }
       ]
     },
