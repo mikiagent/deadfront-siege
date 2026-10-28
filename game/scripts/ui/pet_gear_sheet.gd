@@ -39,10 +39,10 @@ func _build() -> void:
 	_left.name = "Tame"
 	body.add_child(_left)
 	var lv := VBoxContainer.new()
+	lv.alignment = BoxContainer.ALIGNMENT_CENTER
 	lv.add_theme_constant_override("separation", 6)
 	_left.add_child(lv)
 	_stage = AnimalStage.new()
-	_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lv.add_child(_stage)
 	_who = SheetChrome.label("", 24, UiTokens.TEXT, true)
 	_who.name = "Who"
@@ -188,6 +188,8 @@ func _layout_body(view: Vector2, rect: Rect2) -> void:
 	_left.size = Vector2(lw, rect.size.y)
 	_right.position = Vector2(rect.position.x + lw + gap, rect.position.y)
 	_right.size = Vector2(rect.size.x - lw - gap, rect.size.y)
+	# The stage keeps a landscape frame (AnimalStage frames for one): a tall panel cut the tail off.
+	_stage.custom_minimum_size = Vector2(0, minf(rect.size.y - (44.0 if compact else 80.0), lw * 0.7))
 	var cell := CELL_PHONE if compact else CELL_DESK
 	_slot.custom_minimum_size = Vector2(cell, cell)
 	_unequip.custom_minimum_size = Vector2(cell * 1.4, SheetChrome.TAP)
