@@ -207,9 +207,10 @@ func _dot(inst: StatusInstance) -> void:
 	if host is Creature:
 		var cr := host as Creature
 		if inst.id in [&"bleeding_target", &"poisoned_target"]:
-			# A tameable animal inside the capture window is not finished off by a DoT: the bot's
-			# first tame kept dying to bleed between "weak enough" and the tackle. Direct hits still kill.
-			if cr.def.tameable and cr.health.fraction() < 0.30:  # FieldTame.CAPTURE_HEALTH_FRAC
+			# Never force damage onto a capturable animal: the same window as the net (spec 09,
+			# stunned at any HP or <= 30 %) decides. The bot's first tame kept dying to bleed
+			# between "weak enough" and the tackle. Direct hits still kill.
+			if FieldTame.capture_window(cr):
 				return
 			dps = CombatCounters.dot_dps(cr.def.archetype, inst.id, cr.health.max_hp, inst.stacks)
 		elif def.dps_max_hp_frac > 0.0:
