@@ -125,6 +125,9 @@ func _run() -> void:
 	# An empty skip list is fine: the owner had the one small mount (zebraceratops) scaled up and saddled.
 	print("[tmount] saddled=%d skipped=%d" % [counts["saddled"], counts["skipped"]])
 	if fails.is_empty():
+		# The shared gate and every other t_*.gd print the bracketed form; keep the old line too for the
+		# reports that quote it.
+		print("[t_mounts] PASS")
 		print("PASS t_mounts")
 		quit(0)
 		return
