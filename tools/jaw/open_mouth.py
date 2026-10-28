@@ -9,7 +9,7 @@ on top of that only stretches the lip faces into a sheet ("tape") when the mouth
   3. makes lip skin forward of the mouth corner 100 % Head or 100 % Jaw (no half-and-half sagging),
   4. rips the lips apart along the mouth line forward of the corner (they still meet when shut),
   5. adds a mouth bag built in slices along the jaw: a palate arch on the Head, a floor trough on the Jaw
-     and a throat at the corner that stretches between them,
+     and a throat at the corner that stretches between them, plus a short lining wall behind every torn lip edge,
   6. textures the bag from a gum-red texel of the creature's own texture (one material, no game change),
   7. exports the same GLB layout (armature + skinned mesh, no animations).
 
@@ -29,6 +29,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument("inp"); ap.add_argument("out")
 ap.add_argument("--corner", type=float, default=0.30)
 ap.add_argument("--depth", type=float, default=0.10, help="how far the gum wall goes into the head (m)")
+ap.add_argument("--lining", type=float, default=0.05, help="depth of the wall behind each torn lip edge (m)")
+ap.add_argument("--band", type=float, default=0.35, help="skin this close (m) to the lip line is re-sided by height")
 ap.add_argument("--inset", type=float, default=0.55, help="gum wall pulls x toward the midline by this factor")
 ap.add_argument("--teeth-max", type=int, default=400, help="islands with fewer verts are treated as teeth")
 ap.add_argument("--head", default="Head"); ap.add_argument("--jaw", default="Jaw")
@@ -65,7 +67,8 @@ def set_side(v, jaw):
     d[JI if jaw else HI] = tot
 
 # 2. teeth: small islands with any Head/Jaw weight become rigid
-seen = set(); teeth = 0
+seen = set(); teeth = 0; roots = []  # (t, gum z, is_jaw) per tooth
+tooth_verts = set()
 for v in bm.verts:
     if v.index in seen: continue
     comp, st = [], [v]; seen.add(v.index)
@@ -77,21 +80,36 @@ for v in bm.verts:
     if len(comp) < a.teeth_max and any(jw(x) + hw(x) > 0.5 for x in comp):
         side = sum(jw(x) for x in comp) > sum(hw(x) for x in comp)
         for x in comp: set_side(x, side)
-        teeth += 1
+        teeth += 1; tooth_verts.update(comp)
+        zs = [(mw @ x.co).z for x in comp]
+        roots.append((sum(t_of(x) for x in comp) / len(comp), min(zs) if side else max(zs), side))
 print(f"teeth islands made rigid: {teeth}")
 
 # 3+4. lips forward of the corner: binarise, then rip along the mouth line. Every edge that crosses it is split
-# at its middle, the new points are joined inside each face, and that seam is torn apart, so the lips still
+# where it crosses, the new points are joined inside each face, and that seam is torn apart, so the lips still
 # meet with the mouth shut (no gap) and separate cleanly when it opens.
+# where the lips meet: halfway between the upper and lower gum lines, taken from the teeth roots near each point.
+# The weight contour alone sits too low at the chin, so the cut ran across visible chin skin.
+def lip_z(t):
+    up = [z for tt, z, j in roots if not j and abs(tt - t) < 0.35]
+    lo = [z for tt, z, j in roots if j and abs(tt - t) < 0.35]
+    return (sum(up) / len(up) + sum(lo) / len(lo)) / 2 if up and lo else None
 mouth = [v for v in bm.verts if jw(v) + hw(v) > 0.5 and t_of(v) > a.corner]
-side = {v: jw(v) >= 0.5 * (jw(v) + hw(v)) for v in mouth}
+side = {}
+for v in mouth:
+    lz = None if v in tooth_verts else lip_z(t_of(v))
+    z = (mw @ v.co).z
+    side[v] = z < lz if lz is not None and abs(z - lz) < a.band else jw(v) >= 0.5 * (jw(v) + hw(v))
 for v, s in side.items(): set_side(v, s)
 tape = [f for f in bm.faces if all(v in side for v in f.verts) and len({side[v] for v in f.verts}) == 2]
 old_verts = set(bm.verts)
 cross = {e for f in tape for e in f.edges if side[e.verts[0]] != side[e.verts[1]]}
 mids = set()
 for e in cross:
-    _, nv = bmesh.utils.edge_split(e, e.verts[0], 0.5)
+    z0, z1 = ((mw @ v.co).z for v in e.verts)
+    lz = lip_z(t_of(e.verts[0]))
+    fac = 0.5 if lz is None or abs(z1 - z0) < 1e-6 else min(0.9, max(0.1, (lz - z0) / (z1 - z0)))
+    _, nv = bmesh.utils.edge_split(e, e.verts[0], fac)
     mids.add(nv)
 seam = []
 for f in list({f for v in mids for f in v.link_faces}):
@@ -167,6 +185,24 @@ if vh and vj:  # throat: palate back row to floor back row, half-and-half so it 
     for i in range(2):
         new_faces.append(bm.faces.new((vh[0][i], vh[0][i + 1], vj[0][i + 1], vj[0][i])))
 print(f"mouth bag: {len(rows_h)} slices, {len(new_faces)} faces")
+# lip lining: every torn edge gets a short wall turned into the head, so a slightly open mouth shows gum, not a crack
+bm.normal_update()
+inward = {}
+for v in cut_verts:
+    n = (mw.to_3x3() @ v.normal).normalized()
+    p = mw @ v.co
+    nv = bm.verts.new(mw.inverted() @ (p - n * a.lining))
+    for k, w in v[dl].items(): nv[dl][k] = w
+    bag_verts.append(nv); inward[v] = nv
+lining = 0
+for e in [e for e in bm.edges if e.is_boundary and all(v in inward for v in e.verts)]:
+    v1, v2 = e.verts
+    f0 = e.link_faces[0]
+    # wind the wall like the skin face it hangs from
+    l = next(l for l in f0.loops if l.edge == e)
+    a1, a2 = (v1, v2) if l.vert == v1 else (v2, v1)
+    new_faces.append(bm.faces.new((a2, a1, inward[a1], inward[a2]))); lining += 1
+print(f"lip lining: {lining} faces")
 
 for f in new_faces:
     f.smooth = True

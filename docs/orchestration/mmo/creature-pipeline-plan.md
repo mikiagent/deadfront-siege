@@ -92,16 +92,22 @@ quadrupeds.
 
 ## T. rex prototype result
 
-`tools/jaw/open_mouth.py` on `tyrannosaurus.glb` (weld 18,008 -> 7,025 verts, 29 teeth islands rigid, 215 lip faces
-ripped, 17-slice mouth bag). Material: [jaws/tyrannosaurus/](jaws/tyrannosaurus/) (`before-after-roar.png` is
-labelled old left, new right; the `scene*` stills and mp4s are the blind set, answers in `ab-key.txt`).
+`tools/jaw/open_mouth.py` on `tyrannosaurus.glb`: weld 18,008 -> 7,025 verts, 29 teeth islands rigid, lip line taken
+from the teeth roots, 330 lip faces ripped at the exact crossing, 17-slice mouth bag, a 5 cm lining wall behind every
+torn edge. Material: [jaws/tyrannosaurus/](jaws/tyrannosaurus/) (`before-after-roar.png` is old left, new right; the
+`scene*` stills and mp4s are the blind set, answers in `ab-key.txt`).
 
-Blind judge, round 2 (sides flipped per scene): **new won all three open-mouth scenes** (roar strong, bite slight,
-feed strong) and **lost the closed mouth, slightly** (a small zig-zag seam on the lower lip at the chin).
-Round 1, before the bag got a gum-red texel and its own normals, won 2 of 4.
-Left to fix before it goes in the game: the chin seam at rest, torn saw-tooth edges on the lining at the mouth
-corners, front teeth poking past the lip, faceted interior (more slices + smoothing).
-Not copied into `game/` yet.
+Blind judge, three rounds with sides flipped per scene:
+| round | change | open-mouth scenes won by new | closed mouth |
+|---|---|---|---|
+| 1 | rip + bag, black texel | 2 of 3 | lost slightly (chin crack) |
+| 2 | gum-red texel, bag keeps own normals | 3 of 3 | lost slightly (zig-zag seam at the chin) |
+| 3 | lip line from teeth roots, exact-crossing cut, lining wall | 3 of 3 | tie |
+
+The judge still calls neither version shippable up close: torn-looking lining edges, stray slivers near the snout tip,
+flat-shaded interior plates. At the game camera the new mouth reads as a mouth; the old one reads as a sheet.
+Not copied into `game/` yet; next polish: smooth and subdivide the bag, drop lining walls on edges shorter than 1 cm,
+re-check which side each front tooth belongs to.
 
 ## Tools and skills checked
 - Skill catalog search (Blender, rigging, animation, retarget, 3D, Tripo): nothing relevant to install.

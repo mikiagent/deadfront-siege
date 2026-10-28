@@ -5,7 +5,7 @@ Blender headless. Frames the camera on the Head bone (works on the deformed pose
 (frame, view). Same camera for any mesh with the same skeleton, so old and new compare 1:1.
 
   Blender -b --python tools/jaw/render_head.py -- <base.glb> <clip.glb|-> <out_prefix> \
-      [--frames 0,35] [--views side,threeq,front] [--size 900] [--head Head] [--span 4.5]
+      [--frames 0,35] [--views side,threeq,front] [--size 900] [--head Head] [--span 4.5] [--forward m] [--down m]
 """
 import argparse, math, sys
 import bpy
@@ -16,6 +16,8 @@ a.add_argument("glb"); a.add_argument("clip"); a.add_argument("out")
 a.add_argument("--frames", default="0"); a.add_argument("--views", default="side,threeq,front")
 a.add_argument("--size", type=int, default=900); a.add_argument("--head", default="Head")
 a.add_argument("--span", type=float, default=4.5, help="ortho width in metres")
+a.add_argument("--forward", type=float, default=None, help="aim this far (m) toward the snout from mid-head")
+a.add_argument("--down", type=float, default=0.0, help="aim this far (m) below mid-head")
 a = a.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -46,7 +48,7 @@ for fr in [int(x) for x in a.frames.split(",")]:
     # aim at the middle of the head bone, pushed a little toward the snout
     tgt = arm.matrix_world @ (pb.head.lerp(pb.tail, 0.5))
     fwd = (arm.matrix_world.to_3x3() @ (pb.tail - pb.head)).normalized()
-    tgt = tgt + fwd * a.span * 0.12
+    tgt = tgt + fwd * (a.span * 0.12 if a.forward is None else a.forward) - Vector((0, 0, a.down))
     for v in a.views.split(","):
         # yaw measured from the animal's left side (-X in Blender for +Y facing), degrees
         yaw, pitch = {"side": (0, 0), "threeq": (40, 15), "front": (85, 8), "below": (30, -30)}[v]
