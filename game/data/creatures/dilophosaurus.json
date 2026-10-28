@@ -20,6 +20,7 @@
     "defense": 80,
     "speed": 560
   },
+  "turn_rate": 3.0,
   "tamed_role": [
     "combat"
   ],

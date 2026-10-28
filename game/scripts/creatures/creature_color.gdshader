@@ -1,5 +1,8 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
+render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
+// cull_disabled: every creature GLB ships double-sided materials (glTF doubleSided, imported as
+// CULL_DISABLED) and several Tripo meshes have inward-wound patches on the skull. cull_back here
+// punched those out as holes in the head (utahraptor, velociraptor: CREATUREFIX).
 // Per-individual natural coloration for creature skins: samples the original albedo (as imports from
 // the GLB's StandardMaterial3D) and shifts it in HSV, keeping normal, roughness and metallic. Status
 // FX (tint / darken / damage flash) are applied afterwards, on top of the shifted colour.

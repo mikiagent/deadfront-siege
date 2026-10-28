@@ -21,6 +21,7 @@
     "defense": 180,
     "speed": 520
   },
+  "turn_rate": 2.0,
   "tamed_role": [],
   "look": "9 meter large theropod with a boxy skull bearing two small horns above the eyes, powerful jaws, three-fingered arms folded at the chest, thick tail, mottled ochre and brown scaly hide,",
   "texture_prompt": "mottled ochre and dark brown scales, pale underside, dark eye horns, matte surface",

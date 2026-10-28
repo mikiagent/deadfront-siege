@@ -26,6 +26,8 @@ func _think(delta: float) -> void:
 	stagger_immunity = maxf(0,stagger_immunity-delta)
 	if phase != &"idle":
 		creature.stop_move()
+		if phase == &"windup":
+			creature.face_towards(creature.global_position + locked_forward, delta)
 		phase_left = maxf(0,phase_left-delta)
 		if not _valid_target():
 			_end_phase()
@@ -51,8 +53,11 @@ func _do_attack() -> void:
 		_set_state(&"approach")
 		return
 	creature.stop_move()
-	creature.face_towards(attack_target.global_position,1.0)
-	locked_forward = -creature.global_basis.z
+	# Fixed-facing: the strike is aimed where the target stood at windup start; the body turns into
+	# that aim at the species turn rate during the windup instead of snapping to it.
+	offset.y = 0.0
+	locked_forward = offset.normalized() if offset.length_squared() > 0.0001 else -creature.global_basis.z
+	creature.face_towards(creature.global_position + locked_forward, get_physics_process_delta_time())
 	locked_target = attack_target
 	attack_number += 1
 	windup_clip = &"attack_heavy" if attack_number % 3 == 0 else &"attack_primary"
