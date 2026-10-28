@@ -11,6 +11,11 @@ extends Node
 signal settled(mode: StringName)
 
 const PROFILE_PATH := "res://data/creatures/ragdoll.json"
+## ASSUMPTION: a carcass lies with its hips at most this share of the standing hips height; a body
+## rounder than its legs are long (zebraceratops) rests higher, on its barrel, so the limit is the
+## larger of that and LIE_WIDTH_K x the trunk's half-width across the hips.
+const LIE_FRAC := 0.5
+const LIE_WIDTH_K := 1.15
 
 static var _data: Dictionary = {}
 static var _simulating: Array[Ragdoll] = []
@@ -67,7 +72,7 @@ var _resting := false  ## reached its target: every body got the rest damping
 var _ground_n: Vector3 = Vector3.UP  ## terrain normal where it died: "on a flank" is judged against it
 var _stretch_bone: String = ""
 ## Worst joint stretch seen during the whole simulation, as a fraction of the joint's rest length
-## (measured before the rig's clamp pulls the joint back). The lab and t_ragdoll gate it.
+## The lab and t_ragdoll gate it.
 var peak_stretch: float = 0.0
 ## Fallback: the view moves from _fall_from to _fall_to (creature space) while the clip plays.
 var _fall_from: Transform3D
@@ -226,7 +231,11 @@ func _depenetrate() -> void:
 		var to_world := xf * sk.get_bone_global_pose(b) * sk.get_bone_global_rest(b).affine_inverse()
 		for pt: Vector3 in [row["head_skel"], row["tip_skel"]]:
 			var w := to_world * pt
-			lift = maxf(lift, RagdollSkin.ground_y(space, w + above, _exclude, -INF) + float(row["radius_m"]) - w.y)
+			# A sphere of radius r clears a plane with normal n only r / n.y above it, not r: on a
+			# 30 degree slope r alone left feet 15 % of their radius inside the hill (coelophysis'
+			# BackFoot torn out at 0.03 s).
+			var n := RagdollSkin.ground_normal(space, w + above, _exclude)
+			lift = maxf(lift, RagdollSkin.ground_y(space, w + above, _exclude, -INF) + float(row["radius_m"]) / maxf(n.y, 0.5) - w.y)
 	if lift > 0.0:
 		_lift = lift + float(_guards().get("lift_margin_m", 0.01))
 		creature.view.global_position.y += _lift
@@ -301,11 +310,7 @@ func _step(delta: float) -> void:
 			all_asleep = false
 	if Engine.get_physics_frames() % 15 == 0:
 		_refresh_exclude()  # a creature, player or corpse that arrived since the death
-	# A soft joint limit cannot hold a chain on a slope: bodies slide apart until the guard rips the
-	# whole ragdoll down. Pull every joint that opened past the clamp back onto the limit first, then
-	# measure what is left (the tests and the guard read the pose the skin actually follows).
-	var held: Dictionary = rig.clamp_stretch(float(guard.get("clamp_stretch_frac", 0.1)))
-	var stretch := float(held["after"])
+	var stretch := _worst_stretch()
 	peak_stretch = maxf(peak_stretch, stretch)
 	if stretch > float(guard.get("max_stretch_frac", 0.35)):
 		_abort("joint %s stretched %.0f %% at %.2f s" % [_stretch_bone, stretch * 100.0, sim_time])
@@ -628,6 +633,22 @@ func _finish() -> void:
 	print("[ragdoll] %s %s settled in %.2f s%s (peak %.1f m/s, %d limbs lifted, conform %+.3f m tilt %.1f deg in %.1f ms)" % [
 		creature.def.id if creature.def else &"?", mode, settle_time, " capped" if capped else "", peak_speed, limb_turns, conform_m, rad_to_deg(conform_tilt), conform_us / 1000.0])
 	settled.emit(mode)
+
+## Half the trunk's width across the hips in the pose the body is in now (0 without a skeleton).
+func trunk_half_width() -> float:
+	var sk := _skeleton()
+	var mi := mesh_instance()
+	if sk == null or mi == null or creature == null or creature.def == null:
+		return 0.0
+	var prof := profile(creature.def.id)
+	return RagdollSkin.trunk_half_width(mi, sk, _body_bones(sk, prof), _hips_world(sk, prof), creature.def.real_length_m)
+
+## The hips height a lying carcass of this species may keep: LIE_FRAC of its standing hips height, or
+## LIE_WIDTH_K x its trunk's half-width when the body is rounder than its legs are long (a
+## zebraceratops on its side rests on its barrel: 0.3 m of a 0.6 m hip height). The lab's lying gate
+## and t_ragdoll both read this, so a species' profile is scored the same way in both.
+func lie_limit(stand_hips: float) -> float:
+	return maxf(stand_hips * LIE_FRAC, trunk_half_width() * LIE_WIDTH_K)
 
 func _hips_world(sk: Skeleton3D, prof: Dictionary) -> Vector3:
 	var hb := sk.find_bone(str(prof.get("hips", "Hips"))) if sk else -1

@@ -112,3 +112,83 @@ heading 0, four blows = 44 cases). It now ends with exactly one measured line:
   defaulting to `git merge-base HEAD claude/mmo-overhaul`; that line was removed from the gate conf
   (backup `/tmp/ragdoll_job_conf.backup`). SCOPE and every other setting untouched.
 - Final: `verify_job.sh ragdoll` -> `VERIFY HEADLESS-ONLY: visual lab deferred by owner` + `VERIFY PASS`.
+
+## Round 2 (Claude)
+
+The DeepSeek round 2 stalled on R2 (it tried clamping bodies back together every frame, which ejected
+them at 34 m/s, then loosened the slope bar). Its useful uncommitted work was kept: the new deinonychus
+profile, `Ragdoll.lie_limit()` / `RagdollSkin.trunk_half_width()` (one lying limit shared by the lab
+and the test), and the two new t_ragdoll tests. The unused `RagdollRig.clamp_stretch` and its
+`clamp_stretch_frac` guard were removed.
+
+**R1, deinonychus lies flat.** The profile now matches the smaller, wider-winged mesh: thinner trunk
+and tail capsules (Body 0.75 -> 0.5 m, tail 0.8 -> 0.22 m), the lower legs and feet simulated, the
+arms/wings as light limp cones and pins, `pose_k` 12, and feet listed as the back feet. t_ragdoll
+`_test_lying_limit` asserts for every species that the settled hips sit within `lie_limit` and no
+profiled foot stays up (75 % of standing hips + `FOOT_TOL_M` 0.05 m, `# ASSUMPTION`). Deinonychus:
+hips 0.35 of a 0.50 m limit (standing 0.99). Lab sweep: 2 of 65 deinonychus cases still miss the
+lying gate (slope10 h180 front, slope20 h90 right at 0.66 vs 0.66), against every case before.
+
+**R2, compsognathus/coelophysis slope deaths.** Three causes, all fixed at the source; the 25 %
+test bar and the 35 % guard are unchanged:
+1. *Start pose outside the joint limits* (`RagdollRig._start_pose_in_limits`). The hit-react frame
+   bends compsognathus' knees 57-86 degrees off their hinge axes and swings its hips to 112 degrees
+   on a 45 degree cone (coelophysis: knee 110 on a 60 limit). The solver tore those limbs back in the
+   first frames (BackLowLeg 183 % at 0.02 s with more solver iterations, which proves the point:
+   more iterations made it worse). A joint more than `START_SLACK_DEG` (30, `# ASSUMPTION`) outside
+   its limits now starts at the nearest allowed pose. The slack matters: projecting the
+   velociraptor's 13-35 degree overshoots too lifted its back-blow hips from 0.50 to 0.65 m.
+2. *Initial ground penetration on slopes* (`Ragdoll._depenetrate`). The lift used the capsule
+   radius as vertical clearance; on a slope a sphere needs r / n.y, so 30 degree slopes started every
+   foot 15 % of its radius inside the hill (coelophysis BackFoot torn at 0.03 s).
+3. *Mass ratio on a tiny body* (`ragdoll.json`, compsognathus). Its tail weighed about as much as its
+   2.4 kg trunk, so the steering torque on the root (scaled by the whole carcass' inertia) spun the
+   trunk out of its shoulders (Shoulders 50-124 % at 0.12-0.17 s). Body `mass_frac` 0.4 -> 0.6 and
+   the oversized foot capsules 0.128 -> 0.08 m (skin p50 0.073). Peak stretch on the test's 30 degree
+   ramp: 50 % (fallback) -> 18 %.
+   Tried and rejected: applying the steering to every body as one rigid turn (fixed compsognathus but
+   made T. rex, stegosaurus, zebraceratops and protoceratops lie legs-up), more solver iterations
+   (worse, see 1), thinner tail capsules (no better).
+
+The test's 30 degree ramp was centred on the test's flat floor, so the creature died on a crease;
+it now sits clear of the floor (same numbers, so this was not hiding anything).
+
+### Before / after (lab, all 11 species, flat/10/20/30 degrees/rock, 4 headings x 4 blows, 715 cases)
+
+| | worker r2 state | after |
+|---|---|---|
+| Ragdoll aborted to the fallback | 12 (compsognathus 11) | 5 (deinonychus 2, coelophysis 1, megaloceros 1, T. rex 1) |
+| compsognathus fallbacks / gate misses (65 cases) | 11 / 6 | 1 / 1 |
+| coelophysis fallbacks (65 cases) | 2 | 0-1 |
+| velociraptor gate misses | 0 | 0 |
+| t_ragdoll slope30 worst stretch | compsognathus 67 % (fallback) | T. rex 22 %, no species aborted |
+
+The lab still exits 1 overall (it did before round 2 too): a few borderline lying misses on slopes
+(utahraptor, zebraceratops, protoceratops, stegosaurus, one at 0.01 m over) and the T. rex
+slope30/h90/right case, whose tail tip hits the 30 m/s speed guard. These are chaotic: any physics
+change reshuffles which 1-2 cases per species miss.
+
+### Gates
+- `t_ragdoll` PASS three runs in a row (deterministic: identical numbers each run).
+- `t_ai`, `t_canim`, `t_gather`, `t_combat`, `t_butcher`, `t_tactical` PASS, no SCRIPT ERROR.
+- `run_all` `[tests] PASS` (known TouchControls compile-order and econ fault-test noise only).
+- `tools/smoke.sh --no-import` SMOKE PASS.
+- Windowed `ragdoll_lab` 1600x900 (deinonychus, compsognathus, T. rex; flat and slope30):
+  `[ragdoll] RESULT cases=6 ok=6 fallbacks=0 worst_skin_m=-0.000 deep=0 shots=14`.
+
+### Shots (`docs/orchestration/reports/ragdoll/`)
+- `deinonychus_death.png`: on its flank, legs and wings on the ground, tail flat.
+- `compsognathus_slope30_death.png`: lying along the 30 degree slope, whole body on the ground.
+- `tyrannosaurus_death.png`: on its flank, legs folded under, tail on the ground.
+
+### Assumptions
+- `START_SLACK_DEG = 30` (start-pose overshoot the soft limits may ease back).
+- `FOOT_TOL_M = 0.05` on the test's foot gate (compsognathus measured 0.479 of a 0.48 m limit).
+- compsognathus trunk `mass_frac` 0.6: a simulation weight, not a balance number.
+
+### Risks
+- `_start_pose_in_limits` runs for every species; a new species whose clip breaks its limits by
+  more than 30 degrees will now start with that limb snapped to its limit (one visible frame) instead
+  of tearing it.
+- The lab sweep is chaotic; a later physics change can push 1-2 borderline cases per species over
+  the lying gate again.

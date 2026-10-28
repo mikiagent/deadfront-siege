@@ -255,6 +255,58 @@ static func lift_limbs(ground: Ground, mi: MeshInstance3D, sk: Skeleton3D, body_
 			turns += 1
 	return turns
 
+## Half the trunk's width across the hips in the current pose: skin vertices within `band_frac` of the
+## creature's length of the hips, whose dominant bone belongs to the trunk (a simulated body that has
+## no body above it, so legs and tail are excluded). A body rounder than its legs are long lies with
+## its hips this high, so this is the width term of the lying gate (Ragdoll lie limit).
+static func trunk_half_width(mi: MeshInstance3D, sk: Skeleton3D, body_bones: Dictionary, hips_world: Vector3, length_m: float, band_frac: float = 0.05) -> float:
+	var s := sample(mi, 1)
+	if s.is_empty() or sk == null:
+		return 0.0
+	var bones: PackedInt32Array = s["bones"]
+	var weights: PackedFloat32Array = s["weights"]
+	var binds: Array[int] = []
+	for k in mi.skin.get_bind_count():
+		var b := mi.skin.get_bind_bone(k)
+		binds.append(b if b >= 0 else sk.find_bone(mi.skin.get_bind_name(k)))
+	var pts := posed_points(mi, sk, 1)
+	var inv := sk.global_transform.affine_inverse()
+	var hz := (inv * hips_world).z
+	var band := maxf(0.01, band_frac * length_m)
+	var root_of: Dictionary = {}  # body bone -> the body bone with no body above it
+	var lo := INF
+	var hi := -INF
+	for i in pts.size():
+		var l := inv * pts[i]
+		if absf(l.z - hz) >= band:
+			continue
+		var top := 0
+		for k in 4:
+			if weights[i * 4 + k] > weights[i * 4 + top]:
+				top = k
+		var b := binds[bones[i * 4 + top]]
+		while b >= 0 and not body_bones.has(b):
+			b = sk.get_bone_parent(b)
+		if b < 0:
+			continue
+		if not root_of.has(b):
+			var r := b
+			var above := false
+			while true:
+				var p := sk.get_bone_parent(r)
+				if p < 0:
+					break
+				if body_bones.has(p):
+					above = true
+					break
+				r = p
+			root_of[b] = r if above else -1
+		if int(root_of[b]) != b:
+			continue  # a leg or tail body: not the trunk's width
+		lo = minf(lo, l.x)
+		hi = maxf(hi, l.x)
+	return (hi - lo) * 0.5 if hi > lo else 0.0
+
 ## Lowest gap (vertical, + = above) between the ground and the posed skin of this mesh, every
 ## `stride`-th vertex plus each bone group's hull, using the same cached ground as the conform.
 ## INF when nothing is under the skin.

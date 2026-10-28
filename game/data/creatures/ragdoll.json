@@ -23,7 +23,7 @@
   "timing": {"hit_react_s": 0.3, "settle_cap_s": 3.0, "quiet_s": 0.35, "quiet_mps": 0.2, "quiet_rps": 0.8},
   "impulse": {"mps_per_damage": 0.04, "min_mps": 0.5, "max_mps": 3.0, "up_frac": 0.1, "topple_k": 0.6,
     "end_on_shove_k": 1.2, "default_damage": 25.0},
-  "guards": {"max_body_mps": 30.0, "max_stretch_frac": 0.35, "clamp_stretch_frac": 0.1, "pose_k": 4.4, "pose_c": 4.2, "pose_w0_max": 3.0, "align_slope_deg": 15.0, "belly_tilt_deg": 0.0, "rest_after_s": 0.3, "rest_angle": 0.45, "rest_angular_damp": 20.0, "rest_linear_damp": 3.0, "lift_margin_m": 0.01},
+  "guards": {"max_body_mps": 30.0, "max_stretch_frac": 0.35, "pose_k": 4.4, "pose_c": 4.2, "pose_w0_max": 3.0, "align_slope_deg": 15.0, "belly_tilt_deg": 0.0, "rest_after_s": 0.3, "rest_angle": 0.45, "rest_angular_damp": 20.0, "rest_linear_damp": 3.0, "lift_margin_m": 0.01},
   "conform": {"stride": 61, "cell_frac": 0.025, "max_tilt_deg": 12.0, "tilt_rounds": 2, "limb_max_deg": 50.0, "lie_frac": 0.5, "foot_frac": 0.75, "legs_up_dot": -0.35},
   "physics": {"mass_kg": 100.0, "max_sim_mass_kg": 60.0, "max_mass_ratio": 6.0, "friction": 0.9, "bounce": 0.0, "linear_damp": 0.4, "angular_damp": 2.0, "gravity_scale": 1.0, "collision_mask": 1, "joint": {"bias": 0.3, "hinge_softness": 0.9, "relaxation": 1.0, "softness": 0.5, "erp": 0.7, "damping": 1.0}},
   "species": {
@@ -83,7 +83,7 @@
       "reparent": {"BackFoot.L": "BackLowLeg.L", "BackFoot.R": "BackLowLeg.R"},
       "hit_react_s": 0.3,
       "bodies": [
-        {"bone": "Body", "from": "Tail2", "to": "Shoulders", "radius": 0.211, "mass_frac": 0.4, "angular_damp": 3.0},
+        {"bone": "Body", "from": "Tail2", "to": "Shoulders", "radius": 0.211, "mass_frac": 0.6, "angular_damp": 3.0},
         {"bone": "Shoulders", "radius": 0.165, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 20, "twist": 10, "axis": [1, 0, 0], "min": -35, "max": 15}},
         {"bone": "Neck", "dir": [0.0, -0.3, 1.0], "length": 0.458, "radius": 0.151, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 20, "twist": 10, "axis": [1, 0, 0], "min": -30, "max": 20}},
         {"bone": "Tail2", "radius": 0.22, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 5}},
@@ -96,29 +96,37 @@
         {"bone": "BackUpLeg.R", "radius": 0.138, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -17.062, "max": 60}},
         {"bone": "BackLowLeg.L", "to": "BackLowLeg.L_end", "radius": 0.073, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -60, "max": 10}},
         {"bone": "BackLowLeg.R", "to": "BackLowLeg.R_end", "radius": 0.073, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -60, "max": 10}},
-        {"bone": "BackFoot.L", "to": "BackFoot.L_end", "radius": 0.128, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -30, "max": 43.933}},
-        {"bone": "BackFoot.R", "to": "BackFoot.R_end", "radius": 0.128, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -30, "max": 43.933}}
+        {"bone": "BackFoot.L", "to": "BackFoot.L_end", "radius": 0.08, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -30, "max": 43.933}},
+        {"bone": "BackFoot.R", "to": "BackFoot.R_end", "radius": 0.08, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -30, "max": 43.933}}
       ]
     },
     "deinonychus": {
       "hips": "Hips",
-      "guards": {"belly_tilt_deg": 12.0},
-      "feet": ["FrontFoot.L", "FrontFoot.R"],
+      "guards": {"belly_tilt_deg": 12.0, "pose_k": 12.0},
+      "feet": ["BackFoot.L", "BackFoot.R", "BackLowLeg.L_end", "BackLowLeg.R_end"],
       "mass_kg": 398.57,
       "reparent": {"BackFoot.L": "BackLowLeg.L", "BackFoot.R": "BackLowLeg.R"},
       "hit_react_s": 0.259,
       "bodies": [
-        {"bone": "Body", "from": "Tail2", "to": "Shoulders", "radius": 0.75, "offset": [0.0, -0.6, 0.0], "mass_frac": 0.4, "angular_damp": 3.442},
-        {"bone": "Shoulders", "radius": 0.595, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 20, "twist": 10, "axis": [1, 0, 0], "min": -35, "max": 15}},
-        {"bone": "Neck", "dir": [0.0, -0.3, 1.0], "length": 1.748, "radius": 0.35, "offset": [0.0, 0.45, 0.1], "angular_damp": 4.0, "joint": {"type": "cone", "swing": 20, "twist": 10, "axis": [1, 0, 0], "min": -30, "max": 20}},
-        {"bone": "Tail2", "radius": 0.28, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 5}},
-        {"bone": "Tail3", "radius": 0.3, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 12, "twist": 5}},
-        {"bone": "Tail4", "radius": 0.5, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 12, "twist": 5}},
-        {"bone": "Tail5", "to": "Tail5_end", "extend": 2.0, "radius": 0.8, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 12, "twist": 5}},
-        {"bone": "BackLeg.L", "radius": 0.35, "joint": {"type": "cone", "swing": 45, "side": 30, "twist": 10}},
-        {"bone": "BackLeg.R", "radius": 0.35, "joint": {"type": "cone", "swing": 45, "side": 30, "twist": 10}},
-        {"bone": "BackUpLeg.L", "radius": 0.4, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -15.155, "max": 85.865}},
-        {"bone": "BackUpLeg.R", "radius": 0.4, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -15.155, "max": 85.865}}
+        {"bone": "Body", "from": "Tail2", "to": "Shoulders", "radius": 0.5, "mass_frac": 0.36, "angular_damp": 3.442},
+        {"bone": "Shoulders", "radius": 0.25, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 20, "twist": 10, "axis": [1, 0, 0], "min": -35, "max": 15}},
+        {"bone": "Neck", "dir": [0.0, -0.3, 1.0], "length": 1.2, "radius": 0.25, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 25, "twist": 12, "axis": [1, 0, 0], "min": -30, "max": 20}},
+        {"bone": "Tail2", "radius": 0.24, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 16, "twist": 6}},
+        {"bone": "Tail3", "radius": 0.21, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 6}},
+        {"bone": "Tail4", "radius": 0.19, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 6}},
+        {"bone": "Tail5", "to": "Tail5_end", "extend": 1.1, "radius": 0.22, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 6}},
+        {"bone": "BackLeg.L", "radius": 0.26, "joint": {"type": "cone", "swing": 50, "side": 35, "twist": 12}},
+        {"bone": "BackLeg.R", "radius": 0.26, "joint": {"type": "cone", "swing": 50, "side": 35, "twist": 12}},
+        {"bone": "BackUpLeg.L", "radius": 0.29, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -15, "max": 80}},
+        {"bone": "BackUpLeg.R", "radius": 0.29, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -15, "max": 80}},
+        {"bone": "BackLowLeg.L", "to": "BackLowLeg.L_end", "radius": 0.14, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -110, "max": 15}},
+        {"bone": "BackLowLeg.R", "to": "BackLowLeg.R_end", "radius": 0.14, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -110, "max": 15}},
+        {"bone": "BackFoot.L", "to": "BackFoot.L_end", "radius": 0.2, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 50}},
+        {"bone": "BackFoot.R", "to": "BackFoot.R_end", "radius": 0.2, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 50}},
+        {"bone": "FrontLeg.L", "to": "FrontUpLeg.L", "radius": 0.1, "joint": {"type": "cone", "swing": 55, "side": 40, "twist": 20}},
+        {"bone": "FrontLeg.R", "to": "FrontUpLeg.R", "radius": 0.1, "joint": {"type": "cone", "swing": 55, "side": 40, "twist": 20}},
+        {"bone": "FrontUpLeg.L", "to": "FrontLowLeg.L", "radius": 0.09, "joint": {"type": "pin"}},
+        {"bone": "FrontUpLeg.R", "to": "FrontLowLeg.R", "radius": 0.09, "joint": {"type": "pin"}}
       ]
     },
     "gallimimus": {

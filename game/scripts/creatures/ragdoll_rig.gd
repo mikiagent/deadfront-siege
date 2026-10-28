@@ -32,6 +32,9 @@ var start_local: Array[Transform3D] = []
 var _body_of_bone: Dictionary = {}  ## bone index -> body index
 var _moved: Array = []  ## [bone, old parent, old rest] per reparented bone
 var _clip_local: Array[Transform3D] = []  ## every bone's local pose before the build touched it
+## ASSUMPTION: start-pose overshoot (degrees past a joint limit, or off a hinge axis) the solver eases
+## back without tearing the chain; measured 13-35 on velociraptor (fine), 57-86 on compsognathus.
+const START_SLACK_DEG := 30.0
 
 ## Returns null (and leaves the skeleton untouched) when the profile names a bone this rig lacks.
 static func build(sk: Skeleton3D, prof: Dictionary, defaults: Dictionary) -> RagdollRig:
@@ -102,7 +105,57 @@ static func build(sk: Skeleton3D, prof: Dictionary, defaults: Dictionary) -> Rag
 		sk.set_bone_pose_position(i, r.start_local[i].origin)
 		sk.set_bone_pose_rotation(i, r.start_local[i].basis.get_rotation_quaternion())
 		sk.set_bone_pose_scale(i, r.start_local[i].basis.get_scale())
+	r._start_pose_in_limits()
 	return r
+
+## Puts the start pose's badly broken joints inside their limits. A hit-react frame can bend a knee 60-86
+## degrees off its hinge axis or swing a hip 112 degrees on a 45 degree cone (compsognathus,
+## coelophysis); the solver then tore the limb back in the first frames and the stretch guard dropped
+## the ragdoll (BackLowLeg 183 % at 0.02 s). A joint more than START_SLACK_DEG outside its limits
+## starts at the nearest pose it allows instead (smaller overshoots the soft limits ease back; pulling
+## those in too lifted the velociraptor's back-blow hips from 0.50 to 0.65 m):
+## a hinge keeps only its turn about the axis, clamped; a cone has its twist, side and bend angles
+## (the 6DOF joint's own XYZ reading, RagdollRig._set_limits) clamped. Parent-first, so a corrected
+## thigh carries its shin.
+func _start_pose_in_limits() -> void:
+	for k in bodies.size():
+		var row: Dictionary = info[k]
+		var kind := str(row["joint"])
+		if kind != "hinge" and kind != "cone":
+			continue
+		var c := int(row["bone"])
+		var pr := skeleton.get_bone_global_rest(int(row["parent_bone"])).basis.orthonormalized()
+		var rel_rest := pr.transposed() * skeleton.get_bone_global_rest(c).basis.orthonormalized()
+		var pn := skeleton.get_bone_global_pose(int(row["parent_bone"])).basis.orthonormalized()
+		var q := pn.transposed() * skeleton.get_bone_global_pose(c).basis.orthonormalized() * rel_rest.transposed()
+		if kind == "hinge":
+			var a := (pr.transposed() * (row["axis"] as Vector3)).normalized()
+			var qq := q.get_rotation_quaternion()
+			var angle := wrapf(2.0 * atan2(Vector3(qq.x, qq.y, qq.z).dot(a), qq.w), -PI, PI)
+			var held := clampf(angle, deg_to_rad(float(row["min"])), deg_to_rad(float(row["max"])))
+			var on_axis := Basis(a, held)
+			if rad_to_deg((on_axis.get_rotation_quaternion().inverse() * qq).get_angle()) <= START_SLACK_DEG:
+				continue
+			q = on_axis
+		else:
+			var x := (row["dir_skel"] as Vector3).normalized()
+			var ax: Vector3 = row["axis"]
+			var z := ax - x * ax.dot(x)
+			z = z.normalized() if z.length_squared() > 1e-6 else x.cross(Vector3.UP).normalized()
+			var jf := pr.transposed() * Basis(x, z.cross(x), z)
+			var e := (jf.transposed() * q * jf).transposed().get_euler(EULER_ORDER_XYZ) * (180.0 / PI)
+			var tw := float(row["twist"])
+			var sd := float(row["side"])
+			var lim := Vector3(clampf(e.x, -tw, tw), clampf(e.y, -sd, sd), clampf(e.z, -float(row["max"]), -float(row["min"])))
+			if (lim - e).abs()[(lim - e).abs().max_axis_index()] <= START_SLACK_DEG:
+				continue
+			q = jf * Basis.from_euler(lim * (PI / 180.0), EULER_ORDER_XYZ).transposed() * jf.transposed()
+		var want := pn * q * rel_rest  # the child's global basis inside its limits
+		var sp := skeleton.get_bone_parent(c)
+		var local := (skeleton.get_bone_global_pose(sp).basis.orthonormalized().transposed() * want) if sp >= 0 else want
+		var rot := local.get_rotation_quaternion()
+		skeleton.set_bone_pose_rotation(c, rot)
+		start_local[c] = Transform3D(Basis(rot).scaled(start_local[c].basis.get_scale()), start_local[c].origin)
 
 ## Moves IK bones under their limbs on a skeleton no rig simulates (a fallback's frozen pose), so
 ## its limb chains carry them like the ragdoll's do.
@@ -339,80 +392,6 @@ func _settle_bone(i: int, out: Array[Transform3D], done: Array[bool]) -> void:
 	else:
 		out[i] = parent_g * local
 	done[i] = true
-
-## Largest gap between a body's bone head and where its parent body says that head should be, as a
-## fraction of the child's rest length (the same measure the stretch guard reads).
-func worst_stretch() -> float:
-	var worst := 0.0
-	for k in bodies.size():
-		if int(info[k]["parent_body"]) >= 0:
-			worst = maxf(worst, (_gap(k) / maxf(0.02, float(info[k]["length_m"]))))
-	return worst
-
-## A body's bone head (world) against where its parent body's pose puts it, plus the head itself.
-func _gap(k: int) -> float:
-	return float(_gap_pair(k)[0])
-
-func _gap_pair(k: int) -> Array:
-	var xf := skeleton.global_transform
-	var child_head := xf * body_bone_pose(k).origin
-	var pk := int(info[k]["parent_body"])
-	var parent_bone := int(info[pk]["bone"])
-	var rel := skeleton.get_bone_global_rest(parent_bone).affine_inverse() * skeleton.get_bone_global_rest(int(info[k]["bone"]))
-	var want := xf * (body_bone_pose(pk) * rel.origin)
-	return [child_head.distance_to(want), child_head, want]
-
-## Clamps every joint to `limit_frac` of its rest length: a child body whose bone head has slid
-## further than that from where its parent puts it is translated back onto the limit (and takes its
-## parent's velocity), so the soft joint limits cannot tear a chain open on a slope. Bodies are in
-## parent-first order and only translated, so a parent's correction carries to its children. Returns
-## {before: the worst stretch measured before any clamp, after: the worst after, bone: its name,
-## clamped: how many bodies were moved}. The engine's transforms are not read back (they sync at the
-## next physics flush), so both numbers are computed here.
-func clamp_stretch(limit_frac: float) -> Dictionary:
-	var deltas: Array[Vector3] = []
-	deltas.resize(bodies.size())
-	deltas.fill(Vector3.ZERO)
-	var before := 0.0
-	var after := 0.0
-	var worst_bone := ""
-	var moved := 0
-	var xf := skeleton.global_transform
-	for k in bodies.size():
-		var pk := int(info[k]["parent_body"])
-		if pk < 0:
-			continue
-		var pair := _gap_pair(k)
-		var len_m := maxf(0.02, float(info[k]["length_m"]))
-		var head: Vector3 = pair[1]
-		var want: Vector3 = pair[2]
-		var gap: float = float(pair[0])
-		var frac := gap / len_m
-		if frac > before:
-			before = frac
-		var head_now := head + deltas[k]
-		var want_now := want + deltas[pk]
-		var gap_now := head_now.distance_to(want_now)
-		if gap_now > limit_frac * len_m:
-			var push := (want_now - head_now) * (1.0 - limit_frac * len_m / gap_now)
-			deltas[k] += push
-			gap_now = limit_frac * len_m
-			moved += 1
-		var frac_now := gap_now / len_m
-		if frac_now > after:
-			after = frac_now
-			worst_bone = str(bodies[k].bone_name)
-	for k in bodies.size():
-		if deltas[k] == Vector3.ZERO:
-			continue
-		var pb := bodies[k]
-		var t := pb.global_transform
-		t.origin += deltas[k]
-		PhysicsServer3D.body_set_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, t)
-		var pk := int(info[k]["parent_body"])
-		if pk >= 0:
-			PhysicsServer3D.body_set_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, bodies[pk].linear_velocity)
-	return {"before": before, "after": after, "bone": worst_bone, "clamped": moved}
 
 ## Writes globals as local poses (no modifiers left, so they persist and cost nothing per frame).
 func apply_globals(globals: Array[Transform3D]) -> void:
