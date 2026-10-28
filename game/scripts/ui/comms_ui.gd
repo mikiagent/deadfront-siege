@@ -104,7 +104,7 @@ func _build() -> void:
 	back_pressed.connect(close)
 	close_pressed.connect(close)
 	factions = load_factions()
-	_list_panel = UiWorldSheet.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
+	_list_panel = SheetChrome.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
 	_list_panel.name = "Factions"
 	body.add_child(_list_panel)
 	_list_scroll = ScrollContainer.new()
@@ -122,7 +122,7 @@ func _build() -> void:
 		_rows[id] = b
 		_list.add_child(b)
 
-	_detail = UiWorldSheet.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
+	_detail = SheetChrome.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
 	_detail.name = "Detail"
 	body.add_child(_detail)
 	var dv := VBoxContainer.new()
@@ -130,15 +130,15 @@ func _build() -> void:
 	_detail.add_child(dv)
 	_parch = PanelContainer.new()
 	_parch.name = "Parchment"
-	_parch.add_theme_stylebox_override("panel", UiWorldSheet.parchment_style())
+	_parch.add_theme_stylebox_override("panel", SheetChrome.parchment_style())
 	dv.add_child(_parch)
 	var pv := VBoxContainer.new()
 	pv.add_theme_constant_override("separation", 0)
 	_parch.add_child(pv)
-	_d_name = UiWorldSheet.label("", 30, UiTokens.PARCHMENT_INK, true)
+	_d_name = SheetChrome.label("", 30, UiTokens.PARCHMENT_INK, true)
 	_d_name.name = "Name"
 	pv.add_child(_d_name)
-	_d_tone = UiWorldSheet.label("", 17, UiTokens.PARCHMENT_INK)
+	_d_tone = SheetChrome.label("", 17, UiTokens.PARCHMENT_INK)
 	_d_tone.name = "Tone"
 	_d_tone.clip_text = true
 	pv.add_child(_d_tone)
@@ -156,7 +156,7 @@ func _build() -> void:
 	_offers.name = "Offers"
 	_offers.add_theme_constant_override("separation", 0)
 	sv.add_child(_offers)
-	_why = UiWorldSheet.label(NOT_LIVE, 15, UiTokens.MUTED)
+	_why = SheetChrome.label(NOT_LIVE, 15, UiTokens.MUTED)
 	_why.name = "Why"
 	_why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var why_pad := MarginContainer.new()
@@ -164,7 +164,7 @@ func _build() -> void:
 		why_pad.add_theme_constant_override("margin_" + s, 12)
 	why_pad.add_child(_why)
 	sv.add_child(why_pad)
-	_radio_open = UiWorldSheet.gold_button("Open Radio University")
+	_radio_open = SheetChrome.gold_button("Open Radio University")
 	_radio_open.name = "OpenRadio"
 	_radio_open.pressed.connect(open_radio)
 	var radio_pad := MarginContainer.new()
@@ -180,7 +180,7 @@ func _build() -> void:
 		crate_pad.add_theme_constant_override("margin_" + s, 16)
 	crate_pad.add_child(crate_box)
 	sv.add_child(crate_pad)
-	_crate_head = UiWorldSheet.label("", 15, UiTokens.MUTED)
+	_crate_head = SheetChrome.label("", 15, UiTokens.MUTED)
 	_crate_head.name = "CrateHead"
 	crate_box.add_child(_crate_head)
 	_crate_row = HFlowContainer.new()
@@ -196,12 +196,12 @@ func _build() -> void:
 	_foot.name = "Foot"
 	_foot.add_theme_constant_override("separation", 10)
 	foot_pad.add_child(_foot)
-	_reroll = UiWorldSheet.ghost_button("Reroll offers")
+	_reroll = SheetChrome.ghost_button("Reroll offers")
 	_reroll.name = "Reroll"
-	_contribute = UiWorldSheet.ghost_button("Contribute →")
+	_contribute = SheetChrome.ghost_button("Contribute →")
 	_contribute.name = "Contribute"
 	_contribute.pressed.connect(open_contribution)
-	_track = UiWorldSheet.gold_button("Track on HUD")
+	_track = SheetChrome.gold_button("Track on HUD")
 	_track.name = "Track"
 	for b in [_reroll, _contribute, _track]:
 		(b as Button).size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -214,8 +214,8 @@ func _build() -> void:
 
 func _band_label(text: String) -> Label:
 	var band := PanelContainer.new()
-	band.add_theme_stylebox_override("panel", UiWorldSheet._box(Color(0, 0, 0, 0.45), Color(0, 0, 0, 0), 0))
-	var l := UiWorldSheet.label(text, 20, UiTokens.TEXT)
+	band.add_theme_stylebox_override("panel", SheetChrome.box(Color(0, 0, 0, 0.45), Color(0, 0, 0, 0), 0))
+	var l := SheetChrome.label(text, 20, UiTokens.TEXT)
 	band.add_child(l)
 	return l
 
@@ -225,13 +225,13 @@ func _faction_row(f: Dictionary) -> Button:
 	b.name = "Faction_%s" % id
 	b.toggle_mode = true
 	b.clip_contents = true
-	b.add_theme_stylebox_override("focus", UiWorldSheet._box(Color(0, 0, 0, 0), UiTokens.GOLD, 1))
+	b.add_theme_stylebox_override("focus", SheetChrome.box(Color(0, 0, 0, 0), UiTokens.GOLD, 1))
 	var row := HBoxContainer.new()
 	row.name = "Row"
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	b.add_child(row)
-	var ic := UiWorldSheet.icon_rect(ICONS.get(id, &"chat"), 48.0)
+	var ic := SheetChrome.icon_rect(ICONS.get(id, &"chat"), 48.0)
 	ic.name = "Icon"
 	row.add_child(ic)
 	var names := VBoxContainer.new()
@@ -239,11 +239,11 @@ func _faction_row(f: Dictionary) -> Button:
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	names.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(names)
-	var nl := UiWorldSheet.label(str(f.get("name", id)), 26, UiTokens.TEXT)
+	var nl := SheetChrome.label(str(f.get("name", id)), 26, UiTokens.TEXT)
 	nl.name = "Name"
 	nl.clip_text = true
 	names.add_child(nl)
-	var sub := UiWorldSheet.label("", 17, UiTokens.MUTED)
+	var sub := SheetChrome.label("", 17, UiTokens.MUTED)
 	sub.name = "Sub"
 	sub.clip_text = true
 	names.add_child(sub)
@@ -253,13 +253,13 @@ func _faction_row(f: Dictionary) -> Button:
 	trust.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	trust.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(trust)
-	var tl := UiWorldSheet.label("", 16, UiTokens.TEXT)
+	var tl := SheetChrome.label("", 16, UiTokens.TEXT)
 	tl.name = "TrustLine"
 	trust.add_child(tl)
 	var bar := _TrustBar.new()
 	bar.name = "Bar"
 	trust.add_child(bar)
-	var mark := UiWorldSheet.Brackets.new()
+	var mark := SheetChrome.Brackets.new()
 	mark.name = "Brackets"
 	b.add_child(mark)
 	return b
@@ -328,7 +328,7 @@ func _refresh() -> void:
 		var on := id == selected
 		var locked := is_locked(f)
 		b.set_pressed_no_signal(on)
-		var sb := UiWorldSheet._box(UiTokens.GOLD_DIM if on else Color(0, 0, 0, 0), Color(1, 1, 1, 0.06), 1)
+		var sb := SheetChrome.box(UiTokens.GOLD_DIM if on else Color(0, 0, 0, 0), Color(1, 1, 1, 0.06), 1)
 		sb.border_width_top = 0
 		sb.border_width_left = 0
 		sb.border_width_right = 0
@@ -395,9 +395,9 @@ func _fill_detail(f: Dictionary) -> void:
 	_crate_head.text = "SUPPORT CRATE · RANKS %s" % band.replace("-", "–") + ("" if rank >= int(lo_hi[0]) else "  (rank %s unlocks)" % lo_hi[0])
 	for item_id in (f.get("crate_bands", {}) as Dictionary).get(band, []):
 		var chip := PanelContainer.new()
-		chip.add_theme_stylebox_override("panel", UiWorldSheet._box(Color(1, 1, 1, 0.08), Color(0, 0, 0, 0), 0))
+		chip.add_theme_stylebox_override("panel", SheetChrome.box(Color(1, 1, 1, 0.08), Color(0, 0, 0, 0), 0))
 		var def := Data.item(StringName(str(item_id)))
-		chip.add_child(UiWorldSheet.label(def.display_name if def != null and def.display_name != "" else pretty(str(item_id)), 16, UiTokens.TEXT))
+		chip.add_child(SheetChrome.label(def.display_name if def != null and def.display_name != "" else pretty(str(item_id)), 16, UiTokens.TEXT))
 		_crate_row.add_child(chip)
 
 func _offer_row(mission: String, f: Dictionary, locked: bool) -> Control:
@@ -415,18 +415,18 @@ func _offer_row(mission: String, f: Dictionary, locked: bool) -> Control:
 	col.add_theme_constant_override("separation", 0)
 	row.add_child(col)
 	var compact := UiTokens.is_compact(get_viewport_rect().size)
-	var t := UiWorldSheet.label(pretty(mission), 16 if compact else 22, UiTokens.TEXT)
+	var t := SheetChrome.label(pretty(mission), 16 if compact else 22, UiTokens.TEXT)
 	t.clip_text = true
 	col.add_child(t)
-	var pin := UiWorldSheet.label("Pin and turn-in: not set (missions not live)", 12 if compact else 15, UiTokens.MUTED)
+	var pin := SheetChrome.label("Pin and turn-in: not set (missions not live)", 12 if compact else 15, UiTokens.MUTED)
 	pin.clip_text = true
 	col.add_child(pin)
 	var mult := float(f.get("reward_multiplier", 1.0))
 	var rw := "+%d trust" % int(f.get("trust_per_mission", 0))
 	if mult != 1.0:
 		rw += " · rewards x%.1f" % mult
-	col.add_child(UiWorldSheet.label(rw, 12 if compact else 15, UiTokens.GOLD))
-	var accept := UiWorldSheet.gold_button("Accept")
+	col.add_child(SheetChrome.label(rw, 12 if compact else 15, UiTokens.GOLD))
+	var accept := SheetChrome.gold_button("Accept")
 	accept.name = "Accept"
 	accept.disabled = true  # ASSUMPTION: no mission state to accept into (see header)
 	accept.tooltip_text = "Locked" if locked else NOT_LIVE
