@@ -237,34 +237,56 @@ func _anim(r: Dictionary) -> Vector2:
 	if float(r["out"]) >= 0.0:
 		a = 1.0 - clampf((t - float(r["out"])) / maxf(0.01, float(cfg().get("fade_s", 0.4))), 0.0, 1.0)
 	var u := clampf(t / maxf(0.01, float(tc.get("pop_s", 0.3))), 0.0, 1.0)
-	var s := LevelUpCelebration._pop(u, float(tc.get("pop_from", 0.6)), float(tc.get("overshoot", 1.15)))
+	var over := float(tc.get("overshoot", 1.15))
+	var from := float(tc.get("pop_from", 0.6))
+	if _compact:  # a phone row has no margin: it must not swell over the dial or the figure
+		over = minf(over, 1.06)
+		from = maxf(from, 0.75)
+	var s := LevelUpCelebration._pop(u, from, over)
 	return Vector2(a * clampf(t / 0.08, 0.0, 1.0), s)
 
-## Glow behind the row, rays and sparkles out of `at`, sized by the tier (none for grey).
-func _burst(hud: HuntHud, box: Rect2, at: Vector2, r: Dictionary, col: Color, a: float, tc: Dictionary) -> void:
-	var t := float(r["t"])
-	var glow := float(tc.get("glow", 0.0))
+## The tier's burst envelope: 0 before, up in 0.12 s, gone by burst_s.
+static func _k(t: float, tc: Dictionary) -> float:
 	var life := float(tc.get("burst_s", 1.2))
-	var k := clampf(t / 0.12, 0.0, 1.0) * (1.0 - smoothstep(life * 0.4, life, t))
+	return clampf(t / 0.12, 0.0, 1.0) * (1.0 - smoothstep(life * 0.4, life, t))
+
+## Behind the row (drawn first): a soft halo that pulses then settles, and a sunburst of rays from
+## the row's centre poking out above and below it; both scale with the tier (none for grey).
+func _halo(hud: HuntHud, box: Rect2, r: Dictionary, col: Color, a: float, tc: Dictionary) -> void:
+	var t := float(r["t"])
+	var k := _k(t, tc)
+	var glow := float(tc.get("glow", 0.0))
 	if glow > 0.0:
-		var steady := 0.25 + 0.75 * k
-		hud.draw_texture_rect(LevelUpFx._dot_texture(), box.grow_individual(40.0, 22.0, 40.0, 22.0), false, Color(col, glow * 0.45 * steady * a))
-	if k <= 0.0:
-		return
+		var steady := 0.3 + 0.7 * k
+		hud.draw_texture_rect(LevelUpFx._dot_texture(), box.grow_individual(box.size.x * 0.35, box.size.y * 0.9, box.size.x * 0.35, box.size.y * 0.9), false, Color(col, glow * 0.6 * steady * a))
 	var rays := int(tc.get("rays", 0))
+	if k <= 0.0 or rays <= 0:
+		return
+	var c := box.get_center()
 	for i in rays:
-		var ang := t * 0.5 + TAU * float(i) / float(maxi(1, rays))
-		var len := box.size.y * (0.9 + 0.5 * float(i % 2)) * k
-		var pts := PackedVector2Array([at + Vector2.from_angle(ang - 0.06) * 8.0, at + Vector2.from_angle(ang) * len, at + Vector2.from_angle(ang + 0.06) * 8.0])
-		hud.draw_polygon(pts, PackedColorArray([Color(col, 0.55 * k * a), Color(col, 0.0), Color(col, 0.55 * k * a)]))
+		var ang := t * 0.4 + TAU * float(i) / float(rays)
+		var len := box.size.y * (1.6 + 0.8 * float(i % 2)) * k
+		var dir := Vector2.from_angle(ang)
+		var side := dir.orthogonal() * len * 0.09  # a wedge, wide enough to read past the row's edge
+		var pts := PackedVector2Array([c + side, c + dir * len, c - side])
+		hud.draw_polygon(pts, PackedColorArray([Color(col, 0.75 * k * a), Color(col, 0.0), Color(col, 0.75 * k * a)]))
+
+## Over the row (drawn last): sparks flying out of its edge, their count and reach by the tier.
+func _burst(hud: HuntHud, box: Rect2, r: Dictionary, col: Color, a: float, tc: Dictionary) -> void:
+	var t := float(r["t"])
 	var n := int(tc.get("sparks", 0))
+	if n <= 0 or _k(t, tc) <= 0.0:
+		return
+	var u := clampf(t / float(tc.get("burst_s", 1.2)), 0.0, 1.0)
 	var reach := float(tc.get("spark_px", 60.0))
+	var c := box.get_center()
+	var half := box.size * 0.5
 	for i in n:
 		var ang := float(i) * 2.39996  # golden angle: an even spread with no state
-		var u := clampf(t / life, 0.0, 1.0)
-		var d := reach * (0.35 + 0.65 * float((i * 7) % 10) / 10.0) * (1.0 - pow(1.0 - u, 2.0))
-		var p := at + Vector2.from_angle(ang) * d + Vector2(0.0, -18.0 * u)
-		hud.draw_circle(p, 2.6 * (1.0 - u) + 0.6, Color(col.lerp(Color.WHITE, 0.4), (1.0 - u) * a))
+		var dir := Vector2.from_angle(ang)
+		var edge := c + dir * minf(half.x / maxf(0.001, absf(dir.x)), half.y / maxf(0.001, absf(dir.y)))  # where the ray leaves the row
+		var d := reach * (0.4 + 0.6 * float((i * 7) % 10) / 10.0) * (1.0 - pow(1.0 - u, 2.0))
+		hud.draw_circle(edge + dir * d + Vector2(0.0, -16.0 * u), 3.4 * (1.0 - u) + 0.8, Color(col.lerp(Color.WHITE, 0.5), (1.0 - u) * a))
 
 func _draw_gain(hud: HuntHud, font: Font, box: Rect2, r: Dictionary) -> void:
 	var an := _anim(r)
@@ -277,7 +299,7 @@ func _draw_gain(hud: HuntHud, font: Font, box: Rect2, r: Dictionary) -> void:
 	var pad := 5.0 if _compact else 10.0
 	var thumb := 26.0 if _compact else 46.0
 	var tr := Rect2(box.position + Vector2(pad, 3.0 + pad), Vector2(thumb, thumb))
-	_burst(hud, box, tr.get_center(), r, col, a, tc)
+	_halo(hud, box, r, col, a, tc)
 	if an.y != 1.0:
 		hud.draw_set_transform(box.get_center() * (1.0 - an.y), 0.0, Vector2(an.y, an.y))
 	hud.draw_rect(box, Color(UiTokens.HUD_FILL, UiTokens.HUD_FILL.a * a))
@@ -314,6 +336,7 @@ func _draw_gain(hud: HuntHud, font: Font, box: Rect2, r: Dictionary) -> void:
 		hud.draw_string(font, Vector2(cr.position.x + 8.0, cr.position.y + cr.size.y * 0.5 + float(chip_px) * 0.36), str(ch[1]), HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 10.0, chip_px, Color(UiTokens.trait_chip_fg(ch[2]), a))
 	if an.y != 1.0:
 		hud.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	_burst(hud, box, r, col, a, tc)
 
 ## The category's hex icon under the level-up flare, "Skill Category Level Up", "<Category> Lv. N".
 func _draw_skill(hud: HuntHud, font: Font, box: Rect2, r: Dictionary) -> void:

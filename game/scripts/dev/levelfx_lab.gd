@@ -24,6 +24,7 @@ var _hud: HuntHud
 var _cam: IsoCamera
 var _fails: Array[String] = []
 var _shots: PackedStringArray = []
+var _seen_block := false  ## a level-up block was drawn while _shots_of waited (a stalled capture may outlast it)
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -84,7 +85,7 @@ func _character(tag: String) -> void:
 	World.add_xp(World.xp_for_level(lv - 1) - World.pioneer_xp)
 	var fx := await _shots_of("char_%s" % tag)
 	_expect(fx.has("character"), "%s: a character level-up spawns a light effect at the survivor (saw %s)" % [tag, fx])
-	_expect(_hud.drawn_blocks.has("levelup"), "%s: the HUD celebrates the character level-up" % tag)
+	_expect(_seen_block, "%s: the HUD celebrates the character level-up" % tag)
 	await _drain()
 
 ## One skill category level-up (processing; survival sits at its cap so it only banks the XP).
@@ -102,7 +103,7 @@ func _skill(tag: String) -> void:
 	_expect(s.level_of("processing") == lv + 1, "%s: processing rose to Lv. %d" % [tag, s.level_of("processing")])
 	var fx := await _shots_of("skill_%s" % tag)
 	_expect(fx.has("skill") and not fx.has("character"), "%s: a skill level-up spawns the small light effect only (saw %s)" % [tag, fx])
-	_expect(_hud.drawn_blocks.has("levelup"), "%s: the HUD celebrates the skill level-up" % tag)
+	_expect(_seen_block, "%s: the HUD celebrates the skill level-up" % tag)
 	await _drain()
 
 ## A character level-up riding the T. rex: the light stands on the mount, grown to reach her on the
@@ -139,12 +140,14 @@ func _mounted(tag: String) -> void:
 func _shots_of(name: String) -> Array:
 	var seen: Array = []
 	var t := 0.0
+	_seen_block = false
 	for spec in [["peak", PEAK_S], ["mid", MID_S]]:
 		# On the celebration's own clock when one shows: on a loaded machine a windowed frame stalled
 		# for seconds and the lab's count fell behind the HUD's, so the shots missed the banner.
 		while t < float(spec[1]) and _cel_t() < float(spec[1]):
 			await get_tree().process_frame
 			t += get_process_delta_time()
+			_seen_block = _seen_block or _hud.drawn_blocks.has("levelup")
 			for k in _fx_kinds():
 				if not seen.has(k):
 					seen.append(k)
