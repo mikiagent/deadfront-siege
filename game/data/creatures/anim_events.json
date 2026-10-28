@@ -53,6 +53,9 @@
       ],
       "hit_frac": 0.7,
       "note": "ambush pounce: crouch, forward leap nose-down with wings flared, lands on the target; tools/jaw/make_hop_back.py --forward"
+    },
+    "walk_back": {
+      "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing"
     }
   },
   "natural_speeds": {
