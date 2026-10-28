@@ -416,6 +416,7 @@ func _refresh() -> void:
 		nl.add_theme_color_override("font_color", UiTokens.TEXT)
 	_center.disabled = not home
 	_expand.disabled = _previewing
+	_release.disabled = _previewing or not IslandClaims.has_domain(rt)
 	var picked_hint := "Pick a gold plot to release, then Release plot." if _release_cell == IslandClaims.NO_CELL else "Release plot: %s picked." % str(_release_cell)
 	_msg.text = _last_reason if _last_reason != "" else ("Claim limit reached: raise your Pioneer rank to claim more." if used >= cap else picked_hint)
 	_grid.rt = rt
@@ -581,7 +582,9 @@ func _on_release_confirm() -> void:
 		_last_reason = "Can't release that plot: %s." % IslandClaims.reason_text(str(out["reason"]))
 		_update_footer()
 		return
+	var cell := _release_cell
 	_end_release()
+	_last_reason = "Released the plot at %s. It stops being yours; you can claim it again later." % str(cell)
 	_refresh()
 	relayout()
 

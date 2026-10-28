@@ -356,6 +356,7 @@ func _test_ui_paths() -> void:
 		await process_frame
 		_expect(screen.get("_release_cell") == pick_cell, "a tap on your gold plot picks it for release (got %s)" % [screen.get("_release_cell")])
 		var release_btn := screen.find_child("Release", true, false) as Button
+		_expect(release_btn != null and not release_btn.disabled, "the Release plot action is live with a Domain held")
 		_expect(release_btn != null and not release_btn.disabled, "with a plot picked the Release action is live")
 		_expect(release_btn != null and release_btn.custom_minimum_size.y >= 64.0, "the Release action is 64 px or taller (%.0f)" % [release_btn.custom_minimum_size.y if release_btn else 0.0])
 		if release_btn != null:
@@ -382,6 +383,8 @@ func _test_ui_paths() -> void:
 				ok2.pressed.emit()
 				await process_frame
 			_expect(_rt.claim_used() == 2 and not IC.owned_cells(_rt).has(pick_cell), "the Domain confirm releases the picked plot (%d plots, %s)" % [_rt.claim_used(), IC.owned_cells(_rt).keys()])
+			var msg := screen.find_child("Message", true, false) as Label
+			_expect(msg != null and msg.text.to_lower().contains("released"), "the screen says the plot was released: \"%s\"" % [msg.text if msg else ""])
 	screen.call("close")
 	screen.queue_free()
 	await process_frame
