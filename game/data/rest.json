@@ -12,5 +12,7 @@
   "fire_sitting": {"clears": ["wet"], "heat_fatigue_mult": 1.2, "cold_fatigue_mult": 0.8},
   "_fire_note": "PRD :285: the bonfire clears Wet; while sitting, heat +20 %, cold -20 %.",
   "combat_lock_s": 5.0,
-  "_combat_note": "Rest is refused for this long after a hit, as Sleep is (player_sim.gd start_sleep)."
+  "_combat_note": "Rest is refused for this long after a hit, as Sleep is (player_sim.gd start_sleep).",
+  "well_rested": {"min_sleep_s": 5.0, "secs_per_point": 3.0, "min_s": 60.0, "max_s": 300.0},
+  "_well_rested_note": "Owner 2026-10-28: on waking from a sleep (completed, or ended by moving after at least min_sleep_s), grant the well_rested status: exhaustion gains are blocked, recovery still works, the HUD treadmill pauses. ASSUMPTION (no doc figure): secs_per_point seconds per point of exhaustion the sleep removed, clamped to min_s..max_s; a full tent sleep from 60 gives 180 s. A sleep ended by a hit, combat or death grants nothing."
 }

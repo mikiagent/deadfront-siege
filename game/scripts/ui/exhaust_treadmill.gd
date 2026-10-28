@@ -26,6 +26,16 @@ static func sample_rate(prev: float, instant: float, dt: float, forget_left: flo
 	var k := 1.0 - exp(-dt / tau)
 	return prev + (instant - prev) * k
 
+const PAUSE_TAU := 0.2 ## s: Well Rested brings a moving belt to a stop this fast (eased, not snapped)
+
+## Well Rested (owner 2026-10-28): exhaustion cannot rise, so unless it is falling right now (a rest,
+## a meal) the belt pauses: the post-sleep left drift eases to 0 instead of running on.
+static func paused_rate(prev: float, instant: float, dt: float) -> float:
+	if instant < -RATE_DEAD:
+		return sample_rate(prev, instant, dt, 0.0)
+	var r := prev * exp(-dt / PAUSE_TAU)
+	return 0.0 if absf(r) < RATE_DEAD * 0.25 else r
+
 ## +1 exhaustion is rising (belt runs right: work, climate, being wet), -1 easing (left: sleep,
 ## meals), 0 at rest.
 static func direction(rate: float) -> int:

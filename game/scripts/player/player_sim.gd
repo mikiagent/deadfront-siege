@@ -39,6 +39,7 @@ var _wake_elapsed: float = 0.0
 var _sleep_spot: Node3D
 var _sleep_dur := 0.0 ## the spot's full sleep duration, stored for the gradual-onset payout
 var _sleep_drained := 0.0 ## exhaustion already paid out of this sleep
+var _sleep_f0 := 0.0 ## fatigue when she lay down: what the sleep removed sizes Well Rested
 ## A sleep spot the survivor is walking to; sleep starts when the route ends.
 var _sleep_pending: Node3D
 ## Capsule-centre height above the ground the survivor had when they lay down (the sleep pose moves
@@ -552,6 +553,7 @@ func _tick_sleep(delta: float) -> void:
 	var hurt := (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 1.0
 	if input_vector().length_squared() > 0.04 or p.nav_active or p.vitals.in_combat or hurt or p.dead \
 			or not is_instance_valid(_sleep_spot) or p.global_position.distance_to(_sleep_spot.global_position) > 3.2:
+		var slept := _sleep_dur - p._sleep_left
 		p._sleep_left = 0.0
 		_sleep_drained = 0.0
 		var left := _sleep_spot
@@ -560,6 +562,8 @@ func _tick_sleep(delta: float) -> void:
 		if p.anim:
 			p.anim.wake_from_sleep()
 		p.notice("Sleep interrupted")
+		if not (p.vitals.in_combat or hurt or p.dead):  # got up on purpose: a long enough nap still counts
+			rest.grant_well_rested(_sleep_f0 - p.vitals.fatigue, slept)
 		return
 	# Payout across the duration: every tick eases exhaustion linearly, so a straw
 	# roll (65 pts / 12 s) drops ~5.4 pts per second and the belt reads the slope
@@ -583,6 +587,7 @@ func _tick_sleep(delta: float) -> void:
 		if p.anim:
 			p.anim.wake_from_sleep()
 		p.notice("Rested")
+		rest.grant_well_rested(_sleep_f0 - p.vitals.fatigue, _sleep_dur)
 
 ## The running sleep's exhaustion drain per minute (restore / duration), for the HUD; 0 when awake.
 func sleep_fatigue_per_min() -> float:
@@ -640,6 +645,7 @@ func start_sleep(spot: Node3D = null) -> void:
 	_sleep_spot = spot
 	_sleep_dur = maxf(0.01, spot.sleep_duration())
 	_sleep_drained = 0.0
+	_sleep_f0 = p.vitals.fatigue
 	p._sleep_left = _sleep_dur
 	if p.anim:
 		p.anim.start_sleep()

@@ -93,6 +93,7 @@ func _run() -> void:
 	await _test_hud(spots["fire"], spots["open"])
 	_test_intents(spots["open"])
 	await _test_save_load(spots["fire"])
+	await _test_well_rested(spots["shelter"])
 	_finish()
 
 func _finish() -> void:
@@ -556,3 +557,91 @@ func _test_save_load(at: Vector3) -> void:
 	_expect(not rest.resting and not player.anim.is_sitting() and absf(player.vitals.health - float(gv["health"])) < 1.0
 		and absf(player.vitals.fatigue - float(gv["fatigue"])) < 0.2,
 		"an old save without the key loads standing with its vitals (resting=%s hp=%.1f/%.1f fat=%.2f/%.2f)" % [rest.resting, player.vitals.health, float(gv["health"]), player.vitals.fatigue, float(gv["fatigue"])])
+
+## Owner 2026-10-28: "when you stop sleeping, the treadmill shouldn't keep going left, it should pause for
+## the duration of the 'well rested buff' where you don't become more exhausted for a certain amount of time".
+func _test_well_rested(at: Vector3) -> void:
+	rt = get_root().get_node("World").runtime  # the save/load cases rebuilt the island
+	await _frames(5)
+	var hud = (load("res://scripts/ui/hunt_hud.gd") as GDScript).new()
+	var layer := CanvasLayer.new()
+	host.add_child(layer)
+	hud.bind(player)
+	layer.add_child(hud)
+	var dead_rate: float = 0.004  # ExhaustTreadmill.RATE_DEAD: below it the belt holds still
+	# A full tent sleep grants it, sized by what the sleep removed.
+	await _reset(at)
+	player.sim.start_sleep()
+	_expect(player._sleep_left > 0.0, "well rested: the tent sleep starts")
+	await _seconds(player._sleep_left + 0.4)
+	var inst = player.statuses.get_instance(&"well_rested")
+	var cfg: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string("res://data/rest.json")) as Dictionary)["well_rested"]
+	var want: float = clampf(60.0 * float(cfg["secs_per_point"]), float(cfg["min_s"]), float(cfg["max_s"]))
+	_expect(inst != null and absf(inst.time_left - want) < 2.0 and player.vitals.blocks_fatigue_gain,
+		"after a full sleep she is Well Rested for %.0f s (want %.0f: 60 removed x %.1f s)" % [inst.time_left if inst else -1.0, want, float(cfg["secs_per_point"])])
+	var icons: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string("res://data/ui_icons.json")) as Dictionary).get("icons", {})
+	_expect(str(icons.get("well_rested", "")).ends_with("/well_rested.svg") and ResourceLoader.exists(str(icons.get("well_rested", ""))),
+		"Well Rested has its own white icon (chip with its countdown through the status row)")
+	await _seconds(2.5)  # the wake clip
+	# 60 s of hard work, compressed into 2 s of frames: sprinting, gathering, climate, hits, wet, a level gap.
+	player.vitals.fatigue = 40.0
+	player.vitals.level_gap_mult = 2.0
+	player.statuses.apply(&"wet")
+	await _frames(10)
+	var f0: float = player.vitals.fatigue
+	for i in 120:
+		var dt := 60.0 / 120.0
+		player.vitals.add_fatigue(0.2 * dt, &"sprint")
+		player.vitals.add_fatigue(0.375 * 2.0 * dt, &"gather")
+		player.vitals.add_fatigue(4.0 / 60.0 * 3.0 * dt, &"climate_heat")
+		player.vitals.add_fatigue(2.0 * dt, &"combat")
+		await physics_frame
+	_expect(is_equal_approx(player.vitals.fatigue, f0), "Well Rested: 60 s of hard work adds 0 exhaustion (%.3f -> %.3f)" % [f0, player.vitals.fatigue])
+	_expect(absf(hud._fat_rate) < dead_rate, "Well Rested: the treadmill is paused (drift %.4f pt/s)" % hud._fat_rate)
+	# Recovery still works.
+	rest.start()
+	await _seconds(2.0)
+	_expect(player.vitals.fatigue < f0 - 0.5, "Well Rested: resting still lowers exhaustion (%.2f -> %.2f)" % [f0, player.vitals.fatigue])
+	_expect(hud._fat_rate < -dead_rate, "Well Rested: the belt runs left while she recovers (drift %.3f)" % hud._fat_rate)
+	rest.stop(false)
+	player.anim.revive()
+	player.visual.position.y = 0.0
+	# It expires and the drift resumes.
+	inst = player.statuses.get_instance(&"well_rested")
+	if inst:
+		inst.time_left = 0.3
+	await _seconds(1.0)
+	_expect(not player.statuses.has(&"well_rested") and not player.vitals.blocks_fatigue_gain, "Well Rested expires")
+	var f1: float = player.vitals.fatigue
+	for i in 90:
+		player.vitals.add_fatigue(0.05, &"gather")  # halved by FATIGUE_ACCUMULATION_MULT, so ~2 pts at most
+		await process_frame
+	_expect(player.vitals.fatigue > f1 + 0.5 and hud._fat_rate > dead_rate,
+		"after it expires work tires her again and the belt runs right (%.2f -> %.2f, drift %.3f)" % [f1, player.vitals.fatigue, hud._fat_rate])
+	player.vitals.level_gap_mult = 1.0
+	# A sleep cancelled after 2 s grants nothing.
+	await _reset(at)
+	player.sim.start_sleep()
+	_expect(player._sleep_left > 0.0, "the short sleep starts")
+	await _seconds(2.0)
+	Input.action_press("move_left")
+	await _frames(3)
+	Input.action_release("move_left")
+	await _frames(3)
+	_expect(player._sleep_left <= 0.0 and not player.statuses.has(&"well_rested"), "a sleep cancelled after 2 s grants no Well Rested")
+	await _seconds(2.5)
+	# Save round-trip keeps the time left (it is a status: statuses[].time_left).
+	await _reset(at)
+	var granted: float = rest.grant_well_rested(40.0, 10.0)
+	await _seconds(0.5)
+	var SG: GDScript = load("res://scripts/core/save_game.gd")
+	_expect(granted > 0.0 and SG.save_now(), "Well Rested: a save writes")
+	var left0: float = player.statuses.get_instance(&"well_rested").time_left
+	player.statuses.clear_all()
+	SG.load_now(host)
+	await _frames(3)
+	rt = get_root().get_node("World").runtime
+	inst = player.statuses.get_instance(&"well_rested")
+	_expect(inst != null and absf(inst.time_left - left0) < 1.5 and player.vitals.blocks_fatigue_gain,
+		"Well Rested survives a save and load with its time left (%.1f, saved %.1f)" % [inst.time_left if inst else -1.0, left0])
+	layer.queue_free()

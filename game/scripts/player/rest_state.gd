@@ -176,6 +176,26 @@ func hunted() -> bool:
 			return true
 	return false
 
+## Owner 2026-10-28: waking from a sleep grants Well Rested (statuses.json well_rested: exhaustion gains
+## blocked, recovery still works, the HUD treadmill pauses). Nothing for a nap shorter than min_sleep_s (or
+## the bedding's whole duration, if shorter). ASSUMPTION: the length is secs_per_point per point the sleep
+## removed, clamped (data/rest.json well_rested). Returns the seconds granted, 0 for none.
+func grant_well_rested(removed: float, slept_s: float) -> float:
+	var cfg: Dictionary = data().get("well_rested", {})
+	var need := minf(float(cfg.get("min_sleep_s", 5.0)), p.sim._sleep_dur)
+	if slept_s + 0.01 < need or p.dead:
+		return 0.0
+	var secs := clampf(maxf(0.0, removed) * float(cfg.get("secs_per_point", 3.0)), float(cfg.get("min_s", 60.0)), float(cfg.get("max_s", 300.0)))
+	var had := p.statuses.get_instance(&"well_rested")
+	var prior := had.time_left if had else 0.0
+	p.statuses.apply(&"well_rested")
+	var inst := p.statuses.get_instance(&"well_rested")
+	if inst == null:
+		return 0.0
+	inst.time_left = maxf(prior, secs)  # a second nap never shortens it
+	print("[rest] well rested %.0f s (removed %.1f, slept %.1f s)" % [inst.time_left, removed, slept_s])
+	return inst.time_left
+
 ## PRD :285: sitting by the fire, heat fatigue +20 % and cold fatigue -20 % (Player.tick_climate_fatigue).
 func climate_mult(group: String) -> float:
 	if not resting or place != &"fire":

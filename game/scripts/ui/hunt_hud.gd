@@ -1149,7 +1149,11 @@ func _process(delta: float) -> void:
 		if _fat_prev > -1.0e8:
 			if absf(vf - _fat_prev) >= ExhaustTreadmill.STEP_AFTER:
 				_fat_forgive = ExhaustTreadmill.FORGET_HOLD_S
-			_fat_rate = ExhaustTreadmill.sample_rate(_fat_rate, (vf - _fat_prev) / maxf(delta, 1.0 / 240.0), delta, _fat_forgive)
+			var instant := (vf - _fat_prev) / maxf(delta, 1.0 / 240.0)
+			if player.vitals.blocks_fatigue_gain:  # Well Rested: the treadmill pauses
+				_fat_rate = ExhaustTreadmill.paused_rate(_fat_rate, instant, delta)
+			else:
+				_fat_rate = ExhaustTreadmill.sample_rate(_fat_rate, instant, delta, _fat_forgive)
 		_fat_prev = vf
 		_fat_forgive = maxf(0.0, _fat_forgive - delta)
 		_belt_phase = ExhaustTreadmill.phase(_belt_phase, _fat_rate, delta)

@@ -291,6 +291,7 @@ func _sync_vitals() -> void:
 	if p is Player:
 		var pl := p as Player
 		pl.vitals.blocks_regen = blocks_regen()
+		pl.vitals.blocks_fatigue_gain = has_flag(&"no_fatigue_gain")  # Well Rested
 		# Only the status part is this node's to set: the pioneer-level bonus (vitals.level_health)
 		# stayed lost because every status change rewrote max_health to a flat 100 x product.
 		pl.vitals.max_health = (100.0 + pl.vitals.level_health) * max_health_status_mult()
