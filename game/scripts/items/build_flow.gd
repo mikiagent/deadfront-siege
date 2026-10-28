@@ -101,7 +101,7 @@ static func complete(player: Player, site: Node) -> CraftStation:
 	# Spec 10 §3: the primary material's traits pass to the station; only what the blueprint
 	# supports (plus the station's rare effects) does anything. Set before it enters the tree so its
 	# _ready folds the durability in and hands the job effects to the ProcessStation.
-	var eff := BuildingQuality.effects(BuildingQuality.supported(bp), traits, true)
+	var eff := BuildingQuality.effects(BuildingQuality.station_supported(bp), traits, true)
 	station.inherited_attributes = traits.duplicate(true)
 	station.quality_durability = int(eff.get("durability", 0))
 	station.quality_duration_mult = float(eff.get("duration_mult", 1.0))

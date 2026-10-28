@@ -215,6 +215,16 @@ static func supported(bp: Dictionary) -> Array:
 	var v: Variant = bp.get("supported_building_effects", [])
 	return v as Array if v is Array else []
 
+## What a finished STATION lets its traits do: the blueprint's own list, plus durability whenever it
+## declares nothing. # ASSUMPTION: blueprints.json rows carry no supported_building_effects yet (that
+## file is outside this job's scope), and every station the game builds has a StructureHealth, so
+## High Density/Low Density always act on it (spec 10 §3 "High Density may boost durability").
+static func station_supported(bp: Dictionary) -> Array:
+	var out: Array = supported(bp).duplicate()
+	if out.is_empty():
+		out.append("durability")
+	return out
+
 ## [{id, level}] rows only, ids and levels clamped: a save file may carry anything.
 static func clean_attrs(v: Variant) -> Array:
 	var out: Array = []

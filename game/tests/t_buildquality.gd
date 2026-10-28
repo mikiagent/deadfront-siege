@@ -374,3 +374,41 @@ func _test_site_mixed_materials() -> void:
 		var before: int = ps.capacity()
 		ps.quality_slots = int(slot_eff.get("slots", 0))
 		_expect(ps.capacity() == before + 1, "the added slot raises the station's job capacity (%d -> %d)" % [before, ps.capacity()])
+	# A second site whose primary material is High Density: the station's durability carries it, and
+	# its preview level equals the finished one (spec 10 §10 "previews use the same calculation").
+	await _test_station_durability()
+
+## A station built from High Density planks gets the durability effect through BuildFlow.complete.
+func _test_station_durability() -> void:
+	var cell := _free_cell()
+	var site: Variant = _BF.place_site(_player, &"basic_workbench", cell, 0)
+	if site == null:
+		_expect(false, "setup: the second workbench site is placed")
+		return
+	await process_frame
+	_player.inventory.consume(&"plank_shape", _player.inventory.count_of(&"plank_shape"))
+	_player.inventory.consume(&"pillar_shape", _player.inventory.count_of(&"pillar_shape"))
+	_player.inventory.consume(&"strap", _player.inventory.count_of(&"strap"))
+	_give(&"plank_shape", 2, 30, {"high_density": 4})
+	_give(&"pillar_shape", 2, 30)
+	_give(&"strap", 6, 1)
+	for slot in site.slot_count():
+		while site.deposited(slot) < site.needed(slot):
+			if not site.deposit(slot, site.first_fitting(_player.inventory, slot)):
+				break
+	if not site.materials_ready():
+		_expect(false, "setup: the second site has its materials")
+		return
+	site.work(999.0)
+	var preview: int = site.preview_level(40)
+	var station: Variant = _BF.complete(_player, site)
+	if station == null:
+		_expect(false, "the High Density site completes")
+		return
+	_expect(station.station_level == preview, "a station finishes at exactly the level its site previewed (%d = %d)" % [station.station_level, preview])
+	_expect(station.quality_durability == 8, "High Density Lv 4 adds +2 durability per level to the station (%d)" % station.quality_durability)
+	var h: Variant = station.get_node_or_null("StructureHealth")
+	var base: float = float(_SP.placed_kind(&"workbench").get("max_durability", 0.0))
+	_expect(h != null and absf(float(h.max_hp) - (base + 8.0)) < 0.01, "the station's max durability includes the trait (%.0f, want %.0f)" % [float(h.max_hp) if h else -1.0, base + 8.0])
+	_expect(station.get("quality_chip_text") == null or str(station.call("quality_chip_text")).contains("High Density"),
+		"the station's inspect text names the inherited trait (%s)" % [str(station.call("quality_chip_text"))])

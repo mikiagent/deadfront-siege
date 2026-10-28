@@ -241,7 +241,7 @@ func contributing_traits() -> Array:
 
 ## What those traits will do to the finished station, by the blueprint's supported effects.
 func preview_effects() -> Dictionary:
-	return BuildingQuality.effects(BuildingQuality.supported(bp()), contributing_traits(), true)
+	return BuildingQuality.effects(BuildingQuality.station_supported(bp()), contributing_traits(), true)
 
 ## Preview of the structure level completion would give now (0 while materials are short).
 func preview_level(construction_level: int) -> int:
