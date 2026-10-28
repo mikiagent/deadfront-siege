@@ -284,17 +284,75 @@ static func _plan_kind(rt: IslandRuntime, zone: String, id: String, want: int, _
 			made += 1
 
 ## Whether `id` (of `zone`) may stand at (x, z), and the ground point if so.
+## The tile index, the walk mask, the tile type and the zone all come from the same tile: they are
+## read once here instead of through is_dry / _wet / tile_type_at_world / biome_at, which each
+## re-derive the same index and clamp. Same predicates, same answer. The height and the slope come
+## from one fused grid pass. A runtime without a walk mask (a bare lab host) keeps the old path.
 static func spot_ok(rt: IslandRuntime, zone: String, id: String, x: float, z: float) -> Vector3:
 	var row := kind_data(id)
 	if row.is_empty() or not (row.get("zones", []) as Array).has(zone):
 		return Vector3.INF
-	if rt == null or not rt.is_dry(Vector3(x, 0.0, z)) and not _wet(rt, x, z):
+	if rt == null:
+		return Vector3.INF
+	if rt.dry_walk.is_empty():
+		return _spot_ok_slow(rt, zone, id, x, z)
+	var span := rt._tile_span
+	if span <= 0:
+		return Vector3.INF
+	var half := rt._size * 0.5
+	var ix := int(floor(x + half))
+	var iz := int(floor(z + half))
+	var idx := clampi(ix, 0, span - 1) + clampi(iz, 0, span - 1) * span
+	var t := int(rt.tile_types[idx])
+	var wet_tile := t == IslandTerrain.TileType.MUD or t == IslandTerrain.TileType.SHALLOW \
+		or t == IslandTerrain.TileType.WET
+	var dry := ix >= 0 and iz >= 0 and ix < span and iz < span and int(rt.dry_walk[idx]) == 1
+	if not dry and not wet_tile:
 		return Vector3.INF
 	# The zone is re-read at the exact point: a jittered or clumped member never leaks across a border.
+	var bio := BiomeZones.biome_types(rt)
+	if BiomeZones.zone_name(int(bio[idx]) if idx < bio.size() else 0) != zone:
+		return Vector3.INF
+	if IslandClaims.is_claimed(rt, BuildGrid.tile_of(Vector3(x, 0.0, z))):
+		return Vector3.INF
+	var where := str(row.get("where", "ground"))
+	match where:
+		"water":
+			if not wet_tile:
+				return Vector3.INF
+			return Vector3(x, WATER_Y, z)
+		"edge":
+			if t == IslandTerrain.TileType.DEEP or t == IslandTerrain.TileType.SHALLOW:
+				return Vector3.INF
+			if not _near_water(rt, x, z):
+				return Vector3.INF
+		"coast":
+			if not _near_sand(rt, x, z):
+				return Vector3.INF
+		"ground":
+			if not soil(t):
+				return Vector3.INF
+		"any":
+			pass
+	# Height first (one grid sample) and the slope only for a spot that stands: the dressing probes
+	# ~20-60k spots per island, many of them refused by the ground height alone.
+	var y := IslandTerrain.height_at(rt, x, z)
+	if y < MIN_GROUND_Y:
+		return Vector3.INF
+	if IslandTerrain.slope_at(rt, x, z) > 30.0:
+		return Vector3.INF
+	return Vector3(x, y, z)
+
+## The pre-tile-map rule (no dry mask): the helper-by-helper form, kept for a bare lab host.
+static func _spot_ok_slow(rt: IslandRuntime, zone: String, id: String, x: float, z: float) -> Vector3:
+	var row := kind_data(id)
+	if row.is_empty() or not (row.get("zones", []) as Array).has(zone):
+		return Vector3.INF
+	if not rt.is_dry(Vector3(x, 0.0, z)) and not _wet(rt, x, z):
+		return Vector3.INF
 	if BiomeZones.zone_name(BiomeZones.biome_at(rt, x, z)) != zone:
 		return Vector3.INF
-	var tile := BuildGrid.tile_of(Vector3(x, 0.0, z))
-	if IslandClaims.is_claimed(rt, tile):
+	if IslandClaims.is_claimed(rt, BuildGrid.tile_of(Vector3(x, 0.0, z))):
 		return Vector3.INF
 	var t := IslandTerrain.tile_type_at_world(rt, x, z)
 	var where := str(row.get("where", "ground"))
@@ -335,24 +393,52 @@ static func _wet(rt: IslandRuntime, x: float, z: float) -> bool:
 		or t == IslandTerrain.TileType.WET
 
 ## Fresh or still water within MARGIN_TILES metres (the reed beds hug the river and ponds).
+## The window is read straight from the tile arrays: floor(x + dx + half) is exactly
+## floor(x + half) + dx for an integer dx, and tile_type_at_world clamps each sample the same way,
+## so this answers "wet or fresh within MARGIN_TILES" with the same result as 49 helper calls, at a
+## fraction of their cost (the reed and driftwood kinds probe ~20k spots per island).
 static func _near_water(rt: IslandRuntime, x: float, z: float) -> bool:
+	var span := rt._tile_span
+	if span <= 0:
+		return false
+	var types := rt.tile_types
+	var fresh := rt.fresh_water
+	var half := rt._size * 0.5
+	var tx := int(floor(x + half))
+	var tz := int(floor(z + half))
+	var r2 := MARGIN_TILES * MARGIN_TILES
 	for dz in range(-MARGIN_TILES, MARGIN_TILES + 1):
+		var zz := clampi(tz + dz, 0, span - 1)
+		var row := zz * span
 		for dx in range(-MARGIN_TILES, MARGIN_TILES + 1):
-			if dx * dx + dz * dz > MARGIN_TILES * MARGIN_TILES:
+			if dx * dx + dz * dz > r2:
 				continue
-			if _wet(rt, x + float(dx), z + float(dz)):
+			var idx := clampi(tx + dx, 0, span - 1) + row
+			var t := int(types[idx])
+			if t == IslandTerrain.TileType.MUD or t == IslandTerrain.TileType.SHALLOW \
+					or t == IslandTerrain.TileType.WET:
 				return true
-			if IslandTerrain.fresh_water_at_world(rt, x + float(dx), z + float(dz)):
+			if idx < fresh.size() and int(fresh[idx]) == 1:
 				return true
 	return false
 
 ## Sand or the sea within MARGIN_TILES metres (shells and driftwood lie on the beach band).
 static func _near_sand(rt: IslandRuntime, x: float, z: float) -> bool:
+	var span := rt._tile_span
+	if span <= 0:
+		return false
+	var types := rt.tile_types
+	var half := rt._size * 0.5
+	var tx := int(floor(x + half))
+	var tz := int(floor(z + half))
+	var r2 := MARGIN_TILES * MARGIN_TILES
 	for dz in range(-MARGIN_TILES, MARGIN_TILES + 1):
+		var zz := clampi(tz + dz, 0, span - 1)
+		var row := zz * span
 		for dx in range(-MARGIN_TILES, MARGIN_TILES + 1):
-			if dx * dx + dz * dz > MARGIN_TILES * MARGIN_TILES:
+			if dx * dx + dz * dz > r2:
 				continue
-			var t := IslandTerrain.tile_type_at_world(rt, x + float(dx), z + float(dz))
+			var t := int(types[clampi(tx + dx, 0, span - 1) + row])
 			if t == IslandTerrain.TileType.SAND or t == IslandTerrain.TileType.SHALLOW:
 				return true
 	return false
@@ -421,6 +507,7 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 	# on top of it (the old cells, keys, tiles and instance records all go).
 	_clear_cells()
 	var items := plan(rt, seed_value)
+	PerfTrace.mark("dress.plan")
 	_points = PackedVector3Array()
 	_kinds.clear()
 	_zones.clear()
@@ -429,6 +516,7 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 	if items.is_empty():
 		return
 	var atlas := _build_atlas(items)
+	PerfTrace.mark("dress.atlas")
 	if atlas.is_empty():
 		return
 	_mat = ShaderMaterial.new()
@@ -473,8 +561,10 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 			"custom": Color(float(tile["offset"].x), float(tile["offset"].y), rng.randf(), sway),
 			"tile": BuildGrid.tile_of(pos),
 		})
+	PerfTrace.mark("dress.group")
 	for key: Vector2i in groups.keys():
 		_commit_cell(key, groups[key])
+	PerfTrace.mark("dress.commit")
 
 func _commit_cell(key: Vector2i, list: Array) -> void:
 	var mmi := MultiMeshInstance3D.new()

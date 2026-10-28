@@ -167,6 +167,9 @@ static func plan(rt: IslandRuntime, climate: String, seed_value: int) -> Array[D
 		var rows := sprites_of(kind)
 		if rows.is_empty():
 			continue
+		# Everything _instance_of reads from the data files, resolved once per kind: the island
+		# places ~78k cards, and a json row lookup per card was a large share of the plan time.
+		var infos := _sprite_infos(kind, rows)
 		# A little over the nominal density, because the dry/slope refusals eat some spots.
 		var want := int(round(kind_density(kind) * area * 1.15))
 		var made := 0
@@ -193,13 +196,72 @@ static func plan(rt: IslandRuntime, climate: String, seed_value: int) -> Array[D
 					if spot == Vector3.INF or mask.get_noise_2d(spot.x, spot.z) < MASK_KEEP:
 						continue
 				# A sprite per instance, so a clump is mixed leaves, not one stamp repeated.
-				var item := _instance_of(kind, rows[rng.randi_range(0, rows.size() - 1)], spot, rng)
+				var item := _instance_from(kind, infos[rng.randi_range(0, rows.size() - 1)], spot, rng)
 				if item.is_empty():
 					continue
 				out.append(item)
 				made += 1
 	return out
 
+## One kind's sprite rows as the constants _instance_of derives from them, in row order: the same
+## numbers, computed once instead of per instance (the rng draws stay in _instance_from, so the
+## placement sequence is unchanged).
+static func _sprite_infos(kind: String, rows: Array[Dictionary]) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var base_h := float(kind_data(kind).get("height", 1.0))
+	var span: Variant = kind_data(kind).get("scale", [0.8, 1.2])
+	var lo := 0.8
+	var hi := 1.2
+	if span is Array and (span as Array).size() >= 2:
+		lo = float((span as Array)[0])
+		hi = float((span as Array)[1])
+	for row in rows:
+		var px: Variant = row.get("px", [])
+		var pivot: Variant = row.get("pivot", [])
+		if not px is Array or (px as Array).size() < 2:
+			out.append({})
+			continue
+		var pw := maxf(1.0, float((px as Array)[0]))
+		var ph := maxf(1.0, float((px as Array)[1]))
+		var pv := Vector2(0.5, 1.0)
+		if pivot is Array and (pivot as Array).size() >= 2:
+			pv = Vector2(float((pivot as Array)[0]) / pw, float((pivot as Array)[1]) / ph)
+		out.append({
+			"id": str(row.get("id", "")),
+			"tint": _base_tint(kind),
+			"pw": pw,
+			"ph": ph,
+			"base_h": maxf(0.08, float(row.get("height_m", 0.8))) * base_h,
+			"lo": lo,
+			"hi": hi,
+			"pivot": pv,
+		})
+	return out
+
+## _instance_of on an info row: the same draws in the same order, the same result.
+static func _instance_from(kind: String, info: Dictionary, spot: Vector3, rng: RandomNumberGenerator) -> Dictionary:
+	if info.is_empty():
+		return {}
+	var pw := float(info["pw"])
+	var ph := float(info["ph"])
+	var sc := rng.randf_range(float(info["lo"]), float(info["hi"]))
+	var h := float(info["base_h"]) * sc
+	# Independent width squash, so two draws of one sprite never share a silhouette.
+	var wide := rng.randf_range(0.82, 1.2)
+	return {
+		"kind": kind,
+		"sprite": str(info["id"]),
+		"pos": spot,
+		"scale": sc,
+		"tint": _tint_from(info.get("tint", Color.WHITE), rng),
+		"w": h * pw / ph * wide,
+		"h": h,
+		"pivot": info["pivot"],
+		# A small lean within the card plane (degrees), so the field is not a row of upright stamps.
+		"lean": rng.randf_range(-11.0, 11.0),
+	}
+
+## Kept for callers that pass a sprite row straight from the manifest (one instance at a time).
 static func _instance_of(kind: String, row: Dictionary, spot: Vector3, rng: RandomNumberGenerator) -> Dictionary:
 	var px: Variant = row.get("px", [])
 	var pivot: Variant = row.get("pivot", [])
@@ -256,16 +318,22 @@ static func _ground(rt: IslandRuntime, x: float, z: float, radius: float) -> Vec
 		return Vector3.INF
 	if CAMP_CLEAR_M > 0.0 and Vector2(x - rt._camp_hint.x, z - rt._camp_hint.z).length() < CAMP_CLEAR_M:
 		return Vector3.INF
-	var y := rt.surface_y(x, z)
-	if y < 0.4:
-		return Vector3.INF
-	if IslandTerrain.slope_deg(rt, x, z) > MAX_SLOPE_DEG:
-		return Vector3.INF
+	# Cheapest refusals first: the tile test and the claim test are array/rect reads, the height and
+	# slope pass is two bilinear samples of five grid points (~1.7 us) and most spots on a coast or a
+	# rock face are already refused by the tile alone. Same predicates, same result.
 	if not soil(rt, x, z):
 		return Vector3.INF
 	# Owner 2026-10-21: "claimed land shouldn't have the grass". Claimed tiles stay bare so a
 	# buildable plot reads as swept ground, and a plot staked later clears the cover inside it.
 	if IslandClaims.is_claimed(rt, BuildGrid.tile_of(Vector3(x, 0.0, z))):
+		return Vector3.INF
+	# Height first, slope second: _ground runs ~90k times per island and most of those spots are
+	# sea or beach (refused by the height alone), so they must not pay the four extra grid samples
+	# the slope needs. A spot that passes pays the same five samples as the fused helper did.
+	var y := IslandTerrain.height_at(rt, x, z)
+	if y < 0.4:
+		return Vector3.INF
+	if IslandTerrain.slope_at(rt, x, z) > MAX_SLOPE_DEG:
 		return Vector3.INF
 	return Vector3(x, y, z)
 
@@ -275,12 +343,18 @@ static func soil(rt: IslandRuntime, x: float, z: float) -> bool:
 	return t == IslandTerrain.TileType.GRASS or t == IslandTerrain.TileType.DRY \
 		or t == IslandTerrain.TileType.DIRT or t == IslandTerrain.TileType.MUD
 
+## The kind's own colour, before the per-instance jitter.
+static func _base_tint(kind: String) -> Color:
+	var base: Variant = kind_data(kind).get("tint", [1.0, 1.0, 1.0])
+	if base is Array and (base as Array).size() >= 3:
+		return Color(float((base as Array)[0]), float((base as Array)[1]), float((base as Array)[2]))
+	return Color(1.0, 1.0, 1.0)
+
 ## Per-instance tint: the kind's own colour, jittered in brightness and a touch in hue.
 static func _tint(kind: String, rng: RandomNumberGenerator) -> Color:
-	var base: Variant = kind_data(kind).get("tint", [1.0, 1.0, 1.0])
-	var c := Color(1.0, 1.0, 1.0)
-	if base is Array and (base as Array).size() >= 3:
-		c = Color(float((base as Array)[0]), float((base as Array)[1]), float((base as Array)[2]))
+	return _tint_from(_base_tint(kind), rng)
+
+static func _tint_from(c: Color, rng: RandomNumberGenerator) -> Color:
 	var b := rng.randf_range(TINT_MIN, TINT_MAX)
 	return Color(c.r * b * rng.randf_range(0.97, 1.03), c.g * b, c.b * b * rng.randf_range(0.97, 1.03), 1.0)
 
@@ -303,9 +377,11 @@ static func install(rt: IslandRuntime, climate: String, seed_value: int = 0) -> 
 
 func build(rt: IslandRuntime, seed_value: int) -> void:
 	var items := plan(rt, _climate, seed_value)
+	PerfTrace.mark("cover.plan")
 	if items.is_empty():
 		return
 	var atlas := _build_atlas(items)
+	PerfTrace.mark("cover.atlas")
 	if atlas == null:
 		return
 	_mat = ShaderMaterial.new()
@@ -316,6 +392,19 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 	var groups: Dictionary = {}
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value ^ 0x5f3759df
+	# The sway scale per kind and each kind's atlas rect, resolved once: both were a json dictionary
+	# lookup per card, 78k times an island.
+	var sway: Dictionary = {}
+	var rects: Dictionary = atlas["rects"]
+	var rect_by_kind: Dictionary = {}
+	for it in items:
+		var k := str(it["kind"])
+		if not sway.has(k):
+			sway[k] = float(kind_data(k).get("sway", 0.08))
+		if not rect_by_kind.has(k):
+			rect_by_kind[k] = rects.get(str(it["sprite"]), {})
+	var sway_of: Dictionary = sway
+	var rect_of: Dictionary = rect_by_kind
 	for it in items:
 		var pos: Vector3 = it["pos"]
 		var key := Vector2i(floori(pos.x / CELL_M), floori(pos.z / CELL_M))
@@ -323,7 +412,7 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 		var w := float(it["w"])
 		var h := float(it["h"])
 		var pv: Vector2 = it["pivot"]
-		var tile: Dictionary = atlas["rects"].get(str(it["sprite"]), {})
+		var tile: Dictionary = rect_of[str(it["kind"])]
 		if tile.is_empty():
 			_missing_sprites += 1
 			continue
@@ -346,10 +435,13 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 			float(tile["offset"].x),
 			float(tile["offset"].y),
 			rng.randf(),
-			float(kind_data(str(it["kind"])).get("sway", 0.08)) / maxf(0.05, h)
+			float(sway_of[str(it["kind"])]) / maxf(0.05, h)
 		)
+		var xf := Transform3D(basis, origin - centre)
 		list.append({
-			"xf": Transform3D(basis, origin - centre),
+			"xf": xf,
+			# The per-cell shuffle's sort key, hashed once here where the transform is made.
+			"key": hash(Vector3i(roundi(xf.origin.x * 37.0), roundi(xf.origin.y * 53.0), roundi(xf.origin.z * 41.0))),
 			"colour": it["tint"],
 			"custom": custom,
 			# The grid tile the clump stands on, kept so a claim can clear it without reading the
@@ -359,16 +451,56 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 		_points.append(pos)
 		if not _kinds_placed.has(str(it["kind"])):
 			_kinds_placed.append(str(it["kind"]))
+	PerfTrace.mark("cover.group")
 	for key: Vector2i in groups.keys():
-		var list: Array = groups[key]
 		# A stable random order per cell, so a thinned first-N is a random sample of the cell.
-		list.sort_custom(func (a: Dictionary, b: Dictionary) -> bool: return _sort_key(a) < _sort_key(b))
-		_commit_cell(key, list)
+		groups[key] = _sorted(groups[key])
+	PerfTrace.mark("cover.sort")
+	for key: Vector2i in groups.keys():
+		_commit_cell(key, groups[key])
+	PerfTrace.mark("cover.commit")
 	_apply_thinning()
+	PerfTrace.mark("cover.thin")
 
-func _sort_key(it: Dictionary) -> int:
-	var xf: Transform3D = it["xf"]
-	return hash(Vector3i(roundi(xf.origin.x * 37.0), roundi(xf.origin.y * 53.0), roundi(xf.origin.z * 41.0)))
+## The per-cell shuffle, as a radix sort of packed (key, slot) words instead of sort_custom over
+## dictionaries: same key, same ascending order, but the key is computed once per instance and the
+## sort itself is Godot's integer sort (~3 ms for 78k) instead of ~1.3M GDScript comparisons. The
+## slot in the low 32 bits makes ties keep their insertion order, as the comparator did.
+static func _sorted(list: Array) -> Array:
+	var n := list.size()
+	if n <= 1:
+		return list
+	var words := PackedInt64Array()
+	words.resize(n)
+	# The key comes off the records the grouping pass already wrote per instance (its "key"), so
+	# this loop is an array read plus a shift per instance instead of a Transform3D unpack, three
+	# Vector3i arguments and a Variant hash call.
+	for i in n:
+		var rec: Dictionary = list[i]
+		words[i] = ((int(rec["key"]) & 0xFFFFFFFF) << 32) | i
+	words.sort()
+	# Mixed radix shuffle: the packed word says "slot i takes the record from slot k" only before
+	# the sort; in place, follow the permutation (a second packed array) instead of building a new
+	# Array of n Variants, which for 78k cards is a copy of the whole placement.
+	var want := PackedInt32Array()
+	want.resize(n)
+	for i in n:
+		want[i] = int(words[i] & 0xFFFFFFFF)
+	var done := PackedByteArray()
+	done.resize(n)
+	for i in n:
+		if done[i] == 1 or want[i] == i:
+			done[i] = 1
+			continue
+		var rec: Dictionary = list[i]
+		var j := i
+		while want[j] != i:
+			list[j] = list[want[j]]
+			done[j] = 1
+			j = want[j]
+		list[j] = rec
+		done[j] = 1
+	return list
 
 func _commit_cell(key: Vector2i, list: Array) -> void:
 	var mmi := MultiMeshInstance3D.new()

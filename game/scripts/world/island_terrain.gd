@@ -45,9 +45,13 @@ static func build(rt: IslandRuntime, size: float, climate: String, shape: Island
 	rt._heights = shape.heights
 	rt._ridge_dir = shape.ridge_dir
 	_build_height_texture(rt)
+	PerfTrace.mark("terrain.tex")
 	_build_tile_types(rt, climate)
+	PerfTrace.mark("terrain.tiles")
 	_build_mesh(rt, size, size / float(rt._res - 1), climate)
+	PerfTrace.mark("terrain.mesh")
 	_sea(rt, size)
+	PerfTrace.mark("terrain.sea")
 
 static func _build_mesh(rt: IslandRuntime, size: float, cell: float, climate: String) -> void:
 	rt._palette = _palette_for(climate)
@@ -247,6 +251,88 @@ static func normal_at(rt: IslandRuntime, x: float, z: float) -> Vector3:
 	var h3 := rt.surface_y(x, z + d)
 	return Vector3(h0 - h1, 2.0 * d, h2 - h3).normalized()
 
+## Height and slope (deg) at a world point in one call, for the placement loops that ask for both at
+## 90k+ spots: the same arithmetic as surface_y + slope_deg (five bilinear reads, the four slope ones
+## at +-0.75 m), inlined over the packed height array so the two helpers' call, empty-check and
+## clamping repeats go away. Returns Vector2(height, slope_deg): height is exactly surface_y(x, z) and
+## the slope is exactly slope_deg(x, z).
+const SLOPE_D := 0.75
+
+## Surface height and slope in degrees from one grid read set (the fused form of surface_y +
+## slope_deg: same samples, same arithmetic, one pass over the height array).
+static func height_and_slope(rt: IslandRuntime, x: float, z: float) -> Vector2:
+	var arr := rt._heights
+	if arr.is_empty():
+		return Vector2.ZERO
+	var res := rt._res
+	var cell := rt._size / float(res - 1)
+	var half := rt._size * 0.5
+	var last := float(res - 1)
+	var u := clampf((x + half) / cell, 0.0, last)
+	var v := clampf((z + half) / cell, 0.0, last)
+	var h0 := _bil_at(arr, res, u, v)
+	var h1 := _bil_at(arr, res, clampf((x - SLOPE_D + half) / cell, 0.0, last), v)
+	var h2 := _bil_at(arr, res, clampf((x + SLOPE_D + half) / cell, 0.0, last), v)
+	var h3 := _bil_at(arr, res, u, clampf((z - SLOPE_D + half) / cell, 0.0, last))
+	var h4 := _bil_at(arr, res, u, clampf((z + SLOPE_D + half) / cell, 0.0, last))
+	return Vector2(h0, _slope_deg_of(h1, h2, h3, h4))
+
+## The same pair from grid coordinates (u, v), for a caller that already has them (the tile loops).
+static func height_and_slope_grid(rt: IslandRuntime, u: float, v: float, cell: float) -> Vector2:
+	var arr := rt._heights
+	if arr.is_empty():
+		return Vector2.ZERO
+	var res := rt._res
+	var last := float(res - 1)
+	var d := SLOPE_D / cell
+	var h0 := _bil_at(arr, res, u, v)
+	var h1 := _bil_at(arr, res, clampf(u - d, 0.0, last), v)
+	var h2 := _bil_at(arr, res, clampf(u + d, 0.0, last), v)
+	var h3 := _bil_at(arr, res, u, clampf(v - d, 0.0, last))
+	var h4 := _bil_at(arr, res, u, clampf(v + d, 0.0, last))
+	return Vector2(h0, _slope_deg_of(h1, h2, h3, h4))
+
+static func _slope_deg_of(h1: float, h2: float, h3: float, h4: float) -> float:
+	var dx := (h2 - h1) / (2.0 * SLOPE_D)
+	var dz := (h4 - h3) / (2.0 * SLOPE_D)
+	return rad_to_deg(atan(sqrt(dx * dx + dz * dz)))
+
+## The point sample alone (surface_y's rule) for callers that do not need the slope.
+static func height_at(rt: IslandRuntime, x: float, z: float) -> float:
+	var arr := rt._heights
+	if arr.is_empty():
+		return 0.0
+	var res := rt._res
+	return _bil_at(arr, res, clampf((x + rt._size * 0.5) / (rt._size / float(res - 1)), 0.0, float(res - 1)),
+		clampf((z + rt._size * 0.5) / (rt._size / float(res - 1)), 0.0, float(res - 1)))
+
+## slope_deg's rule on the height array: +-SLOPE_D in x and z, in degrees.
+static func slope_at(rt: IslandRuntime, x: float, z: float) -> float:
+	var arr := rt._heights
+	if arr.is_empty():
+		return 0.0
+	var res := rt._res
+	var cell := rt._size / float(res - 1)
+	var half := rt._size * 0.5
+	var last := float(res - 1)
+	var u := clampf((x + half) / cell, 0.0, last)
+	var v := clampf((z + half) / cell, 0.0, last)
+	var h1 := _bil_at(arr, res, clampf((x - SLOPE_D + half) / cell, 0.0, last), v)
+	var h2 := _bil_at(arr, res, clampf((x + SLOPE_D + half) / cell, 0.0, last), v)
+	var h3 := _bil_at(arr, res, u, clampf((z - SLOPE_D + half) / cell, 0.0, last))
+	var h4 := _bil_at(arr, res, u, clampf((z + SLOPE_D + half) / cell, 0.0, last))
+	return _slope_deg_of(h1, h2, h3, h4)
+
+## Bilinear sample at raw grid coordinates (u, v).
+static func _bil_at(arr: PackedFloat32Array, res: int, u: float, v: float) -> float:
+	var x0 := int(u)
+	var z0 := int(v)
+	var x1 := mini(x0 + 1, res - 1)
+	var z1 := mini(z0 + 1, res - 1)
+	var tx := u - float(x0)
+	var tz := v - float(z0)
+	return lerpf(lerpf(arr[x0 + z0 * res], arr[x1 + z0 * res], tx), lerpf(arr[x0 + z1 * res], arr[x1 + z1 * res], tx), tz)
+
 static func slope_deg(rt: IslandRuntime, x: float, z: float) -> float:
 	var d := 0.75
 	var dx := (rt.surface_y(x + d, z) - rt.surface_y(x - d, z)) / (2.0 * d)
@@ -275,7 +361,10 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	biomes.resize(types.size())
 	# The generated camp clearing is the home island's; elsewhere the zone map keeps its own field.
 	var camp: Vector3 = rt._camp_hint if _camp_active(rt) else Vector3.ZERO
+	PerfTrace.mark("tiles.ctx")
 	var bctx := BiomeZones.context(rt, climate, camp, _layout_seed(rt, climate))
+	var bstate := BiomeZones.fast_state(bctx)
+	PerfTrace.mark("tiles.ctx2")
 	var has_ash := _climate_has_material(climate, "ash")
 	var half := rt._size * 0.5
 	var cell := rt._size / float(rt._res - 1)
@@ -306,11 +395,18 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			var i11 := x1 + z1 * res
 			var h := lerpf(lerpf(harr[i00], harr[i10], tx), lerpf(harr[i01], harr[i11], tx), tz)
 			var rad := lerpf(lerpf(rarr[i00], rarr[i10], tx), lerpf(rarr[i01], rarr[i11], tx), tz)
-			# The steepest corner: a riser is one cell wide, so a bilinear average would hide it.
-			var slope := maxf(maxf(sarr[i00], sarr[i10]), maxf(sarr[i01], sarr[i11]))
 			var rd := lerpf(lerpf(darr[i00], darr[i10], tx), lerpf(darr[i01], darr[i11], tx), tz)
+			# The slope and the river half-width are read on the land band only (h >= 0.45), and the
+			# half-width again on the wet/low band the MUD override covers. Everything seaward and
+			# beachward of that is decided by height and radius alone and never looks at either, and
+			# the zone of a tile below beach height always answers "beach" before it reads the
+			# slope. Skipping those reads is worth ~15 % of this loop (home is ~60 % water+beach).
+			var slope := 0.0
 			var hw := 4.0
-			if not warr.is_empty():
+			if h >= 0.45:
+				# The steepest corner: a riser is one cell wide, so a bilinear average would hide it.
+				slope = maxf(maxf(sarr[i00], sarr[i10]), maxf(sarr[i01], sarr[i11]))
+			if (h >= 0.45 or (h > -0.6 and h < 0.22)) and not warr.is_empty():
 				hw = lerpf(lerpf(warr[i00], warr[i10], tx), lerpf(warr[i01], warr[i11], tx), tz)
 			# Rock and cliff faces need DRY, INLAND ground at all four grid corners: a bilinear
 			# height says nothing about whether the tile is one vertex of a steep beach, and a
@@ -346,11 +442,14 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 				# A narrow wet bank strip (MUD, so the fresh-water mask covers the edge). Wider or
 				# higher than this and it reads as a brown mud wall along the river (NOTES.md).
 				t = TileType.MUD
-			var cdist := Vector2(wx - rt._crater_hint.x, wz - rt._crater_hint.z).length()
-			if rt._crater_hint != Vector3.ZERO and cdist < 8.5 and h > -0.2:
-				t = TileType.DIRT
+			# The crater is only on some islands: test for it before measuring the distance, so the
+			# common island does not build a Vector2 per tile (173k of them on the big ones).
+			if rt._crater_hint != Vector3.ZERO:
+				var cdist := Vector2(wx - rt._crater_hint.x, wz - rt._crater_hint.z).length()
+				if cdist < 8.5 and h > -0.2:
+					t = TileType.DIRT
 			var idx := x + z * span
-			var b := BiomeZones.zone_of(bctx, wx, wz, h, slope, rd)
+			var b := BiomeZones.zone_of_state(bstate, wx, wz, h, slope, rd)
 			types[idx] = t
 			biomes[idx] = b
 			fresh[idx] = 1 if t == TileType.MUD else 0
@@ -359,12 +458,15 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			walk[idx] = 1 if (t == TileType.GRASS or t == TileType.DRY or t == TileType.DIRT or t == TileType.SAND \
 				or t == TileType.ROCK or t == TileType.ASH) and h >= 0.25 and rad <= land_r - 0.5 else 0
 	rt.tile_types = types
+	PerfTrace.mark("tiles.loop")
 	BiomeZones.install(rt, biomes)
 	rt.fresh_water = fresh
 	rt.dry_walk = walk
 	BiomeZones.smooth(rt)
+	PerfTrace.mark("tiles.smooth")
 	_write_tile_image(rt)
 	rt._tile_map_tex = ImageTexture.create_from_image(rt._tile_map_image)
+	PerfTrace.mark("tiles.image")
 
 ## The tile id the shader paints. CLIFF writes NO override: the shader already paints steep
 ## ground as rock from the vertex normal, and painting rock per 1 m tile turned each face into a
@@ -377,13 +479,20 @@ static func _write_tile_image(rt: IslandRuntime) -> void:
 	var span := rt._tile_span
 	if rt._tile_map_image == null or rt._tile_map_image.get_width() != span:
 		rt._tile_map_image = Image.create(span, span, false, Image.FORMAT_RG8)
+	# One RG8 byte buffer built directly: two byte writes per tile instead of a Color and a
+	# set_pixel (0.035 s of the home build). CLIFF keeps writing the GRASS id (see _shader_id).
 	var bio := BiomeZones.biome_types(rt)
-	for z in span:
-		for x in span:
-			var idx := x + z * span
-			var t := int(rt.tile_types[idx]) if idx < rt.tile_types.size() else 0
-			var b := int(bio[idx]) if idx < bio.size() else 0
-			rt._tile_map_image.set_pixel(x, z, Color(float(_shader_id(t)) / 255.0, float(b) / 255.0, 0.0))
+	var px := PackedByteArray()
+	px.resize(span * span * 2)
+	var grass := TileType.GRASS
+	var tsz := rt.tile_types.size()
+	var bsz := bio.size()
+	for idx in span * span:
+		var t := int(rt.tile_types[idx]) if idx < tsz else 0
+		var b := int(bio[idx]) if idx < bsz else 0
+		px[idx * 2] = grass if t == TileType.CLIFF else t
+		px[idx * 2 + 1] = b
+	rt._tile_map_image.set_data(span, span, false, Image.FORMAT_RG8, px)
 
 ## The camp shape in the heightmap and vertex colours belongs to the home island only: the other
 ## islands' generated rim must stay untamed.

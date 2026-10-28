@@ -18,9 +18,11 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 	# dense camera-facing cards per 32 m cell, thinned with distance instead of switched off at a range,
 	# never colliding. The counts stay data (ground_cover.json holds the density per m2).
 	GroundCover.install(rt, climate, int(def.get("seed", 17 if home else 25)))
+	PerfTrace.mark("scatter.cover")
 	# BIOMEDRESS: the biome zones' own painted dressing (reeds at the water, termites on savanna,
 	# basalt and crystals on volcanic, palms and ferns on tropical), from data/world/biome_dress.json.
 	BiomeDress.install(rt, int(def.get("seed", 17 if home else 25)))
+	PerfTrace.mark("scatter.dress")
 	# Durango's islands are dense: every family keeps a floor even when the island data is sparse.
 	# Denser islands (owner asked for resources everywhere): home floors up 3-4x, unstable up ~1.5x.
 	# Owner wants islands that read full: counts come from area x props.json scatter.nodes_target. The
@@ -72,14 +74,17 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 		if n <= 0:
 			continue
 		rt.harvest_count += _plant_family(rt, fs, role, n, fallback, tool, climate, tier, size, rng, col)
+	PerfTrace.mark("scatter.families")
 	_scatter_special_tiles(rt, climate, tier, rng)
+	PerfTrace.mark("scatter.special")
 	_top_up(rt, total_target(counts, rt, home), climate, tier, size, rng)
-	for b in rt._batches:
-		b.commit()
+	PerfTrace.mark("scatter.topup")
+	PerfTrace.mark("scatter.commit")
 	for node in rt._harvest_nodes.values():
 		if is_instance_valid(node):
 			node.refresh_batched_visual()
 	_commit_tree_discs(rt)
+	PerfTrace.mark("scatter.refresh")
 
 ## Plants a family in clumps of 3-6 (thickets and clearings, like the reference), on free
 ## dry tiles, avoiding the camp. Tree clumps near the shore become palms where the climate allows.
@@ -115,10 +120,11 @@ static func _top_up(rt: IslandRuntime, target: int, climate: String, tier: int, 
 		tries += 1
 		var ox := rng.randf_range(-half, half)
 		var oz := rng.randf_range(-half, half)
-		var pos := Vector3(ox, rt.surface_y(ox, oz), oz)
-		if not rt.spawn_ok(pos, false) or rt.near_harbour(pos):
+		var hs := IslandTerrain.height_and_slope(rt, ox, oz)
+		if hs.y > 30.0:
 			continue
-		if IslandTerrain.slope_deg(rt, ox, oz) > 30.0:
+		var pos := Vector3(ox, hs.x, oz)
+		if not rt.spawn_ok(pos, false) or rt.near_harbour(pos):
 			continue
 		var tile := BuildGrid.tile_of(pos)
 		if rt._used_tiles.has(tile):

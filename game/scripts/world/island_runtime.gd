@@ -151,13 +151,17 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	var legacy := str(def.get("kind", "")) == "private"
 	var hint := Vector2(float(harbour_a[0]), float(harbour_a[2])) if def.has("harbour") else Vector2(_camp_hint.x, _camp_hint.z)
 	var t0 := Time.get_ticks_usec()
+	PerfTrace.start(str(def.get("id", "")))
 	_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, 161, _climate)
 	_shape.camp_hint = Vector2(_camp_hint.x, _camp_hint.z)
 	_shape.compute()
+	PerfTrace.mark("shape")
 	var t1 := Time.get_ticks_usec()
 	IslandTerrain.build(self, size, _climate, _shape)
+	PerfTrace.mark("terrain")
 	var t2 := Time.get_ticks_usec()
 	IslandTerrain.bake_nav(self)
+	PerfTrace.mark("nav")
 	build_grid = BuildGrid.new()
 	build_grid.name = "BuildGrid"
 	build_grid.setup(self)
@@ -186,20 +190,26 @@ func build(def: Dictionary, terrain: StringName) -> void:
 		build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo_basket.position), 0)
 	IslandClaims.setup(self, def)
 	var t3 := Time.get_ticks_usec()
+	PerfTrace.mark("camp")
 	IslandScatter.scatter(self, def, terrain, _climate, _tier, size)
+	PerfTrace.mark("scatter")
 	props = IslandProps.build(self)
 	# CLAIMPROPS: a save's claimed land is bare. The domain is set up before the scatter and the props
 	# build, so the filter is already in place; this sweep is the belt to that braces (a node type that
 	# appears after a claim, and the lab's authored props).
 	IslandClaims.clean_claimed(self)
+	PerfTrace.mark("props")
 	var t4 := Time.get_ticks_usec()
 	_setup_pathing()
+	PerfTrace.mark("pathing")
 	var t5 := Time.get_ticks_usec()
 	IslandSpawns.spawn_all(self, def)
+	PerfTrace.mark("spawns")
 	if crater_v is Array:
 		_crater(_at(float(crater_v[0]), float(crater_v[2])))
 	weather.install(self)
 	IslandTerrain.drive_focus(self)
+	PerfTrace.finish()
 	if OS.get_environment("ISL_TIME") == "1":
 		print("[islandgen-time] %s shape=%.0fms terrain=%.0fms rest=%.0fms scatter=%.0fms pathing=%.0fms total=%.0fms" % [def.get("id", ""), float(t1 - t0) / 1000.0, float(t2 - t1) / 1000.0, float(t3 - t2) / 1000.0, float(t4 - t3) / 1000.0, float(t5 - t4) / 1000.0, float(Time.get_ticks_usec() - t0) / 1000.0])
 	print("[world] island %s nodes=%d creatures=%d spawn_rejected=%d" % [def.get("id", ""), harvest_count, creature_count, spawn_rejected])

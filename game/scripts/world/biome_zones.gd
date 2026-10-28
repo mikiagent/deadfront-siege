@@ -249,6 +249,81 @@ static func zone_of(ctx: Dictionary, wx: float, wz: float, h: float, slope: floa
 			return veg[i]
 	return veg[veg.size() - 1]
 
+## Typed, dictionary-free form of `context` for the per-tile loop. `zone_of` is called once per
+## tile (~173k times on the big islands) and most of its cost was string-keyed dictionary reads;
+## this Array is read by index instead. Built once per island, values are exactly `zone_of`'s.
+static func fast_state(ctx: Dictionary) -> Array:
+	var cached: Variant = ctx.get("_fast")
+	if cached is Array:
+		return cached
+	var r: Dictionary = ctx["rules"]
+	var veg: Array[int] = ctx["veg"]
+	var st: Array = [
+		float(ctx["land_radius"]) - float(r["beach_m"]),
+		beach_h(ctx),
+		float(r.get("beach_low_h", 0.55)),
+		ctx["camp"],
+		float(r["camp_radius_m"]) * 0.35,
+		float(r["river_m"]),
+		float(r["rock_slope_deg"]),
+		float(ctx["high_h"]),
+		int(ctx["rock"]),
+		ctx["moist"],
+		ctx["pick"],
+		veg,
+		ctx["cum"],
+		zone_id("beach"),
+		zone_id("meadow"),
+		zone_id("wetland"),
+		veg[veg.size() - 1],
+	]
+	ctx["_fast"] = st
+	return st
+
+## Zone counts of tile column `c` between rows sz0..sz1, packed 8 bits per zone, into cols[slot].
+## Water tiles are never counted.
+static func _col_pack(cols: PackedInt64Array, slot: int, c: int, sz0: int, sz1: int, span: int,
+		types: PackedByteArray, current: PackedByteArray, nz: int) -> void:
+	var acc := 0
+	var tsz := types.size()
+	for zz in range(sz0, sz1 + 1):
+		var nidx := c + zz * span
+		var nt := int(types[nidx]) if nidx < tsz else 0
+		if nt == IslandTerrain.TileType.SHALLOW or nt == IslandTerrain.TileType.DEEP:
+			continue
+		var b := int(current[nidx])
+		if b < nz:
+			acc += 1 << (b * 8)
+	cols[slot] = acc
+
+## `zone_of` on a `fast_state` Array. Same rule order, same numbers, same result.
+static func zone_of_state(st: Array, wx: float, wz: float, h: float, slope: float, river_d: float) -> int:
+	var near_coast := sqrt(wx * wx + wz * wz) > float(st[0])
+	if near_coast and h < float(st[1]):
+		return int(st[13])
+	if h < float(st[2]):
+		return int(st[13])
+	var camp: Vector3 = st[3]
+	if camp != Vector3.ZERO:
+		var cx := wx - camp.x
+		var cz := wz - camp.z
+		if sqrt(cx * cx + cz * cz) < float(st[4]):
+			return int(st[14])
+	if river_d < float(st[5]):
+		return int(st[15])
+	if slope > float(st[6]) or h > float(st[7]):
+		return int(st[8])
+	var moist: FastNoiseLite = st[9]
+	var pick: FastNoiseLite = st[10]
+	var m := moist.get_noise_2d(wx, wz) * 0.6 + pick.get_noise_2d(wx, wz) * 0.4
+	var u := clampf(m * 0.9 + 0.5, 0.0, 0.999)
+	var veg: Array[int] = st[11]
+	var cum: PackedFloat32Array = st[12]
+	for i in veg.size():
+		if u < cum[i + 1]:
+			return veg[i]
+	return int(st[16])
+
 ## Post-pass on the painted map: a src-to-dst majority filter (so zone edges read as patches, not
 ## speckle), then regions under min_region_tiles join their largest neighbour. Water tiles keep
 ## whatever id they had, and are never used as a source.
@@ -263,36 +338,57 @@ static func smooth(rt: IslandRuntime, radius: int = -1) -> void:
 		r = int(rules().get("filter_radius_tiles", 2))
 	var dst := current.duplicate()
 	if r > 0:
-		var counts := PackedByteArray()
-		counts.resize(zone_count())
+		# Sliding 5x5 majority: the zone counts of the window are kept per column so stepping right
+		# drops one column and adds one instead of rescanning all 25 cells. The tie rule is the
+		# original one - the smallest zone id with the highest count wins, and a window with no
+		# counted zone keeps the current id.
+		var nz := zone_count()
+		var tsz := types.size()
+		var wspan := mini(span, 2 * r + 1)
+		# Zone counts are packed 8 bits apiece into one int per window column (5 columns x at most
+		# 7 rows of one zone = 35, so a sum of the columns never carries into the next field). The
+		# window sum is then one add per column, not a loop over zones per column.
+		var cols := PackedInt64Array()
+		cols.resize(wspan)
 		for z in span:
+			var sz0 := maxi(0, z - r)
+			var sz1 := mini(span - 1, z + r)
+			var total := 0
+			for c in mini(span, r + 1):
+				_col_pack(cols, c % wspan, c, sz0, sz1, span, types, current, nz)
+				total += cols[c % wspan]
 			for x in span:
 				var idx := x + z * span
-				var t := int(types[idx]) if idx < types.size() else 0
-				if _is_water(t):
-					continue
-				counts.fill(0)
-				var best := int(current[idx])
-				var best_n := 0
-				var sx0 := maxi(0, x - r)
-				var sx1 := mini(span - 1, x + r)
-				var sz0 := maxi(0, z - r)
-				var sz1 := mini(span - 1, z + r)
-				for zz in range(sz0, sz1 + 1):
-					for xx in range(sx0, sx1 + 1):
-						var nidx := xx + zz * span
-						var nt := int(types[nidx]) if nidx < types.size() else 0
-						if _is_water(nt):
-							continue
-						var b := int(current[nidx])
-						if b < counts.size():
-							counts[b] += 1
-				for b in counts.size():
-					if int(counts[b]) > best_n:
-						best_n = int(counts[b])
-						best = b
-				dst[idx] = best
+				var t := int(types[idx]) if idx < tsz else 0
+				if t != IslandTerrain.TileType.SHALLOW and t != IslandTerrain.TileType.DEEP:
+					var cur := int(current[idx])
+					# A window whose counted tiles are all the tile's own zone keeps it, and that is
+					# one comparison on the packed sum (the whole sum sits in the current zone's
+					# field) instead of the eight-field scan below - the common interior case.
+					var field := (total >> (cur * 8)) & 0xFF
+					if total != (field << (cur * 8)):
+						var best := cur
+						var best_n := 0
+						var v := total
+						for b in nz:
+							var n := v & 0xFF
+							if n > best_n:
+								best_n = n
+								best = b
+							v = v >> 8
+						dst[idx] = best
+				# Slide one column right: out with x-r, in with x+r+1 (bounded by the grid).
+				var out_c := x - r
+				if out_c >= 0:
+					total -= cols[out_c % wspan]
+				var in_c := x + r + 1
+				if in_c < span:
+					var bi := in_c % wspan
+					_col_pack(cols, bi, in_c, sz0, sz1, span, types, current, nz)
+					total += cols[bi]
+	PerfTrace.mark("smooth.filter")
 	_merge_small(rt, dst, int(rules().get("min_region_tiles", 400)))
+	PerfTrace.mark("smooth.merge")
 	install(rt, dst)
 
 ## Every 4-connected region under min_tiles switches to the zone that most of its border touches.
