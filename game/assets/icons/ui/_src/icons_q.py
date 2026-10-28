@@ -16,9 +16,9 @@ G["water_drop"] = [([DROP, SHINE], True), ([SMALL], False)]
 
 # smoke_inhalation (owner 2026-10-28: a hazard, "the smoke should make you take damage"): a heavy smoke
 # cloud low down with three wisps curling up out of it.
-CLOUD = [circle(18, 44, 10), circle(31, 39, 13), circle(45, 44, 10), circle(32, 50, 8), capsule((14, 50), (50, 50), 8)]
-WISPS = [band([(22, 28), (19, 21), (23, 14), (20, 7)], 4.6), band([(33, 25), (36, 18), (32, 11), (35, 5)], 4.6),
-         band([(43, 29), (46, 22), (42, 16)], 4.2)]
+CLOUD = [circle(18, 45, 9.5), circle(31, 40, 12.5), circle(45, 45, 9.5), capsule((17, 50), (46, 50), 8)]
+WISPS = [band([(21, 31), (18, 24), (22, 17), (19, 11)], 5.6), band([(32, 28), (35, 21), (31, 14), (34, 8)], 5.6),
+         band([(43, 32), (46, 25), (42, 18), (44, 13)], 5.2)]
 G["smoke_inhalation"] = [(CLOUD, False), (WISPS, False)]
 
 I = place(G)
