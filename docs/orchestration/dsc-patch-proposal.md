@@ -36,6 +36,7 @@ Bounded logic tasks with a headless test work well and cheaply. The failures clu
 | b | **`--visual-gate <shot cmd> --criterion "<text>"`:** before a task may finish, the runner renders the shots itself. It refuses "done" when they hash the same as the previous round. It then sends them to a separate vision-capable judge model with the criterion, and the task is done only on a judge PASS. | 2 |
 | c | **HEADLESS_ONLY enforced by the runner:** when the marker exists, a Godot launch without `--headless` is refused unless `--allow-windowed` is passed. | 3 |
 | d | **Scope-only verify failure:** auto-stop as blocked with the file list. No looping, and no `git checkout`/revert of tracked files. | 3 |
+| f | **Retry transient provider errors:** at 08:42:28 one "model error: terminated" ended two running tasks in the same second. The runner should retry with backoff (2/4/8/16 s) before ending a task as `error`. | outage |
 | e | **Tree-bound docs:** for doc tasks, the runner rejects a cited path or function that is not in `git ls-files` of the worker's own tree. Today `verify_docsaudit.sh` checks existence only. | 4 |
 
 Changes a, c and d are runner-side and small. Change b is the biggest win for this project, because visual work is
