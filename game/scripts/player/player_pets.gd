@@ -152,7 +152,9 @@ func order(cmd: StringName) -> void:
 		return
 	var t: Creature = p.hunt.target if (p.hunt and p.hunt.target and is_instance_valid(p.hunt.target)) else null
 	if cmd == &"attack" and t == null:
-		t = p.actions.nearest_creature(30.0, false)  # SIC with no target: the nearest wild animal
+		t = p.controls.selection.shown()  # SIC with no fight: the selected animal (PRD 10.2 "pets join")
+	if cmd == &"attack" and t == null:
+		t = p.actions.nearest_creature(30.0, false)  # else the nearest wild animal
 		if t == null:
 			p.notice("No enemy nearby to sic them on.")
 			return

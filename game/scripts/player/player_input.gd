@@ -23,9 +23,12 @@ var _hold_walk_retarget_left: float = 0.0
 var _tap_touch_index: int = -1
 var _desktop_click_fallback_pending: bool = false
 var _touch_context: StringName = &"explore"
+## The wild animal a tap selected (spec 23); its swords hex or E starts the fight.
+var selection: TargetSelect
 
 func _init(player: Player) -> void:
 	p = player
+	selection = TargetSelect.new(player)
 
 ## Godot web can consume a desktop mouse press before it reaches _unhandled_input even when the
 ## canvas control ignores mouse input. Defer a fallback until GUI routing has finished;
@@ -42,14 +45,16 @@ func _desktop_click_fallback(pos: Vector2) -> void:
 		return
 	_desktop_click_fallback_pending = false
 	Game.pointer = pos
+	if tap_blocked():
+		return  # a HUD control took the press (the swords hex beside a bench): not a world tap
 	# Pick stations in screen space first. Their low, open meshes often let a 3D ray pass through
 	# to terrain in desktop Compatibility/WebGL even when the visible mouse is over the model.
-	var best := _station_under_pointer(pos)
+	var hit := ray()
+	var best := _station_for_tap(pos, hit)
 	if best:
 		interact_tap_target(best)
 		return
 	# Fall back to normal physics for clicks close enough to hit the station collision directly.
-	var hit := ray()
 	if hit.is_empty():
 		return
 	var picked := pick_interactable(hit)
@@ -83,7 +88,7 @@ func handle_unhandled(event: InputEvent) -> void:
 		p.sim.try_roll(p.sim.cam_dir(p.sim.input_vector()))
 		return
 	if event.is_action_pressed("attack"):
-		p.actions.attack()
+		p.actions.attack(selection.shown() if p.hunt.target == null else null)  # the fight, else the selection on screen, else the nearest
 		return
 	if event.is_action_pressed("interact"):
 		interact()
@@ -213,14 +218,22 @@ func _station_under_pointer(pos: Vector2) -> Node3D:
 			best = st
 	return best
 
+## The station under the pointer, unless the ray lands straight on a wild animal: animals graze in
+## camp, and a tap on one selects it (spec 23).
+func _station_for_tap(pos: Vector2, hit: Dictionary) -> Node3D:
+	var col: Object = hit.get("collider", null)
+	if col is Creature and not (col as Creature).is_pet:
+		return null
+	return _station_under_pointer(pos)
+
 func tap_world() -> StringName:
 	# Stations are low/open meshes. On desktop WebGL the ray often reaches terrain through the
 	# visible bench, so accept the nearest station projected under the pointer before physics.
-	var station := _station_under_pointer(Game.pointer)
+	var hit := ray()
+	var station := _station_for_tap(Game.pointer, hit)
 	if station:
 		interact_tap_target(station)
 		return &"interact"
-	var hit := ray()
 	if hit.is_empty():
 		return &""
 	var picked := pick_interactable(hit)
@@ -236,6 +249,7 @@ func _walk_to_tile(at: Vector3) -> void:
 	# steers directly through water instead of snapping a water tap back to the shore.
 	var nav_pos := tile_pos if WaterAccess.in_water(tile_pos) else p.sim.closest_nav_point(tile_pos)
 	p.actions.cancel_work()
+	selection.clear()
 	if p.hunt:
 		p.hunt.stop()
 	p.nav_to(nav_pos)
@@ -244,8 +258,9 @@ func _walk_to_tile(at: Vector3) -> void:
 func interact_tap_target(col: Object) -> void:
 	p.view.clear_ground_marker()
 	p.actions.cancel_work()
-	if not (col is Creature and not (col as Creature).is_pet) and p.hunt:
-		p.hunt.stop()
+	if not (col is Creature) and p.hunt:
+		p.hunt.stop()  # a tap on any animal, your pet too, keeps the fight going
+	selection.select(col as Creature)  # a wild animal is selected; anything else clears the selection
 	if col is HarvestNode:
 		var hn := col as HarvestNode
 		var opts := hn.options()
@@ -267,8 +282,7 @@ func interact_tap_target(col: Object) -> void:
 			p.pets.interact(c)
 		elif FieldTame.can_attempt(c):
 			p.actions.begin_field_tame(c)
-		else:
-			p.actions.attack(c)
+		# Any other wild animal stays selected only: the swords hex or E starts the fight.
 	elif col is ConstructionSite:
 		# Spec 30 §7: tapping a placed site opens its sheet (Deposit / Withdraw / Work / Cancel).
 		(col as ConstructionSite).interact(p)
@@ -416,6 +430,9 @@ func gather_nearest() -> void:
 func interact() -> void:
 	if p.mounted_on:
 		p.dismount()
+		return
+	if selection.shown():
+		selection.engage()  # the key the swords hex shows, only while it shows
 		return
 	var sleep_spot := p.sim.nearest_sleep_spot()
 	if sleep_spot and p.vitals.fatigue >= 1.0:

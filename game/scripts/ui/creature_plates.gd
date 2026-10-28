@@ -187,7 +187,7 @@ static func creature_box(cam: Camera3D, c: Creature) -> Rect2:
 	return out
 
 func _forced_visible(c: Creature, player: Player, now: float) -> bool:
-	if player.hunt and player.hunt.target == c:
+	if (player.hunt and player.hunt.target == c) or player.controls.selection.target == c:
 		return true
 	if now - c.last_damaged_s <= 5.0:
 		return true
@@ -455,6 +455,9 @@ static func _in_focus(c: Creature, player: Player) -> bool:
 func _pick_emphasis(player: Player) -> int:
 	if player.hunt and player.hunt.target and is_instance_valid(player.hunt.target) and not player.hunt.target.health.dead:
 		return player.hunt.target.get_instance_id()
+	var sel := player.controls.selection.current()  # the tapped animal shows its name, as in the reference
+	if sel:
+		return sel.get_instance_id()
 	var best := 0
 	var best_score := -1.0
 	var now := _now_s()
