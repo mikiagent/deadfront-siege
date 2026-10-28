@@ -555,6 +555,16 @@
           "note": "Owner yes: wild dinosaurs attack blocking structures. Branch claude/mmo-w2-eco is early."
         },
         {
+          "id": "creature-natures",
+          "title": "Creature natures: Timid, Brave, Aggressive, Loyal, Stubborn, Docile change wild and companion AI and taming, shown in the name",
+          "status": "next",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": "Owner 2026-10-28 (Durango named variants like Timid/Alpha Raptor). Layers on ai.json temperaments; behaviour and data only. In progress on claude/mmo-natures; PetRecord gains an additive nature field."
+        },
+        {
           "id": "creature-art",
           "title": "Creature art queue: Triceratops mesh, Stegosaurus v2 shown, Deinonychus rebuild",
           "status": "next",
