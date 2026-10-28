@@ -123,7 +123,9 @@ above (it never replaces them and never edits a species' stats). Table:
 - AI: `creature_brain.gd` (`_effective_perception`, `_flees_on_sight`, `damage_threshold`,
   `retreat_fraction`, `note_damage`, `_spot`), `raptor_pack_brain.gd` (retreat line),
   `pet_brain.gd` (`guard_radius`, `_threat_distance`, `nature_keeps_fighting`,
-  `nature_stop_distance`), damage dealt in `Creature.attack_for`.
+  `nature_stop_distance`), damage dealt in `Creature.attack_for` for wild animals and in
+  `PetRecord.stat_value` for pets (its one stat source, so a Docile pet hits softer while the
+  stored `attack` the PETS sheet shows stays the species number).
 - Taming: `Creature.feeds_needed()/tame_window_seconds()` = species number × nature;
   `FieldTame` (window, feeds, completion) and `TamingPen` (wait at insert, nature carried on the
   captured stack by `CaptureSystem`) read them. Spec 09's capture rule is unchanged.
@@ -133,6 +135,11 @@ above (it never replaces them and never edits a species' stats). Table:
 - Saves: `PetRecord.nature` is an optional field. A pet row without one (an old save, the server's
   roster) loads with the nature its uid derives, and every later load agrees. Fixture:
   `game/tests/fixtures/pet_record_no_nature.json`; test: `game/tests/t_natures.gd`.
+- Known gap for the integrator: `core/data.gd` still walks every `*.json` in `data/creatures/`
+  as a species, so each boot logs `[data] FAIL … natures.json: creature json missing species`
+  (a `push_error`, nothing gates on it); and the server's `_tame` uses the species feed count and
+  mints pets without the wild nature (the store round-trips whatever it is given, and
+  `PetRecord.from_dict` derives a nature, so nothing breaks).
 - `# ASSUMPTION`: every number in the table is a first pass for measurability, not balance, and
   the pet rule "a pet below its retreat threshold drops the fight" is new; only a Brave pet with
   its owner riding keeps fighting.
