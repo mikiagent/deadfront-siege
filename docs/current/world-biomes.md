@@ -162,12 +162,12 @@ The look columns run from fully resisted to fully unmet.
 
 ## Butchering: choosing what to cut
 
-A kill leaves a carcass. Tapping it opens the **part picker** (`game/scripts/ui/butcher_picker.gd`): one 64 px hex per part that species offers, its icon, the seconds the cut takes, how many units are still on the carcass, and a red reason under any part that cannot be cut now. The "Loot chest" button on the picker opens the older chest screen (bag on the left, carcass on the right, Take all), so old muscle memory still works.
+A kill leaves a carcass. Tapping it, its name pill, or BUTCHER opens the **gather radial** on it (LOOTRADIAL, `game/scripts/ui/gather_radial.gd`, the same fan a harvest node opens; see `hud.md`): one hex per part that species offers, its icon, the seconds a cut takes on top, how many are still on the carcass at the bottom, a gold ★ on a rare part, and a red ⊘ with the reason on the label of any part that cannot be cut now. The cut budget is on the title ("Lv. 3 · 2 cuts left"). The old boxy part picker and its "Loot chest" button are gone; a carcass with no part table still opens the chest screen.
 
-Picking a part starts a timed cut (1.6 s, the gathering ring runs over the carcass). The survivor must stay in reach; walking away or cancel takes nothing and spends nothing. A finished cut hands over **only that part** — the other parts stay on the carcass:
+Picking a part starts a timed cut (the picked hex pie-fills, the others lock, the gain shows in the top-middle feed). The survivor must stay in reach; walking away or cancel takes nothing and spends nothing. A finished cut hands over **only that part** — the other parts stay on the carcass:
 
 - **Cut budget** — `1 + floor(Butchering level / 10)` cuts per carcass (Lv1 → 1, Lv10 → 2, Lv30 → 4, Lv60 → 7). When it runs out the carcass is spent; the parts never cut are lost (`# ASSUMPTION`, the spec is silent on carcass size).
-- **Yield** — the shipped scaling per cut: the part's `base` rows count, +15% per knife tier above stone, 0.75x with no knife, never below 1, plus +1% per Butchering level.
+- **Yield** — exactly **one** part instance per cut (owner rule 2026-10-28, one per harvest; `# ASSUMPTION` that it applies to butchering). The knife and Butchering level change the cut's **speed** (1.6 s / (1 + 15% per knife tier above stone + 1% per Butchering level), `butcher.cut_speed_*`) and its **quality** (the rare-part odds below), never the count. A part's rare roll replaces that one instance with the rare one.
 - **Rare parts** — one rare roll per chosen part, at that part's `rare` row odds (default 0.12, +15% per knife tier, cap 0.6) and only once its butcher skill node is learned.
 - **Blocked parts** — a part gated by a Butchering skill node, a part already cut, a carcass with no cuts left, or spoiled meat from a poisonous species reads its reason on the hex.
 - **Saves** — the carcass's species, its cuts left and which parts were cut round-trip through save/load (`docs/current/saves-persistence.md`); loading into a scene respawns the carcass with that state.

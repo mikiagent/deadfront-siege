@@ -23,7 +23,6 @@ const MIN_SCALE := 0.86
 
 var _root: Control
 var _entries: Dictionary = {} ## creature instance id -> Dictionary
-var _corpse_entries: Dictionary = {} ## corpse instance id -> Dictionary
 var _icons: Dictionary = {}
 var _icon_cache: Dictionary = {}
 var _emphasis_id: int = 0
@@ -52,8 +51,7 @@ func _process(delta: float) -> void:
 	# This layer (58) is above the HUD's: a plate drew over an open HUD sheet.
 	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
 	_root.visible = hud == null or not hud.sheet_open()
-	_tick_creatures(cam, player, delta)
-	_tick_corpses(cam, player, delta)
+	_tick_creatures(cam, player, delta)  # a carcass has a HUD name pill (HudPills, LOOTRADIAL), no plate
 
 func _tick_creatures(cam: Camera3D, player: Player, delta: float) -> void:
 	var now := _now_s()
@@ -84,42 +82,6 @@ func _tick_creatures(cam: Camera3D, player: Player, delta: float) -> void:
 		if seen.has(key):
 			continue
 		_remove_entry(int(key))
-
-func _tick_corpses(cam: Camera3D, player: Player, delta: float) -> void:
-	var seen: Dictionary = {}
-	for n in get_tree().get_nodes_in_group("corpse"):
-		var corpse := n as Corpse
-		if corpse == null:
-			continue
-		var dist := player.global_position.distance_to(corpse.global_position)
-		if dist > MAX_DIST:
-			continue
-		seen[corpse.get_instance_id()] = true
-		var e := _ensure_corpse_entry(corpse)
-		var show := dist <= 14.0 or corpse.tapped_recently(3.0)
-		var alpha := float(e.get("alpha", 0.0))
-		alpha = move_toward(alpha, 1.0 if show else 0.0, delta * 4.5)
-		e["alpha"] = alpha
-		var node := e["node"] as Control
-		node.visible = alpha > 0.02
-		node.modulate.a = alpha
-		var knife := e.get("knife", null) as TextureRect
-		if knife:
-			knife.visible = corpse.tapped_recently(4.0)
-			var unlocked := player.inventory.has_tool_class(&"knife")
-			# White knife = ready to butcher; red and dim = needs a knife first.
-			knife.modulate = Color.WHITE if unlocked else Color(1.0, 0.4, 0.35, 0.8)
-			var want := UiIcons.icon(&"butcher" if unlocked else &"lock")
-			if knife.texture != want:
-				knife.texture = want
-		var world := corpse.plate_anchor()
-		var screen := cam.unproject_position(world)
-		node.position = screen + Vector2(-70, -28)
-		_corpse_entries[corpse.get_instance_id()] = e
-	for key in _corpse_entries.keys():
-		if seen.has(key):
-			continue
-		_remove_corpse_entry(int(key))
 
 func _separate_visible_creature_plates() -> void:
 	# Keep nearby herd members readable. Greedily lift a plate until its name/HP block no
@@ -338,38 +300,6 @@ func _ensure_entry(c: Creature) -> Dictionary:
 		"flash_left": 0.0,
 	}
 	_entries[key] = entry
-	return entry
-
-func _ensure_corpse_entry(corpse: Corpse) -> Dictionary:
-	var key := corpse.get_instance_id()
-	if _corpse_entries.has(key):
-		return _corpse_entries[key]
-	var node := Control.new()
-	node.custom_minimum_size = Vector2(140, 22)
-	node.size = node.custom_minimum_size
-	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var label := Label.new()
-	label.position = Vector2.ZERO
-	label.size = node.size
-	label.text = "Loot · %s" % corpse.species_display_name()
-	label.add_theme_color_override("font_color", Color(0.85, 0.9, 0.78))
-	node.add_child(label)
-	# Small butcher symbol in the bag corner. EXPAND_IGNORE_SIZE keeps the 16 px box: a TextureRect
-	# that kept the source image minimum once drew a giant world knife.
-	var knife := TextureRect.new()
-	knife.name = "KnifeLock"
-	knife.texture = UiIcons.icon(&"butcher")
-	knife.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	knife.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	knife.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	knife.custom_minimum_size = Vector2(16, 16)
-	knife.size = Vector2(16, 16)
-	knife.position = Vector2(node.size.x - 17.0, 3.0)
-	knife.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	node.add_child(knife)
-	_root.add_child(node)
-	var entry := {"node": node, "alpha": 0.0, "knife": knife}
-	_corpse_entries[key] = entry
 	return entry
 
 func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player, dist: float, delta: float) -> void:
@@ -762,15 +692,6 @@ func _remove_entry(key: int) -> void:
 	if node and is_instance_valid(node):
 		node.queue_free()
 	_entries.erase(key)
-
-func _remove_corpse_entry(key: int) -> void:
-	if not _corpse_entries.has(key):
-		return
-	var e: Dictionary = _corpse_entries[key]
-	var node := e.get("node", null) as Control
-	if node and is_instance_valid(node):
-		node.queue_free()
-	_corpse_entries.erase(key)
 
 func _load_icon_manifest() -> void:
 	var path := "res://data/icons_manifest.json"

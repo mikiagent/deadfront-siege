@@ -88,10 +88,8 @@
     "rare_skill_bonus_per_level": 0.0,
     "rare_tool_tier_bonus": 0.15,
     "max_rare_chance": 0.6,
-    "_count_bonus": "ASSUMPTION: the docs say a better knife and Butchering level yield more parts but give no numbers (spec 12 s2). Each knife tier above stone adds 15% to the base part counts and each Butchering level 1%.",
-    "count_bonus_per_tier": 0.15,
-    "count_bonus_per_skill_level": 0.01,
-    "_no_knife": "ASSUMPTION: the docs give no bare-hands butchering rule. As gathering makes bare hands 1.35x slower (gather_rules.json), a carcass cut without a knife gives about 1/1.35 of the stone knife's base parts.",
-    "no_knife_count_mult": 0.75
+    "_cut_speed": "ASSUMPTION (owner 2026-10-28: one per harvest, upgrades change speed and quality, not the amount): every cut gives exactly one part. Each knife tier above stone makes a cut 15% faster and each Butchering level 1% (the old part-count bonuses, now on speed); a better knife's quality shows as its rare-part odds (rare_tool_tier_bonus).",
+    "cut_speed_bonus_per_tier": 0.15,
+    "cut_speed_bonus_per_skill_level": 0.01
   }
 }
