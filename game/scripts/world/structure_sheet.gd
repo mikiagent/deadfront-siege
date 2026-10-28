@@ -33,6 +33,13 @@ static func fill_card(box: Container, player: Player, btn: Callable, close: Call
 	if not is_instance_valid(sp) or sp.is_queued_for_deletion():
 		return "Gone"
 	var label := str(StructurePiece.piece_def(sp.kind).get("label", sp.kind))
+	# Spec 10 §3: the finished piece's level and inherited traits are visible, with what each did.
+	var fs := UiTokens.meta(player.get_viewport().get_visible_rect().size)
+	var q := CraftUI._label(card_lines(sp)[0], fs, UiTokens.GOLD)
+	q.name = "StructureQuality"
+	box.add_child(q)
+	for line in card_lines(sp).slice(1):
+		box.add_child(CraftUI._label(line, fs, UiTokens.MUTED))
 	if sp.kind == &"door":
 		btn.call("Close door" if sp.door_open else "Open door", func () -> void:
 			sp.interact(player)
@@ -54,6 +61,7 @@ static func fill_card(box: Container, player: Player, btn: Callable, close: Call
 			close.call())
 	var up := StructurePlacer.next_tier(sp.tier)
 	if up != &"" and not StructurePiece.blueprint(sp.kind, up).is_empty():
+
 		btn.call("Upgrade to %s\n%s" % [str(StructurePiece.tier_def(up).get("label", up)), StructurePlacer.cost_text(StructurePiece.cost(sp.kind, up))], func () -> void:
 			close.call()
 			player.placer.upgrade(sp, up, player))
@@ -77,3 +85,18 @@ static func fill_card(box: Container, player: Player, btn: Callable, close: Call
 				close.call()
 				player.placer.upgrade_all(sp, up, player))
 	return "%s %s  %.0f / %.0f" % [str(StructurePiece.tier_def(sp.tier).get("label", sp.tier)), label, sp.health.hp, sp.health.max_hp]
+
+## The piece's inspect text, top line first: "Lv 12 · High Density 3", then one line per inherited
+## trait ("High Density Lv 3: +6 durability"; "(no effect here)" where the piece cannot use it), then
+## the container size when the piece has one (base slots + the trait's spaces). A plain piece shows
+## just "Lv 1". Pure data, so the card and the tests read the same lines.
+static func card_lines(p: StructurePiece) -> PackedStringArray:
+	var out := PackedStringArray(["Lv %d" % maxi(1, p.build_level)])
+	var eff := BuildingQuality.effects(StructurePlacer._supported(p.kind, StructurePiece.blueprint(p.kind, p.tier)), p.inherited_attributes, false)
+	if not p.inherited_attributes.is_empty():
+		out[0] = BuildingQuality.summary(p.build_level, p.inherited_attributes)
+		out.append_array(BuildingQuality.effect_lines(p.inherited_attributes, eff))
+		out.append("Durability %s%d" % ["+" if p.quality_durability >= 0 else "", p.quality_durability])
+	if p.storage != null:
+		out.append("Capacity %d slots" % p.storage.slot_count)
+	return out

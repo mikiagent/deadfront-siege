@@ -13,6 +13,27 @@
   "repair_fraction": 0.5,
   "demolish_refund": 0.5,
   "creature_damage_mult": 1.0,
+  "quality": {
+    "_about": "Spec 10 sections 2-3 building quality. Level = floor(mean of the level-contributing exact units), clamped to the blueprint's minimum/maximum_level then capped by the Construction category level. Only the primary (main) material's traits pass to the building, and a trait only applies when the blueprint's supported_building_effects lists its effect. Attribute rows are the spec's reconstruction reference values (spec 10 section 3: +3 container spaces per Lightweight level, +2 durability per High Density level, mirrored for the negative traits) and are # ASSUMPTION amounts where the spec gives no number (comfort, antibiotic, building attack: 1 per level). station_rare maps the rare (green) traits to the workstation effects the spec names: split_easily -> shorter jobs (-0.05 per level), vivid_inspiration -> +1 job slot per level. # ASSUMPTION: the spec names the effects but not which rare id carries which.",
+    "attributes": {
+      "high_density": {"effect": "durability", "per_level": 2},
+      "compact_structure": {"effect": "durability", "per_level": 1},
+      "low_density": {"effect": "durability", "per_level": -2},
+      "weak_structure": {"effect": "durability", "per_level": -1},
+      "lightweight": {"effect": "storage_space", "per_level": 3},
+      "heavy": {"effect": "storage_space", "per_level": -3},
+      "beautiful_pattern": {"effect": "comfort", "per_level": 1},
+      "messy_pattern": {"effect": "comfort", "per_level": -1},
+      "strong_disinfectant": {"effect": "antibiotic", "per_level": 1},
+      "weak_disinfectant": {"effect": "antibiotic", "per_level": -1},
+      "firm": {"effect": "building_attack", "per_level": 1},
+      "soft": {"effect": "building_attack", "per_level": -1}
+    },
+    "station_rare": {
+      "split_easily": {"effect": "duration", "per_level": -0.05},
+      "vivid_inspiration": {"effect": "slots", "per_level": 1}
+    }
+  },
   "tiers": {
     "thatch": {
       "rank": 0,
