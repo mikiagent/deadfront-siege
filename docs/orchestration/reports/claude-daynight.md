@@ -57,6 +57,24 @@ shiver on defrosting") and then passed twice on this branch and twice on `claude
 looks like a flaky timing check in the weather test, not something the dial causes (the dial only reads
 WorldWeather).
 
+**Round 4 (canon merge went red).** The canon merge of 47bfeda9 failed t_levelfx at 844x390: the skill
+level-up row sat at y 260 instead of 114. I merged `claude/mmo-overhaul` (through TREADMILL d729b6a6) and
+imported, then tried to reproduce. On my merged branch, t_levelfx passed 3 times in a row, 3 times run in
+parallel to load the machine, and once each with the weather held at rain, storm, cold and heat. A merge
+of 47bfeda9 onto the pre-TREADMILL canon (5a748b0c) and a tree with a stale class cache (no import) both
+passed too. I could not reproduce the failure.
+
+The dial is not on the feed's path. At 844x390 the dial is 604-670 x 124-188 and the feed column is
+340-576 x 114-150. TopFeed centres the column left of the dial, so the dial's 6 px of extra width moved the
+column 3 px left (x 343 to 340), which matches the failing rect's x.
+
+The likely cause is the step just before that check. It calls `GatherFeedback.show_yield` with a rare find,
+which raises the "Rare find: Resin" and "Rare trait: Black Sheen Stone" notices. Notices are drawn before
+the feed at the top centre, and by design the feed hangs below them. When one is still up, the skill row
+drops below it. That depends on timing, so a slow or loaded run can fail. My fix: t_levelfx clears the
+HUD's notices together with the feed before the skill-row check, so that check tests the feed alone. No
+game code changed for this.
+
 ## What shipped (round 2)
 
 `game/scripts/ui/day_night_dial.gd` is one face, a gold-rimmed half-dial: 112x76 on desktop and 66x64 on
