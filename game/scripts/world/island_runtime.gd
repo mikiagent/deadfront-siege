@@ -14,6 +14,8 @@ var sun: DirectionalLight3D
 var world_env: WorldEnvironment
 var lighting: WorldLighting
 var weather := WorldWeather.new()
+## Cloud and pteranodon ground shadows (SKYSHADOWS).
+var sky: SkyShadows
 var raining: bool:
 	get:
 		return weather.raining
@@ -208,6 +210,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	if crater_v is Array:
 		_crater(_at(float(crater_v[0]), float(crater_v[2])))
 	weather.install(self)
+	sky = SkyShadows.install(self, _climate, lighting)
 	IslandTerrain.drive_focus(self)
 	PerfTrace.finish()
 	if OS.get_environment("ISL_TIME") == "1":

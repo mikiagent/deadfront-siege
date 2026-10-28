@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_back, blend_mix, depth_draw_never, diffuse_lambert, specular_schlick_ggx;
+#include "res://shaders/sky/sky_shadow.gdshaderinc"
 
 // Sea plane: colour and opacity from the water depth over the terrain heightmap, a rolling
 // Gerstner swell (vertex only, never gameplay: the logical sea stays HarbourSite.WATER_Y), ripple
@@ -154,7 +155,7 @@ void fragment() {
 		nrm += vec3((f3 - 0.5) * rip * 0.6, 0.0, (f1 - f3) * rip * 0.4);
 	}
 	NORMAL = normalize((VIEW_MATRIX * vec4(normalize(nrm), 0.0)).xyz);
-	ALBEDO = col;
+	ALBEDO = col * sky_shade(world_pos.xz);
 	ALPHA = alpha;
 	ROUGHNESS = mix(0.07, 0.16, chop) + foam * 0.6;
 	SPECULAR = 0.6;
