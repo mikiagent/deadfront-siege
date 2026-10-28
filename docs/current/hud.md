@@ -67,6 +67,11 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Quest card: desktop a 240 px card left of the minimap; phones across the centre band — "ORDERS
   i/n", the step title, hint, progress and a teal fill; when no objectives run: "NOW / island /
   Survive, then return".
+  It draws `OrdersSheet.hud_step(player)`: the running order, or a later one the player picked with
+  "Track on HUD" in Orders (C4, `orders_sheet.gd`; session-only, a load follows the running order).
+  Only the running order completes and pays out (`Objectives.settle`).
+- MENU sheet entries added by UICHAR: Character, Skills, Orders (`HuntHud.open_character()`,
+  `open_skills(tree)`, `open_orders()`); ‹ on those screens reopens the MENU.
 
 ## The centre band (`HudLayout.centre_band`)
 - Landscape phones: the strip between the vitals and the minimap carries the quest card; the target
