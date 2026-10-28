@@ -75,6 +75,7 @@ func _run() -> void:
 	_test_inheritance()
 	_test_first_wins()
 	_test_instances()
+	_test_examples()
 	_test_cancel()
 	await _test_foodfx()
 	_test_save()
@@ -275,6 +276,67 @@ func _test_instances() -> void:
 	_expect(_player.inventory.count_of(&"raw_meat") == before - 1, "cooking spends exactly one unit")
 	var left = _player.inventory.slots[0]
 	_expect(left == first and second.uid != left.uid, "the instance left in the bag is the one the plan did not pick")
+
+# ---------------------------------------------------------------- 4b. the example recipes
+
+## Spec 08 §3/§6: the example dishes are data, each listed at the station its slots name, each
+## spending exactly the instances picked and no more.
+func _test_examples() -> void:
+	print("[t_cookroles] -- example recipes")
+	var rows := [
+		["roled_grilled_meat", "stone_grill"], ["roled_berry_glazed_meat", "stone_grill"],
+		["roled_broth_soup", "crock_pot"], ["roled_spiced_stew", "crock_pot"],
+		["roled_herb_roast", "bonfire"], ["roled_salad", "workbench"],
+	]
+	var at := {"stone_grill": Vector3(1, 1, 1.4), "crock_pot": Vector3(2, 1, 1.4),
+		"bonfire": Vector3(1, 1, 2.4), "workbench": Vector3(-1, 1, 1.6)}
+	for row: Array in rows:
+		var rid := StringName(str(row[0]))
+		var rec: Dictionary = CR.recipe(rid)
+		_expect(not rec.is_empty() and CR.station_id(rec) == str(row[1]), "%s is a cooking recipe at %s" % [rid, row[1]])
+		var listed := false
+		for listed_rec: Variant in CR.recipes_for_station(StringName(str(row[1]))):
+			if str((listed_rec as Dictionary).get("id", "")) == str(rid):
+				listed = true
+		_expect(listed, "%s appears on its station's recipe list" % rid)
+		var roles_found: Array = []
+		for slot: Variant in rec.get("slots", []):
+			roles_found.append(ROLES.slot_role(slot as Dictionary))
+		_expect(not roles_found.has(""), "%s gives every slot a role (%s)" % [rid, str(roles_found)])
+	# The stew: one meat, one spice, one water — and exactly those three units leave the bag.
+	_player.global_position = at["crock_pot"]
+	_bag([["raw_meat", 15, {"rich_cut": 1}], ["spice_herb", 1], ["water_bucket", 1]])
+	var stew: Dictionary = CR.recipe(&"roled_spiced_stew")
+	var picks := _picks(&"roled_spiced_stew")
+	_expect(picks.size() == 3 and CR.picks_valid(_player.inventory, stew, picks), "the spiced stew plans from meat, spice and water")
+	var stew_dish = CR.craft(_player, stew, picks)
+	_expect(stew_dish != null, "the spiced stew cooks")
+	if stew_dish:
+		_expect(int(stew_dish.attributes.get("rich_cut", 0)) == 1, "the stew inherits the main's trait")
+		_expect((stew_dish.attributes.get("cooked_buffs", []) as Array).has("spice_warmth"), "the spice adds its own bonus")
+		_expect(_player.inventory.count_of(&"raw_meat") == 0 and _player.inventory.count_of(&"spice_herb") == 0 and _player.inventory.count_of(&"water_bucket") == 0, "cooking spent exactly the three picked instances")
+		_expect(_player.inventory.count_of(&"camp_stew") == 1, "and made the stew")
+	# A topping instance the player did not pick survives (spec 08 §1/§8: exact selection).
+	_player.global_position = at["stone_grill"]
+	_bag([["raw_meat", 12, {}], ["berry", 42, {"sweet_tooth": 2}], ["berry", 5, {}]])
+	var glazed: Dictionary = CR.recipe(&"roled_berry_glazed_meat")
+	var gp := _picks(&"roled_berry_glazed_meat")
+	_expect(gp.size() == 2 and CR.picks_valid(_player.inventory, glazed, gp), "the berry-glazed cut plans")
+	# Name the ordinary berry as the topping: the rare one must stay.
+	var chosen := -1
+	for i in _player.inventory.slot_count:
+		var st = _player.inventory.slots[i]
+		if st != null and st.def_id == &"berry" and int(st.level) == 5:
+			chosen = i
+	if chosen >= 0:
+		gp[1] = chosen
+	var dish = CR.craft(_player, glazed, gp)
+	_expect(dish != null, "the glazed cut cooks with the chosen topping")
+	var rare_left := false
+	for st2 in _player.inventory.slots:
+		if st2 != null and st2.def_id == &"berry" and int(st2.level) == 42:
+			rare_left = true
+	_expect(rare_left, "the rare berry the player did not pick is still in the bag")
 
 # ---------------------------------------------------------------- 5. cancel refunds all
 
