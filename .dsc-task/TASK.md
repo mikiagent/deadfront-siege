@@ -1,59 +1,41 @@
-# Task: NATURES — creature natures that change behaviour, shown in the name
-
-Owner (2026-10-28): Durango had named animal variants (Timid Raptor, Raptor, Alpha Raptor), per-animal stats (health,
-attack, defense, move speed, carrying capacity), wild behaviours (aggro, attack, flee/disengage, sleep) and tamed
-companions for combat, riding and storage. The owner wants a Pokémon-like Nature system where a creature's nature
-changes its AI BEHAVIOUR, not just its stats:
-| Nature | Effect (owner's words) |
-|---|---|
-| Timid | Avoids combat, more likely to flee |
-| Brave | Protects its rider even when wounded |
-| Aggressive | Attacks nearby threats without orders |
-| Loyal | Stays close and prioritizes protecting its owner |
-| Stubborn | Harder to tame, resistant to fear |
-| Docile | Easier to tame, less effective in combat |
-
-Read first: docs/current/creatures-capture-taming.md, game/data/creatures/ai.json (archetypes + `temperaments`
-skittish/defensive/territorial — natures LAYER ON TOP of these; do not replace them), game/scripts/creatures/brains/
-creature_brain.gd (how temperament/flee/retreat/aggro/leash are read), pet_brain.gd (guard radius, drop target),
-game/scripts/pets/pet_record.gd, field_tame.gd, capture_system.gd, creature.gd.
-
-Do (data-driven, behaviour only; do NOT change species identity, art, models or animations; do not retune any
-existing number — natures are multipliers/offsets around today's values, each `# ASSUMPTION` in natures.json "_about"):
-1. game/data/creatures/natures.json: the six natures, each a small set of knobs the brains already read, e.g.
-   flee_threshold_mult / retreat_threshold_mult (Timid up, Brave down), aggro_radius_mult and auto_engage (Aggressive),
-   pet guard/follow distance and owner-protect priority (Loyal), tame feeds_needed / tame window / fear immunity
-   (Stubborn harder + fear-resistant, Docile easier), damage_dealt_mult (Docile < 1), protect_rider_below_hp (Brave keeps
-   fighting for its rider when wounded). Plus spawn weights per nature (Docile/Timid common, others rarer) and which
-   archetypes may roll which natures (a T. rex is never Timid; herbivore grazers rarely Aggressive) — # ASSUMPTION.
-2. Every creature gets a nature at spawn (seeded, deterministic from its spawn seed) and keeps it when tamed (PetRecord
-   gains `nature`). Wild AI and pet AI read the knobs at the existing decision points — one place per knob, no second
-   brain.
-3. Name: the nature shows as a prefix on the creature's displayed name/plate ("Timid Velociraptor"); keep "Alpha"
-   style variants working if they exist (check `variants` in creature_def.gd and the raptor pack alpha) — e.g.
-   "Brave Alpha Raptor" ordering: nature, then variant, then species.
-4. Taming: Stubborn/Docile change feeds_needed / window via the existing FieldTame/pen code; capture09's rule
-   (stunned at any HP or <= 30 %) is NOT changed.
-5. Saves: PetRecord.nature is an additive optional field. Old saves load with no loss: a pet without `nature` gets a
-   deterministic nature from its uid. Fixture test with an old pet record. Server character store (srvdom) round-trips
-   it too.
-6. docs/current/creatures-capture-taming.md: a short "Natures" section (facts + code paths).
-
-Milestones (.dsc/PLAN.md; milestone_done after each):
-M1 game/tests/t_natures.gd (t_domain.gd structure; load() on first frame; watchdog; prints "[t_natures] PASS"):
-   per nature, a measured behaviour difference on the brain's decision (Timid flees at higher HP than default; Brave
-   pet keeps fighting below the default retreat when its owner is riding; Aggressive engages a target inside its radius
-   unprovoked where default does not; Loyal pet's follow distance < default; Stubborn needs more feeds and ignores
-   fear; Docile needs fewer feeds and deals less damage), deterministic roll from seed, name prefix, old-save load.
-   Fails on base. Stage 1.
-M2 natures.json + spawn roll + PetRecord field + save migration. Stage 1.
-M3 wild + pet AI hooks + taming hooks + name prefix. Stage 1.
-M4 docs + report docs/orchestration/reports/dsc-natures.md + full verify.
-Headless only: the owner reserved the machine — no windowed labs or screenshots.
+# Task: FOODFX: eating and drinking have effects beyond a flat Energy number
+Owner: "add this to the docs and plan" (spec docs/design/durango-prompts/32_food_drink_consumption_effects.md).
+Research: docs/reference/durango0-wiki/06_FOOD_DRINK_TASTE_AND_BUFF_FORMULAS.md (digestion, taste grades,
+the buff keys) - reconstruction values stay tagged, never presented as original constants.
+Extend the systems that exist; do not build a second food, inventory or status architecture.
+Today: game/scripts/items/food.gd (Energy only: base x (1 + 0.35 x process_count) x level), eat_session.gd
+(3 s eat, move cancels the remaining restore, raw-food risk past half), a flat BUFFS table in
+game/data/food_buffs.json, and game/scripts/status/status_def.gd + combat/status_effects.gd for timed
+statuses. BAGS and CRAFTFEEL change the item/craft path - read them first and reuse their preview functions.
+Do not tune balance numbers; every value spec 32 does not give is `# ASSUMPTION` and configurable, and every
+example from the reconstruction keeps its provenance tag (spec 32 s15 and s13).
+Milestones:
+M1 game/tests/t_foodfx.gd: instant + digested Energy split at release ratio 0/0.4/1; the delayed share is never
+paid twice across a save/load or a second eat intent; an interrupted eat consumes nothing and grants nothing;
+eating twice quickly cannot consume one instance twice; a Maximum Fatigue buff expiring clamps current fatigue
+and never touches base stat values; a drink that lowers current fatigue and a drink that raises the maximum are
+different effects; same-container foods replace each other while Enhanced Ability and Enhanced Survival coexist;
+a plain Energy food leaves an unrelated buff alive; a profession ability buff changes a real ability check
+without granting category levels; raw bad food can apply Stomach Pain. Stage 1.
+M2 the effect bundle + evaluator in data-driven code (consumption channels, per-field transforms, caps and
+conflict validation as in spec 32 s8), delayed-digestion persistence, buff slots. Stage 1.
+M3 consumption transaction: validate -> timed action with interrupt -> atomic consume of the exact instance ->
+immediate effects -> schedule digestion -> buff slot replacement -> taste/temperature -> persist. Stage 2.
+M4 game/scripts/dev/foodfx_lab.gd + scene printing `[foodfx] RESULT instant_split_ok= digest_once_ok=
+interrupt_refunds= double_eat_blocked= buff_slots_ok= maxfatigue_expiry_ok= fatigue_vs_maxfatigue_ok=
+buff_coexist_ok= plain_food_keeps_buff= ability_check_moves= bad_food_status= taste_grade_ok=
+save_roundtrip= ui_min_px=` with shots of the food inspect panel and the two drinks. Stage 2.
+M5 report (before/after, the shots, every assumption and provenance) and the full verify.
+Data slice, not dozens of foods: water, tea, coffee, a raw berry, cooked meat, one profession-buff meal, one
+fatigue restorative. The UI is spec 32 s12: item level, exact traits, Energy immediate/over time, fullness,
+thirst, health, fatigue, max-stat effects, ability bonuses, negative effects, buff group, duration and
+consumption time, plus a line saying when this food would replace an active buff.
 
 ## How to run Godot (exactly)
-- Headless test: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/gslot.sh perl -e 'alarm 400; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --script res://tests/<t>.gd > /tmp/natures_t.log 2>&1` (bash timeout_ms 460000).
-- After adding a class_name file or an asset: `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --import > /tmp/natures_import.log 2>&1`.
+- Headless test: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/gslot.sh perl -e 'alarm 400; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --script res://tests/<t>.gd > /tmp/foodfx_t.log 2>&1` (bash timeout_ms 460000).
+- Labs and screenshots need a window, never --headless (frame_post_draw never fires headless); bash timeout_ms 1020000, and the lab quits itself within 120 s:
+  `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --path game --resolution 1600x900 --rendering-method gl_compatibility -- --lab=foodfx_lab --shot-dir=/tmp/foodfx_shots > /tmp/foodfx_lab.log 2>&1`, and again with --resolution 844x390 (the phone, landscape).
+- After adding a class_name file or an asset: `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --import > /tmp/foodfx_import.log 2>&1`.
 - Parse-check every new or edited .gd before a long run: `... --headless --path game --check-only --script res://<path>`.
   `--check-only` ALWAYS prints "Identifier not found: Data / World / Game / TouchControls" (autoloads do not exist in that
   mode): ignore those lines; only `Parse Error` lines are real. Real tests run with `--script res://tests/<t>.gd`, where the
@@ -67,13 +49,13 @@ Headless only: the owner reserved the machine — no windowed labs or screenshot
 - game/tests/t_save.gd prints 5 deliberate SCRIPT ERRORs; that is normal.
 - A lab log with `SHADER ERROR` or `Unknown character` means the shader did not compile and every card draws grey: the
   gate fails on it. GDScript `##` comments are not shader syntax; shaders use `//`.
-- Scratch files go in $TMPDIR/natures, never /tmp or docs/. Never `rm -r` a path that has tracked files.
+- Scratch files go in $TMPDIR/foodfx, never /tmp or docs/. Never `rm -r` a path that has tracked files.
 - Key any per-item data by a stable id (file name, src_rect), never by list order.
 - Write big files in parts (write_file, then edit_file); never python `s.replace()` without checking it matched.
 ## Gates
-- Verify: `bash /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/a2917b6d-2049-454d-9c63-314953df33d7/scratchpad/dsc/verify_job.sh natures [1|2]` (no argument = the full gate). Read it and
-  `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/a2917b6d-2049-454d-9c63-314953df33d7/scratchpad/dsc/job_natures.conf` (TEST, LAB, LAB_ASSERT, RELATED, SCOPE) before you start.
-- The lab gets `--shot-dir=<dir>`: save every PNG there. It must print exactly one line `[natures] RESULT k=v k=v ...` with every
+- Verify: `bash /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/verify_job.sh foodfx [1|2]` (no argument = the full gate). Read it and
+  `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/job_foodfx.conf` (TEST, LAB, LAB_ASSERT, RELATED, SCOPE) before you start.
+- The lab gets `--shot-dir=<dir>`: save every PNG there. It must print exactly one line `[foodfx] RESULT k=v k=v ...` with every
   key LAB_ASSERT reads, MEASURED from the live scene (never constants), then quit.
 - Milestones: write them to .dsc/PLAN.md and call milestone_done after each (milestones before MS_STAGE2 run stage 1, later
   ones stage 2). Anything visual: open the PNG, and write the path and a one-line verdict in .dsc/NOTES.md before ticking.
@@ -83,5 +65,5 @@ Headless only: the owner reserved the machine — no windowed labs or screenshot
   merge branches, push or deploy. No new dependencies.
 - Do not tune balance numbers (HP, damage, XP, fatigue or energy rates). Owner: "game balancing like tuning hp and damage wont
   make sense until crafting building and skills is done and tuned". Mark every number the docs do not give `# ASSUMPTION`.
-- Report docs/orchestration/reports/dsc-natures.md: what shipped, before/after numbers, the shots you looked at, assumptions,
+- Report docs/orchestration/reports/dsc-foodfx.md: what shipped, before/after numbers, the shots you looked at, assumptions,
   what the integrator needs.
