@@ -185,6 +185,8 @@ func _test_inheritance() -> void:
 	if dish == null:
 		return
 	_expect(int(dish.attributes.get("rich_cut", 0)) == 2, "the main's rich_cut trait passes into the dish (lv 2)")
+	var refused: Dictionary = FX.evaluate(dish).get("discarded", {}) as Dictionary
+	_expect(refused.has("black_sheen"), "the bundle reports the refused rare trait as discarded")
 	_expect(not dish.attributes.has("black_sheen"), "a rare trait not opted into stays out of the dish")
 	var role_rows: Array = dish.attributes.get("cooked_roles", [])
 	_expect(role_rows.size() == 1 and str((role_rows[0] as Dictionary).get("role", "")) == "main", "the dish records the slot it inherited from")
@@ -266,6 +268,9 @@ func _test_instances() -> void:
 	_expect(float(rich_bundle["latent_energy"]) > float(plain_bundle["latent_energy"]), "the rich dish carries more Energy (%.2f vs %.2f)" % [float(rich_bundle["latent_energy"]), float(plain_bundle["latent_energy"])])
 	_expect(float(rich_bundle["fullness"]) > float(plain_bundle["fullness"]), "and more Fullness (%.2f vs %.2f)" % [float(rich_bundle["fullness"]), float(plain_bundle["fullness"])])
 	_expect(float(rich_dish.level) == float(plain_dish.level), "the difference is the trait, not the level")
+	# The bundle the panel and the eat share names both sides (spec 08 §8: inherited AND discarded).
+	_expect(int((rich_bundle.get("inherited", {}) as Dictionary).get("rich_cut", 0)) == 2, "the bundle reports the inherited trait")
+	_expect((plain_bundle.get("inherited", {}) as Dictionary).is_empty(), "a plain dish reports nothing inherited")
 	# Consumption: exactly the picked instances leave the bag.
 	_bag([["raw_meat", 10, {"rich_cut": 1}], ["raw_meat", 10, {"gamey_cut": 1}]])
 	var first = _player.inventory.slots[0]

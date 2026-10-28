@@ -155,6 +155,11 @@ static func evaluate(stack: ItemStack, ctx: Dictionary = {}) -> Dictionary:
 		"temperature": "",
 		"raw_risk": {"raw": false, "poison_chance": 0.0, "tastes_bad_chance": 0.0},
 		"transforms": [],
+		# COOKROLES (spec 08 §3/§12): what this dish took from its ingredient slots, and what the
+		# recipe kept out - the cooking screen's "inherited and discarded traits".
+		"inherited": {},
+		"discarded": {},
+		"role_bonuses": [],
 		"warnings": [],
 	}
 	if stack == null:
@@ -271,6 +276,25 @@ static func evaluate(stack: ItemStack, ctx: Dictionary = {}) -> Dictionary:
 				"duration": float((row as Dictionary).get("duration", 0.0)),
 				"level": int((row as Dictionary).get("level", 1)),
 			})
+	# --- What the recipe's slots handed the dish (COOKROLES): read from the dish's own record.
+	var roles: Variant = stack.attributes.get("cooked_roles", [])
+	if roles is Array:
+		for rec_row: Variant in roles:
+			if not rec_row is Dictionary:
+				continue
+			var row: Dictionary = rec_row as Dictionary
+			var got: Variant = row.get("traits", {})
+			if got is Dictionary:
+				for k: Variant in got:
+					if not (out["inherited"] as Dictionary).has(k):
+						(out["inherited"] as Dictionary)[k] = got[k]
+			var lost: Variant = row.get("dropped", {})
+			if lost is Dictionary:
+				for k: Variant in lost:
+					if not (out["inherited"] as Dictionary).has(k) and not (out["discarded"] as Dictionary).has(k):
+						(out["discarded"] as Dictionary)[k] = lost[k]
+			if str(row.get("bonus", "")) != "":
+				(out["role_bonuses"] as Array).append(str(row["bonus"]))
 	# --- Taste (spec 32 §7), scored now so the panel shows the same grade the eat will use.
 	var mem: Variant = ctx.get("taste_memory", {})
 	var memory: Dictionary = mem as Dictionary if mem is Dictionary else {}
