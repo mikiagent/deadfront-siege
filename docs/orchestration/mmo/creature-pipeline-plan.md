@@ -66,7 +66,8 @@ Milan gate; fixing its rig is not.
 | feed / eat | head down, 3-4 small bites, 15-25 deg |
 | sleep, death, hit_react, knockdown | as now |
 | every species: walk_back | the species' walk time-reversed with `tools/reverse_clip.py` (owner 2026-10-28: tames back up); same stride and speed as the walk |
-| predators: hop_back, strafe_left, strafe_right | hop_back ~0.45 s backward leap, feet clearly off the ground (`tools/jaw/make_hop_back.py`); strafes are sidestep loops with the body facing the target (`make_gait.py` with the walk plan on the side axis); owner 2026-10-28 |
+| every species: strafe_left, strafe_right | sidestep loops, body keeps facing (`make_gait.py <species>.json walk --as strafe_left --travel 1,0,0`, stride about half the walk's); owner 2026-10-28: tames sidestep in follow slots |
+| predators: hop_back | ~0.45 s backward leap, feet clearly off the ground (`tools/jaw/make_hop_back.py`) |
 | feathered raptors: wings | `tools/jaw/add_wings.py` adds Wing.L/R feather fans (folded at rest), `tools/jaw/key_wings.py` flares them in attacks, roar, combo and leaps; deinonychus first |
 | ambushers: pounce, leap_back | big forward and backward leaps (`make_hop_back.py --forward` / `--name leap_back`) |
 | raptors: bite_combo | chomp left, chomp right, MEGA chomp (`tools/jaw/make_combo.py`) |

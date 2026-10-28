@@ -3,7 +3,7 @@
   "clade": "Dromaeosauridae",
   "period": "Early Cretaceous",
   "real_length_m": 10.2,
-  "height_meters": 2.8,
+  "height_meters": 2.0,
   "rig": "biped",
   "tier": 35,
   "climate": "tropical",
@@ -173,7 +173,7 @@
     "jaw": "Jaw bone under Head; mouth line from texture; skull/jaw ramp to rigid along the snout; jaw keyed in attack_primary/attack_heavy/alert/idle",
     "gaits": "tools/gait/make_gait.py with tools/gait/deinonychus.json (walk; low leaning dash run)",
     "wings": "tools/jaw/add_wings.py: Wing.L/R feather fans, folded at rest, flared by tools/jaw/key_wings.py in attacks and leaps (owner 2026-10-28)",
-    "size_note": "ASSUMPTION: height 3.6 -> 2.8 m (owner: smaller ambush predator); real_length_m left as is"
+    "size_note": "ASSUMPTION: height 3.6 -> 2.0 m (owner 2026-10-28: even smaller ambush predator, about chest height on the survivor); real_length_m left as is"
   },
   "look": "3 meter dromaeosaur, feathered arms, sickle claws, long stiff tail, olive green with dark spots,",
   "taming": {
