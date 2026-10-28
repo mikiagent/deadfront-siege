@@ -17,6 +17,10 @@ static var clock_skew_s: float = 0.0
 
 var station_id: StringName = &""
 var cfg: Dictionary = {}
+## Spec 10 §6: a station's inherited rare traits shorten its jobs and add a concurrent slot. Both
+## are set by whoever made the host station (CraftStation.quality_*), so a plain placement keeps 1.0/0.
+var quality_duration_mult: float = 1.0
+var quality_slots: int = 0
 ## In order: {recipe, inputs: Array[ItemStack], queued_at, started (-1 = waiting), level, burnt, by}.
 var jobs: Array[Dictionary] = []
 ## Finished, waiting to be collected: {recipe, stack: ItemStack}.
@@ -87,7 +91,7 @@ func _ready() -> void:
 	_redraw()
 
 func slots() -> int:
-	return maxi(1, int(cfg.get("slots", 1)))
+	return maxi(1, int(cfg.get("slots", 1)) + maxi(0, quality_slots))
 
 func capacity() -> int:
 	return slots() + maxi(0, int(cfg.get("queue", 0)))
@@ -98,6 +102,12 @@ func running_count() -> int:
 		if float(j["started"]) >= 0.0:
 			n += 1
 	return n
+
+## Seconds one job of `rid` takes here: the station's own time with the inherited traits' shortening
+## applied (spec 10 §6 "Shorter Duration"). 0 = the station does not run it.
+func effective_seconds(rid: StringName) -> float:
+	var base := job_seconds(station_id, rid)
+	return 0.0 if base <= 0.0 else maxf(0.1, base * maxf(0.1, quality_duration_mult))
 
 func runs(rid: StringName) -> bool:
 	return job_seconds(station_id, rid) > 0.0
@@ -113,7 +123,7 @@ func job_progress(j: Dictionary, now: float = -1.0) -> float:
 	var t := now_s() if now < 0.0 else now
 	if float(j["started"]) < 0.0:
 		return 0.0
-	return clampf((t - float(j["started"])) / maxf(0.1, job_seconds(station_id, StringName(str(j["recipe"])))), 0.0, 1.0)
+	return clampf((t - float(j["started"])) / maxf(0.1, effective_seconds(StringName(str(j["recipe"])))), 0.0, 1.0)
 
 ## Why `inv` cannot load one `rid` now, or "" when it can. `picks` (bag index per recipe slot) are
 ## the instances to use; empty = the default picks.
@@ -171,7 +181,7 @@ func load_from(inv: Inventory, rid: StringName, count: int = 1, player: Player =
 		})
 		loaded += 1
 	if loaded > 0:
-		print("[process] %s loaded %d x %s (%d/%d) %.0fs each" % [station_id, loaded, rid, jobs.size(), capacity(), job_seconds(station_id, rid)])
+		print("[process] %s loaded %d x %s (%d/%d) %.0fs each" % [station_id, loaded, rid, jobs.size(), capacity(), effective_seconds(rid)])
 		_redraw()
 	return loaded
 
@@ -186,7 +196,7 @@ func advance(now: float) -> bool:
 			var st := float(jobs[i]["started"])
 			if st < 0.0:
 				continue
-			var e := st + job_seconds(station_id, StringName(str(jobs[i]["recipe"])))
+			var e := st + effective_seconds(StringName(str(jobs[i]["recipe"])))
 			if e <= now and e < fend:
 				fi = i
 				fend = e
@@ -469,6 +479,11 @@ func label_text() -> String:
 		var first: ItemStack = outputs[0]["stack"]
 		var d := first.def()
 		return "Ready: %d %s" % [ready_count(), d.display_name if d else str(first.def_id)]
+	# Spec 10 §3: an idle station made of trait-carrying materials shows what they gave it
+	# ("Lv 12 · High Density 3") on its chip; a plain one keeps its name.
+	var host := get_parent()
+	if host != null and host.has_method("quality_chip_text"):
+		return str(host.call("quality_chip_text"))
 	return ""
 
 ## m:ss until the soonest running job finishes ("" when none runs).
@@ -477,7 +492,7 @@ func time_left_text() -> String:
 	var soonest := INF
 	for j in jobs:
 		if float(j["started"]) >= 0.0:
-			var secs := job_seconds(station_id, StringName(str(j["recipe"])))
+			var secs := effective_seconds(StringName(str(j["recipe"])))
 			# A clock moved back must not show more time than the job takes.
 			soonest = minf(soonest, minf(secs, float(j["started"]) + secs - now))
 	return "" if soonest == INF else mmss(maxi(0, ceili(soonest)))
