@@ -207,7 +207,19 @@ func _test_save_fixture() -> void:
 	_expect(legacy != null and legacy.def_id == &"wood_log" and legacy.look.is_empty() and legacy.level == 4, "an old save row without look loads unchanged and stays unlooked")
 	_expect(honest != null and honest.look == rows["honest_wood"]["look"], "an honest look survives the save load path (%s)" % str(honest.look if honest else null))
 	_expect(forged != null and forged.def_id == &"wood_log" and forged.look.is_empty(), "a forged look is dropped on load, the log still loads (%s)" % str(forged.look if forged else null))
-	print("[t_matlook] fixture: legacy unlooked=%s honest=%s forged dropped=%s" % [legacy != null and legacy.look.is_empty(), honest != null and honest.look.get("species", "") == "pine", forged != null and forged.look.is_empty()])
+	# The whole bag round-trip: to_array -> JSON -> load_array keeps the look on its own row.
+	var rows_out: Array = bag.to_array()
+	var reloaded = INV.new(6)
+	reloaded.load_array(JSON.parse_string(JSON.stringify(rows_out)))
+	var again = reloaded.slots[1]
+	_expect(again != null and again.look == rows["honest_wood"]["look"], "a look survives Inventory.to_array -> JSON -> load_array (%s)" % str(again.look if again else null))
+	# The server's escrow path (Provenance.strip + from_dict, as act.deposit/char.receive use it)
+	# keeps the look: a traded log can be re-read without losing its wood.
+	var prov = load("res://scripts/server/provenance.gd")
+	var stamped: Dictionary = prov.strip(prov.stamp(rows["honest_wood"].duplicate(true), "i7.0", "gather", 7))
+	var escrowed = IS.from_dict(stamped)
+	_expect(escrowed.look == rows["honest_wood"]["look"], "the server escrow path keeps a log's look (%s)" % str(escrowed.look))
+	print("[t_matlook] fixture: legacy unlooked=%s honest=%s forged dropped=%s bag-roundtrip=%s escrow=%s" % [legacy != null and legacy.look.is_empty(), honest != null and honest.look.get("species", "") == "pine", forged != null and forged.look.is_empty(), again != null and again.look == rows["honest_wood"]["look"], escrowed.look == rows["honest_wood"]["look"]])
 
 # --- 5. the server gather path ---------------------------------------------------------
 
