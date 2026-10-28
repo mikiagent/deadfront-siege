@@ -270,7 +270,7 @@ func _test_server() -> void:
 	var ch = st.character(1)
 	var press: Dictionary = st.apply("act.roll", 1, {"ms": 200}, 10)
 	var ok := bool(press.get("ok", false))
-	var base := int(ch.d.get("roll_ms", 0))
+	var base: int = ch.roll_ms()
 	print("[t_roll] measure server roll ok=%s roll_ms=%d" % [ok, base])
 	_expect(ok and base == 10200, "act.roll stamps the press (roll_ms %d)" % base)
 	var agree := true
@@ -289,6 +289,6 @@ func _test_server() -> void:
 	_expect(str(early.get("err", "")) == "not_ready", "a server roll inside the cooldown is refused (not_ready)")
 	var later: Dictionary = st.apply("act.roll", 1, {"ms": 0}, 12)
 	ch = st.character(1)  # a committed op stores its own normalised state
-	print("[t_roll] measure server roll after the cooldown: %s roll_ms=%s" % [later.get("err", "ok"), str(ch.d.get("roll_ms", -1))])
-	_expect(bool(later.get("ok", false)) and int(ch.d.roll_ms) == 12000, "a server roll after the cooldown is accepted")
+	print("[t_roll] measure server roll after the cooldown: %s roll_ms=%s" % [later.get("err", "ok"), str(ch.roll_ms())])
+	_expect(bool(later.get("ok", false)) and ch.roll_ms() == 12000, "a server roll after the cooldown is accepted")
 	_expect(not IH.rolls_dodge(ch, 12000 + 330) and not IH.rolls_dodge(ch, 12000 + 900), "the new press closes the old window")

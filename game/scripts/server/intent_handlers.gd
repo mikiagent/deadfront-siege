@@ -499,18 +499,21 @@ func _roll(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if ms == null:
 		return no("bad_request", "ms must be an integer 0..999")
 	var at := now * 1000 + int(ms)
-	var since := at - int(ch.d.get("roll_ms", -1000000))
-	if since >= 0 and since < int(ceil(RollRules.cooldown_s() * 1000.0)):
-		return no("not_ready", "roll on cooldown for another %d ms" % (int(ceil(RollRules.cooldown_s() * 1000.0)) - since))
-	ch.d.roll_ms = at
+	var cooldown_ms := int(ceil(RollRules.cooldown_s() * 1000.0))
+	var since := at - ch.roll_ms()
+	if since >= 0 and since < cooldown_ms:
+		return no("not_ready", "roll on cooldown for another %d ms" % (cooldown_ms - since))
+	ch.roll_press(at)
 	return ok({"roll_ms": at, "iframes_ms": int(round(RollRules.iframes_s() * 1000.0))})
 
-## The roll's opening window at an absolute server time in ms (the client's own rule, RollRules).
-## True = the hit is dodged: no damage, no stagger, Defense XP once (spec 07 §2).
+## The roll's opening window at an absolute server time in ms: the client's own rule (RollRules) on
+## the stored press. True = the hit is dodged: no damage, no stagger, Defense XP once (spec 07 §2).
+## A player hit validated on the server calls this; nothing else may decide a roll dodge.
 static func rolls_dodge(ch: CharacterState, at_ms: int) -> bool:
-	if not ch.d.has("roll_ms"):
+	var pressed := ch.roll_ms()
+	if pressed == CharacterState.NO_ROLL_MS:
 		return false
-	return RollRules.invulnerable_at(float(at_ms - int(ch.d.roll_ms)) * 0.001)
+	return RollRules.invulnerable_at(float(at_ms - pressed) * 0.001)
 
 ## act.deposit {bag_slot, count?} | {pet_uid}: hands a server-provenance asset to the economy
 ## (the caller puts it in the vault). Any asset dict in the request is refused.
