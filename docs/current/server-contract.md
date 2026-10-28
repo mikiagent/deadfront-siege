@@ -5,7 +5,8 @@ This line ships a **local, in-process** server engine and **no networking**. Not
 `MultiplayerPeer`, `WebSocketPeer`, `PacketPeer`, `StreamPeer` or `HTTPRequest` use anywhere under
 `game/scripts`. The classes are plain `RefCounted`s with `class_name`; none of them is an autoload
 (autoloads are `ShellLoader, InputSetup, Data, Game, World, TouchControls` in `game/project.godot`).
-On this branch they are instantiated only by tests (`game/tests/srvdom_checks.gd`).
+On this branch they are instantiated only by tests (`game/tests/srvdom_checks.gd`,
+`game/tests/econ_bridge_checks.gd`).
 
 ## Pieces
 | file | role |
@@ -49,7 +50,6 @@ Client ops (`CLIENT_OPS`), each validated in full before it mutates anything:
 | `act.tame` | `_tame` | one `FieldTame` feed; the last feed bonds the pet (pen needed if the species requires one) |
 | `act.capture` | `_capture` | `CaptureSystem` chance on a knocked creature under 30% HP; success gives a `captured_animal` stack, net consumed |
 | `act.attack` | `_attack` | one melee swing with the client's combat numbers on the server RNG; ranged refused |
-| `act.deposit` | `_deposit` | export a provenance-stamped item or pet to the economy vault |
 | `char.get` | — | read-only `CharacterState.view` |
 | `char.import` | — | always refused: an offline save never imports into an online character |
 
@@ -57,7 +57,10 @@ System ops (`SYSTEM_OPS`, never relayed from a client): `char.create` (`Characte
 `char.move` (`_move` — a distance budget of `RUN_SPEED` 7.0 m/s per second, or a travel `reset`),
 `char.wallet` (`_wallet` — mirrors the economy wallet; the ledger stays authoritative),
 `char.receive` (`_receive` — accepts only the exact exported body, once), `char.settled`
-(`_settled` — vault confirms an export is consumed forever).
+(`_settled` — vault confirms an export is consumed forever), `char.grant` (`_grant` — units the
+economy split off an export come home, never more than are out), `act.deposit` (`_deposit` —
+export a provenance-stamped item or pet; server-only, run by `VaultBridge` for a client's
+`vault.deposit`). `char.receive` of a pet sets `owner` to the receiving account.
 
 Reach constants: `GATHER_REACH` = 2.6 m, `LOOT_REACH` = 2.6 m, `REACH_SLACK` = 0.5 m. Asset
 dictionaries in a request are refused (`ASSET_DICT_KEYS`); online characters move assets only by
@@ -79,8 +82,9 @@ slot or uid.
 - No transport, host, listen or port code; no client relay; no matchmaking.
 - No authentication beyond "the account id must be positive", no sessions or tokens, no presence
   service, no region chat. `char.move` is the only presence-shaped op (a distance budget).
-- No economy ledger or market on this side: `char.wallet` / `char.deposit` / `char.receive` /
-  `char.settled` mirror a vault that does not exist in this repo.
+- The economy ledger and market are `game/scripts/economy/` (see
+  [economy-trading.md](economy-trading.md)); `VaultBridge.client()` is the relay that decides what a
+  client may send.
 - Skill nodes and unlocked techniques stay client-side; the comment in `intent_handlers.gd`
   defers that to a later workstream.
 - The live game (single-player) keeps using `World` and `SaveGame`, not `CharacterStore`; see
