@@ -527,7 +527,7 @@ func _tick_tame_hint(entry: Dictionary, c: Creature, player: Player, full: bool 
 	var label := entry.get("tame_label", null) as Label
 	if row == null or label == null:
 		return
-	var hint := FieldTame.plate_hint(c, player.inventory if player else null)
+	var hint := FieldTame.plate_hint(c, player.inventory if player else null, player)
 	if not full or hint.is_empty():
 		row.visible = false
 		return
@@ -552,8 +552,18 @@ func _tick_tame_hint(entry: Dictionary, c: Creature, player: Player, full: bool 
 			label.text = str(hint.get("text", "needs food"))
 			label.add_theme_color_override("font_color", Color(0.95, 0.55, 0.4))
 		_:
-			label.text = "Tame  %.0f/%.0f" % [progress, needed]
-			label.add_theme_color_override("font_color", Color(0.55, 0.95, 0.65))
+			# The odds the net will roll (FieldTame.plate_hint -> TamingOdds), before the survivor
+			# commits; the feed progress rides along while feeds are still owed.
+			var chance := float(hint.get("odds", -1.0))
+			if chance >= 0.0:
+				label.text = TamingOdds.caption(chance)
+				if progress > 0.001 and progress + 0.001 < needed:
+					label.text += "  %.0f/%.0f" % [progress, needed]
+			else:
+				label.text = "Tame  %.0f/%.0f" % [progress, needed]
+			# Green when the throw is a good bet, amber when it is a coin flip or worse.
+			label.add_theme_color_override("font_color",
+				Color(0.55, 0.95, 0.65) if chance >= 0.5 else Color(0.95, 0.82, 0.45))
 
 func _tick_status_icons(entry: Dictionary, c: Creature) -> void:
 	var rows := _status_rows(c)
