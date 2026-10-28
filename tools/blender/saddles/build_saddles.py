@@ -276,6 +276,13 @@ def section(cy, n=40):
     if not pts:
         return None
     cz = (min(v.z for v in pts) + max(v.z for v in pts)) * 0.5
+    # the slab can include the legs (a biped stands under its seat), which drags cz below the belly and
+    # sends the girth down to the feet: centre on the barrel instead, between the back and the belly
+    top = top_z(0.0, cy)
+    if top is not None:
+        belly = ray(Vector((0.0, cy, top - 0.002)), Vector((0, 0, -1)))
+        if belly is not None and top - belly.z > 0.01:
+            cz = (top + belly.z) * 0.5
     # the axis point has to be inside the hide; take the slab's central vertex nearest the axis
     centre = min(pts, key=lambda v: (v.x - 0.0) ** 2 + (v.z - cz) ** 2)
     cen = Vector((0.0, cy, cz))
