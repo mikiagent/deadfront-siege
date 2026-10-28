@@ -247,6 +247,14 @@ async function openDoc(key, curationOpen = false, anchor = "") {
     headingCounts.set(slug, count + 1);
     heading.id = slug + (count ? `-${count}` : "");
   });
+  // Relative images (docs/current/screens) load through /api/image, resolved against the doc.
+  body.querySelectorAll("img[src]").forEach((img) => {
+    const src = img.getAttribute("src");
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(src)) return;
+    const base = e.path.includes("/") ? e.path.slice(0, e.path.lastIndexOf("/") + 1) : "";
+    img.src = "/api/image?path=" + encodeURIComponent(norm(base + src));
+    img.loading = "lazy";
+  });
   body.querySelectorAll("a[href]").forEach((a) => {
     const href = a.getAttribute("href");
     if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href)) return;

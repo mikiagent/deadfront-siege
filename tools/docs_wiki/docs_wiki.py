@@ -546,7 +546,7 @@ def list_sheets() -> list[dict]:
     return result
 
 
-IMAGE_ROOTS = ("docs/reference", "assets/concept-art", "artifacts/web-shader-soak", "artifacts/wiki", "game/assets")
+IMAGE_ROOTS = ("docs/current/screens", "docs/reference", "assets/concept-art", "artifacts/web-shader-soak", "artifacts/wiki", "game/assets")
 IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
 
 

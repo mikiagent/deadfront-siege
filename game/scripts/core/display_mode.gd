@@ -108,10 +108,13 @@ static func is_phone_landscape(pts: Vector2) -> bool:
 static func is_phone_window(pts: Vector2) -> bool:
 	return pts.x > 0.0 and pts.x < PHONE_MAX_PT
 
+## Dev only (ui_screens_lab): a fixed logical canvas, so a 2x window renders the phone layout sharp.
+static var canvas_override := Vector2i.ZERO
+
 static func fit(win: Window) -> void:
 	if win == null:
 		return
-	var want := logical_size(win.size, device_scale(), side_inset_px(), handheld())
+	var want := canvas_override if canvas_override != Vector2i.ZERO else logical_size(win.size, device_scale(), side_inset_px(), handheld())
 	if win.content_scale_size != want:
 		win.content_scale_size = want
 		print("[display] window %s -> logical %s" % [win.size, want])

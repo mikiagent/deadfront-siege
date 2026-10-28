@@ -227,7 +227,7 @@ func _run() -> void:
 	if logical.x > logical.y:  # by shape, not by the predicates under test
 		for col in ["profile_col", "bag_col", "equip_col"]:
 			var top: float = (bag[col] as Rect2).position.y if bag.has(col) else INF
-			_expect(top < logical.y * 0.5 and absf(top - (bag["profile_col"] as Rect2).position.y) < 8.0, "bag: %s starts beside the others in the top half (y %.0f)" % [col, top])
+			_expect(top < logical.y * 0.5 and absf(top - (bag.get("profile_col", Rect2()) as Rect2).position.y) < 8.0, "bag: %s starts beside the others in the top half (y %.0f)" % [col, top])
 	# One player level: the bag printed pioneer level + 1 ("Lv. 1") beside the HUD's and atlas's "Lv. 0".
 	var profile := _player.ui.get("_profile") as Label
 	_expect(profile != null and profile.text.ends_with(LevelDisplay.player_label()), "bag: profile shows the player level %s like the HUD and atlas (got \"%s\")" % [LevelDisplay.player_label(), profile.text.replace("\n", " / ") if profile else "missing"])
