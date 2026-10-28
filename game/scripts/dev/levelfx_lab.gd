@@ -113,6 +113,7 @@ func _mounted(tag: String) -> void:
 	var home := _player.global_position
 	var def := Data.creature(&"tyrannosaurus")
 	var rec := PetRecord.from_def(def, &"A")
+	rec.fit_saddle()  # SADDLES: riding needs one
 	var c: Creature = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
 	add_child(c)
 	c.is_pet = true

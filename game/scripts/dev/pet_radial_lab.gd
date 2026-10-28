@@ -129,6 +129,7 @@ func _name_of(c: Control) -> String:
 
 func _summon(species: StringName, nm: String) -> Creature:
 	var rec := PetRecord.from_def(Data.creature(species), &"A")
+	rec.fit_saddle()  # SADDLES: the lab rides REX
 	rec.name = nm
 	_player.bonded.append(rec)
 	return _player.pets.summon(_player.bonded.size() - 1)
@@ -149,7 +150,7 @@ func _run() -> void:
 		print("[petradial] old pet menu; stopping after pet_tap")
 		get_tree().quit(0)
 		return
-	_check(radial.visible and radial.ids() == [&"animals", &"bag", &"feed", &"ride", &"dismiss", &"rename"], "REX radial %s" % [radial.ids()])
+	_check(radial.visible and radial.ids() == [&"animals", &"bag", &"feed", &"ride", &"gear", &"dismiss", &"rename"], "REX radial %s" % [radial.ids()])
 	# Rename: refused with the character-name reason, then accepted.
 	await _tap_segment(&"rename")
 	var dialog := _player.pets.get("rename_dialog") as PetRenameDialog

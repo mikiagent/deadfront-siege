@@ -45,6 +45,7 @@ var _stats: VBoxContainer
 var _buttons: GridContainer
 var _feed: Button
 var _ride: Button
+var _gear: Button
 var _summon: Button
 var _release: Button
 var _cards: Array[SheetChrome.Card] = []
@@ -144,6 +145,7 @@ func _ready() -> void:
 	_feed = _action("Feed", &"cta", _feed_selected)
 	_ride = _action("Ride", &"ghost", _ride_selected)
 	_summon = _action("Summon", &"ghost", _toggle_selected)
+	_gear = _action("Gear", &"ghost", _gear_selected)  # SADDLES: the tame's equipment (PetGearSheet)
 	# ASSUMPTION: no release / bond-breaking exists in code; spec 09 §4 says breaking a bond takes a
 	# special item. The button is shown (canvas) but disabled with that reason; no pet is ever deleted.
 	_release = _action("Release · locked", &"danger", func () -> void: pass)
@@ -255,7 +257,8 @@ func _layout() -> void:
 	# right
 	var bpad := 8.0 if compact else 16.0
 	var bh := 64.0
-	var grid_h := bh * 2.0 + 10.0
+	var rows := ceili(_buttons.get_child_count() / 2.0)  # SADDLES: Gear made it five
+	var grid_h := bh * rows + 10.0 * (rows - 1)
 	_buttons.position = Vector2(bpad, h - bpad - grid_h)
 	_buttons.size = Vector2(rw - bpad * 2.0, grid_h)
 	for b in _buttons.get_children():
@@ -616,7 +619,7 @@ func _update_buttons(rec: PetRecord, live: Creature) -> void:
 	_update_button_texts(rec, live)
 	# A landscape phone's buttons are ~100 px wide: the action word over its detail, not one line.
 	if UiTokens.is_compact(get_viewport_rect().size):
-		for b in [_feed, _ride, _summon, _release]:
+		for b in [_feed, _ride, _summon, _gear, _release]:
 			(b as Button).text = (b as Button).text.replace(" · ", "\n")
 
 func _update_button_texts(rec: PetRecord, live: Creature) -> void:
@@ -637,9 +640,17 @@ func _update_button_texts(rec: PetRecord, live: Creature) -> void:
 	elif live == null:
 		_ride.text = "Ride · summon first"
 		_ride.disabled = true
+	elif player.mounted_on != live and rec.ride_refusal() != "":
+		_ride.text = "Ride · %s" % rec.ride_refusal().to_lower()
+		_ride.disabled = true
 	else:
 		_ride.text = "Dismount" if player.mounted_on == live else "Ride"
 		_ride.disabled = false
+	var sad := rec.saddle()
+	_gear.text = "Gear · %s" % (sad.def().display_name if sad and sad.def() else "no saddle")
+	_gear.disabled = not (&"mount" in rec.tamed_role)  # a saddle is the only tame slot so far
+	if _gear.disabled:
+		_gear.text = "Gear · not rideable"
 
 ## The first food in the bag this pet eats (the same pick as the pet radial's Feed).
 func _food_for(c: Creature) -> String:
@@ -700,6 +711,13 @@ func _feed_selected() -> void:
 	if live:
 		player.pets.feed_best(live)
 		_refresh_live()
+
+func _gear_selected() -> void:
+	if player == null or selected < 0 or selected >= player.bonded.size():
+		return
+	var hud := get_tree().get_first_node_in_group("hud")
+	if hud and hud.has_method("open_pet_gear"):
+		hud.open_pet_gear(player.bonded[selected])
 
 func _ride_selected() -> void:
 	if player == null or selected >= player.bonded.size():

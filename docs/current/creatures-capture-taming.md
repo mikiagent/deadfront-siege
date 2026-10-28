@@ -265,7 +265,34 @@ Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"`
   a walk when the mount is winded; the toggle stays on, so the mount runs again at 40 %. The rider's
   stamina and exhaustion do not change. Riding burns the mount's hunger. Saddle data lives per species in
   `game/assets/creatures/<species>/mount/mount.json` (9 species have one);
-  `game/data/mounts_skip.json` is empty. Riders need no saddle item.
+  `game/data/mounts_skip.json` is empty.
+- Saddles (SADDLES, owner 2026-10-28: "make saddles something you need to craft and equip per
+  dinosaur"): riding needs a saddle of the tame's size class equipped in its own gear
+  (`PetRecord.gear`, an `EntityEquipment` with one slot, `saddle`). Size class from the species'
+  `height_meters`: small < 2.2 m, medium < 5 m, large otherwise (`PetRecord.saddle_size`, an
+  ASSUMPTION): small = zebraceratops, protoceratops, coelophysis, deinonychus, megaloceros, smilodon;
+  medium = velociraptor, gallimimus, utahraptor, styracosaurus; large = triceratops, tyrannosaurus.
+  `PetRecord.ride_refusal()` is the one rule: "Needs a saddle" (none on), "Needs a medium saddle"
+  (wrong size), "" (ride). Every way to ride goes through `PlayerPets.mount`, which refuses with that
+  notice; the pet radial shows the Ride segment greyed with the reason as its label (a tap says it
+  again), the Animals screen's Ride button reads "Ride · needs a saddle" and is disabled. INTERACT on
+  your pet opens the radial, so it shows the same row.
+- The saddle mesh (`mount/saddle.glb`) is on the dinosaur exactly while one is equipped, ridden or
+  not (`CreatureView.show_saddle`, refreshed on `gear.changed`); its `saddle_leather` surfaces take the
+  saddle's natural colour (`attributes.tint`, the hide it was sewn from; `_dark` one 45 % darker),
+  bone and iron keep theirs. Species without a saddle model (smilodon, styracosaurus, triceratops)
+  still need the item and ride on the hips socket with nothing drawn.
+- Gear screen (`game/scripts/ui/pet_gear_sheet.gd`, `HuntHud.open_pet_gear`): from the radial's Gear
+  segment (mount species only) and the Animals screen's Gear button. The tame on its stage wearing
+  what it wears, the SADDLE slot, and every saddle in the bag (fitting ones first, a wrong size edged
+  red). Tap or drag a bag saddle onto the slot to equip (the exact instance moves, the old one swaps
+  into its cell); tap Unequip or drag the slot onto the list to take it off (refused when the bag is
+  full). Taking the saddle off the tame she rides dismounts her first through `PlayerPets.dismount`
+  (`PetGear.unequip`). ‹ returns to what was under it, ✕ to the HUD.
+- Gear saves in the pet row as `gear: {slot: item row}` (sanitized like bag rows; an old save has
+  none and its tames are unsaddled). The vault refuses a pet that still wears gear, as it refuses a
+  full pet bag. Test `game/tests/t_saddles.gd`; shots `--lab=saddles_lab`
+  (`docs/orchestration/reports/saddles/`).
 - Dismounting (`PlayerPets._dismount_spot`, fixed 2026-10-28 after "dismounting some animals (like
   Trex) causes you to fall through the map"): she lands beside the mount's right flank at mount body
   radius + 0.75 m, the spot raycast down to the ground and her capsule centre set half her height

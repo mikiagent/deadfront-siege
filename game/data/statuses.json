@@ -328,7 +328,7 @@
       "id": "enraged",
       "display_name": "Enraged",
       "kind": "effect",
-      "desc": "The animal moves and attacks 20% harder.",
+      "desc": "The animal moves and attacks 20% harder, bleeding with rage; a Timid one panics and runs.",
       "dps": 0.0,
       "duration": 20.0,
       "max_stacks": 1,
@@ -340,10 +340,10 @@
       "weakness_rank": 2,
       "cleared_by": [],
       "fx": {
-        "body": "tint_red",
+        "body": "none",
         "color": "#e8962a",
         "icon": "enraged",
-        "particles": "tint",
+        "particles": "blood",
         "vignette": false
       }
     },
