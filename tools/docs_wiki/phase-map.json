@@ -490,7 +490,7 @@
             "instance-inventory"
           ],
           "source": "docs/design/durango-prompts/02_dinosaur_taming_and_companions.md",
-          "note": "Owner 2026-10-19: tames repackage into cages to sell, cages can be released as wild fights, mob and player caps per area."
+          "note": "Owner 2026-10-19: tames repackage into cages to sell, cages can be released as wild fights, mob and player caps per area. ECON trades pets as pet records today; switch the market to caged items here."
         },
         {
           "id": "stagger-meter",
@@ -750,13 +750,13 @@
         {
           "id": "market-system",
           "title": "Regional markets: simulated demand, price = base x level x attributes x regional demand x saturation, listing fee, buy side, animal grades (ECON)",
-          "status": "next",
+          "status": "done",
           "depends": [
             "gather-stacks",
             "cargo-warp"
           ],
           "source": "docs/design/economy.md",
-          "note": "Now first in the merge queue (W2-GATHER landed 8c2f001f). Branch claude/mmo-econ (+44): review r3 blocker (client could send act.deposit), untested WIP fix, contract items unmet. limits.json must whitelist the six trait keys W2-GATHER adds."
+          "note": "ECON merged aa849333 (via econ2): server-side market, auctions, buy orders, ledger, VaultBridge, crash recovery; review r3 closed with mutant-proven tests. Online only. Open: traded pets move as pet records, owner rule says cages (switch with caged-pets); trait-level bound 1..60 is an ASSUMPTION."
         },
         {
           "id": "exchange-ui",
