@@ -48,3 +48,5 @@ Each vision doc's unresolved points remain inside that doc until the workshop; t
 - Crafting/building weights + 100% home-move refund: `WildLandsMMO_Crafting_Building_Math.md`.
 - Traits/gathering/purification rates: `WildLandsMMO_Traits_Gathering_Processing_Math.md` (the 96%/7% figures are not approved).
 - Vision unknowns: `WildLandsMMO_Game_Vision.md` (§5 revival, §20 UI, …).
+
+- 2026-10-28 owner idea (not necessary): rotatable camera (e.g. 45 degree steps) keeping the 2.5D look; 2D cards stay camera-facing. Logged as roadmap feature camera-rotate-25d (later).
