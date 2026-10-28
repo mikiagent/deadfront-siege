@@ -44,6 +44,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			show_map()
 		get_viewport().set_input_as_handled()
+	elif _mode == &"harbour" and (event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause")):
+		hide_all()
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("pause"):
 		if _mode == &"pause":
 			hide_all()
@@ -169,13 +172,58 @@ func _show_arrival(host: Node) -> void:
 	go.pressed.connect(layer.queue_free)
 	box.add_child(go)
 
+## The Harbour (§7 F2, owner §11: the stretched "Sail ..." row list is rebuilt, not patched): the
+## sheet chrome, then one card per destination in a grid, each with its own Sail button. A route's
+## button carries meta "route_id" (the island id, "home" or "camp") and is disabled when the survivor
+## lacks the Survival level or the T-stones; the reason is on the card. Pressing it departs at once,
+## as the old row did (dev/progression_probe.gd and the bot press these buttons).
 func show_harbour() -> void:
-	var rows: Array = []
+	for c in _panel.get_children():
+		_panel.remove_child(c)
+		c.queue_free()
+	_mode = &"harbour"
+	_panel.visible = true
 	var player := PlayerRegistry.local()
 	var level := player.skills.level_of("survival") if player and player.skills else 0
+	var view := _panel.get_viewport_rect().size
+	var compact := UiTokens.is_compact(view)
+	var root := Control.new()
+	root.name = "Harbour"
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.theme = SheetChrome.ui_theme()
+	_panel.add_child(root)
+	root.add_child(SheetChrome.backdrop())
+	var chrome := SheetChrome.new("Harbour")
+	root.add_child(chrome)
+	chrome.counter.text = "Survival %d  ·  T-stones %d" % [level, World.t_stones]
+	chrome.back_pressed.connect(func () -> void:
+		hide_all()
+		var hud := get_tree().get_first_node_in_group("hud")
+		if hud and hud.has_method("open_atlas"):
+			hud.call("open_atlas")  # ‹ returns to the World Atlas the Harbour routes button came from
+	)
+	chrome.close_pressed.connect(hide_all)
+	chrome.layout(view)
+	var side := SheetChrome.side_for(view)
+	var top := SheetChrome.body_top(view)
+	var scroll := ScrollContainer.new()
+	scroll.name = "Routes"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.position = Vector2(side, top)
+	scroll.size = Vector2(view.x - side * 2.0, view.y - top - (8.0 if compact else 32.0))
+	root.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.name = "RouteGrid"
+	grid.columns = 3 if compact else 4
+	var gap := 8 if compact else 16
+	grid.add_theme_constant_override("h_separation", gap)
+	grid.add_theme_constant_override("v_separation", gap)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(grid)
+	var card_w := (scroll.size.x - float(gap * (grid.columns - 1)) - 12.0) / float(grid.columns)
 	if not World.is_home():
-		rows.append(["Free return home", &"home"])
-		rows.append(["Return to camp", &"camp"])
+		grid.add_child(_route_card("Home island", "Your tamed island", "Free · any time", UiTokens.OK_GREEN, "Free return home", &"home", false, card_w, compact))
+		grid.add_child(_route_card("Camp", MapScreen.island_name(str(World.island_id)), "Walk back to this island's camp", UiTokens.MUTED, "Return to camp", &"camp", false, card_w, compact))
 	for key in World.harbour_routes():
 		if key == str(World.island_id):
 			continue
@@ -183,19 +231,56 @@ func show_harbour() -> void:
 		var dest := World.def_of(id)
 		var required := World.route_level(id)
 		var cost := int(dest.get("sail_cost", 5))
-		var label := "Sail %s (%d T)" % [dest.get("display_name", key), cost]
+		var line := "%s · %s" % [LevelDisplay.label(int(dest.get("tier", 1))), str(dest.get("climate", "")).capitalize()]
+		var need := "Ready to sail"
+		var col := UiTokens.OK_GREEN
 		if level < required:
-			label += " - Survival %d required" % required
+			need = "Needs Survival %d · you are %d" % [required, level]
+			col = UiTokens.LIFE
 		elif World.t_stones < cost:
-			label += " - need T-stones"
-		rows.append([label, id, level < required or World.t_stones < cost])
-	_fill("Harbour - Survival %d" % level, rows, func (id: StringName) -> void:
+			need = "Needs %d T-stones · you have %d" % [cost, World.t_stones]
+			col = UiTokens.LIFE
+		elif World.visited_islands.has(key):
+			need = "Visited · ready to sail"
+		grid.add_child(_route_card(MapScreen.island_name(key), line, need, col, "Sail · %d T-stones" % cost, id, level < required or World.t_stones < cost, card_w, compact))
+	var buttons: Array = []
+	for b in grid.find_children("*", "Button", true, false):
+		if not (b as Button).disabled:
+			buttons.append(b)
+	UiTokens.focus_first(buttons)
+
+func _route_card(title: String, line: String, need: String, need_col: Color, action: String, id: StringName, locked: bool, w: float, compact: bool) -> Control:
+	var card := PanelContainer.new()
+	card.name = "Route_" + str(id)
+	card.custom_minimum_size = Vector2(w, 0)
+	var sb := SheetChrome.panel_style()
+	for m in ["content_margin_left", "content_margin_right", "content_margin_top", "content_margin_bottom"]:
+		sb.set(m, 10.0 if compact else 18.0)
+	card.add_theme_stylebox_override("panel", sb)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2 if compact else 4)
+	card.add_child(box)
+	var nm := SheetChrome.text(title, 16 if compact else 24, UiTokens.MUTED if locked else UiTokens.TEXT)
+	SheetChrome.strong(nm, 500)
+	box.add_child(nm)
+	box.add_child(SheetChrome.text(line, 12 if compact else 16, UiTokens.TEXT))
+	box.add_child(SheetChrome.text(need, 12 if compact else 15, need_col))
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 2 if compact else 8)
+	box.add_child(gap)
+	var b := SheetChrome.action_button(action, &"ghost" if locked else &"cta")
+	b.set_meta("route_id", str(id))
+	b.disabled = locked
+	b.add_theme_font_size_override("font_size", 14 if compact else 20)
+	b.pressed.connect(func () -> void:
 		hide_all()
 		match id:
 			&"home": World.travel(&"home_grassland", &"harbour_home")
 			&"camp": World.recall_camp()
 			_: World.travel(id, &"sail")
 	)
+	box.add_child(b)
+	return card
 
 func show_map() -> void:
 	var hud := get_tree().get_first_node_in_group("hud")
