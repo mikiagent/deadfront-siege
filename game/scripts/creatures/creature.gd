@@ -92,6 +92,8 @@ var _path_anchor: Vector3 = Vector3.ZERO
 ## the locomotion faces. ASSUMPTION: 0.15 s smoothing and no turning below 0.3 m/s (PRDs give none).
 const FACE_VEL_TAU_S := 0.15
 const FACE_MIN_SPEED_MPS := 0.3
+## ASSUMPTION: walking may run up to 3 deg off its smoothed heading before the body turns.
+const FACE_SLACK_RAD := 0.05
 var _turn_frame: int = -1
 var _turn_left: float = 0.0
 var _face_vel: Vector3 = Vector3.ZERO
@@ -388,7 +390,12 @@ func _physics_process(delta: float) -> void:
 		# Face a low-passed velocity, not the raw nav step: path jitter must not become yaw jitter.
 		_face_vel = _face_vel.lerp(Vector3(velocity.x, 0.0, velocity.z), 1.0 - exp(-delta / FACE_VEL_TAU_S))
 		if _face_vel.length() > FACE_MIN_SPEED_MPS:
-			face_towards(global_position + _face_vel, delta)
+			# Slack: the heading follows the smoothed velocity but ignores reversals inside
+			# FACE_SLACK_RAD, so the wobble the low-pass leaves cannot dither the yaw.
+			var err := angle_difference(rotation.y, atan2(-_face_vel.x, -_face_vel.z))
+			if absf(err) > FACE_SLACK_RAD:
+				var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
+				face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
 		var frac := clampf(speed / 8.0, 0.0, 1.0)
 		anim.play_locomotion(frac)
 	else:

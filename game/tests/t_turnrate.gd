@@ -8,7 +8,7 @@ extends SceneTree
 ##  3. The T. rex bite aims at a target behind it and still lands, with no snap turn.
 
 const CREATURE_SCENE := "res://scenes/creatures/creature.tscn"
-const SPECIES: Array[StringName] = [&"compsognathus", &"velociraptor", &"utahraptor", &"triceratops", &"tyrannosaurus"]
+const SPECIES: Array[StringName] = [&"compsognathus", &"velociraptor", &"deinonychus", &"utahraptor", &"triceratops", &"tyrannosaurus"]
 
 var failures: Array[String] = []
 var data: Node
@@ -26,6 +26,7 @@ func _process(_d: float) -> bool:
 func _run() -> void:
 	for id in SPECIES:
 		await _test_cap(id)
+	await _test_jitter(&"deinonychus")
 	await _test_jitter(&"velociraptor")
 	await _test_jitter(&"tyrannosaurus")
 	await _test_tyrant_bite_behind()
@@ -88,7 +89,8 @@ func _test_jitter(id: StringName) -> void:
 	var flips := 0
 	var last_sign := 0
 	var moved := 0.0
-	for i in 120:
+	# 30 frames to get going (the smoothed velocity starts at zero, so its angle is loose), then 120 measured.
+	for i in 150:
 		var side := 1.5 if i % 2 == 0 else -1.5
 		c._path_active = true
 		c._path_goal = c.global_position + Vector3(side, 0, -5.0)
@@ -96,7 +98,7 @@ func _test_jitter(id: StringName) -> void:
 		var before: float = c.rotation.y
 		await physics_frame
 		var d := angle_difference(before, c.rotation.y)
-		if absf(d) > 0.002:
+		if i >= 30 and absf(d) > 0.002:
 			var s := 1 if d > 0.0 else -1
 			if last_sign != 0 and s != last_sign:
 				flips += 1
@@ -119,6 +121,7 @@ func _test_tyrant_bite_behind() -> void:
 	prey.global_position = rex.global_position + Vector3(0.3, 0, brain.contact_reach() * 0.5)  # +Z is behind
 	brain.attack_target = prey
 	brain.attack_number = 0
+	prey.health.setup(1.0e9)  # the bite must land, not kill (a kill here runs the corpse path)
 	var hp0: float = prey.health.hp
 	var before: float = rex.rotation.y
 	brain._do_attack()
@@ -129,7 +132,8 @@ func _test_tyrant_bite_behind() -> void:
 	var to: Vector3 = prey.global_position - rex.global_position
 	to.y = 0.0
 	_expect(to.normalized().dot(brain.locked_forward) > 0.99, "windup aims at the target (dot %.3f)" % to.normalized().dot(brain.locked_forward))
-	brain._impact()
+	for _try in 20:  # the hit roll can dodge; the aim and reach gates are what this checks
+		brain._impact()
 	_expect(prey.health.hp < hp0, "the bite behind lands: prey hp %.0f -> %.0f" % [hp0, prey.health.hp])
 	rex.free()
 	prey.free()
