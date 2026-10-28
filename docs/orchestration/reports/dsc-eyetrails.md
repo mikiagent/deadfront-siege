@@ -42,9 +42,14 @@ All under `$TMPDIR/eyetrails/shots/`:
 4. `flame_game.png` — real iso camera on the body: a small yellow glint at the brow; the 84 px streak is
    there but the night is very dark and the head sits near the frame edge. Read: "a glint that smears only
    at speed", which is the intent.
-5. `flame_head.png` (side-on, final) — **GOOD**: two tapered yellow-green streaks behind the eye dots,
-   whitening at the head, dissolving at the tail, faintly wavy with an upward lean. Reads as "flame in the
-   wind" at head close-up.
+5. `flame_head.png` (side-on, final) — **GOOD**: two tapered yellow-green streaks streaming off the eye
+   line, whitening at the head, dissolving to a point at the tail, rising slightly and stepping with the
+   flicker. Reads as "flame in the wind" at head close-up.
+   **Caveat:** in this lab frame the eye dots themselves draw dark (the lab's own camera/lighting, plus the
+   shared eye material only repaints on a night change inside `CreatureEyes._process`; the look-pass now
+   calls `CreatureEyes.apply_night()` itself). Brightness balance between streak and dot is therefore not
+   settled by this shot — the game-camera frame shows the dot glint and reads correctly in-game. Owner
+   visual pass still wanted; if the streak ever outshines the dot, lower `ENERGY` in `eye_trail.gd`.
 
 ## Assumptions (all marked `# ASSUMPTION` in code)
 
@@ -70,10 +75,12 @@ All under `$TMPDIR/eyetrails/shots/`:
    the gate. The judge evidence is the look-pass PNGs, which want a human eye at 1600x900.
 2. **Deinonychus import by-products.** This worktree was cut at `f330e3bf`, which predates the art thread's
    `b11af93b` (that commit adds the three textures Godot unpacks from the new deinonychus GLB). Running
-   `--import` here re-creates them as untracked files, outside this task's SCOPE; they are byte-identical
-   to `b11af93b`'s blobs and were committed by the runner's checkpoints. Deleting them breaks
-   `t_eyeglow` (deinonychus loads no Head bone without its textures). **Merge `b11af93b` first or rebase
-   this branch onto it**; nothing in the trail needs those files.
+   `--import` here re-creates them, and a checkpoint commit picked them up; they are byte-identical to
+   `b11af93b`'s blobs and outside this task's SCOPE. They were put back to the merge-base state (absent),
+   and `t_eyeglow` passes without them once the stale `.godot/imported` scene is regenerated. The earlier
+   "deinonychus has no Eyes node" failure came from that stale import cache, not from the missing files.
+   **Merge `b11af93b` (or rebase onto it) before shipping the animal's look**; nothing in the trail needs
+   those files.
 3. `docs/current/README.md` (the index) is outside SCOPE (`README.md` does not match `[a-z-]+\.md`), so
    the new `docs/current/eyes.md` has no index row yet — one line to add.
 4. Nothing tuned: no stats, no balance numbers touched.

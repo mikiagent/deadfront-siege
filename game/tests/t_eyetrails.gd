@@ -356,6 +356,10 @@ func _shot_pass(dir: String) -> void:
 	WL = load("res://scripts/world/world_lighting.gd")
 	DD = root.get_node("Data")
 	WL.night = 1.0
+	# The shared eye material is only repainted on a night change inside a CreatureEyes tick; a shot pass
+	# that switches the clock itself must repaint it or the dots stay at the day glint (black).
+	var eyes_script: GDScript = load("res://scripts/creatures/creature_eyes.gd")
+	eyes_script.apply_night()
 	var host := Node3D.new()
 	root.add_child(host)
 	var cam := Camera3D.new()
