@@ -378,3 +378,40 @@ Channels name what an item does; every number carries its `provenance` (`extract
 - **Tea** — flavors sweet=8, salty=0, sour=4, bitter=18, greasy=0, umami=6, astringent=14 — catalog `tea_01_green` Green Tea (L60: 22.4 + 22.4 Energy, fullness 5.0, Enhanced Ability Lv60)
   > *assumption:* 22.4 immediate + 22.4 delayed Energy is the reconstruction's level-60 Tea figure (spec 32 s5), tagged restoration-evaluated, not a 2019 constant; thirst and the taste score are ASSUMPTION. FOODCAT # ASSUMPTION: mapped to catalog row tea_01_green (Green Tea). Energy: item food_energy = (22.4 + 22.4) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 22.4 / 44.8. Fullness is the catalog's. 'Enhanced Ability Lv60' has no stat to map (open question); tea keeps its WATER thirst.
 
+
+## Rare material attributes (RAREATTR)
+
+Hand-written section (not from `gen_game_data.py`); re-add it after a regeneration until the generator emits it.
+
+**The roll.** Every gathered unit rolls once at gather (`game/scripts/gather/gather_service.gd` `stamp_traits` →
+`loot_roller.gd` `roll_trait`): a **5 %** chance of **one** rare attribute (`game/data/loot_tables.json`
+`rare_trait.chance`, world-design.md:55, PRD:541). There is no bonus from Gathering level (spec 12:42) or tool tier.
+Since RAREATTR the attribute comes from **that material's own list**, `rare_trait.by_material[<item id>]`, not one pool
+for everything: a stone rolls Black Sheen / Low Vibration / Vivid Inspiration, a log rolls Wide Serration / Split Easily
+/ Vivid Inspiration, a fibre rolls Narrow Hook / Wide Serration / Vivid Inspiration. The six-trait pool
+(`rare_trait.traits`) stays the fallback for an item with no row. The full six are spec 04:11's: Black Sheen, Low
+Vibration, Wide Serration, Narrow Hook, Split Easily, Vivid Inspiration; all six are class `rare` in `inv_ui.json` and
+`rules.json` `crafting.rare_attributes`.
+
+*ASSUMPTION:* spec 04:25 documents conversions for five of the six but no per-material table. The shipped mapping groups
+materials by what they are for — combat materials (stone, ore, metal, crystal, ice, pearl) → Black Sheen / Low Vibration
+(Vital Strike / Throw Dirt, Sadism / Pain Averse); tool-shaping materials (timber, fibre, cordage) → Wide Serration /
+Narrow Hook (gathering effects); workpieces (timber, earth, clay, resin) also → Split Easily (workstation effects);
+Vivid Inspiration has no documented conversion, so every material can roll it. It is data; retune without code.
+
+**The green pip.** `InvAttributes.sections` puts the attribute in its `rare` class, drawn `#67B84E` (spec 13:50/291,
+INVUI's `InvTheme.RARE`); the item card shows it as a green row, the bag grid draws the green corner mark on the cell.
+
+**Carry into crafts (spec 04:33).** A rare attribute passes from a single **primary** material only. Every shipped
+recipe (`game/data/recipes.json`) marks slot 1 `primary: true`; `Crafting.build_output` copies that instance's
+attributes onto the output, so the rare attribute carries into the crafted item and shows the same green pip there. An
+equal attribute on a secondary material (slot 2 or later) never transfers: a knife's handle's rare attribute does not
+reach the blade. `Crafting.preview_quality` lists the primary's traits as `inherited`, so the preview cannot disagree
+with the result.
+
+A craft also has its own luck roll for a rare attribute (`rules.json` `crafting.rare_attribute_chance`, 5 %,
+`Crafting.roll_outcome_for` → `apply_outcome`); it draws from the full six and is unrelated to the instance's own
+attribute. The first one the result already has is kept as it is.
+
+**Instances.** Units never stack (owner rule), so each keeps its own attribute; it survives save/load with the
+instance's uid and is not re-rolled on transfer (`t_rareattr.gd`).

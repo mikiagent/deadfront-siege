@@ -37,9 +37,11 @@ static func roll_gather_rares(family: String, role: String, climate: String, too
 	return out
 
 ## The green rare trait one gathered item rolls (world-design.md:55, PRD:541), or &"" for none.
-static func roll_trait(rng: RandomNumberGenerator) -> StringName:
+## RAREATTR: the trait comes from the material's own list (spec 04:33, rare_trait.by_material), so a
+## stone never rolls a timber trait; the shared six stay the fallback for an item with no list.
+static func roll_trait(rng: RandomNumberGenerator, material: StringName = &"") -> StringName:
 	var cfg := LootTables.trait_cfg()
-	var traits: Array = cfg.get("traits", [])
+	var traits: Array = LootTables.material_traits(material) if material != &"" else (cfg.get("traits", []) as Array)
 	if traits.is_empty() or rng.randf() >= float(cfg.get("chance", 0.0)):
 		return &""
 	return StringName(str(traits[rng.randi() % traits.size()]))
