@@ -457,6 +457,9 @@ static func claim_cells(rt: IslandRuntime, cells: Array) -> Dictionary:
 	_rebuild_claim_rects(rt)
 	_rebuild_claim_mesh(rt)
 	_clear_grass_cells(rt, batch)
+	# CLAIMPROPS (owner: "I shouldn't have a tree stump or log within my claimed land"): the new land
+	# holds no scenery, and no "harvest node" that has no gather option at all (that is a prop too).
+	clean_claimed(rt)
 	var bounds := cell_rect(rt, batch[0])
 	for c in batch:
 		bounds = bounds.merge(cell_rect(rt, c))
@@ -615,6 +618,64 @@ static func other_nodes_in(rt: IslandRuntime, plots: Array) -> int:
 				n += 1
 				break
 	return n
+
+# ---------------------------------------------------------------- props on claimed land (CLAIMPROPS)
+
+## True when a harvest node really offers something: at least one option whose item exists. A node
+## with no valid gather option is decoration the owner calls a prop ("especially if it can't be
+## harvested"), so claimed land drops it.
+static func node_gatherable(node: Node) -> bool:
+	if node == null or not node.has_method("options"):
+		return false
+	for o in (node.call("options") as Array):
+		var item := StringName(str((o as Dictionary).get("item", "")))
+		if item != &"" and Data.item(item) != null:
+			return true
+	return false
+
+## CLAIMPROPS: claimed land holds no scenery. Removes every prop standing on a claimed tile (the props
+## layer does it by footprint) and every harvest node on a claimed tile that has no gather option at
+## all. Harvestable nodes (trees, rocks, bushes, plants) stay: spec 29 says owning land grants the
+## right to build and manage it, and does not say a domain is stripped of resources. Called when the
+## island is built (a saved claim) and after every claim/expansion. Returns how many things went.
+static func clean_claimed(rt: IslandRuntime) -> int:
+	if rt == null:
+		return 0
+	var removed := 0
+	var props: Variant = rt.get("props")
+	if props != null and is_instance_valid(props) and props.has_method("clear_claimed"):
+		removed += int(props.call("clear_claimed"))
+	var keys: Array = []
+	for key in rt._harvest_nodes.keys():
+		var node: Variant = rt._harvest_nodes[key]
+		if not is_instance_valid(node) or not node is Node3D:
+			continue
+		if not is_claimed(rt, BuildGrid.tile_of((node as Node3D).global_position)):
+			continue
+		if node_gatherable(node as Node):
+			continue
+		keys.append(key)
+	for key in keys:
+		var node: Node = rt._harvest_nodes[key]
+		rt._harvest_nodes.erase(key)
+		rt._node_tiles.erase(key)
+		var tile := BuildGrid.tile_of((node as Node3D).global_position)
+		if rt._used_tiles.has(tile):
+			rt._used_tiles.erase(tile)
+		var batch: Variant = node.get("_batch")
+		if batch is VegBatch and int(node.get("_batch_idx")) >= 0:
+			(batch as VegBatch).set_shown(int(node.get("_batch_idx")), false)
+		var card: Variant = node.get("_card")
+		if card != null and is_instance_valid(card):
+			(card as Node).queue_free()
+		var empty_card: Variant = node.get("_card_empty")
+		if empty_card != null and is_instance_valid(empty_card):
+			(empty_card as Node).queue_free()
+		node.queue_free()
+		removed += 1
+	if removed > 0:
+		print("[world] claimed land cleaned: %d scenery item(s) removed (props + non-gatherable nodes)" % removed)
+	return removed
 
 # ---------------------------------------------------------------- ownership
 
