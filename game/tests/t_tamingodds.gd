@@ -57,6 +57,10 @@ func _run() -> void:
 	_test_clamps()
 	_test_monotonic()
 	_test_capture_boundary()
+	# Sections 5-6 read a survivor: its Survival level, its bag (nets, food, bait) and its roster.
+	_player = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	_player.process_mode = Node.PROCESS_MODE_DISABLED
+	_host.add_child(_player)
 	await _test_shown_equals_used()
 	await _test_grade_by_bait()
 	_finish()
@@ -217,14 +221,16 @@ func _test_capture_boundary() -> void:
 # ---------------------------------------------------------------- 5. shown == used
 
 ## The plate's number and the roll the net makes are the same function of the same inputs.
+## The bare animals below stay out of the tree (Creature.health is @onready, so a node added to the
+## tree re-reads $Health); the ones attempt() throws at are full scene instances.
 func _test_shown_equals_used() -> void:
 	var data: Node = get_root().get_node("Data")
+	data.set_survival_unlocked(&"capture_technique_I", true)  # the net checks the species tier
 	data.set_survival_unlocked(&"capture_technique_II", true)
 	_player.skills.trees["survival"]["level"] = 22
 	_player.inventory.add(ItemStackS.make(&"capture_net_ii", 1))
 	_player.inventory.add(ItemStackS.make(&"raw_meat", 4))
 	var c = _creature(&"velociraptor", 0.30, 25)
-	_host.add_child(c)
 	var shown: float = OddsS.odds_for(c, _player, 2)
 	var used: float = CaptureS.chance_for(c, 2, _player)
 	_expect(is_equal_approx(shown, used), "the shown odds %.4f are the odds the net rolls %.4f" % [shown, used])
@@ -234,6 +240,7 @@ func _test_shown_equals_used() -> void:
 	_expect(is_equal_approx(float(hint.get("odds", -1.0)), shown), "the plate's odds %.4f equal odds_for %.4f" % [float(hint.get("odds", -1.0)), shown])
 	var label: String = str(hint.get("text", ""))
 	_expect(label.contains(OddsS.caption(shown)), "the plate reads '%s' for %.3f" % [label, shown])
+	_expect(OddsS.caption(0.64) == "Tame 64%", "the caption reads 'Tame 64%%' for 0.64 (got '%s')" % OddsS.caption(0.64))
 	# The same animal reads better as the survivor levels and as the net improves.
 	_player.skills.trees["survival"]["level"] = 45
 	var better: float = CaptureS.chance_for(c, 2, _player)
@@ -242,30 +249,36 @@ func _test_shown_equals_used() -> void:
 	var t1: float = CaptureS.chance_for(c, 1, _player)
 	var t5: float = CaptureS.chance_for(c, 5, _player)
 	_expect(t5 > t1, "a better net reads better odds (tier 5 %.3f > tier 1 %.3f)" % [t5, t1])
-	_expect(t1 < better, "no survivor reads worse odds than a level-45 one (%.3f vs %.3f)" % [t1, better])
-	# attempt() rolls the shown odds: a far-ahead gap at 0 % HP lands nearly every seeded throw.
-	var ceiling: float = OddsS.odds_for_values(1, 0.0, 25, 2)
-	_expect(ceiling > 0.90, "a far-ahead gap at 0 %% HP reads %.3f" % ceiling)
+	_expect(t1 < better, "an even gap reads worse odds than a level-45 one (%.3f vs %.3f)" % [t1, better])
+	# attempt() rolls the shown odds: a far-ahead gap at 20 % HP lands nearly every seeded throw.
+	var prey = _spawn_tameable(&"compsognathus", Vector3(2.0, 0.0, 0.0))
+	prey.level = 1
+	var ceiling: float = CaptureS.chance_for(prey, 2, _player)
+	_expect(ceiling > 0.90, "a far-ahead gap at 20 %% HP reads %.3f" % ceiling)
 	var netted := 0
 	var tries := 40
 	for i in tries:
-		var prey = _creature(&"compsognathus", 0.0, 1)
-		_host.add_child(prey)
+		if i == 0:
+			pass
+		var mark = prey
+		if i > 0:
+			mark = _spawn_tameable(&"compsognathus", Vector3(2.0, 0.0, 0.0))
+			mark.level = 1
 		_player.inventory.add(ItemStackS.make(&"capture_net_ii", 1))
 		var rng := RandomNumberGenerator.new()
 		rng.seed = 1000 + i
-		if CaptureS.attempt(_player, prey, 0, rng):
+		if CaptureS.attempt(_player, mark, 0, rng):
 			netted += 1
-			_player.inventory.consume(&"captured_animal", 1)  # the throw is what is measured, not the bag
-		if is_instance_valid(prey) and not prey.is_queued_for_deletion():
-			prey.free()
+		_player.inventory.consume(&"captured_animal", _player.inventory.count_of(&"captured_animal"))
+		if is_instance_valid(mark) and not mark.is_queued_for_deletion():
+			mark.free()
 	var rate := float(netted) / float(tries)
 	_expect(rate > 0.85, "%d seeded throws at %.2f landed %.0f %% of the time" % [tries, ceiling, 100.0 * rate])
 	# Same seed, same inputs, same result on two fresh animals.
-	var two_a = _creature(&"compsognathus", 0.0, 1)
-	var two_b = _creature(&"compsognathus", 0.0, 1)
-	_host.add_child(two_a)
-	_host.add_child(two_b)
+	var two_a = _spawn_tameable(&"compsognathus", Vector3(3.0, 0.0, 0.0))
+	var two_b = _spawn_tameable(&"compsognathus", Vector3(4.0, 0.0, 0.0))
+	two_a.level = 1
+	two_b.level = 1
 	var ra := RandomNumberGenerator.new()
 	var rb := RandomNumberGenerator.new()
 	ra.seed = 4242
@@ -274,17 +287,23 @@ func _test_shown_equals_used() -> void:
 	var ok_a: bool = CaptureS.attempt(_player, two_a, 0, ra)
 	var ok_b: bool = CaptureS.attempt(_player, two_b, 0, rb)
 	_expect(ok_a == ok_b, "the same seed and inputs give the same result (%s vs %s)" % [ok_a, ok_b])
+	_player.inventory.consume(&"captured_animal", _player.inventory.count_of(&"captured_animal"))
 	for n in [two_a, two_b]:
 		if is_instance_valid(n) and not n.is_queued_for_deletion():
 			n.free()
-	_player.inventory.consume(&"captured_animal", _player.inventory.count_of(&"captured_animal"))
-	_expect(CaptureS.attempt(_player, c, -1, null) == false, "a forced failure still fails the throw")
-	_expect(c.is_capturable == false and c.statuses.has(&"enraged"), "a failed throw clears the knockdown and enrages")
+	# force_result still decides the throw, without rolling (t_tame, t_colors, t_save rely on it).
+	var forced_fail = _spawn_tameable(&"compsognathus", Vector3(5.0, 0.0, 0.0))
 	_player.inventory.add(ItemStackS.make(&"capture_net_ii", 1))
-	c.statuses.clear_id(&"enraged")
-	c.statuses.apply(&"knockdown")
+	_expect(CaptureS.attempt(_player, forced_fail, -1) == false, "a forced failure still fails the throw")
+	_expect(not forced_fail.is_capturable and forced_fail.statuses.has(&"enraged"), "a failed throw clears the knockdown and enrages")
+	forced_fail.free()
 	_player.inventory.consume(&"captured_animal", _player.inventory.count_of(&"captured_animal"))
-	_expect(CaptureS.attempt(_player, c, 1, null), "a forced success still takes the animal")
+	var forced_win = _spawn_tameable(&"compsognathus", Vector3(6.0, 0.0, 0.0))
+	_player.inventory.add(ItemStackS.make(&"capture_net_ii", 1))
+	_expect(CaptureS.attempt(_player, forced_win, 1), "a forced success still takes the animal")
+	_expect(_player.inventory.count_of(&"captured_animal") == 1, "a taken animal goes into the bag as a captured_animal (bag %d)" % _player.inventory.count_of(&"captured_animal"))
+	_player.inventory.consume(&"captured_animal", _player.inventory.count_of(&"captured_animal"))
+	data.set_survival_unlocked(&"capture_technique_I", false)
 	data.set_survival_unlocked(&"capture_technique_II", false)
 	print("[t_tamingodds] shown=%.3f used=%.3f label='%s' ceiling=%.2f seeded_rate=%.2f same_seed=%s" % [shown, used, label, ceiling, rate, ok_a == ok_b])
 	_sections += 1
@@ -293,13 +312,18 @@ func _test_shown_equals_used() -> void:
 
 ## A bait item in the bag is spent on the completed tame and raises the pet's IVs, which is its grade.
 func _test_grade_by_bait() -> void:
-	var base_ivs: int = 16 * GeneticsS.STATS.size()
-	var def: CreatureDef = (get_root().get_node("Data") as Node).creature(&"compsognathus")
-	var food: StringName = def.preferred_food[0]
-	var before: int = _player.bonded.size()
+	var data: Node = get_root().get_node("Data")
+	var stats: int = GeneticsS.STATS.size()
+	var base_ivs: int = 16 * stats
+	var bonus: int = int(OddsS.prep_iv_bonus())
+	_expect(bonus > 0, "the bait bonus is a positive number of IV points (got %d)" % bonus)
 	_player.inventory.consume(&"leech", _player.inventory.count_of(&"leech"))
+	_player.inventory.consume(&"captured_animal", _player.inventory.count_of(&"captured_animal"))
+	var before: int = _player.bonded.size()
+	# No bait: the tame still completes and the genetics are the animal's own.
 	var plain = _spawn_tameable(&"compsognathus", Vector3(6.0, 0.0, 0.0))
 	plain.genetics = GeneticsS.neutral()
+	var food: StringName = plain.def.preferred_food[0]
 	_player.inventory.add(ItemStackS.make(food, 3))
 	FieldTameS.begin_window(plain)
 	for i in 4:
@@ -307,16 +331,21 @@ func _test_grade_by_bait() -> void:
 			FieldTameS.apply_feed(_player, plain, food)
 	_expect(_player.bonded.size() == before + 1, "no bait: the tame still completes (%d bonded)" % _player.bonded.size())
 	var plain_rec = _player.bonded[-1] if _player.bonded.size() > before else null
-	_expect(plain_rec != null and _iv_sum(plain_rec) == base_ivs, "no bait leaves the IVs alone (sum %d, want %d)" % [_iv_sum(plain_rec) if plain_rec else -1, base_ivs])
 	var plain_grade: StringName = plain_rec.grade if plain_rec else &"?"
-	# The bait is spent by the LAST feed only: an unfinished tame keeps it.
-	var spent_early = _spawn_tameable(&"protoceratops", Vector3(7.0, 0.0, 0.0))
-	spent_early.genetics = GeneticsS.neutral()
+	_expect(plain_rec != null and _iv_sum(plain_rec) == base_ivs, "no bait leaves the IVs alone (sum %d, want %d)" % [_iv_sum(plain_rec) if plain_rec else -1, base_ivs])
+	# A bait is spent by the COMPLETED tame only: a pen species fed in the field is not finished yet.
+	data.set_survival_unlocked(&"capture_technique_III", true)
+	var pen = _spawn_tameable(&"gallimimus", Vector3(7.0, 0.0, 0.0))
+	pen.genetics = GeneticsS.neutral()
+	var pen_food: StringName = pen.def.preferred_food[0]
+	_player.inventory.add(ItemStackS.make(pen_food, 4))
 	_player.inventory.add(ItemStackS.make(&"leech", 1))
-	_player.inventory.add(ItemStackS.make(food, 3))
-	FieldTameS.begin_window(spent_early)
-	FieldTameS.apply_feed(_player, spent_early, food)
-	_expect(not spent_early.is_pet and _player.inventory.count_of(&"leech") == 1, "an unfinished tame keeps its bait (left %d)" % _player.inventory.count_of(&"leech"))
+	FieldTameS.begin_window(pen)
+	for i in 4:
+		FieldTameS.apply_feed(_player, pen, pen_food)
+	_expect(not pen.is_pet and pen.def.requires_pen, "a pen species is not tamed by field feeding")
+	_expect(_player.inventory.count_of(&"leech") == 1, "an unfinished tame keeps its bait (left %d)" % _player.inventory.count_of(&"leech"))
+	# With bait: the same animal tames into better IVs, so its grade is better too.
 	var baited = _spawn_tameable(&"compsognathus", Vector3(8.0, 0.0, 0.0))
 	baited.genetics = GeneticsS.neutral()
 	_player.inventory.add(ItemStackS.make(food, 3))
@@ -325,13 +354,13 @@ func _test_grade_by_bait() -> void:
 		if not baited.is_pet:
 			FieldTameS.apply_feed(_player, baited, food)
 	var bait_rec = _player.bonded[-1] if _player.bonded.size() > before + 1 else null
-	var bonus: int = int(OddsS.prep_iv_bonus())
-	_expect(bonus > 0, "the bait bonus is a positive number of IV points (got %d)" % bonus)
-	_expect(bait_rec != null and _iv_sum(bait_rec) == base_ivs + bonus * GeneticsS.STATS.size(), "bait raises every IV by %d (sum %d, want %d)" % [bonus, _iv_sum(bait_rec) if bait_rec else -1, base_ivs + bonus * GeneticsS.STATS.size()])
+	var want: int = base_ivs + bonus * stats
+	_expect(bait_rec != null and _iv_sum(bait_rec) == want, "bait raises every IV by %d (sum %d, want %d)" % [bonus, _iv_sum(bait_rec) if bait_rec else -1, want])
 	_expect(bait_rec != null and bait_rec.grade != plain_grade, "bait earns a better grade (%s with, %s without)" % [bait_rec.grade if bait_rec else "?", plain_grade])
 	_expect(_player.inventory.count_of(&"leech") == 0, "the bait is spent on the completed tame (left %d)" % _player.inventory.count_of(&"leech"))
 	# The record's grade is still its genetics' grade (PetRecord.recompute: one source).
 	_expect(bait_rec != null and bait_rec.grade == bait_rec.genetics.overall_tier(), "the baited pet's grade is its genetics' grade (%s)" % (bait_rec.grade if bait_rec else "?"))
+	data.set_survival_unlocked(&"capture_technique_III", false)
 	print("[t_tamingodds] grade no_bait=%s ivs=%d bait=%s ivs=%d leech=%d" % [plain_grade, _iv_sum(plain_rec) if plain_rec else -1, bait_rec.grade if bait_rec else "?", _iv_sum(bait_rec) if bait_rec else -1, _player.inventory.count_of(&"leech")])
 	_sections += 1
 
