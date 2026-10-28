@@ -323,7 +323,7 @@ func use_kick() -> void:
 
 ## Nets follow the one capture rule (FieldTame.capture_window): stunned at any HP, or <= 30 %.
 func use_net() -> void:
-	if target == null or not FieldTame.capture_window(target):
+	if target == null:
 		return
 	if not _net_health_ok():
 		say(CAPTURE_REFUSAL)
