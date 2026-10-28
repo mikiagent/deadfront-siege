@@ -27,6 +27,21 @@ var _requested_clip: StringName = &"idle"
 ## short one-shot that the gather loop re-triggers, so no idle pop between units.
 const GATHER_CLIPS: Array[StringName] = [&"gather", &"gather_chop", &"gather_mine", &"craft"]
 var _gather_clip: StringName = &"gather"
+## Mood idles (owner 2026-10-28: cold shiver, heat fanning/sweating, tired, exhausted), optional survivor
+## clips (assets/characters/survivor/anim/idle_*.glb); while one is missing the next in line plays, then idle.
+## ASSUMPTION: priority exhausted > cold / heat (the stronger) > tired > idle.
+const MOOD_IDLES: Array[StringName] = [&"idle_exhausted", &"idle_cold", &"idle_heat", &"idle_tired"]
+## Weather feel (WorldWeather.cold / heat, 0..1) at which the cold or heat idle takes over. ASSUMPTION.
+const MOOD_AT := 0.5
+## Fatigue strain of spec 01's tiers: tired from 50 %, exhausted from 75 % (Vitals.exhausted).
+const TIRED_AT := 0.5
+const EXHAUSTED_AT := 0.75
+## Swimming clips (anim/swim.glb, swim_idle.glb: UAL Swim_Fwd_Loop / Swim_Idle_Loop on the survivor
+## skeleton, CC0). The rig stands on the capsule bottom, so each is lifted to sit in the water:
+## ASSUMPTION: the crawl rides 0.45 m higher (back awash), treading water 0.4 m lower (shoulders out); set from a side-on capture.
+const SWIM_LIFT := {&"swim": 0.45, &"swim_idle": -0.4}
+var swim_lift: float = 0.0
+const IDLE_BLEND := 0.5  # one idle into another: slow, it is a change of mood, not of action
 
 func setup(p: Player, p_rig: RiggedModel) -> void:
 	player = p
@@ -48,6 +63,9 @@ func play_locomotion(speed: float, running: bool = false) -> void:
 		return
 	if player.mounted_on:
 		_play(&"mount_idle")
+		return
+	if player.swimming and rig and rig.has_clip(&"swim"):
+		_play(&"swim" if speed >= 0.08 else &"swim_idle")
 		return
 	if speed < 0.08:
 		_play(&"idle")
@@ -355,6 +373,7 @@ func release_knockdown() -> void:
 func _physics_tick(speed: float, running: bool = false) -> void:
 	if _sleeping or _waking:
 		return
+	swim_lift = move_toward(swim_lift, SWIM_LIFT.get(current_clip, 0.0) if player.swimming else 0.0, 3.0 * get_physics_process_delta_time())  # PlayerView applies it to the rig
 	if _busy and current_clip == &"knockdown" and player.statuses and not player.statuses.has_flag(&"knockdown"):
 		release_knockdown()
 	if player.rolling:
@@ -372,9 +391,9 @@ func _physics_tick(speed: float, running: bool = false) -> void:
 func _play(clip: StringName) -> void:
 	var resolved := _resolve(clip)
 	if resolved == current_clip and rig and rig.anim_player and rig.anim_player.is_playing():
-		if clip in [&"idle", &"walk", &"run", &"mount_idle", &"sleep"]:
+		if clip in [&"idle", &"walk", &"run", &"mount_idle", &"sleep", &"swim", &"swim_idle"] or clip in MOOD_IDLES:
 			return
-	var loco := [&"idle", &"walk", &"run", &"mount_idle"]
+	var loco: Array = [&"idle", &"walk", &"run", &"mount_idle", &"swim", &"swim_idle"] + MOOD_IDLES
 	var blend := 0.18 if (resolved in loco and current_clip in loco) else 0.0
 	if resolved in loco and (current_clip in [&"punch", &"attack_primary", &"attack_heavy"] or current_clip in GATHER_CLIPS):
 		blend = 0.12  # trimmed one-shots end mid-pose; ease back into locomotion

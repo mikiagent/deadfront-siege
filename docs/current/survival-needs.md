@@ -71,6 +71,15 @@ the survivor) or `buff` / `boon` / `debuff` (the chip row under the vitals, with
 The HUD stomach ring reads the share of eaten Energy still digesting (no satiety meter exists). Washing clears dirty/very_dirty and grants Clean; drinking clears
 Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 
+## Water: drink, wash, swim (spec 17; `game/tests/t_water.gd`)
+- Fresh water is the river only (PRD :314-315). Within 2 m of it or standing in it, INTERACT shows
+  Drink and the context row shows Wash (Fill too with an empty bucket). The salt sea offers none;
+  pressing INTERACT in it says "Salt water: drink and wash at the river".
+- Depth under 0.75 m wades (x0.60 pace), deeper swims (x0.45, 6 Energy/s, 5 HP/s once Energy is
+  empty). Swimming she floats with her centre at the water plane (velocity, so the floor snap never
+  pins her to the seabed) and plays `swim` (moving) or `swim_idle` (still), UAL Swim_Fwd_Loop /
+  Swim_Idle_Loop on the survivor skeleton; the rig is lifted +0.45 m / -0.4 m to sit in the water.
+
 ## Food & relief
 - No satiety meter in this build (`game/scripts/items/eat_session.gd`): eating pays instant Energy
   now + digested Energy on a schedule (`digest_seconds`), and always applies the `full` status
