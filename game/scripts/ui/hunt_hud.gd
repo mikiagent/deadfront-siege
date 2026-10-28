@@ -415,6 +415,10 @@ func _build_combat() -> void:
 		var h := HexButton.new(SKILL_HEX)
 		h.icon = UiIcons.icon(StringName(str(s[0])))
 		h.caption = s[1]
+		_combat_style(h)
+		# ASSUMPTION (UIGATHER): only ROLL gets a desktop key cap; the canvas's 1/2/4 caps have no
+		# handler behind them (tactic_1..4 are bound but nothing reads them), so they would lie.
+		h.key_hint = "Q" if s[0] == "roll" else ""
 		h.visible = false
 		h.pressed.connect(_on_skill.bind(StringName(s[0])))
 		add_child(h)
@@ -422,6 +426,7 @@ func _build_combat() -> void:
 	_auto_hex = HexButton.new(64.0)
 	_auto_hex.icon = UiIcons.icon(&"auto")
 	_auto_hex.caption = "AUTO"
+	_combat_style(_auto_hex)
 	_auto_hex.visible = false
 	_auto_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
@@ -445,6 +450,7 @@ func _build_combat() -> void:
 	_feed_hex = HexButton.new(64.0)
 	_feed_hex.icon = UiIcons.icon(&"feed")
 	_feed_hex.caption = "FEED"
+	_combat_style(_feed_hex)
 	_feed_hex.visible = false
 	_feed_hex.pressed.connect(func () -> void:
 		if player and player.hunt and player.hunt.target and FieldTame.can_attempt(player.hunt.target):
@@ -461,6 +467,7 @@ func _build_combat() -> void:
 	_chase_hex = HexButton.new(HEX)
 	_chase_hex.glyph = "🏃"
 	_chase_hex.caption = "CHASE"
+	_combat_style(_chase_hex)
 	_chase_hex.visible = false
 	_chase_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
@@ -580,6 +587,20 @@ func _draw_death() -> void:
 	if r.x < 2.0:
 		r = get_viewport_rect().size
 	_death_panel.draw_rect(Rect2(Vector2.ZERO, r), Color(0.02, 0.025, 0.03, 0.88))
+
+## B2 hex restyle (spec §2/§3): HUD fill, light 3-4 px rim, gold when selected.
+static func _combat_style(h: HexButton) -> void:
+	h.rim_color = UiTokens.HUD_RIM
+	h.rim_width = 4.0 if h.size.x >= 70.0 else 3.0
+	h.fill = UiTokens.HUD_FILL
+
+## Spec §7 B2 / spec 09: the NET hex turns GOLD-filled (dark net, GOLD rim) while a throw is allowed —
+## the target is stunned or at or under 30 % and a net and technique cover its tier (the hex is enabled).
+## TAMINGODDS: the hex's bottom_text is left free for a capture-odds figure.
+static func _net_gold(h: HexButton, on: bool) -> void:
+	h.fill = UiTokens.GOLD if on else UiTokens.HUD_FILL
+	h.rim_color = UiTokens.GOLD if on else UiTokens.HUD_RIM
+	h.glyph_color = UiTokens.CTA_INK if on else Color.WHITE
 
 func _on_skill(id: StringName) -> void:
 	if player == null or player.hunt == null:
@@ -1327,6 +1348,7 @@ func _process(delta: float) -> void:
 			_skill_hexes[0].caption = "SIEGE %d" % player.inventory.count_of(&"stone_shot")
 			_skill_hexes[0].icon = UiIcons.icon(&"siege")
 			_skill_hexes[0].disabled = catapult.reload_left > 0 or player.inventory.count_of(&"stone_shot") == 0
+		_net_gold(_skill_hexes[0], not ranged and not siege and not _skill_hexes[0].disabled)
 		_skill_hexes[0].queue_redraw()
 		_skill_hexes[1].disabled = (catapult.reload_left > 0 or player.inventory.count_of(&"toxin_pot") == 0) if siege else player.hunt._tackle_cd > 0.0
 		_skill_hexes[2].disabled = player.hunt._kick_cd > 0.0
@@ -1560,12 +1582,37 @@ func _draw() -> void:
 		HudEventState.draw_notice(self, _font, box, txt, 17, alpha, bool(n.get("ok", false)))  # B4 warning / ok row
 	# --- label pills on buildings and nodes within 8 m (reference: base building), last: they give way
 	# to everything above and to the open radials
+	if _combat_alpha > 0.01:
+		_draw_capture_hint(cam, taken, _combat_alpha)  # before the pills, so they give way to it
+		if drawn_blocks.has("capturehint"):
+			taken.append(drawn_blocks["capturehint"])
 	HudPills.draw(self, cam, taken)
 	# --- combat layer
 	if _combat_alpha > 0.01:
 		var a := _combat_alpha
 		draw_rect(Rect2(0, 0, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
 		draw_rect(Rect2(0, r.y - 6, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
+
+## B2: a gold line by the fought animal saying whether the net can go now (spec 09 window).
+func _draw_capture_hint(cam: Camera3D, taken: Array[Rect2], a: float) -> void:
+	var t: Creature = player.hunt.target if player.hunt else null
+	if cam == null or t == null or not is_instance_valid(t) or t.def == null or not t.def.tameable or t.is_pet:
+		return
+	var at := t.global_position + Vector3.UP * 1.2
+	if cam.is_position_behind(at):
+		return
+	var text := "Capturable — throw the net!" if FieldTame.capture_window(t) else "Weaken to %d%% to capture" % int(round(FieldTame.CAPTURE_HEALTH_FRAC * 100.0))
+	var view := get_viewport_rect().size
+	var px := UiTokens.body(view)
+	var w := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 16.0
+	var sp := cam.unproject_position(at)
+	var box := UiTokens.free_spot(Rect2(sp.x - w * 0.5, sp.y - float(px) - 18.0, w, float(px) + 10.0), taken + GatherFeedback.plate_rects(4.0), view, true)
+	drawn_blocks.erase("capturehint")
+	if not box.has_area():
+		return
+	drawn_blocks["capturehint"] = box
+	draw_string(_font, Vector2(box.position.x + 9.0, box.end.y - 6.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(0, 0, 0, 0.7 * a))
+	draw_string(_font, Vector2(box.position.x + 8.0, box.end.y - 7.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(UiTokens.GOLD, a))
 
 func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 	var r := get_viewport_rect().size
@@ -1591,7 +1638,8 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			draw_texture_rect(UiIcons.icon(&"animals"), Rect2(px + pw - 54, py + 2, 40, 40), false, Color(1, 1, 1, a))
 			var frac := clampf(t.health.hp / maxf(1.0, t.health.max_hp), 0.0, 1.0)
 			draw_rect(Rect2(px, py + 44, pw, 22), Color(0.12, 0.05, 0.05, 0.9 * a))
-			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(0.80, 0.12, 0.12, 0.95 * a))
+			var window := FieldTame.capture_window(t)  # spec 09: stunned or <= 30 %, the bar turns GOLD
+			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(UiTokens.GOLD, 0.95 * a) if window else Color(0.80, 0.12, 0.12, 0.95 * a))
 			var hp := "%.0f / %.0f" % [t.health.hp, t.health.max_hp]
 			var hw := _font.get_string_size(hp, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 			draw_string(_font, Vector2(px + pw * 0.5 - hw * 0.5, py + 61), hp, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, a))
@@ -1603,9 +1651,9 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			var ix := px
 			if t.statuses:
 				for inst in t.statuses.instances():
-					HudStatusChip.draw(self, _font, Vector2(ix, py + 74), inst.id, Color(1, 0.6, 0.5), a)
-					block = block.merge(Rect2(ix, py + 74.0, 26.0, 26.0))
-					ix += 30
+					var chip := HudStatusChip.draw_named(self, _font, Vector2(ix, py + 74), inst.id, a, 13 if band.has_area() else 15)
+					block = block.merge(chip)
+					ix += chip.size.x + 6.0
 			drawn_blocks["plate"] = block
 
 func _draw_quest(r: Vector2, mp: Vector2) -> void:
