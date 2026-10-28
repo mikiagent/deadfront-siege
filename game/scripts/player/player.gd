@@ -403,18 +403,17 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	if move_order and not dead:
 		move_order = false
 		clear_nav()
-		var foe := who if (who != null and is_instance_valid(who) and not who.is_pet and not who.health.dead \
+		var foe: Creature = who if (who != null and is_instance_valid(who) and not who.is_pet \
+				and not who.health.dead \
 				and global_position.distance_to(who.global_position) <= PlayerActions.ATTACK_SEEK_RANGE) else null
-		if foe == null and hunt:
-			foe = actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)  # unknown, gone or out of reach
-			if foe:
-				print("[combat] retaliate nearest %s" % foe.def.id)
+		if foe == null:
+			# Unknown, gone, or out of reach: turn on the nearest hostile instead.
+			foe = actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
 		if foe and hunt:
 			hunt.start(foe)
-			if foe == who:
-				print("[combat] retaliate %s" % foe.def.id)
+			print("[combat] retaliate %s" % foe.def.id)
 	# Self-defence: bitten with no live target -> turn on the biter (auto-attack takes it from there).
-	if not dead and hunt and who and not who.is_pet and not who.health.dead:
+	if not dead and hunt and who and not who.is_pet and not who.health.dead and hunt.target != who:
 		var cur := hunt.target
 		if cur == null or not is_instance_valid(cur) or cur.health.dead or global_position.distance_to(cur.global_position) > 6.0:
 			hunt.start(who)
