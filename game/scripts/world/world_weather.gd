@@ -61,6 +61,8 @@ var frost := 0.0
 ## 0..1 shiver burst (getting cold, defrosting, and now and then while cold).
 var shiver := 0.0
 var _chilled := false
+## Shivers so far (getting cold, defrosting, periodic): a count the tests read instead of the eased value.
+var shivers := 0
 var _shiver_cd := 0.0
 var fx: WeatherFx
 ## The latest strike's ground point, and the visuals of strikes still showing (LightningBolt).
@@ -425,6 +427,7 @@ func _tick_temp(p: Player, delta: float) -> void:
 
 func _shiver() -> void:
 	shiver = 1.0
+	shivers += 1
 	_shiver_cd = _range("shiver_gap_s", Vector2(14, 28))
 
 ## How hot and how cold she feels (0..1 each) in `climate` at `phase`.

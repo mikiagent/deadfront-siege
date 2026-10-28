@@ -45,6 +45,7 @@ func _sim(secs: float) -> float:
 	return top
 
 func _run() -> void:
+	seed(20261028)  # strike gaps, distances, shiver gaps and rain rolls repeat run to run
 	_host = Node3D.new()
 	_host.name = "TWeatherHost"
 	root.add_child(_host)
@@ -171,27 +172,22 @@ func _run() -> void:
 	_set_quality(true)
 
 	WW.forced = &"cold"
-	var shivers := 0
-	var was := 0.0
+	var shivers0: int = _w.shivers
 	for i in int(14.0 / DT):
 		_w.tick(_rt, DT)
 		_fx._process(DT)
 		top = maxf(top, _fx.shake.length())
-		if _w.shiver > was + 0.5:
-			shivers += 1
-		was = _w.shiver
+	var shivers: int = _w.shivers - shivers0
 	_expect(_w.cold > 0.99 and _w.frost > 0.9 and _w.heat < 0.01 and float(m.get_shader_parameter("frost")) > 0.9 and not _fx.shimmer.visible, "cold: cold 1, frost %.2f crept in, no shimmer" % _w.frost)
 	_expect(shivers >= 1, "cold: a shiver on getting cold (%d)" % shivers)
 	WW.forced = &"clear"
-	var thaw := 0
 	_w._shiver_cd = 1.0e9  # only the defrost shiver counts here, not a periodic one
+	var thaw0: int = _w.shivers
 	for i in int(10.0 / DT):
 		_w.tick(_rt, DT)
 		_fx._process(DT)
-		if _w.shiver > was + 0.5:
-			thaw += 1
-		was = _w.shiver
-	_expect(thaw == 1 and _w.frost < 0.05, "cold -> clear: one shiver on defrosting, frost gone (%.2f)" % _w.frost)
+	var thaw: int = _w.shivers - thaw0
+	_expect(thaw == 1 and _w.frost < 0.05, "cold -> clear: one shiver on defrosting (%d), frost gone (%.2f)" % [thaw, _w.frost])
 	_expect(top <= max_m + 0.0001, "every state: weather shake <= %.2f m (top %.3f)" % [max_m, top])
 
 	WW.forced = &"storm"
