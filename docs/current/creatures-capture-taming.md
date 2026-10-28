@@ -266,6 +266,16 @@ Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"`
   stamina and exhaustion do not change. Riding burns the mount's hunger. Saddle data lives per species in
   `game/assets/creatures/<species>/mount/mount.json` (9 species have one);
   `game/data/mounts_skip.json` is empty. Riders need no saddle item.
+- Dismounting (`PlayerPets._dismount_spot`, fixed 2026-10-28 after "dismounting some animals (like
+  Trex) causes you to fall through the map"): she lands beside the mount's right flank at mount body
+  radius + 0.75 m, the spot raycast down to the ground and her capsule centre set half her height
+  (+5 cm) above it. If her capsule would overlap anything there (a rock, a tree, the mount itself),
+  the left, behind, front and the four diagonals are tried in turn. Velocity is zeroed and physics
+  interpolation reset. The old code put her capsule centre at the mount's feet + 1.2 m world X. That
+  left her feet 1 m under the one-sided terrain heightmap, so every mount dropped her through the map,
+  and on a slope she fell even further. On the T. rex (capsule radius 1.44 m) the spot was also inside
+  the mount, which launched her. Test: `tests/t_dismount.gd` (every mount × flat, 22° slope, beside a
+  rock wall, plus 20 T. rex mount/dismounts in a row).
 - Pets, their uids, levels and bags save under the save key `pets` (see
   [saves-persistence.md](saves-persistence.md)).
 - Following (owner 2026-10-28: pets follow "within a certain radius of the player, not directly on
