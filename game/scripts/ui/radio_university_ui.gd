@@ -28,7 +28,7 @@ func _build() -> void:
 	for f in CommsUI.load_factions():
 		if str(f["id"]) == "radio_university":
 			row = f
-	_intro = UiWorldSheet.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
+	_intro = SheetChrome.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
 	_intro.name = "Intro"
 	body.add_child(_intro)
 	var iv := VBoxContainer.new()
@@ -36,9 +36,9 @@ func _build() -> void:
 	_intro.add_child(iv)
 	var parch := PanelContainer.new()
 	parch.name = "Parchment"
-	parch.add_theme_stylebox_override("panel", UiWorldSheet.parchment_style())
+	parch.add_theme_stylebox_override("panel", SheetChrome.parchment_style())
 	iv.add_child(parch)
-	_who = UiWorldSheet.label("Dr. Lamar", 30, UiTokens.PARCHMENT_INK, true)
+	_who = SheetChrome.label("Dr. Lamar", 30, UiTokens.PARCHMENT_INK, true)
 	_who.name = "Who"
 	parch.add_child(_who)
 	var pad := MarginContainer.new()
@@ -48,15 +48,15 @@ func _build() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 12)
 	pad.add_child(col)
-	_what = UiWorldSheet.label("", 19, UiTokens.TEXT)
+	_what = SheetChrome.label("", 19, UiTokens.TEXT)
 	_what.name = "What"
 	_what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(_what)
-	_locked = UiWorldSheet.label("", 17, UiTokens.GOLD)
+	_locked = SheetChrome.label("", 17, UiTokens.GOLD)
 	_locked.name = "Locked"
 	_locked.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(_locked)
-	_list_panel = UiWorldSheet.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
+	_list_panel = SheetChrome.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
 	_list_panel.name = "Guides"
 	body.add_child(_list_panel)
 	_scroll = ScrollContainer.new()
@@ -72,7 +72,7 @@ func _build() -> void:
 func _guide_row(id: String) -> Control:
 	var pad := PanelContainer.new()
 	pad.name = "Guide_%s" % id
-	var sb := UiWorldSheet._box(Color(0, 0, 0, 0), Color(1, 1, 1, 0.08), 0)
+	var sb := SheetChrome.box(Color(0, 0, 0, 0), Color(1, 1, 1, 0.08), 0)
 	sb.border_width_bottom = 1
 	sb.content_margin_left = 20
 	sb.content_margin_right = 20
@@ -80,17 +80,17 @@ func _guide_row(id: String) -> Control:
 	var r := HBoxContainer.new()
 	r.add_theme_constant_override("separation", 12)
 	pad.add_child(r)
-	var name_l := UiWorldSheet.label(CommsUI.pretty(id), 22, UiTokens.TEXT)
+	var name_l := SheetChrome.label(CommsUI.pretty(id), 22, UiTokens.TEXT)
 	name_l.name = "Name"
 	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_l.clip_text = true
 	r.add_child(name_l)
-	var state := UiWorldSheet.label("Not started", 16, UiTokens.MUTED)
+	var state := SheetChrome.label("Not started", 16, UiTokens.MUTED)
 	state.name = "State"
 	state.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	r.add_child(state)
-	var sp := UiWorldSheet.label("+%d SP" % int(row.get("sp_per_guide", 0)), 18, UiTokens.GOLD)
+	var sp := SheetChrome.label("+%d SP" % int(row.get("sp_per_guide", 0)), 18, UiTokens.GOLD)
 	sp.name = "SP"
 	sp.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	sp.custom_minimum_size.x = 70

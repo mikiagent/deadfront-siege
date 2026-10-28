@@ -46,7 +46,7 @@ var _query: String = ""
 var _phone_detail := false  ## portrait phone: the detail pane is up instead of the list
 var _refresh_left: float = 0.0
 
-var _header: _Header
+var _header: SheetChrome
 var _title: Label
 var _subtitle: Label
 var _hint: Label
@@ -73,28 +73,17 @@ func _ready() -> void:
 	var th := Theme.new()
 	th.default_font = UiTokens.ui_face()
 	theme = th
-	var bg := ColorRect.new()
-	bg.name = "Backdrop"
-	# Opaque: the HUD vitals must not show through. SCREEN_DIM over the world, made solid (no blur pass).
-	bg.color = Color(0.043, 0.098, 0.141, 1.0)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(bg)
-	_header = _Header.new()
+	add_child(SheetChrome.backdrop())
+	_header = SheetChrome.new("Craft / Build")
 	_header.name = "CraftHeader"
+	_header.mouse_filter = Control.MOUSE_FILTER_STOP
+	_header.back_pressed.connect(_on_back)
+	_header.close_pressed.connect(hide_ui)
 	add_child(_header)
-	_back_btn = _icon_btn("", _on_back)
+	_back_btn = _header.back
 	_back_btn.name = "CraftBack"
-	_back_btn.icon = UiIcons.icon(&"back")  # the white back symbol (ui_icons.json), not a typographic chevron
-	_back_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_back_btn.expand_icon = true
-	_back_btn.add_theme_constant_override("icon_max_width", 30)
-	_header.add_child(_back_btn)
-	_title = Label.new()
+	_title = _header.title
 	_title.name = "CraftTitle"
-	_title.text = "Craft / Build"
-	_title.add_theme_color_override("font_color", UiTokens.TEXT)
-	_header.add_child(_title)
 	_subtitle = Label.new()
 	_subtitle.name = "CraftSubtitle"
 	_subtitle.add_theme_color_override("font_color", UiTokens.MUTED)
@@ -112,10 +101,10 @@ func _ready() -> void:
 	_build_btn.icon = HexButton.symbol(["hammer", "workbench_kit"])
 	_build_btn.expand_icon = true
 	_build_btn.add_theme_constant_override("icon_max_width", 26)
-	_header.add_child(_build_btn)
-	_close_btn = _icon_btn("✕", hide_ui)
+	_build_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_header.right.add_child(_build_btn)
+	_close_btn = _header.close
 	_close_btn.name = "CraftClose"
-	_header.add_child(_close_btn)
 	_body = HBoxContainer.new()
 	_body.name = "CraftBody"
 	add_child(_body)
@@ -279,9 +268,8 @@ func _on_back() -> void:
 		_back_to_list()
 	else:
 		hide_ui()
-		var hud := get_tree().get_first_node_in_group("hud") if is_inside_tree() else null
-		if hud and hud.has_method("_toggle_sheet"):
-			hud.call("_toggle_sheet", &"menu")
+		if is_inside_tree():
+			SheetChrome.back_to_menu(get_tree())
 
 func _process(delta: float) -> void:
 	if not visible:
@@ -550,7 +538,7 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	meta.name = "RecipeMeta"
 	text.add_child(meta)
 	if chosen:
-		row.add_child(_Brackets.new())
+		row.add_child(SheetChrome.Brackets.new())
 	return row
 
 func _output_name(rec: Dictionary) -> String:
@@ -831,34 +819,21 @@ func _layout_safe() -> void:
 	var compact := _compact()
 	var hh := 64.0 if compact else UiTokens.HEADER_H
 	var margin := 10.0 if compact else 32.0
-	_header.position = Vector2.ZERO
-	_header.size = Vector2(view.x, hh + safe.z)
-	_header.torn = 6.0 if compact else UiTokens.TORN_MAX
 	var top := safe.z
-	var x := safe.w + (2.0 if compact else 18.0)
-	_back_btn.position = Vector2(x, top + (hh - TAP) * 0.5)
-	_back_btn.size = Vector2(TAP, TAP)
-	_close_btn.position = Vector2(view.x - safe.x - TAP - (2.0 if compact else 24.0), top + (hh - TAP) * 0.5)
-	_close_btn.size = Vector2(TAP, TAP)
-	_title.add_theme_font_size_override("font_size", UiTokens.heading(view) + (4 if compact else 14))
-	_title.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
 	_title.text = "Craft" if _place.visible else "Craft / Build"
-	_title.position = Vector2(_back_btn.position.x + TAP - 4.0, top)
-	_title.size = Vector2(_title.get_combined_minimum_size().x, hh)
-	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_build_btn.visible = not _place.visible
+	_build_btn.add_theme_font_size_override("font_size", UiTokens.body(view) + (0 if compact else 4))
+	_build_btn.custom_minimum_size = Vector2(104 if compact else 132, TAP)
+	_header.layout(view, safe)
 	_subtitle.visible = _place.visible
 	_subtitle.text = _place.subtitle() if _place.visible else ""
 	_subtitle.add_theme_font_size_override("font_size", UiTokens.body(view) + (0 if compact else 6))
 	_subtitle.position = Vector2(_title.position.x + _title.size.x + 14.0, top + 2.0)
 	_subtitle.size = Vector2(_subtitle.get_combined_minimum_size().x, hh)
 	_subtitle.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_build_btn.visible = not _place.visible
-	_build_btn.add_theme_font_size_override("font_size", UiTokens.body(view) + (0 if compact else 4))
-	_build_btn.size = Vector2(104 if compact else 132, TAP)
-	_build_btn.position = Vector2(_close_btn.position.x - _build_btn.size.x - (6.0 if compact else 16.0), top + (hh - TAP) * 0.5)
 	# The hint takes the room between the title and Build; hidden when it would not fit (phones).
 	var hint_l := _title.position.x + _title.size.x + 24.0
-	var hint_w := _build_btn.position.x - 16.0 - hint_l
+	var hint_w := view.x + _header.right.offset_left - 16.0 - hint_l
 	_hint.add_theme_font_size_override("font_size", UiTokens.meta(view) + 2)
 	_hint.position = Vector2(hint_l, top)
 	_hint.size = Vector2(maxf(0.0, hint_w), hh)
@@ -879,11 +854,6 @@ func _layout_safe() -> void:
 
 # ---------------------------------------------------------------- widgets
 
-func _icon_btn(glyph: String, cb: Callable) -> Button:
-	var b := mk_btn(glyph, cb, Vector2(TAP, TAP), "icon")
-	b.add_theme_font_size_override("font_size", 40)
-	return b
-
 ## A Button in one of the sheet's looks: "cell" (dark panel), "cta" (GOLD with CTA_INK), "ghost"
 ## (dark with a light rim), "bar" (the dark section bar) or "icon" (bare glyph in the header).
 static func mk_btn(text: String, cb: Callable, minsz: Vector2, kind: String = "ghost") -> Button:
@@ -897,8 +867,7 @@ static func mk_btn(text: String, cb: Callable, minsz: Vector2, kind: String = "g
 		b.pressed.connect(cb)
 	match kind:
 		"cta":
-			_btn_styles(b, UiTokens.GOLD, Color(0, 0, 0, 0), 0, UiTokens.CTA_INK)
-			b.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
+			SheetChrome.style_action(b, &"cta")
 			b.add_theme_font_size_override("font_size", 28)
 		"bar":
 			_btn_styles(b, Color(0.03, 0.07, 0.10, 0.92), Color(0, 0, 0, 0), 0, UiTokens.TEXT)
@@ -906,7 +875,7 @@ static func mk_btn(text: String, cb: Callable, minsz: Vector2, kind: String = "g
 		"icon":
 			_btn_styles(b, Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, UiTokens.TEXT)
 		_:
-			_btn_styles(b, Color(0.02, 0.03, 0.04, 0.95), Color(1, 1, 1, 0.75), 1, UiTokens.TEXT)
+			SheetChrome.style_action(b, &"ghost")
 			b.add_theme_font_size_override("font_size", 24)
 	return b
 
@@ -934,7 +903,7 @@ static func _btn_styles(b: Button, bg: Color, border: Color, bw: int, fg: Color)
 	b.add_theme_color_override("font_disabled_color", Color(fg, 0.45))
 	b.add_theme_color_override("icon_normal_color", fg)
 
-## A grid cell's look: PANEL, a GOLD_DIM wash when chosen (its brackets are a child _Brackets).
+## A grid cell's look: PANEL, a GOLD_DIM wash when chosen (its brackets are a child SheetChrome.Brackets).
 static func style_cell(b: Button, chosen: bool) -> void:
 	_btn_styles(b, Color(0.055, 0.118, 0.173, 1.0), Color(1, 1, 1, 0.07), 1, UiTokens.TEXT)
 	if chosen:
@@ -959,13 +928,10 @@ static func pad(bg: Color, l: int, r: int, t: int, b: int) -> StyleBoxFlat:
 	sb.content_margin_bottom = b
 	return sb
 
-static func parchment() -> StyleBoxFlat:
-	var sb := pad(UiTokens.PARCHMENT_TOP, 18, 18, 0, 0)
-	sb.border_color = UiTokens.PARCHMENT_BOTTOM
-	sb.border_width_bottom = 4
-	return sb
+static func parchment() -> StyleBox:
+	return SheetChrome.parchment_style(18, 0)
 
-func _parchment() -> StyleBoxFlat:
+func _parchment() -> StyleBox:
 	return parchment()
 
 func _rule() -> Control:
@@ -1039,29 +1005,6 @@ static func _bag_preview_text(prev: Dictionary) -> String:
 	return "\n".join(lines)
 
 # ---------------------------------------------------------------- drawn pieces
-
-## The §8 header bar: HEADER fill with the torn edge under it. Children are placed by CraftUI.
-class _Header extends Control:
-	var torn: float = UiTokens.TORN_MAX
-
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_STOP
-
-	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), UiTokens.HEADER)
-		UiTokens.draw_torn_edge(self, Rect2(Vector2(0, size.y), Vector2(size.x, torn)), UiTokens.HEADER, torn)
-
-## Gold corner brackets over the parent's whole rect (the selection marker, §8).
-class _Brackets extends Control:
-	func _init() -> void:
-		name = "Brackets"
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-
-	func _draw() -> void:
-		var inset := 6.0
-		var arm := clampf(minf(size.x, size.y) * 0.22, 10.0, UiTokens.BRACKET_ARM + 6.0)
-		UiTokens.draw_brackets(self, Rect2(Vector2(inset, inset), size - Vector2(inset, inset) * 2.0), UiTokens.GOLD, arm, UiTokens.BRACKET_W)
 
 ## One category tile: a faint symbol behind the name, gold brackets and gold text when chosen.
 ## The name is drawn here (`title`), so Button.text stays empty and the theme draws nothing twice.

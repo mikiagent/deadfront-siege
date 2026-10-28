@@ -86,15 +86,18 @@ static func roster_full(player: Player) -> String:
 		return ""
 	return "Bonded roster full (%d / %d)" % [player.bonded.size(), Data.bonded_cap()]
 
-static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
-	## Returns {kind, text, food_id, progress} for the creature plate.
+## Returns {kind, text, food_id, progress, needed, odds} for the creature plate. `player` is the
+## survivor the plate belongs to (the local one when null): it supplies the taming odds.
+static func plate_hint(creature: Creature, inv: Inventory, player = null) -> Dictionary:
 	if not can_attempt(creature):
 		return {}
+	if player == null:
+		player = PlayerRegistry.local()
 	var need := preferred_need(creature)
 	# The plate is the local survivor's view; at the cap a green "Tame" led to a silent refusal.
 	var locked := lock_reason(creature)
 	if locked == "":
-		locked = roster_full(PlayerRegistry.local())
+		locked = roster_full(player)
 	if locked != "":
 		return {
 			"kind": &"need",
@@ -120,13 +123,24 @@ static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
 			"progress": creature.tame_feeds,
 			"needed": creature.feeds_needed(),
 		}
+	# The odds the plate shows are the odds the net rolls (CaptureSystem.chance_for -> TamingOdds).
+	var odds := TamingOdds.odds_for(creature, player, _net_tier(inv))
 	return {
 		"kind": &"tame",
-		"text": "Tame",
+		"text": TamingOdds.caption(odds),
 		"food_id": have if have != &"" else need,
 		"progress": creature.tame_feeds,
 		"needed": creature.feeds_needed(),
+		"odds": odds,
 	}
+
+## The net tier in the bag, 1 when there is none: the plate reads the odds with the net the survivor
+## would actually throw.
+static func _net_tier(inv: Inventory) -> int:
+	if inv == null:
+		return 1
+	var net := inv.best_capture_net()
+	return net.def().capture_tier if net != null else 1
 
 static func refuse_message(creature: Creature) -> String:
 	var locked := lock_reason(creature)
@@ -209,6 +223,15 @@ static func _complete(player: Player, creature: Creature) -> void:
 	var feeds_shown := int(ceili(creature.feeds_needed() - 0.001))
 	if feeds_shown < 1:
 		feeds_shown = int(round(creature.tame_feeds))
+	# Preparation pays: a bait item in the bag is spent on the completed tame and raises the animal's
+	# IVs, which is its grade (PetRecord.grade = genetics.overall_tier(), never stamped). ASSUMPTION:
+	# the design doc says the grade improves with preparation but not by how much; bait yes / no only.
+	var baited := player.inventory.consume_by_category(&"bait", 1)
+	if baited and creature.genetics != null:
+		var bonus := TamingOdds.prep_iv_bonus()
+		for stat in CreatureGenetics.STATS:
+			creature.genetics.ivs[stat] = clampi(
+				int(creature.genetics.ivs.get(stat, 16)) + bonus, 0, CreatureGenetics.IV_MAX)
 	# The wild level carries over (capped at PetStats.MAX_LEVEL inside from_def).
 	var rec := PetRecord.from_def(creature.def, &"", creature.variant, creature.genetics, creature.level)
 	rec.origin = &"tame"
@@ -224,7 +247,7 @@ static func _complete(player: Player, creature: Creature) -> void:
 	creature.is_capturable = false
 	if creature.anim:
 		creature.anim.play_clip(&"alert")
-	print("[tame] %s tamed grade=%s lv=%d uid=%s feeds=%d" % [creature.def.id, rec.grade, rec.level, rec.uid, feeds_shown])
+	print("[tame] %s tamed grade=%s lv=%d uid=%s feeds=%d bait=%s" % [creature.def.id, rec.grade, rec.level, rec.uid, feeds_shown, baited])
 	# End the hunt before converting the target. Otherwise auto-combat keeps the new pet
 	# selected and the combat plate remains forced on screen after the tame reveal.
 	if player.hunt and player.hunt.target == creature:
