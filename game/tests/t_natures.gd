@@ -214,6 +214,11 @@ func _test_wild_timid_flees_sooner() -> void:
 		c.brain.note_damage(blow)
 		var fled: bool = c.brain.state == &"flee"
 		fits.append([c, target, fled, c.nature_knob("retreat_threshold_mult")])
+	# The raptor pack brain's own retreat line is a nature decision too: an apex_raptor (exempt
+	# there) shifts, a plain raptor retreats at 0.30 of its HP by default.
+	var apex: Node = _creature(&"velociraptor", Vector3(0, 1, 34), &"timid")
+	_expect(is_equal_approx(apex.brain.retreat_fraction(), 0.30 * 1.8), "a Timid raptor's retreat fraction is %.2f, want 0.54" % apex.brain.retreat_fraction())
+	apex.free()
 	print("[t_natures] timid: default flees=%s timid flees=%s" % [fits[0][2], fits[1][2]])
 	_expect(not fits[0][2], "a default raptor fled from a 60 %% hit (it retreats, it does not flee)")
 	_expect(fits[1][2], "a Timid raptor did not flee from the hit a default raptor fights through")
