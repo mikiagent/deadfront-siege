@@ -93,29 +93,29 @@ func _build() -> void:
 		b.name = "Tab_%s" % id
 		b.toggle_mode = true
 		b.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		b.add_theme_stylebox_override("focus", UiWorldSheet._box(Color(0, 0, 0, 0), UiTokens.GOLD, 1))
+		b.add_theme_stylebox_override("focus", SheetChrome.box(Color(0, 0, 0, 0), UiTokens.GOLD, 1))
 		b.pressed.connect(func () -> void: select_tab(id))
 		var col := VBoxContainer.new()
 		col.name = "Col"
 		col.alignment = BoxContainer.ALIGNMENT_CENTER
 		col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var ic := UiWorldSheet.icon_rect(row[3], 48.0)
+		var ic := SheetChrome.icon_rect(row[3], 48.0)
 		ic.name = "Icon"
 		col.add_child(ic)
-		var l := UiWorldSheet.label(str(row[1]), 22, UiTokens.TEXT)
+		var l := SheetChrome.label(str(row[1]), 22, UiTokens.TEXT)
 		l.name = "Label"
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(l)
 		b.add_child(col)
-		var mark := UiWorldSheet.Brackets.new()
+		var mark := SheetChrome.Brackets.new()
 		mark.name = "Brackets"
 		b.add_child(mark)
 		_tab_marks[id] = mark
 		_tab_buttons[id] = b
 		_tabs_box.add_child(b)
 
-	_card = UiWorldSheet.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
+	_card = SheetChrome.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
 	_card.name = "Card"
 	body.add_child(_card)
 	var card_v := VBoxContainer.new()
@@ -139,20 +139,20 @@ func _build() -> void:
 	_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_main.add_child(_right)
 
-	_headline = UiWorldSheet.label("", 40, UiTokens.GOLD)
+	_headline = SheetChrome.label("", 40, UiTokens.GOLD)
 	_headline.name = "Headline"
 	_headline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_left.add_child(_headline)
-	_body = UiWorldSheet.label("", 20, UiTokens.TEXT)
+	_body = SheetChrome.label("", 20, UiTokens.TEXT)
 	_body.name = "Body"
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_left.add_child(_body)
 	# ASSUMPTION: the flavour line is the canvas's; no lore source names one.
-	_quote = UiWorldSheet.label("\"Mark the ground you mean to keep.\"", 18, UiTokens.MUTED, false, true)
+	_quote = SheetChrome.label("\"Mark the ground you mean to keep.\"", 18, UiTokens.MUTED, false, true)
 	_quote.name = "Quote"
 	_quote.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_left.add_child(_quote)
-	_grid_title = UiWorldSheet.label("", 28, UiTokens.GOLD)
+	_grid_title = SheetChrome.label("", 28, UiTokens.GOLD)
 	_grid_title.name = "GridTitle"
 	_grid_title.clip_text = true
 	_left.add_child(_grid_title)
@@ -168,13 +168,13 @@ func _build() -> void:
 		var sw := _Swatch.new()
 		sw.kind = int(pair[1])
 		_legend.add_child(sw)
-		_legend.add_child(UiWorldSheet.label(str(pair[0]), 16, UiTokens.TEXT))
-	_declare = UiWorldSheet.gold_button("Declare Domain")
+		_legend.add_child(SheetChrome.label(str(pair[0]), 16, UiTokens.TEXT))
+	_declare = SheetChrome.gold_button("Declare Domain")
 	_declare.name = "Declare"
 	_declare.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_declare.pressed.connect(_on_declare)
 	_left.add_child(_declare)
-	_msg = UiWorldSheet.label("", 16, UiTokens.GOLD)
+	_msg = SheetChrome.label("", 16, UiTokens.GOLD)
 	_msg.name = "Message"
 	_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_left.add_child(_msg)
@@ -199,18 +199,18 @@ func _build() -> void:
 	for key in ["Upkeep", "Grid", "Next rank", "Rank up via"]:
 		var r := HBoxContainer.new()
 		r.name = "Row_%s" % key.replace(" ", "")
-		var k := UiWorldSheet.label(key, 20, UiTokens.MUTED.lightened(0.15))
+		var k := SheetChrome.label(key, 20, UiTokens.MUTED.lightened(0.15))
 		k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		k.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		r.add_child(k)
 		if key == "Rank up via":
-			_center = UiWorldSheet.flat_button("Communications Center →")
+			_center = SheetChrome.flat_button("Communications Center →")
 			_center.name = "Center"
 			_center.add_theme_color_override("font_color", UiTokens.GOLD)
 			_center.pressed.connect(_on_center)
 			r.add_child(_center)
 		else:
-			var v := UiWorldSheet.label("", 20, UiTokens.TEXT)
+			var v := SheetChrome.label("", 20, UiTokens.TEXT)
 			v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			r.add_child(v)
@@ -225,13 +225,13 @@ func _build() -> void:
 	_actions.name = "Actions"
 	_actions.add_theme_constant_override("separation", 12)
 	_right.add_child(_actions)
-	_expand = UiWorldSheet.gold_button("Expand")
+	_expand = SheetChrome.gold_button("Expand")
 	_expand.name = "Expand"
 	_expand.pressed.connect(_on_expand)
-	_build_here = UiWorldSheet.ghost_button("Build here")
+	_build_here = SheetChrome.ghost_button("Build here")
 	_build_here.name = "BuildHere"
 	_build_here.pressed.connect(_on_build_here)
-	_release = UiWorldSheet.ghost_button("Release", true)
+	_release = SheetChrome.ghost_button("Release", true)
 	_release.name = "Release"
 	_release.pressed.connect(_on_release)
 	for b in [_expand, _build_here, _release]:
@@ -240,23 +240,23 @@ func _build() -> void:
 
 	_foot_band = PanelContainer.new()
 	_foot_band.name = "FooterBand"
-	_foot_band.add_theme_stylebox_override("panel", UiWorldSheet._box(Color(0, 0, 0, 0.35), Color(1, 1, 1, 0.06), 0))
+	_foot_band.add_theme_stylebox_override("panel", SheetChrome.box(Color(0, 0, 0, 0.35), Color(1, 1, 1, 0.06), 0))
 	card_v.add_child(_foot_band)
 	var foot_row := HBoxContainer.new()
 	foot_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	foot_row.add_theme_constant_override("separation", 10)
 	_foot_band.add_child(foot_row)
-	var warn := UiWorldSheet.icon_rect(&"notice", 22.0, UiTokens.GOLD)
+	var warn := SheetChrome.icon_rect(&"notice", 22.0, UiTokens.GOLD)
 	warn.name = "WarnIcon"
 	warn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	foot_row.add_child(warn)
-	_footer = UiWorldSheet.label("", 18, UiTokens.TEXT)
+	_footer = SheetChrome.label("", 18, UiTokens.TEXT)
 	_footer.name = "Footer"
 	_footer.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	foot_row.add_child(_footer)
 
 	# The preview card: the sheet steps aside so the ground grid stays readable.
-	_pv_card = UiWorldSheet.panel(Color(UiTokens.HEADER, 0.94))
+	_pv_card = SheetChrome.panel(Color(UiTokens.HEADER, 0.94))
 	_pv_card.name = "PreviewCard"
 	_pv_card.visible = false
 	add_child(_pv_card)
@@ -267,9 +267,9 @@ func _build() -> void:
 	var pv := VBoxContainer.new()
 	pv.add_theme_constant_override("separation", 10)
 	pv_pad.add_child(pv)
-	_pv_title = UiWorldSheet.label("Pick plots", 26, UiTokens.GOLD)
+	_pv_title = SheetChrome.label("Pick plots", 26, UiTokens.GOLD)
 	pv.add_child(_pv_title)
-	_note = UiWorldSheet.label("", 18, UiTokens.TEXT)
+	_note = SheetChrome.label("", 18, UiTokens.TEXT)
 	_note.name = "Note"
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_note.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -277,10 +277,10 @@ func _build() -> void:
 	var pv_row := HBoxContainer.new()
 	pv_row.add_theme_constant_override("separation", 12)
 	pv.add_child(pv_row)
-	_confirm = UiWorldSheet.gold_button("Confirm")
+	_confirm = SheetChrome.gold_button("Confirm")
 	_confirm.name = "Confirm"
 	_confirm.pressed.connect(_on_confirm)
-	_cancel = UiWorldSheet.ghost_button("Cancel")
+	_cancel = SheetChrome.ghost_button("Cancel")
 	_cancel.name = "Cancel"
 	_cancel.pressed.connect(_on_cancel)
 	for b in [_confirm, _cancel]:
@@ -354,7 +354,7 @@ func _refresh() -> void:
 		var on: bool = str(id) == tab
 		b.set_pressed_no_signal(on)
 		var locked: bool = LOCKED_TABS.has(str(id))
-		var sb := UiWorldSheet._box(UiTokens.GOLD_DIM if on else Color(0.05, 0.055, 0.06, 0.85), Color(1, 1, 1, 0.06), 1)
+		var sb := SheetChrome.box(UiTokens.GOLD_DIM if on else Color(0.05, 0.055, 0.06, 0.85), Color(1, 1, 1, 0.06), 1)
 		for s in ["normal", "hover", "pressed", "disabled"]:
 			b.add_theme_stylebox_override(s, sb)
 		var ink := UiTokens.GOLD if on else (UiTokens.MUTED if locked else UiTokens.TEXT)

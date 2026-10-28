@@ -170,7 +170,7 @@ func _test_skills(view: Vector2i) -> void:
 	_expect(grid != null and grid.columns == 4 and grid.get_child_count() == 12, "%s: a 4-column grid of 12 skills" % view)
 	_expect(sheet._title.text == "Melee" and sheet.find_child("SkillXp", true, false) != null, "%s: the detail shows Melee with its Skill XP" % view)
 	var cell := sheet.find_child("Skill_melee", true, false) as Control
-	var BR = load("res://scripts/ui/uichar_chrome.gd").Brackets
+	var BR = SheetChrome.Brackets
 	_expect(cell != null and cell.get_children().any(func (c: Node) -> bool: return is_instance_of(c, BR)), "%s: the selected cell carries gold brackets" % view)
 	await _layout(sheet, view, "skills", ["SkillsGridPanel", "SkillsDetail"])
 	var spend := sheet.find_child("SkillsSpend", true, false) as Button

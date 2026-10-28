@@ -196,7 +196,7 @@ func _build() -> void:
 	_warning.add_theme_font_size_override("font_size", _px(14 if short else 20))
 	_warning.add_theme_color_override("font_color", WARN)
 	footer.add_child(_warning)
-	_start = UiWorldSheet.gold_button("Select and move")
+	_start = SheetChrome.gold_button("Select and move")
 	_start.name = "SelectAndMove"
 	_start.disabled = true
 	_start.custom_minimum_size = Vector2(_px(240 if phone else 320), _px(64 if short else 76))
@@ -296,7 +296,7 @@ func _card(shape: Dictionary, short: bool) -> Button:
 	kinds.add_theme_color_override("font_color", UiTokens.MUTED)
 	kinds.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text_block.add_child(kinds)
-	var mark := UiWorldSheet.Brackets.new()
+	var mark := SheetChrome.Brackets.new()
 	mark.name = "Brackets"
 	mark.arm = float(_px(24))
 	card.add_child(mark)
