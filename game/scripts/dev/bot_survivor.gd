@@ -575,7 +575,7 @@ func _travel() -> String:
 	var locked := ""
 	for button in ui.find_children("*", "Button", true, false):
 		var candidate := button as Button
-		if not candidate.text.begins_with("SAIL "): continue
+		if str(candidate.get_meta("route_id", "")) in ["", "home", "camp"]: continue
 		if candidate.disabled:
 			if locked == "": locked = candidate.text
 			continue
@@ -624,7 +624,7 @@ func _return_home() -> String:
 	ui.call("show_harbour")
 	var route: Button = null
 	for button in ui.find_children("*", "Button", true, false):
-		if (button as Button).text.contains("FREE RETURN HOME"):
+		if str(button.get_meta("route_id", "")) == "home":
 			route = button as Button
 			break
 	if route == null:

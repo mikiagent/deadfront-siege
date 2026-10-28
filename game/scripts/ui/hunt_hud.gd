@@ -1138,6 +1138,11 @@ func _open_map() -> void:
 func open_map() -> void:
 	_open_map()
 
+## F2 World Atlas for the nav menu: opens it (open_map toggles).
+func open_atlas() -> void:
+	if _map_screen == null or not _map_screen.is_open():
+		_open_map()
+
 var _domain_screen: DomainScreen
 
 ## spec 29: the Domain screen (four territory tabs, Declare/Expand with the ground preview).
