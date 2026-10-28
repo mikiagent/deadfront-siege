@@ -75,6 +75,7 @@ grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in
 | `chest` building | 100 (`storage_slots`) | `game/data/structures.json` |
 | `large_box` building | 160 (`storage_slots`) | `game/data/structures.json` |
 | pet bag | species `bag_slots`, else 10 | `game/scripts/pets/pet_record.gd` |
+| tame gear (`PetRecord.gear`) | one `saddle` slot | `game/scripts/items/entity_equipment.gd` |
 | corpse loot | 12 | `game/scripts/creatures/corpse.gd` |
 | ground loot bag | sized to its stacks | `game/scripts/world/loot_bag.gd` |
 
@@ -84,6 +85,22 @@ grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in
   bag on the spot (`spill_storage`).
 - Cargo warp (the camp chest, `game/scripts/world/cargo_warp.gd`) ships unstable goods to home
   cargo for a T-stone fee — see [economy-trading.md](economy-trading.md).
+
+## Entity equipment (SADDLES, `entity_equipment.gd`)
+- `EntityEquipment` is the gear of anything that is not the survivor: `{slot: ItemStack}` with an
+  allowed slot list. Tames get `TAME_SLOTS` = `saddle` (armour and bags would be new slots + a
+  category in `slot_of`). `HUMAN_SLOTS` are the survivor's seven slots for a tribe member; no
+  tribe-member entity exists in code yet, so nothing uses them.
+- `equip_from(inv, index, fits)` moves the exact instance out of the bag; what was worn goes into
+  that same cell, so it never needs a free slot. Locked items, stacks and non-gear are refused, and
+  `fits` is the owner's rule (`PetRecord.saddle_fit`: size class). `unequip_to(inv, slot)` refuses
+  when the bag has no room; gear is never dropped. Player-side wrapper: `PetGear` (dismounts first).
+- Saddles: `saddle_small` / `saddle_medium` / `saddle_large` (categories `saddle` + `saddle_<size>`,
+  one instance per slot, tailoring). Recipes (ASSUMPTION costs): small by hand, 3 dried hide + 3 fibre
+  + 2 lashing, min level 1; medium at a workbench, 5 cured hide + 3 lashing + 2 wood, min level 12,
+  ability 55; large at a workbench, 8 cured hide + 4 lashing + 3 wood + 2 bone, min level 25, ability 65.
+  The hide is the primary, so the saddle inherits its `tint` (spec 35). Icons: renders of the
+  zebraceratops and velociraptor saddle GLBs (`assets/icons/saddle_*.png`; large borrows medium).
 
 ## Bag screens (spec 13, `inventory_ui.gd`, INVSCREENS)
 - One sheet docked on the right (68 % of the view, 520-1120 px). Header: Bag tab, `used / capacity`
@@ -137,7 +154,7 @@ grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in
   (`{active, sets: [{slot: uid}]}`, `GearPresets`) only once a preset was used; `GearPresets.sanitize`
   cleans it on load (known slots, `^[il][0-9a-f]+$` uids, at most 4 sets) and an old save loads with {}.
 - `home.cargo` = the home cargo rows; building storage saves as each building row's `contents`;
-  pet bags save inside each pet row. See [saves-persistence.md](saves-persistence.md).
+  pet bags and tame gear (`gear`) save inside each pet row. See [saves-persistence.md](saves-persistence.md).
 - Loading (`game/scripts/items/inventory_migration.gd`, `load_into`): keeps slot positions, grows
   to the last row, splits a stacked row of a now-non-stacking def into one instance per unit,
   overflows to home cargo, deletes nothing, caps at `MAX_LOAD_UNITS` = 100000. `unique_uids`
