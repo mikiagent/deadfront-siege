@@ -343,7 +343,9 @@ func _test_ambush() -> void:
 		if first[0] != &"":
 			break
 	if first[0] == &"":
-		print("[t_tactical] ambush debug state=%s open=%.2f e=%.0f busy=%s cd=%s pack=%s d=%.2f" % [b.state, b._open_left, lurker.energy, lurker.anim._busy, b._cd, b._pack_ready(), Vector2(lurker.global_position.x, lurker.global_position.z).length()])
+		var dd: float = b._flat_dist(player)
+		print("[t_tactical] ambush why: swing=%s wide=%.1f sprint=%s pounce=%s combo=%s bite=%s stagger=%.2f reach=%.2f ring=%.2f dflat=%.2f" % [b._can_swing(), b._wide_left, lurker.can_sprint(), b.attack_available(&"pounce", dd), b.attack_available(&"combo", dd), b.attack_available(&"bite", dd), lurker.stagger_left, b.reach_to(player), b.ring_m(), dd])
+		print("[t_tactical] ambush debug tgt=%s valid=%s amb=%s state=%s open=%.2f e=%.0f busy=%s cd=%s pack=%s d=%.2f" % [b.attack_target, b._valid_target(), ambushed[0], b.state, b._open_left, lurker.energy, lurker.anim._busy, b._cd, b._pack_ready(), Vector2(lurker.global_position.x, lurker.global_position.z).length()])
 	_expect(ambushed[0], "ambushes inside the %.1fm radius" % radius)
 	_expect(first[0] == &"pounce", "first attack after the ambush is the leap from cover (got %s)" % first[0])
 	lurker.queue_free()
