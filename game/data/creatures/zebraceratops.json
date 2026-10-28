@@ -16,7 +16,7 @@
     "hp": 720,
     "attack": 36,
     "defense": 80,
-    "speed": 400,
+    "speed": 300,
     "bag_slots": 50
   },
   "turn_rate": 4.0,
