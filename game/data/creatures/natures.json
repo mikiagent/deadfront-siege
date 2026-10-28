@@ -108,7 +108,7 @@
       "enrage_mult": 1.5
     },
     "loyal": {
-      "label": "Loyal",
+      "label": "Territorial",
       "follow_dist_mult": 0.7,
       "guard_radius_mult": 1.4,
       "protect_owner": true,
