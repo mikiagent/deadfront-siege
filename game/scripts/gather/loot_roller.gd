@@ -90,6 +90,9 @@ static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_t
 			n = int(floor(scaled))
 			if rng.randf() < scaled - floor(scaled):
 				n += 1
+			# ASSUMPTION: a base part still falls on every kill (canon's guarantee, e.g. the poisoned raptor's
+			# bone and tendon); the no-knife cut can shrink a count but never to nothing.
+			n = maxi(1, n)
 		if n <= 0:
 			continue
 		var attrs: Dictionary = {}

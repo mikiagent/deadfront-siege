@@ -113,7 +113,7 @@ A climate's `materials` list is what its island generator may place; gather yiel
 
 ## Butchering drops per species
 
-`base` drops fall on every kill; `rare` drops need butcher skill at least the listed level.
+`base` drops fall on every kill, counts scaled by the local survivor's best knife tier (+15% per tier above stone, 0.75x with no knife, never below 1) and Butchering level (+1% per level); `rare` drops need butcher skill at least the listed level and then roll a chance (default 0.12, +15% per knife tier, cap 0.6). Any part a Butchering skill node gates waits until that node is learned. Numbers: `game/data/loot_tables.json` `butcher`; code: `game/scripts/gather/loot_roller.gd` `roll_carcass`.
 
 - **Zebraceratops** — base: `raptor_meat` 2–3; `raptor_bone` 2–3; `raw_hide` 1–2; `dense_bone` 1–2; `armor_scute` 1–1; rare: `raptor_bone` 1–1 (skill 1)
 - **Compsognathus** — base: `raw_meat` 2–4; `bone` 1–2; `raw_hide` 1–1; `predator_tendon` 1–2; rare: 
