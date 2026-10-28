@@ -45,7 +45,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   hex's top-right, GOLD with ink text, LIFE red while any notice is urgent (ASSUMPTION, owner
   undecided), "9+" past nine. Skills notices: each skill level-up (`skill_leveled`) and each time SP
   starts to afford a node (`SkillRules.affordable_now`, rechecked every 0.25 s); cleared when Skills
-  opens; the MENU sheet's entry reads "Skills (n)". Market (buy/sell) notices: hook only,
+  opens; the nav menu's Skills entry carries the same count as its own badge. Market (buy/sell) notices: hook only,
   `notify_menu(&"market")` — no client-side market event exists yet. Nothing is urgent today.
 - Quick slots above the rail: two quick-food hexes (×count, unchanged), CHASE in the third slot in a
   fight, HANDS (held tool; tap gathers nearest, long-press unequips) in the fourth (`hands_spot`).
@@ -127,7 +127,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 ## Notices, toasts, hits, level-up
 - Pickup toasts ("+n Item"), skill XP lines (16 px) and tree level-ups (22 px, gold, ▲) rise near
   the top-centre (phones: under the vitals), each taking a free spot off `taken_rects`; notices
-  (refusals) render under them on dark red. Nothing covers the fixed blocks.
+  (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
+  confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders
+  on the HUD fill with an OK_GREEN edge and a check (`HudEventState.draw_notice`, B4). Nothing covers
+  the fixed blocks.
 - A creature's hit on the survivor covers her chest with Pokémon-style jaws and red damage numbers;
   heavy hits flash the screen red.
 - Level-up (`World.pioneer_changed`): a gold stack at the top-left for ~6 s — level, title line,
@@ -137,11 +140,21 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   banner (`domain_banner.gd`) announces "<owner>'s Domain" entering claimed land; your own portrait
   there is `PortraitService.of_player()` (a headshot of your character look), others a silhouette. All of it yields
   to toasts, plates and the open sheets.
-- Death: full-screen layer — "YOU DIED", the downer ("Downed by <who>."), the note "Engaged
-  dinosaurs retreat past their aggro ring. Your bag comes with you." and "Respawn at camp".
-- Sheets (MENU / BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
+- Death: full-screen layer — "YOU DIED" in LIFE, the downer ("Downed by <who>."), the note "Engaged
+  dinosaurs retreat past their aggro ring. Your bag comes with you." and a GOLD "Respawn at camp" on a
+  HUD-fill card with a LIFE top edge (B4).
+- MENU opens the nav menu (`game/scripts/ui/nav_menu.gd`, spec §7 B3): Character, Skills, Craft,
+  Build, Bag, Animals down the left (icon, label), World Atlas, Domain, Orders, Communication,
+  Friends, Save down the right (label, icon), a header band with a settings gear (holds the debug-info
+  toggle, ASSUMPTION) and the T-stone balance, and a CLOSE hex where MENU sits. It draws on canvas
+  layer 90 and fades the HUD's own drawing and hexes out while open; the world keeps running. A tap
+  on the world, CLOSE or Esc closes it. Each entry badges notices of its own kind
+  (`HudField.notices`, GOLD / LIFE). Orders and Friends show greyed (no screen yet); Character opens
+  the bag's Character page, Communication the Domain screen's Communications Center (ASSUMPTIONS).
+  Compact canvases fold each side into two columns of three 72 px rows.
+- Sheets (BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
   scrolling when short; landscape phones lay them out as a two-column grid. HANDS and the creature
-  plates hide while one is open.
+  plates hide while one (or the nav menu) is open.
 
 ## Screens (phone landscape, [all screens](ui-screens.md))
 
@@ -161,9 +174,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 
 ![fatigue](screens/fatigue.webp)
 
-**MENU sheet**
+**MENU nav menu** (B3; desktop 1600x900 capture:
+[`../orchestration/reports/uinav/b3_nav_menu_1600x900.png`](../orchestration/reports/uinav/b3_nav_menu_1600x900.png))
 
-![sheet_menu](screens/sheet_menu.webp)
+![b3_nav_menu](../orchestration/reports/uinav/b3_nav_menu_844x390.png)
 
 ## Tokens available (not yet applied)
 

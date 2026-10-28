@@ -25,7 +25,7 @@ var _fat_rate := 0.0 ## EMA of d(fatigue)/dt, pt/s: rises while working awake, p
 var _fat_prev := -1.0e9 ## last sampled fatigue; sentinel until the first frame
 var _fat_forgive := 0.0 ## countdown of fast forgetting after a one-off step (sleep/meal)
 var _belt_phase := 0.0 ## treadmill belt scroll position, px
-var _sheet: PanelContainer
+var _sheet: Control  ## the open sheet: a PanelContainer, or the NavMenu (B3) for &"menu"
 var _sheet_rows: ScrollContainer  ## the open sheet's rows; on a short canvas they scroll under a pinned header
 var _sheet_kind: StringName = &""
 var _skills_panel: Control
@@ -929,6 +929,10 @@ func _toggle_sheet(kind: StringName) -> void:
 		return
 	_close_sheet()
 	_sheet_kind = kind
+	if kind == &"menu":  # B3 nav menu (nav_menu.gd): two columns over the live world
+		_sheet = NavMenu.new(self)
+		add_child(_sheet)
+		return
 	_sheet = PanelContainer.new()
 	_sheet.name = "HudSheet"
 	var land := HudLayout.landscape_phone(get_viewport_rect().size)
@@ -976,20 +980,6 @@ func _toggle_sheet(kind: StringName) -> void:
 		box.add_theme_constant_override("separation", 8)
 	_sheet_rows.add_child(box)
 	match kind:
-		&"menu":
-			title.text = "Menu"
-			# Skills and Animals live here since the rail became MENU / BUILD / BAG (owner 2026-10-28).
-			var sk := field.count(&"skills")
-			_sheet_btn(box, "Skills" + (" (%d)" % sk if sk > 0 else ""), func () -> void: _close_sheet(); _toggle_skills())
-			_sheet_btn(box, "Animals", func () -> void: open_animals())
-			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
-			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
-			_sheet_btn(box, "Build", func () -> void: _close_sheet(); var b := BuildUI.ensure(player); if b: b.toggle())
-			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
-			# spec 29 section 2: Gameplay HUD -> Main Menu -> Domain.
-			_sheet_btn(box, "Domain", func () -> void: _close_sheet(); _open_domain())
-			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
-			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
 		&"pets":
 			title.text = "ANIMALS  %d owned" % player.bonded.size()
 			if player.bonded.is_empty():

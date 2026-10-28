@@ -415,6 +415,12 @@ func _hud_sheets_and_level_up(logical: Vector2) -> void:
 		_hud.call("_toggle_sheet", StringName(kind))
 		await _frames(3)
 		var sheet := _hud.get("_sheet") as Control
+		if kind == "menu":
+			_check_nav(sheet as NavMenu, logical)
+			await _capture("sheet_menu", [], logical)
+			_hud.call("_close_sheet")
+			await _frames(2)
+			continue
 		_check_sheet(kind, sheet, logical)
 		await _capture("sheet_" + kind, [sheet] if sheet else [], logical)
 		_hud.call("_close_sheet")
@@ -428,6 +434,21 @@ func _hud_sheets_and_level_up(logical: Vector2) -> void:
 	await _capture("levelup", [], logical)
 	_hud.set("_levelup_t", -1.0)
 	await _frames(2)
+
+## The B3 nav menu (nav_menu.gd): every entry, the close hex and the gear inside the view, 64 px or
+## more, clear of each other.
+func _check_nav(nav: NavMenu, logical: Vector2) -> void:
+	_expect(nav != null, "MENU opens the nav menu")
+	if nav == null:
+		return
+	var view := Rect2(Vector2.ZERO, logical).grow(0.5)
+	var rects := nav.tap_rects()
+	var keys := rects.keys()
+	for i in keys.size():
+		var a: Rect2 = rects[keys[i]]
+		_expect(view.encloses(a) and a.size.y >= 55.0 and a.size.x >= 63.5, "nav %s %s inside the view and a big enough target" % [keys[i], a])
+		for j in range(i + 1, keys.size()):
+			_expect(not a.grow(-0.5).intersects((rects[keys[j]] as Rect2).grow(-0.5)), "nav %s clears %s" % [keys[i], keys[j]])
 
 ## A sheet sits inside the view with its title and Close pinned above the rows; every row button is
 ## fully inside the rows' window or the rows scroll; nothing drawn after it (HANDS, a HUD hex added
