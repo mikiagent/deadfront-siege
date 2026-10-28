@@ -172,7 +172,12 @@ func _walk(delta: float) -> void:
 	if input.length_squared() > 0.0:
 		p.clear_nav()
 		p.view.clear_ground_marker()
+		# Taking the survivor in hand is the same decision as a ground click: the errand she was
+		# walking to (sleep at a tent, gather, craft) is off, not merely paused.
+		cancel_errand()
 		p.actions.cancel_work()
+		if p.station_craft:
+			p.station_craft.abandon_errand()
 	var dir := cam_dir(input)
 	if p.sprint_toggled and (p.vitals.energy <= 0.0 or p.statuses.has_flag(&"no_sprint")):
 		p.sprint_toggled = false

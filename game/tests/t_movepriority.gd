@@ -293,6 +293,17 @@ func _test_ground_click_cancels_errands() -> void:
 	_expect(player._sleep_left <= 0.0 and not player.anim._sleeping, "errand: she never lies down afterwards (sleep %.1f s)" % player._sleep_left)
 	_expect(Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(away.x, away.z)) < 3.0,
 		"errand: she walks to where the player clicked, not the tent (%.1f m off)" % Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(away.x, away.z)))
+	# Taking her in hand does the same: keys/hold-walk go where the player steers, and the tent errand
+	# does not come back when she walks past the bedding again.
+	player.sim.start_sleep(tent)
+	await _frames(3)
+	_expect(player.sim._sleep_pending == tent, "errand: another walk to the tent is pending")
+	Input.action_press("move_right")
+	await _frames(6)
+	Input.action_release("move_right")
+	_expect(player.sim._sleep_pending == null, "errand: a key/hold move also drops the pending sleep")
+	await _seconds(1.0)
+	_expect(player._sleep_left <= 0.0 and not player.anim._sleeping, "errand: no sleep after steering away")
 	tent.queue_free()
 	await _clear_world()
 	# --- gather a node
