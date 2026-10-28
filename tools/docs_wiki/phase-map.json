@@ -325,6 +325,38 @@
           ],
           "source": "docs/design/islands-and-loop-plan.md",
           "note": "Vision §1: the first tame is earned through open-world discovery, not a scripted award; the capture step must respect that."
+        },
+        {
+          "id": "material-appearance",
+          "title": "Material appearance data: wood species with a natural colour identity and per-log variation, a separate dimension from level and traits",
+          "status": "next",
+          "depends": [
+            "instance-inventory",
+            "gather-stacks"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": "Owner spec 35 (2026-10-28). Species palette + instance appearance carried from the tree you cut. Additive item-instance field: save gate for Milan if old saves change."
+        },
+        {
+          "id": "crafted-tint",
+          "title": "Crafted items take their look from the chosen materials: preview colour before crafting, per-part ingredient control (no averaging)",
+          "status": "later",
+          "depends": [
+            "material-appearance",
+            "craft-outcomes"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": "Major visual direction: blind A/B in front of Milan before merging."
+        },
+        {
+          "id": "material-inspect",
+          "title": "Inspect panel: species, colour family, grain swatch next to level and the grey/yellow/green trait boxes",
+          "status": "later",
+          "depends": [
+            "material-appearance"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": ""
         }
       ]
     },
@@ -720,6 +752,17 @@
           ],
           "source": "docs/design/durango-prompts/15_island_map_scale.md",
           "note": "SAILUI branch passed review 10-21 but predates ISLANDPICK; rebase."
+        },
+        {
+          "id": "building-material-look",
+          "title": "Buildings and prefabs inherit material appearance per part (walls, roofs, floors, doors, fences, beams), kept through pack, trade and redeploy",
+          "status": "later",
+          "depends": [
+            "crafted-tint",
+            "construction-sites"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": "Prefab save rows gain appearance: save gate for Milan. Blind A/B before merge."
         }
       ]
     },
