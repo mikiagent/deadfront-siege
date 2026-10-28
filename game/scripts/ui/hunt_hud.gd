@@ -1158,6 +1158,53 @@ func _open_domain() -> void:
 func domain_screen() -> DomainScreen:
 	return _domain_screen
 
+# ---------------------------------------------------------------- UIWORLD screens (nav menu entry points)
+
+var _world_sheets: Dictionary = {}  ## StringName -> UiWorldSheet, made on first open
+
+## The sheet `key`, made once with `make`, on its own canvas layer at the Domain screen's depth.
+func _world_sheet(key: StringName, make: Callable) -> UiWorldSheet:
+	var s: UiWorldSheet = _world_sheets.get(key)
+	if s != null and is_instance_valid(s):
+		return s
+	var layer := get_node_or_null("WorldSheetLayer") as CanvasLayer
+	if layer == null:
+		layer = CanvasLayer.new()
+		layer.name = "WorldSheetLayer"
+		layer.layer = 96
+		add_child(layer)
+	s = make.call()
+	layer.add_child(s)
+	_world_sheets[key] = s
+	return s
+
+## F1: open the Domain screen (never toggles it shut, unlike the old menu path).
+func open_domain() -> DomainScreen:
+	_close_sheet()
+	if _domain_screen == null or not _domain_screen.is_open():
+		_open_domain()
+	return _domain_screen
+
+## F3: the Communication screen (factions, trust, offers).
+func open_comms() -> CommsUI:
+	_close_sheet()
+	var s := _world_sheet(&"comms", func () -> UiWorldSheet: return CommsUI.new()) as CommsUI
+	s.open(player)
+	return s
+
+## F3: Radio University (career guides), its own screen; Back returns to Communication.
+func open_radio_university() -> RadioUniversityUI:
+	var comms := open_comms()
+	comms.open_radio()
+	return comms.radio
+
+## E2: the Taming Pen screen for `pen` (PlayerActions.pen_interact calls this; null = bag only).
+func open_taming_pen(pen: TamingPen = null) -> TamingPenUI:
+	_close_sheet()
+	var s := _world_sheet(&"pen", func () -> UiWorldSheet: return TamingPenUI.new()) as TamingPenUI
+	s.open(player, pen)
+	return s
+
 # ---------------------------------------------------------------- per frame
 
 func _build_fatigue_panel() -> void:

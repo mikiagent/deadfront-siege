@@ -332,6 +332,12 @@ func _update_tame_ring(progress: float) -> void:
 		ring.fade_out()
 
 func pen_interact(pen: TamingPen) -> void:
+	# E2: with the HUD up, the pen opens the Taming Pen screen (tame-or-store, timer, feed); a lab
+	# or test without a HUD keeps the direct insert / feed path below.
+	var hud := p.get_tree().get_first_node_in_group("hud") if p.is_inside_tree() else null
+	if hud != null and hud.has_method("open_taming_pen"):
+		hud.call("open_taming_pen", pen)
+		return
 	if pen.running:
 		pen.feed(p)
 	else:
