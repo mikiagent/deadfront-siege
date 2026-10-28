@@ -162,7 +162,10 @@ static func to_row(corpse: Corpse) -> Dictionary:
 		"cuts_left": corpse.cuts_left,
 		"cuts_budget": corpse.cuts_budget,
 		"cut_parts": parts,
-		"position": [corpse.global_position.x, corpse.global_position.y, corpse.global_position.z],
+		# A corpse outside the tree (a test, a row rebuilt before it is added) has no global transform.
+		"position": [(corpse.global_position if corpse.is_inside_tree() else corpse.position).x,
+			(corpse.global_position if corpse.is_inside_tree() else corpse.position).y,
+			(corpse.global_position if corpse.is_inside_tree() else corpse.position).z],
 		"loot": corpse.loot.to_array(),
 	}
 
