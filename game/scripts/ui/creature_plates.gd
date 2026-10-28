@@ -312,6 +312,8 @@ func _ensure_entry(c: Creature) -> Dictionary:
 		"node": root,
 		"line1": line1,
 		"chip": chip,
+		"chip_nature": "",
+		"chip_ready": false,
 		"bar_fill": bar_fill,
 		"bar_recent": bar_recent,
 		"hp_dbg": hp_dbg,
@@ -387,10 +389,15 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	var title := CreatureNatures.display_title(c)
 	var raw_name := ("%s  %s  [%s]" % [LevelDisplay.label(c.level), title, c.genetics.overall_tier() if c.genetics else &"?"]) if c.is_pet else ("%s  %s" % [LevelDisplay.label(c.level), title])
 	line1.text = UiTokens.ellipsis(ThemeDB.fallback_font, raw_name, BASE_WIDTH - 20.0, 14)
+	# The tag is configured only when it changes (its label width is measured on configure), so a
+	# plate that keeps its nature costs nothing per frame and never re-measures between frames.
 	var chip := entry.get("chip", null) as NatureChip
 	if chip:
-		chip.configure(c.nature_id() if full else &"")
-		if chip.visible:
+		var nat := String(c.nature_id()) if full else ""
+		if not bool(entry.get("chip_ready", false)) or str(entry.get("chip_nature", "")) != nat:
+			chip.configure(StringName(nat))
+			entry["chip_nature"] = nat
+			entry["chip_ready"] = true
 			chip.position = CHIP_POS
 	var bar_bg := root.get_node_or_null("BarBg") as ColorRect
 	if bar_bg:
