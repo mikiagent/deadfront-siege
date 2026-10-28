@@ -423,6 +423,24 @@ func open_animals(rec: PetRecord = null) -> void:
 		layer.add_child(_animal_screen)
 	_animal_screen.open(player, rec)
 
+## TRIBE M1: the Animals screen's Tribe tab (a member or recruit tapped in the world opens it on them).
+var _tribe_screen: TribeScreen
+
+func open_tribe(rec: TribeRecord = null) -> TribeScreen:
+	_close_sheet()
+	if _animal_screen and _animal_screen.visible:
+		_animal_screen.close_screen()
+	if _tribe_screen == null or not is_instance_valid(_tribe_screen):
+		var layer := CanvasLayer.new()
+		layer.name = "TribeLayer"
+		layer.layer = 96
+		add_child(layer)
+		_tribe_screen = TribeScreen.new()
+		_tribe_screen.name = "TribeScreen"
+		layer.add_child(_tribe_screen)
+	_tribe_screen.open(player, rec)
+	return _tribe_screen
+
 ## SADDLES: a tame's equipment (pet radial Gear, Animals screen Gear). Its own layer above the Animals
 ## screen, so ‹ shows the Animals screen again when it was opened from there.
 var _pet_gear: PetGearSheet

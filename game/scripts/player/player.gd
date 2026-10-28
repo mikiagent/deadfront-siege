@@ -31,6 +31,8 @@ var view: PlayerView
 var controls: PlayerInput
 var actions: PlayerActions
 var pets: PlayerPets
+## TRIBE M1: the boat, the roster and the tribe members' live bodies (TribeDirector).
+var tribe: TribeDirector
 
 var inventory: Inventory = Inventory.new() # Inventory.BASE_SLOTS (pack 05)
 var vitals: Vitals
@@ -139,6 +141,8 @@ func _ready() -> void:
 	view.setup_ui()
 	vitals.damaged.connect(_on_vitals_damaged)
 	vitals.died.connect(_on_vitals_died)
+	tribe = _child(TribeDirector.new(), "Tribe")
+	tribe.setup(self)
 
 func _child(n: Node, node_name: String) -> Node:
 	n.name = node_name

@@ -474,6 +474,8 @@ func _valid_target() -> bool:
 		return false  # a survivor on the floor is not prey; wander off
 	if attack_target is Creature and (attack_target as Creature).health.dead:
 		return false
+	if attack_target is TribeMember and (attack_target as TribeMember).health.dead:
+		return false  # TRIBE M1: a knocked-out member is not prey
 	return true
 
 ## Both sides can contact a giant's body edge without body overlap or safe-edge cheese.

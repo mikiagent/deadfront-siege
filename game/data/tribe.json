@@ -1,0 +1,52 @@
+{
+  "_note": "TRIBE M1. Every number here is an ASSUMPTION (logged in docs/vision/WildLandsMMO_Open_Questions.md, 2026-10-28). Vision section 5 and WildLandsMMO_Loss_Recruitment_Revival.md set the shape: recruits arrive by boat at the home dock, mostly weak or mediocre, rarely exceptional; housing caps the tribe.",
+  "arrivals": {
+    "every_days": 1.0,
+    "pending_cap": 3,
+    "wait_days": 1.0,
+    "starter_recruit": true
+  },
+  "housing": {
+    "base": 2,
+    "per_bed": 1,
+    "bed_kinds": ["tent", "canvas_tent", "straw_roll", "bed"]
+  },
+  "potential": [
+    {"id": "weak", "label": "Weak", "weight": 45.0, "xp_mult": 0.8},
+    {"id": "mediocre", "label": "Mediocre", "weight": 40.0, "xp_mult": 1.0},
+    {"id": "capable", "label": "Capable", "weight": 14.5, "xp_mult": 1.2},
+    {"id": "exceptional", "label": "Exceptional", "weight": 0.5, "xp_mult": 1.5}
+  ],
+  "names": ["Ada", "Bram", "Cora", "Dell", "Edda", "Finn", "Gale", "Hollis", "Ines", "Joss", "Kit", "Lena", "Moss", "Nell", "Orrin", "Pia", "Quill", "Rhea", "Sol", "Tamsin", "Ulf", "Vera", "Wren", "Yara"],
+  "member": {
+    "hp": 80.0,
+    "hp_per_level": 4.0,
+    "base_defense": 15.0,
+    "unarmed_damage": 6.0,
+    "swing_cooldown_s": 1.1,
+    "walk_mps": 3.4,
+    "run_mps": 5.6,
+    "carry_units": 5,
+    "job_radius_m": 12.0,
+    "leash_m": 20.0,
+    "guard_radius_m": 9.0,
+    "fullness_max": 100.0,
+    "fullness_per_day": 60.0,
+    "eat_below": 30.0,
+    "food_min": 15.0,
+    "fatigue_max": 100.0,
+    "fatigue_per_harvest": 2.5,
+    "rest_at": 75.0,
+    "rest_until": 10.0,
+    "rest_recover_per_s": 4.0,
+    "energy_max": 100.0,
+    "energy_per_harvest": 3.0,
+    "energy_per_swing": 4.0,
+    "energy_regen_per_s": 1.5,
+    "hp_regen_per_s": 0.4,
+    "xp_per_harvest": 2.0,
+    "xp_per_hit": 2.0,
+    "xp_per_level": 40.0,
+    "max_skill": 60
+  }
+}

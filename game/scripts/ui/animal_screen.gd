@@ -64,6 +64,12 @@ func _ready() -> void:
 	# ASSUMPTION: E2 Taming Pen has no screen yet (§7 E2, "no dedicated script found"); its tab is shown
 	# disabled so the header reads as the canvas does without opening an empty view.
 	chrome.add_tab("Taming Pen", false, false)
+	# TRIBE M1: the tribe's members and the recruits waiting at the dock (TribeScreen).
+	chrome.add_tab("Tribe", false).pressed.connect(func () -> void:
+		close_screen()
+		var hud := get_tree().get_first_node_in_group("hud")
+		if hud and hud.has_method("open_tribe"):
+			hud.open_tribe())
 	chrome.back_pressed.connect(_back)
 	chrome.close_pressed.connect(close_screen)
 	_bonded = chrome.counter

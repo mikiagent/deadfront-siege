@@ -10,7 +10,7 @@ signal changed
 ## A tame's slots. Room for "armor" and "bag" later: add the slot here and a category in slot_of.
 const TAME_SLOTS: Array[StringName] = [&"saddle"]
 ## A tribe member would wear the survivor's own seven slots (Inventory.EQUIP_SLOTS).
-# ASSUMPTION: no tribe-member entity exists in code yet (2026-10-28); this is the slot list it gets.
+## TRIBE M1: TribeRecord.equipment uses these seven.
 const HUMAN_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"legs", &"accessory1", &"accessory2"]
 
 var allowed: Array[StringName] = []
@@ -25,6 +25,10 @@ static func slot_of(def: ItemDef) -> StringName:
 		return &""
 	if def.has_category(&"saddle"):
 		return &"saddle"
+	# TRIBE M1 ASSUMPTION: a member's work tool (pick, axe, knife, hoe) is held in the weapon hand, the
+	# one hand slot a human entity has; the survivor keeps tools in her bag (Inventory.slot_for is unchanged).
+	if def.has_category(&"tool") and def.tool_class != &"none" and def.tool_class != &"":
+		return &"weapon"
 	return Inventory.slot_for(def)
 
 func worn(slot: StringName) -> ItemStack:

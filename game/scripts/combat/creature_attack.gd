@@ -24,6 +24,8 @@ static func _target_dead(target: Node) -> bool:
 		return (target as Player).dead
 	if target is Creature:
 		return (target as Creature).health.dead
+	if target is TribeMember:
+		return (target as TribeMember).health.dead
 	return false
 
 static func _apply_token(tok: StringName, clip: StringName, target: Node, source: Creature) -> void:
@@ -113,4 +115,9 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 				attacker.health.max_hp = attacker.pet_record.hp
 				attacker.combat_float.emit(attacker.pet_record.level, &"xp")
 		return true
+	if target is TribeMember:  # TRIBE M1: a member a creature turned on (it hit the creature)
+		var tm := target as TribeMember
+		if tm.health.dead or not CombatTuning.roll(hit_chance(attacker, tm)):
+			return false
+		return tm.take_creature_hit(attacker, atk)
 	return false
