@@ -27,6 +27,16 @@ var _requested_clip: StringName = &"idle"
 ## short one-shot that the gather loop re-triggers, so no idle pop between units.
 const GATHER_CLIPS: Array[StringName] = [&"gather", &"gather_chop", &"gather_mine", &"craft"]
 var _gather_clip: StringName = &"gather"
+## Mood idles (owner 2026-10-28: cold shiver, heat fanning/sweating, tired, exhausted), optional survivor
+## clips (assets/characters/survivor/anim/idle_*.glb); while one is missing the next in line plays, then idle.
+## ASSUMPTION: priority exhausted > cold / heat (the stronger) > tired > idle.
+const MOOD_IDLES: Array[StringName] = [&"idle_exhausted", &"idle_cold", &"idle_heat", &"idle_tired"]
+## Weather feel (WorldWeather.cold / heat, 0..1) at which the cold or heat idle takes over. ASSUMPTION.
+const MOOD_AT := 0.5
+## Fatigue strain of spec 01's tiers: tired from 50 %, exhausted from 75 % (Vitals.exhausted).
+const TIRED_AT := 0.5
+const EXHAUSTED_AT := 0.75
+const IDLE_BLEND := 0.5  # one idle into another: slow, it is a change of mood, not of action
 
 func setup(p: Player, p_rig: RiggedModel) -> void:
 	player = p
@@ -39,7 +49,30 @@ func setup(p: Player, p_rig: RiggedModel) -> void:
 func play_idle() -> void:
 	if _dead:
 		return
-	_play(&"idle")
+	_play(idle_clip())
+
+## The idle she stands in now: her fatigue tier and the weather's heat / cold pick it.
+func idle_clip() -> StringName:
+	var v := player.vitals if player else null
+	var strain := v.fatigue / maxf(1.0, v.effective_max_fatigue()) if v else 0.0
+	var rt: Node = World.runtime if is_instance_valid(World.runtime) else null
+	var w: WorldWeather = rt.get("weather") if rt else null
+	return pick_idle(func (c: StringName) -> bool: return rig != null and rig.has_clip(c), strain, w.cold if w else 0.0, w.heat if w else 0.0)
+
+static func pick_idle(has: Callable, strain: float, cold: float, heat: float) -> StringName:
+	var want: Array[StringName] = []
+	if strain >= EXHAUSTED_AT:
+		want.append(&"idle_exhausted")
+	if maxf(cold, heat) >= MOOD_AT:
+		want.append_array([&"idle_cold", &"idle_heat"] if cold >= heat else [&"idle_heat", &"idle_cold"])
+		if minf(cold, heat) < MOOD_AT:
+			want.pop_back()
+	if strain >= TIRED_AT:
+		want.append(&"idle_tired")
+	for c in want:
+		if has.call(c):
+			return c
+	return &"idle"
 
 ## Clip by intent, not by measured speed: tap-to-walk and sprint run, joystick/keys walk.
 ## (Picking by speed flapped walk/run every frame at full walking pace.)
@@ -50,7 +83,7 @@ func play_locomotion(speed: float, running: bool = false) -> void:
 		_play(&"mount_idle")
 		return
 	if speed < 0.08:
-		_play(&"idle")
+		_play(idle_clip())
 		return
 	_play(&"run" if running and speed > 2.5 else &"walk")
 
@@ -372,10 +405,12 @@ func _physics_tick(speed: float, running: bool = false) -> void:
 func _play(clip: StringName) -> void:
 	var resolved := _resolve(clip)
 	if resolved == current_clip and rig and rig.anim_player and rig.anim_player.is_playing():
-		if clip in [&"idle", &"walk", &"run", &"mount_idle", &"sleep"]:
+		if clip in [&"idle", &"walk", &"run", &"mount_idle", &"sleep"] or clip in MOOD_IDLES:
 			return
-	var loco := [&"idle", &"walk", &"run", &"mount_idle"]
+	var loco: Array = [&"idle", &"walk", &"run", &"mount_idle"] + MOOD_IDLES
 	var blend := 0.18 if (resolved in loco and current_clip in loco) else 0.0
+	if (resolved == &"idle" or resolved in MOOD_IDLES) and (current_clip == &"idle" or current_clip in MOOD_IDLES):
+		blend = IDLE_BLEND
 	if resolved in loco and (current_clip in [&"punch", &"attack_primary", &"attack_heavy"] or current_clip in GATHER_CLIPS):
 		blend = 0.12  # trimmed one-shots end mid-pose; ease back into locomotion
 	current_clip = resolved

@@ -2,7 +2,7 @@
 
 > Generated 2026-10-27 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
 
-Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/creatures/*.json`, `game/data/butchering.json`.
+Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/world/rules.json` (weather), `game/data/creatures/*.json`, `game/data/butchering.json`.
 
 ## Island roster (15)
 
@@ -104,6 +104,34 @@ A domain cell (spec 29) is bare of decoration the moment it is staked, and stays
 - **Loads and rebuilds match.** A save stores only the domain cells, never the absence of props; the
   domain is restored before the props regenerate from the island seed, so a reloaded island has no
   scenery inside its claims and nothing regrows there later. No save-format change.
+
+## Weather
+
+Code: `game/scripts/world/world_weather.gd` (state), `game/scripts/world/weather_fx.gd` (screen layer, light pulse, camera shake), `game/shaders/weather/`. Numbers: `game/data/world/rules.json` `weather`. Test: `game/tests/t_weather.gd`; lab: `scenes/dev/weather_lab.tscn`.
+
+- **Rain**: every 50.0-90.0 s (first check 40.0 s) the island rolls its climate's rain chance; a spell lasts 18.0-30.0 s, applies Wet, dims the sun by up to half and lays a grey wash.
+- **Storm** (rain and lightning): a rain spell is a storm on the climate's storm roll and lasts 30.0-45.0 s. A strike every 8.0-20.0 s, 400.0-3000.0 m away: a double flicker of the screen and the sun (the moon at night), then thunder distance / 343.0 m/s later (1.2-8.7 s) with a camera rumble up to 0.12 m. `WorldWeather.lightning` / `thunder` are the sound hooks (no audio yet).
+- **Heat** (by day where the climate asks for heat resistance): an orange screen edge in the combat red edge's style, a warm wash, a heat shimmer (high quality) and a slow sway up to 0.012 m.
+- **Cold** (any hour where it asks for cold resistance): a blue-white edge, frost creeping in from the borders (corners first) and a shiver (0.05 m) on getting cold, on defrosting, and every 14.0-28.0 s while cold.
+- **Strength**: severity = resistance need / 3 (0.4-1) x (0.4 + 0.6 x unmet share); the unmet share counts while climate fatigue charges it (heat by day, cold otherwise). Wet and Quenched cool the heat, sitting by a fire warms the cold.
+- **Screen rules**: the layer is canvas layer -1, under every HUD layer, so HUD rects and the combat red edge draw over it; during a hunt or a red-edge status the weather edges drop to 35 %. Weather shake never exceeds 0.15 m; `--reduce-shake` turns off every camera shake (combat too).
+- **Idle by mood**: standing still, the survivor plays `idle_exhausted` (fatigue 75 %+) > `idle_cold` / `idle_heat` (weather feel 0.5+, the stronger) > `idle_tired` (50 %+) > `idle`, each only when its clip exists in `assets/characters/survivor/anim/` (the next in line otherwise), blended over 0.5 s; moving and busy clips win (`PlayerAnim.pick_idle`).
+- **Debug**: `--weather=clear|rain|storm|heat|cold` holds a state; `--weather-quality=low|high` (low drops the shimmer; default low on iOS / Android).
+
+| climate | rain chance per check | storm share of spells | heat look by day | cold look |
+|---|---|---|---|---|
+| blue_tropical | 1.0 | 0.5 | 0.40-1.00 | - |
+| desert | 0 | 0 | 0.40-1.00 | - |
+| grassland | 1.0 | 0.15 | - | - |
+| savannah | 0 | 0 | 0.16-0.40 | - |
+| snowfield | 0 | 0 | - | 0.40-1.00 |
+| swamp | 1.0 | 0.25 | 0.27-0.67 | - |
+| temperate | 1.0 | 0.2 | - | 0.16-0.40 |
+| tropical | 1.0 | 0.45 | 0.27-0.67 | - |
+| tundra | 0 | 0 | - | 0.27-0.67 |
+| volcanic | 0 | 0 | 0.40-1.00 | - |
+
+The look columns run from fully resisted to fully unmet.
 
 ## Fauna (19 species)
 
