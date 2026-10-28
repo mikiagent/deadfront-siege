@@ -193,7 +193,7 @@
         "leap_height_per_m": 0.2,
         "hop_cd": 3.5,
         "max_retreat_m": 12.0,
-        "w_hold": 0.5,
+        "w_hold": 0.8,
         "w_strafe": 0.3,
         "w_feint": 0.1,
         "w_hop": 0.1,

@@ -63,17 +63,27 @@ bite_cd 3.5, combo_cd 10, pounce_cd 12, charge_cd 5, hop_cd 3.5 s. Energy cost: 
 bite_combo 0.35 of the pool. ring 6.5 m, strafe 2.5 m / 0.42 s, hop 3.5 m, leap_back 5 m, leap-in
 ≤ 6 m, pounce 4–11.5 m (ambush 10 m), telegraph 0.8 s, pounce 2.5x, overshoot 25% / 3 m, miss
 recovery 1.5 s, combo 1.0/1.3/1.8x, retreat at 0.4 HP, max retreat 12 m, filler weights
-hold/strafe/feint/hop 0.5/0.3/0.1/0.1, max_basic_streak 2. Natures (`natures.json`):
+hold/strafe/feint/hop 0.8/0.3/0.1/0.1, max_basic_streak 2. Natures (`natures.json`):
 `tactic_cooldown_mult`, `_feint_mult`, `_standoff_mult`, `_hold_mult`, `_backoff_mult`,
 `_overshoot_mult`, `tactic_w_<finisher>` (see the template page table). Player:
 `HIT_STUN_IMMUNE_S` 0.8, `basic_cooldown_s` 0.8, tackle/kick `stagger_s` 0.8/0.5.
 
 ## Gates (this branch, after the last canon merge)
-- `t_tactical`: `[t_tactical] PASS` errs=0, 5 runs in a row, plus 1 under an 8-process CPU load,
-  all with the same census. It is deterministic: seeded RNGs (global, `CombatTuning.rng`, and a
-  per-brain `TacticalBrain.rng`), `Engine.max_physics_steps_per_frame` 1000 so physics never
-  drops steps, and test creatures animate in the physics step. The pounce-vs-combo damage is
-  checked on resolved hits, not taken from the fight. It covers:
+- `t_tactical`: `[t_tactical] PASS` errs=0 on 5 runs in a row plus 1 run under an 8-process CPU
+  load. All 6 printed byte-identical censuses, and a per-frame position/state trace matched
+  between runs.
+  - Seeded: the global RNG, `CombatTuning.rng`, the per-brain `TacticalBrain.rng`, and the IV
+    roll (the IVs set speed and used a randomized RNG).
+  - The flank side no longer comes from the instance id, and the idle-slide frame comes from
+    spawn order, not the instance id (`Creature._slide_phase`).
+  - `Engine.max_physics_steps_per_frame` is 1000, so physics never drops steps under load.
+  - Test creatures animate in the physics step.
+  - The pounce-vs-combo damage is checked on resolved hits.
+  - Hold weight is raised to 0.8, which puts holding at 24% of the cooling time; the 15% bar is
+    unchanged.
+  - The test builds its own floor, so the canon worktree's untracked nature assets cannot affect
+    it.
+  It covers:
   - the stun length equals the clip length, walk after the stun, no re-stun inside the
     immunity window, tackle and kick land and respect their cooldowns, the player basic
     cooldown;

@@ -32,7 +32,7 @@ Full-rate thinking runs in every one of these states (`_full_rate`).
 | `strafe_m`, `strafe_s` | 2.5 m, 0.42 s | the powerful strafe (dodge step) |
 | `hop_m`, `leap_back_m`, `leap_in_max_m`, `leap_height_per_m` | 3.5, 5, 6 m, 0.2 | leap lengths (the profile's, not the body's); arc height rises with distance |
 | `max_retreat_m` | 12 m | no back-leap ends farther from the prey than this |
-| `w_hold` / `w_strafe` / `w_feint` / `w_hop` | 0.5 / 0.3 / 0.1 / 0.1 | filler weights; hold ×2 while the prey is not advancing |
+| `w_hold` / `w_strafe` / `w_feint` / `w_hop` | 0.8 / 0.3 / 0.1 / 0.1 | filler weights; hold ×2 while the prey is not advancing |
 | `max_basic_streak`, `max_basic_share` | 2, 0.15 | anti-spam: basics in a row; the share the test allows |
 | `retreat_frac`, `wide_ring_mult`, `wide_circle_s` | 0.4, 1.6, 4 s | back off when hurt, then circle wider |
 | `ambush`, `cover_m`, `ambush_radius_m`, `back_radius_m`, `ambush_pounce_max_m` | true, 14, 6, 10, 10 m | lurk at the tree nearest home and open with the pounce |

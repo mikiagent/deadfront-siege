@@ -114,10 +114,16 @@ func _spawn(id: StringName, at: Vector3, nature: StringName):
 	var c = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
 	host.add_child(c)
 	c.global_position = at
+	seed(20261028)  # the shared brain setup draws from the global RNG
+	var iv_rng := RandomNumberGenerator.new()  # IVs (speed!) roll on a fresh randomized RNG unless given one
+	iv_rng.seed = 20261028
+	c.genetics = load("res://scripts/creatures/creature_genetics.gd").roll(iv_rng)
 	c.spawn(data.creature(id), &"", 0, null, 0, nature)
 	c.anim.tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS
 	if "rng" in c.brain:
 		c.brain.rng.seed = 20261028
+		c.brain._circle_sign = 1.0  # CreatureBrain seeds the flank side from the instance id, which differs per run
+		c.brain._flank_sign = 1.0
 	return c
 
 func _keep_player_alive() -> void:
@@ -179,6 +185,8 @@ func _test_fight() -> void:
 		_sim_t += dt
 		_keep_player_alive()
 		dino.health.hp = hp0  # no retreat during the manoeuvre census
+		if OS.has_environment("TA_TRACE"):
+			print("[trace] %.4f %s %.4f %.4f %.4f %.2f %s %.4f %.4f" % [_sim_t, b.state, dino.global_position.x, dino.global_position.y, dino.global_position.z, dino.energy, dino.anim.current_clip, dino.rotation.y, player.global_position.z])
 		_states[b.state] = true
 		var v: Vector3 = dino.global_position - player.global_position
 		var ang := atan2(v.x, v.z)
