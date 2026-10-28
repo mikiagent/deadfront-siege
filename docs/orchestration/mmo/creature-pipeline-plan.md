@@ -43,6 +43,10 @@ Milan gate; fixing its rig is not.
 - Tripo is fine because we do not retarget its animations: we rig our own skeleton (step 3) and author clips on it.
 
 ### 3. Rig (every species, including existing ones)
+0. Cleanup before rigging (required): `tools/transplant_rig.py` repair drops loose shells under 1 % of the mesh,
+   merges doubles and fills holes (the new deinonychus lost 588 stray fragments). Afterwards check islands: only
+   the body, teeth and claws may remain; `open_mouth.py` pins teeth rigid and moves pieces an auto-rig left on a
+   stray bone (Tripo's `neutral_bone`) onto the Head or Jaw, or they float off the head in game.
 1. Skeleton with a **`Jaw` bone** under `Head`, pivot at the jaw joint (measure the mouth crease from the mesh, as the
    T. rex REPORT did). Meshy-rigged species get a `Jaw` bone added under their head bone; no other bone changes, so
    existing clips stay valid.

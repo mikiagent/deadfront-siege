@@ -268,6 +268,18 @@ def cyl(name, center, radius, depth, material, weight_bone, rot=(0, 0, 0), verts
     return rigid(ob, material, weight_bone)
 
 
+def barrel_cz(cy, fallback):
+    """Height of the barrel's middle at y = cy, between the back and the belly. A slab's own z-range can include
+    the legs (a biped stands under its seat), which drags the centre below the belly: the girth then hung to
+    the feet and its buckles floated beside the thighs."""
+    top = top_z(0.0, cy)
+    if top is not None:
+        belly = ray(Vector((0.0, cy, top - 0.002)), Vector((0, 0, -1)))
+        if belly is not None and top - belly.z > 0.01:
+            return (top + belly.z) * 0.5
+    return fallback
+
+
 def section(cy, n=40):
     """The hide's cross-section in the XZ plane at y = cy: for each direction, cast a ray outward from
     the body's axis (inside the hide) so the hit is the outer surface, never a leg or the far side."""
@@ -275,14 +287,7 @@ def section(cy, n=40):
     pts = [v for v in VERTS if abs(v.y - cy) <= half]
     if not pts:
         return None
-    cz = (min(v.z for v in pts) + max(v.z for v in pts)) * 0.5
-    # the slab can include the legs (a biped stands under its seat), which drags cz below the belly and
-    # sends the girth down to the feet: centre on the barrel instead, between the back and the belly
-    top = top_z(0.0, cy)
-    if top is not None:
-        belly = ray(Vector((0.0, cy, top - 0.002)), Vector((0, 0, -1)))
-        if belly is not None and top - belly.z > 0.01:
-            cz = (top + belly.z) * 0.5
+    cz = barrel_cz(cy, (min(v.z for v in pts) + max(v.z for v in pts)) * 0.5)
     # the axis point has to be inside the hide; take the slab's central vertex nearest the axis
     centre = min(pts, key=lambda v: (v.x - 0.0) ** 2 + (v.z - cz) ** 2)
     cen = Vector((0.0, cy, cz))
@@ -444,14 +449,17 @@ if GSEL:
     gzmin, gzmax = max(MN.z, min(v.z for v in GSEL)), max(v.z for v in GSEL)
 else:
     gzmin, gzmax = MN.z, BACK_Z
-GCZ = (gzmin + gzmax) * 0.5
+GCZ = barrel_cz(SEAT_Y, (gzmin + gzmax) * 0.5)
 GW = float(CFG.get("girth_width_m", 0.08)) * SCALE
 strap_ring("girth", SEAT_Y, GW, float(CFG.get("girth_thick_m", 0.025)) * SCALE, LEATHER_D, SOCKET)
+GSEC = section(SEAT_Y)
 for sgn, nm in ((1, "L"), (-1, "R")):
-    bx = strap_outer_x(SEAT_Y, GCZ, sgn)
+    # on the strap itself (its radius at the side), not on the widest hide at that height: folded wing
+    # feathers stick out past the girth and left the buckles floating beside the body
+    bx = (GSEC[0][1] if sgn > 0 else GSEC[len(GSEC) // 2][1]) if GSEC else strap_outer_x(SEAT_Y, GCZ, sgn)
     if bx is None:
         bx = body_hw
-    box("buckle_%s" % nm, (sgn * (bx + 0.012 * SCALE), SEAT_Y, GCZ),
+    box("buckle_%s" % nm, (sgn * (bx + 0.012 * SCALE), SEAT_Y, GSEC[0][2] if GSEC else GCZ),
         (0.03 * SCALE, 0.055 * SCALE, 0.07 * SCALE), IRON, SOCKET, bevel=0.007 * SCALE)
 
 # ------------------------------------------------------------------ stirrups
