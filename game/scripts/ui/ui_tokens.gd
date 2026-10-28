@@ -570,3 +570,16 @@ static func ui_font_bold() -> FontVariation:
 static func ui_face(weight: int = WEIGHT_REGULAR) -> Font:
 	var f := ui_font(weight)
 	return f if f != null else ThemeDB.fallback_font
+
+## Italic cut of the UI face: the variable TTF has no italic axis Godot exposes, so a 0.2 skew
+## (the slant Roboto's own italic uses). Fallback font when the TTF is missing.
+static func ui_italic(weight: int = WEIGHT_REGULAR) -> Font:
+	var key := "italic%d" % weight
+	if not _fonts.has(key):
+		var f := ui_font(weight)
+		if f == null:
+			return ThemeDB.fallback_font
+		var it := f.duplicate() as FontVariation
+		it.variation_transform = Transform2D(Vector2(1.0, 0.2), Vector2(0.0, 1.0), Vector2.ZERO)
+		_fonts[key] = it
+	return _fonts[key]

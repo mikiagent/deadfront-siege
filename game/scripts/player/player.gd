@@ -371,6 +371,11 @@ func display_name() -> String:
 		return World.player_name
 	return str(view.survivor_meta().get("display_name", "Survivor"))
 
+## The title line over the nameplate's name ("" = no line). Any plate owner (tribe members, other
+## players) answers this too, and HudLayout.draw_nameplate draws it the same way.
+func display_title() -> String:
+	return LevelDisplay.worn_title()
+
 # ---------------------------------------------------------------- damage, death, respawn
 
 ## Worn gear's health bonus, plus the skill nodes whose stat effect the game runs (Defense's Max Health I-III,
