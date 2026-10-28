@@ -44,6 +44,11 @@ static func entry_for(def_id: StringName) -> Dictionary:
 	var row: Variant = (foods as Dictionary).get(str(def_id))
 	return row as Dictionary if row is Dictionary else {}
 
+## The status a bad raw bite applies (catalog "Stomach Pain" by default, "Poisoned" for a mushroom).
+static func risk_status(entry: Dictionary) -> StringName:
+	var id := str(entry.get("risk_status", ""))
+	return StringName(id) if id != "" else &"stomachache"
+
 static func has_bundle(stack: ItemStack) -> bool:
 	return stack != null and not entry_for(stack.def_id).is_empty()
 
@@ -171,7 +176,11 @@ static func evaluate(stack: ItemStack, ctx: Dictionary = {}) -> Dictionary:
 		"raw": raw,
 		"poison_chance": float(entry.get("poison_chance", d.poison_chance if d else 0.0)),
 		"tastes_bad_chance": float(entry.get("tastes_bad_chance", d.tastes_bad_chance if d else 0.0)),
+		# FOODCAT: the catalog names what a bad raw bite does ("Stomach Pain Lv1", "Poisoned Lv4").
+		"status": risk_status(entry),
+		"level": int(entry.get("risk_level", 1)),
 	}
+	out["temperature_level"] = int(entry.get("temperature_level", 1))
 	# --- Energy: latent -> instant + digested (spec 32 §2).
 	var latent := float(ctx.get("latent", Food.energy_restore(stack)))
 	# A food with no bundle keeps the behaviour it had before spec 32: its whole Energy at the
@@ -250,6 +259,7 @@ static func evaluate(stack: ItemStack, ctx: Dictionary = {}) -> Dictionary:
 			out["statuses"].append({
 				"id": str((row as Dictionary).get("id", "")),
 				"duration": float((row as Dictionary).get("duration", 0.0)),
+				"level": int((row as Dictionary).get("level", 1)),
 			})
 	# --- Taste (spec 32 §7), scored now so the panel shows the same grade the eat will use.
 	var mem: Variant = ctx.get("taste_memory", {})

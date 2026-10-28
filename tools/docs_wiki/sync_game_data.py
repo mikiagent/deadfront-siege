@@ -192,6 +192,8 @@ def set_slots(rec, pairs, _cells=None):
         flag = "category" if ("category" in sl or "id" not in sl) else "id"
         sl[flag] = name
         sl["count"] = count
+        if not old:  # a new recipe row: the first slot is the primary (the cell cannot say it)
+            sl["primary"] = not rec["slots"]
         rec["slots"].append(sl)
 
 
@@ -276,6 +278,7 @@ def canon_item(i):
         "rarity": i.get("rarity"),
         "market_category": i.get("market_category"),
         "attributes": i.get("default_attributes"),
+        "food_energy": i.get("food_energy"),
     }
 
 
@@ -293,6 +296,12 @@ def canon_food(f):
         "taste_score": f.get("taste_score"),
         "buffs": f.get("buffs"),
         "statuses": f.get("statuses"),
+        "health": f.get("health"),
+        "fatigue": f.get("fatigue"),
+        "temperature": f.get("temperature"),
+        "temperature_level": f.get("temperature_level"),
+        "risk_status": f.get("risk_status"),
+        "risk_level": f.get("risk_level"),
     }
 
 
@@ -467,6 +476,10 @@ class Sync:
         recs = doc["recipes"]
         by_id = {r["id"]: r for r in recs}
         item_ids = {i["id"] for i in self.jload(self.data / "items.json")["items"]}
+        # Recipes sync before items: a new item row added in the same pass is a valid output too.
+        if (self.sheets / "items.csv").exists():
+            item_ids |= {r["id"].strip() for r in csv.DictReader(open(self.sheets / "items.csv"))
+                         if (r.get("display_name") or "").strip()}
         rows = self.rows("recipes.csv")
         for cells in rows:
             key = cells["id"].strip()
@@ -622,7 +635,7 @@ class Sync:
 
     ITEM_COLS = [("display_name", "str"), ("categories", "list"), ("stack_max", "num"),
                  ("tool_class", "str"), ("base_level", "num"), ("rarity", "str"),
-                 ("market_category", "str"), ("attributes", "pairs")]
+                 ("market_category", "str"), ("attributes", "pairs"), ("food_energy", "num")]
 
     def sync_items(self) -> None:
         path = self.data / "items.json"
@@ -637,7 +650,7 @@ class Sync:
                 if not (cells.get("display_name") or "").strip():
                     self.rot_err("items.csv", key, "id", "new item row needs a display_name")
                     continue
-                rec = {}
+                rec = {"id": key}
                 items.append(rec)
                 by_id[key] = rec
                 self.created.append("items: new item row %s" % key)
@@ -694,7 +707,9 @@ class Sync:
     FOOD_COLS = [("display_name", "str"), ("provenance", "str"), ("channels", "list"),
                  ("energy_instant_release_ratio", "num"), ("digest_seconds", "num"),
                  ("thirst", "num"), ("fullness", "num"), ("eat_seconds", "num"),
-                 ("taste_score", "num"), ("buffs", "dict"), ("statuses", "dict")]
+                 ("taste_score", "num"), ("buffs", "dict"), ("statuses", "dict"),
+                 ("health", "num"), ("fatigue", "num"), ("temperature", "str"),
+                 ("temperature_level", "num"), ("risk_status", "str"), ("risk_level", "num")]
 
     def sync_foods(self) -> None:
         path = self.data / "foods.json"
@@ -727,6 +742,8 @@ class Sync:
                 "buffs": lambda v, c, rec=rec: set_field(rec, "buffs", v),
                 "statuses": lambda v, c, rec=rec: set_field(rec, "statuses", v),
             }
+            for name in ("health", "fatigue", "temperature", "temperature_level", "risk_status", "risk_level"):
+                writers[name] = lambda v, c, rec=rec, f=name: set_field(rec, f, v)
             if self.apply_cells("foods.csv", key, canon, cells, self.FOOD_COLS, writers):
                 self.jmark(path)
         sheet_keys = {c["id"].strip() for c in rows}

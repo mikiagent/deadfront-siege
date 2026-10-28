@@ -2,7 +2,7 @@
 
 > Generated 2026-10-27 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
 
-`168 recipes` from `game/data/recipes.json`; station-only workflow times from `game/data/processing.json`.
+`174 recipes` from `game/data/recipes.json`; station-only workflow times from `game/data/processing.json`.
 
 These rows describe game data; a row alone does not prove that its output is playable. `min skill` is the recipe's minimum level gate when greater than zero; the gate also checks the resulting item level. Other gates may apply. `ability target` affects success chance rather than imposing a hard gate. `recipe max_level` is the configured output-level cap; the actual result also depends on materials, skill, and runtime bounds. Absent values use the defaults in `game/scripts/items/crafting.gd`: minimum 0, ability 0, and output cap 60.
 
@@ -124,6 +124,7 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `specialized_storage_bag` | Specialized Storage Bag x1 | cured_hide x3 (primary); cloth x3; rope x1; fibre x2 | tailoring | 30 | 70 | 60 | 8.0 | sew +1 |
 | `trimmed_plank` | Trimmed Plank x1 | plank_shape x1 (primary) | processing | 0 | 0 | 60 | 12.0 | trim +1 |
 | `fine_plank` | Fine Plank x1 | plank_shape x1 (primary) | processing | 0 | 0 | 60 | 12.0 | trim +1 |
+| `salad` | Salad x1 | fruit x1 (primary); herb x1 | cooking | 0 | 0 | 60 | 2.0 | mix +0 |
 
 ## Drying (drying_rack)
 
@@ -177,6 +178,8 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `boil` | Boiled Meat x1 | meat x1 (primary); water x1 | cooking | 0 | 0 | 60 | 3.0 | boil +1 |
 | `herbed_meal` | Herbed Meal x1 | meat x1 (primary); herb x1 | cooking | 0 | 0 | 60 | 3.0 | cook +1 |
 | `spiced_skewer` | Spiced Skewer x1 | meat x1 (primary); handle x1; spice x1 | cooking | 0 | 0 | 19 | 3.0 | cook +1 |
+| `meat_broth` | Meat Broth x1 | raw_meat x1 (primary); water x1 | cooking | 0 | 0 | 60 | 3.0 | brew +0 |
+| `herbal_tea` | Herbal Tea x1 | herb x1 (primary); water x1 | cooking | 0 | 0 | 60 | 2.5 | brew +0 |
 
 ## mortar (mortar)
 
@@ -188,6 +191,9 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `fruit_fertilizer` | Fruit Fertilizer x1 | fruit x2 (primary); earth x1 | farming | 0 | 0 | 60 | 3.0 | grind +1 |
 | `antivenom` | Antivenom x1 | venom x1 (primary); herb x2 | cooking | 0 | 0 | 60 | 4.0 | grind +1 |
 | `antibiotic` | Antibiotic x1 | herb x3 (primary); mushroom x1 | cooking | 0 | 0 | 60 | 4.0 | grind +1 |
+| `fruit_juice` | Fruit Juice x1 | fruit x1 (primary); water x1 | cooking | 0 | 0 | 60 | 2.0 | mix +0 |
+| `cactus_juice` | Cactus Juice x1 | cactus x1 (primary); water x1 | cooking | 0 | 0 | 60 | 2.0 | mix +0 |
+| `shaved_ice` | Shaved Ice x1 | ice x1 (primary) | cooking | 0 | 0 | 60 | 1.5 | mix +0 |
 
 ## stone_grill (stone_grill)
 

@@ -238,7 +238,13 @@
     "bone_knife": "stone_knife_work",
     "bone_axe": "work_axe",
     "bone_pick": "work_pick",
-    "bone_spear": "stone_knife"
+    "bone_spear": "stone_knife",
+    "fruit_juice": "berries",
+    "cactus_juice": "cactus_flesh",
+    "meat_broth": "boiled_meat",
+    "salad": "herb_leaf",
+    "herbal_tea": "herb_leaf",
+    "shaved_ice": "ice"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

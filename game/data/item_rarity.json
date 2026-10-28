@@ -255,6 +255,12 @@
   "pillar_shape": "common",
   "strap": "common",
   "trimmed_plank": "common",
-  "fine_plank": "common"
+  "fine_plank": "common",
+  "fruit_juice": "uncommon",
+  "cactus_juice": "uncommon",
+  "meat_broth": "uncommon",
+  "salad": "uncommon",
+  "herbal_tea": "uncommon",
+  "shaved_ice": "uncommon"
  }
 }

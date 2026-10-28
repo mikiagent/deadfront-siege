@@ -319,7 +319,18 @@ def gen_items(data: Path, docs: Path, sheets: Path) -> None:
         if f.get("raw_risk"):
             parts.append("raw risk %s" % f["raw_risk"])
         if f.get("temperature"):
-            parts.append("temperature %s" % f["temperature"])
+            parts.append("temperature %s" % f["temperature"]
+                         + (" Lv%s" % f["temperature_level"] if f.get("temperature_level") else ""))
+        for k in ("health", "fatigue"):
+            if f.get(k):
+                parts.append("%s %s" % (k, f[k]))
+        if f.get("risk_status") or f.get("risk_level"):
+            parts.append("raw-bite status %s Lv%s" % (f.get("risk_status", "stomachache"), f.get("risk_level", 1)))
+        if f.get("catalog"):
+            c = f["catalog"]
+            parts.append("catalog `%s` %s (L60: %s + %s Energy, fullness %s%s%s)" % (
+                c["game_id"], c["name"], c["instant_energy"], c["digestion_energy"], c["fullness"],
+                ", " + c["buff"] if c.get("buff") else "", ", " + c["other"] if c.get("other") else ""))
         a("- **%s** — %s" % (f.get("display_name", fid), " — ".join(parts)))
         note = f.get("assumption", "")
         if note:
@@ -328,17 +339,22 @@ def gen_items(data: Path, docs: Path, sheets: Path) -> None:
     write_md(L, docs / "items-traits.md", "Items & traits — the full catalog")
 
     write_csv(sheets / "items.csv",
-              ["id", "display_name", "categories", "stack_max", "tool_class", "base_level", "rarity", "market_category", "attributes"],
+              ["id", "display_name", "categories", "stack_max", "tool_class", "base_level", "rarity", "market_category", "attributes",
+               "food_energy"],
               [[i["id"], i.get("display_name", ""), ";".join(i.get("categories", [])), i.get("stack_max", ""),
                 i.get("tool_class", ""), i.get("base_level", ""), i.get("rarity", ""), i.get("market_category", ""),
-                ";".join("%s=%s" % kv for kv in (i.get("default_attributes") or {}).items())] for i in items])
+                ";".join("%s=%s" % kv for kv in (i.get("default_attributes") or {}).items()),
+                i.get("food_energy", "")] for i in items])
     write_csv(sheets / "foods.csv",
               ["id", "display_name", "provenance", "channels", "energy_instant_release_ratio", "digest_seconds",
-               "thirst", "fullness", "eat_seconds", "taste_score", "buffs", "statuses"],
+               "thirst", "fullness", "eat_seconds", "taste_score", "buffs", "statuses",
+               "health", "fatigue", "temperature", "temperature_level", "risk_status", "risk_level"],
               [[fid, f.get("display_name", ""), f.get("provenance", ""), ";".join(str(x) for x in f.get("channels", [])),
                 (f.get("energy") or {}).get("instant_release_ratio", ""), (f.get("energy") or {}).get("digest_seconds", ""),
                 f.get("thirst", ""), f.get("fullness", ""), f.get("eat_seconds", ""), f.get("taste_score", ""),
-                dict_cell(f.get("buffs")), dict_cell(f.get("statuses"))] for fid, f in sorted(foods.items())])
+                dict_cell(f.get("buffs")), dict_cell(f.get("statuses")),
+                f.get("health", ""), f.get("fatigue", ""), f.get("temperature", ""), f.get("temperature_level", ""),
+                f.get("risk_status", ""), f.get("risk_level", "")] for fid, f in sorted(foods.items())])
 
 
 # ------------------------------------------------------------------ sheets notes
