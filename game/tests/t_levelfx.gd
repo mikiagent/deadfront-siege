@@ -320,7 +320,7 @@ func _test_phone() -> void:
 			hud.call("_on_level_up", world.pioneer_level)
 		var rec := await _phone_watch(0.6, false, null)
 		if kind == "skill":
-			_expect(rec["quest_frames"] == rec["frames"] and rec["lu_frames"] > 0 and rec["quest_hits"] == 0, "phone: a skill level-up keeps the quest card and stands beside it (%d/%d frames with the card, %d drawn, %d overlaps)" % [rec["quest_frames"], rec["frames"], rec["lu_frames"], rec["quest_hits"]])
+			_expect(rec["orders_frames"] == rec["frames"] and rec["lu_frames"] > 0 and rec["quest_hits"] == 0, "phone: a skill level-up keeps the order (card or minimap badge) and stays off it (%d/%d frames with the order, %d drawn, %d overlaps)" % [rec["orders_frames"], rec["frames"], rec["lu_frames"], rec["quest_hits"]])
 		else:
 			_expect(rec["quest_frames"] == 0 and rec["lu_frames"] > 0, "phone: a character level-up takes the band from the quest card (%d frames with the card)" % rec["quest_frames"])
 		var at := (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2()) as Rect2
@@ -348,7 +348,7 @@ func _test_phone() -> void:
 ## its largest per-frame move or resize, the largest move over 40 px, and such a move while the
 ## celebration had not just re-placed it (its fade-back-in over 0.15).
 func _phone_watch(seconds: float, retarget: bool, target: Node3D) -> Dictionary:
-	var out := {"frames": 0, "quest_frames": 0, "lu_frames": 0, "quest_hits": 0, "plate_frames": 0, "plate_hits": 0, "step": 0.0, "bad_jump": 0.0, "seen_jump": 0.0}
+	var out := {"frames": 0, "orders_frames": 0, "quest_frames": 0, "lu_frames": 0, "quest_hits": 0, "plate_frames": 0, "plate_hits": 0, "step": 0.0, "bad_jump": 0.0, "seen_jump": 0.0}
 	var last := Rect2()
 	var t := 0.0
 	while t < seconds:
@@ -362,6 +362,7 @@ func _phone_watch(seconds: float, retarget: bool, target: Node3D) -> Dictionary:
 		var plate: Rect2 = blocks.get("plate", Rect2())
 		out["frames"] += 1
 		out["quest_frames"] += 1 if quest.has_area() else 0
+		out["orders_frames"] += 1 if quest.has_area() or blocks.has("orders_badge") else 0  # HUDRULES: collapsed, the order is a minimap badge
 		out["lu_frames"] += 1 if lu.has_area() else 0
 		out["plate_frames"] += 1 if plate.has_area() else 0
 		out["quest_hits"] += 1 if lu.has_area() and quest.has_area() and lu.intersects(quest) else 0
@@ -480,7 +481,10 @@ func _test_top_feed(size: Vector2i) -> void:
 		var b: Rect2 = hud.get("drawn_blocks")[k]
 		if str(k) != "toast0" and b.has_area() and b.intersects(row):
 			hits += 1
-	_expect(hits == 0, "%s top feed: the row keeps off every other HUD block (%d)" % [tag, hits])
+	var stom: Rect2 = hud.get("stomach_rect")
+	if stom.has_area() and stom.intersects(row):
+		hits += 1
+	_expect(hits == 0, "%s top feed: the row keeps off every other HUD block, the orders badge and the stomach ring (%d)" % [tag, hits])
 	# Collapse, then the cap.
 	feed.clear()
 	feed.sync(player)
@@ -510,9 +514,14 @@ func _test_top_feed(size: Vector2i) -> void:
 	cel.call("push_skill", &"cooking", 3)
 	await _frames(4)
 	var lu: Rect2 = (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2())
+	if lu.position.y >= view.y * 0.4:
+		for k in hud.get("drawn_blocks"):
+			print("[t_levelfx] DBG %s %s" % [k, hud.get("drawn_blocks")[k]])
+		print("[t_levelfx] DBG rows %s" % [feed.rows.map(func (x): return [x["kind"], x["id"], x.get("y")])])
 	_expect(lu.has_area() and absf(lu.get_center().x - cx) < 2.0 and lu.position.y < view.y * 0.4, "%s top feed: a skill level-up is a row at the top middle (%s)" % [tag, lu])
 	if not band.has_area():  # the desktop character stack: far left (owner 2026-10-28), off the HUD
 		await _quiet()
+		player.statuses.apply(&"well_rested")  # HUDRULES: a buff chip in the row under the vitals
 		hud.call("_on_level_up", world.pioneer_level)
 		await create_timer(0.8).timeout
 		var st: Rect2 = (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2())
@@ -530,7 +539,14 @@ func _test_top_feed(size: Vector2i) -> void:
 				over += 1
 				over_what = str(h.name)
 		_expect(st.has_area() and st.position.x >= inset.w and st.position.x <= vit.position.x + 16.5 and st.position.y >= vit.end.y and st.end.y <= view.y, "%s character stack: it hugs the left edge, under the vitals, inside the view (%s)" % [tag, st])
-		_expect(over == 0, "%s character stack: nothing of the HUD under it (%d, %s)" % [tag, over, over_what])
+		var stomach: Rect2 = hud.get("stomach_rect")
+		var feed_rows: Array = []
+		for k in hud.get("drawn_blocks"):
+			if str(k).begins_with("toast"):
+				feed_rows.append(hud.get("drawn_blocks")[k])
+		_expect(over == 0 and (hud.get("drawn_blocks") as Dictionary).has("statuses"), "%s character stack: nothing of the HUD under it, the buff row up (%d, %s)" % [tag, over, over_what])
+		_expect(not stomach.has_area() or (not stomach.intersects(st) and not feed_rows.any(func (b: Rect2) -> bool: return b.intersects(stomach))), "%s: the stomach ring (%s) clear of the stack and the feed" % [tag, stomach])
+		player.statuses.clear_all()
 	await _quiet()
 	get_root().size = start_size
 	get_root().content_scale_size = start_canvas

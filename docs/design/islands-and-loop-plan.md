@@ -159,15 +159,15 @@ obsidian, copper) within 60-110 m of the landing camp so the first visit pays of
 
 | Measure | Budget | Today |
 |---|---|---|
-| Island build, native | <= 2.5 s home, <= 3.0 s unstable | home 0.8-1.4 s, unstable 2.9-3.6 s typical |
+| Island build, native | <= 2.5 s home, <= 3.0 s unstable | home 4.3-4.5 s, unstable 2.7-5.4 s (2026-10-28, dev Mac under load; islandgen_lab on the same box: 4.0 / 3.9 / 2.5 s) |
 | Island build, web (Chrome desktop) | <= 6 s behind the fade, split with awaits if over | not measured |
-| HarvestNodes per island | home 450-600, unstable 500-750 | 216 / 210-397 |
-| Scene nodes after build | <= 6,000 | 2,036 / 3,549 |
-| Ground-cover instances | MultiMesh in 32 m cells, 120 m range, no shadow | 96 / 185 |
-| Camp view 1600x900 | visible primitives < 900k, shadow < 3.0M, draws < 450 | home 2.83M total, 315 draws |
-| Frame time, web build | p95 <= 16.7 ms desktop Chrome; p95 <= 33 ms at 844x390 with DevTools CPU throttle 4x | not measured |
-| Heap per island | <= +90 MB | +24 / +58 MB |
-| Creatures | home 11; unstable cap 24 kept, spawned by zone near the player | 8 / 24 |
+| HarvestNodes per island | home 450-600, unstable 500-750 | 600 / 600 / 600 (home, savannah_15, volcanic_60) |
+| Scene nodes after build | <= 6,000 | 5,067 / 5,343 / 5,036 (home, savannah_15, volcanic_60) |
+| Ground-cover instances | MultiMesh in 32 m cells, 120 m range, no shadow | 78,090 home (77 cells) / 61,509 savannah (55) / 0 volcanic (no kinds by data); every cell 32 m, shadow off, range >= 120 m |
+| Camp view 1600x900 | visible primitives < 900k, shadow < 3.0M, draws < 450 | home draws 324, base prims 80,763, 334,988 with the shadow pass; 844x390: 299 draws, 78,872 / 448,105 |
+| Frame time, web build | p95 <= 16.7 ms desktop Chrome; p95 <= 33 ms at 844x390 with DevTools CPU throttle 4x | not measured (web); native camp p95 10.6 ms at 1600x900, 8.3 ms at 844x390 |
+| Heap per island | <= +90 MB | +171 / +187 / +171 MB native static memory (home, savannah_15, volcanic_60); the old +24 / +58 MB was a web heap figure |
+| Creatures | home 11; unstable cap 24 kept, spawned by zone near the player | 8 / 24 / 6 (home, savannah_15, volcanic_60) |
 
 Work needed to hit it: per-vertex slope and typed packed arrays in `_build_tile_types` (about 5 `surface_y` calls per
 tile today) and `TilePath._rebuild` (about 6); skip tiles outside the dry box; build the tile image from a byte array.

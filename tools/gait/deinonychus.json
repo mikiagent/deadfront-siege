@@ -87,6 +87,52 @@
       "wiggle_harmonic_head": 2,
       "wiggle_tail": 2.0,
       "lean_deg": 12
+    },
+    "charge": {
+      "cycle_s": 0.4,
+      "duty": 0.3,
+      "stride": 0.82,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.08,
+      "swing_curl_hind": 45,
+      "toe_roll": 35,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "crouch": 0.13,
+      "bob": 0.012,
+      "bob_harmonic": 2,
+      "bob_phase": 0.0,
+      "roll_deg": 1.5,
+      "sway": 0.005,
+      "wiggle_head": 1.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 1.5,
+      "lean_deg": 24,
+      "hold": {
+        "Neck": [
+          "pitch",
+          20
+        ],
+        "Head": [
+          "pitch",
+          8
+        ],
+        "Tail1": [
+          "pitch",
+          16
+        ],
+        "FrontUpLeg.L": [
+          "pitch",
+          -60
+        ],
+        "FrontUpLeg.R": [
+          "pitch",
+          -60
+        ]
+      }
     }
   }
 }

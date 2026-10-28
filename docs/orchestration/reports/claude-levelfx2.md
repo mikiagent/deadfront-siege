@@ -95,3 +95,17 @@ A level-up adds about 45 draw calls and 0.1–0.5 ms of render CPU. TopFeed is c
 - t_uinav prints one SCRIPT ERROR (a freed NavMenu read at t_uinav.gd:132) but passes. It looks like the test's own flow, not LEVELFX; I did not check it on canon.
 - The old `claude/mmo-levelfx` branch is superseded; nothing from it needs merging.
 - Not pushed and not merged. `game/override.cfg` is kept (custom user dir `deadfront-mmo-levelfx2`).
+
+## Merge round: canon's HUDRULES, NATURECHIP and BACKPACKS (later on 2026-10-28)
+
+- The merge had two conflicts, both in `hunt_hud.gd`. I kept HUDRULES' order rules (the card hides in combat unless the fight serves the order, collapses to a minimap badge and auto-expands) and swapped its `_levelup_t < 0.0` test for `not _levelups.hides_quest(...)`. Next to HUDRULES' new order functions I kept the `quest_rect` split.
+- t_levelfx changes:
+  - A phone skill level-up now has to keep the order showing, either as the card or as the minimap badge (the card is collapsed by default now).
+  - The far-left character panel is checked with a buff chip in the row under the vitals, against every drawn block (`statuses`, `orders_badge`…) and the stomach ring.
+  - The top-feed row is checked against the stomach ring as well.
+  - Results at 1600x900: the panel is at (24, 230, 233x412), the stomach ring at (254, 12, 38x38), and nothing overlaps.
+- Gates after the merge and a re-import:
+  - t_levelfx, t_hudrules, t_targetui, t_ui, t_fieldhud, t_uigather, t_uinav, t_statusfx and t_gather PASS.
+  - run_all prints `[tests] PASS` and smoke prints `SMOKE PASS`.
+- t_levelfx failed once on the phone skill-row placement (the row landed at y 260 instead of 114) and then passed 4 runs in a row. It now dumps the drawn blocks if that happens again. It is probably a leftover row from an earlier step under load, but I have not confirmed that.
+- I did not repeat the windowed captures after this merge. The HUD changes from HUDRULES sit in the vitals and the minimap; the panel and the feed were only checked headless.
