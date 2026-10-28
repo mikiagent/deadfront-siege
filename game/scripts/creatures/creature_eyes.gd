@@ -28,6 +28,9 @@ static var _applied_night := -1.0
 
 var attachment: BoneAttachment3D
 var dots: Array[MeshInstance3D] = []
+## Motion ribbon behind the two dots (EyeTrail); null until setup() has built the dots.
+var trail: EyeTrail
+var eye_color := Color.WHITE
 var bone_index: int = -1
 var eye_material: StandardMaterial3D
 var radius_model: float = 0.02
@@ -83,7 +86,16 @@ func setup(view: CreatureView, eyes: Dictionary) -> bool:
 		attachment.add_child(mi)
 		mi.position = at
 		dots.append(mi)
-	return dots.size() == 2
+	if dots.size() != 2:
+		return false
+	# The ribbon lives in world space (top_level), so it hangs off this node, not the bone: a
+	# BoneAttachment3D child would carry every vertex along with the head and never trail.
+	eye_color = col
+	trail = EyeTrail.new()
+	trail.name = "EyeTrail"
+	add_child(trail)
+	trail.setup(self, dots, radius_model * scale, col, eyes)
+	return true
 
 static func _vec(p: Variant) -> Vector3:
 	if p is Array and (p as Array).size() >= 3:
@@ -131,12 +143,14 @@ static func apply_night() -> void:
 	for key in _materials:
 		paint(_materials[key] as StandardMaterial3D, Color.html(key), n)
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if WorldLighting.night != _applied_night:
 		apply_night()
 	# Dead or asleep creatures show no eyeshine (ASSUMPTION: the glow is an alert, waking trait).
 	if attachment:
 		attachment.visible = is_awake()
+	if trail:
+		trail.tick(delta)
 
 func is_awake() -> bool:
 	var c := get_parent().get_parent() as Creature if get_parent() else null
