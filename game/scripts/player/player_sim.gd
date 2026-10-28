@@ -348,11 +348,16 @@ func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 		p.notice("Out of stamina.")
 		return false
 	dir.y = 0.0
-	if dir.length_squared() < 0.0001:
-		dir = -p.visual.global_basis.z
+	# OWNER RULE 2026-10-28: the roll is directional. Held input rolls that way; with no direction
+	# she rolls BACKWARD, away from where she faces, and keeps her facing (the body moves back, she
+	# does not spin round first). There is no dedicated back-roll clip, so the roll clip plays as is.
+	roll_backward = dir.length_squared() < 0.0001
+	if roll_backward:
+		dir = p.visual.global_basis.z
 		dir.y = 0.0
 	_roll_direction = dir.normalized()
-	p.visual.rotation.y = atan2(-_roll_direction.x, -_roll_direction.z)
+	if not roll_backward:
+		p.visual.rotation.y = atan2(-_roll_direction.x, -_roll_direction.z)
 	p.rolling = true
 	_roll_left = RollRules.seconds()
 	_roll_elapsed = 0.0
@@ -397,6 +402,9 @@ func roll_refusal() -> String:
 
 func roll_left() -> float:
 	return _roll_left
+
+## True when the current (or last) roll was the no-input backward roll: the facing stays put.
+var roll_backward: bool = false
 
 ## Seconds since this roll began; the opening RollRules.iframes_s() of it dodge creature hits.
 func roll_elapsed() -> float:

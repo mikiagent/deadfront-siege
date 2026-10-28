@@ -73,6 +73,7 @@ func _run() -> void:
 	player.vitals.max_health = 1000.0
 	player.vitals.health = 1000.0
 	await _frames(20)
+	await _test_direction()
 	await _test_distance()
 	await _test_wall()
 	await _test_iframes()
@@ -131,6 +132,40 @@ func _defense_total() -> float:
 	for l in range(1, player.skills.level_of("defense")):
 		total += player.skills.xp_to_next(l)
 	return total + player.skills.xp_of("defense")
+
+## 0. OWNER RULE 2026-10-28: rolls are directional. Held input rolls that way; with no direction
+## she rolls backward, away from where she faces, and keeps her facing. Measured on the live scene.
+func _test_direction() -> void:
+	# Facing +Z (rotation.y = PI puts the rig's -Z forward at +Z).
+	await _reset_at(Vector3(0, 1.0, 0))
+	player.visual.rotation.y = PI
+	await _frames(2)
+	var facing: Vector3 = -player.visual.global_basis.z
+	var yaw0: float = player.visual.rotation.y
+	var dir_left: Vector3 = player.sim.cam_dir(Vector2(-1, 0))
+	var left_roll: bool = player.sim.try_roll(dir_left)
+	while player.rolling:
+		await physics_frame
+	var moved_left: Vector3 = player.global_position - Vector3(0, 1.0, 0)
+	print("[t_roll] measure left roll accepted=%s moved=(%.2f, %.2f) wanted=(%.2f, %.2f)" % [left_roll, moved_left.x, moved_left.z, dir_left.x, dir_left.z])
+	_expect(left_roll and Vector2(moved_left.x, moved_left.z).normalized().dot(Vector2(dir_left.x, dir_left.z).normalized()) > 0.95,
+		"holding left rolls her left (%.2f, %.2f)" % [moved_left.x, moved_left.z])
+	# No input: backward, away from the facing, and she does not turn round.
+	await _reset_at(Vector3(0, 1.0, 0))
+	player.visual.rotation.y = PI
+	await _frames(2)
+	facing = -player.visual.global_basis.z
+	yaw0 = player.visual.rotation.y
+	var back_roll: bool = player.sim.try_roll(Vector3.ZERO)
+	while player.rolling:
+		await physics_frame
+	var moved_back: Vector3 = player.global_position - Vector3(0, 1.0, 0)
+	var yaw1: float = player.visual.rotation.y
+	var flat := Vector2(moved_back.x, moved_back.z)
+	print("[t_roll] measure no-input roll accepted=%s moved=(%.2f, %.2f) facing=(%.2f, %.2f) yaw %.2f -> %.2f" % [back_roll, flat.x, flat.y, facing.x, facing.z, yaw0, yaw1])
+	_expect(back_roll and flat.length() > 1.0 and flat.normalized().dot(Vector2(facing.x, facing.z)) < -0.95,
+		"with no direction held she rolls backward, away from her facing (moved %.2f, %.2f)" % [flat.x, flat.y])
+	_expect(absf(angle_difference(yaw0, yaw1)) < 0.05, "a backward roll keeps her facing (yaw %.3f -> %.3f)" % [yaw0, yaw1])
 
 ## 1. The roll carries her clear: longer than the old 5.9 m, front-loaded, and it is the dash that
 ## Did the moving (measured on the live scene, never the constant).
