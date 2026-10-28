@@ -185,6 +185,8 @@ func _test_wear_inside_and_outside() -> void:
 	(_fake as FakeRuntime).claimed = true
 
 func _test_cooking_gate() -> void:
+	var sc0: Variant = _player.get("station_craft")
+	var menu: Variant = sc0.get("menu") if sc0 != null else null
 	var pit := _fire(&"stone_fire_pit")
 	_expect(not bool(pit.call("can_cook")), "a cold pit cannot cook")
 	_expect(str(pit.call("cook_block_reason")) != "", "a cold pit says why cooking is refused")
@@ -204,7 +206,33 @@ func _test_cooking_gate() -> void:
 		if str((a as Dictionary).get("id", "")) == "cook":
 			cook_on = true
 	_expect(cook_on, "a burning pit's menu offers COOK")
+	# The menu itself refuses a COOK press on a fire that is not burning (even if a hex is built by
+	# hand) and never emits the action, and pressing LOAD WOOD lights the pit from the menu.
+	if menu != null:
+		var emitted: Array = []
+		menu.action_chosen.connect(func (st: Node3D, aid: StringName) -> void: emitted.append(str(aid)))
+		var cold_pit := _fire(&"stone_fire_pit")
+		menu.call("show_for", cold_pit, [{"id": &"cook", "label": "COOK"}])
+		menu.call("_on_pressed", &"cook")
+		_expect(emitted.is_empty(), "a COOK press on a cold pit emits nothing")
+		_wood_log()
+		menu.call("show_for", cold_pit, [{"id": &"wood", "label": "LOAD WOOD"}])
+		menu.call("_on_pressed", &"wood")
+		_expect(float(cold_pit.get("fuel_seconds")) > 0.0 and bool(cold_pit.call("can_cook")), "LOAD WOOD from the menu lights the pit")
+		menu.call("hide_menu")
+		cold_pit.queue_free()
 	pit.queue_free()
+	# A cook that is under way on the fire stops when the fire goes out, and its inputs stay in the bag.
+	var sc1: Variant = _player.get("station_craft")
+	if sc1 != null:
+		sc1.set("station", pit)
+		sc1.set("crafting", true)
+		var branches_before: int = _player.inventory.count_of(&"branch")
+		pit.call("tick", float(pit.get("fuel_seconds")) + 1.0)
+		var stopped: bool = not bool(sc1.get("crafting"))
+		print("[t_firepits] cook stopped with the fire: %s branches %d->%d" % [stopped, branches_before, _player.inventory.count_of(&"branch")])
+		_expect(stopped, "a cook running on the pit stops when its fuel runs out")
+		sc1.set("station", null)
 	# A temporary fire that has burned out refuses too.
 	var b := _fire(&"bonfire")
 	b.call("tick", float(b.get("fuel_seconds")) + 1.0)

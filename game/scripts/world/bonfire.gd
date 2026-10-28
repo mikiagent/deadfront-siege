@@ -206,7 +206,10 @@ func load_wood(player: Player) -> float:
 func tick(delta: float) -> void:
 	if delta <= 0.0:
 		return
+	var was_burning := burning()
 	fuel_seconds = maxf(0.0, fuel_seconds - delta)
+	if was_burning and fuel_seconds <= 0.0:
+		_stop_cooking()
 	if not is_permanent():
 		var mult := _outside_mult if not _in_domain() else 1.0
 		durability = maxf(0.0, durability - _wear_per_min * mult * delta / 60.0)
@@ -219,6 +222,15 @@ func tick(delta: float) -> void:
 			queue_free()
 			return
 	_sync_fire_nodes()
+
+## A craft that was running here when the fire went out stops: inputs stay in the bag (StationCraft
+## keeps them until a craft finishes), so nothing is lost and nothing cooks on a dead fire.
+func _stop_cooking() -> void:
+	for p in PlayerRegistry.all():
+		var sc: Variant = p.get("station_craft") if p != null else null
+		if sc != null and sc.get("crafting") == true and sc.get("station") == self:
+			sc.call("cancel_and_refund")
+			p.notice("The fire went out")
 
 ## Inside the survivor's Domain: the build grid's own claim check, the same one placement uses.
 func _in_domain() -> bool:

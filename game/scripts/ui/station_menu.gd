@@ -150,6 +150,15 @@ func hide_menu() -> void:
 
 func _on_pressed(aid: StringName) -> void:
 	var st := station
+	# FIREPITS: these two act on the fire in place and keep the menu open, so its fuel line updates.
+	if aid == &"wood" and st != null and is_instance_valid(st) and st.has_method("load_wood"):
+		st.call("load_wood", player)
+		_show_info()
+		return
+	if aid == &"cook" and st != null and is_instance_valid(st) and st.has_method("can_cook") and not bool(st.call("can_cook")):
+		if player != null:
+			player.notice("Can't cook: %s" % str(st.call("cook_block_reason")).to_lower())
+		return
 	hide_menu()
 	action_chosen.emit(st, aid)
 
