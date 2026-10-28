@@ -86,6 +86,14 @@ Test: `game/tests/t_xpecon.gd`.
 - Cargo and storage capacity, which bound what can be traded at all, are in
   [inventory-bags.md](inventory-bags.md).
 
+## Island Market screens
+The Market is reached from the nav menu's **Island Market** entry (the right column's
+Friends slot, `game/scripts/ui/nav_menu.gd`) or `HuntHud.open_market(tab)`; the screens live in
+`game/scripts/ui/market/` and their ‹ returns to the nav menu. In the single-player build every
+tab shows the offline card — the numbers below move nothing client-side. The dev/test harness
+(`game/scripts/dev/market_harness.gd` with `LocalMarketClient`) drives the real engine in process
+so the screens can be seen with listings. See [ui-screens.md](ui-screens.md#island-market).
+
 ## Island Market engine (online only) — `game/scripts/economy/`
 Server-side and in-process, like `game/scripts/server/` (no transport, no host). Nothing in the
 live single-player game calls it: offline play has no market, and the market screens say so. The
