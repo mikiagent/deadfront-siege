@@ -113,6 +113,11 @@ re-check which side each front tooth belongs to.
 - Skill catalog search (Blender, rigging, animation, retarget, 3D, Tripo): nothing relevant to install.
 - `game-asset-pipeline` (our own skill): the right base. It has anatomy verifiers but no jaw step and no foot-slide
   check; steps 3 and 5 above should be added to it.
+- `github.com/kevinbadi/blender-skills` (checked 2026-10-28, commit b2f0f81): product-video camera moves, PolyHaven
+  materials/HDRIs, a Three.js export, Meshy image-to-3D wrappers (we already have `tools/meshy.py`) and a copy of
+  Dev-GOM's `blender-toolkit` (Mixamo humanoid to Rigify retargeting over a WebSocket addon). Nothing for jaws,
+  weights, quadruped/theropod gaits or foot contact. No licence file, so the code is not ours to copy. Idea worth
+  keeping: score a bone mapping by how many critical bones matched before auto-applying a retarget.
 - `universal-modder:asset-pipeline`: 2D sprites from 3D, not useful here.
 - Blender MCP: failed to connect this session; everything ran as headless Blender scripts, which is also what
   dsc workers can run unattended.
