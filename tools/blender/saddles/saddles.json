@@ -45,12 +45,6 @@
    "cushion_m": 0.05,
    "skirt_m": 0.1
   },
-  "coelophysis": {
-   "seat_half_w_m": 0.18,
-   "seat_half_len_m": 0.2,
-   "cushion_m": 0.04,
-   "skirt_m": 0.08
-  },
   "deinonychus": {
    "seat_half_w_m": 0.2,
    "seat_half_len_m": 0.22,

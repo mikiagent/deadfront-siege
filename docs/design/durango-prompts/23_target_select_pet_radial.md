@@ -14,7 +14,7 @@ References: `docs/reference/durango-target-select.webp`, `docs/reference/durango
 
 - **Level badge:** a round "39 LEVEL" badge at the top left, next to segmented HP and stamina bars and two status chips.
 - **Skill hexes, bottom right:** "1" is a target/capture hex with a red X, "2" is a ride hex, and empty slots follow.
-- **Left-edge column:** search, chat, emote and menu.
+- **Left-edge column:** search, chat, emote and menu. The menu opens the full navigation overlay (`33_ingame_hamburger_menu.md`), which is how every system screen above is reached.
 - **Bottom-left:** a pet switcher "R".
 
 ## Pet radial (second shot)

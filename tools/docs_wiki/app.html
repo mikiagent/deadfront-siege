@@ -5,12 +5,16 @@
 <title>Wildlands MMO Wiki</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/boards.css">
+<link rel="stylesheet" href="/models.css">
+<link rel="stylesheet" href="/tuning.css">
+<link rel="stylesheet" href="/plan.css">
 <script src="/marked.min.js"></script>
 </head>
 <body>
 <header class="site-header">
   <a class="brand" href="/" aria-label="Wildlands MMO Wiki home"><span class="brand-mark" aria-hidden="true">W</span><span><strong>Wildlands MMO</strong><small>The project wiki</small></span></a>
-  <label class="search"><span class="sr-only">Search document titles and paths</span><input id="q" type="search" placeholder="Search the wiki" autocomplete="off"><span aria-hidden="true">⌕</span></label>
+  <label class="search"><span class="sr-only">Search document titles and paths</span><input id="q" type="search" placeholder="Search the wiki" autocomplete="off" aria-describedby="archiveHint"><span aria-hidden="true">⌕</span></label>
   <div class="header-note">A guide to the world we're building</div>
 </header>
 <div class="layout">
@@ -19,16 +23,26 @@
     <nav id="tabs" aria-label="Wiki sections">
       <button data-tab="browse" class="on">Articles</button>
       <button data-tab="systems">Systems</button>
+      <button data-tab="tuning">Tuning sheets</button>
+      <button data-tab="plan">Review a plan</button>
+      <button data-tab="art">Art vision board</button>
+      <button data-tab="ui">UI vision board</button>
+      <button data-tab="screenshots">Build screenshots</button>
       <button data-tab="map">Canon map</button>
+      <button data-tab="phase">Roadmap</button>
       <button data-tab="reconcile" id="reconcileTab">Reconcile <span id="reconcileCount" class="count"></span></button>
     </nav>
     <div class="nav-heading documents-heading">Documents</div>
-    <label class="archive-toggle"><input type="checkbox" id="showArchive"> Include archive</label>
+    <p id="archiveHint" class="badge">To search historical documents, type <b>/archive</b> followed by a search term.</p>
     <div id="sidebar"></div>
     <button id="exportBtn" class="export-btn" title="Download canon map and curation state">Export curation state</button>
   </aside>
   <main id="pane" tabindex="-1"></main>
 </div>
+<script src="/boards.js"></script>
+<script src="/models.js"></script>
+<script src="/tuning.js"></script>
+<script src="/plan.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

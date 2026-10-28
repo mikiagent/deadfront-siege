@@ -23,6 +23,14 @@ What the screenshot shows:
 - **Legend (bottom right):** Your Location, Other Player, Shelter, Harbor, Bonfire.
 - **Buttons and controls:** "To Harbor" and "To Waypoint" at the bottom right, and a close X at the top right.
 
+## Landmarks and the exploration reward (owner screenshot, 2026-10-27)
+
+Pasted screenshot (not on disk); the reading follows. It is the same left info panel as the stable-island reference above, for a settled island — Safe House No. 9 (banner: palm art, "Lv. 5 The Company's Safe House"):
+- Over the familiar Climate / Island Life Span / Current Fatigue 0/277 / Fatigue Change Rate rows, two additions: **Landmarks Found 2 / 13** with a small progress bar, and an **Exploration Reward** row paying out coins (151). Landmark discovery is tracked per island, and the market currency is its reward channel.
+- The action button on this variant is "To Camp" (the stable-island reference shows To Harbor / To Waypoint).
+- The marker cluster keeps the compass pin shelter/harbour icons and "X 409 Y 390" coordinates; the laurel emblem and flavour line ("An island with no great difficulties.") are unchanged.
+- For us: `islands-and-loop-plan.md` currently budgets **one landmark per island**; 2/13 found suggests the original tracked several per island. Fold "Landmarks Found x / y" into the landmark spec and decide the reward rate with the ECON owners — a per-landmark payout, not a lump sum, keeps discount on partial exploration honest.
+
 ## The Sail menu (owner, second screenshot, same day)
 
 Owner's words, verbatim: "Menu scrolls rightward and has many islands"

@@ -1,9 +1,13 @@
 # Agent guide for this repository
 
-Three agents work here. Read this file first, then the plan.
+Three agents work here. Read this file first, then the relevant source documents.
 
-**MMO program (2026-10-20): start with `docs/orchestration/mmo/HANDOFF.md`** - where everything is, what is merged,
-what is half done on which branch, and what has not started.
+**Game implementation:** Before building or changing a game system, use `docs/agent-context.md`
+to find its vision, current behavior, owning code, and tests.
+
+**Wiki maintenance:** Before changing the wiki, documentation, visual boards, or tuning sheets,
+read `docs/wiki-maintenance.md`. It defines how to distinguish current implementation, vision,
+proposals, and archive material and how to hand off changes.
 
 | Agent | Owns | Never touches |
 |---|---|---|
@@ -11,16 +15,17 @@ what is half done on which branch, and what has not started.
 | Claude Code (art pipeline, since Codex ran out of usage) | `game/assets/creatures/`, `game/assets/characters/`, `game/assets/nature/`, `game/data/creatures/*.json`, `game/data/characters/`, `tools/` | `game/scenes`, `game/scripts` |
 | Cursor | `game/scenes/`, `game/scripts/`, `game/data/*.json` except creatures | `game/assets/creatures/`, Meshy |
 
-Plan and milestones: `docs/orchestration/plan.md`
+Historical plan and milestones: `main:docs/archive/plan.md` (use `git show main:docs/archive/plan.md`)
 Art/data contract: `game/data/creatures/SCHEMA.md`
-Design source of truth: `docs/prd/durango-wild-lands-systems-prd.md`, `docs/prd/dinosaur-roster-and-3d-pipeline.md`
-Engine choice and why: `docs/engine-decision.md`
+Current implementation and intended design: `docs/current/` and `docs/vision/`
+Historical PRDs: `main:docs/prd/durango-wild-lands-systems-prd.md`, `main:docs/archive/prd/dinosaur-roster-and-3d-pipeline.md`
+Engine choice and why: `main:docs/archive/engine-decision.md`
 
 ## Rules that apply to everyone
 
 - The old game is `index.html` plus ~90 HTML snapshots. Treat it as a **spec to read**, never as code to extend. Nothing new goes in the repo root.
 - Godot 4.7.1 (Mono build), **typed GDScript**. No C# unless the plan says so.
-- **Mobile is the primary target.** All input goes through InputMap actions; the autoloaded touch layer presses them. Tap targets 64 px or larger, respect the safe area, no hover-only UI. Test with `--touch` after `--` on the command line (mouse emulates touch).
+- **Desktop Chrome (1600x900, real mouse, 16:9) is the primary acceptance target and ship gate; mobile/touch stays a supported secondary target.** All input goes through InputMap actions; the autoloaded touch layer presses them. Tap targets 64 px or larger, respect the safe area, no hover-only UI. Test with `--touch` after `--` on the command line (mouse emulates touch).
 - Headless check before you report done: `tools/smoke.sh` must print `SMOKE PASS`.
 - Meshy costs credits. Every task that spends them has a cap in its prompt. Stop and report when you hit the cap; do not "try one more".
 - When a task ends, write `docs/orchestration/reports/<agent>-<task>.md`: what shipped, what failed, credits spent, what the next agent needs. That report is how the other agents hear from you.

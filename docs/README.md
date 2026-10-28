@@ -1,4 +1,4 @@
-# DEADFRONT docs — the canon line (single source of truth)
+# Wildlands MMO documentation
 
 This line owns every doc that is true **today**. Nothing about a living system
 exists in two places: the archive line (`main`) holds history and is never
@@ -16,19 +16,21 @@ owner-authored `WildLandsMMO_*` spec set (2026-10-27):
   `WildLandsMMO_Traits_Gathering_Processing_Math.md` — workshop **proposals**: formulas and
   percentages are candidates until the balance workshop approves them; do not quote their
   numbers as shipped fact
-- The umbrella doc references a `WildLandsMMO_Open_Questions.md` decision register (not yet
-  in this repo — pending)
+- The [Open Questions register](vision/WildLandsMMO_Open_Questions.md) tracks
+  unresolved decisions and points to the document that will own each answer.
 
 ## `current/` — how the build works today
-One doc per system, facts and numbers only, each citing the code path that owns
-it. `controls.md` (input truth) and the three generated data pages exist today;
-`survival-needs.md` and `hud.md` are pending but tracked in `current/README.md`.
+The [current index](current/README.md) lists implemented-system pages and the
+pages still to write. Each page cites the code or data that owns its facts.
+The [vision index](vision/README.md) separates owner-confirmed design from
+workshop proposals. Coding agents can use [agent context](agent-context.md) to
+find the relevant sections, code, and tests for a task.
 
 ## Everything historical lives on the archive line
 The old corpus (~420 docs: orchestration prompts, reports, playtests, the PRDs,
 old release notes) was removed from this line on 2026-10-27. Read it from the
-`main` checkout, `git show main:<path>`, or through the wiki's **deep** search
-(the wiki indexes the archive line, but never auto-loads it). Code comments
+`main` checkout, `git show main:<path>`, or by entering `/archive <term>` in
+the wiki search box. Normal wiki searches do not search the archive. Code comments
 that cite a removed path keep working as history pointers — treat them as
 "where it came from", not as a file to open.
 
@@ -48,6 +50,5 @@ that cite a removed path keep working as history pointers — treat them as
   `tools/docs_wiki/gen_game_data.py`, which reads `game/data/*.json`; re-run it after any
   balance pass or accepted sheet sync. The owner's editable sheets live in
   `game/data_sheets/` (see its `NOTES.md`).
-- Stale docs are `git mv`-ed to the archive line's `docs/` (mark them stalled in the wiki
-  first: http://localhost:8899). Copying docs between the lines is how they drift; the
-  wiki's cross-line diff list is the drift alarm.
+- Follow [wiki maintenance](wiki-maintenance.md) when retiring a document. Check
+  for consumers and preserved decisions before coordinating archive and canon commits.

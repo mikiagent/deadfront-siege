@@ -29,6 +29,16 @@ UI shows target HP, warnings, effect indicators, current stance, auto-attack sta
 ## 9. Vertical-slice acceptance tests
 Create an enemy with a telegraphed attack → select and auto-attack → manually Roll during windup → Defense XP is awarded only on valid defense → use weapon-specific special attack → see status effects → weaken an eligible Zebraceratops → Shoulder Tackle/stun → net Capture appears → attempt fails then retry, or succeeds → wild actor removed and captured instance safely added to inventory → taming pen accepts it. Separately test stun expiration, lethal blow, weapon/stance restrictions, ranged behavior, companion defense, item affix procs, no duplicated capture, no repeated XP, save/load and simultaneous capture requests.
 
+## Reference screenshots — combat HUD details (owner, 2026-10-27)
+
+A pasted in-combat screenshot against a wild quadruped (Acernychus Lv. 15, HP 141/320; not on disk). Reading is the orchestrator's — only details not already in 25 (#5: knife hexes, Attack Stance, End Combat, energy regen) or 23 (target plate, select-then-attack):
+- **Auto / Prep.** The bottom-right cluster centres on a two-state hex — Auto (default) with Prep labelled beneath it. Prep is the capture-preparation state of §7: the nonlethal pause made spatial, one button toggling the intent away from lethal auto-attack.
+- **Locked stance hexes.** Unowned stance/weapon hexes render dark with a small padlock — visible but unavailable, the same lock language the skill trees use (03; `skills.md` reference).
+- **Attack Stance ring.** The stance circle at the right edge carries the active attack stance over a portrait ring; switching stays a ring affordance.
+- **Chase hex.** A separate toggle on the mid-left edge ("Chase", runner icon) — the approach/keep-distance control, apart from the attack cluster.
+- **"steadied itself."** The target plate emits status prose — here the animal recovering poise. Placeholder for capture-window messaging: when the stun window opens or closes, say so on the plate (09's stun rules).
+- Top HUD: dual player bars (HP + a second resource), companion portrait chip with a distance readout (72 m), and a round minimap with "X 759 Y 965".
+
 ## Historical sources
 - BlueStacks combat guide: https://www.bluestacks.com/blog/game-guides/durango-wild-lands/overview-games-combat-en.html
 - BlueStacks first dinosaur/capture guide: https://www.bluestacks.com/blog/game-guides/durango-wild-lands/first-dino-taming-dinosaur-en.html

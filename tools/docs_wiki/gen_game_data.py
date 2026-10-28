@@ -3,7 +3,7 @@
 
 Source of truth: the canon worktree's `game/data/*.json` (the build's own data).
 Emits (all generated files carry a generation header; never hand-edit them):
-  docs/current/recipes.md       every implemented recipe + repair tiers + station times
+  docs/current/recipes.md       recipe data + repair tiers + station times
   docs/current/world-biomes.md  island roster, per-climate flora/materials, fauna, butchering
   docs/current/items-traits.md  full item catalog with rarity/attributes, food effects, traits
   <data>/../data_sheets/*.csv   the same rows as flat spreadsheets the owner can edit
@@ -49,15 +49,6 @@ def slots_txt(slots) -> str:
     return "; ".join(parts)
 
 
-def hdr(title) -> None:
-    print("# %s\n" % title)          # placeholder, replaced below
-    # real writer is bound in this module via a mutable text sink
-
-
-OUT_TEXT = [""]
-W = None
-
-
 def write_md(lines, path: Path, title: str) -> None:
     body = lines[:]
     header = "> Generated %s by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.\n" % date.today().isoformat()
@@ -100,6 +91,13 @@ def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
     a = L.append
     a("`%d recipes` from `game/data/recipes.json`; station-only workflow times from `game/data/processing.json`." % len(rows))
     a("")
+    a("These rows describe game data; a row alone does not prove that its output is playable. "
+      "`min skill` is the recipe's minimum level gate when greater than zero; the gate also "
+      "checks the resulting item level. Other gates may apply. `ability target` affects success "
+      "chance rather than imposing a hard gate. `recipe max_level` is the configured output-level "
+      "cap; the actual result also depends on materials, skill, and runtime bounds. Absent values use the defaults in "
+      "`game/scripts/items/crafting.gd`: minimum 0, ability 0, and output cap 60.")
+    a("")
     by_station = OrderedDict()
     for r in rows:
         by_station.setdefault(r.get("station") or "hand", []).append(r)
@@ -114,16 +112,18 @@ def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
                 a("")
                 a("Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: " + ", ".join("`%s` %ss" % (rid, td.get("seconds", "?")) for rid, td in sorted(times.items())) + ".")
         a("")
-        a("| recipe | output | inputs | skill | time (s) | process |")
-        a("|---|---|---|---|---|---|")
+        a("| recipe | output | inputs | skill | min skill | ability target | recipe max_level | time (s) | process |")
+        a("|---|---|---|---|---|---|---|---|---|")
         for r in list_:
             out_row = "%s x%s" % (name(r["output"]["id"]), r["output"].get("count", 1))
-            skill = "%s ≤ %s" % (r.get("skill", "—"), r.get("max_level", "—")) if r.get("skill") else "—"
+            skill = r.get("skill", "processing")
             step = []
             if r.get("process_step"):
                 step.append("%s +%s" % (r["process_step"], r.get("process_add", 0)))
-            a("| `%s` | %s | %s | %s | %s | %s |" % (
-                r["id"], out_row, slots_txt(r.get("slots")), skill, r.get("seconds", "?"), "; ".join(step)))
+            a("| `%s` | %s | %s | %s | %s | %s | %s | %s | %s |" % (
+                r["id"], out_row, slots_txt(r.get("slots")), skill,
+                r.get("min_level", 0), max(0, r.get("required_ability", 0)), r.get("max_level", 60),
+                r.get("seconds", "?"), "; ".join(step)))
         a("")
     reps = rec.get("repairs", [])
     if reps:
@@ -136,7 +136,7 @@ def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
         for r in reps:
             a("| `%s` | `%s` | %s | %s |" % (r.get("tier", "?"), r.get("station", "?"), slots_txt(r.get("slots")), r.get("restore_fraction", "?")))
         a("")
-    write_md(L, docs / "recipes.md", "Crafting recipes — the full implemented catalog")
+    write_md(L, docs / "recipes.md", "Crafting recipes — game data catalog")
 
     write_csv(sheets / "recipes.csv",
               ["id", "display_name", "skill", "max_level", "station", "seconds", "slots", "output_id", "output_count", "process_step", "process_add"],

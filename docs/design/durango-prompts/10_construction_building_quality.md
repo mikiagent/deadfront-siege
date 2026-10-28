@@ -300,6 +300,14 @@ Then expand in stages:
 4. Housing furniture, Comfort/Antibiotic recovery, and Complexity.
 5. Modular houses, appearance inheritance, repair, multiplayer safeguards, and UI polish.
 
+## Appendix — finished-structure reference screenshots (owner, 2026-10-27)
+
+Pasted screenshot of the original interaction radial over a finished structure (a Makeshift Tent Lv. 2 standing in the wild; not on disk). Reading is the orchestrator's:
+- **Hex actions on the object:** Remove (red), Package, Rest, View History, Designate as Waypoint; the label rides beside the selected hex.
+- **Object panel:** name + level (Makeshift Tent Lv. 2), a 3/3 use counter with a clock icon, Capacity 1/1 (shelter resting slots), a Shelter family tag, and an **Authorizations** row noting "Subject to Domain Permissions" — per-object ACLs defer to the Domain layer (spec 29), which is exactly the division §4 requests.
+- **Rest on a shelter** is where §5's comfort/fatigue recovery is spent in the world; Package matches §4's packaging rule. View History and waypoint designation belong with the map specs (15, 25).
+- The radial follows 25's interaction-camera rule: tapping the structure pans to it and locks the radial on it.
+
 ## 15. Historical fidelity and sources
 
 Recreate these *design relationships*: resources have individual properties; Construction level and Building Ability are distinct; finished building level is constrained by materials and progression; building properties create functional bonuses; workstation type/level gates recipes; higher-end structures require advanced skill-tree unlocks.

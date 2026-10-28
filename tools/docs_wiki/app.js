@@ -4,6 +4,7 @@ const STATUSES = ["canon", "useful", "stale", "conflict", "review", "archive"];
 const ST_LABEL = { canon: "Canon", useful: "Useful", stale: "Stale", conflict: "Conflicting", review: "Needs review", archive: "Archive" };
 const LINK_TYPES = ["supersedes", "conflicts", "supports", "duplicate"];
 var INDEX = null, STATE = null, CUR = null, CUR_ANCHOR = "", TAB = "browse", SAVE_T = null, OTHER_OPEN = false;
+var ARCHIVE_RESULTS = {}, ARCHIVE_TIMER = null, ARCHIVE_SEQUENCE = 0, ARCHIVE_LOADING = false, ARCHIVE_ERROR = "";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -21,26 +22,48 @@ async function boot() {
   const start = hash.get("doc") || params.get("doc");
   document.querySelectorAll("nav button").forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
   $("#exportBtn").onclick = exportAll;
-  $("#showArchive").onchange = () => { renderSidebar(); if (TAB === "systems") renderSystems(); if (TAB === "map") renderMap(); };
   setTab("browse");
-  $("#q").oninput = () => { renderSidebar(); if (TAB === "systems") renderSystems(); };
+  $("#q").oninput = searchChanged;
   window.addEventListener("hashchange", () => {
     const route = new URLSearchParams(location.hash.slice(1));
     const key = route.get("doc"), anchor = route.get("anchor") || "";
-    if (key && INDEX.docs[key]) { if (key !== CUR || anchor !== CUR_ANCHOR || TAB !== "browse") openDoc(key, false, anchor); }
+    if (key && docEntry(key)) { if (key !== CUR || anchor !== CUR_ANCHOR || TAB !== "browse") openDoc(key, false, anchor); }
     else if (!key) { CUR = null; CUR_ANCHOR = ""; setTab("browse"); }
   });
-  if (start && INDEX.docs[start]) { openDoc(start, false, hash.get("anchor") || ""); }
+  if (start && docEntry(start)) { openDoc(start, false, hash.get("anchor") || ""); }
   console.log("wiki ready", Object.keys(INDEX.docs).length, "docs");
 }
 
 /* ---------- sidebar ---------- */
+function archiveCommand() { return /^\/archive(?:\s|$)/i.test($("#q").value.trim()); }
+function searchChanged() {
+  clearTimeout(ARCHIVE_TIMER);
+  const sequence = ++ARCHIVE_SEQUENCE;
+  ARCHIVE_RESULTS = {}; ARCHIVE_LOADING = false; ARCHIVE_ERROR = "";
+  if (!archiveCommand()) { renderSidebar(); if (TAB === "systems") renderSystems(); return; }
+  if (TAB !== "browse") setTab("browse");
+  const query = $("#q").value.trim().replace(/^\/archive\s*/i, "").trim();
+  if (!query) { renderSidebar(); return; }
+  ARCHIVE_LOADING = true; renderSidebar();
+  ARCHIVE_TIMER = setTimeout(async () => {
+    try {
+      const data = await api("/api/archive/search?q=" + encodeURIComponent(query));
+      if (sequence !== ARCHIVE_SEQUENCE || !archiveCommand()) return;
+      ARCHIVE_RESULTS = Object.fromEntries((data.results || []).filter((d) => d.key?.startsWith("main:")).map((d) => [d.key, d]));
+    } catch (_) {
+      if (sequence !== ARCHIVE_SEQUENCE || !archiveCommand()) return;
+      ARCHIVE_ERROR = "Archive search failed. Please try again.";
+    }
+    ARCHIVE_LOADING = false; renderSidebar();
+  }, 250);
+}
+
 function visibleDocs() {
   const q = $("#q").value.trim().toLowerCase();
   const out = [];
   for (const key of Object.keys(INDEX.docs)) {
     const d = INDEX.docs[key];
-    if (d.deep && !$("#showArchive").checked) continue;
+    if (d.deep) continue;
     if (!q) { out.push(key); continue; }
     const hay = (d.title + " " + d.path + " " + d.system).toLowerCase();
     if (hay.includes(q)) out.push(key);
@@ -50,6 +73,14 @@ function visibleDocs() {
 
 function renderSidebar() {
   const el = $("#sidebar");
+  if (archiveCommand()) {
+    const term = $("#q").value.trim().replace(/^\/archive\s*/i, "").trim();
+    const results = Object.values(ARCHIVE_RESULTS);
+    const message = !term ? "Enter a search term after /archive." : ARCHIVE_LOADING ? "Searching archive…" : ARCHIVE_ERROR || (results.length ? `${results.length} archive results` : "No archive results.");
+    el.innerHTML = `<div class="badge" role="status">${esc(message)}</div>` + results.map((d) => `<button class="doc" data-archive-key="${escAttr(d.key)}"><span class="t"><b>${esc(d.title)}</b><br><span class="badge">${esc(d.path)}</span>${d.excerpt ? `<br><span class="badge">${esc(d.excerpt)}</span>` : ""}</span></button>`).join("");
+    el.querySelectorAll("[data-archive-key]").forEach((button) => { button.onclick = () => openDoc(button.dataset.archiveKey); });
+    return;
+  }
   const keys = visibleDocs();
   const groups = {};
   if (TAB === "systems") {
@@ -72,7 +103,7 @@ function renderSidebar() {
     }
     if (g === "Other documents") html += "</details>";
   }
-  el.innerHTML = `<div class="badge">${keys.length} documents${$("#showArchive").checked ? " including archive" : " · archive hidden"}</div>` + (html || `<p class="badge">No matching documents.</p>`);
+  el.innerHTML = `<div class="badge">${keys.length} documents · archive excluded</div>` + (html || `<p class="badge">No matching documents.</p>`);
   const other = el.querySelector("#otherDocs");
   if (other) other.addEventListener("toggle", () => { OTHER_OPEN = other.open; });
 }
@@ -97,7 +128,8 @@ function renderHome() {
       keys.sort((a, b) => (INDEX.docs[a].path.endsWith("README.md") ? -1 : 0) - (INDEX.docs[b].path.endsWith("README.md") ? -1 : 0) || INDEX.docs[a].title.localeCompare(INDEX.docs[b].title));
       return `<section class="home-card"><h3>${title}</h3><p>${desc}</p>${keys.map((k) => `<button class="home-link" onclick="openDoc('${escAttr(k)}')">${esc(INDEX.docs[k].title)}</button>`).join("")}</section>`;
     }).join("")}</div>
-    <h2>Working with the wiki</h2><p>Search document titles and paths above, browse by system, or use the canon map and reconcile queue to organize sources. Select <b>Include archive</b> to browse historical documents.</p>`;
+    <h2>Working with the wiki</h2><p>Search document titles and paths above, browse by system, or use the canon map and reconcile queue to organize sources. To search historical documents intentionally, enter <b>/archive</b> followed by a search term.</p>
+    <p><button class="home-link" onclick="openDoc('canon:docs/agent-context.md')">Agent entry point</button><button class="home-link" onclick="openDoc('canon:docs/wiki-maintenance.md')">Wiki maintenance guide for people and agents</button></p>`;
 }
 
 /* ---------- doc view ---------- */
@@ -107,15 +139,24 @@ function docRoute(key, anchor = "") {
   return "#" + route.toString();
 }
 
+function docEntry(key) {
+  if (INDEX.docs[key]) return INDEX.docs[key];
+  if (ARCHIVE_RESULTS[key]) return ARCHIVE_RESULTS[key];
+  if (key?.startsWith("main:")) {
+    const path = key.slice(5);
+    return { key, line: "main", deep: true, path, title: path.split("/").pop(), size: 0, date: "", banner: false, fallback: true };
+  }
+  return null;
+}
+
 async function openDoc(key, curationOpen = false, anchor = "") {
-  if (!INDEX.docs[key]) return;
+  const e = docEntry(key);
+  if (!e) return;
   TAB = "browse";
   document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "browse"));
   $("#sidebar").classList.remove("hidden");
-  if (INDEX.docs[key].deep) $("#showArchive").checked = true;
   CUR = key; CUR_ANCHOR = anchor; location.hash = docRoute(key, anchor);
   renderSidebar();
-  const e = INDEX.docs[key];
   const pane = $("#pane");
   pane.innerHTML = `<div class="meta">${esc(e.line)}:${esc(e.path)}</div><h2 style="opacity:.5">loading…</h2>`;
   let text;
@@ -124,16 +165,21 @@ async function openDoc(key, curationOpen = false, anchor = "") {
     if (!res.ok) throw new Error(`Server returned ${res.status}`);
     text = await res.text();
   } catch (error) {
-    if (CUR === key && TAB === "browse") pane.innerHTML = `<div class="notice" role="alert">Could not load this document: ${esc(error.message)}. Please try again.</div>`;
+    if (CUR === key && TAB === "browse") pane.innerHTML = `<div class="notice" role="alert">Could not load this ${e.deep ? "archived " : ""}document: ${esc(error.message)}. ${e.deep ? "It may have moved or no longer be available in the archive checkout." : "Please try again."}</div>`;
     return;
   }
   if (CUR !== key || CUR_ANCHOR !== anchor || TAB !== "browse") return;
+  if (e.fallback) {
+    const title = text.split("\n").slice(0, 12).find((line) => line.startsWith("# "));
+    if (title) e.title = title.slice(2).trim();
+    e.size = new TextEncoder().encode(text).length;
+  }
   const inbound = INDEX.inbound[key] || 0, broken = INDEX.broken[key] || 0;
   const hints = [];
   if (e.banner) hints.push("superseded banner");
   if (e.date) hints.push(`last dated ${e.date}`);
   if (broken) hints.push(`${broken} broken link${broken > 1 ? "s" : ""}`);
-  hints.push(`${inbound} inbound link${inbound === 1 ? "" : "s"}`);
+  if (!e.deep) hints.push(`${inbound} inbound link${inbound === 1 ? "" : "s"}`);
   if (e.line === "main" && INDEX.cross_line_diffs.includes(e.path)) hints.push("DIFFERS from the canon-line copy");
   const my = STATE.docs[key] || (STATE.docs[key] = { status: "", notes: "", links: [] });
   const rel = my.links || (my.links = []);
@@ -221,6 +267,8 @@ async function openDoc(key, curationOpen = false, anchor = "") {
 const norm = (p) => { const out = []; for (const seg of p.split("/")) { if (seg === "..") out.pop(); else if (seg && seg !== ".") out.push(seg); } return out.join("/"); };
 function resolveDocKey(value, preferredLine = "") {
   if (INDEX.docs[value]) return value;
+  if (typeof value === "string" && value.startsWith("main:")) return value;
+  if (preferredLine === "main" && typeof value === "string" && value && !value.includes(":")) return `main:${value}`;
   if (preferredLine && INDEX.docs[`${preferredLine}:${value}`]) return `${preferredLine}:${value}`;
   const matches = Object.keys(INDEX.docs).filter((k) => INDEX.docs[k].path === value);
   return matches.length === 1 ? matches[0] : null;
@@ -244,27 +292,15 @@ function createTask(a, b) {
   updateReconcileCount();
 }
 function updateReconcileCount() {
-  const auto = INDEX.cross_line_diffs.filter((p) => !STATE.dismissed.includes(p)).length;
-  const n = STATE.tasks.filter((t) => t.open).length + auto;
+  const n = STATE.tasks.filter((t) => t.open).length;
   $("#reconcileCount").textContent = n || "";
 }
 function renderReconcile() {
   const pane = $("#pane");
-  const auto = INDEX.cross_line_diffs.filter((p) => !STATE.dismissed.includes(p));
   let html = `<h2>Reconcile queue</h2>
-    <p class="badge">Mark conflicts on a doc (Connect a doc… → conflicts) to create a task. Auto-detected cross-line diffs appear below — the same file with different content on main and the canon line.</p>`;
+    <p class="badge">Mark conflicts on a doc (Connect a doc… → conflicts) to create a task. Existing archive references remain in saved tasks.</p>`;
   html += `<div class="card"><div class="group" style="margin-top:0">manual tasks (${STATE.tasks.length})</div>` +
     (STATE.tasks.length ? STATE.tasks.map((t) => taskCard(t)).join("") : "<div class='badge'>none yet</div>") + `</div>`;
-  html += `<div class="card"><div class="group" style="margin-top:0">auto: differs across lines (${auto.length})</div>` +
-    (auto.length ? auto.map((p) => {
-      const a = "main:" + p, b = "canon:" + p;
-      return `<div class="card hint"><div class="row">
-        <button class="home-link" onclick="openDoc('${escAttr(a)}')">${esc(a)}</button><span>·</span><button class="home-link" onclick="openDoc('${escAttr(b)}')">${esc(b)}</button>
-        <span style="flex:1"></span>
-        <button class="btn small" onclick="createTask('${escAttr(a)}','${escAttr(b)}'); setTab('reconcile')">Create pair task</button>
-        <button class="btn small" onclick="dismissAuto('${escAttr(p)}')">Dismiss</button>
-      </div></div>`;
-    }).join("") : "<div class='badge'>none</div>") + `</div>`;
   pane.innerHTML = html;
   wireTaskCards(pane);
 }
@@ -293,8 +329,6 @@ function wireTaskCards(pane) {
     el.querySelector("[data-del]").onclick = () => { STATE.tasks = STATE.tasks.filter((x) => x !== t); scheduleSave(); updateReconcileCount(); renderReconcile(); };
   });
 }
-function dismissAuto(p) { if (!STATE.dismissed.includes(p)) STATE.dismissed.push(p); scheduleSave(); renderReconcile(); }
-
 /* ---------- systems ---------- */
 function renderSystems() {
   const pane = $("#pane");
@@ -302,7 +336,7 @@ function renderSystems() {
   let html = `<h2>Systems</h2><p class="badge">The game outline. Each card = one system with its docs; set statuses inside or open a doc to work on it.</p><div class="sysgrid">`;
   for (const sys of Object.keys(INDEX.systems).sort()) {
     const keys = INDEX.systems[sys].filter((k) => {
-      if (INDEX.docs[k].deep && !$("#showArchive").checked) return false;
+      if (INDEX.docs[k].deep) return false;
       if (!q) return true;
       const d = INDEX.docs[k]; return (d.title + " " + d.path).toLowerCase().includes(q);
     });
@@ -329,11 +363,11 @@ function renderMap() {
     html += `<div class="card" data-sid="${escAttr(s.id)}">
       <div class="row"><input type="text" data-sname value="${escAttr(s.name)}" style="font-weight:600;max-width:260px">
         <span style="flex:1"></span><button class="btn small danger" data-sdel>remove section</button></div>
-      ${s.docs.filter((k) => !INDEX.docs[k] || !INDEX.docs[k].deep || $("#showArchive").checked).map((k) => mapRow(k)).join("")}
+      ${s.docs.map((k) => mapRow(k)).join("")}
       <div class="row"><input type="text" data-spick list="doclist" placeholder="assign a doc…" style="flex:1"></div>
     </div>`;
   }
-  const available = Object.keys(INDEX.docs).filter((k) => !INDEX.docs[k].deep || $("#showArchive").checked);
+  const available = Object.keys(INDEX.docs).filter((k) => !INDEX.docs[k].deep);
   html += `<div class="card hint"><div class="row"><button class="btn" id="addSection">+ add section</button>
     <span style="flex:1"></span><button class="btn" id="autoseed">Auto-outline from index</button></div></div>
     <datalist id="doclist">${available.sort((a, b) => INDEX.docs[a].path.localeCompare(INDEX.docs[b].path)).map((k) => `<option value="${escAttr(k)}"></option>`).join("")}</datalist>
@@ -351,7 +385,7 @@ function renderMap() {
   pane.querySelector("#autoseed").onclick = () => { STATE.map = autoMapSeed(); scheduleSave(); renderMap(); };
   function sec(el) { return STATE.map.find((s) => s.id === el.closest(".card").dataset.sid); }
   function mapRow(k) {
-    if (!INDEX.docs[k]) return `<div class="row warn">missing doc: ${esc(k)}</div>`;
+    if (!INDEX.docs[k]) return `<div class="row warn">${k.startsWith("main:") ? "Archive reference (excluded from normal index)" : "Missing document"}: ${esc(k)}</div>`;
     const d = INDEX.docs[k]; const st = stOf(k); const seed = st && stSource(k) === "seed" ? " seed" : "";
     return `<div class="row doc" onclick="openDoc('${escAttr(k)}')">
       <span class="line ${d.line}">${d.line}</span><span class="t">${esc(d.path)}</span>
@@ -386,7 +420,7 @@ function autoMapSeed() {
   for (const [name, tokens] of MAP_SECTIONS) {
     const docs = [];
     for (const k of Object.keys(INDEX.docs).sort((a, b) => INDEX.docs[b].date.localeCompare(INDEX.docs[a].date))) {
-      if (INDEX.docs[k].deep && !$("#showArchive").checked) continue;
+      if (INDEX.docs[k].deep) continue;
       const p = INDEX.docs[k].path.toLowerCase() + " " + INDEX.docs[k].system.toLowerCase();
       if (tokens.some((t) => p.includes(t)) && docs.length < 6) docs.push(k);
     }
@@ -434,6 +468,162 @@ function exportAll() {
   s2.download = "docs_wiki_state.json"; s2.click();
 }
 
+/* ---------- phase map ---------- */
+const PHASE_STATUS = ["done", "next", "later", "decided-against"];
+let PHASE = null;
+const phaseCollapsed = {};
+
+async function postPhaseMark(id, status, note) {
+  const r = await fetch("/api/phase", { method: "POST", headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ id, status, note: note || "" }) });
+  if (!r.ok) throw new Error((await r.text()) || r.statusText);
+  return r.json();
+}
+
+function allPhaseFeatures() { return (PHASE.phases || []).flatMap((p) => p.features); }
+
+function renderPhase(pane) {
+  const busyPane = pane && pane.isConnected && pane.querySelector("#phase-root");
+  const draw = () => {
+    if (TAB === "phase") renderPhase(pane);
+  };
+  if (!PHASE) {
+    if (!busyPane) pane.innerHTML = '<div class="notice">Loading the phase map…</div>';
+    api("/api/phase").then((d) => { PHASE = d; for (const p of d.phases) phaseCollapsed[p.phase] = true; draw(); },
+                          (e) => { if (TAB === "phase") pane.innerHTML = `<div class="warn">The phase map could not load: ${esc(String(e && e.message || e))}</div>`; });
+    return;
+  }
+  const map = new Map(allPhaseFeatures().map((f) => [f.id, f]));
+  const counts = { done: 0, next: 0, later: 0, "decided-against": 0 };
+  for (const f of allPhaseFeatures()) counts[f.status]++;
+  const nextReady = allPhaseFeatures().filter((f) => f.status === "next" && f.depends.every((d) => (map.get(d) || {}).status === "done"));
+  const nextWaiting = allPhaseFeatures().filter((f) => f.status === "next" && !f.depends.every((d) => (map.get(d) || {}).status === "done"));
+  const markCount = Object.keys(PHASE.marks || {}).length;
+  const phases = [...PHASE.phases].sort((a, b) => a.phase - b.phase);
+  const allCollapsed = phases.every((p) => phaseCollapsed[p.phase]);
+  const depTag = (depIds) => depIds.map((d) => {
+    const f = map.get(d);
+    if (!f) return "";
+    const cls = f.status === "done" ? "dep done" : "dep";
+    return `<a class="${cls}" href="#phase-${esc(f.id)}" title="${esc(f.title)}">${esc(f.title)}</a>`;
+  }).join("");  const rows = (phase) => phase.features.map((f) => {
+    const blocked = f.depends.some((d) => (map.get(d) || {}).status !== "done");
+    const statusCls = f.status === "next" && blocked ? " status next blocked" : ` status ${f.status}`;
+    return `<div class="phase-feat" id="phase-${esc(f.id)}">
+      <div class="feat-top ${statusCls}">
+        ${f.by === "mark" ? '<button class="unmark" data-unmark="' + esc(f.id) + '" title="Reset to the authored status">↺</button>' : ""}
+        <select class="phase-select" data-mark="${esc(f.id)}" aria-label="Status of ${esc(f.title)}">
+          ${PHASE_STATUS.map((s) => `<option value="${s}" data-label="Status — ${s}"${s === f.status ? " selected" : ""}>${s}</option>`).join("")}
+        </select>
+        <span class="feat-title">${esc(f.title)}</span>
+      </div>
+      <div class="feat-meta">
+        ${f.depends.length ? `<div class="feat-deps"><span>relies on</span> ${depTag(f.depends)}${f.status === "next" && blocked ? '<span class="blocked-note">blocked</span>' : ""}</div>` : ""}
+        ${f.source ? `<a class="feat-src" href="/?doc=${encodeURIComponent(docKeyFor(f.source))}">${esc(f.source)}</a>` : ""}
+        ${f.note ? `<div class="feat-note">${esc(f.note)}${f.seed_note ? `<details class="seed-note"><summary>authored note</summary>${esc(f.seed_note)}</details>` : ""}</div>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+  pane.innerHTML = `
+    <h1>Roadmap</h1>
+    <div class="article-lead">${esc(PHASE.goal)}</div>
+    <div class="meta">
+      <span class="hintchip">Phase 0 first — foundations; polish and tuning sit at the bottom</span>
+      <span class="hintchip">${counts.done} done</span>
+      <span class="hintchip">${counts.next} next</span>
+      <span class="hintchip">${counts.later} later</span>
+      ${counts["decided-against"] ? `<span class="hintchip">${counts["decided-against"]} decided against</span>` : ""}
+      ${PHASE.updated ? `<span class="hintchip">seeded ${esc(PHASE.updated)}</span>` : ""}
+      ${markCount ? `<span class="hintchip">${markCount} personally corrected</span>` : ""}
+      ${phases.length ? `<button class="btn small" id="phaseAll">${allCollapsed ? "Expand all" : "Collapse all"}</button>` : ""}
+      <span class="hintchip">collapsed by default — headers expand</span>
+    </div>
+    <div class="phase-next card">
+      <h2>Next up</h2>
+      ${nextReady.length ? `<ul>${nextReady.map((f) => `<li><strong>${esc(f.title)}</strong>${f.depends.length ? ` <span class="dim">— deps cleared</span>` : ""}</li>`).join("")}</ul>` : '<p class="dim">Nothing "next" has all of its dependencies done yet.</p>'}
+      ${nextWaiting.length ? `<p class="dim">Waiting on unfinished deps: ${nextWaiting.map((f) => esc(f.title)).join("; ")}</p>` : ""}
+      ${markCount ? '<p class="badge">Statuses corrected here are stored as marks; the phase-map.json file keeps the authored structure and is safe to edit by hand.</p>' : "<p class=\"badge\">Change any status with its dropdown; the authored seed survives underneath.</p>"}
+    </div>
+    <div class="phase-stack">
+      ${phases.map((p) => {
+        const meaningful = p.features.filter((f) => f.status !== "decided-against");
+        const done = meaningful.filter((f) => f.status === "done").length;
+        const pct = meaningful.length ? Math.round((done / meaningful.length) * 100) : 0;
+        return `<details class="phase-block" id="phase-block-${p.phase}" data-phase="${p.phase}"${phaseCollapsed[p.phase] ? "" : " open"}>
+          <summary class="phase-head">
+            <span class="phase-chev" aria-hidden="true"></span>
+            <span class="phase-num">Phase ${p.phase}</span>
+            <strong>${esc(p.title)}</strong>
+            <span class="phase-bar" title="${done} of ${meaningful.length} non-retired features done"><span style="width:${pct}%"></span></span>
+            <span class="dim">${done}/${meaningful.length}</span>
+          </summary>
+          <div class="phase-body">
+            <p class="phase-theme">${esc(p.theme || "")}</p>
+            ${rows(p)}
+          </div>
+        </details>`;
+      }).join("")}
+    </div>`;
+  pane.querySelectorAll("select.phase-select").forEach((sel) => {
+    sel.onchange = async () => {
+      const id = sel.dataset.mark, value = sel.value;
+      sel.disabled = true;
+      try {
+        await postPhaseMark(id, value);
+        const f = map.get(id);
+        if (f) { f.status = value; if (f.by !== "mark") { f.by = "mark"; PHASE.marks[id] = { status: value, note: f.note || "" }; } else PHASE.marks[id].status = value; }
+        draw();
+      } catch (e) { sel.disabled = false; sel.value = map.get(id) ? map.get(id).status : sel.value; pane.querySelector("#phase-next").insertAdjacentHTML("afterend", `<div class="warn">Could not save the status: ${esc(String(e && e.message || e))}</div>`); }
+    };
+  });
+  pane.querySelectorAll("button.unmark").forEach((btn) => {
+    btn.onclick = async () => {
+      const id = btn.dataset.unmark;
+      btn.disabled = true;
+      try {
+        await postPhaseMark(id, "");
+        delete PHASE.marks[id];
+        const f = map.get(id);
+        if (f) delete f.by;
+        draw();
+      } catch (e) { btn.disabled = false; }
+    };
+  });
+  pane.querySelectorAll("details.phase-block").forEach((det) => {
+    det.addEventListener("toggle", () => {
+      if (det.open) delete phaseCollapsed[det.dataset.phase];
+      else phaseCollapsed[det.dataset.phase] = true;
+    });
+  });
+  const allBtn = pane.querySelector("#phaseAll");
+  if (allBtn) allBtn.onclick = () => {
+    if (allCollapsed) phases.forEach((p) => delete phaseCollapsed[p.phase]);
+    else phases.forEach((p) => { phaseCollapsed[p.phase] = true; });
+    draw();
+  };
+  const phaseOf = new Map();
+  for (const p of phases) for (const f of p.features) phaseOf.set(f.id, p.phase);
+  pane.querySelectorAll("a.dep").forEach((a) => {
+    a.onclick = (ev) => {
+      if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      ev.preventDefault();
+      const id = (a.getAttribute("href") || "").replace(/^#phase-/, "");
+      const targetPhase = phaseOf.get(id);
+      if (targetPhase == null) return;
+      delete phaseCollapsed[targetPhase];
+      draw();
+      const row = pane.querySelector(`#phase-${CSS.escape(id)}`);
+      if (row) row.scrollIntoView({ block: "start", behavior: "smooth" });
+    };
+  });
+}
+
+function docKeyFor(source) {
+  const docs = (INDEX && INDEX.docs) || {};
+  const hit = Object.entries(docs).find(([, e]) => (e.path || "") === source);
+  return hit ? hit[0] : "";
+}
+
 /* ---------- tabs ---------- */
 function setTab(t) {
   TAB = t;
@@ -442,6 +632,10 @@ function setTab(t) {
   if (t === "systems") { $("#sidebar").classList.add("hidden"); renderSystems(); }
   if (t === "reconcile") { $("#sidebar").classList.add("hidden"); renderReconcile(); }
   if (t === "map") { $("#sidebar").classList.add("hidden"); if (!STATE.map) STATE.map = autoMapSeed(); renderMap(); }
+  if (t === "phase") { $("#sidebar").classList.add("hidden"); renderPhase($("#pane")); }
+  if (t === "tuning") { $("#sidebar").classList.add("hidden"); renderTuning($("#pane")); }
+  if (t === "plan") { $("#sidebar").classList.add("hidden"); renderPlanReview($("#pane")); }
+  if (["art", "ui", "screenshots"].includes(t)) { $("#sidebar").classList.add("hidden"); renderVisionBoard(t, $("#pane")); }
   updateReconcileCount();
 }
 function renderDocRest() { if (CUR) openDoc(CUR, false, CUR_ANCHOR); else renderHome(); }

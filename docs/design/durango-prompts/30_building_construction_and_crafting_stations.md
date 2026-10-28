@@ -115,6 +115,16 @@ An unfinished structure is interactable, showing:
 
 Contributions transfer physical items from inventories into **construction-site escrow**, not clone items. If multiple clan members contribute, record contribution ownership or follow explicit project settlement permissions and return rules. Players should be able to revisit partially completed projects. Persistent save/load must recover sites without material loss.
 
+### Reference screenshot — material placement on a site (owner, 2026-10-27)
+
+Pasted screenshot of the original site screen while supplying a blueprint (not on disk). Reading is the orchestrator's; it instantiates §7's hover list:
+- **Blueprint header row:** "Log 4/4 ⓘ — Material: Wood — Pillar, Thick Pillar, Thin Pillar": the slot's count, its material family, and the **accepted shape variants** a deposit satisfies. This screen's blueprint is the **Emergency Raft** (4 logs + 6 stalks) — a structure our wiki has nowhere yet; a candidate intended build.
+- **Left progress rail:** "Crafting Complete 100 %" over stacked requirement chips (Log ✓ 4/4, Stalk ✓ 6/6, green when filled).
+- **Slot grid:** numbered blue badges (1 2 3 4) marking fulfilled slots, each with a small "Lv. 1" tier tag.
+- **Material picker card:** the chosen instance (Palm Tree Log), type/level rows, a condition-style pair 80.5/80.5 with a clock icon, and a quick-repeat "×3" row; below sit **family chips** (Wood, Pillar, Flammable) and **trade chips** (Lightweight Lv. 4 shown in gold — the picker's best-attribute pick — Raw Lv. 1, Pioneer Material Lv. 1, Soft Lv. 2), then an Info expander.
+- **Right rail:** "Expected Result — Emergency Raft Lv. ?" — the result preview stays level-hidden until materials land — plus Success Rate and the yellow **Place Material** primary action. A footer help link asks how to get the design you want, restoring the design-directive spirit of the original UI.
+- **"Pioneer Material"** is a chip our trait catalogs don't list yet — decide whether it joins the trait tables or is dropped here.
+
 ## 8. Building work and completion
 
 Once materials and prerequisites are sufficient:
@@ -210,7 +220,7 @@ Approximate historical/recorded examples (blueprint definitions vary by version)
 | Large Drying Rack | 4 Trimmed Wood Pillars, 4 Glue, 3 Metal Nails |
 | Large Loom | 3 Trimmed Wood Pillars, 2 Trimmed Planks, 5 Rope, 2 Metal Nails |
 
-These are grounded examples from the historical mastersheet/restoration; exact material-level thresholds and time values are blueprint-specific and may be modified by reconstructions. Do not force all these into the initial implementation if the project lacks prerequisite materials.
+These are grounded examples from the historical mastersheet/restoration; exact material-level thresholds and time values are blueprint-specific and may be modified by reconstructions. Do not force all these into the initial implementation if the project lacks prerequisite materials. The full quantified transcription (including Medical Lab, Kitchen, Stove, Oven, Advanced Kiln and decor blueprints) lives in `34_crafting_materials_catalog.md` § Crafting stations and furniture; open adoption questions sit in `docs/vision/WildLandsMMO_Open_Questions.md` (01/02/03).
 
 Higher-level stations can unlock advanced recipes; some have more concurrent delegated job slots. Different grades/types must have meaningful, verifiable functions and not just visual changes. Higher station levels do **not** override a player's recipe/category-level caps.
 
