@@ -668,7 +668,27 @@
     },
     {
       "id": "raptor_bone",
-      "display_name": "Raptor Bone",
+      "display_name": "Raptor Leg Bone",
+      "categories": [
+        "bone",
+        "blade_mat",
+        "handle",
+        "tier_bone"
+      ],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "hardness": 2,
+        "tint": "#d4c4a8",
+        "material_tier": "bone"
+      },
+      "market_category": "bone",
+      "rarity": "uncommon"
+    },
+    {
+      "id": "stout_leg_bone",
+      "display_name": "Stout Leg Bone",
       "categories": [
         "bone",
         "blade_mat",
@@ -706,7 +726,7 @@
     },
     {
       "id": "raptor_talon",
-      "display_name": "Raptor Talon",
+      "display_name": "Sickle Claw",
       "categories": [
         "bone",
         "blade_mat",
@@ -1393,7 +1413,41 @@
     },
     {
       "id": "bone",
-      "display_name": "Bone",
+      "display_name": "Leg Bone",
+      "categories": [
+        "bone",
+        "blade_mat",
+        "tier_bone"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "bone"
+      },
+      "market_category": "bone",
+      "rarity": "common"
+    },
+    {
+      "id": "hollow_bone",
+      "display_name": "Hollow Bone",
+      "categories": [
+        "bone",
+        "blade_mat",
+        "tier_bone"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "bone"
+      },
+      "market_category": "bone",
+      "rarity": "common"
+    },
+    {
+      "id": "large_leg_bone",
+      "display_name": "Large Leg Bone",
       "categories": [
         "bone",
         "blade_mat",
@@ -2290,7 +2344,46 @@
     },
     {
       "id": "armor_scute",
-      "display_name": "Armor Scute",
+      "display_name": "Osteoderm",
+      "categories": [
+        "scute",
+        "bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "dorsal_plate",
+      "display_name": "Dorsal Plate",
+      "categories": [
+        "scute",
+        "bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "frill_plate",
+      "display_name": "Frill Plate",
+      "categories": [
+        "scute",
+        "bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "skull_plate",
+      "display_name": "Skull Plate",
       "categories": [
         "scute",
         "bone"
@@ -2304,6 +2397,51 @@
     {
       "id": "dense_bone",
       "display_name": "Dense Bone",
+      "categories": [
+        "dense_bone",
+        "bone",
+        "blade_mat",
+        "tier_bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "brow_horn",
+      "display_name": "Brow Horn",
+      "categories": [
+        "dense_bone",
+        "bone",
+        "blade_mat",
+        "tier_bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "tail_spike",
+      "display_name": "Tail Spike",
+      "categories": [
+        "dense_bone",
+        "bone",
+        "blade_mat",
+        "tier_bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "tail_club",
+      "display_name": "Tail Club",
       "categories": [
         "dense_bone",
         "bone",

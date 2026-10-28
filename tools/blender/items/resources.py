@@ -310,10 +310,18 @@ def dense_bone():
     lean(-40)
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def raptor_talon():
-    pts = arc((-0.6, 0, -0.3), 1.0, -15, 80, 16)
-    tube(pts, 0.28, mat("#3a3128", 0.3, color2="#d8c39a", tex="noise", scale=1.5, coat=0.6), segs=14, taper=(1.0, 0.04))
-    blob(0.33, loc=pts[0], scl=(1.1, 0.9, 0.8), m=mat("#8a5a3c", 0.7), amp=0.08)
-    lean(-10)
+    """Sickle Claw (velociraptor, deinonychus, utahraptor): the raptor's hooked second-toe claw,
+    a tight blade-thin sickle of dark keratin on its pale toe bone (BONEPARTS: the old talon read as
+    a horn)."""
+    pts = arc((0.0, 0, 0.0), 1.0, 200, 20, 18)
+    claw = mat("#2e2620", 0.3, color2="#cbb48a", tex="noise", scale=1.5, coat=0.6, ramp=(0.35, 0.9))
+    ob = tube(pts, 0.3, claw, segs=14, taper=(1.0, 0.03))
+    ob.scale = (1.0, 0.55, 1.0)  # blade-thin side to side
+    toe = bonem("#e2d2b0")
+    blob(0.3, loc=(pts[0][0] - 0.05, 0, pts[0][2] - 0.05), scl=(1.0, 0.8, 0.9), m=toe, amp=0.08)
+    tube([(pts[0][0] - 0.1, 0, pts[0][2] - 0.1), (pts[0][0] - 0.25, 0, pts[0][2] - 0.75)], 0.17, toe, segs=12)
+    ball(0.21, loc=(pts[0][0] - 0.27, 0, pts[0][2] - 0.82), m=toe, sub=3)
+    lean(-20)
 
 
 def armor_scute():
@@ -342,6 +350,147 @@ def armor_scute():
     turn(-30, "X")
     turn(-50)  # three-quarter view so the keel stands out in profile
     upright()  # flat item: diagonal so the slot can lift it above its top edge
+
+
+
+# BONEPARTS: species bone parts, each shaped like the real piece (owner 2026-10-28: "the shrimp-like
+# skeleton symbols have to go"). Natural bone, horn and keratin colours (spec 35), never rarity colours.
+
+def _limb(length, r, m, head=0.34, flare=1.0):
+    """A limb bone: a shaft with a ball head on a short neck at the top and two condyles at the foot."""
+    tube([(0, 0, -length / 2), (0.05 * length, 0, 0), (0, 0, length / 2)], r, m, segs=14)
+    blob(head, loc=(-0.16, 0, length / 2 + head * 0.55), m=m, amp=0.06, sub=3)  # head on the neck
+    blob(head * 0.7, loc=(0.2, 0, length / 2 + head * 0.15), m=m, amp=0.12, sub=2)  # trochanter
+    for dx in (-0.6, 0.6):
+        blob(head * 0.8 * flare, loc=(dx * head, 0, -length / 2 - head * 0.25), m=m, scl=(1.0, 1.1, 0.9), amp=0.08, sub=3)
+
+
+def hollow_bone():
+    """Hollow Bone (compsognathus, coelophysis, gallimimus, dilophosaurus): a thin-walled theropod
+    shin bone snapped across, the open end showing the hollow inside."""
+    m = mat("#efe6cf", 0.5, color2="#d6c8a4", tex="noise", scale=6.0, bump=0.15)
+    tube([(0, 0, -1.1), (0.08, 0, 0), (0, 0, 1.0)], 0.15, m, segs=16)
+    for dx in (-0.12, 0.12):
+        ball(0.17, loc=(dx, 0, -1.15), m=m, sub=3)
+    tube([(0, 0, 0.98), (0, 0, 1.1)], 0.15, m, segs=16)  # the snapped rim
+    cyl(0.1, 0.03, loc=(0, 0, 1.1), m=mat("#3a2c22", 0.9), segs=16)  # the hollow, dark and dry
+    lean(-38)
+
+
+def large_leg_bone():
+    """Large Leg Bone (big dinosaurs): a massive weathered thighbone with a ball head and two
+    condyles, tan and pitted, thicker and darker than the small ivory Leg Bone."""
+    m = mat("#d9c39a", 0.75, color2="#9c8259", tex="noise", scale=5.0, bump=0.6, ramp=(0.3, 0.8))
+    _limb(2.0, 0.22, m, head=0.36)
+    for k in range(5):
+        rock(0.04, loc=(0.24, -0.16, -0.6 + 0.28 * k), m=mat("#7a6440", 0.9), jitter=0.4, sub=0)
+    lean(-42)
+
+
+def stout_leg_bone():
+    """Stout Leg Bone (protoceratops, zebraceratops): a short, thick ceratopsian limb bone with
+    wide flared ends."""
+    m = mat("#e8dabc", 0.6, color2="#bfa97f", tex="noise", scale=6.0, bump=0.3)
+    lathe([(0.0, -0.95), (0.42, -0.92), (0.46, -0.75), (0.3, -0.5), (0.22, 0.0), (0.3, 0.5),
+           (0.48, 0.78), (0.44, 0.94), (0.0, 0.97)], m=m, scl=(1.0, 0.8, 1.0))
+    lean(-40)
+
+
+def brow_horn():
+    """Brow Horn (triceratops, styracosaurus, zebraceratops): a long curved keratin horn, dark at the
+    tip, on its rough bony horn-core base."""
+    sheath = mat("#4e4034", 0.4, color2="#b19a76", tex="noise", scale=1.2, bump=0.2, coat=0.3, ramp=(0.3, 0.7))
+    pts = arc((-1.6, 0, -0.9), 1.9, 0, 52, 14)
+    tube(pts, 0.36, sheath, segs=18, taper=(1.0, 0.03))
+    core = mat("#d8c8a4", 0.85, color2="#9c8660", tex="noise", scale=7.0, bump=0.9)
+    blob(0.42, loc=pts[0], scl=(1.1, 1.1, 0.55), m=core, amp=0.25, sub=3)
+    lean(-8)
+
+
+def tail_spike():
+    """Tail Spike (stegosaurus): a thagomizer pair, two long bony spikes splayed from one knobbed base."""
+    m = mat("#e2d2ae", 0.55, color2="#8f7650", tex="noise", scale=4.0, bump=0.4, ramp=(0.25, 0.85))
+    for a in (-13, 13):
+        r = math.radians(a)
+        tube([(0, 0, -0.9), (1.1 * math.sin(r), 0, -0.9 + 1.1 * math.cos(r)),
+              (2.1 * math.sin(r) * 1.1, 0, -0.9 + 2.1 * math.cos(r))], 0.33, m, segs=16, taper=(1.0, 0.03))
+    blob(0.42, loc=(0, 0, -0.95), scl=(1.4, 0.9, 0.8), m=mat("#c7b088", 0.8, color2="#8a7250", tex="noise",
+                                                             scale=6.0, bump=0.8), amp=0.2, sub=3)
+    lean(-24)
+
+
+def tail_club():
+    """Tail Club (ankylosaurus): the bony tail knob, two fused lobes, pitted and brown, on the stiff
+    vertebral handle."""
+    club = mat("#a68d68", 0.8, color2="#5e4a32", tex="voronoi", scale=7.0, bump=1.0, ramp=(0.2, 0.7))
+    for dx in (-0.42, 0.42):
+        blob(0.55, loc=(dx, 0, 0.45), scl=(1.0, 0.8, 0.85), m=club, amp=0.12, sub=3)
+    blob(0.42, loc=(0, -0.05, 0.75), scl=(1.0, 0.8, 0.7), m=club, amp=0.12, sub=3)
+    shaft = mat("#cdb58e", 0.7, color2="#8e7550", tex="noise", scale=6.0, bump=0.4)
+    tube([(0, 0, 0.1), (0, 0, -1.4)], 0.2, shaft, segs=14, taper=(1.0, 0.75))
+    for k in range(4):  # vertebra rings
+        cyl(0.22 - 0.012 * k, 0.07, loc=(0, 0, -0.2 - 0.32 * k), m=shaft, segs=14)
+    lean(-35)
+
+
+def _plate(outline, depth, face, rim, grooves, groove_m):
+    prism([(x * 1.05, z * 1.04) for x, z in outline], depth * 0.6, loc=(0, 0.02, 0), m=rim, bev=0)
+    prism(outline, depth, m=face, bev=0)
+    for (p0, p1) in grooves:  # blood-vessel grooves, seated on the face the camera sees
+        tube([(p0[0], -depth / 2 - 0.005, p0[1]), (p1[0], -depth / 2 - 0.005, p1[1])], 0.025, groove_m, segs=6,
+             taper=(1.0, 0.3))
+
+
+def dorsal_plate():
+    """Dorsal Plate (stegosaurus): a tall, thin, rounded-diamond back plate with a rough root and
+    radiating vessel grooves, bone cream warming to a rust-brown rim."""
+    out = [(-0.3, -1.0), (0.3, -1.0), (0.8, -0.3), (0.85, 0.2), (0.5, 0.75), (0.0, 1.25),
+           (-0.5, 0.75), (-0.85, 0.2), (-0.8, -0.3)]
+    face = mat("#e8d4aa", 0.6, color2="#a8683e", tex="noise", scale=2.0, bump=0.3, ramp=(0.4, 0.75))
+    rim = mat("#8c5a36", 0.7, color2="#6a3e22", tex="noise", scale=6.0, bump=0.2)
+    gr = [((0.0, -0.75), (dx, 0.75)) for dx in (-0.55, -0.2, 0.2, 0.55)]
+    _plate(out, 0.16, face, rim, gr, mat("#9a6a44", 0.7))
+    blob(0.3, loc=(0, 0, -1.0), scl=(1.4, 0.6, 0.45), m=mat("#cbb48a", 0.9, color2="#8a7250", tex="noise",
+                                                             scale=8.0, bump=0.8), amp=0.25, sub=2)
+    turn(-20)
+    upright()
+
+
+def frill_plate():
+    """Frill Plate (ceratopsians): a fan of frill bone with a row of pointed epoccipital knobs along
+    its rim, cream with an olive-brown edge."""
+    n = 14
+    out = [(math.cos(math.pi * k / n) * 1.0, math.sin(math.pi * k / n) * 0.8 - 0.35) for k in range(n + 1)]
+    out += [(-0.35, -0.55), (0.35, -0.55)]
+    face = mat("#e6d6b2", 0.6, color2="#a89062", tex="noise", scale=4.0, bump=0.4, ramp=(0.4, 0.85))
+    rim = mat("#7a6a44", 0.7, color2="#584a2c", tex="noise", scale=6.0, bump=0.2)
+    _plate(list(reversed(out)), 0.16, face, rim, [((0, -0.45), (dx, 0.3)) for dx in (-0.6, 0.0, 0.6)],
+           mat("#a08a62", 0.7))
+    knob = mat("#d2bd92", 0.6, color2="#7a6444", tex="noise", scale=5.0)
+    for k in range(1, n, 2):  # epoccipitals: cones standing out from the rim
+        a = math.pi * k / n
+        x, z = math.cos(a) * 1.03, math.sin(a) * 0.83 - 0.35
+        cyl(0.11, 0.3, loc=(x * 1.08, 0, z + 0.06 * math.sin(a)), rot=(0, math.degrees(math.atan2(math.cos(a), math.sin(a) * 0.8)), 0),
+            r2=0.0, m=knob, segs=10)
+    turn(-15)
+    upright()
+
+
+def skull_plate():
+    """Skull Plate (tarbosaurus, tyrannosaurus): a thick slab of tyrant skull, rugose on top, with a
+    deep eye socket and a ridge of bony bumps."""
+    out = [(-1.0, -0.35), (-0.4, -0.55), (0.5, -0.5), (1.0, -0.2), (0.95, 0.2), (0.4, 0.5), (-0.3, 0.55),
+           (-0.9, 0.25)]
+    face = mat("#d7c39c", 0.8, color2="#8e7854", tex="noise", scale=6.0, bump=0.9, ramp=(0.3, 0.8))
+    rim = mat("#6e5a3c", 0.8, color2="#4e3e28", tex="noise", scale=6.0, bump=0.3)
+    _plate(out, 0.3, face, rim, [], rim)
+    cyl(0.26, 0.04, loc=(0.35, -0.16, 0.0), rot=(90, 0, 0), m=mat("#2c2018", 0.95), segs=20)  # eye socket
+    ring = mat("#c4ad84", 0.8, color2="#8a7250", tex="noise", scale=6.0, bump=0.6)
+    tube(arc((0.35, -0.16, 0.0), 0.29, 0, 360, 20), 0.06, ring, segs=8)
+    for k in range(5):  # rugose bumps along the top
+        blob(0.11, loc=(-0.75 + 0.3 * k, -0.12, 0.32 - 0.04 * k), m=ring, amp=0.25, sub=2)
+    turn(-25)
+    upright()
 
 
 def venom_gland():
@@ -1350,6 +1499,10 @@ ITEMS = {
     "metal_shard": metal_shard, "ingot": ingot, "copper_ingot": copper_ingot, "bronze_ingot": bronze_ingot,
     "iron_ingot": iron_ingot, "steel_ingot": steel_ingot, "charcoal": charcoal, "bone": bone,
     "raptor_bone": raptor_bone, "dense_bone": dense_bone, "raptor_talon": raptor_talon, "armor_scute": armor_scute,
+    # BONEPARTS: species bone parts.
+    "hollow_bone": hollow_bone, "large_leg_bone": large_leg_bone, "stout_leg_bone": stout_leg_bone,
+    "brow_horn": brow_horn, "tail_spike": tail_spike, "tail_club": tail_club, "dorsal_plate": dorsal_plate,
+    "frill_plate": frill_plate, "skull_plate": skull_plate,
     "venom_gland": venom_gland, "predator_tendon": predator_tendon, "pearl": pearl, "coral": coral, "salt": salt,
     "sulphur": sulphur, "clay": clay, "resin": resin, "ice": ice, "raw_hide": raw_hide, "raptor_hide": raptor_hide,
     "dried_hide": dried_hide, "hide_strap": hide_strap, "rope": rope, "twine": twine, "thread": thread,

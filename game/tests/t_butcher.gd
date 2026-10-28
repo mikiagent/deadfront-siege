@@ -123,16 +123,16 @@ func _test_part_list() -> void:
 		if part["id"] == &"raptor_meat":
 			meat = part["row"]
 	_expect(data.item(&"raptor_meat") != null and int(meat.get("min", 0)) == 2 and int(meat.get("max", 0)) == 3, "a part keeps its data row (meat min 2 max 3, got %s)" % [meat])
-	# protoceratops lists raptor_bone twice (base + a rare frill row): one cut, the rare row kept with it.
+	# protoceratops lists stout_leg_bone twice (base + a rare frill row): one cut, the rare row kept with it.
 	var proto: Array = CP.parts(&"protoceratops")
 	var names := []
 	var bone: Dictionary = {}
 	for part in proto:
 		names.append(str(part["id"]))
-		if part["id"] == &"raptor_bone":
+		if part["id"] == &"stout_leg_bone":
 			bone = part
 	print("[t_butcher] protoceratops parts: %s" % [names])
-	_expect(names.count("raptor_bone") == 1, "a part listed twice in the data is one cut (%s)" % [names])
+	_expect(names.count("stout_leg_bone") == 1, "a part listed twice in the data is one cut (%s)" % [names])
 	# The rare row keeps its own attributes (the frill mark), not the base row's.
 	var bone_rare: Dictionary = bone.get("rare", {})
 	var bone_rare_attrs: Dictionary = bone_rare.get("attributes", {})
@@ -181,9 +181,9 @@ func _test_part_only() -> void:
 	var locked: Array = CP.parts(&"triceratops")
 	var scute: Dictionary = {}
 	for part in locked:
-		if part["id"] == &"armor_scute":
+		if part["id"] == &"frill_plate":
 			scute = part
-	_expect(not scute.is_empty(), "a triceratops lists its scutes")
+	_expect(not scute.is_empty(), "a triceratops lists its frill plates (scutes)")
 	var no: Dictionary = CP.cut(scute, _ctx(inv), rng)
 	print("[t_butcher] locked scutes cut: ok=%s reason=%s stacks=%d" % [no["ok"], no["reason"], (no["stacks"] as Array).size()])
 	_expect(not no["ok"] and (no["stacks"] as Array).is_empty() and str(no["reason"]) != "", "a part its Butchering node has not opened is refused, and gives nothing")
@@ -478,7 +478,7 @@ func _test_picker() -> void:
 	var by_id := {}
 	for i in fan.options.size():
 		by_id[str(fan.options[i]["item"])] = i
-	var scute: int = by_id.get("armor_scute", -1)
+	var scute: int = by_id.get("frill_plate", -1)
 	_expect(scute >= 0 and hexes[scute].disabled and str(fan._labels[scute]["reason"]) != "", "a part its Butchering node has not opened is blocked with the reason (%s)" % (fan._labels[scute]["reason"] if scute >= 0 else "no hex"))
 	var meat: int = by_id.get("raw_meat", -1)
 	_expect(meat >= 0 and not hexes[meat].disabled, "the fan offers the open parts")

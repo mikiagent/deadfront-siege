@@ -1186,7 +1186,10 @@
           "allowed_ids": [
             "branch",
             "raptor_bone",
-            "bone"
+            "bone",
+            "hollow_bone",
+            "large_leg_bone",
+            "stout_leg_bone"
           ]
         }
       ],
@@ -1222,7 +1225,10 @@
           "allowed_ids": [
             "branch",
             "raptor_bone",
-            "bone"
+            "bone",
+            "hollow_bone",
+            "large_leg_bone",
+            "stout_leg_bone"
           ]
         }
       ],

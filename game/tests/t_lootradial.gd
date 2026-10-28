@@ -151,7 +151,7 @@ func _test_carcass(view: Vector2) -> void:
 			rare_ok = rare_ok and radial._buttons[i].badge == "★"
 	_expect(rare_ok, "%s: an open rare part is marked" % tag)
 	# The locked part: red ⊘, its reason on the label, and a pick refuses.
-	var scute: int = by_id.get("armor_scute", -1)
+	var scute: int = by_id.get("frill_plate", -1)
 	_expect(scute >= 0 and radial._buttons[scute].disabled and radial._buttons[scute].badge == "⊘" and str(radial._labels[scute]["reason"]) != "",
 		"%s: the locked part is red with its reason (%s)" % [tag, radial._labels[scute]["reason"] if scute >= 0 else "no hex"])
 	if scute >= 0:

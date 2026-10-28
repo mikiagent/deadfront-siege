@@ -384,7 +384,16 @@
     "slingshot": 10,
     "stone_shot": 300,
     "catapult_kit": 20,
-    "toxin_pot": 100
+    "toxin_pot": 100,
+    "hollow_bone": 400,
+    "large_leg_bone": 400,
+    "stout_leg_bone": 400,
+    "brow_horn": 200,
+    "tail_spike": 200,
+    "tail_club": 200,
+    "dorsal_plate": 200,
+    "frill_plate": 200,
+    "skull_plate": 200
   },
   "_flawless_about": "flawless: CRAFTFEEL's Crafting.apply_outcome sets flags.flawless, attributes.quality 'flawless' and attributes.flawless_bonus, and raises max_durability by world/rules.json crafting.flawless_stat_bonus. AssetValidator allows that raised cap only on a flawless item, read from rules.json, never from the item."
 }

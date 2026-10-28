@@ -538,6 +538,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "brow_horn": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "brow_horn",
+   "png": "res://assets/icons/render/brow_horn.png",
+   "sha256": "0e76f05e9bb6da8b9f7feba812d5e41d7c1f440f7440cfd4dd4cc44cc0cda2ec",
+   "bytes": 23492,
+   "rect": [
+    68,
+    19,
+    120,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "burnt_food": {
    "script": "tools/blender/items/food.py",
    "builder": "burnt_food",
@@ -1085,6 +1099,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "dorsal_plate": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "dorsal_plate",
+   "png": "res://assets/icons/render/dorsal_plate.png",
+   "sha256": "659ade176af52fd94a272b28e2670cb979ea880f727033261217679151a8812f",
+   "bytes": 34178,
+   "rect": [
+    60,
+    19,
+    136,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "dried_hide": {
    "script": "tools/blender/items/resources.py",
    "builder": "dried_hide",
@@ -1451,6 +1479,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "frill_plate": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "frill_plate",
+   "png": "res://assets/icons/render/frill_plate.png",
+   "sha256": "03afaf86799ae230c7edb15aef80cc00216da8ce7ad8282f7c781b6b2b88e961",
+   "bytes": 35701,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1"
+  },
   "fruit_fertilizer": {
    "script": "tools/blender/items/camp.py",
    "builder": "fruit_fertilizer",
@@ -1634,6 +1676,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "hollow_bone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "hollow_bone",
+   "png": "res://assets/icons/render/hollow_bone.png",
+   "sha256": "45dd83db86fefc27005981009a3068dbb01366ab5e4ca508fe70c926773a95e3",
+   "bytes": 22536,
+   "rect": [
+    38,
+    19,
+    180,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "ice": {
    "script": "tools/blender/items/resources.py",
    "builder": "ice",
@@ -1786,6 +1842,20 @@
     60,
     19,
     136,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "large_leg_bone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "large_leg_bone",
+   "png": "res://assets/icons/render/large_leg_bone.png",
+   "sha256": "5b10e745dab6f9e39c9852cf58bdce185bcf2fe43ea208be133af24a07488b1a",
+   "bytes": 28094,
+   "rect": [
+    36,
+    19,
+    184,
     218
    ],
    "quality": "procedural_v1"
@@ -2399,13 +2469,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "raptor_talon",
    "png": "res://assets/icons/render/raptor_talon.png",
-   "sha256": "39de4a68751df3059b0c2fe7391274c7f61d4e5379d36f69275574afeead78c2",
-   "bytes": 20724,
+   "sha256": "eec772246c3927912e4855bdf91f2c6e3897905cc807c0982afb01100cb59c20",
+   "bytes": 22407,
    "rect": [
-    70,
     19,
-    117,
-    218
+    50,
+    218,
+    156
    ],
    "quality": "procedural_v1"
   },
@@ -2616,6 +2686,20 @@
     19,
     209,
     218
+   ],
+   "quality": "procedural_v1"
+  },
+  "skull_plate": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "skull_plate",
+   "png": "res://assets/icons/render/skull_plate.png",
+   "sha256": "2a3992610f217d331f777b51c135bb1851d2744f40d6cd8e0b0e6bc45ba921bf",
+   "bytes": 43596,
+   "rect": [
+    19,
+    36,
+    218,
+    184
    ],
    "quality": "procedural_v1"
   },
@@ -3013,6 +3097,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "stout_leg_bone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "stout_leg_bone",
+   "png": "res://assets/icons/render/stout_leg_bone.png",
+   "sha256": "5ceebb07a06bd5debcdff7fa496ff645fe8792d7026f21099268c3f06d5c1632",
+   "bytes": 31155,
+   "rect": [
+    30,
+    19,
+    196,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "strap": {
    "script": "tools/blender/items/resources.py",
    "builder": "strap",
@@ -3051,6 +3149,34 @@
     21,
     19,
     214,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "tail_club": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "tail_club",
+   "png": "res://assets/icons/render/tail_club.png",
+   "sha256": "fee7ecea2d0e4c01459f752799cc5df60bb4aba5f2f3423b791508c6366f9733",
+   "bytes": 37231,
+   "rect": [
+    38,
+    19,
+    180,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "tail_spike": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "tail_spike",
+   "png": "res://assets/icons/render/tail_spike.png",
+   "sha256": "1da467ca5a761058ae092a84584de1a0cfdb533946c20d2de1d56e9699fa4502",
+   "bytes": 25273,
+   "rect": [
+    51,
+    19,
+    154,
     218
    ],
    "quality": "procedural_v1"
@@ -3407,5 +3533,12 @@
    "quality": "procedural_v1"
   }
  },
- "missing": []
+ "missing": [
+  "cactus_juice",
+  "fruit_juice",
+  "herbal_tea",
+  "meat_broth",
+  "salad",
+  "shaved_ice"
+ ]
 }
