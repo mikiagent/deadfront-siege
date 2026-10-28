@@ -134,15 +134,21 @@ func _back() -> Vector3:
 func _depth(p: Vector3) -> float:
 	return (_cam.global_position - p).dot(-_cam.global_basis.z)
 
-## The three ground spots, from the live camera: behind = farther from it along the view's ground
-## direction (up the screen), front = nearer (down the screen), beside = across it.
+## The three ground spots, measured from the live camera (a 80 m wide headless viewport at the default
+## 14 m zoom: her body spans ~160 px, so the spots are a few metres out):
+##   behind  up the screen, AWAY from the camera (the owner's case: the crown covers her, she is not
+##           behind it). At this pitch a tree 2 m behind her projects its trunk over her head and
+##           shoulders, so it overlaps her on screen while standing farther from the camera; past
+##           2.6 m it stands entirely above her head on screen.
+##   front   down the screen, towards the camera, so its crown crosses her silhouette;
+##   beside  across the view, clear of her silhouette and of the sight line.
 func _spots() -> Dictionary:
 	var chest := _chest()
 	var back := _back()
 	var flat := Vector3(back.x, 0.0, back.z).normalized()
 	var right := Vector3(_cam.global_basis.x.x, 0.0, _cam.global_basis.x.z).normalized()
 	var at := Vector3(chest.x, 0.0, chest.z)
-	return {"behind": at - flat * 6.0, "front": at + flat * 6.0, "beside": at + right * 7.0, "flat": flat}
+	return {"behind": at - flat * 2.0, "front": at + flat * 4.0, "beside": at + right * 3.0}
 
 ## The survivor's screen footprint, as Occlusion._send_body computes it (pixels, origin top left).
 func _body_ellipse() -> Vector4:
@@ -186,15 +192,17 @@ func _spot_case(tag: String, made: Dictionary) -> void:
 	var back := _back()
 	var fwd := -back
 	var heights: Dictionary = made["heights"]
-	_check(_depth((made["behind"] as Node3D).global_position) < _depth((made["front"] as Node3D).global_position),
+	var bases: Dictionary = made["bases"]
+	_check(_depth(bases["behind"]) < _depth((made["front"] as Node3D).global_position),
 			"%s: the behind prop is farther from the camera than the front one" % tag)
 	# Both on-ray crowns must overlap her on screen, else the case proves nothing about her silhouette.
 	for k in ["behind", "front"]:
-		var base: Vector3 = (made[k] as Node3D).global_position
+		var base: Vector3 = bases[k]
 		_check(_depth(base) < _depth(chest) if k == "behind" else _depth(base) > _depth(chest),
 				"%s: the %s prop is %s the survivor in view depth (%.1f m vs her %.1f m)" % [
 				tag, k, "behind" if k == "behind" else "in front of", _depth(base), _depth(chest)])
-		_check(_overlaps_screen(base, float(heights[k])), "%s: the %s prop's body crosses the survivor's screen silhouette" % [tag, k])
+		_check(_overlaps_screen(base, float(heights[k])), "%s: the %s prop's body crosses the survivor's screen silhouette (base %s, body %s, screen %s..%s)" % [
+			tag, k, base, _body, _cam.unproject_position(base), _cam.unproject_position(base + Vector3.UP * float(heights[k]))])
 	# The CPU's own selection with the live camera's ray.
 	var hits: Dictionary = drv.in_the_way(chest, back)
 	_check(not hits.has(made["behind_obj"]), "%s: in_the_way does not select the prop BEHIND the survivor" % tag)
@@ -225,6 +233,7 @@ func _test_mesh(drv: Node) -> void:
 	var made := {
 		"drv": drv, "behind": behind, "front": front, "beside": beside,
 		"heights": {"behind": 6.0, "front": 6.0, "beside": 6.0},
+		"bases": spots,
 		"behind_obj": _obj_of(drv, behind), "front_obj": _obj_of(drv, front), "beside_obj": _obj_of(drv, beside),
 		"read_behind": func() -> float: return float(_occ.fade_of(behind)) * drop,
 		"read_front": func() -> float: return float(_occ.fade_of(front)) * drop,
@@ -233,7 +242,7 @@ func _test_mesh(drv: Node) -> void:
 	_spot_case("mesh", made)
 	# The instance parameter the occluder shader actually reads (0 while solid).
 	var raw: Variant = behind.get_instance_shader_parameter(&"occl_fade")
-	_check(typeof(raw) == TYPE_FLOAT and is_equal_approx(float(raw), 0.0), "mesh: the behind prop's occl_fade is 0 (got %s)" % raw)
+	_check(_is_zero(raw), "mesh: the behind prop's occl_fade is 0, i.e. never written (got %s)" % raw)
 	raw = front.get_instance_shader_parameter(&"occl_fade")
 	_check(typeof(raw) == TYPE_FLOAT and is_equal_approx(float(raw), drop), "mesh: the front prop's occl_fade is BETWEEN_DROP (got %s)" % raw)
 	for p in [behind, front, beside]:
@@ -279,6 +288,7 @@ func _test_multimesh(drv: Node) -> void:
 	var made := {
 		"drv": drv, "behind": nodes["behind"], "front": nodes["front"], "beside": nodes["beside"],
 		"heights": {"behind": 9.0, "front": 9.0, "beside": 9.0},
+		"bases": spots,
 		"behind_obj": objs["behind"], "front_obj": objs["front"], "beside_obj": objs["beside"],
 		"read_behind": func() -> float: return _instance_share(objs["behind"], drop),
 		"read_front": func() -> float: return _instance_share(objs["front"], drop),
@@ -326,6 +336,7 @@ func _test_card(drv: Node) -> void:
 	var made := {
 		"drv": drv, "behind": nodes["behind"], "front": nodes["front"], "beside": nodes["beside"],
 		"heights": {"behind": 9.0, "front": 9.0, "beside": 9.0},
+		"bases": spots,
 		"behind_obj": _obj_of(drv, nodes["behind"]), "front_obj": _obj_of(drv, nodes["front"]),
 		"beside_obj": _obj_of(drv, nodes["beside"]),
 		"read_behind": func() -> float: return float(_occ.fade_of(nodes["behind"])) * drop,
@@ -334,7 +345,7 @@ func _test_card(drv: Node) -> void:
 	}
 	_spot_case("card", made)
 	var raw: Variant = (nodes["behind"] as GeometryInstance3D).get_instance_shader_parameter(&"occl_fade")
-	_check(typeof(raw) == TYPE_FLOAT and is_equal_approx(float(raw), 0.0), "card: the behind card's occl_fade is 0 (got %s)" % raw)
+	_check(_is_zero(raw), "card: the behind card's occl_fade is 0, i.e. never written (got %s)" % raw)
 	raw = (nodes["front"] as GeometryInstance3D).get_instance_shader_parameter(&"occl_fade")
 	_check(typeof(raw) == TYPE_FLOAT and is_equal_approx(float(raw), drop), "card: the front card's occl_fade is BETWEEN_DROP (got %s)" % raw)
 	_occ.release(nodes["behind"])
@@ -367,6 +378,9 @@ func _test_shader_rule() -> void:
 	var code := f.get_as_text()
 	_check(code.contains("fract(b.x * 0.5 + b.y * b.y * 0.75) * 0.25 + fract(a.x * 0.5 + a.y * a.y * 0.75)"),
 			"shader_rule: the include still has the 4x4 bayer formula this test copies")
+	# The guard the mirror above copies: a solid prop never opens, whatever is under it on screen.
+	_check(code.contains("if (occl_drop <= 0.0) {"),
+			"shader_rule: the include stops a prop that is not fading before the silhouette rule (the guard this test mirrors)")
 	var at := code.find("OCCL_COVER_DROP = ")
 	var cover := 0.0
 	if at > 0:
@@ -412,10 +426,13 @@ func _probe(xi: int, yi: int, n: int) -> Vector2:
 	var hh := _body.w * 1.6
 	return Vector2(_body.x - hw + (xi + 0.5) * hw * 2.0 / n, _body.y - hh + (yi + 0.5) * hh * 2.0 / n)
 
-## occl_cut, transcribed (occlu_fade.gdshaderinc): a trunk never dithers; over the survivor's
+## occl_cut, transcribed (occlu_fade.gdshaderinc): a prop that is not fading (occl_drop 0) never
+## dithers, so a tree BEHIND the survivor stays solid; a trunk never dithers; over the survivor's
 ## silhouette a FADING prop drops at least OCCL_COVER_DROP; elsewhere it drops its own share against
 ## the dither. Returns true when the pixel is discarded.
 func _shader_cut(drop: float, y: float, trunk_line: float, px: Vector2, body: Vector4, cover: float) -> bool:
+	if drop <= 0.0:
+		return false
 	var trunk := y < trunk_line
 	var q := (px - Vector2(body.x, body.y)) / Vector2(maxf(body.z, 0.001), maxf(body.w, 0.001))
 	if body.w > 0.0 and q.length_squared() < 1.0:
@@ -433,6 +450,10 @@ static func _bayer4(p: Vector2) -> float:
 
 static func _fract(x: float) -> float:
 	return x - floor(x)
+
+## An instance parameter that was never written reads null, which is the shader's default 0.
+func _is_zero(v: Variant) -> bool:
+	return v == null or (typeof(v) == TYPE_FLOAT and is_equal_approx(float(v), 0.0))
 
 func _in_ellipse(p: Vector2, body: Vector4) -> bool:
 	if body.z <= 0.0 or body.w <= 0.0:

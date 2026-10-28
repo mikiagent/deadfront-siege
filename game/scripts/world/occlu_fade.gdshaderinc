@@ -95,6 +95,13 @@ void occl_cut(vec2 px) {
 	if (occl_on < 0.5) {
 		return;
 	}
+	// A prop that is not fading draws SOLID, over the survivor's silhouette included: the CPU fades
+	// only props between the camera and the survivor, so a tree BEHIND her keeps occl_drop 0 and must
+	// not open up just because her crown-sized silhouette is under it on screen (owner bug 2026-10-28).
+	// Every prop that does fade (occl_drop > 0) covers her, so the cover rule below still applies.
+	if (occl_drop <= 0.0) {
+		return;
+	}
 	bool trunk = occl_y < occl_trunk;
 	vec2 q = (px - occl_body.xy) / max(occl_body.zw, vec2(0.001));
 	if (occl_body.w > 0.0 && dot(q, q) < 1.0) {
