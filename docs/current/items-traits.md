@@ -8,6 +8,21 @@ Rarity: **common** `#a8adb3`, **uncommon** `#5cc864`, **rare** `#3c8cff`, **epic
 
 Item *traits* are the attribute keys stamped on an instance: a def's `default_attributes` (its baseline), a gather material's latent attr (the yellow pip), an inherited attribute carried through crafting, or a butcher/gather roll. The pip/stacking rules live in `game/data/inventory.json`; bag specials in `game/data/bags.json`.
 
+## Appearance is not a trait (spec 35 package 1)
+
+A gathered wood instance may carry `look` = `{species, color, family, grain}`: the natural colour and
+grain of the tree it came from (`game/data/materials/wood_species.json`, `game/scripts/items/material_look.gd`).
+It is a dimension of its own, deliberately outside this page's trait rules:
+
+- It is **not** an attribute, so it never appears in the attributes column, never becomes a trait
+  pip, and never ranks an instance in a default pick (`Inventory.traits`, `Inventory.spend_key`).
+- Rarity, level and traits never choose a colour and a colour never changes them (spec 35 §3).
+- Per-log variation is a small hue/value jitter inside the species range; the species itself is
+  fixed by the tree kind (pine, snow pine, birch, oak/common, acacia, palm, willow).
+
+> This section is hand-written inside a generated file: `tools/docs_wiki/gen_game_data.py` must
+> learn to emit it (or keep it) on its next run.
+
 ## Categories with counts
 
 **tool** (35) · **food** (33) · **weapon** (29) · **building** (27) · **meat** (15) · **wood** (14) · **cooked** (12) · **fibre** (10) · **lashing** (9) · **blade** (9) · **armor_body** (9) · **armor_legs** (9) · **herb** (8) · **armor_head** (8) · **armor_arms** (8) · **metal** (7) · **strap_material** (6) · **stone** (6) · **blade_mat** (6) · **ingot** (6) · **medicine** (6) · **accessory** (6) · **bag** (6) · **ore** (5) · **bone** (5) · **fruit** (5) · **earth** (5) · **buff_food** (5) · **drink** (5) · **burnable** (4) · **log** (4) · **cloth** (4) · **hide** (4) · **tinder** (4) · **seed** (4) · **handle** (3) · **stalk** (3) · **raw_meat** (3) · **tier_bone** (3) · **uncut_hide** (3) · **water** (3) · **crop** (3) · **counter_supply** (3) · **clothing** (3) · **component** (3) · **brew** (3) · **fuel** (2) · **preserved** (2) · **meal** (2) · **green_hide** (2) · **berry_crop** (2) · **treasure** (2) · **dye** (2) · **bucket** (2) · **flax** (2) · **pet_feed** (2) · **split** (1) · **plank** (1) · **pillar** (1) · **tier_stone** (1) · **rough_ore** (1) · **tier_copper** (1) · **tier_bronze** (1) · **tier_iron** (1) · **tier_steel** (1) · **twine** (1) · **rope** (1) · **thread** (1) · **talon** (1) · **dried_hide** (1) · **cured_hide** (1) · **pot_clay** (1) · **tier_flint** (1) · **tier_obsidian** (1) · **needle** (1) · **copper_ore_mat** (1) · **seasoning** (1) · **bait** (1) · **coral** (1) · **iron_ore** (1) · **mushroom** (1) · **spice** (1) · **raw** (1) · **steamed** (1) · **burnt** (1) · **corn** (1) · **wheat** (1) · **berry** (1) · **flax_crop** (1) · **corn_crop** (1) · **wheat_crop** (1) · **fertilizer** (1) · **tendon** (1) · **scute** (1) · **dense_bone** (1) · **venom** (1) · **ammunition** (1) · **siege_ammunition** (1) · **tin_ore** (1) · **tin** (1) · **plank_shape** (1) · **pillar_shape** (1) · **strap** (1) · **trimmed_plank** (1) · **fine_plank** (1)

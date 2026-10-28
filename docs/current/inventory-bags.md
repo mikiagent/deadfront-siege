@@ -26,6 +26,25 @@ One occupant is `game/scripts/items/item_stack.gd` (`ItemStack`). Rules data: `g
   tail slots hold `_slot_lock` markers whose `attributes={"anchor": start}` (`Inventory.place_span`).
 - A split mints a fresh uid for the removed unit (`Inventory.remove_at` → `remint_uid`).
 
+## Material appearance (`look`, spec 35 package 1)
+- A wood instance may carry `look` = `{species, color, family, grain}`, an appearance *dimension*
+  separate from level, rarity and traits: it never changes any of them and no trait changes it.
+  Data: `game/data/materials/wood_species.json` (species id, base `#rrggbb`, family, grain, per-log
+  jitter); code: `game/scripts/items/material_look.gd` (`MaterialLook`).
+- `look` is stamped once at gather time from the tree kind (`nature_manifest.json` family, e.g.
+  `PineTree` → `pine`, `PineTree_Snow` → `snow_pine`, `AcaciaTree` → `acacia`) with a seeded
+  per-log hue/value jitter inside that species' range. Non-wood drops (fruit, fibre, bark, stone)
+  carry none. Server `act.gather` stamps it the same way from the same op rng, so a replay draws
+  the same colours.
+- It is optional and additive in the save row: a row without `look` (every row written before the
+  field existed) loads unchanged and is never auto-filled. A malformed look (unknown species, a
+  colour outside the species range, extra keys) is dropped on load, never repaired into other wood.
+- `can_merge_with` treats a different look as a different unit; `groups()` keys on def_id +
+  species (`species` is `""` for unlooked rows) so two wood species never share a bag group.
+- Not built yet (later packages): tinting crafted items and buildings from the material, and the
+  inspect-UI swatch. The economy vault's field whitelist (`data/economy/limits.json`) does not
+  accept `look` yet, so a vault deposit of a looked log is refused until the integrator adds it.
+
 ## Slots & capacity
 - Base bag `Inventory.BASE_SLOTS` = 100 slots (a `Player` constructs `Inventory.new()`).
 - Total = 100 + Σ storage of worn gear (`BagCapacity.inventory_total`, `count`). Only worn gear

@@ -1,0 +1,6 @@
+{
+  "_about": "MATLOOK (spec 35 package 1) save rows for the appearance field. legacy_wood: a wood_log row written before `look` existed (loads unchanged, gets no look). honest_wood: a pine log with a well-formed look (kept byte for byte). forged_wood: a pine log whose colour is outside its species range (the look is dropped, the row still loads). The rows are slot rows as Inventory.to_array writes them.",
+  "legacy_wood": {"id": "wood_log", "count": 1, "level": 4, "process_count": 0, "attributes": {"level": 4}, "flags": [], "durability": 0, "max_durability": 0, "uid": "l0123456789abcdef", "origin": "gather", "creator": "", "created_at": 0},
+  "honest_wood": {"id": "wood_log", "count": 1, "level": 4, "process_count": 0, "attributes": {"level": 4}, "flags": [], "durability": 0, "max_durability": 0, "uid": "l1123456789abcdef", "origin": "gather", "creator": "", "created_at": 0, "look": {"species": "pine", "color": "#d7b268", "family": "light yellow-brown", "grain": "wide soft"}},
+  "forged_wood": {"id": "wood_log", "count": 1, "level": 4, "process_count": 0, "attributes": {"level": 4}, "flags": [], "durability": 0, "max_durability": 0, "uid": "l2123456789abcdef", "origin": "gather", "creator": "", "created_at": 0, "look": {"species": "pine", "color": "#00ff00", "family": "light yellow-brown", "grain": "wide soft"}}
+}

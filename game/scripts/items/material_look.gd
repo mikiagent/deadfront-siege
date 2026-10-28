@@ -138,7 +138,7 @@ static func validate(look: Variant) -> String:
 ## A look as it may be stored: a valid one kept as is, anything else dropped ({}). Used by save
 ## loads so a hand-edited row can never inject an appearance outside the species palette.
 static func sanitize(look: Variant) -> Dictionary:
-	if validate(look) != "":
+	if not look is Dictionary or validate(look) != "":
 		return {}
 	return (look as Dictionary).duplicate(true)
 
