@@ -144,7 +144,7 @@ func _find_deep() -> Vector3:
 		var z := -half
 		while z < half:
 			var h: float = rt.surface_y(x, z)
-			if h < WATER_Y - 1.0:
+			if h < WATER_Y - 1.5:  # past WaterAccess.SWIM_DEPTH_M (1.3 m)
 				var d := Vector2(x, z).length()
 				if d < best_d:
 					best_d = d

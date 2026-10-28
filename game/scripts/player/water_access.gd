@@ -10,9 +10,11 @@ extends RefCounted
 const PATH := "res://data/water.json"
 ## Hidden grime count on the Player (Object meta).
 const GRIME := &"water_grime"
-## ASSUMPTION: below 0.75 m the survivor wades; at/above it they swim. Wading is 60 % pace,
+## ASSUMPTION: below 1.3 m the survivor wades; at/above it they swim. Wading is 60 % pace,
 ## swimming 45 %, tuned for readable movement on the mobile camera rather than simulation.
-const SWIM_DEPTH_M := 0.75
+## 1.3 m is chest-deep on the 2 m survivor, and treading water (float centre at the plane, swim_idle
+## lift -0.4) puts her feet 1.3 m under it: shallower, she trod water with her legs in the riverbed (INVIS).
+const SWIM_DEPTH_M := 1.3
 const WADE_SPEED_MULT := 0.60
 const SWIM_SPEED_MULT := 0.45
 
