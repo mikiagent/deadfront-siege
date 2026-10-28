@@ -17,9 +17,11 @@ ap.add_argument("--hit", type=float, default=0.42, help="hit fraction of the sou
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
 # (frames, jaw degrees, lunge degrees, wind-up hold frames, neck yaw degrees: + = the animal's left)
-# chomp left, chomp right, then a reared-up MEGA chomp straight ahead in the middle (owner 2026-10-28)
-REAR = 15.0  # degrees the head rears up during the third bite's wind-up (the tell)
-BITES = [(16, 42, 12, 0, 70), (16, 42, 12, 0, -35), (20, 58, 0, 10, 22)]  # yaw also cancels the source bite's own sway to its right
+# chomp left, chomp right, then a reared-up MEGA chomp slammed down through the middle. Exaggerated on purpose
+# (owner 2026-10-28: big by default, tune down after)
+REAR = 40.0  # degrees the front rears up during the third bite's wind-up (the tell)
+SHOULDER_SHARE = 0.6  # share of each pitch (rear and slam) the shoulders take, so the whole front moves, not just the head
+BITES = [(16, 55, 22, 0, 85), (16, 55, 22, 0, -50), (22, 70, 55, 12, 22)]  # yaw also cancels the source bite's own sway to its right
 
 b = open(a.bite, "rb").read(); n = struct.unpack("<I", b[12:16])[0]; j = json.loads(b[20:20 + n])
 acc = max((j["accessors"][s["input"]] for s in j["animations"][0]["samplers"]), key=lambda x: x["count"])
@@ -77,7 +79,8 @@ for i in range(total):
     nb = arm.pose.bones["Shoulders"]
     m = nb.matrix.copy(); piv = m.translation.copy()  # swing shoulders, neck and head about the vertical, tilt into it
     nb.matrix = (Matrix.Translation(piv) @ Matrix.Rotation(math.radians(yaw[i]), 4, "Z")
-                 @ Matrix.Rotation(math.radians(-yaw[i] * 0.3), 4, "Y") @ Matrix.Translation(-piv) @ m)
+                 @ Matrix.Rotation(math.radians(-yaw[i] * 0.3), 4, "Y")
+                 @ Matrix.Rotation(math.radians(lunge[i] * SHOULDER_SHARE), 4, "X") @ Matrix.Translation(-piv) @ m)
     bpy.context.view_layer.update()
     hb = arm.pose.bones["Head"]
     m = hb.matrix.copy(); piv = m.translation.copy()
