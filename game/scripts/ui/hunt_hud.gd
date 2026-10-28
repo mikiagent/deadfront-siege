@@ -50,7 +50,10 @@ var _rest_fx := HudRestBox.new()
 var _status_fx := StatusFx.new()
 var _buff_row := HudBuffRow.new()  ## HUDRULES: buffs / boons / debuffs under the vitals, with tooltips
 var stomach_rect := Rect2()  ## HUDRULES: the fullness ring beside the bars, drawn this frame
-var stomach_fill := 0.0
+var stomach_fill := 0.0  ## fullness, 1 = a full stomach, above 1 = overfull
+var stomach_saturation := 0.0  ## the outer ring: 0..1 of the digestion cooldown left
+var stomach_state: StringName = &"empty"
+var stomach_glyph_scale := 0.92  ## eased toward HudStomach.GLYPH_SCALE[stomach_state]
 var energy_bar_color := UiTokens.PLAYER_ENERGY  ## drawn this frame: the mount's darker blue while riding
 var energy_bar_segments := 0
 var orders_badge_rect := Rect2()  ## HUDRULES: the collapsed orders badge on the minimap, drawn this frame
@@ -1557,8 +1560,11 @@ func _draw() -> void:
 	energy_bar_segments = UiTokens.MOUNT_ENERGY_SEGMENTS if en.name != "" else 0
 	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), energy_bar_color, "", en_text, num_px, energy_bar_segments)
 	yy += big + gap
-	stomach_fill = HudStomach.fill_of(player)
-	stomach_rect = HudStomach.draw(self, Vector2(x + bar_w + 6.0 + ring_d * 0.5, y + ring_d * 0.5), ring_d * 0.5, stomach_fill)
+	stomach_fill = HudStomach.fullness_of(player)
+	stomach_saturation = HudStomach.saturation_of(player)
+	stomach_state = HudStomach.state_of(stomach_fill)
+	stomach_glyph_scale = move_toward(stomach_glyph_scale, float(HudStomach.GLYPH_SCALE[stomach_state]), get_process_delta_time() * HudStomach.SCALE_SPEED)
+	stomach_rect = HudStomach.draw(self, Vector2(x + bar_w + 6.0 + ring_d * 0.5, y + ring_d * 0.5), ring_d * 0.5, stomach_fill, stomach_saturation, stomach_glyph_scale)
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
 	var face_pos := Vector2(x + 11.0, yy + 10.0)
 	_draw_exhaustion_face(face_pos, strain)

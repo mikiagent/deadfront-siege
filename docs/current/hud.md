@@ -12,11 +12,21 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Vitals panel top-left: desktop 300 px wide with 16 px bars and body-size numerals; phone compact
   (min 148 px, the room left of the minimap). An 18 px level disc sits left of the two bars (health
   red, stamina blue). Right of both bars, as tall as the pair (38 px desktop, 30 phone), the stomach
-  ring (HUDRULES, owner 2026-10-28; `hud_stomach.gd`): a GOLD ring filled clockwise from the top that
-  empties as she gets hungry (LIFE red under 25 %), the white stomach glyph (`stomach.svg`,
-  `_src/icons_p.py`) inside. ASSUMPTION: no satiety meter exists (PRD forbids one), so the fill is the
-  share of eaten Energy still digesting (`Digestion` rows, remaining / total): full after a meal, empty
-  once it is digested. Read only; no hunger rule changed. Below: the exhaustion face + tier word, then the treadmill belt. While Well
+  indicator (HUDRULES rounds 1 and 3, owner 2026-10-28; `hud_stomach.gd`):
+  - Inner ring = fullness. A full stomach is a complete circle, and it degrades clockwise: the lit arc
+    always ends at 12 o'clock, and the gap opens from 12 o'clock clockwise (`HudStomach.arc_for`). The
+    colour comes from bands blended between stops (`STOPS`): red empty (< 0.1), yellow hungry
+    (0.3-0.5), green full (0.8-1.0), red overfull (> 1.2), blended in between; an empty ring shows a
+    faint red track. Fullness = Σ over digesting meals of the food's foods.json `fullness` × the share of
+    its Energy still undigested, over the fullness cap (100). Above 1 = overfull.
+  - Outer thin yellow ring = saturation, a cooldown: the longest digestion's time left over its digest
+    time. Full on a fresh meal, it drains in the same clockwise way and is empty when nothing digests.
+  - Glyph by state (`GLYPH`, `_src/icons_p.py`): empty `stomach_empty` (thin, shrunk), hungry
+    `stomach_hungry`, normal and full `stomach` (big and round; normal drawn smaller), overfull
+    `stomach_overfull` (swollen, two pressure marks). The drawn scale eases (0.6/s) to `GLYPH_SCALE`
+    (0.92 → 1.06), so a state change grows or shrinks it.
+  - ASSUMPTIONs: no satiety meter exists (the PRD forbids one), and the band edges (0.1 / 0.4 / 0.7 /
+    1.0 for the state) are mine. Read only; no hunger rule changed. Below: the exhaustion face + tier word, then the treadmill belt. While Well
   Rested the belt pauses (`ExhaustTreadmill.paused_rate`: the drift eases to 0 in ~0.2 s and holds)
   unless exhaustion is falling right then (a rest or a meal still runs it left); the status row shows
   the Well Rested chip (sun over a pillow, `well_rested.svg`) with its countdown.
