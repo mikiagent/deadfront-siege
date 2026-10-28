@@ -431,6 +431,8 @@ func _on_vitals_damaged() -> void:
 		return  # a bleed or stomachache tick hurts, but only hits and fights end a rest, a sleep or the walk to bed (spec 01:19)
 	sim.interrupt_sleep()
 	actions.cancel_work()
+	if statuses.ticking:
+		return  # a bleed/poison tick damages but never stuns: ticks every 0.5 s re-stunned her forever (owner bug)
 	_flinch()
 
 func _on_vitals_died() -> void:
