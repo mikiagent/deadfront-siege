@@ -134,6 +134,20 @@ func card_text(stack: ItemStack) -> String:
 			bits.append("%s %s" % [key.replace("_", " ").capitalize(), str(named[key])])
 		if not bits.is_empty():
 			lines.append("traits: %s" % ", ".join(bits))
+	# COOKROLES (spec 08 §8/§12): what the recipe handed the dish, and what a valuable ingredient's
+	# trait the recipe refused — the cooking screen must be able to say both.
+	var inherited: Dictionary = b.get("inherited", {})
+	var discarded: Dictionary = b.get("discarded", {})
+	if not inherited.is_empty():
+		var bits: PackedStringArray = []
+		for k: Variant in inherited:
+			bits.append("%s %s" % [str(k).replace("_", " ").capitalize(), str(inherited[k])])
+		lines.append("inherited: %s" % ", ".join(bits))
+	if not discarded.is_empty():
+		var lost: PackedStringArray = []
+		for k: Variant in discarded:
+			lost.append("%s %s" % [str(k).replace("_", " ").capitalize(), str(discarded[k])])
+		lines.append("not carried: %s" % ", ".join(lost))
 	var instant := float(b.get("instant_energy", 0.0))
 	var digested := float(b.get("digested_energy", 0.0))
 	if instant != 0.0 or digested != 0.0:
