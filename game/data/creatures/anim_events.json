@@ -31,21 +31,21 @@
     },
     "deinonychus": {
       "height_m": 3.6,
-      "run_l": 12.534,
+      "run_l": 14.047,
       "run_len": 0.625,
-      "run_r": 15.224,
-      "walk_l": 3.975,
-      "walk_len": 1.209,
-      "walk_r": 4.794,
-      "walk": 4.385,
-      "run": 13.879
+      "run_r": 15.01,
+      "walk_l": 4.125,
+      "walk_len": 1.741,
+      "walk_r": 4.866,
+      "walk": 4.495,
+      "run": 14.529
     },
     "gallimimus": {
       "height_m": 3.8,
       "run_l": 7.842,
       "run_len": 0.708,
       "run_r": 7.842,
-      "walk_l": 1.034,
+      "walk_l": 1.035,
       "walk_len": 2.458,
       "walk_r": 1.034,
       "walk": 1.034,
@@ -107,15 +107,15 @@
       "run": 6.743
     },
     "zebraceratops": {
-      "height_m": 1.0,
-      "run_l": 3.496,
+      "height_m": 1.8,
+      "run_l": 6.292,
       "run_len": 0.333,
-      "run_r": 3.496,
-      "walk_l": 1.602,
+      "run_r": 6.292,
+      "walk_l": 2.884,
       "walk_len": 0.5,
-      "walk_r": 1.602,
-      "walk": 1.602,
-      "run": 3.496
+      "walk_r": 2.884,
+      "walk": 2.884,
+      "run": 6.292
     }
   }
 }

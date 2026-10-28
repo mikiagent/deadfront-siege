@@ -14,7 +14,12 @@ A correct in-place walk pushes the stance foot backwards in rig space
 authored backwards walk. Also compares run vs walk channel values on a common
 normalized timeline: copies surface as IDENTICAL / NEAR-IDENTICAL.
 
-Usage: python3 tools/audit_gaits.py
+Usage: python3 tools/audit_gaits.py [--gate]
+
+--gate exits 1 when a +z-facing rig's planted foot slides forward (moonwalk, drift > +0.05) or its walk and run
+are copies. Calibrated 2026-10-28: flags the Meshy-library bipeds (coelophysis, compsognathus, gallimimus,
+utahraptor, velociraptor), passes deinonychus and the quadrupeds. Rigs facing another axis are listed as
+unchecked (the drift is measured on the +z axis only).
 """
 import struct
 import json
@@ -238,6 +243,9 @@ def facing(rig, names):
 
 
 def main():
+    import sys
+    gate = '--gate' in sys.argv
+    fails, unchecked = [], []
     fams = sorted(glob.glob('game/assets/creatures/*/*.glb')) + \
            sorted(glob.glob('game/assets/creatures/*/v1/*.glb')) + \
            sorted(glob.glob('game/assets/characters/*/*.glb'))
@@ -269,8 +277,20 @@ def main():
         drift_r = foot_clip(doc_r, per_r, dur_r, feet) if feet and dur_r else {}
         rr = ', '.join(f'{nm.split(".")[-1]}: {stance_drift(p):+.3f}' for nm, p in sorted(drift_r.items()) if len(p) >= 8)
         cmp_ = compare((per_w, dur_w), (per_r, dur_r)) if per_r else '(no run clip)'
+        if fwd != '+z':
+            unchecked.append(sp)
+        else:
+            slid = [f'{clip} {nm.split(".")[-1]} {stance_drift(p):+.2f}' for clip, d in (('walk', drift), ('run', drift_r))
+                    for nm, p in d.items() if len(p) >= 8 and stance_drift(p) > 0.05]
+            if slid or 'IDENTICAL' in cmp_:
+                fails.append(f'{rel}: ' + ', '.join(slid + (['walk == run'] if 'IDENTICAL' in cmp_ else [])))
         print(f'{rel:52s} times {tw + tr:4d}/{verdict}')
         print(f'    fwd={fwd:3s} walk [{dur_w:.2f}s]: {wr or "(nothing trackable)"}  |  run [{dur_r:.2f}s]: {rr or "(nothing trackable)"}  |  run-vs-walk: {cmp_}')
+    if gate:
+        print('\nGATE unchecked (not +z facing):', ', '.join(unchecked) or 'none')
+        for f in fails: print('GATE FAIL', f)
+        print('GATE', 'FAIL' if fails else 'PASS')
+        sys.exit(1 if fails else 0)
 
 
 if __name__ == '__main__':

@@ -34,7 +34,7 @@ CURVES = {  # clip -> degrees at normalised time u
 
 def src_fps(path):  # author at the clip's own rate, or integer frames shift its length (24 fps sources exist)
     b = path.read_bytes(); n = struct.unpack("<I", b[12:16])[0]; j = json.loads(b[20:20 + n])
-    acc = j["accessors"][j["animations"][0]["samplers"][0]["input"]]
+    acc = max((j["accessors"][s["input"]] for s in j["animations"][0]["samplers"]), key=lambda a: a["count"])  # constant tracks have 2 keys
     return round((acc["count"] - 1) / max(acc["max"][0] - acc["min"][0], 1e-6))
 
 out = pathlib.Path(a.out_dir); out.mkdir(parents=True, exist_ok=True)

@@ -24,6 +24,7 @@ blended web (the rictus), which stretches only a little because it is near the p
 import argparse, sys
 import bpy, bmesh
 from mathutils import Vector
+from mathutils.kdtree import KDTree
 
 ap = argparse.ArgumentParser()
 ap.add_argument("inp"); ap.add_argument("out")
@@ -72,9 +73,9 @@ def set_side(v, jaw):
         if k in d: del d[k]
     d[JI if jaw else HI] = tot
 
-# 2. teeth: small islands with any Head/Jaw weight become rigid
-seen = set(); teeth = 0; roots = []  # (t, gum z, is_jaw) per tooth
-tooth_verts = set()
+# 2. teeth: small islands in the mouth become rigid, 100 % on the Head or the Jaw. Side: the majority of their own
+# Head/Jaw weight, or for islands an auto-rig left on some other bone (Tripo's neutral_bone), the nearest skin.
+comps, seen = [], set()
 for v in bm.verts:
     if v.index in seen: continue
     comp, st = [], [v]; seen.add(v.index)
@@ -83,12 +84,27 @@ for v in bm.verts:
         for e in x.link_edges:
             o = e.other_vert(x)
             if o.index not in seen: seen.add(o.index); st.append(o)
-    if len(comp) < a.teeth_max and any(jw(x) + hw(x) > 0.5 for x in comp):
+    comps.append(comp)
+skin = [v for c in comps if len(c) >= a.teeth_max for v in c if jw(v) + hw(v) > 0.5]
+kd = KDTree(len(skin))
+for i, v in enumerate(skin): kd.insert(v.co, i)
+kd.balance()
+teeth = 0; roots = []; tooth_verts = set()  # roots: (t, gum z, is_jaw) per tooth
+for comp in comps:
+    if len(comp) >= a.teeth_max: continue
+    mine = sum(jw(x) + hw(x) for x in comp)
+    centre = sum((x.co for x in comp), Vector()) / len(comp)
+    if mine > 0.05:
         side = sum(jw(x) for x in comp) > sum(hw(x) for x in comp)
-        for x in comp: set_side(x, side)
-        teeth += 1; tooth_verts.update(comp)
-        zs = [(mw @ x.co).z for x in comp]
-        roots.append((sum(t_of(x) for x in comp) / len(comp), min(zs) if side else max(zs), side))
+    elif skin and t_of(comp[0]) > 0 and kd.find(centre)[2] < 0.1 * (max(t_of(v) for v in skin) or 1):
+        n = skin[kd.find(centre)[1]]; side = jw(n) > hw(n)
+    else:
+        continue
+    for x in comp:  # one rigid piece on one bone, or its tips drift off under other bones' shares
+        x[dl].clear(); x[dl][JI if side else HI] = 1.0
+    teeth += 1; tooth_verts.update(comp)
+    zs = [(mw @ x.co).z for x in comp]
+    roots.append((sum(t_of(x) for x in comp) / len(comp), min(zs) if side else max(zs), side))
 print(f"teeth islands made rigid: {teeth}")
 
 # 3+4. lips forward of the corner: binarise, then rip along the mouth line. Every edge that crosses it is split
