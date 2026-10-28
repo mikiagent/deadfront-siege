@@ -262,6 +262,11 @@ ok notices, the station radial (main action gold-rimmed, 96 px hexes on desktop)
 pie with seconds left and the food's energy, the pet respawn ring (dark red disc, LIFE arc,
 "seconds"), the fatigue panel and the death card.
 
+B1 field HUD and gathering, B2 combat and net ready (UIGATHER, `game/scripts/dev/uigather_lab.gd`,
+desktop 1600x900 and phone 844x390 in `docs/orchestration/reports/uigather/`): tappable harvest pills,
+the hex gather fan with the running hex pie-filled, the yield card and the left XP feed; the restyled
+combat hexes with the NET hex GOLD inside the capture window, the gold target bar and the capture line.
+
 Not captured by `tools/ui_screens.sh`: the death card, the respawn ring and the skill debug overlay (dev only).
 
 ## Tokens available for restyled sheets (not yet applied)
