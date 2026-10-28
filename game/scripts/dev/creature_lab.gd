@@ -1,18 +1,40 @@
 extends Node3D
 ## Pack of 3 velociraptors, one deinonychus, one utahraptor. Keys 1-9 force clips; F deals 100.
+## The survivor cannot die, tire or exhaust here (god mode, this lab only) so clips can be watched up close.
+## --species=deinonychus[,velociraptor...] spawns only those (one each) instead of the default roster.
+
+var _player: Player
 
 func _ready() -> void:
 	Game.lab_force_clips = true
 	Game.lab_flat_attack = true
-	LabKit.build(self)
+	_player = LabKit.build(self)["player"] as Player
 	_obstacle(Vector3(6, 1, 0))
 	_obstacle(Vector3(-8, 1, 5))
 	_obstacle(Vector3(3, 1, -10))
-	_spawn(&"velociraptor", 3, Vector3(8, 0, 8), 3.0, true)
-	_spawn(&"deinonychus", 1, Vector3(-10, 0, 6), 1.0, false)
-	_spawn(&"utahraptor", 1, Vector3(12, 0, -8), 1.0, false)
-	_spawn(&"protoceratops", 1, Vector3(-6, 0, -8), 1.0, false)
+	var only := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--species="):
+			only = a.substr(10)
+	if only != "":
+		var spots := [Vector3(-8, 0, 6), Vector3(8, 0, 8), Vector3(12, 0, -8), Vector3(-6, 0, -8)]
+		var ids := only.split(",")
+		for i in ids.size():
+			_spawn(StringName(ids[i]), 1, spots[i % spots.size()], 1.0, false)
+	else:
+		_spawn(&"velociraptor", 3, Vector3(8, 0, 8), 3.0, true)
+		_spawn(&"deinonychus", 1, Vector3(-10, 0, 6), 1.0, false)
+		_spawn(&"utahraptor", 1, Vector3(12, 0, -8), 1.0, false)
+		_spawn(&"protoceratops", 1, Vector3(-6, 0, -8), 1.0, false)
 	print("[boot] lab=creature_lab")
+
+func _process(_dt: float) -> void:
+	if _player and _player.vitals:  # a pool no single hit can empty, refilled every frame
+		_player.vitals.max_health = maxf(_player.vitals.max_health, 1000000.0)
+		_player.vitals.health = _player.vitals.effective_max_health()
+		_player.vitals.energy = _player.vitals.effective_max_energy()
+		_player.vitals.fatigue = 0.0
+		_player.vitals.exhausted = false
 
 func _spawn(species: StringName, count: int, pos: Vector3, radius: float, pack: bool) -> void:
 	var s := Spawner.new()
