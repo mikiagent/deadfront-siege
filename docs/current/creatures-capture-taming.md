@@ -74,13 +74,39 @@ completion.
 3. `Inventory.best_capture_net` must hold a net whose `capture_tier` ≥ the species'
    `capture_tier`; nets are `capture_net_i` … `capture_net_v` (tiers 1–5) in `game/data/items.json`.
 4. The survivor needs the matching capture technique (`Data.has_capture_technique`).
-5. Chance (`CaptureSystem.chance_for`, actual HP) = `TIER_BASE`[net tier] × (1.5 − HP fraction), clamped 0.05–0.90, where `TIER_BASE` =
-   1:0.35, 2:0.45, 3:0.55, 4:0.65, 5:0.75 (an assumption in code).
+5. Chance (`CaptureSystem.chance_for`), on the animal's actual HP:
+   - with a survivor (the normal throw) it is the taming S-curve, `TamingOdds.odds_for` — see
+     "Taming odds" below; `attempt` rolls exactly the number the plate shows;
+   - with no survivor (labs, the server holding no skills) the older shape is kept:
+     `TIER_BASE`[net tier] × (1.5 − HP fraction), clamped 0.05–0.90, `TIER_BASE` =
+     1:0.35, 2:0.45, 3:0.55, 4:0.65, 5:0.75 (an assumption in code).
 6. Success consumes 1 net and puts a `captured_animal` stack (species, variant, level, genetics,
    `slot_span` 4) into the bag. Failure clears capturability and applies `enraged`.
 
 Nets do not damage. `Hunt.use_net` refuses with "Stun it or weaken it to 30% health to capture it."
 Knockdown itself comes from tackle/kick/stagger — see `game/scripts/combat/combat_tactics.gd`.
+
+## Taming odds (`TamingOdds`, `game/data/taming_odds.json`)
+
+One logistic curve on `(Survival level − creature level)`, shifted by remaining health and by the net
+tier, clamped to [0.05, 0.95]. Roadmap: `docs/design/durango-informed-improvements.md` 5.
+
+- `level_z(gap)`: log-odds on each side of an even gap, with separate slopes so the doc's anchors hold —
+  50 % at an even gap, 85 % ten levels ahead, 10 % ten levels behind (`level_odds(gap)`).
+- `health_z(hp)`: `hp_logit_per_hp` × (0.30 − HP fraction), i.e. 0 at the capture threshold and higher
+  as the animal weakens. The 0.30 is read from `FieldTame.CAPTURE_HEALTH_FRAC`, never re-defined here,
+  so the anchors hold at exactly the threshold; the copy in the JSON is a sanity check the test
+  compares.
+- `tier_z(net_tier)`: `tier_logit_per_tier` per tier above I.
+- `odds_for(target, player, net_tier)` is the whole thing; `odds_for_values(level, hp, survival, tier)`
+  takes numbers; `raw_odds` skips the clamp; `succeeds(p, rng)` is the single roll (seeded when a
+  `RandomNumberGenerator` is passed); `caption(p)` is the plate text, "Tame 64%".
+- Shown == rolled: `FieldTame.plate_hint` puts the odds in `hint.odds` and the caption in `hint.text`,
+  `CreaturePlates._tick_tame_hint` prints it (green at ≥ 50 %, amber below, with the feed progress
+  while feeds are still owed), and `CaptureSystem.attempt` rolls `TamingOdds.succeeds(chance, rng)`.
+- ASSUMPTION: the levels in the JSON besides the doc's three anchors (health slope 1.5, tier slope
+  0.25, clamp band) are first-pass numbers, not balance. Balance is the owner's, after skills/building.
+- The capture-open rule did not move: 0.30 opens, 0.31 stays closed, odds never open a 31 % animal.
 
 ## Field tame (`FieldTame`)
 - `can_attempt`: alive, `tameable`, not a pet, no tame cooldown, inside `capture_window()`.
@@ -92,6 +118,12 @@ Knockdown itself comes from tackle/kick/stagger — see `game/scripts/combat/com
   `requires_pen` species never complete in the field.
 - Success (`_complete`) builds a `PetRecord` (origin `tame`, wild level carried), bonds it and
   summons it. Expiry (`fail`) releases the knockdown, applies `enraged`, 60.0 s cooldown.
+- Grade by preparation: a `bait`-category item in the bag (`leech`) is spent on the completed tame and
+  adds `bait_iv_bonus` (6) to every IV before the record is built, so
+  `PetRecord.grade = genetics.overall_tier()` comes out higher (B → A for a neutral animal). No bait
+  leaves the genetics alone; an unfinished tame (a `requires_pen` species fed in the field) keeps its
+  bait. ASSUMPTION: the doc says the grade improves with preparation but not by how much, so this is
+  bait yes / no only.
 
 ## Pen (`TamingPen`, building `makeshift_taming_pen`)
 - `try_insert` takes one `captured_animal` from the bag; `BASE_SECONDS` = 30 min of real time,
