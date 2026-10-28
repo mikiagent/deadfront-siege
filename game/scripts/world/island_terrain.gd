@@ -45,9 +45,13 @@ static func build(rt: IslandRuntime, size: float, climate: String, shape: Island
 	rt._heights = shape.heights
 	rt._ridge_dir = shape.ridge_dir
 	_build_height_texture(rt)
+	PerfTrace.mark("terrain.tex")
 	_build_tile_types(rt, climate)
+	PerfTrace.mark("terrain.tiles")
 	_build_mesh(rt, size, size / float(rt._res - 1), climate)
+	PerfTrace.mark("terrain.mesh")
 	_sea(rt, size)
+	PerfTrace.mark("terrain.sea")
 
 static func _build_mesh(rt: IslandRuntime, size: float, cell: float, climate: String) -> void:
 	rt._palette = _palette_for(climate)
@@ -359,12 +363,15 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			walk[idx] = 1 if (t == TileType.GRASS or t == TileType.DRY or t == TileType.DIRT or t == TileType.SAND \
 				or t == TileType.ROCK or t == TileType.ASH) and h >= 0.25 and rad <= land_r - 0.5 else 0
 	rt.tile_types = types
+	PerfTrace.mark("tiles.loop")
 	BiomeZones.install(rt, biomes)
 	rt.fresh_water = fresh
 	rt.dry_walk = walk
 	BiomeZones.smooth(rt)
+	PerfTrace.mark("tiles.smooth")
 	_write_tile_image(rt)
 	rt._tile_map_tex = ImageTexture.create_from_image(rt._tile_map_image)
+	PerfTrace.mark("tiles.image")
 
 ## The tile id the shader paints. CLIFF writes NO override: the shader already paints steep
 ## ground as rock from the vertex normal, and painting rock per 1 m tile turned each face into a
