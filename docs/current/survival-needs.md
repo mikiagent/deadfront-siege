@@ -66,7 +66,9 @@ pinned, deafened, groggy, knockdown, snared, dizziness, enraged), the target-sid
 (bleeding_target, poisoned_target, poisoned), the food states (full, stomachache, caffeinated, the
 five `tastes_*` and `hot_food` / `cold_food`, vigor) and the cleanliness pair (dirty / very_dirty
 are above, clean is too). Each status's `fx` block gives its HUD colour, icon, particles and
-vignette (see [hud.md](hud.md)). Washing clears dirty/very_dirty and grants Clean; drinking clears
+vignette (see [hud.md](hud.md)). Each status also has a `kind` (HUDRULES 2026-10-28): `effect` (afflictions: the box beside
+the survivor) or `buff` / `boon` / `debuff` (the chip row under the vitals, with its `desc` in a tooltip).
+The HUD stomach ring reads the share of eaten Energy still digesting (no satiety meter exists). Washing clears dirty/very_dirty and grants Clean; drinking clears
 Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 
 ## Food & relief

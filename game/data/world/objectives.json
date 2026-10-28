@@ -1,5 +1,5 @@
 {
-  "_about": "The survivor's standing orders: one objective at a time, in order, shown on the HUD card. Every condition is read from state the player can already see (bag contents, bonded animals, which island you are on), so no system has to report completion. Rewards are pioneer XP and T-stones. Added 2026-09-22 after a bot playthrough found the early game had no stated goal at all.",
+  "_about": "The survivor's standing orders: one objective at a time, in order, shown on the HUD card. Every condition is read from state the player can already see (bag contents, bonded animals, which island you are on), so no system has to report completion. Rewards are pioneer XP and T-stones. Added 2026-09-22 after a bot playthrough found the early game had no stated goal at all. HUDRULES 2026-10-28: an optional 'fight' list names the creature ids whose fight serves the order ('*' = any wild animal); the HUD keeps the order card up in combat only then.",
   "steps": [
     {
       "id": "branches",
@@ -70,6 +70,9 @@
       "id": "meat",
       "title": "Hunt something for meat",
       "hint": "Compsognathus scavenge near the shore",
+      "fight": [
+        "*"
+      ],
       "have_any": {
         "raw_meat": 1,
         "raptor_meat": 1
@@ -99,6 +102,9 @@
       "id": "tame",
       "title": "Tame a Zebraceratops",
       "hint": "Wear it down, knock it over, then feed it berries",
+      "fight": [
+        "zebraceratops"
+      ],
       "pets": 1,
       "xp": 120,
       "t_stones": 5
@@ -232,6 +238,9 @@
       "id": "volcano_raid",
       "title": "Defeat the volcano tyrant",
       "hint": "Prepare raid gear and food. Dodge the tyrannosaur. Your bonded animal can help.",
+      "fight": [
+        "tyrannosaurus"
+      ],
       "raid_victory": true,
       "xp": 500,
       "t_stones": 20

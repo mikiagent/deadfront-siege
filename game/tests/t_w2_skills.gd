@@ -552,8 +552,9 @@ func _test_sheet_rows() -> void:
 				inert += 1 if (b as Button).text == SkillStateS.NOT_IN_GAME else 0
 			if str(row.name).begins_with("SkillsLater_"):
 				rows += 1
-				var t := str(row.get("text"))
-				if row is Button or not row.find_children("*", "Button", true, false).is_empty() or not (t.contains(SkillStateS.NOT_IN_GAME) and t.contains(" SP") and t.contains("Lv. ")):
+				# The SP cost is the brain glyph plus its number (SpCost), not the letters "SP".
+				var t := " ".join(row.find_children("*", "Label", true, false).map(func (l: Node) -> String: return (l as Label).text))
+				if row is Button or not row.find_children("*", "Button", true, false).is_empty() or not (t.contains(SkillStateS.NOT_IN_GAME) and row.find_child("SpCost", true, false) != null and t.contains("Lv. ")):
 					bad.append(t)
 			elif row.name == "SkillsLearnedAuto":
 				autos = row.text

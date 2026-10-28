@@ -26,6 +26,8 @@ const COMBAT_STATES: Array[StringName] = [&"alert", &"approach", &"attack", &"re
 ## moves (a sidestep around prey instead of turning to the velocity). Creature._physics_process reads both.
 var speed_override: float = -1.0
 var strafe_face: Node3D
+## TACTICS: a named locomotion loop to play while moving (the charge); "" = the normal gait.
+var gait_clip: StringName = &""
 
 var creature: Creature
 var state: StringName = &"roam"

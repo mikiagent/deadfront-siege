@@ -353,7 +353,9 @@ func _test_exhaustion() -> void:
 	_expect(is_equal_approx(v.fatigue, 10.0), "positive exertion fatigue is halved")
 	v.rest(5.0)
 	_expect(is_equal_approx(v.fatigue, 5.0), "rest reduction is not halved")
-	for row in [[24.0, 1.0, 1.0], [25.0, 0.85, 0.5], [50.0, 0.65, 0.35], [75.0, 0.5, 0.2]]:
+	# Refill per strain tier is data since the owner's 2026-10-28 rule (combat_tuning movement.stamina_regen_by_strain).
+	var regen: Array = CombatTuning.section("movement").get("stamina_regen_by_strain", [1.0, 0.5, 0.35, 0.2])
+	for row in [[24.0, 1.0, float(regen[0])], [25.0, 0.85, float(regen[1])], [50.0, 0.65, float(regen[2])], [75.0, 0.5, float(regen[3])]]:
 		v.fatigue = row[0]
 		_expect(is_equal_approx(v.stamina_cap_mult(), row[1]) and is_equal_approx(v.stamina_regen_mult(), row[2]), "fatigue stage penalties at %s" % row[0])
 	v.free()
