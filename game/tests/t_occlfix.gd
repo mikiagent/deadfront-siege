@@ -295,6 +295,11 @@ func _test_multimesh(drv: Node) -> void:
 		"read_beside": func() -> float: return _instance_share(objs["beside"], drop),
 	}
 	_spot_case("multimesh", made)
+	# The slots are what the shader reads: only a fading instance may have one, so the behind tree
+	# must not be in the driver's active set (which is exactly what _send_slots walks).
+	var active: Dictionary = drv.get("_active")
+	_check(not active.has(objs["behind"]), "multimesh: the tree behind her has no fade slot")
+	_check(active.has(objs["front"]), "multimesh: the tree in front keeps its fade slot while fading")
 	_occ.release(root3)
 	root3.free()
 
