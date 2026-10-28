@@ -160,7 +160,9 @@ static func is_craft_station(n: Object) -> bool:
 
 ## From the craft menu: craft `count` of a recipe. Hand recipes start at once; station recipes
 ## walk to the nearest station of that kind first (none built -> refused).
-func begin(rid: StringName, count: int = 1) -> bool:
+## `uids` (one per recipe slot) are the instances the player placed in the craft menu's place-materials
+## view: they lead their slots instead of the default picks (the plan fills the rest of each slot).
+func begin(rid: StringName, count: int = 1, uids: Array[String] = []) -> bool:
 	var rec := Crafting.recipe(rid)
 	if rec.is_empty():
 		return false
@@ -178,6 +180,8 @@ func begin(rid: StringName, count: int = 1) -> bool:
 	_begin_recipe(rid)
 	if recipe_id != rid:
 		return false
+	if uids.size() == _pick_uids.size():
+		_pick_uids = uids.duplicate()
 	queue_left = _batch_total - 1
 	if _hand_craft:
 		player.clear_nav()

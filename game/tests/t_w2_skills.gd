@@ -634,9 +634,9 @@ func _test_craft_card_lock() -> void:
 	var text := lock.text if lock else ""
 	var ingredients := -1
 	for c in ui._detail.get_children():
-		if c is Label and (c as Label).text == "INGREDIENTS":
+		if c.name == "DetailMaterialsHead":  # UICRAFT: the "Materials" bar heads the ingredients
 			ingredients = c.get_index()
-	var above := lock != null and lock.get_index() < ingredients
+	var above := lock != null and (lock if lock.get_parent() == ui._detail else lock.get_parent()).get_index() < ingredients
 	_expect(text.begins_with("Learn Charcoal (Processing Lv. 10, 1 SP); you have 0 SP") and above, "the charcoal craft card says what unlocks it, above the ingredients: '%s'" % text)
 	for n in [ui, p]:
 		get_root().remove_child(n)

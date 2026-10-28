@@ -241,8 +241,10 @@ func open_station_craft(st: Node3D) -> void:
 		station_craft.open_station_menu(st)
 
 ## From the craft menu: craft `count` of a recipe (walks to the station if needed).
-func craft_recipe(rid: StringName, count: int = 1) -> void:
-	actions.craft(rid, count)
+## `uids` (one per recipe slot, CraftUI's place-materials view) name the instance that leads each
+## slot; empty = the default picks.
+func craft_recipe(rid: StringName, count: int = 1, uids: Array[String] = []) -> void:
+	actions.craft(rid, count, uids)
 
 func begin_eat_slot(index: int) -> bool:
 	return actions.eat(index)
