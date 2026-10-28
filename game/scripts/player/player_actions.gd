@@ -255,7 +255,7 @@ func _update_gather_ring(progress: float) -> void:
 	else:
 		p._gather_ring.fade_out()
 
-## A hex picked on the shared radial: a field action, a corpse stack or a gather option.
+## A hex picked on the shared radial: a field action, a carcass part to cut or a gather option.
 func on_option_picked(anchor: Node3D, index: int) -> void:
 	if anchor == null or not is_instance_valid(anchor):
 		return
@@ -268,9 +268,16 @@ func on_option_picked(anchor: Node3D, index: int) -> void:
 		p._field_radial_opts.clear()
 		return
 	if anchor is Corpse:
-		var opts := (anchor as Corpse).loot_options(p.inventory)
-		if index < opts.size():
-			begin_corpse_take(anchor as Corpse, int(opts[index]["slot"]))
+		# LOOTRADIAL: a part hex starts that part's timed cut (the carcass's own clock pie-fills the hex).
+		var c := anchor as Corpse
+		var opts := c.radial_options(p)
+		var why := "" if index < opts.size() else "nothing left"
+		if why == "":
+			auto_equip_tool(&"knife")
+			why = c.begin_cut(StringName(str(opts[index]["item"])), p)
+		if why != "":
+			p.notice(why.left(1).to_upper() + why.substr(1))
+			p._gather_radial.refresh()
 		return
 	if anchor is HarvestNode:
 		gather(anchor as HarvestNode, index)

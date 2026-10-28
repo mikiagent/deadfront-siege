@@ -55,11 +55,10 @@ static func part_rare_chance(row: Dictionary, knife_tier: StringName, skill: int
 			float(cfg.get("rare_tool_tier_bonus", 0.0)), float(cfg.get("rare_skill_bonus_per_level", 0.0)),
 			float(cfg.get("max_rare_chance", 0.6)))
 
-## BUTCHER (spec 12 §2): one chosen part's stack from its own row, with the shipped count scaling
-## (knife tier and Butchering level raise the yield, bare hands cut less), the node gate and the
-## spoiled-meat rule. null when the row cannot yield (a locked node, a tiny roll, an unknown item).
-static func roll_part(row: Dictionary, level: int, knife_tier: StringName, node_tier: int, skill: int, no_meat: bool, rng: RandomNumberGenerator) -> ItemStack:
-	var cfg := LootTables.butcher_cfg()
+## BUTCHER (spec 12 §2): one chosen part's stack from its own row: always ONE instance (owner rule
+## 2026-10-28, one per harvest: knife and Butchering change a cut's speed and quality, never the count),
+## the node gate and the spoiled-meat rule. null when the row cannot yield (a locked node, an unknown item).
+static func roll_part(row: Dictionary, level: int, _knife_tier: StringName, node_tier: int, _skill: int, no_meat: bool, _rng: RandomNumberGenerator) -> ItemStack:
 	if node_tier < int(row.get("skill", 0)):
 		return null
 	var item_id := StringName(str(row.get("id", "")))
@@ -70,38 +69,21 @@ static func roll_part(row: Dictionary, level: int, knife_tier: StringName, node_
 		return null
 	if not Data.butcher_row_open(str(item_id)):
 		return null
-	var tier_idx := ProgressionScaling.tier_index(knife_tier) if knife_tier != &"" else -1
-	var count_mult := 1.0 + float(cfg.get("count_bonus_per_tier", 0.0)) * float(maxi(0, tier_idx)) \
-			+ float(cfg.get("count_bonus_per_skill_level", 0.0)) * float(maxi(0, skill))
-	if tier_idx < 0:
-		count_mult *= float(cfg.get("no_knife_count_mult", 1.0))
-	var lo := int(row.get("min", 1))
-	var n := rng.randi_range(lo, maxi(lo, int(row.get("max", lo))))
-	var scaled := float(n) * count_mult
-	n = int(floor(scaled))
-	if rng.randf() < scaled - floor(scaled):
-		n += 1
-	# ASSUMPTION (kept from roll_carcass): a chosen base part always cuts at least one unit, however
-	# bare the hands; the row's own max is the ceiling of what that part is.
-	n = maxi(1, n)
 	var attrs: Dictionary = {}
 	var raw_attrs: Variant = row.get("attributes", {})
 	if raw_attrs is Dictionary:
 		attrs = (raw_attrs as Dictionary).duplicate(true)
 	attrs["level"] = level  # the carcass's level, not the catalogue base
-	return ItemStack.make(item_id, n, attrs, level)
+	return ItemStack.make(item_id, 1, attrs, level)
 
 ## Carcass loot from butchering.json base and rare rows (rare rows roll their "chance"). knife_tier &"" = no knife.
 ## node_tier is Data.butchering_level() (unlocked Butchering nodes gate skill rows);
-## skill is the Butchering category level (scales counts and rare odds).
+## skill is the Butchering category level (scales the rare odds). Every part is ONE instance (owner rule
+## 2026-10-28: one per harvest; knife and skill change speed and quality, never the count).
 ## Returns {"stacks": Array[ItemStack], "rares": Array[StringName]}.
 static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_tier: StringName, node_tier: int, skill: int, no_meat: bool, rng: RandomNumberGenerator) -> Dictionary:
 	var cfg := LootTables.butcher_cfg()
 	var tier_idx := ProgressionScaling.tier_index(knife_tier) if knife_tier != &"" else -1
-	var count_mult := 1.0 + float(cfg.get("count_bonus_per_tier", 0.0)) * float(maxi(0, tier_idx)) \
-			+ float(cfg.get("count_bonus_per_skill_level", 0.0)) * float(maxi(0, skill))
-	if tier_idx < 0:
-		count_mult *= float(cfg.get("no_knife_count_mult", 1.0))  # bare hands cut less than any knife
 	var stacks: Array[ItemStack] = []
 	var rares: Array[StringName] = []
 	var rows: Array = []
@@ -130,25 +112,13 @@ static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_t
 					float(cfg.get("max_rare_chance", 0.6)))
 			if rng.randf() >= c:
 				continue
-		var lo := int(row.get("min", 1))
-		var n := rng.randi_range(lo, maxi(lo, int(row.get("max", lo))))
-		if not is_rare:
-			var scaled := float(n) * count_mult
-			n = int(floor(scaled))
-			if rng.randf() < scaled - floor(scaled):
-				n += 1
-			# ASSUMPTION: a base part still falls on every kill (canon's guarantee, e.g. the poisoned raptor's
-			# bone and tendon); the no-knife cut can shrink a count but never to nothing.
-			n = maxi(1, n)
-		if n <= 0:
-			continue
 		var attrs: Dictionary = {}
 		var raw_attrs: Variant = row.get("attributes", {})
 		if raw_attrs is Dictionary:
 			attrs = (raw_attrs as Dictionary).duplicate(true)
 		# The carcass's level, not the catalogue base (an earned corpse keeps its quality).
 		attrs["level"] = level
-		stacks.append(ItemStack.make(item_id, n, attrs, level))
+		stacks.append(ItemStack.make(item_id, 1, attrs, level))
 		if is_rare:
 			rares.append(item_id)
 	return {"stacks": stacks, "rares": rares}

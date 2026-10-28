@@ -441,7 +441,7 @@ func _butcher() -> void:
 	var carcass_parts: int = CarcassParts.parts(&"velociraptor").size()
 	_butcher_m["parts"] = carcass_parts
 	_butcher_m["cuts"] = corpse.cuts_budget
-	# BUTCHER (spec 12 §2): the corpse interact opens the part picker, not the chest.
+	# BUTCHER (spec 12 §2): the corpse interact opens the part fan (LOOTRADIAL: the gather radial).
 	_p.global_position = corpse.global_position + Vector3(0.0, 0.0, 0.7)
 	corpse.open_loot(_p)
 	var deadline := Time.get_ticks_msec() + 8000
@@ -452,7 +452,7 @@ func _butcher() -> void:
 	_check(picker != null and picker.is_open(), "the corpse interact opens the part picker")
 	if picker == null:
 		return
-	var hexes: Array = picker.part_buttons()
+	var hexes: Array = picker._buttons
 	var smallest := 9999.0
 	for b in hexes:
 		smallest = minf(smallest, minf(b.size.x, b.size.y))
@@ -461,20 +461,18 @@ func _butcher() -> void:
 	_butcher_m["picker_open"] = 1 if picker.is_open() else 0
 	_check(hexes.size() == carcass_parts, "the picker offers one hex per carcass part (%d of %d)" % [hexes.size(), carcass_parts])
 	_check(smallest >= 64.0, "every part hex is a 64 px tap target (smallest %.0f)" % smallest)
-	# The panel and every hex are on screen (a 844x390 landscape phone is the tight case).
+	# Every hex is on screen (a 844x390 landscape phone is the tight case).
 	var view := get_viewport().get_visible_rect()
-	var panel: Rect2 = picker.panel_rect()
-	var inside := view.encloses(panel)
+	var inside := true
 	for b in hexes:
-		inside = inside and panel.encloses((b as Control).get_global_rect())
-	_butcher_m["panel_px"] = int(panel.size.x)
+		inside = inside and view.encloses((b as HexButton).hex_rect())
 	_butcher_m["inside"] = 1 if inside else 0
-	_check(inside, "the picker and all %d hexes fit the %dx%d screen (panel %s)" % [hexes.size(), int(view.size.x), int(view.size.y), panel])
+	_check(inside, "all %d part hexes fit the %dx%d screen" % [hexes.size(), int(view.size.x), int(view.size.y)])
 	await _capture("picker")
 	# Pick the meat hex as a finger would, then let the timed cut run out.
 	var meat_hex = null
 	for b in hexes:
-		if str(b.name) == "Part_raptor_meat":
+		if str(b.name) == "Opt_raptor_meat":
 			meat_hex = b
 	_check(meat_hex != null and not meat_hex.disabled, "the meat hex is open to cut")
 	var seconds: float = CarcassParts.CUT_SECONDS
@@ -501,7 +499,7 @@ func _butcher() -> void:
 		if pk == null:
 			break
 		var hex = null
-		for b in pk.part_buttons():
+		for b in pk._buttons:
 			if not b.disabled:
 				hex = b
 				break
@@ -509,7 +507,6 @@ func _butcher() -> void:
 			pk.close()
 			break
 		hex.pressed.emit()
-		pk.close()
 		var g := 0
 		while corpse.cut_running and g < 240:
 			await get_tree().process_frame
