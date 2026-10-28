@@ -36,9 +36,11 @@ static func _clip_seconds(creature: Creature, clip: StringName) -> float:
 	var ap := creature.anim.player if creature.anim else null
 	return ap.get_animation(clip).length if ap and ap.has_animation(clip) else 0.6
 
+## True when the survivor is inside this attacker's live ring and her roll is still in its opening
+## window (RollRules): the ring tells her when to press, the window is what actually dodges.
 static func player_dodged(attacker: Creature) -> bool:
 	var player := PlayerRegistry.nearest(attacker.global_position)
-	if player == null or not player.rolling:
+	if player == null or player.sim == null or not player.sim.roll_invulnerable():
 		return false
 	for t in _active:
 		if t.attacker == attacker and t.covers(player.global_position):
