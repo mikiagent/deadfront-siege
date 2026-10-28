@@ -444,12 +444,12 @@
    "script": "tools/blender/items/gear.py",
    "builder": "bronze_cuirass",
    "png": "res://assets/icons/render/bronze_cuirass.png",
-   "sha256": "68a956fee6b47bbe415506f75ba57842f53c985f42ee14d3539c2ed7357e2a0f",
-   "bytes": 45044,
+   "sha256": "2f0d279a92a12447c1d5d9c6a87a5a74d03b9aebd5e9df2fcd86933cc3fdf16c",
+   "bytes": 45960,
    "rect": [
-    37,
+    42,
     19,
-    183,
+    172,
     218
    ],
    "quality": "procedural_v1"
@@ -893,12 +893,12 @@
    "script": "tools/blender/items/gear.py",
    "builder": "copper_cuirass",
    "png": "res://assets/icons/render/copper_cuirass.png",
-   "sha256": "c67f1b7729603f1ca2a8e044189bbb3896e31162f422aa6fb785232dc2504439",
-   "bytes": 44824,
+   "sha256": "6b05336b120d4e62f5d147b46752dbb5d6013043329540a35c5d7214fe3ddf04",
+   "bytes": 45734,
    "rect": [
-    37,
+    42,
     19,
-    183,
+    172,
     218
    ],
    "quality": "procedural_v1"
@@ -1695,12 +1695,12 @@
    "script": "tools/blender/items/gear.py",
    "builder": "iron_cuirass",
    "png": "res://assets/icons/render/iron_cuirass.png",
-   "sha256": "2ba44b13a78090f0d4cbee94820131daf474ad631d7fad64d275f88e290c9cec",
-   "bytes": 41951,
+   "sha256": "931dd65520469b8abb1c12f86a21c49a49250e479a4dbd92cb9d51435fce1966",
+   "bytes": 42765,
    "rect": [
-    37,
+    42,
     19,
-    183,
+    172,
     218
    ],
    "quality": "procedural_v1"
@@ -1836,12 +1836,12 @@
    "script": "tools/blender/items/gear.py",
    "builder": "leather_cuirass",
    "png": "res://assets/icons/render/leather_cuirass.png",
-   "sha256": "cf039c4cab539cb3ecd234c5740388ffae13084d74dc4cbb2b062ca0491ad4ba",
-   "bytes": 40284,
+   "sha256": "922553fc06e31ff342e2735104b7f8301b671e2db8aaf58e63864f24029a9374",
+   "bytes": 41194,
    "rect": [
-    37,
+    42,
     19,
-    183,
+    172,
     218
    ],
    "quality": "procedural_v1"
@@ -2833,12 +2833,12 @@
    "script": "tools/blender/items/gear.py",
    "builder": "steel_cuirass",
    "png": "res://assets/icons/render/steel_cuirass.png",
-   "sha256": "a941f4e1c796556341700b61cb3df61db6289dfa40e741ab3e248b5ec862bb7d",
-   "bytes": 47163,
+   "sha256": "bbedaee0d68796cddeb733010b35f1abfa1844781da16ceb78d167c317516aca",
+   "bytes": 48254,
    "rect": [
-    37,
+    42,
     19,
-    183,
+    172,
     218
    ],
    "quality": "procedural_v1"
