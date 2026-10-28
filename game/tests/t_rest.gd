@@ -540,3 +540,19 @@ func _test_save_load(at: Vector3) -> void:
 	await _seconds(0.5)
 	_expect(not rest.resting and not player.anim.is_sitting() and player.anim.current_clip == &"idle" and absf(player.visual.position.y) < 0.05,
 		"a standing save loads standing (resting=%s clip=%s visual_y=%.2f)" % [rest.resting, player.anim.current_clip, player.visual.position.y])
+	# Save format: "resting" is new. A save from before it (the frozen v3 golden, no key) loads standing,
+	# with its own Health and fatigue, even when she sat down before the load.
+	var golden: String = FileAccess.get_file_as_string("res://tests/fixtures/save_v3_golden.json")
+	var gv: Dictionary = (JSON.parse_string(golden) as Dictionary)["player"]["vitals"]
+	_expect(not (JSON.parse_string(golden) as Dictionary)["player"].has("resting"), "the v3 golden predates the resting key")
+	var f := FileAccess.open(SG.path, FileAccess.WRITE)
+	f.store_string(golden)
+	f.close()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SG.path + ".bak"))
+	rest.start()
+	await _seconds(1.3)
+	SG.load_now(host)
+	await _seconds(0.5)
+	_expect(not rest.resting and not player.anim.is_sitting() and absf(player.vitals.health - float(gv["health"])) < 1.0
+		and absf(player.vitals.fatigue - float(gv["fatigue"])) < 0.2,
+		"an old save without the key loads standing with its vitals (resting=%s hp=%.1f/%.1f fat=%.2f/%.2f)" % [rest.resting, player.vitals.health, float(gv["health"]), player.vitals.fatigue, float(gv["fatigue"])])
