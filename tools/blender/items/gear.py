@@ -775,12 +775,13 @@ def _armour_cuirass(name):
         prism(lame, 0.2, m=m, bev=0.025, deform=front)
         for sgn in (-1, 1):
             ball(0.045, loc=(sgn * w * 0.78, -0.22 - bulge * (w * 0.78) ** 2, z + 0.02), m=stud, sub=2)
-    # Shoulder straps: two thick loops over the top, each with a stud.
+    # Shoulder straps: two short flat straps lying on the plate's top corners and disappearing behind
+    # it. Earlier these were free-standing loops with studs above the plate and read as floating
+    # debris beside the armour, so every strap part is now seated on the plate.
     for sgn in (-1, 1):
-        tube(arc((sgn * 0.46, 0.0, 0.82), 0.26, 150 if sgn < 0 else -30, 250 if sgn < 0 else 30, 10, plane="xz"),
-             0.055, m, segs=6, taper=(1.0, 0.85))
-        for k in range(2):
-            ball(0.04, loc=(sgn * 0.5, -0.1, 0.98 - 0.1 * k), m=stud, sub=2)
+        prism([(sgn * 0.18, 0.9), (sgn * 0.46, 0.92), (sgn * 0.44, 0.68), (sgn * 0.2, 0.7)], 0.1,
+              loc=(0, 0.02, 0), m=m, bev=0.0)
+        ball(0.035, loc=(sgn * 0.32, -0.06, 0.79), m=stud, sub=2)
     if lea:  # stitched seams: two rows of stitches down the chest and one round the lames
         for z in (0.5, 0.3, 0.1):
             for sgn in (-1, 1):

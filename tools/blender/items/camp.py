@@ -1007,33 +1007,44 @@ def antibiotic():
 # are worth remembering: the flap floated in front of the body as a disc "lid", and the bodies sat on
 # a flat slab that read as a tray. Both are gone: no base plate, and the flap sits at 0.5*d + 4 mm.
 
-def _bag_body(w, h, d, m, amp=0.05):
-    """The satchel body: a soft rounded box with a stitched seam round its waist."""
+def _rrect(w, h, r, n=4):
+    """Outline of a rounded rectangle in the XZ plane (rounded corners, hard edges). Bags are drawn from
+    this, not from blobs: the earlier organic passes read as potato lumps whatever the details were.
+    Armour reads at 48 px because its plates have hard edges; the bags now do the same."""
+    pts = []
+    for (cx, cz, a0) in ((w - r, h - r, 0), (-(w - r), h - r, 90), (-(w - r), -(h - r), 180), (w - r, -(h - r), 270)):
+        for i in range(n + 1):
+            a = math.radians(a0 + 90.0 * i / n)
+            pts.append((cx + r * math.cos(a), cz + r * math.sin(a)))
+    return pts
+
+
+def _bag_body(w, h, d, m, amp=0.0):
+    """The satchel body: an upright rounded rectangle with depth, a stitched seam round its waist and a
+    slightly swollen front so it reads soft-leather rather than machined."""
     g = group()
-    blob(1.0, loc=(0, 0, -0.04 * h), scl=(0.5 * w, 0.5 * d, 0.48 * h), m=m, amp=amp, sub=3, parent=g)
-    blob(1.0, loc=(0, 0, 0.3 * h), scl=(0.4 * w, 0.4 * d, 0.24 * h), m=m, amp=amp * 1.6, sub=3, parent=g)
-    tube([(0.48 * w * math.cos(math.radians(a)), 0.48 * d * math.sin(math.radians(a)), -0.12 * h)
-          for a in range(0, 360, 12)], 0.028, m, segs=5, closed=True, parent=g)
+    hw, hh, rr = 0.5 * w, 0.5 * h, 0.2 * min(w, h)
+
+    def belly(co):
+        co.y -= 0.14 * d * (1.0 - (co.x / hw) ** 2) * (1.0 - 0.5 * (co.z / hh) ** 2)
+    prism(_rrect(hw, hh, rr), 0.96 * d, loc=(0, 0.05 * d, 0), m=m, bev=0.0, deform=belly, parent=g)
+    # The seam round the waist: a hem band, which is what makes a satchel read as sewn leather.
+    box((2 * hw * 0.94, 1.02 * d, 0.05), loc=(0, 0.0, -0.12 * h), m=m, bev=0.0, parent=g)
     return g
 
 
 def _bag_flap(g, w, h, d, m, stud=None, tongue=0.62):
-    """The flap: a tongue that hangs over the FRONT of the bag, narrower than the body and bent round
-    its curve so its edges meet the sack instead of sticking out past it, plus a centre strap and a
-    buckle. The earlier passes nailed flat plates and hem bars across the front, which read as planks
-    and cardboard."""
-    bulge = 2.2 / max(d, 0.4)
-
-    def cupped(co):
-        co.y -= bulge * co.x * co.x * 0.5
-
-    wf, hf = 0.62 * w, 0.5 * h
-    pts = [(-wf, hf), (wf, hf), (wf, 0.0), (0.74 * wf, -0.3 * h), (0.0, -0.44 * h), (-0.74 * wf, -0.3 * h),
-           (-wf, 0.0)]
-    prism(pts, 0.07, loc=(0, -0.4 * d, 0), m=m, bev=0.0, deform=cupped, parent=g)
+    """The flap: a rounded-rect plate standing 4 cm proud of the front face, inset from the body's edges,
+    reaching over the top edge and down about half the front, with a centre strap and a buckle."""
+    hw, hh, rr = 0.46 * w, 0.5 * h, 0.14 * min(w, h)
+    fl = hh * (1.0 - tongue) + 0.04
+    pts = [(x, z + fl - 0.06) for x, z in _rrect(hw, fl, rr)]
+    prism(pts, 0.07, loc=(0, -0.5 * d - 0.03, 0), m=m, bev=0.0, parent=g)
+    # the flap folds over the top edge
+    box((1.9 * hw, 0.6 * d, 0.06), loc=(0, 0.18 * d, hh + 0.02), m=m, bev=0.0, parent=g)
     if stud:  # centre strap tail and its buckle
-        tube([(0, -0.4 * d - 0.05, hf), (0, -0.4 * d - 0.07, -0.12 * h)], 0.075, m, segs=6, parent=g)
-        box((0.14, 0.08, 0.16), loc=(0, -0.44 * d, -0.1 * h), m=stud, bev=0.0, parent=g)
+        tube([(0, -0.5 * d - 0.05, hh + 0.03), (0, -0.54 * d, -0.1 * h)], 0.05, m, segs=6, parent=g)
+        box((0.12, 0.08, 0.13), loc=(0, -0.56 * d, -0.08 * h), m=stud, bev=0.0, parent=g)
     return g
 
 
@@ -1046,8 +1057,8 @@ def _strap(pts, m, w=0.16, flat=0.32):
 
 
 def _handle(radius, m, thick=0.11, y=0.0, z=0.0):
-    """A carrying loop: a strap arc rising from the bag's two top corners and meeting above the flap,
-    kept low and squashed flat so it reads as webbing, not wire."""
+    """A carrying loop: a strap arc rising from the bag's two top corners, kept low and squashed flat so
+    it reads as webbing, not wire."""
     pts = [(radius * math.cos(math.radians(a)), y + 0.02 * math.sin(math.radians(a)),
             z + radius * math.sin(math.radians(a)))
            for a in range(0, 181, 10)]
@@ -1064,6 +1075,7 @@ def _pouch(m, w, h, d, cord, g=None):
     lathe([(0.0, 0.0), (0.5 * w, 0.03 * h), (0.62 * w, 0.3 * h), (0.58 * w, 0.6 * h), (0.3 * w, 0.84 * h),
            (0.22 * w, 0.9 * h), (0.34 * w, 0.97 * h), (0.3 * w, 1.03 * h), (0.0, 1.05 * h)],
           loc=(0, 0, -0.5 * h), m=m, segs=26, scl=(1.0, d / w, 1.0), parent=g)
+    blob(1.0, loc=(0, 0, 0.38 * h), scl=(0.3 * w, 0.3 * w * (d / w), 0.2 * h), m=m, amp=0.16, sub=3, parent=g)
     zt = -0.5 * h + 0.9 * h
     tube([(0.25 * w * math.cos(math.radians(a)), 0.25 * d * math.sin(math.radians(a)), zt)
           for a in range(0, 360, 18)], 0.04, cord, segs=5, closed=True, parent=g)
@@ -1085,14 +1097,13 @@ def small_pouch():
 
 
 def large_pouch():
-    """Large pouch: the small pouch grown wide, a flap folded over its mouth and a shoulder strap:
-    accessory-sized, so it hangs rather than being hauled."""
+    """Large pouch: a wide hide satchel: the basic bag's body shape, smaller and softer, with a flap, a
+    bone clasp and a wide shoulder strap so it hangs rather than being hauled."""
     lea = hidem("#9a6a3e", "#6e4a24")
     lea2 = hidem("#7a4e2a", "#54341a")
-    cord = rope_m("#d8c08a")
-    g = _pouch(lea, 1.32, 1.02, 0.8, cord)
-    _bag_flap(g, 0.44, 0.6, 0.62, lea2, tongue=0.16)
-    _handle(0.52, lea2, 0.07, y=0.06, z=0.12)
+    g = _bag_body(1.1, 0.9, 0.72, lea)
+    _bag_flap(g, 1.1, 0.9, 0.72, lea2, stud=bonem("#e4d6b0"))
+    _handle(0.5, lea2, 0.085, y=0.12, z=0.2)
     turn(8)
     turn(14, "X")
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
@@ -1114,32 +1125,22 @@ def basic_bag():
 
 
 def woven_bag():
-    """Woven bag: a bag plaited from fibre, its mouth rolled round a rim, two fibre handles and a hide
-    patch on the front."""
-    # Low weave contrast: the first try (bump 0.5, wave 9) rendered 65950 B, over the 64 KB budget
-    # under Cycles noise (basket_kit hit the same limit).
-    # Second size blow-up (72613 B) after adding the plaited warps: flat-ish weave, 7 warps.
-    # Flat colours, no procedural texture: every textured variant of this bag rendered over the 64 KB
-    # PNG cap (65405-72613 B) because the noise defeated the compressor. The plait is geometry now.
+    """Woven bag: a fibre bag plaited round a hide patch, its mouth rolled round a rim and a single
+    bail handle over it. The body is the same satchel shape as the hide bags, so the family still reads
+    as one set of bags (the earlier basket versions read as a cauldron or a laundry basket)."""
+    # Flat colours, no procedural texture: every textured variant rendered over the 64 KB PNG cap.
     weave = mat("#c8a05a", 0.92)
     fibre = mat("#dcc084", 0.94)
     hide = hidem("#8a5a32", "#5e3a1e")
-    g = group()
-    blob(1.0, loc=(0, 0, -0.02), scl=(0.6, 0.39, 0.53), m=weave, amp=0.015, sub=2, parent=g)
-    for k in range(4):  # horizontal weft bands, sunk into the weave (fat standing hoops read as a barrel)
-        z = -0.32 + 0.21 * k
-        r = 0.6 - 0.05 * abs(k - 1.5)
-        tube([(r * math.cos(math.radians(a)), 0.64 * r * math.sin(math.radians(a)), z)
-              for a in range(0, 360, 12)], 0.026, fibre, segs=4, closed=True, parent=g)
-    for (x, y0) in ((-0.32, 0.26), (0.0, 0.38), (0.32, 0.26)):  # three warps on the front, sunk in
-        tube([(x, -y0, -0.38), (x * 1.06, -y0 * 1.06, 0.0), (x, -y0, 0.4)], 0.016, fibre, segs=4, parent=g)
-    tube([(0.58 * math.cos(math.radians(a)), 0.37 * math.sin(math.radians(a)), 0.47)
-          for a in range(0, 360, 10)], 0.055, weave, segs=6, closed=True, parent=g)  # rolled mouth
-    for sgn in (-1, 1):  # two fibre handles rising from the mouth
-        tube([(sgn * 0.34, -0.28, 0.47), (sgn * 0.42, -0.32, 0.76), (sgn * 0.08, -0.28, 0.88)], 0.036, fibre,
-             segs=5, parent=g)
-    prism([(-0.34, 0.16), (0.34, 0.16), (0.29, -0.12), (0.0, -0.2), (-0.29, -0.12)], 0.05,
-          loc=(0, -0.36, 0), m=hide, bev=0.0, parent=g)  # hide patch on the front
+    g = _bag_body(1.24, 1.0, 0.78, weave)
+    # Recessed weft bands: two thin lines pressed INTO the front, not hoops standing off it.
+    for z in (-0.14, 0.16):
+        box((1.16, 0.08, 0.05), loc=(0, -0.37, z), m=fibre, bev=0.0, parent=g)
+    tube([(0.6 * math.cos(math.radians(a)), 0.38 * math.sin(math.radians(a)), 0.5)
+          for a in range(0, 360, 12)], 0.045, fibre, segs=5, closed=True, parent=g)  # rolled mouth
+    prism([(-0.3, 0.16), (0.3, 0.16), (0.26, -0.1), (0.0, -0.18), (-0.26, -0.1)], 0.05,
+          loc=(0, -0.4, 0.02), m=hide, bev=0.0, parent=g)  # hide patch on the front
+    _handle(0.34, fibre, 0.032, y=0.1, z=0.46)  # one bail handle
     turn(14)
     turn(10, "X")
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)

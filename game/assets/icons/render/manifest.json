@@ -46,6 +46,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "advanced_backpack": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "advanced_backpack",
+   "png": "res://assets/icons/render/advanced_backpack.png",
+   "sha256": "2a1a02e138fea74823bbf15796de65c767273404ef47301a7943a7eb0a99709a",
+   "bytes": 51122,
+   "rect": [
+    19,
+    31,
+    218,
+    194
+   ],
+   "quality": "procedural_v1"
+  },
   "antibiotic": {
    "script": "tools/blender/items/camp.py",
    "builder": "antibiotic",
@@ -169,6 +183,20 @@
     42,
     218,
     172
+   ],
+   "quality": "procedural_v1"
+  },
+  "basic_bag": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "basic_bag",
+   "png": "res://assets/icons/render/basic_bag.png",
+   "sha256": "98972dd11f4077c1d338b53efcaad750a42b2ad420f88e50bbb3b661b8126f88",
+   "bytes": 48583,
+   "rect": [
+    19,
+    25,
+    218,
+    206
    ],
    "quality": "procedural_v1"
   },
@@ -398,6 +426,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "bronze_bracers": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bronze_bracers",
+   "png": "res://assets/icons/render/bronze_bracers.png",
+   "sha256": "5a19addef2cc0561720f9b7f13cd599f782cb76a168157899f19f7ebc82be0e5",
+   "bytes": 27390,
+   "rect": [
+    54,
+    19,
+    148,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "bronze_cuirass": {
    "script": "tools/blender/items/gear.py",
    "builder": "bronze_cuirass",
@@ -408,6 +450,20 @@
     37,
     19,
     183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bronze_greaves": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bronze_greaves",
+   "png": "res://assets/icons/render/bronze_greaves.png",
+   "sha256": "ba797121c7da95fdb96df03cb5a46b038cb4ca7dad901229cb1ef2be26e92acd",
+   "bytes": 26346,
+   "rect": [
+    70,
+    19,
+    116,
     218
    ],
    "quality": "procedural_v1"
@@ -819,6 +875,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "copper_bracers": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "copper_bracers",
+   "png": "res://assets/icons/render/copper_bracers.png",
+   "sha256": "da20cdfaa627903b887f89baaa83b3916d38cec62ed8a427d4ad1bab93346545",
+   "bytes": 27344,
+   "rect": [
+    54,
+    19,
+    148,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "copper_cuirass": {
    "script": "tools/blender/items/gear.py",
    "builder": "copper_cuirass",
@@ -829,6 +899,20 @@
     37,
     19,
     183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "copper_greaves": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "copper_greaves",
+   "png": "res://assets/icons/render/copper_greaves.png",
+   "sha256": "76d064c90a928943a989aa563ae0b090b89f6ede27ba6160e88bc143387a8cfc",
+   "bytes": 26261,
+   "rect": [
+    70,
+    19,
+    116,
     218
    ],
    "quality": "procedural_v1"
@@ -1593,6 +1677,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "iron_bracers": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "iron_bracers",
+   "png": "res://assets/icons/render/iron_bracers.png",
+   "sha256": "2acb4fa31997d3fd635a20a5bd0aa85102f86144affd81028a804498e659f133",
+   "bytes": 29570,
+   "rect": [
+    54,
+    19,
+    148,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "iron_cuirass": {
    "script": "tools/blender/items/gear.py",
    "builder": "iron_cuirass",
@@ -1603,6 +1701,20 @@
     37,
     19,
     183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "iron_greaves": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "iron_greaves",
+   "png": "res://assets/icons/render/iron_greaves.png",
+   "sha256": "18251b2522f36530c435b014668106b4127df2d4380dac1c11f042470448b2d5",
+   "bytes": 27642,
+   "rect": [
+    70,
+    19,
+    116,
     218
    ],
    "quality": "procedural_v1"
@@ -1678,6 +1790,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "large_pouch": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "large_pouch",
+   "png": "res://assets/icons/render/large_pouch.png",
+   "sha256": "3c5412cb4885485e78afacceaf3624c456357557dc0110664e136c1ab60f6065",
+   "bytes": 47623,
+   "rect": [
+    19,
+    22,
+    218,
+    212
+   ],
+   "quality": "procedural_v1"
+  },
   "lava": {
    "script": "tools/blender/items/resources.py",
    "builder": "lava",
@@ -1692,6 +1818,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "leather_bracers": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "leather_bracers",
+   "png": "res://assets/icons/render/leather_bracers.png",
+   "sha256": "e4ed50d01c8932203a9a868dd4f9f9f8b89a503b85ef8439174da00bf3f4aea5",
+   "bytes": 28326,
+   "rect": [
+    54,
+    19,
+    148,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "leather_cuirass": {
    "script": "tools/blender/items/gear.py",
    "builder": "leather_cuirass",
@@ -1702,6 +1842,20 @@
     37,
     19,
     183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "leather_greaves": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "leather_greaves",
+   "png": "res://assets/icons/render/leather_greaves.png",
+   "sha256": "16b25d14af085a546364ca96192cf3eda4d811d02d93f86ce26a6704c189f86a",
+   "bytes": 27733,
+   "rect": [
+    70,
+    19,
+    116,
     218
    ],
    "quality": "procedural_v1"
@@ -2479,6 +2633,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "small_pouch": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "small_pouch",
+   "png": "res://assets/icons/render/small_pouch.png",
+   "sha256": "2b1149e9cc7d4d44ee1494e77e173fe1ab81088d4972f94aafe2197e7285c5f8",
+   "bytes": 43085,
+   "rect": [
+    19,
+    26,
+    218,
+    204
+   ],
+   "quality": "procedural_v1"
+  },
   "smoked_meat": {
    "script": "tools/blender/items/food.py",
    "builder": "smoked_meat",
@@ -2518,6 +2686,20 @@
     39,
     218,
     178
+   ],
+   "quality": "procedural_v1"
+  },
+  "specialized_storage_bag": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "specialized_storage_bag",
+   "png": "res://assets/icons/render/specialized_storage_bag.png",
+   "sha256": "c4b6934d06b9edeaf37c2d5653bcf3a8b931996d4e8b55a8e6f3b3bfcd9aefc5",
+   "bytes": 53421,
+   "rect": [
+    29,
+    19,
+    198,
+    218
    ],
    "quality": "procedural_v1"
   },
@@ -2633,6 +2815,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "steel_bracers": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "steel_bracers",
+   "png": "res://assets/icons/render/steel_bracers.png",
+   "sha256": "39ad231c5f0cbe91f655c09ddf670c8cf1fda24a65b4ffc2a8b4c376ee082546",
+   "bytes": 30451,
+   "rect": [
+    54,
+    19,
+    148,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "steel_cuirass": {
    "script": "tools/blender/items/gear.py",
    "builder": "steel_cuirass",
@@ -2643,6 +2839,20 @@
     37,
     19,
     183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "steel_greaves": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "steel_greaves",
+   "png": "res://assets/icons/render/steel_greaves.png",
+   "sha256": "7d65dc76fad8b92e9271bda4fbbd68031252a3bdf069a72b55b1d0287df4705e",
+   "bytes": 30441,
+   "rect": [
+    70,
+    19,
+    116,
     218
    ],
    "quality": "procedural_v1"
@@ -3181,24 +3391,21 @@
     212
    ],
    "quality": "procedural_v1"
+  },
+  "woven_bag": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "woven_bag",
+   "png": "res://assets/icons/render/woven_bag.png",
+   "sha256": "9749e1b8490bed5c3f3309e87c98d953a6e338e385679eb55e31960b5d6265d6",
+   "bytes": 55517,
+   "rect": [
+    19,
+    24,
+    218,
+    208
+   ],
+   "quality": "procedural_v1"
   }
  },
- "missing": [
-  "advanced_backpack",
-  "basic_bag",
-  "bronze_bracers",
-  "bronze_greaves",
-  "copper_bracers",
-  "copper_greaves",
-  "iron_bracers",
-  "iron_greaves",
-  "large_pouch",
-  "leather_bracers",
-  "leather_greaves",
-  "small_pouch",
-  "specialized_storage_bag",
-  "steel_bracers",
-  "steel_greaves",
-  "woven_bag"
- ]
+ "missing": []
 }
