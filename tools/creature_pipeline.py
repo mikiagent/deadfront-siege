@@ -29,14 +29,14 @@ CLIP_MAP = ["Attack=attack_primary", "Jump=attack_heavy", "Death=death", "Idle=i
 # Reference wording that fixed the arm/leg confusion and the tail (roster PRD §4.2, C2b report).
 BIPED_SIDE = ("Orthographic left-side profile of a {name}, accurate palaeoart, full body, spine horizontal and parallel to the ground, "
               "long stiff tail straight back. Only two legs touch the ground. Forelimbs SHORT and folded up against the chest, clawed hands "
-              "tucked at the ribs far above the knees, clearly arms not legs. {look} neutral standing pose, flat even lighting, plain white "
+              "tucked at the ribs far above the knees, clearly arms not legs. {look} neutral standing pose, mouth slightly parted with a narrow dark gap along the lip line, flat even lighting, plain white "
               "background, no shadow, no text, whole animal visible with margin.")
 BIPED_FRONT = ("Orthographic front view of the same {name} facing the camera head-on, accurate palaeoart, body horizontal so head and chest face "
                "the viewer, only two legs on the ground shoulder-width apart, SHORT forelimbs folded against the chest with hands tucked at the "
-               "ribs high above the knees, clearly arms not legs. {look} neutral standing pose, flat even lighting, plain white background, no "
+               "ribs high above the knees, clearly arms not legs. {look} neutral standing pose, mouth slightly parted with a narrow dark gap along the lip line, flat even lighting, plain white background, no "
                "shadow, no text, whole animal visible with margin.")
 QUAD_SIDE = ("Orthographic left-side profile of a {name}, accurate palaeoart, full body on four sturdy legs, all four feet on the ground, "
-             "{look} neutral standing pose, flat even lighting, plain white background, no shadow, no text, whole animal visible with margin.")
+             "{look} neutral standing pose, mouth slightly parted with a narrow dark gap along the lip line, flat even lighting, plain white background, no shadow, no text, whole animal visible with margin.")
 QUAD_FRONT = ("Orthographic front view of the same {name} facing the camera head-on, accurate palaeoart, four legs on the ground, {look} neutral "
               "standing pose, flat even lighting, plain white background, no shadow, no text, whole animal visible with margin.")
 

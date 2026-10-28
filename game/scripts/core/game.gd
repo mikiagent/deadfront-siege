@@ -29,6 +29,9 @@ var shot_delay_override: float = -1.0  # --shot-delay=SECONDS
 var pointer: Vector2 = Vector2.ZERO
 var creature_ui: CanvasLayer
 
+## Labs that take their own --shot (they run a frame sequence first): card_bake, card2d_lab.
+const SELF_SHOT_LABS := ["card_bake", "card2d_lab"]
+
 var _last_phase: StringName = &""
 var _perf: Label
 var _bg_unix: int = 0
@@ -62,7 +65,7 @@ func _ready() -> void:
 	_make_perf()
 	if smoke_test:
 		get_tree().create_timer(2.0).timeout.connect(_finish_smoke)
-	elif shot_path != "":
+	elif shot_path != "" and not (lab_name in SELF_SHOT_LABS):
 		# hunt_lab needs a beat after alert→damage so plates show a white chunk.
 		var shot_delay := 3.2 if lab_name == "hunt_lab" else (2.8 if lab_name == "capture_lab" else 2.6)
 		if shot_delay_override > 0.0:

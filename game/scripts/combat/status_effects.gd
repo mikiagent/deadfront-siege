@@ -7,6 +7,8 @@ signal removed(id: StringName)
 
 var _active: Array[StatusInstance] = []
 var _tick_acc: float = 0.0
+## True while a damage-over-time tick lands on a Player (Player._on_vitals_damaged tells it from a hit).
+var ticking: bool = false
 
 func _process(delta: float) -> void:
 	_tick_acc += delta
@@ -23,6 +25,14 @@ func _process(delta: float) -> void:
 			_dot(inst)
 	for inst: StatusInstance in dying:
 		_expire(inst)
+
+## The old status set is gone (a load or a respawn): max HP goes back to the survivor's own maximum.
+## apply() syncs on a real add, but an empty set has nothing to sync.
+func clear_all() -> void:
+	if _active.is_empty():
+		return
+	_active.clear()
+	_sync_vitals()
 
 func apply(id: StringName, source: Node = null, extra_stacks: int = 1) -> void:
 	var parsed := parse_token(id)
@@ -112,6 +122,7 @@ func from_array(raw: Array) -> void:
 		var inst := get_instance(StringName(str(row.get("id", ""))))
 		if inst:
 			inst.time_left = float(row.get("time_left", inst.time_left))
+	_sync_vitals()  # the status part of max HP follows the loaded set (SAVEFIX)
 
 func has_flag(flag: StringName) -> bool:
 	for inst in _active:
@@ -198,9 +209,10 @@ func _dot(inst: StatusInstance) -> void:
 	if host is Creature:
 		var cr := host as Creature
 		if inst.id in [&"bleeding_target", &"poisoned_target"]:
-			# A tameable animal inside the capture window is not finished off by a DoT: the bot's
-			# first tame kept dying to bleed between "weak enough" and the tackle. Direct hits still kill.
-			if cr.def.tameable and cr.health.fraction() < 0.30:  # FieldTame.CAPTURE_HEALTH_FRAC
+			# Never force damage onto a capturable animal: the same window as the net (spec 09,
+			# stunned at any HP or <= 30 %) decides. The bot's first tame kept dying to bleed
+			# between "weak enough" and the tackle. Direct hits still kill.
+			if FieldTame.capture_window(cr):
 				return
 			dps = CombatCounters.dot_dps(cr.def.archetype, inst.id, cr.health.max_hp, inst.stacks)
 		elif def.dps_max_hp_frac > 0.0:
@@ -218,9 +230,13 @@ func _dot(inst: StatusInstance) -> void:
 		if def.dps_max_hp_frac > 0.0:
 			dps += def.dps_max_hp_frac * pl.vitals.max_health
 		if dps > 0.0:
+			ticking = true
 			pl.vitals.take_damage(dps * 0.5)
+			ticking = false
 		if def.fatigue_per_min > 0.0:
-			pl.vitals.add_fatigue(def.fatigue_per_min * (0.5 / 60.0) * 100.0 * float(inst.stacks), inst.id)
+			# fatigue_per_min is a rate on the 0-100 fatigue scale (PRD's +5.4/min, +18/min), per
+			# tick of 0.5 s. It used to be multiplied by 100 as well: Wet charged 30/min.
+			pl.vitals.add_fatigue(def.fatigue_per_min * (0.5 / 60.0) * float(inst.stacks), inst.id)
 
 func _expire(inst: StatusInstance) -> void:
 	var def := Data.status(inst.id)
@@ -254,17 +270,32 @@ func _who() -> String:
 		return str((p as Creature).def.id) if (p as Creature).def else p.name
 	return p.name if p else "?"
 
+## Max HP an active status takes away (Infected Wound x0.8), as a multiplier on the survivor's own
+## maximum (100 + pioneer levels). 1.0 when no status changes it.
+func max_health_status_mult() -> float:
+	return _product(&"max_health_mult")
+
+## The line the HUD shows under the status chips when a status changes max HP, else "". SAVEFIX: a
+## max HP that moves must say why (playtest: 102/105 -> 100/100 with no visible cause).
+func max_health_note() -> String:
+	for inst in _active:
+		var def := Data.status(inst.id)
+		if def == null or is_equal_approx(def.max_health_mult, 1.0):
+			continue
+		var pct := int(round((def.max_health_mult - 1.0) * 100.0))
+		return "%s: max HP %+d%%" % [def.display_name, pct]
+	return ""
+
 func _sync_vitals() -> void:
 	var p := get_parent()
 	if p is Player:
-		(p as Player).vitals.blocks_regen = blocks_regen()
-		var mh := 1.0
-		for inst in _active:
-			var def := Data.status(inst.id)
-			if def:
-				mh *= def.max_health_mult
-		(p as Player).vitals.max_health = 100.0 * mh
-		(p as Player).vitals.health = minf((p as Player).vitals.health, (p as Player).vitals.effective_max_health())
+		var pl := p as Player
+		pl.vitals.blocks_regen = blocks_regen()
+		pl.vitals.blocks_fatigue_gain = has_flag(&"no_fatigue_gain")  # Well Rested
+		# Only the status part is this node's to set: the pioneer-level bonus (vitals.level_health)
+		# stayed lost because every status change rewrote max_health to a flat 100 x product.
+		pl.vitals.max_health = (100.0 + pl.vitals.level_health) * max_health_status_mult()
+		pl.vitals.health = minf(pl.vitals.health, pl.vitals.effective_max_health())
 
 ## Only creature counter statuses use the counter clock; player injuries are unchanged.
 func _duration(id: StringName, fallback: float) -> float:

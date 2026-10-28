@@ -240,11 +240,19 @@ func _build_overview() -> void:
 		xp_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		cols.add_child(xp_col)
 		# XP banked at the character-level cap reads as a full bar, as on Durango's skill screen.
+		# Spec 25 §7: at the cap the bar reads FULL and still shows the XP gained (03:7 keeps it).
+		var capped := lvl >= skills.level_cap(id)
+		if capped:
+			# The XP the character level-up will spend: spec 25 §7 wants the bar FULL and the XP shown.
+			# On a compact canvas the wider wording was cut ("FULL · 135 XP bank…"), so it loses "banked".
+			var banked := _cell("FULL · %d XP" % int(xp) if compact else "FULL · %d XP banked" % int(xp), 0.0, meta, Color(1.0, 0.85, 0.35), HORIZONTAL_ALIGNMENT_RIGHT)
+			banked.name = "SkillFull_%s" % id
+			xp_col.add_child(banked)
 		xp_col.add_child(_cell("%d / %d XP" % [int(minf(xp, need)), int(need)], 0.0, meta, UiTokens.META, HORIZONTAL_ALIGNMENT_RIGHT))
 		var bar := ProgressBar.new()
 		bar.custom_minimum_size = Vector2(0, 6)
 		bar.max_value = maxf(1.0, need)
-		bar.value = xp
+		bar.value = need if capped else xp  # a capped tree's bar is full even if its bank is short
 		bar.show_percentage = false
 		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		xp_col.add_child(bar)

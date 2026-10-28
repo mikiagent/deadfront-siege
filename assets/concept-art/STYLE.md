@@ -33,7 +33,7 @@ Use realistic materials with controlled simplification. Player-made objects shou
 - Same individual, anatomy, markings, colors, and scale in every view.
 - Neutral studio lighting and pale neutral background.
 - Full side, front, top, and rear three-quarter views with no crop.
-- Neutral animation-ready pose, visible feet and tail tip.
+- Neutral animation-ready pose, visible feet and tail tip, mouth slightly parted so the lips are separate surfaces (the jaw has to open in game).
 - Human scale silhouette only when it helps review; remove labels and scale figures from generation inputs.
 - Concept review sheets may carry discreet view labels. Meshy generation inputs may not.
 

@@ -91,8 +91,11 @@ static func find(rt: IslandRuntime, hint: Vector2) -> Dictionary:
 		if r <= 0.0:
 			continue
 		var rot := rot_toward(dir)
-		for back in 4:
-			var cell := cell_for_base(dir * r - seaward(rot) * float(back), rot)
+		# Try every half metre back from the waterline: the dock's base row window is about 1.5 m
+		# wide on the shaped coast, and 4 one-metre steps used to miss it (only 1-2 bearings legal).
+		for bi in 10:
+			var back := 0.5 * float(bi)
+			var cell := cell_for_base(dir * r - seaward(rot) * back, rot)
 			if check(rt, cell, rot) == "":
 				if not _reaches_dry(rt, cell, rot):
 					break

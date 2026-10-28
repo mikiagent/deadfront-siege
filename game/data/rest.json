@@ -1,0 +1,18 @@
+{
+  "_note": "REST (owner: resting should sit you down, heal you and lower exhaustion). The docs name the places and their order but give no numbers: spec 01:19 (tents, beds, campfires, safe camps; conditions affect recovery), PRD :118 (a residence is the main fatigue dump), PRD :285 (bonfire sitting effects), PRD :803 (tents are cheap fatigue management). Every rate here is an ASSUMPTION. hp_per_s adds to the passive 0.8 HP/s regen (vitals.gd); the open rate is small because PRD :118 has Health slowly auto-recover and medicine as the real refill, so the fire and shelter are the bonuses; fatigue_per_min comes off the 0-100 fatigue scale. Sleep at a tent or bed recovers at the shelter rate while asleep and keeps its full restore on completion. Statuses change the rates (spec 01:19, rest_state.gd): damage-over-time ticks come off Health and pause passive regen, blocks_regen stops rest healing, and a status fatigue_mult (Dirty, Very Dirty, Thirsty, Clean) divides fatigue recovery.",
+  "places": {
+    "open": {"label": "Resting", "hp_per_s": 0.3, "fatigue_per_min": 6.0},
+    "fire": {"label": "Resting by the fire", "hp_per_s": 2.0, "fatigue_per_min": 15.0},
+    "shelter": {"label": "Resting in shelter", "hp_per_s": 3.0, "fatigue_per_min": 30.0}
+  },
+  "fire_reach_m": 3.0,
+  "shelter_reach_m": 3.2,
+  "shelter_kinds": ["tent", "canvas_tent", "straw_roll", "log_shelter", "cabin_bed"],
+  "_shelter_note": "ASSUMPTION: no closed-house test exists yet (W2-CONSTRUCT, spec 10:108). Sitting within shelter_reach_m of one of these buildings counts as shelter; a house kind joins this list when houses exist.",
+  "fire_sitting": {"clears": ["wet"], "heat_fatigue_mult": 1.2, "cold_fatigue_mult": 0.8},
+  "_fire_note": "PRD :285: the bonfire clears Wet; while sitting, heat +20 %, cold -20 %.",
+  "combat_lock_s": 5.0,
+  "_combat_note": "Rest is refused for this long after a hit, as Sleep is (player_sim.gd start_sleep).",
+  "well_rested": {"min_sleep_s": 5.0, "secs_per_point": 3.0, "min_s": 60.0, "max_s": 300.0},
+  "_well_rested_note": "Owner 2026-10-28: on waking from a sleep (completed, or ended by moving after at least min_sleep_s), grant the well_rested status: exhaustion gains are blocked, recovery still works, the HUD treadmill pauses. ASSUMPTION (no doc figure): secs_per_point seconds per point of exhaustion the sleep removed, clamped to min_s..max_s; a full tent sleep from 60 gives 180 s. A sleep ended by a hit, combat or death grants nothing."
+}

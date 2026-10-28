@@ -9,8 +9,10 @@ extends RefCounted
 # ASSUMPTION: error codes beyond contract §2 (out_of_range, depleted, missing_tool, bag_full,
 # not_ready) are new stable strings for intents; the orchestrator adds them to the contract.
 
-const CLIENT_OPS := ["act.gather", "act.loot", "act.craft", "act.place", "act.equip", "act.eat", "act.tame", "act.capture", "act.attack", "act.deposit", "char.import", "char.get"]
-const SYSTEM_OPS := ["char.create", "char.move", "char.wallet", "char.receive", "char.settled"] ## the server itself, never relayed from a client
+const CLIENT_OPS := ["act.gather", "act.loot", "act.craft", "act.place", "act.equip", "act.eat", "act.tame", "act.capture", "act.attack", "act.roll", "char.import", "char.get"]
+## The server itself, never relayed from a client. act.deposit runs only inside VaultBridge
+## (clients send vault.deposit), so an asset never leaves a character without a vault to take it.
+const SYSTEM_OPS := ["char.create", "char.move", "char.wallet", "char.receive", "char.settled", "char.grant", "act.deposit"]
 const READ_OPS := ["char.get"]
 const GATHER_REACH := PlayerInput.INTERACT_GATHER_RANGE ## 2.6 m, the client's own gather reach
 const LOOT_REACH := 2.6 ## Player corpse reach
@@ -29,9 +31,10 @@ const ARG_KEYS := {
 	"act.craft": ["recipe_id", "picks"], "act.place": ["kind", "cell", "rot"],
 	"act.equip": ["bag_slot", "slot", "clear"], "act.eat": ["bag_slot"],
 	"act.tame": ["net_id", "food"], "act.capture": ["net_id"], "act.attack": ["net_id"],
+	"act.roll": ["ms"],
 	"act.deposit": ["bag_slot", "count", "pet_uid", "slot_dict", "pet_dict", "item", "pet", "stack", "asset", "save", "bag", "pets"],
 	"char.import": [], "char.get": [], "char.create": ["name"], "char.move": ["p", "reset"],
-	"char.wallet": ["wallet"], "char.receive": ["asset"], "char.settled": ["uid"],
+	"char.wallet": ["wallet"], "char.receive": ["asset"], "char.settled": ["uid"], "char.grant": ["asset"],
 }
 
 var world: WorldFacade
@@ -70,6 +73,7 @@ func run(op: String, ch: CharacterState, a: Dictionary) -> Dictionary:
 		"act.tame": return _tame(ch, a)
 		"act.capture": return _capture(ch, a)
 		"act.attack": return _attack(ch, a)
+		"act.roll": return _roll(ch, a)
 		"act.deposit": return _deposit(ch, a)
 		"char.import": return no("invalid_asset", "offline saves never import into online characters")
 		"char.get": return ok(ch.view(), false)
@@ -77,6 +81,7 @@ func run(op: String, ch: CharacterState, a: Dictionary) -> Dictionary:
 		"char.wallet": return _wallet(ch, a)
 		"char.receive": return _receive(ch, a)
 		"char.settled": return _settled(a)
+		"char.grant": return _grant(ch, a)
 	return no("bad_request", "unknown op %s" % op)
 
 # --- intents -----------------------------------------------------------------------------
@@ -114,7 +119,9 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var stack := ItemStack.make(def.id, rng.randi_range(int(o.get("min", 1)), int(o.get("max", 1))), attrs, zone)
 	if bool(n.get("unstable", false)):
 		stack.set_flag(&"unstable", true)
-	var mult := ProgressionScaling.gather_yield_multiplier(zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, ch.level_of("gathering")))
+	var family := str(n.get("family", ""))
+	# W2-GATHER: the same tool rule as the client (the role's tool helps on hand-pickable nodes).
+	var mult := GatherService.yield_multiplier_with(inv, tool_class, family, zone, maxi(1, ch.level_of("gathering")))
 	stack.count = maxi(1, int(floor(float(stack.count) * mult)))
 	if rng.randf() < fmod(mult, 1.0):
 		stack.count += 1
@@ -123,16 +130,24 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 		stack.level = cap
 		stack.attributes["level"] = cap
 	var before := stack.count
+	var had := inv.uids()  # W2-GATHER: the units this pass lands are the instances not in it
 	var gained := before - inv.add(stack)
 	if gained <= 0:
 		return no("bag_full", "bag is full")
+	# W2-GATHER: as on the client, a helper tool wears, each item rolls the green rare trait, and the
+	# finds roll on the node's island climate, all with this op's rng.
+	GatherService.wear_role_tool(inv, tool_class, family)
+	var traits := GatherService.stamp_traits(inv, had, stack, gained, rng)
+	var rares := GatherService.add_finds(inv, family, tool_class, str(attrs.get("climate", "")), stack.level, maxi(1, ch.level_of("gathering")), rng)
 	_write("take_node_unit", [node_id, str(def.id)])
 	var uids := ch.commit(inv, "gather", seq)
 	count("minted", def.id, gained)
+	for id in rares:
+		count("minted", id, 1)
 	ch.add_xp("gathering", 2)
-	if str(n.get("family", "")).begins_with("Rock") or str(n.get("family", "")) == "clay":
+	if family.begins_with("Rock") or family == "clay":
 		ch.add_xp("processing", 1)
-	return ok({"item": str(def.id), "gained": gained, "uids": uids})
+	return ok({"item": str(def.id), "gained": gained, "uids": uids, "rares": rares.map(func(id: StringName) -> String: return str(id)), "traits": traits.map(func(t: StringName) -> String: return str(t))})
 
 ## act.loot {corpse_id, slot, count?}: move a corpse slot (or part of it) into the bag.
 func _loot(ch: CharacterState, a: Dictionary) -> Dictionary:
@@ -162,7 +177,16 @@ func _loot(ch: CharacterState, a: Dictionary) -> Dictionary:
 	count("minted", stack.def_id, gained)
 	return ok({"item": str(stack.def_id), "gained": gained, "uids": uids})
 
-## act.craft {recipe_id, picks?}: Crafting's own plan, consume and build_output on the server bag.
+## The Crafting Ability of a server character: the governing skill level. # ASSUMPTION: learned
+## node bonuses and food buffs are still client-side state (SkillState), so online crafting reads
+## the category level alone; the curve, the roll and the outcome rule are Crafting's own, so a
+## shortfall is judged exactly as offline.
+static func craft_ability(skill_level: int) -> float:
+	return Crafting.ability_of(maxi(1, skill_level))
+
+## act.craft {recipe_id, picks?}: Crafting's own plan, run_plan and XP on the server bag, so online
+## crafting has the offline stakes: a shortfall can fail (materials lost), a success can be flawless
+## or inherit a rare trait, and only the picked instances are consumed.
 func _craft(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var rid: Variant = text(a, "recipe_id")
 	if rid == null:
@@ -199,20 +223,35 @@ func _craft(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var level := ProgressionScaling.crafted_level(Crafting.consumed_levels(inv, rec, picks), int(rec.get("max_level", 60)), maxi(1, ch.level_of(tree)))
 	if minimum > 0 and level < minimum:
 		return no("not_ready", "needs materials and crafting skill for level %d" % minimum)
-	var consumed := Crafting.consume_for_craft(inv, rec, picks)
-	var out := Crafting.build_output(rec, consumed[0], level, consumed, Crafting.rolls_burn(rec, ch.level_of(tree), rng))
-	var made := out.count
-	var out_id := out.def_id
-	if out.def() == null or made <= 0:
-		return no("server_error", "recipe %s has no valid output" % rid)
-	if inv.add(out) > 0:
-		return no("bag_full", "no room for %s" % out_id)
+	# One plan, decided once: the roll, the burn roll and the level. run_plan executes it on the
+	# server bag through the same code offline uses (Crafting.run_plan).
+	var taken: Dictionary = {}
+	for part in Crafting.slot_level_contributions(inv, rec, picks):
+		taken[str(part.def_id)] = int(taken.get(str(part.def_id), 0)) + int(part.count)
+	var plan := Crafting.plan_craft(rec, inv, picks, craft_ability(ch.level_of(tree)), level, ch.level_of(tree), rng)
+	if plan.is_empty():
+		return no("insufficient_items", "missing %s" % Crafting.missing_ingredient_name(inv, rec))
+	var res := Crafting.run_plan(rec, inv, plan)
+	var status := str(res.get("status", ""))
+	if status == "left":
+		return no("insufficient_items", "picks must still hold the materials")
+	if status == "full":
+		return no("bag_full", "no room for %s" % str((rec.get("output", {}) as Dictionary).get("id", rid)))
 	var uids := ch.commit(inv, "craft", seq)
-	for part in consumed:
-		count("consumed", part.def_id, part.count)
-	count("minted", out_id, made)
+	for id in taken:
+		count("consumed", id, int(taken[id]))
+	if status == "failed":
+		# Spec 25 §8 online: the picked instances are gone and the survivor gets nothing.
+		return ok({"item": "", "made": 0, "failed": true, "level": level, "uids": uids})
+	var out: ItemStack = res.get("item", null)
+	if out == null:
+		return no("bag_full", "no room for %s" % str((rec.get("output", {}) as Dictionary).get("id", rid)))
+	count("minted", out.def_id, out.count)
 	ch.add_xp(Crafting.tree_for_recipe(rec), 6 + int(Crafting.recipe_seconds(rec)))
-	return ok({"item": str(out_id), "made": made, "level": level, "uids": uids})
+	return ok({
+		"item": str(out.def_id), "made": out.count, "level": out.level, "uids": uids,
+		"flawless": &"flawless" in out.flags,
+	})
 
 ## act.place {kind, cell: [x, z], rot}: spends one kit whose place_as is `kind`.
 # shortcut: kits only; the branch+twine fallbacks in BuildPlacer move here with W3-SRVACT.
@@ -331,8 +370,9 @@ func _tame(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if ch.pos().distance_to(WorldFacade.v3(c.get("pos"))) > body_reach(def) + REACH_SLACK:
 		return no("out_of_range", "%s is out of reach" % net_id)
 	var hp_max := maxf(1.0, float(c.get("hp_max", 1.0)))
-	if float(c.get("hp", 0.0)) <= 0.0 or float(c.get("cooldown", 0.0)) > 0.0 or not bool(c.get("knocked", false)) or not FieldTame.health_allows_capture(float(c.hp) / hp_max):
-		return no("not_ready", "%s must be knocked out and under %d%% health" % [net_id, int(FieldTame.CAPTURE_HEALTH_FRAC * 100.0)])
+	# Spec 09 §1, the one rule: stunned at any HP, or HP <= 30 %.
+	if float(c.get("cooldown", 0.0)) > 0.0 or not FieldTame.window_open(float(c.get("hp", 0.0)), hp_max, bool(c.get("knocked", false))):
+		return no("not_ready", "Stun it or weaken it to %d%% health to capture it." % int(FieldTame.CAPTURE_HEALTH_FRAC * 100.0))
 	var food_id := StringName(str(food))
 	var value := FieldTame.PREFERRED_FEED if food_id in def.preferred_food else (FieldTame.ACCEPTED_FEED if food_id in def.accepted_food else 0.0)
 	if value <= 0.0:
@@ -349,7 +389,7 @@ func _tame(ch: CharacterState, a: Dictionary) -> Dictionary:
 	else:
 		# Wild genetics come from the island when it has rolled them, else from this op's RNG.
 		var g: Variant = c.get("genetics")
-		var genetics := CreatureGenetics.from_dict(g) if g is Dictionary and not (g as Dictionary).is_empty() else CreatureGenetics.roll(rng)
+		var genetics := CreatureGenetics.from_dict(g) if g is Dictionary and not (g as Dictionary).is_empty() else CreatureGenetics.roll(rng, def.coloration)
 		var pet := PetRecord.from_def(def, genetics.overall_tier(), StringName(str(c.get("variant", ""))), genetics).to_dict()
 		# W1-TAME's PetRecord stamps the wall clock and a blank owner; the op's ts and account keep replay exact.
 		pet["tamed_at"] = now
@@ -363,8 +403,9 @@ func _tame(ch: CharacterState, a: Dictionary) -> Dictionary:
 	count("consumed", food_id, 1)
 	return ok(r)
 
-## act.capture {net_id}: throw the best net (CaptureSystem.attempt's chance) at a knocked-out
-## creature under 30 % health; success bags a captured_animal stack, failure wakes it.
+## act.capture {net_id}: throw the best net (CaptureSystem.attempt's chance, on the actual HP) at
+## a creature that is stunned at any HP or at <= 30 % health (spec 09); success bags a
+## captured_animal stack, failure wakes it.
 # ASSUMPTION: capture-technique unlocks are still client-side (Data.survival_unlocked); the
 # server checks net tier against species tier only until skill nodes move here (W3-SRVACT).
 func _capture(ch: CharacterState, a: Dictionary) -> Dictionary:
@@ -380,8 +421,8 @@ func _capture(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if ch.pos().distance_to(WorldFacade.v3(c.get("pos"))) > body_reach(def) + REACH_SLACK:
 		return no("out_of_range", "%s is out of reach" % net_id)
 	var frac := float(c.get("hp", 0.0)) / maxf(1.0, float(c.get("hp_max", 1.0)))
-	if frac <= 0.0 or not bool(c.get("knocked", false)) or not FieldTame.health_allows_capture(frac):
-		return no("not_ready", "%s must be knocked out and under %d%% health" % [net_id, int(FieldTame.CAPTURE_HEALTH_FRAC * 100.0)])
+	if not FieldTame.window_open(float(c.get("hp", 0.0)), float(c.get("hp_max", 1.0)), bool(c.get("knocked", false))):
+		return no("not_ready", "Stun it or weaken it to %d%% health to capture it." % int(FieldTame.CAPTURE_HEALTH_FRAC * 100.0))
 	var inv := ch.inventory()
 	var net := inv.best_capture_net()
 	if net == null or net.def().capture_tier < def.capture_tier:
@@ -392,7 +433,7 @@ func _capture(ch: CharacterState, a: Dictionary) -> Dictionary:
 		_write("fail_capture", [net_id]) # the client releases the knockdown and enrages it
 		return ok({"captured": false, "chance": chance}) # commits: the throw spent this seq's roll
 	var g: Variant = c.get("genetics")
-	var genetics := CreatureGenetics.from_dict(g) if g is Dictionary and not (g as Dictionary).is_empty() else CreatureGenetics.roll(rng)
+	var genetics := CreatureGenetics.from_dict(g) if g is Dictionary and not (g as Dictionary).is_empty() else CreatureGenetics.roll(rng, def.coloration)
 	var stack := ItemStack.make(&"captured_animal", 1, {"species": str(def.id), "variant": str(c.get("variant", "")), "grade_seed": rng.randi(), "genetics": genetics.to_dict()})
 	if inv.add(stack) > 0:
 		return no("bag_full", "a captured animal needs %d free slots in a row" % stack.slot_span())
@@ -446,6 +487,35 @@ func _attack(ch: CharacterState, a: Dictionary) -> Dictionary:
 	ch.add_xp("melee", int(tune.get("xp_per_hit", 2)))
 	return ok({"dealt": dealt, "kind": kind, "hp": maxf(0.0, float(c.hp) - dealt)})
 
+## act.roll {ms?}: the survivor rolls; stored on the character is the press time in server ms (the
+## op's second x 1000 + `ms`), which rolls_dodge() times against the one shared window
+## (RollRules.iframes_s()). The cooldown is judged the same way from the press. The server holds no
+## vitals yet, so the stamina cost is the client's alone (see docs/current/server-contract.md).
+# ASSUMPTION: `ms` (0..999) is the client's millisecond within the op's second; without it the press
+# lands at the start of that second. Creature hits on a player are not validated server-side yet:
+# when they are, they call rolls_dodge() with their own absolute ms.
+func _roll(ch: CharacterState, a: Dictionary) -> Dictionary:
+	var ms: Variant = integer(a, "ms", 0, 999, 0)
+	if ms == null:
+		return no("bad_request", "ms must be an integer 0..999")
+	var at := now * 1000 + int(ms)
+	var cooldown_ms := int(ceil(RollRules.cooldown_s() * 1000.0))
+	var since := at - ch.roll_ms()
+	if since >= 0 and since < cooldown_ms:
+		return no("not_ready", "roll on cooldown for another %d ms" % (cooldown_ms - since))
+	ch.roll_press(at)
+	# The client's HUD reads the cooldown from the same numbers, so the answer carries them back.
+	return ok({"roll_ms": at, "iframes_ms": int(round(RollRules.iframes_s() * 1000.0)), "cooldown_ms": cooldown_ms})
+
+## The roll's opening window at an absolute server time in ms: the client's own rule (RollRules) on
+## the stored press. True = the hit is dodged: no damage, no stagger, Defense XP once (spec 07 §2).
+## A player hit validated on the server calls this; nothing else may decide a roll dodge.
+static func rolls_dodge(ch: CharacterState, at_ms: int) -> bool:
+	var pressed := ch.roll_ms()
+	if pressed == CharacterState.NO_ROLL_MS:
+		return false
+	return RollRules.invulnerable_at(float(at_ms - pressed) * 0.001)
+
 ## act.deposit {bag_slot, count?} | {pet_uid}: hands a server-provenance asset to the economy
 ## (the caller puts it in the vault). Any asset dict in the request is refused.
 func _deposit(ch: CharacterState, a: Dictionary) -> Dictionary:
@@ -478,7 +548,7 @@ func _deposit(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var taken := inv.remove_at(int(i), mini(int(n), int(row.count)))
 	var asset := taken.to_dict()
 	if taken.count >= int(row.count):
-		Provenance.stamp(asset, str(row.uid), str(row.origin), int(row.seq))
+		asset = (row as Dictionary).duplicate(true) # the instance itself: every field it carries leaves with it
 	else:
 		Provenance.stamp(asset, Provenance.item_uid(seq, 0), str(row.origin), seq) # a part gets a new uid
 	ch.commit(inv, str(row.origin), seq)
@@ -531,7 +601,8 @@ func _wallet(ch: CharacterState, a: Dictionary) -> Dictionary:
 ## char.receive {asset}: the economy hands back an asset act.deposit exported (a vault that
 ## refused it, or a withdrawal). Only the exact body act.deposit recorded under that uid comes
 ## back, once. Economy-minted assets (market, settlers, objective) have no entry: see the report.
-# shortcut: an item that lands in a new stack gets a fresh uid (merged units take the stack's, as everywhere).
+## An item that lands as its own row is the exported body again, uid and seq included (W2-INV:
+## every material is an instance); units that merge into a stack take that stack's, as everywhere.
 func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var asset: Variant = a.get("asset")
 	if not Provenance.is_server(asset):
@@ -543,9 +614,10 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 				return no("conflict", "pet %s is already held" % uid)
 	if str(s.exported_assets.get(uid, "")) != CharacterStore.canon(asset):
 		return no("invalid_asset", "%s is not an asset this server exported (or it was edited)" % uid)
-	if uid.begins_with("p"):
+	if uid.begins_with("p"): # the roster cap is VaultBridge's: a refused deposit coming back is no new bond
 		s.exported_assets.erase(uid)
 		ch.d.pets[uid] = (asset as Dictionary).duplicate(true)
+		ch.d.pets[uid].owner = str(account) # a bought pet answers to its new owner; tamer keeps the lineage
 		s.pets_exported = int(s.pets_exported) - 1
 		return ok({"kind": "pet", "pet_uid": uid})
 	var stack := ItemStack.from_dict(Provenance.strip(asset))
@@ -557,8 +629,39 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return no("bag_full", "no room for %s" % stack.def_id)
 	s.exported_assets.erase(uid)
 	var uids := ch.commit(inv, str(asset.origin), seq)
+	var row := ch.find_uid(uids[0]) if uids.size() == 1 else -1
+	if row >= 0 and int(ch.d.bag[row].count) == n: # landed as its own row: the same instance comes home
+		ch.d.bag[row] = (asset as Dictionary).duplicate(true) # the exact body act.deposit recorded
+		uids = [uid]
 	count("exported", stack.def_id, -n)
 	return ok({"kind": "item", "item": str(stack.def_id), "count": n, "uids": uids})
+
+## char.grant {asset}: units the economy split off an export (a partial buy, a part listing,
+## an order fill, the seller's remainder, part of a stack) come home. Server-only: VaultBridge
+## calls it after the vault let go of those units, so they count as exported units coming back,
+## like char.receive, and never more than are out: the grant cannot mint.
+func _grant(ch: CharacterState, a: Dictionary) -> Dictionary:
+	var asset: Variant = a.get("asset")
+	if not asset is Dictionary or str((asset as Dictionary).get("uid", "")).begins_with("p"):
+		return no("bad_request", "asset must be an item stack")
+	var stack := ItemStack.from_dict(Provenance.strip(asset))
+	if stack.def() == null or stack.count < 1 or stack.count > stack.def().stack_max:
+		return no("invalid_asset", "not a valid stack")
+	var n := stack.count
+	if int(s.exported.get(str(stack.def_id), 0)) < n:
+		return no("invalid_asset", "only %d %s are out in the economy" % [int(s.exported.get(str(stack.def_id), 0)), stack.def_id])
+	var inv := ch.inventory()
+	if inv.add(stack) > 0:
+		return no("bag_full", "no room for %s" % stack.def_id)
+	var origin := str(asset.get("origin", ""))
+	var uids := ch.commit(inv, origin if origin in Provenance.ORIGINS else "market", seq)
+	var row := ch.find_uid(uids[0]) if uids.size() == 1 else -1
+	if row >= 0 and int(ch.d.bag[row].count) == n: # its own row: the part keeps every per-instance field escrow kept (creator, created_at, ...)
+		for k: String in asset:
+			if not (ch.d.bag[row] as Dictionary).has(k):
+				ch.d.bag[row][k] = asset[k]
+	count("exported", stack.def_id, -n)
+	return ok({"item": str(stack.def_id), "count": n, "uids": uids})
 
 ## char.settled {uid}: the vault bridge reports that the economy kept an exported asset for
 ## good (sold, consumed). It can never come back, so its exported_assets record is dropped and

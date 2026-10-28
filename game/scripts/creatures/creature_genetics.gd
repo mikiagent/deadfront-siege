@@ -2,6 +2,8 @@ class_name CreatureGenetics
 extends RefCounted
 ## Per-creature Pokemon-style potential. IVs are innate, level gains are random combat
 ## growth, and EVs are the late-game focusable layer. All three survive taming and saving.
+## The individual's natural coloration (CreatureColoration) lives here too, next to the IVs, so
+## it follows the same tame and save path.
 
 const STATS: Array[StringName] = [
 	&"health", &"melee_defense", &"ranged_defense", &"melee_attack",
@@ -14,8 +16,16 @@ const EV_TOTAL_MAX := 300
 var ivs: Dictionary = {}
 var evs: Dictionary = {}
 var level_gains: Dictionary = {}
+## Natural colour variant of this individual. Never null after roll()/neutral()/from_dict() (a
+## neutral profile is a no-op shift); a hand-built CreatureGenetics may leave it null, and
+## PetRecord seeds it from the pet id on load.
+var coloration: CreatureColoration
 
-static func roll(rng: RandomNumberGenerator = null) -> CreatureGenetics:
+## `coloration_block` is the species' `coloration` JSON block (CreatureDef.coloration). `colour_rng`
+## rolls the colour profile separately from the stat IVs: a wild spawn seeds only the colours from
+## its spawn point (so a reloaded animal looks the same), never its IVs, and a server op passes its
+## own RNG for both.
+static func roll(rng: RandomNumberGenerator = null, coloration_block: Dictionary = {}, colour_rng: RandomNumberGenerator = null) -> CreatureGenetics:
 	var out := CreatureGenetics.new()
 	var roller := rng if rng != null else RandomNumberGenerator.new()
 	if rng == null:
@@ -24,6 +34,7 @@ static func roll(rng: RandomNumberGenerator = null) -> CreatureGenetics:
 		out.ivs[stat] = roller.randi_range(0, IV_MAX)
 		out.evs[stat] = 0
 		out.level_gains[stat] = 0
+	out.coloration = CreatureColoration.roll(coloration_block, colour_rng if colour_rng != null else roller)
 	return out
 
 static func neutral() -> CreatureGenetics:
@@ -32,6 +43,7 @@ static func neutral() -> CreatureGenetics:
 		out.ivs[stat] = 16
 		out.evs[stat] = 0
 		out.level_gains[stat] = 0
+	out.coloration = CreatureColoration.new()
 	return out
 
 func add_level(roller: RandomNumberGenerator = null) -> Dictionary:
@@ -94,7 +106,10 @@ static func tier_for_iv(iv: int) -> StringName:
 	return LABELS[idx]
 
 func to_dict() -> Dictionary:
-	return {"ivs": _string_keys(ivs), "evs": _string_keys(evs), "level_gains": _string_keys(level_gains)}
+	return {
+		"ivs": _string_keys(ivs), "evs": _string_keys(evs), "level_gains": _string_keys(level_gains),
+		"coloration": (coloration if coloration != null else CreatureColoration.new()).to_dict(),
+	}
 
 static func from_dict(data: Dictionary) -> CreatureGenetics:
 	var out := neutral()
@@ -108,6 +123,11 @@ static func from_dict(data: Dictionary) -> CreatureGenetics:
 		out.evs[stat] = clampi(int(evs_in.get(key, 0)), 0, EV_MAX_PER_STAT)
 		out.level_gains[stat] = maxi(0, int(gains_in.get(key, 0)))
 	_cap_total(out.evs, EV_TOTAL_MAX)
+	# A save without a coloration (or with the sanitizer's empty shape sample) keeps it null, so
+	# PetRecord can derive a stable one from the pet id instead of painting every old pet neutral.
+	out.coloration = null # neutral() above carries a no-op profile; a saved one below replaces it
+	if data.get("coloration") is Dictionary and not (data.get("coloration") as Dictionary).is_empty():
+		out.coloration = CreatureColoration.from_dict(data.get("coloration"))
 	return out
 
 ## A saved stat table, or {} when the row is any other type.

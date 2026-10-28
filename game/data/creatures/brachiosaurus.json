@@ -20,6 +20,7 @@
     "defense": 500,
     "speed": 300
   },
+  "turn_rate": 1.2,
   "tamed_role": [],
   "look": "22 meter Brachiosaurus, enormous long neck held high, small head with a domed crest, front legs longer than the hind legs, massive column-like legs, long tail, grey-green hide with a paler belly,",
   "texture_prompt": "grey-green wrinkled hide, paler cream belly, darker back, matte surface",
@@ -40,5 +41,39 @@
     "feeds_needed": 6,
     "window_seconds": 45,
     "requires_pen": true
+  },
+  "coloration": {
+    "hue_deg": 12,
+    "sat": 0.16,
+    "val": 0.1,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "pale",
+      "dark"
+    ],
+    "patterns": [
+      {
+        "id": "saddle",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "stripes",
+        "weight": 2.0,
+        "scale": 0.7,
+        "strength": 0.22
+      },
+      {
+        "id": "countershade",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
   }
 }

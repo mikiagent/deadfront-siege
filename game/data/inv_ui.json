@@ -1,0 +1,37 @@
+{
+  "_about": "Spec 13 bag-family presentation data (ported from INVUI's inv_ui.json, trimmed to what canon reads). attribute_classes: the gold (positive) and grey (negative) material traits of spec 04 lines 8-10; the green rare traits are NOT listed here, they are rules.json crafting.rare_attributes (Crafting.rare_attributes), so one list feeds crafting, gathering and the card. Keys not classed here or there (tint, hardness, material_tier, quality, look, ...) never show as traits. Read by InvAttributes, InvStats and GearPresets.",
+  "attribute_classes": {
+    "firm": {"label": "Firm", "class": "positive"},
+    "lightweight": {"label": "Lightweight", "class": "positive"},
+    "compact_structure": {"label": "Compact Structure", "class": "positive"},
+    "high_density": {"label": "High Density", "class": "positive"},
+    "pointy": {"label": "Pointy", "class": "positive"},
+    "sharp_section": {"label": "Sharp Section", "class": "positive"},
+    "full": {"label": "Full", "class": "positive"},
+    "tough_fiber": {"label": "Tough Fiber", "class": "positive"},
+    "high_elasticity": {"label": "High Elasticity", "class": "positive"},
+    "fluffy": {"label": "Fluffy", "class": "positive"},
+    "thin": {"label": "Thin", "class": "positive"},
+    "good_breathability": {"label": "Good Breathability", "class": "positive"},
+    "oily": {"label": "Oily", "class": "positive"},
+    "beautiful_pattern": {"label": "Beautiful Pattern", "class": "positive"},
+    "pocket": {"label": "Pocket", "class": "positive"},
+    "capacity": {"label": "Capacity", "class": "positive"},
+    "soft": {"label": "Soft", "class": "negative"},
+    "heavy": {"label": "Heavy", "class": "negative"},
+    "low_density": {"label": "Low Density", "class": "negative"},
+    "weak_structure": {"label": "Weak Structure", "class": "negative"},
+    "soft_fiber": {"label": "Soft Fiber", "class": "negative"}
+  },
+  "presets": {
+    "_about": "Character -> Gear numbered loadouts (spec 13 s14). A preset opens at a shown player level. ASSUMPTION (INVUI's): 4 presets at levels 1, 10, 30, 50; the PRDs give no number.",
+    "count": 4,
+    "unlock_levels": [1, 10, 30, 50]
+  },
+  "powers": {
+    "_about": "Character panel power rows = the highest skill level in each group's trees (SkillState, 1-60). ASSUMPTION (INVUI's design assumption 10).",
+    "combat": {"label": "Combat Power", "trees": ["melee", "ranged", "defense"]},
+    "crafting": {"label": "Crafting Power", "trees": ["processing", "weapon_tools", "tailoring", "construction", "cooking"]},
+    "gathering": {"label": "Gathering Power", "trees": ["gathering", "butchering", "farming"]}
+  }
+}

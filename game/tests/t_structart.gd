@@ -155,7 +155,7 @@ func _check_tent_faces_sun(buildings: Dictionary) -> void:
 	var yaw := (float(yaw_band[0]) + float(yaw_band[1])) * 0.5
 	# A DirectionalLight3D shines along -Z and the camera looks along -Z, so +Z points at each.
 	var to_sun := Basis.from_euler(Vector3(deg_to_rad(-elevation), deg_to_rad(yaw), 0.0)).z
-	var to_cam := Basis.from_euler(Vector3(deg_to_rad(-35.264), deg_to_rad(45.0), 0.0)).z
+	var to_cam := IsoCamera.view_basis().z  # the shipped camera angle (CAMERA package)
 	var seen := 0.0
 	var lit := 0.0
 	var root := (load(path) as PackedScene).instantiate() as Node3D

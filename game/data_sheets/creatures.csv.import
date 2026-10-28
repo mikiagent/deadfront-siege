@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cvl5b4bhuk6p6"
+
+[deps]
+
+files=["res://data_sheets/creatures.tier.translation", "res://data_sheets/creatures.climate.translation", "res://data_sheets/creatures.clade.translation", "res://data_sheets/creatures.period.translation", "res://data_sheets/creatures.real.translation"]
+
+source_file="res://data_sheets/creatures.csv"
+dest_files=["res://data_sheets/creatures.tier.translation", "res://data_sheets/creatures.climate.translation", "res://data_sheets/creatures.clade.translation", "res://data_sheets/creatures.period.translation", "res://data_sheets/creatures.real.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

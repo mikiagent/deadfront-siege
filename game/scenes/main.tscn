@@ -69,8 +69,8 @@ surface_material_override/0 = SubResource("marker_mat")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
 [node name="IsoCamera" type="Camera3D" parent="."]
-projection = 1
-size = 17.0
+fov = 4.3
+size = 14.0
 script = ExtResource("3_cam")
 target_path = NodePath("../DefaultPlayfield/Player")
 

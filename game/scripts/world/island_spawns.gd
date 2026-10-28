@@ -48,9 +48,11 @@ static func spawn_all(rt: IslandRuntime, def: Dictionary) -> void:
 						continue
 					var r0 := float(span[0]) if span.size() > 0 else 40.0
 					var r1 := float(span[1]) if span.size() > 1 else r0 + 20.0
-					# rules.json rings are written for a 240 m land radius; a 160 m home island
-					# has 64 m of land, so clamp the band to what exists instead of spawning at sea.
-					var land := rt.land_radius() - 4.0
+					# Rings are measured from the landing point (IslandRuntime.ring_centre), and the
+					# band is clamped to the FARTHEST DRY TILE from that point, so the outer ring
+					# reaches the island's far shore (a land_radius circle left the far half of every
+					# shaped island without spawns and pushed crater/far_shore rows 138-146 m out).
+					var land: float = rt.farthest_dry_radius()
 					r1 = minf(r1, land)
 					r0 = minf(r0, r1 - 8.0)
 					if r1 <= r0 + 4.0:
@@ -79,10 +81,11 @@ static func _apply_creature_level_override(rt: IslandRuntime, creatures: Array[C
 
 ## Up to 40 draws in the band [r0, r1]; returns {"pos": Vector3} or {} when the band has no dry land.
 static func _ring_point(rt: IslandRuntime, rng: RandomNumberGenerator, r0: float, r1: float) -> Dictionary:
+	var c := rt.ring_centre()
 	for _try in 40:
 		var ang := rng.randf() * TAU
 		var rad := rng.randf_range(r0 + 2.0, maxf(r0 + 2.0, r1 - 2.0))
-		var pos := Vector3(cos(ang) * rad, 0.0, sin(ang) * rad)
+		var pos := Vector3(c.x + cos(ang) * rad, 0.0, c.y + sin(ang) * rad)
 		pos.y = rt.surface_y(pos.x, pos.z) + 0.3
 		if rt.spawn_ok(pos):
 			return {"pos": pos}

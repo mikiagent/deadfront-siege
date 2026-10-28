@@ -18,10 +18,19 @@ const PROVOKE_HITS := 3
 const PROVOKE_SECONDS := 15.0
 
 static var _pack_cooldown_until: Dictionary = {} ## pack_id -> seconds
+## Every state in which the animal is on its prey (the ring, the leash and the post-kill reset read it).
+## circle/feint/lunge/pounce/combo are TacticalBrain's manoeuvres.
+const COMBAT_STATES: Array[StringName] = [&"alert", &"approach", &"attack", &"retreat", &"circle", &"feint", &"lunge", &"pounce", &"combo", &"hop"]
+
+## TACTICS: >= 0 replaces the locomotion speed (m/s); strafe_face makes the body face that node while it
+## moves (a sidestep around prey instead of turning to the velocity). Creature._physics_process reads both.
+var speed_override: float = -1.0
+var strafe_face: Node3D
 
 var creature: Creature
 var state: StringName = &"roam"
 var attack_target: Node3D
+var _siege_cd := 0.0  # next time _approach may ask StructureHealth.siege_target
 var perception: float = 12.0
 var profile: Dictionary = {}
 var _roam_cd: float = 0.0
@@ -65,7 +74,7 @@ func setup(c: Creature) -> void:
 func on_player_killed(at: Vector3) -> void:
 	if creature == null or creature.health.dead or creature.is_pet:
 		return
-	var was_hunting := attack_target is Player or state in [&"alert", &"approach", &"attack", &"retreat"]
+	var was_hunting := attack_target is Player or state in COMBAT_STATES
 	if not was_hunting:
 		return
 	var away := creature.global_position - at
@@ -98,7 +107,9 @@ func on_player_killed(at: Vector3) -> void:
 	_log("[ai] %s post-kill retreat %.1fm" % [creature.def.id, creature.global_position.distance_to(destination)])
 
 func _effective_perception() -> float:
-	var p := perception
+	# NATURES (one place): super.setup() runs before Creature.spawn() has rolled the nature, so
+	# re-apply the nature's widening of the scan radius here instead of in setup().
+	var p := perception * creature.nature_knob("aggro_radius_mult", 1.0)
 	if Game.phase_name() == &"night" and bool(profile.get("night_predator_bonus", true)) and not _is_herbivore():
 		p *= 1.0 + float(Data.world_rules.get("night_predator_perception_bonus", 0.5))
 	return p
@@ -106,15 +117,33 @@ func _effective_perception() -> float:
 func _is_herbivore() -> bool:
 	return bool(profile.get("is_herbivore", false))
 
+## NATURES (one place): fear_immune (Stubborn) never bolts; auto_engage (Aggressive) makes even a
+## skittish grazer come at a threat instead of running from it.
 func _flees_on_sight() -> bool:
+	if creature.nature_flag("fear_immune") or creature.nature_flag("auto_engage"):
+		return false
 	return _is_herbivore() and bool(profile.get("flee_on_sight", true))
+
+## The HP fraction at which this animal's fight would end: the archetype's retreat_threshold_frac
+## times its nature's multiplier (Brave 0.5, Stubborn 0.6, Timid 1.8 on a grazer).
+func retreat_fraction() -> float:
+	var mult := creature.nature_knob("flee_threshold_mult", 1.0) if _is_herbivore() else creature.nature_knob("retreat_threshold_mult", 1.0)
+	return clampf(float(profile.get("retreat_threshold_frac", 0.3)) * mult, 0.0, 0.95)
+
+## The damage that ends a fight for this animal: the archetype/temperament threshold (ai.json
+## retreat_threshold_frac x max HP) times its nature's multiplier (Timid backs off sooner, Brave and
+## Stubborn fight on). One place; note_damage and every species brain read it.
+func damage_threshold() -> float:
+	var frac := float(profile.get("retreat_threshold_frac", 0.3))
+	var mult := creature.nature_knob("flee_threshold_mult", 1.0) if _is_herbivore() else creature.nature_knob("retreat_threshold_mult", 1.0)
+	return creature.health.max_hp * frac * mult
 
 ## Leash radius: past this the chase ends at once (see BrainFlight.track). Drawn as the red
 ## dotted ring while the creature is on the survivor. A pack shares its alpha's leash.
 func aggro_radius() -> float:
 	var leader := _pack_leader()
 	var src: CreatureBrain = leader.brain if leader and leader != creature and leader.brain else self
-	return maxf(26.0 if attack_target is FieldCatapult else 0.0, src._effective_perception() * float(src.profile.get("leash_mult", 2.2)))
+	return maxf(26.0 if StructureHealth.is_structure(attack_target) else 0.0, src._effective_perception() * float(src.profile.get("leash_mult", 2.2)))
 
 ## True while this creature is actively on the survivor (ring shown).
 func hunting_player() -> bool:
@@ -122,15 +151,21 @@ func hunting_player() -> bool:
 		return false
 	var on_player := attack_target is Player and not (attack_target as Player).dead
 	var on_pet := attack_target is Creature and (attack_target as Creature).is_pet and not (attack_target as Creature).health.dead
-	var on_siege := attack_target is FieldCatapult and (attack_target as FieldCatapult).hp > 0
+	var on_siege := StructureHealth.is_structure(attack_target) and not StructureHealth.of(attack_target, true).dead
 	if not (on_player or on_pet or on_siege):
 		return false
-	return state in [&"alert", &"approach", &"attack", &"retreat"]
+	return state in COMBAT_STATES
+
+## Damage multiplier for the hit_index-th hit of clip (TacticalBrain: the combo's rising bites).
+func hit_damage_mult(_clip: StringName, _hit_index: int) -> float:
+	return 1.0
 
 func _physics_process(delta: float) -> void:
 	if creature == null or creature.health.dead:
 		_set_state(&"dead")
 		return
+	if creature.ridden:
+		return  # the rider steers; the brain resumes on dismount
 	if creature.statuses.has(&"knockdown") or not creature.statuses.can_act():
 		_set_state(&"downed")
 		creature.stop_move()
@@ -145,18 +180,28 @@ func _physics_process(delta: float) -> void:
 		return
 	tick(dt)
 
-## Standing combat states turn every physics frame; thinking at 10 Hz made them snap. The turn
-## rates match the old every-frame calls (face_towards(p, delta) and face_towards(p, 0.05) at 60 Hz).
+## Standing combat states turn every physics frame; thinking at 10 Hz made them snap. The speed is
+## the species' turn_rate (Creature.face_towards), the same for alert and attack.
 func _face_target(delta: float) -> void:
 	if (state == &"alert" or state == &"attack") and not _full_rate() and _valid_target():
-		creature.face_towards(attack_target.global_position, delta if state == &"alert" else delta * 3.0)
+		creature.face_towards(attack_target.global_position, delta)
 
 ## One think step: the shared rules, then the species think.
 func tick(dt: float) -> void:
 	_dt = dt
 	if not _pre_think(dt):
+		_break_in()
 		_think(dt)
 	creature.brain_state = state
+
+## W2-BUILDSYS: prey behind walls the creature cannot path around: the blocking wall comes down first.
+func _break_in() -> void:
+	if not _valid_target() or StructureHealth.is_structure(attack_target) or _now_s() < _siege_cd:
+		return
+	_siege_cd = _now_s() + 1.0  # one TilePath query a second per hunter, not one per think
+	var wall := StructureHealth.siege_target(creature, attack_target.global_position)
+	if wall:
+		attack_target = wall
 
 ## THINK_HZ, staggered by _think_phase; a timed move (_full_rate) thinks every frame.
 func _should_think(frame: int) -> bool:
@@ -243,9 +288,11 @@ func note_damage(amount: float) -> void:
 			_damage_window.remove_at(i)
 			continue
 		total += float(row.get("a", 0.0))
-	var trigger := creature.health.max_hp * float(profile.get("retreat_threshold_frac", 0.3))
-	if total >= trigger:
-		if _is_herbivore():
+	var trigger := damage_threshold()
+	if total >= trigger and not creature.nature_flag("fear_immune"):
+		# NATURES: Timid (retreat_as_flee) avoids the fight altogether; everyone else backs off a
+		# predator's way (retreat), the same reset it always did.
+		if _is_herbivore() or creature.nature_flag("retreat_as_flee"):
 			if not _provoked():
 				_set_state(&"flee")
 		else:
@@ -359,7 +406,7 @@ func _scan() -> void:
 ## A survivor or pet is in sight (or woke us). Predators and territorial grazers come at it,
 ## skittish grazers start and then flee, defensive grazers keep grazing until they are hit.
 func _spot(who: Node3D) -> void:
-	if _is_herbivore() and not _flees_on_sight():
+	if _is_herbivore() and not _flees_on_sight() and not creature.nature_flag("auto_engage"):
 		var territory := float(profile.get("territory_m", 0.0))
 		if territory <= 0.0 or _surface_dist(who) > territory:
 			return

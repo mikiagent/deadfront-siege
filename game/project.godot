@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Durango-like (working title)"
+config/name="WildLands MMO"
 run/main_scene="res://shell/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
@@ -55,6 +55,33 @@ lights_and_shadows/directional_shadow/size.mobile=1024
 anti_aliasing/quality/msaa_3d=2
 anti_aliasing/quality/msaa_3d.mobile=0
 anti_aliasing/quality/msaa_3d.web=0
+
+[shader_globals]
+
+camera_focus={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+camera_pitch_deg={
+"type": "float",
+"value": -38.7
+}
+camera_yaw_deg={
+"type": "float",
+"value": 45.0
+}
+camera_distance={
+"type": "float",
+"value": 186.5
+}
+parallax_strength={
+"type": "float",
+"value": 0.0
+}
+tall_fade_height={
+"type": "float",
+"value": 0.0
+}
 
 [physics]
 

@@ -51,6 +51,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			show_pause()
 		get_viewport().set_input_as_handled()
 
+## A survivor made this session must not save before picking an island (defect 1: the 60 s autosave
+## did, and the reload skipped the pick). Whenever nothing is open at the end of a frame and the pick
+## was never made, put the pick back up — closing it without choosing changes nothing.
+func _process(_delta: float) -> void:
+	# Only after character creation has closed, so the island pick never covers it.
+	if World.creation_pending and _mode == &"" and get_tree().get_nodes_in_group(&"character_creation").is_empty():
+		show_terrain()
+
 func hide_all() -> void:
 	_mode = &""
 	_panel.visible = false
@@ -119,6 +127,7 @@ func _choose_terrain(id: StringName) -> void:
 	var host: Node = World.runtime.get_parent() if World.runtime else get_tree().current_scene
 	var harbour: Array = World.island_def.get("harbour", [0, 0, 18])
 	World.load_island(host, &"home_grassland", Vector3(float(harbour[0]), 1.0, float(harbour[2])), false)
+	World.finish_creation()  # creation and the pick are done: saving starts here
 	(load("res://scripts/core/save_game.gd") as GDScript).save_now()
 	hide_all()
 	_show_arrival(host)

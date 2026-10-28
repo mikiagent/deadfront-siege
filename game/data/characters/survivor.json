@@ -3,7 +3,7 @@
   "display_name": "Survivor",
   "height_meters": 1.78,
   "rig": "humanoid",
-  "description": "Player character v2: adult woman warped off the train in torn modern travel clothes with a rope coil. Occupation-neutral; the eight PRD occupations become outfit and starting-skill variants later.",
+  "description": "Player character v2: an adult man (short dark hair, stubble) in a charcoal T-shirt and shorts, barefoot, A-pose base. Occupation-neutral; the three armour kits dress him, and character creation tints skin, garments, iris and lips through baked masks (assets/characters/survivor/look). The woman was survivor v1 (Meshy, 24 joints), which cannot use v2 clips or kits; a female v2 base waits for an owner-approved concept sheet.",
   "clips_present": [
     "idle",
     "walk",

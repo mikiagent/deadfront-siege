@@ -1,14 +1,14 @@
 class_name HeldItemSlot
 extends Control
-## Bottom-right hex showing the held gather tool. Tap cycles to the next tool in the bag,
-## long-press unequips. Gathering auto-equips the tool the node needs (Player._auto_equip_tool),
-## so this is mostly for choosing a weapon or checking what is in hand.
+## Quick-slot hex showing the held gather tool. Tap gathers the nearest resource and long-press
+## unequips. It stands in the HUD's quick row above the rail (HuntHud.hands_spot); the BAG hex that
+## stood over it moved into the rail (MENU / BUILD / BAG, owner 2026-10-28).
 
 signal equip_requested(slot_index: int)
 signal unequip_requested
+signal gather_requested
 
 const SLOT := 64.0
-const RAIL_HEXES := 4.0  ## hexes in the HUD's bottom-left rail (menu, animals, build, skills)
 
 var player: Player
 var _icon: Texture2D
@@ -89,7 +89,7 @@ func _gui_input(event: InputEvent) -> void:
 		_long_left = 0.5
 	elif release:
 		if _pressing and not _fired_long:
-			cycle()
+			gather_requested.emit()
 		_pressing = false
 	accept_event()
 	queue_redraw()
@@ -100,29 +100,23 @@ func _process(delta: float) -> void:
 	# Off while a HUD sheet is open: this layer sits above the HUD's, and on a landscape phone the
 	# slot covered the sheet's Close (a tap there swapped the held tool instead of closing).
 	# Also off under character creation (layer 60, below this one): HANDS drew on its cards.
+	# Or under the CLAIM confirm (CLAIMFIX): on a 390 px canvas that panel stands where this slot lands,
+	# and this layer sits above the HUD's, so HANDS drew over the panel. Left on while placing: the
+	# ROTATE / PLACE / CANCEL row keeps off it.
 	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
-	var covered := (hud != null and hud.sheet_open()) or get_tree().get_first_node_in_group(&"character_creation") != null
+	var asking: bool = hud != null and hud.has_method("claim_panel_open") and bool(hud.call("claim_panel_open"))
+	var inventory_open := player != null and player.ui != null and player.ui.visible
+	var covered: bool = asking or inventory_open or (hud != null and hud.sheet_open()) \
+		or get_tree().get_first_node_in_group(&"character_creation") != null
 	if visible == covered:
 		visible = not covered
 		_pressing = false
-	var safe := DisplayServer.get_display_safe_area()
-	var vp := get_viewport_rect().size
-	var win := Vector2(DisplayServer.window_get_size())
-	var scale := vp / win if win.x > 0.0 and win.y > 0.0 else Vector2.ONE
-	var right := 16.0 + maxf(0.0, win.x - float(safe.end.x)) * scale.x
-	var bottom := 108.0 + maxf(0.0, win.y - float(safe.end.y)) * scale.y
-	position = Vector2(vp.x - right - SLOT, vp.y - bottom - SLOT)
-	if UiTokens.is_phone(vp):
-		# Portrait: the HUD draws its level line right-aligned just above the rail (hunt_hud.gd:976),
-		# where the caption sat; lift the slot so the caption clears it.
-		position.y -= 24.0
-	if UiTokens.is_compact(vp) and not UiTokens.is_narrow(vp):
-		# Landscape phone: under the map the claim hex and the context row fill the bottom-right
-		# corner (the slot sat on the claim hex), so the slot stacks above the rail's last hex. At the
-		# rail's end its caption ran into the HUD's centred level line on 804 px and notched canvases.
-		# ASSUMPTION: mirrors hunt_hud.gd _layout's rail (four 64 px hexes, 10 px apart, 96 px up).
+	if hud != null:
+		position = hud.hands_spot()
+	else:  # no HUD (labs): the bottom-right corner, inside the safe area
+		var vp := get_viewport_rect().size
 		var inset := UiTokens.safe_insets(get_viewport())
-		position = Vector2(16.0 + inset.w + (RAIL_HEXES - 1.0) * (SLOT + 10.0), vp.y - 96.0 - inset.y - SLOT - 34.0)
+		position = Vector2(vp.x - 16.0 - inset.x - SLOT, vp.y - 108.0 - inset.y - SLOT)
 	if _pressing:
 		_long_left -= delta
 		if _long_left <= 0.0:
@@ -132,11 +126,7 @@ func _process(delta: float) -> void:
 			queue_redraw()
 
 func _hex(r: float, c: Vector2) -> PackedVector2Array:
-	var pts := PackedVector2Array()
-	for i in 6:
-		var a := deg_to_rad(60.0 * float(i) - 30.0)
-		pts.append(c + Vector2(cos(a), sin(a)) * r)
-	return pts
+	return UiTokens.hex_points(c, r, UiTokens.HEX_FLAT_TOP)
 
 func _draw() -> void:
 	var c := size * 0.5
@@ -169,6 +159,3 @@ func _draw() -> void:
 			cx = minf(cx, size.x + 6.0 - w)  # right-edge hex: end the word at the hex edge
 		cx = maxf(cx, 4.0 - gx)
 		draw_string(font, Vector2(cx, c.y + r + 15.0), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
-		var bc := c + Vector2(r * 0.55, -r * 0.55)
-		draw_circle(bc, r * 0.24, Color(0.2, 0.22, 0.26, 0.95))
-		UiTokens.draw_centered(self, font, bc, "⇄", UiTokens.TYPE_MIN, Color(0.95, 0.95, 0.9))

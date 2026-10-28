@@ -34,6 +34,10 @@ TILES = [
     "stone", "stone_dark", "cobble", "clay", "clay_dark", "iron", "ash", "ember",
     "meat_raw", "meat_drying", "meat_dried", "water", "soot", "sign_board", "dirt", "bone",
     "meat_fat", "canvas_slope", "deck", "deck_old", "deck_dark", "fish",
+    "shingle", "slate", "thatch_dark",
+    # farm set (dsc farmkit): dark tilled soil, grass, crop leaves, straw, compost
+    "soil", "soil_dark", "grass", "crop_leaf", "crop_leaf_dark", "straw", "compost",
+    "soil_ridge",
 ]
 TILE_INDEX = {n: i for i, n in enumerate(TILES)}
 
@@ -80,7 +84,11 @@ def _rgb(c):
 
 
 def _mix(a, b, t):
-    t = t[..., None] if t.ndim == 2 else t
+    """Blend two colours by a weight t. t may be a scalar, a 1-D or a 2-D (per-pixel) map."""
+    if np.isscalar(t):
+        t = float(t)
+    elif t.ndim >= 2:
+        t = t[..., None]
     return a * (1 - t) + b * t
 
 
@@ -248,6 +256,57 @@ def _log_end():
     return _mix(img, _rgb((0.3, 0.2, 0.12)), (d > 0.88).astype(float))
 
 
+def _tabbed_tile(seed, base, rows, tabs, tone_lo, tone_hi, seam=0.5):
+    """Rows of overlapping tabs (shingles or slates): each tab gets its own tone and grain, a
+    dark shadow under the course above and a lit lip on the tab's lower edge."""
+    n = TILE_PX
+    r = _rng(seed)
+    img = np.zeros((n, n, 3))
+    rh = n // rows
+    tw = n // tabs
+    for i in range(rows):
+        y0 = i * rh
+        off = (i % 2) * (tw // 2)
+        for j in range(-1, tabs + 1):
+            x0 = j * tw + off
+            x1, x2 = max(0, x0), min(n, x0 + tw)
+            if x2 <= x1:
+                continue
+            tone = tone_lo + (tone_hi - tone_lo) * r.random()
+            g = _fbm(_rng(int(r.integers(0, 99999))), rh, 6, 3)
+            shade = 0.82 + 0.36 * np.clip(g, 0, 1).mean(axis=1)
+            col = (np.array(base)[None, :] * tone * shade[:, None])[:, None, :]
+            col[:2, :] *= 0.6
+            col[-2:, :] *= 1.15
+            img[y0:y0 + rh, x1:x2] = col
+            if 0 <= x0 < n:  # the vertical seam between tabs
+                img[y0:y0 + rh, x0:x0 + 2] *= seam
+    return img
+
+
+def _shingle():
+    """Cedar shingles: five courses of overlapping dark tabs, staggered, each with its own tone."""
+    return _tabbed_tile(121, (0.30, 0.21, 0.15), rows=5, tabs=4, tone_lo=0.72, tone_hi=1.25)
+
+
+def _thatch_dark():
+    """Weathered thatch for house roofs: the owner's reference shows dark roofs, not the pale
+    straw of the tent. The straw pattern is kept but darkened and broken into clumps, so the
+    slope does not read as a corrugated stripe at iso distance."""
+    img = _stripes(141, (0.36, 0.31, 0.21), (0.18, 0.15, 0.10), freq=26, angle=0.05, sharp=3, noise=0.7)
+    n = TILE_PX
+    clumps = _fbm(_rng(142), n, 7, 4)
+    img = _mix(_rgb((0.24, 0.20, 0.14)), img, np.clip(clumps * 1.7, 0, 1))
+    straw = _fbm(_rng(143), n, 20, 2)
+    img = img * (0.86 + 0.28 * straw)[..., None]
+    return img
+
+
+def _slate():
+    """Slate: four courses of flat, slightly blue-grey tiles with worn edges."""
+    return _tabbed_tile(131, (0.33, 0.33, 0.33), rows=5, tabs=4, tone_lo=0.78, tone_hi=1.18, seam=0.55)
+
+
 def _sign_board():
     img = _planks(81, (0.56, 0.4, 0.24), (0.36, 0.24, 0.13), count=2)
     n = TILE_PX
@@ -260,6 +319,72 @@ def _sign_board():
             img[y:y + 9, x:x + w] *= 0.35
             x += w + int(r.integers(4, 9))
     return img
+
+
+def _furrows(seed, base, dark, freq=4, stripes=True):
+    """Tilled soil: mottled clods and soft furrow shading. Low contrast on purpose, so a soil
+    surface never reads as planking at the iso camera's distance."""
+    n = TILE_PX
+    yy, xx = np.mgrid[0:n, 0:n] / n
+    wob = _fbm(_rng(seed), n, 3, 3) * 0.12
+    p = yy + wob
+    ridge = 0.5 + 0.5 * np.sin(p * freq * 2 * math.pi)
+    t = np.clip(ridge ** 3.0, 0, 1) if stripes else 0.0
+    img = _mix(_rgb(dark), _rgb(base), t * 0.45)
+    clod = _fbm(_rng(seed + 3), n, 10, 3)
+    img = img * (0.78 + 0.44 * clod)[..., None]
+    grit = _fbm(_rng(seed + 11), n, 34, 2)
+    img = img * (0.88 + 0.24 * grit)[..., None]
+    # scattered small stones in the soil
+    r = _rng(seed + 23)
+    for _ in range(14):
+        cx, cy = r.integers(4, n - 4, 2)
+        d = np.sqrt(((xx * n - cx) / 1.6) ** 2 + ((yy * n - cy) / 1.6) ** 2)
+        img = _mix(img, _rgb(dark) * 1.5, np.clip(1 - d / 2.6, 0, 1) * 0.5)
+    return img
+
+
+def _grass(seed, base, dark):
+    n = TILE_PX
+    yy, xx = np.mgrid[0:n, 0:n] / n
+    blades = _fbm(_rng(seed), n, 30, 3)
+    patch = _fbm(_rng(seed + 5), n, 5, 3)
+    t = np.clip(0.5 * blades + 0.6 * patch, 0, 1)
+    return _mix(_rgb(dark), _rgb(base), t)
+
+
+def _leaf(seed, base, dark, veins=True):
+    """Crop leaf: a flat blade with a pale midrib and a few side veins."""
+    n = TILE_PX
+    img = _speckle(seed, base, dark, scale=14)
+    yy, xx = np.mgrid[0:n, 0:n]
+    mid = np.clip(1 - np.abs(xx - n / 2) / 4.0, 0, 1)
+    img = _mix(img, _rgb(tuple(min(1.0, c * 1.25) for c in base)), mid * 0.5)
+    if veins:
+        side = np.clip(1 - np.abs(((yy + xx) % 26) - 13) / 2.0, 0, 1)
+        img = _mix(img, _rgb(tuple(min(1.0, c * 1.15) for c in base)), side * 0.18 * (1 - mid))
+    return img
+
+
+def _straw(seed, base, dark):
+    n = TILE_PX
+    yy, xx = np.mgrid[0:n, 0:n] / n
+    ang = 0.25
+    p = xx * math.sin(ang) + yy * math.cos(ang)
+    s = 0.5 + 0.5 * np.sin(p * 26 * 2 * math.pi)
+    t = np.clip(s ** 2.2 + 0.25 * _fbm(_rng(seed), n, 10, 2), 0, 1)
+    return _mix(_rgb(dark), _rgb(base), t)
+
+
+def _compost(seed):
+    n = TILE_PX
+    t = _fbm(_rng(seed), n, 7, 4)
+    img = _mix(_rgb((0.22, 0.16, 0.09)), _rgb((0.44, 0.33, 0.17)), t)
+    bits = np.clip((_fbm(_rng(seed + 9), n, 26, 2) - 0.6) * 6, 0, 1)
+    img = _mix(img, _rgb((0.5, 0.42, 0.2)), bits)
+    # dry straw and small chips in the heap
+    straw = np.clip((_fbm(_rng(seed + 17), n, 40, 2) - 0.68) * 7, 0, 1)
+    return _mix(img, _rgb((0.6, 0.5, 0.26)), straw)
 
 
 def _ember():
@@ -332,6 +457,24 @@ def paint_atlas():
         "deck_dark": _deck(38, (0.4, 0.27, 0.16), (0.24, 0.15, 0.08)),
         "fish": _fish(),
         "bone": _speckle(32, (0.88, 0.84, 0.74), (0.7, 0.65, 0.55), scale=6),
+        # house kit: dark cedar shingles and cool slate for the higher material tiers
+        "shingle": _shingle(),
+        "slate": _slate(),
+        "thatch_dark": _thatch_dark(),
+        # farm set: dark tilled soil for the field beds and paths, grass for the path fringe,
+        # crop leaves for the four growth stages, straw and compost for the farm props
+        "soil": _furrows(41, (0.3, 0.22, 0.14), (0.19, 0.13, 0.08)),
+        # the flat bed between the ridges: mottled earth with no directional stripes, so the
+        # tilled plot never reads as planking from the iso camera
+        "soil_dark": _furrows(42, (0.23, 0.16, 0.1), (0.14, 0.09, 0.055), stripes=False),
+        # the heaped furrow ridges: mottled earth, no directional stripes, so a row of ridges
+        # never reads as planking from the iso camera
+        "soil_ridge": _furrows(48, (0.26, 0.19, 0.12), (0.18, 0.12, 0.075), stripes=False),
+        "grass": _grass(43, (0.4, 0.5, 0.22), (0.26, 0.35, 0.14)),
+        "crop_leaf": _leaf(44, (0.42, 0.55, 0.2), (0.2, 0.32, 0.09)),
+        "crop_leaf_dark": _leaf(45, (0.3, 0.42, 0.15), (0.13, 0.22, 0.06)),
+        "straw": _straw(46, (0.68, 0.56, 0.3), (0.42, 0.32, 0.15)),
+        "compost": _compost(47),
     }
     img = np.zeros((ATLAS, ATLAS, 4))
     img[..., 3] = 1.0

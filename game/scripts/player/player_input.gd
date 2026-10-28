@@ -8,6 +8,9 @@ const HOLD_WALK_DELAY := 0.25
 const HOLD_WALK_RETARGET := 0.15
 const TAP_PICK_RADIUS := 1.0
 const INTERACT_GATHER_RANGE := 2.6
+# ASSUMPTION: HANDS/Space may seek a visible nearby resource within 12 m, then the normal gather
+# route walks to the node. The ordinary interact key keeps its close 2.6 m reach.
+const QUICK_GATHER_RADIUS := 12.0
 const FORCE_CLIPS: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
 	&"hit_react", &"knockdown", &"death", &"alert",
@@ -20,9 +23,12 @@ var _hold_walk_retarget_left: float = 0.0
 var _tap_touch_index: int = -1
 var _desktop_click_fallback_pending: bool = false
 var _touch_context: StringName = &"explore"
+## The wild animal a tap selected (spec 23); its swords hex or E starts the fight.
+var selection: TargetSelect
 
 func _init(player: Player) -> void:
 	p = player
+	selection = TargetSelect.new(player)
 
 ## Godot web can consume a desktop mouse press before it reaches _unhandled_input even when the
 ## canvas control ignores mouse input. Defer a fallback until GUI routing has finished;
@@ -39,14 +45,16 @@ func _desktop_click_fallback(pos: Vector2) -> void:
 		return
 	_desktop_click_fallback_pending = false
 	Game.pointer = pos
+	if tap_blocked():
+		return  # a HUD control took the press (the swords hex beside a bench): not a world tap
 	# Pick stations in screen space first. Their low, open meshes often let a 3D ray pass through
 	# to terrain in desktop Compatibility/WebGL even when the visible mouse is over the model.
-	var best := _station_under_pointer(pos)
+	var hit := ray()
+	var best := _station_for_tap(pos, hit)
 	if best:
 		interact_tap_target(best)
 		return
 	# Fall back to normal physics for clicks close enough to hit the station collision directly.
-	var hit := ray()
 	if hit.is_empty():
 		return
 	var picked := pick_interactable(hit)
@@ -71,17 +79,22 @@ func handle_unhandled(event: InputEvent) -> void:
 			p.get_viewport().set_input_as_handled()
 			return
 	if event.is_action_pressed("inventory"):
-		if p.ui:
-			p.ui.visible = not p.ui.visible
+		toggle_inventory()
+		return
+	if event.is_action_pressed("gather_nearest"):
+		gather_nearest()
 		return
 	if event.is_action_pressed("roll"):
 		p.sim.try_roll(p.sim.cam_dir(p.sim.input_vector()))
 		return
 	if event.is_action_pressed("attack"):
-		p.actions.attack()
+		p.actions.attack(selection.shown() if p.hunt.target == null else null)  # the fight, else the selection on screen, else the nearest
 		return
 	if event.is_action_pressed("interact"):
 		interact()
+		return
+	if event.is_action_pressed("rest"):
+		p.actions.rest()
 		return
 	if event.is_action_pressed("craft"):
 		if placer.placing != &"":
@@ -97,7 +110,8 @@ func handle_unhandled(event: InputEvent) -> void:
 		if p.hunt:
 			p.hunt.hold = not p.hunt.hold
 		return
-	if Game.lab_force_clips:
+	# Labs force creature clips on 1-9 only outside a fight, so Tackle (1) and Kick (2) work in one.
+	if Game.lab_force_clips and (p.hunt == null or p.hunt.target == null):
 		for i in 9:
 			if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_1 + i:
 				_force_clip(i)
@@ -208,14 +222,22 @@ func _station_under_pointer(pos: Vector2) -> Node3D:
 			best = st
 	return best
 
+## The station under the pointer, unless the ray lands straight on a wild animal: animals graze in
+## camp, and a tap on one selects it (spec 23).
+func _station_for_tap(pos: Vector2, hit: Dictionary) -> Node3D:
+	var col: Object = hit.get("collider", null)
+	if col is Creature and not (col as Creature).is_pet:
+		return null
+	return _station_under_pointer(pos)
+
 func tap_world() -> StringName:
 	# Stations are low/open meshes. On desktop WebGL the ray often reaches terrain through the
 	# visible bench, so accept the nearest station projected under the pointer before physics.
-	var station := _station_under_pointer(Game.pointer)
+	var hit := ray()
+	var station := _station_for_tap(Game.pointer, hit)
 	if station:
 		interact_tap_target(station)
 		return &"interact"
-	var hit := ray()
 	if hit.is_empty():
 		return &""
 	var picked := pick_interactable(hit)
@@ -226,8 +248,12 @@ func tap_world() -> StringName:
 	return &"ground"
 
 func _walk_to_tile(at: Vector3) -> void:
-	var nav_pos := p.sim.closest_nav_point(BuildGrid.tile_centre(BuildGrid.tile_of(at), World.runtime))
+	var tile_pos := BuildGrid.tile_centre(BuildGrid.tile_of(at), World.runtime)
+	# Water is outside the baked land navigation mesh. Keep its real tile as the goal; PlayerSim
+	# steers directly through water instead of snapping a water tap back to the shore.
+	var nav_pos := tile_pos if WaterAccess.in_water(tile_pos) else p.sim.closest_nav_point(tile_pos)
 	p.actions.cancel_work()
+	selection.clear()
 	if p.hunt:
 		p.hunt.stop()
 	p.nav_to(nav_pos)
@@ -236,8 +262,9 @@ func _walk_to_tile(at: Vector3) -> void:
 func interact_tap_target(col: Object) -> void:
 	p.view.clear_ground_marker()
 	p.actions.cancel_work()
-	if not (col is Creature and not (col as Creature).is_pet) and p.hunt:
-		p.hunt.stop()
+	if not (col is Creature) and p.hunt:
+		p.hunt.stop()  # a tap on any animal, your pet too, keeps the fight going
+	selection.select(col as Creature)  # a wild animal is selected; anything else clears the selection
 	if col is HarvestNode:
 		var hn := col as HarvestNode
 		var opts := hn.options()
@@ -259,8 +286,12 @@ func interact_tap_target(col: Object) -> void:
 			p.pets.interact(c)
 		elif FieldTame.can_attempt(c):
 			p.actions.begin_field_tame(c)
-		else:
-			p.actions.attack(c)
+		elif _fighting() and c != p.hunt.target and not c.health.dead:
+			p.actions.attack(c)  # [owner 2026-10-28] in combat a tap retargets at once (no swords step)
+		# Out of combat any other wild animal stays selected only: the swords hex or E starts the fight.
+	elif col is ConstructionSite:
+		# Spec 30 §7: tapping a placed site opens its sheet (Deposit / Withdraw / Work / Cancel).
+		(col as ConstructionSite).interact(p)
 	elif col is Bonfire or col is CraftStation:
 		# Reference: tapping a station opens its recipe radial (M8e); cauterise lives in the context hexes.
 		p.open_station_craft(col as Node3D)
@@ -270,6 +301,10 @@ func interact_tap_target(col: Object) -> void:
 		col.open()
 	elif col is Node and (col as Node).is_in_group("cargo_warp"):
 		col.use(p)
+	elif col is StructurePiece:
+		var hud := p.get_tree().get_first_node_in_group("hud")
+		if hud and hud.has_method("open_structure"):
+			hud.open_structure(col)  # W2-BUILDSYS card: door, chest, sign, upgrade, repair, demolish
 	elif col is Node and (col as Node).is_in_group("placed_building"):
 		p.actions.building_interact(col)
 
@@ -289,8 +324,8 @@ func pick_interactable(hit: Dictionary) -> Object:
 	var best_d := 9999.0
 	for row in p.get_world_3d().direct_space_state.intersect_shape(query, 16):
 		var col: Object = row.get("collider", null)
-		if not is_interactable(col):
-			continue
+		if col is StructurePiece or not is_interactable(col):
+			continue  # a piece is tapped only by a direct hit: indoors every spot is near a wall
 		var n := col as Node3D
 		if n == null:
 			continue
@@ -308,6 +343,8 @@ func unwrap_tap(col: Object) -> Object:
 	return col
 
 func is_interactable(col: Object) -> bool:
+	if col is StructurePiece:
+		return (col as StructurePiece).is_tap_target()
 	if col is Area3D:
 		var owner := (col as Area3D).get_parent()
 		if owner is HarvestNode or owner is CraftStation or owner is Bonfire:
@@ -346,7 +383,8 @@ func ray() -> Dictionary:
 		return {}
 	var mouse := Game.pointer
 	var from := cam.project_ray_origin(mouse)
-	var q := PhysicsRayQueryParameters3D.create(from, from + cam.project_ray_normal(mouse) * 200.0)
+	# To the far plane: the perspective camera stands 90-430 m back (the old 200 m ray fell short).
+	var q := PhysicsRayQueryParameters3D.create(from, from + cam.project_ray_normal(mouse) * cam.far)
 	q.exclude = [p]
 	return p.get_world_3d().direct_space_state.intersect_ray(q)
 
@@ -375,71 +413,133 @@ func _force_clip(i: int) -> void:
 
 # ---------------------------------------------------------------- interact key
 
-## E / pad A: the nearest thing in reach, in priority order. Lets a controller (or keyboard)
-## player do everything a tap does without a pointer.
-func interact() -> void:
-	if p.mounted_on:
-		p.dismount()
+func toggle_inventory() -> void:
+	if p.ui:
+		p.ui.visible = not p.ui.visible
+
+## Space / HANDS: gather the nearest live resource. Single-yield nodes start immediately; nodes
+## such as berry bushes still open their choice wheel.
+func gather_nearest() -> void:
+	var node := _nearest_harvest_node(QUICK_GATHER_RADIUS)
+	if node == null:
+		p.notice("No resource within %d m" % int(QUICK_GATHER_RADIUS))
 		return
+	_gather_node(node)
+
+## E / pad A: the nearest thing in reach, in priority order. Lets a controller (or keyboard)
+## player do everything a tap does without a pointer. With a selection on screen E starts that fight
+## (TARGETUI); otherwise it runs interact_choice, the same pick the HUD's INTERACT hex shows.
+func interact() -> void:
+	if selection.shown() and not p.mounted_on:
+		selection.engage()  # the key the swords hex shows, only while it shows
+		return
+	var c := interact_choice()
+	if not c.is_empty():
+		(c["run"] as Callable).call()
+
+## What INTERACT does here and now (E, pad A and the HUD's INTERACT hex share it), or {} when nothing
+## is in reach: {id, label, icon (Texture2D or null), color_icon, run (Callable)}. Close things first in
+## the order E always used (dismount, bed, pen, station, field, fire, corpse, harbour, warp, basket, a
+## node in arm's reach, your pet), then water, then the nearest resource within QUICK_GATHER_RADIUS:
+## by default it is the gather-nearest button (owner 2026-10-28), through the same gather path as Space.
+# ASSUMPTION: no NPCs or loose ground items exist yet, so there is no Talk / Pick up entry; they slot in here.
+func interact_choice() -> Dictionary:
+	var ui := func (id: String, label: String, icon_id: StringName, run: Callable) -> Dictionary:
+		return {"id": id, "label": label, "icon": UiIcons.icon(icon_id) if UiIcons.path_for(icon_id) != "" else null, "color_icon": false, "run": run}
+	if p.mounted_on:
+		return ui.call("dismount", "Dismount", &"dismount", p.dismount)
 	var sleep_spot := p.sim.nearest_sleep_spot()
 	if sleep_spot and p.vitals.fatigue >= 1.0:
-		p.sim.start_sleep(sleep_spot)
-		return
+		return ui.call("sleep", "Sleep", &"sleep", p.sim.start_sleep.bind(sleep_spot))
 	var pen := p._nearest_group("taming_pen") as TamingPen
 	if pen and p.global_position.distance_to(pen.global_position) < 3.0:
-		p.actions.pen_interact(pen)
-		return
+		return ui.call("pen", "Pen", &"pen", p.actions.pen_interact.bind(pen))
 	var station := p._nearest_group("craft_station") as Node3D
 	if station and p.global_position.distance_to(station.global_position) < 2.5:
-		p.open_station_craft(station)
-		return
+		return ui.call("open", "Open", &"craft", p.open_station_craft.bind(station))
 	var field := p._nearest_group("field") as FieldPlot
 	if field and p.global_position.distance_to(field.global_position) < 2.8:
-		p.open_field(field)
-		return
+		return ui.call("field", "Open", &"use", p.open_field.bind(field))
 	var fire := p._nearest_group("bonfire") as Bonfire
 	if fire and p.global_position.distance_to(fire.global_position) < 2.5:
-		fire.cauterise(p)
-		return
+		return ui.call("cauterise", "Cauterise", &"cauterise", fire.cauterise.bind(p))
 	var corpse := p._nearest_group("corpse") as Corpse
 	if corpse and p.global_position.distance_to(corpse.global_position) < 2.8:
-		p.actions.begin_butcher(corpse)
-		return
+		return ui.call("butcher", "Butcher", &"butcher", p.actions.begin_butcher.bind(corpse))
 	var harbour := p._nearest_group("harbour")
 	if harbour and p.global_position.distance_to(harbour.global_position) < 4.0:
-		harbour.open()
-		return
+		return ui.call("harbour", "Harbour", &"harbour", Callable(harbour, "open"))
 	var warp := p._nearest_group("cargo_warp")
 	if warp and p.global_position.distance_to(warp.global_position) < 2.8:
-		warp.use(p)
-		return
+		return ui.call("warp", "Warp", &"warp", Callable(warp, "use").bind(p))
 	var basket := p._nearest_group("basket")
 	if basket and p.global_position.distance_to(basket.global_position) < 2.8:
-		p.actions.building_interact(basket)
-		return
+		return ui.call("store", "Open", &"store", p.actions.building_interact.bind(basket))
 	var node := _nearest_harvest_node()
-	if node and p._gather_radial:
-		var opts := node.options()
-		if not opts.is_empty():
-			p._gather_radial.open(node, opts, p.inventory)
-			return
+	if node and p._gather_radial and not node.options().is_empty():
+		return _gather_choice(node)
 	var pet := p.pets.nearest(2.8)
 	if pet:
-		p.pets.interact(pet)
+		return ui.call("pet", "Pet", &"pets", p.pets.interact.bind(pet))
+	if WaterAccess.near_fresh(p.global_position):
+		return ui.call("drink", "Drink", &"drink", p.actions.drink)
+	node = _nearest_harvest_node(QUICK_GATHER_RADIUS)
+	if node and not node.options().is_empty():
+		return _gather_choice(node)
+	return {}
 
-## The closest harvest node within reach that still has something to give.
-func _nearest_harvest_node() -> HarvestNode:
+## INTERACT on a resource: its own item icon (in colour), "Gather", and the Space path (one option
+## starts at once and walks there; several open the node's hex wheel).
+func _gather_choice(node: HarvestNode) -> Dictionary:
+	var tex := ItemIcons.texture(node.yield_def_id)
+	return {"id": "gather", "label": "Gather", "icon": tex if tex else UiIcons.icon(&"pick"), "color_icon": tex != null,
+		"run": _gather_node.bind(node)}
+
+func _gather_node(node: HarvestNode) -> void:
+	if not is_instance_valid(node) or not node.has_harvests_left():
+		return
+	var opts := node.options()
+	if opts.size() == 1:
+		node.select_option(0)
+		p.actions.begin_gather(node)
+	elif not opts.is_empty() and p._gather_radial:
+		p._gather_radial.open(node, opts, p.inventory)
+
+## ATTACK NEAREST (the HUD hex). Out of combat: the tapped selection, else the nearest wild animal within
+## hunt range. In combat: the nearest valid enemy (a retarget when it is not the current one). Null when
+## none; pets are never picked.
+func attack_target() -> Creature:
+	if _fighting():  # [owner 2026-10-28] in combat: retarget to the nearest valid enemy
+		var n := p.actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
+		return n if n else p.hunt.target
+	var sel := selection.current()
+	return sel if sel else p.actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
+
+## The hex's press: start (or keep swinging) the fight through PlayerActions.attack, the F key's path.
+## Unlike F it never swings at scenery when no animal is near: it says so instead.
+func attack_nearest() -> bool:
+	var t := attack_target()
+	if t == null:
+		p.notice("No animal in range")
+		return false
+	return p.actions.attack(t)
+
+## The closest harvest node within `radius` that still has something to give.
+func _nearest_harvest_node(radius: float = INTERACT_GATHER_RANGE) -> HarvestNode:
 	var best: HarvestNode = null
-	var best_d := INTERACT_GATHER_RANGE
+	var best_d := radius
 	for n in p.get_tree().get_nodes_in_group("harvest"):
 		var hn := n as HarvestNode
-		if hn == null or not is_instance_valid(hn) or hn.pool_units_left() <= 0:
+		if hn == null or not is_instance_valid(hn) or not hn.has_harvests_left():
 			continue
 		var d := p.global_position.distance_to(hn.global_position)
 		if d < best_d:
 			best_d = d
 			best = hn
 	return best
+
+func _fighting() -> bool:
+	return p.hunt != null and p.hunt.target != null and is_instance_valid(p.hunt.target) and not p.hunt.target.health.dead
 
 # ---------------------------------------------------------------- HUD context hexes
 
@@ -474,8 +574,12 @@ func context_actions() -> Array:
 	if sleep_spot:
 		var left := int(sleep_spot.get("sleeps_left"))
 		out.append({"id": "sleep", "glyph": "☾", "label": "Sleep", "uses": "" if left < 0 else str(left)})
+	if p.sim.rest.offered():
+		out.append({"id": "rest", "label": "Rest"})  # anywhere out of combat (the HUD hides hexes in combat)
 	if near.call("bonfire", 2.8):
 		out.append({"id": "cook", "glyph": "🍖", "label": "Cook"})
+		if p.statuses and p.statuses.has(&"wet"):
+			out.append({"id": "dry", "glyph": "🔥", "label": "Dry off"})
 		if p.statuses and (p.statuses.has(&"bleed") or p.statuses.has(&"deep_bleed")):
 			out.append({"id": "cauterise", "glyph": "🔥", "label": "Cauterise"})
 	if near.call("corpse", 3.0):
@@ -510,6 +614,8 @@ func context_action(id: String) -> void:
 			p.actions.fill_water()
 		"sleep":
 			p.sim.start_sleep()
+		"rest":
+			p.actions.rest()
 		"wash":
 			p.actions.wash()
 		"cook":
@@ -522,6 +628,10 @@ func context_action(id: String) -> void:
 			var fire := p._nearest_group("bonfire") as Bonfire
 			if fire:
 				fire.cauterise(p)
+		"dry":
+			var fire := p._nearest_group("bonfire") as Bonfire
+			if fire:
+				fire.dry_off(p)
 		"loot":
 			var corpse := p._nearest_group("corpse") as Corpse
 			if corpse:

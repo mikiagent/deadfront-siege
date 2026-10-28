@@ -673,3 +673,9 @@ Do not stop at design descriptions or mockups. Build the working interface in th
        - Info rows (Satiety, Animal Vigor), a colour hex and a flavour line;
        - Maintenance rows (Repair: not possible), a Create section, and the yellow primary action ("Eat").
      - The toolbar has Auto Sort with a caret, then select-many, filter, lock and trash. -->
+
+<!-- Addendum 3, 2026-10-27. Owner's words, verbatim: bag with a caged animal selected (image pasted in chat, not on disk). Orchestrator's reading:
+     - Same Bag grid as the main spec: torn-edge header "Bag 91 / 100", dense grid, blue NEW tags beside "Lv. 10" on fresh tiles; the same species tiles appear in recolored variants (red/pink/black berries, green/olive leaves) — instanced colour/quality variants stay separate instances.
+     - The utility row at bottom right has FOUR buttons — multi-select, filter, lock, and a trash/delete — with Auto Sort + caret at the left. The main spec showed three; the delete is the fourth.
+     - Selecting a caged animal opens the creature card on the right: grade medallion "B", "Zebraceratops Lv. 13", a lifespan row "30d/30d" with a ? tooltip, a "Bag Capacity Buff Lv. 1" row, then Info: Size 15, Bag 110, Movement Speed 400, Life 397, Vigor 500, and the primary action "Form Bond" (bond capacity rules in 02/09).
+     - The card's Bag row (110) is the animal's CARGO capacity, +10 from the buff row shown above it: the same animal's tame-success modal (02) reads a base 100. Vigor 500 appears only on this card. -->

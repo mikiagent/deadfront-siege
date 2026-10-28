@@ -1,0 +1,206 @@
+{
+  "_about": "W2-PROCESS rules. `stations`: placed kinds that run process jobs in the world (inputs leave the bag, sit on the station, finish on the wall clock while the player is away or offline, outputs wait on the station until collected). `recipes` per station: recipe ids from recipes.json with the station duration in real seconds (overrides recipes.json `seconds`, which stays the old stand-and-craft time). `stages`: progress thresholds that pick a props_manifest buildings.<kind>.stages[].id model. `fx`: smoke|steam emitter while a job runs (`fx_glc_boost`: bigger, denser puffs on gl_compatibility only). `contents`: stations without stage models show one `kind` (strip|bowl) per job or uncollected output at `spots[i]` (station-local metres), coloured `from` (just loaded) -> `to` (done) by that job's progress; # ASSUMPTION spots and colours, placed by eye on the W1-STRUCTART models, above the 0.08 m dirt patch, bowls on the lit -x/+z side. `in_place`: spec 08 processing opportunities. Station times are # ASSUMPTION values (spec 11 lists Durango:0 delegated times as unverified); tune here. No spoilage: spec 08 forbids a freshness timer the design does not require.",
+  "stations": {
+    "drying_rack": {
+      "label": "Drying",
+      "slots": 4,
+      "fx": "smoke",
+      "fx_offset": [
+        0.0,
+        0.1,
+        0.2
+      ],
+      "fx_alpha": 0.42,
+      "stages": [
+        {
+          "at": 0.0,
+          "id": "raw"
+        },
+        {
+          "at": 0.34,
+          "id": "drying"
+        },
+        {
+          "at": 0.67,
+          "id": "dried"
+        }
+      ],
+      "idle_stage": "empty",
+      "ready_stage": "dried",
+      "recipes": {
+        "dry_meat": {
+          "seconds": 600
+        },
+        "dried_hide": {
+          "seconds": 600
+        }
+      }
+    },
+    "smoker": {
+      "label": "Smoking",
+      "slots": 4,
+      "fx": "smoke",
+      "fx_offset": [
+        0.0,
+        2.0,
+        0.0
+      ],
+      "fx_glc_boost": 1.6,
+      "light": "#ff8a3a",
+      "contents": {
+        "kind": "strip",
+        "from": "#b0362c",
+        "to": "#7c4324",
+        "spots": [
+          [
+            -0.36,
+            1.05,
+            0.7
+          ],
+          [
+            -0.2,
+            1.05,
+            0.7
+          ],
+          [
+            -0.04,
+            1.05,
+            0.7
+          ],
+          [
+            0.12,
+            1.05,
+            0.7
+          ]
+        ]
+      },
+      "recipes": {
+        "smoke_meat": {
+          "seconds": 900
+        }
+      }
+    },
+    "crock_pot": {
+      "label": "Stewing",
+      "slots": 1,
+      "queue": 3,
+      "fx": "steam",
+      "fx_offset": [
+        0.0,
+        1.1,
+        0.0
+      ],
+      "light": "#ff7a2a",
+      "contents": {
+        "kind": "bowl",
+        "from": "#c2564a",
+        "to": "#5a2e12",
+        "spots": [
+          [
+            -0.17,
+            0.16,
+            0.97
+          ],
+          [
+            -0.63,
+            0.16,
+            0.75
+          ],
+          [
+            -0.92,
+            0.16,
+            0.34
+          ],
+          [
+            -0.97,
+            0.16,
+            -0.17
+          ]
+        ]
+      },
+      "recipes": {
+        "camp_stew": {
+          "seconds": 180
+        }
+      }
+    },
+    "steamer": {
+      "label": "Steaming",
+      "slots": 2,
+      "queue": 2,
+      "fx": "steam",
+      "fx_offset": [
+        0.0,
+        1.25,
+        0.0
+      ],
+      "contents": {
+        "kind": "bowl",
+        "from": "#c06a55",
+        "to": "#b4602a",
+        "spots": [
+          [
+            -0.1,
+            0.16,
+            0.54
+          ],
+          [
+            -0.35,
+            0.16,
+            0.42
+          ],
+          [
+            -0.52,
+            0.16,
+            0.19
+          ],
+          [
+            -0.54,
+            0.16,
+            -0.1
+          ]
+        ]
+      },
+      "recipes": {
+        "steam": {
+          "seconds": 60
+        }
+      }
+    },
+    "workbench": {
+      "_about": "Finished workbenches (W2-BUILDFLOW): a queued processing bench. # ASSUMPTION: 1 job + 1 queued; seconds follow spec 30's unverified delegated timings.",
+      "label": "Crafting",
+      "slots": 1,
+      "queue": 1,
+      "recipes": {
+        "trimmed_plank": {
+          "seconds": 12
+        },
+        "fine_plank": {
+          "seconds": 12
+        }
+      }
+    }
+  },
+  "in_place": {
+    "_about": "Spec 08 \u00a72 in-place processing: recipes whose process_step is listed change the chosen instance itself (identity, provenance and properties carry, raw tag removed) and spend one processing opportunity, recorded in attributes.processed. `opportunities` per instance: # ASSUMPTION 2, spec 08's reconstruction estimate, not a confirmed constant. Steam spends one like any step; the PRD's steam-steam question stays open.",
+    "steps": [
+      "dry",
+      "smoke",
+      "steam"
+    ],
+    "opportunities": 2,
+    "properties": {
+      "_about": "What an in-place step leaves on the instance. Spec 08 \u00a72: 'in-place recipes add cooking properties ... Verify method-specific behavior rather than making every method identical.' Read from the instance's processing history (attributes.processed) when it is eaten, \u00a74: 'Food benefits must be calculated from the actual prepared item's stored state.' Effect kinds are \u00a74's list: fatigue_relief = 'reduced Fatigue when supported' (Vitals.rest, on top of the meal's own energy break); buff = a food_buffs.json row, 'environmental effects' (cold_resist is the existing Warming Meal, which no food granted before). Steam has no row: its payoff is the process count, +35% energy per steam (PRD \u00a79.3). # ASSUMPTION: which method gives which effect and the amounts; the specs list the kinds, not the mapping. Tune here.",
+      "dry": {
+        "name": "Dried",
+        "fatigue_relief": 12.0
+      },
+      "smoke": {
+        "name": "Smoked",
+        "fatigue_relief": 6.0,
+        "buff": "cold_resist"
+      }
+    }
+  }
+}

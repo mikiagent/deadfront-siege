@@ -12,7 +12,7 @@ var build_rot: int = 0
 var sleeps_left: int = -1  # -1 for non-sleep structures
 var gate_open: bool = false  # gates only: open = passable for everyone, closed = solid
 
-const BASKET_SLOTS := 60 ## ASSUMPTION: PRD ~100; 60 for mobile UI.
+const BASKET_SLOTS := 100 ## spec 05:14 "basket about 100 slots"; PRD:582 "baskets (~100 slots early)".
 
 static func full_sleeps(p_kind: StringName) -> int:
 	return 1 if p_kind == &"straw_roll" else (6 if p_kind == &"tent" else (12 if p_kind == &"canvas_tent" else -1))
@@ -83,9 +83,19 @@ func _ready() -> void:
 		add_to_group("basket")
 	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
 		PropVisuals.apply_building_visual(self, kind, _fallback_size(), _color())
+	_register_occluders()
 	if kind == &"gate":
 		_build_gate_leaf()
 		_apply_gate_state()
+
+## Tall structures hide the survivor standing beside or under them (a tent, a shelter): each mesh
+## fades on its own when it stands on the sight line. A low one (basket, bed, sign) never covers the
+## chest and is left alone.
+func _register_occluders() -> void:
+	if _fallback_size().y < Occlusion.TALL_M:
+		return
+	for c in find_children("*", "GeometryInstance3D", true, false):
+		Occlusion.make_occludable(c, Occlusion.BETWEEN)
 
 func _exit_tree() -> void:
 	_release_grid()
@@ -154,6 +164,18 @@ func _build_gate_leaf() -> void:
 func _model_leaf(leaf_name: String) -> Node3D:
 	var prop := get_node_or_null("Prop")
 	return prop.find_child(leaf_name, true, false) as Node3D if prop else null
+
+## Where the survivor lies down: the middle of the bedding, not wherever they happened to stand.
+## PlacedBuilding's origin is the ground centre of the footprint (props_manifest), so for a tent this
+## is inside it - the survivor sleeps within the shelter rather than beside it.
+func sleep_anchor() -> Vector3:
+	return global_position
+
+## Where the survivor stands up: one step outside the footprint on the door side (+Z; the Blender
+## models face -Y, which Godot sees as +Z). Standing up inside a tent is not possible - it is 1.6 m
+## tall - so waking moves them out first.
+func wake_anchor() -> Vector3:
+	return global_transform * Vector3(0.0, 0.0, 1.6)
 
 func sleep_duration() -> float:
 	return 12.0 if kind == &"straw_roll" else (8.0 if kind == &"canvas_tent" else (7.0 if kind == &"log_shelter" else (5.0 if kind == &"cabin_bed" else 10.0)))

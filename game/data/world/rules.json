@@ -1,5 +1,7 @@
 {
-  "_about": "Material level and island archetype rules (docs/design/world-design.md \u00a72\u20133). The island generator applies ring offsets to the island tier; crafting uses the mean-of-materials rule from the systems PRD \u00a78.4.",
+  "_about": "Material level and island archetype rules (docs/design/world-design.md §2–3). The island generator applies ring offsets to the island tier; crafting uses the mean-of-materials rule from the systems PRD §8.4.",
+  "resource_render": "card",
+  "_resource_render_note": "SWITCH2D (owner 2026-10-21: \"keep buildings 3D and make resources 2D\"): \"card\" draws every resource prop as a flat, camera-facing card - the owner's painted sprites (data/world/sprites2d.json) where a family's art is cut, else its baked CARD2D card (data/card2d.json), with data/world/sprites2d_map.json for overrides. \"model\" is the old 3D GLB look (--models on a lab run). Buildings stay 3D either way.",
   "island_size_m": {
     "unstable": 240,
     "home": 160
@@ -64,9 +66,29 @@
     "climate_per_min": 4.0,
     "breakdown_window_s": 180.0
   },
+  "xp": {
+    "_about": "XPECON (islands-and-loop plan section 3.3 'XP economy' + 3.4 knobs): a gather pass pays gather_base + round(its own pass seconds), so a slower node or bare hands pays more and a better tool or skill pays less; a build pays build_first the first time that kit kind is ever placed (memory is World.pioneer_buildings, saved) and build_repeat after that; a build of the same kind within build_spam_radius_m of a standing one of its kind placed less than build_spam_seconds ago pays 0. The level curve stays World.xp_for_level.",
+    "gather_base": 1,
+    "build_first": 30,
+    "build_repeat": 8,
+    "build_spam_radius_m": 10.0,
+    "build_spam_seconds": 60.0
+  },
   "gathering_downrank": "node level above Gathering skill level is reduced to the skill level",
   "crafted_level": "floor(mean of consumed material levels), clamped by governing skill level and recipe max_level",
   "rare_attribute_chance": 0.05,
+  "crafting": {
+    "_about": "Spec 04 'Crafting skill vs crafting ability' and plan 3.3 'Crafting'. success = clamp(1-(shortfall/100)^2, 0, 1), shortfall = max(0, required_ability - crafting_ability) (0 -> 100 %, 50 -> 75 %, 80 -> 36 %, 100 -> 0 %). CRAFTFEEL note: a recipe without required_ability needs only its min_level (the category-level gate), so today's recipes stay at 100 % (the skewer of spec 25 8 is 100 %); a recipe that declares required_ability can fall short and fail. CRAFTFEEL data (review round 1): every recipe with min_level >= 8 declares required_ability = min_level + 40 (35 recipes, the four min_level 55 raid pieces take 95); this is an ASSUMPTION (gate level + a fixed shortfall headroom), not a balance pass, and every value can be retuned in data alone. The lowest shipped success at a recipe's own gate is 0.840 (raid_maul). A failed craft spends the picked instances and yields nothing (spec 25 8 'if crafting fails, materials disappear'). Flawless is a separate roll on a successful craft (spec 04; its 5 % is plan 3.3's value).",
+    "success_curve_scale": 100.0,
+    "flawless_chance": 0.05,
+    "flawless_stat_bonus": 0.1,
+    "flawless_level_bonus": 1,
+    "_flawless": "A flawless craft keeps its level (a preview must equal the result) and gains stat_bonus: durability x1.1, attributes.quality 'flawless', flags.flawless. flawless_level_bonus only applies to a recipe that sets flawless_level: true.",
+    "rare_attributes": [
+      "black_sheen", "low_vibration", "wide_serration", "narrow_hook", "split_easily", "vivid_inspiration"
+    ],
+    "ability_food_stat": "craft_ability"
+  },
   "unstable_flag": "all materials from unstable islands until cargo-warped",
   "craters": {
     "discover_fatigue": -20,

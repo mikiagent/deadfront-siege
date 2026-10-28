@@ -20,6 +20,13 @@ var raining: bool:
 var _size: float = 240.0
 var _res: int = 65
 var _heights: PackedFloat32Array = PackedFloat32Array()
+## The landmass generator (IslandShape): coastline, river, mesa, peaks. is_dry and the scatter
+## read its precomputed rad grid through rad_at.
+var _shape: IslandShape
+## Per-heightmap-vertex effective radius, river distance and gradient (IslandShape.compute).
+var _rad: PackedFloat32Array = PackedFloat32Array()
+var _river_d: PackedFloat32Array = PackedFloat32Array()
+var _vslope: PackedFloat32Array = PackedFloat32Array()
 var _climate: String = "temperate"
 var _tier: int = 25
 var _level_override: int = 0
@@ -33,6 +40,8 @@ var _tile_span: int = 0
 var tile_types: PackedByteArray = PackedByteArray()
 ## 1 on the river's MUD tiles as built; IslandTerrain.fresh_water_at_world reads it, harvesting never changes it.
 var fresh_water: PackedByteArray = PackedByteArray()
+## 1 on every dry walkable tile (IslandTerrain fills it with the tile map); is_dry's fast path.
+var dry_walk: PackedByteArray = PackedByteArray()
 var _tile_map_image: Image
 var _tile_map_tex: ImageTexture
 var _terrain_mat: ShaderMaterial
@@ -43,6 +52,11 @@ var _harvest_nodes: Dictionary = {}
 var _bare_tiles: Dictionary = {}
 var spawn_rejected: int = 0
 var build_grid: BuildGrid
+## Scenery layer (non-resource props): IslandProps node, null until build() has scattered it.
+var props
+## Ground-cover instance positions (grass, flowers) as scattered, for the lab and t_props density
+## checks. The visuals themselves live in VegBatch cells; this is the placement record only.
+var cover_points: PackedVector3Array = PackedVector3Array()
 var pathing
 var _height_tex: ImageTexture
 var _water_mat: ShaderMaterial
@@ -51,11 +65,51 @@ var _tree_discs: MultiMeshInstance3D
 var _tree_disc_xforms: Array[Transform3D] = []
 var _batches: Array[VegBatch] = []
 var claims: Array[Rect2i] = []
+## CLAIMS2: the camp's own landing claim (kept for buildability; it is not a domain cell).
+var camp_claim: Rect2i = Rect2i()
+## CLAIMS2 / spec 29: the domain record (domain_id, kind, island_id, owner, cells, max_cells, status)
+## and the grass decor multimeshes IslandScatter made, so a claim can drop the instances inside it.
+var domain: Dictionary = {}
+var grass_mm: Array[MultiMeshInstance3D] = []
+## Fired ONCE per newly claimed cell batch with the tiles the batch covers (GROUND2D's painted ground
+## cover listens: claimed land is bare). A single claim_at() fires it once too.
+signal claims_changed(rect: Rect2i)
+## Other players' land here: {"rect": Rect2i, "owner": {"id", "name"}}; only IslandClaims.set_others writes it.
+var other_claims: Array[Dictionary] = []
 var _claim_mesh: MeshInstance3D
-var _claim_mat: StandardMaterial3D
 
+## Where the dry land ends: the shore band's start. The coastline itself (rain height -0.05) sits
+## about 0.09 * size further out, so this leaves the beach walkable.
 func land_radius() -> float:
-	return _size * 0.38
+	return _size * 0.36
+
+## Effective radius (metres, coastline at land_radius + 0.09 * size) by bilinear lookup.
+func rad_at(x: float, z: float) -> float:
+	if _rad.is_empty():
+		return Vector2(x, z).length()
+	return _sample_grid(_rad, x, z)
+
+func river_dist_at(x: float, z: float) -> float:
+	if _river_d.is_empty():
+		return 10000.0
+	return _sample_grid(_river_d, x, z)
+
+func slope_at(x: float, z: float) -> float:
+	if _vslope.is_empty():
+		return 0.0
+	return _sample_grid(_vslope, x, z)
+
+func _sample_grid(arr: PackedFloat32Array, x: float, z: float) -> float:
+	var cell := _size / float(_res - 1)
+	var u := clampf((x + _size * 0.5) / cell, 0.0, float(_res - 1))
+	var v := clampf((z + _size * 0.5) / cell, 0.0, float(_res - 1))
+	var x0 := int(floor(u))
+	var z0 := int(floor(v))
+	var x1 := mini(x0 + 1, _res - 1)
+	var z1 := mini(z0 + 1, _res - 1)
+	var tx := u - float(x0)
+	var tz := v - float(z0)
+	return lerpf(lerpf(arr[x0 + z0 * _res], arr[x1 + z0 * _res], tx), lerpf(arr[x0 + z1 * _res], arr[x1 + z1 * _res], tx), tz)
 
 ## True when a creature may stand at pos: on dry land above the beach and the river,
 ## inside the land radius and (when strict) at least 25 m from camp and the harbour
@@ -77,16 +131,9 @@ func spawn_ok(pos: Vector3, strict: bool = true) -> bool:
 	return true
 
 func build(def: Dictionary, terrain: StringName) -> void:
-	var size := float(def.get("size_m", 160))
-	# ASSUMPTION: rules.json island_size_m.unstable is 240 but rings extend to 240 m radius;
-	# the generator uses diameter = 2 * far_shore so crater and far-shore rings fit on the mesh.
-	if str(def.get("kind", "")) != "private":
-		var rings: Dictionary = Data.world_rules.get("rings", {})
-		var far: Variant = rings.get("far_shore", {})
-		if far is Dictionary:
-			var span: Array = (far as Dictionary).get("radius_m", [])
-			if span.size() >= 2:
-				size = maxf(size, float(span[1]) * 2.0)
+	# Size comes from the island data (stable IDs get it from World._load_islands' tier table),
+	# never from far_shore * 2: the plan's land bbox (330-415 x 265-335 m) fits the square grid.
+	var size := float(def.get("size_m", 416))
 	_climate = str(def.get("climate", "grassland"))
 	_tier = int(def.get("tier", 10))
 	_level_override = int(def.get("level_override", 0))
@@ -100,7 +147,16 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	lighting = WorldLighting.install(self, _climate)
 	sun = lighting.sun
 	world_env = lighting.world_env
-	IslandTerrain.build(self, size, _climate)
+	var seed := int(def.get("seed", 17 if str(def.get("kind", "")) == "private" else hash(str(def.get("id", "island")))))
+	var legacy := str(def.get("kind", "")) == "private"
+	var hint := Vector2(float(harbour_a[0]), float(harbour_a[2])) if def.has("harbour") else Vector2(_camp_hint.x, _camp_hint.z)
+	var t0 := Time.get_ticks_usec()
+	_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, 161, _climate)
+	_shape.camp_hint = Vector2(_camp_hint.x, _camp_hint.z)
+	_shape.compute()
+	var t1 := Time.get_ticks_usec()
+	IslandTerrain.build(self, size, _climate, _shape)
+	var t2 := Time.get_ticks_usec()
 	IslandTerrain.bake_nav(self)
 	build_grid = BuildGrid.new()
 	build_grid.name = "BuildGrid"
@@ -111,7 +167,6 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	if _crater_hint != Vector3.ZERO:
 		_crater_pos = _tile_at(_crater_hint.x, _crater_hint.z)
 	# The json harbour is a hint: the dock goes on the legal coast pose nearest it (HarbourSite).
-	var hint := Vector2(float(harbour_a[0]), float(harbour_a[2])) if def.has("harbour") else Vector2(_camp_hint.x, _camp_hint.z)
 	var site := HarbourSite.find(self, hint)
 	if site.is_empty():
 		push_error("[world] island %s has no coast for the harbour" % def.get("id", ""))
@@ -130,13 +185,19 @@ func build(def: Dictionary, terrain: StringName) -> void:
 		add_child(cargo_basket)
 		build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo_basket.position), 0)
 	IslandClaims.setup(self, def)
+	var t3 := Time.get_ticks_usec()
 	IslandScatter.scatter(self, def, terrain, _climate, _tier, size)
+	props = IslandProps.build(self)
+	var t4 := Time.get_ticks_usec()
 	_setup_pathing()
+	var t5 := Time.get_ticks_usec()
 	IslandSpawns.spawn_all(self, def)
 	if crater_v is Array:
 		_crater(_at(float(crater_v[0]), float(crater_v[2])))
 	weather.install(self)
 	IslandTerrain.drive_focus(self)
+	if OS.get_environment("ISL_TIME") == "1":
+		print("[islandgen-time] %s shape=%.0fms terrain=%.0fms rest=%.0fms scatter=%.0fms pathing=%.0fms total=%.0fms" % [def.get("id", ""), float(t1 - t0) / 1000.0, float(t2 - t1) / 1000.0, float(t3 - t2) / 1000.0, float(t4 - t3) / 1000.0, float(t5 - t4) / 1000.0, float(Time.get_ticks_usec() - t0) / 1000.0])
 	print("[world] island %s nodes=%d creatures=%d spawn_rejected=%d" % [def.get("id", ""), harvest_count, creature_count, spawn_rejected])
 
 func mark_pathing_dirty() -> void:
@@ -171,8 +232,18 @@ func _at(x: float, z: float) -> Vector3:
 func _tile_at(x: float, z: float) -> Vector3:
 	return BuildGrid.tile_centre(BuildGrid.tile_of(Vector3(x, 0.0, z)), self)
 
+## Rings are measured from where the survivor LANDS (the dock's arrival point), not the island
+## origin: the shaped islands are elongated and off-centre, so an origin-centred ring would
+## mis-level and mis-spawn the far end (the plan's landing-ring rule).
+func ring_centre() -> Vector2:
+	if _harbour_pos != Vector3.ZERO and _shape != null and HarbourSite != null:
+		var a: Vector3 = arrival_point()
+		return Vector2(a.x, a.z)
+	return Vector2(_camp_pos.x, _camp_pos.z)
+
 func ring_name(pos: Vector3) -> StringName:
-	var r := Vector2(pos.x, pos.z).length()
+	var c := ring_centre()
+	var r := Vector2(pos.x - c.x, pos.z - c.y).length()
 	var rings: Dictionary = Data.world_rules.get("rings", {})
 	for id in ["landing", "gathering", "working", "crater", "far_shore"]:
 		var row: Variant = rings.get(id, {})
@@ -223,9 +294,69 @@ func _camp_place(node: Node3D, name: String, kind: StringName, default_cell: Vec
 		node.set_grid_pose(cell, rot)
 	build_grid.occupy(node, build_grid.cells_for(kind, cell, rot))
 
-## Dry land above the beach and inside the land radius.
+## Dry land above the beach, inside the land radius, on walkable ground: never the river channel,
+## a cliff face or the sea. Reads the precomputed grids only (TilePath and build checks call this
+## per tile).
 func is_dry(pos: Vector3) -> bool:
-	return Vector2(pos.x, pos.z).length() <= land_radius() - 2.0 and surface_y(pos.x, pos.z) >= 0.4
+	if not dry_walk.is_empty():
+		if pos.x < -_size * 0.5 or pos.z < -_size * 0.5 or pos.x >= _size * 0.5 or pos.z >= _size * 0.5:
+			return false
+		var tx := int(floor(pos.x + _size * 0.5))
+		var tz := int(floor(pos.z + _size * 0.5))
+		var idx := clampi(tx, 0, _tile_span - 1) + clampi(tz, 0, _tile_span - 1) * _tile_span
+		return dry_walk[idx] == 1
+	# Before the tile map exists (and for any caller with a position off the grid).
+	if rad_at(pos.x, pos.z) > land_radius() - 2.0:
+		return false
+	return surface_y(pos.x, pos.z) >= 0.4
+
+## Distance (m) from the ring centre to the FARTHEST dry tile: the spawn rings are clamped to
+## this, so the band reaches the far shore of an elongated island instead of stopping at a
+## land_radius circle while the far half gets no spawns.
+func farthest_dry_radius() -> float:
+	if dry_walk.is_empty():
+		return land_radius() * 1.10
+	var c := ring_centre()
+	var half := _size * 0.5
+	var best := 0.0
+	for z in _tile_span:
+		for x in _tile_span:
+			if dry_walk[x + z * _tile_span] == 0:
+				continue
+			var wx := -half + float(x) + 0.5
+			var wz := -half + float(z) + 0.5
+			best = maxf(best, Vector2(wx - c.x, wz - c.y).length())
+	return maxf(best, land_radius())
+
+## Tile rect (BuildGrid tile coordinates) holding every dry tile: TilePath's grid is built from it.
+## Computed once per island when the tile map exists (1 m tiles), cached.
+func dry_bbox() -> Rect2i:
+	if _dry_bbox.size.x > 0:
+		return _dry_bbox
+	if tile_types.is_empty():
+		return Rect2i()
+	var span := _tile_span
+	var half := _size * 0.5
+	var lo := Vector2i(span, span)
+	var hi := Vector2i(-span, -span)
+	var off := span / 2
+	for z in span:
+		for x in span:
+			if not _is_dry_tile(x, z, half):
+				continue
+			# Tile map indices -> BuildGrid world tiles (1 m cells at floor(world)).
+			var t := Vector2i(x - off, z - off)
+			lo = Vector2i(mini(lo.x, t.x), mini(lo.y, t.y))
+			hi = Vector2i(maxi(hi.x, t.x), maxi(hi.y, t.y))
+	if hi.x < lo.x:
+		return Rect2i()
+	_dry_bbox = Rect2i(lo, hi - lo + Vector2i.ONE)
+	return _dry_bbox
+
+var _dry_bbox: Rect2i = Rect2i()
+
+func _is_dry_tile(x: int, z: int, _half: float) -> bool:
+	return dry_walk[x + z * _tile_span] == 1
 
 func on_harbour_approach(pos: Vector3) -> bool:
 	return harbour != null and HarbourSite.on_approach(harbour.build_cell, harbour.build_rot, Vector2(pos.x, pos.z)) \
@@ -363,9 +494,19 @@ func harvest_tile_snapshot() -> Dictionary:
 			"node_id": node_id,
 			"regen_left": left,
 		})
-	return {"bare_tiles": arr}
+	# Scenery props cleared by this save (owner: most props can be destroyed except big cliffs). They
+	# ride this snapshot so no save key and no schema bump is needed; IslandProps reads it back.
+	var snap := {"bare_tiles": arr}
+	if props != null and is_instance_valid(props) and props.has_method("snapshot"):
+		snap["props"] = props.snapshot()
+	return snap
 
 func apply_harvest_tile_snapshot(snap: Dictionary) -> void:
+	var pv: Variant = snap.get("props", null)
+	if pv is Dictionary and props != null and is_instance_valid(props) and props.has_method("apply_snapshot"):
+		props.apply_snapshot(pv as Dictionary)
+	# Stale rows are dropped: a bare tile whose node does not exist in this layout (an old island's
+	# id) would otherwise paint BARE at an unrelated coordinate until it regrows.
 	var arr: Variant = snap.get("bare_tiles", [])
 	if not arr is Array:
 		return
@@ -373,6 +514,9 @@ func apply_harvest_tile_snapshot(snap: Dictionary) -> void:
 		if not row_v is Dictionary:
 			continue
 		var row := row_v as Dictionary
+		var nid := str(row.get("node_id", ""))
+		if nid != "" and not _harvest_nodes.is_empty() and not _harvest_nodes.has(nid):
+			continue
 		var tile_a: Array = row.get("tile", [0, 0])
 		if tile_a.size() < 2:
 			continue
@@ -388,9 +532,67 @@ func apply_harvest_tile_snapshot(snap: Dictionary) -> void:
 func is_claimed(tile: Vector2i) -> bool:
 	return IslandClaims.is_claimed(self, tile)
 
-## Claim a 14x14 plot centred on the tile; returns false when it overlaps water or an existing claim centre.
-func claim_at(tile: Vector2i, size: int = 14) -> bool:
+## CLAIMS2 / spec 29: claim the cell the tile stands in; false when it cannot be claimed (water, a
+## cliff, another survivor, the cap, or not next to the domain).
+func claim_at(tile: Vector2i, size: int = 0) -> bool:
 	return IslandClaims.claim_at(self, tile, size)
+
+## The tile rect of the cell a claim at `tile` would take (IslandClaims.plot_for).
+func claim_plot(tile: Vector2i, size: int = 0) -> Rect2i:
+	return IslandClaims.plot_for(self, tile)
+
+## Why a claim at `tile` would be refused, "" when it would be staked (IslandClaims.block_reason).
+func claim_block_reason(tile: Vector2i, size: int = 0) -> String:
+	return IslandClaims.block_reason(self, tile, size)
+
+## Why a claim at `tile` would not expand the land held here, "" when it would (IslandClaims.expand_reason).
+func claim_expand_reason(tile: Vector2i, size: int = 0) -> String:
+	return IslandClaims.expand_reason(self, tile, size)
+
+## The cells this domain may grow into now (IslandClaims.eligible_cells): the preview's candidates.
+func claim_eligible_cells(centre: Vector2i = IslandClaims.NO_CELL, radius: int = -1) -> Array[Vector2i]:
+	return IslandClaims.eligible_cells(self, centre, radius)
+
+## The preview around `centre`: {"claimed", "eligible", "invalid"} (IslandClaims.preview).
+func claim_preview(centre: Vector2i, radius: int = IslandClaims.PREVIEW_RADIUS) -> Dictionary:
+	return IslandClaims.preview(self, centre, radius)
+
+## Claim a batch of cells as Declare or Expand (IslandClaims.claim_cells): {"ok", "reason", "cells"}.
+func claim_domain(cells: Array) -> Dictionary:
+	return IslandClaims.claim_cells(self, cells)
+
+## Give up the domain's cells (the camp's own land stays): the Domain screen's Release.
+func clear_domain() -> void:
+	IslandClaims.clear_domain(self)
+
+## Cells held / the cap (spec 29 section 4).
+func claim_used() -> int:
+	return IslandClaims.used(self)
+
+func claim_cap() -> int:
+	return IslandClaims.cap(self)
+
+## Why this island refuses more land now ("" below the cap): the notice the HUD and the Domain
+## screen show. The cap reason wins; otherwise the ground is the reason.
+func claim_limit_reason() -> String:
+	if IslandClaims.at_cap(self):
+		return "Claim limit reached (%d/%d)" % [IslandClaims.used(self), IslandClaims.cap(self)]
+	return ""
+
+## The domain record (spec 29 section 3): domain_id, kind, island_id, owner, cells, max_cells, status.
+func domain_record() -> Dictionary:
+	return IslandClaims.to_save(self)
+
+func classify_cell(cell: Vector2i) -> Dictionary:
+	return IslandClaims.classify(self, cell)
+
+## Whose land the tile is, {} when nobody's (IslandClaims.owner_at).
+func owner_at(tile: Vector2i) -> Dictionary:
+	return IslandClaims.owner_at(self, tile)
+
+## Other players' claims on this island, replacing the last set (IslandClaims.set_others).
+func set_other_claims(rows: Array) -> void:
+	IslandClaims.set_others(self, rows)
 
 # Kept for labs, the HUD and has_method() callers that reach into the runtime.
 func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringName, tool: StringName, climate: String, level: int, color: Color) -> int:

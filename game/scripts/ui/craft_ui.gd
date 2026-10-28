@@ -23,6 +23,7 @@ const NO_LEVEL := LevelDisplay.NONE
 const FOOTER_H := 64.0
 
 var player: Player
+## The Craft/Build menu (BuildUI). Its row at the top of the station list opens it.
 var _station: String = ""
 var _root: VBoxContainer
 var _body: GridContainer
@@ -68,7 +69,8 @@ func _ready() -> void:
 	_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_hint.clip_text = true
 	header.add_child(_hint)
-	header.add_child(_mk_btn("Close", hide_ui, Vector2(120, 56)))
+	# CRAFTFEEL: 64 px on a phone (a landscape phone is compact too), 56 px on desktop.
+	header.add_child(_mk_btn("Close", hide_ui, Vector2(120, 64 if _pinned_actions() else 56)))
 	_body = GridContainer.new()
 	_body.columns = 3
 	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -172,6 +174,19 @@ func _refresh_tabs() -> void:
 	for c in _tabs.get_children():
 		_tabs.remove_child(c)  # detach first: focus_first and finds must not see rows about to go
 		c.queue_free()
+	# Spec 30 §2: the Build (blueprint) menu is a row here, above the station groups; it is the
+	# whole construction flow, so it never reads as "no station built".
+	if player:
+		var bb := _mk_btn("Build\nblueprints · construction", _open_build, Vector2(228 if _single_pane() else 190, 64))
+		bb.name = "BuildRow"
+		bb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		bb.clip_text = true
+		bb.icon = HexButton.symbol(["hammer", "workbench_kit"])
+		bb.material = HexButton.white_material()
+		bb.expand_icon = true
+		bb.add_theme_constant_override("icon_max_width", 28)
+		bb.add_theme_color_override("font_color", UiTokens.TEAL)
+		_tabs.add_child(bb)
 	for row in STATIONS:
 		var sid: String = row[0]
 		var info := _station_info(sid)
@@ -200,6 +215,13 @@ func _refresh_tabs() -> void:
 			b.add_theme_color_override("font_color", UiTokens.TEXT)
 			b.add_theme_stylebox_override("normal", UiTokens.button_style(true))
 		_tabs.add_child(b)
+
+## The Build menu is created on first press, so the craft sheet works before anything is built.
+func _open_build() -> void:
+	hide_ui()
+	var ui := BuildUI.ensure(player)
+	if ui:
+		ui.open()
 
 func _pick_station(sid: String) -> void:
 	_station = sid
@@ -230,6 +252,10 @@ func _refresh_list() -> void:
 	_title.text = "Craft · %s" % name
 	if _station == "":
 		_hint.text = "Hand recipes craft anywhere. The hex over the survivor fills once per item."
+	elif info["near"] and ProcessStation.of(info.get("node", null)) != null and ProcessStation.of(info.get("node", null)).capacity() > 0:
+		# Spec 30 §13: the station's own job queue, so a queued job is visible where it was started.
+		var ps := ProcessStation.of(info.get("node", null))
+		_hint.text = "%s in reach · %d/%d jobs running, %d ready · %s" % [name, ps.running_count(), ps.capacity(), ps.ready_count(), ps.time_left_text() if ps.time_left_text() != "" else "queue free"]
 	elif info["near"]:
 		_hint.text = "%s in reach. Pick a recipe: the hex over it fills once per item." % name
 	elif info["exists"]:
@@ -257,6 +283,13 @@ func _block_reason(rec: Dictionary, info: Dictionary) -> String:
 	var blocked := Crafting.progression_block(player, rec)
 	if blocked != "":
 		return "Locked"
+	# Spec 30 §10-11: a station's tags and its level gate the recipe, and the row says which.
+	if _station != "":
+		var st: Variant = info.get("node", null)
+		if st is CraftStation:
+			var gate := CraftStation.station_gate(rec, (st as CraftStation).station_tags, (st as CraftStation).station_level, StringName(_station))
+			if gate != "":
+				return gate + "  " + str(rec.get("id", "")).replace("_", " ").capitalize()
 	if not Crafting.picks_valid(player.inventory, rec, Crafting.default_picks(player.inventory, rec)):
 		return "Missing items"
 	if _station != "" and not info["exists"]:
@@ -272,7 +305,8 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	var phone := UiTokens.is_compact(view)
 	var row := Button.new()
 	row.toggle_mode = false
-	row.custom_minimum_size = Vector2(0, 60)
+	# CRAFTFEEL: a phone row is a 64 px tap target (these rows are the recipe pickers on the list).
+	row.custom_minimum_size = Vector2(0, 64 if UiTokens.is_compact(view) else 60)
 	row.add_theme_stylebox_override("normal", UiTokens.button_style(chosen))
 	row.pressed.connect(_choose_recipe.bind(str(rec.get("id", ""))))
 	var h := HBoxContainer.new()
@@ -307,7 +341,7 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	text.add_child(name)
 	var meta := Label.new()
 	meta.name = "RecipeMeta"
-	meta.text = "%s · %.1fs%s" % [LevelDisplay.recipe_label(player.inventory, rec), Crafting.recipe_seconds(rec), ("  ·  " + reason) if reason != "" else ""]
+	meta.text = "%s · %s%s" % [LevelDisplay.recipe_label(player.inventory, rec), Crafting.preview_time(rec), ("  ·  " + reason) if reason != "" else ""]
 	meta.clip_text = true
 	meta.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	meta.add_theme_font_size_override("font_size", UiTokens.meta(view))
@@ -317,7 +351,8 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 		var label := "Craft"
 		if _station != "" and not info["near"]:
 			label = "Walk & craft" if not phone else "Walk"
-		var b := _mk_btn(label, _start.bind(rec, 1), Vector2(96 if phone else 132, 48))
+		# CRAFTFEEL: a phone tap target is 64 px, never the desktop 48 px row button.
+		var b := _mk_btn(label, _start.bind(rec, 1), Vector2(96 if phone else 132, 64 if phone else 48))
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(b)
 	return row
@@ -403,9 +438,9 @@ func _station_info(sid: String) -> Dictionary:
 		return {"exists": true, "near": true, "dist": 0.0}
 	var n := Crafting.nearest_station(player, StringName(sid))
 	if n == null:
-		return {"exists": false, "near": false, "dist": 0.0}
+		return {"exists": false, "near": false, "dist": 0.0, "node": null}
 	var d := player.global_position.distance_to(n.global_position)
-	return {"exists": true, "near": d <= Crafting.STATION_RANGE + 0.35, "dist": d}
+	return {"exists": true, "near": d <= Crafting.STATION_RANGE + 0.35, "dist": d, "node": n}
 
 func _show_detail(info: Dictionary) -> void:
 	if _detail == null:
@@ -442,11 +477,26 @@ func _show_detail(info: Dictionary) -> void:
 	_detail.add_child(icon)
 	var title := Label.new()
 	title.name = "DetailTitle"
-	title.text = "%s\n%s · %.1fs    ×%d" % [out_name, LevelDisplay.recipe_label(player.inventory, rec), Crafting.recipe_seconds(rec), int(out_row.get("count", 1))]
+	title.text = "%s\n%s · %s    ×%d" % [out_name, LevelDisplay.recipe_label(player.inventory, rec), Crafting.preview_time(rec), int(out_row.get("count", 1))]
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 	title.add_theme_color_override("font_color", UiTokens.TEXT)
 	_detail.add_child(title)
+	# CRAFTFEEL (plan §3.3, specs 04/25 §8): a craft has stakes, so the detail says the odds and the
+	# price of failing before the player presses Craft. The numbers come from Crafting's own functions,
+	# the same ones the craft rolls, so the preview cannot advertise a chance the result does not use.
+	var picks := Crafting.default_picks(player.inventory, rec)
+	var primary: ItemStack = null
+	if picks.size() > Crafting.primary_index(rec) and picks[Crafting.primary_index(rec)] >= 0:
+		primary = player.inventory.slots[picks[Crafting.primary_index(rec)]]
+	var qual := Crafting.preview_quality(rec, player, primary)
+	var odds := Label.new()
+	odds.name = "DetailChance"
+	odds.text = craftfeel_text(qual)
+	odds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	odds.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+	odds.add_theme_color_override("font_color", Color(0.95, 0.85, 0.5) if float(qual["success"]) < 0.999 else UiTokens.TEXT)
+	_detail.add_child(odds)
 	var stats := LevelDisplay.stat_lines(out_def)
 	if not stats.is_empty():
 		var st := Label.new()
@@ -455,6 +505,16 @@ func _show_detail(info: Dictionary) -> void:
 		st.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
 		st.add_theme_color_override("font_color", UiTokens.META)
 		_detail.add_child(st)
+	# Spec 31 §10: a bag preview built by the same function the craft uses (Crafting.bag_preview).
+	var prev := Crafting.bag_preview(player.inventory, rec, Crafting.default_picks(player.inventory, rec), player)
+	if not prev.is_empty():
+		var bl := Label.new()
+		bl.name = "DetailBagPreview"
+		bl.text = "BAG PREVIEW\n" + _bag_preview_text(prev)
+		bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		bl.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+		bl.add_theme_color_override("font_color", UiTokens.TEXT)
+		_detail.add_child(bl)
 	# W2-SKILLS: a recipe a skill node gates is listed but locked (spec 03): say what unlocks it,
 	# above the ingredients so a phone shows it without scrolling.
 	var locked := Crafting.progression_block(player, rec)
@@ -569,3 +629,45 @@ func _mk_btn(text: String, cb: Callable, minsz: Vector2) -> Button:
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
 	b.pressed.connect(cb)
 	return b
+
+## CRAFTFEEL: the stake lines of a recipe card. Success, flawless, the inherited primary traits, and —
+## only when a failure is possible — that the materials are lost. A recipe that cannot fall short
+## (required_ability 0, every recipe today) reads "Success 100 %", like the skewer in spec 25 §8.
+static func craftfeel_text(qual: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	lines.append("Success %d%%   Flawless %d%%" % [int(round(float(qual.get("success", 1.0)) * 100.0)), int(round(float(qual.get("flawless", 0.0)) * 100.0))])
+	var req := float(qual.get("required_ability", 0.0))
+	if req > 0.0:
+		lines.append("Ability %.0f / %.0f needed" % [float(qual.get("ability", 0.0)), req])
+	var inherited: Array = qual.get("inherited", [])
+	if not inherited.is_empty():
+		var names: PackedStringArray = []
+		for a: Variant in inherited:
+			names.append(str(a).replace("_", " ").capitalize())
+		lines.append("Inherits: %s" % ", ".join(names))
+	if bool(qual.get("loses_materials", false)):
+		lines.append("Materials are lost on failure.")
+	return "\n".join(lines)
+
+## Spec 31 §10 preview lines: expected level, base storage, inherited storage attributes, Pocket,
+## other modifiers, final expected capacity, and the survivor's capacity wearing it. Numbers come from
+## Crafting.bag_preview, so this text can never disagree with the crafted bag.
+static func _bag_preview_text(prev: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	lines.append("Expected level: %d" % int(prev.get("level", 0)))
+	lines.append("Base storage: +%d" % int(prev.get("base", 0)))
+	var inherited: Dictionary = prev.get("inherited", {})
+	for key: Variant in inherited:
+		var k := str(key)
+		if k == "pocket":
+			continue
+		lines.append("%s inherited: %s" % [k.capitalize(), str(inherited[key])])
+	lines.append("Pocket %s: +%d" % [LevelDisplay.label(int(prev.get("pocket_level", 0))), int(prev.get("pocket", 0))])
+	if int(prev.get("capacity", 0)) > 0:
+		lines.append("Capacity attribute: +%d" % int(prev.get("capacity", 0)))
+	if int(prev.get("other", 0)) > 0:
+		lines.append("Bag modifier: +%d" % int(prev.get("other", 0)))
+	lines.append("Final storage: +%d" % int(prev.get("bonus", 0)))
+	lines.append("Worn bag capacity: %d" % int(prev.get("total_capacity", 0)))
+	lines.append("Success: %d%%   Flawless: %d%%" % [int(round(float(prev.get("success", 1.0)) * 100.0)), int(round(float(prev.get("flawless", 0.0)) * 100.0))])
+	return "\n".join(lines)

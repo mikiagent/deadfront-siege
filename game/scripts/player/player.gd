@@ -30,7 +30,7 @@ var controls: PlayerInput
 var actions: PlayerActions
 var pets: PlayerPets
 
-var inventory: Inventory = Inventory.new(20)
+var inventory: Inventory = Inventory.new() # Inventory.BASE_SLOTS (pack 05)
 var vitals: Vitals
 var statuses: StatusEffects
 var hunt: Hunt
@@ -39,6 +39,9 @@ var skills: SkillState
 var equipment: PlayerEquipment
 var ui: InventoryUI
 var craft_ui
+## The Craft/Build construction menu (BuildUI); HuntHud creates it on first use, so a lab without
+## the HUD still opens sites through actions.building_interact only when one exists.
+var build_ui
 var station_craft: StationCraft
 var eat_session: EatSession
 var food_buffs := FoodBuffState.new()
@@ -49,6 +52,10 @@ var _saddle_view: CreatureView
 var rolling: bool = false
 ## Feet under the water plane (river or sea); PlayerSim sets it every physics frame (WaterAccess).
 var in_water: bool = false
+## Deep enough that the survivor is buoyant rather than wading; PlayerSim owns the transition.
+var swimming: bool = false
+## Persistent mobile/desktop sprint mode. The keyboard/gamepad hold action still works alongside it.
+var sprint_toggled: bool = false
 ## The climate of the island the survivor is on, set by the island each frame. The fatigue panel reads it.
 var current_climate: String = ""
 ## True from the fatal hit until respawn(): no input, no regen, creatures lose interest,
@@ -57,6 +64,11 @@ var dead: bool = false
 ## Presentation only: who landed the hit that left the survivor down. Cleared on respawn.
 var downed_by: String = ""
 var _last_hit_taken_s: float = -999.0
+## The physics frame a roll dodged a hit on (RollRules window), so the hit reaction skips it.
+var _roll_dodged_frame: int = -1
+## Skill node bonuses cached by the SP spent, so refresh_equipment_vitals (every frame) does not walk trees.json.
+var _skills_bonus_sp: int = -1
+var _skills_health_bonus: float = 0.0
 var _sleep_left: float = 0.0
 
 # Work in progress. PlayerActions drives these; labs, the HUD and the anim tick read them.
@@ -151,6 +163,41 @@ func half_height() -> float:
 
 func feet_position() -> Vector3:
 	return global_position - Vector3(0.0, half_height(), 0.0)
+
+func is_swimming() -> bool:
+	return swimming
+
+## The selected resource or animal that the follow camera should leave room for.
+func camera_interest() -> Node3D:
+	if hunt and hunt.target and is_instance_valid(hunt.target):
+		return hunt.target
+	if tame_target and is_instance_valid(tame_target):
+		return tame_target
+	if gather_target and is_instance_valid(gather_target):
+		return gather_target
+	if _gather_radial:
+		var radial_target: Variant = _gather_radial.focus_node()
+		if radial_target is Node3D and is_instance_valid(radial_target):
+			return radial_target as Node3D
+	return null
+
+func toggle_sprint() -> bool:
+	sprint_toggled = not sprint_toggled
+	return sprint_toggled
+
+## Combat mode targets the nearest wild animal; a second tap cleanly disengages.
+func toggle_combat() -> bool:
+	if hunt == null:
+		return false
+	if hunt.target and is_instance_valid(hunt.target):
+		hunt.stop()
+		return false
+	var target := actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
+	if target == null:
+		notice("No animal in range")
+		return false
+	hunt.start(target)
+	return true
 
 # ---------------------------------------------------------------- movement, facing
 
@@ -319,12 +366,25 @@ func display_name() -> String:
 
 # ---------------------------------------------------------------- damage, death, respawn
 
+## Worn gear's health bonus, plus the skill nodes whose stat effect the game runs (Defense's Max Health I-III,
+## Survival's Belly Fat 1): SkillRules.ability totals, recounted here so a purchase shows the next frame.
 func refresh_equipment_vitals() -> void:
 	if vitals and inventory:
 		vitals.equipment_health_bonus = inventory.equipped_health_bonus()
+		if skills and skills.sp_spent != _skills_bonus_sp:
+			# Recount only when a purchase or refund changed (this runs every physics frame): the totals
+			# walk every node in trees.json.
+			_skills_bonus_sp = skills.sp_spent
+			_skills_health_bonus = float(SkillRules.ability(skills, "max_health"))
+			vitals.energy_bonus = float(SkillRules.ability(skills, "max_energy"))
+		if skills:
+			vitals.equipment_health_bonus += _skills_health_bonus
 		vitals.health = minf(vitals.health, vitals.effective_max_health())
 
 func receive_creature_hit(who: Creature, _clip: StringName) -> void:
+	if _roll_dodged_frame >= 0 and Engine.get_physics_frames() - _roll_dodged_frame <= 1:
+		_roll_dodged_frame = -1  # rolled through: no hit reaction, no fatigue, no separate XP
+		return
 	_last_hit_taken_s = Time.get_ticks_msec() * 0.001
 	if who and who.def:
 		downed_by = str(who.def.id).replace("_", " ").capitalize()
@@ -340,20 +400,39 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	vitals.add_fatigue(2.0, &"combat")
 	WaterAccess.soil(self, &"hit")
 	_flinch()
-	sim.on_hit()
 
-## Hit reaction clip; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse).
+## A creature hit that reached her inside the roll's opening window: no damage, no stagger, no
+## statuses (CreatureAttack returns before any of them) and a "Dodged" float. Defense XP is paid
+## only when the attack would have hit her anyway (`lands`, the accuracy roll), once per attack, so
+## pressing Roll alone never pays (spec 07 §2).
+func roll_dodge(clip: StringName, who: Creature, lands: bool) -> void:
+	if sim == null:
+		return
+	_roll_dodged_frame = Engine.get_physics_frames()
+	notice("Dodged")  # a small "Dodged" line on the HUD: the hit never touched her
+	if lands and skills:
+		skills.add_xp("defense", RollRules.defense_xp())
+	print("[combat] dodged by roll %s %s t=%.2f xp=%s" % [who.def.id if who and who.def else "?", clip, sim.roll_elapsed(), lands])
+
+## Hit reaction; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse). The
+## hurt clip plays only with the stun (PlayerSim.on_hit): inside the stun immunity a hit damages
+## without restarting it, so bites cannot chain-stun her.
 func _flinch() -> void:
 	if anim == null or rolling:
 		return
+	var stunned := sim.on_hit() if sim else true
 	if statuses and statuses.has_flag(&"knockdown"):
 		anim.play_clip(&"knockdown")
-	else:
+	elif stunned:
 		anim.on_damaged()
 
 func _on_vitals_damaged() -> void:
+	if statuses.ticking and (sim.rest.resting or _sleep_left > 0.0 or sim._sleep_pending != null):
+		return  # a bleed or stomachache tick hurts, but only hits and fights end a rest, a sleep or the walk to bed (spec 01:19)
 	sim.interrupt_sleep()
 	actions.cancel_work()
+	if statuses.ticking:
+		return  # a bleed/poison tick damages but never stuns: ticks every 0.5 s re-stunned her forever (owner bug)
 	_flinch()
 
 func _on_vitals_died() -> void:
@@ -387,8 +466,7 @@ func respawn() -> void:
 	dead = false
 	downed_by = ""
 	if statuses:
-		for inst in statuses.instances().duplicate():
-			statuses.clear_id(inst.id)
+		statuses.clear_all()  # also gives back what a status took off max HP (SAVEFIX)
 	vitals.revive(0.5)
 	var at := global_position
 	if World.runtime and World.runtime.get("_camp_pos") != null:
@@ -456,4 +534,5 @@ func tick_climate_fatigue(delta: float, climate: String) -> void:
 	var points := float(short[group])
 	if points > 0.0:
 		var mult := statuses.heat_fatigue_mult() if group == "heat" else 1.0  # Quenched (PRD :314)
+		mult *= sim.rest.climate_mult(group)  # sitting by the fire (PRD :285)
 		vitals.add_fatigue(delta * points * (per_min / 60.0) * mult, StringName("climate_" + group))

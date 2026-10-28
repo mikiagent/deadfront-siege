@@ -1,0 +1,9 @@
+tier,station,input,count,restore_fraction
+stone,workbench,tier_stone,1,0.5
+bone,workbench,bone,1,0.5
+flint,workbench,tier_flint,1,0.5
+obsidian,workbench,tier_obsidian,1,0.5
+copper,anvil,tier_copper,1,0.5
+bronze,anvil,tier_bronze,1,0.5
+iron,anvil,tier_iron,1,0.5
+steel,anvil,tier_steel,1,0.5

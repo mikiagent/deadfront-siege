@@ -17,12 +17,18 @@ var _selected_region: String = ""
 const MARGIN := 24.0
 ## Marker colours, one per kind, far apart from each other and from the green/sand/sea map.
 const LEGEND := {
+	"claim": [Color(0.72, 0.42, 0.12), "Claim"],
+	"campfire": [Color(1.0, 0.98, 0.62), "Fire"],
+	"facility": [Color(0.35, 0.95, 0.70), "Station"],
+	"you": [Color(1.0, 1.0, 1.0), "You"],
+	"trail": [Color(0.04, 0.04, 0.04), "Footsteps"],
+	"other": [Color(0.45, 0.47, 0.52), "Other player"],
 	"camp": [Color(1.0, 0.82, 0.22), "Camp"],
 	"harbour": [Color(0.45, 0.70, 1.0), "Harbour"],
 	"crater": [Color(1.0, 0.55, 0.0), "Crater"],
 	"wild": [Color(0.95, 0.20, 0.25), "Wild animal"],
 	"pet": [Color(0.80, 0.45, 1.0), "Pet"],
-	"tree": [Color(0.05, 0.22, 0.10), "Trees"],
+	"tree": [Color(0.12, 0.32, 0.16), "Trees"],
 	"rock": [Color(0.80, 0.80, 0.84), "Rocks"],
 	"plant": [Color(0.62, 1.0, 0.20), "Plants"],
 }
@@ -34,21 +40,103 @@ const PHONE_LEGEND_COLS := 3
 const LEGEND_ROW_H := 22.0
 ## Portrait phone bands, top to bottom: header, one island card, map, legend (three rows), zoom, actions.
 const PHONE_CARD_TOP := 108.0
+## Drawn half-size of one atlas symbol: readable at 844x390 without covering the island.
+const ICON_PX := 26.0
+## Legend rows. Capped at eight: the landscape-phone legend is one column between the header and
+## the action row, and a ninth row ran into the buttons. Spec 15's own legend (You, Other Player,
+## Shelter, Harbor, Bonfire) plus spec 25's claims, facilities and the resource dots.
+const LEGEND_ORDER := ["claim", "campfire", "facility", "harbour", "camp", "other", "wild", "tree"]
 const PHONE_MAP_TOP := 236.0
 
 static func legend_color(kind: String) -> Color:
 	return (LEGEND[kind] as Array)[0]
 
 ## One map mark. The harbour is a square with a dark edge: as a light-blue dot it sat lost on the
-## light-blue shallows.
+## light-blue shallows. Claims, fires and facilities use their own symbols (MapIcons).
 func _mark(at: Vector2, radius: float, kind: String, ring: Color) -> void:
-	if kind == "harbour":
-		var sq := Rect2(at - Vector2(radius, radius), Vector2(radius, radius) * 2.0)
-		draw_rect(sq, legend_color(kind))
-		draw_rect(sq.grow(1.0), ring, false, 2.0)
-		return
-	draw_circle(at, radius, legend_color(kind))
-	draw_circle(at, radius, ring, false, 1.0)
+	match kind:
+		"harbour":
+			var sq := Rect2(at - Vector2(radius, radius), Vector2(radius, radius) * 2.0)
+			draw_rect(sq, legend_color(kind))
+			draw_rect(sq.grow(1.0), ring, false, 2.0)
+		"claim":
+			MapIcons.claim(self, at, radius * 1.1, legend_color(kind), ring)
+		"campfire":
+			MapIcons.flame(self, at, radius * 0.8, legend_color(kind), ring)
+		"facility":
+			MapIcons.facility(self, at, radius * 0.8, legend_color(kind), ring)
+		_:
+			draw_circle(at, radius, legend_color(kind))
+			draw_circle(at, radius, ring, false, 1.0)
+
+## The fog this atlas draws (the current island's), or null without a world.
+func _fog() -> MapFog:
+	return World.map_fog
+
+## Rebuilt fog overlay, tinted into the atlas. A null texture means "nothing greyed yet".
+func _fog_texture() -> ImageTexture:
+	var f := _fog()
+	return f.texture() if f else null
+
+## Every symbol the atlas puts on the map, measured from the live scene: claims, fires, facilities,
+## the harbour, the camp and (online) other survivors. `at` is a world position, the caller maps it.
+func _icon_marks() -> Array:
+	var out: Array = []
+	var rt := World.runtime
+	if rt == null:
+		return out
+	for rect in World.claims_for_current():
+		var r := Rect2i()
+		if rect is Rect2i:
+			r = rect as Rect2i
+		elif rect is Array and (rect as Array).size() >= 4:  # the saved [x, z, w, d] row
+			var row := rect as Array
+			r = Rect2i(int(row[0]), int(row[1]), int(row[2]), int(row[3]))
+		else:
+			continue
+		# A house on the claim's centre tile (the reference puts the owner's domain on the coast).
+		out.append({"kind": "claim", "at": Vector3(float(r.get_center().x) + 0.5, 0.0, float(r.get_center().y) + 0.5)})
+	# CLAIMS2: a domain is a set of cells on the runtime, not a list of rects; the legacy rows above are
+	# an old save's shape. Mark the declared domain's centre so the atlas keeps its house icon.
+	if out.is_empty() and IslandClaims.has_domain(rt):
+		var cells := IslandClaims.owned_cells(rt)
+		if not cells.is_empty():
+			var sum := Vector2.ZERO
+			for c: Vector2i in cells:
+				sum += Vector2(c)
+			var centre: Vector2 = sum / float(cells.size())
+			out.append({"kind": "claim", "at": Vector3(centre.x + 0.5, 0.0, centre.y + 0.5)})
+	var camp: Variant = rt.get("_camp_pos")
+	if camp is Vector3:
+		out.append({"kind": "camp", "at": camp})
+	var harb: Variant = rt.get("_harbour_pos")
+	if harb is Vector3:
+		out.append({"kind": "harbour", "at": harb})
+	for n in get_tree().get_nodes_in_group("placed_building"):
+		if n == null or n.is_queued_for_deletion() or not rt.is_ancestor_of(n):
+			continue
+		var kind := str(n.get("kind") if n.get("kind") != null else "")
+		var pos: Vector3 = (n as Node3D).global_position
+		if kind in ["bonfire", "campfire", "stone_fire_pit"] or n.is_in_group("bonfire"):
+			out.append({"kind": "campfire", "at": pos})
+		elif n.get("station_id") != null or kind in ["workbench", "drying_rack", "mortar", "anvil", "forge", "smoker", "steamer", "stone_grill", "well", "crock_pot"]:
+			out.append({"kind": "facility", "at": pos})
+	for p in PlayerRegistry.all():
+		if p == player:
+			continue
+		out.append({"kind": "other", "at": p.global_position})
+	return out
+
+## Other survivors on the map (grey dots). Empty offline: the atlas simply has none to draw.
+func _player_dots() -> Array:
+	return _icon_marks().filter(func (m: Dictionary) -> bool: return str(m["kind"]) == "other")
+
+## Smallest atlas symbol hit box in px at `view`. The symbols are drawn at ICON_PX and the tap
+## slop grows them to at least 64 px on a phone (44 on desktop), per the mobile tap-target rule.
+func icon_min_px(view: Vector2) -> float:
+	var base := 64.0 if UiTokens.is_compact(view) else 44.0
+	return maxf(base, ICON_PX * 2.0)
+
 
 ## Legend slot for item i of n: a column on desktop and landscape phones, PHONE_LEGEND_COLS per
 ## row on a portrait phone.
@@ -302,11 +390,9 @@ func _map_rect(L: Dictionary) -> Rect2:
 	var side: float = L["fit"]
 	return Rect2((L["centre"] as Vector2) - Vector2(side, side) * 0.5, Vector2(side, side))
 
+
 func _legend_kinds() -> Array:
-	var kinds: Array = LEGEND.keys()
-	if not World.crater_discovered:
-		kinds.erase("crater")
-	return kinds
+	return LEGEND_ORDER.duplicate()
 
 func _draw() -> void:
 	if player == null or hud == null:
@@ -326,12 +412,29 @@ func _draw() -> void:
 	if tex:
 		var px := size_m * s
 		draw_texture_rect(tex, Rect2(Vector2(-px * 0.5, -px * 0.5), Vector2(px, px)), false)
+	var fog_tex := _fog_texture()
+	if fog_tex:
+		var fpx := size_m * s
+		draw_texture_rect(fog_tex, Rect2(Vector2(-fpx * 0.5, -fpx * 0.5), Vector2(fpx, fpx)), false)
 	var rt := World.runtime
+	# Footsteps: black dots from where you came from (spec 25), over the terrain, under the icons.
+	var f := _fog()
+	if f:
+		var trail_pts: Array = []
+		var trail_alphas: Array[float] = []
+		for i in f.trail.size():
+			var p := f.trail[i]
+			trail_pts.append(Vector2(p.x * s, p.y * s))
+			trail_alphas.append(f.trail_alpha(i))
+		# Dots grow with the map scale: 2 px at phone zoom, ~3.5 px on a desktop atlas.
+		MapIcons.trail(self, trail_pts, clampf(s * 1.6, 1.8, 3.6), trail_alphas)
 	# resource dots: trees dark green, rocks grey, bushes/plants light green
 	for n in get_tree().get_nodes_in_group("harvest"):
 		var hn := n as HarvestNode
 		if hn == null or not hn.visible or hn.depleted:
 			continue
+		if f and not f.revealed_at(hn.global_position):
+			continue  # fog: you cannot see trees you have not walked near
 		var role := str(Data.nature_families.get(hn.family, {}).get("role", ""))
 		var col := legend_color("plant")
 		if role.begins_with("tree"):
@@ -340,16 +443,29 @@ func _draw() -> void:
 			col = legend_color("rock")
 		draw_circle(to_map.call(hn.global_position), 2.2, col)
 	if rt:
+		# Claims, campfires and facilities first (under the survivor and the creatures).
+		for m in _icon_marks():
+			var kind := str(m["kind"])
+			if kind in ["camp", "harbour", "other"]:
+				continue
+			_mark(to_map.call(m["at"]), ICON_PX * 0.5, kind, Color(0.02, 0.05, 0.12, 0.95))
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")
-		draw_circle(to_map.call(camp), 6.0, legend_color("camp"))
-		_mark(to_map.call(harb), 6.0, "harbour", Color(0.02, 0.05, 0.12, 0.95))
+		# The camp dot sits under the fire symbol (they are 2 m apart): keep it small so the two
+		# do not merge into one blob.
+		draw_circle(to_map.call(camp), 4.5, legend_color("camp"))
+		_mark(to_map.call(harb), 7.0, "harbour", Color(0.02, 0.05, 0.12, 0.95))
 		if World.crater_discovered:
 			draw_circle(to_map.call(rt.get("_crater_pos")), 6.0, legend_color("crater"))
+		for m in _player_dots():
+			draw_circle(to_map.call(m["at"]), 4.0, legend_color("other"))
+			draw_circle(to_map.call(m["at"]), 4.0, Color(0.9, 0.9, 0.95, 0.7), false, 1.0)
 	for n in get_tree().get_nodes_in_group("creatures"):
 		var cr := n as Creature
 		if cr == null or cr.health.dead:
 			continue
+		if f and not f.revealed_at(cr.global_position):
+			continue  # fog: a dinosaur you have never seen is not on your map
 		draw_circle(to_map.call(cr.global_position), 3.2, legend_color("pet") if cr.is_pet else legend_color("wild"))
 	var pp := player.global_position
 	var pyaw := player.visual.rotation.y if player.visual else 0.0

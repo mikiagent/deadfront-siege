@@ -39,7 +39,8 @@
       "display_name": "Bark Strip",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -237,7 +238,8 @@
       "display_name": "Fibre Stalk",
       "categories": [
         "fibre",
-        "stalk"
+        "stalk",
+        "strap_material"
       ],
       "stack_max": 30,
       "tool_class": "none",
@@ -250,7 +252,8 @@
       "display_name": "Reed",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 30,
       "tool_class": "none",
@@ -265,7 +268,8 @@
       "id": "root",
       "display_name": "Root",
       "categories": [
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -531,12 +535,15 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 12,
+      "food_energy": 11.308,
       "raw": true,
       "poison_chance": 0.25,
       "tastes_bad_chance": 0.2,
       "market_category": "meat",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "dried_meat",
@@ -607,7 +614,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "omnivore",
-      "food_energy": 22,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -626,13 +633,16 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 10,
+      "food_energy": 8.773,
       "raw": true,
       "poison_chance": 0.25,
       "tastes_bad_chance": 0.2,
       "market_category": "meat",
       "rarity": "common",
-      "source_pending": "fishing: no catch system yet (missions.json catch_fish waits on M7)"
+      "source_pending": "fishing: no catch system yet (missions.json catch_fish waits on M7)",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "raptor_meat",
@@ -646,7 +656,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 16,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1119,10 +1129,13 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 8,
+      "food_energy": 3.428,
       "diet": "herbivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "berry",
@@ -1136,10 +1149,13 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 6,
+      "food_energy": 3.428,
       "diet": "herbivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "clay",
@@ -1236,7 +1252,8 @@
       "id": "palm_frond",
       "display_name": "Palm Frond",
       "categories": [
-        "fibre"
+        "fibre",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -1254,10 +1271,13 @@
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 12,
+      "food_energy": 4.66,
       "diet": "herbivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "bamboo",
@@ -1281,17 +1301,21 @@
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 10,
+      "food_energy": 4.66,
       "diet": "herbivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "vine",
       "display_name": "Vine",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -1344,7 +1368,8 @@
       "id": "ice",
       "display_name": "Ice",
       "categories": [
-        "water"
+        "water",
+        "ice"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -1373,14 +1398,18 @@
       "id": "cactus_flesh",
       "display_name": "Cactus Flesh",
       "categories": [
-        "food"
+        "food",
+        "cactus"
       ],
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 6,
+      "food_energy": 2.617,
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "cactus_spine",
@@ -1613,13 +1642,16 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 8,
+      "food_energy": 1.994,
       "raw": true,
       "poison_chance": 0.35,
       "tastes_bad_chance": 0.25,
       "diet": "omnivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "spice_herb",
@@ -1690,12 +1722,15 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 10,
+      "food_energy": 11.308,
       "raw": true,
       "diet": "carnivore",
       "poison_chance": 0.2,
       "market_category": "meat",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "meatball",
@@ -1709,7 +1744,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 18,
+      "food_energy": 14.153,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1728,7 +1763,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 14,
+      "food_energy": 13.745,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1766,7 +1801,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 24,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1785,7 +1820,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 20,
+      "food_energy": 12.727,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1804,7 +1839,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 28,
+      "food_energy": 6.163,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1824,7 +1859,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 30,
+      "food_energy": 6.163,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1859,7 +1894,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "omnivore",
-      "food_energy": 22,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1880,7 +1915,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "omnivore",
-      "food_energy": 24,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1968,10 +2003,13 @@
       "stack_max": 30,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 8,
+      "food_energy": 6.163,
       "diet": "herbivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "wheat",
@@ -2011,9 +2049,12 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 15,
+      "food_energy": 13.053,
       "market_category": "food_cooked",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "herbivore_feed",
@@ -2026,9 +2067,12 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "herbivore",
-      "food_energy": 12,
+      "food_energy": 13.053,
       "market_category": "food_cooked",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "field_small_kit",
@@ -3802,6 +3846,395 @@
       "base_level": 1,
       "rarity": "uncommon",
       "market_category": "medicine"
+    },
+    {
+      "id": "woven_bag",
+      "display_name": "Woven Bag",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 20,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "bag_def": "basic_bag",
+      "_about": "Spec 31 \u00a72 migration: the old stand-in bag. Saves that hold it load as a Basic Bag of the same level (ItemStack.from_dict). New bags are the five defined in data/bags.json.",
+      "source_pending": true
+    },
+    {
+      "id": "basic_bag",
+      "display_name": "Basic Bag",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "common",
+      "bag_def": "basic_bag"
+    },
+    {
+      "id": "small_pouch",
+      "display_name": "Small Pouch",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "common",
+      "bag_def": "small_pouch"
+    },
+    {
+      "id": "large_pouch",
+      "display_name": "Large Pouch",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "bag_def": "large_pouch"
+    },
+    {
+      "id": "advanced_backpack",
+      "display_name": "Advanced Backpack",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "rare",
+      "bag_def": "advanced_backpack"
+    },
+    {
+      "id": "specialized_storage_bag",
+      "display_name": "Specialized Storage Bag",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "epic",
+      "bag_def": "specialized_storage_bag"
+    },
+    {
+      "id": "plank_shape",
+      "display_name": "Plank Shape",
+      "categories": [
+        "component",
+        "plank_shape",
+        "wood"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "building_kit",
+      "rarity": "common"
+    },
+    {
+      "id": "pillar_shape",
+      "display_name": "Pillar Shape",
+      "categories": [
+        "component",
+        "pillar_shape",
+        "wood"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "building_kit",
+      "rarity": "common"
+    },
+    {
+      "id": "strap",
+      "display_name": "Strap",
+      "categories": [
+        "component",
+        "strap",
+        "lashing"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "cordage",
+      "rarity": "common"
+    },
+    {
+      "id": "trimmed_plank",
+      "display_name": "Trimmed Plank",
+      "categories": [
+        "wood",
+        "trimmed_plank"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "building_kit",
+      "rarity": "common"
+    },
+    {
+      "id": "fine_plank",
+      "display_name": "Fine Plank",
+      "categories": [
+        "wood",
+        "fine_plank"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "building_kit",
+      "rarity": "common"
+    },
+    {
+      "id": "spring_water",
+      "display_name": "Spring Water",
+      "categories": [
+        "water",
+        "drink",
+        "food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 4,
+      "market_category": "food_raw",
+      "rarity": "common",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station."
+    },
+    {
+      "id": "tea",
+      "display_name": "Tea",
+      "categories": [
+        "drink",
+        "food",
+        "brew"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 3.102,
+      "market_category": "food_cooked",
+      "rarity": "uncommon",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "drip_coffee",
+      "display_name": "Drip Coffee",
+      "categories": [
+        "drink",
+        "food",
+        "brew"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 3.898,
+      "market_category": "food_cooked",
+      "rarity": "uncommon",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "dutch_coffee",
+      "display_name": "Dutch Coffee",
+      "categories": [
+        "drink",
+        "food",
+        "brew",
+        "buff_food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 3.898,
+      "market_category": "food_cooked",
+      "rarity": "rare",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "crafters_meal",
+      "display_name": "Crafter's Meal",
+      "categories": [
+        "food",
+        "cooked",
+        "meal",
+        "buff_food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 9.59,
+      "market_category": "food_cooked",
+      "rarity": "rare",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "fatigue_tonic",
+      "display_name": "Fatigue Restorative",
+      "categories": [
+        "drink",
+        "medicine",
+        "food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 0,
+      "market_category": "medicine",
+      "rarity": "uncommon",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station."
+    },
+    {
+      "id": "fruit_juice",
+      "display_name": "Fruit Juice",
+      "categories": [
+        "drink",
+        "food",
+        "juice"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "food_cooked",
+      "food_energy": 9.59,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "cactus_juice",
+      "display_name": "Cactus Juice",
+      "categories": [
+        "drink",
+        "food",
+        "juice"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "food_cooked",
+      "food_energy": 8.898,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "meat_broth",
+      "display_name": "Meat Broth",
+      "categories": [
+        "drink",
+        "food",
+        "broth"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "food_cooked",
+      "food_energy": 3.289,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "salad",
+      "display_name": "Salad",
+      "categories": [
+        "food",
+        "cooked",
+        "meal"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "food_cooked",
+      "food_energy": 12.235,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "herbal_tea",
+      "display_name": "Herbal Tea",
+      "categories": [
+        "drink",
+        "food",
+        "medicine"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "medicine",
+      "food_energy": 0.692,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "shaved_ice",
+      "display_name": "Shaved Ice",
+      "categories": [
+        "food",
+        "cold_food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "food_cooked",
+      "food_energy": 3.428,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
     }
   ]
 }

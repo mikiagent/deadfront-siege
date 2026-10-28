@@ -26,7 +26,7 @@ static func buildings(rows: Array, schema: int) -> void:
 			continue
 		var normalized := _normalize(row as Dictionary, schema)
 		var kind := StringName(str(normalized.get("kind", "")))
-		var why := "" if kits.has(kind) else "unknown kind"
+		var why := "" if (kits.has(kind) or kind == &"construction_site") else "unknown kind"
 		if why == "" and grid:
 			why = grid.can_place(kind, cell_of(normalized), int(normalized.get("rot", 0)))
 		if why != "":
@@ -59,6 +59,8 @@ static func spawn(row: Dictionary) -> Node3D:
 			return TamingPen.from_dict(row)
 		&"field_small", &"field_large":
 			return FieldPlot.from_dict(row)
+		&"construction_site":
+			return ConstructionSite.from_dict(row)
 		_:
 			return (load("res://scripts/world/placed_building.gd") as GDScript).from_dict(row)
 
@@ -89,7 +91,8 @@ static func _kits_by_kind() -> Dictionary:
 			out[def.place_as] = id
 	return out
 
-## Every item a row holds: its kit, storage contents, a pen's captured animal, a field's seed.
+## Every item a row holds: its kit, storage contents, a pen's captured animal, a field's seed, a
+## process station's jobs and outputs.
 static func _items_of(row: Dictionary, kit: StringName) -> Array[ItemStack]:
 	var back: Array[ItemStack] = []
 	if kit != &"":
@@ -100,6 +103,9 @@ static func _items_of(row: Dictionary, kit: StringName) -> Array[ItemStack]:
 	var occupant: Variant = row.get("occupant")
 	if occupant is Dictionary: # shaped by SaveSanitizer._stack
 		back.append(ItemStack.from_dict(occupant))
+	var process: Variant = row.get("process")
+	if process is Dictionary: # what hung on a drying rack, smoker, crock pot or steamer
+		back.append_array(ProcessStation.saved_stacks(process))
 	var crop := str(row.get("crop_id", ""))
 	if crop != "" and not bool(row.get("failed", false)):
 		# ASSUMPTION: a planted crop comes back as the seed it took, whatever its growth.
@@ -109,20 +115,28 @@ static func _items_of(row: Dictionary, kit: StringName) -> Array[ItemStack]:
 	return back
 
 ## All or nothing: tried on a scratch copy of the cargo first, so a partial fit never drops items.
+## A refund bigger than the whole cargo (W2-INV: a legacy stacked row, e.g. stone x200, splits into
+## one instance per slot) would wait forever, so the cargo grows for it, as the migration overflow does.
 static func _refund(row: Dictionary, kit: StringName, why: String) -> void:
 	var back := _items_of(row, kit)
-	var scratch := Inventory.new(World.cargo_home.slot_count)
-	scratch.load_array(World.cargo_home.to_array())
-	var left := 0
-	for stack in back:
-		left += scratch.add(stack.duplicate_stack())
-	if left > 0:
+	var left := _left_over(back, World.cargo_home.to_array())
+	if left > 0 and _left_over(back, []) == 0:
 		pending_refunds.append(row)
 		print("[save] kept %s at %s (%s) for a later refund: camp cargo is short of room for %d items" % [row.get("kind", "?"), cell_of(row), why, left])
 		return
+	var slots_before := World.cargo_home.slot_count
 	for stack in back:
-		World.cargo_home.add(stack)
-	print("[save] refunded %s at %s (%s): %d stacks to camp cargo" % [row.get("kind", "?"), cell_of(row), why, back.size()])
+		World.cargo_home.add_growing(stack)
+	print("[save] refunded %s at %s (%s): %d stacks to camp cargo (%d -> %d slots)" % [row.get("kind", "?"), cell_of(row), why, back.size(), slots_before, World.cargo_home.slot_count])
+
+## Units of `back` that do not fit a cargo-sized container holding `rows`.
+static func _left_over(back: Array[ItemStack], rows: Array) -> int:
+	var scratch := Inventory.new(World.cargo_home.slot_count)
+	scratch.load_array(rows)
+	var left := 0
+	for stack in back:
+		left += scratch.add(stack.duplicate_stack())
+	return left
 
 static func _normalize(row: Dictionary, schema: int) -> Dictionary:
 	var out := row.duplicate(true)

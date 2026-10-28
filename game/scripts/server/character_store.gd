@@ -14,7 +14,7 @@ const VERSION := 1
 const RIDS_KEPT := 64
 ## The data the handlers read. Replay re-runs them, so a snapshot records this hash and boot
 ## warns when it changed. shortcut: creature defs (tame, capture) are not hashed yet.
-const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json"]
+const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json", "res://data/inventory.json"]
 
 var s: Dictionary
 var world: WorldFacade
@@ -142,14 +142,22 @@ func _run(op: String, account: int, a: Dictionary, ts: int, tape: Array, replayi
 	res.r["seq"] = s.seq
 	return res
 
+## The character-name rule, also used for pet names (PlayerActions.rename_pet): 3..20 letters,
+## digits, spaces, _ or -. Returns "" or why not.
+static func name_problem(nm: String) -> String:
+	if nm.length() < 3 or nm.length() > 20:
+		return "name must be 3..20 characters"
+	for c in nm:
+		if not (c >= "a" and c <= "z") and not (c >= "A" and c <= "Z") and not (c >= "0" and c <= "9") and c not in [" ", "_", "-"]:
+			return "name may use letters, digits, space, _ and -"
+	return ""
+
 ## char.create {name}: the first hello of an account makes its server-owned character.
 func _create(account: int, a: Dictionary, now: int) -> Dictionary:
 	var name: Variant = IntentHandlers.text(a, "name", 20)
-	if name == null or (name as String).length() < 3:
-		return IntentHandlers.no("bad_request", "name must be 3..20 characters")
-	for c in (name as String):
-		if not (c >= "a" and c <= "z") and not (c >= "A" and c <= "Z") and not (c >= "0" and c <= "9") and c not in [" ", "_", "-"]:
-			return IntentHandlers.no("bad_request", "name may use letters, digits, space, _ and -")
+	var why := name_problem(str(name)) if name != null else "name must be 3..20 characters"
+	if why != "":
+		return IntentHandlers.no("bad_request", why)
 	if s.chars.has(str(account)):
 		return {"ok": true, "r": character(account).view()}
 	s.chars[str(account)] = CharacterState.fresh(account, name, now)
@@ -223,7 +231,8 @@ func open() -> String:
 				break
 			var why := replay_line(text)
 			if why != "":
-				return why
+				# W2-INV: a journal written under other rules (items stacked) may not replay under these.
+				return why + ("; the data files changed since the snapshot: boot the previous build once so it snapshots, then upgrade" if data_changed else "")
 			if nl < 0: # a complete last line that lost only its newline: give it back
 				var f := FileAccess.open(path, FileAccess.READ_WRITE)
 				f.seek_end()
@@ -236,11 +245,33 @@ func open() -> String:
 		return "cannot open journal (%d)" % FileAccess.get_open_error()
 	_journal.seek_end()
 	_ops_since = 0
+	# W2-INV: split stacked characters only after the journal replayed against the rows it was
+	# written for (a deposit of 5 from a 20-stack), then snapshot so the split is never replayed over.
+	var migrated := migrate_stacks()
 	if data_changed:
 		# The journal just replayed under new rules; snapshot so later boots do not repeat that.
 		push_warning("[srv] data files changed since the last snapshot; the journal replayed under the new rules")
 		return snapshot()
-	return ""
+	return snapshot() if migrated > 0 else ""
+
+## W2-INV: characters stored while materials stacked get one row per unit (CharacterState.
+## split_stacks); what the 100-slot bag cannot hold goes to their home storage. Logged per
+## character. Returns how many characters changed.
+func migrate_stacks() -> int:
+	var changed := 0
+	for key: String in s.chars:
+		var got := CharacterState.split_stacks(s.chars[key])
+		if got.is_empty():
+			continue
+		changed += 1
+		s.chars[key] = norm(s.chars[key])
+		var parts := PackedStringArray()
+		var stored := 0
+		for id: String in got.stored:
+			parts.append("%s x%d" % [id, got.stored[id]])
+			stored += int(got.stored[id])
+		print("[srv] migration: char %s: bag %d slots, %d rows split from stacks, %d units to home storage%s" % [key, (s.chars[key].bag as Array).size(), got.split, stored, " (%s)" % ", ".join(parts) if not parts.is_empty() else ""])
+	return changed
 
 ## Verified write of the snapshot, then a fresh journal (everything in it is now covered).
 func snapshot() -> String:
@@ -301,7 +332,7 @@ func invariants() -> Array[String]:
 	var pets := 0
 	for key: String in s.chars:
 		var ch: Dictionary = s.chars[key]
-		for row: Variant in ch.bag:
+		for row: Variant in (ch.bag as Array) + (ch.get("storage", []) as Array): # storage: W2-INV home storage
 			if not row is Dictionary or str(row.id) == str(CharacterState.LOCK):
 				continue
 			if int(row.count) < 1 or int(row.durability) < 0:

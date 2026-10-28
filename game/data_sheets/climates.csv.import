@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://4rdh4caqbmu0"
+
+[deps]
+
+files=["res://data_sheets/climates.tiers.translation", "res://data_sheets/climates.home.translation", "res://data_sheets/climates.resist.translation", "res://data_sheets/climates.vegetation.translation", "res://data_sheets/climates.materials.translation"]
+
+source_file="res://data_sheets/climates.csv"
+dest_files=["res://data_sheets/climates.tiers.translation", "res://data_sheets/climates.home.translation", "res://data_sheets/climates.resist.translation", "res://data_sheets/climates.vegetation.translation", "res://data_sheets/climates.materials.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

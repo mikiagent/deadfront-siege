@@ -72,7 +72,7 @@ func _build_ui() -> void:
 	box.add_theme_constant_override("separation", 18)
 	centre.add_child(box)
 	_title = Label.new()
-	_title.text = "Durango-like"
+	_title.text = "WildLands MMO"
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.add_theme_font_size_override("font_size", 44)
 	box.add_child(_title)

@@ -1,0 +1,9 @@
+{
+  "creatures/megaloceros": {
+    "provenance": "owner, 2026-10-27",
+    "expected": [],
+    "cancelled": [
+      {"name": "tail whip", "note": "Tail is too small and mammalian"}
+    ]
+  }
+}

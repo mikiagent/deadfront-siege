@@ -12,6 +12,7 @@ const WORLD_LIMIT := 2000.0 # ASSUMPTION: metres from the island origin; islands
 const DEFAULT_POSITION := [0.0, 1.0, 12.0] # the loader's own fallback spawn
 const MAX_CLAIM_TILES := 14 # IslandRuntime.claim_at's plot side; a bigger rect is forged
 const SLOT_LOCK := "_slot_lock" # placeholder Inventory.add writes behind a multi-slot item
+const MAX_RANK := 7 # the last documented Pioneer milestone (data/world/domains.json)
 ## Set by clean() as its last statement: SaveMigrations.read applies only data that carries it.
 const CHECKED := "__sanitized"
 ## Test hook: makes clean() hit a script error just before CHECKED, as a missed edge case would.
@@ -20,12 +21,12 @@ static var abort_for_test := false
 ## Expected type of each field the loader reads; the value is only a type sample. A field of the
 ## wrong type is erased so the loader's own default applies.
 const SHAPE := {
-	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "quick_food": [], "tool_index": 0}, "position": []},
+	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0, "presets": {}}, "position": []},
 	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
-	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}},
-	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
+	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
+	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
-	"player_name": "", "occupation": "", "t_stones": 0, "visited_islands": {}, "raid_victory": false,
+	"player_name": "", "occupation": "", "character_look": {}, "t_stones": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
 	"clock": 0.0, "saved_unix": 0,
@@ -42,7 +43,12 @@ const SNARE_ROW := {"heavy": false, "life_left": 0.0, "arm_left": 0.0}
 const STATUS_ROW := {"id": "", "stacks": 0, "time_left": 0.0}
 const CAMP_ROW := {"rot": 0}
 ## CreatureGenetics.from_dict reads these parts with .get() and casts each leaf with int().
-const GENETICS := {"ivs": {}, "evs": {}, "level_gains": {}}
+## `coloration` is the individual's natural colour profile (CreatureColoration.from_dict clamps it
+## and ignores anything that is not a finite number).
+## coloration is the individual's colour profile: numbers, a bool and two short labels (morph, pattern).
+const GENETICS := {"ivs": {}, "evs": {}, "level_gains": {},
+	"coloration": {"hue_deg": 0.0, "sat": 0.0, "val": 0.0, "morph": "", "rare": false,
+		"pattern": "", "pattern_scale": 0.0, "pattern_strength": 0.0, "pattern_tone": 0.0, "pattern_seed": 0.0}}
 ## PetRecord.from_dict and CreatureGenetics.from_dict cast these with float()/int(). tamed_at and
 ## wild_level are the overhaul tip's (W1-TAME), listed ahead of the merge.
 const PET_ROW := {
@@ -50,10 +56,33 @@ const PET_ROW := {
 	"attack": 0.0, "defense": 0.0, "ranged_defense": 0.0, "ranged_attack": 0.0, "accuracy": 0.0,
 	"speed": 0.0, "level": 0, "xp": 0.0, "respawn_left": 0.0, "tamed_role": [], "bag": [],
 	"tamed_at": 0, "wild_level": 0, "genetics": GENETICS,
+	"nature": "", # NATURES: optional (an old row has none; PetRecord.from_dict derives one from the uid)
 }
 ## Stack attributes read with int() (taming pen, hunt, material tier) or handed to
 ## CreatureGenetics.from_dict (taming pen, tamed animal release).
 const ATTR_ROW := {"grade_seed": 0, "barbed_hits": 0, "toxin_hits": 0, "hardness": 0, "genetics": GENETICS}
+
+## The five Tamed Island shapes a save may hold as home.shape. Read from the catalogue itself so the
+## sanitizer needs no autoload (tests call clean() before World exists) and a shape added to the json
+## is allowed without a second list here.
+const SHAPE_CATALOGUE := "res://data/world/island_shapes.json"
+static var _shape_ids: PackedStringArray = PackedStringArray()
+
+static func shape_ids() -> PackedStringArray:
+	if not _shape_ids.is_empty():
+		return _shape_ids
+	var f := FileAccess.open(SHAPE_CATALOGUE, FileAccess.READ)
+	if f == null:
+		return _shape_ids
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	if not parsed is Dictionary:
+		return _shape_ids
+	for row in (parsed as Dictionary).get("shapes", []):
+		if row is Dictionary:
+			var id := str((row as Dictionary).get("id", ""))
+			if id != "":
+				_shape_ids.append(id)
+	return _shape_ids
 
 static func clean(data: Dictionary) -> Dictionary:
 	_shape(data, SHAPE)
@@ -66,6 +95,14 @@ static func clean(data: Dictionary) -> Dictionary:
 		for slot in (equipment as Dictionary).keys():
 			if Data.item(StringName(str(equipment[slot]))) == null:
 				(equipment as Dictionary).erase(slot)
+	var worn: Variant = extras.get("worn", {})
+	if worn is Dictionary:
+		for slot in (worn as Dictionary).keys():
+			var row: Variant = _stack(worn[slot])
+			if row == null:
+				(worn as Dictionary).erase(slot)
+			else:
+				worn[slot] = row
 	if player.has("position") and not _is_position(player["position"]):
 		player["position"] = DEFAULT_POSITION.duplicate()
 	var vitals: Dictionary = player.get("vitals", {})
@@ -78,8 +115,18 @@ static func clean(data: Dictionary) -> Dictionary:
 	if player.has("statuses"):
 		player["statuses"] = _rows(player["statuses"], STATUS_ROW)
 	var home: Dictionary = data.get("home", {})
+	# ISLANDPICK: home.shape is one of the five catalogue ids or absent. The type check above already
+	# erased an array/number/null/object row; an unknown or empty id is erased here, so the loader only
+	# ever sees a shape this build can build. Absent is fine: an old save has no row and keeps its island.
+	if home.has("shape") and not shape_ids().has(str(home["shape"])):
+		home.erase("shape")
 	if home.has("cargo"):
 		home["cargo"] = stacks(home["cargo"])
+	# DOMAIN-D / spec 29 section 4: the Personal Communications Center's record. It is a record of
+	# exact item instances held for one contribution step, so every held row goes through the same
+	# item validation as a bag slot, and the rank is clamped to the documented track.
+	if home.has("comm_center"):
+		home["comm_center"] = _comm_center(home["comm_center"])
 	var layout: Dictionary = home.get("camp_layout", {})
 	for key in layout.keys():
 		var row: Variant = layout[key]
@@ -89,6 +136,12 @@ static func clean(data: Dictionary) -> Dictionary:
 			_shape(row, CAMP_ROW)
 	if data.has("pending_refunds"):
 		data["pending_refunds"] = _buildings(data["pending_refunds"])
+	# CLAIMS2 / spec 29: the domain record. Cells are [x, z] pairs inside the world limit, the cap is
+	# a sane positive number, and the identity fields are short strings.
+	if (data.get("away", {}) as Dictionary).has("domain"):
+		data["away"]["domain"] = _domain(data["away"]["domain"])
+	if home.has("domain"):
+		home["domain"] = _domain(home["domain"])
 	for block in [home, data.get("away", {})]:
 		if (block as Dictionary).has("buildings"):
 			block["buildings"] = _buildings(block["buildings"])
@@ -150,7 +203,8 @@ static func _stack(row: Variant) -> Variant:
 		var count := _num(s["count"], -1.0, 1e9, -1.0)
 		if count < 1.0:
 			return null
-		s["count"] = mini(int(count), maxi(1, def.stack_max))
+		# A pre-W2-INV row may still hold a legacy stack; Inventory.load_array splits it into instances.
+		s["count"] = mini(int(count), maxi(1, def.legacy_stack_max))
 	if s.has("level"):
 		s["level"] = _int(s["level"], 1, MAX_LEVEL)
 	if s.has("process_count"):
@@ -208,15 +262,22 @@ static func _pets(rows: Array) -> Array:
 		out.append(p)
 	return out
 
-## Keep only numeric stats under each genetics part (keys other than ivs/evs/level_gains are never read).
+## Keep only numeric stats under each genetics part (keys other than ivs/evs/level_gains/coloration
+## are never read; coloration.morph is a label, dropped here, its hue/sat/val carry the look).
 static func _genetics(g: Variant) -> void:
 	if not g is Dictionary:
 		return
-	for part in (g as Dictionary).values():
+	for key in (g as Dictionary).keys():
+		var part: Variant = (g as Dictionary)[key]
 		if not part is Dictionary:
 			continue
 		for stat in (part as Dictionary).keys():
-			if not (part[stat] is int or part[stat] is float):
+			var v: Variant = (part as Dictionary)[stat]
+			if str(key) == "coloration":
+				# The profile keeps its bool and its two labels; _shape above already typed them.
+				if not (v is int or v is float or v is bool or v is String):
+					(part as Dictionary).erase(stat)
+			elif not (v is int or v is float):
 				(part as Dictionary).erase(stat)
 
 ## Tree levels cap at 60. Bought nodes must exist in trees.json and be reachable (tree level,
@@ -319,6 +380,70 @@ static func _shape(data: Dictionary, shape: Dictionary) -> void:
 			data.erase(key)
 		elif want is Dictionary and not (want as Dictionary).is_empty():
 			_shape(got, want)
+
+## One center record from disk: {"rank", "steps"}, where steps maps a target rank to one array of
+## held instances per required slot. Anything that is not a rank of the documented track, a valid
+## item instance, or a sane slot row is dropped, so a forged save can neither raise the rank past the
+## track nor hand the center an item the game does not have.
+static func _comm_center(v: Variant) -> Dictionary:
+	if not v is Dictionary:
+		return {}
+	var d: Dictionary = v
+	var out_steps: Dictionary = {}
+	var raw: Variant = d.get("steps", {})
+	if raw is Dictionary:
+		for key in raw:
+			var rank := int(str(key))
+			if rank < 2 or rank > MAX_RANK:
+				continue
+			var rows: Variant = (raw as Dictionary)[key]
+			if not rows is Array:
+				continue
+			var cols: Array = []
+			for col: Variant in rows:
+				var held: Array = []
+				if col is Array:
+					for row: Variant in col:
+						var s: Variant = _stack(row)
+						if s != null:
+							held.append(s)
+				cols.append(held)
+			out_steps[str(rank)] = cols
+	return {"rank": _int(d.get("rank", 1), 1, MAX_RANK), "steps": out_steps}
+
+## A domain record from disk, coerced: {} when it carries no usable cells (an island with no domain).
+## A forged cell list clamps to the world limit and drops repeated cells; the cap keeps its number
+## (it is a floor for migrated saves) but never absurd.
+static func _domain(v: Variant) -> Dictionary:
+	if not v is Dictionary:
+		return {}
+	var d: Dictionary = v
+	var cells: Array = []
+	var seen := {}
+	for c in d.get("cells", []):
+		if not (c is Array and (c as Array).size() >= 2 and _all_numbers(c)):
+			continue
+		if absf(float(c[0])) > WORLD_LIMIT or absf(float(c[1])) > WORLD_LIMIT:
+			continue
+		var cell := [int(c[0]), int(c[1])]
+		if seen.has(cell):
+			continue
+		seen[cell] = true
+		cells.append(cell)
+	if cells.is_empty():
+		return {}
+	return {
+		"domain_id": str(d.get("domain_id", "")) if str(d.get("domain_id", "")).length() <= 64 else "",
+		"kind": str(d.get("kind", "")) if str(d.get("kind", "")) in ["tamed_island", "unstable"] else "tamed_island",
+		"island_id": str(d.get("island_id", "")),
+		"owner": str(d.get("owner", "self")),
+		"owner_clan_id": str(d.get("owner_clan_id", "")),
+		"cells": cells,
+		"max_cells": _int(d.get("max_cells", 0), 1, 1000),
+		"status": str(d.get("status", "active")),
+		"renewal_deadline": d.get("renewal_deadline", null),
+		"permissions_profile_id": str(d.get("permissions_profile_id", "owner_only")),
+	}
 
 static func _is_position(v: Variant) -> bool:
 	if not (v is Array and (v as Array).size() == 3 and _all_numbers(v)):

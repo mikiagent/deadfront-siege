@@ -1,0 +1,29 @@
+/* 3D asset viewer (models.js) — full-pane and embedded-in-board variants. */
+.model-viewer{margin:8px 0 32px}
+.model-intro{color:var(--dim);max-width:760px;margin:4px 0 14px}
+.model-controls{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:end;margin:0 0 12px}
+.model-controls label{font-size:12px;color:var(--dim);display:flex;flex-direction:column;gap:5px}
+.model-controls select{min-width:300px;max-width:100%}
+.model-canvas{position:relative;border:1px solid var(--line);background:#f3f5f5;height:min(66vh,680px)}
+.model-viewer.is-embedded .model-canvas{height:480px}
+.model-canvas canvas{display:block;width:100%;height:100%;touch-action:none}
+.model-status{margin:10px 0 0;min-height:1.2em}
+.model-hint{margin:6px 0 0;font-size:12px;color:var(--dim)}
+.model-path{margin:2px 0 0;font-size:11px;color:var(--dim);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.model-animation{margin-top:10px;font-size:12px;color:var(--dim);display:flex;flex-direction:column;gap:5px}
+.model-anim-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.model-anim-row select{min-width:280px}
+.model-anim-row .btn{flex:none}
+.model-animation select[disabled]{opacity:.5}
+.model-embed{margin-top:36px;border-top:1px solid #eaecf0;padding-top:6px}
+.model-embed h2{margin-top:20px}
+.model-note{font-size:13px;color:var(--dim);margin:8px 0 16px;max-width:760px}
+.model-mark{margin-top:10px;font-size:12px;color:var(--dim);display:flex;flex-direction:column;gap:5px}
+.model-mark-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.model-mark-row select{min-width:160px}
+.model-mark-row input{flex:1 1 260px;min-width:220px}
+.model-mark-row select[disabled],.model-mark-row input[disabled]{opacity:.5}
+.model-mark-state{font-size:12px;color:var(--dim)}
+.model-mount{margin-top:10px;font-size:12px;color:var(--dim);display:flex;flex-direction:column;gap:5px}
+.model-mount-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.model-mount-state{font-size:12px;color:var(--dim)}

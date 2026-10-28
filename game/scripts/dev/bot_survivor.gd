@@ -400,9 +400,10 @@ func _build(kind: StringName) -> String:
 	for a in player.context_actions():
 		acts.append(str(a["id"]))
 	if acts.has("claim"):
-		player.context_action("claim")
+		# CLAIMFIX: with land held CLAIM opens the expand panel; the bot confirms it like a player would.
+		if player.actions.claim_confirmed():
+			_event("claim", "claimed the plot under the survivor")
 		await _beat(0.4)
-		_event("claim", "claimed the plot under the survivor")
 	var before := get_tree().get_nodes_in_group("placed_building").size()
 	placer.begin(kind)
 	await _beat(0.4)

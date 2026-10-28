@@ -77,19 +77,35 @@ def workbench_kit():
 
 
 def tent_kit():
-    canvas = mat("#d8c8a0", 0.85, color2="#b8a47a", tex="wave", scale=30.0, bump=0.1)
-    prism([(-1.0, 0.0), (1.0, 0.0), (0.0, 1.35)], 2.0, loc=(0, 0, 0), m=canvas, bev=0.03)
-    prism([(-0.4, 0.0), (0.4, 0.0), (0.0, 0.62)], 0.04, loc=(0, -1.01, 0), m=mat("#3a2a1e", 0.8), bev=0.0)
-    p = wood("#8a5a33", "#5e3a1e")
-    for y in (-1.05, 1.05):
-        cyl(0.05, 1.6, loc=(0, y, 0.8), m=p, segs=8)
-    cyl(0.04, 2.3, loc=(0, 0, 1.38), rot=(90, 0, 0), m=p, segs=8)
-    r = rope_m()
+    """Tent kit: the canvas rolled round its assembly of poles, slung diagonally, so both pole ends
+    stick out at the corners; two rope bands, a mallet and pegs at the foot."""
+    canvas = mat("#d8c8a0", 0.9, color2="#ad9d72", tex="wave", scale=40.0, bump=0.2)
+    c2 = mat("#c8b88e", 0.9, color2="#a0906a", tex="wave", scale=36.0, bump=0.2)
+    p = mat("#c9965a", 0.75, color2="#9a6a35", tex="wave", scale=6.0, bump=0.2)
+    g = group(rot=(0, 0, 0))
+    # The poles: a bundle inside the canvas, their ends out at both ends of the roll.
+    for (dy, dz) in ((-0.12, 0.05), (0.1, -0.05), (0.0, 0.12)):
+        cyl(0.045, 3.0, loc=(0, dy, dz), rot=(0, 90, 0), m=p, segs=8, parent=g)
+    # The roll: canvas wound round the middle of the poles.
+    cyl(0.46, 1.9, rot=(0, 90, 0), m=canvas, segs=28, parent=g)
     for s in (-1, 1):
-        tube([(0, s * 1.05, 1.5), (0.0, s * 1.6, 0.0)], 0.02, r, segs=4)
-        cyl(0.05, 0.35, loc=(0.0, s * 1.62, 0.05), rot=(s * 15, 0, 0), m=p, segs=6)
-    turn(-55)
-    turn(8, "X")
+        lathe([(0, 0.0), (0.42, 0.0), (0.46, 0.02), (0.4, 0.03), (0.33, 0.02), (0.25, 0.03), (0.16, 0.02),
+               (0.07, 0.03), (0, 0.03)], loc=(s * 0.96, 0, 0), rot=(0, 90 * s, 0), m=c2, segs=28, parent=g)
+    for x in (-0.5, 0.55):
+        tube(arc((0, 0, 0), 0.49, 0, 360, 28, plane="xz", y=0)[:-1], 0.04, rope_m(), segs=5, closed=True,
+             parent=group(loc=(x, 0, 0), rot=(0, 0, 90), parent=g))
+    # The loose canvas flap hanging off one side.
+    prism([(-0.6, 0.35), (0.6, 0.4), (0.55, -0.1), (0.2, -0.5), (-0.2, -0.45), (-0.55, -0.05)], 0.03,
+          loc=(0.2, -0.42, -0.3), rot=(20, 0, 0), m=canvas, bev=0.008, parent=g,
+          deform=lambda co: co.__setitem__(1, co.y + 0.1 * math.sin(co.x * 3.0)))
+    # Mallet and pegs at the foot.
+    cyl(0.06, 0.45, loc=(-1.15, -0.45, -0.55), rot=(20, 60, 0), m=p, segs=8, parent=g)
+    box((0.18, 0.32, 0.18), loc=(-1.35, -0.5, -0.4), rot=(10, 30, 0), m=wood("#8a5a33", "#5e3a1e"), bev=0.04,
+        parent=g)
+    for k in range(3):
+        cyl(0.032, 0.34, loc=(-0.9 + 0.14 * k, -0.6, -0.75), rot=(70, 0, 20 * k), m=p, segs=6, r2=0.01, parent=g)
+    turn(-38)
+    turn(12, "X")
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
@@ -232,12 +248,27 @@ def claim_stake():
 
 
 def sign_kit():
-    w = wood("#9a6a3a", "#6a4220")
-    box((0.18, 0.18, 2.0), loc=(0, 0, 0), m=w, bev=0.02)
-    prism([(-0.9, 0.35), (0.7, 0.35), (1.05, 0.65), (0.7, 0.95), (-0.9, 0.95)], 0.12, loc=(0, -0.15, 0.2), m=wood("#b88452", "#8a5a30"),
-          bev=0.02)
-    _lash(0, 0, 0.75, rope_m(), r=0.15)
+    """Sign: a painted plank board on a squared post, two iron nails, the board's corner carved with a
+    cut arrows marking for a settlement, and a rope loop to hang it."""
+    w = mat("#9a6a3a", 0.8, color2="#6a4220", tex="wave", scale=5.0, bump=0.3)
+    board = mat("#b88452", 0.75, color2="#8a5a30", tex="wave", scale=7.0, bump=0.25)
+    box((0.2, 0.2, 2.0), loc=(0, 0, -0.3), m=w, bev=0.02)
+    # The board: two planks with a gap, fastened to the post.
+    prism([(-0.95, 0.2), (0.75, 0.2), (1.1, 0.5), (0.75, 0.8), (-0.95, 0.8)], 0.12, loc=(0, -0.2, 0.05),
+          m=board, bev=0.015)
+    tube([(-0.9, -0.27, 0.5), (0.75, -0.27, 0.5)], 0.018, mat("#6a4a28", 0.9), segs=4)  # plank seam
+    nail = mat("#8a8e94", 0.35, metal=0.9)
+    for x in (-0.12, 0.12):
+        cyl(0.05, 0.03, loc=(x, -0.28, 0.55), rot=(90, 0, 0), m=nail, segs=8)
+    # Arrows carved (and painted) on the board: a clue this is a sign, not a plank.
+    paint = mat("#d8c48a", 0.7)
+    tube([(-0.75, -0.29, 0.55), (0.25, -0.29, 0.55)], 0.03, paint, segs=4)
+    tube([(0.05, -0.29, 0.66), (0.28, -0.29, 0.55), (0.05, -0.29, 0.44)], 0.03, paint, segs=4)
+    # Rope and a couple of lashes on the post.
+    _lash(0, 0, 0.05, rope_m(), r=0.16)
+    tube(arc((0, 0, 1.0), 0.14, 0, 180, 12, plane="xz"), 0.035, rope_m(), segs=5)
     turn(-20)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def bandage():
@@ -324,7 +355,503 @@ def rope_snare():
 
 
 def heavy_snare():
-    _snare(metal("#7c8188", 0.35), heavy=True)
+    """Heavy cable snare: a coiled steel cable with a swaged eye, a heavy iron lock and three cast
+    weights: built to hold something big (the rope snare is the flexible cord one)."""
+    cable = mat("#9aa0a8", 0.3, metal=0.9, color2="#6a7078", tex="wave", scale=30.0, bump=0.15)
+    pts = []
+    for i in range(80):
+        a = i * 0.19
+        r = 0.9 - 0.004 * i
+        pts.append((r * math.cos(a), 0.06 * math.sin(a * 1.5), r * math.sin(a) * 0.7))
+    tube(pts, 0.06, cable, segs=6)
+    pts2 = [(p[0] * 0.82 + 0.12, p[1] + 0.12, p[2] * 0.82 + 0.05) for p in pts]
+    tube(pts2, 0.05, cable, segs=6)
+    end = pts[-1]
+    tube([end, (end[0] + 0.2, end[1], end[2] + 0.25), (end[0] + 0.05, end[1], end[2] + 0.45)], 0.05, cable, segs=5)
+    loop = [(0.15 * math.cos(math.radians(a)) + end[0] + 0.02, end[1], 0.15 * math.sin(math.radians(a)) + end[2] + 0.5)
+            for a in range(0, 360, 30)]
+    tube(loop, 0.045, mat("#b0b6be", 0.25, metal=0.9), segs=6, closed=True)
+    iron = mat("#4a4e56", 0.4, metal=0.85)
+    box((0.3, 0.18, 0.16), loc=(0.55, 0.0, 0.5), rot=(0, 0, 30), m=iron, bev=0.03)
+    for a in (0, 120, 240):
+        r = math.radians(a)
+        cyl(0.12, 0.2, loc=(0.6 * math.cos(r), 0.1 * math.sin(r), -0.45), rot=(90, 0, a), m=iron, segs=6,
+            r2=0.09, smooth=False)
+    turn(32, "X")
+    lean(-24)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def _pole(x, y, z0, z1, m, r=0.06, tilt=0.0, parent=None):
+    cyl(r, z1 - z0, loc=(x, y, (z0 + z1) / 2), rot=(0, tilt, 0), m=m, segs=10, parent=parent)
+
+
+def _tie(x, y, z, r, m=None, parent=None, axis="z"):
+    """A rope loop around a bundle: a flat ellipse ring plus its knot."""
+    m = m or rope_m()
+    if axis == "z":
+        tube(arc((x, y, z), r, 0, 360, 20, plane="xy")[:-1], 0.035, m, segs=5, closed=True, parent=parent)
+        tube([(x + r, y, z), (x + r + 0.08, y - 0.05, z + 0.1), (x + r + 0.02, y - 0.08, z - 0.12)], 0.03, m, segs=5,
+             parent=parent)
+    else:  # around an X-aligned bundle
+        tube([(x, p[1], p[2]) for p in arc((0, 0, 0), r, 0, 360, 20, plane="yz", y=0)[:-1]], 0.035, m, segs=5,
+             closed=True, parent=parent)
+
+
+def _plank_bundle(n, length, width, thick, m, z0=-0.8, dy=0.13, seed_rot=0.0):
+    """A stack of planks, slightly askew, for a kit bundle."""
+    for i in range(n):
+        box((length - 0.04 * (i % 3), width, thick), loc=(0.02 * (i % 2), (i - (n - 1) / 2) * dy, z0 + i * (thick + 0.01)),
+            rot=(0, 0, seed_rot + 2.0 * (i % 2) - 1.0), m=m, bev=0.012)
+
+
+def cabin_bed_kit():
+    """Bed kit: four frame planks stacked and lashed, a log leg bundle, and a folded straw mattress
+    roll on top with a hide blanket strapped to it."""
+    w = wood("#b07a46", "#7a4a24")
+    w2 = wood("#9a6a3a", "#6a4220")
+    g = group(rot=(0, 0, 0))
+    for i in range(4):
+        box((2.2, 0.22, 0.1), loc=(0, (i - 1.5) * 0.24, -0.75 + i * 0.11), rot=(0, 0, 1.5 * (i % 2)), m=w if i % 2 else w2,
+            bev=0.012, parent=g)
+    for (x, y) in ((-0.95, 0.42), (0.95, 0.42), (-0.95, -0.42), (0.95, -0.42)):
+        cyl(0.08, 0.62, loc=(x, y, -0.22), rot=(0, 0, 0), m=w2, segs=8, parent=g)
+    straw = mat("#e0c070", 0.85, color2="#b8923a", tex="wave", scale=26.0, bump=0.35)
+    cyl(0.3, 1.9, rot=(0, 90, 0), loc=(0, 0, 0.22), m=straw, segs=20, parent=g)
+    for s in (-1, 1):
+        cyl(0.27, 0.03, loc=(s * 0.96, 0, 0.22), rot=(0, 90, 0), m=mat("#c8a050", 0.85, color2="#9a7428",
+                                                                        tex="rings", scale=9.0), segs=20, parent=g)
+    h = hidem("#9a5a34", "#6a3a1e")
+    box((1.5, 0.9, 0.12), loc=(0.1, 0.05, 0.56), rot=(0, 4, -6), m=h, bev=0.05, parent=g)
+    for y in (-0.32, 0.32):
+        _lash(0, 0, 0, rope_m(), r=0.07)
+        tube([(x, y, 0.5) for x in (-0.75, 0.75)], 0.04, rope_m(), segs=5, parent=g)
+    for x in (-0.5, 0.5):
+        tube(arc((x, 0, 0), 0.62, 0, 360, 18, plane="xz")[:-1], 0.035, rope_m(), segs=5, closed=True, parent=g)
+    turn(-18)
+    turn(12, "X")
+    upright()
+
+
+def canvas_tent_kit():
+    """Canvas tent kit: a long canvas roll, two poles and a fistful of pegs under two rope ties,
+    with a loose corner of canvas unrolled at one end."""
+    canvas = mat("#d8c8a0", 0.9, color2="#b0a074", tex="wave", scale=34.0, bump=0.15)
+    cyl(0.34, 2.0, rot=(0, 90, 0), loc=(0, -0.12, -0.05), m=canvas, segs=24)
+    for s in (-1, 1):
+        cyl(0.3, 0.03, loc=(s * 1.01, -0.12, -0.05), rot=(0, 90, 0), m=mat("#c4b48a", 0.9, color2="#a0906a",
+                                                                          tex="rings", scale=11.0), segs=24)
+    # The unrolled flap: a slack sheet spilling off the near end.
+    prism([(0.9, 0.3), (1.55, 0.1), (1.75, -0.35), (1.5, -0.55), (1.0, -0.45), (0.85, -0.2)], 0.03,
+          loc=(0, -0.34, 0.02), rot=(0, 0, 0), m=canvas, bev=0.006,
+          deform=lambda co: co.__setitem__(1, co.y + 0.12 * math.sin(co.x * 3.0)))
+    p = wood("#c9965a", "#9a6a35")
+    for (y, z) in ((0.34, 0.12), (0.3, -0.3)):
+        cyl(0.05, 2.3, rot=(0, 90, 0), loc=(0, y, z), m=p, segs=8)
+    for i in range(5):  # pegs, fanned out at the far end
+        a = -35 + 15 * i
+        cyl(0.035, 0.4, loc=(-1.12, 0.1 + 0.05 * (i % 2), -0.05 + 0.16 * (i - 2)), rot=(0, 0, a), m=p, segs=6,
+            r2=0.012)
+    for x in (-0.55, 0.55):
+        tube(arc((x, 0, 0), 0.47, 270, 450, 16, plane="xz", y=-0.05)[:-1], 0.035, rope_m(), segs=5, closed=True,
+             parent=group(loc=(0, 0, -0.05), rot=(0, 0, 90)))
+    turn(-20)
+    upright()
+
+
+def _field_kit(scale, n_planks, n_stakes, pouches):
+    """Furrow stakes and frame planks in a bundle, seed pouches tied on and a hoe blade strapped to
+    the side. The large kit is longer, with more planks, twice the stakes and two pouches (the two
+    looked alike at slot size)."""
+    w = wood("#a87444", "#7a4a24")
+    w2 = wood("#c48d55", "#93602f")
+    for i in range(n_planks):
+        box((1.7 * scale, 0.16, 0.09), loc=(0, (i - (n_planks - 1) / 2) * 0.19, -0.55 + i * 0.1),
+            rot=(0, 0, 1.2 * (i % 2)), m=w if i % 2 else w2, bev=0.012)
+    for i in range(n_stakes):
+        a = -18 + 9 * i
+        cyl(0.05, 1.2 * scale, loc=(0.15 * (i - (n_stakes - 1) / 2), 0.32, 0.35), rot=(6 * (i % 2), a, 0),
+            m=wood("#8a5a33", "#5e3a1e"), segs=6, r2=0.015)
+    # Seed pouches, tied on and resting on the planks.
+    pouch = hidem("#b08a52", "#8a6434")
+    for x, y, z in pouches:
+        blob(0.26 * scale, loc=(x, y, z), scl=(1.0, 0.9, 1.15), m=pouch, amp=0.12)
+        _lash(x, y, z + 0.12, rope_m("#d7c08a"), r=0.13)
+    # A hoe blade strapped against the planks.
+    prism([(-0.05, 0.3), (0.12, 0.34), (0.62 * scale, 0.15), (0.68 * scale, -0.15), (0.4 * scale, -0.05), (0.05, 0.12)],
+          0.08, loc=(0.35, -0.24, 0.1), rot=(0, 0, 10), m=stone("#9a9488", "#6a645a"), bev=0.02)
+    for x in (-0.4, 0.35):
+        tube(arc((x, 0, 0), 0.28, 0, 360, 18, plane="xz")[:-1], 0.035, rope_m(), segs=5, closed=True,
+             parent=group(loc=(0, 0, 0.0), rot=(0, 0, 90)))
+    turn(-18)
+    turn(10, "X")
+    upright()
+
+
+def field_large_kit():
+    """Large field kit: long frame planks, a bundle of stakes, a seed pouch and a heavy hoe blade,
+    all lashed with rope."""
+    _field_kit(1.15, 5, 7, [(-0.45, -0.2, -0.07), (-0.95, 0.05, 0.04)])
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def field_small_kit():
+    """Small field kit: a short bundle of frame planks and three stakes, a small seed pouch tied on."""
+    _field_kit(0.7, 3, 3, [(-0.45, -0.2, -0.3)])
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def log_shelter_kit():
+    """Log shelter kit: notched logs stacked in a bundle (their ends show the notch cuts), roof planks
+    on top and a rope sling around the whole load with a loop to carry it."""
+    b = bark("#6b4a2c", "#4a3019")
+    end = mat("#d4a066", 0.75, color2="#8a5a30", tex="rings", scale=4.0)
+    for layer in range(3):
+        for s in (-1, 1):
+            g = group(loc=(0, 0, -0.62 + layer * 0.34), rot=(0, 90, 90 * (layer % 2)))
+            cyl(0.15, 1.8, loc=(0, s * 0.36, 0), m=b, segs=14, parent=g)
+            for e in (-1, 1):
+                cyl(0.14, 0.03, loc=(0, s * 0.36, e * 0.9), m=end, segs=14, parent=g)
+                # The notch cut where a crossing log sits.
+                box((0.2, 0.3, 0.08), loc=(0, s * 0.36, e * 0.86), m=end, bev=0.01, parent=g)
+    w = wood("#b88452", "#8a5a30")
+    for i in range(3):
+        box((1.9, 0.24, 0.07), loc=(0, (i - 1) * 0.26, 0.44), rot=(0, 0, 2 * (i % 2)), m=w, bev=0.01)
+    for x in (-0.6, 0.6):
+        tube([(x, p[1], p[2]) for p in arc((0, 0, 0), 0.62, 0, 360, 20, plane="yz", y=0)[:-1]], 0.04, rope_m(),
+             segs=5, closed=True)
+    tube(arc((0, 0, 0.5), 0.3, 0, 180, 14, plane="xz", y=0), 0.035, rope_m(), segs=5)  # carry loop
+    turn(-24)
+    turn(10, "X")
+    upright()
+
+
+def makeshift_taming_pen():
+    """Makeshift taming pen: a bundle of sharpened stakes lashed to two rails, a coil of rope and a
+    gate latch, the parts of a quick pen bundled together."""
+    w = wood("#9a6a3a", "#6a4220")
+    for i in range(7):
+        _pole(-0.55 + 0.18 * i, 0.0, -0.9, 1.0, w, r=0.055, tilt=2.0 * (i % 3) - 2.0)
+        cyl(0.055, 0.2, loc=(-0.55 + 0.18 * i, 0.0, 1.1), r2=0.0, m=wood("#b88452", "#8a5a30"), segs=6)
+    for z in (-0.3, 0.35):
+        box((1.6, 0.1, 0.14), loc=(0, -0.13, z), rot=(0, 0, 0), m=wood("#a87444", "#7a4a24"), bev=0.02)
+    for x in (-0.62, 0.62):
+        tube([(x, p[1] - 0.13, p[2]) for p in arc((0, 0, 0), 0.11, 0, 360, 14, plane="xz", y=0)[:-1]], 0.03, rope_m(),
+             segs=5, closed=True)
+    # A coil of rope hanging off the bundle and a latch of bone and wood.
+    g = group(loc=(0.72, -0.28, 0.0), rot=(90, 0, 0))
+    tube(helix(0.24, 0.06, 3.2, 16, -0.2), 0.04, rope_m("#c8a86a"), segs=5, parent=g)
+    box((0.36, 0.08, 0.08), loc=(-0.15, -0.25, 0.62), rot=(0, 0, 20), m=bonem("#e2d2a8"), bev=0.02)
+    box((0.1, 0.08, 0.3), loc=(0.05, -0.25, 0.7), rot=(0, 0, 20), m=w, bev=0.02)
+    turn(-14)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def smoker_kit():
+    """Smoker kit: a lashed A-frame of green poles with two cross rails, a bundle of hanging meat
+    strips and a pouch of wood chips tied at its foot."""
+    w = bark("#9a7650", "#6a4c30")  # lighter than the first try, which sank into the dark slot
+    for s in (-1, 1):
+        for y in (-0.35, 0.35):
+            tube([(s * 0.95, y, -1.0), (0, y, 1.0)], 0.1, w, segs=8)
+    for z in (0.1, 0.75):
+        cyl(0.075, 0.95, loc=(0, 0, z), rot=(90, 0, 0), m=w, segs=8)
+    for y in (-0.35, 0.35):
+        _lash(0, y, 0.9, rope_m(), r=0.08)
+    meat = mat("#b8482a", 0.55, color2="#8a3018", tex="noise", scale=5.0, bump=0.35, coat=0.3)
+    for i, x in enumerate((-0.26, 0.0, 0.26)):
+        h = 0.6 + 0.1 * (i % 2)
+        tube([(x, -0.12, 0.14), (x, -0.12, 0.02)], 0.02, rope_m("#d7c08a"), segs=4)
+        prism([(-0.11, 0), (0.11, 0), (0.13, -h * 0.5), (0.04, -h), (-0.11, -h * 0.8), (-0.14, -h * 0.3)], 0.05,
+              loc=(x, -0.12, 0.06), rot=(15, 0, 0), m=meat, bev=0.01,
+              deform=lambda co: co.__setitem__(1, co.y + 0.03 * math.sin(co.z * 9)))
+    pouch = mat("#b89a6a", 0.9, color2="#8a7044", tex="wave", scale=16.0, bump=0.3)
+    blob(0.3, loc=(0.75, -0.3, -0.85), scl=(1.0, 0.9, 0.9), m=pouch, amp=0.14)
+    _tie(0.75, -0.3, -0.7, 0.12, rope_m("#d7c08a"))
+    for k in range(5):
+        chip = mat("#c8a878", 0.8, color2="#9a7a4a", tex="noise", scale=8.0)
+        box((0.12, 0.08, 0.03), loc=(0.55 + 0.1 * k, -0.55, -1.05), rot=(0, 0, 20 * k), m=chip, bev=0.005)
+    turn(28)  # face the A so the hanging meat shows between its legs
+    turn(8, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def steamer_kit():
+    """Steamer kit: a stack of bamboo steamer trays bound with twine, a lid askew on top, a bundle of
+    green leaves and a pair of wooden tongs beside them."""
+    bam = mat("#c9a35a", 0.72, color2="#a8844a", tex="noise", scale=6.0, bump=0.2)
+    bam2 = mat("#d8b86e", 0.72, color2="#b08e50", tex="noise", scale=6.0, bump=0.2)
+    for i in range(3):
+        r = 0.8 - 0.02 * i
+        lathe([(0, 0.0), (r, 0.0), (r, 0.26), (r - 0.08, 0.26), (r - 0.08, 0.06), (0, 0.06)],
+              loc=(0, 0, -0.75 + i * 0.3), m=bam if i % 2 else bam2, segs=30, smooth=False)
+        tube(arc((0, 0, 0), r + 0.01, 0, 360, 30, plane="xy", y=-0.6 + i * 0.3)[:-1], 0.03, mat("#8a6a34", 0.8),
+             segs=4, closed=True)
+    # Lid, tilted open on top.
+    lid = group(loc=(0.06, 0, 0.25), rot=(-12, 8, 0))
+    lathe([(0, 0.0), (0.78, 0.0), (0.78, 0.1), (0.6, 0.16), (0.2, 0.2), (0.06, 0.26), (0, 0.27)], m=bam2, segs=30,
+          parent=lid)
+    lathe([(0, 0.0), (0.26, 0.0), (0.26, 0.05), (0.16, 0.14), (0.16, 0.32), (0.26, 0.42), (0.26, 0.47), (0, 0.47)],
+          loc=(0, 0, 0.22), m=wood("#b07a46", "#7a4a24"), segs=14, parent=lid)
+    for a in (20, 140, 260):
+        rad = math.radians(a)
+        tube([(0.76 * math.cos(rad), 0.76 * math.sin(rad), -0.9), (0.86 * math.cos(rad), 0.86 * math.sin(rad), 0.35)],
+             0.03, mat("#d7c08a", 0.9), segs=4)
+    leaf(0.9, 0.3, loc=(-0.95, -0.1, -0.55), rot=(0, 60, 20), m=mat("#5aa04a", 0.5, color2="#3e7a32", tex="wave",
+                                                                   scale=8.0), curl=0.15)
+    leaf(0.8, 0.26, loc=(-0.9, 0.15, -0.5), rot=(0, 40, -30), m=mat("#4e8a46", 0.5, color2="#2e6234", tex="wave",
+                                                                   scale=8.0), curl=0.1)
+    for s in (-1, 1):  # tongs
+        tube([(0.55 + s * 0.06, -0.72, -0.85), (0.75 + s * 0.02, -0.8, -0.4), (0.7 + s * 0.04, -0.76, -0.1)], 0.035,
+             mat("#b88452", 0.75, color2="#8a5a30", tex="noise", scale=3.0, bump=0.1), segs=5)
+    turn(18)
+    turn(20, "X")
+    upright()
+
+
+def stone_fire_pit_kit():
+    """Fire pit kit: a stack of fire-ring stones in a rope sling that hangs from a stick, with a
+    bundle of split firewood tied beside it."""
+    st = stone("#8a8c8a", "#5e605e")
+    for i in range(7):
+        a = i * 0.9
+        rock(0.24, loc=(0.7 * math.cos(a), 0.7 * math.sin(a), -0.55 + 0.08 * (i % 2)), scl=(1.3, 1.0, 0.75),
+             m=st if i % 2 else stone("#7a7c7a", "#525452"), jitter=0.14, sub=2, smooth=False)
+    rock(0.26, loc=(0.1, 0.05, -0.2), scl=(1.2, 1.0, 0.8), m=st, jitter=0.12, sub=2)
+    rock(0.2, loc=(-0.15, -0.1, 0.05), scl=(1.2, 1.0, 0.8), m=stone("#9a9c98", "#6a6c68"), jitter=0.12, sub=2)
+    rp = rope_m()
+    tube([(0.75, 0.4, -0.6), (0.35, 0.2, 0.35), (0.0, 0.0, 0.85), (-0.45, -0.2, 0.4), (-0.8, -0.35, -0.6)], 0.035, rp,
+         segs=5)
+    tube(arc((0, 0, 0.9), 0.18, 0, 180, 12, plane="xz", y=0), 0.035, rp, segs=5)
+    # Split firewood, tied, leaning against the stones.
+    inner = mat("#e0b07a", 0.75, color2="#a87440", tex="rings", scale=5.0)
+    for i in range(4):
+        g = group(loc=(-0.5, -0.55 + 0.12 * i, 0.1), rot=(-8, 0, 90))
+        cyl(0.11, 1.1, m=inner, segs=8, parent=g)
+        cyl(0.1, 0.03, loc=(0, 0, 0.56), m=bark("#5b3d24", "#3a2614"), segs=8, parent=g)
+    for z in (-0.25, 0.25):
+        tube([(x, -0.5, z) for x in (-0.75, -0.25)], 0.03, rp, segs=5)
+    turn(-22)
+    turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def carnivore_feed():
+    """Carnivore feed: a pile of raw meat cuts on a scrap of hide, a bone through the middle and a
+    strip draped over the edge."""
+    meat = mat("#b83a3a", 0.35, color2="#f0b0a8", tex="noise", scale=4.0, bump=0.3, coat=0.4, ramp=(0.55, 0.75))
+    hide = hidem("#8a5a34", "#5e3a1e")
+    prism([(-0.9, 0.5), (-0.4, 0.85), (0.4, 0.9), (1.0, 0.55), (1.05, -0.3), (0.6, -0.75), (-0.2, -0.8),
+           (-0.9, -0.5)], 0.05, rot=(80, 0, 0), loc=(0, 0.05, -0.55), m=hide, bev=0.02,
+          deform=lambda co: co.__setitem__(1, co.y + 0.06 * math.sin(co.x * 4)))
+    for (x, y, z, r, scl, rot_) in ((-0.3, -0.1, -0.2, 0.36, (1.2, 1.0, 0.8), (0, 20, 0)),
+                                     (0.35, 0.05, -0.15, 0.33, (1.1, 1.0, 0.85), (0, -25, 0)),
+                                     (0.0, -0.3, 0.1, 0.3, (1.2, 1.0, 0.9), (10, 0, 0)),
+                                     (0.5, -0.25, -0.35, 0.24, (1.1, 1.0, 0.8), (0, 30, 0))):
+        blob(r, loc=(x, y, z), scl=scl, rot=rot_, m=meat, amp=0.18)
+    b = bonem()
+    cyl(0.08, 1.5, loc=(0.05, 0.0, 0.15), rot=(12, 72, 0), m=b, segs=12)
+    for s in (-1, 1):
+        ball(0.13, loc=(0.05 + s * 0.72 * 0.95, 0.0, 0.15 + s * 0.72 * 0.3), m=b, sub=2)
+    # A strip draped over the hide's edge.
+    prism([(-0.15, 0.55), (0.15, 0.6), (0.2, 0.0), (0.1, -0.5), (0.0, -0.2), (-0.12, -0.55), (-0.2, 0.0)], 0.04,
+          loc=(0.7, -0.35, -0.35), rot=(30, 0, -10), m=meat, bev=0.012)
+    turn(15)
+    upright()
+
+
+def herbivore_feed():
+    """Herbivore feed: a woven basket of greens, a corn cob, a bunch of stalks and a halved fruit."""
+    weave = mat("#c8a05a", 0.8, color2="#a8844a", tex="noise", scale=4.0, bump=0.2)
+    lathe([(0, 0), (0.6, 0.0), (0.78, 0.1), (0.98, 0.8), (1.04, 0.9), (0.96, 0.9), (0.9, 0.8), (0.7, 0.16), (0, 0.16)],
+          m=weave, segs=32, loc=(0, 0, -0.6))
+    tube(arc((0, 0, 0.3), 1.02, 0, 360, 26, plane="xy")[:-1], 0.05, rope_m("#9a7a42"), segs=6, closed=True)
+    greens = mat("#5fb04a", 0.6, color2="#448a38", tex="noise", scale=4.0, bump=0.15)
+    for i, (x, y, z, r) in enumerate(((-0.3, -0.15, 0.45, 0.32), (0.25, -0.2, 0.42, 0.3), (0.05, 0.25, 0.5, 0.34))):
+        blob(r, loc=(x, y, z), scl=(1.2, 1.0, 0.8), m=greens, amp=0.2)
+    for (x, ang) in ((-0.55, 40), (0.55, -45), (0.6, 30), (-0.6, -25)):  # leaves sticking out of the basket
+        leaf(0.8, 0.26, loc=(x, -0.1, 0.55), rot=(15, ang, 0), m=greens, curl=0.15)
+    corn = mat("#f2c23a", 0.4, color2="#d8961a", tex="voronoi", scale=13.0, bump=0.6)
+    blob(0.2, loc=(0.0, -0.35, 0.7), scl=(1.0, 1.0, 1.9), rot=(0, 30, 0), m=corn, amp=0.05)
+    leaf(0.55, 0.16, loc=(0.0, -0.4, 0.45), rot=(0, -30, 0), m=greens, curl=0.1)
+    fruit = mat("#d86a3a", 0.4, coat=0.4, color2="#f0a070", tex="noise", scale=6.0)
+    lathe([(0, 0), (0.02, 0.22), (0.24, 0.3), (0.36, 0.18), (0.38, 0.0), (0.36, -0.02), (0, -0.02)], m=fruit,
+          segs=20, loc=(-0.65, 0.35, 0.3), rot=(20, 0, 0))
+    turn(18)
+    turn(14, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def fruit_fertilizer():
+    """Fruit fertilizer: a gourd of mashed fruit with a broad leaf lid, a scoop stick in it and a
+    couple of over-ripe fruits beside it."""
+    pulp = mat("#8a4a2a", 0.2, color2="#c8783a", tex="noise", scale=5.0, bump=0.4, coat=0.7)
+    gourd = mat("#c8a860", 0.7, color2="#9a7a3a", tex="noise", scale=6.0, bump=0.3)
+    lathe([(0, 0), (0.5, 0.02), (0.8, 0.25), (0.92, 0.6), (0.8, 0.9), (0.6, 1.02), (0.62, 1.08), (0.5, 1.1), (0, 1.05)],
+          m=gourd, segs=30)
+    cyl(0.56, 0.03, loc=(0, 0, 1.02), m=pulp, segs=28)
+    blob(0.5, loc=(0, 0, 1.02), scl=(1.0, 1.0, 0.25), m=pulp, amp=0.2, sub=2)
+    lid = mat("#4f9a3a", 0.5, color2="#3a7a2a", tex="wave", scale=6.0)
+    leaf(0.9, 0.45, loc=(-0.45, 0.0, 1.12), rot=(20, 70, 0), m=lid, curl=0.12)
+    tube([(0.15, -0.1, 1.05), (0.35, -0.2, 1.45), (0.3, -0.25, 1.7)], 0.04, wood("#c9965a", "#9a6a35"), segs=6)
+    fruit = mat("#b85a2a", 0.35, color2="#e09a5a", tex="noise", scale=5.0, coat=0.5)
+    for (x, y, r) in ((0.95, -0.25, 0.22), (1.15, 0.15, 0.18)):
+        blob(r, loc=(x, y, 0.15), scl=(1.0, 1.0, 0.9), m=fruit, amp=0.1)
+    leaf(0.5, 0.2, loc=(1.0, -0.2, 0.42), rot=(0, 40, 0), m=lid, curl=0.08)
+    turn(16)
+    turn(16, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def pressure_dressing():
+    """Pressure dressing: a thick folded linen pad (cream, three layers) with two hide straps crossed
+    over the top face, a bone buckle and a knot, the loose end of one strap trailing off."""
+    pad = mat("#e6dcc0", 0.92, color2="#c2b48e", tex="wave", scale=44.0, bump=0.18)
+    strap = hidem("#6e3e1e", "#46240e")
+    for i, (z, w, d) in enumerate(((-0.42, 1.45, 1.05), (-0.2, 1.38, 1.0), (0.02, 1.28, 0.92))):
+        box((w, d, 0.22), loc=(0, 0, z), rot=(0, 2 * i - 2, 0), m=pad, bev=0.08)
+    # Straps crossing over the top face of the pad, and down both sides.
+    for ang in (28, -34):
+        g = group(loc=(0, 0, 0.14), rot=(0, 0, ang))
+        box((2.1, 0.22, 0.07), loc=(0, 0, 0.0), m=strap, bev=0.02, parent=g)
+        for s in (-1, 1):
+            box((0.07, 0.22, 0.75), loc=(s * 0.72, 0, -0.34), rot=(0, 0, 0), m=strap, bev=0.015, parent=g)
+    buckle = bonem("#e2d2a8")
+    box((0.3, 0.12, 0.1), loc=(0.05, -0.2, 0.24), rot=(0, 0, 28), m=buckle, bev=0.03)
+    box((0.12, 0.22, 0.07), loc=(0.05, -0.2, 0.32), rot=(0, 0, 28), m=buckle, bev=0.015)
+    tube(arc((0.55, 0.35, 0.16), 0.12, 0, 360, 14, plane="xz")[:-1], 0.035, rope_m(), segs=5, closed=True)
+    prism([(0.2, 0.3), (0.8, 0.15), (0.9, -0.05), (0.25, -0.1)], 0.2, loc=(0.55, -0.45, -0.05), rot=(0, 0, 10),
+          m=strap, bev=0.02, deform=lambda co: co.__setitem__(1, co.y + 0.18 * co.x * co.x))
+    turn(12)
+    turn(22, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+# ---------------------------------------------------------------- cages (owner rule)
+
+def _cage(door_deg=0.0):
+    """A lashed wooden cage: a slatted floor, four corner posts, vertical bars on every side and a
+    lashed roof hatch. open_door swings the front panel out on its hinge."""
+    # Flat fills where possible: the cage is many thin bars, and noisy materials push the PNG
+    # over the 64 KB budget.
+    w = mat("#9a6a3a", 0.75, color2="#7a4e26", tex="noise", scale=3.0, bump=0.1)
+    w2 = mat("#bb8a56", 0.7, color2="#8a5a30", tex="noise", scale=3.0, bump=0.1)
+    rp = rope_m()
+    W, D, H = 0.9, 0.66, 0.92
+    # Floor slats and a rim.
+    for i in range(5):
+        box((2 * W + 0.1, 0.26, 0.07), loc=(0, -D + 0.28 * i, -H + 0.06), m=w if i % 2 else w2, bev=0.012)
+    for y in (-D - 0.04, D + 0.04):
+        box((2 * W + 0.16, 0.09, 0.1), loc=(0, y, -H + 0.05), m=w, bev=0.015)
+    for x in (-W - 0.04, W + 0.04):
+        box((0.09, 2 * D + 0.16, 0.1), loc=(x, 0, -H + 0.05), m=w, bev=0.015)
+    # Corner posts, lashed at top and bottom.
+    for x in (-W, W):
+        for y in (-D, D):
+            cyl(0.075, 2 * H, loc=(x, y, 0), m=w2, segs=8)
+            for z in (-H + 0.18, H - 0.1):
+                tube([(x, p[1], p[2]) for p in arc((0, 0, 0), 0.11, 0, 360, 12, plane="xy", y=z)[:-1]], 0.03, rp,
+                     segs=5, closed=True)
+    # Bars: sides and back, tighter than the slats, so it reads as a cage and not a crate.
+    def bars(fixed, axis, n, lo, hi):
+        for i in range(n):
+            t = lo + (hi - lo) * i / (n - 1)
+            if axis == "x":
+                cyl(0.032, 2 * H - 0.2, loc=(t, fixed, 0), m=w2, segs=6)
+            else:
+                cyl(0.032, 2 * H - 0.2, loc=(fixed, t, 0), m=w2, segs=6)
+    # The near sides carry fewer bars than the far ones, so the animal inside stays readable at
+    # slot size while the cage still reads as slatted on every side.
+    bars(-D, "x", 2, -W + 0.36, W - 0.36)
+    bars(D, "x", 9, -W + 0.1, W - 0.1)
+    bars(-W, "y", 5, -D + 0.16, D - 0.16)
+    bars(W, "y", 4, -D + 0.2, D - 0.2)
+    # The front panel: a frame with bars, hanging from a hinge on the left post.
+    door = group(loc=(-W, -D, 0), rot=(0, 0, -door_deg))
+    box((2 * W, 0.07, 0.09), loc=(W, 0, H - 0.08), m=w, bev=0.012, parent=door)
+    box((2 * W, 0.07, 0.09), loc=(W, 0, -H + 0.12), m=w, bev=0.012, parent=door)
+    for i in range(5):
+        x = 0.2 + (2 * W - 0.4) * i / 4
+        cyl(0.03, 2 * H - 0.24, loc=(x, 0, 0), m=w2, segs=6, parent=door)
+    if door_deg == 0.0:
+        for z in (-H + 0.4, H - 0.3):
+            box((0.3, 0.08, 0.06), loc=(W - 0.18, 0, z), m=rp, bev=0.01, parent=door)
+    # Roof: open, so the animal inside shows through: only the frame beams and a hinged hatch at
+    # the back, lashed on.
+    for x in (-W, W):
+        box((0.1, 2 * D + 0.16, 0.09), loc=(x, 0, H), m=w, bev=0.012)
+    for y in (-D, D):
+        box((2 * W + 0.16, 0.1, 0.09), loc=(0, y, H), m=w, bev=0.012)
+    # A loose roof slat pushed back over the far beams (the cage is open from above, so the animal
+    # inside shows).
+    box((1.4, 0.4, 0.05), loc=(-0.75, D - 0.12, H + 0.1), rot=(-18, 0, 4), m=w2, bev=0.01)
+    for x in (-0.45, 0.45):
+        tube([(x, p[1], p[2]) for p in arc((0, 0, 0), 0.09, 0, 360, 12, plane="xy", y=H + 0.07)[:-1]], 0.03, rp,
+             segs=5, closed=True)
+    return door
+
+
+def _small_dino(loc=(0, 0, 0), rot=(0, 0, 0), collar=None):
+    """A small generic theropod standing in the cage, neck and head up: body, S-neck, head with a
+    blunt snout, tail, two legs and little arms. Not a named species (the PRD's roster is not needed
+    for a generic captured animal)."""
+    g = group(loc=loc, rot=rot)
+    # A cool green animal against the warm wood cage: it reads through the bars at slot size.
+    skin = mat("#5e8a52", 0.7, color2="#3e6838", tex="noise", scale=2.5, bump=0.2)
+    belly = mat("#cfd8a8", 0.75, color2="#a8b880", tex="noise", scale=3.0, bump=0.15)
+    dark = mat("#2e4a28", 0.8)
+    blob(0.3, loc=(0, 0, 0.0), scl=(1.3, 0.85, 0.85), m=skin, amp=0.07, parent=g)
+    blob(0.2, loc=(0.08, -0.12, -0.04), scl=(1.3, 0.6, 0.65), m=belly, amp=0.05, parent=g)
+    # S-neck rising from the shoulders to a head held level with the top of the cage.
+    neck = [(0.24, 0, 0.12), (0.36, 0, 0.3), (0.36, 0, 0.5), (0.44, 0, 0.62), (0.55, 0, 0.66)]
+    tube(neck, 0.1, skin, segs=10, taper=(1.0, 0.75), parent=g)
+    blob(0.15, loc=(0.62, 0, 0.68), scl=(1.5, 0.85, 0.9), m=skin, amp=0.05, parent=g)
+    tube([(0.72, 0, 0.66), (0.86, 0, 0.62)], 0.075, skin, segs=8, taper=(1.0, 0.7), parent=g)  # snout
+    for y in (-0.08, 0.08):
+        ball(0.038, loc=(0.66, y, 0.74), m=mat("#1a1a14", 0.2, coat=1.0), sub=2, parent=g)
+    for k in range(3):  # dorsal stripes, so it is not a plain egg
+        cyl(0.1, 0.03, loc=(-0.08 + 0.1 * k, 0, 0.22), m=dark, segs=10, parent=g)
+    tube([(-0.3, 0, 0.04), (-0.6, 0.06, -0.16), (-0.92, 0.1, -0.34)], 0.1, skin, segs=8, taper=(1.0, 0.15),
+         parent=g)
+    for y in (-0.15, 0.15):  # legs
+        tube([(0.05, y, -0.12), (-0.02, y, -0.38), (0.02, y, -0.62)], 0.065, skin, segs=8, taper=(1.0, 0.7),
+             parent=g)
+        tube([(0.02, y, -0.62), (0.17, y, -0.68)], 0.04, skin, segs=6, parent=g)
+    for y in (-0.17, 0.17):  # little arms
+        tube([(0.26, y * 0.7, 0.12), (0.34, y, 0.0)], 0.03, skin, segs=6, taper=(1.0, 0.5), parent=g)
+    if collar:
+        cyl(0.115, 0.06, loc=(0.36, 0, 0.45), rot=(0, 40, 0), m=collar, segs=12, parent=g)
+    return g
+
+
+def captured_animal():
+    """A captured animal is shown in its cage: a lashed wooden cage shut, a small generic dinosaur
+    standing inside it (owner rule)."""
+    _cage()
+    # Neck and head rise out of the open top: at 64 px the animal inside a closed cage would be
+    # just bars.
+    _small_dino(loc=(-0.12, 0.18, 0.12), rot=(0, 0, -32)).scale = (1.85, 1.85, 1.85)
+    turn(-22)
+    turn(30, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def tamed_animal():
+    """The same cage with its door swung open, a hide collar round the animal's neck and a spare
+    collar and lead hung on the door: an animal that has been tamed and walks with you (owner rule)."""
+    door = _cage(door_deg=78.0)
+    tame = hidem("#a85a2a", "#6a3010")
+    _small_dino(loc=(-0.02, 0.26, 0.1), rot=(0, 0, 20), collar=tame).scale = (1.8, 1.8, 1.8)
+    collar = hidem("#8a4a20", "#5a2c10")
+    # A spare hide collar hung over the open door's top rail, with its lead and a bone ring.
+    tube(arc((0, 0, 0), 0.26, 20, 340, 20, plane="xz", y=0), 0.06, collar, segs=6, parent=door)
+    tube([(0.12, 0, -0.24), (0.1, -0.06, -0.6), (0.24, -0.12, -0.95), (0.42, -0.06, -1.15)], 0.04, collar, segs=5,
+         parent=door)
+    tube(arc((0.44, -0.06, -1.20), 0.07, 0, 360, 12, plane="xz")[:-1], 0.022, bonem(), segs=4, closed=True,
+         parent=door)
+    turn(-22)
+    turn(30, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def _unknown():
@@ -333,11 +860,371 @@ def _unknown():
     lathe([(0.0, 0.85), (0.25, 0.88), (0.45, 1.15), (0.35, 1.2), (0.0, 1.05)], m=flat("#ffffff"))
 
 
+# ---------------------------------------------------------------- ICONS4: forge, anvil, medicine
+# A kit is a small model of what it places (as above); the two medicines are small bottles, the
+# same lathe-and-cork shape as toxin_coating, distinguished by contents and label colour.
+
+def anvil_kit():
+    """Anvil kit: an iron anvil with its horn and a hardie hole, sitting on a chopping-stump base,
+    a hammer leaning against the stump, a struck-off spark at its foot."""
+    iron = mat("#5e646a", 0.42, metal=0.9, color2="#3e444a", tex="noise", scale=9.0, bump=0.18)
+    stump = mat("#8a6440", 0.85, color2="#5e4224", tex="rings", scale=6.0, bump=0.3)
+    cyl(0.62, 0.85, loc=(0, 0, -0.95), m=stump, segs=22, smooth=False)
+    for k in range(4):  # chopping marks and bark rim on the stump
+        box((0.2, 0.04, 0.05), loc=(-0.2 + 0.15 * k, -0.3, -0.52), rot=(0, 0, 20 * k), m=mat("#3e2a14", 0.95),
+            bev=0.0)
+    # Body: a tapered waist between a wide base and the face, then the horn.
+    box((0.95, 0.5, 0.24), loc=(0, 0, -0.3), m=iron, bev=0.03)
+    box((0.62, 0.42, 0.32), loc=(0, 0, -0.02), m=iron, bev=0.02)
+    box((1.35, 0.5, 0.22), loc=(0, 0, 0.24), m=iron, bev=0.025, taper=(0.96, 0.94))
+    # The horn: a cone off one end of the face.
+    cyl(0.22, 0.75, loc=(-0.98, 0, 0.26), rot=(0, 90, 0), m=iron, segs=16, r2=0.03, smooth=False)
+    # The heel and its hardie hole at the other end.
+    box((0.34, 0.44, 0.2), loc=(0.78, 0, 0.25), m=iron, bev=0.02)
+    cyl(0.075, 0.24, loc=(0.78, 0, 0.3), m=mat("#1a1c1e", 0.9), segs=10)
+    # A hammer: handle leaning on the stump, head on the base.
+    hw = wood("#b08150", "#7a5630")
+    tube([(0.62, -0.42, -1.25), (0.85, -0.45, -0.5), (1.0, -0.46, 0.1)], 0.06, hw, segs=8)
+    box((0.34, 0.16, 0.16), loc=(1.05, -0.46, 0.18), rot=(0, 12, 0), m=iron, bev=0.02)
+    # Two struck-off sparks of scale at the foot.
+    for (x, y) in ((-0.6, -0.5), (-0.35, -0.62)):
+        rock(0.07, loc=(x, y, -0.6), m=mat("#6a5a4a", 0.6, metal=0.5), jitter=0.3, sub=0)
+    turn(-18)
+    turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def forge_kit():
+    """Forge: a stone hearth with a bed of glowing coals, a battered steel hood and flue above it,
+    a leather bellows behind and a small stack of fuel at the foot: the placement model."""
+    st = stone("#7a7c7a", "#4e504e")
+    for i in range(9):  # the ring of hearth stones
+        a = i * 0.7
+        rock(0.3, loc=(0.9 * math.cos(a), 0.9 * math.sin(a), -0.6), scl=(1.3, 1.0, 0.8), m=st, jitter=0.14,
+             sub=2)
+    rock(0.72, loc=(0, 0, -0.72), scl=(1.5, 1.3, 0.4), m=stone("#6a6c6a", "#444644"), jitter=0.1, sub=2)
+    coal = mat("#2a2624", 0.85, color2="#443c36", tex="voronoi", scale=7.0, bump=0.5,
+               emit="#ff6a14", emit_strength=6.0, emit_mask=3.5)
+    for (x, y, r) in ((0, 0, 0.32), (0.34, -0.2, 0.24), (-0.3, 0.16, 0.22), (0.05, 0.32, 0.2)):
+        blob(r, loc=(x, y, -0.42), scl=(1.2, 1.0, 0.7), m=coal, amp=0.2, sub=2)
+    # Hood: a wide iron cone over the fire, its flue running back and up.
+    hood = mat("#5a5e62", 0.5, metal=0.75, color2="#3c4044", tex="noise", scale=8.0, bump=0.3)
+    lathe([(0, 1.55), (0.22, 1.5), (0.3, 1.2), (1.05, 0.55), (1.12, 0.42), (0.95, 0.4), (0.85, 0.5), (0, 1.3)],
+          m=hood, segs=26, smooth=False)
+    tube([(0, 0.35, 1.3), (0, 0.7, 1.55), (0, 1.0, 1.85)], 0.2, hood, segs=12)
+    for k in range(4):  # rivets round the hood rim
+        a = math.radians(30 + 90 * k)
+        ball(0.05, loc=(1.03 * math.cos(a), 1.03 * math.sin(a), 0.5), m=metal("#9aa0a6", 0.35), sub=2)
+    # Bellows behind the hearth: two hide boards with a fold between them and a nozzle.
+    bd = mat("#6e4a2a", 0.85, color2="#4a3018", tex="noise", scale=9.0, bump=0.4)
+    g = group(loc=(-0.15, 0.95, -0.35), rot=(-14, 0, 18))
+    box((0.9, 0.56, 0.1), loc=(0, 0, 0.06), m=bd, bev=0.03, parent=g)
+    box((0.9, 0.56, 0.1), loc=(0, 0, -0.06), m=bd, bev=0.03, parent=g)
+    for s in (-1, 1):
+        tube([(s * 0.42, 0, 0.06), (s * 0.5, 0, 0.0), (s * 0.42, 0, -0.06)], 0.05, bd, segs=6, parent=g)
+    tube([(-0.45, 0, 0), (-0.7, 0, 0.02)], 0.07, hood, segs=8, taper=(1.0, 0.6), parent=g)
+    # Fuel: a small stack of charcoal at the foot.
+    char = mat("#22201e", 0.6, color2="#3e3a36", tex="voronoi", scale=6.0, bump=0.4)
+    for (x, y, z, rot_) in ((0.95, -0.5, -0.8, 12), (1.12, -0.64, -0.78, -20), (1.02, -0.55, -0.68, 40)):
+        box((0.28, 0.2, 0.18), loc=(x, y, z), rot=(0, 0, rot_), m=char, bev=0.03)
+    turn(-24)
+    turn(8, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def _medicine_bottle(glass_c, tonic_c, label_c, label_marks, cork_c="#b88452", wax_c=None, tall=1.0,
+                     emit_c=None, emit_s=0.0, rscale=1.0):
+    """A stoppered medicine bottle: dark glass, a coloured contents level, a paper label band with
+    printed marks, a cork and (optional) wax seal. rscale makes a slim vial."""
+    r = rscale
+    glass = mat(glass_c, 0.08, coat=1.0, color2=glass_c, tex="noise", scale=4.0)
+    tonic = mat(tonic_c, 0.05, coat=1.0, color2=tonic_c, emit=emit_c, emit_strength=emit_s)
+    lathe([(0, 0), (0.4 * r, 0.0), (0.48 * r, 0.1), (0.52 * r, 0.3), (0.52 * r, 0.9 * tall), (0.32 * r, 1.12 * tall),
+           (0.2 * r, 1.24 * tall), (0.22 * r, 1.34 * tall), (0, 1.34 * tall)], m=glass, segs=26)
+    lathe([(0, 0.06), (0.4 * r, 0.06), (0.47 * r, 0.14), (0.47 * r, 0.72 * tall), (0, 0.72 * tall)], m=tonic, segs=26)
+    lathe([(0.53 * r, 0.28), (0.53 * r, 0.66 * tall), (0.47 * r, 0.66 * tall), (0.47 * r, 0.28)],
+          m=mat(label_c, 0.9, color2="#c8b894", tex="noise", scale=20.0), segs=26)
+    for k in range(label_marks):
+        box((0.08 * r, 0.02, 0.025), loc=(-0.24 * r + 0.16 * r * k, -0.47 * r, 0.47 * tall),
+            m=mat("#3a3a2a", 0.8), bev=0.0)
+    cyl(0.22 * r, 0.2, loc=(0, 0, 1.42 * tall), m=mat(cork_c, 0.85, color2="#8a5a32", tex="noise", scale=12.0,
+                                                     bump=0.4), segs=16)
+    if wax_c:
+        cyl(0.235 * r, 0.05, loc=(0, 0, 1.33 * tall), m=mat(wax_c, 0.45, color2=wax_c, tex="noise", scale=10.0),
+            segs=16)
+
+
+def antivenom():
+    """Antivenom: a tall slim amber-glass vial of pale straw serum with a red wax seal, a shed fang
+    and a drop of venom beside it: a vial, not the squat green tonic bottle."""
+    _medicine_bottle("#8a6a2e", "#f4ecc0", "#ece4cc", 3, wax_c="#a8322a", tall=1.25, rscale=0.72)
+    # The fang: a curved white cone lying at the bottle's foot.
+    fang = mat("#f4eedc", 0.35, color2="#d8ccae", tex="noise", scale=6.0, spec=0.6)
+    tube([(-0.55, -0.45, 0.32), (-0.8, -0.5, 0.18), (-0.95, -0.5, -0.02)], 0.075, fang, segs=8, taper=(1.0, 0.05))
+    blob(0.1, loc=(-1.0, -0.5, -0.1), scl=(1.0, 1.0, 1.3), m=mat("#8ad83a", 0.05, coat=1.0, emit="#6ac81a",
+                                                                 emit_strength=1.2), amp=0.1, sub=2)
+    turn(-10)
+    turn(8, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def antibiotic():
+    """Antibiotic: a brown-glass jar of white powder with a screw lid and a blue label band, a small
+    wooden spoon of powder beside it, two white tablets (a powder jar, not a liquid vial)."""
+    glass = mat("#7a5a3a", 0.12, coat=1.0, color2="#5a4028", tex="noise", scale=5.0)
+    lathe([(0, 0), (0.46, 0.0), (0.54, 0.1), (0.56, 0.6), (0.52, 0.72), (0.5, 0.8), (0, 0.8)], m=glass, segs=26)
+    powder = mat("#f4f2ec", 0.85, color2="#dcd8ce", tex="noise", scale=24.0, bump=0.3)
+    lathe([(0, 0.5), (0.5, 0.5), (0.5, 0.74), (0.34, 0.8), (0, 0.82)], m=powder, segs=26)
+    lathe([(0.53, 0.08), (0.53, 0.34), (0.47, 0.34), (0.47, 0.08)], m=mat("#dcecf4", 0.9, color2="#b4ccd8",
+                                                                          tex="noise", scale=20.0), segs=26)
+    box((0.22, 0.02, 0.03), loc=(-0.1, -0.5, 0.22), m=mat("#2a5a9a", 0.8), bev=0.0)
+    box((0.16, 0.02, 0.03), loc=(-0.08, -0.5, 0.14), m=mat("#2a5a9a", 0.8), bev=0.0)
+    # Screw lid: a shallow drum with knurl ridges, sitting on the jar's neck.
+    lid = metal("#9aa0a6", 0.35)
+    cyl(0.54, 0.2, loc=(0, 0, 0.9), m=lid, segs=26)
+    for k in range(16):
+        a = math.radians(k * 22.5)
+        box((0.03, 0.06, 0.16), loc=(0.54 * math.cos(a), 0.54 * math.sin(a), 0.9), rot=(0, 0, math.degrees(a)),
+            m=lid, bev=0.0)
+    # A spoon of powder and two tablets at the foot.
+    sw = wood("#b08150", "#7a5630")
+    tube([(0.55, -0.35, 0.1), (0.85, -0.5, 0.05), (1.05, -0.6, 0.02)], 0.035, sw, segs=6)
+    blob(0.12, loc=(0.58, -0.36, 0.12), scl=(1.3, 1.2, 0.6), m=sw, amp=0.1, sub=2)
+    blob(0.1, loc=(0.58, -0.36, 0.19), scl=(1.1, 1.0, 0.5), m=powder, amp=0.2, sub=2)
+    for (x, y, s) in ((-0.62, -0.42, 0.12), (-0.42, -0.56, 0.11)):
+        cyl(s, 0.05, loc=(x, y, 0.1), rot=(0, 0, 0), m=powder, segs=16)
+    turn(20)
+    turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+# ---------------------------------------------------------------- ICONS4: bags
+# Every bag is the same readable satchel: a rounded body with a stitched seam, a flap sewn on its top
+# edge that folds over and lies flat on the FRONT face (a rounded tongue, seated on the face), and
+# flat webbing straps. The tiers differ by what is added: drawstring mouth and cord on the pouches,
+# a strap + toggle on the basic bag, a plait on the woven bag, twin padded straps + pockets + bedroll
+# on the backpack, a lashing frame and iron bands on the storage pack. Two earlier passes failed and
+# are worth remembering: the flap floated in front of the body as a disc "lid", and the bodies sat on
+# a flat slab that read as a tray. Both are gone: no base plate, and the flap sits at 0.5*d + 4 mm.
+
+def _rrect(w, h, r, n=4):
+    """Outline of a rounded rectangle in the XZ plane (rounded corners, hard edges). Bags are drawn from
+    this, not from blobs: the earlier organic passes read as potato lumps whatever the details were.
+    Armour reads at 48 px because its plates have hard edges; the bags now do the same."""
+    pts = []
+    for (cx, cz, a0) in ((w - r, h - r, 0), (-(w - r), h - r, 90), (-(w - r), -(h - r), 180), (w - r, -(h - r), 270)):
+        for i in range(n + 1):
+            a = math.radians(a0 + 90.0 * i / n)
+            pts.append((cx + r * math.cos(a), cz + r * math.sin(a)))
+    return pts
+
+
+def _bag_body(w, h, d, m, amp=0.0):
+    """The satchel body: an upright rounded rectangle with depth, a stitched seam round its waist and a
+    slightly swollen front so it reads soft-leather rather than machined."""
+    g = group()
+    hw, hh, rr = 0.5 * w, 0.5 * h, 0.2 * min(w, h)
+
+    def belly(co):
+        co.y -= 0.14 * d * (1.0 - (co.x / hw) ** 2) * (1.0 - 0.5 * (co.z / hh) ** 2)
+    prism(_rrect(hw, hh, rr), 0.96 * d, loc=(0, 0.05 * d, 0), m=m, bev=0.0, deform=belly, parent=g)
+    # The seam round the waist: a hem band, which is what makes a satchel read as sewn leather.
+    box((2 * hw * 0.94, 1.02 * d, 0.05), loc=(0, 0.0, -0.12 * h), m=m, bev=0.0, parent=g)
+    return g
+
+
+def _bag_flap(g, w, h, d, m, stud=None, tongue=0.62):
+    """The flap: a rounded-rect plate standing 4 cm proud of the front face, inset from the body's edges,
+    reaching over the top edge and down about half the front, with a centre strap and a buckle."""
+    hw, hh, rr = 0.46 * w, 0.5 * h, 0.14 * min(w, h)
+    fl = hh * (1.0 - tongue) + 0.04
+    pts = [(x, z + fl - 0.06) for x, z in _rrect(hw, fl, rr)]
+    prism(pts, 0.07, loc=(0, -0.5 * d - 0.03, 0), m=m, bev=0.0, parent=g)
+    # the flap folds over the top edge
+    box((1.9 * hw, 0.6 * d, 0.06), loc=(0, 0.18 * d, hh + 0.02), m=m, bev=0.0, parent=g)
+    if stud:  # centre strap tail and its buckle
+        tube([(0, -0.5 * d - 0.05, hh + 0.03), (0, -0.54 * d, -0.1 * h)], 0.05, m, segs=6, parent=g)
+        box((0.12, 0.08, 0.13), loc=(0, -0.56 * d, -0.08 * h), m=stud, bev=0.0, parent=g)
+    return g
+
+
+def _strap(pts, m, w=0.16, flat=0.32):
+    """A flat webbing strap, squashed across the view axis so it reads as webbing. Kept thin: the first
+    pass's fat arcs rose higher than the bag and read as a bucket handle."""
+    ob = tube(pts, w, m, segs=8)
+    ob.scale = (1.0, flat, 1.0)
+    return ob
+
+
+def _handle(radius, m, thick=0.11, y=0.0, z=0.0):
+    """A carrying loop: a strap arc rising from the bag's two top corners, kept low and squashed flat so
+    it reads as webbing, not wire."""
+    pts = [(radius * math.cos(math.radians(a)), y + 0.02 * math.sin(math.radians(a)),
+            z + radius * math.sin(math.radians(a)))
+           for a in range(0, 181, 10)]
+    ob = tube(pts, thick, m, segs=8)
+    ob.scale = (1.0, 0.36, 1.0)
+    return ob
+
+
+def _pouch(m, w, h, d, cord, g=None):
+    """Drawstring pouch: one lathed sack that swells at the belly and is pinched at the neck with the
+    cloth frilling out above the tie, the cord round the pinch. Two earlier passes failed here: a
+    sphere with a lathed cup on top read as a gourd with a lid."""
+    g = g or group()
+    lathe([(0.0, 0.0), (0.5 * w, 0.03 * h), (0.62 * w, 0.3 * h), (0.58 * w, 0.6 * h), (0.3 * w, 0.84 * h),
+           (0.22 * w, 0.9 * h), (0.34 * w, 0.97 * h), (0.3 * w, 1.03 * h), (0.0, 1.05 * h)],
+          loc=(0, 0, -0.5 * h), m=m, segs=26, scl=(1.0, d / w, 1.0), parent=g)
+    blob(1.0, loc=(0, 0, 0.38 * h), scl=(0.3 * w, 0.3 * w * (d / w), 0.2 * h), m=m, amp=0.16, sub=3, parent=g)
+    zt = -0.5 * h + 0.9 * h
+    tube([(0.25 * w * math.cos(math.radians(a)), 0.25 * d * math.sin(math.radians(a)), zt)
+          for a in range(0, 360, 18)], 0.04, cord, segs=5, closed=True, parent=g)
+    for (sgn, dz) in ((1, 0.0), (0.7, 0.08)):
+        tube([(0.22 * w * sgn, -0.16 * d, zt), (0.45 * w * sgn, -0.26 * d, zt + 0.08 + dz),
+              (0.52 * w * sgn, -0.24 * d, zt - 0.16 + dz)], 0.023, cord, segs=4, parent=g)
+    return g
+
+
+def small_pouch():
+    """Small pouch: a little drawstring hide pouch, cord tied with two loose ends and a bone bead."""
+    lea = hidem("#b08a52", "#8a6434")
+    cord = rope_m("#e2cc94")
+    g = _pouch(lea, 1.0, 1.05, 0.66, cord)
+    ball(0.085, loc=(0.5, -0.2, 0.45), m=bonem("#e4d6b0"), sub=2, parent=g)
+    turn(8)
+    turn(14, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def large_pouch():
+    """Large pouch: a wide hide satchel: the basic bag's body shape, smaller and softer, with a flap, a
+    bone clasp and a wide shoulder strap so it hangs rather than being hauled."""
+    lea = hidem("#9a6a3e", "#6e4a24")
+    lea2 = hidem("#7a4e2a", "#54341a")
+    g = _bag_body(1.1, 0.9, 0.72, lea)
+    _bag_flap(g, 1.1, 0.9, 0.72, lea2, stud=bonem("#e4d6b0"))
+    _handle(0.5, lea2, 0.085, y=0.12, z=0.2)
+    turn(8)
+    turn(14, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def basic_bag():
+    """Basic bag: a plain hide satchel with one shoulder strap, a flap and a bone toggle: the first bag
+    a survivor makes, so nothing on it is metal."""
+    lea = hidem("#8a5a32", "#5e3a1e")
+    lea2 = hidem("#734826", "#4c2e14")
+    g = _bag_body(1.34, 1.1, 0.86, lea)
+    _bag_flap(g, 0.66, 1.1, 0.86, lea2, stud=bonem('#e4d6b0'))
+    _handle(0.58, lea2, 0.08, y=0.06, z=0.16)
+    cyl(0.045, 0.3, loc=(0, -0.5, -0.42), rot=(0, 90, 0), m=bonem("#e4d6b0"), segs=8, parent=g)  # toggle
+    tube([(0.0, -0.46, -0.2), (0.0, -0.5, -0.34)], 0.03, rope_m("#d8c08a"), segs=4, parent=g)
+    turn(10)
+    turn(14, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def woven_bag():
+    """Woven bag: a fibre bag plaited round a hide patch, its mouth rolled round a rim and a single
+    bail handle over it. The body is the same satchel shape as the hide bags, so the family still reads
+    as one set of bags (the earlier basket versions read as a cauldron or a laundry basket)."""
+    # Flat colours, no procedural texture: every textured variant rendered over the 64 KB PNG cap.
+    weave = mat("#c8a05a", 0.92)
+    fibre = mat("#dcc084", 0.94)
+    hide = hidem("#8a5a32", "#5e3a1e")
+    g = _bag_body(1.24, 1.0, 0.78, weave)
+    # Recessed weft bands: two thin lines pressed INTO the front, not hoops standing off it.
+    for z in (-0.14, 0.16):
+        box((1.16, 0.08, 0.05), loc=(0, -0.37, z), m=fibre, bev=0.0, parent=g)
+    tube([(0.6 * math.cos(math.radians(a)), 0.38 * math.sin(math.radians(a)), 0.5)
+          for a in range(0, 360, 12)], 0.045, fibre, segs=5, closed=True, parent=g)  # rolled mouth
+    prism([(-0.3, 0.16), (0.3, 0.16), (0.26, -0.1), (0.0, -0.18), (-0.26, -0.1)], 0.05,
+          loc=(0, -0.4, 0.02), m=hide, bev=0.0, parent=g)  # hide patch on the front
+    _handle(0.34, fibre, 0.032, y=0.1, z=0.46)  # one bail handle
+    turn(14)
+    turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def advanced_backpack():
+    """Advanced backpack: a hide satchel with two padded shoulder straps, a flap with an iron buckle,
+    two side pockets and a bedroll strapped across the top: clearly more than the basic bag."""
+    lea = hidem("#7a4e2a", "#54341a")
+    lea2 = hidem("#9a6a3e", "#6e4a24")
+    iron = mat("#8a9098", 0.4)
+    g = _bag_body(1.42, 1.2, 0.96, lea)
+    _bag_flap(g, 0.7, 1.2, 0.96, lea2, stud=iron)
+    _handle(0.46, lea2, 0.07, y=0.2, z=0.16)
+    for sgn in (-1, 1):  # two padded shoulder straps
+        _strap([(sgn * 0.62, 0.34, 0.0), (sgn * 0.5, 0.42, 0.5), (sgn * 0.24, 0.46, 0.62)],
+               lea2, 0.11, 0.3)
+        blob(0.34, loc=(sgn * 0.72, -0.12, -0.22), scl=(0.7, 1.0, 1.1), m=lea2, amp=0.08, sub=2,
+             parent=g)  # side pocket
+    box((0.3, 0.1, 0.22), loc=(0, -0.56, -0.3), m=iron, bev=0.0, parent=g)  # buckle on the tongue
+    box((0.14, 0.08, 0.14), loc=(0, -0.6, -0.3), m=mat("#3a3e42", 0.6), bev=0.0, parent=g)
+    roll = mat("#c8b48a", 0.9, color2="#a08a60", tex="wave", scale=22.0, bump=0.3)
+    cyl(0.2, 1.7, loc=(0, 0.22, 0.66), rot=(0, 90, 0), m=roll, segs=18, parent=g)  # bedroll
+    for x in (-0.46, 0.46):
+        tube([(x, 0.22 + 0.23 * math.sin(math.radians(a)), 0.66 + 0.23 * math.cos(math.radians(a)))
+              for a in range(0, 360, 20)], 0.028, lea2, segs=5, closed=True, parent=g)
+    turn(12)
+    turn(14, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def specialized_storage_bag():
+    """Specialized storage bag: a rigid framed pack: two lashed uprights with cross rails, iron bands
+    and buckles round the sack, two lashed-on pouches and a rolled mat strapped across the top."""
+    lea = hidem("#6e4626", "#4a2e16")
+    lea2 = hidem("#8a5a32", "#5e3a1e")
+    w = wood("#7a5634", "#55391e")
+    iron = mat("#8a9098", 0.3, metal=0.9)
+    cord = rope_m("#d8c08a")
+    g = _bag_body(1.3, 1.15, 0.9, lea)
+    _bag_flap(g, 0.62, 1.15, 0.9, lea2)
+    _handle(0.46, lea2, 0.07, y=0.2, z=0.16)
+    for sgn in (-1, 1):  # the frame: two uprights behind the sack
+        tube([(sgn * 0.66, 0.5, -0.58), (sgn * 0.7, 0.52, 0.02), (sgn * 0.58, 0.48, 0.66)], 0.055, w, segs=8,
+             parent=g)
+    for z in (-0.42, 0.38):  # cross rails
+        tube([(-0.7, 0.5, z), (0, 0.5, z + 0.02), (0.7, 0.5, z)], 0.055, w, segs=8, parent=g)
+    for (x, z) in ((-0.68, -0.42), (0.68, -0.42), (-0.6, 0.38), (0.6, 0.38)):  # lashings
+        tube([(x, 0.5 + 0.09 * math.sin(math.radians(a)), z + 0.09 * math.cos(math.radians(a)))
+              for a in range(0, 360, 24)], 0.026, cord, segs=4, closed=True, parent=g)
+    for z in (-0.24, 0.18):  # iron bands round the sack, each with a buckle
+        tube([(0.64 * math.cos(math.radians(a)), 0.45 * math.sin(math.radians(a)), z)
+              for a in range(0, 360, 12)], 0.032, iron, segs=5, closed=True, parent=g)
+        box((0.13, 0.09, 0.11), loc=(0, -0.47, z), m=iron, bev=0.0, parent=g)
+    for (x, z, r) in ((0.5, 0.5, 0.22), (-0.5, 0.54, 0.2)):  # lashed-on pouches
+        blob(r, loc=(x, -0.3, z), scl=(1.0, 0.8, 1.1), m=lea2, amp=0.08, sub=2, parent=g)
+        tube([(x, -0.3, z + r), (x * 0.94, 0.46, z + r + 0.24)], 0.024, cord, segs=4, parent=g)
+    mat_m = mat("#b8a06a", 0.92, color2="#8e7648", tex="wave", scale=20.0, bump=0.3)
+    cyl(0.17, 1.45, loc=(0, 0.5, 0.7), rot=(0, 90, 0), m=mat_m, segs=16, parent=g)  # rolled mat
+    for x in (-0.4, 0.4):
+        tube([(x, 0.5 + 0.2 * math.sin(math.radians(a)), 0.7 + 0.2 * math.cos(math.radians(a)))
+              for a in range(0, 360, 20)], 0.026, iron, segs=4, closed=True, parent=g)
+    turn(12)
+    turn(16, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
 ITEMS = {
+    # dsc icons4: the bag tiers.
+    "small_pouch": small_pouch, "large_pouch": large_pouch, "basic_bag": basic_bag, "woven_bag": woven_bag,
+    "advanced_backpack": advanced_backpack, "specialized_storage_bag": specialized_storage_bag,
     "straw_roll_kit": straw_roll_kit, "campfire_kit": campfire_kit, "bonfire_kit": bonfire_kit,
     "workbench_kit": workbench_kit, "tent_kit": tent_kit, "fence_kit": fence_kit, "gate_kit": gate_kit,
     "drying_rack_kit": drying_rack_kit, "catapult_kit": catapult_kit, "well_kit": well_kit, "basket_kit": basket_kit,
     "crock_pot_kit": crock_pot_kit, "stone_grill_kit": stone_grill_kit, "mortar_kit": mortar_kit,
     "claim_stake": claim_stake, "sign_kit": sign_kit, "bandage": bandage, "splint": splint, "toxin_pot": toxin_pot,
     "toxin_coating": toxin_coating, "rope_snare": rope_snare, "heavy_snare": heavy_snare, "_unknown": _unknown,
+    # dsc icons2: the kits, feeds, medicine and cages that had no render.
+    "cabin_bed_kit": cabin_bed_kit, "canvas_tent_kit": canvas_tent_kit, "field_large_kit": field_large_kit,
+    "field_small_kit": field_small_kit, "log_shelter_kit": log_shelter_kit,
+    "makeshift_taming_pen": makeshift_taming_pen, "smoker_kit": smoker_kit, "steamer_kit": steamer_kit,
+    "stone_fire_pit_kit": stone_fire_pit_kit, "carnivore_feed": carnivore_feed,
+    "herbivore_feed": herbivore_feed, "fruit_fertilizer": fruit_fertilizer,
+    "pressure_dressing": pressure_dressing, "captured_animal": captured_animal, "tamed_animal": tamed_animal,
+    # dsc icons4: forge, anvil and the two medicines.
+    "forge_kit": forge_kit, "anvil_kit": anvil_kit, "antivenom": antivenom, "antibiotic": antibiotic,
 }

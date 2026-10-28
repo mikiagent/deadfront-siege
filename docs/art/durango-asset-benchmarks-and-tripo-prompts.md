@@ -81,7 +81,7 @@ Tripo returns a dense mesh with PBR textures by default. To land on the budgets 
 
 1. **Cap the face count** at generation, using the targets table. Use Tripo's low-poly or smart-mesh mode where offered.
 2. **Ask for a diffuse-only, evenly lit texture.** Godot's matcap or toon shading supplies the lighting. Baked highlights fight it.
-3. **Generate in a neutral rig pose,** legs apart, mouth closed, tail straight, so auto-rigging and our own retarget work.
+3. **Generate in a neutral rig pose,** legs apart, mouth slightly parted (narrow gap along the lip line, upper and lower teeth separate), tail straight, so auto-rigging and our own retarget work.
 4. **Bake to 512²** for creatures and 256² for survivors after generation, whatever resolution Tripo returns.
 5. **For survivors and clothing,** generate the shape with Tripo, then repaint the texture as a red, green and blue tint mask in-house. Tripo will not produce a usable tint mask by itself.
 
@@ -102,19 +102,19 @@ Stylized realism for an isometric mobile survival game. Low-poly game asset, cle
 ### Negative block
 
 ```text
-photoreal render, glossy, wet look, chrome, high-frequency noise, fur cards, floating parts, extra limbs, fused legs, open mouth, saddle, armor, props, base, pedestal, background scenery
+photoreal render, glossy, wet look, chrome, high-frequency noise, fur cards, floating parts, extra limbs, fused legs, wide open mouth, roaring, fused lips, saddle, armor, props, base, pedestal, background scenery
 ```
 
 ### Theropod
 
 ```text
-[Species], [period], [length] m long. [Two or three anatomy facts that make it read as this animal, for example: deep narrow skull, forward-facing eyes, short two-fingered arms]. [Integument: scaly hide / feathered body with short quills / feathered forearms]. Colour: [base colour] with [one pattern: faint countershading / irregular dark banding along the back / pale throat]. Neutral rigging pose: standing on two legs, spine level, tail straight out behind, arms relaxed, mouth closed, feet flat and apart. Target about [N] triangles.
+[Species], [period], [length] m long. [Two or three anatomy facts that make it read as this animal, for example: deep narrow skull, forward-facing eyes, short two-fingered arms]. [Integument: scaly hide / feathered body with short quills / feathered forearms]. Colour: [base colour] with [one pattern: faint countershading / irregular dark banding along the back / pale throat]. Neutral rigging pose: standing on two legs, spine level, tail straight out behind, arms relaxed, mouth slightly parted with a narrow dark gap along the whole lip line, upper and lower teeth separate, feet flat and apart. Target about [N] triangles.
 ```
 
 ### Quadruped
 
 ```text
-[Species], [period], [length] m long. [Anatomy facts, for example: low broad body, wide hips, bony osteoderms in rows, heavy tail club]. Colour: [base colour] with [one pattern]. Neutral rigging pose: four legs straight and separated, all feet flat, head level, tail straight, mouth closed. Target about [N] triangles.
+[Species], [period], [length] m long. [Anatomy facts, for example: low broad body, wide hips, bony osteoderms in rows, heavy tail club]. Colour: [base colour] with [one pattern]. Neutral rigging pose: four legs straight and separated, all feet flat, head level, tail straight, mouth slightly parted with a narrow dark gap along the whole lip line, upper and lower teeth separate. Target about [N] triangles.
 ```
 
 ### Survivor body
@@ -132,7 +132,7 @@ Primitive [tool], made from [primary material] lashed to a [handle material] wit
 ### Worked example: Velociraptor
 
 ```text
-Velociraptor, Late Cretaceous, 2 m long including tail. Long low narrow snout, slightly upturned tip, large sickle claw raised on the second toe of each foot, long stiff tail. Feathered body with short quills, longer pennaceous feathers on the forearms forming small wings, scaly feet and snout. Colour: dusty sand brown with faint darker banding along the back and a pale underside. Neutral rigging pose: standing on two legs, spine level, tail straight out behind, arms folded at the sides, mouth closed, feet flat and apart. Target about 1,500 triangles.
+Velociraptor, Late Cretaceous, 2 m long including tail. Long low narrow snout, slightly upturned tip, large sickle claw raised on the second toe of each foot, long stiff tail. Feathered body with short quills, longer pennaceous feathers on the forearms forming small wings, scaly feet and snout. Colour: dusty sand brown with faint darker banding along the back and a pale underside. Neutral rigging pose: standing on two legs, spine level, tail straight out behind, arms folded at the sides, mouth slightly parted with a narrow dark gap along the whole lip line, upper and lower teeth separate, feet flat and apart. Target about 1,500 triangles.
 ```
 
 Then append the shared style block and pass the negative block.
@@ -142,6 +142,6 @@ Then append the shared style block and pass the negative block.
 - Triangle count is inside the class range.
 - Texture is 512² or smaller after bake, with no baked highlights.
 - Silhouette reads as the species at isometric distance with the texture switched off.
-- Pose is neutral, limbs separated, mouth closed.
+- Pose is neutral, limbs separated, mouth slightly parted with upper and lower lips as separate surfaces (a fused mouth cannot open; see `tools/jaw/open_mouth.py`).
 - The rig carries the full animation checklist above.
 - Status overlay textures are planned: clean, dirty, bleeding, poisoned.

@@ -1,0 +1,45 @@
+{
+  "_about": "The five shapes a Tamed Island can be, chosen once at character creation and permanent (spec 29 section 4, PRD 4.2, docs/reference/durango-domain-tamed-island-select.webp). 'seed' drives the IslandShape landmass (coast, highlands, river), so each shape is a different island; 'terrain' picks the home island's scatter row (game/data/islands/home_grassland.json 'terrains'); 'accent' is the preview card's land tint. The first row is the pre-ISLANDPICK island (seed 17, the legacy core) so a fresh meadow pick and an old save build the same ground.",
+  "shapes": [
+    {
+      "id": "meadow",
+      "display_name": "Meadow Isle",
+      "terrain": "meadow",
+      "seed": 17,
+      "blurb": "Open grass and wide bays",
+      "accent": "#6f8f4f"
+    },
+    {
+      "id": "forest",
+      "display_name": "Forest Isle",
+      "terrain": "forest",
+      "seed": 2311,
+      "blurb": "Deep wood, one ridge",
+      "accent": "#3f6f3a"
+    },
+    {
+      "id": "rocky",
+      "display_name": "Rocky Isle",
+      "terrain": "rocky",
+      "seed": 4703,
+      "blurb": "Stone highlands and cliffs",
+      "accent": "#77756c"
+    },
+    {
+      "id": "riverside",
+      "display_name": "River Isle",
+      "terrain": "riverside",
+      "seed": 6907,
+      "blurb": "A river runs to the sea",
+      "accent": "#4f7d5a"
+    },
+    {
+      "id": "coastal",
+      "display_name": "Coastal Isle",
+      "terrain": "coastal",
+      "seed": 8123,
+      "blurb": "Long shore, deep coves",
+      "accent": "#8a8450"
+    }
+  ]
+}

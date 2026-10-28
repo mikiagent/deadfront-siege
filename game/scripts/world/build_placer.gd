@@ -1,6 +1,12 @@
 class_name BuildPlacer
 extends Node
-## Grid-snap placement flow used by inventory and crafting.
+## Grid-snap placement flow used by inventory and crafting, and the modular-building API:
+##   begin_piece(kind, tier)  select a piece (foundation, wall, doorway, door, window, ceiling, roof,
+##                            roof_peak, pillar, stairs, ramp) in a tier; the ghost snaps to the
+##                            nearest free socket around the pointer (or aim_at()) with green/red
+##                            snap points; rotate_clockwise(), confirm(player) and cancel() as for kits
+##   upgrade(target, tier, player) / repair(target, player) / demolish(target, player) -> bool
+## StructurePlacer does the snapping and the costs; structures.json holds every number.
 
 const GRID_HALF_SPAN := 4
 
@@ -21,6 +27,12 @@ var cell: Vector2i = Vector2i.ZERO
 var rot_step: int = 0
 var _rot_manual: bool = false  # once the player rotates, fence/gate auto-alignment stops overriding it
 var _repacked: bool = false  # the kit just paid for came from pack-up: place it without XP
+var piece_tier: StringName = &"thatch"
+var piece_at: Dictionary = {}  # the last StructurePlacer.snap() result while placing a piece
+var _aim: Vector3 = Vector3.ZERO
+var _aim_locked: bool = false  # aim_at() pins the aim (labs, tests); the pointer ray drives it otherwise
+var _snap_points: MeshInstance3D
+var _snap_key: Array = []
 
 var _ghost_root: Node3D
 var _ghost_visual: Node3D
@@ -29,6 +41,7 @@ var _ghost_cells: MeshInstance3D
 var _ghost_label: Label3D
 
 var _last_sync := [Vector2i(999999, 999999), -1, ""]  # cell, rot, placing: overlay rebuilt only on change
+var _pointer_seen := Vector2.ZERO  # Game.pointer when the ghost was seated; unchanged = the opening tap does not move it
 var _ghost_mat_valid: bool = false  # material currently on the ghost visual
 var _ghost_mat_fresh: bool = false  # false until the first tint after a visual rebuild
 var _last_label: String = ""
@@ -68,8 +81,32 @@ static func reason_text(code: String) -> String:
 			return "Can't build on water"
 		"slope":
 			return "Ground too steep"
+		"cliff":
+			return "A cliff is in the way"
 		"missing_kit":
 			return "No kit in your bag"
+		"occupied":
+			return "Socket is taken"
+		"no_support", "no_socket":
+			return "Needs a foundation, wall or pillar to snap to"
+		"stairwell":
+			return "Needs open headroom"
+		"max_level":
+			return "Too high to build"
+		"resource":
+			return "A tree or rock is in the way"
+		"floor_edge":
+			return "Must stand fully on the floor"
+		"missing_materials":
+			return "Not enough materials"
+		"locked":
+			return "Needs a higher Construction level"
+		"not_higher":
+			return "Already this tier or better"
+		"undamaged":
+			return "Not damaged"
+		"not_yours":
+			return "Not yours"
 		"no_runtime", "spawn_failed":
 			return "Can't build here"
 		"":
@@ -127,25 +164,88 @@ func _ready() -> void:
 	_ghost_cells.material_override = _cell_mat
 	_ghost_cells.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ghost_cells)
+	_snap_points = MeshInstance3D.new()
+	_snap_points.name = "SnapPoints"
+	_snap_points.top_level = true
+	_snap_points.visible = false
+	_snap_points.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var snap_mat := _cell_mat.duplicate() as StandardMaterial3D
+	snap_mat.no_depth_test = true  # sockets behind a wall stay visible
+	_snap_points.material_override = snap_mat
+	add_child(_snap_points)
 
 func begin(kind: StringName) -> void:
+	_ghost_label.position.y = 3.2
 	_last_sync = [Vector2i(999999, 999999), -1, ""]
+	_snap_key = []
+	_aim_locked = false
 	placing = kind
 	rot_step = 0
 	_rot_manual = false
 	reason = ""
 	valid = false
 	_rebuild_ghost_visual()
-	_snap_to_pointer()
+	# The pointer still rests on the HUD hex that opened the placer (the BUILD sheet, the bag), so the
+	# ghost used to appear under the bottom-left rail or off-screen. It starts in front of the survivor;
+	# the first touch or drag moves it (a tap the player does not make is not one _pointer_moved sees).
+	_seat_in_front()
+	_pointer_seen = Game.pointer
 	_sync_grid_state()
 	_ghost_root.visible = true
-	_ghost_grid.visible = true
-	_ghost_cells.visible = true
+	_ghost_grid.visible = not is_piece()
+	_ghost_cells.visible = not is_piece()
+	_snap_points.visible = is_piece()
 	var grid := _grid()
 	if grid:
 		grid.set_actor(get_parent() as Node3D)
 	Game.show_grid = true
 	TouchControls.set_context(&"place")
+
+## Select a modular piece in a tier; the HUD's rotate / confirm / cancel then drive it like a kit.
+func begin_piece(kind: StringName, tier: StringName = &"thatch") -> bool:
+	if not StructurePiece.is_piece_kind(kind) or StructurePiece.blueprint(kind, tier).is_empty():
+		return false
+	piece_tier = tier
+	piece_at = {}
+	begin(kind)
+	_ghost_label.position.y = 2.0  # pieces have no name plate: keep the cost near the ghost, clear of the top HUD
+	# The sheet button that started this is under the finger: start a step in front of the survivor
+	# and let taps on the world move the aim (tap_ground), never the pointer over the HUD.
+	var who := get_parent() as Node3D
+	if who:
+		aim_at(who.global_position - who.global_basis.z * StructurePiece.module_m())
+	return true
+
+func is_piece() -> bool:
+	return StructurePiece.is_piece_kind(placing)
+
+## Pin the ghost's aim to a world point (labs and tests; a tap or drag drives it otherwise).
+func aim_at(world: Vector3) -> void:
+	_aim = world
+	_aim_locked = true
+	_sync_grid_state()
+
+func upgrade(target: Node, tier: StringName, player: Player) -> bool:
+	return _report("upgrade", StructurePlacer.upgrade(target, tier, player), player)
+
+func repair(target: Node, player: Player) -> bool:
+	return _report("repair", StructurePlacer.repair(target, player), player)
+
+func demolish(target: Node, player: Player) -> bool:
+	return _report("demolish", StructurePlacer.demolish(target, player), player)
+
+func upgrade_all(target: StructurePiece, tier: StringName, player: Player) -> bool:
+	return _report("upgrade", StructurePlacer.upgrade_all(target, tier, player), player)
+
+func repair_all(target: StructurePiece, player: Player) -> bool:
+	return _report("repair", StructurePlacer.repair_all(target, player), player)
+
+func _report(what: String, why: String, player: Player) -> bool:
+	if why != "":
+		print("[struct] %s refused: %s" % [what, why])
+		if player and player.has_method("notice"):
+			player.notice("Can't %s: %s" % [what, reason_text(why)])
+	return why == ""
 
 static func kind_of_building(n: Node) -> StringName:
 	if n == null:
@@ -227,6 +327,12 @@ static func _pack_returns(n: Node) -> Array[ItemStack]:
 	# equal flag set, and the next placement consumes the unit that carries it.
 	kit.set_flag(&"repacked", true)
 	var out: Array[ItemStack] = [kit]
+	out.append_array(stored_items(n))
+	return out
+
+## Copies of everything a placed kind holds: storage, a pen's animal, a field's spare fertiliser.
+static func stored_items(n: Node) -> Array[ItemStack]:
+	var out: Array[ItemStack] = []
 	var storage: Variant = n.get("storage")
 	if storage is Inventory:
 		for s in (storage as Inventory).slots:
@@ -393,9 +499,11 @@ func cancel() -> void:
 	placing = &""
 	valid = false
 	reason = ""
+	_aim_locked = false
 	_ghost_root.visible = false
 	_ghost_grid.visible = false
 	_ghost_cells.visible = false
+	_snap_points.visible = false
 	if not layout_mode:
 		TouchControls.set_context(&"explore")
 
@@ -409,21 +517,41 @@ func rotate_clockwise() -> void:
 func tap_ground() -> void:
 	if placing == &"":
 		return
+	if is_piece():
+		var hit := _ground()
+		if not hit.is_empty():
+			aim_at(hit.position)  # the ghost snaps to the free socket nearest the tap
+		return
 	_snap_to_pointer()
 	_sync_grid_state()
 
 func _process(_delta: float) -> void:
 	if placing == &"":
 		return
+	_fit_label()
+	if is_piece():
+		_sync_grid_state()  # the aim moves only by taps (tap_ground) and aim_at
+		return
 	if moving == null:
-		_snap_to_pointer()
+		if Game.pointer != _pointer_seen:
+			_pointer_seen = Game.pointer
+			_snap_to_pointer()
 	elif dragging:
 		_snap_centered()  # follows the finger while held
 	_sync_grid_state()
 
+## Keep the ghost's cost/refusal label about 20 px tall on any screen: the iso camera is orthographic,
+## so a fixed pixel_size shrank to ~7 px on a 390 px tall phone.
+func _fit_label() -> void:
+	var cam := get_viewport().get_camera_3d()
+	var h := get_viewport().get_visible_rect().size.y
+	if cam and cam.projection == Camera3D.PROJECTION_ORTHOGONAL and h > 0.0:
+		_ghost_label.pixel_size = maxf(0.006, 20.0 * cam.size / (48.0 * h))
+
 func confirm(player: Player) -> bool:
 	if placing == &"":
 		return false
+	_snap_key = []  # a piece re-snaps now: the bag or the grid may have changed since the last frame
 	_sync_grid_state()
 	if not valid:
 		print("[build] rejected %s" % (reason if reason != "" else "invalid"))
@@ -457,6 +585,11 @@ func confirm(player: Player) -> bool:
 	if runtime == null or grid == null:
 		print("[build] rejected no_runtime")
 		return false
+	if is_piece():
+		var res := StructurePlacer.place(grid.structures, runtime, placing, piece_tier, piece_at, player)
+		_snap_key = []  # the grid changed: re-snap (the ghost stays up for the next piece)
+		_sync_grid_state()
+		return _report("place", str(res["reason"]), player)
 	if not _can_pay(player):
 		print("[build] rejected missing_kit")
 		if player.has_method("notice"):
@@ -477,11 +610,18 @@ func confirm(player: Player) -> bool:
 	if node.has_method("set_grid_pose"):
 		node.set_grid_pose(cell, rot_step)
 	grid.occupy(node, grid.cells_for(placing, cell, rot_step))
+	# A build that needs the space clears the scenery there (owner: props can be destroyed, cliffs
+	# cannot; the cliff refused the spot in can_place before anything was paid).
+	var props: Variant = runtime.get("props")
+	if props != null and is_instance_valid(props) and props.has_method("clear_cells"):
+		var cleared := int(props.call("clear_cells", grid.cells_for(placing, cell, rot_step)))
+		if cleared > 0:
+			print("[build] cleared %d prop(s) for %s" % [cleared, placing])
 	print("[build] placed %s at (%d,%d) rot=%d" % [placing, cell.x, cell.y, posmod(rot_step, 4) * 90])
 	if not _repacked:
-		if player.skills:
-			player.skills.add_xp("construction", 8)
-		World.note_building(placing)
+		# XPECON: one grant, sized by World.note_building (rules.json xp: first of kind, repeat, or
+		# 0 for the same kit spammed within 10 m of its twin inside 60 s).
+		World.note_building(placing, node.global_position, player)
 	_repacked = false
 	cancel()
 	return true
@@ -574,6 +714,9 @@ func _sync_grid_state() -> void:
 		valid = false
 		reason = "no_runtime"
 		return
+	if is_piece():
+		_sync_piece(grid)
+		return
 	# Auto-alignment is only a suggestion for a fresh placement; a moved building keeps its pose.
 	if not _rot_manual and moving == null:
 		rot_step = grid.suggested_fence_rot(placing, cell, rot_step)
@@ -592,6 +735,39 @@ func _sync_grid_state() -> void:
 	_draw_overlay(grid)
 	_update_label(grid)
 
+## Re-snap only when the aim moved 5 cm, the rotation, piece, tier or grid changed.
+func _sync_piece(grid: BuildGrid) -> void:
+	var key := [Vector3i((_aim * 20.0).round()), rot_step, _rot_manual, placing, piece_tier]
+	if key == _snap_key:
+		return
+	_snap_key = key
+	var old_variant := int(piece_at.get("variant", -1))
+	piece_at = StructurePlacer.snap(grid.structures, placing, piece_tier, _aim, rot_step, _rot_manual)
+	reason = str(piece_at["reason"])
+	var player := get_parent()
+	if reason == "" and player and player.get("inventory") is Inventory:
+		reason = StructurePlacer.tier_gate(player, piece_tier)
+		if reason == "" and not StructurePlacer.can_pay(player.get("inventory"), StructurePiece.cost(placing, piece_tier)):
+			reason = "missing_materials"
+	var who := player as Node3D
+	var at: Vector3 = StructurePiece.pose(placing, piece_at["slot"], int(piece_at["rot"]), float(piece_at["floor0"])).origin
+	# ASSUMPTION: pieces use the kits' 8 m reach, measured flat so a roof two storeys up is in reach.
+	if reason == "" and who and not grid.ignore_distance and Vector2(at.x - who.global_position.x, at.z - who.global_position.z).length() > BuildGrid.MAX_PLACE_DISTANCE:
+		reason = "too_far"
+	valid = reason == ""
+	if int(piece_at.get("variant", 0)) != old_variant:
+		_rebuild_ghost_visual()
+	_ghost_root.global_transform = StructurePiece.pose(placing, piece_at["slot"], int(piece_at["rot"]), float(piece_at["floor0"]))
+	if not _ghost_mat_fresh or _ghost_mat_valid != valid:
+		_ghost_mat_valid = valid
+		_ghost_mat_fresh = true
+		_apply_ghost_material(_ghost_visual, _mat_valid if valid else _mat_invalid)
+	_snap_points.mesh = StructurePlacer.snap_points_mesh(piece_at.get("sockets", []))
+	var label := StructurePlacer.label(placing, piece_tier) if valid else reason_text(reason)
+	if label != _last_label:
+		_last_label = label
+		_ghost_label.text = label
+
 func _grid() -> BuildGrid:
 	if World.runtime == null:
 		return null
@@ -599,6 +775,49 @@ func _grid() -> BuildGrid:
 	if g is BuildGrid:
 		return g as BuildGrid
 	return null
+
+## Where the first tap that may move the ghost starts from: a pointer that has not moved since begin().
+const FRONT_STEPS_MAX := 6.0  ## search radius in tiles in front of the survivor
+## ASSUMPTION: no PRD line fixes how far ahead the ghost starts; 2 m reads as "in front" at the
+## game's 15 m zoom and is inside BuildGrid's 8 m reach.
+const FRONT_GAP := 2.0
+
+## Seat the ghost in front of the survivor on ground `kind` can be placed on, inside the claim: the
+## facing, then beside it, then a ring out to FRONT_STEPS_MAX tiles. When nothing there is valid, the
+## nearest tile of the claim so the reason line says why (too far, unclaimed, water, taken).
+func _seat_in_front() -> void:
+	var actor := get_parent() as Node3D
+	if actor == null:
+		return
+	var grid := _grid()
+	var fwd := -actor.global_transform.basis.z
+	fwd.y = 0.0
+	if fwd.length_squared() < 0.0001:
+		fwd = Vector3(0.0, 0.0, 1.0)
+	fwd = fwd.normalized()
+	var side := Vector3(-fwd.z, 0.0, fwd.x)
+	var start := actor.global_position
+	var best := BuildGrid.tile_of(start + fwd * FRONT_GAP)
+	if grid == null:
+		cell = best
+		return
+	# The facing first, then beside it (+-0.6, +-1.2, +-1.8 rad), then behind at 2 m: the nearest
+	# placeable tile wins. After that a ring grows out one metre at a time, still in front.
+	var first := best
+	for ring in range(1, int(FRONT_STEPS_MAX) + 1):
+		var r := FRONT_GAP + float(ring - 1)
+		var cands: Array = []
+		if ring == 1:
+			cands = [0.0, -0.6, 0.6, -1.2, 1.2, -1.8, 1.8, PI]
+		else:
+			for k in 8:
+				cands.append(TAU * float(k) / 8.0)
+		for a in cands:
+			var t := BuildGrid.tile_of(start + (fwd * cos(float(a)) + side * sin(float(a))) * r)
+			if grid.can_place(placing, t, 0) == "":
+				cell = t
+				return
+	cell = first
 
 func _snap_to_pointer() -> bool:
 	var hit := _ground()
@@ -615,8 +834,11 @@ func _ground_at(screen_pos: Vector2) -> Dictionary:
 	if cam == null:
 		return {}
 	var from := cam.project_ray_origin(screen_pos)
-	var to := from + cam.project_ray_normal(screen_pos) * 200.0
+	# To the far plane: the perspective camera stands 90-430 m back (the old 200 m ray fell short).
+	var to := from + cam.project_ray_normal(screen_pos) * cam.far
 	var q := PhysicsRayQueryParameters3D.create(from, to)
+	if get_parent() is CollisionObject3D:
+		q.exclude = [(get_parent() as CollisionObject3D).get_rid()]  # a tap on the survivor aims at the ground under it
 	return get_tree().root.get_world_3d().direct_space_state.intersect_ray(q)
 
 func _build_materials() -> void:
@@ -644,6 +866,17 @@ func _rebuild_ghost_visual() -> void:
 	_ghost_mat_fresh = false
 	for c in _ghost_visual.get_children():
 		c.queue_free()
+	var contact := _ghost_root.get_node_or_null("ContactShadow") as Node3D
+	if contact:
+		contact.visible = not is_piece()
+	if is_piece():
+		var mi := MeshInstance3D.new()
+		mi.mesh = StructureMesh.mesh_for(placing, piece_tier, int(piece_at.get("variant", 0)))
+		if placing == &"door":  # the leaf mesh starts at its hinge, as on the placed door
+			mi.position.x = -float((StructurePiece.piece_def(&"doorway").get("opening", [1.1]) as Array)[0]) * 0.5 + 0.03
+		_ghost_visual.add_child(mi)
+		_apply_ghost_material(_ghost_visual, _mat_valid)
+		return
 	var path := PropVisuals.model_path(placing)
 	if path != "" and ResourceLoader.exists(path):
 		var packed := load(path)

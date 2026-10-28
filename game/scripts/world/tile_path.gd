@@ -22,6 +22,7 @@ var _dirty: bool = false
 var _terrain_blocked: Dictionary = {} ## Vector2i -> true: water / off-island, static per island
 var _harvest: Dictionary = {} ## Vector2i -> true: live HarvestNode trunks and boxes
 var _build: Dictionary = {} ## Vector2i -> true: BuildGrid cells that block (closed gates do, open ones don't)
+var _props: Dictionary = {} ## Vector2i -> true: colliding scenery props (IslandProps) that block
 
 func setup(owner_runtime: Node3D) -> void:
 	runtime = owner_runtime
@@ -45,9 +46,31 @@ func update_cells(cells: Array) -> void:
 		_apply(c)
 
 func is_walkable(tile: Vector2i) -> bool:
+	if _dirty:
+		_refresh()
 	return _region.has_point(tile) and not _astar.is_point_solid(tile)
 
-func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN) -> PackedVector3Array:
+## for_owner: the owning survivor's path, which goes through its own walls and closed doors
+## (HANDOFF section 8); creatures and everyone else get the default.
+func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN, for_owner: bool = false) -> PackedVector3Array:
+	if not for_owner:
+		return _path(from_world, to_world, max_len)
+	if _dirty:
+		_refresh()
+	# The owner's walls are a handful of cells: open them for this one query, then close them again.
+	var grid := _grid()
+	var opened: Array[Vector2i] = []
+	if grid:
+		for c in grid.structures.path_blocked_cells():
+			if _region.has_point(c) and not _terrain_blocked.has(c) and _astar.is_point_solid(c) and not _harvest.has(c) and not grid.blocks_path(c, true):
+				_astar.set_point_solid(c, false)
+				opened.append(c)
+	var out := _path(from_world, to_world, max_len)
+	for c in opened:
+		_apply(c)
+	return out
+
+func _path(from_world: Vector3, to_world: Vector3, max_len: int) -> PackedVector3Array:
 	last_reachable = false
 	if runtime == null:
 		return PackedVector3Array()
@@ -81,8 +104,8 @@ func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN
 	return out
 
 ## path() with its reachable flag, for callers that cannot read a shared member right away.
-func path_result(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN) -> Dictionary:
-	var points := path(from_world, to_world, max_len)
+func path_result(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN, for_owner: bool = false) -> Dictionary:
+	var points := path(from_world, to_world, max_len, for_owner)
 	return {"points": points, "reachable": last_reachable}
 
 func _log_len(length: int) -> void:
@@ -104,23 +127,33 @@ func _rebuild() -> void:
 	_terrain_blocked.clear()
 	_harvest = _harvest_blockers()
 	_build = _build_blockers()
+	_props = _prop_blockers()
 	for z in range(_region.position.y, _region.end.y):
 		for x in range(_region.position.x, _region.end.x):
 			var tile := Vector2i(x, z)
 			var pos := BuildGrid.tile_centre(tile, runtime)
-			if not runtime.spawn_ok(pos, false):
+			# The dock's approach strip is walkable though it lies on the beach (spawn_ok(false)'s rule).
+			if not runtime.is_dry(pos) and not runtime.on_harbour_approach(pos):
 				_terrain_blocked[tile] = true
 				_astar.set_point_solid(tile, true)
 				continue
 			# Weight is set even under blockers so a released cell keeps its terrain cost.
 			_astar.set_point_weight_scale(tile, _weight(pos))
-			_astar.set_point_solid(tile, _harvest.has(tile) or _build.has(tile))
+			_astar.set_point_solid(tile, _blocked(tile))
 
 func _refresh() -> void:
 	_dirty = false
 	var harvest := _harvest_blockers()
 	var build := _build_blockers()
+	var props := _prop_blockers()
 	var touched := {}
+	for c in props:
+		if not _props.has(c):
+			touched[c] = true
+	for c in _props:
+		if not props.has(c):
+			touched[c] = true
+	_props = props
 	for c in harvest:
 		if not _harvest.has(c):
 			touched[c] = true
@@ -138,16 +171,42 @@ func _refresh() -> void:
 	for c in touched:
 		_apply(c)
 
+## Any static blocker: a live resource trunk, a building cell, or a colliding scenery prop.
+func _blocked(tile: Vector2i) -> bool:
+	return _harvest.has(tile) or _build.has(tile) or _props.has(tile)
+
+## Colliding props (IslandProps.blocked_cells): boulders, logs, mounds, spires, cliffs. Walk-through
+## props (reeds, ferns, flowers, pebbles) never reach this list, so they leave paths alone.
+func _prop_blockers() -> Dictionary:
+	var out := {}
+	if runtime == null or not is_instance_valid(runtime):
+		return out
+	var p: Variant = runtime.get("props")
+	if p == null or not is_instance_valid(p) or not p.has_method("blocked_cells"):
+		return out
+	for c in (p.call("blocked_cells") as Array):
+		if c is Vector2i:
+			out[c] = true
+	return out
+
 func _apply(tile: Vector2i) -> void:
 	if not _region.has_point(tile) or _terrain_blocked.has(tile):
 		return
-	_astar.set_point_solid(tile, _harvest.has(tile) or _build.has(tile))
+	_astar.set_point_solid(tile, _blocked(tile))
 
+## The walkable grid covers the DRY bounding box (the shaped island is elongated and off-centre;
+## a land_radius circle left 300-1,800 dry tiles outside the grid). Falls back to the radius.
 func _build_region() -> Rect2i:
-	var rad: int = 80
-	if runtime.has_method("land_radius"):
-		rad = int(ceil(float(runtime.land_radius()))) + REBUILD_MARGIN
-	var region := Rect2i(Vector2i(-rad, -rad), Vector2i(rad * 2 + 1, rad * 2 + 1))
+	var region := Rect2i()
+	if runtime.has_method("dry_bbox"):
+		var bb: Rect2i = runtime.dry_bbox()
+		if bb.size.x > 0 and bb.size.y > 0:
+			region = bb.grow(REBUILD_MARGIN)
+	if region.size.x <= 0:
+		var rad: int = 80
+		if runtime.has_method("land_radius"):
+			rad = int(ceil(float(runtime.land_radius()))) + REBUILD_MARGIN
+		region = Rect2i(Vector2i(-rad, -rad), Vector2i(rad * 2 + 1, rad * 2 + 1))
 	if runtime.has_method("harbour_approach_rect"):  # the dock's approach can lie past the land radius
 		region = region.merge(runtime.harbour_approach_rect())
 	return region
@@ -167,6 +226,8 @@ func _build_blockers() -> Dictionary:
 		if grid.blocks_path(cell):
 			out[cell] = true
 	for cell in grid.reserved_cells():
+		out[cell] = true
+	for cell in grid.structures.path_blocked_cells():  # level-0 walls and closed doors
 		out[cell] = true
 	return out
 

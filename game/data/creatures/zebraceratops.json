@@ -2,8 +2,8 @@
   "species": "Zebraceratops",
   "clade": "Ceratopsia",
   "period": "Durango original (fictional)",
-  "real_length_m": 2.4,
-  "height_meters": 1.0,
+  "real_length_m": 4.3,
+  "height_meters": 1.8,
   "rig": "quadruped",
   "tier": 13,
   "climate": "grassland",
@@ -16,14 +16,49 @@
     "hp": 720,
     "attack": 36,
     "defense": 80,
-    "speed": 400,
+    "speed": 300,
     "bag_slots": 50
   },
+  "turn_rate": 4.0,
   "tamed_role": [
     "bag",
     "mount"
   ],
   "variants": [],
+  "coloration": {
+    "hue_deg": 10,
+    "sat": 0.14,
+    "val": 0.1,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "pale",
+      "dark"
+    ],
+    "patterns": [
+      {
+        "id": "saddle",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.5
+      },
+      {
+        "id": "stripes",
+        "weight": 2.0,
+        "scale": 0.8,
+        "strength": 0.24
+      },
+      {
+        "id": "countershade",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.5
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
+  },
   "rig_note": "Quadruped. Rigged by skeleton transplant from the Quaternius Triceratops rig (rig revision 3, anatomically fitted legs, dedicated hit_react recoil); no Meshy rigging involved.",
   "prompt": "Orthographic side view, full Zebraceratops inspired by Durango Wild Lands. Compact stocky triceratops, broad rounded bony frill, two short brow horns and small nose horn, hooked beak, thick tapering tail. Charcoal hide with irregular ivory zebra stripes, muted rust frill rim, warm horn beak. Matte pebbled skin, restrained stylized realism, natural anatomy. Four stout separated legs, all feet flat; neutral square stance, straight spine, head level. No saddle, armor, mane or accessories. Even light, white background, no shadow, no text, full body with margin.",
   "texture_prompt": "charcoal pebbled hide with irregular ivory zebra stripes, muted rust frill rim, warm horn-coloured beak and horns, matte surface",
@@ -33,17 +68,6 @@
     "source_height_m": 0.8925,
     "source_length_m": 1.9025,
     "route": "skeleton_transplant_v3",
-    "mesh_source": "res://assets/creatures/zebraceratops/work/zebraceratops_i2m_v1.glb",
-    "reference": {
-      "side": "01a0c1ba-da5f-7448-a830-07c0541e2ed1",
-      "front": "01a0c1bb-812a-705e-a4ef-cd5d450f2744"
-    },
-    "i2m": "01a0c1bc-3f6c-73f4-abfa-5a2d5f39a4be",
-    "i2m_params": {
-      "model": "meshy-7 multi-image",
-      "polycount": 16000,
-      "texture": "2k PBR"
-    },
     "credits_spent": 48,
     "credit_cap": 96,
     "donor_rig": "tools/standins/quaternius/Triceratops.fbx (CC0, 39 bones, quadruped)",
@@ -158,7 +182,14 @@
       "method": "continuous anatomical spine and single-limb weights, max four"
     },
     "rig_revision": 3,
-    "reference_study": "https://www.bluestacks.com/de/blog/game-guides/durango-wild-lands/dinos-zaehmen-de.html"
+    "reference_study": "https://www.bluestacks.com/de/blog/game-guides/durango-wild-lands/dinos-zaehmen-de.html",
+    "stage": "C3_tripo_jaw",
+    "mesh": "Tripo P1 multiview, task 99e1106a-a664-4593-a5f9-f4a7537f6197, 50 Tripo credits",
+    "mesh_views": "Higgsfield GPT Image 2.5 views from assets/concept-art/creatures/zebraceratops/concept-sheet-v02.png",
+    "reference_sheet": "assets/concept-art/creatures/zebraceratops/concept-sheet-v02.png (owner sheet 2026-10-28)",
+    "jaw": "tools/jaw add_jaw --hook 0.14 (the hooked beak stays on Head), open_mouth, key_jaw bite 20 roar 26",
+    "gaits": "tools/gait/make_gait.py with tools/gait/zebraceratops.json (lateral-sequence walk, trot)",
+    "known_issues": "far hind leg flattens in parts of the walk (auto weights); feed and sleep are the old rig's clips"
   },
   "look": "compact stocky ceratopsian, broad rounded bony frill, two short brow horns and a small nose horn, charcoal hide with irregular ivory zebra stripes,",
   "taming": {

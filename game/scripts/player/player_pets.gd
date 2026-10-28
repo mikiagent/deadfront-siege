@@ -1,19 +1,20 @@
 class_name PlayerPets
 extends RefCounted
-## The survivor's bonded animals: summon and dismiss (HP kept), the pet hex menu (Ride, Bag, Feed,
-## Orders), whistle orders, feeding, bag dumps that never delete, and riding.
+## The survivor's bonded animals: summon and dismiss (HP kept), the pet radial (Animals, Bag, Feed,
+## Ride, Dismiss, Rename; spec 23), whistle orders, feeding, bag dumps that never delete, and riding.
 
 ## Up to MAX_OUT pets at once.
 const MAX_OUT := 3
-## White action glyphs for the pet hex menu (colour = things, white = actions).
+## Pet radial segments, clockwise from the top left as in the reference. icon = UiIcons id (white
+## action symbols). Orders are not here: the whistle hexes (SIC / HEEL / GUARD) stay on the HUD.
 const MENU := {
-	&"ride": {"id": &"ride", "label": "RIDE", "glyph": "⤒"},
-	&"bag": {"id": &"bag", "label": "BAG", "glyph": "▣"},
-	&"feed": {"id": &"feed", "label": "FEED", "glyph": "✚"},
-	&"orders": {"id": &"orders", "label": "ORDERS", "glyph": "⚑"},
-	&"attack": {"id": &"attack", "label": "ATTACK", "glyph": "⚔"},
-	&"heel": {"id": &"heel", "label": "HEEL", "glyph": "↩"},
-	&"guard": {"id": &"guard", "label": "GUARD", "glyph": "◎"},
+	&"animals": {"id": &"animals", "label": "Animals", "icon": "animals"},
+	&"bag": {"id": &"bag", "label": "Bag", "icon": "bag"},
+	&"feed": {"id": &"feed", "label": "Feed", "icon": "feed"},
+	&"ride": {"id": &"ride", "label": "Ride", "icon": "ride"},
+	&"dismount": {"id": &"dismount", "label": "Dismount", "icon": "dismount"},
+	&"dismiss": {"id": &"dismiss", "label": "Dismiss", "icon": "dismiss"},
+	&"rename": {"id": &"rename", "label": "Rename", "icon": "rename"},
 }
 ## HP a pet out of the bag has now, kept on its record so a dismissed pet comes back hurt and a save
 ## keeps it. Uses PetRecord.hp_now once that field exists (integrator hook, saved with the record).
@@ -24,7 +25,8 @@ var p: Player
 var summoned: Array[Creature] = []
 ## The pet the menu was last opened on: Feed and the bag screen's feed button act on it.
 var focus: Creature
-var menu: StationMenu
+var menu: PetRadial
+var rename_dialog: PetRenameDialog
 var mount_hips_offset := Vector3.ZERO
 var _mount_saved_parent: Node
 var _rig_rest: Transform3D
@@ -152,7 +154,9 @@ func order(cmd: StringName) -> void:
 		return
 	var t: Creature = p.hunt.target if (p.hunt and p.hunt.target and is_instance_valid(p.hunt.target)) else null
 	if cmd == &"attack" and t == null:
-		t = p.actions.nearest_creature(30.0, false)  # SIC with no target: the nearest wild animal
+		t = p.controls.selection.shown()  # SIC with no fight: the selected animal (PRD 10.2 "pets join")
+	if cmd == &"attack" and t == null:
+		t = p.actions.nearest_creature(30.0, false)  # else the nearest wild animal
 		if t == null:
 			p.notice("No enemy nearby to sic them on.")
 			return
@@ -168,17 +172,19 @@ func order(cmd: StringName) -> void:
 		_:
 			p.notice("%s guard you." % who)
 
-# ---------------------------------------------------------------- pet hex menu
+# ---------------------------------------------------------------- pet radial
 
 func setup_menu(layer: CanvasLayer) -> void:
-	menu = StationMenu.new()
-	menu.name = "PetMenu"
+	menu = PetRadial.new()
+	menu.name = "PetRadial"
 	menu.player = p
 	layer.add_child(menu)
 	menu.action_chosen.connect(_on_menu)
+	rename_dialog = PetRenameDialog.new()
+	rename_dialog.name = "PetRename"
+	layer.add_child(rename_dialog)
 
-## Tap (or interact key) on your own pet: its hex menu. Ride only for mount species, Bag only when
-## it has one (tame-13: a mount with a bag used to mount and never show the bag).
+## Tap (or interact key) on your own pet: its radial; the same pet again closes it.
 func interact(c: Creature) -> void:
 	if c == null or c.pet_record == null:
 		return
@@ -189,34 +195,55 @@ func interact(c: Creature) -> void:
 		elif p.ui:
 			p.ui.show_pet_bag(c.pet_record)
 		return
+	if menu.visible and menu.pet == c:
+		menu.hide_menu()
+		return
 	menu.show_for(c, entries(c))
 
+## What this pet can do now; anything it cannot is left out. Animals needs the HUD's Animals screen,
+## Bag a bag (tame-13), Ride a mount species (Dismount while you ride it).
 func entries(c: Creature) -> Array:
 	var out: Array = []
-	if &"mount" in c.pet_record.tamed_role:
-		out.append(MENU[&"ride"])
+	var hud := p.get_tree().get_first_node_in_group("hud") if p.is_inside_tree() else null
+	if hud and hud.has_method("open_animals"):
+		out.append(MENU[&"animals"])
 	if c.pet_record.bag:
 		out.append(MENU[&"bag"])
 	out.append(MENU[&"feed"])
-	out.append(MENU[&"orders"])
+	if &"mount" in c.pet_record.tamed_role:
+		out.append(MENU[&"dismount"] if p.mounted_on == c else MENU[&"ride"])
+	out.append(MENU[&"dismiss"])
+	if rename_dialog:
+		out.append(MENU[&"rename"])
 	return out
 
 func _on_menu(anchor: Node3D, action_id: StringName) -> void:
 	var c := anchor as Creature
 	if c == null or not is_instance_valid(c) or c.health.dead:
 		return
+	focus = c
 	match action_id:
-		&"ride":
-			p.mount(c)
+		&"animals":
+			var hud := p.get_tree().get_first_node_in_group("hud")
+			if hud and hud.has_method("open_animals"):
+				hud.open_animals(c.pet_record)
 		&"bag":
 			if p.ui:
 				p.ui.show_pet_bag(c.pet_record)
 		&"feed":
 			feed_best(c)
-		&"orders":
-			menu.show_for(c, [MENU[&"attack"], MENU[&"heel"], MENU[&"guard"]])
-		&"attack", &"heel", &"guard":
-			order(action_id)
+		&"ride":
+			if p.mounted_on and p.mounted_on != c:
+				p.dismount()
+			if p.mounted_on == null:
+				p.mount(c)
+		&"dismount":
+			p.dismount()
+		&"dismiss":
+			dismiss(c)
+		&"rename":
+			var rec := c.pet_record
+			rename_dialog.open(rec.name, func (nm: String) -> String: return p.actions.rename_pet(rec, nm))
 
 ## Feed one unit of the first food in the bag this pet eats.
 func feed_best(c: Creature) -> bool:
@@ -265,6 +292,7 @@ func mount(c: Creature) -> void:
 	if c.pet_record == null or not (&"mount" in c.pet_record.tamed_role):
 		return
 	p.mounted_on = c
+	c.ridden = true
 	_mount_saved_parent = p.get_parent()
 	c.add_collision_exception_with(p)
 	p.add_collision_exception_with(c)
@@ -307,28 +335,55 @@ func dismount() -> void:
 	var pos := c.global_position + Vector3(1.2, 0, 0)
 	var host := _mount_saved_parent if _mount_saved_parent else c.get_parent()
 	p.reparent(host)
+	# reparent keeps the global transform, so the body would keep the mount's yaw and the visual (local yaw,
+	# player_sim) would run sideways or backwards. Zero the body yaw; keep the facing on the visual.
+	var face := p.visual.global_rotation.y if p.visual else 0.0
+	p.global_rotation = Vector3.ZERO
+	if p.visual:
+		p.visual.global_rotation.y = face
 	p.global_position = pos
 	if is_instance_valid(c):
+		c.ridden = false
 		c.remove_collision_exception_with(p)
 		p.remove_collision_exception_with(c)
 	p.mounted_on = null
 	print("[capture] dismounted")
 
-## Steer the mount. It moves at the pace it walks at as a pet (pet_record.speed, statuses, hunger;
-## tame-21), and it moves here: the creature's own tick runs first (the rider is its child) and
-## zeroes any velocity its brain did not ask for, so the rider slides it after that (phys-mount-01).
+## Shift held or the HUD SPRINT toggle on: the rider asks the mount to run.
+func wants_mount_sprint() -> bool:
+	return Input.is_action_pressed("sprint") or p.sprint_toggled
+
+## Steer the mount. Running it goes at its pet pace (pet_record.speed, statuses, hunger; tame-21),
+## walking at Creature.walk_mps of that. It moves here: the creature's own tick runs first (the rider
+## is its child) and zeroes any velocity its brain did not ask for, so the rider slides it after that
+## (phys-mount-01).
+const MOUNT_RUN_FLOOR := 1.25
+
 func mounted_move(delta: float) -> void:
 	var m := p.mounted_on
 	var dir := p.sim.cam_dir(p.sim.input_vector())
+	# Shift or the SPRINT toggle runs the mount on ITS energy pool (the rider's stamina and fatigue
+	# are untouched); otherwise, or once it is winded, it walks.
+	var run := dir.length_squared() > 0.0 and wants_mount_sprint() and m.can_sprint()
+	m.tick_energy(delta, run)
 	if dir.length_squared() > 0.0:
 		var speed := m.pet_record.speed / 100.0 if m.pet_record else m.move_speed_mps()
+		# ASSUMPTION (owner: mounts must be worth riding): a ridden mount runs at least 1.25x the survivor's
+		# sprint and walks at least her walk pace, whatever its pet speed stat says.
+		speed = maxf(speed, p.sprint_speed * MOUNT_RUN_FLOOR)
+		if not run:
+			speed = maxf(m.walk_mps(speed), p.walk_speed)
 		speed *= m.statuses.move_mult() * (0.85 if m.hunger <= 0.0 else 1.0)
 		m.velocity.x = dir.x * speed
 		m.velocity.z = dir.z * speed
 		m.face_towards(m.global_position + dir, delta)
-		m.move_and_slide()
+		if not m.anim._busy:
+			m.anim.set_move_speed(speed)  # stride-matched, same as creature.gd
 	else:
 		m.velocity.x = 0.0
 		m.velocity.z = 0.0
+		if not m.anim._busy and not m.anim._forced:
+			m.anim.play_idle()
+	m.move_and_slide()
 	if p.anim:
 		p.anim._physics_tick(0.0)
