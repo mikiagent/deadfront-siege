@@ -1,0 +1,69 @@
+{
+  "forward": [
+    -1,
+    0,
+    0
+  ],
+  "body": "Body",
+  "view_size": 1.0,
+  "view_centre": [
+    0.0,
+    0.3
+  ],
+  "legs": {
+    "L": {
+      "up": "BackUpLeg.L",
+      "low": "BackLowLeg.L",
+      "foot": "BackFoot.L",
+      "root": "BackLeg.L",
+      "end": "hind"
+    },
+    "R": {
+      "up": "BackUpLeg.R",
+      "low": "BackLowLeg.R",
+      "foot": "BackFoot.R",
+      "root": "BackLeg.R",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck": {
+      "key": "head",
+      "axis": "pitch"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.25
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "clips": {
+    "strafe_right": {
+      "cycle_s": 0.75,
+      "duty": 0.62,
+      "stride": 0.18,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.035,
+      "swing_curl_hind": 30,
+      "toe_roll": 25,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "bob": 0.005,
+      "bob_harmonic": 2,
+      "roll_deg": 0.0,
+      "sway": 0.0,
+      "wiggle_head": 1.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 2.0
+    }
+  },
+  "note": "sidestep: the walk's foot plan along the side axis (forward = the travel direction); body keeps facing -Y"
+}
