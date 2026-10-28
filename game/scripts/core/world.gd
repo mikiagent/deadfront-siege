@@ -35,7 +35,12 @@ var _objective_acc: float = 0.0
 var player_name: String = ""
 var occupation: String = ""  # gathers +1, crafts +10, buildings +15; bar wraps every 100 (ASSUMPTION)
 var pioneer_crafts: Dictionary = {}
+## kind -> times placed (saved): > 0 means the kind is known, so its next placement pays
+## build_repeat instead of build_first (rules.json "xp").
 var pioneer_buildings: Dictionary = {}
+## XPECON: builds placed inside rules.json xp.build_spam_seconds, {kind, pos, t}. Transient on
+## purpose: a real placement time cannot be saved, and a reloaded island pays for a fresh build.
+var build_recent: Array = []
 var cargo_home: Inventory = Inventory.new(60) ## ASSUMPTION: 60 slots for mobile UI
 var remaining_lifetime: float = 0.0
 var crater_discovered: bool = false
@@ -261,6 +266,7 @@ func start_new(host: Node) -> void:
 
 func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) -> void:
 	_clear_runtime()
+	build_recent.clear()  # a load or a crossing starts the build-spam window over
 	island_id = id
 	visited_islands[str(id)] = true
 	island_def = def_of(id)
@@ -409,11 +415,47 @@ func note_craft(recipe_id: StringName) -> void:
 	pioneer_crafts[str(recipe_id)] = true
 	add_xp(25)  # first time crafting a recipe: a discovery bonus, not a free level
 
-func note_building(kind: StringName) -> void:
-	if not is_home():
-		return
-	pioneer_buildings[str(kind)] = int(pioneer_buildings.get(str(kind), 0)) + 1
-	add_xp(30)
+## XP a placement of `kind` at `at` pays (rules.json "xp"): 0 when another of its kind stands
+## within build_spam_radius_m and was placed less than build_spam_seconds ago; build_repeat when the
+## kind was placed before (pioneer_buildings, which is saved); build_first the first time ever.
+func build_placement_xp(kind: StringName, at: Vector3) -> int:
+	var cfg: Dictionary = Data.world_rules.get("xp", {})
+	var radius := float(cfg.get("build_spam_radius_m", 10.0))
+	var window := float(cfg.get("build_spam_seconds", 60.0))
+	var now := float(Time.get_ticks_msec()) / 1000.0
+	var keep: Array = []
+	for e: Dictionary in build_recent:
+		if now - float(e.get("t", 0.0)) < window:
+			keep.append(e)
+	build_recent = keep
+	for e: Dictionary in build_recent:
+		var was := e.get("pos", Vector3.ZERO) as Vector3
+		if str(e.get("kind", "")) == str(kind) and was.distance_to(at) <= radius:
+			return 0
+	build_recent.append({"kind": str(kind), "pos": at, "t": now})
+	if int(pioneer_buildings.get(str(kind), 0)) > 0:
+		return int(cfg.get("build_repeat", 8))
+	return int(cfg.get("build_first", 30))
+
+## A build was placed. Remembers the kind (pioneer_buildings: the saved first-of-kind memory) and
+## pays the build XP once, to the Construction tree, which mirrors it into World.add_xp, so the
+## skill and the character bar both follow rules.json's numbers. `extra_xp` is a blueprint's own
+## reward (build_flow), paid in the same grant instead of a second one. Returns the XP paid.
+func note_building(kind: StringName, at: Vector3 = Vector3.ZERO, player: Player = null, extra_xp: int = 0) -> int:
+	# The first-of-kind memory and the spam rule are the Tamed Island's (is_home), as before: an
+	# unstable island is a visit, and a blueprint still pays its own reward there.
+	var total := maxi(0, extra_xp)
+	if is_home():
+		total += build_placement_xp(kind, at)
+		pioneer_buildings[str(kind)] = int(pioneer_buildings.get(str(kind), 0)) + 1
+	if total <= 0:
+		return 0
+	var who := player if player else _player()
+	if who and who.skills:
+		who.skills.add_xp("construction", float(total)) # mirrors into World.add_xp and the Survival route
+	else:
+		add_xp(total)
+	return total
 
 func discover_crater() -> void:
 	if crater_discovered:

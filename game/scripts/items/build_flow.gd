@@ -105,10 +105,9 @@ static func complete(player: Player, site: Node) -> CraftStation:
 	grid.occupy(station, grid.cells_for(kind, cell, rot))
 	cs.queue_free()
 	print("[buildflow] %s complete: %s lv %d from %s" % [cs.site_id, kind, level, spent.map(func (s: ItemStack) -> int: return s.level)])
-	if player and player.skills:
-		# XP once, on completion only (never per work tick, cancel or reopen).
-		player.skills.add_xp("construction", float(bp.get("xp", 25.0)))
-		World.note_building(kind)
+	# XP once, on completion only (never per work tick, cancel or reopen). XPECON: the blueprint's own
+	# reward and World.note_building's first/repeat/spam award (rules.json xp) go in one grant.
+	World.note_building(kind, station.global_position, player, int(bp.get("xp", 25.0)))
 	return station
 
 static func _names(v: Variant) -> Array[StringName]:
