@@ -11,10 +11,10 @@ rules for the world: `game/scripts/core/save_restore.gd`. Validation after migra
 - Automated runs (`--lab`, `--shot`, `--smoke`, `--bot`, `--web-soak`, `*probe`, `*-test`,
   `--script <file>`): `user://runs/<name>/save_1.json`, and the folder is wiped on launch
   (`SaveMigrations.wipe_dir`), so each run starts from a fresh world.
-- Engine user dir: `game/override.cfg` sets `use_custom_user_dir=true` and
-  `custom_user_dir_name="deadfront-mmo-currentdocs"`, so `user://` resolves to
-  `~/Library/Application Support/deadfront-mmo-currentdocs/` on macOS. The game code never reads
-  that file; it is engine config.
+- Engine user dir: no custom user dir is configured (`game/project.godot` sets only
+  `config/name="WildLands MMO"` and no `custom_user_dir_name`), so Godot's default applies and
+  `user://` resolves to `~/Library/Application Support/Godot/app_userdata/WildLands MMO/` on
+  macOS. The game code never reads that path; it is engine config.
 - Siblings of the save: `.tmp` (write target), `.bak` (previous good save), and
   `.corrupt-<unix>` quarantined copies. There is no separate autosave file — the autosave writes
   the same `save_1.json`.
