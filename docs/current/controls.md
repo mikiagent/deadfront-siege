@@ -60,6 +60,16 @@ Targets (owner 2026-10-28): out of combat a tap on a wild animal selects it; the
 NEAREST, E or F start the fight. In combat a tap on another enemy retargets at once and ATTACK
 NEAREST retargets to the nearest enemy.
 
+Move orders and interacting (owner 2026-10-28): a tap on the ground is a **move order** and outranks
+combat. While she is walking to that point the hunt does not auto-chase or auto-swing, even with a
+target in reach; a tap on an enemy still selects or retargets, it just does not cancel the move.
+Taking real damage (a creature hit, not a bleed/DoT tick) ends the move after the hurt stun: she turns
+on the attacker if it is within attack range (28 m), otherwise on the nearest hostile. A ground tap
+also cancels an interact errand she was walking to — sleep at a tent, gather, loot, craft at a station
+— so the intent and the path both drop and she never finishes it; the same happens the moment you
+steer with the keys or the stick. Keys and stick keep driving her directly with no move order, which
+leaves today's combat behaviour (auto-attack, auto-chase) in place. A craft already started at the
+bench keeps running; only a queued-but-unstarted recipe is dropped.
 ## Facing and walking away from a fight
 
 Owner 2026-10-28: "player has the turn speed glitch too" and "if i'm in combat and i try to walk away,
