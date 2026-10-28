@@ -493,7 +493,9 @@ func _test_phone_slot() -> void:
 	print("[t_domain] phone view=%s banner=%s quest=%s figure=%s" % [view, box, quest, fig])
 	_expect(view == Vector2(844, 390), "the HUD canvas is 844x390 (%s)" % view)
 	_expect(box.has_area(), "on a landscape phone the banner shows")
-	_expect(box.has_area() and quest.has_area() and box.end.y <= quest.position.y, "on a landscape phone the banner sits above the quest card (%s, quest %s)" % [box, quest])
+	# HUDRULES (owner 2026-10-28): orders start collapsed into the minimap badge, so the card may not be drawn.
+	_expect(box.has_area() and (not quest.has_area() or box.end.y <= quest.position.y), "on a landscape phone the banner sits above the quest card when it shows (%s, quest %s)" % [box, quest])
+	_expect(not quest.has_area() or not box.intersects(quest), "on a landscape phone the banner never covers the quest card (%s, %s)" % [box, quest])
 	_expect(not box.intersects(fig), "on a landscape phone the banner is clear of the survivor (%s, %s)" % [box, fig])
 	root.size = was_size
 	root.content_scale_size = was_scale
