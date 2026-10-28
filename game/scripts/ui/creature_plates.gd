@@ -9,12 +9,15 @@ const NEAR_DIST := 10.0
 const BASE_WIDTH := 176.0
 const DAMAGE_CHUNK_SECONDS := 0.6
 const STATUS_GLYPH_SCRIPT: GDScript = preload("res://scripts/ui/status_glyph.gd")
-## Rows of a full plate: name 0-16, nature tag 16-29 (NATURES: a chip under the name, absent while the
-## animal has no nature), HP bar 29-43, pet XP 43-47, status glyphs 47-73, tame 73-93.
-const FULL_H := 94.0
-## The nature tag sits directly under the name line, left-aligned with it. It takes no extra height:
-## the rows under it moved up by the chip's 13 px, so the plate keeps its 176x94 budget.
-const CHIP_POS := Vector2(8, 16)
+## Rows of a full plate: name 0-20 (the 14 px font's ascent + descent: at 16 the tag hid the name's
+## descenders), nature tag 20-34 (NATURES: a chip under the name, absent while the animal has no
+## nature), a 4 px gap, HP bar 38-52, pet XP 52-56, status glyphs 56-82, tame 82-102.
+## Without a nature the rows below the name move up by the chip and its gap (bar at 22).
+const FULL_H := 102.0
+## The nature tag sits directly under the name line, left-aligned with it.
+const CHIP_POS := Vector2(8, 20)
+## ASSUMPTION: 4 px between the nature tag and the HP bar; touching, the bar read as covering the tag.
+const CHIP_GAP := 4.0
 ## Far plates shrink, but never below the 12 px type floor for their 14 px text.
 const MIN_SCALE := 0.86
 
@@ -234,7 +237,7 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	root.add_child(chip)
 	var bar_bg := ColorRect.new()
 	bar_bg.name = "BarBg"
-	bar_bg.position = Vector2(8, 29)
+	bar_bg.position = Vector2(8, bar_top(false))
 	bar_bg.size = Vector2(160, 14)
 	bar_bg.color = Color(0.04, 0.04, 0.04, 0.82)
 	root.add_child(bar_bg)
@@ -401,10 +404,13 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 			chip.position = CHIP_POS
 	var bar_bg := root.get_node_or_null("BarBg") as ColorRect
 	if bar_bg:
-		# Fixed rows: the chip row is always reserved, so a plate never resizes between creatures
-		# and nothing jumps when the tag appears or the name changes.
-		bar_bg.position = Vector2(8, CHIP_POS.y + NatureChip.CHIP_H if full else 2)
+		# Every row under the name hangs off the bar: tag, gap, bar; no tag, the bar right under the name.
+		var by := bar_top(chip != null and chip.visible) if full else 2.0
+		entry["bar_y"] = by
+		bar_bg.position = Vector2(8, by)
 		bar_bg.size = Vector2(160 if full else 96, 14 if full else 6)
+		(entry["line3"] as Control).position = Vector2(8, by + 18.0)
+		(entry["tame_row"] as Control).position = Vector2(8, by + 44.0)
 	root.size = Vector2(BASE_WIDTH, FULL_H if full else 18)
 	root.custom_minimum_size = root.size
 	var frac := c.health.fraction()
@@ -452,6 +458,10 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	_tick_floaters(entry, delta)
 	_fit_pill(entry, full)
 
+## Top of a full plate's HP bar: under the nature tag and its gap, else right under the name.
+static func bar_top(has_nature: bool) -> float:
+	return CHIP_POS.y + NatureChip.CHIP_H + CHIP_GAP if has_nature else CHIP_POS.y + 2.0
+
 ## Pill behind whatever rows are showing (compact: just the short bar).
 func _fit_pill(entry: Dictionary, full: bool) -> void:
 	var pill := entry.get("pill", null) as Control
@@ -461,16 +471,17 @@ func _fit_pill(entry: Dictionary, full: bool) -> void:
 		pill.position = Vector2(4, -2)
 		pill.size = Vector2(104, 10)
 		return
-	var bottom := CHIP_POS.y + NatureChip.CHIP_H + 17.0  # name, nature tag, then the HP bar at 29-43
+	var by := float(entry.get("bar_y", bar_top(false)))
+	var bottom := by + 17.0  # name, nature tag, then the HP bar
 	var line3 := entry.get("line3", null) as Control
 	if line3 and line3.visible:
 		for g in line3.get_children():
 			if (g as Control).visible:
-				bottom = 73.0
+				bottom = by + 44.0
 				break
 	var tame_row := entry.get("tame_row", null) as Control
 	if tame_row and tame_row.visible:
-		bottom = 93.0
+		bottom = by + 64.0
 	pill.position = Vector2(2, -2)
 	pill.size = Vector2(BASE_WIDTH - 4.0, bottom + 2.0)
 
@@ -515,7 +526,7 @@ func _tick_xp(entry: Dictionary, c: Creature, full: bool) -> void:
 	bg.visible = show
 	if not show:
 		return
-	bg.position = Vector2(8, 36 if full else 10)
+	bg.position = Vector2(8, float(entry.get("bar_y", bar_top(false))) + 14.0 if full else 10.0)
 	bg.size = Vector2(160 if full else 96, 4)
 	var need := PetRecord.xp_to_next(c.pet_record.level)
 	var frac := clampf(c.pet_record.xp / maxf(1.0, need), 0.0, 1.0)
