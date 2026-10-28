@@ -73,7 +73,8 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
   (`dress_share`, `BiomeDress`). Measured headless (t_tutorial / probe): build 8.2-9.0 s, ~66k
   multimesh instances (52k cover), 609 harvest nodes, ~5.6k scene nodes, ~215 MB static heap
   added. Home on the same machine: build ~3.9 s.
-- HUD map title reads "Tutorial Island"; the atlas lists island time as "Permanent".
+- HUD map title reads "Tutorial Island"; the atlas lists island time as "Permanent"; town pills show
+  the building's name (`hud_pills.gd`); the domain banner never shows on this island (`domain_banner.gd`).
 
 ## Onboarding pointer (`game/scripts/ui/tutorial_pointer.gd`)
 - Added over the HUD by `main.gd`. 5 Hz `Tutorial.pointer_target`; draws a pulsing gold ring

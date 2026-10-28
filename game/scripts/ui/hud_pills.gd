@@ -127,6 +127,8 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 			if kind == null:
 				kind = n3.get("station_id")
 			name = str(kind if kind != null else n3.name).replace("_", " ").capitalize()
+			if n3 is TownBuilding and (n3 as TownBuilding).display_name != "":
+				name = (n3 as TownBuilding).display_name  # TUTORIAL ISLAND town: "Adventurer's Guild", "Market stall"
 			if grp == "cargo_warp":
 				name = "Cargo Warp"
 			elif grp == "harbour":

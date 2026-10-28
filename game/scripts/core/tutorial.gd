@@ -171,7 +171,7 @@ static func dress(rt: IslandRuntime) -> void:
 	rt._camp_place(pit, "TutorialFirePit", &"stone_fire_pit", at.call(-2.0, 4.5))
 	rt._camp_place(TownBuilding.make(&"log_shelter", &"guild", "Adventurer's Guild"), "TownGuild", &"log_shelter", at.call(-11.0, -9.0))
 	rt._camp_place(TownBuilding.make(&"fishing_stand", &"market", "Market stall"), "TownMarket", &"fishing_stand", at.call(10.0, -9.0))
-	rt._camp_place(TownBuilding.make(&"signpost", &"decor", "Adventurer's Guild: orders and quests"), "TownSign", &"signpost", at.call(-5.0, -6.0))
+	rt._camp_place(TownBuilding.make(&"signpost", &"decor", "Tutorial Island town"), "TownSign", &"signpost", at.call(-5.0, -6.0))
 	rt._camp_place(TownBuilding.make(&"barrel", &"decor", ""), "TownBarrel", &"barrel", at.call(13.0, -6.0))
 	rt._camp_place(TownBuilding.make(&"large_box", &"decor", ""), "TownCrates", &"large_box", at.call(-14.0, -5.0))
 	var rack := CraftStation.make(&"drying_rack")
