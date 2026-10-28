@@ -251,8 +251,11 @@ func defense_for(ranged: bool = false) -> float:
 
 ## NATURES: the one place a nature's damage multiplier applies (Docile is less effective in combat).
 ## Every hit a creature lands reads this, survivors, pets and structures alike; the stat itself is
-## unchanged, so the PETS sheet keeps showing the species numbers.
+## unchanged, so the PETS sheet keeps showing the species numbers. A pet's multiplier already lives
+## in PetRecord.stat_value (the one source for pet stats), so it is not applied twice here.
 func attack_for(ranged: bool = false) -> float:
+	if is_pet and pet_record:
+		return pet_record.stat_value(&"ranged_attack" if ranged else &"melee_attack")
 	return stat_value(&"ranged_attack" if ranged else &"melee_attack") * nature_knob("damage_dealt_mult", 1.0)
 
 func accuracy_chance() -> float:

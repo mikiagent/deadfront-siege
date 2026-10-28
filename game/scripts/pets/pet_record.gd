@@ -160,16 +160,26 @@ static func from_def(def: CreatureDef, _legacy_grade: StringName = &"", variant:
 	r.bag = Inventory.new(bag_slots_for(def))
 	return r
 
+## The values a pet fights with. Health, defense, accuracy and speed are the cached species numbers;
+## the two attack stats carry the nature's damage multiplier (Docile hits softer, natures.json
+## damage_dealt_mult), so every path that damages with a pet reads the nature without knowing about
+## it. The cached `attack` field and the PETS sheet keep showing the plain species number.
 func stat_value(stat: StringName) -> float:
 	match stat:
 		&"health": return hp
 		&"melee_defense": return defense
 		&"ranged_defense": return ranged_defense
-		&"melee_attack": return attack
-		&"ranged_attack": return ranged_attack
+		&"melee_attack": return attack * _nature_damage()
+		&"ranged_attack": return ranged_attack * _nature_damage()
 		&"accuracy": return accuracy
 		&"speed": return speed
 	return 0.0
+
+## NATURES: the nature's damage multiplier, 1.0 for a record without a known nature.
+func _nature_damage() -> float:
+	if nature == &"":
+		return 1.0
+	return float(CreatureNatures.knobs(nature).get("damage_dealt_mult", 1.0))
 
 func accuracy_chance() -> float:
 	return clampf(0.90 + (accuracy - 100.0) * 0.004, 0.72, 0.99)

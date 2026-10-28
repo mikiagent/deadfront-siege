@@ -34,7 +34,11 @@ Code:
   stamps `nature` on the pet record; `pets/capture_system.gd` puts it on the captured stack;
   `world/taming_pen.gd` reads it back and scales the 30-minute wait by `pen_time_mult`.
 - `pets/pet_record.gd` — `nature`, saved in `to_dict()`, migrated in `from_dict()` (unknown or
-  missing → derived from the uid). `core/save_sanitizer.gd` keeps the field.
+  missing → derived from the uid). `core/save_sanitizer.gd` keeps the field. `stat_value()` folds
+  the nature's `damage_dealt_mult` into the two attack stats, so every pet damage path (the hit
+  path reads that one stat source) obeys its nature while the stored `attack` and the PETS sheet
+  keep the plain species numbers; `Creature.attack_for()` therefore returns a pet's stat as-is and
+  applies the knob only for wild animals (no double multiply).
 - `ui/creature_plates.gd` and `ui/animal_screen.gd` — the name reads nature, then variant or
   "Alpha" (pack leader), then species.
 
@@ -52,7 +56,7 @@ Code:
 | protoceratops feeds needed | 3.00 | Stubborn 4.50 / Docile 1.00 |
 | tame window | 45 s | Stubborn 33.8 s / Docile 56.2 s |
 | pen wait | 1800 s | Stubborn 2520 s / Docile 1440 s |
-| raptor plain blow on a triceratops | 4.0–5.1 | 3.2–3.8 (Docile ×0.75) |
+| raptor plain blow on a triceratops | 4.0–5.1 (least of 30: 4.77) | 3.2–3.8 (least of 30: 3.58, Docile ×0.75) |
 | roll over 400 tyrant spawns | — | docile 162, loyal 77, stubborn 64, aggressive 52, brave 45, timid 0 (never) |
 
 ## Shots
