@@ -42,6 +42,24 @@
     },
     "strafe_right": {
       "note": "mirror of strafe_left"
+    },
+    "leap_back": {
+      "airborne": [
+        0.2,
+        0.65
+      ],
+      "note": "long backward leap, wings flared; tools/jaw/make_hop_back.py --name leap_back"
+    },
+    "pounce": {
+      "airborne": [
+        0.2,
+        0.65
+      ],
+      "hit_frac": 0.7,
+      "note": "ambush pounce: crouch, forward leap nose-down with wings flared, lands on the target; tools/jaw/make_hop_back.py --forward"
+    },
+    "walk_back": {
+      "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing"
     }
   },
   "natural_speeds": {
@@ -68,15 +86,15 @@
       "run": 2.508
     },
     "deinonychus": {
-      "height_m": 3.6,
-      "run_l": 7.977,
+      "height_m": 2.8,
+      "run_l": 6.204,
       "run_len": 0.5,
-      "run_r": 7.977,
-      "walk_l": 1.692,
+      "run_r": 6.204,
+      "walk_l": 1.316,
       "walk_len": 1.0,
-      "walk_r": 1.692,
-      "walk": 1.692,
-      "run": 7.977
+      "walk_r": 1.316,
+      "walk": 1.316,
+      "run": 6.204
     },
     "gallimimus": {
       "height_m": 3.8,
