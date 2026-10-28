@@ -50,6 +50,7 @@ Client ops (`CLIENT_OPS`), each validated in full before it mutates anything:
 | `act.tame` | `_tame` | one `FieldTame` feed; the last feed bonds the pet (pen needed if the species requires one) |
 | `act.capture` | `_capture` | `CaptureSystem` chance on a knocked creature under 30% HP; success gives a `captured_animal` stack, net consumed |
 | `act.attack` | `_attack` | one melee swing with the client's combat numbers on the server RNG; ranged refused |
+| `act.roll` | `_roll` | the survivor rolls: stores the press time (`roll_ms` = op second × 1000 + `ms`), refuses a press inside `RollRules.cooldown_s()` (`not_ready`), answers `iframes_ms` / `cooldown_ms` |
 | `char.get` | — | read-only `CharacterState.view` |
 | `char.import` | — | always refused: an offline save never imports into an online character |
 
@@ -77,6 +78,17 @@ slot or uid.
   blocked cells. Reads return plain JSON (positions as `[x, y, z]`) and are recorded on the op's
   `tape`, so replay never needs the island. Writes: `take_node_unit`, `take_corpse`,
   `damage_creature`, `set_tame_feeds`, `bond_creature`, `fail_capture`, `place`.
+
+### The roll's window
+
+`IntentHandlers.rolls_dodge(ch, at_ms)` is the one server-side answer to "was she dodging at that
+moment": it times `at_ms - ch.roll_ms()` through `RollRules.invulnerable_at()`, the same function
+`PlayerSim.roll_invulnerable()` uses, so the client and the server cannot disagree about the window.
+`tests/t_roll.gd` checks every timing (0/150/250/319/330/500/900 ms) against the client rule.
+
+Not on this line yet: **creature→player hits are not validated on the server**, so nothing calls
+`rolls_dodge()`; the server also has no vitals, so the roll's stamina cost is the client's alone.
+When hits move to the server, the hit handler calls `rolls_dodge()` with its own absolute ms.
 
 ## Not on this line
 - No transport, host, listen or port code; no client relay; no matchmaking.
