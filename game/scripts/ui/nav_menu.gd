@@ -24,7 +24,9 @@ const RIGHT := [
 	{"id": &"domain", "label": "Domain", "icon": &"claim"},
 	{"id": &"orders", "label": "Orders", "icon": &"notice"},
 	{"id": &"communication", "label": "Communication", "icon": &"chat"},
-	{"id": &"friends", "label": "Friends", "icon": &"pets"},
+	# ASSUMPTION: Island Market (spec 33/14: Main Menu -> Island Market) takes the Friends slot; Friends has no system
+	# and the phone layout fits six rows a side. Friends comes back when a friend system exists.
+	{"id": &"market", "label": "Island Market", "icon": &"market"},
 	{"id": &"save", "label": "Save", "icon": &"save"},
 ]
 ## Entries with no screen yet show greyed and do nothing.
@@ -293,8 +295,10 @@ func _open(id: StringName) -> void:
 			p.controls.toggle_inventory()
 		&"animals":
 			h.open_animals()
+		&"market":
+			h.open_market()
 		&"atlas":
-			h._open_map()
+			h.open_atlas()
 		&"domain":
 			h._open_domain()
 		&"communication":

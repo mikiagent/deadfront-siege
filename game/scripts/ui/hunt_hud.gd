@@ -1168,6 +1168,16 @@ func open_atlas() -> void:
 	if _map_screen == null or not _map_screen.is_open():
 		_open_map()
 
+## UIMARKET: the Island Market on its own layer (tab: buy | my_market | sell); its ‹ comes back to MENU.
+func open_market(tab: StringName = &"buy") -> MarketScreen:
+	var s := MarketScreen.open_for(self, tab)
+	if not s.back_pressed.is_connected(_market_back):
+		s.back_pressed.connect(_market_back)
+	return s
+
+func _market_back() -> void:
+	_toggle_sheet(&"menu")
+
 var _domain_screen: DomainScreen
 
 ## spec 29: the Domain screen (four territory tabs, Declare/Expand with the ground preview).
