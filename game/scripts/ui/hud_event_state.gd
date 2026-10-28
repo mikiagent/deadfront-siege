@@ -63,6 +63,14 @@ func add_bite(amount: float, heavy: bool) -> void:
 func add_float(text: String, color: Color, dy: float = 0.0) -> void:
 	player_floats.append({"t": 0.0, "txt": text, "col": color, "x": 0.0, "dy": dy})
 
+## STATUSFX: a damage-over-time tick's number over her ("-0.2", "-3"): smaller than a hit's 22 px, it
+## pops in from 70 % and then rises and fades on the same path as a hit's number.
+const TICK_PX := 16
+## Two statuses ticking on one frame: the second number stands beside the first, not on it.
+func add_tick(text: String, color: Color) -> void:
+	var same := player_floats.filter(func (e: Dictionary) -> bool: return e.get("pop", false) and float(e["t"]) == 0.0).size()
+	player_floats.append({"t": 0.0, "txt": text, "col": color, "x": randf_range(-5.0, 5.0) + 38.0 * float(same), "dy": 0.0, "px": TICK_PX, "pop": true})
+
 func add_notice(text: String) -> void:
 	for entry in notices:
 		if entry["text"] == text and entry["t"] < 1.5:

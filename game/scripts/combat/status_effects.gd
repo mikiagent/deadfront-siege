@@ -4,6 +4,8 @@ extends Node
 
 signal applied(id: StringName, stacks: int)
 signal removed(id: StringName)
+## STATUSFX: a damage-over-time tick took `amount` Health off the survivor (the HUD's red "-N").
+signal ticked(id: StringName, amount: float)
 
 var _active: Array[StatusInstance] = []
 var _tick_acc: float = 0.0
@@ -230,9 +232,12 @@ func _dot(inst: StatusInstance) -> void:
 		if def.dps_max_hp_frac > 0.0:
 			dps += def.dps_max_hp_frac * pl.vitals.max_health
 		if dps > 0.0:
+			var was := pl.vitals.health
 			ticking = true
 			pl.vitals.take_damage(dps * 0.5)
 			ticking = false
+			if was > pl.vitals.health:
+				ticked.emit(inst.id, was - pl.vitals.health)
 		if def.fatigue_per_min > 0.0:
 			# fatigue_per_min is a rate on the 0-100 fatigue scale (PRD's +5.4/min, +18/min), per
 			# tick of 0.5 s. It used to be multiplied by 100 as well: Wet charged 30/min.
