@@ -270,10 +270,21 @@ func _test_blow_directions() -> void:
 		var moved := Vector2(rest.x - stand.x, rest.z - stand.z)
 		var along := moved.dot(Vector2(push.x, push.z))
 		_expect(rd != null and rd.phase == &"frozen", "%s blow freezes (%s)" % [name, rd.phase if rd else "no ragdoll"])
-		var head: int = sk.find_bone("Neck")
-		var hr: Vector3 = sk.global_transform * sk.get_bone_global_pose(head).origin
-		print("[t_ragdoll] probe %s hips_along=%.2f head_along=%.2f" % [name, along, Vector2(hr.x - stand.x, hr.z - stand.z).dot(Vector2(push.x, push.z))])
-		_expect(along >= 0.2, "%s blow topples the body away from it (hips %.2f m along the shove, %.2f m across)" % [name, along, absf(moved.dot(Vector2(-push.z, push.x)))])
+		# The whole body's centre of mass, from every posed bone: where the carcass ended up.
+		var cen := Vector3.ZERO
+		for bi in sk.get_bone_count():
+			var bp: Vector3 = sk.global_transform * sk.get_bone_global_pose(bi).origin
+			cen += Vector3(bp.x - stand.x, 0.0, bp.z - stand.z)
+		cen /= float(maxi(1, sk.get_bone_count()))
+		# The trunk's up axis: a body that fell onto its far flank points it away from the blow.
+		var trunk: int = sk.find_bone("Body")
+		var upv: Vector3 = (sk.global_transform.basis * sk.get_bone_global_pose(trunk).basis.y).normalized()
+		var up_push := Vector2(upv.x, upv.z).dot(Vector2(push.x, push.z))
+		print("[t_ragdoll] %s blow: hips %+.2f m, centre %+.2f m, up axis %+.2f along the shove" % [name, along, cen.dot(push), up_push])
+		_expect(along > 0.0 and cen.dot(push) >= 0.3, "%s blow topples the body away from it (centre %.2f m along the shove, hips %.2f m)" % [name, cen.dot(push), along])
+		_expect(up_push > -0.2, "%s blow does not tip the body's up axis back toward the attacker (%.2f)" % [name, up_push])
+		if name in ["left", "right"]:
+			_expect(up_push >= 0.5, "%s flank blow lays the body onto its far flank (up axis %.2f along the shove)" % [name, up_push])
 		await _free_all([c])
 		src.queue_free()
 		await process_frame

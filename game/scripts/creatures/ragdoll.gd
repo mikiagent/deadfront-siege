@@ -247,7 +247,13 @@ func _push() -> void:
 	if _root_body >= 0:
 		hips_h = maxf(0.2, rig.bodies[_root_body].global_position.y - pivot.y)
 	_w0 = minf(sqrt(9.8 / hips_h), float(_guards().get("pose_w0_max", 3.0)))  # small ones turn no faster than a raptor
-	var omega := Vector3.UP.cross(_side).normalized() * float(imp.get("topple_k", 0.6)) * _w0
+	# The whole body tips over its feet the way the blow pushes it: toward _dir, which for a flank
+	# blow is a roll onto the far flank and for a blow from ahead or behind is a pitch backward or
+	# forward (rolling about the long axis there threw the tail out sideways).
+	var tip := Vector3.UP.cross(_dir)
+	if tip.length_squared() < 1e-6:
+		tip = Vector3.UP.cross(_side)
+	var omega := tip.normalized() * float(imp.get("topple_k", 0.6)) * _w0
 	var shove := _dir * dv + Vector3.UP * dv * float(imp.get("up_frac", 0.1))
 	for pb in rig.bodies:
 		pb.linear_velocity = omega.cross(pb.global_position - pivot) + shove
