@@ -292,7 +292,9 @@ static func smooth(rt: IslandRuntime, radius: int = -1) -> void:
 						best_n = int(counts[b])
 						best = b
 				dst[idx] = best
+	PerfTrace.mark("smooth.filter")
 	_merge_small(rt, dst, int(rules().get("min_region_tiles", 400)))
+	PerfTrace.mark("smooth.merge")
 	install(rt, dst)
 
 ## Every 4-connected region under min_tiles switches to the zone that most of its border touches.

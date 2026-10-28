@@ -347,11 +347,14 @@ func compute() -> void:
 	# noise wander. Doing this before the size calibration keeps the river's mouth attached to the
 	# coast the calibration ends on.
 	_settle_margins()
+	PerfTrace.mark("shape.margins")
 	# Iterate the two-axis extent correction: scaling x and y moves the shape's own outline too,
 	# so one pass lands a few percent short (and the lobes make that non-linear).
 	for round_i in 3:
 		_build_river()
+		PerfTrace.mark("shape.river")
 		_fill_heightmap()
+		PerfTrace.mark("shape.fill")
 		if round_i >= 2:
 			break
 		var bb := _waterline_bbox()
@@ -371,8 +374,11 @@ func compute() -> void:
 	if _settle_margins():
 		_build_river()
 		_fill_heightmap()
+	PerfTrace.mark("shape.resettle")
 	_slopes(size / float(res - 1))
+	PerfTrace.mark("shape.slopes")
 	_find_waterfall()
+	PerfTrace.mark("shape.waterfall")
 
 ## Recentre and (if needed) shrink the land so every side of the square keeps SEA_MARGIN of sea,
 ## measured on the analytic coastline. Returns true when it changed sx/sz/centre.

@@ -335,24 +335,52 @@ static func _wet(rt: IslandRuntime, x: float, z: float) -> bool:
 		or t == IslandTerrain.TileType.WET
 
 ## Fresh or still water within MARGIN_TILES metres (the reed beds hug the river and ponds).
+## The window is read straight from the tile arrays: floor(x + dx + half) is exactly
+## floor(x + half) + dx for an integer dx, and tile_type_at_world clamps each sample the same way,
+## so this answers "wet or fresh within MARGIN_TILES" with the same result as 49 helper calls, at a
+## fraction of their cost (the reed and driftwood kinds probe ~20k spots per island).
 static func _near_water(rt: IslandRuntime, x: float, z: float) -> bool:
+	var span := rt._tile_span
+	if span <= 0:
+		return false
+	var types := rt.tile_types
+	var fresh := rt.fresh_water
+	var half := rt._size * 0.5
+	var tx := int(floor(x + half))
+	var tz := int(floor(z + half))
+	var r2 := MARGIN_TILES * MARGIN_TILES
 	for dz in range(-MARGIN_TILES, MARGIN_TILES + 1):
+		var zz := clampi(tz + dz, 0, span - 1)
+		var row := zz * span
 		for dx in range(-MARGIN_TILES, MARGIN_TILES + 1):
-			if dx * dx + dz * dz > MARGIN_TILES * MARGIN_TILES:
+			if dx * dx + dz * dz > r2:
 				continue
-			if _wet(rt, x + float(dx), z + float(dz)):
+			var idx := clampi(tx + dx, 0, span - 1) + row
+			var t := int(types[idx])
+			if t == IslandTerrain.TileType.MUD or t == IslandTerrain.TileType.SHALLOW \
+					or t == IslandTerrain.TileType.WET:
 				return true
-			if IslandTerrain.fresh_water_at_world(rt, x + float(dx), z + float(dz)):
+			if idx < fresh.size() and int(fresh[idx]) == 1:
 				return true
 	return false
 
 ## Sand or the sea within MARGIN_TILES metres (shells and driftwood lie on the beach band).
 static func _near_sand(rt: IslandRuntime, x: float, z: float) -> bool:
+	var span := rt._tile_span
+	if span <= 0:
+		return false
+	var types := rt.tile_types
+	var half := rt._size * 0.5
+	var tx := int(floor(x + half))
+	var tz := int(floor(z + half))
+	var r2 := MARGIN_TILES * MARGIN_TILES
 	for dz in range(-MARGIN_TILES, MARGIN_TILES + 1):
+		var zz := clampi(tz + dz, 0, span - 1)
+		var row := zz * span
 		for dx in range(-MARGIN_TILES, MARGIN_TILES + 1):
-			if dx * dx + dz * dz > MARGIN_TILES * MARGIN_TILES:
+			if dx * dx + dz * dz > r2:
 				continue
-			var t := IslandTerrain.tile_type_at_world(rt, x + float(dx), z + float(dz))
+			var t := int(types[clampi(tx + dx, 0, span - 1) + row])
 			if t == IslandTerrain.TileType.SAND or t == IslandTerrain.TileType.SHALLOW:
 				return true
 	return false

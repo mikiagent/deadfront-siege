@@ -128,17 +128,47 @@ func _rebuild() -> void:
 	_harvest = _harvest_blockers()
 	_build = _build_blockers()
 	_props = _prop_blockers()
+	# Per tile the loop needs the ground height (tile_centre), the dry flag, the tile type and the
+	# slope; read them once, straight from the runtime's own arrays (same rules, same clamps as
+	# is_dry / tile_type_at_world / slope_deg) instead of through five helper calls and five grid
+	# samples. A runtime without the tile map (a bare lab host) takes the old path unchanged.
+	var fast := runtime.get("dry_walk") is PackedByteArray and (runtime.get("dry_walk") as PackedByteArray).size() > 0 \
+		and int(runtime.get("_tile_span")) > 0 and (runtime.get("tile_types") as PackedByteArray).size() > 0
+	var half := float(runtime.get("_size")) * 0.5
+	var span := int(runtime.get("_tile_span"))
+	var walk: PackedByteArray = runtime.get("dry_walk") if fast else PackedByteArray()
+	var types: PackedByteArray = runtime.get("tile_types") if fast else PackedByteArray()
+	var approach := Rect2i()
+	var has_approach := false
+	if fast and runtime.has_method("harbour_approach_rect"):
+		approach = runtime.call("harbour_approach_rect")
+		has_approach = approach.size.x > 0 and approach.size.y > 0
 	for z in range(_region.position.y, _region.end.y):
 		for x in range(_region.position.x, _region.end.x):
 			var tile := Vector2i(x, z)
 			var pos := BuildGrid.tile_centre(tile, runtime)
-			# The dock's approach strip is walkable though it lies on the beach (spawn_ok(false)'s rule).
-			if not runtime.is_dry(pos) and not runtime.on_harbour_approach(pos):
-				_terrain_blocked[tile] = true
-				_astar.set_point_solid(tile, true)
-				continue
+			var hs := Vector2(pos.y, 0.0)
+			var tile_type := -1
+			if fast:
+				var tx := int(floor(pos.x + half))
+				var tz := int(floor(pos.z + half))
+				var idx := clampi(tx, 0, span - 1) + clampi(tz, 0, span - 1) * span
+				hs = IslandTerrain.height_and_slope(runtime, pos.x, pos.z)
+				pos.y = hs.x
+				tile_type = int(types[idx])
+				var dry := pos.x >= -half and pos.z >= -half and pos.x < half and pos.z < half and int(walk[idx]) == 1
+				if not dry and not (_on_approach(tile, approach, has_approach) and hs.x > HarbourSite.WATER_Y):
+					_terrain_blocked[tile] = true
+					_astar.set_point_solid(tile, true)
+					continue
+			else:
+				# The dock's approach strip is walkable though it lies on the beach (spawn_ok(false)'s rule).
+				if not runtime.is_dry(pos) and not runtime.on_harbour_approach(pos):
+					_terrain_blocked[tile] = true
+					_astar.set_point_solid(tile, true)
+					continue
 			# Weight is set even under blockers so a released cell keeps its terrain cost.
-			_astar.set_point_weight_scale(tile, _weight(pos))
+			_astar.set_point_weight_scale(tile, _weight_fast(pos, tile_type, hs.y) if fast else _weight(pos))
 			_astar.set_point_solid(tile, _blocked(tile))
 
 func _refresh() -> void:
@@ -243,6 +273,24 @@ func _harvest_blockers() -> Dictionary:
 		# and plants. Routing through those unregistered boxes wedges the survivor.
 		out[BuildGrid.tile_of(node.global_position)] = true
 	return out
+
+## The approach strip is a ~40 x 3 m band: test the tile against its rect first, so only the few
+## tiles on it pay for HarbourSite.on_approach (the strip lies past the dry box, so most builds
+## have none).
+func _on_approach(tile: Vector2i, rect: Rect2i, has_rect: bool) -> bool:
+	if not has_rect or not rect.has_point(tile):
+		return false
+	return runtime.on_harbour_approach(BuildGrid.tile_centre(tile, runtime))
+
+## _weight's rule on values already read for this tile: DIRT costs 1.4, a face steeper than 22 deg
+## at least 2.0 (same comparisons, same result).
+func _weight_fast(_pos: Vector3, tile_type: int, slope: float) -> float:
+	var w := 1.0
+	if tile_type == 3:
+		w = 1.4
+	if slope > 22.0:
+		w = maxf(w, 2.0)
+	return w
 
 func _weight(pos: Vector3) -> float:
 	var w := 1.0

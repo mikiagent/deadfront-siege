@@ -120,10 +120,11 @@ static func _top_up(rt: IslandRuntime, target: int, climate: String, tier: int, 
 		tries += 1
 		var ox := rng.randf_range(-half, half)
 		var oz := rng.randf_range(-half, half)
-		var pos := Vector3(ox, rt.surface_y(ox, oz), oz)
-		if not rt.spawn_ok(pos, false) or rt.near_harbour(pos):
+		var hs := IslandTerrain.height_and_slope(rt, ox, oz)
+		if hs.y > 30.0:
 			continue
-		if IslandTerrain.slope_deg(rt, ox, oz) > 30.0:
+		var pos := Vector3(ox, hs.x, oz)
+		if not rt.spawn_ok(pos, false) or rt.near_harbour(pos):
 			continue
 		var tile := BuildGrid.tile_of(pos)
 		if rt._used_tiles.has(tile):

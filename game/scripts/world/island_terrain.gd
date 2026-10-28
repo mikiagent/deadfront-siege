@@ -313,7 +313,9 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	biomes.resize(types.size())
 	# The generated camp clearing is the home island's; elsewhere the zone map keeps its own field.
 	var camp: Vector3 = rt._camp_hint if _camp_active(rt) else Vector3.ZERO
+	PerfTrace.mark("tiles.ctx")
 	var bctx := BiomeZones.context(rt, climate, camp, _layout_seed(rt, climate))
+	PerfTrace.mark("tiles.ctx2")
 	var has_ash := _climate_has_material(climate, "ash")
 	var half := rt._size * 0.5
 	var cell := rt._size / float(rt._res - 1)

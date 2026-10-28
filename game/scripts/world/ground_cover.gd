@@ -167,6 +167,9 @@ static func plan(rt: IslandRuntime, climate: String, seed_value: int) -> Array[D
 		var rows := sprites_of(kind)
 		if rows.is_empty():
 			continue
+		# Everything _instance_of reads from the data files, resolved once per kind: the island
+		# places ~78k cards, and a json row lookup per card was a large share of the plan time.
+		var infos := _sprite_infos(kind, rows)
 		# A little over the nominal density, because the dry/slope refusals eat some spots.
 		var want := int(round(kind_density(kind) * area * 1.15))
 		var made := 0
@@ -193,13 +196,72 @@ static func plan(rt: IslandRuntime, climate: String, seed_value: int) -> Array[D
 					if spot == Vector3.INF or mask.get_noise_2d(spot.x, spot.z) < MASK_KEEP:
 						continue
 				# A sprite per instance, so a clump is mixed leaves, not one stamp repeated.
-				var item := _instance_of(kind, rows[rng.randi_range(0, rows.size() - 1)], spot, rng)
+				var item := _instance_from(kind, infos[rng.randi_range(0, rows.size() - 1)], spot, rng)
 				if item.is_empty():
 					continue
 				out.append(item)
 				made += 1
 	return out
 
+## One kind's sprite rows as the constants _instance_of derives from them, in row order: the same
+## numbers, computed once instead of per instance (the rng draws stay in _instance_from, so the
+## placement sequence is unchanged).
+static func _sprite_infos(kind: String, rows: Array[Dictionary]) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var base_h := float(kind_data(kind).get("height", 1.0))
+	var span: Variant = kind_data(kind).get("scale", [0.8, 1.2])
+	var lo := 0.8
+	var hi := 1.2
+	if span is Array and (span as Array).size() >= 2:
+		lo = float((span as Array)[0])
+		hi = float((span as Array)[1])
+	for row in rows:
+		var px: Variant = row.get("px", [])
+		var pivot: Variant = row.get("pivot", [])
+		if not px is Array or (px as Array).size() < 2:
+			out.append({})
+			continue
+		var pw := maxf(1.0, float((px as Array)[0]))
+		var ph := maxf(1.0, float((px as Array)[1]))
+		var pv := Vector2(0.5, 1.0)
+		if pivot is Array and (pivot as Array).size() >= 2:
+			pv = Vector2(float((pivot as Array)[0]) / pw, float((pivot as Array)[1]) / ph)
+		out.append({
+			"id": str(row.get("id", "")),
+			"tint": _base_tint(kind),
+			"pw": pw,
+			"ph": ph,
+			"base_h": maxf(0.08, float(row.get("height_m", 0.8))) * base_h,
+			"lo": lo,
+			"hi": hi,
+			"pivot": pv,
+		})
+	return out
+
+## _instance_of on an info row: the same draws in the same order, the same result.
+static func _instance_from(kind: String, info: Dictionary, spot: Vector3, rng: RandomNumberGenerator) -> Dictionary:
+	if info.is_empty():
+		return {}
+	var pw := float(info["pw"])
+	var ph := float(info["ph"])
+	var sc := rng.randf_range(float(info["lo"]), float(info["hi"]))
+	var h := float(info["base_h"]) * sc
+	# Independent width squash, so two draws of one sprite never share a silhouette.
+	var wide := rng.randf_range(0.82, 1.2)
+	return {
+		"kind": kind,
+		"sprite": str(info["id"]),
+		"pos": spot,
+		"scale": sc,
+		"tint": _tint_from(info.get("tint", Color.WHITE), rng),
+		"w": h * pw / ph * wide,
+		"h": h,
+		"pivot": info["pivot"],
+		# A small lean within the card plane (degrees), so the field is not a row of upright stamps.
+		"lean": rng.randf_range(-11.0, 11.0),
+	}
+
+## Kept for callers that pass a sprite row straight from the manifest (one instance at a time).
 static func _instance_of(kind: String, row: Dictionary, spot: Vector3, rng: RandomNumberGenerator) -> Dictionary:
 	var px: Variant = row.get("px", [])
 	var pivot: Variant = row.get("pivot", [])
@@ -256,10 +318,12 @@ static func _ground(rt: IslandRuntime, x: float, z: float, radius: float) -> Vec
 		return Vector3.INF
 	if CAMP_CLEAR_M > 0.0 and Vector2(x - rt._camp_hint.x, z - rt._camp_hint.z).length() < CAMP_CLEAR_M:
 		return Vector3.INF
-	var y := rt.surface_y(x, z)
+	# Height and slope in one pass over the height array: _ground runs ~90k times per island.
+	var hs := IslandTerrain.height_and_slope(rt, x, z)
+	var y := hs.x
 	if y < 0.4:
 		return Vector3.INF
-	if IslandTerrain.slope_deg(rt, x, z) > MAX_SLOPE_DEG:
+	if hs.y > MAX_SLOPE_DEG:
 		return Vector3.INF
 	if not soil(rt, x, z):
 		return Vector3.INF
@@ -275,12 +339,18 @@ static func soil(rt: IslandRuntime, x: float, z: float) -> bool:
 	return t == IslandTerrain.TileType.GRASS or t == IslandTerrain.TileType.DRY \
 		or t == IslandTerrain.TileType.DIRT or t == IslandTerrain.TileType.MUD
 
+## The kind's own colour, before the per-instance jitter.
+static func _base_tint(kind: String) -> Color:
+	var base: Variant = kind_data(kind).get("tint", [1.0, 1.0, 1.0])
+	if base is Array and (base as Array).size() >= 3:
+		return Color(float((base as Array)[0]), float((base as Array)[1]), float((base as Array)[2]))
+	return Color(1.0, 1.0, 1.0)
+
 ## Per-instance tint: the kind's own colour, jittered in brightness and a touch in hue.
 static func _tint(kind: String, rng: RandomNumberGenerator) -> Color:
-	var base: Variant = kind_data(kind).get("tint", [1.0, 1.0, 1.0])
-	var c := Color(1.0, 1.0, 1.0)
-	if base is Array and (base as Array).size() >= 3:
-		c = Color(float((base as Array)[0]), float((base as Array)[1]), float((base as Array)[2]))
+	return _tint_from(_base_tint(kind), rng)
+
+static func _tint_from(c: Color, rng: RandomNumberGenerator) -> Color:
 	var b := rng.randf_range(TINT_MIN, TINT_MAX)
 	return Color(c.r * b * rng.randf_range(0.97, 1.03), c.g * b, c.b * b * rng.randf_range(0.97, 1.03), 1.0)
 
