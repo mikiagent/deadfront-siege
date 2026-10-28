@@ -1264,13 +1264,13 @@
         },
         {
           "id": "ui-field-hud",
-          "title": "Field HUD: rail collapses into MENU, CLAIM by the minimap, quick slots without counts, XP strip, treadmill visuals (§6)",
+          "title": "Field HUD: INTERACT hex (context gather/open/talk/mount), ATTACK NEAREST, SPRINT toggle, left rail MENU/BUILD/BAG with a notification badge, Skills + Animals in the nav menu, XP strip, treadmill visuals",
           "status": "later",
           "depends": [
             "ui-tokens-hex"
           ],
           "source": "docs/design/ui-redesign-spec.md",
-          "note": ""
+          "note": "Owner 2026-10-28 layout supersedes spec §6 rail (spec §11). Starts after the Rest package lands (both touch hunt_hud.gd / hud_layout.gd)."
         },
         {
           "id": "ui-build-row",
