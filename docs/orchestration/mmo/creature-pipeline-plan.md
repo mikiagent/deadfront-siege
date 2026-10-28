@@ -118,6 +118,12 @@ re-check which side each front tooth belongs to.
   Dev-GOM's `blender-toolkit` (Mixamo humanoid to Rigify retargeting over a WebSocket addon). Nothing for jaws,
   weights, quadruped/theropod gaits or foot contact. No licence file, so the code is not ours to copy. Idea worth
   keeping: score a bone mapping by how many critical bones matched before auto-applying a retarget.
+- `github.com/EL4CTEO/blender-skills` (checked 2026-10-28, commit 71d031d, **MIT**, Blender 5.2, 22 skills with tests):
+  the better of the two. Nothing for jaws, theropod/quadruped gaits or foot-contact checks either; its rigging and
+  stress poses assume humanoids (Rigify, Mixamo, UE, Roblox). Worth taking: `rig_check.py`'s skin checks (weights on
+  root or non-deform bones, more than 4 influences, unnormalised, L/R asymmetry), which match locomotion lesson 6, and
+  `blender-animation`'s Blender 5.x notes (actions use slots and channelbags; `action.fcurves` is gone). Its scripts
+  were read, not run here (running outside code needs Milan's OK).
 - `universal-modder:asset-pipeline`: 2D sprites from 3D, not useful here.
 - Blender MCP: failed to connect this session; everything ran as headless Blender scripts, which is also what
   dsc workers can run unattended.
