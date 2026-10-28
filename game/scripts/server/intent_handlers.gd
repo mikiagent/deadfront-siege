@@ -389,7 +389,7 @@ func _tame(ch: CharacterState, a: Dictionary) -> Dictionary:
 	else:
 		# Wild genetics come from the island when it has rolled them, else from this op's RNG.
 		var g: Variant = c.get("genetics")
-		var genetics := CreatureGenetics.from_dict(g) if g is Dictionary and not (g as Dictionary).is_empty() else CreatureGenetics.roll(rng, def.coloration)
+		var genetics := CreatureGenetics.from_dict(g) if g is Dictionary and not (g as Dictionary).is_empty() else CreatureGenetics.for_species(def, rng)
 		var pet := PetRecord.from_def(def, genetics.overall_tier(), StringName(str(c.get("variant", ""))), genetics).to_dict()
 		# W1-TAME's PetRecord stamps the wall clock and a blank owner; the op's ts and account keep replay exact.
 		pet["tamed_at"] = now
@@ -433,7 +433,7 @@ func _capture(ch: CharacterState, a: Dictionary) -> Dictionary:
 		_write("fail_capture", [net_id]) # the client releases the knockdown and enrages it
 		return ok({"captured": false, "chance": chance}) # commits: the throw spent this seq's roll
 	var g: Variant = c.get("genetics")
-	var genetics := CreatureGenetics.from_dict(g) if g is Dictionary and not (g as Dictionary).is_empty() else CreatureGenetics.roll(rng, def.coloration)
+	var genetics := CreatureGenetics.from_dict(g) if g is Dictionary and not (g as Dictionary).is_empty() else CreatureGenetics.for_species(def, rng)
 	var stack := ItemStack.make(&"captured_animal", 1, {"species": str(def.id), "variant": str(c.get("variant", "")), "grade_seed": rng.randi(), "genetics": genetics.to_dict()})
 	if inv.add(stack) > 0:
 		return no("bag_full", "a captured animal needs %d free slots in a row" % stack.slot_span())

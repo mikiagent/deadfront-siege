@@ -9,6 +9,16 @@ const TINTS := {
 	"protoceratops": Color(0.72, 0.64, 0.42),
 }
 
+## GENETICS: the info-card swatch for one individual: the species' body tint with its own natural
+## hue / saturation / value shift (CreatureColoration), so two animals of a species read apart.
+static func swatch_color(species: StringName, col: CreatureColoration) -> Color:
+	var base: Color = TINTS.get(str(species), Color(0.55, 0.5, 0.4))
+	return col.shift_color(base) if col != null else base
+
+## "1.08x": the size a card prints.
+static func size_text(size: float) -> String:
+	return "%.2fx" % size
+
 var pose_kind: StringName = &"idle":
 	set(v):
 		pose_kind = v
@@ -143,6 +153,15 @@ func _add_eyes() -> void:
 	if not eyes.setup(self, block):
 		eyes.queue_free()
 		return
+
+## GENETICS: the whole view at the body size, so the eye dots, the mount socket and the saddle (all
+## parented under it) follow; `eye_glow` brightens the eyeshine (an alpha's 2.5x).
+func apply_genome(size: float, eye_glow: float = 1.0) -> void:
+	scale = Vector3.ONE * maxf(0.01, size)
+	var eyes := get_node_or_null("Eyes") as CreatureEyes
+	if eyes != null:
+		eyes.fit_size(size)
+		eyes.set_glow(eye_glow)
 
 func animation_player() -> AnimationPlayer:
 	if using_glb and rig:

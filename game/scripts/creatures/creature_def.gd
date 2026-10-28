@@ -37,6 +37,8 @@ extends Resource
 ## Optional per-species energy override {max, regen_per_s, run_drain_per_s, costs{clip: n}};
 ## empty = the size default from ai.json "energy" (Creature.setup_energy).
 @export var energy: Dictionary = {}
+## GENETICS: optional per-species genome block {"size_range": [lo, hi]}; empty = ai.json "genetics".
+@export var genetics: Dictionary = {}
 
 ## ASSUMPTION: Durango-scale speed 400–700 maps to metres per second as speed / 100.
 var move_speed_mps: float:
@@ -74,6 +76,8 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.coloration = colour if colour is Dictionary else {}
 	var en: Variant = d.get("energy", {})
 	c.energy = en if en is Dictionary else {}
+	var gen: Variant = d.get("genetics", {})
+	c.genetics = gen if gen is Dictionary else {}
 	c._apply_taming(d)
 	return c
 

@@ -272,6 +272,12 @@ func _genetics(raw: Variant, level: int) -> Dictionary:
 		return _no("EV total above %d" % CreatureGenetics.EV_TOTAL_MAX)
 	if gain_total > 3 * (level - 1):
 		return _no("more level gains than levels")
+	# GENETICS / ALPHAS: optional (an old pet has neither); size moves the stats checked by the caller.
+	var sz: Variant = (raw as Dictionary).get("size", 1.0)
+	if not (sz is float or sz is int) or not is_finite(float(sz)) or float(sz) < CreatureGenetics.SIZE_LIMIT.x or float(sz) > CreatureGenetics.SIZE_LIMIT.y:
+		return _no("genetics.size out of range")
+	out["size"] = float(sz)
+	out["alpha"] = (raw as Dictionary).get("alpha", false) is bool and (raw as Dictionary).get("alpha") == true
 	return out
 
 static func _no(msg: String) -> Dictionary:

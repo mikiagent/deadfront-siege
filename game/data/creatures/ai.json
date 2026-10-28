@@ -218,7 +218,16 @@
         "wait_max_s": 3.0,
         "opening_swing_cd_s": 0.2,
         "_reposition": "Owner 2026-10-28: back-jumps +60% (hop_m 5.6, leap_back_m 8), power strafe strafe_m 3.75, bite_cd 7. While the bite cools down or the survivor presses it, the filler is repositioning only (strafe-walk w_strafe, power strafe w_dodge, one backstep w_hop). Pressed, it waits up to wait_max_s for an opening (her swing recovering: hunt swing cooldown > opening_swing_cd_s or a swing playing; her back turned) before it commits.",
-        "chase_pounce_max_m": 8.0
+        "chase_pounce_max_m": 8.0,
+        "alpha": {
+          "_about": "ALPHAS (owner 2026-10-28: 'on steroids and really hard to kill'): a wild alpha's tactic knobs are multiplied by these on top of its nature (Creature.nature_knob). Shorter cooldowns, fewer feints and holds, heavier weight on the pounce, charge and leap-in combo. Every number an ASSUMPTION.",
+          "tactic_cooldown_mult": 0.6,
+          "tactic_feint_mult": 0.5,
+          "tactic_hold_mult": 0.5,
+          "tactic_w_pounce": 1.6,
+          "tactic_w_charge": 1.6,
+          "tactic_w_combo": 1.6
+        }
       }
     },
     "apex_raptor": {
@@ -376,5 +385,50 @@
     "regen_mult_fresh": 1.5,
     "regen_mult_winded": 0.6,
     "_run": "ASSUMPTION (owner 2026-10-28): every creature runs x run_speed_mult in sprint_states and drains run_drain_per_s (13, was 10, +30 %); the pool refills x regen_mult_fresh, or x regen_mult_winded while winded (exhausted refills slower)."
+  },
+  "genetics": {
+    "_about": "GENETICS (owner 2026-10-28: 'dinosaur size and color variation (heritable stats)'). Every animal rolls a body size at spawn inside its species' size_range (a species JSON may carry its own \"genetics\": {\"size_range\": [lo, hi]}). Size scales the model, the collision capsule, the plate and, through size_stat_per, the stats: stat x (1 + k x (size - 1)), so a 1.10x animal has +10 % HP, +5 % attack and -3 % speed. inherit() blends two parents and adds at most `mutation` per gene. Every number an ASSUMPTION (CreatureGenetics).",
+    "size_range": [0.85, 1.15],
+    "size_stat_per": {
+      "health": 1.0,
+      "melee_attack": 0.5,
+      "ranged_attack": 0.5,
+      "speed": -0.3
+    },
+    "mutation": {
+      "iv": 2,
+      "size": 0.03,
+      "hue_deg": 2.0,
+      "sat": 0.03,
+      "val": 0.03
+    }
+  },
+  "alpha": {
+    "_about": "ALPHAS (owner 2026-10-28: 'alpha dinosaurs with special loot but are on steroids and really hard to kill'). A spawn group (a pack, or a lone animal) rolls chance_per_group once; on a hit its first member is the alpha. An alpha is bigger (size_range, beyond the normal top), darker and richer (val_mult / sat_mult / pattern_mult on its natural colours, clamped to the natural limits), its eyes glow eye_glow_mult brighter, and while wild its stats are multiplied by `stats` on top of the size factor. Its corpse guarantees every rare part, stamps one rare trait on every part and adds `trophy`; the kill pays xp_mult x the XP. Its living packmates within aura.radius_m get aura.* on attack, defense and speed. A tamed alpha keeps its size and colours but not `stats` (PetStats has no alpha term). Every number an ASSUMPTION.",
+    "chance_per_group": 0.08,
+    "size_range": [1.24, 1.32],
+    "stats": {
+      "health": 3.0,
+      "melee_defense": 1.5,
+      "ranged_defense": 1.5,
+      "melee_attack": 1.6,
+      "ranged_attack": 1.6,
+      "speed": 1.15
+    },
+    "val_mult": 0.78,
+    "sat_mult": 1.2,
+    "pattern_mult": 1.3,
+    "eye_glow_mult": 2.5,
+    "aura": {
+      "radius_m": 12.0,
+      "attack": 1.15,
+      "defense": 1.1,
+      "speed": 1.1
+    },
+    "xp_mult": 4.0,
+    "loot": {
+      "trophy": "alpha_trophy",
+      "trophy_count": 1
+    }
   }
 }

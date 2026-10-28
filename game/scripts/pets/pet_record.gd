@@ -146,7 +146,7 @@ static func from_def(def: CreatureDef, _legacy_grade: StringName = &"", variant:
 	r.tamed_at = int(Time.get_unix_time_from_system())
 	r.species = def.id
 	r.variant = variant
-	r.genetics = p_genetics if p_genetics != null else CreatureGenetics.roll(null, def.coloration)
+	r.genetics = p_genetics if p_genetics != null else CreatureGenetics.for_species(def)
 	if r.genetics.coloration == null:
 		# A hand-built genetics record (labs, probes) still gets this individual's own colours, kept
 		# on the record so taming and saving hand the very same profile on.

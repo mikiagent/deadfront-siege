@@ -307,6 +307,38 @@ static func _scale_range(raw: Variant, default_abs: float) -> Vector2:
 	var v := absf(_finite(raw, default_abs))
 	return Vector2(1.0 - v, 1.0 + v)
 
+## ALPHAS: darker and richer natural colours (val x val_mult, sat x sat_mult, a bolder pattern), never a
+## foreign hue. Clamped to the same limits from_dict uses, so a saved alpha comes back identical.
+func alpha_tone(val_mult: float, sat_mult: float, pattern_mult: float) -> void:
+	var span := RARE_SCALE if rare else 1.0
+	val = clampf(val * val_mult, 1.0 - VAL_LIMIT * span, 1.0 + VAL_LIMIT * span)
+	sat = clampf(sat * sat_mult, 1.0 - SAT_LIMIT * span, 1.0 + SAT_LIMIT * span)
+	if pattern != &"":
+		pattern_strength = clampf(pattern_strength * pattern_mult, 0.0, 0.9)
+
+## GENETICS: a child's colours between its two parents' (hue, saturation, value and pattern strength
+## each a random blend), then moved by at most mutation.hue_deg / sat / val. The pattern kind comes
+## from one parent. A child is never rare: the wide morph is a wild roll only (ASSUMPTION). Clamped to
+## the normal natural limits.
+static func blend(a: CreatureColoration, b: CreatureColoration, mutation: Dictionary, r: RandomNumberGenerator) -> CreatureColoration:
+	var out := CreatureColoration.new()
+	var mh := absf(_finite(mutation.get("hue_deg", 2.0), 2.0))
+	var ms := absf(_finite(mutation.get("sat", 0.03), 0.03))
+	var mv := absf(_finite(mutation.get("val", 0.03), 0.03))
+	out.hue_deg = clampf(lerpf(a.hue_deg, b.hue_deg, r.randf()) + r.randf_range(-mh, mh), -HUE_LIMIT, HUE_LIMIT)
+	out.sat = clampf(lerpf(a.sat, b.sat, r.randf()) + r.randf_range(-ms, ms), 1.0 - SAT_LIMIT, 1.0 + SAT_LIMIT)
+	out.val = clampf(lerpf(a.val, b.val, r.randf()) + r.randf_range(-mv, mv), 1.0 - VAL_LIMIT, 1.0 + VAL_LIMIT)
+	var from := a if r.randf() < 0.5 else b
+	out.pattern = from.pattern
+	if out.pattern != &"":
+		var other := b if from == a else a
+		var same := other.pattern == from.pattern
+		out.pattern_scale = lerpf(from.pattern_scale, other.pattern_scale, r.randf()) if same else from.pattern_scale
+		out.pattern_strength = clampf(lerpf(from.pattern_strength, other.pattern_strength, r.randf()) if same else from.pattern_strength, 0.0, 0.9)
+		out.pattern_tone = from.pattern_tone
+		out.pattern_seed = from.pattern_seed
+	return out
+
 static func neutral() -> CreatureColoration:
 	return CreatureColoration.new()
 
