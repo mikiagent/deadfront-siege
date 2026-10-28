@@ -40,8 +40,8 @@ static func describe_release(used: int, cell: Vector2i, why: String, building: S
 		return "You hold %d plot%s.\nNo release here: %s. Nothing changes." % [used, "" if used == 1 else "s", IslandClaims.reason_text(why)]
 	var left := maxi(0, used - 1)
 	var on_it := "Nothing is built on it." if building == "" else "A %s stands on it, so it cannot be released until it is packed up." % building
-	return "You hold %d plot%s; %d stay%s yours. Giving up the %dx%d plot at (%d, %d) is permanent: it stops being yours, you cannot build or manage anything there, and anyone (you included) can claim it again later. Grass and props cleared by the claim do not grow back on their own, and no claim stake is refunded. %s\nOnly RELEASE PLOT gives it up; KEEP closes this." % [
-		used, "" if used == 1 else "s", left, "" if left == 1 else "s", n, n, cell.x, cell.y, on_it]
+	return "You hold %d plot%s; %d %s yours. Giving up the %dx%d plot at (%d, %d) is permanent: it stops being yours, you cannot build or manage anything there, and anyone (you included) can claim it again later. Grass and props cleared by the claim do not grow back on their own, and no claim stake is refunded. %s\nOnly RELEASE PLOT gives it up; KEEP closes this." % [
+		used, "" if used == 1 else "s", left, "stays" if left == 1 else "stay", n, n, cell.x, cell.y, on_it]
 
 ## `plots` held on this island now, `tile` where the survivor stands, `rect` the plot the press would
 ## stake, `why` "" when that plot expands the land held (IslandRuntime.claim_expand_reason), `stake`
@@ -71,6 +71,15 @@ static func _inner_tiles(plots: Array, rect: Rect2i) -> int:
 	return n
 
 func open(plots: Array, tile: Vector2i, rect: Rect2i, why: String, stake: bool) -> void:
+	# UNCLAIM: a press while standing on a plot of your own Domain is a release, not an expansion. The
+	# panel asks the same question in release mode (open_release) so the HUD needs no second path and
+	# no press can give a plot up without this confirm.
+	var rt: IslandRuntime = World.runtime as IslandRuntime if World != null else null
+	if rt != null and is_instance_valid(rt) and IslandClaims.has_domain(rt):
+		var cell := IslandClaims.cell_of(rt, tile)
+		if IslandClaims.owned_cells(rt).has(cell):
+			open_release(rt, IslandClaims.used(rt), cell, IslandClaims.release_reason(rt, cell), IslandClaims.building_on(rt, cell))
+			return
 	_release_cell = IslandClaims.NO_CELL
 	_release_reason = ""
 	_release_building = ""
