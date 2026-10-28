@@ -127,6 +127,7 @@ static func save_now() -> bool:
 		"skills_v2": player.skills.to_dict() if player.skills else {},
 		"player_name": World.player_name,
 		"occupation": World.occupation,
+		"character_look": World.look, # CHARCREATE; namespaced apart from item instances' own "look"
 		"pioneer_level": World.pioneer_level,
 		"pioneer_crafts": World.pioneer_crafts,
 		"pioneer_buildings": World.pioneer_buildings,
@@ -281,6 +282,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World._reveal_camp_on_new_fog = not (map_row is Dictionary and (map_row as Dictionary).has("islands"))
 	World.player_name = str(data.get("player_name", ""))
 	World.occupation = str(data.get("occupation", ""))
+	World.look = CharacterLook.clean(data.get("character_look", {})) # optional: older saves get the default look
 	Game.time_of_day = float(data.get("clock", 0.35))
 	var skills: Dictionary = data.get("skills", {}) # sanitized: known survival ids -> bool
 	for id in skills:
@@ -333,6 +335,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
 	if extras is Dictionary:
 		player.inventory.extras_from_dict(extras as Dictionary)
+	CharacterLook.apply(player.rig, World.look) # after the worn pieces attach, so they take the colours too
 	# Derive equipment capacity before restoring statuses, whose sync clamps health.
 	player.refresh_equipment_vitals()
 	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))

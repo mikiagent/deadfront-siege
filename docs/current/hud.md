@@ -84,7 +84,8 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   XP, T-stones, SP, per-stat gains; landscape phones show a one-line banner in the centre band
   instead. Gains land via `Vitals.grant_level_bonus` (saved).
 - HUD pills (`game/scripts/ui/hud_pills.gd`) label buildings and nodes within 8 m; the domain
-  banner (`domain_banner.gd`) announces "<owner>'s Domain" entering claimed land. All of it yields
+  banner (`domain_banner.gd`) announces "<owner>'s Domain" entering claimed land; your own portrait
+  there is `PortraitService.of_player()` (a headshot of your character look), others a silhouette. All of it yields
   to toasts, plates and the open sheets.
 - Death: full-screen layer — "YOU DIED", the downer ("Downed by <who>."), the note "Engaged
   dinosaurs retreat past their aggro ring. Your bag comes with you." and "Respawn at camp".

@@ -252,44 +252,24 @@ func _run() -> void:
 	# HANDS (layer 64) drew on the creation cards (layer 60) on a fresh save.
 	var hands: Control = _player.station_craft.held_slot if _player.station_craft else null
 	_expect(hands == null or not hands.is_visible_in_tree(), "charcreate: HANDS hides while character creation is up")
-	var cc_rects := {}
-	for c in _controls_in(cc):
-		if c is Button or c is LineEdit:
-			cc_rects[str(c.name)] = c.get_global_rect()
-	_expect(cc_rects.has("EnterRift") and cc_rects.has("NameField"), "character creation has the name field and ENTER THE RIFT")
-	_check_blocks("charcreate", cc_rects, logical)
-	# Cards in one row line up: titles at one y, head-start lines at one y, every line inside its card.
-	var rows := {}
-	var symbols := 0
-	for c in _controls_in(cc):
-		if c is Button and str(c.name).begins_with("Card_"):
-			# Desktop cards: the head-start symbol fills the band that sat empty (~130 px).
-			var band := c.find_child("CardSymbol", true, false) as Control
-			var sym := band.get_child(0) as TextureRect if band and band.get_child_count() > 0 else null
-			if sym and sym.texture and sym.is_visible_in_tree() and c.get_global_rect().encloses(sym.get_global_rect()):
-				symbols += 1
-			elif not phone:
-				_fail("charcreate: %s shows its head-start symbol inside the card" % c.name)
-			var lines := _labels_in(c)
-			for l in lines:
-				_expect(c.get_global_rect().grow(0.5).encloses(l.get_global_rect()), "charcreate: %s line \"%s\" inside its card" % [c.name, l.text.left(20)])
-			if not lines.is_empty():
-				(rows.get_or_add(roundi(c.get_global_rect().position.y), []) as Array).append(Vector2(lines[0].get_global_rect().position.y, lines[-1].get_global_rect().position.y))
-	var spread := Vector2.ZERO
-	for y in rows:
-		var lo := Vector2(INF, INF)
-		var hi := -lo
-		for v: Vector2 in rows[y]:
-			lo = lo.min(v)
-			hi = hi.max(v)
-		spread = spread.max(hi - lo)
-	print("[uireal] charcreate cards: rows=%d title_y_spread=%.1f start_y_spread=%.1f symbols=%d" % [rows.size(), spread.x, spread.y, symbols])
-	_expect(spread.x <= 1.0 and spread.y <= 1.0, "charcreate: card titles and head starts line up across each row (spread %s)" % spread)
-	for key in ["Body_f", "Body_m", "NameField", "EnterRift"]:
-		_expect(not cc_rects.has(key) or (cc_rects[key] as Rect2).size.y >= UiTokens.TARGET_PRIMARY - 0.5, "charcreate: %s is at least %d px tall (%s)" % [key, UiTokens.TARGET_PRIMARY, cc_rects.get(key)])
-	await _capture("charcreate", [cc.get_child(0) as Control], logical)
-	if symbols > 0:  # phone cards have no room for one
-		_check_white("charcreate", cc)
+	# Spec 19's three steps (CHARCREATE): Gender/Profession, Create Character and Name. Buttons outside the
+	# scrolling lists must sit inside the view without overlapping; the primary controls are full size.
+	for cstep: Array in [[0, "charcreate", ["Next"]], [1, "charcreate_look", ["Next", "Randomize"]], [2, "charcreate_name", ["NameField", "OK"]]]:
+		cc.call("_go", cstep[0])
+		await _frames(3)
+		var cc_rects := {}
+		for c in _controls_in(cc):
+			if (c is Button or c is LineEdit) and not _in_scroll(c, cc):
+				cc_rects["%s/%s" % [c.get_parent().name, c.name]] = c.get_global_rect()
+		for key in cstep[2]:
+			var hit := ""
+			for k in cc_rects:
+				if str(k).ends_with("/" + key):
+					hit = k
+			_expect(hit != "", "%s: has %s" % [cstep[1], key])
+			_expect(hit == "" or (cc_rects[hit] as Rect2).size.y >= UiTokens.TARGET_PRIMARY - 0.5, "%s: %s is at least %d px tall (%s)" % [cstep[1], key, UiTokens.TARGET_PRIMARY, cc_rects.get(hit)])
+		_check_blocks(cstep[1], cc_rects, logical)
+		await _capture(cstep[1], [cc.get_child(0) as Control], logical)
 	cc.queue_free()
 	await _resize(logical)
 	_finish(phone, logical)
@@ -549,6 +529,15 @@ static func bag_blocks(bag: Node) -> Dictionary:
 		if c and c.is_visible_in_tree():
 			out[key.trim_prefix("_")] = c.get_global_rect()
 	return out
+
+## Inside a ScrollContainer below `top` (a scrolled list's rows may sit past the view on purpose).
+func _in_scroll(c: Node, top: Node) -> bool:
+	var n := c.get_parent()
+	while n != null and n != top:
+		if n is ScrollContainer:
+			return true
+		n = n.get_parent()
+	return false
 
 func _controls_in(node: Node) -> Array[Control]:
 	var out: Array[Control] = []

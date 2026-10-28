@@ -40,6 +40,7 @@ rules for the world: `game/scripts/core/save_restore.gd`. Validation after migra
 | `skills_v2` | skill trees |
 | `home` | terrain, shape, buildings (with their storage `contents`), cargo, claims, camp layout, optional domain / comm center |
 | `pioneer_xp`, `pioneer_level`, `pioneer_crafts`, `pioneer_buildings`, `player_name`, `occupation` | progression |
+| `character_look` | optional (CHARCREATE): `gender`, `height` (0.92-1.08, visual only), `colors` (skin, outfit1-3, eye, lip), `parts`, `portrait` (`pattern`, `bg`). `CharacterLook.clean` coerces every field to what `data/characters/appearance.json` offers; a save without it (older builds) loads with the default look. Namespaced apart from item instances' own `look`. |
 | `t_stones` | currency int |
 | `visited_islands`, `island_id`, `clock`, `saved_unix` | travel + day clock |
 | `raid_victory`, `objective`, `objective_best` | objectives |

@@ -26,7 +26,7 @@ const SHAPE := {
 	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
-	"player_name": "", "occupation": "", "t_stones": 0, "visited_islands": {}, "raid_victory": false,
+	"player_name": "", "occupation": "", "character_look": {}, "t_stones": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
 	"clock": 0.0, "saved_unix": 0,
