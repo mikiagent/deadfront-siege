@@ -66,6 +66,9 @@ var _align := false
 var _resting := false  ## reached its target: every body got the rest damping
 var _ground_n: Vector3 = Vector3.UP  ## terrain normal where it died: "on a flank" is judged against it
 var _stretch_bone: String = ""
+## Worst joint stretch seen during the whole simulation, as a fraction of the joint's rest length
+## (measured before the rig's clamp pulls the joint back). The lab and t_ragdoll gate it.
+var peak_stretch: float = 0.0
 ## Fallback: the view moves from _fall_from to _fall_to (creature space) while the clip plays.
 var _fall_from: Transform3D
 var _fall_to: Transform3D
@@ -298,7 +301,12 @@ func _step(delta: float) -> void:
 			all_asleep = false
 	if Engine.get_physics_frames() % 15 == 0:
 		_refresh_exclude()  # a creature, player or corpse that arrived since the death
-	var stretch := _worst_stretch()
+	# A soft joint limit cannot hold a chain on a slope: bodies slide apart until the guard rips the
+	# whole ragdoll down. Pull every joint that opened past the clamp back onto the limit first, then
+	# measure what is left (the tests and the guard read the pose the skin actually follows).
+	var held: Dictionary = rig.clamp_stretch(float(guard.get("clamp_stretch_frac", 0.1)))
+	var stretch := float(held["after"])
+	peak_stretch = maxf(peak_stretch, stretch)
 	if stretch > float(guard.get("max_stretch_frac", 0.35)):
 		_abort("joint %s stretched %.0f %% at %.2f s" % [_stretch_bone, stretch * 100.0, sim_time])
 		return

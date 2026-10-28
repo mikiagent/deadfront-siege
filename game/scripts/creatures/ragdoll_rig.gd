@@ -340,6 +340,80 @@ func _settle_bone(i: int, out: Array[Transform3D], done: Array[bool]) -> void:
 		out[i] = parent_g * local
 	done[i] = true
 
+## Largest gap between a body's bone head and where its parent body says that head should be, as a
+## fraction of the child's rest length (the same measure the stretch guard reads).
+func worst_stretch() -> float:
+	var worst := 0.0
+	for k in bodies.size():
+		if int(info[k]["parent_body"]) >= 0:
+			worst = maxf(worst, (_gap(k) / maxf(0.02, float(info[k]["length_m"]))))
+	return worst
+
+## A body's bone head (world) against where its parent body's pose puts it, plus the head itself.
+func _gap(k: int) -> float:
+	return float(_gap_pair(k)[0])
+
+func _gap_pair(k: int) -> Array:
+	var xf := skeleton.global_transform
+	var child_head := xf * body_bone_pose(k).origin
+	var pk := int(info[k]["parent_body"])
+	var parent_bone := int(info[pk]["bone"])
+	var rel := skeleton.get_bone_global_rest(parent_bone).affine_inverse() * skeleton.get_bone_global_rest(int(info[k]["bone"]))
+	var want := xf * (body_bone_pose(pk) * rel.origin)
+	return [child_head.distance_to(want), child_head, want]
+
+## Clamps every joint to `limit_frac` of its rest length: a child body whose bone head has slid
+## further than that from where its parent puts it is translated back onto the limit (and takes its
+## parent's velocity), so the soft joint limits cannot tear a chain open on a slope. Bodies are in
+## parent-first order and only translated, so a parent's correction carries to its children. Returns
+## {before: the worst stretch measured before any clamp, after: the worst after, bone: its name,
+## clamped: how many bodies were moved}. The engine's transforms are not read back (they sync at the
+## next physics flush), so both numbers are computed here.
+func clamp_stretch(limit_frac: float) -> Dictionary:
+	var deltas: Array[Vector3] = []
+	deltas.resize(bodies.size())
+	deltas.fill(Vector3.ZERO)
+	var before := 0.0
+	var after := 0.0
+	var worst_bone := ""
+	var moved := 0
+	var xf := skeleton.global_transform
+	for k in bodies.size():
+		var pk := int(info[k]["parent_body"])
+		if pk < 0:
+			continue
+		var pair := _gap_pair(k)
+		var len_m := maxf(0.02, float(info[k]["length_m"]))
+		var head: Vector3 = pair[1]
+		var want: Vector3 = pair[2]
+		var gap: float = float(pair[0])
+		var frac := gap / len_m
+		if frac > before:
+			before = frac
+		var head_now := head + deltas[k]
+		var want_now := want + deltas[pk]
+		var gap_now := head_now.distance_to(want_now)
+		if gap_now > limit_frac * len_m:
+			var push := (want_now - head_now) * (1.0 - limit_frac * len_m / gap_now)
+			deltas[k] += push
+			gap_now = limit_frac * len_m
+			moved += 1
+		var frac_now := gap_now / len_m
+		if frac_now > after:
+			after = frac_now
+			worst_bone = str(bodies[k].bone_name)
+	for k in bodies.size():
+		if deltas[k] == Vector3.ZERO:
+			continue
+		var pb := bodies[k]
+		var t := pb.global_transform
+		t.origin += deltas[k]
+		PhysicsServer3D.body_set_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, t)
+		var pk := int(info[k]["parent_body"])
+		if pk >= 0:
+			PhysicsServer3D.body_set_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, bodies[pk].linear_velocity)
+	return {"before": before, "after": after, "bone": worst_bone, "clamped": moved}
+
 ## Writes globals as local poses (no modifiers left, so they persist and cost nothing per frame).
 func apply_globals(globals: Array[Transform3D]) -> void:
 	for i in skeleton.get_bone_count():
