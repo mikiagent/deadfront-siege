@@ -56,7 +56,8 @@
     "damage": 6.0,
     "cooldown": 8.0,
     "lock": 0.55,
-    "lunge_max_m": 1.0
+    "lunge_max_m": 1.0,
+    "stagger_s": 0.8
   },
   "kick": {
     "surface_reach_m": 2.4,
@@ -67,7 +68,8 @@
     "push_m": 3.5,
     "ref_mass": 8.0,
     "giant_mass": 60.0,
-    "min_push_m": 0.3
+    "min_push_m": 0.3,
+    "stagger_s": 0.5
   },
   "camera": {
     "trauma_decay_per_s": 1.4,

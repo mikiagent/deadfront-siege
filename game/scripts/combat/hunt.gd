@@ -298,10 +298,14 @@ static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 	if value < 1.0: return &"weak"
 	return &"hit"
 
+## Tackle and Kick may cut the auto-attack's own swing short (it was always busy mid-fight, so both
+## refused silently); a roll, a hurt stun, a knockdown or the previous tactic's lock still block them.
 func can_start_tactic() -> bool:
 	if player == null or player.rolling or player.statuses.has_flag(&"cannot_act"):
 		return false
-	if player.anim and player.anim._busy:
+	if player.anim and player.anim._busy and not player.anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
+		return false
+	if player.sim and player.sim._stagger_left > 0.0:
 		return false
 	return _tactic_lock <= 0.0
 
