@@ -8,33 +8,24 @@
   "kind": "unstable",
   "lifetime_seconds": 7200,
   "sail_cost": 5,
-  "harbour": [
-    43.5,
-    0,
-    150.5
-  ],
+  "harbour": [43.5, 0, 150.5],
   "_harbour_note": "Dock arrival point on the coast; see home_grassland.json.",
-  "camp": [
-    0,
-    0,
-    12
-  ],
-  "crater": [
-    0,
-    0,
-    -95
-  ],
+  "camp": [0, 0, 12],
+  "crater": [0, 0, -95],
   "creatures": [
     {
       "species": "utahraptor",
       "count": 1,
       "pack": false,
-      "at": [
-        18,
-        0,
-        -84
-      ]
+      "at": [18, 0, -84]
     }
   ],
-  "seed": 2521
+  "seed": 2521,
+  "shape": {
+    "_about": "ISLANDS2 country coast (generator 2): type spine/archipelago/compact, the grid square and the main landmass's box along its own axes (long x short, +-10 %). size_m and harbour above are generator 1's, kept for saves made on it.",
+    "type": "archipelago",
+    "size_m": 608,
+    "long_m": 520,
+    "short_m": 290
+  }
 }

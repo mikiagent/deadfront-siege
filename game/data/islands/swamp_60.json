@@ -1,0 +1,12 @@
+{
+  "id": "swamp_60",
+  "seed": 6067,
+  "_note": "ISLANDS2: a generator-2 island only (no generator-1 save can stand on it). Everything else is world/islands.json.",
+  "shape": {
+    "_about": "ISLANDS2 country coast (generator 2): type spine/archipelago/compact, the grid square and the main landmass's box along its own axes (long x short, +-10 %).",
+    "type": "archipelago",
+    "size_m": 704,
+    "long_m": 620,
+    "short_m": 330
+  }
+}

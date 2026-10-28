@@ -163,6 +163,14 @@ static func plan(rt: IslandRuntime, climate: String, seed_value: int) -> Array[D
 	mask.frequency = PATCH_FREQ
 	var radius := maxf(4.0, rt.land_radius() - 2.0)
 	var area := PI * radius * radius
+	# ISLANDS2: a generator-2 island is long and off-centre: sample its dry box, not a disc round
+	# the origin (the disc missed the far ends and spent its tries on open sea).
+	var box := Rect2()
+	if rt._shape != null and rt._shape.gen >= 2 and rt.dry_bbox().size.x > 0:
+		var bb: Rect2i = rt.dry_bbox()
+		box = Rect2(Vector2(bb.position), Vector2(bb.size))
+		radius = INF
+		area = float(rt.dry_walk.count(1))
 	for kind in kinds:
 		var rows := sprites_of(kind)
 		if rows.is_empty():
@@ -173,7 +181,7 @@ static func plan(rt: IslandRuntime, climate: String, seed_value: int) -> Array[D
 		for _spot in want:
 			if made >= want:
 				break
-			var centre := _sample(rt, rng, radius)
+			var centre := _sample(rt, rng, radius) if box.size.x <= 0.0 else _sample_box(rt, rng, box)
 			if centre == Vector3.INF:
 				continue
 			# Clearings: the mask leaves whole patches of bare ground between the clumps.
@@ -251,8 +259,15 @@ static func _sample(rt: IslandRuntime, rng: RandomNumberGenerator, radius: float
 			return p
 	return Vector3.INF
 
+static func _sample_box(rt: IslandRuntime, rng: RandomNumberGenerator, box: Rect2) -> Vector3:
+	for _i in SPOT_TRIES:
+		var p := _ground(rt, box.position.x + rng.randf() * box.size.x, box.position.y + rng.randf() * box.size.y, INF)
+		if p != Vector3.INF:
+			return p
+	return Vector3.INF
+
 static func _ground(rt: IslandRuntime, x: float, z: float, radius: float) -> Vector3:
-	if Vector2(x, z).length() > radius:
+	if radius != INF and Vector2(x, z).length() > radius:
 		return Vector3.INF
 	if CAMP_CLEAR_M > 0.0 and Vector2(x - rt._camp_hint.x, z - rt._camp_hint.z).length() < CAMP_CLEAR_M:
 		return Vector3.INF

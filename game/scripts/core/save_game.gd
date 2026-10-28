@@ -118,6 +118,8 @@ static func save_now() -> bool:
 			# ISLANDPICK: the permanent Tamed Island shape. "" for a save from before the picker
 			# and for a world whose pick never happened; def_of then builds the stock island.
 			"shape": str(World.home_shape),
+			# ISLANDS2: the coast generator the home was built with (absent = 1, an older save).
+			"shape_gen": World.home_gen,
 			"buildings": World._home_buildings_cache, # refreshed above when the survivor is home
 			"cargo": World.cargo_home.to_array(),
 			"claims": World.home_claims,
@@ -155,7 +157,7 @@ static func save_now() -> bool:
 		(payload["home"] as Dictionary)["comm_center"] = CommCenter.to_save()
 	if not World.is_home():
 		# The island the survivor is standing on: its buildings, storage and staked claims.
-		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims}
+		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims, "shape_gen": World.away_gen}
 		if not World.away_domain.is_empty():
 			(payload["away"] as Dictionary)["domain"] = World.away_domain
 	if not SaveMigrations.write_atomic(path, JSON.stringify(payload)):
@@ -254,6 +256,10 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	# the general trust boundary but is outside this task's SCOPE; see the report.)
 	var shape_row := str((data.get("home", {}) as Dictionary).get("shape", ""))
 	World.home_shape = StringName(shape_row if World.has_shape(StringName(shape_row)) else "")
+	# ISLANDS2: no stamp = a save from generator 1; its home and the island it stands on rebuild on
+	# that generator so every saved building and claim keeps its ground.
+	World.home_gen = clampi(int((data.get("home", {}) as Dictionary).get("shape_gen", 1)), 1, World.SHAPE_GEN_CURRENT)
+	World.away_gen = clampi(int((data.get("away", {}) as Dictionary).get("shape_gen", 1)), 1, World.SHAPE_GEN_CURRENT)
 	World.pioneer_crafts = data.get("pioneer_crafts", {})
 	World.pioneer_buildings = data.get("pioneer_buildings", {})
 	World.t_stones = int(data.get("t_stones", 20))

@@ -53,7 +53,12 @@ func _px(v: float) -> int:
 ## same coastline the game builds. Never cached across seeds outside this instance.
 static func preview_texture(shape: Dictionary) -> ImageTexture:
 	var size := 416.0
-	var sh = IslandShape.make(size, int(shape.get("seed", 17)), "private", 10, Vector2.ZERO, true, PREVIEW_RES, "grassland")
+	# A pick is a new world: it builds on the current coast generator (World.start_new), so the
+	# preview is that generator's coast for this seed and the home's land box.
+	var g2: Dictionary = (World.islands.get("home_grassland", {}) as Dictionary).get("shape", {})
+	size = float(g2.get("size_m", size))
+	var sh = IslandShape.make2(size, int(shape.get("seed", 17)), "private", str(shape.get("shape_type", g2.get("type", "compact"))),
+		float(g2.get("long_m", 375)), float(g2.get("short_m", 300)), true, PREVIEW_RES, "grassland", Vector2(0.0, 8.0))
 	sh.compute()
 	var img := Image.create(PREVIEW_PX, PREVIEW_PX, false, Image.FORMAT_RGBA8)
 	var tint := Color(str(shape.get("accent", "#6f8f4f")))

@@ -301,6 +301,8 @@ func coast_unit(theta: float) -> float:
 
 ## Eff radius in metres (coastline at shore0). The ellipse aspect is applied in unit space.
 func rad(x: float, z: float) -> float:
+	if gen >= 2:
+		return shore0 - sdf_at(x, z)
 	var qx := (x - centre.x) / maxf(0.001, sx)
 	var qz := (z - centre.y) / maxf(0.001, sz)
 	var qz2 := qz / _aspect
@@ -334,6 +336,9 @@ func inland(x: float, z: float) -> float:
 # ---------------------------------------------------------------------------- build
 
 func compute() -> void:
+	if gen >= 2:
+		_compute2()
+		return
 	# Calibrate x/z so the waterline's bounding box is the tier's land target (the shore's noise
 	# wander and the highlands both move the -0.05 contour away from the analytic coast).
 	var long_m := target.x
@@ -444,20 +449,21 @@ func _fill_heightmap() -> void:
 		for x in res:
 			var wx := -size * 0.5 + float(x) * cell
 			var wz := -size * 0.5 + float(z) * cell
-			var r := rad(wx, wz)
+			var r := (shore0 - _sdf[x + z * res]) if gen >= 2 else rad(wx, wz)
 			var nr := river_near(wx, wz)
 			var d := nr.x
 			# A flat dry camp disc (r 30 m) on every island: no river, no terrace inside it.
 			# (The ford is NOT dry ground any more: it is a continuous shallow crossing, so the
-			# channel carve and the fresh-water mask run through it.)
-			if Vector2(wx - camp_hint.x, wz - camp_hint.y).length() < CAMP_R:
+			# channel carve and the fresh-water mask run through it.) Gen 2 keeps the channel out
+			# of the disc by construction instead: zeroing it here cut the river in two.
+			if gen < 2 and Vector2(wx - camp_hint.x, wz - camp_hint.y).length() < CAMP_R:
 				d = 10000.0
 
 			river_w[x + z * res] = nr.y
 			var idx := x + z * res
 			rads[idx] = r
 			river_d[idx] = d
-			heights[idx] = _height(wx, wz, r, d, nr.y)
+			heights[idx] = _height(wx, wz, r, d, nr.y, nr.z)
 
 ## Extent of the h > -0.05 contour inside the grid (x, y in metres).
 func _waterline_bbox() -> Vector2:
@@ -475,14 +481,19 @@ func _waterline_bbox() -> Vector2:
 		return Vector2.ZERO
 	return hi - lo
 
-func _height(wx: float, wz: float, r: float, d_river: float, hw: float) -> float:
+func _height(wx: float, wz: float, r: float, d_river: float, hw: float, tr: float = 1.0) -> float:
 	var t := clampf(1.0 - r / shore0, 0.0, 1.0)
+	if gen >= 2:
+		# Inland fraction from the metric coast distance: 1 on the island's widest middle.
+		t = clampf((shore0 - r) / _inland_scale, 0.0, 1.0)
 	var h := 1.0
 	h += _n0.get_noise_2d(wx, wz) * 0.45
 	h += _n1.get_noise_2d(wx, wz) * (0.16 * t)
 	h += _n2.get_noise_2d(wx, wz) * 0.06
+	if gen >= 2:
+		h += _relief2(wx, wz, t, d_river, hw, tr)
 	# Ridge along the long axis, inland only (kept from the old generator; the island's spine).
-	if t > 0.02:
+	if gen < 2 and t > 0.02:
 		var dir := Vector2(wx, wz).normalized()
 		var along := maxf(0.0, dir.dot(ridge_dir))
 		var cross := absf(dir.dot(Vector2(-ridge_dir.y, ridge_dir.x)))
@@ -497,7 +508,7 @@ func _height(wx: float, wz: float, r: float, d_river: float, hw: float) -> float
 	# the coast on the high side, so the camp-and-dock side stays open lowland (plan 1.3).
 	var along := ((wx - centre.x) * ridge_dir.x + (wz - centre.y) * ridge_dir.y) / maxf(1.0, size * 0.5)
 	var flank := smoothstep(-0.05, 0.30, along * high_side)
-	if flank > 0.0:
+	if gen < 2 and flank > 0.0:
 		var hp := centre + ridge_dir * high_side * size * 0.30
 		var dd := Vector2(wx - hp.x, wz - hp.y).length() + _ncliff.get_noise_2d(wx, wz) * size * 0.045
 		var rr := size * 0.27
@@ -559,11 +570,11 @@ func _height(wx: float, wz: float, r: float, d_river: float, hw: float) -> float
 	# The ford and the home's legacy core keep their ground (a dry crossing, and old ground).
 	# The last 4 m before the shore is beach: the channel stops at the waterline so the delta does
 	# not cut the coast into two dry lobes (the mouth still reaches the sea).
-	if r > shore0 - 4.0:
+	if gen < 2 and r > shore0 - 4.0:
 		hw = 0.0
 	# The camp clearing is never cut by the channel: an old basket stands 2 m from the camp centre and
 	# must stay on dry, buildable ground (t_save's away golden).
-	if Vector2(wx - camp_hint.x, wz - camp_hint.y).length() < CAMP_R:
+	if gen < 2 and Vector2(wx - camp_hint.x, wz - camp_hint.y).length() < CAMP_R:
 		d_river = 10000.0
 	# The ford: a continuous shallow crossing, not a dry disc. The channel keeps its water and its
 	# MUD (so the fresh-water mask is unbroken along the river); only the bed rises to -0.10 m over
@@ -597,7 +608,8 @@ func _height(wx: float, wz: float, r: float, d_river: float, hw: float) -> float
 	# Camp disc: a flat dry clearing (1.1 m) 30 m across, on every island - the legacy camp pieces,
 	# the old baskets and any new landing camp stand on it. Full inside 18 m, blended out by 30 m.
 	var camp_d := Vector2(wx - camp_hint.x, wz - camp_hint.y).length()
-	if camp_d < CAMP_R:
+	# Gen 2 camps sit 26 m behind the landing beach: the clearing never lifts the beach or the sea.
+	if camp_d < CAMP_R and (gen < 2 or r < shore0):
 		var cw := smoothstep(CAMP_R, 18.0, camp_d)
 		h = lerpf(h, CAMP_FLAT, cw)
 	return h
@@ -638,6 +650,804 @@ func _legacy_height(wx: float, wz: float) -> float:
 		h = lerpf(h, 1.1, s * 0.6)
 	return h
 
+# ---------------------------------------------------------------------------- gen 2: country coasts
+
+## Shape generator version. 1 is the radial ISLANDGEN coast above, kept unchanged so a save made on
+## it rebuilds the same land under its buildings; 2 is the country coast (ISLANDS2, owner
+## 2026-10-27: "long islands, with boundaries that look more like countries"). New worlds build 2.
+const GEN_CURRENT := 2
+var gen := 1
+## "spine" (long and curved, Japan-like), "archipelago" (fjord coast with an islet chain on one
+## flank, Croatia-like) or "compact" (short but ragged).
+var stype := "spine"
+## Gen 2 grids at heightmap resolution: metric signed distance to the coast (+ inland) and the
+## mainland mask (1 = the one connected landmass; islets are 0 and never walkable).
+var _sdf := PackedFloat32Array()
+var mainland := PackedByteArray()
+## Where the dock goes (a mainland beach) and the camp 26 m behind it; the crater spot.
+var landing := Vector2.ZERO
+var crater_pt := Vector2.ZERO
+## The built land's medial line from the landing end to the far end, and the inland distance
+## (local half-width) along it. River, plateau, mesa and crater are placed on it.
+var axis := PackedVector2Array()
+var axis_hw := PackedFloat32Array()
+var _len := 400.0
+var _wid := 160.0
+var _bow := 0.0
+var _wig := Vector3.ZERO  # amplitude (m), frequency (rad per half-length), phase
+var _tip_p := 3.0
+var _ca := 1.0
+var _sa := 0.0
+var _fit := Vector2.ONE
+var _capes: Array = []  # [u, side, angle, length, width] in spine space
+var _cuts: Array = []  # [u, side, depth, radius]: bays and inlets cut into the coast
+var _islet_side := 0.0
+var _coast_amp := 0.14
+## World-space capsule cut to sea: [a, b, radius] (the home's cove south of the camp).
+var _cove2: Array = []
+var _inland_scale := 60.0
+var _camp_fixed := false
+## Highland plateau: x, z, radius.
+var _plateau := Vector3.ZERO
+var _landing_flank := 1.0
+var _nw0 := FastNoiseLite.new()
+var _nw1 := FastNoiseLite.new()
+var _nwid := FastNoiseLite.new()
+var _nc := FastNoiseLite.new()
+var _ni := FastNoiseLite.new()
+const CAMP_BACK := 26.0
+
+## A gen 2 island: `long_m` x `short_m` is the main landmass's box along its own axes (calibrated
+## +-10 %), `p_camp` fixes the camp (home: the legacy camp at (0, 8)) or is INF to put it behind
+## the landing beach.
+static func make2(p_size: float, p_seed: int, p_kind: String, p_type: String, long_m: float, short_m: float, legacy_core: bool, p_res: int, p_climate: String, p_camp: Vector2 = Vector2.INF) -> IslandShape:
+	var s := IslandShape.new()
+	s.gen = 2
+	s.size = p_size
+	s.res = p_res
+	s.seed = p_seed
+	s.kind = p_kind
+	s.stype = p_type
+	s.legacy = legacy_core
+	s.climate = p_climate
+	s.shore0 = p_size * 0.3605
+	s.shore1 = p_size * 0.400
+	s.target = Vector2(long_m, short_m)
+	s.aspect = short_m / long_m
+	s._camp_fixed = p_camp != Vector2.INF
+	s.camp_hint = p_camp if s._camp_fixed else Vector2.ZERO
+	var r := RandomNumberGenerator.new()
+	r.seed = p_seed * 7919 + 29
+	s._n0.seed = p_seed
+	s._n0.frequency = 0.012
+	s._n1.seed = p_seed + 101
+	s._n1.frequency = 0.03
+	s._n2.seed = p_seed + 211
+	s._n2.frequency = 0.08
+	s._nshore.seed = p_seed + 307
+	s._nshore.frequency = 0.02
+	s._ncliff.seed = p_seed + 409
+	s._ncliff.frequency = 0.007
+	for nz in [s._nw0, s._nw1, s._nc, s._ni]:
+		(nz as FastNoiseLite).noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		(nz as FastNoiseLite).fractal_octaves = 3
+	s._nw0.seed = p_seed + 503
+	s._nw1.seed = p_seed + 601
+	s._nc.seed = p_seed + 709
+	s._ni.seed = p_seed + 811
+	s._nwid.seed = p_seed + 907
+	s._nwid.fractal_octaves = 2
+	s._nwid.frequency = 3.2 / long_m
+	s._nw0.frequency = 1.6 / short_m
+	s._nw1.frequency = 1.6 / short_m
+	s._nc.frequency = 2.6 / short_m
+	s._nc.fractal_octaves = 5
+	s._nc.fractal_gain = 0.6
+	s._ni.frequency = 3.0 / short_m
+	s._len = long_m
+	var side0 := 1.0 if r.randf() < 0.5 else -1.0
+	match p_type:
+		"compact":
+			s._bow = short_m * r.randf_range(0.0, 0.08) * side0
+			s._wig = Vector3(short_m * 0.05, r.randf_range(2.0, 3.5), r.randf() * TAU)
+			s._tip_p = r.randf_range(2.6, 3.4)
+			s._coast_amp = 0.14
+		"archipelago":
+			s._bow = long_m * r.randf_range(0.03, 0.07) * side0
+			s._wig = Vector3(short_m * 0.07, r.randf_range(3.0, 5.0), r.randf() * TAU)
+			s._tip_p = r.randf_range(3.2, 4.4)
+			s._coast_amp = 0.13
+			s._islet_side = -side0
+		_:
+			s._bow = long_m * r.randf_range(0.05, 0.11) * side0
+			s._wig = Vector3(short_m * 0.09, r.randf_range(3.0, 5.5), r.randf() * TAU)
+			s._tip_p = r.randf_range(3.5, 5.5)
+			s._coast_amp = 0.11
+	s._wid = maxf(short_m * 0.55, short_m - absf(s._bow) * 0.8)
+	# Capes: 1-4 headlands off the spine (the Peloponnese / Istria read).
+	var ncape := r.randi_range(2, 4) if p_type != "spine" else r.randi_range(1, 3)
+	for i in ncape:
+		s._capes.append([r.randf_range(-0.42, 0.42), 1.0 if r.randf() < 0.5 else -1.0, r.randf_range(-0.7, 0.7),
+			s._wid * r.randf_range(0.30, 0.75), s._wid * r.randf_range(0.14, 0.26)])
+	# Bays (wide) and inlets (narrow, deep: fjords on the archipelago flank).
+	var nbay := r.randi_range(2, 3)
+	for i in nbay:
+		s._cuts.append([r.randf_range(-0.40, 0.40), 1.0 if r.randf() < 0.5 else -1.0, r.randf_range(0.15, 0.32), s._wid * r.randf_range(0.12, 0.22)])
+	var ninlet := r.randi_range(5, 8) if p_type == "archipelago" else r.randi_range(2, 4)
+	for i in ninlet:
+		var sd := s._islet_side if (p_type == "archipelago" and r.randf() < 0.75) else (1.0 if r.randf() < 0.5 else -1.0)
+		s._cuts.append([r.randf_range(-0.45, 0.45), sd, r.randf_range(0.25, 0.50), r.randf_range(5.0, 9.0)])
+	if legacy_core:
+		# The starter island reads as one solid, easy landmass: two capes at most, gentler edge, and
+		# no fjord inlets unless the pick asked for the coves (Coastal).
+		s._coast_amp *= 0.8
+		s._bow = 0.0
+		s._capes = s._capes.slice(0, 1)
+		if p_type != "archipelago":
+			s._cuts = s._cuts.slice(0, nbay)
+	# The long axis: the home lies east-west (legacy camp and cove); the others turn to a seeded
+	# angle at which the box (with room for the bow) fits the square with sea on every side.
+	s._set_angle(0.0)
+	if not legacy_core:
+		var room := p_size - 2.0 * (SEA_MARGIN + 8.0)
+		var a0 := r.randf() * PI
+		for k in 36:
+			var a := a0 + float(k) * PI / 36.0
+			var c := absf(cos(a))
+			var sn := absf(sin(a))
+			if long_m * c + short_m * sn <= room and long_m * sn + short_m * c <= room:
+				s._set_angle(a)
+				break
+	if legacy_core:
+		s.centre = Vector2(0.0, -35.0)
+		# The cove: sea cut north to 56 m below the camp, so the dock is a short walk (plan 1.1).
+		s._cove2 = [Vector2(p_camp.x, p_camp.y + 56.0 + 26.0), Vector2(p_camp.x, p_size), 26.0]
+	if r.randf() < 0.35:
+		# A butte: clearly elliptical (it stands on the backbone's slope, which rounds a 0.78 one).
+		s.mesa = {"pos": Vector2.ZERO, "r": 16.0 + p_size * 0.015, "h": 3.2 + r.randf_range(0.0, 1.4),
+			"aspect": r.randf_range(0.45, 0.62), "rot": r.randf() * TAU}
+	if legacy_core:
+		s._legacy_noises()
+	return s
+
+func _set_angle(a: float) -> void:
+	_ca = cos(a)
+	_sa = sin(a)
+	ridge_dir = Vector2(_ca, _sa)
+
+## The landmass field at a world point: > 0 is land. Metres-like, but only its sign is used: the
+## distances come from _edt.
+func _field(px: float, pz: float) -> float:
+	var dx := px - centre.x
+	var dz := pz - centre.y
+	var qx := (dx * _ca + dz * _sa) / _fit.x
+	var qy := (-dx * _sa + dz * _ca) / _fit.y
+	# Domain warp: the coast and the spine meander instead of following the formula.
+	var wa := _wid * 0.17
+	var wx := _nw0.get_noise_2d(qx, qy) * wa
+	var wy := _nw1.get_noise_2d(qx, qy) * wa
+	qx += wx
+	qy += wy
+	var hl := _len * 0.5
+	var u := qx / hl
+	var yc := _bow * (1.0 - u * u) + _wig.x * sin(u * _wig.y + _wig.z)
+	var dyc := (-2.0 * _bow * u + _wig.x * _wig.y * cos(u * _wig.y + _wig.z)) / hl
+	var across := (qy - yc) / sqrt(1.0 + dyc * dyc)
+	var taper := 1.0 - pow(absf(u), _tip_p)
+	var hw := _wid * 0.5 * (1.0 + 0.18 * _nwid.get_noise_1d(qx))
+	var f := hw * signf(taper) * sqrt(absf(taper)) - absf(across)
+	for c in _capes:
+		var cu := float(c[0])
+		var bx := cu * hl
+		var by := _bow * (1.0 - cu * cu) + _wig.x * sin(cu * _wig.y + _wig.z)
+		var ang := float(c[2]) + (PI * 0.5 if float(c[1]) > 0.0 else -PI * 0.5)
+		var reach := _wid * 0.45 + float(c[3])
+		var tip := Vector2(bx + cos(ang) * reach, by + sin(ang) * reach)
+		var base := Vector2(bx, by)
+		var ab := tip - base
+		var tt := clampf((Vector2(qx, qy) - base).dot(ab) / ab.length_squared(), 0.0, 1.0)
+		var dc := Vector2(qx, qy).distance_to(base + ab * tt)
+		f = maxf(f, float(c[4]) * lerpf(1.0, 0.35, tt) - dc)
+	for c in _cuts:
+		var cu := float(c[0])
+		var bx := cu * hl
+		var by := _bow * (1.0 - cu * cu) + _wig.x * sin(cu * _wig.y + _wig.z)
+		var sd := float(c[1])
+		var a := Vector2(bx, by + sd * _wid * 1.2)
+		var b := Vector2(bx, by + sd * _wid * 0.5 * (1.0 - float(c[2])))
+		f = minf(f, _seg_dist(Vector2(qx, qy), a, b) - float(c[3]))
+	# The fractal edge: small bays, headlands and the odd islet just off the coast. The islet
+	# flank of an archipelago is rougher.
+	var amp := _coast_amp
+	if _islet_side != 0.0 and across * _islet_side > 0.0:
+		amp *= 1.3
+	f += _nc.get_noise_2d(qx, qy) * amp * _wid
+	if _islet_side != 0.0:
+		# A chain of long islets parallel to the coast on one flank (stretched noise).
+		var out := across * _islet_side - hw
+		# Starts 18 m off the coast, so the chain stays islands (a sound between) at full resolution.
+		var band := smoothstep(18.0, 34.0, out) * smoothstep(_wid * 1.0, _wid * 0.6, out)
+		if band > 0.0:
+			var n := _ni.get_noise_2d(qx * 0.45, qy * 1.5)
+			f = maxf(f, (n - 0.28) * _wid * 0.55 * band - (1.0 - band) * 40.0)
+	if _camp_fixed:
+		# The home's legacy camp and core (old fixtures within 25 m, the camp disc) stay inland.
+		f = maxf(f, 60.0 - Vector2(px - camp_hint.x, pz - camp_hint.y).length())
+	if not _cove2.is_empty():
+		f = minf(f, _seg_dist(Vector2(px, pz), _cove2[0], _cove2[1]) - float(_cove2[2]))
+	# Never land within the sea margin of the square (no headland cut off by the grid edge).
+	var edge := size * 0.5 - maxf(absf(px), absf(pz))
+	return minf(f, edge - SEA_MARGIN - 6.0)
+
+func _compute2() -> void:
+	_fit_size()
+	_fill_field()
+	# The 81-point fit can miss a neck that joins (or splits) a lobe at full resolution: measure the
+	# real mainland once and rebuild if it is more than 5 % off.
+	var cell := size / float(res - 1)
+	for _round in 3:
+		var pts := PackedVector2Array()
+		for i in res * res:
+			if mainland[i] == 1:
+				pts.append(Vector2(-size * 0.5 + float(i % res) * cell, -size * 0.5 + float(i / res) * cell))
+		if _pca_fit(pts, cell) <= 0.04:
+			break
+		_fill_field()
+	_build_axis()
+	_pick_landing()
+	_pick_features()
+	_build_river()
+	# A butte the river runs through is a gorge with two stumps, not a mesa: drop it.
+	if not mesa.is_empty() and river.size() >= 2:
+		var mp: Vector2 = mesa["pos"]
+		if river_dist(mp.x, mp.y) < float(mesa["r"]) + 18.0 or mp.distance_to(camp_hint) < CAMP_R + float(mesa["r"]) + 10.0:
+			mesa = {}
+	_fill_heightmap()
+	_slopes(size / float(res - 1))
+	_find_waterfall()
+
+## Calibrate the field's scale so the mainland's box along its own axes is the target, measured on
+## an 81-point grid (three rounds; the shape's own noise makes it a few percent non-linear).
+func _fit_size() -> void:
+	var n := 81
+	var cell := size / float(n - 1)
+	for _round in 3:
+		var f := PackedFloat32Array()
+		f.resize(n * n)
+		for z in n:
+			for x in n:
+				f[x + z * n] = _field(-size * 0.5 + float(x) * cell, -size * 0.5 + float(z) * cell)
+		var lab := _largest_land(f, n)
+		var pts := PackedVector2Array()
+		for i in n * n:
+			if lab[i] == 1:
+				pts.append(Vector2(-size * 0.5 + float(i % n) * cell, -size * 0.5 + float(i / n) * cell))
+		_pca_fit(pts, cell)
+
+## Scale the field so the mainland's box along its own principal axes (what the gates measure) is
+## the target; each principal axis corrects whichever local axis it lies closer to (the home keeps
+## its east-west frame for the long axis). Returns the larger relative correction it applied.
+func _pca_fit(pts: PackedVector2Array, cell: float) -> float:
+	if pts.size() < 8:
+		return 0.0
+	var mean := Vector2.ZERO
+	for q in pts:
+		mean += q
+	mean /= float(pts.size())
+	var cxx := 0.0
+	var cxz := 0.0
+	var czz := 0.0
+	for q in pts:
+		var d := q - mean
+		cxx += d.x * d.x
+		cxz += d.x * d.y
+		czz += d.y * d.y
+	var ang := 0.5 * atan2(2.0 * cxz, cxx - czz)
+	var ax := Vector2(cos(ang), sin(ang))
+	var ay := Vector2(-ax.y, ax.x)
+	if _camp_fixed:
+		# The home is sized in its own east-west frame (its long axis is the legacy layout's).
+		ax = Vector2(_ca, _sa)
+		ay = Vector2(-_sa, _ca)
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for q in pts:
+		var d := q - mean
+		var l := Vector2(d.dot(ax), d.dot(ay))
+		lo = lo.min(l)
+		hi = hi.max(l)
+	var ext := hi - lo + Vector2(cell, cell)
+	var e_long := maxf(ext.x, ext.y)
+	var e_short := minf(ext.x, ext.y)
+	var long_dir := ax if ext.x >= ext.y else ay
+	if _camp_fixed:
+		e_long = ext.x
+		e_short = ext.y
+		long_dir = ax
+	var kl := clampf(target.x / e_long, 0.6, 1.6)
+	var ks := clampf(target.y / e_short, 0.6, 1.6)
+	# The home keeps its east-west frame (legacy camp, south cove): its long axis is always local x.
+	if _camp_fixed or absf(long_dir.dot(Vector2(_ca, _sa))) >= 0.7071:
+		_fit.x *= kl
+		_fit.y *= ks
+	else:
+		_fit.y *= kl
+		_fit.x *= ks
+	return maxf(absf(kl - 1.0), absf(ks - 1.0))
+
+## 1 on the vertices of the largest 4-connected land component, 2 on other land, 0 on water.
+func _largest_land(f: PackedFloat32Array, n: int) -> PackedByteArray:
+	var comp := PackedInt32Array()
+	comp.resize(n * n)
+	comp.fill(-1)
+	var sizes: Array[int] = []
+	var stack := PackedInt32Array()
+	for i in n * n:
+		if f[i] <= 0.0 or comp[i] >= 0:
+			continue
+		var id := sizes.size()
+		var count := 0
+		stack.append(i)
+		comp[i] = id
+		while not stack.is_empty():
+			var j := stack[stack.size() - 1]
+			stack.resize(stack.size() - 1)
+			count += 1
+			for k in [j - 1, j + 1, j - n, j + n]:
+				if k < 0 or k >= n * n or (absi(k - j) == 1 and (k / n) != (j / n)):
+					continue
+				if f[k] > 0.0 and comp[k] < 0:
+					comp[k] = id
+					stack.append(k)
+		sizes.append(count)
+	var best := -1
+	var best_n := 0
+	for id in sizes.size():
+		if sizes[id] > best_n:
+			best_n = sizes[id]
+			best = id
+	var out := PackedByteArray()
+	out.resize(n * n)
+	for i in n * n:
+		out[i] = 0 if comp[i] < 0 else (1 if comp[i] == best else 2)
+	return out
+
+## The field at every heightmap vertex, cleaned (lakes filled, specks drowned), then the metric
+## signed distance and the mainland mask.
+func _fill_field() -> void:
+	var n := res
+	var cell := size / float(n - 1)
+	var f := PackedFloat32Array()
+	f.resize(n * n)
+	for z in n:
+		for x in n:
+			f[x + z * n] = _field(-size * 0.5 + float(x) * cell, -size * 0.5 + float(z) * cell)
+	# Water not connected to the open sea is a hole in the field, not a lake: fill it.
+	var sea := PackedByteArray()
+	sea.resize(n * n)
+	var stack := PackedInt32Array()
+	for i in n:
+		for j in [i, i + (n - 1) * n, i * n, i * n + n - 1]:
+			if f[j] <= 0.0 and sea[j] == 0:
+				sea[j] = 1
+				stack.append(j)
+	while not stack.is_empty():
+		var j := stack[stack.size() - 1]
+		stack.resize(stack.size() - 1)
+		for k in [j - 1, j + 1, j - n, j + n]:
+			if k < 0 or k >= n * n or (absi(k - j) == 1 and (k / n) != (j / n)):
+				continue
+			if f[k] <= 0.0 and sea[k] == 0:
+				sea[k] = 1
+				stack.append(k)
+	for i in n * n:
+		if f[i] <= 0.0 and sea[i] == 0:
+			f[i] = 0.5
+	var lab := _largest_land(f, n)
+	# Islets under ~8 vertices (~60 m2) are noise specks: drown them.
+	var seen := PackedByteArray()
+	seen.resize(n * n)
+	for i in n * n:
+		if lab[i] != 2 or seen[i] == 1:
+			continue
+		var group := PackedInt32Array([i])
+		seen[i] = 1
+		var gi := 0
+		while gi < group.size():
+			var j := group[gi]
+			gi += 1
+			for k in [j - 1, j + 1, j - n, j + n]:
+				if k < 0 or k >= n * n or (absi(k - j) == 1 and (k / n) != (j / n)):
+					continue
+				if lab[k] == 2 and seen[k] == 0:
+					seen[k] = 1
+					group.append(k)
+		if group.size() < 8:
+			for j in group:
+				f[j] = -0.5
+				lab[j] = 0
+	mainland = PackedByteArray()
+	mainland.resize(n * n)
+	for i in n * n:
+		mainland[i] = 1 if lab[i] == 1 else 0
+	_sdf = _edt(f, n, cell)
+	rads.resize(n * n)
+	_inland_scale = 8.0
+	for i in n * n:
+		rads[i] = shore0 - _sdf[i]
+		if mainland[i] == 1:
+			_inland_scale = maxf(_inland_scale, _sdf[i])
+	_inland_scale *= 0.85
+
+## Signed Euclidean distance to the field's zero contour (m, + on land): every vertex next to a
+## crossing is seeded with the exact sub-cell crossing point, then two raster sweeps hand each
+## vertex its neighbours' nearest coast point (vector propagation, error well under a cell).
+func _edt(f: PackedFloat32Array, n: int, cell: float) -> PackedFloat32Array:
+	var half := size * 0.5
+	var nearp := PackedVector2Array()
+	nearp.resize(n * n)
+	var dist := PackedFloat32Array()
+	dist.resize(n * n)
+	dist.fill(1.0e9)
+	for z in n:
+		for x in n:
+			var i := x + z * n
+			var a := f[i]
+			var p := Vector2(-half + float(x) * cell, -half + float(z) * cell)
+			if x + 1 < n and (a > 0.0) != (f[i + 1] > 0.0):
+				var q := Vector2(p.x + a / (a - f[i + 1]) * cell, p.y)
+				for k in [i, i + 1]:
+					var pk := Vector2(-half + float(k % n) * cell, -half + float(k / n) * cell)
+					var d := pk.distance_to(q)
+					if d < dist[k]:
+						dist[k] = d
+						nearp[k] = q
+			if z + 1 < n and (a > 0.0) != (f[i + n] > 0.0):
+				var q := Vector2(p.x, p.y + a / (a - f[i + n]) * cell)
+				for k in [i, i + n]:
+					var pk := Vector2(-half + float(k % n) * cell, -half + float(k / n) * cell)
+					var d := pk.distance_to(q)
+					if d < dist[k]:
+						dist[k] = d
+						nearp[k] = q
+	for pass_i in 2:
+		var fwd := pass_i == 0
+		for zz in n:
+			var z := zz if fwd else n - 1 - zz
+			for xx in n:
+				var x := xx if fwd else n - 1 - xx
+				var i := x + z * n
+				var p := Vector2(-half + float(x) * cell, -half + float(z) * cell)
+				var best := dist[i]
+				var bp := nearp[i]
+				var sg := 1 if fwd else -1
+				for o in [Vector2i(-sg, 0), Vector2i(-sg, -sg), Vector2i(0, -sg), Vector2i(sg, -sg)]:
+					var nx: int = x + o.x
+					var nz: int = z + o.y
+					if nx < 0 or nz < 0 or nx >= n or nz >= n:
+						continue
+					var j := nx + nz * n
+					if dist[j] >= 1.0e8:
+						continue
+					var d := p.distance_to(nearp[j])
+					if d < best:
+						best = d
+						bp = nearp[j]
+				dist[i] = best
+				nearp[i] = bp
+			# The same row swept back the other way (the 8SSED row pass).
+			for xx in n:
+				var x := n - 1 - xx if fwd else xx
+				var i := x + z * n
+				var o := 1 if fwd else -1
+				var nx := x + o
+				if nx < 0 or nx >= n:
+					continue
+				var j := nx + z * n
+				if dist[j] >= 1.0e8:
+					continue
+				var p := Vector2(-half + float(x) * cell, -half + float(z) * cell)
+				var d := p.distance_to(nearp[j])
+				if d < dist[i]:
+					dist[i] = d
+					nearp[i] = nearp[j]
+	var out := PackedFloat32Array()
+	out.resize(n * n)
+	for i in n * n:
+		out[i] = dist[i] if f[i] > 0.0 else -dist[i]
+	return out
+
+## Bilinear signed distance (m) from the gen 2 grid; far outside the grid is deep sea.
+func sdf_at(x: float, z: float) -> float:
+	if _sdf.is_empty():
+		return -1000.0
+	var cell := size / float(res - 1)
+	var u := (x + size * 0.5) / cell
+	var v := (z + size * 0.5) / cell
+	if u < 0.0 or v < 0.0 or u > float(res - 1) or v > float(res - 1):
+		return -1000.0
+	var x0 := mini(int(u), res - 2)
+	var z0 := mini(int(v), res - 2)
+	var tx := u - float(x0)
+	var tz := v - float(z0)
+	var i := x0 + z0 * res
+	return lerpf(lerpf(_sdf[i], _sdf[i + 1], tx), lerpf(_sdf[i + res], _sdf[i + res + 1], tx), tz)
+
+## True when the heightmap cell holding (x, z) touches the main landmass: the rule the tile map's
+## walkable mask uses (an islet cell has no mainland corner). Gen 1: always.
+func on_mainland(x: float, z: float) -> bool:
+	if mainland.is_empty():
+		return true
+	var cell := size / float(res - 1)
+	var x0 := clampi(int(floor((x + size * 0.5) / cell)), 0, res - 2)
+	var z0 := clampi(int(floor((z + size * 0.5) / cell)), 0, res - 2)
+	var i := x0 + z0 * res
+	return mainland[i] == 1 or mainland[i + 1] == 1 or mainland[i + res] == 1 or mainland[i + res + 1] == 1
+
+## 1 when the nearest heightmap vertex belongs to the main landmass (gen 1: always).
+func is_mainland(x: float, z: float) -> bool:
+	if mainland.is_empty():
+		return true
+	var cell := size / float(res - 1)
+	var u := clampi(roundi((x + size * 0.5) / cell), 0, res - 1)
+	var v := clampi(roundi((z + size * 0.5) / cell), 0, res - 1)
+	return mainland[u + v * res] == 1
+
+## Outward coast normal at a point (the sdf's falling direction).
+func _coast_normal(p: Vector2) -> Vector2:
+	var e := 2.0
+	var g := Vector2(sdf_at(p.x + e, p.y) - sdf_at(p.x - e, p.y), sdf_at(p.x, p.y + e) - sdf_at(p.x, p.y - e))
+	return -g.normalized() if g.length() > 0.0001 else Vector2.RIGHT
+
+## The medial line: along the spine, the most inland mainland point of each cross-section.
+func _build_axis() -> void:
+	axis = PackedVector2Array()
+	axis_hw = PackedFloat32Array()
+	var steps := 56
+	var hl := _len * 0.5 * _fit.x
+	var dir := Vector2(_ca, _sa)
+	var nrm := Vector2(-_sa, _ca)
+	var span := target.y * 0.9
+	for i in steps + 1:
+		var a := -hl * 1.1 + 2.2 * hl * float(i) / float(steps)
+		var base := centre + dir * a
+		var best := 0.0
+		var bp := Vector2.INF
+		var k := -span
+		while k <= span:
+			var q := base + nrm * k
+			var d := sdf_at(q.x, q.y)
+			if d > best and is_mainland(q.x, q.y):
+				best = d
+				bp = q
+			k += 3.0
+		if bp != Vector2.INF and best >= 8.0:
+			axis.append(bp)
+			axis_hw.append(best)
+	# Smooth the line (the per-section maximum jumps between lobes).
+	for _pass in 2:
+		var sm := axis.duplicate()
+		for i in range(1, axis.size() - 1):
+			sm[i] = (axis[i - 1] + axis[i] * 2.0 + axis[i + 1]) * 0.25
+		axis = sm
+	# The landing end is seeded: half the islands land at the other end.
+	var rr := RandomNumberGenerator.new()
+	rr.seed = seed * 389 + 3
+	if rr.randf() < 0.5:
+		axis.reverse()
+		axis_hw.reverse()
+
+## Axis point and its local half-width at fraction u (0 landing end, 1 far end).
+func axis_at(u: float) -> Vector2:
+	if axis.is_empty():
+		return centre
+	var f := clampf(u, 0.0, 1.0) * float(axis.size() - 1)
+	var i := mini(int(f), axis.size() - 2)
+	return axis[i].lerp(axis[i + 1], f - float(i)) if axis.size() > 1 else axis[0]
+
+func axis_hw_at(u: float) -> float:
+	if axis_hw.is_empty():
+		return 20.0
+	var i := clampi(roundi(clampf(u, 0.0, 1.0) * float(axis_hw.size() - 1)), 0, axis_hw.size() - 1)
+	return axis_hw[i]
+
+func axis_normal(u: float) -> Vector2:
+	var a := axis_at(u - 0.03)
+	var b := axis_at(u + 0.03)
+	var t := (b - a).normalized() if a.distance_to(b) > 0.01 else Vector2(_ca, _sa)
+	return Vector2(-t.y, t.x)
+
+## The first mainland coast crossing from p along dir (marching 1.5 m), or INF.
+func _coast_from(p: Vector2, dir: Vector2) -> Vector2:
+	var q := p
+	for _k in 300:
+		var nq := q + dir * 1.5
+		if sdf_at(nq.x, nq.y) <= 0.0:
+			return nq
+		q = nq
+	return Vector2.INF
+
+## The landing: a mainland beach near the landing end whose coast faces a grid axis (the dock is
+## axis-aligned) with a dry camp clearing 26 m behind it. Home: the cove head south of the camp.
+func _pick_landing() -> void:
+	if _camp_fixed:
+		var c := _coast_from(camp_hint, Vector2.DOWN if not _cove2.is_empty() else Vector2.DOWN)
+		landing = c if c != Vector2.INF else camp_hint + Vector2(0.0, 56.0)
+		_landing_flank = signf(axis_normal(0.5).dot(landing - axis_at(0.5)))
+		if _landing_flank == 0.0:
+			_landing_flank = 1.0
+		return
+	var best_score := -INF
+	for pass_i in 2:
+		var u0 := 0.05 if pass_i == 0 else 0.0
+		var u1 := 0.32 if pass_i == 0 else 0.6
+		for k in 14:
+			var u := lerpf(u0, u1, float(k) / 13.0)
+			for side in [1.0, -1.0]:
+				var a := axis_at(u)
+				var c := _coast_from(a, axis_normal(u) * side)
+				if c == Vector2.INF or not is_mainland(c.x - axis_normal(u).x * side * 3.0, c.y - axis_normal(u).y * side * 3.0):
+					continue
+				var nrm := _coast_normal(c)
+				var camp := c - nrm * CAMP_BACK
+				if sdf_at(camp.x, camp.y) < CAMP_BACK - 5.0 or not is_mainland(camp.x, camp.y):
+					continue
+				var ok := true
+				for b in 8:
+					var ang := TAU * float(b) / 8.0
+					var q := camp + Vector2(cos(ang), sin(ang)) * 19.0
+					if sdf_at(q.x, q.y) < 3.0:
+						ok = false
+						break
+				if not ok:
+					continue
+				# Facing a grid axis scores; so does being near the end.
+				var score := maxf(absf(nrm.x), absf(nrm.y)) * 2.0 - absf(u - 0.15)
+				if score > best_score:
+					best_score = score
+					landing = c
+					camp_hint = camp
+					_landing_flank = side
+		if best_score > -INF:
+			return
+	# No clean beach (should not happen): land at the axis start.
+	camp_hint = axis_at(0.15)
+	landing = _coast_from(camp_hint, axis_normal(0.15))
+
+## Plateau at the far end, the mesa between, the crater (used when the island has one) inland on
+## the far half, clear of the camp.
+func _pick_features() -> void:
+	var up := 0.84
+	# The smoothed axis can run between two lobes: the plateau stands on the most inland point
+	# within 45 m of it, so the highland (and the river's spring in it) is always on land. It stays
+	# well away from the camp (the home's fixed camp sits mid-island): the far end that is farther.
+	if axis_at(0.16).distance_to(camp_hint) > axis_at(0.84).distance_to(camp_hint):
+		axis.reverse()
+		axis_hw.reverse()
+		_landing_flank = -_landing_flank  # the axis normal flips with the axis
+	var hp := _inland_peak(axis_at(up), 45.0)
+	var rr := clampf(sdf_at(hp.x, hp.y) * 1.5, 34.0, maxf(40.0, target.x * 0.17))
+	_plateau = Vector3(hp.x, hp.y, rr)
+	if not mesa.is_empty():
+		var mu := 0.55
+		# On the landing's flank: the river mostly runs down the other one.
+		var mp := axis_at(mu) + axis_normal(mu) * _landing_flank * axis_hw_at(mu) * 0.35
+		mesa["pos"] = mp
+	var cu := 0.66
+	crater_pt = axis_at(cu) - axis_normal(cu) * _landing_flank * axis_hw_at(cu) * 0.25
+
+## The most inland mainland point within `radius` m of p (3 m steps).
+func _inland_peak(p: Vector2, radius: float) -> Vector2:
+	var best := p
+	var best_d := sdf_at(p.x, p.y) if is_mainland(p.x, p.y) else -INF
+	var k := -radius
+	while k <= radius:
+		var j := -radius
+		while j <= radius:
+			var q := p + Vector2(k, j)
+			var d := sdf_at(q.x, q.y)
+			if d > best_d and is_mainland(q.x, q.y):
+				best_d = d
+				best = q
+			j += 3.0
+		k += 3.0
+	return best
+
+## Gen 2 relief on top of the base noise: a backbone down the island's middle and the highland
+## plateau at the far end with its two 3.2-4.6 m cliff steps, cut by the river's valley (narrow at
+## the source, so the spring sits in a gorge in the plateau, not on the lowland).
+func _relief2(wx: float, wz: float, t: float, d_river: float, hw: float, tr: float) -> float:
+	var h := 2.0 * smoothstep(0.25, 0.95, t) * (0.65 + 0.35 * _n1.get_noise_2d(wx * 0.5, wz * 0.5))
+	var dd := Vector2(wx - _plateau.x, wz - _plateau.y).length() + _ncliff.get_noise_2d(wx, wz) * size * 0.045
+	var rr := _plateau.z
+	if dd < rr + 2.0:
+		var rise := 4.6 * smoothstep(rr + 1.3, rr - 1.3, dd)
+		var inner := 3.2 * smoothstep(rr * 0.52 + 1.3, rr * 0.52 - 1.3, dd)
+		var vk := smoothstep(0.0, 0.35, tr)
+		var v0 := lerpf(hw * 2.4 + 1.0, 12.0, vk)
+		var v1 := lerpf(hw * 2.4 + 6.0, 34.0, vk)
+		h += (rise + inner) * smoothstep(0.08, 0.25, t) * smoothstep(v0, v1, d_river)
+	return h
+
+static func _resample(poly: PackedVector2Array, step: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	if poly.size() < 2:
+		return poly
+	out.append(poly[0])
+	var carry := 0.0
+	for i in poly.size() - 1:
+		var a := poly[i]
+		var b := poly[i + 1]
+		var seg := a.distance_to(b)
+		var d := step - carry
+		while d <= seg:
+			out.append(a.lerp(b, d / seg))
+			d += step
+		carry = seg - (d - step)
+	if out[out.size() - 1].distance_to(poly[poly.size() - 1]) > 0.5:
+		out.append(poly[poly.size() - 1])
+	return out
+
+## A gen 2 river: from a spring in the plateau, down the island's length on the flank away from
+## the landing, out through the coast; never within CAMP_R + 10 m of the camp, never at the dock.
+func _river_candidate2(rr: RandomNumberGenerator) -> PackedVector2Array:
+	if axis.size() < 4:
+		return PackedVector2Array()
+	var flank := -_landing_flank if rr.randf() < 0.8 else _landing_flank
+	var u_head := rr.randf_range(0.80, 0.88)
+	var u_exit := rr.randf_range(0.12, 0.22) if _camp_fixed else rr.randf_range(0.20, 0.38)
+	var phase := rr.randf() * TAU
+	var ctrl := PackedVector2Array()
+	var n := 8
+	for i in n:
+		var t := float(i) / float(n - 1)
+		var u := lerpf(u_head, u_exit, t)
+		var off := (0.30 + 0.12 * sin(t * 5.0 + phase)) * axis_hw_at(u)
+		var p := axis_at(u) + axis_normal(u) * flank * off
+		if i == 0:
+			# The spring: inside the plateau, a little off its centre.
+			p = Vector2(_plateau.x, _plateau.y) + axis_normal(u) * flank * _plateau.z * 0.15
+		# Off the axis the flank may be a bay: pull the point back toward the island's middle.
+		var mid := axis_at(u) if i > 0 else Vector2(_plateau.x, _plateau.y)
+		for _k in 12:
+			if sdf_at(p.x, p.y) >= axis_hw_at(u) * 0.35 and is_mainland(p.x, p.y):
+				break
+			p = p.lerp(mid, 0.25)
+		var away := p - camp_hint
+		if away.length() < CAMP_R + 24.0:
+			p = camp_hint + (away.normalized() if away.length() > 0.5 else axis_normal(u) * flank) * (CAMP_R + 24.0)
+		ctrl.append(p)
+	var last := ctrl[ctrl.size() - 1]
+	var edge := _coast_from(last, axis_normal(u_exit) * flank)
+	if edge == Vector2.INF:
+		if OS.get_environment("ISL_RIVER") == "1":
+			print("[riverdbg] gen2 reject: no coast from %s" % last)
+		return PackedVector2Array()
+	var out_dir := (edge - last).normalized()
+	ctrl.append(edge + out_dir * 6.0)
+	var dense := PackedVector2Array()
+	var m := 24 * (ctrl.size() - 1)
+	for i in m:
+		var t := float(i) / float(m - 1) * float(ctrl.size() - 1)
+		var k := mini(int(floor(t)), ctrl.size() - 2)
+		var f := t - float(k)
+		var q := _catmull(ctrl[maxi(k - 1, 0)], ctrl[k], ctrl[k + 1], ctrl[mini(k + 2, ctrl.size() - 1)], f)
+		# The spline can still bow toward the camp between control points: hold it 12 m outside
+		# the clearing (the clearing never dams or cuts the channel).
+		var aw := q - camp_hint
+		if aw.length() < CAMP_R + 12.0 and aw.length() > 0.01:
+			q = camp_hint + aw.normalized() * (CAMP_R + 12.0)
+		dense.append(q)
+	# Even 3 m steps along the curve: the spline's own parameter bunches samples where control
+	# points are close and stretches them (5 m gaps) where they are far apart.
+	var out := _resample(dense, 3.0)
+	for q in out:
+		if q.distance_to(camp_hint) < CAMP_R + 10.0 or q.distance_to(landing) < 40.0:
+			if OS.get_environment("ISL_RIVER") == "1":
+				print("[riverdbg] gen2 reject near camp/landing at %s (camp %s landing %s)" % [q, camp_hint, landing])
+			return PackedVector2Array()
+	return out
+
 # ---------------------------------------------------------------------------- river
 
 ## The river: a plateau source on the highland flank, a meandering channel (+-15 m) to a mouth on
@@ -658,7 +1468,7 @@ func _build_river() -> void:
 	for attempt in range(first, last):
 		var rr := RandomNumberGenerator.new()
 		rr.seed = seed * 313 + 7 + attempt * 977
-		var p := _river_candidate(rr)
+		var p := _river_candidate2(rr) if gen >= 2 else _river_candidate(rr)
 		if p.size() < 4:
 			continue
 		var arc := 0.0
@@ -702,7 +1512,9 @@ func _build_river() -> void:
 		# The source narrows to a spring: a constant-width sheet cut off square in the highland was
 		# the "river ends in a rectangle" read in the top-down shot.
 		if t < 0.18:
-			_river_w[i] = lerpf(0.9, _river_w[i], smoothstep(0.0, 0.18, t))
+			# Gen 2: a 4.4 m spring, two heightmap cells wide, so the head is resolved as water
+			# (a 1.8 m sheet on a 2.9 m grid read as a dry gully at the source).
+			_river_w[i] = lerpf(2.2 if gen >= 2 else 0.9, _river_w[i], smoothstep(0.0, 0.18, t))
 		if t > 0.85:
 			_river_w[i] = lerpf(5.0, 7.0, (t - 0.85) / 0.15)
 	_bucket_river()
@@ -712,7 +1524,7 @@ func _build_river() -> void:
 	var best_d := INF
 	for i in river.size():
 		var q := river[i]
-		if legacy and absf(q.x) < 25.0:
+		if legacy and gen < 2 and absf(q.x) < 25.0:
 			best = i
 			best_d = absf(q.x)
 			continue
@@ -834,23 +1646,26 @@ func _bucket_river() -> void:
 
 ## Distance to the river (m) and the channel's half-width there, from the segment buckets.
 ## `far` is what a vertex outside the buckets gets (no river nearby).
-func river_near(x: float, z: float, far: float = 10000.0) -> Vector2:
+func river_near(x: float, z: float, far: float = 10000.0) -> Vector3:
 	if river.size() < 2:
-		return Vector2(far, 4.0)
+		return Vector3(far, 4.0, 1.0)
 	var key := Vector2i(int(floor(x / SEG_CELL)), int(floor(z / SEG_CELL)))
 	var arr: Array = _segs.get(key, [])
 	if arr.is_empty():
-		return Vector2(far, 4.0)
+		return Vector3(far, 4.0, 1.0)
 	var p := Vector2(x, z)
 	var best := far
 	var w := 4.0
+	var ti := 0
 	for si in arr:
 		var i: int = si
 		var d := _seg_dist(p, river[i], river[i + 1])
 		if d < best:
 			best = d
+			ti = i
 			w = lerpf(_river_w[i], _river_w[i + 1], 0.5)
-	return Vector2(best, w)
+	# z: where along the river (0 = source, 1 = mouth) the nearest segment sits.
+	return Vector3(best, w, float(ti) / float(maxi(1, river.size() - 2)))
 
 ## Where the line z = z0 leaves the island's coast, along +x (dir 1) or -x (dir -1).
 func coast_on_line(z0: float, dir: float) -> Vector2:
@@ -1147,6 +1962,36 @@ static func coast_metrics(rt: IslandRuntime) -> Dictionary:
 						per += 1
 	var bw := hi.x - lo.x + 1.0
 	var bh := hi.y - lo.y + 1.0
+	# The land's box along its own principal axes (a turned long island's axis-aligned box is
+	# nearly square whatever its shape).
+	var mean := Vector2.ZERO
+	var cxx := 0.0
+	var cxz := 0.0
+	var czz := 0.0
+	var pts2 := PackedVector2Array()
+	for z in range(0, span, 2):
+		for x in range(0, span, 2):
+			var wx := -size * 0.5 + float(x) + 0.5
+			var wz := -size * 0.5 + float(z) + 0.5
+			if rt.surface_y(wx, wz) > -0.05 and (rt._shape == null or rt._shape.on_mainland(wx, wz)):
+				pts2.append(Vector2(wx, wz))
+				mean += Vector2(wx, wz)
+	mean /= maxf(1.0, float(pts2.size()))
+	for q in pts2:
+		var d := q - mean
+		cxx += d.x * d.x
+		cxz += d.x * d.y
+		czz += d.y * d.y
+	var pang := 0.5 * atan2(2.0 * cxz, cxx - czz)
+	var pax := Vector2(cos(pang), sin(pang))
+	var plo := Vector2(INF, INF)
+	var phi := Vector2(-INF, -INF)
+	for q in pts2:
+		var d := q - mean
+		var l := Vector2(d.dot(pax), d.dot(Vector2(-pax.y, pax.x)))
+		plo = plo.min(l)
+		phi = phi.max(l)
+	var pext := phi - plo + Vector2(2.0, 2.0)
 	# Real per-side margins (metres of sea between the land and the grid edge). The centred
 	# `(size - bbox) * 0.5` hid the clipped-headland case: a headland that ran out of the square
 	# has zero margin on that side and reads as a straight cut in the top-down shot.
@@ -1167,6 +2012,9 @@ static func coast_metrics(rt: IslandRuntime) -> Dictionary:
 		"land": land,
 		"bbox": Vector2(bw, bh),
 		"aspect": minf(bw, bh) / maxf(bw, bh),
+		"pca_long": maxf(pext.x, pext.y),
+		"pca_short": minf(pext.x, pext.y),
+		"pca_aspect": minf(pext.x, pext.y) / maxf(1.0, maxf(pext.x, pext.y)),
 		"perimeter": per,
 		"coast_ratio": float(per) / sqrt(maxf(1.0, float(land))),
 		"peninsulas": pens.size(),

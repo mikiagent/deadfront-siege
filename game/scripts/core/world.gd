@@ -13,6 +13,13 @@ var home_terrain: StringName = &""
 ## world until the pick: def_of then builds the stock island (seed 17), so old saves keep theirs.
 var home_shapes: Array = []
 var home_shape: StringName = &""
+## ISLANDS2: which IslandShape generator builds the home and the island the survivor is on. A save
+## stamps both (home.shape_gen, away.shape_gen); a save without the stamp was made on generator 1
+## and keeps it, so its buildings and claims stay on the same land. start_new() and every new
+## voyage use the current generator. A world that never ran start_new (tests, labs) keeps the
+## stock generator-1 home.
+var home_gen: int = 1
+var away_gen: int = 2
 var t_stones: int = 20 ## ASSUMPTION: starting T-stones
 var pioneer_level: int = 0
 var pioneer_xp: int = 0
@@ -103,6 +110,8 @@ func _process(delta: float) -> void:
 			return  # nothing exists to save yet; SaveGame refuses too, this keeps the log quiet
 		_save_now()
 
+const SHAPE_GEN_CURRENT := 2
+
 func is_home() -> bool:
 	return str(island_def.get("kind", "")) == "private"
 
@@ -120,6 +129,10 @@ func def_of(id: StringName) -> Dictionary:
 			d["seed"] = int(s.get("seed", d.get("seed", 17)))
 			d["display_name"] = str(s.get("display_name", d.get("display_name", "Private Island")))
 			d["home_shape"] = str(home_shape)
+			# ISLANDS2: a shape may pick its own generator-2 coast type (Coastal: the fjord coast).
+			if s.has("shape_type") and d.get("shape", null) is Dictionary:
+				d["shape"] = (d["shape"] as Dictionary).duplicate()
+				d["shape"]["type"] = str(s["shape_type"])
 	return d
 
 func shape_def(id: StringName) -> Dictionary:
@@ -229,6 +242,8 @@ func start_new(host: Node) -> void:
 	creation_pending = true
 	home_terrain = &""
 	home_shape = &""
+	home_gen = SHAPE_GEN_CURRENT
+	away_gen = SHAPE_GEN_CURRENT
 	island_id = &"home_grassland"
 	visited_islands.clear()
 	raid_victory = false
@@ -269,6 +284,7 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 		remaining_lifetime = float(island_def.get("lifetime_seconds", 7200))
 	var ir = (load("res://scripts/world/island_runtime.gd") as GDScript).new()
 	ir.name = "IslandRuntime"
+	ir.shape_gen = home_gen if is_home() else away_gen
 	host.add_child(ir)
 	var terrain := home_terrain if is_home() and home_terrain != &"" else &"meadow"
 	ir.build(island_def, terrain)
@@ -323,6 +339,7 @@ func travel(to_id: StringName, mode: StringName) -> void:
 		# Capture the live camp before replacing its runtime, including unsaved storage.
 		if is_home(): _save_now()
 		remaining_lifetime = 0.0 # each destination starts its own island lifetime
+		away_gen = SHAPE_GEN_CURRENT # a new voyage lands on the current coast generator
 		load_island(host, to_id, pos, false)
 		if runtime and runtime.has_method("arrival_point"):
 			player.global_position = runtime.arrival_point() + Vector3.UP
@@ -617,6 +634,9 @@ func _load_islands(_dir: String) -> void:
 		if not d.has("size_m"):
 			var sizes: Dictionary = Data.world_rules.get("island_size_m", {})
 			d["size_m"] = sizes.get("home" if d["kind"] == "private" else "unstable", 240)
+		if d.has("harbour") and not d.has("harbour_gen1"):
+			# Generator 1's dock hint; "harbour" itself is rewritten with each build's arrival point.
+			d["harbour_gen1"] = (d["harbour"] as Array).duplicate()
 		if not d.has("lifetime_seconds"):
 			d["lifetime_seconds"] = float(d.get("lifetime_hours", 6)) * 3600.0
 		islands[id] = d

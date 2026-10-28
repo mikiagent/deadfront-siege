@@ -18,6 +18,10 @@ var raining: bool:
 	get:
 		return weather.raining
 var _size: float = 240.0
+## Which IslandShape generator builds this island (World sets it before build): 1 = the radial
+## ISLANDGEN coast an old save's buildings stand on, 2 = the country coast. 0 = decide from the
+## island (unstable 2, home 1: a world that never ran start_new keeps the stock home).
+var shape_gen: int = 0
 var _res: int = 65
 var _heights: PackedFloat32Array = PackedFloat32Array()
 ## The landmass generator (IslandShape): coastline, river, mesa, peaks. is_dry and the scatter
@@ -35,6 +39,8 @@ var _harbour_pos: Vector3 = Vector3.ZERO
 var _camp_hint: Vector3 = Vector3.ZERO
 var _crater_pos: Vector3 = Vector3.ZERO
 var _crater_hint: Vector3 = Vector3.ZERO
+## Gen 2 moves the data's crater onto the built land; fixed spawn rows near it move with it.
+var _crater_offset: Vector3 = Vector3.ZERO
 var _ridge_dir: Vector2 = Vector2.RIGHT
 var _tile_span: int = 0
 var tile_types: PackedByteArray = PackedByteArray()
@@ -149,11 +155,35 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	world_env = lighting.world_env
 	var seed := int(def.get("seed", 17 if str(def.get("kind", "")) == "private" else hash(str(def.get("id", "island")))))
 	var legacy := str(def.get("kind", "")) == "private"
-	var hint := Vector2(float(harbour_a[0]), float(harbour_a[2])) if def.has("harbour") else Vector2(_camp_hint.x, _camp_hint.z)
 	var t0 := Time.get_ticks_usec()
-	_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, 161, _climate)
-	_shape.camp_hint = Vector2(_camp_hint.x, _camp_hint.z)
-	_shape.compute()
+	var g2: Variant = def.get("shape", null)
+	if shape_gen == 0:
+		shape_gen = 1 if legacy else IslandShape.GEN_CURRENT
+	if shape_gen >= 2 and g2 is Dictionary:
+		# Gen 2 (country coast): its own square and land box; the shape picks the landing beach,
+		# puts the camp 26 m behind it (home keeps its legacy camp) and places the crater.
+		var gd := g2 as Dictionary
+		size = float(gd.get("size_m", size))
+		var camp_fix := Vector2(_camp_hint.x, _camp_hint.z) if legacy else Vector2.INF
+		_shape = IslandShape.make2(size, seed, str(def.get("kind", "unstable")), str(gd.get("type", "spine")),
+			float(gd.get("long_m", 400)), float(gd.get("short_m", 200)), legacy, 161, _climate, camp_fix)
+		_shape.compute()
+		_camp_hint = Vector3(_shape.camp_hint.x, 0.0, _shape.camp_hint.y)
+		camp_a = [_camp_hint.x, 0.0, _camp_hint.z]
+		harbour_a = [_shape.landing.x, 0.0, _shape.landing.y]
+		if _crater_hint != Vector3.ZERO:
+			_crater_offset = Vector3(_shape.crater_pt.x, 0.0, _shape.crater_pt.y) - _crater_hint
+			_crater_hint += _crater_offset
+			crater_v = [_crater_hint.x, 0.0, _crater_hint.z]
+	else:
+		shape_gen = 1
+		# The catalogue row's own hint: a gen 2 build of this island rewrote "harbour" this session.
+		harbour_a = def.get("harbour_gen1", harbour_a)
+	var hint := Vector2(float(harbour_a[0]), float(harbour_a[2])) if (def.has("harbour") or shape_gen >= 2) else Vector2(_camp_hint.x, _camp_hint.z)
+	if shape_gen < 2:
+		_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, 161, _climate)
+		_shape.camp_hint = Vector2(_camp_hint.x, _camp_hint.z)
+		_shape.compute()
 	var t1 := Time.get_ticks_usec()
 	IslandTerrain.build(self, size, _climate, _shape)
 	var t2 := Time.get_ticks_usec()
@@ -231,6 +261,14 @@ func _at(x: float, z: float) -> Vector3:
 
 func _tile_at(x: float, z: float) -> Vector3:
 	return BuildGrid.tile_centre(BuildGrid.tile_of(Vector3(x, 0.0, z)), self)
+
+## Where a fixed creature row of the island data stands on this build: gen 2 moved the crater, and
+## the crater's guards (rows within 30 m of it) move with it; everything else is as written.
+func fixed_spawn_at(at: Vector3) -> Vector3:
+	var crater_data := _crater_hint - _crater_offset
+	if _crater_offset != Vector3.ZERO and Vector2(at.x - crater_data.x, at.z - crater_data.z).length() <= 30.0:
+		return at + _crater_offset
+	return at
 
 ## Rings are measured from where the survivor LANDS (the dock's arrival point), not the island
 ## origin: the shaped islands are elongated and off-centre, so an origin-centred ring would

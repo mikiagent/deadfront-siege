@@ -39,6 +39,7 @@
       "terrain": "coastal",
       "seed": 8123,
       "blurb": "Long shore, deep coves",
+      "shape_type": "archipelago",
       "accent": "#8a8450"
     }
   ]

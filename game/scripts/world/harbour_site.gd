@@ -79,6 +79,13 @@ static func check(rt: IslandRuntime, cell: Vector2i, rot: int) -> String:
 ## approach strip must reach dry walkable land, so camp-to-harbour pathing reaches the dock.
 ## Returns {"cell": Vector2i, "rot": int} or {} when no coast fits (then check() refuses all).
 static func find(rt: IslandRuntime, hint: Vector2) -> Dictionary:
+	# Gen 2 coasts fold back on themselves (bays, capes, a curved spine): a ray from the open sea
+	# meets the outer headland first, never the landing beach the shape chose. Search the beach
+	# around the hint itself first.
+	if rt._shape != null and rt._shape.gen >= 2:
+		var near := _find_near(rt, hint, 36)
+		if not near.is_empty():
+			return near
 	var best := {}
 	var best_d := INF
 	var half := rt._size * 0.5 - 1.0
@@ -104,6 +111,27 @@ static func find(rt: IslandRuntime, hint: Vector2) -> Dictionary:
 					best_d = d
 					best = {"cell": cell, "rot": rot}
 				break
+	return best
+
+## The legal pose whose base row is nearest the hint, over every beach tile within `radius` m.
+static func _find_near(rt: IslandRuntime, hint: Vector2, radius: int) -> Dictionary:
+	var best := {}
+	var best_d := INF
+	for dz in range(-radius, radius + 1):
+		for dx in range(-radius, radius + 1):
+			var p := Vector2(floorf(hint.x) + float(dx) + 0.5, floorf(hint.y) + float(dz) + 0.5)
+			var d := p.distance_to(hint)
+			if d > float(radius) or d >= best_d:
+				continue
+			var h := _h(rt, p)
+			if h < 0.15 or h > 0.7:
+				continue
+			for rot in 4:
+				var cell := cell_for_base(p, rot)
+				if check(rt, cell, rot) == "" and _reaches_dry(rt, cell, rot):
+					best_d = d
+					best = {"cell": cell, "rot": rot}
+					break
 	return best
 
 static func rot_toward(dir: Vector2) -> int:

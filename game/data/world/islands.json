@@ -685,5 +685,241 @@
     "size_m": 464,
     "seed": 6029,
     "harbour": [-145.5, 0, -36.5]
+  },
+  "savannah_15b": {
+    "id": "savannah_15b",
+    "climate": "savannah",
+    "tier": 15,
+    "lifetime_hours": 6,
+    "crater_type": "animal",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "compsognathus",
+          "count": 5,
+          "groups": 1
+        },
+        {
+          "species": "zebraceratops",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "coelophysis",
+          "count": 4,
+          "groups": 1
+        },
+        {
+          "species": "protoceratops",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "coelophysis",
+          "count": 4,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "coelophysis",
+          "count": 2,
+          "groups": 1,
+          "tier_offset": 5
+        }
+      ]
+    },
+    "size_m": 416,
+    "seed": 1559
+  },
+  "temperate_20b": {
+    "id": "temperate_20b",
+    "climate": "temperate",
+    "tier": 20,
+    "lifetime_hours": 6,
+    "crater_type": "plant",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "protoceratops",
+          "count": 4,
+          "groups": 1
+        },
+        {
+          "species": "compsognathus",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "velociraptor",
+          "count": 3,
+          "groups": 1
+        },
+        {
+          "species": "coelophysis",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "protoceratops",
+          "count": 4,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "velociraptor",
+          "count": 2,
+          "groups": 1
+        }
+      ]
+    },
+    "size_m": 416,
+    "seed": 2069
+  },
+  "tundra_40": {
+    "id": "tundra_40",
+    "climate": "tundra",
+    "tier": 40,
+    "lifetime_hours": 12,
+    "crater_type": "mineral",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "megaloceros",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "megaloceros",
+          "count": 3,
+          "groups": 1
+        },
+        {
+          "species": "velociraptor",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "smilodon",
+          "count": 2,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "smilodon",
+          "count": 2,
+          "groups": 1
+        }
+      ]
+    },
+    "size_m": 416,
+    "seed": 4049
+  },
+  "swamp_45": {
+    "id": "swamp_45",
+    "climate": "swamp",
+    "tier": 45,
+    "lifetime_hours": 12,
+    "crater_type": "plant",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "compsognathus",
+          "count": 6,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "deinonychus",
+          "count": 3,
+          "groups": 1
+        },
+        {
+          "species": "dilophosaurus",
+          "count": 2,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "deinonychus",
+          "count": 4,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "triceratops",
+          "count": 1,
+          "groups": 1
+        }
+      ]
+    },
+    "size_m": 416,
+    "seed": 4583
+  },
+  "swamp_60": {
+    "id": "swamp_60",
+    "climate": "swamp",
+    "tier": 60,
+    "lifetime_hours": 24,
+    "crater_type": "animal",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "compsognathus",
+          "count": 6,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "triceratops",
+          "count": 3,
+          "groups": 1
+        },
+        {
+          "species": "dilophosaurus",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "triceratops",
+          "count": 3,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "dilophosaurus",
+          "count": 4,
+          "groups": 1
+        }
+      ]
+    },
+    "size_m": 416,
+    "seed": 6067
   }
 }

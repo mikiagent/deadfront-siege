@@ -71,5 +71,12 @@
     }
   },
   "_creature_note": "Private island: starter fauna only. Coelophysis, Deinonychus, Stegosaurus, Utahraptor and Velociraptor were hand-placed 34-40 m from camp and killed a fresh survivor in seconds; they spawn on the unstable islands instead.",
-  "seed": 17
+  "seed": 17,
+  "shape": {
+    "_about": "ISLANDS2 country coast (generator 2): type, grid square and the main landmass's box along its own axes (long x short, +-10 %). The starter island stays at today's size or a little under (owner: not too large); 350 m is what a 416 m square holds with 20 m of sea on every side once the coast is ragged. size_m and harbour above are generator 1's, kept for saves made on it.",
+    "type": "compact",
+    "size_m": 416,
+    "long_m": 350,
+    "short_m": 290
+  }
 }

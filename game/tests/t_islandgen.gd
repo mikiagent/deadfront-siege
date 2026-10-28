@@ -1,9 +1,12 @@
 extends SceneTree
-## ISLANDGEN acceptance: the landmass generator. For the home island and three unstable ones
-## (one per size tier) it asserts the lab's own numbers and the gameplay consequences:
-##   - land bbox within 10 % of the plan's target (home 375 x 300 m, unstable 330x265 / 375x300 /
-##     415x335 by tier) with >= 20 m of sea on every side of the square grid;
-##   - principal-axis aspect 0.70-0.90 and >= 2 headlands (the lab's documented measure);
+## ISLANDGEN acceptance: the landmass generator, on the coast generator a new world builds
+## (ISLANDS2, generator 2; t_shapesave covers generator 1 for old saves). For the home island and
+## three unstable ones it asserts the lab's own numbers and the gameplay consequences:
+##   - land within 10 % of the island's own target (data/islands/<id>.json "shape": the home's
+##     east-west box, the others along their principal axes) with >= 20 m of sea on every side of
+##     the square grid, which is the shape block's size_m;
+##   - aspect: the home 0.70-0.92 (a compact starter island); the others <= 0.70 along their
+##     principal axes (owner 2026-10-27: long, country-like islands); >= 2 headlands on the home;
 ##   - cliffs (CLIFF tiles) exist, are impassable in TilePath and refused by spawn_ok, and every
 ##     island has a river that reaches the sea through its low ground (MUD, -0.25..-0.38 bed) with a
 ##     dry ford;
@@ -24,14 +27,8 @@ const IDS := ["home_grassland", "savannah_15", "temperate_35", "volcanic_60"]
 ## islands the four-island set did not cover.
 const ALL_IDS := ["home_grassland", "savannah_15", "savannah_45", "temperate_20", "temperate_25",
 	"temperate_35", "temperate_45", "tropical_25", "tropical_40", "desert_35", "desert_50",
-	"tundra_30", "tundra_55", "swamp_55", "volcanic_60"]
-const TARGET := {
-	"home_grassland": Vector2(375.0, 300.0),
-	"savannah_15": Vector2(330.0, 265.0),
-	"temperate_35": Vector2(375.0, 300.0),
-	"volcanic_60": Vector2(415.0, 335.0),
-}
-const SQUARE := {"home_grassland": 416.0, "savannah_15": 368.0, "temperate_35": 416.0, "volcanic_60": 464.0}
+	"tundra_30", "tundra_55", "swamp_55", "volcanic_60", "savannah_15b", "temperate_20b", "tundra_40",
+	"swamp_45", "swamp_60"]
 ## Every fixture (baskets (4,8), (2.5,9.5), spawn (0,12), camp (0,8), claims, the old dock line).
 const LEGACY_POINTS := [Vector2(4, 8), Vector2(2.5, 9.5), Vector2(0, 12), Vector2(0, 8), Vector2(0, 0), Vector2(10, -10), Vector2(-15, 20)]
 
@@ -61,6 +58,9 @@ func _run() -> void:
 	_host.name = "TIslandgen"
 	root.add_child(_host)
 	_world = root.get_node("World")
+	# What a new world builds (World.start_new): the current coast generator for home and voyages.
+	_world.home_gen = _IS.GEN_CURRENT
+	_world.away_gen = _IS.GEN_CURRENT
 	var seen := {}
 	for id in ALL_IDS:
 		var t0 := Time.get_ticks_usec()
@@ -89,14 +89,17 @@ func _run() -> void:
 func _check_island(id: String, rt, ms: float) -> void:
 	var m: Dictionary = _IS.coast_metrics(rt)
 	var bbox: Vector2 = m["bbox"]
-	var target: Vector2 = TARGET[id]
+	var home := id == "home_grassland"
+	var shape_row: Dictionary = _world.def_of(StringName(id)).get("shape", {})
+	var target := Vector2(float(shape_row.get("long_m", 0)), float(shape_row.get("short_m", 0)))
 	var long_target := maxf(target.x, target.y)
 	var short_target := minf(target.x, target.y)
-	var long_m := maxf(bbox.x, bbox.y)
-	var short_m := minf(bbox.x, bbox.y)
+	# The home's target is its east-west box; a turned island is measured along its own axes.
+	var long_m := maxf(bbox.x, bbox.y) if home else float(m["pca_long"])
+	var short_m := minf(bbox.x, bbox.y) if home else float(m["pca_short"])
 	_expect(absf(long_m - long_target) <= 0.10 * long_target, "%s land long axis %.0f m within 10%% of %.0f (lab prints this line)" % [id, long_m, long_target])
 	_expect(absf(short_m - short_target) <= 0.10 * short_target, "%s land short axis %.0f m within 10%% of %.0f" % [id, short_m, short_target])
-	_expect(float(rt._size) == SQUARE[id], "%s grid square is %.0f m" % [id, SQUARE[id]])
+	_expect(float(rt._size) == float(shape_row.get("size_m", -1)), "%s grid square is the shape's %.0f m (%.0f)" % [id, float(shape_row.get("size_m", -1)), float(rt._size)])
 	# At least 20 m of sea on EACH side, measured per side: the centred `(size - bbox) * 0.5` hid
 	# a headland that ran out of the grid square and was cut off in a straight line.
 	var mw := float(m["margin_w"])
@@ -105,10 +108,14 @@ func _check_island(id: String, rt, ms: float) -> void:
 	var msouth := float(m["margin_s"])
 	_expect(minf(minf(mw, me), minf(mn, msouth)) >= 20.0,
 		"%s has >= 20 m of sea on every side (w %.0f e %.0f n %.0f s %.0f)" % [id, mw, me, mn, msouth])
-	var aspect := float(m["aspect"])
-	_expect(aspect >= 0.70 and aspect <= 0.92, "%s aspect %.2f is 0.70-0.92 (principal axes)" % [id, aspect])
+	var aspect := float(m["aspect"]) if home else float(m["pca_aspect"])
+	if home:
+		_expect(aspect >= 0.70 and aspect <= 0.92, "%s aspect %.2f is 0.70-0.92 (east-west box)" % [id, aspect])
+	else:
+		_expect(aspect <= 0.70, "%s aspect %.2f <= 0.70 (principal axes; a long island)" % [id, aspect])
 	var pens := int(m["peninsulas"])
-	_expect(pens >= 2, "%s has >= 2 headlands (%d)" % [id, pens])
+	if home:
+		_expect(pens >= 2, "%s has >= 2 headlands (%d)" % [id, pens])
 	var cliffs := int(m["cliff_cells"])
 	_expect(cliffs >= 40, "%s has cliff faces (%d CLIFF tiles)" % [id, cliffs])
 	# CLIFF is impassable in both gates: is_dry (spawn_ok, build) and the TilePath grid.
@@ -215,13 +222,14 @@ func _check_shape(id: String, rt) -> void:
 		_expect(warp >= 0.10, "%s mesa is not a circle (radius spread %.0f%%)" % [id, warp * 100.0])
 	# Every fixed spawn row and the crater stand on dry land.
 	var def: Dictionary = _world.islands.get(id, {})
+	# Generator 2 moves the crater onto its land and the crater's guards with it (fixed_spawn_at).
 	for row in def.get("creatures", []):
 		var at: Array = row.get("at", [0, 0, 0])
-		var p := Vector3(float(at[0]), 0.0, float(at[2]))
+		var p: Vector3 = rt.fixed_spawn_at(Vector3(float(at[0]), 0.0, float(at[2])))
 		_expect(rt.is_dry(p), "%s %s spawn %s is on dry land" % [id, row.get("species", "?"), p])
 	var cr: Variant = def.get("crater", null)
 	if cr is Array and (cr as Array).size() >= 3:
-		var cp := Vector3(float(cr[0]), 0.0, float(cr[2]))
+		var cp: Vector3 = rt._crater_hint
 		_expect(rt.is_dry(cp), "%s crater %s is on dry land" % [id, cp])
 	# The spawn rings reach the far shore: the band is clamped to the farthest dry tile, not a
 	# land_radius circle.

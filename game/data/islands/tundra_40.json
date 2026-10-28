@@ -1,0 +1,12 @@
+{
+  "id": "tundra_40",
+  "seed": 4049,
+  "_note": "ISLANDS2: a generator-2 island only (no generator-1 save can stand on it). Everything else is world/islands.json.",
+  "shape": {
+    "_about": "ISLANDS2 country coast (generator 2): type spine/archipelago/compact, the grid square and the main landmass's box along its own axes (long x short, +-10 %).",
+    "type": "archipelago",
+    "size_m": 656,
+    "long_m": 580,
+    "short_m": 300
+  }
+}

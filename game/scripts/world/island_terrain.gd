@@ -287,6 +287,12 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	var sarr := rt._vslope
 	var land_r := rt.land_radius()
 	var shape := rt._shape
+	# Gen 2 islets are scenery: land, but never walkable, scattered or spawned on (no boat reaches them).
+	var ml := shape.mainland if shape != null else PackedByteArray()
+	# Open sea is most of a long island's square: a tile whose four corners are all deep water is
+	# DEEP, not walkable, not fresh, and BiomeZones.zone_of calls anything under 0.55 m "beach",
+	# so it gets that zone without the per-tile noise lookups (same output, a fraction of the cost).
+	var beach_zone := BiomeZones.zone_id("beach")
 	for z in span:
 		for x in span:
 			var wx := -half + float(x) + 0.5
@@ -304,6 +310,11 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			var i10 := x1 + z0 * res
 			var i01 := x0 + z1 * res
 			var i11 := x1 + z1 * res
+			if harr[i00] < -0.6 and harr[i10] < -0.6 and harr[i01] < -0.6 and harr[i11] < -0.6:
+				var di := x + z * span
+				types[di] = TileType.DEEP
+				biomes[di] = beach_zone
+				continue
 			var h := lerpf(lerpf(harr[i00], harr[i10], tx), lerpf(harr[i01], harr[i11], tx), tz)
 			var rad := lerpf(lerpf(rarr[i00], rarr[i10], tx), lerpf(rarr[i01], rarr[i11], tx), tz)
 			# The steepest corner: a riser is one cell wide, so a bilinear average would hide it.
@@ -357,7 +368,8 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			# The dry/walkable mask, precomputed once: is_dry (TilePath, build checks, spawn probes)
 			# is then one array lookup instead of four grid samples per call.
 			walk[idx] = 1 if (t == TileType.GRASS or t == TileType.DRY or t == TileType.DIRT or t == TileType.SAND \
-				or t == TileType.ROCK or t == TileType.ASH) and h >= 0.25 and rad <= land_r - 0.5 else 0
+				or t == TileType.ROCK or t == TileType.ASH) and h >= 0.25 and rad <= land_r - 0.5 \
+				and (ml.is_empty() or ml[i00] == 1 or ml[i10] == 1 or ml[i01] == 1 or ml[i11] == 1) else 0
 	rt.tile_types = types
 	BiomeZones.install(rt, biomes)
 	rt.fresh_water = fresh
@@ -378,12 +390,15 @@ static func _write_tile_image(rt: IslandRuntime) -> void:
 	if rt._tile_map_image == null or rt._tile_map_image.get_width() != span:
 		rt._tile_map_image = Image.create(span, span, false, Image.FORMAT_RG8)
 	var bio := BiomeZones.biome_types(rt)
-	for z in span:
-		for x in span:
-			var idx := x + z * span
-			var t := int(rt.tile_types[idx]) if idx < rt.tile_types.size() else 0
-			var b := int(bio[idx]) if idx < bio.size() else 0
-			rt._tile_map_image.set_pixel(x, z, Color(float(_shader_id(t)) / 255.0, float(b) / 255.0, 0.0))
+	# RG8 bytes written straight into one buffer (the per-pixel set_pixel loop was ~0.1 s on the
+	# larger squares); the same values set_pixel wrote.
+	var bytes := PackedByteArray()
+	bytes.resize(span * span * 2)
+	for idx in span * span:
+		var t := int(rt.tile_types[idx]) if idx < rt.tile_types.size() else 0
+		bytes[idx * 2] = _shader_id(t)
+		bytes[idx * 2 + 1] = int(bio[idx]) if idx < bio.size() else 0
+	rt._tile_map_image.set_data(span, span, false, Image.FORMAT_RG8, bytes)
 
 ## The camp shape in the heightmap and vertex colours belongs to the home island only: the other
 ## islands' generated rim must stay untamed.

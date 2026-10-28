@@ -3,5 +3,12 @@
   "harbour": [-176.5, 0, -12.5],
   "_harbour_note": "Dock arrival point on the coast; the rest of this island is world/islands.json. See home_grassland.json.",
   "seed": 3011,
-  "size_m": 416
+  "size_m": 416,
+  "shape": {
+    "_about": "ISLANDS2 country coast (generator 2): type spine/archipelago/compact, the grid square and the main landmass's box along its own axes (long x short, +-10 %). size_m and harbour above are generator 1's, kept for saves made on it.",
+    "type": "compact",
+    "size_m": 608,
+    "long_m": 500,
+    "short_m": 330
+  }
 }

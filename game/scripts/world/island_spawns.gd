@@ -16,7 +16,8 @@ static func spawn_all(rt: IslandRuntime, def: Dictionary) -> void:
 		placed.count = mini(int(row.get("count", 1)), cap - rt.creature_count)
 		placed.as_pack = bool(row.get("pack", true))
 		var at: Array = row.get("at", [10, 0, 0])
-		var want := rt._at(float(at[0]), float(at[2]))
+		var fp := rt.fixed_spawn_at(Vector3(float(at[0]), 0.0, float(at[2])))
+		var want := rt._at(fp.x, fp.z)
 		var fixed := _nearest_valid(rt, want)
 		if fixed.is_empty():
 			rt.spawn_rejected += 1
