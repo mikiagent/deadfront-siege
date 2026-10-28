@@ -1,0 +1,48 @@
+{
+  "forward": [
+    0,
+    1,
+    0
+  ],
+  "body": "Hips",
+  "view_size": 14,
+  "view_centre": [
+    0,
+    4
+  ],
+  "legs": {
+    "L": {
+      "up": "Thigh.L",
+      "low": "Shin.L",
+      "foot": "Metatarsal.L",
+      "root": "Hips",
+      "end": "hind"
+    },
+    "R": {
+      "up": "Thigh.R",
+      "low": "Shin.R",
+      "foot": "Metatarsal.R",
+      "root": "Hips",
+      "end": "hind"
+    }
+  },
+  "wiggle": {},
+  "note": "T. rex rig (30 bones, faces +Y). The metatarsal is posed as the foot: IK solves thigh+shin to its head.",
+  "clips": {
+    "walk": {
+      "cycle_s": 1.4,
+      "duty": 0.62,
+      "stride": 2.2,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.3,
+      "swing_curl_hind": 15,
+      "toe_roll": 10,
+      "bob": 0.05,
+      "bob_harmonic": 2,
+      "roll_deg": 1.5
+    }
+  }
+}

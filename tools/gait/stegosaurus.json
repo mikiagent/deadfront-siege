@@ -1,0 +1,66 @@
+{
+  "forward": [
+    0,
+    1,
+    0
+  ],
+  "body": "hips",
+  "view_size": 10,
+  "view_centre": [
+    0,
+    2
+  ],
+  "legs": {
+    "LH": {
+      "up": "hind_thigh_L",
+      "low": "hind_shin_L",
+      "foot": "hind_foot_L",
+      "root": "hips",
+      "end": "hind"
+    },
+    "RH": {
+      "up": "hind_thigh_R",
+      "low": "hind_shin_R",
+      "foot": "hind_foot_R",
+      "root": "hips",
+      "end": "hind"
+    },
+    "LF": {
+      "up": "front_upperarm_L",
+      "low": "front_forearm_L",
+      "foot": "front_foot_L",
+      "root": "shoulder_L",
+      "end": "front"
+    },
+    "RF": {
+      "up": "front_upperarm_R",
+      "low": "front_forearm_R",
+      "foot": "front_foot_R",
+      "root": "shoulder_R",
+      "end": "front"
+    }
+  },
+  "wiggle": {},
+  "note": "Stegosaurus rig (faces +Y); the right legs' rest pose is mid-stride, so gaits are planned from each foot's own rest spot.",
+  "clips": {
+    "walk": {
+      "cycle_s": 1.4,
+      "duty": 0.65,
+      "stride": 1.6,
+      "phases": {
+        "LH": 0.0,
+        "LF": 0.75,
+        "RH": 0.5,
+        "RF": 0.25
+      },
+      "lift_hind": 0.15,
+      "lift_front": 0.15,
+      "swing_curl_hind": 10,
+      "swing_curl_front": 8,
+      "toe_roll": 8,
+      "bob": 0.03,
+      "bob_harmonic": 2,
+      "roll_deg": 1.0
+    }
+  }
+}
