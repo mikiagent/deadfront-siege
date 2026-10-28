@@ -282,6 +282,19 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
   - The MENU hex carries a notification badge at its top-right for skills (unspent SP, level-ups), buy/sell (market events) and similar: a count in a small filled circle. ASSUMPTION (owner undecided on colour): GOLD for normal notices, LIFE red only for urgent ones.
   - The pet whistle row and quick slots stay as §6 says where they do not collide with the above.
 - [owner 2026-10-28] In-combat tap retargets; swords only out of combat. Out of combat a tap on an enemy selects it and the red swords hex (or ATTACK NEAREST) starts combat; in combat a tap on another enemy switches the target to it immediately, no swords hex shows on enemies, and ATTACK NEAREST retargets to the nearest valid enemy.
+- [owner 2026-10-28] **Click-to-move outranks combat.** A tap on the ground is a move order and is
+  always honoured: while it is live the hunt neither auto-chases nor auto-swings, even with a target
+  in reach. A tap on an enemy during the walk still selects (out of combat) or retargets (in combat)
+  and does not cancel the move. **Real damage ends it**: a creature hit cancels the order after the
+  hurt stun and she attacks the damage source if it is within `ATTACK_SEEK_RANGE` (28 m), else the
+  nearest hostile. Bleed and other DoT ticks are not real damage and leave the walk alone. Keys and
+  stick movement are direct input, not a move order, so ordinary auto-attack/auto-chase behaviour
+  stays while steering that way. See `../current/controls.md` § Move orders and interacting.
+- [owner 2026-10-28] A ground click **cancels any pending interact pathfind**: if she is walking to a
+  tent to sleep and you click somewhere else, the sleep intent and its path both drop and she never
+  sleeps; same for gather, loot, mount/tame and a queued station craft. A craft already started at
+  the bench keeps running. Steering with the keys/stick cancels the same way. Owned by
+  `PlayerSim.cancel_errand()`, `PlayerActions.cancel_work()` and `PlayerSim.drop_pending_craft()`.
 - [owner 2026-10-28] Status effects (afflictions: bleed, venom, fracture, stun-type) show **only on the
   player** — the boxes beside the survivor (`status_fx.gd`), never under the health bar. The row under the
   health bar is reserved for **buffs, boons and debuffs** (Well Rested, food buffs, Maximum Fatigue, Stomach
