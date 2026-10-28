@@ -39,10 +39,13 @@ static func roll_gather_rares(family: String, role: String, climate: String, too
 ## The green rare trait one gathered item rolls (world-design.md:55, PRD:541), or &"" for none.
 ## RAREATTR: the trait comes from the material's own list (spec 04:33, rare_trait.by_material), so a
 ## stone never rolls a timber trait; the shared six stay the fallback for an item with no list.
-static func roll_trait(rng: RandomNumberGenerator, material: StringName = &"") -> StringName:
+## `guaranteed` skips the chance (an alpha's parts always carry one).
+static func roll_trait(rng: RandomNumberGenerator, material: StringName = &"", guaranteed: bool = false) -> StringName:
 	var cfg := LootTables.trait_cfg()
 	var traits: Array = LootTables.material_traits(material) if material != &"" else (cfg.get("traits", []) as Array)
-	if traits.is_empty() or rng.randf() >= float(cfg.get("chance", 0.0)):
+	if traits.is_empty() and guaranteed:
+		traits = cfg.get("traits", []) as Array
+	if traits.is_empty() or (not guaranteed and rng.randf() >= float(cfg.get("chance", 0.0))):
 		return &""
 	return StringName(str(traits[rng.randi() % traits.size()]))
 
@@ -95,7 +98,8 @@ static func roll_part(row: Dictionary, level: int, knife_tier: StringName, node_
 ## node_tier is Data.butchering_level() (unlocked Butchering nodes gate skill rows);
 ## skill is the Butchering category level (scales counts and rare odds).
 ## Returns {"stacks": Array[ItemStack], "rares": Array[StringName]}.
-static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_tier: StringName, node_tier: int, skill: int, no_meat: bool, rng: RandomNumberGenerator) -> Dictionary:
+## `rares_guaranteed` (an alpha's carcass) skips the rare rows' odds; their skill-node gates still apply.
+static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_tier: StringName, node_tier: int, skill: int, no_meat: bool, rng: RandomNumberGenerator, rares_guaranteed: bool = false) -> Dictionary:
 	var cfg := LootTables.butcher_cfg()
 	var tier_idx := ProgressionScaling.tier_index(knife_tier) if knife_tier != &"" else -1
 	var count_mult := 1.0 + float(cfg.get("count_bonus_per_tier", 0.0)) * float(maxi(0, tier_idx)) \
@@ -128,7 +132,7 @@ static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_t
 			var c := scaled_chance(float(row.get("chance", cfg.get("default_rare_chance", 0.12))), tier_idx, skill,
 					float(cfg.get("rare_tool_tier_bonus", 0.0)), float(cfg.get("rare_skill_bonus_per_level", 0.0)),
 					float(cfg.get("max_rare_chance", 0.6)))
-			if rng.randf() >= c:
+			if not rares_guaranteed and rng.randf() >= c:
 				continue
 		var lo := int(row.get("min", 1))
 		var n := rng.randi_range(lo, maxi(lo, int(row.get("max", lo))))

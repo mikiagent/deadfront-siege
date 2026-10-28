@@ -21,7 +21,9 @@ static func roll_into(corpse: Corpse, body: Node3D = null) -> Array[StringName]:
 	var skill := maxi(0, p.skills.level_of("butchering")) if p and p.skills else 0
 	var table: Dictionary = Data.butcher_tables.get(str(corpse.species), {})
 	var res := LootRoller.roll_carcass(table.get("base", []), table.get("rare", []), corpse.level,
-			knife.material_tier() if knife else &"", Data.butchering_level(), skill, corpse.poison_spoiled, rng)
+			knife.material_tier() if knife else &"", Data.butchering_level(), skill, corpse.poison_spoiled, rng, corpse.alpha)
+	if corpse.alpha:
+		alpha_extras(res, corpse.level, rng)
 	for st in res["stacks"]:
 		corpse.loot.add_growing(st)  # one instance per unit (W2-INV): the carcass grows rather than drop parts
 	var rares: Array[StringName] = []
@@ -33,6 +35,21 @@ static func roll_into(corpse: Corpse, body: Node3D = null) -> Array[StringName]:
 		if in_view(p, at):
 			GatherFeedback.announce_rares(p, at, rares, " on the %s" % corpse.species_display_name().to_lower())
 	return rares
+
+## ALPHAS (owner 2026-10-28: "special loot"): every part carries one rare trait and the alpha-only
+## trophy (ai.json alpha.loot) is added and announced. The rare rows were already guaranteed by
+## roll_carcass. Pure, so the server and tests can run it.
+static func alpha_extras(res: Dictionary, level: int, r: RandomNumberGenerator) -> void:
+	for st: ItemStack in res["stacks"]:
+		var t := LootRoller.roll_trait(r, st.def_id, true)
+		if t != &"":
+			st.attributes[str(t)] = true
+	var loot: Variant = CreatureGenetics.alpha_rules().get("loot", {})
+	var trophy := StringName(str((loot as Dictionary).get("trophy", "alpha_trophy"))) if loot is Dictionary else &"alpha_trophy"
+	if Data.item(trophy) != null:
+		var n := maxi(1, int((loot as Dictionary).get("trophy_count", 1)) if loot is Dictionary else 1)
+		(res["stacks"] as Array).append(ItemStack.make(trophy, n, {"level": level}, level))
+		(res["rares"] as Array).append(trophy)
 
 ## The point is on the survivor's screen (in front of the camera, inside the viewport).
 static func in_view(p: Player, at: Vector3) -> bool:

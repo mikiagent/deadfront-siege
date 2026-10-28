@@ -323,6 +323,10 @@ func _walk(home_only: bool) -> void:
 				for row in butch[sp].get("base", []) + butch[sp].get("rare", []):
 					var per := maxf(0.5, (float(row.get("min", 1)) + float(row.get("max", row.get("min", 1)))) * 0.5)
 					changed = _offer(str(row["id"]), BUTCHER_SECONDS / per, tier, "butcher %s" % sp) or changed
+				# ALPHAS: any spawned species can roll an alpha, whose carcass adds ai.json alpha.loot.trophy.
+				var trophy := str(_json("creatures/ai.json").get("alpha", {}).get("loot", {}).get("trophy", ""))
+				if trophy != "":
+					changed = _offer(trophy, BUTCHER_SECONDS / 0.08, tier, "alpha %s" % sp) or changed
 		# Farming: a seed in a field; output level is capped by the Farming skill (60).
 		if cost.has("field_small_kit"):
 			for c in crops:

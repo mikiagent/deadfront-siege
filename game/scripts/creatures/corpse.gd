@@ -15,6 +15,8 @@ var _tap_s: float = -999.0
 var _fading: bool = false
 var _emptied: bool = false
 var poison_spoiled: bool = false
+## ALPHAS: the body was an alpha's; its loot guarantees the rare parts and the alpha trophy (ButcherLoot).
+var alpha: bool = false
 ## Loot units per drop kind at the last take, and the kinds Butchering XP was paid for: 3 XP per
 ## kind, the first time any of it leaves the loot. A take only pays when units really moved (a full
 ## bag used to pay +3 XP per tap with nothing taken); with one instance per unit (W2-INV) a take
@@ -43,6 +45,7 @@ func setup(c: Creature) -> void:
 	_label_species = c.def.species
 	name = "Corpse_%s" % species
 	poison_spoiled = c.statuses.has_flag(&"meat_inedible")
+	alpha = c.is_alpha()
 	_roll_loot()
 	_snap_owner_to_ground()
 	# BUTCHER (spec 12 §2): the cut budget is the killer's, fixed at death like the loot roll.

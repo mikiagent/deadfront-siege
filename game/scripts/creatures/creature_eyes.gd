@@ -158,6 +158,8 @@ func set_glow(mult: float) -> void:
 	if is_equal_approx(mult, glow) or dots.is_empty():
 		return
 	_rim_energy *= mult / glow
+	if trail != null:
+		trail.boost(mult / glow)
 	glow = mult
 	eye_material = material_for(eye_color, glow)
 	for d in dots:

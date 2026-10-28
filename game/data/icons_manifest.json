@@ -142,6 +142,7 @@
     "armour_legs": "res://assets/icons/render/raid_greaves.png"
   },
   "aliases": {
+    "alpha_trophy": "raptor_talon",
     "taming_pen_kit": "fence_kit",
     "crock_pot_kit": "stone_grill_kit",
     "camp_stew": "boiled_meat",

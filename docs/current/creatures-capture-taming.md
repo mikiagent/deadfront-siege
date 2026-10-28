@@ -195,7 +195,7 @@ above (it never replaces them and never edits a species' stats). Table:
   `FieldTame` (window, feeds, completion) and `TamingPen` (wait at insert, nature carried on the
   captured stack by `CaptureSystem`) read them. Spec 09's capture rule is unchanged.
 - Name and tag (owner 2026-10-28: "put it as a tag under their name, not in the name itself"): the
-  name is the animal's own — species, with the colour variant or "Alpha" (pack leader) in front:
+  name is the animal's own — species, with the colour variant or "Alpha" (a genetic alpha, or the pack leader) in front:
   "Velociraptor", "Alpha Velociraptor". The nature is a small chip directly UNDER that name, its
   short label only ("Timid"), built by `game/scripts/ui/nature_chip.gd` (`NatureChip`, the spec §5
   trait chip in its gold/positive style) and fed by `CreatureNatures.tag_for()` / `tag()`. Shown on
@@ -215,6 +215,62 @@ above (it never replaces them and never edits a species' stats). Table:
 - `# ASSUMPTION`: every number in the table is a first pass for measurability, not balance, and
   the pet rule "a pet below its retreat threshold drops the fight" is new; only a Brave pet with
   its owner riding keeps fighting.
+
+## Genetics (owner 2026-10-28: "dinosaur size and color variation (heritable stats)")
+
+Every creature carries a genome on its `CreatureGenetics` record (`game/scripts/creatures/creature_genetics.gd`),
+rolled at spawn by `CreatureGenetics.for_species(def, rng, colour_rng)` and kept through taming, the
+captured-animal stack, the pen and saves.
+
+| gene | what it is | rolled from |
+|---|---|---|
+| IVs (7 stats, 0-31) | innate stat quality, 85-115 % (existing) | random per spawn |
+| colour (`CreatureColoration`) | hue / saturation / value shift, pattern kind, scale, strength, tone (existing) | seeded off the spawn point |
+| `size` | body scale, 1.0 = species as authored | species `genetics.size_range` in its JSON, else `ai.json genetics.size_range` 0.85-1.15; drawn from the colour stream after the colours, so a reload keeps it |
+| `alpha` | rare alpha flag (below) | the spawn group's alpha roll |
+| nature | behaviour tag (existing, stored on the creature / `PetRecord.nature`) | seeded off the spawn point |
+
+- Size scales `CreatureView` (`apply_genome`), so the model, the eye points, the mount socket and the
+  saddle all follow; the eye dots keep their anatomical world radius (`CreatureEyes.fit_size`). It scales
+  the collision capsule and `Creature.body_radius()` (brains, reach, pack slots), the plate anchor and
+  box (`CreaturePlates`) and the debug label. `Creature.size_scale()` is the hook for the ragdoll branch.
+- Stats: `CreatureGenetics.size_factor(stat)` = 1 + k x (size - 1), k from `ai.json genetics.size_stat_per`
+  (health 1.0, attack 0.5, speed -0.3). Applied in `multiplier()` (wild) and `PetStats.value` (pets).
+- Saves: `genetics.size` and `genetics.alpha` are optional fields (sanitizer shape `GENETICS`, asset
+  validator range-checks size 0.5-1.6). A row without them loads 1.0x, not alpha. Size is snapped to
+  0.0001 so a reload recomputes the same stats.
+- Inheritance: `CreatureGenetics.inherit(a, b, rng)` puts each IV, the size, hue, saturation, value and
+  pattern strength between the two parents, then adds at most `ai.json genetics.mutation` (IV 2, size
+  0.03, hue 2 deg, sat / val 0.03); the pattern kind comes from one parent; EVs, level gains, alpha and
+  the rare morph are not inherited. Breeding is not built yet: this is the function it will call.
+- Screens: the Animals detail card has a `Size` row ("1.31x") with a colour swatch, and the Taming Pen
+  shows "Size 1.08x" with a swatch under the level. The swatch is the species' mean hide colour (read once
+  from its model's albedo texture, `CreatureView.species_base_color`) with the animal's own shift.
+- Test: `game/tests/t_genetics.gd`. Review shots: `docs/orchestration/reports/genetics/`; lab:
+  `Godot --path game --resolution 1600x900 -- --lab=genetics_lab --shot-dir=DIR`.
+
+## Alphas (owner 2026-10-28: "alpha dinosaurs with special loot but are on steroids and really hard to kill")
+
+Rules: `ai.json` `"alpha"`; class tactics: `ai.json archetypes.pack_flanker.tactics.alpha`. Every number is
+an `# ASSUMPTION` (Open Questions G5-G12).
+
+- Spawn: `Spawner.spawn_now` rolls `CreatureGenetics.alpha_pick` once per group (`chance_per_group` 0.08);
+  on a hit member 0 spawns with `alpha_spawn`, and `Creature.spawn` calls `genetics.make_alpha()`.
+- Body: size 1.24-1.32x (above every normal roll), natural colours darker and richer (value x0.6 from at
+  most 1.0, saturation x1.3, pattern x1.3, clamped to the natural limits), eyeshine x2.5 with a wider bloom.
+- Stats while wild (`Creature.alpha_stat_mult`): HP x3.0, defense x1.5, attack x1.6, speed x1.15 on top of
+  the size factor. Tactics (`Creature._alpha_knob` multiplies the `tactic_*` nature knobs): cooldowns x0.6,
+  feints and holds x0.5, pounce / charge / combo weight x1.6.
+- Pack aura (`Creature.pack_aura_mult`): a living wild alpha gives packmates within 12 m attack x1.15,
+  defense x1.1 and speed x1.1; nothing outside the radius, for the alpha itself, other packs or pets.
+- Loot (`Corpse.alpha` -> `ButcherLoot.roll_into`): `LootRoller.roll_carcass(..., rares_guaranteed)` drops
+  every rare row (skill-node gates still apply), `ButcherLoot.alpha_extras` stamps one rare trait on every
+  part and adds one `alpha_trophy` (new item, epic, `items.json`). XP: `Creature.kill_xp_mult` 4x for the
+  survivor's melee XP and the pets' kill XP.
+- Name: "Alpha" stays in the name (`CreatureNatures.display_title`: a genetic alpha always, otherwise the
+  pack leader as before), with the nature chip under it.
+- Tamed: a tamed alpha keeps size, colours and the name, not the stat buffs or the aura.
+- Test: `game/tests/t_alphas.gd`.
 
 ## Energy (owner 2026-10-28)
 

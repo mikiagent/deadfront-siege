@@ -311,7 +311,8 @@ static func _scale_range(raw: Variant, default_abs: float) -> Vector2:
 ## foreign hue. Clamped to the same limits from_dict uses, so a saved alpha comes back identical.
 func alpha_tone(val_mult: float, sat_mult: float, pattern_mult: float) -> void:
 	var span := RARE_SCALE if rare else 1.0
-	val = clampf(val * val_mult, 1.0 - VAL_LIMIT * span, 1.0 + VAL_LIMIT * span)
+	# From at most the species' own value: a pale individual still comes out darker than its species.
+	val = clampf(minf(val, 1.0) * val_mult, 1.0 - VAL_LIMIT * span, 1.0 + VAL_LIMIT * span)
 	sat = clampf(sat * sat_mult, 1.0 - SAT_LIMIT * span, 1.0 + SAT_LIMIT * span)
 	if pattern != &"":
 		pattern_strength = clampf(pattern_strength * pattern_mult, 0.0, 0.9)
