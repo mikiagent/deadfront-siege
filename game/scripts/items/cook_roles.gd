@@ -356,9 +356,9 @@ static func summary(stack: ItemStack) -> Array[String]:
 			continue
 		var bits: PackedStringArray = []
 		for k: Variant in got:
-			bits.append("%s %s" % [str(k).replace("_", " "), str(got[k])])
+			bits.append("%s %s" % [str(k).replace("_", " ").capitalize(), str(got[k])])
 		for k: Variant in lost:
-			bits.append("%s %s (kept out)" % [str(k).replace("_", " "), str(lost[k])])
+			bits.append("%s %s (kept out)" % [str(k).replace("_", " ").capitalize(), str(lost[k])])
 		if str(row.get("bonus", "")) != "":
 			bits.append(str(row["bonus"]))
 		out.append("%s %s: %s" % [str(row.get("role", "")).capitalize(), str(row.get("def_id", "")), ", ".join(bits)])

@@ -189,6 +189,10 @@ func _test_inheritance() -> void:
 	_expect(role_rows.size() == 1 and str((role_rows[0] as Dictionary).get("role", "")) == "main", "the dish records the slot it inherited from")
 	_expect((role_rows[0] as Dictionary).get("traits", {}).has("rich_cut"), "the record names the inherited trait")
 	_expect((role_rows[0] as Dictionary).get("dropped", {}).has("black_sheen"), "the record names the refused rare trait")
+	# The player sees it: the food card names what came in and what was kept out (spec 08 §8).
+	var card: String = FOOD.inspector_text(dish)
+	_expect(card.find("Rich Cut 2") >= 0, "the food card names the inherited trait: %s" % card.replace("\n", " | ").left(220))
+	_expect(card.find("kept out") >= 0, "and the trait the recipe refused")
 	# In-place history passes (and is what fuels the drying/smoking properties).
 	var dried = _bag([["dried_meat", 12, {}, []]])[0]
 	dried.attributes["processed"] = ["dry"]
