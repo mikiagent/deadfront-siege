@@ -1418,6 +1418,7 @@ func _process(delta: float) -> void:
 		_fat_prev = vf
 		_fat_forgive = maxf(0.0, _fat_forgive - delta)
 		_belt_phase = ExhaustTreadmill.phase(_belt_phase, _fat_rate, delta)
+		ExhaustTreadmill.tick(delta, clampf(vf / maxf(1.0, player.vitals.max_fatigue), 0.0, 1.0), player.vitals.blocks_fatigue_gain)
 		if _fatigue_panel != null:
 			_fatigue_panel.rate = _fat_rate
 	var hunting := player.hunt != null and player.hunt.target != null and is_instance_valid(player.hunt.target)
