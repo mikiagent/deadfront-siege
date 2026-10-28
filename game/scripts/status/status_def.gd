@@ -31,7 +31,7 @@ extends Resource
 ## The old body hint ("drip_darken", "limp"...): fx.body in statuses.json, or a bare string there.
 @export var fx: StringName = &"none"
 ## STATUSFX: how the status shows on the survivor (StatusFx), all from its statuses.json fx block:
-## the box tint, the white icon id in the box, the particle preset (drip, bubbles, embers, water, tint, none)
+## the box tint, the white icon id in the box, the particle preset (drip, bubbles, embers, water, cough, tint, none)
 ## and whether its ticks pulse a red screen edge.
 @export var fx_color: Color = Color(0.604, 0.651, 0.678)
 @export var fx_icon: StringName = &""

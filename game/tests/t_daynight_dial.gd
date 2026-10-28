@@ -169,6 +169,7 @@ func _weather_draw(dial: Control, w: Object, fields: Dictionary, settle := 5.0) 
 	for k in ["rain_amount", "heat", "cold", "frost", "flash"]:
 		w.set(k, 0.0)
 	w.set("storm", false)
+	w.set("rain_mode", &"")
 	for k in fields:
 		w.set(k, fields[k])
 	dial.call("read_weather", settle)
@@ -176,7 +177,8 @@ func _weather_draw(dial: Control, w: Object, fields: Dictionary, settle := 5.0) 
 	await process_frame
 	await process_frame
 	return {"rain": dial.get("drawn_rain"), "bolt": dial.get("drawn_bolt"), "haze": dial.get("drawn_haze"),
-		"frost": dial.get("drawn_frost"), "over": dial.get("drawn_overcast"), "storm": dial.get("w_storm")}
+		"frost": dial.get("drawn_frost"), "over": dial.get("drawn_overcast"), "storm": dial.get("w_storm"),
+		"streaks": dial.get("drawn_streaks"), "bolt_x": dial.get("drawn_bolt_x")}
 
 func _test_weather(game: Node) -> void:
 	var dial: Control = _D.new()
@@ -200,6 +202,11 @@ func _test_weather(game: Node) -> void:
 	var rain := await _weather_draw(dial, w, {"rain_amount": 0.7})
 	_check(rain["rain"] > 0.0 and rain["over"] > 0.0 and not rain["bolt"] and rain["storm"] == 0.0, "rain: streaks and grey clouds, no storm (%s)" % [rain])
 	_check(drizzle["rain"] < rain["rain"] and drizzle["over"] < rain["over"], "rain follows its strength (0.3 %s, 0.7 %s)" % [drizzle, rain])
+	# Rain modes (WEATHER): drizzle < rain < pour in streaks, their alpha and the clouds.
+	var lv := []
+	for mode in [[&"drizzle", 0.3], [&"rain", 0.65], [&"pour", 1.0]]:
+		lv.append(await _weather_draw(dial, w, {"rain_mode": mode[0], "rain_amount": mode[1]}))
+	_check(lv[0]["streaks"] < lv[1]["streaks"] and lv[1]["streaks"] < lv[2]["streaks"] and lv[0]["rain"] < lv[1]["rain"] and lv[1]["rain"] < lv[2]["rain"] and lv[0]["over"] < lv[1]["over"] and lv[1]["over"] < lv[2]["over"], "drizzle < rain < pour: more streaks, heavier and darker (%s)" % [lv])
 	var calm := await _weather_draw(dial, w, {"rain_amount": 1.0, "storm": true})
 	var strike := await _weather_draw(dial, w, {"rain_amount": 1.0, "storm": true, "flash": 0.8})
 	_check(calm["storm"] > 0.9 and calm["over"] > rain["over"] and calm["rain"] > rain["rain"] and not calm["bolt"], "storm: heavier than rain, no bolt between strikes (%s)" % [calm])

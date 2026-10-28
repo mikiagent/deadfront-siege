@@ -130,6 +130,17 @@
   "creature_cap_mobile": 24,
   "night_predator_perception_bonus": 0.5,
   "wet_after_seconds_in_water": 5,
+  "fire_weather": {
+    "_about": "WEATHER x FIREPITS (scripts/world/fire_weather.gd, owner 2026-10-28: 'have rain affect fire somehow', 'fires under a roof will build up smoke', 'the smoke should make you take damage'). Unsheltered fires burn fuel_mult times faster and wear wear_mult times faster in each rain mode; the stone firepit feels permanent_share of that. Pouring rain and storms soak a temporary fire (out at 1: about 90 s of pouring, 60 s of storm); the firepit soaks at permanent_soak_share (about 5 min of pouring). A roof over the fire keeps all of that off, but smoke pools under it toward open_floor + (1 - open_floor) x enclosure over rise_s and clears over vent_s; from hurt_from it gives Smoke Inhalation within radius_m, stacks at stack_at. No lighting in light_block modes without a roof. ASSUMPTION: every number.",
+    "fuel_mult": {"drizzle": 1.15, "rain": 1.4, "pour": 2.0},
+    "wear_mult": {"drizzle": 1.2, "rain": 1.5, "pour": 2.0},
+    "permanent_share": 0.5,
+    "soak_per_s": {"pour": 0.011, "storm": 0.017},
+    "permanent_soak_share": 0.3,
+    "dry_per_s": 0.02,
+    "light_block": ["pour"],
+    "smoke": {"open_floor": 0.15, "rise_s": 90.0, "vent_s": 12.0, "hurt_from": 0.3, "radius_m": 3.0, "stack_at": [0.3, 0.6, 0.85]}
+  },
   "weather": {
     "_about": "WEATHER (scripts/world/world_weather.gd, weather_fx.gd, lightning_bolt.gd). Every rain_check_s the island rolls its climate's 'rain' chance; a spell is a storm (pouring plus lightning) on its 'storm' roll, else a mode from the climate's 'modes' weights (default_modes when it has none). A strike lands at a world point lightning_bands away from the survivor ([share, min m, max m]: some close, most mid, some far); its thunder lands that distance / sound_mps later and shakes harder the nearer it was. Shakes are camera offsets in metres (14 m view height: 0.1 m is about 6 px at 900 px). ASSUMPTION: chances and weights follow climates.json's weather lists (no rain where it lists none); timings keep the old 18 s every 50-90 s rain; strikes damage nothing.",
     "first_check_s": 40.0,

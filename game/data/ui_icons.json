@@ -147,6 +147,7 @@
 		"sp": "res://assets/icons/ui/brain.svg",
 		"stomach": "res://assets/icons/ui/stomach.svg",
 		"water_drop": "res://assets/icons/ui/water_drop.svg",
+		"smoke_inhalation": "res://assets/icons/ui/smoke_inhalation.svg",
 		"bleed_deep": "res://assets/icons/ui/bleed_deep.svg",
 		"deep_bleed": "res://assets/icons/ui/bleed_deep.svg",
 		"bleeding_target": "res://assets/icons/ui/bleed.svg",

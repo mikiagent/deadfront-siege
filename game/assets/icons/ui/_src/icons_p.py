@@ -43,4 +43,11 @@ SMALL = path((51, 8), ((53.5, 12), (57, 15), (57, 18.5)), ((57, 21.5), (54.5, 23
              ((45, 15), (48.5, 12), (51, 8)))
 G["water_drop"] = [([DROP, SHINE], True), ([SMALL], False)]
 
+# smoke_inhalation (owner 2026-10-28: a hazard, "the smoke should make you take damage"): a heavy smoke
+# cloud low down with three wisps curling up out of it.
+CLOUD = [circle(18, 44, 10), circle(31, 39, 13), circle(45, 44, 10), circle(32, 50, 8), capsule((14, 50), (50, 50), 8)]
+WISPS = [band([(22, 28), (19, 21), (23, 14), (20, 7)], 4.6), band([(33, 25), (36, 18), (32, 11), (35, 5)], 4.6),
+         band([(43, 29), (46, 22), (42, 16)], 4.2)]
+G["smoke_inhalation"] = [(CLOUD, False), (WISPS, False)]
+
 I = place(G)

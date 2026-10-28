@@ -15,6 +15,8 @@ extends RefCounted
 signal lightning(position: Vector3, distance_m: float)
 signal thunder(distance_m: float)
 signal rain_mode_changed(mode: StringName)
+## A fire the rain put out (FireWeather): a hiss hook.
+signal fire_out(fire: Node3D)
 
 const STATES: Array[StringName] = [&"clear", &"drizzle", &"rain", &"pour", &"storm", &"heat", &"cold"]
 const RAIN_MODES: Array[StringName] = [&"drizzle", &"rain", &"pour"]

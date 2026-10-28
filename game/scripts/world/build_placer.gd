@@ -81,6 +81,8 @@ static func reason_text(code: String) -> String:
 			return "Can't build on water"
 		"slope":
 			return "Ground too steep"
+		"too_wet":
+			return FireWeather.TOO_WET
 		"cliff":
 			return "A cliff is in the way"
 		"missing_kit":

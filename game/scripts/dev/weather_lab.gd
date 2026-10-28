@@ -14,6 +14,7 @@ var _seq := ""
 var _clip := 0.0
 var _perf := false
 var _bleed := false
+var _fire := false
 var _state := &"storm"
 var _player: Player
 var _rt: IslandRuntime
@@ -36,6 +37,8 @@ func _ready() -> void:
 			_perf = true
 		elif a == "--bleed":
 			_bleed = true
+		elif a == "--fire":
+			_fire = true  # a bonfire in the rain beside her and a walled, roofed one full of smoke
 	if island == &"":
 		island = {&"heat": &"desert_35", &"cold": &"tundra_30"}.get(_state, &"home_grassland")
 	WorldWeather.forced = _state
@@ -59,6 +62,8 @@ func _run() -> void:
 	Game.time_of_day = 0.45
 	if _bleed:
 		_player.statuses.apply(&"bleed", null)
+	if _fire:
+		_fires()
 	_w._flash_cd = 1.0e9  # strikes only when the lab says
 	var t0 := Time.get_ticks_msec()
 	_w.lightning.connect(func (pos: Vector3, d: float) -> void: print("[weatherlab] lightning at %s, %.0f m, %.2f s" % [pos, d, (Time.get_ticks_msec() - t0) / 1000.0]))
@@ -151,3 +156,27 @@ func _shot(stem: String) -> void:
 	var path := _out.path_join("%s_%dx%d%s.png" % [stem, get_tree().root.size.x, get_tree().root.size.y, compat])
 	img.save_png(path)
 	print("[weatherlab] shot %s flash=%.2f heat=%.2f cold=%.2f frost=%.2f" % [path, _w.flash, _w.heat, _w.cold, _w.frost])
+
+## --fire: an open bonfire 2.5 m to her right (rain shrinks it, steam), and 6 m to her left a roofed module
+## with three walls (the front left open so the camera sees in) and a bonfire whose smoke is already thick.
+func _fires() -> void:
+	var m := StructurePiece.module_m()
+	var me := _player.global_position
+	var right := IsoCamera.view_basis().x
+	right = Vector3(right.x, 0.0, right.z).normalized()
+	var open := Bonfire.make(&"bonfire")
+	open.position = me + right * 2.5
+	open.position.y = _rt.surface_y(open.position.x, open.position.z)
+	_rt.add_child(open)
+	var at := me - right * 6.0
+	var mx := floori(at.x / m)
+	var mz := floori(at.z / m)
+	var f0 := _rt.surface_y((mx + 0.5) * m, (mz + 0.5) * m)
+	var roof := StructurePiece.make(&"roof", &"thatch", Vector4i(mx, mz, 1, StructurePiece.CELL), 0, f0)
+	_rt.add_child(roof)
+	for sl in [Vector4i(mx, mz, 0, StructurePiece.EDGE_X), Vector4i(mx + 1, mz, 0, StructurePiece.EDGE_X), Vector4i(mx, mz, 0, StructurePiece.EDGE_Z)]:
+		_rt.add_child(StructurePiece.make(&"wall", &"thatch", sl, 0, f0))
+	var inside := Bonfire.make(&"bonfire")
+	inside.position = Vector3((mx + 0.5) * m, f0, (mz + 0.5) * m)
+	_rt.add_child(inside)
+	inside.smoke = 0.85

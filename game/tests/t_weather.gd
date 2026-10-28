@@ -234,6 +234,8 @@ func _run() -> void:
 		rained = rained or _w.raining
 	_expect(not rained, "desert: 40 weather checks, no rain")
 	_test_mood_idles(WW)
+	await _test_fire_rain(WW)
+	_test_dial_side()
 	WW.forced = &""
 	if _fails.is_empty():
 		print("[t_weather] PASS")
@@ -372,3 +374,159 @@ func _test_wet(WW: GDScript) -> void:
 	var cold_wet: Vector2 = WW.temp_targets(_player, "tundra", &"night")
 	st.clear_id(&"wet")
 	_expect(cold_wet.y > cold_dry.y and is_equal_approx(_player.statuses.cold_fatigue_mult(), 1.0), "wet makes the cold bite harder (%.2f -> %.2f)" % [cold_dry.y, cold_wet.y])
+
+## Rain on fires (owner 2026-10-28) and smoke under a roof: drain drizzle < rain < pour, only pouring rain
+## and storms put a fire out, the stone firepit holds out longer than a bonfire, a roofed fire is untouched
+## by rain but smoke pools under the roof (sealed: thick and hurting; open-sided: vents), Smoke Inhalation
+## hurts more the thicker it is and stops when she leaves; no lighting a fire in pouring rain unsheltered.
+func _test_fire_rain(WW: GDScript) -> void:
+	var B: GDScript = load("res://scripts/world/bonfire.gd")
+	var SP: GDScript = load("res://scripts/world/structure_piece.gd")
+	var FW: GDScript = load("res://scripts/world/fire_weather.gd")
+	var m: float = SP.module_m()
+	var mk := func (kind: StringName, mx: int, mz: int):
+		var f = B.make(kind)
+		var at := Vector3((float(mx) + 0.5) * m, 0.0, (float(mz) + 0.5) * m)
+		at.y = _rt.surface_y(at.x, at.z)
+		f.position = at
+		_rt.add_child(f)
+		f.set_process(false)
+		f.fuel_max_seconds = 100000.0
+		f.fuel_seconds = 50000.0
+		return f
+	var run := func (f, secs: float) -> void:
+		for i in int(secs / 0.5):
+			if not is_instance_valid(f) or f.is_queued_for_deletion():
+				return
+			f.tick(0.5)
+	var drain := {}
+	for mode in [&"drizzle", &"rain", &"pour"]:
+		WW.forced = mode
+		_sim(1.0)
+		var f = mk.call(&"bonfire", 30, 30)
+		var p = mk.call(&"stone_fire_pit", 32, 30)
+		run.call(f, 10.0)
+		run.call(p, 10.0)
+		drain[mode] = [50000.0 - f.fuel_seconds, 50000.0 - p.fuel_seconds]
+		f._weather_look()
+		if mode == &"pour":
+			_expect(f._flame.scale.y < 0.95 and f._steam != null and f._steam.emitting, "pouring rain: the flame shrinks and sputters (scale %.2f) and steam rises" % f._flame.scale.y)
+		f.queue_free()
+		p.queue_free()
+	print("[t_weather] fuel burnt in 10 s [bonfire, firepit]: %s" % drain)
+	_expect(drain[&"drizzle"][0] < drain[&"rain"][0] and drain[&"rain"][0] < drain[&"pour"][0] and drain[&"drizzle"][0] > 10.0, "fuel drain drizzle < rain < pour (bonfire)")
+	_expect(drain[&"pour"][1] < drain[&"pour"][0], "the firepit burns slower in the rain than a bonfire")
+	var outs := {}
+	for mode in [&"drizzle", &"rain", &"pour", &"storm"]:
+		WW.forced = mode
+		_sim(1.0)
+		_w._flash_cd = 1.0e9
+		var f = mk.call(&"bonfire", 30, 30)
+		run.call(f, 150.0)
+		outs[mode] = not is_instance_valid(f) or f.is_queued_for_deletion() or not f.burning()
+		if is_instance_valid(f):
+			f.queue_free()
+	_expect(not outs[&"drizzle"] and not outs[&"rain"] and outs[&"pour"] and outs[&"storm"], "150 s: only pouring rain and storms put a bonfire out (%s)" % outs)
+	WW.forced = &"pour"
+	var pit = mk.call(&"stone_fire_pit", 32, 30)
+	run.call(pit, 150.0)
+	_expect(pit.burning() and pit.rain_soak > 0.2, "the stone firepit is still burning after 150 s of pouring rain (soak %.2f)" % pit.rain_soak)
+	run.call(pit, 260.0)
+	_expect(not pit.burning() and is_instance_valid(pit), "a long pour (about 5 min) puts even the firepit out; the rocks stay")
+	pit.queue_free()
+	var floor0: float = _rt.surface_y((34.5) * m, (30.5) * m)
+	var pieces: Array = []
+	var roof_at := func (mx: int, mz: int) -> void:
+		var r = SP.make(&"roof", &"thatch", Vector4i(mx, mz, 1, SP.CELL), 0, _rt.surface_y((mx + 0.5) * m, (mz + 0.5) * m))
+		_rt.add_child(r)
+		pieces.append(r)
+	var walls_at := func (mx: int, mz: int) -> void:
+		var f0: float = _rt.surface_y((mx + 0.5) * m, (mz + 0.5) * m)
+		for sl in [Vector4i(mx, mz, 0, SP.EDGE_X), Vector4i(mx + 1, mz, 0, SP.EDGE_X), Vector4i(mx, mz, 0, SP.EDGE_Z), Vector4i(mx, mz + 1, 0, SP.EDGE_Z)]:
+			var wpc = SP.make(&"wall", &"thatch", sl, 0, f0)
+			_rt.add_child(wpc)
+			pieces.append(wpc)
+	roof_at.call(34, 30)
+	walls_at.call(34, 30)
+	roof_at.call(37, 30)
+	await process_frame
+	var sealed = mk.call(&"bonfire", 34, 30)
+	var open = mk.call(&"bonfire", 37, 30)
+	var dry_ref = mk.call(&"bonfire", 40, 30)
+	WW.forced = &"pour"
+	_sim(0.5)
+	run.call(sealed, 1.0)
+	run.call(open, 1.0)
+	_expect(sealed.sheltered and open.sheltered and not dry_ref.sheltered and sealed.enclosed > 0.99 and open.enclosed < 0.01, "roofs found over both fires (walls all round one: enclosure %.2f / %.2f)" % [sealed.enclosed, open.enclosed])
+	var f0s: float = sealed.fuel_seconds
+	run.call(sealed, 120.0)
+	run.call(open, 121.0)
+	_expect(is_equal_approx(f0s - sealed.fuel_seconds, 120.0) and sealed.rain_soak == 0.0 and sealed.burning(), "a roofed fire in pouring rain burns as if dry and never soaks")
+	_expect(sealed.smoke > 0.6 and open.smoke < 0.3, "smoke pools under the walled roof (%.2f) and vents under the open-sided one (%.2f)" % [sealed.smoke, open.smoke])
+	var thin: float = sealed.smoke
+	sealed.smoke = 0.0
+	run.call(sealed, 30.0)
+	_expect(sealed.smoke > 0.0 and sealed.smoke < thin, "smoke builds up over time (%.2f after 30 s, %.2f after 2 min)" % [sealed.smoke, thin])
+	# Her lungs: stacks (damage per tick) rise with the density; leaving ends it.
+	var st = _player.statuses
+	var hurt := []
+	for dens in [0.35, 0.7, 0.9]:
+		st.clear_id(&"smoke_inhalation")
+		FW.smoke_survivor(_player, dens)
+		var inst = st.get_instance(&"smoke_inhalation")
+		hurt.append(inst.stacks * root.get_node("Data").status(&"smoke_inhalation").dps if inst else 0.0)
+	_expect(hurt[0] > 0.0 and hurt[0] < hurt[1] and hurt[1] < hurt[2], "smoke damage per tick rises with density (%s dps)" % [hurt])
+	var home: Vector3 = _player.global_position
+	_player.global_position = sealed.global_position + Vector3(0.6, 0.0, 0.0)
+	st.clear_id(&"smoke_inhalation")
+	sealed.smoke = 0.9
+	run.call(sealed, 1.0)
+	var hp0: float = _player.vitals.health
+	for i in 8:
+		st._process(0.25)
+	_expect(st.has(&"smoke_inhalation") and _player.vitals.health < hp0, "standing in the thick smoke: Smoke Inhalation, Health %.1f -> %.1f" % [hp0, _player.vitals.health])
+	_player.global_position = home
+	for i in 20:
+		run.call(sealed, 0.25)
+		st._process(0.25)
+	_expect(not st.has(&"smoke_inhalation"), "it stops once she leaves the smoke")
+	sealed.fuel_seconds = 0.0
+	sealed.tick(0.5)
+	_expect(sealed.is_queued_for_deletion(), "a burnt-out bonfire goes, its smoke layer with it")
+	var cold_pit = mk.call(&"stone_fire_pit", 34, 30)
+	cold_pit.fuel_seconds = 0.0
+	run.call(cold_pit, 1.0)
+	cold_pit.smoke = 0.9
+	run.call(cold_pit, 20.0)
+	_expect(cold_pit.sheltered and cold_pit.smoke < 0.2, "a firepit gone cold under the roof: the smoke clears (%.2f)" % cold_pit.smoke)
+	pieces.append(cold_pit)
+	var sdef = root.get_node("Data").status(&"smoke_inhalation")
+	var c: Color = sdef.fx_color
+	_expect(sdef.kind == &"effect" and absf(c.r - c.g) < 0.05 and c.b >= c.g and sdef.fx_particles == &"cough" and "hurts" in sdef.desc, "Smoke Inhalation: an ash-grey (not green) hazard box with cough puffs and a hazard tooltip")
+	# Lighting.
+	_expect(FW.light_blocked(self, dry_ref.global_position) and not FW.light_blocked(self, sealed.global_position), "pouring rain: no lighting a fire in the open, fine under a roof")
+	var bp: GDScript = load("res://scripts/world/build_placer.gd")
+	_expect(bp.reason_text("too_wet").begins_with("Too wet"), "the build ghost says why")
+	WW.forced = &"rain"
+	_sim(0.5)
+	_expect(not FW.light_blocked(self, dry_ref.global_position), "plain rain: a fire can still be lit")
+	for n in pieces + [sealed, open, dry_ref]:
+		if is_instance_valid(n):
+			n.queue_free()
+	WW.forced = &"clear"
+	_sim(1.0)
+
+## The day/night dial draws its bolt over the side the strike landed (WorldWeather.last_strike).
+func _test_dial_side() -> void:
+	var D: GDScript = load("res://scripts/ui/day_night_dial.gd")
+	var Cam: GDScript = load("res://scripts/camera/iso_camera.gd")
+	var right: Vector3 = Cam.view_basis().x
+	right.y = 0.0
+	_w._flash_cd = 1.0e9
+	_w.strike_at(_player.global_position + right.normalized() * 25.0)
+	var r: float = D.strike_side(_w)
+	_w.strike_at(_player.global_position - right.normalized() * 25.0)
+	var l: float = D.strike_side(_w)
+	_expect(r > 0.9 and l < -0.9, "the dial's bolt side follows the strike (right %.2f, left %.2f)" % [r, l])
+	for i in int(8.0 / DT):
+		_w.tick(_rt, DT)

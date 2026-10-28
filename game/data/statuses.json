@@ -348,6 +348,29 @@
       }
     },
     {
+      "id": "smoke_inhalation",
+      "display_name": "Smoke Inhalation",
+      "kind": "effect",
+      "desc": "Breathing thick smoke hurts you: 0.4 Health a second per stack, more the thicker it is. Ventilate the space or leave it.",
+      "dps": 0.4,
+      "duration": 3.0,
+      "max_stacks": 3,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "_note": "WEATHER x FIREPITS (owner 2026-10-28): smoke pooled under a roof over a burning fire. Stacks 1-3 follow the smoke's density (rules.json fire_weather.smoke.stack_at); it is refreshed while she stands in it and ends 3 s after she leaves or it vents. ASSUMPTION: 0.4 dps per stack.",
+      "weakness_rank": 2,
+      "cleared_by": [],
+      "fx": {
+        "body": "none",
+        "color": "#9a9a9e",
+        "icon": "smoke_inhalation",
+        "particles": "cough",
+        "vignette": false
+      }
+    },
+    {
       "id": "wet",
       "display_name": "Wet",
       "kind": "effect",

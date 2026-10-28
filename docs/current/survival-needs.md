@@ -39,7 +39,7 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
   source `combat`).
 - Climate: unmet heat/cold resistance points × `fatigue.climate_per_min` = 4.0/min. Heat bites
   during the day phase; cold at dawn, dusk and night. The heat share scales with statuses'
-  `heat_fatigue_mult`. Standing in water > 5 s applies `wet` (refreshed while in water).
+  `heat_fatigue_mult`. Standing in water > 5 s soaks her (`wet` x3, refreshed while in water); rain soaks her by mode (drizzle 1, rain 2, pour 3 stacks). Wet is an effect box beside her (WEATHER, `docs/current/world-biomes.md`); it raises cold fatigue x1.3.
 - Island-vs-survivor level gap (`ProgressionScaling.fatigue_level_factor`, set per frame):
   ×(1 + gap·0.06) over-levelled, ×(1 − gap·0.04) under, clamped 0.5–2.0; all positive gains except
   the `time` baseline.
@@ -54,7 +54,8 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
 | dirty / very_dirty | fatigue ×1.2 / ×1.5 | until washed |
 | thirsty | fatigue ×1.2 | until drinking |
 | quenched | heat fatigue ×0.8 | 360 s (from drinking) |
-| wet | heat fatigue ×0.8 | 120 s |
+| wet | heat fatigue ×0.8, cold fatigue ×1.3, rest recovery ×0.85 | 60 s a stack, up to 3; faster by a burning fire or in heat |
+| smoke_inhalation | 0.4 Health/s per stack (1-3 by smoke density) | 3 s after leaving the smoke under a roofed fire |
 | infected_wound | +0.15 fatigue/min, max HP ×0.8 | until treated |
 | tastes_bad | +0.5 fatigue/min | 60 s |
 | tastes_horrible / tastes_disgusting | fatigue ×1.2 / ×1.3 | 300 s |

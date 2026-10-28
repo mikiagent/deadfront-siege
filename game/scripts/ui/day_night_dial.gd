@@ -129,6 +129,13 @@ var w_heat := 0.0
 var w_cold := 0.0
 var w_frost := 0.0
 var w_flash := 0.0
+## WEATHER rain modes: 1 drizzle, 2 rain, 3 pour (storms pour), 0 dry: WorldWeather.rain_mode, else read off
+## rain_amount. Sets how many streaks fall and how long they are.
+var w_level := 0
+## Where the latest strike landed, left (-1) to right (+1) of the survivor on screen (WorldWeather.last_strike).
+var w_strike_side := 0.0
+var drawn_streaks := 0
+var drawn_bolt_x := 0.0
 var _bolt_seed := 0
 var _wsig := 0.0  ## the weather last drawn, so a change redraws
 var drawn_rain := 0.0  ## the streaks' alpha last draw
@@ -297,10 +304,34 @@ func read_weather(delta: float) -> void:
 	w_heat = _wf(w, &"heat")
 	w_cold = _wf(w, &"cold")
 	w_frost = _wf(w, &"frost")
+	var mode: Variant = w.get(&"rain_mode") if w != null else null
+	var modes := [&"drizzle", &"rain", &"pour"]
+	if storming:
+		w_level = 3
+	elif mode is StringName and mode in modes:
+		w_level = modes.find(mode) + 1
+	else:
+		w_level = 0 if w_rain <= 0.01 else (1 if w_rain < 0.45 else (2 if w_rain < 0.85 else 3))
 	var flash := _wf(w, &"flash")
 	if flash > 0.05 and w_flash <= 0.05:
 		_bolt_seed += 1  # a new strike, a new bolt
+		w_strike_side = strike_side(w)
 	w_flash = flash
+
+## -1..1: the latest strike's ground point (WorldWeather.last_strike) left or right of the survivor, along
+## the iso camera's screen right; 0 when unknown.
+static func strike_side(w: Object) -> float:
+	var at: Variant = w.get(&"last_strike") if w != null else null
+	var p := PlayerRegistry.local()
+	if not (at is Vector3) or p == null:
+		return 0.0
+	var d := (at as Vector3) - p.global_position
+	d.y = 0.0
+	if d.length() < 0.01:
+		return 0.0
+	var right := IsoCamera.view_basis().x
+	right.y = 0.0
+	return clampf(d.normalized().dot(right.normalized()), -1.0, 1.0)
 
 func _process(delta: float) -> void:
 	if is_open():
@@ -609,16 +640,21 @@ func _draw_land(t: float, hor: Color, sun: Vector2, now: float) -> void:
 		_tree_cols[i * 2 + 1] = near
 	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), _tree_idx, _tree_pts, _tree_cols)
 
-## Fine rain streaks inside the dial, slanting more and falling faster in a storm; a bolt on a strike.
+## Fine rain streaks inside the dial, more and longer per rain mode, slanting more and falling faster in a
+## storm; a bolt on a strike, over the side it struck.
 func _draw_rain(now: float) -> void:
 	drawn_rain = 0.0
 	drawn_bolt = false
+	drawn_streaks = 0
 	var wet := maxf(w_rain, w_storm)
 	if wet > 0.01:
-		var fall := 1.4 + 0.8 * w_storm
+		var fall := 1.4 + 0.8 * w_storm + 0.25 * float(w_level)
 		var slant := 1.2 + 1.6 * w_storm
-		var ln := (4.0 + 3.0 * w_storm) * (0.75 if _compact else 1.0)
-		for i in RAIN_N:
+		var ln := (2.5 + 1.5 * float(w_level) + 2.0 * w_storm) * (0.75 if _compact else 1.0)
+		# Drizzle draws a third of the streaks, rain two thirds, pouring rain all of them.
+		drawn_streaks = RAIN_N * clampi(maxi(1, w_level), 1, 3) / 3
+		_rain_pts.resize(drawn_streaks * 2)
+		for i in drawn_streaks:
 			var x := _c.x + _r * (fposmod(float(i) * 0.618 + 0.13, 1.0) * 1.7 - 0.85)
 			var top := _hy - sqrt(maxf(0.0, _r * _r - (x - _c.x) * (x - _c.x))) * 0.92
 			var y := top + fposmod(now * fall + float(i) * 0.37, 1.0) * (_hy - top - ln)
@@ -628,7 +664,9 @@ func _draw_rain(now: float) -> void:
 		draw_multiline(_rain_pts, Color(0.80, 0.86, 0.95, drawn_rain), 1.0, true)
 	if w_flash > 0.25 and w_storm > 0.2:
 		var sd := float(_bolt_seed)
-		var x := _c.x + _r * (fposmod(sd * 0.37, 1.0) - 0.5) * 0.9
+		# Over where it struck (left or right of her), else a seeded spot.
+		var x := _c.x + _r * (w_strike_side * 0.42 if absf(w_strike_side) > 0.01 else (fposmod(sd * 0.37, 1.0) - 0.5) * 0.9)
+		drawn_bolt_x = (x - _c.x) / maxf(1.0, _r)
 		for i in BOLT_N:
 			var u := float(i) / (BOLT_N - 1)
 			var jig := (fposmod(sd * 0.71 + float(i) * 0.53, 1.0) - 0.5) * _r * 0.22 if i > 0 and i < BOLT_N - 1 else 0.0

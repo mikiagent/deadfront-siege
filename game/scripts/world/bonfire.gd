@@ -39,6 +39,16 @@ var _flicker_phase: float = randf() * TAU
 var _wear_per_min: float = WEAR_PER_MIN_DEFAULT
 var _outside_mult: float = OUTSIDE_MULT_DEFAULT
 var _wood_seconds: float = WOOD_SECONDS_PER_BRANCH
+## WEATHER (FireWeather): a roof over it, how walled in that module is, the rain's soak (a temporary fire
+## goes out at 1), the smoke pooled under the roof (0..1), and the shelter re-check timer. Not saved.
+var sheltered := false
+var enclosed := 0.0
+var roof_y := 0.0
+var rain_soak := 0.0
+var smoke := 0.0
+var shelter_check := 0.0
+var _steam: CPUParticles3D
+var _smoke_layers: Array[MeshInstance3D] = []
 
 func _ready() -> void:
 	_apply_row()
@@ -174,7 +184,7 @@ func fuel_fraction() -> float:
 
 ## Whether this fire can take another branch right now (the LOAD WOOD hex shows while it can).
 func can_load_wood() -> bool:
-	return fuel_seconds < fuel_max_seconds
+	return fuel_seconds < fuel_max_seconds and not (not burning() and is_inside_tree() and FireWeather.light_blocked(get_tree(), global_position))
 
 ## Seconds of fuel one unit of wood gives this fire.
 func seconds_per_wood() -> float:
@@ -187,6 +197,9 @@ func load_wood(player: Player) -> float:
 		return 0.0
 	if fuel_seconds >= fuel_max_seconds:
 		player.notice("The fire is already full")
+		return 0.0
+	if not burning() and FireWeather.light_blocked(get_tree(), global_position):
+		player.notice(FireWeather.TOO_WET)
 		return 0.0
 	var idx := player.inventory.find_first(&"branch")
 	if idx < 0:
@@ -207,11 +220,17 @@ func tick(delta: float) -> void:
 	if delta <= 0.0:
 		return
 	var was_burning := burning()
-	fuel_seconds = maxf(0.0, fuel_seconds - delta)
+	fuel_seconds = maxf(0.0, fuel_seconds - delta * FireWeather.fuel_mult(self))
+	if FireWeather.step(self, delta) and was_burning:
+		fuel_seconds = 0.0  # the rain put it out
+		print("[fire] %s put out by the rain" % kind)
+		var w := FireWeather.weather()
+		if w:
+			w.fire_out.emit(self)
 	if was_burning and fuel_seconds <= 0.0:
 		_stop_cooking()
 	if not is_permanent():
-		var mult := _outside_mult if not _in_domain() else 1.0
+		var mult := (_outside_mult if not _in_domain() else 1.0) * FireWeather.wear_mult(self)
 		durability = maxf(0.0, durability - _wear_per_min * mult * delta / 60.0)
 		if kind == &"campfire":
 			seconds_left = fuel_seconds
@@ -457,6 +476,81 @@ func _make_flame() -> Node3D:
 	flame.visible = false
 	return flame
 
+## WEATHER: in rain the flame shrinks and sputters and steam hisses off it; under a roof smoke pools.
+func _weather_look() -> void:
+	var lvl := 0 if sheltered else FireWeather.rain_level()
+	var lit := burning()
+	if _flame:
+		var t := Time.get_ticks_msec() * 0.001
+		var damp := clampf(0.12 * float(lvl) + 0.4 * rain_soak, 0.0, 0.65)
+		var sputter := (0.18 * float(lvl) / 3.0) * absf(sin(t * 23.0 + _flicker_phase) * sin(t * 7.3))
+		var k := maxf(0.2, 1.0 - damp - sputter)
+		_flame.scale = Vector3(lerpf(1.0, k, 0.5), k, lerpf(1.0, k, 0.5))
+	if lvl > 0 and lit and _steam == null:
+		_steam = _make_steam()
+		add_child(_steam)
+	if _steam:
+		_steam.emitting = lvl > 0 and lit
+	if smoke > 0.01 and _smoke_layers.is_empty():
+		for i in 2:
+			_smoke_layers.append(_make_smoke_layer(i))
+	for i in _smoke_layers.size():
+		var layer := _smoke_layers[i]
+		layer.visible = smoke > 0.01
+		layer.position.y = roof_y - global_position.y - 0.35 - 0.45 * float(i)
+		(layer.material_override as StandardMaterial3D).albedo_color.a = smoke * 0.55 if i == 0 else smoke * smoke * 0.5
+
+## Steam and hiss: pale puffs rising off the wet fire (CPU, at most 10 alive).
+func _make_steam() -> CPUParticles3D:
+	var e := CPUParticles3D.new()
+	e.name = "Steam"
+	e.amount = 10
+	e.lifetime = 1.1
+	e.position = Vector3(0.0, 0.3, 0.0)
+	e.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	e.emission_sphere_radius = 0.2
+	e.direction = Vector3.UP
+	e.spread = 20.0
+	e.gravity = Vector3(0.0, 0.8, 0.0)
+	e.initial_velocity_min = 0.3
+	e.initial_velocity_max = 0.7
+	e.scale_amount_min = 0.8
+	e.scale_amount_max = 1.6
+	var m := SphereMesh.new()
+	m.radius = 0.07
+	m.height = 0.14
+	m.radial_segments = 6
+	m.rings = 3
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.86, 0.88, 0.9, 0.45)
+	m.material = mat
+	e.mesh = m
+	var fade := Curve.new()
+	fade.add_point(Vector2(0.0, 0.6))
+	fade.add_point(Vector2(1.0, 1.4))
+	e.scale_amount_curve = fade
+	return e
+
+## A sheet of grey smoke hanging under the roof (two: a top one, and a lower one once it is thick).
+func _make_smoke_layer(i: int) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = "SmokeLayer%d" % i
+	var pm := PlaneMesh.new()
+	var side := StructurePiece.module_m() * (1.05 - 0.15 * float(i))
+	pm.size = Vector2(side, side)
+	mi.mesh = pm
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = Color(0.42, 0.42, 0.44, 0.0)
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	return mi
+
 func _setup_fire_light() -> void:
 	_fire_light = OmniLight3D.new()
 	_fire_light.name = "FireLight"
@@ -473,6 +567,7 @@ func _process(delta: float) -> void:
 	tick(delta)
 	if _fire_light == null or not is_instance_valid(self) or is_queued_for_deletion():
 		return
+	_weather_look()
 	if not burning():
 		_fire_light.light_energy = 0.0
 		return

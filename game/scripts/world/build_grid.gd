@@ -82,6 +82,8 @@ func can_place(kind: StringName, cell: Vector2i, rot: int) -> String:
 	for c in cells:
 		if _occupied.has(c):
 			return "overlap"
+	if kind in [&"bonfire", &"campfire"] and FireWeather.light_blocked(runtime.get_tree() if is_instance_valid(runtime) else null, tile_centre(cell, runtime)):
+		return "too_wet"  # WEATHER: no lighting a fire in pouring rain without a roof
 	if kind == &"harbour":  # on the coast with the dock over water; outside the claim, any slope
 		return HarbourSite.check(runtime as IslandRuntime, cell, rot) if runtime is IslandRuntime else ""
 	if runtime and runtime.has_method("is_claimed"):
