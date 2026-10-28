@@ -22,6 +22,7 @@ ap.add_argument("--tuck", type=float, default=35)
 ap.add_argument("--pitch", type=float, default=14)
 ap.add_argument("--forward", action="store_true", help="a pounce: nose down in the air, legs trail back")
 ap.add_argument("--name", default="hop_back")
+ap.add_argument("--side", choices=["left", "right"], help="a sideways dodge: the body banks away from the push instead of pitching")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
 b = open(a.idle, "rb").read(); n = struct.unpack("<I", b[12:16])[0]; j = json.loads(b[20:20 + n])
@@ -74,7 +75,9 @@ for f in range(a.frames):
     body = arm.pose.bones["Body"]
     m = body.matrix.copy(); piv = m.translation.copy()
     # nose up in the air (positive pitch lifts the snout for a -Y facing rig), whole body rises on the arc
-    body.matrix = Matrix.Translation((0, 0, dz)) @ Matrix.Translation(piv) @ Matrix.Rotation(math.radians(-sgn_dir * a.pitch * air), 4, side) @ Matrix.Translation(-piv) @ m
+    tilt = (Matrix.Rotation(math.radians((1 if a.side == "left" else -1) * a.pitch * air), 4, Vector((0, 1, 0))) if a.side
+            else Matrix.Rotation(math.radians(-sgn_dir * a.pitch * air), 4, side))
+    body.matrix = Matrix.Translation((0, 0, dz)) @ Matrix.Translation(piv) @ tilt @ Matrix.Translation(-piv) @ m
     bpy.context.view_layer.update()
     for nm in ("BackFoot.L", "BackFoot.R"):  # on these rigs the feet are root-parented controllers: lift them too
         pb = arm.pose.bones.get(nm)
@@ -85,7 +88,7 @@ for f in range(a.frames):
         pb = arm.pose.bones.get(nm)
         if pb is None: continue
         m = pb.matrix.copy(); piv = m.translation.copy()
-        pb.matrix = Matrix.Translation(piv) @ Matrix.Rotation(math.radians(sgn_dir * a.tuck * air), 4, side) @ Matrix.Translation(-piv) @ m
+        pb.matrix = Matrix.Translation(piv) @ Matrix.Rotation(math.radians((0.5 if a.side else sgn_dir) * a.tuck * air), 4, side) @ Matrix.Translation(-piv) @ m
         bpy.context.view_layer.update()
     for pb in arm.pose.bones:
         pb.keyframe_insert("location", frame=f + 1); pb.keyframe_insert("rotation_quaternion", frame=f + 1)
