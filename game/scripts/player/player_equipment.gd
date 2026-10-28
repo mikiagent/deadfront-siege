@@ -56,6 +56,7 @@ func equip(slot: StringName, visual: String) -> void:
 	var meshes := RiggedModel.attach_skinned(rig.skeleton, "%s/armor/%s/%s.glb" % [ROOT, kit, piece])
 	for m in meshes:
 		PlayerView.web_safe_mesh(m)
+	CharacterLook.refresh(rig) # the survivor's chosen colours carry onto the new piece
 	# A kit without this piece (travel_clothes has no helmet) attaches nothing and hides nothing.
 	equipped[slot] = {"visual": visual, "meshes": meshes, "hides": _hides(kit, piece) if not meshes.is_empty() else []}
 	_sync_body()

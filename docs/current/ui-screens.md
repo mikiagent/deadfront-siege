@@ -142,7 +142,9 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ## New character
 
-**`charcreate`** — character creation
+**`charcreate`** — character creation (spec 19): Gender/Profession, Create Character (height, portrait
+pattern/background, Colour tab), Name (1-20 chars), then the Tamed Island pick. The shot predates the
+CHARCREATE restyle; recapture it.
 
 ![charcreate](screens/charcreate.webp)
 

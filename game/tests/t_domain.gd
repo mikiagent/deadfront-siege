@@ -7,7 +7,7 @@ extends SceneTree
 ## quest card. Claim data says who owns each tile; the dotted outline follows it (a new plot, other
 ## players' rows in their own colour, touching plots read as one, malformed and off-island rows
 ## dropped or cut, only the nearest few of a crowd, lit and opaque). Claims refuse another player's
-## tiles and a refused claim keeps its stake; the own portrait goes when the look can have changed.
+## tiles and a refused claim keeps its stake; the own portrait is PortraitService's, redrawn on a new look.
 ## Run: Godot --headless --path game --script res://tests/t_domain.gd -> "[t_domain] PASS", exit 0/1.
 ## Scripts are load()ed on the first frame: `--script` compiles this file before autoloads exist.
 
@@ -447,23 +447,26 @@ func _test_portrait() -> void:
 	_expect(other == PP.silhouette(), "an owner with no known look gets the neutral silhouette")
 	var img := (PP.silhouette() as Texture2D).get_image()
 	_expect(img != null and img.get_width() == PP.SIZE and img.get_pixel(PP.SIZE / 2, PP.SIZE * 2 / 5) != img.get_pixel(4, 4), "the silhouette has a head on its backdrop")
-	# Your portrait is rendered again after a gear change, a save load or a new survivor.
+	# Your portrait is PortraitService's (CHARCREATE: one portrait source for every screen), drawn again
+	# when your look changes (character creation, a save load) and not otherwise.
+	var PS: GDScript = load("res://scripts/ui/portrait_service.gd")
+	var LOOK: GDScript = load("res://scripts/player/character_look.gd")
 	var mine: Dictionary = _rt.owner_at(_inside())
-	var cache: Dictionary = PP.get("_cache")
-	var held := ImageTexture.create_from_image(Image.create_empty(2, 2, false, Image.FORMAT_RGBA8))
-	cache["self"] = held
-	_expect(PP.texture_for(mine, _hud) == held, "your portrait stays cached while nothing changes")
-	_player.inventory.add(load("res://scripts/items/item_stack.gd").make(&"raid_helm", 1))  # W2-INV: equip wears an instance from the bag
-	_expect(_player.inventory.equip(&"head", &"raid_helm"), "the test helm is worn")
-	_expect(PP.texture_for(mine, _hud) != held, "equipping gear drops your cached portrait")
-	_player.inventory.unequip(&"head")
-	_player.inventory.consume(&"raid_helm", 1)
+	_expect(PP.texture_for(mine, _hud) == PS.call("of_player") and PS.call("of_player") != null, "your portrait is PortraitService.of_player()")
+	var renders: int = PS.call("shared").renders
 	PP.texture_for(mine, _hud)
-	cache["self"] = held
-	var occ: String = _world.occupation
-	_world.occupation = "t_domain_other"  # what a save load or a new survivor sets
-	_expect(PP.texture_for(mine, _hud) != held, "a save load or a new survivor drops your cached portrait")
-	_world.occupation = occ
+	_expect(PS.call("shared").renders == renders, "your portrait stays cached while nothing changes")
+	var look_was: Dictionary = _world.look
+	var lk: Dictionary = LOOK.call("clean", look_was)
+	var bgs: Array = []
+	for row in LOOK.call("backgrounds"):
+		bgs.append_array(row)
+	lk["portrait"]["bg"] = bgs[0] if bgs[0] != lk["portrait"]["bg"] else bgs[1]
+	_world.look = lk  # what character creation or a save load sets
+	PP.texture_for(mine, _hud)
+	_expect(PS.call("shared").renders == renders + 1 and PS.call("shared").is_current(lk), "a new look draws your portrait again")
+	_world.look = look_was
+	PP.texture_for(mine, _hud)
 
 # ---------------------------------------------------------------- the phone HUD
 
