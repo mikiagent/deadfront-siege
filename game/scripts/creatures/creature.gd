@@ -594,7 +594,11 @@ func _on_damaged(_amount: float, source: Node) -> void:
 	hit_burst(burst_col, 0.16 if kind == &"crit" else 0.1, 22 if kind == &"crit" else 12)
 	if brain:
 		brain.note_damage(_amount)
-	if statuses.has(&"groggy") and not statuses.has(&"knockdown") 			and health.fraction() < FieldTame.CAPTURE_HEALTH_FRAC:
+	# A groggy animal collapses on the next hit once it is already capturable by health.
+	# ASSUMPTION: the collapse itself still needs <= 30 % (spec 09's stun-at-any-HP is the
+	# knockdown status from other sources); moving this above 30 % would collapse every
+	# tackled animal, which is a balance change the spec does not ask for.
+	if statuses.has(&"groggy") and not statuses.has(&"knockdown") 			and FieldTame.health_allows_capture(health.fraction()):
 		statuses.apply(&"knockdown", source)
 		anim.play_clip(&"knockdown")
 		return

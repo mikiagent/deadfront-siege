@@ -1176,7 +1176,7 @@ func _process(delta: float) -> void:
 		var ranged := weapon != null and weapon.def() != null and weapon.def().range_m > 0.0
 		_skill_hexes[0].caption = "FIRE %d" % player.inventory.count_of(weapon.def().ammo_id) if ranged else "NET"
 		_skill_hexes[0].icon = UiIcons.icon(&"fire_ranged" if ranged else &"net")
-		_skill_hexes[0].disabled = player.inventory.count_of(weapon.def().ammo_id) <= 0 if ranged else not (player.hunt.target.capturable() and player.hunt._best_net_ok())
+		_skill_hexes[0].disabled = player.inventory.count_of(weapon.def().ammo_id) <= 0 if ranged else not (player.hunt._net_health_ok() and player.hunt._best_net_ok())
 		if siege:
 			_skill_hexes[0].caption = "SIEGE %d" % player.inventory.count_of(&"stone_shot")
 			_skill_hexes[0].icon = UiIcons.icon(&"siege")

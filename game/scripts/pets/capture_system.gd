@@ -4,13 +4,21 @@ extends RefCounted
 
 const TIER_BASE := {1: 0.35, 2: 0.45, 3: 0.55, 4: 0.65, 5: 0.75} ## ASSUMPTION: tool-tier bases.
 
+## Chance for one throw: the same shape as before spec 09 (base x (1.5 - HP fraction)), on the
+## animal's ACTUAL HP. Spec 09: never substitute the 30 % threshold for the real health, and level /
+## Capture Ability enter through the tier base.
+static func chance_for(creature: Creature, net_tier: int) -> float:
+	if creature == null or creature.health == null:
+		return 0.0
+	var base := float(TIER_BASE.get(net_tier, 0.35))
+	return clampf(base * (1.5 - creature.health.fraction()), 0.05, 0.90)
+
 ## Returns true when the animal went into the bag.
 static func attempt(player: Player, creature: Creature, force_result: int = 0) -> bool:
-	if creature == null or not creature.capturable():
-		return false
-	# Same rule as feeding: knocked out and under 30 % HP (GAUNTLET/HANDOFF).
-	if not FieldTame.health_allows_capture(creature.health.fraction()):
-		print("[capture] refused: %s at %.0f%% HP, needs under %.0f%%" % [creature.def.id, 100.0 * creature.health.fraction(), 100.0 * FieldTame.CAPTURE_HEALTH_FRAC])
+	# Spec 09 §1, the one rule: stunned at any HP, or HP <= 30 % (FieldTame.capture_window).
+	if creature == null or not FieldTame.capture_window(creature):
+		if creature != null and creature.def != null and creature.health != null and not creature.health.dead:
+			print("[capture] refused: %s at %.0f%% HP and not stunned; stun it or weaken it to %.0f%%" % [creature.def.id, 100.0 * creature.health.fraction(), 100.0 * FieldTame.CAPTURE_HEALTH_FRAC])
 		return false
 	var net := player.inventory.best_capture_net()
 	if net == null:
@@ -23,8 +31,7 @@ static func attempt(player: Player, creature: Creature, force_result: int = 0) -
 	if not Data.has_capture_technique(creature.def.capture_tier):
 		print("[capture] missing capture_technique_%s" % _roman(creature.def.capture_tier))
 		return false
-	var base := float(TIER_BASE.get(ndef.capture_tier, 0.35))
-	var chance := clampf(base * (1.5 - creature.health.fraction()), 0.05, 0.90)
+	var chance := chance_for(creature, ndef.capture_tier)
 	var ok := randf() < chance
 	if force_result > 0:
 		ok = true

@@ -24,6 +24,12 @@ const NOTICE_THROTTLE_S := 3.0
 var player: Player
 ## Last refusal or warning shown to the player (labs and tests read it).
 var last_notice: String = ""
+## Spec 09: one "stun it" hint per creature, when a tameable wild animal under the hunt drops to
+## <= 50 % HP and is not stunned. Keyed by instance id so a second animal gets its own hint.
+const STUN_HINT := "Stun the dinosaur to capture it safely."
+const STUN_HINT_FRAC := 0.50  ## the early tutorial target the spec names (not a hard capture rule)
+const CAPTURE_REFUSAL := "Stun it or weaken it to 30% health to capture it."
+var _stun_hinted: Dictionary = {}
 
 func setup(p: Player) -> void:
 	player = p
@@ -70,7 +76,7 @@ func tactic_label(slot: int) -> String:
 		3:
 			return "Roll"
 		4:
-			if target and target.capturable() and _net_health_ok() and _best_net_ok():
+			if target and _net_health_ok() and _best_net_ok():
 				return "Net"
 			return "—"
 		_:
@@ -86,6 +92,7 @@ func _process(delta: float) -> void:
 		if target:
 			stop()
 		return
+	_maybe_stun_hint()
 	if not auto:
 		return  # Auto off: only F / pad X / a tap swings (swing_now)
 	if not hold and player.global_position.distance_to(target.global_position) > 28.0:
@@ -314,17 +321,34 @@ func use_tackle() -> void:
 func use_kick() -> void:
 	CombatTactics.kick(self)
 
-## Nets follow the capture rule: knocked out and under 30 % health (HANDOFF section 8).
+## Nets follow the one capture rule (FieldTame.capture_window): stunned at any HP, or <= 30 %.
 func use_net() -> void:
-	if target == null or not target.capturable():
+	if target == null or not FieldTame.capture_window(target):
 		return
 	if not _net_health_ok():
-		say("Weaken it below 30% health before netting it.")
+		say(CAPTURE_REFUSAL)
 		return
 	CaptureSystem.attempt(player, target)
 
 func _net_health_ok() -> bool:
-	return target != null and FieldTame.health_allows_capture(target.health.fraction())
+	return target != null and FieldTame.capture_window(target)
+
+## Spec 09 §1: a tameable wild animal you are fighting that is unstunned and at or under 50 % HP
+## gets one hint per creature, through say() (no new widget).
+func _maybe_stun_hint() -> void:
+	if player == null or target == null or not is_instance_valid(target):
+		return
+	if target.def == null or target.health == null or not target.def.tameable or target.is_pet:
+		return
+	if target.health.dead or target.health.fraction() > STUN_HINT_FRAC:
+		return
+	if target.statuses != null and target.statuses.has(&"knockdown"):
+		return
+	var key := target.get_instance_id()
+	if _stun_hinted.has(key):
+		return
+	_stun_hinted[key] = true
+	say(STUN_HINT)
 
 func _best_net_ok() -> bool:
 	var net := player.inventory.best_capture_net()

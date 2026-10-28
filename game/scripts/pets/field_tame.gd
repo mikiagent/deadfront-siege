@@ -12,17 +12,35 @@ const CAPTURE_HEALTH_FRAC := 0.30
 ## make a first tame; every higher tier needs its technique, the same nodes nets check.
 const FREE_CAPTURE_TIER := 1
 
+## The health half of the rule on its own, for callers that hold numbers instead of a Creature
+## (server intents) or that gate a low-HP collapse. Spec 09: <= 30 %, not <.
 static func health_allows_capture(fraction: float) -> bool:
-	return fraction < CAPTURE_HEALTH_FRAC
+	return fraction <= CAPTURE_HEALTH_FRAC
+
+## Spec 09 §1: stunned/collapsed (the existing `knockdown` status) at ANY HP, OR HP <= 30 %.
+## The one capture rule; feeding, the net, the hunt UI and the server all come through here.
+static func window_open(hp: float, hp_max: float, stunned: bool) -> bool:
+	if hp <= 0.0:
+		return false
+	return stunned or hp / maxf(1.0, hp_max) <= CAPTURE_HEALTH_FRAC
+
+## Not dead, tameable, not already a pet, and inside the window (stunned at any HP, or <= 30 %).
+static func capture_window(creature: Creature) -> bool:
+	if creature == null or creature.def == null or creature.health == null:
+		return false
+	if creature.health.dead or not creature.def.tameable or creature.is_pet:
+		return false
+	var stunned := creature.statuses != null and creature.statuses.has(&"knockdown")
+	return window_open(creature.health.hp, creature.health.max_hp, stunned)
 
 static func can_attempt(creature: Creature) -> bool:
-	if creature == null or creature.def == null or creature.health.dead:
+	if creature == null or creature.def == null or creature.health == null:
 		return false
-	if not creature.def.tameable or creature.is_pet:
+	if creature.health.dead or not creature.def.tameable or creature.is_pet:
 		return false
 	if creature.tame_cooldown_left > 0.0:
 		return false
-	return creature.statuses.has(&"knockdown") and health_allows_capture(creature.health.fraction())
+	return capture_window(creature)
 
 ## "" when this survivor may tame the species, else the hint naming the missing technique.
 static func lock_reason(creature: Creature) -> String:
