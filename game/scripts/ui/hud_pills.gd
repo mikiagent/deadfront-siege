@@ -12,14 +12,14 @@ static var _last_offset := {}
 
 ## The last frame's drawn chips: {node, anchor, rect}. Read by labs that check a chip sits by its object.
 static var last_drawn: Array = []
-## The harvest pills drawn last frame, tappable (UIGATHER, spec §4.1): {node, rect}.
+## The harvest and carcass pills drawn last frame, tappable (UIGATHER §4.1, LOOTRADIAL): {node, rect}.
 static var hit_pills: Array = []
 
 ## Pill height and type size: a larger box on desktop (B1 mockup), the shipped 22 / 14 on a phone.
 static func pill_metrics(view: Vector2) -> Vector2i:
 	return Vector2i(22, 14) if UiTokens.is_compact(view) else Vector2i(30, 18)
 
-## The harvest node whose pill is under `point` (screen px), else null. A tap there selects the node
+## The harvest node or carcass whose pill is under `point` (screen px), else null. A tap there selects the node
 ## like a tap on the node itself.
 static func node_at(point: Vector2) -> Node3D:
 	for d: Dictionary in hit_pills:
@@ -76,7 +76,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 	# A bonfire is in "placed_building", "craft_station" AND "bonfire", so without this the camp
 	# drew three identical labels stacked on one object.
 	var labelled := {}
-	for grp in ["placed_building", "craft_station", "bonfire", "taming_pen", "cargo_warp", "harbour", "harvest"]:
+	for grp in ["placed_building", "craft_station", "bonfire", "taming_pen", "cargo_warp", "harbour", "harvest", "corpse"]:
 		for n in hud.get_tree().get_nodes_in_group(grp):
 			var n3 := n as Node3D
 			if n3 == null or not n3.visible or n3 == radial_node:
@@ -122,6 +122,19 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 					timer = "%dm %02ds" % [int(left / 60.0), int(left) % 60]
 			elif hn.required_tool_class != &"" and hn.required_tool_class != &"none" and not hud.player.inventory.has_tool_class(hn.required_tool_class):
 				dot = UiTokens.DANGER
+		elif grp == "corpse":
+			# A carcass reads like a harvest node: its first part's symbol, greyed; red without a knife.
+			var c := n3 as Corpse
+			if c == null:
+				continue
+			name = c.species_display_name()
+			var parts := CarcassParts.parts(c.species)
+			glyph = HexButton.grey_texture(ItemIcons.texture(parts[0]["id"] if not parts.is_empty() else &"loot_bag"))
+			top = 1.0
+			if c.loot.used_slots() <= 0 or c.cuts_left <= 0:
+				dot = Color(0.5, 0.5, 0.5)
+			elif not hud.player.inventory.has_tool_class(&"knife"):
+				dot = UiTokens.DANGER
 		else:
 			var kind: Variant = n3.get("kind")
 			if kind == null:
@@ -162,7 +175,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 		# The box covers what is drawn: tool icons poke 8 px over the pill, a regrow timer hangs under it.
 		pending.append({
 			"anchor": sp, "w": w, "h": float(pm.x) + (8.0 if not tools.is_empty() else 0.0) + (20.0 if timer != "" else 0.0), "priority": priority,
-			"text": text, "dot": dot, "glyph": glyph, "lead": lead, "harvest": grp == "harvest", "timer": timer, "tools": tools, "id": n3.get_instance_id(),
+			"text": text, "dot": dot, "glyph": glyph, "lead": lead, "harvest": grp == "harvest" or grp == "corpse", "timer": timer, "tools": tools, "id": n3.get_instance_id(),
 			"node": n3, "at": sp, "slide": status != "", "name_text": name_text, "name_w": name_w,
 			"a": 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d),
 		})

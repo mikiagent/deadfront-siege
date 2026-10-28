@@ -208,6 +208,15 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   option running (`GatherRadial.show_running`), so the hex carries the progress for every harvest. The
   floating `gather_ring.gd` is retired for harvest nodes (ASSUMPTION, spec open question 7) and stays for
   tame feeding and crafting progress.
+- A carcass opens the same fan (LOOTRADIAL, `GatherRadial.open_carcass` from `Corpse.open_picker`):
+  one hex per part (`Corpse.radial_options`), the cut's seconds on top (`CarcassParts.cut_seconds`), how
+  many are on the carcass at the bottom, a gold ★ badge on a rare part, a red ⊘ and the reason on the
+  label of a locked one ("Armor Scute · Needs Scutes", "already cut", "no cuts left", "needs knife").
+  The title's second line carries the cut budget ("Lv. 3 · 2 cuts left", `GatherRadial.note`). Picking a
+  part runs the cut on the carcass's own clock (`Corpse.begin_cut`); its hex pie-fills, the others lock,
+  the one part lands with the top-middle gain row, then the fan re-reads the carcass and stays open.
+  The boxy `butcher_picker.gd` is retired. A label never sits on another one (`pick_label_rect`'s
+  `firm` blockers weigh four times), and on desktop a label runs to 340 px before "…" (148 on a phone).
 - The camera already leans toward the selected or worked node (`Player.camera_interest`, IsoCamera
   `SELECTION_BIAS` 0.35, follow lerp 8/s); UIGATHER leaves those values as they are.
 - Gains show in the top-middle column (TopFeed, below); `yield_card.gd` keeps only the chip helpers
@@ -285,7 +294,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   §4.1): a dark box, a harvest node's pill leading with its resource symbol greyed (dimmed when picked
   clean, red-tinted without the tool), 30 px tall with 18 px type on desktop, 22 / 14 on a phone. A
   harvest pill is tappable (`HudPills.node_at` from `HuntHud._input`): it selects the node exactly like
-  a tap on the node (opens the gather radial, the camera leans toward it). The domain
+  a tap on the node (opens the gather radial, the camera leans toward it). A carcass has the same pill
+  (its species, its first part's symbol greyed; dimmed when spent, red without a knife), tappable to open
+  its part fan; the old "Loot · <species>" plate label is gone. The domain
   banner (`domain_banner.gd`) announces "<owner>'s Domain" entering claimed land; your own portrait
   there is `PortraitService.of_player()` (a headshot of your character look), others a silhouette. All of it yields
   to toasts, plates and the open sheets.
