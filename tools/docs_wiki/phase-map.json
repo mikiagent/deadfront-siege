@@ -1256,6 +1256,17 @@
           "depends": [],
           "source": "docs/design/islands-and-loop-plan.md",
           "note": ""
+        },
+        {
+          "id": "sky-shadows",
+          "title": "Sky life: pteranodons circling overhead that cast moving ground shadows, and drifting cloud-cover shadows across the terrain",
+          "status": "later",
+          "depends": [
+            "light-grade",
+            "perf-gates"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "Owner 2026-10-28, for the polish and performance patch. Cheap: a few low-poly or card pteranodons on looped high paths with real shadows; a scrolling cloud-shadow texture in the terrain shader or a decal. Must fit the web budget."
         }
       ]
     },
