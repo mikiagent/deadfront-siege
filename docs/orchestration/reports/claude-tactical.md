@@ -155,7 +155,7 @@ combo.
 - **Refill by exhaustion:**
   - Stamina refill by strain tier is 1.5 / 0.9 / 0.5 / 0.25.
   - Creature energy refills x1.5 when fresh and x0.6 while winded.
-  - These numbers are logged as A6-A10 in `docs/vision/WildLandsMMO_Open_Questions.md`.
+  - These numbers are logged as A7-A11 in `docs/vision/WildLandsMMO_Open_Questions.md`.
 - **Merged:** claude/mmo-overhaul (fast-forward) and claude/mmo-jaws 8361b5f2 (charge clip, feather
   wings; `deinonychus_feathers.png` and its `.import` are committed).
 - **Tests:**
