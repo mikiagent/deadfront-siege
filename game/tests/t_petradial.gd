@@ -343,17 +343,21 @@ func _test_keys_and_layout() -> void:
 		"the rename card follows a resize (card %s, view %s)" % [card.get_global_rect() if card else Rect2(), view])
 	get_root().size = win
 	await _frames(3)
-	# A long name keeps EQUIPPED on the Animals row (the name gives way).
+	# A long name keeps the out status on the Animals row (E1: the status has its own line under the name).
 	field.text = "Abcdefghijklmnopqrst"
 	dialog.submit()
 	hud.open_animals(rex.pet_record)
 	await _frames(2)
 	var screen = hud.find_child("AnimalScreen", true, false)
 	var row := ""
-	for b in (screen.find_children("*", "Button", true, false) if screen else []):
-		if (b as Button).text.begins_with("Abc"):
-			row = (b as Button).text
-	_expect(row.ends_with("EQUIPPED"), "the Animals row keeps EQUIPPED after a long name (%s)" % row)
+	var status := ""
+	for pack_card in (screen.find_children("PackCard*", "", true, false) if screen else []):
+		var nm := pack_card.find_child("Name", true, false) as Label
+		if nm and nm.text.begins_with("Abc"):
+			row = nm.text
+			var st := pack_card.find_child("Status", true, false) as Label
+			status = st.text if st else ""
+	_expect(row.begins_with("Abc") and status.begins_with("Out"), "the Animals row keeps its out status after a long name (%s / %s)" % [row, status])
 	if screen:
 		screen.close_screen()
 	player.pets.dismiss(rex)

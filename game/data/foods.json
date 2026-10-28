@@ -57,6 +57,10 @@
     "enhanced_survival": {
       "display_name": "Enhanced Survival",
       "_about": "Spec 32 s4: survival drinks. Coexists with Enhanced Ability."
+    },
+    "cooked_role": {
+      "_about": "COOKROLES (spec 08 \u00a73/\u00a74): the bonus an ingredient ROLE adds to a dish (a fruit topping's glaze, a spice's warmth). Its own group so it neither replaces nor is replaced by the dish's signature Enhanced Ability/Survival buff; one role bonus at a time, newest replaces.",
+      "display_name": "Cooked-in Bonus"
     }
   },
   "stat_keys": {

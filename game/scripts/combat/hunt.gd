@@ -119,8 +119,8 @@ func _auto_attack() -> void:
 		return
 	if player.statuses.has_flag(&"cannot_act"):
 		return
-	if player.rolling or _tactic_lock > 0.0:
-		return
+	if player.rolling or _tactic_lock > 0.0 or (player.sim and player.sim._stagger_left > 0.0):
+		return  # a hurt stun is a hard stun: no swings either
 	var ranged_weapon := _weapon()
 	if ranged_weapon and ranged_weapon.def() and ranged_weapon.def().range_m > 0.0:
 		if player.global_position.distance_to(target.global_position) > ranged_weapon.def().range_m and not hold:
@@ -171,7 +171,8 @@ func begin_swing() -> void:
 		player.play_punch()
 	else:
 		player.play_attack(def != null and def.damage_type == &"blunt" and _swing_damage(w) > CombatTuning.num("player_melee", "heavy_swing_min_damage", 10.0))
-	_swing_cd = 1.0 / maxf(0.2, rate)
+	# Basic attack cooldown (owner: no basic spam): the weapon's cadence, never under basic_cooldown_s.
+	_swing_cd = maxf(1.0 / maxf(0.2, rate), CombatTuning.num("player_melee", "basic_cooldown_s", 0.8))
 	var forward := target.global_position - player.global_position
 	forward.y = 0.0
 	_swing_pending = true

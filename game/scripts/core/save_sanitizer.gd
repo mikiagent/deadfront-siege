@@ -22,7 +22,7 @@ static var abort_for_test := false
 ## wrong type is erased so the loader's own default applies.
 const SHAPE := {
 	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0, "presets": {}}, "position": []},
-	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
+	"pets": [], "ground_snares": [], "carcasses": [], "skills": {}, "skills_v2": {},
 	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
@@ -152,6 +152,11 @@ static func clean(data: Dictionary) -> Dictionary:
 					and r[2] >= 1 and r[2] <= MAX_CLAIM_TILES and r[3] >= 1 and r[3] <= MAX_CLAIM_TILES)
 	if data.has("pets"):
 		data["pets"] = _pets(data["pets"])
+	# BUTCHER (spec 12 §2): carcasses on the ground. Only a species the build knows, a level play can
+	# reach, a cut count inside its own budget and part ids that species really has survive; the loot
+	# goes through the same item validation as a bag slot.
+	if data.has("carcasses"):
+		data["carcasses"] = _carcasses(data["carcasses"])
 	if data.has("ground_snares"):
 		data["ground_snares"] = _rows(data["ground_snares"], SNARE_ROW).filter(func (r: Variant) -> bool:
 			return _is_position((r as Dictionary).get("position")))
@@ -218,6 +223,21 @@ static func _stack(row: Variant) -> Variant:
 		if (attrs as Dictionary).has("species") and Data.creature(StringName(str(attrs["species"]))) == null:
 			return null
 		_shape(attrs, ATTR_ROW)
+		# COOKROLES (spec 08 §3/§9): a dish's inheritance record is exact data, and a save is untrusted.
+		# Rebuild it through CookRoles so a forged file can neither add a trait this build does not
+		# read nor mint a level the game never produces; a dish with no record keeps none.
+		if (attrs as Dictionary).has("cooked_roles"):
+			var rec_rows := CookRoles.sanitize_record((attrs as Dictionary)["cooked_roles"])
+			if rec_rows.is_empty():
+				(attrs as Dictionary).erase("cooked_roles")
+			else:
+				(attrs as Dictionary)["cooked_roles"] = rec_rows
+		if (attrs as Dictionary).has("cooked_buffs"):
+			var buffs := CookRoles.sanitize_buffs((attrs as Dictionary)["cooked_buffs"])
+			if buffs.is_empty():
+				(attrs as Dictionary).erase("cooked_buffs")
+			else:
+				(attrs as Dictionary)["cooked_buffs"] = buffs
 		_genetics((attrs as Dictionary).get("genetics"))
 	if s.has("durability") or s.has("max_durability"):
 		# A fresh stack of the same id, level and attributes knows the real ceiling.
@@ -356,6 +376,56 @@ static func _legacy_survival(raw: Dictionary, sv: Variant) -> Dictionary:
 	return out
 
 ## Keep the Dictionary rows of an array, each coerced to `shape`.
+## One carcass row as CarcassParts.to_row writes it (shaped by SaveRestore.restore_carcasses).
+static func _carcasses(rows: Array) -> Array:
+	var out: Array = []
+	for row in rows:
+		if not row is Dictionary:
+			continue
+		var r: Dictionary = row
+		var species := str(r.get("species", ""))
+		if Data.creature(StringName(species)) == null:
+			continue
+		var parts := _part_ids(species)
+		if parts.is_empty():
+			continue  # a species with no butcher table has no part picker and no saved state
+		_shape(r, {"level": 0, "cuts_left": 0, "cuts_budget": 0, "cut_parts": [], "loot": [], "position": []})
+		r["level"] = _int(r.get("level", 1), 1, MAX_LEVEL)
+		var budget := _int(r.get("cuts_budget", 1), 1, CarcassParts.CUTS_MAX)
+		r["cuts_budget"] = budget
+		r["cuts_left"] = _int(r.get("cuts_left", budget), 0, budget)
+		var cut: Array = []
+		for id in (r.get("cut_parts", []) if r.get("cut_parts") is Array else []):
+			var s := str(id)
+			if parts.has(s) and not cut.has(s):
+				cut.append(s)
+		r["cut_parts"] = cut
+		if r.get("loot") is Array:
+			r["loot"] = stacks(r["loot"])
+		else:
+			r["loot"] = []
+		if not _is_position(r.get("position")):
+			r.erase("position")  # no spot: the loader drops it (a carcass with no place on the island)
+		if not r.has("position"):
+			continue
+		var pos: Array = r["position"]
+		if absf(float(pos[0])) > WORLD_LIMIT or absf(float(pos[2])) > WORLD_LIMIT:
+			continue
+		out.append(r)
+	return out
+
+## Item ids that species' butchering.json rows offer (a cut part must be one of them).
+static func _part_ids(species: String) -> Dictionary:
+	var table: Dictionary = Data.butcher_tables.get(species, {})
+	var ids := {}
+	for block in ["base", "rare"]:
+		for row in (table.get(block, []) if table.get(block) is Array else []):
+			if row is Dictionary:
+				var id := str((row as Dictionary).get("id", ""))
+				if id != "":
+					ids[id] = true
+	return ids
+
 static func _rows(rows: Array, shape: Dictionary) -> Array:
 	var out: Array = []
 	for r in rows:

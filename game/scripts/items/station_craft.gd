@@ -13,7 +13,6 @@ var player: Player
 var menu: StationMenu
 var radial: StationRadial
 var card: CraftCard
-var toast: PickupToast
 var held_slot: HeldItemSlot
 
 var station: Node3D
@@ -53,9 +52,6 @@ func setup(p: Player, layer: CanvasLayer) -> void:
 	card = CraftCard.new()
 	card.name = "CraftCard"
 	layer.add_child(card)
-	toast = PickupToast.new()
-	toast.name = "PickupToast"
-	layer.add_child(toast)
 	held_slot = HeldItemSlot.new()
 	held_slot.name = "HeldItemSlot"
 	layer.add_child(held_slot)
@@ -68,7 +64,7 @@ func setup(p: Player, layer: CanvasLayer) -> void:
 func reparent_ui(layer: CanvasLayer) -> void:
 	if layer == null:
 		return
-	for n in [menu, radial, card, toast, held_slot]:
+	for n in [menu, radial, card, held_slot]:
 		if n and is_instance_valid(n) and n.get_parent() != layer:
 			n.reparent(layer)
 
@@ -160,7 +156,9 @@ static func is_craft_station(n: Object) -> bool:
 
 ## From the craft menu: craft `count` of a recipe. Hand recipes start at once; station recipes
 ## walk to the nearest station of that kind first (none built -> refused).
-func begin(rid: StringName, count: int = 1) -> bool:
+## `uids` (one per recipe slot) are the instances the player placed in the craft menu's place-materials
+## view: they lead their slots instead of the default picks (the plan fills the rest of each slot).
+func begin(rid: StringName, count: int = 1, uids: Array[String] = []) -> bool:
 	var rec := Crafting.recipe(rid)
 	if rec.is_empty():
 		return false
@@ -178,6 +176,8 @@ func begin(rid: StringName, count: int = 1) -> bool:
 	_begin_recipe(rid)
 	if recipe_id != rid:
 		return false
+	if uids.size() == _pick_uids.size():
+		_pick_uids = uids.duplicate()
 	queue_left = _batch_total - 1
 	if _hand_craft:
 		player.clear_nav()
@@ -432,9 +432,7 @@ func _finish_one() -> void:
 		for left in overflow:
 			_pending_overflow.append(left)
 	if out:
-		if toast:
-			toast.show_gain(out.def_id, out.count)
-		player.toast(out.def_id, out.count)
+		player.toast(out.def_id, out.count)  # UIGATHER: the HUD's yield card (PickupToast retired)
 	if str(res.get("status", "")) == "left":
 		_clear_session()
 		return

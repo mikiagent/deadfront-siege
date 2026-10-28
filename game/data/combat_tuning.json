@@ -21,7 +21,9 @@
     "hit_frac": 0.6,
     "hit_reach_slack_m": 0.3,
     "hit_arc_min_dot": 0.0,
-    "xp_per_hit": 2
+    "xp_per_hit": 2,
+    "basic_cooldown_s": 0.8,
+    "_basic_cooldown": "ASSUMPTION (owner: no basic-attack spam): the swing cooldown is 1/attack_rate but never under basic_cooldown_s; unarmed and rate-1 weapons keep today's 1.0 s."
   },
   "creature_melee": {
     "player_base_defense": 20.0,

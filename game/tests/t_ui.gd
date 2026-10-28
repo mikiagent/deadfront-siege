@@ -10,9 +10,9 @@ const OWNED := [
 	"res://scripts/ui/station_menu.gd", "res://scripts/ui/station_radial.gd", "res://scripts/ui/skills_sheet.gd",
 	"res://scripts/ui/map_screen.gd", "res://scripts/ui/fatigue_panel.gd", "res://scripts/ui/world_ui.gd",
 	"res://scripts/ui/creature_plates.gd", "res://scripts/ui/context_radial.gd", "res://scripts/ui/gather_radial.gd",
-	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
+	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/respawn_ring.gd",
 	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
-	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd",
+	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd", "res://scripts/ui/yield_card.gd",
 	"res://scripts/ui/pet_radial.gd", "res://scripts/ui/pet_rename_dialog.gd",
 ]
 const TYPE_MIN := 12
@@ -285,7 +285,8 @@ func _test_display_mode() -> void:
 	var sheet: Rect2 = SS.panel_rect(land)
 	# A landscape phone gets an opaque full-screen sheet (under the vitals only 3 of 12 rows fitted).
 	_expect(SS.is_sheet(land) and sheet.encloses(zones[0]), "landscape skills sheet %s covers the vitals band %s" % [sheet, zones[0]])
-	_expect(not SS.is_sheet(Vector2(1600, 900)) and not SS.is_sheet(Vector2(390, 844)), "desktop and portrait skills keep the panel between the HUD blocks")
+	# C3 rebuild (UICHAR): Skills is a full-screen sheet on every canvas (spec §8 shared chrome).
+	_expect(SS.is_sheet(Vector2(1600, 900)) and SS.panel_rect(Vector2(1600, 900)) == Rect2(0, 0, 1600, 900), "desktop skills is a full-screen sheet")
 	_expect(sheet.end.y <= land.y and sheet.size.y >= 4.0 * SS.ROW_H, "landscape skills panel fits the view with room for rows (%s)" % sheet)
 	_expect(zones.size() == 6 and zones[1].position.x > land.x * 0.7, "landscape HUD zones include the right map/rail column (%s)" % [zones])
 	# HANDS takes the quick row's fourth slot above the MENU / BUILD / BAG rail (owner layout 2026-10-28;

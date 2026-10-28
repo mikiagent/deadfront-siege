@@ -118,6 +118,8 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	platform_wall_layers = 0
 	def = p_def
 	variant = p_variant
+	_slide_counter += 1
+	_slide_phase = _slide_counter
 	pack_id = p_pack
 	add_to_group("creatures")
 	view.setup(def, variant)
@@ -419,17 +421,31 @@ func become_pet(rec: PetRecord) -> void:
 ## Pets never body-block the survivor: a mutual collision exception, applied once the
 ## player node is around. Enemies and everything else still collide with pets normally.
 var _pet_passthrough_done: bool = false
+## Bodies this pet already ignores (see _apply_pet_passthrough): the survivor and the other pets.
+var _pet_peers_aware: Dictionary = {}
 ## True while the survivor rides this creature (set by PlayerPets.mount / dismount).
 var ridden: bool = false
 
 func _apply_pet_passthrough() -> void:
-	if _pet_passthrough_done or not is_pet:
+	if not is_pet:
 		return
 	var p := PlayerRegistry.owner_of(self)
-	if p == null:
-		return
-	add_collision_exception_with(p)
-	_pet_passthrough_done = true
+	if p != null and not _pet_passthrough_done:
+		add_collision_exception_with(p)
+		_pet_passthrough_done = true
+	# PETFOLLOW: pets also pass through EACH OTHER. Their body capsules would otherwise let one
+	# pet park in another's follow slot and deadlock the pair; they fan out to distinct slots, so
+	# they still read as separate animals, and an enemy or the survivor still collides normally.
+	# (The survivor's own exception above is kept: it is the one that was already there.)
+	if p != null and not _pet_peers_aware.has(p):
+		_pet_peers_aware[p] = true
+	for n in get_tree().get_nodes_in_group("creatures"):
+		var other := n as Creature
+		if other == null or other == self or not other.is_pet:
+			continue
+		if not _pet_peers_aware.has(other):
+			add_collision_exception_with(other)
+			_pet_peers_aware[other] = true
 
 func _physics_process(delta: float) -> void:
 	tick_trap_control(delta)
@@ -499,7 +515,8 @@ func _physics_process(delta: float) -> void:
 			if absf(err) > FACE_SLACK_RAD:
 				var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
 				face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
-		anim.set_move_speed(speed)  # stride-matched gait and cadence (no glide at in-between speeds)
+		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide).
+		anim.set_move_velocity(dir * speed, global_basis)
 		running = sprint
 	else:
 		velocity.x = 0.0
@@ -549,10 +566,14 @@ func _physics_process(delta: float) -> void:
 ## A fading creature has a collapsed scale; sliding it inverts a singular basis and logged an
 ## engine error every physics frame (found by the survivor bot).
 const IDLE_SLIDE_EVERY := 8
+## Which of the IDLE_SLIDE_EVERY frames this animal slides on: spawn order, not the instance id, so a
+## replay (t_tactical) slides on the same frames.
+static var _slide_counter: int = 0
+var _slide_phase: int = 0
 
 func _slide() -> void:
 	if not health.dead and is_on_floor() and velocity.length_squared() < 0.000001 \
-			and (Engine.get_physics_frames() + get_instance_id()) % IDLE_SLIDE_EVERY != 0:
+			and (Engine.get_physics_frames() + _slide_phase) % IDLE_SLIDE_EVERY != 0:
 		return
 	if absf(global_transform.basis.determinant()) > 0.0001:
 		move_and_slide()

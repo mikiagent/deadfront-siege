@@ -25,6 +25,22 @@ static func gather_cfg() -> Dictionary:
 static func trait_cfg() -> Dictionary:
 	return loot().get("rare_trait", {})
 
+## RAREATTR: the rare attributes one material can roll (spec 04:33, rare_trait.by_material), or the
+## shared six when the item has no list of its own (a new harvest id before its data row lands).
+static func material_traits(item_id: StringName) -> Array:
+	var cfg := trait_cfg()
+	var rows: Variant = cfg.get("by_material", {})
+	var own: Variant = (rows as Dictionary).get(str(item_id), []) if rows is Dictionary else []
+	if own is Array and not (own as Array).is_empty():
+		return own as Array
+	var all: Variant = cfg.get("traits", [])
+	return all as Array if all is Array else []
+
+## Every material that has its own list (the test walks these).
+static func trait_materials() -> Dictionary:
+	var rows: Variant = trait_cfg().get("by_material", {})
+	return rows as Dictionary if rows is Dictionary else {}
+
 static func butcher_cfg() -> Dictionary:
 	return loot().get("butcher", {})
 

@@ -28,6 +28,17 @@
     "_chase": "chase_speed_mult is today's 0.7 per carnivore archetype until the owner decides (gap dino-ai-06: a walking survivor outruns it).",
     "_sleep": "ASSUMPTION: grazers asleep at night wake at dawn or when a survivor/pet comes within wake_m of the body; a woken grazer stays up woken_awake_s."
   },
+  "follow": {
+    "_about": "ASSUMPTION (owner 2026-10-28: 'tames should follow within a certain radius of the player, not directly on top of the player'): every summoned pet holds a follow SLOT beside/behind the survivor, fanned by summon order. slot_m + slot_size_mult x pet body radius is how far the slot sits from the survivor (a big tame hangs back further); inner_m and outer_m are the hysteresis radii around that slot, scaled by the same body factor and by the pet's follow_dist_mult nature knob (Loyal closer). A pet walks only when farther than outer from its slot and stops once inside inner, so it does not shuffle while the survivor stands still. clearance_margin_m is the gap on top of survivor radius + pet radius that it never stands inside; step_aside_m is how far past that it moves when the survivor walks into it; heel_mult pulls the slot in on a HEEL order.",
+    "slot_m": 3.0,
+    "slot_size_mult": 1.0,
+    "slot_arc_deg": 50.0,
+    "inner_m": 2.0,
+    "outer_m": 4.5,
+    "heel_mult": 0.7,
+    "clearance_margin_m": 0.3,
+    "step_aside_m": 0.8
+  },
   "temperaments": {
     "_about": "ASSUMPTION (gap dino-ai-12): grazer temperaments. skittish flees on sight and fights back after provoke_hits hits; defensive ignores you until hit, then fights (its herd joins); territorial also charges anyone inside territory_m. flee_min_mps 6.5: a worst-IV (85 %) zebraceratops flees at 5.44 m/s on the multiplier alone, under the 5.5 m/s survivor walk; 6.2 still ended 7.5 m ahead (path wiggle), 6.5 matches an average-IV flight.",
     "skittish": {
@@ -68,33 +79,90 @@
       "chase_speed_mult": 0.7,
       "tactics": {
         "_about": "TACTICS (owner 2026-10-28): circle at a stand-off ring, feint, lunge into a bite, telegraphed pounce, chomp combo where the species has the clip, back off below retreat_frac. Every number is an ASSUMPTION (first pass, not balanced). Cooldowns in seconds; distances centre to centre in metres (the prey's extra size is added).",
-        "attack_priority": [
+        "_sequences": "SEQUENCES (owner 2026-10-28): offence is built from movement. When a finisher (the last step) is off cooldown and affordable it picks one sequence by weight x the nature's tactic_w_<finisher>: backstep (short hop_back, at most one per sequence), strafe_left/right (the powerful strafe: an explosive dodge_left/right of strafe_m in the clip, ~0.42 s), then pounce, charge (run into a bite) or combo (leap-in into bite_combo). A pounce step out of range turns into a charge. The basic bite is a last resort: point blank (point_blank, after contact_after_s) or while chasing prey that walks away. While no finisher is ready it fills with hold / strafe / feint / hop back.",
+        "sequences": [
+          {
+            "name": "backstep_strafe_right_pounce",
+            "steps": [
+              "backstep",
+              "strafe_right",
+              "pounce"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "backstep_strafe_left_pounce",
+            "steps": [
+              "backstep",
+              "strafe_left",
+              "pounce"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "backstep_strafe_left_charge",
+            "steps": [
+              "backstep",
+              "strafe_left",
+              "charge"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "strafe_right_charge",
+            "steps": [
+              "strafe_right",
+              "charge"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "strafe_left_combo",
+            "steps": [
+              "strafe_left",
+              "combo"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "strafe_right_combo",
+            "steps": [
+              "strafe_right",
+              "combo"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "pounce",
+            "steps": [
+              "pounce"
+            ],
+            "weight": 1.0
+          }
+        ],
+        "point_blank": [
           "combo",
-          "pounce",
           "bite"
         ],
-        "_attacks": "Attack selection (owner 2026-10-28): every attack has its own cooldown (<move>_cd); the strongest off-cooldown, affordable (energy via try_special: combo, pounce), in-range attack in attack_priority goes. When nothing is ready it moves: backs off fast to the ring, strafes around it, sometimes flips direction or feints. The basic bite costs no energy and has the shortest cooldown.",
-        "ring_m": 5.5,
+        "ring_m": 6.5,
         "circle_speed_frac": 1.0,
         "contact_after_s": 1.0,
         "circle_step_deg": 35.0,
-        "circle_min_s": 0.8,
-        "circle_max_s": 1.6,
+        "circle_min_s": 0.5,
+        "circle_max_s": 1.0,
         "flip_chance": 0.3,
         "bite_cd": 3.5,
         "lunge_speed_mult": 1.0,
         "lunge_max_s": 1.2,
-        "feint_chance": 0.25,
         "feint_s": 0.7,
         "pounce_cd": 12.0,
         "pounce_min_m": 4.0,
-        "pounce_max_m": 8.0,
+        "pounce_max_m": 11.5,
         "pounce_telegraph_s": 0.8,
         "pounce_leap_s": 0.4,
-        "pounce_height_m": 1.0,
         "pounce_radius_m": 1.6,
         "pounce_recover_s": 0.7,
-        "pounce_mult": 1.5,
+        "pounce_mult": 2.5,
         "combo_cd": 10.0,
         "combo_mults": [
           1.0,
@@ -110,10 +178,42 @@
         "pack_gap_s": 0.6,
         "hop_m": 3.5,
         "hop_s": 0.4,
-        "hop_height_m": 0.7,
         "hop_land_s": 0.15,
-        "retreat_hop_mult": 1.4,
-        "_hop": "Every back-off is a backward LEAP (owner 2026-10-28: jump back, never walk back): hop_m in hop_s on a hop_height_m arc facing the prey, hop_land_s landing. Plays hop_back when the rig has it, else the pounce pose retimed."
+        "retreat_hop_mult": 1.2,
+        "_hop": "Every back-off is a LEAP (owner 2026-10-28: jump back, never walk back), facing the prey: hop_back over hop_m when it is inside the ring with nothing ready, leap_back over leap_back_m after a strike or when hurt (retreat_hop_mult). Leap-ins (leap_in_max_m) and the pounce use the pounce clip. The body moves inside each clip's anim_events airborne fracs; the arc rises leap_height_per_m x distance. Without the clip a timed arc (hop_s/leap_in_s/pounce_leap_s) stands in. Distances are the profile's, not the body's.",
+        "leap_in_max_m": 6.0,
+        "ambush": true,
+        "cover_m": 14.0,
+        "ambush_radius_m": 6.0,
+        "back_radius_m": 10.0,
+        "ambush_pounce_max_m": 10.0,
+        "_ambush": "AMBUSH (owner 2026-10-28, deinonychus redesign): lurks beside the tree nearest home (cover_m), shows 'lurk', and does not spot prey at range: it strikes only inside ambush_radius_m, or inside back_radius_m while the survivor's back is turned. It OPENS with the pounce out of cover (up to ambush_pounce_max_m). In the fight it leaps in (leap_in_*, ~5-7 m) instead of running and leaps back hop_m; circling is short. Losing the prey it walks home and lurks again.",
+        "leap_back_m": 5.0,
+        "leap_in_s": 0.45,
+        "leap_height_per_m": 0.2,
+        "hop_cd": 3.5,
+        "max_retreat_m": 12.0,
+        "w_hold": 0.8,
+        "w_strafe": 0.3,
+        "w_feint": 0.1,
+        "w_hop": 0.1,
+        "hold_min_s": 0.8,
+        "hold_max_s": 1.6,
+        "_cooling": "While every attack cools down it picks by weight: hold its ground (w_hold, the alert threat pose; x2 when the prey is not advancing), strafe (w_strafe), feint (w_feint), hop back (w_hop). Back-leaps have their own cooldown (hop_cd), never come twice without an attack or a hold between, and never go past max_retreat_m from the prey. ONE back-off after an attack, else it holds. Natures: tactic_hold_mult (Brave/Aggressive 1.5), tactic_backoff_mult (Timid 2).",
+        "pounce_overshoot_chance": 0.25,
+        "pounce_overshoot_m": 3.0,
+        "pounce_miss_recover_s": 1.5,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.15,
+        "_pounce": "The pounce is the big hit (pounce_mult x bite, ASSUMPTION 2.5) and stuns through the player's hurt stun (stun immunity still applies). It aims at the prey's predicted landing-time position (velocity lead) and overshoots by pounce_overshoot_m with pounce_overshoot_chance (Aggressive x tactic_overshoot_mult); a miss leaves pounce_miss_recover_s of punishable recovery.",
+        "_antispam": "Basic-attack anti-spam (owner): at least one non-attack beat (hold, hop, feint, strafe) between two basics, at most max_basic_streak basics before a beat or a special; t_tactical checks basics <= max_basic_share of all actions.",
+        "_chase": "Prey moving away (> 1 m/s outward) is chased at full run (can_sprint permitting) or pounced when ready; hold/strafe/hop apply only while it stays engaged.",
+        "strafe_m": 2.5,
+        "strafe_s": 0.42,
+        "dodge_height_per_m": 0.12,
+        "charge_cd": 5.0,
+        "charge_max_s": 1.6,
+        "charge_speed_mult": 1.0
       }
     },
     "apex_raptor": {
@@ -259,7 +359,8 @@
       "retreat",
       "chase",
       "lunge",
-      "feint"
+      "feint",
+      "charge"
     ],
     "special_cost_frac": {
       "attack_heavy": 0.3,

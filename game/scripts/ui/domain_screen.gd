@@ -1,200 +1,293 @@
 class_name DomainScreen
-extends Control
-## Spec 29 section 2's Domain screen (Main Menu -> Domain): the four territory tabs, what the
-## survivor holds on this island (cells used / cap), and the actions the record allows - Declare when
-## there is no domain yet, Expand when there is, Renew / Release where they apply (declared here as
-## later phases, disabled with the reason). Declare and Expand both open the ground-grid preview
-## (DomainPreview): the screen stays up as a narrow panel so the terrain stays readable, and its
-## footer is the candidate count with Confirm / Cancel.
-##
-## Layout: a left tab rail and a content card on a wide canvas; on a landscape phone the tabs turn
-## into a row under the title and the card takes the full width. Every action is 64 px tall on a
-## phone and 56 on desktop (tap targets; the gate measures the smallest).
+extends UiWorldSheet
+## F1 Domain (docs/design/ui-redesign-spec.md §7 F1; spec 18 and 29 section 2): a full-screen sheet
+## with the four territory tabs as a left icon column (Tamed Island / Civilized Island / Clan /
+## Outpost, the last three later phases and saying so), and a content card:
+## - no domain yet: the declare panel (GOLD headline, body, quote, GOLD "Declare Domain", island art);
+## - a domain held: the plot grid around it (Domain gold, "can expand" gold outline, water blue) with
+##   Plots used / cap, Pioneer rank, upkeep, next rank and the Communications Center link
+##   (CommCenterUI, the spec-29 contribution panel), and Expand / Build here / Release.
+## A footer band carries the territory rule. Declare and Expand open the ground-grid preview
+## (DomainPreview): the sheet steps aside to a narrow card (Confirm / Cancel) so the terrain stays
+## readable. Open with HuntHud.open_domain() (nav menu) or open(player).
 
-const GOLD := Color(0.96, 0.82, 0.36)
-const GOLD_DIM := Color(0.35, 0.30, 0.16)
 const TABS := [
-	["tamed_island", "Tamed Island"],
-	["civilized_island", "Civilized Island"],
-	["clan", "Clan"],
-	["outpost", "Outpost"],
+	["tamed_island", "Tamed Island", "Tamed", &"claim"],
+	["civilized_island", "Civilized Island", "Civilized", &"build"],
+	["clan", "Clan", "Clan", &"pets"],
+	["outpost", "Outpost", "Outpost", &"attack"],
 ]
 ## ASSUMPTION: spec 29 says the other three territory types are later phases. Their tabs exist (the
 ## screen has four, per the acceptance criteria) and say so instead of pretending to work.
-## Full label on a wide canvas, short one on a phone (a tab rail clips otherwise).
-const TAB_LABEL := {
-	"tamed_island": ["Tamed Island", "Tamed"],
-	"civilized_island": ["Civilized Island", "Civilized"],
-	"clan": ["Clan", "Clan"],
-	"outpost": ["Outpost", "Outpost"],
-}
 const PHASE_NOTE := {
-	"civilized_island": "Phase E: shared-world claims, rent and renewal. Not in this build.",
-	"clan": "Phase F: clan Enclaves, unlocked at Clan Level 5. Not in this build.",
-	"outpost": "Phase G: Savage Island Outposts at Courier Warp Holes. Not in this build.",
+	"civilized_island": ["Civilized Island claims", "Shared-world claims with rent and renewal arrive in Phase E. Not in this build."],
+	"clan": ["Clan Enclaves", "Clan Enclaves unlock at Clan Level 5 in Phase F. Not in this build."],
+	"outpost": ["Savage Island Outposts", "Outposts at Courier Warp Holes arrive in Phase G. Locked in this build."],
 }
+## Outpost is drawn locked (mockup F1): muted icon and label.
+const LOCKED_TABS := ["outpost"]
+const GRID_RADIUS := 3  ## the plot grid shows 7 x 7 cells around the domain
+## ASSUMPTION: the canvas footer ("only buildings inside your Domain can be used") is not a rule in
+## code; the footer states the growth rule the claim code enforces (IslandClaims.adjacent_to).
+const RULE_TEXT := "Your Domain grows one plot at a time, edge to edge: no diagonal, no hop across water."
 
 var player: Player
 var rt: IslandRuntime
 var preview: DomainPreview
 var tab: String = "tamed_island"
+## DOMAIN-D / spec 29 section 4: the Personal Communications Center's contribution panel.
+var center_ui: CommCenterUI
 
-var _title: Label
-var _island: Label
-var _stats: Label
-var _body: Label
-var _note: Label
-var _tabs_box: Container
-var _content: VBoxContainer
-var _outer: BoxContainer
+var _tabs_box: VBoxContainer
 var _tab_buttons: Dictionary = {}
+var _tab_marks: Dictionary = {}
+var _card: PanelContainer
+var _pad: MarginContainer
+var _main: HBoxContainer
+var _left: VBoxContainer
+var _right: VBoxContainer
+var _headline: Label
+var _body: Label
+var _quote: Label
+var _grid_title: Label
+var _grid: _PlotGrid
+var _legend: HBoxContainer
+var _msg: Label
+var _art: _IslandArt
+var _stats: RichTextLabel
+var _rows: VBoxContainer
+var _row_labels: Dictionary = {}
+var _center: Button
 var _actions: HBoxContainer
 var _declare: Button
 var _expand: Button
-## DOMAIN-D / spec 29 section 4: the Personal Communications Center's contribution panel.
-var _center: Button
-var center_ui: CommCenterUI
-var _renew: Button
+var _build_here: Button
 var _release: Button
+var _footer: Label
+var _foot_band: PanelContainer
+# preview mode: a narrow card, the world visible beside it
+var _pv_card: PanelContainer
+var _pv_title: Label
+var _note: Label
 var _confirm: Button
 var _cancel: Button
-var _close: Button
-var _root_panel: Panel
-var _backdrop: ColorRect
 
 var _previewing := false
 var _last_reason := ""
 var _picked := 0
 
-func _ready() -> void:
-	visible = false
+func _init() -> void:
+	super("Domain")
+
+func _build() -> void:
 	name = "DomainScreen"
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_IGNORE  # the world stays live; only the card blocks
-	z_index = 44
-	_root_panel = Panel.new()
-	_root_panel.name = "Card"
-	_root_panel.add_theme_stylebox_override("panel", UiTokens.panel_style(0.95))
-	# An opaque backdrop under the card: what is behind it must not read through the copy, and the
-	# card covers the HUD's own panels (the quest card sits in the same corner on a phone).
-	_backdrop = ColorRect.new()
-	_backdrop.name = "Backdrop"
-	_backdrop.color = Color(0.02, 0.025, 0.03, 0.90)
-	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_backdrop)
-	move_child(_backdrop, 0)
-	_root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_root_panel.clip_contents = true
-	add_child(_root_panel)
-	var margin := MarginContainer.new()
-	margin.name = "Margin"
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, UiTokens.SPACE * 2)
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root_panel.add_child(margin)
-	var stack := VBoxContainer.new()
-	stack.name = "Stack"
-	stack.add_theme_constant_override("separation", UiTokens.SPACE)
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_child(stack)
-
-	var head := HBoxContainer.new()
-	head.name = "Head"
-	head.add_theme_constant_override("separation", UiTokens.SPACE)
-	stack.add_child(head)
-	_title = Label.new()
-	_title.name = "Title"
-	_title.text = "DOMAIN"
-	_title.add_theme_color_override("font_color", UiTokens.TEXT)
-	head.add_child(_title)
-	_island = Label.new()
-	_island.name = "Island"
-	_island.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_island.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_island.clip_text = true
-	_island.add_theme_color_override("font_color", GOLD)
-	head.add_child(_island)
-
+	back_pressed.connect(close)
+	close_pressed.connect(close)
 	_tabs_box = VBoxContainer.new()
 	_tabs_box.name = "Tabs"
-	_tabs_box.add_theme_constant_override("separation", UiTokens.SPACE)
-	_tabs_box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_tabs_box.add_theme_constant_override("separation", 0)
+	body.add_child(_tabs_box)
 	for row in TABS:
 		var id: String = row[0]
-		var b := _button(str(row[1]), false)
+		var b := Button.new()
 		b.name = "Tab_%s" % id
 		b.toggle_mode = true
+		b.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		b.add_theme_stylebox_override("focus", UiWorldSheet._box(Color(0, 0, 0, 0), UiTokens.GOLD, 1))
 		b.pressed.connect(func () -> void: select_tab(id))
+		var col := VBoxContainer.new()
+		col.name = "Col"
+		col.alignment = BoxContainer.ALIGNMENT_CENTER
+		col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var ic := UiWorldSheet.icon_rect(row[3], 48.0)
+		ic.name = "Icon"
+		col.add_child(ic)
+		var l := UiWorldSheet.label(str(row[1]), 22, UiTokens.TEXT)
+		l.name = "Label"
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(l)
+		b.add_child(col)
+		var mark := UiWorldSheet.Brackets.new()
+		mark.name = "Brackets"
+		b.add_child(mark)
+		_tab_marks[id] = mark
 		_tab_buttons[id] = b
 		_tabs_box.add_child(b)
 
-	_content = VBoxContainer.new()
-	_content.name = "Content"
-	_content.add_theme_constant_override("separation", UiTokens.SPACE)
-	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_stats = Label.new()
-	_stats.name = "Stats"
-	_stats.add_theme_color_override("font_color", UiTokens.TEXT)
-	_content.add_child(_stats)
-	_body = Label.new()
+	_card = UiWorldSheet.panel(Color(UiTokens.HEADER.lightened(0.06), 0.92))
+	_card.name = "Card"
+	body.add_child(_card)
+	var card_v := VBoxContainer.new()
+	card_v.add_theme_constant_override("separation", 0)
+	_card.add_child(card_v)
+	_pad = MarginContainer.new()
+	_pad.name = "Pad"
+	_pad.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card_v.add_child(_pad)
+	_main = HBoxContainer.new()
+	_main.name = "Main"
+	_pad.add_child(_main)
+	_left = VBoxContainer.new()
+	_left.name = "Left"
+	_left.alignment = BoxContainer.ALIGNMENT_CENTER
+	_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_main.add_child(_left)
+	_right = VBoxContainer.new()
+	_right.name = "Right"
+	_right.alignment = BoxContainer.ALIGNMENT_CENTER
+	_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_main.add_child(_right)
+
+	_headline = UiWorldSheet.label("", 40, UiTokens.GOLD)
+	_headline.name = "Headline"
+	_headline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_left.add_child(_headline)
+	_body = UiWorldSheet.label("", 20, UiTokens.TEXT)
 	_body.name = "Body"
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_body.clip_text = true
-	_body.add_theme_color_override("font_color", UiTokens.META)
-	_content.add_child(_body)
-	_note = Label.new()
-	_note.name = "Note"
-	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_note.add_theme_color_override("font_color", GOLD)
-	_content.add_child(_note)
+	_left.add_child(_body)
+	# ASSUMPTION: the flavour line is the canvas's; no lore source names one.
+	_quote = UiWorldSheet.label("\"Mark the ground you mean to keep.\"", 18, UiTokens.MUTED, false, true)
+	_quote.name = "Quote"
+	_quote.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_left.add_child(_quote)
+	_grid_title = UiWorldSheet.label("", 28, UiTokens.GOLD)
+	_grid_title.name = "GridTitle"
+	_grid_title.clip_text = true
+	_left.add_child(_grid_title)
+	_grid = _PlotGrid.new()
+	_grid.name = "PlotGrid"
+	_grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_left.add_child(_grid)
+	_legend = HBoxContainer.new()
+	_legend.name = "Legend"
+	_legend.add_theme_constant_override("separation", 10)
+	_left.add_child(_legend)
+	for pair in [["Domain", 0], ["Can expand", 1], ["Water", 2], ["Camp", 3]]:
+		var sw := _Swatch.new()
+		sw.kind = int(pair[1])
+		_legend.add_child(sw)
+		_legend.add_child(UiWorldSheet.label(str(pair[0]), 16, UiTokens.TEXT))
+	_declare = UiWorldSheet.gold_button("Declare Domain")
+	_declare.name = "Declare"
+	_declare.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_declare.pressed.connect(_on_declare)
+	_left.add_child(_declare)
+	_msg = UiWorldSheet.label("", 16, UiTokens.GOLD)
+	_msg.name = "Message"
+	_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_left.add_child(_msg)
+
+	_art = _IslandArt.new()
+	_art.name = "IslandArt"
+	_art.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_right.add_child(_art)
+	_stats = RichTextLabel.new()
+	_stats.name = "Stats"
+	_stats.bbcode_enabled = true
+	_stats.fit_content = true
+	_stats.scroll_active = false
+	_stats.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stats.add_theme_font_override("normal_font", UiTokens.ui_face())
+	_right.add_child(_stats)
+	_rows = VBoxContainer.new()
+	_rows.name = "Rows"
+	_rows.add_theme_constant_override("separation", 0)
+	_right.add_child(_rows)
+	for key in ["Upkeep", "Grid", "Next rank", "Rank up via"]:
+		var r := HBoxContainer.new()
+		r.name = "Row_%s" % key.replace(" ", "")
+		var k := UiWorldSheet.label(key, 20, UiTokens.MUTED.lightened(0.15))
+		k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		k.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		r.add_child(k)
+		if key == "Rank up via":
+			_center = UiWorldSheet.flat_button("Communications Center →")
+			_center.name = "Center"
+			_center.add_theme_color_override("font_color", UiTokens.GOLD)
+			_center.pressed.connect(_on_center)
+			r.add_child(_center)
+		else:
+			var v := UiWorldSheet.label("", 20, UiTokens.TEXT)
+			v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			r.add_child(v)
+			_row_labels[key] = v
+		_rows.add_child(r)
+		var line := ColorRect.new()
+		line.color = Color(1, 1, 1, 0.08)
+		line.custom_minimum_size.y = 1
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_rows.add_child(line)
 	_actions = HBoxContainer.new()
 	_actions.name = "Actions"
-	_actions.add_theme_constant_override("separation", UiTokens.SPACE)
-	_content.add_child(_actions)
+	_actions.add_theme_constant_override("separation", 12)
+	_right.add_child(_actions)
+	_expand = UiWorldSheet.gold_button("Expand")
+	_expand.name = "Expand"
+	_expand.pressed.connect(_on_expand)
+	_build_here = UiWorldSheet.ghost_button("Build here")
+	_build_here.name = "BuildHere"
+	_build_here.pressed.connect(_on_build_here)
+	_release = UiWorldSheet.ghost_button("Release", true)
+	_release.name = "Release"
+	_release.pressed.connect(_on_release)
+	for b in [_expand, _build_here, _release]:
+		(b as Button).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_actions.add_child(b)
 
-	_outer = HBoxContainer.new()
-	_outer.name = "Outer"
-	_outer.add_theme_constant_override("separation", UiTokens.SPACE)
-	_outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	stack.add_child(_outer)
-	_outer.add_child(_tabs_box)
-	_outer.add_child(_content)
+	_foot_band = PanelContainer.new()
+	_foot_band.name = "FooterBand"
+	_foot_band.add_theme_stylebox_override("panel", UiWorldSheet._box(Color(0, 0, 0, 0.35), Color(1, 1, 1, 0.06), 0))
+	card_v.add_child(_foot_band)
+	var foot_row := HBoxContainer.new()
+	foot_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	foot_row.add_theme_constant_override("separation", 10)
+	_foot_band.add_child(foot_row)
+	var warn := UiWorldSheet.icon_rect(&"notice", 22.0, UiTokens.GOLD)
+	warn.name = "WarnIcon"
+	warn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	foot_row.add_child(warn)
+	_footer = UiWorldSheet.label("", 18, UiTokens.TEXT)
+	_footer.name = "Footer"
+	_footer.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	foot_row.add_child(_footer)
 
-	_declare = _action("DECLARE", true, _on_declare, "Declare")
-	_expand = _action("EXPAND", true, _on_expand, "Expand")
-	_renew = _action("RENEW", false, _on_later, "Renew")
-	_release = _action("RELEASE", false, _on_release, "Release")
-	_confirm = _action("CONFIRM", true, _on_confirm, "Confirm")
-	_cancel = _action("CANCEL", false, _on_cancel, "Cancel")
-	_close = _action("CLOSE", false, _on_close, "Close")
-	# DOMAIN-D: behind the rank/cap line - the contribution track that raises both.
-	_center = _action("CENTER", true, _on_center, "Center")
-
-	resized.connect(_layout)
-	get_viewport().size_changed.connect(_layout)
-	size = get_viewport_rect().size
-	_layout()
-
-func _button(text: String, gold: bool) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.add_theme_font_size_override("font_size", 16)
-	b.add_theme_stylebox_override("normal", UiTokens.button_style(false))
-	b.add_theme_stylebox_override("hover", UiTokens.button_style(true))
-	b.add_theme_stylebox_override("pressed", UiTokens.button_style(true))
-	b.add_theme_color_override("font_color", GOLD if gold else UiTokens.TEXT)
-	b.clip_text = true
-	return b
-
-func _action(text: String, gold: bool, cb: Callable, node_name: String) -> Button:
-	var b := _button(text, gold)
-	b.name = node_name
-	b.pressed.connect(cb)
-	_actions.add_child(b)
-	return b
+	# The preview card: the sheet steps aside so the ground grid stays readable.
+	_pv_card = UiWorldSheet.panel(Color(UiTokens.HEADER, 0.94))
+	_pv_card.name = "PreviewCard"
+	_pv_card.visible = false
+	add_child(_pv_card)
+	var pv_pad := MarginContainer.new()
+	for s in ["left", "right", "top", "bottom"]:
+		pv_pad.add_theme_constant_override("margin_" + s, 16)
+	_pv_card.add_child(pv_pad)
+	var pv := VBoxContainer.new()
+	pv.add_theme_constant_override("separation", 10)
+	pv_pad.add_child(pv)
+	_pv_title = UiWorldSheet.label("Pick plots", 26, UiTokens.GOLD)
+	pv.add_child(_pv_title)
+	_note = UiWorldSheet.label("", 18, UiTokens.TEXT)
+	_note.name = "Note"
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	pv.add_child(_note)
+	var pv_row := HBoxContainer.new()
+	pv_row.add_theme_constant_override("separation", 12)
+	pv.add_child(pv_row)
+	_confirm = UiWorldSheet.gold_button("Confirm")
+	_confirm.name = "Confirm"
+	_confirm.pressed.connect(_on_confirm)
+	_cancel = UiWorldSheet.ghost_button("Cancel")
+	_cancel.name = "Cancel"
+	_cancel.pressed.connect(_on_cancel)
+	for b in [_confirm, _cancel]:
+		(b as Button).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		(b as Button).custom_minimum_size.y = 64
+		(b as Button).add_theme_font_size_override("font_size", 20)
+		pv_row.add_child(b)
 
 # ---------------------------------------------------------------- open / close / tabs
 
@@ -202,7 +295,6 @@ func open(p: Player) -> void:
 	player = p
 	rt = World.runtime
 	visible = true
-	size = get_viewport_rect().size
 	if rt != null:
 		IslandClaims.sync_cap(rt)
 	tab = "tamed_island"
@@ -212,7 +304,7 @@ func open(p: Player) -> void:
 	_shown_rank = DomainRules.pioneer_rank()
 	_shown_cap = int(rt.call("claim_cap")) if rt != null else DomainRules.cap()
 	_refresh()
-	_layout()
+	relayout()
 	UiTokens.focus_first([_tab_buttons["tamed_island"]])
 
 ## DOMAIN-D / spec 29 section 4: the contribution panel raises the rank, and the capacity shown here
@@ -233,6 +325,7 @@ func _process(_delta: float) -> void:
 
 func close() -> void:
 	_end_preview()
+	_previewing = false
 	if center_ui != null and is_instance_valid(center_ui):
 		center_ui.close()
 	visible = false
@@ -242,94 +335,99 @@ func is_open() -> bool:
 
 func select_tab(id: String) -> void:
 	tab = id
+	_last_reason = ""
 	_refresh()
+	relayout()
 
 func is_previewing() -> bool:
 	return _previewing
 
-# ---------------------------------------------------------------- the card's text
+## True while the declared view (plot grid) shows.
+func showing_plots() -> bool:
+	return _grid.visible
+
+# ---------------------------------------------------------------- content
 
 func _refresh() -> void:
 	for id in _tab_buttons.keys():
 		var b: Button = _tab_buttons[id]
 		var on: bool = str(id) == tab
 		b.set_pressed_no_signal(on)
-		b.add_theme_stylebox_override("normal", UiTokens.button_style(on))
-		b.add_theme_color_override("font_color", GOLD if on else UiTokens.TEXT)
+		var locked: bool = LOCKED_TABS.has(str(id))
+		var sb := UiWorldSheet._box(UiTokens.GOLD_DIM if on else Color(0.05, 0.055, 0.06, 0.85), Color(1, 1, 1, 0.06), 1)
+		for s in ["normal", "hover", "pressed", "disabled"]:
+			b.add_theme_stylebox_override(s, sb)
+		var ink := UiTokens.GOLD if on else (UiTokens.MUTED if locked else UiTokens.TEXT)
+		(b.find_child("Label", true, false) as Label).add_theme_color_override("font_color", ink)
+		(b.find_child("Icon", true, false) as TextureRect).modulate = ink
+		(_tab_marks[id] as Control).visible = on
 	rt = World.runtime
-	var here := _island_name()
-	_island.text = here
-	if tab != "tamed_island":
-		_stats.text = ""
-		_body.text = str(PHASE_NOTE.get(tab, ""))
-		_note.text = ""
-		# The center belongs to the Tamed Island: leave the tab and its button goes with it.
-		_center.visible = false
-		_set_actions(false, false, false, false, false, false, true)
-		return
 	var own: bool = rt != null and IslandClaims.has_domain(rt)
-	var used: int = rt.call("claim_used") if rt != null else 0
-	var cap: int = rt.call("claim_cap") if rt != null else DomainRules.cap()
-	# DOMAIN-D / spec 29 section 4: the rank the Personal Communications Center has raised, and the
-	# cap the next documented step would bring (the capacity the center raises; land still comes
-	# only from Declare/Expand here).
+	var home: bool = World.is_home()
+	var tamed := tab == "tamed_island"
+	var plots := tamed and own
+	_set_mode(plots)
+	_footer.text = (RULE_TEXT if tamed else str(PHASE_NOTE.get(tab, ["", ""])[1]))
+	if not tamed:
+		var note: Array = PHASE_NOTE.get(tab, ["", ""])
+		_headline.text = str(note[0])
+		_body.text = "This territory type is a later phase of the Domain system (spec 29). The Tamed Island tab is the one that works today."
+		_quote.visible = false
+		_declare.visible = false
+		_art.visible = false
+		_msg.text = ""
+		return
+	if not plots:
+		_headline.text = "You can declare a Domain on your Tamed Island." if home else "You can declare a Domain on this island."
+		_body.text = "Declare a Domain to lay claim to part of your island. Pick plots next to your camp; your Domain then grows from them."
+		if not home:
+			_body.text += " Land you claim on a visited island is not your Tamed Island domain."
+		_declare.disabled = rt == null or _previewing
+		_msg.text = _last_reason
+		return
+	var used: int = rt.call("claim_used")
+	var cap: int = rt.call("claim_cap")
 	var rank: int = DomainRules.pioneer_rank()
+	_grid_title.text = "%s · your Domain" % _island_name()
+	_stats.text = "[font_size=%d]Plots [color=#%s]%d[/color] / %d[/font_size]      Pioneer rank %d" % [_stats_px(), UiTokens.GOLD.to_html(false), used, cap, rank]
+	(_row_labels["Upkeep"] as Label).text = "None on a Tamed Island" if home else "Not your Tamed Island"
+	(_row_labels["Grid"] as Label).text = "%d x %d tiles a plot" % [DomainRules.cell_tiles(), DomainRules.cell_tiles()]
 	var next: Array = DomainRules.next_milestone(rank)
-	_stats.text = "Plots  %d / %d   ·   Pioneer rank %d" % [used, cap, rank]
-	var lines: Array[String] = []
-	lines.append("Owner  %s   ·   %s" % [str(World.player_name), "personal Tamed Island" if World.is_home() else "visited island"])
-	lines.append("Grid  %d x %d tiles a cell on the island's origin grid" % [DomainRules.cell_tiles(), DomainRules.cell_tiles()])
-	lines.append("Upkeep  none on a Tamed Island" % [])
-	if World.is_home():
-		if next.size() >= 2 and int(next[0]) > 0:
-			var next_rank := int(next[0])
-			var step: Dictionary = CommCenter.step_for(next_rank)
-			var how := "contribute at the Communications Center" if step.is_empty() or CommCenter.built(rt) else "build the Communications Center, then contribute"
-			lines.append("Capacity  Pioneer rank %d -> %d plots at rank %d (%s)" % [rank, int(next[1]), next_rank, how])
-		else:
-			lines.append("Capacity  every documented Pioneer step is done" % [])
-	if own:
-		lines.append("Land  %d cell%s held, %d more until the cap" % [used, "" if used == 1 else "s", maxi(0, cap - used)])
-		lines.append("Grow  edge-adjacent cells only: no diagonal, no hop across water")
+	var nl := _row_labels["Next rank"] as Label
+	if next.size() >= 2 and int(next[0]) > 0:
+		nl.text = "%d plots at rank %d" % [int(next[1]), int(next[0])]
+		nl.add_theme_color_override("font_color", UiTokens.GOLD)
 	else:
-		lines.append("Land  no domain declared here yet" % [])
-		lines.append("Declare  pick any valid cell next to your camp land")
-	if _previewing:
-		lines.append("Preview  tap cells to select; Confirm stakes them as one batch")
-	# A landscape phone has ~230 px of card left under the tabs: keep the lines that decide anything.
-	if UiTokens.is_compact(get_viewport_rect().size):
-		lines = lines.slice(2)
-	_body.text = "\n".join(lines)
-	if World.is_home():
-		_note.text = "Claim limit reached: raise your Pioneer rank to claim more." if used >= cap and own else ""
-	else:
-		_note.text = "Visiting an island: land you claim here is not your Tamed Island domain."
-	_set_actions(not _previewing and tab == "tamed_island", not _previewing and tab == "tamed_island", false, not _previewing and own, _previewing, _previewing, true)
-	_center.disabled = _previewing or tab != "tamed_island" or not World.is_home()
-	_declare.visible = not _previewing and not own
-	_expand.visible = not _previewing and own
-	_center.visible = not _previewing and tab == "tamed_island" and World.is_home()
-	_renew.visible = false
-	_release.visible = not _previewing and own
-	_confirm.visible = _previewing
-	_cancel.visible = _previewing
-	_update_footer()
+		nl.text = "Every documented step done"
+		nl.add_theme_color_override("font_color", UiTokens.TEXT)
+	_center.disabled = not home
+	_expand.disabled = _previewing
+	_msg.text = _last_reason if _last_reason != "" else ("Claim limit reached: raise your Pioneer rank to claim more." if used >= cap else "")
+	_grid.rt = rt
+	_grid.queue_redraw()
 
-func _set_actions(declare: bool, expand: bool, renew: bool, release: bool, confirm: bool, cancel: bool, close_ok: bool) -> void:
-	_declare.disabled = not declare
-	_expand.disabled = not expand
-	_renew.disabled = not renew
-	_release.disabled = not release
-	_confirm.disabled = not confirm
-	_cancel.disabled = not cancel
-	_close.disabled = not close_ok
+func _set_mode(plots: bool) -> void:
+	_body.visible = not plots
+	_headline.visible = not plots
+	_quote.visible = not plots
+	_grid_title.visible = plots
+	_grid.visible = plots
+	_legend.visible = plots
+	_art.visible = not plots
+	_stats.visible = plots
+	_rows.visible = plots
+	_actions.visible = plots
+	_declare.visible = not plots
+
+func _stats_px() -> int:
+	return 22 if UiTokens.is_compact(get_viewport_rect().size) else 36
 
 func _island_name() -> String:
 	if rt == null:
 		return "No island"
 	var def: Dictionary = World.island_def
-	var label := str(def.get("name", World.island_id)).replace("_", " ")
-	return label.capitalize() if label != "" else "Uncharted island"
+	var label_text := str(def.get("name", World.island_id)).replace("_", " ")
+	return label_text.capitalize() if label_text != "" else "Uncharted island"
 
 # ---------------------------------------------------------------- Declare / Expand / Confirm
 
@@ -353,10 +451,12 @@ func _start_preview(mode: String) -> void:
 	if mode == "declare" and IslandClaims.has_domain(rt):
 		at = IslandClaims.cell_of(rt, IslandClaims.cell_rect(rt, (rt.domain["cells"][0] as Vector2i)).get_center())
 	preview.begin(rt, at)
+	_pv_title.text = "Declare: pick plots" if mode == "declare" else "Expand: pick plots"
 	_last_reason = ""
 	_picked = 0
 	_refresh()
-	_layout()  # the card widens back / narrows for the preview
+	_update_footer()
+	relayout()
 
 func _on_selection_changed(count: int) -> void:
 	_picked = count
@@ -374,19 +474,19 @@ func _on_confirm() -> void:
 	if not bool(out["ok"]):
 		_last_reason = IslandClaims.reason_text(str(out["reason"]))
 		_update_footer()
-		_refresh_stats_only()
 		return
 	_last_reason = ""
 	_previewing = false
 	_end_preview()
 	_refresh()
-	_layout()
+	relayout()
 
 func _on_cancel() -> void:
 	_previewing = false
 	_end_preview()
+	_last_reason = ""
 	_refresh()
-	_layout()
+	relayout()
 
 func _end_preview() -> void:
 	if preview != null and is_instance_valid(preview):
@@ -398,37 +498,42 @@ func _on_release() -> void:
 		return
 	IslandClaims.clear_domain(rt)
 	_refresh()
+	relayout()
 
-func _on_later() -> void:
-	_last_reason = "Renewal belongs to Civilized Island claims (Phase E)."
-	_update_footer()
+## "Build here": the Build sheet over the world, this screen closed.
+func _on_build_here() -> void:
+	close()
+	if player != null:
+		var b := BuildUI.ensure(player)
+		if b != null:
+			b.open()
 
 func _on_center() -> void:
 	if center_ui == null or not is_instance_valid(center_ui):
 		center_ui = CommCenterUI.new()
 		add_child(center_ui)
 		center_ui.closed.connect(_on_center_closed)
-	# The panel is a modal on top of this card (both are the same screen's text): the card and its
-	# scrim hide while it is up, and one Close brings the Domain screen back with its capacity
-	# already updated. The screen node itself stays visible: hiding it would zero the panel's layout.
-	_root_panel.visible = false
-	_backdrop.visible = false
+	# The contribution panel is a modal over this sheet: the sheet's parts hide while it is up, and
+	# one Close brings the Domain screen back with its capacity already updated. The screen node
+	# itself stays visible: hiding it would zero the panel's layout.
+	_show_chrome(false)
 	center_ui.open(player)
 
 func _on_center_closed() -> void:
 	if not visible:
 		return
-	_root_panel.visible = true
-	_backdrop.visible = true
+	_show_chrome(true)
 	_refresh()
-	_layout()
+	relayout()
 
-func _on_close() -> void:
-	close()
+func _show_chrome(on: bool) -> void:
+	backdrop.visible = on
+	header.visible = on
+	body.visible = on
 
 func _update_footer() -> void:
 	if not _previewing:
-		_note.text = _last_reason
+		_msg.text = _last_reason
 		return
 	var cap: int = rt.call("claim_cap") if rt != null else DomainRules.cap()
 	var used: int = rt.call("claim_used") if rt != null else 0
@@ -437,117 +542,191 @@ func _update_footer() -> void:
 	if preview != null and is_instance_valid(preview):
 		_picked = preview.selected_cells().size()
 	var head := "Selected %d · holds %d / %d" % [_picked, used, cap]
-	_note.text = head if _last_reason == "" else "%s — %s" % [head, _last_reason]
+	_note.text = "%s\n%s" % [head, "Tap the glowing cells next to your land." if _last_reason == "" else _last_reason]
 	_confirm.disabled = _picked == 0
-
-func _refresh_stats_only() -> void:
-	if rt == null:
-		return
-	_stats.text = "Plots  %d / %d" % [int(rt.call("claim_used")), int(rt.call("claim_cap"))]
 
 # ---------------------------------------------------------------- layout
 
-## The card is one container stack: a header, then tabs + content (side by side on a wide canvas, a
-## tab row above the content on a phone), so no text is ever hand-positioned over another control.
-func _layout() -> void:
-	var view := get_viewport_rect().size
-	position = Vector2.ZERO
-	size = view
+func _layout_body(view: Vector2, rect: Rect2) -> void:
 	var compact := UiTokens.is_compact(view)
-	var phone := UiTokens.is_phone(view)
-	var pad := 12.0 if compact else 20.0
-	var head := UiTokens.heading(view)
-	_title.add_theme_font_size_override("font_size", head)
-	_island.add_theme_font_size_override("font_size", head)
-	_stats.add_theme_font_size_override("font_size", head)
-	for l in [_body, _note]:
-		(l as Label).add_theme_font_size_override("font_size", UiTokens.body(view))
-	for b in [_declare, _expand, _renew, _release, _confirm, _cancel, _close, _center]:
-		(b as Button).add_theme_font_size_override("font_size", UiTokens.body(view))
-	for id in _tab_buttons.keys():
-		(_tab_buttons[id] as Button).add_theme_font_size_override("font_size", UiTokens.body(view))
-		# A landscape phone has ~200 px a tab: "Tamed", "Civilized", "Clan", "Outpost" fit.
-		(_tab_buttons[id] as Button).text = str(TAB_LABEL[id][1] if compact else TAB_LABEL[id][0])
-	var btn_h := 64.0 if compact else 56.0
-	for b in [_declare, _expand, _renew, _release, _confirm, _cancel, _close, _center]:
-		(b as Button).custom_minimum_size = Vector2(0.0, btn_h)
-		(b as Button).size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for id in _tab_buttons.keys():
-		var b: Button = _tab_buttons[id]
-		b.custom_minimum_size = Vector2(0.0, btn_h if compact else 48.0)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# A landscape phone is compact but not "phone" (844 wide), and a 520 px card there squeezed the
-	# tab row and clipped the copy: compact canvases get the full width and tighter margins.
-	var margin_px := 8 if compact else UiTokens.SPACE * 2
-	var margin := _root_panel.get_node_or_null("Margin") as MarginContainer
-	if margin != null:
-		for side in ["left", "right", "top", "bottom"]:
-			margin.add_theme_constant_override("margin_" + side, margin_px)
-	# Compact: full width up to 600 px (a phone's body text over ~700 px is too long a measure, and
-	# the ground has to stay visible for the preview); wide: a 520-620 px card on the left.
-	var card_w := minf(600.0, view.x - pad * 2.0) if (phone or compact) else minf(620.0, maxf(520.0, view.x * 0.42))
-	# While previewing, the ground grid is the point: the card gives up width (a phone) so the cells
-	# the survivor is picking stay visible beside it.
-	if _previewing and (phone or compact):
-		card_w = minf(card_w, maxf(360.0, view.x * 0.45))
-	var card_h := view.y - pad * 2.0
-	_root_panel.position = Vector2(pad, pad)
-	_root_panel.size = Vector2(card_w, card_h)
-	_backdrop.position = _root_panel.position
-	_backdrop.size = _root_panel.size
-	_set_axis(compact)
-	if not compact:
-		(_tabs_box as Control).custom_minimum_size = Vector2(196.0, 0.0)
-		(_tabs_box as Control).size_flags_vertical = Control.SIZE_EXPAND_FILL
-		_tabs_box.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	else:
-		(_tabs_box as Control).custom_minimum_size = Vector2(0.0, btn_h)
-		(_tabs_box as Control).size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		_tabs_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var center_up: bool = center_ui != null and is_instance_valid(center_ui) and center_ui.is_open()
+	_show_chrome(not _previewing and not center_up)
+	_pv_card.visible = _previewing
+	if _previewing:
+		# Preview: the sheet steps aside to a narrow card at the bottom left, the ground grid visible.
+		var w := minf(420.0, maxf(300.0, view.x * 0.36))
+		var h := 230.0 if compact else 280.0
+		_pv_card.position = Vector2(12.0, view.y - h - 12.0)
+		_pv_card.size = Vector2(w, h)
+		_pv_title.add_theme_font_size_override("font_size", 20 if compact else 26)
+		_note.add_theme_font_size_override("font_size", 14 if compact else 18)
+		return
+	var tab_w := 116.0 if compact else 230.0
+	var gap := 8.0 if compact else 20.0
+	_tabs_box.position = rect.position
+	_tabs_box.size = Vector2(tab_w, rect.size.y)
+	for row in TABS:
+		var b: Button = _tab_buttons[str(row[0])]
+		b.custom_minimum_size = Vector2(tab_w, 64.0)
+		var l := b.find_child("Label", true, false) as Label
+		l.add_theme_font_size_override("font_size", 15 if compact else 22)
+		l.text = str(row[2] if compact else row[1])
+		(b.find_child("Icon", true, false) as Control).custom_minimum_size = Vector2.ONE * (28.0 if compact else 48.0)
+		(_tab_marks[str(row[0])] as Control).queue_redraw()
+	_card.position = Vector2(rect.position.x + tab_w + gap, rect.position.y)
+	_card.size = Vector2(rect.size.x - tab_w - gap, rect.size.y)
+	var px := 14 if compact else 60
+	_pad.add_theme_constant_override("margin_left", px)
+	_pad.add_theme_constant_override("margin_right", 14 if compact else 40)
+	_pad.add_theme_constant_override("margin_top", 8 if compact else 30)
+	_pad.add_theme_constant_override("margin_bottom", 8 if compact else 20)
+	_main.add_theme_constant_override("separation", 16 if compact else 40)
+	_headline.add_theme_font_size_override("font_size", 22 if compact else 40)
+	_body.add_theme_font_size_override("font_size", 14 if compact else 21)
+	_quote.add_theme_font_size_override("font_size", 13 if compact else 19)
+	_grid_title.add_theme_font_size_override("font_size", 18 if compact else 30)
+	_msg.add_theme_font_size_override("font_size", 13 if compact else 16)
+	_footer.add_theme_font_size_override("font_size", 13 if compact else 19)
+	_foot_band.custom_minimum_size.y = 34.0 if compact else 64.0
+	_left.add_theme_constant_override("separation", 6 if compact else 18)
+	_right.add_theme_constant_override("separation", 4 if compact else 18)
+	_declare.custom_minimum_size = Vector2(240.0 if compact else 420.0, 64.0 if compact else 80.0)
+	_declare.add_theme_font_size_override("font_size", 20 if compact else 30)
+	for b in [_expand, _build_here, _release]:
+		(b as Button).custom_minimum_size = Vector2(0.0, 64.0 if compact else 72.0)
+		(b as Button).add_theme_font_size_override("font_size", 16 if compact else 24)
+	_center.add_theme_font_size_override("font_size", 14 if compact else 20)
+	_center.custom_minimum_size = Vector2(0.0, 64.0)
+	for r in _rows.get_children():
+		for k in r.get_children():
+			if k is Label:
+				(k as Label).add_theme_font_size_override("font_size", 14 if compact else 20)
+				(k as Label).custom_minimum_size.y = 0.0 if compact else 56.0
+	for k in _legend.get_children():
+		if k is Label:
+			(k as Label).add_theme_font_size_override("font_size", 12 if compact else 16)
+	_stats.add_theme_font_size_override("normal_font_size", 15 if compact else 26)
+	# The plot grid's cell: what the card height allows after the title, legend and footer band.
+	# A landscape phone drops the rule band under the grid: the grid needs the height more.
+	_foot_band.visible = not (compact and _grid.visible)
+	var foot_h := _foot_band.custom_minimum_size.y if _foot_band.visible else 0.0
+	var avail_h := _card.size.y - foot_h - (84.0 if compact else 170.0)
+	var avail_w := (_card.size.x - float(px) * 2.0) * 0.45
+	var n := GRID_RADIUS * 2 + 1
+	_grid.cell = clampf(floorf(minf(avail_h / float(n), avail_w / float(n))), 20.0, 68.0)
+	_grid.custom_minimum_size = Vector2.ONE * _grid.cell * float(n)
+	_right.size_flags_stretch_ratio = 1.0 if _grid.visible else 0.8
+	_art.custom_minimum_size = Vector2(0.0, 120.0 if compact else 260.0)
 
-## Tabs beside the content on a wide canvas, above it on a phone.
-func _set_axis(horizontal_tabs: bool) -> void:
-	var want_outer: bool = horizontal_tabs == false  # wide: tabs | content in a row
-	var need_swap: bool = (_outer is HBoxContainer) != want_outer
-	if need_swap:
-		var kids: Array[Node] = _outer.get_children()
-		# want_outer = a row of tabs | content (wide canvas); otherwise the tabs stack above it.
-		var fresh: BoxContainer = HBoxContainer.new() if want_outer else VBoxContainer.new()
-		fresh.name = "Outer"
-		fresh.add_theme_constant_override("separation", UiTokens.SPACE)
-		fresh.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		for k in kids:
-			_outer.remove_child(k)
-			fresh.add_child(k)
-		var stack := _outer.get_parent()
-		stack.remove_child(_outer)
-		_outer.queue_free()
-		_outer = fresh
-		stack.add_child(_outer)
-	var want_row: bool = horizontal_tabs
-	if (_tabs_box is HBoxContainer) != want_row:
-		var kids2: Array[Node] = _tabs_box.get_children()
-		var fresh2: Container = HBoxContainer.new() if want_row else VBoxContainer.new()
-		fresh2.name = "Tabs"
-		fresh2.add_theme_constant_override("separation", UiTokens.SPACE)
-		for k in kids2:
-			_tabs_box.remove_child(k)
-			fresh2.add_child(k)
-		_tabs_box.get_parent().remove_child(_tabs_box)
-		_tabs_box.queue_free()
-		_tabs_box = fresh2
-		_outer.add_child(_tabs_box)
-		_outer.move_child(_tabs_box, 0)
+# ---------------------------------------------------------------- drawn parts
 
-## Smallest interactive control height on screen (the gate's tap-target check).
-func min_target_px() -> float:
-	var low := INF
-	for b in [_declare, _expand, _confirm, _cancel, _close, _center]:
-		var btn := b as Button
-		if btn.visible:
-			low = minf(low, btn.size.y)
-	for id in _tab_buttons.keys():
-		var btn: Button = _tab_buttons[id]
-		if btn.visible:
-			low = minf(low, btn.size.y)
-	return low if low < INF else 0.0
+## The 7 x 7 plot grid around the domain (§7 F1 "plot grid after declaring"): Domain cells GOLD,
+## cells the domain can grow into outlined GOLD, water/cliff blue, the camp's own land GOLD at half
+## alpha, other land green. Classified by IslandClaims, the same model the ground preview draws.
+class _PlotGrid extends Control:
+	var rt: IslandRuntime
+	var cell := 60.0
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+	func centre_cell() -> Vector2i:
+		var own: Dictionary = IslandClaims.owned_cells(rt)
+		if own.is_empty():
+			return Vector2i.ZERO
+		var sum := Vector2.ZERO
+		for c: Vector2i in own.keys():
+			sum += Vector2(c)
+		sum /= float(own.size())
+		return Vector2i(roundi(sum.x), roundi(sum.y))
+	## Vector2i -> 0 domain, 1 can expand, 2 water, 3 camp, 4 land (what the grid draws; tests read it).
+	func states() -> Dictionary:
+		var out := {}
+		if rt == null or not is_instance_valid(rt):
+			return out
+		var c0 := centre_cell()
+		var own: Dictionary = IslandClaims.owned_cells(rt)
+		var r := DomainScreen.GRID_RADIUS
+		for y in range(c0.y - r, c0.y + r + 1):
+			for x in range(c0.x - r, c0.x + r + 1):
+				var c := Vector2i(x, y)
+				if own.has(c):
+					out[c] = 0
+					continue
+				var info: Dictionary = IslandClaims.classify(rt, c)
+				match str(info["state"]):
+					"eligible":
+						out[c] = 1
+					"claimed":
+						out[c] = 3
+					_:
+						var why := str(info["reason"])
+						out[c] = 2 if why == "terrain" or why == "outside_the_island" else 4
+		return out
+	func _draw() -> void:
+		var st := states()
+		if st.is_empty():
+			return
+		var c0 := centre_cell()
+		var r := DomainScreen.GRID_RADIUS
+		for c: Vector2i in st.keys():
+			var p := Vector2(float(c.x - c0.x + r), float(c.y - c0.y + r)) * cell
+			var box := Rect2(p + Vector2.ONE, Vector2.ONE * (cell - 2.0))
+			draw_rect(box, DomainScreen.swatch_color(int(st[c])))
+			if int(st[c]) == 1:
+				draw_rect(box.grow(-1.0), UiTokens.GOLD, false, 2.0)
+			else:
+				draw_rect(box, Color(1, 1, 1, 0.06), false, 1.0)
+
+static func swatch_color(kind: int) -> Color:
+	match kind:
+		0:
+			return UiTokens.GOLD
+		2:
+			return Color(0.17, 0.29, 0.45)
+		3:
+			return Color(UiTokens.GOLD, 0.45)
+		_:
+			return Color(0.20, 0.28, 0.18)
+
+class _Swatch extends Control:
+	var kind := 0
+	func _ready() -> void:
+		custom_minimum_size = Vector2(16, 16)
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+	func _draw() -> void:
+		var r := Rect2(Vector2.ONE, size - Vector2.ONE * 2.0)
+		if kind == 1:
+			UiTokens.draw_brackets(self, r, UiTokens.GOLD, 5.0, 2.0)
+		else:
+			draw_rect(r, DomainScreen.swatch_color(kind))
+
+## The declare panel's island: a soft green landmass with a dashed GOLD plot and a flag.
+class _IslandArt extends Control:
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		resized.connect(queue_redraw)
+	func _blob(c: Vector2, r: Vector2, wob: float) -> PackedVector2Array:
+		var pts := PackedVector2Array()
+		for i in 64:
+			var a := TAU * float(i) / 64.0
+			var k := 1.0 + wob * sin(a * 3.0 + 0.6) + wob * 0.6 * sin(a * 5.0 + 1.9)
+			pts.append(c + Vector2(cos(a) * r.x, sin(a) * r.y) * k)
+		return pts
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := Vector2(minf(size.x * 0.46, size.y * 0.58), minf(size.y * 0.44, size.x * 0.40))
+		if r.x < 10.0 or r.y < 10.0:
+			return
+		draw_colored_polygon(_blob(c, r, 0.05), Color(0.20, 0.29, 0.17))
+		draw_colored_polygon(_blob(c, r * 0.86, 0.06), Color(0.33, 0.45, 0.24))
+		var s := minf(r.x, r.y) * 0.55
+		var plot := Rect2(c + Vector2(r.x * 0.12 - s * 0.5, -s * 0.5), Vector2(s, s * 0.85))
+		draw_rect(plot, Color(UiTokens.GOLD, 0.12))
+		var corners := [plot.position, Vector2(plot.end.x, plot.position.y), plot.end, Vector2(plot.position.x, plot.end.y)]
+		for i in 4:
+			draw_dashed_line(corners[i], corners[(i + 1) % 4], Color(UiTokens.GOLD, 0.75), 2.0, 8.0)
+		var base := plot.get_center() + Vector2(0, s * 0.18)
+		draw_colored_polygon(PackedVector2Array([base + Vector2(-s * 0.13, 0), base + Vector2(s * 0.13, 0), base + Vector2(0, -s * 0.26)]), Color(0.62, 0.60, 0.52))
+		var pole := base + Vector2(0, -s * 0.26)
+		draw_line(pole, pole + Vector2(0, -s * 0.22), UiTokens.GOLD, 2.0)
+		draw_colored_polygon(PackedVector2Array([pole + Vector2(0, -s * 0.22), pole + Vector2(s * 0.16, -s * 0.18), pole + Vector2(0, -s * 0.12)]), Color(UiTokens.GOLD, 0.8))

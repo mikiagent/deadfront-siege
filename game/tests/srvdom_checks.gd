@@ -526,6 +526,9 @@ func _hardening_checks() -> void:
 	tune["unarmed_damage"] = 20.0 # the cached section; dropped again below
 	var hit := _ok(st.apply("act.attack", 1, {"net_id": "compy1"}, 8), "attack, unarmed 20")
 	CombatTuning._data = {} # the next section() reloads the file
+	# TACTICS: the basic attack has its own cooldown on the server too (basic_cooldown_s, 1/rate).
+	var spam: Dictionary = st.apply("act.attack", 1, {"net_id": "compy1", "ms": 300}, 8)
+	expect(spam.get("err") == "not_ready", "a second swing 300 ms later is refused on cooldown (%s)" % spam.get("err", "ok"))
 	var base := maxf(20.0 * float(tune.min_damage_frac), 20.0 - 10.0 * float(tune.defense_factor)) * CombatCounters.multiplier(Data.creature(&"compsognathus").archetype, &"blunt")
 	var want := base * (float(tune.crit_mult) if hit.r.get("kind") == "crit" else 1.0)
 	var tuned: bool = miss.r.get("kind") == "dodge" and absf(float(hit.r.get("dealt", 0.0)) - want) < 0.001

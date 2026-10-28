@@ -112,6 +112,10 @@ static func inspector_text(stack: ItemStack) -> String:
 			_ensure_buffs()
 			bits.append(str((_buffs.get(b, {}) as Dictionary).get("display_name", b)))
 		lines.append("%s: %s" % [str(row.get("name", "")), ", ".join(bits)])
+	# COOKROLES (spec 08 §3/§8): what the dish inherited from its slots, and what the recipe kept out.
+	var roles := CookRoles.summary(stack)
+	if not roles.is_empty():
+		lines.append("cooked in: %s" % "; ".join(roles))
 	var buffs := buff_ids(stack)
 	if not buffs.is_empty():
 		var names: PackedStringArray = []

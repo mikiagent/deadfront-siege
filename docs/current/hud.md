@@ -39,13 +39,13 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Hex sizes follow spec §2 (`HudField.PX`): desktop rail 100, INTERACT 150, ATTACK 100, SPRINT 100,
   quick slot 80, whistle 66, CLAIM 52; compact canvases (`UiTokens.is_compact`: 844x390 and portrait)
   use 64 / 96 / 72 / 64 / 64 / 64 / 64, so every phone tap target is 64 px or more. All flat-top.
-- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD, BAG, captions under. Skills and Animals are
+- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD (opens the build drawer, `BuildUI`), BAG, captions under. Skills and Animals are
   entries in the MENU sheet (no rail hexes; no hotkeys existed for them). BAG opens the bag (also I).
 - MENU notice badge (`HudField.notify` / `HuntHud.notify_menu`): a count in a filled circle at the
   hex's top-right, GOLD with ink text, LIFE red while any notice is urgent (ASSUMPTION, owner
   undecided), "9+" past nine. Skills notices: each skill level-up (`skill_leveled`) and each time SP
   starts to afford a node (`SkillRules.affordable_now`, rechecked every 0.25 s); cleared when Skills
-  opens; the MENU sheet's entry reads "Skills (n)". Market (buy/sell) notices: hook only,
+  opens; the nav menu's Skills entry carries the same count as its own badge. Market (buy/sell) notices: hook only,
   `notify_menu(&"market")` — no client-side market event exists yet. Nothing is urgent today.
 - Quick slots above the rail: two quick-food hexes (×count, unchanged), CHASE in the third slot in a
   fight, HANDS (held tool; tap gathers nearest, long-press unequips) in the fourth (`hands_spot`).
@@ -67,6 +67,11 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Quest card: desktop a 240 px card left of the minimap; phones across the centre band — "ORDERS
   i/n", the step title, hint, progress and a teal fill; when no objectives run: "NOW / island /
   Survive, then return".
+  It draws `OrdersSheet.hud_step(player)`: the running order, or a later one the player picked with
+  "Track on HUD" in Orders (C4, `orders_sheet.gd`; session-only, a load follows the running order).
+  Only the running order completes and pays out (`Objectives.settle`).
+- MENU sheet entries added by UICHAR: Character, Skills, Orders (`HuntHud.open_character()`,
+  `open_skills(tree)`, `open_orders()`); ‹ on those screens reopens the MENU.
 
 ## The centre band (`HudLayout.centre_band`)
 - Landscape phones: the strip between the vitals and the minimap carries the quest card; the target
@@ -86,6 +91,14 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Whistle row SIC / HEEL / GUARD while a pet is out, selected state mirroring the pet's brain mode:
   desktop a row beside the rail (spec §6); landscape phone a row under the vitals; portrait a
   mid-screen row with End Combat at its right.
+- B2 restyle (UIGATHER): the skill hexes, AUTO, FEED and CHASE take the HUD fill and light rim (4 px,
+  3 under 70 px); ROLL shows its "Q" key cap on desktop (ASSUMPTION: tactic_1..4 are bound but nothing
+  reads them, so no caps on NET / TACKLE / KICK). The NET hex turns GOLD-filled with a dark net and a
+  GOLD rim while a throw is allowed (spec 09: stunned or at or under 30 %, and a net and technique cover
+  the tier); its bottom line stays empty for a taming-odds figure. The target plate's HP bar turns GOLD
+  in the same window, its status chips show icon and name with a rim in the status colour, and a gold
+  line by the animal reads "Weaken to 30% to capture" / "Capturable — throw the net!" (drawn before the
+  pills, on a free spot off the plates; skipped where none is free).
 - Targets [owner 2026-10-28]: out of combat a tap on a wild animal only selects it and the red swords
   hex (or ATTACK NEAREST, E, F) starts the fight; in combat a tap on another enemy switches the target
   to it at once (`PlayerActions.attack`) and no swords hex shows. End Combat disengages.
@@ -108,8 +121,11 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   up, clear of HANDS). CLAIM is a gold-rim hex (52 px desktop, 64 phone) right-aligned under the
   minimap's "X Y" line; icon-only on a landscape phone (ASSUMPTION: no room for a caption there). Claiming while already
   holding land here opens the ClaimPanel confirm; it cancels on walking away, moving placement, or
-  a second tap. Ground-placing anchors a ROTATE / PLACE / CANCEL hex row near the ghost via a
-  scored clear-spot sweep (`HudLayout.placer_anchor`); layout mode shows DONE + a hint bar.
+  a second tap. Ground-placing anchors a ROTATE / SAVE / CANCEL hex row near the ghost via a
+  scored clear-spot sweep (`HudLayout.placer_anchor`), clear of the build drawer (`BuildUI.taken_rects`);
+  88 px hexes on desktop, 64 on a phone (UICRAFT, owner §1.9): ROTATE is the icon alone, SAVE a green
+  check on an OK_GREEN rim, CANCEL a red cross with the word inside; no key letters. Layout mode
+  shows DONE + a hint bar.
 
 ## Exhaustion gauge & breakdown
 - The face is drawn (smile → deep frown across four tiers, green → red by strain). Under it, a
@@ -124,24 +140,87 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   level-gap sentence, the climate shortfall and the live drift ("Exhaustion is falling slowly
   (+x/min)"). Vitals owns the rows; the decay window is `fatigue.breakdown_window_s` (180 s).
 
+## Gather radial and yield card (UIGATHER, spec §4, B1)
+- Tapping a node (or its pill) opens `gather_radial.gd`: the node's title and level under it, one
+  flat-top hex per option around it — 124 px on desktop, 64 on a compact canvas — with the gather
+  seconds on top, the resource symbol greyed in the middle, the node's units left at the bottom, and
+  the resource name in a box beside it (21 px on desktop; a locked option reads "Log · Needs an axe" in
+  DANGER). The running option's hex pie-fills 0 → 1 per unit (`HexButton.fill_ratio`); the others are
+  disabled while it runs. One unit lands per fill.
+- A gather started without the fan (INTERACT, Space, a one-option node) opens it on its node with that
+  option running (`GatherRadial.show_running`), so the hex carries the progress for every harvest. The
+  floating `gather_ring.gd` is retired for harvest nodes (ASSUMPTION, spec open question 7) and stays for
+  tame feeding and crafting progress.
+- The camera already leans toward the selected or worked node (`Player.camera_interest`, IsoCamera
+  `SELECTION_BIAS` 0.35, follow lerp 8/s); UIGATHER leaves those values as they are.
+- Yield card (`yield_card.gd`, replaces the top-centre "+n Item" toast and the retired
+  `pickup_toast.gd`): on each gain, a 300 px card (220 on a phone) above the worked node — else above
+  the survivor (crafts, loot) — on a free spot off `taken_rects` and the open radial, ~3 s or until the
+  next gain. Thumbnail tinted with the lot's natural colour (`ItemStack.tint_color`), the item name,
+  "Wood · Lv. 1 · +2" (first category, lot level, count in GOLD), then the trait chips of every instance
+  that gain added (`InvAttributes.sections`: rare ✦ green first, positive + gold, negative − grey) and a
+  3 px top edge in the best chip's colour. GatherFeedback's "+n Item" rise over the node is unchanged.
+
 ## Notices, toasts, hits, level-up
-- Pickup toasts ("+n Item"), skill XP lines (16 px) and tree level-ups (22 px, gold, ▲) rise near
-  the top-centre (phones: under the vitals), each taking a free spot off `taken_rects`; notices
-  (refusals) render under them on dark red. Nothing covers the fixed blocks.
-- A creature's hit on the survivor covers her chest with Pokémon-style jaws and red damage numbers;
+- Skill XP lines (left feed, owner §1.6, UIGATHER): under the vitals, one 44 px row per tree gain (34 on
+  a phone) — a small hex with the skill's initial, "Gathering +6 XP Lv. 1" and a thin XP bar of that
+  tree's progress; a tree level-up is the same row in GOLD with ▲. Each row takes a free spot off
+  `taken_rects`. Item gains are the yield card (above); notices
+  (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
+  confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders
+  on the HUD fill with an OK_GREEN edge and a check (`HudEventState.draw_notice`, B4). Nothing covers
+  the fixed blocks.
+- A creature's hit on the survivor covers her chest with Pokémon-style jaws and red damage numbers (22 px);
   heavy hits flash the screen red.
+- Status effects on the survivor (STATUSFX, owner 2026-10-28; `ui/status_fx.gd`, driven from
+  `HuntHud._process` / `_draw`). Every look comes from the status's `fx` block in
+  `data/statuses.json` (`color`, `icon`, `particles`: drip / bubbles / embers / tint / none,
+  `vignette`; `body` keeps the old hint), parsed into `StatusDef.fx_*`; a new status needs only data.
+  - Boxes: one square per active status beside her figure (`HudLayout.figure_rect`), 10 px off it,
+    the first at her shoulders and the rest stacked down (42 px desktop, 32 px on compact canvases).
+    HUD ink fill, a 2 px rim and a 4 px time-left bar in the status colour, its white icon inside,
+    a stack-count disc on the outer corner. The column keeps its side (right, else left) until that
+    side is blocked, slides up/down off `taken_rects` via `UiTokens.free_spot`, is skipped with no
+    room, and is a drawn block (`statusfx`) so toasts keep off it. A box that loses the one above it
+    glides up (8 slots/s) instead of jumping.
+  - Bleed's icon is the claw mark (`claw.svg`, `_src/icons_n.py`); the HUD chip row uses it too.
+  - Colours (ASSUMPTION, from the spec tokens): bleed red (LIFE), poison/sickness green, hot orange,
+    wet/cold blue, positive buffs GOLD, Well Rested soft gold, other negatives MUTED grey.
+  - Particles: one CPUParticles3D per status (at most 3, 8-10 unshaded spheres each) under the player,
+    freed the frame the status ends: bleed red drips, venom/poison green bubbles, hot food embers
+    (ASSUMPTION: no burn status exists). "tint" statuses (fracture, groggy, wet...) draw a faint
+    colour glow over her figure instead.
+  - Vignette: while a `vignette` status is on (bleed, deep bleed) a red screen edge (14 % of the short
+    side, alpha 0.16) brightens to 0.42 on each tick and fades back.
+  - Tick numbers: `StatusEffects.ticked(id, amount)` fires per damage-over-time tick on the player with
+    the Health it took; `HudEventState.add_tick` floats a red 16 px "-N" ("-0.2" for a fraction) on the
+    hit numbers' path (pops in from 70 %, rises, fades); two ticks on one frame stand side by side.
 - Level-up (`World.pioneer_changed`): a gold stack at the top-left for ~6 s — level, title line,
   XP, T-stones, SP, per-stat gains; landscape phones show a one-line banner in the centre band
   instead. Gains land via `Vitals.grant_level_bonus` (saved).
-- HUD pills (`game/scripts/ui/hud_pills.gd`) label buildings and nodes within 8 m; the domain
+- HUD pills (`game/scripts/ui/hud_pills.gd`) label buildings and nodes within 8 m (UIGATHER, spec
+  §4.1): a dark box, a harvest node's pill leading with its resource symbol greyed (dimmed when picked
+  clean, red-tinted without the tool), 30 px tall with 18 px type on desktop, 22 / 14 on a phone. A
+  harvest pill is tappable (`HudPills.node_at` from `HuntHud._input`): it selects the node exactly like
+  a tap on the node (opens the gather radial, the camera leans toward it). The domain
   banner (`domain_banner.gd`) announces "<owner>'s Domain" entering claimed land; your own portrait
   there is `PortraitService.of_player()` (a headshot of your character look), others a silhouette. All of it yields
   to toasts, plates and the open sheets.
-- Death: full-screen layer — "YOU DIED", the downer ("Downed by <who>."), the note "Engaged
-  dinosaurs retreat past their aggro ring. Your bag comes with you." and "Respawn at camp".
-- Sheets (MENU / BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
+- Death: full-screen layer — "YOU DIED" in LIFE, the downer ("Downed by <who>."), the note "Engaged
+  dinosaurs retreat past their aggro ring. Your bag comes with you." and a GOLD "Respawn at camp" on a
+  HUD-fill card with a LIFE top edge (B4).
+- MENU opens the nav menu (`game/scripts/ui/nav_menu.gd`, spec §7 B3): Character, Skills, Craft,
+  Build, Bag, Animals down the left (icon, label), World Atlas, Domain, Orders, Communication,
+  Friends, Save down the right (label, icon), a header band with a settings gear (holds the debug-info
+  toggle, ASSUMPTION) and the T-stone balance, and a CLOSE hex where MENU sits. It draws on canvas
+  layer 90 and fades the HUD's own drawing and hexes out while open; the world keeps running. A tap
+  on the world, CLOSE or Esc closes it. Each entry badges notices of its own kind
+  (`HudField.notices`, GOLD / LIFE). Orders and Friends show greyed (no screen yet); Character opens
+  the bag's Character page, Communication the Domain screen's Communications Center (ASSUMPTIONS).
+  Compact canvases fold each side into two columns of three 72 px rows.
+- Sheets (BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
   scrolling when short; landscape phones lay them out as a two-column grid. HANDS and the creature
-  plates hide while one is open.
+  plates hide while one (or the nav menu) is open.
 
 ## Screens (phone landscape, [all screens](ui-screens.md))
 
@@ -161,9 +240,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 
 ![fatigue](screens/fatigue.webp)
 
-**MENU sheet**
+**MENU nav menu** (B3; desktop 1600x900 capture:
+[`../orchestration/reports/uinav/b3_nav_menu_1600x900.png`](../orchestration/reports/uinav/b3_nav_menu_1600x900.png))
 
-![sheet_menu](screens/sheet_menu.webp)
+![b3_nav_menu](../orchestration/reports/uinav/b3_nav_menu_844x390.png)
 
 ## Tokens available (not yet applied)
 
