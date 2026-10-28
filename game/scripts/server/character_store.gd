@@ -142,14 +142,22 @@ func _run(op: String, account: int, a: Dictionary, ts: int, tape: Array, replayi
 	res.r["seq"] = s.seq
 	return res
 
+## The character-name rule, also used for pet names (PlayerActions.rename_pet): 3..20 letters,
+## digits, spaces, _ or -. Returns "" or why not.
+static func name_problem(nm: String) -> String:
+	if nm.length() < 3 or nm.length() > 20:
+		return "name must be 3..20 characters"
+	for c in nm:
+		if not (c >= "a" and c <= "z") and not (c >= "A" and c <= "Z") and not (c >= "0" and c <= "9") and c not in [" ", "_", "-"]:
+			return "name may use letters, digits, space, _ and -"
+	return ""
+
 ## char.create {name}: the first hello of an account makes its server-owned character.
 func _create(account: int, a: Dictionary, now: int) -> Dictionary:
 	var name: Variant = IntentHandlers.text(a, "name", 20)
-	if name == null or (name as String).length() < 3:
-		return IntentHandlers.no("bad_request", "name must be 3..20 characters")
-	for c in (name as String):
-		if not (c >= "a" and c <= "z") and not (c >= "A" and c <= "Z") and not (c >= "0" and c <= "9") and c not in [" ", "_", "-"]:
-			return IntentHandlers.no("bad_request", "name may use letters, digits, space, _ and -")
+	var why := name_problem(str(name)) if name != null else "name must be 3..20 characters"
+	if why != "":
+		return IntentHandlers.no("bad_request", why)
 	if s.chars.has(str(account)):
 		return {"ok": true, "r": character(account).view()}
 	s.chars[str(account)] = CharacterState.fresh(account, name, now)

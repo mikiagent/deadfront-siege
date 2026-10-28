@@ -1,19 +1,20 @@
 class_name PlayerPets
 extends RefCounted
-## The survivor's bonded animals: summon and dismiss (HP kept), the pet hex menu (Ride, Bag, Feed,
-## Orders), whistle orders, feeding, bag dumps that never delete, and riding.
+## The survivor's bonded animals: summon and dismiss (HP kept), the pet radial (Animals, Bag, Feed,
+## Ride, Dismiss, Rename; spec 23), whistle orders, feeding, bag dumps that never delete, and riding.
 
 ## Up to MAX_OUT pets at once.
 const MAX_OUT := 3
-## White action glyphs for the pet hex menu (colour = things, white = actions).
+## Pet radial segments, clockwise from the top left as in the reference. icon = UiIcons id (white
+## action symbols). Orders are not here: the whistle hexes (SIC / HEEL / GUARD) stay on the HUD.
 const MENU := {
-	&"ride": {"id": &"ride", "label": "RIDE", "glyph": "⤒"},
-	&"bag": {"id": &"bag", "label": "BAG", "glyph": "▣"},
-	&"feed": {"id": &"feed", "label": "FEED", "glyph": "✚"},
-	&"orders": {"id": &"orders", "label": "ORDERS", "glyph": "⚑"},
-	&"attack": {"id": &"attack", "label": "ATTACK", "glyph": "⚔"},
-	&"heel": {"id": &"heel", "label": "HEEL", "glyph": "↩"},
-	&"guard": {"id": &"guard", "label": "GUARD", "glyph": "◎"},
+	&"animals": {"id": &"animals", "label": "Animals", "icon": "animals"},
+	&"bag": {"id": &"bag", "label": "Bag", "icon": "bag"},
+	&"feed": {"id": &"feed", "label": "Feed", "icon": "feed"},
+	&"ride": {"id": &"ride", "label": "Ride", "icon": "ride"},
+	&"dismount": {"id": &"dismount", "label": "Dismount", "icon": "dismount"},
+	&"dismiss": {"id": &"dismiss", "label": "Dismiss", "icon": "dismiss"},
+	&"rename": {"id": &"rename", "label": "Rename", "icon": "rename"},
 }
 ## HP a pet out of the bag has now, kept on its record so a dismissed pet comes back hurt and a save
 ## keeps it. Uses PetRecord.hp_now once that field exists (integrator hook, saved with the record).
@@ -24,7 +25,8 @@ var p: Player
 var summoned: Array[Creature] = []
 ## The pet the menu was last opened on: Feed and the bag screen's feed button act on it.
 var focus: Creature
-var menu: StationMenu
+var menu: PetRadial
+var rename_dialog: PetRenameDialog
 var mount_hips_offset := Vector3.ZERO
 var _mount_saved_parent: Node
 var _rig_rest: Transform3D
@@ -152,7 +154,9 @@ func order(cmd: StringName) -> void:
 		return
 	var t: Creature = p.hunt.target if (p.hunt and p.hunt.target and is_instance_valid(p.hunt.target)) else null
 	if cmd == &"attack" and t == null:
-		t = p.actions.nearest_creature(30.0, false)  # SIC with no target: the nearest wild animal
+		t = p.controls.selection.shown()  # SIC with no fight: the selected animal (PRD 10.2 "pets join")
+	if cmd == &"attack" and t == null:
+		t = p.actions.nearest_creature(30.0, false)  # else the nearest wild animal
 		if t == null:
 			p.notice("No enemy nearby to sic them on.")
 			return
@@ -168,17 +172,19 @@ func order(cmd: StringName) -> void:
 		_:
 			p.notice("%s guard you." % who)
 
-# ---------------------------------------------------------------- pet hex menu
+# ---------------------------------------------------------------- pet radial
 
 func setup_menu(layer: CanvasLayer) -> void:
-	menu = StationMenu.new()
-	menu.name = "PetMenu"
+	menu = PetRadial.new()
+	menu.name = "PetRadial"
 	menu.player = p
 	layer.add_child(menu)
 	menu.action_chosen.connect(_on_menu)
+	rename_dialog = PetRenameDialog.new()
+	rename_dialog.name = "PetRename"
+	layer.add_child(rename_dialog)
 
-## Tap (or interact key) on your own pet: its hex menu. Ride only for mount species, Bag only when
-## it has one (tame-13: a mount with a bag used to mount and never show the bag).
+## Tap (or interact key) on your own pet: its radial; the same pet again closes it.
 func interact(c: Creature) -> void:
 	if c == null or c.pet_record == null:
 		return
@@ -189,34 +195,55 @@ func interact(c: Creature) -> void:
 		elif p.ui:
 			p.ui.show_pet_bag(c.pet_record)
 		return
+	if menu.visible and menu.pet == c:
+		menu.hide_menu()
+		return
 	menu.show_for(c, entries(c))
 
+## What this pet can do now; anything it cannot is left out. Animals needs the HUD's Animals screen,
+## Bag a bag (tame-13), Ride a mount species (Dismount while you ride it).
 func entries(c: Creature) -> Array:
 	var out: Array = []
-	if &"mount" in c.pet_record.tamed_role:
-		out.append(MENU[&"ride"])
+	var hud := p.get_tree().get_first_node_in_group("hud") if p.is_inside_tree() else null
+	if hud and hud.has_method("open_animals"):
+		out.append(MENU[&"animals"])
 	if c.pet_record.bag:
 		out.append(MENU[&"bag"])
 	out.append(MENU[&"feed"])
-	out.append(MENU[&"orders"])
+	if &"mount" in c.pet_record.tamed_role:
+		out.append(MENU[&"dismount"] if p.mounted_on == c else MENU[&"ride"])
+	out.append(MENU[&"dismiss"])
+	if rename_dialog:
+		out.append(MENU[&"rename"])
 	return out
 
 func _on_menu(anchor: Node3D, action_id: StringName) -> void:
 	var c := anchor as Creature
 	if c == null or not is_instance_valid(c) or c.health.dead:
 		return
+	focus = c
 	match action_id:
-		&"ride":
-			p.mount(c)
+		&"animals":
+			var hud := p.get_tree().get_first_node_in_group("hud")
+			if hud and hud.has_method("open_animals"):
+				hud.open_animals(c.pet_record)
 		&"bag":
 			if p.ui:
 				p.ui.show_pet_bag(c.pet_record)
 		&"feed":
 			feed_best(c)
-		&"orders":
-			menu.show_for(c, [MENU[&"attack"], MENU[&"heel"], MENU[&"guard"]])
-		&"attack", &"heel", &"guard":
-			order(action_id)
+		&"ride":
+			if p.mounted_on and p.mounted_on != c:
+				p.dismount()
+			if p.mounted_on == null:
+				p.mount(c)
+		&"dismount":
+			p.dismount()
+		&"dismiss":
+			dismiss(c)
+		&"rename":
+			var rec := c.pet_record
+			rename_dialog.open(rec.name, func (nm: String) -> String: return p.actions.rename_pet(rec, nm))
 
 ## Feed one unit of the first food in the bag this pet eats.
 func feed_best(c: Creature) -> bool:

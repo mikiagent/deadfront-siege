@@ -6,7 +6,7 @@
 Each icons_*.py module fills a dict I of id -> {"l": [line elements], "s": [solid elements]} with
 coordinates placed by hand on the 64 grid; geo.py and geo2.py only spell out the path syntax
 (capsules, arcs, bands, knockout cuts). icons_a..f are the first pass (5-unit lines plus solids,
-nudged by offsets.py); icons_g, icons_h, icons_i and icons_j are solid drawings centred optically by geo2.place.
+nudged by offsets.py); icons_g to icons_k are solid drawings centred optically by geo2.place.
 Every id is drawn in exactly one module. To change an icon, edit its module and run build.py.
 """
 import os
@@ -18,8 +18,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 from geo import f  # noqa: E402
-MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h", "icons_i", "icons_j"]
-SOLID = {"icons_g", "icons_h", "icons_i", "icons_j"}
+MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h", "icons_i", "icons_j", "icons_k"]
+SOLID = {"icons_g", "icons_h", "icons_i", "icons_j", "icons_k"}
 HEAD = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">\n'
 NOTE_LINE = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->\n'
 NOTE_SOLID = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, solid shapes, white only. -->\n'

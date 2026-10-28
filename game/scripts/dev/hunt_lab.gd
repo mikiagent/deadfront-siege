@@ -111,6 +111,7 @@ func _demo() -> void:
 		_herd[0].statuses.apply(&"groggy", _player)
 		_herd[0].brain.on_aggro(_player)
 	_tap_creature(lead)
+	_player.controls.selection.engage()  # spec 23: the tap selects, the swords start the fight
 	_reveal_plates()
 	# Let alert (0.6 s) resolve into approach / flee, then force a retreat chunk.
 	get_tree().create_timer(0.85).timeout.connect(func () -> void:

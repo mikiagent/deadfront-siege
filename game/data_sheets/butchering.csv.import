@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://ceh3tam1w61jc"
+
+[deps]
+
+files=["res://data_sheets/butchering.kind.translation", "res://data_sheets/butchering.item.translation", "res://data_sheets/butchering.min.translation", "res://data_sheets/butchering.max.translation", "res://data_sheets/butchering.butcher.translation", "res://data_sheets/butchering.attributes.translation"]
+
+source_file="res://data_sheets/butchering.csv"
+dest_files=["res://data_sheets/butchering.kind.translation", "res://data_sheets/butchering.item.translation", "res://data_sheets/butchering.min.translation", "res://data_sheets/butchering.max.translation", "res://data_sheets/butchering.butcher.translation", "res://data_sheets/butchering.attributes.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

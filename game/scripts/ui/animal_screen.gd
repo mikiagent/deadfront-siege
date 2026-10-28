@@ -126,8 +126,10 @@ func _apply_detail_margin(detail_scroll: Control, bottom_margin: int) -> void:
 	if margin:
 		margin.add_theme_constant_override("margin_bottom", bottom_margin)
 
-func open(p: Player) -> void:
+func open(p: Player, rec: PetRecord = null) -> void:
 	player = p
+	if rec and player.bonded.has(rec):
+		selected = player.bonded.find(rec)
 	selected = clampi(selected, 0, maxi(0, player.bonded.size() - 1))
 	visible = true
 	_layout()
@@ -164,8 +166,12 @@ func _rebuild() -> void:
 		if rec.respawning():
 			row.add_child(RespawnRing.new(rec, _rebuild))
 		var b := Button.new()
-		var full := "%s   Lv.%d   %s%s" % [str(rec.species).capitalize(), rec.level, rec.grade, "   EQUIPPED" if _is_out(rec) else ""]
-		b.text = UiTokens.ellipsis(font, full, 300.0, UiTokens.body(view))
+		# The row shows the given name alone (the detail has the species), and it gives way first, so
+		# EQUIPPED stays readable at 844x390 ("Rex II (Zebraceratops)   Lv.1   B-   EQUI...").
+		var tail := "   Lv.%d   %s%s" % [rec.level, rec.grade, "   EQUIPPED" if _is_out(rec) else ""]
+		var fs := UiTokens.body(view)
+		var room := minf(300.0, _list.size.x - 32.0) - font.get_string_size(tail, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		b.text = UiTokens.ellipsis(font, rec.name if rec.name != "" else str(rec.species).capitalize(), room, fs) + tail
 		b.clip_text = true
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.custom_minimum_size = Vector2(240, 56)
@@ -228,11 +234,16 @@ func _show_detail(rec: PetRecord) -> void:
 		for stat in CreatureGenetics.STATS:
 			var stat_name := _title_words(str(stat))
 			growth += "%s\n    %s    +%d growth    EV %d\n" % [stat_name, genes.tier_for(stat), int(genes.level_gains.get(stat, 0)), int(genes.evs.get(stat, 0))]
-	var name := str(rec.species).capitalize()
+	var name := _display_name(rec)
 	_detail.text = "%s\nLv. %d          Grade %s\nXP %.0f / %.0f\n\nHP              %.0f\nAttack          %.0f\nDefense         %.0f\nSpeed           %.0f\nHunger          %.0f / %.0f\n\nGROWTH / POTENTIAL\n%s\nLevel-ups add three random growth points. Training can focus EVs up to the species limits." % [name, rec.level, rec.grade, rec.xp, xp_need, rec.hp, rec.attack, rec.defense, rec.speed, rec.hunger, rec.hunger_max, growth]
 	# "ACTIVE": the title's BONDED n / cap is the roster; this is how many are out (W2-SKILLS H10).
 	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (ACTIVE %d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
 	_summon.disabled = not _is_out(rec) and player.live_pets().size() >= Player.MAX_PETS_OUT
+
+## The pet's own name (pet radial Rename) with its species, else the species.
+func _display_name(rec: PetRecord) -> String:
+	var species := str(rec.species).capitalize()
+	return "%s (%s)" % [rec.name, species] if rec.name != "" else species
 
 func _is_out(rec: PetRecord) -> bool:
 	for pet in player.live_pets():

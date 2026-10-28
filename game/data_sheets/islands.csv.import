@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cggvmtl3o2gv1"
+
+[deps]
+
+files=["res://data_sheets/islands.display.translation", "res://data_sheets/islands.climate.translation", "res://data_sheets/islands.tier.translation", "res://data_sheets/islands.kind.translation", "res://data_sheets/islands.permanent.translation", "res://data_sheets/islands.lifetime.translation", "res://data_sheets/islands.size.translation"]
+
+source_file="res://data_sheets/islands.csv"
+dest_files=["res://data_sheets/islands.display.translation", "res://data_sheets/islands.climate.translation", "res://data_sheets/islands.tier.translation", "res://data_sheets/islands.kind.translation", "res://data_sheets/islands.permanent.translation", "res://data_sheets/islands.lifetime.translation", "res://data_sheets/islands.size.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

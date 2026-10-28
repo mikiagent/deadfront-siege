@@ -23,6 +23,8 @@
 		"harbour": "res://assets/icons/ui/harbour.svg",
 		"harbour_routes": "res://assets/icons/ui/harbour.svg",
 		"dismount": "res://assets/icons/ui/dismount.svg",
+		"ride": "res://assets/icons/ui/ride.svg",
+		"rename": "res://assets/icons/ui/rename.svg",
 		"catapult_stone": "res://assets/icons/ui/siege.svg",
 		"siege": "res://assets/icons/ui/siege.svg",
 		"catapult_toxin": "res://assets/icons/ui/toxin.svg",

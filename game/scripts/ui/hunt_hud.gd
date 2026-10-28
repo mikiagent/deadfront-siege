@@ -41,6 +41,7 @@ var _chase_hex: HexButton
 var _feed_hex: HexButton
 var _food_hexes: Array[HexButton] = []
 var _whistle_hexes: Array[HexButton] = []  # attack / heel / guard, shown while a pet is out
+var _swords_hex: TargetSwordsHex  # beside the selected wild animal: starts the fight (spec 23)
 var _in_combat: bool = false
 var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
@@ -281,7 +282,7 @@ func _build_menu_row() -> void:
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
 	_pets_hex = _hex("", HEX, "ANIMALS")
 	_pets_hex.icon = UiIcons.icon(&"animals")
-	_pets_hex.pressed.connect(_open_animals)
+	_pets_hex.pressed.connect(open_animals)
 	_build_hex = _hex("⌂", HEX, "BUILD")
 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
 	_skills_hex = _hex("★", HEX, "SKILLS")
@@ -340,7 +341,8 @@ func _toggle_debug() -> void:
 	print("[hud] debug %s" % ("on" if Game.debug_overlay else "off"))
 
 
-func _open_animals() -> void:
+## The Animals screen; with a record (the pet radial's Animals segment) it opens on that pet.
+func open_animals(rec: PetRecord = null) -> void:
 	_close_sheet()
 	if _animal_screen == null:
 		_animal_screen = AnimalScreen.new()
@@ -350,7 +352,7 @@ func _open_animals() -> void:
 		layer.layer = 96
 		add_child(layer)
 		layer.add_child(_animal_screen)
-	_animal_screen.open(player)
+	_animal_screen.open(player, rec)
 
 func _build_combat() -> void:
 	_sprint_hex = HexButton.new(HEX)
@@ -448,6 +450,10 @@ func _build_combat() -> void:
 			_chase_hex.queue_redraw()
 	)
 	add_child(_chase_hex)
+	_swords_hex = TargetSwordsHex.new()
+	_swords_hex.player = player
+	add_child(_swords_hex)
+	move_child(_swords_hex, 0)  # under every HUD control: where they meet, the HUD's tap wins
 
 ## Deliberate death card. Shown while player.dead; the survivor stays on the ground until respawn.
 func _build_death() -> void:
@@ -822,6 +828,9 @@ func _placer_taken() -> Array[Rect2]:
 	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
 	if held and held.is_visible_in_tree():
 		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
+		var bag := held.get_node_or_null(^"InventoryButton") as Control  # the BAG hex stands over HANDS
+		if bag and bag.is_visible_in_tree():
+			out.append(Rect2(bag.get_global_rect().position, bag.size + Vector2(0, 18)))
 	var fig := figure_rect()
 	if fig.has_area():
 		out.append(fig)
@@ -1304,12 +1313,14 @@ func _draw() -> void:
 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 16), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
 	# The clock and phase line moved into the day/night dial's label: the dial shows the phase already.
 	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, meta_px + 4.0)
-	# The target plate (current hunt target, else the last creature attacked while it lives) and the
-	# level-up banner take over the landscape phone's centre band from the quest card while they show.
+	# The target plate (current hunt target, else on desktop the selection, else the last creature attacked while it lives) and
+	# the level-up banner take over the landscape phone's centre band from the quest card while they show.
+	var band := HudLayout.centre_band(self, r)
 	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
+	if plate_t == null and not band.has_area():
+		plate_t = player.controls.selection.current()  # a tap selects: its plate shows before any fight (a phone keeps the quest card)
 	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
 		plate_t = _last_target
-	var band := HudLayout.centre_band(self, r)
 	if not band.has_area() or (plate_t == null and _levelup_t < 0.0):
 		_draw_quest(r, mp)
 	# --- XP bar along the bottom
@@ -1324,7 +1335,8 @@ func _draw() -> void:
 	drawn_blocks["level"] = Rect2(lv_pos - Vector2(0.0, 12.0), Vector2(lw, 15.0))
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
-	if cam:
+	# Not under the pet radial: its see-through centre shows the pet, and the ring cut the name in two.
+	if cam and not (player.pets.menu and player.pets.menu.visible):
 		drawn_blocks["nameplate"] = HudLayout.nameplate_rect(cam, player, _font)
 		var at := (drawn_blocks["nameplate"] as Rect2).position + Vector2(0.0, NAME_PX)
 		draw_string(_font, at + Vector2.ONE, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0, 0, 0, 0.7))
@@ -1487,11 +1499,13 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
 			var name_px := UiTokens.heading(r)
 			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
+			draw_rect(Rect2(px, py - 4, pw, 48), Color(UiTokens.INK, 0.75 * a))  # the reference's dark band: the name reads on foliage
 			draw_string(_font, Vector2(px + 12, py + 28), nm, HORIZONTAL_ALIGNMENT_LEFT, pw - 120.0, name_px, Color(1, 1, 1, a))
 			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x
 			draw_string(_font, Vector2(px + 18 + nmw, py + 28), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, UiTokens.DANGER)
 			draw_rect(Rect2(px + pw - 60, py - 4, 52, 52), Color(0.12, 0.12, 0.14, 0.9 * a))
-			draw_string(_font, Vector2(px + pw - 48, py + 32), str(t.def.id).left(1).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 1, 1, a))
+			# ASSUMPTION: no per-species portrait art exists yet; the Animals head stands in for the reference's portrait.
+			draw_texture_rect(UiIcons.icon(&"animals"), Rect2(px + pw - 54, py + 2, 40, 40), false, Color(1, 1, 1, a))
 			var frac := clampf(t.health.hp / maxf(1.0, t.health.max_hp), 0.0, 1.0)
 			draw_rect(Rect2(px, py + 44, pw, 22), Color(0.12, 0.05, 0.05, 0.9 * a))
 			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(0.80, 0.12, 0.12, 0.95 * a))
