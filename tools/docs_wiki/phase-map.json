@@ -625,7 +625,7 @@
             "creature-natures"
           ],
           "source": "docs/design/durango-prompts/07_combat_and_animal_capture.md",
-          "note": "OWNER DECISION 2026-10-28: each species fights by its innate CLASS (the archetype field: pack_flanker, pack_raptor, apex_raptor, tyrant, horned_charger, club_tail, spiked_tail, venom_ranged, saber_cat, swarm, flock_harass, antlered, runner, pack_mule, titan); its nature combines with that (no separate Berserker class). In progress on claude/mmo-tactical, deinonychus first."
+          "note": "OWNER DECISION 2026-10-28: each species fights by its innate CLASS (the archetype field: pack_flanker, pack_raptor, apex_raptor, tyrant, horned_charger, club_tail, spiked_tail, venom_ranged, saber_cat, swarm, flock_harass, antlered, runner, pack_mule, titan); its nature combines with that (no separate Berserker class). In progress on claude/mmo-tactical, deinonychus first. Owner 04:41: every attack on a cooldown (basic shortest), always use the strongest ready attack, move (jump back, strafe, feint) when all are cooling. Owner 04:44: back-offs are jumps, not walks. Owner 04:47: deinonychus redesign — smaller, wider wings, ambush predator from the trees with large forward and backward leaps. Step A (deinonychus) merged 2026-10-28."
         }
       ]
     },

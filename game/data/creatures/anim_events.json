@@ -17,18 +17,31 @@
       "speed": 1.6
     },
     "bite_combo": {
-      "hit_frac": 0.098,
+      "hit_frac": 0.092,
       "hit_fracs": [
-        0.098,
-        0.361,
-        0.82
+        0.092,
+        0.338,
+        0.815
       ],
       "tell_fracs": [
         0.532,
         0.677
       ],
       "windup": true,
-      "note": "chomp left, chomp right, MEGA chomp in the middle: the third winds up for 10 frames (frames 33-42 of 62, the tell) and snaps straight ahead with the widest jaw. Authored for deinonychus (tools/jaw/make_combo.py)."
+      "note": "chomp left, chomp right, MEGA chomp: the front rears up for 12 frames (frames 33-44 of 66, the tell), then the whole body tips down from the hips like an animal drinking and bites at ground level. Exaggerated on purpose (owner: big by default, tune after). tools/jaw/make_combo.py."
+    },
+    "hop_back": {
+      "airborne": [
+        0.2,
+        0.65
+      ],
+      "note": "0.46 s: crouch, backward leap, landing squash; in place, the game moves the creature back during it. tools/jaw/make_hop_back.py (deinonychus first)."
+    },
+    "strafe_left": {
+      "note": "sidestep loop, body keeps facing the target; tools/gait/make_gait.py with tools/gait/<id>_strafe_left.json"
+    },
+    "strafe_right": {
+      "note": "mirror of strafe_left"
     }
   },
   "natural_speeds": {
