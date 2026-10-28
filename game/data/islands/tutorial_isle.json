@@ -1,0 +1,31 @@
+{
+  "id": "tutorial_isle",
+  "display_name": "Tutorial Island",
+  "_about": "TUTORIAL ISLAND (owner 2026-10-28): the shared island every NEW survivor lands on after character creation, before owning a Tamed Island. Kind 'tutorial': permanent, never a sail route, never a home. Everything the tutorial orders (objectives.json 'tutorial') need is here: the standard camp (fire, bench, shed), a stone fire pit, herbs and berries by the camp (Tutorial.dress), and a few weak animals in the gathering ring. # ASSUMPTION: grassland climate at tier 15, the smallest landmass band IslandShape has (330 x 265 m), level 1 everywhere; seed and creature rows are this build's own.",
+  "climate": "grassland",
+  "tier": 15,
+  "level_override": 1,
+  "size_m": 368,
+  "permanent": true,
+  "kind": "tutorial",
+  "lifetime_seconds": 0,
+  "sail_cost": 0,
+  "harbour": [27, 0, 79],
+  "camp": [12, 0, 44],
+  "crater": null,
+  "creatures": [
+    {"species": "compsognathus", "count": 1, "pack": false, "at": [-16, 0, 40]},
+    {"species": "compsognathus", "count": 1, "pack": false, "at": [40, 0, 20]},
+    {"species": "compsognathus", "count": 1, "pack": false, "at": [10, 0, 10]}
+  ],
+  "spawns": {
+    "gathering": [
+      {"species": "compsognathus", "count": 2, "groups": 1},
+      {"species": "zebraceratops", "count": 1, "groups": 1}
+    ]
+  },
+  "terrains": {
+    "meadow": {"tree": 14, "bush": 14, "grass": 70, "rock": 8, "flower": 8}
+  },
+  "seed": 9091
+}

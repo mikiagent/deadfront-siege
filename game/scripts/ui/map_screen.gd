@@ -361,7 +361,7 @@ func _rebuild_facts() -> void:
 		c.queue_free()
 	var r := get_viewport_rect().size
 	var px := 13 if UiTokens.is_compact(r) else 18
-	var life := "Permanent" if World.is_home() else "%d min left" % int(ceil(World.remaining_lifetime / 60.0))
+	var life := "Permanent" if World.is_home() or World.is_tutorial() else "%d min left" % int(ceil(World.remaining_lifetime / 60.0))
 	_facts.add_child(_fact("Island time", life, UiTokens.TEXT, px))
 	var charted := World.visited_islands.size() + (0 if World.visited_islands.has(str(World.island_id)) else 1)
 	_facts.add_child(_fact("Islands visited", "%d / %d" % [charted, _island_ids().size()], UiTokens.GOLD, px))
