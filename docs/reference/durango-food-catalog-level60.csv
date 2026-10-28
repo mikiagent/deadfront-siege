@@ -1,0 +1,255 @@
+Category,Game ID,Food name,Instant energy L60,Digestion energy L60,Potential total L60 (derived),Fullness,Buff L60,Other effect L60,Source URL
+Animal raw,meat_breast,Brisket,43.3,130.0,173.3,40.0,Strength +40,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,fish_tropical_big,Large Tropical Fish,49.2,114.8,164.0,10.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,meat_tutorial,Meat,22.3,7.4,29.7,20.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,s02_meat,Meat,67.8,158.2,226.0,20.0,Strength +90,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,meat,Meat,40.8,122.5,163.3,20.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,shrimp_big,Prawn,48.5,113.1,161.6,10.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,meat_lizard,Lizard Carcass,73.5,89.8,163.3,20.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,meat_serloin,Sirloin,43.3,130.0,173.3,40.0,Strength +40,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,fish_big_eel,Freshwater Eel,48.5,113.1,161.6,10.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,meat_belley,Belly Meat,43.3,130.0,173.3,40.0,Strength +40,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,shrimp,Shrimp,38.0,88.7,126.7,10.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,s02_meat_rotten,Rotten Meat,48.9,114.1,163.0,20.0,Strength +20.9,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,meat_tenderloin,Tenderloin,43.3,130.0,173.3,40.0,Strength +40,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,fish_big_salmon,Salmon,56.6,105.1,161.7,10.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,fish_tropical,Tropical Fish,38.9,90.8,129.7,10.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,milk,Milk,63.6,27.2,90.8,5.0,Perception +20.9,Quenches thirst,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,clam,Clam Meat,32.6,60.5,93.1,10.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,clam_product,Clam Meat,32.6,60.5,93.1,10.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,crab_coconut,Coconut Crab,41.9,51.2,93.1,15.0,Agility +40,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,s02_fish_big,Big Fish,85.0,198.2,283.2,10.0,Strength +85,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,fish_big,Big Fish,48.5,113.1,161.6,10.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,fish,Minnow,38.0,88.7,126.7,10.0,,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Animal raw,s02_fish,Minnow,54.6,127.4,182.0,10.0,Strength +20.9,Stomach Pain Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,persimmon,Persimmon,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,fruit_nut,Dried Fruit,54.6,29.4,84.0,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,cherryblossom_02_flower,Donarium Cherry Blossom,14.4,14.4,28.8,5.0,,"Health +56.3, Life Recovery Speed Buff Lv10",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,cherryblossom_02_root,Donarium Cherry Tree Root,14.4,14.4,28.8,15.0,,"Health +39.5, Life Recovery Speed Buff Lv10",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,chilipepper,Chili Pepper,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,bulb,Bulb,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,flower,Flower,14.4,14.4,28.8,5.0,,"Health +56.3, Life Recovery Speed Buff Lv10",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,wheat_infertility,Wheat (Food),51.0,51.0,102.0,15.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,fruit_sandalwood,White Sandalwood,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,mushroom,Mushroom,14.4,14.4,28.8,30.0,,Poisoned Lv4,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,cherryblossom_01_flower,Cherry Blossom,14.4,14.4,28.8,5.0,,"Health +56.3, Life Recovery Speed Buff Lv10",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,cherryblossom_01_root,Cherry Tree Root,14.4,14.4,28.8,15.0,,"Health +39.5, Life Recovery Speed Buff Lv10",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,bulb_violettulip,Purple Tulip Bulb,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,flower_violettulip,Purple Tulip Flower,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,barley,Barley Rice,51.0,51.0,102.0,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,root,Root,14.4,14.4,28.8,15.0,,"Health +39.5, Life Recovery Speed Buff Lv10",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,apple,Apple,200.0,0.0,200.0,10.0,,"Health +150, Fatigue -200, Quenches thirst",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,wildberry,Raspberry,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,fruit_berry,Raspberry-Type Fruit,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,leaf_bud,Bud,14.4,14.4,28.8,10.0,,"Health +45.4, Life Recovery Speed Buff Lv10",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,cactus,Cactus Pulp,18.9,18.9,37.8,15.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,watermelon_01,Watermelon,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,rice,Rice,51.0,51.0,102.0,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,potato_infertility,Coliban Potato (Food),46.0,46.0,92.0,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,onion_infertility,Onion Roots,48.5,48.5,97.0,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,fruit_tropical,Tropical Fruit,40.4,26.9,67.3,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,fruit,Fruit,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,corn_infertility,Corn (Food),44.5,44.5,89.0,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,desertagave_flesh,Agave Pulp,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,fruit_juicy,Normal Fruit,38.5,25.7,64.2,10.0,,Juice Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,pinenut,Pine Nuts,54.6,29.4,84.0,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,valentine_cacaobean,Cacao Bean,6.5,15.3,21.8,5.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,coffee,Coffee,13.8,13.8,27.6,5.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,coconut,Coconut,40.4,26.9,67.3,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,bean,Bean,51.0,51.0,102.0,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,taro_infertility,Taro,51.7,42.3,94.0,15.0,,Fatigue -15,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,tomato_infertility,Tomato (Food),46.0,46.0,92.0,10.0,,Juice Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,grape,Grape,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,bellpepper,Bell Pepper,29.7,19.8,49.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,leaf_herb,Herb,14.4,14.4,28.8,10.0,,"Health +45.4, Life Recovery Speed Buff Lv10",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Plant raw,pumpkin,Pumpkin,47.0,47.0,94.0,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,rice_cake_anniversary_event,[Event] Celebratory Rice Cake,200.0,0.0,200.0,10.0,"Strength +50, Dexterity +50, Perception +50",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,meatball_01,Meat Dumpling,71.5,132.9,204.4,10.0,Strength +20.9,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,broth_meat,Meat Broth,38.0,9.5,47.5,5.0,,Water Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,powder_grain,Grain Flour,14.8,34.6,49.4,60.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,oil_grains,Grain Oil,41.5,97.0,138.5,120.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,oil_oily_fruit,Fruit Oil,46.6,108.7,155.3,120.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,sauce_02_fruit,Fruit Sauce,62.5,41.7,104.2,60.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,broth,Soup,34.8,8.7,43.5,5.0,,Water Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,honey,Honey,74.2,74.2,148.4,5.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,rice_cake,Rice Cake,120.2,40.1,160.3,15.0,Max Energy +60,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,dough_noodle,Noodle Dough,19.8,29.7,49.5,30.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,rice_steamed,Cooked Rice,122.7,52.6,175.3,15.0,Max Energy +60,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,butter,Butter,80.2,80.2,160.4,5.0,Perception +20.9,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,powder_barley,Barley Flour,14.8,34.6,49.4,60.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,dough_bread,Bread Dough,19.8,29.7,49.5,30.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,broth_bone,Bone Broth,36.4,9.1,45.5,5.0,,Water Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,broth_fish,Fish Broth,36.4,9.1,45.5,5.0,,Water Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,sugar,Sugar,74.2,74.2,148.4,5.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,salt,Salt,31.1,3.4,34.5,5.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,dough_songpyeon,Mochi Dough,19.8,29.7,49.5,30.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,cheese_02,Aged Cheese,99.0,99.0,198.0,15.0,Perception +46,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,sauce_02,Vegetable Sauce,59.5,39.7,99.2,60.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,vinegar,Vinegar,35.6,3.9,39.5,5.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,broth_vege,Veggie Soup,34.8,8.7,43.5,5.0,,Water Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,sauce_02_vege,Vegetable Sauce,59.5,39.7,99.2,60.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,ice,Ice,29.7,19.8,49.5,10.0,,Cold Food Lv60,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,sauce_01,Oil Sauce,56.5,37.7,94.2,60.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,white_rose_salt,Rose Salt,31.1,3.4,34.5,5.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,cheese_01,Cheese,80.2,80.2,160.4,15.0,Perception +20.9,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,powder_coffee,Coffee Grounds,14.8,34.6,49.4,60.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,dough_cake,Cake Dough,19.8,29.7,49.5,30.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,cream,Cream,107.8,107.8,215.6,5.0,Perception +20.9,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,sauce_03,Cream Sauce,68.5,45.7,114.2,60.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,dough_pie,Pie Dough,19.8,29.7,49.5,30.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Food component,sashimi,Sashimi,119.1,79.4,198.5,15.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,brisket_steak,Brisket Steak,62.3,26.7,89.0,50.0,"Strength +30, Lethality +6.5",Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,hp_medicine_02_store,Potent Health Recovery Medicine,0.0,0.0,0.0,5.0,,"Health +700, Life +760",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,halloween_spider_skewers,Spider Skewer,72.5,48.3,120.8,20.0,,"Health +88.5, Life +76.7, Hot Food Lv2",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,halloween_cookie,Spider Cookie,59.5,0.0,59.5,5.0,,"Fatigue -15, Thirst Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,hp_medicine_store,Health Recovery Medicine,0.0,0.0,0.0,5.0,,"60% of max Health, Life equal to 60% of Health",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,stew_02,Chunky Stew,169.4,72.6,242.0,7.0,Perception +46,Hot Food Lv4,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,hardtack_store,Hardtack,0.0,0.0,0.0,3.0,,60% of max Energy,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,sausage_02,Premium Sausage,172.9,74.1,247.0,15.0,Strength +40,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,skewer_meat_mart,Meat,98.0,65.3,163.3,12.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,meat_skewers,Meat Kebab,98.0,65.3,163.3,12.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_03_pizza_meat,Meat Lover's Pizza (Slice),176.4,75.6,252.0,30.0,"Strength +46, Will +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_02_meat,Meat-Stuffed Bread,185.6,61.9,247.5,15.0,"Strength +30, Will +30",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,feed_carni_01,Meat Meal,120.6,13.4,134.0,20.0,,"Fatigue +150, Strange Eats Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_stir_02_oil_sauce,Garnished Fried Noodles,199.9,35.3,235.2,20.0,"Will +46, Intelligence +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_stir_02_vege_sauce,Garnished Fried Noodles,199.9,35.3,235.2,20.0,"Dexterity +46, Intelligence +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_stir_02,Garnished Fried Noodles,199.9,35.3,235.2,20.0,Intelligence +46,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_stir_02_fruit_sauce,Garnished Fried Noodles,199.9,35.3,235.2,20.0,"Intelligence +46, Charisma +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_stir_02_cream_sauce,Garnished Fried Noodles,199.9,35.3,235.2,20.0,"Intelligence +46, Perception +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,fried_dinosaur_eggs,Fried Dino Egg,111.2,27.8,139.0,25.0,,"Health +67.2, Life +67.2",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,dried_persimmon_craftingRewards,Dried Persimmon,0.0,0.0,0.0,20.0,,Surging Sweetness Lv60,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,dried_persimmon,Dried Persimmon,146.7,79.0,225.7,20.0,"Dexterity +20.9, Perception +20.9",Vigor Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_03_pizza_fruit,Fruit Pizza (Slice),165.9,71.1,237.0,30.0,"Will +46, Charisma +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_02_fruit,Fruit-Stuffed Bread,170.6,56.9,227.5,15.0,"Will +30, Charisma +30",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,fruit_sandwich,Fruit Sandwich,110.8,27.7,138.5,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,fruit_sandwich_pvp,Fruit Sandwich,110.8,27.7,138.5,10.0,,Fruit Sandwich Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,fruit_sandwich_weapon,Fruit Sandwich: Weapon Crafting Flavor,110.8,27.7,138.5,10.0,Weapon Crafting Ability +33,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,fruit_liquid,Fruit Liquid,20.0,20.0,40.0,30.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,wine_fruit,Fruit Wine,22.4,22.4,44.8,5.0,"Dexterity +46, Charisma +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_soup_broth_meat,Noodles,163.1,54.4,217.5,13.0,"Strength +46, Intelligence +46",Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_soup,Noodles,163.1,54.4,217.5,13.0,Intelligence +46,Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_soup_broth_bone,Noodles,163.1,54.4,217.5,13.0,"Endurance +46, Intelligence +46",Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_soup_broth_vege,Noodles,163.1,54.4,217.5,13.0,"Dexterity +46, Intelligence +46",Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_soup_broth_fish,Noodles,163.1,54.4,217.5,13.0,"Agility +46, Intelligence +46",Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,cosmos_pizza,Flower Cake,120.2,40.1,160.3,15.0,Dexterity +30,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,warp_ketupat,Ketupat,20.0,180.0,200.0,10.0,,Vigor Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,taro_stick,Sweet Taro Sticks,0.0,0.0,0.0,20.0,,Continuous Energy Recovery Lv5,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,roasted_shrimp,Prawn Skewer,119.1,79.4,198.5,15.0,Max Energy +39.5,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,sirloin_steak,Sirloin Steak,62.3,26.7,89.0,50.0,"Strength +30, Defense +4.6",Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,stew_ricecake,Rice Cake Soup,115.4,62.1,177.5,6.0,,"Health +24.8, Hot Food Lv2",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,stew_ricecake_event_newyear_2019,Rice Cake Soup,101.4,25.3,126.7,13.0,,"Health +24.8, Life +24.8, Vigor Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,stew_dumpling_ricecake_event_newyear_2019,Rice Cake Dumpling Soup,101.4,25.3,126.7,18.0,,"Health +24.8, Life +24.8, Vigor Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,tokbokki_cream_sauce,Tteokbokki,174.0,43.5,217.5,20.0,"Endurance +46, Perception +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,tokbokki,Tteokbokki,174.0,43.5,217.5,20.0,Endurance +46,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,tokbokki_vege_sauce,Tteokbokki,174.0,43.5,217.5,20.0,"Dexterity +46, Endurance +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,tokbokki_oil_sauce,Tteokbokki,174.0,43.5,217.5,20.0,"Endurance +46, Will +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,tokbokki_fruit_sauce,Tteokbokki,174.0,43.5,217.5,20.0,"Endurance +46, Charisma +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,ramen,Ramen,42.3,63.5,105.8,10.0,Intelligence +30,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,marshmallow,Marshmallow,43.0,100.5,143.5,15.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,stone_plate_egg_04,Stone-Cooked Egg: Furniture Flavor,0.0,0.0,0.0,10.0,Furniture Crafting Ability +40,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,stone_plate_egg_03,Stone-Cooked Egg: Furniture Flavor,0.0,0.0,0.0,10.0,Furniture Crafting Ability +25,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,stone_plate_egg_01,Stone-Cooked Egg: Construction Flavor,0.0,0.0,0.0,10.0,Building Ability +25,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,stone_plate_egg_02,Stone-Cooked Egg: Construction Flavor,0.0,0.0,0.0,10.0,Building Ability +40,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,cherryblossom_2019_latte,Cherry Blossom Latte,141.8,60.8,202.6,7.0,Dexterity +22,"Quenches thirst, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,cherryblossom_2019_snack,Cherry Blossom Cookie,100.5,67.0,167.5,5.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,cherryblossom_2019_popcorn,Cherry Blossom Popcorn,67.0,100.5,167.5,6.0,Charisma +20.9,Health +44.5,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bacon,Bacon,63.2,15.8,79.0,25.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,beer_craftingRewards,Barley Drink,0.0,0.0,0.0,10.0,,"Fatigue -30, Quenching Drink Lv60",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,beer,Barley Drink,22.4,22.4,44.8,5.0,Attack +2,Fatigue -30,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_stir_01_cream_sauce,Fried Noodles,174.0,43.5,217.5,15.0,"Intelligence +46, Perception +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_stir_01_oil_sauce,Fried Noodles,174.0,43.5,217.5,15.0,"Will +46, Intelligence +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_stir_01_vege_sauce,Fried Noodles,174.0,43.5,217.5,15.0,"Dexterity +46, Intelligence +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_stir_01,Fried Noodles,174.0,43.5,217.5,15.0,Intelligence +46,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,noodle_stir_01_fruit_sauce,Fried Noodles,174.0,43.5,217.5,15.0,"Intelligence +46, Charisma +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,wine_spring,Spring Fruit Wine,24.0,216.0,240.0,30.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,shaved_ice,Shaved Ice,29.7,19.8,49.5,10.0,,Cold Food Lv60,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_01,Bread,148.5,49.5,198.0,15.0,Max Energy +60,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,puff_grain,Rice Puffs,138.6,59.4,198.0,15.0,Will +30,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,belly_steak,Belly Meat Steak,62.3,26.7,89.0,50.0,"Strength +30, Accuracy +4.5",Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,samgyetang,Ginseng Chicken Soup,174.0,43.5,217.5,13.0,"Dexterity +85, Charisma +82","Health +24.8, Life +24.8, Vigor Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,mojito,Refreshing Mojito,103.6,44.4,148.0,5.0,Charisma +50,Water Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,sandwich_01,Sandwich,151.9,50.6,202.5,15.0,"Dexterity +30, Will +30",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,salad_01,Salad,123.7,53.0,176.7,10.0,Dexterity +20.9,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_03_pizza_fish,Fish Lover's Pizza (Slice),172.9,74.1,247.0,30.0,"Agility +46, Will +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_02_fish,Fish-Stuffed Bread,181.9,60.6,242.5,15.0,"Agility +30, Will +30",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,food_k,Survival Food,50.0,0.0,50.0,3.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,ration_survival,Survival Food,109.0,0.0,109.0,3.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,sausage_01,Sausage,145.2,62.2,207.4,15.0,Strength +30,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_02,Stuffed Bread,170.6,56.9,227.5,15.0,Will +30,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,songpyeon,Mochi,203.6,67.9,271.5,30.0,"Strength +46, Dexterity +30",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,shaved_ice_watermelon,Watermelon Shaved Ice,169.4,72.6,242.0,10.0,,"Health +118, Life +118, Fatigue -70, Cold Food Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,watermelon_punch,Watermelon Fruit Punch,22.4,22.4,44.8,10.0,,"Health +88.5, Life +88.5, Fatigue -50, Quenches thirst, Cold Food Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,boiled_meat,Boiled Meat,119.5,64.3,183.8,10.0,Strength +20.9,Hot Food Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,meat_steak,Steak,55.3,23.7,79.0,50.0,"Strength +20.9, Attack +3.3",Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,stew_01,Stew,138.2,59.2,197.4,7.0,Perception +20.9,Hot Food Lv2,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,rice_drink_event_newyear_2019,Rice Punch,17.3,7.4,24.7,7.0,,"Fatigue -150, Quenches thirst, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,exp_jelly_02,Booster Jelly,0.0,0.0,0.0,5.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,exp_jelly_01,Booster Jelly Piece,0.0,0.0,0.0,5.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,fried_hen,Broody Hen,0.0,0.0,0.0,20.0,,"30% of max Health, 30% of max Energy, Fatigue -100",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,tenderloin_steak,Tenderloin Steak,62.3,26.7,89.0,50.0,"Strength +30, Attack +6.6",Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_03_pizza_vege,Veggie Pizza (Slice),169.4,72.6,242.0,30.0,"Dexterity +46, Will +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_02_vege,Veggie-Stuffed Bread,174.4,58.1,232.5,15.0,"Dexterity +30, Will +30",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,chicken_02_fruit_sauce,Spicy Fried Chicken,177.7,76.1,253.8,30.0,"Strength +46, Charisma +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,chicken_02_cream_sauce,Spicy Fried Chicken,177.7,76.1,253.8,30.0,"Strength +46, Perception +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,chicken_02_vege_sauce,Spicy Fried Chicken,177.7,76.1,253.8,30.0,"Strength +46, Dexterity +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,chicken_02,Spicy Fried Chicken,177.7,76.1,253.8,30.0,"Strength +46, Endurance +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,chicken_02_oil_sauce,Spicy Fried Chicken,177.7,76.1,253.8,30.0,"Strength +46, Will +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,feed_carni_02,Carnivore Feed,169.7,18.8,188.5,30.0,,"Fatigue +130, Strange Eats Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,jasmine_grilled_fish,Jasmine Grilled Fish,126.4,31.6,158.0,20.0,"Will +40, Intelligence +40","Quenches thirst, Vigor Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,sushi,Sushi,180.2,77.2,257.4,20.0,"Agility +30, Endurance +30",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,feed_herb_02,Herbivore Feed,169.7,18.8,188.5,30.0,,"Fatigue +130, Strange Eats Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,chicken_01,Fried Chicken,139.9,59.9,199.8,20.0,"Strength +46, Endurance +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,test_chicken,Fried Chicken,46.0,138.0,184.0,120.0,,Health +500,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,valentine_cacao_mass,Cacao Paste,8.3,19.4,27.7,5.0,,Thirst Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,cake_01,Cake,146.7,79.0,225.7,20.0,"Will +46, Perception +46",Vigor Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,corn_salad,Corn Salad,150.0,37.5,187.5,5.0,"Will +28, Intelligence +40",Quenches thirst,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,cake_02,Cream Cake,157.3,84.7,242.0,30.0,"Will +46, Perception +46",Vigor Lv2,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,event_tiramisu_01,Tiramisu,157.3,84.7,242.0,10.0,"Dexterity +46, Perception +46, Charisma +30",Vigor Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,spam,Pressed Ham,39.6,158.4,198.0,30.0,Strength +30,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_03_pizza,Pizza (Slice),165.9,71.1,237.0,30.0,Will +46,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,pizza,Pizza Slice,152.6,65.4,218.0,5.0,Dexterity +43.1,Hot Food Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,bread_picnic,Picnic Bread,148.5,49.5,198.0,15.0,Max Energy +80,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,halloween_candy,Halloween Candy,5.0,5.0,10.0,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,hambuger,Hamburger,50.0,0.0,50.0,5.0,,Stamina Recovery Speed Buff Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,hamberger_01,Hamburger,203.6,67.9,271.5,30.0,"Strength +46, Will +46",,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,halloween_soup,Pumpkin Porridge,163.1,54.4,217.5,20.0,,Hot Food Lv3,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,halloween_cake,Pumpkin Cake,89.1,89.1,178.2,25.0,,"Health +70.8, Life +64.9, Quenches thirst, Vigor Lv2",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,glazed_meat,House Party Glazed Meat,161.2,26.2,187.4,10.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Prepared food,survival_food_the_firm,Company Survival Food,99.0,0.0,99.0,3.0,,,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,fatigue_drug_store,Potent Fatigue Restorative,0.0,0.0,0.0,5.0,,"Fatigue -1,000, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,fatigue_drug_store_01,Potent Fatigue Restorative,0.0,0.0,0.0,5.0,,"Fatigue -1,000, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,juice_fruit,Fruit Juice,96.9,41.6,138.5,7.0,Charisma +20.9,"Quenches thirst, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,tea_01_green,Green Tea,22.4,22.4,44.8,5.0,,Enhanced Ability Lv60,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,coffee_dutch,Dutch Coffee,47.9,8.4,56.3,5.0,Max Fatigue +132.8,Caffeinated Lv60,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,event_fatigue_drug,Dunia Warp Mineral Water,0.0,0.0,0.0,3.0,,"Fatigue -200, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,coffee_drip,Drip Coffee,47.9,8.4,56.3,5.0,,Caffeinated Lv60,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,coffee_lessbe,Nescoffee,12.0,3.0,15.0,30.0,,"Health +10, Fatigue -24",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,s02_bacchus,Bacchus,16.0,4.0,20.0,30.0,,"Health +10, Fatigue -75",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,bacchus,Bacchus,16.0,4.0,20.0,30.0,,"Health +10, Fatigue -34",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,bluebull,Blue Bull,15.0,15.0,30.0,30.0,,"Health +10, Fatigue -44",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,event_fatigue_drug_01,Mineral Water,0.0,0.0,0.0,3.0,,"Fatigue -200, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,juice_cactus,Cactus Juice,89.9,38.6,128.5,7.0,,"Quenches thirst, Quenched (Cactus) Lv60",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,juice_vege,Vegetable Juice,93.4,40.1,133.5,7.0,Dexterity +20.9,"Quenches thirst, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,jasmine_tea,Jasmine Tea,71.2,17.8,89.0,4.0,,Jasmine Aroma Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,taro_milktea,Taro Milk Tea,0.0,0.0,0.0,20.0,,"Fatigue -19.8, Continuous Energy Recovery Lv5",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,fatigue_drug_02_store,Fatigue Restorative,0.0,0.0,0.0,5.0,,"Fatigue -300, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,fatigue_drug,Fatigue Restorative,0.0,0.0,0.0,5.0,,"Fatigue -300, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,fatigue_drug_01_store,Fatigue Restorative,0.0,0.0,0.0,5.0,,"Fatigue -300, Water Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Drink,tea_01_black,Black Tea,22.4,22.4,44.8,5.0,,Enhanced Ability Lv60,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,medicine_poison_oil_02,Toxic Oil Immunizer,24.8,24.8,49.6,20.0,,Oil Toxicity Antiserum Lv5,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,medicine_poison_oil,Toxic Oil Antidote,24.8,24.8,49.6,20.0,,Toxic Oil Detoxification Lv1,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,immune_bleeding_inner,Internal Bleeding Preventative,35.6,3.9,39.5,5.0,,"Quenches thirst, Internal Bleeding Prevention Lv60",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,immune_lizard,Lizard Poison Preventative,35.6,3.9,39.5,5.0,,"Quenches thirst, Lizard Poison Prevention Lv60",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,immune_gas,Poison Gas Preventative,35.6,3.9,39.5,5.0,,"Quenches thirst, Poison Gas Prevention Lv60",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,immune_collect,Rash Preventative,35.6,3.9,39.5,5.0,,"Quenches thirst, Rash Prevention Lv60",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,immune_bug,Bug Poison Preventative,35.6,3.9,39.5,5.0,,"Quenches thirst, Bug Poison Prevention Lv60",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,s02_worm_stew,Insect Gruel,0.0,0.0,0.0,20.0,,"Health -200, Life +-200, Fatigue -100, Quenches thirst",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,painkiller_root,Painkiller Root,10.0,10.0,20.0,30.0,,"Health +77.2, Health Recovery Speed Buff Lv8",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,medicine_albochil,Zylactin-Z,5.0,5.0,10.0,30.0,,"Health +45.4, Fatigue -10",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,antidote_heatpoison,Inflammation Antidote,35.6,3.9,39.5,5.0,,"Quenches thirst, Inflammation Prevention Lv1",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,medicine_pillet_01,Normal Pill,10.0,10.0,20.0,30.0,,Health +77.2,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,hemostat,Anti-Bleeding Agent,14.4,14.4,28.8,5.0,,Life Recovery Speed Buff Lv12,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,medicine_modern_01,Painkiller,10.0,10.0,20.0,30.0,,"Health +87.2, Fatigue -10",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,immune_bleeding_neverstop,Hemorrhagic Poison Preventative,35.6,3.9,39.5,5.0,,"Quenches thirst, Abnormal Bleeding Prevention Lv60",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,immune_tetanus,Tetanus Preventative,35.6,3.9,39.5,5.0,,"Quenches thirst, Tetanus Prevention Lv60",https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html
+Medicine,medicine_tea_01,Herbal Tea,5.0,5.0,10.0,30.0,,Health +50.4,https://github.com/Satobi-ZZ/durango-homecoming-guide/blob/main/en/food-list.html

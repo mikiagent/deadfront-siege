@@ -1,13 +1,36 @@
-id,display_name,provenance,channels,energy_instant_release_ratio,digest_seconds,thirst,fullness,eat_seconds,taste_score,buffs,statuses
-berry,Wild Berry,new-design,energy;taste,0.6,240.0,,,,58,,
-camp_stew,Camp Stew,new-design,energy;fullness;health,0.5,,,30.0,,62,,
-crafters_meal,Crafter's Meal,new-design,energy;fullness;ability;taste,0.5,,,25.0,3.0,70,"[{""id"": ""crafters_meal_ability"", ""group"": ""enhanced_ability"", ""display_name"": ""Crafter's Meal: Ability"", ""duration"": 1200.0, ""stats"": {""weapon_crafting_ability"": {""add"": 20.0}}, ""spec_keys"": {""weapon_crafting_ability"": ""Weapon Crafting Ability""}, ""assumption"": ""Spec 32 s3's own example (+20 Weapon Crafting Ability, not 20 category levels) with a 20 min buff; the meal's Energy/Fullness are ASSUMPTION.""}]",
-drip_coffee,Drip Coffee,restoration-evaluated,energy;fatigue;status;taste,0.851,300.0,,,2.5,56,,"[{""id"": ""caffeinated"", ""duration"": 600.0}]"
-dutch_coffee,Dutch Coffee,restoration-evaluated,energy;status;taste;max_fatigue,0.851,300.0,,,2.5,56,"[{""id"": ""dutch_coffee_max_fatigue"", ""group"": ""enhanced_survival"", ""display_name"": ""Dutch Coffee: Maximum Fatigue"", ""duration"": 1200.0, ""stats"": {""max_fatigue"": {""add"": 132.8}}, ""assumption"": ""Maximum Fatigue +132.8 for 20 min at level 60 is the reconstruction's evaluated Dutch Coffee row (spec 32 s4/s5), restoration-evaluated. Its 15 min Caffeinated is ASSUMPTION.""}]","[{""id"": ""caffeinated"", ""duration"": 900.0}]"
-fatigue_tonic,Fatigue Restorative,restoration-evaluated,fatigue;taste,,,,,1.5,30,,
-grilled_meat,Grilled Meat,new-design,energy;fullness;taste,0.7,300.0,,25.0,,66,,
-herb_buff_meal,Herbed Meal,new-design,energy;fullness,0.5,,,20.0,,60,,
-raw_meat,Raw Meat,restoration-evaluated,energy,0.25,300.0,,,,20,,
-skewer,Skewer,new-design,energy;fullness,0.6,,,20.0,,58,,
-spring_water,Spring Water,new-design,energy;thirst,1.0,0.0,35.0,,1.5,40,,
-tea,Tea,restoration-evaluated,energy;thirst;taste,0.5,300.0,20.0,,2.5,62,,
+id,display_name,provenance,channels,energy_instant_release_ratio,digest_seconds,thirst,fullness,eat_seconds,taste_score,buffs,statuses,health,fatigue,temperature,temperature_level,risk_status,risk_level
+berries,Berries,restoration-evaluated,energy;fullness,0.6,300.0,,10,,,,,,,,,,
+berry,Wild Berry,restoration-evaluated,energy;taste;fullness,0.6,240.0,,10,,58,,,,,,,,
+boiled_meat,Boiled Meat,restoration-evaluated,energy;fullness;status;attribute,0.65,300.0,,10,,,"[{""id"": ""boiled_meat_catalog"", ""group"": ""enhanced_ability"", ""display_name"": ""Boiled Meat: Strength +20.9"", ""duration"": 1200.0, ""stats"": {""strength"": {""add"": 20.9}}, ""assumption"": ""Catalog boiled_meat 'Buff L60' Strength +20.9 (fan guide, restoration-evaluated), applied flat at every level: no level rule for buffs exists yet. # ASSUMPTION: the 20 min duration (spec 32 s6's 20 min meal buffs; the catalog gives none).""}]",,,,hot,1,,
+cactus_flesh,Cactus Flesh,restoration-evaluated,energy;fullness,0.5,300.0,,15,,,,,,,,,,
+cactus_juice,Cactus Juice,restoration-evaluated,energy;fullness;thirst,0.7,300.0,20,7,,,,,,,,,,
+camp_stew,Camp Stew,restoration-evaluated,energy;fullness;health;status;attribute,0.7,300.0,,7,,62,"[{""id"": ""camp_stew_catalog"", ""group"": ""enhanced_ability"", ""display_name"": ""Camp Stew: Perception +20.9"", ""duration"": 1200.0, ""stats"": {""perception"": {""add"": 20.9}}, ""assumption"": ""Catalog stew_01 'Buff L60' Perception +20.9 (fan guide, restoration-evaluated), applied flat at every level: no level rule for buffs exists yet. # ASSUMPTION: the 20 min duration (spec 32 s6's 20 min meal buffs; the catalog gives none).""}]",,5.0,,hot,2,,
+carnivore_feed,Carnivore Feed,restoration-evaluated,energy;fullness;fatigue,0.9,300.0,,30,,,,,,130,,,,
+coconut,Coconut,restoration-evaluated,energy;fullness,0.6,300.0,,10,,,,,,,,,,
+corn,Corn,restoration-evaluated,energy;fullness,0.5,300.0,,10,,,,,,,,,,
+crafters_meal,Crafter's Meal,restoration-evaluated,energy;fullness;ability;taste,0.8,300.0,,10,3.0,70,"[{""id"": ""crafters_meal_ability"", ""group"": ""enhanced_ability"", ""display_name"": ""Crafter's Meal: Ability"", ""duration"": 1200.0, ""stats"": {""weapon_crafting_ability"": {""add"": 20.0}}, ""spec_keys"": {""weapon_crafting_ability"": ""Weapon Crafting Ability""}, ""assumption"": ""Spec 32 s3's own example (+20 Weapon Crafting Ability, not 20 category levels) with a 20 min buff; the meal's Energy/Fullness are ASSUMPTION.""}]",,,,,,,
+drip_coffee,Drip Coffee,restoration-evaluated,energy;fatigue;status;taste;fullness,0.851,300.0,,5,2.5,56,,"[{""id"": ""caffeinated"", ""duration"": 600.0}]",,,,,,
+dutch_coffee,Dutch Coffee,restoration-evaluated,energy;status;taste;max_fatigue;fullness,0.851,300.0,,5,2.5,56,"[{""id"": ""dutch_coffee_max_fatigue"", ""group"": ""enhanced_survival"", ""display_name"": ""Dutch Coffee: Maximum Fatigue"", ""duration"": 1200.0, ""stats"": {""max_fatigue"": {""add"": 132.8}}, ""assumption"": ""Maximum Fatigue +132.8 for 20 min at level 60 is the reconstruction's evaluated Dutch Coffee row (spec 32 s4/s5), restoration-evaluated. Its 15 min Caffeinated is ASSUMPTION.""}]","[{""id"": ""caffeinated"", ""duration"": 900.0}]",,,,,,
+fatigue_tonic,Fatigue Restorative,restoration-evaluated,fatigue;taste;fullness;thirst,,,20,5,1.5,30,,,,-300,,,,
+fish,Fish,restoration-evaluated,energy;fullness,0.3,300.0,,10,,,,,,,,,,1
+fruit_juice,Fruit Juice,restoration-evaluated,energy;fullness;thirst;attribute,0.7,300.0,20,7,,,"[{""id"": ""fruit_juice_catalog"", ""group"": ""enhanced_ability"", ""display_name"": ""Fruit Juice: Charisma +20.9"", ""duration"": 1200.0, ""stats"": {""charisma"": {""add"": 20.9}}, ""assumption"": ""Catalog juice_fruit 'Buff L60' Charisma +20.9 (fan guide, restoration-evaluated), applied flat at every level: no level rule for buffs exists yet. # ASSUMPTION: the 20 min duration (spec 32 s6's 20 min meal buffs; the catalog gives none).""}]",,,,,,,
+grilled_meat,Grilled Meat,restoration-evaluated,energy;fullness;taste,0.6,300.0,,12,,66,,,,,,,,
+herb_buff_meal,Herbed Meal,restoration-evaluated,energy;fullness,0.6,300.0,,12,,60,,,,,,,,
+herbal_tea,Herbal Tea,restoration-evaluated,energy;fullness;health,0.5,300.0,,30,,,,,50.4,,,,,
+herbivore_feed,Herbivore Feed,restoration-evaluated,energy;fullness;fatigue,0.9,300.0,,30,,,,,,130,,,,
+mango,Mango,restoration-evaluated,energy;fullness,0.6,300.0,,10,,,,,,,,,,
+meat_broth,Meat Broth,restoration-evaluated,energy;fullness;thirst,0.8,300.0,20,5,,,,,,,,,,
+meatball,Meatball,restoration-evaluated,energy;fullness;attribute,0.35,300.0,,10,,,"[{""id"": ""meatball_catalog"", ""group"": ""enhanced_ability"", ""display_name"": ""Meatball: Strength +20.9"", ""duration"": 1200.0, ""stats"": {""strength"": {""add"": 20.9}}, ""assumption"": ""Catalog meatball_01 'Buff L60' Strength +20.9 (fan guide, restoration-evaluated), applied flat at every level: no level rule for buffs exists yet. # ASSUMPTION: the 20 min duration (spec 32 s6's 20 min meal buffs; the catalog gives none).""}]",,,,,,,
+meatball_mix,Meatball Mix,restoration-evaluated,energy;fullness,0.25,300.0,,20,,,,,,,,,,1
+mushroom,Mushroom,restoration-evaluated,energy;fullness;status,0.5,300.0,,30,,,,,,,,,poisoned,4
+raptor_meat,Raptor Meat,restoration-evaluated,energy;fullness,0.45,300.0,,20,,,,,,,,,,1
+raw_meat,Raw Meat,restoration-evaluated,energy;fullness,0.25,300.0,,20,,20,,,,,,,,1
+roast,Roast,restoration-evaluated,energy;fullness;status;attribute;combat,0.7,300.0,,50,,,"[{""id"": ""roast_catalog"", ""group"": ""enhanced_ability"", ""display_name"": ""Roast: Strength +30, Defense +4.6"", ""duration"": 900.0, ""stats"": {""strength"": {""add"": 30.0}, ""defense"": {""add"": 4.6}}, ""assumption"": ""Catalog sirloin_steak 'Buff L60' Strength +30, Defense +4.6 (fan guide, restoration-evaluated), applied flat at every level: no level rule for buffs exists yet. # ASSUMPTION: the 15 min duration (spec 32 s6's Sirloin Steak).""}]",,,,hot,3,,
+salad,Salad,restoration-evaluated,energy;fullness;attribute,0.7,300.0,,10,,,"[{""id"": ""salad_catalog"", ""group"": ""enhanced_ability"", ""display_name"": ""Salad: Dexterity +20.9"", ""duration"": 1200.0, ""stats"": {""dexterity"": {""add"": 20.9}}, ""assumption"": ""Catalog salad_01 'Buff L60' Dexterity +20.9 (fan guide, restoration-evaluated), applied flat at every level: no level rule for buffs exists yet. # ASSUMPTION: the 20 min duration (spec 32 s6's 20 min meal buffs; the catalog gives none).""}]",,,,,,,
+sashimi,Sashimi,restoration-evaluated,energy;fullness,0.6,300.0,,15,,,,,,,,,,
+seasoned_roast,Seasoned Roast,restoration-evaluated,energy;fullness;status;attribute;combat,0.7,300.0,,50,,,"[{""id"": ""seasoned_roast_catalog"", ""group"": ""enhanced_ability"", ""display_name"": ""Seasoned Roast: Strength +30, Attack +6.6"", ""duration"": 1200.0, ""stats"": {""strength"": {""add"": 30.0}, ""attack"": {""add"": 6.6}}, ""assumption"": ""Catalog tenderloin_steak 'Buff L60' Strength +30, Attack +6.6 (fan guide, restoration-evaluated), applied flat at every level: no level rule for buffs exists yet. # ASSUMPTION: the 20 min duration (spec 32 s6's 20 min meal buffs; the catalog gives none).""}]",,,,hot,3,,
+shaved_ice,Shaved Ice,restoration-evaluated,energy;fullness;status,0.6,300.0,,10,,,,,,,cold,1,,
+skewer,Skewer,restoration-evaluated,energy;fullness,0.6,300.0,,12,,58,,,,,,,,
+spiced_skewer,Spiced Skewer,restoration-evaluated,energy;fullness,0.6,300.0,,12,,,,,,,,,,
+spring_water,Spring Water,new-design,energy;thirst,1.0,0.0,35.0,,1.5,40,,,,,,,,
+tea,Tea,restoration-evaluated,energy;thirst;taste;fullness,0.5,300.0,20.0,5,2.5,62,,,,,,,,

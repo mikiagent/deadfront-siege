@@ -224,7 +224,7 @@ func _apply_bundle() -> Dictionary:
 	if stacks != null:
 		for row: Variant in bundle.get("statuses", []):
 			if row is Dictionary:
-				_apply_status(stacks, StringName(str((row as Dictionary).get("id", ""))), float((row as Dictionary).get("duration", 0.0)))
+				_apply_status(stacks, StringName(str((row as Dictionary).get("id", ""))), float((row as Dictionary).get("duration", 0.0)), int((row as Dictionary).get("level", 1)))
 	# --- Buff slots: replace only the eaten buff's own group.
 	if slots != null:
 		var replaced := slots.apply(player, bundle.get("buffs", []))
@@ -243,23 +243,31 @@ func _apply_bundle() -> Dictionary:
 	# --- Temperature condition (spec 32 §9): named, no invented resistance numbers.
 	if stacks != null:
 		var temp := str(bundle.get("temperature", ""))
+		var temp_level := int(bundle.get("temperature_level", 1))
 		if temp == "hot":
-			_apply_status(stacks, &"hot_food", 600.0)
+			_apply_status(stacks, &"hot_food", 600.0, temp_level)
 		elif temp == "cold":
-			_apply_status(stacks, &"cold_food", 600.0)
+			_apply_status(stacks, &"cold_food", 600.0, temp_level)
 		# --- Raw-food risk (PRD :594): the same roll the old eat ran, on commit only.
 		_roll_raw_risk()
 	out["instant_energy"] = instant
 	out["digested_energy"] = digested
 	return out
 
-func _apply_status(stacks: StatusEffects, id: StringName, seconds: float) -> void:
+## `level` is the catalog's "Lv N" (FOODCAT): the status's stacks, never summed across meals (the
+## higher level wins), capped by the status's own max_stacks.
+func _apply_status(stacks: StatusEffects, id: StringName, seconds: float, level: int = 1) -> void:
 	if id == &"" or stacks == null:
 		return
+	var prior := stacks.get_instance(id)
+	var prior_level := prior.stacks if prior != null else 0
 	stacks.apply(id, player)
 	var inst := stacks.get_instance(id)
 	if inst != null and seconds > 0.0:
 		inst.time_left = seconds
+	var def := Data.status(id)
+	if inst != null and def != null:
+		inst.stacks = clampi(maxi(prior_level, level), 1, def.max_stacks)
 
 # ---------------------------------------------------------------- 3. interrupt
 

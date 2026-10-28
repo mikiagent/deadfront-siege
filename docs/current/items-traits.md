@@ -2,7 +2,7 @@
 
 > Generated 2026-10-27 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
 
-`240 items` from `game/data/items.json`; per-item consumption effects from `game/data/foods.json`; rarity palette from `game/data/item_rarity.json`.
+`246 items` from `game/data/items.json`; per-item consumption effects from `game/data/foods.json`; rarity palette from `game/data/item_rarity.json`.
 
 Rarity: **common** `#a8adb3`, **uncommon** `#5cc864`, **rare** `#3c8cff`, **epic** `#b45cff`, **legendary** `#ffa424`.
 
@@ -10,7 +10,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 
 ## Categories with counts
 
-**tool** (35) · **food** (33) · **weapon** (29) · **building** (27) · **meat** (15) · **wood** (14) · **cooked** (12) · **fibre** (10) · **lashing** (9) · **blade** (9) · **armor_body** (9) · **armor_legs** (9) · **herb** (8) · **armor_head** (8) · **armor_arms** (8) · **metal** (7) · **strap_material** (6) · **stone** (6) · **blade_mat** (6) · **ingot** (6) · **medicine** (6) · **accessory** (6) · **bag** (6) · **ore** (5) · **bone** (5) · **fruit** (5) · **earth** (5) · **buff_food** (5) · **drink** (5) · **burnable** (4) · **log** (4) · **cloth** (4) · **hide** (4) · **tinder** (4) · **seed** (4) · **handle** (3) · **stalk** (3) · **raw_meat** (3) · **tier_bone** (3) · **uncut_hide** (3) · **water** (3) · **crop** (3) · **counter_supply** (3) · **clothing** (3) · **component** (3) · **brew** (3) · **fuel** (2) · **preserved** (2) · **meal** (2) · **green_hide** (2) · **berry_crop** (2) · **treasure** (2) · **dye** (2) · **bucket** (2) · **flax** (2) · **pet_feed** (2) · **split** (1) · **plank** (1) · **pillar** (1) · **tier_stone** (1) · **rough_ore** (1) · **tier_copper** (1) · **tier_bronze** (1) · **tier_iron** (1) · **tier_steel** (1) · **twine** (1) · **rope** (1) · **thread** (1) · **talon** (1) · **dried_hide** (1) · **cured_hide** (1) · **pot_clay** (1) · **tier_flint** (1) · **tier_obsidian** (1) · **needle** (1) · **copper_ore_mat** (1) · **seasoning** (1) · **bait** (1) · **coral** (1) · **iron_ore** (1) · **mushroom** (1) · **spice** (1) · **raw** (1) · **steamed** (1) · **burnt** (1) · **corn** (1) · **wheat** (1) · **berry** (1) · **flax_crop** (1) · **corn_crop** (1) · **wheat_crop** (1) · **fertilizer** (1) · **tendon** (1) · **scute** (1) · **dense_bone** (1) · **venom** (1) · **ammunition** (1) · **siege_ammunition** (1) · **tin_ore** (1) · **tin** (1) · **plank_shape** (1) · **pillar_shape** (1) · **strap** (1) · **trimmed_plank** (1) · **fine_plank** (1)
+**food** (39) · **tool** (35) · **weapon** (29) · **building** (27) · **meat** (15) · **wood** (14) · **cooked** (13) · **fibre** (10) · **lashing** (9) · **blade** (9) · **armor_body** (9) · **armor_legs** (9) · **drink** (9) · **herb** (8) · **armor_head** (8) · **armor_arms** (8) · **metal** (7) · **medicine** (7) · **strap_material** (6) · **stone** (6) · **blade_mat** (6) · **ingot** (6) · **accessory** (6) · **bag** (6) · **ore** (5) · **bone** (5) · **fruit** (5) · **earth** (5) · **buff_food** (5) · **burnable** (4) · **log** (4) · **cloth** (4) · **hide** (4) · **tinder** (4) · **seed** (4) · **handle** (3) · **stalk** (3) · **raw_meat** (3) · **meal** (3) · **tier_bone** (3) · **uncut_hide** (3) · **water** (3) · **crop** (3) · **counter_supply** (3) · **clothing** (3) · **component** (3) · **brew** (3) · **fuel** (2) · **preserved** (2) · **green_hide** (2) · **berry_crop** (2) · **treasure** (2) · **dye** (2) · **bucket** (2) · **flax** (2) · **pet_feed** (2) · **juice** (2) · **split** (1) · **plank** (1) · **pillar** (1) · **tier_stone** (1) · **rough_ore** (1) · **tier_copper** (1) · **tier_bronze** (1) · **tier_iron** (1) · **tier_steel** (1) · **twine** (1) · **rope** (1) · **thread** (1) · **talon** (1) · **dried_hide** (1) · **cured_hide** (1) · **pot_clay** (1) · **tier_flint** (1) · **tier_obsidian** (1) · **ice** (1) · **cactus** (1) · **needle** (1) · **copper_ore_mat** (1) · **seasoning** (1) · **bait** (1) · **coral** (1) · **iron_ore** (1) · **mushroom** (1) · **spice** (1) · **raw** (1) · **steamed** (1) · **burnt** (1) · **corn** (1) · **wheat** (1) · **berry** (1) · **flax_crop** (1) · **corn_crop** (1) · **wheat_crop** (1) · **fertilizer** (1) · **tendon** (1) · **scute** (1) · **dense_bone** (1) · **venom** (1) · **ammunition** (1) · **siege_ammunition** (1) · **tin_ore** (1) · **tin** (1) · **plank_shape** (1) · **pillar_shape** (1) · **strap** (1) · **trimmed_plank** (1) · **fine_plank** (1) · **broth** (1) · **cold_food** (1)
 
 ## Every item
 
@@ -54,8 +54,9 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `bronze_sword` | Bronze Sword | 1 | 1 | rare | none | weapon |  |
 | `burnt_food` | Burnt Food | 1 | 20 | common | none | food · burnt |  |
 | `cabin_bed_kit` | Cabin Bed Kit (Planned) | 1 | 1 | rare | none | building |  |
-| `cactus_flesh` | Cactus Flesh | 1 | 10 | common | none | food |  |
+| `cactus_flesh` | Cactus Flesh | 1 | 10 | common | none | food · cactus |  |
 | `cactus_flower` | Cactus Flower | 1 |  | uncommon | none | herb · dye |  |
+| `cactus_juice` | Cactus Juice | 1 | 20 | uncommon | none | drink · food · juice |  |
 | `cactus_spine` | Cactus Spine | 1 | 20 | common | none | needle |  |
 | `camp_stew` | Camp Stew | 1 | 20 | uncommon | none | food · cooked · meal |  |
 | `campfire_kit` | Campfire Kit | 1 | 1 | common | none | building |  |
@@ -118,11 +119,13 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `forager_wraps` | Forager Arm Wraps | 1 | 1 | uncommon | none | armor_arms |  |
 | `forge_kit` | Forge | 1 | 1 | uncommon | none | building |  |
 | `fruit_fertilizer` | Fruit Fertilizer | 1 | 20 | common | none | fertilizer |  |
+| `fruit_juice` | Fruit Juice | 1 | 20 | uncommon | none | drink · food · juice |  |
 | `gate_kit` | Gate | 1 | 5 | uncommon | none | building |  |
 | `grilled_meat` | Grilled Meat | 1 | 20 | uncommon | none | food · cooked · meat |  |
 | `heavy_snare` | Heavy Cable Snare | 1 | 999 | epic | none | counter_supply |  |
 | `herb_buff_meal` | Herbed Meal | 1 | 10 | rare | none | food · cooked · buff_food |  |
 | `herb_leaf` | Herb Leaf | 1 | 20 | common | none | herb |  |
+| `herbal_tea` | Herbal Tea | 1 | 20 | uncommon | none | drink · food · medicine |  |
 | `herbivore_feed` | Herbivore Feed | 1 | 30 | common | none | pet_feed · food |  |
 | `hide_bone_bracers` | Hide and Bone Bracers | 1 | 1 | rare | none | armor_arms |  |
 | `hide_bone_cuirass` | Hide and Bone Cuirass | 1 | 1 | rare | none | armor_body |  |
@@ -130,7 +133,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `hide_bone_helm` | Hide and Bone Helm | 1 | 1 | rare | none | armor_head |  |
 | `hide_strap` | Hide Strap | 1 | 20 | uncommon | none | lashing · hide |  |
 | `hoe` | Hoe | 1 | 1 | uncommon | hoe | tool |  |
-| `ice` | Ice | 1 | 10 | rare | none | water |  |
+| `ice` | Ice | 1 | 10 | rare | none | water · ice |  |
 | `ingot` | Crude Ingot | 1 | 10 | uncommon | none | metal · ingot | tint=#c0c4cc, hardness=4 |
 | `iron_axe` | Iron Axe | 1 | 1 | rare | axe | tool · weapon |  |
 | `iron_bracers` | Iron Bracers | 1 | 1 | rare | none | armor_arms |  |
@@ -152,6 +155,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `makeshift_taming_pen` | Makeshift Taming Pen | 1 | 1 | common | none | building |  |
 | `mango` | Mango | 1 | 10 | common | none | food · fruit |  |
 | `marsh_herb` | Marsh Herb | 1 | 20 | common | none | herb |  |
+| `meat_broth` | Meat Broth | 1 | 20 | uncommon | none | drink · food · broth |  |
 | `meatball` | Meatball | 1 | 20 | uncommon | none | food · cooked · meat |  |
 | `meatball_mix` | Meatball Mix | 1 | 20 | common | none | food · meat · raw |  |
 | `metal_shard` | Metal Shard | 1 | 10 | uncommon | none | metal · blade_mat | tint=#b0b8c0, hardness=3 |
@@ -193,10 +197,12 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `root` | Root | 1 | 20 | common | none | lashing · strap_material | tint=#5a4030 |
 | `rope` | Rope | 1 | 10 | uncommon | none | lashing · rope |  |
 | `rope_snare` | Rope Snare | 1 | 999 | uncommon | none | counter_supply |  |
+| `salad` | Salad | 1 | 20 | uncommon | none | food · cooked · meal |  |
 | `salt` | Salt | 1 | 20 | uncommon | none | seasoning |  |
 | `sandstone` | Sandstone | 1 | 20 | uncommon | none | stone |  |
 | `sashimi` | Sashimi | 1 | 30 | uncommon | none | food · cooked · meat |  |
 | `seasoned_roast` | Seasoned Roast | 1 | 10 | rare | none | food · cooked · meat · buff_food |  |
+| `shaved_ice` | Shaved Ice | 1 | 20 | uncommon | none | food · cold_food |  |
 | `sign_kit` | Sign | 1 | 5 | common | none | building |  |
 | `silver_ore` | Silver Ore | 1 | 20 | uncommon | none | ore |  |
 | `skewer` | Skewer | 1 | 20 | uncommon | none | food · cooked · meat |  |
@@ -263,43 +269,112 @@ Channels name what an item does; every number carries its `provenance` (`extract
 
 | item | provenance | channels | energy | digest (s) | thirst | fullness | eat (s) | taste |
 |---|---|---|---|---|---|---|---|---|
-| `berry` | new-design | energy · taste | digest_seconds=240.0 instant_release_ratio=0.6 | 240.0 |  |  |  | 58 |
-| `camp_stew` | new-design | energy · fullness · health | instant_release_ratio=0.5 |  |  | 30.0 |  | 62 |
-| `crafters_meal` | new-design | energy · fullness · ability · taste | instant_release_ratio=0.5 |  |  | 25.0 | 3.0 | 70 |
-| `drip_coffee` | restoration-evaluated | energy · fatigue · status · taste | digest_seconds=300.0 instant_release_ratio=0.851 | 300.0 |  |  | 2.5 | 56 |
-| `dutch_coffee` | restoration-evaluated | energy · status · taste · max_fatigue | digest_seconds=300.0 instant_release_ratio=0.851 | 300.0 |  |  | 2.5 | 56 |
-| `fatigue_tonic` | restoration-evaluated | fatigue · taste |  |  |  |  | 1.5 | 30 |
-| `grilled_meat` | new-design | energy · fullness · taste | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 25.0 |  | 66 |
-| `herb_buff_meal` | new-design | energy · fullness | instant_release_ratio=0.5 |  |  | 20.0 |  | 60 |
-| `raw_meat` | restoration-evaluated | energy | digest_seconds=300.0 instant_release_ratio=0.25 | 300.0 |  |  |  | 20 |
-| `skewer` | new-design | energy · fullness | instant_release_ratio=0.6 |  |  | 20.0 |  | 58 |
+| `berries` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 10 |  |  |
+| `berry` | restoration-evaluated | energy · taste · fullness | digest_seconds=240.0 instant_release_ratio=0.6 | 240.0 |  | 10 |  | 58 |
+| `boiled_meat` | restoration-evaluated | energy · fullness · status · attribute | digest_seconds=300.0 instant_release_ratio=0.65 | 300.0 |  | 10 |  |  |
+| `cactus_flesh` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 15 |  |  |
+| `cactus_juice` | restoration-evaluated | energy · fullness · thirst | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 | 20 | 7 |  |  |
+| `camp_stew` | restoration-evaluated | energy · fullness · health · status · attribute | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 7 |  | 62 |
+| `carnivore_feed` | restoration-evaluated | energy · fullness · fatigue | digest_seconds=300.0 instant_release_ratio=0.9 | 300.0 |  | 30 |  |  |
+| `coconut` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 10 |  |  |
+| `corn` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 10 |  |  |
+| `crafters_meal` | restoration-evaluated | energy · fullness · ability · taste | digest_seconds=300.0 instant_release_ratio=0.8 | 300.0 |  | 10 | 3.0 | 70 |
+| `drip_coffee` | restoration-evaluated | energy · fatigue · status · taste · fullness | digest_seconds=300.0 instant_release_ratio=0.851 | 300.0 |  | 5 | 2.5 | 56 |
+| `dutch_coffee` | restoration-evaluated | energy · status · taste · max_fatigue · fullness | digest_seconds=300.0 instant_release_ratio=0.851 | 300.0 |  | 5 | 2.5 | 56 |
+| `fatigue_tonic` | restoration-evaluated | fatigue · taste · fullness · thirst |  |  | 20 | 5 | 1.5 | 30 |
+| `fish` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.3 | 300.0 |  | 10 |  |  |
+| `fruit_juice` | restoration-evaluated | energy · fullness · thirst · attribute | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 | 20 | 7 |  |  |
+| `grilled_meat` | restoration-evaluated | energy · fullness · taste | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 12 |  | 66 |
+| `herb_buff_meal` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 12 |  | 60 |
+| `herbal_tea` | restoration-evaluated | energy · fullness · health | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 30 |  |  |
+| `herbivore_feed` | restoration-evaluated | energy · fullness · fatigue | digest_seconds=300.0 instant_release_ratio=0.9 | 300.0 |  | 30 |  |  |
+| `mango` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 10 |  |  |
+| `meat_broth` | restoration-evaluated | energy · fullness · thirst | digest_seconds=300.0 instant_release_ratio=0.8 | 300.0 | 20 | 5 |  |  |
+| `meatball` | restoration-evaluated | energy · fullness · attribute | digest_seconds=300.0 instant_release_ratio=0.35 | 300.0 |  | 10 |  |  |
+| `meatball_mix` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.25 | 300.0 |  | 20 |  |  |
+| `mushroom` | restoration-evaluated | energy · fullness · status | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 30 |  |  |
+| `raptor_meat` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.45 | 300.0 |  | 20 |  |  |
+| `raw_meat` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.25 | 300.0 |  | 20 |  | 20 |
+| `roast` | restoration-evaluated | energy · fullness · status · attribute · combat | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 50 |  |  |
+| `salad` | restoration-evaluated | energy · fullness · attribute | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 10 |  |  |
+| `sashimi` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 15 |  |  |
+| `seasoned_roast` | restoration-evaluated | energy · fullness · status · attribute · combat | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 50 |  |  |
+| `shaved_ice` | restoration-evaluated | energy · fullness · status | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 10 |  |  |
+| `skewer` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 12 |  | 58 |
+| `spiced_skewer` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 12 |  |  |
 | `spring_water` | new-design | energy · thirst | digest_seconds=0.0 instant_release_ratio=1.0 | 0.0 | 35.0 |  | 1.5 | 40 |
-| `tea` | restoration-evaluated | energy · thirst · taste | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 | 20.0 |  | 2.5 | 62 |
+| `tea` | restoration-evaluated | energy · thirst · taste · fullness | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 | 20.0 | 5 | 2.5 | 62 |
 
 ## Per-food flavour, status & assumption notes
 
-- **Wild Berry** — flavors sweet=30, salty=0, sour=14, bitter=2, greasy=0, umami=0, astringent=8
-  > *assumption:* A raw berry can upset the stomach (spec 32 s9 'some raw food may inflict Stomach Pain'); the 12% chance and 4 min digestion are ASSUMPTION, not the item def's (which had no risk).
-- **Camp Stew** — flavors sweet=10, salty=18, sour=4, bitter=2, greasy=14, umami=26, astringent=0
-  > *assumption:* Fullness 30 and Health +5 are ASSUMPTION; spec 32 s1 lists Health as a channel but gives no stew figure.
-- **Crafter's Meal** — flavors sweet=8, salty=20, sour=2, bitter=2, greasy=18, umami=24, astringent=0
-  > *assumption:* The 20 min duration follows the reconstruction's 20 min meal buffs (spec 32 s6); Energy 30 comes from the item def.
-- **Drip Coffee** — flavors sweet=0, salty=0, sour=6, bitter=40, greasy=0, umami=8, astringent=20 — statuses {'id': 'caffeinated', 'duration': 600.0}
-  > *assumption:* 47.9 immediate + 8.4 delayed Energy at level 60 (spec 32 s5), restoration-evaluated. Caffeinated's 10 min is ASSUMPTION (status length only, no effect invented).
-- **Dutch Coffee** — flavors sweet=0, salty=0, sour=6, bitter=44, greasy=0, umami=8, astringent=24 — statuses {'id': 'caffeinated', 'duration': 900.0}
-  > *assumption:* Energy values follow Drip Coffee (spec 32 s5 says 'same Energy values').
-- **Fatigue Restorative** — flavors sweet=4, salty=0, sour=10, bitter=30, greasy=0, umami=2, astringent=12
-  > *assumption:* Fatigue -200 follows the reconstruction's Dunia Warp Mineral Water row (spec 32 s5, no Energy recovery); this build's drink is a craftable restorative, not the event item. restoration-evaluated.
-- **Grilled Meat** — flavors sweet=6, salty=16, sour=0, bitter=4, greasy=30, umami=34, astringent=0
-  > *assumption:* Fullness +25 follows spec 32 s6's Bacon row; the ratio and taste score are ASSUMPTION.
-- **Herbed Meal** — flavors sweet=4, salty=10, sour=2, bitter=12, greasy=12, umami=18, astringent=6
-  > *assumption:* The meal keeps its existing food_buffs.json 'defense' row (dried herb secondary slot, PRD 9.3); the bundle only adds fullness and taste, both ASSUMPTION.
-- **Raw Meat** — flavors sweet=0, salty=4, sour=2, bitter=0, greasy=20, umami=30, astringent=0
-  > *assumption:* Spec 32 s6's raw meat example is 40.8 immediate + 122.5 delayed, a 0.25 instant ratio; this build keeps its own lower item Energy and only uses that ratio and the raw-food risk the item def already carries. restoration-evaluated for the ratio.
-- **Skewer** — flavors sweet=4, salty=12, sour=0, bitter=6, greasy=26, umami=30, astringent=0
-  > *assumption:* Spec 32 s6 gives a skewer's Energy split (58.2/108.1 for its reconstruction); this build keeps its own item Energy and only sets a 0.6 instant ratio and Fullness 20, both ASSUMPTION.
+- **Berries** — catalog `wildberry` Raspberry (L60: 29.7 + 19.8 Energy, fullness 10.0)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row wildberry (Raspberry). Energy: item food_energy = (29.7 + 19.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 29.7 / 49.5. Fullness is the catalog's.
+- **Wild Berry** — flavors sweet=30, salty=0, sour=14, bitter=2, greasy=0, umami=0, astringent=8 — catalog `wildberry` Raspberry (L60: 29.7 + 19.8 Energy, fullness 10.0)
+  > *assumption:* A raw berry can upset the stomach (spec 32 s9 'some raw food may inflict Stomach Pain'); the 12% chance and 4 min digestion are ASSUMPTION, not the item def's (which had no risk). FOODCAT # ASSUMPTION: mapped to catalog row wildberry (Raspberry). Energy: item food_energy = (29.7 + 19.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 29.7 / 49.5. Fullness is the catalog's.
+- **Boiled Meat** — temperature hot Lv1 — catalog `boiled_meat` Boiled Meat (L60: 119.5 + 64.3 Energy, fullness 10.0, Strength +20.9, Hot Food Lv1)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row boiled_meat (Boiled Meat). Energy: item food_energy = (119.5 + 64.3) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 119.5 / 183.8. Fullness is the catalog's. Hot Food Lv1 -> temperature hot level 1.
+- **Cactus Flesh** — catalog `cactus` Cactus Pulp (L60: 18.9 + 18.9 Energy, fullness 15.0)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row cactus (Cactus Pulp). Energy: item food_energy = (18.9 + 18.9) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 18.9 / 37.8. Fullness is the catalog's.
+- **Cactus Juice** — catalog `juice_cactus` Cactus Juice (L60: 89.9 + 38.6 Energy, fullness 7.0, Quenches thirst, Quenched (Cactus) Lv60)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row juice_cactus (Cactus Juice). Energy: item food_energy = (89.9 + 38.6) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 89.9 / 128.5. Fullness is the catalog's. 'Quenches thirst, Quenched (Cactus) Lv60' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20).
+- **Camp Stew** — flavors sweet=10, salty=18, sour=4, bitter=2, greasy=14, umami=26, astringent=0 — temperature hot Lv2 — health 5.0 — catalog `stew_01` Stew (L60: 138.2 + 59.2 Energy, fullness 7.0, Perception +20.9, Hot Food Lv2)
+  > *assumption:* Fullness 30 and Health +5 are ASSUMPTION; spec 32 s1 lists Health as a channel but gives no stew figure. FOODCAT # ASSUMPTION: mapped to catalog row stew_01 (Stew). Energy (NOT applied, see catalog.energy_kept; the item keeps its old Energy) would be food_energy = (138.2 + 59.2) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 138.2 / 197.4. Fullness is the catalog's. Hot Food Lv2 -> temperature hot level 2.
+- **Carnivore Feed** — fatigue 130 — catalog `feed_carni_02` Carnivore Feed (L60: 169.7 + 18.8 Energy, fullness 30.0, Fatigue +130, Strange Eats Lv1)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row feed_carni_02 (Carnivore Feed). Energy: item food_energy = (169.7 + 18.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 169.7 / 188.5. Fullness is the catalog's. Fatigue +130 is the catalog figure on this build's fatigue scale, unscaled; 'Strange Eats Lv1' has no status here (open question).
+- **Coconut** — catalog `coconut` Coconut (L60: 40.4 + 26.9 Energy, fullness 10.0)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row coconut (Coconut). Energy: item food_energy = (40.4 + 26.9) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 40.4 / 67.3. Fullness is the catalog's.
+- **Corn** — catalog `corn_infertility` Corn (Food) (L60: 44.5 + 44.5 Energy, fullness 10.0)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row corn_infertility (Corn (Food)). Energy: item food_energy = (44.5 + 44.5) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 44.5 / 89.0. Fullness is the catalog's.
+- **Crafter's Meal** — flavors sweet=8, salty=20, sour=2, bitter=2, greasy=18, umami=24, astringent=0 — catalog `fruit_sandwich_weapon` Fruit Sandwich: Weapon Crafting Flavor (L60: 110.8 + 27.7 Energy, fullness 10.0, Weapon Crafting Ability +33)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row fruit_sandwich_weapon (Fruit Sandwich: Weapon Crafting Flavor). Energy: item food_energy = (110.8 + 27.7) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 110.8 / 138.5. Fullness is the catalog's. the catalog buff (Weapon Crafting Ability +33) is NOT applied: the existing spec-32 buff row stays (t_foodfx fixture). The +20 Weapon Crafting Ability and 20 min are spec 32 s3's own example.
+- **Drip Coffee** — flavors sweet=0, salty=0, sour=6, bitter=40, greasy=0, umami=8, astringent=20 — statuses {'id': 'caffeinated', 'duration': 600.0} — catalog `coffee_drip` Drip Coffee (L60: 47.9 + 8.4 Energy, fullness 5.0, Caffeinated Lv60)
+  > *assumption:* 47.9 immediate + 8.4 delayed Energy at level 60 (spec 32 s5), restoration-evaluated. Caffeinated's 10 min is ASSUMPTION (status length only, no effect invented). FOODCAT # ASSUMPTION: mapped to catalog row coffee_drip (Drip Coffee). Energy: item food_energy = (47.9 + 8.4) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 47.9 / 56.3. Fullness is the catalog's.
+- **Dutch Coffee** — flavors sweet=0, salty=0, sour=6, bitter=44, greasy=0, umami=8, astringent=24 — statuses {'id': 'caffeinated', 'duration': 900.0} — catalog `coffee_dutch` Dutch Coffee (L60: 47.9 + 8.4 Energy, fullness 5.0, Max Fatigue +132.8, Caffeinated Lv60)
+  > *assumption:* Energy values follow Drip Coffee (spec 32 s5 says 'same Energy values'). FOODCAT # ASSUMPTION: mapped to catalog row coffee_dutch (Dutch Coffee). Energy: item food_energy = (47.9 + 8.4) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 47.9 / 56.3. Fullness is the catalog's. the catalog buff (Max Fatigue +132.8) is NOT applied: the existing spec-32 buff row stays (t_foodfx fixture).
+- **Fatigue Restorative** — flavors sweet=4, salty=0, sour=10, bitter=30, greasy=0, umami=2, astringent=12 — fatigue -300 — catalog `fatigue_drug` Fatigue Restorative (L60: 0.0 + 0.0 Energy, fullness 5.0, Fatigue -300, Water Lv1)
+  > *assumption:* Fatigue -200 follows the reconstruction's Dunia Warp Mineral Water row (spec 32 s5, no Energy recovery); this build's drink is a craftable restorative, not the event item. restoration-evaluated. FOODCAT # ASSUMPTION: mapped to catalog row fatigue_drug (Fatigue Restorative): no Energy; fullness is the catalog's. 'Fatigue -300, Water Lv1' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20); Fatigue -300 is the catalog figure on this build's fatigue scale, unscaled.
+- **Fish** — raw-bite status stomachache Lv1 — catalog `fish` Minnow (L60: 38.0 + 88.7 Energy, fullness 10.0, Stomach Pain Lv1)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row fish (Minnow). Energy: item food_energy = (38.0 + 88.7) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 38.0 / 126.7. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's).
+- **Fruit Juice** — catalog `juice_fruit` Fruit Juice (L60: 96.9 + 41.6 Energy, fullness 7.0, Charisma +20.9, Quenches thirst, Water Lv1)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row juice_fruit (Fruit Juice). Energy: item food_energy = (96.9 + 41.6) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 96.9 / 138.5. Fullness is the catalog's. 'Quenches thirst, Water Lv1' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20).
+- **Grilled Meat** — flavors sweet=6, salty=16, sour=0, bitter=4, greasy=30, umami=34, astringent=0 — catalog `skewer_meat_mart` Meat (L60: 98.0 + 65.3 Energy, fullness 12.0)
+  > *assumption:* Fullness +25 follows spec 32 s6's Bacon row; the ratio and taste score are ASSUMPTION. FOODCAT # ASSUMPTION: mapped to catalog row skewer_meat_mart (Meat). Energy (NOT applied, see catalog.energy_kept; the item keeps its old Energy) would be food_energy = (98.0 + 65.3) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 98.0 / 163.3. Fullness is the catalog's.
+- **Herbed Meal** — flavors sweet=4, salty=10, sour=2, bitter=12, greasy=12, umami=18, astringent=6 — catalog `skewer_meat_mart` Meat (L60: 98.0 + 65.3 Energy, fullness 12.0)
+  > *assumption:* The meal keeps its existing food_buffs.json 'defense' row (dried herb secondary slot, PRD 9.3); the bundle only adds fullness and taste, both ASSUMPTION. FOODCAT # ASSUMPTION: mapped to catalog row skewer_meat_mart (Meat). Energy: item food_energy = (98.0 + 65.3) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 98.0 / 163.3. Fullness is the catalog's.
+- **Herbal Tea** — health 50.4 — catalog `medicine_tea_01` Herbal Tea (L60: 5.0 + 5.0 Energy, fullness 30.0, Health +50.4)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row medicine_tea_01 (Herbal Tea). Energy: item food_energy = (5.0 + 5.0) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 5.0 / 10.0. Fullness is the catalog's. Health +50.4 is the catalog figure, flat (no level rule for Health).
+- **Herbivore Feed** — fatigue 130 — catalog `feed_herb_02` Herbivore Feed (L60: 169.7 + 18.8 Energy, fullness 30.0, Fatigue +130, Strange Eats Lv1)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row feed_herb_02 (Herbivore Feed). Energy: item food_energy = (169.7 + 18.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 169.7 / 188.5. Fullness is the catalog's. Fatigue +130 is the catalog figure on this build's fatigue scale, unscaled; 'Strange Eats Lv1' has no status here (open question).
+- **Mango** — catalog `fruit_tropical` Tropical Fruit (L60: 40.4 + 26.9 Energy, fullness 10.0)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row fruit_tropical (Tropical Fruit). Energy: item food_energy = (40.4 + 26.9) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 40.4 / 67.3. Fullness is the catalog's.
+- **Meat Broth** — catalog `broth_meat` Meat Broth (L60: 38.0 + 9.5 Energy, fullness 5.0, Water Lv1)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row broth_meat (Meat Broth). Energy: item food_energy = (38.0 + 9.5) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 38.0 / 47.5. Fullness is the catalog's. 'Water Lv1' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20).
+- **Meatball** — catalog `meatball_01` Meat Dumpling (L60: 71.5 + 132.9 Energy, fullness 10.0, Strength +20.9)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row meatball_01 (Meat Dumpling). Energy: item food_energy = (71.5 + 132.9) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 71.5 / 204.4. Fullness is the catalog's.
+- **Meatball Mix** — raw-bite status stomachache Lv1 — catalog `meat` Meat (L60: 40.8 + 122.5 Energy, fullness 20.0, Stomach Pain Lv1)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row meat (Meat). Energy: item food_energy = (40.8 + 122.5) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 40.8 / 163.3. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's).
+- **Mushroom** — raw-bite status poisoned Lv4 — catalog `mushroom` Mushroom (L60: 14.4 + 14.4 Energy, fullness 30.0, Poisoned Lv4)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row mushroom (Mushroom). Energy: item food_energy = (14.4 + 14.4) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 14.4 / 28.8. Fullness is the catalog's. 'Poisoned Lv4' -> the existing raw-food roll applies poisoned at level 4 (chance unchanged, item def's).
+- **Raptor Meat** — raw-bite status stomachache Lv1 — catalog `meat_lizard` Lizard Carcass (L60: 73.5 + 89.8 Energy, fullness 20.0, Stomach Pain Lv1)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row meat_lizard (Lizard Carcass). Energy: item food_energy = (73.5 + 89.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 73.5 / 163.3. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's).
+- **Raw Meat** — flavors sweet=0, salty=4, sour=2, bitter=0, greasy=20, umami=30, astringent=0 — raw-bite status stomachache Lv1 — catalog `meat` Meat (L60: 40.8 + 122.5 Energy, fullness 20.0, Stomach Pain Lv1)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row meat (Meat). Energy: item food_energy = (40.8 + 122.5) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 40.8 / 163.3. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's).
+- **Roast** — temperature hot Lv3 — catalog `sirloin_steak` Sirloin Steak (L60: 62.3 + 26.7 Energy, fullness 50.0, Strength +30, Defense +4.6, Hot Food Lv3)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row sirloin_steak (Sirloin Steak). Energy: item food_energy = (62.3 + 26.7) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 62.3 / 89.0. Fullness is the catalog's. Hot Food Lv3 -> temperature hot level 3.
+- **Salad** — catalog `salad_01` Salad (L60: 123.7 + 53.0 Energy, fullness 10.0, Dexterity +20.9)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row salad_01 (Salad). Energy: item food_energy = (123.7 + 53.0) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 123.7 / 176.7. Fullness is the catalog's.
+- **Sashimi** — catalog `sashimi` Sashimi (L60: 119.1 + 79.4 Energy, fullness 15.0)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row sashimi (Sashimi). Energy: item food_energy = (119.1 + 79.4) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 119.1 / 198.5. Fullness is the catalog's.
+- **Seasoned Roast** — temperature hot Lv3 — catalog `tenderloin_steak` Tenderloin Steak (L60: 62.3 + 26.7 Energy, fullness 50.0, Strength +30, Attack +6.6, Hot Food Lv3)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row tenderloin_steak (Tenderloin Steak). Energy: item food_energy = (62.3 + 26.7) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 62.3 / 89.0. Fullness is the catalog's. Hot Food Lv3 -> temperature hot level 3.
+- **Shaved Ice** — temperature cold Lv1 — catalog `shaved_ice` Shaved Ice (L60: 29.7 + 19.8 Energy, fullness 10.0, Cold Food Lv60)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row shaved_ice (Shaved Ice). Energy: item food_energy = (29.7 + 19.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 29.7 / 49.5. Fullness is the catalog's. Cold Food Lv60 -> temperature cold level 1.
+- **Skewer** — flavors sweet=4, salty=12, sour=0, bitter=6, greasy=26, umami=30, astringent=0 — catalog `meat_skewers` Meat Kebab (L60: 98.0 + 65.3 Energy, fullness 12.0)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row meat_skewers (Meat Kebab). Energy: item food_energy = (98.0 + 65.3) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 98.0 / 163.3. Fullness is the catalog's.
+- **Spiced Skewer** — catalog `meat_skewers` Meat Kebab (L60: 98.0 + 65.3 Energy, fullness 12.0)
+  > *assumption:* FOODCAT # ASSUMPTION: mapped to catalog row meat_skewers (Meat Kebab). Energy: item food_energy = (98.0 + 65.3) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 98.0 / 163.3. Fullness is the catalog's.
 - **Spring Water** — flavors sweet=0, salty=0, sour=2, bitter=0, greasy=0, umami=0, astringent=2
   > *assumption:* Spec 32 s5 only says water quenches thirst and carries minor Energy/Fullness in the reconstruction; 4 Energy, +35 thirst and the 1.5 s drink are ASSUMPTION.
-- **Tea** — flavors sweet=8, salty=0, sour=4, bitter=18, greasy=0, umami=6, astringent=14
-  > *assumption:* 22.4 immediate + 22.4 delayed Energy is the reconstruction's level-60 Tea figure (spec 32 s5), tagged restoration-evaluated, not a 2019 constant; thirst and the taste score are ASSUMPTION.
+- **Tea** — flavors sweet=8, salty=0, sour=4, bitter=18, greasy=0, umami=6, astringent=14 — catalog `tea_01_green` Green Tea (L60: 22.4 + 22.4 Energy, fullness 5.0, Enhanced Ability Lv60)
+  > *assumption:* 22.4 immediate + 22.4 delayed Energy is the reconstruction's level-60 Tea figure (spec 32 s5), tagged restoration-evaluated, not a 2019 constant; thirst and the taste score are ASSUMPTION. FOODCAT # ASSUMPTION: mapped to catalog row tea_01_green (Green Tea). Energy: item food_energy = (22.4 + 22.4) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 22.4 / 44.8. Fullness is the catalog's. 'Enhanced Ability Lv60' has no stat to map (open question); tea keeps its WATER thirst.
 

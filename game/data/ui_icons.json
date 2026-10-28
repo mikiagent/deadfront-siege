@@ -143,6 +143,8 @@
 		"deep_bleed": "res://assets/icons/ui/bleed_deep.svg",
 		"bleeding_target": "res://assets/icons/ui/bleed.svg",
 		"venom": "res://assets/icons/ui/venom.svg",
+		"poisoned": "res://assets/icons/ui/venom.svg",
+		"vigor": "res://assets/icons/ui/caffeinated.svg",
 		"poisoned_target": "res://assets/icons/ui/venom.svg",
 		"knockdown": "res://assets/icons/ui/knockdown.svg",
 		"groggy": "res://assets/icons/ui/groggy.svg",

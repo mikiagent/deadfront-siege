@@ -167,3 +167,9 @@ pillar_shape,Pillar Shape,construction,60,hand,2.0,log=2,pillar_shape,1,shape,1
 strap,Strap,construction,60,hand,0.5,strap_material=1,strap,1,twist,1
 trimmed_plank,Trimmed Plank,processing,60,workbench,12.0,plank_shape=1,trimmed_plank,1,trim,1
 fine_plank,Fine Plank,processing,60,workbench,12.0,plank_shape=1,fine_plank,1,trim,1
+fruit_juice,Fruit Juice,cooking,60,mortar,2.0,fruit=1; water=1,fruit_juice,1,mix,0
+cactus_juice,Cactus Juice,cooking,60,mortar,2.0,cactus=1; water=1,cactus_juice,1,mix,0
+meat_broth,Meat Broth,cooking,60,bonfire,3.0,raw_meat=1; water=1,meat_broth,1,brew,0
+salad,Salad,cooking,60,workbench,2.0,fruit=1; herb=1,salad,1,mix,0
+herbal_tea,Herbal Tea,cooking,60,bonfire,2.5,herb=1; water=1,herbal_tea,1,brew,0
+shaved_ice,Shaved Ice,cooking,60,mortar,1.5,ice=1,shaved_ice,1,mix,0
