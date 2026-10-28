@@ -95,6 +95,7 @@ func _reset_player() -> void:
 	# the default 100 a raptor heavy crit (135) killed him and the control row flaked.
 	player.vitals.max_health = 1000.0
 	player.vitals.health = 1000.0
+	player.sim._stagger_left = 0.0  # TACTICS: a hurt stun is a hard stun (no swings); start each check unstunned
 
 func _test_tuning() -> void:
 	_expect(CombatTuning.section("player_melee").has("hit_frac"), "combat_tuning.json loads with player_melee.hit_frac")

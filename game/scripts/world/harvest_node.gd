@@ -615,6 +615,10 @@ func blocks_movement() -> bool:
 func _is_rock() -> bool:
 	return str(Data.nature_families.get(family, {}).get("role", "")) == "rock"
 
+## A tree of any kind (cover for ambush predators: TacticalBrain).
+func is_tree() -> bool:
+	return str(Data.nature_families.get(family, {}).get("role", "")).begins_with("tree")
+
 func _is_tree_or_rock() -> bool:
 	var role := str(Data.nature_families.get(family, {}).get("role", ""))
 	return role.begins_with("tree") or role == "rock"
