@@ -76,7 +76,7 @@ func open_station_menu(st: Node3D) -> void:
 	if menu.visible and menu.station == st:
 		menu.hide_menu()
 		return
-	var actions := StationMenu.actions_for(station_id_of(st), player)
+	var actions := StationMenu.filter_actions(st, StationMenu.actions_for(station_id_of(st), player))
 	var ps := ProcessStation.of(st)
 	if ps and ps.waiting_count() > 0:
 		var waiting: ItemStack = ps.jobs[ps.jobs.size() - 1]["inputs"][0]
@@ -107,6 +107,9 @@ func _on_menu_action(st: Node3D, action_id: StringName) -> void:
 			# are act.collect / act.take_back intents). call(): the two methods are W2-PLAYER's file,
 			# added by this package's hooks patch.
 			player.actions.call(action_id, st)
+		&"wood":
+			if st is Bonfire:
+				(st as Bonfire).load_wood(player)
 		&"cauterise":
 			if st is Bonfire:
 				(st as Bonfire).cauterise(player)
@@ -171,6 +174,12 @@ func begin(rid: StringName, count: int = 1, uids: Array[String] = []) -> bool:
 		station = Crafting.nearest_station(player, StringName(sid))
 		if station == null:
 			print("[craft] blocked %s: no %s built" % [rid, sid])
+			return false
+		# FIREPITS: cooking works only while the fire burns.
+		if station.has_method("can_cook") and not bool(station.call("can_cook")):
+			print("[craft] blocked %s: %s" % [rid, str(station.call("cook_block_reason"))])
+			player.notice("Can't cook: %s" % str(station.call("cook_block_reason")).to_lower())
+			station = null
 			return false
 	_batch_total = maxi(1, count)
 	_begin_recipe(rid)

@@ -49,9 +49,29 @@ static func actions_for(sid: StringName, p: Player) -> Array:
 		list = [{"id": &"craft", "label": "CRAFT", "icon": "hammer", "glyph": "C"}]
 	for a in list:
 		out.append((a as Dictionary).duplicate())
+	# FIREPITS: any fire takes wood; the permanent pit needs it to burn at all.
+	if sid in [&"bonfire", &"campfire"]:
+		out.append({"id": &"wood", "label": "LOAD WOOD", "icon": "branch", "glyph": "W"})
 	if sid == &"bonfire" and p != null and p.statuses \
 			and (p.statuses.has(&"bleed") or p.statuses.has(&"deep_bleed")):
 		out.append({"id": &"cauterise", "label": "CAUTERISE", "icon": "bonfire_kit", "glyph": "B"})
+	return out
+
+## The hexes that station can actually offer: a fire that is not burning (the cold stone pit, a
+## burnt-out fire) drops COOK and says why, instead of opening a craft flow that would refuse.
+static func filter_actions(st: Node3D, actions: Array) -> Array:
+	var out: Array = []
+	var cook_why := ""
+	if st != null and is_instance_valid(st) and st.has_method("cook_block_reason"):
+		cook_why = str(st.call("cook_block_reason"))
+	var wood_full := st != null and is_instance_valid(st) and st.has_method("can_load_wood") and not bool(st.call("can_load_wood"))
+	for a: Variant in actions:
+		var aid := str((a as Dictionary).get("id", ""))
+		if cook_why != "" and aid == "cook":
+			continue
+		if aid == "wood" and wood_full:
+			continue
+		out.append(a)
 	return out
 
 func _ready() -> void:
