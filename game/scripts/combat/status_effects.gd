@@ -240,8 +240,12 @@ func _dot(inst: StatusInstance) -> void:
 			dps += def.dps_max_hp_frac * pl.vitals.max_health
 		if dps > 0.0:
 			var was := pl.vitals.health
+			var dealt := dps * 0.5
+			if def.nonlethal:  # starving, poison: down to 1 HP, never the last point
+				dealt = minf(dealt, maxf(0.0, pl.vitals.health - 1.0))
 			ticking = true
-			pl.vitals.take_damage(dps * 0.5)
+			if dealt > 0.0:
+				pl.vitals.take_damage(dealt)
 			ticking = false
 			if was > pl.vitals.health:
 				ticked.emit(inst.id, was - pl.vitals.health)

@@ -30,6 +30,11 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
 - Every positive gain multiplies: amount × 0.5 (owner halving, `FATIGUE_ACCUMULATION_MULT`) ×
   statuses' `fatigue_mult` product (and ×0.5 again inside a shelter's `coziness` area) ×
   the stomach factor × `level_gap_mult`. Reductions (`rest`, meals, sleep) are never halved.
+- Starving (owner 2026-10-28): while `Vitals.fullness_state` is empty, `PlayerSim._tick_starving` keeps the
+  `starving` effect on her (statuses.json; 0.25 HP/s per stack, a stack more every 120 s up to 3, until fed)
+  and clears it the moment a meal lifts her out of empty. Statuses flagged `nonlethal` (starving, venom,
+  poisoned, stomachache) tick down to 1 HP and never below; hits and the other DoTs (bleed, deep bleed,
+  pinned) still kill. ASSUMPTIONs, Open Questions A17.
 - Stomach factor (FULLFATIGUE, owner 2026-10-28): `PlayerSim.tick` reads `Digestion.fullness()`, sets
   `Vitals.fullness_state` (`Digestion.state_for`) and `Vitals.fullness_mult` from `rules.json`
   `fatigue.fullness_mult`, and folds it into `fatigue_gain_mult`, so it reaches every gain including the
@@ -46,7 +51,7 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
   Fullness = Σ over digesting meals of the food's foods.json `fullness` × its undigested Energy share,
   over the fullness cap (100). The HUD ring shows the same value and state. The breakdown panel's context
   line names the factor ("Hungry: +50% exhaustion."). A survivor with nothing digesting is "empty". A new survivor, and an old save loaded with nothing
-  digesting, gets one starter meal once (`Digestion.seed_starter`, flag `starter_given` saved in the
+  digesting, gets one starter meal once (`Digestion.seed_starter`, run when a survivor's Digestion is first made and again on load; flag `starter_given` saved in the
   digestion record). It has fullness 60, lasts 15 min and carries 1 Energy, so she starts "normal" for
   about 5 min, is hungry until about 12.5 min, then empty. ASSUMPTION.
 - Baseline idle: `EXHAUSTION_PER_SEC` = 100 pts per 45 min before the halving — 100 pts in ~90 min.

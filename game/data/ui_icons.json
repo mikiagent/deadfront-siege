@@ -146,6 +146,7 @@
 		"brain": "res://assets/icons/ui/brain.svg",
 		"sp": "res://assets/icons/ui/brain.svg",
 		"stomach": "res://assets/icons/ui/stomach.svg",
+		"starving": "res://assets/icons/ui/starving.svg",
 		"stomach_empty": "res://assets/icons/ui/stomach_empty.svg",
 		"stomach_hungry": "res://assets/icons/ui/stomach_hungry.svg",
 		"stomach_overfull": "res://assets/icons/ui/stomach_overfull.svg",

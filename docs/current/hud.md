@@ -285,6 +285,8 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
     room, and is a drawn block (`statusfx`) so toasts keep off it. A box that loses the one above it
     glides up (8 slots/s) instead of jumping.
   - Bleed's icon is the claw mark (`claw.svg`, `_src/icons_n.py`); the HUD chip row uses it too.
+  - Starving (owner 2026-10-28) is an effect box with a ribcage glyph (`starving.svg`, `_src/icons_r.py`) in
+    `UiTokens.STARVING` dark amber, with a faint vignette that pulses on its ticks and tick numbers in its colour.
   - Colours (ASSUMPTION, from the spec tokens; owner 2026-10-28: no green negatives, `UiTokens.HEAL` /
     `UiTokens.POISON`): bleed red (LIFE), venom/poison/sickness/stomachache purple (#a36bd9), hot orange,
     wet/cold blue, positive buffs GOLD, Well Rested soft gold, other negatives MUTED grey.

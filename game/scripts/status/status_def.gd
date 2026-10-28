@@ -39,6 +39,9 @@ extends Resource
 @export var fx_vignette: bool = false
 @export var on_untreated_expire: StringName = &""
 @export var on_untreated_chance: float = 0.0
+## Owner 2026-10-28 ("starving and poison cant directly kill you but they can get you to 1HP"): its damage
+## over time stops at 1 Health on the survivor. Hits and lethal DoTs at 1 HP still kill.
+@export var nonlethal: bool = false
 
 static func from_dict(d: Dictionary) -> StatusDef:
 	var s := StatusDef.new()
@@ -77,6 +80,7 @@ static func from_dict(d: Dictionary) -> StatusDef:
 		s.fx_icon = s.id
 	s.on_untreated_expire = StringName(str(d.get("on_untreated_expire", "")))
 	s.on_untreated_chance = float(d.get("on_untreated_chance", 0.0))
+	s.nonlethal = bool(d.get("nonlethal", false))
 	return s
 
 ## True for a timed modifier (buff, boon, debuff) the chip row shows; false for an affliction.

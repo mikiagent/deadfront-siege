@@ -61,6 +61,7 @@ const SMOKE := Color(154.0 / 255.0, 154.0 / 255.0, 158.0 / 255.0, 1.0)  # #9a9a9
 const XP_GREEN := Color(0.373, 0.827, 0.416, 1.0)
 const XP_BAR_H := 6.0  # the bottom level bar's height; tall enough to read its segment gaps
 const POISON := Color(163.0 / 255.0, 107.0 / 255.0, 217.0 / 255.0, 1.0)  # #a36bd9: venom, poison, sickness
+const STARVING := Color(176.0 / 255.0, 122.0 / 255.0, 42.0 / 255.0, 1.0)  # #b07a2a: starving, dark amber (never green or POISON)
 ## Stomach ring (owner 2026-10-28: "red is too full stomach, green is full, yellow is hungry, and red (again) is
 ## empty stomach"): the one owner-sanctioned green outside healing. Saturation is the yellow outer ring.
 const STOMACH_FULL := Color(0.373, 0.827, 0.416, 1.0)
