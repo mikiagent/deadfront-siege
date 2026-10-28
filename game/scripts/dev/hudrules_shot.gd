@@ -20,6 +20,11 @@ static func _dress(hud: HuntHud) -> void:
 	var p := hud.player
 	if p == null:
 		return
+	if Game.shot_path.contains("titles"):  # TITLES captures: only a worn title over her name
+		World.player_name = "Milan"
+		World.pioneer_level = 6
+		World.player_title = LevelDisplay.earned_titles(LevelDisplay.player_level())[-1]
+		return
 	p.statuses.apply(&"bleed")
 	p.statuses.apply(&"well_rested")
 	BuffSlots.of(p).apply(p, [{"id": "camp_stew_catalog", "group": "enhanced_ability", "group_name": "Enhanced Ability",

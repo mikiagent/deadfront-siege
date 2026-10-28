@@ -45,7 +45,7 @@ var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
 var _stance_label: Label
 var _events := HudEventState.new()
-var _yield := YieldCard.new()  ## UIGATHER: the B1 yield card (spec §4.5)
+var top_feed := TopFeed.new()  ## the top-middle column: skill level-ups and gains by tier (owner 2026-10-28; it retired UIGATHER's yield card)
 var _rest_fx := HudRestBox.new()
 var _status_fx := StatusFx.new()
 var _buff_row := HudBuffRow.new()  ## HUDRULES: buffs / boons / debuffs under the vitals, with tooltips
@@ -77,7 +77,8 @@ var _done_hex: HexButton
 var _levelup_lines: Array = []
 var _levelup_title: String = ""  ## the title line and one stat summary: the landscape-phone banner
 var _levelup_summary: String = ""
-var _levelup_t: float = -1.0
+var _levelup_sp: String = ""  ## the skill points the phone banner shows behind the brain glyph
+var _levelups := LevelUpCelebration.new()  ## level-ups queued, celebrated one at a time, with their light (LEVELFX)
 ## Screen rects of the blocks _draw paints (vitals, quest card, map text, status badges, level line,
 ## target plate, level-up banner), rebuilt every draw. Layout gates check them with the controls, so
 ## nothing mirrors this file's geometry.
@@ -172,7 +173,7 @@ func _ready() -> void:
 				player.statuses.apply(&"bleed_3")
 				if Game.shot_path.contains("poison"):
 					player.statuses.apply(&"venom"))
-	if Game.shot_path.contains("hudrules"):  # HUDRULES captures: bleed, Well Rested, a food buff (HudrulesShot)
+	if Game.shot_path.contains("hudrules") or Game.shot_path.contains("titles"):  # HUDRULES captures: bleed, Well Rested, a food buff (HudrulesShot)
 		get_tree().create_timer(0.6).timeout.connect(func () -> void: HudrulesShot.stage(self))
 	get_viewport().size_changed.connect(_layout)
 	_layout()
@@ -185,7 +186,7 @@ func _ready() -> void:
 
 func bind(p: Player) -> void:
 	player = p
-	_yield.sync(p)
+	top_feed.sync(p)
 	_watch_skills()
 
 ## Skill feedback (spec 25 §7, islands-and-loop-plan §3.3): the XP toast and the bigger level-up toast
@@ -212,6 +213,7 @@ func _watch_skills() -> void:
 		sk.skill_leveled.connect(func (tree: StringName, level: int) -> void:
 			_events.add_skill_level(str(tree), level)
 			notify_menu(&"skills")  # MENU badge: a level-up to look at in Skills
+			_levelups.push_skill(tree, level)  # LEVELFX: the light, the banner, the MENU / Skills badge pulse
 		)
 	if sk.has_signal("skill_changed"):
 		# A purchase or a refund moves the SP, and the pulse must answer on the same frame.
@@ -764,7 +766,11 @@ func notice(text: String, tint: Color = Color(0, 0, 0, 0)) -> void:
 func toast(id: StringName, n: int) -> void:
 	print("[ui] toast %s +%d" % [id, n])
 	_events.add_toast(id, n)
-	_yield.show_gain(player, id, n)
+	top_feed.push_gain(player, id, n)
+
+## A rare result (GatherFeedback: a find, a rare carcass part): its TopFeed row goes green.
+func feed_rare(id: StringName, where: String = "") -> void:
+	top_feed.push_rare(id, where)
 
 func _on_context(id: String) -> void:
 	if id != "claim":
@@ -993,7 +999,9 @@ func _on_level_up(stored: int) -> void:
 	# W2-SKILLS: character levels pay the SP (spec 03); show what SkillState holds (sp_now recounts,
 	# since its own handler on this signal may not have run yet).
 	var sp: int = player.skills.sp_now() if player and player.skills else 0
-	_levelup_lines.append(["Available Skill Points: %d" % maxi(0, sp), 18, Color.WHITE])
+	var sp_gain: int = player.skills.sp_for_level(level) if player and player.skills else 0
+	# Skill points are the brain glyph, never words (owner, BRAINICON): a 4th entry names the icon drawn before the text.
+	_levelup_lines.append(["%d%s" % [maxi(0, sp), "  (+%d)" % sp_gain if sp_gain > 0 else ""], 18, Color.WHITE, &"brain"])
 	var title := str(_titles.get(str(level), ""))
 	if title != "":
 		_levelup_title = "Title %s acquired." % title
@@ -1015,8 +1023,9 @@ func _on_level_up(stored: int) -> void:
 	# The landscape banner's one stat line. No pickup toast: "+5  level" read as five levels gained.
 	# ASSUMPTION: the banner alone announces a level-up (Durango shows one banner).
 	var top_stat := str(stats[level % stats.size()]) if not stats.is_empty() else "Stats"
-	_levelup_summary = "%s +%d · other stats +%d · Skill points %d" % [top_stat, bonus, gain, maxi(0, sp)]
-	_levelup_t = 0.0
+	_levelup_summary = "%s +%d · other stats +%d ·" % [top_stat, bonus, gain]
+	_levelup_sp = str(maxi(0, sp))  # drawn after the summary behind the brain glyph
+	_levelups.push_character(level, _levelup_lines, _levelup_title, _levelup_summary, _levelup_sp)
 
 # ---------------------------------------------------------------- sheets
 
@@ -1486,13 +1495,12 @@ func _process(delta: float) -> void:
 			if wh.selected != want:
 				wh.selected = want
 				wh.queue_redraw()
-	if _levelup_t >= 0.0:
-		_levelup_t += delta
-		if _levelup_t > 6.5:
-			_levelup_t = -1.0
+	_levelups.tick(delta, self)
+	if _levelups.menu_pulse() > 0.0 and _sheet is NavMenu:
+		(_sheet as NavMenu).root.queue_redraw()  # the Skills entry's badge pulses
 	GatherFeedback.tick_notices(_events.notices, player, drawn_blocks)  # W2-GATHER: rare notice life, off _draw
 	_events.tick(delta)
-	_yield.tick(delta)
+	top_feed.tick(delta)
 	_rest_fx.tick(player, _events, delta)
 	_status_fx.tick(player, _events, delta)  # STATUSFX: boxes' slots, the emitters on her, tick numbers  # REST: recovery floats over her while she rests or sleeps
 	_pulse_check -= delta
@@ -1533,6 +1541,7 @@ func _draw() -> void:
 	var lvl_r := 18.0 if not phone else 16.0
 	draw_circle(Vector2(x + lvl_r, y + lvl_r), lvl_r, Color(0.08, 0.09, 0.11, 0.95))
 	draw_string(_font, Vector2(x, y + lvl_r + num_px * 0.36), str(LevelDisplay.player_level()), HORIZONTAL_ALIGNMENT_CENTER, lvl_r * 2.0, num_px, Color.WHITE)
+	_levelups.draw_badge(self, Vector2(x + lvl_r, y + lvl_r), lvl_r, num_px)
 	x += lvl_r * 2.0 + 8.0
 	var yy := y
 	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px)
@@ -1620,7 +1629,7 @@ func _draw() -> void:
 	var fight_order := _in_combat and quest_served_by_fight()
 	orders_badge_rect = Rect2()
 	if not _in_combat or fight_order:
-		if orders_expanded() and (not band.has_area() or (plate_t == null and _levelup_t < 0.0)):
+		if orders_expanded() and (not band.has_area() or (plate_t == null and not _levelups.hides_quest(band, quest_rect(r, mp)))):
 			_draw_quest(r, mp)
 		elif not (orders_expanded() and fight_order and _draw_quest_strip(r)):
 			_draw_orders_badge(mp, meta_px)  # collapsed, or the phone band is taken and no strip fits
@@ -1639,32 +1648,17 @@ func _draw() -> void:
 	# Not under the pet radial: its see-through centre shows the pet, and the ring cut the name in two.
 	if cam and not (player.pets.menu and player.pets.menu.visible):
 		drawn_blocks["nameplate"] = HudLayout.nameplate_rect(cam, player, _font)
-		var at := (drawn_blocks["nameplate"] as Rect2).position + Vector2(0.0, NAME_PX)
-		draw_string(_font, at + Vector2.ONE, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0, 0, 0, 0.7))
-		draw_string(_font, at, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0.95, 0.95, 0.95))
+		HudLayout.draw_nameplate(self, _font, drawn_blocks["nameplate"], player)
 	_status_fx.draw_tint(self, player, HudLayout.figure_rect(self))
 	_draw_bites(cam)
 	# --- level-up: a gold stack top-left under the bars; on a landscape phone a short banner in the
 	# centre band (its 13 lines ran over the rail and off the bottom of a 390 px canvas)
 	if plate_t:
 		_draw_target_plate(plate_t, maxf(_combat_alpha, 0.85), band)
-	if _levelup_t >= 0.0:
-		var la := 1.0 - smoothstep(5.5, 6.5, _levelup_t)
-		if band.has_area():
-			var below := maxf(band.end.y, (drawn_blocks.get("plate", band) as Rect2).end.y) + 8.0
-			HudLayout.draw_levelup_banner(self, band if plate_t == null else Rect2(band.position.x, below, band.size.x, 84.0), la)
-		else:
-			var ly := 160.0
-			var stack := Rect2()
-			for line in _levelup_lines:
-				var col: Color = line[2]
-				col.a *= la
-				draw_string(_font, Vector2(31, ly + 1), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), Color(0, 0, 0, 0.6 * la))
-				draw_string(_font, Vector2(30, ly), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), col)
-				var lr := Rect2(30.0, ly - float(line[1]), _font.get_string_size(str(line[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1])).x + 1.0, float(line[1]) + 6.0)
-				stack = lr if not stack.has_area() else stack.merge(lr)
-				ly += float(line[1]) + 8.0
-			drawn_blocks["levelup"] = stack
+	var levelup := _levelups.draw(self, band, drawn_blocks.get("plate", Rect2()) if plate_t else Rect2(), drawn_blocks.get("quest", Rect2()))
+	if levelup.has_area():
+		drawn_blocks["levelup"] = levelup
+	_levelups.draw_menu_pulse(self, _menu_hex)  # LEVELFX: the MENU hex pulses with a level-up's new notice
 	# --- the domain banner, before the moving text so it keeps off the banner
 	_domain.draw(self)
 	# --- STATUSFX: the status boxes beside her, before the moving text so toasts keep off them
@@ -1682,10 +1676,6 @@ func _draw() -> void:
 	# UIGATHER (spec §6, owner §1.6): skill XP lines are the left feed under the vitals; item gains are
 	# the yield card above the node (YieldCard, spec §4.5) instead of the top-centre toast.
 	drawn_blocks.merge(YieldCard.draw_feed(self, _font, _events.skill_toasts, Vector2(vitals.position.x, vitals.end.y + 8.0), taken, player.skills), true)
-	var yb := _yield.draw(self, _font, cam, taken + GatherFeedback.radial_rects(player))
-	if yb.has_area():
-		taken.append(yb)
-		drawn_blocks["toast0"] = yb
 	if player.placer and player.placer.layout_mode:
 		var hint := "Layout mode: drag a building to move it · tap one to rotate · blue = ok, red = blocked · DONE saves" if player.placer.moving == null else "Release to drop (red snaps it back)"
 		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
@@ -1715,6 +1705,16 @@ func _draw() -> void:
 			draw_set_transform(Vector2.ZERO)
 			continue
 		HudEventState.draw_notice(self, _font, box, txt, 17, alpha, bool(n.get("ok", false)))  # B4 warning / ok row
+	# --- the top-middle column (TopFeed): under the vitals' bottom on the desktop, under the centre
+	# band (and a plate in it) on a phone; after the notices, so its rows ease around them, never they around it
+	var feed_top := HudLayout.vitals_rect(self, r).end.y + 10.0
+	if band.has_area():
+		feed_top = maxf(band.end.y, (drawn_blocks.get("plate", Rect2()) as Rect2).end.y if plate_t else 0.0) + 8.0
+	var feed_taken := taken + GatherFeedback.radial_rects(player)
+	var fb := top_feed.draw(self, _font, TopFeed.column_cx(self, r), feed_top, feed_taken)
+	for k in fb:
+		taken.append(fb[k])
+	drawn_blocks.merge(fb, true)
 	# --- label pills on buildings and nodes within 8 m (reference: base building), last: they give way
 	# to everything above and to the open radials
 	if _combat_alpha > 0.01:
@@ -1885,15 +1885,20 @@ func _draw_quest_strip(r: Vector2) -> bool:
 	drawn_blocks["quest"] = box
 	return true
 
-func _draw_quest(r: Vector2, mp: Vector2) -> void:
+## The quest card's rect: under the map on a phone, left of it otherwise.
+func quest_rect(r: Vector2, mp: Vector2) -> Rect2:
 	var phone := UiTokens.is_phone(r)
 	var w := MAP_PX if phone else 240.0  # wide enough for "Home Grassland" at heading size
 	var origin := Vector2(mp.x, mp.y + MAP_PX + 52.0) if phone else Vector2(mp.x - w - 12.0, mp.y)
-	if origin.x < 8.0:
-		origin.x = 8.0
-	draw_rect(Rect2(origin, Vector2(w, 72.0)), UiTokens.INK)
+	return Rect2(maxf(origin.x, 8.0), origin.y, w, 72.0)
+
+func _draw_quest(r: Vector2, mp: Vector2) -> void:
+	var q := quest_rect(r, mp)
+	var origin := q.position
+	var w := q.size.x
+	draw_rect(q, UiTokens.INK)
 	draw_rect(Rect2(origin, Vector2(3.0, 72.0)), UiTokens.TEAL)
-	drawn_blocks["quest"] = Rect2(origin, Vector2(w, 72.0))
+	drawn_blocks["quest"] = q
 	var step := OrdersSheet.hud_step(player)  # the running order, or the one tracked in Orders
 	var head := UiTokens.heading(r) - 4
 	var meta_px := UiTokens.meta(r)

@@ -107,10 +107,10 @@ func _run() -> void:
 	var landed := false
 	while Time.get_ticks_msec() - t0 < 20000:
 		await get_tree().process_frame
-		if not (_hud.get("_yield") as YieldCard).card.is_empty():
+		if not (_hud.get("top_feed") as TopFeed).rows.is_empty():
 			landed = true
 			break
-	_check(landed, "a gathered unit raises the yield card")
+	_check(landed, "a gathered unit raises its top-middle gain row")
 	# Mid-way through the next unit: the pressed hex pie-filled, the others locked.
 	t0 = Time.get_ticks_msec()
 	while Time.get_ticks_msec() - t0 < 8000:

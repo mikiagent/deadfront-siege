@@ -455,12 +455,8 @@ static func label(t: String, size_px: int, color: Color = UiTokens.TEXT, bold: b
 	l.add_theme_font_size_override("font_size", size_px)
 	l.add_theme_color_override("font_color", color)
 	l.add_theme_constant_override("line_spacing", 0)
-	var f: Font = UiTokens.ui_face(UiTokens.WEIGHT_BOLD if bold else UiTokens.WEIGHT_REGULAR)
-	if italic and f is FontVariation:
-		var it := (f as FontVariation).duplicate() as FontVariation
-		it.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(0.2, 1.0), Vector2.ZERO)
-		f = it
-	l.add_theme_font_override("font", f)
+	var w := UiTokens.WEIGHT_BOLD if bold else UiTokens.WEIGHT_REGULAR
+	l.add_theme_font_override("font", UiTokens.ui_italic(w) if italic else UiTokens.ui_face(w))
 	return l
 
 ## A white action icon (ui_icons.json) as a fixed-size TextureRect.
