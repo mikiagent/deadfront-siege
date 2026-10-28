@@ -39,14 +39,15 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Hex sizes follow spec §2 (`HudField.PX`): desktop rail 100, INTERACT 150, ATTACK 100, SPRINT 100,
   quick slot 80, whistle 66, CLAIM 52; compact canvases (`UiTokens.is_compact`: 844x390 and portrait)
   use 64 / 96 / 72 / 64 / 64 / 64 / 64, so every phone tap target is 64 px or more. All flat-top.
-- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD (opens the build drawer, `BuildUI`), BAG, captions under. Skills and Animals are
-  entries in the MENU sheet (no rail hexes; no hotkeys existed for them). BAG opens the bag (also I).
+- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD (opens the build drawer, `BuildUI`), BAG, captions under. Skills,
+  Animals, Character and Orders are entries in the MENU nav menu (`nav_menu.gd`), not rail hexes. BAG opens the bag (also I).
 - MENU notice badge (`HudField.notify` / `HuntHud.notify_menu`): a count in a filled circle at the
   hex's top-right, GOLD with ink text, LIFE red while any notice is urgent (ASSUMPTION, owner
   undecided), "9+" past nine. Skills notices: each skill level-up (`skill_leveled`) and each time SP
   starts to afford a node (`SkillRules.affordable_now`, rechecked every 0.25 s); cleared when Skills
-  opens; the nav menu's Skills entry carries the same count as its own badge. Market (buy/sell) notices: hook only,
-  `notify_menu(&"market")` — no client-side market event exists yet. Nothing is urgent today.
+  opens; the nav menu's Skills entry carries the same count as its own badge. Market (buy/sell) notices: the
+  hook (`notify_menu(&"market")`) and its badge exist but nothing calls it — the offline market generates no
+  client event. Nothing is urgent today.
 - Quick slots above the rail: two quick-food hexes (×count, unchanged), CHASE in the third slot in a
   fight, HANDS (held tool; tap gathers nearest, long-press unequips) in the fourth (`hands_spot`).
 - Bottom-right (`hud_field.gd`): one large INTERACT hex in the corner. It shows what
@@ -70,8 +71,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   It draws `OrdersSheet.hud_step(player)`: the running order, or a later one the player picked with
   "Track on HUD" in Orders (C4, `orders_sheet.gd`; session-only, a load follows the running order).
   Only the running order completes and pays out (`Objectives.settle`).
-- MENU sheet entries added by UICHAR: Character, Skills, Orders (`HuntHud.open_character()`,
-  `open_skills(tree)`, `open_orders()`); ‹ on those screens reopens the MENU.
+- The nav menu's entries: Character, Skills, Orders (`HuntHud.open_character()`, `open_skills(tree)`,
+  `open_orders()`), Craft (`craft_ui.gd`), Build (`BuildUI`), Bag, Animals (`open_animals`), World Atlas
+  (`open_atlas`), Domain, Communication, Island Market (`open_market(tab)`) and Save; ‹ on those screens
+  reopens the MENU (`HuntHud.open_menu`).
 
 ## The centre band (`HudLayout.centre_band`)
 - Landscape phones: the strip between the vitals and the minimap carries the quest card; the target
@@ -180,9 +183,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   toggle, ASSUMPTION) and the T-stone balance, and a CLOSE hex where MENU sits. It draws on canvas
   layer 90 and fades the HUD's own drawing and hexes out while open; the world keeps running. A tap
   on the world, CLOSE or Esc closes it. Each entry badges notices of its own kind
-  (`HudField.notices`, GOLD / LIFE). Orders and Friends show greyed (no screen yet); Character opens
-  the bag's Character page, Communication the Domain screen's Communications Center (ASSUMPTIONS).
-  Compact canvases fold each side into two columns of three 72 px rows.
+  (`HudField.notices`, GOLD / LIFE). No entry is greyed today (`NavMenu.DISABLED` is empty): Orders opens
+  its own sheet and the Friends slot holds Island Market (ASSUMPTION, `nav_menu.gd` RIGHT — Friends has no
+  system yet); Character opens the Character screen the bag's Character tab also opens, Communication the
+  Domain screen's Communications Center. Compact canvases fold each side into two columns of three 72 px rows.
 - Sheets (BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
   scrolling when short; landscape phones lay them out as a two-column grid. HANDS and the creature
   plates hide while one (or the nav menu) is open.
@@ -210,12 +214,13 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 
 ![b3_nav_menu](../orchestration/reports/uinav/b3_nav_menu_844x390.png)
 
-## Tokens available (not yet applied)
+## Tokens used by the field HUD and the sheets
 
-`game/scripts/ui/ui_tokens.gd` now also carries the hex-HUD language from
+`game/scripts/ui/ui_tokens.gd` carries the hex-HUD language from
 [`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §2/§3/§8. The field controls (rail,
 INTERACT / ATTACK / SPRINT, context hexes, CLAIM) use `HUD_RIM` / `GOLD` rims and the MENU badge
-`GOLD` / `LIFE` / `CTA_INK`; the rest stays opt-in for later packages.
+`GOLD` / `LIFE` / `CTA_INK`; the sheets share the same token set through `sheet_chrome.gd` /
+`uichar_chrome.gd` (see [ui-screens.md](ui-screens.md)).
 
 - Palette: `HUD_FILL`, `HUD_RIM`, `HEADER`, `SCREEN_DIM`, `PANEL`, `GOLD`, `GOLD_DIM`, `CTA_INK`,
   `PARCHMENT_TOP` / `PARCHMENT_BOTTOM` / `PARCHMENT_INK`, `OK_GREEN`, `LIFE`, `ENERGY`, `XP`, `MUTED`;
@@ -223,7 +228,7 @@ INTERACT / ATTACK / SPRINT, context hexes, CLAIM) use `HUD_RIM` / `GOLD` rims an
 - Trait chips: `TRAIT_NEG_*` (grey = negative), `TRAIT_POS_*` (yellow = positive), `TRAIT_RARE_*`
   (green = rare), with `trait_chip_style(polarity)` (0 radius, 3x8 padding) and `trait_chip_prefix()`
   (`−`, `+`, U+2726). Exhaustion tints: `MOOD[4]`. Type: `ui_font(400/700)`, `ui_face()` over
-  `res://assets/fonts/RobotoCondensed-Variable.ttf` (the file itself is not in this branch yet).
+  `res://assets/fonts/RobotoCondensed-Variable.ttf` (shipped).
 - Hex geometry: `HEX_FLAT_TOP` (true, owner decision 2026-10-28), `hex_points(center, r, flat_top)`,
   `hex_radius_at(a, r, flat_top)`, `pie_points(center, r, f, flat_top)` — the gather pie fill.
 - Chrome: `draw_brackets(ci, rect)` (18 px gold corners), `header_style()`, `draw_torn_edge()`

@@ -38,7 +38,7 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 **`sheet_menu`** — MENU nav menu (B3, `nav_menu.gd`): two columns of entries over the live world,
 header with the debug gear and T-stone balance, CLOSE where MENU sits. The WebP below predates it
-(old row sheet); current captures at both sizes: `docs/orchestration/reports/uinav/b3_nav_menu_*.png`.
+(old row sheet); current captures at both sizes are in `docs/orchestration/reports/uinav/` (b3_nav_menu_1600x900.png, b3_nav_menu_844x390.png).
 
 ![sheet_menu](screens/sheet_menu.webp)
 
@@ -112,7 +112,9 @@ in the bag and the Construction level along the bottom. A tile starts the ghost 
 open: "Pick a building spot" over the world, the cost bar at the bottom (in the drawer's bottom line
 on a phone), and the HUD's ROTATE / SAVE / CANCEL row beside the ghost, kept off the drawer. A
 construction site's sheet (slots, Work / Withdraw / Cancel site / Finish) opens in the same drawer.
-The old BUILD bottom sheet (`sheet_build`) is still reachable from code but no control opens it.
+The old BUILD bottom sheet (`sheet_build`) is still built by `HuntHud._toggle_sheet(&"build")`, but no
+player control opens it any more: only the dev labs call it (`game/scripts/dev/ui_real_capture_lab.gd`,
+`game/scripts/dev/web_soak.gd`).
 
 
 ## Character, Skills, Orders (UICHAR, spec §7 C1/C3/C4)
@@ -196,8 +198,6 @@ routes (+ Warp home away from home) and zoom − / +. Open: `HuntHud.open_atlas(
 
 ![atlas](screens/atlas.webp)
 
-**`claim`** — CLAIM confirm panel (B4 restyle: parchment header, Cancel outlined, GOLD Expand;
-current captures `docs/orchestration/reports/uinav/b4_claim_*.png`)
 **`harbour`** — Harbour (`world_ui.gd show_harbour()`; owner §11 rebuilt the stretched "Sail ..." rows):
 sheet chrome "Harbour" with "Survival n · T-stones n", then a 4-column (phone: 3) grid of route cards:
 island, level · climate, the requirement line (red when short), and a Sail button (GOLD when it can
@@ -205,7 +205,8 @@ go, `route_id` meta, disabled with the reason on the card). Away from home: Free
 Return to camp cards first. Back returns to the atlas. Shots:
 `../orchestration/reports/uianimals/f2-harbour-*.png`.
 
-**`claim`** — CLAIM confirm panel
+**`claim`** — CLAIM confirm panel (B4 restyle: parchment header, Cancel outlined, GOLD Expand;
+current captures in `docs/orchestration/reports/uinav/`)
 
 ![claim](screens/claim.webp)
 
@@ -264,18 +265,22 @@ pie with seconds left and the food's energy, the pet respawn ring (dark red disc
 
 Not captured by `tools/ui_screens.sh`: the death card, the respawn ring and the skill debug overlay (dev only).
 
-## Tokens available for restyled sheets (not yet applied)
+## Tokens used by the restyled sheets
 
 `game/scripts/ui/ui_tokens.gd` carries the token set and chrome helpers of
-[`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §2/§8; no sheet uses them yet.
+[`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §2/§8. The sheets use them:
+`sheet_chrome.gd` and `uichar_chrome.gd` build the HEADER bar, torn edge, dim and back/close for the
+Character, Skills, Orders, Animals, Atlas, Harbour, Market and Craft screens, `craft_ui.gd` its own
+header, `market/market_screen.gd` the rail; the older row sheets and the field HUD still draw their
+own colours.
 
 - Palette: `HUD_FILL`, `HUD_RIM`, `HEADER`, `SCREEN_DIM`, `PANEL`, `GOLD`, `GOLD_DIM`, `CTA_INK`,
   `PARCHMENT_TOP` / `PARCHMENT_BOTTOM` / `PARCHMENT_INK`, `OK_GREEN`, `LIFE`, `ENERGY`, `XP`, `MUTED`;
   existing `INK` / `TEAL` / `DIVIDER` unchanged.
 - Chrome: `header_style()` (the HEADER bar) with `draw_torn_edge()` under it, `draw_brackets()` for a
   selection (four 18 px GOLD corners), `trait_chip_style(polarity)` / `trait_chip_prefix()` for the
-  grey / yellow / green trait chips, and `ui_font(400|700)` / `ui_face()` for Roboto Condensed (the TTF
-  is not in this branch yet; these return null and the engine fallback there).
+  grey / yellow / green trait chips, and `ui_font(400|700)` / `ui_face()` for Roboto Condensed
+  (`game/assets/fonts/RobotoCondensed-Variable.ttf`), with the engine fallback when it is missing.
 - `HexButton` (also used by the sheets) has `flat_top`, `rim_color` / `rim_width`, `fill_ratio`,
   `icon_grey` and `key_hint`; a hex that sets `rim_color` selects in GOLD instead of TEAL. Defaults
   keep the shipped look; the one global change is that default hexes are flat-top (`HEX_FLAT_TOP`).

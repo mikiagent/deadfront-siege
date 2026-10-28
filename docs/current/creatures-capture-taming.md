@@ -56,7 +56,23 @@ completion.
   (provoke after 1 hit, ×1.2), territorial (1 hit, ×1.2, inside `territory_m` 6.0).
 - Specialised brains: `raptor_pack_brain.gd` (alpha + followers), `tyrant_brain.gd` (bite windup
   0.7 s, stomp 1.2 s, stagger after 3 blunt hits poisoned / 6 unpoisoned), `pet_brain.gd`
-  (guard radius 9.0 m, drop target at 45.0 m, follow slots in `ai.json` `follow`), `brain_flight.gd`, `brain_rest.gd`.
+  (guard radius 9.0 m, drop target at 45.0 m, follow slots in `ai.json` `follow`),
+  `tactical_brain.gd` (the class profiles below), `brain_flight.gd`, `brain_rest.gd`.
+- Brain selection (`Creature._make_brain`, `game/scripts/creatures/creature.gd`): pet → `PetBrain`;
+  tyrannosaurus → `TyrantBrain`; any other species whose archetype row has a `tactics` block →
+  `TacticalBrain` (`TacticalBrain.has_tactics`); a `raptor_pack` archetype → `RaptorPackBrain`; else
+  `CreatureBrain`. Today only `pack_flanker` (deinonychus) carries `tactics`.
+- Tactical AI: a `TacticalBrain` animal closes to a stand-off ring (`ring_m` 5.5 for the deinonychus),
+  strafes around it, and picks its strongest off-cooldown, affordable, in-range attack from
+  `attack_priority` (deinonychus: combo, pounce, bite). Every move has its own cooldown in the
+  archetype's `tactics` block; when nothing is ready it backs off with a backward leap (`hop`),
+  strafes, flips direction or feints. The pounce telegraphs 0.8 s, leaps and hits for `pounce_mult`
+  1.5×; the combo's three hits scale 1.0 / 1.3 / 1.8. Below `retreat_frac` 0.4 of max HP it retreats
+  facing the prey, then circles wider. Its states (`circle`, `feint`, `lunge`, `pounce`, `combo`,
+  `attack`, `retreat`, `approach`, `hop`) are full-rate thinking states. Natures scale it through the
+  `tactic_*` knobs in `natures.json`. Code: `game/scripts/creatures/brains/tactical_brain.gd`, data:
+  `game/data/creatures/ai.json` `archetypes.<archetype>.tactics`, test: `game/tests/t_tactical.gd`;
+  the full profile is [enemy-ai-template.md](enemy-ai-template.md).
 
 ## Spawns
 - `IslandSpawns.spawn_all` places fixed rows from the island def's `creatures[]` and ring-band
@@ -171,8 +187,11 @@ Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"`
 - Specials: `special_cost(clip)` is the species' own cost, else `special_cost_frac` × pool
   (attack_heavy 0.3, deinonychus `bite_combo` 0.35). Everything else is free. API for the brains:
   `can_use_special(cost)`, `spend_energy(cost)`, `try_special(clip)` (checks, then spends),
-  `can_sprint()`, `energy_frac()`. **The brains do not call these yet.** The tactical-combat package
-  owns the brains and wires heavies to `try_special`.
+  `can_sprint()`, `energy_frac()`. `TacticalBrain` is the brain that calls them: the pounce and the
+  bite_combo go through `try_special` and gate on `can_use_special`, and the lunge, feint and charge
+  dashes need `can_sprint()` (`game/scripts/creatures/brains/tactical_brain.gd`). `energy.sprint_states`
+  lists the states that drain the pool: approach, attack, flee, retreat, chase, lunge, feint.
+  `special_cost_frac` also prices pounce at 0.3 of the pool.
 - Not saved: a reload starts every animal at full, since the pool refills in 11–32 s.
 - `# ASSUMPTION`: all of these numbers are a first pass.
 
