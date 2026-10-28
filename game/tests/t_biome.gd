@@ -83,7 +83,7 @@ func _check_defaults() -> void:
 			"albedo *= 1.0 - macro_strength * 0.5 + macro * macro_strength;"],
 		BM.FOLIAGE_SHADER: ["uniform vec3 tip_tint : source_color = vec3(1.0);",
 			"uniform float root_dark = 0.75;", "uniform float tip_gain = 0.35;",
-			"ALBEDO = tint * mix(vec3(1.0), tip_tint, y) * (root_dark + tip_gain * y);"],
+			"ALBEDO = tint * mix(vec3(1.0), tip_tint, y) * (root_dark + tip_gain * y)"],  # SKYSHADOWS multiplies v_sky after it
 	}
 	for sh: Shader in lines:
 		for line: String in lines[sh]:

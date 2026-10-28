@@ -22,10 +22,12 @@ const EXPECTED_FAIL_TIME := false
 
 ## Recorded before any optimisation (2026-10-28, commit 5f0d6300 + the phase-timer marks, which
 ## change no output). These are the island the plan's budget is about; they may not change.
+## Re-recorded 2026-10-28 for TERRAINSMOOTH (refined 2x surface, sandy beach stretches), a change of
+## output by design: canon 0ae592a5 built the old digests, the terrain merge on top builds these.
 const BEFORE := {
-	"home_grassland": "5899e136475de8d194cdb58a36df0954bca0cc791a20a06533e0f2db9bed3f7b",
-	"savannah_15": "39124cf721d3dfb40a599bb47493700450317808ecbe82fa3f0129452c60223d",
-	"volcanic_60": "aa21512f6fec687e3d4382e80f132be952db60eee8de32865378b83c463d3090",
+	"home_grassland": "8f711ab5979e9d36d55b50cec073c986e1bc8e38623d512876f6eb8968327b3a",
+	"savannah_15": "92c0553497c7e3ef18c5e1ed9b8c67d617d127d9c36f2c452c516296ba78abd9",
+	"volcanic_60": "9c9c8c7c37a811a0908bb0ec56b5337c682133c80bddc7f3c18130d663e74d5f",
 }
 
 var _fails: PackedStringArray = []
