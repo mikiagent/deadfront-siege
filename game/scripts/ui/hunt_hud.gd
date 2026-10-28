@@ -51,6 +51,8 @@ var _status_fx := StatusFx.new()
 var _buff_row := HudBuffRow.new()  ## HUDRULES: buffs / boons / debuffs under the vitals, with tooltips
 var stomach_rect := Rect2()  ## HUDRULES: the fullness ring beside the bars, drawn this frame
 var stomach_fill := 0.0
+var energy_bar_color := UiTokens.PLAYER_ENERGY  ## drawn this frame: the mount's darker blue while riding
+var energy_bar_segments := 0
 var orders_badge_rect := Rect2()  ## HUDRULES: the collapsed orders badge on the minimap, drawn this frame
 var orders_badge_text := ""
 var _orders_badge_px := 12
@@ -1521,7 +1523,10 @@ func _draw() -> void:
 	# The mount's name leads the numbers when it fits (a phone bar may only fit the numbers; amber still says "mount").
 	if en.name != "" and _font.get_string_size("%s  %s" % [en.name, en_text], HORIZONTAL_ALIGNMENT_LEFT, -1, num_px).x <= bar_w - 12.0:
 		en_text = "%s  %s" % [en.name, en_text]
-	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), Color(0.85, 0.62, 0.20) if en.name != "" else Color(0.20, 0.45, 0.80), "", en_text, num_px)
+	# Owner 2026-10-28: riding, the bar is the mount's, segmented and a darker blue (UiTokens.MOUNT_ENERGY).
+	energy_bar_color = UiTokens.MOUNT_ENERGY if en.name != "" else UiTokens.PLAYER_ENERGY
+	energy_bar_segments = UiTokens.MOUNT_ENERGY_SEGMENTS if en.name != "" else 0
+	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), energy_bar_color, "", en_text, num_px, energy_bar_segments)
 	yy += big + gap
 	stomach_fill = HudStomach.fill_of(player)
 	stomach_rect = HudStomach.draw(self, Vector2(x + bar_w + 6.0 + ring_d * 0.5, y + ring_d * 0.5), ring_d * 0.5, stomach_fill)
@@ -1907,9 +1912,11 @@ static func energy_reading(pl: Player) -> Dictionary:
 		return {"value": m.energy, "max": m.energy_max, "name": nm}
 	return {"value": pl.vitals.energy, "max": pl.vitals.effective_max_energy(), "name": ""}
 
-func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12) -> void:
+func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12, segments: int = 0) -> void:
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))
 	draw_rect(Rect2(pos, Vector2(size.x * clampf(frac, 0.0, 1.0), size.y)), col)
+	for k in range(1, segments):  # a 2 px dark gap between segments
+		draw_rect(Rect2(pos.x + size.x * float(k) / float(segments) - 1.0, pos.y, 2.0, size.y), Color(0.02, 0.03, 0.05, 0.9))
 	draw_rect(Rect2(pos, size), Color(0, 0, 0, 0.6), false, 1.0)
 	if glyph != "":
 		draw_string(_font, pos + Vector2(-14, size.y - 3), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)

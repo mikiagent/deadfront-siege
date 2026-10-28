@@ -20,8 +20,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   Rested the belt pauses (`ExhaustTreadmill.paused_rate`: the drift eases to 0 in ~0.2 s and holds)
   unless exhaustion is falling right then (a rest or a meal still runs it left); the status row shows
   the Well Rested chip (sun over a pillow, `well_rested.svg`) with its countdown.
-- Mounted: the second (energy) bar shows the ridden mount's energy. It turns amber, and on desktop
-  the mount's name leads the numbers (a phone bar shows only the numbers when the name does not fit).
+- Mounted: the second (energy) bar shows the ridden mount's energy. It turns the darker
+  `UiTokens.MOUNT_ENERGY` blue in 10 segments (owner 2026-10-28; ASSUMPTION: a tick every 10 %), and on desktop
+  the mount's name leads the numbers (a phone bar shows only the numbers when the name does not fit; the segmented darker blue still says "mount").
   It goes back to the survivor's blue stamina on dismount (`HuntHud.energy_reading`). The exhaustion
   face and treadmill always belong to the survivor, and the mount running does not move them.
 - Status chips row under the vitals (HUDRULES, owner 2026-10-28; `hud_buff_row.gd`): **buffs, boons and

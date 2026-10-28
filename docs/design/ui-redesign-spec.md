@@ -300,3 +300,5 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
 - [owner 2026-10-28] Orders **auto-expand while you work on them** (gathering, crafting, fighting the
   ordered creature) and collapse again 4 s (ASSUMPTION) after progress stops; a manual collapse during
   the activity sticks.
+- [owner 2026-10-28] The **mounted energy bar** is segmented (10 segments, ASSUMPTION) and a darker blue
+  (`UiTokens.MOUNT_ENERGY`) than the survivor's own stamina bar (`UiTokens.PLAYER_ENERGY`).

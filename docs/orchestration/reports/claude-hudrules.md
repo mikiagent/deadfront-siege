@@ -48,6 +48,25 @@ Owner rules (2026-10-28, verbatim in the task):
 - Docs: `docs/current/hud.md`, `docs/current/survival-needs.md`, and six owner rules added to
   `docs/design/ui-redesign-spec.md` §11.
 
+## Round 2: after merging canon `04016b23`
+
+- `t_targetui` failed after the canon merge, so I updated its phone assert to the collapsed-orders rule.
+  With only a selection there is no plate and no card, and the minimap badge shows. Once the player
+  expands the orders, the card takes the band, and the test checks that it overlaps no other drawn block.
+- The mounted energy bar is segmented and darker blue (owner). The new tokens are
+  `UiTokens.PLAYER_ENERGY` and `UiTokens.MOUNT_ENERGY`, and `MOUNT_ENERGY_SEGMENTS` is 10 (ASSUMPTION:
+  a tick every 10 %). `_bar` draws 2 px dark gaps between segments, and HuntHud records
+  `energy_bar_color` and `energy_bar_segments`. `t_energy` asserts that riding draws the bar in
+  MOUNT_ENERGY with 10 segments, that MOUNT_ENERGY is a darker shade of the player's blue, and that on
+  foot the bar is PLAYER_ENERGY with no segments. The amber mounted bar is gone.
+- Capture hook: `mounted` in the shot path summons a zebraceratops and mounts it.
+
+Round 2 gates, after the canon merge and import:
+- PASS with 0 SCRIPT ERRORs: t_targetui, t_energy, t_mounts, t_hudrules, t_ui, t_fieldhud, t_statusfx,
+  t_uigather, t_rest, t_foodfx.
+- PASS with the base branch's own errors: t_uiicons (2), t_uinav (1), and run_all `[tests] PASS` (6).
+- `tools/smoke.sh --no-import`: SMOKE PASS.
+
 ## Status kind mapping (ASSUMPTION)
 
 | kind | statuses |
@@ -102,6 +121,8 @@ Owner rules (2026-10-28, verbatim in the task):
 | `combat_1600_crop.png` | 1600x900 top 480 px: fighting a deinonychus, "Hunt something for meat" stays up |
 | `collapsed_tip_844.png` | 844x390: collapsed badge, Well Rested tooltip open |
 | `expanded_844.png` | 844x390: card expanded left of the minimap |
+| `mounted_1600_top.png` / `mounted_844.png` | Riding a zebraceratops: the energy bar is the mount's, segmented and darker blue |
+| `onfoot_1600_top.png` / `onfoot_844.png` | The same scene on foot: the player's own blue, no segments |
 | `combat_844.png` | 844x390 combat vs a deinonychus: the plate takes the band, the order draws as the strip under the chips |
 
 What I changed after looking at the captures:
@@ -119,4 +140,8 @@ What I changed after looking at the captures:
   banner, as before, and shows the badge in the meantime.
 - In the 1600 combat capture a creature status ("Groggy") shows on the target plate; that is the
   creature's, unchanged.
+- On desktop the stomach ring shortens the bars to 188 px, so the mount's name no longer fits beside its
+  numbers ("106 / 106" only). The existing fallback handles it; the segmented darker blue still marks the
+  mount. In the captures the mount's energy is full: it was set to 64 % at mount time but refilled before
+  the shot.
 - Credits spent: none.

@@ -30,6 +30,13 @@ static func _dress(hud: HuntHud) -> void:
 	OrdersSheet.hud_expanded = Game.shot_path.contains("expanded")
 	if Game.shot_path.contains("tip"):
 		hud._buff_row.pinned = "well_rested"
+	if Game.shot_path.contains("mounted"):  # ride a zebraceratops: the energy bar is the mount's
+		p.bonded.append(PetRecord.from_def(Data.creature(&"zebraceratops"), &"A"))
+		var m := p.pets.summon(p.bonded.size() - 1)
+		hud.get_tree().create_timer(0.5).timeout.connect(func () -> void:
+			if is_instance_valid(m):
+				p.pets.mount(m)
+				m.energy = m.energy_max * 0.64)  # partly spent, so the fill and the segments both read
 	if Game.shot_path.contains("combat"):
 		var steps := Objectives._steps()
 		for i in steps.size():
