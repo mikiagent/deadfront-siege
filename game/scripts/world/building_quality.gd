@@ -214,3 +214,18 @@ static func _json(path: String) -> Dictionary:
 static func supported(bp: Dictionary) -> Array:
 	var v: Variant = bp.get("supported_building_effects", [])
 	return v as Array if v is Array else []
+
+## [{id, level}] rows only, ids and levels clamped: a save file may carry anything.
+static func clean_attrs(v: Variant) -> Array:
+	var out: Array = []
+	if not v is Array:
+		return out
+	for row: Variant in v:
+		if not row is Dictionary:
+			continue
+		var id := str((row as Dictionary).get("id", "")).strip_edges().left(40)
+		var lv: Variant = (row as Dictionary).get("level", 0)
+		if id == "" or not (lv is int or lv is float):
+			continue
+		out.append({"id": id, "level": clampi(int(lv), 0, 60)})
+	return out

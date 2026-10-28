@@ -234,6 +234,15 @@ func contributing_levels() -> Array[int]:
 				out.append(s.level)
 	return out
 
+## The traits the primary (main) slot's first instance would pass to the finished building
+## (spec 10 §3: ordinary inheritance reads the primary material only). Empty until one is deposited.
+func contributing_traits() -> Array:
+	return BuildingQuality.primary_traits(bp().get("slots", []), slot_items)
+
+## What those traits will do to the finished station, by the blueprint's supported effects.
+func preview_effects() -> Dictionary:
+	return BuildingQuality.effects(BuildingQuality.supported(bp()), contributing_traits(), true)
+
 ## Preview of the structure level completion would give now (0 while materials are short).
 func preview_level(construction_level: int) -> int:
 	if not materials_ready():

@@ -33,6 +33,12 @@ static func fill_card(box: Container, player: Player, btn: Callable, close: Call
 	if not is_instance_valid(sp) or sp.is_queued_for_deletion():
 		return "Gone"
 	var label := str(StructurePiece.piece_def(sp.kind).get("label", sp.kind))
+	# Spec 10 §3: the finished piece's level and inherited traits are visible, with what each did.
+	var q := CraftUI._label(StructurePlacer.quality_text(sp), UiTokens.meta(player.get_viewport().get_visible_rect().size), UiTokens.MUTED)
+	q.name = "StructureQuality"
+	box.add_child(q)
+	for line in BuildingQuality.effect_lines(sp.inherited_attributes, BuildingQuality.effects(StructurePlacer._supported(sp.kind, StructurePiece.blueprint(sp.kind, sp.tier)), sp.inherited_attributes, false)):
+		box.add_child(CraftUI._label(line, UiTokens.meta(player.get_viewport().get_visible_rect().size), UiTokens.MUTED))
 	if sp.kind == &"door":
 		btn.call("Close door" if sp.door_open else "Open door", func () -> void:
 			sp.interact(player)
