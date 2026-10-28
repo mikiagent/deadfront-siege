@@ -136,6 +136,18 @@ func slot_uid(i: int) -> String:
 	var bag: Array = d.bag
 	return str(bag[i].get("uid", "")) if i >= 0 and i < bag.size() and bag[i] is Dictionary else ""
 
+## The survivor's Roll, as the server keeps it: the press time in server milliseconds. RollRules
+## owns the window and the cooldown; this is only the stored stamp, so a replay and a live op agree.
+const NO_ROLL_MS := -1000000
+
+func roll_ms() -> int:
+	return int(d.get("roll_ms", NO_ROLL_MS))
+
+func roll_press(at_ms: int) -> int:
+	# Keyed by nothing but the stamp: the window is `at_ms - roll_ms`, so replaying the op reproduces it.
+	d.roll_ms = at_ms
+	return at_ms
+
 func pos() -> Vector3:
 	return WorldFacade.v3(d.pos)
 

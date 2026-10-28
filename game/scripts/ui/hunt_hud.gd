@@ -2,8 +2,8 @@ class_name HuntHud
 extends Control
 ## The Durango HUD (docs/reference/durango-look-reference.webp, durango-combat-reference.jpg):
 ## top-left vitals bars, top-right minimap with survivable time and coordinates, bottom-left
-## menu hexes (MENU / PETS / BUILD / SKILLS), bottom-right inspect hex, XP bar along the
-## bottom, the survivor's name under her feet. During a hunt: red frame, top-centre target
+## rail MENU / BUILD / BAG (owner 2026-10-28; Skills and Animals live in the MENU sheet), bottom-right
+## INTERACT / ATTACK NEAREST / SPRINT (HudField), XP bar along the bottom, the survivor's name under her feet. During a hunt: red frame, top-centre target
 ## plate, End Combat, hex skill cluster with Auto and Attack Stance, Chase toggle.
 ## Everything is a tap; the old text HUD and the TouchControls button cluster are gone.
 
@@ -15,10 +15,10 @@ var _map_tex: ImageTexture
 var _map_island: StringName = &""
 var _map_span: int = 0
 var _menu_hex: HexButton
-var _pets_hex: HexButton
 var _build_hex: HexButton
-var _skills_hex: HexButton
+var _bag_hex: HexButton
 var _inspect_hex: HexButton
+var field: HudField  ## INTERACT / ATTACK NEAREST / SPRINT and the MENU notice badge
 var _fatigue_rect := Rect2() ## screen rect of the fatigue face and bar, recorded in _draw; a tap opens the panel
 var _fatigue_panel: FatiguePanel
 var _fat_rate := 0.0 ## EMA of d(fatigue)/dt, pt/s: rises while working awake, plunges on a sleep
@@ -33,8 +33,6 @@ var _animal_screen: AnimalScreen
 var _inspector: Panel
 # combat
 var _end_btn: Button
-var _sprint_hex: HexButton
-var _combat_hex: HexButton
 var _skill_hexes: Array[HexButton] = []
 var _auto_hex: HexButton
 var _chase_hex: HexButton
@@ -96,6 +94,9 @@ func _ready() -> void:
 	add_child(_daynight)
 	_build_fatigue_panel()
 	_build_menu_row()
+	field = HudField.new(self)
+	if skills_pulse_on:  # bound (and counted) before the badge existed
+		notify_menu(&"skills")
 	_watch_skills()
 	_build_combat()
 	_build_place_hexes()
@@ -157,15 +158,12 @@ func bind(p: Player) -> void:
 	_watch_skills()
 
 ## Skill feedback (spec 25 §7, islands-and-loop-plan §3.3): the XP toast and the bigger level-up toast
-## on skill_xp_gained/skill_leveled, and the SKILLS hex's pulse from SkillRules.affordable_now.
+## on skill_xp_gained/skill_leveled, and the MENU badge's skill notices (a level-up, SP that buys a node).
 ## Connected here (a Player may be bound before or after this HUD enters the tree) and never twice.
 var _skills_watched: SkillState = null
 ## Seconds between affordability recounts: node_state walks twelve trees, no need to do it per frame.
 const SKILL_PULSE_TICK := 0.25
-## The glow is a soft ring around the hex, never a jump; this is where in its cycle it is (0..1).
-const SKILL_PULSE_SECONDS := 1.6
 var skills_pulse_on: bool = false
-var _pulse_clock: float = 0.0
 var _pulse_check: float = 0.0
 
 func _watch_skills() -> void:
@@ -182,6 +180,7 @@ func _watch_skills() -> void:
 	if sk.has_signal("skill_leveled"):
 		sk.skill_leveled.connect(func (tree: StringName, level: int) -> void:
 			_events.add_skill_level(str(tree), level)
+			notify_menu(&"skills")  # MENU badge: a level-up to look at in Skills
 		)
 	if sk.has_signal("skill_changed"):
 		# A purchase or a refund moves the SP, and the pulse must answer on the same frame.
@@ -191,8 +190,8 @@ func _watch_skills() -> void:
 		)
 	_refresh_skill_pulse()
 
-## The hex pulses when at least one buyable node is affordable with the SP held, and stops when none
-## is. Public so a lab can read the state the HUD draws.
+## True while at least one buyable node is affordable with the SP held (each time it turns true the
+## MENU badge gets a skills notice; the SKILLS rail hex and its halo are gone). Public for labs and tests.
 func skills_pulsing() -> bool:
 	return skills_pulse_on and player != null and not player.dead
 
@@ -200,7 +199,10 @@ func _refresh_skill_pulse() -> void:
 	if player == null or player.skills == null:
 		skills_pulse_on = false
 		return
+	var was := skills_pulse_on
 	skills_pulse_on = SkillRules.affordable_now(player.skills)
+	if skills_pulse_on and not was and field:
+		notify_menu(&"skills")  # MENU badge: SP now buys a node (counted once each time it becomes true)
 
 # ---------------------------------------------------------------- layout
 
@@ -209,26 +211,30 @@ func _layout() -> void:
 	var inset := _safe_insets()
 	_minimap.position = Vector2(r.x - MAP_PX - 16.0 - inset.x, 34.0 + inset.z)
 	_daynight.dock(_minimap.get_rect())
-	var y := r.y - HEX - CAPTION_H - 14.0 - inset.y  # captions sit under the hexes, inside the safe area
+	# Rail bottom-left: MENU, BUILD, BAG (owner 2026-10-28), captions under them inside the safe area.
+	var rail := HudField.px(&"rail", r)
+	var y := r.y - rail - CAPTION_H - 14.0 - inset.y
 	var x := 16.0 + inset.w
-	for h in [_menu_hex, _pets_hex, _build_hex, _skills_hex]:
+	for h in [_menu_hex, _build_hex, _bag_hex]:
+		HudField.fit(h, rail)
 		h.position = Vector2(x, y)
-		x += HEX + 10.0
+		x += rail + 10.0
+	# Quick slots above the rail: two quick-food hexes, CHASE in the third slot during a fight, HANDS
+	# (held_item_slot.gd, its own layer) in the fourth (hands_spot).
+	var q := HudField.px(&"quick", r)
+	var qy := y - q - CAPTION_H - 12.0
 	for i in _food_hexes.size():
-		_food_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
+		HudField.fit(_food_hexes[i], q)
+		_food_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (q + 10.0), qy)
+	HudField.fit(_chase_hex, q)
+	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (q + 10.0), qy)
 	# Debug hex stays off the minimap. On a phone it drops to the lower right so the vitals can sit beside the map.
 	_inspect_hex.visible = Game.debug_overlay
 	if UiTokens.is_phone(r):
 		_inspect_hex.position = Vector2(r.x - HEX - 16.0 - inset.x, r.y - HEX * 2.0 - 36.0 - inset.y)
 	else:
 		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + DayNightDial.DISC + 8.0)  # under the dial
-	# Chase joins the quick-food row (slot 2): at the rail's left edge it sat on the first food hex.
-	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
-	# Persistent movement/combat modes stay under the right thumb. Portrait lifts them one row so
-	# they do not cover the four-item menu rail.
-	var mode_y := y - (HEX + CAPTION_H + 10.0 if UiTokens.is_narrow(r) else 0.0)
-	_combat_hex.position = Vector2(r.x - 16.0 - inset.x - HEX, mode_y)
-	_sprint_hex.position = _combat_hex.position - Vector2(HEX + 10.0, 0.0)
+	field.place(r, inset, map_floor())
 	if HudLayout.landscape_phone(r):
 		HudLayout.place_landscape_phone(self, r, inset)
 	elif UiTokens.is_narrow(r):
@@ -240,6 +246,24 @@ func _layout() -> void:
 	# Context hexes are placed when built: rebuild them on the new canvas (CLAIM stayed off a resized view).
 	_ctx_ids = []
 	_ctx_timer = 0.0
+
+## The lowest y the minimap column holds: the map, then its "X n  Y n" line under it.
+func map_floor() -> float:
+	return _minimap.position.y + MAP_PX + 24.0
+
+## Where HANDS (held_item_slot.gd) stands: the quick row's fourth slot, centred in it.
+func hands_spot() -> Vector2:
+	var r := get_viewport_rect().size
+	var inset := _safe_insets()
+	var q := HudField.px(&"quick", r)
+	var qy := r.y - HudField.px(&"rail", r) - CAPTION_H - 14.0 - inset.y - q - CAPTION_H - 12.0
+	var off := (q - HeldItemSlot.SLOT) * 0.5
+	return Vector2(16.0 + inset.w + 3.0 * (q + 10.0) + off, qy + off)
+
+## A notice for the MENU badge (HudField.notify): &"skills", &"market" (hook: no client market events
+## yet) or any sheet id; urgent draws the badge red. Cleared when that sheet opens.
+func notify_menu(kind: StringName, n: int = 1, urgent: bool = false) -> void:
+	field.notify(kind, n, urgent)
 
 func _safe_insets() -> Vector4:  # x=right, y=bottom, z=top, w=left
 	return UiTokens.safe_insets(get_viewport())
@@ -280,14 +304,21 @@ func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButto
 
 func _build_menu_row() -> void:
 	_menu_hex = _hex("≡", HEX, "MENU")
+	_menu_hex.name = "MenuHex"
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
-	_pets_hex = _hex("", HEX, "ANIMALS")
-	_pets_hex.icon = UiIcons.icon(&"animals")
-	_pets_hex.pressed.connect(open_animals)
 	_build_hex = _hex("⌂", HEX, "BUILD")
+	_build_hex.name = "BuildHex"
 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
-	_skills_hex = _hex("★", HEX, "SKILLS")
-	_skills_hex.pressed.connect(_toggle_skills)
+	_bag_hex = _hex("", HEX, "BAG")
+	_bag_hex.name = "BagHex"
+	_bag_hex.icon = UiIcons.icon(&"bag")
+	_bag_hex.key_hint = "I"
+	_bag_hex.pressed.connect(func () -> void:
+		if player:
+			_close_sheet()
+			player.controls.toggle_inventory())
+	for h in [_menu_hex, _build_hex, _bag_hex]:
+		h.rim_color = UiTokens.HUD_RIM
 	for i in 2:
 		var fh := HexButton.new(HEX)
 		fh.glyph = "🍖"
@@ -356,26 +387,6 @@ func open_animals(rec: PetRecord = null) -> void:
 	_animal_screen.open(player, rec)
 
 func _build_combat() -> void:
-	_sprint_hex = HexButton.new(HEX)
-	_sprint_hex.name = "SprintToggle"
-	_sprint_hex.glyph = "»"
-	_sprint_hex.caption = "SPRINT"
-	_sprint_hex.pressed.connect(func () -> void:
-		if player:
-			_sprint_hex.selected = player.toggle_sprint()
-			_sprint_hex.queue_redraw()
-	)
-	add_child(_sprint_hex)
-	_combat_hex = HexButton.new(HEX)
-	_combat_hex.name = "CombatToggle"
-	_combat_hex.icon = UiIcons.icon(&"attack")
-	_combat_hex.caption = "COMBAT"
-	_combat_hex.pressed.connect(func () -> void:
-		if player:
-			_combat_hex.selected = player.toggle_combat()
-			_combat_hex.queue_redraw()
-	)
-	add_child(_combat_hex)
 	_end_btn = Button.new()
 	_end_btn.text = "End Combat"
 	_end_btn.custom_minimum_size = Vector2(184, 64)
@@ -683,6 +694,8 @@ func _refresh_context(delta: float) -> void:
 	if _in_combat:
 		# Siege actions use the two top combat hexes, not overlapping context controls.
 		actions = []
+	# INTERACT already shows (and runs) one of them: no second hex for the same thing.
+	actions = actions.filter(func (a: Dictionary) -> bool: return str(a["id"]) != field.choice_id)
 	var ids: Array = []
 	for a in actions:
 		ids.append([a["id"], a.get("uses", "")])
@@ -694,9 +707,17 @@ func _refresh_context(delta: float) -> void:
 	_ctx_hexes.clear()
 	var r := get_viewport_rect().size
 	var inset := _safe_insets()
-	var phone := UiTokens.is_phone(r)
-	# Portrait: no room beside the rail, so the context row sits one row above it, from the left.
-	var x := 16.0 + inset.w if phone else r.x - 16.0 - inset.x - 74.0 - 60.0
+	var compact := UiTokens.is_compact(r)
+	# The row runs right to left from SPRINT along the bottom line; past the rail it wraps one row up,
+	# where on the left it stops short of the quick slots and HANDS.
+	var right := field.sprint_hex.position.x - 8.0
+	var left := _bag_hex.position.x + _bag_hex.size.x + 12.0
+	var row_y := r.y - UiTokens.xp_line_zone(r).size.y - CAPTION_H - 70.0 - inset.y  # captions clear the XP line
+	if UiTokens.is_narrow(r):  # portrait: the row above the quick slots, from the left
+		right = r.x - 16.0 - inset.x - field.interact_hex.size.x - 8.0
+		row_y = hands_spot().y - CAPTION_H - 12.0 - 70.0
+		left = 16.0 + inset.w
+	var x := right - 70.0
 	for a in actions:
 		var h := HexButton.new(70.0)
 		var id := str(a["id"])
@@ -704,18 +725,34 @@ func _refresh_context(delta: float) -> void:
 		h.icon = UiIcons.icon(StringName(id)) if UiIcons.path_for(StringName(id)) != "" else null
 		h.caption = str(a["label"]).to_upper()
 		h.bottom_text = str(a.get("uses", ""))
+		h.rim_color = UiTokens.HUD_RIM
 		if h.glyph == "" and h.icon == null:
 			h.glyph = h.caption
 			h.caption = ""
 		h.pressed.connect(_on_context.bind(id))
 		add_child(h)
 		if id == "claim":
-			# Land claim lives by the minimap (it is about the map, not the fight).
-			# Portrait: the quest card is under the map, so the claim hex goes under the card.
-			h.position = Vector2(_minimap.position.x + MAP_PX - 70.0, _minimap.position.y + MAP_PX + (52.0 + 72.0 + 8.0 if phone else 44.0))
+			# Spec §6: a small gold-rim CLAIM hex by the minimap, right-aligned under its "X n  Y n" line
+			# (the day/night dial holds the map's lower-left edge). Portrait: under the quest card.
+			var cp := HudField.px(&"claim", r)
+			HudField.fit(h, cp)
+			h.rim_color = Color(UiTokens.GOLD, 0.8)
+			h.rim_width = 3.0
+			# ASSUMPTION: on a landscape phone the 60 px between the map text and INTERACT takes the hex but
+			# not a caption; it stays icon-only there.
+			if compact and not UiTokens.is_narrow(r):
+				h.caption = ""
+			if UiTokens.is_narrow(r):
+				h.position = Vector2(_minimap.position.x + MAP_PX - cp, _minimap.position.y + MAP_PX + 52.0 + 72.0 + 8.0)
+			else:
+				h.position = Vector2(_minimap.position.x + MAP_PX - cp, map_floor() + 4.0 - (cp - cp * 0.866) * 0.5)
 		else:
-			h.position = Vector2(x, r.y - 70.0 - 26.0 - inset.y - (96.0 if phone else 0.0))
-			x += 78.0 if phone else -78.0
+			if x < left:  # wrap: one row up, from the right again, clear of the quick slots and HANDS
+				row_y -= 70.0 + CAPTION_H + 8.0
+				x = right - 70.0
+				left = hands_spot().x + HeldItemSlot.SLOT + 12.0
+			h.position = Vector2(x, row_y)
+			x -= 78.0
 		_ctx_hexes.append(h)
 	if _sheet:
 		move_child(_sheet, -1)  # a context hex added later drew (and took taps) over the open sheet
@@ -830,9 +867,6 @@ func _placer_taken() -> Array[Rect2]:
 	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
 	if held and held.is_visible_in_tree():
 		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
-		var bag := held.get_node_or_null(^"InventoryButton") as Control  # the BAG hex stands over HANDS
-		if bag and bag.is_visible_in_tree():
-			out.append(Rect2(bag.get_global_rect().position, bag.size + Vector2(0, 18)))
 	var fig := figure_rect()
 	if fig.has_area():
 		out.append(fig)
@@ -944,6 +978,10 @@ func _toggle_sheet(kind: StringName) -> void:
 	match kind:
 		&"menu":
 			title.text = "Menu"
+			# Skills and Animals live here since the rail became MENU / BUILD / BAG (owner 2026-10-28).
+			var sk := field.count(&"skills")
+			_sheet_btn(box, "Skills" + (" (%d)" % sk if sk > 0 else ""), func () -> void: _close_sheet(); _toggle_skills())
+			_sheet_btn(box, "Animals", func () -> void: open_animals())
 			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
 			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
 			_sheet_btn(box, "Build", func () -> void: _close_sheet(); var b := BuildUI.ensure(player); if b: b.toggle())
@@ -1071,6 +1109,7 @@ func _toggle_skills(tree: String = "") -> void:
 		_skills_sheet.close()
 	else:
 		_skills_sheet.open(player.skills, tree)
+		field.clear(&"skills")  # the MENU badge's skill notices are read
 
 var _map_screen: MapScreen
 
@@ -1160,12 +1199,7 @@ func _process(delta: float) -> void:
 		if _fatigue_panel != null:
 			_fatigue_panel.rate = _fat_rate
 	var hunting := player.hunt != null and player.hunt.target != null and is_instance_valid(player.hunt.target)
-	if _sprint_hex.selected != player.sprint_toggled:
-		_sprint_hex.selected = player.sprint_toggled
-		_sprint_hex.queue_redraw()
-	if _combat_hex.selected != hunting:
-		_combat_hex.selected = hunting
-		_combat_hex.queue_redraw()
+	field.tick(delta)
 	if hunting != _in_combat:
 		_in_combat = hunting
 		_end_btn.visible = hunting
@@ -1228,7 +1262,6 @@ func _process(delta: float) -> void:
 	GatherFeedback.tick_notices(_events.notices, player, drawn_blocks)  # W2-GATHER: rare notice life, off _draw
 	_events.tick(delta)
 	_rest_fx.tick(player, _events, delta)  # REST: recovery floats over her while she rests or sleeps
-	_pulse_clock += delta
 	_pulse_check -= delta
 	if _pulse_check <= 0.0:
 		_pulse_check = SKILL_PULSE_TICK
@@ -1267,7 +1300,12 @@ func _draw() -> void:
 	var yy := y
 	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px)
 	yy += big + gap
-	_bar(Vector2(x, yy), Vector2(bar_w, big), v.energy / maxf(1.0, v.effective_max_energy()), Color(0.20, 0.45, 0.80), "", "%.0f / %.0f" % [v.energy, v.effective_max_energy()], num_px)
+	var en := energy_reading(player)
+	var en_text := "%.0f / %.0f" % [en.value, en.max]
+	# The mount's name leads the numbers when it fits (a phone bar may only fit the numbers; amber still says "mount").
+	if en.name != "" and _font.get_string_size("%s  %s" % [en.name, en_text], HORIZONTAL_ALIGNMENT_LEFT, -1, num_px).x <= bar_w - 12.0:
+		en_text = "%s  %s" % [en.name, en_text]
+	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), Color(0.85, 0.62, 0.20) if en.name != "" else Color(0.20, 0.45, 0.80), "", en_text, num_px)
 	yy += big + gap
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
 	var face_pos := Vector2(x + 11.0, yy + 10.0)
@@ -1438,10 +1476,6 @@ func _draw() -> void:
 		drawn_blocks["toast%d" % i] = box
 		draw_rect(box, Color(0.05, 0.06, 0.08, 0.8 * alpha))
 		draw_string(_font, box.position + Vector2(10, 20), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
-	# --- the SKILLS hex pulse: a soft gold halo while a buyable node is affordable (islands-and-loop-plan
-	# §3.3). Drawn by the HUD, under the hex itself, so it needs nothing from HexButton; it breathes on a
-	# sine and never jumps, and it is a halo rather than a size change so the touch target stays put.
-	_draw_skill_pulse()
 	if player.placer and player.placer.layout_mode:
 		var hint := "Layout mode: drag a building to move it · tap one to rotate · blue = ok, red = blocked · DONE saves" if player.placer.moving == null else "Release to drop (red snaps it back)"
 		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
@@ -1480,24 +1514,6 @@ func _draw() -> void:
 		var a := _combat_alpha
 		draw_rect(Rect2(0, 0, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
 		draw_rect(Rect2(0, r.y - 6, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
-
-## The SKILLS hex's "something is affordable" halo (islands-and-loop-plan §3.3). A gold ring just outside
-## the hex outline that breathes between 25 % and 80 % of its strength over SKILL_PULSE_SECONDS; it is
-## drawn around the same pointy-top hex hex_button.gd outlines, so it reads as the hex glowing, and the
-## touch target and the caption never move. Off while the sheet is open (the sheet is the answer).
-func _draw_skill_pulse() -> void:
-	if _skills_hex == null or not skills_pulsing() or (_skills_sheet != null and _skills_sheet.visible):
-		return
-	var c := _skills_hex.get_global_rect().get_center() - get_global_rect().position
-	var rad := minf(_skills_hex.size.x, _skills_hex.size.y) * 0.5 - 2.0
-	var breathe := 0.25 + 0.55 * (0.5 + 0.5 * sin(TAU * fmod(_pulse_clock, SKILL_PULSE_SECONDS) / SKILL_PULSE_SECONDS))
-	var pts := PackedVector2Array()
-	for i in 7:
-		var a := deg_to_rad(60.0 * float(i % 6) - 30.0)
-		pts.append(c + Vector2(cos(a), sin(a)) * (rad + 4.0))
-	draw_polyline(pts, Color(1.0, 0.85, 0.35, 0.18 * breathe), 7.0, true)
-	draw_polyline(pts, Color(1.0, 0.85, 0.35, breathe), 2.5, true)
-	drawn_blocks["skillpulse"] = Rect2(c - Vector2(rad + 5.0, rad + 5.0), Vector2(rad + 5.0, rad + 5.0) * 2.0)
 
 func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 	var r := get_viewport_rect().size
@@ -1587,6 +1603,15 @@ func _draw_exhaustion_face(center: Vector2, strain: float) -> void:
 			draw_arc(center + Vector2(0, 7.0), 4.5, PI + 0.35, TAU - 0.35, 12, dark, 1.5)
 		3:
 			draw_arc(center + Vector2(0, 9.0), 5.5, PI + 0.15, TAU - 0.15, 12, dark, 1.6)
+
+## What the energy bar shows: the ridden mount's pool while mounted (named, amber), else the
+## survivor's stamina. The exhaustion face and treadmill stay the survivor's either way.
+static func energy_reading(pl: Player) -> Dictionary:
+	var m: Creature = pl.mounted_on if pl and is_instance_valid(pl.mounted_on) else null
+	if m:
+		var nm: String = m.pet_record.name if m.pet_record and m.pet_record.name != "" else m.def.species
+		return {"value": m.energy, "max": m.energy_max, "name": nm}
+	return {"value": pl.vitals.energy, "max": pl.vitals.effective_max_energy(), "name": ""}
 
 func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12) -> void:
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))

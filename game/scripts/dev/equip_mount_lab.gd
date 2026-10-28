@@ -219,7 +219,11 @@ func _ride_species(id: StringName, shoot: bool) -> bool:
 		await _ride_shot("%s_iso" % id, c, Vector3(0.8, 0.25, 0.55), 0.8)
 	elif shoot:
 		await _ride_shot("%s_side" % id, c, Vector3(-1, 0.12, 0.3), 0.8)
+	c.rotation.y = 2.4  # a turned mount: the body must not inherit this yaw on dismount
 	player.dismount()
+	if absf(player.global_rotation.y) > 0.01 or absf(player.global_rotation.x) > 0.01:
+		print("[mountlab] FAIL species=%s body kept a yaw after dismount (%.2f)" % [id, player.global_rotation.y])
+		ok = false
 	if player.mounted_on != null:
 		print("[mountlab] FAIL species=%s still mounted after dismount" % id)
 		ok = false

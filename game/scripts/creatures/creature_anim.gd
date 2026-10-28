@@ -11,8 +11,8 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"hit_react", &"alert"]
-const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"hit_react", &"alert"]
+const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo"]
 const HUBS: Array[StringName] = [&"idle", &"walk", &"run"]
 const XFADE := 0.08
 const GAIT_XFADE := 0.2  # walk <-> run: long enough that a gait change never pops
@@ -43,6 +43,10 @@ var _os_state: StringName = &""
 var _os_t := 0.0
 var _os_last := -1.0
 var _os_hit_done := true
+var _os_fracs: Array[float] = []
+var _os_windup_frac := -1.0
+## Index of the hit attack_hit just fired for (0, 1, 2 for bite_combo's three bites; 0 otherwise).
+var hit_index := 0
 
 func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 	player = ap
@@ -126,6 +130,10 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		_os_t = 0.0
 		_os_last = -1.0
 		_os_hit_done = state not in ATTACKS
+		_os_fracs = CreatureClips.hit_fracs(state)
+		var tell: Variant = ((Data.anim_events.get("clips", {}) as Dictionary).get(str(state), {}) as Dictionary).get("tell_fracs")
+		_os_windup_frac = float((tell as Array)[0]) if state in ATTACKS and tell is Array and not (tell as Array).is_empty() else -1.0
+		hit_index = 0
 
 func release_knockdown() -> void:
 	_hold_knockdown = false
@@ -186,9 +194,17 @@ func _poll_oneshot() -> void:
 	var pos := _playback.get_current_play_position()
 	_os_t = pos if _os_last < 0.0 else _os_t + (fposmod(pos - _os_last, length) if length > 0.0 else 0.0)
 	_os_last = pos
-	if not _os_hit_done and _os_t >= length * CreatureClips._hit_frac(_os_state):
-		_os_hit_done = true
-		attack_hit.emit(_os_state)
+	# tell_fracs [start, end] (anim_events): the tell before a combo's last bite raises its ring at start.
+	if _os_windup_frac >= 0.0 and _os_t >= length * _os_windup_frac:
+		_os_windup_frac = -1.0
+		attack_windup.emit(_os_state)
+	while not _os_hit_done and hit_index < _os_fracs.size() and _os_t >= length * _os_fracs[hit_index]:
+		var clip := _os_state
+		attack_hit.emit(clip)
+		hit_index += 1
+		_os_hit_done = hit_index >= _os_fracs.size()
+	if _os_state == &"":
+		return
 	if _os_t >= length - 0.001 or pos >= length - 0.001:
 		var done := _os_state
 		_os_state = &""

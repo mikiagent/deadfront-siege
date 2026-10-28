@@ -74,7 +74,9 @@ func tactic_label(slot: int) -> String:
 		2:
 			return "Kick" if _kick_cd <= 0.0 else "Kick %.0f" % _kick_cd
 		3:
-			return "Roll"
+			# Spec 07 §8: the HUD shows the roll's cooldown, so a chained press reads why it is refused.
+			var left: float = player.sim.roll_cooldown_left() if player and player.sim else 0.0
+			return "Roll" if left <= 0.0 else "Roll %.0f" % ceilf(left)
 		4:
 			if target and _net_health_ok() and _best_net_ok():
 				return "Net"
@@ -296,10 +298,14 @@ static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 	if value < 1.0: return &"weak"
 	return &"hit"
 
+## Tackle and Kick may cut the auto-attack's own swing short (it was always busy mid-fight, so both
+## refused silently); a roll, a hurt stun, a knockdown or the previous tactic's lock still block them.
 func can_start_tactic() -> bool:
 	if player == null or player.rolling or player.statuses.has_flag(&"cannot_act"):
 		return false
-	if player.anim and player.anim._busy:
+	if player.anim and player.anim._busy and not player.anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
+		return false
+	if player.sim and player.sim._stagger_left > 0.0:
 		return false
 	return _tactic_lock <= 0.0
 

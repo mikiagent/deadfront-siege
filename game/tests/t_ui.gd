@@ -288,9 +288,10 @@ func _test_display_mode() -> void:
 	_expect(not SS.is_sheet(Vector2(1600, 900)) and not SS.is_sheet(Vector2(390, 844)), "desktop and portrait skills keep the panel between the HUD blocks")
 	_expect(sheet.end.y <= land.y and sheet.size.y >= 4.0 * SS.ROW_H, "landscape skills panel fits the view with room for rows (%s)" % sheet)
 	_expect(zones.size() == 6 and zones[1].position.x > land.x * 0.7, "landscape HUD zones include the right map/rail column (%s)" % [zones])
-	# HANDS stacks above the rail's last hex on landscape (the gather label landed on it).
+	# HANDS takes the quick row's fourth slot above the MENU / BUILD / BAG rail (owner layout 2026-10-28;
+	# it stood over the old four-hex rail's last hex): 64 px rail and quick hexes on a landscape phone.
 	var HS: GDScript = load("res://scripts/ui/held_item_slot.gd")
-	var hands := Rect2(16.0 + (HS.RAIL_HEXES - 1.0) * (HS.SLOT + 10.0), land.y - 96.0 - HS.SLOT - 34.0, HS.SLOT, HS.SLOT + 18.0)
+	var hands := Rect2(16.0 + 3.0 * (HS.SLOT + 10.0), land.y - 14.0 - 18.0 - 64.0 - 12.0 - 18.0 - 64.0, HS.SLOT, HS.SLOT + 18.0)
 	_expect(zones.size() == 6 and zones[3].encloses(hands), "landscape HUD zones cover the HANDS slot %s" % hands)
 	# ...the quick-food row beside it, and the pet whistle row under the vitals (hunt_hud.gd).
 	_expect(zones[3].encloses(Rect2(16.0, land.y - 96.0 - 64.0 - 30.0, 64.0, 82.0)), "landscape HUD zones cover the first quick-food hex")

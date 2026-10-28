@@ -110,7 +110,8 @@ func handle_unhandled(event: InputEvent) -> void:
 		if p.hunt:
 			p.hunt.hold = not p.hunt.hold
 		return
-	if Game.lab_force_clips:
+	# Labs force creature clips on 1-9 only outside a fight, so Tackle (1) and Kick (2) work in one.
+	if Game.lab_force_clips and (p.hunt == null or p.hunt.target == null):
 		for i in 9:
 			if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_1 + i:
 				_force_clip(i)
@@ -285,7 +286,9 @@ func interact_tap_target(col: Object) -> void:
 			p.pets.interact(c)
 		elif FieldTame.can_attempt(c):
 			p.actions.begin_field_tame(c)
-		# Any other wild animal stays selected only: the swords hex or E starts the fight.
+		elif _fighting() and c != p.hunt.target and not c.health.dead:
+			p.actions.attack(c)  # [owner 2026-10-28] in combat a tap retargets at once (no swords step)
+		# Out of combat any other wild animal stays selected only: the swords hex or E starts the fight.
 	elif col is ConstructionSite:
 		# Spec 30 §7: tapping a placed site opens its sheet (Deposit / Withdraw / Work / Cancel).
 		(col as ConstructionSite).interact(p)
@@ -421,6 +424,80 @@ func gather_nearest() -> void:
 	if node == null:
 		p.notice("No resource within %d m" % int(QUICK_GATHER_RADIUS))
 		return
+	_gather_node(node)
+
+## E / pad A: the nearest thing in reach, in priority order. Lets a controller (or keyboard)
+## player do everything a tap does without a pointer. With a selection on screen E starts that fight
+## (TARGETUI); otherwise it runs interact_choice, the same pick the HUD's INTERACT hex shows.
+func interact() -> void:
+	if selection.shown() and not p.mounted_on:
+		selection.engage()  # the key the swords hex shows, only while it shows
+		return
+	var c := interact_choice()
+	if not c.is_empty():
+		(c["run"] as Callable).call()
+
+## What INTERACT does here and now (E, pad A and the HUD's INTERACT hex share it), or {} when nothing
+## is in reach: {id, label, icon (Texture2D or null), color_icon, run (Callable)}. Close things first in
+## the order E always used (dismount, bed, pen, station, field, fire, corpse, harbour, warp, basket, a
+## node in arm's reach, your pet), then water, then the nearest resource within QUICK_GATHER_RADIUS:
+## by default it is the gather-nearest button (owner 2026-10-28), through the same gather path as Space.
+# ASSUMPTION: no NPCs or loose ground items exist yet, so there is no Talk / Pick up entry; they slot in here.
+func interact_choice() -> Dictionary:
+	var ui := func (id: String, label: String, icon_id: StringName, run: Callable) -> Dictionary:
+		return {"id": id, "label": label, "icon": UiIcons.icon(icon_id) if UiIcons.path_for(icon_id) != "" else null, "color_icon": false, "run": run}
+	if p.mounted_on:
+		return ui.call("dismount", "Dismount", &"dismount", p.dismount)
+	var sleep_spot := p.sim.nearest_sleep_spot()
+	if sleep_spot and p.vitals.fatigue >= 1.0:
+		return ui.call("sleep", "Sleep", &"sleep", p.sim.start_sleep.bind(sleep_spot))
+	var pen := p._nearest_group("taming_pen") as TamingPen
+	if pen and p.global_position.distance_to(pen.global_position) < 3.0:
+		return ui.call("pen", "Pen", &"pen", p.actions.pen_interact.bind(pen))
+	var station := p._nearest_group("craft_station") as Node3D
+	if station and p.global_position.distance_to(station.global_position) < 2.5:
+		return ui.call("open", "Open", &"craft", p.open_station_craft.bind(station))
+	var field := p._nearest_group("field") as FieldPlot
+	if field and p.global_position.distance_to(field.global_position) < 2.8:
+		return ui.call("field", "Open", &"use", p.open_field.bind(field))
+	var fire := p._nearest_group("bonfire") as Bonfire
+	if fire and p.global_position.distance_to(fire.global_position) < 2.5:
+		return ui.call("cauterise", "Cauterise", &"cauterise", fire.cauterise.bind(p))
+	var corpse := p._nearest_group("corpse") as Corpse
+	if corpse and p.global_position.distance_to(corpse.global_position) < 2.8:
+		return ui.call("butcher", "Butcher", &"butcher", p.actions.begin_butcher.bind(corpse))
+	var harbour := p._nearest_group("harbour")
+	if harbour and p.global_position.distance_to(harbour.global_position) < 4.0:
+		return ui.call("harbour", "Harbour", &"harbour", Callable(harbour, "open"))
+	var warp := p._nearest_group("cargo_warp")
+	if warp and p.global_position.distance_to(warp.global_position) < 2.8:
+		return ui.call("warp", "Warp", &"warp", Callable(warp, "use").bind(p))
+	var basket := p._nearest_group("basket")
+	if basket and p.global_position.distance_to(basket.global_position) < 2.8:
+		return ui.call("store", "Open", &"store", p.actions.building_interact.bind(basket))
+	var node := _nearest_harvest_node()
+	if node and p._gather_radial and not node.options().is_empty():
+		return _gather_choice(node)
+	var pet := p.pets.nearest(2.8)
+	if pet:
+		return ui.call("pet", "Pet", &"pets", p.pets.interact.bind(pet))
+	if WaterAccess.near_fresh(p.global_position):
+		return ui.call("drink", "Drink", &"drink", p.actions.drink)
+	node = _nearest_harvest_node(QUICK_GATHER_RADIUS)
+	if node and not node.options().is_empty():
+		return _gather_choice(node)
+	return {}
+
+## INTERACT on a resource: its own item icon (in colour), "Gather", and the Space path (one option
+## starts at once and walks there; several open the node's hex wheel).
+func _gather_choice(node: HarvestNode) -> Dictionary:
+	var tex := ItemIcons.texture(node.yield_def_id)
+	return {"id": "gather", "label": "Gather", "icon": tex if tex else UiIcons.icon(&"pick"), "color_icon": tex != null,
+		"run": _gather_node.bind(node)}
+
+func _gather_node(node: HarvestNode) -> void:
+	if not is_instance_valid(node) or not node.has_harvests_left():
+		return
 	var opts := node.options()
 	if opts.size() == 1:
 		node.select_option(0)
@@ -428,60 +505,24 @@ func gather_nearest() -> void:
 	elif not opts.is_empty() and p._gather_radial:
 		p._gather_radial.open(node, opts, p.inventory)
 
-## E / pad A: the nearest thing in reach, in priority order. Lets a controller (or keyboard)
-## player do everything a tap does without a pointer.
-func interact() -> void:
-	if p.mounted_on:
-		p.dismount()
-		return
-	if selection.shown():
-		selection.engage()  # the key the swords hex shows, only while it shows
-		return
-	var sleep_spot := p.sim.nearest_sleep_spot()
-	if sleep_spot and p.vitals.fatigue >= 1.0:
-		p.sim.start_sleep(sleep_spot)
-		return
-	var pen := p._nearest_group("taming_pen") as TamingPen
-	if pen and p.global_position.distance_to(pen.global_position) < 3.0:
-		p.actions.pen_interact(pen)
-		return
-	var station := p._nearest_group("craft_station") as Node3D
-	if station and p.global_position.distance_to(station.global_position) < 2.5:
-		p.open_station_craft(station)
-		return
-	var field := p._nearest_group("field") as FieldPlot
-	if field and p.global_position.distance_to(field.global_position) < 2.8:
-		p.open_field(field)
-		return
-	var fire := p._nearest_group("bonfire") as Bonfire
-	if fire and p.global_position.distance_to(fire.global_position) < 2.5:
-		fire.cauterise(p)
-		return
-	var corpse := p._nearest_group("corpse") as Corpse
-	if corpse and p.global_position.distance_to(corpse.global_position) < 2.8:
-		p.actions.begin_butcher(corpse)
-		return
-	var harbour := p._nearest_group("harbour")
-	if harbour and p.global_position.distance_to(harbour.global_position) < 4.0:
-		harbour.open()
-		return
-	var warp := p._nearest_group("cargo_warp")
-	if warp and p.global_position.distance_to(warp.global_position) < 2.8:
-		warp.use(p)
-		return
-	var basket := p._nearest_group("basket")
-	if basket and p.global_position.distance_to(basket.global_position) < 2.8:
-		p.actions.building_interact(basket)
-		return
-	var node := _nearest_harvest_node()
-	if node and p._gather_radial:
-		var opts := node.options()
-		if not opts.is_empty():
-			p._gather_radial.open(node, opts, p.inventory)
-			return
-	var pet := p.pets.nearest(2.8)
-	if pet:
-		p.pets.interact(pet)
+## ATTACK NEAREST (the HUD hex). Out of combat: the tapped selection, else the nearest wild animal within
+## hunt range. In combat: the nearest valid enemy (a retarget when it is not the current one). Null when
+## none; pets are never picked.
+func attack_target() -> Creature:
+	if _fighting():  # [owner 2026-10-28] in combat: retarget to the nearest valid enemy
+		var n := p.actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
+		return n if n else p.hunt.target
+	var sel := selection.current()
+	return sel if sel else p.actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
+
+## The hex's press: start (or keep swinging) the fight through PlayerActions.attack, the F key's path.
+## Unlike F it never swings at scenery when no animal is near: it says so instead.
+func attack_nearest() -> bool:
+	var t := attack_target()
+	if t == null:
+		p.notice("No animal in range")
+		return false
+	return p.actions.attack(t)
 
 ## The closest harvest node within `radius` that still has something to give.
 func _nearest_harvest_node(radius: float = INTERACT_GATHER_RANGE) -> HarvestNode:
@@ -496,6 +537,9 @@ func _nearest_harvest_node(radius: float = INTERACT_GATHER_RANGE) -> HarvestNode
 			best_d = d
 			best = hn
 	return best
+
+func _fighting() -> bool:
+	return p.hunt != null and p.hunt.target != null and is_instance_valid(p.hunt.target) and not p.hunt.target.health.dead
 
 # ---------------------------------------------------------------- HUD context hexes
 

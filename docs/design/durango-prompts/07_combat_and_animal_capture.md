@@ -53,3 +53,11 @@ Treat those references as historical guides, not a complete recovered Nexon comb
 Inspect the existing project and its architecture first. Reuse existing gameplay, inventory, persistence, UI, and network components rather than introducing parallel systems. Implement working code in the project's language and engine, not just pseudocode. Separate definitions/configuration from saved runtime state. Make balancing parameters configurable. Preserve unique instance IDs and enforce atomic ownership/currency transitions. Where multiplayer exists, validate gameplay authoritatively and make retried operations idempotent. Include tests and summarize modified files, verified behavior, assumptions, and remaining limitations.
 
 **Historical fidelity:** Durango: Wild Lands was updated during 2019; published guides can describe different revisions. Distinguish verified original mechanics from contemporary player reports, community reconstruction formulas, and new design choices. Do not claim illustrative values are exact original Nexon server values.
+
+## Owner decision, 2026-10-28 — fighting style by class
+
+Each species fights with an innate style from its CLASS (the `archetype` field in its creature JSON: pack_flanker,
+pack_raptor, apex_raptor, tyrant, horned_charger, club_tail, spiked_tail, venom_ranged, saber_cat, swarm,
+flock_harass, antlered, runner, pack_mule, titan). Its NATURE (Timid, Brave, Aggressive, Loyal, Stubborn, Docile)
+combines with that style; there is no separate "Berserker" class. Attacks have cooldowns for both the player and
+creatures, specials cost creature energy, and hits cannot chain-stun.

@@ -3,10 +3,14 @@ extends Node3D
 ## The survivor cannot die, tire or exhaust here (god mode, this lab only) so clips can be watched up close.
 ## --species=deinonychus[,velociraptor...] spawns only those (one each) instead of the default roster.
 ## --ride=deinonychus spawns that species as a saddled pet and puts the survivor on it.
-## Key 0 plays bite_combo (chomp, Chomp, CHOMP) on the mount, or else the nearest creature that has one. The game
-## does not load that clip yet, so the lab plays it straight from the GLB with the creature's tree paused.
+## Key 0 plays bite_combo (chomp, Chomp, CHOMP) on the mount, or else the nearest creature that has one.
+## Wild deinonychus fight with TacticalBrain (circle, feint, lunge, pounce, combo); F3 prints each move.
+## --seq=DIR saves a frame every 0.25 s for 25 s (named by the nearest creature's brain state), then quits.
 
 var _player: Player
+var _seq_dir := ""
+var _seq_t := 0.0
+var _seq_n := 0
 
 func _ready() -> void:
 	Game.lab_force_clips = true
@@ -22,6 +26,8 @@ func _ready() -> void:
 			only = a.substr(10)
 		elif a.begins_with("--ride="):
 			ride = a.substr(7)
+		elif a.begins_with("--seq="):
+			_seq_dir = a.substr(6)
 	if ride != "":
 		_ride.call_deferred(StringName(ride))
 		if only == "":
@@ -39,6 +45,15 @@ func _ready() -> void:
 	print("[boot] lab=creature_lab")
 
 func _process(_dt: float) -> void:
+	if _seq_dir != "":
+		_seq_t += _dt
+		if _seq_t >= 1.5 + 0.25 * _seq_n:
+			var c: Creature = _player.actions.nearest_creature(9999.0, true)
+			var tag := str(c.brain.state) if c and c.brain else "none"
+			get_viewport().get_texture().get_image().save_png("%s/f%03d_%s.png" % [_seq_dir, _seq_n, tag])
+			_seq_n += 1
+			if _seq_n >= 100:
+				get_tree().quit()
 	if _player and _player.vitals:  # a pool no single hit can empty, refilled every frame
 		_player.vitals.max_health = maxf(_player.vitals.max_health, 1000000.0)
 		_player.vitals.health = _player.vitals.effective_max_health()
@@ -53,22 +68,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_play_combo(c)
 
 func _play_combo(c: Creature) -> void:
-	var path := "res://assets/creatures/%s/anim/bite_combo.glb" % c.def.id
-	if not ResourceLoader.exists(path):
+	if not c.anim.has_state(&"bite_combo"):
 		print("[creature_lab] %s has no bite_combo" % c.def.id)
 		return
-	var lib := c.anim.player.get_animation_library("")
-	if not lib.has_animation(&"bite_combo"):
-		var anim := CreatureClips._from_glb(path, c.view, c.anim.player, &"bite_combo")
-		if anim == null:
-			return
-		lib.add_animation(&"bite_combo", anim)
-	c.anim.tree.active = false
-	c.anim.player.play(&"bite_combo")
-	await get_tree().create_timer(lib.get_animation(&"bite_combo").length).timeout
-	if is_instance_valid(c):
-		c.anim.player.stop()
-		c.anim.tree.active = true
+	c.anim.play_clip(&"bite_combo")
 
 func _ride(id: StringName) -> void:
 	var def := Data.creature(id)

@@ -18,6 +18,14 @@ const PROVOKE_HITS := 3
 const PROVOKE_SECONDS := 15.0
 
 static var _pack_cooldown_until: Dictionary = {} ## pack_id -> seconds
+## Every state in which the animal is on its prey (the ring, the leash and the post-kill reset read it).
+## circle/feint/lunge/pounce/combo are TacticalBrain's manoeuvres.
+const COMBAT_STATES: Array[StringName] = [&"alert", &"approach", &"attack", &"retreat", &"circle", &"feint", &"lunge", &"pounce", &"combo", &"hop"]
+
+## TACTICS: >= 0 replaces the locomotion speed (m/s); strafe_face makes the body face that node while it
+## moves (a sidestep around prey instead of turning to the velocity). Creature._physics_process reads both.
+var speed_override: float = -1.0
+var strafe_face: Node3D
 
 var creature: Creature
 var state: StringName = &"roam"
@@ -66,7 +74,7 @@ func setup(c: Creature) -> void:
 func on_player_killed(at: Vector3) -> void:
 	if creature == null or creature.health.dead or creature.is_pet:
 		return
-	var was_hunting := attack_target is Player or state in [&"alert", &"approach", &"attack", &"retreat"]
+	var was_hunting := attack_target is Player or state in COMBAT_STATES
 	if not was_hunting:
 		return
 	var away := creature.global_position - at
@@ -146,7 +154,11 @@ func hunting_player() -> bool:
 	var on_siege := StructureHealth.is_structure(attack_target) and not StructureHealth.of(attack_target, true).dead
 	if not (on_player or on_pet or on_siege):
 		return false
-	return state in [&"alert", &"approach", &"attack", &"retreat"]
+	return state in COMBAT_STATES
+
+## Damage multiplier for the hit_index-th hit of clip (TacticalBrain: the combo's rising bites).
+func hit_damage_mult(_clip: StringName, _hit_index: int) -> float:
+	return 1.0
 
 func _physics_process(delta: float) -> void:
 	if creature == null or creature.health.dead:

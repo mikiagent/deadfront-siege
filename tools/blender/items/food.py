@@ -427,6 +427,158 @@ def berry_seed():
     _seeds("#3a2a1e", "#1e140c", (0.8, 0.8, 0.8))
 
 
+# ---------------------------------------------------------------- ICONS4: drinks and the crafter's meal
+# Same bowls, plates and lathes as above: a drink is a lathe cup with a surface disc, so it reads
+# by what is in it at slot size.
+
+def _cup(m, liquid=None, r=0.78, h=1.0, wall=0.78, dz=0.0):
+    """Open cup (or mug) of radius r: outer wall, rim, inner wall and base, plus a surface disc."""
+    lathe([(0, 0), (r * 0.86, 0.0), (r * 0.94, h * 0.12), (r, h * 0.9), (r, h), (r * wall + 0.03, h),
+           (r * wall + 0.02, h * 0.75), (r * wall * 0.9, h * 0.2), (0, h * 0.16)], m=m, segs=32)
+    if liquid:
+        cyl(r * wall, 0.03, loc=(0, 0, h * (0.72 + dz)), m=liquid, segs=32)
+
+
+def _handle(m, r=0.78, h=1.0, side=1):
+    """A cup handle: an open loop on the +X side, from the rim to near the base."""
+    pts = arc((side * (r + 0.16), 0, h * 0.55), 0.3, -80 if side > 0 else 100, 90 if side > 0 else -90, 14, plane="xz")
+    tube([(side * (r - 0.02), 0, h * 0.86)] + pts + [(side * (r - 0.02), 0, h * 0.28)], 0.055, m, segs=6)
+
+
+def spring_water():
+    """Spring water: a clay cup of clear water, the surface bright with a highlight, two drops
+    running down the outside of the cup (the cup, not a bottle, is what a spring fills)."""
+    clay = mat("#c9a882", 0.75, color2="#a08262", tex="noise", scale=7.0, bump=0.25)
+    water = mat("#7fd4f0", 0.05, coat=1.0, color2="#3fa8d8", tex="noise", scale=3.0, alpha=1.0,
+                emit="#2a94c8", emit_strength=0.25)
+    _cup(clay, water)
+    _handle(clay)
+    # A white glint on the water and a bead of water on the rim.
+    for (x, y, s) in ((-0.2, -0.32, 0.11), (0.24, -0.22, 0.06)):
+        blob(s, loc=(x, y, 0.76), scl=(1.5, 0.9, 0.25), m=mat("#ffffff", 0.1, coat=1.0), amp=0.1, sub=2)
+    for (x, z, s) in ((0.55, 0.42, 0.075), (0.62, 0.2, 0.05)):
+        blob(s, loc=(x, -0.62, z), scl=(1.0, 0.35, 1.3), m=water, amp=0.1, sub=2)
+    turn(-18)
+    turn(14, "X")
+
+
+def tea():
+    """Tea: a pale ceramic cup of amber tea with a teabag's string over the rim and a green leaf
+    beside it (the leaves are what say tea, the colour says not coffee)."""
+    cer = mat("#ece4d2", 0.55, color2="#cfc2a8", tex="noise", scale=9.0, bump=0.12, spec=0.6)
+    tea_m = mat("#b8621e", 0.06, coat=1.0, color2="#8a3e0e", tex="noise", scale=3.5)
+    _cup(cer, tea_m, r=0.74, h=1.05)
+    _handle(cer, r=0.74, h=1.05)
+    # Teabag string: a pale thread over the rim to a small tag leaning on the table.
+    tube([(0.28, -0.3, 0.95), (0.6, -0.34, 1.02), (0.9, -0.4, 0.8), (1.02, -0.44, 0.45)], 0.016,
+         mat("#f4ecd8", 0.8), segs=4)
+    box((0.24, 0.02, 0.18), loc=(1.02, -0.44, 0.34), rot=(0, 22, 8), m=mat("#e4d6b4", 0.8, color2="#c4b48e",
+                                                                          tex="noise", scale=16.0), bev=0.004)
+    leaf(0.7, 0.22, loc=(0.1, 0.28, 0.1), rot=(70, 30, 0), m=mat("#4f9a3a", 0.5, color2="#3a7a2a",
+                                                                 tex="wave", scale=8.0), curl=0.1)
+    leaf(0.55, 0.18, loc=(-0.2, 0.34, 0.05), rot=(75, -40, 0), m=mat("#5aa842", 0.5, color2="#3a7a2a",
+                                                                    tex="wave", scale=8.0), curl=0.08)
+    turn(-16)
+    turn(12, "X")
+
+
+def _filter_cone():
+    """Brown paper drip filter cone standing in a cup, its seam and a fold visible."""
+    paper = mat("#b08a5a", 0.9, color2="#8a683e", tex="wave", scale=22.0, bump=0.15)
+    lathe([(0.42, 0.0), (0.5, 0.02), (0.95, 1.0), (1.02, 1.0), (1.06, 0.96), (0.52, 0.0)], m=paper, segs=28,
+          smooth=False, loc=(0, 0, 0.78))
+    for k in range(10):  # the pleated rim
+        a = math.radians(k * 36)
+        box((0.06, 0.05, 0.14), loc=(1.04 * math.cos(a), 1.04 * math.sin(a), 1.88), rot=(0, 0, math.degrees(a)),
+            m=paper, bev=0.006)
+    # Coffee grounds sitting in the cone.
+    blob(0.44, loc=(0, 0, 1.5), scl=(1.0, 1.0, 0.35), m=mat("#3a2618", 0.9, color2="#1e1408", tex="noise",
+                                                             scale=10.0), amp=0.12, sub=2)
+
+
+def drip_coffee():
+    """Drip coffee: a mug of dark coffee with a paper filter cone standing in it, the last of the
+    brew dripping from the cone (the cone is the silhouette that tells it from tea)."""
+    cer = mat("#d8d2c4", 0.5, color2="#b4ae9e", tex="noise", scale=9.0, bump=0.1, spec=0.5)
+    brew = mat("#2e1a0c", 0.08, coat=1.0, color2="#1a0e06", tex="noise", scale=4.0)
+    _cup(cer, brew, r=0.82, h=0.95)
+    _handle(cer, r=0.82, h=0.95)
+    _filter_cone()
+    tube([(0, -0.02, 0.84), (0, -0.02, 0.9)], 0.022, brew, segs=6)  # the drip
+    blob(0.06, loc=(0, -0.02, 0.9), scl=(1.0, 1.0, 1.3), m=brew, amp=0.1, sub=2)
+    turn(-20)
+    turn(14, "X")
+
+
+def dutch_coffee():
+    """Dutch coffee: a squat tin pot with a long spout, a bail handle over the top and dark coffee
+    showing at the rim, a coarse-ground pinch beside it: the camp pot, not the paper filter."""
+    tin = mat("#8a9098", 0.35, metal=0.9, color2="#6a7078", tex="noise", scale=8.0, bump=0.08)
+    brew = mat("#301c0e", 0.08, coat=1.0, color2="#1c1006", tex="noise", scale=4.0)
+    prof = [(0, 0), (0.66, 0.0), (0.78, 0.12), (0.9, 0.62), (0.92, 0.86), (0.8, 0.9), (0.86, 1.0), (0.78, 1.02),
+            (0.74, 0.86), (0.72, 0.5), (0.62, 0.1), (0, 0.1)]
+    lathe(prof, m=tin, segs=32)
+    cyl(0.7, 0.02, loc=(0, 0, 0.82), m=brew, segs=28)
+    # The long spout, up and out from the shoulder.
+    tube([(0.72, 0, 0.55), (1.05, 0, 0.82), (1.3, 0, 1.12), (1.36, 0, 1.2)], 0.1, tin, segs=10, taper=(1.0, 0.55))
+    # Bail handle: a wire arc over the pot.
+    tube(arc((0, 0, 0.98), 0.62, 10, 170, 18, plane="xz"), 0.03, tin, segs=5)
+    for s in (-1, 1):
+        box((0.08, 0.1, 0.1), loc=(s * 0.88, 0, 0.94), m=tin, bev=0.01)
+    # Coarse grounds: a small dark heap beside the pot.
+    for (x, y, s) in ((0.35, -0.72, 0.22), (0.62, -0.66, 0.15), (0.1, -0.78, 0.13)):
+        blob(s, loc=(x, y, 0.08), scl=(1.4, 1.0, 0.45), m=mat("#3a2414", 0.98, color2="#1e1208", tex="noise",
+                                                              scale=14.0), amp=0.3, sub=2)
+    turn(-24)
+    turn(16, "X")
+
+
+def fatigue_tonic():
+    """Fatigue tonic: a small dark-glass bottle of green tonic, corked and waxed, its label a paper
+    band: a medicine bottle, not a drink cup."""
+    glass = mat("#2e5a4a", 0.08, coat=1.0, color2="#1a3a2e", tex="noise", scale=4.0)
+    tonic = mat("#7dff6a", 0.05, coat=1.0, emit="#5ad84a", emit_strength=1.4)
+    lathe([(0, 0), (0.42, 0.0), (0.5, 0.1), (0.55, 0.32), (0.55, 0.95), (0.34, 1.2), (0.22, 1.32), (0.24, 1.42),
+           (0, 1.42)], m=glass, segs=28)
+    lathe([(0, 0.06), (0.42, 0.06), (0.5, 0.14), (0.5, 0.8), (0, 0.8)], m=tonic, segs=28)
+    # Paper label band across the belly.
+    lathe([(0.56, 0.3), (0.56, 0.68), (0.5, 0.68), (0.5, 0.3)], m=mat("#ece0c4", 0.9, color2="#c8b894",
+                                                                     tex="noise", scale=20.0), segs=28)
+    for k in range(4):  # a printed row of marks on the label
+        box((0.09, 0.02, 0.03), loc=(-0.3 + 0.2 * k, -0.48, 0.5), m=mat("#3a4a2a", 0.8), bev=0.0)
+    cyl(0.24, 0.22, loc=(0, 0, 1.5), m=mat("#b88452", 0.85, color2="#8a5a32", tex="noise", scale=12.0,
+                                           bump=0.4), segs=16)  # cork
+    cyl(0.255, 0.06, loc=(0, 0, 1.4), m=mat("#8a2a32", 0.45, color2="#5a141c", tex="noise", scale=10.0),
+        segs=16)  # wax
+    turn(-8)
+    turn(6, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def crafters_meal():
+    """Crafter's meal: a plate with a slab of roast, a floury roll, two wedges of root veg and a
+    sprig: a full plate, not a bowl of stew or a single haunch."""
+    _plate(1.25)
+    roast_m = _cooked("#9a5222", "#54280c")
+    blob(0.62, loc=(-0.3, 0.05, -0.2), scl=(1.25, 0.9, 0.6), m=roast_m, amp=0.12, sub=3)
+    for k in range(3):  # scored fat lines across the roast
+        tube([(-0.75 + 0.4 * k, -0.42, -0.02), (-0.6 + 0.4 * k, -0.5, -0.2), (-0.45 + 0.4 * k, -0.36, -0.34)],
+             0.03, mat("#e8c48a", 0.6), segs=4)
+    bread = mat("#d8ae6e", 0.65, color2="#b08a4a", tex="noise", scale=8.0, bump=0.2)
+    blob(0.42, loc=(0.62, 0.12, -0.12), scl=(1.15, 0.95, 0.75), m=bread, amp=0.12, sub=3)
+    for k in range(2):  # a slash across the roll
+        tube([(0.42 + 0.16 * k, -0.42, 0.06 + 0.02 * k), (0.62 + 0.16 * k, -0.34, 0.14)], 0.03,
+             mat("#e8ca94", 0.7), segs=4)
+    veg = mat("#d87a1e", 0.55, color2="#a8520e", tex="noise", scale=7.0, coat=0.3)
+    for (x, y, rot_) in ((-0.35, 0.55, 20), (0.05, 0.62, -25)):
+        box((0.34, 0.2, 0.26), loc=(x, y, -0.28), rot=(0, 0, rot_), m=veg, bev=0.05)
+    leaf(0.6, 0.2, loc=(0.85, -0.35, -0.3), rot=(70, 35, 0), m=mat("#4f9a3a", 0.5, color2="#3a7a2a",
+                                                                 tex="wave", scale=8.0), curl=0.08)
+    turn(-14)
+    turn(24, "X")
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
+
+
 ITEMS = {
     "raw_meat": raw_meat, "raptor_meat": raptor_meat, "roast": roast, "seasoned_roast": seasoned_roast,
     "grilled_meat": grilled_meat, "dried_meat": dried_meat, "smoked_meat": smoked_meat, "skewer": skewer,
@@ -435,4 +587,7 @@ ITEMS = {
     "steamed_food": steamed_food, "herb_buff_meal": herb_buff_meal, "berries": berries, "berry": berry,
     "mango": mango, "coconut": coconut, "mushroom": mushroom, "corn": corn, "cactus_flesh": cactus_flesh,
     "corn_seed": corn_seed, "wheat_seed": wheat_seed, "flax_seed": flax_seed, "berry_seed": berry_seed,
+    # dsc icons4: drinks and the crafter's meal.
+    "spring_water": spring_water, "tea": tea, "drip_coffee": drip_coffee, "dutch_coffee": dutch_coffee,
+    "fatigue_tonic": fatigue_tonic, "crafters_meal": crafters_meal,
 }

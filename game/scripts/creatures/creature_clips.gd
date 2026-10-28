@@ -7,8 +7,9 @@ const CONTRACT: Array[StringName] = [
 	&"hit_react", &"knockdown", &"death", &"alert", &"feed",
 ]
 const LOOPING: Array[StringName] = [&"idle", &"walk", &"run"]
-## Authored on some species only (the T. rex); CreatureAnim falls back to idle where missing.
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe"]
+## Authored on some species only; loaded when the GLB exists, CreatureAnim falls back to idle where
+## missing. bite_combo: deinonychus chomp, Chomp, CHOMP (three hit fracs in anim_events.json).
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120
@@ -21,7 +22,7 @@ static func attach(player: AnimationPlayer, view: CreatureView, def: CreatureDef
 		player.root_node = NodePath("..")
 	var lib := AnimationLibrary.new()
 	var loaded: Dictionary = {}
-	for clip in CONTRACT:
+	for clip in CONTRACT + OPTIONAL:
 		var path := "res://assets/creatures/%s/anim/%s.glb" % [def.id, clip]
 		if ResourceLoader.exists(path):
 			var anim := _from_glb(path, view, player, clip)
@@ -228,6 +229,17 @@ static func _len(clip: StringName) -> float:
 			return 1.2
 		_:
 			return 0.8
+
+## Every hit frame of a clip as clip fractions: hit_fracs when listed (bite_combo has three), else [hit_frac].
+static func hit_fracs(clip: StringName) -> Array[float]:
+	var out: Array[float] = []
+	var row: Variant = (Data.anim_events.get("clips", {}) as Dictionary).get(str(clip))
+	if row is Dictionary and (row as Dictionary).get("hit_fracs") is Array:
+		for f in (row as Dictionary)["hit_fracs"]:
+			out.append(float(f))
+	if out.is_empty():
+		out.append(_hit_frac(clip))
+	return out
 
 static func _hit_frac(clip: StringName) -> float:
 	var clips: Dictionary = Data.anim_events.get("clips", {})

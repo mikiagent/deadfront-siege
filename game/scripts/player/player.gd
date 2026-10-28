@@ -64,6 +64,8 @@ var dead: bool = false
 ## Presentation only: who landed the hit that left the survivor down. Cleared on respawn.
 var downed_by: String = ""
 var _last_hit_taken_s: float = -999.0
+## The physics frame a roll dodged a hit on (RollRules window), so the hit reaction skips it.
+var _roll_dodged_frame: int = -1
 ## Skill node bonuses cached by the SP spent, so refresh_equipment_vitals (every frame) does not walk trees.json.
 var _skills_bonus_sp: int = -1
 var _skills_health_bonus: float = 0.0
@@ -380,6 +382,9 @@ func refresh_equipment_vitals() -> void:
 		vitals.health = minf(vitals.health, vitals.effective_max_health())
 
 func receive_creature_hit(who: Creature, _clip: StringName) -> void:
+	if _roll_dodged_frame >= 0 and Engine.get_physics_frames() - _roll_dodged_frame <= 1:
+		_roll_dodged_frame = -1  # rolled through: no hit reaction, no fatigue, no separate XP
+		return
 	_last_hit_taken_s = Time.get_ticks_msec() * 0.001
 	if who and who.def:
 		downed_by = str(who.def.id).replace("_", " ").capitalize()
@@ -395,15 +400,30 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	vitals.add_fatigue(2.0, &"combat")
 	WaterAccess.soil(self, &"hit")
 	_flinch()
-	sim.on_hit()
 
-## Hit reaction clip; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse).
+## A creature hit that reached her inside the roll's opening window: no damage, no stagger, no
+## statuses (CreatureAttack returns before any of them) and a "Dodged" float. Defense XP is paid
+## only when the attack would have hit her anyway (`lands`, the accuracy roll), once per attack, so
+## pressing Roll alone never pays (spec 07 §2).
+func roll_dodge(clip: StringName, who: Creature, lands: bool) -> void:
+	if sim == null:
+		return
+	_roll_dodged_frame = Engine.get_physics_frames()
+	notice("Dodged")  # a small "Dodged" line on the HUD: the hit never touched her
+	if lands and skills:
+		skills.add_xp("defense", RollRules.defense_xp())
+	print("[combat] dodged by roll %s %s t=%.2f xp=%s" % [who.def.id if who and who.def else "?", clip, sim.roll_elapsed(), lands])
+
+## Hit reaction; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse). The
+## hurt clip plays only with the stun (PlayerSim.on_hit): inside the stun immunity a hit damages
+## without restarting it, so bites cannot chain-stun her.
 func _flinch() -> void:
 	if anim == null or rolling:
 		return
+	var stunned := sim.on_hit() if sim else true
 	if statuses and statuses.has_flag(&"knockdown"):
 		anim.play_clip(&"knockdown")
-	else:
+	elif stunned:
 		anim.on_damaged()
 
 func _on_vitals_damaged() -> void:

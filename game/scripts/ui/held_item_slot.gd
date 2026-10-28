@@ -1,15 +1,14 @@
 class_name HeldItemSlot
 extends Control
-## Bottom-right hex showing the held gather tool. Tap gathers the nearest resource and long-press
-## unequips. A separate Bag hex sits directly above it.
+## Quick-slot hex showing the held gather tool. Tap gathers the nearest resource and long-press
+## unequips. It stands in the HUD's quick row above the rail (HuntHud.hands_spot); the BAG hex that
+## stood over it moved into the rail (MENU / BUILD / BAG, owner 2026-10-28).
 
 signal equip_requested(slot_index: int)
 signal unequip_requested
 signal gather_requested
-signal inventory_requested
 
 const SLOT := 64.0
-const RAIL_HEXES := 4.0  ## hexes in the HUD's bottom-left rail (menu, animals, build, skills)
 
 var player: Player
 var _icon: Texture2D
@@ -17,20 +16,12 @@ var _caption: String = "TOOL"
 var _pressing: bool = false
 var _long_left: float = 0.0
 var _fired_long: bool = false
-var _inventory_button: HexButton
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(SLOT, SLOT)
 	size = custom_minimum_size
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_inventory_button = HexButton.new(SLOT)
-	_inventory_button.name = "InventoryButton"
-	_inventory_button.icon = UiIcons.icon(&"bag")
-	_inventory_button.caption = "BAG"
-	_inventory_button.position = Vector2(0.0, -SLOT - 18.0)
-	_inventory_button.pressed.connect(func () -> void: inventory_requested.emit())
-	add_child(_inventory_button)
 
 func bind(p: Player) -> void:
 	player = p
@@ -120,24 +111,12 @@ func _process(delta: float) -> void:
 	if visible == covered:
 		visible = not covered
 		_pressing = false
-	var safe := DisplayServer.get_display_safe_area()
-	var vp := get_viewport_rect().size
-	var win := Vector2(DisplayServer.window_get_size())
-	var scale := vp / win if win.x > 0.0 and win.y > 0.0 else Vector2.ONE
-	var right := 16.0 + maxf(0.0, win.x - float(safe.end.x)) * scale.x
-	var bottom := 108.0 + maxf(0.0, win.y - float(safe.end.y)) * scale.y
-	position = Vector2(vp.x - right - SLOT, vp.y - bottom - SLOT)
-	if UiTokens.is_phone(vp):
-		# Portrait: the HUD draws its level line right-aligned just above the rail (hunt_hud.gd:976),
-		# where the caption sat; lift the slot so the caption clears it.
-		position.y -= 24.0
-	if UiTokens.is_compact(vp) and not UiTokens.is_narrow(vp):
-		# Landscape phone: under the map the claim hex and the context row fill the bottom-right
-		# corner (the slot sat on the claim hex), so the slot stacks above the rail's last hex. At the
-		# rail's end its caption ran into the HUD's centred level line on 804 px and notched canvases.
-		# ASSUMPTION: mirrors hunt_hud.gd _layout's rail (four 64 px hexes, 10 px apart, 96 px up).
+	if hud != null:
+		position = hud.hands_spot()
+	else:  # no HUD (labs): the bottom-right corner, inside the safe area
+		var vp := get_viewport_rect().size
 		var inset := UiTokens.safe_insets(get_viewport())
-		position = Vector2(16.0 + inset.w + (RAIL_HEXES - 1.0) * (SLOT + 10.0), vp.y - 96.0 - inset.y - SLOT - 34.0)
+		position = Vector2(vp.x - 16.0 - inset.x - SLOT, vp.y - 108.0 - inset.y - SLOT)
 	if _pressing:
 		_long_left -= delta
 		if _long_left <= 0.0:
@@ -147,11 +126,7 @@ func _process(delta: float) -> void:
 			queue_redraw()
 
 func _hex(r: float, c: Vector2) -> PackedVector2Array:
-	var pts := PackedVector2Array()
-	for i in 6:
-		var a := deg_to_rad(60.0 * float(i) - 30.0)
-		pts.append(c + Vector2(cos(a), sin(a)) * r)
-	return pts
+	return UiTokens.hex_points(c, r, UiTokens.HEX_FLAT_TOP)
 
 func _draw() -> void:
 	var c := size * 0.5

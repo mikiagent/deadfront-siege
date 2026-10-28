@@ -267,6 +267,10 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
 
 ## 11. Owner rules added after the canvas review
 
+- [owner 2026-10-28] Animal natures are shown as a **chip under the name**, never as a word in it:
+  the plate, the Animals screen and the pet radial draw the name ("Alpha Velociraptor") with a small
+  `NatureChip` directly below it ("Timid"). Gold/positive trait style (§5); natures carry no polarity,
+  so no "−"/"+" prefix. See `../current/creatures-capture-taming.md` § Natures.
 - [owner 2026-10-28] Hexes are **flat-top** everywhere (§3 open question closed).
 - [owner 2026-10-28] Font: use Roboto Condensed (`game/assets/fonts/RobotoCondensed-Variable.ttf`, SIL OFL 1.1).
 - [owner 2026-10-28] Any menu that renders as stretched full-width rows (e.g. the Harbour "Sail ..." list) is rebuilt to this spec, not patched. Known: Harbour / sail list (world_ui.gd), build list (build_ui.gd), skills_sheet.gd, animal_screen.gd.
@@ -277,3 +281,4 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
   - Bottom-left rail: **MENU, BUILD, BAG**, in that order. Skills and Animals move into the nav menu (§7 B3).
   - The MENU hex carries a notification badge at its top-right for skills (unspent SP, level-ups), buy/sell (market events) and similar: a count in a small filled circle. ASSUMPTION (owner undecided on colour): GOLD for normal notices, LIFE red only for urgent ones.
   - The pet whistle row and quick slots stay as §6 says where they do not collide with the above.
+- [owner 2026-10-28] In-combat tap retargets; swords only out of combat. Out of combat a tap on an enemy selects it and the red swords hex (or ATTACK NEAREST) starts combat; in combat a tap on another enemy switches the target to it immediately, no swords hex shows on enemies, and ATTACK NEAREST retargets to the nearest valid enemy.

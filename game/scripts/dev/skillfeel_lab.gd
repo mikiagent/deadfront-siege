@@ -139,7 +139,7 @@ func _shot_pulse() -> void:
 	_r["pulse_when_affordable"] = 1 if affordable and pulsing else 0
 	await _shot("skillspulse")
 	_boxes["pulse"] = _hud.drawn_blocks.get("skillpulse", Rect2())
-	_boxes["hex"] = (_hud.get("_skills_hex") as HexButton).hex_rect()
+	_boxes["hex"] = (_hud.get("_menu_hex") as HexButton).hex_rect()
 
 ## Spend every SP on something buyable until nothing is affordable: the halo goes out.
 func _shot_spent() -> void:
@@ -195,7 +195,7 @@ func _first_hour() -> void:
 ## The smallest tap target this feedback asks a finger for: the SKILLS hex the pulse sits on (the
 ## toasts are not interactive). Measured on the live HUD.
 func _min_tap_px() -> int:
-	var hex: Control = _hud.get("_skills_hex")
+	var hex: Control = _hud.get("_menu_hex")
 	var px := 0.0
 	if hex:
 		px = minf(hex.size.x, hex.size.y)

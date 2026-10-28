@@ -16,7 +16,11 @@ static func reach_ok(h: Hunt, verb: String, tune: Dictionary) -> bool:
 
 ## Body tackle: lunge into the target, groggy (then knockdown on the next hit), 6 damage.
 static func tackle(h: Hunt) -> void:
-	if h.target == null or not h.can_start_tactic():
+	if h.target == null:
+		h.say("Pick a target to tackle.")
+		return
+	if not h.can_start_tactic():
+		h.say("Can't tackle right now.")
 		return
 	if h.cooldown_left(&"tackle") > 0.0:
 		h.say("Tackle ready in %.0fs" % ceil(h.cooldown_left(&"tackle")))
@@ -42,6 +46,7 @@ static func tackle(h: Hunt) -> void:
 	target.next_hit_kind = &"strong"
 	target.health.take_damage(float(tune.get("damage", 6.0)), player)
 	target.status_float.emit(&"tackle")
+	target.stagger_left = maxf(target.stagger_left, float(tune.get("stagger_s", 0.8)))  # a short stagger on the target
 	h.commit_tactic(&"tackle", float(tune.get("cooldown", 8.0)), float(tune.get("lock", 0.55)))
 	player.play_attack(true)
 	print("[combat] body tackle %s" % target.def.id)
@@ -65,7 +70,11 @@ static func kick_push(c: Creature) -> float:
 
 ## Kick: shove the target back (scaled by its mass; giants do not budge) with 4 damage.
 static func kick(h: Hunt) -> void:
-	if h.target == null or not h.can_start_tactic():
+	if h.target == null:
+		h.say("Pick a target to kick.")
+		return
+	if not h.can_start_tactic():
+		h.say("Can't kick right now.")
 		return
 	if h.cooldown_left(&"kick") > 0.0:
 		h.say("Kick ready in %.0fs" % ceil(h.cooldown_left(&"kick")))
@@ -92,5 +101,6 @@ static func kick(h: Hunt) -> void:
 	target.next_hit_kind = &"hit"
 	target.health.take_damage(float(tune.get("damage", 4.0)), player)
 	target.status_float.emit(&"kick")
+	target.stagger_left = maxf(target.stagger_left, float(tune.get("stagger_s", 0.5)))
 	h.commit_tactic(&"kick", float(tune.get("cooldown", 6.0)), float(tune.get("lock", 0.45)))
 	print("[combat] kick %s push=%.2f" % [target.def.id, push])

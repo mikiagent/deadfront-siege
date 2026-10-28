@@ -37,6 +37,17 @@
     "damage_per_ranged_level": 0.01,
     "xp_per_hit": 2
   },
+  "roll": {
+    "_about": "ROLL: the survivor's dodge. Spec 07 §2 fixes no numbers ('a small amount of time'), so every value here is an ASSUMPTION of ours, tunable in data. RollRules times all of them, for the live player (PlayerSim) and the server (IntentHandlers.act.roll, rolls_dodge). seconds = how long the dash lasts; speed_mps = speed at the press, end_speed_frac = the fraction of it at the last frame; the speed decays exponentially, so most of the ground is covered early (distance = speed_mps x seconds x (1 - end_speed_frac) / -ln(end_speed_frac), ~10.9 m and 46 % of it in the first 0.16 s at these values). iframes_s = the opening window in which a creature hit that would land is dodged. stamina = the energy the press costs; cooldown_s = the wait after the dash ends before another roll. defense_xp = Defense XP for one real dodge, never for pressing Roll alone.",
+    "seconds": 0.56,
+    "speed_mps": 39.0,
+    "end_speed_frac": 0.2,
+    "iframes_s": 0.32,
+    "stamina": 12.0,
+    "cooldown_s": 0.9,
+    "buffer_s": 0.2,
+    "defense_xp": 1
+  },
   "evasion_add_scale": 0.01,
   "weapon_wear_per_hit": 1,
   "tackle": {
@@ -45,7 +56,8 @@
     "damage": 6.0,
     "cooldown": 8.0,
     "lock": 0.55,
-    "lunge_max_m": 1.0
+    "lunge_max_m": 1.0,
+    "stagger_s": 0.8
   },
   "kick": {
     "surface_reach_m": 2.4,
@@ -56,7 +68,8 @@
     "push_m": 3.5,
     "ref_mass": 8.0,
     "giant_mass": 60.0,
-    "min_push_m": 0.3
+    "min_push_m": 0.3,
+    "stagger_s": 0.5
   },
   "camera": {
     "trauma_decay_per_s": 1.4,

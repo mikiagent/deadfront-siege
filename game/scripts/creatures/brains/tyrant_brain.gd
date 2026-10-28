@@ -68,7 +68,9 @@ func _do_attack() -> void:
 
 func _impact() -> void:
 	if not is_instance_valid(locked_target): return
-	if locked_target is Player and ((locked_target as Player).dead or (locked_target as Player).rolling): return
+	# A roll does not make her immune for its whole length: CreatureAttack judges the hit against
+	# the opening window (RollRules) exactly as it does a bite, and pays the Defense XP for it.
+	if locked_target is Player and (locked_target as Player).dead: return
 	if locked_target is FieldCatapult and (locked_target as FieldCatapult).hp <= 0: return
 	var offset := locked_target.global_position-creature.global_position
 	offset.y = 0
