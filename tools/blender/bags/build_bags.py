@@ -128,7 +128,7 @@ def build(bag_id, spec):
             cylinder(bm, c + Vector((0, 0, h / 2 + 0.06)), 0.06, w * 1.15, Vector((1, 0, 0)), TRIM, segs=16)
         for k in range(spec.get("side_pockets", 0)):
             for sx in (-1, 1):
-                pz = zc - h * 0.18 + k * h * 0.32
+                pz = -h * 0.18 + k * h * 0.32  # offset from the bag centre c (c.z is already zc)
                 box(bm, c + Vector((sx * (w / 2 + 0.03), 0, pz)), (0.06, d * 0.7, h * 0.28), BODY, bevel=0.02)
         if spec.get("front_pocket"):
             box(bm, c + Vector((0, d / 2 + 0.03, -h * 0.18)), (w * 0.7, 0.06, h * 0.32), BODY, bevel=0.025)
