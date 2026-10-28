@@ -42,6 +42,15 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   "-N fatigue" (teal) floats rise over her (`HudRestBox.tick` → `HudEventState.add_float`).
 - The name under the survivor hangs from `HudLayout.nameplate_anchor`: the capsule centre, lowered with
   the visual while she sits or lies, so it stays under her instead of across the torso.
+- A worn title rides on its own line above the name (owner: "Titles should display italicized over the
+  player's name"): Roboto Condensed at 13 px (name 15 px), slanted 0.2 (the variable TTF has only a
+  `wght` axis, so `UiTokens.ui_italic` skews it), warm grey `HudLayout.TITLE_INK` (dimmer than the
+  name's white). No title, no line. `HudLayout.nameplate_rect` grows upward by the line and
+  `HudLayout.draw_nameplate(ci, font, rect, who)` draws both; any plate owner answers
+  `display_name()` / `display_title()`, so tribe and other-player plates reuse it when they exist.
+  The title is `World.player_title` (save field `player_title`, "" by default; older saves load with
+  none), picked on the Character sheet's Titles tab: Wear on an earned title (titles.json key at or
+  under her level), Remove on the worn one (gold, italic). The tab scrolls.
 - Minimap top-right: a round 154 px window (`MAP_PX`), drawn camera-up (rotated by camera yaw),
   0.95 m per pixel (`MAP_SCALE`), with fog-of-war, the foot trail, camp flame, harbour anchor,
   crater, creature dots (pets green, wild red, only inside revealed fog) and the player arrow.

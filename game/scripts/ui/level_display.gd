@@ -53,6 +53,21 @@ static func current_title(level: int) -> String:
 			best = int(key)
 	return str(_titles.get(str(best), ""))
 
+## Titles earned at shown `level`, lowest first: every titles.json key at or under it (the rule above).
+static func earned_titles(level: int) -> PackedStringArray:
+	current_title(level)  # loads _titles
+	var keys: Array = _titles.keys().filter(func (k: Variant) -> bool: return str(k).is_valid_int() and int(k) <= level)
+	keys.sort_custom(func (a: Variant, b: Variant) -> bool: return int(a) < int(b))
+	var out: PackedStringArray = []
+	for k: Variant in keys:
+		out.append(str(_titles[k]))
+	return out
+
+## The title worn over her name: World.player_title while she has earned it, else "" (no line).
+static func worn_title() -> String:
+	var t := World.player_title
+	return t if t != "" and earned_titles(player_level()).has(t) else ""
+
 ## A recipe's level: "Lv. 12", or NONE when the bag cannot make it yet. Crafting.preview_level
 ## reports the recipe's top level for an invalid pick, which read as "Lv. 60" on every row the
 ## player could not craft.
