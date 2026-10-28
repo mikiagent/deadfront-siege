@@ -27,6 +27,7 @@ var bodies: Array[PhysicalBone3D] = []
 ## swing/twist (cone, degrees), offset_inv (body -> bone transform).
 var info: Array[Dictionary] = []
 var scale: float = 1.0
+var size: float = 1.0  ## GENETICS body size the profile metres are multiplied by
 ## Local pose of every bone when the simulation started; lengths are restored from it on freeze.
 var start_local: Array[Transform3D] = []
 var _body_of_bone: Dictionary = {}  ## bone index -> body index
@@ -37,7 +38,9 @@ var _clip_local: Array[Transform3D] = []  ## every bone's local pose before the 
 const START_SLACK_DEG := 30.0
 
 ## Returns null (and leaves the skeleton untouched) when the profile names a bone this rig lacks.
-static func build(sk: Skeleton3D, prof: Dictionary, defaults: Dictionary) -> RagdollRig:
+## `size` is the animal's GENETICS body size: the profile's metres (lengths, offsets, radii, extends) are
+## authored at 1.0x and scale with it, as the skeleton does.
+static func build(sk: Skeleton3D, prof: Dictionary, defaults: Dictionary, size: float = 1.0) -> RagdollRig:
 	if sk == null or prof.is_empty():
 		return null
 	var defs: Array = prof.get("bodies", [])
@@ -55,6 +58,7 @@ static func build(sk: Skeleton3D, prof: Dictionary, defaults: Dictionary) -> Rag
 	var r := RagdollRig.new()
 	r.skeleton = sk
 	r.scale = s3.x
+	r.size = maxf(0.01, size)
 	for i in sk.get_bone_count():
 		r._clip_local.append(sk.get_bone_pose(i))
 	r._reparent(prof.get("reparent", {}))
@@ -214,7 +218,7 @@ func _geometry(d: Dictionary) -> Dictionary:
 	var tip: Vector3
 	if d.has("dir"):
 		var dv: Array = d["dir"]
-		tip = head + Vector3(float(dv[0]), float(dv[1]), float(dv[2])).normalized() * float(d.get("length", 0.1)) / scale
+		tip = head + Vector3(float(dv[0]), float(dv[1]), float(dv[2])).normalized() * float(d.get("length", 0.1)) * size / scale
 	elif d.has("to"):
 		tip = skeleton.get_bone_global_rest(skeleton.find_bone(str(d["to"]))).origin
 	else:
@@ -222,15 +226,15 @@ func _geometry(d: Dictionary) -> Dictionary:
 		if kids.size() == 1 and not d.has("length"):
 			tip = skeleton.get_bone_global_rest(kids[0]).origin
 		else:
-			tip = head + g.basis.y.normalized() * float(d.get("length", 0.1)) / scale
+			tip = head + g.basis.y.normalized() * float(d.get("length", 0.1)) * size / scale
 	var ls := float(d.get("length_scale", 1.0))
 	tip = head + (tip - head) * ls
 	var off: Array = d.get("offset", [0.0, 0.0, 0.0])
-	var shift := Vector3(float(off[0]), float(off[1]), float(off[2])) / scale
+	var shift := Vector3(float(off[0]), float(off[1]), float(off[2])) * size / scale
 	head += shift
 	tip += shift
 	var len_m := maxf(0.001, (tip - head).length() * scale)
-	var rad := float(d["radius"]) if d.has("radius") else float(d.get("radius_frac", 0.25)) * len_m
+	var rad := float(d["radius"]) * size if d.has("radius") else float(d.get("radius_frac", 0.25)) * len_m
 	return {"head": head, "tip": tip, "len": len_m, "r": maxf(0.005, rad)}
 
 func _add_body(d: Dictionary, mass: float, defaults: Dictionary) -> void:
@@ -253,7 +257,7 @@ func _add_body(d: Dictionary, mass: float, defaults: Dictionary) -> void:
 	pb.body_offset = _body_offset(basis, centre)
 	var cap := CapsuleShape3D.new()
 	cap.radius = g["r"]
-	cap.height = maxf(float(g["len"]) + float(d.get("extend", 0.0)), cap.radius * 2.0 + 0.001)
+	cap.height = maxf(float(g["len"]) + float(d.get("extend", 0.0)) * size, cap.radius * 2.0 + 0.001)
 	var cs := CollisionShape3D.new()
 	cs.shape = cap
 	pb.add_child(cs)

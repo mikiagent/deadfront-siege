@@ -198,7 +198,7 @@ func _hand_off() -> void:
 		return
 	if creature.anim and creature.anim.tree:
 		creature.anim.tree.active = false  # the ragdoll owns the pose from the hit-react frame on
-	rig = RagdollRig.build(sk, prof, data().get("physics", {}))
+	rig = RagdollRig.build(sk, prof, data().get("physics", {}), creature.size_scale())
 	if rig == null:
 		_resume_clip()
 		_fall_back("profile does not fit the rig")
