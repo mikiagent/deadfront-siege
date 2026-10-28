@@ -11,7 +11,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 ## Fixed layout (per canvas, `HudLayout`)
 - Vitals panel top-left: desktop 300 px wide with 16 px bars and body-size numerals; phone compact
   (min 148 px, the room left of the minimap). An 18 px level disc sits left of the two bars (health
-  red, stamina blue). Below: the exhaustion face + tier word, then the treadmill belt.
+  red, stamina blue). Below: the exhaustion face + tier word, then the treadmill belt. While Well
+  Rested the belt pauses (`ExhaustTreadmill.paused_rate`: the drift eases to 0 in ~0.2 s and holds)
+  unless exhaustion is falling right then (a rest or a meal still runs it left); the status row shows
+  the Well Rested chip (sun over a pillow, `well_rested.svg`) with its countdown.
 - Status chips row under the vitals (30 px pitch, a countdown under 3600 s; longer = "until treated").
   A status that lowers max HP adds its own note line ("Infected Wound: max HP −20%").
   While she rests or sleeps a Resting chip (rest icon) comes first, and a rounded ink pill right under

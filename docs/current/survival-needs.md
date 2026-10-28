@@ -49,6 +49,7 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
 ### Statuses that touch fatigue (`game/data/statuses.json`)
 | status | effect | duration |
 |---|---|---|
+| well_rested | no exhaustion gain at all (flag `no_fatigue_gain`) | 60–300 s (from sleeping) |
 | clean | fatigue ×0.8 | 360 s (from washing) |
 | dirty / very_dirty | fatigue ×1.2 / ×1.5 | until washed |
 | thirsty | fatigue ×1.2 | until drinking |
@@ -125,6 +126,14 @@ Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 
 - A completed sleep spends one use; temporary bedding `queue_free`s at 0 and its uses persist in
   saves. Waking steps the survivor out 1.6 m onto the door side (+Z) first.
+- **Well Rested** (owner 2026-10-28; `RestState.grant_well_rested`, status `well_rested` in
+  `statuses.json`, numbers in `rest.json` `well_rested`): waking from a completed sleep, or from one
+  ended by moving after at least 5 s (`min_sleep_s`, or the bedding's whole duration if shorter),
+  grants it for 3 s per point of exhaustion the sleep removed, clamped 60–300 s (ASSUMPTION; a tent
+  sleep from 60 gives 180 s). A sleep ended by a hit, combat or death grants nothing; a second sleep
+  never shortens a running one. While it runs, `Vitals.add_fatigue` drops every positive gain (the
+  time baseline, movement, gathering, hits, climate, statuses, the level gap); rest, meals and sleep
+  still lower exhaustion. It is a status, so the save keeps its time left (`statuses[].time_left`).
 - Interrupts: movement/nav input, an active route, entering combat, a hit within 1 s, death, or
   moving > 3.2 m from the spot — "Sleep interrupted"; completing shows "Rested". A status tick
   (bleed, stomachache) is not a hit: it neither wakes her nor drops the walk to the bedding.

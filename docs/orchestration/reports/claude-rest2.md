@@ -97,3 +97,41 @@ t_save PASS (its 5 deliberate SCRIPT ERRORs).
 Offline rest catch-up, server side of `act.rest`, comfort/furniture/temperature modifiers, an authored sit clip,
 net-fatigue display — as listed in REST's report. In the t_rest scene the survivor does not move along a nav route
 (even without statuses); rest_lab walks fine, so it is a test-scene quirk, not investigated.
+
+## Round 2: merge of mmo-overhaul and Well Rested (owner 2026-10-28)
+
+Owner, verbatim: "when you stop sleeping, the treadmill shouldn't keep going left, it should pause for the
+duration of the 'well rested buff' where you don't become more exhausted for a certain amount of time".
+
+- `a69d8245` merges `claude/mmo-overhaul` (STATUSICONS, FOODCAT). FOODFX's icons took `icons_l.py`, so REST's
+  drawing module is now `icons_m.py`, registered in `build.py` MODULES/SOLID. `build.py` rewrote nothing else.
+- `9c737048` Well Rested:
+  - Status `well_rested` (statuses.json, flag `no_fatigue_gain`, weakness_rank 6 so the 3-status cap keeps it).
+    `StatusEffects._sync_vitals` sets `Vitals.blocks_fatigue_gain`; `Vitals.add_fatigue` drops every positive
+    gain while it is set (the time baseline, work, climate, statuses, hits, level gap all go through it).
+    `rest()` (rest, meals, sleep) still lowers exhaustion.
+  - Granted on waking by `RestState.grant_well_rested`: a completed sleep, or a sleep ended by moving after
+    `min_sleep_s` 5 s (or the bedding's whole duration if shorter). A hit, combat or death grants nothing.
+  - Length, **ASSUMPTION** (no figure in spec 01, spec 32 or vision §10): `rest.json well_rested` 3 s per point
+    of exhaustion the sleep removed, clamped 60–300 s. A tent sleep from 60 fatigue gives 180 s.
+  - HUD: `ExhaustTreadmill.paused_rate` eases the belt to a stop (tau 0.2 s) and holds it while exhaustion is
+    not falling; a rest or meal still runs it left. The chip and countdown use the existing status-chip path,
+    icon `well_rested.svg` (sun rising over a pillow) drawn in `icons_m.py`.
+  - Save: it is a status, so `statuses[].time_left` already round-trips it; no new key.
+- t_rest new checks (all ok): full sleep grants 180 s; 60 s of compressed hard work (sprint, gather, heat,
+  hits, wet, level gap 2.0) leaves fatigue at 40.000 and drift 0.0000; resting lowers 40.00 → 38.99 with drift
+  -0.065; it expires and work runs the belt right again; a 2 s cancelled sleep grants nothing; save/load keeps
+  119.5 of 119.5 s.
+
+Gates after round 2 (logs `/var/folders/xw/c1xrp24n76nbnlq85qnmbfrw0000gn/T/rest_*.log`): import clean;
+`[t_rest] PASS` (97 checks); t_needs, t_foodfx, t_ui, t_player, t_save (5 deliberate SCRIPT ERROR), t_iconart,
+t_water, t_canim, t_build, t_ai, t_targetui, t_mapui PASS; **t_uiicons now PASS** (`[icons] PASS drawn=127
+svgs=127`, the base failures were fixed by STATUSICONS). Smoke, run_all and rest_lab: see the line below.
+
+Needs an on-screen look as well: the Well Rested icon at chip size, and the belt stopping after a sleep.
+Owner decision: the Well Rested length (3 s per point, 60–300 s) and the 5 s minimum nap.
+
+Round 2 smoke/run_all/lab: `SMOKE PASS`; `run_all` `[tests] PASS` with 6 SCRIPT ERROR = the 3 known
+compile-order ones (TouchControls chain) + 3 deliberate ones from ECON's fault test that came in with the merge
+(`[econ] fault test: the next SCRIPT ERROR and ERROR lines are deliberate`); rest_lab `--trace` exit 0, 0 SCRIPT
+ERROR, sit largest hips step 5.5 cm/frame, stand 4.5 cm.
