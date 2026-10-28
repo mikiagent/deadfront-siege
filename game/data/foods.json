@@ -28,6 +28,12 @@
       "combat": 200.0
     }
   },
+  "catalog_scale": {
+    "energy_k": 0.110791,
+    "fatigue_k": 0.666667,
+    "health_k": 0.099206,
+    "_about": "FOODCAT normalisation (orchestrator 2026-10-28): the catalog sets RELATIVE values only. energy_k = raw_meat's pre-FOODCAT food_energy (12) / (catalog Brisket 173.3 / 1.6); item food_energy = catalog L60 total / 1.6 x energy_k. fatigue_k = our tonic's pre-FOODCAT -200 / the largest mapped catalog |Fatigue| (Restorative -300). health_k = our only food heal (camp_stew +5) / the largest mapped catalog Health (Herbal Tea +50.4). The catalog states no max-fatigue/health scale of its own. # ASSUMPTION, tune in the sheets."
+  },
   "channels": [
     "energy",
     "fullness",
@@ -254,7 +260,7 @@
         "astringent": 14
       },
       "taste_score": 62,
-      "assumption": "22.4 immediate + 22.4 delayed Energy is the reconstruction's level-60 Tea figure (spec 32 s5), tagged restoration-evaluated, not a 2019 constant; thirst and the taste score are ASSUMPTION. FOODCAT # ASSUMPTION: mapped to catalog row tea_01_green (Green Tea). Energy: item food_energy = (22.4 + 22.4) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 22.4 / 44.8. Fullness is the catalog's. 'Enhanced Ability Lv60' has no stat to map (open question); tea keeps its WATER thirst.",
+      "assumption": "22.4 immediate + 22.4 delayed Energy is the reconstruction's level-60 Tea figure (spec 32 s5), tagged restoration-evaluated, not a 2019 constant; thirst and the taste score are ASSUMPTION. FOODCAT # ASSUMPTION: mapped to catalog row tea_01_green (Green Tea). Energy: item food_energy = (22.4 + 22.4) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 22.4 / 44.8. Fullness is the catalog's. 'Enhanced Ability Lv60' has no stat to map (open question); tea keeps its WATER thirst.",
       "fullness": 5,
       "catalog": {
         "game_id": "tea_01_green",
@@ -299,7 +305,7 @@
         "astringent": 20
       },
       "taste_score": 56,
-      "assumption": "47.9 immediate + 8.4 delayed Energy at level 60 (spec 32 s5), restoration-evaluated. Caffeinated's 10 min is ASSUMPTION (status length only, no effect invented). FOODCAT # ASSUMPTION: mapped to catalog row coffee_drip (Drip Coffee). Energy: item food_energy = (47.9 + 8.4) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 47.9 / 56.3. Fullness is the catalog's.",
+      "assumption": "47.9 immediate + 8.4 delayed Energy at level 60 (spec 32 s5), restoration-evaluated. Caffeinated's 10 min is ASSUMPTION (status length only, no effect invented). FOODCAT # ASSUMPTION: mapped to catalog row coffee_drip (Drip Coffee). Energy: item food_energy = (47.9 + 8.4) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 47.9 / 56.3. Fullness is the catalog's.",
       "fullness": 5,
       "catalog": {
         "game_id": "coffee_drip",
@@ -358,7 +364,7 @@
         "astringent": 24
       },
       "taste_score": 56,
-      "assumption": "Energy values follow Drip Coffee (spec 32 s5 says 'same Energy values'). FOODCAT # ASSUMPTION: mapped to catalog row coffee_dutch (Dutch Coffee). Energy: item food_energy = (47.9 + 8.4) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 47.9 / 56.3. Fullness is the catalog's. the catalog buff (Max Fatigue +132.8) is NOT applied: the existing spec-32 buff row stays (t_foodfx fixture).",
+      "assumption": "Energy values follow Drip Coffee (spec 32 s5 says 'same Energy values'). FOODCAT # ASSUMPTION: mapped to catalog row coffee_dutch (Dutch Coffee). Energy: item food_energy = (47.9 + 8.4) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 47.9 / 56.3. Fullness is the catalog's. the catalog buff (Max Fatigue +132.8) is NOT applied: the existing spec-32 buff row stays (t_foodfx fixture).",
       "fullness": 5,
       "catalog": {
         "game_id": "coffee_dutch",
@@ -397,7 +403,7 @@
         "astringent": 8
       },
       "taste_score": 58,
-      "assumption": "A raw berry can upset the stomach (spec 32 s9 'some raw food may inflict Stomach Pain'); the 12% chance and 4 min digestion are ASSUMPTION, not the item def's (which had no risk). FOODCAT # ASSUMPTION: mapped to catalog row wildberry (Raspberry). Energy: item food_energy = (29.7 + 19.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 29.7 / 49.5. Fullness is the catalog's.",
+      "assumption": "A raw berry can upset the stomach (spec 32 s9 'some raw food may inflict Stomach Pain'); the 12% chance and 4 min digestion are ASSUMPTION, not the item def's (which had no risk). FOODCAT # ASSUMPTION: mapped to catalog row wildberry (Raspberry). Energy: item food_energy = (29.7 + 19.8) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 29.7 / 49.5. Fullness is the catalog's.",
       "fullness": 10,
       "catalog": {
         "game_id": "wildberry",
@@ -435,7 +441,7 @@
         "astringent": 0
       },
       "taste_score": 66,
-      "assumption": "Fullness +25 follows spec 32 s6's Bacon row; the ratio and taste score are ASSUMPTION. FOODCAT # ASSUMPTION: mapped to catalog row skewer_meat_mart (Meat). Energy (NOT applied, see catalog.energy_kept; the item keeps its old Energy) would be food_energy = (98.0 + 65.3) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 98.0 / 163.3. Fullness is the catalog's.",
+      "assumption": "Fullness +25 follows spec 32 s6's Bacon row; the ratio and taste score are ASSUMPTION. FOODCAT # ASSUMPTION: mapped to catalog row skewer_meat_mart (Meat). Energy: item food_energy = (98.0 + 65.3) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 98.0 / 163.3. Fullness is the catalog's.",
       "catalog": {
         "game_id": "skewer_meat_mart",
         "name": "Meat",
@@ -445,8 +451,7 @@
         "fullness": 12.0,
         "buff": "",
         "other": "",
-        "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)",
-        "energy_kept": "Item Energy NOT mapped (kept 24): t_process's processing payoff (spec 08 s2: dried/smoked meat must ease more fatigue than grilled) breaks if grilled meat takes the catalog's 163.3. Owner question."
+        "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       }
     },
     "skewer": {
@@ -471,7 +476,7 @@
         "astringent": 0
       },
       "taste_score": 58,
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meat_skewers (Meat Kebab). Energy: item food_energy = (98.0 + 65.3) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 98.0 / 163.3. Fullness is the catalog's.",
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meat_skewers (Meat Kebab). Energy: item food_energy = (98.0 + 65.3) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 98.0 / 163.3. Fullness is the catalog's.",
       "catalog": {
         "game_id": "meat_skewers",
         "name": "Meat Kebab",
@@ -510,7 +515,7 @@
         "astringent": 0
       },
       "taste_score": 62,
-      "assumption": "Fullness 30 and Health +5 are ASSUMPTION; spec 32 s1 lists Health as a channel but gives no stew figure. FOODCAT # ASSUMPTION: mapped to catalog row stew_01 (Stew). Energy (NOT applied, see catalog.energy_kept; the item keeps its old Energy) would be food_energy = (138.2 + 59.2) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 138.2 / 197.4. Fullness is the catalog's. Hot Food Lv2 -> temperature hot level 2.",
+      "assumption": "Fullness 30 and Health +5 are ASSUMPTION; spec 32 s1 lists Health as a channel but gives no stew figure. FOODCAT # ASSUMPTION: mapped to catalog row stew_01 (Stew). Energy (NOT applied, see catalog.energy_kept; the item keeps its old Energy) would be food_energy = (138.2 + 59.2) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 138.2 / 197.4. Fullness is the catalog's. Hot Food Lv2 -> temperature hot level 2.",
       "buffs": [
         {
           "id": "camp_stew_catalog",
@@ -537,7 +542,7 @@
         "buff": "Perception +20.9",
         "other": "Hot Food Lv2",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)",
-        "energy_kept": "Item Energy NOT mapped (kept 32): run_all pins camp_stew's food_energy at 32 and t_process ranks it against grilled meat. Owner question."
+        "energy_kept": "Item Energy NOT mapped (kept 32): run_all pins camp_stew's food_energy at 32 (the scaled catalog value would be 13.67). Owner question."
       }
     },
     "raw_meat": {
@@ -561,7 +566,7 @@
         "astringent": 0
       },
       "taste_score": 20,
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meat (Meat). Energy: item food_energy = (40.8 + 122.5) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 40.8 / 163.3. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's).",
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meat (Meat). Energy: item food_energy = (40.8 + 122.5) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 40.8 / 163.3. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's).",
       "fullness": 20,
       "risk_level": 1,
       "catalog": {
@@ -618,7 +623,7 @@
       },
       "taste_score": 70,
       "eat_seconds": 3.0,
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row fruit_sandwich_weapon (Fruit Sandwich: Weapon Crafting Flavor). Energy: item food_energy = (110.8 + 27.7) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 110.8 / 138.5. Fullness is the catalog's. the catalog buff (Weapon Crafting Ability +33) is NOT applied: the existing spec-32 buff row stays (t_foodfx fixture). The +20 Weapon Crafting Ability and 20 min are spec 32 s3's own example.",
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row fruit_sandwich_weapon (Fruit Sandwich: Weapon Crafting Flavor). Energy: item food_energy = (110.8 + 27.7) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 110.8 / 138.5. Fullness is the catalog's. the catalog buff (Weapon Crafting Ability +33) is NOT applied: the existing spec-32 buff row stays (t_foodfx fixture). The +20 Weapon Crafting Ability and 20 min are spec 32 s3's own example.",
       "catalog": {
         "game_id": "fruit_sandwich_weapon",
         "name": "Fruit Sandwich: Weapon Crafting Flavor",
@@ -640,7 +645,7 @@
         "fullness",
         "thirst"
       ],
-      "fatigue": -300,
+      "fatigue": -200,
       "eat_seconds": 1.5,
       "flavors": {
         "sweet": 4,
@@ -652,7 +657,7 @@
         "astringent": 12
       },
       "taste_score": 30,
-      "assumption": "Fatigue -200 follows the reconstruction's Dunia Warp Mineral Water row (spec 32 s5, no Energy recovery); this build's drink is a craftable restorative, not the event item. restoration-evaluated. FOODCAT # ASSUMPTION: mapped to catalog row fatigue_drug (Fatigue Restorative): no Energy; fullness is the catalog's. 'Fatigue -300, Water Lv1' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20); Fatigue -300 is the catalog figure on this build's fatigue scale, unscaled.",
+      "assumption": "Fatigue -200 follows the reconstruction's Dunia Warp Mineral Water row (spec 32 s5, no Energy recovery); this build's drink is a craftable restorative, not the event item. restoration-evaluated. FOODCAT # ASSUMPTION: mapped to catalog row fatigue_drug (Fatigue Restorative): no Energy; fullness is the catalog's. 'Fatigue -300, Water Lv1' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20); catalog Fatigue -300 x catalog_scale.fatigue_k = -200.",
       "thirst": 20,
       "fullness": 5,
       "catalog": {
@@ -689,7 +694,7 @@
         "astringent": 6
       },
       "taste_score": 60,
-      "assumption": "The meal keeps its existing food_buffs.json 'defense' row (dried herb secondary slot, PRD 9.3); the bundle only adds fullness and taste, both ASSUMPTION. FOODCAT # ASSUMPTION: mapped to catalog row skewer_meat_mart (Meat). Energy: item food_energy = (98.0 + 65.3) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 98.0 / 163.3. Fullness is the catalog's.",
+      "assumption": "The meal keeps its existing food_buffs.json 'defense' row (dried herb secondary slot, PRD 9.3); the bundle only adds fullness and taste, both ASSUMPTION. FOODCAT # ASSUMPTION: mapped to catalog row skewer_meat_mart (Meat). Energy: item food_energy = (98.0 + 65.3) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 98.0 / 163.3. Fullness is the catalog's.",
       "catalog": {
         "game_id": "skewer_meat_mart",
         "name": "Meat",
@@ -726,7 +731,7 @@
         "other": "Stomach Pain Lv1",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row fish (Minnow). Energy: item food_energy = (38.0 + 88.7) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 38.0 / 126.7. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's)."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row fish (Minnow). Energy: item food_energy = (38.0 + 88.7) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 38.0 / 126.7. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's)."
     },
     "raptor_meat": {
       "display_name": "Raptor Meat",
@@ -752,7 +757,7 @@
         "other": "Stomach Pain Lv1",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meat_lizard (Lizard Carcass). Energy: item food_energy = (73.5 + 89.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 73.5 / 163.3. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's)."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meat_lizard (Lizard Carcass). Energy: item food_energy = (73.5 + 89.8) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 73.5 / 163.3. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's)."
     },
     "meatball_mix": {
       "display_name": "Meatball Mix",
@@ -778,7 +783,7 @@
         "other": "Stomach Pain Lv1",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meat (Meat). Energy: item food_energy = (40.8 + 122.5) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 40.8 / 163.3. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's)."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meat (Meat). Energy: item food_energy = (40.8 + 122.5) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 40.8 / 163.3. Fullness is the catalog's. 'Stomach Pain Lv1' -> the existing raw-food roll applies stomachache at level 1 (chance unchanged, item def's)."
     },
     "berries": {
       "display_name": "Berries",
@@ -803,7 +808,7 @@
         "other": "",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row wildberry (Raspberry). Energy: item food_energy = (29.7 + 19.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 29.7 / 49.5. Fullness is the catalog's."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row wildberry (Raspberry). Energy: item food_energy = (29.7 + 19.8) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 29.7 / 49.5. Fullness is the catalog's."
     },
     "coconut": {
       "display_name": "Coconut",
@@ -828,7 +833,7 @@
         "other": "",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row coconut (Coconut). Energy: item food_energy = (40.4 + 26.9) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 40.4 / 67.3. Fullness is the catalog's."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row coconut (Coconut). Energy: item food_energy = (40.4 + 26.9) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 40.4 / 67.3. Fullness is the catalog's."
     },
     "mango": {
       "display_name": "Mango",
@@ -853,7 +858,7 @@
         "other": "",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row fruit_tropical (Tropical Fruit). Energy: item food_energy = (40.4 + 26.9) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 40.4 / 67.3. Fullness is the catalog's."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row fruit_tropical (Tropical Fruit). Energy: item food_energy = (40.4 + 26.9) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 40.4 / 67.3. Fullness is the catalog's."
     },
     "cactus_flesh": {
       "display_name": "Cactus Flesh",
@@ -878,7 +883,7 @@
         "other": "",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row cactus (Cactus Pulp). Energy: item food_energy = (18.9 + 18.9) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 18.9 / 37.8. Fullness is the catalog's."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row cactus (Cactus Pulp). Energy: item food_energy = (18.9 + 18.9) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 18.9 / 37.8. Fullness is the catalog's."
     },
     "mushroom": {
       "display_name": "Mushroom",
@@ -906,7 +911,7 @@
         "other": "Poisoned Lv4",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row mushroom (Mushroom). Energy: item food_energy = (14.4 + 14.4) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 14.4 / 28.8. Fullness is the catalog's. 'Poisoned Lv4' -> the existing raw-food roll applies poisoned at level 4 (chance unchanged, item def's)."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row mushroom (Mushroom). Energy: item food_energy = (14.4 + 14.4) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 14.4 / 28.8. Fullness is the catalog's. 'Poisoned Lv4' -> the existing raw-food roll applies poisoned at level 4 (chance unchanged, item def's)."
     },
     "corn": {
       "display_name": "Corn",
@@ -931,7 +936,7 @@
         "other": "",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row corn_infertility (Corn (Food)). Energy: item food_energy = (44.5 + 44.5) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 44.5 / 89.0. Fullness is the catalog's."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row corn_infertility (Corn (Food)). Energy: item food_energy = (44.5 + 44.5) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 44.5 / 89.0. Fullness is the catalog's."
     },
     "meatball": {
       "display_name": "Meatball",
@@ -971,7 +976,7 @@
         "other": "",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meatball_01 (Meat Dumpling). Energy: item food_energy = (71.5 + 132.9) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 71.5 / 204.4. Fullness is the catalog's."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meatball_01 (Meat Dumpling). Energy: item food_energy = (71.5 + 132.9) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 71.5 / 204.4. Fullness is the catalog's."
     },
     "sashimi": {
       "display_name": "Sashimi",
@@ -996,7 +1001,7 @@
         "other": "",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row sashimi (Sashimi). Energy: item food_energy = (119.1 + 79.4) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 119.1 / 198.5. Fullness is the catalog's."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row sashimi (Sashimi). Energy: item food_energy = (119.1 + 79.4) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 119.1 / 198.5. Fullness is the catalog's."
     },
     "spiced_skewer": {
       "display_name": "Spiced Skewer",
@@ -1021,7 +1026,7 @@
         "other": "",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meat_skewers (Meat Kebab). Energy: item food_energy = (98.0 + 65.3) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 98.0 / 163.3. Fullness is the catalog's."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row meat_skewers (Meat Kebab). Energy: item food_energy = (98.0 + 65.3) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 98.0 / 163.3. Fullness is the catalog's."
     },
     "boiled_meat": {
       "display_name": "Boiled Meat",
@@ -1064,7 +1069,7 @@
         "other": "Hot Food Lv1",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row boiled_meat (Boiled Meat). Energy: item food_energy = (119.5 + 64.3) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 119.5 / 183.8. Fullness is the catalog's. Hot Food Lv1 -> temperature hot level 1."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row boiled_meat (Boiled Meat). Energy: item food_energy = (119.5 + 64.3) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 119.5 / 183.8. Fullness is the catalog's. Hot Food Lv1 -> temperature hot level 1."
     },
     "roast": {
       "display_name": "Roast",
@@ -1111,7 +1116,7 @@
         "other": "Hot Food Lv3",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row sirloin_steak (Sirloin Steak). Energy: item food_energy = (62.3 + 26.7) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 62.3 / 89.0. Fullness is the catalog's. Hot Food Lv3 -> temperature hot level 3."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row sirloin_steak (Sirloin Steak). Energy: item food_energy = (62.3 + 26.7) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 62.3 / 89.0. Fullness is the catalog's. Hot Food Lv3 -> temperature hot level 3."
     },
     "seasoned_roast": {
       "display_name": "Seasoned Roast",
@@ -1158,7 +1163,7 @@
         "other": "Hot Food Lv3",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row tenderloin_steak (Tenderloin Steak). Energy: item food_energy = (62.3 + 26.7) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 62.3 / 89.0. Fullness is the catalog's. Hot Food Lv3 -> temperature hot level 3."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row tenderloin_steak (Tenderloin Steak). Energy: item food_energy = (62.3 + 26.7) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 62.3 / 89.0. Fullness is the catalog's. Hot Food Lv3 -> temperature hot level 3."
     },
     "carnivore_feed": {
       "display_name": "Carnivore Feed",
@@ -1173,7 +1178,7 @@
         "digest_seconds": 300.0
       },
       "fullness": 30,
-      "fatigue": 130,
+      "fatigue": 86.67,
       "catalog": {
         "game_id": "feed_carni_02",
         "name": "Carnivore Feed",
@@ -1185,7 +1190,7 @@
         "other": "Fatigue +130, Strange Eats Lv1",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row feed_carni_02 (Carnivore Feed). Energy: item food_energy = (169.7 + 18.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 169.7 / 188.5. Fullness is the catalog's. Fatigue +130 is the catalog figure on this build's fatigue scale, unscaled; 'Strange Eats Lv1' has no status here (open question)."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row feed_carni_02 (Carnivore Feed). Energy: item food_energy = (169.7 + 18.8) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 169.7 / 188.5. Fullness is the catalog's. catalog Fatigue +130 x catalog_scale.fatigue_k = +86.67; 'Strange Eats Lv1' has no status here (open question)."
     },
     "herbivore_feed": {
       "display_name": "Herbivore Feed",
@@ -1200,7 +1205,7 @@
         "digest_seconds": 300.0
       },
       "fullness": 30,
-      "fatigue": 130,
+      "fatigue": 86.67,
       "catalog": {
         "game_id": "feed_herb_02",
         "name": "Herbivore Feed",
@@ -1212,7 +1217,7 @@
         "other": "Fatigue +130, Strange Eats Lv1",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row feed_herb_02 (Herbivore Feed). Energy: item food_energy = (169.7 + 18.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 169.7 / 188.5. Fullness is the catalog's. Fatigue +130 is the catalog figure on this build's fatigue scale, unscaled; 'Strange Eats Lv1' has no status here (open question)."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row feed_herb_02 (Herbivore Feed). Energy: item food_energy = (169.7 + 18.8) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 169.7 / 188.5. Fullness is the catalog's. catalog Fatigue +130 x catalog_scale.fatigue_k = +86.67; 'Strange Eats Lv1' has no status here (open question)."
     },
     "fruit_juice": {
       "display_name": "Fruit Juice",
@@ -1254,7 +1259,7 @@
         "other": "Quenches thirst, Water Lv1",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row juice_fruit (Fruit Juice). Energy: item food_energy = (96.9 + 41.6) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 96.9 / 138.5. Fullness is the catalog's. 'Quenches thirst, Water Lv1' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20)."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row juice_fruit (Fruit Juice). Energy: item food_energy = (96.9 + 41.6) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 96.9 / 138.5. Fullness is the catalog's. 'Quenches thirst, Water Lv1' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20)."
     },
     "cactus_juice": {
       "display_name": "Cactus Juice",
@@ -1281,7 +1286,7 @@
         "other": "Quenches thirst, Quenched (Cactus) Lv60",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row juice_cactus (Cactus Juice). Energy: item food_energy = (89.9 + 38.6) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 89.9 / 128.5. Fullness is the catalog's. 'Quenches thirst, Quenched (Cactus) Lv60' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20)."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row juice_cactus (Cactus Juice). Energy: item food_energy = (89.9 + 38.6) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 89.9 / 128.5. Fullness is the catalog's. 'Quenches thirst, Quenched (Cactus) Lv60' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20)."
     },
     "meat_broth": {
       "display_name": "Meat Broth",
@@ -1308,7 +1313,7 @@
         "other": "Water Lv1",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row broth_meat (Meat Broth). Energy: item food_energy = (38.0 + 9.5) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 38.0 / 47.5. Fullness is the catalog's. 'Water Lv1' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20)."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row broth_meat (Meat Broth). Energy: item food_energy = (38.0 + 9.5) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 38.0 / 47.5. Fullness is the catalog's. 'Water Lv1' -> thirst 20.0 (any value > 0 clears Thirsty and grants Quenched; the number is tea's existing 20)."
     },
     "salad": {
       "display_name": "Salad",
@@ -1348,7 +1353,7 @@
         "other": "",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row salad_01 (Salad). Energy: item food_energy = (123.7 + 53.0) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 123.7 / 176.7. Fullness is the catalog's."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row salad_01 (Salad). Energy: item food_energy = (123.7 + 53.0) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 123.7 / 176.7. Fullness is the catalog's."
     },
     "herbal_tea": {
       "display_name": "Herbal Tea",
@@ -1363,7 +1368,7 @@
         "digest_seconds": 300.0
       },
       "fullness": 30,
-      "health": 50.4,
+      "health": 5,
       "catalog": {
         "game_id": "medicine_tea_01",
         "name": "Herbal Tea",
@@ -1375,7 +1380,7 @@
         "other": "Health +50.4",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row medicine_tea_01 (Herbal Tea). Energy: item food_energy = (5.0 + 5.0) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 5.0 / 10.0. Fullness is the catalog's. Health +50.4 is the catalog figure, flat (no level rule for Health)."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row medicine_tea_01 (Herbal Tea). Energy: item food_energy = (5.0 + 5.0) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 5.0 / 10.0. Fullness is the catalog's. catalog Health +50.4 x catalog_scale.health_k = +5, flat (no level rule for Health)."
     },
     "shaved_ice": {
       "display_name": "Shaved Ice",
@@ -1403,7 +1408,7 @@
         "other": "Cold Food Lv60",
         "source": "docs/reference/durango-food-catalog-level60.csv (fan guide, restoration-evaluated; not a 2019 constant)"
       },
-      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row shaved_ice (Shaved Ice). Energy: item food_energy = (29.7 + 19.8) / 1.6 so the existing level rule x(1 + 0.01 x level) lands on the L60 total at level 60; instant ratio = 29.7 / 49.5. Fullness is the catalog's. Cold Food Lv60 -> temperature cold level 1."
+      "assumption": "FOODCAT # ASSUMPTION: mapped to catalog row shaved_ice (Shaved Ice). Energy: item food_energy = (29.7 + 19.8) / 1.6 x catalog_scale.energy_k (0.110791): the catalog sets relative values only, and the existing level rule x(1 + 0.01 x level) makes level 60 = catalog total x energy_k; instant ratio = 29.7 / 49.5. Fullness is the catalog's. Cold Food Lv60 -> temperature cold level 1."
     }
   }
 }

@@ -117,6 +117,9 @@ func _test_mapping() -> void:
 	print("[t_foodcat] -- mapping")
 	var foods: Dictionary = FX.doc().get("foods", {})
 	var stat_keys: Dictionary = FX.stat_keys()
+	var scale: Dictionary = FX.doc().get("catalog_scale", {})
+	var ek := float(scale.get("energy_k", 0.0))
+	_expect(ek > 0.0 and ek < 1.0, "the catalog's Energy is normalised by one factor energy_k (%.4f), not imported raw" % ek)
 	var mapped := 0
 	var kept_energy := 0
 	for id: String in foods:
@@ -142,7 +145,7 @@ func _test_mapping() -> void:
 			_expect(kept.contains("NOT mapped") and (kept.contains("t_process") or kept.contains("run_all")), "%s documents why its Energy is not the catalog's: %s" % [id, kept])
 			kept_energy += 1
 		else:
-			_expect(absf(def.food_energy_at(60) - total) < 0.05, "%s at level 60 restores the catalog's %.1f Energy (%.2f)" % [id, total, def.food_energy_at(60)])
+			_expect(absf(def.food_energy_at(60) - total * ek) < 0.01, "%s at level 60 restores the catalog's %.1f x energy_k = %.2f (%.2f)" % [id, total, total * ek, def.food_energy_at(60)])
 		if total > 0.0:
 			var ratio := float((e.get("energy", {}) as Dictionary).get("instant_release_ratio", -1.0))
 			_expect(absf(ratio - inst / total) < 0.001, "%s releases the catalog's instant share %.3f (%.3f)" % [id, inst / total, ratio])
@@ -162,7 +165,7 @@ func _test_mapping() -> void:
 			var sdef: StatusDef = DATA.status(&"hot_food" if str(e["temperature"]) == "hot" else &"cold_food")
 			_expect(sdef != null and lvl <= sdef.max_stacks, "%s's temperature level %d fits the status" % [id, lvl])
 	_expect(mapped >= 30, "the existing foods and the new slice carry a catalog row (%d)" % mapped)
-	_expect(kept_energy <= 2, "only grilled_meat and camp_stew keep their old Energy (%d)" % kept_energy)
+	_expect(kept_energy <= 1, "only camp_stew keeps its old Energy (%d)" % kept_energy)
 	var icons: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/icons_manifest.json"))
 	var recipes: Array = (JSON.parse_string(FileAccess.get_file_as_string("res://data/recipes.json")) as Dictionary).get("recipes", [])
 	for id in ["fruit_juice", "cactus_juice", "meat_broth", "salad", "herbal_tea", "shaved_ice"]:
@@ -200,6 +203,9 @@ func _eat(id: StringName, poisoned := false, level := 1) -> bool:
 		guard += 1
 	return not session.eating
 
+func _fk() -> float:
+	return float((FX.doc().get("catalog_scale", {}) as Dictionary).get("fatigue_k", 0.0))
+
 func _stacks(id: StringName) -> int:
 	var inst = _player.statuses.get_instance(id)
 	return inst.stacks if inst != null else 0
@@ -217,11 +223,19 @@ func _with_entry(id: String, entry: Dictionary, body: Callable) -> void:
 
 func _test_level_scaling() -> void:
 	print("[t_foodcat] -- level scaling")
+	var k := float((FX.doc().get("catalog_scale", {}) as Dictionary).get("energy_k", 0.0))
 	var s = IS.make(&"raw_meat", 1)
 	s.level = 60
-	_expect(absf(FOOD.energy_restore(s) - 163.3) < 0.05, "a level-60 raw meat restores the catalog's 40.8 + 122.5 (%.2f)" % FOOD.energy_restore(s))
+	_expect(absf(FOOD.energy_restore(s) - 163.3 * k) < 0.01, "a level-60 raw meat restores the catalog's (40.8 + 122.5) x energy_k (%.2f)" % FOOD.energy_restore(s))
 	var b: Dictionary = FX.evaluate(s)
-	_expect(absf(float(b["instant_energy"]) - 40.8) < 0.05 and absf(float(b["digested_energy"]) - 122.5) < 0.05, "and splits it 40.8 now / 122.5 digested (%.2f / %.2f)" % [float(b["instant_energy"]), float(b["digested_energy"])])
+	_expect(absf(float(b["instant_energy"]) - 40.8 * k) < 0.01 and absf(float(b["digested_energy"]) - 122.5 * k) < 0.01, "and keeps the catalog's split shape (%.2f / %.2f)" % [float(b["instant_energy"]), float(b["digested_energy"])])
+	# Normalised, not imported: a level-1 raw meat stays near today's 12 Energy, and pet feed fills
+	# a pet within 20 % of what it did before FOODCAT (Food.feed_pet: Energy x 10; base 15 / 12 Energy).
+	var raw1 = IS.make(&"raw_meat", 1)
+	_expect(absf(FOOD.energy_restore(raw1) - 12.0) / 12.0 <= 0.1, "a level-1 raw meat stays near its pre-FOODCAT 12 Energy (%.2f)" % FOOD.energy_restore(raw1))
+	for row in [[&"carnivore_feed", 150.0], [&"herbivore_feed", 120.0]]:
+		var fill: float = FOOD.energy_restore(IS.make(row[0], 1)) * 10.0
+		_expect(absf(fill - float(row[1])) / float(row[1]) <= 0.2, "%s fills a pet %.1f, within 20%% of its pre-FOODCAT %.0f" % [row[0], fill, row[1]])
 
 func _test_stat_buff() -> void:
 	print("[t_foodcat] -- stat buff")
@@ -293,11 +307,11 @@ func _test_fatigue() -> void:
 	_fresh()
 	_player.vitals.fatigue = 80.0
 	_expect(_eat(&"fatigue_tonic"), "the Fatigue Restorative is drunk")
-	_expect(is_equal_approx(float(_player.eat_session.last_paid.get("fatigue", 0.0)), -300.0), "it pays the catalog's Fatigue -300 (%.1f)" % float(_player.eat_session.last_paid.get("fatigue", 0.0)))
+	_expect(is_equal_approx(float(_player.eat_session.last_paid.get("fatigue", 0.0)), -300.0 * _fk()), "it pays the catalog's Fatigue -300 x fatigue_k (%.1f)" % float(_player.eat_session.last_paid.get("fatigue", 0.0)))
 	_expect(_player.vitals.fatigue < 0.01, "current fatigue drops to the floor (%.1f)" % _player.vitals.fatigue)
 	_fresh()
 	_expect(_eat(&"carnivore_feed"), "carnivore feed is eaten by the survivor")
-	_expect(_player.vitals.fatigue > 0.0, "the catalog's Fatigue +130 adds fatigue (%.1f)" % _player.vitals.fatigue)
+	_expect(_player.vitals.fatigue > 0.0 and _player.vitals.fatigue < _player.vitals.effective_max_fatigue(), "the catalog's Fatigue +130 x fatigue_k adds fatigue without filling the bar (%.1f)" % _player.vitals.fatigue)
 
 func _test_health() -> void:
 	print("[t_foodcat] -- health")
@@ -306,7 +320,8 @@ func _test_health() -> void:
 	v.health = v.effective_max_health() - 80.0
 	var before: float = v.health
 	_expect(_eat(&"herbal_tea"), "a herbal tea is drunk")
-	_expect(absf(v.health - before - 50.4) < 0.05, "it heals the catalog's Health +50.4 (%.1f -> %.1f)" % [before, v.health])
+	var hk := float((FX.doc().get("catalog_scale", {}) as Dictionary).get("health_k", 0.0))
+	_expect(absf(v.health - before - 50.4 * hk) < 0.05, "it heals the catalog's Health +50.4 x health_k (%.1f -> %.1f)" % [before, v.health])
 
 func _test_fullness() -> void:
 	print("[t_foodcat] -- fullness")

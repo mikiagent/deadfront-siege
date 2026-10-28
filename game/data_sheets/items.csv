@@ -31,13 +31,13 @@ stone_knife,Stone Knife,weapon;blade;tool,1,knife,1,common,tool,,
 work_axe,Work Axe,tool;weapon,1,axe,1,common,tool,,
 work_pick,Work Pick,tool,1,pick,1,common,tool,,
 club,Wooden Club,weapon;handle,1,none,1,common,weapon,,
-raw_meat,Raw Meat,meat;food;raw_meat,20,none,1,common,meat,,102.062
+raw_meat,Raw Meat,meat;food;raw_meat,20,none,1,common,meat,,11.308
 dried_meat,Dried Meat,food;meat;preserved,20,none,1,uncommon,food_cooked,,17
 smoked_meat,Smoked Meat,food;meat;preserved,20,none,1,uncommon,food_cooked,,23
 camp_stew,Camp Stew,food;cooked;meal,20,none,1,uncommon,food_cooked,,32
-skewer,Skewer,food;cooked;meat,20,none,1,uncommon,food_cooked,,102.062
-fish,Fish,meat;food;raw_meat,20,none,1,common,meat,,79.188
-raptor_meat,Raptor Meat,meat;food;raw_meat,10,none,1,uncommon,meat,,102.062
+skewer,Skewer,food;cooked;meat,20,none,1,uncommon,food_cooked,,11.308
+fish,Fish,meat;food;raw_meat,20,none,1,common,meat,,8.773
+raptor_meat,Raptor Meat,meat;food;raw_meat,10,none,1,uncommon,meat,,11.308
 raptor_bone,Raptor Bone,bone;blade_mat;handle;tier_bone,10,none,1,uncommon,bone,hardness=2;tint=#d4c4a8;material_tier=bone,
 raptor_hide,Raptor Hide,hide;uncut_hide;green_hide,10,none,1,uncommon,hide,feathered=1;tint=#6b5a3e,
 raptor_talon,Raptor Talon,bone;blade_mat;talon,5,none,1,uncommon,bone,hardness=3;tint=#c9b48a,
@@ -66,8 +66,8 @@ fence_kit,Fence Segment,building,20,none,1,common,building_kit,,
 gate_kit,Gate,building,5,none,1,uncommon,building_kit,,
 sign_kit,Sign,building,5,none,1,common,building_kit,,
 petals,Petals,herb,20,none,1,common,herb,,
-berries,Berries,food;herb;fruit;berry_crop,20,none,1,common,food_raw,,30.938
-berry,Berry,food;herb;fruit;berry_crop,20,none,1,common,food_raw,,30.938
+berries,Berries,food;herb;fruit;berry_crop,20,none,1,common,food_raw,,3.428
+berry,Berry,food;herb;fruit;berry_crop,20,none,1,common,food_raw,,3.428
 clay,Clay,earth;pot_clay,20,none,1,common,clay,,
 mud,Mud,earth,20,none,1,common,clay,,
 flint,Flint,stone;tier_flint,20,none,1,uncommon,stone,material_tier=flint,
@@ -76,16 +76,16 @@ acacia_wood,Acacia Wood,wood;log,10,none,1,common,wood,,
 sandstone,Sandstone,stone,20,none,1,uncommon,stone,,
 ochre,Ochre,earth,20,none,1,uncommon,clay,,
 palm_frond,Palm Frond,fibre;strap_material,20,none,1,common,fibre,,
-coconut,Coconut,food;fruit,10,none,1,common,food_raw,,42.062
+coconut,Coconut,food;fruit,10,none,1,common,food_raw,,4.66
 bamboo,Bamboo,wood,20,none,1,common,wood,,
-mango,Mango,food;fruit,10,none,1,common,food_raw,,42.062
+mango,Mango,food;fruit,10,none,1,common,food_raw,,4.66
 vine,Vine,fibre;lashing;strap_material,20,none,1,common,cordage,,
 obsidian,Obsidian,stone;tier_obsidian,10,none,1,rare,stone,material_tier=obsidian,
 pine_log,Pine Log,wood;log,10,none,1,common,wood,,
 resin,Resin,tinder,20,none,1,uncommon,wood,,
 ice,Ice,water;ice,10,none,1,rare,food_raw,,
 bone,Bone,bone;blade_mat;tier_bone,20,none,1,common,bone,material_tier=bone,
-cactus_flesh,Cactus Flesh,food;cactus,10,none,1,common,food_raw,,23.625
+cactus_flesh,Cactus Flesh,food;cactus,10,none,1,common,food_raw,,2.617
 cactus_spine,Cactus Spine,needle,20,none,1,common,fibre,,
 copper_ore,Copper Ore,ore;copper_ore_mat,20,none,1,uncommon,metal_ore,material_tier=copper,
 salt,Salt,seasoning,20,none,1,uncommon,herb,,
@@ -103,32 +103,32 @@ lava,Lava Rock,stone,10,none,1,rare,stone,,
 sulphur,Sulphur,earth,20,none,1,uncommon,clay,,
 ash,Ash,earth,20,none,1,common,clay,,
 claim_stake,Claim Stake,building,5,none,1,common,building_kit,,
-mushroom,Mushroom,food;mushroom;herb,20,none,1,common,food_raw,,18
+mushroom,Mushroom,food;mushroom;herb,20,none,1,common,food_raw,,1.994
 spice_herb,Spice Herb,herb;spice,20,none,1,common,herb,,
 empty_bucket,Empty Bucket,tool;bucket,5,none,1,uncommon,tool,,
 water_bucket,Water Bucket,water;bucket;tool,5,none,1,uncommon,tool,,0
 hoe,Hoe,tool,1,hoe,1,uncommon,tool,,
-meatball_mix,Meatball Mix,food;meat;raw,20,none,1,common,meat,,102.062
-meatball,Meatball,food;cooked;meat,20,none,1,uncommon,food_cooked,,127.75
-sashimi,Sashimi,food;cooked;meat,30,none,1,uncommon,food_cooked,,124.062
+meatball_mix,Meatball Mix,food;meat;raw,20,none,1,common,meat,,11.308
+meatball,Meatball,food;cooked;meat,20,none,1,uncommon,food_cooked,,14.153
+sashimi,Sashimi,food;cooked;meat,30,none,1,uncommon,food_cooked,,13.745
 steamed_food,Steamed Dish,food;cooked;steamed,20,none,1,uncommon,food_cooked,,16
-grilled_meat,Grilled Meat,food;cooked;meat,20,none,1,uncommon,food_cooked,,24
-boiled_meat,Boiled Meat,food;cooked;meat,20,none,1,uncommon,food_cooked,,114.875
-roast,Roast,food;cooked;meat,10,none,1,uncommon,food_cooked,,55.625
-seasoned_roast,Seasoned Roast,food;cooked;meat;buff_food,10,none,1,rare,food_cooked,,55.625
+grilled_meat,Grilled Meat,food;cooked;meat,20,none,1,uncommon,food_cooked,,11.308
+boiled_meat,Boiled Meat,food;cooked;meat,20,none,1,uncommon,food_cooked,,12.727
+roast,Roast,food;cooked;meat,10,none,1,uncommon,food_cooked,,6.163
+seasoned_roast,Seasoned Roast,food;cooked;meat;buff_food,10,none,1,rare,food_cooked,,6.163
 burnt_food,Burnt Food,food;burnt,20,none,1,common,food_cooked,,-25
-herb_buff_meal,Herbed Meal,food;cooked;buff_food,10,none,1,rare,food_cooked,,102.062
-spiced_skewer,Spiced Skewer,food;cooked;buff_food;meat,20,none,1,rare,food_cooked,,102.062
+herb_buff_meal,Herbed Meal,food;cooked;buff_food,10,none,1,rare,food_cooked,,11.308
+spiced_skewer,Spiced Skewer,food;cooked;buff_food;meat,20,none,1,rare,food_cooked,,11.308
 flax_seed,Flax Seed,seed;flax,50,none,1,common,herb,,
 corn_seed,Corn Seed,seed;corn,50,none,1,common,herb,,
 wheat_seed,Wheat Seed,seed;wheat,50,none,1,common,herb,,
 berry_seed,Berry Seed,seed;berry,50,none,1,common,herb,,
 flax,Flax,fibre;crop;flax;flax_crop,30,none,1,common,herb,,
-corn,Corn,food;crop;fruit;stalk;corn_crop,30,none,1,common,food_raw,,55.625
+corn,Corn,food;crop;fruit;stalk;corn_crop,30,none,1,common,food_raw,,6.163
 wheat,Wheat,crop;stalk;wheat_crop,30,none,1,common,herb,,
 fruit_fertilizer,Fruit Fertilizer,fertilizer,20,none,1,common,herb,,
-carnivore_feed,Carnivore Feed,pet_feed;meat;food,30,none,1,common,food_cooked,,117.812
-herbivore_feed,Herbivore Feed,pet_feed;food,30,none,1,common,food_cooked,,117.812
+carnivore_feed,Carnivore Feed,pet_feed;meat;food,30,none,1,common,food_cooked,,13.053
+herbivore_feed,Herbivore Feed,pet_feed;food,30,none,1,common,food_cooked,,13.053
 field_small_kit,Small Field Kit,building,5,none,1,common,building_kit,,
 field_large_kit,Large Field Kit,building,3,none,1,common,building_kit,,
 mortar_kit,Mortar Kit,building,1,none,1,uncommon,building_kit,,
@@ -234,14 +234,14 @@ strap,Strap,component;strap;lashing,1,none,1,common,cordage,,
 trimmed_plank,Trimmed Plank,wood;trimmed_plank,1,none,1,common,building_kit,,
 fine_plank,Fine Plank,wood;fine_plank,1,none,1,common,building_kit,,
 spring_water,Spring Water,water;drink;food,20,none,1,common,food_raw,,4
-tea,Tea,drink;food;brew,20,none,1,uncommon,food_cooked,,28
-drip_coffee,Drip Coffee,drink;food;brew,20,none,1,uncommon,food_cooked,,35.187
-dutch_coffee,Dutch Coffee,drink;food;brew;buff_food,20,none,1,rare,food_cooked,,35.187
-crafters_meal,Crafter's Meal,food;cooked;meal;buff_food,20,none,1,rare,food_cooked,,86.562
+tea,Tea,drink;food;brew,20,none,1,uncommon,food_cooked,,3.102
+drip_coffee,Drip Coffee,drink;food;brew,20,none,1,uncommon,food_cooked,,3.898
+dutch_coffee,Dutch Coffee,drink;food;brew;buff_food,20,none,1,rare,food_cooked,,3.898
+crafters_meal,Crafter's Meal,food;cooked;meal;buff_food,20,none,1,rare,food_cooked,,9.59
 fatigue_tonic,Fatigue Restorative,drink;medicine;food,20,none,1,uncommon,medicine,,0
-fruit_juice,Fruit Juice,drink;food;juice,20,none,1,uncommon,food_cooked,,86.562
-cactus_juice,Cactus Juice,drink;food;juice,20,none,1,uncommon,food_cooked,,80.312
-meat_broth,Meat Broth,drink;food;broth,20,none,1,uncommon,food_cooked,,29.688
-salad,Salad,food;cooked;meal,20,none,1,uncommon,food_cooked,,110.437
-herbal_tea,Herbal Tea,drink;food;medicine,20,none,1,uncommon,medicine,,6.25
-shaved_ice,Shaved Ice,food;cold_food,20,none,1,uncommon,food_cooked,,30.938
+fruit_juice,Fruit Juice,drink;food;juice,20,none,1,uncommon,food_cooked,,9.59
+cactus_juice,Cactus Juice,drink;food;juice,20,none,1,uncommon,food_cooked,,8.898
+meat_broth,Meat Broth,drink;food;broth,20,none,1,uncommon,food_cooked,,3.289
+salad,Salad,food;cooked;meal,20,none,1,uncommon,food_cooked,,12.235
+herbal_tea,Herbal Tea,drink;food;medicine,20,none,1,uncommon,medicine,,0.692
+shaved_ice,Shaved Ice,food;cold_food,20,none,1,uncommon,food_cooked,,3.428

@@ -535,7 +535,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 102.062,
+      "food_energy": 11.308,
       "raw": true,
       "poison_chance": 0.25,
       "tastes_bad_chance": 0.2,
@@ -614,7 +614,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "omnivore",
-      "food_energy": 102.062,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -633,7 +633,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 79.188,
+      "food_energy": 8.773,
       "raw": true,
       "poison_chance": 0.25,
       "tastes_bad_chance": 0.2,
@@ -656,7 +656,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 102.062,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1129,7 +1129,7 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 30.938,
+      "food_energy": 3.428,
       "diet": "herbivore",
       "market_category": "food_raw",
       "rarity": "common",
@@ -1149,7 +1149,7 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 30.938,
+      "food_energy": 3.428,
       "diet": "herbivore",
       "market_category": "food_raw",
       "rarity": "common",
@@ -1271,7 +1271,7 @@
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 42.062,
+      "food_energy": 4.66,
       "diet": "herbivore",
       "market_category": "food_raw",
       "rarity": "common",
@@ -1301,7 +1301,7 @@
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 42.062,
+      "food_energy": 4.66,
       "diet": "herbivore",
       "market_category": "food_raw",
       "rarity": "common",
@@ -1404,7 +1404,7 @@
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 23.625,
+      "food_energy": 2.617,
       "market_category": "food_raw",
       "rarity": "common",
       "stats_per_level": {
@@ -1642,7 +1642,7 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 18,
+      "food_energy": 1.994,
       "raw": true,
       "poison_chance": 0.35,
       "tastes_bad_chance": 0.25,
@@ -1722,7 +1722,7 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 102.062,
+      "food_energy": 11.308,
       "raw": true,
       "diet": "carnivore",
       "poison_chance": 0.2,
@@ -1744,7 +1744,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 127.75,
+      "food_energy": 14.153,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1763,7 +1763,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 124.062,
+      "food_energy": 13.745,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1801,7 +1801,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 24,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1820,7 +1820,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 114.875,
+      "food_energy": 12.727,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1839,7 +1839,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 55.625,
+      "food_energy": 6.163,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1859,7 +1859,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 55.625,
+      "food_energy": 6.163,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1894,7 +1894,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "omnivore",
-      "food_energy": 102.062,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1915,7 +1915,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "omnivore",
-      "food_energy": 102.062,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -2003,7 +2003,7 @@
       "stack_max": 30,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 55.625,
+      "food_energy": 6.163,
       "diet": "herbivore",
       "market_category": "food_raw",
       "rarity": "common",
@@ -2049,7 +2049,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 117.812,
+      "food_energy": 13.053,
       "market_category": "food_cooked",
       "rarity": "common",
       "stats_per_level": {
@@ -2067,7 +2067,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "herbivore",
-      "food_energy": 117.812,
+      "food_energy": 13.053,
       "market_category": "food_cooked",
       "rarity": "common",
       "stats_per_level": {
@@ -4040,7 +4040,7 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 28,
+      "food_energy": 3.102,
       "market_category": "food_cooked",
       "rarity": "uncommon",
       "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
@@ -4059,7 +4059,7 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 35.187,
+      "food_energy": 3.898,
       "market_category": "food_cooked",
       "rarity": "uncommon",
       "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
@@ -4079,7 +4079,7 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 35.187,
+      "food_energy": 3.898,
       "market_category": "food_cooked",
       "rarity": "rare",
       "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
@@ -4099,7 +4099,7 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 86.562,
+      "food_energy": 9.59,
       "market_category": "food_cooked",
       "rarity": "rare",
       "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
@@ -4136,7 +4136,7 @@
       "base_level": 1,
       "rarity": "uncommon",
       "market_category": "food_cooked",
-      "food_energy": 86.562,
+      "food_energy": 9.59,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -4155,7 +4155,7 @@
       "base_level": 1,
       "rarity": "uncommon",
       "market_category": "food_cooked",
-      "food_energy": 80.312,
+      "food_energy": 8.898,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -4174,7 +4174,7 @@
       "base_level": 1,
       "rarity": "uncommon",
       "market_category": "food_cooked",
-      "food_energy": 29.688,
+      "food_energy": 3.289,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -4193,7 +4193,7 @@
       "base_level": 1,
       "rarity": "uncommon",
       "market_category": "food_cooked",
-      "food_energy": 110.437,
+      "food_energy": 12.235,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -4212,7 +4212,7 @@
       "base_level": 1,
       "rarity": "uncommon",
       "market_category": "medicine",
-      "food_energy": 6.25,
+      "food_energy": 0.692,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -4230,7 +4230,7 @@
       "base_level": 1,
       "rarity": "uncommon",
       "market_category": "food_cooked",
-      "food_energy": 30.938,
+      "food_energy": 3.428,
       "stats_per_level": {
         "food_energy": 0.01
       },
