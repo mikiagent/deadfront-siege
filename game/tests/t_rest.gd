@@ -402,14 +402,22 @@ func _test_status_ticks(at: Vector3) -> void:
 	await _seconds(2.2)
 	# From out of reach canon walks her to the bedding first; a tick on the way must not drop the sleep.
 	var tent: Node3D = rt.get_node("CampShed")
-	var far: Vector3 = tent.global_position + (at - tent.global_position).normalized() * 4.0
+	# RESTFIX: 4 m out (1.8 m past SLEEP_REACH) she now arrives inside the 1.2 s window, since PLAYERTURN's
+	# follower no longer stalls on the first turn, so the check found her asleep, not walking. Start far
+	# enough that the ticks land mid-walk, then require that the walk also ends in sleep.
+	var far: Vector3 = tent.global_position + (at - tent.global_position).normalized() * 12.0
 	await _reset(far)
 	player.statuses.apply(&"stomachache")
 	player.sim.start_sleep(tent)  # canon's "sleep from anywhere" route to a named bedding
 	var hp_walk: float = player.vitals.health
 	await _seconds(1.2)  # two Stomachache ticks land on the way (each pauses passive regen)
 	_expect(player.vitals.health < hp_walk and player.sim._sleep_pending == tent and player.nav_active,
-		"with a Stomachache, the walk to the bedding survives its ticks (pending=%s nav=%s)" % [player.sim._sleep_pending, player.nav_active])
+		"with a Stomachache, the walk to the bedding survives its ticks (pending=%s nav=%s, %.1f m to go)" % [player.sim._sleep_pending, player.nav_active, player.global_position.distance_to(tent.global_position)])
+	var guard := 0.0
+	while player.sim._sleep_pending != null and guard < 8.0:
+		await _seconds(0.25)
+		guard += 0.25
+	_expect(player._sleep_left > 0.0, "...and the walk ends in sleep at the bedding (sleep_left %.1f after %.2f s more)" % [player._sleep_left, guard])
 	player.clear_nav()
 	player.sim.interrupt_sleep()
 	await _frames(2)
