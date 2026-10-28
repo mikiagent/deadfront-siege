@@ -48,7 +48,7 @@ Client ops (`CLIENT_OPS`), each validated in full before it mutates anything:
 | `act.equip` | `_equip` | equip by bag slot/uid, or clear a slot |
 | `act.eat` | `_eat` | one food unit: energy, buffs, raw-food status roll |
 | `act.tame` | `_tame` | one `FieldTame` feed; the last feed bonds the pet (pen needed if the species requires one) |
-| `act.capture` | `_capture` | `CaptureSystem` chance on a knocked creature under 30% HP; success gives a `captured_animal` stack, net consumed |
+| `act.capture` | `_capture` | `CaptureSystem` chance on a creature inside `FieldTame.window_open` (stunned at any HP, or at or under 30 % HP); success gives a `captured_animal` stack, net consumed |
 | `act.attack` | `_attack` | one melee swing with the client's combat numbers on the server RNG; ranged refused |
 | `act.roll` | `_roll` | the survivor rolls: stores the press time (`roll_ms` = op second × 1000 + `ms`), refuses a press inside `RollRules.cooldown_s()` (`not_ready`), answers `iframes_ms` / `cooldown_ms` |
 | `char.get` | — | read-only `CharacterState.view` |
