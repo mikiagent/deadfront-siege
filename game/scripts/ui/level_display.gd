@@ -39,6 +39,23 @@ static func label(level: int) -> String:
 static func player_label() -> String:
 	return label(player_level())
 
+## The bottom bar's segments for a level costing `cost` XP (owner 2026-10-28: segments proportional
+## to a unit of XP, more of them as levels cost more). Each segment is `unit` XP: segment_xp, or the
+## smallest multiple of it that keeps the count at or under max_segments. Returns [count, unit].
+static func xp_segments(cost: int) -> Vector2i:
+	var c: Dictionary = World.xp_curve()
+	var unit := maxi(1, int(c.get("segment_xp", 100)))
+	var cap := maxi(1, int(c.get("max_segments", 40)))
+	unit *= ceili(float(ceili(float(cost) / unit)) / cap)
+	return Vector2i(ceili(float(cost) / unit), unit)
+
+## The player's bar: XP into the level, the level's cost, its segments and their unit.
+static func xp_bar() -> Dictionary:
+	var w := world()
+	var cost := World.xp_for_level(int(w.get("pioneer_level")) if w else 0)
+	var seg := xp_segments(cost)
+	return {"xp": int(w.get("pioneer_xp")) if w else 0, "cost": cost, "segments": seg.x, "unit": seg.y}
+
 static var _titles: Dictionary = {}
 
 ## The title a survivor at shown `level` holds: the highest titles.json key at or under it. A new

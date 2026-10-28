@@ -366,7 +366,7 @@ func _check_rects(view: Vector2, state: String, phone: bool) -> void:
 			rects.append([k, _hud.drawn_blocks[k]])
 	if state == "idle" and _hud.drawn_blocks.has("quest"):
 		rects.append(["quest", _hud.drawn_blocks["quest"]])
-	rects.append(["xp line", Rect2(view.x * 0.5 - 90.0, view.y - 26.0, 180.0, 26.0)])  # UiTokens.xp_line_zone
+	rects.append(["xp line", Rect2(view.x * 0.5 - 160.0, view.y - 30.0, 320.0, 30.0)])  # UiTokens.xp_line_zone
 	var screen := Rect2(Vector2.ZERO, view)
 	var overlaps := 0
 	for i in rects.size():
