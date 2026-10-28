@@ -116,15 +116,10 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return ok({"broke": str(tool.def_id), "gained": 0})
 	var attrs: Dictionary = n.get("attributes", {})
 	var zone := int(attrs.get("level", n.get("level", 1)))
-	var stack := ItemStack.make(def.id, rng.randi_range(int(o.get("min", 1)), int(o.get("max", 1))), attrs, zone)
+	var stack := ItemStack.make(def.id, 1, attrs, zone)  # ONEGATHER: one instance per pass, as on the client
 	if bool(n.get("unstable", false)):
 		stack.set_flag(&"unstable", true)
 	var family := str(n.get("family", ""))
-	# W2-GATHER: the same tool rule as the client (the role's tool helps on hand-pickable nodes).
-	var mult := GatherService.yield_multiplier_with(inv, tool_class, family, zone, maxi(1, ch.level_of("gathering")))
-	stack.count = maxi(1, int(floor(float(stack.count) * mult)))
-	if rng.randf() < fmod(mult, 1.0):
-		stack.count += 1
 	var cap := maxi(ch.level_of("gathering"), 5) # rules.json gathering_downrank, floor 5 as on the client
 	if stack.level > cap:
 		stack.level = cap
@@ -137,7 +132,7 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 	# W2-GATHER: as on the client, a helper tool wears, each item rolls the green rare trait, and the
 	# finds roll on the node's island climate, all with this op's rng.
 	GatherService.wear_role_tool(inv, tool_class, family)
-	var traits := GatherService.stamp_traits(inv, had, stack, gained, rng)
+	var traits := GatherService.stamp_traits(inv, had, stack, gained, rng, GatherService.tool_tier(inv, tool_class, family))
 	var rares := GatherService.add_finds(inv, family, tool_class, str(attrs.get("climate", "")), stack.level, maxi(1, ch.level_of("gathering")), rng)
 	_write("take_node_unit", [node_id, str(def.id)])
 	var uids := ch.commit(inv, "gather", seq)

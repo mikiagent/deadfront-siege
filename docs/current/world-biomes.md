@@ -87,6 +87,16 @@ Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data
 
 A climate's `materials` list is what its island generator may place; gather yields per family are the gather-system's own table (`world/rules.json`).
 
+### One per harvest (ONEGATHER)
+
+Every gather pass at a resource node lands **exactly one** item instance (owner 2026-10-28: "cap it to 1 per harvest and upgrades can change the speed and quality of the materials you harvest, not the amount"). The manifest's `[min, max]` per pass (`nature_manifest.json` `harvest`) no longer counts, and the old tool/skill count multiplier (up to ×4, so a [2, 4] rock gave up to 12 stone a pass) is gone, on the client (`PlayerActions.finish_gather`) and the server (`act.gather`) alike. A node's pool (how many passes it gives before it depletes) is unchanged: a Rock or tree still gives 30, a Bush 12.
+
+- **Speed** — the tool and Gathering level shorten a pass (`ProgressionScaling.gather_seconds`): a Rock pass at Gathering 1 takes 3.78 s by hand, 2.80 s with a stone pick, 2.24 s flint, 1.73 s copper, 1.32 s iron, 1.14 s steel.
+- **Quality** — the tool's material tier raises each unit's rare-trait odds (5% at stone, +15% of that per tier, 10.25% at steel; `items-traits.md`). Gathering level never does (spec 12:42).
+- **Feed** — each pass shows "+1 Item" in the top-middle column; repeats of one item still collapse ("+1" then "+2").
+
+Code: `game/scripts/world/harvest_node.gd` (`roll_yield`), `game/scripts/gather/gather_service.gd`, `game/scripts/gather/loot_roller.gd` (`trait_chance`). Test: `game/tests/t_onegather.gd`.
+
 ## Claimed land is clear of scenery
 
 A domain cell (spec 29) is bare of decoration the moment it is staked, and stays that way:

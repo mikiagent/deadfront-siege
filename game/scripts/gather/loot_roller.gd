@@ -39,12 +39,21 @@ static func roll_gather_rares(family: String, role: String, climate: String, too
 ## The green rare trait one gathered item rolls (world-design.md:55, PRD:541), or &"" for none.
 ## RAREATTR: the trait comes from the material's own list (spec 04:33, rare_trait.by_material), so a
 ## stone never rolls a timber trait; the shared six stay the fallback for an item with no list.
-static func roll_trait(rng: RandomNumberGenerator, material: StringName = &"") -> StringName:
+## ONEGATHER: tool_tier (&"" bare hands, stone the base) raises the odds by rare_trait.tool_tier_bonus per
+## tier above stone, capped at max_chance; Gathering level never does (spec 12:42).
+static func roll_trait(rng: RandomNumberGenerator, material: StringName = &"", tool_tier: StringName = &"") -> StringName:
 	var cfg := LootTables.trait_cfg()
 	var traits: Array = LootTables.material_traits(material) if material != &"" else (cfg.get("traits", []) as Array)
-	if traits.is_empty() or rng.randf() >= float(cfg.get("chance", 0.0)):
+	if traits.is_empty() or rng.randf() >= trait_chance(tool_tier):
 		return &""
 	return StringName(str(traits[rng.randi() % traits.size()]))
+
+## The green rare-trait odds per gathered unit with a tool of `tool_tier` (&"" = bare hands).
+static func trait_chance(tool_tier: StringName = &"") -> float:
+	var cfg := LootTables.trait_cfg()
+	var base := float(cfg.get("chance", 0.0))
+	var tier_idx := ProgressionScaling.tier_index(tool_tier) if tool_tier != &"" else -1
+	return scaled_chance(base, tier_idx, 0, float(cfg.get("tool_tier_bonus", 0.0)), 0.0, maxf(base, float(cfg.get("max_chance", base))))
 
 ## BUTCHER (spec 12 §2): the odds one rare row of a chosen part hits on this cut. Same table as
 ## roll_carcass, so a rare part keeps the shipped odds; knife tier and skill still scale them.

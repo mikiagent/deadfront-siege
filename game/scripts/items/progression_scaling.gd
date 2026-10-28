@@ -57,10 +57,6 @@ static func gather_seconds(base_seconds: float, zone_level: int, tool_level: int
 	var ability := tool_power(tool_level, tier) * specialist_multiplier(skill_level)
 	return maxf(0.25, base_seconds * effort / maxf(0.1, ability))
 
-static func gather_yield_multiplier(zone_level: int, tool_level: int, tier: StringName, skill_level: int) -> float:
-	var ability := tool_power(tool_level, tier) * specialist_multiplier(skill_level)
-	return clampf(ability / zone_pressure(zone_level, skill_level), 1.0, 4.0)
-
 static func crafted_level(levels: Array[int], max_level: int = 60, skill_level: int = 60) -> int:
 	if levels.is_empty():
 		return 1
