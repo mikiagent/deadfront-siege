@@ -36,7 +36,9 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ![fatigue](screens/fatigue.webp)
 
-**`sheet_menu`** — MENU sheet
+**`sheet_menu`** — MENU nav menu (B3, `nav_menu.gd`): two columns of entries over the live world,
+header with the debug gear and T-stone balance, CLOSE where MENU sits. The WebP below predates it
+(old row sheet); current captures at both sizes: `docs/orchestration/reports/uinav/b3_nav_menu_*.png`.
 
 ![sheet_menu](screens/sheet_menu.webp)
 
@@ -127,7 +129,8 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ![atlas](screens/atlas.webp)
 
-**`claim`** — CLAIM confirm panel
+**`claim`** — CLAIM confirm panel (B4 restyle: parchment header, Cancel outlined, GOLD Expand;
+current captures `docs/orchestration/reports/uinav/b4_claim_*.png`)
 
 ![claim](screens/claim.webp)
 
@@ -153,7 +156,13 @@ CHARCREATE restyle; recapture it.
 ![island_pick](screens/island_pick.webp)
 
 
-Not captured: the death/respawn ring and the skill debug overlay (dev only).
+B4 toasts, radials and dialogs (UINAV, `game/scripts/dev/uinav_lab.gd`, desktop 1600x900 and phone
+844x390 in `docs/orchestration/reports/uinav/`): warnings on dark red with a warning glyph and green
+ok notices, the station radial (main action gold-rimmed, 96 px hexes on desktop), eating as a hex
+pie with seconds left and the food's energy, the pet respawn ring (dark red disc, LIFE arc,
+"seconds"), the fatigue panel and the death card.
+
+Not captured by `tools/ui_screens.sh`: the death card, the respawn ring and the skill debug overlay (dev only).
 
 ## Tokens available for restyled sheets (not yet applied)
 

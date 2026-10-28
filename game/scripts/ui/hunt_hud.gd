@@ -483,13 +483,18 @@ func _build_death() -> void:
 	_death_card = Panel.new()
 	_death_card.name = "DeathCard"
 	_death_card.custom_minimum_size = Vector2(280, 280)
-	_death_card.add_theme_stylebox_override("panel", UiTokens.panel_style(1.0))
+	var dsb := StyleBoxFlat.new()  # B4 death card: HUD fill, a LIFE top edge, a GOLD respawn button
+	dsb.bg_color = Color(UiTokens.HUD_FILL, 1.0)
+	dsb.border_color = UiTokens.LIFE
+	dsb.border_width_top = 4
+	_death_card.add_theme_stylebox_override("panel", dsb)
 	_death_panel.add_child(_death_card)
 	_death_title = Label.new()
 	_death_title.name = "DeathTitle"
 	_death_title.text = "YOU DIED"
 	_death_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_death_title.add_theme_color_override("font_color", UiTokens.DANGER)
+	_death_title.add_theme_color_override("font_color", UiTokens.LIFE)
+	_death_title.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
 	_death_card.add_child(_death_title)
 	_death_cause = Label.new()
 	_death_cause.name = "DeathCause"
@@ -507,10 +512,13 @@ func _build_death() -> void:
 	_death_btn = Button.new()
 	_death_btn.text = "Respawn at camp"
 	_death_btn.custom_minimum_size = Vector2(260, 64)
-	_death_btn.add_theme_color_override("font_color", UiTokens.ACTION)
-	_death_btn.add_theme_stylebox_override("normal", UiTokens.button_style(true))
-	_death_btn.add_theme_stylebox_override("hover", UiTokens.button_style(true))
-	_death_btn.add_theme_stylebox_override("pressed", UiTokens.button_style(true))
+	var gold := StyleBoxFlat.new()
+	gold.bg_color = UiTokens.GOLD
+	for st in ["normal", "hover", "pressed", "focus"]:
+		_death_btn.add_theme_stylebox_override(st, gold)
+	for st in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		_death_btn.add_theme_color_override(st, UiTokens.CTA_INK)
+	_death_btn.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
 	_death_btn.pressed.connect(func () -> void:
 		if player:
 			player.respawn()
@@ -1476,9 +1484,9 @@ func _draw() -> void:
 		var n: Dictionary = _events.notices[i]
 		var k: float = n["t"]
 		var alpha := 1.0 - smoothstep(2.4, 3.2, k)
-		var txt: String = UiTokens.ellipsis(_font, n["text"], r.x - 48.0, 17)
-		var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
-		var cand := Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30)
+		var txt: String = UiTokens.ellipsis(_font, n["text"], r.x - 48.0 - HudEventState.NOTICE_GLYPH, 17)
+		var tw := HudEventState.notice_width(_font, txt, 17, r) if not n.has("tint") else _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x + 24.0
+		var cand := Rect2(cx - tw * 0.5, 170.0, tw, 30)
 		# W2-GATHER: a rare (tinted) notice also keeps off the radial, plates and the survivor, and keeps its side
 		var box := GatherFeedback.notice_box(n, player, cand, taken, r) if n.has("tint") else UiTokens.free_spot(cand, taken, r)
 		if not box.has_area():
@@ -1494,8 +1502,7 @@ func _draw() -> void:
 			draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, c[2])
 			draw_set_transform(Vector2.ZERO)
 			continue
-		draw_rect(box, Color(0.35, 0.08, 0.06, 0.85 * alpha))
-		draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.8, alpha))
+		HudEventState.draw_notice(self, _font, box, txt, 17, alpha, bool(n.get("ok", false)))  # B4 warning / ok row
 	# --- label pills on buildings and nodes within 8 m (reference: base building), last: they give way
 	# to everything above and to the open radials
 	HudPills.draw(self, cam, taken)
