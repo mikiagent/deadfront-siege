@@ -129,9 +129,16 @@ above (it never replaces them and never edits a species' stats). Table:
 - Taming: `Creature.feeds_needed()/tame_window_seconds()` = species number × nature;
   `FieldTame` (window, feeds, completion) and `TamingPen` (wait at insert, nature carried on the
   captured stack by `CaptureSystem`) read them. Spec 09's capture rule is unchanged.
-- Name: the plate and the Animals screen read `CreatureNatures.display_title` /
-  `PetRecord.nature`, nature first, then the colour variant or "Alpha" (pack leader), then species:
-  "Timid Velociraptor", "Brave Alpha Raptor".
+- Name and tag (owner 2026-10-28: "put it as a tag under their name, not in the name itself"): the
+  name is the animal's own — species, with the colour variant or "Alpha" (pack leader) in front:
+  "Velociraptor", "Alpha Velociraptor". The nature is a small chip directly UNDER that name, its
+  short label only ("Timid"), built by `game/scripts/ui/nature_chip.gd` (`NatureChip`, the spec §5
+  trait chip in its gold/positive style) and fed by `CreatureNatures.tag_for()` / `tag()`. Shown on
+  the world plate (inside the pill, between the name and the HP bar; the plate keeps its 176x94
+  budget and the chip row is always reserved, so nothing jumps), on the Animals screen (each roster
+  row, each ACTIVE slot and the detail header) and in the pet radial's centre disc. No nature, no
+  chip and no gap; the name helpers (`CreatureNatures.display_name/display_title`) no longer take a
+  nature at all, so a nature cannot creep back into a name.
 - Saves: `PetRecord.nature` is an optional field. A pet row without one (an old save, the server's
   roster) loads with the nature its uid derives, and every later load agrees. Fixture:
   `game/tests/fixtures/pet_record_no_nature.json`; test: `game/tests/t_natures.gd`.
