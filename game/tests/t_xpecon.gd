@@ -104,17 +104,17 @@ func _build_world() -> void:
 
 ## One real pass on a planted node: on_arrived starts the work ring with the seconds this survivor
 ## really waits, then finish_gather lands the unit and pays the XP.
-func _gather_once(family: String, item: StringName, need: StringName, seconds: float) -> Dictionary:
+func _gather_once(family: String, item: StringName, need: StringName, seconds: float, zone: int = 1) -> Dictionary:
 	var n = NODE.instantiate()
 	_host.add_child(n)
 	n.position = _player.global_position + Vector3(1.2, 0, 0)
-	n.setup(StringName("x_%s_%d" % [family, n.get_instance_id()]), item, 2, 4, {"climate": "grassland", "level": 1}, need, Color.GRAY, seconds, 600.0, family)
+	n.setup(StringName("x_%s_%d" % [family, n.get_instance_id()]), item, 2, 4, {"climate": "grassland", "level": zone}, need, Color.GRAY, seconds, 600.0, family)
 	var opts: Array = n.options()
 	for i in opts.size():
 		if str(opts[i]["item"]) == str(item):
 			n.select_option(i)
-	var node_seconds: float = GS.unit_seconds(_player, n)
-	_park("gathering")
+	_park("gathering")  # a parked tree: the pass seconds and the XP delta are both exact
+	var node_seconds: float = GS.unit_seconds(_player, n)  # what the ring will really wait
 	var g0: float = _player.skills.xp_of("gathering")
 	var w0: int = int(_world.pioneer_xp)
 	_player.gather_target = n
@@ -166,19 +166,20 @@ func _clear_bag() -> void:
 		_player.inventory.slots[i] = null
 
 ## The plan's intent: a tool or a Gathering level that shortens the work shortens the award with it.
-## A bush worked with a knife waits less than bare hands, so the same bush pays fewer XP in the hand.
+## Loose stone is hand-pickable; the same rock worked with a pick waits less, so it pays fewer XP.
 func _test_gather_tool_xp() -> void:
 	_clear_bag()
-	var bare := _gather_once("Bush", &"fibre_stalk", &"none", 2.0)
+	# A Lv-60 zone (an over-levelled rock, rules.json zone_pressure) widens the gap past the round().
+	var bare := _gather_once("Rock", &"stone", &"none", 2.8, 60)
 	_clear_bag()
-	_player.inventory.add(IS.make(&"stone_knife_work", 1))
-	var knife := _gather_once("Bush", &"fibre_stalk", &"none", 2.0)
-	print("[t_xpecon] same bush: bare %.2fs -> +%d XP, knife %.2fs -> +%d XP" % [
-		float(bare["node_seconds"]), int(bare["gxp"]), float(knife["node_seconds"]), int(knife["gxp"])])
-	_expect(float(knife["node_seconds"]) < float(bare["node_seconds"]), "the knife pass is faster than bare hands (%.2fs vs %.2fs)" % [float(knife["node_seconds"]), float(bare["node_seconds"])])
-	_expect(int(knife["gxp"]) == 1 + int(roundf(float(knife["node_seconds"]))) and int(bare["gxp"]) == 1 + int(roundf(float(bare["node_seconds"]))),
-		"both passes pay 1 + round(their own seconds) (bare %d, knife %d)" % [int(bare["gxp"]), int(knife["gxp"])])
-	_expect(int(knife["gxp"]) < int(bare["gxp"]), "the faster tool pass pays less XP (%d vs %d)" % [int(knife["gxp"]), int(bare["gxp"])])
+	_player.inventory.add(IS.make(&"work_pick", 1))
+	var pick := _gather_once("Rock", &"stone", &"none", 2.8, 60)
+	print("[t_xpecon] same rock: bare hands %.2fs -> +%d XP, pick %.2fs -> +%d XP" % [
+		float(bare["node_seconds"]), int(bare["gxp"]), float(pick["node_seconds"]), int(pick["gxp"])])
+	_expect(float(pick["node_seconds"]) < float(bare["node_seconds"]), "the pick pass is faster than bare hands (%.2fs vs %.2fs)" % [float(pick["node_seconds"]), float(bare["node_seconds"])])
+	_expect(int(pick["gxp"]) == 1 + int(roundf(float(pick["node_seconds"]))) and int(bare["gxp"]) == 1 + int(roundf(float(bare["node_seconds"]))),
+		"both passes pay 1 + round(their own seconds) (bare %d, pick %d)" % [int(bare["gxp"]), int(pick["gxp"])])
+	_expect(int(pick["gxp"]) < int(bare["gxp"]), "the faster tool pass pays less XP (%d vs %d)" % [int(pick["gxp"]), int(bare["gxp"])])
 	_clear_bag()
 
 # ---------------------------------------------------------------- build: 30 / 8 / 0
