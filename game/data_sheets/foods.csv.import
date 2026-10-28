@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://dug3d3kww3nor"
+
+[deps]
+
+files=["res://data_sheets/foods.display.translation", "res://data_sheets/foods.provenance.translation", "res://data_sheets/foods.channels.translation", "res://data_sheets/foods.energy.translation", "res://data_sheets/foods.digest.translation", "res://data_sheets/foods.thirst.translation", "res://data_sheets/foods.fullness.translation", "res://data_sheets/foods.eat.translation", "res://data_sheets/foods.taste.translation", "res://data_sheets/foods.buffs.translation", "res://data_sheets/foods.statuses.translation"]
+
+source_file="res://data_sheets/foods.csv"
+dest_files=["res://data_sheets/foods.display.translation", "res://data_sheets/foods.provenance.translation", "res://data_sheets/foods.channels.translation", "res://data_sheets/foods.energy.translation", "res://data_sheets/foods.digest.translation", "res://data_sheets/foods.thirst.translation", "res://data_sheets/foods.fullness.translation", "res://data_sheets/foods.eat.translation", "res://data_sheets/foods.taste.translation", "res://data_sheets/foods.buffs.translation", "res://data_sheets/foods.statuses.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

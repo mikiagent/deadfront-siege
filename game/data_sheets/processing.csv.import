@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://p6511koqnygr"
+
+[deps]
+
+files=["res://data_sheets/processing.label.translation", "res://data_sheets/processing.slots.translation", "res://data_sheets/processing.fx.translation", "res://data_sheets/processing.recipe.translation", "res://data_sheets/processing.seconds.translation"]
+
+source_file="res://data_sheets/processing.csv"
+dest_files=["res://data_sheets/processing.label.translation", "res://data_sheets/processing.slots.translation", "res://data_sheets/processing.fx.translation", "res://data_sheets/processing.recipe.translation", "res://data_sheets/processing.seconds.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

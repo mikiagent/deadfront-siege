@@ -56,7 +56,7 @@ static func place_portrait(hud: HuntHud, r: Vector2, inset: Vector4, rail_y: flo
 static func place_desktop(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 	hud._end_btn.custom_minimum_size = Vector2(184, 64)
 	hud._end_btn.size = hud._end_btn.custom_minimum_size
-	hud._end_btn.position = Vector2(r.x - 200.0 - inset.x, r.y * 0.42)
+	hud._end_btn.position = Vector2(r.x - 270.0 - inset.x, r.y * 0.42)  # left of the whistle column (at -200 it sat on GUARD)
 	# Honeycomb cluster bottom-right: net / tackle / kick / roll, Auto below-right, stance text.
 	var cx := r.x - 250.0 - inset.x
 	var cy := r.y - 250.0 - inset.y  # leave the bottom-right mode toggles unobstructed
@@ -65,9 +65,10 @@ static func place_desktop(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 		hud._skill_hexes[i].position = Vector2(cx, cy) + slots[i]
 	hud._auto_hex.position = Vector2(cx + 84.0, cy + 40.0)  # under ROLL's caption (at +60/+30 it sat on it)
 	hud._feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
-	# The whistle column stands on HANDS (bottom-right, held_item_slot.gd) with its caption clear of it.
+	# The whistle column stands on the BAG hex over HANDS (held_item_slot.gd) with its caption clear of it;
+	# BAG's layer is above the HUD's, so a SIC under it never got a tap.
 	for i in hud._whistle_hexes.size():
-		hud._whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 262.0 - inset.y - float(i) * (66.0 + HuntHud.CAPTION_H))
+		hud._whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 262.0 - HeldItemSlot.SLOT - HuntHud.CAPTION_H - inset.y - float(i) * (66.0 + HuntHud.CAPTION_H))
 	# Centred under Auto's caption on the bottom edge, as Durango anchors it to the stance dial.
 	var sw := hud._stance_label.get_combined_minimum_size()
 	hud._stance_label.position = Vector2(hud._auto_hex.position.x + HuntHud.HEX * 0.5 - sw.x * 0.5, r.y - 8.0 - inset.y - sw.y)
@@ -200,6 +201,9 @@ static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rec
 	var held: Control = hud.player.station_craft.held_slot if hud.player and hud.player.station_craft else null
 	if held and held.is_visible_in_tree():
 		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
+		var bag := held.get_node_or_null(^"InventoryButton") as Control  # the BAG hex stands over HANDS
+		if bag and bag.is_visible_in_tree():
+			out.append(Rect2(bag.get_global_rect().position, bag.size + Vector2(0, 18)))
 	var fig := figure_rect(hud)
 	if fig.has_area():
 		out.append(fig)

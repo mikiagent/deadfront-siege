@@ -822,6 +822,9 @@ func _placer_taken() -> Array[Rect2]:
 	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
 	if held and held.is_visible_in_tree():
 		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
+		var bag := held.get_node_or_null(^"InventoryButton") as Control  # the BAG hex stands over HANDS
+		if bag and bag.is_visible_in_tree():
+			out.append(Rect2(bag.get_global_rect().position, bag.size + Vector2(0, 18)))
 	var fig := figure_rect()
 	if fig.has_area():
 		out.append(fig)

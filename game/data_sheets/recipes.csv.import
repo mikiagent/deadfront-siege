@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://c1q2mpit6wjox"
+
+[deps]
+
+files=["res://data_sheets/recipes.display.translation", "res://data_sheets/recipes.skill.translation", "res://data_sheets/recipes.max.translation", "res://data_sheets/recipes.station.translation", "res://data_sheets/recipes.seconds.translation", "res://data_sheets/recipes.slots.translation", "res://data_sheets/recipes.output.translation", "res://data_sheets/recipes.output.translation", "res://data_sheets/recipes.process.translation", "res://data_sheets/recipes.process.translation"]
+
+source_file="res://data_sheets/recipes.csv"
+dest_files=["res://data_sheets/recipes.display.translation", "res://data_sheets/recipes.skill.translation", "res://data_sheets/recipes.max.translation", "res://data_sheets/recipes.station.translation", "res://data_sheets/recipes.seconds.translation", "res://data_sheets/recipes.slots.translation", "res://data_sheets/recipes.output.translation", "res://data_sheets/recipes.output.translation", "res://data_sheets/recipes.process.translation", "res://data_sheets/recipes.process.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true
