@@ -297,13 +297,9 @@ func _open(id: StringName) -> void:
 		&"atlas":
 			h.open_atlas()
 		&"domain":
-			h._open_domain()
+			h.open_domain()
 		&"communication":
-			# ASSUMPTION: Communication opens today's Communications Center (spec 29, over the Domain screen) until comms_ui.gd exists.
-			h._open_domain()
-			var ds := h.domain_screen()
-			if ds and ds.is_open():
-				ds.call("_on_center")
+			h.open_comms()
 		&"save":
 			var ok: bool = (load("res://scripts/core/save_game.gd") as GDScript).save_now()
 			if ok:
