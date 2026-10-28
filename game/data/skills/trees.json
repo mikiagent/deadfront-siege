@@ -672,7 +672,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
+          "impl_ref": "game/scripts/world/harvest_node.gd:331"
         },
         {
           "id": "mining_1",
@@ -916,7 +916,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:157"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         },
         {
           "id": "leather_1",
@@ -952,7 +952,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:157"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         },
         {
           "id": "bone_2",
@@ -974,7 +974,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:157"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         },
         {
           "id": "rare_parts_1",
@@ -996,7 +996,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:157"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         },
         {
           "id": "feather",
@@ -1046,7 +1046,7 @@
           "sp_assumed": true,
           "status": "partial",
           "impl": "partial",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         },
         {
           "id": "yield_1",
@@ -1066,7 +1066,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/gather/loot_roller.gd:71"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         },
         {
           "id": "teeth_1",
@@ -1102,7 +1102,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:157"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         },
         {
           "id": "horn",
@@ -1138,7 +1138,7 @@
           "sp_assumed": true,
           "status": "partial",
           "impl": "partial",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         },
         {
           "id": "quality_bone",
@@ -1174,7 +1174,7 @@
           "sp_assumed": true,
           "status": "partial",
           "impl": "partial",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         },
         {
           "id": "yield_2",
@@ -1238,7 +1238,7 @@
           "sp_assumed": true,
           "status": "partial",
           "impl": "partial",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         },
         {
           "id": "trophy",
@@ -1274,7 +1274,7 @@
           "sp_assumed": true,
           "status": "partial",
           "impl": "partial",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+          "impl_ref": "game/scripts/skills/skill_rules.gd:178"
         }
       ]
     },
@@ -2928,7 +2928,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/player/player.gd:501"
+          "impl_ref": "game/scripts/player/player.gd:500"
         },
         {
           "id": "pressure_dressing",
@@ -3374,7 +3374,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
+          "impl_ref": "game/scripts/items/crafting.gd:487"
         },
         {
           "id": "corn",
@@ -3452,7 +3452,7 @@
           ],
           "status": "functional",
           "impl": "functional",
-          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
+          "impl_ref": "game/scripts/items/crafting.gd:487"
         },
         {
           "id": "orchard",
