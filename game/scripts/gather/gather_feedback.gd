@@ -304,6 +304,16 @@ static func trait_name(t: StringName) -> String:
 ## "+n Name" in cream over a gathered node; above it each green trait ("Black Sheen Fibre Stalk") and
 ## each gold find of that unit.
 static func show_yield(p: Player, at: Vector3, id: StringName, n: int, finds: Array[StringName] = [], traits: Array[StringName] = []) -> void:
+	# Owner 2026-10-28: the HUD's top-middle column says it, one row per gain: a trait already makes
+	# that item's row green (its chip), a find turns its own row green. No stack by the node then.
+	var hud := _feed_hud(p)
+	if hud:
+		for r in finds:
+			print("[gather] Rare find: %s" % item_name(r))
+			hud.feed_rare(r)
+		for t in traits:
+			print("[gather] Rare trait: %s %s" % [trait_name(t), item_name(id)])
+		return
 	var lines: Array = []
 	var owed: Array = []  # [HUD notice text, colour] said only when the stack is not drawn
 	for r in finds:
@@ -324,12 +334,26 @@ static func show_yield(p: Player, at: Vector3, id: StringName, n: int, finds: Ar
 
 ## Rare parts off a carcass: gold lines over it (the caller toasts pickups).
 static func announce_rares(p: Player, at: Vector3, ids: Array[StringName], where: String = "") -> void:
+	var hud := _feed_hud(p)
+	if hud:  # a green top-middle row each ("on the raptor" where nothing reached the bag)
+		for id in ids:
+			print("[gather] Rare find: %s%s" % [item_name(id), where])
+			hud.feed_rare(id, where.strip_edges())
+		return
 	var lines: Array = []
 	var owed: Array = []
 	for id in ids:
 		lines.append(["RARE  %s" % item_name(id), GOLD, true])
 		owed.append(["Rare find: %s%s" % [item_name(id), where], GOLD])
 	_popup_or_notice(p, at, lines, owed)
+
+## The HUD whose TopFeed takes rare results (HuntHud.feed_rare), or null (labs and tests with a bare
+## HUD keep the stack by the node and its notice fallback).
+static func _feed_hud(p: Player) -> Node:
+	if p == null or not is_instance_valid(p) or not p.is_inside_tree():
+		return null
+	var hud := p.get_tree().get_first_node_in_group("hud")
+	return hud if hud and hud.has_method("feed_rare") else null
 
 ## The stack announces rare results; only when it cannot be drawn by the node does the HUD notice say
 ## them (a notice beside a drawn stack said the same find twice, and on a phone crowded it off).

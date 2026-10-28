@@ -374,7 +374,7 @@ func _test_level_up_banner() -> void:
 				title = str(l[0])
 		var want := "Title %s acquired." % titles[key]
 		_expect(str(lines[0][0]) == "Lv. %s" % key and title == want, "level-up to Lv. %s: banner \"%s\" with \"%s\" (got \"%s\")" % [key, lines[0][0], want, title])
-		_expect(str(hud.get("_levelup_title")) == want and str(hud.get("_levelup_summary")).contains("Skill points"), "level-up to Lv. %s: the phone banner has the title and one stat line (\"%s\")" % [key, hud.get("_levelup_summary")])
+		_expect(str(hud.get("_levelup_title")) == want and str(hud.get("_levelup_summary")).contains("other stats") and str(hud.get("_levelup_sp")).is_valid_int(), "level-up to Lv. %s: the phone banner has the title, one stat line and the skill points behind the brain (\"%s\" %s)" % [key, hud.get("_levelup_summary"), hud.get("_levelup_sp")])
 		checked += 1
 	world.pioneer_level = was
 	hud.free()

@@ -4,6 +4,10 @@ extends RefCounted
 ## survivor's figure and name, the open sheet's fit. Static functions over the HUD's nodes, split out
 ## of hunt_hud.gd (review: no god-file growth).
 
+const TITLE_PX := 13  # the worn title: smaller than the name (HuntHud.NAME_PX 15)
+const TITLE_LINE := 15.0
+const TITLE_INK := Color(0.86, 0.84, 0.78, 0.82)  # dimmer than the name's 0.95 white
+
 ## A landscape phone's 390-452 px canvas: whistles in a row under the vitals; End Combat in the map
 ## column under the map text (CLAIM and the context row hide in a fight), right above INTERACT; the
 ## four skills in one row along the bottom between the rail and SPRINT / ATTACK NEAREST (HudField), Auto
@@ -232,10 +236,34 @@ static func figure_rect(hud: HuntHud) -> Rect2:
 
 ## The survivor's name under its feet, in screen space. Radial labels keep off it (the gather
 ## radial's option label covered it on a landscape phone).
+## A worn title adds its own line above the name (owner: "Titles should display italicized over the
+## player's name"), so the rect grows upward by TITLE_LINE.
 static func nameplate_rect(cam: Camera3D, who: Player, font: Font) -> Rect2:
 	var p := cam.unproject_position(nameplate_anchor(who))
 	var nw := font.get_string_size(who.display_name(), HORIZONTAL_ALIGNMENT_CENTER, -1, HuntHud.NAME_PX).x
-	return Rect2(p.x - nw * 0.5, p.y + 20.0 - HuntHud.NAME_PX, nw + 1.0, HuntHud.NAME_PX + 6.0)
+	var title := who.display_title()
+	var lift := 0.0
+	if title != "":
+		nw = maxf(nw, UiTokens.ui_italic().get_string_size(title, HORIZONTAL_ALIGNMENT_CENTER, -1, TITLE_PX).x + 3.0)
+		lift = TITLE_LINE
+	return Rect2(p.x - nw * 0.5, p.y + 20.0 - HuntHud.NAME_PX - lift, nw + 1.0, HuntHud.NAME_PX + 6.0 + lift)
+
+## Draws a nameplate in `rect` (nameplate_rect): the worn title, italic and dimmer, on its own line
+## over the name; no title, no line. Shared so every plate (tribe, other players) reads the same.
+static func draw_nameplate(ci: CanvasItem, font: Font, rect: Rect2, who: Player) -> void:
+	var nm := who.display_name()
+	var cx := rect.get_center().x
+	var title := who.display_title()
+	if title != "":
+		var tf := UiTokens.ui_italic()
+		var tw := tf.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_PX).x
+		var tp := Vector2(cx - tw * 0.5, rect.position.y + TITLE_PX)
+		ci.draw_string(tf, tp + Vector2.ONE, title, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_PX, Color(0, 0, 0, 0.6))
+		ci.draw_string(tf, tp, title, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_PX, TITLE_INK)
+	var nw := font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, HuntHud.NAME_PX).x
+	var at := Vector2(cx - nw * 0.5, rect.end.y - 6.0)
+	ci.draw_string(font, at + Vector2.ONE, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, HuntHud.NAME_PX, Color(0, 0, 0, 0.7))
+	ci.draw_string(font, at, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, HuntHud.NAME_PX, Color(0.95, 0.95, 0.95))
 
 ## The world point the name hangs from. Seated or lying, the visual is lowered to the ground
 ## (PlayerAnim._ground_sleep_visual) and the anchor follows it down, so the name stays under her and off
@@ -243,19 +271,3 @@ static func nameplate_rect(cam: Camera3D, who: Player, font: Font) -> Rect2:
 static func nameplate_anchor(who: Player) -> Vector3:
 	var sink := minf(0.0, who.visual.position.y - who.anim._visual_rest_y) if who.visual and who.anim else 0.0
 	return who.get_global_transform_interpolated().origin + Vector3(0, sink - 0.05, 0)
-
-## Landscape phone level-up: the level, the title it brings and one stat line, in an ink box.
-static func draw_levelup_banner(hud: HuntHud, box: Rect2, a: float) -> void:
-	hud.draw_rect(box, Color(UiTokens.INK, UiTokens.INK.a * a))
-	hud.draw_rect(Rect2(box.position, Vector2(3.0, box.size.y)), Color(1.0, 0.85, 0.35, a))
-	var w := box.size.x - 24.0
-	var lv := str(hud._levelup_lines[0][0]) if not hud._levelup_lines.is_empty() else LevelDisplay.player_label()
-	var lw := hud._font.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
-	hud.draw_string(hud._font, box.position + Vector2(12, 34), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1.0, 0.85, 0.35, a))
-	hud.draw_string(hud._font, box.position + Vector2(24 + lw, 32), "LEVEL UP", HORIZONTAL_ALIGNMENT_LEFT, maxf(1.0, w - lw - 12.0), UiTokens.meta(hud.get_viewport_rect().size), Color(UiTokens.META, a))
-	var ly := 58.0
-	if hud._levelup_title != "":
-		hud.draw_string(hud._font, box.position + Vector2(12, ly), UiTokens.ellipsis(hud._font, hud._levelup_title, w, 14), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.85, 0.35, a))
-		ly += 22.0
-	hud.draw_string(hud._font, box.position + Vector2(12, ly), UiTokens.ellipsis(hud._font, hud._levelup_summary, w, 13), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, a))
-	hud.drawn_blocks["levelup"] = box

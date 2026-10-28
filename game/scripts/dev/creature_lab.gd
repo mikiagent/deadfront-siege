@@ -20,6 +20,7 @@ func _ready() -> void:
 	_obstacle(Vector3(6, 1, 0))
 	_obstacle(Vector3(-8, 1, 5))
 	_obstacle(Vector3(3, 1, -10))
+	LabKit.bake(self)  # the crates carve the navmesh, so ground taps route around them
 	var only := ""
 	var ride := ""
 	for a in OS.get_cmdline_user_args():
