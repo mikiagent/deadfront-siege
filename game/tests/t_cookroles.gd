@@ -454,3 +454,26 @@ func _test_save() -> void:
 	var after_bundle: Dictionary = FX.evaluate(back)
 	_expect(absf(float(after_bundle["latent_energy"]) - float(before_bundle["latent_energy"])) < 0.01, "the reloaded dish evaluates to the same Energy (%.2f vs %.2f)" % [float(after_bundle["latent_energy"]), float(before_bundle["latent_energy"])])
 	_expect(absf(float(after_bundle["fullness"]) - float(before_bundle["fullness"])) < 0.01, "and the same Fullness")
+	_expect((after_bundle.get("inherited", {}) as Dictionary).has("rich_cut"), "the reloaded dish still reports its inherited trait to FOODFX")
+	# A forged save row: a trait with a silly level, a non-numeric trait, an unknown bonus, a huge slot.
+	var forged: Dictionary = {"player": {"inventory": [{
+		"id": str(dish.def_id), "count": 1, "level": 30, "process_count": 1,
+		"attributes": {"cooked_roles": [
+			{"slot": 99, "role": "main", "def_id": "raw_meat", "level": 999,
+				"traits": {"rich_cut": 999, "not_a_trait": "x"}, "dropped": {}, "processed": ["dry", 5], "flags": [], "bonus": "no_such_buff"},
+		], "cooked_buffs": ["fruit_glaze", "made_up_buff"]},
+		"flags": [], "durability": 0, "max_durability": 0}]}}
+	var cleaned2: Dictionary = SAN.clean(forged.duplicate(true))
+	var forged_bag = INV.new(4)
+	forged_bag.load_array(cleaned2["player"]["inventory"])
+	var forged_stack = forged_bag.slots[0]
+	var forged_rows: Array = forged_stack.attributes.get("cooked_roles", []) if forged_stack else []
+	_expect(forged_rows.size() == 1, "a forged dish still loads")
+	if forged_rows.size() == 1:
+		var fr: Dictionary = forged_rows[0]
+		_expect(int(fr.get("slot", -1)) <= 15, "the forged slot index is clamped")
+		_expect(int((fr.get("traits", {}) as Dictionary).get("rich_cut", 0)) <= 60, "the forged trait level is clamped")
+		_expect(not (fr.get("traits", {}) as Dictionary).has("not_a_trait"), "a non-numeric trait is dropped")
+		_expect(str(fr.get("bonus", "")) == "", "an unknown role bonus is dropped")
+		_expect(fr.get("processed", []) == ["dry"], "a non-string processing step is dropped")
+	_expect((forged_stack.attributes.get("cooked_buffs", []) as Array) == ["fruit_glaze"], "an unknown role buff is dropped, the real one stays")

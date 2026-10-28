@@ -363,3 +363,78 @@ static func summary(stack: ItemStack) -> Array[String]:
 			bits.append(str(row["bonus"]))
 		out.append("%s %s: %s" % [str(row.get("role", "")).capitalize(), str(row.get("def_id", "")), ", ".join(bits)])
 	return out
+
+# ---------------------------------------------------------------- save hygiene
+
+## Spec 08 §9: a save is untrusted input. A dish's inheritance record is rebuilt from the shapes and
+## ranges this build writes: at most one row per recipe slot (a recipe has few slots), a level in
+## 1..60, trait values finite and in 0..60, and only keys that name a known trait effect or a plain
+## numeric attribute. Anything else is dropped, so a forged save cannot mint a trait the build does
+## not read nor a level the game does not produce.
+static func sanitize_record(rows: Variant) -> Array:
+	var out: Array = []
+	if not rows is Array:
+		return out
+	for row: Variant in rows:
+		if not row is Dictionary or out.size() >= 16:
+			continue
+		var r: Dictionary = row as Dictionary
+		var traits := _clean_traits(r.get("traits", {}))
+		var dropped := _clean_traits(r.get("dropped", {}))
+		var processed: Array = []
+		var steps: Variant = r.get("processed", [])
+		if steps is Array:
+			for step: Variant in steps:
+				if step is String and (steps as Array).size() <= 8 and str(step) != "" and str(step) not in processed:
+					processed.append(str(step))
+		var flags: Array = []
+		var fl: Variant = r.get("flags", [])
+		if fl is Array:
+			for f: Variant in fl:
+				if f is String and str(f) != "" and str(f) not in flags and flags.size() < 8:
+					flags.append(str(f))
+		var bonus := str(r.get("bonus", ""))
+		if bonus != "" and buff_row(bonus).is_empty():
+			bonus = ""
+		out.append({
+			"slot": clampi(int(r.get("slot", 0)), 0, 15),
+			"role": slot_role(r),
+			"def_id": str(r.get("def_id", "")).substr(0, 48),
+			"level": clampi(int(r.get("level", 1)), 1, 60),
+			"traits": traits,
+			"dropped": dropped,
+			"processed": processed,
+			"flags": flags,
+			"bonus": bonus,
+		})
+	return out
+
+static func _clean_traits(raw: Variant) -> Dictionary:
+	var out := {}
+	if not raw is Dictionary:
+		return out
+	for k: Variant in raw:
+		var key := str(k)
+		if key == "" or key.length() > 48 or out.size() >= 16:
+			continue
+		var v: Variant = (raw as Dictionary)[k]
+		if not (v is int or v is float):
+			continue
+		var level := float(v)
+		if not is_finite(level) or level <= 0.0:
+			continue
+		out[key] = clampi(int(round(level)), 1, 60)
+	return out
+
+## The buff ids a dish carries, cleaned the same way (each must name a row this build knows).
+static func sanitize_buffs(raw: Variant) -> Array:
+	var out: Array = []
+	if not raw is Array:
+		return out
+	for id: Variant in raw:
+		if not id is String or out.size() >= 8:
+			continue
+		if buff_row(str(id)).is_empty() or str(id) in out:
+			continue
+		out.append(str(id))
+	return out
