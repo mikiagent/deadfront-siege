@@ -860,6 +860,144 @@ def _unknown():
     lathe([(0.0, 0.85), (0.25, 0.88), (0.45, 1.15), (0.35, 1.2), (0.0, 1.05)], m=flat("#ffffff"))
 
 
+# ---------------------------------------------------------------- ICONS4: forge, anvil, medicine
+# A kit is a small model of what it places (as above); the two medicines are small bottles, the
+# same lathe-and-cork shape as toxin_coating, distinguished by contents and label colour.
+
+def anvil_kit():
+    """Anvil kit: an iron anvil with its horn and a hardie hole, sitting on a chopping-stump base,
+    a hammer leaning against the stump, a struck-off spark at its foot."""
+    iron = mat("#5e646a", 0.42, metal=0.9, color2="#3e444a", tex="noise", scale=9.0, bump=0.18)
+    stump = mat("#8a6440", 0.85, color2="#5e4224", tex="rings", scale=6.0, bump=0.3)
+    cyl(0.62, 0.85, loc=(0, 0, -0.95), m=stump, segs=22, smooth=False)
+    for k in range(4):  # chopping marks and bark rim on the stump
+        box((0.2, 0.04, 0.05), loc=(-0.2 + 0.15 * k, -0.3, -0.52), rot=(0, 0, 20 * k), m=mat("#3e2a14", 0.95),
+            bev=0.0)
+    # Body: a tapered waist between a wide base and the face, then the horn.
+    box((0.95, 0.5, 0.24), loc=(0, 0, -0.3), m=iron, bev=0.03)
+    box((0.62, 0.42, 0.32), loc=(0, 0, -0.02), m=iron, bev=0.02)
+    box((1.35, 0.5, 0.22), loc=(0, 0, 0.24), m=iron, bev=0.025, taper=(0.96, 0.94))
+    # The horn: a cone off one end of the face.
+    cyl(0.22, 0.75, loc=(-0.98, 0, 0.26), rot=(0, 90, 0), m=iron, segs=16, r2=0.03, smooth=False)
+    # The heel and its hardie hole at the other end.
+    box((0.34, 0.44, 0.2), loc=(0.78, 0, 0.25), m=iron, bev=0.02)
+    cyl(0.075, 0.24, loc=(0.78, 0, 0.3), m=mat("#1a1c1e", 0.9), segs=10)
+    # A hammer: handle leaning on the stump, head on the base.
+    hw = wood("#b08150", "#7a5630")
+    tube([(0.62, -0.42, -1.25), (0.85, -0.45, -0.5), (1.0, -0.46, 0.1)], 0.06, hw, segs=8)
+    box((0.34, 0.16, 0.16), loc=(1.05, -0.46, 0.18), rot=(0, 12, 0), m=iron, bev=0.02)
+    # Two struck-off sparks of scale at the foot.
+    for (x, y) in ((-0.6, -0.5), (-0.35, -0.62)):
+        rock(0.07, loc=(x, y, -0.6), m=mat("#6a5a4a", 0.6, metal=0.5), jitter=0.3, sub=0)
+    turn(-18)
+    turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def forge_kit():
+    """Forge: a stone hearth with a bed of glowing coals, a battered steel hood and flue above it,
+    a leather bellows behind and a small stack of fuel at the foot: the placement model."""
+    st = stone("#7a7c7a", "#4e504e")
+    for i in range(9):  # the ring of hearth stones
+        a = i * 0.7
+        rock(0.3, loc=(0.9 * math.cos(a), 0.9 * math.sin(a), -0.6), scl=(1.3, 1.0, 0.8), m=st, jitter=0.14,
+             sub=2)
+    rock(0.72, loc=(0, 0, -0.72), scl=(1.5, 1.3, 0.4), m=stone("#6a6c6a", "#444644"), jitter=0.1, sub=2)
+    coal = mat("#2a2624", 0.85, color2="#443c36", tex="voronoi", scale=7.0, bump=0.5,
+               emit="#ff6a14", emit_strength=6.0, emit_mask=3.5)
+    for (x, y, r) in ((0, 0, 0.32), (0.34, -0.2, 0.24), (-0.3, 0.16, 0.22), (0.05, 0.32, 0.2)):
+        blob(r, loc=(x, y, -0.42), scl=(1.2, 1.0, 0.7), m=coal, amp=0.2, sub=2)
+    # Hood: a wide iron cone over the fire, its flue running back and up.
+    hood = mat("#5a5e62", 0.5, metal=0.75, color2="#3c4044", tex="noise", scale=8.0, bump=0.3)
+    lathe([(0, 1.55), (0.22, 1.5), (0.3, 1.2), (1.05, 0.55), (1.12, 0.42), (0.95, 0.4), (0.85, 0.5), (0, 1.3)],
+          m=hood, segs=26, smooth=False)
+    tube([(0, 0.35, 1.3), (0, 0.7, 1.55), (0, 1.0, 1.85)], 0.2, hood, segs=12)
+    for k in range(4):  # rivets round the hood rim
+        a = math.radians(30 + 90 * k)
+        ball(0.05, loc=(1.03 * math.cos(a), 1.03 * math.sin(a), 0.5), m=metal("#9aa0a6", 0.35), sub=2)
+    # Bellows behind the hearth: two hide boards with a fold between them and a nozzle.
+    bd = mat("#6e4a2a", 0.85, color2="#4a3018", tex="noise", scale=9.0, bump=0.4)
+    g = group(loc=(-0.15, 0.95, -0.35), rot=(-14, 0, 18))
+    box((0.9, 0.56, 0.1), loc=(0, 0, 0.06), m=bd, bev=0.03, parent=g)
+    box((0.9, 0.56, 0.1), loc=(0, 0, -0.06), m=bd, bev=0.03, parent=g)
+    for s in (-1, 1):
+        tube([(s * 0.42, 0, 0.06), (s * 0.5, 0, 0.0), (s * 0.42, 0, -0.06)], 0.05, bd, segs=6, parent=g)
+    tube([(-0.45, 0, 0), (-0.7, 0, 0.02)], 0.07, hood, segs=8, taper=(1.0, 0.6), parent=g)
+    # Fuel: a small stack of charcoal at the foot.
+    char = mat("#22201e", 0.6, color2="#3e3a36", tex="voronoi", scale=6.0, bump=0.4)
+    for (x, y, z, rot_) in ((0.95, -0.5, -0.8, 12), (1.12, -0.64, -0.78, -20), (1.02, -0.55, -0.68, 40)):
+        box((0.28, 0.2, 0.18), loc=(x, y, z), rot=(0, 0, rot_), m=char, bev=0.03)
+    turn(-24)
+    turn(8, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def _medicine_bottle(glass_c, tonic_c, label_c, label_marks, cork_c="#b88452", wax_c=None, tall=1.0,
+                     emit_c=None, emit_s=0.0, rscale=1.0):
+    """A stoppered medicine bottle: dark glass, a coloured contents level, a paper label band with
+    printed marks, a cork and (optional) wax seal. rscale makes a slim vial."""
+    r = rscale
+    glass = mat(glass_c, 0.08, coat=1.0, color2=glass_c, tex="noise", scale=4.0)
+    tonic = mat(tonic_c, 0.05, coat=1.0, color2=tonic_c, emit=emit_c, emit_strength=emit_s)
+    lathe([(0, 0), (0.4 * r, 0.0), (0.48 * r, 0.1), (0.52 * r, 0.3), (0.52 * r, 0.9 * tall), (0.32 * r, 1.12 * tall),
+           (0.2 * r, 1.24 * tall), (0.22 * r, 1.34 * tall), (0, 1.34 * tall)], m=glass, segs=26)
+    lathe([(0, 0.06), (0.4 * r, 0.06), (0.47 * r, 0.14), (0.47 * r, 0.72 * tall), (0, 0.72 * tall)], m=tonic, segs=26)
+    lathe([(0.53 * r, 0.28), (0.53 * r, 0.66 * tall), (0.47 * r, 0.66 * tall), (0.47 * r, 0.28)],
+          m=mat(label_c, 0.9, color2="#c8b894", tex="noise", scale=20.0), segs=26)
+    for k in range(label_marks):
+        box((0.08 * r, 0.02, 0.025), loc=(-0.24 * r + 0.16 * r * k, -0.47 * r, 0.47 * tall),
+            m=mat("#3a3a2a", 0.8), bev=0.0)
+    cyl(0.22 * r, 0.2, loc=(0, 0, 1.42 * tall), m=mat(cork_c, 0.85, color2="#8a5a32", tex="noise", scale=12.0,
+                                                     bump=0.4), segs=16)
+    if wax_c:
+        cyl(0.235 * r, 0.05, loc=(0, 0, 1.33 * tall), m=mat(wax_c, 0.45, color2=wax_c, tex="noise", scale=10.0),
+            segs=16)
+
+
+def antivenom():
+    """Antivenom: a tall slim amber-glass vial of pale straw serum with a red wax seal, a shed fang
+    and a drop of venom beside it: a vial, not the squat green tonic bottle."""
+    _medicine_bottle("#8a6a2e", "#f4ecc0", "#ece4cc", 3, wax_c="#a8322a", tall=1.25, rscale=0.72)
+    # The fang: a curved white cone lying at the bottle's foot.
+    fang = mat("#f4eedc", 0.35, color2="#d8ccae", tex="noise", scale=6.0, spec=0.6)
+    tube([(-0.55, -0.45, 0.32), (-0.8, -0.5, 0.18), (-0.95, -0.5, -0.02)], 0.075, fang, segs=8, taper=(1.0, 0.05))
+    blob(0.1, loc=(-1.0, -0.5, -0.1), scl=(1.0, 1.0, 1.3), m=mat("#8ad83a", 0.05, coat=1.0, emit="#6ac81a",
+                                                                 emit_strength=1.2), amp=0.1, sub=2)
+    turn(-10)
+    turn(8, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def antibiotic():
+    """Antibiotic: a brown-glass jar of white powder with a screw lid and a blue label band, a small
+    wooden spoon of powder beside it, two white tablets (a powder jar, not a liquid vial)."""
+    glass = mat("#7a5a3a", 0.12, coat=1.0, color2="#5a4028", tex="noise", scale=5.0)
+    lathe([(0, 0), (0.46, 0.0), (0.54, 0.1), (0.56, 0.6), (0.52, 0.72), (0.5, 0.8), (0, 0.8)], m=glass, segs=26)
+    powder = mat("#f4f2ec", 0.85, color2="#dcd8ce", tex="noise", scale=24.0, bump=0.3)
+    lathe([(0, 0.5), (0.5, 0.5), (0.5, 0.74), (0.34, 0.8), (0, 0.82)], m=powder, segs=26)
+    lathe([(0.53, 0.08), (0.53, 0.34), (0.47, 0.34), (0.47, 0.08)], m=mat("#dcecf4", 0.9, color2="#b4ccd8",
+                                                                          tex="noise", scale=20.0), segs=26)
+    box((0.22, 0.02, 0.03), loc=(-0.1, -0.5, 0.22), m=mat("#2a5a9a", 0.8), bev=0.0)
+    box((0.16, 0.02, 0.03), loc=(-0.08, -0.5, 0.14), m=mat("#2a5a9a", 0.8), bev=0.0)
+    # Screw lid: a shallow drum with knurl ridges, sitting on the jar's neck.
+    lid = metal("#9aa0a6", 0.35)
+    cyl(0.54, 0.2, loc=(0, 0, 0.9), m=lid, segs=26)
+    for k in range(16):
+        a = math.radians(k * 22.5)
+        box((0.03, 0.06, 0.16), loc=(0.54 * math.cos(a), 0.54 * math.sin(a), 0.9), rot=(0, 0, math.degrees(a)),
+            m=lid, bev=0.0)
+    # A spoon of powder and two tablets at the foot.
+    sw = wood("#b08150", "#7a5630")
+    tube([(0.55, -0.35, 0.1), (0.85, -0.5, 0.05), (1.05, -0.6, 0.02)], 0.035, sw, segs=6)
+    blob(0.12, loc=(0.58, -0.36, 0.12), scl=(1.3, 1.2, 0.6), m=sw, amp=0.1, sub=2)
+    blob(0.1, loc=(0.58, -0.36, 0.19), scl=(1.1, 1.0, 0.5), m=powder, amp=0.2, sub=2)
+    for (x, y, s) in ((-0.62, -0.42, 0.12), (-0.42, -0.56, 0.11)):
+        cyl(s, 0.05, loc=(x, y, 0.1), rot=(0, 0, 0), m=powder, segs=16)
+    turn(20)
+    turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
 ITEMS = {
     "straw_roll_kit": straw_roll_kit, "campfire_kit": campfire_kit, "bonfire_kit": bonfire_kit,
     "workbench_kit": workbench_kit, "tent_kit": tent_kit, "fence_kit": fence_kit, "gate_kit": gate_kit,
@@ -874,4 +1012,6 @@ ITEMS = {
     "stone_fire_pit_kit": stone_fire_pit_kit, "carnivore_feed": carnivore_feed,
     "herbivore_feed": herbivore_feed, "fruit_fertilizer": fruit_fertilizer,
     "pressure_dressing": pressure_dressing, "captured_animal": captured_animal, "tamed_animal": tamed_animal,
+    # dsc icons4: forge, anvil and the two medicines.
+    "forge_kit": forge_kit, "anvil_kit": anvil_kit, "antivenom": antivenom, "antibiotic": antibiotic,
 }

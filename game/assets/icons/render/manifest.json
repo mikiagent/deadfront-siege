@@ -46,6 +46,48 @@
    ],
    "quality": "procedural_v1"
   },
+  "antibiotic": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "antibiotic",
+   "png": "res://assets/icons/render/antibiotic.png",
+   "sha256": "2464b81a62a7e784c852c7abf1d5b82501617330d37b9a464d1ace46d487f2c9",
+   "bytes": 33865,
+   "rect": [
+    19,
+    37,
+    218,
+    182
+   ],
+   "quality": "procedural_v1"
+  },
+  "antivenom": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "antivenom",
+   "png": "res://assets/icons/render/antivenom.png",
+   "sha256": "b73080d69dd2baf5a4f56350ee80b014f8d4160c852e7c86589c318cb1961294",
+   "bytes": 31998,
+   "rect": [
+    31,
+    19,
+    194,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "anvil_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "anvil_kit",
+   "png": "res://assets/icons/render/anvil_kit.png",
+   "sha256": "31f5f318d4e84a65a1aa0f9aa40dab9836dbf640bb0066953ae8d7fcb1f6d374",
+   "bytes": 41628,
+   "rect": [
+    34,
+    19,
+    188,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "armor_scute": {
    "script": "tools/blender/items/resources.py",
    "builder": "armor_scute",
@@ -343,6 +385,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "cactus_flower": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "cactus_flower",
+   "png": "res://assets/icons/render/cactus_flower.png",
+   "sha256": "bd0dc77f8141f5675d17e605af6f085c2e7c042f2a3db1e4bda6c84ae053a51e",
+   "bytes": 54452,
+   "rect": [
+    19,
+    32,
+    218,
+    192
+   ],
+   "quality": "procedural_v1"
+  },
   "cactus_spine": {
    "script": "tools/blender/items/resources.py",
    "builder": "cactus_spine",
@@ -637,6 +693,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "crafters_meal": {
+   "script": "tools/blender/items/food.py",
+   "builder": "crafters_meal",
+   "png": "res://assets/icons/render/crafters_meal.png",
+   "sha256": "88a076f59e203022ca2cbf94ab4c106f083f951d7a5f7d634073a3ec74d94c8e",
+   "bytes": 59125,
+   "rect": [
+    19,
+    40,
+    218,
+    176
+   ],
+   "quality": "procedural_v1"
+  },
   "crock_pot_kit": {
    "script": "tools/blender/items/camp.py",
    "builder": "crock_pot_kit",
@@ -693,6 +763,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "drip_coffee": {
+   "script": "tools/blender/items/food.py",
+   "builder": "drip_coffee",
+   "png": "res://assets/icons/render/drip_coffee.png",
+   "sha256": "08d7f9d9919cc84d21b0a0643039ad0c7801d5db8c7197ab8fe3031e756f9208",
+   "bytes": 55452,
+   "rect": [
+    36,
+    19,
+    184,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "dry_grass": {
    "script": "tools/blender/items/resources.py",
    "builder": "dry_grass",
@@ -721,6 +805,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "dutch_coffee": {
+   "script": "tools/blender/items/food.py",
+   "builder": "dutch_coffee",
+   "png": "res://assets/icons/render/dutch_coffee.png",
+   "sha256": "ef0d412a8ff2b3ccfb31e6bf5b3d0e55102014edf6e996777238f0212896e214",
+   "bytes": 49155,
+   "rect": [
+    27,
+    19,
+    202,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "empty_bucket": {
    "script": "tools/blender/items/gear.py",
    "builder": "empty_bucket",
@@ -731,6 +829,20 @@
     29,
     19,
     198,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "fatigue_tonic": {
+   "script": "tools/blender/items/food.py",
+   "builder": "fatigue_tonic",
+   "png": "res://assets/icons/render/fatigue_tonic.png",
+   "sha256": "767cdfe54a85038d5e6ab23bfba2790cec7a77b548de0a2fd06320b43287dfc5",
+   "bytes": 37902,
+   "rect": [
+    54,
+    19,
+    148,
     218
    ],
    "quality": "procedural_v1"
@@ -788,6 +900,20 @@
     19,
     168,
     218
+   ],
+   "quality": "procedural_v1"
+  },
+  "fine_plank": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "fine_plank",
+   "png": "res://assets/icons/render/fine_plank.png",
+   "sha256": "59c6adfb14bc81905142e383504f88f97f2db38be65da90163f21e9df203459d",
+   "bytes": 30226,
+   "rect": [
+    19,
+    41,
+    218,
+    174
    ],
    "quality": "procedural_v1"
   },
@@ -904,6 +1030,20 @@
    ],
    "quality": "model_v2",
    "replace": "now one arm (the pair was cropped), parts touching; mark kept because t_iconart pins it"
+  },
+  "forge_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "forge_kit",
+   "png": "res://assets/icons/render/forge_kit.png",
+   "sha256": "2d1209311e9e807b548a3f8f078e2e8a8f6f0ed0ac6936a2f435c43cb382ca25",
+   "bytes": 38284,
+   "rect": [
+    52,
+    19,
+    152,
+    218
+   ],
+   "quality": "procedural_v1"
   },
   "fruit_fertilizer": {
    "script": "tools/blender/items/camp.py",
@@ -1273,6 +1413,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "moss": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "moss",
+   "png": "res://assets/icons/render/moss.png",
+   "sha256": "e0efb59c6d6ec609400af4c0907df2bd050cfe55ba803db3c4c86221d20c0342",
+   "bytes": 39912,
+   "rect": [
+    19,
+    43,
+    218,
+    171
+   ],
+   "quality": "procedural_v1"
+  },
   "mud": {
    "script": "tools/blender/items/resources.py",
    "builder": "mud",
@@ -1414,6 +1568,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "pillar_shape": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "pillar_shape",
+   "png": "res://assets/icons/render/pillar_shape.png",
+   "sha256": "e9a4a78f2e5220c46f7b3990b1fbb5455c7448c9b2a8d1505c6eff71c3999704",
+   "bytes": 25607,
+   "rect": [
+    76,
+    19,
+    104,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "pine_log": {
    "script": "tools/blender/items/resources.py",
    "builder": "pine_log",
@@ -1439,6 +1607,20 @@
     30,
     218,
     196
+   ],
+   "quality": "procedural_v1"
+  },
+  "plank_shape": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "plank_shape",
+   "png": "res://assets/icons/render/plank_shape.png",
+   "sha256": "a829116515782aafea437cadaf390cd40830257be2128284291b892cfb974760",
+   "bytes": 34070,
+   "rect": [
+    19,
+    41,
+    218,
+    174
    ],
    "quality": "procedural_v1"
   },
@@ -1905,6 +2087,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "spring_water": {
+   "script": "tools/blender/items/food.py",
+   "builder": "spring_water",
+   "png": "res://assets/icons/render/spring_water.png",
+   "sha256": "7cd60dec7d7c2ae242b38a72a8a3d5f5ce3757b6e17f8ccbc1966af8ea6610e4",
+   "bytes": 53903,
+   "rect": [
+    19,
+    23,
+    218,
+    210
+   ],
+   "quality": "procedural_v1"
+  },
   "steamed_food": {
    "script": "tools/blender/items/food.py",
    "builder": "steamed_food",
@@ -2033,6 +2229,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "strap": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "strap",
+   "png": "res://assets/icons/render/strap.png",
+   "sha256": "f6dcca2053383e598b5ec31b1409f94805e370a7dd4ba4070880ff79b313d44f",
+   "bytes": 45593,
+   "rect": [
+    19,
+    33,
+    218,
+    190
+   ],
+   "quality": "procedural_v1"
+  },
   "straw_roll_kit": {
    "script": "tools/blender/items/camp.py",
    "builder": "straw_roll_kit",
@@ -2075,6 +2285,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "tea": {
+   "script": "tools/blender/items/food.py",
+   "builder": "tea",
+   "png": "res://assets/icons/render/tea.png",
+   "sha256": "d025cec019f21457c34c6ca720bd56c68d7c73f427517bf1d4495e7f131822a5",
+   "bytes": 57007,
+   "rect": [
+    19,
+    20,
+    218,
+    216
+   ],
+   "quality": "procedural_v1"
+  },
   "tent_kit": {
    "script": "tools/blender/items/camp.py",
    "builder": "tent_kit",
@@ -2100,6 +2324,34 @@
     22,
     218,
     212
+   ],
+   "quality": "procedural_v1"
+  },
+  "tin_ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "tin_ingot",
+   "png": "res://assets/icons/render/tin_ingot.png",
+   "sha256": "83a392201651c8acb9dd7dfc100c6b233a7a83d45e65f60cdf8c88cad33d0cb8",
+   "bytes": 49681,
+   "rect": [
+    19,
+    42,
+    218,
+    172
+   ],
+   "quality": "procedural_v1"
+  },
+  "tin_ore": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "tin_ore",
+   "png": "res://assets/icons/render/tin_ore.png",
+   "sha256": "e6381ce827076ace7c3e3f2444eb60f21d0ed9a8270056037797c5eea26608d2",
+   "bytes": 35887,
+   "rect": [
+    19,
+    44,
+    218,
+    168
    ],
    "quality": "procedural_v1"
   },
@@ -2173,6 +2425,20 @@
     218
    ],
    "quality": "model_v2"
+  },
+  "trimmed_plank": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "trimmed_plank",
+   "png": "res://assets/icons/render/trimmed_plank.png",
+   "sha256": "7e7f80280153eab381206aed97fd89de3ddbf3e744911b1d13e720b979e57b39",
+   "bytes": 34586,
+   "rect": [
+    19,
+    28,
+    218,
+    200
+   ],
+   "quality": "procedural_v1"
   },
   "twine": {
    "script": "tools/blender/items/resources.py",
@@ -2345,9 +2611,6 @@
  },
  "missing": [
   "advanced_backpack",
-  "antibiotic",
-  "antivenom",
-  "anvil_kit",
   "basic_bag",
   "bone_axe",
   "bone_knife",
@@ -2361,7 +2624,6 @@
   "bronze_knife",
   "bronze_pick",
   "bronze_sword",
-  "cactus_flower",
   "capture_net_iii",
   "capture_net_iv",
   "capture_net_v",
@@ -2373,16 +2635,10 @@
   "copper_knife",
   "copper_pick",
   "copper_sword",
-  "crafters_meal",
-  "drip_coffee",
-  "dutch_coffee",
-  "fatigue_tonic",
-  "fine_plank",
   "flint_axe",
   "flint_knife",
   "flint_pick",
   "flint_spear",
-  "forge_kit",
   "iron_axe",
   "iron_bracers",
   "iron_cuirass",
@@ -2396,16 +2652,12 @@
   "leather_cuirass",
   "leather_greaves",
   "leather_helm",
-  "moss",
   "obsidian_axe",
   "obsidian_knife",
   "obsidian_pick",
   "obsidian_spear",
-  "pillar_shape",
-  "plank_shape",
   "small_pouch",
   "specialized_storage_bag",
-  "spring_water",
   "steel_axe",
   "steel_bracers",
   "steel_cuirass",
@@ -2414,11 +2666,6 @@
   "steel_knife",
   "steel_pick",
   "steel_sword",
-  "strap",
-  "tea",
-  "tin_ingot",
-  "tin_ore",
-  "trimmed_plank",
   "woven_bag"
  ]
 }

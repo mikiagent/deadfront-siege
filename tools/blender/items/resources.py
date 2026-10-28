@@ -1140,6 +1140,209 @@ def peat():
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
+# ---------------------------------------------------------------- ICONS4: materials, ingot, planks
+# Same palette, parts and framing as the set above: an ingot is _ingot, a hide is _pelt, a herb is
+# leaves on a stem. Only the silhouette each item needs is new.
+
+def moss():
+    """Moss: a cushion of moss on a broken stone slab, lumpy clumps with paler crowns, a few upright
+    sprigs and two seed capsules on hair-thin stalks."""
+    m = mat("#4e7a34", 0.95, color2="#2e5220", tex="noise", scale=26.0, bump=0.8, spec=0.15)
+    m2 = mat("#6f9a40", 0.95, color2="#43702a", tex="noise", scale=30.0, bump=0.9, spec=0.15)
+    rock(1.0, scl=(1.35, 1.0, 0.42), loc=(0, 0.1, -0.6), m=stone("#7a7a74", "#54544e"), jitter=0.12, sub=2)
+    for (x, y, r, mm) in ((-0.35, 0.02, 0.5, m), (0.3, -0.1, 0.46, m2), (0.62, 0.2, 0.28, m),
+                          (-0.62, 0.22, 0.3, m2), (0.0, 0.32, 0.4, m), (0.05, -0.38, 0.32, m2)):
+        blob(r, loc=(x, y, -0.22 + 0.2 * r), scl=(1.25, 1.0, 0.72), m=mm, amp=0.32, freq=3.2, sub=3)
+    sprig = mat("#7fb04c", 0.9, color2="#5a8a34", tex="noise", scale=20.0)
+    for (x, y, h, lean_) in ((-0.2, -0.15, 0.85, 6.0), (0.22, 0.05, 0.7, -8.0), (0.0, -0.3, 0.6, 3.0),
+                             (0.5, -0.2, 0.5, -5.0)):
+        g = group(loc=(x, y, 0.05), rot=(0, lean_, 0))
+        tube([(0, 0, 0), (0.02, 0, h * 0.6), (0.05, 0, h)], 0.018, sprig, segs=5, parent=g)
+        for k in range(4):
+            z = h * (0.25 + 0.18 * k)
+            leaf(0.17, 0.05, loc=(0.03, 0, z), rot=(0, (k % 2) * 150 - 75, 0), m=sprig, curl=0.03, parent=g)
+    for (x, y, h) in ((-0.42, -0.05, 1.15), (0.34, 0.22, 1.0)):
+        cyl(0.012, h, loc=(x, y, h / 2), m=sprig, segs=4)
+        blob(0.075, loc=(x, y, h + 0.05), scl=(0.8, 0.8, 1.3), m=mat("#b8843c", 0.85, color2="#8a5c22",
+                                                                     tex="noise", scale=14.0), amp=0.18, sub=2)
+    turn(12)
+    turn(14, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def cactus_flower():
+    """Cactus flower: a spineless green pad with a magenta bloom on its crown, a second bud beside
+    it, the petals curled outward, the pad's rim fringed with short spines."""
+    pad = mat("#5aa04a", 0.42, color2="#3e7a32", tex="noise", scale=4.0, coat=0.35, bump=0.12)
+    g = group(rot=(0, -12, 0))
+    blob(1.0, scl=(0.85, 0.3, 1.05), m=pad, amp=0.05, parent=g)
+    ring = mat("#4e8a40", 0.45, color2="#356a2a", tex="noise", scale=6.0)
+    tube(arc((0, 0, 0), 0.92, 0, 360, 26, plane="xz", y=0.0)[:-1], 0.035, ring, segs=4, closed=True, parent=g)
+    sp = mat("#f6f0dc", 0.4)
+    for k in range(14):
+        a = math.radians(k * 25.7)
+        cyl(0.02, 0.13, loc=(0.9 * math.cos(a) * 0.85, -0.3, 0.9 * math.sin(a) * 1.03),
+            rot=(90, 0, -math.degrees(a)), r2=0.0, m=sp, segs=5, parent=g)
+    petal_m = mat("#c83c78", 0.45, color2="#8a1a4e", tex="noise", scale=7.0, bump=0.2, coat=0.3)
+    petal_m2 = mat("#e0609a", 0.45, color2="#a83468", tex="noise", scale=7.0, bump=0.2, coat=0.3)
+    for i in range(9):  # bloom: two petal rings, the older ones curled back
+        a = math.radians(40 * i)
+        outer = i % 3 != 0
+        r0 = 0.16
+        ln = 0.68 if outer else 0.52
+        leaf(ln, 0.2, loc=(r0 * math.cos(a), -0.42 - 0.05 * outer, 0.62 + r0 * math.sin(a)),
+             rot=(38 if outer else 20, -math.degrees(a) + 90, 0), m=petal_m2 if outer else petal_m,
+             curl=-0.22 if outer else -0.1, parent=g)
+    blob(0.14, loc=(0, -0.44, 0.66), scl=(1.0, 0.7, 1.0), m=mat("#f2c22a", 0.5, color2="#c89a1a",
+                                                                tex="noise", scale=12.0), amp=0.15, parent=g)
+    bud = mat("#b8306c", 0.5, color2="#7e1a48", tex="noise", scale=8.0)
+    for k in range(4):
+        a = math.radians(90 * k + 40)
+        leaf(0.34, 0.13, loc=(0.55 + 0.1 * math.cos(a), -0.35, -0.3 + 0.1 * math.sin(a)),
+             rot=(30, -math.degrees(a) + 90, 0), m=bud, curl=-0.18, parent=g)
+    turn(14)
+    turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def tin_ore():
+    """Tin ore: pale tin-white nuggets in a dark slate host, the nuggets blunt and matte (not the
+    gold of plain ore, not the copper of copper ore)."""
+    _ore(metal("#cfd8de", 0.45), host=stone("#575b60", "#35383c"), n=5, big=0.26)
+    turn(12)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
+
+
+def tin_ingot():
+    """Tin ingot: three dull pale-grey bars, softer and lighter than iron's, with a faint hammered
+    top rather than steel's polish."""
+    m = mat("#c2ccd4", 0.5, metal=0.75, color2="#8e9aa4", tex="noise", scale=9.0, bump=0.25)
+    for loc in ((0, -0.32, 0), (0, 0.32, 0), (0, 0, 0.34)):
+        box((1.2, 0.56, 0.28), loc=loc, m=m, bev=0.05, taper=(0.86, 0.8))
+        for k in range(3):  # hammer dimples along the cast face
+            ball(0.075, loc=(loc[0] - 0.35 + 0.35 * k, loc[1], loc[2] + 0.14), scl=(1.3, 1.0, 0.25), m=m, sub=2)
+    turn(24)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def fine_plank():
+    """Fine plank: a planed, knot-free board with a chamfered edge, its sawn end showing tight ring
+    grain, a curled shaving lying on it: the dressed board, not the rough plank pair."""
+    w = mat("#e2b478", 0.4, color2="#c08a48", tex="wave", scale=3.5, bump=0.06, spec=0.6, coat=0.25)
+    end = mat("#f0d49a", 0.55, color2="#cca468", tex="rings", scale=7.0, bump=0.06)
+    # One wide dressed board, its top face oiled to a sheen: no second board, no offcuts.
+    box((2.6, 0.72, 0.16), m=w, bev=0.014)
+    for s in (-1, 1):
+        box((0.03, 0.7, 0.15), loc=(s * 1.31, 0, 0), m=end, bev=0.0)
+    for y in (-0.36, 0.36):  # chamfered long edges catch a lighter line
+        tube([(-1.3, y, 0.075), (0, y, 0.08), (1.3, y, 0.075)], 0.028, end, segs=4)
+    # Shaving: a broad curl of planed wood standing on the board, well in front of it.
+    sh = mat("#f6e2b4", 0.45, color2="#d0aa74", tex="wave", scale=6.0, bump=0.1)
+    pts = [(math.cos(t * 0.5) * r, 0.0, math.sin(t * 0.5) * r)
+           for t in (i * 0.42 for i in range(16)) for r in (0.24,)]
+    ob = tube([(p[0] * (1 - 0.018 * i), p[1], p[2] * (1 - 0.018 * i)) for i, p in enumerate(pts)], 0.035, sh, segs=5)
+    ob.location = (0.35, -0.42, 0.3)
+    ob.rotation_euler = (math.radians(70), 0, math.radians(25))
+    turn(6)
+    turn(16, "X")
+    lean(-26)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def trimmed_plank():
+    """Trimmed plank: a board with its ends cut square and a bead moulded along one edge, the two
+    offcuts lying under it and sawdust at the cut."""
+    w = mat("#c48d55", 0.65, color2="#93602f", tex="wave", scale=3.5, bump=0.18)
+    end = mat("#dcb37a", 0.65, color2="#b08a52", tex="rings", scale=6.0, bump=0.1)
+    box((2.5, 0.15, 0.6), m=w, bev=0.012)
+    for s in (-1, 1):
+        box((0.04, 0.16, 0.58), loc=(s * 1.27, 0, 0), m=end, bev=0.0)
+        # mitre chamfer on the corner
+        box((0.16, 0.15, 0.16), loc=(s * 1.19, 0, 0.24), rot=(0, 0, 0), m=w, bev=0.0)
+    tube([(-1.2, -0.1, 0.34), (0, -0.11, 0.35), (1.2, -0.1, 0.34)], 0.055, w, segs=6)  # bead along the edge
+    for (x, y, rot_) in ((-0.55, 0.42, 12), (0.62, 0.4, -8)):  # offcuts
+        box((0.5, 0.14, 0.2), loc=(x, y, -0.32), rot=(0, 0, rot_), m=w, bev=0.01)
+    dust = mat("#d8b878", 0.95, color2="#b08a4a", tex="noise", scale=40.0, bump=0.5)
+    for x in (-1.15, -1.05, -0.95, 1.05, 1.15):
+        blob(0.055, loc=(x, -0.3, -0.38), scl=(1.3, 1.0, 0.5), m=dust, amp=0.3, sub=2)
+    turn(-6)
+    lean(-24)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def plank_shape():
+    """Plank shape: a cut component board with a lap-joint notch at one end and a cut tenon at the
+    other, the grain running its length: a plank-shaped part, not a finished plank."""
+    w = mat("#b8814a", 0.7, color2="#8a5a2c", tex="wave", scale=4.0, bump=0.2)
+    end = mat("#cf9c62", 0.7, color2="#a87440", tex="rings", scale=7.0, bump=0.1)
+    # Body: a full-width board in two steps, the upper one shorter, so the lap notch reads.
+    box((2.5, 0.52, 0.3), loc=(0, 0, -0.14), m=w, bev=0.014)
+    box((1.7, 0.5, 0.3), loc=(0.4, 0, 0.16), m=w, bev=0.014)
+    # Cut faces: sawn end grain at every step, so the notches are unambiguous.
+    for (x, z, sx, sz) in ((1.24, -0.14, 0.012, 0.6), (-1.24, -0.14, 0.012, 0.6), (1.24, 0.16, 0.012, 0.3),
+                           (-0.44, 0.16, 0.012, 0.3), (0.4, 0.31, 0.5, 0.012), (0.4, -0.02, 0.9, 0.012),
+                           (0.82, 0.16, 0.012, 0.3)):
+        box((max(sx, 0.012), 0.525, max(sz, 0.012)), loc=(x, 0, z), m=end, bev=0.0)
+    box((0.3, 0.525, 0.02), loc=(0.98, 0, 0.16), m=end, bev=0.0)  # the tongue left by the cut
+    turn(10)
+    lean(-22)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def pillar_shape():
+    """Pillar shape: a squared timber blank for a pillar, with a tenon cut on the top end and a
+    mortise hole through the bottom, no iron bands or rope (the pillar kit is the finished post)."""
+    w = mat("#b07c44", 0.75, color2="#7a5026", tex="wave", scale=5.0, bump=0.3)
+    end = mat("#d8a868", 0.7, color2="#b0824a", tex="rings", scale=6.0, bump=0.12)
+    box((0.66, 0.66, 2.3), m=w, bev=0.02)
+    cyl(0.17, 0.3, loc=(0, 0, 1.3), m=w, segs=4, smooth=False, rot=(0, 0, 45))  # tenon
+    box((0.2, 0.54, 0.2), loc=(0, 0, -0.62), m=end, bev=0.0)  # mortise bore, dark
+    box((0.54, 0.2, 0.2), loc=(0, 0, -0.62), m=end, bev=0.0)
+    for z in (-1.15, 1.05):
+        box((0.54, 0.54, 0.02), loc=(0, 0, z), m=end, bev=0.0)
+    turn(26)
+    lean(-14)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def strap():
+    """Strap: a cut leather belt coiled on itself, an iron buckle on the loose end and punched holes
+    down it (hide_strap is the uncut length; this is the finished strap)."""
+    lea = hidem("#8a5a32", "#6a4020")
+    lea2 = hidem("#734826", "#523014")
+    punch = mat("#241608", 1.0)
+
+    def loop(r_out, r_in, y, a0, a1, m, thick=0.11):
+        n = 44
+        pts = []
+        for i in range(n + 1):
+            a = math.radians(a0 + (a1 - a0) * i / n)
+            pts.append((r_out * math.cos(a), r_out * math.sin(a)))
+        for i in range(n, -1, -1):
+            a = math.radians(a0 + (a1 - a0) * i / n)
+            pts.append((r_in * math.cos(a), r_in * math.sin(a)))
+        prism(pts, thick, loc=(0, y, 0), m=m, bev=0.008)
+    loop(1.02, 0.86, 0.09, 20, 400, lea)         # the outer turn, overlapping its own start
+    loop(0.82, 0.66, 0.0, 150, 505, lea2)        # the inner turn, offset the other way
+    loop(0.62, 0.46, -0.09, 250, 560, lea)       # a third, shorter turn so the spiral steps down
+    # The loose end runs off the coil, with punched holes and the buckle on it.
+    tail = [(1.0, 0.02, -0.12), (1.22, 0.02, -0.24), (1.42, 0.02, -0.36)]
+    tube(tail, 0.085, lea2, segs=6)
+    for t in (0.4, 0.7, 0.95):
+        p = (1.0 + 0.42 * t, 0.02, -0.12 - 0.24 * t)
+        cyl(0.04, 0.18, loc=p, rot=(90, 0, 0), m=punch, segs=8)
+    iron = metal("#8a8e94", 0.4)
+    b = group(loc=(1.5, 0.05, -0.42), rot=(0, 40, 0))
+    for sz in (0.2, -0.2):
+        box((0.3, 0.07, 0.06), loc=(0, 0, sz), m=iron, bev=0.01, parent=b)
+    for sx in (-0.14, 0.14):
+        box((0.06, 0.07, 0.4), loc=(sx, 0, 0), m=iron, bev=0.01, parent=b)
+    box((0.28, 0.06, 0.04), loc=(0.02, -0.03, 0), m=iron, bev=0.008, parent=b)
+    turn(-58, "X")
+    turn(-16)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
 ITEMS = {
     "branch": branch, "wood_log": wood_log, "pine_log": pine_log, "plank": plank, "pillar": pillar,
     "bamboo": bamboo, "stone": stone_item, "flint": flint, "obsidian": obsidian, "sandstone": sandstone,
@@ -1157,4 +1360,8 @@ ITEMS = {
     "bark_strip": bark_strip, "cactus_spine": cactus_spine, "cloth_scrap": cloth_scrap, "leech": leech,
     "marsh_herb": marsh_herb, "spice_herb": spice_herb, "petals": petals, "reed": reed, "root": root,
     "vine": vine, "mud": mud, "ochre": ochre, "peat": peat,
+    # dsc icons4: the first-hour materials and boards.
+    "moss": moss, "cactus_flower": cactus_flower, "tin_ore": tin_ore, "tin_ingot": tin_ingot,
+    "fine_plank": fine_plank, "trimmed_plank": trimmed_plank, "plank_shape": plank_shape,
+    "pillar_shape": pillar_shape, "strap": strap,
 }
