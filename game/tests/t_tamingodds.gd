@@ -241,6 +241,18 @@ func _test_shown_equals_used() -> void:
 	var label: String = str(hint.get("text", ""))
 	_expect(label.contains(OddsS.caption(shown)), "the plate reads '%s' for %.3f" % [label, shown])
 	_expect(OddsS.caption(0.64) == "Tame 64%", "the caption reads 'Tame 64%%' for 0.64 (got '%s')" % OddsS.caption(0.64))
+	# On screen: the creature plate's tame row renders the same caption (CreaturePlates, the real HUD).
+	var plates: Node = (load("res://scripts/ui/creature_plates.gd") as GDScript).new()
+	_host.add_child(plates)
+	var row := Control.new()
+	var label_node := Label.new()
+	row.add_child(label_node)
+	var entry := {"tame_row": row, "tame_icon": TextureRect.new(), "tame_label": label_node, "tame_bar": ProgressBar.new()}
+	plates._tick_tame_hint(entry, c, _player)
+	_expect(str(label_node.text).begins_with("Tame ") and str(label_node.text).contains("%"),
+		"the creature plate prints the odds before the throw (label '%s')" % label_node.text)
+	_expect(str(label_node.text).contains(OddsS.caption(shown)), "the plate's caption is the shown odds (label '%s', odds %.3f)" % [label_node.text, shown])
+	plates.queue_free()
 	# The same animal reads better as the survivor levels and as the net improves.
 	_player.skills.trees["survival"]["level"] = 45
 	var better: float = CaptureS.chance_for(c, 2, _player)
