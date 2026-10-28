@@ -236,7 +236,10 @@ func _test_confirm_required() -> void:
 	print("[t_unclaim] panel: %s" % text)
 	_expect(text.contains("%dx%d" % [DR.cell_tiles(), DR.cell_tiles()]), "the panel names the plot's size and place: \"%s\"" % text)
 	_expect(text.to_lower().contains("cannot build") or text.to_lower().contains("stops being yours"), "the panel states the consequence of giving the plot up: \"%s\"" % text)
-	_expect(text.to_lower().contains("nothing is built") or text.to_lower().contains("no claim stake"), "the panel states what happens to anything built there and to the stake: \"%s\"" % text)
+	_expect(text.to_lower().contains("nothing is built") and text.to_lower().contains("no claim stake"), "the panel states what happens to anything built there and to the stake: \"%s\"" % text)
+	# A landscape phone's panel is 166 px tall: the consequence must stay readable there, so the text
+	# is a few short lines rather than a paragraph (the first draft scrolled off the panel).
+	_expect(text.count("\n") <= 2, "the consequence reads in three short lines, not a paragraph (%d line breaks)" % text.count("\n"))
 	_expect(_rt.claim_used() == 3, "opening the confirm changes nothing (%d)" % _rt.claim_used())
 	# KEEP (the cancel answer): nothing is released.
 	panel.emit_signal("answered", false)

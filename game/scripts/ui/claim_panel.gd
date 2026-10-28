@@ -39,8 +39,10 @@ static func describe_release(used: int, cell: Vector2i, why: String, building: S
 	if why != "":
 		return "You hold %d plot%s.\nNo release here: %s. Nothing changes." % [used, "" if used == 1 else "s", IslandClaims.reason_text(why)]
 	var left := maxi(0, used - 1)
-	var on_it := "Nothing is built on it." if building == "" else "A %s stands on it, so it cannot be released until it is packed up." % building
-	return "You hold %d plot%s; %d %s yours. Giving up the %dx%d plot at (%d, %d) is permanent: it stops being yours, you cannot build or manage anything there, and anyone (you included) can claim it again later. Grass and props cleared by the claim do not grow back on their own, and no claim stake is refunded. %s\nOnly RELEASE PLOT gives it up; KEEP closes this." % [
+	var on_it := "Nothing is built on it." if building == "" else "A %s stands on it, so it cannot be released until the building is packed up." % building
+	# Kept to a few short lines: the panel is 166 px tall on a landscape phone, and a paragraph
+	# scrolled off it. Every consequence the owner asked to state is still named.
+	return "You hold %d plot%s; %d %s yours.\nRelease the %dx%d plot at (%d, %d)? It stops being yours: no building or managing there. Anyone (you included) can claim it again later. %s Cleared grass and props do not regrow; no claim stake is refunded.\nOnly RELEASE PLOT gives it up." % [
 		used, "" if used == 1 else "s", left, "stays" if left == 1 else "stay", n, n, cell.x, cell.y, on_it]
 
 ## `plots` held on this island now, `tile` where the survivor stands, `rect` the plot the press would

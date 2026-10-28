@@ -6,7 +6,10 @@ extends UiWorldSheet
 ## - no domain yet: the declare panel (GOLD headline, body, quote, GOLD "Declare Domain", island art);
 ## - a domain held: the plot grid around it (Domain gold, "can expand" gold outline, water blue) with
 ##   Plots used / cap, Pioneer rank, upkeep, next rank and the Communications Center link
-##   (CommCenterUI, the spec-29 contribution panel), and Expand / Build here / Release.
+##   (CommCenterUI, the spec-29 contribution panel), and Expand / Build here / Release plot.
+## UNCLAIM: a tap on one of the grid's gold plots picks it (drawn with a white frame); Release plot
+## then asks first in the preview card - the same consequence text the HUD's ClaimPanel uses (its
+## Confirm is "Release plot", its Cancel "Keep") - and only that confirm gives the one plot up.
 ## A footer band carries the territory rule. Declare and Expand open the ground-grid preview
 ## (DomainPreview): the sheet steps aside to a narrow card (Confirm / Cancel) so the terrain stays
 ## readable. Open with HuntHud.open_domain() (nav menu) or open(player).
