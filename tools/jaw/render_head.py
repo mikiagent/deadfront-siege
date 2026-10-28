@@ -18,6 +18,7 @@ a.add_argument("--size", type=int, default=900); a.add_argument("--head", defaul
 a.add_argument("--span", type=float, default=4.5, help="ortho width in metres")
 a.add_argument("--forward", type=float, default=None, help="aim this far (m) toward the snout from mid-head")
 a.add_argument("--jaw", type=float, default=None, help="force the Jaw bone open by this many degrees (local X)")
+a.add_argument("--lock", action="store_true", help="keep the first frame's camera for all frames (to see the head move)")
 a.add_argument("--down", type=float, default=0.0, help="aim this far (m) below mid-head")
 a = a.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
@@ -49,6 +50,7 @@ w = bpy.data.worlds.new("W"); w.color = (0.93, 0.93, 0.9); sc.world = w
 cd = bpy.data.cameras.new("C"); cd.type = "ORTHO"; cd.ortho_scale = a.span
 cam = bpy.data.objects.new("C", cd); sc.collection.objects.link(cam); sc.camera = cam
 
+locked = {}
 for fr in [int(x) for x in a.frames.split(",")]:
     sc.frame_set(fr)
     if a.jaw is not None:
@@ -57,6 +59,11 @@ for fr in [int(x) for x in a.frames.split(",")]:
         jb.rotation_quaternion = Quaternion((1, 0, 0), math.radians(a.jaw))
         bpy.context.view_layer.update()
     pb = arm.pose.bones[a.head]
+    if a.lock and fr != int(a.frames.split(",")[0]):
+        for v in a.views.split(","):
+            cam.location, cam.rotation_euler = locked[v]
+            sc.render.filepath = f"{a.out}_f{fr:03d}_{v}.png"; bpy.ops.render.render(write_still=True)
+        continue
     # aim at the middle of the head bone, pushed a little toward the snout
     tgt = arm.matrix_world @ (pb.head.lerp(pb.tail, 0.5))
     fwd = (arm.matrix_world.to_3x3() @ (pb.tail - pb.head)).normalized()
@@ -69,6 +76,7 @@ for fr in [int(x) for x in a.frames.split(",")]:
         d = Vector((math.cos(ang), math.sin(ang), math.tan(math.radians(pitch)))).normalized()
         cam.location = tgt + d * 30
         cam.rotation_euler = (-d).to_track_quat("-Z", "Y").to_euler()
+        locked[v] = (cam.location.copy(), cam.rotation_euler.copy())
         sc.render.filepath = f"{a.out}_f{fr:03d}_{v}.png"
         bpy.ops.render.render(write_still=True)
         print("RENDERED", sc.render.filepath)
