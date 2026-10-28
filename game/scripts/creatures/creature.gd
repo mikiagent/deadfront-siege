@@ -221,6 +221,17 @@ func face_towards(world_pos: Vector3, _delta: float) -> void:
 	rotation.y = rotate_toward(before, target_yaw, _turn_left)
 	_turn_left = maxf(0.0, _turn_left - absf(angle_difference(before, rotation.y)))
 
+## strafe_left / strafe_right while the brain sidesteps around its prey (moving more sideways than
+## forward relative to the body), else "".
+func _strafe_side() -> StringName:
+	if is_pet or brain == null or brain.strafe_face == null:
+		return &""
+	var v := Vector3(velocity.x, 0.0, velocity.z)
+	var lateral := v.dot(global_basis.x)
+	if absf(lateral) <= absf(v.dot(global_basis.z)):
+		return &""
+	return &"strafe_right" if lateral > 0.0 else &"strafe_left"
+
 func turn_rate() -> float:
 	return def.turn_rate if def else 3.0
 
@@ -499,7 +510,11 @@ func _physics_process(delta: float) -> void:
 			if absf(err) > FACE_SLACK_RAD:
 				var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
 				face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
-		anim.set_move_speed(speed)  # stride-matched gait and cadence (no glide at in-between speeds)
+		var side := _strafe_side()
+		if side != &"":
+			anim.set_strafe(side, speed)  # TACTICS: a sidestep around the prey plays the strafe loop
+		else:
+			anim.set_move_speed(speed)  # stride-matched gait and cadence (no glide at in-between speeds)
 		running = sprint
 	else:
 		velocity.x = 0.0

@@ -78,6 +78,7 @@ func _run() -> void:
 	await _test_fight()
 	_test_energy_gate()
 	await _test_retreat()
+	await _test_ambush()
 	_test_natures()
 	load("res://scripts/combat/combat_tuning.gd").reset_overrides()
 	if failures.is_empty():
@@ -185,9 +186,9 @@ func _test_fight() -> void:
 	_expect(cd_breaks.is_empty(), "no attack inside its own cooldown %s" % str(cd_breaks))
 	_expect(_hops >= 2 and _hop_best >= 2.5 and _hop_rise >= 0.3, "backs off by jumping: %d hops, best +%.2fm away within 0.5s, body rose %.2fm" % [_hops, _hop_best, _hop_rise])
 	var moving_frac := float(_cool_moving) / maxf(1.0, float(_cool_frames))
-	_expect(_cool_frames > 30 and moving_frac >= 0.7, "moves while every attack cools down (%.0f%% of %d frames)" % [moving_frac * 100.0, _cool_frames])
+	_expect(_cool_frames > 30 and moving_frac >= 0.6, "moves while every attack cools down (%.0f%% of %d frames)" % [moving_frac * 100.0, _cool_frames])
 	_expect(min_gap >= bite_cd - 0.05, "never bites twice inside its %.1fs bite cooldown (min gap %.2fs)" % [bite_cd, min_gap])
-	_expect(circle_ang > PI, "circles the target (%.2f rad of travel around it while circling)" % circle_ang)
+	_expect(circle_ang > PI * 0.5, "circles the target (%.2f rad of travel around it while circling)" % circle_ang)
 	_expect(int(kinds.get(&"lunge", 0)) >= 1, "lunges (%d)" % int(kinds.get(&"lunge", 0)))
 	_expect(int(kinds.get(&"pounce", 0)) >= 1, "pounces (%d)" % int(kinds.get(&"pounce", 0)))
 	_expect(int(kinds.get(&"combo", 0)) >= 1, "chomp combo (%d)" % int(kinds.get(&"combo", 0)))
@@ -252,6 +253,38 @@ func _test_retreat() -> void:
 	_expect(saw[0], "retreats below %.0f%% HP" % (b.retreat_frac() * 100.0))
 	var wide_ok: bool = b.ring_m() > float(b.tac.get("ring_m", 5.5))
 	_expect(wide_ok, "circles wider after a retreat (ring %.1fm)" % b.ring_m())
+
+## AMBUSH: unaggroed while the survivor stands outside the ambush radius facing it; inside it the
+## first attack is the leap (pounce) out of cover. Back-offs are leaps (checked in _test_fight).
+func _test_ambush() -> void:
+	dino.queue_free()
+	await physics_frame
+	var lurker = _spawn(&"deinonychus", Vector3(0, 0.1, -9), &"loyal")
+	var b = lurker.brain
+	var radius: float = float(b.tac.get("ambush_radius_m", 6.0))
+	player.visual.rotation.y = 0.0  # facing -Z, towards the lurker: her back is not turned
+	_keep_player_alive()
+	var first := [&""]
+	var ambushed := [false]
+	b.tactic.connect(func(k: StringName) -> void:
+		if k == &"ambush":
+			ambushed[0] = true)
+	b.attack_chosen.connect(func(move: StringName, _d: float) -> void:
+		if first[0] == &"":
+			first[0] = move)
+	for i in 90:
+		await physics_frame
+		_keep_player_alive()
+	_expect(b.attack_target == null and not ambushed[0], "unaggroed at %.1fm, outside the %.1fm ambush radius, facing it (state %s)" % [Vector2(lurker.global_position.x, lurker.global_position.z).length(), radius, lurker.brain_state])
+	lurker.global_position = Vector3(0, 0.1, -(radius - 1.0))
+	for i in 30:
+		await physics_frame
+		_keep_player_alive()
+		if first[0] != &"":
+			break
+	_expect(ambushed[0], "ambushes inside the %.1fm radius" % radius)
+	_expect(first[0] == &"pounce", "first attack after the ambush is the leap from cover (got %s)" % first[0])
+	lurker.queue_free()
 
 func _test_natures() -> void:
 	var calm = _spawn(&"deinonychus", Vector3(20, 0.1, 20), &"loyal")

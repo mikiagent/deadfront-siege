@@ -96,6 +96,20 @@ func set_move_speed(mps: float) -> void:
 	_scale[gait] = clampf(mps / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
 	_travel(gait)
 
+## Sidestep loop (strafe_left / strafe_right) at cadence mps / its natural speed: natural_speeds.<id>.strafe
+## when baked, else the walk's (ASSUMPTION). Falls back to the stride-matched walk/run without the clip.
+func set_strafe(side: StringName, mps: float) -> void:
+	if not _param.has(side):
+		set_move_speed(mps)
+		return
+	if not is_finite(mps) or not _can_move():
+		return
+	var nat := CreatureClips.natural_speed(_def, &"strafe")
+	if nat <= 0.0:
+		nat = float(_natural.get(&"walk", 0.0))
+	_scale[side] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_travel(side)
+
 ## Global retime on top of every state's own cadence. Each caller owns a named factor (the limp is
 ## &"fracture", a hit-stop its own key) and the tree plays at their product, so one never erases another.
 func set_time_scale(x: float, factor: StringName = &"base") -> void:
