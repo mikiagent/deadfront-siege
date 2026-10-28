@@ -1300,7 +1300,12 @@ func _draw() -> void:
 	var yy := y
 	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px)
 	yy += big + gap
-	_bar(Vector2(x, yy), Vector2(bar_w, big), v.energy / maxf(1.0, v.effective_max_energy()), Color(0.20, 0.45, 0.80), "", "%.0f / %.0f" % [v.energy, v.effective_max_energy()], num_px)
+	var en := energy_reading(player)
+	var en_text := "%.0f / %.0f" % [en.value, en.max]
+	# The mount's name leads the numbers when it fits (a phone bar may only fit the numbers; amber still says "mount").
+	if en.name != "" and _font.get_string_size("%s  %s" % [en.name, en_text], HORIZONTAL_ALIGNMENT_LEFT, -1, num_px).x <= bar_w - 12.0:
+		en_text = "%s  %s" % [en.name, en_text]
+	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), Color(0.85, 0.62, 0.20) if en.name != "" else Color(0.20, 0.45, 0.80), "", en_text, num_px)
 	yy += big + gap
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
 	var face_pos := Vector2(x + 11.0, yy + 10.0)
@@ -1598,6 +1603,15 @@ func _draw_exhaustion_face(center: Vector2, strain: float) -> void:
 			draw_arc(center + Vector2(0, 7.0), 4.5, PI + 0.35, TAU - 0.35, 12, dark, 1.5)
 		3:
 			draw_arc(center + Vector2(0, 9.0), 5.5, PI + 0.15, TAU - 0.15, 12, dark, 1.6)
+
+## What the energy bar shows: the ridden mount's pool while mounted (named, amber), else the
+## survivor's stamina. The exhaustion face and treadmill stay the survivor's either way.
+static func energy_reading(pl: Player) -> Dictionary:
+	var m: Creature = pl.mounted_on if pl and is_instance_valid(pl.mounted_on) else null
+	if m:
+		var nm: String = m.pet_record.name if m.pet_record and m.pet_record.name != "" else m.def.species
+		return {"value": m.energy, "max": m.energy_max, "name": nm}
+	return {"value": pl.vitals.energy, "max": pl.vitals.effective_max_energy(), "name": ""}
 
 func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12) -> void:
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))

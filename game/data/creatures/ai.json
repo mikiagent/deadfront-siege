@@ -192,5 +192,27 @@
       ],
       "temperament": "defensive"
     }
+  },
+  "energy": {
+    "_about": "Creature energy (owner 2026-10-28): every animal has a pool that running and special moves spend and that refills at rest or a walk. No exhaustion. Size from real_length_m. Every number is an ASSUMPTION (first pass, measurable, not balanced). A species JSON may override with an \"energy\" block {max, regen_per_s, run_drain_per_s, costs{clip: n}}, or give a clip entry as an object with \"energy_cost\".",
+    "pool_base": 80.0,
+    "pool_per_m": 6.0,
+    "refill_s_base": 10.0,
+    "refill_s_per_m": 0.5,
+    "run_drain_per_s": 10.0,
+    "stop_frac": 0.05,
+    "resume_frac": 0.4,
+    "walk_frac": 0.5,
+    "sprint_states": [
+      "approach",
+      "attack",
+      "flee",
+      "retreat",
+      "chase"
+    ],
+    "special_cost_frac": {
+      "attack_heavy": 0.3,
+      "bite_combo": 0.35
+    }
   }
 }
