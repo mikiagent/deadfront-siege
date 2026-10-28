@@ -468,7 +468,22 @@ func _test_picker() -> void:
 	for b in hexes:
 		if str(b.name) == "Part_armor_scute":
 			scute = b
-	_expect(scute != null and scute.disabled and scute.hint_text != "", "a part its Butchering node has not opened is blocked with the reason (%s)" % (scute.hint_text if scute else "no hex"))
+	_expect(scute != null and scute.disabled and picker.blocked_reason(&"armor_scute") != "", "a part its Butchering node has not opened is blocked with the reason (%s)" % (picker.blocked_reason(&"armor_scute") if scute else "no hex"))
+	# The name the hex draws itself must not run into its neighbour's: no two caption boxes overlap,
+	# and each hex's own box is the 64 px tap target.
+	var clashes := []
+	var tap_ok := true
+	for i in hexes.size():
+		# Untyped on purpose: naming HexButton here would compile it before the autoloads exist.
+		var a = hexes[i]
+		tap_ok = tap_ok and a.hex_rect().size.x >= 64.0 and a.hex_rect().size.y >= 64.0
+		for j in range(i + 1, hexes.size()):
+			var ra: Rect2 = a.caption_rect()
+			var rb: Rect2 = hexes[j].caption_rect()
+			if ra.size.x > 0.0 and rb.size.x > 0.0 and ra.intersects(rb):
+				clashes.append("%s/%s" % [a.caption, hexes[j].caption])
+	_expect(tap_ok, "every part hex draws a 64 px tap target")
+	_expect(clashes.is_empty(), "no two part names overlap under the hexes (%s)" % [clashes])
 	_expect(picker.can_cut(&"raw_meat") and not picker.can_cut(&"armor_scute"), "the picker offers the open parts and blocks the locked ones")
 	# A tap on an open hex starts the cut (the hex's own pressed signal, as a finger would).
 	var meat_hex = null

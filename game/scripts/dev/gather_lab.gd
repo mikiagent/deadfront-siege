@@ -4,11 +4,16 @@ extends Node3D
 ## fibre stalk with a green rare trait, butchers a raptor by knife, and watches a node deplete and regrow. Every unit goes through PlayerActions.
 ## GAUNTLET gather rules checked on every pass: walked into reach (no teleport), the progress
 ## ring above the node, movement cancels, starter-island finds are level 1.
-## Shots: --shot=<path.png> --shot-delay=900 saves <path>-<stage>.png per stage.
+## Shots: --shot=<path.png> --shot-delay=900 saves <path>-<stage>.png per stage; --shot-dir=DIR saves
+## <DIR>/<stage>.png and prints one "[butcher] RESULT k=v ..." line (every number measured here).
 
 var _p: Player
 var _fails: Array[String] = []
 var _shot_base := ""
+var _shot_dir := ""
+## BUTCHER (spec 12 §2) numbers measured from the live run: the picker's hexes and their size, the
+## carcass's cut budget, and what each cut really delivered.
+var _butcher_m := {}
 ## Owner motion gate on real frames (_watch_motion): the worst per-frame move of a drawn stack beyond
 ## its own eased rise, frames watched, and the slowest frame seen.
 var _motion := {"excess": 0.0, "frames": 0, "worst_dt": 0.0}
@@ -17,6 +22,10 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
 			_shot_base = a.substr(7).trim_suffix(".png")
+		elif a.begins_with("--shot-dir="):
+			_shot_dir = a.substr(11)
+	if _shot_dir != "":
+		DirAccess.make_dir_recursive_absolute(_shot_dir)
 	var kit := LabKit.build(self, 24.0)
 	_p = kit["player"]
 	Game.max_creatures_per_island = 0
@@ -113,7 +122,16 @@ func _ready() -> void:
 	else:
 		for f in _fails:
 			print("[gather_lab] FAIL %s" % f)
+	_report()
 	get_tree().quit(0 if _fails.is_empty() else 1)
+
+## One "[butcher] RESULT k=v ..." line for the gate, every number measured from this run.
+func _report() -> void:
+	print("[butcher] RESULT parts=%d hexes=%d hex_px=%d cuts=%d cuts_left=%d cut_seconds=%.1f bag_meat=%d bag_hide=%d bag_bone=%d picker_open=%d fails=%d" % [
+		int(_butcher_m.get("parts", 0)), int(_butcher_m.get("hexes", 0)), int(_butcher_m.get("hex_px", 0)),
+		int(_butcher_m.get("cuts", 0)), int(_butcher_m.get("cuts_left", 0)), float(_butcher_m.get("cut_seconds", 0.0)),
+		_p.inventory.count_of(&"raptor_meat"), _p.inventory.count_of(&"raptor_hide"), _p.inventory.count_of(&"raptor_bone"),
+		int(_butcher_m.get("picker_open", 0)), _fails.size()])
 
 ## Climate and level come from the island, as scatter plants them (so the level-1 check is real).
 func _plant(rt: Node3D, family: String, id: String, pos: Vector3) -> HarvestNode:
@@ -419,22 +437,79 @@ func _butcher() -> void:
 		if st:
 			parts.append("%s x%d L%d" % [st.def_id, st.count, st.level])
 	print("[gather_lab] raptor carcass (stone knife): %s" % ", ".join(parts))
-	_p.actions.open_corpse_loot(corpse)
+	var carcass_parts: int = CarcassParts.parts(&"velociraptor").size()
+	_butcher_m["parts"] = carcass_parts
+	_butcher_m["cuts"] = corpse.cuts_budget
+	# BUTCHER (spec 12 §2): the corpse interact opens the part picker, not the chest.
+	_p.global_position = corpse.global_position + Vector3(0.0, 0.0, 0.7)
+	corpse.open_loot(_p)
 	var deadline := Time.get_ticks_msec() + 8000
-	while Time.get_ticks_msec() < deadline and not (_p.ui and _p.ui.visible):
+	while Time.get_ticks_msec() < deadline and corpse.picker() == null:
 		await get_tree().process_frame
 	await get_tree().create_timer(0.4).timeout
-	await _capture("loot_screen")
-	if _p.ui:
-		_p.ui.hide_ui()
-	var took := 0
-	for i in corpse.loot.slot_count:
-		if corpse.loot.slots[i]:
-			took += _p.actions.loot(corpse, i)
+	var picker = corpse.picker()
+	_check(picker != null and picker.is_open(), "the corpse interact opens the part picker")
+	if picker == null:
+		return
+	var hexes: Array = picker.part_buttons()
+	var smallest := 9999.0
+	for b in hexes:
+		smallest = minf(smallest, minf(b.size.x, b.size.y))
+	_butcher_m["hexes"] = hexes.size()
+	_butcher_m["hex_px"] = int(smallest)
+	_butcher_m["picker_open"] = 1 if picker.is_open() else 0
+	_check(hexes.size() == carcass_parts, "the picker offers one hex per carcass part (%d of %d)" % [hexes.size(), carcass_parts])
+	_check(smallest >= 64.0, "every part hex is a 64 px tap target (smallest %.0f)" % smallest)
+	await _capture("picker")
+	# Pick the meat hex as a finger would, then let the timed cut run out.
+	var meat_hex = null
+	for b in hexes:
+		if str(b.name) == "Part_raptor_meat":
+			meat_hex = b
+	_check(meat_hex != null and not meat_hex.disabled, "the meat hex is open to cut")
+	var seconds: float = CarcassParts.CUT_SECONDS
+	_butcher_m["cut_seconds"] = seconds
+	if meat_hex != null:
+		meat_hex.pressed.emit()
+		var t0 := Time.get_ticks_msec()
+		await get_tree().create_timer(0.35).timeout
+		_check(corpse.cut_running and corpse.cutting_part() == &"raptor_meat", "the picked part is cutting")
+		await _capture("cutting")
+		var guard := 0
+		while corpse.cut_running and guard < 240:
+			await get_tree().process_frame
+			guard += 1
+		print("[gather_lab] cut finished in %.2f s (ring %.2f)" % [float(Time.get_ticks_msec() - t0) / 1000.0, corpse.cut_progress()])
+		_check(corpse.cuts_left == corpse.cuts_budget - 1, "the cut spent one of %d cuts (left %d)" % [corpse.cuts_budget, corpse.cuts_left])
+	picker.close()
+	# The budget is the survivor's; the lab takes what is left through the same picker, then the parts
+	# never cut stay on the carcass (lost when it despawns).
+	while corpse.cuts_left > 0 and corpse.loot.used_slots() > 0:
+		corpse.open_loot(_p)
+		await get_tree().process_frame
+		var pk = corpse.picker()
+		if pk == null:
+			break
+		var hex = null
+		for b in pk.part_buttons():
+			if not b.disabled:
+				hex = b
+				break
+		if hex == null:
+			pk.close()
+			break
+		hex.pressed.emit()
+		pk.close()
+		var g := 0
+		while corpse.cut_running and g < 240:
+			await get_tree().process_frame
+			g += 1
+	_butcher_m["cuts_left"] = corpse.cuts_left
 	await get_tree().create_timer(0.3).timeout
 	await _capture("butcher")
-	_check(_p.inventory.count_of(&"raptor_meat") > 0 and _p.inventory.count_of(&"raptor_hide") > 0 and _p.inventory.count_of(&"raptor_bone") > 0, "butchering gave meat, hide and bone")
-	print("[gather_lab] butchered %d units: meat %d hide %d bone %d" % [took, _p.inventory.count_of(&"raptor_meat"), _p.inventory.count_of(&"raptor_hide"), _p.inventory.count_of(&"raptor_bone")])
+	_check(_p.inventory.count_of(&"raptor_meat") > 0, "the chosen meat reached the bag")
+	_check(corpse.loot.used_slots() > 0, "the parts not cut stay on the carcass until it despawns")
+	print("[gather_lab] cut %d of %d: meat %d hide %d bone %d, still on the carcass %d slots" % [corpse.cuts_budget - corpse.cuts_left, corpse.cuts_budget, _p.inventory.count_of(&"raptor_meat"), _p.inventory.count_of(&"raptor_hide"), _p.inventory.count_of(&"raptor_bone"), corpse.loot.used_slots()])
 
 func _deplete_and_regrow(node: HarvestNode) -> void:
 	_p.global_position = node.global_position + Vector3(0, 1, 6)
@@ -462,10 +537,17 @@ func _bag_summary() -> String:
 	return ", ".join(parts)
 
 func _capture(stage: String) -> void:
-	if DisplayServer.get_name() == "headless" or _shot_base == "":
+	if DisplayServer.get_name() == "headless":
 		return
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
+	if _shot_dir != "":
+		var dir_path := _shot_dir.path_join("%s.png" % stage)
+		get_viewport().get_texture().get_image().save_png(dir_path)
+		print("[gather_lab] shot %s" % dir_path)
+		return
+	if _shot_base == "":
+		return
 	var path := "%s-%s.png" % [_shot_base, stage]
 	get_viewport().get_texture().get_image().save_png(path)
 	print("[gather_lab] shot %s" % path)
