@@ -1,10 +1,31 @@
 {
   "default_hit_frac": 0.55,
   "clips": {
-    "attack_primary": { "hit_frac": 0.42, "windup": false },
-	"attack_heavy": { "hit_frac": 0.72, "windup": true, "windup_hold": 0.6 },
-    "hit_react": { "speed": 2.0 },
-    "run": { "speed": 1.6 }
+    "attack_primary": {
+      "hit_frac": 0.42,
+      "windup": false
+    },
+    "attack_heavy": {
+      "hit_frac": 0.72,
+      "windup": true,
+      "windup_hold": 0.6
+    },
+    "hit_react": {
+      "speed": 2.0
+    },
+    "run": {
+      "speed": 1.6
+    },
+    "bite_combo": {
+      "hit_frac": 0.094,
+      "hit_fracs": [
+        0.094,
+        0.358,
+        0.811
+      ],
+      "windup": true,
+      "note": "chomp, Chomp, CHOMP: three bites, each wider with a harder lunge; the third has an 8-frame telegraphed wind-up (frames 28-35 of 54) so the player can roll through it. Authored for deinonychus (tools/jaw/make_combo.py)."
+    }
   },
   "natural_speeds": {
     "coelophysis": {
