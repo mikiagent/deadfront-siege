@@ -258,23 +258,61 @@ func _bag_for(primary: String, secondary: String, tertiary: String) -> Array[int
 	var rec: Dictionary = _data.recipes.get(&"improvised_stone_knife", {})
 	return CR.default_picks(bag, rec)
 
-## The card and the grid read InvAttributes: a gathered instance's rare attribute is a green pip.
+## The card, the grid and the pip read InvAttributes: a gathered instance's rare attribute is a green (rare)
+## row with INVUI's green, and the item crafted from it keeps that row.
 func _test_inspect() -> void:
-	var st = IS.make(&"stone", 1, {"level": 1, "climate": "temperate", "black_sheen": true}, 1)
-	var sec: Dictionary = IA.sections(st)
-	var rare: Array = sec.get("rare", [])
-	var rows: Array = CARD.rows_for(st)
-	var pip := false
-	for row: Variant in rows:
-		if row is Dictionary and str((row as Dictionary).get("cls", "")) == "rare":
-			pip = true
+	var st = IS.make(&"stone", 1, {"level": 1, "climate": "temperate"}, 1)
+	var plain = IS.make(&"stone", 1, {"level": 1, "climate": "temperate"}, 1)
+	var cfg_saved: Dictionary = LT.trait_cfg().duplicate(true)
+	var forced: Dictionary = cfg_saved.duplicate(true)
+	forced["chance"] = 1.0
+	LT._loot["rare_trait"] = forced
+	var bag = INV.new(8)
+	bag.add(st)
+	GS.stamp_traits(bag, {}, st, 1, _seeded(7))
+	LT._loot["rare_trait"] = cfg_saved
+	var gathered = bag.slots[0]
+	var key := _rare_of(gathered, &"stone")
+	_expect(key != "", "the gathered stone carries a rare attribute (%s)" % (gathered.attributes if gathered else null))
+	_check_pip(gathered, key, "the gathered instance")
+	_expect(not IA.has_rare(plain) and _rare_rows(plain) == 0, "a plain gathered instance shows no rare pip")
+	_expect(not (LT.material_traits(&"stone") as Array).has("wide_serration"), "the stone's list excludes a timber trait")
+	# The crafted item keeps the pip.
+	var rec: Dictionary = _data.recipes.get(&"improvised_stone_knife", {})
+	for i in _player.inventory.slot_count:
+		_player.inventory.slots[i] = null
+	_player.inventory.add(gathered)
+	_player.inventory.add(IS.make(&"branch", 1, {"level": 5}, 5))
+	_player.inventory.add(IS.make(&"reed", 1, {"level": 5}, 5))
+	var out = CR.commit_outcome(_player, rec, CR.default_picks(_player.inventory, rec), {"success": true, "flawless": false, "rare": &""})
+	_expect(out != null and _rare_of(out, &"stone") == key, "the crafted item keeps the gathered instance's rare attribute")
+	_check_pip(out, key, "the crafted item")
+
+## The inspect data, the card rows and the grid's rare mark for `st`'s rare attribute `key`.
+func _check_pip(st: Variant, key: String, what: String) -> void:
+	if st == null:
+		_expect(false, "%s is null" % what)
+		return
+	var rare: Array = IA.sections(st).get("rare", [])
+	var keys: Array[String] = []
+	for row: Variant in rare:
+		keys.append(str((row as Dictionary).get("key", "")))
 	var green: Color = CARD.color_of("rare")
-	print("[t_rareattr] inspect rare=%s green=%s rows=%s" % [rare, green.to_html(false), rows])
-	_expect(rare.size() == 1 and str((rare[0] as Dictionary).get("key", "")) == "black_sheen", "the inspect data puts the gathered rare attribute in the rare section (%s)" % [rare])
-	_expect(pip, "the item card shows it as a rare (green) row (%s)" % [rows])
+	print("[t_rareattr] %s: rare %s, green %s, rows %s" % [what, keys, green.to_html(false), CARD.rows_for(st)])
+	_expect(key in keys and keys.size() == 1, "%s's inspect data has its rare attribute in the rare section and no other (%s)" % [what, keys])
+	_expect(_rare_rows(st) == 1, "%s's card shows exactly one rare (green) row (%s)" % [what, CARD.rows_for(st)])
+	_expect(IA.has_rare(st), "%s carries the grid's rare mark" % what)
 	# Spec 13:50/291's green, INVUI's InvTheme.RARE.
 	_expect(green == IA.COLORS["rare"] and green.g > green.r and green.g > green.b and green == Color("#67B84E"),
 		"the rare class draws INVUI's green #67B84E (%s)" % green.to_html(false))
+
+## Rows of `st`'s card with the rare class.
+func _rare_rows(st: Variant) -> int:
+	var n := 0
+	for row: Variant in CARD.rows_for(st):
+		if row is Dictionary and str((row as Dictionary).get("cls", "")) == "rare":
+			n += 1
+	return n
 
 func _finish() -> void:
 	if _fails.is_empty():
