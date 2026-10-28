@@ -172,7 +172,7 @@ func _ready() -> void:
 				player.statuses.apply(&"bleed_3")
 				if Game.shot_path.contains("poison"):
 					player.statuses.apply(&"venom"))
-	if Game.shot_path.contains("hudrules"):  # HUDRULES captures: bleed, Well Rested, a food buff (HudrulesShot)
+	if Game.shot_path.contains("hudrules") or Game.shot_path.contains("titles"):  # HUDRULES captures: bleed, Well Rested, a food buff (HudrulesShot)
 		get_tree().create_timer(0.6).timeout.connect(func () -> void: HudrulesShot.stage(self))
 	get_viewport().size_changed.connect(_layout)
 	_layout()
@@ -1622,9 +1622,7 @@ func _draw() -> void:
 	# Not under the pet radial: its see-through centre shows the pet, and the ring cut the name in two.
 	if cam and not (player.pets.menu and player.pets.menu.visible):
 		drawn_blocks["nameplate"] = HudLayout.nameplate_rect(cam, player, _font)
-		var at := (drawn_blocks["nameplate"] as Rect2).position + Vector2(0.0, NAME_PX)
-		draw_string(_font, at + Vector2.ONE, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0, 0, 0, 0.7))
-		draw_string(_font, at, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0.95, 0.95, 0.95))
+		HudLayout.draw_nameplate(self, _font, drawn_blocks["nameplate"], player)
 	_status_fx.draw_tint(self, player, HudLayout.figure_rect(self))
 	_draw_bites(cam)
 	# --- level-up: a gold stack top-left under the bars; on a landscape phone a short banner in the

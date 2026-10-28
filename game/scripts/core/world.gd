@@ -33,6 +33,8 @@ var raid_victory: bool = false ## persists only a player/pet T-rex kill on volca
 var objective_best: int = 0 ## high-water progress on the current order (materials get spent)
 var _objective_acc: float = 0.0
 var player_name: String = ""
+## The title she chose to wear over her name (a titles.json value); "" = none. Saved as "player_title".
+var player_title: String = ""
 ## Character creation's look (CharacterLook: gender, height, colours, parts, portrait); saved as "character_look".
 var look: Dictionary = {}
 var occupation: String = ""  # gathers +1, crafts +10, buildings +15; bar wraps every 100 (ASSUMPTION)
