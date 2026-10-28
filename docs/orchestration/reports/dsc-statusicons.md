@@ -121,6 +121,9 @@ gate conf. Everything the gate checks before the scope step passes.
   cannot pass. Either widen the scope to `game/assets/icons/ui/` for icon jobs or make
   `_src/build.py --check` the only entry point (the same file is what the previous icon task,
   `9d705512`/`2a4eb93e`, committed).
+- The seven new `*.svg.import` files are present in the worktree but untracked (the runner's
+  checkpoint only commits tracked files). Commit them with the SVGs or Godot will re-import at its
+  defaults (64 px, no mipmaps) on a clean checkout and `t_uiicons` will fail the import assertions.
 - `game/data/ui_icons.json` gained exactly seven entries (ids=182 → 189); nothing else in it moved,
   and no id was re-pointed.
 - Nothing to merge for the HUD: `HudStatusChip.icon_for()` already reads the manifest, so the chips
