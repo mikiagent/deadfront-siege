@@ -689,7 +689,8 @@ func _check_planner() -> void:
 	for tier: String in RUNGS:
 		ids.append_array(_rung_tools(tier).map(func(id: String) -> String: return id if tier != "stone" or id != "stone_knife_work" else "improvised_stone_knife"))
 	for rid: String in ids:
-		var out: Variant = _craft(rid, 60)
+		# OUTPUTS: the stone rung's keyed recipes (outputs_by_primary) make their stone row from a stone head.
+		var out: Variant = _craft(rid, 60, "stone" if CR.recipe(StringName(rid)).has("outputs_by_primary") else "")
 		_expect(out != null and str(out.def_id) == str(CR.recipe(StringName(rid)).get("output", {}).get("id", "")), "planner crafts %s from walked materials" % rid)
 		if out != null and out.def() != null and out.def().tool_class == &"pick":
 			var want := str(rid).get_slice("_", 0) if rid != "work_pick" else ""

@@ -39,11 +39,31 @@ slot check and `CookRoles.apply_to_output` at the tail of the output build — p
   `roled_herb_roast` (main + topping + support) and `roled_salad` (two topping slots, no inheritance).
   Test: `game/tests/t_cookroles.gd`.
 
+## Outputs by primary material (OUTPUTS)
+
+One recipe can make a different item depending on the instance in its primary (slot 1) slot
+(docs/design/durango-informed-improvements.md §7). A recipe adds `outputs_by_primary`, a map from a key
+to an output row (`{"id", "count"}`); `output` stays as the fallback.
+
+- Lookup: `Crafting.output_for(recipe, slot1_instance)` in `game/scripts/items/crafting.gd`. It tries the
+  primary's item categories in def order, then its material tier (`ProgressionScaling.material_tier`), and
+  falls back to `output` when nothing matches or slot 1 is empty.
+- Everything reads the output through that function: `build_output` (so the preview, the offline craft,
+  `plan_fits`, `bag_preview` and the server `act.craft` op), and the craft screens through
+  `CraftUI.output_row` (D1 list and detail, D3 result card, the station radial).
+- Each output keeps its own item def (icon, mesh, stats). Slot-1 traits, `material_tier`, cook roles and
+  rare-attribute carry work as before.
+- `Data._load_recipes` logs an error when a keyed row names no item.
+- Converted: `improvised_stone_knife`, `work_axe` and `work_pick` (stone, plus bone → `bone_knife`, `bone_axe`,
+  `bone_pick`). `metal_shard` matches no key and falls back. The `bone_*` recipe rows stay for the tier
+  ladder. ASSUMPTION: a bone head on these recipes uses this recipe's cost and gate.
+- Test: `game/tests/t_outputs.gd`.
+
 ## Hand crafting
 
 | recipe | output | inputs | skill | min skill | ability target | recipe max_level | time (s) | process |
 |---|---|---|---|---|---|---|---|---|
-| `improvised_stone_knife` | Stone Work Knife x1 | blade_mat x1 (primary); handle x1; lashing x1 | weapon_tools | 0 | 0 | 60 | 2.0 | bind +1 |
+| `improvised_stone_knife` | Stone Work Knife x1 (by slot 1: stone → Stone Work Knife, bone → Bone Knife) | blade_mat x1 (primary); handle x1; lashing x1 | weapon_tools | 0 | 0 | 60 | 2.0 | bind +1 |
 | `club` | Wooden Club x1 | handle x1 (primary); lashing x1 | weapon_tools | 0 | 0 | 60 | 1.5 | bind +1 |
 | `bandage` | Bandage x1 | herb x1 (primary); cloth x1 | tailoring | 0 | 0 | 60 | 1.0 | bind +1 |
 | `pressure_dressing` | Pressure Dressing x1 | herb x1 (primary); cloth x2 | tailoring | 0 | 0 | 60 | 1.5 | bind +1 |
@@ -101,8 +121,8 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 
 | recipe | output | inputs | skill | min skill | ability target | recipe max_level | time (s) | process |
 |---|---|---|---|---|---|---|---|---|
-| `work_axe` | Work Axe x1 | blade_mat x1 (primary); handle x1; lashing x1 | weapon_tools | 0 | 0 | 60 | 3.0 | bind +1 |
-| `work_pick` | Work Pick x1 | blade_mat x1 (primary); handle x1; lashing x1 | weapon_tools | 0 | 0 | 60 | 3.0 | bind +1 |
+| `work_axe` | Work Axe x1 (by slot 1: stone → Work Axe, bone → Bone Axe) | blade_mat x1 (primary); handle x1; lashing x1 | weapon_tools | 0 | 0 | 60 | 3.0 | bind +1 |
+| `work_pick` | Work Pick x1 (by slot 1: stone → Work Pick, bone → Bone Pick) | blade_mat x1 (primary); handle x1; lashing x1 | weapon_tools | 0 | 0 | 60 | 3.0 | bind +1 |
 | `rope` | Rope x1 | twine x3 (primary) | processing | 0 | 0 | 60 | 2.0 | twist +1 |
 | `cloth` | Cloth x1 | thread x2 (primary) | tailoring | 0 | 0 | 60 | 2.0 | twist +1 |
 | `hide_strap` | Hide Strap x2 | dried_hide x1 (primary) | processing | 0 | 0 | 60 | 2.0 | split +1 |
