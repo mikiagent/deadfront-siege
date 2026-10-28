@@ -398,6 +398,34 @@
    ],
    "quality": "procedural_v1"
   },
+  "bronze_cuirass": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bronze_cuirass",
+   "png": "res://assets/icons/render/bronze_cuirass.png",
+   "sha256": "68a956fee6b47bbe415506f75ba57842f53c985f42ee14d3539c2ed7357e2a0f",
+   "bytes": 45044,
+   "rect": [
+    37,
+    19,
+    183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bronze_helm": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bronze_helm",
+   "png": "res://assets/icons/render/bronze_helm.png",
+   "sha256": "47618a9392451604f8e95c99cc52241729313441723a684333e4938f738621e0",
+   "bytes": 42810,
+   "rect": [
+    19,
+    29,
+    218,
+    198
+   ],
+   "quality": "procedural_v1"
+  },
   "bronze_ingot": {
    "script": "tools/blender/items/resources.py",
    "builder": "bronze_ingot",
@@ -788,6 +816,34 @@
     21,
     218,
     214
+   ],
+   "quality": "procedural_v1"
+  },
+  "copper_cuirass": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "copper_cuirass",
+   "png": "res://assets/icons/render/copper_cuirass.png",
+   "sha256": "c67f1b7729603f1ca2a8e044189bbb3896e31162f422aa6fb785232dc2504439",
+   "bytes": 44824,
+   "rect": [
+    37,
+    19,
+    183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "copper_helm": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "copper_helm",
+   "png": "res://assets/icons/render/copper_helm.png",
+   "sha256": "13bbb07b7cea3b8b4efdec4e6781a903ca75fad24b8aa17ee61384253a5cbe53",
+   "bytes": 42866,
+   "rect": [
+    19,
+    29,
+    218,
+    198
    ],
    "quality": "procedural_v1"
   },
@@ -1537,6 +1593,34 @@
    ],
    "quality": "procedural_v1"
   },
+  "iron_cuirass": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "iron_cuirass",
+   "png": "res://assets/icons/render/iron_cuirass.png",
+   "sha256": "2ba44b13a78090f0d4cbee94820131daf474ad631d7fad64d275f88e290c9cec",
+   "bytes": 41951,
+   "rect": [
+    37,
+    19,
+    183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "iron_helm": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "iron_helm",
+   "png": "res://assets/icons/render/iron_helm.png",
+   "sha256": "69ce2549057b8e3274db9701f8b42ab635e93ad58809edbde146480d0b8811cc",
+   "bytes": 45125,
+   "rect": [
+    19,
+    29,
+    218,
+    198
+   ],
+   "quality": "procedural_v1"
+  },
   "iron_ingot": {
    "script": "tools/blender/items/resources.py",
    "builder": "iron_ingot",
@@ -1605,6 +1689,34 @@
     43,
     218,
     170
+   ],
+   "quality": "procedural_v1"
+  },
+  "leather_cuirass": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "leather_cuirass",
+   "png": "res://assets/icons/render/leather_cuirass.png",
+   "sha256": "cf039c4cab539cb3ecd234c5740388ffae13084d74dc4cbb2b062ca0491ad4ba",
+   "bytes": 40284,
+   "rect": [
+    37,
+    19,
+    183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "leather_helm": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "leather_helm",
+   "png": "res://assets/icons/render/leather_helm.png",
+   "sha256": "93dc36baa06cd90d8288c3b1e7bb69bcc33f65c54f3908ac0fb57f960660f2e4",
+   "bytes": 43225,
+   "rect": [
+    19,
+    29,
+    218,
+    198
    ],
    "quality": "procedural_v1"
   },
@@ -2521,6 +2633,34 @@
    ],
    "quality": "procedural_v1"
   },
+  "steel_cuirass": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "steel_cuirass",
+   "png": "res://assets/icons/render/steel_cuirass.png",
+   "sha256": "a941f4e1c796556341700b61cb3df61db6289dfa40e741ab3e248b5ec862bb7d",
+   "bytes": 47163,
+   "rect": [
+    37,
+    19,
+    183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "steel_helm": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "steel_helm",
+   "png": "res://assets/icons/render/steel_helm.png",
+   "sha256": "0e560037f472e17b8c9d0795589c90e8e63d51fe7590e4fb5838e61b10bf840e",
+   "bytes": 43981,
+   "rect": [
+    19,
+    29,
+    218,
+    198
+   ],
+   "quality": "procedural_v1"
+  },
   "steel_ingot": {
    "script": "tools/blender/items/resources.py",
    "builder": "steel_ingot",
@@ -3047,28 +3187,18 @@
   "advanced_backpack",
   "basic_bag",
   "bronze_bracers",
-  "bronze_cuirass",
   "bronze_greaves",
-  "bronze_helm",
   "copper_bracers",
-  "copper_cuirass",
   "copper_greaves",
-  "copper_helm",
   "iron_bracers",
-  "iron_cuirass",
   "iron_greaves",
-  "iron_helm",
   "large_pouch",
   "leather_bracers",
-  "leather_cuirass",
   "leather_greaves",
-  "leather_helm",
   "small_pouch",
   "specialized_storage_bag",
   "steel_bracers",
-  "steel_cuirass",
   "steel_greaves",
-  "steel_helm",
   "woven_bag"
  ]
 }

@@ -693,7 +693,286 @@ def capture_net_v():
                  mat("#b8c0c8", 0.2, metal=0.95), 14, 30)
 
 
+# ---------------------------------------------------------------- ICONS4: armour tiers + bags
+# Five materials x four slots. Each slot keeps one silhouette across its tiers (so a helm always reads
+# as a helm) and the material carries the tier: leather is stitched hide lames with bone studs, the
+# metals are riveted plate in the same palette as their ingots. No body parts, no head inside a helm
+# (the raid_* set is the hidden "raider" variant).
+
+ARMOUR = {
+    "leather": lambda: hidem("#8a5a32", "#5e3a1e"),
+    "copper": lambda: metal("#d07a3e", 0.3),
+    "bronze": lambda: metal("#c99a3e", 0.3),
+    "iron": lambda: mat("#6a6e74", 0.45, metal=0.85, color2="#4a4e54", tex="noise", scale=12.0, bump=0.3),
+    "steel": lambda: mat("#dfe8f2", 0.12, metal=0.95, color2="#8fa0b4", tex="noise", scale=6.0, bump=0.04),
+}
+
+
+def _armour_helm(name):
+    """Helm: a domed cap with a studded rim band round its base, a crown band arching front-to-back
+    over the top and a nasal hung from the rim: the two crossing bands are what read as a helmet at
+    slot size (a bare dome reads as a bowl and hanging cheek flaps read as legs). No head inside;
+    the raid_* helm is the hidden "raider" variant."""
+    m = ARMOUR[name]()
+    lea = name == "leather"
+    trim = bonem("#e4d6b0") if lea else mat("#c8d0d8", 0.3, metal=0.9)
+    stud = bonem("#e4d6b0") if lea else mat("#b8c0c8", 0.25, metal=0.9)
+    # Skull: a dome with a slight outward flare at the rim, open at the neck.
+    lathe([(0, 1.04), (0.4, 0.99), (0.64, 0.88), (0.8, 0.64), (0.9, 0.36), (0.96, 0.14), (1.0, 0.02),
+           (0.9, -0.02), (0.86, 0.16), (0.78, 0.38), (0.68, 0.64), (0.52, 0.84), (0.3, 0.96), (0, 1.0)],
+          m=m, segs=32)
+    # Rim band round the base.
+    rim = [(0.92 * math.cos(math.radians(a)), 0.92 * math.sin(math.radians(a)), 0.07) for a in range(0, 360, 12)]
+    tube(rim, 0.075, trim, segs=6, closed=True)
+    for k in range(8):
+        a = math.radians(k * 45 + 18)
+        ball(0.04, loc=(0.95 * math.cos(a), 0.95 * math.sin(a), 0.09), m=stud, sub=2)
+    # Crown band: a wide strip over the dome, front rim to back rim, proud of the surface.
+    prof = [(0.0, 1.04), (0.4, 0.99), (0.64, 0.88), (0.8, 0.64), (0.9, 0.36), (0.96, 0.14), (1.0, 0.02)]
+    outer, inner = [], []
+    for (r, z) in prof:
+        d = math.hypot(r, z - (-0.02)) or 1.0
+        ux, uz = r / d, (z + 0.02) / d
+        outer.append((r + 0.05 * ux, z + 0.05 * uz))
+        inner.append((r - 0.07 * ux, z - 0.07 * uz))
+    band = [(y, z) for (y, z) in outer] + [(y, z) for (y, z) in reversed(inner)]
+    band = band + [(-y, z) for (y, z) in reversed(band)]  # mirror to the other half of the arch
+    prism(band, 0.17, rot=(0, 0, 90), m=trim, bev=0.01)
+    # Nasal: a plate hung from the front of the rim band, angled out over the face.
+    prism([(-0.1, 0.12), (0.1, 0.12), (0.085, -0.34), (0.0, -0.46), (-0.085, -0.34)], 0.09,
+          loc=(0, -0.9, 0.02), rot=(8, 0, 0), m=trim, bev=0.012)
+    if lea:  # stitched seam down each side of the crown band
+        for sgn in (-1, 1):
+            for z in (0.9, 0.78, 0.62):
+                tube([(sgn * 0.12, -0.32 + 0.2 * (0.9 - z), z), (sgn * 0.16, -0.3 + 0.2 * (0.9 - z), z + 0.03)],
+                     0.014, mat("#e8dcc0", 0.85), segs=4)
+    turn(-16)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def _armour_cuirass(name):
+    """Cuirass: a breastplate seen face-on, its chest plane bulged toward the camera, a neck notch,
+    three lames stepped across the waist and shoulder straps with studs: leather is stitched hide,
+    metal is riveted plate (the same material as its ingot)."""
+    m = ARMOUR[name]()
+    lea = name == "leather"
+    stud = bonem("#e4d6b0") if lea else mat("#b8c0c8", 0.25, metal=0.9)
+    seam = mat("#e8dcc0", 0.85) if lea else mat("#c8d0d8", 0.25, metal=0.9)
+    bulge = 0.55
+
+    def front(co):
+        co.y -= bulge * co.x * co.x + 0.18 * co.z * co.z
+    # Chest plate: a tall shield outline with a neck notch and armholes.
+    chest = [(-0.72, 0.62), (-0.5, 0.86), (-0.24, 0.9), (-0.16, 0.72), (0.16, 0.72), (0.24, 0.9), (0.5, 0.86),
+             (0.72, 0.62), (0.68, 0.1), (0.62, -0.3), (0.0, -0.44), (-0.62, -0.3), (-0.68, 0.1)]
+    prism(chest, 0.22, m=m, bev=0.03, deform=front)
+    # Three lames across the waist, each a little wider, stepped forward.
+    for i in range(3):
+        w = 0.6 + 0.04 * i
+        z = -0.16 - 0.16 * i
+        lame = [(-w, z + 0.09), (-w * 0.9, z + 0.13), (0, z + 0.15), (w * 0.9, z + 0.13), (w, z + 0.09),
+                (w * 0.86, z - 0.08), (0, z - 0.1), (-w * 0.86, z - 0.08)]
+        prism(lame, 0.2, m=m, bev=0.025, deform=front)
+        for sgn in (-1, 1):
+            ball(0.045, loc=(sgn * w * 0.78, -0.22 - bulge * (w * 0.78) ** 2, z + 0.02), m=stud, sub=2)
+    # Shoulder straps: two thick loops over the top, each with a stud.
+    for sgn in (-1, 1):
+        tube(arc((sgn * 0.46, 0.0, 0.82), 0.26, 150 if sgn < 0 else -30, 250 if sgn < 0 else 30, 10, plane="xz"),
+             0.055, m, segs=6, taper=(1.0, 0.85))
+        for k in range(2):
+            ball(0.04, loc=(sgn * 0.5, -0.1, 0.98 - 0.1 * k), m=stud, sub=2)
+    if lea:  # stitched seams: two rows of stitches down the chest and one round the lames
+        for z in (0.5, 0.3, 0.1):
+            for sgn in (-1, 1):
+                tube([(sgn * 0.3, -0.05 - bulge * 0.09, z), (sgn * 0.36, -0.05 - bulge * 0.13, z + 0.03)],
+                     0.014, seam, segs=4)
+    else:  # a ridge down the centre and a riveted border: the plate read
+        tube([(0, -0.05, 0.66), (0, -0.05 - bulge * 0.0, 0.1), (0, -0.05, -0.42)], 0.035, seam, segs=4)
+        for (x, z) in ((-0.6, 0.5), (-0.62, 0.1), (0.6, 0.5), (0.62, 0.1), (-0.4, 0.74), (0.4, 0.74)):
+            ball(0.04, loc=(x, -0.05 - bulge * x * x, z), m=stud, sub=2)
+    turn(-8)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def _armour_bracers(name):
+    """Bracers: one vambrace seen side-on: a tapered shell, wide flared cuff at the elbow and narrow
+    at the wrist, its inner face dark and visible at the wide end, two buckled straps. One arm, not
+    a floating pair (the ICONS2 lesson for worn arm pieces)."""
+    m = ARMOUR[name]()
+    lea = name == "leather"
+    stud = bonem("#e4d6b0") if lea else mat("#b8c0c8", 0.25, metal=0.9)
+    seam = mat("#e8dcc0", 0.85) if lea else mat("#c8d0d8", 0.25, metal=0.9)
+    dark = mat("#241a10", 1.0)  # the shadowed inside of the cuff
+    bulge = 0.45
+
+    def cupped(co):
+        co.y -= bulge * co.x * co.x
+    # Outline: tall at the elbow end (+Z), tapering to the wrist (-Z), the cuff flared outward.
+    shell = [(-0.62, 0.95), (0.62, 0.95), (0.52, 0.78), (0.4, 0.2), (0.3, -0.6), (0.36, -0.72),
+             (-0.36, -0.72), (-0.3, -0.6), (-0.4, 0.2), (-0.52, 0.78)]
+    prism(shell, 0.3, m=m, bev=0.03, deform=cupped)
+    # The cuff's inner face, recessed and dark, so the wide end reads open.
+    prism([(-0.5, 0.94), (0.5, 0.94), (0.44, 0.8), (-0.44, 0.8)], 0.2,
+          loc=(0, -0.03, 0.0), m=dark, bev=0.0, deform=cupped)
+    # Rolled lips on both ends.
+    for (z, w, r) in ((0.95, 0.62, 0.055), (-0.72, 0.36, 0.045)):
+        tube([(-w + 2 * w * i / 12, -bulge * (-w + 2 * w * i / 12) ** 2, z) for i in range(13)], r, m, segs=6)
+    # Two straps with proud buckles, and the seam.
+    for z in (0.35, -0.2):
+        w = 0.44 - 0.08 * (0.35 - z)
+        tube([(-w * 1.06 + 2 * w * 1.06 * i / 14,
+               -bulge * (-w * 1.06 + 2 * w * 1.06 * i / 14) ** 2 - 0.02, z) for i in range(15)], 0.038,
+             mat("#3e2412", 0.9) if lea else hidem("#4a2a16", "#2e1a0c"), segs=5)
+        box((0.17, 0.13, 0.1), loc=(w * 1.1, -bulge * (w * 1.1) ** 2 - 0.06, z), m=stud, bev=0.02)
+    if lea:  # cross-stitches down the seam
+        for z in (0.6, 0.1, -0.4):
+            tube([(-0.07, -0.05, z), (0.07, -0.05, z + 0.05)], 0.015, seam, segs=4)
+    else:  # a riveted seam line
+        for z in (0.6, 0.1, -0.4):
+            ball(0.038, loc=(0.0, -0.06, z), m=stud, sub=2)
+    turn(-16)
+    lean(-30)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def _armour_greaves(name):
+    """Greaves: one shin guard: a tall curved plate covering the front of the shin (its edges roll
+    back, the leg side is open), a knee cop sitting on top and two buckled straps. A single leg
+    piece, taller and narrower than a bracer; the raid pair is the hidden variant."""
+    m = ARMOUR[name]()
+    lea = name == "leather"
+    stud = bonem("#e4d6b0") if lea else mat("#b8c0c8", 0.25, metal=0.9)
+    seam = mat("#e8dcc0", 0.85) if lea else mat("#c8d0d8", 0.25, metal=0.9)
+    bulge = 0.5
+
+    def shell_bend(co):
+        co.y -= bulge * co.x * co.x
+    # Tall plate, wider at the knee, tapering to the ankle, its sides rolled back.
+    plate = [(-0.5, 1.15), (0.5, 1.15), (0.56, 0.95), (0.46, 0.2), (0.36, -0.75), (0.24, -1.05),
+             (-0.24, -1.05), (-0.36, -0.75), (-0.46, 0.2), (-0.56, 0.95)]
+    prism(plate, 0.26, m=m, bev=0.03, deform=shell_bend)
+    # Rolled edges down both sides, so the plate reads as bent sheet rather than a box.
+    for sgn in (-1, 1):
+        pts = [(sgn * 0.5, -bulge * 0.25, 1.15), (sgn * 0.56, -bulge * 0.31, 0.95),
+               (sgn * 0.46, -bulge * 0.21, 0.2), (sgn * 0.36, -bulge * 0.13, -0.75),
+               (sgn * 0.24, -bulge * 0.058, -1.05)]
+        tube(pts, 0.045, m, segs=6)
+    # Knee cop: a dome over the top edge.
+    lathe([(0, 0.0), (0.3, 0.0), (0.34, 0.12), (0.26, 0.26), (0, 0.3)], loc=(0, 0.05, 1.13), rot=(84, 0, 0), m=m,
+          segs=18)
+    # Straps and buckles, the buckle standing proud of the plate's curve.
+    for z in (0.5, -0.35):
+        w = 0.5 - 0.06 * (0.5 - z)
+        tube([(-w * 1.06 + 2 * w * 1.06 * i / 14,
+               -bulge * (-w * 1.06 + 2 * w * 1.06 * i / 14) ** 2 - 0.02, z) for i in range(15)], 0.04,
+             mat("#3e2412", 0.9) if lea else hidem("#4a2a16", "#2e1a0c"), segs=5)
+        box((0.18, 0.13, 0.11), loc=(w * 1.1, -bulge * (w * 1.1) ** 2 - 0.06, z), m=stud, bev=0.02)
+    if lea:  # cross-stitches down the centre
+        for z in (0.8, 0.3, -0.2, -0.7):
+            tube([(-0.07, -0.05, z), (0.07, -0.05, z + 0.05)], 0.015, seam, segs=4)
+    else:  # a riveted centre ridge
+        tube([(0, -0.06, 1.0), (0, -0.06, 0.0), (0, -0.06, -0.95)], 0.035, seam, segs=4)
+        for z in (0.8, 0.2, -0.4):
+            ball(0.038, loc=(0.0, -0.1, z), m=stud, sub=2)
+    turn(-14)
+    lean(-18)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def _armour(slot, name):
+    {"helm": _armour_helm, "cuirass": _armour_cuirass, "bracers": _armour_bracers,
+     "greaves": _armour_greaves}[slot](name)
+
+
+def leather_helm():
+    _armour("helm", "leather")
+
+
+def copper_helm():
+    _armour("helm", "copper")
+
+
+def bronze_helm():
+    _armour("helm", "bronze")
+
+
+def iron_helm():
+    _armour("helm", "iron")
+
+
+def steel_helm():
+    _armour("helm", "steel")
+
+
+def leather_cuirass():
+    _armour("cuirass", "leather")
+
+
+def copper_cuirass():
+    _armour("cuirass", "copper")
+
+
+def bronze_cuirass():
+    _armour("cuirass", "bronze")
+
+
+def iron_cuirass():
+    _armour("cuirass", "iron")
+
+
+def steel_cuirass():
+    _armour("cuirass", "steel")
+
+
+def leather_bracers():
+    _armour("bracers", "leather")
+
+
+def copper_bracers():
+    _armour("bracers", "copper")
+
+
+def bronze_bracers():
+    _armour("bracers", "bronze")
+
+
+def iron_bracers():
+    _armour("bracers", "iron")
+
+
+def steel_bracers():
+    _armour("bracers", "steel")
+
+
+def leather_greaves():
+    _armour("greaves", "leather")
+
+
+def copper_greaves():
+    _armour("greaves", "copper")
+
+
+def bronze_greaves():
+    _armour("greaves", "bronze")
+
+
+def iron_greaves():
+    _armour("greaves", "iron")
+
+
+def steel_greaves():
+    _armour("greaves", "steel")
+
+
 ITEMS = {
+    # dsc icons4: the armour tiers.
+    "leather_helm": leather_helm, "leather_cuirass": leather_cuirass, "leather_bracers": leather_bracers,
+    "leather_greaves": leather_greaves, "copper_helm": copper_helm, "copper_cuirass": copper_cuirass,
+    "copper_bracers": copper_bracers, "copper_greaves": copper_greaves, "bronze_helm": bronze_helm,
+    "bronze_cuirass": bronze_cuirass, "bronze_bracers": bronze_bracers, "bronze_greaves": bronze_greaves,
+    "iron_helm": iron_helm, "iron_cuirass": iron_cuirass, "iron_bracers": iron_bracers, "iron_greaves": iron_greaves,
+    "steel_helm": steel_helm, "steel_cuirass": steel_cuirass, "steel_bracers": steel_bracers,
+    "steel_greaves": steel_greaves,
     # dsc icons4: metal and bone tool tiers and capture nets III-V.
     "flint_knife": flint_knife, "flint_axe": flint_axe, "flint_pick": flint_pick, "flint_spear": flint_spear,
     "obsidian_knife": obsidian_knife, "obsidian_axe": obsidian_axe, "obsidian_pick": obsidian_pick,
