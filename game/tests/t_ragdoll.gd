@@ -310,7 +310,7 @@ func _test_settle_depth() -> void:
 			c.rotation.y = PI  # the review's case: heading 180, hit from its flank (-X)
 			src = Node3D.new()
 			root.add_child(src)
-			src.global_position = at - Vector3.RIGHT * 3.0
+			src.global_position = at + Vector3.RIGHT * 3.0
 		await _wait(0.4)
 		var sk: Skeleton3D = c.view.rig.skeleton if c.view.using_glb and c.view.rig else null
 		# The review's T. rex case was a blow from its flank (source at -X, heading 180): it buried

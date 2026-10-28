@@ -17,6 +17,11 @@ extends Node3D
 ##   [--rl-perf]                      4 simultaneous ragdolls on temperate_25: added physics ms
 ##   [--rl-shots=<dir>]               windowed: contact sheet per terrain + one PNG per case + a
 ##                                    settle sequence per case (hit react, falling, landing, frozen)
+##   [--shot-dir=<dir>]               the shared gate's flag: same as --rl-shots, and without an
+##                                    explicit sweep it runs the compact gate set (all species on
+##                                    flat ground, heading 0, the four blows) so it finishes in time.
+## A windowed run ends with exactly one measured line:
+##   [ragdoll] RESULT cases= ok= fallbacks= worst_skin_m= deep= shots= settle_s=
 ##   [--rl-phone=<png>]               windowed 844x390: one corpse under the game's iso camera
 ##   [--rl-cam=<elev>,<azimuth>]      shots from this camera angle (degrees) instead of the default
 
@@ -76,6 +81,15 @@ var _cam: Camera3D
 var _sheets: Dictionary = {}  # "<terrain>_p<page>" -> Image, 16 corpses per page in run order
 var _sheet_n: Dictionary = {}  # terrain -> corpses shot so far
 var _seqs: Dictionary = {}  # "species/terrain" -> Image (2x2 settle sequence)
+var _sweep_given := false  # an explicit --rl-species/-terrain/-headings/-blows was passed
+## Measured over every case, for the one RESULT line the gate reads.
+var _worst_skin := 0.0
+var _deep := 0
+var _settle_s := 0.0
+var _shots_n := 0
+var _cases_total := 0
+var _cases_ok := 0
+var _fallbacks_n := 0
 
 func _ready() -> void:
 	_species = SPECIES.duplicate()
@@ -86,18 +100,22 @@ func _ready() -> void:
 	var perf := false
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--rl-species="):
+			_sweep_given = true
 			_species.clear()
 			for s in a.substr(13).split(",", false):
 				_species.append(StringName(s))
 		elif a.begins_with("--rl-terrain="):
+			_sweep_given = true
 			_terrains.clear()
 			for t in a.substr(13).split(",", false):
 				_terrains.append(t)
 		elif a.begins_with("--rl-headings="):
+			_sweep_given = true
 			_headings.clear()
 			for h in a.substr(14).split(",", false):
 				_headings.append(int(h))
 		elif a.begins_with("--rl-blows="):
+			_sweep_given = true
 			_blows.clear()
 			for b in a.substr(11).split(",", false):
 				_blows.append(b)
@@ -127,10 +145,19 @@ func _ready() -> void:
 			_all_fallback = true
 		elif a.begins_with("--rl-shots="):
 			_shots = a.substr(11)
+		elif a.begins_with("--shot-dir="):
+			_shots = a.substr(11)
 		elif a.begins_with("--rl-cam="):
 			_cam_angles = Vector2(float(a.substr(9).get_slice(",", 0)), float(a.substr(9).get_slice(",", 1)))
 		elif a.begins_with("--rl-phone="):
 			_phone = a.substr(11)
+	if _shots != "" and not _sweep_given:
+		# The gate's windowed run: a compact sweep that still covers every species and every blow
+		# direction, and finishes inside the gate's alarm.
+		_terrains = ["flat"]
+		_headings = [0]
+	if _shots != "":
+		DirAccess.make_dir_recursive_absolute(_shots)
 	# The creature view only uses the stegosaurus GLB when asked (its in-game override stays).
 	CreatureView.allow_stegosaurus_rig = true
 	Game.debug_overlay = false  # no creature debug labels in the shots
@@ -306,6 +333,9 @@ func _run_cases() -> void:
 			var path := "%s/ragdoll_%s_%s.png" % [_shots, t, rm]
 			(_sheets[t] as Image).save_png(path)
 			print("[ragdoll_lab] sheet %s" % path)
+	_cases_total = cases.size()
+	_cases_ok = ok_count
+	_fallbacks_n = fallbacks.size()
 	var allowed := int(FALLBACK_MAX_FRAC * cases.size())
 	print("[ragdoll_lab] fallbacks %d/%d (max %d): %s" % [fallbacks.size(), cases.size(), allowed, ", ".join(fallbacks)])
 	if fallbacks.size() > allowed and not _all_fallback:
@@ -481,6 +511,8 @@ func _measure(c: Dictionary) -> bool:
 				break
 		var cl := RagdollSkin.clearance(get_world_3d().direct_space_state, pts, ex, 1, 2.0, TOUCH_M)
 		var gap := float(cl["min"])
+		_worst_skin = minf(_worst_skin, gap)
+		_deep += int(cl["below"])
 		line += " skin_min=%+.3fm below6cm=%d/%d conform=%+.2fm" % [gap, int(cl["below"]), int(cl["hits"]), rd.conform_m]
 		line += " lowest=[%s]" % _lowest_parts(mi, sk, maxi(1, verts / 6000), pts, ex)
 		if not finite:
@@ -538,6 +570,7 @@ func _measure(c: Dictionary) -> bool:
 			bad.append("corpse has no loot")
 	else:
 		bad.append("no corpse")
+	_settle_s = maxf(_settle_s, rd.settle_time)
 	print("[ragdoll_lab] %s %s" % ["ok  " if bad.is_empty() else "FAIL", line])
 	if not bad.is_empty():
 		_fail(tag, bad)
@@ -682,7 +715,30 @@ func _verdict(summary: String) -> void:
 	for f in _failures:
 		print("[ragdoll_lab] FAIL %s" % f)
 	print("[ragdoll_lab] %s %s" % ["PASS" if _failures.is_empty() else "FAIL", summary])
+	# The one line the shared gate reads. Every number is measured over the cases just run: the
+	# lowest posed skin against the terrain, how many sampled vertices are more than TOUCH_M under,
+	# how many PNGs went to the shot dir, and the slowest settle.
+	_shots_n = _count_shots()
+	print("[ragdoll] RESULT cases=%d ok=%d fallbacks=%d worst_skin_m=%.3f deep=%d shots=%d settle_s=%.2f" % [
+		_cases_total, _cases_ok, _fallbacks_n, _worst_skin, _deep, _shots_n, _settle_s])
 	get_tree().quit(0 if _failures.is_empty() else 1)
+
+## PNGs written to the shot dir (the gate wants at least MIN_SHOTS there).
+func _count_shots() -> int:
+	if _shots == "":
+		return 0
+	var d := DirAccess.open(_shots)
+	if d == null:
+		return 0
+	var n := 0
+	d.list_dir_begin()
+	var f := d.get_next()
+	while f != "":
+		if not d.current_is_dir() and f.ends_with(".png"):
+			n += 1
+		f = d.get_next()
+	d.list_dir_end()
+	return n
 
 # --- shots ------------------------------------------------------------------------------------
 

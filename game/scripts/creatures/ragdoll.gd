@@ -250,11 +250,14 @@ func _push() -> void:
 	# The whole body tips over its feet the way the blow pushes it: toward _dir, which for a flank
 	# blow is a roll onto the far flank and for a blow from ahead or behind is a pitch backward or
 	# forward (rolling about the long axis there threw the tail out sideways).
-	var tip := Vector3.UP.cross(_dir)
-	if tip.length_squared() < 1e-6:
-		tip = Vector3.UP.cross(_side)
-	var omega := tip.normalized() * float(imp.get("topple_k", 0.6)) * _w0
-	var shove := _dir * dv + Vector3.UP * dv * float(imp.get("up_frac", 0.1))
+	# The body rolls onto the flank away from the blow. A blow from ahead or behind picks no flank
+	# (it has to fall onto one anyway), so it gets a stronger straight shove instead: the carcass
+	# ends clearly behind/along the blow, not under the attacker.
+	var omega := Vector3.UP.cross(_side).normalized() * float(imp.get("topple_k", 0.6)) * _w0
+	# ASSUMPTION: a head-on or rear blow shoves the whole body this many times harder than a flank
+	# blow (the blow reaches through the trunk, not around it).
+	var head_on := absf(along) <= 0.2
+	var shove := _dir * dv * (float(imp.get("end_on_shove_k", 2.0)) if head_on else 1.0) + Vector3.UP * dv * float(imp.get("up_frac", 0.1))
 	for pb in rig.bodies:
 		pb.linear_velocity = omega.cross(pb.global_position - pivot) + shove
 		pb.angular_velocity = omega
