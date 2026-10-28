@@ -68,12 +68,71 @@
       "chase_speed_mult": 0.7,
       "tactics": {
         "_about": "TACTICS (owner 2026-10-28): circle at a stand-off ring, feint, lunge into a bite, telegraphed pounce, chomp combo where the species has the clip, back off below retreat_frac. Every number is an ASSUMPTION (first pass, not balanced). Cooldowns in seconds; distances centre to centre in metres (the prey's extra size is added).",
-        "attack_priority": [
+        "_sequences": "SEQUENCES (owner 2026-10-28): offence is built from movement. When a finisher (the last step) is off cooldown and affordable it picks one sequence by weight x the nature's tactic_w_<finisher>: backstep (short hop_back, at most one per sequence), strafe_left/right (the powerful strafe: an explosive dodge_left/right of strafe_m in the clip, ~0.42 s), then pounce, charge (run into a bite) or combo (leap-in into bite_combo). A pounce step out of range turns into a charge. The basic bite is a last resort: point blank (point_blank, after contact_after_s) or while chasing prey that walks away. While no finisher is ready it fills with hold / strafe / feint / hop back.",
+        "sequences": [
+          {
+            "name": "backstep_strafe_right_pounce",
+            "steps": [
+              "backstep",
+              "strafe_right",
+              "pounce"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "backstep_strafe_left_pounce",
+            "steps": [
+              "backstep",
+              "strafe_left",
+              "pounce"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "backstep_strafe_left_charge",
+            "steps": [
+              "backstep",
+              "strafe_left",
+              "charge"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "strafe_right_charge",
+            "steps": [
+              "strafe_right",
+              "charge"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "strafe_left_combo",
+            "steps": [
+              "strafe_left",
+              "combo"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "strafe_right_combo",
+            "steps": [
+              "strafe_right",
+              "combo"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "pounce",
+            "steps": [
+              "pounce"
+            ],
+            "weight": 1.0
+          }
+        ],
+        "point_blank": [
           "combo",
-          "pounce",
           "bite"
         ],
-        "_attacks": "Attack selection (owner 2026-10-28): every attack has its own cooldown (<move>_cd); the strongest off-cooldown, affordable (energy via try_special: combo, pounce), in-range attack in attack_priority goes. When nothing is ready it moves: backs off fast to the ring, strafes around it, sometimes flips direction or feints. The basic bite costs no energy and has the shortest cooldown.",
         "ring_m": 6.5,
         "circle_speed_frac": 1.0,
         "contact_after_s": 1.0,
@@ -88,7 +147,7 @@
         "feint_s": 0.7,
         "pounce_cd": 12.0,
         "pounce_min_m": 4.0,
-        "pounce_max_m": 9.0,
+        "pounce_max_m": 11.5,
         "pounce_telegraph_s": 0.8,
         "pounce_leap_s": 0.4,
         "pounce_radius_m": 1.6,
@@ -123,7 +182,7 @@
         "leap_in_s": 0.45,
         "leap_height_per_m": 0.2,
         "hop_cd": 3.5,
-        "max_retreat_m": 11.0,
+        "max_retreat_m": 12.0,
         "w_hold": 0.5,
         "w_strafe": 0.3,
         "w_feint": 0.1,
@@ -135,10 +194,16 @@
         "pounce_overshoot_m": 3.0,
         "pounce_miss_recover_s": 1.5,
         "max_basic_streak": 2,
-        "max_basic_share": 0.5,
+        "max_basic_share": 0.15,
         "_pounce": "The pounce is the big hit (pounce_mult x bite, ASSUMPTION 2.5) and stuns through the player's hurt stun (stun immunity still applies). It aims at the prey's predicted landing-time position (velocity lead) and overshoots by pounce_overshoot_m with pounce_overshoot_chance (Aggressive x tactic_overshoot_mult); a miss leaves pounce_miss_recover_s of punishable recovery.",
         "_antispam": "Basic-attack anti-spam (owner): at least one non-attack beat (hold, hop, feint, strafe) between two basics, at most max_basic_streak basics before a beat or a special; t_tactical checks basics <= max_basic_share of all actions.",
-        "_chase": "Prey moving away (> 1 m/s outward) is chased at full run (can_sprint permitting) or pounced when ready; hold/strafe/hop apply only while it stays engaged."
+        "_chase": "Prey moving away (> 1 m/s outward) is chased at full run (can_sprint permitting) or pounced when ready; hold/strafe/hop apply only while it stays engaged.",
+        "strafe_m": 2.5,
+        "strafe_s": 0.42,
+        "dodge_height_per_m": 0.12,
+        "charge_cd": 5.0,
+        "charge_max_s": 1.6,
+        "charge_speed_mult": 1.0
       }
     },
     "apex_raptor": {

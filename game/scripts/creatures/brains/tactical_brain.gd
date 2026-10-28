@@ -16,8 +16,11 @@ signal tactic(kind: StringName)
 signal tactic_hit(clip: StringName, index: int, mult: float)
 ## The attack-selection loop picked this move at distance d (it was the strongest one available).
 signal attack_chosen(move: StringName, d: float)
+## A combo sequence (tactics.sequences) started, and each of its steps as it starts.
+signal sequence_started(seq_name: String, steps: Array)
+signal sequence_step(step: StringName)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge"]
 
 var tac: Dictionary = {}
 var _cd: Dictionary = {}  ## move -> seconds until it may start again
@@ -50,6 +53,10 @@ var _pounce_landed := false
 var _overshot := false
 var _pounce_dir := Vector3.FORWARD
 ## AMBUSH (tactics.ambush): lurk beside tree cover, strike first with a long pounce out of it.
+## SEQUENCES (owner: "backstep -> strafe right -> pounce", "backstep -> strafe left -> charge").
+var _seq: Array = []
+var _seq_i := 0
+var _charge_bite := false
 var lurking := false
 var _cover := Vector3.ZERO
 var _cover_cd := 0.0
@@ -153,6 +160,8 @@ func _think(delta: float) -> void:
 		&"retreat": _retreat_tick(delta)
 		&"hop": _hop(delta)
 		&"hold": _hold(delta)
+		&"dodge": _dodge(delta)
+		&"charge": _charge(delta)
 
 ## AMBUSH: roam is lurking at cover (crouched by a tree near home), not wandering.
 func _roam(delta: float) -> void:
@@ -270,16 +279,16 @@ func _circle(delta: float) -> void:
 	creature.move_to(attack_target.global_position + _to_me().rotated(Vector3.UP, step) * ring_m() / cos(step))
 	# At the ring (or with prey that followed it into its jaws after a beat of backing off) the
 	# strongest attack that is ready goes; while everything cools down it keeps moving.
-	var at_ring := d >= ring_m() - 1.0
 	var in_jaws := d <= reach_to(attack_target) and _circle_t >= _t("contact_after_s", 1.0)
-	if (at_ring or in_jaws) and _strike(d):
+	if _offence(d, in_jaws):
 		return
 	_left -= delta
 	if _left <= 0.0:
 		_move_beat()
 
 func _can_swing() -> bool:
-	return not creature.anim._busy and creature.stagger_left <= 0.0 and _pack_ready()
+	# The hold's alert pose never blocks a strike: it is a pose, not a commitment.
+	return (not creature.anim._busy or creature.anim.current_clip == &"alert") and creature.stagger_left <= 0.0 and _pack_ready()
 
 ## Attack moves, strongest first (ai.json tactics.attack_priority): combo, pounce, bite by default.
 func attack_priority() -> Array:
@@ -303,6 +312,8 @@ func attack_available(move: StringName, d: float) -> bool:
 			var at_hit := d + outward * (_t("pounce_telegraph_s", 0.8) + _clip_len(&"pounce", _t("pounce_leap_s", 0.4)) * CreatureClips._hit_frac(&"pounce"))
 			return creature.can_sprint() and creature.can_use_special(creature.special_cost(&"pounce")) \
 				and d >= _t("pounce_min_m", 4.0) and at_hit <= far + _size_excess(attack_target)
+		&"charge":
+			return creature.can_sprint()
 		&"bite":
 			# Anti-spam (owner: "what i want to avoid is basic attack spam"): a non-attack beat between
 			# two basics, and at most max_basic_streak basics before a beat or a special.
@@ -340,8 +351,151 @@ func _strike(d: float, only: Array = []) -> bool:
 					_bite()
 				else:
 					_start_lunge(&"attack_primary")
+			&"charge":
+				_start_charge()
 		return true
 	return false
+
+## Weighted pick among tactics.sequences whose last (offensive) step is ready: off its cooldown and
+## affordable. Weight = the row's weight x the nature's tactic_w_<last step> (Aggressive charges more,
+## Timid pounces more). {} when nothing is ready (the cooling fillers take over).
+func pick_sequence(d: float) -> Dictionary:
+	var rows: Array = tac.get("sequences", [])
+	var total := 0.0
+	var ok: Array = []
+	for row in rows:
+		var steps: Array = (row as Dictionary).get("steps", [])
+		if steps.is_empty():
+			continue
+		var last := StringName(steps[-1])
+		if not _terminal_ready(last, d):
+			continue
+		var w := float((row as Dictionary).get("weight", 1.0)) * creature.nature_knob("tactic_w_" + str(last), 1.0)
+		if w <= 0.0:
+			continue
+		ok.append([row, w])
+		total += w
+	if ok.is_empty():
+		return {}
+	var r := randf() * total
+	for pair in ok:
+		r -= float(pair[1])
+		if r <= 0.0:
+			return pair[0]
+	return ok[-1][0]
+
+## The sequence's finisher can go once the steps before it have run: its cooldown, energy and sprint.
+func _terminal_ready(last: StringName, d: float) -> bool:
+	if not _ready_to(last) or not _can_swing() or _wide_left > 0.0 or _open_left > 0.0:
+		return false
+	match last:
+		&"pounce":
+			return creature.can_sprint() and creature.can_use_special(creature.special_cost(&"pounce"))
+		&"combo":
+			return creature.anim.has_state(&"bite_combo") and creature.can_use_special(creature.special_cost(&"bite_combo")) and creature.can_sprint()
+		&"charge":
+			return creature.can_sprint() and _ready_to(&"bite")  # it ends in a bite
+	return false
+
+## The offensive pick from the ring or a hold: the ambush opener while it waits for its pounce, point
+## blank the combo (or, last resort, the bite), else a sequence whose finisher is ready.
+func _offence(d: float, in_jaws: bool) -> bool:
+	if _open_left > 0.0:
+		return _strike(d, ["pounce"])
+	if in_jaws and _strike(d, tac.get("point_blank", ["combo", "bite"])):
+		return true
+	return _start_sequence(d)
+
+func _start_sequence(d: float) -> bool:
+	var row := pick_sequence(d)
+	if row.is_empty():
+		return false
+	_seq = (row.get("steps", []) as Array).duplicate()
+	_seq_i = 0
+	var last := StringName(_seq[-1])
+	attack_chosen.emit(last, d)
+	_start_cd(last)  # committed: the finisher's cooldown runs from the pick
+	sequence_started.emit(str(row.get("name", "")), _seq)
+	_log("[ai] %s sequence %s" % [creature.def.id, _seq])
+	_seq_next()
+	return true
+
+## Start the next step; the finisher hands over to the normal attack flow (and its one back-off).
+func _seq_next() -> void:
+	if _seq_i >= _seq.size():
+		_seq = []
+		_enter_circle()
+		return
+	var step := StringName(_seq[_seq_i])
+	_seq_i += 1
+	sequence_step.emit(step)
+	match step:
+		&"backstep":
+			if can_disengage():
+				_start_hop(&"seq")
+			else:
+				_seq_next()
+		&"strafe_left", &"strafe_right":
+			_start_dodge(1.0 if step == &"strafe_right" else -1.0)
+		&"pounce":
+			var d := _flat_dist(attack_target)
+			if d >= _t("pounce_min_m", 4.0) and d <= _t("pounce_max_m", 8.0) + _size_excess(attack_target):
+				_cd[&"pounce"] = 0.0  # its cooldown was committed at the pick; _start_pounce restarts it
+				_start_pounce()
+			elif _ready_to(&"bite"):
+				_start_charge()  # out of pounce range after the reposition: run it down instead
+			else:
+				_seq = []
+				_enter_circle()
+		&"charge":
+			_start_charge()
+		&"combo":
+			if _flat_dist(attack_target) <= reach_to(attack_target) and creature.try_special(&"bite_combo"):
+				_combo()
+			else:
+				_start_lunge(&"bite_combo")
+		_:
+			_seq_next()
+
+## The powerful strafe: an explosive sideways dodge (dodge_left/right, else the strafe loop) of
+## strafe_m across the prey's line, landing still facing it.
+func _start_dodge(side: float) -> void:
+	_beat()
+	_just_disengaged = false
+	_set_state(&"dodge")
+	var facing := -_to_me()
+	var right := Vector3(-facing.z, 0.0, facing.x)
+	var clip := &"dodge_right" if side > 0.0 else &"dodge_left"
+	if not creature.anim.has_state(clip):
+		clip = &"strafe_right" if side > 0.0 else &"strafe_left"
+	creature.stop_move()
+	_jump_begin(creature.global_position + right * side * _t("strafe_m", 2.5), clip, _t("strafe_s", 0.42), 0.0, _t("dodge_height_per_m", 0.12))
+	tactic.emit(&"dodge")
+
+func _dodge(delta: float) -> void:
+	creature.face_towards(attack_target.global_position, delta)
+	if not _jump_tick(delta):
+		return
+	_jump_end()
+	_seq_next() if not _seq.is_empty() else _enter_circle()
+
+## Charge: run straight at the prey (the run clip) into a bite.
+func _start_charge() -> void:
+	_set_state(&"charge")
+	_left = _t("charge_max_s", 1.6)
+	_just_disengaged = false
+	_seq = []
+	tactic.emit(&"charge")
+
+func _charge(delta: float) -> void:
+	_left -= delta
+	if creature.can_sprint():
+		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.0)
+	creature.move_to(attack_target.global_position)
+	if _flat_dist(attack_target) <= reach_to(attack_target) - 0.1 and (not creature.anim._busy) and creature.stagger_left <= 0.0:
+		_bite(true)
+	elif _left <= 0.0:
+		_enter_circle()
 
 ## Nothing ready: one weighted pick among hold (stand its ground facing the prey, alert pose), strafe,
 ## feint and hop back (owner: "it should be holding its ground sometimes too"). A back-leap needs its
@@ -399,7 +553,7 @@ func _hold(delta: float) -> void:
 	creature.stop_move()
 	creature.face_towards(attack_target.global_position, delta)
 	var d := _flat_dist(attack_target)
-	if (d >= ring_m() - 1.0 or d <= reach_to(attack_target)) and _strike(d):
+	if _offence(d, d <= reach_to(attack_target)):
 		return
 	_left -= delta
 	if _left <= 0.0:
@@ -464,17 +618,20 @@ func _lunge(delta: float) -> void:
 	elif _left <= 0.0:
 		_back_off() if _flat_dist(attack_target) < ring_m() - 1.0 else _enter_circle()
 
-func _bite() -> void:
+## charge: the bite that ends a charge (an offensive move, not a basic: no anti-spam beat needed).
+func _bite(charge: bool = false) -> void:
 	_just_disengaged = false
-	_beat_since_basic = false
-	_basic_streak += 1
+	_charge_bite = charge
+	if not charge:
+		_beat_since_basic = false
+		_basic_streak += 1
 	creature.stop_move()
 	creature.anim.play_clip(&"attack_primary")
 	last_bite_s = _now_s()
 	_start_cd(&"bite")
 	_set_state(&"attack")
 	_mark_pack()
-	tactic.emit(&"bite")
+	tactic.emit(&"charge_bite" if charge else &"bite")
 
 func _combo() -> void:
 	_just_disengaged = false
@@ -606,16 +763,23 @@ func _clip_len(clip: StringName, fallback: float) -> float:
 ## One leap (pounce, leap-in, hop_back, leap_back) from here to `to`. With the clip the body moves only
 ## inside its airborne fracs (anim_events <clip>.airborne); without it the heavy clip is retimed over
 ## fallback_s and land_s follows. The arc height scales with the distance (leap_height_per_m).
-func _jump_begin(to: Vector3, clip: StringName, fallback_s: float, land_s: float) -> void:
+func _jump_begin(to: Vector3, clip: StringName, fallback_s: float, land_s: float, height_per_m: float = -1.0) -> void:
 	_j_from = creature.global_position
 	_j_to = to
 	_j_t = 0.0
-	_j_height = _t("leap_height_per_m", 0.2) * Vector2(to.x - _j_from.x, to.z - _j_from.z).length()
+	_j_height = (height_per_m if height_per_m >= 0.0 else _t("leap_height_per_m", 0.2)) * Vector2(to.x - _j_from.x, to.z - _j_from.z).length()
 	_j_timed = not creature.anim.has_state(clip)
 	if _j_timed:
 		creature.anim.play_timed_attack(&"attack_heavy", fallback_s)
 		_j_len = fallback_s + land_s
 		_j_air = Vector2(0.0, fallback_s / maxf(0.01, _j_len))
+		return
+	if clip in CreatureClips.LOOPING:
+		# A loop stands in (no dodge clip): played fast over fallback_s, the body moving the whole time.
+		creature.anim.play_clip(clip)
+		_j_len = fallback_s + land_s
+		_j_air = Vector2(0.0, fallback_s / maxf(0.01, _j_len))
+		_j_height = 0.0
 		return
 	creature.anim.play_clip(clip)
 	_j_len = creature.anim.player.get_animation(clip).length / maxf(0.01, creature.anim.cadence(clip))
@@ -638,7 +802,7 @@ func _jump_tick(delta: float) -> bool:
 func _jump_end() -> void:
 	if creature and creature.view:
 		creature.view.position.y = 0.0
-	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back"]:
+	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back", &"dodge_left", &"dodge_right"]:
 		creature.anim.release_oneshot()  # landed: the clip's last frame must not hold the next strike
 	if _j_timed:
 		_j_timed = false
@@ -674,6 +838,8 @@ func _hop(delta: float) -> void:
 	_jump_end()
 	if _hop_then == &"retreat":
 		_set_state(&"retreat")
+	elif _hop_then == &"seq":
+		_seq_next()
 	else:
 		_enter_circle()
 
@@ -714,7 +880,7 @@ func _retreat_tick(delta: float) -> void:
 func _on_state_changed(prev: StringName, _next: StringName) -> void:
 	if prev == &"pounce":
 		_end_pounce()
-	elif prev == &"hop" or prev == &"lunge":
+	elif prev == &"hop" or prev == &"lunge" or prev == &"dodge":
 		_jump_end()
 		_leaping = false
 

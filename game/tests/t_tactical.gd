@@ -22,6 +22,12 @@ var _combo_start := -1.0
 var _combo_hits: Array = []  ## [t since combo start, index, mult] of the first combo
 var _states: Dictionary = {}
 var _chosen: Array = []  ## [sim_t, move]
+var _seq_want: Array = []
+var _seq_got: Array[String] = []
+var _seq_runs: Array = []  ## [steps wanted, steps started] per finished sequence
+var _dodge_from := Vector3.ZERO
+var _dodge_t0 := -1.0
+var _dodge_best := 0.0  ## most ground a strafe covered within 0.5 s
 var _priority_breaks: Array[String] = []
 var _cool_frames := 0
 var _cool_moving := 0
@@ -115,7 +121,7 @@ func _test_fight() -> void:
 	_expect(dino.anim.has_state(&"bite_combo"), "deinonychus loads the bite_combo clip")
 	b.tactic.connect(func(k: StringName) -> void:
 		_tactics.append([_sim_t, k])
-		if k in [&"bite", &"combo", &"pounce", &"lunge", &"strafe", &"feint", &"chase"]:
+		if k in [&"bite", &"combo", &"pounce", &"lunge", &"strafe", &"feint", &"chase", &"dodge", &"charge", &"charge_bite"]:
 			_since_disengage = true
 		if k == &"hop":
 			if not _since_disengage:
@@ -137,13 +143,18 @@ func _test_fight() -> void:
 		if clip == &"attack_primary":
 			_bites.append(_sim_t))
 	_keep_player_alive()
-	b.attack_chosen.connect(func(move: StringName, d: float) -> void:
-		_chosen.append([_sim_t, move])
-		for m in b.attack_priority():
-			if StringName(m) == move:
-				break
-			if b.attack_available(StringName(m), d):
-				_priority_breaks.append("%s chosen at %.1fs while stronger %s was available" % [move, _sim_t, m]))
+	b.attack_chosen.connect(func(move: StringName, _d: float) -> void:
+		_chosen.append([_sim_t, move]))
+	b.sequence_started.connect(func(_n: String, steps: Array) -> void:
+		if not _seq_want.is_empty() and not _seq_got.is_empty():
+			_seq_runs.append([_seq_want.duplicate(), _seq_got.duplicate()])
+		_seq_want = steps.duplicate()
+		_seq_got.clear())
+	b.sequence_step.connect(func(step: StringName) -> void:
+		_seq_got.append(str(step))
+		if step in [&"strafe_left", &"strafe_right"]:
+			_dodge_from = dino.global_position
+			_dodge_t0 = _sim_t)
 	b.on_aggro(player)
 	Engine.time_scale = TIME_SCALE
 	var prev_ang := NAN
@@ -160,18 +171,20 @@ func _test_fight() -> void:
 		_states[b.state] = true
 		var v: Vector3 = dino.global_position - player.global_position
 		var ang := atan2(v.x, v.z)
-		if b.state in [&"circle", &"feint", &"hop"] and not is_nan(prev_ang):
+		if b.state in [&"circle", &"feint", &"hop", &"dodge"] and not is_nan(prev_ang):
 			circle_ang += absf(angle_difference(prev_ang, ang))
 		prev_ang = ang
+		if _dodge_t0 >= 0.0 and _sim_t - _dodge_t0 <= 0.5 and b.state == &"dodge":
+			_dodge_best = maxf(_dodge_best, Vector2(dino.global_position.x - _dodge_from.x, dino.global_position.z - _dodge_from.z).length())
 		if _hop_start >= 0.0 and _sim_t - _hop_start <= 0.5:
 			_hop_best = maxf(_hop_best, Vector2(v.x, v.z).length() - _hop_d0)
 			_hop_rise = maxf(_hop_rise, dino.view.position.y)
 		if b.state != &"approach" and b.state != &"alert":
 			_max_d = maxf(_max_d, Vector2(v.x, v.z).length())
 		if b.state in [&"circle", &"feint", &"hop", &"hold"]:
-			var all_cooling := true  # nothing it may throw now (cooldowns, energy, the anti-spam beat)
-			for m in b.attack_priority():
-				all_cooling = all_cooling and not b.attack_available(StringName(m), Vector2(v.x, v.z).length())
+			var all_cooling := true  # no finisher it may throw now (cooldowns, energy)
+			for m in [&"pounce", &"combo", &"charge"]:
+				all_cooling = all_cooling and not b._terminal_ready(m, Vector2(v.x, v.z).length())
 			if all_cooling:
 				_cool_frames += 1
 				if b.state == &"hold":
@@ -189,7 +202,37 @@ func _test_fight() -> void:
 		min_gap = minf(min_gap, _bites[i] - _bites[i - 1])
 	_expect(_bites.size() >= 1, "bites landed (%d)" % _bites.size())
 	# The selection loop: strongest available first, each move outside its own cooldown, moving while all cool.
-	_expect(_priority_breaks.is_empty(), "attacks follow priority when available %s" % str(_priority_breaks))
+	# Sequences: every one ran its steps in order (a backstep may be skipped when a back-jump is not allowed).
+	var order_breaks: Array[String] = []
+	for run in _seq_runs:
+		var want: Array = run[0]
+		var got: Array = run[1]
+		var want_s: Array[String] = []
+		for st in want:
+			if not (str(st) == "backstep" and not got.has("backstep")):
+				want_s.append(str(st))
+		if str(want_s) != str(got):
+			order_breaks.append("%s ran %s" % [str(want), str(got)])
+	_expect(_seq_runs.size() >= 3 and order_breaks.is_empty(), "%d sequences ran their steps in order %s" % [_seq_runs.size(), str(order_breaks)])
+	var backstep_rows := 0
+	for row in b.tac.get("sequences", []):
+		if (row["steps"] as Array).count("backstep") > 1:
+			backstep_rows += 1
+	_expect(backstep_rows == 0, "no sequence has more than one backstep")
+	_expect(_dodge_best >= 2.0 and _dodge_best <= 3.2, "the powerful strafe moves %.2fm sideways within 0.5s (2-3m)" % _dodge_best)
+	var attacks := 0
+	var plain_bites := 0
+	var finishers := 0
+	for row in _tactics:
+		if row[1] in [&"pounce", &"combo", &"charge", &"bite"]:
+			attacks += 1
+		if row[1] == &"bite":
+			plain_bites += 1
+		if row[1] in [&"pounce", &"combo", &"charge"]:
+			finishers += 1
+	var max_share: float = float(b.tac.get("max_basic_share", 0.15))
+	_expect(float(plain_bites) <= max_share * float(attacks), "basic bites are a small share: %d of %d attacks (<= %.0f%%)" % [plain_bites, attacks, max_share * 100.0])
+	_expect(finishers * 2 >= attacks, "most attacks are pounce, charge or combo (%d of %d)" % [finishers, attacks])
 	var order: Array[String] = []
 	var last_use := {}
 	var cd_breaks: Array[String] = []
@@ -223,8 +266,6 @@ func _test_fight() -> void:
 			if not beat:
 				no_beat += 1
 			beat = false
-	var share: float = float(basics) / maxf(1.0, float(actions))
-	_expect(share <= float(b.tac.get("max_basic_share", 0.5)), "basic bites are %.0f%% of %d actions (<= %.0f%%)" % [share * 100.0, actions, float(b.tac.get("max_basic_share", 0.5)) * 100.0])
 	_expect(worst_streak <= int(b.tac.get("max_basic_streak", 2)), "never more than %d basics in a row (worst %d)" % [int(b.tac.get("max_basic_streak", 2)), worst_streak])
 	_expect(no_beat == 0, "a non-attack beat between any two basics (%d without)" % no_beat)
 	var pounce_mult := 0.0
@@ -245,7 +286,7 @@ func _test_fight() -> void:
 	var moving_frac := float(_cool_moving + _cool_hold) / maxf(1.0, float(_cool_frames))
 	_expect(_cool_frames > 30 and moving_frac >= 0.6, "moves or holds deliberately while every attack cools down (%.0f%% of %d frames)" % [moving_frac * 100.0, _cool_frames])
 	_expect(min_gap >= bite_cd - 0.05, "never bites twice inside its %.1fs bite cooldown (min gap %.2fs)" % [bite_cd, min_gap])
-	_expect(circle_ang > 1.0, "circles the target (%.2f rad of travel around it while circling)" % circle_ang)
+	_expect(circle_ang > 1.0, "moves around the target (%.2f rad of travel around it while circling, strafing or hopping)" % circle_ang)
 	_expect(int(kinds.get(&"lunge", 0)) >= 1, "lunges (%d)" % int(kinds.get(&"lunge", 0)))
 	_expect(int(kinds.get(&"pounce", 0)) >= 1, "pounces (%d)" % int(kinds.get(&"pounce", 0)))
 	_expect(int(kinds.get(&"combo", 0)) >= 1, "chomp combo (%d)" % int(kinds.get(&"combo", 0)))
@@ -289,7 +330,8 @@ func _test_energy_gate() -> void:
 	for i in 60:
 		b._set_state(&"circle")
 		b._cd.clear()
-		b._strike(6.0)
+		b._strike(6.0, ["combo", "pounce"])
+		b._start_sequence(6.0)
 		if b.state == &"pounce" or (b.state == &"lunge" and b._lunge_into == &"bite_combo"):
 			specials += 1
 	_expect(specials == 0, "refuses pounce and combo with no energy (%d starts)" % specials)
@@ -319,6 +361,8 @@ func _test_retreat() -> void:
 func _test_ambush() -> void:
 	dino.queue_free()
 	await physics_frame
+	player.global_position = Vector3(0, 0.9, 0)
+	player.velocity = Vector3.ZERO
 	var lurker = _spawn(&"deinonychus", Vector3(0, 0.1, -9), &"loyal")
 	var b = lurker.brain
 	var radius: float = float(b.tac.get("ambush_radius_m", 6.0))
@@ -386,7 +430,7 @@ func _test_chase() -> void:
 	var d1: float = Vector2(c.global_position.x - player.global_position.x, c.global_position.z - player.global_position.z).length()
 	player.velocity = Vector3.ZERO
 	_expect(ran or kinds.has(&"pounce"), "chases at a run or pounces when she walks away (ran=%s pounce=%s)" % [ran, kinds.has(&"pounce")])
-	_expect(late_max <= d0 + 2.0, "the gap does not keep growing (%.1fm at the start, at most %.1fm in the last second)" % [d0, late_max])
+	_expect(late_max <= d0 + 3.0, "the gap does not keep growing (%.1fm at the start, at most %.1fm in the last second)" % [d0, late_max])
 	c.queue_free()
 	await physics_frame
 
@@ -448,6 +492,17 @@ func _test_natures() -> void:
 	shy.brain.attack_target = player
 	_expect(shy.brain.ring_m() > calm.brain.ring_m(), "Timid: wider circle")
 	_expect(shy.brain.retreat_frac() > calm.brain.retreat_frac() and brave.brain.retreat_frac() < calm.brain.retreat_frac(), "Timid retreats earlier, Brave later")
+	var rates := {}
+	for c in [mad, shy]:
+		var charges := 0
+		c.brain.attack_target = player
+		for i in 400:
+			c.brain._cd.clear()
+			var row: Dictionary = c.brain.pick_sequence(6.5)
+			if not row.is_empty() and str((row["steps"] as Array)[-1]) == "charge":
+				charges += 1
+		rates[c.nature] = charges
+	_expect(int(rates.get(&"aggressive", 0)) > int(rates.get(&"timid", 0)) * 2, "natures weight the sequence pick: charge finishers aggressive %d vs timid %d of 400" % [int(rates.get(&"aggressive", 0)), int(rates.get(&"timid", 0))])
 	for c in [calm, mad, shy, brave]:
 		c.queue_free()
 

@@ -11,7 +11,7 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"strafe_left", &"
 ## missing. bite_combo: deinonychus chomp, Chomp, CHOMP (three hit fracs in anim_events.json).
 ## hop_back / leap_back: short and long backward leaps, pounce: the forward leap (airborne fracs in
 ## anim_events); strafe_left/right and walk_back: direction-aware locomotion (CreatureAnim.set_move_velocity).
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"strafe_left", &"strafe_right", &"walk_back"]
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120
