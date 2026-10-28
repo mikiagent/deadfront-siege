@@ -66,6 +66,14 @@
     "climate_per_min": 4.0,
     "breakdown_window_s": 180.0
   },
+  "xp": {
+    "_about": "XPECON (islands-and-loop plan section 3.3 'XP economy' + 3.4 knobs): a gather pass pays gather_base + round(its own pass seconds), so a slower node or bare hands pays more and a better tool or skill pays less; a build pays build_first the first time that kit kind is ever placed (memory is World.pioneer_buildings, saved) and build_repeat after that; a build of the same kind within build_spam_radius_m of a standing one of its kind placed less than build_spam_seconds ago pays 0. The level curve stays World.xp_for_level.",
+    "gather_base": 1,
+    "build_first": 30,
+    "build_repeat": 8,
+    "build_spam_radius_m": 10.0,
+    "build_spam_seconds": 60.0
+  },
   "gathering_downrank": "node level above Gathering skill level is reduced to the skill level",
   "crafted_level": "floor(mean of consumed material levels), clamped by governing skill level and recipe max_level",
   "rare_attribute_chance": 0.05,

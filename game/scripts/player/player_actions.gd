@@ -21,6 +21,9 @@ var online: bool = false
 var sent: Array[Dictionary] = []
 var _corpse_slot: int = -1
 var _gather_unit_time: float = 1.0
+## XPECON: the seconds the last gather pass really took (tools and Gathering shorten it). The pass
+## pays rules.json xp.gather_base + round(this), so faster work pays less XP and slow work pays more.
+var _gather_pass_seconds: float = 1.0
 
 func _init(player: Player) -> void:
 	p = player
@@ -165,7 +168,10 @@ func finish_gather() -> void:
 		if stack.level > cap:
 			stack.level = cap
 			stack.attributes["level"] = cap
-		p.skills.add_xp("gathering", 2)
+		# XPECON (islands-and-loop 3.3/3.4): the pass pays 1 + round(its own seconds), so bare hands
+		# and a slow node pay more, a better tool or a higher Gathering level pay less. SkillState
+		# mirrors every grant into World.add_xp, so the character bar follows.
+		p.skills.add_xp("gathering", gather_pass_xp(_gather_unit_time))
 		if gt.family.begins_with("Rock") or gt.family == "clay":
 			p.skills.add_xp("processing", 1)
 	var attrs := stack.attributes.duplicate(true)
@@ -185,7 +191,7 @@ func finish_gather() -> void:
 		p._gather_radial.refresh()
 	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gt.pool_units_left(), gt.pool_max])
 	if p.skills == null:
-		World.add_xp(2)
+		World.add_xp(gather_pass_xp(_gather_unit_time))
 	p.toast(stack.def_id, gained)
 	p.vitals.add_fatigue(GATHER_FATIGUE_PER_UNIT, &"gather")
 	WaterAccess.soil(p, &"gather")
@@ -194,6 +200,13 @@ func finish_gather() -> void:
 		p.gather_target = null
 		return
 	_start_gather_cycle(_scaled_gather_seconds(gt))
+
+## XPECON (islands-and-loop 3.3/3.4): one gather pass pays rules.json xp.gather_base plus the pass's
+## own whole seconds, so the stone (4 s) and log (4 s) passes pay 5 and a berry pass (2 s) pays 3,
+## and a tool or a Gathering level that shortens the work shortens the award with it.
+static func gather_pass_xp(seconds: float) -> int:
+	var cfg: Dictionary = Data.world_rules.get("xp", {})
+	return int(cfg.get("gather_base", 1)) + int(roundf(maxf(0.0, seconds)))
 
 func _scaled_gather_seconds(node: HarvestNode) -> float:
 	return GatherService.unit_seconds(p, node)  # W2-GATHER: role tool helps, bare hands slower

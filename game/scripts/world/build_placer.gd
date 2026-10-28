@@ -619,9 +619,9 @@ func confirm(player: Player) -> bool:
 			print("[build] cleared %d prop(s) for %s" % [cleared, placing])
 	print("[build] placed %s at (%d,%d) rot=%d" % [placing, cell.x, cell.y, posmod(rot_step, 4) * 90])
 	if not _repacked:
-		if player.skills:
-			player.skills.add_xp("construction", 8)
-		World.note_building(placing)
+		# XPECON: one grant, sized by World.note_building (rules.json xp: first of kind, repeat, or
+		# 0 for the same kit spammed within 10 m of its twin inside 60 s).
+		World.note_building(placing, node.global_position, player)
 	_repacked = false
 	cancel()
 	return true

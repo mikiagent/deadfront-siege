@@ -171,7 +171,7 @@ func _rebuild() -> void:
 		var tail := "   Lv.%d   %s%s" % [rec.level, rec.grade, "   EQUIPPED" if _is_out(rec) else ""]
 		var fs := UiTokens.body(view)
 		var room := minf(300.0, _list.size.x - 32.0) - font.get_string_size(tail, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		b.text = UiTokens.ellipsis(font, rec.name if rec.name != "" else str(rec.species).capitalize(), room, fs) + tail
+		b.text = UiTokens.ellipsis(font, rec.name if rec.name != "" else _nature_species(rec), room, fs) + tail
 		b.clip_text = true
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.custom_minimum_size = Vector2(240, 56)
@@ -200,7 +200,7 @@ func _pin_active() -> void:
 			slot.text = "ACTIVE"
 			slot.add_theme_stylebox_override("normal", UiTokens.button_style(false))
 		else:
-			slot.text = UiTokens.ellipsis(ThemeDB.fallback_font, str(rec.species).capitalize(), 110.0, UiTokens.meta(view))
+			slot.text = UiTokens.ellipsis(ThemeDB.fallback_font, _nature_species(rec), 110.0, UiTokens.meta(view))
 			slot.add_theme_stylebox_override("normal", UiTokens.button_style(true))
 			var idx := player.bonded.find(rec)
 			if idx >= 0:
@@ -240,9 +240,14 @@ func _show_detail(rec: PetRecord) -> void:
 	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (ACTIVE %d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
 	_summon.disabled = not _is_out(rec) and player.live_pets().size() >= Player.MAX_PETS_OUT
 
-## The pet's own name (pet radial Rename) with its species, else the species.
+## "Timid Velociraptor": the record's nature then the species (NATURES). A record without one
+## (an old save) loads with the nature its uid derives, so a name never loses the prefix.
+func _nature_species(rec: PetRecord) -> String:
+	return CreatureNatures.display_name(rec.nature, "", str(rec.species).capitalize())
+
+## The pet's own name (pet radial Rename) with its nature and species, else the nature and species.
 func _display_name(rec: PetRecord) -> String:
-	var species := str(rec.species).capitalize()
+	var species := _nature_species(rec)
 	return "%s (%s)" % [rec.name, species] if rec.name != "" else species
 
 func _is_out(rec: PetRecord) -> bool:

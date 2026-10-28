@@ -45,6 +45,9 @@ var tame_feeds: float = 0.0
 var tame_window_left: float = 0.0
 var tame_cooldown_left: float = 0.0
 var tame_attempting: bool = false
+## NATURES: rolled once at spawn from the animal's spawn seed (species + point + pack) and kept
+## when it is tamed (PetRecord.nature). Knobs are read through nature_knob(): one source, default 1.
+var nature: StringName = &""
 
 # Wild creatures recover slowly after a real break from combat. Pool sub-point healing so
 # plates get readable ticks instead of a floating-number event every frame.
@@ -88,7 +91,7 @@ var _path_anchor: Vector3 = Vector3.ZERO
 
 ## p_runtime: the IslandRuntime placing this spawn (Spawner passes its parent), so ring level
 ## offsets apply even before World.runtime is assigned. p_tier_offset: the island row's tier_offset.
-func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_runtime: Node = null, p_tier_offset: int = 0) -> void:
+func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_runtime: Node = null, p_tier_offset: int = 0, p_nature: StringName = &"") -> void:
 	# A live character is not a moving floor. Giants must not ride a survivor away.
 	platform_floor_layers = 0
 	platform_wall_layers = 0
@@ -114,6 +117,9 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	# ASSUMPTION: pet hunger budget is 0.4 * wild HP when JSON has no hunger field.
 	hunger_max = def.hp * 0.4
 	hunger = hunger_max
+	# NATURES: one nature per animal, seeded off the same identity the colour roll uses, so a reload
+	# at the same spot rolls the same nature. Hidden callers may pass one in (p_nature) to override.
+	nature = p_nature if p_nature != &"" else CreatureNatures.roll(CreatureNatures.spawn_key(def.id, global_position, pack_id), def.archetype)
 	spawn_tile = BuildGrid.tile_of(global_position)
 	# World.runtime is still null while an island builds, which put every home at y=0.
 	spawn_home = BuildGrid.tile_centre(spawn_tile, p_runtime if p_runtime else (World.runtime if World else null))
@@ -187,6 +193,35 @@ func face_towards(world_pos: Vector3, _delta: float) -> void:
 func apply_species_on_hit(clip: StringName, target: Node) -> void:
 	CreatureAttack.apply_for(self, clip, target)
 
+## The nature this animal has: its own, or (a pet whose brain was rebuilt) its record's.
+func nature_id() -> StringName:
+	if pet_record != null and pet_record.nature != &"":
+		return pet_record.nature
+	return nature
+
+## One nature knob (natures.json, default merged in when the nature has none). The single place a
+## brain, a combat hit or a taming rule reads a nature, so there is no second copy of the rules.
+func nature_knob(knob: String, fallback: float = 1.0) -> float:
+	var base: Variant = CreatureNatures.knobs(&"").get(knob, fallback)
+	if nature_id() == &"":
+		return float(base) if not base is bool else (1.0 if bool(base) else 0.0)
+	var raw: Variant = CreatureNatures.knobs(nature_id()).get(knob, fallback)
+	if raw is bool:
+		return 1.0 if bool(raw) else 0.0
+	return float(raw)
+
+## True when this animal's nature sets a knob to true (auto_engage, protect_owner, fear_immune...).
+func nature_flag(knob: String) -> bool:
+	return nature_knob(knob, 0.0) > 0.0
+
+## Feeds / window / pen wait for THIS animal: the species' number times its nature's multiplier.
+## One place, read by FieldTame, the gather ring and the taming pen.
+func feeds_needed() -> float:
+	return maxf(1.0, def.feeds_needed * nature_knob("feeds_mult", 1.0))
+
+func tame_window_seconds() -> float:
+	return maxf(1.0, def.tame_window_seconds * nature_knob("tame_window_mult", 1.0))
+
 func stat_value(stat: StringName) -> float:
 	if is_pet and pet_record:
 		return pet_record.stat_value(stat)  # PetStats is the one source for pets (W1-TAME hook 4)
@@ -214,8 +249,14 @@ func body_radius() -> float:
 func defense_for(ranged: bool = false) -> float:
 	return stat_value(&"ranged_defense" if ranged else &"melee_defense")
 
+## NATURES: the one place a nature's damage multiplier applies (Docile is less effective in combat).
+## Every hit a creature lands reads this, survivors, pets and structures alike; the stat itself is
+## unchanged, so the PETS sheet keeps showing the species numbers. A pet's multiplier already lives
+## in PetRecord.stat_value (the one source for pet stats), so it is not applied twice here.
 func attack_for(ranged: bool = false) -> float:
-	return stat_value(&"ranged_attack" if ranged else &"melee_attack")
+	if is_pet and pet_record:
+		return pet_record.stat_value(&"ranged_attack" if ranged else &"melee_attack")
+	return stat_value(&"ranged_attack" if ranged else &"melee_attack") * nature_knob("damage_dealt_mult", 1.0)
 
 func accuracy_chance() -> float:
 	if is_pet and pet_record:
@@ -566,7 +607,7 @@ func _on_status_removed(id: StringName) -> void:
 	if anim and anim._hold_knockdown:
 		anim.release_knockdown()
 	is_capturable = false
-	if tame_attempting and def and tame_feeds + 0.001 < def.feeds_needed and not is_pet:
+	if tame_attempting and def and tame_feeds + 0.001 < feeds_needed() and not is_pet:
 		FieldTame.fail(self, null)
 
 func mark_aggro_now() -> void:

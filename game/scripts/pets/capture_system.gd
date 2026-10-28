@@ -44,6 +44,7 @@ static func attempt(player: Player, creature: Creature, force_result: int = 0) -
 			"variant": str(creature.variant),
 			"level": creature.level,
 			"genetics": creature.genetics.to_dict(),
+			"nature": str(creature.nature_id()),  # NATURES: the netted animal keeps its nature
 		})
 		var left := player.inventory.add(stack)
 		if left > 0:

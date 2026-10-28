@@ -1,0 +1,98 @@
+{
+  "_about": "Creature natures (owner 2026-10-28): a Pokémon-like temperament that changes AI BEHAVIOUR, shown as a prefix on the animal's name ('Timid Velociraptor'). Natures LAYER ON TOP of ai.json archetypes and temperaments (skittish/defensive/territorial); they never replace them and never change species identity, stats or art. Every knob is 1.0 / false / 0.0 in 'default', so an animal whose nature reads the defaults behaves exactly as before.",
+  "_assumptions": "ASSUMPTION: every number here is a first pass, picked to be measurable rather than balanced (the owner tunes balance after crafting/building/skills). Weights pick how often a wild animal rolls each nature; 'never' / 'only' mask natures per archetype (a T. rex is never Timid, only carnivores roll Aggressive). A nature is rolled once at spawn from a seed (species, tile, pack) and kept when the animal is tamed.",
+  "default": {
+    "flee_threshold_mult": 1.0,
+    "retreat_threshold_mult": 1.0,
+    "aggro_radius_mult": 1.0,
+    "auto_engage": false,
+    "follow_dist_mult": 1.0,
+    "guard_radius_mult": 1.0,
+    "protect_owner": false,
+    "protect_rider_below_hp": 0.0,
+    "feeds_mult": 1.0,
+    "tame_window_mult": 1.0,
+    "pen_time_mult": 1.0,
+    "fear_immune": false,
+    "retreat_as_flee": false,
+    "damage_dealt_mult": 1.0
+  },
+  "_masking": {
+    "_about": "ASSUMPTION: 'never' drops a nature for an archetype, 'only' limits it to a list, 'rare_for' allows it at rarity_weight_mult of the normal weight. A defensive or territorial grazer that rolls Aggressive charges on sight, where today it waits to be hit.",
+    "rarity_weight_mult": 0.1
+  },
+  "_knobs": {
+    "flee_threshold_mult": "ASSUMPTION: multiplies the damage that makes a grazer flee (ai.json retreat_threshold_frac x max HP). > 1 flees at more HP.",
+    "retreat_threshold_mult": "ASSUMPTION: multiplies the damage that makes a predator retreat (ai.json retreat_threshold_frac x max HP). < 1 fights on through more wounds.",
+    "aggro_radius_mult": "ASSUMPTION: multiplies perception when scanning for prey (also widens the leash, which is built on perception).",
+    "auto_engage": "True: the animal attacks any survivor/pet that comes inside its aggro radius without waiting to be provoked (defensive and territorial grazers stand down without it).",
+    "follow_dist_mult": "ASSUMPTION: multiplies a pet's follow offset and follow stop distance.",
+    "guard_radius_mult": "ASSUMPTION: multiplies the radius a guarding pet looks for threats in (kept from the old 9 m, so 1.0 = today).",
+    "protect_owner": "True: a guarding pet picks the threat nearest its OWNER and reacts to threats around the owner, not only around itself.",
+    "protect_rider_below_hp": "A ridden pet keeps fighting even below the retreat threshold while its HP fraction is under this (0 = never; 1 = always). Brave keeps protecting its rider when wounded.",
+    "feeds_mult": "ASSUMPTION: multiplies the species' feeds_needed for this individual (FieldTame reads it). 0.33 turns a 3-feed animal into a single preferred feed.",
+    "tame_window_mult": "ASSUMPTION: multiplies the species' tame window.",
+    "pen_time_mult": "ASSUMPTION: multiplies the 30-minute taming pen wait for this individual (Stubborn waits longer, Docile less).",
+    "fear_immune": "True: damage never sends this animal into 'flee' (Stubborn resists fear and fights back).",
+    "damage_dealt_mult": "ASSUMPTION: multiplies damage this animal deals (Docile is less effective in combat; it does not touch defense, HP or stats)."
+  },
+  "weights": {
+    "_about": "ASSUMPTION: relative weight of each nature for a wild roll. Docile and Timid are common, the rest rarer.",
+    "docile": 30,
+    "timid": 20,
+    "loyal": 15,
+    "stubborn": 12,
+    "brave": 10,
+    "aggressive": 8
+  },
+  "natures": {
+    "timid": {
+      "label": "Timid",
+      "flee_threshold_mult": 1.6,
+      "retreat_threshold_mult": 1.8,
+      "aggro_radius_mult": 0.9,
+      "retreat_as_flee": true,
+      "never": ["tyrant", "titan"],
+      "_about": "Avoids combat, more likely to flee. A T. rex or a titan never rolls it, and a territorial charger neither."
+    },
+    "brave": {
+      "label": "Brave",
+      "flee_threshold_mult": 0.6,
+      "retreat_threshold_mult": 0.5,
+      "protect_rider_below_hp": 1.0,
+      "_about": "Protects its rider even when wounded: a ridden pet never retreats for its own HP."
+    },
+    "aggressive": {
+      "label": "Aggressive",
+      "aggro_radius_mult": 1.3,
+      "auto_engage": true,
+      "guard_radius_mult": 1.25,
+      "rare_for": ["pack_mule", "spiked_tail", "runner", "antlered", "club_tail", "titan"],
+      "_about": "Attacks nearby threats without orders: engages anything inside its (wider) aggro radius unprovoked. Herbivore archetypes roll it a tenth as often (a charging bull is rare, a pack of raptors is not)."
+    },
+    "loyal": {
+      "label": "Loyal",
+      "follow_dist_mult": 0.7,
+      "guard_radius_mult": 1.4,
+      "protect_owner": true,
+      "_about": "Stays close and prioritises protecting its owner: a shorter follow leash, and it picks the threat nearest the owner."
+    },
+    "stubborn": {
+      "label": "Stubborn",
+      "feeds_mult": 1.5,
+      "tame_window_mult": 0.75,
+      "pen_time_mult": 1.4,
+      "fear_immune": true,
+      "retreat_threshold_mult": 0.6,
+      "_about": "Harder to tame (more feeds, a shorter window, a longer pen wait), resistant to fear (never flees from damage) and slow to back off."
+    },
+    "docile": {
+      "label": "Docile",
+      "feeds_mult": 0.33,
+      "tame_window_mult": 1.25,
+      "pen_time_mult": 0.8,
+      "damage_dealt_mult": 0.75,
+      "_about": "Easier to tame (fewer feeds, a longer window, a shorter pen wait), less effective in combat (deals less damage)."
+    }
+  }
+}
