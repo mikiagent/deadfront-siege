@@ -1,5 +1,5 @@
 {
-  "_about": "Skill trees on Durango's 1-60 scale (specs 03/09/11/12 + systems PRD §7). Every tree starts at Lv. 1; auto nodes are learned free once their level is reached. status: functional = the game enforces the effect, partial = the value exists but no system reads it yet, defined = data only. source: spec09/11/12 = Durango pack, prd7 = our PRD. sp_assumed / level_assumed = the pack gives no SP / level, ours is a placeholder. A tree level cannot exceed the character level except levels granted by the occupation (ASSUMPTION).",
+  "_about": "Skill trees on Durango's 1-60 scale (specs 03/09/11/12 + systems PRD \u00a77). Every tree starts at Lv. 1; auto nodes are learned free once their level is reached. status: functional = the game enforces the effect, partial = the value exists but no system reads it yet, defined = data only. source: spec09/11/12 = Durango pack, prd7 = our PRD. sp_assumed / level_assumed = the pack gives no SP / level, ours is a placeholder. A tree level cannot exceed the character level except levels granted by the occupation (ASSUMPTION). impl = functional / partial / defined: does a code path read this node's effect today (functional), some of it (partial) or none (defined)? impl_ref = the first script and line that reads it; empty (missing) for defined nodes. Written by the skilltrees job; specs 03/09/11/12.",
   "sp_budget": {
     "per_level": [
       10,
@@ -38,7 +38,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "stealth_1",
@@ -58,7 +59,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "mud_2",
@@ -71,7 +74,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "wild_seed_1",
@@ -84,7 +88,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "belly_fat_1",
@@ -103,7 +108,9 @@
               "amount": 10
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:381"
         },
         {
           "id": "capture_technique_1",
@@ -121,7 +128,9 @@
               "tier": 1
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:61"
         },
         {
           "id": "capture_tool_1",
@@ -134,7 +143,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "island_access_25",
@@ -147,7 +157,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "stealth_2",
@@ -167,7 +178,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "capture_technique_2",
@@ -185,7 +198,9 @@
               "tier": 2
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:61"
         },
         {
           "id": "climate_body_1",
@@ -198,7 +213,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "island_access_35",
@@ -211,7 +227,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "stealth_3",
@@ -231,7 +248,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "capture_technique_3",
@@ -249,7 +268,9 @@
               "tier": 3
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:61"
         },
         {
           "id": "animal_management_1",
@@ -267,7 +288,9 @@
               "amount": 1
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:57"
         },
         {
           "id": "obsidian",
@@ -280,7 +303,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "island_access_45",
@@ -293,7 +317,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "stealth_4",
@@ -313,7 +338,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "marble",
@@ -326,7 +353,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "capture_technique_4",
@@ -344,7 +372,9 @@
               "tier": 4
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:61"
         },
         {
           "id": "animal_management_2",
@@ -362,7 +392,9 @@
               "amount": 1
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:57"
         },
         {
           "id": "alum",
@@ -375,7 +407,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "island_access_55",
@@ -388,7 +421,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "stealth_5",
@@ -408,7 +442,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "capture_technique_5",
@@ -426,7 +462,9 @@
               "tier": 5
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:61"
         },
         {
           "id": "animal_management_3",
@@ -444,7 +482,9 @@
               "amount": 1
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:57"
         },
         {
           "id": "animal_management_4",
@@ -462,7 +502,9 @@
               "amount": 1
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:57"
         }
       ]
     },
@@ -481,7 +523,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "branch",
@@ -494,7 +537,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "bush",
@@ -507,7 +551,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "fruit_1",
@@ -520,7 +565,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "log_1",
@@ -533,7 +579,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "bug_1",
@@ -546,7 +593,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "pebble",
@@ -559,7 +607,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "mud_1",
@@ -572,7 +621,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "stalk",
@@ -585,7 +635,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "boulder",
@@ -600,7 +651,8 @@
           "effects": [],
           "sp_assumed": true,
           "level_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "thickets",
@@ -618,7 +670,9 @@
               "items": []
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
         },
         {
           "id": "mining_1",
@@ -638,7 +692,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/world/harvest_node.gd:331"
         },
         {
           "id": "herbs_1",
@@ -659,7 +715,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/world/harvest_node.gd:331"
         },
         {
           "id": "insects",
@@ -679,7 +737,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/world/harvest_node.gd:331"
         },
         {
           "id": "mining_2",
@@ -700,7 +760,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/world/harvest_node.gd:331"
         },
         {
           "id": "great_success_1",
@@ -713,7 +775,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "mining_3",
@@ -735,7 +798,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/world/harvest_node.gd:331"
         },
         {
           "id": "rare_plants",
@@ -756,7 +821,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/world/harvest_node.gd:331"
         },
         {
           "id": "long_branch",
@@ -769,7 +836,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "mining_4",
@@ -790,7 +858,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/world/harvest_node.gd:331"
         },
         {
           "id": "great_success_2",
@@ -803,7 +873,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         }
       ]
     },
@@ -822,7 +893,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "organs",
@@ -842,7 +914,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:157"
         },
         {
           "id": "leather_1",
@@ -855,7 +929,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "tendon",
@@ -875,7 +950,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:157"
         },
         {
           "id": "bone_2",
@@ -895,7 +972,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:157"
         },
         {
           "id": "rare_parts_1",
@@ -915,7 +994,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:157"
         },
         {
           "id": "feather",
@@ -928,7 +1009,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "skull_1",
@@ -941,7 +1023,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "slaughter_1",
@@ -961,7 +1044,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "yield_1",
@@ -979,7 +1064,9 @@
               "items": []
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/gather/loot_roller.gd:71"
         },
         {
           "id": "teeth_1",
@@ -992,7 +1079,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "scutes",
@@ -1012,7 +1100,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:157"
         },
         {
           "id": "horn",
@@ -1025,7 +1115,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "slaughter_2",
@@ -1045,7 +1136,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "quality_bone",
@@ -1058,7 +1151,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "slaughter_3",
@@ -1078,7 +1172,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "yield_2",
@@ -1091,7 +1187,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "leather_2",
@@ -1104,7 +1201,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "teeth_2",
@@ -1117,7 +1215,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "slaughter_4",
@@ -1137,7 +1236,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "trophy",
@@ -1150,7 +1251,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "slaughter_5",
@@ -1170,7 +1272,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         }
       ]
     },
@@ -1197,7 +1301,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
         },
         {
           "id": "split_wood",
@@ -1210,7 +1316,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "normal_nail",
@@ -1223,7 +1330,8 @@
           "auto": false,
           "source": "spec11",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "drying",
@@ -1243,7 +1351,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
         },
         {
           "id": "charcoal",
@@ -1263,7 +1373,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
         },
         {
           "id": "dry_leather",
@@ -1283,7 +1395,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
         },
         {
           "id": "peeled_bark",
@@ -1296,7 +1410,8 @@
           "auto": false,
           "source": "spec11",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "nails_pillars",
@@ -1309,7 +1424,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "handicraft_1",
@@ -1328,7 +1444,9 @@
               "amount": 4
             }
           ],
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/items/crafting.gd:27"
         },
         {
           "id": "smelting_1",
@@ -1341,7 +1459,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "handicraft_2",
@@ -1361,7 +1480,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/items/crafting.gd:27"
         },
         {
           "id": "trimmed_material",
@@ -1374,7 +1495,8 @@
           "auto": false,
           "source": "spec11",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "extended_fabric",
@@ -1387,7 +1509,8 @@
           "auto": false,
           "source": "spec11",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "milling",
@@ -1400,7 +1523,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "thread_cloth",
@@ -1413,7 +1537,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "handicraft_3",
@@ -1433,7 +1558,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/items/crafting.gd:27"
         },
         {
           "id": "glue",
@@ -1446,7 +1573,8 @@
           "auto": false,
           "source": "spec11",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "gem_extraction",
@@ -1459,7 +1587,8 @@
           "auto": false,
           "source": "spec11",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "handicraft_4",
@@ -1479,7 +1608,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/items/crafting.gd:27"
         },
         {
           "id": "smelting_2",
@@ -1492,7 +1623,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "handicraft_5",
@@ -1512,7 +1644,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/items/crafting.gd:27"
         },
         {
           "id": "cord",
@@ -1525,7 +1659,8 @@
           "auto": false,
           "source": "spec11",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "waterproofed_material",
@@ -1538,7 +1673,8 @@
           "auto": false,
           "source": "spec11",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "refined_ore",
@@ -1551,7 +1687,8 @@
           "auto": false,
           "source": "spec11",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "metalworking_1",
@@ -1571,7 +1708,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "ceramics",
@@ -1584,7 +1723,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "metalworking_2",
@@ -1604,7 +1744,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "adhesive_accessory",
@@ -1618,7 +1760,8 @@
           "source": "spec11",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "dry_rubber",
@@ -1632,7 +1775,8 @@
           "source": "spec11",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "metal_links",
@@ -1646,7 +1790,8 @@
           "source": "spec11",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "metalworking_3",
@@ -1666,7 +1811,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "copper_alloy",
@@ -1680,7 +1827,8 @@
           "source": "spec11",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "fiber_tanned_material",
@@ -1694,7 +1842,8 @@
           "source": "spec11",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "compressed_material",
@@ -1708,7 +1857,8 @@
           "source": "spec11",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "great_success_p",
@@ -1721,7 +1871,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "metalworking_4",
@@ -1741,7 +1892,9 @@
             }
           ],
           "sp_assumed": true,
-          "status": "partial"
+          "status": "partial",
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
         },
         {
           "id": "precision_processing",
@@ -1755,7 +1908,8 @@
           "source": "spec11",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "processed_debris",
@@ -1769,7 +1923,8 @@
           "source": "spec11",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         }
       ]
     },
@@ -1789,7 +1944,8 @@
           "source": "prd7",
           "effects": [],
           "status": "defined",
-          "sp_assumed": true
+          "sp_assumed": true,
+          "impl": "defined"
         },
         {
           "id": "body_tackle",
@@ -1802,7 +1958,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "kick",
@@ -1815,7 +1972,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "onslaught",
@@ -1828,7 +1986,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "sweep",
@@ -1841,7 +2000,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "knockdown_mastery",
@@ -1854,7 +2014,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "one_hand_mastery",
@@ -1867,7 +2028,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "two_hand_mastery",
@@ -1880,7 +2042,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "shoulder_charge",
@@ -1893,7 +2056,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "execution",
@@ -1906,7 +2070,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         }
       ]
     },
@@ -1926,7 +2091,8 @@
           "source": "prd7",
           "effects": [],
           "status": "defined",
-          "sp_assumed": true
+          "sp_assumed": true,
+          "impl": "defined"
         },
         {
           "id": "barrage",
@@ -1939,7 +2105,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "bow_1",
@@ -1952,7 +2119,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "draw_1",
@@ -1965,7 +2133,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "barrage_damage_1",
@@ -1979,7 +2148,8 @@
           "source": "spec12",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "kiting",
@@ -1992,7 +2162,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "fire_rate_1",
@@ -2005,7 +2176,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "barrage_damage_2",
@@ -2019,7 +2191,8 @@
           "source": "spec12",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "crossbow",
@@ -2032,7 +2205,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "barrage_damage_3",
@@ -2046,7 +2220,8 @@
           "source": "spec12",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "draw_2",
@@ -2059,7 +2234,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "volley",
@@ -2072,7 +2248,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "raid_arrows",
@@ -2085,7 +2262,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         }
       ]
     },
@@ -2104,7 +2282,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "max_health_1",
@@ -2123,7 +2302,9 @@
               "amount": 10
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:380"
         },
         {
           "id": "roll_duration_1",
@@ -2136,7 +2317,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "parry",
@@ -2149,7 +2331,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "counter",
@@ -2162,7 +2345,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "roll_duration_2",
@@ -2175,7 +2359,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "max_health_2",
@@ -2194,7 +2379,9 @@
               "amount": 20
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:380"
         },
         {
           "id": "anti_knockdown",
@@ -2207,7 +2394,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "roll_duration_3",
@@ -2220,7 +2408,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "recovery",
@@ -2233,7 +2422,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "iron_body",
@@ -2246,7 +2436,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "max_health_3",
@@ -2265,7 +2456,9 @@
               "amount": 30
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:380"
         }
       ]
     },
@@ -2291,7 +2484,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
         },
         {
           "id": "makeshift_shovel_hoe",
@@ -2305,7 +2500,8 @@
           "source": "spec12",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "work_pick",
@@ -2318,7 +2514,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "spear",
@@ -2331,7 +2528,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "stone_saw",
@@ -2344,7 +2542,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "combat_knife",
@@ -2357,7 +2556,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "splint",
@@ -2370,7 +2570,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "hammer",
@@ -2383,7 +2584,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "handle",
@@ -2396,7 +2598,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "stone_mortar",
@@ -2409,7 +2612,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "standard_bow",
@@ -2423,7 +2627,8 @@
           "source": "spec12",
           "effects": [],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "two_hand",
@@ -2436,7 +2641,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "bone_saw",
@@ -2449,7 +2655,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "copper_tools",
@@ -2462,7 +2669,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "cooking_utensils",
@@ -2475,7 +2683,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "blade_shapes",
@@ -2488,7 +2697,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "improved_handle",
@@ -2501,7 +2711,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "earthenware_mortar",
@@ -2514,7 +2725,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "metal_saw",
@@ -2527,7 +2739,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "iron_weapons",
@@ -2540,7 +2753,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "shaft",
@@ -2553,7 +2767,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "metal_mortar",
@@ -2566,7 +2781,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         }
       ]
     },
@@ -2585,7 +2801,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "footwraps",
@@ -2598,7 +2815,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "leaf_hat",
@@ -2611,7 +2829,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "bandage",
@@ -2624,7 +2843,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "small_bag",
@@ -2637,7 +2857,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "straw_shoes",
@@ -2650,7 +2871,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "cloth_clothes",
@@ -2663,7 +2885,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "heat_resist",
@@ -2682,7 +2905,9 @@
               "amount": 1
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:500"
         },
         {
           "id": "cold_resist",
@@ -2701,7 +2926,9 @@
               "amount": 1
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:501"
         },
         {
           "id": "pressure_dressing",
@@ -2714,7 +2941,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "leather_sandals",
@@ -2727,7 +2955,8 @@
           "auto": false,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "large_bag",
@@ -2740,7 +2969,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "armor_1",
@@ -2753,7 +2983,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "scute_armor",
@@ -2766,7 +2997,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "master_bag",
@@ -2779,7 +3011,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         }
       ]
     },
@@ -2798,7 +3031,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "workbench",
@@ -2811,7 +3045,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "fence",
@@ -2824,7 +3059,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "taming_pen",
@@ -2837,7 +3073,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "drying_rack",
@@ -2850,7 +3087,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "storage_2",
@@ -2863,7 +3101,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "simple_well",
@@ -2876,7 +3115,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "residence",
@@ -2889,7 +3129,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "furnace_kiln",
@@ -2902,7 +3143,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "well",
@@ -2915,7 +3157,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "barn",
@@ -2928,7 +3171,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "clan_structures",
@@ -2941,7 +3185,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         }
       ]
     },
@@ -2960,7 +3205,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "meatball",
@@ -2973,7 +3219,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "stone_grill",
@@ -2986,7 +3233,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "antivenom",
@@ -2999,7 +3247,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "steam",
@@ -3012,7 +3261,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "antibiotic",
@@ -3025,7 +3275,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "buff_food",
@@ -3038,20 +3289,22 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "sashimi",
           "level": 40,
           "sp": 22,
           "type": "unlock",
-          "unlocks": "sashimi (1 meat → 3)",
+          "unlocks": "sashimi (1 meat \u2192 3)",
           "requires": "buff_food",
           "name": "Sashimi",
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "boiling",
@@ -3064,7 +3317,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "roast",
@@ -3077,7 +3331,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "pet_food",
@@ -3090,7 +3345,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         }
       ]
     },
@@ -3116,7 +3372,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
         },
         {
           "id": "corn",
@@ -3129,7 +3387,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "apple_tree",
@@ -3142,7 +3401,8 @@
           "auto": true,
           "source": "spec12",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "flax",
@@ -3155,7 +3415,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "fertilizer",
@@ -3168,7 +3429,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "large_field",
@@ -3188,7 +3450,9 @@
               ]
             }
           ],
-          "status": "functional"
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
         },
         {
           "id": "orchard",
@@ -3201,7 +3465,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "advanced_fertilizer",
@@ -3214,7 +3479,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "ranching",
@@ -3227,7 +3493,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         },
         {
           "id": "sprinkler",
@@ -3240,7 +3507,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "impl": "defined"
         }
       ]
     }
