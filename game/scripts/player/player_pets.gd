@@ -356,7 +356,7 @@ func mounted_move(delta: float) -> void:
 		m.velocity.z = dir.z * speed
 		m.face_towards(m.global_position + dir, delta)
 		if not m.anim._busy:
-			m.anim.play_locomotion(clampf(speed / 8.0, 0.0, 1.0))  # same frac as creature.gd
+			m.anim.set_move_speed(speed)  # stride-matched, same as creature.gd
 	else:
 		m.velocity.x = 0.0
 		m.velocity.z = 0.0
