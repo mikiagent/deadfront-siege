@@ -60,6 +60,36 @@ Targets (owner 2026-10-28): out of combat a tap on a wild animal selects it; the
 NEAREST, E or F start the fight. In combat a tap on another enemy retargets at once and ATTACK
 NEAREST retargets to the nearest enemy.
 
+## Facing and walking away from a fight
+
+Owner 2026-10-28: "player has the turn speed glitch too" and "if i'm in combat and i try to walk away,
+my player glitches out... pathfind to where I want to walk and then re-engage".
+
+- One writer turns the survivor: `PlayerSim.face_tick`, every physics frame. While she moves (stick or
+  a tap route) she faces the move direction. Standing still in a fight she faces her target. Nothing
+  sets her facing from `_process` any more, because the hunt's per-render snap fought the walk's turn.
+- She turns at most 720 deg/s (`Player.turn_rate_deg`), so a 180 deg turn takes 0.25 s, or about
+  0.28 s from a run. The move heading is smoothed over 0.04 s. Below 0.3 of full stick, for example
+  when the stick flips through the centre, she keeps her facing. She only turns once she is more than
+  3 deg off the heading, so stick noise and path wobble do not shake her. All of these numbers are
+  ASSUMPTIONS.
+- The roll still snaps her to its direction, and the tackle and kick still face the target at once.
+- Mounted, the mount steers by its own `turn_rate`, on a heading smoothed over 0.15 s with the same
+  3 deg slack (`Creature.face_heading`).
+- A ground tap during a fight keeps the target. While she walks there, the hunt does not chase,
+  swing or turn her. When she arrives she re-engages that target. If it died, left, or is more than
+  28 m away, she engages the nearest animal instead, or the fight ends if there is none. A bite on the
+  way cancels the walk and turns her on the biter (move priority).
+- While the stick moves her, the hunt pauses in the same way. When the stick is released she fights
+  again.
+- Labs: LabKit now bakes its navmesh from static colliders, crates included. It used to bake from the
+  render mesh, which is empty in a headless run. Off an island, the survivor follows the navmesh route
+  with the same waypoint follower as the island tile path. The NavigationAgent's own follower never
+  advanced for her: it measured from her capsule centre, 0.5 m above the mesh, so a ground tap in
+  the creature lab rocked her in place. A re-plan also no longer sends her back to her start tile or
+  her own tile's centre.
+- `game/tests/t_playerturn.gd` measures all of this.
+
 ## Full screen
 
 F11 toggles full screen on desktop and in the browser. The pause menu also has a Full screen button,

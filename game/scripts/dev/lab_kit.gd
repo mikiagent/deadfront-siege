@@ -16,6 +16,14 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 	nmesh.agent_radius = 0.5
 	nmesh.agent_max_climb = 0.5
 	nmesh.agent_max_slope = 45.0
+	# Owner: "the test scene doesn't have navigable paths". The bake read the floor's render mesh, which a
+	# headless or GPU-readback-less run returns empty, and only the floor: lab crates were never carved,
+	# so a ground tap routed into them or had no path. Bake every static collider under the lab instead
+	# (bake() again after adding props).
+	nmesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
+	nmesh.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_GROUPS_WITH_CHILDREN
+	nmesh.geometry_source_group_name = &"lab_nav"
+	host.add_to_group(&"lab_nav")
 	nav.navigation_mesh = nmesh
 	host.add_child(nav)
 	var floor := StaticBody3D.new()
@@ -73,6 +81,12 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 		player.eat_session.reparent_ui(ui)
 	nav.bake_navigation_mesh(false)
 	return {"player": player, "nav": nav, "ui": ui, "debug": debug, "cam": cam}
+
+## Re-bake the lab's navigation mesh after static props were added (they carve it).
+static func bake(host: Node3D) -> void:
+	var nav := host.get_node_or_null("Nav") as NavigationRegion3D
+	if nav:
+		nav.bake_navigation_mesh(false)
 
 static func give(player: Player, id: StringName, n: int, attrs: Dictionary = {}) -> void:
 	player.inventory.add(ItemStack.make(id, n, attrs))

@@ -138,6 +138,25 @@
   "creature_cap_mobile": 24,
   "night_predator_perception_bonus": 0.5,
   "wet_after_seconds_in_water": 5,
+  "weather": {
+    "_about": "WEATHER (scripts/world/world_weather.gd, weather_fx.gd). Every rain_check_s the island rolls its climate's 'rain' chance; a rain spell is a storm (lightning) on its 'storm' roll. Thunder lands distance / sound_mps after its flash. Shakes are camera offsets in metres (14 m view height: 0.1 m is about 6 px at 900 px). ASSUMPTION: per-climate chances follow climates.json's weather lists (no rain where it lists none); timings keep the old 18 s every 50-90 s rain.",
+    "first_check_s": 40.0,
+    "rain_check_s": [50.0, 90.0],
+    "rain_len_s": [18.0, 30.0],
+    "storm_len_s": [30.0, 45.0],
+    "lightning_gap_s": [8.0, 20.0],
+    "lightning_m": [400.0, 3000.0],
+    "sound_mps": 343.0,
+    "climates": {
+      "grassland": {"rain": 1.0, "storm": 0.15},
+      "temperate": {"rain": 1.0, "storm": 0.2},
+      "tropical": {"rain": 1.0, "storm": 0.45},
+      "swamp": {"rain": 1.0, "storm": 0.25},
+      "blue_tropical": {"rain": 1.0, "storm": 0.5}
+    },
+    "shake_m": {"thunder": 0.12, "heat": 0.012, "shiver": 0.05, "max": 0.15},
+    "shiver_gap_s": [14.0, 28.0]
+  },
   "harbour": {
     "_about": "The harbour stands on the coast (HarbourSite). Its 3x6 footprint's landward row 0 is on land, every cell from dock_from_row to the tip is over water (so the base is within dock_from_row metres of the shoreline), and the tip is at least boat_depth_m below the water line. A pose that breaks this is refused: island build snaps to the nearest legal coast, BuildGrid.can_place answers dock_needs_water / needs_shore. The island json 'harbour' is a hint plus the travel arrival point; t_harbour keeps it on the resolved site.",
     "dock_from_row": 2,

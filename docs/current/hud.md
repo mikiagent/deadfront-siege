@@ -65,10 +65,29 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   0.95 m per pixel (`MAP_SCALE`), with fog-of-war, the foot trail, camp flame, harbour anchor,
   crater, creature dots (pets green, wild red, only inside revealed fog) and the player arrow.
   Above it "Home" / "Survivable N min" / "Lab"; below it the X/Y tile readout. A tap opens MapScreen.
-- DayNightDial docked at the minimap's bottom-left edge: a 24 h face, noon at the top, the sun riding
-  a white arc by day; a crescent moon opposite it at night; the face tinted by phase. A 60 px disc;
-  tap opens a label to the left — phase, clock, time to the next phase — closing after 4 s. It reads
-  `Game.time_of_day` / `day_length_seconds` and never writes them.
+- DayNightDial (`day_night_dial.gd`, DAYNIGHT 2026-10-28, the owner's pick of three faces) docked at the
+  minimap's bottom-left edge: a gold-rimmed half-dial, 112x76 on desktop, 66x64 on compact canvases (a
+  phone keeps the same face with three-hourly ticks, no lens flare). The half-disc sky is painted:
+  zenith-to-horizon gradient keyed to WorldLighting's phase times, a warm glow around the sun, a rose
+  band that climbs through sunrise and sinks through sunset, and a pulsing bloom for ~14 s either side of
+  each. Clouds drift across it with the hours (white by day, rose at dusk, faint slate at night). The sun
+  has a corona, turning rays and two lens-flare glints; the moon a halo and craters. They ride one arc,
+  sun up 06:14–18:14 (ASSUMPTION: halfway through dawn and dusk), the moon opposite. Stars twinkle from
+  ~36 s after sunset to before sunrise, with an occasional shooting star. Two silhouettes, far hills and
+  a near treeline, drift at different speeds as the day turns. The rim is engraved with hour ticks
+  (06/12/18 longer) and a gleam sweeps along it every ~7 s (faster at sunrise and sunset). Under the dial:
+  a 24 h track (night blue, dawn and dusk orange, day gold) with a gold caret at now, and the clock. A
+  tap opens the label to the left (phase, clock, time to the next phase), closing after 4 s. Weather (owner
+  2026-10-28) shows in the dial, read by name from the island's WorldWeather (clear if it is absent): rain
+  greys the sky and veils the sun, and adds darker clouds and fine slanting streaks. A storm brings heavier
+  black clouds and longer streaks, and the sky flickers with `WorldWeather.flash`, with a bolt on each
+  strike. Heat lays an orange haze and makes the hill line shimmer; cold pales the sky and frosts the rim
+  (spikes and a pale rime, the gold cooled, following `frost`). Each follows the weather's eased
+  strength; the dial's own storm share eases over 2 s. It reads
+  `Game.time_of_day` / `day_length_seconds` and never writes them. Cost: three triangle-array calls plus
+  ~60 small draw commands, ~60-100 µs a draw headless (a night storm mid-strike included). It redraws each frame only while stars, a flourish or
+  the gleam show, else every 15 game seconds, and its draw allocates nothing (t_daynight). Captures:
+  `docs/orchestration/reports/daynight/`.
 - Hex sizes follow spec §2 (`HudField.PX`): desktop rail 100, INTERACT 150, ATTACK 100, SPRINT 100,
   quick slot 80, whistle 66, CLAIM 52; compact canvases (`UiTokens.is_compact`: 844x390 and portrait)
   use 64 / 96 / 72 / 64 / 64 / 64 / 64, so every phone tap target is 64 px or more. All flat-top.
@@ -184,6 +203,21 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   16 px treadmill belt (`BELT_H`): chevrons scroll right while exhaustion rises, left while it
   eases; belt speed = 350 px per pt/s of drift, clamped 3–150 px/s, holding still under 0.004 pt/s
   (`RATE_DEAD`).
+- Belt look (TREADMILL, owner 2026-10-28 "improve the artistry of the treadmill", same size and
+  shape): a recessed rubber belt with lit top, shaded bottom and drums at both ends, slat seams every
+  3 chevrons and stitched edges that travel with it. The strained length fills in the tier colours
+  (`UiTokens.MOOD`, blended, pure at each tier's middle; `tier_color`) and its chevrons light up in
+  them while the rest stay dim; tier notches sit at 25/50/75 %. Fast drift (> 60 px/s) trails two
+  fading chevron ghosts; a sheen sweeps the plates (2.6 s running, slower and fainter standing).
+  Well Rested frosts it over in 0.6 s (ice tint, rimed edge, twinkling crystals). Crossing into a
+  worse tier pulses for 0.7 s (frame flashes the tier colour, fill and needle glow swell).
+- The strain marker is a tall needle (owner: "make it a tall bar"): 4 px wide, 1.6× the belt
+  (`MARKER_TALL`, ASSUMPTION), centred on it, face colour with a crisp dark edge and a tier-colour
+  glow (`ExhaustTreadmill.marker_rect`). The belt rect itself is unchanged (`last_rect`).
+- `ExhaustTreadmill.tick()` (one line in `HuntHud._process`) advances the clock, frost and pulse;
+  drawing is read-only. Cost: ~45 canvas commands, one fixed line buffer, cached percent label;
+  ~86 µs of script time per draw on the dev Mac, nothing kept per frame (`tests/t_treadmill.gd`).
+  Captures: `--lab=treadmill_lab` (`docs/orchestration/reports/treadmill/`).
 - Drift is an EMA over fatigue deltas (2.5 s window, `EMA_TAU`). A jump ≥ 8 pts (`STEP_AFTER`)
   counts as a one-off step (sleep, meal), applied instantly, with a faster forgetting window
   (0.8 s `FORGET_TAU` held 2 s) so the belt eases out of the sweep.
