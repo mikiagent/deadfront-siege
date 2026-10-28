@@ -70,6 +70,8 @@
         "_about": "TACTICS (owner 2026-10-28): circle at a stand-off ring, feint, lunge into a bite, telegraphed pounce, chomp combo where the species has the clip, back off below retreat_frac. Every number is an ASSUMPTION (first pass, not balanced). Cooldowns in seconds; distances centre to centre in metres (the prey's extra size is added).",
         "ring_m": 5.5,
         "circle_speed_frac": 0.8,
+        "backoff_speed_frac": 0.75,
+        "contact_after_s": 1.0,
         "circle_step_deg": 35.0,
         "circle_min_s": 1.2,
         "circle_max_s": 2.6,

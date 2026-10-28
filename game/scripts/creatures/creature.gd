@@ -784,7 +784,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		stagger_left = 0.45 if kind == &"crit" else 0.3
 		_stagger_immune_until = _now_s() + 1.0
 		staggered = true
-	if not brain is TyrantBrain and not str(anim.current_clip).begins_with("attack"):
+	if not brain is TyrantBrain and not anim.current_clip in CreatureAnim.ATTACKS:  # a hit never cuts a bite or the combo short
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		# The authored hurt clip plays when the rig has one (the test was inverted), gated by the
 		# stagger's once-a-second immunity so a pinned animal can still fight back.

@@ -32,6 +32,7 @@ var _retreat_cd := 0.0
 var _telegraph: Telegraph
 var last_bite_s := -999.0
 var _last_special: StringName = &""
+var _circle_t := 0.0
 
 static func tactics_for(archetype: StringName) -> Dictionary:
 	var row: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(archetype), {})
@@ -132,6 +133,7 @@ func _approach_ring() -> void:
 
 func _enter_circle(hold: float = -1.0) -> void:
 	_set_state(&"circle")
+	_circle_t = 0.0
 	_left = hold if hold >= 0.0 else randf_range(_t("circle_min_s", 1.2), _t("circle_max_s", 2.6))
 
 ## Sidestep around the prey on the ring, facing it; pick a manoeuvre when the timer runs out.
@@ -141,13 +143,20 @@ func _circle(delta: float) -> void:
 		_set_state(&"approach")
 		return
 	strafe_face = attack_target
+	_circle_t += delta
 	speed_override = creature.walk_mps(creature.move_speed_mps()) * _t("circle_speed_frac", 0.8)
+	if d < ring_m() - 1.0 and creature.can_sprint():
+		speed_override = creature.move_speed_mps() * _t("backoff_speed_frac", 0.75)  # hop back out after a strike
 	var step := deg_to_rad(_t("circle_step_deg", 35.0)) * _circle_sign
 	# Steering at a point `step` ahead settles at radius * cos(step); aim past the ring so it holds the ring.
 	creature.move_to(attack_target.global_position + _to_me().rotated(Vector3.UP, step) * ring_m() / cos(step))
-	# Prey that walks into its jaws gets bitten (also the only attack left while winded).
-	if d <= reach_to(attack_target) and _ready_to(&"bite") and _can_swing():
-		_bite()
+	# Prey that follows it into its jaws gets bitten (also the only attack left while winded), but only
+	# after contact_after_s of backing off, so a chasing survivor is not chomped on every cooldown.
+	if d <= reach_to(attack_target) and _circle_t >= _t("contact_after_s", 1.0) and _ready_to(&"bite") and _can_swing():
+		if _ready_to(&"combo") and creature.anim.has_state(&"bite_combo") and creature.try_special(&"bite_combo"):
+			_combo()
+		else:
+			_bite()
 		return
 	_left -= delta
 	if _left <= 0.0:
