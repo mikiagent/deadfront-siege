@@ -295,13 +295,39 @@ func _test_multimesh(drv: Node) -> void:
 		"read_beside": func() -> float: return _instance_share(objs["beside"], drop),
 	}
 	_spot_case("multimesh", made)
-	# The slots are what the shader reads: only a fading instance may have one, so the behind tree
-	# must not be in the driver's active set (which is exactly what _send_slots walks).
-	var active: Dictionary = drv.get("_active")
-	_check(not active.has(objs["behind"]), "multimesh: the tree behind her has no fade slot")
-	_check(active.has(objs["front"]), "multimesh: the tree in front keeps its fade slot while fading")
+	# What the MultiMesh shader reads (occl_drop_of + occl_match), mirrored over the slots the driver
+	# would fill: the fading instances, fadeiest first, up to SLOTS. The behind tree must not appear,
+	# so the shader's own lookup gives it 0 and it draws solid.
+	var slots := _slot_table(drv, int(_k("SLOTS")))
+	_check(not slots.has(objs["behind"]), "multimesh: the tree behind her takes no shader slot")
+	_check(slots.has(objs["front"]), "multimesh: the tree in front takes a shader slot while it fades")
+	_check(int(drv.get("_slots_used")) == 1, "multimesh: exactly one slot is in use (got %d)" % int(drv.get("_slots_used")))
+	_check(is_equal_approx(_shader_instance_drop(slots, objs["behind"]), 0.0), "multimesh: the shader's lookup leaves the behind tree at 0 drop")
+	_check(is_equal_approx(_shader_instance_drop(slots, objs["front"]), drop), "multimesh: the shader's lookup fades the front tree to %.3f" % drop)
 	_occ.release(root3)
 	root3.free()
+
+## The instances the driver sends to the shader's slots right now (the same list _send_slots builds:
+## every active instance still fading, fadeiest first, at most `slots` of them).
+func _slot_table(drv: Node, slots: int) -> Array:
+	var out: Array = []
+	for o: Object in (drv.get("_active") as Dictionary).keys():
+		if bool(o.get("inst")) and float(o.get("fade")) > 0.0:
+			out.append(o)
+	out.sort_custom(func(a: Object, b: Object) -> bool: return float(a.get("fade")) > float(b.get("fade")))
+	return out.slice(0, slots)
+
+## occl_drop_of's slot lookup for one instance: a slot whose xyz equals the instance's origin gives it
+## the slot's share, so an instance in no slot keeps its own occl_fade (0 for a MultiMesh instance).
+func _shader_instance_drop(slots: Array, o: Variant) -> float:
+	if o == null:
+		return 0.0
+	var f := 0.0
+	var origin: Vector3 = (o as Object).get("origin")
+	for s: Object in slots:
+		if (origin - Vector3(s.get("origin"))).length_squared() < 1e-4:
+			f = maxf(f, float(s.get("fade")) * _k("BETWEEN_DROP"))
+	return f
 
 ## The share the occluder shader ends up with for one MultiMesh instance: the driver's fade for it
 ## (which is what goes into a slot and what occl_match returns), or 0 when it does not fade.
