@@ -199,6 +199,15 @@ func _test_release_and_save() -> void:
 	var back: Dictionary = _rt.claim_domain([edge])
 	_expect(bool(back["ok"]) and IC.owned_cells(_rt).has(edge), "re-claiming the released plot works (%s)" % [back["reason"]])
 	_expect(_rt.claim_used() == 3, "the re-claim restores the plot count (%d)" % _rt.claim_used())
+	# The Domain's other rules still hold on the re-claimed land: it cannot take a non-adjacent plot
+	# and it never exceeds the cap (a release never hands out land, and a re-claim is an ordinary claim).
+	var cap: int = _rt.claim_cap()
+	_expect(_rt.claim_used() <= cap, "the Domain never holds more plots than the cap (%d <= %d)" % [_rt.claim_used(), cap])
+	var far := _find_cell(func (c: Vector2i) -> bool:
+		return not IC.adjacent_to(c, IC.occupied_cells(_rt)) and IC.cell_block_reason(_rt, c) == "")
+	if far != IC.NO_CELL:
+		var hop: Dictionary = _rt.claim_domain([far])
+		_expect(not bool(hop["ok"]) and str(hop["reason"]) == "not_adjacent", "a released plot does not loosen adjacency (%s)" % [hop["reason"]])
 	# ... and the plot that was kept can be released now that it is an end plot again.
 	var second: Dictionary = _rt.release_cell(edge)
 	_expect(bool(second["ok"]), "a re-claimed plot can be released again (%s)" % [second["reason"]])
