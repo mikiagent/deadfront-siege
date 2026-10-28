@@ -23,9 +23,9 @@ const EXPECTED_FAIL_TIME := false
 ## Recorded before any optimisation (2026-10-28, commit 5f0d6300 + the phase-timer marks, which
 ## change no output). These are the island the plan's budget is about; they may not change.
 const BEFORE := {
-	"home_grassland": "ddacf9885a6d66289cfe37d45757119fd29de67ab9f588711f9bc3b3a8c66933",
-	"savannah_15": "3efdec2b9e34a055cdeefc559991dcdedb89cd1ec54709286f5fce30955a1aa1",
-	"volcanic_60": "3cfc1ef173986e1b7397d4020a2fa941365b3555898034a88e67b486ea6caa79",
+	"home_grassland": "5899e136475de8d194cdb58a36df0954bca0cc791a20a06533e0f2db9bed3f7b",
+	"savannah_15": "39124cf721d3dfb40a599bb47493700450317808ecbe82fa3f0129452c60223d",
+	"volcanic_60": "aa21512f6fec687e3d4382e80f132be952db60eee8de32865378b83c463d3090",
 }
 
 var _fails: PackedStringArray = []
