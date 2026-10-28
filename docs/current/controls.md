@@ -10,8 +10,8 @@ Xbox naming. PlayStation and Switch pads map to the same positions.
 | Input | Action |
 |---|---|
 | Left stick | Move |
-| A | Interact, and gather from the nearest node (opens its option wheel) |
-| X | Attack the nearest creature |
+| A | Interact: the HUD INTERACT hex's pick (dismount, bed, station, fire, corpse, water, else gather the nearest resource within 12 m); with a selection on screen, fight it |
+| X | Attack: the fight's target, else the selection on screen, else the nearest creature |
 | B | Roll |
 | Y | Crafting |
 | Left stick click | Sprint |
@@ -35,10 +35,12 @@ browsers hide a controller until it is used.
 | Key | Action |
 |---|---|
 | W A S D or arrows | Move |
-| Shift | Sprint |
-| Space | Roll |
-| E | Interact, gather from the nearest node |
+| Shift | Sprint while held (the HUD SPRINT hex is a tap toggle) |
+| Q | Roll |
+| Space | Gather the nearest resource |
+| E | Interact (the INTERACT hex's pick); with a selection on screen, fight it |
 | F | Attack |
+| X | Rest |
 | 1 2 3 4 | Tactics |
 | I | Bag |
 | C | Crafting |
@@ -49,7 +51,14 @@ browsers hide a controller until it is used.
 | R, Enter | Rotate and confirm while placing |
 | F11 | Full screen |
 
-Mouse or touch taps gather, attack and place directly.
+Mouse or touch taps gather, attack and place directly. On the HUD: INTERACT (E, pad A) and ATTACK
+NEAREST (F, pad X) bottom-right, SPRINT beside them (tap toggles), MENU / BUILD / BAG (I) bottom-left.
+Desktop hexes show their key in a small box. No new InputMap action was needed: `interact` (E, A)
+and `attack` (F, X) already existed and keep their keys.
+
+Targets (owner 2026-10-28): out of combat a tap on a wild animal selects it; the swords hex, ATTACK
+NEAREST, E or F start the fight. In combat a tap on another enemy retargets at once and ATTACK
+NEAREST retargets to the nearest enemy.
 
 ## Full screen
 
@@ -59,9 +68,9 @@ a tap or key press.
 
 ## Not yet on the gamepad
 
-The four HUD hexes (Menu, Animals, Build, Skills) are drawn by hand and cannot take pad focus yet.
-Bag, crafting, map and pause have direct buttons. Animals, Build and Skills still need a pad shortcut or
-a focus ring.
+The HUD hexes (MENU, BUILD, BAG, INTERACT, ATTACK, SPRINT) cannot take pad focus. INTERACT, ATTACK,
+Bag, crafting, map and pause have direct buttons. MENU (and Skills / Animals inside it) and BUILD still
+need a pad shortcut or a focus ring.
 
 ## What has been verified
 

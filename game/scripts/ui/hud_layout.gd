@@ -4,21 +4,24 @@ extends RefCounted
 ## survivor's figure and name, the open sheet's fit. Static functions over the HUD's nodes, split out
 ## of hunt_hud.gd (review: no god-file growth).
 
-## A landscape phone's 390-452 px canvas: the desktop places ran the whistles off the top over the
-## map and stacked End Combat on ROLL. Whistles go in a row under the vitals, End Combat under the
-## map text (the claim and context hexes hide in a fight), the four skills in one row along the
-## bottom right with Auto and Feed above it, the stance text to their left.
+## A landscape phone's 390-452 px canvas: whistles in a row under the vitals; End Combat in the map
+## column under the map text (CLAIM and the context row hide in a fight), right above INTERACT; the
+## four skills in one row along the bottom between the rail and SPRINT / ATTACK NEAREST (HudField), Auto
+## and Feed above the NET / TACKLE seam, the stance text right of Auto.
 # ASSUMPTION: these phone placements are ours; the combat reference only fixes End Combat right, skills bottom right.
 static func place_landscape_phone(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 	var under_vitals := vitals_rect(hud, r).end.y + 8.0
 	for i in hud._whistle_hexes.size():
+		HudField.fit(hud._whistle_hexes[i], HudField.px(&"whistle", r))
 		hud._whistle_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HuntHud.HEX + 10.0), under_vitals)
-	hud._end_btn.custom_minimum_size = Vector2(HuntHud.MAP_PX, UiTokens.TARGET_PRIMARY)
+	var ih := hud.field.interact_hex
+	hud._end_btn.add_theme_font_size_override("font_size", 14)
+	hud._end_btn.custom_minimum_size = Vector2(r.x - 16.0 - inset.x - ih.position.x, 64.0)
 	hud._end_btn.size = hud._end_btn.custom_minimum_size
-	hud._end_btn.position = hud._minimap.position + Vector2(0.0, HuntHud.MAP_PX + 42.0)
-	var row_y := r.y - 8.0 - HuntHud.CAPTION_H - HuntHud.SKILL_HEX - inset.y - HuntHud.HEX - HuntHud.CAPTION_H - 10.0
-	var x := r.x - 16.0 - inset.x - HuntHud.SKILL_HEX
-	for i in range(hud._skill_hexes.size() - 1, -1, -1):  # ROLL at the right edge, NET leftmost
+	hud._end_btn.position = Vector2(ih.position.x, hud.map_floor() - 4.0)  # under the "X n  Y n" line, over INTERACT's hex
+	var row_y := r.y - UiTokens.xp_line_zone(r).size.y - HuntHud.CAPTION_H - HuntHud.SKILL_HEX - inset.y  # captions clear the XP line
+	var x := minf(hud.field.sprint_hex.position.x, hud.field.attack_hex.position.x) - 8.0 - HuntHud.SKILL_HEX
+	for i in range(hud._skill_hexes.size() - 1, -1, -1):  # ROLL at the right, NET leftmost
 		hud._skill_hexes[i].position = Vector2(x, row_y)
 		x -= HuntHud.SKILL_HEX + 8.0
 	var net := hud._skill_hexes[0].position
@@ -26,7 +29,7 @@ static func place_landscape_phone(hud: HuntHud, r: Vector2, inset: Vector4) -> v
 	hud._auto_hex.position = Vector2(net.x + HuntHud.SKILL_HEX + 4.0 - HuntHud.HEX * 0.5, up)  # over the NET/TACKLE seam
 	hud._feed_hex.position = hud._auto_hex.position - Vector2(HuntHud.HEX + 8.0, 0.0)
 	var sw := hud._stance_label.get_combined_minimum_size()
-	hud._stance_label.position = Vector2(net.x - 8.0 - sw.x, row_y + HuntHud.SKILL_HEX * 0.5 - sw.y * 0.5)
+	hud._stance_label.position = Vector2(hud._auto_hex.position.x + HuntHud.HEX + 8.0, up + HuntHud.HEX * 0.5 - sw.y * 0.5)
 
 ## A portrait phone's 390 px wide canvas: the desktop cluster ran off the left edge, onto the rail and
 ## onto CHASE, and the whistle column onto HANDS. From the quick-food row up: the whistle row with End
@@ -54,21 +57,25 @@ static func place_portrait(hud: HuntHud, r: Vector2, inset: Vector4, rail_y: flo
 ## The desktop canvas: End Combat, the honeycomb skill cluster, Auto, Feed, the whistle column, the
 ## stance label.
 static func place_desktop(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
+	hud._end_btn.add_theme_font_size_override("font_size", 16)
 	hud._end_btn.custom_minimum_size = Vector2(184, 64)
 	hud._end_btn.size = hud._end_btn.custom_minimum_size
 	hud._end_btn.position = Vector2(r.x - 270.0 - inset.x, r.y * 0.42)  # left of the whistle column (at -200 it sat on GUARD)
 	# Honeycomb cluster bottom-right: net / tackle / kick / roll, Auto below-right, stance text.
-	var cx := r.x - 250.0 - inset.x
-	var cy := r.y - 250.0 - inset.y  # leave the bottom-right mode toggles unobstructed
+	var cx := r.x - 480.0 - inset.x  # left of SPRINT / ATTACK NEAREST / INTERACT (HudField)
+	var cy := r.y - 250.0 - inset.y
 	var slots := [Vector2(-90, -60), Vector2(-10, -20), Vector2(-90, 40), Vector2(70, -50)]
 	for i in hud._skill_hexes.size():
 		hud._skill_hexes[i].position = Vector2(cx, cy) + slots[i]
 	hud._auto_hex.position = Vector2(cx + 84.0, cy + 40.0)  # under ROLL's caption (at +60/+30 it sat on it)
 	hud._feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
-	# The whistle column stands on the BAG hex over HANDS (held_item_slot.gd) with its caption clear of it;
-	# BAG's layer is above the HUD's, so a SIC under it never got a tap.
+	# The whistle row stands beside the rail (spec §6), bottom-aligned with it.
+	var rail := HudField.px(&"rail", r)
+	var wp := HudField.px(&"whistle", r)
+	var rail_y := r.y - rail - HuntHud.CAPTION_H - 14.0 - inset.y
 	for i in hud._whistle_hexes.size():
-		hud._whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 262.0 - HeldItemSlot.SLOT - HuntHud.CAPTION_H - inset.y - float(i) * (66.0 + HuntHud.CAPTION_H))
+		HudField.fit(hud._whistle_hexes[i], wp)
+		hud._whistle_hexes[i].position = Vector2(16.0 + inset.w + 3.0 * (rail + 10.0) + 10.0 + float(i) * (wp + 10.0), rail_y + rail - wp)
 	# Centred under Auto's caption on the bottom edge, as Durango anchors it to the stance dial.
 	var sw := hud._stance_label.get_combined_minimum_size()
 	hud._stance_label.position = Vector2(hud._auto_hex.position.x + HuntHud.HEX * 0.5 - sw.x * 0.5, r.y - 8.0 - inset.y - sw.y)
@@ -201,9 +208,6 @@ static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rec
 	var held: Control = hud.player.station_craft.held_slot if hud.player and hud.player.station_craft else null
 	if held and held.is_visible_in_tree():
 		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
-		var bag := held.get_node_or_null(^"InventoryButton") as Control  # the BAG hex stands over HANDS
-		if bag and bag.is_visible_in_tree():
-			out.append(Rect2(bag.get_global_rect().position, bag.size + Vector2(0, 18)))
 	var fig := figure_rect(hud)
 	if fig.has_area():
 		out.append(fig)

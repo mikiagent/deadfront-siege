@@ -139,11 +139,12 @@ func _status_layout_case() -> void:
 	player.statuses.clear_id(&"wet")
 	await process_frame
 
-## Sprint and combat are persistent, thumb-sized bottom-right modes rather than hold-only actions.
+## Sprint is a persistent toggle and ATTACK NEAREST a thumb-sized bottom-right hex (owner layout
+## 2026-10-28: the COMBAT toggle became ATTACK NEAREST; End Combat disengages).
 func _mode_toggle_case() -> void:
 	var sprint = hud.get_node_or_null("SprintToggle")
-	var combat = hud.get_node_or_null("CombatToggle")
-	_expect(sprint != null and combat != null, "HUD has Sprint and Combat toggles")
+	var combat = hud.get_node_or_null("AttackNearest")
+	_expect(sprint != null and combat != null, "HUD has the Sprint toggle and ATTACK NEAREST")
 	if sprint == null or combat == null:
 		return
 	var view: Vector2 = hud.get_viewport_rect().size
@@ -165,9 +166,11 @@ func _mode_toggle_case() -> void:
 	if creature.brain:
 		creature.brain.process_mode = Node.PROCESS_MODE_DISABLED
 	combat.pressed.emit()
-	_expect(player.hunt.target == creature, "Combat toggle targets a nearby wild animal")
+	_expect(player.hunt.target == creature, "ATTACK NEAREST targets a nearby wild animal")
 	combat.pressed.emit()
-	_expect(player.hunt.target == null, "Combat toggle disengages on the second tap")
+	_expect(player.hunt.target == creature, "a second ATTACK NEAREST tap keeps the fight (it swings again)")
+	hud.get("_end_btn").pressed.emit()
+	_expect(player.hunt.target == null, "End Combat disengages")
 	creature.queue_free()
 	await process_frame
 
@@ -217,11 +220,13 @@ func _interaction_controls_case(layer: CanvasLayer) -> void:
 		_expect(player.controls._nearest_harvest_node(float(player.controls.QUICK_GATHER_RADIUS)) == null,
 			"HANDS ignores resources outside its seek radius")
 
-		var bag_button := held.get_node_or_null("InventoryButton") as Control
-		_expect(bag_button != null, "a Bag button sits with the HANDS control")
+		# Owner layout 2026-10-28: BAG left HANDS for the bottom-left rail (MENU, BUILD, BAG).
+		var bag_button := hud.get_node_or_null("BagHex") as Control
+		_expect(bag_button != null, "a BAG hex stands in the rail")
 		if bag_button:
+			var vsz: Vector2 = hud.get_viewport_rect().size
 			_expect(bag_button.size.x >= 64.0 and bag_button.size.y >= 64.0, "the Bag button is a 64 px touch target")
-			_expect(bag_button.global_position.y < held.global_position.y, "the Bag button is above HANDS")
+			_expect(bag_button.global_position.x < vsz.x * 0.5 and bag_button.global_position.y > vsz.y * 0.5, "the BAG hex is bottom-left, by MENU")
 			var inv = (load("res://scenes/ui/inventory.tscn") as PackedScene).instantiate()
 			layer.add_child(inv)
 			player.ui = inv
