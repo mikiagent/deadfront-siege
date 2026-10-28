@@ -65,7 +65,46 @@
         "slashing"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "tactics": {
+        "_about": "TACTICS (owner 2026-10-28): circle at a stand-off ring, feint, lunge into a bite, telegraphed pounce, chomp combo where the species has the clip, back off below retreat_frac. Every number is an ASSUMPTION (first pass, not balanced). Cooldowns in seconds; distances centre to centre in metres (the prey's extra size is added).",
+        "ring_m": 5.5,
+        "circle_speed_frac": 0.8,
+        "circle_step_deg": 35.0,
+        "circle_min_s": 1.2,
+        "circle_max_s": 2.6,
+        "flip_chance": 0.3,
+        "bite_cd": 1.6,
+        "lunge_cd": 2.5,
+        "lunge_speed_mult": 1.0,
+        "lunge_max_s": 1.2,
+        "feint_chance": 0.25,
+        "feint_s": 0.7,
+        "pounce_cd": 9.0,
+        "pounce_chance": 0.5,
+        "pounce_min_m": 4.5,
+        "pounce_max_m": 8.0,
+        "pounce_telegraph_s": 0.8,
+        "pounce_leap_s": 0.4,
+        "pounce_height_m": 1.0,
+        "pounce_radius_m": 1.6,
+        "pounce_recover_s": 0.7,
+        "pounce_mult": 1.5,
+        "combo_cd": 7.0,
+        "combo_chance": 0.6,
+        "combo_mults": [
+          1.0,
+          1.3,
+          1.8
+        ],
+        "retreat_frac": 0.4,
+        "retreat_s": 2.5,
+        "retreat_cd": 10.0,
+        "retreat_speed_frac": 1.2,
+        "wide_ring_mult": 1.6,
+        "wide_circle_s": 4.0,
+        "pack_gap_s": 0.6
+      }
     },
     "apex_raptor": {
       "attack_range": 2.2,
@@ -208,11 +247,14 @@
       "attack",
       "flee",
       "retreat",
-      "chase"
+      "chase",
+      "lunge",
+      "feint"
     ],
     "special_cost_frac": {
       "attack_heavy": 0.3,
-      "bite_combo": 0.35
+      "bite_combo": 0.35,
+      "pounce": 0.3
     }
   }
 }
