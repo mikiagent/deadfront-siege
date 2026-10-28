@@ -403,8 +403,7 @@ func _physics_process(delta: float) -> void:
 			if absf(err) > FACE_SLACK_RAD:
 				var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
 				face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
-		var frac := clampf(speed / 8.0, 0.0, 1.0)
-		anim.play_locomotion(frac)
+		anim.set_move_speed(speed)  # stride-matched gait and cadence (no glide at in-between speeds)
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
