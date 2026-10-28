@@ -547,6 +547,9 @@ func _place_kind(kind: String, rows: Dictionary, models: PackedStringArray, n: i
 		var tile := BuildGrid.tile_of(Vector3(wx, h, wz))
 		if runtime._used_tiles.has(tile):
 			continue
+		# CLAIMPROPS: claimed land holds no scenery. A save's domain is set up before this layer
+		# builds, so this is also the load-time cleaning (props regenerate from the seed; the save
+		# format is untouched).
 		if _cell_props.has(tile):
 			continue
 		if collide and radius >= 1.0 and _cells_taken(tile, int(round(radius))):
@@ -556,9 +559,94 @@ func _place_kind(kind: String, rows: Dictionary, models: PackedStringArray, n: i
 		var path := "" if models.is_empty() else models[_rng.randi_range(0, models.size() - 1)]
 		var longest := 1.0 if path == "" else maxf(0.02, VegBatch.mesh_longest(path))
 		var sc := clampf(want_h / longest, 0.02, 60.0)
+		var sprite := pick_card_sprite(kind, Vector3(wx, h, wz))
+		# CLAIMPROPS: claimed land holds no scenery, measured on the prop's footprint (a boulder whose
+		# centre is just outside a claim but whose body reaches in is rejected too).
+		if _claimed_footprint(tile, _foot_radius(radius, sc, kind, sprite)):
+			continue
 		_spawn(kind, path, Vector3(wx, h, wz), sc, collide, destroyable, radius, want_h)
 		placed += 1
 	return placed
+
+## CLAIMPROPS: the radius (m) a prop of `kind` covers at this spot. A painted-card kind is as wide as
+## its sprite's art ratio, exactly like _spawn() sizes its footprint.
+func _foot_radius(radius: float, scale: float, kind: String, sprite: Dictionary) -> float:
+	var r := radius * scale
+	if sprite.is_empty():
+		return r
+	var ch := card_height(kind, sprite)
+	var px: Array = sprite.get("px", [1, 1]) as Array
+	var w := ch * float(px[0]) / maxf(1.0, float(px[1]))
+	return maxf(r, 0.5 * minf(w, ch))
+
+## CLAIMPROPS: does a prop covering `radius_m` around `tile` overlap claimed land? Claimed land holds no
+## scenery (the owner's rule), and this runs while the layer builds, so a save's domain is already in
+## place before the props regenerate from the seed: the load-time cleaning costs nothing else and the
+## save format is untouched.
+func _claimed_footprint(tile: Vector2i, radius_m: float) -> bool:
+	if runtime == null:
+		return false
+	if IslandClaims.is_claimed(runtime, tile):
+		return true
+	var r := int(floor(radius_m - 0.5))
+	if r <= 0:
+		return false
+	for dz in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			if IslandClaims.is_claimed(runtime, tile + Vector2i(dx, dz)):
+				return true
+	return false
+
+## Is this prop row (its centre cell or any cell of its footprint) on claimed land?
+func _row_on_claimed(row: Dictionary) -> bool:
+	if runtime == null:
+		return false
+	for c in _footprint_cells(row):
+		if IslandClaims.is_claimed(runtime, c):
+			return true
+	return false
+
+## CLAIMPROPS: remove every uncleared prop standing on claimed land. Called once the island's domain is
+## set up (a saved claim) and after every claim/expansion, so a plot is bare the moment it is staked -
+## including a kind that refuses an attack clear (a big cliff is still scenery, not a landmark to keep
+## inside a house). Returns how many props went.
+func clear_claimed() -> int:
+	if runtime == null:
+		return 0
+	var n := 0
+	for i in range(_rows.size() - 1, -1, -1):
+		if bool((_rows[i] as Dictionary).get("cleared", false)):
+			continue
+		if not _row_on_claimed(_rows[i]):
+			continue
+		# Not recorded in the save: the claim itself keeps the prop away, and a save whose claim is
+		# released later should be able to grow scenery there again (the save format is unchanged).
+		if _clear_index(i, false, true):
+			n += 1
+	return n
+
+## How many uncleared props stand on claimed land (the test's and the lab's measured number; 0 is the
+## owner's rule).
+func on_claimed_count() -> int:
+	var n := 0
+	for row in _rows:
+		if bool(row.get("cleared", false)):
+			continue
+		if _row_on_claimed(row):
+			n += 1
+	return n
+
+## Uncleared prop rows standing inside `rect` (tile coordinates, centre or footprint).
+func rows_in_rect(rect: Rect2i) -> Array:
+	var out: Array = []
+	for row in _rows:
+		if bool(row.get("cleared", false)):
+			continue
+		for c in _footprint_cells(row):
+			if rect.has_point(c):
+				out.append(row)
+				break
+	return out
 
 func _cells_taken(tile: Vector2i, r: int) -> bool:
 	for dz in range(-r, r + 1):
@@ -848,13 +936,15 @@ func clear_at_tile(tile: Vector2i) -> bool:
 		return false
 	return _clear_index(_rows.find(row), true)
 
-func _clear_index(i: int, record: bool) -> bool:
+## Clear one prop row. `force` takes it even when it is a kind that refuses an attack clear (a big
+## cliff standing where land was just claimed is scenery, not a landmark).
+func _clear_index(i: int, record: bool, force: bool = false) -> bool:
 	if i < 0 or i >= _rows.size():
 		return false
 	var row := _rows[i]
 	if bool(row.get("cleared", false)):
 		return false
-	if not bool(row.get("destroyable", true)):
+	if not force and not bool(row.get("destroyable", true)):
 		return false
 	row["cleared"] = true
 	var batch: VegBatch = row.get("batch")

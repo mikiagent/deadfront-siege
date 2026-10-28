@@ -298,6 +298,11 @@ static func _plant_family(rt: IslandRuntime, family: String, role: String, n: in
 				continue
 			if IslandClaims.is_grass(fam) and rt.is_claimed(tile):
 				continue  # CLAIMS2: claimed land is bare (no grass, no wild grass tufts)
+			# CLAIMPROPS: claimed land holds no scenery. A family with no usable gather option is a
+			# prop; a gatherable one (tree, rock, bush, plant, a harvestable stump) is a resource and
+			# stays on owned land.
+			if not family_gatherable(fam) and rt.is_claimed(tile):
+				continue
 			if Data.nature_families.get(fam, {}).has("depleted_models"):
 				var crowded := false
 				var centre_pos := BuildGrid.tile_centre(tile, rt)
@@ -563,6 +568,17 @@ static func _models(family: String) -> PackedStringArray:
 		out.append(str(m))
 	return out
 
+## CLAIMPROPS: does this family offer anything a survivor can gather? A family whose whole harvest
+## table names items the game does not have is scenery, whatever its role says.
+static func family_gatherable(family: String) -> bool:
+	var h := _harvest(family)
+	if h.is_empty():
+		return false
+	for k in h.keys():
+		if Data.item(StringName(str(k))) != null:
+			return true
+	return false
+
 static func _harvest(family: String) -> Dictionary:
 	var man: Dictionary = Data.nature_families.get(family, {})
 	var h: Variant = man.get("harvest", {})
@@ -613,6 +629,10 @@ static func _spawn_special_family(rt: IslandRuntime, family: String, count: int,
 		if family != "mud" and family != "clay" and not rt.spawn_ok(pos, false):
 			continue
 		if rt.near_harbour(pos):
+			continue
+		var tile := BuildGrid.tile_of(pos)
+		# CLAIMPROPS: claimed land holds no scenery (a family with no gather option is a prop).
+		if not family_gatherable(family) and rt.is_claimed(tile):
 			continue
 		var uid := "%s_tile_%d" % [family, placed]
 		rt.harvest_count += plant_at(rt, family, uid, pos, fallback_id, tool, climate, rt.material_level(pos, tier), tint)
