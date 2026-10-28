@@ -569,6 +569,14 @@ func claim_domain(cells: Array) -> Dictionary:
 func clear_domain() -> void:
 	IslandClaims.clear_domain(self)
 
+## UNCLAIM: why the cell at `cell` cannot be released right now ("" when it can).
+func release_reason(cell: Vector2i) -> String:
+	return IslandClaims.release_reason(self, cell)
+
+## UNCLAIM: release one cell of the domain ({"ok", "reason", "cell"}).
+func release_cell(cell: Vector2i) -> Dictionary:
+	return IslandClaims.release_cell(self, cell)
+
 ## Cells held / the cap (spec 29 section 4).
 func claim_used() -> int:
 	return IslandClaims.used(self)
