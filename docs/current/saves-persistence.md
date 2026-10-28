@@ -48,7 +48,8 @@ rules for the world: `game/scripts/core/save_restore.gd`. Validation after migra
 | `away` | buildings/claims/domain while off the home island (only then) |
 
 Ids only, never node references. Live creature, AI and spawn state is not saved: creatures
-respawn from island data. No save is written before character creation completes.
+respawn from island data. A save is refused while `World.creation_pending` (character creation and
+the first island pick have not finished), and `saved_unix` is written on every successful save.
 
 ## Sanitizer (`SaveSanitizer.clean`)
 - `MAX_LEVEL` 60 (pet, stack and tree levels), `MAX_T_STONES` 100000, `WORLD_LIMIT` 2000.0 m from
