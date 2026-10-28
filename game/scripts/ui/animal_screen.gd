@@ -240,10 +240,10 @@ func _show_detail(rec: PetRecord) -> void:
 	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (ACTIVE %d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
 	_summon.disabled = not _is_out(rec) and player.live_pets().size() >= Player.MAX_PETS_OUT
 
-## "Timid Velociraptor": the record's nature then the species (NATURES). A record without one
-## (an old save) loads with the nature its uid derives, so a name never loses the prefix.
+## "Velociraptor": the species alone. The nature is a chip under the name (NATURES, owner
+## 2026-10-28), never a word in it.
 func _nature_species(rec: PetRecord) -> String:
-	return CreatureNatures.display_name(rec.nature, "", str(rec.species).capitalize())
+	return CreatureNatures.display_name("", str(rec.species).capitalize())
 
 ## The pet's own name (pet radial Rename) with its nature and species, else the nature and species.
 func _display_name(rec: PetRecord) -> String:

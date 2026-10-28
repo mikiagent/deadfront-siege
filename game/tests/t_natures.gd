@@ -151,19 +151,23 @@ func _test_roll() -> void:
 	_sections += 1
 
 func _test_name() -> void:
-	_expect(NR.display_name(&"timid", "", "Velociraptor") == "Timid Velociraptor", "name reads '%s', want 'Timid Velociraptor'" % NR.display_name(&"timid", "", "Velociraptor"))
-	_expect(NR.display_name(&"", "", "Velociraptor") == "Velociraptor", "no nature: '%s'" % NR.display_name(&"", "", "Velociraptor"))
-	_expect(NR.display_name(&"brave", "Alpha", "Raptor") == "Brave Alpha Raptor", "ordering: '%s', want 'Brave Alpha Raptor'" % NR.display_name(&"brave", "Alpha", "Raptor"))
+	# Owner 2026-10-28: the nature is a tag UNDER the name, not part of the name.
+	_expect(NR.display_name("", "Velociraptor") == "Velociraptor", "name reads '%s', want 'Velociraptor'" % NR.display_name("", "Velociraptor"))
+	_expect(NR.display_name("Alpha", "Raptor") == "Alpha Raptor", "ordering: '%s', want 'Alpha Raptor'" % NR.display_name("Alpha", "Raptor"))
+	_expect(NR.display_name("Crested", "Velociraptor") == "Crested Velociraptor", "variant first: '%s'" % NR.display_name("Crested", "Velociraptor"))
 	_expect(NR.variant_word(&"velociraptor_crested", &"velociraptor") == "Crested", "variant word '%s'" % NR.variant_word(&"velociraptor_crested", &"velociraptor"))
-	# The living animal's plate title: nature, then Alpha (the pack leader), then its colour variant.
+	_expect(NR.tag(&"timid") == "Timid" and NR.tag(&"") == "", "the nature tag reads '%s' / '%s'" % [NR.tag(&"timid"), NR.tag(&"")])
+	# The living animal's plate title: Alpha (the pack leader) and its colour variant, then the
+	# species — and NO nature word anywhere in it; the nature comes back as the tag under the name.
 	var alpha := _creature(&"velociraptor", Vector3(20, 1, 20), &"brave", 11)
 	var beta := _creature(&"velociraptor", Vector3(22, 1, 20), &"timid", 11)
 	beta.variant = &"velociraptor_crested"
 	var title_a: String = NR.display_title(alpha)
 	var title_b: String = NR.display_title(beta)
-	print("[t_natures] names: leader='%s' follower='%s'" % [title_a, title_b])
-	_expect(title_a.begins_with("Brave ") and title_a.ends_with("Velociraptor"), "leader plate reads '%s'" % title_a)
-	_expect(title_b.begins_with("Timid ") and "Crested" in title_b, "variant plate reads '%s', want the nature then the variant" % title_b)
+	print("[t_natures] names: leader='%s' follower='%s' tags '%s'/'%s'" % [title_a, title_b, NR.tag_for(alpha), NR.tag_for(beta)])
+	_expect(not title_a.contains("Brave") and title_a.ends_with("Velociraptor"), "leader plate reads '%s' (the nature belongs in its tag '%s')" % [title_a, NR.tag_for(alpha)])
+	_expect(not title_b.contains("Timid") and "Crested" in title_b and title_b.ends_with("Velociraptor"), "variant plate reads '%s' (the nature belongs in its tag '%s')" % [title_b, NR.tag_for(beta)])
+	_expect(NR.tag_for(alpha) == "Brave" and NR.tag_for(beta) == "Timid", "plate tags read '%s' / '%s'" % [NR.tag_for(alpha), NR.tag_for(beta)])
 	# The pack leader is the Alpha whatever the roster order (strongest first), so the alpha's own
 	# title carries "Alpha" exactly when the brain names it the leader.
 	var is_leader: bool = alpha.brain._is_pack_leader()
