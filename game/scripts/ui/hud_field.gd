@@ -49,7 +49,7 @@ func _init(owner: HuntHud) -> void:
 	attack_hex.pressed.connect(func () -> void:
 		if hud.player:
 			hud.player.controls.attack_nearest())
-	sprint_hex = _hex("SprintToggle", "SPRINT", &"", "⇧")
+	sprint_hex = _hex("SprintToggle", "SPRINT", &"", "Shift")
 	sprint_hex.glyph = "»"
 	sprint_hex.pressed.connect(func () -> void:
 		if hud.player:
