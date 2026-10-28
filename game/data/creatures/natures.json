@@ -20,7 +20,8 @@
     "tactic_feint_mult": 1.0,
     "tactic_standoff_mult": 1.0,
     "tactic_hold_mult": 1.0,
-    "tactic_backoff_mult": 1.0
+    "tactic_backoff_mult": 1.0,
+    "tactic_overshoot_mult": 1.0
   },
   "_masking": {
     "_about": "ASSUMPTION: 'never' drops a nature for an archetype, 'only' limits it to a list, 'rare_for' allows it at rarity_weight_mult of the normal weight. A defensive or territorial grazer that rolls Aggressive charges on sight, where today it waits to be hit.",
@@ -90,7 +91,8 @@
       "_about": "Attacks nearby threats without orders: engages anything inside its (wider) aggro radius unprovoked. Herbivore archetypes roll it a tenth as often (a charging bull is rare, a pack of raptors is not).",
       "tactic_cooldown_mult": 0.7,
       "tactic_feint_mult": 0.5,
-      "tactic_hold_mult": 1.5
+      "tactic_hold_mult": 1.5,
+      "tactic_overshoot_mult": 1.6
     },
     "loyal": {
       "label": "Loyal",

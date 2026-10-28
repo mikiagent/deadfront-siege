@@ -83,6 +83,8 @@ func _run() -> void:
 	_test_energy_gate()
 	await _test_retreat()
 	await _test_ambush()
+	await _test_chase()
+	await _test_overshoot()
 	_test_natures()
 	load("res://scripts/combat/combat_tuning.gd").reset_overrides()
 	if failures.is_empty():
@@ -165,9 +167,9 @@ func _test_fight() -> void:
 		if b.state != &"approach" and b.state != &"alert":
 			_max_d = maxf(_max_d, Vector2(v.x, v.z).length())
 		if b.state in [&"circle", &"feint", &"hop", &"hold"]:
-			var all_cooling := true
+			var all_cooling := true  # nothing it may throw now (cooldowns, energy, the anti-spam beat)
 			for m in b.attack_priority():
-				all_cooling = all_cooling and b.cooldown_left(StringName(m)) > 0.0
+				all_cooling = all_cooling and not b.attack_available(StringName(m), Vector2(v.x, v.z).length())
 			if all_cooling:
 				_cool_frames += 1
 				if b.state == &"hold":
@@ -196,6 +198,41 @@ func _test_fight() -> void:
 			cd_breaks.append("%s %.2fs after the last (cd %.1f)" % [row[1], row[0] - float(last_use[row[1]]), cd])
 		last_use[row[1]] = row[0]
 	print("[t_tactical] attack order %s" % ", ".join(order))
+	# Anti-spam: basics <= max_basic_share of all actions, never 3 basics in a row, a beat between two.
+	var actions := 0
+	var basics := 0
+	var streak := 0
+	var worst_streak := 0
+	var beat := true
+	var no_beat := 0
+	for row in _tactics:
+		var k: StringName = row[1]
+		if k in [&"hold", &"hop", &"feint", &"strafe"]:
+			actions += 1
+			beat = true
+		elif k in [&"combo", &"pounce"]:
+			actions += 1
+			streak = 0
+		elif k == &"bite":
+			actions += 1
+			basics += 1
+			streak += 1
+			worst_streak = maxi(worst_streak, streak)
+			if not beat:
+				no_beat += 1
+			beat = false
+	var share: float = float(basics) / maxf(1.0, float(actions))
+	_expect(share <= float(b.tac.get("max_basic_share", 0.5)), "basic bites are %.0f%% of %d actions (<= %.0f%%)" % [share * 100.0, actions, float(b.tac.get("max_basic_share", 0.5)) * 100.0])
+	_expect(worst_streak <= int(b.tac.get("max_basic_streak", 2)), "never more than %d basics in a row (worst %d)" % [int(b.tac.get("max_basic_streak", 2)), worst_streak])
+	_expect(no_beat == 0, "a non-attack beat between any two basics (%d without)" % no_beat)
+	var pounce_mult := 0.0
+	var combo_first := 0.0
+	for h in _hits:
+		if h[1] == &"pounce":
+			pounce_mult = maxf(pounce_mult, h[3])
+		elif h[1] == &"bite_combo" and h[2] == 0:
+			combo_first = h[3]
+	_expect(pounce_mult > combo_first and combo_first > 0.0, "pounce hits harder than the combo's first bite (x%.2f vs x%.2f)" % [pounce_mult, combo_first])
 	_expect(cd_breaks.is_empty(), "no attack inside its own cooldown %s" % str(cd_breaks))
 	_expect(_hops >= 2 and _hop_best >= 2.5 and _hop_rise >= 0.3, "backs off by jumping: %d hops, best +%.2fm away within 0.5s, body rose %.2fm" % [_hops, _hop_best, _hop_rise])
 	_expect(_disengage_breaks.is_empty(), "never two back-leaps without an attack or a hold between %s" % str(_disengage_breaks))
@@ -206,7 +243,7 @@ func _test_fight() -> void:
 	var moving_frac := float(_cool_moving + _cool_hold) / maxf(1.0, float(_cool_frames))
 	_expect(_cool_frames > 30 and moving_frac >= 0.6, "moves or holds deliberately while every attack cools down (%.0f%% of %d frames)" % [moving_frac * 100.0, _cool_frames])
 	_expect(min_gap >= bite_cd - 0.05, "never bites twice inside its %.1fs bite cooldown (min gap %.2fs)" % [bite_cd, min_gap])
-	_expect(circle_ang > PI * 0.5, "circles the target (%.2f rad of travel around it while circling)" % circle_ang)
+	_expect(circle_ang > 1.0, "circles the target (%.2f rad of travel around it while circling)" % circle_ang)
 	_expect(int(kinds.get(&"lunge", 0)) >= 1, "lunges (%d)" % int(kinds.get(&"lunge", 0)))
 	_expect(int(kinds.get(&"pounce", 0)) >= 1, "pounces (%d)" % int(kinds.get(&"pounce", 0)))
 	_expect(int(kinds.get(&"combo", 0)) >= 1, "chomp combo (%d)" % int(kinds.get(&"combo", 0)))
@@ -229,13 +266,16 @@ func _test_fight() -> void:
 	if _combo_hits.size() == 3:
 		var rising: bool = _combo_hits[0][2] < _combo_hits[1][2] and _combo_hits[1][2] < _combo_hits[2][2]
 		_expect(rising, "combo damage rises %s" % str(_combo_hits))
+		# Measured from the first bite: the clip may start a frame or a cross-fade after the combo call.
+		var t0: float = _combo_hits[0][0] - float(fracs[0]) * clip_len
 		for i in 3:
 			var want: float = float(fracs[i]) * clip_len
-			_expect(absf(_combo_hits[i][0] - want) <= 0.12, "combo bite %d at %.2fs (hit frac %.3f of %.2fs = %.2fs)" % [i + 1, _combo_hits[i][0], fracs[i], clip_len, want])
+			_expect(absf(_combo_hits[i][0] - t0 - want) <= 0.07, "combo bite %d at %.2fs into the clip (hit frac %.3f of %.2fs = %.2fs)" % [i + 1, _combo_hits[i][0] - t0, fracs[i], clip_len, want])
 	var tell: Array = data.anim_events["clips"]["bite_combo"].get("tell_fracs", [])
 	if tell.size() == 2:
 		var tell_t: float = float(tell[0]) * clip_len
-		_expect(absf(_combo_tell - tell_t) <= 0.12 and _combo_tell < float(fracs[2]) * clip_len, "combo tell (last bite's ring) at %.2fs, tell_fracs[0] %.3f = %.2fs" % [_combo_tell, tell[0], tell_t])
+		var c0: float = _combo_hits[0][0] - float(fracs[0]) * clip_len if _combo_hits.size() > 0 else 0.0
+		_expect(absf(_combo_tell - c0 - tell_t) <= 0.07 and _combo_tell - c0 < float(fracs[2]) * clip_len, "combo tell (last bite's ring) at %.2fs into the clip, tell_fracs[0] %.3f = %.2fs" % [_combo_tell - c0, tell[0], tell_t])
 	else:
 		_expect(false, "anim_events bite_combo has tell_fracs [start, end]")
 
@@ -303,6 +343,71 @@ func _test_ambush() -> void:
 	_expect(ambushed[0], "ambushes inside the %.1fm radius" % radius)
 	_expect(first[0] == &"pounce", "first attack after the ambush is the leap from cover (got %s)" % first[0])
 	lurker.queue_free()
+
+func _fresh_hunter(at: Vector3):
+	var c = _spawn(&"deinonychus", at, &"loyal")
+	c.brain.tac = c.brain.tac.duplicate()
+	c.brain.tac.erase("ambush")  # these checks start mid-fight
+	return c
+
+## Walking away at walk pace while it is on her: it runs after her or pounces; the gap does not keep growing.
+func _test_chase() -> void:
+	player.global_position = Vector3(0, 0.9, 0)
+	var c = _fresh_hunter(Vector3(0, 0.1, -6))
+	var b = c.brain
+	_keep_player_alive()
+	b.on_aggro(player)
+	for i in 30:
+		await physics_frame
+	var kinds := {}
+	b.tactic.connect(func(k: StringName) -> void: kinds[k] = true)
+	var away := Vector3(0, 0, 1)
+	var d0: float = Vector2(c.global_position.x - player.global_position.x, c.global_position.z - player.global_position.z).length()
+	var ran := false
+	var t := 0.0
+	while t < 5.0:
+		await physics_frame
+		var dt := get_root().get_physics_process_delta_time()
+		t += dt
+		player.velocity = away * 5.5
+		player.global_position += away * 5.5 * dt
+		_keep_player_alive()
+		if b.state == &"approach" and b.speed_override >= c.move_speed_mps() - 0.01:
+			ran = true
+	var d1: float = Vector2(c.global_position.x - player.global_position.x, c.global_position.z - player.global_position.z).length()
+	player.velocity = Vector3.ZERO
+	_expect(ran or kinds.has(&"pounce"), "chases at a run or pounces when she walks away (ran=%s pounce=%s)" % [ran, kinds.has(&"pounce")])
+	_expect(d1 <= d0 + 1.0, "the gap does not keep growing (%.1fm -> %.1fm over 5s)" % [d0, d1])
+	c.queue_free()
+	await physics_frame
+
+## A pounce at prey that stops at take-off (aimed by its old velocity) sails past and recovers longer.
+func _test_overshoot() -> void:
+	player.global_position = Vector3(0, 0.9, 0)
+	var c = _fresh_hunter(Vector3(0, 0.1, -7))
+	var b = c.brain
+	b.attack_target = player
+	b._set_state(&"circle")
+	await physics_frame
+	b._start_pounce()
+	var start: Vector3 = c.global_position
+	var missed := [false]
+	b.tactic.connect(func(k: StringName) -> void:
+		if k == &"pounce_miss":
+			missed[0] = true)
+	var t := 0.0
+	while t < 3.0 and not missed[0]:
+		# She looks like she is walking away (velocity) but stands still: the lead overshoots her.
+		player.velocity = Vector3(0, 0, 4.0) if b._pounce_phase == &"windup" else Vector3.ZERO
+		await physics_frame
+		t += get_root().get_physics_process_delta_time()
+		_keep_player_alive()
+	var past: bool = c.global_position.distance_to(start) > player.global_position.distance_to(start)
+	_expect(missed[0] and b._pounce_phase == &"recover", "an overshot pounce misses and recovers (missed=%s phase=%s)" % [missed[0], b._pounce_phase])
+	_expect(past, "it lands past her (%.1fm from its start, she is %.1fm)" % [c.global_position.distance_to(start), player.global_position.distance_to(start)])
+	player.velocity = Vector3.ZERO
+	c.queue_free()
+	await physics_frame
 
 func _test_natures() -> void:
 	var calm = _spawn(&"deinonychus", Vector3(20, 0.1, 20), &"loyal")

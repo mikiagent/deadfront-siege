@@ -93,7 +93,7 @@
         "pounce_leap_s": 0.4,
         "pounce_radius_m": 1.6,
         "pounce_recover_s": 0.7,
-        "pounce_mult": 1.5,
+        "pounce_mult": 2.5,
         "combo_cd": 10.0,
         "combo_mults": [
           1.0,
@@ -124,13 +124,21 @@
         "leap_height_per_m": 0.2,
         "hop_cd": 3.5,
         "max_retreat_m": 11.0,
-        "w_hold": 0.35,
-        "w_strafe": 0.35,
-        "w_feint": 0.15,
-        "w_hop": 0.15,
+        "w_hold": 0.5,
+        "w_strafe": 0.3,
+        "w_feint": 0.1,
+        "w_hop": 0.1,
         "hold_min_s": 0.8,
         "hold_max_s": 1.6,
-        "_cooling": "While every attack cools down it picks by weight: hold its ground (w_hold, the alert threat pose; x2 when the prey is not advancing), strafe (w_strafe), feint (w_feint), hop back (w_hop). Back-leaps have their own cooldown (hop_cd), never come twice without an attack or a hold between, and never go past max_retreat_m from the prey. ONE back-off after an attack, else it holds. Natures: tactic_hold_mult (Brave/Aggressive 1.5), tactic_backoff_mult (Timid 2)."
+        "_cooling": "While every attack cools down it picks by weight: hold its ground (w_hold, the alert threat pose; x2 when the prey is not advancing), strafe (w_strafe), feint (w_feint), hop back (w_hop). Back-leaps have their own cooldown (hop_cd), never come twice without an attack or a hold between, and never go past max_retreat_m from the prey. ONE back-off after an attack, else it holds. Natures: tactic_hold_mult (Brave/Aggressive 1.5), tactic_backoff_mult (Timid 2).",
+        "pounce_overshoot_chance": 0.25,
+        "pounce_overshoot_m": 3.0,
+        "pounce_miss_recover_s": 1.5,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.5,
+        "_pounce": "The pounce is the big hit (pounce_mult x bite, ASSUMPTION 2.5) and stuns through the player's hurt stun (stun immunity still applies). It aims at the prey's predicted landing-time position (velocity lead) and overshoots by pounce_overshoot_m with pounce_overshoot_chance (Aggressive x tactic_overshoot_mult); a miss leaves pounce_miss_recover_s of punishable recovery.",
+        "_antispam": "Basic-attack anti-spam (owner): at least one non-attack beat (hold, hop, feint, strafe) between two basics, at most max_basic_streak basics before a beat or a special; t_tactical checks basics <= max_basic_share of all actions.",
+        "_chase": "Prey moving away (> 1 m/s outward) is chased at full run (can_sprint permitting) or pounced when ready; hold/strafe/hop apply only while it stays engaged."
       }
     },
     "apex_raptor": {
