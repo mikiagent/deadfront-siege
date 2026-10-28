@@ -7,7 +7,7 @@ extends RefCounted
 
 const ITEM_KEYS := ["id", "count", "level", "process_count", "attributes", "flags", "durability", "max_durability"]
 ## PetRecord.to_dict() keys plus the summoned flag; anything else is refused.
-const PET_KEYS := ["uid", "owner", "origin", "tamer", "tamed_at", "wild_level", "name", "parent_uids", "species", "variant", "grade", "hunger", "hunger_max", "hunger_efficiency", "xp_rate", "hp", "hp_now", "attack", "defense", "ranged_defense", "ranged_attack", "accuracy", "speed", "genetics", "tamed_role", "bag", "level", "xp", "respawn_left", "summoned", "nature"]
+const PET_KEYS := ["uid", "owner", "origin", "tamer", "tamed_at", "wild_level", "name", "parent_uids", "species", "variant", "grade", "hunger", "hunger_max", "hunger_efficiency", "xp_rate", "hp", "hp_now", "attack", "defense", "ranged_defense", "ranged_attack", "accuracy", "speed", "genetics", "tamed_role", "bag", "level", "xp", "respawn_left", "summoned", "nature", "gear"]
 const CAGE := "captured_animal"
 const GENE := {"hp": "health", "attack": "melee_attack", "ranged_attack": "ranged_attack", "defense": "melee_defense", "ranged_defense": "ranged_defense", "accuracy": "accuracy", "speed": "speed"}
 
@@ -204,6 +204,10 @@ func pet(raw: Variant) -> String:
 	for slot in bag:
 		if slot != null:
 			return "empty the pet bag before depositing it"
+	# SADDLES: worn gear is item instances; like the bag, it comes off before the pet changes hands.
+	var gear: Variant = d.get("gear", {})
+	if not gear is Dictionary or not (gear as Dictionary).is_empty():
+		return "take the pet's gear off before depositing it"
 	var genes := _genetics(d.get("genetics"), lv)
 	if genes.has("msg"):
 		return genes.msg

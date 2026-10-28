@@ -57,6 +57,7 @@ const PET_ROW := {
 	"speed": 0.0, "level": 0, "xp": 0.0, "respawn_left": 0.0, "tamed_role": [], "bag": [],
 	"tamed_at": 0, "wild_level": 0, "genetics": GENETICS,
 	"nature": "", # NATURES: optional (an old row has none; PetRecord.from_dict derives one from the uid)
+	"gear": {}, # SADDLES: optional {slot: item row}; an old row has none
 }
 ## Stack attributes read with int() (taming pen, hunt, material tier) or handed to
 ## CreatureGenetics.from_dict (taming pen, tamed animal release).
@@ -279,6 +280,13 @@ static func _pets(rows: Array) -> Array:
 			p["level"] = _int(p["level"], 1, MAX_LEVEL)
 		if p.has("bag"):
 			p["bag"] = stacks(p["bag"])
+		if p.has("gear"):
+			var gear := {}
+			for k in p["gear"]:
+				var st: Variant = _stack(p["gear"][k])
+				if st != null:
+					gear[str(k)] = st
+			p["gear"] = gear
 		out.append(p)
 	return out
 

@@ -13,6 +13,7 @@ const MENU := {
 	&"feed": {"id": &"feed", "label": "Feed", "icon": "feed"},
 	&"ride": {"id": &"ride", "label": "Ride", "icon": "ride"},
 	&"dismount": {"id": &"dismount", "label": "Dismount", "icon": "dismount"},
+	&"gear": {"id": &"gear", "label": "Gear", "icon": "equip"},
 	&"dismiss": {"id": &"dismiss", "label": "Dismiss", "icon": "dismiss"},
 	&"rename": {"id": &"rename", "label": "Rename", "icon": "rename"},
 }
@@ -213,7 +214,10 @@ func entries(c: Creature) -> Array:
 		out.append(MENU[&"bag"])
 	out.append(MENU[&"feed"])
 	if &"mount" in c.pet_record.tamed_role:
-		out.append(MENU[&"dismount"] if p.mounted_on == c else MENU[&"ride"])
+		var why := c.pet_record.ride_refusal()  # SADDLES: no fitting saddle = a greyed "Needs a saddle"
+		out.append(MENU[&"dismount"] if p.mounted_on == c else (MENU[&"ride"] if why == "" else {"id": &"ride", "label": why, "icon": "ride", "disabled": true}))
+		if hud and hud.has_method("open_pet_gear"):  # a saddle is the only tame slot so far
+			out.append(MENU[&"gear"])
 	out.append(MENU[&"dismiss"])
 	if rename_dialog:
 		out.append(MENU[&"rename"])
@@ -241,6 +245,10 @@ func _on_menu(anchor: Node3D, action_id: StringName) -> void:
 				p.mount(c)
 		&"dismount":
 			p.dismount()
+		&"gear":
+			var hud := p.get_tree().get_first_node_in_group("hud")
+			if hud and hud.has_method("open_pet_gear"):
+				hud.open_pet_gear(c.pet_record)
 		&"dismiss":
 			dismiss(c)
 		&"rename":
@@ -292,6 +300,10 @@ func dump_bag_into(c: Creature, dest: Inventory) -> int:
 
 func mount(c: Creature) -> void:
 	if c.pet_record == null or not (&"mount" in c.pet_record.tamed_role):
+		return
+	var why := c.pet_record.ride_refusal()
+	if why != "":
+		p.notice(why)  # SADDLES: riding needs a fitting saddle equipped (pet radial, Animals, INTERACT)
 		return
 	p.mounted_on = c
 	c.ridden = true

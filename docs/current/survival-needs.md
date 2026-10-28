@@ -33,7 +33,7 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
 - Stomach factor (FULLFATIGUE, owner 2026-10-28): `PlayerSim.tick` reads `Digestion.fullness()`, sets
   `Vitals.fullness_state` (`Digestion.state_for`) and `Vitals.fullness_mult` from `rules.json`
   `fatigue.fullness_mult`, and folds it into `fatigue_gain_mult`, so it reaches every gain including the
-  idle baseline. Values are ASSUMPTIONs (Open Questions A12):
+  idle baseline. Values are ASSUMPTIONs (Open Questions A16):
 
 | state | fullness | fatigue gain |
 |---|---|---|

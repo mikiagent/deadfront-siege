@@ -140,7 +140,8 @@ func _test_segments() -> void:
 	_expect(r != null and r.visible, "tapping your own pet opens the pet radial (menu=%s)" % [player.pets.get("menu")])
 	if r == null:
 		return
-	_expect(r.ids() == [&"animals", &"bag", &"feed", &"ride", &"dismiss", &"rename"], "zebraceratops segments %s" % [r.ids()])
+	# SADDLES: no saddle yet, so Ride is the greyed "Needs a saddle" row; Gear opens the tame's equipment.
+	_expect(r.ids() == [&"animals", &"bag", &"feed", &"ride", &"gear", &"dismiss", &"rename"], "zebraceratops segments %s" % [r.ids()])
 	# Feed: one berry from the survivor's bag into the pet.
 	player.inventory.add(ItemStackS.make(&"berries", 3))
 	rex.hunger = 1.0
@@ -163,7 +164,8 @@ func _test_segments() -> void:
 	if screen:
 		screen.close_screen()
 	player.bonded.pop_front()
-	# Ride, then Dismount from the ring on the mount.
+	# Ride, then Dismount from the ring on the mount (SADDLES: with a small saddle on).
+	rec.gear.put(&"saddle", ItemStackS.make(&"saddle_small"))
 	await _open(rex)
 	await _tap_segment(&"ride")
 	_expect(player.mounted_on == rex, "Ride mounts the pet")

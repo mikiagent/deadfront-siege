@@ -62,6 +62,19 @@ Full-rate thinking runs in every one of these states (`_full_rate`).
   drains `run_drain_per_s` 13. Its pool refills at `regen_mult_fresh` 1.5, or `regen_mult_winded`
   0.6 while winded. The survivor's run and sprint use `combat_tuning movement` (×1.25 speed, ×1.3
   stamina drain), with refill by fatigue strain tier 1.5 / 0.9 / 0.5 / 0.25.
+- **Enrage** (status `enraged`, 20 s; a failed tame or a missed net applies it):
+  - The body is not tinted. The look is blood instead: `statuses.json` fx.particles "blood" gives
+    a dripping body emitter and a flecking mouth emitter (`Creature._sync_status_emitters`, 2
+    CPUParticles3D, freed when the rage ends).
+  - The `tactics.enraged` multipliers apply (deinonychus: cooldowns x0.55; pounce, combo and
+    charge weights x1.6/1.8/1.4; multi-step sequences x1.5; power strafe x2, hop x1.5, plain
+    strafe x0.6; beats x0.6; pressed waits x0.4). The nature's `enrage_mult` pulls each toward 1:
+    Aggressive 1.5, Brave 1.4, Loyal/Stubborn 1.0, Docile 0.4.
+  - A Timid (`enrage_flee`) creature runs from its attacker instead, and returns to the fight
+    when the rage ends.
+  - Brains without a profile shorten their attack cooldowns by `default.enraged_cd_mult` 0.6 and
+    throw their heavy attack one primary sooner.
+  - Lab: N, or `--enrage`, enrages the nearest creature.
 - **Prey that walks away** (more than 1 m/s outward) is chased at a full run, or pounced when the
   pounce reaches its predicted position. It never holds or backs off while the prey leaves.
 - **Hit times are data.** The `bite_combo` hits come from `anim_events.json` `hit_fracs`, and its

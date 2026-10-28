@@ -181,3 +181,22 @@ combo.
   - Test scripts: t_tactical (5 identical runs), t_ai, t_combat, t_natures, t_canim, t_turnrate,
     t_tame, t_capture09, t_player, t_energy, t_mounts, t_roll, t_rest, t_fieldhud.
   - verify_jaws deinonychus: JAWS PASS.
+
+## Round 3: enrage (owner 2026-10-28)
+- **No red tint:** the creature body tint for `enraged` is removed (`Creature._status_fx`). The
+  status chip stays.
+- **Blood fx:** `statuses.json` enraged fx is now `particles: "blood"`, a new preset in
+  `StatusFx.make_emitter`. Creatures get a body drip and a mouth fleck emitter
+  (`Creature._sync_status_emitters`, 2 CPUParticles3D at most), freed when the rage ends or the
+  creature dies.
+- **Tactics profile modifier:** `tactics.enraged` gives shorter cooldowns, more pounces, combos,
+  charges and multi-step sequences, more power strafes and back-jumps, and shorter beats and
+  waits. The no-basic-spam and energy rules are unchanged.
+- **Natures:** `enrage_mult` sets how strong the modifier is (Aggressive 1.5, Brave 1.4,
+  Loyal/Stubborn 1.0, Docile 0.4). Timid `enrage_flee` makes it run away instead; it comes back
+  when the rage ends.
+- **Brains without a profile:** attack cooldowns x0.6 while enraged, and the heavy comes one
+  primary sooner.
+- **Lab:** N enrages the nearest creature; `--enrage` does it 1 s after start.
+- **Census** (30 s per row, per minute): calm 58, enraged 70, Aggressive enraged 78, Docile
+  enraged 64. Bite share 0. Timid enraged ran from 6 m to 18 m.
