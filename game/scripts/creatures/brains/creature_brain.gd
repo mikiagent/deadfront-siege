@@ -20,7 +20,7 @@ const PROVOKE_SECONDS := 15.0
 static var _pack_cooldown_until: Dictionary = {} ## pack_id -> seconds
 ## Every state in which the animal is on its prey (the ring, the leash and the post-kill reset read it).
 ## circle/feint/lunge/pounce/combo are TacticalBrain's manoeuvres.
-const COMBAT_STATES: Array[StringName] = [&"alert", &"approach", &"attack", &"retreat", &"circle", &"feint", &"lunge", &"pounce", &"combo"]
+const COMBAT_STATES: Array[StringName] = [&"alert", &"approach", &"attack", &"retreat", &"circle", &"feint", &"lunge", &"pounce", &"combo", &"hop"]
 
 ## TACTICS: >= 0 replaces the locomotion speed (m/s); strafe_face makes the body face that node while it
 ## moves (a sidestep around prey instead of turning to the velocity). Creature._physics_process reads both.

@@ -400,7 +400,6 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	vitals.add_fatigue(2.0, &"combat")
 	WaterAccess.soil(self, &"hit")
 	_flinch()
-	sim.on_hit()
 
 ## A creature hit that reached her inside the roll's opening window: no damage, no stagger, no
 ## statuses (CreatureAttack returns before any of them) and a "Dodged" float. Defense XP is paid
@@ -415,13 +414,16 @@ func roll_dodge(clip: StringName, who: Creature, lands: bool) -> void:
 		skills.add_xp("defense", RollRules.defense_xp())
 	print("[combat] dodged by roll %s %s t=%.2f xp=%s" % [who.def.id if who and who.def else "?", clip, sim.roll_elapsed(), lands])
 
-## Hit reaction clip; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse).
+## Hit reaction; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse). The
+## hurt clip plays only with the stun (PlayerSim.on_hit): inside the stun immunity a hit damages
+## without restarting it, so bites cannot chain-stun her.
 func _flinch() -> void:
 	if anim == null or rolling:
 		return
+	var stunned := sim.on_hit() if sim else true
 	if statuses and statuses.has_flag(&"knockdown"):
 		anim.play_clip(&"knockdown")
-	else:
+	elif stunned:
 		anim.on_damaged()
 
 func _on_vitals_damaged() -> void:

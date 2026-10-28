@@ -14,8 +14,10 @@ extends CreatureBrain
 signal tactic(kind: StringName)
 ## A tactical hit resolving: clip, the hit's index within the clip, and its damage multiplier.
 signal tactic_hit(clip: StringName, index: int, mult: float)
+## The attack-selection loop picked this move at distance d (it was the strongest one available).
+signal attack_chosen(move: StringName, d: float)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop"]
 
 var tac: Dictionary = {}
 var _cd: Dictionary = {}  ## move -> seconds until it may start again
@@ -31,8 +33,13 @@ var _wide_left := 0.0
 var _retreat_cd := 0.0
 var _telegraph: Telegraph
 var last_bite_s := -999.0
-var _last_special: StringName = &""
 var _circle_t := 0.0
+## hop: the backward leap every back-off uses (owner: "it shouldnt walk back, it should jump back").
+var _hop_from := Vector3.ZERO
+var _hop_to := Vector3.ZERO
+var _hop_t := 0.0
+var _hop_then: StringName = &"circle"
+var _hop_timed := false
 
 static func tactics_for(archetype: StringName) -> Dictionary:
 	var row: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(archetype), {})
@@ -108,7 +115,7 @@ func _think(delta: float) -> void:
 	var leader := _pack_leader()
 	if leader and leader != creature and leader.brain and leader.brain._valid_target():
 		attack_target = leader.brain.attack_target
-	if state != &"retreat" and _pounce_phase != &"leap" and _retreat_cd <= 0.0 \
+	if state != &"retreat" and state != &"hop" and _pounce_phase != &"leap" and _retreat_cd <= 0.0 \
 			and creature.health.fraction() < retreat_frac() and not creature.nature_flag("fear_immune"):
 		_start_retreat(_t("retreat_s", 2.5))
 	match state:
@@ -119,6 +126,7 @@ func _think(delta: float) -> void:
 		&"attack", &"combo": _swing(delta)
 		&"pounce": _pounce(delta)
 		&"retreat": _retreat_tick(delta)
+		&"hop": _hop(delta)
 
 func _to_me() -> Vector3:
 	var v := creature.global_position - attack_target.global_position
@@ -145,51 +153,80 @@ func _circle(delta: float) -> void:
 	strafe_face = attack_target
 	_circle_t += delta
 	speed_override = creature.walk_mps(creature.move_speed_mps()) * _t("circle_speed_frac", 0.8)
-	if d < ring_m() - 1.0 and creature.can_sprint():
-		speed_override = creature.move_speed_mps() * _t("backoff_speed_frac", 0.75)  # hop back out after a strike
 	var step := deg_to_rad(_t("circle_step_deg", 35.0)) * _circle_sign
 	# Steering at a point `step` ahead settles at radius * cos(step); aim past the ring so it holds the ring.
 	creature.move_to(attack_target.global_position + _to_me().rotated(Vector3.UP, step) * ring_m() / cos(step))
-	# Prey that follows it into its jaws gets bitten (also the only attack left while winded), but only
-	# after contact_after_s of backing off, so a chasing survivor is not chomped on every cooldown.
-	if d <= reach_to(attack_target) and _circle_t >= _t("contact_after_s", 1.0) and _ready_to(&"bite") and _can_swing():
-		if _ready_to(&"combo") and creature.anim.has_state(&"bite_combo") and creature.try_special(&"bite_combo"):
-			_combo()
-		else:
-			_bite()
+	# At the ring (or with prey that followed it into its jaws after a beat of backing off) the
+	# strongest attack that is ready goes; while everything cools down it keeps moving.
+	var at_ring := d >= ring_m() - 1.0
+	var in_jaws := d <= reach_to(attack_target) and _circle_t >= _t("contact_after_s", 1.0)
+	if (at_ring or in_jaws) and _strike(d):
+		return
+	if not at_ring and not creature.anim._busy and creature.stagger_left <= 0.0:
+		_start_hop()  # inside the ring with nothing to throw: jump back out to it, never reverse-walk
 		return
 	_left -= delta
 	if _left <= 0.0:
-		_choose(d)
+		_move_beat()
 
 func _can_swing() -> bool:
 	return not creature.anim._busy and creature.stagger_left <= 0.0 and _pack_ready()
 
-func _choose(d: float) -> void:
-	if d < ring_m() - 1.0:
-		_left = 0.3  # still backing out to the ring after a bite: every manoeuvre starts from stand-off
-		return
+## Attack moves, strongest first (ai.json tactics.attack_priority): combo, pounce, bite by default.
+func attack_priority() -> Array:
+	return tac.get("attack_priority", ["combo", "pounce", "bite"])
+
+## Ready right now: off its own cooldown, affordable (specials: energy and not winded), in range,
+## and the body is free to swing. Dashing in also needs can_sprint() unless the prey is in reach.
+func attack_available(move: StringName, d: float) -> bool:
+	if not _ready_to(move) or not _can_swing() or _wide_left > 0.0:
+		return false
+	var in_reach := d <= reach_to(attack_target)
+	match move:
+		&"combo":
+			return creature.anim.has_state(&"bite_combo") and creature.can_use_special(creature.special_cost(&"bite_combo")) \
+				and (in_reach or creature.can_sprint())
+		&"pounce":
+			return creature.can_sprint() and creature.can_use_special(creature.special_cost(&"pounce")) \
+				and d >= _t("pounce_min_m", 4.0) and d <= _t("pounce_max_m", 8.0) + _size_excess(attack_target)
+		&"bite":
+			return in_reach or creature.can_sprint()
+	return false
+
+## The strongest available attack, or false when everything is cooling down.
+func _strike(d: float) -> bool:
+	for m in attack_priority():
+		var move := StringName(m)
+		if not attack_available(move, d):
+			continue
+		var in_reach := d <= reach_to(attack_target)
+		attack_chosen.emit(move, d)
+		match move:
+			&"combo":
+				if not in_reach:
+					_start_lunge(&"bite_combo")
+				elif creature.try_special(&"bite_combo"):
+					_combo()
+				else:
+					continue
+			&"pounce":
+				_start_pounce()
+			&"bite":
+				if in_reach:
+					_bite()
+				else:
+					_start_lunge(&"attack_primary")
+		return true
+	return false
+
+## Nothing ready: strafe on (sometimes the other way) or feint, then look again.
+func _move_beat() -> void:
+	_left = randf_range(_t("circle_min_s", 0.8), _t("circle_max_s", 1.6))
 	if randf() < _t("flip_chance", 0.3):
 		_circle_sign = -_circle_sign
 	var feint := _t("feint_chance", 0.25) * creature.nature_knob("tactic_feint_mult", 1.0)
-	var dash_ok := creature.can_sprint() and _can_swing() and _wide_left <= 0.0
-	var can_pounce := dash_ok and _ready_to(&"pounce") and d >= _t("pounce_min_m", 4.5) and d <= _t("pounce_max_m", 8.0) + _size_excess(attack_target) \
-			and creature.can_use_special(creature.special_cost(&"pounce")) and randf() < _t("pounce_chance", 0.5)
-	var can_combo := dash_ok and _ready_to(&"combo") and _ready_to(&"lunge") and creature.anim.has_state(&"bite_combo") \
-			and creature.can_use_special(creature.special_cost(&"bite_combo")) and randf() < _t("combo_chance", 0.6)
-	# Specials alternate when both are on offer, so neither starves the other of energy.
-	if can_pounce and not (can_combo and _last_special == &"pounce"):
-		_start_pounce()
-	elif can_combo:
-		_start_lunge(&"bite_combo")
-	elif dash_ok and randf() < feint:
+	if creature.can_sprint() and _flat_dist(attack_target) >= ring_m() - 1.0 and randf() < feint:
 		_start_feint()
-	elif dash_ok and _ready_to(&"lunge") and _ready_to(&"bite"):
-		_start_lunge(&"attack_primary")
-	else:
-		_left = randf_range(0.3, 0.7)  # nothing ready: keep circling
-	if OS.has_environment("TA_DEBUG"):
-		print("[dbg] d=%.1f e=%.0f/%.0f pcd=%.1f ccd=%.1f -> %s" % [d, creature.energy, creature.energy_max, cooldown_left(&"pounce"), cooldown_left(&"combo"), state])
 
 func _start_feint() -> void:
 	_set_state(&"feint")
@@ -206,9 +243,8 @@ func _feint(delta: float) -> void:
 		speed_override = creature.move_speed_mps()
 		creature.move_to(attack_target.global_position + _to_me() * maxf(reach_to(attack_target) + 0.6, ring_m() * 0.5))
 	else:
-		_feint_out = true
-		speed_override = creature.walk_mps(creature.move_speed_mps())
-		creature.move_to(attack_target.global_position + _to_me() * ring_m())
+		_start_hop()  # the step in is answered by a jump back out
+		return
 	if _left <= 0.0:
 		_enter_circle()
 
@@ -225,7 +261,6 @@ func _lunge(delta: float) -> void:
 	speed_override = creature.move_speed_mps() * _t("lunge_speed_mult", 1.0)
 	creature.move_to(attack_target.global_position)
 	if _flat_dist(attack_target) <= reach_to(attack_target) - 0.1 and _can_swing():
-		_start_cd(&"lunge")
 		if _lunge_into == &"bite_combo" and creature.try_special(&"bite_combo"):
 			_combo()
 		elif _ready_to(&"bite"):
@@ -233,7 +268,6 @@ func _lunge(delta: float) -> void:
 		else:
 			_enter_circle(0.3)
 	elif _left <= 0.0:
-		_start_cd(&"lunge")
 		_enter_circle()
 
 func _bite() -> void:
@@ -250,7 +284,6 @@ func _combo() -> void:
 	creature.anim.play_clip(&"bite_combo")
 	_start_cd(&"combo")
 	_start_cd(&"bite")
-	_last_special = &"combo"
 	_set_state(&"combo")
 	_mark_pack()
 	tactic.emit(&"combo")
@@ -265,10 +298,11 @@ func _swing(delta: float) -> void:
 	creature.stop_move()
 	creature.face_towards(attack_target.global_position, delta)
 	if not creature.anim._busy:
-		_enter_circle(randf_range(0.6, 1.2))
+		_start_hop()
 
 func _start_pounce() -> void:
 	if not creature.try_special(&"pounce"):
+		_enter_circle(0.3)
 		return
 	_set_state(&"pounce")
 	_pounce_phase = &"windup"
@@ -278,7 +312,6 @@ func _start_pounce() -> void:
 	creature.anim.play_timed_attack(&"attack_heavy", _left + _t("pounce_leap_s", 0.4))
 	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("pounce_radius_m", 1.6) + _size_excess(attack_target), _left + _t("pounce_leap_s", 0.4))
 	_start_cd(&"pounce")
-	_last_special = &"pounce"
 	_mark_pack()
 	tactic.emit(&"pounce")
 	_log("[ai] %s pounce windup" % creature.def.id)
@@ -307,11 +340,7 @@ func _pounce(delta: float) -> void:
 			var leap_s := _t("pounce_leap_s", 0.4)
 			_pounce_t += delta
 			var f := clampf(_pounce_t / leap_s, 0.0, 1.0)
-			var want := _pounce_from.lerp(_pounce_to, f)
-			var step := want - creature.global_position
-			step.y = 0.0
-			creature.move_and_collide(step)
-			creature.view.position.y = sin(PI * f) * _t("pounce_height_m", 1.0)
+			_arc_step(_pounce_from, _pounce_to, f, _t("pounce_height_m", 1.0))
 			if f >= 1.0:
 				creature.view.position.y = 0.0
 				_pounce_land()
@@ -321,7 +350,7 @@ func _pounce(delta: float) -> void:
 			_left -= delta
 			if _left <= 0.0:
 				_end_pounce()
-				_enter_circle(randf_range(0.8, 1.4))
+				_start_hop()
 
 func _pounce_land() -> void:
 	var tgt := attack_target
@@ -336,6 +365,53 @@ func _pounce_land() -> void:
 	if CreatureAttack.apply_for(creature, &"attack_heavy", tgt, mult) and tgt is Player:
 		(tgt as Player).receive_creature_hit(creature, &"attack_heavy")
 
+## One frame of a leap: along from -> to at fraction f, the body (view) lifted on a sine arc.
+func _arc_step(from: Vector3, to: Vector3, f: float, height: float) -> void:
+	var step := from.lerp(to, f) - creature.global_position
+	step.y = 0.0
+	creature.move_and_collide(step)
+	creature.view.position.y = sin(PI * f) * height
+
+## Backward leap away from the prey, facing it: hop_m in hop_s on a hop_height_m arc, then a short
+## landing before `then` resumes. hop_back plays when the rig has it, else the pounce pose retimed.
+func _start_hop(then: StringName = &"circle", dist_mult: float = 1.0) -> void:
+	creature.stop_move()
+	_set_state(&"hop")
+	_hop_then = then
+	_hop_t = 0.0
+	_hop_from = creature.global_position
+	_hop_to = _hop_from + _to_me() * _t("hop_m", 3.5) * dist_mult
+	_hop_timed = not creature.anim.has_state(&"hop_back")
+	if _hop_timed:
+		creature.anim.play_timed_attack(&"attack_heavy", _t("hop_s", 0.4))
+	else:
+		creature.anim.play_clip(&"hop_back")
+	tactic.emit(&"hop")
+
+func _hop(delta: float) -> void:
+	creature.face_towards(attack_target.global_position, delta)
+	_hop_t += delta
+	var hop_s := _t("hop_s", 0.4)
+	if _hop_t <= hop_s:
+		_arc_step(_hop_from, _hop_to, _hop_t / hop_s, _t("hop_height_m", 0.7))
+		return
+	creature.view.position.y = 0.0
+	if _hop_timed:
+		_hop_timed = false
+		creature.anim.end_timed_attack()
+	if _hop_t >= hop_s + _t("hop_land_s", 0.15):
+		if _hop_then == &"retreat":
+			_set_state(&"retreat")
+		else:
+			_enter_circle()
+
+func _end_hop() -> void:
+	if creature and creature.view:
+		creature.view.position.y = 0.0
+	if _hop_timed:
+		_hop_timed = false
+		creature.anim.end_timed_attack()
+
 func _end_pounce() -> void:
 	if _pounce_phase == &"":
 		return
@@ -349,17 +425,23 @@ func _end_pounce() -> void:
 
 func _start_retreat(seconds: float) -> void:
 	_end_pounce()
-	_set_state(&"retreat")
 	_retreat_left = seconds
 	_retreat_cd = _t("retreat_cd", 10.0)
+	_wide_left = maxf(_wide_left, _t("wide_circle_s", 4.0))
 	tactic.emit(&"retreat")
+	_start_hop(&"retreat", _t("retreat_hop_mult", 1.4))
 
-## Back off facing the prey to the wide ring, then circle wide for a while before re-engaging.
+## Hurt: jump back (again while still inside the wide ring), then strafe the wide ring facing the prey
+## until the retreat time is up; the wide ring holds for wide_circle_s before it re-engages.
 func _retreat_tick(delta: float) -> void:
+	_wide_left = maxf(_wide_left, _t("wide_circle_s", 4.0))
+	if _flat_dist(attack_target) < ring_m() - 1.0:
+		_start_hop(&"retreat", _t("retreat_hop_mult", 1.4))
+		return
 	strafe_face = attack_target
 	speed_override = creature.walk_mps(creature.move_speed_mps()) * _t("retreat_speed_frac", 1.2)
-	_wide_left = maxf(_wide_left, _t("wide_circle_s", 4.0))
-	creature.move_to(attack_target.global_position + _to_me() * ring_m())
+	var step := deg_to_rad(_t("circle_step_deg", 35.0)) * _circle_sign
+	creature.move_to(attack_target.global_position + _to_me().rotated(Vector3.UP, step) * ring_m() / cos(step))
 	_retreat_left -= delta
 	if _retreat_left <= 0.0:
 		_enter_circle()
@@ -367,6 +449,8 @@ func _retreat_tick(delta: float) -> void:
 func _on_state_changed(prev: StringName, _next: StringName) -> void:
 	if prev == &"pounce":
 		_end_pounce()
+	elif prev == &"hop":
+		_end_hop()
 
 func _exit_tree() -> void:
 	if is_instance_valid(_telegraph):

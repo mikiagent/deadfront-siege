@@ -279,6 +279,14 @@ func on_damaged() -> void:
 	if not _dead:
 		play_clip(&"hit_react")
 
+## The hurt stun ended (PlayerSim): drop the hurt clip's hold so walk/run plays at once, never a
+## lingering hurt pose while she runs.
+func end_hurt() -> void:
+	if current_clip == &"hit_react" and _busy:
+		_busy = false
+		_forced = false
+		play_idle()
+
 func on_death() -> void:
 	_ground_sleep_visual(false)
 	_sleeping = false

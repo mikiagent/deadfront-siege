@@ -21,6 +21,15 @@ var _hits: Array = []  ## [sim_t, clip, index, mult]
 var _combo_start := -1.0
 var _combo_hits: Array = []  ## [t since combo start, index, mult] of the first combo
 var _states: Dictionary = {}
+var _chosen: Array = []  ## [sim_t, move]
+var _priority_breaks: Array[String] = []
+var _cool_frames := 0
+var _cool_moving := 0
+var _hop_start := -1.0
+var _hop_d0 := 0.0
+var _hop_best := 0.0  ## most distance gained from the prey within 0.5 s of a hop starting
+var _hop_rise := 0.0  ## highest body lift seen during a hop
+var _hops := 0
 var _combo_tell := -1.0  ## t since combo start of the first combo's tell (its last bite's ring)
 
 func _process(_delta: float) -> bool:
@@ -93,6 +102,10 @@ func _test_fight() -> void:
 	_expect(dino.anim.has_state(&"bite_combo"), "deinonychus loads the bite_combo clip")
 	b.tactic.connect(func(k: StringName) -> void:
 		_tactics.append([_sim_t, k])
+		if k == &"hop":
+			_hops += 1
+			_hop_start = _sim_t
+			_hop_d0 = Vector2(dino.global_position.x - player.global_position.x, dino.global_position.z - player.global_position.z).length()
 		if k == &"combo" and _combo_start < 0.0:
 			_combo_start = _sim_t)
 	b.tactic_hit.connect(func(clip: StringName, i: int, m: float) -> void:
@@ -106,12 +119,21 @@ func _test_fight() -> void:
 		if clip == &"attack_primary":
 			_bites.append(_sim_t))
 	_keep_player_alive()
+	b.attack_chosen.connect(func(move: StringName, d: float) -> void:
+		_chosen.append([_sim_t, move])
+		for m in b.attack_priority():
+			if StringName(m) == move:
+				break
+			if b.attack_available(StringName(m), d):
+				_priority_breaks.append("%s chosen at %.1fs while stronger %s was available" % [move, _sim_t, m]))
 	b.on_aggro(player)
 	Engine.time_scale = TIME_SCALE
 	var prev_ang := NAN
 	var circle_ang := 0.0
 	var hp0: float = dino.health.max_hp
+	var prev_pos: Vector3 = dino.global_position
 	while _sim_t < SIM_S:
+		prev_pos = dino.global_position
 		await physics_frame
 		var dt := get_root().get_physics_process_delta_time()  # already scaled by Engine.time_scale
 		_sim_t += dt
@@ -120,9 +142,20 @@ func _test_fight() -> void:
 		_states[b.state] = true
 		var v: Vector3 = dino.global_position - player.global_position
 		var ang := atan2(v.x, v.z)
-		if b.state == &"circle" and not is_nan(prev_ang):
+		if b.state in [&"circle", &"feint", &"hop"] and not is_nan(prev_ang):
 			circle_ang += absf(angle_difference(prev_ang, ang))
 		prev_ang = ang
+		if _hop_start >= 0.0 and _sim_t - _hop_start <= 0.5:
+			_hop_best = maxf(_hop_best, Vector2(v.x, v.z).length() - _hop_d0)
+			_hop_rise = maxf(_hop_rise, dino.view.position.y)
+		if b.state == &"circle" or b.state == &"feint" or b.state == &"hop":
+			var all_cooling := true
+			for m in b.attack_priority():
+				all_cooling = all_cooling and b.cooldown_left(StringName(m)) > 0.0
+			if all_cooling:
+				_cool_frames += 1
+				if Vector2(dino.global_position.x - prev_pos.x, dino.global_position.z - prev_pos.z).length() > 0.3 * dt:
+					_cool_moving += 1
 	Engine.time_scale = 1.0
 	var kinds := {}
 	for row in _tactics:
@@ -133,6 +166,22 @@ func _test_fight() -> void:
 	for i in range(1, _bites.size()):
 		min_gap = minf(min_gap, _bites[i] - _bites[i - 1])
 	_expect(_bites.size() >= 2, "bites landed (%d)" % _bites.size())
+	# The selection loop: strongest available first, each move outside its own cooldown, moving while all cool.
+	_expect(_priority_breaks.is_empty(), "attacks follow priority when available %s" % str(_priority_breaks))
+	var order: Array[String] = []
+	var last_use := {}
+	var cd_breaks: Array[String] = []
+	for row in _chosen:
+		order.append(str(row[1]))
+		var cd: float = float(b.tac.get(str(row[1]) + "_cd", 0.0))
+		if last_use.has(row[1]) and row[0] - float(last_use[row[1]]) < cd - 0.05:
+			cd_breaks.append("%s %.2fs after the last (cd %.1f)" % [row[1], row[0] - float(last_use[row[1]]), cd])
+		last_use[row[1]] = row[0]
+	print("[t_tactical] attack order %s" % ", ".join(order))
+	_expect(cd_breaks.is_empty(), "no attack inside its own cooldown %s" % str(cd_breaks))
+	_expect(_hops >= 2 and _hop_best >= 2.5 and _hop_rise >= 0.3, "backs off by jumping: %d hops, best +%.2fm away within 0.5s, body rose %.2fm" % [_hops, _hop_best, _hop_rise])
+	var moving_frac := float(_cool_moving) / maxf(1.0, float(_cool_frames))
+	_expect(_cool_frames > 30 and moving_frac >= 0.7, "moves while every attack cools down (%.0f%% of %d frames)" % [moving_frac * 100.0, _cool_frames])
 	_expect(min_gap >= bite_cd - 0.05, "never bites twice inside its %.1fs bite cooldown (min gap %.2fs)" % [bite_cd, min_gap])
 	_expect(circle_ang > PI, "circles the target (%.2f rad of travel around it while circling)" % circle_ang)
 	_expect(int(kinds.get(&"lunge", 0)) >= 1, "lunges (%d)" % int(kinds.get(&"lunge", 0)))
@@ -175,7 +224,7 @@ func _test_energy_gate() -> void:
 	for i in 60:
 		b._set_state(&"circle")
 		b._cd.clear()
-		b._choose(6.0)
+		b._strike(6.0)
 		if b.state == &"pounce" or (b.state == &"lunge" and b._lunge_into == &"bite_combo"):
 			specials += 1
 	_expect(specials == 0, "refuses pounce and combo with no energy (%d starts)" % specials)
@@ -187,14 +236,16 @@ func _test_retreat() -> void:
 	var b = dino.brain
 	b._retreat_cd = 0.0
 	dino.health.hp = dino.health.max_hp * (b.retreat_frac() * 0.5)
-	var saw := false
+	var saw := [false]
+	b.tactic.connect(func(k: StringName) -> void:
+		if k == &"retreat":
+			saw[0] = true)
 	for i in 30:
 		await physics_frame
 		_keep_player_alive()
-		if b.state == &"retreat":
-			saw = true
+		if saw[0]:
 			break
-	_expect(saw, "retreats below %.0f%% HP" % (b.retreat_frac() * 100.0))
+	_expect(saw[0], "retreats below %.0f%% HP" % (b.retreat_frac() * 100.0))
 	var wide_ok: bool = b.ring_m() > float(b.tac.get("ring_m", 5.5))
 	_expect(wide_ok, "circles wider after a retreat (ring %.1fm)" % b.ring_m())
 

@@ -68,22 +68,25 @@
       "chase_speed_mult": 0.7,
       "tactics": {
         "_about": "TACTICS (owner 2026-10-28): circle at a stand-off ring, feint, lunge into a bite, telegraphed pounce, chomp combo where the species has the clip, back off below retreat_frac. Every number is an ASSUMPTION (first pass, not balanced). Cooldowns in seconds; distances centre to centre in metres (the prey's extra size is added).",
+        "attack_priority": [
+          "combo",
+          "pounce",
+          "bite"
+        ],
+        "_attacks": "Attack selection (owner 2026-10-28): every attack has its own cooldown (<move>_cd); the strongest off-cooldown, affordable (energy via try_special: combo, pounce), in-range attack in attack_priority goes. When nothing is ready it moves: backs off fast to the ring, strafes around it, sometimes flips direction or feints. The basic bite costs no energy and has the shortest cooldown.",
         "ring_m": 5.5,
-        "circle_speed_frac": 0.8,
-        "backoff_speed_frac": 0.75,
+        "circle_speed_frac": 1.0,
         "contact_after_s": 1.0,
         "circle_step_deg": 35.0,
-        "circle_min_s": 1.2,
-        "circle_max_s": 2.6,
+        "circle_min_s": 0.8,
+        "circle_max_s": 1.6,
         "flip_chance": 0.3,
-        "bite_cd": 1.6,
-        "lunge_cd": 2.5,
+        "bite_cd": 3.5,
         "lunge_speed_mult": 1.0,
         "lunge_max_s": 1.2,
         "feint_chance": 0.25,
         "feint_s": 0.7,
-        "pounce_cd": 9.0,
-        "pounce_chance": 0.5,
+        "pounce_cd": 12.0,
         "pounce_min_m": 4.0,
         "pounce_max_m": 8.0,
         "pounce_telegraph_s": 0.8,
@@ -92,8 +95,7 @@
         "pounce_radius_m": 1.6,
         "pounce_recover_s": 0.7,
         "pounce_mult": 1.5,
-        "combo_cd": 7.0,
-        "combo_chance": 0.6,
+        "combo_cd": 10.0,
         "combo_mults": [
           1.0,
           1.3,
@@ -105,7 +107,13 @@
         "retreat_speed_frac": 1.2,
         "wide_ring_mult": 1.6,
         "wide_circle_s": 4.0,
-        "pack_gap_s": 0.6
+        "pack_gap_s": 0.6,
+        "hop_m": 3.5,
+        "hop_s": 0.4,
+        "hop_height_m": 0.7,
+        "hop_land_s": 0.15,
+        "retreat_hop_mult": 1.4,
+        "_hop": "Every back-off is a backward LEAP (owner 2026-10-28: jump back, never walk back): hop_m in hop_s on a hop_height_m arc facing the prey, hop_land_s landing. Plays hop_back when the rig has it, else the pounce pose retimed."
       }
     },
     "apex_raptor": {
