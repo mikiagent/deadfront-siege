@@ -176,8 +176,7 @@ func _walk(delta: float) -> void:
 		# walking to (sleep at a tent, gather, craft) is off, not merely paused.
 		cancel_errand()
 		p.actions.cancel_work()
-		if p.station_craft:
-			p.station_craft.abandon_errand()
+		drop_pending_craft(p)
 	var dir := cam_dir(input)
 	if p.sprint_toggled and (p.vitals.energy <= 0.0 or p.statuses.has_flag(&"no_sprint")):
 		p.sprint_toggled = false
@@ -492,9 +491,19 @@ func clear_nav() -> void:
 	p.agent.target_position = p.global_position
 
 ## A ground click replaces what she was walking to do: drop the sleep errand (the route ending must
-## not lie her down) and the marker. Gather/butcher/craft errands are PlayerActions' / StationCraft's.
+## not lie her down) and the marker. Gather/butcher errands are PlayerActions'.
 func cancel_errand() -> void:
 	_sleep_pending = null
+
+## The craft half of the same rule, kept here so Player and StationCraft need no new public API: a
+## recipe she was walking to a station to make is forgotten (nothing was consumed until the bench
+## starts it), while a craft already running keeps going — its own distance check cancels it.
+static func drop_pending_craft(p: Player) -> void:
+	var sc: StationCraft = p.station_craft if p else null
+	if sc == null or sc.crafting or sc.recipe_id == &"":
+		return
+	print("[craft] abandoned pending %s (a move order replaced it)" % sc.recipe_id)
+	sc.cancel_and_refund()
 
 func path_points() -> PackedVector3Array:
 	return _path_points

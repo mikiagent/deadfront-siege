@@ -294,4 +294,4 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
   tent to sleep and you click somewhere else, the sleep intent and its path both drop and she never
   sleeps; same for gather, loot, mount/tame and a queued station craft. A craft already started at
   the bench keeps running. Steering with the keys/stick cancels the same way. Owned by
-  `PlayerSim.cancel_errand()`, `PlayerActions.cancel_work()` and `StationCraft.abandon_errand()`.
+  `PlayerSim.cancel_errand()`, `PlayerActions.cancel_work()` and `PlayerSim.drop_pending_craft()`.

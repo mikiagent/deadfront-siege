@@ -256,8 +256,7 @@ func _walk_to_tile(at: Vector3) -> void:
 	# walking to do (sleep at a tent, gather, craft at a station) so none of them finishes later.
 	p.actions.cancel_work()
 	p.sim.cancel_errand()
-	if p.station_craft:
-		p.station_craft.abandon_errand()
+	PlayerSim.drop_pending_craft(p)
 	selection.clear()
 	if p.hunt:
 		p.hunt.stop()

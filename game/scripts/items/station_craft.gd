@@ -450,15 +450,6 @@ func _finish_one() -> void:
 		recipe_id = &""
 		_hand_craft = false
 
-## [owner 2026-10-28] A ground click drops a pending station errand: the recipe she was walking to
-## craft is forgotten, so arriving there does not start it. An active craft keeps its own rule (the
-## distance/route check in _process cancels and refunds it).
-func abandon_errand() -> void:
-	if crafting or recipe_id == &"":
-		return
-	print("[craft] abandoned pending %s (a move order replaced it)" % recipe_id)
-	_clear_session()
-
 ## Stops the craft. Nothing to give back: the inputs never left the bag (name kept for player.gd).
 func cancel_and_refund() -> void:
 	if crafting:

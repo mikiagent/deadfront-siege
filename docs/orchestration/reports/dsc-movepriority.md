@@ -32,14 +32,17 @@ No balance numbers changed.
   arrival tolerance instead of chasing a further waypoint.
 - `game/scripts/player/player_input.gd` — `_walk_to_tile` is the only place that sets
   `move_order = true`, and only for ground taps. It first calls `sim.cancel_errand()`,
-  `actions.cancel_work()` and `station_craft.abandon_errand()`, clears selection and stops the hunt.
+  `actions.cancel_work()` and `PlayerSim.drop_pending_craft(p)`, clears selection and stops the hunt.
   An enemy tap still selects (out of combat) or retargets (in combat) and does not touch the move
   order, per the §11 in-combat tap rule.
 - `game/scripts/combat/hunt.gd` — `_process`, `_auto_attack` and `swing_now` return early while
   `player.move_order`. That is what stops the auto-chase and the in-reach `clear_nav()` from pulling
   her off a tap route.
-- `game/scripts/items/station_craft.gd` — new `abandon_errand()`: drops a queued recipe session
-  (refunding as `cancel_and_refund` does) but never touches a craft that has already started burning.
+- `game/scripts/player/player_sim.gd` — new `static func drop_pending_craft(p)`: drops a recipe she
+  was still walking to a station for (`cancel_and_refund`, which returns nothing because the inputs
+  never left the bag), but never touches a craft that has already started burning. It lives in the
+  player scripts rather than adding a function to `game/scripts/items/station_craft.gd`, which is
+  outside this task's file scope.
 - `game/tests/t_movepriority.gd` (new, 344 lines, `t_targetui.gd`-shaped, 240 s watchdog) — five case
   groups: baseline auto-attack with no order; ground click with an enemy in reach (walks, 0 swings, no
   chase, enemy tap and bleed tick do not cancel); damage breaks the move (attacker within reach /
@@ -69,10 +72,10 @@ owed before this ships to mobile.
   that auto-moves or auto-attacks her should check it (`PlayerSim.clear_nav()` and arrival clear it;
   only `_walk_to_tile` sets it).
 - The errand cancel is split by owner on purpose: `PlayerSim.cancel_errand()` (sleep),
-  `PlayerActions.cancel_work()` (gather/butcher/tame), `StationCraft.abandon_errand()` (queued
+  `PlayerActions.cancel_work()` (gather/butcher/tame), `PlayerSim.drop_pending_craft()` (queued
   recipe). A future errand type (mount, tame-drive, build) must add its cancel to `_walk_to_tile`'s
   batch or it will survive a move order.
 - A **started** station craft is deliberately left running through a move order. If the owner wants
   the click to abort it, `StationCraft.cancel_and_refund()` is the call; do not change
-  `abandon_errand()`.
+  `drop_pending_craft()`.
 - `verify_job.sh movepriority 1` is the cheap gate for anything touching these files.
