@@ -6,6 +6,39 @@
 
 These rows describe game data; a row alone does not prove that its output is playable. `min skill` is the recipe's minimum level gate when greater than zero; the gate also checks the resulting item level. Other gates may apply. `ability target` affects success chance rather than imposing a hard gate. `recipe max_level` is the configured output-level cap; the actual result also depends on materials, skill, and runtime bounds. Absent values use the defaults in `game/scripts/items/crafting.gd`: minimum 0, ability 0, and output cap 60.
 
+## Cook roles (COOKROLES)
+
+A cooking recipe's slots can carry a **role**, and a recipe that opts in (`"inherit": true`) carries
+traits from the exact ingredient instance it consumed. Data: `game/data/cook_roles.json` (the six
+roles, their accepted and excluded categories, per-role default inheritance flags, the trait →
+FOODFX effect table, the role bonuses). Code: `game/scripts/items/cook_roles.gd` (`CookRoles`),
+called from two seams in `game/scripts/items/crafting.gd` — `CookRoles.role_accepts` inside the
+slot check and `CookRoles.apply_to_output` at the tail of the output build — plus
+`game/scripts/items/food_effects.gd` for the dish's FOODFX bundle.
+
+| role | accepts (item categories) | inherits by default |
+|---|---|---|
+| main | meat, fruit, crop, mushroom, cooked, vegetable (never spice) | traits, processed, flags |
+| topping | fruit, herb, crop, mushroom, berry_crop | nothing (adds its role bonus) |
+| sauce | juice, sauce, drink | nothing (adds its role bonus) |
+| broth | water, broth | nothing (adds its role bonus) |
+| spice | spice | nothing (adds its role bonus) |
+| support | any | nothing |
+
+- A role narrows a slot on top of the slot's own category check; it never replaces it, so a spice
+  cannot fill a main slot.
+- Inheritance is per slot, from that instance: `traits` (all non-rare, or a list of keys),
+  `processed` (in-place cooking history), `flags`, and `rare` (the green attributes, off unless the
+  slot says so). First carrier of a trait key wins in slot order; nothing stacks or averages, and a
+  later duplicate is recorded as dropped.
+- The dish stores what it inherited in `attributes.cooked_roles` and its role bonuses in
+  `attributes.cooked_buffs`; `FoodEffects` evaluates the dish from that stored state, so a save and
+  reload keep it.
+- The six roled recipes in the tables below are `roled_grilled_meat` (main), `roled_berry_glazed_meat`
+  (main + topping), `roled_broth_soup` (main + broth), `roled_spiced_stew` (main + spice + broth),
+  `roled_herb_roast` (main + topping + support) and `roled_salad` (two topping slots, no inheritance).
+  Test: `game/tests/t_cookroles.gd`.
+
 ## Hand crafting
 
 | recipe | output | inputs | skill | min skill | ability target | recipe max_level | time (s) | process |
