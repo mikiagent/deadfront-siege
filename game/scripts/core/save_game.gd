@@ -81,6 +81,13 @@ static func save_now() -> bool:
 	if player == null:
 		return false
 	World._snapshot_harvest()
+	# BUTCHER (spec 12 §2): the carcasses lying on this island, with the parts already cut off them,
+	# so a reload mid-butcher keeps which cuts were spent (CarcassParts.to_row shapes the state).
+	var carcasses: Array = []
+	if World.runtime:
+		for n in World.runtime.get_tree().get_nodes_in_group("corpse"):
+			if n is Corpse and not n.is_queued_for_deletion() and World.runtime.is_ancestor_of(n):
+				carcasses.append(CarcassParts.to_row(n as Corpse))
 	var snares: Array = []
 	if World.runtime:
 		for n in World.runtime.get_tree().get_nodes_in_group("ground_snare"):
@@ -113,6 +120,7 @@ static func save_now() -> bool:
 		},
 		"pets": pets,
 		"ground_snares": snares,
+		"carcasses": carcasses,
 		"skills": skills,
 		"home": {
 			"terrain": str(World.home_terrain),
@@ -306,6 +314,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	var elapsed := offline_seconds(saved_unix)
 	if int(Time.get_unix_time_from_system()) - saved_unix > elapsed:
 		print("[save] offline catch-up clamped %ds -> %ds" % [int(Time.get_unix_time_from_system()) - saved_unix, elapsed])
+	SaveRestore.carcasses(data.get("carcasses", []))
 	for row in data.get("ground_snares", []):
 		if row is Dictionary and World.runtime:
 			var remaining: Dictionary = row.duplicate(true)

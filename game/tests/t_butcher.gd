@@ -47,7 +47,7 @@ func _run() -> void:
 	_test_rare_per_part()
 	_test_save_round_trip()
 	await _test_timed_cut()
-	_test_picker()
+	await _test_picker()
 	if _finished != GROUPS:
 		_fails.append("all %d test groups ran to the end (%d did)" % [GROUPS, _finished])
 	if _fails.is_empty():

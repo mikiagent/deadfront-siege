@@ -86,7 +86,8 @@ func butcher(player: Player) -> Array[ItemStack]:
 ## The corpse interact: open the part picker (spec 12 §2 — the survivor chooses what to cut). The
 ## loot chest is still one tap away from the picker's "Loot chest" button.
 func open_loot(player: Player) -> void:
-	if player == null or player.ui == null:
+	# The picker needs no bag screen (a survivor without one, as in a fixture, still gets it).
+	if player == null:
 		return
 	note_tapped()
 	if _is_empty():
@@ -105,6 +106,8 @@ func open_picker(player: Player) -> void:
 	if CarcassParts.parts(species).is_empty():
 		open_loot_chest(player)
 		return
+	if not is_inside_tree():
+		return  # the picker draws over the world: nothing to show for a corpse not in a scene
 	if not is_instance_valid(_picker):
 		var layer := CanvasLayer.new()
 		layer.name = "ButcherPickerLayer"
