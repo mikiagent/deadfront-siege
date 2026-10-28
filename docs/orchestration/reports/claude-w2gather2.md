@@ -6,7 +6,7 @@ Base: `claude/mmo-overhaul` b08ed1f8. Source: `claude/mmo-w2-gather` (review rou
 - `git merge claude/mmo-w2-gather` (71c9c6dc): no conflicts. The branch only adds files: `game/scripts/gather/`
   (GatherService, LootRoller, LootTables, ButcherLoot, GatherFeedback), `game/data/loot_tables.json`,
   `game/data/gather_rules.json`, `game/tests/t_gather.gd`, `--lab=gather_lab`, and its report and hooks patch.
-- The hooks patch (`docs/orchestration/reports/claude-mmo-w2-gather-hooks.patch`, now historical), applied by hand in 300cb3bf:
+- The hooks patch (`docs/orchestration/reports/claude-mmo-w2-gather-hooks.patch`, now historical), applied by hand in eeafe88a:
   - `player_actions.gd`: gather seconds and yield come from `GatherService.unit_seconds` / `yield_multiplier`;
     `GatherService.after_unit` runs after each unit (helper-tool wear, 5% green trait per item on the instance
     that landed, climate finds, "+n Item" stack). Applied clean.
