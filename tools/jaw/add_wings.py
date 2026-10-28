@@ -6,7 +6,7 @@ fans are separate geometry: at rest they lie flat over the painted wing (and tak
 under them), and a clip rotates Wing.* to flare them out. Existing clips have no Wing keys, so they stay folded.
 
   Blender -b --python tools/jaw/add_wings.py -- <in.glb> <out.glb> [--root FrontUpLeg] [--parent FrontLeg]
-      [--feathers 9] [--length 0.20] [--width 0.035] [--back 1.0]
+      [--feathers 11] [--length 0.30] [--width 0.05]
 
 Lengths are in mesh units. The fans are joined into the body mesh with its own material, as thin solid blades so both sides render.
 """
@@ -19,10 +19,11 @@ ap = argparse.ArgumentParser()
 ap.add_argument("inp"); ap.add_argument("out")
 ap.add_argument("--root", default="FrontUpLeg", help="the fan grows from this bone's head (the shoulder)")
 ap.add_argument("--parent", default="FrontLeg")
-ap.add_argument("--feathers", type=int, default=9)
-ap.add_argument("--length", type=float, default=0.20)
-ap.add_argument("--width", type=float, default=0.035)
-ap.add_argument("--lift", type=float, default=0.006, help="gap between the folded fan and the hide")
+ap.add_argument("--feathers", type=int, default=11)
+ap.add_argument("--length", type=float, default=0.30)
+ap.add_argument("--width", type=float, default=0.05)
+ap.add_argument("--pale", type=float, default=0.45, help="hide brighter than this is belly/leg skin, not feathers")
+ap.add_argument("--lift", type=float, default=0.012, help="gap between the folded fan and the hide")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -44,6 +45,16 @@ def surface(p):
     f = bm0.faces[idx]
     lo = min(f.loops, key=lambda l: (l.vert.co - loc).length)  # shortcut: nearest corner's UV, fine for feather texture
     return loc, nrm, lo[uvl0].uv.copy()
+
+# the body texture: feathers must not borrow the pale belly or leg skin they hang over
+img = next((n.image for m in ob.data.materials if m and m.use_nodes for n in m.node_tree.nodes
+            if n.type == "TEX_IMAGE" and n.image), None)
+PX = img.pixels[:] if img else None
+def lum(uv):
+    if PX is None: return 0.0
+    W, H = img.size; k = (int(min(max(uv.y, 0), .9999) * H) * W + int(min(max(uv.x, 0), .9999) * W)) * 4
+    return 0.3 * PX[k] + 0.6 * PX[k + 1] + 0.1 * PX[k + 2]
+FEATHER_UV = []  # dark (feathered) UVs met so far, reused where the hide underneath is pale
 
 bpy.context.view_layer.objects.active = arm
 bpy.ops.object.mode_set(mode="EDIT")
@@ -79,11 +90,15 @@ for side, (root, sgn) in wing_bones.items():
         rows = []
         for t in (0.0, 0.33, 0.66, 1.0):
             centre = root + d * (length * t)
-            w = width * (0.35 + 0.65 * math.sin(math.pi * min(t, 0.95) * 0.9 + 0.3)) * (0.5 if t == 1.0 else 1.0)
+            w = width * (0.35 + 0.65 * math.sin(math.pi * min(t, 0.95) * 0.9 + 0.3)) * (0.12 if t == 1.0 else 1.0)  # pointed tip
             row = []
             for e in (-0.5, 0.5):
                 p = centre + perp * (w * e)
                 loc, nrm, uv = surface(p)
+                if t == 0.0 and e < 0:  # one coherent texture strip per feather, taken where it leaves the arm
+                    base = uv if lum(uv) < a.pale or not FEATHER_UV else FEATHER_UV[k % len(FEATHER_UV)]
+                    if lum(uv) < a.pale: FEATHER_UV.append(uv.copy())
+                uv = base + Vector((0.03 * t, 0.006 * (e + 0.5)))
                 q = loc + nrm.normalized() * (a.lift + 0.002 * k)  # layered, outer feathers on top
                 if (q.x - 0) * sgn < 0.01: q.x = 0.01 * sgn  # never cross the midline
                 v = fan.verts.new(inv @ q)
