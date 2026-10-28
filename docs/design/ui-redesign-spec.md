@@ -267,6 +267,10 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
 
 ## 11. Owner rules added after the canvas review
 
+- [owner 2026-10-28] Animal natures are shown as a **chip under the name**, never as a word in it:
+  the plate, the Animals screen and the pet radial draw the name ("Alpha Velociraptor") with a small
+  `NatureChip` directly below it ("Timid"). Gold/positive trait style (§5); natures carry no polarity,
+  so no "−"/"+" prefix. See `../current/creatures-capture-taming.md` § Natures.
 - [owner 2026-10-28] Hexes are **flat-top** everywhere (§3 open question closed).
 - [owner 2026-10-28] Font: use Roboto Condensed (`game/assets/fonts/RobotoCondensed-Variable.ttf`, SIL OFL 1.1).
 - [owner 2026-10-28] Any menu that renders as stretched full-width rows (e.g. the Harbour "Sail ..." list) is rebuilt to this spec, not patched. Known: Harbour / sail list (world_ui.gd), build list (build_ui.gd), skills_sheet.gd, animal_screen.gd.
