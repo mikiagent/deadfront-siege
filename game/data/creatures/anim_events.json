@@ -74,6 +74,14 @@
         0.65
       ],
       "note": "explosive sideways dodge to the right, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side right)"
+    },
+    "kick": {
+      "hit_frac": 0.45,
+      "windup": true,
+      "note": "herbivore defence: weight forward, both hind legs snap back and up (hit at 0.45), plant; tools/jaw/make_charge_kick.py"
+    },
+    "charge": {
+      "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run"
     }
   },
   "natural_speeds": {
