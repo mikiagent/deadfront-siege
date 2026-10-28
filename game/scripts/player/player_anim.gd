@@ -276,7 +276,7 @@ func on_damaged() -> void:
 	_ground_sleep_visual(false)
 	_sleeping = false
 	_waking = false
-	if not _dead:
+	if not _dead and current_clip != &"hit_react":  # never restart a flinch already playing
 		play_clip(&"hit_react")
 
 ## The hurt stun ended (PlayerSim): drop the hurt clip's hold so walk/run plays at once, never a
