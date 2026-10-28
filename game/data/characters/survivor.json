@@ -33,7 +33,11 @@
     "fish_wait",
     "sleep",
     "sleep_down",
-    "sleep_up"
+    "sleep_up",
+    "idle_cold",
+    "idle_heat",
+    "idle_tired",
+    "idle_exhausted"
   ],
   "clips_missing": [],
   "pipeline": {
@@ -50,7 +54,8 @@
       "farm": "weak fit: watering motion while the game holds a hoe",
       "drink_eat": "share one Consume clip (eat plays it at 1.25x)",
       "sleep": "held frame, no breathing",
-      "mount_idle": "seated pose for the T. rex howdah (assets/creatures/tyrannosaurus/mount)"
+      "mount_idle": "seated pose for the T. rex howdah (assets/creatures/tyrannosaurus/mount)",
+      "state_idles": "idle_cold/heat/tired/exhausted: the idle with layered offsets and IK hands, tools/make_state_idles.py"
     },
     "tools": "assets/characters/survivor/tools/tools.json: 5 held tools on RightHand with grip_offset (column-major) and the clips that use each",
     "armor": "assets/characters/survivor/armor/<kit>/kit.json (replace mode); body regions in assets/characters/survivor/body/",
