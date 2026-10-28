@@ -14,7 +14,8 @@
   "allowed_flags": [
     "raw",
     "poisoned",
-    "repacked"
+    "repacked",
+    "flawless"
   ],
   "_repacked_about": "repacked: a kit back from pack-up (build_placer.gd) places without construction XP. It trades with the flag, so the buyer places it without XP as the seller would have.",
   "refused_flags": [
@@ -120,23 +121,48 @@
       "max": 2
     },
     "black_sheen": {
-      "_why": "W2-GATHER's green rare traits (loot_tables.json rare_trait.traits, spec 04:11): GatherService.stamp_traits writes attributes[trait] = true and Crafting copies it onto the tool. Spec 06:6 'Preserve source instance ID and rare traits'. Sync step: keep these six equal to loot_tables.json (economy_tests checks it).",
-      "type": "bool"
+      "_why": "W2-GATHER's green rare traits (loot_tables.json rare_trait.traits, spec 04:11): GatherService.stamp_traits writes attributes[trait] = true and Crafting copies it onto the tool. Spec 06:6 'Preserve source instance ID and rare traits'. Sync step: keep these six equal to loot_tables.json (economy_tests checks it). CRAFTFEEL: Crafting.apply_outcome writes a rolled trait as 1 (its trait level; a carried one keeps its value), so a trait is true or a level.",
+      "type": "trait",
+      "min": 1,
+      "max": 60,
+      "_assumption": "ASSUMPTION: a trait level is 1..60, the item level range; no doc bounds it and today's code only writes true or 1."
     },
     "low_vibration": {
-      "type": "bool"
+      "type": "trait",
+      "min": 1,
+      "max": 60
     },
     "wide_serration": {
-      "type": "bool"
+      "type": "trait",
+      "min": 1,
+      "max": 60
     },
     "narrow_hook": {
-      "type": "bool"
+      "type": "trait",
+      "min": 1,
+      "max": 60
     },
     "split_easily": {
-      "type": "bool"
+      "type": "trait",
+      "min": 1,
+      "max": 60
     },
     "vivid_inspiration": {
-      "type": "bool"
+      "type": "trait",
+      "min": 1,
+      "max": 60
+    },
+    "quality": {
+      "type": "enum",
+      "values": [
+        "flawless"
+      ]
+    },
+    "flawless_bonus": {
+      "type": "num",
+      "min": 0,
+      "max": 1,
+      "_why": "Crafting.apply_outcome copies rules.json crafting.flawless_stat_bonus (0.1) here. # ASSUMPTION: bounded 0..1, a 100 % bump at most."
     }
   },
   "category_caps": {
@@ -359,5 +385,6 @@
     "stone_shot": 300,
     "catapult_kit": 20,
     "toxin_pot": 100
-  }
+  },
+  "_flawless_about": "flawless: CRAFTFEEL's Crafting.apply_outcome sets flags.flawless, attributes.quality 'flawless' and attributes.flawless_bonus, and raises max_durability by world/rules.json crafting.flawless_stat_bonus. AssetValidator allows that raised cap only on a flawless item, read from rules.json, never from the item."
 }

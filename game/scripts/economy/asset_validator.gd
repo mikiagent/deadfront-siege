@@ -81,6 +81,8 @@ func item(slot: Variant) -> String:
 	if def.max_durability > 0:
 		# The cap ItemStack itself gives a fresh stack of this level and material tier.
 		var cap := ItemStack.make(StringName(def_id), 1, attrs, int(level)).max_durability
+		if "flawless" in seen: # CRAFTFEEL's bump, from rules.json, never from the item's own flawless_bonus
+			cap = maxi(cap, int(round(float(cap) * (1.0 + float(Crafting.rules().get("flawless_stat_bonus", 0.1))))))
 		if int(dur_max) < 1 or int(dur_max) > cap:
 			return "max_durability must be 1..%d at level %d" % [cap, int(level)]
 		if int(dur) < 1:
@@ -128,6 +130,14 @@ func _rule(table: String, key: String, v: Variant) -> String:
 		"bool":
 			if not v is bool:
 				return "attribute %s must be true/false" % key
+		"trait":
+			# A rare trait: true (W2-GATHER's stamp) or a trait level (CRAFTFEEL's rolled trait is 1).
+			var lv: Variant = EconArgs.as_int(v)
+			if not v is bool and (lv == null or int(lv) < int(spec.get("min", 1)) or int(lv) > int(spec.get("max", 0))):
+				return "attribute %s must be true/false or a level %d..%d" % [key, int(spec.get("min", 1)), int(spec.get("max", 0))]
+		"num":
+			if not (v is int or v is float) or not is_finite(float(v)) or float(v) < float(spec.get("min", 0)) or float(v) > float(spec.get("max", 0)):
+				return "attribute %s out of range" % key
 		"int":
 			var n: Variant = EconArgs.as_int(v)
 			if n == null or int(n) < int(spec.get("min", 0)) or int(n) > int(spec.get("max", 0)):

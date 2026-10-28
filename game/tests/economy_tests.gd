@@ -899,6 +899,8 @@ func _test_attribute_sources() -> bool:
 	_expect(traits.size() == 6, "W2-GATHER's six rare traits were found (%d)" % traits.size())
 	for t in traits:
 		pairs.append([str(t), true, "loot_tables.json rare_trait"])
+		pairs.append([str(t), 1, "Crafting.apply_outcome's rolled trait"])
+	_expect(Crafting.rare_attributes() == traits, "rules.json crafting.rare_attributes are W2-GATHER's six traits (%s)" % str(Crafting.rare_attributes()))
 	_expect(pairs.size() > 40 and buffs.size() > 0 and climates.size() > 3, "attribute sources were found (%d)" % pairs.size())
 	for row in pairs:
 		var why: String = e.V._rule("attributes", row[0], Ledger.norm(row[1]))
@@ -914,7 +916,24 @@ func _test_attribute_sources() -> bool:
 	_ok(e, "vault.deposit_item", 1, {"slot_dict": sheen})
 	var sharp := _stamp(ItemStack.make(&"stone_knife", 1, {"black_sheen": true, "material_tier": "stone"}, 3).to_dict(), "i", "craft")
 	_ok(e, "vault.deposit_item", 1, {"slot_dict": sharp})
-	_err(e, "vault.deposit_item", 1, {"slot_dict": _stamp(ItemStack.make(&"stone", 1, {"black_sheen": 1}, 1).to_dict(), "i", "gather")}, "invalid_asset", T0, "a trait is true/false, not a number")
+	# CRAFTFEEL: a flawless craft and a rolled rare trait, made by Crafting.apply_outcome itself, so
+	# the test follows the game: flags.flawless, quality, flawless_bonus, durability x1.1, trait = 1.
+	var fine := ItemStack.make(&"stone_knife", 1, {"material_tier": "stone"}, 3)
+	var plain_cap := fine.max_durability
+	Crafting.apply_outcome(fine, {}, {"flawless": true, "rare": &"low_vibration"})
+	_expect(&"flawless" in fine.flags and fine.max_durability > plain_cap and fine.attributes.get("low_vibration") == 1, "Crafting.apply_outcome made a flawless, traited knife: %s" % str(fine.to_dict()))
+	_ok(e, "vault.deposit_item", 1, {"slot_dict": _stamp(fine.to_dict(), "i", "craft")})
+	var forged := fine.to_dict()
+	forged.flags = []
+	_err(e, "vault.deposit_item", 1, {"slot_dict": _stamp(forged, "i", "craft")}, "invalid_asset", T0, "the flawless durability needs the flawless flag")
+	forged = fine.to_dict()
+	forged.max_durability = int(forged.max_durability) + 1
+	_err(e, "vault.deposit_item", 1, {"slot_dict": _stamp(forged, "i", "craft")}, "invalid_asset", T0, "a flawless item over rules.json's bump")
+	forged = fine.to_dict()
+	forged.attributes.flawless_bonus = 5.0
+	_err(e, "vault.deposit_item", 1, {"slot_dict": _stamp(forged, "i", "craft")}, "invalid_asset", T0, "a flawless_bonus out of range")
+	for bad: Variant in [0, 61, 2.5, "yes", [1]]:
+		_err(e, "vault.deposit_item", 1, {"slot_dict": _stamp(ItemStack.make(&"stone", 1, {"black_sheen": bad}, 1).to_dict(), "i", "gather")}, "invalid_asset", T0, "a trait is true/false or a level 1..60, not %s" % var_to_str(bad))
 	return true
 
 ## Contract 6.5 damping must not be capturable: two self-dealt trades at 10x set the first
