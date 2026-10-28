@@ -16,6 +16,8 @@ ap.add_argument("inp"); ap.add_argument("out")
 ap.add_argument("--head", default="Head")
 ap.add_argument("--min-head", type=float, default=0.15, help="skin with at least this Head weight is head skin")
 ap.add_argument("--slices", type=int, default=24)
+ap.add_argument("--lip-z", type=float, default=None, help="set a flat mouth line at this height instead of fitting the texture (beaks with no painted seam)")
+ap.add_argument("--chin-depth", type=float, default=None, help="only skin this far below the mouth line (x snout length) is jaw; keeps a long throat or neck off it")
 ap.add_argument("--hook", type=float, default=0.0, help="this fraction of the snout behind the tip stays on Head (hooked beaks)")
 ap.add_argument("--corner", type=float, default=0.3, help="mouth corner no further back than this fraction of the snout")
 ap.add_argument("--debug", action="store_true")
@@ -77,6 +79,7 @@ c0, c1 = fit(pts_t)
 line = sorted(pts_t)
 if a.debug:
     for t, z in line: print(f"  t {t:.3f}  dark z {z:.3f}  fit {c0 + c1 * t:.3f}")
+if a.lip_z is not None: c0, c1 = a.lip_z, 0.0
 def lip_z(t): return c0 + c1 * t
 
 t_corner, t_tip = max(line[0][0], a.corner * L), L  # a gape that reaches the neck reads as unhinging
@@ -103,6 +106,7 @@ for v in ob.data.vertices:
     p = mw @ v.co; t = (p - joint).dot(fwd)
     hg = next((g for g in v.groups if g.group == HI and g.weight > 0), None)
     if hg is None or t < t_corner - 0.02 * L: continue
+    if a.chin_depth is not None and p.z < lip_z(t) - a.chin_depth * L: continue  # throat and neck stay put
     # Meshy weights the snout about half to Neck, so the whole skull bends with the neck. Ramp both halves of the
     # head to rigid along the snout (skull -> Head, below the mouth line -> Jaw), or a rigid jaw splits off the skull.
     x = min(max((t - t_corner) / span, 0.0), 1.0); w = x * x * (3 - 2 * x)

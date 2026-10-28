@@ -42,3 +42,22 @@ Credits spent: 0 (no Meshy/Tripo calls).
 - Credits: Tripo 100 (3105 -> 3005), Higgsfield ~2.5, Meshy 0.
 - Not done: T. rex/velociraptor jaws into the game, jaws for the other Meshy species, own gait clips per species (make_gait on the
   unmerged locomotion branch), gate for non +z rigs (stegosaurus, T. rex).
+
+## Overnight 2026-10-28 (art backlog while Milan slept)
+
+In the game now (all on claude/mmo-jaws, merged by the build thread as it lands):
+- Jaws (Jaw bone, ripped lips, mouth bag, keyed bite/roar/eat): tyrannosaurus, velociraptor (blind A/B new won 4/4),
+  deinonychus, coelophysis, compsognathus, utahraptor (DeepSeek worker, renders checked).
+- Standard clip set for all 11 species: strafe_left, strafe_right (make_gait --as/--travel), walk_back (reversed walk).
+- Deinonychus ambush kit: 2.0 m tall (# ASSUMPTION), feather wings (add_wings/key_wings) flaring in attacks/leaps,
+  bite_combo, hop_back, leap_back, pounce, dodge_left/right; feet glued to shins in leaps (no strands).
+- Zebraceratops: rump weights fixed (walk stretched edges 377 -> 47), sleep re-authored (over2 1943 -> 41, worker).
+- Megaloceros: locomotion branch walk/gallop + repaired weights merged; no longer a t_canim glider.
+
+Not done / open:
+- Gallimimus jaw: toothless beak with no painted seam; three tries (worker, --lip-z, --chin-depth) all tore the throat.
+  Needs a hand-placed jaw bone or a re-sheet with a parted beak.
+- Eye points: deinonychus re-aimed; T. rex and velociraptor need a night-time check in eyeglow_lab (daylight too faint).
+- Apex raptors, dilophosaurus, smilodon: no assets yet (new species = Milan's gate).
+- Herbivore kicks/charges: not started.
+- Credits overnight: 0 (Tripo total this thread 150 of 3105, Higgsfield about 4).
