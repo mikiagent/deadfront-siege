@@ -112,6 +112,41 @@ How the island ground is drawn (TERRAINSMOOTH, 2026-10-28). Code: `game/scripts/
 - **Macro variation** at 41 m, 15 m (`macro_scale`) and 6.5 m wavelengths, scaled by `macro_strength`.
 - Works the same under Forward+ and gl_compatibility (the web build).
 
+## Sandy beaches and shore vegetation
+
+Every island has sandy beaches on part of its coast (owner 2026-10-28), not all of it.
+
+- **Where.** `IslandTerrain._beach_plan` uses a low-frequency noise around the coast to pick stretches
+  covering `beach_share` of the coast's bearings. A stretch's sand reaches 4-10 m inland of the
+  waterline (`beach_width_m`), wider on flatter shore, and its ends taper with noise. Sand only lands on
+  grass or dry ground under `beach_max_h` (2 m), on shore slopes under `beach_max_slope` (0.45
+  rise/run). It never lands on cliffs, rock, the river mouth, the camp clearing or the crater.
+- **Share per climate** (`biomes.json`, each row's `beach_share`; *ASSUMPTION* numbers): desert,
+  tropical and blue_tropical 60 %; grassland and savannah 50 %; temperate and swamp 45 %; tundra,
+  snowfield and volcanic 40 %. Measured on test islands: home 56 %, savannah_15 49 %, tropical_25 62 %,
+  tundra_30 42 %.
+- **Tiles.** Beach tiles are `SAND`, which matters in play:
+  - TilePath weights sand 1.4, so paths prefer grass a little;
+  - no ground-cover grass grows on sand;
+  - props and dressing treat sand as beach.
+  The walk mask is unchanged, because sand was already walkable. Beach tiles take the `beach` zone, so
+  they are painted in the climate's sand colours and blend into the inland zone. The thin waterline
+  sand strip runs round the whole coast as before.
+- **Shore vegetation** (`biome_dress.json` `zones.beach`). A zone entry's optional `climates` list
+  limits it (*ASSUMPTION* mapping):
+
+  | climate | beach dressing |
+  |---|---|
+  | tropical, blue_tropical | young palm cards, coral, shells, driftwood, boulders; tropical also gets reeds |
+  | grassland, temperate, savannah, swamp | dune (straw) grass, reeds, driftwood, shells, pebbles, boulders |
+  | desert | dry straw grass, aloe scrub, shells, driftwood, boulders |
+  | tundra, snowfield | driftwood only |
+  | volcanic | basalt chunks and basalt pebbles, plus driftwood |
+
+- **Palms.** Harvestable `PalmTree` nodes (palm fronds, wood, coconuts) grow by the shore only on
+  climates whose `biomes.json` row lists `PalmTree` in `palm_allowlist` (tropical, blue_tropical).
+  Before this change every climate except tundra and volcanic grew them, including the home grassland.
+
 ## Claimed land is clear of scenery
 
 A domain cell (spec 29) is bare of decoration the moment it is staked, and stays that way:

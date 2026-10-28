@@ -3,7 +3,7 @@ extends SceneTree
 ## colours blend across borders. Builds the home island and savannah_15 through World.load_island and
 ## checks, per island:
 ##   step      on the rendered surface sampled every 0.5 m, the largest rise between neighbours away
-##             from cliff faces (CLIFF tiles grown by 3 m) stays under STEP_MAX (a slope of 1.2, the
+##             from cliff faces (CLIFF tiles grown by 3 m) and river gorge walls stays under STEP_MAX (a slope of 1.2, the
 ##             CLIFF threshold), and the facet crease angles (between neighbouring triangles) on dry
 ##             land are well under the old mesh's (the data grid drawn directly): mean and p99
 ##   surface   surface_y equals the drawn mesh (the chunk's triangles, read back from the ArrayMesh)
@@ -11,6 +11,9 @@ extends SceneTree
 ##   unchanged the tile map and walk mask are the data grid's (same as before the refinement, so
 ##             TilePath and spawns are untouched), and build-slope verdicts (workbench) agree with
 ##             the old bilinear surface on >= AGREE_MIN of land cells
+##   beaches   sandy stretches cover BEACH_MIN..BEACH_MAX of the coast's bearings (data share per
+##             climate minus steep shores, river mouths and the camp), within 0.15 of the data
+##             share, and no SAND tile touches a cliff
 ## Windowed (no --headless) it also renders the home island's forest/meadow border top-down with the
 ## scatter hidden and checks the colour profile across it: the 10-90 % transition is at least
 ## BLEND_MIN_M wide and no 0.5 m step carries more than STEP_SHARE of the change.
@@ -21,7 +24,10 @@ const SURF_TOL := 0.01
 const AGREE_MIN := 0.985
 const BLEND_MIN_M := 3.0
 const STEP_SHARE := 0.25
-const ISLANDS := [&"home_grassland", &"savannah_15"]
+const ISLANDS := [&"home_grassland", &"savannah_15", &"tropical_25", &"tundra_30"]
+## Sandy beaches: share of coast bearings with sand (above the waterline band) 1-12 m inland.
+const BEACH_MIN := 0.3
+const BEACH_MAX := 0.65
 
 var _fails: PackedStringArray = []
 var _started := false
@@ -58,6 +64,7 @@ func _run() -> void:
 		_check_steps(id, rt)
 		_check_surface(id, rt)
 		_check_unchanged(id, rt)
+		_check_beaches(id, rt)
 		if windowed and id == &"home_grassland":
 			await _check_blend(rt)
 		_world.call("_clear_runtime")
@@ -97,7 +104,8 @@ func _check_steps(id: StringName, rt: Node) -> void:
 		var x := -half
 		while x < half:
 			var h0: float = rt.surface_y(x, z)
-			if h0 > 0.3 and not _near_cliff(rt, x, z):
+			# Cliff faces and the river's gorge walls (the channel cut, ~2.2 half-widths) are designed steps.
+			if h0 > 0.3 and not _near_cliff(rt, x, z) and rt.river_dist_at(x, z) > rt._shape.river_half_width(x, z) * 2.2 + 3.0:
 				var hx: float = rt.surface_y(x + d, z)
 				var hz: float = rt.surface_y(x, z + d)
 				var s := maxf(absf(hx - h0), absf(hz - h0))
@@ -228,6 +236,48 @@ func _check_unchanged(id: StringName, rt: Node) -> void:
 	var share := float(same) / maxf(1.0, float(cells.size()))
 	print("[t_terrainsmooth] %s build-slope verdicts agree on %d/%d land cells (%.2f %%)" % [id, same, cells.size(), share * 100.0])
 	_expect(share >= AGREE_MIN, "%s build-slope verdicts agree on only %.2f %%" % [id, share * 100.0])
+
+func _check_beaches(id: StringName, rt: Node) -> void:
+	var shape = rt._shape
+	var span: int = rt._tile_span
+	var half: float = rt._size * 0.5
+	var sandy := 0
+	var bearings := 360
+	for i in bearings:
+		var th := TAU * float(i) / float(bearings)
+		var dir := Vector2(cos(th), sin(th))
+		# The real waterline on this bearing: walk in from 12 m offshore until the ground is dry.
+		var c: Vector2 = shape.coast_point(th) + dir * 12.0
+		var steps := 0
+		while rt.surface_y(c.x, c.y) < 0.0 and steps < 120:
+			c -= dir * 0.25
+			steps += 1
+		var hits := 0
+		var d := 1.0
+		while d <= 12.0:
+			var p := c - dir * d
+			if int(rt.call("_tile_type_at_world", p.x, p.y)) == 3 and rt.surface_y(p.x, p.y) >= 0.45:
+				hits += 1
+			d += 1.0
+		if hits >= 1:
+			sandy += 1
+	var share := float(sandy) / float(bearings)
+	var want := float(load("res://scripts/world/biome_material.gd").row(str(rt._climate)).get("beach_share", 0.5))
+	var near_cliff := 0
+	for z in range(1, span - 1):
+		for x in range(1, span - 1):
+			# Beach sand (above the waterline band); the old waterline sand strip is not part of this.
+			if int(rt.tile_types[x + z * span]) != 3 or rt.surface_y(-half + x + 0.5, -half + z + 0.5) < 0.45:
+				continue
+			for dz in range(-1, 2):
+				for dx in range(-1, 2):
+					if int(rt.tile_types[x + dx + (z + dz) * span]) == 11:
+						near_cliff += 1
+	print("[t_terrainsmooth] %s sandy beach on %.0f %% of the coast (data share %.0f %%), sand tiles touching a cliff: %d" % [
+		id, share * 100.0, want * 100.0, near_cliff])
+	_expect(share >= BEACH_MIN and share <= BEACH_MAX, "%s sandy beach covers %.0f %% of the coast (want %.0f-%.0f %%)" % [id, share * 100.0, BEACH_MIN * 100.0, BEACH_MAX * 100.0])
+	_expect(absf(share - want) <= 0.15, "%s sandy beach %.0f %% is far from its data share %.0f %%" % [id, share * 100.0, want * 100.0])
+	_expect(near_cliff == 0, "%s has %d sand tiles touching a cliff" % [id, near_cliff])
 
 ## Top-down shot of a forest/meadow border with everything but the ground hidden; the colour
 ## profile across it (x axis, averaged over 8 m of z) must change gradually.

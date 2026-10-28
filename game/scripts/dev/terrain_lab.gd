@@ -19,6 +19,7 @@ var _rt: IslandRuntime
 var _ui: CanvasLayer
 var _only: PackedStringArray = []
 var _island := &"home_grassland"
+var _beach_at := Vector3.INF
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -26,6 +27,9 @@ func _ready() -> void:
 			_out = a.substr(11)
 		if a.begins_with("--spots="):
 			_only = a.substr(8).split(",", false)
+		if a.begins_with("--beach-at="):
+			var v := a.substr(11).split(",")
+			_beach_at = Vector3(float(v[0]), 0, float(v[1]))
 		if a.begins_with("--island="):
 			_island = StringName(a.substr(9))
 	if _out == "":
@@ -158,14 +162,35 @@ func _cliff() -> Vector3:
 				best = p
 	return best
 
-## Dry sand a few metres inland of the arrival point.
+## The sandy beach (SAND above the waterline band, 30 m clear of the river) nearest the harbour
+## arrival; else dry
+## sand by the arrival. --beach-at=x,z pins it (the before/after pair shares one spot).
 func _beach() -> Vector3:
+	if _beach_at != Vector3.INF:
+		return _beach_at
 	var a := _rt.arrival_point()
+	var span := _rt._tile_span
+	var half := _rt._size * 0.5
+	var best := Vector3.INF
+	var best_d := INF
+	for z in range(0, span, 2):
+		for x in range(0, span, 2):
+			if int(_rt.tile_types[x + z * span]) != IslandTerrain.TileType.SAND:
+				continue
+			var p := Vector3(-half + x + 0.5, 0, -half + z + 0.5)
+			if _rt.surface_y(p.x, p.z) < 0.7 or _rt.river_dist_at(p.x, p.z) < 30.0:
+				continue
+			var d := Vector2(p.x - a.x, p.z - a.z).length()
+			if d < best_d:
+				best_d = d
+				best = p
+	if best != Vector3.INF:
+		return best
 	var dir := -Vector2(a.x, a.z).normalized()
-	var p := Vector2(a.x, a.z)
+	var q := Vector2(a.x, a.z)
 	for i in 60:
-		if _rt.surface_y(p.x, p.y) > 0.2:
+		if _rt.surface_y(q.x, q.y) > 0.2:
 			break
-		p += dir * 0.5
-	p += dir * 2.0
-	return Vector3(p.x, 0, p.y)
+		q += dir * 0.5
+	q += dir * 2.0
+	return Vector3(q.x, 0, q.y)

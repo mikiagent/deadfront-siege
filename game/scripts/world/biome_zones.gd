@@ -21,8 +21,10 @@ const FALLBACK_ROW := {"base": "meadow", "lush": "forest", "dry": "savanna", "ro
 ## "coast < 14 m" and "river < 12 m" for a 416 m home island, so those are kept where they fit and
 ## the beach becomes a height band because a 14 m coastal ring covers most of a 120 m island.
 const DEFAULT_RULES := {
-	"beach_h": 1.2,
-	"beach_m": 14.0,
+	"beach_share": 0.5,
+	"beach_width_m": [4.0, 10.0],
+	"beach_max_slope": 0.45,
+	"beach_max_h": 2.0,
 	"river_m": 12.0,
 	"rock_slope_deg": 27.0,
 	"high_fraction": 0.85,
@@ -213,20 +215,12 @@ static func context(rt: IslandRuntime, climate: String, camp: Vector3, seed: int
 		"pick": pick,
 	}
 
-## Top of the beach zone in metres: the sand band plus a couple of metres of dry fringe.
-static func beach_h(ctx: Dictionary) -> float:
-	var r: Dictionary = ctx["rules"]
-	return maxf(0.6, float(r.get("beach_h", 0.9)))
-
 ## One tile's zone. wx/wz are world metres, h the surface height, slope in degrees,
 ## river_d the distance to the river centreline.
 static func zone_of(ctx: Dictionary, wx: float, wz: float, h: float, slope: float, river_d: float) -> int:
 	var r: Dictionary = ctx["rules"]
-	# The beach is the strip behind the sand: low ground near the coast only, so the river's muddy
-	# bed and inland hollows stay wetland/vegetation.
-	var near_coast := Vector2(wx, wz).length() > float(ctx["land_radius"]) - float(r["beach_m"])
-	if near_coast and h < beach_h(ctx):
-		return zone_id("beach")
+	# The waterline band is beach everywhere; the sandy beaches behind it are stretches of the coast
+	# only (IslandTerrain._beach_plan paints them after the zones are smoothed).
 	if h < float(r.get("beach_low_h", 0.55)):
 		return zone_id("beach")
 	var camp: Vector3 = ctx["camp"]

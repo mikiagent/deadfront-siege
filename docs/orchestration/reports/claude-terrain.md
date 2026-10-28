@@ -94,7 +94,97 @@ and the pair is palette-quantised to stay under 300 KB.
 - Not done: per-zone macro uniforms (the plan's "as per-zone uniforms"). Macro is per climate, through
   the existing `macro_strength`.
 - Not changed, and visible in shots: the CLIFF risers themselves (4.6 m over one data cell, by
-  design), and z-fighting between seabed terrain at -2.6 m and the deep-sea plane at the same height
-  (blocky dark-blue patterns offshore in the top shot, there before this branch).
+  design).
 - gl_compatibility logs "Too many instances using shader instance variables" on both before and
   after. It is a canon issue, not from this branch.
+
+## Round 2: offshore z-fighting, sandy beaches, shore vegetation (coordinator and owner follow-ups)
+
+### Offshore z-fighting
+The deep-sea plane now sits at -2.75 m, 0.15 m under the seabed floor (-2.6 m). The two used to sit at
+the same height and z-fought into blocky dark-blue patches offshore. It is visual only: the water plane
+(-0.05) and the water shader are untouched. `top.png` and `compat_top.png` were re-captured and the
+patches are gone.
+
+### Sandy beaches
+Owner: "add a sandy beach near the edge of every island (not everywhere but common to have sand on
+the beach)".
+- **Where.** `IslandTerrain._beach_plan` uses a noise around the coast (720 bearings) to pick
+  stretches covering the climate's `beach_share` of the bearings.
+  - Sand reaches 4-10 m inland of the waterline, wider on flatter shore, and tapers at the ends.
+  - It only lands on grass or dry ground under 2 m, on shore slopes under 0.45 rise/run.
+  - It never lands on cliffs or rock, within 4 m of the river channel, in the camp clearing (18 m)
+    or at the crater.
+  - A post-pass turns back any beach tile next to a CLIFF tile.
+- **Tile type.** Beach tiles are `SAND` and their zone is set to `beach` after zone smoothing, so they
+  take the climate's sand colours and blend inland. SAND has gameplay effects:
+  - TilePath weights it 1.4;
+  - ground cover does not grow on it;
+  - props and dressing classify it as beach;
+  - footsteps change.
+  The walk mask is unchanged (SAND was already walkable). The old circle-based "coast within 5 m and
+  h < 0.85" beach-zone rule is gone; the waterline band (h < 0.5) is still beach everywhere.
+- **Data.** `biomes.json` `zone_rules` gains `beach_share` 0.5, `beach_width_m` [4, 10],
+  `beach_max_slope` 0.45 and `beach_max_h` 2.0, and drops `beach_h` and `beach_m`. Each climate row
+  gets its own `beach_share`: desert, tropical and blue_tropical 0.6; grassland and savannah 0.5;
+  temperate and swamp 0.45; tundra, snowfield and volcanic 0.4. All of these numbers are ASSUMPTIONs.
+- **Measured** (t_terrainsmooth; the share is bearings with beach sand within 1-12 m of the real
+  waterline):
+
+  | island | sandy beach | data share |
+  |---|---|---|
+  | home | 56 % | 50 % |
+  | savannah_15 | 49 % | 50 % |
+  | tropical_25 | 62 % | 60 % |
+  | tundra_30 | 42 % | 40 % |
+
+  No beach sand touches a cliff on any of the four. The test asserts 30-65 % and within 15 points of
+  the data share.
+- **Waves agent.** The sand band starts at the waterline, so the wet-sand line and foam from
+  claude/mmo-waves lie on its seaward edge.
+
+### Shore vegetation
+Owner: "and palm trees or whatever is appropriate for the biome".
+- **Beach dressing per climate.** In `biome_dress.json`, a `zones.beach` entry can now carry a
+  `climates` list, which `BiomeDress.grows_in` checks. The mapping (ASSUMPTION):
+
+  | climate | beach dressing |
+  |---|---|
+  | tropical, blue_tropical | young palm cards (density 0.004 → 0.012), coral, shells, driftwood, boulders |
+  | tropical only | reeds as well |
+  | grassland, temperate, savannah, swamp | straw "dune" grass, reeds, driftwood, shells, pebbles, boulders |
+  | desert | dry straw grass, aloe scrub (aloe_rosette now allows the beach zone), shells, driftwood, boulders |
+  | tundra, snowfield | driftwood only |
+  | volcanic | basalt chunks and basalt pebbles as ash rocks (both now allow the beach zone), plus driftwood |
+
+  All of these reuse existing PROPS2D/GROUND2D sprites. No new art was needed.
+- **Palms.**
+  - Island scatter used to turn shore tree clumps into PalmTree harvest nodes on every climate except
+    tundra and volcanic, so the home grassland grew palms. It now reads `biomes.json` `palm_allowlist`,
+    which is already tropical and blue_tropical only.
+  - These palms are harvestable through the existing `nature_manifest.json` PalmTree row (palm_frond,
+    wood_log, coconut), using the existing `tree-palm-a`/`tree-palm-twin` meshes.
+  - The young palm beach cards are decorative only.
+  - Gameplay change: no palm harvest nodes on home, savannah or other non-tropical islands. The
+    manifest's PalmTree `climates` still lists savannah; the biomes allowlist wins.
+- **Missing art:** none. A nicer per-climate dune-grass card and a dark ash-rock card would help, but
+  the existing straw-grass and basalt-chunk sprites stand in.
+
+### Shots (left = before, right = after, game camera)
+- `beach_sand_grassland.png`: home island coast.
+- `beach_sand_tropical.png`: tropical_25 coast. Before this change the circle rule already made a wide
+  sand ring here, so the new stretch looks similar.
+- `beach_top_tropical.png`: the tropical_25 island from above.
+
+### Gates (after round 2)
+- PASS: t_terrainsmooth (now 4 islands, with the beach checks), t_biomedress, t_biome, t_biomes,
+  t_biomeprops, t_islandgen, t_props, t_props2d, t_ground2d, t_card2d, t_natures, t_build, t_gather,
+  t_claimprops, t_water, t_harbour, t_save, t_web, t_colors, t_dismount, t_perfgates.
+- run_all prints `[tests] PASS`; smoke prints SMOKE PASS.
+- t_perfgates build_ms home 3596, savannah 3651, volcanic 2557; heap_mb 168.7, 178.9 and 169.8. Both
+  are in line with before; scene_nodes and cover counts are unchanged.
+
+### Test tolerance added
+The step check now also excludes river gorge walls (within 2.2 half-widths + 3 m of the river). That
+is where tropical_25's 1.0 m step over 0.5 m sits; it is the designed channel cut, the same as on the
+old surface.

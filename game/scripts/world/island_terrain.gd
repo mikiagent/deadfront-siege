@@ -382,6 +382,14 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	var sarr := rt._vslope
 	var land_r := rt.land_radius()
 	var shape := rt._shape
+	var beach := _beach_plan(rt, climate)
+	var beach_on := PackedByteArray()
+	beach_on.resize(types.size())
+	var bw_tab: PackedFloat32Array = beach.get("width", PackedFloat32Array())
+	var b_slope := float(beach.get("max_slope", 0.45))
+	var b_maxh := float(beach.get("max_h", 2.0))
+	var b_jit: FastNoiseLite = beach.get("jitter", null)
+	var b_reach := float(beach.get("reach", 10.0)) + 4.0
 	for z in span:
 		for x in span:
 			var wx := -half + float(x) + 0.5
@@ -445,6 +453,21 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			if rt._crater_hint != Vector3.ZERO and cdist < 8.5 and h > -0.2:
 				t = TileType.DIRT
 			var idx := x + z * span
+			# Sandy beach: on this bearing's stretch of coast, within its width of the waterline, on a
+			# gentle shore, clear of the river mouth, the camp and the crater. Cliffs and rock stay.
+			if (t == TileType.GRASS or t == TileType.DRY) and not bw_tab.is_empty() and rad > land_r - b_reach \
+					and h < b_maxh and rd > hw + 4.0 and (rt._crater_hint == Vector3.ZERO or cdist > 12.0) \
+					and Vector2(wx - rt._camp_hint.x, wz - rt._camp_hint.z).length() > 18.0:
+				# The tile's own (bilinear) slope: the steepest-corner one also sees the shore drop.
+				var bsl := lerpf(lerpf(sarr[i00], sarr[i10], tx), lerpf(sarr[i01], sarr[i11], tx), tz)
+				var bin := int((atan2(wz - shape.centre.y, wx - shape.centre.x) + PI) / TAU * float(bw_tab.size())) % bw_tab.size()
+				var w := bw_tab[bin] * clampf(1.3 - bsl / b_slope, 0.0, 1.0)
+				# Inland distance from the waterline (IslandShape's shore profile reaches h = 0 about
+				# 1.33 m seaward of shore0, moved by the same shore wander noise).
+				var din := shape.shore0 + 1.33 - (rad + shape._nshore.get_noise_2d(wx, wz) * shape.size * 0.010)
+				if w > 0.0 and din + b_jit.get_noise_2d(wx, wz) * 1.5 < w:
+					t = TileType.SAND
+					beach_on[idx] = 1
 			var b := BiomeZones.zone_of(bctx, wx, wz, h, slope, rd)
 			types[idx] = t
 			biomes[idx] = b
@@ -461,17 +484,73 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			# is then one array lookup instead of four grid samples per call.
 			walk[idx] = 1 if (t == TileType.GRASS or t == TileType.DRY or t == TileType.DIRT or t == TileType.SAND \
 				or t == TileType.ROCK or t == TileType.ASH) and h >= 0.25 and rad <= land_r - 0.5 else 0
+	# Cliffs stay rock: a beach tile beside a cliff face goes back to grass (the faces are only known
+	# once the whole loop has run).
+	for i in beach_on.size():
+		if beach_on[i] == 0:
+			continue
+		var bx := i % span
+		var bz := i / span
+		for dz in range(-1, 2):
+			for dx in range(-1, 2):
+				var j := clampi(bx + dx, 0, span - 1) + clampi(bz + dz, 0, span - 1) * span
+				if types[j] == TileType.CLIFF:
+					beach_on[i] = 0
+		if beach_on[i] == 0:
+			types[i] = TileType.GRASS
 	rt.tile_types = types
 	BiomeZones.install(rt, biomes)
 	rt.fresh_water = fresh
 	rt.dry_walk = walk
 	BiomeZones.smooth(rt)
+	# The sandy beaches keep the beach zone after smoothing (a 4-10 m strip would erode in the filter).
+	var bio := BiomeZones.biome_types(rt)
+	var beach_id := BiomeZones.zone_id("beach")
+	for i in beach_on.size():
+		if beach_on[i] == 1:
+			bio[i] = beach_id
+	BiomeZones.install(rt, bio)
 	_write_tile_image(rt)
 	rt._tile_map_tex = ImageTexture.create_from_image(rt._tile_map_image)
 	_build_zone_tex(rt)
 	var soft_img := Image.create_from_data(span, span, false, Image.FORMAT_RGBA8, soft)
 	soft_img.generate_mipmaps()
 	rt._soft_tex = ImageTexture.create_from_image(soft_img)
+
+## The sandy-beach stretches of this island's coast: a width per coast bearing (720 bins around the
+## shape centre), 0 off the beaches. A low-frequency noise around the coast picks the stretches; the
+## threshold is its (1 - share) quantile, so about `share` of the bearings get sand, and widths taper
+## to 0 at the ends. Share and widths are data (biomes.json zone_rules, a climate row's beach_share).
+static func _beach_plan(rt: IslandRuntime, climate: String) -> Dictionary:
+	var r := BiomeZones.rules()
+	var share := clampf(float(BiomeMaterial.row(climate).get("beach_share", r.get("beach_share", 0.5))), 0.0, 1.0)
+	var wr: Variant = r.get("beach_width_m", [4.0, 10.0])
+	var wmin := float((wr as Array)[0]) if wr is Array else 4.0
+	var wmax := float((wr as Array)[1]) if wr is Array else 10.0
+	var n := FastNoiseLite.new()
+	n.seed = _layout_seed(rt, climate) + 4242
+	n.frequency = 0.02
+	var bins := 720
+	var vals := PackedFloat32Array()
+	vals.resize(bins)
+	for i in bins:
+		var th := TAU * float(i) / float(bins) - PI
+		vals[i] = n.get_noise_2d(cos(th) * 60.0, sin(th) * 60.0)
+	var sorted := vals.duplicate()
+	sorted.sort()
+	var thr := sorted[clampi(int(float(bins) * (1.0 - share)), 0, bins - 1)] if share > 0.0 else INF
+	var top := maxf(sorted[bins - 1], thr + 0.001)
+	var width := PackedFloat32Array()
+	width.resize(bins)
+	for i in bins:
+		var v := vals[i]
+		if v >= thr:
+			width[i] = lerpf(wmin, wmax, clampf((v - thr) / (top - thr), 0.0, 1.0)) * smoothstep(thr, thr + 0.02, v)
+	var jit := FastNoiseLite.new()
+	jit.seed = n.seed + 1
+	jit.frequency = 0.15
+	return {"width": width, "max_slope": float(r.get("beach_max_slope", 0.45)), "max_h": float(r.get("beach_max_h", 2.0)),
+		"jitter": jit, "reach": wmax, "share": share}
 
 ## The zone tint and layer-mix textures, one texel per 2 m (every second tile is plenty under a
 ## 6-8 m blur), with mipmaps so the shader can read them at the zone edge width.
