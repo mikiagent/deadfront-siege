@@ -12,9 +12,16 @@ uniform sampler2D dirt_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D sand_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rock_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D noise_tex : filter_linear_mipmap, repeat_enable;
-// Biome zones (BiomeZones): G channel of the tile map, palette 8x2 = row 0 ground tint,
-// row 1 layer mix (R dirt, G sand, B rock). Two noise-displaced samples give soft painted edges.
-uniform sampler2D biome_pal : filter_linear, repeat_disable;
+// Static override masks (R rock, G ash, B mud, A dirt), mipmapped: read at a fixed LOD they are the
+// tile map blurred over 2-3 m, so rock and mud patches have no 1 m (or 2.6 m cell) stair steps.
+uniform sampler2D soft_tex : filter_linear_mipmap, repeat_disable;
+uniform float soft_lod_rock = 1.6;
+uniform float soft_lod_mud = 0.6;
+// Biome zones (BiomeZones): per-2 m zone tint (linear) and layer mix (R dirt, G sand, B rock),
+// mipmapped. Read at the LOD of the edge width at two noise-warped points: soft, wandering borders.
+uniform sampler2D zone_tint_tex : hint_default_white, filter_linear_mipmap, repeat_disable;
+uniform sampler2D zone_mix_tex : hint_default_black, filter_linear_mipmap, repeat_disable;
+uniform float zone_texel_m = 2.0;
 uniform float biome_on = 1.0;
 uniform float biome_edge_m = 8.0;
 uniform float biome_blend = 0.7;
@@ -44,7 +51,7 @@ uniform float slope_dry_hi = 0.30;
 uniform float slope_rock_lo = 0.32;
 uniform float slope_rock_hi = 0.50;
 uniform float macro_strength = 0.20;
-uniform float macro_scale = 12.0;
+uniform float macro_scale = 15.0;
 uniform float grid_enabled = 0.0;
 uniform float grid_width = 0.03;
 uniform float grid_fade = 25.0;
@@ -63,28 +70,30 @@ vec3 tex2(sampler2D t, vec2 p) {
 	return mix(texture(t, uv1).rgb, texture(t, uv2).rgb, clamp(k * 1.4 - 0.2, 0.0, 1.0));
 }
 
-float biome_id_at(vec2 p) {
-	vec2 map_uv = (p + vec2(map_size * 0.5)) / map_size;
-	map_uv = clamp(map_uv, vec2(0.0), vec2(0.9999));
-	return floor(texture(tile_map_tex, map_uv).g * 255.0 + 0.5);
-}
-vec3 zone_tint(float id) { return texture(biome_pal, vec2((id + 0.5) / 8.0, 0.25)).rgb; }
-vec3 zone_mix(float id) { return texture(biome_pal, vec2((id + 0.5) / 8.0, 0.75)).rgb; }
-
-float tile_id_at(vec2 p) {
-	vec2 map_uv = (p + vec2(map_size * 0.5)) / map_size;
-	map_uv = clamp(map_uv, vec2(0.0), vec2(0.9999));
-	return floor(texture(tile_map_tex, map_uv).r * 255.0 + 0.5);
-}
-
-// Override colour for a tile id, weight 1 when the id is an override type.
-vec4 override_for(float id, vec3 dirt, vec3 rock) {
-	if (id > 1.5 && id < 2.5) { return vec4(dirt * tint_dirt / tint_dirt, 1.0); }
-	if (id > 5.5 && id < 6.5) { return vec4(dirt * (tint_mud / tint_dirt), 1.0); }
+// Override colour for a tile id, weight 1 when the id is an override type. Only BARE (harvested)
+// changes at runtime; rock, ash, mud and dirt come from soft_tex.
+vec4 override_for(float id, vec3 dirt) {
 	if (id > 6.5 && id < 7.5) { return vec4(dirt * (tint_bare / tint_dirt), 1.0); }
-	if (id > 4.5 && id < 5.5) { return vec4(rock, 1.0); }
-	if (id > 8.5 && id < 9.5) { return vec4(rock * (tint_ash / tint_rock), 1.0); }
 	return vec4(0.0);
+}
+
+// Bilinear override mask at p: rgb = weighted colour sum, a = override weight (0..1).
+vec4 override_soft(vec2 p, vec3 dirt) {
+	ivec2 sz = textureSize(tile_map_tex, 0);
+	vec2 t = p + vec2(map_size * 0.5) - vec2(0.5);
+	vec2 i0 = floor(t);
+	vec2 f = t - i0;
+	vec4 acc = vec4(0.0);
+	for (int k = 0; k < 4; k++) {
+		vec2 c = vec2(float(k & 1), float(k >> 1));
+		ivec2 ti = clamp(ivec2(i0 + c), ivec2(0), sz - ivec2(1));
+		float id = floor(texelFetch(tile_map_tex, ti, 0).r * 255.0 + 0.5);
+		vec2 wv = mix(vec2(1.0) - f, f, c);
+		float w = wv.x * wv.y;
+		vec4 o = override_for(id, dirt);
+		acc += vec4(o.rgb * o.a * w, o.a * w);
+	}
+	return acc;
 }
 
 void vertex() {
@@ -101,27 +110,17 @@ void fragment() {
 	float n = texture(noise_tex, p / 9.0).r - 0.5;
 	float h = world_pos.y + n * 0.35;
 
-	// Zone colour is a disc average of noise-warped tile samples: borders wander with the noise and
-	// fade over biome_edge_m instead of stepping along the tile grid. biome_blend widens the disc.
-	vec2 boff = vec2(texture(noise_tex, p / 7.0).r - 0.5, texture(noise_tex, p / 7.0 + vec2(0.61)).r - 0.5);
-	vec2 bc = p + boff * biome_edge_m * 2.0;
+	// Zone colour: the zone textures blurred to the edge width (mip LOD), read at two points warped by
+	// low-frequency noise (18 m and 9 m wavelengths) and averaged, so a border is a soft band of about
+	// biome_edge_m that wanders, not a line along the tile grid.
 	float bw = clamp(biome_blend, 0.0, 1.0) * biome_on;
-	float rot = texture(noise_tex, p / 31.0).r * 6.2831;
-	vec3 tacc = zone_tint(biome_id_at(bc));
-	vec3 macc = zone_mix(biome_id_at(bc));
-	float wsum = 1.0;
-	for (int i = 0; i < 6; i++) {
-		float a = rot + float(i) * 1.0472;
-		float r = biome_edge_m * (0.35 + 0.65 * texture(noise_tex, p / 13.0 + vec2(float(i) * 0.37, float(i) * 0.19)).r);
-		vec2 o = vec2(cos(a), sin(a)) * r;
-		float w = 0.5 + 0.5 * texture(noise_tex, p / 9.0 + vec2(float(i) * 0.53, 0.11)).r;
-		float bid = biome_id_at(bc + o);
-		tacc += zone_tint(bid) * w;
-		macc += zone_mix(bid) * w;
-		wsum += w;
-	}
-	vec3 zone_t = mix(zone_tint(biome_id_at(p)), tacc / wsum, bw);
-	vec3 zone_m = mix(zone_mix(biome_id_at(p)), macc / wsum, bw);
+	float zlod = log2(max(biome_edge_m * (0.5 + 0.5 * bw), zone_texel_m) / zone_texel_m) * biome_on;
+	vec2 w1 = vec2(texture(noise_tex, p / 414.0).r - 0.5, texture(noise_tex, p / 414.0 + vec2(0.61)).r - 0.5) * biome_edge_m;
+	vec2 w2 = vec2(texture(noise_tex, p / 207.0 + vec2(0.23)).r - 0.5, texture(noise_tex, p / 207.0 + vec2(0.83)).r - 0.5) * biome_edge_m * 0.5;
+	vec2 zuv1 = (p + w1 + vec2(map_size * 0.5)) / map_size;
+	vec2 zuv2 = (p + w2 + vec2(map_size * 0.5)) / map_size;
+	vec3 zone_t = (textureLod(zone_tint_tex, zuv1, zlod).rgb + textureLod(zone_tint_tex, zuv2, zlod).rgb) * 0.5;
+	vec3 zone_m = (textureLod(zone_mix_tex, zuv1, zlod).rgb + textureLod(zone_mix_tex, zuv2, zlod).rgb) * 0.5;
 	vec3 grass = tex2(grass_tex, p) * tint_grass;
 	vec3 dry = tex2(grass_tex, p) * tint_dry;
 	vec3 sand = tex2(sand_tex, p) * tint_sand;
@@ -166,16 +165,30 @@ void fragment() {
 	flat_col = mix(flat_col, vec3(dot(flat_col, vec3(0.30, 0.59, 0.11))), neutral);
 	base = mix(base * zt, flat_col, flat_w);
 
-	// Tile overrides (harvested bare tiles, mud, dirt, rock, ash) with a soft edge:
-	// two lookups, the second displaced by noise, averaged.
-	vec2 off = vec2(texture(noise_tex, p / 5.0).r - 0.5, texture(noise_tex, p / 5.0 + vec2(0.37)).r - 0.5) * 1.6;
-	vec4 o0 = override_for(tile_id_at(p), dirt, rock);
-	vec4 o1 = override_for(tile_id_at(p + off), dirt, rock);
-	float ow = (o0.a + o1.a) * 0.5;
-	vec3 ocol = (o0.rgb * o0.a + o1.rgb * o1.a) / max(o0.a + o1.a, 0.001);
+	// Static overrides from the blurred masks, read at a point warped by ~4 m-wavelength noise so the
+	// patch outlines wander instead of following the grid.
+	vec2 sw = vec2(texture(noise_tex, p / 92.0).r - 0.5, texture(noise_tex, p / 92.0 + vec2(0.41)).r - 0.5) * 2.4;
+	vec2 suv = (p + sw + vec2(map_size * 0.5)) / map_size;
+	vec4 s_wide = textureLod(soft_tex, suv, soft_lod_rock);
+	vec4 s_fine = textureLod(soft_tex, suv, soft_lod_mud);
+	base = mix(base, rock, smoothstep(0.25, 0.6, s_wide.r));
+	base = mix(base, rock * (tint_ash / tint_rock), smoothstep(0.25, 0.6, s_wide.g));
+	base = mix(base, dirt * (tint_mud / tint_dirt), smoothstep(0.35, 0.75, s_fine.b));
+	base = mix(base, dirt, smoothstep(0.35, 0.75, s_fine.a));
+	// Harvested (BARE) tiles change at runtime: a bilinear mask over the 1 m tile grid, read at two
+	// noise-warped points and sharpened back to a ~0.5 m edge that wanders with the noise.
+	vec2 off = vec2(texture(noise_tex, p / 60.0).r - 0.5, texture(noise_tex, p / 60.0 + vec2(0.37)).r - 0.5) * 1.6;
+	vec4 o0 = override_soft(p, dirt);
+	vec4 o1 = override_soft(p + off, dirt);
+	float ow = smoothstep(0.2, 0.8, (o0.a + o1.a) * 0.5);
+	vec3 ocol = (o0.rgb + o1.rgb) / max(o0.a + o1.a, 0.001);
 	vec3 albedo = mix(base, ocol, ow);
 
-	albedo *= 1.0 - macro_strength * 0.5 + texture(noise_tex, p / macro_scale).r * macro_strength;
+	// Macro variation: three octaves with wavelengths of 41 m, macro_scale (15 m) and 6.5 m. noise_tex
+	// holds ~23 noise cycles across its tile, hence the 23.0 that turns a wavelength into a UV scale.
+	float macro = texture(noise_tex, p / (41.0 * 23.0)).r * 0.5 + texture(noise_tex, p / (macro_scale * 23.0)).r * 0.3
+		+ texture(noise_tex, p / (6.5 * 23.0)).r * 0.2;
+	albedo *= 1.0 - macro_strength * 0.5 + macro * macro_strength;
 	albedo *= v_color.rgb;
 
 	float gx = min(fract(p.x), 1.0 - fract(p.x));

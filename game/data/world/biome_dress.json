@@ -199,29 +199,105 @@
       "kinds": [
         {
           "id": "shell_scatter",
-          "density": 0.022
+          "density": 0.022,
+          "climates": [
+            "tropical",
+            "blue_tropical",
+            "grassland",
+            "temperate",
+            "savannah",
+            "swamp",
+            "desert"
+          ]
         },
         {
           "id": "coral_rock",
-          "density": 0.004
+          "density": 0.006,
+          "climates": [
+            "tropical",
+            "blue_tropical"
+          ]
         },
         {
           "id": "driftwood_log",
-          "density": 0.004
-        },
-        {
-          "id": "young_palm",
-          "density": 0.004
-        },
-        {
-          "id": "boulder_small",
           "density": 0.006
         },
         {
+          "id": "young_palm",
+          "density": 0.012,
+          "climates": [
+            "tropical",
+            "blue_tropical"
+          ]
+        },
+        {
+          "id": "boulder_small",
+          "density": 0.006,
+          "climates": [
+            "tropical",
+            "blue_tropical",
+            "grassland",
+            "temperate",
+            "savannah",
+            "swamp",
+            "desert"
+          ]
+        },
+        {
           "id": "reed_clump",
-          "density": 0.02
+          "density": 0.02,
+          "climates": [
+            "grassland",
+            "temperate",
+            "savannah",
+            "swamp",
+            "tropical"
+          ]
+        },
+        {
+          "id": "straw_grass_clump",
+          "density": 0.018,
+          "climates": [
+            "grassland",
+            "temperate",
+            "savannah",
+            "swamp",
+            "desert"
+          ]
+        },
+        {
+          "id": "pebble",
+          "density": 0.01,
+          "climates": [
+            "grassland",
+            "temperate",
+            "savannah",
+            "swamp"
+          ]
+        },
+        {
+          "id": "aloe_rosette",
+          "density": 0.008,
+          "climates": [
+            "desert"
+          ]
+        },
+        {
+          "id": "basalt_chunk",
+          "density": 0.012,
+          "climates": [
+            "volcanic"
+          ]
+        },
+        {
+          "id": "basalt_pebble",
+          "density": 0.02,
+          "climates": [
+            "volcanic"
+          ]
         }
-      ]
+      ],
+      "_about": "Beach dressing per climate (TERRAINSMOOTH beaches; ASSUMPTION mapping): an entry's optional 'climates' list limits it to those climates (missing = every climate). Palms, coral and shells on tropical beaches; dune grass, reeds, driftwood, shells and pebbles on temperate ones; dry grass and aloe scrub on desert; driftwood only on tundra and snowfield; basalt chunks and pebbles (ash rocks) on volcanic."
     },
     "rocky": {
       "kinds": [
@@ -706,7 +782,8 @@
       ],
       "zones": [
         "savanna",
-        "canyon"
+        "canyon",
+        "beach"
       ],
       "height": 1.0,
       "scale": [
@@ -820,7 +897,8 @@
         "jungle-cliffs_45_rock_chunk_cliff_h"
       ],
       "zones": [
-        "basalt"
+        "basalt",
+        "beach"
       ],
       "height": 1.0,
       "scale": [
@@ -1220,7 +1298,8 @@
         "jungle-cliffs_53_rock_chip_small"
       ],
       "zones": [
-        "basalt"
+        "basalt",
+        "beach"
       ],
       "height": 1.0,
       "scale": [

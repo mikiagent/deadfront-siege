@@ -22,6 +22,10 @@ var raining: bool:
 var _size: float = 240.0
 var _res: int = 65
 var _heights: PackedFloat32Array = PackedFloat32Array()
+## The rendered ground (IslandTerrain._refine): _heights refined 2x with a clamped cubic, so the mesh,
+## its collision and surface_y share one smooth surface. _heights stays the data grid (tiles, zones).
+var _surf: PackedFloat32Array = PackedFloat32Array()
+var _surf_res: int = 0
 ## The landmass generator (IslandShape): coastline, river, mesa, peaks. is_dry and the scatter
 ## read its precomputed rad grid through rad_at.
 var _shape: IslandShape
@@ -46,6 +50,13 @@ var fresh_water: PackedByteArray = PackedByteArray()
 var dry_walk: PackedByteArray = PackedByteArray()
 var _tile_map_image: Image
 var _tile_map_tex: ImageTexture
+## Static ground masks for the terrain shader (IslandTerrain._build_tile_types): R rock, G ash, B mud,
+## A dirt, mipmapped so the shader reads them blurred over a few metres instead of per 1 m tile.
+var _soft_tex: ImageTexture
+## Zone colour (linear tint) and layer mix per 2 m, mipmapped: the shader reads them blurred over the
+## zone edge width so zone borders blend instead of stepping along the tile grid.
+var _zone_tint_tex: ImageTexture
+var _zone_mix_tex: ImageTexture
 var _terrain_mat: ShaderMaterial
 var _foliage_mat: ShaderMaterial
 var _palette: Dictionary = {}
@@ -226,6 +237,23 @@ func _process(delta: float) -> void:
 	weather.tick(self, delta)
 
 func surface_y(x: float, z: float) -> float:
+	if not _surf.is_empty():
+		# The drawn ground: the refined grid's two triangles per cell, diagonal (x+1, z)-(x, z+1), as
+		# IslandTerrain._chunk_mesh draws them. Inlined: scatter and props call this ~100k times a build.
+		var last := float(_surf_res - 1)
+		var fc := _size / last
+		var fu := clampf((x + _size * 0.5) / fc, 0.0, last)
+		var fv := clampf((z + _size * 0.5) / fc, 0.0, last)
+		var fx0 := mini(int(fu), _surf_res - 2)
+		var fz0 := mini(int(fv), _surf_res - 2)
+		var ftx := fu - float(fx0)
+		var ftz := fv - float(fz0)
+		var i := fx0 + fz0 * _surf_res
+		if ftx + ftz <= 1.0:
+			var a := _surf[i]
+			return a + (_surf[i + 1] - a) * ftx + (_surf[i + _surf_res] - a) * ftz
+		var b := _surf[i + _surf_res + 1]
+		return b + (_surf[i + _surf_res] - b) * (1.0 - ftx) + (_surf[i + 1] - b) * (1.0 - ftz)
 	if _heights.is_empty():
 		return 0.0
 	var cell := _size / float(_res - 1)

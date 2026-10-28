@@ -183,9 +183,15 @@
   "camp_radius_m": 60.0,
   "filter_radius_tiles": 2,
   "min_region_tiles": 400,
-  "beach_h": 0.85,
-  "beach_m": 5.0,
-  "beach_low_h": 0.5
+  "beach_low_h": 0.5,
+  "beach_share": 0.5,
+  "beach_width_m": [
+   4.0,
+   10.0
+  ],
+  "beach_max_slope": 0.45,
+  "beach_max_h": 2.0,
+  "_beach_about": "Sandy beaches (TERRAINSMOOTH, owner 2026-10-28). ASSUMPTION numbers: beach_share of the coastline's bearings get a sand band beach_width_m wide inland of the waterline (wider on flatter shore), only where the shore slope (rise/run) is under beach_max_slope and the ground under beach_max_h; a climate row's beach_share overrides."
  },
  "grassland": {
   "textures": {
@@ -247,7 +253,8 @@
    "tints": {
     "savanna": "#a8a05c"
    }
-  }
+  },
+  "beach_share": 0.5
  },
  "savannah": {
   "textures": {
@@ -308,7 +315,8 @@
     "canyon": "#9c4a30",
     "wetland": "#6f9a52"
    }
-  }
+  },
+  "beach_share": 0.5
  },
  "temperate": {
   "textures": {
@@ -371,7 +379,8 @@
    "tints": {
     "savanna": "#a8a860"
    }
-  }
+  },
+  "beach_share": 0.45
  },
  "tropical": {
   "textures": {
@@ -432,7 +441,8 @@
     "savanna": "#c8b060",
     "meadow": "#7fa85a"
    }
-  }
+  },
+  "beach_share": 0.6
  },
  "tundra": {
   "textures": {
@@ -496,7 +506,8 @@
     "beach": "#c8c4b4",
     "rocky": "#9a9a96"
    }
-  }
+  },
+  "beach_share": 0.4
  },
  "desert": {
   "textures": {
@@ -559,7 +570,8 @@
     "rocky": "#9a8a74",
     "beach": "#e6d3a8"
    }
-  }
+  },
+  "beach_share": 0.6
  },
  "swamp": {
   "textures": {
@@ -620,7 +632,8 @@
     "forest": "#4f6a3a",
     "wetland": "#6a8452"
    }
-  }
+  },
+  "beach_share": 0.45
  },
  "snowfield": {
   "textures": {
@@ -680,7 +693,8 @@
     "beach": "#dfe4e8",
     "rocky": "#9aa0a6"
    }
-  }
+  },
+  "beach_share": 0.4
  },
  "blue_tropical": {
   "textures": {
@@ -737,7 +751,8 @@
    "tints": {
     "savanna": "#c0b070"
    }
-  }
+  },
+  "beach_share": 0.6
  },
  "volcanic": {
   "textures": {
@@ -800,6 +815,7 @@
     "beach": "#b8b2a8",
     "meadow": "#8a9474"
    }
-  }
+  },
+  "beach_share": 0.4
  }
 }
