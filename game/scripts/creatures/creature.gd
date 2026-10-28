@@ -332,6 +332,10 @@ func setup_energy() -> void:
 func energy_frac() -> float:
 	return energy / maxf(1.0, energy_max)
 
+## ai.json energy.run_speed_mult: every creature's run (and a ridden mount's) is this much faster.
+static func run_speed_mult() -> float:
+	return float(energy_rules().get("run_speed_mult", 1.0))
+
 func can_sprint() -> bool:
 	return not winded and energy > 0.0
 
@@ -375,7 +379,9 @@ func tick_energy(delta: float, is_running: bool) -> void:
 		if energy <= energy_max * float(r.get("stop_frac", 0.05)):
 			winded = true
 	else:
-		energy = minf(energy_max, energy + energy_regen_per_s * delta)
+		# Refill by exhaustion: fresh refills fast, a winded animal slowly (ASSUMPTION multipliers).
+		var regen_mult := float(r.get("regen_mult_winded", 1.0)) if winded else float(r.get("regen_mult_fresh", 1.0))
+		energy = minf(energy_max, energy + energy_regen_per_s * regen_mult * delta)
 		if winded and energy >= energy_max * float(r.get("resume_frac", 0.4)):
 			winded = false
 
@@ -486,6 +492,8 @@ func _physics_process(delta: float) -> void:
 	if sprint and not can_sprint():
 		speed = minf(speed, walk_mps(base_speed))
 		sprint = false
+	elif sprint:
+		speed *= run_speed_mult()  # owner 2026-10-28: running is faster for every creature
 	var locomote := Vector3.ZERO
 	if _path_active:
 		if _use_tile_path():
@@ -515,8 +523,12 @@ func _physics_process(delta: float) -> void:
 			if absf(err) > FACE_SLACK_RAD:
 				var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
 				face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
-		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide).
-		anim.set_move_velocity(dir * speed, global_basis)
+		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide); a
+		# brain's named gait (the charge) wins when the rig has it.
+		if brain and not is_pet and brain.gait_clip != &"":
+			anim.set_gait_clip(brain.gait_clip, speed, dir * speed, global_basis)
+		else:
+			anim.set_move_velocity(dir * speed, global_basis)
 		running = sprint
 	else:
 		velocity.x = 0.0

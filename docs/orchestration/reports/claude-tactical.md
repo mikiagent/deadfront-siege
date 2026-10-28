@@ -137,3 +137,47 @@ turn your back within 10 m to trigger the ambush. Q rolls, 1 is Tackle and 2 is 
 F3 prints every move. `--seq=DIR` saves frames; it steps the lurker into range after a second.
 PNGs in `docs/orchestration/reports/tactical/`: lurk, pounce telegraph, pounce, hop back, dodge,
 combo.
+
+## Round 2 (owner played the lab, 2026-10-28)
+- **Further leaps:** hop_back 5.6 m and leap_back 8 m (+60 %), power strafe 3.75 m, stand-off
+  ring 8 m, pounce up to 14 m (8 m while chasing, so a long pounce no longer lets her walk off).
+- **Pressed, it waits for an opening.** While she closes in it only repositions (strafe-walk,
+  power strafe, one backstep). It commits when her swing is recovering or playing, when her back
+  is turned, or after 3 s.
+- **Basic bite cooldown 7 s.** While the bite is cooling or she presses it, the filler is
+  repositioning only (no hold, no feint).
+- **Charge** runs at 1.5x the run speed, using the art thread's low `charge` clip, stride-matched
+  through `natural_speeds.deinonychus.charge` 6.6. `charge` is in CreatureClips OPTIONAL/LOOPING.
+- **Running is faster for everyone:**
+  - The survivor runs and sprints x1.25 (8.75 / 10.6 m/s); her stamina drain is x1.3.
+  - Creatures run x1.25 in sprint states and drain 13/s.
+  - The mount floor follows her new sprint.
+- **Refill by exhaustion:**
+  - Stamina refill by strain tier is 1.5 / 0.9 / 0.5 / 0.25.
+  - Creature energy refills x1.5 when fresh and x0.6 while winded.
+  - These numbers are logged as A7-A11 in `docs/vision/WildLandsMMO_Open_Questions.md`.
+- **Merged:** claude/mmo-overhaul (fast-forward) and claude/mmo-jaws 8361b5f2 (charge clip, feather
+  wings; `deinonychus_feathers.png` and its `.import` are committed).
+- **Tests:**
+  - t_tactical now asserts:
+    - a pressed wait before the first commit, and the commit on the opening;
+    - strafing while it waits;
+    - strafe and hop distances against the data;
+    - the 7 s bite cooldown;
+    - repositioning as the main filler;
+    - the charge clip at more than 1.4x the run;
+    - run speed and drain at the data factor;
+    - refill falling with exhaustion.
+  - The simulated clock is locked to the physics step count, which keeps the census
+    seed-identical. 5 runs gave identical output.
+- **Changed asserts:**
+  - The t_tactical "holds its ground >= 15 %" check became "repositioning is the main filler"
+    (owner rule).
+  - run_all's fatigue-stage regen values are now read from `combat_tuning movement` (owner
+    rule).
+  - The chase check now looks at the closest gap in the last 2 s of 7 s, because a pounce opens
+    the gap mid-leap.
+- **Gates:** all PASS, plus SMOKE PASS, run_all `[tests] PASS` and audit_gaits GATE PASS.
+  - Test scripts: t_tactical (5 identical runs), t_ai, t_combat, t_natures, t_canim, t_turnrate,
+    t_tame, t_capture09, t_player, t_energy, t_mounts, t_roll, t_rest, t_fieldhud.
+  - verify_jaws deinonychus: JAWS PASS.
