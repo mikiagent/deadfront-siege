@@ -510,8 +510,11 @@ func _test_top_feed(size: Vector2i) -> void:
 	var layer: Node = current_scene.get_node_or_null("GatherPopups") if current_scene else null
 	var popups := layer.get_child_count() if layer else 0
 	_expect(feed.rows.size() == 1 and feed.rows[0]["tier"] == &"green" and popups == 0, "%s top feed: a rare find turns its row green, one popup per gain (%d rows, tier %s, %d stacks by the node)" % [tag, feed.rows.size(), feed.rows[0]["tier"] if not feed.rows.is_empty() else "-", popups])
-	# The skill row at the top middle.
+	# The skill row at the top middle. The rare find above left its centre-top notice up for a few
+	# seconds, and the feed hangs under notices by design: clear it so this checks the feed alone (it
+	# pushed the row to y 260 at 844x390 on a slow run).
 	feed.clear()
+	(hud.get("_events").get("notices") as Array).clear()
 	cel.call("push_skill", &"cooking", 3)
 	await _frames(4)
 	var lu: Rect2 = (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2())

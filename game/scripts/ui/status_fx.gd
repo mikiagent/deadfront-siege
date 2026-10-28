@@ -18,7 +18,7 @@ const MAX_EMITTERS := 3    ## particle presets alive at once (the debuff cap is 
 const TICK_COL := Color(1.0, 0.28, 0.22)  ## fallback only: a tick takes its status's fx colour (owner 2026-10-28)
 const BADGE := 10.0        ## the stack-count disc pokes this far right of a box; the column reserves it
 const SLOT_SPEED := 8.0    ## slots per second a box glides when one above it ends
-const PARTICLE_PRESETS: Array[StringName] = [&"drip", &"bubbles", &"embers"]
+const PARTICLE_PRESETS: Array[StringName] = [&"drip", &"bubbles", &"embers", &"blood"]
 
 ## Drawn this frame, for the HUD's taken rects and the tests: status id -> box rect, and the column.
 var boxes: Dictionary = {}
@@ -117,6 +117,17 @@ static func make_emitter(preset: StringName, col: Color) -> CPUParticles3D:
 			e.scale_amount_min = 0.6
 			e.scale_amount_max = 1.1
 			e.lifetime = 0.7
+		&"blood":  # enraged: blood flecks thrown up and out, falling back (mouth and body)
+			c = Color(col.r * 0.85, col.g * 0.15, col.b * 0.15)
+			e.direction = Vector3.UP
+			e.spread = 70.0
+			e.gravity = Vector3(0.0, -9.0, 0.0)
+			e.initial_velocity_min = 1.0
+			e.initial_velocity_max = 2.4
+			e.scale_amount_min = 0.4
+			e.scale_amount_max = 0.9
+			e.lifetime = 0.6
+			e.amount = 8
 		&"bubbles":  # sickly bubbles drift up off her
 			e.direction = Vector3.UP
 			e.spread = 35.0
