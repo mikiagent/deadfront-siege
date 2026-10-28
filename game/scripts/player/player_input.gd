@@ -110,7 +110,8 @@ func handle_unhandled(event: InputEvent) -> void:
 		if p.hunt:
 			p.hunt.hold = not p.hunt.hold
 		return
-	if Game.lab_force_clips:
+	# Labs force creature clips on 1-9 only outside a fight, so Tackle (1) and Kick (2) work in one.
+	if Game.lab_force_clips and (p.hunt == null or p.hunt.target == null):
 		for i in 9:
 			if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_1 + i:
 				_force_clip(i)

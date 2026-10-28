@@ -61,6 +61,10 @@ func _run() -> void:
 	floor.add_child(fs)
 	floor.position.y = -0.5
 	host.add_child(floor)
+	var cam := Camera3D.new()  # PlayerSim.cam_dir turns key input into a direction through the camera
+	host.add_child(cam)
+	cam.look_at_from_position(Vector3(0, 12, 12), Vector3.ZERO)
+	cam.current = true
 	player = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	player.position = Vector3(0, 0.9, 0)
 	host.add_child(player)
@@ -298,12 +302,12 @@ func _test_tackle_kick() -> void:
 	var hunt = player.hunt
 	hunt.start(raptor)
 	var hp0: float = raptor.health.hp
-	hunt.tackle()
+	hunt.use_tackle()
 	_expect(raptor.health.hp < hp0, "tackle lands (hp %.0f -> %.0f)" % [hp0, raptor.health.hp])
 	_expect(hunt.cooldown_left(&"tackle") > 0.0, "tackle starts its cooldown")
 	_expect(raptor.stagger_left > 0.0, "tackle staggers the target")
 	var hp1: float = raptor.health.hp
-	hunt.tackle()
+	hunt.use_tackle()
 	_expect(is_equal_approx(raptor.health.hp, hp1), "tackle refused on cooldown")
 	for i in 60:  # past the tactic lock
 		await physics_frame
@@ -311,12 +315,12 @@ func _test_tackle_kick() -> void:
 	raptor.global_position = player.global_position + Vector3(0, 0, -1.6)
 	raptor.stagger_left = 0.0
 	hp1 = raptor.health.hp
-	hunt.kick()
+	hunt.use_kick()
 	_expect(raptor.health.hp < hp1, "kick lands (hp %.0f -> %.0f)" % [hp1, raptor.health.hp])
 	_expect(hunt.cooldown_left(&"kick") > 0.0, "kick starts its cooldown")
 	_expect(raptor.stagger_left > 0.0, "kick staggers the target")
 	var hp2: float = raptor.health.hp
-	hunt.kick()
+	hunt.use_kick()
 	_expect(is_equal_approx(raptor.health.hp, hp2), "kick refused on cooldown")
 	hunt.stop()
 	raptor.queue_free()
