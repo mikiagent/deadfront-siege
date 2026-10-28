@@ -14,7 +14,13 @@ var host: Node3D
 var data: Node
 var player
 var dino
-var _sim_t := 0.0
+## Simulated time = physics steps since the census began (not accumulated, not wall clock), so a
+## signal fired by a brain inside step k reads k * step whichever side of the test it runs on.
+var _f0 := -1
+var _step := 1.0 / 60.0
+var _sim_t: float:
+	get:
+		return 0.0 if _f0 < 0 else float(Engine.get_physics_frames() - _f0) * _step
 var _tactics: Array = []  ## [sim_t, kind]
 var _bites: Array[float] = []
 var _hits: Array = []  ## [sim_t, clip, index, mult]
@@ -32,6 +38,8 @@ var _priority_breaks: Array[String] = []
 var _cool_frames := 0
 var _cool_moving := 0
 var _cool_hold := 0
+var _fillers: Dictionary = {}
+var _filler_log: Array = []  ## [sim_t, kind]
 var _max_d := 0.0
 var _disengage_breaks: Array[String] = []
 var _since_disengage := true  ## an attack or a hold happened since the last back-leap
@@ -100,6 +108,7 @@ func _run() -> void:
 	await _test_ambush()
 	await _test_chase()
 	await _test_overshoot()
+	await _test_pursuit()
 	_test_natures()
 	_test_direction_clips()
 	load("res://scripts/combat/combat_tuning.gd").reset_overrides()
@@ -162,6 +171,7 @@ func _test_fight() -> void:
 	_keep_player_alive()
 	b.attack_chosen.connect(func(move: StringName, _d: float) -> void:
 		_chosen.append([_sim_t, move]))
+	b.filler.connect(func(k: StringName) -> void: _filler_log.append([_sim_t, k]))
 	b.sequence_started.connect(func(_n: String, steps: Array) -> void:
 		if not _seq_want.is_empty() and not _seq_got.is_empty():
 			_seq_runs.append([_seq_want.duplicate(), _seq_got.duplicate()])
@@ -178,11 +188,12 @@ func _test_fight() -> void:
 	var circle_ang := 0.0
 	var hp0: float = dino.health.max_hp
 	var prev_pos: Vector3 = dino.global_position
-	while _sim_t < SIM_S:
+	_step = 1.0 / float(Engine.physics_ticks_per_second) * Engine.time_scale
+	_f0 = Engine.get_physics_frames()
+	while _sim_t < SIM_S - _step * 0.5:
 		prev_pos = dino.global_position
 		await physics_frame
-		var dt := get_root().get_physics_process_delta_time()  # already scaled by Engine.time_scale
-		_sim_t += dt
+		var dt := _step
 		_keep_player_alive()
 		dino.health.hp = hp0  # no retreat during the manoeuvre census
 		if OS.has_environment("TA_TRACE"):
@@ -211,6 +222,17 @@ func _test_fight() -> void:
 				if Vector2(dino.global_position.x - prev_pos.x, dino.global_position.z - prev_pos.z).length() > 0.3 * dt:
 					_cool_moving += 1
 	Engine.time_scale = 1.0
+	# Events of the step the loop ended on may land on either side of it: keep only those before it.
+	var cut := SIM_S - _step * 0.5
+	_tactics = _tactics.filter(func(row: Array) -> bool: return float(row[0]) < cut)
+	_hits = _hits.filter(func(row: Array) -> bool: return float(row[0]) < cut)
+	_chosen = _chosen.filter(func(row: Array) -> bool: return float(row[0]) < cut)
+	_bites.assign(_bites.filter(func(t: float) -> bool: return t < cut))
+	_filler_log = _filler_log.filter(func(row: Array) -> bool: return float(row[0]) < cut)
+	_hops = _tactics.filter(func(row: Array) -> bool: return row[1] == &"hop").size()
+	for row in _filler_log:
+		_fillers[row[1]] = int(_fillers.get(row[1], 0)) + 1
+	_f0 = -1
 	var kinds := {}
 	for row in _tactics:
 		kinds[row[1]] = int(kinds.get(row[1], 0)) + 1
@@ -238,7 +260,8 @@ func _test_fight() -> void:
 		if (row["steps"] as Array).count("backstep") > 1:
 			backstep_rows += 1
 	_expect(backstep_rows == 0, "no sequence has more than one backstep")
-	_expect(_dodge_best >= 2.0 and _dodge_best <= 3.2, "the powerful strafe moves %.2fm sideways within 0.5s (2-3m)" % _dodge_best)
+	var sm: float = float(b.tac.get("strafe_m", 3.75))
+	_expect(_dodge_best >= sm * 0.9 and _dodge_best <= sm * 1.1, "the powerful strafe moves %.2fm sideways within 0.5s (strafe_m %.2f)" % [_dodge_best, sm])
 	var attacks := 0
 	var plain_bites := 0
 	var finishers := 0
@@ -288,10 +311,15 @@ func _test_fight() -> void:
 	_expect(worst_streak <= int(b.tac.get("max_basic_streak", 2)), "never more than %d basics in a row (worst %d)" % [int(b.tac.get("max_basic_streak", 2)), worst_streak])
 	_expect(no_beat == 0, "a non-attack beat between any two basics (%d without)" % no_beat)
 	_expect(cd_breaks.is_empty(), "no attack inside its own cooldown %s" % str(cd_breaks))
-	_expect(_hops >= 2 and _hop_best >= 2.5 and _hop_rise >= 0.3, "backs off by jumping: %d hops, best +%.2fm away within 0.5s, body rose %.2fm" % [_hops, _hop_best, _hop_rise])
+	var hm: float = float(b.tac.get("hop_m", 5.6))
+	_expect(_hops >= 2 and _hop_best >= hm * 0.9 and _hop_rise >= 0.3, "backs off by jumping: %d hops, best +%.2fm away within 0.5s (hop_m %.1f), body rose %.2fm" % [_hops, _hop_best, hm, _hop_rise])
 	_expect(_disengage_breaks.is_empty(), "a back-jump is always followed by a strafe, attack, pounce or chase before the next %s" % str(_disengage_breaks))
-	var hold_frac := float(_cool_hold) / maxf(1.0, float(_cool_frames))
-	_expect(hold_frac >= 0.15, "holds its ground %.0f%% of the cooling time (>= 15%%)" % (hold_frac * 100.0))
+	# Owner (2026-10-28): while the bite cools down, the filler is repositioning (strafe-walk, power strafe, backstep).
+	var repos := int(_fillers.get(&"strafe", 0)) + int(_fillers.get(&"dodge", 0)) + int(_fillers.get(&"hop", 0))
+	var fill_total := 0
+	for k in _fillers:
+		fill_total += int(_fillers[k])
+	_expect(fill_total >= 3 and float(repos) >= 0.7 * float(fill_total), "repositioning is the main filler: %d of %d %s" % [repos, fill_total, str(_fillers)])
 	var max_r: float = float(b.tac.get("max_retreat_m", 11.0))
 	_expect(_max_d <= max_r + 0.3, "never farther than max_retreat_m %.1f from the target (max %.2f)" % [max_r, _max_d])
 	var moving_frac := float(_cool_moving + _cool_hold) / maxf(1.0, float(_cool_frames))
@@ -442,9 +470,9 @@ func _test_chase() -> void:
 	var away := Vector3(0, 0, 1)
 	var d0: float = Vector2(c.global_position.x - player.global_position.x, c.global_position.z - player.global_position.z).length()
 	var ran := false
-	var late_max := 0.0
+	var late_min := INF
 	var t := 0.0
-	while t < 5.0:
+	while t < 7.0:
 		await physics_frame
 		var dt := get_root().get_physics_process_delta_time()
 		t += dt
@@ -453,12 +481,15 @@ func _test_chase() -> void:
 		_keep_player_alive()
 		if b.state == &"approach" and b.speed_override >= c.move_speed_mps() - 0.01:
 			ran = true
-		if t >= 4.0:
-			late_max = maxf(late_max, Vector2(c.global_position.x - player.global_position.x, c.global_position.z - player.global_position.z).length())
+		if OS.has_environment("TA_TRACE") and Engine.get_physics_frames() % 10 == 0:
+			print("[chase] t=%.2f d=%.1f %s/%s so=%.1f v=%.1f e=%.0f" % [t, Vector2(c.global_position.x - player.global_position.x, c.global_position.z - player.global_position.z).length(), b.state, b._pounce_phase, b.speed_override, Vector2(c.velocity.x, c.velocity.z).length(), c.energy])
+		if t >= 5.0:
+			late_min = minf(late_min, Vector2(c.global_position.x - player.global_position.x, c.global_position.z - player.global_position.z).length())
 	var d1: float = Vector2(c.global_position.x - player.global_position.x, c.global_position.z - player.global_position.z).length()
 	player.velocity = Vector3.ZERO
 	_expect(ran or kinds.has(&"pounce"), "chases at a run or pounces when she walks away (ran=%s pounce=%s)" % [ran, kinds.has(&"pounce")])
-	_expect(late_max <= d0 + 3.0, "the gap does not keep growing (%.1fm at the start, at most %.1fm in the last second)" % [d0, late_max])
+	# A pounce mid-leap opens the gap for a moment; over the last 2 s it must have closed back in.
+	_expect(late_min <= d0 + 1.0, "the gap does not keep growing (%.1fm at the start, closest %.1fm in the last 2s of 7s)" % [d0, late_min])
 	c.queue_free()
 	await physics_frame
 
@@ -507,6 +538,44 @@ func _test_direction_clips() -> void:
 	var want := &"walk_back" if c.anim.has_state(&"walk_back") else &"walk"
 	_expect(c.anim.current_clip == want, "zebraceratops backing up plays %s (got %s)" % [want, c.anim.current_clip])
 	c.queue_free()
+
+## Pressed by an advancing survivor it strafes / strafe-walks instead of committing, and commits once
+## her swing is recovering (the opening).
+func _test_pursuit() -> void:
+	player.global_position = Vector3(0, 0.9, 0)
+	player.hunt._swing_cd = 0.0
+	player.hunt._swing_pending = false
+	var c = _fresh_hunter(Vector3(0, 0.1, -7))
+	var b = c.brain
+	b.attack_target = player
+	b._enter_circle(0.0)
+	var first := [-1.0]
+	var t := [0.0]
+	b.attack_chosen.connect(func(_m: StringName, _d: float) -> void:
+		if first[0] < 0.0:
+			first[0] = t[0])
+	var moving_s := 0.0
+	var open_at := 2.0
+	var prev: Vector3 = c.global_position
+	while t[0] < open_at + 1.0 and first[0] < 0.0:
+		var to_c: Vector3 = c.global_position - player.global_position
+		to_c.y = 0.0
+		player.velocity = to_c.normalized() * 2.0  # pressing in on it (her position stays: a stationary press)
+		if t[0] >= open_at:
+			player.hunt._swing_cd = 0.8  # she just swung: the recovery is the opening
+		prev = c.global_position
+		await physics_frame
+		t[0] += get_root().get_physics_process_delta_time()
+		_keep_player_alive()
+		if b.state in [&"circle", &"dodge", &"hop"] and Vector2(c.global_position.x - prev.x, c.global_position.z - prev.z).length() > 0.0:
+			moving_s += get_root().get_physics_process_delta_time()
+	player.velocity = Vector3.ZERO
+	player.hunt._swing_cd = 0.0
+	_expect(first[0] >= open_at - 0.05, "pressed, it waits for an opening before committing (first commit at %.2fs, opening at %.1fs)" % [first[0], open_at])
+	_expect(first[0] >= 0.0 and first[0] <= open_at + 0.6, "it commits once her swing is recovering (at %.2fs)" % first[0])
+	_expect(moving_s >= 1.2, "it strafes / strafe-walks while it waits (%.2fs of movement)" % moving_s)
+	c.queue_free()
+	await physics_frame
 
 func _test_natures() -> void:
 	var calm = _spawn(&"deinonychus", Vector3(20, 0.1, 20), &"loyal")
