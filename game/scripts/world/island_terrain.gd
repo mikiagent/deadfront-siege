@@ -280,7 +280,9 @@ static func _sea(rt: IslandRuntime, size: float) -> void:
 	# overview shot (the 1.6x plane's edge showed as a dark band at the horizon on 400 m islands).
 	dplane.size = Vector2(size * 4.0, size * 4.0)
 	deep.mesh = dplane
-	deep.position.y = -2.6
+	# 0.15 m under the seabed floor (IslandShape clamps it at -2.6): at the same height the two
+	# z-fought into blocky dark-blue patches offshore. Visual only; the water plane stays at -0.05.
+	deep.position.y = -2.75
 	deep.extra_cull_margin = 320.0
 	var dmat := StandardMaterial3D.new()
 	dmat.albedo_color = Color(0.09, 0.19, 0.28, 1.0)
