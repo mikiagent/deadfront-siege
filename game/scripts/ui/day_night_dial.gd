@@ -10,6 +10,12 @@ extends Control
 ## rim with engraved hour ticks and a gleam that sweeps along it, and a bloom at sunrise and sunset. Under
 ## the dial a strip holds a 24 h track (night blue, dawn and dusk orange, day gold) with a gold caret at
 ## now, and the clock.
+## The weather shows in it too (owner 2026-10-28: "make the day/night cycle also reflect the current state
+## of the weather"): rain greys the sky, darkens and adds clouds and draws fine streaks; a storm piles on
+## heavier clouds and flickers with WorldWeather.flash, a bolt on each strike; heat lays an orange haze
+## that makes the horizon shimmer; cold pales the sky and frosts the rim (WorldWeather.frost). Each follows
+## the weather's own eased strength (rain_amount, heat, cold, frost), so changes blend. It reads the
+## island's WorldWeather by property name only, so without the weather package it stays clear.
 ## A tap opens a label to its left with the phase, the clock and the time until the next phase; it closes
 ## on a second tap or after OPEN_S. It reads the game's cycle through clock() and never sets it (systems
 ## PRD:289: the cycle length is the game's tunable, not ours).
@@ -64,6 +70,14 @@ const STARS := [Vector3(-0.62, 0.42, 1), Vector3(-0.40, 0.70, 2), Vector3(-0.18,
 const CLOUDS := [Vector4(0.62, 0.16, 3.0, 0.1), Vector4(0.42, 0.12, 4.5, 0.55), Vector4(0.78, 0.10, 2.2, 0.8)]
 ## One cloud's puffs: x, y offsets and radius, in cloud sizes.
 const PUFFS := [Vector3(-0.95, 0.12, 0.50), Vector3(-0.35, -0.22, 0.72), Vector3(0.30, -0.08, 0.62), Vector3(0.88, 0.15, 0.44)]
+## More clouds that roll in with rain and storms (same layout as CLOUDS).
+const CLOUDS_WET := [Vector4(0.55, 0.15, 3.6, 0.32), Vector4(0.70, 0.13, 2.8, 0.66), Vector4(0.35, 0.11, 5.0, 0.9)]
+const RAIN_N := 22  ## rain streaks
+const BOLT_N := 7  ## points on a lightning bolt
+const FROST_N := 30  ## frost spikes round the rim
+const OVERCAST := Color(0.40, 0.43, 0.50)
+const HAZE := Color(1.0, 0.60, 0.30)
+const PALE := Color(0.84, 0.91, 0.98)
 ## Lens-flare glints: share of the way from the sun towards the dial's middle, radius in px.
 const FLARE := [Vector2(0.75, 1.6), Vector2(1.25, 2.4)]
 const RINGS := 4  ## sky mesh rings
@@ -104,6 +118,24 @@ var _r := 0.0  ## the dial's radius
 var _orbit := 0.0  ## the sun's and moon's arc radius
 var _hy := 0.0  ## the horizon's y in the face
 var _track := Rect2()
+var _rain_pts := PackedVector2Array()
+var _bolt := PackedVector2Array()
+var _frost_pts := PackedVector2Array()
+## The weather this frame, 0..1 each (all 0 without WorldWeather): rain, storm, heat, cold, frost, flash.
+var weather_source: Object = null  ## tests and labs; else the island's WorldWeather
+var w_rain := 0.0
+var w_storm := 0.0
+var w_heat := 0.0
+var w_cold := 0.0
+var w_frost := 0.0
+var w_flash := 0.0
+var _bolt_seed := 0
+var _wsig := 0.0  ## the weather last drawn, so a change redraws
+var drawn_rain := 0.0  ## the streaks' alpha last draw
+var drawn_bolt := false
+var drawn_haze := 0.0
+var drawn_frost := 0.0
+var drawn_overcast := 0.0
 ## Rebuilt once a game minute.
 var _clock_text := ""
 var _lines := PackedStringArray(["", ""])
@@ -243,21 +275,49 @@ func _strings(t: float, force := false) -> void:
 
 ## True while something on the face moves in real time, so it redraws every frame.
 func animating(t: float) -> bool:
-	return star_alpha(t) > 0.0 or flourish(t) > 0.0 or _gleam(t) >= 0.0
+	return star_alpha(t) > 0.0 or flourish(t) > 0.0 or _gleam(t) >= 0.0 or w_rain > 0.01 or w_heat > 0.01 or w_flash > 0.0
+
+## The island's WorldWeather (or weather_source), read by name so the dial needs no weather class.
+func _weather() -> Object:
+	if weather_source != null:
+		return weather_source
+	var rt: Variant = World.get(&"runtime")
+	return (rt as Object).get(&"weather") as Object if rt is Object and is_instance_valid(rt) else null
+
+static func _wf(w: Object, key: StringName) -> float:
+	var v: Variant = w.get(key) if w != null else null
+	return clampf(float(v), 0.0, 1.0) if v is float or v is int else 0.0
+
+## Copies the weather's eased values; the storm's share eases here (WorldWeather.storm is a flag).
+func read_weather(delta: float) -> void:
+	var w := _weather()
+	w_rain = _wf(w, &"rain_amount")
+	var storming: bool = w != null and w.get(&"storm") == true
+	w_storm = move_toward(w_storm, w_rain if storming else 0.0, delta / 2.0)
+	w_heat = _wf(w, &"heat")
+	w_cold = _wf(w, &"cold")
+	w_frost = _wf(w, &"frost")
+	var flash := _wf(w, &"flash")
+	if flash > 0.05 and w_flash <= 0.05:
+		_bolt_seed += 1  # a new strike, a new bolt
+	w_flash = flash
 
 func _process(delta: float) -> void:
 	if is_open():
 		_open_left = maxf(0.0, _open_left - delta)
 		if not is_open():
 			_fit()
+	read_weather(delta)
 	var t := clock().x
 	if minute_of(t) != _minute:
 		_strings(t)
 		if is_open():
 			_fit()  # the countdown's width changes
 	var tick := int(t * 5760.0)
-	if tick != _tick or animating(t):
+	var sig := w_rain + w_storm * 3.0 + w_heat * 9.0 + w_cold * 27.0 + w_frost * 81.0  # the weather changed
+	if tick != _tick or animating(t) or not is_equal_approx(sig, _wsig):
 		_tick = tick
+		_wsig = sig
 		queue_redraw()
 
 func _has_point(point: Vector2) -> bool:
@@ -330,6 +390,16 @@ func _build() -> void:
 		var o := Vector2(0.6, 0.6)  # the light edge of the engraving
 		_ticks_light.append_array(PackedVector2Array([_c + d * inner + o, _c + d * (_r - 1.0) + o]))
 	_rays.resize(16)
+	_rain_pts.resize(RAIN_N * 2)
+	_bolt.resize(BOLT_N)
+	_frost_pts.clear()
+	for i in FROST_N:  # a spike in from the rim, and a short barb off it
+		var a := PI + PI * (float(i) + 0.5) / FROST_N
+		var d := Vector2.from_angle(a)
+		var n := 0.5 + 0.5 * sin(float(i) * 2.7)
+		var root := _c + d * (_r - 1.5)
+		var tip := _c + d * (_r - 1.5 - (3.5 + 6.0 * n) * (0.65 if _compact else 1.0))
+		_frost_pts.append_array(PackedVector2Array([root, tip, root.lerp(tip, 0.5), root.lerp(tip, 0.5) + Vector2.from_angle(a + (2.4 if i % 2 == 0 else -2.4)) * 2.5]))
 	_stars.clear()
 	_star_size.clear()
 	for s: Vector3 in STARS:
@@ -394,10 +464,12 @@ func _draw() -> void:
 		drawn_sun = sun
 		_draw_sun(sun, _r * 0.14, f, now)
 	_draw_clouds(t, zen, hor, sp)
-	_draw_land(t, hor, sun)
+	_draw_rain(now)
+	_draw_land(t, hor, sun, now)
 	if sun_up(t) and not _compact:
 		_draw_flare(sun, sp)
 	_draw_rim(t, f)
+	_draw_frost()
 	_draw_strip(t)
 	draw_set_transform(Vector2.ZERO)
 	if is_open():
@@ -411,6 +483,10 @@ func _draw_sky(t: float, zen: Color, hor: Color, sun: Vector2, sp: float, f: flo
 	var up := sin(clampf(sp, 0.0, 1.0) * PI)
 	var glow := (0.25 + 0.55 * (1.0 - up)) if sp > -0.12 and sp < 1.12 else 0.0
 	var bloom := f * (0.75 + 0.25 * sin(now * 4.0))
+	var overcast := maxf(w_rain * 0.5, w_storm * 0.7)
+	drawn_overcast = overcast
+	glow *= 1.0 - overcast * 0.7
+	bloom *= 1.0 - overcast * 0.6
 	for i in _sky_pts.size():
 		var p := _sky_pts[i]
 		var k := clampf((_hy - p.y) / _r, 0.0, 1.0)
@@ -421,6 +497,14 @@ func _draw_sky(t: float, zen: Color, hor: Color, sun: Vector2, sp: float, f: flo
 			col = col.lerp(Color(1.0, 0.80, 0.50), glow * 0.6 * maxf(0.0, 1.0 - p.distance_to(sun) / (_r * 0.9)))
 		if bloom > 0.0:
 			col = col.lerp(Color(1.0, 0.72, 0.42), bloom * 0.5 * maxf(0.0, 1.0 - k / 0.6))
+		if overcast > 0.0:
+			col = col.lerp(OVERCAST * (0.35 + 0.65 * col.get_luminance() / 0.6), overcast)
+		if w_heat > 0.0:
+			col = col.lerp(HAZE, w_heat * 0.62 * (1.0 - k * 0.5))
+		if w_cold > 0.0:
+			col = col.lerp(PALE, w_cold * 0.42)
+		if w_flash > 0.0:
+			col = col.lerp(Color(0.92, 0.92, 1.0), w_flash * 0.75)
 		_sky_cols[i] = col
 	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), _sky_idx, _sky_pts, _sky_cols)
 
@@ -443,19 +527,20 @@ func _draw_stars(a: float, now: float) -> void:
 		draw_circle(head, 1.2, Color(1, 1, 1, fade))
 
 func _draw_sun(at: Vector2, rb: float, f: float, now: float) -> void:
+	var v := 1.0 - 0.7 * drawn_overcast  # rain and storm clouds veil it
 	var room := _r - 2.0 - at.distance_to(_c)  # the corona stays inside the rim
-	draw_circle(at, minf(rb * 3.0, room + rb), Color(SUN, 0.10 + 0.12 * f))  # corona
-	draw_circle(at, minf(rb * 2.1, room + rb), Color(SUN, 0.18 + 0.15 * f))
-	draw_circle(at, rb * 1.45, Color(1.0, 0.86, 0.5, 0.45))
+	draw_circle(at, minf(rb * 3.0, room + rb), Color(SUN, (0.10 + 0.12 * f + 0.1 * w_heat) * v))  # corona
+	draw_circle(at, minf(rb * 2.1, room + rb), Color(SUN, (0.18 + 0.15 * f) * v))
+	draw_circle(at, rb * 1.45, Color(1.0, 0.86, 0.5, 0.45 * v))
 	var spin := now * 0.35
 	var reach := minf(1.75 + 1.6 * f, maxf(1.45, (room + rb) / rb))  # rays stay inside the rim too
 	for i in 8:
 		var d := Vector2.from_angle(spin + TAU * float(i) / 8.0)
 		_rays[i * 2] = at + d * rb * 1.35
 		_rays[i * 2 + 1] = at + d * rb * (reach if i % 2 == 0 else reach * 0.8)
-	draw_multiline(_rays, Color(1.0, 0.90, 0.6, 0.35 + 0.5 * f), 1.2, true)
-	draw_circle(at, rb, SUN)
-	draw_circle(at - Vector2(rb, rb) * 0.28, rb * 0.5, Color(1.0, 0.97, 0.82, 0.85))
+	draw_multiline(_rays, Color(1.0, 0.90, 0.6, (0.35 + 0.5 * f) * v), 1.2, true)
+	draw_circle(at, rb, Color(SUN, 0.35 + 0.65 * v))
+	draw_circle(at - Vector2(rb, rb) * 0.28, rb * 0.5, Color(1.0, 0.97, 0.82, 0.85 * v))
 
 func _draw_moon(at: Vector2, rb: float, a: float) -> void:
 	draw_circle(at, rb * 2.6, Color(MOON, 0.06 + 0.06 * a))  # halo
@@ -472,8 +557,18 @@ func _draw_clouds(t: float, zen: Color, hor: Color, sp: float) -> void:
 	var lit := hor.lerp(Color.WHITE, 0.35 + 0.45 * day)
 	var shade := zen.lerp(hor, 0.5).darkened(0.15)
 	var alpha := (0.42 + 0.3 * day) if sun_up(t) else 0.18 + 0.2 * (1.0 - star_alpha(t))
-	for cl: Vector4 in CLOUDS:
-		var s := cl.y * _r
+	var wet := maxf(w_rain, w_storm)
+	if wet > 0.0:  # rain greys them, a storm blackens and swells them
+		var grey := Color(0.52, 0.55, 0.60).lerp(Color(0.26, 0.28, 0.34), w_storm) * (0.45 + 0.55 * maxf(day, 0.3))
+		lit = lit.lerp(grey, wet * 0.85)
+		shade = shade.lerp(grey.darkened(0.35), wet)
+		alpha = lerpf(alpha, 0.9, wet)
+	for i in CLOUDS.size() + CLOUDS_WET.size():
+		var cl: Vector4 = CLOUDS[i] if i < CLOUDS.size() else CLOUDS_WET[i - CLOUDS.size()]
+		var fade := 1.0 if i < CLOUDS.size() else wet
+		if fade <= 0.0:
+			continue
+		var s := cl.y * _r * (1.0 + 0.45 * wet)
 		var y := _hy - cl.x * _r
 		var half := sqrt(maxf(0.0, _r * _r - (_hy - y) * (_hy - y))) - s
 		var x := _c.x - half - s * 2.0 + fposmod(cl.w + t * cl.z, 1.0) * (half * 2.0 + s * 4.0)
@@ -481,14 +576,16 @@ func _draw_clouds(t: float, zen: Color, hor: Color, sp: float) -> void:
 		if edge <= 0.0:
 			continue
 		for pf: Vector3 in PUFFS:
-			draw_circle(Vector2(x + pf.x * s, y + pf.y * s + s * 0.18), pf.z * s, Color(shade, alpha * edge * 0.6))
+			draw_circle(Vector2(x + pf.x * s, y + pf.y * s + s * 0.18), pf.z * s, Color(shade, alpha * edge * fade * 0.6))
 		for pf: Vector3 in PUFFS:
-			draw_circle(Vector2(x + pf.x * s, y + pf.y * s), pf.z * s, Color(lit, alpha * edge))
+			draw_circle(Vector2(x + pf.x * s, y + pf.y * s), pf.z * s, Color(lit, alpha * edge * fade))
 
 ## Far hills and a near treeline, each drifting at its own speed as the day turns (parallax), the
 ## hills' tops lit on the sun's side.
-func _draw_land(t: float, hor: Color, sun: Vector2) -> void:
-	var far := hor.lerp(Color(0.10, 0.13, 0.16), 0.62)
+func _draw_land(t: float, hor: Color, sun: Vector2, now: float) -> void:
+	var shim := w_heat * (1.0 if _compact else 1.4)  # heat shimmer on the silhouettes' tops
+	drawn_haze = w_heat
+	var far := hor.lerp(Color(0.10, 0.13, 0.16), 0.62).lerp(HAZE.darkened(0.3), w_heat * 0.45)  # heat hazes the far hills
 	var far_low := far.darkened(0.35)
 	var near := hor.lerp(Color(0.02, 0.035, 0.03), 0.86)
 	var lit := 0.35 if sun_up(t) else 0.0
@@ -497,7 +594,7 @@ func _draw_land(t: float, hor: Color, sun: Vector2) -> void:
 		var x := _c.x - _r + 2.0 * _r * u
 		var v := u + t
 		var h := 0.13 + 0.06 * sin(TAU * v) + 0.035 * sin(TAU * 3.0 * v + 1.3)
-		_hill_pts[i * 2] = Vector2(x, _hy - h * _r * _taper(x))
+		_hill_pts[i * 2] = Vector2(x, _hy - h * _r * _taper(x) + shim * sin(now * 7.0 + x * 0.35) * _taper(x))
 		_hill_cols[i * 2] = far.lerp(Color(1.0, 0.85, 0.6), lit * maxf(0.0, 1.0 - absf(x - sun.x) / _r) * 0.5)
 		_hill_cols[i * 2 + 1] = far_low
 	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), _strip_idx, _hill_pts, _hill_cols)
@@ -507,10 +604,46 @@ func _draw_land(t: float, hor: Color, sun: Vector2) -> void:
 		var v := u + t * 3.0
 		var tri := 1.0 - absf(fposmod(v * TREES, 1.0) * 2.0 - 1.0)  # a pointed crown per tree
 		var h := 0.045 + 0.10 * tri * tri * (0.7 + 0.3 * sin(TAU * 2.0 * v + 0.4))
-		_tree_pts[i * 2] = Vector2(x, _hy - h * _r * _taper(x))
+		_tree_pts[i * 2] = Vector2(x, _hy - h * _r * _taper(x) + shim * 0.8 * sin(now * 8.5 + x * 0.5 + 1.0) * _taper(x))
 		_tree_cols[i * 2] = near.lerp(hor, 0.12)
 		_tree_cols[i * 2 + 1] = near
 	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), _tree_idx, _tree_pts, _tree_cols)
+
+## Fine rain streaks inside the dial, slanting more and falling faster in a storm; a bolt on a strike.
+func _draw_rain(now: float) -> void:
+	drawn_rain = 0.0
+	drawn_bolt = false
+	var wet := maxf(w_rain, w_storm)
+	if wet > 0.01:
+		var fall := 1.4 + 0.8 * w_storm
+		var slant := 1.2 + 1.6 * w_storm
+		var ln := (4.0 + 3.0 * w_storm) * (0.75 if _compact else 1.0)
+		for i in RAIN_N:
+			var x := _c.x + _r * (fposmod(float(i) * 0.618 + 0.13, 1.0) * 1.7 - 0.85)
+			var top := _hy - sqrt(maxf(0.0, _r * _r - (x - _c.x) * (x - _c.x))) * 0.92
+			var y := top + fposmod(now * fall + float(i) * 0.37, 1.0) * (_hy - top - ln)
+			_rain_pts[i * 2] = Vector2(x, y)
+			_rain_pts[i * 2 + 1] = Vector2(x - slant, y + ln)
+		drawn_rain = wet * 0.7
+		draw_multiline(_rain_pts, Color(0.80, 0.86, 0.95, drawn_rain), 1.0, true)
+	if w_flash > 0.25 and w_storm > 0.2:
+		var sd := float(_bolt_seed)
+		var x := _c.x + _r * (fposmod(sd * 0.37, 1.0) - 0.5) * 0.9
+		for i in BOLT_N:
+			var u := float(i) / (BOLT_N - 1)
+			var jig := (fposmod(sd * 0.71 + float(i) * 0.53, 1.0) - 0.5) * _r * 0.22 if i > 0 and i < BOLT_N - 1 else 0.0
+			_bolt[i] = Vector2(x + jig + u * _r * 0.08, _hy - _r * 0.82 + u * _r * 0.72)
+		draw_polyline(_bolt, Color(0.8, 0.85, 1.0, 0.35 * w_flash), 3.0, true)
+		draw_polyline(_bolt, Color(1, 1, 1, w_flash), 1.2, true)
+		drawn_bolt = true
+
+## Cold: frost spikes creep in from the rim and a pale line rimes it.
+func _draw_frost() -> void:
+	drawn_frost = w_frost
+	if w_frost <= 0.01:
+		return
+	draw_arc(_c, _r - 2.5, PI, TAU, 40, Color(PALE, 0.8 * w_frost), 1.5 + 2.5 * w_frost, true)
+	draw_multiline(_frost_pts, Color(0.93, 0.97, 1.0, 0.9 * w_frost), 1.0, true)
 
 ## Silhouettes flatten into the horizon near the rim, so they never leave the dial.
 func _taper(x: float) -> float:
@@ -528,8 +661,8 @@ func _draw_flare(sun: Vector2, sp: float) -> void:
 
 func _draw_rim(t: float, f: float) -> void:
 	var w := 3.0 if _compact else 4.0
-	draw_arc(_c, _r, PI, TAU, 40, RIM_DARK, w, true)
-	draw_arc(_c, _r - w * 0.25, PI, TAU, 40, RIM_LIGHT.lerp(Color.WHITE, f * 0.5), w * 0.4, true)
+	draw_arc(_c, _r, PI, TAU, 40, RIM_DARK.lerp(Color(0.55, 0.64, 0.72), w_frost * 0.6), w, true)  # frost cools the gold
+	draw_arc(_c, _r - w * 0.25, PI, TAU, 40, RIM_LIGHT.lerp(Color.WHITE, maxf(f * 0.5, w_frost * 0.6)), w * 0.4, true)
 	draw_multiline(_ticks_dark, Color(UiTokens.CTA_INK, 0.75), 1.0, true)
 	draw_multiline(_ticks_light, Color(RIM_LIGHT, 0.55), 1.0, true)
 	var g := _gleam(t)

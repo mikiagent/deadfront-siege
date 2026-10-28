@@ -7,7 +7,9 @@ extends SceneTree
 ## DAYNIGHT: the half-dial draws, follows the clock across 24 h (the sun up and the moon down by day,
 ## the moon up by night, stars only after sunset, the clock text the game's), sits inside the view docked
 ## to the map and off the HUD's taken rects at each size, and redraws a night of frames without
-## allocating and within its time budget.
+## allocating and within its time budget. The weather shows in it per state (clear, rain, storm with and
+## without a strike, heat, cold), each scaled by the weather's strength, the storm easing in, and with no
+## weather to read it draws clear.
 ## Run: godot --headless --path game --script res://tests/t_daynight_dial.gd -> "[t_daynight] PASS", exit 0/1.
 
 const DIAL_PATH := "res://scripts/ui/day_night_dial.gd"
@@ -38,6 +40,7 @@ func _run() -> void:
 		_D = load(DIAL_PATH)
 		_test_phases(game, _D)
 		await _test_face(game)
+		await _test_weather(game)
 		await _test_hud(game)
 	game.time_of_day = keep
 	game.set_process(true)
@@ -159,6 +162,73 @@ func _test_face(game: Node) -> void:
 	_check(Performance.get_monitor(Performance.OBJECT_COUNT) == objs, "%s: objects grew over 120 night frames" % v)
 	_check(grew <= 4096.0, "%s: static memory grew %d bytes over 120 night frames" % [v, grew])
 	print("[t_daynight] %s: face %s, %d draws, +%d B over 120 night frames, %.0f us a draw, stars %d" % [v, face.size, int(dial.get("draws")), grew, per, int(dial.get("drawn_stars"))])
+	dial.free()
+
+## Sets the fake weather, lets the dial read it (`settle` seconds of easing) and draw.
+func _weather_draw(dial: Control, w: Object, fields: Dictionary, settle := 5.0) -> Dictionary:
+	for k in ["rain_amount", "heat", "cold", "frost", "flash"]:
+		w.set(k, 0.0)
+	w.set("storm", false)
+	for k in fields:
+		w.set(k, fields[k])
+	dial.call("read_weather", settle)
+	dial.queue_redraw()
+	await process_frame
+	await process_frame
+	return {"rain": dial.get("drawn_rain"), "bolt": dial.get("drawn_bolt"), "haze": dial.get("drawn_haze"),
+		"frost": dial.get("drawn_frost"), "over": dial.get("drawn_overcast"), "storm": dial.get("w_storm")}
+
+func _test_weather(game: Node) -> void:
+	var dial: Control = _D.new()
+	get_root().add_child(dial)
+	dial.call("dock", Rect2(1430, 34, 154, 154))
+	game.time_of_day = 0.5
+	dial.queue_redraw()
+	await process_frame
+	await process_frame
+	var none := {"rain": dial.get("drawn_rain"), "bolt": dial.get("drawn_bolt"), "haze": dial.get("drawn_haze"), "frost": dial.get("drawn_frost"), "over": dial.get("drawn_overcast")}
+	_check(none == {"rain": 0.0, "bolt": false, "haze": 0.0, "frost": 0.0, "over": 0.0}, "with no weather to read the dial draws clear (%s)" % [none])
+	if not ResourceLoader.exists("res://scripts/world/world_weather.gd"):
+		print("[t_daynight] weather: no WorldWeather in this tree, clear only")
+		dial.free()
+		return
+	var w: Object = load("res://scripts/world/world_weather.gd").new()
+	dial.set("weather_source", w)
+	var clear := await _weather_draw(dial, w, {})
+	_check(clear["rain"] == 0.0 and not clear["bolt"] and clear["haze"] == 0.0 and clear["frost"] == 0.0 and clear["over"] == 0.0, "clear: no rain, bolt, haze, frost or overcast (%s)" % [clear])
+	var drizzle := await _weather_draw(dial, w, {"rain_amount": 0.3})
+	var rain := await _weather_draw(dial, w, {"rain_amount": 0.7})
+	_check(rain["rain"] > 0.0 and rain["over"] > 0.0 and not rain["bolt"] and rain["storm"] == 0.0, "rain: streaks and grey clouds, no storm (%s)" % [rain])
+	_check(drizzle["rain"] < rain["rain"] and drizzle["over"] < rain["over"], "rain follows its strength (0.3 %s, 0.7 %s)" % [drizzle, rain])
+	var calm := await _weather_draw(dial, w, {"rain_amount": 1.0, "storm": true})
+	var strike := await _weather_draw(dial, w, {"rain_amount": 1.0, "storm": true, "flash": 0.8})
+	_check(calm["storm"] > 0.9 and calm["over"] > rain["over"] and calm["rain"] > rain["rain"] and not calm["bolt"], "storm: heavier than rain, no bolt between strikes (%s)" % [calm])
+	_check(strike["bolt"], "storm: a strike (flash 0.8) draws a bolt (%s)" % [strike])
+	var easing := await _weather_draw(dial, w, {"rain_amount": 0.0}, 5.0)
+	easing = await _weather_draw(dial, w, {"rain_amount": 1.0, "storm": true}, 0.1)
+	_check(easing["storm"] < 0.2, "a storm eases in rather than snapping (%.2f after 0.1 s)" % easing["storm"])
+	var heat := await _weather_draw(dial, w, {"heat": 1.0})
+	var warm := await _weather_draw(dial, w, {"heat": 0.4})
+	_check(heat["haze"] > warm["haze"] and warm["haze"] > 0.0 and heat["frost"] == 0.0 and heat["rain"] == 0.0, "heat: haze scaled by strength, nothing else (%s / %s)" % [warm, heat])
+	var cold := await _weather_draw(dial, w, {"cold": 1.0, "frost": 1.0})
+	_check(cold["frost"] > 0.9 and cold["haze"] == 0.0 and cold["rain"] == 0.0, "cold: frost on the rim (%s)" % [cold])
+	# Cost under the heaviest sky: a storm at night with a strike, every frame.
+	game.time_of_day = 0.02
+	for k in ["rain_amount", "flash", "frost", "cold"]:
+		w.set(k, 1.0)
+	w.set("storm", true)
+	for i in 10:  # warm up: the canvas item's command buffer grows once to the storm's size
+		await process_frame
+	var before := int(dial.get("draws"))
+	var usec0 := int(dial.get("draw_usec"))
+	var mem := Performance.get_monitor(Performance.MEMORY_STATIC)
+	for i in 60:
+		await process_frame
+	var per := float(int(dial.get("draw_usec")) - usec0) / maxf(1.0, float(int(dial.get("draws")) - before))
+	_check(int(dial.get("draws")) - before >= 55 and per < 600.0, "storm at night: %d draws, %.0f us a draw (budget 600)" % [int(dial.get("draws")) - before, per])
+	var grew := Performance.get_monitor(Performance.MEMORY_STATIC) - mem
+	_check(grew <= 4096.0, "storm at night: static memory grew %d bytes over 60 frames" % grew)
+	print("[t_daynight] weather: clear %s rain %s storm %s strike %s heat %s cold %s; storm night %.0f us a draw" % [clear, rain, calm, strike, heat, cold, per])
 	dial.free()
 
 func _test_hud(game: Node) -> void:

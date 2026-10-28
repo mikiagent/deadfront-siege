@@ -58,9 +58,15 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   a near treeline, drift at different speeds as the day turns. The rim is engraved with hour ticks
   (06/12/18 longer) and a gleam sweeps along it every ~7 s (faster at sunrise and sunset). Under the dial:
   a 24 h track (night blue, dawn and dusk orange, day gold) with a gold caret at now, and the clock. A
-  tap opens the label to the left (phase, clock, time to the next phase), closing after 4 s. It reads
+  tap opens the label to the left (phase, clock, time to the next phase), closing after 4 s. Weather (owner
+  2026-10-28) shows in the dial, read by name from the island's WorldWeather (clear if it is absent): rain
+  greys the sky and veils the sun, and adds darker clouds and fine slanting streaks. A storm brings heavier
+  black clouds and longer streaks, and the sky flickers with `WorldWeather.flash`, with a bolt on each
+  strike. Heat lays an orange haze and makes the hill line shimmer; cold pales the sky and frosts the rim
+  (spikes and a pale rime, the gold cooled, following `frost`). Each follows the weather's eased
+  strength; the dial's own storm share eases over 2 s. It reads
   `Game.time_of_day` / `day_length_seconds` and never writes them. Cost: three triangle-array calls plus
-  ~60 small draw commands, ~70 µs a draw headless. It redraws each frame only while stars, a flourish or
+  ~60 small draw commands, ~60-100 µs a draw headless (a night storm mid-strike included). It redraws each frame only while stars, a flourish or
   the gleam show, else every 15 game seconds, and its draw allocates nothing (t_daynight). Captures:
   `docs/orchestration/reports/daynight/`.
 - Hex sizes follow spec §2 (`HudField.PX`): desktop rail 100, INTERACT 150, ATTACK 100, SPRINT 100,
