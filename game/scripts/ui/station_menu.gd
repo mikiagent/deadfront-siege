@@ -37,6 +37,9 @@ const DEFAULT_HEIGHT := 1.45
 
 var station: Node3D
 var player: Player
+## A fire's state line under the ring ("Fuel 4:12 · Burning · Durability 288/300"); stations that
+## have no info_text() keep the old look with no line.
+var info_label: Label
 var _buttons: Array[HexButton] = []
 var _ring3d: MeshInstance3D
 var _expand_elapsed: float = 0.0
@@ -49,9 +52,29 @@ static func actions_for(sid: StringName, p: Player) -> Array:
 		list = [{"id": &"craft", "label": "CRAFT", "icon": "hammer", "glyph": "C"}]
 	for a in list:
 		out.append((a as Dictionary).duplicate())
+	# FIREPITS: any fire takes wood; the permanent pit needs it to burn at all.
+	if sid in [&"bonfire", &"campfire"]:
+		out.append({"id": &"wood", "label": "LOAD WOOD", "icon": "branch", "glyph": "W"})
 	if sid == &"bonfire" and p != null and p.statuses \
 			and (p.statuses.has(&"bleed") or p.statuses.has(&"deep_bleed")):
 		out.append({"id": &"cauterise", "label": "CAUTERISE", "icon": "bonfire_kit", "glyph": "B"})
+	return out
+
+## The hexes that station can actually offer: a fire that is not burning (the cold stone pit, a
+## burnt-out fire) drops COOK and says why, instead of opening a craft flow that would refuse.
+static func filter_actions(st: Node3D, actions: Array) -> Array:
+	var out: Array = []
+	var cook_why := ""
+	if st != null and is_instance_valid(st) and st.has_method("cook_block_reason"):
+		cook_why = str(st.call("cook_block_reason"))
+	var wood_full := st != null and is_instance_valid(st) and st.has_method("can_load_wood") and not bool(st.call("can_load_wood"))
+	for a: Variant in actions:
+		var aid := str((a as Dictionary).get("id", ""))
+		if cook_why != "" and aid == "cook":
+			continue
+		if aid == "wood" and wood_full:
+			continue
+		out.append(a)
 	return out
 
 func _ready() -> void:
@@ -63,7 +86,9 @@ func _ready() -> void:
 func show_for(st: Node3D, actions: Array) -> void:
 	station = st
 	_clear()
-	for a in actions:
+	# A fire that is not burning offers no COOK (and a full fire no LOAD WOOD), whatever list the
+	# caller hands over.
+	for a: Variant in filter_actions(st, actions):
 		var row: Dictionary = a
 		var btn := HexButton.new(HEX_SIZE)
 		btn.focus_mode = Control.FOCUS_ALL  # controller menu (HexButton defaults out of focus)
@@ -82,13 +107,42 @@ func show_for(st: Node3D, actions: Array) -> void:
 		btn.pressed.connect(_on_pressed.bind(aid))
 		add_child(btn)
 		_buttons.append(btn)
+	_show_info()
 	visible = true
 	_expand_elapsed = 0.0
 	_show_ring3d(0.22)
 	_update_screen_pos()
 	UiTokens.focus_first(_buttons)
 
+## The station's own state line (FIREPITS rule 3: a fire shows the fuel left, and a temporary fire
+## its durability). Built from the station's info_lines(), so the card and the tests read the same text.
+func _show_info() -> void:
+	if info_label != null and is_instance_valid(info_label):
+		info_label.queue_free()
+	info_label = null
+	if station == null or not is_instance_valid(station) or not station.has_method("info_text"):
+		return
+	var text := str(station.call("info_text"))
+	if text == "":
+		return
+	var lbl := Label.new()
+	lbl.name = "StationInfo"
+	lbl.text = text
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.add_theme_font_size_override("font_size", int(UiTokens.meta(get_viewport_rect().size)))
+	lbl.add_theme_color_override("font_color", UiTokens.TEXT)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = UiTokens.HUD_FILL
+	bg.set_content_margin_all(6.0)
+	lbl.add_theme_stylebox_override("normal", bg)
+	add_child(lbl)
+	info_label = lbl
+
 func hide_menu() -> void:
+	if info_label != null and is_instance_valid(info_label):
+		info_label.queue_free()
+	info_label = null
 	_clear()
 	station = null
 	visible = false
@@ -98,6 +152,15 @@ func hide_menu() -> void:
 
 func _on_pressed(aid: StringName) -> void:
 	var st := station
+	# FIREPITS: these two act on the fire in place and keep the menu open, so its fuel line updates.
+	if aid == &"wood" and st != null and is_instance_valid(st) and st.has_method("load_wood"):
+		st.call("load_wood", player)
+		_show_info()
+		return
+	if aid == &"cook" and st != null and is_instance_valid(st) and st.has_method("can_cook") and not bool(st.call("can_cook")):
+		if player != null:
+			player.notice("Can't cook: %s" % str(st.call("cook_block_reason")).to_lower())
+		return
 	hide_menu()
 	action_chosen.emit(st, aid)
 
@@ -142,6 +205,13 @@ func _update_screen_pos() -> void:
 	var view := get_viewport_rect().size
 	var hx := hex_px(view)
 	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), hx, 0.0, UiTokens.hud_reserved(view))
+	if info_label != null and is_instance_valid(info_label) and info_label.text != "":
+		# Under the ring: measured from the hex spots, so it never covers the actions.
+		info_label.size = Vector2.ZERO
+		info_label.reset_size()
+		var w := info_label.get_minimum_size().x
+		var box_below := anchor.y + hx * 1.6
+		info_label.position = Vector2(clampf(anchor.x - w * 0.5, MARGIN, maxf(MARGIN, view.x - w - MARGIN)), minf(box_below, view.y - info_label.get_minimum_size().y - MARGIN))
 	for i in _buttons.size():
 		HudField.fit(_buttons[i], hx)
 		if i < spots.size():

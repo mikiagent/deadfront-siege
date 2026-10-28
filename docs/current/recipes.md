@@ -220,6 +220,14 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `smelt_iron` | Iron Ingot x1 | iron_ore x2 (primary); fuel x1 | processing | 0 | 0 | 60 | 24.0 | smelt +1 |
 | `refine_steel` | Steel Ingot x1 | tier_iron x2 (primary); fuel x2 | processing | 0 | 0 | 60 | 14.0 | alloy +1 |
 
+## Fires and cooking
+
+`bonfire`, `campfire` and `stone_fire_pit` all cook (their kits and rules are in
+`docs/current/building.md` → "Fires"). The two temporary fires are on from placement; the permanent
+stone fire pit cooks only after wood is loaded into it (`LOAD WOOD` hex: one branch buys 120 s of
+burning), and every fire refuses cooking once it is out. Fires take their recipes from
+`recipes_for_station(bonfire)` / `(campfire)`: the pit shares the bonfire list.
+
 ## campfire (campfire)
 
 | recipe | output | inputs | skill | min skill | ability target | recipe max_level | time (s) | process |
