@@ -368,6 +368,23 @@ func _test_corpse_after_ragdoll() -> void:
 		_expect(taken != null and corpse.loot.used_slots() == before - 1, "take_slot moves one stack out")
 		var flat := Vector2(corpse.global_position.x - c.global_position.x, corpse.global_position.z - c.global_position.z).length()
 		_expect(flat < 0.01 and absf(corpse.global_position.y) < 0.05, "corpse at the body's resting point on the ground")
+		# With a knife in the bag the settled corpse is harvestable: every option is ungated and a
+		# second take still moves loot out (the ragdoll left the corpse's loot path working).
+		var bag = load("res://scripts/items/inventory.gd").new(8)
+		var item: GDScript = load("res://scripts/items/item_stack.gd")
+		bag.add(item.make(&"stone_knife", 1))
+		_expect(bag.has_tool_class(&"knife"), "the test bag carries a knife")
+		_expect(corpse.can_butcher(bag) == "", "a knife lets the settled corpse be butchered (%s)" % corpse.can_butcher(bag))
+		var opts2: Array = corpse.loot_options(bag)
+		var gated := 0
+		for o: Dictionary in opts2:
+			if str(o.get("tool", "none")) != "none":
+				gated += 1
+		_expect(not opts2.is_empty() and gated == 0, "every loot option is open with a knife (%d options, %d gated)" % [opts2.size(), gated])
+		var mid: int = corpse.loot.used_slots()
+		if not opts2.is_empty():
+			var taken2 = corpse.take_slot(int(opts2[0]["slot"]), null)
+			_expect(taken2 != null and corpse.loot.used_slots() == mid - 1, "a second take moves another stack out after settling")
 	await _free_all([c])
 
 ## The in-game stegosaurus is a box placeholder with no skeleton: death clip, then the body's lowest
