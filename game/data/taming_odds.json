@@ -1,0 +1,13 @@
+{
+  "_about": "Taming odds (roadmap: docs/design/durango-informed-improvements.md 5). One logistic curve on (survival level - creature level) plus a log-odds bonus for lower remaining health and a small bonus per capture-net tier; clamped to [min, max]. Read by game/scripts/pets/taming_odds.gd, which the plate (shown odds) and CaptureSystem.attempt (rolled odds) both call, so the number on screen is the number rolled.",
+  "_assumptions": "ASSUMPTION: level_even / level_ahead_10 / level_behind_10 are the design doc's starting points (50 % at an even gap, 85 % ten levels ahead, 10 % ten levels behind), read at the capture threshold so they can be tested. hp_logit_per_hp, tier_logit_per_tier, min and max are first-pass numbers picked to be measurable, not balanced (the owner tunes balance after crafting/building/skills). capture_health_frac is NOT a knob here: the capture-open rule stays FieldTame.CAPTURE_HEALTH_FRAC = 0.30 (0.30 opens, 0.31 closed).",
+  "capture_health_frac": 0.30,
+  "level_even": 0.50,
+  "level_ahead_10": 0.85,
+  "level_behind_10": 0.10,
+  "hp_logit_per_hp": 1.5,
+  "tier_logit_per_tier": 0.25,
+  "min": 0.05,
+  "max": 0.95,
+  "bait_iv_bonus": 6
+}
