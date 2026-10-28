@@ -1246,10 +1246,10 @@
         {
           "id": "ui-tokens-hex",
           "title": "Tokens, HexButton extensions (rim, pie fill, grey icon, key hint, orientation flag) and shared chrome helpers (§2, §3, §8)",
-          "status": "next",
+          "status": "done",
           "depends": [],
           "source": "docs/design/ui-redesign-spec.md",
-          "note": "Package 1. Orientation flag defaults to pointy-top until the owner picks."
+          "note": "UITOKENS merged 2026-10-28: palette, trait chips, brackets, header/torn edge, Roboto Condensed tokens; HexButton flat-top (owner decision), rim, pie fill, grey icon, key hint."
         },
         {
           "id": "ui-gather-pie",
@@ -1312,6 +1312,16 @@
           ],
           "source": "docs/design/ui-redesign-spec.md",
           "note": ""
+        },
+        {
+          "id": "ui-stretched-sheets",
+          "title": "Rebuild every stretched full-width-row sheet to the spec: Harbour / sail list (world_ui.gd), build list (build_ui.gd), skills_sheet.gd, animal_screen.gd and any other sheet with edge-to-edge rows",
+          "status": "next",
+          "depends": [
+            "ui-tokens-hex"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "Owner standing rule 2026-10-28: any menu that renders as stretched full-width rows is rebuilt to the UI spec, not patched. Harbour goes with F2 World Atlas 'Harbour routes'. Sweep of game/scripts/ui found world_ui, build_ui, skills_sheet, animal_screen."
         }
       ]
     }

@@ -264,3 +264,9 @@ Desktop Chrome 1600×900 is the gate (`AGENTS.md`); phone landscape 844×390 sta
 package ships with: a screenshot of the restyled screen in the running build next to its §0
 target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS`, and `../current/hud.md` /
 `../current/ui-screens.md` updated for what actually shipped.
+
+## 11. Owner rules added after the canvas review
+
+- [owner 2026-10-28] Hexes are **flat-top** everywhere (§3 open question closed).
+- [owner 2026-10-28] Font: use Roboto Condensed (`game/assets/fonts/RobotoCondensed-Variable.ttf`, SIL OFL 1.1).
+- [owner 2026-10-28] Any menu that renders as stretched full-width rows (e.g. the Harbour "Sail ..." list) is rebuilt to this spec, not patched. Known: Harbour / sail list (world_ui.gd), build list (build_ui.gd), skills_sheet.gd, animal_screen.gd.
