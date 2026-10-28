@@ -168,10 +168,10 @@ void fragment() {
 	vec2 suv = (p + sw + vec2(map_size * 0.5)) / map_size;
 	vec4 s_wide = textureLod(soft_tex, suv, soft_lod_rock);
 	vec4 s_fine = textureLod(soft_tex, suv, soft_lod_mud);
-	base = mix(base, rock, smoothstep(0.12, 0.55, s_wide.r));
-	base = mix(base, rock * (tint_ash / tint_rock), smoothstep(0.12, 0.55, s_wide.g));
-	base = mix(base, dirt * (tint_mud / tint_dirt), smoothstep(0.15, 0.6, s_fine.b));
-	base = mix(base, dirt, smoothstep(0.15, 0.6, s_fine.a));
+	base = mix(base, rock, smoothstep(0.25, 0.6, s_wide.r));
+	base = mix(base, rock * (tint_ash / tint_rock), smoothstep(0.25, 0.6, s_wide.g));
+	base = mix(base, dirt * (tint_mud / tint_dirt), smoothstep(0.35, 0.75, s_fine.b));
+	base = mix(base, dirt, smoothstep(0.35, 0.75, s_fine.a));
 	// Harvested (BARE) tiles change at runtime: a bilinear mask over the 1 m tile grid, read at two
 	// noise-warped points and sharpened back to a ~0.5 m edge that wanders with the noise.
 	vec2 off = vec2(texture(noise_tex, p / 60.0).r - 0.5, texture(noise_tex, p / 60.0 + vec2(0.37)).r - 0.5) * 1.6;

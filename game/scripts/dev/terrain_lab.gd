@@ -6,7 +6,8 @@ extends Node3D
 ##   river_bank     dry ground 1 m from the river's waterline
 ##   beach          the sand by the harbour arrival
 ## Windowed: Godot --path game --resolution 1600x900 [--rendering-method gl_compatibility]
-##   res://scenes/dev/terrain_lab.tscn -- --lab=terrain_lab --shot-dir=DIR [--spots=camp,beach]
+##   res://scenes/dev/terrain_lab.tscn -- --lab=terrain_lab --shot-dir=DIR [--spots=camp,beach,top]
+##   [--island=volcanic_60] (default home_grassland)
 ## Prints "[terrainlab] shot <path>" per PNG, then "[terrainlab] done".
 
 const SETTLE_S := 1.4
@@ -17,6 +18,7 @@ var _cam: IsoCamera
 var _rt: IslandRuntime
 var _ui: CanvasLayer
 var _only: PackedStringArray = []
+var _island := &"home_grassland"
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -24,6 +26,8 @@ func _ready() -> void:
 			_out = a.substr(11)
 		if a.begins_with("--spots="):
 			_only = a.substr(8).split(",", false)
+		if a.begins_with("--island="):
+			_island = StringName(a.substr(9))
 	if _out == "":
 		_out = OS.get_user_data_dir().path_join("terrain_lab")
 	DirAccess.make_dir_recursive_absolute(_out)
@@ -33,7 +37,7 @@ func _ready() -> void:
 	_cam = kit["cam"]
 	_ui = kit["ui"]
 	World.home_terrain = &"meadow"
-	World.load_island(self, &"home_grassland", Vector3(0, 1, 18), false)
+	World.load_island(self, _island, Vector3(0, 1, 18), false)
 	(kit["nav"] as Node).queue_free()
 	get_tree().create_timer(300.0).timeout.connect(func() -> void: get_tree().quit(2))
 	_run.call_deferred()
@@ -43,6 +47,9 @@ func _run() -> void:
 	_rt = World.runtime as IslandRuntime
 	Game.time_of_day = 0.45
 	_ui.visible = false
+	for c in get_children():  # world_ui's own layers (gather hexes, labels) too
+		if c is CanvasLayer:
+			(c as CanvasLayer).visible = false
 	var perf := get_node_or_null("/root/Game/PerfHud") as CanvasLayer
 	if perf:
 		perf.visible = false
@@ -84,6 +91,11 @@ func _top() -> void:
 	top.global_position = Vector3(0, 200, 0)
 	top.rotation_degrees = Vector3(-90, 0, 0)
 	top.current = true
+	# Height fog washes a 200 m-high orthographic view out; the review shot is of the ground.
+	var env: Environment = _rt.world_env.environment if _rt.world_env else null
+	if env:
+		env.fog_enabled = false
+		env.volumetric_fog_enabled = false
 	await get_tree().create_timer(1.0).timeout
 	await _shot("top")
 	_cam.current = true
