@@ -286,6 +286,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "bone_axe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bone_axe",
+   "png": "res://assets/icons/render/bone_axe.png",
+   "sha256": "484ca610ff307f33d4d7ed6506695a9b5e7785d0d266900b3dacfde7029733b6",
+   "bytes": 26372,
+   "rect": [
+    19,
+    21,
+    218,
+    214
+   ],
+   "quality": "procedural_v1"
+  },
   "bone_hammer": {
    "script": "tools/blender/items/gear.py",
    "builder": "bone_hammer",
@@ -296,6 +310,48 @@
     43,
     19,
     170,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bone_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bone_knife",
+   "png": "res://assets/icons/render/bone_knife.png",
+   "sha256": "88cf6ca1d0ba852a857239ec1eefa597b0e430a51aa0dbb6b3cc457f03cfa06d",
+   "bytes": 25289,
+   "rect": [
+    27,
+    19,
+    202,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bone_pick": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bone_pick",
+   "png": "res://assets/icons/render/bone_pick.png",
+   "sha256": "55fae52676c2e6907ac95354d7ed76ee7bfd62fbd146dcbb924025d36d7a5670",
+   "bytes": 21426,
+   "rect": [
+    49,
+    19,
+    158,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bone_spear": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bone_spear",
+   "png": "res://assets/icons/render/bone_spear.png",
+   "sha256": "0f03ce9de179deae7c2d2255dabfce35800e966bc966ee61c24024d66e7debfb",
+   "bytes": 13167,
+   "rect": [
+    80,
+    19,
+    96,
     218
    ],
    "quality": "procedural_v1"
@@ -328,6 +384,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "bronze_axe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bronze_axe",
+   "png": "res://assets/icons/render/bronze_axe.png",
+   "sha256": "058def80690283479cdc2b30e2ea9bb6d227c6a5cfab74d1189d448d91e0ea68",
+   "bytes": 25477,
+   "rect": [
+    19,
+    21,
+    218,
+    214
+   ],
+   "quality": "procedural_v1"
+  },
   "bronze_ingot": {
    "script": "tools/blender/items/resources.py",
    "builder": "bronze_ingot",
@@ -339,6 +409,48 @@
     39,
     218,
     178
+   ],
+   "quality": "procedural_v1"
+  },
+  "bronze_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bronze_knife",
+   "png": "res://assets/icons/render/bronze_knife.png",
+   "sha256": "f36e03163f3a471c87baa4e4773765be129d6da3552e5d0459dc80c06e1ba0bb",
+   "bytes": 22938,
+   "rect": [
+    27,
+    19,
+    202,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bronze_pick": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bronze_pick",
+   "png": "res://assets/icons/render/bronze_pick.png",
+   "sha256": "9dc40c0a6100fe5ff787d1c5eaac1364ad2890a4e6db75732f87eef1638e5f36",
+   "bytes": 21870,
+   "rect": [
+    49,
+    19,
+    158,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bronze_sword": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bronze_sword",
+   "png": "res://assets/icons/render/bronze_sword.png",
+   "sha256": "4473918444a9ac4f8d8732f2e557b1ad5426c7bfcc82af8bd1f2bd80fb9fed51",
+   "bytes": 19294,
+   "rect": [
+    60,
+    19,
+    136,
+    218
    ],
    "quality": "procedural_v1"
   },
@@ -483,6 +595,48 @@
    ],
    "quality": "procedural_v1"
   },
+  "capture_net_iii": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "capture_net_iii",
+   "png": "res://assets/icons/render/capture_net_iii.png",
+   "sha256": "ac1c56e4b4f44276dc89bd88ca4ff5623e9348502f97f962e53fe3cfd74faa9c",
+   "bytes": 53025,
+   "rect": [
+    42,
+    19,
+    172,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "capture_net_iv": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "capture_net_iv",
+   "png": "res://assets/icons/render/capture_net_iv.png",
+   "sha256": "9aba7ce1d96f1ae1681254336536070bd4dcce724e00d54c44da452eb9a94574",
+   "bytes": 53469,
+   "rect": [
+    43,
+    19,
+    170,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "capture_net_v": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "capture_net_v",
+   "png": "res://assets/icons/render/capture_net_v.png",
+   "sha256": "78d35a6ee6797ff8c4cce37e43d0315060debff6665df236a3926b4c7f1a60b2",
+   "bytes": 54465,
+   "rect": [
+    44,
+    19,
+    168,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "captured_animal": {
    "script": "tools/blender/items/camp.py",
    "builder": "captured_animal",
@@ -623,6 +777,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "copper_axe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "copper_axe",
+   "png": "res://assets/icons/render/copper_axe.png",
+   "sha256": "401c3b43aca1d4e3148f98dd78be053a662690e9e81661dba20bcfebd1b8dcba",
+   "bytes": 25379,
+   "rect": [
+    19,
+    21,
+    218,
+    214
+   ],
+   "quality": "procedural_v1"
+  },
   "copper_ingot": {
    "script": "tools/blender/items/resources.py",
    "builder": "copper_ingot",
@@ -637,6 +805,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "copper_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "copper_knife",
+   "png": "res://assets/icons/render/copper_knife.png",
+   "sha256": "ce8e671719cf0f7f5d9911c2441c400d8d22214f84635319449a5805028c2e8a",
+   "bytes": 22796,
+   "rect": [
+    27,
+    19,
+    202,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "copper_ore": {
    "script": "tools/blender/items/resources.py",
    "builder": "copper_ore",
@@ -648,6 +830,34 @@
     43,
     218,
     170
+   ],
+   "quality": "procedural_v1"
+  },
+  "copper_pick": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "copper_pick",
+   "png": "res://assets/icons/render/copper_pick.png",
+   "sha256": "a763391eebb5c82c68e69a398104535f8709b93b0366976983c0e2f433eebb1b",
+   "bytes": 21786,
+   "rect": [
+    49,
+    19,
+    158,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "copper_sword": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "copper_sword",
+   "png": "res://assets/icons/render/copper_sword.png",
+   "sha256": "8f78ba119f7485789e10d16f261d7070eae0694cb770858507182439e78ac5ac",
+   "bytes": 19162,
+   "rect": [
+    60,
+    19,
+    136,
+    218
    ],
    "quality": "procedural_v1"
   },
@@ -974,6 +1184,62 @@
    ],
    "quality": "procedural_v1"
   },
+  "flint_axe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "flint_axe",
+   "png": "res://assets/icons/render/flint_axe.png",
+   "sha256": "ad21da4b3e4d89fadc1abced8aecc2c79d28d13ea38d2a1708f0a9182c419d7c",
+   "bytes": 27321,
+   "rect": [
+    19,
+    21,
+    218,
+    214
+   ],
+   "quality": "procedural_v1"
+  },
+  "flint_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "flint_knife",
+   "png": "res://assets/icons/render/flint_knife.png",
+   "sha256": "4584fcd454cf56a925c2c43d64490dedd9447aad3bcfb4e72ca65b1b2d03aac5",
+   "bytes": 26041,
+   "rect": [
+    27,
+    19,
+    202,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "flint_pick": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "flint_pick",
+   "png": "res://assets/icons/render/flint_pick.png",
+   "sha256": "8cce9c4db22cbdc336b19d871df690508b8cb43994db280c33ac30dd3709c6d7",
+   "bytes": 21751,
+   "rect": [
+    49,
+    19,
+    158,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "flint_spear": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "flint_spear",
+   "png": "res://assets/icons/render/flint_spear.png",
+   "sha256": "2e0f1def328aaa35376607242cb06dd2d2579cea58275a7e49c0348526093597",
+   "bytes": 13261,
+   "rect": [
+    80,
+    19,
+    96,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "forager_hood": {
    "script": "glb:game/assets/characters/survivor/armor/forager/helmet.glb",
    "builder": "forager_hood",
@@ -1257,6 +1523,20 @@
    "quality": "procedural_v1",
    "replace": "redone as rounded cast loaves; mark kept because t_iconart pins it"
   },
+  "iron_axe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "iron_axe",
+   "png": "res://assets/icons/render/iron_axe.png",
+   "sha256": "3327ad84cd496fe6cc19b439cca44a125bb97e449d94844ff2b5a427b4fc76d2",
+   "bytes": 26521,
+   "rect": [
+    19,
+    21,
+    218,
+    214
+   ],
+   "quality": "procedural_v1"
+  },
   "iron_ingot": {
    "script": "tools/blender/items/resources.py",
    "builder": "iron_ingot",
@@ -1271,6 +1551,48 @@
    ],
    "quality": "procedural_v1",
    "replace": "redone as pitted rough-cast bars; mark kept because t_iconart pins it (steel/ingot differ now)"
+  },
+  "iron_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "iron_knife",
+   "png": "res://assets/icons/render/iron_knife.png",
+   "sha256": "38815f5ef8670cec9004c19011e2c935dacc775598fec192892b1245597247ac",
+   "bytes": 24593,
+   "rect": [
+    27,
+    19,
+    202,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "iron_pick": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "iron_pick",
+   "png": "res://assets/icons/render/iron_pick.png",
+   "sha256": "e238076f4ec3de70829c54aca77b20e7face4b3786721da3cf8a236dcb33a6ca",
+   "bytes": 21264,
+   "rect": [
+    49,
+    19,
+    158,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "iron_sword": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "iron_sword",
+   "png": "res://assets/icons/render/iron_sword.png",
+   "sha256": "d47bb95343d42ea26ace73bc9bea5a5e7a1867e1582af84aad4871aecbfc2228",
+   "bytes": 20405,
+   "rect": [
+    60,
+    19,
+    136,
+    218
+   ],
+   "quality": "procedural_v1"
   },
   "lava": {
    "script": "tools/blender/items/resources.py",
@@ -1469,6 +1791,62 @@
    ],
    "quality": "procedural_v1",
    "replace": "redone as glass shards on pale stone; mark kept because t_iconart pins it"
+  },
+  "obsidian_axe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "obsidian_axe",
+   "png": "res://assets/icons/render/obsidian_axe.png",
+   "sha256": "24b6f12e37c790f08c0b921843e046724aaeae50ad75f161dbf4c029853c1b4f",
+   "bytes": 26433,
+   "rect": [
+    19,
+    21,
+    218,
+    214
+   ],
+   "quality": "procedural_v1"
+  },
+  "obsidian_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "obsidian_knife",
+   "png": "res://assets/icons/render/obsidian_knife.png",
+   "sha256": "eebd14464a4646e8af5bbc077c7bf3d03357130a314e4362f42fcbd28f3b18ca",
+   "bytes": 24367,
+   "rect": [
+    27,
+    19,
+    202,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "obsidian_pick": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "obsidian_pick",
+   "png": "res://assets/icons/render/obsidian_pick.png",
+   "sha256": "b56943ce7796fc9053457fd442f8897a9c8105bea987353f984f7b14779b6252",
+   "bytes": 21317,
+   "rect": [
+    49,
+    19,
+    158,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "obsidian_spear": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "obsidian_spear",
+   "png": "res://assets/icons/render/obsidian_spear.png",
+   "sha256": "c860e70e6eb4f3e917c8f37cbd38cf4c38b09054f4a3a0608e6845531e7d8514",
+   "bytes": 12841,
+   "rect": [
+    80,
+    19,
+    96,
+    218
+   ],
+   "quality": "procedural_v1"
   },
   "ochre": {
    "script": "tools/blender/items/resources.py",
@@ -2129,6 +2507,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "steel_axe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "steel_axe",
+   "png": "res://assets/icons/render/steel_axe.png",
+   "sha256": "839e134c2a055191a33f2146b2bb82b407a447de197b1ee185361224c8d38d59",
+   "bytes": 26750,
+   "rect": [
+    19,
+    21,
+    218,
+    214
+   ],
+   "quality": "procedural_v1"
+  },
   "steel_ingot": {
    "script": "tools/blender/items/resources.py",
    "builder": "steel_ingot",
@@ -2143,6 +2535,48 @@
    ],
    "quality": "procedural_v1",
    "replace": "redone as polished stamped bars; mark kept because t_iconart pins it"
+  },
+  "steel_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "steel_knife",
+   "png": "res://assets/icons/render/steel_knife.png",
+   "sha256": "3fa556c44c8c6f3e5bc1d40a43e1f065ed7822b0a71a28f78063905156136745",
+   "bytes": 25048,
+   "rect": [
+    27,
+    19,
+    202,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "steel_pick": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "steel_pick",
+   "png": "res://assets/icons/render/steel_pick.png",
+   "sha256": "c8a40cada75c3aca8fd2f34ab16df99d23a45e56a44ec1b0034ec2ae9d10c6b7",
+   "bytes": 21926,
+   "rect": [
+    49,
+    19,
+    158,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "steel_sword": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "steel_sword",
+   "png": "res://assets/icons/render/steel_sword.png",
+   "sha256": "797e001428ab5c3f5ed384f09614e5b719182e6483bde6f465f3d5ea1ced2601",
+   "bytes": 20851,
+   "rect": [
+    60,
+    19,
+    136,
+    218
+   ],
+   "quality": "procedural_v1"
   },
   "stone": {
    "script": "tools/blender/items/resources.py",
@@ -2612,60 +3046,29 @@
  "missing": [
   "advanced_backpack",
   "basic_bag",
-  "bone_axe",
-  "bone_knife",
-  "bone_pick",
-  "bone_spear",
-  "bronze_axe",
   "bronze_bracers",
   "bronze_cuirass",
   "bronze_greaves",
   "bronze_helm",
-  "bronze_knife",
-  "bronze_pick",
-  "bronze_sword",
-  "capture_net_iii",
-  "capture_net_iv",
-  "capture_net_v",
-  "copper_axe",
   "copper_bracers",
   "copper_cuirass",
   "copper_greaves",
   "copper_helm",
-  "copper_knife",
-  "copper_pick",
-  "copper_sword",
-  "flint_axe",
-  "flint_knife",
-  "flint_pick",
-  "flint_spear",
-  "iron_axe",
   "iron_bracers",
   "iron_cuirass",
   "iron_greaves",
   "iron_helm",
-  "iron_knife",
-  "iron_pick",
-  "iron_sword",
   "large_pouch",
   "leather_bracers",
   "leather_cuirass",
   "leather_greaves",
   "leather_helm",
-  "obsidian_axe",
-  "obsidian_knife",
-  "obsidian_pick",
-  "obsidian_spear",
   "small_pouch",
   "specialized_storage_bag",
-  "steel_axe",
   "steel_bracers",
   "steel_cuirass",
   "steel_greaves",
   "steel_helm",
-  "steel_knife",
-  "steel_pick",
-  "steel_sword",
   "woven_bag"
  ]
 }

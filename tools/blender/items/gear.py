@@ -342,7 +342,368 @@ def raid_greaves():
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
+# ---------------------------------------------------------------- ICONS4: the metal and bone tool tiers
+# One builder per tool kind, one blade material per tier: the silhouette says knife/axe/pick/spear/
+# sword, the blade colour says flint/obsidian/copper/bronze/iron/steel/bone. Handles stay wood (bone
+# for the bone set), the grips and lashings reuse _grip / _ring / rope_m so the tools match the ones
+# ICONS2 landed.
+
+def _flint_m():
+    """Knapped flint: pale honey-grey with flake scars (stone_knife's blade)."""
+    return mat("#c8bfa4", 0.35, color2="#a09472", tex="voronoi", scale=6.0, bump=0.25, spec=0.5)
+
+
+def _obsidian_m():
+    """Obsidian blade: black glass with a violet sheen and a bright chipped edge."""
+    return mat("#1e1c26", 0.05, color2="#3e3852", tex="voronoi", scale=7.0, bump=0.12, coat=1.0, spec=0.9,
+               emit="#6a5aa0", emit_strength=0.3)
+
+
+BLADES = {
+    "flint": lambda: _flint_m(),
+    "obsidian": lambda: _obsidian_m(),
+    "copper": lambda: metal("#d07a3e", 0.28),
+    "bronze": lambda: metal("#c99a3e", 0.3),
+    "iron": lambda: mat("#6a6e74", 0.45, metal=0.85, color2="#4a4e54", tex="noise", scale=12.0, bump=0.35),
+    "steel": lambda: mat("#dfe8f2", 0.12, metal=0.95, color2="#8fa0b4", tex="noise", scale=6.0, bump=0.04),
+    "bone": lambda: bonem("#e4d6b0"),
+}
+
+
+def _tool_handle(z0, z1, core=None, wrap=None, r=0.075):
+    """Straight tool handle with a bound grip and a butt knob (the _handle bend is for the stone set)."""
+    core = core or wood("#6e4626", "#4a2d16")
+    cyl(r, z1 - z0, loc=(0, 0, (z0 + z1) / 2), m=core)
+    ball(r * 1.25, loc=(0, 0, z0), m=core, sub=2)
+    if wrap:
+        _grip(z0 + 0.12, z0 + (z1 - z0) * 0.55, r * 1.05, wrap, pitch=0.06)
+
+
+def _knife(m, edge, handle_m=None, wrap_m=None):
+    """Blade with a flat spine and a raised edge bevel, a bolster and a bound grip."""
+    blade = [(0.0, 1.8), (0.2, 1.36), (0.26, 0.8), (0.2, 0.14), (-0.2, 0.14), (-0.24, 0.8), (-0.14, 1.34)]
+    prism(blade, 0.14, m=m, bev=0.018,
+          deform=lambda co: co.__setitem__(1, co.y * (1.0 - 0.78 * min(abs(co.x) / 0.26, 1.0))))
+    if edge:  # a brighter line down each cheek, so the bevel reads at slot size
+        for s in (-1, 1):
+            tube([(s * 0.2, -0.02, 0.24), (s * 0.24, -0.02, 0.8), (s * 0.17, -0.02, 1.3), (0.0, -0.02, 1.76)],
+                 0.016, edge, segs=4)
+    box((0.26, 0.16, 0.09), loc=(0, 0, 0.1), m=m, bev=0.015)  # bolster
+    _tool_handle(-0.85, 0.08, core=handle_m, wrap=wrap_m or hidem("#5a3a22", "#3e2716"), r=0.095)
+    lean(-42)
+    upright()
+
+
+def _axe(m, edge, handle_m=None):
+    """Axe: wood haft, a wedge head with a bright honed edge and a poll behind the eye."""
+    haft = handle_m or wood("#8a5a33", "#5e3a1e")
+    tube([(0, 0, -1.3), (0.03, 0, -0.4), (-0.02, 0, 0.5), (0.02, 0, 1.05)], 0.08, haft, segs=10)
+    head = [(-0.2, 0.86), (0.18, 0.8), (0.52, 0.66), (0.78, 0.56), (0.86, 0.98), (0.76, 1.36), (0.5, 1.3),
+            (0.18, 1.12), (-0.2, 1.04)]
+    prism(head, 0.22, m=m, bev=0.025, deform=_thin_edge(0.2, 0.86, 0.22))
+    if edge:
+        tube([(0.8, 0.0, 0.6), (0.87, 0.0, 0.98), (0.78, 0.0, 1.34)], 0.022, edge, segs=4)
+    box((0.24, 0.24, 0.34), loc=(-0.1, 0, 0.92), m=m, bev=0.02)  # poll
+    rp = rope_m()
+    for z in (0.84, 0.92, 1.0):
+        _ring(z, 0.1, rp)
+    _grip(-1.22, -0.6, 0.088, hidem("#5a3a22", "#3e2716"))
+    lean(-36)
+    upright()
+
+
+def _pick(m, edge, handle_m=None):
+    """Pick: wood haft, a curved double head tapering to two points."""
+    haft = handle_m or wood("#8a5a33", "#5e3a1e")
+    tube([(0, 0, -1.25), (0.03, 0, -0.3), (-0.02, 0, 0.6), (0.0, 0, 0.95)], 0.08, haft, segs=10)
+    tube(arc((0, 0, 0.1), 1.0, 90, 152, 10), 0.125, m, segs=10, taper=(1.0, 0.1))
+    tube(arc((0, 0, 0.1), 1.0, 90, 28, 10), 0.125, m, segs=10, taper=(1.0, 0.1))
+    if edge:
+        for a, b in ((90, 152), (90, 28)):
+            p = arc((0, 0, 0.1), 1.0, a, b, 10)
+            tube(p, 0.02, edge, segs=4)
+    rp = rope_m()
+    for z in (0.86, 0.94, 1.02):
+        _ring(z, 0.105, rp)
+    _grip(-1.18, -0.55, 0.088, hidem("#5a3a22", "#3e2716"))
+    lean(-30)
+    upright()
+
+
+def _spear(m, edge, handle_m=None, bone=False):
+    """Spear: a long shaft with the head socketed on, two lashings and a butt cap."""
+    haft = handle_m or wood("#8a5a33", "#5e3a1e")
+    tube([(0, 0, -1.55), (0.02, 0, -0.2), (-0.02, 0, 0.85), (0.0, 0, 1.05)], 0.07, haft, segs=10)
+    head = [(0.0, 2.15), (0.19, 1.72), (0.26, 1.3), (0.2, 0.98), (-0.2, 0.98), (-0.24, 1.32), (-0.15, 1.74)]
+    prism(head, 0.12, m=m, bev=0.016,
+          deform=lambda co: co.__setitem__(1, co.y * (1.0 - 0.8 * min(abs(co.x) / 0.26, 1.0))))
+    if edge:
+        for s in (-1, 1):
+            tube([(s * 0.2, -0.02, 1.02), (s * 0.25, -0.02, 1.32), (s * 0.17, -0.02, 1.74), (0.0, -0.02, 2.1)],
+                 0.014, edge, segs=4)
+    cyl(0.1, 0.3, loc=(0, 0, 0.98), r2=0.075, m=m if not bone else m, segs=10)  # socket
+    if bone:  # a bone spear is lashed on, not socketed in iron
+        for z in (0.95, 1.04, 1.13):
+            _ring(z, 0.095, rope_m())
+    else:
+        for z in (0.94, 1.02):
+            _ring(z, 0.085, rope_m())
+    _grip(-1.35, -0.75, 0.08, hidem("#5a3a22", "#3e2716"))
+    lean(-22)
+    upright()
+
+
+def _sword(m, edge, handle_m=None):
+    """Sword: a long double-edged blade, a crossguard, a bound grip and a pommel."""
+    blade = [(0.0, 2.05), (0.16, 1.66), (0.2, 0.9), (0.18, 0.24), (-0.18, 0.24), (-0.21, 0.9), (-0.14, 1.68)]
+    prism(blade, 0.1, m=m, bev=0.014,
+          deform=lambda co: co.__setitem__(1, co.y * (1.0 - 0.82 * min(abs(co.x) / 0.21, 1.0))))
+    if edge:
+        for s in (-1, 1):
+            tube([(s * 0.16, -0.02, 0.3), (s * 0.2, -0.02, 0.9), (s * 0.15, -0.02, 1.7), (0.0, -0.02, 2.0)],
+                 0.014, edge, segs=4)
+    box((0.72, 0.14, 0.1), loc=(0, 0, 0.18), m=m, bev=0.02, taper=(0.9, 0.9))  # crossguard
+    _tool_handle(-0.62, 0.14, core=handle_m, wrap=hidem("#4a2a18", "#2e1a0c"), r=0.085)
+    ball(0.14, loc=(0, 0, -0.68), scl=(1.0, 0.8, 0.9), m=m, sub=2)  # pommel
+    lean(-30)
+    upright()
+
+
+def _edge_m(m_name):
+    """The bright honed line down a blade: pale for stone, near-white for steel."""
+    return {"flint": "#efe6cc", "obsidian": "#a89ad0", "copper": "#f0a878", "bronze": "#f2d48a",
+            "iron": "#b8bec4", "steel": "#ffffff", "bone": "#f8f0d8"}[m_name]
+
+
+def _tier(kind, name, short):
+    """Make one tool of the tier: knife/axe/pick/spear/sword x flint/obsidian/copper/bronze/iron/
+    steel/bone. Handles are wood, except the bone set's (bone hafts, lashed heads)."""
+    m = BLADES[name]()
+    edge = mat(_edge_m(name), 0.1 if name in ("obsidian", "steel") else 0.35, metal=0.9 if name not in
+               ("flint", "obsidian", "bone") else 0.0,
+               color2=_edge_m(name), tex="noise", scale=6.0, coat=0.6 if name in ("obsidian", "steel") else 0.0,
+               spec=0.7)
+    bone = name == "bone"
+    handle = bonem("#d6c59c") if bone else None
+    {"knife": _knife, "axe": _axe, "pick": _pick, "spear": _spear, "sword": _sword}[kind](m, edge, handle)
+
+
+# One thin wrapper per id: the registry maps ids to builders, so each id has its own function.
+def flint_knife():
+    """Flint knife: a knapped flint blade lashed on a bound wood handle."""
+    _tier("knife", "flint", "flint")
+
+
+def flint_axe():
+    """Flint axe: a chipped flint wedge lashed to the haft, with a rope binding at the eye."""
+    _tier("axe", "flint", "flint")
+
+
+def flint_pick():
+    """Flint pick: two chipped flint points on a curved head, bound to the haft."""
+    _tier("pick", "flint", "flint")
+
+
+def flint_spear():
+    """Flint spear: a knapped leaf point lashed into the shaft's split end."""
+    _tier("spear", "flint", "flint")
+
+
+def obsidian_knife():
+    """Obsidian knife: a black glass blade with a violet sheen on a bound handle."""
+    _tier("knife", "obsidian", "obsidian")
+
+
+def obsidian_axe():
+    """Obsidian axe: a black glass wedge, its honed edge pale against the dark blade."""
+    _tier("axe", "obsidian", "obsidian")
+
+
+def obsidian_pick():
+    """Obsidian pick: two black glass points on a curved head, bound to the haft."""
+    _tier("pick", "obsidian", "obsidian")
+
+
+def obsidian_spear():
+    """Obsidian spear: a black glass leaf point socketed on the shaft."""
+    _tier("spear", "obsidian", "obsidian")
+
+
+def copper_knife():
+    """Copper knife: soft orange metal, a short wide blade with a bolster."""
+    _tier("knife", "copper", "copper")
+
+
+def copper_axe():
+    """Copper axe: a cast copper wedge head on a wood haft with a rope binding."""
+    _tier("axe", "copper", "copper")
+
+
+def copper_pick():
+    """Copper pick: a cast copper double head on a wood haft."""
+    _tier("pick", "copper", "copper")
+
+
+def copper_sword():
+    """Copper sword: a broad cast blade, short crossguard and bound grip."""
+    _tier("sword", "copper", "copper")
+
+
+def bronze_knife():
+    """Bronze knife: warmer, harder bronze than copper, the same shape."""
+    _tier("knife", "bronze", "bronze")
+
+
+def bronze_axe():
+    """Bronze axe: a bronze wedge head with a poll and a honed edge."""
+    _tier("axe", "bronze", "bronze")
+
+
+def bronze_pick():
+    """Bronze pick: a bronze double head on a wood haft."""
+    _tier("pick", "bronze", "bronze")
+
+
+def bronze_sword():
+    """Bronze sword: a long bronze blade with a crossguard."""
+    _tier("sword", "bronze", "bronze")
+
+
+def iron_knife():
+    """Iron knife: a dark, mottled iron blade with a bright edge, iron bolster."""
+    _tier("knife", "iron", "iron")
+
+
+def iron_axe():
+    """Iron axe: a dark iron wedge head, honed edge, poll behind the eye."""
+    _tier("axe", "iron", "iron")
+
+
+def iron_pick():
+    """Iron pick: a dark iron double head on a wood haft."""
+    _tier("pick", "iron", "iron")
+
+
+def iron_sword():
+    """Iron sword: a long dark blade with a steel-bright honed edge and an iron guard."""
+    _tier("sword", "iron", "iron")
+
+
+def steel_knife():
+    """Steel knife: polished steel, the edge near white, the bolster and pommel the same steel."""
+    _tier("knife", "steel", "steel")
+
+
+def steel_axe():
+    """Steel axe: a polished steel head with a horn and a wide honed bit."""
+    _tier("axe", "steel", "steel")
+
+
+def steel_pick():
+    """Steel pick: a polished steel double head on a wood haft."""
+    _tier("pick", "steel", "steel")
+
+
+def steel_sword():
+    """Steel sword: a long polished blade, bright edge, steel crossguard and pommel."""
+    _tier("sword", "steel", "steel")
+
+
+def bone_knife():
+    """Bone knife: a flat bone blade with a lashed bone handle (barbed_knife's material family)."""
+    _tier("knife", "bone", "bone")
+
+
+def bone_axe():
+    """Bone axe: a heavy bone wedge lashed to a bone haft."""
+    _tier("axe", "bone", "bone")
+
+
+def bone_pick():
+    """Bone pick: a curved bone head with two worn points on a bone haft."""
+    _tier("pick", "bone", "bone")
+
+
+def bone_spear():
+    """Bone spear: a long bone point lashed into a bone shaft."""
+    _tier("spear", "bone", "bone")
+
+
+# ---------------------------------------------------------------- ICONS4: capture nets III-V
+# _net and capture_net_ii set the shape; the tiers differ by rim metal, mesh fineness and weights,
+# so each reads as an upgrade of the one before.
+
+def _capture_net(tier, rim_m, mesh_m, weight_m, weights, fine):
+    _handle(z0=-1.35, z1=0.55, m=wood("#6a4a2a", "#3e2a16"))
+    for z in (-1.22, -0.92):
+        cyl(0.12, 0.08, loc=(0, 0, z), m=rim_m, segs=12)
+    hoop = group(loc=(0.35, 0, 0.95))
+    R = 0.66
+    ring = [(R * math.cos(math.radians(a)), R * math.sin(math.radians(a)) * 0.55, 0.0) for a in range(0, 360, 10)]
+    tube(ring, 0.062, rim_m, segs=8, closed=True, parent=hoop)
+    depth = 1.25
+    for k in range(fine):
+        a = math.radians(k * 360.0 / fine)
+        x0, y0 = R * math.cos(a), R * math.sin(a) * 0.55
+        pts = [(x0 * (1 - t * 0.92), y0 * (1 - t * 0.92), -depth * math.sin(t * math.pi / 2))
+               for t in [i / 8 for i in range(9)]]
+        tube(pts, 0.012 if tier > 3 else 0.014, mesh_m, segs=4, parent=hoop)
+    for j in range(1, 6):
+        t = j / 6
+        rr = 1 - t * 0.92
+        z = -depth * math.sin(t * math.pi / 2)
+        ring2 = [(R * rr * math.cos(math.radians(a)), R * rr * math.sin(math.radians(a)) * 0.55, z)
+                 for a in range(0, 360, 15 if tier < 5 else 12)]
+        tube(ring2, 0.012, mesh_m, segs=4, closed=True, parent=hoop)
+    for k in range(weights):
+        a = math.radians(k * 360.0 / weights)
+        ball(0.075, loc=(R * 0.97 * math.cos(a), R * 0.97 * math.sin(a) * 0.55, -0.06), m=weight_m, sub=2,
+             parent=hoop)
+    if tier >= 4:  # a reinforced outer rim band
+        tube([(R * 1.02 * math.cos(math.radians(a)), R * 1.02 * math.sin(math.radians(a)) * 0.55, 0.05)
+              for a in range(0, 360, 10)], 0.03, rim_m, segs=6, closed=True, parent=hoop)
+    if tier >= 5:  # a small ring of studs on the rim, the top tier's mark
+        for k in range(8):
+            a = math.radians(k * 45 + 22)
+            ball(0.05, loc=(R * 1.02 * math.cos(a), R * 1.02 * math.sin(a) * 0.55, 0.08), m=weight_m, sub=2,
+                 parent=hoop)
+    turn(20, "X")
+    lean(-30)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
+
+
+def capture_net_iii():
+    """Capture net III: a bronze-hooped net, its mesh finer than the plain nets, bronze weights."""
+    _capture_net(3, metal("#c99a3e", 0.3), mat("#efe8d0", 0.85, color2="#cdc2a0", tex="noise", scale=30.0,
+                                                 bump=0.3), metal("#a87a2e", 0.4), 10, 20)
+
+
+def capture_net_iv():
+    """Capture net IV: an iron-hooped net with a reinforced rim band, finer mesh and more lead."""
+    _capture_net(4, mat("#8a9098", 0.3, metal=0.9), mat("#e8e2cc", 0.85, color2="#c4bca0", tex="noise",
+                                                         scale=34.0, bump=0.3), mat("#4a4e56", 0.35, metal=0.8),
+                 12, 24)
+
+
+def capture_net_v():
+    """Capture net V: a polished steel hoop with a rim band and studs, the finest mesh and steel
+    weights (the top tier)."""
+    _capture_net(5, mat("#dfe8f2", 0.12, metal=0.95, color2="#8fa0b4", tex="noise", scale=6.0, bump=0.04),
+                 mat("#f4f0e4", 0.85, color2="#d4ccb4", tex="noise", scale=38.0, bump=0.25),
+                 mat("#b8c0c8", 0.2, metal=0.95), 14, 30)
+
+
 ITEMS = {
+    # dsc icons4: metal and bone tool tiers and capture nets III-V.
+    "flint_knife": flint_knife, "flint_axe": flint_axe, "flint_pick": flint_pick, "flint_spear": flint_spear,
+    "obsidian_knife": obsidian_knife, "obsidian_axe": obsidian_axe, "obsidian_pick": obsidian_pick,
+    "obsidian_spear": obsidian_spear,
+    "copper_knife": copper_knife, "copper_axe": copper_axe, "copper_pick": copper_pick, "copper_sword": copper_sword,
+    "bronze_knife": bronze_knife, "bronze_axe": bronze_axe, "bronze_pick": bronze_pick, "bronze_sword": bronze_sword,
+    "iron_knife": iron_knife, "iron_axe": iron_axe, "iron_pick": iron_pick, "iron_sword": iron_sword,
+    "steel_knife": steel_knife, "steel_axe": steel_axe, "steel_pick": steel_pick, "steel_sword": steel_sword,
+    "bone_knife": bone_knife, "bone_axe": bone_axe, "bone_pick": bone_pick, "bone_spear": bone_spear,
+    "capture_net_iii": capture_net_iii, "capture_net_iv": capture_net_iv, "capture_net_v": capture_net_v,
     "work_axe": work_axe, "work_pick": work_pick, "hoe": hoe, "stone_knife": stone_knife,
     "stone_knife_work": stone_knife_work, "barbed_knife": barbed_knife, "club": club, "raid_maul": raid_maul,
     "bone_hammer": bone_hammer, "slingshot": slingshot, "stone_shot": stone_shot, "empty_bucket": empty_bucket,
