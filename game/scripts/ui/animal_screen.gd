@@ -227,12 +227,24 @@ func _pin_active() -> void:
 			slot.text = "ACTIVE"
 			slot.add_theme_stylebox_override("normal", UiTokens.button_style(false))
 		else:
+			# The nature tag under this slot shares the 64 px active band: the button gives way, so the
+			# slot plus its chip stay inside it (46 + 2 + 14 = 62).
+			slot.custom_minimum_size = Vector2(slot_w, 46)
 			slot.text = UiTokens.ellipsis(ThemeDB.fallback_font, _nature_species(rec), 110.0, UiTokens.meta(view))
 			slot.add_theme_stylebox_override("normal", UiTokens.button_style(true))
 			var idx := player.bonded.find(rec)
 			if idx >= 0:
 				slot.pressed.connect(_select_row.bind(idx))
-		_active.add_child(slot)
+		# NATURES (owner 2026-10-28): an equipped pet's nature is a TAG under its name here too.
+		var stack := VBoxContainer.new()
+		stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stack.add_theme_constant_override("separation", 2)
+		stack.add_child(slot)
+		var chip := NatureChip.new()
+		chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		chip.configure(rec.nature if rec != null else &"")
+		stack.add_child(chip)
+		_active.add_child(stack)
 
 func _active_record(slot: int) -> PetRecord:
 	if player == null:
