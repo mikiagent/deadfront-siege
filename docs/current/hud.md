@@ -32,10 +32,21 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   0.95 m per pixel (`MAP_SCALE`), with fog-of-war, the foot trail, camp flame, harbour anchor,
   crater, creature dots (pets green, wild red, only inside revealed fog) and the player arrow.
   Above it "Home" / "Survivable N min" / "Lab"; below it the X/Y tile readout. A tap opens MapScreen.
-- DayNightDial docked at the minimap's bottom-left edge: a 24 h face, noon at the top, the sun riding
-  a white arc by day; a crescent moon opposite it at night; the face tinted by phase. A 60 px disc;
-  tap opens a label to the left — phase, clock, time to the next phase — closing after 4 s. It reads
-  `Game.time_of_day` / `day_length_seconds` and never writes them.
+- DayNightDial (`day_night_dial.gd`, DAYNIGHT 2026-10-28) docked at the minimap's bottom-left edge, one
+  of three faces for the owner to pick (`DayNightDial.variant`, or `--daynight=a|b|c` after `--`; default
+  a): **a** a flat-top hex sky window (78x68 desktop) — sun and moon on an arc over a hill line, the clock
+  on the ground, a gold "now" pip riding the rim (midnight bottom, noon top); **b** a half-dial horizon
+  (112x76) — the bodies wheel over a half-disc sky, a 24 h track with the daylight span lit and a gold
+  caret, the clock under it; **c** a scrolling sky band (200x62) — the sky of ±6 h around now in columns,
+  the light's path, stars in the night hours, a gold needle with the sun or moon on it, the clock with the
+  phase and the next phase's countdown. Phones (compact): every face is 66x64, the band shows ±4 h and
+  drops the side texts. Shared: a sky gradient keyed to WorldLighting's phase times, the sun up from 06:14
+  to 18:14 (ASSUMPTION: halfway through dawn and dusk) and the moon opposite it, stars fading in over
+  ~36 s after sunset and out before sunrise, and a ~14 s flourish either side of sunrise and sunset (sun
+  rays, a horizon glow, the rim flashing gold). A tap opens the label to the left — phase, clock, time to
+  the next phase — closing after 4 s. It reads `Game.time_of_day` / `day_length_seconds` and never writes
+  them; it redraws each frame only while stars or a flourish show, else every 15 game seconds, and its
+  draw allocates nothing (t_daynight). Captures: `docs/orchestration/reports/daynight/`.
 - Hex sizes follow spec §2 (`HudField.PX`): desktop rail 100, INTERACT 150, ATTACK 100, SPRINT 100,
   quick slot 80, whistle 66, CLAIM 52; compact canvases (`UiTokens.is_compact`: 844x390 and portrait)
   use 64 / 96 / 72 / 64 / 64 / 64 / 64, so every phone tap target is 64 px or more. All flat-top.
