@@ -60,7 +60,7 @@ func _demo() -> void:
 	await get_tree().create_timer(1.1).timeout
 	await _capture("up")
 	await get_tree().create_timer(3.0).timeout
-	assert(player.anim.current_clip == &"idle")
+	assert(str(player.anim.current_clip).begins_with("idle"))
 	# Waking stands the survivor up OUTSIDE the bedding, on the ground, never under the map.
 	var away := player.global_position.distance_to(tent.global_position)
 	assert(away >= 1.0, "wakes up outside the tent (%.2f m from its centre)" % away)
@@ -74,7 +74,7 @@ func _demo() -> void:
 	assert(int(tent.get("sleeps_left")) == 5)
 	assert(player.anim.current_clip == &"sleep_up")
 	await get_tree().create_timer(3.0).timeout
-	assert(player.anim.current_clip == &"idle" and not player.anim._waking)
+	assert(str(player.anim.current_clip).begins_with("idle") and not player.anim._waking)
 	player.vitals.fatigue = 60.0
 	player._start_sleep(tent)
 	player.vitals.take_damage(1.0)

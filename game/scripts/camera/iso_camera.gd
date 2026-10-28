@@ -71,6 +71,12 @@ var _target: Node3D
 ## 0..1 impact shake; decays linearly, offset grows with trauma^2 so small knocks stay subtle.
 var trauma: float = 0.0
 var _shake_t: float = 0.0
+## WEATHER's camera offset this frame (thunder, heat sway, shivers), metres; WeatherFx writes it.
+var weather_offset := Vector2.ZERO
+## Upper bound on the weather offset, metres (rules.json weather.shake_m.max is the tuned value under it).
+const WEATHER_OFFSET_MAX := 0.2
+## Accessibility: no camera shake at all, combat or weather (--reduce-shake).
+static var reduce_shake: bool = "--reduce-shake" in OS.get_cmdline_user_args()
 
 ## The view angle of the camera this run uses, in degrees (Euler x; negative looks down).
 static func pitch_deg() -> float:
@@ -105,6 +111,8 @@ static func shake(subject: Node, amount: float) -> void:
 		cam.add_trauma(amount)
 
 func add_trauma(amount: float) -> void:
+	if reduce_shake:
+		return
 	trauma = clampf(trauma + amount, 0.0, 1.0)
 
 func _ready() -> void:
@@ -204,15 +212,17 @@ func _publish() -> void:
 
 ## Screen-space offsets, so the shake never fights the follow lerp.
 func _update_shake(delta: float) -> void:
-	if trauma <= 0.0:
-		h_offset = 0.0
-		v_offset = 0.0
+	var w := Vector2.ZERO if reduce_shake else weather_offset.limit_length(WEATHER_OFFSET_MAX)
+	if trauma <= 0.0 or reduce_shake:
+		trauma = 0.0
+		h_offset = w.x
+		v_offset = w.y
 		return
 	trauma = maxf(0.0, trauma - CombatTuning.num("camera", "trauma_decay_per_s", 1.4) * delta)
 	_shake_t += delta
 	var amp := trauma * trauma * CombatTuning.num("camera", "max_offset_m", 0.45)
-	h_offset = amp * sin(_shake_t * 57.0)
-	v_offset = amp * sin(_shake_t * 43.0 + 1.3)
+	h_offset = amp * sin(_shake_t * 57.0) + w.x
+	v_offset = amp * sin(_shake_t * 43.0 + 1.3) + w.y
 
 func _snap() -> void:
 	_apply_zoom()
