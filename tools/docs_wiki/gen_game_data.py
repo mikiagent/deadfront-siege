@@ -172,6 +172,60 @@ def island_row(i):
     return [i["id"], name, climate, tier, kind, i.get("permanent", ""), i.get("lifetime_seconds", ""), str(i.get("size_m", ""))]
 
 
+HEAT_TOKENS = {"heat_weak": 1, "heat_high": 2, "heat_volcanic": 3}
+COLD_TOKENS = {"cold_weak": 1, "cold_high": 2}
+
+
+def weather_section(w, cl, a) -> None:
+    """WEATHER: per-climate rain/storm odds (rules.json weather) and the heat/cold look (climates.json resist)."""
+    if not w:
+        return
+    a("## Weather")
+    a("")
+    a("Code: `game/scripts/world/world_weather.gd` (state), `game/scripts/world/weather_fx.gd` (screen layer, light pulse, camera shake), "
+      "`game/shaders/weather/`. Numbers: `game/data/world/rules.json` `weather`. Test: `game/tests/t_weather.gd`; lab: `scenes/dev/weather_lab.tscn`.")
+    a("")
+    a("- **Rain**: every %s-%s s (first check %s s) the island rolls its climate's rain chance; a spell lasts %s-%s s, "
+      "applies Wet, dims the sun by up to half and lays a grey wash." % (
+          w["rain_check_s"][0], w["rain_check_s"][1], w["first_check_s"], w["rain_len_s"][0], w["rain_len_s"][1]))
+    a("- **Storm** (rain and lightning): a rain spell is a storm on the climate's storm roll and lasts %s-%s s. A strike every "
+      "%s-%s s, %s-%s m away: a double flicker of the screen and the sun (the moon at night), then thunder distance / %s m/s later "
+      "(1.2-8.7 s) with a camera rumble up to %s m. `WorldWeather.lightning` / `thunder` are the sound hooks (no audio yet)." % (
+          w["storm_len_s"][0], w["storm_len_s"][1], w["lightning_gap_s"][0], w["lightning_gap_s"][1],
+          w["lightning_m"][0], w["lightning_m"][1], w["sound_mps"], w["shake_m"]["thunder"]))
+    a("- **Heat** (by day where the climate asks for heat resistance): an orange screen edge in the combat red edge's style, a warm "
+      "wash, a heat shimmer (high quality) and a slow sway up to %s m." % w["shake_m"]["heat"])
+    a("- **Cold** (any hour where it asks for cold resistance): a blue-white edge, frost creeping in from the borders (corners first) "
+      "and a shiver (%s m) on getting cold, on defrosting, and every %s-%s s while cold." % (
+          w["shake_m"]["shiver"], w["shiver_gap_s"][0], w["shiver_gap_s"][1]))
+    a("- **Strength**: severity = resistance need / 3 (0.4-1) x (0.4 + 0.6 x unmet share); the unmet share counts while climate "
+      "fatigue charges it (heat by day, cold otherwise). Wet and Quenched cool the heat, sitting by a fire warms the cold.")
+    a("- **Screen rules**: the layer is canvas layer -1, under every HUD layer, so HUD rects and the combat red edge draw over it; "
+      "during a hunt or a red-edge status the weather edges drop to half. Weather shake never exceeds %s m; `--reduce-shake` turns "
+      "off every camera shake (combat too)." % w["shake_m"]["max"])
+    a("- **Idle by mood**: standing still, the survivor plays `idle_exhausted` (fatigue 75 %+) > `idle_cold` / `idle_heat` (weather feel 0.5+, the stronger) > `idle_tired` (50 %+) > `idle`, each only when its clip exists in `assets/characters/survivor/anim/` (the next in line otherwise), blended over 0.5 s; moving and busy clips win (`PlayerAnim.pick_idle`).")
+    a("- **Debug**: `--weather=clear|rain|storm|heat|cold` holds a state; `--weather-quality=low|high` (low drops the shimmer; "
+      "default low on iOS / Android).")
+    a("")
+    a("| climate | rain chance per check | storm share of spells | heat look by day | cold look |")
+    a("|---|---|---|---|---|")
+    for cid in sorted(cl):
+        c = cl[cid]
+        if cid.startswith("_") or not c.get("tiers"):
+            continue
+        res = c.get("resist", [])
+        nh = max([HEAT_TOKENS.get(r, 0) for r in res] + [0])
+        nc = max([COLD_TOKENS.get(r, 0) for r in res] + [0])
+        nh += 1 if nh and ("sun" in res or "humidity" in res) else 0
+        nc += 1 if nc and "wind" in res else 0
+        odds = w.get("climates", {}).get(cid, {})
+        look = lambda n: "-" if n == 0 else "%.2f-%.2f" % (min(1.0, max(0.4, n / 3.0)) * 0.4, min(1.0, max(0.4, n / 3.0)))
+        a("| %s | %s | %s | %s | %s |" % (cid, odds.get("rain", 0), odds.get("storm", 0), look(nh), look(nc)))
+    a("")
+    a("The look columns run from fully resisted to fully unmet.")
+    a("")
+
+
 def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
     cl = load(data, "world/climates.json")
     isl = [load(data, "islands/%s" % f.name) for f in sorted(Path(data, "islands").glob("*.json"))]
@@ -185,7 +239,7 @@ def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
 
     L = []
     a = L.append
-    a("Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/creatures/*.json`, `game/data/butchering.json`.")
+    a("Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/world/rules.json` (weather), `game/data/creatures/*.json`, `game/data/butchering.json`.")
     a("")
     a("## Island roster (%d)" % len(isl))
     a("")
@@ -218,6 +272,7 @@ def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
         a("")
     a("A climate's `materials` list is what its island generator may place; gather yields per family are the gather-system's own table (`world/rules.json`).")
     a("")
+    weather_section(load(data, "world/rules.json").get("weather", {}), cl, a)
     a("## Fauna (%d species)" % len(creatures))
     a("")
     a("| tier | species | climate | clade | period | length (m) |")
