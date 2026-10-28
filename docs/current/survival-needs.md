@@ -75,6 +75,35 @@ Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 - Warming/Cooling meals, dried/smoked relief and capacity buffs (Dutch Coffee's max-fatigue
   ceiling): per-food numbers in items-traits.md; buffs live in `BuffSlots`.
 
+## Rest (`game/scripts/player/rest_state.gd`, rates in `game/data/rest.json`)
+- A Rest context hex (and the X key, InputMap action `rest`) anywhere out of combat sits her down
+  (`PlayerActions.rest()`; online an `act.rest {"on": bool}` intent, only queued — no server side
+  yet). The hex hides while she rests or sleeps and in water. Refused, with the reason shown: dead,
+  mounted, asleep, rolling or knocked down, in water, hunting, a hit within 5 s (`combat_lock_s`), or
+  a creature targeting her in alert/approach/attack/retreat.
+- Pose: `sleep_down` lowers her, then at 0.8 s she blends (0.4 s) into a built one-key "sit" clip
+  (`PlayerAnim._ensure_sit_clip`): hips and legs from `sleep_down` at 1.05 s, spine/head/arms from
+  `idle`, spine turned so the torso is upright. Same pose at every place. Getting up blends into
+  `sleep_up` from 0.68 s. The rig has no authored sit clip.
+- Recovery each frame by place, re-read twice a second (all ASSUMPTION, `rest.json` `_note`):
+
+| place | when | Health/s (+ passive 0.8) | fatigue/min |
+|---|---|---|---|
+| open | anywhere else | +0.3 | -6 |
+| fire | within 3.0 m of a Bonfire node | +2.0 | -15 |
+| shelter | within 3.2 m of a tent, canvas tent, straw roll, log shelter or cabin bed | +3.0 | -30 |
+
+- Conditions: fatigue recovery is divided by statuses' `fatigue_mult` (Dirty 1.2 → -25/min in
+  shelter, Clean 0.8 speeds it). A `blocks_regen` status stops the rest's healing; damage-over-time
+  comes off Health. Status ticks never stand her up, wake her or cancel the walk to a bedding
+  (`Player._on_vitals_damaged` returns on `StatusEffects.ticking`); hits, fights and hunting creatures do.
+- By a fire: sitting down clears Wet; heat fatigue ×1.2 and cold ×0.8 while seated
+  (`RestState.climate_mult` in `Player.tick_climate_fatigue`).
+- Ends with the stand-up on a move key, the joystick, a tap-to-walk, a hit, or combat. Autofeed waits
+  while she rests. The save writes `player.resting`; a load sits her down only for a saved `true`
+  (saves without the key load standing, `RestState.load_saved`).
+- HUD: the Resting chip, the rate pill and recovery floats ([hud.md](hud.md)).
+
 ## Sleep (`player_sim.gd` + `game/scripts/world/placed_building.gd`)
 - Spots: `sleep_spot` group nodes with `sleeps_left != 0`; the nearest within 3.2 m is offered.
   Sleep from anywhere: the survivor routes to the bedding (lie-down reach `SLEEP_REACH` = 2.2 m),
@@ -82,7 +111,9 @@ Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 - Start is refused in combat or within 5 s of a hit ("Can't sleep in combat"), when fatigue < 1.0
   ("Already rested"), or when dead.
 - The restore eases exhaustion linearly across the duration; an interrupted or finished sleep pays
-  the tiny remainder exactly. Sleep is the only full reset of exhaustion.
+  the tiny remainder exactly. Sleep is the only full reset of exhaustion. While asleep she also heals
+  at the shelter rest rate (+3.0 HP/s on top of passive, `RestState.heal`); the rest's fatigue rate is
+  not added on top of the sleep's drain. Choosing Sleep while seated lies her down from the sit.
 
 | spot | uses | restore | duration |
 |---|---|---|---|
@@ -95,7 +126,8 @@ Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 - A completed sleep spends one use; temporary bedding `queue_free`s at 0 and its uses persist in
   saves. Waking steps the survivor out 1.6 m onto the door side (+Z) first.
 - Interrupts: movement/nav input, an active route, entering combat, a hit within 1 s, death, or
-  moving > 3.2 m from the spot — "Sleep interrupted"; completing shows "Rested".
+  moving > 3.2 m from the spot — "Sleep interrupted"; completing shows "Rested". A status tick
+  (bleed, stomachache) is not a hit: it neither wakes her nor drops the walk to the bedding.
 
 ## Day clock (`game/scripts/core/game.gd`)
 - `day_length_seconds` = 720 — one game day per 12 real minutes. `time_of_day` runs 0..1
