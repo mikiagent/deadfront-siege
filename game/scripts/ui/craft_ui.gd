@@ -514,7 +514,7 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	h.add_theme_constant_override("separation", 8 if compact else 14)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(h)
-	var out_row: Dictionary = rec.get("output", {})
+	var out_row := output_row(player.inventory, rec)
 	var out_icon := TextureRect.new()
 	out_icon.texture = ItemIcons.texture(StringName(str(out_row.get("id", ""))))
 	out_icon.custom_minimum_size = Vector2(34, 34) if compact else Vector2(52, 52)
@@ -541,8 +541,17 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 		row.add_child(SheetChrome.Brackets.new())
 	return row
 
+## OUTPUTS: the output row the picks' slot-1 instance makes (Crafting.output_for); `output` when
+## slot 1 is unfilled. Default picks when `picks` is empty. Shared with CraftPlace (D3).
+static func output_row(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Dictionary:
+	if picks.is_empty() and inv:
+		picks = Crafting.default_picks(inv, rec)
+	var pi := Crafting.primary_index(rec)
+	var primary: ItemStack = inv.slots[picks[pi]] if inv and pi < picks.size() and picks[pi] >= 0 else null
+	return Crafting.output_for(rec, primary)
+
 func _output_name(rec: Dictionary) -> String:
-	var out_row: Dictionary = rec.get("output", {})
+	var out_row := output_row(player.inventory, rec)
 	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
 	if out_def and out_def.display_name != "":
 		return out_def.display_name
@@ -640,7 +649,7 @@ func _show_detail(info: Dictionary) -> void:
 		empty.custom_minimum_size = Vector2(0, TAP)
 		_detail.add_child(_padded(empty))
 		return
-	var out_row: Dictionary = rec.get("output", {})
+	var out_row := output_row(player.inventory, rec)
 	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
 	# Parchment header (§8: detail panels open with one).
 	var head := _label("★  " + _output_name(rec), UiTokens.heading(view) + (0 if compact else 4), UiTokens.PARCHMENT_INK)

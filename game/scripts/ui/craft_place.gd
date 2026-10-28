@@ -439,7 +439,7 @@ func _fill_result(compact: bool) -> void:
 	var cap := CraftUI._label("Expected result", 12 if compact else 15, UiTokens.MUTED)
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_result.add_child(_pad(cap, 10, 2 if compact else 6))
-	var out_id := StringName(str((rec.get("output", {}) as Dictionary).get("id", "")))
+	var out_id := StringName(str(CraftUI.output_row(inv, rec, picks()).get("id", "")))
 	var ic := TextureRect.new()
 	ic.texture = ItemIcons.texture(out.def_id if out else out_id)
 	ic.custom_minimum_size = Vector2(0, 80)

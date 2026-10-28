@@ -71,6 +71,7 @@ Milan gate; fixing its rig is not.
 | predators: hop_back | ~0.45 s backward leap, feet clearly off the ground (`tools/jaw/make_hop_back.py`) |
 | feathered raptors: wings | `tools/jaw/add_wings.py` adds Wing.L/R feather fans (folded at rest), `tools/jaw/key_wings.py` flares them in attacks, roar, combo and leaps; deinonychus first |
 | ambushers: pounce, leap_back | big forward and backward leaps (`make_hop_back.py --forward` / `--name leap_back`) |
+| herbivores (quadrupeds): kick, charge | `tools/jaw/make_charge_kick.py`: kick from idle (hind legs snap back, hit 0.45), charge = run with the head down |
 | raptors: bite_combo | chomp left, chomp right, MEGA chomp (`tools/jaw/make_combo.py`) |
 
 Per species numbers (stride, cadence, jaw angles) live in `<species>.json` next to the gait config.

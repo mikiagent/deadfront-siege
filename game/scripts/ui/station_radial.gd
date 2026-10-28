@@ -29,7 +29,7 @@ func show_for(st: Node3D, recipes: Array[Dictionary], inv: Inventory) -> void:
 		var btn := HexButton.new(HEX_SIZE)
 		btn.color_icon = true
 		var rid := StringName(str(rec.get("id", "")))
-		var out_row: Dictionary = rec.get("output", {})
+		var out_row := CraftUI.output_row(inv, rec)
 		var out_id := StringName(str(out_row.get("id", rid)))
 		var missing := Crafting.missing_ingredient_name(inv, rec)
 		var label := "%s %s" % [str(rec.get("display_name", rid)), LevelDisplay.recipe_label(inv, rec)]
