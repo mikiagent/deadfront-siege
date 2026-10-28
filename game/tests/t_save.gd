@@ -188,8 +188,9 @@ func _test_round_trip(name: String) -> void:
 		_pad_contents(golden, s1)
 		var gd: Array[String] = []
 		# y is re-seated on the terrain at load; the schema marker moves on to the current one.
-		_same(golden, s1, "", gd, ["/player/position/1", "/schema"])
+		_same(golden, s1, "", gd, ["/player/position/1", "/schema", "/pioneer_level", "/pioneer_xp"])
 		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
+		_check_xp_curve(name, golden, s1)
 		_check(int(s1.get("schema", -1)) == int(SG.SCHEMA), "%s re-saves at the current schema" % name)
 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
 	await process_frame
@@ -214,10 +215,18 @@ func _pad_contents(golden: Dictionary, s1: Dictionary) -> void:
 ## input. skills_v2 must equal the rev-2 result kept in save_v3_skills_rev2.json, field for field both
 ## ways; their stacks split on load (W2-INV), so _check_split checks the item containers and
 ## everything else must survive load + save unchanged.
+## LEVELBAR: a save from before the exponential curve keeps its total XP, the level recomputed
+## (floored at the stored one), and re-saves marked xp_curve 2 so the next load leaves it alone.
+func _check_xp_curve(name: String, golden: Dictionary, s1: Dictionary) -> void:
+	var want: Vector2i = W.migrate_linear_xp(int(golden.get("pioneer_level", 0)), int(golden.get("pioneer_xp", 0)))
+	_check(int(s1.get("pioneer_level", -1)) == want.x and int(s1.get("pioneer_xp", -1)) == want.y and int(s1.get("xp_curve", 0)) == 2,
+		"%s pioneer XP moves to the exponential curve: %s (got Lv %s xp %s curve %s)" % [name, want, s1.get("pioneer_level"), s1.get("pioneer_xp"), s1.get("xp_curve")])
+
 func _check_v3_skills(name: String, s1: Dictionary) -> void:
 	var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
 	_check(not (golden["skills_v2"] as Dictionary).has("rev"), "%s is still a rev-1 save (the migration input)" % name)
-	var skip: Array = ["/skills_v2", "/player/position/1", "/player/inventory", "/player/inventory_extras", "/home/cargo", "/schema"]
+	var skip: Array = ["/skills_v2", "/player/position/1", "/player/inventory", "/player/inventory_extras", "/home/cargo", "/schema", "/pioneer_level", "/pioneer_xp"]
+	_check_xp_curve(name, golden, s1)
 	_check(int(s1.get("schema", -1)) == int(SG.SCHEMA), "%s re-saves at the current schema" % name)
 	for side in ["home", "away"]:
 		var part: Variant = golden.get(side)

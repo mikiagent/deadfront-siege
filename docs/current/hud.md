@@ -10,8 +10,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 
 ## Fixed layout (per canvas, `HudLayout`)
 - Vitals panel top-left: desktop 300 px wide with 16 px bars and body-size numerals; phone compact
-  (min 148 px, the room left of the minimap). An 18 px level disc sits left of the two bars (health
-  red, stamina blue). Right of both bars, as tall as the pair (38 px desktop, 30 phone), the stomach
+  (min 148 px, the room left of the minimap). The two bars (health red, stamina blue) start at the
+  panel's left edge: LEVELBAR (owner 2026-10-28) retired the level disc that sat left of them and gave
+  its 44 px to the bars (232 px wide); the level shows only on the bottom bar. Right of both bars, as tall as the pair (38 px desktop, 30 phone), the stomach
   indicator (HUDRULES rounds 1 and 3, owner 2026-10-28; `hud_stomach.gd`):
   - Inner ring = fullness. A full stomach is a complete circle, and it degrades clockwise: the lit arc
     always ends at 12 o'clock, and the gap opens from 12 o'clock clockwise (`HudStomach.arc_for`). The
@@ -115,7 +116,14 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   Disabled with no animal in range (it never swings at scenery, unlike F). Selected while fighting.
 - SPRINT left of INTERACT: a tap toggles it (`Player.toggle_sprint`); keyboard Shift still holds.
 - The DEBUG hex shows only while `Game.debug_overlay` (phone: lower-right; desktop: under the dial).
-- XP bar 4 px along the bottom edge with the "Lv x, y%" text beside it; the survivor's name draws
+- Level bar (LEVELBAR, owner 2026-10-28): 6 px (`UiTokens.XP_BAR_H`) along the bottom edge, filled
+  `UiTokens.XP_GREEN` (owner: "make it green for the xp bar too"; an owner exception to green =
+  healing, like the stomach's full band). A 2 px gap after every segment of `segment_xp` (100) XP of
+  the level's cost, grouped into a multiple of 100 past `max_segments` (40) (`LevelDisplay.xp_segments`),
+  so a dearer level draws more, thinner segments; the last is the leftover. The label over it reads
+  "Lv. 10  137 / 305 XP  · 100 XP each" (desktop centred, phone right above the rail). The cost is
+  exponential: `World.xp_for_level` = round(110 x 1.12^n) (`pioneer_levels.json xp_curve`). Test
+  `t_levelbar.gd`. the survivor's name draws
   under her feet (15 px, projected from the camera).
 - Quest card (HUDRULES, owner 2026-10-28):
   - Collapsed by default into the minimap: a badge over the map's top-left corner (the `notice` glyph and
@@ -312,7 +320,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   OmniLight, 2 s; riding, on the saddle with the rings on the ground). Desktop: "LEVEL UP" and the level
   pop over a flare, then XP, T-stones, the brain glyph with the skill points ("50 (+10)"), title and stat
   lines slide in, at the far left (owner 2026-10-28), x = vitals + 16, centred between the vitals and the
-  quick slots; ~6 s (4 s with more queued). The level disc on the vitals pulses gold. Phones: the banner
+  quick slots; ~6 s (4 s with more queued). The bottom level bar pulses gold (`draw_bar_pulse`). Phones: the banner
   in the centre band (level, LEVEL UP, title, one stat line ending in the brain and the skill points),
   pushed under a target plate with a fade. Gains land via `Vitals.grant_level_bonus` (saved).
 - Skill category level-up (`SkillState.skill_leveled`): the small light at her feet and a TopFeed row

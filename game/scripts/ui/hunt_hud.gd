@@ -81,6 +81,9 @@ var _levelup_lines: Array = []
 var _levelup_title: String = ""  ## the title line and one stat summary: the landscape-phone banner
 var _levelup_summary: String = ""
 var _levelup_sp: String = ""  ## the skill points the phone banner shows behind the brain glyph
+var hp_bar_rect := Rect2()  ## LEVELBAR: the health bar as last drawn (the energy bar is the same width under it)
+var xp_bar_rect := Rect2()  ## LEVELBAR: the bottom level bar as last drawn (tests read it)
+var xp_bar_segments := 0  ## its segment count as last drawn
 var _levelups := LevelUpCelebration.new()  ## level-ups queued, celebrated one at a time, with their light (LEVELFX)
 ## Screen rects of the blocks _draw paints (vitals, quest card, map text, status badges, level line,
 ## target plate, level-up banner), rebuilt every draw. Layout gates check them with the controls, so
@@ -176,7 +179,7 @@ func _ready() -> void:
 				player.statuses.apply(&"bleed_3")
 				if Game.shot_path.contains("poison"):
 					player.statuses.apply(&"venom"))
-	if Game.shot_path.contains("hudrules") or Game.shot_path.contains("titles"):  # HUDRULES captures: bleed, Well Rested, a food buff (HudrulesShot)
+	if Game.shot_path.contains("hudrules") or Game.shot_path.contains("titles") or Game.shot_path.contains("levelbar"):  # HUDRULES captures: bleed, Well Rested, a food buff (HudrulesShot)
 		get_tree().create_timer(0.6).timeout.connect(func () -> void: HudrulesShot.stage(self))
 	get_viewport().size_changed.connect(_layout)
 	_layout()
@@ -1521,6 +1524,17 @@ func _process(delta: float) -> void:
 	_minimap.queue_redraw()
 	queue_redraw()
 
+## The bottom level bar: a track, the green fill, and a gap after every `unit` XP of the level's
+## `cost` (the last segment is what is left over, so widths stay proportional to XP).
+func _draw_xp_bar(rect: Rect2, xp: int, cost: int, unit: int) -> void:
+	draw_rect(rect, Color(0.05, 0.05, 0.07, 0.9))
+	draw_rect(Rect2(rect.position, Vector2(rect.size.x * clampf(float(xp) / maxf(1.0, cost), 0.0, 1.0), rect.size.y)), UiTokens.XP_GREEN)
+	var step := rect.size.x * float(unit) / maxf(1.0, cost)
+	var gap_x := rect.position.x + step
+	while gap_x < rect.end.x - 1.0:
+		draw_rect(Rect2(gap_x - 1.0, rect.position.y, 2.0, rect.size.y), Color(0.02, 0.02, 0.03, 0.95))
+		gap_x += step
+
 func _draw() -> void:
 	if player == null or player.dead:
 		return
@@ -1538,7 +1552,8 @@ func _draw() -> void:
 	# old 176 px / 12 px block "tiny desktop typography"). Phone keeps the compact block.
 	var vitals := HudLayout.vitals_rect(self, r)
 	var panel_w := vitals.size.x
-	var full_w := 232.0 if not phone else maxf(88.0, panel_w - 54.0)
+	# LEVELBAR (owner 2026-10-28): no level badge here, the bottom bar shows the level; the bars take its room.
+	var full_w := 276.0 if not phone else maxf(128.0, panel_w - 14.0)
 	var big := 16.0 if not phone else 12.0
 	var gap := 6.0
 	# HUDRULES: the stomach ring stands right of the health and energy bars, as tall as both.
@@ -1548,12 +1563,8 @@ func _draw() -> void:
 	var bar_px := UiTokens.meta(r) if not phone else 12
 	draw_rect(vitals, UiTokens.INK)
 	drawn_blocks["vitals"] = vitals
-	var lvl_r := 18.0 if not phone else 16.0
-	draw_circle(Vector2(x + lvl_r, y + lvl_r), lvl_r, Color(0.08, 0.09, 0.11, 0.95))
-	draw_string(_font, Vector2(x, y + lvl_r + num_px * 0.36), str(LevelDisplay.player_level()), HORIZONTAL_ALIGNMENT_CENTER, lvl_r * 2.0, num_px, Color.WHITE)
-	_levelups.draw_badge(self, Vector2(x + lvl_r, y + lvl_r), lvl_r, num_px)
-	x += lvl_r * 2.0 + 8.0
 	var yy := y
+	hp_bar_rect = Rect2(Vector2(x, yy), Vector2(bar_w, big))
 	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px)
 	yy += big + gap
 	var en := energy_reading(player)
@@ -1648,12 +1659,16 @@ func _draw() -> void:
 			_draw_orders_badge(mp, meta_px)  # collapsed, or the phone band is taken and no strip fits
 	# --- XP bar along the bottom
 	# One bar: the pioneer level, which every skill XP grant also feeds.
-	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
-	draw_rect(Rect2(0, r.y - 4, r.x, 4), Color(0.05, 0.05, 0.07, 0.9))
-	draw_rect(Rect2(0, r.y - 4, r.x * prog, 4), Color(0.90, 0.68, 0.12))
-	var lv := "%s  %.1f%%" % [LevelDisplay.player_label(), prog * 100.0]
+	# LEVELBAR (owner 2026-10-28): one segment per unit of XP, so a dearer level draws more, thinner ones.
+	var xb := LevelDisplay.xp_bar()
+	xp_bar_rect = Rect2(0, r.y - UiTokens.XP_BAR_H, r.x, UiTokens.XP_BAR_H)
+	xp_bar_segments = int(xb["segments"])
+	_draw_xp_bar(xp_bar_rect, int(xb["xp"]), int(xb["cost"]), int(xb["unit"]))
+	_levelups.draw_bar_pulse(self, xp_bar_rect)
+	var lv := "%s  %d / %d XP  · %d XP each" % [LevelDisplay.player_label(), int(xb["xp"]), int(xb["cost"]), int(xb["unit"])]
 	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
-	var lv_pos := Vector2(r.x - lw - 16.0 - inset.x, r.y - HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - 7.0)
+	var lv_pos := Vector2(r.x - lw - 16.0 - inset.x, r.y - HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - UiTokens.XP_BAR_H - 5.0)
+	draw_string_outline(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3, Color(0.0, 0.0, 0.0, 0.7))
 	draw_string(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	drawn_blocks["level"] = Rect2(lv_pos - Vector2(0.0, 12.0), Vector2(lw, 15.0))
 	# --- name under the survivor
