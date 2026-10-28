@@ -80,7 +80,7 @@ func _test_entries() -> void:
 	var left: Array = nav.LEFT.map(func (e) -> String: return str(e["label"]))
 	var right: Array = nav.RIGHT.map(func (e) -> String: return str(e["label"]))
 	_expect(left == ["Character", "Skills", "Craft", "Build", "Bag", "Animals"], "left column reads Character..Animals (%s)" % [left])
-	_expect(right == ["World Atlas", "Domain", "Orders", "Communication", "Friends", "Save"], "right column reads World Atlas..Save (%s)" % [right])
+	_expect(right == ["World Atlas", "Domain", "Orders", "Communication", "Island Market", "Save"], "right column reads World Atlas..Save (%s)" % [right])
 	for id in nav.entries:
 		var b: Button = nav.entries[id]
 		_expect(b.disabled == (id in [&"orders", &"friends"]), "%s is %s" % [id, "disabled" if b.disabled else "enabled"])
