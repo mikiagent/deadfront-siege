@@ -21,6 +21,12 @@ var poison_spoiled: bool = false
 ## of each item must not pay per unit, so item takes and Take all pay the same.
 var _units_seen: Dictionary = {}
 var _paid_kinds: Dictionary = {}
+## BUTCHER (spec 12 §2): the survivor cuts the parts they choose, one cut each, out of a budget of
+## 1 + floor(Butchering level / 10) (CarcassParts.CUTS_BASE / LEVELS_PER_CUT). Parts never cut are
+## lost when the carcass despawns.
+var cuts_budget: int = 1
+var cuts_left: int = 1
+var cut_parts: Array[StringName] = []
 
 func setup(c: Creature) -> void:
 	level = maxi(1, int(c.get("level")) if c.get("level") != null else 1)
@@ -32,6 +38,10 @@ func setup(c: Creature) -> void:
 	poison_spoiled = c.statuses.has_flag(&"meat_inedible")
 	_roll_loot()
 	_snap_owner_to_ground()
+	# BUTCHER (spec 12 §2): the cut budget is the killer's, fixed at death like the loot roll.
+	var p := PlayerRegistry.local()
+	cuts_budget = CarcassParts.cut_budget(maxi(0, p.skills.level_of("butchering")) if p != null and p.skills != null else 0)
+	cuts_left = cuts_budget
 
 func _ready() -> void:
 	add_to_group("corpse")
@@ -98,6 +108,92 @@ func loot_options(inv: Inventory) -> Array:
 			continue
 		out.append({"item": str(st.def_id), "min": st.count, "max": st.count, "tool": "knife" if needs_knife else "none", "seconds": 1.6, "slot": i})
 	return out
+
+# ---------------------------------------------------------------- BUTCHER: part cuts (spec 12 §2)
+
+## The carcass's part list for the picker: one entry per data part (CarcassParts.parts), with the
+## units the cut would give, whether it is already off the carcass, and why it cannot be cut now.
+## Each cut spends one of `cuts_left`; a part never cut stays on the carcass and is lost on despawn.
+func part_options(p: Player) -> Array:
+	var out: Array = []
+	if p == null:
+		return out
+	var ctx := cut_context(p)
+	for part in CarcassParts.parts(species):
+		var id: StringName = part["id"]
+		var count := loot.count_of(id)
+		var row: Dictionary = part["row"]
+		var entry := {
+			"id": id,
+			"name": Data.item(id).display_name if Data.item(id) != null else str(id),
+			"min": int(row.get("min", 1)),
+			"max": int(row.get("max", 1)),
+			"count": count,
+			"cut": cut_parts.has(id),
+			"rare": not (part.get("rare", {}) as Dictionary).is_empty(),
+			"seconds": CarcassParts.CUT_SECONDS,
+			"blocked": "",
+		}
+		if cut_parts.has(id):
+			entry["blocked"] = "cut"
+		elif count <= 0:
+			entry["blocked"] = "nothing left"
+		else:
+			entry["blocked"] = CarcassParts.reason(part, ctx)
+		out.append(entry)
+	return out
+
+## The knife tier / Butchering level / node gates this carcass's cuts are judged by.
+func cut_context(p: Player) -> Dictionary:
+	return CarcassParts.context(p, level, poison_spoiled, cuts_left, cut_parts)
+
+## Cut one chosen part off the carcass: only that part's stacks leave (`only it`), one cut of the
+## budget is spent, and the knife wears. Nothing to give / no cuts left / already cut -> [].
+## The caller is the timed action (PlayerActions.finish_part_cut), so a cancelled cut never reaches
+## here and spends nothing.
+func cut_part(id: StringName, p: Player) -> Array[ItemStack]:
+	var out: Array[ItemStack] = []
+	if p == null or cuts_left <= 0 or cut_parts.has(id):
+		return out
+	var part := _part_of(id)
+	if part.is_empty():
+		return out
+	if CarcassParts.reason(part, cut_context(p)) != "":
+		return out
+	for i in loot.slot_count:
+		var st: ItemStack = loot.slots[i]
+		if st == null or st.def_id != id:
+			continue
+		var taken := loot.remove_at(i, st.count)
+		if taken != null:
+			out.append(taken)
+	cut_parts.append(id)
+	cuts_left = maxi(0, cuts_left - 1)
+	note_tapped()
+	p.inventory.wear_gather_tool(&"knife")
+	if _is_empty():
+		_on_loot_empty()
+	return out
+
+## The data part entry for one item id ({} when the species has none).
+func _part_of(id: StringName) -> Dictionary:
+	for part in CarcassParts.parts(species):
+		if part["id"] == id:
+			return part
+	return {}
+
+## Save/load: the budget and the parts already cut come back with the carcass.
+func apply_cut_state(budget: int, left: int, parts: Array) -> void:
+	cuts_budget = maxi(1, budget)
+	cuts_left = clampi(left, 0, cuts_budget)
+	cut_parts.clear()
+	for id in parts:
+		var s := StringName(str(id))
+		if s != &"" and not cut_parts.has(s):
+			cut_parts.append(s)
+
+func has_cuts_left() -> bool:
+	return cuts_left > 0 and not _is_empty()
 
 ## Take one loot stack (after the 1.6 s butcher). Returns the stack or null.
 func take_slot(slot: int, player: Player) -> ItemStack:
