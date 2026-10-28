@@ -50,3 +50,15 @@ note + report docs/orchestration/reports/dsc-eyetrails.md + full verify. Headles
   make sense until crafting building and skills is done and tuned". Mark every number the docs do not give `# ASSUMPTION`.
 - Report docs/orchestration/reports/dsc-eyetrails.md: what shipped, before/after numbers, the shots you looked at, assumptions,
   what the integrator needs.
+
+## Review round 2 (orchestrator looked at your shots, 2026-10-28)
+Your own shot pass (`--shot-dir`) shows: (1) flame_head.png — each trail is a flat, evenly segmented, hard-edged
+yellow BAR with visible quad steps, sitting ABOVE the black eye balls instead of streaming from the glowing eye
+dot; (2) flame_game.png (the real game camera) shows NO visible trail at all. Neither reads as a "flame in the wind".
+Fix: the trail must start exactly at each glowing eye dot; taper to a point (width falls to 0 along its length);
+soft edges (alpha falls off across the width too, e.g. a quad strip with per-vertex alpha 0 at both edges and a
+bright core); colour from the eye glow, brighter at the head end, fading out; flicker = noise on width/alpha/
+lateral offset per segment over time, not a uniform bar; enough samples or Catmull-Rom smoothing that no quad steps
+show; visible at the game camera distance at night (scale width with camera distance or a min screen width).
+Re-run your shot pass, LOOK at the PNGs and describe what you see in .dsc/NOTES.md honestly before ticking; keep
+t_eyetrails green.
