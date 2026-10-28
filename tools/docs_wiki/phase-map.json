@@ -424,12 +424,12 @@
         {
           "id": "target-select",
           "title": "Target select and pet radial: tap selects, the swords start combat (spec 23)",
-          "status": "next",
+          "status": "done",
           "depends": [
             "creature-roster"
           ],
           "source": "docs/design/durango-prompts/23_target_select_pet_radial.md",
-          "note": "TARGETUI (blind A/B 12-0) and PETRADIAL (7-0) passed review 10-21, never merged; rebase onto the CAMERA and GATHERGLIDE changes."
+          "note": "TARGETUI + PETRADIAL merged e1852ae8: tap selects, swords fight, pet radial. Desktop End Combat moved 70 px left to clear the BAG hex. Visual check at 844x390 / 1600x900 still owed."
         },
         {
           "id": "ragdoll",
