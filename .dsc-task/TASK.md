@@ -1,41 +1,25 @@
-# Task: FOODFX: eating and drinking have effects beyond a flat Energy number
-Owner: "add this to the docs and plan" (spec docs/design/durango-prompts/32_food_drink_consumption_effects.md).
-Research: docs/reference/durango0-wiki/06_FOOD_DRINK_TASTE_AND_BUFF_FORMULAS.md (digestion, taste grades,
-the buff keys) - reconstruction values stay tagged, never presented as original constants.
-Extend the systems that exist; do not build a second food, inventory or status architecture.
-Today: game/scripts/items/food.gd (Energy only: base x (1 + 0.35 x process_count) x level), eat_session.gd
-(3 s eat, move cancels the remaining restore, raw-food risk past half), a flat BUFFS table in
-game/data/food_buffs.json, and game/scripts/status/status_def.gd + combat/status_effects.gd for timed
-statuses. BAGS and CRAFTFEEL change the item/craft path - read them first and reuse their preview functions.
-Do not tune balance numbers; every value spec 32 does not give is `# ASSUMPTION` and configurable, and every
-example from the reconstruction keeps its provenance tag (spec 32 s15 and s13).
-Milestones:
-M1 game/tests/t_foodfx.gd: instant + digested Energy split at release ratio 0/0.4/1; the delayed share is never
-paid twice across a save/load or a second eat intent; an interrupted eat consumes nothing and grants nothing;
-eating twice quickly cannot consume one instance twice; a Maximum Fatigue buff expiring clamps current fatigue
-and never touches base stat values; a drink that lowers current fatigue and a drink that raises the maximum are
-different effects; same-container foods replace each other while Enhanced Ability and Enhanced Survival coexist;
-a plain Energy food leaves an unrelated buff alive; a profession ability buff changes a real ability check
-without granting category levels; raw bad food can apply Stomach Pain. Stage 1.
-M2 the effect bundle + evaluator in data-driven code (consumption channels, per-field transforms, caps and
-conflict validation as in spec 32 s8), delayed-digestion persistence, buff slots. Stage 1.
-M3 consumption transaction: validate -> timed action with interrupt -> atomic consume of the exact instance ->
-immediate effects -> schedule digestion -> buff slot replacement -> taste/temperature -> persist. Stage 2.
-M4 game/scripts/dev/foodfx_lab.gd + scene printing `[foodfx] RESULT instant_split_ok= digest_once_ok=
-interrupt_refunds= double_eat_blocked= buff_slots_ok= maxfatigue_expiry_ok= fatigue_vs_maxfatigue_ok=
-buff_coexist_ok= plain_food_keeps_buff= ability_check_moves= bad_food_status= taste_grade_ok=
-save_roundtrip= ui_min_px=` with shots of the food inspect panel and the two drinks. Stage 2.
-M5 report (before/after, the shots, every assumption and provenance) and the full verify.
-Data slice, not dozens of foods: water, tea, coffee, a raw berry, cooked meat, one profession-buff meal, one
-fatigue restorative. The UI is spec 32 s12: item level, exact traits, Energy immediate/over time, fullness,
-thirst, health, fatigue, max-stat effects, ability bonuses, negative effects, buff group, duration and
-consumption time, plus a line saying when this food would replace an active buff.
+# Task: ICONS4 — render the remaining unrendered item icons with the existing pipeline
+
+76 of 240 items still have no render (`game/assets/icons/render/manifest.json` "missing"; the list and context are in
+docs/orchestration/reports/dsc-icons3.md). Render as many as the EXISTING pipeline can do in the established style:
+tools/render_icons.py + the builders in tools/blender/items/ (resources.py, camp.py, food.py, gear.py, kit.py),
+headless Blender (/Applications/Blender.app/Contents/MacOS/Blender --background, one at a time), consistent studio
+light, transparent PNG, the same framing/crop and .png.import settings as the existing renders. Read dsc-icons3.md and
+the builders first; reuse existing parts/materials (an ingot builder for a new ingot, a hide builder for a new hide,
+food shapes for foods). Do NOT invent a new art direction; an item that needs one goes on the "needs art" list instead.
+Priority order: items a new player sees in the first hour (gathered materials, foods and drinks, first tools and
+kits), then the rest.
+
+Rules: every render must be deterministic (render twice, bytes identical — see how ICONS3 fixed armor_scute);
+manifest entries added, "missing" regenerated exactly; t_iconart PASS; open every PNG you produce and write a one-line
+verdict per id in .dsc/NOTES.md (does it read as the item at 48 px?) — redo or drop any that do not.
+Milestones: M1 first-hour batch (aim 20+) rendered, checked, manifest updated, t_iconart stage 1.
+M2 second batch. M3 report docs/orchestration/reports/dsc-icons4.md (rendered list with verdicts, still-missing list
+with reasons) + full verify. Headless only; no Godot windowed labs. No paid generation.
 
 ## How to run Godot (exactly)
-- Headless test: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/gslot.sh perl -e 'alarm 400; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --script res://tests/<t>.gd > /tmp/foodfx_t.log 2>&1` (bash timeout_ms 460000).
-- Labs and screenshots need a window, never --headless (frame_post_draw never fires headless); bash timeout_ms 1020000, and the lab quits itself within 120 s:
-  `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --path game --resolution 1600x900 --rendering-method gl_compatibility -- --lab=foodfx_lab --shot-dir=/tmp/foodfx_shots > /tmp/foodfx_lab.log 2>&1`, and again with --resolution 844x390 (the phone, landscape).
-- After adding a class_name file or an asset: `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --import > /tmp/foodfx_import.log 2>&1`.
+- Headless test: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/gslot.sh perl -e 'alarm 400; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --script res://tests/<t>.gd > /tmp/icons4_t.log 2>&1` (bash timeout_ms 460000).
+- After adding a class_name file or an asset: `... perl -e 'alarm 900; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --import > /tmp/icons4_import.log 2>&1`.
 - Parse-check every new or edited .gd before a long run: `... --headless --path game --check-only --script res://<path>`.
   `--check-only` ALWAYS prints "Identifier not found: Data / World / Game / TouchControls" (autoloads do not exist in that
   mode): ignore those lines; only `Parse Error` lines are real. Real tests run with `--script res://tests/<t>.gd`, where the
@@ -49,13 +33,13 @@ consumption time, plus a line saying when this food would replace an active buff
 - game/tests/t_save.gd prints 5 deliberate SCRIPT ERRORs; that is normal.
 - A lab log with `SHADER ERROR` or `Unknown character` means the shader did not compile and every card draws grey: the
   gate fails on it. GDScript `##` comments are not shader syntax; shaders use `//`.
-- Scratch files go in $TMPDIR/foodfx, never /tmp or docs/. Never `rm -r` a path that has tracked files.
+- Scratch files go in $TMPDIR/icons4, never /tmp or docs/. Never `rm -r` a path that has tracked files.
 - Key any per-item data by a stable id (file name, src_rect), never by list order.
 - Write big files in parts (write_file, then edit_file); never python `s.replace()` without checking it matched.
 ## Gates
-- Verify: `bash /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/verify_job.sh foodfx [1|2]` (no argument = the full gate). Read it and
-  `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/job_foodfx.conf` (TEST, LAB, LAB_ASSERT, RELATED, SCOPE) before you start.
-- The lab gets `--shot-dir=<dir>`: save every PNG there. It must print exactly one line `[foodfx] RESULT k=v k=v ...` with every
+- Verify: `bash /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/a2917b6d-2049-454d-9c63-314953df33d7/scratchpad/dsc/verify_job.sh icons4 [1|2]` (no argument = the full gate). Read it and
+  `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/a2917b6d-2049-454d-9c63-314953df33d7/scratchpad/dsc/job_icons4.conf` (TEST, LAB, LAB_ASSERT, RELATED, SCOPE) before you start.
+- The lab gets `--shot-dir=<dir>`: save every PNG there. It must print exactly one line `[icons4] RESULT k=v k=v ...` with every
   key LAB_ASSERT reads, MEASURED from the live scene (never constants), then quit.
 - Milestones: write them to .dsc/PLAN.md and call milestone_done after each (milestones before MS_STAGE2 run stage 1, later
   ones stage 2). Anything visual: open the PNG, and write the path and a one-line verdict in .dsc/NOTES.md before ticking.
@@ -65,5 +49,5 @@ consumption time, plus a line saying when this food would replace an active buff
   merge branches, push or deploy. No new dependencies.
 - Do not tune balance numbers (HP, damage, XP, fatigue or energy rates). Owner: "game balancing like tuning hp and damage wont
   make sense until crafting building and skills is done and tuned". Mark every number the docs do not give `# ASSUMPTION`.
-- Report docs/orchestration/reports/dsc-foodfx.md: what shipped, before/after numbers, the shots you looked at, assumptions,
+- Report docs/orchestration/reports/dsc-icons4.md: what shipped, before/after numbers, the shots you looked at, assumptions,
   what the integrator needs.
