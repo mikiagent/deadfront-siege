@@ -274,6 +274,9 @@ func _layout() -> void:
 	var want := float(maxi(1, rows)) * (CELL_H + GAP)
 	var room := maxf(CELL_H, view.y - safe.y - safe.z - 24.0 - CHROME_H)
 	_scroll.custom_minimum_size = Vector2(0.0, minf(want, room))
+	# A bar only when the parts really do not fit: a scrollbar over a complete grid reads as missing rows.
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER if want <= room + 1.0 \
+			else ScrollContainer.SCROLL_MODE_AUTO
 	_panel.reset_size()
 	var sz := _panel.get_combined_minimum_size()
 	# The description labels and the footer can still push the panel past a short landscape screen:
