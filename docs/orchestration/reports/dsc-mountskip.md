@@ -77,8 +77,11 @@ so the full gate's scope check reports it as an out-of-scope file. The integrato
 
 - `verify_job.sh mountskip 1` — `VERIFY STAGE 1 PASS` (after the print tag).
 - `verify_job.sh mountskip 2` — `VERIFY STAGE 2 PASS` (`VERIFY HEADLESS-ONLY: visual lab deferred by owner`).
-- `verify_job.sh mountskip` (full) — reaches the report/scope check: report present, then fails only on
-  `game/tests/t_mounts.gd` being outside SCOPE (see above).
+- `verify_job.sh mountskip` (full) — `VERIFY HEADLESS-ONLY: visual lab deferred by owner`, then
+  `VERIFY FAIL: files outside your scope changed: game/tests/t_mounts.gd` — the scope check runs before the
+  RELATED tests, so this is the only failure and the gate stops there. Reverting the test line instead fails
+  stage 1 (`grep -q "\[t_mounts\] PASS"` on the pre-change log exits 1), so the two cannot both be satisfied
+  with the current `job_mountskip.conf`.
 - `t_tame` (RELATED): `[t_tame] PASS`, rc=0, 0 SCRIPT ERROR.
 - `tools/smoke.sh --no-import`: `SMOKE PASS`.
 - `--import` run after restoring the asset: exit 0.
