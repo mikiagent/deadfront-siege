@@ -91,3 +91,25 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Sheets (MENU / ANIMALS / BUILD / structure cards) stand on the rail and grow upward, wading into
   scrolling when short; landscape phones lay them out as a two-column grid. HANDS and the creature
   plates hide while one is open.
+
+## Screens (phone landscape, [all screens](ui-screens.md))
+
+**Idle HUD**
+
+![hud](screens/hud.webp)
+
+**Pet out**
+
+![pet_out](screens/pet_out.webp)
+
+**Combat layer**
+
+![combat](screens/combat.webp)
+
+**Fatigue panel**
+
+![fatigue](screens/fatigue.webp)
+
+**MENU sheet**
+
+![sheet_menu](screens/sheet_menu.webp)

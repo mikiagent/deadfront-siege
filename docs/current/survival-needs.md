@@ -105,3 +105,17 @@ Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
   phase.
 - Dev lab: `game/scripts/dev/needs_lab.gd` drives the whole loop headless (eat, drink, wash, sleep,
   climate) and prints pass/fail notes.
+
+## Screens (phone landscape, [all screens](ui-screens.md))
+
+**Vitals and fatigue belt (top left)**
+
+![hud](screens/hud.webp)
+
+**What is tiring you**
+
+![fatigue](screens/fatigue.webp)
+
+**Food inspector**
+
+![bag_food_inspect](screens/bag_food_inspect.webp)

@@ -112,3 +112,17 @@ Knockdown itself comes from tackle/kick/stagger — see `game/scripts/combat/com
   `game/data/mounts_skip.json` is empty. Riders need no saddle item.
 - Pets, their uids, levels and bags save under the save key `pets` (see
   [saves-persistence.md](saves-persistence.md)).
+
+## Screens (phone landscape, [all screens](ui-screens.md))
+
+**Animal roster**
+
+![animals](screens/animals.webp)
+
+**Creature plate**
+
+![plate](screens/plate.webp)
+
+**Pet out**
+
+![pet_out](screens/pet_out.webp)

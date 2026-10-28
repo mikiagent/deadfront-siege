@@ -92,3 +92,17 @@ grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in
   overflows to home cargo, deletes nothing, caps at `MAX_LOAD_UNITS` = 100000. `unique_uids`
   remints duplicate uids across cargo, bag, worn gear, building storage and pet bags. Worn rows are
   re-validated and unwearable ones go back to the bag (`InventoryEquipment.load_worn`).
+
+## Screens (phone landscape, [all screens](ui-screens.md))
+
+**Bag and equipment**
+
+![bag](screens/bag.webp)
+
+**Food inspector**
+
+![bag_food_inspect](screens/bag_food_inspect.webp)
+
+**Bag inspector**
+
+![bag_bag_inspect](screens/bag_bag_inspect.webp)
