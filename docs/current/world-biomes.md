@@ -87,6 +87,31 @@ Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data
 
 A climate's `materials` list is what its island generator may place; gather yields per family are the gather-system's own table (`world/rules.json`).
 
+## Ground: smooth terrain, blended zone colours
+
+How the island ground is drawn (TERRAINSMOOTH, 2026-10-28). Code: `game/scripts/world/island_terrain.gd`,
+`game/scripts/world/terrain_tiles.gdshader`; test `game/tests/t_terrainsmooth.gd`; review shots
+`game/scripts/dev/terrain_lab.gd`.
+
+- **Two grids.** `IslandShape` still computes the 161 x 161 data grid (cells 2.3-2.9 m). Tile types, zones,
+  the walk mask, the fresh-water mask, TilePath and spawns read only that grid, so they are unchanged.
+  The ground you see and stand on is that grid **refined 2x** (321 x 321, cells about 1.3 m): grid
+  nodes keep their heights, each new midpoint is a cubic (-1, 9, 9, -1)/16 clamped between its two
+  neighbours, so hills curve but cliffs and the shore never overshoot into ridges or dips.
+- **One surface.** The terrain mesh (8 x 8 indexed chunks with smooth normals shared across chunk edges),
+  the collision heightmap, the water shader's height texture and `surface_y` all read the refined
+  array; `surface_y` follows the mesh's own triangles, so feet, nodes and buildings sit exactly on the
+  drawn ground. The nav bake still reads the data grid.
+- **Zone colours blend.** Each zone's tint and layer mix are baked into two small textures (one texel
+  per 2 m) with mipmaps; the shader reads them at the LOD of the zone edge width (`biome_edge_m`, 8 m by
+  default) at two points warped by 18 m and 9 m noise and averages them, so a border is a soft band
+  about 9 m wide that wanders instead of a line along the tile grid.
+- **No tile stair steps.** Rock, ash, river mud and crater dirt come from a mipmapped mask texture read
+  blurred over 1.5-3 m at a noise-warped point; harvested (bare) tiles, which change in play, use a
+  bilinear mask over the 1 m tile grid with a noise-wandering edge.
+- **Macro variation** at 41 m, 15 m (`macro_scale`) and 6.5 m wavelengths, scaled by `macro_strength`.
+- Works the same under Forward+ and gl_compatibility (the web build).
+
 ## Claimed land is clear of scenery
 
 A domain cell (spec 29) is bare of decoration the moment it is staked, and stays that way:

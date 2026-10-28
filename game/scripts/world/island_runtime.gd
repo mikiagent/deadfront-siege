@@ -225,7 +225,22 @@ func _process(delta: float) -> void:
 
 func surface_y(x: float, z: float) -> float:
 	if not _surf.is_empty():
-		return IslandTerrain.surf_y(self, x, z)
+		# The drawn ground: the refined grid's two triangles per cell, diagonal (x+1, z)-(x, z+1), as
+		# IslandTerrain._chunk_mesh draws them. Inlined: scatter and props call this ~100k times a build.
+		var last := float(_surf_res - 1)
+		var fc := _size / last
+		var fu := clampf((x + _size * 0.5) / fc, 0.0, last)
+		var fv := clampf((z + _size * 0.5) / fc, 0.0, last)
+		var fx0 := mini(int(fu), _surf_res - 2)
+		var fz0 := mini(int(fv), _surf_res - 2)
+		var ftx := fu - float(fx0)
+		var ftz := fv - float(fz0)
+		var i := fx0 + fz0 * _surf_res
+		if ftx + ftz <= 1.0:
+			var a := _surf[i]
+			return a + (_surf[i + 1] - a) * ftx + (_surf[i + _surf_res] - a) * ftz
+		var b := _surf[i + _surf_res + 1]
+		return b + (_surf[i + _surf_res] - b) * (1.0 - ftx) + (_surf[i + 1] - b) * (1.0 - ftz)
 	if _heights.is_empty():
 		return 0.0
 	var cell := _size / float(_res - 1)

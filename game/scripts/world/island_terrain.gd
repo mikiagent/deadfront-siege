@@ -53,7 +53,8 @@ static func build(rt: IslandRuntime, size: float, climate: String, shape: Island
 ## The rendered surface: the data grid refined 2x (cells 1.3 m) by a separable cubic midpoint rule
 ## (-1, 9, 9, -1)/16, each midpoint clamped between its two neighbours so cliffs and the shore never
 ## overshoot into ridges or dips. Grid nodes keep their exact heights. Mesh, collision, the water's
-## height texture and surface_y all read this one array, so what the survivor stands on is drawn.
+## height texture and surface_y (IslandRuntime) all read this one array, so what the survivor stands
+## on is drawn.
 static func _refine(rt: IslandRuntime) -> void:
 	var r := rt._res
 	var f := 2 * (r - 1) + 1
@@ -92,26 +93,6 @@ static func _refine(rt: IslandRuntime) -> void:
 			out[d + x] = clampf((9.0 * (h1 + h2) - rows[i0 + x] - rows[i3 + x]) * 0.0625, minf(h1, h2), maxf(h1, h2))
 	rt._surf = out
 	rt._surf_res = f
-
-## Height of the rendered surface: the same two triangles per cell the mesh draws (diagonal from
-## (x+1, z) to (x, z+1)), so a foot, a node or a placed piece sits exactly on the drawn ground.
-static func surf_y(rt: IslandRuntime, x: float, z: float) -> float:
-	var res := rt._surf_res
-	var arr := rt._surf
-	var last := float(res - 1)
-	var cell := rt._size / last
-	var u := clampf((x + rt._size * 0.5) / cell, 0.0, last)
-	var v := clampf((z + rt._size * 0.5) / cell, 0.0, last)
-	var x0 := mini(int(u), res - 2)
-	var z0 := mini(int(v), res - 2)
-	var tx := u - float(x0)
-	var tz := v - float(z0)
-	var i := x0 + z0 * res
-	if tx + tz <= 1.0:
-		var h00 := arr[i]
-		return h00 + (arr[i + 1] - h00) * tx + (arr[i + res] - h00) * tz
-	var h11 := arr[i + res + 1]
-	return h11 + (arr[i + res] - h11) * (1.0 - tx) + (arr[i + 1] - h11) * (1.0 - tz)
 
 static func _build_mesh(rt: IslandRuntime, size: float, cell: float, climate: String) -> void:
 	rt._palette = _palette_for(climate)
@@ -153,7 +134,7 @@ static func _build_mesh(rt: IslandRuntime, size: float, cell: float, climate: St
 	rt.add_child(body)
 
 ## One index buffer shared by every chunk (all chunks are n x n cells): two triangles per cell,
-## (x,z)(x+1,z)(x,z+1) and (x+1,z)(x+1,z+1)(x,z+1), the winding and diagonal surf_y assumes.
+## (x,z)(x+1,z)(x,z+1) and (x+1,z)(x+1,z+1)(x,z+1), the winding and diagonal surface_y assumes.
 static func _chunk_indices(n: int) -> PackedInt32Array:
 	var w := n + 1
 	var idx := PackedInt32Array()
