@@ -40,9 +40,9 @@ const RESET_JUMP_M := 2.0
 ## on a very fast head, so the length knob is one number in the same table as the rest.
 const MAX_LENGTH_M := 0.9
 ## Ribbon width as a multiple of the eye dot's world radius.
-const WIDTH_PER_RADIUS := 2.4
+const WIDTH_PER_RADIUS := 1.9
 ## Trail brightness relative to the eye dot's own HDR level (the ribbon must not outshine the eye).
-const ENERGY := 2.5
+const ENERGY := 2.2
 ## ASSUMPTION: farther than this from the camera the trail is not built. The iso camera is 40 m out
 ## and a full 1600x900 frame spans ~20 m, so a drawn creature is always inside this.
 const MAX_CAMERA_DISTANCE_M := 55.0
@@ -57,9 +57,13 @@ const FLICKER := 0.45
 const FLICKER_HZ := 13.0
 ## ASSUMPTION: how far the tail drifts up and sideways per second of age, in metres (a flame streams
 ## up and tugs sideways; a straight clean line would read as a rubber band).
-const DRIFT_MPS := 0.30
+const DRIFT_MPS := 0.55
 ## ASSUMPTION: width at the very tail as a fraction of the width at the head.
 const TAPER := 0.16
+## ASSUMPTION: the tail fades faster than it narrows (a flame tip dissolves, it does not get cut off).
+const TIP_POW := 1.8
+## ASSUMPTION: how white-hot the head of the streak burns against the eye's own colour.
+const HOT_HEAD := 0.30
 
 static var _materials: Dictionary = {}
 
@@ -104,6 +108,8 @@ var flicker := FLICKER
 var flicker_hz := FLICKER_HZ
 var drift_mps := DRIFT_MPS
 var taper := TAPER
+var tip_pow := TIP_POW
+var hot_head := HOT_HEAD
 
 func _init() -> void:
 	mesh = _mesh
@@ -148,6 +154,8 @@ func _apply_knobs(block: Dictionary) -> void:
 	flicker_hz = clampf(float(t.get("flicker_hz", FLICKER_HZ)), 0.5, 60.0)
 	drift_mps = clampf(float(t.get("drift_mps", DRIFT_MPS)), 0.0, 2.0)
 	taper = clampf(float(t.get("taper", TAPER)), 0.0, 1.0)
+	tip_pow = clampf(float(t.get("tip_pow", TIP_POW)), 0.2, 6.0)
+	hot_head = clampf(float(t.get("hot_head", HOT_HEAD)), 0.0, 1.0)
 
 ## One material per eye colour, shared by every animal that uses it; the vertex colour carries the
 ## taper, so there is nothing per instance to animate but visibility.
@@ -298,6 +306,7 @@ func _draw_eye(i: int, now: Vector3, cam: Camera3D) -> void:
 	var chain: Array[Vector3] = []
 	var alphas: Array[float] = []
 	var widths: Array[float] = []
+	var heats: Array[float] = []
 	var base_w := _radius * width_per_radius
 	var n_pts := pts.size()
 	for k in n_pts:
@@ -312,13 +321,17 @@ func _draw_eye(i: int, now: Vector3, cam: Camera3D) -> void:
 		pos += Vector3.UP * (drift * (0.7 + 0.3 * n)) + side_axis * (drift * 0.55 * _flame_noise(phase * 0.7 + 2.1))
 		chain.append(pos)
 		var fade := clampf(1.0 - age / fade_s, 0.0, 1.0)
-		alphas.append(float(_str[i]) * fade * (1.0 + flicker * 0.6 * n))
+		# Tip: alpha falls faster than width, so the streak dissolves instead of stopping dead.
+		var tip := pow(fade, tip_pow)
+		alphas.append(float(_str[i]) * tip * (1.0 + flicker * 0.6 * n))
 		widths.append(base_w * lerpf(taper, 1.0, 1.0 - t) * (1.0 + flicker * n))
+		heats.append(hot_head * pow(1.0 - t, 3.0))
 	# The live head end: full strength, no fade, no drift yet.
 	if (chain[chain.size() - 1] as Vector3).distance_squared_to(now) > 1e-8:
 		chain.append(now)
 		alphas.append(float(_str[i]))
 		widths.append(base_w)
+		heats.append(hot_head)
 	var n2 := chain.size()
 	if n2 < 2:
 		return
@@ -341,8 +354,9 @@ func _draw_eye(i: int, now: Vector3, cam: Camera3D) -> void:
 		if a0 <= 0.0 and a1 <= 0.0:
 			continue
 		_measure(w0, w1, a0, a1)
-		var c0 := Color(_colour.r, _colour.g, _colour.b, a0)
-		var c1 := Color(_colour.r, _colour.g, _colour.b, a1)
+		# White-hot at the head, the eye's own colour down the tail: what makes it read as fire.
+		var c0 := _flame_colour(heats[k], a0)
+		var c1 := _flame_colour(heats[k + 1], a1)
 		var l := a - side * w0
 		var r := a + side * w0
 		var l2 := b - side * w1
@@ -353,6 +367,10 @@ func _draw_eye(i: int, now: Vector3, cam: Camera3D) -> void:
 		_vert(l, c0)
 		_vert(r2, c1)
 		_vert(l2, c1)
+
+func _flame_colour(heat: float, a: float) -> Color:
+	var h := clampf(heat, 0.0, 1.0)
+	return Color(lerpf(_colour.r, 1.0, h), lerpf(_colour.g, 1.0, h), lerpf(_colour.b, 1.0, h), a)
 
 ## Two-octave value wobble in [-1, 1]: cheap (two sines, no noise object per creature) and continuous in
 ## time, which is all a flame flicker needs.
@@ -419,6 +437,20 @@ func alpha_spread() -> float:
 ## Width of the widest quad in the last build (metres), for the taper/flame check.
 func max_quad_width() -> float:
 	return _w_max
+
+## Oldest live sample of the busiest eye (where the flame's tail ends).
+func world_tail() -> Vector3:
+	var best: Vector3 = Vector3.ZERO
+	var dist := -1.0
+	for i in _pts.size():
+		var pts: Array = _pts[i]
+		if pts.is_empty() or i >= _dots.size():
+			continue
+		var d := (_dots[i] as Node3D).global_position.distance_to(pts[0])
+		if d > dist:
+			dist = d
+			best = pts[0]
+	return best
 
 ## How far the drawn ribbon rises above the newest eye point (metres): the flame's upward stream.
 func ribbon_rise() -> float:

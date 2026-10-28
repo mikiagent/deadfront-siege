@@ -397,6 +397,26 @@ func _shot_pass(dir: String) -> void:
 		cam.global_position = at + Vector3(0.0, 0.0, 2.2)
 		cam.look_at(at, Vector3.UP)
 		trail.tick(1.0 / 60.0)
+		# Also park the real game camera once: 40 m out, 15 m of screen height, the iso view.
+		if i == 79:
+			cam.size = 15.0
+			cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+			cam.rotation_degrees = Vector3(-35.264, 45.0, 0.0)
+			var mid: Vector3 = c.global_position + Vector3(0.0, float(c.def.height_meters) * 0.75, 0.0)
+			cam.global_position = mid + cam.global_basis.z * 40.0
+			await RenderingServer.frame_post_draw
+			var px := cam.unproject_position(trail.world_tail()).distance_to(
+				cam.unproject_position((eyes.dots[0] as Node3D).global_position))
+			print("[t_eyetrails] game-camera streak is %.1f px long" % px)
+			root.get_texture().get_image().save_png("%s/flame_game.png" % dir)
+			# And a side close-up of the head, bright enough to judge the flame's shape.
+			cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+			cam.size = 2.6
+			# Side on: the animal runs along +X, so the streak only reads from Z.
+			cam.global_position = (eyes.dots[0] as Node3D).global_position + Vector3(-0.35, 0.1, 1.5)
+			cam.look_at((eyes.dots[0] as Node3D).global_position, Vector3.UP)
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("%s/flame_head.png" % dir)
 		if i % 20 == 19:
 			await RenderingServer.frame_post_draw
 			var img := root.get_texture().get_image()
