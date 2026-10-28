@@ -1,35 +1,57 @@
 class_name InventoryUI
 extends Control
-## The right-side bag sheet (spec 13): profile column, a scrolling bag grid at the real capacity (one item
-## instance per slot, empty slots drawn, "used / capacity" in the header), the equipment column and
-## a storage/pet-cargo grid of the same design that opens below. Escape or Close dismisses.
+## The Bag family (owner spec 13), docked on the right over the live world (addendum 2):
+## - Bag page: header "Bag  used / capacity" (warning colour when full), a scrolling grid of one
+##   instance per slot (BagGrid: Lv., NEW, rare corner, gold brackets), and the bottom toolbar
+##   (Auto Sort, Filter, Select, Lock, Destroy; Take all on a container's tab).
+## - The item card (ItemInspectPanel) floats between the world and the bag: facts, gold / grey /
+##   green traits and only the actions valid for the selected instance (valid_actions).
+## - A container (storage box, basket, loot, a dinosaur's cargo) adds its own tab beside the Bag tab:
+##   the same grid, the card's "Transfer to ..." moves the exact instance either way.
+## - Character page (spec 13 s13-15): portrait, level and XP, Combat / Crafting / Gathering Power,
+##   My Info (Attack / Defense / Accuracy), Detailed Stats; Gear | Decorative Gear tabs, numbered
+##   presets (GearPresets) and the worn slots with faded silhouettes; a worn piece selected shows
+##   its Unequip.
+## Every control a finger presses is at least TAP px (64) tall. Escape or the close button dismisses.
 
 var inventory: Inventory
 var pet_bag: Inventory
 var _owner_player: Player
 var _selected: int = -1
+## The selected slot of the open container (its tab), -1 for none.
+var _store_sel: int = -1
 var _storage_opts: Dictionary = {}
 var _food_inspector: FoodInspector
 var _bag_inspector: BagInspect
+## "bag" or "store": which grid the Bag page shows.
+var _tab := "bag"
+## "bag" or "character".
+var _page := "bag"
 
 var _panel: Panel
+var _root: VBoxContainer
 var _title: Label
 var _grid: BagGrid
 var _pet_grid: BagGrid
 var _cap_label: Label
+var _bag_tab: Button
+var _store_tab: Button
+var _char_tab: Button
 var _storage_title: Label
 var _storage_note: Label
 var _tip: Label
-var _profile: Label
-var _tab_title: Label
-var _equip_slots: Dictionary = {}  # slot name -> Button
-var _actions: HBoxContainer
+var _card: ItemInspectPanel
+var _bag_page: VBoxContainer
+var _toolbar: HBoxContainer
+var _sort_btn: Button
+var _filter_btn: Button
 var _lock_btn: Button
 var _place_btn: Button
 var _eat_btn: Button
 var _inspect_btn: Button
 var _feed_btn: Button
 var _store_btn: Button
+var _take_btn: Button
 var _drop_btn: Button
 var _destroy_btn: Button
 var _take_all_btn: Button
@@ -41,35 +63,55 @@ var _batch_lock_btn: Button
 var _batch_drop_btn: Button
 var _batch_destroy_btn: Button
 var _batch_destroy_armed := false
+var _batch_store_btn: Button
+var _batch_take_btn: Button
 var _equip_btn: Button
 var _food1_btn: Button
 var _food2_btn: Button
 var _close_btn: Button
-var _profile_col: VBoxContainer
-var _bag_col: VBoxContainer
-var _equip_col: VBoxContainer
-var _bag_label: Label
-var _equip_label: Label
-var _equip_grid: GridContainer
-var _equip_pad: Control
-var _stat_box: VBoxContainer
-var _stat_rows: Array[Label] = []
-var _slot_px: float = 64.0
-var _action_px: float = 44.0
-var _band_no_storage := 0.0
 var _destroy_armed_index := -1
+## NEW tags (spec 13 s7): uids that entered the bag since it was bound; a tap acknowledges one,
+## closing the bag acknowledges all it showed. Loads never count (bind takes the baseline).
+var _known_uids: Dictionary = {}
+var _new_uids: Dictionary = {}
+
+# Character page
+var _char_page: HBoxContainer
+var _info_col: VBoxContainer
+var _portrait: TextureRect
+var _profile: Label
+var _level_label: Label
+var _xp_bar: ProgressBar
+var _power_rows: Array[Label] = []
+var _myinfo: Array[Label] = []
+var _power_grid: GridContainer
+var _stats_btn: Button
+var _stats_scroll: ScrollContainer
+var _stats_label: Label
+var _gear_tab: Button
+var _deco_tab: Button
+var _deco_note: Label
+var _preset_btns: Array[Button] = []
+var _equip_grid: GridContainer
+var _equip_slots: Dictionary = {}  # slot name -> Button
+var _gear_sel := ""
+var _gear_sel_label: Label
+var _unequip_btn: Button
+var _deco := false
+
+const TAP := 64.0
+const EQUIP_ORDER := ["head", "body", "arms", "legs", "weapon", "tool", "accessory1", "accessory2", "food1", "food2"]
 const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
+## Faded silhouettes for empty gear slots (spec 13 s14): a representative item's art at low alpha.
+const SILHOUETTES := {"head": &"forager_hood", "body": &"forager_vest", "arms": &"forager_wraps", "legs": &"forager_leggings", "weapon": &"stone_knife", "tool": &"work_pick", "accessory1": &"basic_bag", "accessory2": &"basic_bag", "food1": &"berry", "food2": &"berry"}
 const INK := Color(0.95, 0.95, 0.93)
+const GOLD := Color("#E6BE54")
+const PANEL := Color("#39392F")
 ## ASSUMPTION: the sheet may use 68% of the view, capped at 1120 px, so the live world remains
-## visible on the left while the existing bag and equipment controls retain usable widths.
+## visible on the left (where the item card floats) while the bag keeps usable widths.
 const SHEET_SHARE := 0.68
 const SHEET_MIN_PX := 520.0
 const SHEET_MAX_PX := 1120.0
-
-var _split: GridContainer
-var _load_row: HBoxContainer
-var _root: VBoxContainer
-var _page_scroll: ScrollContainer
 
 func _ready() -> void:
 	visible = false
@@ -80,196 +122,57 @@ func _ready() -> void:
 	_panel = Panel.new()
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_panel.add_theme_stylebox_override("panel", UiTokens.panel_style())
+	var psb := UiTokens.panel_style()
+	psb.bg_color = Color(PANEL, 0.97)
+	psb.set_corner_radius_all(3)
+	_panel.add_theme_stylebox_override("panel", psb)
 	add_child(_panel)
-	var scroll := ScrollContainer.new()
-	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_panel.add_child(scroll)
-	_page_scroll = scroll
-	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", UiTokens.SPACE)
-	_root = root
-	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.add_child(root)
+	_root = VBoxContainer.new()
+	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.offset_left = 6
+	_root.offset_top = 6
+	_root.offset_right = -6
+	_root.offset_bottom = -6
+	_root.add_theme_constant_override("separation", 6)
+	_panel.add_child(_root)
+	# Header (spec 13 s4): "Bag  91 / 100", the container's tab, Character, close.
 	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", UiTokens.SPACE)
-	root.add_child(header)
-	_title = Label.new()
-	_title.text = "CHARACTER"
-	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_title.add_theme_color_override("font_color", INK)
+	header.add_theme_constant_override("separation", 6)
+	_root.add_child(header)
+	_title = Label.new() # kept for callers that read the screen's title
+	_title.visible = false
 	header.add_child(_title)
-	_select_btn = _btn("Select", Vector2(72, 44))
-	_select_btn.pressed.connect(_on_toggle_multi)
-	header.add_child(_select_btn)
-	_close_btn = _btn("✕", Vector2(44, 44))
+	_bag_tab = _btn("Bag", Vector2(72, TAP))
+	_bag_tab.name = "BagTab"
+	_bag_tab.pressed.connect(func () -> void: _show_page("bag", "bag"))
+	header.add_child(_bag_tab)
+	_cap_label = Label.new()
+	_cap_label.name = "Capacity"
+	_cap_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_cap_label.custom_minimum_size = Vector2(76, TAP)
+	_cap_label.add_theme_color_override("font_color", INK)
+	header.add_child(_cap_label)
+	_store_tab = _btn("", Vector2(150, TAP))
+	_store_tab.name = "StoreTab"
+	_store_tab.clip_text = true
+	_store_tab.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_store_tab.pressed.connect(func () -> void: _show_page("bag", "store"))
+	header.add_child(_store_tab)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header.add_child(spacer)
+	_char_tab = _btn("Character", Vector2(112, TAP))
+	_char_tab.name = "CharacterTab"
+	_char_tab.pressed.connect(func () -> void: _show_page("character", _tab))
+	header.add_child(_char_tab)
+	_close_btn = _btn("✕", Vector2(TAP, TAP))
+	_close_btn.name = "CloseButton"
 	_close_btn.pressed.connect(hide_ui)
 	header.add_child(_close_btn)
-	var load := HBoxContainer.new()
-	load.add_theme_constant_override("separation", UiTokens.SPACE)
-	root.add_child(load)
-	_load_row = load
-	_tab_title = Label.new()
-	_tab_title.text = "GEAR  1"
-	_tab_title.add_theme_color_override("font_color", INK)
-	load.add_child(_tab_title)
-	for i in 3:
-		var loadout := _btn(str(i + 1), Vector2(44, 36))
-		loadout.disabled = i > 0
-		loadout.tooltip_text = "Active loadout" if i == 0 else "Loadout slot"
-		load.add_child(loadout)
-	_split = GridContainer.new()
-	_split.columns = 3
-	_split.add_theme_constant_override("h_separation", UiTokens.SPACE * 2)
-	_split.add_theme_constant_override("v_separation", UiTokens.SPACE * 2)
-	_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(_split)
-	var col_p := VBoxContainer.new()
-	col_p.add_theme_constant_override("separation", UiTokens.SPACE)
-	col_p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col_p.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_profile_col = col_p
-	_split.add_child(col_p)
-	_profile = Label.new()
-	_profile.clip_text = true
-	_profile.add_theme_color_override("font_color", INK)
-	_profile.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_profile.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_profile.clip_text = true
-	_profile.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_profile.custom_minimum_size = Vector2(180, 0)
-	_profile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col_p.add_child(_profile)
-	_stat_box = VBoxContainer.new()
-	_stat_box.add_theme_constant_override("separation", UiTokens.SPACE)
-	_stat_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col_p.add_child(_stat_box)
-	for _i in 4:
-		var stat := Label.new()
-		stat.add_theme_color_override("font_color", INK)
-		stat.clip_text = true
-		stat.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		stat.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_stat_box.add_child(stat)
-		_stat_rows.append(stat)
-	var col_b := VBoxContainer.new()
-	col_b.add_theme_constant_override("separation", UiTokens.SPACE)
-	col_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col_b.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_bag_col = col_b
-	_split.add_child(col_b)
-	# Spec 13 s4: "< Bag  91 / 100" in the header, from the real inventory, warning colour when full.
-	var bag_head := HBoxContainer.new()
-	bag_head.add_theme_constant_override("separation", UiTokens.SPACE)
-	col_b.add_child(bag_head)
-	_bag_label = Label.new()
-	_bag_label.text = "BAG"
-	_bag_label.add_theme_color_override("font_color", UiTokens.META)
-	bag_head.add_child(_bag_label)
-	_cap_label = Label.new()
-	_cap_label.add_theme_color_override("font_color", INK)
-	_cap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	bag_head.add_child(_cap_label)
-	_grid = BagGrid.new()
-	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_grid.selected.connect(_on_bag_slot_tapped)
-	col_b.add_child(_grid)
-	var col_e := VBoxContainer.new()
-	col_e.add_theme_constant_override("separation", UiTokens.SPACE)
-	col_e.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col_e.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_equip_col = col_e
-	_split.add_child(col_e)
-	_equip_label = Label.new()
-	_equip_label.text = "EQUIPMENT"
-	_equip_label.add_theme_color_override("font_color", UiTokens.META)
-	col_e.add_child(_equip_label)
-	_equip_pad = Control.new()
-	_equip_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	col_e.add_child(_equip_pad)
-	_equip_grid = GridContainer.new()
-	_equip_grid.columns = 3
-	_equip_grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_equip_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
-	_equip_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
-	col_e.add_child(_equip_grid)
-	var equip_order := ["head", "body", "arms", "legs", "weapon", "tool", "accessory1", "accessory2", "food1", "food2"]
-	for slot_name in equip_order:
-		var cell := VBoxContainer.new()
-		cell.add_theme_constant_override("separation", 4)
-		cell.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		var cap := Label.new()
-		cap.text = str(EQUIP_LABELS.get(slot_name, slot_name))
-		cap.add_theme_color_override("font_color", UiTokens.META)
-		cap.clip_text = true
-		cap.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		cap.custom_minimum_size = Vector2(_slot_px, 0)
-		cell.add_child(cap)
-		var b := _btn("", _slot_vec())
-		_slot_style(b)
-		b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		b.clip_text = true
-		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		b.pressed.connect(_on_equip_slot_pressed.bind(slot_name))
-		cell.add_child(b)
-		_equip_grid.add_child(cell)
-		_equip_slots[slot_name] = b
-	_tip = Label.new()
-	_tip.text = "Tap an item."
-	_tip.add_theme_color_override("font_color", INK)
-	# Not clipped: with one instance per slot its lines (level, process, attributes) are what tell
-	# two stones apart; one clipped line showed only "Stone x1..." (W2-INV bag shots).
-	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_tip.custom_minimum_size = Vector2(180, 24)
-	_tip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col_e.add_child(_tip)
-	_storage_title = Label.new()
-	_storage_title.add_theme_color_override("font_color", INK)
-	root.add_child(_storage_title)
-	_pet_grid = BagGrid.new()
-	_pet_grid.custom_minimum_size = Vector2(0, 132)
-	_pet_grid.selected.connect(_take_storage)
-	root.add_child(_pet_grid)
-	_storage_note = Label.new()
-	_storage_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_storage_note.add_theme_color_override("font_color", UiTokens.DANGER)
-	root.add_child(_storage_note)
-	_actions = HBoxContainer.new()
-	_actions.add_theme_constant_override("separation", UiTokens.SPACE)
-	root.add_child(_actions)
-	_lock_btn = _action("Lock", _toggle_lock)
-	_equip_btn = _action("EQUIP", _on_equip_pressed)
-	_food1_btn = _action("Food 1", func () -> void: _set_quick(0))
-	_food2_btn = _action("Food 2", func () -> void: _set_quick(1))
-	_inspect_btn = _action("Inspect", _on_inspect)
-	_eat_btn = _action("Eat", _on_eat_food)
-	_feed_btn = _action("Feed", _on_feed_pet)
-	_place_btn = _action("Place", _on_place_pressed)
-	_store_btn = _action("Store", _store_selected)
-	_drop_btn = _action("Drop", _drop_selected)
-	_drop_btn.name = "DropButton"
-	_destroy_btn = _action("Destroy", _destroy_selected)
-	_destroy_btn.name = "DestroyButton"
-	_destroy_btn.add_theme_color_override("font_color", UiTokens.DANGER)
-	_take_all_btn = _action("Take all", _take_all_storage)
-	_batch_row = HBoxContainer.new()
-	_batch_row.add_theme_constant_override("separation", UiTokens.SPACE)
-	root.add_child(_batch_row)
-	_batch_label = Label.new()
-	_batch_label.text = "0 selected"
-	_batch_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_batch_label.add_theme_color_override("font_color", INK)
-	_batch_label.custom_minimum_size = Vector2(120, 0)
-	_batch_row.add_child(_batch_label)
-	_batch_lock_btn = _batch_btn("Lock", _on_batch_lock)
-	_batch_drop_btn = _batch_btn("Drop", _on_batch_drop)
-	_batch_destroy_btn = _batch_btn("Destroy", _on_batch_destroy)
-	_batch_destroy_btn.add_theme_color_override("font_color", UiTokens.DANGER)
-	_batch_row.visible = false
+	_build_bag_page()
+	_build_char_page()
+	_build_card()
 	_food_inspector = FoodInspector.new()
 	_food_inspector.name = "FoodInspector"
 	add_child(_food_inspector)
@@ -290,84 +193,299 @@ func _ready() -> void:
 	_layout_safe()
 	rebuild()
 
-func _label(text: String, pos: Vector2, size_px: int) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.position = pos
-	l.add_theme_font_size_override("font_size", size_px)
-	l.add_theme_color_override("font_color", INK)
-	_panel.add_child(l)
-	return l
+func _build_bag_page() -> void:
+	_bag_page = VBoxContainer.new()
+	_bag_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_bag_page.add_theme_constant_override("separation", 6)
+	_root.add_child(_bag_page)
+	_storage_title = Label.new() # the container's name lives on its tab; kept for callers
+	_storage_title.visible = false
+	_bag_page.add_child(_storage_title)
+	_storage_note = Label.new()
+	_storage_note.add_theme_color_override("font_color", UiTokens.DANGER)
+	_storage_note.clip_text = true
+	_storage_note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_bag_page.add_child(_storage_note)
+	_grid = BagGrid.new()
+	_grid.name = "BagGrid"
+	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_grid.selected.connect(_on_bag_slot_tapped)
+	_bag_page.add_child(_grid)
+	_pet_grid = BagGrid.new()
+	_pet_grid.name = "StoreGrid"
+	_pet_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_pet_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_pet_grid.selected.connect(_on_store_slot_tapped)
+	_pet_grid.visible = false
+	_bag_page.add_child(_pet_grid)
+	_tip = Label.new()
+	_tip.text = "Tap an item."
+	_tip.add_theme_color_override("font_color", UiTokens.META)
+	_tip.clip_text = true
+	_tip.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_bag_page.add_child(_tip)
+	# Bottom toolbar (spec 13 s9): wide Auto Sort, then Filter, Select, Lock and the trash.
+	_toolbar = HBoxContainer.new()
+	_toolbar.name = "Toolbar"
+	_toolbar.add_theme_constant_override("separation", 6)
+	_bag_page.add_child(_toolbar)
+	_sort_btn = _btn("Auto Sort", Vector2(120, TAP))
+	_sort_btn.name = "SortButton"
+	_sort_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sort_btn.pressed.connect(_on_sort)
+	_toolbar.add_child(_sort_btn)
+	_filter_btn = _btn("All", Vector2(92, TAP))
+	_filter_btn.name = "FilterButton"
+	_filter_btn.pressed.connect(_on_filter)
+	_toolbar.add_child(_filter_btn)
+	_batch_label = Label.new()
+	_batch_label.text = "0 selected"
+	_batch_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_batch_label.add_theme_color_override("font_color", INK)
+	_batch_label.custom_minimum_size = Vector2(96, TAP)
+	_batch_label.visible = false
+	_toolbar.add_child(_batch_label)
+	_select_btn = _btn("Select", Vector2(84, TAP))
+	_select_btn.name = "SelectButton"
+	_select_btn.pressed.connect(_on_toggle_multi)
+	_toolbar.add_child(_select_btn)
+	_lock_btn = _btn("Lock", Vector2(80, TAP))
+	_lock_btn.name = "LockButton"
+	_lock_btn.pressed.connect(_toggle_lock)
+	_toolbar.add_child(_lock_btn)
+	_destroy_btn = _btn("Destroy", Vector2(92, TAP))
+	_destroy_btn.name = "DestroyButton"
+	_destroy_btn.add_theme_color_override("font_color", UiTokens.DANGER)
+	_destroy_btn.pressed.connect(_destroy_selected)
+	_toolbar.add_child(_destroy_btn)
+	_take_all_btn = _btn("Take all", Vector2(100, TAP))
+	_take_all_btn.name = "TakeAllButton"
+	_take_all_btn.pressed.connect(_take_all_storage)
+	_toolbar.add_child(_take_all_btn)
+	# Select mode's batch actions share the toolbar row (they replace sort, filter, lock and trash).
+	_batch_row = _toolbar
+	_batch_lock_btn = _btn("Lock", Vector2(80, TAP))
+	_batch_lock_btn.pressed.connect(_on_batch_lock)
+	_toolbar.add_child(_batch_lock_btn)
+	_batch_drop_btn = _btn("Drop", Vector2(80, TAP))
+	_batch_drop_btn.pressed.connect(_on_batch_drop)
+	_toolbar.add_child(_batch_drop_btn)
+	_batch_destroy_btn = _btn("Destroy", Vector2(92, TAP))
+	_batch_destroy_btn.add_theme_color_override("font_color", UiTokens.DANGER)
+	_batch_destroy_btn.pressed.connect(_on_batch_destroy)
+	_toolbar.add_child(_batch_destroy_btn)
+	_batch_store_btn = _btn("Store", Vector2(84, TAP))
+	_batch_store_btn.name = "BatchStoreButton"
+	_batch_store_btn.pressed.connect(_on_batch_store)
+	_toolbar.add_child(_batch_store_btn)
+	_batch_take_btn = _btn("Transfer to Bag", Vector2(150, TAP))
+	_batch_take_btn.name = "BatchTakeButton"
+	_batch_take_btn.pressed.connect(_on_batch_take)
+	_toolbar.add_child(_batch_take_btn)
+	# Hold-and-drag selection (owner 2026-10-27): a long press or a Shift-press on either grid
+	# enters Select mode there; painting the cells updates the "N selected" count.
+	for g: BagGrid in [_grid, _pet_grid]:
+		g.multi_started.connect(func () -> void: _set_multi_mode(true))
+		g.multi_changed.connect(func () -> void: _disarm_batch_destroy(); _update_batch_bar())
+
+func _build_card() -> void:
+	_card = ItemInspectPanel.new()
+	_card.z_index = 1
+	add_child(_card)
+	_equip_btn = _action("Equip", _on_equip_pressed)
+	_eat_btn = _action("Eat", _on_eat_food)
+	_inspect_btn = _action("Inspect", _on_inspect)
+	_food1_btn = _action("Food 1", func () -> void: _set_quick(0))
+	_food2_btn = _action("Food 2", func () -> void: _set_quick(1))
+	_feed_btn = _action("Feed", _on_feed_pet)
+	_place_btn = _action("Place", _on_place_pressed)
+	_store_btn = _action("Store", _store_selected)
+	_store_btn.name = "StoreButton"
+	_take_btn = _action("Transfer to Bag", func () -> void: _take_storage(_store_sel))
+	_take_btn.name = "TakeButton"
+	_drop_btn = _action("Drop", _drop_selected)
+	_drop_btn.name = "DropButton"
+
+func _build_char_page() -> void:
+	_char_page = HBoxContainer.new()
+	_char_page.name = "CharacterPage"
+	_char_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_char_page.add_theme_constant_override("separation", 10)
+	_char_page.visible = false
+	_root.add_child(_char_page)
+	_info_col = VBoxContainer.new()
+	_info_col.add_theme_constant_override("separation", 4)
+	_char_page.add_child(_info_col)
+	var who := HBoxContainer.new()
+	who.add_theme_constant_override("separation", 8)
+	_info_col.add_child(who)
+	_portrait = TextureRect.new()
+	_portrait.name = "Portrait"
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_portrait.custom_minimum_size = Vector2(TAP, TAP)
+	who.add_child(_portrait)
+	_profile = Label.new()
+	_profile.name = "Profile"
+	_profile.clip_text = true
+	_profile.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_profile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_profile.add_theme_color_override("font_color", INK)
+	who.add_child(_profile)
+	_level_label = Label.new()
+	_level_label.add_theme_color_override("font_color", INK)
+	_info_col.add_child(_level_label)
+	_xp_bar = ProgressBar.new()
+	_xp_bar.name = "XpBar"
+	_xp_bar.show_percentage = false
+	_xp_bar.max_value = 1.0
+	_xp_bar.custom_minimum_size = Vector2(0, 8)
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color("#0C0F0C")
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Color("#3E8E3A")
+	_xp_bar.add_theme_stylebox_override("background", track)
+	_xp_bar.add_theme_stylebox_override("fill", fill)
+	_info_col.add_child(_xp_bar)
+	# Powers (left) beside My Info (spec 13 s15: Attack / Defense / Accuracy, right), one row each.
+	_power_grid = GridContainer.new()
+	_power_grid.name = "MyInfo"
+	_power_grid.columns = 2
+	_power_grid.add_theme_constant_override("h_separation", 10)
+	_power_grid.add_theme_constant_override("v_separation", 2)
+	_info_col.add_child(_power_grid)
+	for _i in 3:
+		var l := Label.new()
+		l.add_theme_color_override("font_color", INK)
+		l.clip_text = true
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_power_grid.add_child(l)
+		_power_rows.append(l)
+		var m := Label.new()
+		m.add_theme_color_override("font_color", GOLD)
+		_power_grid.add_child(m)
+		_myinfo.append(m)
+	_stats_scroll = ScrollContainer.new()
+	_stats_scroll.name = "DetailedStats"
+	_stats_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_stats_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_stats_scroll.visible = false
+	_info_col.add_child(_stats_scroll)
+	_stats_label = Label.new()
+	_stats_label.add_theme_color_override("font_color", INK)
+	_stats_scroll.add_child(_stats_label)
+	_stats_btn = _btn("Detailed Stats", Vector2(0, TAP))
+	_stats_btn.name = "DetailedStatsButton"
+	_stats_btn.pressed.connect(_toggle_stats)
+	_info_col.add_child(_stats_btn)
+	# Right: Gear | Decorative Gear, presets, the worn slots, the selected piece and Unequip.
+	var gear := VBoxContainer.new()
+	gear.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gear.add_theme_constant_override("separation", 6)
+	_char_page.add_child(gear)
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 4)
+	gear.add_child(tabs)
+	_gear_tab = _btn("Gear", Vector2(88, TAP))
+	_gear_tab.pressed.connect(func () -> void: _deco = false; _refresh_character())
+	tabs.add_child(_gear_tab)
+	_deco_tab = _btn("Decorative", Vector2(104, TAP))
+	_deco_tab.pressed.connect(func () -> void: _deco = true; _refresh_character())
+	tabs.add_child(_deco_tab)
+	for k in GearPresets.count():
+		var b := _btn(str(k + 1), Vector2(TAP, TAP))
+		b.name = "Preset%d" % (k + 1)
+		b.pressed.connect(_on_preset.bind(k))
+		tabs.add_child(b)
+		_preset_btns.append(b)
+	_equip_grid = GridContainer.new()
+	_equip_grid.columns = 5
+	_equip_grid.add_theme_constant_override("h_separation", 6)
+	_equip_grid.add_theme_constant_override("v_separation", 6)
+	gear.add_child(_equip_grid)
+	for slot_name: String in EQUIP_ORDER:
+		var b := _btn("", Vector2(TAP, TAP))
+		b.name = "Equip_%s" % slot_name
+		b.clip_text = true
+		b.expand_icon = true
+		b.pressed.connect(_on_equip_slot_pressed.bind(slot_name))
+		_equip_grid.add_child(b)
+		_equip_slots[slot_name] = b
+	# ASSUMPTION: the game has no decorative (cosmetic) gear yet, so its tab says so instead of
+	# inventing slots (spec 13 s13: only what the game supports).
+	_deco_note = Label.new()
+	_deco_note.text = "No decorative gear yet."
+	_deco_note.add_theme_color_override("font_color", UiTokens.META)
+	_deco_note.visible = false
+	gear.add_child(_deco_note)
+	var sel := HBoxContainer.new()
+	sel.add_theme_constant_override("separation", 6)
+	gear.add_child(sel)
+	_gear_sel_label = Label.new()
+	_gear_sel_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_gear_sel_label.clip_text = true
+	_gear_sel_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_gear_sel_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_gear_sel_label.custom_minimum_size = Vector2(0, TAP)
+	_gear_sel_label.add_theme_color_override("font_color", INK)
+	sel.add_child(_gear_sel_label)
+	_unequip_btn = _btn("Unequip", Vector2(112, TAP))
+	_unequip_btn.name = "UnequipButton"
+	_unequip_btn.pressed.connect(_on_unequip_pressed)
+	sel.add_child(_unequip_btn)
 
 func _btn(text: String, minsz: Vector2) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = minsz
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
+	b.focus_mode = Control.FOCUS_NONE
 	return b
 
+## A card action: hidden until valid_actions lists it for the selection.
 func _action(text: String, cb: Callable) -> Button:
-	var b := _btn(text, Vector2(0, _action_px))
+	var b := _btn(text, Vector2(0, TAP))
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.clip_text = true
+	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	b.pressed.connect(cb)
 	b.visible = false
-	_actions.add_child(b)
+	_card.actions.add_child(b)
 	return b
 
-## Batch-bar button: same height as the action row but never hidden by _select — that row is the
-## single-selection row, these act only on the marked batch.
-func _batch_btn(text: String, cb: Callable) -> Button:
-	var b := _btn(text, Vector2(0, _action_px))
-	b.pressed.connect(cb)
-	_batch_row.add_child(b)
-	return b
-
-func _slot_style(b: Button, selected: bool = false) -> void:
-	var sb := UiTokens.slot_style(selected)
-	b.add_theme_stylebox_override("normal", sb)
-	var hov := sb.duplicate() as StyleBoxFlat
-	hov.bg_color = Color(0.16, 0.18, 0.2, 1.0)
-	b.add_theme_stylebox_override("hover", hov)
-	b.add_theme_stylebox_override("pressed", UiTokens.slot_style(true))
-	b.add_theme_stylebox_override("disabled", sb) # an empty slot stays a visible compartment
-	b.add_theme_color_override("font_color", UiTokens.TEXT)
-	_fit_slot(b)
-
-## Icon and caption grow with the slot: desktop slots are twice the phone's 64 px, where a 36 px
-## icon and 12 px caption read as specks (W2-INV bag shots).
-func _fit_slot(b: Button) -> void:
-	b.add_theme_font_size_override("font_size", clampi(int(_slot_px / 8.0), 12, UiTokens.body(get_viewport_rect().size)))
-	b.add_theme_constant_override("icon_max_width", maxi(36, int(_slot_px * 0.45)))
-
-func _slot_vec() -> Vector2:
-	return Vector2(_slot_px, _slot_px)
-
-func _equip_slot(slot: String, pos: Vector2) -> void:
-	var b := _btn("", _slot_vec())
-	b.position = pos
-	_slot_style(b)
-	var sname: String = slot
-	b.pressed.connect(func () -> void: _on_equip_slot_pressed(sname))
-	_panel.add_child(b)
-	_equip_slots[slot] = b
-	var cap := Label.new()
-	cap.text = str(EQUIP_LABELS.get(slot, slot))
-	cap.position = pos + Vector2(2, -15)
-	cap.add_theme_font_size_override("font_size", 10)
-	cap.add_theme_color_override("font_color", Color(0.35, 0.35, 0.37))
-	_panel.add_child(cap)
+## Active tab / preset: gold with dark text; the rest stay dark.
+func _tab_style(b: Button, on: bool) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = GOLD if on else Color("#26322C")
+	sb.set_corner_radius_all(2)
+	sb.set_content_margin_all(6)
+	for st in ["normal", "hover", "pressed", "focus"]:
+		b.add_theme_stylebox_override(st, sb)
+	b.add_theme_color_override("font_color", Color("#1B1A14") if on else INK)
+	b.add_theme_color_override("font_hover_color", Color("#1B1A14") if on else INK)
 
 # ---------------------------------------------------------------- open / close
 
 func bind(inv: Inventory, owner_player: Player = null) -> void:
 	inventory = inv
 	_owner_player = owner_player
+	_known_uids = _all_uids()
+	_new_uids.clear()
 	inventory.changed.connect(rebuild)
 	rebuild()
 
 func hide_ui() -> void:
+	if visible:
+		_new_uids.clear() # seen: closing the bag acknowledges what it showed
 	visible = false
 	pet_bag = null
 	_storage_opts = {}
+	_store_sel = -1
+	_tab = "bag"
+	_page = "bag"
+	if _card:
+		_card.hide_card()
 	_set_multi_mode(false)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -376,12 +494,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func show_pet_bag(rec: PetRecord) -> void:
-	pet_bag = rec.bag
-	_storage_opts = {"title": "Pet bag", "take_all": false, "allow_deposit": true}
-	if pet_bag and not pet_bag.changed.is_connected(rebuild):
-		pet_bag.changed.connect(rebuild)
-	visible = true
-	rebuild()
+	# Spec 13 s17: a bonded dinosaur's cargo is the same grid on its own tab.
+	show_storage(rec.bag, null, {"title": "%s cargo" % rec.name if rec.name != "" else "Pet bag", "take_all": false, "allow_deposit": true})
 
 func show_storage(inv: Inventory, owner_player: Player = null, opts: Dictionary = {}) -> void:
 	pet_bag = inv
@@ -390,48 +504,50 @@ func show_storage(inv: Inventory, owner_player: Player = null, opts: Dictionary 
 		_owner_player = owner_player
 	if pet_bag and not pet_bag.changed.is_connected(rebuild):
 		pet_bag.changed.connect(rebuild)
+	_store_sel = -1
+	_tab = "store" if pet_bag else "bag"
+	_page = "bag"
 	visible = true
 	rebuild()
 
+func _show_page(page: String, tab: String) -> void:
+	_page = page
+	_tab = tab if pet_bag != null else "bag"
+	_set_multi_mode(false)
+	_layout_safe()
+	rebuild()
+
+## The sheet: the Bag page docks on the right (the world and the item card on its left); the
+## Character page takes the whole view like the reference.
 func _layout_safe() -> void:
 	if _panel == null:
 		return
 	var r := get_viewport_rect().size
 	var safe := UiTokens.safe_insets(get_viewport())
-	var sheet := side_sheet_rect(r, safe)
+	var sheet := side_sheet_rect(r, safe) if _page == "bag" else full_rect(r, safe)
 	_panel.offset_left = sheet.position.x
 	_panel.offset_top = sheet.position.y
 	_panel.offset_right = sheet.end.x - r.x
 	_panel.offset_bottom = sheet.end.y - r.y
-	_panel.scale = Vector2.ONE
-	if _split:
-		_split.columns = 1 if UiTokens.is_phone(r) else 3
-	var head := UiTokens.heading(r)
-	var body := UiTokens.body(r)
-	if _title:
-		_title.add_theme_font_size_override("font_size", head)
-	if _tab_title:
-		_tab_title.add_theme_font_size_override("font_size", body)
-	if _profile:
-		_profile.add_theme_font_size_override("font_size", body)
-	if _tip:
-		_tip.add_theme_font_size_override("font_size", UiTokens.meta(r))
-		_tip.custom_minimum_size = Vector2(180, UiTokens.meta(r) + UiTokens.SPACE * 2)
-	if _storage_title:
-		_storage_title.add_theme_font_size_override("font_size", body)
-	if _storage_note:
-		_storage_note.add_theme_font_size_override("font_size", UiTokens.meta(r))
-	if _profile:
-		_profile.add_theme_constant_override("line_spacing", UiTokens.SPACE)
-	if _bag_label:
-		_bag_label.add_theme_font_size_override("font_size", UiTokens.meta(r))
-	if _equip_label:
-		_equip_label.add_theme_font_size_override("font_size", UiTokens.meta(r))
-	for stat in _stat_rows:
-		stat.add_theme_font_size_override("font_size", body)
-	_apply_slot_metrics(r, safe)
-	if inventory != null:
-		_refresh_profile()
+	var compact := UiTokens.is_compact(r)
+	var body := 14 if compact else UiTokens.body(r)
+	for b: Button in _all_buttons():
+		b.add_theme_font_size_override("font_size", body)
+	for l: Label in [_cap_label, _tip, _storage_note, _profile, _level_label, _stats_label, _gear_sel_label, _deco_note] + _power_rows + _myinfo:
+		if l:
+			l.add_theme_font_size_override("font_size", body)
+			l.add_theme_constant_override("line_spacing", 0) # the game theme's spacing made each line 29 px
+	_cap_label.add_theme_font_size_override("font_size", 18 if compact else 26)
+	var cell := 64.0 if compact else clampf(floorf((sheet.size.x - 12.0 - 6.0 * 7.0) / 8.0), 64.0, 120.0)
+	_grid.cell_px = cell
+	_pet_grid.cell_px = cell
+	_info_col.custom_minimum_size = Vector2(320.0 if compact else 460.0, 0)
+	# Icon over the slot's name inside a 64 px cell (the art's own size made the gear rows 93 px).
+	for b: Button in _equip_slots.values():
+		b.add_theme_constant_override("icon_max_width", 30 if compact else 56)
+		b.custom_minimum_size = Vector2(TAP, TAP) if compact else Vector2(96, 96)
+	_card.set_scale_for(r)
+	_layout_card()
 
 static func side_sheet_rect(view: Vector2, safe: Vector4 = Vector4.ZERO) -> Rect2:
 	var left := 12.0 + safe.w
@@ -442,13 +558,52 @@ static func side_sheet_rect(view: Vector2, safe: Vector4 = Vector4.ZERO) -> Rect
 	var width := minf(available, clampf(view.x * SHEET_SHARE, SHEET_MIN_PX, SHEET_MAX_PX))
 	return Rect2(Vector2(right - width, top), Vector2(width, maxf(0.0, bottom - top)))
 
+static func full_rect(view: Vector2, safe: Vector4 = Vector4.ZERO) -> Rect2:
+	var p := Vector2(12.0 + safe.w, 12.0 + safe.z)
+	return Rect2(p, Vector2(maxf(0.0, view.x - 24.0 - safe.w - safe.x), maxf(0.0, view.y - 24.0 - safe.z - safe.y)))
+
+## Where the item card sits: between the world's left edge and the docked bag (addendum 2), or over
+## the bag's left half when the world strip is too narrow for it.
+static func card_rect(view: Vector2, safe: Vector4 = Vector4.ZERO) -> Rect2:
+	var sheet := side_sheet_rect(view, safe)
+	var left := 12.0 + safe.w
+	var free := sheet.position.x - 8.0 - left
+	if free >= 220.0:
+		return Rect2(Vector2(left, sheet.position.y), Vector2(minf(free, 400.0), sheet.size.y))
+	return Rect2(sheet.position, Vector2(minf(sheet.size.x * 0.5, 320.0), sheet.size.y))
+
+## Sizes the card to its content, never taller than its rect (its facts scroll inside).
+func _layout_card() -> void:
+	if _card == null:
+		return
+	var view := get_viewport_rect().size
+	var r := card_rect(view, UiTokens.safe_insets(get_viewport()))
+	_card.actions.columns = 2 if r.size.x < 320.0 else 3
+	_card.position = r.position
+	_card.custom_minimum_size = Vector2(r.size.x, 0)
+	_card.fit(r.size.y)
+
+func _all_buttons() -> Array[Button]:
+	var out: Array[Button] = [_bag_tab, _store_tab, _char_tab, _close_btn, _sort_btn, _filter_btn, _select_btn, _lock_btn,
+		_destroy_btn, _take_all_btn, _batch_lock_btn, _batch_drop_btn, _batch_destroy_btn, _stats_btn, _gear_tab, _deco_tab,
+		_unequip_btn, _batch_store_btn, _batch_take_btn, _equip_btn, _eat_btn, _inspect_btn, _food1_btn, _food2_btn, _feed_btn, _place_btn, _store_btn, _take_btn, _drop_btn]
+	out.append_array(_preset_btns)
+	for b: Button in _equip_slots.values():
+		out.append(b)
+	return out
+
 # ---------------------------------------------------------------- rebuild
 
 func rebuild() -> void:
 	if inventory == null:
 		return
-	_refresh_profile()
-	_refresh_equipped()
+	_track_new()
+	if _grid == null:
+		return
+	var has_storage := pet_bag != null
+	if not has_storage:
+		_tab = "bag"
+	_grid.new_uids = _new_uids
 	_grid.bind(inventory)
 	_grid.set_selected(_selected)
 	# The header keeps "used / capacity" from the data (spec 13 s4); full is a warning colour.
@@ -456,61 +611,89 @@ func rebuild() -> void:
 	var cap := inventory.capacity()
 	_cap_label.text = "%d / %d" % [used, cap]
 	_cap_label.add_theme_color_override("font_color", UiTokens.DANGER if used >= cap else INK)
-	var has_storage := pet_bag != null
-	_pet_grid.visible = has_storage
-	# With a box/pet cargo open the bag keeps a four-row band and the box sits under it (both
-	# scroll), so the transfer screen shows both grids. With no box the bag takes the height.
-	var compact_view := UiTokens.is_compact(get_viewport_rect().size)
-	if _page_scroll:
-		# A box open at either size: the bag and the box each keep a band and the page scrolls to the
-		# box (the panel is shorter than two bands on desktop too).
-		_page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if has_storage else ScrollContainer.SCROLL_MODE_DISABLED
-	if _equip_col:
-		_equip_col.visible = true
-	if _split:
-		_split.columns = 2 if compact_view else 3
-		# A short canvas or a box open: the split takes only its band, so the box and the action row
-		# stay inside the panel instead of being pushed off the bottom.
-		_split.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if (has_storage or compact_view) else Control.SIZE_EXPAND_FILL
-	# The columns must shrink with it; an EXPAND_FILL child keeps the row tall (the gear grid).
-	if _equip_col:
-		_equip_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
-	if _profile_col:
-		_profile_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
-	# A short canvas never expands the split: its band comes from _apply_slot_metrics and the rest of
-	# the panel belongs to the action row.
-	var shrink := has_storage or compact_view
-	if _bag_col:
-		_bag_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if shrink else Control.SIZE_EXPAND_FILL
-	if _equip_col and compact_view:
-		_equip_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	if _grid:
-		_grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if shrink else Control.SIZE_EXPAND_FILL
-		# A box open: the bag keeps a fixed band (about two phone rows / two desktop rows) and the
-		# box gets the same band below it; both grids keep their own scrollbars and the page scrolls
-		# when the panel is shorter than the two.
-		var band_px := 148.0 if compact_view else 360.0
-		if has_storage:
-			_grid.custom_minimum_size = Vector2(0, band_px)
-			_pet_grid.custom_minimum_size = Vector2(0, band_px)
-		elif compact_view:
-			# The bag band is what the header and the action row leave of the panel, so the row is
-			# never clipped (844x390 measured it at 2-3 rows of 64 px).
-			_grid.custom_minimum_size = Vector2(0, _band_no_storage)
-		else:
-			_grid.custom_minimum_size = Vector2.ZERO
+	_store_tab.visible = has_storage
 	if has_storage:
-		_pet_grid.readonly = _readonly_reason() != ""
+		_store_tab.text = "%s %d / %d" % [str(_storage_opts.get("title", "Storage")), pet_bag.used_slots(), pet_bag.slot_count]
+		_pet_grid.readonly = false # a take-only box still selects; its card says why it cannot take
 		_pet_grid.bind(pet_bag)
+		_pet_grid.set_selected(_store_sel)
 	_storage_title.text = str(_storage_opts.get("title", "")) if has_storage else ""
-	_storage_title.visible = has_storage and _storage_title.text != ""
-	_storage_note.visible = has_storage
+	_title.text = "Bag" if not has_storage else "Bag  ·  %s" % _storage_title.text
+	var on_bag := _page == "bag"
+	_bag_page.visible = on_bag
+	_char_page.visible = not on_bag
+	_grid.visible = on_bag and _tab == "bag"
+	_pet_grid.visible = on_bag and _tab == "store"
 	_storage_note.text = _readonly_reason()
-	_take_all_btn.visible = has_storage and bool(_storage_opts.get("take_all", false))
+	_storage_note.visible = on_bag and _tab == "store" and _storage_note.text != ""
+	_tab_style(_bag_tab, on_bag and _tab == "bag")
+	_tab_style(_store_tab, on_bag and _tab == "store")
+	_tab_style(_char_tab, not on_bag)
 	_take_all_btn.disabled = _readonly_reason() != "" or pet_bag == null or pet_bag.used_slots() <= 0
-	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
-	_select(_selected)
+	_update_toolbar()
+	if on_bag:
+		if _tab == "store":
+			_select_store(_store_sel)
+		else:
+			_select(_selected)
+	else:
+		_card.hide_card()
+		_refresh_character()
 	_update_batch_bar()
+
+## Toolbar for the active tab: the bag's tools, or the container's Take all.
+func _update_toolbar() -> void:
+	var store := _tab == "store"
+	var g := _active_grid()
+	var multi := g != null and g.multi_mode
+	_sort_btn.text = "Auto Sort: %s" % str(BagGrid.SORT_LABELS.get(g.sort_key, "Bag order"))
+	_filter_btn.text = str(BagGrid.FILTER_LABELS.get(g.filter_id, "All"))
+	_sort_btn.visible = not multi
+	_filter_btn.visible = not multi
+	_select_btn.visible = true
+	_lock_btn.visible = not store and not multi
+	_destroy_btn.visible = not store and not multi
+	_take_all_btn.visible = store and bool(_storage_opts.get("take_all", false))
+	for b: Button in [_batch_lock_btn, _batch_drop_btn, _batch_destroy_btn]:
+		b.visible = multi and not store
+	_batch_store_btn.visible = multi and not store and pet_bag != null and bool(_storage_opts.get("allow_deposit", false)) and _readonly_reason() == ""
+	_batch_take_btn.visible = multi and store
+	_take_all_btn.visible = _take_all_btn.visible and not multi
+	_batch_label.visible = multi
+
+func _active_grid() -> BagGrid:
+	return _pet_grid if _tab == "store" and pet_bag != null else _grid
+
+func _on_sort() -> void:
+	var g := _active_grid()
+	g.sort_key = BagGrid.SORTS[(BagGrid.SORTS.find(g.sort_key) + 1) % BagGrid.SORTS.size()]
+	g.rebuild()
+	_update_toolbar()
+
+func _on_filter() -> void:
+	var g := _active_grid()
+	g.filter_id = BagGrid.FILTERS[(BagGrid.FILTERS.find(g.filter_id) + 1) % BagGrid.FILTERS.size()]
+	g.rebuild()
+	_update_toolbar()
+
+## Every uid this survivor owns now: the bag and worn gear (unequipping is not "new").
+func _all_uids() -> Dictionary:
+	var out := inventory.uids() if inventory else {}
+	if inventory:
+		for v: Variant in inventory.equipment.values():
+			if v is ItemStack and (v as ItemStack).uid != "":
+				out[(v as ItemStack).uid] = true
+	return out
+
+func _track_new() -> void:
+	var now := _all_uids()
+	for uid: Variant in inventory.uids():
+		if not _known_uids.has(uid):
+			_new_uids[uid] = true
+	for uid: Variant in _new_uids.keys():
+		if not now.has(uid):
+			_new_uids.erase(uid)
+	_known_uids = now
 
 ## A tap on a compartment: select that exact instance (one item per slot); in Select mode it
 ## toggles the batch membership instead (Feature A).
@@ -522,276 +705,244 @@ func _on_bag_slot_tapped(index: int) -> void:
 		return
 	_select(index)
 
-func _refresh_profile() -> void:
-	if _profile == null or inventory == null:
-		return
-	var view := get_viewport_rect().size
-	var body_px := UiTokens.body(view)
-	var name := _owner_player.display_name() if _owner_player else (World.player_name if World.player_name != "" else "Survivor")
-	var occupation := World.occupation.capitalize() if World.occupation != "" else "Survivor"
-	var hp: float = _owner_player.vitals.health if _owner_player and _owner_player.vitals else 0.0
-	var energy: float = _owner_player.vitals.energy if _owner_player and _owner_player.vitals else 0.0
-	var gathering: int = _owner_player.skills.level_of("gathering") if _owner_player and _owner_player.skills else 0
-	var font := ThemeDB.fallback_font
-	var name_w := _name_column_width(view)
-	name = UiTokens.ellipsis(font, name, name_w, body_px)
-	_profile.add_theme_font_size_override("font_size", body_px)
-	_profile.add_theme_constant_override("line_spacing", UiTokens.SPACE)
-	var floor_w := 120.0 if UiTokens.is_compact(view) else 180.0
-	_profile.custom_minimum_size = Vector2(minf(floor_w, name_w), body_px * 3 + UiTokens.SPACE * 2)
-	# The held title sits under the name from character creation on (level 1 holds "Venture into the World").
-	var title := UiTokens.ellipsis(font, LevelDisplay.current_title(LevelDisplay.player_level()), name_w, body_px)
-	_profile.text = "%s\n%s\n%s  ·  %s" % [name, title, occupation, LevelDisplay.player_label()]
-	var lines: PackedStringArray = [
-		"HP        %.0f" % hp,
-		"Energy    %.0f" % energy,
-		"Gathering %d" % gathering,
-		"Bag       %d / %d" % [inventory.used_slots(), inventory.slot_count],
-	]
-	for i in _stat_rows.size():
-		_stat_rows[i].text = lines[i] if i < lines.size() else ""
-		_stat_rows[i].add_theme_font_size_override("font_size", body_px)
+func _on_store_slot_tapped(index: int) -> void:
+	_select_store(index)
 
-func _name_column_width(view: Vector2) -> float:
-	var safe := UiTokens.safe_insets(get_viewport())
-	var panel_w := side_sheet_rect(view, safe).size.x
-	if UiTokens.is_phone(view):
-		return maxf(160.0, panel_w - 8.0)
-	var used := 0.0
-	if _bag_col:
-		used += _bag_col.custom_minimum_size.x
-	if _equip_col:
-		used += _equip_col.custom_minimum_size.x
-	used += float(UiTokens.SPACE) * 4.0
-	return maxf(180.0, panel_w - used - 8.0)
+## The actions valid for one instance, by what it is and where it sits (spec 13 s10: "only show
+## valid actions"). ctx: {where: "bag"|"store", pet: bool, deposit: bool (an open container takes
+## it), take: bool (the container lets it out), world: bool}. Lock and Destroy live on the toolbar.
+static func valid_actions(stack: ItemStack, ctx: Dictionary = {}) -> Array[String]:
+	var out: Array[String] = []
+	if stack == null or stack.def_id == Inventory.LOCK:
+		return out
+	if str(ctx.get("where", "bag")) == "store":
+		if bool(ctx.get("take", true)):
+			out.append("take")
+		return out
+	var d := stack.def()
+	var food := Food.is_food(stack)
+	if food:
+		out.append_array(["eat", "food1", "food2", "inspect"])
+		if bool(ctx.get("pet", false)):
+			out.append("feed")
+	elif BagCapacity.is_bag(stack.def_id):
+		out.append("inspect")
+	if Inventory.slot_for(d) != &"" or (d != null and d.tool_class != &"" and d.tool_class != &"none"):
+		out.append("equip")
+	if d != null and d.place_as != &"":
+		out.append("place")
+	if bool(ctx.get("deposit", false)):
+		out.append("store")
+	out.append("drop")
+	return out
 
-## Compartments are at least 64 px (spec: phone tap target); the bag column takes the rest of the
-## width and scrolls. A compact landscape canvas (844x390) keeps a narrow profile column.
-func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
-	var sep := float(UiTokens.SPACE)
-	var compact := UiTokens.is_compact(view)
-	var sheet := side_sheet_rect(view, safe)
-	var panel_w := maxf(280.0, sheet.size.x)
-	var panel_h := maxf(280.0, sheet.size.y)
-	var slot := 64.0
-	var equip_cols := 4
-	var equip_slot := 64.0
-	_action_px = 44.0
-	if compact:
-		# Phone landscape is short: five equipment columns of 56 px fit ten slots in two rows
-		# (the bag keeps its 64 px compartments).
-		equip_cols = 5
-		# Two rows of 56 px gear leave the split's band enough height for the tip, so the 64 px action
-		# row stays inside the panel at 390 px.
-		equip_slot = 56.0
-		if _bag_col:
-			_bag_col.custom_minimum_size = Vector2.ZERO
-			_bag_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		if _split:
-			_split.columns = 2 # profile folded away: bag and equipment side by side
-			_split.add_theme_constant_override("h_separation", 4)
-			_split.add_theme_constant_override("v_separation", 4)
-		if _load_row:
-			_load_row.visible = false
-		for stat in _stat_rows:
-			stat.visible = false
-		# One tip line at 390 px: the item text wraps, and the second line is what pushed the 64 px
-		# action row past the panel bottom (measured: split min 276 px vs 252 px available).
-		if _tip:
-			_tip.custom_minimum_size = Vector2(120, float(UiTokens.meta(view)) + 4.0)
-			_tip.max_lines_visible = 1
-		# The action buttons (Lock/Equip/...) get their own touch-height row (>= 64 px, the mobile
-		# tap target) and the split keeps only what is left, so the row is never clipped at 390 px.
-		_action_px = 64.0
-		if _actions:
-			_actions.custom_minimum_size = Vector2(0, _action_px)
-		if _root:
-			_root.add_theme_constant_override("separation", 4)
-		if _close_btn:
-			_close_btn.custom_minimum_size = Vector2(44, 40)
-		var profile_w := 120.0
-		# Phone landscape is 390 px high: the profile column folds away (its facts are on the
-		# Character sheet) so the bag and a 64 px equipment grid both fit without overlapping.
-		if _profile_col:
-			_profile_col.visible = false
-			_profile_col.custom_minimum_size = Vector2.ZERO
-		if _equip_col:
-			var step := 4.0
-			_equip_grid.add_theme_constant_override("h_separation", int(step))
-			_equip_grid.add_theme_constant_override("v_separation", int(step))
-			_equip_col.custom_minimum_size = Vector2(float(equip_cols) * equip_slot + step * float(equip_cols - 1), 0)
-			_equip_col.size_flags_horizontal = Control.SIZE_SHRINK_END
+func _action_buttons() -> Dictionary:
+	return {"eat": _eat_btn, "food1": _food1_btn, "food2": _food2_btn, "inspect": _inspect_btn, "feed": _feed_btn,
+		"equip": _equip_btn, "place": _place_btn, "store": _store_btn, "take": _take_btn, "drop": _drop_btn}
 
-		if _equip_pad:
-			_equip_pad.custom_minimum_size = Vector2.ZERO
-		# Keep the bag band inside the panel: header, separations and the action row take their
-		# share first, the rest is split between the bag grid and the equipment column.
-		# Measured at 844x390: panel 366 px, the header block takes 46 px, then the split, a 4 px
-		# separation and the 64 px action row; the split gets what remains (252 px) and never expands.
-		var split_h := maxf(150.0, panel_h - 56.0 - _action_px - sep * 2.0)
-		if _split:
-			_split.custom_minimum_size = Vector2(0, split_h)
-			_split.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		_band_no_storage = maxf(128.0, split_h - float(UiTokens.meta(view)) - sep * 2.0)
-	else:
-		# Desktop: a dense slot. The bag keeps 8-9 columns and the profile, equipment column, tip and
-		# action row all fit inside the panel, so the compartment caps at 96 px instead of 139.
-		var profile_floor := 200.0
-		var h_gaps := sep * 4.0
-		var inner_seps := sep * float(3 + equip_cols)
-		var chrome := 44.0 + sep + 36.0 + sep
-		var label_h := float(UiTokens.meta(view)) + 4.0
-		var grid_h := panel_h - chrome - label_h - sep * 2.0
-		var by_h := floorf((grid_h - sep * 3.0) / 4.0)
-		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / float(9 + equip_cols))
-		slot = clampf(minf(by_w, by_h), 64.0, 96.0)
-		if _bag_col:
-			_bag_col.custom_minimum_size = Vector2(8.0 * slot + sep * 7.0, 0)
-			_bag_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		if _profile_col:
-			_profile_col.custom_minimum_size = Vector2(profile_floor, 0)
-			_profile_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		if _equip_col:
-			_equip_col.custom_minimum_size = Vector2(float(equip_cols) * slot + sep * float(equip_cols - 1), 0)
-			_equip_col.size_flags_horizontal = Control.SIZE_SHRINK_END
-		if _split:
-			_split.custom_minimum_size = Vector2.ZERO
-	_slot_px = slot
-	for b: Button in [_lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn, _store_btn, _drop_btn, _destroy_btn, _take_all_btn, _batch_lock_btn, _batch_drop_btn, _batch_destroy_btn]:
-		b.custom_minimum_size = Vector2(0, _action_px)
-	if _equip_grid:
-		_equip_grid.columns = equip_cols if not compact else 5
-	var esz := Vector2(equip_slot if compact else slot, equip_slot if compact else slot)
-	for key in _equip_slots.keys():
-		var button: Button = _equip_slots[key]
-		button.custom_minimum_size = esz
-		var cell := button.get_parent()
-		if cell and cell.get_child_count() > 0 and cell.get_child(0) is Label:
-			var cap := cell.get_child(0) as Label
-			cap.custom_minimum_size = Vector2(esz.x, 0)
-			cap.add_theme_font_size_override("font_size", UiTokens.meta(view))
-	if _grid:
-		_grid.cell_px = slot
-	if _pet_grid:
-		_pet_grid.cell_px = slot
-	if not compact and _equip_pad and _grid and _equip_grid:
-		var bag_h := 4.0 * slot + sep * 3.0
-		var equip_h := _equip_grid.get_combined_minimum_size().y
-		_equip_pad.custom_minimum_size = Vector2(0, maxf(0.0, (bag_h - equip_h) * 0.5))
+func _show_actions(valid: Array[String]) -> void:
+	var btns := _action_buttons()
+	for id: String in btns:
+		(btns[id] as Button).visible = valid.has(id)
 
-## Icon + caption, and for a def with no art the display name only (never the raw id, which is what
-## ItemIcons.style_slot falls back to and what the worn woven bag showed in the Ring slot). ItemIcons
-## is outside this task's scope, so the name is substituted here.
-func _style_slot_button(b: Button, id: StringName, caption: String) -> void:
-	var has_art := ItemIcons.texture(id) != null
-	ItemIcons.style_slot(b, id, caption)
-	if not has_art:
-		var dd := Data.item(id)
-		var label: String = dd.display_name if dd and dd.display_name != "" else str(id).capitalize()
-		b.text = label if caption == "" else "%s\n%s" % [label, caption]
-	_fit_slot(b)
-
-func _refresh_equipped() -> void:
-	for slot in _equip_slots.keys():
-		var b: Button = _equip_slots[slot]
-		var st: ItemStack = null
-		var caption := ""
-		match slot:
-			"weapon":
-				st = inventory.equipped_weapon()
-				if st and st.def():
-					caption = "%.0f" % st.scaled_damage()
-			"tool":
-				st = inventory.equipped_gather_tool()
-			"food1", "food2":
-				var fid := str(inventory.quick_food[0 if slot == "food1" else 1])
-				if fid != "":
-					var n := inventory.count_of(StringName(fid))
-					_style_slot_button(b, StringName(fid), "×%d" % n)
-					b.modulate = Color.WHITE if n > 0 else Color(0.6, 0.6, 0.6)
-					b.tooltip_text = fid
-					continue
-			_:
-				st = inventory.equipped_in(StringName(slot))
-		if st and st.scaled_armor() > 0:
-			caption = "%.0f" % st.scaled_armor()
-		if st:
-			_style_slot_button(b, st.def_id, caption)
-			b.tooltip_text = st.tooltip()
-			b.modulate = Color.WHITE
-		else:
-			b.icon = null
-			b.text = ""
-			b.tooltip_text = "empty"
-			b.modulate = Color.WHITE
-
-# ---------------------------------------------------------------- selection + actions
-
+## Select a bag slot: brackets on the grid, the card fills, the valid actions show.
 func _select(index: int) -> void:
 	_disarm_destroy()
 	_selected = index
-	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
-	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn, _drop_btn, _destroy_btn]:
-		b.visible = false
+	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null or inventory.slots[index].def_id == Inventory.LOCK
 	if _grid:
 		_grid.set_selected(index if not none else -1)
+	_lock_btn.disabled = none
+	_lock_btn.text = "Lock"
+	_destroy_btn.disabled = true
 	if none:
+		_show_actions([])
+		if _card:
+			_card.hide_card()
 		_tip.text = "Select mode: tap items to mark a batch." if (_grid != null and _grid.multi_mode) else "Tap an item."
 		return
 	var stack := inventory.slots[index]
-	_tip.text = stack.tooltip()
-	_lock_btn.visible = true
+	if stack.uid != "" and _new_uids.erase(stack.uid):
+		_grid.new_uids = _new_uids
+		var c := _grid.cell_for(index)
+		if c:
+			c.is_new = false
+			c.queue_redraw()
+	_tip.text = stack.tooltip().get_slice("\n", 0)
 	_lock_btn.text = "Unlock" if stack.is_locked() else "Lock"
-	_store_btn.visible = _can_store_selected()
-	_drop_btn.visible = true
-	_drop_btn.disabled = not _can_drop_selected()
-	_drop_btn.tooltip_text = "Unlock this item before dropping it." if stack.is_locked() else "Drop this item in a loot bag."
-	_destroy_btn.visible = true
 	_destroy_btn.disabled = not _can_remove_selected()
 	_destroy_btn.tooltip_text = "Unlock this item before destroying it." if stack.is_locked() else "Permanently destroy this item. Requires a second tap."
-	var d := stack.def()
-	var is_food := Food.is_food(stack)
-	var is_bag := BagCapacity.is_bag(stack.def_id)
-	_inspect_btn.visible = is_food or is_bag
-	if is_bag and not is_food:
+	var valid := valid_actions(stack, {"where": "bag", "pet": _owner_player != null and _owner_player.summoned_pet != null,
+		"deposit": _can_store_selected()})
+	_show_actions(valid)
+	_drop_btn.disabled = not _can_drop_selected()
+	_drop_btn.tooltip_text = "Unlock this item before dropping it." if stack.is_locked() else "Drop this item in a loot bag."
+	if BagCapacity.is_bag(stack.def_id) and not Food.is_food(stack):
 		_inspect_btn.text = "Inspect bag"
-	_eat_btn.visible = is_food
-	_food1_btn.visible = is_food
-	_food2_btn.visible = is_food
-	_feed_btn.visible = is_food and _owner_player != null and _owner_player.summoned_pet != null
+	else:
+		_inspect_btn.text = "Inspect"
+	var d := stack.def()
 	var slot := Inventory.slot_for(d)
-	var equippable := slot != &"" or (d != null and d.tool_class != &"" and d.tool_class != &"none")
-	_equip_btn.visible = equippable
-	if equippable:
-		_equip_btn.text = "Equip %s" % (str(slot) if slot != &"" else "tool")
-	_place_btn.visible = d != null and d.place_as != &""
+	_equip_btn.text = "Equip %s" % (str(EQUIP_LABELS.get(str(slot), slot)) if slot != &"" else "tool")
 	if _place_btn.visible:
 		_place_btn.text = "Place %dx%d" % [maxi(1, d.footprint.x), maxi(1, d.footprint.y)]
+	if _store_btn.visible:
+		_store_btn.text = "Transfer to %s" % str(_storage_opts.get("title", "Storage"))
+	_card.show_stack(stack)
+	_layout_card()
 
+## Select a slot of the open container: its card offers "Transfer to Bag" (disabled with the reason
+## when the container is take-only for this player).
+func _select_store(index: int) -> void:
+	_store_sel = index
+	var none := pet_bag == null or index < 0 or index >= pet_bag.slot_count or pet_bag.slots[index] == null or pet_bag.slots[index].def_id == Inventory.LOCK
+	_pet_grid.set_selected(index if not none else -1)
+	if none:
+		_store_sel = -1
+		_show_actions([])
+		_card.hide_card()
+		_tip.text = "Tap an item."
+		return
+	var stack := pet_bag.slots[index]
+	_tip.text = stack.tooltip().get_slice("\n", 0)
+	_show_actions(valid_actions(stack, {"where": "store"}))
+	_take_btn.disabled = _readonly_reason() != "" or stack.is_locked()
+	_take_btn.tooltip_text = _readonly_reason()
+	_card.show_stack(stack, str(_storage_opts.get("title", "Storage")))
+	_layout_card()
+
+# ---------------------------------------------------------------- character page
+
+func _refresh_character() -> void:
+	if inventory == null or _char_page == null:
+		return
+	var nm := _owner_player.display_name() if _owner_player else (World.player_name if World.player_name != "" else "Survivor")
+	var title := LevelDisplay.current_title(LevelDisplay.player_level())
+	var clan := World.occupation.capitalize() if World.occupation != "" else "Survivor"
+	_profile.text = "%s\n%s" % [nm, title]
+	_profile.max_lines_visible = 2
+	_portrait.texture = PlayerPortrait.texture_for({"own": true, "id": "self"}, self) if _owner_player else PlayerPortrait.silhouette()
+	_level_label.text = "%s  ·  %s  ·  XP %d%%" % [LevelDisplay.player_label(), clan, roundi(World.pioneer_progress() * 100.0)]
+	_xp_bar.value = World.pioneer_progress()
+	var snap := InvStats.snapshot(_owner_player)
+	var groups := InvStats.powers_data()
+	var keys := ["combat", "crafting", "gathering"]
+	for i in _power_rows.size():
+		var g: Dictionary = groups.get(keys[i], {})
+		_power_rows[i].text = "%s   %d" % [str(g.get("label", keys[i].capitalize())), int(snap.get(keys[i] + "_power", 0))]
+	var mi := ["attack", "defense", "accuracy"]
+	for i in _myinfo.size():
+		var lab := str(InvStats.ROWS[i][1])
+		_myinfo[i].text = "%s %s" % [lab, InvStats.fmt(mi[i], snap.get(mi[i], 0))] if not snap.is_empty() else "%s -" % lab
+	var lines: PackedStringArray = []
+	for r: Array in InvStats.ROWS:
+		if snap.has(r[0]):
+			lines.append("%s   %s" % [r[1], InvStats.fmt(str(r[0]), snap[r[0]])])
+	_stats_label.text = "\n".join(lines) if not lines.is_empty() else "No survivor bound."
+	_tab_style(_gear_tab, not _deco)
+	_tab_style(_deco_tab, _deco)
+	_equip_grid.visible = not _deco
+	_deco_note.visible = _deco
+	var lv := LevelDisplay.player_level()
+	var active := GearPresets.active(inventory, lv)
+	for k in _preset_btns.size():
+		var b := _preset_btns[k]
+		var open := k < GearPresets.unlocked_count(lv)
+		b.disabled = not open
+		b.text = str(k + 1) if open else LevelDisplay.label(GearPresets.unlock_level(k))
+		b.tooltip_text = "Preset %d" % (k + 1) if open else "Preset %d unlocks at %s." % [k + 1, LevelDisplay.label(GearPresets.unlock_level(k))]
+		_tab_style(b, open and k == active and not inventory.presets.is_empty())
+	_refresh_equipped()
+
+func _toggle_stats() -> void:
+	_stats_scroll.visible = not _stats_scroll.visible
+	_power_grid.visible = not _stats_scroll.visible
+	_stats_btn.text = "Back" if _stats_scroll.visible else "Detailed Stats"
+
+func _on_preset(k: int) -> void:
+	if inventory == null:
+		return
+	var why := GearPresets.switch(inventory, k)
+	_tip.text = why
+	if why != "" and _owner_player:
+		_owner_player.notice(why)
+	_refresh_character()
+
+## A worn slot's item (food slots show the first of the chosen food).
+func _worn_in(slot: String) -> ItemStack:
+	match slot:
+		"weapon":
+			return inventory.equipped_weapon()
+		"tool":
+			return inventory.equipped_gather_tool()
+		"food1", "food2":
+			var fid := str(inventory.quick_food[0 if slot == "food1" else 1])
+			var idx := inventory.find_first(StringName(fid)) if fid != "" else -1
+			return inventory.slots[idx] if idx >= 0 else null
+	return inventory.equipped_in(StringName(slot))
+
+## The worn slots: real art and Lv. when worn, a faded silhouette and the slot's name when empty,
+## gold brackets (a gold frame) on the selected one.
+func _refresh_equipped() -> void:
+	for slot: String in _equip_slots.keys():
+		var b: Button = _equip_slots[slot]
+		var st := _worn_in(slot)
+		var sb := UiTokens.slot_style(slot == _gear_sel)
+		sb.bg_color = Color("#141810")
+		if slot == _gear_sel:
+			sb.border_color = GOLD
+			sb.set_border_width_all(3)
+		for k in ["normal", "hover", "pressed", "disabled", "focus"]:
+			b.add_theme_stylebox_override(k, sb)
+		if st:
+			b.icon = ItemIcons.texture(st.def_id)
+			b.text = LevelDisplay.label(st.level) if st.level > 1 else ""
+			b.tooltip_text = st.tooltip()
+			b.self_modulate = Color.WHITE
+		else:
+			b.icon = ItemIcons.texture(SILHOUETTES.get(slot, &""))
+			b.text = str(EQUIP_LABELS.get(slot, slot))
+			b.tooltip_text = "%s: empty" % str(EQUIP_LABELS.get(slot, slot))
+			b.self_modulate = Color(1, 1, 1, 0.35)
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+	var sel := _worn_in(_gear_sel) if _gear_sel != "" else null
+	_gear_sel_label.text = "%s %s%s" % [sel.def().display_name if sel.def() else str(sel.def_id), LevelDisplay.label(sel.level),
+		"  Dur %d/%d" % [sel.durability, sel.max_durability] if sel.max_durability > 0 else ""] if sel else "Tap a slot."
+	_unequip_btn.visible = sel != null and _gear_sel not in ["food1", "food2", "tool"]
+
+func _on_unequip_pressed() -> void:
+	if inventory == null or _gear_sel == "":
+		return
+	if inventory.equipment.has(_gear_sel) and not inventory.unequip(StringName(_gear_sel)) and _owner_player:
+		_owner_player.notice("Bag is full.") # the gear stays worn (W2-INV: never dropped)
+	_refresh_character()
+
+## Character page: a worn armour/weapon slot selects it (Unequip below); the tool slot cycles the
+## held tool; a food slot eats its food (or clears the empty shortcut), as before.
 func _on_equip_slot_pressed(slot: String) -> void:
 	if inventory == null:
 		return
 	match slot:
 		"tool":
 			var tools := inventory.gather_tools_in_bag()
-			if tools.is_empty():
-				return
-			var pos := -1
-			for i in tools.size():
-				if int(tools[i]["index"]) == inventory.equipped_tool_index:
-					pos = i
-			inventory.set_equipped_tool_index(int(tools[(pos + 1) % tools.size()]["index"]))
+			if not tools.is_empty():
+				var pos := -1
+				for i in tools.size():
+					if int(tools[i]["index"]) == inventory.equipped_tool_index:
+						pos = i
+				inventory.set_equipped_tool_index(int(tools[(pos + 1) % tools.size()]["index"]))
 		"food1", "food2":
 			var fid := str(inventory.quick_food[0 if slot == "food1" else 1])
 			var idx := inventory.find_first(StringName(fid)) if fid != "" else -1
 			if idx >= 0 and _owner_player:
 				hide_ui()
 				_owner_player.begin_eat_slot(idx)
+				return
 			elif fid != "":
 				inventory.set_quick_food(0 if slot == "food1" else 1, &"")
-		_:
-			if inventory.equipment.has(slot) and not inventory.unequip(StringName(slot)) and _owner_player:
-				_owner_player.notice("Bag is full.") # the gear stays worn (W2-INV: never dropped)
+	_gear_sel = slot
+	_refresh_character()
 
 func _on_equip_pressed() -> void:
 	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
@@ -956,18 +1107,22 @@ func _clear_empty_shortcuts(id: StringName) -> void:
 ## would refuse it, and the tip reports what was skipped and why.
 
 func _on_toggle_multi() -> void:
-	_set_multi_mode(_grid == null or not _grid.multi_mode)
+	_set_multi_mode(_grid == null or not _active_grid().multi_mode)
 
 ## Mode swap: the batch bar replaces the item-action row, which is left unselected while Select
 ## mode is active (taps there mark, they don't pick). Done returns to the single-selection flow.
 func _set_multi_mode(on: bool) -> void:
 	if _grid == null or _batch_row == null:
 		return
-	_grid.set_multi_mode(on)
+	if on:
+		_active_grid().set_multi_mode(true)
+	else:
+		_grid.set_multi_mode(false)
+		_pet_grid.set_multi_mode(false)
 	_disarm_batch_destroy()
 	_select_btn.text = "Done" if on else "Select"
-	_batch_row.visible = on
 	_batch_label.text = "0 selected"
+	_update_toolbar()
 	_update_batch_bar()
 	if on:
 		_select(-1)
@@ -980,12 +1135,13 @@ func _set_multi_mode(on: bool) -> void:
 func _update_batch_bar() -> void:
 	if _batch_row == null:
 		return
-	var on := _grid != null and _grid.multi_mode
-	_batch_row.visible = on
+	var on := _grid != null and _active_grid().multi_mode
 	if not on:
 		return
-	var n := _grid.multi.size()
+	var n := _active_grid().multi.size()
 	_batch_label.text = "%d selected" % n
+	_batch_take_btn.disabled = n == 0 or _readonly_reason() != ""
+	_batch_store_btn.disabled = n == 0
 	_batch_lock_btn.disabled = n == 0
 	_batch_drop_btn.disabled = n == 0
 	_batch_destroy_btn.disabled = n == 0
@@ -1005,7 +1161,7 @@ func _disarm_batch_destroy() -> void:
 func _batch_gates() -> Array:
 	var act: Variant = _owner_player.actions if _owner_player else null
 	var offline: bool = act == null or not act.online
-	return [offline, _owner_player != null and World.runtime != null]
+	return [offline, World.runtime != null] # the loot bag lands at the survivor, else at the origin
 
 func _on_batch_lock() -> void:
 	if inventory == null or _grid == null:
@@ -1064,6 +1220,39 @@ func _on_batch_destroy() -> void:
 		if _owner_player:
 			_owner_player.notice("Destroyed %d item(s)." % done)
 	_finish_batch(res, "Destroyed", done)
+
+## Batch Store: every marked, unlocked bag instance into the open container, in slot order;
+## a full container leaves the rest in the bag (Inventory.transfer_to moves only what fits).
+func _on_batch_store() -> void:
+	if inventory == null or pet_bag == null or _readonly_reason() != "" or not bool(_storage_opts.get("allow_deposit", false)):
+		return
+	var res := batch_check(inventory, _grid.multi_list(), "lock", true, true) # lock's gate: not empty, not locked
+	var done := 0
+	for idx: int in res["ok"]:
+		if idx == inventory.equipped_tool_index:
+			continue
+		if inventory.transfer_to(pet_bag, idx) > 0:
+			done += 1
+	if done < (res["ok"] as Array).size() and _owner_player:
+		_owner_player.notice("Storage is full.")
+	_finish_batch(res, "Stored", done)
+
+## Batch take from the open container: each marked instance into the bag; what does not fit stays.
+func _on_batch_take() -> void:
+	if pet_bag == null or inventory == null or _readonly_reason() != "":
+		return
+	var marks := _pet_grid.multi_list()
+	var done := 0
+	for i in range(marks.size() - 1, -1, -1):
+		var s := pet_bag.slots[marks[i]] if marks[i] < pet_bag.slot_count else null
+		if s == null or s.is_locked():
+			continue
+		if pet_bag.transfer_to(inventory, marks[i]) > 0:
+			done += 1
+	_pet_grid.clear_multi()
+	_tip.text = "Took %d item(s)." % done
+	_update_batch_bar()
+	_notify_storage_take()
 
 ## After a pass: release the marks, keep Select mode on for the next batch, and summarise what was
 ## skipped in the tip (or confirm the whole batch went through).
@@ -1166,7 +1355,8 @@ func _notify_storage_take() -> void:
 	var cb: Variant = _storage_opts.get("on_take", null)
 	if cb is Callable:
 		(cb as Callable).call()
-	if pet_bag and pet_bag.used_slots() <= 0:
+	# A take-only container (loot, a corpse) closes once emptied; a box or cargo you also store into stays.
+	if pet_bag and pet_bag.used_slots() <= 0 and not bool(_storage_opts.get("allow_deposit", false)):
 		var on_empty: Variant = _storage_opts.get("on_empty", null)
 		if on_empty is Callable:
 			(on_empty as Callable).call()

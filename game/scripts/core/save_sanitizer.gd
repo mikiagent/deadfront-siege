@@ -21,7 +21,7 @@ static var abort_for_test := false
 ## Expected type of each field the loader reads; the value is only a type sample. A field of the
 ## wrong type is erased so the loader's own default applies.
 const SHAPE := {
-	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0}, "position": []},
+	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0, "presets": {}}, "position": []},
 	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
 	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
