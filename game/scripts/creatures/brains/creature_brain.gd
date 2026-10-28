@@ -152,6 +152,8 @@ func _physics_process(delta: float) -> void:
 	if creature == null or creature.health.dead:
 		_set_state(&"dead")
 		return
+	if creature.ridden:
+		return  # the rider steers; the brain resumes on dismount
 	if creature.statuses.has(&"knockdown") or not creature.statuses.can_act():
 		_set_state(&"downed")
 		creature.stop_move()

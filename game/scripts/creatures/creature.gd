@@ -336,6 +336,8 @@ func become_pet(rec: PetRecord) -> void:
 ## Pets never body-block the survivor: a mutual collision exception, applied once the
 ## player node is around. Enemies and everything else still collide with pets normally.
 var _pet_passthrough_done: bool = false
+## True while the survivor rides this creature (set by PlayerPets.mount / dismount).
+var ridden: bool = false
 
 func _apply_pet_passthrough() -> void:
 	if _pet_passthrough_done or not is_pet:
@@ -353,6 +355,11 @@ func _physics_process(delta: float) -> void:
 	FieldTame.tick(self, delta)
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+	if ridden:
+		# PlayerPets.mounted_move drives a ridden mount: its velocity, facing, slide and locomotion clip.
+		current_clip = anim.current_clip
+		_status_fx()
+		return
 	stagger_left = maxf(0.0, stagger_left - delta)
 	if health.dead or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
 		velocity.x = 0.0
