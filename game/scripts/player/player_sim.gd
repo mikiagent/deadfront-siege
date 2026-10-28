@@ -229,10 +229,11 @@ func _tick_swimming(delta: float) -> void:
 	if not p.swimming or p.vitals == null:
 		_swim_damage_acc = 0.0
 		return
-	p.velocity.y = 0.0
 	var ground_y: float = World.runtime.surface_y(p.global_position.x, p.global_position.z) if World.runtime else -INF
 	var float_y := maxf(HarbourSite.WATER_Y + 0.08, ground_y + p.half_height() + 0.05)
-	p.global_position.y = move_toward(p.global_position.y, float_y, 4.0 * delta)
+	# Rise as velocity, not a position nudge: move_and_slide's floor snap undid the nudge every frame,
+	# so a survivor who walked in down the beach slope kept walking on the seabed.
+	p.velocity.y = clampf((float_y - p.global_position.y) / maxf(delta, 0.001), -4.0, 4.0)
 	if p.vitals.drain_energy(6.0, delta):
 		_swim_damage_acc = 0.0
 		return

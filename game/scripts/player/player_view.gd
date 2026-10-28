@@ -93,7 +93,7 @@ func _setup_survivor() -> void:
 func _keep_grounded() -> void:
 	if p.rig == null or p._saddle_view != null:
 		return
-	p.rig.position.y = ground_y + (_visual_rest_y - p.visual.position.y)
+	p.rig.position.y = ground_y + (_visual_rest_y - p.visual.position.y) + (p.anim.swim_lift if p.anim else 0.0)
 
 func _make_web_safe() -> void:
 	if p.rig == null or p.rig.mesh_root == null:

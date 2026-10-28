@@ -74,7 +74,8 @@ func press_interact() -> void:
 		return
 	var c: Dictionary = p.controls.interact_choice()
 	if c.is_empty():
-		p.notice("Nothing to interact with nearby")
+		# In water with nothing offered is the salt sea (PRD :314-315): say where fresh water is.
+		p.notice("Salt water: drink and wash at the river" if p.in_water else "Nothing to interact with nearby")
 		return
 	(c["run"] as Callable).call()
 	_left = 0.0
