@@ -377,8 +377,9 @@ func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 	if p.anim:
 		p.anim.on_roll()
 		var ap := p.rig.anim_player if p.rig else null
-		if ap and ap.has_animation(&"roll"):
-			ap.speed_scale = maxf(1.0, ap.get_animation(&"roll").length / RollRules.seconds())
+		var rc: StringName = p.anim.current_clip if p.anim.current_clip in [&"roll", &"roll_back"] else &"roll"
+		if ap and ap.has_animation(rc):
+			ap.speed_scale = maxf(1.0, ap.get_animation(rc).length / RollRules.seconds())
 	print("[combat] roll")
 	return true
 
@@ -427,7 +428,7 @@ func _end_roll() -> void:
 	p.velocity.x *= 0.3
 	p.velocity.z *= 0.3
 	# The dash is over, so is the oneshot: idle is not a busy clip, the next tick picks locomotion.
-	if p.anim and p.anim.current_clip == &"roll":
+	if p.anim and p.anim.current_clip in [&"roll", &"roll_back"]:
 		p.anim.play_clip(&"idle")
 
 func on_hit() -> void:
