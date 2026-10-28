@@ -101,7 +101,7 @@ static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
 			"text": locked,
 			"food_id": &"",  # no food icon: food cannot help until the technique is learned
 			"progress": creature.tame_feeds,
-			"needed": creature.def.feeds_needed,
+			"needed": creature.feeds_needed(),
 		}
 	if creature.def.requires_pen:
 		return {
@@ -109,7 +109,7 @@ static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
 			"text": "Tame in pen",
 			"food_id": need,
 			"progress": creature.tame_feeds,
-			"needed": creature.def.feeds_needed,
+			"needed": creature.feeds_needed(),
 		}
 	var have := food_in_bag(inv, creature)
 	if have == &"":
@@ -118,14 +118,14 @@ static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
 			"text": "needs %s" % need,
 			"food_id": need,
 			"progress": creature.tame_feeds,
-			"needed": creature.def.feeds_needed,
+			"needed": creature.feeds_needed(),
 		}
 	return {
 		"kind": &"tame",
 		"text": "Tame",
 		"food_id": have if have != &"" else need,
 		"progress": creature.tame_feeds,
-		"needed": creature.def.feeds_needed,
+		"needed": creature.feeds_needed(),
 	}
 
 static func refuse_message(creature: Creature) -> String:
@@ -140,7 +140,8 @@ static func begin_window(creature: Creature) -> void:
 	if creature.tame_cooldown_left > 0.0:
 		return
 	creature.tame_feeds = 0.0
-	creature.tame_window_left = creature.def.tame_window_seconds
+	# NATURES: this animal's window (species x its nature, Creature.tame_window_seconds()).
+	creature.tame_window_left = creature.tame_window_seconds()
 	creature.tame_attempting = true
 
 static func apply_feed(player: Player, creature: Creature, food_id: StringName) -> bool:
@@ -169,7 +170,7 @@ static func apply_feed(player: Player, creature: Creature, food_id: StringName) 
 	if creature.def.requires_pen:
 		print("[tame] %s fed in field (pen required) feeds=%.1f" % [creature.def.id, creature.tame_feeds])
 		return true
-	if creature.tame_feeds + 0.001 >= creature.def.feeds_needed:
+	if creature.tame_feeds + 0.001 >= creature.feeds_needed():
 		_complete(player, creature)
 	return true
 
@@ -187,7 +188,7 @@ static func tick(creature: Creature, delta: float) -> void:
 	if creature.tame_window_left <= 0.0:
 		fail(creature, null)
 		return
-	if not creature.statuses.has(&"knockdown") and creature.tame_feeds + 0.001 < creature.def.feeds_needed:
+	if not creature.statuses.has(&"knockdown") and creature.tame_feeds + 0.001 < creature.feeds_needed():
 		fail(creature, null)
 
 static func fail(creature: Creature, source: Node) -> void:
@@ -205,12 +206,13 @@ static func fail(creature: Creature, source: Node) -> void:
 	print("[tame] %s failed window; enraged cooldown=%.0fs" % [creature.def.id, FAIL_COOLDOWN])
 
 static func _complete(player: Player, creature: Creature) -> void:
-	var feeds_shown := int(ceili(creature.def.feeds_needed - 0.001))
+	var feeds_shown := int(ceili(creature.feeds_needed() - 0.001))
 	if feeds_shown < 1:
 		feeds_shown = int(round(creature.tame_feeds))
 	# The wild level carries over (capped at PetStats.MAX_LEVEL inside from_def).
 	var rec := PetRecord.from_def(creature.def, &"", creature.variant, creature.genetics, creature.level)
 	rec.origin = &"tame"
+	rec.nature = creature.nature_id()  # NATURES: the animal keeps its nature when tamed
 	rec.tamer = player.display_name()
 	creature.tame_attempting = false
 	creature.tame_feeds = 0.0

@@ -13,18 +13,48 @@ func order(cmd: StringName, target: Creature = null) -> void:
 	order_target = target if cmd == &"attack" else null
 	print("[pet] %s order %s%s" % [creature.def.id, cmd, (" -> " + str(target.def.id)) if target else ""])
 
+## NATURES: how far a guarding pet looks for threats (9 m today), widened by guard_radius_mult
+## (Loyal, Aggressive). With protect_owner the threat is measured from the OWNER as well, so a pet
+## answers anything closing on its owner even from across the camp.
+func guard_radius(player: Player) -> float:
+	var r := 9.0 * creature.nature_knob("guard_radius_mult", 1.0)
+	return r
+
+func _threat_distance(c: Creature, player: Player) -> float:
+	var d := c.global_position.distance_to(creature.global_position)
+	if creature.nature_flag("protect_owner"):
+		d = minf(d, c.global_position.distance_to(player.global_position))
+	return d
+
+## NATURES: a pet badly hurt drops its fight (retreat_fraction). Its nature can keep it in it:
+## protect_rider_below_hp (Brave) while its owner is riding it and its HP is under that fraction.
+func nature_keeps_fighting() -> bool:
+	var rider_below := creature.nature_knob("protect_rider_below_hp", 0.0)
+	if rider_below <= 0.0:
+		return false
+	var owner := PlayerRegistry.owner_of(creature)
+	if owner == null or owner.mounted_on != creature:
+		return false
+	return creature.health.fraction() < rider_below
+
+## How far from its owner the pet stands: the follow offset and the distance at which it stops
+## walking, both scaled by follow_dist_mult (Loyal stands closer).
+func nature_stop_distance() -> float:
+	var heel := mode == &"heel"
+	return (1.6 if heel else 2.4) * creature.nature_knob("follow_dist_mult", 1.0)
+
 func _pick_guard_target(player: Player) -> Creature:
 	if player.hunt and player.hunt.target and is_instance_valid(player.hunt.target) and not player.hunt.target.health.dead:
 		return player.hunt.target
 	var best: Creature = null
-	var best_d := 9.0
+	var best_d := guard_radius(player)
 	for n in creature.get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
 		if c == null or c.is_pet or c.health.dead or c.brain == null:
 			continue
 		if not c.brain.has_method("hunting_player") or not c.brain.hunting_player():
 			continue
-		var d := c.global_position.distance_to(player.global_position)
+		var d := _threat_distance(c, player)
 		if d < best_d:
 			best_d = d
 			best = c
@@ -47,6 +77,9 @@ func _think(delta: float) -> void:
 			order_target = null
 	if mode == &"guard" and not hold:
 		target = _pick_guard_target(player)
+	# NATURES: a badly hurt pet stands down, unless its nature keeps it fighting for its rider.
+	if target and creature.health.fraction() < retreat_fraction() and not nature_keeps_fighting():
+		target = null
 	if target:
 		attack_target = target
 		var dist := creature.global_position.distance_to(target.global_position)
@@ -72,9 +105,9 @@ func _think(delta: float) -> void:
 			return
 	attack_target = null
 	_set_state(&"alert" if mode == &"heel" else &"roam")
-	var side := player.global_basis.x * (1.2 if mode == &"heel" else 1.6)
+	var side := player.global_basis.x * (1.2 if mode == &"heel" else 1.6) * creature.nature_knob("follow_dist_mult", 1.0)
 	var follow := player.global_position + side
-	if creature.global_position.distance_to(follow) > (1.6 if mode == &"heel" else 2.4):
+	if creature.global_position.distance_to(follow) > nature_stop_distance():
 		creature.move_to(follow)
 	else:
 		creature.stop_move()

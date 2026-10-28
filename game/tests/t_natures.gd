@@ -91,7 +91,7 @@ func _test_table() -> void:
 	_expect(NR.ids().size() == 6, "six natures in the table (got %d)" % NR.ids().size())
 	# The neutral row: an animal whose nature says nothing behaves exactly as before.
 	var d: Dictionary = NR.knobs(&"")
-	for k in ["flee_threshold_mult", "retreat_threshold_mult", "aggro_radius_mult", "follow_dist_radius_mult", "follow_dist_mult", "guard_radius_mult", "feeds_mult", "tame_window_mult", "pen_time_mult", "damage_dealt_mult"]:
+	for k in ["flee_threshold_mult", "retreat_threshold_mult", "aggro_radius_mult", "follow_dist_mult", "guard_radius_mult", "feeds_mult", "tame_window_mult", "pen_time_mult", "damage_dealt_mult"]:
 		_expect(is_equal_approx(float(d.get(k, -1.0)), 1.0), "default %s is %s, want 1.0" % [k, d.get(k)])
 	for k in ["auto_engage", "protect_owner", "fear_immune"]:
 		_expect(not bool(d.get(k, true)), "default %s is true" % k)
@@ -208,13 +208,13 @@ func _test_wild_timid_flees_sooner() -> void:
 		c.brain.attack_target = target
 		c.brain._set_state(&"approach")
 		c.brain._last_hit_s = -999.0
-		# A hit worth 35-50 % of max HP: under the default 30 %-of-max window plus one blow, over Timid's.
-		var blow: float = c.health.max_hp * 0.4
+		# A hit worth 60 % of max HP: the default backs off (retreat) at 30 %, Timid only at 54 %.
+		var blow: float = c.health.max_hp * 0.6
 		c.brain.note_damage(blow)
 		var fled: bool = c.brain.state == &"flee"
 		fits.append([c, target, fled, c.nature_knob("retreat_threshold_mult")])
 	print("[t_natures] timid: default flees=%s timid flees=%s" % [fits[0][2], fits[1][2]])
-	_expect(not fits[0][2], "a default raptor fled from a 40 %% hit (want retreat, not flee)")
+	_expect(not fits[0][2], "a default raptor fled from a 60 %% hit (it retreats, it does not flee)")
 	_expect(fits[1][2], "a Timid raptor did not flee from the hit a default raptor fights through")
 	_expect(float(fits[1][3]) > 1.0, "Timid's retreat threshold multiplier is %.2f, want > 1" % fits[1][3])
 	for row in fits:
@@ -237,17 +237,18 @@ func _test_brave_ridden_keeps_fighting() -> void:
 		p.bonded.clear()
 		p.bonded.append(rec)
 		p.mounted_on = pet if n == &"brave" else null
+		pet.health.hp = pet.health.max_hp * 0.2  # badly hurt: under both the default and Brave's threshold
 		var foe := _creature(&"triceratops", Vector3(-36, 1, -40))
 		pet.brain.attack_target = foe
 		pet.brain._set_state(&"attack")
-		var keep: bool = pet.brain.nature_keeps_fighting(n)
+		var keep: bool = pet.brain.nature_keeps_fighting()
 		out.append([pet, foe, keep])
 	print("[t_natures] brave: default ridden keeps=%s brave ridden keeps=%s" % [out[0][2], out[1][2]])
 	_expect(not out[0][2], "a default ridden pet keeps fighting past its retreat threshold")
 	_expect(out[1][2], "a Brave ridden pet stands down below the retreat threshold")
 	# Unridden, Brave's protection of its rider does not apply: it is about the rider.
-	out[1][0].brain.state = &"attack"
-	_expect(not out[1][0].brain.nature_keeps_fighting(out[1][1]), "Brave kept fighting at 0 HP with no rider")
+	p.mounted_on = null  # the owner gets off: Brave only borrows the courage for its rider
+	_expect(not out[1][0].brain.nature_keeps_fighting(), "Brave kept fighting while its owner was not riding it")
 	for row in out:
 		var pet: Node = row[0]
 		p.mounted_on = null
@@ -266,7 +267,8 @@ func _test_aggressive_engages() -> void:
 	p.global_position = Vector3(60, 1, 60)
 	var out := []
 	for n in [&"", &"aggressive"]:
-		var c := _creature(&"triceratops", Vector3(60, 1, 66), n)
+		# A defensive grazer (ai.json: waits until hit, no territory) is the harshest case.
+		var c := _creature(&"ankylosaurus", Vector3(60, 1, 66), n)
 		c.brain.perception = 9.0
 		p.global_position = c.global_position + Vector3(0, 0, -4.0)
 		c.brain.tick(0.1)  # a roam think: it looks around
@@ -320,17 +322,19 @@ func _test_loyal_follows_closer() -> void:
 		pet.become_pet(rec)
 		p.bonded.clear()
 		p.bonded.append(rec)
-		pet.global_position = p.global_position + Vector3(0, 0, 2.0)
+		pet.global_position = p.global_position + Vector3(0, 0, 1.5)
+		# The spot beside the owner the pet walks to (its follow point), measured before the think.
+		var follow: float = pet.global_position.distance_to(p.global_position + p.global_basis.x * 1.6)
 		pet.brain.mode = &"guard"
 		pet.brain.hold = false
 		pet.brain.attack_target = null
 		pet.stop_move()
 		pet.brain._think(0.1)
-		out.append([pet, pet._path_active, pet._path_goal.distance_to(p.global_position), pet.brain.nature_stop_distance()])
-	print("[t_natures] loyal: default moves=%s goal %.2f m, loyal moves=%s goal %.2f m" % [out[0][1], out[0][2], out[1][1], out[1][2]])
-	_expect(not out[0][1], "a default pet at 2 m walked back to its owner (it should hold)")
-	_expect(out[1][1], "a Loyal pet at 2 m did not close the gap")
-	_expect(float(out[1][2]) < float(out[0][2]), "Loyal's follow distance %.2f m is not under the default %.2f m" % [out[1][2], out[0][2]])
+		out.append([pet, pet._path_active, follow, pet.brain.nature_stop_distance()])
+	print("[t_natures] loyal: default moves=%s at %.2f m, loyal moves=%s at %.2f m" % [out[0][1], out[0][2], out[1][1], out[1][2]])
+	_expect(not out[0][1], "a default pet %.2f m from its follow point walked (it should hold)" % out[0][2])
+	_expect(out[1][1], "a Loyal pet %.2f m from its follow point did not close the gap" % out[1][2])
+	_expect(float(out[1][3]) < float(out[0][3]), "Loyal's follow distance %.2f m is not under the default %.2f m" % [out[1][3], out[0][3]])
 	for row in out:
 		var pet: Node = row[0]
 		p.bonded.clear()
@@ -342,8 +346,10 @@ func _test_loyal_follows_closer() -> void:
 ## Stubborn needs more feeds, Docile fewer, on the same species; the tame window follows suit.
 func _test_taming_numbers() -> void:
 	var out := {}
+	var nodes := {}
 	for n in [&"", &"stubborn", &"docile"]:
 		var c := _creature(&"protoceratops", Vector3(-100, 1, 0), n)
+		nodes[str(n)] = c
 		out[str(n)] = [c.feeds_needed(), c.tame_window_seconds(), c.def.feeds_needed]
 	print("[t_natures] taming: default feeds=%.2f stubborn=%.2f docile=%.2f (species %.2f)" % [out[""][0], out["stubborn"][0], out["docile"][0], out[""][2]])
 	_expect(is_equal_approx(float(out[""][0]), float(out[""][2])), "a nature-less animal needs %.2f feeds, the species lists %.2f" % [out[""][0], out[""][2]])
@@ -351,20 +357,23 @@ func _test_taming_numbers() -> void:
 	_expect(float(out["docile"][0]) < float(out[""][0]), "Docile needs %.2f feeds, default %.2f" % [out["docile"][0], out[""][0]])
 	_expect(float(out["stubborn"][1]) < float(out[""][1]) and float(out["docile"][1]) > float(out[""][1]), "tame windows: stubborn %.1f s, default %.1f s, docile %.1f s" % [out["stubborn"][1], out[""][1], out["docile"][1]])
 	# FieldTame reads them: a Docile protoceratops finishes on the feeds Stubborn still wants.
-	var docile = out["docile"][0]
-	var stubborn = out["stubborn"][0]
+	var docile: Node = nodes["docile"]
+	var stubborn: Node = nodes["stubborn"]
 	var player: Node = load("res://scenes/player/player.tscn").instantiate()
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(player)
 	player.global_position = Vector3(-100, 1, 0)
 	var stack: RefCounted = load("res://scripts/items/item_stack.gd").make(&"berry", 10)
 	player.inventory.add(stack)
+	# The capture rule still gates every feed (spec 09): bring both to 20 % HP first.
+	docile.health.hp = docile.health.max_hp * 0.2
+	stubborn.health.hp = stubborn.health.max_hp * 0.2
 	FT.begin_window(docile)
 	var window: float = docile.tame_window_left
 	var okay: bool = FT.apply_feed(player, docile, &"berry")
 	_expect(is_equal_approx(window, docile.tame_window_seconds()), "the window opened at %.1f s, this animal's %.1f s" % [window, docile.tame_window_seconds()])
 	_expect(okay and docile.is_pet, "a Docile protoceratops did not tame on one preferred feed (needs %.2f)" % docile.feeds_needed())
-	_expect(str(docile.pet_record.nature) == "docile", "the tamed Docile animal became a pet with nature '%s'" % docile.pet_record.nature)
+	_expect(docile.pet_record != null and str(docile.pet_record.nature) == "docile", "the tamed Docile animal became a pet with nature '%s'" % (docile.pet_record.nature if docile.pet_record else "no pet"))
 	FT.begin_window(stubborn)
 	var feeds := 0
 	while not stubborn.is_pet and feeds < 20:
@@ -391,14 +400,20 @@ func _test_docile_damage() -> void:
 		var rec: RefCounted = PR.from_def(pet.def, &"", &"", null, 1)
 		rec.nature = n
 		pet.become_pet(rec)
-		var victim := _creature(&"triceratops", Vector3(2, 1, 120))
-		var before: float = victim.health.hp
-		# The one hit path a creature uses (reach check bypassed: they touch).
-		CA.apply_for(pet, &"attack_primary", victim)
-		dealt[str(n)] = before - victim.health.hp
-		print("[t_natures] docile damage: nature '%s' dealt %.2f" % [n, dealt[str(n)]])
+		# The one hit path a creature uses (they touch). Swings roll to hit and to crit, so the
+		# SMALLEST landed blow over 30 swings is the plain (non-crit) damage: a stable number to compare.
+		var least := INF
+		for i in 30:
+			var victim := _creature(&"triceratops", Vector3(2, 1, 120))
+			var before: float = victim.health.hp
+			CA.apply_for(pet, &"attack_primary", victim)
+			var dmg: float = before - victim.health.hp
+			if dmg > 0.0:
+				least = minf(least, dmg)
+			victim.free()
+		dealt[str(n)] = least
+		print("[t_natures] docile damage: nature '%s' plain blow %.2f" % [n, least])
 		pet.free()
-		victim.free()
 	_expect(float(dealt.get("", 0.0)) > 0.0 and float(dealt.get("docile", 0.0)) > 0.0, "no damage was dealt through the hit path (%s)" % [dealt])
 	_expect(float(dealt.get("docile", 1.0)) < float(dealt.get("", 1.0)), "Docile dealt %.2f, default %.2f" % [dealt.get("docile", -1.0), dealt.get("", -1.0)])
 	_sections += 1

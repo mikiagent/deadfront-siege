@@ -14,6 +14,7 @@
     "tame_window_mult": 1.0,
     "pen_time_mult": 1.0,
     "fear_immune": false,
+    "retreat_as_flee": false,
     "damage_dealt_mult": 1.0
   },
   "_masking": {
@@ -29,7 +30,7 @@
     "guard_radius_mult": "ASSUMPTION: multiplies the radius a guarding pet looks for threats in (kept from the old 9 m, so 1.0 = today).",
     "protect_owner": "True: a guarding pet picks the threat nearest its OWNER and reacts to threats around the owner, not only around itself.",
     "protect_rider_below_hp": "A ridden pet keeps fighting even below the retreat threshold while its HP fraction is under this (0 = never; 1 = always). Brave keeps protecting its rider when wounded.",
-    "feeds_mult": "ASSUMPTION: multiplies the species' feeds_needed for this individual (FieldTame and the pen read it).",
+    "feeds_mult": "ASSUMPTION: multiplies the species' feeds_needed for this individual (FieldTame reads it). 0.33 turns a 3-feed animal into a single preferred feed.",
     "tame_window_mult": "ASSUMPTION: multiplies the species' tame window.",
     "pen_time_mult": "ASSUMPTION: multiplies the 30-minute taming pen wait for this individual (Stubborn waits longer, Docile less).",
     "fear_immune": "True: damage never sends this animal into 'flee' (Stubborn resists fear and fights back).",
@@ -50,6 +51,7 @@
       "flee_threshold_mult": 1.6,
       "retreat_threshold_mult": 1.8,
       "aggro_radius_mult": 0.9,
+      "retreat_as_flee": true,
       "never": ["tyrant", "titan"],
       "_about": "Avoids combat, more likely to flee. A T. rex or a titan never rolls it, and a territorial charger neither."
     },
@@ -86,7 +88,7 @@
     },
     "docile": {
       "label": "Docile",
-      "feeds_mult": 0.67,
+      "feeds_mult": 0.33,
       "tame_window_mult": 1.25,
       "pen_time_mult": 0.8,
       "damage_dealt_mult": 0.75,

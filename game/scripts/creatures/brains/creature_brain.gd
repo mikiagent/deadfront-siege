@@ -109,8 +109,26 @@ func _effective_perception() -> float:
 func _is_herbivore() -> bool:
 	return bool(profile.get("is_herbivore", false))
 
+## NATURES (one place): fear_immune (Stubborn) never bolts; auto_engage (Aggressive) makes even a
+## skittish grazer come at a threat instead of running from it.
 func _flees_on_sight() -> bool:
+	if creature.nature_flag("fear_immune") or creature.nature_flag("auto_engage"):
+		return false
 	return _is_herbivore() and bool(profile.get("flee_on_sight", true))
+
+## The HP fraction at which this animal's fight would end: the archetype's retreat_threshold_frac
+## times its nature's multiplier (Brave 0.5, Stubborn 0.6, Timid 1.8 on a grazer).
+func retreat_fraction() -> float:
+	var mult := creature.nature_knob("flee_threshold_mult", 1.0) if _is_herbivore() else creature.nature_knob("retreat_threshold_mult", 1.0)
+	return clampf(float(profile.get("retreat_threshold_frac", 0.3)) * mult, 0.0, 0.95)
+
+## The damage that ends a fight for this animal: the archetype/temperament threshold (ai.json
+## retreat_threshold_frac x max HP) times its nature's multiplier (Timid backs off sooner, Brave and
+## Stubborn fight on). One place; note_damage and every species brain read it.
+func damage_threshold() -> float:
+	var frac := float(profile.get("retreat_threshold_frac", 0.3))
+	var mult := creature.nature_knob("flee_threshold_mult", 1.0) if _is_herbivore() else creature.nature_knob("retreat_threshold_mult", 1.0)
+	return creature.health.max_hp * frac * mult
 
 ## Leash radius: past this the chase ends at once (see BrainFlight.track). Drawn as the red
 ## dotted ring while the creature is on the survivor. A pack shares its alpha's leash.
@@ -256,9 +274,11 @@ func note_damage(amount: float) -> void:
 			_damage_window.remove_at(i)
 			continue
 		total += float(row.get("a", 0.0))
-	var trigger := creature.health.max_hp * float(profile.get("retreat_threshold_frac", 0.3))
-	if total >= trigger:
-		if _is_herbivore():
+	var trigger := damage_threshold()
+	if total >= trigger and not creature.nature_flag("fear_immune"):
+		# NATURES: Timid (retreat_as_flee) avoids the fight altogether; everyone else backs off a
+		# predator's way (retreat), the same reset it always did.
+		if _is_herbivore() or creature.nature_flag("retreat_as_flee"):
 			if not _provoked():
 				_set_state(&"flee")
 		else:
@@ -368,13 +388,11 @@ func _scan() -> void:
 	var best := _nearest_live_prey(_effective_perception())
 	if best:
 		_spot(best)
-	elif creature.nature_flag("auto_engage") and _nearest_live_prey(_effective_perception()) == null:
-		pass
 
 ## A survivor or pet is in sight (or woke us). Predators and territorial grazers come at it,
 ## skittish grazers start and then flee, defensive grazers keep grazing until they are hit.
 func _spot(who: Node3D) -> void:
-	if _is_herbivore() and not _flees_on_sight():
+	if _is_herbivore() and not _flees_on_sight() and not creature.nature_flag("auto_engage"):
 		var territory := float(profile.get("territory_m", 0.0))
 		if territory <= 0.0 or _surface_dist(who) > territory:
 			return

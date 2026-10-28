@@ -195,7 +195,7 @@ func apply_species_on_hit(clip: StringName, target: Node) -> void:
 
 ## The nature this animal has: its own, or (a pet whose brain was rebuilt) its record's.
 func nature_id() -> StringName:
-	if is_pet and pet_record != null:
+	if pet_record != null and pet_record.nature != &"":
 		return pet_record.nature
 	return nature
 
@@ -601,7 +601,7 @@ func _on_status_removed(id: StringName) -> void:
 	if anim and anim._hold_knockdown:
 		anim.release_knockdown()
 	is_capturable = false
-	if tame_attempting and def and tame_feeds + 0.001 < def.feeds_needed and not is_pet:
+	if tame_attempting and def and tame_feeds + 0.001 < feeds_needed() and not is_pet:
 		FieldTame.fail(self, null)
 
 func mark_aggro_now() -> void:
