@@ -59,6 +59,8 @@ func _run() -> void:
 	_test_gather_tool_xp()
 	_test_build_xp()
 	await _test_build_memory_survives_save()
+	await _test_old_save_has_no_memory()
+	_test_level_curve_unchanged()
 	_finish()
 
 func _finish() -> void:
@@ -324,3 +326,49 @@ func _test_build_memory_survives_save() -> void:
 	print("[t_xpecon] basket after load: construction +%.0f character +%d" % [float(after["sxp"]), int(after["wxp"])])
 	_expect(bool(after["ok"]) and int(after["sxp"]) == int(_cfg.get("build_repeat", 8)),
 		"a kit the loaded save already knows pays the repeat +%d, not first-of-kind (got %.0f)" % [int(_cfg.get("build_repeat", 8)), float(after["sxp"])])
+
+# ---------------------------------------------------------------- old saves, and the untouched curve
+
+## A save from a build before XPECON has no pioneer_buildings row at all: the survivor starts with no
+## first-of-kind memory (every kind pays 30 once more), and nothing crashes on the missing field.
+func _test_old_save_has_no_memory() -> void:
+	_expect(SG.save_now(), "the save writes before the forgery")
+	var raw := FileAccess.get_file_as_string(SG.path)
+	var saved: Variant = JSON.parse_string(raw)
+	if not saved is Dictionary:
+		_expect(false, "the save file parses")
+		return
+	var data: Dictionary = saved as Dictionary
+	data.erase("pioneer_buildings")
+	(data.get("player", {}) as Dictionary)["position"] = [0.0, 1.0, 18.0]
+	var f := FileAccess.open(SG.path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(data))
+	f.close()
+	_world.pioneer_buildings = {"basket": 9}
+	SG.load_now(_host)
+	await process_frame
+	await physics_frame
+	await process_frame
+	_grid = _world.runtime.get("build_grid")
+	_grid.ignore_distance = true
+	print("[t_xpecon] old save (no pioneer_buildings): memory %s" % [str(_world.pioneer_buildings)])
+	_expect(_world.pioneer_buildings.is_empty(), "a save without the field loads with no first-of-kind memory (got %s)" % [str(_world.pioneer_buildings)])
+	_clear_bag()
+	_world.pioneer_level = 55
+	_world.pioneer_xp = 0
+	var again := _build_once(&"basket", _free_cell(&"basket"))
+	print("[t_xpecon] basket on the old save: construction +%.0f character +%d" % [float(again["sxp"]), int(again["wxp"])])
+	_expect(bool(again["ok"]) and int(again["sxp"]) == int(_cfg.get("build_first", 30)),
+		"with no memory a basket is first-of-kind again and pays +%d (got %.0f)" % [int(_cfg.get("build_first", 30)), float(again["sxp"])])
+
+## The plan keeps the level curve: XPECON changes what actions pay, never what a level costs.
+func _test_level_curve_unchanged() -> void:
+	var W: Node = _world
+	_expect(int(W.xp_for_level(0)) == 100 and int(W.xp_for_level(9)) == 325 and int(W.xp_for_level(10)) == 350,
+		"World.xp_for_level is unchanged: Lv 1 costs 100, Lv 10 costs 325, Lv 11 costs 350 (got %d / %d / %d)" % [
+			int(W.xp_for_level(0)), int(W.xp_for_level(9)), int(W.xp_for_level(10))])
+	var total := 0
+	for l in 10:
+		total += int(W.xp_for_level(l))
+	print("[t_xpecon] cumulative XP from Lv 1 to Lv 11: %d (the plan's curve, untouched)" % total)
+	_expect(total == 2125, "the curve still sums to 100 + 25 n from Lv 1 to Lv 10 (got %d)" % total)

@@ -60,6 +60,22 @@ demand × saturation):
 `game/data/world/factions.json` (`crate_tstones`) carry T-stone numbers that no code reads today;
 the loader loads neither file.
 
+## XP economy (rules.json `xp`)
+| action | XP | where |
+|---|---|---|
+| Gather pass | `gather_base` 1 + `round(seconds that pass waited)` — a 2.8 s stone pass pays 3, a 3.0 s log pass 3-4, a 1.1 s berry pass 2, a Lv-60 rock bare-handed (10.1 s) 11 against 8 with a pick | `PlayerActions.gather_pass_xp` (`game/scripts/player/player_actions.gd`), seconds from `GatherService.unit_seconds` via `_gather_unit_time` |
+| Rock/clay pass, extra | +1 Processing on top of the above | `PlayerActions.finish_gather` |
+| Build, a kit kind's first placement ever | `build_first` 30 | `World.note_building` -> `World.build_placement_xp`, `game/scripts/core/world.gd` |
+| Build, a repeat of a known kind | `build_repeat` 8 | same |
+| Build, same kind within `build_spam_radius_m` 10 m of one placed under `build_spam_seconds` 60 s ago | 0 | same; the 60 s tank is transient (`World.build_recent`, cleared on island load) |
+| Blueprint structure completion | the blueprint's own `xp` plus the build award above, in one grant | `BuildFlow.complete` -> `World.note_building` |
+
+The first-of-kind memory is `World.pioneer_buildings` (kind -> placements, saved under
+`pioneer_buildings`; a save without the field loads with none). Both bars follow: the Construction
+tree grant is mirrored into `World.add_xp` by `SkillState.add_xp`. The level curve is untouched
+(`World.xp_for_level` = 100 + 25 x level). A repacked kit (pack up, place again) pays nothing.
+Test: `game/tests/t_xpecon.gd`.
+
 ## What does exist that moves value
 - Objectives pay XP and T-stones automatically when their step completes (`Objectives.settle`).
 - The camp cargo warp moves unstable goods into home cargo for the flat fee above; a full cargo
