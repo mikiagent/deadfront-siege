@@ -152,22 +152,18 @@ func animation_player() -> AnimationPlayer:
 func mount_socket() -> Marker3D:
 	return _mount
 
-## Saddled mount (assets/creatures/<id>/mount/mount.json): attaches the saddle skinned to this skeleton and
-## returns true; the rider then follows rider_transform() on rig.skeleton.skeleton_updated. False means no
-## saddle for this species, so the caller keeps the hips-socket path.
+## Saddled mount (assets/creatures/<id>/mount/mount.json): returns true and the rider then follows
+## rider_transform() on rig.skeleton.skeleton_updated. False means no saddle model for this species, so the
+## caller keeps the hips-socket path. The saddle mesh itself is show_saddle's (SADDLES: shown while one is
+## equipped, ridden or not).
 func begin_ride() -> bool:
-	var path := "res://assets/creatures/%s/mount/mount.json" % def.id
-	if not (using_glb and rig and rig.skeleton and FileAccess.file_exists(path)):
-		return false
-	var mj: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if not (mj is Dictionary and (mj as Dictionary).has("rider_in_mount")):
+	var mj := _mount_json()
+	if not mj.has("rider_in_mount"):
 		return false
 	var sk := rig.skeleton
 	_rider_bone = sk.find_bone(str(mj.get("socket", "")))
 	if _rider_bone < 0:
 		return false
-	end_ride()
-	_saddle = RiggedModel.attach_skinned(sk, "%s/%s" % [path.get_base_dir(), str(mj.get("saddle", "saddle.glb"))])
 	# rider_in_mount is the rider's root in the mount's glTF model space at rest (NOT rider_offset, which is in
 	# Blender's re-oriented bone frames). Express it relative to the socket bone's rest pose at the live scale.
 	var m: Array = mj["rider_in_mount"]
@@ -176,10 +172,44 @@ func begin_ride() -> bool:
 	_rider_offset = bone_rest_world.affine_inverse() * rig.mesh_root.global_transform * in_model
 	return true
 
+## The ride ends; the saddle stays on while it is equipped (show_saddle).
 func end_ride() -> void:
+	pass
+
+## This species' mount.json, {} when it has none (or no rigged model to put a saddle on).
+func _mount_json() -> Dictionary:
+	var path := "res://assets/creatures/%s/mount/mount.json" % def.id
+	if not (def and using_glb and rig and rig.skeleton and FileAccess.file_exists(path)):
+		return {}
+	var mj: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return mj if mj is Dictionary else {}
+
+## SADDLES: the equipped saddle on the back (null = none), skinned to this skeleton so it follows every
+## clip, its leather tinted by the saddle's natural colour (spec 35: the hide it was sewn from). Bone and
+## iron fittings keep their colour. A species without a saddle model shows nothing.
+func show_saddle(stack: ItemStack) -> void:
 	for mi in _saddle:
 		mi.queue_free()
 	_saddle.clear()
+	var mj := _mount_json()
+	if stack == null or mj.is_empty():
+		return
+	var path := "res://assets/creatures/%s/mount/%s" % [def.id, str(mj.get("saddle", "saddle.glb"))]
+	_saddle = RiggedModel.attach_skinned(rig.skeleton, path)
+	var tint := stack.tint_color()
+	for mi in _saddle:
+		mi.set_meta(&"creature_gear", true)  # apply_coloration must not repaint it as skin
+		if tint == Color.WHITE:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(i) as StandardMaterial3D
+			if m and m.resource_name.begins_with("saddle_leather"):
+				var t := m.duplicate() as StandardMaterial3D
+				t.albedo_color = tint.darkened(0.45) if m.resource_name.ends_with("_dark") else tint
+				mi.set_surface_override_material(i, t)
+
+func saddle_meshes() -> Array[MeshInstance3D]:
+	return _saddle
 
 ## Rest-pose positions for the pattern shader. The skin moves VERTEX, and Tripo UVs are arbitrary,
 ## so the pattern has to come from the authored position of each vertex: copy it once into CUSTOM0
@@ -286,7 +316,7 @@ func _color_material(src: Material, col: CreatureColoration) -> ShaderMaterial:
 ## re-roll) must copy the original textures again, not the shader material bound a moment ago.
 func _rebind_glb_surfaces(node: Node) -> void:
 	# Eyeshine is a shared presentation material, not skin. Re-coloring an individual must not strip it.
-	if node.has_meta(&"creature_eyeshine"):
+	if node.has_meta(&"creature_eyeshine") or node.has_meta(&"creature_gear"):
 		return
 	var mi := node as MeshInstance3D
 	if mi != null and mi.mesh != null:

@@ -354,6 +354,7 @@ func _test_tame_and_mounted() -> void:
 	await _tap(wild.global_position + Vector3(0, 0.5, 0))
 	await _frames(3)
 	_expect(_swords_shown() and _swords().get("_key_drawn") == true, "desktop: the swords show their E key cap")
+	pet.pet_record.fit_saddle()  # SADDLES: riding needs one
 	player.pets.mount(pet)
 	await _frames(3)
 	_expect(player.mounted_on == pet, "mounted: riding the zebraceratops")

@@ -59,6 +59,7 @@ func show_pet(rec: PetRecord) -> void:
 		_ready()
 	var key := rec.uid if rec else ""
 	if key == shown_uid and view != null:
+		view.show_saddle(rec.saddle() if rec else null)  # SADDLES: equipped on the stage too
 		return
 	shown_uid = key
 	if view:
@@ -77,6 +78,7 @@ func show_pet(rec: PetRecord) -> void:
 		CreatureClips.attach(ap, view, def)
 		if ap.has_animation(&"idle"):
 			ap.play(&"idle")
+	view.show_saddle(rec.saddle())
 	pivot.rotation_degrees.y = -35.0  # three-quarter, head to screen left like the canvas
 	_frame(def)
 

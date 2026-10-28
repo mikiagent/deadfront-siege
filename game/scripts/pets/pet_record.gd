@@ -42,6 +42,8 @@ var speed: float = 0.0
 var genetics: CreatureGenetics
 var tamed_role: Array[StringName] = []
 var bag: Inventory
+## SADDLES: what the tame wears (EntityEquipment.TAME_SLOTS). Never null; an old save loads with none.
+var gear := EntityEquipment.new()
 var summoned: bool = false
 ## A dead pet comes back after this long; the PETS sheet shows the countdown ring.
 ## GAUNTLET/HANDOFF rule: 3-minute death cooldown.
@@ -58,6 +60,36 @@ func coloration() -> CreatureColoration:
 	if genetics != null and genetics.coloration != null:
 		return genetics.coloration
 	return CreatureColoration.derive(uid)
+
+## SADDLES: the saddle size class a species takes, from its standing height (height_meters).
+# ASSUMPTION: bands small < 2.2 m <= medium < 5 m <= large (the PRDs give no size classes).
+const SADDLE_SIZES: Array[StringName] = [&"small", &"medium", &"large"]
+static func saddle_size(def: CreatureDef) -> StringName:
+	var h := def.height_meters if def != null else 1.0
+	return &"small" if h < 2.2 else (&"medium" if h < 5.0 else &"large")
+
+func saddle() -> ItemStack:
+	return gear.worn(&"saddle")
+
+## "" when `s` is a saddle of this species' size class, else what the player reads.
+func saddle_fit(s: ItemStack) -> String:
+	var d := s.def() if s else null
+	if d == null or not d.has_category(&"saddle"):
+		return "Not a saddle" if d else "Needs a saddle"
+	var want := saddle_size(Data.creature(species))
+	return "" if d.has_category(StringName("saddle_%s" % want)) else "Needs a %s saddle" % want
+
+## Labs and tests: put a new saddle of this species' size on, no bag involved.
+func fit_saddle() -> ItemStack:
+	var s := ItemStack.make(StringName("saddle_%s" % saddle_size(Data.creature(species))))
+	gear.put(&"saddle", s)
+	return s
+
+## Why the survivor cannot ride this tame now, or "" when she can.
+func ride_refusal() -> String:
+	if not (&"mount" in tamed_role):
+		return "Cannot be ridden"
+	return "Needs a saddle" if saddle() == null else saddle_fit(saddle())
 
 func tick_respawn(delta: float) -> void:
 	if respawn_left > 0.0:
@@ -225,6 +257,7 @@ func to_dict() -> Dictionary:
 		"genetics": genetics.to_dict() if genetics else {},
 		"tamed_role": roles,
 		"bag": bag.to_array() if bag else [],
+		"gear": gear.to_dict(),
 		"level": level,
 		"xp": xp,
 		"respawn_left": respawn_left,
@@ -291,4 +324,5 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	# Saved rows only keep a legacy 10-slot bag; a padded save cannot grow the bag past that.
 	r.bag = Inventory.new(bag_slots_for(def, mini(bag_rows.size(), 10)))
 	r.bag.load_array(bag_rows)
+	r.gear = EntityEquipment.from_dict(d.get("gear", {}))
 	return r

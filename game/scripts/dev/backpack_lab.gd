@@ -49,6 +49,7 @@ func _run() -> void:
 func _spawn_rex() -> Creature:
 	var def := Data.creature(&"tyrannosaurus")
 	var rec := PetRecord.from_def(def, &"A")
+	rec.fit_saddle()  # SADDLES: riding needs one
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	player.get_parent().add_child(c)
 	c.is_pet = true

@@ -93,11 +93,13 @@ func _run() -> void:
 	for id in ids:
 		player.bonded.clear()
 		player.bonded.append(PR.from_def(data.creature(id), &"A"))
+		player.bonded[-1].fit_saddle()  # SADDLES: riding needs one
 		for spot in [&"flat", &"slope", &"rock"]:
 			await _case(id, spot)
 	# 20 in a row on the rex.
 	player.bonded.clear()
 	player.bonded.append(PR.from_def(data.creature(&"tyrannosaurus"), &"A"))
+	player.bonded[-1].fit_saddle()  # SADDLES: riding needs one
 	var m = await _summon_at(Vector3(-20, 0, 20))
 	for i in 20:
 		player.pets.mount(m)

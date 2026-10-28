@@ -349,6 +349,7 @@ func _case_mounted(id: StringName) -> void:
 	await _reset()
 	var def = data.creature(id)
 	var rec = load("res://scripts/pets/pet_record.gd").from_def(def, &"A")
+	rec.fit_saddle()  # SADDLES: riding needs one
 	var m = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
 	player.get_parent().add_child(m)
 	m.is_pet = true

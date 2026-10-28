@@ -4235,6 +4235,48 @@
         "food_energy": 0.01
       },
       "diet": "omnivore"
+    },
+    {
+      "id": "saddle_small",
+      "display_name": "Small Saddle",
+      "categories": [
+        "saddle",
+        "saddle_small"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SADDLES: fits a small tame (PetRecord.saddle_size); equip it from the tame's Gear screen to ride."
+    },
+    {
+      "id": "saddle_medium",
+      "display_name": "Medium Saddle",
+      "categories": [
+        "saddle",
+        "saddle_medium"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SADDLES: fits a medium tame (PetRecord.saddle_size); equip it from the tame's Gear screen to ride."
+    },
+    {
+      "id": "saddle_large",
+      "display_name": "Large Saddle",
+      "categories": [
+        "saddle",
+        "saddle_large"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SADDLES: fits a large tame (PetRecord.saddle_size); equip it from the tame's Gear screen to ride."
     }
   ]
 }

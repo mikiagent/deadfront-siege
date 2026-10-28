@@ -139,7 +139,9 @@
     "armour_head": "res://assets/icons/render/raid_helm.png",
     "armour_body": "res://assets/icons/render/raid_cuirass.png",
     "armour_arms": "res://assets/icons/render/forager_wraps.png",
-    "armour_legs": "res://assets/icons/render/raid_greaves.png"
+    "armour_legs": "res://assets/icons/render/raid_greaves.png",
+    "saddle_small": "res://assets/icons/saddle_small.png",
+    "saddle_medium": "res://assets/icons/saddle_medium.png"
   },
   "aliases": {
     "taming_pen_kit": "fence_kit",
@@ -244,7 +246,8 @@
     "meat_broth": "boiled_meat",
     "salad": "herb_leaf",
     "herbal_tea": "herb_leaf",
-    "shaved_ice": "ice"
+    "shaved_ice": "ice",
+    "saddle_large": "saddle_medium"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

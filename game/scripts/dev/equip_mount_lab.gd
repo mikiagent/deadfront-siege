@@ -165,6 +165,7 @@ func _ride_species(id: StringName, shoot: bool) -> bool:
 	c.global_position.y = maxf(0.2, c.global_position.y)
 	c.velocity = Vector3.ZERO
 	var rest := player.rig.transform
+	c.pet_record.fit_saddle()  # SADDLES: riding needs one
 	player.mount(c)
 	if player.mounted_on != c:
 		print("[mountlab] FAIL species=%s never mounted" % id)
@@ -230,8 +231,8 @@ func _ride_species(id: StringName, shoot: bool) -> bool:
 	if not player.rig.transform.is_equal_approx(rest):
 		print("[mountlab] FAIL species=%s dismount did not restore the rig" % id)
 		ok = false
-	if saddled and not (player._saddle_view == null and c.view._saddle.is_empty()):
-		print("[mountlab] FAIL species=%s saddle was not removed on dismount" % id)
+	if saddled and player._saddle_view != null:  # SADDLES: the equipped saddle stays on the back
+		print("[mountlab] FAIL species=%s still following the saddle after dismount" % id)
 		ok = false
 	if ok:
 		print("[mountlab] PASS species=%s" % id)
