@@ -334,7 +334,7 @@ func dismount() -> void:
 			view.end_ride()
 		p._saddle_view = null
 		p.rig.transform = _rig_rest
-	var pos := c.global_position + Vector3(1.2, 0, 0)
+	var pos := _dismount_spot(c)
 	var host := _mount_saved_parent if _mount_saved_parent else c.get_parent()
 	p.reparent(host)
 	# reparent keeps the global transform, so the body would keep the mount's yaw and the visual (local yaw,
@@ -344,12 +344,51 @@ func dismount() -> void:
 	if p.visual:
 		p.visual.global_rotation.y = face
 	p.global_position = pos
+	p.velocity = Vector3.ZERO
+	p.reset_physics_interpolation()
 	if is_instance_valid(c):
 		c.ridden = false
 		c.remove_collision_exception_with(p)
 		p.remove_collision_exception_with(c)
 	p.mounted_on = null
 	print("[capture] dismounted")
+
+## Where the body (capsule centre) lands: beside the mount's right flank, clear of its capsule, snapped to
+## the ground under it; left, behind, front and the diagonals if that spot is walled or has no ground.
+## The old fixed mount-root + 1.2 m world X put her centre at the mount's FEET (her feet 1 m under the
+## heightmap, which is one-sided, so she fell forever) and inside a T. rex's 1.44 m capsule.
+func _dismount_spot(c: Creature) -> Vector3:
+	var space := p.get_world_3d().direct_space_state
+	var half := p.half_height()
+	var reach := c.body_radius() + 0.35 + 0.4
+	# Ray from at most `reach` above her footing (a 45 deg climb): a taller rock or wall starts the ray inside
+	# it, the ray hits the ground under it, and the capsule test rejects the spot, so she never lands on top.
+	var top := c.global_position.y + reach
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.35
+	cap.height = half * 2.0
+	var shape_q := PhysicsShapeQueryParameters3D.new()
+	shape_q.shape = cap
+	shape_q.exclude = [p.get_rid()]
+	var b := c.global_basis.orthonormalized()
+	var first := Vector3.INF
+	for side in [b.x, -b.x, b.z, -b.z, b.x + b.z, -b.x + b.z, b.x - b.z, -b.x - b.z]:
+		var flat: Vector3 = side
+		flat.y = 0.0
+		var at := c.global_position + flat.normalized() * reach
+		var ray := PhysicsRayQueryParameters3D.create(Vector3(at.x, top, at.z), Vector3(at.x, top - 40.0, at.z))
+		ray.exclude = [p.get_rid(), c.get_rid()]
+		var hit := space.intersect_ray(ray)
+		if hit.is_empty():
+			continue
+		var stand := (hit["position"] as Vector3) + Vector3.UP * (half + 0.05)
+		if first == Vector3.INF:
+			first = stand
+		shape_q.transform = Transform3D(Basis(), stand)
+		if space.intersect_shape(shape_q, 1).is_empty():
+			return stand
+	# Every side blocked: the first grounded side, else straight up off the mount's own footing.
+	return first if first != Vector3.INF else c.global_position + Vector3.UP * (half + 0.05)
 
 ## Shift held or the HUD SPRINT toggle on: the rider asks the mount to run.
 func wants_mount_sprint() -> bool:

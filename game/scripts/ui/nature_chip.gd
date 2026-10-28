@@ -61,8 +61,26 @@ func fit() -> void:
 	var w := ThemeDB.fallback_font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX).x + PAD_X * 2.0
 	custom_minimum_size = Vector2(w, CHIP_H)
 	size = custom_minimum_size
-	label.position = Vector2(PAD_X, 0.0)
 	label.size = Vector2(w - PAD_X * 2.0, CHIP_H)
+	# The label will not shrink below its 23 px line box: centre that box on the chip, or the text sat
+	# 4 px low, under the gold box's lower edge and beneath whatever row follows (the plate's HP bar).
+	label.position = Vector2(PAD_X, (CHIP_H - label.size.y) * 0.5)
+
+## The same tag drawn straight onto a CanvasItem (the HUD's target plate is drawn, not built of nodes).
+## Returns the chip's rect; empty for no nature.
+static func draw_at(ci: CanvasItem, font: Font, pos: Vector2, nature: StringName, a: float = 1.0) -> Rect2:
+	var text := text_for(nature)
+	if text == "":
+		return Rect2()
+	var r := Rect2(pos, Vector2(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX).x + PAD_X * 2.0, CHIP_H))
+	var style := UiTokens.trait_chip_style(&"positive")
+	style.set_corner_radius_all(2)
+	style.bg_color.a *= a
+	style.border_color.a *= a
+	ci.draw_style_box(style, r)
+	var base := r.position.y + (CHIP_H + font.get_ascent(FONT_PX) - font.get_descent(FONT_PX)) * 0.5
+	ci.draw_string(font, Vector2(r.position.x + PAD_X, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, Color(UiTokens.trait_chip_fg(&"positive"), a))
+	return r
 
 func chip_text() -> String:
 	return label.text
