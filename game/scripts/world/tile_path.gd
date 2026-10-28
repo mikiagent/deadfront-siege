@@ -128,6 +128,7 @@ func _rebuild() -> void:
 	_harvest = _harvest_blockers()
 	_build = _build_blockers()
 	_props = _prop_blockers()
+	PerfTrace.mark("pathing.prep")
 	# Per tile the loop needs the ground height (tile_centre), the dry flag, the tile type and the
 	# slope; read them once, straight from the runtime's own arrays (same rules, same clamps as
 	# is_dry / tile_type_at_world / slope_deg) instead of through five helper calls and five grid
@@ -170,6 +171,7 @@ func _rebuild() -> void:
 			# Weight is set even under blockers so a released cell keeps its terrain cost.
 			_astar.set_point_weight_scale(tile, _weight_fast(pos, tile_type, hs.y) if fast else _weight(pos))
 			_astar.set_point_solid(tile, _blocked(tile))
+	PerfTrace.mark("pathing.loop")
 
 func _refresh() -> void:
 	_dirty = false
