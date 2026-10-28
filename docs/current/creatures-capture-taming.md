@@ -177,7 +177,7 @@ above (it never replaces them and never edits a species' stats). Table:
 | Timid | avoids combat, more likely to flee | `flee_threshold_mult` 1.6 / `retreat_threshold_mult` 1.8, `aggro_radius_mult` 0.9, `retreat_as_flee`; never on tyrant/titan |
 | Brave | protects its rider even when wounded | `retreat_threshold_mult` 0.5, `protect_rider_below_hp` 1.0 (a ridden pet never stands down for its own HP) |
 | Aggressive | attacks nearby threats without orders | `auto_engage` (engages unprovoked, also means a grazer does not flee on sight), `aggro_radius_mult` 1.3, `guard_radius_mult` 1.25; weight ×0.1 on grazer archetypes |
-| Loyal | stays close and protects its owner | `follow_dist_mult` 0.7, `guard_radius_mult` 1.4, `protect_owner` (threat measured from the owner too) |
+| Territorial | stays close and protects its owner | `follow_dist_mult` 0.7, `guard_radius_mult` 1.4, `protect_owner` (threat measured from the owner too) |
 | Stubborn | harder to tame, resistant to fear | `feeds_mult` 1.5, `tame_window_mult` 0.75, `pen_time_mult` 1.4, `fear_immune`, `retreat_threshold_mult` 0.6 |
 | Docile | easier to tame, less effective in combat | `feeds_mult` 0.33, `tame_window_mult` 1.25, `pen_time_mult` 0.8, `damage_dealt_mult` 0.75 |
 
@@ -282,8 +282,8 @@ Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"`
   top of the player"): each summoned pet holds its own follow slot behind/beside the survivor, by
   summon order (0 right, 1 left, 2 behind; more fan to the rear by `slot_arc_deg` 50°). Slot distance =
   (`slot_m` 3.0 + `slot_size_mult` 1.0 × body radius) × `follow_dist_mult` × `heel_mult` 0.7 on HEEL,
-  so a big tame hangs back further and a Loyal pet stands closer (measured: velociraptor 3.72 m,
-  triceratops 5.16 m, compsognathus 3.36 m, a Loyal raptor 2.60 m). It walks only past `outer_m` 4.5 from
+  so a big tame hangs back further and a Territorial pet stands closer (measured: velociraptor 3.72 m,
+  triceratops 5.16 m, compsognathus 3.36 m, a Territorial raptor 2.60 m). It walks only past `outer_m` 4.5 from
   the slot and stops inside `inner_m` 2.0 (both scaled by body size, the nature knob squared, and the
   band; a pet between the two does not move), goes round the survivor's clearance circle rather than
   through it, and steps out to `player radius + pet radius + clearance_margin_m` 0.3 when the

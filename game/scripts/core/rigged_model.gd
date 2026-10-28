@@ -13,7 +13,7 @@ var hips_socket: BoneAttachment3D
 var library: AnimationLibrary
 var log_tag: String = "creature"
 
-const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"mount_idle", &"sleep"]
+const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"mount_idle", &"sleep", &"idle_cold", &"idle_heat", &"idle_tired", &"idle_exhausted"]
 
 func setup(base_glb: String, anim_dir: String, forward_axis: String, height_m: float, p_log: String = "creature", sockets: bool = false, source_h: float = 0.0) -> bool:
 	log_tag = p_log
