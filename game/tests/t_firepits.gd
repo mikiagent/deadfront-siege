@@ -76,6 +76,7 @@ func _run() -> void:
 	_test_cooking_gate()
 	_test_info_lines()
 	_test_save_load()
+	_test_sanitized_save()
 	_finish()
 
 ## A fire with its config applied as the game places it, inside `host` so queue_free works.
@@ -253,3 +254,43 @@ func _test_save_load() -> void:
 	var legacy: StaticBody3D = B.from_dict({"kind": "bonfire"})
 	_expect(float(legacy.get("seconds_left")) < 0.0, "a permanent-kind row keeps seconds_left at -1 (older saves read it)")
 	legacy.free()
+
+## The real save path: a JSON round trip through SaveSanitizer.clean keeps a fire's fuel and durability,
+## and a forged/typoed field is dropped rather than crashing the load.
+func _test_sanitized_save() -> void:
+	var SAN = load("res://scripts/core/save_sanitizer.gd")
+	for kind in [&"bonfire", &"campfire", &"stone_fire_pit"]:
+		var f := _fire(kind)
+		if kind == &"stone_fire_pit":
+			_wood_log()
+			f.call("load_wood", _player)
+		else:
+			f.call("tick", 90.0)
+		var payload := {"home": {"buildings": [f.call("to_dict")]}}
+		var text := JSON.stringify(payload)
+		var parsed: Variant = JSON.parse_string(text)
+		var cleaned: Dictionary = SAN.clean(parsed)
+		var rows: Array = (cleaned["home"] as Dictionary).get("buildings", [])
+		_expect(rows.size() == 1, "%s survives the save sanitizer as one row" % kind)
+		if rows.size() == 1:
+			var back: StaticBody3D = B.from_dict(rows[0])
+			print("[t_firepits] sanitized %s fuel=%.1f durability=%.1f" % [kind, float(back.get("fuel_seconds")), float(back.get("durability"))])
+			_expect(is_equal_approx(float(back.get("fuel_seconds")), float(f.get("fuel_seconds"))), "%s fuel survives the sanitizer" % kind)
+			_expect(is_equal_approx(float(back.get("durability")), float(f.get("durability"))), "%s durability survives the sanitizer" % kind)
+			back.free()
+		f.queue_free()
+	# A forged row (fuel/durability as text) is cleaned, not fatal: the fire loads with sane numbers.
+	var bad: Dictionary = SAN.clean({"home": {"buildings": [{"kind": "bonfire", "fuel_seconds": "lots", "durability": "lots"}]}})
+	var bad_row: Dictionary = (bad["home"] as Dictionary)["buildings"][0]
+	print("[t_firepits] forged row after clean: %s" % str(bad_row))
+	_expect(not bad_row.has("fuel_seconds") and not bad_row.has("durability"), "a forged fuel/durability field is dropped by the sanitizer")
+	var sane: StaticBody3D = B.from_dict(bad_row)
+	_expect(float(sane.get("fuel_seconds")) > 0.0 and float(sane.get("durability")) > 0.0, "the cleaned forged row loads a lit, whole fire")
+	sane.free()
+	# A cold pit saved after its fuel ran out comes back cold, not relit.
+	var pit := _fire(&"stone_fire_pit")
+	var cold_row: Dictionary = pit.call("to_dict")
+	var cold_back: StaticBody3D = B.from_dict(cold_row)
+	_expect(not bool(cold_back.call("burning")), "a pit saved cold loads cold")
+	cold_back.free()
+	pit.queue_free()

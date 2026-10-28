@@ -156,7 +156,6 @@ func to_dict() -> Dictionary:
 		"rot": posmod(build_rot, 4),
 		"fuel_seconds": fuel_seconds,
 		"durability": durability,
-		"max_durability": max_durability,
 		"seconds_left": seconds_left,
 		"x": global_position.x,
 		"z": global_position.z,

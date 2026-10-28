@@ -36,7 +36,7 @@ const SHAPE := {
 ## "open" is the overhaul tip's gate flag (placed_building.gd), listed ahead of the merge.
 const BUILDING_ROW := {
 	"kind": "", "rot": 0, "x": 0.0, "z": 0.0, "sleeps_left": 0, "hp": 0.0, "reload_left": 0.0,
-	"seconds_left": 0.0, "growth": 0.0, "watered": 0.0, "fertilizer": 0.0, "fertilizer_overflow": 0.0,
+	"seconds_left": 0.0, "fuel_seconds": 0.0, "durability": 0.0, "growth": 0.0, "watered": 0.0, "fertilizer": 0.0, "fertilizer_overflow": 0.0,
 	"remaining": 0.0, "cargo": false, "running": false, "mature": false, "failed": false, "open": false,
 }
 const SNARE_ROW := {"heavy": false, "life_left": 0.0, "arm_left": 0.0}
