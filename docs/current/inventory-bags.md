@@ -50,6 +50,23 @@ All five wear in `accessory1`. The seven equipment slots (`Inventory.EQUIP_SLOTS
 body, arms, legs, accessory1, accessory2. Worn stacks live in `Inventory.equipment`, out of the
 grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in the data.
 
+### Worn bag on the survivor (BACKPACKS)
+- `PlayerEquipment.refresh` (on every `inventory.changed`: equip, unequip, preset switch, save load)
+  shows the bag worn in `accessory1` or `accessory2`: `RiggedModel.attach_skinned(rig.skeleton,
+  assets/characters/survivor/bags/<bag_id>.glb)`. Packs are skinned to Spine2, pouches to Hips; the
+  mesh rides the skeleton, so it stays on while mounted. Unequip frees it, a swap replaces it.
+- Tint (spec 35): the `bag_body` material's albedo × the bag instance's `tint` attribute; `bag_trim`
+  and `bag_bone` keep their colours. A crafted bag now keeps its primary hide's `tint`
+  (`BagCapacity.apply_inheritance`: the natural colour is bookkeeping, not a trait). A bag with no
+  `tint` (untinted hide, older saves) draws `PlayerEquipment.DEFAULT_BAG_TINT` (# ASSUMPTION: plain
+  tanned hide `#9a7a55`; no item defines a default hide colour).
+- Taking a bag off follows the capacity rule above unchanged: when its extra slots are occupied the
+  unequip is refused, the bag stays worn and so does its mesh.
+- The Character sheet has no 3D survivor preview, so nothing to show there. Both accessory slots
+  can hold a bag; two packs on Spine2 would overlap (not prevented).
+- Test `game/tests/t_backpacks.gd`; look check `--lab=backpack_lab` (sheets in
+  `docs/orchestration/reports/backpacks/`).
+
 ## Storage containers (separate `Inventory`s, never part of bag capacity)
 | container | slots | owner |
 |---|---|---|
