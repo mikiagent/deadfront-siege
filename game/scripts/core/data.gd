@@ -127,8 +127,7 @@ func _load_creatures(dir: String) -> void:
 	da.list_dir_begin()
 	var fname := da.get_next()
 	while fname != "":
-		# natures.json is the nature table beside the species files (not a species).
-		if not da.current_is_dir() and fname.ends_with(".json") and fname != "anim_events.json" and fname != "ai.json" and fname != "natures.json":
+		if not da.current_is_dir() and fname.ends_with(".json") and fname != "anim_events.json" and fname != "ai.json":
 			var path := "%s/%s" % [dir, fname]
 			var root := _parse_json(path)
 			if not root.has("species"):

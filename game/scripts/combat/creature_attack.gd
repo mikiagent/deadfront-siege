@@ -70,8 +70,6 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 		return true
 	if attacker.is_pet and attacker.pet_record:
 		atk = attacker.pet_record.stat_value(&"melee_attack") * attacker.statuses.attack_mult()
-	# NATURES: one place for a nature's damage multiplier (Docile is less effective in combat).
-	atk *= attacker.nature_knob("damage_dealt_mult", 1.0)
 	var crit_mult := CombatTuning.num("creature_melee", "crit_mult", 1.5)
 	if target is Player:
 		var survivor := target as Player

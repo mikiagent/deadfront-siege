@@ -100,6 +100,43 @@ Knockdown itself comes from tackle/kick/stagger — see `game/scripts/combat/com
 - On finish: `SUCCESS_CHANCE` = 0.70 bonds the animal (origin `capture`); failure spawns it back
   wild and fleeing. At the bonded cap the finished animal stays in the pen unbonded.
 
+## Natures (owner 2026-10-28)
+
+A Pokémon-like temperament that changes BEHAVIOUR only, on top of the archetype and temperament
+above (it never replaces them and never edits a species' stats). Table:
+`game/data/creatures/natures.json`; helper: `game/scripts/creatures/brains/brain_natures.gd`
+(`class_name CreatureNatures`); knobs are read in one place each, through
+`Creature.nature_knob()/nature_flag()` (`game/scripts/creatures/creature.gd`).
+
+| nature | what it does | knobs (default 1.0) |
+|---|---|---|
+| Timid | avoids combat, more likely to flee | `flee_threshold_mult` 1.6 / `retreat_threshold_mult` 1.8, `aggro_radius_mult` 0.9, `retreat_as_flee`; never on tyrant/titan |
+| Brave | protects its rider even when wounded | `retreat_threshold_mult` 0.5, `protect_rider_below_hp` 1.0 (a ridden pet never stands down for its own HP) |
+| Aggressive | attacks nearby threats without orders | `auto_engage` (engages unprovoked, also means a grazer does not flee on sight), `aggro_radius_mult` 1.3, `guard_radius_mult` 1.25; weight ×0.1 on grazer archetypes |
+| Loyal | stays close and protects its owner | `follow_dist_mult` 0.7, `guard_radius_mult` 1.4, `protect_owner` (threat measured from the owner too) |
+| Stubborn | harder to tame, resistant to fear | `feeds_mult` 1.5, `tame_window_mult` 0.75, `pen_time_mult` 1.4, `fear_immune`, `retreat_threshold_mult` 0.6 |
+| Docile | easier to tame, less effective in combat | `feeds_mult` 0.33, `tame_window_mult` 1.25, `pen_time_mult` 0.8, `damage_dealt_mult` 0.75 |
+
+- Roll: once per animal at spawn, seeded from species + spawn point + pack
+  (`CreatureNatures.spawn_key`), weighted by `weights` and masked per archetype (`never`, `only`,
+  `rare_for`). Docile and Timid are the common ones.
+- AI: `creature_brain.gd` (`_effective_perception`, `_flees_on_sight`, `damage_threshold`,
+  `retreat_fraction`, `note_damage`, `_spot`), `raptor_pack_brain.gd` (retreat line),
+  `pet_brain.gd` (`guard_radius`, `_threat_distance`, `nature_keeps_fighting`,
+  `nature_stop_distance`), damage dealt in `Creature.attack_for`.
+- Taming: `Creature.feeds_needed()/tame_window_seconds()` = species number × nature;
+  `FieldTame` (window, feeds, completion) and `TamingPen` (wait at insert, nature carried on the
+  captured stack by `CaptureSystem`) read them. Spec 09's capture rule is unchanged.
+- Name: the plate and the Animals screen read `CreatureNatures.display_title` /
+  `PetRecord.nature`, nature first, then the colour variant or "Alpha" (pack leader), then species:
+  "Timid Velociraptor", "Brave Alpha Raptor".
+- Saves: `PetRecord.nature` is an optional field. A pet row without one (an old save, the server's
+  roster) loads with the nature its uid derives, and every later load agrees. Fixture:
+  `game/tests/fixtures/pet_record_no_nature.json`; test: `game/tests/t_natures.gd`.
+- `# ASSUMPTION`: every number in the table is a first pass for measurability, not balance, and
+  the pet rule "a pet below its retreat threshold drops the fight" is new; only a Brave pet with
+  its owner riding keeps fighting.
+
 ## Pets & mounts
 - Bonded cap = `Data.bonded_cap`: 3 + Animal Handling `bonded_slots` nodes, at most 7
   (`SkillRules.bonded_capacity`). At most `MAX_OUT` = 3 pets out at once (`player_pets.gd`).

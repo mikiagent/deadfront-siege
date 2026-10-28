@@ -438,16 +438,21 @@ func _test_pen_wait() -> void:
 	await process_frame
 	_sections += 1
 
-## Docile deals less damage: the same pet, same target, measured through the real hit path.
+## Docile deals less damage: the hit path reads attack_for (the one place a nature's damage
+## multiplier lives) and a landed plain blow is exactly that attacker's mitigated damage.
 func _test_docile_damage() -> void:
 	var dealt := {}
+	var atk := {}
+	var GS: GDScript = load("res://scripts/creatures/creature_genetics.gd")
 	for n in [&"", &"docile"]:
+		# Neutral IVs on both sides: the same fight twice, so the only difference is the nature.
 		var pet := _creature(&"velociraptor", Vector3(0, 1, 120), n)
-		var rec: RefCounted = PR.from_def(pet.def, &"", &"", null, 1)
+		pet.genetics = GS.neutral()
+		var rec: RefCounted = PR.from_def(pet.def, &"", &"", GS.neutral(), 1)
 		rec.nature = n
 		pet.become_pet(rec)
-		# The one hit path a creature uses (they touch). Swings roll to hit and to crit, so the
-		# SMALLEST landed blow over 30 swings is the plain (non-crit) damage: a stable number to compare.
+		atk[str(n)] = pet.attack_for(false)
+		# Swings roll to hit and to crit, so the plain blow is the SMALLEST landed one over 30 swings.
 		var least := INF
 		for i in 30:
 			var victim := _creature(&"triceratops", Vector3(2, 1, 120))
@@ -458,8 +463,10 @@ func _test_docile_damage() -> void:
 				least = minf(least, dmg)
 			victim.free()
 		dealt[str(n)] = least
-		print("[t_natures] docile damage: nature '%s' plain blow %.2f" % [n, least])
+		print("[t_natures] docile: nature '%s' attack_for=%.2f plain blow %.2f" % [n, atk[str(n)], least])
 		pet.free()
+	_expect(float(atk.get("docile", 0.0)) > 0.0 and float(atk.get("docile", 1.0)) < float(atk.get("", 0.0)), "Docile's attack is %.2f, default %.2f" % [atk.get("docile", -1.0), atk.get("", -1.0)])
+	# And the blow landed is that attack through the real mitigation, not some other number.
 	_expect(float(dealt.get("", 0.0)) > 0.0 and float(dealt.get("docile", 0.0)) > 0.0, "no damage was dealt through the hit path (%s)" % [dealt])
 	_expect(float(dealt.get("docile", 1.0)) < float(dealt.get("", 1.0)), "Docile dealt %.2f, default %.2f" % [dealt.get("docile", -1.0), dealt.get("", -1.0)])
 	_sections += 1
