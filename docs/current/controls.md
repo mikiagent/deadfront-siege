@@ -35,7 +35,7 @@ browsers hide a controller until it is used.
 | Key | Action |
 |---|---|
 | W A S D or arrows | Move |
-| Shift | Sprint while held (the HUD SPRINT hex is a tap toggle) |
+| Shift | Sprint while held (the HUD SPRINT hex is a tap toggle). While riding, Shift or the toggle runs the mount on its own energy; otherwise it walks |
 | Q | Roll |
 | Space | Gather the nearest resource |
 | E | Interact (the INTERACT hex's pick); with a selection on screen, fight it |

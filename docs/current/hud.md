@@ -15,6 +15,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   Rested the belt pauses (`ExhaustTreadmill.paused_rate`: the drift eases to 0 in ~0.2 s and holds)
   unless exhaustion is falling right then (a rest or a meal still runs it left); the status row shows
   the Well Rested chip (sun over a pillow, `well_rested.svg`) with its countdown.
+- Mounted: the second (energy) bar shows the ridden mount's energy. It turns amber, and on desktop
+  the mount's name leads the numbers (a phone bar shows only the numbers when the name does not fit).
+  It goes back to the survivor's blue stamina on dismount (`HuntHud.energy_reading`). The exhaustion
+  face and treadmill always belong to the survivor, and the mount running does not move them.
 - Status chips row under the vitals (30 px pitch, a countdown under 3600 s; longer = "until treated").
   A status that lowers max HP adds its own note line ("Infected Wound: max HP −20%").
   While she rests or sleeps a Resting chip (rest icon) comes first, and a rounded ink pill right under
