@@ -335,6 +335,12 @@ func dismount() -> void:
 	var pos := c.global_position + Vector3(1.2, 0, 0)
 	var host := _mount_saved_parent if _mount_saved_parent else c.get_parent()
 	p.reparent(host)
+	# reparent keeps the global transform, so the body would keep the mount's yaw and the visual (local yaw,
+	# player_sim) would run sideways or backwards. Zero the body yaw; keep the facing on the visual.
+	var face := p.visual.global_rotation.y if p.visual else 0.0
+	p.global_rotation = Vector3.ZERO
+	if p.visual:
+		p.visual.global_rotation.y = face
 	p.global_position = pos
 	if is_instance_valid(c):
 		c.ridden = false
