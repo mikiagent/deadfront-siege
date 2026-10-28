@@ -552,8 +552,9 @@ func _test_sheet_rows() -> void:
 				inert += 1 if (b as Button).text == SkillStateS.NOT_IN_GAME else 0
 			if str(row.name).begins_with("SkillsLater_"):
 				rows += 1
-				var t := str(row.get("text"))
-				if row is Button or not row.find_children("*", "Button", true, false).is_empty() or not (t.contains(SkillStateS.NOT_IN_GAME) and t.contains(" SP") and t.contains("Lv. ")):
+				# The SP cost is the brain glyph plus its number (SpCost), not the letters "SP".
+				var t := " ".join(row.find_children("*", "Label", true, false).map(func (l: Node) -> String: return (l as Label).text))
+				if row is Button or not row.find_children("*", "Button", true, false).is_empty() or not (t.contains(SkillStateS.NOT_IN_GAME) and row.find_child("SpCost", true, false) != null and t.contains("Lv. ")):
 					bad.append(t)
 			elif row.name == "SkillsLearnedAuto":
 				autos = row.text
@@ -603,9 +604,11 @@ func _test_levelup_banner() -> void:
 		_world().pioneer_level = stored
 		_world().pioneer_changed.emit(stored)
 		var want: int = Rules.paid_for_level(p.skills, stored + 1)
-		var banner := str(hud.get("_levelup_summary"))
-		var lines := ", ".join((hud.get("_levelup_lines") as Array).map(func (l: Array) -> String: return str(l[0])))
-		_expect(p.skills.sp_available == want and banner.ends_with("Skill points %d" % want) and lines.contains("Available Skill Points: %d" % want), "character Lv. %d: the level-up banner shows the %d SP SkillState holds (%d): '%s' | %s" % [stored + 1, want, p.skills.sp_available, banner, lines])
+		var banner := str(hud.get("_levelup_sp"))
+		var brain_rows := (hud.get("_levelup_lines") as Array).filter(func (l: Array) -> bool: return l.size() > 3 and l[3] == &"brain")
+		var lines := ", ".join(brain_rows.map(func (l: Array) -> String: return str(l[0])))
+		# Skill points are the brain glyph (BRAINICON): the phone banner's number and the stack's brain row.
+		_expect(p.skills.sp_available == want and banner == str(want) and brain_rows.size() == 1 and lines.begins_with("%d" % want), "character Lv. %d: the level-up banner shows the %d SP SkillState holds (%d): '%s' | %s" % [stored + 1, want, p.skills.sp_available, banner, lines])
 	for n in [hud, p]:
 		get_root().remove_child(n)
 		n.free()

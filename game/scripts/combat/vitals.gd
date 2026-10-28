@@ -86,9 +86,11 @@ func stamina_cap_mult() -> float:
 	var strain := fatigue / maxf(1.0, effective_max_fatigue())
 	return 0.5 if strain >= 0.75 else (0.65 if strain >= 0.5 else (0.85 if strain >= 0.25 else 1.0))
 
+## Refill by exhaustion (combat_tuning movement.stamina_regen_by_strain, fresh fast -> exhausted slow).
 func stamina_regen_mult() -> float:
 	var strain := fatigue / maxf(1.0, effective_max_fatigue())
-	return 0.2 if strain >= 0.75 else (0.35 if strain >= 0.5 else (0.5 if strain >= 0.25 else 1.0))
+	var tiers: Array = CombatTuning.section("movement").get("stamina_regen_by_strain", [1.0, 0.5, 0.35, 0.2])
+	return float(tiers[mini(3, int(strain / 0.25))])
 
 func _sync_exhausted() -> void:
 	var on := fatigue >= effective_max_fatigue() * 0.75

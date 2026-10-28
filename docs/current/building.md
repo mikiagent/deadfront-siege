@@ -65,6 +65,32 @@ Durability effects raise `max_hp` (`StructurePiece.apply_quality`, `CraftStation
 Storage effects resize the piece's container by `grow_to`, and shrink only into empty slots
 (`StructurePiece.apply_storage_bonus`) so stored items are never deleted.
 
+## Fires: the permanent firepit and the temporary fires
+
+Three kit-placed fires share `game/scripts/world/bonfire.gd` (`Bonfire`); their numbers live in
+`structures.json` → `placed_kinds.<kind>` and are `# ASSUMPTION` (docs 10, 30 and 08 give none).
+
+| Kind | Kit | Permanent | Wood | Fuel |
+|---|---|---|---|---|
+| `stone_fire_pit` | `stone_fire_pit_kit` | yes, never decays | hidden until wood is loaded | 1 branch = 120 s, up to 600 s |
+| `bonfire` | `bonfire_kit` | no | shown from placement | lit with 600 s, burns out |
+| `campfire` | `campfire_kit` | no | shown from placement | lit with 120 s, burns out |
+
+- **The permanent pit.** Its Blender model bakes wood and a spit into the mesh, so `Bonfire` hides
+  that model and draws its own two-course stone ring. `WoodPile` and `Flame` are separate nodes shown
+  only while `fuel_seconds > 0`. `load_wood(player)` spends one `branch` for
+  `wood_seconds_per_branch`; when the fuel runs out the wood and flame go and the rocks stay.
+- **Temporary fires** burn down every frame, wear `durability_per_minute` (1/min), wear twice as fast
+  when the fire stands outside a Domain (the same claim check `BuildGrid.can_place` uses), and are
+  removed at burn-out or at 0 durability — the game has no ash state.
+- **Cooking** works only while a fire burns: `Bonfire.can_cook()` / `cook_block_reason()`,
+  `StationMenu.filter_actions` drops the COOK hex and `StationMenu._on_pressed` refuses the press.
+- **LOAD WOOD** is a hex on every fire (`StationMenu.actions_for` → `Bonfire.load_wood`); hidden once
+  full. The menu also prints the fire's state line (`info_lines`: `Fuel m:ss · Burning/Out` and
+  `Durability cur/max` for temporary fires).
+- **Save.** Rows carry `fuel_seconds` and `durability` (the campfire still mirrors `seconds_left`);
+  `SaveSanitizer` keeps both fields, and a row without them loads a lit, whole fire.
+
 ## Where it is visible
 
 - Piece card: `StructureSheet.fill_card` shows `Lv N · High Density 3` plus one line per trait
@@ -92,3 +118,5 @@ Storage effects resize the piece's container by `grow_to`, and shrink only into 
   material site (20,20,12,12 → 16) finishing into a station with a shorter job and a repackaged one.
 - `game/tests/t_buildsys.gd`, `t_buildflow.gd`, `t_build.gd` — placement, costs, support/collapse,
   repair/upgrade, rows, site escrow and completion.
+- `game/tests/t_firepits.gd` — the fires: empty vs loaded pit, temporary burn-out and wear (2× outside a
+  Domain), the cooking gate and hex menu, the info line, and the save round trip through the sanitizer.

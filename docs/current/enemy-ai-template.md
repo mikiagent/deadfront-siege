@@ -24,15 +24,17 @@ Full-rate thinking runs in every one of these states (`_full_rate`).
 |---|---|---|
 | `sequences` | 7 rows | `{name, steps[], weight}`; the last step is the finisher |
 | `point_blank` | `[combo, bite]` | at contact, after `contact_after_s` 1.0 s of circling |
-| `ring_m`, `circle_min_s`/`max_s` | 6.5 m, 0.5–1.0 s | stand-off ring and filler beat length |
-| `bite_cd` / `combo_cd` / `pounce_cd` / `charge_cd` / `hop_cd` | 3.5 / 10 / 12 / 5 / 3.5 s | each move's own cooldown, committed when the move is picked |
-| `pounce_telegraph_s`, `pounce_mult`, `pounce_min_m`/`max_m` | 0.8 s, 2.5×, 4–11.5 m | pounce windup with a ground ring, damage, range |
+| `ring_m`, `circle_min_s`/`max_s` | 8 m, 0.5–1.0 s | stand-off ring and filler beat length |
+| `bite_cd` / `combo_cd` / `pounce_cd` / `charge_cd` / `hop_cd` | 7 / 10 / 12 / 5 / 3.5 s | each move's own cooldown, committed when the move is picked |
+| `pounce_telegraph_s`, `pounce_mult`, `pounce_min_m`/`max_m`, `chase_pounce_max_m` | 0.8 s, 2.5×, 4–14 m, 8 m | pounce windup with a ground ring, damage, range |
 | `pounce_overshoot_chance`, `_m`, `pounce_miss_recover_s` | 0.25, 3 m, 1.5 s | sail past the prey; a miss leaves a longer punish window |
 | `combo_mults` | 1.0 / 1.3 / 1.8 | damage of each `bite_combo` hit |
-| `strafe_m`, `strafe_s` | 2.5 m, 0.42 s | the powerful strafe (dodge step) |
-| `hop_m`, `leap_back_m`, `leap_in_max_m`, `leap_height_per_m` | 3.5, 5, 6 m, 0.2 | leap lengths (the profile's, not the body's); arc height rises with distance |
-| `max_retreat_m` | 12 m | no back-leap ends farther from the prey than this |
-| `w_hold` / `w_strafe` / `w_feint` / `w_hop` | 0.8 / 0.3 / 0.1 / 0.1 | filler weights; hold ×2 while the prey is not advancing |
+| `strafe_m`, `strafe_s` | 3.75 m, 0.42 s | the powerful strafe (dodge step) |
+| `hop_m`, `leap_back_m`, `leap_in_max_m`, `leap_height_per_m` | 5.6, 8, 8 m, 0.2 | leap lengths (the profile's, not the body's); arc height rises with distance |
+| `max_retreat_m` | 16 m | no back-leap ends farther from the prey than this |
+| `w_hold` / `w_strafe` / `w_dodge` / `w_feint` / `w_hop` | 0.8 / 0.3 / 0.3 / 0.1 / 0.1 | filler weights; hold ×2 while the prey is not advancing; while the bite cools or the prey presses, only strafe / dodge / hop |
+| `wait_max_s`, `opening_swing_cd_s` | 3 s, 0.2 s | pressed: wait for an opening (her swing recovering, her back turned) before committing |
+| `charge_speed_mult` | 1.5 | the charge runs at 1.5× the run, using the `charge` clip when the rig has it |
 | `max_basic_streak`, `max_basic_share` | 2, 0.15 | anti-spam: basics in a row; the share the test allows |
 | `retreat_frac`, `wide_ring_mult`, `wide_circle_s` | 0.4, 1.6, 4 s | back off when hurt, then circle wider |
 | `ambush`, `cover_m`, `ambush_radius_m`, `back_radius_m`, `ambush_pounce_max_m` | true, 14, 6, 10, 10 m | lurk at the tree nearest home and open with the pounce |
@@ -52,6 +54,14 @@ Full-rate thinking runs in every one of these states (`_full_rate`).
 - **Back-offs are leaps, never walks.** There is ONE after an attack. Two back-jumps never come
   in a row without a strafe, attack, pounce or chase between them. Back-jumps have `hop_cd` and
   are capped by `max_retreat_m`.
+- **Pressed, it waits.** While the survivor closes in, it only repositions (strafe-walk, power
+  strafe, one backstep). It commits when an opening shows (her swing recovering or playing, her
+  back turned) or after `wait_max_s`. While the basic bite is cooling, the filler is
+  repositioning too.
+- **Running.** In `energy.sprint_states` every creature runs at `energy.run_speed_mult` (1.25) and
+  drains `run_drain_per_s` 13. Its pool refills at `regen_mult_fresh` 1.5, or `regen_mult_winded`
+  0.6 while winded. The survivor's run and sprint use `combat_tuning movement` (×1.25 speed, ×1.3
+  stamina drain), with refill by fatigue strain tier 1.5 / 0.9 / 0.5 / 0.25.
 - **Prey that walks away** (more than 1 m/s outward) is chased at a full run, or pounced when the
   pounce reaches its predicted position. It never holds or backs off while the prey leaves.
 - **Hit times are data.** The `bite_combo` hits come from `anim_events.json` `hit_fracs`, and its
@@ -62,7 +72,8 @@ Full-rate thinking runs in every one of these states (`_full_rate`).
 ## Clip set (`CreatureClips`)
 Required (`CONTRACT`): idle, walk, run, attack_primary, attack_heavy, hit_react, knockdown, death,
 alert, feed. Optional (`OPTIONAL`, loaded when the GLB exists): sleep, tail_swipe, bite_combo,
-hop_back, leap_back, pounce, dodge_left, dodge_right, strafe_left, strafe_right, walk_back.
+hop_back, leap_back, pounce, dodge_left, dodge_right, strafe_left, strafe_right, walk_back,
+charge (a loop like run, stride-matched by `natural_speeds.<id>.charge`).
 Fallbacks: a leap without its clip retimes attack_heavy over the profile's `*_s`. A dodge
 without its clip plays the strafe loop. Locomotion picks a clip by velocity against facing
 (`CreatureAnim.set_move_velocity`): walk_back when dot < -0.5, a strafe when |side| > 0.7, each

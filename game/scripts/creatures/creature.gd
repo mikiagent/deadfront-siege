@@ -223,6 +223,14 @@ func face_towards(world_pos: Vector3, _delta: float) -> void:
 	rotation.y = rotate_toward(before, target_yaw, _turn_left)
 	_turn_left = maxf(0.0, _turn_left - absf(angle_difference(before, rotation.y)))
 
+## Turn toward a heading at turn_rate with FACE_SLACK_RAD of slack: reversals inside the slack (the
+## wobble a low-pass leaves, a rider's stick noise) cannot dither the yaw.
+func face_heading(heading: Vector3, delta: float) -> void:
+	var err := angle_difference(rotation.y, atan2(-heading.x, -heading.z))
+	if absf(err) > FACE_SLACK_RAD:
+		var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
+		face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
+
 func turn_rate() -> float:
 	return def.turn_rate if def else 3.0
 
@@ -332,6 +340,10 @@ func setup_energy() -> void:
 func energy_frac() -> float:
 	return energy / maxf(1.0, energy_max)
 
+## ai.json energy.run_speed_mult: every creature's run (and a ridden mount's) is this much faster.
+static func run_speed_mult() -> float:
+	return float(energy_rules().get("run_speed_mult", 1.0))
+
 func can_sprint() -> bool:
 	return not winded and energy > 0.0
 
@@ -375,7 +387,9 @@ func tick_energy(delta: float, is_running: bool) -> void:
 		if energy <= energy_max * float(r.get("stop_frac", 0.05)):
 			winded = true
 	else:
-		energy = minf(energy_max, energy + energy_regen_per_s * delta)
+		# Refill by exhaustion: fresh refills fast, a winded animal slowly (ASSUMPTION multipliers).
+		var regen_mult := float(r.get("regen_mult_winded", 1.0)) if winded else float(r.get("regen_mult_fresh", 1.0))
+		energy = minf(energy_max, energy + energy_regen_per_s * regen_mult * delta)
 		if winded and energy >= energy_max * float(r.get("resume_frac", 0.4)):
 			winded = false
 
@@ -486,6 +500,8 @@ func _physics_process(delta: float) -> void:
 	if sprint and not can_sprint():
 		speed = minf(speed, walk_mps(base_speed))
 		sprint = false
+	elif sprint:
+		speed *= run_speed_mult()  # owner 2026-10-28: running is faster for every creature
 	var locomote := Vector3.ZERO
 	if _path_active:
 		if _use_tile_path():
@@ -509,14 +525,13 @@ func _physics_process(delta: float) -> void:
 		if brain and not is_pet and brain.strafe_face and is_instance_valid(brain.strafe_face):
 			face_towards(brain.strafe_face.global_position, delta)  # TACTICS: sidestep facing the prey
 		elif _face_vel.length() > FACE_MIN_SPEED_MPS:
-			# Slack: the heading follows the smoothed velocity but ignores reversals inside
-			# FACE_SLACK_RAD, so the wobble the low-pass leaves cannot dither the yaw.
-			var err := angle_difference(rotation.y, atan2(-_face_vel.x, -_face_vel.z))
-			if absf(err) > FACE_SLACK_RAD:
-				var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
-				face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
-		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide).
-		anim.set_move_velocity(dir * speed, global_basis)
+			face_heading(_face_vel, delta)
+		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide); a
+		# brain's named gait (the charge) wins when the rig has it.
+		if brain and not is_pet and brain.gait_clip != &"":
+			anim.set_gait_clip(brain.gait_clip, speed, dir * speed, global_basis)
+		else:
+			anim.set_move_velocity(dir * speed, global_basis)
 		running = sprint
 	else:
 		velocity.x = 0.0
@@ -637,7 +652,7 @@ func _status_fx() -> void:
 	else:
 		_fx_drip.emitting = false
 	if statuses.has(&"venom") or statuses.has(&"poisoned_target"):
-		tint = Color(0.35, 0.85, 0.3)
+		tint = UiTokens.POISON  # owner 2026-10-28: no green debuffs
 	if statuses.has(&"enraged"):
 		tint = Color(0.9, 0.25, 0.15)
 	if statuses.has(&"groggy") or statuses.has(&"dizziness"):

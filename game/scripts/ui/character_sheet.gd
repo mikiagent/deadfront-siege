@@ -51,6 +51,7 @@ var _sel_label: Label
 var _unequip_btn: Button
 var _bag_btn: Button
 var _titles_view: VBoxContainer
+var _titles_scroll: ScrollContainer
 var _deco_note: Label
 var _needs: VBoxContainer
 var _status: Label
@@ -203,11 +204,17 @@ func _build_centre(row: HBoxContainer) -> void:
 	_bag_btn.add_theme_color_override("font_color", UiTokens.GOLD)
 	_bag_btn.pressed.connect(func () -> void: bag_requested.emit())
 	bh.add_child(_bag_btn)
+	# Scrolls: earned rows carry a 64 px Wear/Remove button, and seven of them overrun 844x390.
+	_titles_scroll = ScrollContainer.new()
+	_titles_scroll.name = "TitlesScroll"
+	_titles_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_titles_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	stack.add_child(_titles_scroll)
 	_titles_view = VBoxContainer.new()
 	_titles_view.name = "Titles"
-	_titles_view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_titles_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_titles_view.add_theme_constant_override("separation", 0)
-	stack.add_child(_titles_view)
+	_titles_scroll.add_child(_titles_view)
 	# ASSUMPTION: the game has no decorative (cosmetic) gear yet, so Appearance says so instead of
 	# inventing slots (INVSCREENS' Decorative tab; spec 13 s13: only what the game supports).
 	_deco_note = SheetChrome.label("No decorative gear yet. Your look is set when you create your survivor.", 20, UiTokens.MUTED)
@@ -346,7 +353,7 @@ func refresh() -> void:
 	for t: String in _tab_btns:
 		SheetChrome.tab_style(_tab_btns[t], t == _tab, SheetChrome.compact(view))
 	_equip_view.visible = _tab == "Equipment"
-	_titles_view.visible = _tab == "Titles"
+	_titles_scroll.visible = _tab == "Titles"
 	_deco_note.visible = _tab == "Appearance"
 	var nm := player.display_name() if player else (World.player_name if World.player_name != "" else "Survivor")
 	var occ := World.occupation.capitalize() if World.occupation != "" else "Survivor"
@@ -394,6 +401,8 @@ func _fill_stats(view: Vector2) -> void:
 		a.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		a.clip_text = true
 		h.add_child(a)
+		if str(r[0]) == "Skill points":  # the brain glyph is the skill point (Skills sheet, Spend)
+			h.add_child(SheetChrome.icon_rect(&"brain", SheetChrome.px(view, 24, 16)))
 		var b := SheetChrome.label(str(r[1]), SheetChrome.px(view, 21, 13))
 		b.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		h.add_child(b)
@@ -518,14 +527,15 @@ func _on_equip_slot_pressed(slot: String) -> void:
 	_gear_sel = slot
 	refresh()
 
-## Titles tab: every title with the level that earns it; the one held is gold.
+## Titles tab: every title with the level that earns it. An earned one has Wear (worn over her name,
+## in gold) or Remove; an unearned one shows its level.
 func _fill_titles(view: Vector2) -> void:
 	for c in _titles_view.get_children():
 		_titles_view.remove_child(c)
 		c.queue_free()
 	if _tab != "Titles":
 		return
-	var have := LevelDisplay.current_title(LevelDisplay.player_level())
+	var worn := LevelDisplay.worn_title()
 	var lv := LevelDisplay.player_level()
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/skills/titles.json")) if FileAccess.file_exists("res://data/skills/titles.json") else {}
 	var keys: Array = (parsed as Dictionary).keys().filter(func (k: Variant) -> bool: return str(k).is_valid_int()) if parsed is Dictionary else []
@@ -533,16 +543,30 @@ func _fill_titles(view: Vector2) -> void:
 	for k: Variant in keys:
 		var t := str((parsed as Dictionary)[k])
 		var h := HBoxContainer.new()
+		h.name = "Title_%s" % str(k)
 		h.custom_minimum_size = Vector2(0, 40 if SheetChrome.compact(view) else 56)
 		var earned := int(k) <= lv
-		var a := SheetChrome.label(t, SheetChrome.px(view, 22, 14), UiTokens.GOLD if t == have else (UiTokens.TEXT if earned else UiTokens.MUTED))
+		var a := SheetChrome.label(t, SheetChrome.px(view, 22, 14), UiTokens.GOLD if t == worn else (UiTokens.TEXT if earned else UiTokens.MUTED), false, t == worn)
 		a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		a.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		h.add_child(a)
-		var b := SheetChrome.label(("Held" if t == have else "Earned") if earned else LevelDisplay.label(int(k)), SheetChrome.px(view, 18, 13), UiTokens.MUTED)
-		b.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		h.add_child(b)
+		if earned:
+			var b := SheetChrome.flat_button("Remove" if t == worn else "Wear")
+			b.name = "TitleToggle"
+			b.add_theme_font_size_override("font_size", SheetChrome.px(view, 18, 13))
+			b.pressed.connect(set_title.bind("" if t == worn else t))
+			h.add_child(b)
+		else:
+			var b := SheetChrome.label(LevelDisplay.label(int(k)), SheetChrome.px(view, 18, 13), UiTokens.MUTED)
+			b.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			h.add_child(b)
 		_titles_view.add_child(h)
+
+## Wears `t` over her name ("" clears it). Only an earned title takes.
+func set_title(t: String) -> void:
+	if t == "" or LevelDisplay.earned_titles(LevelDisplay.player_level()).has(t):
+		World.player_title = t
+	refresh()
 
 ## The survival rows this build has (docs/current/survival-needs.md): exhaustion is a meter; food,
 ## thirst and hygiene are statuses, so they read as a state, not a bar.

@@ -137,6 +137,9 @@ static func apply_inheritance(out: ItemStack, primary: ItemStack) -> void:
 		return
 	for key: Variant in primary.attributes:
 		var k := str(key)
+		if k == "tint": # the material's natural colour (spec 35) is bookkeeping, not a trait: the bag wears it
+			out.attributes[k] = primary.attributes[key]
+			continue
 		if not BagDef.can_inherit(bag_id, StringName(k)):
 			out.attributes.erase(k)
 			continue
