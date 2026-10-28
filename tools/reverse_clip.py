@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Play a clip GLB backwards, in place: every animation output is reversed against unchanged, evenly spaced key times.
+"""Play a clip GLB backwards, in place.
 
 Fixes a moonwalk where a library walk/run was authored for the opposite facing (the planted foot slides forward;
-`tools/audit_gaits.py --gate` flags it). Only LINEAR samplers on one shared, evenly spaced time track are handled;
-anything else is refused, so a clip is never silently mangled.
+`tools/audit_gaits.py --gate` flags it), and turns a forward roll into a back roll. Each time track maps t -> end - t
+and its values are reversed. LINEAR and STEP samplers only; CUBICSPLINE is refused so a clip is never mangled.
 
   python3 tools/reverse_clip.py <clip.glb> [<clip.glb> ...]
 """
@@ -19,16 +19,18 @@ def reverse(path):
     comps = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
     done = set()
     for anim in doc.get('animations', []):
+        if any(s.get('interpolation', 'LINEAR') == 'CUBICSPLINE' for s in anim['samplers']):
+            sys.exit(f'{path}: CUBICSPLINE tangents not handled')
         inputs = {s['input'] for s in anim['samplers']}
-        if len(inputs) != 1 or any(s.get('interpolation', 'LINEAR') != 'LINEAR' for s in anim['samplers']):
-            sys.exit(f'{path}: needs LINEAR samplers on one time track')
-        ia = doc['accessors'][inputs.pop()]
-        bv = doc['bufferViews'][ia['bufferView']]
-        o = bin0 + bv.get('byteOffset', 0) + ia.get('byteOffset', 0)
-        ts = struct.unpack_from(f'<{ia["count"]}f', blob, o)
-        steps = [b - a for a, b in zip(ts, ts[1:])]
-        if steps and max(steps) - min(steps) > 1e-4:
-            sys.exit(f'{path}: key times are not evenly spaced')
+        dur = max(doc['accessors'][i]['max'][0] for i in inputs)
+        for i in inputs:  # t -> dur - t, in ascending order again
+            ia = doc['accessors'][i]
+            bv = doc['bufferViews'][ia['bufferView']]
+            o = bin0 + bv.get('byteOffset', 0) + ia.get('byteOffset', 0)
+            ts = struct.unpack_from(f'<{ia["count"]}f', blob, o)
+            new_ts = [dur - t for t in reversed(ts)]
+            struct.pack_into(f'<{ia["count"]}f', blob, o, *new_ts)
+            ia['min'], ia['max'] = [min(new_ts)], [max(new_ts)]
         for s in anim['samplers']:
             if s['output'] in done: continue
             done.add(s['output'])
@@ -40,7 +42,12 @@ def reverse(path):
             o = bin0 + bv.get('byteOffset', 0) + acc.get('byteOffset', 0)
             items = [bytes(blob[o + i * el:o + (i + 1) * el]) for i in range(acc['count'])]
             blob[o:o + el * len(items)] = b''.join(reversed(items))
-    open(path, 'wb').write(blob)
+    # accessor min/max changed: rebuild the JSON chunk (padded to 4 bytes); the binary chunk is unchanged
+    js = json.dumps(doc, separators=(',', ':')).encode()
+    js += b' ' * (-len(js) % 4)
+    rest = bytes(blob[20 + jlen:])
+    out = struct.pack('<4sII', b'glTF', 2, 12 + 8 + len(js) + len(rest)) + struct.pack('<I4s', len(js), b'JSON') + js + rest
+    open(path, 'wb').write(out)
     print(f'reversed {len(done)} channels in {path}')
 
 

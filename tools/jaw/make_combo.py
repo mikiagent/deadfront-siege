@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a three-bite combo clip ("chomp, Chomp, CHOMP") from a species' own bite.
+"""Build a three-bite combo clip from a species' own bite: chomp left, chomp right, MEGA chomp in the middle.
 
 The body motion of each bite is the source attack_primary replayed over its segment; the jaw opens wider and the
 head lunges harder on every bite, and the third bite gets a held wind-up the player can read and roll through.
@@ -16,8 +16,10 @@ ap.add_argument("base"); ap.add_argument("bite"); ap.add_argument("out")
 ap.add_argument("--hit", type=float, default=0.42, help="hit fraction of the source bite")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
-# (frames, jaw degrees, lunge degrees, wind-up hold frames before the bite)
-BITES = [(14, 26, 8, 0), (14, 36, 14, 0), (18, 50, 22, 8)]
+# (frames, jaw degrees, lunge degrees, wind-up hold frames, neck yaw degrees: + = the animal's left)
+# chomp left, chomp right, then a reared-up MEGA chomp straight ahead in the middle (owner 2026-10-28)
+REAR = 15.0  # degrees the head rears up during the third bite's wind-up (the tell)
+BITES = [(16, 42, 12, 0, 70), (16, 42, 12, 0, -35), (20, 58, 0, 10, 22)]  # yaw also cancels the source bite's own sway to its right
 
 b = open(a.bite, "rb").read(); n = struct.unpack("<I", b[12:16])[0]; j = json.loads(b[20:20 + n])
 acc = max((j["accessors"][s["input"]] for s in j["animations"][0]["samplers"]), key=lambda x: x["count"])
@@ -44,10 +46,11 @@ def sample(u):  # source bite pose (matrix_basis per bone) at normalised time u
 
 def smooth(x): x = min(max(x, 0.0), 1.0); return x * x * (3 - 2 * x)
 
-poses, jaw, lunge, hits, f = [], [], [], [], 0
-for frames, jd, ld, hold in BITES:
+poses, jaw, lunge, yaw, hits, f = [], [], [], [], [], 0
+for frames, jd, ld, hold, yd in BITES:
     for k in range(hold):  # wind-up hold: the opening pose of the bite, jaw already half open
-        poses.append(sample(0.0)); jaw.append(jd * 0.5 * smooth((k + 1) / hold)); lunge.append(-ld * 0.3 * smooth((k + 1) / hold))
+        # rear up and back, jaw half open: the tell the player can read and roll away from
+        poses.append(sample(0.0)); jaw.append(jd * 0.6 * smooth((k + 1) / hold)); lunge.append(-REAR * smooth((k + 1) / hold)); yaw.append(0.0)
         f += 1
     for k in range(frames):
         u = k / (frames - 1)
@@ -56,7 +59,10 @@ for frames, jd, ld, hold in BITES:
             jaw.append(jd * smooth((u + 0.05) / max(a.hit - 0.05, 1e-6)) if u < a.hit - 0.05 else jd * (1 - smooth((u - (a.hit - 0.05)) / 0.05)))
         else:
             jaw.append(-3.0 * (1 - smooth((u - a.hit) / 0.1)))
-        lunge.append(ld * smooth((u - (a.hit - 0.15)) / 0.15) * (1 - smooth((u - a.hit - 0.1) / 0.35)))
+        rear = -REAR * (1 - smooth(u / max(a.hit - 0.1, 1e-6))) if hold else 0.0  # out of the reared wind-up
+        lunge.append(rear + ld * smooth((u - (a.hit - 0.15)) / 0.15) * (1 - smooth((u - a.hit - 0.1) / 0.35)))
+        # swing the head out to the side ahead of the snap, sweep it through on the bite, settle back
+        yaw.append(yd * smooth(u / max(a.hit - 0.05, 1e-6)) * (1 - smooth((u - a.hit - 0.15) / 0.45)))
         if abs(u - a.hit) < 0.5 / (frames - 1): hits.append(f)
         f += 1
 total = f
@@ -68,6 +74,11 @@ for i in range(total):
         pb.rotation_mode = "QUATERNION"; pb.matrix_basis = poses[i][pb.name]
     jb = arm.pose.bones["Jaw"]; jb.rotation_quaternion = Quaternion((1, 0, 0), math.radians(jaw[i]))
     bpy.context.view_layer.update()  # no frame_set here: it would re-evaluate the action over these poses
+    nb = arm.pose.bones["Shoulders"]
+    m = nb.matrix.copy(); piv = m.translation.copy()  # swing shoulders, neck and head about the vertical, tilt into it
+    nb.matrix = (Matrix.Translation(piv) @ Matrix.Rotation(math.radians(yaw[i]), 4, "Z")
+                 @ Matrix.Rotation(math.radians(-yaw[i] * 0.3), 4, "Y") @ Matrix.Translation(-piv) @ m)
+    bpy.context.view_layer.update()
     hb = arm.pose.bones["Head"]
     m = hb.matrix.copy(); piv = m.translation.copy()
     hb.matrix = Matrix.Translation(piv) @ Matrix.Rotation(math.radians(lunge[i]), 4, "X") @ Matrix.Translation(-piv) @ m

@@ -35,7 +35,7 @@ browsers hide a controller until it is used.
 | Key | Action |
 |---|---|
 | W A S D or arrows | Move |
-| Shift | Sprint while held (the HUD SPRINT hex is a tap toggle) |
+| Shift | Sprint while held (the HUD SPRINT hex is a tap toggle). While riding, Shift or the toggle runs the mount on its own energy; otherwise it walks |
 | Q | Roll |
 | Space | Gather the nearest resource |
 | E | Interact (the INTERACT hex's pick); with a selection on screen, fight it |
@@ -65,6 +65,25 @@ NEAREST retargets to the nearest enemy.
 F11 toggles full screen on desktop and in the browser. The pause menu also has a Full screen button,
 which is the reliable route on a phone or tablet browser because browsers only allow full screen from
 a tap or key press.
+
+## Roll
+
+Space (keyboard) or B (gamepad) rolls; the ROLL hex in the hunt row does the same on touch. The roll is
+directional: it goes the way the stick or keys point, and with no direction held it is a **backward
+roll**, away from where she faces — she keeps facing forward (no turn), because there is no separate
+back-roll clip. The numbers live in `game/data/combat_tuning.json` `roll` and are timed by
+`scripts/combat/roll_rules.gd`:
+
+| | today |
+|---|---|
+| dash | 0.56 s, 39 m/s at the press decaying to 0.2 of it, ~10.9 m on open ground |
+| invulnerable | the first 0.32 s: a creature hit that would land then is dodged — no damage, no stagger, a "Dodged" line, Defense XP once |
+| cost | 12 stamina |
+| cooldown | 0.9 s from the press; a press inside it is refused ("Roll on cooldown") |
+
+A wall, fence or building stops the roll where a walk would. `tests/t_roll.gd` measures all of it
+(distance, wall, left vs backward direction, the 0.15 s dodge and the 0.5 s hit, cost, cooldown, no XP
+for spamming, and the server's `act.roll` window).
 
 ## Not yet on the gamepad
 
