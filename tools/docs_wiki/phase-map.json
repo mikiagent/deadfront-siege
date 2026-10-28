@@ -203,13 +203,13 @@
         {
           "id": "gather-stacks",
           "title": "Gathering and loot (W2-GATHER): tool-dependent speed and yield, data-driven rare finds, butchering by knife tier, +n popups, gather XP",
-          "status": "next",
+          "status": "done",
           "depends": [
             "claim-interact",
             "instance-inventory"
           ],
           "source": "docs/design/islands-and-loop-plan.md",
-          "note": "First in the merge queue. Branch claude/mmo-w2-gather (+56, base 10-21) was built and passing but never reviewed; it needs a rebase onto GATHERGLIDE/BIOMEDRESS/multi-resource trees (238c0a77) and the gather-continuity dsc task. Rare odds are illustrative."
+          "note": "W2-GATHER landed 8c2f001f (via w2gather2): tool-dependent speed/yield (bare hands 1.35x slower), loot_tables.json rare finds, butchering by knife tier and level. Knife gates on rare parts replaced by SKILLBUY Butchering nodes."
         },
         {
           "id": "xp-economy",
@@ -260,7 +260,7 @@
             "gather-stacks"
           ],
           "source": "docs/design/durango-prompts/12_remaining_skill_trees.md",
-          "note": "W2-GATHER brings knife-tier scaling and rare carcass parts; part selection is the remaining step."
+          "note": "W2-GATHER (8c2f001f) scales parts by knife tier and Butchering level and rolls rare parts; choosing parts is what remains."
         },
         {
           "id": "processing-depth",
@@ -736,7 +736,7 @@
             "cargo-warp"
           ],
           "source": "docs/design/economy.md",
-          "note": "Last in the merge queue, after W2-GATHER. Branch claude/mmo-econ (+44): review r3 blocker (client could send act.deposit), untested WIP fix, contract items unmet."
+          "note": "Now first in the merge queue (W2-GATHER landed 8c2f001f). Branch claude/mmo-econ (+44): review r3 blocker (client could send act.deposit), untested WIP fix, contract items unmet. limits.json must whitelist the six trait keys W2-GATHER adds."
         },
         {
           "id": "exchange-ui",
