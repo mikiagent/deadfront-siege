@@ -5,7 +5,9 @@ extends SceneTree
 ##    ribbon whose length and alpha grow with speed and whose alpha fades to 0 within ~0.3 s of stopping;
 ##  - the ring buffer never holds more than the cap for one eye;
 ##  - nothing is drawn while the eyes do not glow (day, dead, asleep) or the animal is far from the camera;
-##  - twenty animals cost twenty trail meshes and no more.
+##  - twenty animals cost twenty trail meshes and no more;
+##  - round 2: a flame shader tears the strands; the low-quality path (web renderer, phones) draws one
+##    strand per eye and one noise tap; nothing is allocated per frame in script.
 ## Run: Godot --headless --path game --script res://tests/t_eyetrails.gd -> "[t_eyetrails] PASS".
 ## Scripts are load()ed on the first frame: `--script` compiles this file before autoloads exist.
 
@@ -63,6 +65,9 @@ func _run() -> void:
 	await _test_flame()
 	await _test_shape()
 	await _test_knobs()
+	await _test_quality_and_alloc()
+	for id: StringName in [&"deinonychus", &"tyrannosaurus"]:
+		await _test_hidden_eye(id)
 	await _test_cost_and_cull()
 	for c in _creatures:
 		if is_instance_valid(c):
@@ -117,17 +122,16 @@ func _test_species(id: StringName, cap: int) -> void:
 	_expect(trail != null, "%s has a trail node" % id)
 	if trail == null:
 		return
-	_expect(trail is MeshInstance3D and trail.mesh is ImmediateMesh,
-		"%s trail is one ImmediateMesh ribbon" % id)
+	_expect(trail is MeshInstance3D and trail.mesh is ArrayMesh, "%s trail is one mesh" % id)
 	_expect((trail as MeshInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
 		"%s trail casts no shadow" % id)
-	var mat := (trail as MeshInstance3D).material_override as StandardMaterial3D
-	_expect(mat != null and mat.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED,
-		"%s trail is unshaded" % id)
-	_expect(mat != null and mat.blend_mode == BaseMaterial3D.BLEND_MODE_ADD,
-		"%s trail blends additively" % id)
-	_expect(mat != null and mat.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_DISABLED,
-		"%s trail writes no depth" % id)
+	# The flame shader: its render modes carry what the StandardMaterial used to.
+	var mat := (trail as MeshInstance3D).material_override as ShaderMaterial
+	var code: String = mat.shader.code if mat != null and mat.shader != null else ""
+	for mode in ["unshaded", "blend_add", "depth_draw_never", "fog_disabled", "shadows_disabled"]:
+		_expect(code.contains(mode), "%s trail shader is %s" % [id, mode])
+	_expect(mat != null and mat.get_shader_parameter(&"flame_noise") is Texture2D,
+		"%s trail shader has its noise texture" % id)
 	_expect(trail.top_level, "%s trail vertices are in world space, not riding the head bone" % id)
 	# Night: the ribbon may show.
 	WL.night = 1.0
@@ -176,12 +180,15 @@ func _test_species(id: StringName, cap: int) -> void:
 	_expect(gone_at > 0.0 and gone_at <= GONE_S, "%s ribbon fades out after stopping (%.3f s)" % [id, gone_at])
 	_expect(trail.ribbon_length() == 0.0 or trail.sample_count() == 0,
 		"%s a stopped head keeps no ribbon" % id)
-	# Day: the eyes barely glow, so no ribbon.
+	# Day (round 4, owner: "glow a little bit in the daytime too but no trail"): the core and bloom glow
+	# faintly, the flame and its sparks do not.
 	WL.night = 0.0
 	for _i in 60:
 		_move(c, trail, step_fast)
-	_expect(trail.sample_count() == 0 and trail.surface_count() == 0,
-		"%s no ribbon while the eyes do not glow by day" % id)
+	_expect(trail.sample_count() == 0 and trail.ribbon_vertex_count() == 0 and trail.trail_alpha() == 0.0,
+		"%s no flame trail by day while running" % id)
+	_expect(trail.surface_count() == 1 and maxf(trail.halo_alpha(0), trail.halo_alpha(1)) > 0.0,
+		"%s the eye core still glows by day" % id)
 	# Night again, build a ribbon, then kill the animal: the dots hide and so must the ribbon.
 	WL.night = 1.0
 	for _i in 30:
@@ -297,10 +304,12 @@ func _test_shape() -> void:
 	var px_eye := cam.unproject_position(at).distance_to(cam.unproject_position(at + right * trail.head_width() * 2.0))
 	var px_body := cam.unproject_position(at).distance_to(cam.unproject_position(at + right * trail.max_quad_width() * 2.0))
 	print("[t_eyetrails] game camera: flame %.1f px wide at the eye, %.1f px at its widest" % [px_eye, px_body])
-	_expect(px_eye >= 5.0 and px_body >= 8.0,
+	# Round 2 made the strands thinner on purpose (owner: thinner, longer); the fan of strands and the
+	# glow under them carry the width, so the main strand only needs to stay a few pixels wide.
+	_expect(px_eye >= 3.5 and px_body >= 5.0,
 		"the flame is visible from the game camera (%.1f px at the eye, %.1f px widest)" % [px_eye, px_body])
 	var len_px := cam.unproject_position(at).distance_to(cam.unproject_position(trail.world_tail()))
-	_expect(len_px >= 30.0, "the flame is long enough to read from the game camera (%.0f px)" % len_px)
+	_expect(len_px >= 60.0, "the flame is long enough to read from the game camera (%.0f px)" % len_px)
 	cam.queue_free()
 	c.queue_free()
 	WL.night = had_night
@@ -413,26 +422,177 @@ func _test_knobs() -> void:
 	WL.night = had_night
 	await process_frame
 
+## Round 3 (owner: "when the enemy is facing you such that you should only see one eye, you see both"):
+## from a 90 deg profile at the iso camera's 35 deg elevation the far eye's core and bloom contribute
+## ~0 while the near one is full; head-on both are full. The far eye's flame is hidden at the eye and
+## shows again once it has streamed out past the skull.
+func _test_hidden_eye(id: StringName) -> void:
+	var had_night: float = WL.night
+	WL.night = 1.0
+	var c := _spawn(id)
+	await process_frame
+	await process_frame
+	var trail = _trail_of(c)
+	var eyes = c.view.get_node_or_null("Eyes")
+	if trail == null or eyes == null:
+		_expect(false, "%s hidden-eye test has a trail" % id)
+		return
+	var p0: Vector3 = (eyes.dots[0] as Node3D).global_position
+	var p1: Vector3 = (eyes.dots[1] as Node3D).global_position
+	var mid := (p0 + p1) * 0.5
+	var out := Vector3(p0.x - p1.x, 0.0, p0.z - p1.z).normalized()
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var head := (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head"))).origin
+	var fwd := Vector3(mid.x - head.x, 0.0, mid.z - head.z)
+	fwd = (fwd - out * fwd.dot(out)).normalized()
+	var cam := Camera3D.new()
+	# A teleported camera must not be interpolated towards its new place over the physics ticks.
+	cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	root.add_child(cam)
+	cam.fov = 4.3
+	cam.current = true
+	var elev := deg_to_rad(35.0)
+	var dist := 190.0
+	var got := {}
+	for view in ["profile", "head_on"]:
+		var horiz: Vector3 = out if view == "profile" else fwd
+		cam.global_position = mid + (horiz * cos(elev) + Vector3.UP * sin(elev)) * dist
+		cam.look_at(mid, Vector3.UP)
+		await process_frame
+		for _i in 10:
+			trail.tick(DT)
+		got[view] = Vector2(trail.halo_alpha(0), trail.halo_alpha(1))
+	var pr: Vector2 = got["profile"]
+	var ho: Vector2 = got["head_on"]
+	print("[t_eyetrails] %s halo alpha near/far: profile %.3f / %.3f, head-on %.3f / %.3f" % [id, pr.x, pr.y, ho.x, ho.y])
+	_expect(pr.x > 0.5 and pr.y <= 0.02 * pr.x, "%s profile: the far eye's core is hidden (%.3f vs near %.3f)" % [id, pr.y, pr.x])
+	_expect(minf(ho.x, ho.y) >= 0.9 * maxf(ho.x, ho.y) and ho.x > 0.5, "%s head-on: both eyes glow (%.3f / %.3f)" % [id, ho.x, ho.y])
+	# The far eye's flame in profile: nothing at the eye, all of it past the skull.
+	cam.global_position = mid + (out * cos(elev) + Vector3.UP * sin(elev)) * dist
+	cam.look_at(mid, Vector3.UP)
+	await process_frame
+	trail.tick(DT)
+	var sep := p0.distance_to(p1)
+	print("[t_eyetrails] %s past skull: far at eye %.3f, far at 2 sep %.3f, near at eye %.3f" % [id,
+		trail.call("_past_skull", 1, 0.0), trail.call("_past_skull", 1, 2.0 * sep), trail.call("_past_skull", 0, 0.0)])
+	_expect(trail.call("_past_skull", 1, 0.0) <= 0.02 and is_equal_approx(trail.call("_past_skull", 1, 2.0 * sep), 1.0)
+		and is_equal_approx(trail.call("_past_skull", 0, 0.0), 1.0),
+		"%s profile: the far flame starts past the skull, the near one at the eye" % id)
+	cam.queue_free()
+	c.queue_free()
+	WL.night = had_night
+	await process_frame
+
+## Forces the dots' global transforms up to date (outside any timer).
+func _settle(trail: Node) -> void:
+	for d: Node3D in trail.get("_dots"):
+		var _p := d.global_position
+
+## Round 2: the quality toggle and the no-allocation rule.
+## High: STRANDS strands per eye, two noise taps. Low (EyeTrail.low_quality, on for gl_compatibility and
+## phones): one strand, fewer rows, one noise tap, so it draws fewer vertices and costs less script.
+## No per-frame allocation: the vertex buffers keep their fixed size, no Object is created per tick, the
+## static memory does not grow, and the tick-path functions contain no allocating construct.
+func _test_quality_and_alloc() -> void:
+	var had_night: float = WL.night
+	var had_low: bool = TRAIL.get("low_quality")
+	WL.night = 1.0
+	var verts := {}
+	var cost := {}
+	for low in [false, true]:
+		TRAIL.set("low_quality", low)
+		var c := _spawn(&"deinonychus")
+		await process_frame
+		await process_frame
+		var trail = _trail_of(c)
+		if trail == null:
+			_expect(false, "quality test has a trail")
+			return
+		var mat := (trail as MeshInstance3D).material_override as ShaderMaterial
+		var tag := "low" if low else "high"
+		_expect(trail.is_low_quality() == low, "%s: the trail took the quality toggle" % tag)
+		_expect(mat.shader.code.contains("#define LOW") == low, "%s: the shader variant matches (one noise tap when low)" % tag)
+		_expect(trail.strand_count() == (int(TRAIL.get_script_constant_map()["STRANDS_LOW"]) if low
+			else int(TRAIL.get_script_constant_map()["STRANDS"])), "%s: %d strands per eye" % [tag, trail.strand_count()])
+		var worst := 0
+		for _i in 40:
+			_move(c, trail, Vector3(FAST_MPS * DT, 0, 0))
+			worst = maxi(worst, trail.vertex_count())
+		_expect(trail.trail_alpha() > 0.2 and trail.ribbon_vertex_count() > 0, "%s: the flame draws" % tag)
+		verts[low] = worst
+		# Allocation checks on the warmed-up trail.
+		var buf: int = (trail.get("_verts") as PackedVector3Array).size()
+		var objs := Performance.get_monitor(Performance.OBJECT_COUNT)
+		var mem := OS.get_static_memory_usage()
+		# Best of three batches of 120 ticks, so a scheduler hiccup does not decide the comparison.
+		var best := INF
+		for _b in 3:
+			var spent := 0
+			for _i in 120:
+				c.global_position = c.global_position + Vector3(FAST_MPS * DT, 0, 0)
+				_settle(trail)
+				var t0 := Time.get_ticks_usec()
+				trail.tick(DT)
+				spent += Time.get_ticks_usec() - t0
+			best = minf(best, float(spent) / 120.0)
+		cost[low] = best
+		var grew := OS.get_static_memory_usage() - mem
+		_expect((trail.get("_verts") as PackedVector3Array).size() == buf and buf == trail.vertex_count()
+			and buf <= int(TRAIL.get_script_constant_map()["MAX_VERTICES"]),
+			"%s: the vertex buffer keeps its fixed size (%d)" % [tag, buf])
+		_expect(Performance.get_monitor(Performance.OBJECT_COUNT) == objs,
+			"%s: no Object is created per tick (%d -> %d)" % [tag, objs, Performance.get_monitor(Performance.OBJECT_COUNT)])
+		_expect(grew < 4096, "%s: static memory does not grow over 360 ticks (%d bytes)" % [tag, grew])
+		c.queue_free()
+		await process_frame
+	print("[t_eyetrails] quality: high %d verts %.1f us/tick, low %d verts %.1f us/tick" % [verts[false], cost[false],
+		verts[true], cost[true]])
+	_expect(verts[true] < verts[false] * 0.7, "low quality draws far fewer vertices (%d vs %d)" % [verts[true], verts[false]])
+	_expect(cost[true] < cost[false] * 0.9, "low quality costs less script (%.1f vs %.1f us)" % [cost[true], cost[false]])
+	# The tick path builds no arrays, objects or strings: every buffer is sized once in setup().
+	var src: String = TRAIL.source_code
+	for fn in ["tick", "_track", "_build", "_collapse", "_draw_streak", "_draw_embers", "_draw_halo",
+			"_m_per_px", "_facing", "_past_skull", "_catmull", "_vnoise"]:
+		var at := src.find("\nfunc %s(" % fn)
+		if at < 0:
+			at = src.find("\nstatic func %s(" % fn)
+		_expect(at >= 0, "tick-path function %s exists" % fn)
+		var stop := src.find("\nfunc ", at + 1)
+		var stop2 := src.find("\nstatic func ", at + 1)
+		if stop2 >= 0 and (stop < 0 or stop2 < stop):
+			stop = stop2
+		var body := src.substr(at, (stop - at) if stop > 0 else -1)
+		for bad in ["[]", ".new(", "Array(", ".resize(", ".duplicate(", "{}", "\" %"]:
+			_expect(not body.contains(bad), "tick-path %s allocates nothing (found `%s`)" % [fn, bad])
+	TRAIL.set("low_quality", had_low)
+	WL.night = had_night
+
 ## Look pass (never part of the gate): a night island stand-in (ground, WorldLighting at midnight, the
 ## real IsoCamera at its default zoom) with an animal standing, running a curve and snapping round.
 ## Saves 800x450 crops of the game-camera frame around the head (same pixels, not rescaled),
 ## then quits; prints "[t_eyetrails] shots DIR".
-## Extra user args: --shot-species=a,b  --shot-zoom=<m> (default 14, the game's default zoom).
+## Extra user args: --shot-species=a,b  --shot-zoom=<m> (default 14, the game's default zoom)
+## --shot-tod=<0..1> (default 0 = midnight; 0.79 is dusk).
 func _shot_pass(dir: String) -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
+	# A phone or browser frame rate, not the 120-280 fps an idle lab window runs at.
+	Engine.max_fps = 60
 	WL = load("res://scripts/world/world_lighting.gd")
 	DD = root.get_node("Data")
 	var species: PackedStringArray = ["deinonychus", "tyrannosaurus"]
 	var zoom := 14.0
+	var tod := 0.0
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--shot-species="):
+		if a.begins_with("--shot-tod="):
+			tod = float(a.substr(11))
+		elif a.begins_with("--shot-species="):
 			species = a.substr(15).split(",")
 		elif a.begins_with("--shot-zoom="):
 			zoom = float(a.substr(12))
 	var game := root.get_node("Game")
 	# A T. rex stands 8 m: at the default 14 m zoom its head leaves the frame, so it gets the max zoom.
 	var zooms := {&"tyrannosaurus": maxf(zoom, 18.0)}
-	game.set("time_of_day", 0.0)
+	game.set("time_of_day", tod)
 	var host := Node3D.new()
 	root.add_child(host)
 	var ground := MeshInstance3D.new()
@@ -452,7 +612,7 @@ func _shot_pass(dir: String) -> void:
 	for id in species:
 		cam.size = float(zooms.get(StringName(id), zoom))
 		await _shot_species(StringName(id), dir, cam)
-	print("[t_eyetrails] shots %s" % dir)
+	print("[t_eyetrails] shots %s (tod %.2f, night %.2f, %s)" % [dir, tod, WL.night, RenderingServer.get_current_rendering_method()])
 	quit(0)
 
 func _shot_species(id: StringName, dir: String, cam: Camera3D) -> void:
@@ -473,10 +633,21 @@ func _shot_species(id: StringName, dir: String, cam: Camera3D) -> void:
 	c.rotation.y = yaw
 	var t := 0.0
 	var idle_peak := 0.0
-	var shots := {0.95: "still", 1.5: "run_a", 1.75: "run_b", 2.0: "run_c", 2.45: "turn"}
+	# Standing first in profile (side on to the camera, the far eye behind the skull), then turned to
+	# face the camera head-on, then the run.
+	var cam_fwd := -cam.global_basis.z
+	var head_on_yaw := atan2(cam_fwd.x, cam_fwd.z)
+	var shots := {0.45: "profile", 0.95: "head_on", 1.5: "run_a", 1.75: "run_b", 2.0: "run_c", 2.45: "turn"}
 	while t < 2.6:
 		await process_frame
+		# Real frame time, the same the trail ticks with: a slow windowed frame must not slow the run.
+		dt = clampf(root.get_process_delta_time(), 0.001, 0.05)
+		var was := t
 		t += dt
+		if t > 0.5 and t <= 1.0:
+			c.rotation.y = head_on_yaw
+		elif t > 1.0 and t <= 1.0 + dt * 1.5:
+			c.rotation.y = yaw
 		if t > 1.0 and t < 2.1:
 			# Run a gentle left-hand curve, 30 m radius, facing the way it goes (forward is -Z).
 			yaw += speed / 30.0 * dt
@@ -494,7 +665,7 @@ func _shot_species(id: StringName, dir: String, cam: Camera3D) -> void:
 			idle_peak = maxf(idle_peak, _trail_alpha_of(c))
 		focus.global_position = c.global_position + Vector3(0.0, float(c.def.height_meters) * 0.5, 0.0)
 		for at: float in shots.keys():
-			if absf(t - at) < dt * 0.5:
+			if was < at and at <= t:
 				await RenderingServer.frame_post_draw
 				_save_crop(cam, c, "%s/%s_%s.png" % [dir, id, shots[at]])
 				var eyes = c.view.get_node_or_null("Eyes")
@@ -504,7 +675,7 @@ func _shot_species(id: StringName, dir: String, cam: Camera3D) -> void:
 						shots[at], eyes.trail.ribbon_length(), cam.unproject_position(e0).distance_to(
 						cam.unproject_position(eyes.trail.world_tail())), eyes.trail.trail_alpha(), eyes.trail.head_width() if eyes.trail.has_method("head_width") else 0.0])
 					print("  eye %s tail %s" % [e0, eyes.trail.world_tail()])
-	print("[t_eyetrails] %s idle streak alpha peak %.3f" % [id, idle_peak])
+	print("[t_eyetrails] %s idle streak alpha peak %.3f (%.0f fps)" % [id, idle_peak, Engine.get_frames_per_second()])
 	c.queue_free()
 	focus.queue_free()
 	await process_frame
@@ -605,13 +776,21 @@ func _test_cost_and_cull() -> void:
 	_expect(worst_vertices <= budget, "per-creature ribbon stays small (%d vertices, budget %d)" % [worst_vertices, budget])
 	_expect(trails.size() == eyed, "%d eyed animals, %d trails" % [eyed, trails.size()])
 	_expect(trails.size() >= 17, "%d of 20 animals carry a trail" % trails.size())
-	# Frame cost, measured (not assumed): 20 animals already at full ribbon strength, 240 ticks.
-	var t0 := Time.get_ticks_usec()
+	# Frame cost, measured (not assumed): 20 animals kept running at full flame strength for 240 frames.
+	# Only tick() is timed; moving the body (and the bone transforms that follows) is the engine's cost
+	# with or without eyes, so the dots' transforms are settled before the clock starts.
+	var spent := 0
 	var frames := 240
 	for _f in frames:
 		for k in trails.size():
+			var body: Node3D = trail_owner[k]
+			body.global_position = body.global_position + Vector3(FAST_MPS * DT, 0, 0)
+			_settle(trails[k])
+			var t0 := Time.get_ticks_usec()
 			trails[k].tick(DT)
-	var per_frame_ms := float(Time.get_ticks_usec() - t0) / 1000.0 / float(frames)
+			spent += Time.get_ticks_usec() - t0
+	var per_frame_ms := float(spent) / 1000.0 / float(frames)
+	_expect(trails[0].ribbon_vertex_count() > 0, "the cost run measured drawn flames, not bare halos")
 	print("[t_eyetrails] %d ribbons at full strength cost %.3f ms per frame of tick work" % [trails.size(), per_frame_ms])
 	_expect(per_frame_ms < 2.0, "20 ribbons cost under 2 ms of script per frame (%.3f ms)" % per_frame_ms)
 	# Distance cull: the trail stops being built once the animal is beyond the trail's range.

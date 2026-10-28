@@ -15,6 +15,12 @@ const EYE_RADIUS_PER_HEIGHT := 0.006
 const MIN_WORLD_EYE_RADIUS_M := 0.006
 const MAX_WORLD_EYE_RADIUS_M := 0.025
 const MAX_SURFACE_PUSH_M := 0.005
+## Round 3 (owner: "the eyes are very close together"): the two dots must sit on the skull's skin on
+## either side, mirrored, so their spacing is the head's own width at the socket. The eye heights and
+## lengths come from eyeglow_lab --sockets (painted eye detected on an unlit side render, ray-cast to the
+## mesh); this headless gate measures the width.
+const SPACING_TOL := 0.12
+const MIRROR_TOL := 0.03
 
 var _fails: PackedStringArray = []
 var _started := false
@@ -58,8 +64,171 @@ func _run() -> void:
 	_test_night_static()
 	for id in SPECIES:
 		await _test_species(id)
+	for id in SPECIES:
+		await _test_spacing(id)
+	await _test_daytime(&"deinonychus")
+	await _test_daytime(&"tyrannosaurus")
 	await _test_plain()
 	_finish()
+
+## At each dot's height and length along the snout, a ray from outside the head along the lateral axis
+## (world X in the bind pose) finds the skin on that side; the skin-to-skin width there is the measured
+## socket spacing. Also: the dots mirror each other, and neither sits inside the skull or off the skin.
+func _test_spacing(id: StringName) -> void:
+	var c := _spawn(id)
+	await process_frame
+	if c.anim and c.anim.tree:
+		c.anim.tree.active = false
+	c.view.rig.anim_player.stop()
+	var sk: Skeleton3D = c.view.rig.skeleton
+	sk.reset_bone_poses()
+	await process_frame
+	var eyes = c.view.get_node_or_null("Eyes")
+	if eyes == null:
+		_expect(false, "%s spacing: no eyes" % id)
+		c.queue_free()
+		return
+	var p0: Vector3 = (eyes.dots[0] as Node3D).global_position
+	var p1: Vector3 = (eyes.dots[1] as Node3D).global_position
+	var sep := p0.distance_to(p1)
+	var mid := (p0 + p1) * 0.5
+	_expect(absf(p0.x + p1.x - 2.0 * c.global_position.x) <= MIRROR_TOL * sep and absf(p0.y - p1.y) <= MIRROR_TOL * sep
+		and absf(p0.z - p1.z) <= MIRROR_TOL * sep, "%s eyes mirror across the midline (%s / %s)" % [id, p0, p1])
+	var tris := _head_triangles(c, mid, sep * 3.0)
+	var right := p0 if p0.x > p1.x else p1
+	var left := p1 if p0.x > p1.x else p0
+	var xr := _skin_x(tris, right, 1.0)
+	var xl := _skin_x(tris, left, -1.0)
+	if is_nan(xr) or is_nan(xl):
+		_expect(false, "%s spacing: no skin found beside the eyes" % id)
+	else:
+		var width := xr - xl
+		print("[t_eyeglow] %s eye spacing %.4f m, skull width at the socket %.4f m (%.0f%%)" % [id, sep, width,
+			100.0 * (sep - width) / width])
+		_expect(absf(sep - width) <= SPACING_TOL * width,
+			"%s eye spacing matches the skull at the socket (%.4f vs %.4f m)" % [id, sep, width])
+	c.queue_free()
+	await process_frame
+
+## World triangles of the creature's mesh within `radius` of `at` (bind pose: vertex arrays are rest).
+func _head_triangles(c: Node, at: Vector3, radius: float) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for mi in c.view.rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = (mi as MeshInstance3D).mesh
+		if mesh == null or (mi as Node).has_meta(&"creature_eyeshine"):
+			continue
+		var xf: Transform3D = (mi as Node3D).global_transform
+		for si in mesh.get_surface_count():
+			var arr := mesh.surface_get_arrays(si)
+			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			var n := idx.size() / 3 if idx.size() > 0 else v.size() / 3
+			for t in n:
+				var a: Vector3 = xf * v[idx[t * 3] if idx.size() > 0 else t * 3]
+				if a.distance_to(at) > radius:
+					continue
+				out.append(a)
+				out.append(xf * v[idx[t * 3 + 1] if idx.size() > 0 else t * 3 + 1])
+				out.append(xf * v[idx[t * 3 + 2] if idx.size() > 0 else t * 3 + 2])
+	return out
+
+## X of the outermost skin at the eye's height and length on the side `sign` (+1 = +X), or NAN.
+func _skin_x(tris: PackedVector3Array, eye: Vector3, sign: float) -> float:
+	var from := Vector3(eye.x + sign * 10.0, eye.y, eye.z)
+	var dir := Vector3(-sign, 0.0, 0.0)
+	var best := NAN
+	for t in range(0, tris.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(from, dir, tris[t], tris[t + 1], tris[t + 2])
+		if hit == null:
+			continue
+		var x := (hit as Vector3).x
+		if is_nan(best) or x * sign > best * sign:
+			best = x
+	return best
+
+## Round 4 (owner: "make the eyes glow a little bit in the daytime too but no trail"): at noon the dot
+## and the core glow (> 0), a fast run draws no flame and no sparks; from noon to midnight the glow only
+## rises; and the round-3 far-eye occlusion holds by day (profile: far halo ~0, head-on: both glow).
+func _test_daytime(id: StringName) -> void:
+	var had: float = WL.night
+	var c := _spawn(id)
+	await process_frame
+	await process_frame
+	var eyes = c.view.get_node_or_null("Eyes")
+	if eyes == null or eyes.trail == null:
+		_expect(false, "%s daytime: no eyes" % id)
+		c.queue_free()
+		return
+	eyes.set_process(false)
+	var trail = eyes.trail
+	var p0: Vector3 = (eyes.dots[0] as Node3D).global_position
+	var p1: Vector3 = (eyes.dots[1] as Node3D).global_position
+	var mid := (p0 + p1) * 0.5
+	var out := Vector3(p0.x - p1.x, 0.0, p0.z - p1.z).normalized()
+	var fwd := out.cross(Vector3.UP)
+	var cam := Camera3D.new()
+	cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	root.add_child(cam)
+	cam.fov = 4.3
+	cam.current = true
+	var elev := deg_to_rad(35.0)
+	# Ramp: dot energy and halo alpha at night 0 .. 1, head-on (both eyes facing).
+	cam.global_position = mid + (fwd * cos(elev) + Vector3.UP * sin(elev)) * 190.0
+	cam.look_at(mid, Vector3.UP)
+	await process_frame
+	var last_glow := -1.0
+	var last_energy := -1.0
+	var last_halo := -1.0
+	var rising := true
+	var noon_energy := 0.0
+	var noon_halo := 0.0
+	for k in 9:
+		var n := float(k) / 8.0
+		WL.night = n
+		EYES.apply_night()
+		for _i in 3:
+			trail.tick(1.0 / 60.0)
+		var glow: float = EYES.glow_at(n)
+		var energy: float = (eyes.eye_material as StandardMaterial3D).emission_energy_multiplier
+		var halo := maxf(trail.halo_alpha(0), trail.halo_alpha(1))
+		if k == 0:
+			noon_energy = energy
+			noon_halo = halo
+		rising = rising and glow > last_glow and energy > last_energy and halo >= last_halo - 0.02
+		last_glow = glow
+		last_energy = energy
+		last_halo = halo
+	print("[t_eyeglow] %s day glow: noon dot energy %.2f halo %.3f, night dot energy %.2f halo %.3f" % [id,
+		noon_energy, noon_halo, last_energy, last_halo])
+	_expect(noon_energy > 0.0 and noon_halo > 0.05, "%s the eye core glows at noon (energy %.2f, halo %.3f)" % [id, noon_energy, noon_halo])
+	_expect(noon_halo < 0.5 * last_halo and noon_energy < 0.5 * last_energy, "%s the noon glow is faint next to the night glow" % id)
+	_expect(rising, "%s the glow only rises from noon to midnight" % id)
+	# Noon run: no flame, no sparks.
+	WL.night = 0.0
+	EYES.apply_night()
+	var peak := 0
+	for _i in 60:
+		c.global_position += Vector3(5.0 / 60.0, 0.0, 0.0)
+		trail.tick(1.0 / 60.0)
+		peak = maxi(peak, trail.ribbon_vertex_count())
+	_expect(peak == 0 and trail.sample_count() == 0, "%s no trail at noon while running (%d flame verts)" % [id, peak])
+	# Occlusion by day: profile hides the far eye, head-on shows both.
+	p0 = (eyes.dots[0] as Node3D).global_position
+	p1 = (eyes.dots[1] as Node3D).global_position
+	mid = (p0 + p1) * 0.5
+	cam.global_position = mid + (out * cos(elev) + Vector3.UP * sin(elev)) * 190.0
+	cam.look_at(mid, Vector3.UP)
+	await process_frame
+	for _i in 3:
+		trail.tick(1.0 / 60.0)
+	var near_a: float = trail.halo_alpha(0)
+	var far_a: float = trail.halo_alpha(1)
+	_expect(near_a > 0.05 and far_a <= 0.02 * near_a, "%s noon profile: only the near eye glows (%.3f / %.3f)" % [id, near_a, far_a])
+	cam.queue_free()
+	WL.night = had
+	EYES.apply_night()
+	c.queue_free()
+	await process_frame
 
 func _finish() -> void:
 	if _fails.is_empty():

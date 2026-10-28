@@ -10,9 +10,16 @@ extends Node3D
 ## so paint() drives both albedo and emission. Small anatomical dots need this stronger value to
 ## remain legible at the gameplay camera without returning to oversized eye geometry.
 const NIGHT_ENERGY := 20.0
-## ASSUMPTION: a faint glint by day (the owner asked for "especially in the dark"): the dot is
-## still there, and dark enough that the painted head reads through it. AgX compresses the low end.
-static var day_fraction := 0.01
+## Glow over the day, from data/world/eye_glow.json (owner, round 4: "make the eyes glow a little bit in
+## the daytime too but no trail"): glow_at(night) = day + (1 - day) * night^ramp_pow. day_fraction is the
+## noon level (eyeglow_lab --day= overrides it); the trail's night-only range is in the same file.
+const GLOW_PATH := "res://data/world/eye_glow.json"
+static var _glow_cfg: Dictionary = _load_glow()
+static var day_fraction := clampf(float(_glow_cfg.get("day", 0.16)), 0.0, 1.0)
+static var day_halo := clampf(float(_glow_cfg.get("day_halo", 0.3)), 0.0, 1.0)
+static var ramp_pow := clampf(float(_glow_cfg.get("ramp_pow", 1.5)), 0.2, 6.0)
+static var trail_from := clampf(float(_glow_cfg.get("trail_from", 0.2)), 0.0, 0.99)
+static var trail_to := maxf(clampf(float(_glow_cfg.get("trail_to", 0.5)), 0.0, 1.0), trail_from + 0.01)
 ## Pushed this far (metres, in world space after the model scale) out of the painted eye so the dot
 ## never z-fights or sinks into the skull; the billboard quad is flat against the camera, so a dot
 ## left on the surface comes out a crescent.
@@ -165,9 +172,25 @@ static func material_for(col: Color) -> StandardMaterial3D:
 	paint(m, col, WorldLighting.night)
 	return m
 
+static func _load_glow() -> Dictionary:
+	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(GLOW_PATH)) if FileAccess.file_exists(GLOW_PATH) else null
+	return raw if raw is Dictionary else {}
+
+## Core glow (0..1 of the night glow) at night factor n: faint at noon, rising through dawn and dusk.
+static func glow_at(n: float) -> float:
+	return lerpf(day_fraction, 1.0, pow(clampf(n, 0.0, 1.0), ramp_pow))
+
+## The core and bloom over the dot (EyeTrail's halo): the same ramp from a higher noon level.
+static func halo_at(n: float) -> float:
+	return lerpf(day_halo, 1.0, pow(clampf(n, 0.0, 1.0), ramp_pow))
+
+## How much flame trail the night allows (0 by day, 1 at night).
+static func trail_at(n: float) -> float:
+	return smoothstep(trail_from, trail_to, clampf(n, 0.0, 1.0))
+
 ## Writes one species' colour at night factor n into its shared material.
 static func paint(m: StandardMaterial3D, col: Color, n: float) -> void:
-	var energy := NIGHT_ENERGY * lerpf(day_fraction, 1.0, clampf(n, 0.0, 1.0))
+	var energy := NIGHT_ENERGY * glow_at(n)
 	m.albedo_color = Color(col.r * energy, col.g * energy, col.b * energy, 1.0)
 	m.emission = col
 	m.emission_energy_multiplier = energy
