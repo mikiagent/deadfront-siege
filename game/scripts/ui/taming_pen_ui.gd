@@ -29,6 +29,9 @@ var _l_icon: TextureRect
 var _l_species: Label
 var _l_level: Label
 var _l_nature: Label
+## GENETICS: the captured animal's body size and natural colour swatch.
+var _l_size: Label
+var _l_swatch: ColorRect
 var _l_bond: Label
 var _tags: HBoxContainer
 var _info_line: Label
@@ -94,6 +97,19 @@ func _build() -> void:
 	wv.add_child(_l_species)
 	_l_level = SheetChrome.label("", 26, UiTokens.PARCHMENT_INK)
 	wv.add_child(_l_level)
+	var genome := HBoxContainer.new()
+	genome.name = "Genome"
+	genome.add_theme_constant_override("separation", 8)
+	wv.add_child(genome)
+	_l_swatch = ColorRect.new()
+	_l_swatch.name = "Swatch"
+	_l_swatch.custom_minimum_size = Vector2(22, 22)
+	_l_swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_l_swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	genome.add_child(_l_swatch)
+	_l_size = SheetChrome.label("", 18, UiTokens.PARCHMENT_INK)
+	_l_size.name = "Size"
+	genome.add_child(_l_size)
 	var sep := ColorRect.new()
 	sep.color = Color(UiTokens.PARCHMENT_INK, 0.25)
 	sep.custom_minimum_size.y = 1
@@ -406,6 +422,8 @@ func _refresh() -> void:
 		_l_title.text = "No captured animal"
 		_l_species.text = "Net a weakened animal"
 		_l_level.text = ""
+		_l_size.text = ""
+		_l_swatch.visible = false
 		_l_nature.text = "Stunned, or at 30 % HP or less"
 		_l_bond.text = "Capture one with a net (stunned, or at 30 % HP or less), then bring it here."
 		_a_name.text = "Nothing in the pen"
@@ -417,6 +435,11 @@ func _refresh() -> void:
 		_l_title.text = "Captured %s" % sp_name
 		_l_species.text = sp_name
 		_l_level.text = "Lv. %d" % lvl
+		var gr: Variant = s.attributes.get("genetics", {})
+		var genes := CreatureGenetics.from_dict(gr if gr is Dictionary else {})
+		_l_size.text = "Size %s" % CreatureView.size_text(genes.size)
+		_l_swatch.visible = true
+		_l_swatch.color = CreatureView.swatch_color(species, genes.coloration)
 		var nl := CreatureNatures.label(nat)
 		_l_nature.text = "Nature: %s" % (nl if nl != "" else "unknown")
 		var cap := Data.bonded_cap()

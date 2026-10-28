@@ -41,10 +41,13 @@ static func roll_gather_rares(family: String, role: String, climate: String, too
 ## stone never rolls a timber trait; the shared six stay the fallback for an item with no list.
 ## ONEGATHER: tool_tier (&"" bare hands, stone the base) raises the odds by rare_trait.tool_tier_bonus per
 ## tier above stone, capped at max_chance; Gathering level never does (spec 12:42).
-static func roll_trait(rng: RandomNumberGenerator, material: StringName = &"", tool_tier: StringName = &"") -> StringName:
+## `guaranteed` skips the chance (an alpha's parts always carry one).
+static func roll_trait(rng: RandomNumberGenerator, material: StringName = &"", tool_tier: StringName = &"", guaranteed: bool = false) -> StringName:
 	var cfg := LootTables.trait_cfg()
 	var traits: Array = LootTables.material_traits(material) if material != &"" else (cfg.get("traits", []) as Array)
-	if traits.is_empty() or rng.randf() >= trait_chance(tool_tier):
+	if traits.is_empty() and guaranteed:
+		traits = cfg.get("traits", []) as Array
+	if traits.is_empty() or (not guaranteed and rng.randf() >= trait_chance(tool_tier)):
 		return &""
 	return StringName(str(traits[rng.randi() % traits.size()]))
 
@@ -90,7 +93,8 @@ static func roll_part(row: Dictionary, level: int, _knife_tier: StringName, node
 ## skill is the Butchering category level (scales the rare odds). Every part is ONE instance (owner rule
 ## 2026-10-28: one per harvest; knife and skill change speed and quality, never the count).
 ## Returns {"stacks": Array[ItemStack], "rares": Array[StringName]}.
-static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_tier: StringName, node_tier: int, skill: int, no_meat: bool, rng: RandomNumberGenerator) -> Dictionary:
+## `rares_guaranteed` (an alpha's carcass) skips the rare rows' odds; their skill-node gates still apply.
+static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_tier: StringName, node_tier: int, skill: int, no_meat: bool, rng: RandomNumberGenerator, rares_guaranteed: bool = false) -> Dictionary:
 	var cfg := LootTables.butcher_cfg()
 	var tier_idx := ProgressionScaling.tier_index(knife_tier) if knife_tier != &"" else -1
 	var stacks: Array[ItemStack] = []
@@ -119,7 +123,7 @@ static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_t
 			var c := scaled_chance(float(row.get("chance", cfg.get("default_rare_chance", 0.12))), tier_idx, skill,
 					float(cfg.get("rare_tool_tier_bonus", 0.0)), float(cfg.get("rare_skill_bonus_per_level", 0.0)),
 					float(cfg.get("max_rare_chance", 0.6)))
-			if rng.randf() >= c:
+			if not rares_guaranteed and rng.randf() >= c:
 				continue
 		var attrs: Dictionary = {}
 		var raw_attrs: Variant = row.get("attributes", {})

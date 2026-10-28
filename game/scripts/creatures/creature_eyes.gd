@@ -70,6 +70,7 @@ func setup(view: CreatureView, eyes: Dictionary) -> bool:
 	if pts.size() < 2:
 		return false
 	var requested_radius := float(eyes.get("radius", 0.02))
+	_requested_radius = requested_radius
 	var col := Color.WHITE
 	var raw: Variant = eyes.get("color", [1.0, 1.0, 1.0])
 	if raw is Array and (raw as Array).size() >= 3:
@@ -140,6 +141,37 @@ func _add_rims(col: Color, scale: float) -> void:
 		l.position = out * (sep * RIM_PUSH_PER_SEPARATION)
 		rims.append(l)
 
+## ALPHAS: a stronger glow. The dots take a brighter shared material (one per colour and level) and
+## the rim lights scale by the same factor; 1.0 is the normal eyeshine.
+var glow: float = 1.0
+var _requested_radius := 0.02
+
+## GENETICS: the view now carries the body size. The dots ride it (so the eye points follow the head),
+## but their world radius keeps the species' anatomical cap, never a bigger ball on a bigger animal.
+func fit_size(size: float) -> void:
+	var view := get_parent() as CreatureView
+	if view == null or view.rig == null or dots.is_empty():
+		return
+	var scale := maxf(view.rig.mesh_root.scale.x, 0.0001) * maxf(size, 0.0001)
+	var max_world_radius := clampf((view.def.height_meters if view.def else 1.0) * EYE_RADIUS_PER_HEIGHT, MIN_WORLD_RADIUS_M, MAX_WORLD_RADIUS_M)
+	radius_model = minf(_requested_radius, max_world_radius / scale)
+	for d in dots:
+		var ball := d.mesh as SphereMesh
+		if ball != null:
+			ball.radius = radius_model
+			ball.height = radius_model * 2.0
+
+func set_glow(mult: float) -> void:
+	if is_equal_approx(mult, glow) or dots.is_empty():
+		return
+	_rim_energy *= mult / glow
+	if trail != null:
+		trail.boost(mult / glow)
+	glow = mult
+	eye_material = material_for(eye_color, glow)
+	for d in dots:
+		d.material_override = eye_material
+
 static func _vec(p: Variant) -> Vector3:
 	if p is Array and (p as Array).size() >= 3:
 		return Vector3(float(p[0]), float(p[1]), float(p[2]))
@@ -149,8 +181,8 @@ static func _vec(p: Variant) -> Vector3:
 
 ## One material per colour, shared by every creature that uses it: the brightness is a world-wide
 ## night factor, so there is nothing per-instance to animate but visibility.
-static func material_for(col: Color) -> StandardMaterial3D:
-	var key := col.to_html(false)
+static func material_for(col: Color, glow_mult: float = 1.0) -> StandardMaterial3D:
+	var key := col.to_html(false) + ("" if is_equal_approx(glow_mult, 1.0) else "x%.2f" % glow_mult)
 	var have: StandardMaterial3D = _materials.get(key)
 	if have != null:
 		return have
@@ -167,6 +199,8 @@ static func material_for(col: Color) -> StandardMaterial3D:
 	# against each other at grazing angles.
 	m.no_depth_test = false
 	m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	m.set_meta(&"eye_col", col)
+	m.set_meta(&"eye_glow", glow_mult)
 	_materials[key] = m
 	# A material created mid-night must already be at the current level, not jump on the next frame.
 	paint(m, col, WorldLighting.night)
@@ -190,7 +224,7 @@ static func trail_at(n: float) -> float:
 
 ## Writes one species' colour at night factor n into its shared material.
 static func paint(m: StandardMaterial3D, col: Color, n: float) -> void:
-	var energy := NIGHT_ENERGY * glow_at(n)
+	var energy := NIGHT_ENERGY * glow_at(n) * float(m.get_meta(&"eye_glow", 1.0))
 	m.albedo_color = Color(col.r * energy, col.g * energy, col.b * energy, 1.0)
 	m.emission = col
 	m.emission_energy_multiplier = energy
@@ -200,7 +234,8 @@ static func apply_night() -> void:
 	var n := clampf(WorldLighting.night, 0.0, 1.0)
 	_applied_night = n
 	for key in _materials:
-		paint(_materials[key] as StandardMaterial3D, Color.html(key), n)
+		var m := _materials[key] as StandardMaterial3D
+		paint(m, m.get_meta(&"eye_col", Color.html(str(key).left(6))), n)
 
 func _process(delta: float) -> void:
 	if WorldLighting.night != _applied_night:

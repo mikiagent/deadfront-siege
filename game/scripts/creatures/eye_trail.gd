@@ -278,6 +278,13 @@ func _init() -> void:
 	top_level = true
 	visible = false
 
+## ALPHAS: a stronger eyeshine. The halo and streak get `mult` x the energy and a sqrt(mult) wider
+## bloom, relative to what setup() built.
+func boost(mult: float) -> void:
+	energy = clampf(energy * mult, 0.1, 12.0 * mult)
+	_radius *= sqrt(maxf(mult, 0.01))
+	material_override = material_for(_colour, energy)
+
 func setup(eyes: CreatureEyes, dots: Array[MeshInstance3D], radius_world: float, colour: Color,
 		block: Dictionary = {}) -> void:
 	_eyes = eyes

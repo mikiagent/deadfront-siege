@@ -9,6 +9,62 @@ const TINTS := {
 	"protoceratops": Color(0.72, 0.64, 0.42),
 }
 
+## GENETICS: the info-card swatch for one individual: the species' body tint with its own natural
+## hue / saturation / value shift (CreatureColoration), so two animals of a species read apart.
+static func swatch_color(species: StringName, col: CreatureColoration) -> Color:
+	var base := species_base_color(species)
+	return col.shift_color(base) if col != null else base
+
+static var _base_colors: Dictionary = {}
+
+## The species' mean hide colour, read once from its model's albedo texture (cached); TINTS for a
+## species without a GLB. Near-black texels (unused atlas space) are skipped.
+static func species_base_color(species: StringName) -> Color:
+	if _base_colors.has(species):
+		return _base_colors[species]
+	var out: Color = TINTS.get(str(species), Color(0.55, 0.5, 0.4))
+	var glb := "res://assets/creatures/%s/%s.glb" % [species, species]
+	var packed := load(glb) as PackedScene if ResourceLoader.exists(glb) else null
+	if packed != null:
+		var inst := packed.instantiate()
+		var tex := _first_albedo(inst)
+		inst.free()
+		var img := tex.get_image() if tex != null else null
+		if img != null:
+			if img.is_compressed():
+				img.decompress()
+			img.resize(48, 48, Image.INTERPOLATE_BILINEAR)
+			var sum := Vector3.ZERO
+			var n := 0
+			for y in img.get_height():
+				for x in img.get_width():
+					var c := img.get_pixel(x, y)
+					if c.v > 0.08:
+						sum += Vector3(c.r, c.g, c.b)
+						n += 1
+			if n > 0:
+				sum /= float(n)
+				out = Color(sum.x, sum.y, sum.z)
+	_base_colors[species] = out
+	return out
+
+static func _first_albedo(n: Node) -> Texture2D:
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+		var mi := n as MeshInstance3D
+		for i in mi.mesh.get_surface_count():
+			var m := mi.get_active_material(i) as BaseMaterial3D
+			if m != null and m.albedo_texture != null:
+				return m.albedo_texture
+	for c in n.get_children():
+		var t := _first_albedo(c)
+		if t != null:
+			return t
+	return null
+
+## "1.08x": the size a card prints.
+static func size_text(size: float) -> String:
+	return "%.2fx" % size
+
 var pose_kind: StringName = &"idle":
 	set(v):
 		pose_kind = v
@@ -143,6 +199,15 @@ func _add_eyes() -> void:
 	if not eyes.setup(self, block):
 		eyes.queue_free()
 		return
+
+## GENETICS: the whole view at the body size, so the eye dots, the mount socket and the saddle (all
+## parented under it) follow; `eye_glow` brightens the eyeshine (an alpha's 2.5x).
+func apply_genome(size: float, eye_glow: float = 1.0) -> void:
+	scale = Vector3.ONE * maxf(0.01, size)
+	var eyes := get_node_or_null("Eyes") as CreatureEyes
+	if eyes != null:
+		eyes.fit_size(size)
+		eyes.set_glow(eye_glow)
 
 func animation_player() -> AnimationPlayer:
 	if using_glb and rig:

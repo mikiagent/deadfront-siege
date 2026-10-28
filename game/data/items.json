@@ -723,6 +723,20 @@
       "rarity": "uncommon"
     },
     {
+      "id": "alpha_trophy",
+      "display_name": "Alpha Trophy",
+      "_assumption": "ALPHAS (owner 2026-10-28: alphas drop special loot): an alpha-only trophy, one per alpha corpse (ai.json alpha.loot). ASSUMPTION: the docs name no alpha item, so it is a single generic trophy with no recipe yet.",
+      "categories": [
+        "trophy"
+      ],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {},
+      "market_category": "bone",
+      "rarity": "epic"
+    },
+    {
       "id": "raw_hide",
       "display_name": "Raw Hide",
       "categories": [
