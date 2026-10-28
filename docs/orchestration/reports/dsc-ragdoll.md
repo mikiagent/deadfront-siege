@@ -1,6 +1,6 @@
 # dsc — RAGDOLL r2 (claude/mmo-ragdoll)
 
-Branch `claude/mmo-ragdoll`, merged up to `claude/mmo-overhaul` first (merge commit `d270092b`).
+Branch `claude/mmo-ragdoll`, merged up to `claude/mmo-overhaul` before every milestone (merge commits `d270092b`, `dd8376c7`, `30c78920`; canon tip at the end `8be2a572` UICHROME).
 Task: fix the three review majors from `docs/orchestration/mmo/handoff/findings/w2-ragdoll-review-r1.json`.
 
 ## What shipped
@@ -95,3 +95,17 @@ heading 0, four blows = 44 cases). It now ends with exactly one measured line:
   the test therefore uses the +X flank and asserts the ragdoll path. Worth a look if the T. rex tail's
   speed guard is ever tightened.
 - Credits spent: none (no Meshy calls).
+
+## Gate status at hand-off
+- `verify_job.sh ragdoll 1` -> `VERIFY STAGE 1 PASS`; `verify_job.sh ragdoll 2` -> `VERIFY STAGE 2 PASS`
+  (the shared gate has `HEADLESS_ONLY` set, so the windowed lab was deferred there; the lab-visual
+  milestone ran it windowed at 1600x900 and 844x390 and the RESULT line and shots are logged in
+  `.dsc/IMAGES.md`).
+- Full gate: `t_ai`, `t_canim`, `t_gather`, `t_combat` exit 0 with a PASS line and no SCRIPT ERROR;
+  `tools/smoke.sh --no-import` prints `SMOKE PASS`; this report exists.
+- It stops only on the scope check, and that is a stale base, not a change of mine: `BASE` in
+  `job_ragdoll.conf` is `64e2cdb2`, which predates the canon merges this task was told to keep taking,
+  so all 1558 files canon changed since then read as "outside your scope" (plus 2 canon-deleted-and-
+  re-touched UI files). With the script's own default base (merge-base with `claude/mmo-overhaul`) the
+  check reports nothing; every commit of mine touches only SCOPE paths. Owner fix: drop the `BASE=` line
+  or point it at `git merge-base HEAD claude/mmo-overhaul`.
