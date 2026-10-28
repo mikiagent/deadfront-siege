@@ -1,0 +1,1072 @@
+extends Node3D
+## W2-RAGDOLL gate. Every species is killed on a heightmap collider (the island's collider type) on
+## flat ground and 10/20/30-degree slopes, facing 4 headings, hit from the front (the way players
+## mostly hit), from behind and from either flank, plus once against a rock. After the freeze the
+## POSED SKIN is measured (skinned vertices, not bone heads). Four cases run at once (the budget).
+## Every case, ragdoll or fallback, must lie on the ground; fallbacks are also capped in total
+## (FALLBACK_MAX_FRAC). --rl-abort makes every ragdoll abort on its first simulated frame, so every
+## case checks the fallback after an aborted hand-off.
+## Headless prints one [ragdoll_lab] line per case and a final PASS/FAIL line (exit code 0/1).
+## Run: Godot --headless --fixed-fps 60 --path game -- --lab=ragdoll_lab [--rl-species=a,b]
+##   [--rl-terrain=flat,slope10,slope20,slope30,rock]   terrains (rock: heading 0, left blow only)
+##   [--rl-headings=0,90,180,270] [--rl-blows=left,right,front,back]   subsets of the sweep
+##   [--rl-set=guards/pose_k=20;species/deinonychus/bodies/7/radius=0.4]  try ragdoll.json values
+##   [--rl-suggest]                   skin-based radius suggestions per profile body, no physics
+##   [--rl-fallback]                  budget 0: every case takes the fallback path (death clip + conform)
+##   [--rl-abort]                     every ragdoll aborts on its first frame (stretch-guard fallback)
+##   [--rl-perf]                      4 simultaneous ragdolls on temperate_25: added physics ms
+##   [--rl-shots=<dir>]               windowed: contact sheet per terrain + one PNG per case + a
+##                                    settle sequence per case (hit react, falling, landing, frozen)
+##   [--shot-dir=<dir>]               the shared gate's flag: same as --rl-shots, and without an
+##                                    explicit sweep it runs the compact gate set (all species on
+##                                    flat ground, heading 0, the four blows) so it finishes in time.
+## A windowed run ends with exactly one measured line:
+##   [ragdoll] RESULT cases= ok= fallbacks= worst_skin_m= deep= shots= settle_s=
+##   [--rl-phone=<png>]               windowed 844x390: one corpse under the game's iso camera
+##   [--rl-cam=<elev>,<azimuth>]      shots from this camera angle (degrees) instead of the default
+
+const SPECIES: Array[StringName] = [&"coelophysis", &"compsognathus", &"deinonychus", &"gallimimus",
+	&"megaloceros", &"protoceratops", &"stegosaurus", &"tyrannosaurus", &"utahraptor",
+	&"velociraptor", &"zebraceratops"]
+const TERRAINS: Array[String] = ["flat", "slope10", "slope20", "slope30", "rock"]
+const HEADINGS: Array[int] = [0, 90, 180, 270]  # creature yaw, degrees; the slopes fall toward +X
+## Where the killing blow comes from, seen from the creature: its left or right flank, in front of
+## its head, or behind it.
+const BLOWS: Array[String] = ["left", "right", "front", "back"]
+## Share of all cases allowed to take the fallback (aborted simulation); each one must still lie on
+## the ground. ASSUMPTION: 3 %, the reviewer saw 12.5 % (10 of 80) before the hand-off depenetration.
+const FALLBACK_MAX_FRAC := 0.03
+const SPACING := 300.0  # metres between the arenas of one batch (they are freed after each batch)
+const BATCH := 4
+const TOUCH_M := 0.06  # skin gap allowed above and below the ground
+const LIE_FRAC := 0.5  # hips at most this share of the standing hips height
+## ASSUMPTION: a body rounder than its legs are long cannot get its hips under 50 % on its flank
+## (zebraceratops: on its side the spine sits at its half-width, 0.3 m of a 0.6 m hip height), so
+## the lying limit is the larger of LIE_FRAC of the standing hips and LIE_WIDTH_K of the body's
+## half-width at the hips (idle skin); a crouch or a belly-down pose stays above both.
+const LIE_WIDTH_K := 1.15
+const FOOT_FRAC := 0.75  # no foot higher than this share of the standing hips height
+const LIMIT_TOL_DEG := 8.0  # hinges: knees, elbows, ankles, tail and neck hinges
+## Cones (hips, shoulders, neck, tail) are measured the way the 6DOF joint clamps them (engine_angles),
+## so they get the hinges' tolerance (the twist-then-swing reading disagreed by 10-20 deg past 40 deg).
+const CONE_TOL_DEG := 8.0
+const STRETCH_TOL := 0.01
+## Skin tear: a mesh edge over TEAR_RATIO x its idle length AND over TEAR_LEN_FRAC of the
+## creature's height is pulled skin. A ragdoll may tear at most TEAR_MAX_FRAC of the mesh's edges;
+## a fallback as many as the species' own death clip already tears (CLIP_TORN, measured on flat
+## ground with --rl-fallback before the fallback turned limbs; the donor rigs' skinning stretches at
+## folded joints and megaloceros' clip tears its antler and flank) plus TEAR_MAX_FRAC for its conform.
+const TEAR_RATIO := 3.0
+const TEAR_LEN_FRAC := 0.08
+const TEAR_MAX_FRAC := 0.005
+const CLIP_TORN := {&"compsognathus": 12, &"gallimimus": 82, &"megaloceros": 2166, &"protoceratops": 150,
+	&"utahraptor": 16, &"velociraptor": 2, &"zebraceratops": 206}
+## Seconds after the blow at which the settle sequence grabs a frame (the 4th tile is the corpse).
+var SEQ_T: Array[float] = [0.2, 0.8, 1.6]  # --rl-seq=a,b,c overrides
+const SETTLE_MAX_S := 3.5
+const PERF_PASSES := 5
+const PERF_MAX_MS := 2.0
+const PERF_SPECIES: Array[StringName] = [&"tyrannosaurus", &"utahraptor", &"megaloceros", &"velociraptor"]
+
+var _species: Array[StringName] = []
+var _terrains: Array[String] = []
+var _headings: Array[int] = []
+var _blows: Array[String] = []
+var _all_fallback := false
+var _shots := ""
+var _cam_angles := Vector2(-1000.0, 0.0)  # --rl-cam: (elevation, azimuth) degrees; x < -900 = default
+var _phone := ""
+var _failures: Array[String] = []
+var _cam: Camera3D
+var _sheets: Dictionary = {}  # "<terrain>_p<page>" -> Image, 16 corpses per page in run order
+var _sheet_n: Dictionary = {}  # terrain -> corpses shot so far
+var _seqs: Dictionary = {}  # "species/terrain" -> Image (2x2 settle sequence)
+var _sweep_given := false  # an explicit --rl-species/-terrain/-headings/-blows was passed
+## Measured over every case, for the one RESULT line the gate reads.
+var _worst_skin := 0.0
+var _deep := 0
+var _settle_s := 0.0
+var _shots_n := 0
+var _cases_total := 0
+var _cases_ok := 0
+var _fallbacks_n := 0
+
+func _ready() -> void:
+	_species = SPECIES.duplicate()
+	_terrains = TERRAINS.duplicate()
+	_headings = HEADINGS.duplicate()
+	_blows = BLOWS.duplicate()
+	var suggest := false
+	var perf := false
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--rl-species="):
+			_sweep_given = true
+			_species.clear()
+			for s in a.substr(13).split(",", false):
+				_species.append(StringName(s))
+		elif a.begins_with("--rl-terrain="):
+			_sweep_given = true
+			_terrains.clear()
+			for t in a.substr(13).split(",", false):
+				_terrains.append(t)
+		elif a.begins_with("--rl-headings="):
+			_sweep_given = true
+			_headings.clear()
+			for h in a.substr(14).split(",", false):
+				_headings.append(int(h))
+		elif a.begins_with("--rl-blows="):
+			_sweep_given = true
+			_blows.clear()
+			for b in a.substr(11).split(",", false):
+				_blows.append(b)
+		elif a.begins_with("--rl-set="):
+			for kv in a.substr(9).split(";", false):
+				var path := kv.get_slice("=", 0).split("/")  # e.g. species/deinonychus/bodies/7/radius
+				var node: Variant = Ragdoll.data()
+				for k in path.size() - 1:
+					node = node[int(path[k])] if node is Array else node[path[k]]
+				if node is Array:
+					node[int(path[-1])] = str_to_var(kv.get_slice("=", 1))
+				else:
+					node[path[-1]] = str_to_var(kv.get_slice("=", 1))
+		elif a == "--rl-suggest":
+			suggest = true
+		elif a == "--rl-perf":
+			perf = true
+		elif a.begins_with("--rl-seq="):
+			SEQ_T.clear()
+			for t in a.substr(9).split(",", false):
+				SEQ_T.append(float(t))
+		elif a == "--rl-fallback":
+			Ragdoll.data()["budget"]["max_active"] = 0  # every death takes the fallback (clip + conform)
+			_all_fallback = true
+		elif a == "--rl-abort":
+			Ragdoll.inject_fault = &"abort"
+			_all_fallback = true
+		elif a.begins_with("--rl-shots="):
+			_shots = a.substr(11)
+		elif a.begins_with("--shot-dir="):
+			_shots = a.substr(11)
+		elif a.begins_with("--rl-cam="):
+			_cam_angles = Vector2(float(a.substr(9).get_slice(",", 0)), float(a.substr(9).get_slice(",", 1)))
+		elif a.begins_with("--rl-phone="):
+			_phone = a.substr(11)
+	if _shots != "" and not _sweep_given:
+		# The gate's windowed run: a compact sweep that still covers every species and every blow
+		# direction, and finishes inside the gate's alarm.
+		_terrains = ["flat"]
+		_headings = [0]
+	if _shots != "":
+		DirAccess.make_dir_recursive_absolute(_shots)
+	# The creature view only uses the stegosaurus GLB when asked (its in-game override stays).
+	CreatureView.allow_stegosaurus_rig = true
+	Game.debug_overlay = false  # no creature debug labels in the shots
+	print("[boot] lab=ragdoll_lab renderer=%s" % RenderingServer.get_current_rendering_method())
+	if perf:
+		_run_perf.call_deferred()
+		return
+	WorldLighting.install(self, "temperate")
+	_cam = Camera3D.new()
+	_cam.fov = 45.0
+	_cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF  # it jumps from case to case
+	add_child(_cam)
+	_cam.current = true
+	if suggest:
+		_run_suggest.call_deferred()
+	elif _phone != "":
+		_run_phone.call_deferred()
+	else:
+		_run_cases.call_deferred()
+
+# --- arenas -----------------------------------------------------------------------------------
+
+## "slopeNN" falls NN degrees toward +X ("slope" alone is 20); flat and rock are level.
+static func slope_deg(terrain: String) -> float:
+	if not terrain.begins_with("slope"):
+		return 0.0
+	return float(terrain.substr(5)) if terrain.length() > 5 else 20.0
+
+func _height(terrain: String, x: float) -> float:
+	return -tan(deg_to_rad(slope_deg(terrain))) * x
+
+## A heightmap floor like the island's (HeightMapShape3D scaled by its cell), a matching mesh with
+## a 1 m grid, and for "rock" a box rock beside the creature on the side it is pushed to.
+func _arena(terrain: String, at: Vector3, size: float, rock_at: Vector3, rock_size: Vector3) -> Node3D:
+	var host := Node3D.new()
+	host.name = "Arena_%s" % terrain
+	add_child(host)
+	host.global_position = at
+	var res := 97
+	var cell := size / float(res - 1)
+	var heights := PackedFloat32Array()
+	heights.resize(res * res)
+	for z in res:
+		for x in res:
+			heights[x + z * res] = _height(terrain, (float(x) - float(res - 1) * 0.5) * cell)
+	var body := StaticBody3D.new()
+	host.add_child(body)
+	var cs := CollisionShape3D.new()
+	var hs := HeightMapShape3D.new()
+	hs.map_width = res
+	hs.map_depth = res
+	hs.map_data = heights
+	cs.shape = hs
+	cs.scale = Vector3(cell, 1.0, cell)
+	body.add_child(cs)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 48
+	var step := size / float(n)
+	for zi in n:
+		for xi in n:
+			var x0 := -size * 0.5 + xi * step
+			var z0 := -size * 0.5 + zi * step
+			var quad := [Vector3(x0, _height(terrain, x0), z0), Vector3(x0 + step, _height(terrain, x0 + step), z0),
+				Vector3(x0 + step, _height(terrain, x0 + step), z0 + step), Vector3(x0, _height(terrain, x0), z0 + step)]
+			for idx in [0, 1, 2, 0, 2, 3]:
+				st.set_uv(Vector2(quad[idx].x, quad[idx].z))
+				st.add_vertex(quad[idx])
+	st.generate_normals()
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = _grid_material()
+	body.add_child(mi)
+	if terrain == "rock":
+		var rock := StaticBody3D.new()
+		host.add_child(rock)
+		rock.position = rock_at
+		rock.rotation.y = 0.35
+		var rs := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = rock_size
+		rs.shape = box
+		rock.add_child(rs)
+		var rm := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = rock_size
+		rm.mesh = bm
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.5, 0.48, 0.45)
+		mat.roughness = 0.95
+		rm.material_override = mat
+		rock.add_child(rm)
+	return host
+
+func _grid_material() -> StandardMaterial3D:
+	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
+	img.fill(Color(0.42, 0.52, 0.32))
+	for i in 64:
+		for w in 2:
+			img.set_pixel(i, w, Color(0.3, 0.38, 0.22))
+			img.set_pixel(w, i, Color(0.3, 0.38, 0.22))
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = ImageTexture.create_from_image(img)
+	mat.roughness = 1.0
+	return mat
+
+func _spawn(id: StringName, host: Node3D, at: Vector3) -> Creature:
+	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
+	host.add_child(c)
+	c.global_position = at
+	c.spawn(Data.creature(id))
+	if c.brain:
+		c.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	if c.label:
+		c.label.visible = false
+	return c
+
+# --- the cases --------------------------------------------------------------------------------
+
+func _run_cases() -> void:
+	var cases: Array[Dictionary] = []
+	for t in _terrains:
+		for s in _species:
+			for h in ([0] if t == "rock" else _headings):
+				for b in (["left"] if t == "rock" else _blows):
+					cases.append({"species": s, "terrain": t, "heading": h, "blow": b})
+	var ok_count := 0
+	var fallbacks: Array[String] = []
+	var i := 0
+	while i < cases.size():
+		var batch := cases.slice(i, i + BATCH)
+		for k in batch.size():
+			_setup_case(batch[k], Vector3(k * SPACING, 0.0, 0.0))
+		await _frames(30)  # idle pose settles, capsules land on the floor
+		for c in batch:
+			c["stand_hips"] = _stand_hips(c)
+			c["idle_skin"] = _skin_now(c)
+			c["half_width"] = _half_width(c)
+		for c in batch:
+			var cr: Creature = c["creature"]
+			cr.health.take_damage(cr.health.hp + 1.0, c["source"])
+		var waited := 0.0
+		var seq_i := 0
+		while waited < 8.0 and not _all_frozen(batch):
+			await get_tree().physics_frame
+			waited += get_physics_process_delta_time()
+			if _shots != "" and seq_i < SEQ_T.size() and waited >= SEQ_T[seq_i]:
+				for c in batch:
+					await _seq_grab(c, seq_i)
+					waited += get_physics_process_delta_time()
+				seq_i += 1
+		await _frames(2)
+		for c in batch:
+			_keep_corpse(c)
+		for c in batch:
+			if _measure(c):
+				ok_count += 1
+			var rd := (c["creature"] as Creature).get_node_or_null("Ragdoll") as Ragdoll
+			if rd and rd.mode == &"fallback":
+				fallbacks.append("%s (%s)" % [_tag(c), rd.reason])
+			if _shots != "":
+				await _shoot(c)
+		for c in batch:
+			(c["host"] as Node3D).queue_free()
+		await _frames(2)
+		i += BATCH
+	if _shots != "":
+		var rm := RenderingServer.get_current_rendering_method()
+		for k in _seqs:
+			var path := "%s/seq_%s_%s.png" % [_shots, str(k).replace("/", "_"), rm]
+			(_seqs[k] as Image).save_png(path)
+		for t in _sheets:
+			var path := "%s/ragdoll_%s_%s.png" % [_shots, t, rm]
+			(_sheets[t] as Image).save_png(path)
+			print("[ragdoll_lab] sheet %s" % path)
+	_cases_total = cases.size()
+	_cases_ok = ok_count
+	_fallbacks_n = fallbacks.size()
+	var allowed := int(FALLBACK_MAX_FRAC * cases.size())
+	print("[ragdoll_lab] fallbacks %d/%d (max %d): %s" % [fallbacks.size(), cases.size(), allowed, ", ".join(fallbacks)])
+	if fallbacks.size() > allowed and not _all_fallback:
+		_failures.append("fallback rate: %d of %d deaths aborted the ragdoll (max %d)" % [fallbacks.size(), cases.size(), allowed])
+	_verdict("cases=%d ok=%d fallbacks=%d" % [cases.size(), ok_count, fallbacks.size()])
+
+func _tag(c: Dictionary) -> String:
+	return "%s/%s/h%d/%s" % [c["species"], c["terrain"], int(c.get("heading", 0)), c.get("blow", "left")]
+
+func _setup_case(c: Dictionary, at: Vector3) -> void:
+	var def: CreatureDef = Data.creature(c["species"])
+	var length := maxf(2.0, def.real_length_m)
+	var size := maxf(30.0, length * 3.0)
+	# Heading 0 faces -Z, so its right is +X. left: the source stands on the creature's left and the
+	# blow pushes it to its right; front: the source stands ahead of it (forward = -Z) and pushes it back.
+	var yaw := deg_to_rad(float(c.get("heading", 0)))
+	var pushes := {"left": Vector3.RIGHT, "right": Vector3.LEFT, "front": Vector3.BACK, "back": Vector3.FORWARD}
+	var push := (pushes.get(c.get("blow", "left"), Vector3.RIGHT) as Vector3).rotated(Vector3.UP, yaw)
+	# A low rock (15 % of the creature's height) where the blow lays its head and neck down, so the
+	# front of the body comes to rest across it.
+	var rock_size := Vector3(maxf(0.5, def.height_meters * 0.45), maxf(0.15, def.height_meters * 0.15), maxf(0.6, length * 0.2))
+	var rock_at := Vector3(def.height_meters * 0.5, _height(c["terrain"], 0.0) + rock_size.y * 0.5 - 0.05, -length * 0.42)
+	var host := _arena(c["terrain"], at, size, rock_at, rock_size)
+	var cr := _spawn(c["species"], host, at + Vector3(0.0, 0.05, 0.0))
+	cr.rotation.y = yaw
+	var src := Node3D.new()
+	src.name = "Blow"
+	host.add_child(src)
+	src.global_position = at - push * 3.0
+	var tag := Label3D.new()
+	tag.text = "%s · %s · %d° · %s" % [c["species"], c["terrain"], int(c.get("heading", 0)), c.get("blow", "left")]
+	tag.font_size = 48
+	tag.pixel_size = maxf(0.004, def.height_meters * 0.0035)
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.no_depth_test = true
+	tag.outline_size = 12
+	host.add_child(tag)
+	tag.global_position = at + Vector3(0.0, def.height_meters * 1.25 + 0.4, 0.0)
+	c["host"] = host
+	c["creature"] = cr
+	c["source"] = src
+	c["origin"] = at
+
+## Shots can take a while on a loaded machine; the corpse must not reach its 90 s fade meanwhile.
+func _keep_corpse(c: Dictionary) -> void:
+	var rd := (c["creature"] as Creature).get_node_or_null("Ragdoll") as Ragdoll
+	if rd and rd.corpse:
+		rd.corpse.set_process(false)
+
+func _all_frozen(batch: Array) -> bool:
+	for c in batch:
+		var rd := (c["creature"] as Creature).get_node_or_null("Ragdoll") as Ragdoll
+		if rd == null or rd.phase != &"frozen":
+			return false
+	return true
+
+func _frames(n: int) -> void:
+	for k in n:
+		await get_tree().physics_frame
+
+func _hips_world(c: Dictionary) -> Vector3:
+	var cr: Creature = c["creature"]
+	var sk := cr.view.rig.skeleton if cr.view.rig else null
+	var hb := sk.find_bone(str(Ragdoll.profile(cr.def.id).get("hips", "Hips"))) if sk else -1
+	if hb < 0:
+		return cr.global_position + Vector3(0.0, cr.def.height_meters * 0.5, 0.0)
+	return sk.global_transform * sk.get_bone_global_pose(hb).origin
+
+## Standing hips height above the creature's root (its feet), so it is the species' own height
+## whatever the slope or heading (the ground straight under the hips of a creature facing up a
+## slope is not where it stands).
+func _stand_hips(c: Dictionary) -> float:
+	return _hips_world(c).y - (c["creature"] as Creature).global_position.y
+
+## Half the trunk's width at the hips in the idle pose: skin within 5 % of the creature's length of
+## the hips whose dominant bone belongs to the profile's root body (legs excluded), across the creature.
+func _half_width(c: Dictionary) -> float:
+	var cr: Creature = c["creature"]
+	var sk := cr.view.rig.skeleton if cr.view.rig else null
+	var mi := Ragdoll._first_skinned(cr.view.rig.mesh_root) if cr.view.rig and cr.view.rig.mesh_root else null
+	if sk == null or mi == null:
+		return 0.0
+	var body_bones: Dictionary = {}
+	for d in Ragdoll.profile(cr.def.id).get("bodies", []):
+		body_bones[sk.find_bone(str((d as Dictionary).get("bone", "")))] = true
+	var smp := RagdollSkin.sample(mi, 1)
+	var bones: PackedInt32Array = smp["bones"]
+	var w: PackedFloat32Array = smp["weights"]
+	var inv := cr.global_transform.affine_inverse()
+	var hz := (inv * _hips_world(c)).z
+	var lo := INF
+	var hi := -INF
+	var idle: PackedVector3Array = c.get("idle_skin", PackedVector3Array())
+	for i in idle.size():
+		var l := inv * idle[i]
+		if absf(l.z - hz) >= 0.05 * cr.def.real_length_m:
+			continue
+		var top := 0
+		for k in 4:
+			if w[i * 4 + k] > w[i * 4 + top]:
+				top = k
+		var b := mi.skin.get_bind_bone(bones[i * 4 + top])
+		if b < 0:
+			b = sk.find_bone(mi.skin.get_bind_name(bones[i * 4 + top]))
+		while b >= 0 and not body_bones.has(b):
+			b = sk.get_bone_parent(b)
+		if b < 0 or sk.get_bone_parent(b) >= 0 and _has_body_above(sk, b, body_bones):
+			continue  # not the trunk (a leg's body, or no body at all)
+		lo = minf(lo, l.x)
+		hi = maxf(hi, l.x)
+	return (hi - lo) * 0.5 if hi > lo else 0.0
+
+func _has_body_above(sk: Skeleton3D, b: int, body_bones: Dictionary) -> bool:
+	var p := sk.get_bone_parent(b)
+	while p >= 0:
+		if body_bones.has(p):
+			return true
+		p = sk.get_bone_parent(p)
+	return false
+
+## Lying hips height, measured along the ground normal (on a slope the vertical gap overstates it).
+func _hips_height(c: Dictionary) -> float:
+	return _above_ground(c, _hips_world(c))
+
+func _above_ground(c: Dictionary, p: Vector3) -> float:
+	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(p + Vector3(0.0, 2.0, 0.0), p - Vector3(0.0, 8.0, 0.0), 1, _ray_ex(c)))
+	return (p - (hit["position"] as Vector3)).dot(hit["normal"] as Vector3) if not hit.is_empty() else INF
+
+func _ground_at(c: Dictionary, p: Vector3) -> float:
+	return RagdollSkin.ground_y(get_world_3d().direct_space_state, p, _ray_ex(c), -INF)
+
+## Ground rays skip the creature's own capsule and its corpse's loot cylinder (both on layer 1).
+func _ray_ex(c: Dictionary) -> Array[RID]:
+	var ex: Array[RID] = [(c["creature"] as Creature).get_rid()]
+	var rd := (c["creature"] as Creature).get_node_or_null("Ragdoll") as Ragdoll
+	if rd and rd.corpse:
+		ex.append(rd.corpse.get_rid())
+	return ex
+
+## Every gate for one frozen case; prints one line, records failures, returns true when all pass.
+func _measure(c: Dictionary) -> bool:
+	var cr: Creature = c["creature"]
+	var rd := cr.get_node_or_null("Ragdoll") as Ragdoll
+	var tag := _tag(c)
+	var bad: Array[String] = []
+	if rd == null:
+		_fail(tag, ["no Ragdoll node"])
+		return false
+	var sk := cr.view.rig.skeleton if cr.view.rig else null
+	var mi := rd.mesh_instance()
+	if rd.phase != &"frozen":
+		bad.append("not frozen (%s)" % rd.phase)
+	if rd.mode != &"ragdoll" and rd.mode != &"fallback":
+		bad.append("mode %s (%s)" % [rd.mode, rd.reason])
+	# A fallback lies still when its death clip ends (the clip's own length); a ragdoll must settle in time.
+	if rd.settle_time < 0.0 or (rd.mode == &"ragdoll" and rd.settle_time > SETTLE_MAX_S):
+		bad.append("settle %.2f s" % rd.settle_time)
+	var line := "%s mode=%s%s settle=%.2fs%s peak=%.1fm/s drift=%.2fm limbs=%d" % [tag, rd.mode, "(%s)" % rd.reason if rd.mode == &"fallback" else "", rd.settle_time, "(cap: %s)" % rd.restless if rd.capped else "", rd.peak_speed, rd.drift_m, rd.limb_turns]
+	if rd.peak_speed >= 30.0:
+		bad.append("peak %.1f m/s" % rd.peak_speed)
+	if sk and mi:
+		var ex: Array[RID] = []
+		if rd.corpse:
+			ex.append(rd.corpse.get_rid())
+		var verts := 0
+		for si in mi.mesh.get_surface_count():
+			verts += mi.mesh.surface_get_array_len(si)
+		var pts := RagdollSkin.posed_points(mi, sk, maxi(1, verts / 6000))
+		var finite := true
+		for p in pts:
+			if not (is_finite(p.x) and is_finite(p.y) and is_finite(p.z)):
+				finite = false
+				break
+		var cl := RagdollSkin.clearance(get_world_3d().direct_space_state, pts, ex, 1, 2.0, TOUCH_M)
+		var gap := float(cl["min"])
+		_worst_skin = minf(_worst_skin, gap)
+		_deep += int(cl["below"])
+		line += " skin_min=%+.3fm below6cm=%d/%d conform=%+.2fm" % [gap, int(cl["below"]), int(cl["hits"]), rd.conform_m]
+		line += " lowest=[%s]" % _lowest_parts(mi, sk, maxi(1, verts / 6000), pts, ex)
+		if not finite:
+			bad.append("NaN in skin")
+		if absf(gap) > TOUCH_M:
+			bad.append("lowest skin %+.3f m from ground" % gap)
+		if int(cl["below"]) > 0:
+			bad.append("%d vertices > 6 cm under ground" % int(cl["below"]))
+		var hips := _hips_height(c)
+		var stand := float(c.get("stand_hips", 1.0))
+		var lie_max := maxf(stand * LIE_FRAC, float(c.get("half_width", 0.0)) * LIE_WIDTH_K)
+		line += " hips=%.2f/%.2fm(max %.2f, half-width %.2f)" % [hips, stand, lie_max, float(c.get("half_width", 0.0))]
+		if hips > lie_max:
+			bad.append("hips %.2f > %.2f (%.0f %% of standing %.2f, %.2f x half-width %.2f)" % [hips, lie_max, LIE_FRAC * 100.0, stand, LIE_WIDTH_K, float(c.get("half_width", 0.0))])
+		var foot := _highest_foot(c, sk, cr)
+		line += " foot_max=%.2fm" % foot
+		if foot > stand * FOOT_FRAC:
+			bad.append("a foot %.2f m up (limb in the air; max %.0f %% of standing hips)" % [foot, FOOT_FRAC * 100.0])
+		var up := _belly_up(sk, cr, c)
+		line += " up_y=%+.2f" % up
+		if up < -0.35:
+			bad.append("legs up (body up axis y %.2f)" % up)
+		var tear := _skin_tear(c)
+		line += " torn=%d/%d(max x%.2f %s)" % [tear[0], tear[1], tear[2], tear[3] if tear.size() > 3 else ""]
+		var tear_cap := int(TEAR_MAX_FRAC * float(tear[1])) + (int(CLIP_TORN.get(cr.def.id, 0)) if rd.mode == &"fallback" else 0)
+		if int(tear[0]) > tear_cap:
+			bad.append("skin torn: %d long edges over x%.1f their idle length (cap %d, max x%.2f)" % [tear[0], TEAR_RATIO, tear_cap, tear[2]])
+		var stretch := _worst_stretch(sk, rd)
+		line += " stretch=%.3f" % stretch
+		# The frozen ragdoll keeps rest lengths; a death clip may move IK bones (the fallback's own pose).
+		if stretch > STRETCH_TOL and rd.mode == &"ragdoll":
+			bad.append("bone stretched %.1f %%" % (stretch * 100.0))
+		var lim := _worst_limit(sk, rd, "hinge")
+		var cone := _worst_limit(sk, rd, "cone")
+		line += " hinge_over=%.1fdeg(%s) cone_over=%.1fdeg(%s)" % [lim[0], lim[1], cone[0], cone[1]]
+		if float(lim[0]) > LIMIT_TOL_DEG:
+			bad.append("joint %s %.1f deg past its limit" % [lim[1], lim[0]])
+		if float(cone[0]) > CONE_TOL_DEG:
+			bad.append("joint %s %.1f deg past its limit" % [cone[1], cone[0]])
+		# Every Skeleton3D carries an inactive internal compat simulator; only active modifiers cost.
+		var left := sk.find_children("*", "SkeletonModifier3D", true, false).filter(func(m: Node) -> bool: return (m as SkeletonModifier3D).active) \
+			+ cr.find_children("*", "PhysicalBone3D", true, false)
+		if not left.is_empty():
+			bad.append("physics left on the frozen corpse: %s" % ", ".join(left.map(func(n: Node) -> String: return "%s(%s)" % [n.name, n.get_class()])))
+		if cr.anim.tree.active or cr.is_physics_processing():
+			bad.append("frozen corpse still animates or ticks physics")
+	else:
+		bad.append("no skinned mesh")
+	if rd.corpse:
+		var hips_w := cr.global_position
+		var d := Vector2(rd.corpse.global_position.x - hips_w.x, rd.corpse.global_position.z - hips_w.z).length()
+		if d > 0.05:
+			bad.append("corpse %.2f m from the body root" % d)
+		if rd.corpse.loot.used_slots() <= 0:
+			bad.append("corpse has no loot")
+	else:
+		bad.append("no corpse")
+	_settle_s = maxf(_settle_s, rd.settle_time)
+	print("[ragdoll_lab] %s %s" % ["ok  " if bad.is_empty() else "FAIL", line])
+	if not bad.is_empty():
+		_fail(tag, bad)
+	return bad.is_empty()
+
+## Which bones carry the lowest skin (per dominant bone, gap to the ground), for profile tuning.
+func _lowest_parts(mi: MeshInstance3D, sk: Skeleton3D, stride: int, pts: PackedVector3Array, ex: Array[RID]) -> String:
+	var smp := RagdollSkin.sample(mi, stride)
+	var w: PackedFloat32Array = smp["weights"]
+	var b: PackedInt32Array = smp["bones"]
+	var best: Dictionary = {}
+	var space := get_world_3d().direct_space_state
+	for i in pts.size():
+		var top := 0
+		for k in 4:
+			if w[i * 4 + k] > w[i * 4 + top]:
+				top = k
+		var bind := b[i * 4 + top]
+		var bone := mi.skin.get_bind_bone(bind)
+		var bname := sk.get_bone_name(bone) if bone >= 0 else str(mi.skin.get_bind_name(bind))
+		var gy := RagdollSkin.ground_y(space, pts[i], ex, -INF)
+		var gap := pts[i].y - gy
+		if not best.has(bname) or gap < float(best[bname]):
+			best[bname] = gap
+	var names := best.keys()
+	names.sort_custom(func(x, y) -> bool: return float(best[x]) < float(best[y]))
+	var out: Array[String] = []
+	for n in names.slice(0, 4):
+		out.append("%s %+.2f" % [n, float(best[n])])
+	return ", ".join(out)
+
+## Height above the ground (along its normal) of the highest of the profile's `feet` bones (a limb
+## left in the air).
+func _highest_foot(c: Dictionary, sk: Skeleton3D, cr: Creature) -> float:
+	var top := 0.0
+	for f in Ragdoll.profile(cr.def.id).get("feet", []):
+		var b := sk.find_bone(str(f))
+		if b >= 0:
+			top = maxf(top, _above_ground(c, sk.global_transform * sk.get_bone_global_pose(b).origin))
+	return top
+
+## The creature's up axis carried by its hips bone, along the ground normal under it: 1 standing,
+## ~0 on a flank, -1 legs up.
+func _belly_up(sk: Skeleton3D, cr: Creature, c: Dictionary) -> float:
+	var hb := sk.find_bone(str(Ragdoll.profile(cr.def.id).get("hips", "Hips")))
+	if hb < 0:
+		return 1.0
+	var rot := sk.get_bone_global_pose(hb).basis.orthonormalized() * sk.get_bone_global_rest(hb).basis.orthonormalized().inverse()
+	var n := RagdollSkin.ground_normal(get_world_3d().direct_space_state, _hips_world(c), _ray_ex(c))
+	return (sk.global_basis.orthonormalized() * rot * Vector3.UP).normalized().dot(n)
+
+## Bones keep their rest length (the ragdoll's root body is the only free one).
+func _worst_stretch(sk: Skeleton3D, rd: Ragdoll) -> float:
+	var free_bone := -1
+	for j in rd.joints:
+		if int(j["parent_body"]) < 0:
+			free_bone = int(j["bone"])
+	var worst := 0.0
+	for i in sk.get_bone_count():
+		var p := sk.get_bone_parent(i)
+		if p < 0 or i == free_bone:
+			continue
+		var rest := sk.get_bone_rest(i).origin.length()
+		if rest < 0.0005:
+			continue
+		var now := (sk.get_bone_global_pose(i).origin - sk.get_bone_global_pose(p).origin).length()
+		worst = maxf(worst, absf(now - rest) / rest)
+	return worst
+
+## Largest overshoot of any simulated joint past its profile limit, measured from rest. Cones are
+## checked per axis like the 6DOF joint that builds them: twist about the bone line, bend about the
+## profile axis made square to it, side about the third axis.
+func _worst_limit(sk: Skeleton3D, rd: Ragdoll, only: String) -> Array:
+	var worst := 0.0
+	var who := "-"
+	for j in rd.joints:
+		var kind := str(j["joint"])
+		if kind != only:
+			continue
+		var cb := int(j["bone"])
+		var pb := int(j["parent_bone"])
+		var over := 0.0
+		var shown := ""
+		if kind == "hinge":
+			var a := joint_angles(sk, pb, cb, j["axis"] as Vector3, j["axis"] as Vector3)
+			over = maxf(maxf(float(j["min"]) - a.x, a.x - float(j["max"])), a.z - LIMIT_TOL_DEG)
+			shown = "%.0f off-axis %.0f" % [a.x, a.z]
+		else:
+			# The 6DOF limits are [-twist, twist] on X, [-side, side] on Y, [-max, -min] on Z (RagdollRig._set_limits).
+			var a := engine_angles(sk, pb, cb, j["dir_skel"] as Vector3, j["axis"] as Vector3)
+			over = maxf(absf(a.x) - float(j["twist"]), absf(a.y) - float(j["side"]))
+			over = maxf(over, maxf(-float(j["max"]) - a.z, a.z + float(j["min"])))
+			shown = "twist %.0f side %.0f bend %.0f" % [a.x, a.y, -a.z]
+		if over > worst:
+			worst = over
+			who = "%s %s %s" % [sk.get_bone_name(cb), kind, shown]
+	return [worst, who]
+
+## Child rotation relative to its parent body's bone, from rest, in degrees, as (twist about
+## `line`, bend about `bend_axis` made square to `line`, the remaining side swing). For a hinge
+## pass the hinge axis as both: x is then the hinge angle and z the swing off the hinge axis.
+static func joint_angles(sk: Skeleton3D, parent: int, child: int, line: Vector3, bend_axis: Vector3) -> Vector3:
+	var pr := sk.get_bone_global_rest(parent).basis.orthonormalized()
+	var cr := sk.get_bone_global_rest(child).basis.orthonormalized()
+	var pn := sk.get_bone_global_pose(parent).basis.orthonormalized()
+	var cn := sk.get_bone_global_pose(child).basis.orthonormalized()
+	var q := ((pn.transposed() * cn) * (pr.transposed() * cr).transposed()).get_rotation_quaternion()
+	var a := (pr.transposed() * line).normalized()
+	var tw_dot := Vector3(q.x, q.y, q.z).dot(a)
+	var twist := Quaternion(a.x * tw_dot, a.y * tw_dot, a.z * tw_dot, q.w).normalized()
+	var swing := q * twist.inverse()
+	var tw_angle := wrapf(2.0 * atan2(tw_dot, q.w), -PI, PI)
+	var sv := swing.get_axis() * wrapf(swing.get_angle(), -PI, PI) if swing.get_angle() > 1e-5 else Vector3.ZERO
+	var b := (pr.transposed() * bend_axis)
+	b = (b - a * b.dot(a)).normalized() if (b - a * b.dot(a)).length_squared() > 1e-6 else a.cross(Vector3.UP).normalized()
+	if line.is_equal_approx(bend_axis):
+		return Vector3(rad_to_deg(tw_angle), 0.0, rad_to_deg(sv.length()))
+	return Vector3(rad_to_deg(tw_angle), rad_to_deg(sv.dot(b)), rad_to_deg(sv.dot(a.cross(b))))
+
+## The angles a cone's 6DOF joint limits, in degrees: the joint frame (RagdollRig: X along the bone,
+## Z the bend axis made square to it, Y = Z x X) of the child against the parent's, both from rest,
+## as GodotPhysics' 6DOF reads them: XYZ Euler angles of the parent's frame in the child's (checked:
+## settled cones then sit within 2 deg of their limits; the child-in-parent reading overshot by 34).
+static func engine_angles(sk: Skeleton3D, parent: int, child: int, line: Vector3, bend_axis: Vector3) -> Vector3:
+	var pr := sk.get_bone_global_rest(parent).basis.orthonormalized()
+	var cr := sk.get_bone_global_rest(child).basis.orthonormalized()
+	var pn := sk.get_bone_global_pose(parent).basis.orthonormalized()
+	var cn := sk.get_bone_global_pose(child).basis.orthonormalized()
+	var q := (pn.transposed() * cn) * (pr.transposed() * cr).transposed()  # child's turn from rest, parent frame
+	var x := line.normalized()
+	var z := bend_axis - x * bend_axis.dot(x)
+	z = z.normalized() if z.length_squared() > 1e-6 else x.cross(Vector3.UP).normalized()
+	var jf := pr.transposed() * Basis(x, z.cross(x), z)
+	var r := jf.transposed() * q * jf
+	return r.transposed().get_euler(EULER_ORDER_XYZ) * (180.0 / PI)
+
+func _fail(tag: String, why: Array[String]) -> void:
+	for w in why:
+		_failures.append("%s: %s" % [tag, w])
+
+func _verdict(summary: String) -> void:
+	for f in _failures:
+		print("[ragdoll_lab] FAIL %s" % f)
+	print("[ragdoll_lab] %s %s" % ["PASS" if _failures.is_empty() else "FAIL", summary])
+	# The one line the shared gate reads. Every number is measured over the cases just run: the
+	# lowest posed skin against the terrain, how many sampled vertices are more than TOUCH_M under,
+	# how many PNGs went to the shot dir, and the slowest settle.
+	_shots_n = _count_shots()
+	print("[ragdoll] RESULT cases=%d ok=%d fallbacks=%d worst_skin_m=%.3f deep=%d shots=%d settle_s=%.2f" % [
+		_cases_total, _cases_ok, _fallbacks_n, _worst_skin, _deep, _shots_n, _settle_s])
+	get_tree().quit(0 if _failures.is_empty() else 1)
+
+## PNGs written to the shot dir (the gate wants at least MIN_SHOTS there).
+func _count_shots() -> int:
+	if _shots == "":
+		return 0
+	var d := DirAccess.open(_shots)
+	if d == null:
+		return 0
+	var n := 0
+	d.list_dir_begin()
+	var f := d.get_next()
+	while f != "":
+		if not d.current_is_dir() and f.ends_with(".png"):
+			n += 1
+		f = d.get_next()
+	d.list_dir_end()
+	return n
+
+# --- shots ------------------------------------------------------------------------------------
+
+func _frame_corpse(c: Dictionary, elev_deg: float, az_deg: float) -> void:
+	var cr: Creature = c["creature"]
+	var rd := cr.get_node_or_null("Ragdoll") as Ragdoll
+	var box := AABB(cr.global_position, Vector3.ZERO)
+	var mi := rd.mesh_instance() if rd else null
+	if mi and cr.view.rig and cr.view.rig.skeleton:
+		var pts := RagdollSkin.posed_points(mi, cr.view.rig.skeleton, 61)
+		if rd.rig:
+			# Mid-fall the skeleton's own poses lag the simulator: frame the bodies themselves.
+			pts = PackedVector3Array()
+			for k in rd.rig.bodies.size():
+				var r := float(rd.rig.info[k]["radius_m"])
+				for o in [Vector3(r, r, r), Vector3(-r, -r, -r)]:
+					pts.append(rd.rig.bodies[k].global_position + o)
+		if not pts.is_empty():
+			box = AABB(pts[0], Vector3.ZERO)  # mid-fall the body is no longer at the creature root
+		for p in pts:
+			box = box.expand(p)
+	var centre := box.get_center()
+	var radius := maxf(0.6, box.size.length() * 0.5)
+	var dist := radius / sin(deg_to_rad(_cam.fov * 0.5)) * 0.95
+	var e := deg_to_rad(elev_deg)
+	var az := deg_to_rad(az_deg)
+	var dir := Vector3(sin(az) * cos(e), sin(e), cos(az) * cos(e))
+	_cam.look_at_from_position(centre + dir * dist, centre)
+
+func _shoot(c: Dictionary) -> void:
+	_frame_corpse(c, _elev(c), _azim(c))
+	await _frames(3)
+	RenderingServer.force_draw(false)  # an occluded window on a busy desktop may not draw by itself
+	var img := get_viewport().get_texture().get_image()
+	var rm := RenderingServer.get_current_rendering_method()
+	img.save_png("%s/%s_%s.png" % [_shots, _tag(c).replace("/", "_"), rm])
+	var t: String = c["terrain"]
+	var idx := int(_sheet_n.get(t, 0))
+	_sheet_n[t] = idx + 1
+	var key := "%s_p%d" % [t, idx / 16]
+	if not _sheets.has(key):
+		var sheet := Image.create(1600, 900, false, img.get_format())
+		sheet.fill(Color(0.1, 0.1, 0.1))
+		_sheets[key] = sheet
+	idx %= 16
+	var tile := img.duplicate() as Image
+	tile.resize(400, 225, Image.INTERPOLATE_BILINEAR)
+	(_sheets[key] as Image).blit_rect(tile, Rect2i(0, 0, 400, 225), Vector2i((idx % 4) * 400, (idx / 4) * 225))
+	_seq_tile(c, img, SEQ_T.size())
+
+## One frame of the settle sequence, framed on the body as it is (one drawn frame = one physics tick).
+func _seq_grab(c: Dictionary, i: int) -> void:
+	_frame_corpse(c, _elev(c), _azim(c))
+	await get_tree().process_frame
+	RenderingServer.force_draw(false)  # an occluded window never emits frame_post_draw by itself
+	_seq_tile(c, get_viewport().get_texture().get_image(), i)
+
+## Slopes are seen from across the fall line, a little downhill, so the uphill side is visible.
+func _elev(c: Dictionary) -> float:
+	if _cam_angles.x > -900.0:
+		return _cam_angles.x
+	return 30.0 if slope_deg(c["terrain"]) > 0.0 else 18.0
+
+func _azim(c: Dictionary) -> float:
+	if _cam_angles.x > -900.0:
+		return _cam_angles.y
+	return 50.0 if slope_deg(c["terrain"]) > 0.0 else -60.0
+
+func _seq_tile(c: Dictionary, img: Image, i: int) -> void:
+	var key := _tag(c)
+	if not _seqs.has(key):
+		var sheet := Image.create(1600, 900, false, img.get_format())
+		sheet.fill(Color(0.1, 0.1, 0.1))
+		_seqs[key] = sheet
+	var tile := img.duplicate() as Image
+	tile.convert((_seqs[key] as Image).get_format())
+	tile.resize(800, 450, Image.INTERPOLATE_BILINEAR)
+	(_seqs[key] as Image).blit_rect(tile, Rect2i(0, 0, 800, 450), Vector2i((i % 2) * 800, (i / 2) * 450))
+
+## Every vertex of the creature's skinned mesh, posed, in world space (stride 1).
+func _skin_now(c: Dictionary) -> PackedVector3Array:
+	var cr: Creature = c["creature"]
+	var mi := Ragdoll._first_skinned(cr.view.rig.mesh_root) if cr.view.rig and cr.view.rig.mesh_root else null
+	if mi == null or cr.view.rig.skeleton == null:
+		return PackedVector3Array()
+	return RagdollSkin.posed_points(mi, cr.view.rig.skeleton, 1)
+
+## [torn edges, edges, worst ratio of a long edge]: triangle edges of the frozen skin against the same edges in
+## the idle pose. Bone stretch and joint limits can all pass while the skin between two bodies is
+## pulled into long sheets (a body whose skin is weighted to a bone that follows another one).
+func _skin_tear(c: Dictionary) -> Array:
+	var idle: PackedVector3Array = c.get("idle_skin", PackedVector3Array())
+	var now := _skin_now(c)
+	var cr: Creature = c["creature"]
+	var mi := Ragdoll._first_skinned(cr.view.rig.mesh_root) if cr.view.rig and cr.view.rig.mesh_root else null
+	if mi == null or idle.size() != now.size() or idle.is_empty():
+		return [0, 0, 0.0, ""]
+	var torn := 0
+	var edges := 0
+	var worst := 0.0
+	var base := 0
+	var long_m := TEAR_LEN_FRAC * cr.def.height_meters
+	var smp := RagdollSkin.sample(mi, 1)
+	var sk := cr.view.rig.skeleton
+	var by_bone: Dictionary = {}
+	for si in mi.mesh.get_surface_count():
+		var arr := mi.mesh.surface_get_arrays(si)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var b: Variant = arr[Mesh.ARRAY_BONES]
+		var w: Variant = arr[Mesh.ARRAY_WEIGHTS]
+		# Same skip rule as RagdollSkin.sample, so indices line up with its points.
+		if v.is_empty() or b == null or (b as PackedInt32Array).size() < v.size() or w == null or (w as PackedFloat32Array).size() != (b as PackedInt32Array).size():
+			continue
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var k := 0
+		while k + 2 < idx.size():
+			for e in 3:
+				var i0 := base + idx[k + e]
+				var i1 := base + idx[k + (e + 1) % 3]
+				var rest := idle[i0].distance_to(idle[i1])
+				if rest < 0.002:
+					continue
+				var len_now := now[i0].distance_to(now[i1])
+				var r := len_now / rest
+				edges += 1
+				if len_now > long_m:
+					worst = maxf(worst, r)
+					if r > TEAR_RATIO:
+						torn += 1
+						for vi in [i0, i1]:
+							var bn := _dominant_bone(smp, vi, mi, sk)
+							by_bone[bn] = int(by_bone.get(bn, 0)) + 1
+			k += 3
+		base += v.size()
+	var names := by_bone.keys()
+	names.sort_custom(func(x, y) -> bool: return int(by_bone[x]) > int(by_bone[y]))
+	return [torn, edges, worst, ",".join(names.slice(0, 4).map(func(n) -> String: return "%s:%d" % [n, by_bone[n]]))]
+
+func _dominant_bone(smp: Dictionary, i: int, mi: MeshInstance3D, sk: Skeleton3D) -> String:
+	var w: PackedFloat32Array = smp["weights"]
+	var b: PackedInt32Array = smp["bones"]
+	var top := 0
+	for k in 4:
+		if w[i * 4 + k] > w[i * 4 + top]:
+			top = k
+	var bone := mi.skin.get_bind_bone(b[i * 4 + top])
+	return sk.get_bone_name(bone) if bone >= 0 else str(mi.skin.get_bind_name(b[i * 4 + top]))
+
+func _run_phone() -> void:
+	var c := {"species": &"velociraptor", "terrain": "flat"}
+	if not _species.is_empty():
+		c["species"] = _species[0]
+	_setup_case(c, Vector3.ZERO)
+	await _frames(30)
+	c["stand_hips"] = _stand_hips(c)
+	c["idle_skin"] = _skin_now(c)
+	c["half_width"] = _half_width(c)
+	(c["creature"] as Creature).health.take_damage(1e6, c["source"])
+	while not _all_frozen([c]):
+		await get_tree().physics_frame
+	var iso := IsoCamera.new()
+	add_child(iso)
+	var tgt := Node3D.new()
+	add_child(tgt)
+	tgt.global_position = (c["creature"] as Creature).global_position
+	iso.current = true
+	iso._target = tgt
+	iso._snap()
+	_keep_corpse(c)
+	await _frames(6)
+	RenderingServer.force_draw(false)
+	get_viewport().get_texture().get_image().save_png(_phone)
+	print("[ragdoll_lab] phone shot %s" % _phone)
+	_measure(c)
+	_verdict("phone")
+
+# --- suggestions for profile authors ------------------------------------------------------------
+
+## Per profile body: radial distance of the vertices it carries (dominant weight on its bone or a
+## bone that follows it) from its capsule line, at the 50th/80th/95th percentile, and how far skin
+## reaches past the capsule's ends. Radii near p80 keep the skin within a few cm of the capsules.
+func _run_suggest() -> void:
+	for id in _species:
+		var host := Node3D.new()
+		add_child(host)
+		var cr := _spawn(id, host, Vector3.ZERO)
+		var prof := Ragdoll.profile(id)
+		var sk := cr.view.rig.skeleton if cr.view.rig else null
+		var mi := Ragdoll._first_skinned(cr.view.rig.mesh_root) if cr.view.rig else null
+		if sk == null or mi == null or prof.is_empty():
+			print("[rl-suggest] %s skipped (rig=%s profile=%s)" % [id, sk != null, not prof.is_empty()])
+			host.queue_free()
+			continue
+		cr.anim.tree.active = false
+		var rig := RagdollRig.build(sk, prof, Ragdoll.data().get("physics", {}))
+		if rig == null:
+			print("[rl-suggest] %s profile does not fit the rig" % id)
+			host.queue_free()
+			continue
+		rig.release()
+		sk.reset_bone_poses()
+		var s := RagdollSkin.sample(mi, 1)
+		var pts := RagdollSkin.posed_points(mi, sk, 1)
+		var inv := sk.global_transform.affine_inverse()
+		var owner_body: Dictionary = {}
+		for k in rig.info.size():
+			owner_body[int(rig.info[k]["bone"])] = k
+		var bind_bone: Array[int] = []
+		for b in mi.skin.get_bind_count():
+			var bb := mi.skin.get_bind_bone(b)
+			bind_bone.append(bb if bb >= 0 else sk.find_bone(mi.skin.get_bind_name(b)))
+		var per: Array = []
+		for k in rig.info.size():
+			per.append([])
+		var lo_y := INF
+		for i in pts.size():
+			var best := 0
+			for w in 4:
+				if (s["weights"] as PackedFloat32Array)[i * 4 + w] > (s["weights"] as PackedFloat32Array)[i * 4 + best]:
+					best = w
+			var bone := bind_bone[(s["bones"] as PackedInt32Array)[i * 4 + best]]
+			while bone >= 0 and not owner_body.has(bone):
+				bone = sk.get_bone_parent(bone)
+			if bone >= 0:
+				(per[int(owner_body[bone])] as Array).append(inv * pts[i])
+			lo_y = minf(lo_y, pts[i].y)
+		print("[rl-suggest] %s scale=%.3f bodies=%d verts=%d lowest_rest_vertex_y=%.3f" % [id, rig.scale, rig.info.size(), pts.size(), lo_y])
+		for k in rig.info.size():
+			var row: Dictionary = rig.info[k]
+			var a: Vector3 = row["head_skel"]
+			var b2: Vector3 = row["tip_skel"]
+			var dists: Array[float] = []
+			var past_tip := 0.0
+			var before_head := 0.0
+			var ab := b2 - a
+			var mean_off := Vector3.ZERO
+			var offs: Array[Vector3] = []
+			for p: Vector3 in per[k]:
+				var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 1e-9), -1e9, 1e9)
+				past_tip = maxf(past_tip, (t - 1.0) * ab.length() * rig.scale)
+				before_head = maxf(before_head, -t * ab.length() * rig.scale)
+				var off := (p - (a + ab * clampf(t, 0.0, 1.0))) * rig.scale
+				mean_off += off
+				offs.append(off)
+				dists.append(off.length())
+			if not per[k].is_empty():
+				mean_off /= float((per[k] as Array).size())
+			dists.sort()
+			var q := func(f: float) -> float: return dists[int(f * (dists.size() - 1))] if not dists.is_empty() else 0.0
+			var re: Array[float] = []  # radial spread around the capsule moved by mean_off
+			for o in offs:
+				re.append((o - mean_off).length())
+			re.sort()
+			var qr := func(f: float) -> float: return re[int(f * (re.size() - 1))] if not re.is_empty() else 0.0
+			print("[rl-suggest]   %-16s r_now=%.3f len=%.3f p50=%.3f p80=%.3f p95=%.3f past_tip=%.3f before_head=%.3f mean_off=(%.2f,%.2f,%.2f) moved:r80=%.3f r95=%.3f verts=%d" % [
+				sk.get_bone_name(int(row["bone"])), row["radius_m"], row["length_m"], q.call(0.5), q.call(0.8), q.call(0.95), past_tip, before_head,
+				mean_off.x, mean_off.y, mean_off.z, qr.call(0.8), qr.call(0.95), dists.size()])
+		host.queue_free()
+		await _frames(1)
+	get_tree().quit(0)
+
+# --- performance ------------------------------------------------------------------------------
+
+## Four ragdolls at once on the real island: physics frame time while they simulate minus the
+## same creatures standing just before, median of PERF_PASSES passes. Run headless with --fixed-fps 60.
+## Species without a profile yet are replaced by velociraptor so four bodies always simulate.
+func _run_perf() -> void:
+	var kit := LabKit.build(self, 20.0)
+	var player: Player = kit["player"]
+	World.load_island(self, &"temperate_25", Vector3(0, 1, 12), false)
+	var kit_floor := get_node_or_null("Floor")
+	if kit_floor:
+		kit_floor.queue_free()
+	await _frames(120)
+	var diffs: Array[float] = []
+	var frozen_diffs: Array[float] = []
+	for pass_i in PERF_PASSES:
+		var host := Node3D.new()
+		add_child(host)
+		var batch: Array[Creature] = []
+		for k in PERF_SPECIES.size():
+			var ang := TAU * float(k) / float(PERF_SPECIES.size()) + float(pass_i)
+			var at := player.global_position + Vector3(cos(ang), 0.0, sin(ang)) * (9.0 + 3.0 * k)
+			at.y = World.runtime.surface_y(at.x, at.z) + 0.1 if World.runtime else at.y
+			var id: StringName = PERF_SPECIES[k] if not Ragdoll.profile(PERF_SPECIES[k]).is_empty() else &"velociraptor"
+			batch.append(_spawn(id, host, at))
+		await _frames(150)  # spawn hitches (trees, shaders, nav) are over
+		var base := await _physics_ms(60)
+		for cr in batch:
+			cr.health.take_damage(1e6, player)
+		await _frames(int(0.35 * Engine.physics_ticks_per_second))
+		var simulating := Ragdoll.active_count()
+		var during := await _physics_ms(45)
+		var still := Ragdoll.active_count()
+		var waited := 0
+		while waited < 600 and Ragdoll.active_count() > 0:
+			await get_tree().physics_frame
+			waited += 1
+		var after := await _physics_ms(60)
+		diffs.append(during - base)
+		frozen_diffs.append(after - base)
+		print("[ragdoll_lab] perf pass %d: base=%.3fms simulating(%d->%d)=%.3fms frozen=%.3fms added=%.3fms" % [pass_i, base, simulating, still, during, after, during - base])
+		if simulating < PERF_SPECIES.size():
+			_failures.append("perf pass %d: only %d ragdolls simulating" % [pass_i, simulating])
+		host.queue_free()
+		await _frames(30)
+	diffs.sort()
+	frozen_diffs.sort()
+	var med := diffs[diffs.size() / 2]
+	var fmed := frozen_diffs[frozen_diffs.size() / 2]
+	print("[ragdoll_lab] perf median added=%.3fms (max %.1f) frozen_added=%.3fms" % [med, PERF_MAX_MS, fmed])
+	if med > PERF_MAX_MS:
+		_failures.append("4 ragdolls add %.3f ms physics (max %.1f)" % [med, PERF_MAX_MS])
+	_verdict("perf")
+
+## Median wall time of one frame (ms) over `frames` frames. Run with --fixed-fps 60 headless: every
+## frame is then exactly one physics tick and no drawing, so the difference between two windows is
+## the physics cost of what changed between them (the ragdolls' step, state syncs, pose write-back
+## and their monitor). Performance.TIME_PHYSICS_PROCESS is a per-second MAX, useless for this, and
+## means were dominated by stalls of other processes on this shared machine, hence medians.
+func _physics_ms(frames: int) -> float:
+	var samples: Array[float] = []
+	await get_tree().process_frame
+	var prev := Time.get_ticks_usec()
+	for k in frames:
+		await get_tree().process_frame
+		var now := Time.get_ticks_usec()
+		samples.append(float(now - prev) / 1000.0)
+		prev = now
+	samples.sort()
+	return samples[samples.size() / 2]
