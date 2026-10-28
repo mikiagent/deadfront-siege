@@ -156,10 +156,12 @@ func clear(kind: StringName) -> void:
 	if notices.erase(kind):
 		apply_badge()
 
+## TRIBE M1: recruits waiting at the dock count on Animals (and the MENU hex) until they are accepted
+## or denied; opening the screen does not clear them.
 func count(kind: StringName = &"") -> int:
 	if kind != &"":
-		return int((notices.get(kind, {"n": 0}) as Dictionary)["n"])
-	var n := 0
+		return int((notices.get(kind, {"n": 0}) as Dictionary)["n"]) + (Tribe.pending.size() if kind == &"animals" else 0)
+	var n := Tribe.pending.size()
 	for k in notices:
 		n += int(notices[k]["n"])
 	return n

@@ -22,7 +22,7 @@ static var abort_for_test := false
 ## wrong type is erased so the loader's own default applies.
 const SHAPE := {
 	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0, "presets": {}}, "position": []},
-	"pets": [], "ground_snares": [], "carcasses": [], "skills": {}, "skills_v2": {},
+	"pets": [], "tribe": {"members": [], "pending": []}, "ground_snares": [], "carcasses": [], "skills": {}, "skills_v2": {},
 	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "xp_curve": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
@@ -154,6 +154,23 @@ static func clean(data: Dictionary) -> Dictionary:
 					and r[2] >= 1 and r[2] <= MAX_CLAIM_TILES and r[3] >= 1 and r[3] <= MAX_CLAIM_TILES)
 	if data.has("pets"):
 		data["pets"] = _pets(data["pets"])
+	# TRIBE M1: each member's worn gear and carry go through the same item validation as a bag slot;
+	# TribeRecord.from_dict coerces the rest (numbers clamped, unknown orders/jobs dropped).
+	if data.has("tribe"):
+		for k in ["members", "pending"]:
+			var rows: Variant = (data["tribe"] as Dictionary).get(k, [])
+			if rows is Array:
+				data["tribe"][k] = (rows as Array).filter(func (r: Variant) -> bool: return r is Dictionary)
+				for r: Dictionary in data["tribe"][k]:
+					if r.get("carry") is Array:
+						r["carry"] = stacks(r["carry"])
+					var gear := {}
+					if r.get("equipment") is Dictionary:
+						for slot in r["equipment"]:
+							var st: Variant = _stack(r["equipment"][slot])
+							if st != null:
+								gear[str(slot)] = st
+					r["equipment"] = gear
 	# BUTCHER (spec 12 §2): carcasses on the ground. Only a species the build knows, a level play can
 	# reach, a cut count inside its own budget and part ids that species really has survive; the loot
 	# goes through the same item validation as a bag slot.

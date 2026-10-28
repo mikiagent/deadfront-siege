@@ -574,6 +574,30 @@ func _collision_size() -> Vector3:
 		h = clampf(float(span[1]), 0.4, 1.6)
 	return Vector3(w, h, w)
 
+## TRIBE M1: half the ground footprint of what the player SEES (the batched or own mesh), at least the
+## collision box: a worker stands at this edge instead of inside a big boulder's mesh.
+func visual_radius() -> float:
+	var box := _collision_size()
+	var r := maxf(box.x, box.z) * 0.5
+	var aabb := AABB()
+	var sc := Vector3.ONE
+	if _card and is_instance_valid(_card) and _card.visible:
+		# ASSUMPTION: the painted subject fills about 80 % of its card's width.
+		return maxf(r, _card._quad_size.x * _card.global_basis.get_scale().x * 0.5 * 0.8)
+	if _batch and _batch_idx >= 0 and _batch_idx < _batch._xforms.size() and _batch._mesh:
+		aabb = _batch._mesh.get_aabb()
+		sc = _batch._xforms[_batch_idx].basis.get_scale()
+	elif get_node_or_null("VisualGlb"):
+		var inv := global_transform.affine_inverse()
+		for mi: MeshInstance3D in get_node("VisualGlb").find_children("*", "MeshInstance3D", true, false):
+			var box_i := (inv * mi.global_transform) * mi.get_aabb()
+			aabb = box_i if aabb.size == Vector3.ZERO else aabb.merge(box_i)
+		sc = global_basis.get_scale()
+	elif _mesh and _mesh.mesh and _mesh.visible:
+		aabb = _mesh.mesh.get_aabb()
+		sc = _mesh.global_basis.get_scale()
+	return maxf(r, maxf(aabb.size.x * sc.x, aabb.size.z * sc.z) * 0.5)
+
 ## Physics box: rocks as wide as they are tall (capped), trunks slim so paths never jam.
 func _trunk_width() -> float:
 	if _is_rock():

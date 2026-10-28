@@ -1002,12 +1002,12 @@
         {
           "id": "tribes-workers",
           "title": "Tribes and workers: people with careers, families, jobs and automation (vision §5, §12)",
-          "status": "later",
+          "status": "next",
           "depends": [
             "construction-quality"
           ],
           "source": "docs/vision/WildLandsMMO_Game_Vision.md",
-          "note": "Open: does a tribe mean your own people, a group of players, or both (vision §24)?"
+          "note": "M1 built on claude/mmo-tribe (2026-10-28): your own people. Recruits arrive by boat and wait at the dock for Accept/Deny (cap 3, leave after a day), housing caps members, follow/guard/heel/attack orders, one job at a time (mine/chop/gather into a chest), eat and rest, 7 gear slots, Animals > Tribe tab, saved. Next (M2): direct control, expeditions slots, permadeath/revival, training. Open: tribe as a group of players (vision §24)."
         },
         {
           "id": "recruitment-loss",

@@ -60,6 +60,28 @@ Source: merges into `claude/mmo-overhaul` on 2026-10-28. Each is marked `# ASSUM
 | **LB2** | Old saves keep their total XP and recompute the level on the new curve; where that would drop a level the stored level stays as a floor (XP into it kept, clamped under its cost). Saves are marked `xp_curve: 2`. | `World.migrate_linear_xp`, `SaveGame._apply` | A Lv 10-11 save may gain a level (its per-level HP/energy granted quietly); Lv 13+ saves keep their level and need the new cost for the next. |
 | **LB3** | The bottom level bar draws one segment per 100 XP, grouped into a multiple of 100 to stay at or under 40 segments; the label reads "Lv. n  xp / cost XP · unit XP each". | `pioneer_levels.json xp_curve.segment_xp / max_segments` | Past Lv ~39 a segment is 200+ XP, so the unit changes between levels. |
 
+### TRIBE M1 (2026-10-28) — tribe members and dock recruits
+
+Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tribe.md`. Numbers live in `game/data/tribe.json` (every one an ASSUMPTION) unless a file is named. A tribe member now exists in code (this supersedes the last clause of A15).
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **T1** | A boat brings one recruit to the home dock every in-game day (720 s of play), on a timer, not random; the timer runs wherever the survivor is. The loss doc's example is 1 per 3-5 real days. | `arrivals.every_days` | Sets how fast a solo tribe grows. |
+| **T2** | Recruits wait at the dock (owner 2026-10-28); at most 3 wait; a 4th boat turns back; an ignored recruit leaves after 1 in-game day. | `arrivals.pending_cap`, `arrivals.wait_days` | How much attention arrivals demand. |
+| **T3** | One starter recruit waits at the dock on the first home load of a world (and of an old save), not after the tutorial (no tutorial hook yet). | `arrivals.starter_recruit`, `TribeDirector.sync` | First contact with the tribe system. |
+| **T4** | Housing = 2 + 1 per bed-type structure at home (tent, canvas tent, straw roll, bed). Accept is refused with a reason when members ≥ housing. | `housing` | Vision §5: housing constrains the tribe. No food or healthcare cap yet. |
+| **T5** | Potential rolls: weak 45 %, mediocre 40 %, capable 14.5 %, exceptional 0.5 % (the loss doc's small-home figure). Potential only scales skill XP (×0.8 / 1.0 / 1.2 / 1.5); it never changes with training. | `potential` | What "rarely exceptional" means in play. |
+| **T6** | Names come from a fixed list of 24 plain names; the body is a random character-creation look (gender, height, colours, parts). | `names`, `CharacterLook.randomized` | No lore names in the PRDs. |
+| **T7** | Member stats: 80 HP + 4 per level, base defence 15 + worn armour, 6 unarmed damage, swing cooldown 1.1 s (or the weapon's rate), walk 3.4 / run 5.6 m/s. Level = average of Gathering and Melee. Skills level every 40 × level XP; 2 XP per harvest or landed hit. | `member` | Combat and work strength of a fresh recruit. |
+| **T8** | A member at 0 HP is knocked out (lies down, gets up at half HP), not killed. Permadeath and revival belong to the expedition milestone. | `TribeMember._on_died` | Vision §5 allows deaths; M1 never deletes a person. |
+| **T9** | Needs: fullness drains 60 per in-game day; eats from the job's chest below 30 (any non-poisoned food, at least +15); fatigue +2.5 and energy −3 per harvest; rests in place at fatigue 75 (or no energy) until fatigue 10 and energy ≥ 50. No food in the chest: keeps working and looks again in 30 s. | `member` | How much upkeep a worker costs. |
+| **T10** | A job is: node kind (mine / chop / gather), centre = where the survivor stands when she assigns it, radius 12 m, chest = the storage building nearest that spot (within 30 m). Carries up to 5 units, then deposits. No chest: holds what it carries and idles. | `member.job_radius_m`, `carry_units`, `TribeMember.storage` | The work loop's range and pace. |
+| **T11** | Workers roll no rare finds and no green traits on what they gather (only the survivor does); they use the node's tool rules, tier gate, tool wear and the Gathering downrank floor of 5. Skill-locked materials follow the survivor's learned techniques. | `TribeMember._harvest` | Vision: worker yields are "variable pace, modest rare odds" — the odds part is not built. |
+| **T12** | A member's work tool (pick, axe, knife, hoe) is worn in the weapon hand slot; the survivor keeps hers in the bag. | `EntityEquipment.slot_of` | One hand slot for both tools and weapons. |
+| **T13** | Orders: follow (fights only what attacks it), guard (also defends the survivor, her pets and her hunt target within 9 m), heel (never fights), attack (the survivor's hunt target), stay. Fights are leashed to 20 m from the survivor. Following members take the follow slots after her summoned pets. | `TribeMember._pick_target` | Pet-style orders on a human. |
+| **T14** | Away from home only following members come along; working and staying members remain at home. There is no expedition slot limit yet (vision §7 says three shared slots). | `TribeDirector.sync` | Party size on trips. |
+| **T15** | Work reach: a worker stands at the visible edge of a node (card or mesh footprint) plus 0.3 m. | `HarvestNode.visual_radius` | Visual only. |
+
 ## Parked by other docs
 
 Each vision doc's unresolved points remain inside that doc until the workshop; the sections listed below are the owners' pointers, collected here only for reachability:

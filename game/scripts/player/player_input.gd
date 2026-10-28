@@ -277,6 +277,10 @@ func interact_tap_target(col: Object) -> void:
 			if opts.size() == 1:
 				hn.select_option(0)
 			p.actions.begin_gather(hn)
+	elif col is TribeMember:
+		var hud := p.get_tree().get_first_node_in_group("hud")
+		if hud and hud.has_method("open_tribe"):
+			hud.open_tribe((col as TribeMember).record)
 	elif col is Corpse:
 		(col as Corpse).note_tapped()
 		p.actions.open_corpse_loot(col as Corpse)
@@ -352,6 +356,8 @@ func is_interactable(col: Object) -> bool:
 		var owner := (col as Area3D).get_parent()
 		if owner is HarvestNode or owner is CraftStation or owner is Bonfire:
 			return true
+	if col is TribeMember:
+		return true  # TRIBE M1: a member or a recruit at the dock opens the Tribe screen on them
 	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is CraftStation or col is TamingPen:
 		return true
 	if col is Node:

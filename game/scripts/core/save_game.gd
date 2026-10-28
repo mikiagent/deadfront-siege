@@ -112,6 +112,8 @@ static func save_now() -> bool:
 			"resting": player.sim.rest.resting,
 		},
 		"pets": pets,
+		# TRIBE M1: members, recruits waiting at the dock, the boat timer. An old save has no row: no members.
+		"tribe": Tribe.to_save(),
 		"ground_snares": snares,
 		"skills": skills,
 		"home": {
@@ -382,6 +384,9 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 			held.append(n.get("storage"))
 	for rec in player.bonded:
 		held.append(rec.bag)
+	Tribe.from_save(data.get("tribe", null))
+	for r in Tribe.members:
+		held.append(r.carry)
 	var reminted := InventoryMigration.unique_uids(held)
 	if reminted > 0:
 		print("[inv] load: %d duplicate uids reminted" % reminted)
