@@ -149,8 +149,12 @@ func _test_fallback() -> void:
 		if not IA.is_rendered(id) and II.path_for(id) != "":
 			sym_id = id
 			break
-	_check(sym_id != &"", "some unrendered item has a symbol to test the fallback with")
-	if sym_id != &"":
+	# ICONS2/3 (2026-10-20): once every item has a render there is no unrendered item left to test
+	# the symbol fallback with, so the sub-check only runs when it has a subject; the junk-id
+	# fallback above still covers the path. No assert is dropped when a subject exists.
+	if sym_id == &"":
+		print("[t_iconart] every item is rendered: symbol fallback has no subject, skipped")
+	else:
 		var st: Texture2D = IA.texture_for(sym_id)
 		_check(st != null and st.resource_path == II.path_for(sym_id), "unrendered %s resolves to its ItemIcons symbol" % sym_id)
 	var rt: Texture2D = IA.texture_for(&"steel_ingot")

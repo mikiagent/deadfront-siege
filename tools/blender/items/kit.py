@@ -196,6 +196,13 @@ def _ob(name, bm, m, loc, rot, scl, smooth, parent, sharp=None):
 
 
 def bevel(ob, w=0.02, seg=2, angle=40):
+    """Bevel modifier. NOT reproducible across Blender processes: its evaluated mesh comes out in a
+    different vertex/face order (and moves coincident verts by ~1e-9) from one run to the next, so
+    Cycles can hit a different face first on a coplanar tie and flip a pixel by 1 LSB (ICONS2:
+    armor_scute). Measured 2026-10-28 in .dsc/probe/bevel_probe*.py: 1/3 of processes differed; the
+    seed, sample count and PYTHONHASHSEED make no difference, and bmesh.ops.bevel varies too.
+    Never bevel geometry where two faces can be coplanar or share a plane a ray can tie on; pass
+    bev=0 there and move the surfaces apart (resources.py armor_scute does this)."""
     md = ob.modifiers.new("bevel", "BEVEL")
     md.width = w
     md.segments = seg
