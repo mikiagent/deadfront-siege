@@ -93,6 +93,9 @@ func handle_unhandled(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
 		interact()
 		return
+	if event.is_action_pressed("rest"):
+		p.actions.rest()
+		return
 	if event.is_action_pressed("craft"):
 		if placer.placing != &"":
 			placer.cancel()
@@ -527,6 +530,8 @@ func context_actions() -> Array:
 	if sleep_spot:
 		var left := int(sleep_spot.get("sleeps_left"))
 		out.append({"id": "sleep", "glyph": "☾", "label": "Sleep", "uses": "" if left < 0 else str(left)})
+	if p.sim.rest.offered():
+		out.append({"id": "rest", "label": "Rest"})  # anywhere out of combat (the HUD hides hexes in combat)
 	if near.call("bonfire", 2.8):
 		out.append({"id": "cook", "glyph": "🍖", "label": "Cook"})
 		if p.statuses and p.statuses.has(&"wet"):
@@ -565,6 +570,8 @@ func context_action(id: String) -> void:
 			p.actions.fill_water()
 		"sleep":
 			p.sim.start_sleep()
+		"rest":
+			p.actions.rest()
 		"wash":
 			p.actions.wash()
 		"cook":

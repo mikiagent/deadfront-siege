@@ -14,6 +14,7 @@ const ACTIONS: Dictionary = {
 	"roll": [KEY_Q],
 	"interact": [KEY_E],
 	"gather_nearest": [KEY_SPACE],
+	"rest": [KEY_X],
 	"attack": [KEY_F],
 	"tactic_1": [KEY_1],
 	"tactic_2": [KEY_2],

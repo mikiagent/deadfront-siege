@@ -1,7 +1,7 @@
 class_name PlayerActions
 extends RefCounted
 ## The survivor's command layer: every verb that changes the bag, gear, the world or a creature
-## (gather, loot, craft, place, equip, eat, tame, attack, drink, wash) goes through here. Offline each verb
+## (gather, loot, craft, place, equip, eat, tame, attack, drink, wash, rest) goes through here. Offline each verb
 ## applies locally exactly as before. Online (W3-SRVACT) the same call becomes an `act.<verb>`
 ## intent for the server (contracts.md section 0.3) and nothing changes locally until the
 ## server's delta arrives. To add a verb (W2-ACTION: swing, dodge, block, aim): add one method
@@ -423,6 +423,19 @@ func fill_water() -> bool:
 	if online:
 		return _send(&"fill", {})
 	return WaterAccess.fill(p)
+
+# ---------------------------------------------------------------- rest
+
+## Sit down to rest, or get up when already resting (the Rest hex, the X key). Online the intent
+## carries the wanted state, so a retried send does not flip it back. The rules are RestState's.
+func rest() -> bool:
+	var on := not p.sim.rest.resting
+	if online:
+		return _send(&"rest", {"on": on})
+	if on:
+		return p.sim.rest.start()
+	p.sim.rest.stop()
+	return true
 
 # ---------------------------------------------------------------- craft, eat, equip, place
 

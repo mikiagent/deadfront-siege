@@ -45,9 +45,12 @@ var _sleep_pending: Node3D
 ## the visual, not the body), reused so waking puts them back on their feet at the same height.
 var _stand_offset: float = 0.9
 var _autofeed_cd: float = 0.0
+## Sitting down to rest (the Rest hex, the X key): RestState.
+var rest: RestState
 
 func _init(player: Player) -> void:
 	p = player
+	rest = RestState.new(player)
 
 ## Dead: no input, only gravity.
 func hold_still(delta: float) -> void:
@@ -87,6 +90,8 @@ func tick(delta: float) -> void:
 				return
 	if p._sleep_left > 0.0 and p.statuses != null and p.vitals != null:
 		_tick_sleep(delta)
+		return
+	if rest.tick(delta):
 		return
 	if anim and anim._waking:
 		_wake_elapsed += delta
@@ -541,6 +546,8 @@ func _track_tile_blocked(delta: float) -> bool:
 ## spends a use. No time skip; an interrupted sleep keeps the exhaustion already
 ## paid out (the restore drains gradually, owner 2026-10-27 — the HUD treadmill
 ## should run left through the whole sleep, not snap at wake).
+## While asleep she also heals at the shelter rest rate (data/rest.json, RestState.heal);
+## exhaustion moves only by the sleep's own drain above, never by the rest rate too.
 func _tick_sleep(delta: float) -> void:
 	var hurt := (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 1.0
 	if input_vector().length_squared() > 0.04 or p.nav_active or p.vitals.in_combat or hurt or p.dead \
@@ -563,6 +570,7 @@ func _tick_sleep(delta: float) -> void:
 		p.vitals.rest(step)
 		_sleep_drained += step
 	p._sleep_left = maxf(0.0, p._sleep_left - delta)
+	rest.heal(&"shelter", delta)
 	p.velocity.x = 0.0
 	p.velocity.z = 0.0
 	p.move_and_slide()
@@ -575,6 +583,12 @@ func _tick_sleep(delta: float) -> void:
 		if p.anim:
 			p.anim.wake_from_sleep()
 		p.notice("Rested")
+
+## The running sleep's exhaustion drain per minute (restore / duration), for the HUD; 0 when awake.
+func sleep_fatigue_per_min() -> float:
+	if p._sleep_left <= 0.0 or not is_instance_valid(_sleep_spot) or _sleep_dur <= 0.0:
+		return 0.0
+	return float(_sleep_spot.sleep_restore()) / _sleep_dur * 60.0
 
 func nearest_sleep_spot() -> Node3D:
 	var best: Node3D = null
@@ -620,6 +634,7 @@ func start_sleep(spot: Node3D = null) -> void:
 	if p.vitals.fatigue < 1.0:
 		p.notice("Already rested")
 		return
+	rest.stop(false)  # from sitting straight to lying down
 	p.clear_nav()
 	p.actions.cancel_work()
 	_sleep_spot = spot
@@ -647,6 +662,7 @@ func interrupt_sleep() -> void:
 	p._sleep_left = 0.0
 	_sleep_spot = null
 	_sleep_pending = null
+	rest.stop()  # hurt or dead: a rest ends too, with the stand-up
 
 # ---------------------------------------------------------------- autofeed
 
@@ -654,7 +670,7 @@ func interrupt_sleep() -> void:
 func tick_autofeed(delta: float) -> void:
 	_autofeed_cd = maxf(0.0, _autofeed_cd - delta)
 	var v := p.vitals
-	if _autofeed_cd > 0.0 or v == null or p._sleep_left > 0.0 or p.dead \
+	if _autofeed_cd > 0.0 or v == null or p._sleep_left > 0.0 or rest.resting or p.dead \
 			or (v.energy > v.max_energy * 0.5 and v.fatigue < v.max_fatigue * 0.6):
 		return
 	if p.eat_session == null or p.eat_session.eating or p.nav_active or p._gathering or Vector2(p.velocity.x, p.velocity.z).length() > 0.3:

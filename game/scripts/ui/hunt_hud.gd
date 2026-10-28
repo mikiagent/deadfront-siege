@@ -1288,6 +1288,10 @@ func _draw() -> void:
 		sx += 3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0
 	if player.statuses:
 		var sx0 := sx
+		var rest_lines := player.sim.rest.hud_lines() if player.sim else PackedStringArray()
+		if not rest_lines.is_empty():  # REST: the Resting chip comes first while she rests or sleeps
+			HudRestBox.chip(self, _font, Vector2(sx, sy))
+			sx += 30
 		for inst in player.statuses.instances():
 			HudStatusChip.draw(self, _font, Vector2(sx, sy), inst.id, Color(1, 0.75, 0.45))
 			if inst.time_left < 3600.0:  # "until washed / treated" statuses (9999 s) show no countdown
@@ -1297,11 +1301,15 @@ func _draw() -> void:
 			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
 		# SAVEFIX: a status that lowers max HP says so under its chip (the number alone was a mystery).
 		var hp_note: String = player.statuses.max_health_note()
+		var rest_y := sy + 46.0
 		if hp_note != "":
 			var ny := sy + 46.0
 			var nw := _font.get_string_size(hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px).x
 			draw_string(_font, Vector2(sx0, ny), hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px, Color(0.96, 0.62, 0.42))
 			drawn_blocks["status_maxhp"] = Rect2(sx0, ny - bar_px, nw, bar_px + 4.0)
+			rest_y = ny + 8.0
+		if not rest_lines.is_empty():  # REST: its live rates in a box right under the chips (and the max-HP note)
+			drawn_blocks["rest"] = HudRestBox.draw(self, _font, Vector2(sx0, rest_y), MAP_PX, UiTokens.meta(r), rest_lines)
 	var mp := _minimap.position
 	var top := "Home" if World.is_home() else ("Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
 	if World.island_id == &"":

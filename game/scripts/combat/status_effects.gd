@@ -7,6 +7,8 @@ signal removed(id: StringName)
 
 var _active: Array[StatusInstance] = []
 var _tick_acc: float = 0.0
+## True while a damage-over-time tick lands on a Player (Player._on_vitals_damaged tells it from a hit).
+var ticking: bool = false
 
 func _process(delta: float) -> void:
 	_tick_acc += delta
@@ -228,7 +230,9 @@ func _dot(inst: StatusInstance) -> void:
 		if def.dps_max_hp_frac > 0.0:
 			dps += def.dps_max_hp_frac * pl.vitals.max_health
 		if dps > 0.0:
+			ticking = true
 			pl.vitals.take_damage(dps * 0.5)
+			ticking = false
 		if def.fatigue_per_min > 0.0:
 			# fatigue_per_min is a rate on the 0-100 fatigue scale (PRD's +5.4/min, +18/min), per
 			# tick of 0.5 s. It used to be multiplied by 100 as well: Wet charged 30/min.

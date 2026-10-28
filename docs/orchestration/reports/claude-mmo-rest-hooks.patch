@@ -1,0 +1,402 @@
+diff --git a/game/assets/icons/ui/_src/build.py b/game/assets/icons/ui/_src/build.py
+index 016131cd..23afa887 100644
+--- a/game/assets/icons/ui/_src/build.py
++++ b/game/assets/icons/ui/_src/build.py
+@@ -6,7 +6,7 @@
+ Each icons_*.py module fills a dict I of id -> {"l": [line elements], "s": [solid elements]} with
+ coordinates placed by hand on the 64 grid; geo.py and geo2.py only spell out the path syntax
+ (capsules, arcs, bands, knockout cuts). icons_a..f are the first pass (5-unit lines plus solids,
+-nudged by offsets.py); icons_g, icons_h, icons_i and icons_j are solid drawings centred optically by geo2.place.
++nudged by offsets.py); icons_g, icons_h, icons_i, icons_j and icons_k are solid drawings centred optically by geo2.place.
+ Every id is drawn in exactly one module. To change an icon, edit its module and run build.py.
+ """
+ import os
+@@ -18,8 +18,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
+ OUT = os.path.dirname(HERE)
+ sys.path.insert(0, HERE)
+ from geo import f  # noqa: E402
+-MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h", "icons_i", "icons_j"]
+-SOLID = {"icons_g", "icons_h", "icons_i", "icons_j"}
++MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h", "icons_i", "icons_j", "icons_k"]
++SOLID = {"icons_g", "icons_h", "icons_i", "icons_j", "icons_k"}
+ HEAD = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">\n'
+ NOTE_LINE = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->\n'
+ NOTE_SOLID = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, solid shapes, white only. -->\n'
+diff --git a/game/data/ui_icons.json b/game/data/ui_icons.json
+index 1f372aef..660716d3 100644
+--- a/game/data/ui_icons.json
++++ b/game/data/ui_icons.json
+@@ -39,6 +39,8 @@
+ 		"fill": "res://assets/icons/ui/station_well.svg",
+ 		"sleep": "res://assets/icons/ui/sleep.svg",
+ 		"sleeping": "res://assets/icons/ui/sleep.svg",
++		"rest": "res://assets/icons/ui/rest.svg",
++		"resting": "res://assets/icons/ui/rest.svg",
+ 		"cook": "res://assets/icons/ui/cook.svg",
+ 		"cauterise": "res://assets/icons/ui/cauterise.svg",
+ 		"loot": "res://assets/icons/ui/loot.svg",
+diff --git a/game/scripts/combat/status_effects.gd b/game/scripts/combat/status_effects.gd
+index 8dbe4761..33d16864 100644
+--- a/game/scripts/combat/status_effects.gd
++++ b/game/scripts/combat/status_effects.gd
+@@ -7,6 +7,8 @@ signal removed(id: StringName)
+ 
+ var _active: Array[StatusInstance] = []
+ var _tick_acc: float = 0.0
++## True while a damage-over-time tick lands on a Player (Player._on_vitals_damaged tells it from a hit).
++var ticking: bool = false
+ 
+ func _process(delta: float) -> void:
+ 	_tick_acc += delta
+@@ -218,7 +220,9 @@ func _dot(inst: StatusInstance) -> void:
+ 		if def.dps_max_hp_frac > 0.0:
+ 			dps += def.dps_max_hp_frac * pl.vitals.max_health
+ 		if dps > 0.0:
++			ticking = true
+ 			pl.vitals.take_damage(dps * 0.5)
++			ticking = false
+ 		if def.fatigue_per_min > 0.0:
+ 			pl.vitals.add_fatigue(def.fatigue_per_min * (0.5 / 60.0) * 100.0 * float(inst.stacks), inst.id)
+ 
+diff --git a/game/scripts/core/input_setup.gd b/game/scripts/core/input_setup.gd
+index 102c4fb9..796bed2c 100644
+--- a/game/scripts/core/input_setup.gd
++++ b/game/scripts/core/input_setup.gd
+@@ -12,6 +12,7 @@ const ACTIONS: Dictionary = {
+ 	"sprint": [KEY_SHIFT],
+ 	"roll": [KEY_SPACE],
+ 	"interact": [KEY_E],
++	"rest": [KEY_X],
+ 	"attack": [KEY_F],
+ 	"tactic_1": [KEY_1],
+ 	"tactic_2": [KEY_2],
+diff --git a/game/scripts/core/save_game.gd b/game/scripts/core/save_game.gd
+index 2ac1e244..697aab71 100644
+--- a/game/scripts/core/save_game.gd
++++ b/game/scripts/core/save_game.gd
+@@ -83,6 +83,7 @@ static func save_now() -> bool:
+ 			"inventory": player.inventory.to_array(),
+ 			"inventory_extras": player.inventory.extras_to_dict(),
+ 			"position": [player.global_position.x, player.global_position.y, player.global_position.z],
++			"resting": player.sim.rest.resting,
+ 		},
+ 		"pets": pets,
+ 		"ground_snares": snares,
+@@ -268,6 +269,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
+ 	player.refresh_equipment_vitals()
+ 	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))
+ 	player.statuses.from_array(data.get("player", {}).get("statuses", []))
++	player.sim.rest.load_saved(data.get("player", {}).get("resting", false))  # spec 01:22: seated or standing, as saved
+ 	if player.skills:
+ 		player.skills.from_dict(data.get("skills_v2", {}))
+ 	player.bonded.clear()
+diff --git a/game/scripts/player/player.gd b/game/scripts/player/player.gd
+index 27e000c5..339ab1e5 100644
+--- a/game/scripts/player/player.gd
++++ b/game/scripts/player/player.gd
+@@ -352,6 +352,8 @@ func _flinch() -> void:
+ 		anim.on_damaged()
+ 
+ func _on_vitals_damaged() -> void:
++	if statuses.ticking and (sim.rest.resting or _sleep_left > 0.0):
++		return  # a bleed or stomachache tick hurts, but only hits and fights end a rest or a sleep (spec 01:19)
+ 	sim.interrupt_sleep()
+ 	actions.cancel_work()
+ 	_flinch()
+@@ -456,4 +458,5 @@ func tick_climate_fatigue(delta: float, climate: String) -> void:
+ 	var points := float(short[group])
+ 	if points > 0.0:
+ 		var mult := statuses.heat_fatigue_mult() if group == "heat" else 1.0  # Quenched (PRD :314)
++		mult *= sim.rest.climate_mult(group)  # sitting by the fire (PRD :285)
+ 		vitals.add_fatigue(delta * points * (per_min / 60.0) * mult, StringName("climate_" + group))
+diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
+index b2f961bc..98625967 100644
+--- a/game/scripts/player/player_actions.gd
++++ b/game/scripts/player/player_actions.gd
+@@ -1,7 +1,7 @@
+ class_name PlayerActions
+ extends RefCounted
+ ## The survivor's command layer: every verb that changes the bag, gear, the world or a creature
+-## (gather, loot, craft, place, equip, eat, tame, attack, drink, wash) goes through here. Offline each verb
++## (gather, loot, craft, place, equip, eat, tame, attack, drink, wash, rest) goes through here. Offline each verb
+ ## applies locally exactly as before. Online (W3-SRVACT) the same call becomes an `act.<verb>`
+ ## intent for the server (contracts.md section 0.3) and nothing changes locally until the
+ ## server's delta arrives. To add a verb (W2-ACTION: swing, dodge, block, aim): add one method
+@@ -427,6 +427,19 @@ func fill_water() -> bool:
+ 		return _send(&"fill", {})
+ 	return WaterAccess.fill(p)
+ 
++# ---------------------------------------------------------------- rest
++
++## Sit down to rest, or get up when already resting (the Rest hex, the X key). Online the intent
++## carries the wanted state, so a retried send does not flip it back. The rules are RestState's.
++func rest() -> bool:
++	var on := not p.sim.rest.resting
++	if online:
++		return _send(&"rest", {"on": on})
++	if on:
++		return p.sim.rest.start()
++	p.sim.rest.stop()
++	return true
++
+ # ---------------------------------------------------------------- craft, eat, equip, place
+ 
+ func craft(rid: StringName, count: int = 1) -> bool:
+diff --git a/game/scripts/player/player_anim.gd b/game/scripts/player/player_anim.gd
+index 36e2d244..e322053e 100644
+--- a/game/scripts/player/player_anim.gd
++++ b/game/scripts/player/player_anim.gd
+@@ -13,6 +13,11 @@ var _dead: bool = false
+ var _forced: bool = false
+ var _sleeping: bool = false
+ var _waking: bool = false
++## REST: seated on the ground (sleep_down held where she is up on one arm). Uses the sleep flags, so
++## locomotion leaves her alone and the visual is grounded as for sleep.
++var _sitting: bool = false
++const SIT_AT := 1.0      # sleep_down: sat up on one arm
++const STAND_FROM := 0.68 # sleep_up: the same pose on the way up
+ var _sleep_ground_tween: Tween
+ var _visual_rest_y: float = 0.0
+ var _missing_logged: Dictionary = {}
+@@ -55,6 +60,7 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
+ 			_ground_sleep_visual(false)
+ 		_sleeping = false
+ 		_waking = false
++		_sitting = false
+ 	if _dead and clip != &"death":
+ 		return
+ 	if clip == &"knockdown" and _busy and current_clip == &"knockdown":
+@@ -71,10 +77,15 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
+ func start_sleep() -> void:
+ 	if _dead:
+ 		return
++	var from_sit := _sitting and current_clip == &"sleep_down" and rig != null and rig.anim_player != null
+ 	_sleeping = true
+-	_ground_sleep_visual(true)
++	_sitting = false
+ 	_waking = false
+ 	_busy = false
++	if from_sit:
++		rig.anim_player.play()  # REST -> Sleep: lie down from the sit instead of restarting the clip
++		return
++	_ground_sleep_visual(true)
+ 	play_clip(&"sleep_down" if rig and rig.has_clip(&"sleep_down") else &"sleep", true)
+ 
+ func wake_from_sleep() -> void:
+@@ -85,6 +96,42 @@ func wake_from_sleep() -> void:
+ 	_waking = true
+ 	play_clip(&"sleep_up", true)
+ 
++## REST: sit down (sleep_down, held at SIT_AT). Falls back to lying down on a rig without sleep_down.
++func sit() -> void:
++	if _dead:
++		return
++	start_sleep()
++	_sitting = true
++	get_tree().create_timer(SIT_AT).timeout.connect(_hold_sit, CONNECT_ONE_SHOT)
++
++func _hold_sit() -> void:
++	var ap := rig.anim_player if rig else null
++	if not _sitting or current_clip != &"sleep_down" or ap == null:
++		return
++	var early := SIT_AT - ap.current_animation_position
++	if early > 0.02:  # a later sit restarted the clip: wait for its own frame
++		get_tree().create_timer(early).timeout.connect(_hold_sit, CONNECT_ONE_SHOT)
++	else:
++		ap.pause()
++
++func is_sitting() -> bool:
++	return _sitting
++
++## REST: get up from the sit (sleep_up from STAND_FROM); the visual rises as the clip ends.
++func stand_up() -> void:
++	if not _sitting or _dead:
++		return
++	_sitting = false
++	_sleeping = false
++	_waking = true
++	play_clip(&"sleep_up", true)
++	var ap := rig.anim_player if rig else null
++	var left := 0.0
++	if ap and ap.current_animation == &"sleep_up":
++		ap.seek(minf(STAND_FROM, ap.current_animation_length), true)
++		left = ap.current_animation_length - ap.current_animation_position
++	_ground_sleep_visual(false, left)
++
+ func _ground_sleep_visual(asleep: bool, delay: float = 0.0) -> void:
+ 	if _sleep_ground_tween:
+ 		_sleep_ground_tween.kill()
+@@ -100,6 +147,12 @@ func _ground_sleep_visual(asleep: bool, delay: float = 0.0) -> void:
+ 	_sleep_ground_tween.tween_property(player.visual, "position:y", y, 0.25)
+ 
+ func on_damaged() -> void:
++	# REST: hurt while sitting, she gets up; a standing flinch from the floor would pop the pose.
++	if _sitting:
++		stand_up()
++		return
++	if _waking and current_clip == &"sleep_up" and not _sleeping:
++		return
+ 	_ground_sleep_visual(false)
+ 	_sleeping = false
+ 	_waking = false
+@@ -110,6 +163,7 @@ func on_death() -> void:
+ 	_ground_sleep_visual(false)
+ 	_sleeping = false
+ 	_waking = false
++	_sitting = false
+ 	if _dead:
+ 		return  # already on the floor; never replay the fall
+ 	play_clip(&"death")
+@@ -119,6 +173,7 @@ func revive() -> void:
+ 	_ground_sleep_visual(false)
+ 	_sleeping = false
+ 	_waking = false
++	_sitting = false
+ 	_dead = false
+ 	_busy = false
+ 	_forced = false
+diff --git a/game/scripts/player/player_input.gd b/game/scripts/player/player_input.gd
+index e550c697..c81681bb 100644
+--- a/game/scripts/player/player_input.gd
++++ b/game/scripts/player/player_input.gd
+@@ -83,6 +83,9 @@ func handle_unhandled(event: InputEvent) -> void:
+ 	if event.is_action_pressed("interact"):
+ 		interact()
+ 		return
++	if event.is_action_pressed("rest"):
++		p.actions.rest()
++		return
+ 	if event.is_action_pressed("craft"):
+ 		if placer.placing != &"":
+ 			placer.cancel()
+@@ -474,6 +477,8 @@ func context_actions() -> Array:
+ 	if sleep_spot:
+ 		var left := int(sleep_spot.get("sleeps_left"))
+ 		out.append({"id": "sleep", "glyph": "☾", "label": "Sleep", "uses": "" if left < 0 else str(left)})
++	if p.sim.rest.offered():
++		out.append({"id": "rest", "label": "Rest"})  # anywhere out of combat (the HUD hides hexes in combat)
+ 	if near.call("bonfire", 2.8):
+ 		out.append({"id": "cook", "glyph": "🍖", "label": "Cook"})
+ 		if p.statuses and (p.statuses.has(&"bleed") or p.statuses.has(&"deep_bleed")):
+@@ -510,6 +515,8 @@ func context_action(id: String) -> void:
+ 			p.actions.fill_water()
+ 		"sleep":
+ 			p.sim.start_sleep()
++		"rest":
++			p.actions.rest()
+ 		"wash":
+ 			p.actions.wash()
+ 		"cook":
+diff --git a/game/scripts/player/player_sim.gd b/game/scripts/player/player_sim.gd
+index cc94d94e..8348f34a 100644
+--- a/game/scripts/player/player_sim.gd
++++ b/game/scripts/player/player_sim.gd
+@@ -35,9 +35,12 @@ var _survival_acc: float = 0.0
+ var _shoreline_logged: bool = false
+ var _sleep_spot: Node3D
+ var _autofeed_cd: float = 0.0
++## Sitting down to rest (the Rest hex, the X key): RestState.
++var rest: RestState
+ 
+ func _init(player: Player) -> void:
+ 	p = player
++	rest = RestState.new(player)
+ 
+ ## Dead: no input, only gravity.
+ func hold_still(delta: float) -> void:
+@@ -62,6 +65,8 @@ func tick(delta: float) -> void:
+ 	if p._sleep_left > 0.0 and p.statuses != null and p.vitals != null:
+ 		_tick_sleep(delta)
+ 		return
++	if rest.tick(delta):
++		return
+ 	if anim and anim._waking:
+ 		hold_still(delta)
+ 		return
+@@ -460,7 +465,9 @@ func _track_tile_blocked(delta: float) -> bool:
+ 
+ ## ASSUMPTION: straw rolls take 12 seconds and restore 65 exhaustion once;
+ ## tents take 10 seconds and restore 100. Only a completed, uninterrupted sleep
+-## spends a use. No time skip, no partial restoration on interruption.
++## spends a use. No time skip. While asleep she recovers at the shelter rest rate
++## (data/rest.json), so Health and fatigue move on screen and an interrupted
++## sleep keeps what it gave; the full restore comes on completion.
+ func _tick_sleep(delta: float) -> void:
+ 	var hurt := (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 1.0
+ 	if input_vector().length_squared() > 0.04 or p.nav_active or p.vitals.in_combat or hurt or p.dead \
+@@ -472,6 +479,7 @@ func _tick_sleep(delta: float) -> void:
+ 		p.notice("Sleep interrupted")
+ 		return
+ 	p._sleep_left = maxf(0.0, p._sleep_left - delta)
++	rest.recover(&"shelter", delta)
+ 	p.velocity.x = 0.0
+ 	p.velocity.z = 0.0
+ 	p.move_and_slide()
+@@ -511,6 +519,7 @@ func start_sleep(spot: Node3D = null) -> void:
+ 	if p.vitals.fatigue < 1.0:
+ 		p.notice("Already rested")
+ 		return
++	rest.stop(false)  # from sitting straight to lying down
+ 	p.clear_nav()
+ 	p.actions.cancel_work()
+ 	_sleep_spot = spot
+@@ -519,9 +528,11 @@ func start_sleep(spot: Node3D = null) -> void:
+ 		p.anim.start_sleep()
+ 	p.notice("Sleeping - move to wake")
+ 
++## Hurt or dead: sleep ends, and so does a rest (with the stand-up).
+ func interrupt_sleep() -> void:
+ 	p._sleep_left = 0.0
+ 	_sleep_spot = null
++	rest.stop()
+ 
+ # ---------------------------------------------------------------- autofeed
+ 
+@@ -529,7 +540,7 @@ func interrupt_sleep() -> void:
+ func tick_autofeed(delta: float) -> void:
+ 	_autofeed_cd = maxf(0.0, _autofeed_cd - delta)
+ 	var v := p.vitals
+-	if _autofeed_cd > 0.0 or v == null or p._sleep_left > 0.0 or p.dead \
++	if _autofeed_cd > 0.0 or v == null or p._sleep_left > 0.0 or rest.resting or p.dead \
+ 			or (v.energy > v.max_energy * 0.5 and v.fatigue < v.max_fatigue * 0.6):
+ 		return
+ 	if p.eat_session == null or p.eat_session.eating or p.nav_active or p._gathering or Vector2(p.velocity.x, p.velocity.z).length() > 0.3:
+diff --git a/game/scripts/ui/fatigue_panel.gd b/game/scripts/ui/fatigue_panel.gd
+index 23255719..b964058f 100644
+--- a/game/scripts/ui/fatigue_panel.gd
++++ b/game/scripts/ui/fatigue_panel.gd
+@@ -17,7 +17,7 @@ const SOURCE_NAMES := {
+ 	"climate_cold": "Cold",
+ }
+ const SOURCE_REMEDIES := {
+-	"time": "Sleep in a tent or bed. Only sleep clears this fully.",
++	"time": "Rest (sit down): faster by a fire or a tent. Sleeping in a tent or bed clears it.",
+ 	"walk": "Make fewer long trips. A mount or a camp stop helps.",
+ 	"gather": "Eat a meal to ease it, or rest between harvests.",
+ 	"combat": "Avoid hits: roll, flank, end fights early.",
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index b7ac4ea6..cc795f4f 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -1028,6 +1028,10 @@ func _draw() -> void:
+ 		sy = vitals.end.y + 8.0
+ 	if player.statuses:
+ 		var sx0 := sx
++		var rest_lines := player.sim.rest.hud_lines() if player.sim else PackedStringArray()
++		if not rest_lines.is_empty():  # REST: the Resting chip comes first while she rests or sleeps
++			HudRestBox.chip(self, _font, Vector2(sx, sy))
++			sx += 30
+ 		for inst in player.statuses.instances():
+ 			HudStatusChip.draw(self, _font, Vector2(sx, sy), inst.id, Color(1, 0.75, 0.45))
+ 			if inst.time_left < 3600.0:  # "until washed / treated" statuses (9999 s) show no countdown
+@@ -1035,6 +1039,10 @@ func _draw() -> void:
+ 			sx += 30
+ 		if sx > sx0:
+ 			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
++		if not rest_lines.is_empty():  # its live rates under the row; below the Claim hex when that stands beside the chips
++			var claim := not HudLayout.landscape_phone(r) and _ctx_ids.any(func (e: Array) -> bool: return e[0] == "claim")
++			var box_y := mp0.y + MAP_PX + (52.0 + 72.0 + 8.0 if phone else 44.0) + 70.0 + 26.0 if claim else sy + 46.0
++			drawn_blocks["rest"] = HudRestBox.draw(self, _font, Vector2(sx0, box_y), MAP_PX, UiTokens.meta(r), rest_lines)
+ 	var mp := _minimap.position
+ 	var top := "Home" if World.is_home() else ("Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
+ 	if World.island_id == &"":

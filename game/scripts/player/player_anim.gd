@@ -13,6 +13,11 @@ var _dead: bool = false
 var _forced: bool = false
 var _sleeping: bool = false
 var _waking: bool = false
+## REST: seated on the ground (sleep_down held where she is up on one arm). Uses the sleep flags, so
+## locomotion leaves her alone and the visual is grounded as for sleep.
+var _sitting: bool = false
+const SIT_AT := 1.0      # sleep_down: sat up on one arm
+const STAND_FROM := 0.68 # sleep_up: the same pose on the way up
 var _sleep_ground_tween: Tween
 var _visual_rest_y: float = 0.0
 var _missing_logged: Dictionary = {}
@@ -55,6 +60,7 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 			_ground_sleep_visual(false)
 		_sleeping = false
 		_waking = false
+		_sitting = false
 	if _dead and clip != &"death":
 		return
 	if clip == &"knockdown" and _busy and current_clip == &"knockdown":
@@ -71,10 +77,15 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 func start_sleep() -> void:
 	if _dead:
 		return
+	var from_sit := _sitting and current_clip == &"sleep_down" and rig != null and rig.anim_player != null
 	_sleeping = true
-	_ground_sleep_visual(true)
+	_sitting = false
 	_waking = false
 	_busy = false
+	if from_sit:
+		rig.anim_player.play()  # REST -> Sleep: lie down from the sit instead of restarting the clip
+		return
+	_ground_sleep_visual(true)
 	play_clip(&"sleep_down" if rig and rig.has_clip(&"sleep_down") else &"sleep", true)
 
 ## Exit the wake pose without waiting for the clip's finished signal. The survivor is immobile while
@@ -96,6 +107,42 @@ func wake_from_sleep() -> void:
 	_waking = true
 	play_clip(&"sleep_up", true)
 
+## REST: sit down (sleep_down, held at SIT_AT). Falls back to lying down on a rig without sleep_down.
+func sit() -> void:
+	if _dead:
+		return
+	start_sleep()
+	_sitting = true
+	get_tree().create_timer(SIT_AT).timeout.connect(_hold_sit, CONNECT_ONE_SHOT)
+
+func _hold_sit() -> void:
+	var ap := rig.anim_player if rig else null
+	if not _sitting or current_clip != &"sleep_down" or ap == null:
+		return
+	var early := SIT_AT - ap.current_animation_position
+	if early > 0.02:  # a later sit restarted the clip: wait for its own frame
+		get_tree().create_timer(early).timeout.connect(_hold_sit, CONNECT_ONE_SHOT)
+	else:
+		ap.pause()
+
+func is_sitting() -> bool:
+	return _sitting
+
+## REST: get up from the sit (sleep_up from STAND_FROM); the visual rises as the clip ends.
+func stand_up() -> void:
+	if not _sitting or _dead:
+		return
+	_sitting = false
+	_sleeping = false
+	_waking = true
+	play_clip(&"sleep_up", true)
+	var ap := rig.anim_player if rig else null
+	var left := 0.0
+	if ap and ap.current_animation == &"sleep_up":
+		ap.seek(minf(STAND_FROM, ap.current_animation_length), true)
+		left = ap.current_animation_length - ap.current_animation_position
+	_ground_sleep_visual(false, left)
+
 func _ground_sleep_visual(asleep: bool, delay: float = 0.0) -> void:
 	if _sleep_ground_tween:
 		_sleep_ground_tween.kill()
@@ -111,6 +158,12 @@ func _ground_sleep_visual(asleep: bool, delay: float = 0.0) -> void:
 	_sleep_ground_tween.tween_property(player.visual, "position:y", y, 0.25)
 
 func on_damaged() -> void:
+	# REST: hurt while sitting, she gets up; a standing flinch from the floor would pop the pose.
+	if _sitting:
+		stand_up()
+		return
+	if _waking and current_clip == &"sleep_up" and not _sleeping:
+		return
 	_ground_sleep_visual(false)
 	_sleeping = false
 	_waking = false
@@ -121,6 +174,7 @@ func on_death() -> void:
 	_ground_sleep_visual(false)
 	_sleeping = false
 	_waking = false
+	_sitting = false
 	if _dead:
 		return  # already on the floor; never replay the fall
 	play_clip(&"death")
@@ -130,6 +184,7 @@ func revive() -> void:
 	_ground_sleep_visual(false)
 	_sleeping = false
 	_waking = false
+	_sitting = false
 	_dead = false
 	_busy = false
 	_forced = false
