@@ -203,8 +203,8 @@ static func _sea(rt: IslandRuntime, size: float) -> void:
 	var water := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(size * 3.2, size * 3.2)
-	plane.subdivide_width = 24
-	plane.subdivide_depth = 24
+	plane.subdivide_width = SeaWaves.subdivisions(plane.size.x)
+	plane.subdivide_depth = plane.subdivide_width
 	water.mesh = plane
 	water.position.y = -0.05
 	water.extra_cull_margin = 300.0
@@ -218,6 +218,7 @@ static func _sea(rt: IslandRuntime, size: float) -> void:
 	rt._water_mat.set_shader_parameter("water_y", -0.05)
 	water.material_override = rt._water_mat
 	rt.add_child(water)
+	SeaWaves.attach(rt, rt._water_mat)
 
 static func _build_height_texture(rt: IslandRuntime) -> void:
 	# Heights straight from the float array (little-endian Float32 = FORMAT_RF): one memcpy

@@ -253,6 +253,17 @@ def weather_section(rules, cl, a) -> None:
     a("")
     a("The look columns run from fully resisted to fully unmet.")
     a("")
+    a('## Sea and shore')
+    a('')
+    a('Code: `game/scripts/world/water.gdshader` (sea), `game/scripts/world/shore_wash.gdshader` (swash skin), `game/scripts/world/sea_waves.gd` (weather driver, skin and surf mask). Test: `game/tests/t_waves.gd`; lab: `scenes/dev/waves_lab.tscn`.')
+    a('')
+    a('- **Swell**: summed Gerstner waves along a prevailing wind (30 m and 17 m move the sea mesh; 9 m and, on high quality, 5.5 m only shade it per pixel). Crests are lighter and troughs darker so the swell reads from the high game camera; ripples and sun glints come from scrolling noise normals.')
+    a("- **Shore**: two breaker foam lines run in from 0.55 m of depth to the waterline, half a cycle (7 s) apart, their timing jittered along the coast. Each then runs up the sand as a foam lip over a thin sheet of water, drains back leaving bubbles, and leaves a wet darkening line at that cycle's high mark which fades until the next one. Only sea-facing beaches get surf: none in or beside the river (6-14 m) or on inland water.")
+    a('- **Weather**: sea state 0 (clear) to 1 (storm) = rain_amount x 0.5 + 0.5 in a storm (rain about 0.35), eased over about 6 s. Clear to storm: swell 0.08 to 0.40 m, chop 0.25 to 1.0, foam 0.55 to 1.0, swash run-up 0.07 to 0.20 m of height above the sea, a greyer sea, whitecaps on the crests from about half way, and the wind swings up to 0.5 rad.')
+    a('- **Gameplay**: none. The logical sea stays at -0.05 m (`HarbourSite.WATER_Y`) for swimming, wading, harbours, walkability and building. Near the shore the swell only rises, never dips, so the drawn waterline stays on the logical one.')
+    a('- **Opacity**: shallow water fades from 62 % at the waterline to solid at 1.6 m, so the bed shows in the shallows but never through open water.')
+    a('- **Quality**: `--water-quality=low|high`; low (default on web and phones) uses 16 m sea quads instead of 8 m, three swell waves instead of four, and no glint layer.')
+    a('')
 
 
 def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
