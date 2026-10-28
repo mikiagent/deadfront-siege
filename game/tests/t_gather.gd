@@ -1,5 +1,5 @@
 extends SceneTree
-## W2-GATHER: role tools speed hand-pickable nodes, tier raises yields, the green rare trait rolls the
+## W2-GATHER: role tools speed hand-pickable nodes, tier speeds a pass (ONEGATHER: one per pass), the green rare trait rolls the
 ## documented 5% per item, finds roll their data odds (never the node's own yield, none at home), carcass
 ## parts scale with knife and skill. Then live, on a real survivor: after_unit reads the node's climate,
 ## downranks a find like the main yield and keeps to free slots; a finish_gather pays only the base 2
@@ -165,10 +165,11 @@ func _test_tools() -> void:
 	var stone_axe = _bag(&"work_axe", "stone")
 	var flint_axe = _bag(&"work_axe", "flint")
 	_expect(GS.unit_seconds_for(stone_axe, tree, 1) < GS.unit_seconds_for(hands, tree, 1), "an axe takes branches faster than hands")
-	var ys: float = GS.yield_multiplier_for(stone_axe, tree, 1)
-	var yf: float = GS.yield_multiplier_for(flint_axe, tree, 1)
-	print("[t_gather] branch yield mult stone %.2f flint %.2f" % [ys, yf])
-	_expect(yf > ys, "a flint axe yields more per pass than a stone axe")
+	# ONEGATHER: a better tier gathers faster and rolls better quality, never more per pass (t_onegather).
+	var ss: float = GS.unit_seconds_for(stone_axe, tree, 1)
+	var sf: float = GS.unit_seconds_for(flint_axe, tree, 1)
+	print("[t_gather] branch seconds stone axe %.2f flint axe %.2f" % [ss, sf])
+	_expect(sf < ss and tree.roll_yield().count == 1, "a flint axe takes a branch faster than a stone axe, one per pass")
 	var rock = _node("Rock", &"stone")
 	var pick = _bag(&"work_pick", "stone")
 	_expect(GS.effective_tool(pick, rock) != null and GS.unit_seconds_for(pick, rock, 1) < GS.unit_seconds_for(hands, rock, 1), "a pick works loose stone faster than hands")

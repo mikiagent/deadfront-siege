@@ -340,8 +340,10 @@ func can_gather(inv: Inventory) -> String:
 			gather_seconds = _base_seconds / ProgressionScaling.tool_power(pick.level, pick.material_tier())
 	return ""
 
-func roll_yield(rng: RandomNumberGenerator = null) -> ItemStack:
-	var n := rng.randi_range(yield_min, yield_max) if rng else randi_range(yield_min, yield_max)
+## ONEGATHER (owner 2026-10-28, "cap it to 1 per harvest"): a pass is always ONE instance. yield_min/max
+## (the manifest's old [min, max] per pass) no longer count; tools and skill change speed and quality.
+func roll_yield(_rng: RandomNumberGenerator = null) -> ItemStack:
+	var n := 1
 	var material_level := int(yield_attributes.get("level", 1))
 	var attrs := yield_attributes.duplicate(true)
 	for k in ItemStack.MERGE_IGNORED_ATTRS:
