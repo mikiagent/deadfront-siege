@@ -152,3 +152,19 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 
 Not captured: the death/respawn ring and the skill debug overlay (dev only).
+
+## Tokens available for restyled sheets (not yet applied)
+
+`game/scripts/ui/ui_tokens.gd` carries the token set and chrome helpers of
+[`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §2/§8; no sheet uses them yet.
+
+- Palette: `HUD_FILL`, `HUD_RIM`, `HEADER`, `SCREEN_DIM`, `PANEL`, `GOLD`, `GOLD_DIM`, `CTA_INK`,
+  `PARCHMENT_TOP` / `PARCHMENT_BOTTOM` / `PARCHMENT_INK`, `OK_GREEN`, `LIFE`, `ENERGY`, `XP`, `MUTED`;
+  existing `INK` / `TEAL` / `DIVIDER` unchanged.
+- Chrome: `header_style()` (the HEADER bar) with `draw_torn_edge()` under it, `draw_brackets()` for a
+  selection (four 18 px GOLD corners), `trait_chip_style(polarity)` / `trait_chip_prefix()` for the
+  grey / yellow / green trait chips, and `ui_font(400|700)` / `ui_face()` for Roboto Condensed (the TTF
+  is not in this branch yet; these return null and the engine fallback there).
+- `HexButton` (also used by the sheets) has `flat_top`, `rim_color` / `rim_width`, `fill_ratio`,
+  `icon_grey` and `key_hint`; a hex that sets `rim_color` selects in GOLD instead of TEAL. Defaults
+  keep the shipped look; the one global change is that default hexes are flat-top (`HEX_FLAT_TOP`).
