@@ -1,31 +1,121 @@
 {
   "id": "tutorial_isle",
   "display_name": "Tutorial Island",
-  "_about": "TUTORIAL ISLAND (owner 2026-10-28): the shared island every NEW survivor lands on after character creation, before owning a Tamed Island. Kind 'tutorial': permanent, never a sail route, never a home. Everything the tutorial orders (objectives.json 'tutorial') need is here: the standard camp (fire, bench, shed), a stone fire pit, herbs and berries by the camp (Tutorial.dress), and a few weak animals in the gathering ring. # ASSUMPTION: grassland climate at tier 15, the smallest landmass band IslandShape has (330 x 265 m), level 1 everywhere; seed and creature rows are this build's own.",
+  "_about": "TUTORIAL ISLAND (owner 2026-10-28): the shared island every NEW survivor lands on after character creation, before owning a Tamed Island. Kind 'tutorial': permanent, never a sail route, never a home, never claimed. A prebuilt indestructible town at the landing (Tutorial.dress: the standard camp fire, bench and shed, the Adventurer's Guild, a market stall, a stone fire pit, a drying rack, herbs, berries and trees) and wild lands outside it (wild_zones). # ASSUMPTION: grassland climate, tier 15 materials band at level 1 everywhere; seed and zone rows are this build's own.",
   "climate": "grassland",
   "tier": 15,
   "level_override": 1,
-  "size_m": 368,
+  "size_m": 880,
   "permanent": true,
   "kind": "tutorial",
   "lifetime_seconds": 0,
   "sail_cost": 0,
-  "harbour": [27, 0, 79],
-  "camp": [12, 0, 44],
-  "crater": null,
-  "creatures": [
-    {"species": "compsognathus", "count": 1, "pack": false, "at": [-16, 0, 40]},
-    {"species": "compsognathus", "count": 1, "pack": false, "at": [40, 0, 20]},
-    {"species": "compsognathus", "count": 1, "pack": false, "at": [10, 0, 10]}
+  "harbour": [
+    60,
+    0,
+    194
   ],
-  "spawns": {
-    "gathering": [
-      {"species": "compsognathus", "count": 2, "groups": 1},
-      {"species": "zebraceratops", "count": 1, "groups": 1}
-    ]
-  },
+  "camp": [
+    44,
+    0,
+    160
+  ],
+  "crater": null,
   "terrains": {
-    "meadow": {"tree": 14, "bush": 14, "grass": 70, "rock": 8, "flower": 8}
+    "meadow": {
+      "tree": 14,
+      "bush": 14,
+      "grass": 70,
+      "rock": 8,
+      "flower": 8
+    }
   },
-  "seed": 9091
+  "seed": 9091,
+  "land_m": [
+    795,
+    636
+  ],
+  "terrain_res": 241,
+  "_size_note": "Owner 2026-10-28: 4-5x the home island's land. # ASSUMPTION 4.5x: home 375 x 300 m -> 795 x 636 m (x2.12 per side); size_m 880 holds it with the home's coast margin; ",
+  "cover_full_radius_m": 120,
+  "cover_far_share": 0.06,
+  "_perf_note": "# ASSUMPTION (perf, owner 2026-10-28): ground cover full within 120 m of the town, 6 % beyond; biome dressing at 30 %; terrain_res 241 (~3.7 m cells). Harvest nodes stay inside the scatter's 420-600 clamp.",
+  "dress_share": 0.3,
+  "creatures": [],
+  "wild_zones_about": "Wild lands outside the town (ZoneSpawner): each row is a group placed 'dist' m from the town at 'angle' degrees (nearest dry land), spawned only while the survivor is within wake_m. Weak animals by the town, harder ones further out. # ASSUMPTION: rows, distances and species mix (existing species only).",
+  "wild_zones": [
+    {
+      "species": "compsognathus",
+      "count": 1,
+      "dist": 40,
+      "angle": 200
+    },
+    {
+      "species": "compsognathus",
+      "count": 1,
+      "dist": 45,
+      "angle": 230
+    },
+    {
+      "species": "compsognathus",
+      "count": 2,
+      "pack": true,
+      "dist": 55,
+      "angle": 280
+    },
+    {
+      "species": "compsognathus",
+      "count": 1,
+      "dist": 60,
+      "angle": 310
+    },
+    {
+      "species": "zebraceratops",
+      "count": 1,
+      "dist": 85,
+      "angle": 250
+    },
+    {
+      "species": "gallimimus",
+      "count": 2,
+      "pack": true,
+      "dist": 110,
+      "angle": 300
+    },
+    {
+      "species": "protoceratops",
+      "count": 2,
+      "pack": true,
+      "dist": 140,
+      "angle": 220
+    },
+    {
+      "species": "coelophysis",
+      "count": 3,
+      "pack": true,
+      "dist": 210,
+      "angle": 240
+    },
+    {
+      "species": "coelophysis",
+      "count": 3,
+      "pack": true,
+      "dist": 240,
+      "angle": 280
+    },
+    {
+      "species": "velociraptor",
+      "count": 3,
+      "pack": true,
+      "dist": 300,
+      "angle": 260
+    },
+    {
+      "species": "deinonychus",
+      "count": 2,
+      "pack": true,
+      "dist": 360,
+      "angle": 230
+    }
+  ]
 }

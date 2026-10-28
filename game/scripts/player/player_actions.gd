@@ -685,6 +685,9 @@ func claim_confirmed() -> bool:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
 		return false
+	if World.is_tutorial():
+		p.notice("The tutorial island can't be claimed: your own island comes at the end of the orders")
+		return false
 	# PRD 13.1: with land already held a claim is one orthogonal expansion of it, never a plot out on
 	# its own (the confirm path runs this too, so a stale panel cannot stake a hop).
 	if not (rt.get("claims") as Array).is_empty() and rt.has_method("claim_expand_reason"):

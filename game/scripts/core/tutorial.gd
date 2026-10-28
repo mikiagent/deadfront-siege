@@ -156,27 +156,78 @@ static func resume_index() -> int:
 
 # ---------------------------------------------------------------- island
 
-## Hand-placed tutorial content on top of the generated island: a permanent stone fire pit by the
-## camp (the "light the fire" and cooking orders), herbs and berries right beside it (the cook's
-## topping and the first meal) and two trees, so every order completes on this island's own content.
+## The prebuilt town on top of the generated island (owner 2026-10-28), around the camp at the
+## landing: the camp's own fire, workbench and shed, plus the Adventurer's Guild (the quest hub that
+## hands out these orders), a market stall (Island Market screen), a permanent stone fire pit (the
+## "light the fire" and cooking orders), a drying rack, a sign and crates. Every piece is
+## indestructible and never saved (persist_building = false; see TownBuilding). Herbs, berries and
+## two trees at the town's edge make every order completable on this island's own content, and the
+## wild lands outside are ZoneSpawners (island data wild_zones). # ASSUMPTION: layout and models.
 static func dress(rt: IslandRuntime) -> void:
 	var camp := rt._camp_pos
+	var at := func (dx: float, dz: float) -> Vector2i: return BuildGrid.tile_of(camp + Vector3(dx, 0.0, dz))
 	var pit := Bonfire.make(&"stone_fire_pit")
 	pit.persist_building = false
-	rt._camp_place(pit, "TutorialFirePit", &"stone_fire_pit", BuildGrid.tile_of(camp + Vector3(-2.0, 0.0, 4.5)))
+	rt._camp_place(pit, "TutorialFirePit", &"stone_fire_pit", at.call(-2.0, 4.5))
+	rt._camp_place(TownBuilding.make(&"log_shelter", &"guild", "Adventurer's Guild"), "TownGuild", &"log_shelter", at.call(-11.0, -9.0))
+	rt._camp_place(TownBuilding.make(&"fishing_stand", &"market", "Market stall"), "TownMarket", &"fishing_stand", at.call(10.0, -9.0))
+	rt._camp_place(TownBuilding.make(&"signpost", &"decor", "Adventurer's Guild: orders and quests"), "TownSign", &"signpost", at.call(-5.0, -6.0))
+	rt._camp_place(TownBuilding.make(&"barrel", &"decor", ""), "TownBarrel", &"barrel", at.call(13.0, -6.0))
+	rt._camp_place(TownBuilding.make(&"large_box", &"decor", ""), "TownCrates", &"large_box", at.call(-14.0, -5.0))
+	var rack := CraftStation.make(&"drying_rack")
+	rack.persist_building = false
+	rt._camp_place(rack, "TownDryingRack", &"drying_rack", at.call(8.0, 5.0))
 	var lv := 1
-	var spots := [Vector3(7, 0, 4), Vector3(8, 0, 7), Vector3(6, 0, 10), Vector3(-8, 0, 3), Vector3(-9, 0, 7), Vector3(-7, 0, 11)]
+	var spots := [Vector3(15, 0, 6), Vector3(16, 0, 10), Vector3(14, 0, 13), Vector3(-15, 0, 6), Vector3(-16, 0, 10), Vector3(-14, 0, 13)]
 	for i in spots.size():
-		var at: Vector3 = camp + spots[i]
-		at.y = rt.surface_y(at.x, at.z)
+		var p: Vector3 = camp + spots[i]
+		p.y = rt.surface_y(p.x, p.z)
 		var herb := i < 3
-		rt.harvest_count += rt._plant_at("HerbPlant" if herb else "BerrySprig", "tutorial_%s_%d" % ["herb" if herb else "berry", i], at,
+		rt.harvest_count += rt._plant_at("HerbPlant" if herb else "BerrySprig", "tutorial_%s_%d" % ["herb" if herb else "berry", i], p,
 			&"herb_leaf" if herb else &"berries", &"none", rt._climate, lv, Color(0.3, 0.55, 0.25) if herb else Color(0.55, 0.15, 0.3))
-	# Two trees on the camp's edge: the first branches and the axe's first logs, a short walk away.
 	for i in 2:
-		var t: Vector3 = camp + [Vector3(-11, 0, -6), Vector3(11, 0, -7)][i]
+		var t: Vector3 = camp + [Vector3(-19, 0, 2), Vector3(19, 0, 1)][i]
 		t.y = rt.surface_y(t.x, t.z)
 		rt.harvest_count += rt._plant_at("CommonTree", "tutorial_tree_%d" % i, t, &"wood_log", &"axe", rt._climate, lv, Color(0.35, 0.22, 0.1))
+	_wild_zones(rt)
+
+static func _wild_zones(rt: IslandRuntime) -> void:
+	var camp := rt._camp_pos
+	var rows: Variant = World.def_of(ISLAND).get("wild_zones", [])
+	if not rows is Array:
+		return
+	var n := 0
+	for row in rows:
+		if not row is Dictionary:
+			continue
+		var r := row as Dictionary
+		var ang := deg_to_rad(float(r.get("angle", 0.0)))
+		var want := camp + Vector3(cos(ang), 0.0, sin(ang)) * float(r.get("dist", 60.0))
+		var spot := _dry_near(rt, want)
+		if spot == Vector3.INF:
+			print("[tutorial] wild zone %s: no dry land near %s" % [r.get("species", "?"), want.snapped(Vector3.ONE)])
+			continue
+		var z := ZoneSpawner.new()
+		z.name = "WildZone_%d_%s" % [n, str(r.get("species", ""))]
+		z.species = StringName(str(r.get("species", "compsognathus")))
+		z.count = int(r.get("count", 1))
+		z.as_pack = bool(r.get("pack", false))
+		z.position = spot
+		rt.add_child(z)
+		n += 1
+
+## The nearest dry spawnable ground to `want`, searched on rings out to 40 m, toward the town first.
+static func _dry_near(rt: IslandRuntime, want: Vector3) -> Vector3:
+	for r in range(0, 41, 4):
+		for k in 12:
+			var a := TAU * float(k) / 12.0
+			var q := want + Vector3(cos(a), 0.0, sin(a)) * float(r)
+			q.y = rt.surface_y(q.x, q.z) + 0.3
+			if rt.spawn_ok(q, false) and rt.is_dry(q):
+				return q
+			if r == 0:
+				break
+	return Vector3.INF
 
 ## Is the camp's stone fire pit burning? A fire with no fuel model (before FIREPITS) always burns.
 static func fire_lit() -> bool:
@@ -264,6 +315,8 @@ static func world_point(p: Player, what: String) -> Variant:
 	match what:
 		"camp":
 			return rt._camp_pos
+		"guild":
+			return _nearest(p, "town_building", func (n: Node) -> bool: return n.get("role") == &"guild")
 		"harbour":
 			return rt.arrival_point()
 		"bench":
@@ -293,14 +346,14 @@ static func _nearest(p: Player, group: String, ok: Callable) -> Variant:
 
 static var _water_cache: Dictionary = {}
 
-## The nearest dry bank beside fresh water (where Drink is offered) within 80 m, on a 3 m ring
+## The nearest dry bank beside fresh water (where Drink is offered) within 160 m, on a 3 m ring
 ## search; cached per 12 m cell (water does not move).
 static func nearest_fresh_water(from: Vector3) -> Variant:
 	var key := "%s:%d:%d" % [World.island_id, roundi(from.x / 12.0), roundi(from.z / 12.0)]
 	if _water_cache.has(key):
 		return _water_cache[key]
 	var found: Variant = null
-	for r in range(3, 81, 3):
+	for r in range(3, 161, 3):
 		var steps_n := maxi(8, int(TAU * float(r) / 3.0))
 		for k in steps_n:
 			var a := TAU * float(k) / float(steps_n)

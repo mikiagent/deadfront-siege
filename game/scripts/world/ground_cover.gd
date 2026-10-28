@@ -169,12 +169,19 @@ static func plan(rt: IslandRuntime, climate: String, seed_value: int) -> Array[D
 			continue
 		# A little over the nominal density, because the dry/slope refusals eat some spots.
 		var want := int(round(kind_density(kind) * area * 1.15))
+		if rt.cover_full_radius > 0.0:  # the far share thins the count too, not just where it lands
+			var inner := minf(area, PI * rt.cover_full_radius * rt.cover_full_radius)
+			want = int(round(float(want) * (inner + rt.cover_far_share * (area - inner)) / area))
 		var made := 0
 		for _spot in want:
 			if made >= want:
 				break
 			var centre := _sample(rt, rng, radius)
 			if centre == Vector3.INF:
+				continue
+			# A big island (the tutorial island) keeps full cover near its camp and a thin share beyond
+			# (IslandRuntime.cover_full_radius / cover_far_share), so its cover count stays near a home's.
+			if rt.cover_full_radius > 0.0 and Vector2(centre.x - rt._camp_pos.x, centre.z - rt._camp_pos.z).length() > rt.cover_full_radius and rng.randf() > rt.cover_far_share:
 				continue
 			# Clearings: the mask leaves whole patches of bare ground between the clumps.
 			if mask.get_noise_2d(centre.x, centre.z) < MASK_KEEP:

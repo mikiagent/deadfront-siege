@@ -1,15 +1,15 @@
 {
   "_about": "The survivor's standing orders: one objective at a time, in order, shown on the HUD card. Every condition is read from state the player can already see (bag contents, bonded animals, which island you are on), so no system has to report completion. Rewards are pioneer XP and T-stones. Added 2026-09-22 after a bot playthrough found the early game had no stated goal at all. HUDRULES 2026-10-28: an optional 'fight' list names the creature ids whose fight serves the order ('*' = any wild animal); the HUD keeps the order card up in combat only then.",
-  "_tutorial_about": "TUTORIAL ISLAND (owner 2026-10-28): the first orders a NEW survivor follows on the shared tutorial island (data/islands/tutorial_isle.json), one system per step. Objectives uses this list while World.tutorial.done is false; the last step (grant_home) opens the Tamed Island pick and ferries the survivor home, then the standing orders below continue from 'tutorial_resume_at'. Extra conditions: near (camp|harbour, radius m), status (a status id is active), resting, did (counts the tutorial records: eat, eat:<item>, kill, build, skill), fire_lit (a fire on this island is burning). point_at is the onboarding pointer: 'ui:<HUD node name>', 'ctx:<context action id>', 'world:camp|bench|firepit|harbour|creature|corpse|water', 'harvest:<item>'; 'a|b' tries a then b; 'have:<item>=X' uses X only while the bag holds the item. Taming is not a tutorial step: vision section 1 says the first bond is discovered in open play, not a guided award.",
+  "_tutorial_about": "TUTORIAL ISLAND (owner 2026-10-28): the first orders a NEW survivor follows on the shared tutorial island (data/islands/tutorial_isle.json), one system per step. Objectives uses this list while World.tutorial.done is false; the last step (grant_home) opens the Tamed Island pick and ferries the survivor home, then the standing orders below continue from 'tutorial_resume_at'. Extra conditions: near (camp|guild|harbour, radius m), status (a status id is active), resting, did (counts the tutorial records: eat, eat:<item>, kill, build, skill), fire_lit (a fire on this island is burning). point_at is the onboarding pointer: 'ui:<HUD node name>', 'ctx:<context action id>', 'world:camp|guild|bench|firepit|harbour|creature|corpse|water', 'harvest:<item>'; 'a|b' tries a then b; 'have:<item>=X' uses X only while the bag holds the item. Taming is not a tutorial step: vision section 1 says the first bond is discovered in open play, not a guided award.",
   "tutorial_resume_at": "net",
   "tutorial": [
     {
       "id": "tut_camp",
-      "title": "Walk to the camp",
-      "hint": "Tap the ground or use WASD; the camp fire is up the beach",
-      "near": "camp",
-      "radius": 7,
-      "point_at": "world:camp",
+      "title": "Report to the Adventurer's Guild",
+      "hint": "Tap the ground or use WASD: the guild hall is in the town up from the dock. Tap it for your orders",
+      "near": "guild",
+      "radius": 6,
+      "point_at": "world:guild",
       "xp": 15,
       "t_stones": 1
     },

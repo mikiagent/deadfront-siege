@@ -78,7 +78,10 @@ func _wait_done(i: int, secs: float) -> String:
 func _do_step(id: String) -> String:
 	match id:
 		"tut_camp":
-			return await _walk_to(World.runtime._camp_pos, 5.0)
+			var guild: Variant = Tutorial.world_point(player, "guild")
+			if guild == null:
+				return "no guild in the town"
+			return await _walk_to(guild as Vector3, 5.0)
 		"tut_branches":
 			return await _gather_to(&"branch", 3)
 		"tut_stone":
@@ -88,7 +91,7 @@ func _do_step(id: String) -> String:
 		"tut_drink":
 			var water: Variant = Tutorial.nearest_fresh_water(player.global_position)
 			if water == null:
-				return "no fresh water within 80 m"
+				return "no fresh water within 160 m"
 			var w := await _walk_to(water as Vector3, 0.6, func () -> bool: return WaterAccess.near_fresh(player.global_position))
 			if w != "":
 				return w

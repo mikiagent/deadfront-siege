@@ -48,6 +48,7 @@ func _run() -> void:
 	_player = kit["player"]
 	_test_data()
 	await _test_new_character()
+	await _test_streaming()
 	await _test_bot_run()
 	await _test_old_save()
 	await _test_skip_and_step()
@@ -81,9 +82,10 @@ func _test_new_character() -> void:
 	await process_frame
 	cc.call("select_occupation", "farmer")
 	cc.get("naming").get("field").text = "Tutee"
+	var t0 := Time.get_ticks_msec()
 	cc.call("_finish")
-	await process_frame
-	await process_frame
+	var build_ms := Time.get_ticks_msec() - t0
+	await create_timer(1.5).timeout  # the wild zones by the town wake on their first ticks
 	_expect(W.get("island_id") == &"tutorial_isle", "a new character spawns on the tutorial island (got %s)" % W.get("island_id"))
 	_expect(not W.call("is_home") and W.call("is_tutorial"), "the tutorial island is not a home")
 	_expect(W.get("home_shape") == &"", "no Tamed Island is held yet")
@@ -102,7 +104,7 @@ func _test_new_character() -> void:
 			if n.get("kind") == &"stone_fire_pit":
 				pit = true
 		_expect(pit, "the tutorial camp has a stone fire pit")
-		_expect(TUT.call("nearest_fresh_water", camp) != null, "fresh water within 80 m of the camp")
+		_expect(TUT.call("nearest_fresh_water", camp) != null, "fresh water within 160 m of the town")
 		var herbs := 0
 		for n in get_nodes_in_group("harvest"):
 			for o in n.call("options"):
@@ -112,7 +114,7 @@ func _test_new_character() -> void:
 		var logs := 0
 		for n in get_nodes_in_group("harvest"):
 			for o in n.call("options"):
-				if str((o as Dictionary).get("item", "")) == "wood_log" and (n as Node3D).global_position.distance_to(camp) < 20.0:
+				if str((o as Dictionary).get("item", "")) == "wood_log" and (n as Node3D).global_position.distance_to(camp) < 25.0:
 					logs += 1
 		_expect(logs >= 1, "a tree for logs stands by the camp (%d)" % logs)
 		var compys := 0
@@ -120,9 +122,90 @@ func _test_new_character() -> void:
 			if n.get("def") and n.get("def").id == &"compsognathus":
 				compys += 1
 		_expect(compys >= 2, "weak animals to hunt (%d compsognathus)" % compys)
+		_test_town(rt, camp)
+		_test_size_and_perf(rt, build_ms)
 	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SG.get("path")))
 	_expect(str(saved.get("island_id", "")) == "tutorial_isle", "the first save is on the tutorial island")
 	_expect(saved.get("tutorial") is Dictionary and saved["tutorial"].get("done") == false, "the save carries tutorial.done=false")
+
+## The prebuilt town: the guild, the market stall, stations; nothing in it can be damaged, packed up
+## or built over, and the island cannot be claimed.
+func _test_town(rt: Node3D, camp: Vector3) -> void:
+	var roles := {}
+	for b in get_nodes_in_group("town_building"):
+		roles[str(b.get("role"))] = true
+		_expect(not load("res://scripts/world/structure_health.gd").call("is_structure", b), "%s is indestructible (not a damageable structure)" % b.name)
+		_expect(str(load("res://scripts/world/build_placer.gd").call("pack_up_blocker", b)) != "", "%s cannot be packed up" % b.name)
+		var cell: Vector2i = b.get("build_cell")
+		_expect(str(rt.get("build_grid").call("can_place", &"straw_roll", cell, 0)) != "", "nothing can be built over %s" % b.name)
+	_expect(roles.has("guild") and roles.has("market"), "the town has the Adventurer's Guild and a market stall (%s)" % [roles.keys()])
+	var bench := false
+	for n in get_nodes_in_group("craft_station"):
+		if n.get("station_id") == &"workbench" and (n as Node3D).global_position.distance_to(camp) < 25.0:
+			bench = true
+	_expect(bench, "the town has a workbench")
+	for n in get_nodes_in_group("placed_building"):
+		if (n as Node3D).global_position.distance_to(camp) < 25.0 and n.get("persist_building") != false:
+			_expect(false, "town piece %s is saved/destructible" % n.name)
+	var acts: Array = []
+	for a in _player.call("context_actions"):
+		acts.append(str(a["id"]))
+	_expect(not acts.has("claim"), "no CLAIM on the tutorial island (%s)" % [acts])
+	_expect(not bool(_player.actions.call("claim_confirmed")), "a claim on the tutorial island is refused")
+	var guild: Variant = TUT.call("world_point", _player, "guild")
+	_expect(guild is Vector3 and (guild as Vector3).distance_to(camp) < 25.0, "the guild stands in the town")
+
+## Owner: 4-5x the home island's land. Measured land area from the dry tiles, build time and cover.
+func _test_size_and_perf(rt: Node3D, build_ms: int) -> void:
+	var bb: Rect2i = rt.call("dry_bbox")
+	var home_m2 := 375.0 * 300.0
+	var m2 := float(bb.size.x * bb.size.y)
+	_expect(m2 / home_m2 > 3.5 and m2 / home_m2 < 5.5, "the tutorial landmass bbox is %.1fx the home's (%s)" % [m2 / home_m2, bb.size])
+	var cover := 0
+	for mm in rt.find_children("*", "MultiMeshInstance3D", true, false):
+		if (mm as MultiMeshInstance3D).multimesh:
+			cover += (mm as MultiMeshInstance3D).multimesh.instance_count
+	var zones: Array = rt.find_children("WildZone_*", "", false, false)
+	var live := get_nodes_in_group("creatures").size()
+	print("[t_tutorial] perf build_ms=%d cover=%d harvest=%d zones=%d live_creatures=%d" % [build_ms, cover, int(rt.get("harvest_count")), zones.size(), live])
+	_expect(cover <= 80000, "ground cover stays under the perf ceiling (%d <= 80000)" % cover)
+	_expect(int(rt.get("harvest_count")) <= 700, "harvest nodes stay bounded (%d)" % int(rt.get("harvest_count")))
+	_expect(zones.size() >= 8 and live <= 24, "wild zones stream: %d zones, %d animals awake" % [zones.size(), live])
+	_expect(build_ms < 30000, "the island builds in %d ms (no budget yet; reported)" % build_ms)
+
+## A wild zone exists only near the survivor: far away the town's compsognathus go to sleep, back
+## home they wake again.
+func _test_streaming() -> void:
+	var rt: Node3D = W.get("runtime")
+	if rt == null:
+		return
+	var home_pos: Vector3 = _player.global_position
+	var near_town := _count(&"compsognathus")
+	var far := Vector3.INF
+	for z in rt.find_children("WildZone_*", "", false, false):
+		if (z as Node3D).global_position.distance_to(home_pos) > 280.0:
+			far = (z as Node3D).global_position
+	_expect(far != Vector3.INF, "a wild zone lies far out in the wild lands")
+	if far == Vector3.INF:
+		return
+	_player.global_position = far + Vector3.UP
+	await create_timer(1.5).timeout
+	var far_species := 0
+	for c in get_nodes_in_group("creatures"):
+		if (c as Node3D).global_position.distance_to(far) < 60.0:
+			far_species += 1
+	_expect(_count(&"compsognathus") < near_town, "the town's compsognathus sleep while she is far (%d -> %d)" % [near_town, _count(&"compsognathus")])
+	_expect(far_species > 0, "the far zone wakes when she arrives (%d animals)" % far_species)
+	_player.global_position = home_pos
+	await create_timer(1.5).timeout
+	_expect(_count(&"compsognathus") >= near_town, "the town's compsognathus wake again on her return (%d)" % _count(&"compsognathus"))
+
+func _count(species: StringName) -> int:
+	var n := 0
+	for c in get_nodes_in_group("creatures"):
+		if c.get("def") and c.get("def").id == species and not c.is_queued_for_deletion():
+			n += 1
+	return n
 
 ## Every order in order with the real actions; save + reload half-way and carry on; the last order ferries home.
 func _test_bot_run() -> void:
