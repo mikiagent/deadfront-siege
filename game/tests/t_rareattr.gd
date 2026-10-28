@@ -184,52 +184,58 @@ func _test_save_load() -> void:
 
 ## Spec 04:33: a rare attribute passes from a single eligible PRIMARY material; a secondary one never
 ## transfers. The craft's own rare roll is forced to none, so only the source instance can supply it.
+## Runs on the shipped three-slot recipe (stone blade = primary, branch handle, reed lashing), so slot 1,
+## slot 2 and slot 3 are all exercised.
 func _test_craft_carry() -> void:
-	var rec := {
-		"id": "t_rareattr", "skill": "weapon_tools", "max_level": 60,
-		"slots": [{"category": "stone", "count": 1, "primary": true}, {"category": "handle", "count": 1, "primary": false}],
-		"output": {"id": "stone_knife_work", "count": 1}, "station": null, "seconds": 1.0,
-	}
+	var rec: Dictionary = _data.recipes.get(&"improvised_stone_knife", {})
+	_expect(not rec.is_empty() and CR.primary_index(rec) == 0 and (rec.get("slots", []) as Array).size() == 3,
+		"the shipped knife recipe has three slots with slot 1 as its primary")
+	if rec.is_empty():
+		return
 	# Slot 1 (primary) carries it.
-	var bag = _bag_for(&"stone", &"branch", "black_sheen")
-	var picks: Array[int] = CR.default_picks(bag, rec)
+	var picks := _bag_for("black_sheen", "", "")
 	var out = CR.commit_outcome(_player, rec, picks, {"success": true, "flawless": false, "rare": &""})
 	print("[t_rareattr] slot1 craft: picks %s -> %s %s" % [picks, out.def_id if out else "<none>", out.attributes if out else {}])
-	_expect(out != null and out.def_id == &"stone_knife_work", "a craft with the rare stone in slot 1 makes its item (%s)" % (out.def_id if out else "<none>"))
+	_expect(out != null and out.def_id == &"stone_knife_work", "a craft with the rare blade in slot 1 makes its item (%s)" % (out.def_id if out else "<none>"))
 	_expect(out != null and out.attributes.get("black_sheen", false) == true, "the slot-1 rare attribute carries into the crafted item (%s)" % (out.attributes if out else {}))
 	_expect(out != null and IA.class_of("black_sheen") == "rare" and IA.has_rare(out), "the crafted item's carried attribute is a rare (green) trait")
-	# Slot 2 (secondary) does not: the same attribute on the handle, the same recipe.
-	bag = _bag_for(&"stone", &"branch", "", "black_sheen")
-	picks = CR.default_picks(bag, rec)
+	# Slot 2 (handle) does not.
+	picks = _bag_for("", "black_sheen", "")
 	var out2 = CR.commit_outcome(_player, rec, picks, {"success": true, "flawless": false, "rare": &""})
 	print("[t_rareattr] slot2 craft: picks %s -> %s %s" % [picks, out2.def_id if out2 else "<none>", out2.attributes if out2 else {}])
 	_expect(out2 != null and out2.def_id == &"stone_knife_work", "the same craft with the rare handle in slot 2 makes its item")
-	_expect(out2 != null and out2.attributes.get("black_sheen", false) != true, "a rare attribute in slot 2+ does not carry into the result (%s)" % (out2.attributes if out2 else {}))
+	_expect(out2 != null and out2.attributes.get("black_sheen", false) != true, "a rare attribute in slot 2 does not carry into the result (%s)" % (out2.attributes if out2 else {}))
+	# Slot 3 (lashing) does not either.
+	picks = _bag_for("", "", "black_sheen")
+	var out3 = CR.commit_outcome(_player, rec, picks, {"success": true, "flawless": false, "rare": &""})
+	print("[t_rareattr] slot3 craft: picks %s -> %s %s" % [picks, out3.def_id if out3 else "<none>", out3.attributes if out3 else {}])
+	_expect(out3 != null and out3.def_id == &"stone_knife_work", "the same craft with the rare lashing in slot 3 makes its item")
+	_expect(out3 != null and out3.attributes.get("black_sheen", false) != true, "a rare attribute in slot 3 does not carry into the result (%s)" % (out3.attributes if out3 else {}))
 	# The preview of the same craft says it inherits the slot-1 attribute, so a preview cannot disagree.
-	var bag3 = _bag_for(&"stone", &"branch", "wide_serration")
-	var p3: Array[int] = CR.default_picks(bag3, rec)
-	var prev: Dictionary = CR.preview_quality(rec, _player, bag3.slots[p3[0]])
+	var p3 := _bag_for("wide_serration", "", "")
+	var prev: Dictionary = CR.preview_quality(rec, _player, _player.inventory.slots[p3[0]])
 	_expect("wide_serration" in (prev.get("inherited", []) as Array), "the preview lists the slot-1 rare attribute it will inherit (%s)" % str(prev.get("inherited")))
 	# And the preview of the secondary case lists nothing from the handle.
-	var bag4 = _bag_for(&"stone", &"branch", "", "wide_serration")
-	var p4: Array[int] = CR.default_picks(bag4, rec)
-	var prev4: Dictionary = CR.preview_quality(rec, _player, bag4.slots[p4[0]])
+	var p4 := _bag_for("", "wide_serration", "")
+	var prev4: Dictionary = CR.preview_quality(rec, _player, _player.inventory.slots[p4[0]])
 	_expect(not ("wide_serration" in (prev4.get("inherited", []) as Array)), "the preview of a rare secondary inherits nothing from it (%s)" % str(prev4.get("inherited")))
 
-## The player's own bag, emptied and refilled: `primary_id` in slot 1 and `secondary_id` in slot 2, each
-## carrying `primary` / `secondary`'s attribute (a key set true), for the two-slot recipe above.
-## commit_outcome reads the player's bag, so the craft runs on exactly the instance it inspects.
-func _bag_for(primary_id: StringName, secondary_id: StringName, primary: String, secondary: String = "") -> Object:
+## The player's own bag, emptied and refilled for the shipped knife recipe: a stone (slot 1), a branch
+## (slot 2) and a reed (slot 3), the given one carrying a rare attribute (a key set true). commit_outcome
+## reads the player's bag, so the craft runs on exactly the instances its picks name.
+func _bag_for(primary: String, secondary: String, tertiary: String) -> Array[int]:
 	var bag = _player.inventory
 	for i in bag.slot_count:
 		bag.slots[i] = null
-	for pair in [[primary_id, primary], [secondary_id, secondary]]:
+	var rows := [[&"stone", primary], [&"branch", secondary], [&"reed", tertiary]]
+	for pair: Array in rows:
 		var st = IS.make(pair[0], 1, {"level": 5, "climate": "grassland"}, 5)
 		if str(pair[1]) != "":
 			st.attributes[str(pair[1])] = true
 		bag.add(st)
-	_expect(bag.slots[0] != null and bag.slots[1] != null, "the bag holds the stone and the handle a slot needs")
-	return bag
+	_expect(bag.slots[0] != null and bag.slots[1] != null and bag.slots[2] != null, "the bag holds the blade, handle and lashing a slot needs")
+	var rec: Dictionary = _data.recipes.get(&"improvised_stone_knife", {})
+	return CR.default_picks(bag, rec)
 
 ## The card and the grid read InvAttributes: a gathered instance's rare attribute is a green pip.
 func _test_inspect() -> void:
