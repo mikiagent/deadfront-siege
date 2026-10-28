@@ -24,7 +24,7 @@
         0.82
       ],
       "windup": true,
-      "note": "chomp left, chomp right, MEGA chomp down: the third rears up for 10 frames (frames 33-42 of 62) as the tell, then drives down. Authored for deinonychus (tools/jaw/make_combo.py)."
+      "note": "chomp left, chomp right, MEGA chomp in the middle: the third winds up for 10 frames (frames 33-42 of 62, the tell) and snaps straight ahead with the widest jaw. Authored for deinonychus (tools/jaw/make_combo.py)."
     }
   },
   "natural_speeds": {

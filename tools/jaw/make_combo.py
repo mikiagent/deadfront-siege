@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a three-bite combo clip from a species' own bite: chomp left, chomp right, MEGA chomp down.
+"""Build a three-bite combo clip from a species' own bite: chomp left, chomp right, MEGA chomp in the middle.
 
 The body motion of each bite is the source attack_primary replayed over its segment; the jaw opens wider and the
 head lunges harder on every bite, and the third bite gets a held wind-up the player can read and roll through.
@@ -17,8 +17,9 @@ ap.add_argument("--hit", type=float, default=0.42, help="hit fraction of the sou
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
 # (frames, jaw degrees, lunge degrees, wind-up hold frames, neck yaw degrees: + = the animal's left)
-# chomp left, chomp right, then a reared-up MEGA chomp driven straight down
-BITES = [(16, 42, 12, 0, 70), (16, 42, 12, 0, -35), (20, 58, 34, 10, 22)]  # yaw also cancels the source bite's own sway to its right
+# chomp left, chomp right, then a reared-up MEGA chomp straight ahead in the middle (owner 2026-10-28)
+REAR = 15.0  # degrees the head rears up during the third bite's wind-up (the tell)
+BITES = [(16, 42, 12, 0, 70), (16, 42, 12, 0, -35), (20, 58, 0, 10, 22)]  # yaw also cancels the source bite's own sway to its right
 
 b = open(a.bite, "rb").read(); n = struct.unpack("<I", b[12:16])[0]; j = json.loads(b[20:20 + n])
 acc = max((j["accessors"][s["input"]] for s in j["animations"][0]["samplers"]), key=lambda x: x["count"])
@@ -49,7 +50,7 @@ poses, jaw, lunge, yaw, hits, f = [], [], [], [], [], 0
 for frames, jd, ld, hold, yd in BITES:
     for k in range(hold):  # wind-up hold: the opening pose of the bite, jaw already half open
         # rear up and back, jaw half open: the tell the player can read and roll away from
-        poses.append(sample(0.0)); jaw.append(jd * 0.6 * smooth((k + 1) / hold)); lunge.append(-ld * 0.6 * smooth((k + 1) / hold)); yaw.append(0.0)
+        poses.append(sample(0.0)); jaw.append(jd * 0.6 * smooth((k + 1) / hold)); lunge.append(-REAR * smooth((k + 1) / hold)); yaw.append(0.0)
         f += 1
     for k in range(frames):
         u = k / (frames - 1)
@@ -58,7 +59,7 @@ for frames, jd, ld, hold, yd in BITES:
             jaw.append(jd * smooth((u + 0.05) / max(a.hit - 0.05, 1e-6)) if u < a.hit - 0.05 else jd * (1 - smooth((u - (a.hit - 0.05)) / 0.05)))
         else:
             jaw.append(-3.0 * (1 - smooth((u - a.hit) / 0.1)))
-        rear = -ld * 0.6 * (1 - smooth(u / max(a.hit - 0.1, 1e-6))) if hold else 0.0  # out of the reared wind-up
+        rear = -REAR * (1 - smooth(u / max(a.hit - 0.1, 1e-6))) if hold else 0.0  # out of the reared wind-up
         lunge.append(rear + ld * smooth((u - (a.hit - 0.15)) / 0.15) * (1 - smooth((u - a.hit - 0.1) / 0.35)))
         # swing the head out to the side ahead of the snap, sweep it through on the bite, settle back
         yaw.append(yd * smooth(u / max(a.hit - 0.05, 1e-6)) * (1 - smooth((u - a.hit - 0.15) / 0.45)))
