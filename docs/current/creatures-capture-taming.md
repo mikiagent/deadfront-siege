@@ -58,6 +58,22 @@ completion.
   0.7 s, stomp 1.2 s, stagger after 3 blunt hits poisoned / 6 unpoisoned), `pet_brain.gd`
   (guard radius 9.0 m, drop target at 45.0 m, follow slots in `ai.json` `follow`), `brain_flight.gd`, `brain_rest.gd`.
 
+## Tactical AI by class ([enemy-ai-template.md](enemy-ai-template.md))
+Driven by the archetype (`ai.json archetypes.<a>.tactics`), not by per-species code. Families from
+`combat_counters.json archetype_family`. Only the rows marked **built** run today.
+| Archetype (family) | Species | Tactics |
+|---|---|---|
+| pack_flanker (fast_hunter) | deinonychus | **built**: ambush from tree cover; sequences (backstep / powerful strafe → pounce, charge, leap-in combo); leap back; hold / strafe / feint fillers; rare basic bite |
+| pack_raptor, apex_raptor (fast_hunter) | velociraptor; utahraptor, allosaurus | planned (owner suggestion): circle, flank, lunge, pounce; apex fewer feints, bigger pounce. Today: RaptorPackBrain |
+| swarm, flock_harass (fast_hunter) | compsognathus; coelophysis | planned: hit-and-run darting. Today: CreatureBrain |
+| saber_cat (fast_hunter) | smilodon | planned: stalk, then pounce from stand-off |
+| tyrant, titan (giant) | T. rex, tarbosaurus; brachiosaurus | T. rex: TyrantBrain (telegraphed bite / stomp, no circling); the rest planned the same |
+| horned_charger, antlered | triceratops, styracosaurus; megaloceros | planned: line up, long wind-up straight charge, staggered after a miss |
+| club_tail, spiked_tail (armored) | ankylosaurus; stegosaurus | planned: turn side-on, tail swipe when you are beside or behind |
+| venom_ranged (venom_hunter) | dilophosaurus | planned: keep distance and spit |
+| pack_mule, runner | protoceratops, zebraceratops; gallimimus | planned: flee, kick when cornered |
+A "berserker" is a nature (Aggressive: shorter cooldowns, more charges), not a class.
+
 ## Spawns
 - `IslandSpawns.spawn_all` places fixed rows from the island def's `creatures[]` and ring-band
   rows from its `spawns{}`; ring radius bands come from `rules.json` `rings` (landing 0–30,

@@ -154,7 +154,6 @@
         "bite_cd": 3.5,
         "lunge_speed_mult": 1.0,
         "lunge_max_s": 1.2,
-        "feint_chance": 0.25,
         "feint_s": 0.7,
         "pounce_cd": 12.0,
         "pounce_min_m": 4.0,
@@ -360,7 +359,8 @@
       "retreat",
       "chase",
       "lunge",
-      "feint"
+      "feint",
+      "charge"
     ],
     "special_cost_frac": {
       "attack_heavy": 0.3,
