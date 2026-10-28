@@ -136,3 +136,19 @@ re-check which side each front tooth belongs to.
 - `universal-modder:asset-pipeline`: 2D sprites from 3D, not useful here.
 - Blender MCP: failed to connect this session; everything ran as headless Blender scripts, which is also what
   dsc workers can run unattended.
+
+## Workflow test: zebraceratops (2026-10-28)
+
+Owner sheet -> 4 Higgsfield views (~1 credit) -> Tripo multiview 99e1106a (50) -> transplant (Triceratops donor) ->
+`add_jaw --hook 0.14` -> `open_mouth` -> `key_jaw` -> `make_gait` walk/run -> saddle rebuild -> import, gates, commit
+the unpacked textures. In game and rideable in about 40 minutes.
+
+What broke and what fixed it:
+- The transplant donor walk shuffles (t_canim: planted feet 0.16 m/s, ratio 0.10). Use `tools/gait/make_gait.py`
+  for walk and run on every new mesh; its species JSON stride/lift values are in mesh units, so rescale them when the
+  mesh size changes (Tripo meshes are 1 unit long; this one needed x0.53 from the Meshy-era numbers).
+- A hooked beak dips below the mouth line: without `--hook` its tip rode with the jaw and stretched into a strand.
+- Feed and sleep were authored for the old rig and were kept; they still play but are not re-checked for the new mesh.
+- The far hind leg flattens in parts of the walk: auto weights; `tools/gait/fix_weights.py` is the next thing to try.
+- Saddles must be rebuilt after a new mesh (`tools/blender/saddles/build.sh <species>`); the girth centre is now
+  taken from the barrel (back to belly), which also fixed the bipeds.
