@@ -21,6 +21,7 @@ var _SITE: GDScript
 var _CS: GDScript
 var _PS: GDScript
 var _SPL: GDScript
+var _SHEET: GDScript
 var _player: Node3D
 var _host: Node3D
 var _rt: Node3D
@@ -47,6 +48,7 @@ func _run() -> void:
 	_BQ = load("res://scripts/world/building_quality.gd")
 	_SP = load("res://scripts/world/structure_piece.gd")
 	_SPL = load("res://scripts/world/structure_placer.gd")
+	_SHEET = load("res://scripts/world/structure_sheet.gd")
 	_INV = load("res://scripts/items/inventory.gd")
 	_IS = load("res://scripts/items/item_stack.gd")
 	_BLUEPRINTS = load("res://scripts/items/blueprints.gd")
@@ -83,6 +85,7 @@ func _run() -> void:
 	_test_pieces()
 	_test_traits_and_effects()
 	_test_storage_capacity()
+	_test_inspect_text()
 	_test_save_load()
 	_test_old_save()
 	await _test_site_mixed_materials()
@@ -245,6 +248,43 @@ func _test_storage_capacity() -> void:
 	if box != null:
 		var bbase := int(_SP.piece_def(&"large_box").get("storage_slots", 0))
 		_expect(box.quality_storage == -6 and box.storage.slot_count == bbase - 6, "Heavy Lv 2 takes 6 spaces off a large box (%d of %d)" % [box.storage.slot_count, bbase])
+
+# ------------------------------------------------------------------ 4b. inspect text
+
+func _test_inspect_text() -> void:
+	# The piece card's lines: level + traits on top, one line per trait, the durability it added, and
+	# a storage piece's capacity. The same function fills the sheet, so this is the real text.
+	var wall: Variant = null
+	for p in _sg.pieces():
+		if p.kind == &"wall" and not p.inherited_attributes.is_empty():
+			wall = p
+			break
+	if wall == null:
+		_expect(false, "setup: a trait-carrying wall exists for the inspect text")
+		return
+	var lines: PackedStringArray = _SHEET.card_lines(wall)
+	_expect(lines.size() >= 3 and lines[0].begins_with("Lv ") and lines[0].contains("High Density"),
+		"the wall's card names its level and trait (%s)" % [lines])
+	_expect(lines[1].contains("durability"), "the card says what the trait did (%s)" % [lines[1]])
+	_expect(lines[lines.size() - 1].contains("Durability"), "the card shows the trait's durability bonus (%s)" % [lines[lines.size() - 1]])
+	var chest: Variant = null
+	for p in _sg.pieces():
+		if p.kind == &"chest":
+			chest = p
+			break
+	if chest != null:
+		var clines: PackedStringArray = _SHEET.card_lines(chest)
+		_expect(clines[clines.size() - 1].contains("slots") and clines[clines.size() - 1].contains(str(chest.storage.slot_count)),
+			"the chest's card shows its real capacity (%s)" % [clines[clines.size() - 1]])
+	# A plain piece (no traits) still shows its level, and no invented bonus lines.
+	var plain: Variant = null
+	for p in _sg.pieces():
+		if p.inherited_attributes.is_empty():
+			plain = p
+			break
+	if plain != null:
+		var plines: PackedStringArray = _SHEET.card_lines(plain)
+		_expect(plines.size() >= 1 and plines[0] == "Lv %d" % plain.build_level, "a plain piece's card is just its level (%s)" % [plines])
 
 # ------------------------------------------------------------------ 5. save / load
 
