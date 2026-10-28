@@ -421,6 +421,7 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 	# on top of it (the old cells, keys, tiles and instance records all go).
 	_clear_cells()
 	var items := plan(rt, seed_value)
+	PerfTrace.mark("dress.plan")
 	_points = PackedVector3Array()
 	_kinds.clear()
 	_zones.clear()
@@ -429,6 +430,7 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 	if items.is_empty():
 		return
 	var atlas := _build_atlas(items)
+	PerfTrace.mark("dress.atlas")
 	if atlas.is_empty():
 		return
 	_mat = ShaderMaterial.new()
@@ -473,8 +475,10 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 			"custom": Color(float(tile["offset"].x), float(tile["offset"].y), rng.randf(), sway),
 			"tile": BuildGrid.tile_of(pos),
 		})
+	PerfTrace.mark("dress.group")
 	for key: Vector2i in groups.keys():
 		_commit_cell(key, groups[key])
+	PerfTrace.mark("dress.commit")
 
 func _commit_cell(key: Vector2i, list: Array) -> void:
 	var mmi := MultiMeshInstance3D.new()

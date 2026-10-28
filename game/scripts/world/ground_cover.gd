@@ -303,9 +303,11 @@ static func install(rt: IslandRuntime, climate: String, seed_value: int = 0) -> 
 
 func build(rt: IslandRuntime, seed_value: int) -> void:
 	var items := plan(rt, _climate, seed_value)
+	PerfTrace.mark("cover.plan")
 	if items.is_empty():
 		return
 	var atlas := _build_atlas(items)
+	PerfTrace.mark("cover.atlas")
 	if atlas == null:
 		return
 	_mat = ShaderMaterial.new()
@@ -359,12 +361,15 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 		_points.append(pos)
 		if not _kinds_placed.has(str(it["kind"])):
 			_kinds_placed.append(str(it["kind"]))
+	PerfTrace.mark("cover.group")
 	for key: Vector2i in groups.keys():
 		var list: Array = groups[key]
 		# A stable random order per cell, so a thinned first-N is a random sample of the cell.
 		list.sort_custom(func (a: Dictionary, b: Dictionary) -> bool: return _sort_key(a) < _sort_key(b))
 		_commit_cell(key, list)
+	PerfTrace.mark("cover.commit")
 	_apply_thinning()
+	PerfTrace.mark("cover.thin")
 
 func _sort_key(it: Dictionary) -> int:
 	var xf: Transform3D = it["xf"]
