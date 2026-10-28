@@ -404,6 +404,20 @@ func _build_detail() -> void:
 			var u := SheetChrome.label(unlocks, meta, UiTokens.MUTED)
 			u.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			col.add_child(u)
+		# SKILLTREES: one small honesty line about whether the node's effect is live in the game
+		# (trees.json impl). defined -> "Not active yet", partial -> "Partly active"; functional
+		# nodes need no line (their effect already runs).
+		var impl := str(n.get("impl", ""))
+		if impl == "defined":
+			var na := SheetChrome.label("Not active yet", meta, UiTokens.MUTED)
+			na.name = "ImplLine_" + nid
+			na.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			col.add_child(na)
+		elif impl == "partial":
+			var pa := SheetChrome.label("Partly active", meta, UiTokens.MUTED)
+			pa.name = "ImplLine_" + nid
+			pa.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			col.add_child(pa)
 		# A refund that would be refused (daily limit, a learned node needs it) is greyed and says why before the tap.
 		var why := skills.refund_reason(_tree, nid) if st[0] == "owned" else ""
 		if why != "":
