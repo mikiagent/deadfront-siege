@@ -75,6 +75,8 @@ func _run() -> void:
 	_test_bare_river_tile(river)
 	await _test_in_water_and_thirst(river, sea)
 	await _test_wading_and_swimming(river, deep)
+	await _test_walk_in_swim()
+	await _test_sea_hint(sea)
 	await _test_staggered(river)
 	_test_drink(bank)
 	_test_wash(bank)
@@ -84,6 +86,7 @@ func _run() -> void:
 	_test_dirt()
 	_test_no_meter()
 	_test_cheap(bank)
+	await _test_save_load(river, bank)
 	host.queue_free()
 	await process_frame
 	if failures.is_empty():
@@ -267,6 +270,80 @@ func _test_wading_and_swimming(shallow: Vector3, deep: Vector3) -> void:
 	await _frames(10)
 	_expect(player.vitals.health < hp0, "swimming while out of energy damages the survivor")
 	player.vitals.energy = player.vitals.max_energy
+
+## Owner 2026-10-28: "i cant swim". Walking off a beach with the move keys must lift her off the
+## seabed and float her (the old position nudge lost to move_and_slide's floor snap every frame,
+## so she walked along the bottom); the swim clips play, and walking back out she walks again.
+func _test_walk_in_swim() -> void:
+	var dirv := Vector3(1, 0, 0)
+	var r := 0.0
+	while r < rt._size * 0.5 and rt.surface_y(r, 0.0) > 0.3:
+		r += 0.5
+	var start := dirv * (r - 4.0)
+	_expect(rt.surface_y(start.x, start.z) > 0.3 and rt.surface_y(r + 20.0, 0.0) < WATER_Y - 1.5, "a beach at +x runs into deep sea")
+	var cam := Camera3D.new()
+	host.add_child(cam)
+	cam.current = true
+	player.velocity = Vector3.ZERO
+	player.global_position = Vector3(start.x, rt.surface_y(start.x, start.z) + player.half_height(), start.z)
+	await _frames(20)
+	cam.global_position = player.global_position + Vector3(-5, 5, 0)
+	cam.look_at(player.global_position)  # camera forward is +x: move_up walks into the sea
+	Input.action_press("move_up")
+	await _frames(360)
+	var p: Vector3 = player.global_position
+	var depth: float = WA.depth(p)
+	var clip: StringName = player.anim.current_clip
+	_expect(depth > 1.5 and player.is_swimming(), "walked off the beach into deep sea (%.2f m deep): swimming" % depth)
+	_expect(player.feet_position().y > rt.surface_y(p.x, p.z) + 0.8 and absf(p.y - (WATER_Y + 0.08)) < 0.15,
+		"she floats at the surface (centre y %.2f), not on the seabed (%.2f)" % [p.y, rt.surface_y(p.x, p.z)])
+	_expect(clip == &"swim", "the swim clip plays while she swims forward (%s)" % clip)
+	_expect(player.anim.swim_lift > 0.0, "the crawl is lifted into the water (%.2f)" % player.anim.swim_lift)
+	Input.action_release("move_up")
+	await _frames(40)
+	_expect(player.anim.current_clip == &"swim_idle", "treading water when she stops (%s)" % player.anim.current_clip)
+	cam.global_position = player.global_position + Vector3(5, 5, 0)
+	cam.look_at(player.global_position)  # camera forward is now -x: back to the beach
+	Input.action_press("move_up")
+	await _frames(600)
+	Input.action_release("move_up")
+	await _frames(10)
+	p = player.global_position
+	_expect(not player.in_water and not player.is_swimming() and player.is_on_floor(), "swam back to the beach and stands on it (ground %.2f)" % rt.surface_y(p.x, p.z))
+	_expect(player.anim.current_clip != &"swim" and player.anim.current_clip != &"swim_idle" and player.anim.swim_lift == 0.0,
+		"on land the swim clips stop (%s, lift %.2f)" % [player.anim.current_clip, player.anim.swim_lift])
+	cam.queue_free()
+	player.vitals.energy = player.vitals.max_energy
+
+## INTERACT in the salt sea offers nothing (PRD :314-315); its press then names the river (hud_field).
+func _test_sea_hint(sea: Vector3) -> void:
+	await _stand(sea)
+	var pick := str(player.controls.interact_choice().get("id", ""))
+	_expect(player.in_water and pick != "drink", "INTERACT never offers Drink in the salt sea (%s)" % pick)
+
+## The water verbs after a save and reload: a Dirty, Thirsty survivor saved at the river loads with
+## both statuses, INTERACT offers Drink and the hexes Wash, and both still work.
+func _test_save_load(river: Vector3, bank: Vector3) -> void:
+	var SG: GDScript = load("res://scripts/core/save_game.gd")
+	await _stand(river)
+	player.statuses.from_array([])
+	player.statuses.apply(&"very_dirty")
+	player.statuses.apply(&"thirsty")
+	_expect(SG.save_now(), "a save at the river writes")
+	player.statuses.from_array([])
+	SG.load_now(host)
+	await _frames(10)
+	rt = get_root().get_node("World").runtime  # the reload rebuilds the island
+	await _stand(bank)
+	_expect(player.statuses.has(&"very_dirty") and player.statuses.has(&"thirsty"), "after the reload she is still Very dirty and Thirsty %s" % [_status_ids()])
+	var ids := _ids_at(bank)
+	_expect(ids.has("drink") and ids.has("wash"), "after the reload Drink and Wash are offered by the river %s" % [ids])
+	var pick := str(player.controls.interact_choice().get("id", ""))
+	_expect(pick == "drink", "INTERACT offers Drink by the river (%s)" % pick)
+	player.context_action("drink")
+	player.context_action("wash")
+	_expect(not player.statuses.has(&"thirsty") and player.statuses.has(&"quenched"), "after the reload Drink clears Thirsty %s" % [_status_ids()])
+	_expect(not player.statuses.has(&"very_dirty") and player.statuses.has(&"clean"), "after the reload Wash clears Very dirty and grants Clean %s" % [_status_ids()])
 
 ## Harvesting a node turns its tile BARE until it regrows; a river tile must stay fresh water.
 func _test_bare_river_tile(river: Vector3) -> void:
