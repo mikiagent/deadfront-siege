@@ -334,12 +334,14 @@ static func spot_ok(rt: IslandRuntime, zone: String, id: String, x: float, z: fl
 				return Vector3.INF
 		"any":
 			pass
-	var hs := IslandTerrain.height_and_slope(rt, x, z)
-	if hs.y > 30.0:
+	# Height first (one grid sample) and the slope only for a spot that stands: the dressing probes
+	# ~20-60k spots per island, many of them refused by the ground height alone.
+	var y := IslandTerrain.height_at(rt, x, z)
+	if y < MIN_GROUND_Y:
 		return Vector3.INF
-	if hs.x < MIN_GROUND_Y:
+	if IslandTerrain.slope_at(rt, x, z) > 30.0:
 		return Vector3.INF
-	return Vector3(x, hs.x, z)
+	return Vector3(x, y, z)
 
 ## The pre-tile-map rule (no dry mask): the helper-by-helper form, kept for a bare lab host.
 static func _spot_ok_slow(rt: IslandRuntime, zone: String, id: String, x: float, z: float) -> Vector3:

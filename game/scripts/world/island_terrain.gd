@@ -395,11 +395,18 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			var i11 := x1 + z1 * res
 			var h := lerpf(lerpf(harr[i00], harr[i10], tx), lerpf(harr[i01], harr[i11], tx), tz)
 			var rad := lerpf(lerpf(rarr[i00], rarr[i10], tx), lerpf(rarr[i01], rarr[i11], tx), tz)
-			# The steepest corner: a riser is one cell wide, so a bilinear average would hide it.
-			var slope := maxf(maxf(sarr[i00], sarr[i10]), maxf(sarr[i01], sarr[i11]))
 			var rd := lerpf(lerpf(darr[i00], darr[i10], tx), lerpf(darr[i01], darr[i11], tx), tz)
+			# The slope and the river half-width are read on the land band only (h >= 0.45), and the
+			# half-width again on the wet/low band the MUD override covers. Everything seaward and
+			# beachward of that is decided by height and radius alone and never looks at either, and
+			# the zone of a tile below beach height always answers "beach" before it reads the
+			# slope. Skipping those reads is worth ~15 % of this loop (home is ~60 % water+beach).
+			var slope := 0.0
 			var hw := 4.0
-			if not warr.is_empty():
+			if h >= 0.45:
+				# The steepest corner: a riser is one cell wide, so a bilinear average would hide it.
+				slope = maxf(maxf(sarr[i00], sarr[i10]), maxf(sarr[i01], sarr[i11]))
+			if (h >= 0.45 or (h > -0.6 and h < 0.22)) and not warr.is_empty():
 				hw = lerpf(lerpf(warr[i00], warr[i10], tx), lerpf(warr[i01], warr[i11], tx), tz)
 			# Rock and cliff faces need DRY, INLAND ground at all four grid corners: a bilinear
 			# height says nothing about whether the tile is one vertex of a steep beach, and a
@@ -435,9 +442,12 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 				# A narrow wet bank strip (MUD, so the fresh-water mask covers the edge). Wider or
 				# higher than this and it reads as a brown mud wall along the river (NOTES.md).
 				t = TileType.MUD
-			var cdist := Vector2(wx - rt._crater_hint.x, wz - rt._crater_hint.z).length()
-			if rt._crater_hint != Vector3.ZERO and cdist < 8.5 and h > -0.2:
-				t = TileType.DIRT
+			# The crater is only on some islands: test for it before measuring the distance, so the
+			# common island does not build a Vector2 per tile (173k of them on the big ones).
+			if rt._crater_hint != Vector3.ZERO:
+				var cdist := Vector2(wx - rt._crater_hint.x, wz - rt._crater_hint.z).length()
+				if cdist < 8.5 and h > -0.2:
+					t = TileType.DIRT
 			var idx := x + z * span
 			var b := BiomeZones.zone_of_state(bstate, wx, wz, h, slope, rd)
 			types[idx] = t

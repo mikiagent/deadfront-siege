@@ -327,12 +327,13 @@ static func _ground(rt: IslandRuntime, x: float, z: float, radius: float) -> Vec
 	# buildable plot reads as swept ground, and a plot staked later clears the cover inside it.
 	if IslandClaims.is_claimed(rt, BuildGrid.tile_of(Vector3(x, 0.0, z))):
 		return Vector3.INF
-	# Height and slope in one pass over the height array: _ground runs ~90k times per island.
-	var hs := IslandTerrain.height_and_slope(rt, x, z)
-	var y := hs.x
+	# Height first, slope second: _ground runs ~90k times per island and most of those spots are
+	# sea or beach (refused by the height alone), so they must not pay the four extra grid samples
+	# the slope needs. A spot that passes pays the same five samples as the fused helper did.
+	var y := IslandTerrain.height_at(rt, x, z)
 	if y < 0.4:
 		return Vector3.INF
-	if hs.y > MAX_SLOPE_DEG:
+	if IslandTerrain.slope_at(rt, x, z) > MAX_SLOPE_DEG:
 		return Vector3.INF
 	return Vector3(x, y, z)
 
@@ -391,6 +392,19 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 	var groups: Dictionary = {}
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value ^ 0x5f3759df
+	# The sway scale per kind and each kind's atlas rect, resolved once: both were a json dictionary
+	# lookup per card, 78k times an island.
+	var sway: Dictionary = {}
+	var rects: Dictionary = atlas["rects"]
+	var rect_by_kind: Dictionary = {}
+	for it in items:
+		var k := str(it["kind"])
+		if not sway.has(k):
+			sway[k] = float(kind_data(k).get("sway", 0.08))
+		if not rect_by_kind.has(k):
+			rect_by_kind[k] = rects.get(str(it["sprite"]), {})
+	var sway_of: Dictionary = sway
+	var rect_of: Dictionary = rect_by_kind
 	for it in items:
 		var pos: Vector3 = it["pos"]
 		var key := Vector2i(floori(pos.x / CELL_M), floori(pos.z / CELL_M))
@@ -398,7 +412,7 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 		var w := float(it["w"])
 		var h := float(it["h"])
 		var pv: Vector2 = it["pivot"]
-		var tile: Dictionary = atlas["rects"].get(str(it["sprite"]), {})
+		var tile: Dictionary = rect_of[str(it["kind"])]
 		if tile.is_empty():
 			_missing_sprites += 1
 			continue
@@ -421,10 +435,13 @@ func build(rt: IslandRuntime, seed_value: int) -> void:
 			float(tile["offset"].x),
 			float(tile["offset"].y),
 			rng.randf(),
-			float(kind_data(str(it["kind"])).get("sway", 0.08)) / maxf(0.05, h)
+			float(sway_of[str(it["kind"])]) / maxf(0.05, h)
 		)
+		var xf := Transform3D(basis, origin - centre)
 		list.append({
-			"xf": Transform3D(basis, origin - centre),
+			"xf": xf,
+			# The per-cell shuffle's sort key, hashed once here where the transform is made.
+			"key": hash(Vector3i(roundi(xf.origin.x * 37.0), roundi(xf.origin.y * 53.0), roundi(xf.origin.z * 41.0))),
 			"colour": it["tint"],
 			"custom": custom,
 			# The grid tile the clump stands on, kept so a claim can clear it without reading the
@@ -455,17 +472,35 @@ static func _sorted(list: Array) -> Array:
 		return list
 	var words := PackedInt64Array()
 	words.resize(n)
+	# The key comes off the records the grouping pass already wrote per instance (its "key"), so
+	# this loop is an array read plus a shift per instance instead of a Transform3D unpack, three
+	# Vector3i arguments and a Variant hash call.
 	for i in n:
-		var xf: Transform3D = list[i]["xf"]
-		var key := hash(Vector3i(roundi(xf.origin.x * 37.0), roundi(xf.origin.y * 53.0), roundi(xf.origin.z * 41.0)))
-		# key is a 32-bit unsigned hash: shift it into the high half, the slot into the low half.
-		words[i] = ((key & 0xFFFFFFFF) << 32) | (i & 0xFFFFFFFF)
+		var rec: Dictionary = list[i]
+		words[i] = ((int(rec["key"]) & 0xFFFFFFFF) << 32) | i
 	words.sort()
-	var out: Array = []
-	out.resize(n)
+	# Mixed radix shuffle: the packed word says "slot i takes the record from slot k" only before
+	# the sort; in place, follow the permutation (a second packed array) instead of building a new
+	# Array of n Variants, which for 78k cards is a copy of the whole placement.
+	var want := PackedInt32Array()
+	want.resize(n)
 	for i in n:
-		out[i] = list[int(words[i] & 0xFFFFFFFF)]
-	return out
+		want[i] = int(words[i] & 0xFFFFFFFF)
+	var done := PackedByteArray()
+	done.resize(n)
+	for i in n:
+		if done[i] == 1 or want[i] == i:
+			done[i] = 1
+			continue
+		var rec: Dictionary = list[i]
+		var j := i
+		while want[j] != i:
+			list[j] = list[want[j]]
+			done[j] = 1
+			j = want[j]
+		list[j] = rec
+		done[j] = 1
+	return list
 
 func _commit_cell(key: Vector2i, list: Array) -> void:
 	var mmi := MultiMeshInstance3D.new()

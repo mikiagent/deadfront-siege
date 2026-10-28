@@ -361,16 +361,22 @@ static func smooth(rt: IslandRuntime, radius: int = -1) -> void:
 				var idx := x + z * span
 				var t := int(types[idx]) if idx < tsz else 0
 				if t != IslandTerrain.TileType.SHALLOW and t != IslandTerrain.TileType.DEEP:
-					var best := int(current[idx])
-					var best_n := 0
-					var v := total
-					for b in nz:
-						var n := v & 0xFF
-						if n > best_n:
-							best_n = n
-							best = b
-						v = v >> 8
-					dst[idx] = best
+					var cur := int(current[idx])
+					# A window whose counted tiles are all the tile's own zone keeps it, and that is
+					# one comparison on the packed sum (the whole sum sits in the current zone's
+					# field) instead of the eight-field scan below - the common interior case.
+					var field := (total >> (cur * 8)) & 0xFF
+					if total != (field << (cur * 8)):
+						var best := cur
+						var best_n := 0
+						var v := total
+						for b in nz:
+							var n := v & 0xFF
+							if n > best_n:
+								best_n = n
+								best = b
+							v = v >> 8
+						dst[idx] = best
 				# Slide one column right: out with x-r, in with x+r+1 (bounded by the grid).
 				var out_c := x - r
 				if out_c >= 0:
