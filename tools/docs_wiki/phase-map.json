@@ -605,6 +605,16 @@
           ],
           "source": "docs/design/world-design.md",
           "note": "Triceratops sheet approved and meshed on claude/mmo-trike (review not started, kick threshold 60 -> 40 needs checking); STEGO passed review; Deinonychus rebuild on claude/mmo-art-deinonychus."
+        },
+        {
+          "id": "gait-gate",
+          "title": "Gait gate: walk/run clips play forwards with alternating legs (tools/audit_gaits.py --gate in run_all when headless-safe); deinonychus rebuild with jaw bone, roar and bite",
+          "status": "next",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/world-design.md",
+          "note": "Art thread branch claude/mmo-jaws: reversed walk/run fixed for coelophysis, compsognathus, gallimimus, utahraptor, velociraptor; merges after the owner OKs the clips. Velociraptor and T. rex jaw changes wait for their blind tests."
         }
       ]
     },
