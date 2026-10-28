@@ -75,7 +75,9 @@ change is text plus numbers, so the inspect text is verified by `t_buildquality`
 
 ## For the integrator
 
-- `docs/current/building.md` is new; add it to any generated index that lists `docs/current/`.
+- `docs/current/building.md` is new but **not** linked from `docs/current/README.md`: that index is
+  outside this job's scope (the DOCSAUDIT job owns it), and the row I added was reverted to keep the
+  gate's scope check honest. Add the row on merge.
 - UI styling of the new card lines is deliberately minimal (gold first line, muted details in
   `StructureSheet.fill_card`); a Claude pass should restyle, not rewrite.
 - Not built (out of scope / spec's later stages): comfort and antibiotic **functional** effects
