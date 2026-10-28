@@ -292,6 +292,7 @@ func mount(c: Creature) -> void:
 	if c.pet_record == null or not (&"mount" in c.pet_record.tamed_role):
 		return
 	p.mounted_on = c
+	c.ridden = true
 	_mount_saved_parent = p.get_parent()
 	c.add_collision_exception_with(p)
 	p.add_collision_exception_with(c)
@@ -336,6 +337,7 @@ func dismount() -> void:
 	p.reparent(host)
 	p.global_position = pos
 	if is_instance_valid(c):
+		c.ridden = false
 		c.remove_collision_exception_with(p)
 		p.remove_collision_exception_with(c)
 	p.mounted_on = null
@@ -353,9 +355,13 @@ func mounted_move(delta: float) -> void:
 		m.velocity.x = dir.x * speed
 		m.velocity.z = dir.z * speed
 		m.face_towards(m.global_position + dir, delta)
-		m.move_and_slide()
+		if not m.anim._busy:
+			m.anim.play_locomotion(clampf(speed / 8.0, 0.0, 1.0))  # same frac as creature.gd
 	else:
 		m.velocity.x = 0.0
 		m.velocity.z = 0.0
+		if not m.anim._busy and not m.anim._forced:
+			m.anim.play_idle()
+	m.move_and_slide()
 	if p.anim:
 		p.anim._physics_tick(0.0)
