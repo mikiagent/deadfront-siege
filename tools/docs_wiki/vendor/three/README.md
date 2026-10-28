@@ -1,0 +1,1 @@
+Three.js 0.185.1, MIT license (see LICENSE). The minified core and renderer are vendored alongside GLTFLoader, OrbitControls and their utilities. Import specifiers were changed to local relative paths.
