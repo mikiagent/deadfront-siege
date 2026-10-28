@@ -321,7 +321,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
 	if _fails.is_empty():
-		print("[uireal] PASS screens=hud,hud_daynight,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
+		print("[uireal] PASS screens=hud,hud_daynight,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,skill_levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
 		get_tree().quit(0)
 	else:
 		for f in _fails:
@@ -431,8 +431,18 @@ func _hud_sheets_and_level_up(logical: Vector2) -> void:
 	var blocks := hud_blocks(_hud, _player, logical)
 	_expect(blocks.has("levelup"), "levelup: the banner is drawn")
 	_check_blocks("levelup", blocks, logical)
+	await get_tree().create_timer(0.9).timeout  # LEVELFX: checked as it pops and once it has settled
+	_check_blocks("levelup_settled", hud_blocks(_hud, _player, logical), logical)
 	await _capture("levelup", [], logical)
-	_hud.set("_levelup_t", -1.0)
+	_hud._levelups.clear()
+	# A skill category level-up (LEVELFX): its hex icon and banner, right of the vitals or in the phone's band.
+	_hud._levelups.push_skill(&"processing", 4)
+	await get_tree().create_timer(0.6).timeout
+	blocks = hud_blocks(_hud, _player, logical)
+	_expect(blocks.has("levelup"), "skill_levelup: the skill category banner is drawn")
+	_check_blocks("skill_levelup", blocks, logical)
+	await _capture("skill_levelup", [], logical)
+	_hud._levelups.clear()
 	await _frames(2)
 
 ## The B3 nav menu (nav_menu.gd): every entry, the close hex and the gear inside the view, 64 px or
@@ -717,7 +727,7 @@ func _busy(logical: Vector2) -> void:
 		_check_blocks(tag, blocks, logical)
 		_check_figure(tag, blocks)
 		await _capture(tag, [], logical)
-	_hud.set("_levelup_t", -1.0)
+	_hud._levelups.clear()
 
 ## `blocks` plus every hex outside the HUD (station menu, gather radial) with its caption, as xhex<n>.
 static func with_world_hexes(blocks: Dictionary, hud: HuntHud) -> Dictionary:

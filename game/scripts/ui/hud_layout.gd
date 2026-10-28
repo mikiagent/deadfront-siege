@@ -243,19 +243,3 @@ static func nameplate_rect(cam: Camera3D, who: Player, font: Font) -> Rect2:
 static func nameplate_anchor(who: Player) -> Vector3:
 	var sink := minf(0.0, who.visual.position.y - who.anim._visual_rest_y) if who.visual and who.anim else 0.0
 	return who.get_global_transform_interpolated().origin + Vector3(0, sink - 0.05, 0)
-
-## Landscape phone level-up: the level, the title it brings and one stat line, in an ink box.
-static func draw_levelup_banner(hud: HuntHud, box: Rect2, a: float) -> void:
-	hud.draw_rect(box, Color(UiTokens.INK, UiTokens.INK.a * a))
-	hud.draw_rect(Rect2(box.position, Vector2(3.0, box.size.y)), Color(1.0, 0.85, 0.35, a))
-	var w := box.size.x - 24.0
-	var lv := str(hud._levelup_lines[0][0]) if not hud._levelup_lines.is_empty() else LevelDisplay.player_label()
-	var lw := hud._font.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
-	hud.draw_string(hud._font, box.position + Vector2(12, 34), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1.0, 0.85, 0.35, a))
-	hud.draw_string(hud._font, box.position + Vector2(24 + lw, 32), "LEVEL UP", HORIZONTAL_ALIGNMENT_LEFT, maxf(1.0, w - lw - 12.0), UiTokens.meta(hud.get_viewport_rect().size), Color(UiTokens.META, a))
-	var ly := 58.0
-	if hud._levelup_title != "":
-		hud.draw_string(hud._font, box.position + Vector2(12, ly), UiTokens.ellipsis(hud._font, hud._levelup_title, w, 14), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.85, 0.35, a))
-		ly += 22.0
-	hud.draw_string(hud._font, box.position + Vector2(12, ly), UiTokens.ellipsis(hud._font, hud._levelup_summary, w, 13), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, a))
-	hud.drawn_blocks["levelup"] = box
