@@ -279,7 +279,7 @@ def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
 
     L = []
     a = L.append
-    a("Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/world/rules.json` (weather), `game/data/creatures/*.json`, `game/data/butchering.json`.")
+    a("Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/world/rules.json` (weather), `game/data/world/sky.json`, `game/data/creatures/*.json`, `game/data/butchering.json`.")
     a("")
     a("## Island roster (%d)" % len(isl))
     a("")
@@ -313,6 +313,24 @@ def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
     a("A climate's `materials` list is what its island generator may place; gather yields per family are the gather-system's own table (`world/rules.json`).")
     a("")
     weather_section(load(data, "world/rules.json"), cl, a)
+    sky = load(data, "world/sky.json")
+    if sky:
+        base = sky.get("default", {})
+        a("## Sky shadows — cloud cover and pteranodons")
+        a("")
+        a("Soft cloud shadows drift across the ground with the wind, the sun dips a little while a cloud covers the survivor, and 1-3 pteranodons glide in wide circles overhead. Only their shadows are drawn (the camera's narrow lens would show a flyer mid-screen, not at an edge); everything fades out at night. The terrain, grass, ground cover, dirt pads, water and painted cards darken; 3D props and creatures do not. Off on a phone browser and with `--skyshadows=off`. Code: `game/scripts/world/sky_shadows.gd`, `game/shaders/sky/sky_shadow.gdshaderinc`; numbers: `game/data/world/sky.json` (all ASSUMPTION look values).")
+        a("")
+        a("| climate | cloud cover | cloud darkening | wind (m/s) | flyers |")
+        a("|---|---|---|---|---|")
+        for cid in sorted(k for k in sky if not k.startswith("_") and k != "default"):
+            c = dict(base)
+            c.update(sky[cid])
+            w = c.get("wind_mps", [0, 0])
+            a("| %s | %d%% | %s | %s, %s | %s |" % (cid, round(float(c.get("cloud_cover", 0)) * 100), c.get("cloud_strength"), w[0], w[1], c.get("flyers")))
+        a("")
+        a("Shared: flyer shadow darkening %s, glide %s m/s, sun dip %s at full cover, web-renderer scale %s." % (
+            base.get("flyer_strength"), base.get("glide_mps"), base.get("sun_dip"), base.get("compat_scale")))
+        a("")
     a("## Fauna (%d species)" % len(creatures))
     a("")
     a("| tier | species | climate | clade | period | length (m) |")

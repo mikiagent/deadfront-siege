@@ -86,6 +86,30 @@ weather_wet={
 "type": "float",
 "value": 0.0
 }
+sky_cloud_tex={
+"type": "sampler2D",
+"value": ""
+}
+sky_cloud={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+sky_flyer_0={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+sky_flyer_1={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+sky_flyer_2={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+sky_flyer_wing={
+"type": "vec4",
+"value": Vector4(1, 1, 1, 0)
+}
 
 [physics]
 
