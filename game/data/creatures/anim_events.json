@@ -116,7 +116,8 @@
       "walk_len": 1.0,
       "walk_r": 0.94,
       "walk": 0.94,
-      "run": 4.432
+      "run": 4.432,
+      "charge": 6.6
     },
     "gallimimus": {
       "height_m": 3.8,

@@ -39,6 +39,8 @@ var _cool_frames := 0
 var _cool_moving := 0
 var _cool_hold := 0
 var _fillers: Dictionary = {}
+var _charge_clips: Dictionary = {}
+var _charge_v := 0.0
 var _filler_log: Array = []  ## [sim_t, kind]
 var _max_d := 0.0
 var _disengage_breaks: Array[String] = []
@@ -111,6 +113,7 @@ func _run() -> void:
 	await _test_pursuit()
 	_test_natures()
 	_test_direction_clips()
+	_test_run_and_refill()
 	load("res://scripts/combat/combat_tuning.gd").reset_overrides()
 	if failures.is_empty():
 		print("[t_tactical] PASS")
@@ -204,6 +207,9 @@ func _test_fight() -> void:
 		if b.state in [&"circle", &"feint", &"hop", &"dodge"] and not is_nan(prev_ang):
 			circle_ang += absf(angle_difference(prev_ang, ang))
 		prev_ang = ang
+		if b.state == &"charge" and Vector2(dino.velocity.x, dino.velocity.z).length() > 0.5:
+			_charge_clips[dino.anim.current_clip] = true
+			_charge_v = maxf(_charge_v, Vector2(dino.velocity.x, dino.velocity.z).length())
 		if _dodge_t0 >= 0.0 and _sim_t - _dodge_t0 <= 0.5 and b.state == &"dodge":
 			_dodge_best = maxf(_dodge_best, Vector2(dino.global_position.x - _dodge_from.x, dino.global_position.z - _dodge_from.z).length())
 		if _hop_start >= 0.0 and _sim_t - _hop_start <= 0.5:
@@ -311,6 +317,8 @@ func _test_fight() -> void:
 	_expect(worst_streak <= int(b.tac.get("max_basic_streak", 2)), "never more than %d basics in a row (worst %d)" % [int(b.tac.get("max_basic_streak", 2)), worst_streak])
 	_expect(no_beat == 0, "a non-attack beat between any two basics (%d without)" % no_beat)
 	_expect(cd_breaks.is_empty(), "no attack inside its own cooldown %s" % str(cd_breaks))
+	var run_v: float = dino.move_speed_mps() * dino.run_speed_mult()
+	_expect(_charge_clips.has(&"charge") and _charge_v >= run_v * 1.4, "the charge plays the charge clip %s at %.1f m/s, visibly faster than its %.1f m/s run" % [_charge_clips.keys(), _charge_v, run_v])
 	var hm: float = float(b.tac.get("hop_m", 5.6))
 	_expect(_hops >= 2 and _hop_best >= hm * 0.9 and _hop_rise >= 0.3, "backs off by jumping: %d hops, best +%.2fm away within 0.5s (hop_m %.1f), body rose %.2fm" % [_hops, _hop_best, hm, _hop_rise])
 	_expect(_disengage_breaks.is_empty(), "a back-jump is always followed by a strafe, attack, pounce or chase before the next %s" % str(_disengage_breaks))
@@ -576,6 +584,33 @@ func _test_pursuit() -> void:
 	_expect(moving_s >= 1.2, "it strafes / strafe-walks while it waits (%.2fs of movement)" % moving_s)
 	c.queue_free()
 	await physics_frame
+
+## Owner 2026-10-28: faster running that costs more, refills faster when fresh and slower when exhausted.
+func _test_run_and_refill() -> void:
+	var CT = load("res://scripts/combat/combat_tuning.gd")
+	var mult: float = CT.num("movement", "run_speed_mult", 1.0)
+	_expect(mult > 1.0 and is_equal_approx(player.sprint_speed, 8.5 * mult) and is_equal_approx(player.run_speed, 7.0 * mult), "survivor run %.2f / sprint %.2f = scene 7.0 / 8.5 x %.2f" % [player.run_speed, player.sprint_speed, mult])
+	var rules: Dictionary = data.creature_ai["energy"]
+	var c = _spawn(&"deinonychus", Vector3(25, 0.1, -25), &"loyal")
+	_expect(c.run_speed_mult() > 1.0 and is_equal_approx(c.energy_drain_per_s, float(rules["run_drain_per_s"])), "creatures run x%.2f and drain %.1f/s" % [c.run_speed_mult(), c.energy_drain_per_s])
+	c.energy = 10.0
+	c.winded = false
+	c.tick_energy(1.0, false)
+	var fresh: float = c.energy - 10.0
+	c.energy = 10.0
+	c.winded = true
+	c.tick_energy(1.0, false)
+	var tired: float = c.energy - 10.0
+	_expect(fresh > tired and tired > 0.0, "a fresh creature refills faster than a winded one (%.1f vs %.1f per s)" % [fresh, tired])
+	c.queue_free()
+	var v = player.vitals
+	var keep: float = v.fatigue
+	var rates: Array[float] = []
+	for frac in [0.0, 0.3, 0.6, 0.9]:
+		v.fatigue = frac * v.effective_max_fatigue()
+		rates.append(v.stamina_regen_mult())
+	v.fatigue = keep
+	_expect(rates[0] > rates[1] and rates[1] > rates[2] and rates[2] > rates[3] and rates[0] > 1.0, "stamina refill falls with exhaustion tier %s (fresh faster than before)" % str(rates))
 
 func _test_natures() -> void:
 	var calm = _spawn(&"deinonychus", Vector3(20, 0.1, 20), &"loyal")

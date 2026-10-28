@@ -114,6 +114,11 @@ func _ready() -> void:
 		set_process_unhandled_input(false)
 		return
 	add_to_group(PlayerRegistry.GROUP)
+	# Owner 2026-10-28: running is faster (combat_tuning movement.run_speed_mult); every reader of
+	# run_speed / sprint_speed (the mount floor included) sees the scaled numbers.
+	var run_mult := CombatTuning.num("movement", "run_speed_mult", 1.0)
+	run_speed *= run_mult
+	sprint_speed *= run_mult
 	if agent == null:
 		agent = _child(NavigationAgent3D.new(), "Agent")
 	vitals = _child(Vitals.new(), "Vitals")

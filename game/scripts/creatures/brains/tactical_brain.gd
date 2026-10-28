@@ -140,6 +140,7 @@ func _think(delta: float) -> void:
 	_opening = _opening and _open_left > 0.0
 	speed_override = -1.0
 	strafe_face = null
+	gait_clip = &""
 	if not _valid_target() or not state in MOVES:
 		_end_pounce()
 		super._think(delta)  # roam, scan, alert, flee and the reacquire rule stay shared
@@ -517,7 +518,8 @@ func _start_charge() -> void:
 func _charge(delta: float) -> void:
 	_left -= delta
 	if creature.can_sprint():
-		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.0)
+		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # visibly faster than its run
+		gait_clip = &"charge"  # the low "naruto run" when the rig has it, else the run at charge speed
 	creature.move_to(attack_target.global_position)
 	if _flat_dist(attack_target) <= reach_to(attack_target) - 0.1 and (not creature.anim._busy) and creature.stagger_left <= 0.0:
 		_bite(true)
