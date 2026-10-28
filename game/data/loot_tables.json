@@ -1,0 +1,48 @@
+{
+  "_about": "W2-GATHER rare results and butcher yield scaling. Owned by game/scripts/gather/. Every item id must exist in items.json and every tier name in ProgressionScaling.TOOL_TIERS (t_gather checks). Chances are per gathered item (rare_trait), per gathered pass (gather_rare finds) or per carcass (butcher).",
+  "_assumption": "The docs set one gather rarity: world-design.md:55 'Every material stamped with attributes: always climate and level; ... 5% chance of a rare extra (green pip)' and PRD:541 'Rare extra attributes = green pip, low chance' (rare_trait, the green traits of spec 04:11). Finds are a node's secondary materials (spec 12:38 'material drop tables'; 12:39 'a tree may yield leaf, branch, log, fruit, sap, or specialized material'). ASSUMPTION: the find odds are illustrative, about one per 20-30 passes.",
+  "rare_trait": {
+    "_doc": "world-design.md:55, PRD:541: each gathered item has this chance of one green rare trait; spec 04:11 names the six. Spec 12:42: Gathering level never raises it. Keys are INVUI's inv_ui.json attribute_classes of class rare, value true.",
+    "_assumption": "ASSUMPTION: the docs do not say which trait a material gets, so each of the six is equally likely on any gathered material, and tool tier leaves the 5% alone.",
+    "chance": 0.05,
+    "traits": ["black_sheen", "low_vibration", "wide_serration", "narrow_hook", "split_easily", "vivid_inspiration"]
+  },
+  "gather_rare": {
+    "_skill_bonus": "0 by spec 12 s1: 'never silently grant rare material traits purely for reaching a high level'. Better tools raise the odds (ASSUMPTION); skill level does not.",
+    "tool_tier_bonus": 0.15,
+    "skill_bonus_per_level": 0.0,
+    "max_chance": 0.5,
+    "_climates": "A find rolls only on a node whose island climate lists it, and every listed climate's materials (data/world/climates.json, docs/design/world-design.md:66-75) contain the item (t_gather checks). A row never rolls on a node whose own harvest (nature_manifest.json) has that item: a find is a different material, never more of the node's yield. A find's min_tool_tier is never below the pick tier a nature node needs for the same item (nature_manifest min_pick_tier, W2-DATA's ladder; t_gather checks), so a find never skips a rung. Home grassland has no find: each of its materials is some home node's own yield, so its rare results are rare_trait only.",
+    "by_role": {
+      "tree": [{"item": "resin", "chance": 0.04, "climates": ["tundra"]}],
+      "prop": [{"item": "resin", "chance": 0.02, "climates": ["tundra"]}],
+      "rock": [
+        {"item": "flint", "chance": 0.05, "min_tool_tier": "bone", "climates": ["temperate"]},
+        {"item": "copper_ore", "chance": 0.015, "min_tool_tier": "obsidian", "climates": ["desert"]},
+        {"item": "silver_ore", "chance": 0.02, "min_tool_tier": "copper", "climates": ["snowfield"]}
+      ]
+    },
+    "_dormant": "No island in islands.json is snowfield or blue_tropical yet, so the silver_ore and pearl rows cannot roll in the shipped world until those islands exist (t_gather checks each row has a family that grows in one of its climates).",
+    "by_family": {
+      "CoralNode": [{"item": "pearl", "chance": 0.03, "climates": ["blue_tropical"]}]
+    }
+  },
+  "butcher": {
+    "_rare_chance": "ASSUMPTION: spec 12 s2 ('Carcass Part Selection, Not Generic Random Loot') unlocks each part by Butchering nodes, tool and Slaughter Ability. Until W2-BUTCHER adds the Slaughter Ability roll, an unlocked rare part still rolls this chance (or the row's own) as its stand-in.",
+    "default_rare_chance": 0.12,
+    "rare_skill_bonus_per_level": 0.0,
+    "rare_tool_tier_bonus": 0.15,
+    "max_rare_chance": 0.6,
+    "_count_bonus": "ASSUMPTION: the docs say a better knife and Butchering level yield more parts but give no numbers (spec 12 s2). Each knife tier above stone adds 15% to the base part counts and each Butchering level 1%.",
+    "count_bonus_per_tier": 0.15,
+    "count_bonus_per_skill_level": 0.01,
+    "_no_knife": "ASSUMPTION: the docs give no bare-hands butchering rule. As gathering makes bare hands 1.35x slower (gather_rules.json), a carcass cut without a knife gives about 1/1.35 of the stone knife's base parts.",
+    "no_knife_count_mult": 0.75,
+    "_part_gates": "Parts a knife below this tier cannot cut free; they stay out of the carcass loot. ASSUMPTION: Durango gates parts by Butchering nodes (spec 12 s2); until W2-BUTCHER lands those nodes the knife tier stands in.",
+    "part_min_tier": {
+      "dense_bone": "bone",
+      "armor_scute": "flint",
+      "venom_gland": "flint"
+    }
+  }
+}
