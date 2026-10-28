@@ -16,6 +16,7 @@ ap.add_argument("inp"); ap.add_argument("out")
 ap.add_argument("--head", default="Head")
 ap.add_argument("--min-head", type=float, default=0.15, help="skin with at least this Head weight is head skin")
 ap.add_argument("--slices", type=int, default=24)
+ap.add_argument("--hook", type=float, default=0.0, help="this fraction of the snout behind the tip stays on Head (hooked beaks)")
 ap.add_argument("--corner", type=float, default=0.3, help="mouth corner no further back than this fraction of the snout")
 ap.add_argument("--debug", action="store_true")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
@@ -105,7 +106,7 @@ for v in ob.data.vertices:
     # Meshy weights the snout about half to Neck, so the whole skull bends with the neck. Ramp both halves of the
     # head to rigid along the snout (skull -> Head, below the mouth line -> Jaw), or a rigid jaw splits off the skull.
     x = min(max((t - t_corner) / span, 0.0), 1.0); w = x * x * (3 - 2 * x)
-    jaw = p.z < lip_z(t)
+    jaw = p.z < lip_z(t) and t < t_tip - a.hook * L  # a hooked beak dips below the line but belongs to the skull
     old = {g.group: g.weight for g in v.groups}
     share = old.pop(HI)
     for gi, gw in old.items(): ob.vertex_groups[names[gi]].add([v.index], gw * (1 - w), "REPLACE")

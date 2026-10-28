@@ -152,6 +152,8 @@ func _physics_process(delta: float) -> void:
 	if creature == null or creature.health.dead:
 		_set_state(&"dead")
 		return
+	if creature.ridden:
+		return  # the rider steers; the brain resumes on dismount
 	if creature.statuses.has(&"knockdown") or not creature.statuses.can_act():
 		_set_state(&"downed")
 		creature.stop_move()
@@ -166,11 +168,11 @@ func _physics_process(delta: float) -> void:
 		return
 	tick(dt)
 
-## Standing combat states turn every physics frame; thinking at 10 Hz made them snap. The turn
-## rates match the old every-frame calls (face_towards(p, delta) and face_towards(p, 0.05) at 60 Hz).
+## Standing combat states turn every physics frame; thinking at 10 Hz made them snap. The speed is
+## the species' turn_rate (Creature.face_towards), the same for alert and attack.
 func _face_target(delta: float) -> void:
 	if (state == &"alert" or state == &"attack") and not _full_rate() and _valid_target():
-		creature.face_towards(attack_target.global_position, delta if state == &"alert" else delta * 3.0)
+		creature.face_towards(attack_target.global_position, delta)
 
 ## One think step: the shared rules, then the species think.
 func tick(dt: float) -> void:

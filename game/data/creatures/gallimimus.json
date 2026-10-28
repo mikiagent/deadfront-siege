@@ -20,6 +20,7 @@
     "defense": 50,
     "speed": 900
   },
+  "turn_rate": 3.5,
   "tamed_role": [
     "mount"
   ],

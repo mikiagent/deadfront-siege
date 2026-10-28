@@ -321,17 +321,20 @@ static func hud_reserved(view: Vector2) -> Array[Rect2]:
 		# sits left of the map, its left edge 234 px in from the right (DayNightDial).
 		return [Rect2(0, 0, view.x, 96.0), Rect2(0, view.y - 96.0, view.x, 96.0), Rect2(view.x - 240.0, 0.0, 240.0, 396.0)]
 	if is_compact(view):  # landscape: vitals + quest band, the map/claim/rail column on the right, left rail
-		# The fourth zone is the row above the rail (quick food, chase, HANDS stacked over the rail's
-		# last hex, held_item_slot.gd) with captions; the fifth is the XP line at the bottom centre (a
+		# The fourth zone is the quick row above the rail (quick food, chase, HANDS in its fourth slot,
+		# HuntHud.hands_spot) with captions; the second also holds INTERACT / ATTACK NEAREST / SPRINT; the fifth is the XP line at the bottom centre (a
 		# gather label landed on it); the sixth is the pet whistle row under the vitals (hunt_hud.gd).
 		# The first runs to 112: the quest card ends at 106 (a station hex sat on its last line). The
 		# second is 240 wide for the day/night dial left of the map (234 px in from the right).
 		return [Rect2(0, 0, view.x, 112.0), Rect2(view.x - 240.0, 0, 240.0, view.y), Rect2(0, view.y - 104.0, 330.0, 104.0), Rect2(0.0, view.y - 200.0, 308.0, 96.0), xp_line_zone(view), Rect2(0.0, 96.0, 240.0, 96.0)]
+	# Desktop (HudField sizes, owner layout 2026-10-28): the third is the 100 px MENU / BUILD / BAG rail with
+	# the quick slots above it and the whistle row beside it; the fourth INTERACT, ATTACK NEAREST above
+	# it and SPRINT left of it.
 	return [
 		Rect2(0, 0, 330.0, 112.0),
 		Rect2(view.x - 450.0, 0, 450.0, 240.0),
-		Rect2(0, view.y - 104.0, 330.0, 104.0),
-		Rect2(view.x - 190.0, view.y - 196.0, 190.0, 196.0),
+		Rect2(0, view.y - 250.0, 600.0, 250.0),
+		Rect2(view.x - 290.0, view.y - 320.0, 290.0, 320.0),
 		xp_line_zone(view),
 	]
 

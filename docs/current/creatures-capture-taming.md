@@ -144,14 +144,51 @@ above (it never replaces them and never edits a species' stats). Table:
   the pet rule "a pet below its retreat threshold drops the fight" is new; only a Brave pet with
   its owner riding keeps fighting.
 
+## Energy (owner 2026-10-28)
+
+Every creature, wild or pet, has an energy pool (`Creature.energy` / `energy_max`). It has no
+exhaustion and no treadmill. Running and special moves spend it, and rest or a walk refills it.
+Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"` block
+`{max, regen_per_s, run_drain_per_s, costs{clip: n}}`, or give a clip entry as an object with
+`"energy_cost"`. Code: `game/scripts/creatures/creature.gd` (energy section). Test:
+`game/tests/t_energy.gd`.
+
+- Size default: pool = 80 + 6 × `real_length_m`, refill time = 10 + 0.5 × length s (bigger means a
+  larger pool and a slower refill). Running drains 10/s.
+- Hysteresis: at or under 5 % (`stop_frac`) the animal is `winded`. It cannot run or start a special
+  until the pool is back at 40 % (`resume_frac`).
+- Running for wild animals and pets means being in a `sprint_states` brain state (approach, attack,
+  flee, retreat, chase) while moving. A winded animal moves at `walk_mps` = 0.5 × its base speed.
+  Roaming does not count as running.
+- Specials: `special_cost(clip)` is the species' own cost, else `special_cost_frac` × pool
+  (attack_heavy 0.3, deinonychus `bite_combo` 0.35). Everything else is free. API for the brains:
+  `can_use_special(cost)`, `spend_energy(cost)`, `try_special(clip)` (checks, then spends),
+  `can_sprint()`, `energy_frac()`. **The brains do not call these yet.** The tactical-combat package
+  owns the brains and wires heavies to `try_special`.
+- Not saved: a reload starts every animal at full, since the pool refills in 11–32 s.
+- `# ASSUMPTION`: all of these numbers are a first pass.
+
+| species | length m | pool | refill /s | 0→full s | run from full s | winded→resume s | heavy cost |
+|---|---|---|---|---|---|---|---|
+| compsognathus | 3 | 98 | 8.5 | 11.5 | 9.3 | 4.0 | 29 |
+| zebraceratops | 4.3 | 106 | 8.7 | 12.2 | 10.1 | 4.3 | 32 |
+| velociraptor | 6 | 116 | 8.9 | 13.0 | 11.0 | 4.5 | 35 |
+| deinonychus | 10.2 | 141 | 9.4 | 15.1 | 13.4 | 5.3 | 42 (bite_combo 49) |
+| triceratops | 18 | 188 | 9.9 | 19.0 | 17.9 | 6.6 | 56 |
+| tyrannosaurus | 24 | 224 | 10.2 | 22.0 | 21.3 | 7.7 | 67 |
+| brachiosaurus | 44 | 344 | 10.8 | 32.0 | 32.7 | 11.2 | 103 |
+
 ## Pets & mounts
 - Bonded cap = `Data.bonded_cap`: 3 + Animal Handling `bonded_slots` nodes, at most 7
   (`SkillRules.bonded_capacity`). At most `MAX_OUT` = 3 pets out at once (`player_pets.gd`).
 - `PetRecord`: level to `PetStats.MAX_LEVEL` 60, XP curve `xp_to_next` = 30 + 15 × level,
   `RESPAWN_TIME` 180 s, per-pet `bag` inventory, stats recomputed by `recompute` from
   `PetStats` (health growth 0.028/level, attacks 0.002, defenses 0.006).
-- Mounting: `PlayerPets.mount` requires `&"mount"` in the pet's `tamed_role`; `dismount` and
-  `mounted_move` ride at the pet's pace and burn hunger. Saddle data lives per species in
+- Mounting: `PlayerPets.mount` requires `&"mount"` in the pet's `tamed_role`. Ridden, the mount walks
+  at `walk_mps` (0.5 × its pet pace). It runs at its pet pace while Shift is held or the HUD SPRINT
+  toggle is on (`PlayerPets.wants_mount_sprint`). Running drains the MOUNT's energy and drops back to
+  a walk when the mount is winded; the toggle stays on, so the mount runs again at 40 %. The rider's
+  stamina and exhaustion do not change. Riding burns the mount's hunger. Saddle data lives per species in
   `game/assets/creatures/<species>/mount/mount.json` (9 species have one);
   `game/data/mounts_skip.json` is empty. Riders need no saddle item.
 - Pets, their uids, levels and bags save under the save key `pets` (see

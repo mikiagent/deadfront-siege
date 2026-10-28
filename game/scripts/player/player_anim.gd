@@ -67,7 +67,7 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		return  # already on the ground; every hit re-triggering the fall looked like a glitch
 	_requested_clip = clip
 	_forced = forced
-	_busy = clip in [&"attack_primary", &"attack_heavy", &"punch", &"hit_react", &"roll", &"knockdown"] or clip in GATHER_CLIPS
+	_busy = clip in [&"attack_primary", &"attack_heavy", &"punch", &"hit_react", &"roll", &"roll_back", &"knockdown"] or clip in GATHER_CLIPS
 	if clip == &"death":
 		_dead = true
 	_play(clip)
@@ -303,7 +303,9 @@ func revive() -> void:
 	play_idle()
 
 func on_roll() -> void:
-	play_clip(&"roll")
+	# The no-input roll goes backward with the facing kept (owner rule): play the back-roll clip when the rig has it.
+	var back: bool = player.sim.roll_backward and rig != null and rig.has_clip(&"roll_back")
+	play_clip(&"roll_back" if back else &"roll")
 
 ## kind: &"chop" (trees), &"mine" (rocks), &"craft" (stations) or anything else for the
 ## berry-bush reach. Falls back to the plain gather clip when the rig lacks the variant.
@@ -374,7 +376,7 @@ func _play(clip: StringName) -> void:
 		speed = 1.0  # v2 clip is 1.21 s; the 1.5 floor was for the 3 s Meshy swing. The weapon-rate fit below still applies.
 	elif clip == &"punch":
 		speed = 1.3
-	elif _resolved_missing and clip in [&"attack_heavy", &"roll", &"gather", &"knockdown"]:
+	elif _resolved_missing and clip in [&"attack_heavy", &"roll", &"roll_back", &"gather", &"knockdown"]:
 		speed = 1.35
 	if rig:
 		if clip in [&"attack_primary", &"attack_heavy", &"punch"] and rig.anim_player and rig.anim_player.has_animation(resolved):
@@ -401,7 +403,7 @@ func _schedule_missing_done(clip: StringName) -> void:
 	match clip:
 		&"attack_primary", &"attack_heavy":
 			wait = 0.35
-		&"roll":
+		&"roll", &"roll_back":
 			wait = 0.3
 		&"gather":
 			wait = 0.45

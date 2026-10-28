@@ -15,6 +15,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   Rested the belt pauses (`ExhaustTreadmill.paused_rate`: the drift eases to 0 in ~0.2 s and holds)
   unless exhaustion is falling right then (a rest or a meal still runs it left); the status row shows
   the Well Rested chip (sun over a pillow, `well_rested.svg`) with its countdown.
+- Mounted: the second (energy) bar shows the ridden mount's energy. It turns amber, and on desktop
+  the mount's name leads the numbers (a phone bar shows only the numbers when the name does not fit).
+  It goes back to the survivor's blue stamina on dismount (`HuntHud.energy_reading`). The exhaustion
+  face and treadmill always belong to the survivor, and the mount running does not move them.
 - Status chips row under the vitals (30 px pitch, a countdown under 3600 s; longer = "until treated").
   A status that lowers max HP adds its own note line ("Infected Wound: max HP −20%").
   While she rests or sleeps a Resting chip (rest icon) comes first, and a rounded ink pill right under
@@ -32,12 +36,32 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   a white arc by day; a crescent moon opposite it at night; the face tinted by phase. A 60 px disc;
   tap opens a label to the left — phase, clock, time to the next phase — closing after 4 s. It reads
   `Game.time_of_day` / `day_length_seconds` and never writes them.
-- Menu rail bottom-left: MENU ≡, ANIMALS, BUILD, SKILLS hexes (64 px, captions under). Two
-  quick-food hexes above the rail (the bag's quick slots, ×count); CHASE takes that row's third
-  slot. The SKILLS hex breathes a gold halo (1.6 s cycle, recomputed every 0.25 s) while SP affords
-  a node.
-- Sprint + Combat toggles hold the bottom-right above the rail (portrait lifts them one row). The
-  DEBUG hex shows only while `Game.debug_overlay` (phone: lower-right; desktop: under the dial).
+- Hex sizes follow spec §2 (`HudField.PX`): desktop rail 100, INTERACT 150, ATTACK 100, SPRINT 100,
+  quick slot 80, whistle 66, CLAIM 52; compact canvases (`UiTokens.is_compact`: 844x390 and portrait)
+  use 64 / 96 / 72 / 64 / 64 / 64 / 64, so every phone tap target is 64 px or more. All flat-top.
+- Rail bottom-left (owner 2026-10-28): MENU ≡, BUILD, BAG, captions under. Skills and Animals are
+  entries in the MENU sheet (no rail hexes; no hotkeys existed for them). BAG opens the bag (also I).
+- MENU notice badge (`HudField.notify` / `HuntHud.notify_menu`): a count in a filled circle at the
+  hex's top-right, GOLD with ink text, LIFE red while any notice is urgent (ASSUMPTION, owner
+  undecided), "9+" past nine. Skills notices: each skill level-up (`skill_leveled`) and each time SP
+  starts to afford a node (`SkillRules.affordable_now`, rechecked every 0.25 s); cleared when Skills
+  opens; the MENU sheet's entry reads "Skills (n)". Market (buy/sell) notices: hook only,
+  `notify_menu(&"market")` — no client-side market event exists yet. Nothing is urgent today.
+- Quick slots above the rail: two quick-food hexes (×count, unchanged), CHASE in the third slot in a
+  fight, HANDS (held tool; tap gathers nearest, long-press unequips) in the fourth (`hands_spot`).
+- Bottom-right (`hud_field.gd`): one large INTERACT hex in the corner. It shows what
+  `PlayerInput.interact_choice` picks, rescanned every 0.2 s, and runs a fresh pick on press:
+  dismount, sleep (bed, fatigue ≥ 1), pen, OPEN (station), field, fire, butcher (corpse), harbour,
+  warp, OPEN (basket), GATHER a node in arm's reach, your pet, DRINK at fresh water, else GATHER the
+  nearest resource within 12 m (the Space path; its own item icon in colour). Nothing near: disabled,
+  caption INTERACT. The context row leaves out whatever INTERACT shows. No Talk / Pick up entry: no
+  NPCs or loose ground items exist (ASSUMPTION).
+- ATTACK NEAREST above INTERACT (desktop, portrait; on a landscape phone the map column leaves no
+  room there, so it stands above SPRINT, up-left of INTERACT): out of combat it fights the tapped
+  selection, else the nearest wild animal in 28 m; in combat it retargets to the nearest enemy.
+  Disabled with no animal in range (it never swings at scenery, unlike F). Selected while fighting.
+- SPRINT left of INTERACT: a tap toggles it (`Player.toggle_sprint`); keyboard Shift still holds.
+- The DEBUG hex shows only while `Game.debug_overlay` (phone: lower-right; desktop: under the dial).
 - XP bar 4 px along the bottom edge with the "Lv x, y%" text beside it; the survivor's name draws
   under her feet (15 px, projected from the camera).
 - Quest card: desktop a 240 px card left of the minimap; phones across the centre band — "ORDERS
@@ -60,13 +84,22 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - AUTO toggles the hunt's auto-attacks; an "Attack Stance ◎" label sits beside the row; CHASE⇄HOLD
   joins the quick-food row; FEED appears on tameable targets (`FieldTame.can_attempt`).
 - Whistle row SIC / HEEL / GUARD while a pet is out, selected state mirroring the pet's brain mode:
-  desktop a column above the right thumb; landscape phone a row under the vitals; portrait a
+  desktop a row beside the rail (spec §6); landscape phone a row under the vitals; portrait a
   mid-screen row with End Combat at its right.
+- Targets [owner 2026-10-28]: out of combat a tap on a wild animal only selects it and the red swords
+  hex (or ATTACK NEAREST, E, F) starts the fight; in combat a tap on another enemy switches the target
+  to it at once (`PlayerActions.attack`) and no swords hex shows. End Combat disengages.
+- Landscape phone combat: End Combat (96x64) in the map column above INTERACT; the four skill hexes
+  along the bottom between the rail and SPRINT / ATTACK, their captions clear of the XP line; Auto and
+  Feed above the NET / TACKLE seam; the stance text right of Auto. Desktop: the skill cluster sits
+  480 px in from the right, left of SPRINT.
 - Target plate top-centre (≤520 px): creature name + "Lv. n" (pets show their tier), an HP bar, a
   species-letter tile, the target's status chips and a Tyrant's opening label. It lingers on the
   last creature attacked (within 40 m) until it dies or a new one is hit.
-- Context hexes (70 px, rescanned every 0.3 s from `player.context_actions()`) offer Sleep, Haul,
-  claim, etc. and hide in combat; the CLAIM hex lives by the minimap. Claiming while already
+- Context hexes (70 px, rescanned every 0.3 s from `player.context_actions()`) offer Wash, Fill,
+  Rest, etc. and hide in combat. They run right to left along the bottom from SPRINT (wrapping one row
+  up, clear of HANDS). CLAIM is a gold-rim hex (52 px desktop, 64 phone) right-aligned under the
+  minimap's "X Y" line; icon-only on a landscape phone (ASSUMPTION: no room for a caption there). Claiming while already
   holding land here opens the ClaimPanel confirm; it cancels on walking away, moving placement, or
   a second tap. Ground-placing anchors a ROTATE / PLACE / CANCEL hex row near the ghost via a
   scored clear-spot sweep (`HudLayout.placer_anchor`); layout mode shows DONE + a hint bar.
@@ -99,7 +132,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   to toasts, plates and the open sheets.
 - Death: full-screen layer — "YOU DIED", the downer ("Downed by <who>."), the note "Engaged
   dinosaurs retreat past their aggro ring. Your bag comes with you." and "Respawn at camp".
-- Sheets (MENU / ANIMALS / BUILD / structure cards) stand on the rail and grow upward, wading into
+- Sheets (MENU / BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
   scrolling when short; landscape phones lay them out as a two-column grid. HANDS and the creature
   plates hide while one is open.
 
@@ -128,8 +161,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 ## Tokens available (not yet applied)
 
 `game/scripts/ui/ui_tokens.gd` now also carries the hex-HUD language from
-[`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §2/§3/§8. Nothing on this HUD draws
-with it yet: every value below is opt-in for later packages.
+[`../design/ui-redesign-spec.md`](../design/ui-redesign-spec.md) §2/§3/§8. The field controls (rail,
+INTERACT / ATTACK / SPRINT, context hexes, CLAIM) use `HUD_RIM` / `GOLD` rims and the MENU badge
+`GOLD` / `LIFE` / `CTA_INK`; the rest stays opt-in for later packages.
 
 - Palette: `HUD_FILL`, `HUD_RIM`, `HEADER`, `SCREEN_DIM`, `PANEL`, `GOLD`, `GOLD_DIM`, `CTA_INK`,
   `PARCHMENT_TOP` / `PARCHMENT_BOTTOM` / `PARCHMENT_INK`, `OK_GREEN`, `LIFE`, `ENERGY`, `XP`, `MUTED`;

@@ -21,6 +21,7 @@ var accent: Color = Color(0.95, 0.95, 0.95)
 var fill: Color = Color(0.07, 0.08, 0.09, 0.93)
 var badge: String = ""  # e.g. "⊘" when blocked
 var badge_color: Color = Color(0.85, 0.15, 0.12, 0.95)
+var badge_ink: Color = Color.WHITE  ## the badge's text (CTA_INK on a GOLD notice badge)
 var label_text: String = ""   # optional label drawn to the right (station radial)
 var caption: String = ""      # action word drawn under the hex, outside the outline (rail, skills)
 var hint_text: String = ""    # small red line under the label (blocked reason)
@@ -184,7 +185,7 @@ func _draw() -> void:
 		draw_circle(bc, r * 0.26, badge_color)
 		var bsz := maxi(UiTokens.TYPE_MIN, int(r * 0.34))
 		var w := font.get_string_size(badge, HORIZONTAL_ALIGNMENT_CENTER, -1, bsz).x
-		draw_string(font, Vector2(bc.x - w * 0.5, bc.y + bsz * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bsz, Color.WHITE)
+		draw_string(font, Vector2(bc.x - w * 0.5, bc.y + bsz * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bsz, badge_ink)
 
 	if cooldown > 0.0:
 		# Durango-style progress: a translucent circular dial fills in discrete slices.

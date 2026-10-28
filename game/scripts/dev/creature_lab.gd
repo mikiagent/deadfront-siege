@@ -3,6 +3,8 @@ extends Node3D
 ## The survivor cannot die, tire or exhaust here (god mode, this lab only) so clips can be watched up close.
 ## --species=deinonychus[,velociraptor...] spawns only those (one each) instead of the default roster.
 ## --ride=deinonychus spawns that species as a saddled pet and puts the survivor on it.
+## Key 0 plays bite_combo (chomp, Chomp, CHOMP) on the mount, or else the nearest creature that has one. The game
+## does not load that clip yet, so the lab plays it straight from the GLB with the creature's tree paused.
 
 var _player: Player
 
@@ -43,6 +45,30 @@ func _process(_dt: float) -> void:
 		_player.vitals.energy = _player.vitals.effective_max_energy()
 		_player.vitals.fatigue = 0.0
 		_player.vitals.exhausted = false
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_0:
+		var c: Creature = _player.mounted_on if _player.mounted_on else _player.actions.nearest_creature(9999.0, true)
+		if c:
+			_play_combo(c)
+
+func _play_combo(c: Creature) -> void:
+	var path := "res://assets/creatures/%s/anim/bite_combo.glb" % c.def.id
+	if not ResourceLoader.exists(path):
+		print("[creature_lab] %s has no bite_combo" % c.def.id)
+		return
+	var lib := c.anim.player.get_animation_library("")
+	if not lib.has_animation(&"bite_combo"):
+		var anim := CreatureClips._from_glb(path, c.view, c.anim.player, &"bite_combo")
+		if anim == null:
+			return
+		lib.add_animation(&"bite_combo", anim)
+	c.anim.tree.active = false
+	c.anim.player.play(&"bite_combo")
+	await get_tree().create_timer(lib.get_animation(&"bite_combo").length).timeout
+	if is_instance_valid(c):
+		c.anim.player.stop()
+		c.anim.tree.active = true
 
 func _ride(id: StringName) -> void:
 	var def := Data.creature(id)

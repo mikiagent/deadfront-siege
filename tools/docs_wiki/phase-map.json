@@ -625,7 +625,7 @@
             "creature-natures"
           ],
           "source": "docs/design/durango-prompts/07_combat_and_animal_capture.md",
-          "note": "Owner 2026-10-28: 'Combat isn't fun if you get stunlocked by enemies.' Starts after the turn-rate fix (creaturefix) and the roll i-frames (roll) land, since all three touch the creature brains and combat tactics."
+          "note": "OWNER DECISION 2026-10-28: each species fights by its innate CLASS (the archetype field: pack_flanker, pack_raptor, apex_raptor, tyrant, horned_charger, club_tail, spiked_tail, venom_ranged, saber_cat, swarm, flock_harass, antlered, runner, pack_mule, titan); its nature combines with that (no separate Berserker class). In progress on claude/mmo-tactical, deinonychus first."
         }
       ]
     },
@@ -1256,6 +1256,17 @@
           "depends": [],
           "source": "docs/design/islands-and-loop-plan.md",
           "note": ""
+        },
+        {
+          "id": "sky-shadows",
+          "title": "Sky life: pteranodons circling overhead that cast moving ground shadows, and drifting cloud-cover shadows across the terrain",
+          "status": "later",
+          "depends": [
+            "light-grade",
+            "perf-gates"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "Owner 2026-10-28, for the polish and performance patch. Cheap: a few low-poly or card pteranodons on looped high paths with real shadows; a scrolling cloud-shadow texture in the terrain shader or a decal. Must fit the web budget."
         }
       ]
     },

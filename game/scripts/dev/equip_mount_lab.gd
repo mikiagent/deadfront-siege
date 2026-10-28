@@ -190,12 +190,40 @@ func _ride_species(id: StringName, shoot: bool) -> bool:
 	if player.anim.current_clip != &"mount_idle":
 		print("[mountlab] FAIL species=%s rider is not on mount_idle (%s)" % [id, player.anim.current_clip])
 		ok = false
+	# A ridden mount's own physics must not reset its gait to idle (owner: no walk/run when riding).
+	if not c.ridden:
+		print("[mountlab] FAIL species=%s not flagged ridden" % id)
+		ok = false
+	# Steering: holding forward must play walk/run on the mount; letting go returns it to idle.
+	c.set_physics_process(true)
+	Input.action_press(&"move_up")
+	for _i in 12:
+		await get_tree().physics_frame
+	var moving_clip := c.anim.current_clip
+	Input.action_release(&"move_up")
+	for _i in 6:
+		await get_tree().physics_frame
+	var still_clip := c.anim.current_clip
+	c.set_physics_process(false)
+	if not (moving_clip in [&"walk", &"run"]):
+		print("[mountlab] FAIL species=%s ridden mount plays %s while steered (want walk/run)" % [id, moving_clip])
+		ok = false
+	if still_clip != &"idle":
+		print("[mountlab] FAIL species=%s ridden mount plays %s when stopped (want idle)" % [id, still_clip])
+		ok = false
+	print("[mountlab] gait species=%s steered=%s stopped=%s" % [id, moving_clip, still_clip])
+	c.global_position.y = maxf(0.2, c.global_position.y)
+	c.velocity = Vector3.ZERO
 	if shoot and ok:
 		await _ride_shot("%s_side" % id, c, Vector3(-1, 0.12, 0.3), 0.8)
 		await _ride_shot("%s_iso" % id, c, Vector3(0.8, 0.25, 0.55), 0.8)
 	elif shoot:
 		await _ride_shot("%s_side" % id, c, Vector3(-1, 0.12, 0.3), 0.8)
+	c.rotation.y = 2.4  # a turned mount: the body must not inherit this yaw on dismount
 	player.dismount()
+	if absf(player.global_rotation.y) > 0.01 or absf(player.global_rotation.x) > 0.01:
+		print("[mountlab] FAIL species=%s body kept a yaw after dismount (%.2f)" % [id, player.global_rotation.y])
+		ok = false
 	if player.mounted_on != null:
 		print("[mountlab] FAIL species=%s still mounted after dismount" % id)
 		ok = false

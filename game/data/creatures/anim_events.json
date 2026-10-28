@@ -17,14 +17,14 @@
       "speed": 1.6
     },
     "bite_combo": {
-      "hit_frac": 0.094,
+      "hit_frac": 0.098,
       "hit_fracs": [
-        0.094,
-        0.358,
-        0.811
+        0.098,
+        0.361,
+        0.82
       ],
       "windup": true,
-      "note": "chomp, Chomp, CHOMP: three bites, each wider with a harder lunge; the third has an 8-frame telegraphed wind-up (frames 28-35 of 54) so the player can roll through it. Authored for deinonychus (tools/jaw/make_combo.py)."
+      "note": "chomp left, chomp right, MEGA chomp in the middle: the third winds up for 10 frames (frames 33-42 of 62, the tell) and snaps straight ahead with the widest jaw. Authored for deinonychus (tools/jaw/make_combo.py)."
     }
   },
   "natural_speeds": {
@@ -52,14 +52,14 @@
     },
     "deinonychus": {
       "height_m": 3.6,
-      "run_l": 14.047,
-      "run_len": 0.625,
-      "run_r": 15.01,
-      "walk_l": 4.125,
-      "walk_len": 1.208,
-      "walk_r": 4.43,
-      "walk": 4.277,
-      "run": 14.529
+      "run_l": 7.977,
+      "run_len": 0.5,
+      "run_r": 7.977,
+      "walk_l": 1.692,
+      "walk_len": 1.0,
+      "walk_r": 1.692,
+      "walk": 1.692,
+      "run": 7.977
     },
     "gallimimus": {
       "height_m": 3.8,
@@ -129,14 +129,14 @@
     },
     "zebraceratops": {
       "height_m": 1.8,
-      "run_l": 6.292,
-      "run_len": 0.333,
-      "run_r": 6.292,
-      "walk_l": 2.884,
-      "walk_len": 0.5,
-      "walk_r": 2.884,
-      "walk": 2.884,
-      "run": 6.292
+      "run_l": 4.02,
+      "run_len": 0.542,
+      "run_r": 3.974,
+      "walk_l": 1.541,
+      "walk_len": 0.708,
+      "walk_r": 1.542,
+      "walk": 1.542,
+      "run": 3.997
     }
   }
 }

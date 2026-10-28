@@ -20,6 +20,7 @@
     "defense": 140,
     "speed": 720
   },
+  "turn_rate": 5.0,
   "tamed_role": [
     "combat",
     "mount"

@@ -9,7 +9,7 @@ extends RefCounted
 # ASSUMPTION: error codes beyond contract §2 (out_of_range, depleted, missing_tool, bag_full,
 # not_ready) are new stable strings for intents; the orchestrator adds them to the contract.
 
-const CLIENT_OPS := ["act.gather", "act.loot", "act.craft", "act.place", "act.equip", "act.eat", "act.tame", "act.capture", "act.attack", "char.import", "char.get"]
+const CLIENT_OPS := ["act.gather", "act.loot", "act.craft", "act.place", "act.equip", "act.eat", "act.tame", "act.capture", "act.attack", "act.roll", "char.import", "char.get"]
 ## The server itself, never relayed from a client. act.deposit runs only inside VaultBridge
 ## (clients send vault.deposit), so an asset never leaves a character without a vault to take it.
 const SYSTEM_OPS := ["char.create", "char.move", "char.wallet", "char.receive", "char.settled", "char.grant", "act.deposit"]
@@ -31,6 +31,7 @@ const ARG_KEYS := {
 	"act.craft": ["recipe_id", "picks"], "act.place": ["kind", "cell", "rot"],
 	"act.equip": ["bag_slot", "slot", "clear"], "act.eat": ["bag_slot"],
 	"act.tame": ["net_id", "food"], "act.capture": ["net_id"], "act.attack": ["net_id"],
+	"act.roll": ["ms"],
 	"act.deposit": ["bag_slot", "count", "pet_uid", "slot_dict", "pet_dict", "item", "pet", "stack", "asset", "save", "bag", "pets"],
 	"char.import": [], "char.get": [], "char.create": ["name"], "char.move": ["p", "reset"],
 	"char.wallet": ["wallet"], "char.receive": ["asset"], "char.settled": ["uid"], "char.grant": ["asset"],
@@ -72,6 +73,7 @@ func run(op: String, ch: CharacterState, a: Dictionary) -> Dictionary:
 		"act.tame": return _tame(ch, a)
 		"act.capture": return _capture(ch, a)
 		"act.attack": return _attack(ch, a)
+		"act.roll": return _roll(ch, a)
 		"act.deposit": return _deposit(ch, a)
 		"char.import": return no("invalid_asset", "offline saves never import into online characters")
 		"char.get": return ok(ch.view(), false)
@@ -484,6 +486,35 @@ func _attack(ch: CharacterState, a: Dictionary) -> Dictionary:
 	_write("damage_creature", [net_id, dealt])
 	ch.add_xp("melee", int(tune.get("xp_per_hit", 2)))
 	return ok({"dealt": dealt, "kind": kind, "hp": maxf(0.0, float(c.hp) - dealt)})
+
+## act.roll {ms?}: the survivor rolls; stored on the character is the press time in server ms (the
+## op's second x 1000 + `ms`), which rolls_dodge() times against the one shared window
+## (RollRules.iframes_s()). The cooldown is judged the same way from the press. The server holds no
+## vitals yet, so the stamina cost is the client's alone (see docs/current/server-contract.md).
+# ASSUMPTION: `ms` (0..999) is the client's millisecond within the op's second; without it the press
+# lands at the start of that second. Creature hits on a player are not validated server-side yet:
+# when they are, they call rolls_dodge() with their own absolute ms.
+func _roll(ch: CharacterState, a: Dictionary) -> Dictionary:
+	var ms: Variant = integer(a, "ms", 0, 999, 0)
+	if ms == null:
+		return no("bad_request", "ms must be an integer 0..999")
+	var at := now * 1000 + int(ms)
+	var cooldown_ms := int(ceil(RollRules.cooldown_s() * 1000.0))
+	var since := at - ch.roll_ms()
+	if since >= 0 and since < cooldown_ms:
+		return no("not_ready", "roll on cooldown for another %d ms" % (cooldown_ms - since))
+	ch.roll_press(at)
+	# The client's HUD reads the cooldown from the same numbers, so the answer carries them back.
+	return ok({"roll_ms": at, "iframes_ms": int(round(RollRules.iframes_s() * 1000.0)), "cooldown_ms": cooldown_ms})
+
+## The roll's opening window at an absolute server time in ms: the client's own rule (RollRules) on
+## the stored press. True = the hit is dodged: no damage, no stagger, Defense XP once (spec 07 §2).
+## A player hit validated on the server calls this; nothing else may decide a roll dodge.
+static func rolls_dodge(ch: CharacterState, at_ms: int) -> bool:
+	var pressed := ch.roll_ms()
+	if pressed == CharacterState.NO_ROLL_MS:
+		return false
+	return RollRules.invulnerable_at(float(at_ms - pressed) * 0.001)
 
 ## act.deposit {bag_slot, count?} | {pet_uid}: hands a server-provenance asset to the economy
 ## (the caller puts it in the vault). Any asset dict in the request is refused.

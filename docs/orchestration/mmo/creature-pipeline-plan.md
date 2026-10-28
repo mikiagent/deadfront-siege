@@ -43,6 +43,10 @@ Milan gate; fixing its rig is not.
 - Tripo is fine because we do not retarget its animations: we rig our own skeleton (step 3) and author clips on it.
 
 ### 3. Rig (every species, including existing ones)
+0. Cleanup before rigging (required): `tools/transplant_rig.py` repair drops loose shells under 1 % of the mesh,
+   merges doubles and fills holes (the new deinonychus lost 588 stray fragments). Afterwards check islands: only
+   the body, teeth and claws may remain; `open_mouth.py` pins teeth rigid and moves pieces an auto-rig left on a
+   stray bone (Tripo's `neutral_bone`) onto the Head or Jaw, or they float off the head in game.
 1. Skeleton with a **`Jaw` bone** under `Head`, pivot at the jaw joint (measure the mouth crease from the mesh, as the
    T. rex REPORT did). Meshy-rigged species get a `Jaw` bone added under their head bone; no other bone changes, so
    existing clips stay valid.
@@ -73,6 +77,11 @@ Per species numbers (stride, cadence, jaw angles) live in `<species>.json` next 
 - **Jaw:** at the clip's widest jaw frame, no skin edge stretches over 1.5x its rest length and the upper skull
   does not move (`measure_skin.py --where` on the head).
 - **Grounding and loops:** existing checks (lowest vertex at 0, loop first == last frame).
+
+### 5b. Commit what Godot unpacks
+After replacing a creature GLB, run `Godot --headless --path game --import` and commit the textures it extracts next
+to the GLB (`<species>_<Color|NormalGL|ORM>_<task>.*`) with their `.import` files, plus the `.import` of every new
+clip. Untracked, a checkout with a stale import cache cannot load the creature.
 
 ### 6. Review gate (GAUNTLET)
 Matched before/after renders and short clips per species (`tools/jaw/render_head.py` for the head,
@@ -127,3 +136,19 @@ re-check which side each front tooth belongs to.
 - `universal-modder:asset-pipeline`: 2D sprites from 3D, not useful here.
 - Blender MCP: failed to connect this session; everything ran as headless Blender scripts, which is also what
   dsc workers can run unattended.
+
+## Workflow test: zebraceratops (2026-10-28)
+
+Owner sheet -> 4 Higgsfield views (~1 credit) -> Tripo multiview 99e1106a (50) -> transplant (Triceratops donor) ->
+`add_jaw --hook 0.14` -> `open_mouth` -> `key_jaw` -> `make_gait` walk/run -> saddle rebuild -> import, gates, commit
+the unpacked textures. In game and rideable in about 40 minutes.
+
+What broke and what fixed it:
+- The transplant donor walk shuffles (t_canim: planted feet 0.16 m/s, ratio 0.10). Use `tools/gait/make_gait.py`
+  for walk and run on every new mesh; its species JSON stride/lift values are in mesh units, so rescale them when the
+  mesh size changes (Tripo meshes are 1 unit long; this one needed x0.53 from the Meshy-era numbers).
+- A hooked beak dips below the mouth line: without `--hook` its tip rode with the jaw and stretched into a strand.
+- Feed and sleep were authored for the old rig and were kept; they still play but are not re-checked for the new mesh.
+- The far hind leg flattens in parts of the walk: auto weights; `tools/gait/fix_weights.py` is the next thing to try.
+- Saddles must be rebuilt after a new mesh (`tools/blender/saddles/build.sh <species>`); the girth centre is now
+  taken from the barrel (back to belly), which also fixed the bipeds.

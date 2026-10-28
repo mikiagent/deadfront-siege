@@ -292,6 +292,7 @@ func mount(c: Creature) -> void:
 	if c.pet_record == null or not (&"mount" in c.pet_record.tamed_role):
 		return
 	p.mounted_on = c
+	c.ridden = true
 	_mount_saved_parent = p.get_parent()
 	c.add_collision_exception_with(p)
 	p.add_collision_exception_with(c)
@@ -334,28 +335,55 @@ func dismount() -> void:
 	var pos := c.global_position + Vector3(1.2, 0, 0)
 	var host := _mount_saved_parent if _mount_saved_parent else c.get_parent()
 	p.reparent(host)
+	# reparent keeps the global transform, so the body would keep the mount's yaw and the visual (local yaw,
+	# player_sim) would run sideways or backwards. Zero the body yaw; keep the facing on the visual.
+	var face := p.visual.global_rotation.y if p.visual else 0.0
+	p.global_rotation = Vector3.ZERO
+	if p.visual:
+		p.visual.global_rotation.y = face
 	p.global_position = pos
 	if is_instance_valid(c):
+		c.ridden = false
 		c.remove_collision_exception_with(p)
 		p.remove_collision_exception_with(c)
 	p.mounted_on = null
 	print("[capture] dismounted")
 
-## Steer the mount. It moves at the pace it walks at as a pet (pet_record.speed, statuses, hunger;
-## tame-21), and it moves here: the creature's own tick runs first (the rider is its child) and
-## zeroes any velocity its brain did not ask for, so the rider slides it after that (phys-mount-01).
+## Shift held or the HUD SPRINT toggle on: the rider asks the mount to run.
+func wants_mount_sprint() -> bool:
+	return Input.is_action_pressed("sprint") or p.sprint_toggled
+
+## Steer the mount. Running it goes at its pet pace (pet_record.speed, statuses, hunger; tame-21),
+## walking at Creature.walk_mps of that. It moves here: the creature's own tick runs first (the rider
+## is its child) and zeroes any velocity its brain did not ask for, so the rider slides it after that
+## (phys-mount-01).
+const MOUNT_RUN_FLOOR := 1.25
+
 func mounted_move(delta: float) -> void:
 	var m := p.mounted_on
 	var dir := p.sim.cam_dir(p.sim.input_vector())
+	# Shift or the SPRINT toggle runs the mount on ITS energy pool (the rider's stamina and fatigue
+	# are untouched); otherwise, or once it is winded, it walks.
+	var run := dir.length_squared() > 0.0 and wants_mount_sprint() and m.can_sprint()
+	m.tick_energy(delta, run)
 	if dir.length_squared() > 0.0:
 		var speed := m.pet_record.speed / 100.0 if m.pet_record else m.move_speed_mps()
+		# ASSUMPTION (owner: mounts must be worth riding): a ridden mount runs at least 1.25x the survivor's
+		# sprint and walks at least her walk pace, whatever its pet speed stat says.
+		speed = maxf(speed, p.sprint_speed * MOUNT_RUN_FLOOR)
+		if not run:
+			speed = maxf(m.walk_mps(speed), p.walk_speed)
 		speed *= m.statuses.move_mult() * (0.85 if m.hunger <= 0.0 else 1.0)
 		m.velocity.x = dir.x * speed
 		m.velocity.z = dir.z * speed
 		m.face_towards(m.global_position + dir, delta)
-		m.move_and_slide()
+		if not m.anim._busy:
+			m.anim.set_move_speed(speed)  # stride-matched, same as creature.gd
 	else:
 		m.velocity.x = 0.0
 		m.velocity.z = 0.0
+		if not m.anim._busy and not m.anim._forced:
+			m.anim.play_idle()
+	m.move_and_slide()
 	if p.anim:
 		p.anim._physics_tick(0.0)
