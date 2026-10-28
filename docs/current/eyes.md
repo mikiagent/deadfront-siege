@@ -20,10 +20,11 @@ no shadows, eye colour. It is on only above night 0.05 and its energy is `RIM_LE
 x night: Godot's omni falls off with the inverse square of the distance, so a fixed energy burnt small
 heads white. The skull around the socket catches the glow, so the face reads at night.
 
-## Bloom, wisps and embers (`EyeTrail`)
-`EyeTrail` is one `MeshInstance3D` per eyed creature holding **one ImmediateMesh with one surface** for
-everything below, so it costs one draw call. Additive, unshaded, no depth write, no fog, no shadow; vertices
-are world positions (`top_level`) so the wisp lags behind the head instead of riding the bone.
+## Bloom, flame strands and embers (`EyeTrail`)
+`EyeTrail` is one `MeshInstance3D` per eyed creature holding **one indexed ArrayMesh surface** for
+everything below, so it costs one draw call. Vertices are world positions (`top_level`) so the flame lags
+behind the head instead of riding the bone. The material is the flame shader (`FLAME_SHADER`): additive,
+unshaded, no depth write, no fog, no shadow.
 
 - **Core and bloom** (always, while the eyes glow): per eye a white-hot core (`CORE_PER_RADIUS` 1.1 dot
   radii, at least `MIN_CORE_PX` 2.5 px) over a bloom (`BLOOM_PER_RADIUS` 5, at least `MIN_BLOOM_PX` 9 px)
@@ -31,24 +32,52 @@ are world positions (`top_level`) so the wisp lags behind the head instead of ri
   the game camera (4.3 deg lens, ~190 m out), so the pixel floors are what makes the eye visible at all.
   Pulled towards the camera along the view ray only (it stays on the eye on screen, the skull does not
   clip it).
-- **Wisp** (head speed above `MIN_SPEED_MPS` 1.6, full at 4.5 m/s): a Catmull-Rom curve through the eye's
-  recent positions (12 rows), five vertex columns across with alpha 0 at both edges (feathered), a thin
-  body (half-width the larger of 1.4 dot radii, 3.5 % of its length, and 4 px) tapering to a point, alpha
-  fading with age and along the length, flowing value noise on width, alpha and lateral offset
-  (`FLICKER` 0.4 at `FLICKER_HZ` 9), the older part dragged downwind with a slight rise (`DRIFT_MPS` 0.5,
-  one fixed `WIND`). Pulled `CLEAR_PER_SEPARATION` 1.5 eye separations towards the camera so it clears
+- **Flame strands** (head speed above `MIN_SPEED_MPS` 1.6, full at 4.5 m/s; round 2): a Catmull-Rom curve
+  through the eye's recent positions, the older part dragged downwind with a slight rise (`DRIFT_MPS`
+  0.5, one fixed `WIND`). Over that curve each eye draws a fan of strands (`STRAND_*` tables): strand 0
+  the main tongue, 1 and 2 shorter and thinner, fanning out to either side (`FAN_SPREAD` 4.5 half-widths
+  at the tip), and 3 a wide faint glow under them in the eye colour. Every strand starts at the eye and
+  tapers to a point, is feathered (three vertex columns, edge alpha 0), and has its own flowing noise on
+  alpha and lateral flutter (`FLICKER` 0.4 at `FLICKER_HZ` 9). Main half-width: the larger of 0.9 dot
+  radii and 2.6 px. Pulled `CLEAR_PER_SEPARATION` 1.5 eye separations towards the camera so it clears
   the near half of the skull it streams over.
-- **Embers**: a spark every second sample along the wisp, twinkling on noise and drifting off it as it ages.
+- **Flame shader**: strands carry UV.x across the strand and UV.y = position along it (0 eye, 1 tip) + 2 x
+  strand index; everything else carries UV.y = -1 and is not torn. A 64x64 tileable noise texture
+  (FastNoiseLite, built once, synchronously) scrolls from the eye to the tip (`flow` 1.7); a fragment
+  survives only where the noise beats a threshold that rises towards the tip and the edges (`tear` 0.7;
+  the glow strand tears at 0.4 of that), so each strand flickers and breaks into licks. Heat follows the
+  noise and falls along the strand: hot near the eye, deeper towards the tip.
+- **Embers**: a spark every second sample along the flame, twinkling on noise and drifting off as it ages.
+
+### Quality toggle
+`EyeTrail.low_quality` (static) defaults to on when the renderer is not Forward+ (gl_compatibility on the
+web, the mobile renderer) or the build runs on web or a phone: the same split `WorldLighting._compat` and
+`ProcessFx` use. Each trail reads it in `setup()`. Low draws strands 0-2 (no glow strand) over 7 rows
+instead of 10, every fourth sample's ember instead of every second, and the shader variant
+`#define LOW` takes one noise tap instead of two. 242 vertices per creature instead of 392.
+
+### No per-frame allocation
+Every buffer (vertices, colours, the sample chain, the curve rows, the per-strand shape tables) is sized
+once in `setup()`. The index buffer and the UVs never change; per frame only positions and core colours
+are written by index and uploaded with one `add_surface_from_arrays`. A ribbon block with nothing to
+draw is collapsed to one point (degenerate triangles), and `custom_aabb` keeps culling and sorting on the
+real reach around the eyes. The engine still copies the vertex buffer to the GPU each frame (as the
+round-1 ImmediateMesh did).
 
 | Constant | Value | Meaning |
 |---|---|---|
-| `MAX_SAMPLES` / `FADE_S` | 12 / 0.3 s | past positions per eye, how long one is drawn |
-| `MAX_LENGTH_M` | 1.6 m | longest wisp for eyes 0.35 m apart (deinonychus); scaled by eye separation within 0.5-2.2x |
-| `MIN_SPEED_MPS` / `FULL_SPEED_MPS` / `STRENGTH_DECAY` | 1.6 / 4.5 m/s / 5 per s | where the wisp starts, where it is full, how fast it dies down |
+| `MAX_SAMPLES` / `FADE_S` / `SAMPLE_DT` | 12 / 0.3 s / 0.03 s | past positions per eye, how long one is drawn, sample cadence |
+| `FORCE_STEP_M` | 0.035 m, at least `max_length_m / (max_samples - 1)` | a move this long samples at once; the floor keeps 120 fps from cutting the flame short |
+| `SPEED_SMOOTH` | 25 /s | head speed is smoothed: at 120 fps the bone moves on 60 Hz physics frames only |
+| `MAX_LENGTH_M` | 3.2 m | longest flame for eyes 0.35 m apart (deinonychus); scaled by eye separation within 0.6-2.2x |
+| `MIN_SPEED_MPS` / `FULL_SPEED_MPS` / `STRENGTH_DECAY` | 1.6 / 4.5 m/s / 5 per s | where the flame starts, where it is full, how fast it dies down |
+| `TIP_POW` / `HOT_HEAD` | 0.9 / 0.25 | alpha falls as fade^TIP_POW with age; how white the core burns at the eye |
+| `SEGMENTS` / `SEGMENTS_LOW` | 10 / 7 | curve rows per eye |
+| `STRANDS` / `STRANDS_LOW` | 4 / 3 | strands per eye (`STRAND_SET` / `STRAND_SET_LOW`) |
 | `RESET_JUMP_M` | 2.0 m | a bigger jump is a teleport: the buffer is dropped |
 | `MAX_CAMERA_DISTANCE_M` | 600 m | plus a frustum check: off-screen animals build nothing |
-| `ENERGY` | 2.2 | HDR level of the vertex colours |
-| `MAX_VERTICES` | 1032 | worst case per creature per frame (asserted) |
+| `ENERGY` | 2.2 | HDR level of the flame (shader `energy`) |
+| `MAX_VERTICES` | 440 | most vertices one creature draws (asserted) |
 
 Visibility is the eyeshine's: awake, not asleep, not dead, same night fraction.
 
@@ -66,15 +95,30 @@ ahead of the painted eyeball): `[±0.5119, 0.9485, 0.7624]`, measured with
 checked side and front and left as they were.
 
 ## Cost
-20 creatures at full strength measure about 1.5 ms of GDScript tick work per frame on this Mac
-(`t_eyetrails` prints it; the gate is 2 ms). Most of it is rebuilding the bloom and wisp every frame. Two
-omni lights per glowing creature at night (no shadows).
+Measured by `t_eyetrails` on this Mac, script time inside `tick()` only, animals running at full flame
+strength (round 2 fixed the measurement: round 1 timed animals standing still, so it mostly timed the
+bloom; the round-1 code measured the same way costs 5.6 ms for 20 animals):
+
+| | per creature | 20 creatures |
+|---|---|---|
+| round 1 (ImmediateMesh, 1 wisp per eye) | ~280 us | 5.6 ms |
+| round 2 high (4 strands per eye) | ~70 us | 1.4 ms |
+| round 2 low (3 strands, web / phones) | ~53 us | ~1.1 ms |
+
+The saving is the indexed layout (three vertices per strand row instead of 24, UVs and indices written
+once) and a 256-entry noise table instead of two `sin()` per sample. The upload itself is about 2 us. GPU:
+the flame shader is one or two texture taps on a few hundred small additive fragments per eye. Two omni
+lights per glowing creature at night (no shadows).
 
 ## Tests
 `game/tests/t_eyeglow.gd` (dots, night contrast, dead hides) and `game/tests/t_eyetrails.gd` (still head
 draws nothing, speed grows length and alpha, fade-out after stopping, sample cap, flicker spread versus
 `flicker: 0`, length cap at 12 m/s, day/dead/asleep hidden, distance cull stops rebuilding, 20-animal
-cost). `t_eyetrails` also renders a look-pass with `-- --shot-dir=DIR` when run windowed: a night ground plane,
+cost; round 2: the shader's render modes and noise texture, the quality toggle (strand count, shader
+variant, fewer vertices, less script), and no per-frame allocation: fixed buffer size, no Object created,
+static memory flat over 360 ticks, and a scan of the tick-path functions for allocating constructs). `t_eyetrails` also renders a look-pass with `-- --shot-dir=DIR` when run windowed: a night ground plane,
 `WorldLighting` at midnight and the real `IsoCamera` (default zoom 14 m, 18 m for the T. rex), the animal
-standing, running a curve across the screen and snapping round; it saves 800x450 crops around the eye.
-Options: `--shot-species=a,b`, `--shot-zoom=<m>`.
+standing, running a curve across the screen and snapping round, at 60 fps and real frame time; it saves
+800x450 crops around the eye. Options: `--shot-species=a,b`, `--shot-zoom=<m>`, `--shot-tod=<0..1>`
+(0.79 is dusk). Add `--rendering-method gl_compatibility --rendering-driver opengl3` for the web look
+(which also turns on the low-quality path).
