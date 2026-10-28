@@ -134,6 +134,10 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 		genetics = CreatureGenetics.roll(null, def.coloration, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
 	# One colour profile per individual, kept on the genetics record so taming carries it over.
 	view.apply_coloration(genetics.coloration if genetics.coloration != null else CreatureColoration.neutral())
+	if pet_record:  # SADDLES: the equipped saddle shows on the back, ridden or not
+		_on_gear_changed()
+		if not pet_record.gear.changed.is_connected(_on_gear_changed):
+			pet_record.gear.changed.connect(_on_gear_changed)
 	level = _spawn_level(p_runtime, p_tier_offset)
 	health.setup(stat_value(&"health"))
 	health.healed.connect(_on_healed)
@@ -174,6 +178,10 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 ## reuses the genetics record), while a herd at different points and a respawned individual at the
 ## same point both come out as new animals instead of clones.
 static var _spawn_serial: int = 0
+
+func _on_gear_changed() -> void:
+	if pet_record and is_instance_valid(view):
+		view.show_saddle(pet_record.saddle())
 
 static func spawn_colour_key(species: StringName, at: Vector3) -> String:
 	_spawn_serial += 1

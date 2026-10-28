@@ -418,6 +418,23 @@ func open_animals(rec: PetRecord = null) -> void:
 		layer.add_child(_animal_screen)
 	_animal_screen.open(player, rec)
 
+## SADDLES: a tame's equipment (pet radial Gear, Animals screen Gear). Its own layer above the Animals
+## screen, so ‹ shows the Animals screen again when it was opened from there.
+var _pet_gear: PetGearSheet
+
+func open_pet_gear(rec: PetRecord) -> PetGearSheet:
+	if rec == null:
+		return null
+	if _pet_gear == null or not is_instance_valid(_pet_gear):
+		var layer := CanvasLayer.new()
+		layer.name = "PetGearLayer"
+		layer.layer = 97
+		add_child(layer)
+		_pet_gear = PetGearSheet.new()
+		layer.add_child(_pet_gear)
+	_pet_gear.open(player, rec)
+	return _pet_gear
+
 func _build_combat() -> void:
 	_end_btn = Button.new()
 	_end_btn.text = "End Combat"

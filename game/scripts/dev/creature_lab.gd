@@ -85,6 +85,7 @@ func _ride(id: StringName) -> void:
 		push_warning("creature_lab: %s is not a tameable species" % id)
 		return
 	var rec := PetRecord.from_def(def, &"A")
+	rec.fit_saddle()  # SADDLES: riding needs one
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	_player.get_parent().add_child(c)
 	c.is_pet = true

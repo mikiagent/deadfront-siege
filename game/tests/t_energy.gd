@@ -151,6 +151,7 @@ func _test_mounted() -> void:
 	host.add_child(layer)
 	layer.add_child(hud)
 	player.bonded.append(load("res://scripts/pets/pet_record.gd").from_def(data.creature(&"zebraceratops"), &"A"))
+	player.bonded[-1].fit_saddle()  # SADDLES: riding needs one
 	var m = player.pets.summon(player.bonded.size() - 1)
 	m.brain.process_mode = Node.PROCESS_MODE_DISABLED
 	await _frames(10)
