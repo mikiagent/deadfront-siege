@@ -44,10 +44,74 @@ static func build(rt: IslandRuntime, size: float, climate: String, shape: Island
 	rt._vslope = shape.vslope
 	rt._heights = shape.heights
 	rt._ridge_dir = shape.ridge_dir
+	_refine(rt)
 	_build_height_texture(rt)
 	_build_tile_types(rt, climate)
 	_build_mesh(rt, size, size / float(rt._res - 1), climate)
 	_sea(rt, size)
+
+## The rendered surface: the data grid refined 2x (cells 1.3 m) by a separable cubic midpoint rule
+## (-1, 9, 9, -1)/16, each midpoint clamped between its two neighbours so cliffs and the shore never
+## overshoot into ridges or dips. Grid nodes keep their exact heights. Mesh, collision, the water's
+## height texture and surface_y all read this one array, so what the survivor stands on is drawn.
+static func _refine(rt: IslandRuntime) -> void:
+	var r := rt._res
+	var f := 2 * (r - 1) + 1
+	var src := rt._heights
+	# Pass 1: rows of the data grid refined along x (r rows x f columns).
+	var rows := PackedFloat32Array()
+	rows.resize(r * f)
+	for z in r:
+		var o := z * r
+		var fo := z * f
+		for x in r - 1:
+			var h1 := src[o + x]
+			var h2 := src[o + x + 1]
+			var h0 := src[o + maxi(x - 1, 0)]
+			var h3 := src[o + mini(x + 2, r - 1)]
+			rows[fo + 2 * x] = h1
+			rows[fo + 2 * x + 1] = clampf((9.0 * (h1 + h2) - h0 - h3) * 0.0625, minf(h1, h2), maxf(h1, h2))
+		rows[fo + f - 1] = src[o + r - 1]
+	# Pass 2: the same rule down each refined column.
+	var out := PackedFloat32Array()
+	out.resize(f * f)
+	for z in r:
+		var a := z * f
+		var b := 2 * z * f
+		for x in f:
+			out[b + x] = rows[a + x]
+	for z in r - 1:
+		var i0 := maxi(z - 1, 0) * f
+		var i1 := z * f
+		var i2 := (z + 1) * f
+		var i3 := mini(z + 2, r - 1) * f
+		var d := (2 * z + 1) * f
+		for x in f:
+			var h1 := rows[i1 + x]
+			var h2 := rows[i2 + x]
+			out[d + x] = clampf((9.0 * (h1 + h2) - rows[i0 + x] - rows[i3 + x]) * 0.0625, minf(h1, h2), maxf(h1, h2))
+	rt._surf = out
+	rt._surf_res = f
+
+## Height of the rendered surface: the same two triangles per cell the mesh draws (diagonal from
+## (x+1, z) to (x, z+1)), so a foot, a node or a placed piece sits exactly on the drawn ground.
+static func surf_y(rt: IslandRuntime, x: float, z: float) -> float:
+	var res := rt._surf_res
+	var arr := rt._surf
+	var last := float(res - 1)
+	var cell := rt._size / last
+	var u := clampf((x + rt._size * 0.5) / cell, 0.0, last)
+	var v := clampf((z + rt._size * 0.5) / cell, 0.0, last)
+	var x0 := mini(int(u), res - 2)
+	var z0 := mini(int(v), res - 2)
+	var tx := u - float(x0)
+	var tz := v - float(z0)
+	var i := x0 + z0 * res
+	if tx + tz <= 1.0:
+		var h00 := arr[i]
+		return h00 + (arr[i + 1] - h00) * tx + (arr[i + res] - h00) * tz
+	var h11 := arr[i + res + 1]
+	return h11 + (arr[i + res] - h11) * (1.0 - tx) + (arr[i + 1] - h11) * (1.0 - tz)
 
 static func _build_mesh(rt: IslandRuntime, size: float, cell: float, climate: String) -> void:
 	rt._palette = _palette_for(climate)
@@ -55,31 +119,22 @@ static func _build_mesh(rt: IslandRuntime, size: float, cell: float, climate: St
 	var body := StaticBody3D.new()
 	body.name = "Floor"
 	var tiles := 8 if rt._res >= 129 else 4
+	var fres := rt._surf_res
+	var fcell := size / float(fres - 1)
+	var fspan := int((fres - 1) / tiles)
 	var span := int((rt._res - 1) / tiles)
+	var indices := _chunk_indices(fspan)
 	for tz in tiles:
 		for tx in tiles:
-			var st := SurfaceTool.new()
-			var nav_st := SurfaceTool.new()
-			st.begin(Mesh.PRIMITIVE_TRIANGLES)
-			nav_st.begin(Mesh.PRIMITIVE_TRIANGLES)
-			st.set_smooth_group(0)
-			var x0 := tx * span
-			var z0 := tz * span
-			var x1 := rt._res - 1 if tx == tiles - 1 else (tx + 1) * span
-			var z1 := rt._res - 1 if tz == tiles - 1 else (tz + 1) * span
-			for z in range(z0, z1):
-				for x in range(x0, x1):
-					_tri(rt, st, nav_st, size, cell, x, z)
-					_tri2(rt, st, nav_st, size, cell, x, z)
-			st.generate_normals()
-			st.generate_tangents()
 			var mi := MeshInstance3D.new()
 			mi.name = "TerrainMesh_%d_%d" % [tx, tz]
-			mi.mesh = st.commit()
+			mi.mesh = _chunk_mesh(rt, fcell, tx * fspan, tz * fspan, fspan, indices)
 			mi.material_override = rt._terrain_mat
 			mi.extra_cull_margin = 80.0
 			body.add_child(mi)
-			var nav_mesh := nav_st.commit()
+			var x1 := rt._res - 1 if tx == tiles - 1 else (tx + 1) * span
+			var z1 := rt._res - 1 if tz == tiles - 1 else (tz + 1) * span
+			var nav_mesh := _nav_chunk(rt, size, cell, tx * span, tz * span, x1, z1)
 			if nav_mesh:
 				var nav_src := MeshInstance3D.new()
 				nav_src.name = "TerrainNav_%d_%d" % [tx, tz]
@@ -88,43 +143,98 @@ static func _build_mesh(rt: IslandRuntime, size: float, cell: float, climate: St
 				body.add_child(nav_src)
 	var cs := CollisionShape3D.new()
 	var hs := HeightMapShape3D.new()
-	hs.map_width = rt._res
-	hs.map_depth = rt._res
-	hs.map_data = rt._heights
+	hs.map_width = fres
+	hs.map_depth = fres
+	hs.map_data = rt._surf
 	cs.shape = hs
 	cs.position = Vector3.ZERO
-	cs.scale = Vector3(cell, 1, cell)
+	cs.scale = Vector3(fcell, 1, fcell)
 	body.add_child(cs)
 	rt.add_child(body)
 
-static func _tri(rt: IslandRuntime, st: SurfaceTool, nav_st: SurfaceTool, size: float, cell: float, x: int, z: int) -> void:
-	var p0 := _vpos(rt, size, cell, x, z)
-	var p1 := _vpos(rt, size, cell, x + 1, z)
-	var p2 := _vpos(rt, size, cell, x, z + 1)
-	_v(rt, st, p0)
-	_v(rt, st, p1)
-	_v(rt, st, p2)
-	_nav_tri(nav_st, p0, p1, p2)
+## One index buffer shared by every chunk (all chunks are n x n cells): two triangles per cell,
+## (x,z)(x+1,z)(x,z+1) and (x+1,z)(x+1,z+1)(x,z+1), the winding and diagonal surf_y assumes.
+static func _chunk_indices(n: int) -> PackedInt32Array:
+	var w := n + 1
+	var idx := PackedInt32Array()
+	idx.resize(n * n * 6)
+	var k := 0
+	for z in n:
+		for x in n:
+			var a := x + z * w
+			idx[k] = a
+			idx[k + 1] = a + 1
+			idx[k + 2] = a + w
+			idx[k + 3] = a + 1
+			idx[k + 4] = a + w + 1
+			idx[k + 5] = a + w
+			k += 6
+	return idx
 
-static func _tri2(rt: IslandRuntime, st: SurfaceTool, nav_st: SurfaceTool, size: float, cell: float, x: int, z: int) -> void:
-	var p0 := _vpos(rt, size, cell, x + 1, z)
-	var p1 := _vpos(rt, size, cell, x + 1, z + 1)
-	var p2 := _vpos(rt, size, cell, x, z + 1)
-	_v(rt, st, p0)
-	_v(rt, st, p1)
-	_v(rt, st, p2)
-	_nav_tri(nav_st, p0, p1, p2)
+## One indexed chunk of the refined surface with smooth normals from central differences over the
+## whole grid, so neighbouring chunks share their edge normals (no seams, no flat facets).
+static func _chunk_mesh(rt: IslandRuntime, fcell: float, x0: int, z0: int, n: int, indices: PackedInt32Array) -> ArrayMesh:
+	var res := rt._surf_res
+	var h := rt._surf
+	var half := rt._size * 0.5
+	var w := n + 1
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var cols := PackedColorArray()
+	verts.resize(w * w)
+	norms.resize(w * w)
+	cols.resize(w * w)
+	cols.fill(Color(1, 1, 1))
+	var two_c := 2.0 * fcell
+	var camp := rt._camp_hint
+	var crater := rt._crater_hint
+	var k := 0
+	for zz in w:
+		var z := z0 + zz
+		var zm := maxi(z - 1, 0) * res
+		var zp := mini(z + 1, res - 1) * res
+		var wz := -half + float(z) * fcell
+		for xx in w:
+			var x := x0 + xx
+			var row := z * res
+			var p := Vector3(-half + float(x) * fcell, h[x + row], wz)
+			verts[k] = p
+			norms[k] = Vector3(h[maxi(x - 1, 0) + row] - h[mini(x + 1, res - 1) + row], two_c, h[x + zm] - h[x + zp]).normalized()
+			# Only the camp clearing and the crater tint the ground; skip the colour maths elsewhere.
+			if (absf(p.x - camp.x) < 18.0 and absf(p.z - camp.z) < 18.0) or (crater != Vector3.ZERO and absf(p.x - crater.x) < 15.0 and absf(p.z - crater.z) < 15.0):
+				cols[k] = _terrain_color(rt, p)
+			k += 1
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = norms
+	arrays[Mesh.ARRAY_COLOR] = cols
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return m
+
+## The nav bake's source for one chunk: the data grid's triangles (as before the refinement), minus
+## the ones under the sea. Returns null when the whole chunk is sea.
+static func _nav_chunk(rt: IslandRuntime, size: float, cell: float, x0: int, z0: int, x1: int, z1: int) -> ArrayMesh:
+	var tris := PackedVector3Array()
+	for z in range(z0, z1):
+		for x in range(x0, x1):
+			_nav_tri(tris, _vpos(rt, size, cell, x, z), _vpos(rt, size, cell, x + 1, z), _vpos(rt, size, cell, x, z + 1))
+			_nav_tri(tris, _vpos(rt, size, cell, x + 1, z), _vpos(rt, size, cell, x + 1, z + 1), _vpos(rt, size, cell, x, z + 1))
+	if tris.is_empty():
+		return null
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = tris
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return m
 
 static func _vpos(rt: IslandRuntime, size: float, cell: float, x: int, z: int) -> Vector3:
 	var wx := -size * 0.5 + float(x) * cell
 	var wz := -size * 0.5 + float(z) * cell
 	return Vector3(wx, rt._heights[x + z * rt._res], wz)
-
-static func _v(rt: IslandRuntime, st: SurfaceTool, p: Vector3) -> void:
-	st.set_smooth_group(0)
-	st.set_color(_terrain_color(rt, p))
-	st.set_uv(Vector2(p.x, p.z) / 6.0)
-	st.add_vertex(p)
 
 static func _terrain_color(rt: IslandRuntime, p: Vector3) -> Color:
 	var col := Color(1, 1, 1)  # vertex colour is a multiplier on the shader's albedo
@@ -174,13 +284,13 @@ static func _tile_color(rt: IslandRuntime, tile_type: int) -> Color:
 		_:
 			return rt._palette.get("grass", Color(0.42, 0.62, 0.32))
 
-static func _nav_tri(nav_st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3) -> void:
+static func _nav_tri(tris: PackedVector3Array, p0: Vector3, p1: Vector3, p2: Vector3) -> void:
 	var c := (p0 + p1 + p2) / 3.0
 	if c.y < -0.3:
 		return
-	nav_st.add_vertex(p0)
-	nav_st.add_vertex(p1)
-	nav_st.add_vertex(p2)
+	tris.append(p0)
+	tris.append(p1)
+	tris.append(p2)
 
 static func _sea(rt: IslandRuntime, size: float) -> void:
 	var deep := MeshInstance3D.new()
@@ -210,7 +320,7 @@ static func _sea(rt: IslandRuntime, size: float) -> void:
 	rt._water_mat.set_shader_parameter("height_tex", rt._height_tex)
 	rt._water_mat.set_shader_parameter("noise_tex", noise_tex())
 	rt._water_mat.set_shader_parameter("map_size", size)
-	rt._water_mat.set_shader_parameter("height_res", float(rt._res))
+	rt._water_mat.set_shader_parameter("height_res", float(rt._surf_res))
 	rt._water_mat.set_shader_parameter("water_y", -0.05)
 	water.material_override = rt._water_mat
 	rt.add_child(water)
@@ -218,7 +328,7 @@ static func _sea(rt: IslandRuntime, size: float) -> void:
 static func _build_height_texture(rt: IslandRuntime) -> void:
 	# Heights straight from the float array (little-endian Float32 = FORMAT_RF): one memcpy
 	# instead of 26k set_pixel calls (it was ~40 % of the home build).
-	var img := Image.create_from_data(rt._res, rt._res, false, Image.FORMAT_RF, rt._heights.to_byte_array())
+	var img := Image.create_from_data(rt._surf_res, rt._surf_res, false, Image.FORMAT_RF, rt._surf.to_byte_array())
 	rt._height_tex = ImageTexture.create_from_image(img)
 
 static func bake_nav(rt: IslandRuntime) -> void:
@@ -273,6 +383,8 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	rt._tile_map_image.fill(Color.BLACK)
 	var biomes := PackedByteArray()
 	biomes.resize(types.size())
+	var soft := PackedByteArray()
+	soft.resize(types.size() * 4)
 	# The generated camp clearing is the home island's; elsewhere the zone map keeps its own field.
 	var camp: Vector3 = rt._camp_hint if _camp_active(rt) else Vector3.ZERO
 	var bctx := BiomeZones.context(rt, climate, camp, _layout_seed(rt, climate))
@@ -354,6 +466,14 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			types[idx] = t
 			biomes[idx] = b
 			fresh[idx] = 1 if t == TileType.MUD else 0
+			if t == TileType.ROCK:
+				soft[idx * 4] = 255
+			elif t == TileType.ASH:
+				soft[idx * 4 + 1] = 255
+			elif t == TileType.MUD:
+				soft[idx * 4 + 2] = 255
+			elif t == TileType.DIRT:
+				soft[idx * 4 + 3] = 255
 			# The dry/walkable mask, precomputed once: is_dry (TilePath, build checks, spawn probes)
 			# is then one array lookup instead of four grid samples per call.
 			walk[idx] = 1 if (t == TileType.GRASS or t == TileType.DRY or t == TileType.DIRT or t == TileType.SAND \
@@ -365,6 +485,54 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	BiomeZones.smooth(rt)
 	_write_tile_image(rt)
 	rt._tile_map_tex = ImageTexture.create_from_image(rt._tile_map_image)
+	_build_zone_tex(rt)
+	var soft_img := Image.create_from_data(span, span, false, Image.FORMAT_RGBA8, soft)
+	soft_img.generate_mipmaps()
+	rt._soft_tex = ImageTexture.create_from_image(soft_img)
+
+## The zone tint and layer-mix textures, one texel per 2 m (every second tile is plenty under a
+## 6-8 m blur), with mipmaps so the shader can read them at the zone edge width.
+static func _build_zone_tex(rt: IslandRuntime) -> void:
+	var span := rt._tile_span
+	var zw := (span + 1) / 2
+	var bio := BiomeZones.biome_types(rt)
+	var pal := BiomeZones.palette_image(rt._climate)
+	var lut := PackedByteArray()
+	lut.resize(pal.get_width() * 6)
+	for i in pal.get_width():
+		var t := pal.get_pixel(i, 0)
+		var m := pal.get_pixel(i, 1)
+		lut[i * 6] = t.r8
+		lut[i * 6 + 1] = t.g8
+		lut[i * 6 + 2] = t.b8
+		lut[i * 6 + 3] = m.r8
+		lut[i * 6 + 4] = m.g8
+		lut[i * 6 + 5] = m.b8
+	var tint := PackedByteArray()
+	tint.resize(zw * zw * 3)
+	var mix := PackedByteArray()
+	mix.resize(zw * zw * 3)
+	var nz := pal.get_width()
+	var k := 0
+	for zz in zw:
+		var row := mini(zz * 2, span - 1) * span
+		for zx in zw:
+			var idx := row + mini(zx * 2, span - 1)
+			var b := int(bio[idx]) if idx < bio.size() else 0
+			var o := (b if b < nz else 0) * 6
+			tint[k] = lut[o]
+			tint[k + 1] = lut[o + 1]
+			tint[k + 2] = lut[o + 2]
+			mix[k] = lut[o + 3]
+			mix[k + 1] = lut[o + 4]
+			mix[k + 2] = lut[o + 5]
+			k += 3
+	var ti := Image.create_from_data(zw, zw, false, Image.FORMAT_RGB8, tint)
+	ti.generate_mipmaps()
+	rt._zone_tint_tex = ImageTexture.create_from_image(ti)
+	var mi := Image.create_from_data(zw, zw, false, Image.FORMAT_RGB8, mix)
+	mi.generate_mipmaps()
+	rt._zone_mix_tex = ImageTexture.create_from_image(mi)
 
 ## The tile id the shader paints. CLIFF writes NO override: the shader already paints steep
 ## ground as rock from the vertex normal, and painting rock per 1 m tile turned each face into a
@@ -407,6 +575,7 @@ static func _terrain_material(rt: IslandRuntime) -> ShaderMaterial:
 	m.set_shader_parameter("map_size", rt._size)
 	m.set_shader_parameter("grid_enabled", 1.0 if Game.show_grid else 0.0)
 	m.set_shader_parameter("tile_map_tex", rt._tile_map_tex)
+	m.set_shader_parameter("soft_tex", rt._soft_tex)
 	m.set_shader_parameter("grass_tex", _tex_or_fallback(TERRAIN_TEX["grass"], Color(0.45, 0.68, 0.38)))
 	m.set_shader_parameter("dirt_tex", _tex_or_fallback(TERRAIN_TEX["dirt"], Color(0.44, 0.34, 0.24)))
 	m.set_shader_parameter("sand_tex", _tex_or_fallback(TERRAIN_TEX["sand"], Color(0.82, 0.75, 0.58)))
@@ -428,7 +597,9 @@ static func _terrain_material(rt: IslandRuntime) -> ShaderMaterial:
 	# The tint_* values above stay as fallbacks if a row is missing one of its textures.
 	if not BiomeMaterial.apply_terrain(m, rt._climate):
 		push_warning("[biome] no biomes.json row for climate %s; using the fallback ground" % rt._climate)
-	m.set_shader_parameter("biome_pal", ImageTexture.create_from_image(BiomeZones.palette_image(rt._climate)))
+	m.set_shader_parameter("zone_tint_tex", rt._zone_tint_tex)
+	m.set_shader_parameter("zone_mix_tex", rt._zone_mix_tex)
+	m.set_shader_parameter("zone_texel_m", rt._size / float(rt._zone_tint_tex.get_width()))
 	m.set_shader_parameter("biome_on", 1.0)
 	return m
 

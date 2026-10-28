@@ -20,6 +20,10 @@ var raining: bool:
 var _size: float = 240.0
 var _res: int = 65
 var _heights: PackedFloat32Array = PackedFloat32Array()
+## The rendered ground (IslandTerrain._refine): _heights refined 2x with a clamped cubic, so the mesh,
+## its collision and surface_y share one smooth surface. _heights stays the data grid (tiles, zones).
+var _surf: PackedFloat32Array = PackedFloat32Array()
+var _surf_res: int = 0
 ## The landmass generator (IslandShape): coastline, river, mesa, peaks. is_dry and the scatter
 ## read its precomputed rad grid through rad_at.
 var _shape: IslandShape
@@ -44,6 +48,13 @@ var fresh_water: PackedByteArray = PackedByteArray()
 var dry_walk: PackedByteArray = PackedByteArray()
 var _tile_map_image: Image
 var _tile_map_tex: ImageTexture
+## Static ground masks for the terrain shader (IslandTerrain._build_tile_types): R rock, G ash, B mud,
+## A dirt, mipmapped so the shader reads them blurred over a few metres instead of per 1 m tile.
+var _soft_tex: ImageTexture
+## Zone colour (linear tint) and layer mix per 2 m, mipmapped: the shader reads them blurred over the
+## zone edge width so zone borders blend instead of stepping along the tile grid.
+var _zone_tint_tex: ImageTexture
+var _zone_mix_tex: ImageTexture
 var _terrain_mat: ShaderMaterial
 var _foliage_mat: ShaderMaterial
 var _palette: Dictionary = {}
@@ -213,6 +224,8 @@ func _process(delta: float) -> void:
 	weather.tick(self, delta)
 
 func surface_y(x: float, z: float) -> float:
+	if not _surf.is_empty():
+		return IslandTerrain.surf_y(self, x, z)
 	if _heights.is_empty():
 		return 0.0
 	var cell := _size / float(_res - 1)

@@ -79,9 +79,10 @@ static func terrain(climate: String, map_size: float, tile_map: Texture2D) -> Sh
 	m.set_shader_parameter("map_size", map_size)
 	m.set_shader_parameter("tile_map_tex", tile_map)
 	m.set_shader_parameter("noise_tex", noise_texture())
-	# Zone palette for this climate's tile map; the caller still needs zone 0 (neutral) tiles if it
-	# wants the bare climate set, as biome_lab's patches do.
-	m.set_shader_parameter("biome_pal", ImageTexture.create_from_image(BiomeZones.palette_image(climate)))
+	# One texel of zone 0: a lab patch paints that zone everywhere.
+	var pal := BiomeZones.palette_image(climate)
+	m.set_shader_parameter("zone_tint_tex", ImageTexture.create_from_image(pal.get_region(Rect2i(0, 0, 1, 1))))
+	m.set_shader_parameter("zone_mix_tex", ImageTexture.create_from_image(pal.get_region(Rect2i(0, 1, 1, 1))))
 	m.set_shader_parameter("biome_on", 1.0)
 	apply_terrain(m, climate)
 	return m
