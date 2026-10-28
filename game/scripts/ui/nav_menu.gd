@@ -86,6 +86,7 @@ func _ready() -> void:
 func _enter_tree() -> void:
 	if hud:
 		hud.modulate.a = 0.0  # the HUD's bars, rail and thumb hexes fade out under the menu
+	MenuTransition.hold(self)  # NAVZOOM: the camera eases out and clouds drift in until the menu frees
 
 func _exit_tree() -> void:
 	if hud:

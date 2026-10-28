@@ -64,6 +64,7 @@ static func backdrop() -> ColorRect:
 	mat.shader = _blur
 	mat.set_shader_parameter("dim", Color(UiTokens.SCREEN_DIM, 0.72))
 	r.material = mat
+	MenuTransition.follow(r, MenuTransition.SHEET_STRENGTH)  # NAVZOOM, lighter under a full-screen sheet
 	return r
 
 func _init(p_title: String = "") -> void:

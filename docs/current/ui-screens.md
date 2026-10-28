@@ -47,6 +47,15 @@ canvas layer 90 with the HUD faded out; screens sit on layer 96.
 header with the debug gear and T-stone balance, CLOSE where MENU sits. The WebP below predates it
 (old row sheet); current captures at both sizes are in `docs/orchestration/reports/uinav/` (b3_nav_menu_1600x900.png, b3_nav_menu_844x390.png).
 
+NAVZOOM (2026-10-28, `game/scripts/ui/menu_transition.gd`): opening the menu eases the camera out to 1.8x
+its distance over 0.6 s and three layers of soft procedural clouds drift in from the screen edges at
+different speeds and sizes; closing reverses both and writes back the exact prior zoom. Full-screen
+sheets (anything built on `SheetChrome.backdrop()`) get a lighter version (1.36x, fainter clouds) while
+shown, so MENU -> Skills eases from one to the other. The clouds sit on canvas layer -1 (over the 3D
+world, under the HUD); gameplay, follow and occlusion keep running. Any Control can use it with
+`MenuTransition.hold(node, strength)` or `MenuTransition.follow(item, strength)`. Captures (open
+sequence, open state at both sizes, gl_compatibility, mp4 of open+close): `docs/orchestration/reports/navzoom/`.
+
 ![sheet_menu](screens/sheet_menu.webp)
 
 **`sheet_build`** — BUILD sheet
