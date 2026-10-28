@@ -113,7 +113,7 @@ func _run() -> void:
 	var sheet := _hud.get_node_or_null("SkillsSheet") as SkillsSheet
 	_expect(sheet != null and sheet.visible, "skills sheet opens from the HUD")
 	if sheet:
-		var panel := sheet.get_child(1) as Control
+		var panel: Control = sheet  # C3 rebuild: the whole sheet (header + body) is the panel
 		var scroll := panel.find_child("SkillsScroll", true, false) as ScrollContainer
 		var close_btn := panel.find_child("SkillsClose", true, false) as Control
 		_expect(close_btn != null and close_btn.is_visible_in_tree() and Rect2(Vector2.ZERO, logical).encloses(close_btn.get_global_rect()), "skills Close is pinned inside the view (%s)" % [close_btn.get_global_rect() if close_btn else "missing"])
@@ -126,7 +126,7 @@ func _run() -> void:
 			print("[uireal] skills: rightmost text %.0f, scrollbar starts %.0f" % [right, vbar.get_global_rect().position.x])
 			_expect(right <= vbar.get_global_rect().position.x + 0.5, "skills text stays left of the scrollbar (%.0f > %.0f)" % [right, vbar.get_global_rect().position.x])
 		# No text over the vitals: the panel clears them, or (landscape phone) hides them under an opaque sheet.
-		var opaque := (panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color.a >= 0.99
+		var opaque := (sheet.get_node("Dim") as ColorRect).color.a >= 0.9  # the full-screen wash hides the HUD
 		for zone in UiTokens.hud_reserved(logical).slice(0, 1):
 			var pr := panel.get_global_rect()
 			_expect(not pr.intersects(zone) or (opaque and pr.encloses(zone)), "skills panel %s clears the vitals block %s or covers it opaquely" % [pr, zone])
@@ -291,8 +291,8 @@ func _resize(logical: Vector2) -> void:
 		var now := get_tree().root.get_visible_rect().size
 		var sheet := _hud.get_node_or_null("SkillsSheet") as SkillsSheet
 		var grid := sheet.find_child("SkillsGrid", true, false) as GridContainer if sheet else null
-		var panel := sheet.get_child(1) as Control if sheet else null
-		var want := 2 if SkillsSheet.is_sheet(now) else 1
+		var panel: Control = sheet
+		var want := SkillsSheet.COLUMNS
 		print("[uireal] %s: window %s canvas %s, skills columns %d (want %d), panel %s" % [tag, win.size, now, grid.columns if grid else -1, want, panel.get_global_rect() if panel else "missing"])
 		_expect(grid != null and grid.columns == want, "%s: the open skills sheet lays out for the %s canvas (%d columns, want %d)" % [tag, now, grid.columns if grid else -1, want])
 		_expect(panel != null and Rect2(Vector2.ZERO, now).grow(1.0).encloses(panel.get_global_rect()), "%s: the skills panel sits inside the %s canvas (%s)" % [tag, now, panel.get_global_rect() if panel else "missing"])

@@ -83,7 +83,7 @@ func _test_entries() -> void:
 	_expect(right == ["World Atlas", "Domain", "Orders", "Communication", "Island Market", "Save"], "right column reads World Atlas..Save (%s)" % [right])
 	for id in nav.entries:
 		var b: Button = nav.entries[id]
-		_expect(b.disabled == (id in [&"orders", &"friends"]), "%s is %s" % [id, "disabled" if b.disabled else "enabled"])
+		_expect(b.disabled == false, "%s is %s" % [id, "disabled" if b.disabled else "enabled"])
 	_expect(_hud.sheet_open(), "the nav menu counts as an open sheet (HANDS and plates hide)")
 
 func _test_layout() -> void:

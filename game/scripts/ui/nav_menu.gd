@@ -30,8 +30,7 @@ const RIGHT := [
 	{"id": &"save", "label": "Save", "icon": &"save"},
 ]
 ## Entries with no screen yet show greyed and do nothing.
-# ASSUMPTION: Orders (no orders_sheet.gd) and Friends (no party/friend system in game/scripts) are disabled until their screens exist.
-const DISABLED := [&"orders", &"friends"]
+const DISABLED := []
 
 var hud: HuntHud
 var entries: Dictionary = {}  ## id -> Button
@@ -277,13 +276,9 @@ func _open(id: StringName) -> void:
 	h._close_sheet()
 	match id:
 		&"character":
-			# ASSUMPTION: Character opens the bag's Character page (inventory_ui.gd) until the C1 screen ships.
-			if p.ui:
-				p.ui.visible = true
-				if p.ui.has_method("_show_page"):
-					p.ui.call("_show_page", "character", "bag")
+			h.open_character()
 		&"skills":
-			h._toggle_skills()
+			h.open_skills()
 		&"craft":
 			if p.craft_ui:
 				p.craft_ui.toggle()
@@ -297,6 +292,8 @@ func _open(id: StringName) -> void:
 			h.open_animals()
 		&"market":
 			h.open_market()
+		&"orders":
+			h.open_orders()
 		&"atlas":
 			h.open_atlas()
 		&"domain":

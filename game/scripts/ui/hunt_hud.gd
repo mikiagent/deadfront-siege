@@ -1096,7 +1096,7 @@ func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
 ## on canvas layers above the HUD's and hide meanwhile: on a landscape phone HANDS sat on the sheet's
 ## Close, so a tap there swapped the held tool.
 func sheet_open() -> bool:
-	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible)
+	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible) or (_orders_sheet != null and _orders_sheet.visible)
 
 ## Screen rects the HUD holds this frame (see HudLayout.taken_rects).
 func taken_rects(skip: PackedStringArray = []) -> Array[Rect2]:
@@ -1135,6 +1135,49 @@ func _toggle_skills(tree: String = "") -> void:
 	else:
 		_skills_sheet.open(player.skills, tree)
 		field.clear(&"skills")  # the MENU badge's skill notices are read
+
+# ---------------------------------------------------------------- UICHAR entry points (nav menu B3)
+
+var _orders_sheet: OrdersSheet
+
+## C1 Character (character_sheet.gd, hosted by the bag's InventoryUI). ‹ comes back to the MENU.
+func open_character() -> void:
+	_close_sheet()
+	if player == null or player.ui == null:
+		return
+	if not player.ui.menu_requested.is_connected(_back_to_menu):
+		player.ui.menu_requested.connect(_back_to_menu)
+	player.ui.open_character()
+
+## C3 Skills (skills_sheet.gd), on `tree` or the last skill shown. ‹ comes back to the MENU.
+func open_skills(tree: String = "") -> void:
+	_close_sheet()
+	if player == null or player.skills == null:
+		return
+	if _skills_sheet == null or not _skills_sheet.visible:
+		_toggle_skills(tree)
+	elif tree != "":
+		_skills_sheet.open(player.skills, tree)
+	if not _skills_sheet.back_requested.is_connected(_back_to_menu):
+		_skills_sheet.back_requested.connect(_back_to_menu)
+
+## C4 Orders (orders_sheet.gd); "Track on HUD" points the quest card here. ‹ comes back to the MENU.
+func open_orders() -> void:
+	_close_sheet()
+	if _orders_sheet == null:
+		_orders_sheet = OrdersSheet.new()
+		_orders_sheet.name = "OrdersSheet"
+		add_child(_orders_sheet)
+		_orders_sheet.back_requested.connect(_back_to_menu)
+	_orders_sheet.open(player)
+
+## The nav menu, for screens whose ‹ returns to it (UIANIMALS calls this when it exists).
+func open_menu() -> void:
+	_back_to_menu()
+
+func _back_to_menu() -> void:
+	if _sheet_kind != &"menu":
+		_toggle_sheet(&"menu")
 
 var _map_screen: MapScreen
 
@@ -1611,7 +1654,7 @@ func _draw_quest(r: Vector2, mp: Vector2) -> void:
 	draw_rect(Rect2(origin, Vector2(w, 72.0)), UiTokens.INK)
 	draw_rect(Rect2(origin, Vector2(3.0, 72.0)), UiTokens.TEAL)
 	drawn_blocks["quest"] = Rect2(origin, Vector2(w, 72.0))
-	var step := Objectives.current(player)
+	var step := OrdersSheet.hud_step(player)  # the running order, or the one tracked in Orders
 	var head := UiTokens.heading(r) - 4
 	var meta_px := UiTokens.meta(r)
 	if step.is_empty():

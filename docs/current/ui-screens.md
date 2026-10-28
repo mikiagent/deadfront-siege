@@ -49,7 +49,7 @@ header with the debug gear and T-stone balance, CLOSE where MENU sits. The WebP 
 
 ## Bag & items
 
-**`bag`** — bag and equipment
+**`bag`** — bag (its Character tab now opens the Character sheet above)
 
 ![bag](screens/bag.webp)
 
@@ -115,9 +115,34 @@ construction site's sheet (slots, Work / Withdraw / Cancel site / Finish) opens 
 The old BUILD bottom sheet (`sheet_build`) is still reachable from code but no control opens it.
 
 
-## Skills
+## Character, Skills, Orders (UICHAR, spec §7 C1/C3/C4)
 
-**`skills`** — skills sheet
+Full-screen sheets with the §8 chrome (`uichar_chrome.gd`: dimmed world, HEADER bar with "‹ Title"
+and torn edge, ✕, PANEL boxes, parchment detail headers, GOLD primary button, gold corner brackets).
+‹ reopens the MENU; ✕ / Esc returns to the HUD. Captures:
+`docs/orchestration/reports/uichar/*_1600x900.png` and `*_844x390.png` (`--lab=uichar_lab`).
+
+- **Character** (`character_sheet.gd`, hosted by the bag's `InventoryUI`; open with
+  `HuntHud.open_character()` / `InventoryUI.open_character()` / the bag's Character tab). Tabs
+  Equipment / Titles / Appearance (Appearance: "No decorative gear yet"). Left: name, level, occupation
+  and title on parchment, then the stats list (Life, Energy, Attack, Defense, Accuracy, Critical chance,
+  Held tool power, Heat / Cold resistance, the three Powers, Carry, Skill points). Centre: the figure
+  (the survivor's portrait) with Head, Body, Arms, Legs left, Weapon, Tool, Ring, Bag right and Food 1,
+  Food 2 under it; the selected slot's bar (name · Lv. · Attack · durability, Unequip, Open bag ›).
+  Gear sets 1-4 sit in the header. Right: Survival (Exhaustion meter; Food, Thirst, Hygiene as status
+  states, since the build has no hunger, thirst or hygiene meters) and a status footer. On 844x390
+  the slot labels move inside empty slots.
+- **Skills** (`skills_sheet.gd`; `HuntHud.open_skills(tree)`). A 4-column grid of the 12 skills (name,
+  gold unread dot when a node is buyable now, white symbol, thin XP bar, Lv., "FULL · n XP" when XP is
+  banked at the cap); right, the selected skill: parchment name + Lv., Skill XP, SP spent here, what
+  levels it, the unlock list (Unlock / Refund / lock reason per node, auto-learned line, not-in-game
+  rows) and the GOLD "Spend n SP on <next node>". F7 `skill_debug.gd` is unchanged.
+- **Orders** (`orders_sheet.gd`; `HuntHud.open_orders()`). The standing orders of
+  `data/world/objectives.json`: numbered rows (check when done, gold ring on the running one), title,
+  hint, progress; right, the parchment title, how-to line, reward chips (+XP, +T-stones) and
+  "Track on HUD" / "Tracking on HUD" / "Done".
+
+**`skills`** — skills sheet (pre-UICHAR capture; recapture with `tools/ui_screens.sh`)
 
 ![skills](screens/skills.webp)
 
