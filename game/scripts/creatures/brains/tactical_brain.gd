@@ -19,6 +19,8 @@ signal attack_chosen(move: StringName, d: float)
 ## A combo sequence (tactics.sequences) started, and each of its steps as it starts.
 signal sequence_started(seq_name: String, steps: Array)
 signal sequence_step(step: StringName)
+## The cooling filler picked: hold, strafe (strafe-walk), dodge (power strafe), feint or hop.
+signal filler(kind: StringName)
 
 const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge"]
 
@@ -37,6 +39,7 @@ var _retreat_cd := 0.0
 var _telegraph: Telegraph
 var last_bite_s := -999.0
 var _circle_t := 0.0
+var _wait_t := 0.0  ## seconds spent repositioning while pressed, waiting for an opening
 ## Leaps (owner: "it shouldnt walk back, it should jump back"): one in flight at a time.
 var _hop_then: StringName = &"circle"
 var _just_disengaged := false
@@ -132,9 +135,12 @@ func _think(delta: float) -> void:
 	_retreat_cd = maxf(0.0, _retreat_cd - delta)
 	_wide_left = maxf(0.0, _wide_left - delta)
 	_open_left = maxf(0.0, _open_left - delta)
+	if _valid_target() and state in [&"circle", &"dodge", &"hold", &"hop"] and _prey_advancing():
+		_wait_t += delta
 	_opening = _opening and _open_left > 0.0
 	speed_override = -1.0
 	strafe_face = null
+	gait_clip = &""
 	if not _valid_target() or not state in MOVES:
 		_end_pounce()
 		super._think(delta)  # roam, scan, alert, flee and the reacquire rule stay shared
@@ -150,7 +156,8 @@ func _think(delta: float) -> void:
 	# or backing off while it leaves (owner 2026-10-28).
 	if state in [&"circle", &"hold", &"feint", &"approach"] and _prey_leaving():
 		var d := _flat_dist(attack_target)
-		if not _strike(d, ["pounce"]) and d > reach_to(attack_target) and state != &"approach":
+		var pounce_ok := d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])  # a short pounce only: a long one lets her walk off
+		if not pounce_ok and d > reach_to(attack_target) and state != &"approach":
 			_set_state(&"approach")
 			_just_disengaged = false  # chasing is a real action between back-jumps
 			tactic.emit(&"chase")
@@ -250,7 +257,7 @@ func _approach_ring() -> void:
 			speed_override = creature.move_speed_mps()  # a full run after it, not the 0.7 chase pace
 		var d := _flat_dist(attack_target)
 		# A quick bite (or the pounce) on the run; the long combo would only let her walk off.
-		if d <= reach_to(attack_target) and _strike(d, ["pounce", "bite"]):
+		if (d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])) or (d <= reach_to(attack_target) and _strike(d, ["bite"])):
 			return
 		creature.move_to(attack_target.global_position)
 		return
@@ -406,9 +413,26 @@ func _terminal_ready(last: StringName, d: float) -> bool:
 func _offence(d: float, in_jaws: bool) -> bool:
 	if _open_left > 0.0:
 		return _strike(d, ["pounce"])
+	# Pressed (owner: "when a player pursues it should strafe and strafe walk to wait for an attack
+	# opening"): while she closes in it repositions until her swing is recovering, her back is
+	# turned, or it has waited wait_max_s; then it commits.
+	if _prey_advancing() and not attack_opening() and _wait_t < _t("wait_max_s", 3.0):
+		return false
+	_wait_t = 0.0
 	if in_jaws and _strike(d, tac.get("point_blank", ["combo", "bite"])):
 		return true
 	return _start_sequence(d)
+
+## An opening on the prey: a survivor whose swing is recovering (or playing) or whose back is turned.
+func attack_opening() -> bool:
+	var p := attack_target as Player
+	if p == null:
+		return true
+	if p.hunt and (p.hunt._swing_cd > _t("opening_swing_cd_s", 0.2) or p.hunt._swing_pending):
+		return true
+	if p.anim and p.anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
+		return true
+	return _back_turned(p)
 
 func _start_sequence(d: float) -> bool:
 	var row := pick_sequence(d)
@@ -494,7 +518,8 @@ func _start_charge() -> void:
 func _charge(delta: float) -> void:
 	_left -= delta
 	if creature.can_sprint():
-		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.0)
+		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # visibly faster than its run
+		gait_clip = &"charge"  # the low "naruto run" when the rig has it, else the run at charge speed
 	creature.move_to(attack_target.global_position)
 	if _flat_dist(attack_target) <= reach_to(attack_target) - 0.1 and (not creature.anim._busy) and creature.stagger_left <= 0.0:
 		_bite(true)
@@ -509,22 +534,33 @@ func _charge(delta: float) -> void:
 func _move_beat() -> void:
 	_left = rng.randf_range(_t("circle_min_s", 0.8), _t("circle_max_s", 1.6))
 	var d := _flat_dist(attack_target)
-	var w_hold := _t("w_hold", 0.35) * creature.nature_knob("tactic_hold_mult", 1.0) * (1.0 if _prey_advancing() else 2.0)
+	# Reposition (owner): while the basic bite is cooling down, or while she presses it, the filler is
+	# only strafe-walk, the power strafe and one backstep; hold and feint wait for later.
+	var reposition := not _ready_to(&"bite") or _prey_advancing()
+	var w_hold := 0.0 if reposition else _t("w_hold", 0.35) * creature.nature_knob("tactic_hold_mult", 1.0) * (1.0 if _prey_advancing() else 2.0)
 	var w_strafe := _t("w_strafe", 0.35)
-	var w_feint := _t("w_feint", 0.15) * creature.nature_knob("tactic_feint_mult", 1.0) if creature.can_sprint() and d >= ring_m() - 1.0 else 0.0
+	var w_dodge := _t("w_dodge", 0.3) if creature.can_sprint() else 0.0
+	var w_feint := 0.0 if reposition else (_t("w_feint", 0.15) * creature.nature_knob("tactic_feint_mult", 1.0) if creature.can_sprint() and d >= ring_m() - 1.0 else 0.0)
 	var w_hop := _t("w_hop", 0.15) * creature.nature_knob("tactic_backoff_mult", 1.0) if can_disengage() and d < ring_m() - 0.5 else 0.0
-	var r := rng.randf() * (w_hold + w_strafe + w_feint + w_hop)
+	var r := rng.randf() * (w_hold + w_strafe + w_dodge + w_feint + w_hop)
 	if r < w_hold:
+		filler.emit(&"hold")
 		_start_hold()
 	elif r < w_hold + w_strafe:
+		filler.emit(&"strafe")
 		_beat()
 		_just_disengaged = false  # a strafe is the action between two back-jumps
 		tactic.emit(&"strafe")
 		if rng.randf() < _t("flip_chance", 0.3):
 			_circle_sign = -_circle_sign
-	elif r < w_hold + w_strafe + w_feint:
+	elif r < w_hold + w_strafe + w_dodge:
+		filler.emit(&"dodge")
+		_start_dodge(1.0 if rng.randf() < 0.5 else -1.0)
+	elif r < w_hold + w_strafe + w_dodge + w_feint:
+		filler.emit(&"feint")
 		_start_feint()
 	else:
+		filler.emit(&"hop")
 		_start_hop()
 
 ## A back-leap is allowed: off its cooldown and not straight after another back-leap.

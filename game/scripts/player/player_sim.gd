@@ -183,7 +183,7 @@ func _walk(delta: float) -> void:
 	# Stamina: sprint 9/s; empty -> walk until it refills.
 	p.vitals.in_combat = (p.hunt != null and p.hunt.target != null) or (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 5.0
 	if running and p.velocity.length_squared() > 0.5:
-		if not p.vitals.drain_energy(9.0 if can_sprint else 3.0, delta):
+		if not p.vitals.drain_energy((9.0 if can_sprint else 3.0) * CombatTuning.num("movement", "run_stamina_mult", 1.0), delta):
 			running = false
 			can_sprint = false
 	elif running and p.vitals.energy <= 0.0:

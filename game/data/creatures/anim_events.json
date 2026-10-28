@@ -81,7 +81,7 @@
       "note": "herbivore defence: weight forward, both hind legs snap back and up (hit at 0.45), plant; tools/jaw/make_charge_kick.py"
     },
     "charge": {
-      "note": "herbivore charge loop: the run with the head dropped low, horns/frill first; stride-matched like run"
+      "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run"
     }
   },
   "natural_speeds": {
@@ -116,7 +116,8 @@
       "walk_len": 1.0,
       "walk_r": 0.94,
       "walk": 0.94,
-      "run": 4.432
+      "run": 4.432,
+      "charge": 6.6
     },
     "gallimimus": {
       "height_m": 3.8,
