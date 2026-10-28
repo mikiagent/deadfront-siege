@@ -170,7 +170,8 @@
     "mesh": "Tripo P1 multiview, task 03ec4543-f2c9-4950-af90-b11306db9cb8, 50 Tripo credits (first try 09db13d1 rejected: wings read as a second pair of legs, 50 credits)",
     "mesh_views": "Higgsfield GPT Image 2.5 views from assets/concept-art/creatures/deinonychus/concept-sheet-v03-rust.png (arms folded high, mouth parted, tail level)",
     "reference_sheet": "assets/concept-art/creatures/deinonychus/concept-sheet-v03-rust.png (owner sheet 2026-10-28)",
-    "jaw": "Jaw bone under Head; mouth line from texture; skull/jaw ramp to rigid along the snout; jaw keyed in attack_primary/attack_heavy/alert/idle"
+    "jaw": "Jaw bone under Head; mouth line from texture; skull/jaw ramp to rigid along the snout; jaw keyed in attack_primary/attack_heavy/alert/idle",
+    "gaits": "tools/gait/make_gait.py with tools/gait/deinonychus.json (walk; low leaning dash run)"
   },
   "look": "3 meter dromaeosaur, feathered arms, sickle claws, long stiff tail, olive green with dark spots,",
   "taming": {
