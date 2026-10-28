@@ -80,6 +80,18 @@
       "windup": true,
       "note": "herbivore defence: weight forward, both hind legs snap back and up (hit at 0.45), plant; tools/jaw/make_charge_kick.py"
     },
+    "idle_cold": {
+      "note": "survivor state idle, loops in place of idle when cold: hunched, arms hugged, shivering. tools/make_state_idles.py (same length and fps as idle)"
+    },
+    "idle_heat": {
+      "note": "survivor state idle, loops in place of idle when hot: fanning the face, other hand on the hip, chin up"
+    },
+    "idle_tired": {
+      "note": "survivor state idle, loops in place of idle when tired: slumped shoulders, head low, slow sway"
+    },
+    "idle_exhausted": {
+      "note": "survivor state idle, loops in place of idle when exhausted: bent over, hands on knees, heavy breathing"
+    },
     "charge": {
       "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run"
     }
