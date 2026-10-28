@@ -506,6 +506,347 @@
           "impl": "functional",
           "impl_ref": "game/scripts/skills/skill_rules.gd:86"
         }
+      ],
+      "catalog": [
+        {
+          "id": "island_access_15",
+          "name": "Island Access 15",
+          "level": 10,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "stealth_1",
+          "name": "Stealth I",
+          "level": 10,
+          "sp": 2,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "mud_2",
+          "name": "Mud II",
+          "level": 10,
+          "sp": 2,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "wild_seed_1",
+          "name": "Wild Seed I",
+          "level": 10,
+          "sp": 2,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "belly_fat_1",
+          "name": "Belly Fat 1",
+          "level": 12,
+          "sp": 6,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:381"
+        },
+        {
+          "id": "capture_technique_1",
+          "name": "Capture Technique I",
+          "level": 15,
+          "sp": 8,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:61"
+        },
+        {
+          "id": "capture_tool_1",
+          "name": "Capture Tool 1",
+          "level": 15,
+          "sp": 10,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "island_access_25",
+          "name": "Island Access 25",
+          "level": 20,
+          "sp": 15,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "stealth_2",
+          "name": "Stealth II",
+          "level": 20,
+          "sp": 3,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "capture_technique_2",
+          "name": "Capture Technique II",
+          "level": 25,
+          "sp": 18,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:61"
+        },
+        {
+          "id": "climate_body_1",
+          "name": "Climate Body 1",
+          "level": 28,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "island_access_35",
+          "name": "Island Access 35",
+          "level": 30,
+          "sp": 26,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "stealth_3",
+          "name": "Stealth III",
+          "level": 30,
+          "sp": 4,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "capture_technique_3",
+          "name": "Capture Technique III",
+          "level": 35,
+          "sp": 30,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:61"
+        },
+        {
+          "id": "animal_management_1",
+          "name": "Animal Handling I",
+          "level": 35,
+          "sp": 4,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:86"
+        },
+        {
+          "id": "obsidian",
+          "name": "Obsidian",
+          "level": 35,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "island_access_45",
+          "name": "Island Access 45",
+          "level": 40,
+          "sp": 38,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "stealth_4",
+          "name": "Stealth IV",
+          "level": 40,
+          "sp": 5,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "marble",
+          "name": "Marble",
+          "level": 40,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "capture_technique_4",
+          "name": "Capture Technique IV",
+          "level": 45,
+          "sp": 38,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:61"
+        },
+        {
+          "id": "animal_management_2",
+          "name": "Animal Handling II",
+          "level": 45,
+          "sp": 5,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:86"
+        },
+        {
+          "id": "alum",
+          "name": "Alum",
+          "level": 45,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "island_access_55",
+          "name": "Island Access 55",
+          "level": 50,
+          "sp": 38,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "stealth_5",
+          "name": "Stealth V",
+          "level": 50,
+          "sp": 5,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "capture_technique_5",
+          "name": "Capture Technique V",
+          "level": 55,
+          "sp": 38,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/core/data.gd:61"
+        },
+        {
+          "id": "animal_management_3",
+          "name": "Animal Handling III",
+          "level": 55,
+          "sp": 5,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:86"
+        },
+        {
+          "id": "animal_management_4",
+          "name": "Animal Handling IV",
+          "level": 60,
+          "sp": 6,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:86"
+        },
+        {
+          "id": "survival_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_8",
+          "name": "Unspecified Technique 8",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_9",
+          "name": "Unspecified Technique 9",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_10",
+          "name": "Unspecified Technique 10",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_11",
+          "name": "Unspecified Technique 11",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_12",
+          "name": "Unspecified Technique 12",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_13",
+          "name": "Unspecified Technique 13",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_14",
+          "name": "Unspecified Technique 14",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_15",
+          "name": "Unspecified Technique 15",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_16",
+          "name": "Unspecified Technique 16",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_17",
+          "name": "Unspecified Technique 17",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "survival_unspecified_18",
+          "name": "Unspecified Technique 18",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        }
       ]
     },
     "gathering": {
@@ -875,6 +1216,526 @@
           "effects": [],
           "status": "defined",
           "impl": "defined"
+        }
+      ],
+      "catalog": [
+        {
+          "id": "forage_1",
+          "name": "Leaf",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "branch",
+          "name": "Branch",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "bush",
+          "name": "Bush",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "fruit_1",
+          "name": "Fruit I",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "log_1",
+          "name": "Log I",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "bug_1",
+          "name": "Bug I",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "pebble",
+          "name": "Pebble",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "mud_1",
+          "name": "Mud I",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "stalk",
+          "name": "Stalk",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "boulder",
+          "name": "Boulder",
+          "level": 5,
+          "sp": 1,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "thickets",
+          "name": "Thickets",
+          "level": 5,
+          "sp": 6,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
+        },
+        {
+          "id": "mining_1",
+          "name": "Mining 1",
+          "level": 10,
+          "sp": 8,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
+        },
+        {
+          "id": "herbs_1",
+          "name": "Herbs 1",
+          "level": 15,
+          "sp": 10,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
+        },
+        {
+          "id": "insects",
+          "name": "Insects",
+          "level": 20,
+          "sp": 12,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
+        },
+        {
+          "id": "mining_2",
+          "name": "Mining 2",
+          "level": 25,
+          "sp": 15,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
+        },
+        {
+          "id": "great_success_1",
+          "name": "Great Success 1",
+          "level": 30,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "mining_3",
+          "name": "Mining 3",
+          "level": 35,
+          "sp": 22,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
+        },
+        {
+          "id": "rare_plants",
+          "name": "Rare Plants",
+          "level": 40,
+          "sp": 26,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
+        },
+        {
+          "id": "long_branch",
+          "name": "Long Branch",
+          "level": 45,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "mining_4",
+          "name": "Mining 4",
+          "level": 50,
+          "sp": 30,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:152"
+        },
+        {
+          "id": "great_success_2",
+          "name": "Great Success 2",
+          "level": 55,
+          "sp": 34,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "gathering_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_8",
+          "name": "Unspecified Technique 8",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_9",
+          "name": "Unspecified Technique 9",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_10",
+          "name": "Unspecified Technique 10",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_11",
+          "name": "Unspecified Technique 11",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_12",
+          "name": "Unspecified Technique 12",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_13",
+          "name": "Unspecified Technique 13",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_14",
+          "name": "Unspecified Technique 14",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_15",
+          "name": "Unspecified Technique 15",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_16",
+          "name": "Unspecified Technique 16",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_17",
+          "name": "Unspecified Technique 17",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_18",
+          "name": "Unspecified Technique 18",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_19",
+          "name": "Unspecified Technique 19",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_20",
+          "name": "Unspecified Technique 20",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_21",
+          "name": "Unspecified Technique 21",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_22",
+          "name": "Unspecified Technique 22",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_23",
+          "name": "Unspecified Technique 23",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_24",
+          "name": "Unspecified Technique 24",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_25",
+          "name": "Unspecified Technique 25",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_26",
+          "name": "Unspecified Technique 26",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_27",
+          "name": "Unspecified Technique 27",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_28",
+          "name": "Unspecified Technique 28",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_29",
+          "name": "Unspecified Technique 29",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_30",
+          "name": "Unspecified Technique 30",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_31",
+          "name": "Unspecified Technique 31",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_32",
+          "name": "Unspecified Technique 32",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_33",
+          "name": "Unspecified Technique 33",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_34",
+          "name": "Unspecified Technique 34",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_35",
+          "name": "Unspecified Technique 35",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_36",
+          "name": "Unspecified Technique 36",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_37",
+          "name": "Unspecified Technique 37",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_38",
+          "name": "Unspecified Technique 38",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_39",
+          "name": "Unspecified Technique 39",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_40",
+          "name": "Unspecified Technique 40",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_41",
+          "name": "Unspecified Technique 41",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_42",
+          "name": "Unspecified Technique 42",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_43",
+          "name": "Unspecified Technique 43",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_44",
+          "name": "Unspecified Technique 44",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_45",
+          "name": "Unspecified Technique 45",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_46",
+          "name": "Unspecified Technique 46",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_47",
+          "name": "Unspecified Technique 47",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_48",
+          "name": "Unspecified Technique 48",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_49",
+          "name": "Unspecified Technique 49",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_50",
+          "name": "Unspecified Technique 50",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_51",
+          "name": "Unspecified Technique 51",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_52",
+          "name": "Unspecified Technique 52",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_53",
+          "name": "Unspecified Technique 53",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_54",
+          "name": "Unspecified Technique 54",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_55",
+          "name": "Unspecified Technique 55",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_56",
+          "name": "Unspecified Technique 56",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "gathering_unspecified_57",
+          "name": "Unspecified Technique 57",
+          "impl": "defined",
+          "source": "spec12_count_only"
         }
       ]
     },
@@ -1275,6 +2136,237 @@
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        }
+      ],
+      "catalog": [
+        {
+          "id": "butcher_1",
+          "name": "Bone I",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "organs",
+          "name": "Organs",
+          "level": 10,
+          "sp": 6,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/gather/loot_roller.gd:123"
+        },
+        {
+          "id": "leather_1",
+          "name": "Leather I",
+          "level": 10,
+          "sp": 2,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "tendon",
+          "name": "Tendon",
+          "level": 15,
+          "sp": 8,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/gather/loot_roller.gd:123"
+        },
+        {
+          "id": "bone_2",
+          "name": "Bone II",
+          "level": 15,
+          "sp": 2,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/gather/loot_roller.gd:123"
+        },
+        {
+          "id": "rare_parts_1",
+          "name": "Rare Parts 1",
+          "level": 20,
+          "sp": 10,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/gather/loot_roller.gd:123"
+        },
+        {
+          "id": "feather",
+          "name": "Feather",
+          "level": 20,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "skull_1",
+          "name": "Skull I",
+          "level": 20,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "slaughter_1",
+          "name": "Slaughter I",
+          "level": 20,
+          "sp": 3,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "yield_1",
+          "name": "Yield 1",
+          "level": 25,
+          "sp": 12,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/gather/loot_roller.gd:74"
+        },
+        {
+          "id": "teeth_1",
+          "name": "Teeth I",
+          "level": 25,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "scutes",
+          "name": "Scutes",
+          "level": 30,
+          "sp": 15,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/gather/loot_roller.gd:123"
+        },
+        {
+          "id": "horn",
+          "name": "Horn",
+          "level": 30,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "slaughter_2",
+          "name": "Slaughter II",
+          "level": 30,
+          "sp": 4,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "quality_bone",
+          "name": "Quality Bone",
+          "level": 40,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "slaughter_3",
+          "name": "Slaughter III",
+          "level": 40,
+          "sp": 4,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "yield_2",
+          "name": "Yield 2",
+          "level": 45,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "leather_2",
+          "name": "Leather II",
+          "level": 45,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "teeth_2",
+          "name": "Teeth II",
+          "level": 50,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "slaughter_4",
+          "name": "Slaughter IV",
+          "level": 50,
+          "sp": 5,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "trophy",
+          "name": "Trophy",
+          "level": 55,
+          "sp": 26,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "slaughter_5",
+          "name": "Slaughter V",
+          "level": 60,
+          "sp": 6,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "butchering_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "butchering_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "butchering_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "butchering_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "butchering_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "butchering_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "butchering_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
         }
       ]
     },
@@ -1926,6 +3018,361 @@
           "status": "defined",
           "impl": "defined"
         }
+      ],
+      "catalog": [
+        {
+          "id": "cordage",
+          "name": "Rope",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "functional",
+          "impl_ref": "game/scripts/items/crafting.gd:487"
+        },
+        {
+          "id": "split_wood",
+          "name": "Split Wood",
+          "level": 5,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "normal_nail",
+          "name": "Normal Nail",
+          "level": 5,
+          "sp": 1,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "drying",
+          "name": "Leather Strap",
+          "level": 10,
+          "sp": 2,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/items/crafting.gd:487"
+        },
+        {
+          "id": "charcoal",
+          "name": "Charcoal",
+          "level": 10,
+          "sp": 1,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/items/crafting.gd:487"
+        },
+        {
+          "id": "dry_leather",
+          "name": "Dry Leather",
+          "level": 15,
+          "sp": 2,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/items/crafting.gd:487"
+        },
+        {
+          "id": "peeled_bark",
+          "name": "Peeled Bark",
+          "level": 15,
+          "sp": 2,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "nails_pillars",
+          "name": "Nails Pillars",
+          "level": 20,
+          "sp": 12,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "handicraft_1",
+          "name": "Handicraft I",
+          "level": 20,
+          "sp": 3,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/items/crafting.gd:27"
+        },
+        {
+          "id": "smelting_1",
+          "name": "Smelting 1",
+          "level": 25,
+          "sp": 15,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "handicraft_2",
+          "name": "Handicraft II",
+          "level": 25,
+          "sp": 3,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/items/crafting.gd:27"
+        },
+        {
+          "id": "trimmed_material",
+          "name": "Trimmed Material",
+          "level": 25,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "extended_fabric",
+          "name": "Extended Fabric",
+          "level": 25,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "milling",
+          "name": "Milling",
+          "level": 30,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "thread_cloth",
+          "name": "Thread Cloth",
+          "level": 30,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "handicraft_3",
+          "name": "Handicraft III",
+          "level": 30,
+          "sp": 4,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/items/crafting.gd:27"
+        },
+        {
+          "id": "glue",
+          "name": "Glue",
+          "level": 30,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "gem_extraction",
+          "name": "Gem Extraction",
+          "level": 30,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "handicraft_4",
+          "name": "Handicraft IV",
+          "level": 35,
+          "sp": 4,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/items/crafting.gd:27"
+        },
+        {
+          "id": "smelting_2",
+          "name": "Smelting 2",
+          "level": 40,
+          "sp": 26,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "handicraft_5",
+          "name": "Handicraft V",
+          "level": 40,
+          "sp": 4,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/items/crafting.gd:27"
+        },
+        {
+          "id": "cord",
+          "name": "Cord",
+          "level": 40,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "waterproofed_material",
+          "name": "Waterproofed Material",
+          "level": 40,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "refined_ore",
+          "name": "Refined Ore",
+          "level": 40,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "metalworking_1",
+          "name": "Metalworking I",
+          "level": 40,
+          "sp": 4,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "ceramics",
+          "name": "Ceramics",
+          "level": 45,
+          "sp": 30,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "metalworking_2",
+          "name": "Metalworking II",
+          "level": 45,
+          "sp": 5,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "adhesive_accessory",
+          "name": "Adhesive Accessory",
+          "level": 45,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "dry_rubber",
+          "name": "Dry Rubber",
+          "level": 45,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "metal_links",
+          "name": "Metal Links",
+          "level": 45,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "metalworking_3",
+          "name": "Metalworking III",
+          "level": 50,
+          "sp": 5,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "copper_alloy",
+          "name": "Copper Alloy",
+          "level": 50,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "fiber_tanned_material",
+          "name": "Fiber-Tanned Material",
+          "level": 50,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "compressed_material",
+          "name": "Compressed Material",
+          "level": 50,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "great_success_p",
+          "name": "Great Success",
+          "level": 55,
+          "sp": 34,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "metalworking_4",
+          "name": "Metalworking IV",
+          "level": 55,
+          "sp": 5,
+          "auto": false,
+          "impl": "partial",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:72"
+        },
+        {
+          "id": "precision_processing",
+          "name": "Precision Processing",
+          "level": 60,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "processed_debris",
+          "name": "Processed Debris",
+          "level": 60,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "processing_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "processing_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "processing_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "processing_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "processing_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "processing_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        }
       ]
     },
     "melee": {
@@ -2072,6 +3519,724 @@
           "effects": [],
           "status": "defined",
           "impl": "defined"
+        }
+      ],
+      "catalog": [
+        {
+          "id": "attack_stance",
+          "name": "Attack Stance",
+          "level": 1,
+          "sp": 1,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "body_tackle",
+          "name": "Body Tackle",
+          "level": 5,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "kick",
+          "name": "Kick",
+          "level": 10,
+          "sp": 8,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "onslaught",
+          "name": "Onslaught",
+          "level": 20,
+          "sp": 10,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "sweep",
+          "name": "Sweep",
+          "level": 25,
+          "sp": 12,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "knockdown_mastery",
+          "name": "Knockdown Mastery",
+          "level": 30,
+          "sp": 15,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "one_hand_mastery",
+          "name": "One Hand Mastery",
+          "level": 35,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "two_hand_mastery",
+          "name": "Two Hand Mastery",
+          "level": 40,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "shoulder_charge",
+          "name": "Shoulder Charge",
+          "level": 45,
+          "sp": 26,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "execution",
+          "name": "Execution",
+          "level": 55,
+          "sp": 30,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "melee_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_8",
+          "name": "Unspecified Technique 8",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_9",
+          "name": "Unspecified Technique 9",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_10",
+          "name": "Unspecified Technique 10",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_11",
+          "name": "Unspecified Technique 11",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_12",
+          "name": "Unspecified Technique 12",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_13",
+          "name": "Unspecified Technique 13",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_14",
+          "name": "Unspecified Technique 14",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_15",
+          "name": "Unspecified Technique 15",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_16",
+          "name": "Unspecified Technique 16",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_17",
+          "name": "Unspecified Technique 17",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_18",
+          "name": "Unspecified Technique 18",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_19",
+          "name": "Unspecified Technique 19",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_20",
+          "name": "Unspecified Technique 20",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_21",
+          "name": "Unspecified Technique 21",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_22",
+          "name": "Unspecified Technique 22",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_23",
+          "name": "Unspecified Technique 23",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_24",
+          "name": "Unspecified Technique 24",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_25",
+          "name": "Unspecified Technique 25",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_26",
+          "name": "Unspecified Technique 26",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_27",
+          "name": "Unspecified Technique 27",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_28",
+          "name": "Unspecified Technique 28",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_29",
+          "name": "Unspecified Technique 29",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_30",
+          "name": "Unspecified Technique 30",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_31",
+          "name": "Unspecified Technique 31",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_32",
+          "name": "Unspecified Technique 32",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_33",
+          "name": "Unspecified Technique 33",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_34",
+          "name": "Unspecified Technique 34",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_35",
+          "name": "Unspecified Technique 35",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_36",
+          "name": "Unspecified Technique 36",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_37",
+          "name": "Unspecified Technique 37",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_38",
+          "name": "Unspecified Technique 38",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_39",
+          "name": "Unspecified Technique 39",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_40",
+          "name": "Unspecified Technique 40",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_41",
+          "name": "Unspecified Technique 41",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_42",
+          "name": "Unspecified Technique 42",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_43",
+          "name": "Unspecified Technique 43",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_44",
+          "name": "Unspecified Technique 44",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_45",
+          "name": "Unspecified Technique 45",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_46",
+          "name": "Unspecified Technique 46",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_47",
+          "name": "Unspecified Technique 47",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_48",
+          "name": "Unspecified Technique 48",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_49",
+          "name": "Unspecified Technique 49",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_50",
+          "name": "Unspecified Technique 50",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_51",
+          "name": "Unspecified Technique 51",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_52",
+          "name": "Unspecified Technique 52",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_53",
+          "name": "Unspecified Technique 53",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_54",
+          "name": "Unspecified Technique 54",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_55",
+          "name": "Unspecified Technique 55",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_56",
+          "name": "Unspecified Technique 56",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_57",
+          "name": "Unspecified Technique 57",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_58",
+          "name": "Unspecified Technique 58",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_59",
+          "name": "Unspecified Technique 59",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_60",
+          "name": "Unspecified Technique 60",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_61",
+          "name": "Unspecified Technique 61",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_62",
+          "name": "Unspecified Technique 62",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_63",
+          "name": "Unspecified Technique 63",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_64",
+          "name": "Unspecified Technique 64",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_65",
+          "name": "Unspecified Technique 65",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_66",
+          "name": "Unspecified Technique 66",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_67",
+          "name": "Unspecified Technique 67",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_68",
+          "name": "Unspecified Technique 68",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_69",
+          "name": "Unspecified Technique 69",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_70",
+          "name": "Unspecified Technique 70",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_71",
+          "name": "Unspecified Technique 71",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_72",
+          "name": "Unspecified Technique 72",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_73",
+          "name": "Unspecified Technique 73",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_74",
+          "name": "Unspecified Technique 74",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_75",
+          "name": "Unspecified Technique 75",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_76",
+          "name": "Unspecified Technique 76",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_77",
+          "name": "Unspecified Technique 77",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_78",
+          "name": "Unspecified Technique 78",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_79",
+          "name": "Unspecified Technique 79",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_80",
+          "name": "Unspecified Technique 80",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_81",
+          "name": "Unspecified Technique 81",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_82",
+          "name": "Unspecified Technique 82",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_83",
+          "name": "Unspecified Technique 83",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_84",
+          "name": "Unspecified Technique 84",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_85",
+          "name": "Unspecified Technique 85",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_86",
+          "name": "Unspecified Technique 86",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_87",
+          "name": "Unspecified Technique 87",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_88",
+          "name": "Unspecified Technique 88",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_89",
+          "name": "Unspecified Technique 89",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_90",
+          "name": "Unspecified Technique 90",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_91",
+          "name": "Unspecified Technique 91",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_92",
+          "name": "Unspecified Technique 92",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_93",
+          "name": "Unspecified Technique 93",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_94",
+          "name": "Unspecified Technique 94",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_95",
+          "name": "Unspecified Technique 95",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_96",
+          "name": "Unspecified Technique 96",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_97",
+          "name": "Unspecified Technique 97",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_98",
+          "name": "Unspecified Technique 98",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_99",
+          "name": "Unspecified Technique 99",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_100",
+          "name": "Unspecified Technique 100",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_101",
+          "name": "Unspecified Technique 101",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_102",
+          "name": "Unspecified Technique 102",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_103",
+          "name": "Unspecified Technique 103",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_104",
+          "name": "Unspecified Technique 104",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_105",
+          "name": "Unspecified Technique 105",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "melee_unspecified_106",
+          "name": "Unspecified Technique 106",
+          "impl": "defined",
+          "source": "spec12_count_only"
         }
       ]
     },
@@ -2264,6 +4429,340 @@
           "effects": [],
           "status": "defined",
           "impl": "defined"
+        }
+      ],
+      "catalog": [
+        {
+          "id": "throw",
+          "name": "Throw",
+          "level": 1,
+          "sp": 1,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "barrage",
+          "name": "Barrage",
+          "level": 5,
+          "sp": 1,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "bow_1",
+          "name": "Bow 1",
+          "level": 10,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "draw_1",
+          "name": "Draw 1",
+          "level": 15,
+          "sp": 8,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "barrage_damage_1",
+          "name": "Barrage Damage I",
+          "level": 15,
+          "sp": 2,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "kiting",
+          "name": "Kiting",
+          "level": 20,
+          "sp": 10,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "fire_rate_1",
+          "name": "Fire Rate 1",
+          "level": 25,
+          "sp": 12,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "barrage_damage_2",
+          "name": "Barrage Damage II",
+          "level": 25,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "crossbow",
+          "name": "Crossbow",
+          "level": 35,
+          "sp": 15,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "barrage_damage_3",
+          "name": "Barrage Damage III",
+          "level": 35,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "draw_2",
+          "name": "Draw 2",
+          "level": 40,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "volley",
+          "name": "Volley",
+          "level": 45,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "raid_arrows",
+          "name": "Raid Arrows",
+          "level": 55,
+          "sp": 26,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "ranged_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_8",
+          "name": "Unspecified Technique 8",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_9",
+          "name": "Unspecified Technique 9",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_10",
+          "name": "Unspecified Technique 10",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_11",
+          "name": "Unspecified Technique 11",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_12",
+          "name": "Unspecified Technique 12",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_13",
+          "name": "Unspecified Technique 13",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_14",
+          "name": "Unspecified Technique 14",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_15",
+          "name": "Unspecified Technique 15",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_16",
+          "name": "Unspecified Technique 16",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_17",
+          "name": "Unspecified Technique 17",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_18",
+          "name": "Unspecified Technique 18",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_19",
+          "name": "Unspecified Technique 19",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_20",
+          "name": "Unspecified Technique 20",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_21",
+          "name": "Unspecified Technique 21",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_22",
+          "name": "Unspecified Technique 22",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_23",
+          "name": "Unspecified Technique 23",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_24",
+          "name": "Unspecified Technique 24",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_25",
+          "name": "Unspecified Technique 25",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_26",
+          "name": "Unspecified Technique 26",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_27",
+          "name": "Unspecified Technique 27",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_28",
+          "name": "Unspecified Technique 28",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_29",
+          "name": "Unspecified Technique 29",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_30",
+          "name": "Unspecified Technique 30",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_31",
+          "name": "Unspecified Technique 31",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_32",
+          "name": "Unspecified Technique 32",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_33",
+          "name": "Unspecified Technique 33",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_34",
+          "name": "Unspecified Technique 34",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_35",
+          "name": "Unspecified Technique 35",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_36",
+          "name": "Unspecified Technique 36",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_37",
+          "name": "Unspecified Technique 37",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "ranged_unspecified_38",
+          "name": "Unspecified Technique 38",
+          "impl": "defined",
+          "source": "spec12_count_only"
         }
       ]
     },
@@ -2459,6 +4958,221 @@
           "status": "functional",
           "impl": "functional",
           "impl_ref": "game/scripts/player/player.gd:380"
+        }
+      ],
+      "catalog": [
+        {
+          "id": "roll",
+          "name": "Roll",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "max_health_1",
+          "name": "Max Health 1",
+          "level": 5,
+          "sp": 6,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:380"
+        },
+        {
+          "id": "roll_duration_1",
+          "name": "Roll Duration I",
+          "level": 10,
+          "sp": 2,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "parry",
+          "name": "Parry",
+          "level": 15,
+          "sp": 8,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "counter",
+          "name": "Counter",
+          "level": 20,
+          "sp": 10,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "roll_duration_2",
+          "name": "Roll Duration II",
+          "level": 20,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "max_health_2",
+          "name": "Max Health 2",
+          "level": 25,
+          "sp": 12,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:380"
+        },
+        {
+          "id": "anti_knockdown",
+          "name": "Anti Knockdown",
+          "level": 30,
+          "sp": 15,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "roll_duration_3",
+          "name": "Roll Duration III",
+          "level": 30,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "recovery",
+          "name": "Recovery",
+          "level": 35,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "iron_body",
+          "name": "Iron Body",
+          "level": 45,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "max_health_3",
+          "name": "Max Health 3",
+          "level": 55,
+          "sp": 26,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:380"
+        },
+        {
+          "id": "defense_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_8",
+          "name": "Unspecified Technique 8",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_9",
+          "name": "Unspecified Technique 9",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_10",
+          "name": "Unspecified Technique 10",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_11",
+          "name": "Unspecified Technique 11",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_12",
+          "name": "Unspecified Technique 12",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_13",
+          "name": "Unspecified Technique 13",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_14",
+          "name": "Unspecified Technique 14",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_15",
+          "name": "Unspecified Technique 15",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_16",
+          "name": "Unspecified Technique 16",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_17",
+          "name": "Unspecified Technique 17",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_18",
+          "name": "Unspecified Technique 18",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "defense_unspecified_19",
+          "name": "Unspecified Technique 19",
+          "impl": "defined",
+          "source": "spec12_count_only"
         }
       ]
     },
@@ -2784,6 +5498,809 @@
           "status": "defined",
           "impl": "defined"
         }
+      ],
+      "catalog": [
+        {
+          "id": "improvised_tools",
+          "name": "Stone Blade",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "functional",
+          "impl_ref": "game/scripts/items/crafting.gd:487"
+        },
+        {
+          "id": "makeshift_shovel_hoe",
+          "name": "Makeshift Shovel / Hoe",
+          "level": 1,
+          "sp": 1,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "work_pick",
+          "name": "Work Pick",
+          "level": 5,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "spear",
+          "name": "Spear",
+          "level": 10,
+          "sp": 8,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "stone_saw",
+          "name": "Stone Saw",
+          "level": 10,
+          "sp": 2,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "combat_knife",
+          "name": "Combat Knife",
+          "level": 15,
+          "sp": 10,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "splint",
+          "name": "Splint",
+          "level": 15,
+          "sp": 12,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "hammer",
+          "name": "Hammer",
+          "level": 20,
+          "sp": 15,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "handle",
+          "name": "Handle",
+          "level": 20,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "stone_mortar",
+          "name": "Stone Mortar",
+          "level": 20,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "standard_bow",
+          "name": "Standard Bow",
+          "level": 20,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "two_hand",
+          "name": "Two Hand",
+          "level": 25,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "bone_saw",
+          "name": "Bone Saw",
+          "level": 25,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "copper_tools",
+          "name": "Copper Tools",
+          "level": 30,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "cooking_utensils",
+          "name": "Cooking Utensils",
+          "level": 30,
+          "sp": 26,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "blade_shapes",
+          "name": "Blade Shapes",
+          "level": 40,
+          "sp": 30,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "improved_handle",
+          "name": "Improved Handle",
+          "level": 40,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "earthenware_mortar",
+          "name": "Earthenware Mortar",
+          "level": 40,
+          "sp": 4,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "metal_saw",
+          "name": "Metal Saw",
+          "level": 45,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "iron_weapons",
+          "name": "Iron Weapons",
+          "level": 50,
+          "sp": 34,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "shaft",
+          "name": "Shaft",
+          "level": 60,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "metal_mortar",
+          "name": "Metal Mortar",
+          "level": 60,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "weapon_tools_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_8",
+          "name": "Unspecified Technique 8",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_9",
+          "name": "Unspecified Technique 9",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_10",
+          "name": "Unspecified Technique 10",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_11",
+          "name": "Unspecified Technique 11",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_12",
+          "name": "Unspecified Technique 12",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_13",
+          "name": "Unspecified Technique 13",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_14",
+          "name": "Unspecified Technique 14",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_15",
+          "name": "Unspecified Technique 15",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_16",
+          "name": "Unspecified Technique 16",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_17",
+          "name": "Unspecified Technique 17",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_18",
+          "name": "Unspecified Technique 18",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_19",
+          "name": "Unspecified Technique 19",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_20",
+          "name": "Unspecified Technique 20",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_21",
+          "name": "Unspecified Technique 21",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_22",
+          "name": "Unspecified Technique 22",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_23",
+          "name": "Unspecified Technique 23",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_24",
+          "name": "Unspecified Technique 24",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_25",
+          "name": "Unspecified Technique 25",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_26",
+          "name": "Unspecified Technique 26",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_27",
+          "name": "Unspecified Technique 27",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_28",
+          "name": "Unspecified Technique 28",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_29",
+          "name": "Unspecified Technique 29",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_30",
+          "name": "Unspecified Technique 30",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_31",
+          "name": "Unspecified Technique 31",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_32",
+          "name": "Unspecified Technique 32",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_33",
+          "name": "Unspecified Technique 33",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_34",
+          "name": "Unspecified Technique 34",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_35",
+          "name": "Unspecified Technique 35",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_36",
+          "name": "Unspecified Technique 36",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_37",
+          "name": "Unspecified Technique 37",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_38",
+          "name": "Unspecified Technique 38",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_39",
+          "name": "Unspecified Technique 39",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_40",
+          "name": "Unspecified Technique 40",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_41",
+          "name": "Unspecified Technique 41",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_42",
+          "name": "Unspecified Technique 42",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_43",
+          "name": "Unspecified Technique 43",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_44",
+          "name": "Unspecified Technique 44",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_45",
+          "name": "Unspecified Technique 45",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_46",
+          "name": "Unspecified Technique 46",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_47",
+          "name": "Unspecified Technique 47",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_48",
+          "name": "Unspecified Technique 48",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_49",
+          "name": "Unspecified Technique 49",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_50",
+          "name": "Unspecified Technique 50",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_51",
+          "name": "Unspecified Technique 51",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_52",
+          "name": "Unspecified Technique 52",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_53",
+          "name": "Unspecified Technique 53",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_54",
+          "name": "Unspecified Technique 54",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_55",
+          "name": "Unspecified Technique 55",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_56",
+          "name": "Unspecified Technique 56",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_57",
+          "name": "Unspecified Technique 57",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_58",
+          "name": "Unspecified Technique 58",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_59",
+          "name": "Unspecified Technique 59",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_60",
+          "name": "Unspecified Technique 60",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_61",
+          "name": "Unspecified Technique 61",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_62",
+          "name": "Unspecified Technique 62",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_63",
+          "name": "Unspecified Technique 63",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_64",
+          "name": "Unspecified Technique 64",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_65",
+          "name": "Unspecified Technique 65",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_66",
+          "name": "Unspecified Technique 66",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_67",
+          "name": "Unspecified Technique 67",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_68",
+          "name": "Unspecified Technique 68",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_69",
+          "name": "Unspecified Technique 69",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_70",
+          "name": "Unspecified Technique 70",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_71",
+          "name": "Unspecified Technique 71",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_72",
+          "name": "Unspecified Technique 72",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_73",
+          "name": "Unspecified Technique 73",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_74",
+          "name": "Unspecified Technique 74",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_75",
+          "name": "Unspecified Technique 75",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_76",
+          "name": "Unspecified Technique 76",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_77",
+          "name": "Unspecified Technique 77",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_78",
+          "name": "Unspecified Technique 78",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_79",
+          "name": "Unspecified Technique 79",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_80",
+          "name": "Unspecified Technique 80",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_81",
+          "name": "Unspecified Technique 81",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_82",
+          "name": "Unspecified Technique 82",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_83",
+          "name": "Unspecified Technique 83",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_84",
+          "name": "Unspecified Technique 84",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_85",
+          "name": "Unspecified Technique 85",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_86",
+          "name": "Unspecified Technique 86",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_87",
+          "name": "Unspecified Technique 87",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_88",
+          "name": "Unspecified Technique 88",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_89",
+          "name": "Unspecified Technique 89",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_90",
+          "name": "Unspecified Technique 90",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_91",
+          "name": "Unspecified Technique 91",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_92",
+          "name": "Unspecified Technique 92",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_93",
+          "name": "Unspecified Technique 93",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_94",
+          "name": "Unspecified Technique 94",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_95",
+          "name": "Unspecified Technique 95",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_96",
+          "name": "Unspecified Technique 96",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_97",
+          "name": "Unspecified Technique 97",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_98",
+          "name": "Unspecified Technique 98",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_99",
+          "name": "Unspecified Technique 99",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_100",
+          "name": "Unspecified Technique 100",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_101",
+          "name": "Unspecified Technique 101",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_102",
+          "name": "Unspecified Technique 102",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_103",
+          "name": "Unspecified Technique 103",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "weapon_tools_unspecified_104",
+          "name": "Unspecified Technique 104",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        }
       ]
     },
     "tailoring": {
@@ -3014,6 +6531,628 @@
           "status": "defined",
           "impl": "defined"
         }
+      ],
+      "catalog": [
+        {
+          "id": "leaf_outfit",
+          "name": "Leaf Outfit",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "footwraps",
+          "name": "Footwraps",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "leaf_hat",
+          "name": "Leaf Hat",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "bandage",
+          "name": "Bandage",
+          "level": 5,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "small_bag",
+          "name": "Small Bag",
+          "level": 10,
+          "sp": 8,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "straw_shoes",
+          "name": "Straw Shoes",
+          "level": 10,
+          "sp": 2,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "cloth_clothes",
+          "name": "Cloth Clothes",
+          "level": 15,
+          "sp": 10,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "heat_resist",
+          "name": "Heat Resist",
+          "level": 20,
+          "sp": 12,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:500"
+        },
+        {
+          "id": "cold_resist",
+          "name": "Cold Resist",
+          "level": 25,
+          "sp": 15,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/player/player.gd:501"
+        },
+        {
+          "id": "pressure_dressing",
+          "name": "Pressure Dressing",
+          "level": 25,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "leather_sandals",
+          "name": "Leather Sandals",
+          "level": 25,
+          "sp": 3,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "large_bag",
+          "name": "Large Bag",
+          "level": 30,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "armor_1",
+          "name": "Armor 1",
+          "level": 35,
+          "sp": 26,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "scute_armor",
+          "name": "Scute Armor",
+          "level": 45,
+          "sp": 30,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "master_bag",
+          "name": "Master Bag",
+          "level": 55,
+          "sp": 34,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "tailoring_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_8",
+          "name": "Unspecified Technique 8",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_9",
+          "name": "Unspecified Technique 9",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_10",
+          "name": "Unspecified Technique 10",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_11",
+          "name": "Unspecified Technique 11",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_12",
+          "name": "Unspecified Technique 12",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_13",
+          "name": "Unspecified Technique 13",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_14",
+          "name": "Unspecified Technique 14",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_15",
+          "name": "Unspecified Technique 15",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_16",
+          "name": "Unspecified Technique 16",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_17",
+          "name": "Unspecified Technique 17",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_18",
+          "name": "Unspecified Technique 18",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_19",
+          "name": "Unspecified Technique 19",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_20",
+          "name": "Unspecified Technique 20",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_21",
+          "name": "Unspecified Technique 21",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_22",
+          "name": "Unspecified Technique 22",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_23",
+          "name": "Unspecified Technique 23",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_24",
+          "name": "Unspecified Technique 24",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_25",
+          "name": "Unspecified Technique 25",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_26",
+          "name": "Unspecified Technique 26",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_27",
+          "name": "Unspecified Technique 27",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_28",
+          "name": "Unspecified Technique 28",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_29",
+          "name": "Unspecified Technique 29",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_30",
+          "name": "Unspecified Technique 30",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_31",
+          "name": "Unspecified Technique 31",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_32",
+          "name": "Unspecified Technique 32",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_33",
+          "name": "Unspecified Technique 33",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_34",
+          "name": "Unspecified Technique 34",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_35",
+          "name": "Unspecified Technique 35",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_36",
+          "name": "Unspecified Technique 36",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_37",
+          "name": "Unspecified Technique 37",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_38",
+          "name": "Unspecified Technique 38",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_39",
+          "name": "Unspecified Technique 39",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_40",
+          "name": "Unspecified Technique 40",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_41",
+          "name": "Unspecified Technique 41",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_42",
+          "name": "Unspecified Technique 42",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_43",
+          "name": "Unspecified Technique 43",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_44",
+          "name": "Unspecified Technique 44",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_45",
+          "name": "Unspecified Technique 45",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_46",
+          "name": "Unspecified Technique 46",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_47",
+          "name": "Unspecified Technique 47",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_48",
+          "name": "Unspecified Technique 48",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_49",
+          "name": "Unspecified Technique 49",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_50",
+          "name": "Unspecified Technique 50",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_51",
+          "name": "Unspecified Technique 51",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_52",
+          "name": "Unspecified Technique 52",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_53",
+          "name": "Unspecified Technique 53",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_54",
+          "name": "Unspecified Technique 54",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_55",
+          "name": "Unspecified Technique 55",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_56",
+          "name": "Unspecified Technique 56",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_57",
+          "name": "Unspecified Technique 57",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_58",
+          "name": "Unspecified Technique 58",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_59",
+          "name": "Unspecified Technique 59",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_60",
+          "name": "Unspecified Technique 60",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_61",
+          "name": "Unspecified Technique 61",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_62",
+          "name": "Unspecified Technique 62",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_63",
+          "name": "Unspecified Technique 63",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_64",
+          "name": "Unspecified Technique 64",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_65",
+          "name": "Unspecified Technique 65",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_66",
+          "name": "Unspecified Technique 66",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_67",
+          "name": "Unspecified Technique 67",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_68",
+          "name": "Unspecified Technique 68",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_69",
+          "name": "Unspecified Technique 69",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_70",
+          "name": "Unspecified Technique 70",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_71",
+          "name": "Unspecified Technique 71",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_72",
+          "name": "Unspecified Technique 72",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_73",
+          "name": "Unspecified Technique 73",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_74",
+          "name": "Unspecified Technique 74",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_75",
+          "name": "Unspecified Technique 75",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_76",
+          "name": "Unspecified Technique 76",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_77",
+          "name": "Unspecified Technique 77",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_78",
+          "name": "Unspecified Technique 78",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_79",
+          "name": "Unspecified Technique 79",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_80",
+          "name": "Unspecified Technique 80",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_81",
+          "name": "Unspecified Technique 81",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_82",
+          "name": "Unspecified Technique 82",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "tailoring_unspecified_83",
+          "name": "Unspecified Technique 83",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        }
       ]
     },
     "construction": {
@@ -3188,6 +7327,806 @@
           "status": "defined",
           "impl": "defined"
         }
+      ],
+      "catalog": [
+        {
+          "id": "bonfire",
+          "name": "Bonfire",
+          "level": 1,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "workbench",
+          "name": "Workbench",
+          "level": 5,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "fence",
+          "name": "Fence",
+          "level": 10,
+          "sp": 8,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "taming_pen",
+          "name": "Taming Pen",
+          "level": 15,
+          "sp": 10,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "drying_rack",
+          "name": "Drying Rack",
+          "level": 15,
+          "sp": 12,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "storage_2",
+          "name": "Storage 2",
+          "level": 20,
+          "sp": 15,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "simple_well",
+          "name": "Simple Well",
+          "level": 25,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "residence",
+          "name": "Residence",
+          "level": 30,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "furnace_kiln",
+          "name": "Furnace Kiln",
+          "level": 35,
+          "sp": 26,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "well",
+          "name": "Well",
+          "level": 45,
+          "sp": 30,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "barn",
+          "name": "Barn",
+          "level": 50,
+          "sp": 34,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "clan_structures",
+          "name": "Clan Structures",
+          "level": 60,
+          "sp": 38,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "construction_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_8",
+          "name": "Unspecified Technique 8",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_9",
+          "name": "Unspecified Technique 9",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_10",
+          "name": "Unspecified Technique 10",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_11",
+          "name": "Unspecified Technique 11",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_12",
+          "name": "Unspecified Technique 12",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_13",
+          "name": "Unspecified Technique 13",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_14",
+          "name": "Unspecified Technique 14",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_15",
+          "name": "Unspecified Technique 15",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_16",
+          "name": "Unspecified Technique 16",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_17",
+          "name": "Unspecified Technique 17",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_18",
+          "name": "Unspecified Technique 18",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_19",
+          "name": "Unspecified Technique 19",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_20",
+          "name": "Unspecified Technique 20",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_21",
+          "name": "Unspecified Technique 21",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_22",
+          "name": "Unspecified Technique 22",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_23",
+          "name": "Unspecified Technique 23",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_24",
+          "name": "Unspecified Technique 24",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_25",
+          "name": "Unspecified Technique 25",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_26",
+          "name": "Unspecified Technique 26",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_27",
+          "name": "Unspecified Technique 27",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_28",
+          "name": "Unspecified Technique 28",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_29",
+          "name": "Unspecified Technique 29",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_30",
+          "name": "Unspecified Technique 30",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_31",
+          "name": "Unspecified Technique 31",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_32",
+          "name": "Unspecified Technique 32",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_33",
+          "name": "Unspecified Technique 33",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_34",
+          "name": "Unspecified Technique 34",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_35",
+          "name": "Unspecified Technique 35",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_36",
+          "name": "Unspecified Technique 36",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_37",
+          "name": "Unspecified Technique 37",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_38",
+          "name": "Unspecified Technique 38",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_39",
+          "name": "Unspecified Technique 39",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_40",
+          "name": "Unspecified Technique 40",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_41",
+          "name": "Unspecified Technique 41",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_42",
+          "name": "Unspecified Technique 42",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_43",
+          "name": "Unspecified Technique 43",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_44",
+          "name": "Unspecified Technique 44",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_45",
+          "name": "Unspecified Technique 45",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_46",
+          "name": "Unspecified Technique 46",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_47",
+          "name": "Unspecified Technique 47",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_48",
+          "name": "Unspecified Technique 48",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_49",
+          "name": "Unspecified Technique 49",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_50",
+          "name": "Unspecified Technique 50",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_51",
+          "name": "Unspecified Technique 51",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_52",
+          "name": "Unspecified Technique 52",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_53",
+          "name": "Unspecified Technique 53",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_54",
+          "name": "Unspecified Technique 54",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_55",
+          "name": "Unspecified Technique 55",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_56",
+          "name": "Unspecified Technique 56",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_57",
+          "name": "Unspecified Technique 57",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_58",
+          "name": "Unspecified Technique 58",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_59",
+          "name": "Unspecified Technique 59",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_60",
+          "name": "Unspecified Technique 60",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_61",
+          "name": "Unspecified Technique 61",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_62",
+          "name": "Unspecified Technique 62",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_63",
+          "name": "Unspecified Technique 63",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_64",
+          "name": "Unspecified Technique 64",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_65",
+          "name": "Unspecified Technique 65",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_66",
+          "name": "Unspecified Technique 66",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_67",
+          "name": "Unspecified Technique 67",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_68",
+          "name": "Unspecified Technique 68",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_69",
+          "name": "Unspecified Technique 69",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_70",
+          "name": "Unspecified Technique 70",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_71",
+          "name": "Unspecified Technique 71",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_72",
+          "name": "Unspecified Technique 72",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_73",
+          "name": "Unspecified Technique 73",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_74",
+          "name": "Unspecified Technique 74",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_75",
+          "name": "Unspecified Technique 75",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_76",
+          "name": "Unspecified Technique 76",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_77",
+          "name": "Unspecified Technique 77",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_78",
+          "name": "Unspecified Technique 78",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_79",
+          "name": "Unspecified Technique 79",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_80",
+          "name": "Unspecified Technique 80",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_81",
+          "name": "Unspecified Technique 81",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_82",
+          "name": "Unspecified Technique 82",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_83",
+          "name": "Unspecified Technique 83",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_84",
+          "name": "Unspecified Technique 84",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_85",
+          "name": "Unspecified Technique 85",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_86",
+          "name": "Unspecified Technique 86",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_87",
+          "name": "Unspecified Technique 87",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_88",
+          "name": "Unspecified Technique 88",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_89",
+          "name": "Unspecified Technique 89",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_90",
+          "name": "Unspecified Technique 90",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_91",
+          "name": "Unspecified Technique 91",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_92",
+          "name": "Unspecified Technique 92",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_93",
+          "name": "Unspecified Technique 93",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_94",
+          "name": "Unspecified Technique 94",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_95",
+          "name": "Unspecified Technique 95",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_96",
+          "name": "Unspecified Technique 96",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_97",
+          "name": "Unspecified Technique 97",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_98",
+          "name": "Unspecified Technique 98",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_99",
+          "name": "Unspecified Technique 99",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_100",
+          "name": "Unspecified Technique 100",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_101",
+          "name": "Unspecified Technique 101",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_102",
+          "name": "Unspecified Technique 102",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_103",
+          "name": "Unspecified Technique 103",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_104",
+          "name": "Unspecified Technique 104",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_105",
+          "name": "Unspecified Technique 105",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_106",
+          "name": "Unspecified Technique 106",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_107",
+          "name": "Unspecified Technique 107",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_108",
+          "name": "Unspecified Technique 108",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_109",
+          "name": "Unspecified Technique 109",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_110",
+          "name": "Unspecified Technique 110",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_111",
+          "name": "Unspecified Technique 111",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_112",
+          "name": "Unspecified Technique 112",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_113",
+          "name": "Unspecified Technique 113",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_114",
+          "name": "Unspecified Technique 114",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_115",
+          "name": "Unspecified Technique 115",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_116",
+          "name": "Unspecified Technique 116",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "construction_unspecified_117",
+          "name": "Unspecified Technique 117",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        }
       ]
     },
     "cooking": {
@@ -3347,6 +8286,606 @@
           "effects": [],
           "status": "defined",
           "impl": "defined"
+        }
+      ],
+      "catalog": [
+        {
+          "id": "skewer",
+          "name": "Skewer",
+          "level": 1,
+          "sp": 5,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "meatball",
+          "name": "Meatball",
+          "level": 10,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "stone_grill",
+          "name": "Stone Grill",
+          "level": 20,
+          "sp": 8,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "antivenom",
+          "name": "Antivenom",
+          "level": 20,
+          "sp": 10,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "steam",
+          "name": "Steam",
+          "level": 25,
+          "sp": 12,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "antibiotic",
+          "name": "Antibiotic",
+          "level": 30,
+          "sp": 15,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "buff_food",
+          "name": "Buff Food",
+          "level": 35,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "sashimi",
+          "name": "Sashimi",
+          "level": 40,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "boiling",
+          "name": "Boiling",
+          "level": 40,
+          "sp": 26,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "roast",
+          "name": "Roast",
+          "level": 45,
+          "sp": 30,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "pet_food",
+          "name": "Pet Food",
+          "level": 50,
+          "sp": 34,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "cooking_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_8",
+          "name": "Unspecified Technique 8",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_9",
+          "name": "Unspecified Technique 9",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_10",
+          "name": "Unspecified Technique 10",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_11",
+          "name": "Unspecified Technique 11",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_12",
+          "name": "Unspecified Technique 12",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_13",
+          "name": "Unspecified Technique 13",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_14",
+          "name": "Unspecified Technique 14",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_15",
+          "name": "Unspecified Technique 15",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_16",
+          "name": "Unspecified Technique 16",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_17",
+          "name": "Unspecified Technique 17",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_18",
+          "name": "Unspecified Technique 18",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_19",
+          "name": "Unspecified Technique 19",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_20",
+          "name": "Unspecified Technique 20",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_21",
+          "name": "Unspecified Technique 21",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_22",
+          "name": "Unspecified Technique 22",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_23",
+          "name": "Unspecified Technique 23",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_24",
+          "name": "Unspecified Technique 24",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_25",
+          "name": "Unspecified Technique 25",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_26",
+          "name": "Unspecified Technique 26",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_27",
+          "name": "Unspecified Technique 27",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_28",
+          "name": "Unspecified Technique 28",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_29",
+          "name": "Unspecified Technique 29",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_30",
+          "name": "Unspecified Technique 30",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_31",
+          "name": "Unspecified Technique 31",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_32",
+          "name": "Unspecified Technique 32",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_33",
+          "name": "Unspecified Technique 33",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_34",
+          "name": "Unspecified Technique 34",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_35",
+          "name": "Unspecified Technique 35",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_36",
+          "name": "Unspecified Technique 36",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_37",
+          "name": "Unspecified Technique 37",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_38",
+          "name": "Unspecified Technique 38",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_39",
+          "name": "Unspecified Technique 39",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_40",
+          "name": "Unspecified Technique 40",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_41",
+          "name": "Unspecified Technique 41",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_42",
+          "name": "Unspecified Technique 42",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_43",
+          "name": "Unspecified Technique 43",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_44",
+          "name": "Unspecified Technique 44",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_45",
+          "name": "Unspecified Technique 45",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_46",
+          "name": "Unspecified Technique 46",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_47",
+          "name": "Unspecified Technique 47",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_48",
+          "name": "Unspecified Technique 48",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_49",
+          "name": "Unspecified Technique 49",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_50",
+          "name": "Unspecified Technique 50",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_51",
+          "name": "Unspecified Technique 51",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_52",
+          "name": "Unspecified Technique 52",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_53",
+          "name": "Unspecified Technique 53",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_54",
+          "name": "Unspecified Technique 54",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_55",
+          "name": "Unspecified Technique 55",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_56",
+          "name": "Unspecified Technique 56",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_57",
+          "name": "Unspecified Technique 57",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_58",
+          "name": "Unspecified Technique 58",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_59",
+          "name": "Unspecified Technique 59",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_60",
+          "name": "Unspecified Technique 60",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_61",
+          "name": "Unspecified Technique 61",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_62",
+          "name": "Unspecified Technique 62",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_63",
+          "name": "Unspecified Technique 63",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_64",
+          "name": "Unspecified Technique 64",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_65",
+          "name": "Unspecified Technique 65",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_66",
+          "name": "Unspecified Technique 66",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_67",
+          "name": "Unspecified Technique 67",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_68",
+          "name": "Unspecified Technique 68",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_69",
+          "name": "Unspecified Technique 69",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_70",
+          "name": "Unspecified Technique 70",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_71",
+          "name": "Unspecified Technique 71",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_72",
+          "name": "Unspecified Technique 72",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_73",
+          "name": "Unspecified Technique 73",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_74",
+          "name": "Unspecified Technique 74",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_75",
+          "name": "Unspecified Technique 75",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_76",
+          "name": "Unspecified Technique 76",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_77",
+          "name": "Unspecified Technique 77",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_78",
+          "name": "Unspecified Technique 78",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_79",
+          "name": "Unspecified Technique 79",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_80",
+          "name": "Unspecified Technique 80",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_81",
+          "name": "Unspecified Technique 81",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_82",
+          "name": "Unspecified Technique 82",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_83",
+          "name": "Unspecified Technique 83",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_84",
+          "name": "Unspecified Technique 84",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "cooking_unspecified_85",
+          "name": "Unspecified Technique 85",
+          "impl": "defined",
+          "source": "spec12_count_only"
         }
       ]
     },
@@ -3510,6 +9049,372 @@
           "status": "defined",
           "impl": "defined"
         }
+      ],
+      "catalog": [
+        {
+          "id": "small_field",
+          "name": "Till Small Field",
+          "level": 1,
+          "sp": 1,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/items/crafting.gd:487"
+        },
+        {
+          "id": "corn",
+          "name": "Corn",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "apple_tree",
+          "name": "Apple Tree",
+          "level": 1,
+          "sp": 0,
+          "auto": true,
+          "impl": "defined"
+        },
+        {
+          "id": "flax",
+          "name": "Flax",
+          "level": 5,
+          "sp": 6,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "fertilizer",
+          "name": "Fertilizer",
+          "level": 15,
+          "sp": 10,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "large_field",
+          "name": "Till Large Field",
+          "level": 25,
+          "sp": 3,
+          "auto": false,
+          "impl": "functional",
+          "impl_ref": "game/scripts/items/crafting.gd:487"
+        },
+        {
+          "id": "orchard",
+          "name": "Orchard",
+          "level": 30,
+          "sp": 15,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "advanced_fertilizer",
+          "name": "Advanced Fertilizer",
+          "level": 40,
+          "sp": 18,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "ranching",
+          "name": "Ranching",
+          "level": 45,
+          "sp": 22,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "sprinkler",
+          "name": "Sprinkler",
+          "level": 50,
+          "sp": 26,
+          "auto": false,
+          "impl": "defined"
+        },
+        {
+          "id": "farming_unspecified_1",
+          "name": "Unspecified Technique 1",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_2",
+          "name": "Unspecified Technique 2",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_3",
+          "name": "Unspecified Technique 3",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_4",
+          "name": "Unspecified Technique 4",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_5",
+          "name": "Unspecified Technique 5",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_6",
+          "name": "Unspecified Technique 6",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_7",
+          "name": "Unspecified Technique 7",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_8",
+          "name": "Unspecified Technique 8",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_9",
+          "name": "Unspecified Technique 9",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_10",
+          "name": "Unspecified Technique 10",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_11",
+          "name": "Unspecified Technique 11",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_12",
+          "name": "Unspecified Technique 12",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_13",
+          "name": "Unspecified Technique 13",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_14",
+          "name": "Unspecified Technique 14",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_15",
+          "name": "Unspecified Technique 15",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_16",
+          "name": "Unspecified Technique 16",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_17",
+          "name": "Unspecified Technique 17",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_18",
+          "name": "Unspecified Technique 18",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_19",
+          "name": "Unspecified Technique 19",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_20",
+          "name": "Unspecified Technique 20",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_21",
+          "name": "Unspecified Technique 21",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_22",
+          "name": "Unspecified Technique 22",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_23",
+          "name": "Unspecified Technique 23",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_24",
+          "name": "Unspecified Technique 24",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_25",
+          "name": "Unspecified Technique 25",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_26",
+          "name": "Unspecified Technique 26",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_27",
+          "name": "Unspecified Technique 27",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_28",
+          "name": "Unspecified Technique 28",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_29",
+          "name": "Unspecified Technique 29",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_30",
+          "name": "Unspecified Technique 30",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_31",
+          "name": "Unspecified Technique 31",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_32",
+          "name": "Unspecified Technique 32",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_33",
+          "name": "Unspecified Technique 33",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_34",
+          "name": "Unspecified Technique 34",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_35",
+          "name": "Unspecified Technique 35",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_36",
+          "name": "Unspecified Technique 36",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_37",
+          "name": "Unspecified Technique 37",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_38",
+          "name": "Unspecified Technique 38",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_39",
+          "name": "Unspecified Technique 39",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_40",
+          "name": "Unspecified Technique 40",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_41",
+          "name": "Unspecified Technique 41",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_42",
+          "name": "Unspecified Technique 42",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_43",
+          "name": "Unspecified Technique 43",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_44",
+          "name": "Unspecified Technique 44",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_45",
+          "name": "Unspecified Technique 45",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_46",
+          "name": "Unspecified Technique 46",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        },
+        {
+          "id": "farming_unspecified_47",
+          "name": "Unspecified Technique 47",
+          "impl": "defined",
+          "source": "spec12_count_only"
+        }
       ]
     }
   },
@@ -3521,7 +9426,7 @@
   "bonded_max": 7,
   "category_cap": "character_level",
   "reference": {
-    "_about": "Spec 12: the 918 original technique records (Durango:0 docs). Counts only: the source table (kghj76138.github.io/durango-homecoming-guide/en/skills.html) returned 404 on 2026-10-20, so only the nodes the pack names are imported above.",
+    "_about": "Spec 12: the 918 original technique records (Durango:0 docs). The source table (kghj76138.github.io/durango-homecoming-guide/en/skills.html) returned 404 on 2026-10-20, so only nodes the pack names are real nodes; the remainder of each category's count is imported as per-tree 'catalog' rows (named ones from spec 12, the rest as <tree>_unspecified_N placeholders with source spec12_count_only). Every catalog row carries impl; catalog rows do not participate in SP, saves or SkillState.ORDER.",
     "total_nodes": 918,
     "categories": {
       "survival": [
@@ -3609,6 +9514,174 @@
         "Surviving Durango VII"
       ],
       "_about": "Spec 12:162 names Surviving Durango I-VII as Survival category milestones but gives no level, SP or effect, so they are recorded here and not placed in the tree. Spec 12:115 also mentions an instrument-making line with no node names."
-    }
+    },
+    "catalog_imported": true
+  },
+  "toxic_oil_islands": {
+    "_about": "Spec 12 \u00a79: the 13th (late-game, optional) category; 18 nodes, 0 SP. Names from trees.json reference.toxic_oil_islands.unlocks; the rest are count-only placeholders. Kept outside SkillState.ORDER so the runtime twelve-tree system is untouched until a toxic-oil biome exists (ASSUMPTION).",
+    "catalog": [
+      {
+        "id": "toxic_oil_moss_hut",
+        "name": "Moss Hut",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_wooden_harpoon",
+        "name": "Wooden Harpoon",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_vine_work_outfit",
+        "name": "Vine Work Outfit",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_vine_work_hat",
+        "name": "Vine Work Hat",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_work_tools",
+        "name": "Work Tools",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_cooking_bonfire",
+        "name": "Cooking Bonfire",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_insect_gruel",
+        "name": "Insect Gruel",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_makeshift_bow",
+        "name": "Makeshift Bow",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_fog_shelter",
+        "name": "Fog Shelter",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_recycled_gloves",
+        "name": "Recycled Gloves",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_recycled_work_outfit",
+        "name": "Recycled Work Outfit",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_recycled_boots",
+        "name": "Recycled Boots",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_recycled_gas_mask",
+        "name": "Recycled Gas Mask",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12"
+      },
+      {
+        "id": "toxic_oil_unspecified_1",
+        "name": "Unspecified Technique 1",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12_count_only"
+      },
+      {
+        "id": "toxic_oil_unspecified_2",
+        "name": "Unspecified Technique 2",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12_count_only"
+      },
+      {
+        "id": "toxic_oil_unspecified_3",
+        "name": "Unspecified Technique 3",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12_count_only"
+      },
+      {
+        "id": "toxic_oil_unspecified_4",
+        "name": "Unspecified Technique 4",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12_count_only"
+      },
+      {
+        "id": "toxic_oil_unspecified_5",
+        "name": "Unspecified Technique 5",
+        "level": null,
+        "sp": 0,
+        "auto": false,
+        "impl": "defined",
+        "source": "spec12_count_only"
+      }
+    ]
   }
 }

@@ -39,6 +39,7 @@ func _process(_delta: float) -> bool:
 	Skills = load("res://scripts/skills/skill_state.gd")
 	_test_impl_marks()
 	_test_baseline_ids()
+	_test_catalog_counts()
 	if _fails.is_empty():
 		print("[t_skilltrees] PASS")
 		quit(0)
@@ -148,4 +149,40 @@ func _test_baseline_ids() -> void:
 			# Report once per tree: the rest of the tree's rows repeat the same failure.
 			continue
 		_expect(added.is_empty(), "%s: new node ids appeared (not: %s)" % [tree, added])
+	_sections += 1
+
+## Spec 12 per-category counts: each tree's `catalog` plus the toxic_oil_islands pack must sum to
+## 918, every catalog row carries impl, and the named toxic-oil unlocks are present.
+func _test_catalog_counts() -> void:
+	var root: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/skills/trees.json"))
+	var SPEC := {"survival": 45, "melee": 116, "ranged": 51, "defense": 31, "butchering": 29, "gathering": 78, "cooking": 96, "weapon_tools": 126, "tailoring": 98, "construction": 129, "farming": 57, "processing": 44}
+	var total := 0
+	var lines: Array[String] = []
+	for tree in Skills.ORDER:
+		var cat: Array = (root["trees"][tree] as Dictionary).get("catalog", [])
+		_expect(cat.size() == int(SPEC[tree]), "%s: catalog count %d != spec 12 count %d" % [tree, cat.size(), int(SPEC[tree])])
+		total += cat.size()
+		for row in cat:
+			_expect(IMPLS.has(str(row.get("impl", ""))), "%s/%s: catalog row impl '%s'" % [tree, str(row.get("id", "")), str(row.get("impl", ""))])
+		lines.append("%s=%d" % [tree, cat.size()])
+	var oil: Dictionary = root.get("toxic_oil_islands", {})
+	var oil_cat: Array = oil.get("catalog", [])
+	_expect(oil_cat.size() == 18, "toxic_oil_islands catalog count %d != 18" % oil_cat.size())
+	for row in oil_cat:
+		_expect(IMPLS.has(str(row.get("impl", ""))), "toxic_oil/%s: catalog row impl" % str(row.get("id", "")))
+		_expect(int(row.get("sp", -1)) == 0, "toxic_oil/%s: 0 SP node" % str(row.get("id", "")))
+	total += oil_cat.size()
+	for must in ["Moss Hut", "Wooden Harpoon", "Vine Work Outfit", "Recycled Gas Mask"]:
+		var found := false
+		for row in oil_cat:
+			found = found or str(row.get("name", "")) == must
+		_expect(found, "toxic_oil catalog has %s" % must)
+	# Catalog rows must not leak into the playable trees (t_skillbuy counts stay stable).
+	for tree in Skills.ORDER:
+		var nodes: Array = (root["trees"][tree] as Dictionary)["nodes"]
+		_expect(nodes.size() == (BASELINE[tree] as Array).size(), "%s: playable node count unchanged (%d)" % [tree, nodes.size()])
+	var ref: Dictionary = root.get("reference", {})
+	_expect(int(ref.get("total_nodes", 0)) == 918, "reference total_nodes = 918")
+	print("[t_skilltrees] catalog: %s toxic_oil=18 TOTAL=%d" % [", ".join(lines), total])
+	_expect(total == 918, "catalog total 918 (got %d)" % total)
 	_sections += 1
