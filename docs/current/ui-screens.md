@@ -96,7 +96,17 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ## Creatures, pets, combat
 
-**`animals`** — owned-animal roster
+**`animals`** — E1 Animals (UIANIMALS rebuild, `animal_screen.gd`; spec §7 E1). Sheet chrome
+(`sheet_chrome.gd`: blurred world + SCREEN_DIM, HEADER with torn edge, back icon -> MENU, ✕ -> HUD,
+tabs Pack / Taming Pen (disabled: no E2 screen yet), counter "Bonded n / cap (grows to 7)").
+Left: pack slots = the bonded roster (spec 09 cap 3-7), one card per pet (swatch, name, NatureChip
+directly under it, "Species · Lv. n · grade", status Out / Resting / Down / hungry), empty slots up to
+the cap, one "n – 7 · locked" row, then "Waiting to bond" (captured / tamed animal items in the bag and
+occupied taming pens). Centre: name, NatureChip, species · diet, grade box, the pet's live 3D model
+(`animal_stage.gd`, drag to turn), growth XP bar, role and potential chips. Right: stats (with the
+genetics tier), needs (fullness, health), Feed (GOLD) / Ride / Summon-Dismiss / Release (disabled: no
+bond-breaking exists). Open: `HuntHud.open_animals(rec = null)`. The wiki shot below predates the
+rebuild; current shots: `../orchestration/reports/uianimals/e1-animals-*.png`.
 
 ![animals](screens/animals.webp)
 
@@ -123,9 +133,22 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 
 ## Map, land, island
 
-**`atlas`** — world atlas
+**`atlas`** — F2 World Atlas (UIANIMALS rebuild, `map_screen.gd`; spec §7 F2). Left column: "World
+Atlas", "You X · Y · Lv. · T-stones", one card per catalogue island (current first, GOLD brackets on the
+selected; level · climate · Tamed/Unstable, resources, species, status: You are here / Harbour route ·
+n T-stones / Needs Survival n), foot: Island time, Islands visited, GOLD "Back to camp" on an unstable
+island. Centre: the north-up map on its own sea colour. Right: compass + ✕, legend panel, Harbour
+routes (+ Warp home away from home) and zoom − / +. Open: `HuntHud.open_atlas()` (opens) or
+`open_map()` (toggles). Current shots: `../orchestration/reports/uianimals/f2-world-atlas-*.png`.
 
 ![atlas](screens/atlas.webp)
+
+**`harbour`** — Harbour (`world_ui.gd show_harbour()`; owner §11 rebuilt the stretched "Sail ..." rows):
+sheet chrome "Harbour" with "Survival n · T-stones n", then a 4-column (phone: 3) grid of route cards:
+island, level · climate, the requirement line (red when short), and a Sail button (GOLD when it can
+go, `route_id` meta, disabled with the reason on the card). Away from home: Free return home and
+Return to camp cards first. Back returns to the atlas. Shots:
+`../orchestration/reports/uianimals/f2-harbour-*.png`.
 
 **`claim`** — CLAIM confirm panel
 
