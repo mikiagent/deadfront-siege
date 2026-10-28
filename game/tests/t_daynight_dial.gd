@@ -4,10 +4,10 @@ extends SceneTree
 ## night/dawn/day/dusk as Game.phase_name() says, a tap opens a label with the phase, the clock and the
 ## time to the next phase (rounded minutes, never "60 s"), a release off the dial cancels the tap, it
 ## lays out again on a resize without touching the minimap, and it never writes the game's clock.
-## DAYNIGHT: every face (variants a, b, c) draws, follows the clock across 24 h (the sun up and the moon
-## down by day, the moon up by night, stars only after sunset, the clock text the game's), sits inside
-## the view docked to the map and off the HUD's taken rects at each size, and redraws a night of frames
-## without allocating.
+## DAYNIGHT: the half-dial draws, follows the clock across 24 h (the sun up and the moon down by day,
+## the moon up by night, stars only after sunset, the clock text the game's), sits inside the view docked
+## to the map and off the HUD's taken rects at each size, and redraws a night of frames without
+## allocating and within its time budget.
 ## Run: godot --headless --path game --script res://tests/t_daynight_dial.gd -> "[t_daynight] PASS", exit 0/1.
 
 const DIAL_PATH := "res://scripts/ui/day_night_dial.gd"
@@ -37,11 +37,8 @@ func _run() -> void:
 	else:
 		_D = load(DIAL_PATH)
 		_test_phases(game, _D)
-		for v: StringName in _D.VARIANTS:
-			_D.variant = v
-			await _test_face(game, v)
-			await _test_hud(game)
-		_D.variant = _D.VARIANTS[0]
+		await _test_face(game)
+		await _test_hud(game)
 	game.time_of_day = keep
 	game.set_process(true)
 	if failures.is_empty():
@@ -101,7 +98,8 @@ func _test_countdown(D: GDScript) -> void:
 	_check(bad.is_empty(), "the countdown misreads the wait: %s" % [bad])
 
 ## One face over a day: what it drew where, every 1/96 of a day, then a night of redraws.
-func _test_face(game: Node, v: StringName) -> void:
+func _test_face(game: Node) -> void:
+	var v := "dial"
 	var dial: Control = _D.new()
 	get_root().add_child(dial)
 	dial.call("dock", Rect2(1430, 34, 154, 154))
@@ -109,7 +107,6 @@ func _test_face(game: Node, v: StringName) -> void:
 	var hy: float = dial.get("_hy")
 	var bad: Array[String] = []
 	var last_sun := -INF
-	var noon_y := INF
 	var start := int(dial.get("draws"))
 	for i in 96:
 		var t := float(i) / 96.0
@@ -130,28 +127,16 @@ func _test_face(game: Node, v: StringName) -> void:
 			bad.append("%.3f: the moon is at %s, want up in the face by night" % [t, moon])
 		if not up and not is_nan(sun.x) and sun.y < hy - 1.0:
 			bad.append("%.3f: the sun %s is up by night" % [t, sun])
-		# c shows the hours around now, so its stars are only the night's in view: none while the band is all day.
-		var w: float = dial.get("_win") if v == &"c" else 0.0
-		var day_in_view: bool = _D.phase_at(t) == &"day" and _D.star_alpha(t - w) == 0.0 and _D.star_alpha(t + w) == 0.0
-		if day_in_view and int(dial.get("drawn_stars")) > 0:
+		if _D.phase_at(t) == &"day" and int(dial.get("drawn_stars")) > 0:
 			bad.append("%.3f: %d stars by day" % [t, int(dial.get("drawn_stars"))])
 		if _D.star_alpha(t) > 0.5 and int(dial.get("drawn_stars")) == 0:
 			bad.append("%.3f: no stars at night" % t)
 		if dial.get("_clock_text") != _D.clock_text(t):
 			bad.append("%.3f: the clock reads %s, want %s" % [t, dial.get("_clock_text"), _D.clock_text(t)])
-		if up and v != &"c":  # a and b: the sun crosses east to west
+		if up:  # the sun crosses east to west
 			if sun.x < last_sun:
 				bad.append("%.3f: the sun went back to %.1f from %.1f" % [t, sun.x, last_sun])
 			last_sun = sun.x
-		if up and v == &"c" and absf(t - 0.51) < 0.006:
-			noon_y = sun.y
-	if v == &"c":  # c: the sun rides the needle, highest at noon
-		game.time_of_day = _D.RISE + 0.02
-		dial.queue_redraw()
-		await process_frame
-		await process_frame
-		if not (noon_y < (dial.get("drawn_sun") as Vector2).y - 8.0 and is_equal_approx((dial.get("drawn_sun") as Vector2).x, face.size.x * 0.5)):
-			bad.append("c: the sun at noon (y %.1f) is not above the morning sun %s on the needle" % [noon_y, (dial.get("drawn_sun") as Vector2)])
 	_check(int(dial.get("draws")) - start >= 90, "%s: the face drew %d times over 96 steps" % [v, int(dial.get("draws")) - start])
 	_check(bad.is_empty(), "%s over a day: %s" % [v, bad.slice(0, 5)])
 	# A night of frames: redrawn each frame (the stars twinkle) without allocating.
@@ -162,14 +147,18 @@ func _test_face(game: Node, v: StringName) -> void:
 	var objs := Performance.get_monitor(Performance.OBJECT_COUNT)
 	var mem := Performance.get_monitor(Performance.MEMORY_STATIC)
 	var before := int(dial.get("draws"))
+	var usec0 := int(dial.get("draw_usec"))
 	for i in 120:
 		dial.call("_process", 0.016)
 		await process_frame
 	var grew := Performance.get_monitor(Performance.MEMORY_STATIC) - mem
+	var per := float(int(dial.get("draw_usec")) - usec0) / maxf(1.0, float(int(dial.get("draws")) - before))
+	# ASSUMPTION: 600 us a draw (headless, GDScript) is the HUD budget for one animated widget.
+	_check(per < 600.0, "%s: a night draw takes %.0f us (budget 600)" % [v, per])
 	_check(int(dial.get("draws")) - before >= 110, "%s: a night redraws each frame (%d of 120)" % [v, int(dial.get("draws")) - before])
 	_check(Performance.get_monitor(Performance.OBJECT_COUNT) == objs, "%s: objects grew over 120 night frames" % v)
 	_check(grew <= 4096.0, "%s: static memory grew %d bytes over 120 night frames" % [v, grew])
-	print("[t_daynight] %s: face %s, %d draws, +%d B over 120 night frames, stars %d" % [v, face.size, int(dial.get("draws")), grew, int(dial.get("drawn_stars"))])
+	print("[t_daynight] %s: face %s, %d draws, +%d B over 120 night frames, %.0f us a draw, stars %d" % [v, face.size, int(dial.get("draws")), grew, per, int(dial.get("drawn_stars"))])
 	dial.free()
 
 func _test_hud(game: Node) -> void:
@@ -204,10 +193,10 @@ func _test_hud(game: Node) -> void:
 		var zone_ok := false
 		for z: Rect2 in load("res://scripts/ui/ui_tokens.gd").hud_reserved(view.size):
 			zone_ok = zone_ok or z.encloses(closed)
-		_check(zone_ok, "%s %s: the dial %s is inside a UiTokens.hud_reserved zone" % [_D.variant, s, closed])
+		_check(zone_ok, "%s %s: the dial %s is inside a UiTokens.hud_reserved zone" % ["dial", s, closed])
 		for tr: Rect2 in load("res://scripts/ui/hud_layout.gd").taken_rects(hud):
 			if tr != closed and tr.has_area() and closed.grow(-1.0).intersects(tr):
-				_check(false, "%s %s: the dial %s overlaps a taken rect %s" % [_D.variant, s, closed, tr])
+				_check(false, "%s %s: the dial %s overlaps a taken rect %s" % ["dial", s, closed, tr])
 		_push_click(dial)
 		await process_frame
 		var opened := dial.get_global_rect()
@@ -220,7 +209,7 @@ func _test_hud(game: Node) -> void:
 		_push_click(dial, Vector2(-200.0, 120.0))
 		await process_frame
 		_check(not dial.call("is_open"), "%s: a press on the dial released off it opened the label (BaseButton cancels it)" % s)
-		print("[t_daynight] %s %s: map %s dial %s open %s" % [_D.variant, s, m, closed, opened])
+		print("[t_daynight] %s %s: map %s dial %s open %s" % ["dial", s, m, closed, opened])
 	# The label closes itself, and nothing the dial did moved the clock.
 	_push_click(dial)
 	await process_frame
@@ -251,7 +240,7 @@ func _test_draw_source(src: String) -> void:
 			var m := alloc.search(code)
 			if m:
 				hits.append("%s: %s" % [chunk.get_slice("(", 0), code.strip_edges().left(60)])
-	_check(funcs >= 8, "found %d _draw* functions in the dial" % funcs)
+	_check(funcs >= 10, "found %d _draw* functions in the dial" % funcs)
 	_check(hits.is_empty(), "the dial's draw allocates: %s" % [hits.slice(0, 4)])
 
 ## Left press at the dial's disc and release there, or `off` px away, in window pixels (as t_ui does).
