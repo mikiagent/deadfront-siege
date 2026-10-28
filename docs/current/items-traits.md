@@ -1,8 +1,8 @@
 # Items & traits — the full catalog
 
-> Generated 2026-10-27 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
+> Generated 2026-10-28 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
 
-`246 items` from `game/data/items.json`; per-item consumption effects from `game/data/foods.json`; rarity palette from `game/data/item_rarity.json`.
+`255 items` from `game/data/items.json`; per-item consumption effects from `game/data/foods.json`; rarity palette from `game/data/item_rarity.json`.
 
 Rarity: **common** `#a8adb3`, **uncommon** `#5cc864`, **rare** `#3c8cff`, **epic** `#b45cff`, **legendary** `#ffa424`.
 
@@ -10,7 +10,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 
 ## Categories with counts
 
-**food** (39) · **tool** (35) · **weapon** (29) · **building** (27) · **meat** (15) · **wood** (14) · **cooked** (13) · **fibre** (10) · **lashing** (9) · **blade** (9) · **armor_body** (9) · **armor_legs** (9) · **drink** (9) · **herb** (8) · **armor_head** (8) · **armor_arms** (8) · **metal** (7) · **medicine** (7) · **strap_material** (6) · **stone** (6) · **blade_mat** (6) · **ingot** (6) · **accessory** (6) · **bag** (6) · **ore** (5) · **bone** (5) · **fruit** (5) · **earth** (5) · **buff_food** (5) · **burnable** (4) · **log** (4) · **cloth** (4) · **hide** (4) · **tinder** (4) · **seed** (4) · **handle** (3) · **stalk** (3) · **raw_meat** (3) · **meal** (3) · **tier_bone** (3) · **uncut_hide** (3) · **water** (3) · **crop** (3) · **counter_supply** (3) · **clothing** (3) · **component** (3) · **brew** (3) · **fuel** (2) · **preserved** (2) · **green_hide** (2) · **berry_crop** (2) · **treasure** (2) · **dye** (2) · **bucket** (2) · **flax** (2) · **pet_feed** (2) · **juice** (2) · **split** (1) · **plank** (1) · **pillar** (1) · **tier_stone** (1) · **rough_ore** (1) · **tier_copper** (1) · **tier_bronze** (1) · **tier_iron** (1) · **tier_steel** (1) · **twine** (1) · **rope** (1) · **thread** (1) · **talon** (1) · **dried_hide** (1) · **cured_hide** (1) · **pot_clay** (1) · **tier_flint** (1) · **tier_obsidian** (1) · **ice** (1) · **cactus** (1) · **needle** (1) · **copper_ore_mat** (1) · **seasoning** (1) · **bait** (1) · **coral** (1) · **iron_ore** (1) · **mushroom** (1) · **spice** (1) · **raw** (1) · **steamed** (1) · **burnt** (1) · **corn** (1) · **wheat** (1) · **berry** (1) · **flax_crop** (1) · **corn_crop** (1) · **wheat_crop** (1) · **fertilizer** (1) · **tendon** (1) · **scute** (1) · **dense_bone** (1) · **venom** (1) · **ammunition** (1) · **siege_ammunition** (1) · **tin_ore** (1) · **tin** (1) · **plank_shape** (1) · **pillar_shape** (1) · **strap** (1) · **trimmed_plank** (1) · **fine_plank** (1) · **broth** (1) · **cold_food** (1)
+**food** (39) · **tool** (35) · **weapon** (29) · **building** (27) · **meat** (15) · **wood** (14) · **bone** (14) · **cooked** (13) · **blade_mat** (12) · **fibre** (10) · **lashing** (9) · **blade** (9) · **tier_bone** (9) · **armor_body** (9) · **armor_legs** (9) · **drink** (9) · **herb** (8) · **armor_head** (8) · **armor_arms** (8) · **metal** (7) · **medicine** (7) · **strap_material** (6) · **stone** (6) · **ingot** (6) · **accessory** (6) · **bag** (6) · **ore** (5) · **fruit** (5) · **earth** (5) · **buff_food** (5) · **handle** (4) · **burnable** (4) · **log** (4) · **cloth** (4) · **hide** (4) · **tinder** (4) · **seed** (4) · **scute** (4) · **dense_bone** (4) · **stalk** (3) · **raw_meat** (3) · **meal** (3) · **uncut_hide** (3) · **water** (3) · **crop** (3) · **counter_supply** (3) · **clothing** (3) · **component** (3) · **brew** (3) · **fuel** (2) · **preserved** (2) · **green_hide** (2) · **berry_crop** (2) · **treasure** (2) · **dye** (2) · **bucket** (2) · **flax** (2) · **pet_feed** (2) · **juice** (2) · **split** (1) · **plank** (1) · **pillar** (1) · **tier_stone** (1) · **rough_ore** (1) · **tier_copper** (1) · **tier_bronze** (1) · **tier_iron** (1) · **tier_steel** (1) · **twine** (1) · **rope** (1) · **thread** (1) · **talon** (1) · **dried_hide** (1) · **cured_hide** (1) · **pot_clay** (1) · **tier_flint** (1) · **tier_obsidian** (1) · **ice** (1) · **cactus** (1) · **needle** (1) · **copper_ore_mat** (1) · **seasoning** (1) · **bait** (1) · **coral** (1) · **iron_ore** (1) · **mushroom** (1) · **spice** (1) · **raw** (1) · **steamed** (1) · **burnt** (1) · **corn** (1) · **wheat** (1) · **berry** (1) · **flax_crop** (1) · **corn_crop** (1) · **wheat_crop** (1) · **fertilizer** (1) · **tendon** (1) · **venom** (1) · **ammunition** (1) · **siege_ammunition** (1) · **tin_ore** (1) · **tin** (1) · **plank_shape** (1) · **pillar_shape** (1) · **strap** (1) · **trimmed_plank** (1) · **fine_plank** (1) · **broth** (1) · **cold_food** (1)
 
 ## Every item
 
@@ -21,7 +21,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `antibiotic` | Antibiotic | 1 |  | uncommon | none | medicine |  |
 | `antivenom` | Antivenom | 1 |  | uncommon | none | medicine |  |
 | `anvil_kit` | Anvil | 1 | 1 | uncommon | none | building |  |
-| `armor_scute` | Armor Scute | 1 | 999 | rare | none | scute · bone |  |
+| `armor_scute` | Osteoderm | 1 | 999 | rare | none | scute · bone |  |
 | `ash` | Ash | 1 | 20 | common | none | earth |  |
 | `bamboo` | Bamboo | 1 | 20 | common | none | wood |  |
 | `bandage` | Bandage | 1 | 10 | uncommon | none | medicine · cloth |  |
@@ -35,7 +35,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `black_iron` | Black Iron | 1 | 10 | rare | none | ore · iron_ore | material_tier=iron |
 | `blue_dye` | Blue Dye | 1 | 20 | uncommon | none | dye |  |
 | `boiled_meat` | Boiled Meat | 1 | 20 | uncommon | none | food · cooked · meat |  |
-| `bone` | Bone | 1 | 20 | common | none | bone · blade_mat · tier_bone | material_tier=bone |
+| `bone` | Leg Bone | 1 | 20 | common | none | bone · blade_mat · tier_bone | material_tier=bone |
 | `bone_axe` | Bone Axe | 1 | 1 | common | axe | tool · weapon |  |
 | `bone_hammer` | Dense Bone Hammer | 1 |  | rare | none | weapon |  |
 | `bone_knife` | Bone Knife | 1 | 1 | common | knife | tool · blade · weapon |  |
@@ -52,6 +52,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `bronze_knife` | Bronze Knife | 1 | 1 | rare | knife | tool · blade · weapon |  |
 | `bronze_pick` | Bronze Pick | 1 | 1 | rare | pick | tool |  |
 | `bronze_sword` | Bronze Sword | 1 | 1 | rare | none | weapon |  |
+| `brow_horn` | Brow Horn | 1 | 999 | rare | none | dense_bone · bone · blade_mat · tier_bone |  |
 | `burnt_food` | Burnt Food | 1 | 20 | common | none | food · burnt |  |
 | `cabin_bed_kit` | Cabin Bed Kit (Planned) | 1 | 1 | rare | none | building |  |
 | `cactus_flesh` | Cactus Flesh | 1 | 10 | common | none | food · cactus |  |
@@ -92,6 +93,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `crafters_meal` | Crafter's Meal | 1 | 20 | rare | none | food · cooked · meal · buff_food |  |
 | `crock_pot_kit` | Crock Pot Kit | 1 | 1 | uncommon | none | building |  |
 | `dense_bone` | Dense Bone | 1 | 999 | rare | none | dense_bone · bone · blade_mat · tier_bone |  |
+| `dorsal_plate` | Dorsal Plate | 1 | 999 | rare | none | scute · bone |  |
 | `dried_hide` | Dried Hide | 1 | 10 | uncommon | none | hide · uncut_hide · dried_hide · cured_hide |  |
 | `dried_meat` | Dried Meat | 1 | 20 | uncommon | none | food · meat · preserved |  |
 | `drip_coffee` | Drip Coffee | 1 | 20 | uncommon | none | drink · food · brew |  |
@@ -118,6 +120,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `forager_vest` | Forager Vest | 1 | 1 | uncommon | none | armor_body |  |
 | `forager_wraps` | Forager Arm Wraps | 1 | 1 | uncommon | none | armor_arms |  |
 | `forge_kit` | Forge | 1 | 1 | uncommon | none | building |  |
+| `frill_plate` | Frill Plate | 1 | 999 | rare | none | scute · bone |  |
 | `fruit_fertilizer` | Fruit Fertilizer | 1 | 20 | common | none | fertilizer |  |
 | `fruit_juice` | Fruit Juice | 1 | 20 | uncommon | none | drink · food · juice |  |
 | `gate_kit` | Gate | 1 | 5 | uncommon | none | building |  |
@@ -133,6 +136,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `hide_bone_helm` | Hide and Bone Helm | 1 | 1 | rare | none | armor_head |  |
 | `hide_strap` | Hide Strap | 1 | 20 | uncommon | none | lashing · hide |  |
 | `hoe` | Hoe | 1 | 1 | uncommon | hoe | tool |  |
+| `hollow_bone` | Hollow Bone | 1 | 20 | common | none | bone · blade_mat · tier_bone | material_tier=bone |
 | `ice` | Ice | 1 | 10 | rare | none | water · ice |  |
 | `ingot` | Crude Ingot | 1 | 10 | uncommon | none | metal · ingot | tint=#c0c4cc, hardness=4 |
 | `iron_axe` | Iron Axe | 1 | 1 | rare | axe | tool · weapon |  |
@@ -144,6 +148,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `iron_knife` | Iron Knife | 1 | 1 | rare | knife | tool · blade · weapon |  |
 | `iron_pick` | Iron Pick | 1 | 1 | rare | pick | tool |  |
 | `iron_sword` | Iron Sword | 1 | 1 | rare | none | weapon |  |
+| `large_leg_bone` | Large Leg Bone | 1 | 20 | common | none | bone · blade_mat · tier_bone | material_tier=bone |
 | `large_pouch` | Large Pouch | 1 | 1 | uncommon | none | accessory · bag |  |
 | `lava` | Lava Rock | 1 | 10 | rare | none | stone |  |
 | `leather_bracers` | Leather Bracers | 1 | 1 | uncommon | none | armor_arms |  |
@@ -185,10 +190,10 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `raid_greaves` | Raid Hide Greaves | 1 | 1 | epic | none | armor_legs |  |
 | `raid_helm` | Raid Hide Helm | 1 | 1 | epic | none | armor_head |  |
 | `raid_maul` | Volcano Raid Maul | 1 | 1 | legendary | none | weapon |  |
-| `raptor_bone` | Raptor Bone | 1 | 10 | uncommon | none | bone · blade_mat · handle · tier_bone | hardness=2, tint=#d4c4a8, material_tier=bone |
+| `raptor_bone` | Raptor Leg Bone | 1 | 10 | uncommon | none | bone · blade_mat · handle · tier_bone | hardness=2, tint=#d4c4a8, material_tier=bone |
 | `raptor_hide` | Raptor Hide | 1 | 10 | uncommon | none | hide · uncut_hide · green_hide | feathered=1, tint=#6b5a3e |
 | `raptor_meat` | Raptor Meat | 1 | 10 | uncommon | none | meat · food · raw_meat |  |
-| `raptor_talon` | Raptor Talon | 1 | 5 | uncommon | none | bone · blade_mat · talon | hardness=3, tint=#c9b48a |
+| `raptor_talon` | Sickle Claw | 1 | 5 | uncommon | none | bone · blade_mat · talon | hardness=3, tint=#c9b48a |
 | `raw_hide` | Raw Hide | 1 | 10 | common | none | hide · uncut_hide · green_hide |  |
 | `raw_meat` | Raw Meat | 1 | 20 | common | none | meat · food · raw_meat |  |
 | `reed` | Reed | 1 | 30 | common | none | fibre · lashing · strap_material | tint=#8a9a4a |
@@ -206,6 +211,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `sign_kit` | Sign | 1 | 5 | common | none | building |  |
 | `silver_ore` | Silver Ore | 1 | 20 | uncommon | none | ore |  |
 | `skewer` | Skewer | 1 | 20 | uncommon | none | food · cooked · meat |  |
+| `skull_plate` | Skull Plate | 1 | 999 | rare | none | scute · bone |  |
 | `slingshot` | Bone Slingshot | 1 |  | uncommon | none | weapon |  |
 | `small_pouch` | Small Pouch | 1 | 1 | common | none | accessory · bag |  |
 | `smoked_meat` | Smoked Meat | 1 | 20 | uncommon | none | food · meat · preserved |  |
@@ -234,9 +240,12 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `stone_knife` | Stone Knife | 1 | 1 | common | knife | weapon · blade · tool |  |
 | `stone_knife_work` | Stone Work Knife | 1 | 1 | uncommon | knife | tool · blade · weapon |  |
 | `stone_shot` | Stone Shot | 1 | 999 | uncommon | none | ammunition |  |
+| `stout_leg_bone` | Stout Leg Bone | 1 | 10 | uncommon | none | bone · blade_mat · handle · tier_bone | hardness=2, tint=#d4c4a8, material_tier=bone |
 | `strap` | Strap | 1 | 1 | common | none | component · strap · lashing |  |
 | `straw_roll_kit` | Straw Roll | 1 | 3 | common | none | building |  |
 | `sulphur` | Sulphur | 1 | 20 | uncommon | none | earth |  |
+| `tail_club` | Tail Club | 1 | 999 | rare | none | dense_bone · bone · blade_mat · tier_bone |  |
+| `tail_spike` | Tail Spike | 1 | 999 | rare | none | dense_bone · bone · blade_mat · tier_bone |  |
 | `tamed_animal` | Tamed Animal | 1 | 1 | rare | none | tool |  |
 | `tea` | Tea | 1 | 20 | uncommon | none | drink · food · brew |  |
 | `tent_kit` | Tent Kit | 1 | 1 | common | none | building |  |

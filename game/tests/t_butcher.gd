@@ -123,16 +123,16 @@ func _test_part_list() -> void:
 		if part["id"] == &"raptor_meat":
 			meat = part["row"]
 	_expect(data.item(&"raptor_meat") != null and int(meat.get("min", 0)) == 2 and int(meat.get("max", 0)) == 3, "a part keeps its data row (meat min 2 max 3, got %s)" % [meat])
-	# protoceratops lists raptor_bone twice (base + a rare frill row): one cut, the rare row kept with it.
+	# protoceratops lists stout_leg_bone twice (base + a rare frill row): one cut, the rare row kept with it.
 	var proto: Array = CP.parts(&"protoceratops")
 	var names := []
 	var bone: Dictionary = {}
 	for part in proto:
 		names.append(str(part["id"]))
-		if part["id"] == &"raptor_bone":
+		if part["id"] == &"stout_leg_bone":
 			bone = part
 	print("[t_butcher] protoceratops parts: %s" % [names])
-	_expect(names.count("raptor_bone") == 1, "a part listed twice in the data is one cut (%s)" % [names])
+	_expect(names.count("stout_leg_bone") == 1, "a part listed twice in the data is one cut (%s)" % [names])
 	# The rare row keeps its own attributes (the frill mark), not the base row's.
 	var bone_rare: Dictionary = bone.get("rare", {})
 	var bone_rare_attrs: Dictionary = bone_rare.get("attributes", {})
@@ -178,9 +178,9 @@ func _test_part_only() -> void:
 	var locked: Array = CP.parts(&"triceratops")
 	var scute: Dictionary = {}
 	for part in locked:
-		if part["id"] == &"armor_scute":
+		if part["id"] == &"frill_plate":
 			scute = part
-	_expect(not scute.is_empty(), "a triceratops lists its scutes")
+	_expect(not scute.is_empty(), "a triceratops lists its frill plates (scutes)")
 	var no: Dictionary = CP.cut(scute, _ctx(inv), rng)
 	print("[t_butcher] locked scutes cut: ok=%s reason=%s stacks=%d" % [no["ok"], no["reason"], (no["stacks"] as Array).size()])
 	_expect(not no["ok"] and (no["stacks"] as Array).is_empty() and str(no["reason"]) != "", "a part its Butchering node has not opened is refused, and gives nothing")
@@ -466,9 +466,9 @@ func _test_picker() -> void:
 	_expect(smallest >= 64.0, "every part hex is a 64 px tap target (smallest %.0f)" % smallest)
 	var scute = null
 	for b in hexes:
-		if str(b.name) == "Part_armor_scute":
+		if str(b.name) == "Part_frill_plate":
 			scute = b
-	_expect(scute != null and scute.disabled and picker.blocked_reason(&"armor_scute") != "", "a part its Butchering node has not opened is blocked with the reason (%s)" % (picker.blocked_reason(&"armor_scute") if scute else "no hex"))
+	_expect(scute != null and scute.disabled and picker.blocked_reason(&"frill_plate") != "", "a part its Butchering node has not opened is blocked with the reason (%s)" % (picker.blocked_reason(&"frill_plate") if scute else "no hex"))
 	# The name the hex draws itself must not run into its neighbour's: no two caption boxes overlap,
 	# and each hex's own box is the 64 px tap target.
 	var clashes := []
@@ -486,7 +486,7 @@ func _test_picker() -> void:
 	_expect(inner, "the part hexes never overlap each other")
 	# The name under each hex stays inside its own cell: no two part names run together.
 	var names := []
-	for id in ["raw_meat", "bone", "raw_hide", "dense_bone", "armor_scute"]:  # triceratops parts
+	for id in ["raw_meat", "large_leg_bone", "raw_hide", "brow_horn", "frill_plate"]:  # triceratops parts
 		var l = picker.name_label(StringName(id))
 		if l != null:
 			names.append(l)
@@ -496,7 +496,7 @@ func _test_picker() -> void:
 				clashes.append("%s/%s" % [names[i].text, names[j].text])
 	_expect(names.size() == hexes.size(), "every part shows its name under the hex (%d of %d)" % [names.size(), hexes.size()])
 	_expect(clashes.is_empty(), "no two part names overlap (%s)" % [clashes])
-	_expect(picker.can_cut(&"raw_meat") and not picker.can_cut(&"armor_scute"), "the picker offers the open parts and blocks the locked ones")
+	_expect(picker.can_cut(&"raw_meat") and not picker.can_cut(&"frill_plate"), "the picker offers the open parts and blocks the locked ones")
 	# A tap on an open hex starts the cut (the hex's own pressed signal, as a finger would).
 	var meat_hex = null
 	for b in hexes:

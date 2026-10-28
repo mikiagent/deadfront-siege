@@ -351,7 +351,7 @@ func _test_carcass() -> void:
 	_expect(_count(LR.roll_carcass(base, [], 5, &"stone", 0, 1, true, rng)["stacks"], &"raptor_meat") == 0, "a poisoned carcass gives no meat")
 	var trike: Dictionary = data.butcher_tables.get("triceratops", {})
 	var stone_parts: Array = LR.roll_carcass(trike.get("base", []), [], 5, &"stone", 0, 1, false, rng)["stacks"]
-	_expect(_count(stone_parts, &"raw_hide") > 0 and _count(stone_parts, &"bone") > 0, "a stone knife takes hide and bone")
+	_expect(_count(stone_parts, &"raw_hide") > 0 and _count(stone_parts, &"large_leg_bone") > 0, "a stone knife takes hide and bone")
 	_finished += 1
 
 # --- live: a real survivor (player.tscn), a HUD stand-in that records toasts and notices ---------
@@ -493,7 +493,7 @@ func _carcasses(species: StringName, n: int, ids: Array) -> Dictionary:
 
 ## The corpse.gd hook: the local survivor's own knife decides the cut.
 func _test_butcher_hook() -> void:
-	var ids := [&"raw_meat", &"armor_scute", &"dense_bone"]
+	var ids := [&"raw_meat", &"frill_plate", &"brow_horn"]
 	BL.rng.seed = 31
 	_clear_bag()
 	var none := _carcasses(&"triceratops", 150, ids)
@@ -502,9 +502,9 @@ func _test_butcher_hook() -> void:
 	print("[t_gather] roll_into x150 triceratops: no knife %s, flint knife %s" % [none, flint])
 	_expect(flint[&"raw_meat"] > none[&"raw_meat"], "the survivor's flint knife cuts more meat than no knife (%d vs %d)" % [flint[&"raw_meat"], none[&"raw_meat"]])
 	# Scutes and dense bone wait on the survivor's Butchering nodes (SKILLBUY), whatever the knife.
-	_expect(flint[&"armor_scute"] == 0 and flint[&"dense_bone"] == 0, "without their Butchering nodes no scutes or dense bone come off, even with a flint knife")
+	_expect(flint[&"frill_plate"] == 0 and flint[&"brow_horn"] == 0, "without their Butchering nodes no scutes or dense bone come off, even with a flint knife")
 	var opened: Array = []
-	for id in [&"armor_scute", &"dense_bone"]:
+	for id in [&"frill_plate", &"brow_horn"]:
 		var gate: Array = load("res://scripts/skills/skill_rules.gd").butcher_gate(player.skills, str(id))
 		_expect(not gate.is_empty(), "%s has a Butchering node gate" % id)
 		if not gate.is_empty() and not player.skills.is_unlocked(gate[0], str(gate[1]["id"])):
@@ -514,7 +514,7 @@ func _test_butcher_hook() -> void:
 	for o in opened:
 		(player.skills.trees[o[0]]["unlocked"] as Array).erase(o[1])
 	print("[t_gather] roll_into x150 triceratops, flint knife, nodes learned: %s" % [learned])
-	_expect(learned[&"armor_scute"] > 0 and learned[&"dense_bone"] > 0, "with their Butchering nodes learned the flint knife cuts scutes and dense bone")
+	_expect(learned[&"frill_plate"] > 0 and learned[&"brow_horn"] > 0, "with their Butchering nodes learned the flint knife cuts scutes and dense bone")
 	# One instance per part (W2-INV): a triceratops rolls more parts than Corpse's 12 starting slots, and
 	# the carcass grows to hold them all; the same seed through LootRoller says how many it rolled.
 	var c = CORPSE.new()
@@ -616,7 +616,7 @@ func _test_corpse_live() -> void:
 	hud.notices.clear()
 	var a = await _raptor_corpse(Vector3(1.5, 0.5, 1.0))
 	_expect(a != null and a.loot.count_of(&"raptor_talon") > 0, "a real raptor death leaves a corpse with the forced talon")
-	_expect(hud.notices.any(func(n): return str(n[0]).contains("Raptor Talon") and n[1] == GF.GOLD), "a kill in view announces its talon in gold (%s)" % [hud.notices])
+	_expect(hud.notices.any(func(n): return str(n[0]).contains("Sickle Claw") and n[1] == GF.GOLD), "a kill in view announces its talon in gold (%s)" % [hud.notices])
 	if a:
 		_park("butchering")
 		var moved: int = player.actions.loot(a, a.loot.find_first(&"raptor_talon"))
@@ -633,7 +633,7 @@ func _test_corpse_live() -> void:
 	# A kill far out of view (a turret's, another island corner's) rolls its talon without a notice.
 	hud.notices.clear()
 	var far = await _raptor_corpse(Vector3(400.0, 0.5, 0.0))
-	_expect(far != null and far.loot.count_of(&"raptor_talon") > 0 and not hud.notices.any(func(n): return str(n[0]).contains("Raptor Talon")), "a kill out of view rolls its talon silently (notices %s)" % [hud.notices])
+	_expect(far != null and far.loot.count_of(&"raptor_talon") > 0 and not hud.notices.any(func(n): return str(n[0]).contains("Sickle Claw")), "a kill out of view rolls its talon silently (notices %s)" % [hud.notices])
 	bc["default_rare_chance"] = keep[0]
 	bc["max_rare_chance"] = keep[1]
 	_relock(unlocked)
@@ -695,7 +695,7 @@ func _test_two_finds_one_frame() -> void:
 		if _tinted(n):
 			shown.append(n[0])
 	print("[t_gather] two finds in one frame: %s" % [shown])
-	for nm in ["Pearl", "Raptor Talon"]:
+	for nm in ["Pearl", "Sickle Claw"]:
 		_expect(shown.any(func(t): return str(t).contains(nm)), "%s announced (stack or gold notice) when two finds share a frame" % nm)
 	# A drawn stack cut short (replaced within SHOWN_MS) hands its find to the gold notice.
 	hud.notices.clear()

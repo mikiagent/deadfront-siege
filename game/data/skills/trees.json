@@ -1829,7 +1829,10 @@
             {
               "type": "butcher",
               "items": [
-                "dense_bone"
+                "dense_bone",
+                "brow_horn",
+                "tail_spike",
+                "tail_club"
               ]
             }
           ],
@@ -1957,7 +1960,10 @@
             {
               "type": "butcher",
               "items": [
-                "armor_scute"
+                "armor_scute",
+                "dorsal_plate",
+                "frill_plate",
+                "skull_plate"
               ]
             }
           ],

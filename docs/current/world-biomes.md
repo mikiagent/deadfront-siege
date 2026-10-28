@@ -1,6 +1,6 @@
 # World — islands, biomes, flora & fauna
 
-> Generated 2026-10-27 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
+> Generated 2026-10-28 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
 
 Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/creatures/*.json`, `game/data/butchering.json`.
 
@@ -147,23 +147,23 @@ Numbers: `game/data/loot_tables.json` `butcher`; code: `game/scripts/gather/carc
 
 ## Butchering drops per species
 
-- **Zebraceratops** — base: `raptor_meat` 2–3; `raptor_bone` 2–3; `raw_hide` 1–2; `dense_bone` 1–2; `armor_scute` 1–1; rare: `raptor_bone` 1–1 (skill 1)
-- **Compsognathus** — base: `raw_meat` 2–4; `bone` 1–2; `raw_hide` 1–1; `predator_tendon` 1–2; rare: 
-- **Coelophysis** — base: `raw_meat` 2–4; `bone` 1–2; `raw_hide` 1–1; `predator_tendon` 1–2; rare: 
-- **Protoceratops** — base: `raptor_meat` 3–4; `raptor_bone` 2–3; `raw_hide` 1–2; `dense_bone` 1–2; `armor_scute` 1–1; rare: `raptor_bone` 1–1 (skill 1)
+- **Zebraceratops** — base: `raptor_meat` 2–3; `stout_leg_bone` 2–3; `raw_hide` 1–2; `brow_horn` 1–2; `frill_plate` 1–1; rare: `stout_leg_bone` 1–1 (skill 1)
+- **Compsognathus** — base: `raw_meat` 2–4; `hollow_bone` 1–2; `raw_hide` 1–1; `predator_tendon` 1–2; rare: 
+- **Coelophysis** — base: `raw_meat` 2–4; `hollow_bone` 1–2; `raw_hide` 1–1; `predator_tendon` 1–2; rare: 
+- **Protoceratops** — base: `raptor_meat` 3–4; `stout_leg_bone` 2–3; `raw_hide` 1–2; `dense_bone` 1–2; `frill_plate` 1–1; rare: `stout_leg_bone` 1–1 (skill 1)
 - **Velociraptor** — base: `raptor_meat` 2–3; `raptor_bone` 1–2; `raptor_hide` 1–1; `predator_tendon` 1–2; rare: `raptor_talon` 1–1 (skill 1)
-- **Gallimimus** — base: `raw_meat` 4–7; `bone` 2–3; `raw_hide` 1–2; rare: 
+- **Gallimimus** — base: `raw_meat` 4–7; `hollow_bone` 2–3; `raw_hide` 1–2; rare: 
 - **Megaloceros** — base: `raw_meat` 2–4; `bone` 1–2; `raw_hide` 1–1; rare: 
 - **Deinonychus** — base: `raptor_meat` 2–4; `raptor_bone` 1–2; `raptor_hide` 1–1; `predator_tendon` 1–2; rare: `raptor_talon` 1–1 (skill 1)
-- **Dilophosaurus** — base: `raw_meat` 4–7; `bone` 2–3; `raw_hide` 1–2; `venom_gland` 1–2; rare: 
+- **Dilophosaurus** — base: `raw_meat` 4–7; `hollow_bone` 2–3; `raw_hide` 1–2; `venom_gland` 1–2; rare: 
 - **Smilodon** — base: `raw_meat` 2–4; `bone` 1–2; `raw_hide` 1–1; `predator_tendon` 1–2; rare: 
-- **Stegosaurus** — base: `raw_meat` 8–14; `bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `armor_scute` 1–1; rare: 
-- **Styracosaurus** — base: `raw_meat` 4–7; `bone` 2–3; `raw_hide` 1–2; `dense_bone` 1–2; `armor_scute` 1–1; rare: 
-- **Allosaurus** — base: `raw_meat` 8–14; `bone` 3–5; `raw_hide` 2–4; `predator_tendon` 1–2; rare: 
-- **Ankylosaurus** — base: `raw_meat` 8–14; `bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `armor_scute` 1–1; rare: 
+- **Stegosaurus** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `tail_spike` 1–2; `dorsal_plate` 1–1; rare: 
+- **Styracosaurus** — base: `raw_meat` 4–7; `large_leg_bone` 2–3; `raw_hide` 1–2; `brow_horn` 1–2; `frill_plate` 1–1; rare: 
+- **Allosaurus** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `predator_tendon` 1–2; rare: 
+- **Ankylosaurus** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `tail_club` 1–2; `armor_scute` 1–1; rare: 
 - **Utahraptor** — base: `raptor_meat` 3–5; `raptor_bone` 2–3; `raptor_hide` 1–2; `predator_tendon` 1–2; rare: `raptor_talon` 1–1 (skill 2)
-- **Triceratops** — base: `raw_meat` 8–14; `bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `armor_scute` 1–1; rare: 
-- **Brachiosaurus** — base: `raw_meat` 8–14; `bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `armor_scute` 1–1; rare: 
-- **Tarbosaurus** — base: `raw_meat` 8–14; `bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `armor_scute` 1–1; rare: 
-- **Tyrannosaurus rex** — base: `raw_meat` 8–14; `bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `armor_scute` 1–1; rare: 
+- **Triceratops** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `brow_horn` 1–2; `frill_plate` 1–1; rare: 
+- **Brachiosaurus** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `armor_scute` 1–1; rare: 
+- **Tarbosaurus** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `skull_plate` 1–1; rare: 
+- **Tyrannosaurus rex** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `skull_plate` 1–1; rare: 
 
