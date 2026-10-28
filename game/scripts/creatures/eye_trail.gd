@@ -75,6 +75,18 @@ const HALO_PUSH := 3.0
 ## fraction of the eye separation: clear of the near half of the skull, the far eye's streak still
 ## mostly behind it. Along the view ray, so it does not move on screen.
 const CLEAR_PER_SEPARATION := 1.5
+## Round 3 (owner: "when the enemy is facing you such that you should only see one eye, you see both"):
+## an eye turned away from the camera is behind the skull. Its outward axis (from the other eye to it)
+## against the direction to the camera: at or below FACING_HIDDEN the core and bloom are gone, at or
+## above FACING_SHOWN fully lit (head-on is 0, so both eyes show; a 90 deg profile is about -0.8 for the
+## far eye from the iso camera). CPU-side alpha, so it is the same on gl_compatibility.
+const FACING_HIDDEN := -0.45
+const FACING_SHOWN := -0.1
+## A hidden eye's flame fades in only once it has streamed out past the skull: from SKULL_CLEAR_FROM to
+## SKULL_CLEAR_TO eye separations along the flame (ASSUMPTION: the skull behind the eye is about one
+## separation long on every eyed species, measured 1.0-1.1 on deinonychus and T. rex).
+const SKULL_CLEAR_FROM := 0.9
+const SKULL_CLEAR_TO := 1.6
 ## Brightness multiplier on the eye colour (vertex colours carry the shape, this the HDR level).
 const ENERGY := 2.2
 ## ASSUMPTION: beyond this from the camera nothing is built (the game camera stands 90-430 m back).
@@ -183,6 +195,11 @@ var _block := 0
 var _ribbon_end := 0
 var _vcount := 0
 var _ribbon_dirty := true
+## Per eye this frame: how visible it is from the camera (1 = facing, 0 = behind the skull), and the
+## halo alpha drawn (tests read both).
+var _vis := PackedFloat32Array([1.0, 1.0])
+var _halo_a := PackedFloat32Array([0.0, 0.0])
+var _sep := 0.0
 ## Per eye: oldest -> newest past positions, the age (s) and strength of each.
 var _pts: Array = []
 var _ages: Array = []
@@ -268,6 +285,7 @@ func setup(eyes: CreatureEyes, dots: Array[MeshInstance3D], radius_world: float,
 	_colour = colour
 	var sep := dots[0].global_position.distance_to(dots[1].global_position) if dots.size() >= 2 else 0.0
 	_clear_m = sep * CLEAR_PER_SEPARATION
+	_sep = sep
 	_apply_knobs(block, MAX_LENGTH_M * clampf(sep / LENGTH_REF_SEPARATION_M, LENGTH_SCALE_MIN, LENGTH_SCALE_MAX))
 	_low = low_quality
 	_strands = STRANDS_LOW if _low else STRANDS
@@ -454,7 +472,9 @@ func tick(dt: float) -> void:
 func _in_view(cam: Camera3D) -> bool:
 	if cam == null:
 		return true
-	var at := _eyes.global_position
+	# The eyes, not the Eyes node (it sits at the animal's feet: a T. rex head 7 m up was culled with
+	# its feet just off the bottom of the screen).
+	var at := _dots[0].global_position
 	return cam.global_position.distance_to(at) <= max_distance_m and cam.is_position_in_frustum(at)
 
 func _glow_fraction() -> float:
@@ -521,6 +541,7 @@ func _build(cam: Camera3D, glow: float) -> void:
 	var any := false
 	for i in _dots.size():
 		any = any or not (_pts[i] as Array).is_empty()
+	_facing(cam)
 	if any or _ribbon_dirty:
 		for i in 2:
 			_n = i * _block
@@ -545,6 +566,25 @@ func _build(cam: Camera3D, glow: float) -> void:
 	_mesh.custom_aabb = AABB(_eyes.global_position - reach, reach * 2.0)
 	_builds += 1
 	visible = true
+
+## Which eye the head hides: each eye's outward axis against the direction to the camera.
+func _facing(cam: Camera3D) -> void:
+	if cam == null:
+		_vis[0] = 1.0
+		_vis[1] = 1.0
+		return
+	var p0 := _dots[0].global_position
+	var p1 := _dots[1].global_position
+	var out := (p0 - p1).normalized()
+	_vis[0] = smoothstep(FACING_HIDDEN, FACING_SHOWN, out.dot((cam.global_position - p0).normalized()))
+	_vis[1] = smoothstep(FACING_HIDDEN, FACING_SHOWN, -out.dot((cam.global_position - p1).normalized()))
+
+## How much of a hidden eye's flame shows `d` metres along it from the eye.
+func _past_skull(i: int, d: float) -> float:
+	var v := _vis[i]
+	if v >= 1.0:
+		return 1.0
+	return lerpf(v, 1.0, smoothstep(SKULL_CLEAR_FROM * _sep, SKULL_CLEAR_TO * _sep, d))
 
 ## One eye's ribbon block drawn as nothing: every vertex on one point.
 func _collapse(i: int) -> void:
@@ -589,6 +629,9 @@ func _draw_streak(i: int, now: Vector3, cam: Camera3D) -> bool:
 	var cam_at := cam.global_position if cam != null else now + Vector3(0.0, 0.0, 10.0)
 	var cam_right := cam.global_basis.x if cam != null else Vector3.RIGHT
 	var w0 := _base_half_width(cam, now)
+	var length := 0.0
+	for k in m - 1:
+		length += _chain[k].distance_to(_chain[k + 1])
 	var wind := WIND.normalized()
 	var phase0 := float(i) * 17.3
 	var flow := _time * flicker_hz
@@ -605,7 +648,8 @@ func _draw_streak(i: int, now: Vector3, cam: Camera3D) -> bool:
 		# Dragged downwind with a slight rise: the flame streams back along the motion.
 		p += (wind + Vector3.UP * 0.35) * (drift_mps * age * (0.6 + 0.4 * _vnoise(t * 2.0 - flow * 0.5 + phase0 + 80.0)))
 		_rp[j] = p
-		_rfade[j] = lerpf(_cstr[k], _cstr[k + 1], f) * pow(clampf(1.0 - age / fade_s, 0.0, 1.0), tip_pow)
+		_rfade[j] = lerpf(_cstr[k], _cstr[k + 1], f) * pow(clampf(1.0 - age / fade_s, 0.0, 1.0), tip_pow) \
+			* _past_skull(i, t * length)
 		# Width flicker flows from the eye to the tip (noise at position along - time); it eats the tip most.
 		_rw[j] = maxf(0.0, 1.0 + flicker * _vnoise(t * 7.0 - flow + phase0) * (0.3 + 0.9 * t))
 	# Flowing noise for the strands, a few rows past the curve so each strand reads its own stretch.
@@ -653,12 +697,13 @@ func _draw_streak(i: int, now: Vector3, cam: Camera3D) -> bool:
 				elif j == 0:
 					_tail_w = maxf(_tail_w, w)
 	_n = n
-	_draw_embers(i, m, cam_at, cam_right, w0, wind)
+	_draw_embers(i, m, cam_at, cam_right, w0, wind, length)
 	return true
 
 ## Sparks shed along the flame: one per _ember_step stored samples, drifting off it with age and
 ## twinkling; a slot with no spark this frame is collapsed.
-func _draw_embers(i: int, m: int, cam_at: Vector3, cam_right: Vector3, w0: float, wind: Vector3) -> void:
+func _draw_embers(i: int, m: int, cam_at: Vector3, cam_right: Vector3, w0: float, wind: Vector3,
+		length: float) -> void:
 	var n := _n
 	var hot := hot_head * 0.6
 	for slot in _ember_slots:
@@ -671,7 +716,8 @@ func _draw_embers(i: int, m: int, cam_at: Vector3, cam_right: Vector3, w0: float
 			age = _cage[k]
 			fade = clampf(1.0 - age / fade_s, 0.0, 1.0)
 			key = float(k + int(_time * 7.0)) * 3.17 + float(i) * 11.0
-			a = _cstr[k] * fade * clampf(_vnoise(_time * flicker_hz * 1.7 + key) * 2.0, 0.0, 1.0)
+			a = _cstr[k] * fade * clampf(_vnoise(_time * flicker_hz * 1.7 + key) * 2.0, 0.0, 1.0) \
+				* _past_skull(i, length * float(m - 1 - k) / float(m - 1))
 		if a <= 0.02:
 			for v in 5:
 				_verts[n + v] = Vector3.ZERO
@@ -705,7 +751,8 @@ func _draw_halo(i: int, eye: Vector3, cam: Camera3D, glow: float) -> void:
 	var mpp := _m_per_px(cam, eye)
 	var shimmer := 1.0 + 0.1 * flicker * _vnoise(_time * flicker_hz * 0.7 + float(i) * 9.1)
 	# A moving eye burns hotter: the bloom brightens with the flame.
-	var a := glow * minf(1.0, (0.8 + 0.2 * _str[i]) * shimmer)
+	var a := glow * minf(1.0, (0.8 + 0.2 * _str[i]) * shimmer) * _vis[i]
+	_halo_a[i] = a
 	var bloom_r := maxf(_radius * BLOOM_PER_RADIUS, MIN_BLOOM_PX * mpp)
 	for s in HALO_SLICES:
 		_dirs[s] = right * _cos[s] + up * _sin[s]
@@ -855,6 +902,13 @@ func trail_alpha() -> float:
 
 func surface_count() -> int:
 	return _mesh.get_surface_count() if _mesh != null else 0
+
+## Halo (core + bloom) alpha of eye i on the last build, and how visible the eye is from the camera.
+func halo_alpha(i: int) -> float:
+	return _halo_a[i] if visible else 0.0
+
+func eye_visibility(i: int) -> float:
+	return _vis[i]
 
 ## Strands drawn per eye (STRANDS, or STRANDS_LOW on the low-quality path).
 func strand_count() -> int:

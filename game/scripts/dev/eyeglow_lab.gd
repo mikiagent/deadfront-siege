@@ -6,6 +6,7 @@ extends Node3D
 ##   godot --path game --resolution 1600x900 --rendering-method gl_compatibility -- \
 ##     --lab=eyeglow_lab --shot-dir=/tmp/eyeglow_shots
 ##   ... --lab=eyeglow_lab --probe        (head-bone geometry per species, no shots)
+##   ... --lab=eyeglow_lab --sockets      (measure each painted eye on the mesh, print JSON-ready points)
 
 const SPECIES: Array[StringName] = [&"tyrannosaurus", &"utahraptor", &"deinonychus",
 	&"velociraptor", &"coelophysis", &"compsognathus"]
@@ -26,6 +27,7 @@ var EYES_SETUP_DAY := -1.0
 ## so the eye is rarely under a vertex exactly).
 const AIM_PX := 8.0
 var ray_mode := false
+var sockets_mode := false
 ## --move=<dx>,<dy>: shift every dot by this many screen pixels in the side shot and print the new
 ## points (right and up are positive). Used to walk a dot onto the painted eye.
 var move := Vector2.ZERO
@@ -43,6 +45,8 @@ func _ready() -> void:
 			move = Vector2(float(pair2[0]), float(pair2[1]))
 		elif a == "--ray":
 			ray_mode = true
+		elif a == "--sockets":
+			sockets_mode = true
 		elif a == "--probe":
 			probe_only = true
 		elif a.begins_with("--species="):
@@ -109,6 +113,13 @@ func _run() -> void:
 		ids.append_array(PLAIN)
 	if probe_only:
 		await _probe(ids)
+		get_tree().quit(0)
+		return
+	if sockets_mode:
+		await get_tree().create_timer(1.5).timeout
+		for id in ids:
+			if not PLAIN.has(id):
+				await _socket_species(id)
 		get_tree().quit(0)
 		return
 	if move != Vector2.ZERO:
@@ -217,6 +228,148 @@ func _aim_species(id: StringName) -> void:
 	cam.queue_free()
 	c.queue_free()
 	await get_tree().process_frame
+
+## Measures where the painted eye is on the mesh, without anyone picking a pixel: an unlit (albedo
+## only) orthographic side close-up of the bind-pose head, framed on the current eye pair, downscaled to
+## SOCKET_PX; the eye is the strongest contrast blob (local luminance spread plus its difference from
+## the ring around it) within SOCKET_WINDOW eye separations of the current point, over a few blob radii.
+## The blob centre's ray against the mesh gives the near eye on the skin; the far eye is that point
+## mirrored across the model's midline. The blob is then re-centred SOCKET_REFINE_PASSES times on the centroid of its pixels
+## weighted by their squared difference from the ring around them, so it lands on the iris, not its rim. Prints the offset from the current data and JSON-ready points.
+const SOCKET_PX := 225
+const SOCKET_WINDOW := 0.15
+const SOCKET_RADII: Array[int] = [3, 4, 6, 8, 11]
+const SOCKET_REFINE_R := 3
+const SOCKET_REFINE_PASSES := 6
+
+func _socket_species(id: StringName) -> void:
+	var c := _spawn(id)
+	c.global_position = Vector3.ZERO
+	await get_tree().process_frame
+	_bind_pose(c)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var eyes := c.view.get_node_or_null("Eyes") as CreatureEyes
+	if eyes == null or eyes.dots.size() != 2:
+		print("[eyeglow-socket] %s FAIL no eyes" % id)
+		c.queue_free()
+		return
+	var w0: Vector3 = eyes.dots[0].global_position
+	var w1: Vector3 = eyes.dots[1].global_position
+	var mid := (w0 + w1) * 0.5
+	var sep := w0.distance_to(w1)
+	# The dots would be the strongest blob: hidden, and kept hidden (CreatureEyes re-shows them per frame).
+	eyes.set_process(false)
+	eyes.attachment.visible = false
+	if eyes.trail:
+		eyes.trail.visible = false
+	for mi in c.view.rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
+		var m := (mi as MeshInstance3D)
+		var base: Material = m.mesh.surface_get_material(0) if m.mesh and m.mesh.get_surface_count() > 0 else null
+		if base is StandardMaterial3D:
+			var u := (base as StandardMaterial3D).duplicate() as StandardMaterial3D
+			u.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.material_override = u
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = maxf(0.25, c.def.height_meters * 0.11)
+	add_child(cam)
+	cam.global_position = mid + Vector3(5.0, 0.0, 0.0)
+	cam.look_at(mid, Vector3.UP)
+	cam.current = true
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	var vp := Vector2(img.get_size())
+	img.resize(SOCKET_PX, SOCKET_PX, Image.INTERPOLATE_BILINEAR)
+	img.save_png("%s/%s_socket_albedo.png" % [shot_dir, id])
+	var blob := _contrast_blob(img, int(SOCKET_WINDOW * sep / cam.size * SOCKET_PX))
+	var marked := img.duplicate() as Image
+	for k in range(-4, 5):
+		for q in [Vector2i(int(blob.x) + k, int(blob.y)), Vector2i(int(blob.x), int(blob.y) + k)]:
+			if q.x >= 0 and q.y >= 0 and q.x < SOCKET_PX and q.y < SOCKET_PX:
+				marked.set_pixelv(q, Color.MAGENTA)
+	marked.save_png("%s/%s_socket_marked.png" % [shot_dir, id])
+	# Back to the viewport's pixels (the image is square, the viewport may not be).
+	var px := Vector2(blob.x, blob.y) / float(SOCKET_PX) * vp * (get_viewport().get_visible_rect().size / vp)
+	var hit := _ray_head(c, cam.project_ray_origin(px), cam.project_ray_normal(px))
+	if hit == Vector3.INF:
+		print("[eyeglow-socket] %s FAIL ray missed at %s" % [id, px])
+	else:
+		var near := w0 if w0.x > w1.x else w1
+		var sk: Skeleton3D = c.view.rig.skeleton
+		var xf := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head"))
+		var a := xf.affine_inverse() * hit
+		var b := xf.affine_inverse() * Vector3(-hit.x, hit.y, hit.z)
+		# Data order is kept: the point that was nearer +X stays first if it was first.
+		var first_is_near := w0.x > w1.x
+		var p0 := a if first_is_near else b
+		var p1 := b if first_is_near else a
+		print("[eyeglow-socket] %s measured=%s current_near=%s offset_mm=(y %.1f, z %.1f, x %.1f) offset/sep=%.2f sep_measured=%.4f sep_current=%.4f blob_r=%d score=%.1f" % [id,
+			hit, near, (hit.y - near.y) * 1000.0, (hit.z - near.z) * 1000.0, (hit.x - near.x) * 1000.0,
+			hit.distance_to(near) / sep, 2.0 * absf(hit.x - mid.x), sep, int(blob.z), blob.w])
+		print("[eyeglow-socket] %s points=[[%.4f, %.4f, %.4f], [%.4f, %.4f, %.4f]]" % [id, p0.x, p0.y, p0.z, p1.x, p1.y, p1.z])
+	cam.queue_free()
+	c.queue_free()
+	await get_tree().process_frame
+
+## The strongest contrast blob within `win` pixels of the image centre: (x, y, radius, score).
+static func _contrast_blob(img: Image, win: int) -> Vector4:
+	var n := img.get_width()
+	# Integral images of luminance and its square.
+	var s1 := PackedFloat64Array()
+	var s2 := PackedFloat64Array()
+	s1.resize((n + 1) * (n + 1))
+	s2.resize((n + 1) * (n + 1))
+	for y in n:
+		var r1 := 0.0
+		var r2 := 0.0
+		for x in n:
+			var c := img.get_pixel(x, y)
+			var l := (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) * 255.0
+			r1 += l
+			r2 += l * l
+			s1[(y + 1) * (n + 1) + x + 1] = s1[y * (n + 1) + x + 1] + r1
+			s2[(y + 1) * (n + 1) + x + 1] = s2[y * (n + 1) + x + 1] + r2
+	var best := Vector4(n / 2, n / 2, 0, -1.0)
+	var c0 := n / 2
+	win = clampi(win, 4, c0 - 1)
+	for r in SOCKET_RADII:
+		for y in range(c0 - win, c0 + win):
+			for x in range(c0 - win, c0 + win):
+				var m := _box(s1, n, x, y, r)
+				var v := _box(s2, n, x, y, r) - m * m
+				var score := sqrt(maxf(v, 0.0)) + absf(m - _box(s1, n, x, y, 2 * r))
+				if score > best.w:
+					best = Vector4(x, y, r, score)
+	var r2 := int(best.z) * SOCKET_REFINE_R
+	for _pass in SOCKET_REFINE_PASSES:
+		var bx := int(best.x)
+		var by := int(best.y)
+		var bg := (_box(s1, n, bx, by, r2 + r2 / 2) * float((2 * (r2 + r2 / 2) + 1) ** 2) - _box(s1, n, bx, by, r2) * float((2 * r2 + 1) ** 2)) \
+			/ float((2 * (r2 + r2 / 2) + 1) ** 2 - (2 * r2 + 1) ** 2)
+		var acc := Vector2.ZERO
+		var wsum := 0.0
+		for y in range(maxi(0, by - r2), mini(n, by + r2 + 1)):
+			for x in range(maxi(0, bx - r2), mini(n, bx + r2 + 1)):
+				if (x - bx) * (x - bx) + (y - by) * (y - by) > r2 * r2:
+					continue
+				var c := img.get_pixel(x, y)
+				var d := (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) * 255.0 - bg
+				acc += Vector2(x, y) * d * d
+				wsum += d * d
+		if wsum > 0.0:
+			best.x = acc.x / wsum
+			best.y = acc.y / wsum
+	return best
+
+static func _box(s: PackedFloat64Array, n: int, x: int, y: int, r: int) -> float:
+	var x0 := maxi(0, x - r)
+	var y0 := maxi(0, y - r)
+	var x1 := mini(n, x + r + 1)
+	var y1 := mini(n, y + r + 1)
+	return (s[y1 * (n + 1) + x1] - s[y0 * (n + 1) + x1] - s[y1 * (n + 1) + x0] + s[y0 * (n + 1) + x0]) / float((x1 - x0) * (y1 - y0))
 
 ## Shifts every eyes point by the given screen offset of the side shot and prints the new points.
 func _move_species(id: StringName) -> void:

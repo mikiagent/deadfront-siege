@@ -66,6 +66,8 @@ func _run() -> void:
 	await _test_shape()
 	await _test_knobs()
 	await _test_quality_and_alloc()
+	for id: StringName in [&"deinonychus", &"tyrannosaurus"]:
+		await _test_hidden_eye(id)
 	await _test_cost_and_cull()
 	for c in _creatures:
 		if is_instance_valid(c):
@@ -417,6 +419,67 @@ func _test_knobs() -> void:
 	WL.night = had_night
 	await process_frame
 
+## Round 3 (owner: "when the enemy is facing you such that you should only see one eye, you see both"):
+## from a 90 deg profile at the iso camera's 35 deg elevation the far eye's core and bloom contribute
+## ~0 while the near one is full; head-on both are full. The far eye's flame is hidden at the eye and
+## shows again once it has streamed out past the skull.
+func _test_hidden_eye(id: StringName) -> void:
+	var had_night: float = WL.night
+	WL.night = 1.0
+	var c := _spawn(id)
+	await process_frame
+	await process_frame
+	var trail = _trail_of(c)
+	var eyes = c.view.get_node_or_null("Eyes")
+	if trail == null or eyes == null:
+		_expect(false, "%s hidden-eye test has a trail" % id)
+		return
+	var p0: Vector3 = (eyes.dots[0] as Node3D).global_position
+	var p1: Vector3 = (eyes.dots[1] as Node3D).global_position
+	var mid := (p0 + p1) * 0.5
+	var out := Vector3(p0.x - p1.x, 0.0, p0.z - p1.z).normalized()
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var head := (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head"))).origin
+	var fwd := Vector3(mid.x - head.x, 0.0, mid.z - head.z)
+	fwd = (fwd - out * fwd.dot(out)).normalized()
+	var cam := Camera3D.new()
+	# A teleported camera must not be interpolated towards its new place over the physics ticks.
+	cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	root.add_child(cam)
+	cam.fov = 4.3
+	cam.current = true
+	var elev := deg_to_rad(35.0)
+	var dist := 190.0
+	var got := {}
+	for view in ["profile", "head_on"]:
+		var horiz: Vector3 = out if view == "profile" else fwd
+		cam.global_position = mid + (horiz * cos(elev) + Vector3.UP * sin(elev)) * dist
+		cam.look_at(mid, Vector3.UP)
+		await process_frame
+		for _i in 10:
+			trail.tick(DT)
+		got[view] = Vector2(trail.halo_alpha(0), trail.halo_alpha(1))
+	var pr: Vector2 = got["profile"]
+	var ho: Vector2 = got["head_on"]
+	print("[t_eyetrails] %s halo alpha near/far: profile %.3f / %.3f, head-on %.3f / %.3f" % [id, pr.x, pr.y, ho.x, ho.y])
+	_expect(pr.x > 0.5 and pr.y <= 0.02 * pr.x, "%s profile: the far eye's core is hidden (%.3f vs near %.3f)" % [id, pr.y, pr.x])
+	_expect(minf(ho.x, ho.y) >= 0.9 * maxf(ho.x, ho.y) and ho.x > 0.5, "%s head-on: both eyes glow (%.3f / %.3f)" % [id, ho.x, ho.y])
+	# The far eye's flame in profile: nothing at the eye, all of it past the skull.
+	cam.global_position = mid + (out * cos(elev) + Vector3.UP * sin(elev)) * dist
+	cam.look_at(mid, Vector3.UP)
+	await process_frame
+	trail.tick(DT)
+	var sep := p0.distance_to(p1)
+	print("[t_eyetrails] %s past skull: far at eye %.3f, far at 2 sep %.3f, near at eye %.3f" % [id,
+		trail.call("_past_skull", 1, 0.0), trail.call("_past_skull", 1, 2.0 * sep), trail.call("_past_skull", 0, 0.0)])
+	_expect(trail.call("_past_skull", 1, 0.0) <= 0.02 and is_equal_approx(trail.call("_past_skull", 1, 2.0 * sep), 1.0)
+		and is_equal_approx(trail.call("_past_skull", 0, 0.0), 1.0),
+		"%s profile: the far flame starts past the skull, the near one at the eye" % id)
+	cam.queue_free()
+	c.queue_free()
+	WL.night = had_night
+	await process_frame
+
 ## Forces the dots' global transforms up to date (outside any timer).
 func _settle(trail: Node) -> void:
 	for d: Node3D in trail.get("_dots"):
@@ -486,7 +549,7 @@ func _test_quality_and_alloc() -> void:
 	# The tick path builds no arrays, objects or strings: every buffer is sized once in setup().
 	var src: String = TRAIL.source_code
 	for fn in ["tick", "_track", "_build", "_collapse", "_draw_streak", "_draw_embers", "_draw_halo",
-			"_m_per_px", "_catmull", "_vnoise"]:
+			"_m_per_px", "_facing", "_past_skull", "_catmull", "_vnoise"]:
 		var at := src.find("\nfunc %s(" % fn)
 		if at < 0:
 			at = src.find("\nstatic func %s(" % fn)
@@ -567,13 +630,21 @@ func _shot_species(id: StringName, dir: String, cam: Camera3D) -> void:
 	c.rotation.y = yaw
 	var t := 0.0
 	var idle_peak := 0.0
-	var shots := {0.95: "still", 1.5: "run_a", 1.75: "run_b", 2.0: "run_c", 2.45: "turn"}
+	# Standing first in profile (side on to the camera, the far eye behind the skull), then turned to
+	# face the camera head-on, then the run.
+	var cam_fwd := -cam.global_basis.z
+	var head_on_yaw := atan2(cam_fwd.x, cam_fwd.z)
+	var shots := {0.45: "profile", 0.95: "head_on", 1.5: "run_a", 1.75: "run_b", 2.0: "run_c", 2.45: "turn"}
 	while t < 2.6:
 		await process_frame
 		# Real frame time, the same the trail ticks with: a slow windowed frame must not slow the run.
 		dt = clampf(root.get_process_delta_time(), 0.001, 0.05)
 		var was := t
 		t += dt
+		if t > 0.5 and t <= 1.0:
+			c.rotation.y = head_on_yaw
+		elif t > 1.0 and t <= 1.0 + dt * 1.5:
+			c.rotation.y = yaw
 		if t > 1.0 and t < 2.1:
 			# Run a gentle left-hand curve, 30 m radius, facing the way it goes (forward is -Z).
 			yaw += speed / 30.0 * dt

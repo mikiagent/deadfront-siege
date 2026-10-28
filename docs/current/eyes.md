@@ -89,10 +89,36 @@ optional `"trail": {...}` object **inside the existing `eyes` block**, same keys
 `drift_mps`, `taper`, `tip_pow`, `hot_head`, `width_per_radius`, `energy`, `max_distance_m`); every value
 is clamped, so a typo cannot spin the buffer.
 
-Eye points: the T. rex points were corrected on 2026-10-27 (they sat in the brow socket ~10 cm above and
-ahead of the painted eyeball): `[±0.5119, 0.9485, 0.7624]`, measured with
-`eyeglow_lab --species=tyrannosaurus --aim=958,348 --ray`. Deinonychus, velociraptor and utahraptor were
-checked side and front and left as they were.
+Eye points (round 3, 2026-10-28): all six species re-measured with `eyeglow_lab --sockets`, without
+anyone picking a pixel. The lab renders an unlit (albedo-only) orthographic side close-up of the bind-pose
+head, with the dots and flame hidden, and downscales it to 225 px. It takes the strongest contrast blob
+within 0.15 eye separations of the old point and re-centres it six times on the luminance-weighted
+centroid of its pixels. That pixel's ray against the mesh gives the near eye on the skin; the far eye is
+that point mirrored across the model's midline. The lab saves `<id>_socket_marked.png` for a check. The
+blob lands within about a third of the painted eye's radius of its centre (on the iris for deinonychus,
+coelophysis, T. rex; at the upper edge for utahraptor and velociraptor, by about 1-2 cm). Changes from the
+old points (near eye, world): T. rex 23 mm forward; utahraptor 40 mm up, 11 mm forward; deinonychus
+13 mm up; velociraptor 32 mm up, 18 mm back; coelophysis 14 mm back; compsognathus 17 mm up.
+
+The owner said the deinonychus eyes were "very close together". The mesh does not support that: the
+spacing was already the skull's own width at the socket (0.200 m on a 0.183 m skull, now 0.193 m with
+the 5 mm surface push), and every pair was already mirrored. What read as two eyes close together was
+the far eye glowing through the head in profile (below).
+
+## The hidden eye (round 3)
+Owner: "when the enemy is facing you such that you should only see one eye, you see both eye trail
+candle sources". The core and bloom draw without a depth test, so the far eye showed through the skull.
+Per eye, `EyeTrail._facing` compares the eye's outward axis (from the other eye to it) with the
+direction to the camera. At or below `FACING_HIDDEN` (-0.45) the eye's core and bloom have alpha 0; at
+or above `FACING_SHOWN` (-0.1) they are fully lit. Head-on gives 0, so both eyes show. A 90 deg profile
+from the iso camera gives about -0.8 for the far eye. A hidden eye's flame starts transparent at the eye
+and fades in from `SKULL_CLEAR_FROM` 0.9 to `SKULL_CLEAR_TO` 1.6 eye separations along it, so it appears
+once it has streamed out past the skull. Embers get the same treatment. All of this is CPU-side alpha,
+so it works the same on gl_compatibility. The eyeshine dots are depth-tested already. The rim lights
+are unchanged.
+
+`_in_view` now culls by the eye, not by the Eyes node. That node sits at the animal's feet, so a T. rex
+whose feet were just off the bottom of the screen lost its glowing eyes.
 
 ## Cost
 Measured by `t_eyetrails` on this Mac, script time inside `tick()` only, animals running at full flame
@@ -116,9 +142,14 @@ draws nothing, speed grows length and alpha, fade-out after stopping, sample cap
 `flicker: 0`, length cap at 12 m/s, day/dead/asleep hidden, distance cull stops rebuilding, 20-animal
 cost; round 2: the shader's render modes and noise texture, the quality toggle (strand count, shader
 variant, fewer vertices, less script), and no per-frame allocation: fixed buffer size, no Object created,
-static memory flat over 360 ticks, and a scan of the tick-path functions for allocating constructs). `t_eyetrails` also renders a look-pass with `-- --shot-dir=DIR` when run windowed: a night ground plane,
+static memory flat over 360 ticks, and a scan of the tick-path functions for allocating constructs;
+round 3: for the deinonychus and the T. rex at a 90 deg profile from 190 m, 35 deg up, the far eye's halo
+alpha is at most 2 % of the near one's; head-on both are within 10 %; the far flame is 0 at the eye and
+fully on 2 separations out). `t_eyeglow` round 3: every eyed species' dots mirror across the midline,
+and their spacing matches the skull's skin-to-skin width at the socket within 12 % (rays along the
+lateral axis at each dot's height and length, bind pose). `t_eyetrails` also renders a look-pass with `-- --shot-dir=DIR` when run windowed: a night ground plane,
 `WorldLighting` at midnight and the real `IsoCamera` (default zoom 14 m, 18 m for the T. rex), the animal
-standing, running a curve across the screen and snapping round, at 60 fps and real frame time; it saves
+standing in profile, then head-on, then running a curve across the screen and snapping round, at 60 fps and real frame time; it saves
 800x450 crops around the eye. Options: `--shot-species=a,b`, `--shot-zoom=<m>`, `--shot-tod=<0..1>`
 (0.79 is dusk). Add `--rendering-method gl_compatibility --rendering-driver opengl3` for the web look
 (which also turns on the low-quality path).
