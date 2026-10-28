@@ -112,13 +112,12 @@ func tick(delta: float) -> void:
 		return
 	if not p.is_on_floor() and p.mounted_on == null and not p.swimming:
 		p.velocity += p.get_gravity() * delta
+	_roll_cd_left = maxf(0.0, _roll_cd_left - delta)
 	if _roll_left > 0.0:
 		_roll_left -= delta
 		_roll_elapsed += delta
 		if _roll_left <= 0.0:
 			_end_roll()
-	elif _roll_cd_left > 0.0:
-		_roll_cd_left = maxf(0.0, _roll_cd_left - delta)
 	if _roll_buffer_left > 0.0:
 		_roll_buffer_left -= delta
 		if not p.rolling:
@@ -352,6 +351,7 @@ func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 	p.rolling = true
 	_roll_left = RollRules.seconds()
 	_roll_elapsed = 0.0
+	_roll_cd_left = RollRules.cooldown_s()  # counted from the press: no chaining after the dash
 	_stagger_left = 0.0
 	p.clear_nav()
 	p.actions.cancel_work()  # a swing in flight is lost: Hunt checks rolling when it would land
@@ -401,13 +401,12 @@ func roll_elapsed() -> float:
 func roll_invulnerable() -> bool:
 	return p.rolling and RollRules.invulnerable_at(_roll_elapsed)
 
-## Seconds until another roll is allowed (0 when she may roll now).
+## Seconds until another roll is allowed, counted from the press (RollRules.cooldown_s()).
 func roll_cooldown_left() -> float:
 	return _roll_cd_left
 
 func _end_roll() -> void:
 	p.rolling = false
-	_roll_cd_left = RollRules.cooldown_s()
 	for c in _roll_through:
 		if c and is_instance_valid(c):
 			p.remove_collision_exception_with(c)

@@ -35,19 +35,30 @@ static func defense_xp() -> int:
 	return maxi(0, int(tune("defense_xp", 1)))
 
 static func top_speed() -> float:
-	return maxf(0.1, tune("speed_mps", 26.0))
+	return maxf(0.1, tune("speed_mps", 39.0))
 
 static func end_speed_frac() -> float:
-	return clampf(tune("end_speed_frac", 0.5), 0.0, 1.0)
+	return clampf(tune("end_speed_frac", 0.2), 0.0, 1.0)
 
-## Front-loaded speed curve: top speed at the press, end_speed_frac of it as the dash ends.
+## Front-loaded speed curve: top speed at the press, decaying so that the last frame runs at
+## end_speed_frac of it. Most of the ground is covered early; the dash still reads as one move.
 static func speed_at(elapsed: float) -> float:
 	var t := clampf(elapsed / seconds(), 0.0, 1.0)
-	return top_speed() * lerpf(1.0, end_speed_frac(), t)
+	var e := end_speed_frac()
+	if e >= 0.999:
+		return top_speed()
+	return top_speed() * exp(-decay() * t)
+
+## The exponential decay rate that leaves end_speed_frac of the speed at the end of the dash.
+static func decay() -> float:
+	return -log(maxf(0.01, end_speed_frac()))
 
 ## Ground a roll covers on open ground: the integral of speed_at over its length.
 static func distance() -> float:
-	return top_speed() * seconds() * (1.0 + end_speed_frac()) * 0.5
+	var e := end_speed_frac()
+	if e >= 0.999:
+		return top_speed() * seconds()
+	return top_speed() * seconds() * (1.0 - e) / decay()
 
 ## The one rule both paths call: a hit landing `elapsed` seconds after the roll began is dodged
 ## while that time is inside the opening window.
