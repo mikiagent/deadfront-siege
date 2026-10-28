@@ -3,13 +3,11 @@ extends RefCounted
 ## Survivor movement and physics: walking, tap-to-walk routes, roll, stagger, sleep, and the
 ## guards that keep the body on the island. Player._physics_process calls tick() once a frame.
 
-const ROLL_SPEED := 13.0
-const ROLL_SECONDS := 0.45  # ~5.9 m
-const ROLL_BUFFER := 0.2
-const ROLL_COST := 12.0
-## The v2 roll clip tumbles and stands back up over ~1.9 s; played faster so the visible roll ends
-## with the dash instead of locking the survivor for the whole clip (pc-combat-01).
-const ROLL_CLIP_SECONDS := 0.45
+## ROLL: length, speed curve, opening invulnerable window, cost and cooldown all live in
+## data/combat_tuning.json "roll" and are timed by RollRules (the server reads the same rules).
+## The front-loaded curve carries her ~10.9 m in 0.55 s; a wall still stops her where a walk would.
+## The v2 roll clip tumbles and stands back up over ~1.9 s; played over the dash so the visible
+## roll ends with it instead of locking the survivor for the whole clip (pc-combat-01).
 
 var p: Player
 ## Tap-run or sprint this frame; the anim tick and footsteps read it.
@@ -27,6 +25,9 @@ var _roll_direction := Vector3.ZERO
 var _roll_through: Array[Creature] = []
 var _roll_buffer_left: float = 0.0
 var _roll_buffer_dir := Vector3.ZERO
+## Seconds since this roll began (the i-frame clock) and the cooldown left after it ends.
+var _roll_elapsed: float = 0.0
+var _roll_cd_left: float = 0.0
 ## Stagger: a short unmovable hurt window after a hit (0.35 s), at most once every 1.5 s.
 var _stagger_left: float = 0.0
 var _stagger_immune_until: float = -1.0
@@ -113,8 +114,11 @@ func tick(delta: float) -> void:
 		p.velocity += p.get_gravity() * delta
 	if _roll_left > 0.0:
 		_roll_left -= delta
+		_roll_elapsed += delta
 		if _roll_left <= 0.0:
 			_end_roll()
+	elif _roll_cd_left > 0.0:
+		_roll_cd_left = maxf(0.0, _roll_cd_left - delta)
 	if _roll_buffer_left > 0.0:
 		_roll_buffer_left -= delta
 		if not p.rolling:
@@ -134,9 +138,11 @@ func tick(delta: float) -> void:
 			anim._physics_tick(0.0)
 		return
 	if p.rolling:
-		# Committed dash: constant speed, ignores input and nav, slips through creatures.
-		p.velocity.x = _roll_direction.x * ROLL_SPEED
-		p.velocity.z = _roll_direction.z * ROLL_SPEED
+		# Committed dash: RollRules' front-loaded curve, ignores input and nav, slips through
+		# creatures but never through walls (move_and_slide stops her like a walk would).
+		var speed := RollRules.speed_at(_roll_elapsed)
+		p.velocity.x = _roll_direction.x * speed
+		p.velocity.z = _roll_direction.z * speed
 		p.move_and_slide()
 		shoreline_guard()
 		return
@@ -318,12 +324,15 @@ func cam_dir(input: Vector2) -> Vector3:
 
 # ---------------------------------------------------------------- roll and stagger
 
+
 ## Roll toward `dir` (camera-relative input; zero = where she faces). Cancels a swing, a flinch (and
-## its stagger) or a work clip, buffers ROLL_BUFFER s while another roll finishes, says why when refused.
+## its stagger) or a work clip, buffers RollRules.buffer_s() while another roll finishes, says why
+## when refused.
 func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 	var why := roll_refusal()
 	if why == "busy":
-		_roll_buffer_left = ROLL_BUFFER
+		# A press while another roll is in flight waits RollRules.buffer_s() for it to finish.
+		_roll_buffer_left = RollRules.buffer_s()
 		_roll_buffer_dir = dir
 		return false
 	_roll_buffer_left = 0.0
@@ -331,7 +340,7 @@ func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 		if why != "dead":
 			p.notice(why)
 		return false
-	if not p.vitals.spend_energy(ROLL_COST):
+	if not p.vitals.spend_energy(RollRules.stamina()):
 		p.notice("Out of stamina.")
 		return false
 	dir.y = 0.0
@@ -341,12 +350,14 @@ func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 	_roll_direction = dir.normalized()
 	p.visual.rotation.y = atan2(-_roll_direction.x, -_roll_direction.z)
 	p.rolling = true
-	_roll_left = ROLL_SECONDS
+	_roll_left = RollRules.seconds()
+	_roll_elapsed = 0.0
 	_stagger_left = 0.0
 	p.clear_nav()
 	p.actions.cancel_work()  # a swing in flight is lost: Hunt checks rolling when it would land
-	p.velocity.x = _roll_direction.x * ROLL_SPEED
-	p.velocity.z = _roll_direction.z * ROLL_SPEED
+	var speed := RollRules.speed_at(0.0)
+	p.velocity.x = _roll_direction.x * speed
+	p.velocity.z = _roll_direction.z * speed
 	# Roll through creatures: collision exceptions with everything close, restored at the end.
 	for n in p.get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
@@ -357,7 +368,7 @@ func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 		p.anim.on_roll()
 		var ap := p.rig.anim_player if p.rig else null
 		if ap and ap.has_animation(&"roll"):
-			ap.speed_scale = maxf(1.0, ap.get_animation(&"roll").length / ROLL_CLIP_SECONDS)
+			ap.speed_scale = maxf(1.0, ap.get_animation(&"roll").length / RollRules.seconds())
 	print("[combat] roll")
 	return true
 
@@ -367,6 +378,8 @@ func roll_refusal() -> String:
 		return "dead"
 	if p.rolling:
 		return "busy"
+	if _roll_cd_left > 0.0:
+		return "Roll on cooldown (%.1fs)." % _roll_cd_left
 	if p.mounted_on:
 		return "Dismount to roll."
 	if p._sleep_left > 0.0 or (p.anim and (p.anim._sleeping or p.anim._waking)):
@@ -380,8 +393,21 @@ func roll_refusal() -> String:
 func roll_left() -> float:
 	return _roll_left
 
+## Seconds since this roll began; the opening RollRules.iframes_s() of it dodge creature hits.
+func roll_elapsed() -> float:
+	return _roll_elapsed if p.rolling else -1.0
+
+## True while a creature hit landing now would be dodged (the live dash, never a stale one).
+func roll_invulnerable() -> bool:
+	return p.rolling and RollRules.invulnerable_at(_roll_elapsed)
+
+## Seconds until another roll is allowed (0 when she may roll now).
+func roll_cooldown_left() -> float:
+	return _roll_cd_left
+
 func _end_roll() -> void:
 	p.rolling = false
+	_roll_cd_left = RollRules.cooldown_s()
 	for c in _roll_through:
 		if c and is_instance_valid(c):
 			p.remove_collision_exception_with(c)

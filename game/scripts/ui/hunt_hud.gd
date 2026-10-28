@@ -616,6 +616,10 @@ func _build_place_hexes() -> void:
 func bite_on_player(amount: float, heavy: bool) -> void:
 	_events.add_bite(amount, heavy)
 
+## A bite the survivor rolled through: a small "Dodged" over her, no jaws, no damage number.
+func rolled_dodge() -> void:
+	_events.add_float("Dodged", UiTokens.TEAL, -18.0)
+
 func _draw_bites(cam: Camera3D) -> void:
 	if cam == null or player == null:
 		return

@@ -397,6 +397,20 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	_flinch()
 	sim.on_hit()
 
+## A creature hit that would have landed inside the roll's opening window: no damage, no stagger,
+## no statuses (CreatureAttack returns before any of them), a "Dodged" float and, once per attack,
+## Defense XP (spec 07 §2: never for pressing Roll alone). Returns true when the hit was dodged.
+func dodge_roll(clip: StringName, who: Creature) -> bool:
+	if sim == null or not sim.roll_invulnerable():
+		return false
+	var hud := get_tree().get_first_node_in_group("hud")
+	if hud and hud.has_method("rolled_dodge"):
+		hud.rolled_dodge()
+	if skills:
+		skills.add_xp("defense", RollRules.defense_xp())
+	print("[combat] dodged by roll %s %s t=%.2f" % [who.def.id if who and who.def else "?", clip, sim.roll_elapsed()])
+	return true
+
 ## Hit reaction clip; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse).
 func _flinch() -> void:
 	if anim == null or rolling:

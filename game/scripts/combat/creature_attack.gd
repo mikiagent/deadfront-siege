@@ -75,6 +75,10 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 		var survivor := target as Player
 		if survivor.dead:
 			return false
+		# The roll's opening window (RollRules.iframes_s(), the same rule the server times): a hit
+		# that would have landed here is dodged outright, before any damage, stagger or status.
+		if survivor.dodge_roll(clip, attacker):
+			return false
 		if Telegraph.player_dodged(attacker) or not CombatTuning.roll(hit_chance(attacker, survivor)):
 			print("[combat] dodged %s %s" % [attacker.def.id, attacker.anim.current_clip])
 			return false
