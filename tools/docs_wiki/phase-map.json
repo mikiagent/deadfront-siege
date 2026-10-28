@@ -75,7 +75,7 @@
             "save-schema"
           ],
           "source": "docs/design/islands-and-loop-plan.md",
-          "note": "Generator landed; confirm its gates (0 dry tiles outside the walkable grid, camp within 40 m of the dock) before marking done."
+          "note": "SHAPEGATES measured on the current generator: rivers break into dry stretches (head, camp disc, beach) and heads sit on lowland. Folded into country-islands."
         },
         {
           "id": "climate-material-base",
@@ -392,6 +392,16 @@
           "note": "FOODFX dc850762: instant vs digested Energy, buff slots, drinks, bad food, taste."
         },
         {
+          "id": "food-catalog",
+          "title": "Food catalog and effects: map the owner's Durango L60 food sheet onto our foods, every effect type working through FOODFX",
+          "status": "next",
+          "depends": [
+            "food-effects"
+          ],
+          "source": "docs/design/durango-prompts/32_food_drink_consumption_effects.md",
+          "note": "Owner 2026-10-28; reference CSV docs/reference/durango-food-catalog-level60.csv (fan-guide data, adapted not copied). In progress on claude/mmo-foodcat; groundwork for cooking-recipes."
+        },
+        {
           "id": "survival-pacing",
           "title": "Survival pacing: work fatigue by sqrt(workload), construction cost, rain cadence knob, level-gap and climate-resistance fatigue factors",
           "status": "done",
@@ -570,6 +580,16 @@
           ],
           "source": "docs/design/islands-and-loop-plan.md",
           "note": "island_shape.gd target_long/short by tier; Tamed Island shape picked from five at creation (ISLANDPICK cdeaeab1)."
+        },
+        {
+          "id": "country-islands",
+          "title": "Country-like islands: long, ragged, Japan/Croatia-style coasts, more and bigger islands; starter stays modest",
+          "status": "next",
+          "depends": [
+            "shape-generator"
+          ],
+          "source": "docs/design/durango-prompts/15_island_map_scale.md",
+          "note": "Owner 2026-10-28. In progress on claude/mmo-islands2, which also fixes the broken river channels SHAPEGATES measured. Saves gate if land moves under saved claims."
         },
         {
           "id": "zone-terrain",
