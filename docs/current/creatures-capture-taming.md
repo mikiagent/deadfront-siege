@@ -67,21 +67,23 @@ completion.
   `Spawner.spawn_now` builds the nodes; a `count>1` row becomes a pack.
 
 ## Capture, as the code does it now (`CaptureSystem.attempt`, `Hunt.use_net`)
-1. Target must be `capturable()`: knockdown started and `tameable` (`creature.gd`).
-2. Health fraction must be under `FieldTame.CAPTURE_HEALTH_FRAC` = 0.30.
+1. `FieldTame.capture_window()` must be open: alive, `tameable`, not a pet, and either the `knockdown`
+   status at any HP or HP fraction ≤ `FieldTame.CAPTURE_HEALTH_FRAC` = 0.30 (spec 09).
+2. One hint per creature, "Stun the dinosaur to capture it safely.", when a hunted tameable animal
+   is at ≤ 50 % HP and not stunned (`Hunt.STUN_HINT_FRAC`). DoTs skip an animal inside the window.
 3. `Inventory.best_capture_net` must hold a net whose `capture_tier` ≥ the species'
    `capture_tier`; nets are `capture_net_i` … `capture_net_v` (tiers 1–5) in `game/data/items.json`.
 4. The survivor needs the matching capture technique (`Data.has_capture_technique`).
-5. Chance = `TIER_BASE`[net tier] × (1.5 − HP fraction), clamped 0.05–0.90, where `TIER_BASE` =
+5. Chance (`CaptureSystem.chance_for`, actual HP) = `TIER_BASE`[net tier] × (1.5 − HP fraction), clamped 0.05–0.90, where `TIER_BASE` =
    1:0.35, 2:0.45, 3:0.55, 4:0.65, 5:0.75 (an assumption in code).
 6. Success consumes 1 net and puts a `captured_animal` stack (species, variant, level, genetics,
    `slot_span` 4) into the bag. Failure clears capturability and applies `enraged`.
 
-Nets do not damage. `Hunt.use_net` refuses with "Weaken it below 30% health before netting it."
+Nets do not damage. `Hunt.use_net` refuses with "Stun it or weaken it to 30% health to capture it."
 Knockdown itself comes from tackle/kick/stagger — see `game/scripts/combat/combat_tactics.gd`.
 
 ## Field tame (`FieldTame`)
-- `can_attempt`: alive, `tameable`, not a pet, no tame cooldown, `knockdown` status, HP < 30%.
+- `can_attempt`: alive, `tameable`, not a pet, no tame cooldown, inside `capture_window()`.
 - `lock_reason`: `capture_tier` ≤ `FREE_CAPTURE_TIER` 1 is free; above it needs the technique.
 - `apply_feed` takes 1 feed (1.2 s each) of preferred (worth 1.0) or accepted (0.5) food, extends
   the knockdown by 6.0 s, and sets the feed total. Refused at the bonded cap before the food is
