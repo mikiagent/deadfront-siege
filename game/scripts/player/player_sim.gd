@@ -378,14 +378,14 @@ func roll_refusal() -> String:
 		return "dead"
 	if p.rolling:
 		return "busy"
-	if _roll_cd_left > 0.0:
-		return "Roll on cooldown (%.1fs)." % _roll_cd_left
 	if p.mounted_on:
 		return "Dismount to roll."
 	if p._sleep_left > 0.0 or (p.anim and (p.anim._sleeping or p.anim._waking)):
 		return "Can't roll while resting."
 	if p.statuses.has_flag(&"cannot_act") or (p.anim and p.anim._busy and p.anim.current_clip == &"knockdown"):
 		return "Can't roll while knocked down."
+	if _roll_cd_left > 0.0:
+		return "Roll on cooldown (%.1fs)." % _roll_cd_left
 	if p.statuses.has_flag(&"no_roll"):
 		return "Too hampered to roll."
 	return ""
