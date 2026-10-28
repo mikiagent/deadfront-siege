@@ -30,8 +30,18 @@ static func _dress(hud: HuntHud) -> void:
 	BuffSlots.of(p).apply(p, [{"id": "camp_stew_catalog", "group": "enhanced_ability", "group_name": "Enhanced Ability",
 		"display_name": "Camp Stew: Perception +20.9", "duration": 1200.0, "stats": {"perception": {"add": 20.9}}}])
 	var dig := Digestion.of(p)
-	dig.schedule(&"camp_stew", 60.0, 300.0)
-	dig.rows()[0]["remaining"] = 39.0  # two thirds digested-in: the ring reads 65 %
+	# "stomach_<state>": roasts (fullness 50) digesting so the ring shows that state (HudStomach).
+	var meals := {"stomach_empty": [], "stomach_hungry": [0.5], "stomach_normal": [1.0], "stomach_full": [1.0, 0.7], "stomach_overfull": [1.0, 1.0, 1.0]}
+	var picked := ""
+	for k in meals:
+		if Game.shot_path.contains(k):
+			picked = k
+	if picked == "":
+		dig.schedule(&"camp_stew", 60.0, 300.0)
+		dig.rows()[0]["remaining"] = 39.0  # two thirds digested-in
+	for share in meals.get(picked, []):
+		var row := dig.schedule(&"roast", 60.0, 300.0)
+		row["remaining"] = 60.0 * float(share)
 	OrdersSheet.hud_expanded = Game.shot_path.contains("expanded")
 	if Game.shot_path.contains("tip"):
 		hud._buff_row.pinned = "well_rested"

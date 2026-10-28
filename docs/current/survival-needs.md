@@ -68,7 +68,7 @@ five `tastes_*` and `hot_food` / `cold_food`, vigor) and the cleanliness pair (d
 are above, clean is too). Each status's `fx` block gives its HUD colour, icon, particles and
 vignette (see [hud.md](hud.md)). Each status also has a `kind` (HUDRULES 2026-10-28): `effect` (afflictions: the box beside
 the survivor) or `buff` / `boon` / `debuff` (the chip row under the vitals, with its `desc` in a tooltip).
-The HUD stomach ring reads the share of eaten Energy still digesting (no satiety meter exists). Washing clears dirty/very_dirty and grants Clean; drinking clears
+The HUD stomach indicator (no satiety meter exists) reads fullness as the digesting meals' foods.json `fullness` × their undigested share / 100, and saturation as the longest digestion's time left (see [hud.md](hud.md)). Washing clears dirty/very_dirty and grants Clean; drinking clears
 Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 
 ## Food & relief
