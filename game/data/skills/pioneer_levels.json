@@ -3,5 +3,7 @@
   "per_level": {"max_health": 5, "max_energy": 3},
   "display_stats": ["Strength", "Charisma", "Dexterity", "Agility", "Endurance", "Will", "Intelligence", "Perception"],
   "display_gain": 5,
-  "bonus_stat_gain": 6
+  "bonus_stat_gain": 6,
+  "_xp_curve": "Owner 2026-10-28: each level costs exponentially more. Level n (stored, 0 = Lv. 1) costs round(base x growth^n) XP. ASSUMPTION base 110, growth 1.12: Lv 1-10 stay near the old 100 + 25 n, higher levels grow. The bottom bar draws one segment per segment_xp XP, grouped into a multiple of it past max_segments.",
+  "xp_curve": {"base": 110, "growth": 1.12, "segment_xp": 100, "max_segments": 40}
 }

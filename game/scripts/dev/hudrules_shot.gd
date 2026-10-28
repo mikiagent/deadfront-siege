@@ -20,6 +20,11 @@ static func _dress(hud: HuntHud) -> void:
 	var p := hud.player
 	if p == null:
 		return
+	if Game.shot_path.contains("levelbar"):  # LEVELBAR captures: "levelbar-lv10" shows Lv. 10, 45 % into it
+		var m := RegEx.create_from_string("lv(\\d+)").search(Game.shot_path)
+		World.pioneer_level = (int(m.get_string(1)) if m else 2) - 1
+		World.pioneer_xp = int(World.xp_for_level(World.pioneer_level) * 0.45)
+		return
 	if Game.shot_path.contains("titles"):  # TITLES captures: only a worn title over her name
 		World.player_name = "Milan"
 		World.pioneer_level = 6

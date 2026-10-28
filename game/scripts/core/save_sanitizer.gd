@@ -25,7 +25,7 @@ const SHAPE := {
 	"pets": [], "ground_snares": [], "carcasses": [], "skills": {}, "skills_v2": {},
 	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
-	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
+	"pioneer_xp": 0, "pioneer_level": 0, "xp_curve": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
 	"player_name": "", "player_title": "", "occupation": "", "character_look": {}, "t_stones": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
@@ -166,7 +166,7 @@ static func clean(data: Dictionary) -> Dictionary:
 		data["skills"] = _legacy_survival(data["skills"], data.get("skills_v2", {}))
 	if data.has("t_stones"):
 		data["t_stones"] = _int(data["t_stones"], 0, MAX_T_STONES)
-	for key in ["pioneer_level", "pioneer_xp", "objective", "objective_best"]:
+	for key in ["pioneer_level", "pioneer_xp", "xp_curve", "objective", "objective_best"]:
 		if data.has(key):
 			data[key] = _int(data[key], 0, 1000000000)
 	if data.has("saved_unix"):

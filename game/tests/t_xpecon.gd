@@ -139,7 +139,7 @@ func _park(tree: String) -> void:
 	_player.skills.trees[tree]["xp"] = 0.0
 
 func _test_gather_xp() -> void:
-	# pioneer_xp wraps into a level at xp_for_level(55) = 1475; 55 keeps every small grant exact.
+	# pioneer_xp wraps into a level at xp_for_level(55) (tens of thousands); 55 keeps every small grant exact.
 	_world.pioneer_level = 55
 	_world.pioneer_xp = 0
 	_clear_bag()
@@ -361,14 +361,15 @@ func _test_old_save_has_no_memory() -> void:
 	_expect(bool(again["ok"]) and int(again["sxp"]) == int(_cfg.get("build_first", 30)),
 		"with no memory a basket is first-of-kind again and pays +%d (got %.0f)" % [int(_cfg.get("build_first", 30)), float(again["sxp"])])
 
-## The plan keeps the level curve: XPECON changes what actions pay, never what a level costs.
+## XPECON changes what actions pay; the level curve is LEVELBAR's (owner 2026-10-28, exponential,
+## pioneer_levels.json xp_curve): Lv 1 costs 110, Lv 10 costs 305, Lv 11 costs 342.
 func _test_level_curve_unchanged() -> void:
 	var W: Node = _world
-	_expect(int(W.xp_for_level(0)) == 100 and int(W.xp_for_level(9)) == 325 and int(W.xp_for_level(10)) == 350,
-		"World.xp_for_level is unchanged: Lv 1 costs 100, Lv 10 costs 325, Lv 11 costs 350 (got %d / %d / %d)" % [
+	_expect(int(W.xp_for_level(0)) == 110 and int(W.xp_for_level(9)) == 305 and int(W.xp_for_level(10)) == 342,
+		"World.xp_for_level is the LEVELBAR curve: Lv 1 costs 110, Lv 10 costs 305, Lv 11 costs 342 (got %d / %d / %d)" % [
 			int(W.xp_for_level(0)), int(W.xp_for_level(9)), int(W.xp_for_level(10))])
 	var total := 0
 	for l in 10:
 		total += int(W.xp_for_level(l))
-	print("[t_xpecon] cumulative XP from Lv 1 to Lv 11: %d (the plan's curve, untouched)" % total)
-	_expect(total == 2125, "the curve still sums to 100 + 25 n from Lv 1 to Lv 10 (got %d)" % total)
+	print("[t_xpecon] cumulative XP from Lv 1 to Lv 11: %d (LEVELBAR curve)" % total)
+	_expect(total == 1930, "the curve sums to 1930 from Lv 1 to Lv 10 (got %d)" % total)

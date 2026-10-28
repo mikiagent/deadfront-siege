@@ -686,9 +686,44 @@ func domain_for_current() -> Dictionary:
 
 ## One player level. Every skill-tree XP grant (gathering, fighting, crafting, cooking, building,
 ## farming...) also lands here (SkillState.add_xp), so the bottom bar moves with everything.
-## ASSUMPTION: level n needs 100 + 25 n XP.
+## Owner 2026-10-28: each level costs exponentially more. Stored level n needs
+## round(base x growth^n) XP (pioneer_levels.json xp_curve; ASSUMPTION base 110, growth 1.12).
+static var _xp_curve: Dictionary = {}
+
+static func xp_curve() -> Dictionary:
+	if _xp_curve.is_empty():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/skills/pioneer_levels.json"))
+		var c: Variant = (parsed as Dictionary).get("xp_curve", {}) if parsed is Dictionary else {}
+		_xp_curve = c if c is Dictionary and not (c as Dictionary).is_empty() else {"base": 110, "growth": 1.12, "segment_xp": 100, "max_segments": 40}
+	return _xp_curve
+
 static func xp_for_level(level: int) -> int:
+	var c := xp_curve()
+	return maxi(1, roundi(float(c["base"]) * pow(float(c["growth"]), maxi(0, level))))
+
+## The pre-2026-10-28 linear curve, only to read an old save's total XP.
+static func old_xp_for_level(level: int) -> int:
 	return 100 + 25 * level
+
+## [stored level, XP into it] for a total XP on the current curve.
+static func level_from_total(total: int) -> Vector2i:
+	var level := 0
+	while total >= xp_for_level(level):
+		total -= xp_for_level(level)
+		level += 1
+	return Vector2i(level, total)
+
+## A save from before the exponential curve: the same total XP, the level recomputed on the new
+## curve. Where that would drop her level the stored level stays as a floor, its bar emptied to the
+## leftover clamped under the level's cost (owner asked for the curve; nobody loses a level).
+static func migrate_linear_xp(stored_level: int, stored_xp: int) -> Vector2i:
+	var total := stored_xp
+	for l in stored_level:
+		total += old_xp_for_level(l)
+	var now := level_from_total(total)
+	if now.x >= stored_level:
+		return now
+	return Vector2i(stored_level, clampi(stored_xp, 0, xp_for_level(stored_level) - 1))
 
 func add_xp(n: int) -> void:
 	if n <= 0:

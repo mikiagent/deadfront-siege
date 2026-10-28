@@ -54,6 +54,10 @@ const PLAYER_ENERGY := Color(0.20, 0.45, 0.80, 1.0)  # the survivor's own stamin
 const MOUNT_ENERGY := Color(0.11, 0.24, 0.50, 1.0)
 const MOUNT_ENERGY_SEGMENTS := 10  # ASSUMPTION: a tick every 10 %
 const HEAL := Color(0.373, 0.827, 0.416, 1.0)         # healing numbers, positive restores (= OK_GREEN)
+## Owner 2026-10-28 ("make it green for the xp bar too"): the segmented level/XP bar fills green. An
+## owner-sanctioned exception to "green = healing", like the stomach's full band.
+const XP_GREEN := Color(0.373, 0.827, 0.416, 1.0)
+const XP_BAR_H := 6.0  # the bottom level bar's height; tall enough to read its segment gaps
 const POISON := Color(163.0 / 255.0, 107.0 / 255.0, 217.0 / 255.0, 1.0)  # #a36bd9: venom, poison, sickness
 
 ## Trait chips (owner rule §1.4). bg / fg pairs; never reuse for item colour (spec 35).
@@ -346,10 +350,10 @@ static func hud_reserved(view: Vector2) -> Array[Rect2]:
 		xp_line_zone(view),
 	]
 
-## The "Lv. 1  5.0%" line hunt_hud draws centred at the bottom (off a portrait phone).
-## ASSUMPTION: 180x26 covers hunt_hud's 13 px line at r.y - 7 up to "Lv. 100  100.0%".
+## The "Lv. 10  128 / 305 XP  · 100 XP each" line hunt_hud draws centred at the bottom, over the bar.
+## ASSUMPTION: 320x30 covers hunt_hud's 13 px line up to "Lv. 100  99999 / 99999 XP  · 9900 XP each".
 static func xp_line_zone(view: Vector2) -> Rect2:
-	return Rect2(view.x * 0.5 - 90.0, view.y - 26.0, 180.0, 26.0)
+	return Rect2(view.x * 0.5 - 160.0, view.y - 30.0, 320.0, 30.0)
 
 static func style_label(label: Label, view: Vector2, kind: String) -> void:
 	var size_px := body(view)

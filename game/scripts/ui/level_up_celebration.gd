@@ -230,9 +230,9 @@ func _draw_banner(hud: HuntHud, box: Rect2, t: float, a: float, cfg: Dictionary)
 		_reveal(hud, Vector2(box.position.x + 12.0 + sw + 6.0, ly), sp, 13, Color.WHITE, t, row, a, cfg, &"brain")
 	return box
 
-## The level badge on the vitals pulses gold through a character level-up: a gold wash with the
-## number redrawn on it, and rings spreading out of it. HuntHud calls this after drawing the badge.
-func draw_badge(hud: HuntHud, centre: Vector2, radius: float, num_px: int) -> void:
+## The bottom level bar pulses gold through a character level-up (LEVELBAR moved it off the
+## retired top-left badge): a gold wash over the bar and a glow spreading up from it.
+func draw_bar_pulse(hud: HuntHud, bar: Rect2) -> void:
 	if current.is_empty() or current["kind"] != &"character":
 		return
 	var cfg := LevelUpFx.section("hud")
@@ -244,13 +244,13 @@ func draw_badge(hud: HuntHud, centre: Vector2, radius: float, num_px: int) -> vo
 		var u := (t - float(i) * period) / (period * 1.3)
 		if u > 0.0 and u < 1.0:
 			var e := 1.0 - pow(1.0 - u, 2.0)
-			hud.draw_arc(centre, radius * (1.0 + 0.7 * e), 0.0, TAU, 40, Color(gold, 0.9 * (1.0 - u)), 3.0 * (1.0 - u) + 1.0, true)
+			var h := bar.size.y + 14.0 * e
+			hud.draw_rect(Rect2(bar.position.x, bar.end.y - h, bar.size.x, h), Color(gold, 0.35 * (1.0 - u)))
 		wash = maxf(wash, 1.0 - absf(t - float(i) * period - 0.15) / (period * 0.5))
 	if wash > 0.0:
-		hud.draw_circle(centre, radius, Color(gold, 0.75 * wash))
-		hud.draw_string(hud._font, Vector2(centre.x - radius, centre.y + num_px * 0.36), str(LevelDisplay.player_level()), HORIZONTAL_ALIGNMENT_CENTER, radius * 2.0, num_px, Color(0.08, 0.06, 0.02).lerp(Color.WHITE, 1.0 - wash))
+		hud.draw_rect(bar, Color(gold, 0.75 * wash))
 	var a := 1.0 if float(current["out"]) < 0.0 else 0.0
-	hud.draw_arc(centre, radius + 1.0, 0.0, TAU, 40, Color(gold, 0.8 * a), 2.0, true)
+	hud.draw_rect(Rect2(bar.position.x, bar.position.y - 1.0, bar.size.x, 1.0), Color(gold, 0.8 * a))
 
 ## The desktop stack's top left (owner 2026-10-28: "move this UI to the far left please"): the
 ## view's left edge inside the safe area, centred in the height between the vitals' bottom and the

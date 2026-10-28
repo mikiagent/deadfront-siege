@@ -131,6 +131,7 @@ static func save_now() -> bool:
 		"occupation": World.occupation,
 		"character_look": World.look, # CHARCREATE; namespaced apart from item instances' own "look"
 		"pioneer_level": World.pioneer_level,
+		"xp_curve": 2,  # LEVELBAR: the exponential curve; a save without it is migrated on load
 		"pioneer_crafts": World.pioneer_crafts,
 		"pioneer_buildings": World.pioneer_buildings,
 		"t_stones": World.t_stones,
@@ -302,6 +303,12 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	# After the island: arriving fires island_changed, whose survival XP is for travel, not for loading.
 	World.pioneer_level = int(data.get("pioneer_level", 0))
 	World.pioneer_xp = int(data.get("pioneer_xp", 0))
+	var gained_levels := 0
+	if int(data.get("xp_curve", 1)) < 2:  # saved on the linear curve (LEVELBAR 2026-10-28)
+		var m := World.migrate_linear_xp(World.pioneer_level, World.pioneer_xp)
+		gained_levels = m.x - World.pioneer_level
+		World.pioneer_level = m.x
+		World.pioneer_xp = m.y
 	_restore_buildings(World._home_buildings_cache if World.is_home() else away.get("buildings", []), schema)
 	SaveRestore.retry_refunds(data.get("pending_refunds", []))
 	var saved_unix := int(data.get("saved_unix", Time.get_unix_time_from_system()))
@@ -342,6 +349,9 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	# Derive equipment capacity before restoring statuses, whose sync clamps health.
 	player.refresh_equipment_vitals()
 	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))
+	if gained_levels > 0:  # the recomputed level pays its per-level vitals, quietly (no celebration on load)
+		var per: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string("res://data/skills/pioneer_levels.json")) as Dictionary).get("per_level", {})
+		player.vitals.grant_level_bonus(float(per.get("max_health", 0)) * gained_levels, float(per.get("max_energy", 0)) * gained_levels)
 	player.statuses.from_array(data.get("player", {}).get("statuses", []))
 	# FOODFX: buff rows and digestion first, so a status sync or a capacity change sees the final set.
 	var foodfx: Variant = (data.get("player", {}) as Dictionary).get("foodfx", {})
