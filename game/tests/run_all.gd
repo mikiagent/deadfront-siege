@@ -546,7 +546,8 @@ func _test_capture_threshold() -> void:
 	if script == null:
 		return
 	_expect(bool(script.call("health_allows_capture", 0.299)), "capture opens below 30 percent health")
-	_expect(not bool(script.call("health_allows_capture", 0.30)), "capture stays closed at 30 percent health")
+	_expect(bool(script.call("health_allows_capture", 0.30)), "capture opens at 30 percent health (spec 09: <=)")
+	_expect(not bool(script.call("health_allows_capture", 0.31)), "capture stays closed just above 30 percent health")
 	_expect(not bool(script.call("health_allows_capture", 0.50)), "capture stays closed above threshold")
 
 ## Bleed may wear a tameable animal down to the capture window but must not finish it there.
