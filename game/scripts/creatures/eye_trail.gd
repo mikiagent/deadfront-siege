@@ -35,6 +35,10 @@ const MIN_STEP_M := 0.004
 const FORCE_STEP_M := 0.035
 ## A jump this large is a teleport/spawn, not motion: the buffer is dropped instead of smeared.
 const RESET_JUMP_M := 2.0
+## ASSUMPTION: longest ribbon in metres, measured along the streak. A lunge faster than this at full
+## fade would otherwise draw a streak several metres long across the screen. It also bounds the buffer
+## on a very fast head, so the length knob is one number in the same table as the rest.
+const MAX_LENGTH_M := 0.9
 ## Ribbon width as a multiple of the eye dot's world radius.
 const WIDTH_PER_RADIUS := 2.4
 ## Trail brightness relative to the eye dot's own HDR level (the ribbon must not outshine the eye).
@@ -47,6 +51,15 @@ const MAX_CAMERA_DISTANCE_M := 55.0
 const MIN_GLOW := 0.02
 ## Below this peak alpha the ribbon is hidden outright (no geometry, no draw).
 const MIN_ALPHA := 0.004
+## ASSUMPTION (owner: "flame in the wind ... a little flicker/turbulence"): how deep the width and
+## alpha wobble, as a fraction of their value, and how fast that wobble flows down the ribbon.
+const FLICKER := 0.45
+const FLICKER_HZ := 13.0
+## ASSUMPTION: how far the tail drifts up and sideways per second of age, in metres (a flame streams
+## up and tugs sideways; a straight clean line would read as a rubber band).
+const DRIFT_MPS := 0.30
+## ASSUMPTION: width at the very tail as a fraction of the width at the head.
+const TAPER := 0.16
 
 static var _materials: Dictionary = {}
 
@@ -63,6 +76,16 @@ var _prev: Array = []
 var _since: Array[float] = []
 ## Peak vertex alpha of the last build (0 = nothing drawn).
 var _alpha := 0.0
+## Frames in which a ribbon was actually rebuilt. While the trail is hidden (day, dead, asleep, far)
+## this must stay flat: a pooled animal that is nowhere near the screen costs nothing.
+var _builds := 0
+## Seconds since this trail was set up: the phase of the flicker, so the wobble flows with time.
+var _time := 0.0
+## Width and alpha range of the quads in the last build (the flicker, measured rather than assumed).
+var _w_min := 0.0
+var _w_max := 0.0
+var _a_min := 0.0
+var _a_max := 0.0
 ## The frame's geometry, built before any surface exists: an empty build must not call
 ## surface_end (Godot errors with "No vertices were added").
 var _verts := PackedVector3Array()
@@ -76,6 +99,11 @@ var full_speed_mps := FULL_SPEED_MPS
 var width_per_radius := WIDTH_PER_RADIUS
 var energy := ENERGY
 var max_distance_m := MAX_CAMERA_DISTANCE_M
+var max_length_m := MAX_LENGTH_M
+var flicker := FLICKER
+var flicker_hz := FLICKER_HZ
+var drift_mps := DRIFT_MPS
+var taper := TAPER
 
 func _init() -> void:
 	mesh = _mesh
@@ -115,6 +143,11 @@ func _apply_knobs(block: Dictionary) -> void:
 	width_per_radius = clampf(float(t.get("width_per_radius", WIDTH_PER_RADIUS)), 0.5, 6.0)
 	energy = clampf(float(t.get("energy", ENERGY)), 0.1, 12.0)
 	max_distance_m = maxf(float(t.get("max_distance_m", MAX_CAMERA_DISTANCE_M)), 1.0)
+	max_length_m = clampf(float(t.get("max_length_m", MAX_LENGTH_M)), 0.02, 6.0)
+	flicker = clampf(float(t.get("flicker", FLICKER)), 0.0, 1.0)
+	flicker_hz = clampf(float(t.get("flicker_hz", FLICKER_HZ)), 0.5, 60.0)
+	drift_mps = clampf(float(t.get("drift_mps", DRIFT_MPS)), 0.0, 2.0)
+	taper = clampf(float(t.get("taper", TAPER)), 0.0, 1.0)
 
 ## One material per eye colour, shared by every animal that uses it; the vertex colour carries the
 ## taper, so there is nothing per instance to animate but visibility.
@@ -144,6 +177,8 @@ func tick(dt: float) -> void:
 	if _dots.size() < 2 or _eyes == null:
 		return
 	var step := clampf(dt, 0.0001, 0.1)
+	# The flame only turns while it is on screen: a hidden trail costs no phase work either.
+	_time += step
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	var near := cam == null or cam.global_position.distance_to(_eyes.global_position) <= max_distance_m
 	var glow := _glow_fraction()
@@ -206,6 +241,10 @@ func _track(step: float, head: Array[Vector3], glow: float) -> void:
 		while pts.size() > max_samples:
 			pts.pop_front()
 			ages.pop_front()
+		# Length knob: the streak may not run longer than max_length_m, however fast the head goes.
+		while pts.size() > 1 and (pts[pts.size() - 1] as Vector3).distance_to(pts[0]) > max_length_m:
+			pts.pop_front()
+			ages.pop_front()
 
 ## Rebuilds the whole ribbon as one surface (one draw call per creature while it shows).
 func _build(head: Array[Vector3], cam: Camera3D) -> void:
@@ -220,8 +259,16 @@ func _build(head: Array[Vector3], cam: Camera3D) -> void:
 		return
 	_verts.clear()
 	_cols.clear()
+	_w_min = INF
+	_w_max = 0.0
+	_a_min = INF
+	_a_max = 0.0
 	for i in head.size():
 		_draw_eye(i, head[i], cam)
+	if _w_min == INF:
+		_w_min = 0.0
+	if _a_min == INF:
+		_a_min = 0.0
 	if _verts.is_empty():
 		_hide()
 		return
@@ -231,30 +278,51 @@ func _build(head: Array[Vector3], cam: Camera3D) -> void:
 		_mesh.surface_set_color(_cols[k])
 		_mesh.surface_add_vertex(_verts[k])
 	_mesh.surface_end()
+	_builds += 1
 	visible = true
 
-## One eye's ribbon: a camera-facing strip of quads through the recorded positions, tapering in width
-## and alpha to nothing at the tail.
+## One eye's ribbon: a camera-facing strip of quads through the recorded positions. It is shaped like a
+## flame in the wind, not a clean ribbon: the tail streams up and sideways as it ages (drift), the width
+## tapers to nothing, and both width and alpha wobble with time and along the streak (flicker).
 func _draw_eye(i: int, now: Vector3, cam: Camera3D) -> void:
 	var pts: Array = _pts[i]
 	var ages: Array = _ages[i]
 	if pts.is_empty():
 		return
+	var cam_at := cam.global_position if cam != null else now + Vector3(0.0, 0.0, 1.0)
+	var cam_right := cam.global_basis.x.normalized() if cam != null else Vector3.RIGHT
+	var side_axis := cam_right.cross(Vector3.UP)
+	if side_axis.length_squared() < 1e-6:
+		side_axis = Vector3.RIGHT
+	side_axis = side_axis.normalized()
 	var chain: Array[Vector3] = []
 	var alphas: Array[float] = []
-	for k in pts.size():
-		chain.append(pts[k])
-		alphas.append(float(_str[i]) * clampf(1.0 - float(ages[k]) / fade_s, 0.0, 1.0))
-	# A repeat of the newest sample adds nothing (and makes a degenerate quad): skip the duplicate.
+	var widths: Array[float] = []
+	var base_w := _radius * width_per_radius
+	var n_pts := pts.size()
+	for k in n_pts:
+		var age := float(ages[k])
+		var pos: Vector3 = pts[k]
+		# The buffer runs oldest -> newest, so t is 1 at the tail (oldest) and 0 at the head.
+		var t := 1.0 - float(k) / float(maxi(1, n_pts - 1))
+		var phase := _time * TAU * flicker_hz + t * 7.0 + float(i) * 3.7
+		var n := _flame_noise(phase)
+		# Drift: a flame streams up and tugs to the side as it ages, the older the sample the further.
+		var drift := drift_mps * age
+		pos += Vector3.UP * (drift * (0.7 + 0.3 * n)) + side_axis * (drift * 0.55 * _flame_noise(phase * 0.7 + 2.1))
+		chain.append(pos)
+		var fade := clampf(1.0 - age / fade_s, 0.0, 1.0)
+		alphas.append(float(_str[i]) * fade * (1.0 + flicker * 0.6 * n))
+		widths.append(base_w * lerpf(taper, 1.0, 1.0 - t) * (1.0 + flicker * n))
+	# The live head end: full strength, no fade, no drift yet.
 	if (chain[chain.size() - 1] as Vector3).distance_squared_to(now) > 1e-8:
 		chain.append(now)
 		alphas.append(float(_str[i]))
-	var n := chain.size()
-	if n < 2:
+		widths.append(base_w)
+	var n2 := chain.size()
+	if n2 < 2:
 		return
-	var cam_at := cam.global_position if cam != null else now + Vector3(0.0, 0.0, 1.0)
-	var w := _radius * width_per_radius
-	for k in n - 1:
+	for k in n2 - 1:
 		var a: Vector3 = chain[k]
 		var b: Vector3 = chain[k + 1]
 		var d := b - a
@@ -266,15 +334,13 @@ func _draw_eye(i: int, now: Vector3, cam: Camera3D) -> void:
 		if side.length_squared() < 1e-10:
 			continue
 		side = side.normalized()
-		# t: 0 at the head end, 1 at the tail. Width and alpha taper to nothing at the tail.
-		var t0 := 1.0 - float(k + 1) / float(n - 1)
-		var t1 := 1.0 - float(k) / float(n - 1)
-		var w0 := w * lerpf(0.18, 1.0, t0)
-		var w1 := w * lerpf(0.18, 1.0, t1)
-		var a0 := alphas[k] * lerpf(0.18, 1.0, t0)
-		var a1 := alphas[k + 1] * lerpf(0.18, 1.0, t1)
+		var w0 := maxf(widths[k], 0.0)
+		var w1 := maxf(widths[k + 1], 0.0)
+		var a0 := clampf(alphas[k], 0.0, 4.0)
+		var a1 := clampf(alphas[k + 1], 0.0, 4.0)
 		if a0 <= 0.0 and a1 <= 0.0:
 			continue
+		_measure(w0, w1, a0, a1)
 		var c0 := Color(_colour.r, _colour.g, _colour.b, a0)
 		var c1 := Color(_colour.r, _colour.g, _colour.b, a1)
 		var l := a - side * w0
@@ -287,6 +353,22 @@ func _draw_eye(i: int, now: Vector3, cam: Camera3D) -> void:
 		_vert(l, c0)
 		_vert(r2, c1)
 		_vert(l2, c1)
+
+## Two-octave value wobble in [-1, 1]: cheap (two sines, no noise object per creature) and continuous in
+## time, which is all a flame flicker needs.
+static func _flame_noise(phase: float) -> float:
+	return 0.62 * sin(phase) + 0.38 * sin(phase * 2.37 + 1.9)
+
+## Records the width/alpha range of one quad, so a test can measure the flicker instead of trusting it.
+func _measure(w0: float, w1: float, a0: float, a1: float) -> void:
+	var wl := minf(w0, w1)
+	var wh := maxf(w0, w1)
+	var al := minf(a0, a1)
+	var ah := maxf(a0, a1)
+	_w_min = wl if _verts.is_empty() else minf(_w_min, wl)
+	_w_max = maxf(_w_max, wh)
+	_a_min = al if _verts.is_empty() else minf(_a_min, al)
+	_a_max = maxf(_a_max, ah)
 
 func _vert(p: Vector3, c: Color) -> void:
 	_verts.append(p)
@@ -325,6 +407,32 @@ func sample_count() -> int:
 	for pts: Array in _pts:
 		best = maxi(best, pts.size())
 	return best
+
+## Width range (metres) of the quads in the last build: the flicker, measured.
+func width_spread() -> float:
+	return maxf(0.0, _w_max - _w_min) if _w_min != INF else 0.0
+
+## Alpha range of the quads in the last build.
+func alpha_spread() -> float:
+	return maxf(0.0, _a_max - _a_min) if _a_min != INF else 0.0
+
+## Width of the widest quad in the last build (metres), for the taper/flame check.
+func max_quad_width() -> float:
+	return _w_max
+
+## How far the drawn ribbon rises above the newest eye point (metres): the flame's upward stream.
+func ribbon_rise() -> float:
+	if _dots.is_empty() or not is_instance_valid(_dots[0]) or _verts.is_empty():
+		return 0.0
+	var base := (_dots[0] as Node3D).global_position.y
+	var top := -INF
+	for v in _verts:
+		top = maxf(top, v.y)
+	return maxf(0.0, top - base)
+
+## How many frames have rebuilt a ribbon since this trail was created.
+func build_count() -> int:
+	return _builds
 
 ## Eyes with a live ribbon right now (2 = both dots draw into the one surface).
 func eye_count() -> int:

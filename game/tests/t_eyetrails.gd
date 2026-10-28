@@ -38,6 +38,12 @@ func _expect(ok: bool, what: String) -> void:
 		print("[t_eyetrails] FAIL %s" % what)
 
 func _run() -> void:
+	# Optional look at the flame (never used by the gate, which runs without user args): a windowed
+	# run with `-- --shot-dir=DIR` renders a running animal and saves three PNGs for eyeballing.
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--shot-dir="):
+			await _shot_pass(a.substr(11))
+			return
 	create_timer(60.0).timeout.connect(func() -> void:
 		print("[t_eyetrails] FAIL watchdog")
 		quit(1))
@@ -54,6 +60,8 @@ func _run() -> void:
 	_expect(cap > 1 and cap <= 12, "the sample cap is small (MAX_SAMPLES=%d)" % cap)
 	for id in SPECIES:
 		await _test_species(id, cap)
+	await _test_flame()
+	await _test_knobs()
 	await _test_cost_and_cull()
 	for c in _creatures:
 		if is_instance_valid(c):
@@ -194,6 +202,216 @@ func _test_species(id: StringName, cap: int) -> void:
 	c.queue_free()
 	await process_frame
 
+## The owner's refinement: "a FLAME IN THE WIND ... a streak that lags behind ... tapering, with a
+## little flicker/turbulence". While the head keeps moving at a constant speed, the drawn width and
+## alpha must vary from frame to frame (flicker) and the tail must stream upward (drift); with the
+## flicker knob at 0 the same motion must come out steady, so the wobble is the knob and not the motion.
+func _test_flame() -> void:
+	var had_night: float = WL.night
+	WL.night = 1.0
+	var c := _spawn(&"tyrannosaurus")
+	await process_frame
+	await process_frame
+	var trail = _trail_of(c)
+	_expect(trail != null, "flame test has a trail")
+	if trail == null:
+		return
+	_expect(trail.flicker > 0.0 and trail.drift_mps > 0.0 and trail.taper < 1.0,
+		"the flame knobs are on (flicker %.2f, drift %.2f m/s, taper %.2f)" % [trail.flicker, trail.drift_mps, trail.taper])
+	var widths := _run_fast(c, trail, 60)
+	var alphas := _run_alphas(c, trail, 60)
+	var spread := _rel_spread(widths)
+	print("[t_eyetrails] flame width spread %.3f (min %.4f m, max %.4f m) over %d frames" % [spread,
+		_arr_min(widths), _arr_max(widths), widths.size()])
+	_expect(spread > 0.04, "the ribbon width flickers frame to frame (relative spread %.3f)" % spread)
+	_expect(_rel_spread(alphas) > 0.02, "the ribbon alpha flickers frame to frame (relative spread %.3f)" % _rel_spread(alphas))
+	_expect(trail.ribbon_rise() > 0.0, "the flame's tail streams upward (%.3f m)" % trail.ribbon_rise())
+	_expect(trail.max_quad_width() > 0.0 and trail.width_spread() > 0.0,
+		"the ribbon tapers and wobbles along its length (width spread %.4f m)" % trail.width_spread())
+	# Same motion, flicker off: the width no longer wobbles with time.
+	var steady: MeshInstance3D = TRAIL.new()
+	root.add_child(steady)
+	steady.setup(trail.get("_eyes"), trail.get("_dots"), 0.02, Color.WHITE, {"trail": {"flicker": 0.0}})
+	steady.max_distance_m = 1.0e6
+	_expect(steady.flicker == 0.0, "the flicker knob can be turned off from data")
+	var flat := _run_fast(c, steady, 60)
+	var flat_spread := _rel_spread(flat)
+	_expect(flat_spread < spread * 0.35, "flicker 0 steadies the ribbon (%.4f vs %.4f)" % [flat_spread, spread])
+	# The flame knobs are data: one small table, not scattered magic numbers.
+	for key in ["FLICKER", "FLICKER_HZ", "DRIFT_MPS", "TAPER"]:
+		_expect(TRAIL.get_script_constant_map().has(key), "flame knob %s is a named constant" % key)
+	steady.queue_free()
+	WL.night = had_night
+	await process_frame
+
+## Moves the animal at a constant fast speed and collects the widest quad per frame.
+func _run_fast(c: Node, trail: Node, frames: int) -> Array[float]:
+	var out: Array[float] = []
+	for _i in frames:
+		c.global_position = c.global_position + Vector3(FAST_MPS * DT, 0, 0)
+		trail.tick(DT)
+		if trail.surface_count() > 0:
+			out.append(trail.max_quad_width())
+	return out
+
+## Same run, collecting the brightest quad alpha per frame.
+func _run_alphas(c: Node, trail: Node, frames: int) -> Array[float]:
+	var out: Array[float] = []
+	for _i in frames:
+		c.global_position = c.global_position + Vector3(FAST_MPS * DT, 0, 0)
+		trail.tick(DT)
+		if trail.surface_count() > 0:
+			out.append(trail.alpha_spread())
+	return out
+
+func _arr_min(v: Array[float]) -> float:
+	var m := INF
+	for x in v:
+		m = minf(m, x)
+	return m
+
+func _arr_max(v: Array[float]) -> float:
+	var m := 0.0
+	for x in v:
+		m = maxf(m, x)
+	return m
+
+## (max - min) / mean over the collected numbers; 0 when there is nothing to compare.
+func _rel_spread(v: Array[float]) -> float:
+	if v.size() < 2:
+		return 0.0
+	var lo := _arr_min(v)
+	var hi := _arr_max(v)
+	var acc := 0.0
+	for x in v:
+		acc += x
+	var mean := acc / float(v.size())
+	return (hi - lo) / mean if mean > 1e-6 else 0.0
+
+## The knobs: one small table, read from the species' eyes block, clamped, and honoured by the ribbon
+## (a shorter fade drops samples sooner; a tiny max_samples caps the buffer; a never-moving animal is
+## still the same object, so nothing is allocated per frame).
+func _test_knobs() -> void:
+	var had_night: float = WL.night
+	WL.night = 1.0
+	var c := _spawn(&"tyrannosaurus")
+	await process_frame
+	await process_frame
+	var trail = _trail_of(c)
+	_expect(trail != null, "knob test has a trail")
+	if trail == null:
+		return
+	var constants: Dictionary = TRAIL.get_script_constant_map()
+	for key in ["MAX_SAMPLES", "FADE_S", "MIN_SPEED_MPS", "FULL_SPEED_MPS", "WIDTH_PER_RADIUS",
+			"ENERGY", "MAX_CAMERA_DISTANCE_M"]:
+		_expect(constants.has(key) and float(constants[key]) > 0.0, "trail knob %s is a positive constant" % key)
+	var fade := float(constants.get("FADE_S", 0.0))
+	_expect(fade >= 0.15 and fade <= 0.3, "the fade sits in the owner's 0.15-0.3 s band (%.2f s)" % fade)
+	# A shorter fade must empty the buffer sooner: re-set up the same trail with a small fade knob.
+	var tight: MeshInstance3D = TRAIL.new()
+	root.add_child(tight)
+	tight.setup(trail.get("_eyes"), trail.get("_dots"), 0.02, Color.WHITE, {"trail": {
+		"fade_s": 0.06, "max_samples": 4, "min_speed_mps": 0.5}})
+	_expect(is_equal_approx(tight.fade_s, 0.06) and tight.max_samples == 4,
+		"the eyes block's trail table overrides the knobs (fade %.2f, samples %d)" % [tight.fade_s, tight.max_samples])
+	tight.max_distance_m = 1.0e6
+	for _i in 40:
+		c.global_position = c.global_position + Vector3(FAST_MPS * DT, 0, 0)
+		tight.tick(DT)
+	_expect(tight.sample_count() <= 4, "the overridden cap holds (%d)" % tight.sample_count())
+	var at_stop: int = tight.sample_count()
+	for _i in int(ceil(0.12 / DT)):
+		tight.tick(DT)
+	_expect(at_stop > 0 and tight.sample_count() == 0 and tight.surface_count() == 0,
+		"the overridden fade empties the ribbon in %.2f s (was %d samples)" % [0.12, at_stop])
+	# A bad table cannot spin the buffer or paint the world.
+	var wild: MeshInstance3D = TRAIL.new()
+	root.add_child(wild)
+	wild.setup(trail.get("_eyes"), trail.get("_dots"), 0.02, Color.WHITE, {"trail": {
+		"fade_s": 99.0, "max_samples": 999, "min_speed_mps": -5.0, "energy": 1.0e6}})
+	_expect(wild.max_samples <= int(constants.get("MAX_SAMPLES", 12)) and wild.fade_s <= 0.6,
+		"a nonsense trail table is clamped (%d samples, %.2f s)" % [wild.max_samples, wild.fade_s])
+	# The length knob: even a sprint far faster than any gait may not draw a streak across the screen.
+	var short: MeshInstance3D = TRAIL.new()
+	root.add_child(short)
+	short.setup(trail.get("_eyes"), trail.get("_dots"), 0.02, Color.WHITE, {"trail": {
+		"max_length_m": 0.25, "max_distance_m": 1.0e6}})
+	_expect(is_equal_approx(short.max_length_m, 0.25), "the length knob comes from data (%.2f m)" % short.max_length_m)
+	var longest := 0.0
+	for _i in 60:
+		c.global_position = c.global_position + Vector3(12.0 * DT, 0, 0)
+		short.tick(DT)
+		longest = maxf(longest, short.ribbon_length())
+	_expect(longest > 0.0 and longest <= 0.30, "the ribbon honours its length cap at 12 m/s (%.2f m <= 0.25 m)" % longest)
+	short.queue_free()
+	wild.queue_free()
+	tight.queue_free()
+	WL.night = had_night
+	await process_frame
+
+## Renders three frames of a running animal at night so a human can judge the flame. Saves PNGs into
+## the given directory and quits; prints "[t_eyetrails] shots DIR".
+func _shot_pass(dir: String) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	WL = load("res://scripts/world/world_lighting.gd")
+	DD = root.get_node("Data")
+	WL.night = 1.0
+	var host := Node3D.new()
+	root.add_child(host)
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = 3.0
+	host.add_child(cam)
+	cam.size = 1.8
+	cam.current = true
+	var light := DirectionalLight3D.new()
+	light.light_energy = 0.25
+	light.rotation_degrees = Vector3(-50, 30, 0)
+	host.add_child(light)
+	var env := WorldEnvironment.new()
+	var e := Environment.new()
+	e.background_mode = Environment.BG_COLOR
+	e.background_color = Color(0.02, 0.03, 0.06)
+	env.environment = e
+	host.add_child(env)
+	var c := _spawn(&"tyrannosaurus")
+	c.global_position = Vector3.ZERO
+	await process_frame
+	await process_frame
+	if c.label:
+		c.label.visible = false
+	var trail = _trail_of(c)
+	var eyes = c.view.get_node_or_null("Eyes")
+	var eye_at: Vector3 = (eyes.dots[0] as Node3D).global_position
+	print("[t_eyetrails] shot eye at %s, head at %s" % [eye_at, _head_of(c)])
+	if trail == null:
+		print("[t_eyetrails] shots: no trail")
+		quit(1)
+		return
+	for i in 90:
+		c.global_position = c.global_position + Vector3(4.0 / 60.0, 0, 0)
+		# The camera rides along, framed on the head: the eye stays in shot while the streak trails
+		# behind it. (The first attempt framed the feet, which showed nothing.)
+		# Side on to the run: the streak trails away along -X in full profile.
+		var at := (eyes.dots[0] as Node3D).global_position
+		cam.global_position = at + Vector3(0.0, 0.0, 2.2)
+		cam.look_at(at, Vector3.UP)
+		trail.tick(1.0 / 60.0)
+		if i % 20 == 19:
+			await RenderingServer.frame_post_draw
+			var img := root.get_texture().get_image()
+			img.save_png("%s/flame_%02d.png" % [dir, i])
+	print("[t_eyetrails] shots %s" % dir)
+	quit(0)
+
+## World head position of a spawned animal.
+func _head_of(c: Node) -> Vector3:
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var i := sk.find_bone("Head")
+	if i < 0:
+		return c.global_position + Vector3(0, 1.0, 0)
+	return (sk.global_transform * sk.get_bone_global_pose(i)).origin
+
 ## Twenty animals: one trail mesh each, no particle nodes, no extra meshes, a bounded frame cost; and
 ## an animal far from the camera builds no ribbon at all.
 func _test_cost_and_cull() -> void:
@@ -288,9 +506,12 @@ func _test_cost_and_cull() -> void:
 		var animal: Node3D = trail_owner[0]
 		var range_m := float(far_trail.max_distance_m)
 		animal.global_position = Vector3(0, 0, range_m + 12.0)
+		var builds_before: int = far_trail.build_count()
 		for _i in 40:
 			animal.global_position = animal.global_position + Vector3(FAST_MPS * DT, 0, 0)
 			far_trail.tick(DT)
+		_expect(far_trail.build_count() == builds_before,
+			"a culled trail stops rebuilding entirely (%d builds)" % (far_trail.build_count() - builds_before))
 		_expect(far_trail.sample_count() == 0 and far_trail.surface_count() == 0,
 			"an animal beyond the camera range builds no ribbon (%.0f m out)" % range_m)
 		animal.global_position = Vector3(0, 0, 4.0)
