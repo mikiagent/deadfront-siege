@@ -99,7 +99,9 @@ func on_player_killed(at: Vector3) -> void:
 	_log("[ai] %s post-kill retreat %.1fm" % [creature.def.id, creature.global_position.distance_to(destination)])
 
 func _effective_perception() -> float:
-	var p := perception
+	# NATURES (one place): super.setup() runs before Creature.spawn() has rolled the nature, so
+	# re-apply the nature's widening of the scan radius here instead of in setup().
+	var p := perception * creature.nature_knob("aggro_radius_mult", 1.0)
 	if Game.phase_name() == &"night" and bool(profile.get("night_predator_bonus", true)) and not _is_herbivore():
 		p *= 1.0 + float(Data.world_rules.get("night_predator_perception_bonus", 0.5))
 	return p
@@ -366,6 +368,8 @@ func _scan() -> void:
 	var best := _nearest_live_prey(_effective_perception())
 	if best:
 		_spot(best)
+	elif creature.nature_flag("auto_engage") and _nearest_live_prey(_effective_perception()) == null:
+		pass
 
 ## A survivor or pet is in sight (or woke us). Predators and territorial grazers come at it,
 ## skittish grazers start and then flee, defensive grazers keep grazing until they are hit.

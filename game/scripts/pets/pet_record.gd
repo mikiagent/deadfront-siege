@@ -22,6 +22,9 @@ var name: String = ""
 var parent_uids: Array[String] = []
 var species: StringName = &""
 var variant: StringName = &""
+## NATURES: the animal's nature (natures.json), kept when it was tamed. Optional in a save: a record
+## without one gets a nature derived from its uid, so every load agrees (PetRecord.from_dict).
+var nature: StringName = &""
 var grade: StringName = &"B"
 var hunger: float = 0.0
 var hunger_max: float = 0.0
@@ -195,6 +198,7 @@ func to_dict() -> Dictionary:
 		"parent_uids": parents,
 		"species": str(species),
 		"variant": str(variant),
+		"nature": str(nature),
 		"grade": str(grade),
 		"hunger": hunger,
 		"hunger_max": hunger_max,
@@ -237,6 +241,10 @@ static func from_dict(d: Dictionary) -> PetRecord:
 			r.parent_uids.append(str(p))
 	r.species = StringName(str(d.get("species", "")))
 	r.variant = StringName(str(d.get("variant", "")))
+	# NATURES: additive optional field. A record saved before natures (or hand-built) has none: it
+	# gets the same nature its uid derives, so nothing is lost and every load agrees.
+	var nat := StringName(str(d.get("nature", "")))
+	r.nature = nat if CreatureNatures.is_valid(nat) else CreatureNatures.from_uid(r.uid, r.species)
 	r.grade = StringName(str(d.get("grade", "B")))
 	r.hunger = float(d.get("hunger", 0.0))
 	r.hunger_max = float(d.get("hunger_max", 0.0))
