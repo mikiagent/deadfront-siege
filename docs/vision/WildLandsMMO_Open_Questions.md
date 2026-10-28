@@ -38,6 +38,7 @@ Source: merges into `claude/mmo-overhaul` on 2026-10-28. Each is marked `# ASSUM
 | **A9** | Charge = 1.5x the creature's run speed, using the low `charge` clip when the rig has it (deinonychus). | same, `charge_speed_mult` | Owner: the charge should be "visibly faster". |
 | **A10** | Running x1.25 for the survivor (run 8.75, sprint 10.6 m/s) and every creature. Survivor stamina drain x1.3 while running. Creature energy drain 13/s (was 10). | `combat_tuning.json movement`, `ai.json energy` | Owner: "make running generally faster ... consume more energy". The mount floor (1.25x her sprint) follows the new sprint. |
 | **A11** | Stamina refill by fatigue strain tier: 1.5 / 0.9 / 0.5 / 0.25 (< 25 / 50 / 75 / >= 75 %), was 1.0 / 0.5 / 0.35 / 0.2. Creature energy refill x1.5 fresh, x0.6 while winded. | `combat_tuning.json movement.stamina_regen_by_strain`, `ai.json energy` | Owner: "refill faster depending on exhaustion". |
+| **A12** | Stomach fullness scales every fatigue gain (the idle baseline too): empty ×2.0, hungry ×1.5, normal ×1.0, full ×0.85, overfull ×1.1 (a small sluggish penalty). Fullness = Σ digesting meals' foods.json `fullness` × undigested share / 100; bands empty < 0.1 ≤ hungry < 0.4 ≤ normal < 0.7 ≤ full ≤ 1.0 < overfull. A fresh survivor starts empty (×2.0) until the first meal. | `rules.json fatigue.fullness_mult`, `Digestion.state_for` | Owner: "exhaustion happens much quicker when empty stomach, moderately fast when hungry". No satiety meter exists (PRD :72/:1030); these bands stand in for one. |
 
 ## Parked by other docs
 

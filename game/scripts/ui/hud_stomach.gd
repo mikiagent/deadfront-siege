@@ -15,15 +15,10 @@ extends RefCounted
 # time left over its digest time: full on a fresh meal, empty when nothing digests.
 
 const TRACK := Color(0.08, 0.08, 0.1, 0.9)
-const FALLBACK_FULLNESS := 10.0  ## ASSUMPTION: a digesting food with no foods.json fullness counts as a snack
-## Band edges (fraction of a full stomach), ASSUMPTION: the model names no hungry / full thresholds.
-const EMPTY_BELOW := 0.1
-const HUNGRY_BELOW := 0.4
-const NORMAL_BELOW := 0.7
-const OVERFULL_ABOVE := 1.0
 ## Colour stops: red empty, yellow hungry, green full, red overfull, blended linearly between them.
-const STOPS := [[0.0, UiTokens.STOMACH_EMPTY], [EMPTY_BELOW, UiTokens.STOMACH_EMPTY], [0.3, UiTokens.STOMACH_HUNGRY],
-	[0.5, UiTokens.STOMACH_HUNGRY], [0.8, UiTokens.STOMACH_FULL], [OVERFULL_ABOVE, UiTokens.STOMACH_FULL],
+## Band edges live in Digestion (the survival model the fatigue rate shares).
+const STOPS := [[0.0, UiTokens.STOMACH_EMPTY], [Digestion.EMPTY_BELOW, UiTokens.STOMACH_EMPTY], [0.3, UiTokens.STOMACH_HUNGRY],
+	[0.5, UiTokens.STOMACH_HUNGRY], [0.8, UiTokens.STOMACH_FULL], [Digestion.OVERFULL_ABOVE, UiTokens.STOMACH_FULL],
 	[1.2, UiTokens.STOMACH_OVERFULL]]
 ## The glyph's drawn size per state (owner: "empty stomach looks shrunk, full stomach looks big"); HuntHud
 ## eases the drawn scale toward it (SCALE_SPEED per second) so a state change grows or shrinks the glyph.
@@ -32,44 +27,18 @@ const SCALE_SPEED := 0.6
 const GLYPH := {&"empty": &"stomach_empty", &"hungry": &"stomach_hungry", &"normal": &"stomach",
 	&"full": &"stomach", &"overfull": &"stomach_overfull"}
 
-## How full she is: 0 = empty, 1 = a full stomach, above 1 = overfull.
+## How full she is: 0 = empty, 1 = a full stomach, above 1 = overfull (Digestion.fullness, the model's value).
 static func fullness_of(p: Player) -> float:
 	var dig := Digestion.of(p)
-	if dig == null:
-		return 0.0
-	var cap := maxf(1.0, FoodEffects.cap_for("fullness"))
-	var sum := 0.0
-	for row in dig.rows():
-		var total := float(row.get("total", 0.0))
-		if total <= 0.0:
-			continue
-		var full := float(FoodEffects.entry_for(StringName(str(row.get("def_id", "")))).get("fullness", FALLBACK_FULLNESS))
-		sum += full * clampf(float(row.get("remaining", 0.0)) / total, 0.0, 1.0)
-	return sum / cap
+	return dig.fullness() if dig else 0.0
 
-## 0..1: the longest digestion's time left over its digest time (0 when nothing digests).
+## 0..1 of the digestion cooldown left (Digestion.saturation).
 static func saturation_of(p: Player) -> float:
 	var dig := Digestion.of(p)
-	if dig == null:
-		return 0.0
-	var best := 0.0
-	for row in dig.rows():
-		var secs := float(row.get("seconds", 0.0))
-		var rate := float(row.get("rate", -1.0))
-		if secs > 0.0 and rate > 0.0:
-			best = maxf(best, clampf(float(row.get("remaining", 0.0)) / rate / secs, 0.0, 1.0))
-	return best
+	return dig.saturation() if dig else 0.0
 
 static func state_of(f: float) -> StringName:
-	if f > OVERFULL_ABOVE:
-		return &"overfull"
-	if f >= NORMAL_BELOW:
-		return &"full"
-	if f >= HUNGRY_BELOW:
-		return &"normal"
-	if f >= EMPTY_BELOW:
-		return &"hungry"
-	return &"empty"
+	return Digestion.state_for(f)
 
 static func color_for(f: float) -> Color:
 	for i in range(1, STOPS.size()):
@@ -100,7 +69,7 @@ static func draw(ci: CanvasItem, c: Vector2, rad: float, fullness: float, satura
 		var sa := arc_for(saturation)
 		ci.draw_arc(c, rad - sw * 0.5, sa.x, sa.y, maxi(4, int(40.0 * saturation)), UiTokens.SATURATION, sw, true)
 	ci.draw_arc(c, r_in, 0.0, TAU, 40, TRACK, w, true)
-	if fullness < EMPTY_BELOW:  # empty reads red even with nothing to fill
+	if fullness < Digestion.EMPTY_BELOW:  # empty reads red even with nothing to fill
 		ci.draw_arc(c, r_in, 0.0, TAU, 40, Color(UiTokens.STOMACH_EMPTY, 0.45), w, true)
 	var fill := clampf(fullness, 0.0, 1.0)
 	if fill > 0.0:

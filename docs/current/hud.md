@@ -189,7 +189,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   (0.8 s `FORGET_TAU` held 2 s) so the belt eases out of the sweep.
 - Tapping the face or belt opens FatiguePanel (300 px, refreshing every 0.5 s): up to 4 causes at
   ≥3% share of recent fatigue (each row a name, % and a remedy line), plus a context line with the
-  level-gap sentence, the climate shortfall and the live drift ("Exhaustion is falling slowly
+  level-gap sentence, the stomach factor ("Hungry: +50% exhaustion.", FULLFATIGUE), the climate shortfall and the live drift ("Exhaustion is falling slowly
   (+x/min)"). Vitals owns the rows; the decay window is `fatigue.breakdown_window_s` (180 s).
 
 ## Gather radial (UIGATHER, spec §4, B1)

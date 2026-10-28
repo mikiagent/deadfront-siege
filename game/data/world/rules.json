@@ -64,7 +64,15 @@
     "gap_min": 0.5,
     "gap_max": 2.0,
     "climate_per_min": 4.0,
-    "breakdown_window_s": 180.0
+    "breakdown_window_s": 180.0,
+    "fullness_mult": {
+      "_about": "FULLFATIGUE (owner 2026-10-28: 'fullness should affect exhaustion where exhaustion happens much quicker when empty stomach, moderately fast when hungry etc'). Multiplies every fatigue gain (the idle baseline too) by the stomach state (Digestion.state_for). ASSUMPTION values; overfull is a small sluggish penalty.",
+      "empty": 2.0,
+      "hungry": 1.5,
+      "normal": 1.0,
+      "full": 0.85,
+      "overfull": 1.1
+    }
   },
   "xp": {
     "_about": "XPECON (islands-and-loop plan section 3.3 'XP economy' + 3.4 knobs): a gather pass pays gather_base + round(its own pass seconds), so a slower node or bare hands pays more and a better tool or skill pays less; a build pays build_first the first time that kit kind is ever placed (memory is World.pioneer_buildings, saved) and build_repeat after that; a build of the same kind within build_spam_radius_m of a standing one of its kind placed less than build_spam_seconds ago pays 0. The level curve stays World.xp_for_level.",
