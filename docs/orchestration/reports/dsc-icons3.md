@@ -72,7 +72,7 @@ REPRO PASS n=8
 
 Cross-checking the whole landed set was attempted with `--verify all` (165 ids in one process); it was
 stopped after 13 ids (all `identical`, no `DIFFERS`) because a full pass needs ~40 min of Blender on
-this machine. The remaining 152 renders are byte-identical to canon's committed PNGs *by construction*
+this machine — it is not part of the gate, and the 8-id run above is the gate's determinism evidence. The remaining 152 renders are byte-identical to canon's committed PNGs *by construction*
 (the checkout only replaced the 65 + their imports), and 33 of them carry the branch's sha in the
 manifest, which `t_iconart` checks against the pixels.
 
