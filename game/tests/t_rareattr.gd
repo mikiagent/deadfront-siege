@@ -161,12 +161,22 @@ func _test_roll_rate() -> void:
 	_expect(per_material.size() >= ids.size() / 2, "the rolls spread over the materials (%d of %d got one)" % [per_material.size(), ids.size()])
 
 ## An instance's rare attribute survives the save path (to_array -> sanitizer -> JSON -> load_array), with its uid.
+## The instances are stamped by the real gather path at odds 1 (the odds themselves are measured above).
 func _test_save_load() -> void:
 	var inv = INV.new(8)
-	var plain = IS.make(&"stone", 1, {"level": 3, "climate": "temperate", "black_sheen": true}, 3)
-	var branch = IS.make(&"branch", 1, {"level": 2, "climate": "temperate", "narrow_hook": true}, 2)
+	var plain = IS.make(&"stone", 1, {"level": 3, "climate": "temperate"}, 3)
+	var branch = IS.make(&"branch", 1, {"level": 2, "climate": "temperate"}, 2)
+	var cfg_saved: Dictionary = LT.trait_cfg().duplicate(true)
+	var forced: Dictionary = cfg_saved.duplicate(true)
+	forced["chance"] = 1.0
+	LT._loot["rare_trait"] = forced
 	inv.add(plain)
+	GS.stamp_traits(inv, {}, plain, 1, _seeded(41))
 	inv.add(branch)
+	GS.stamp_traits(inv, {}, branch, 1, _seeded(42))
+	LT._loot["rare_trait"] = cfg_saved
+	var stone_rare := _rare_of(inv.slots[0], &"stone")
+	var stick_rare := _rare_of(inv.slots[1], &"branch")
 	var uid: String = inv.slots[0].uid
 	var raw: Variant = JSON.parse_string(JSON.stringify(inv.to_array()))
 	var clean: Dictionary = SS.clean({"player": {"inventory": raw}, "player_name": "Rare"})
@@ -176,11 +186,22 @@ func _test_save_load() -> void:
 	var stick = back.slots[1]
 	print("[t_rareattr] save/load stone=%s uid '%s' (was '%s'), branch=%s" % [
 		stone.attributes if stone else null, stone.uid if stone else "", uid, stick.attributes if stick else null])
-	_expect(stone != null and stone.def_id == &"stone" and stone.attributes.get("black_sheen", false) == true,
-		"a saved stone keeps its rare attribute (%s)" % (stone.attributes if stone else null))
+	_expect(stone_rare != "" and stick_rare != "", "the gather path stamped a rare attribute on each (stone %s, branch %s)" % [stone_rare, stick_rare])
+	_expect(stone != null and stone.def_id == &"stone" and _rare_of(stone, &"stone") == stone_rare,
+		"a saved stone keeps its own rare attribute (%s)" % (stone.attributes if stone else null))
 	_expect(stone != null and stone.uid == uid and uid != "", "the loaded instance keeps its own uid ('%s' of '%s')" % [stone.uid if stone else "", uid])
-	_expect(stick != null and stick.attributes.get("narrow_hook", false) == true, "a saved branch keeps its own rare attribute (%s)" % (stick.attributes if stick else null))
+	_expect(stick != null and _rare_of(stick, &"branch") == stick_rare, "a saved branch keeps its own rare attribute (%s)" % (stick.attributes if stick else null))
 	_expect(stone != null and IA.has_rare(stone), "the loaded stone still reads as rare")
+
+## The one rare attribute `st` carries from `id`'s own list ("" for none).
+func _rare_of(st: Variant, id: StringName) -> String:
+	if st == null:
+		return ""
+	var attrs: Dictionary = st.attributes
+	for t: Variant in LT.material_traits(id):
+		if attrs.get(str(t), false) == true:
+			return str(t)
+	return ""
 
 ## Spec 04:33: a rare attribute passes from a single eligible PRIMARY material; a secondary one never
 ## transfers. The craft's own rare roll is forced to none, so only the source instance can supply it.
