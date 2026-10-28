@@ -319,6 +319,7 @@ func _test_temporary_campfire() -> void:
 	_expect(is_equal_approx(float(fire.get("seconds_left")), 120.0), "campfire starts with two active minutes")
 	get_root().add_child(fire)
 	fire.set_process(false) # Keep a fixed lifetime for the save round-trip assertion.
+	fire.set("fuel_seconds", 53.0)  # FIREPITS: fuel_seconds is the saved burn time; seconds_left mirrors it
 	fire.set("seconds_left", 53.0)
 	var saved: Dictionary = fire.to_dict()
 	var restored: Node = fire_script.from_dict(saved)
