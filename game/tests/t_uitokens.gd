@@ -43,6 +43,7 @@ func _run() -> void:
 	_test_pie()
 	_test_chips()
 	_test_brackets()
+	_test_fonts()
 	_test_header_and_torn()
 	_test_hex_rect_maths()
 	await _test_hex_button_defaults()
@@ -213,6 +214,32 @@ func _test_chips() -> void:
 	_expect(UT.trait_chip_fg(&"positive") == UT.GOLD and UT.trait_chip_fg(&"rare") == UT.TRAIT_RARE_FG, "chip text colours follow the polarity")
 	_expect(neg.bg_color == UT.trait_chip_style(&"unknown").bg_color, "an unknown polarity reads as negative")
 	print("[t_uitokens] chips: neg %s pos %s rare %s" % [neg.bg_color, pos.bg_color, rare.bg_color])
+
+# ---------------------------------------------------------------- type (§2)
+
+## The UI face (owner decision 2026-10-28): constants name the file; the helper builds a 400 and a 700
+## FontVariation from it. The TTF is an asset change of its own and may not be in this tree yet, in
+## which case the helper must answer null rather than fail.
+func _test_fonts() -> void:
+	_expect(UT.UI_FONT_PATH == "res://assets/fonts/RobotoCondensed-Variable.ttf", "UI_FONT_PATH names the Roboto Condensed variable TTF")
+	_expect(UT.WEIGHT_REGULAR == 400 and UT.WEIGHT_BOLD == 700, "the two weights are 400 and 700")
+	var regular: Variant = UT.ui_font_regular()
+	var bold: Variant = UT.ui_font_bold()
+	var present := ResourceLoader.exists(UT.UI_FONT_PATH)
+	print("[t_uitokens] fonts: %s present=%s" % [UT.UI_FONT_PATH, present])
+	if present:
+		_expect(regular is FontVariation and bold is FontVariation, "both weights are FontVariations")
+		if regular is FontVariation and bold is FontVariation:
+			_expect(regular.base_font != null and regular.base_font == bold.base_font, "both share the one base font")
+			_expect(int((regular.variation_opentype as Dictionary).get("wght", 0.0)) == 400, "regular is wght 400")
+			_expect(int((bold.variation_opentype as Dictionary).get("wght", 0.0)) == 700, "bold is wght 700")
+			_expect(UT.ui_font(UT.WEIGHT_BOLD) == bold, "the variations are cached per weight")
+			_expect(UT.ui_face() is FontVariation, "ui_face() hands back the UI font when it is there")
+			var w400: float = regular.get_string_size("Bleed", HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+			_expect(w400 > 0.0, "the regular face measures text (%.1f px)" % w400)
+	else:
+		_expect(regular == null and bold == null, "without the TTF the helpers answer null, they do not fail")
+		_expect(UT.ui_face() == ThemeDB.fallback_font, "ui_face() falls back to the engine font when the TTF is absent")
 
 # ---------------------------------------------------------------- chrome (§8)
 

@@ -26,6 +26,8 @@ const META := Color(0.78, 0.76, 0.70, 1.0)
 const ACTION := Color(1, 1, 1, 1)
 ## Tests turn this on to run the controller focus path without a joypad (wants_focus()).
 static var force_focus := false
+## Cached FontVariations per weight (ui_font()).
+static var _fonts: Dictionary = {}
 
 ## Hex HUD palette (docs/design/ui-redesign-spec.md §2). Kept beside the old tokens: restyled screens
 ## opt in, every existing screen keeps drawing with INK/TEAL/DIVIDER until its own package moves it.
@@ -57,6 +59,19 @@ const TRAIT_RARE_FG := Color(0.561, 0.863, 0.518, 1.0)
 ## Exhaustion tiers (face + belt tint), indexed by the existing four tiers in Vitals.
 const MOOD := [Color(0.561, 0.863, 0.518), Color(0.957, 0.769, 0.188),
 		Color(0.910, 0.588, 0.165), Color(0.878, 0.412, 0.310)]
+
+## The UI face (owner decision 2026-10-28): Roboto Condensed, a variable-weight TTF under SIL OFL.
+## The file is an asset change of its own (game/assets/fonts/RobotoCondensed-Variable.ttf, licence in
+## RobotoCondensed-OFL.txt); this package only names it and builds FontVariations from it. No screen
+## uses it yet — later restyle packages do.
+const UI_FONT_PATH := "res://assets/fonts/RobotoCondensed-Variable.ttf"
+const WEIGHT_REGULAR := 400
+const WEIGHT_BOLD := 700
+## Font sizes at 1600x900 from the §2 canvas, scaled by the screens themselves (sizes only until the
+## face ships everywhere).
+const TITLE_PX := 28
+const HEADER_PX := 22
+const CHIP_PX := 12
 
 ## Hex orientation, one switch for every hex on every screen. Owner decision 2026-10-28: flat-top
 ## (the canvas and the Durango references draw flat-top hexes). Pointy-top is still available per hex
@@ -514,3 +529,33 @@ static func draw_torn_edge(ci: CanvasItem, rect: Rect2, color: Color = HEADER, a
 		poly.append(zig[i])
 	ci.draw_colored_polygon(poly, color)
 	ci.draw_polyline(zig, Color(color.lightened(0.35), 0.5), 1.0, true)
+
+# ---------------------------------------------------------------- type (§2)
+
+## The UI font at `weight` (WEIGHT_REGULAR / WEIGHT_BOLD), built once per weight and cached.
+## Empty when the font file is not in this tree yet: callers fall back to ThemeDB.fallback_font.
+static func ui_font(weight: int = WEIGHT_REGULAR) -> FontVariation:
+	if _fonts.has(weight):
+		return _fonts[weight]
+	if not ResourceLoader.exists(UI_FONT_PATH):
+		return null
+	var base := load(UI_FONT_PATH) as Font
+	if base == null:
+		return null
+	var fv := FontVariation.new()
+	fv.base_font = base
+	fv.variation_opentype = {"wght": float(weight)}
+	var made := fv
+	_fonts[weight] = made
+	return made
+
+static func ui_font_regular() -> FontVariation:
+	return ui_font(WEIGHT_REGULAR)
+
+static func ui_font_bold() -> FontVariation:
+	return ui_font(WEIGHT_BOLD)
+
+## The face a new restyled widget draws with: the UI font when present, else the engine's fallback.
+static func ui_face(weight: int = WEIGHT_REGULAR) -> Font:
+	var f := ui_font(weight)
+	return f if f != null else ThemeDB.fallback_font
