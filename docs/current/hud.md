@@ -174,6 +174,21 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   16 px treadmill belt (`BELT_H`): chevrons scroll right while exhaustion rises, left while it
   eases; belt speed = 350 px per pt/s of drift, clamped 3–150 px/s, holding still under 0.004 pt/s
   (`RATE_DEAD`).
+- Belt look (TREADMILL, owner 2026-10-28 "improve the artistry of the treadmill", same size and
+  shape): a recessed rubber belt with lit top, shaded bottom and drums at both ends, slat seams every
+  3 chevrons and stitched edges that travel with it. The strained length fills in the tier colours
+  (`UiTokens.MOOD`, blended, pure at each tier's middle; `tier_color`) and its chevrons light up in
+  them while the rest stay dim; tier notches sit at 25/50/75 %. Fast drift (> 60 px/s) trails two
+  fading chevron ghosts; a sheen sweeps the plates (2.6 s running, slower and fainter standing).
+  Well Rested frosts it over in 0.6 s (ice tint, rimed edge, twinkling crystals). Crossing into a
+  worse tier pulses for 0.7 s (frame flashes the tier colour, fill and needle glow swell).
+- The strain marker is a tall needle (owner: "make it a tall bar"): 4 px wide, 1.6× the belt
+  (`MARKER_TALL`, ASSUMPTION), centred on it, face colour with a crisp dark edge and a tier-colour
+  glow (`ExhaustTreadmill.marker_rect`). The belt rect itself is unchanged (`last_rect`).
+- `ExhaustTreadmill.tick()` (one line in `HuntHud._process`) advances the clock, frost and pulse;
+  drawing is read-only. Cost: ~45 canvas commands, one fixed line buffer, cached percent label;
+  ~86 µs of script time per draw on the dev Mac, nothing kept per frame (`tests/t_treadmill.gd`).
+  Captures: `--lab=treadmill_lab` (`docs/orchestration/reports/treadmill/`).
 - Drift is an EMA over fatigue deltas (2.5 s window, `EMA_TAU`). A jump ≥ 8 pts (`STEP_AFTER`)
   counts as a one-off step (sleep, meal), applied instantly, with a faster forgetting window
   (0.8 s `FORGET_TAU` held 2 s) so the belt eases out of the sweep.
