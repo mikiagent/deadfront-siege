@@ -66,6 +66,8 @@ func _run() -> void:
 		await _test_species(id)
 	for id in SPECIES:
 		await _test_spacing(id)
+	await _test_daytime(&"deinonychus")
+	await _test_daytime(&"tyrannosaurus")
 	await _test_plain()
 	_finish()
 
@@ -143,6 +145,90 @@ func _skin_x(tris: PackedVector3Array, eye: Vector3, sign: float) -> float:
 		if is_nan(best) or x * sign > best * sign:
 			best = x
 	return best
+
+## Round 4 (owner: "make the eyes glow a little bit in the daytime too but no trail"): at noon the dot
+## and the core glow (> 0), a fast run draws no flame and no sparks; from noon to midnight the glow only
+## rises; and the round-3 far-eye occlusion holds by day (profile: far halo ~0, head-on: both glow).
+func _test_daytime(id: StringName) -> void:
+	var had: float = WL.night
+	var c := _spawn(id)
+	await process_frame
+	await process_frame
+	var eyes = c.view.get_node_or_null("Eyes")
+	if eyes == null or eyes.trail == null:
+		_expect(false, "%s daytime: no eyes" % id)
+		c.queue_free()
+		return
+	eyes.set_process(false)
+	var trail = eyes.trail
+	var p0: Vector3 = (eyes.dots[0] as Node3D).global_position
+	var p1: Vector3 = (eyes.dots[1] as Node3D).global_position
+	var mid := (p0 + p1) * 0.5
+	var out := Vector3(p0.x - p1.x, 0.0, p0.z - p1.z).normalized()
+	var fwd := out.cross(Vector3.UP)
+	var cam := Camera3D.new()
+	cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	root.add_child(cam)
+	cam.fov = 4.3
+	cam.current = true
+	var elev := deg_to_rad(35.0)
+	# Ramp: dot energy and halo alpha at night 0 .. 1, head-on (both eyes facing).
+	cam.global_position = mid + (fwd * cos(elev) + Vector3.UP * sin(elev)) * 190.0
+	cam.look_at(mid, Vector3.UP)
+	await process_frame
+	var last_glow := -1.0
+	var last_energy := -1.0
+	var last_halo := -1.0
+	var rising := true
+	var noon_energy := 0.0
+	var noon_halo := 0.0
+	for k in 9:
+		var n := float(k) / 8.0
+		WL.night = n
+		EYES.apply_night()
+		for _i in 3:
+			trail.tick(1.0 / 60.0)
+		var glow: float = EYES.glow_at(n)
+		var energy: float = (eyes.eye_material as StandardMaterial3D).emission_energy_multiplier
+		var halo := maxf(trail.halo_alpha(0), trail.halo_alpha(1))
+		if k == 0:
+			noon_energy = energy
+			noon_halo = halo
+		rising = rising and glow > last_glow and energy > last_energy and halo >= last_halo - 0.02
+		last_glow = glow
+		last_energy = energy
+		last_halo = halo
+	print("[t_eyeglow] %s day glow: noon dot energy %.2f halo %.3f, night dot energy %.2f halo %.3f" % [id,
+		noon_energy, noon_halo, last_energy, last_halo])
+	_expect(noon_energy > 0.0 and noon_halo > 0.05, "%s the eye core glows at noon (energy %.2f, halo %.3f)" % [id, noon_energy, noon_halo])
+	_expect(noon_halo < 0.5 * last_halo and noon_energy < 0.5 * last_energy, "%s the noon glow is faint next to the night glow" % id)
+	_expect(rising, "%s the glow only rises from noon to midnight" % id)
+	# Noon run: no flame, no sparks.
+	WL.night = 0.0
+	EYES.apply_night()
+	var peak := 0
+	for _i in 60:
+		c.global_position += Vector3(5.0 / 60.0, 0.0, 0.0)
+		trail.tick(1.0 / 60.0)
+		peak = maxi(peak, trail.ribbon_vertex_count())
+	_expect(peak == 0 and trail.sample_count() == 0, "%s no trail at noon while running (%d flame verts)" % [id, peak])
+	# Occlusion by day: profile hides the far eye, head-on shows both.
+	p0 = (eyes.dots[0] as Node3D).global_position
+	p1 = (eyes.dots[1] as Node3D).global_position
+	mid = (p0 + p1) * 0.5
+	cam.global_position = mid + (out * cos(elev) + Vector3.UP * sin(elev)) * 190.0
+	cam.look_at(mid, Vector3.UP)
+	await process_frame
+	for _i in 3:
+		trail.tick(1.0 / 60.0)
+	var near_a: float = trail.halo_alpha(0)
+	var far_a: float = trail.halo_alpha(1)
+	_expect(near_a > 0.05 and far_a <= 0.02 * near_a, "%s noon profile: only the near eye glows (%.3f / %.3f)" % [id, near_a, far_a])
+	cam.queue_free()
+	WL.night = had
+	EYES.apply_night()
+	c.queue_free()
+	await process_frame
 
 func _finish() -> void:
 	if _fails.is_empty():

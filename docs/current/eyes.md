@@ -8,10 +8,23 @@ art thread: the code never writes them.
 ## Eyeshine (the dots)
 Two small unshaded HDR dots on the Head bone, one per authored `points` entry, pushed 5 mm out of the skull
 (`SURFACE_PUSH_M`) and capped to 0.6 % of the animal's height (6 mm .. 25 mm). Brightness is global: the
-shared per-colour material is painted from `WorldLighting.night` (`NIGHT_ENERGY` 20 at night, a
-`day_fraction` 0.01 glint by day). The dots hide when the animal is dead or in the `sleep` brain state.
+shared per-colour material is painted from `WorldLighting.night`: `NIGHT_ENERGY` 20 x
+`CreatureEyes.glow_at(night)`. The dots hide when the animal is dead or in the `sleep` brain state.
 Six species carry an `eyes` block: tyrannosaurus, utahraptor, deinonychus, velociraptor, coelophysis,
 compsognathus.
+
+## Day and night (round 4)
+Owner: "can you actually make the eyes glow a little bit in the daytime too but no trail?". The curve
+is data, in `game/data/world/eye_glow.json` (ASSUMPTION numbers):
+- **Dot:** `glow_at(n) = day + (1 - day) * n^ramp_pow`, with `day` 0.16 and `ramp_pow` 1.5. That is
+  energy 3.2 at noon and 20 at night.
+- **Core and bloom:** `EyeTrail`'s core and bloom use `halo_at(n)`, the same ramp from `day_halo` 0.3. A
+  faint additive glow vanishes on a sunlit skull, so the halo starts higher. At noon that is a small
+  readable glint in the eye colour; it rises through dawn and dusk to the full night glow.
+- **Flame and sparks:** night-only. `trail_at(n) = smoothstep(trail_from 0.2, trail_to 0.5, n)` scales
+  the flame strength, so by day no sample is taken and no flame or spark is drawn. The dusk shots
+  (night ~0.45) still show most of the flame.
+- **Unchanged:** the rim lights stay night-only. The round-3 far-eye occlusion applies by day too.
 
 ## Rim light
 `CreatureEyes` adds one `OmniLight3D` per eye (child of the dot, so it rides the head bone), pushed
@@ -79,7 +92,8 @@ round-1 ImmediateMesh did).
 | `ENERGY` | 2.2 | HDR level of the flame (shader `energy`) |
 | `MAX_VERTICES` | 440 | most vertices one creature draws (asserted) |
 
-Visibility is the eyeshine's: awake, not asleep, not dead, same night fraction.
+Visibility is the eyeshine's: awake, not asleep, not dead. The halo follows `halo_at`, the flame
+`trail_at` (see Day and night).
 
 ## Data
 No new file under `game/data/creatures/` (every `*.json` there is parsed as a species by
@@ -147,7 +161,11 @@ round 3: for the deinonychus and the T. rex at a 90 deg profile from 190 m, 35 d
 alpha is at most 2 % of the near one's; head-on both are within 10 %; the far flame is 0 at the eye and
 fully on 2 separations out). `t_eyeglow` round 3: every eyed species' dots mirror across the midline,
 and their spacing matches the skull's skin-to-skin width at the socket within 12 % (rays along the
-lateral axis at each dot's height and length, bind pose). `t_eyetrails` also renders a look-pass with `-- --shot-dir=DIR` when run windowed: a night ground plane,
+lateral axis at each dot's height and length, bind pose). `t_eyeglow` round 4: for the deinonychus and
+the T. rex at noon, the dot energy and the halo are above 0 and under half the night level; a noon run
+draws no flame and takes no sample; from noon to midnight the glow, the dot energy and the halo only
+rise; and the noon profile shows the near eye only. `t_eyetrails` checks every species' day run for no
+flame and a glowing core. `t_eyetrails` also renders a look-pass with `-- --shot-dir=DIR` when run windowed: a night ground plane,
 `WorldLighting` at midnight and the real `IsoCamera` (default zoom 14 m, 18 m for the T. rex), the animal
 standing in profile, then head-on, then running a curve across the screen and snapping round, at 60 fps and real frame time; it saves
 800x450 crops around the eye. Options: `--shot-species=a,b`, `--shot-zoom=<m>`, `--shot-tod=<0..1>`

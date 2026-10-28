@@ -180,12 +180,15 @@ func _test_species(id: StringName, cap: int) -> void:
 	_expect(gone_at > 0.0 and gone_at <= GONE_S, "%s ribbon fades out after stopping (%.3f s)" % [id, gone_at])
 	_expect(trail.ribbon_length() == 0.0 or trail.sample_count() == 0,
 		"%s a stopped head keeps no ribbon" % id)
-	# Day: the eyes barely glow, so no ribbon.
+	# Day (round 4, owner: "glow a little bit in the daytime too but no trail"): the core and bloom glow
+	# faintly, the flame and its sparks do not.
 	WL.night = 0.0
 	for _i in 60:
 		_move(c, trail, step_fast)
-	_expect(trail.sample_count() == 0 and trail.surface_count() == 0,
-		"%s no ribbon while the eyes do not glow by day" % id)
+	_expect(trail.sample_count() == 0 and trail.ribbon_vertex_count() == 0 and trail.trail_alpha() == 0.0,
+		"%s no flame trail by day while running" % id)
+	_expect(trail.surface_count() == 1 and maxf(trail.halo_alpha(0), trail.halo_alpha(1)) > 0.0,
+		"%s the eye core still glows by day" % id)
 	# Night again, build a ribbon, then kill the animal: the dots hide and so must the ribbon.
 	WL.night = 1.0
 	for _i in 30:

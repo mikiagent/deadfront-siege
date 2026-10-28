@@ -1,0 +1,8 @@
+{
+  "_about": "Glowing eyes over the day (scripts/creatures/creature_eyes.gd glow_at, eye_trail.gd). night is WorldLighting.night (0 in full sun, 1 at night, it ramps through dawn and dusk). Dot glow = day + (1 - day) * night^ramp_pow, and the core and bloom drawn over it the same with day_halo (a sunlit skull swallows a faint additive glow, so the halo starts higher), so it is faint but readable at noon and the full night glow after dusk. The flame trail and its sparks are night-only: trail_from..trail_to is the night range over which they fade in (0 below trail_from). ASSUMPTION: every number here; the owner asked for 'the eyes glow a little bit in the daytime too but no trail'.",
+  "day": 0.16,
+  "ramp_pow": 1.5,
+  "trail_from": 0.2,
+  "trail_to": 0.5,
+  "day_halo": 0.3
+}

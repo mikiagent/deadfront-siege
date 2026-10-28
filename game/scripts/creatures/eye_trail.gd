@@ -91,7 +91,8 @@ const SKULL_CLEAR_TO := 1.6
 const ENERGY := 2.2
 ## ASSUMPTION: beyond this from the camera nothing is built (the game camera stands 90-430 m back).
 const MAX_CAMERA_DISTANCE_M := 600.0
-## The eyeshine's own glow below which nothing is drawn (the faint day glint, 0.01, has no flame).
+## The eyeshine's own glow below which nothing is drawn (only eyeglow_lab --day=0 goes below it; the
+## daytime glow, CreatureEyes.glow_at(0), draws the core and bloom and, by trail_at, no flame).
 const MIN_GLOW := 0.02
 const MIN_ALPHA := 0.004
 ## UV of everything the shader must not tear (bloom, core, embers).
@@ -478,7 +479,7 @@ func _in_view(cam: Camera3D) -> bool:
 	return cam.global_position.distance_to(at) <= max_distance_m and cam.is_position_in_frustum(at)
 
 func _glow_fraction() -> float:
-	return lerpf(CreatureEyes.day_fraction, 1.0, clampf(WorldLighting.night, 0.0, 1.0))
+	return CreatureEyes.halo_at(WorldLighting.night)
 
 func _track(i: int, step: float, p: Vector3, glow: float) -> void:
 	var prev: Vector3 = _prev[i]
@@ -500,7 +501,9 @@ func _track(i: int, step: float, p: Vector3, glow: float) -> void:
 	var raw := p.distance_to(prev) / step if prev != Vector3.INF else 0.0
 	_speed[i] = lerpf(_speed[i], raw, 1.0 - exp(-SPEED_SMOOTH * step))
 	var speed := _speed[i]
-	var target := clampf((speed - min_speed_mps) / (full_speed_mps - min_speed_mps), 0.0, 1.0) * glow
+	# Night-only flame (owner: daytime eyes glow "a little bit ... but no trail"): by day no sample is taken.
+	var target := clampf((speed - min_speed_mps) / (full_speed_mps - min_speed_mps), 0.0, 1.0) * glow \
+		* CreatureEyes.trail_at(WorldLighting.night)
 	_str[i] = maxf(target, _str[i] - STRENGTH_DECAY * step)
 	if target <= 0.0:
 		return
