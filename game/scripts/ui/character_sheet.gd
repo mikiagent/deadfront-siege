@@ -394,6 +394,8 @@ func _fill_stats(view: Vector2) -> void:
 		a.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		a.clip_text = true
 		h.add_child(a)
+		if str(r[0]) == "Skill points":  # the brain glyph is the skill point (Skills sheet, Spend)
+			h.add_child(SheetChrome.icon_rect(&"brain", SheetChrome.px(view, 24, 16)))
 		var b := SheetChrome.label(str(r[1]), SheetChrome.px(view, 21, 13))
 		b.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		h.add_child(b)

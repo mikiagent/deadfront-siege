@@ -3,7 +3,7 @@ extends Control
 ## C3 Skills (docs/design/ui-redesign-spec.md §7 C3, mockup ui-redesign/c3-skills.webp): a full-screen
 ## sheet with the shared chrome (§8). Left: a 4-column grid of the twelve skills (name with an unread
 ## dot when a node is buyable now, white symbol, thin XP bar, Lv.). Right: the selected skill's
-## detail (parchment header, Skill XP, SP spent here, what levels it, the unlock list with each node's
+## detail (parchment header, Skill XP, skill points spent here, what levels it, the unlock list with each node's
 ## Unlock / Refund / lock reason) and a GOLD button that buys the next node.
 ## Public entry: open(skills, tree = "") / close(); HuntHud.open_skills() opens it from the HUD.
 ## F7 skill_debug.gd is separate and unchanged.
@@ -42,6 +42,7 @@ var _spent: Label
 var _box: VBoxContainer  ## the detail's unlock list (node rows are its direct children)
 var _spend: Button
 var _sp_pill: Label
+var _sp_icon: TextureRect  ## the brain beside the free count (skill points are a brain glyph, never "SP")
 var _tree: String = "survival"
 
 func _ready() -> void:
@@ -55,10 +56,16 @@ func _ready() -> void:
 	var close_btn: Button = _c["close"]
 	close_btn.name = "SkillsClose"
 	close_btn.pressed.connect(close)
+	var pill := HBoxContainer.new()
+	pill.name = "SkillsSpPill"
+	pill.add_theme_constant_override("separation", 6)
+	(_c["right"] as Control).add_child(pill)
+	_sp_icon = SheetChrome.icon_rect(&"brain", 26)
+	pill.add_child(_sp_icon)
 	_sp_pill = SheetChrome.label("", 22, UiTokens.TEXT)
 	_sp_pill.name = "SkillsSp"
 	_sp_pill.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	(_c["right"] as Control).add_child(_sp_pill)
+	pill.add_child(_sp_pill)
 	var row := HBoxContainer.new()
 	row.name = "SkillsBody"
 	row.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -121,9 +128,12 @@ func _ready() -> void:
 	xp_box.add_child(_full)
 	var sp_line := HBoxContainer.new()
 	_detail.add_child(_padded(sp_line, "SkillsSpentRow"))
-	_spent_label = SheetChrome.label("SP spent here", 20)
+	_spent_label = SheetChrome.label("Spent here", 20)
 	_spent_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sp_line.add_child(_spent_label)
+	var spent_icon := SheetChrome.icon_rect(&"brain", 22, UiTokens.GOLD)
+	spent_icon.name = "SkillsSpentIcon"
+	sp_line.add_child(spent_icon)
 	_spent = SheetChrome.label("", 20, UiTokens.GOLD)
 	_spent.name = "SkillsSpent"
 	sp_line.add_child(_spent)
@@ -147,6 +157,10 @@ func _ready() -> void:
 	_detail.add_child(foot)
 	_spend = SheetChrome.gold_button("")
 	_spend.name = "SkillsSpend"
+	_spend.icon = UiIcons.icon(&"brain")
+	for c in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_focus_color", "icon_hover_pressed_color"]:
+		_spend.add_theme_color_override(c, UiTokens.CTA_INK)
+	_spend.add_theme_color_override("icon_disabled_color", Color(0.12, 0.13, 0.14))
 	_spend.pressed.connect(_on_spend)
 	foot.add_child(_spend)
 	resized.connect(_layout)
@@ -204,7 +218,10 @@ func _layout() -> void:
 		l.add_theme_font_size_override("font_size", SheetChrome.px(view, 20, 13))
 	_full.add_theme_font_size_override("font_size", SheetChrome.px(view, 15, 12))
 	_sp_pill.add_theme_font_size_override("font_size", SheetChrome.px(view, 24, 16))
+	_sp_icon.custom_minimum_size = Vector2.ONE * SheetChrome.px(view, 28, 20)
+	(_detail.find_child("SkillsSpentIcon", true, false) as Control).custom_minimum_size = Vector2.ONE * SheetChrome.px(view, 24, 16)
 	_spend.add_theme_font_size_override("font_size", SheetChrome.px(view, 28, 16))
+	_spend.add_theme_constant_override("icon_max_width", SheetChrome.px(view, 34, 20))
 	_spend.custom_minimum_size = Vector2(0, 72 if not compact else SheetChrome.TAP)
 	for m: MarginContainer in [_detail.get_node("SkillsXpRow"), _detail.get_node("SkillsSpentRow")]:
 		m.add_theme_constant_override("margin_top", 3 if compact else 12)
@@ -225,7 +242,7 @@ func _layout() -> void:
 func rebuild() -> void:
 	if skills == null or _grid == null:
 		return
-	_sp_pill.text = "SP  %d free" % skills.sp_available
+	_sp_pill.text = "%d free" % skills.sp_available
 	_build_grid()
 	_build_detail()
 
@@ -363,12 +380,12 @@ func _build_detail() -> void:
 	cap.name = "SkillsUnlocksCaption"
 	_box.add_child(cap)
 	var auto_learned: PackedStringArray = []
-	var later: Array[Label] = []
+	var later: Array[Control] = []
 	for n in skills.nodes(_tree):
 		var st := skills.node_state(_tree, n)
 		var nid := str(n.get("id", ""))
 		var title := str(n.get("name", nid.replace("_", " ").capitalize()))
-		var cost := "AUTO" if bool(n.get("auto", false)) else "%d SP" % int(n.get("sp", 0))
+		var auto := bool(n.get("auto", false))
 		var lv_txt := LevelDisplay.label(int(n.get("level", 1)))
 		# Learned-free rows have nothing to tap; one summary line keeps the list actionable.
 		if st[0] == "owned" and bool(n.get("auto", false)):
@@ -377,9 +394,14 @@ func _build_detail() -> void:
 		# Nodes the game reads nothing from yet (spec 12:215) cannot be bought. They stay listed with
 		# level, SP and the lock reason (spec 12 10.6) as muted rows with nothing to tap, after the rest.
 		if st[0] == "locked" and st[1] == SkillState.NOT_IN_GAME:
-			var lrow := SheetChrome.label("%s   %s  ·  %s  ·  %s" % [lv_txt, title, cost, SkillState.NOT_IN_GAME], meta, Color(UiTokens.MUTED, 0.75))
+			var lrow := HBoxContainer.new()
 			lrow.name = "SkillsLater_" + nid
-			lrow.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			var ll := SheetChrome.label("%s   %s%s  ·  %s" % [lv_txt, title, "  ·  AUTO" if auto else "", SkillState.NOT_IN_GAME], meta, Color(UiTokens.MUTED, 0.75))
+			ll.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			ll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			lrow.add_child(ll)
+			if not auto:
+				lrow.add_child(sp_cost(int(n.get("sp", 0)), meta, Color(UiTokens.MUTED, 0.75)))
 			later.append(lrow)
 			continue
 		var h := HBoxContainer.new()
@@ -396,7 +418,7 @@ func _build_detail() -> void:
 		col.add_theme_constant_override("separation", 0)
 		h.add_child(col)
 		var name_col := UiTokens.OK_GREEN if st[0] == "owned" else (UiTokens.TEXT if st[0] == "available" else Color(UiTokens.TEXT, 0.7))
-		var l := SheetChrome.label("%s  ·  %s" % [title, cost], body, name_col)
+		var l := SheetChrome.label(title + ("  ·  AUTO" if auto else ""), body, name_col)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		col.add_child(l)
 		var unlocks := str(n.get("unlocks", ""))
@@ -425,6 +447,8 @@ func _build_detail() -> void:
 			reason.name = "RefundBlock"
 			reason.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			col.add_child(reason)
+		if not auto:
+			h.add_child(sp_cost(int(n.get("sp", 0)), body, name_col))
 		var b := SheetChrome.action_button("", &"ghost", false)
 		b.custom_minimum_size = Vector2(96 if compact else 140, SheetChrome.TAP)
 		b.add_theme_font_size_override("font_size", meta + 1)
@@ -447,6 +471,10 @@ func _build_detail() -> void:
 			b.text = str(st[1])
 			b.tooltip_text = str(st[1])
 			b.disabled = true
+			if b.text.ends_with(" SP"):  # SkillState's "needs 3 SP": the brain stands for the SP
+				b.text = b.text.trim_suffix(" SP")
+				b.icon = UiIcons.icon(&"brain")
+				b.add_theme_constant_override("icon_max_width", meta + 4)
 		h.add_child(b)
 		_box.add_child(h)
 	if not auto_learned.is_empty():
@@ -461,9 +489,20 @@ func _build_detail() -> void:
 	var next := _next_buy()
 	_spend.disabled = next.is_empty()
 	if not next.is_empty():
-		_spend.text = "Spend %d SP on %s" % [int(next.get("sp", 0)), str(next.get("name", next.get("id", "")))]
+		_spend.text = "Spend %d on %s" % [int(next.get("sp", 0)), str(next.get("name", next.get("id", "")))]
 	else:
-		_spend.text = "No SP to spend" if skills.sp_available <= 0 else "Nothing to unlock in %s yet" % nm
+		_spend.text = "No skill points to spend" if skills.sp_available <= 0 else "Nothing to unlock in %s yet" % nm
+
+## A skill point cost: the white brain glyph and the number, `px` text (the icon a little taller).
+static func sp_cost(n: int, px: int, col: Color) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.name = "SpCost"
+	h.add_theme_constant_override("separation", 4)
+	h.add_child(SheetChrome.icon_rect(&"brain", px * 1.2, col))
+	var l := SheetChrome.label(str(n), px, col)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	h.add_child(l)
+	return h
 
 func _on_spend() -> void:
 	var next := _next_buy()
