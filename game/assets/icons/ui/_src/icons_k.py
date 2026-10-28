@@ -38,9 +38,9 @@ def eyes(cx, cy, r, dx, dy=0.0):
 G["tastes_great"] = [([circle(32, 32, 25.5), circle(32, 32, 19.5)], True),
                      ([mouth(32, 26, 16, 20, 160, 5.6)] + eyes(32, 25, 3.4, 8.5), False)]
 
-# tastes_delicious: dot eyes, a smaller smile and the tongue licking out past the lip.
-G["tastes_delicious"] = [([mouth(32, 26, 12, 26, 154, 5.0)] + eyes(32, 19, 3.6, 8.5), False),
-                         ([chaikin([(31, 36), (42.5, 38.5), (40.5, 53), (31, 50)], 2)], False)]
+# tastes_delicious: dot eyes, a smile and the tongue licking out of the right corner of the lip.
+G["tastes_delicious"] = [([mouth(31, 25, 12.5, 24, 156, 5.0)] + eyes(31, 17.5, 3.6, 8.5), False),
+                         ([chaikin([(37, 32), (48, 36), (46, 48), (37.5, 44)], 2)], False)]
 
 # tastes_horrible: dot eyes and the heaviest mouth in the family, an arch (a frown).
 G["tastes_horrible"] = [([mouth(32, 46, 16, 202, 338, 6.2)] + eyes(32, 22, 4.0, 9), False)]
@@ -80,5 +80,10 @@ def snowflake(cx, cy, r, w=3.8):
 
 
 G["cold_food"] = [([band([(10, 40.5), (54, 40.5)], 7.0), DISH], False), (snowflake(32, 19.5, 12.5), False)]
+
+# optical weight (t_uiicons _test_weight, band 0.6..1.5 x the set median): the three bare faces are
+# mostly empty space, so draw them larger than the plated icons beside them.
+for _k, _s in {"tastes_delicious": 1.34, "tastes_horrible": 1.24, "tastes_disgusting": 1.10}.items():
+    G[_k] = [([xf(p, scale=_s, about=(32, 32)) for p in polys], eo) for polys, eo in G[_k]]
 
 I = place(G)
