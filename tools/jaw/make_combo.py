@@ -16,12 +16,13 @@ ap.add_argument("base"); ap.add_argument("bite"); ap.add_argument("out")
 ap.add_argument("--hit", type=float, default=0.42, help="hit fraction of the source bite")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
-# (frames, jaw degrees, lunge degrees, wind-up hold frames, neck yaw degrees: + = the animal's left)
+# (frames, jaw degrees, lunge degrees, wind-up hold frames, neck yaw degrees (+ = the animal's left),
+#  torso dip degrees: the front of the body tips down from the hips like an animal drinking; the legs stay planted)
 # chomp left, chomp right, then a reared-up MEGA chomp slammed down through the middle. Exaggerated on purpose
 # (owner 2026-10-28: big by default, tune down after)
 REAR = 40.0  # degrees the front rears up during the third bite's wind-up (the tell)
 SHOULDER_SHARE = 0.6  # share of each pitch (rear and slam) the shoulders take, so the whole front moves, not just the head
-BITES = [(16, 55, 22, 0, 85), (16, 55, 22, 0, -50), (22, 70, 55, 12, 22)]  # yaw also cancels the source bite's own sway to its right
+BITES = [(16, 55, 22, 0, 85, 0), (16, 55, 22, 0, -50, 0), (22, 70, -8, 12, 22, 42)]  # yaw also cancels the source bite's own sway to its right
 
 b = open(a.bite, "rb").read(); n = struct.unpack("<I", b[12:16])[0]; j = json.loads(b[20:20 + n])
 acc = max((j["accessors"][s["input"]] for s in j["animations"][0]["samplers"]), key=lambda x: x["count"])
@@ -48,11 +49,11 @@ def sample(u):  # source bite pose (matrix_basis per bone) at normalised time u
 
 def smooth(x): x = min(max(x, 0.0), 1.0); return x * x * (3 - 2 * x)
 
-poses, jaw, lunge, yaw, hits, f = [], [], [], [], [], 0
-for frames, jd, ld, hold, yd in BITES:
+poses, jaw, lunge, yaw, dip, hits, f = [], [], [], [], [], [], 0
+for frames, jd, ld, hold, yd, dd in BITES:
     for k in range(hold):  # wind-up hold: the opening pose of the bite, jaw already half open
         # rear up and back, jaw half open: the tell the player can read and roll away from
-        poses.append(sample(0.0)); jaw.append(jd * 0.6 * smooth((k + 1) / hold)); lunge.append(-REAR * smooth((k + 1) / hold)); yaw.append(0.0)
+        poses.append(sample(0.0)); jaw.append(jd * 0.6 * smooth((k + 1) / hold)); lunge.append(-REAR * smooth((k + 1) / hold)); yaw.append(0.0); dip.append(-dd * 0.25 * smooth((k + 1) / hold))
         f += 1
     for k in range(frames):
         u = k / (frames - 1)
@@ -65,6 +66,9 @@ for frames, jd, ld, hold, yd in BITES:
         lunge.append(rear + ld * smooth((u - (a.hit - 0.15)) / 0.15) * (1 - smooth((u - a.hit - 0.1) / 0.35)))
         # swing the head out to the side ahead of the snap, sweep it through on the bite, settle back
         yaw.append(yd * smooth(u / max(a.hit - 0.05, 1e-6)) * (1 - smooth((u - a.hit - 0.15) / 0.45)))
+        # tip the torso down into the bite (from a slight rear-back after a wind-up), hold it there, then rise
+        back = -dd * 0.25 * (1 - smooth(u / max(a.hit - 0.15, 1e-6))) if hold else 0.0
+        dip.append(back + dd * smooth((u - (a.hit - 0.2)) / 0.2) * (1 - smooth((u - a.hit - 0.2) / 0.4)))
         if abs(u - a.hit) < 0.5 / (frames - 1): hits.append(f)
         f += 1
 total = f
@@ -76,6 +80,10 @@ for i in range(total):
         pb.rotation_mode = "QUATERNION"; pb.matrix_basis = poses[i][pb.name]
     jb = arm.pose.bones["Jaw"]; jb.rotation_quaternion = Quaternion((1, 0, 0), math.radians(jaw[i]))
     bpy.context.view_layer.update()  # no frame_set here: it would re-evaluate the action over these poses
+    tb = arm.pose.bones["Torso"]
+    m = tb.matrix.copy(); piv = m.translation.copy()  # dip the front of the body about the hips
+    tb.matrix = Matrix.Translation(piv) @ Matrix.Rotation(math.radians(dip[i]), 4, "X") @ Matrix.Translation(-piv) @ m
+    bpy.context.view_layer.update()
     nb = arm.pose.bones["Shoulders"]
     m = nb.matrix.copy(); piv = m.translation.copy()  # swing shoulders, neck and head about the vertical, tilt into it
     nb.matrix = (Matrix.Translation(piv) @ Matrix.Rotation(math.radians(yaw[i]), 4, "Z")
