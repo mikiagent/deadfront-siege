@@ -4,12 +4,12 @@ extends CanvasLayer
 ## rects and the combat red edge (StatusFx.draw_vignette) always draw over it. Heat: an orange edge, a warm
 ## wash, the shimmer (high quality) and a slow sway. Cold: a blue-white edge and frost creeping in from the
 ## borders, with shivers. Storm: the lightning flash, then the thunder's rumble. While a hunt or a red-edge
-## status is on, the weather edges drop to half so the red one reads first.
+## status is on, the weather edges drop to 35 % so the red one reads first.
 ## It also pulses the sun (or the moon at night) on a strike and dims the sun in rain, on top of what
 ## WorldLighting wrote this frame (process_priority runs it after), and hands the camera its weather shake.
 
 const LAYER := -1
-const COMBAT_EDGE_SCALE := 0.5
+const COMBAT_EDGE_SCALE := 0.35
 ## Light added at a full flash, on top of the profile's sun / moon energy.
 const FLASH_SUN := 1.8
 const FLASH_MOON := 3.0

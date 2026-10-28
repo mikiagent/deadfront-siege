@@ -309,8 +309,8 @@ func _test_cancels(at: Vector3) -> void:
 	_expect(not rest.resting and player.anim.current_clip == &"sleep_up" and ap.current_animation_position < 1.2,
 		"a move key gets her up with the stand-up (clip=%s t=%.2f)" % [player.anim.current_clip, ap.current_animation_position])
 	await _seconds(1.6)
-	_expect(player.anim.current_clip == &"idle" and absf(player.visual.position.y) < 0.05,
-		"stood up: idle, visual back at standing height (y=%.2f)" % player.visual.position.y)
+	_expect(str(player.anim.current_clip).begins_with("idle") and absf(player.visual.position.y) < 0.05,
+		"stood up: an idle (%s; a tired survivor stands in idle_tired)," % player.anim.current_clip + " visual back at standing height (y=%.2f)" % player.visual.position.y)
 	# Tap-to-walk.
 	await _reset(at)
 	rest.start()
@@ -539,7 +539,7 @@ func _test_save_load(at: Vector3) -> void:
 	await _seconds(1.3)
 	SG.load_now(host)
 	await _seconds(0.5)
-	_expect(not rest.resting and not player.anim.is_sitting() and player.anim.current_clip == &"idle" and absf(player.visual.position.y) < 0.05,
+	_expect(not rest.resting and not player.anim.is_sitting() and str(player.anim.current_clip).begins_with("idle") and absf(player.visual.position.y) < 0.05,
 		"a standing save loads standing (resting=%s clip=%s visual_y=%.2f)" % [rest.resting, player.anim.current_clip, player.visual.position.y])
 	# Save format: "resting" is new. A save from before it (the frozen v3 golden, no key) loads standing,
 	# with its own Health and fatigue, even when she sat down before the load.

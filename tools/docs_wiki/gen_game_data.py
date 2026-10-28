@@ -201,7 +201,7 @@ def weather_section(w, cl, a) -> None:
     a("- **Strength**: severity = resistance need / 3 (0.4-1) x (0.4 + 0.6 x unmet share); the unmet share counts while climate "
       "fatigue charges it (heat by day, cold otherwise). Wet and Quenched cool the heat, sitting by a fire warms the cold.")
     a("- **Screen rules**: the layer is canvas layer -1, under every HUD layer, so HUD rects and the combat red edge draw over it; "
-      "during a hunt or a red-edge status the weather edges drop to half. Weather shake never exceeds %s m; `--reduce-shake` turns "
+      "during a hunt or a red-edge status the weather edges drop to 35 %. Weather shake never exceeds %s m; `--reduce-shake` turns "
       "off every camera shake (combat too)." % w["shake_m"]["max"])
     a("- **Idle by mood**: standing still, the survivor plays `idle_exhausted` (fatigue 75 %+) > `idle_cold` / `idle_heat` (weather feel 0.5+, the stronger) > `idle_tired` (50 %+) > `idle`, each only when its clip exists in `assets/characters/survivor/anim/` (the next in line otherwise), blended over 0.5 s; moving and busy clips win (`PlayerAnim.pick_idle`).")
     a("- **Debug**: `--weather=clear|rain|storm|heat|cold` holds a state; `--weather-quality=low|high` (low drops the shimmer; "

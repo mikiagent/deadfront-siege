@@ -227,29 +227,35 @@ func _test_mood_idles(WW: GDScript) -> void:
 	if rig == null or not rig.has_clip(&"idle"):
 		_expect(false, "the survivor rig has an idle clip")
 		return
-	var added: Array[StringName] = []
 	for c in [&"idle_cold", &"idle_heat", &"idle_tired", &"idle_exhausted"]:
-		if not rig.has_clip(c):
-			rig.library.add_animation(c, rig.library.get_animation(&"idle").duplicate(true))
-			added.append(c)
-	_player.vitals.fatigue = 0.0
+		var clip: Animation = rig.library.get_animation(c) if rig.has_clip(c) else null
+		_expect(clip != null and clip.loop_mode == Animation.LOOP_LINEAR, "survivor clip %s loaded and looping" % c)
+	var v = _player.vitals
+	var cases := [[&"cold", 0.0, &"idle_cold"], [&"heat", 0.0, &"idle_heat"], [&"clear", 0.6, &"idle_tired"], [&"cold", 0.8, &"idle_exhausted"]]
+	for k in cases:
+		WW.forced = k[0]
+		v.fatigue = v.effective_max_fatigue() * float(k[1])
+		_sim(8.0)
+		anim.play_locomotion(0.0)
+		var ap: AnimationPlayer = rig.anim_player
+		var t0 := ap.current_animation_position
+		var len := ap.current_animation_length
+		ap.advance(len * 1.25)
+		var wrapped := ap.is_playing() and ap.current_animation == str(k[2])
+		_expect(anim.current_clip == k[2] and wrapped, "%s, fatigue %.0f%%: %s plays and keeps playing past its end (%s, %.2f s of %.2f)" % [k[0], float(k[1]) * 100.0, k[2], ap.current_animation, t0, len])
 	WW.forced = &"cold"
-	_sim(6.0)
+	v.fatigue = 0.0
 	anim.play_locomotion(0.0)
-	_expect(anim.current_clip == &"idle_cold", "standing in the cold: idle_cold (%s)" % anim.current_clip)
 	anim.play_locomotion(2.0)
 	_expect(anim.current_clip == &"walk", "moving overrides the mood idle (%s)" % anim.current_clip)
 	anim.play_clip(&"roll")
 	anim.play_locomotion(0.0)
 	_expect(anim.current_clip == &"roll", "a busy clip (roll) is not interrupted (%s)" % anim.current_clip)
 	anim._busy = false
-	_player.vitals.fatigue = _player.vitals.effective_max_fatigue() * 0.8
+	var cold_clip: Animation = rig.library.get_animation(&"idle_cold")
+	rig.library.remove_animation(&"idle_cold")
 	anim.play_locomotion(0.0)
-	_expect(anim.current_clip == &"idle_exhausted", "exhausted in the cold: idle_exhausted (%s)" % anim.current_clip)
-	_player.vitals.fatigue = 0.0
-	for c in added:
-		rig.library.remove_animation(c)
-	anim.play_locomotion(0.0)
-	_expect(anim.current_clip == &"idle" or not added.has(&"idle_cold"), "the clips gone again: plain idle (%s)" % anim.current_clip)
+	_expect(anim.current_clip == &"idle", "idle_cold missing: plain idle (%s)" % anim.current_clip)
+	rig.library.add_animation(&"idle_cold", cold_clip)
 	WW.forced = &"clear"
 	_sim(12.0)
