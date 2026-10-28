@@ -46,11 +46,18 @@ G["tastes_delicious"] = [([mouth(31, 25, 12.5, 24, 156, 5.0)] + eyes(31, 17.5, 3
 G["tastes_horrible"] = [([mouth(32, 46, 16, 202, 338, 6.2)] + eyes(32, 22, 4.0, 9), False)]
 
 # ---------------------------------------------------------------- tastes_disgusting: a sick face
-# Half-shut tilted eyes (not tastes_bad's X eyes), a wavy mouth and one bead of drool.
-WAVE = [(14, 32), (19, 28.5), (24, 32), (29, 28.5), (34, 32), (39, 28.5), (44, 32), (49, 28.5)]
-G["tastes_disgusting"] = [([band([(14.5, 22.5), (26.5, 19)], 4.8), band([(37.5, 19), (49.5, 22.5)], 4.8),
-                           band(WAVE, 5.4)], False),
-                          ([droppoly(32, 42, 5.6)], False)]
+# Filled plate like tastes_bad, but the eyes are vertical slits and the mouth a small open oval
+# with a runnel of drool over the chin, so it cannot be read as tastes_bad's X eyes over a frown.
+def closed_eye(cx, cy, r=6.0, w=4.4):
+    """A weary closed eye: a shallow dip (the happy arcs in tastes_delicious peak up)."""
+    return band([(cx - r, cy - r * 0.45), (cx, cy + r * 0.5), (cx + r, cy - r * 0.45)], w)
+
+
+DROOL = band([(31, 42), (29.5, 50), (31, 57)], 4.6)
+G["tastes_disgusting"] = [([circle(32, 29, 25.0),
+                            band([(23, 18.5), (23, 26.5)], 5.0), band([(41, 18.5), (41, 26.5)], 5.0),
+                            circle(32, 38.5, 5.4)], True),
+                          ([DROOL, droppoly(31, 54, 3.4)], False)]
 
 # ---------------------------------------------------------------- hot_food: a two-tongued flame over a pot
 FLAME = [(35, 5), (38.5, 11.5), (41.5, 15.5), (42.5, 21), (40, 26.5), (37, 30), (35, 27),
@@ -83,7 +90,7 @@ G["cold_food"] = [([band([(10, 40.5), (54, 40.5)], 7.0), DISH], False), (snowfla
 
 # optical weight (t_uiicons _test_weight, band 0.6..1.5 x the set median): the three bare faces are
 # mostly empty space, so draw them larger than the plated icons beside them.
-for _k, _s in {"tastes_delicious": 1.34, "tastes_horrible": 1.24, "tastes_disgusting": 1.10}.items():
+for _k, _s in {"tastes_delicious": 1.34, "tastes_horrible": 1.24, "tastes_disgusting": 0.79}.items():
     G[_k] = [([xf(p, scale=_s, about=(32, 32)) for p in polys], eo) for polys, eo in G[_k]]
 
 I = place(G)
