@@ -251,6 +251,7 @@ func _nav_dir(delta: float, dir: Vector3) -> Vector3:
 		water_remain.y = 0.0
 		if water_remain.length() <= _arrive_tolerance():
 			p.nav_active = false
+			p.move_order = false
 			p.actions.on_arrived()
 			return Vector3.ZERO
 		return water_remain.normalized()
@@ -268,6 +269,10 @@ func _nav_dir(delta: float, dir: Vector3) -> Vector3:
 		finished = true
 	var remain := p._path_goal - p.global_position
 	remain.y = 0.0
+	# Standing on the goal ends the route even when the router keeps asking for another waypoint
+	# (an empty map or a goal tile with no baked route answers with itself): the walk has arrived.
+	if remain.length() <= _arrive_tolerance():
+		finished = true
 	# A router with no direction (map not ready) also falls back; it used to creep one frame per
 	# 1.2 s stall because moving reset the stall timer.
 	var stalled := _stalled(delta)
@@ -283,6 +288,7 @@ func _nav_dir(delta: float, dir: Vector3) -> Vector3:
 				unstick(next_dir)
 	if finished:
 		p.nav_active = false
+		p.move_order = false
 		p.actions.on_arrived()
 		if _sleep_pending != null:
 			var spot := _sleep_pending
@@ -475,9 +481,15 @@ func nav_to(pos: Vector3) -> void:
 
 func clear_nav() -> void:
 	p.nav_active = false
+	p.move_order = false
 	_path_points = PackedVector3Array()
 	_path_index = 0
 	p.agent.target_position = p.global_position
+
+## A ground click replaces what she was walking to do: drop the sleep errand (the route ending must
+## not lie her down) and the marker. Gather/butcher/craft errands are PlayerActions' / StationCraft's.
+func cancel_errand() -> void:
+	_sleep_pending = null
 
 func path_points() -> PackedVector3Array:
 	return _path_points
@@ -492,7 +504,9 @@ func closest_nav_point(pos: Vector3) -> Vector3:
 	if use_tile_path():
 		return BuildGrid.tile_centre(BuildGrid.tile_of(pos), World.runtime)
 	var map := p.get_world_3d().navigation_map
-	if NavigationServer3D.map_get_iteration_id(map) == 0:
+	# No map, or a map with no region in it (a lab floor before a bake, a test host): there is
+	# nothing to snap to, and an empty map answers the origin, which would send her to (0,0,0).
+	if NavigationServer3D.map_get_iteration_id(map) == 0 or NavigationServer3D.map_get_regions(map).is_empty():
 		return pos
 	return NavigationServer3D.map_get_closest_point(map, pos)
 

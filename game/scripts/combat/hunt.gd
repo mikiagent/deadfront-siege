@@ -94,6 +94,10 @@ func _process(delta: float) -> void:
 		if target:
 			stop()
 		return
+	# [owner 2026-10-28] A click-to-move order outranks combat: no chase, no swing and no facing
+	# until she arrives (or the order is broken by a hit).
+	if player.move_order:
+		return
 	_maybe_stun_hint()
 	if not auto:
 		return  # Auto off: only F / pad X / a tap swings (swing_now)
@@ -113,6 +117,9 @@ static func melee_reach(creature: Creature) -> float:
 	return maxf(2.1, maxf(0.18, creature.def.real_length_m * 0.12) + 0.65)
 
 func _auto_attack() -> void:
+	# A click-to-move order outranks the auto-attack: she keeps her own path to the clicked point.
+	if player.move_order:
+		return
 	# An attended siege platform never fires or chases automatically.
 	var platform := player._nearest_group("catapult") as FieldCatapult
 	if platform and player.global_position.distance_to(platform.global_position) <= 3.0:
@@ -147,7 +154,7 @@ func _auto_attack() -> void:
 ## last swing has recovered, with Auto off or on HOLD too. False = nothing started (out of reach,
 ## cooling down, rolling); auto-attack still walks over when Auto is on and HOLD is off.
 func swing_now() -> bool:
-	if target == null or player.rolling or _tactic_lock > 0.0 or _swing_cd > 0.0 or _swing_pending \
+	if target == null or player.move_order or player.rolling or _tactic_lock > 0.0 or _swing_cd > 0.0 or _swing_pending \
 			or player.statuses.has_flag(&"cannot_act"):
 		return false
 	var w := _weapon()

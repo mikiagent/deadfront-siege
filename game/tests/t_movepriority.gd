@@ -68,6 +68,10 @@ func _run() -> void:
 	player.vitals.max_health = 1000.0
 	player.vitals.health = 1000.0
 	await _test_baseline_auto_attack()
+	await _test_ground_click_wins()
+	await _test_enemy_tap_and_tick()
+	await _test_damage_breaks_move()
+	await _test_ground_click_cancels_errands()
 	_finish()
 
 func _finish() -> void:
@@ -156,4 +160,174 @@ func _test_baseline_auto_attack() -> void:
 	_expect(player.hunt.target == c, "baseline: the hunt holds its target")
 	_expect(int(swings[0]) >= 1, "baseline: without a move order auto-attack swings at a target in reach (%d)" % int(swings[0]))
 	_expect(player.global_position.distance_to(Vector3(0, 1.0, 0)) < 1.0, "baseline: she fights from where she stood, no route")
+	await _clear_world()
+
+# ---------------------------------------------------------------- 1. a move order outranks combat
+
+## Owner rule 1: with an enemy in auto-attack range a ground click walks her to the point and no
+## swing or chase happens, even with a hunt target started over the walk.
+func _test_ground_click_wins() -> void:
+	await _clear_world()
+	var c = _creature(&"protoceratops", Vector3(1.3, 0, 0))
+	await _frames(4)
+	var goal := Vector3(0, 0, -9)
+	var swings := _count_swings()
+	_tap_ground(goal + Vector3(0, 0.05, 0))
+	await _frames(3)
+	_expect(player.move_order and player.nav_active, "move order: a ground click starts a move order (order=%s nav=%s)" % [player.move_order, player.nav_active])
+	_expect(player.hunt.target == null, "move order: the click drops the fight it was not told to keep")
+	player.hunt.start(c)  # a target in reach, as a tap or a stray bite would leave it
+	await _seconds(1.2)
+	_expect(int(swings[0]) == 0, "move order: no auto-attack swing during the walk (%d)" % int(swings[0]))
+	_expect(player.global_position.distance_to(goal) < 6.0, "move order: she walks her own path, not at the enemy (%.1f m to the point)" % player.global_position.distance_to(goal))
+	_expect(player.global_position.distance_to(c.global_position) > 2.5, "move order: auto-chase did not pull her back onto the enemy (%.1f m)" % player.global_position.distance_to(c.global_position))
+	# Watch the route frame by frame: the moment it ends (or the 4 s budget runs out) is the measure,
+	# because once the order is over the hunt's own target takes the body back toward the enemy.
+	# Watch the order itself (not nav_active: the hunt's own chase re-arms that after arrival).
+	var arrived_at := Vector3.INF
+	for i in 240:
+		await physics_frame
+		if not player.move_order:
+			arrived_at = player.global_position
+			break
+	await _frames(2)
+	# After arrival combat may resume (the hunt target is still live): only the order must be over.
+	_expect(not player.move_order, "move order ends on arrival (order=%s)" % player.move_order)
+	var at_goal := Vector2(arrived_at.x, arrived_at.z)
+	_expect(arrived_at != Vector3.INF and at_goal.distance_to(Vector2(goal.x, goal.z)) < 2.5,
+		"move order: she arrives at the clicked point (%.1f m off)" % at_goal.distance_to(Vector2(goal.x, goal.z)))
+	await _clear_world()
+
+## Owner rule 1 (second half) and spec §11: a tap on an enemy is a select/retarget, never a move; a
+## DoT tick (bleed) is not "taking damage" and does not break the order.
+func _test_enemy_tap_and_tick() -> void:
+	await _clear_world()
+	var near = _creature(&"protoceratops", Vector3(1.4, 0, 0))
+	var far = _creature(&"protoceratops", Vector3(-2.0, 0, -4.0))
+	await _frames(4)
+	var goal := Vector3(0, 0, -11)
+	_tap_ground(goal + Vector3(0, 0.05, 0))
+	await _frames(3)
+	var goal0: Vector3 = player._path_goal
+	var kind: StringName = _tap_ground(far.global_position + Vector3(0, 0.6, 0))
+	await _frames(3)
+	var sel = player.controls.get("selection")
+	_expect(kind == &"interact" and sel != null and sel.current() == far,
+		"enemy tap: a tap on an animal selects it, it is not a move (kind=%s selection=%s)" % [kind, sel.current() if sel else null])
+	_expect(player.move_order and player._path_goal.distance_to(goal0) < 0.01,
+		"enemy tap: the walk to the clicked point is untouched (order=%s goal %s -> %s)" % [player.move_order, goal0, player._path_goal])
+	_expect(player.hunt.target == null, "enemy tap: out of combat a tap on an enemy still starts no fight")
+	# In combat the same tap retargets, still without becoming a move.
+	player.hunt.start(near)
+	await _frames(2)
+	_tap_ground(far.global_position + Vector3(0, 0.6, 0))
+	await _frames(3)
+	_expect(player.hunt.target == far, "enemy tap: in combat a tap on another enemy retargets at once (hunt %s)" % [player.hunt.target])
+	_expect(player.move_order, "enemy tap: retargeting kept the move order (the click still owns the walk)")
+	# Bleed: a damage-over-time tick never turns her round.
+	player.hunt.stop()
+	player.statuses.apply(&"bleed")
+	await _seconds(1.6)
+	_expect(player.move_order and player.nav_active, "bleed tick: the walk survives a status tick (order=%s nav=%s)" % [player.move_order, player.nav_active])
+	_expect(player.hunt.target == null, "bleed tick: no retaliation against a status with no attacker")
+	player.statuses.clear_id(&"bleed")
+	await _clear_world()
+
+# ---------------------------------------------------------------- 2. taking damage breaks the order
+
+## Owner rule 2: a hit during the walk cancels the move after the hurt stun and she attacks the source.
+func _test_damage_breaks_move() -> void:
+	await _clear_world()
+	var a = _creature(&"protoceratops", Vector3(1.3, 0, 0))
+	var b = _creature(&"protoceratops", Vector3(-1.4, 0, -1.4))
+	await _frames(4)
+	var swings := _count_swings()
+	_tap_ground(Vector3(0, 0.05, -11))
+	await _frames(3)
+	_expect(player.move_order, "damage: walking the order first")
+	player.receive_creature_hit(a, &"attack_primary")
+	await _frames(2)
+	_expect(not player.move_order and not player.nav_active, "damage: the move order is cancelled by a hit (order=%s nav=%s)" % [player.move_order, player.nav_active])
+	_expect(player.hunt.target == a, "damage: she turns on the creature that hit her (hunt %s, a %s)" % [player.hunt.target, a])
+	_expect(player.sim._stagger_left > 0.0, "damage: the hurt stun holds her for the clip (%.2f s)" % player.sim._stagger_left)
+	var stagger: float = player.sim._stagger_left
+	await _seconds(stagger + 0.6)
+	_expect(int(swings[0]) >= 1, "damage: she attacks the damage source once the stun ends (%d swings)" % int(swings[0]))
+	# No live source (a trap, a fall, a projectile whose attacker is gone): the nearest hostile.
+	await _clear_world()
+	b = _creature(&"protoceratops", Vector3(-1.4, 0, -1.4))
+	await _frames(4)
+	_tap_ground(Vector3(0, 0.05, -11))
+	await _frames(3)
+	player.receive_creature_hit(null, &"attack_primary")
+	await _frames(2)
+	_expect(not player.move_order, "damage: a hit with no attacker also cancels the move")
+	_expect(player.hunt.target == b, "damage: with no live source she attacks the nearest hostile (hunt %s)" % [player.hunt.target])
+	await _clear_world()
+
+# ---------------------------------------------------------------- 3. a move order cancels errands
+
+func _bag_item(id: StringName, n: int = 1) -> void:
+	player.inventory.add((load("res://scripts/items/item_stack.gd") as GDScript).make(id, n))
+
+## Owner (verbatim): "if I am trying to sleep and decide against it while walking there (i click to
+## move somewhere else) it should cancel the interact pathfind to the tent". Same for a gather node
+## and a station craft: the intent AND the path go; nothing finishes when she passes by.
+func _test_ground_click_cancels_errands() -> void:
+	await _clear_world()
+	# --- sleep at a tent
+	var tent = (load("res://scripts/world/placed_building.gd") as GDScript).make(&"tent")
+	host.add_child(tent)
+	tent.global_position = Vector3(0, 0, -14)
+	await _frames(3)
+	player.vitals.fatigue = 85.0
+	player.sim.start_sleep(tent)
+	await _frames(3)
+	_expect(player.sim._sleep_pending == tent and player.nav_active, "errand: the tent sleep starts with a walk to the bedding")
+	var away := Vector3(9, 0.05, 9)
+	_tap_ground(away)
+	await _frames(3)
+	_expect(player.sim._sleep_pending == null, "errand: a ground click drops the pending sleep")
+	_expect(player.move_order and player.nav_active, "errand: the click owns the route (order=%s nav=%s)" % [player.move_order, player.nav_active])
+	await _seconds(4.0)
+	_expect(player._sleep_left <= 0.0 and not player.anim._sleeping, "errand: she never lies down afterwards (sleep %.1f s)" % player._sleep_left)
+	_expect(Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(away.x, away.z)) < 3.0,
+		"errand: she walks to where the player clicked, not the tent (%.1f m off)" % Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(away.x, away.z)))
+	tent.queue_free()
+	await _clear_world()
+	# --- gather a node
+	var node = (load("res://scenes/world/harvest_node.tscn") as PackedScene).instantiate()
+	node.setup(&"test_branch_pile", &"branch", 1, 1, {}, &"none", Color(0.6, 0.45, 0.3), 0.1, 60.0, "", false, 4)
+	node.position = Vector3(0, 0, -13)
+	host.add_child(node)
+	await _frames(3)
+	var started: bool = player.actions.begin_gather(node)
+	await _frames(2)
+	_expect(started and player.gather_target == node and player.nav_active, "errand: a gather node starts a walk to it")
+	_tap_ground(away)
+	await _frames(3)
+	_expect(player.gather_target == null, "errand: a ground click drops the gather target")
+	await _seconds(4.0)
+	_expect(player.gather_target == null and not player._gathering, "errand: she never gathers afterwards")
+	node.queue_free()
+	await _clear_world()
+	# --- craft at a station
+	var bench = (load("res://scripts/world/craft_station.gd") as GDScript).make(&"workbench")
+	host.add_child(bench)
+	bench.global_position = Vector3(0, 0, -13)
+	await _frames(3)
+	_bag_item(&"stone")
+	_bag_item(&"branch")
+	_bag_item(&"bark_strip")
+	var began: bool = player.station_craft.begin(&"work_axe")
+	await _frames(2)
+	_expect(began and player.station_craft.recipe_id == &"work_axe" and player.nav_active,
+		"errand: a workbench craft starts with a walk to the bench (began=%s recipe=%s)" % [began, player.station_craft.recipe_id])
+	_tap_ground(away)
+	await _frames(3)
+	_expect(player.station_craft.recipe_id == &"" and not player.station_craft.crafting,
+		"errand: a ground click drops the pending station craft (recipe=%s)" % player.station_craft.recipe_id)
+	await _seconds(4.0)
+	_expect(not player.station_craft.crafting and player.station_craft.recipe_id == &"", "errand: she never crafts at the bench afterwards")
+	bench.queue_free()
 	await _clear_world()

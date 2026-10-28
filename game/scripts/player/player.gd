@@ -85,6 +85,12 @@ var _field_radial_opts: Array = []
 # Tap-to-walk route (PlayerSim keeps the waypoints).
 var nav_active: bool = false
 var _path_goal: Vector3 = Vector3.ZERO
+## [owner 2026-10-28] A ground click/tap put her on a move order: auto-attack and auto-chase never
+## pull her off that path (Hunt checks this), until she arrives, a new order comes, she takes a real
+## hit (not a status tick), or the move is otherwise replaced. Cleared by PlayerSim when the route ends.
+var move_order: bool = false
+## The creature whose hit broke a move order in the hurt stun, fought once the stun lets her act.
+var _retaliate_target: Creature
 
 ## Pets out right now (PlayerPets keeps the list). `summoned_pet` is the first one, for old callers.
 var summoned_pets: Array[Creature]:
@@ -391,6 +397,22 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	if who and who.def:
 		downed_by = str(who.def.id).replace("_", " ").capitalize()
 	actions.cancel_work()
+	# [owner 2026-10-28] Taking a hit breaks a click-to-move order: the walk ends and she turns on the
+	# creature that hit her (or, with no live source, the nearest hostile). A status tick never reaches
+	# here (Player._on_vitals_damaged returns before the flinch for ticks), so bleed stays a walk.
+	if move_order and not dead:
+		move_order = false
+		clear_nav()
+		var foe := who if (who != null and is_instance_valid(who) and not who.is_pet and not who.health.dead \
+				and global_position.distance_to(who.global_position) <= PlayerActions.ATTACK_SEEK_RANGE) else null
+		if foe == null and hunt:
+			foe = actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)  # unknown, gone or out of reach
+			if foe:
+				print("[combat] retaliate nearest %s" % foe.def.id)
+		if foe and hunt:
+			hunt.start(foe)
+			if foe == who:
+				print("[combat] retaliate %s" % foe.def.id)
 	# Self-defence: bitten with no live target -> turn on the biter (auto-attack takes it from there).
 	if not dead and hunt and who and not who.is_pet and not who.health.dead:
 		var cur := hunt.target
