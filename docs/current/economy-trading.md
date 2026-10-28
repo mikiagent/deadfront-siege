@@ -32,7 +32,9 @@ There is no selling, no vendor NPC and no trade with other survivors in client c
 flag on materials is removed by cargo warp, not by selling.
 
 ## Market data — `game/data/world/market.json`
-Data only for the client. **No market UI exists on this line**; the server-side market engine
+Data only for the client. The Island Market screens (`game/scripts/ui/market/`, see
+[ui-screens.md](ui-screens.md#island-market)) talk to the Island Market engine below and show an
+honest offline card in single-player; the server-side market engine
 (below, "Island Market engine") prices from its own `game/data/economy/` files, not this one. The
 file is read by one test (`game/tests/t_data.gd`) that checks every item's `market_category`
 against the base-price table; the game loader (`game/scripts/core/data.gd`) does not load it. All
@@ -86,7 +88,9 @@ Test: `game/tests/t_xpecon.gd`.
 
 ## Island Market engine (online only) — `game/scripts/economy/`
 Server-side and in-process, like `game/scripts/server/` (no transport, no host). Nothing in the
-live single-player game calls it: offline play has no market. Entry points:
+live single-player game calls it: offline play has no market, and the market screens say so. The
+screens' only door is `MarketClient` (`game/scripts/ui/market/market_client.gd`); the dev/test
+transport `LocalMarketClient` runs the real `VaultBridge` in process (`scripts/dev/market_harness.gd`). Entry points:
 - `EconStore` (journal + snapshots under a data dir) wraps `MarketEngine` (ledger, fixed listings,
   auctions, buy orders, Settlers NPC orders flagged `npc: true`, price history, search).
 - `VaultBridge` is the only path between a server character (`CharacterStore`) and the books:

@@ -140,6 +140,31 @@ gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones
 ![comm_center](screens/comm_center.webp)
 
 
+## Island Market
+
+Menu -> Island Market (`HuntHud.open_market(tab)`, or `MarketScreen.open_for(host, tab, uid)` for any
+nav menu). Scripts: `game/scripts/ui/market/` (`market_screen.gd` chrome, rail, offline card;
+`market_buy.gd`, `market_mine.gd`, `market_sell.gd`; `market_row.gd` one row = one instance;
+`market_confirm.gd`). §8 chrome: HEADER bar with ‹ and the island name, the T-stones pill, ✕, torn
+edge; left rail Buy / My Market / Sell (GOLD brackets on the active tab). The market lives on the
+game server only: in the single-player build every tab shows an **Island Market offline** card and
+sends nothing (owner 2026-10-20). Screens with listings come from the local test server
+(`scripts/dev/market_harness.gd`, labelled "Local test server, not the live market" on the rail).
+Test: `game/tests/t_uimarket.gd`. Shots (1600x900 and 844x390): `docs/orchestration/reports/uimarket/`.
+
+- **Buy**: category column (View All, Tools, Weapons, Food, Wood, Stone, Fibre, Bone, Hide, Animals),
+  search field, Level / Durability / Price sort headers (active one GOLD), one row per listed instance
+  (icon in its natural tint, gold name, type line, Lv., cur/max durability, coin + price). A row opens
+  the confirm: parchment header, trait chips, seller, price, tradable T-stones, **Buy for n** (one unit).
+- **My Market**: Active (tap to cancel) / Sold / Expired / History, "n waiting" and **Receive All**
+  (withdraws everything in market storage into the server bag, one rid per item).
+- **Sell**: the server character's bag and bonded animals (equipped gear left out, locked rows greyed),
+  price field, duration (12/24/48/72 h, default 24), fee / tax-when-sold / you-receive preview from
+  `market_rules.json`, GOLD **List on market** (deposit + list exactly one unit).
+
+![market offline](../orchestration/reports/uimarket/market_offline_1600x900.png)
+![market buy](../orchestration/reports/uimarket/market_buy_1600x900.png)
+
 ## New character
 
 **`charcreate`** — character creation (spec 19): Gender/Profession, Create Character (height, portrait
