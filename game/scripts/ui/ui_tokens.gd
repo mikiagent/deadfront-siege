@@ -1,6 +1,6 @@
 class_name UiTokens
 extends RefCounted
-## Shared presentation tokens for DEADFRONT screens.
+## Shared presentation tokens for WildLands MMO screens.
 ## Ink panels, warm-gray dividers, teal selection, red only for danger.
 ## 8 px spacing, 12 px panel radius, type floors for desktop and phone.
 
