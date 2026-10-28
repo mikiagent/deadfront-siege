@@ -9,8 +9,11 @@ const NEAR_DIST := 10.0
 const BASE_WIDTH := 176.0
 const DAMAGE_CHUNK_SECONDS := 0.6
 const STATUS_GLYPH_SCRIPT: GDScript = preload("res://scripts/ui/status_glyph.gd")
-## Rows of a full plate: name 0-18, HP bar 20-34, pet XP 36-40, status glyphs 44-70, tame 72-92.
+## Rows of a full plate: name 0-16, nature chip 17-29 (NATURES: a tag under the name, absent while the
+## animal has no nature), HP bar 30-44, pet XP 42-46, status glyphs 46-70, tame 72-92.
 const FULL_H := 94.0
+## The nature tag sits directly under the name line, left-aligned with it.
+const CHIP_POS := Vector2(8, 17)
 ## Far plates shrink, but never below the 12 px type floor for their 14 px text.
 const MIN_SCALE := 0.86
 
