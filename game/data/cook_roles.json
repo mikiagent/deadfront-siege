@@ -1,80 +1,170 @@
 {
-  "_about": "COOKROLES: spec 08 §2-4. Ingredient ROLES for a cooking recipe's slots and the inheritance rules that say which of an ingredient INSTANCE's traits, processing history and flags reach the finished dish. Read by scripts/items/cook_roles.gd. A slot names a role (main, topping, sauce, broth, spice, support); the role narrows the item categories a slot accepts, so a spice can never fill the main slot. Inheritance is per slot and per recipe: a recipe must set \"inherit\": true, and every slot's own \"inherit\" block decides what passes from THAT exact instance (no averaging, no stacking: the first slot that carries a key in slot order wins). A recipe or slot without a role keeps the old category-only behaviour, so every earlier recipe is untouched.",
+  "_about": "COOKROLES: spec 08 \u00a72-4. Ingredient ROLES for a cooking recipe's slots and the inheritance rules that say which of an ingredient INSTANCE's traits, processing history and flags reach the finished dish. Read by scripts/items/cook_roles.gd. A slot names a role (main, topping, sauce, broth, spice, support); the role narrows the item categories a slot accepts, so a spice can never fill the main slot. Inheritance is per slot and per recipe: a recipe must set \"inherit\": true, and every slot's own \"inherit\" block decides what passes from THAT exact instance (no averaging, no stacking: the first slot that carries a key in slot order wins). A recipe or slot without a role keeps the old category-only behaviour, so every earlier recipe is untouched.",
   "provenance": {
-    "_about": "Which role names and rules come from a source and which are this build's own placeholder (spec 08 §3/§10: the reconstructed inheritance tables are partly estimated, never present them as 2019 server constants).",
-    "source": "spec 08 §3: slots named main/topping/sauce/broth/spice/support; only qualifying main slots transfer cooking properties; toppings/sauces/broth can add their own recipe-defined bonuses; rare traits pass only through a recipe-defined conversion.",
+    "_about": "Which role names and rules come from a source and which are this build's own placeholder (spec 08 \u00a73/\u00a710: the reconstructed inheritance tables are partly estimated, never present them as 2019 server constants).",
+    "source": "spec 08 \u00a73: slots named main/topping/sauce/broth/spice/support; only qualifying main slots transfer cooking properties; toppings/sauces/broth can add their own recipe-defined bonuses; rare traits pass only through a recipe-defined conversion.",
     "assumption": "The category lists, the default inheritance flags, the trait effect amounts and the buff rows are # ASSUMPTION placeholders. Retune here, in data only."
   },
   "roles": {
     "main": {
       "display_name": "Main",
-      "categories": ["meat", "fruit", "crop", "mushroom", "cooked", "vegetable"],
-      "_about": "Spec 08 §3: the main ingredient is what may carry existing cooking properties. # ASSUMPTION: water and drink are deliberately not main categories (they fill a broth/sauce slot), nor is spice or herb."
+      "categories": [
+        "meat",
+        "fruit",
+        "crop",
+        "mushroom",
+        "cooked",
+        "vegetable"
+      ],
+      "exclude": [
+        "spice"
+      ],
+      "_about": "Spec 08 \u00a73: the main ingredient is what may carry existing cooking properties. # ASSUMPTION: water and drink are deliberately not main categories (they fill a broth/sauce slot), nor is spice or herb."
     },
     "topping": {
       "display_name": "Topping",
-      "categories": ["fruit", "herb", "crop", "mushroom", "berry_crop"],
-      "_about": "Spec 08 §3/§4: a topping adds its own recipe-defined bonus even when it inherits nothing."
+      "categories": [
+        "fruit",
+        "herb",
+        "crop",
+        "mushroom",
+        "berry_crop"
+      ],
+      "exclude": [
+        "spice"
+      ],
+      "_about": "Spec 08 \u00a73/\u00a74: a topping adds its own recipe-defined bonus even when it inherits nothing."
     },
     "sauce": {
       "display_name": "Sauce",
-      "categories": ["juice", "sauce", "drink"],
-      "_about": "Spec 08 §3: a sauce can add a bonus. # ASSUMPTION: juice/drink stand in until sauce items exist."
+      "categories": [
+        "juice",
+        "sauce",
+        "drink"
+      ],
+      "exclude": [
+        "spice"
+      ],
+      "_about": "Spec 08 \u00a73: a sauce can add a bonus. # ASSUMPTION: juice/drink stand in until sauce items exist."
     },
     "broth": {
       "display_name": "Broth",
-      "categories": ["water", "broth"],
-      "_about": "Spec 08 §3/§4: broth carries the dish's liquid. The attribute bonus a documented bone/meat/fish/vegetable broth gives belongs to the broth item's own food (foods.json); a plain water broth grants none yet, because no bone/fish broth item exists in items.json."
+      "categories": [
+        "water",
+        "broth"
+      ],
+      "exclude": [
+        "spice"
+      ],
+      "_about": "Spec 08 \u00a73/\u00a74: broth carries the dish's liquid. The attribute bonus a documented bone/meat/fish/vegetable broth gives belongs to the broth item's own food (foods.json); a plain water broth grants none yet, because no bone/fish broth item exists in items.json."
     },
     "spice": {
       "display_name": "Spice",
-      "categories": ["spice"],
-      "_about": "Spec 08 §3: seasoning. Narrow on purpose: only items with the spice category."
+      "categories": [
+        "spice"
+      ],
+      "exclude": [],
+      "_about": "Spec 08 \u00a73: seasoning. Narrow on purpose: only items with the spice category."
     },
     "support": {
       "display_name": "Support",
       "categories": [],
       "any": true,
-      "_about": "Spec 08 §3's catch-all (a skewer's stick, a pot, fuel): accepts anything the slot's own category allows and inherits nothing."
+      "_about": "Spec 08 \u00a73's catch-all (a skewer's stick, a pot, fuel): accepts anything the slot's own category allows and inherits nothing."
     }
   },
   "inherit": {
     "_about": "Default inheritance flags per role, overridden per recipe slot by the slot's own \"inherit\" block. traits: true = every non-rare instance trait, false = none, or a list of exact trait keys. processed = the instance's in-place cooking history (processing.json), which is what carries drying/smoking cooking properties. flags = the instance's flags. rare = the green/rare material attributes (rules.json crafting.rare_attributes) may pass.",
-    "main": {"traits": true, "processed": true, "flags": true, "rare": false},
-    "topping": {"traits": false, "processed": false, "flags": false, "rare": false},
-    "sauce": {"traits": false, "processed": false, "flags": false, "rare": false},
-    "broth": {"traits": false, "processed": false, "flags": false, "rare": false},
-    "spice": {"traits": false, "processed": false, "flags": false, "rare": false},
-    "support": {"traits": false, "processed": false, "flags": false, "rare": false}
+    "main": {
+      "traits": true,
+      "processed": true,
+      "flags": true,
+      "rare": false
+    },
+    "topping": {
+      "traits": false,
+      "processed": false,
+      "flags": false,
+      "rare": false
+    },
+    "sauce": {
+      "traits": false,
+      "processed": false,
+      "flags": false,
+      "rare": false
+    },
+    "broth": {
+      "traits": false,
+      "processed": false,
+      "flags": false,
+      "rare": false
+    },
+    "spice": {
+      "traits": false,
+      "processed": false,
+      "flags": false,
+      "rare": false
+    },
+    "support": {
+      "traits": false,
+      "processed": false,
+      "flags": false,
+      "rare": false
+    }
   },
   "trait_effects": {
-    "_about": "What an INHERITED food trait does to the dish's FOODFX bundle (scripts/items/food_effects.gd). Only a dish that recorded the trait through inheritance (attributes.cooked_roles) gets these; a raw ingredient carrying the same attribute is unaffected. Rows use FOODFX's field/op/value shape; per_level scales the value by the trait's level on the instance. # ASSUMPTION: the keys, channels and amounts - spec 08 §3/§4 list the kinds of effect, not their numbers.",
+    "_about": "What an INHERITED food trait does to the dish's FOODFX bundle (scripts/items/food_effects.gd). Only a dish that recorded the trait through inheritance (attributes.cooked_roles) gets these; a raw ingredient carrying the same attribute is unaffected. Rows use FOODFX's field/op/value shape; per_level scales the value by the trait's level on the instance. # ASSUMPTION: the keys, channels and amounts - spec 08 \u00a73/\u00a74 list the kinds of effect, not their numbers.",
     "rich_cut": {
       "display_name": "Rich Cut",
       "effects": [
-        {"field": "latent", "op": "mult", "value": 1.15, "per_level": true},
-        {"field": "fullness", "op": "add", "value": 2.0, "per_level": true}
+        {
+          "field": "latent",
+          "op": "mult",
+          "value": 1.15,
+          "per_level": true
+        },
+        {
+          "field": "fullness",
+          "op": "add",
+          "value": 2.0,
+          "per_level": true
+        }
       ],
       "_about": "A fattier cut: more Energy and a little more Fullness per trait level."
     },
     "gamey_cut": {
       "display_name": "Gamey Cut",
       "effects": [
-        {"field": "fullness", "op": "add", "value": 4.0, "per_level": true},
-        {"field": "thirst", "op": "add", "value": 3.0, "per_level": true}
+        {
+          "field": "fullness",
+          "op": "add",
+          "value": 4.0,
+          "per_level": true
+        },
+        {
+          "field": "thirst",
+          "op": "add",
+          "value": 3.0,
+          "per_level": true
+        }
       ],
       "_about": "Strong meat fills more and leaves a thirst."
     },
     "fresh_cut": {
       "display_name": "Fresh Cut",
       "effects": [
-        {"field": "health", "op": "add", "value": 2.0, "per_level": true}
+        {
+          "field": "health",
+          "op": "add",
+          "value": 2.0,
+          "per_level": true
+        }
       ],
-      "_about": "Spec 08 §4 lists Health as a food benefit; a fresh cut adds a little."
+      "_about": "Spec 08 \u00a74 lists Health as a food benefit; a fresh cut adds a little."
     }
   },
   "role_bonus": {
-    "_about": "Spec 08 §3: toppings, sauces and broth add their own recipe-defined bonus even when they do not inherit. Keyed by role, then by an item category the ingredient has (the first match in the role's category order wins); the bonus is a buff id from this file's buffs block. # ASSUMPTION: which category grants which buff. Spec 08 §4 names bell pepper/grape/tomato/pumpkin/onion toppings and fruit dishes; those items are not in items.json yet, so the bonus is keyed by category and shown per dish.",
+    "_about": "Spec 08 \u00a73: toppings, sauces and broth add their own recipe-defined bonus even when they do not inherit. Keyed by role, then by an item category the ingredient has (the first match in the role's category order wins); the bonus is a buff id from this file's buffs block. # ASSUMPTION: which category grants which buff. Spec 08 \u00a74 names bell pepper/grape/tomato/pumpkin/onion toppings and fruit dishes; those items are not in items.json yet, so the bonus is keyed by category and shown per dish.",
     "topping": {
       "fruit": "fruit_glaze",
       "berry_crop": "fruit_glaze",
@@ -92,30 +182,46 @@
     }
   },
   "buffs": {
-    "_about": "The buffs a role bonus grants, in FOODFX's buff-bundle shape (group, display_name, duration, stats). Groups are foods.json buff_groups, so an Enhanced Ability role buff replaces another ability meal and coexists with a survival one. # ASSUMPTION: 10 min and the stat amounts (spec 08 §4 gives one community figure, ~+4 ability, and calls it unconfirmed).",
+    "_about": "The buffs a role bonus grants, in FOODFX's buff-bundle shape (group, display_name, duration, stats). The group is comments.json buff_groups 'cooked_role' (COOKROLES): a topping's own bonus is its own category, so it neither replaces nor is replaced by the dish's signature Enhanced Ability/Survival buff, and the newest role bonus replaces the last. # ASSUMPTION: 10 min and the stat amounts (spec 08 \u00a74 gives one community figure, ~+4 ability, and calls it unconfirmed).",
     "fruit_glaze": {
-      "group": "enhanced_ability",
+      "group": "cooked_role",
       "display_name": "Fruit Glaze",
       "duration": 600.0,
-      "stats": {"perception": {"add": 4.0}}
+      "stats": {
+        "perception": {
+          "add": 4.0
+        }
+      }
     },
     "herbal_zing": {
-      "group": "enhanced_ability",
+      "group": "cooked_role",
       "display_name": "Herbal Zing",
       "duration": 600.0,
-      "stats": {"perception": {"add": 2.0}}
+      "stats": {
+        "perception": {
+          "add": 2.0
+        }
+      }
     },
     "spice_warmth": {
-      "group": "enhanced_survival",
+      "group": "cooked_role",
       "display_name": "Warming Spice",
       "duration": 600.0,
-      "stats": {"max_fatigue": {"add": 20.0}}
+      "stats": {
+        "max_fatigue": {
+          "add": 20.0
+        }
+      }
     },
     "broth_comfort": {
-      "group": "enhanced_survival",
+      "group": "cooked_role",
       "display_name": "Broth Comfort",
       "duration": 600.0,
-      "stats": {"max_energy": {"add": 10.0}}
+      "stats": {
+        "max_energy": {
+          "add": 10.0
+        }
+      }
     }
   }
 }

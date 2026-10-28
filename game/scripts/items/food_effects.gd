@@ -225,8 +225,10 @@ static func evaluate(stack: ItemStack, ctx: Dictionary = {}) -> Dictionary:
 	var buffs: Array = out["buffs"]
 	# A roled recipe's topping/sauce/spice/broth bonus (spec 08 §3): its own bundle rows, evaluated by
 	# the same group rules as the dish's own buffs.
-	var bundled: Array = (entry.get("buffs", []) as Array).duplicate()
-	bundled.append_array(CookRoles.buff_rows(stack))
+	# The player's own topping first: it is what they chose to add, and an exclusive group keeps the
+	# first row.
+	var bundled: Array = CookRoles.buff_rows(stack)
+	bundled.append_array((entry.get("buffs", []) as Array).duplicate())
 	for row: Variant in bundled:
 		if not row is Dictionary:
 			continue

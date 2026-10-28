@@ -118,6 +118,11 @@ static func apply_outcome(out: ItemStack, rec: Dictionary, outcome: Dictionary, 
 			var bump := int(rules().get("flawless_level_bonus", 1))
 			out.level = mini(int(rec.get("max_level", 60)), out.level + bump)
 			out.apply_level_stats()
+	# COOKROLES: a roled recipe takes a rare (green) trait only through a slot's inheritance rule
+	# (spec 08 §3 "only if the recipe defines a compatible conversion"), never through spec 04's
+	# "the primary's own rare attribute always carries" rule.
+	if CookRoles.is_roled(rec):
+		return out
 	var rare := StringName(str(outcome.get("rare", "")))
 	if rare != &"" and not out.attributes.has(str(rare)):
 		# A rare trait the primary already carried keeps its own level; a rolled one starts at 1.

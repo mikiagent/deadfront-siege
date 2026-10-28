@@ -90,6 +90,12 @@ static func role_accepts(slot: Dictionary, stack: ItemStack) -> bool:
 	var d := stack.def()
 	if d == null:
 		return false
+	# A role may name categories it refuses even when another of its categories would accept them
+	# (a spice herb is also a herb, so a main/topping list that contains "herb" would take it).
+	var never: Variant = (row as Dictionary).get("exclude", []) if row is Dictionary else []
+	for cat: Variant in (never as Array if never is Array else []):
+		if d.has_category(StringName(str(cat))):
+			return false
 	for cat: Variant in role_categories(role):
 		if d.has_category(StringName(str(cat))):
 			return true
@@ -189,6 +195,9 @@ static func collect(rec: Dictionary, inv: Inventory, parts: Array[Dictionary]) -
 		if idx < 0 or idx >= inv.slot_count or inv.slots[idx] == null:
 			continue
 		var stack: ItemStack = inv.slots[idx]
+		# A recipe that does not inherit still gets its slots' role bonuses and its record (spec 08
+		# §3: the bonus is a role's own, not the trait inheritance); only traits/history/flags are
+		# gated by the recipe-level opt-in.
 		var rule := inherit_rule(rec, slot)
 		var keep := {}
 		var drop := {}
