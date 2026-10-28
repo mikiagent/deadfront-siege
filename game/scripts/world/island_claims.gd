@@ -392,6 +392,17 @@ static func reason_text(reason: String) -> String:
 			return "that cell overlaps land you already hold"
 		"no_cells":
 			return "no cells selected"
+		# UNCLAIM (releasing land)
+		"not_owned":
+			return "that plot is not part of your Domain"
+		"camp_land":
+			return "that is your camp's own landing plot, not a Domain plot"
+		"last_cell":
+			return "it is your only plot: a Domain needs at least one"
+		"building":
+			return "a building stands on that plot, so it cannot be released until it is packed up"
+		"split":
+			return "releasing it would cut your Domain into two pieces"
 		_:
 			return reason.replace("_", " ").capitalize() if reason != "" else ""
 
@@ -493,6 +504,103 @@ static func clear_domain(rt: IslandRuntime) -> void:
 		World.home_claims = _claim_rows(rt)
 	else:
 		World.unstable_claims = _claim_rows(rt)
+
+# ---------------------------------------------------------------- releasing a cell (UNCLAIM)
+
+## Tiles a cell covers that hold something built: a kit's node, a construction site, a camp piece or
+## a modular StructurePiece. Returns the first building found ("" when the plot is clear), so the
+## refusal can say a building stands there. Buildings are never moved or destroyed by a release: the
+## plot is simply refused until the survivor packs the building up (the safer of the task's two
+## options, and it keeps storage contents with their owner).
+static func building_on(rt: IslandRuntime, cell: Vector2i) -> String:
+	var rect := cell_rect(rt, cell)
+	var grid: Variant = rt.get("build_grid")
+	if grid == null or not is_instance_valid(grid):
+		return ""
+	var g := grid as BuildGrid
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			var node: Node = g.occupant(Vector2i(x, y))
+			if node != null:
+				return node.name if node.name != "" else "a building"
+			if g.is_reserved(Vector2i(x, y)):
+				return "a reserved plot"
+	# Modular pieces (W2-BUILDSYS) live on the StructureGrid, not in the kit occupancy map: a
+	# foundation, wall or ramp inside the cell is a building on the plot just the same.
+	var structures: StructureGrid = g.structures
+	if structures != null:
+		for p in structures.pieces():
+			if p == null or not is_instance_valid(p):
+				continue
+			for c in StructureGrid.module_cells(Vector2i(p.slot.x, p.slot.y)):
+				if rect.has_point(c):
+					return str(p.kind).capitalize() if str(p.kind) != "" else "a structure"
+	return ""
+
+## Why `cell` cannot be released right now ("" when it can): "not_owned" (the camp's own landing
+## plot is never a domain cell: "camp_land"), "last_cell" (a Domain always keeps at least one plot),
+## "building" (something stands on it), "split" (the rest of the Domain would fall into two pieces).
+## ASSUMPTION: spec 29 names a Release action but gives no refund, cooldown or last-plot rule; the
+## last plot stays (a domain with no cells is not a domain), no T-stones are refunded, no cooldown.
+static func release_reason(rt: IslandRuntime, cell: Vector2i) -> String:
+	var own := owned_cells(rt)
+	if not own.has(cell):
+		for c in cells_covering(rt, rt.camp_claim) if rt.camp_claim.has_area() else []:
+			if c == cell:
+				return "camp_land"
+		return "not_owned"
+	if own.size() <= 1:
+		return "last_cell"
+	if building_on(rt, cell) != "":
+		return "building"
+	var rest := own.duplicate()
+	rest.erase(cell)
+	if not _is_connected(rest):
+		return "split"
+	return ""
+
+## Every cell in `cells` reachable from one of them by edge steps through `cells` only.
+static func _is_connected(cells: Dictionary) -> bool:
+	if cells.is_empty():
+		return true
+	var start: Vector2i = cells.keys()[0]
+	var seen := {start: true}
+	var queue: Array[Vector2i] = [start]
+	while not queue.is_empty():
+		var c: Vector2i = queue.pop_back()
+		for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			var n: Vector2i = c + d
+			if cells.has(n) and not seen.has(n):
+				seen[n] = true
+				queue.append(n)
+	return seen.size() == cells.size()
+
+## Release one cell: the ONE write path for UNCLAIM. A refused release changes nothing at all. On
+## success the record loses the cell, rt.claims loses its rect (the camp's land and every other cell
+## stay), the world's saved copy follows, the outline redraws and claims_changed fires once with the
+## released rect. Saves need no format change: the cell is simply absent from the record. The land
+## keeps whatever the claim cleaned (grass and props do not come back on their own).
+## Answers {"ok", "reason", "cell"}.
+static func release_cell(rt: IslandRuntime, cell: Vector2i) -> Dictionary:
+	var why := release_reason(rt, cell)
+	if why != "":
+		return {"ok": false, "reason": why, "cell": cell}
+	var rec := rt.domain
+	var list: Array = (rec.get("cells", []) as Array).duplicate()
+	for i in range(list.size() - 1, -1, -1):
+		if list[i] is Vector2i and (list[i] as Vector2i) == cell:
+			list.remove_at(i)
+	rec["cells"] = list
+	rt.domain = rec
+	_rebuild_claim_rects(rt)
+	_rebuild_claim_mesh(rt)
+	if World.is_home():
+		World.home_claims = _claim_rows(rt)
+	else:
+		World.unstable_claims = _claim_rows(rt)
+	rt.claims_changed.emit(cell_rect(rt, cell))
+	print("[world] released cell %s, %d/%d" % [str(cell), used(rt), cap(rt)])
+	return {"ok": true, "reason": "", "cell": cell}
 
 ## The tile rect of the cell a claim at `tile` would take (Rect2i() only when the island has no grid).
 static func plot_for(rt: IslandRuntime, tile: Vector2i) -> Rect2i:

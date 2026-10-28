@@ -6,7 +6,10 @@ extends UiWorldSheet
 ## - no domain yet: the declare panel (GOLD headline, body, quote, GOLD "Declare Domain", island art);
 ## - a domain held: the plot grid around it (Domain gold, "can expand" gold outline, water blue) with
 ##   Plots used / cap, Pioneer rank, upkeep, next rank and the Communications Center link
-##   (CommCenterUI, the spec-29 contribution panel), and Expand / Build here / Release.
+##   (CommCenterUI, the spec-29 contribution panel), and Expand / Build here / Release plot.
+## UNCLAIM: a tap on one of the grid's gold plots picks it (drawn with a white frame); Release plot
+## then asks first in the preview card - the same consequence text the HUD's ClaimPanel uses (its
+## Confirm is "Release plot", its Cancel "Keep") - and only that confirm gives the one plot up.
 ## A footer band carries the territory rule. Declare and Expand open the ground-grid preview
 ## (DomainPreview): the sheet steps aside to a narrow card (Confirm / Cancel) so the terrain stays
 ## readable. Open with HuntHud.open_domain() (nav menu) or open(player).
@@ -72,6 +75,9 @@ var _note: Label
 var _confirm: Button
 var _cancel: Button
 
+var _release_mode := false  ## UNCLAIM: the preview card is asking about a release, not a claim
+var _release_cell := IslandClaims.NO_CELL  ## UNCLAIM: the plot picked in the grid (NO_CELL: none)
+var _release_building := ""
 var _previewing := false
 var _last_reason := ""
 var _picked := 0
@@ -159,6 +165,7 @@ func _build() -> void:
 	_grid = _PlotGrid.new()
 	_grid.name = "PlotGrid"
 	_grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_grid.picked.connect(_on_grid_picked)
 	_left.add_child(_grid)
 	_legend = HBoxContainer.new()
 	_legend.name = "Legend"
@@ -231,7 +238,9 @@ func _build() -> void:
 	_build_here = SheetChrome.ghost_button("Build here")
 	_build_here.name = "BuildHere"
 	_build_here.pressed.connect(_on_build_here)
-	_release = SheetChrome.ghost_button("Release", true)
+	# UNCLAIM: "Release plot" gives up ONE picked plot (the grid tap picks it); the confirm states the
+	# consequence and only its own RELEASE PLOT does it. The old whole-Domain wipe is gone.
+	_release = SheetChrome.ghost_button("Release plot", true)
 	_release.name = "Release"
 	_release.pressed.connect(_on_release)
 	for b in [_expand, _build_here, _release]:
@@ -299,6 +308,9 @@ func open(p: Player) -> void:
 		IslandClaims.sync_cap(rt)
 	tab = "tamed_island"
 	_previewing = false
+	_release_mode = false
+	_release_cell = IslandClaims.NO_CELL
+	_release_building = ""
 	_last_reason = ""
 	_picked = 0
 	_shown_rank = DomainRules.pioneer_rank()
@@ -325,6 +337,8 @@ func _process(_delta: float) -> void:
 
 func close() -> void:
 	_end_preview()
+	if _release_mode:
+		_end_release()
 	_previewing = false
 	if center_ui != null and is_instance_valid(center_ui):
 		center_ui.close()
@@ -402,8 +416,11 @@ func _refresh() -> void:
 		nl.add_theme_color_override("font_color", UiTokens.TEXT)
 	_center.disabled = not home
 	_expand.disabled = _previewing
-	_msg.text = _last_reason if _last_reason != "" else ("Claim limit reached: raise your Pioneer rank to claim more." if used >= cap else "")
+	_release.disabled = _previewing or not IslandClaims.has_domain(rt)
+	var picked_hint := "Pick a gold plot to release, then Release plot." if _release_cell == IslandClaims.NO_CELL else "Release plot: %s picked." % str(_release_cell)
+	_msg.text = _last_reason if _last_reason != "" else ("Claim limit reached: raise your Pioneer rank to claim more." if used >= cap else picked_hint)
 	_grid.rt = rt
+	_grid.marked = _release_cell
 	_grid.queue_redraw()
 
 func _set_mode(plots: bool) -> void:
@@ -468,6 +485,9 @@ func _on_cell_refused(reason: String) -> void:
 	_update_footer()
 
 func _on_confirm() -> void:
+	if _release_mode:
+		_on_release_confirm()
+		return
 	if preview == null or not _previewing:
 		return
 	var out: Dictionary = preview.commit()
@@ -482,6 +502,11 @@ func _on_confirm() -> void:
 	relayout()
 
 func _on_cancel() -> void:
+	if _release_mode:
+		_end_release()
+		_refresh()
+		relayout()
+		return
 	_previewing = false
 	_end_preview()
 	_last_reason = ""
@@ -493,10 +518,73 @@ func _end_preview() -> void:
 		preview.finish()
 	preview = null
 
+# ---------------------------------------------------------------- UNCLAIM (release one plot)
+
+## UNCLAIM: the Release action. With a plot picked in the grid it asks first (the preview card states
+## the consequence and Confirm / Keep answer it); with nothing picked it names that a plot must be
+## picked. A release gives up ONE plot; it never wipes the Domain (that is not a rule the game has).
 func _on_release() -> void:
 	if rt == null:
 		return
-	IslandClaims.clear_domain(rt)
+	if _release_cell == IslandClaims.NO_CELL:
+		_last_reason = "Pick one of your gold plots in the grid first, then Release."
+		_refresh()
+		relayout()
+		return
+	_start_release(_release_cell)
+
+## Pick a plot of the Domain in the grid: the release action now means that plot. A tap outside your
+## plots (or on the camp's own landing plot) says why it cannot be released.
+func _on_grid_picked(cell: Vector2i) -> void:
+	if rt == null:
+		return
+	var why := IslandClaims.release_reason(rt, cell)
+	if why != "":
+		_last_reason = "Can't release that plot: %s." % IslandClaims.reason_text(why)
+		_release_cell = IslandClaims.NO_CELL
+		_refresh()
+		relayout()
+		return
+	_release_cell = cell
+	_last_reason = ""
+	_refresh()
+	relayout()
+
+func _start_release(cell: Vector2i) -> void:
+	_previewing = true
+	_release_mode = true
+	_release_cell = cell
+	_last_reason = ""
+	_release_building = IslandClaims.building_on(rt, cell) if rt != null else ""
+	_pv_title.text = "Release plot"
+	_confirm.text = "Release plot"
+	_cancel.text = "Keep"
+	_refresh()
+	_update_footer()
+	relayout()
+	UiTokens.focus_first([_cancel, _confirm])
+
+func _end_release() -> void:
+	_previewing = false
+	_release_mode = false
+	_release_cell = IslandClaims.NO_CELL
+	_release_building = ""
+	_last_reason = ""
+	_pv_title.text = "Pick plots"
+	_confirm.text = "Confirm"
+	_cancel.text = "Cancel"
+
+func _on_release_confirm() -> void:
+	if rt == null or _release_cell == IslandClaims.NO_CELL:
+		return
+	var out: Dictionary = IslandClaims.release_cell(rt, _release_cell)
+	if not bool(out["ok"]):
+		_last_reason = "Can't release that plot: %s." % IslandClaims.reason_text(str(out["reason"]))
+		_update_footer()
+		return
+	var cell := _release_cell
+	_end_release()
+	_last_reason = "Released the plot at %s. It stops being yours; you can claim it again later." % str(cell)
 	_refresh()
 	relayout()
 
@@ -537,6 +625,12 @@ func _update_footer() -> void:
 		return
 	var cap: int = rt.call("claim_cap") if rt != null else DomainRules.cap()
 	var used: int = rt.call("claim_used") if rt != null else 0
+	if _release_mode:
+		# UNCLAIM: the same card states the consequence of giving ONE plot up (ClaimPanel's words, so
+		# both entry points say the same thing), and Confirm is RELEASE PLOT, not a stake.
+		_note.text = ClaimPanel.describe_release(used, _release_cell, str(IslandClaims.release_reason(rt, _release_cell)) if rt != null else "not_owned", _release_building)
+		_confirm.disabled = rt == null or _release_cell == IslandClaims.NO_CELL or IslandClaims.release_reason(rt, _release_cell) != ""
+		return
 	# The count comes from the preview itself: a signalled count went stale once (a shot said
 	# "Selected 0" with three cells picked, i.e. the label lagged the grid).
 	if preview != null and is_instance_valid(preview):
@@ -624,10 +718,41 @@ func _layout_body(view: Vector2, rect: Rect2) -> void:
 ## cells the domain can grow into outlined GOLD, water/cliff blue, the camp's own land GOLD at half
 ## alpha, other land green. Classified by IslandClaims, the same model the ground preview draws.
 class _PlotGrid extends Control:
+	## UNCLAIM: a tap on one of your gold plots picks it for release (the screen asks with the
+	## consequence before anything is given up). A tap elsewhere is not a pick and says nothing.
+	signal picked(cell: Vector2i)
 	var rt: IslandRuntime
 	var cell := 60.0
+	var marked := IslandClaims.NO_CELL  ## the plot the screen's Release would give up (drawn white)
 	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mouse_filter = Control.MOUSE_FILTER_STOP
+	func cell_at(local: Vector2) -> Vector2i:
+		var c0 := centre_cell()
+		var r := DomainScreen.GRID_RADIUS
+		var gx := int(floor(local.x / cell))
+		var gy := int(floor(local.y / cell))
+		if gx < 0 or gy < 0 or gx > r * 2 or gy > r * 2:
+			return IslandClaims.NO_CELL
+		return c0 + Vector2i(gx - r, gy - r)
+	func _gui_input(event: InputEvent) -> void:
+		if event is InputEventMouseButton:
+			var mb := event as InputEventMouseButton
+			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+				tap_at(mb.position)
+				accept_event()
+		elif event is InputEventScreenTouch:
+			var t := event as InputEventScreenTouch
+			if t.pressed:
+				tap_at(t.position)
+				accept_event()
+	## A tap at `local`: one of your own Domain plots is picked (the screen's Release gives it up);
+	## anything else is ignored here (the grid still shows it as a state). Public for the test.
+	func tap_at(local: Vector2) -> void:
+		var c := cell_at(local)
+		if c == IslandClaims.NO_CELL:
+			return
+		if states().get(c, -1) == 0:
+			picked.emit(c)
 	func centre_cell() -> Vector2i:
 		var own: Dictionary = IslandClaims.owned_cells(rt)
 		if own.is_empty():
@@ -673,6 +798,8 @@ class _PlotGrid extends Control:
 			draw_rect(box, DomainScreen.swatch_color(int(st[c])))
 			if int(st[c]) == 1:
 				draw_rect(box.grow(-1.0), UiTokens.GOLD, false, 2.0)
+			elif c == marked:
+				draw_rect(box.grow(-2.0), UiTokens.TEXT, false, 3.0)
 			else:
 				draw_rect(box, Color(1, 1, 1, 0.06), false, 1.0)
 

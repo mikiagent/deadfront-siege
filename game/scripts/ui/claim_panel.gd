@@ -6,16 +6,44 @@ extends PanelContainer
 ## stays, and either the plot at your feet expands it or it is refused with the reason (not adjacent,
 ## overlaps your own, not dry land, another survivor's). Only the panel's EXPAND stakes; Close, a
 ## second press or walking off cancels. Plots only ever add, so a press can orphan no building.
+## UNCLAIM (owner: "Also need a way to unclaim land too"): the same panel in release mode asks before
+## a plot is GIVEN UP - pressing CLAIM while standing on your own plot, or a plot picked in the
+## Domain screen's grid, opens open_release(); only its RELEASE PLOT gives the plot up, and its text
+## states the consequence (what stops being yours, what happens to anything built there).
 ## The panel lives in the HUD (hunt_hud.gd), over the empty centre, clear of the rail, map and XP line.
 
 signal answered(confirmed: bool)
+## UNCLAIM: the survivor pressed RELEASE PLOT on their own plot (the plot is already released).
+signal released(cell: Vector2i)
 const SIZE := Vector2(500.0, 270.0)
 const PHONE_SIZE := Vector2(272.0, 166.0)  ## a 390 px canvas: narrow enough to stand left of the map column
 const TITLE := "Claim this land?"
+const RELEASE_TITLE := "Release this plot?"
 
 var _body: Label
 var _confirm: Button
 var _cancel: Button
+var _row: HBoxContainer
+var _title: Label
+var _release_rt: IslandRuntime
+var _release_cell := IslandClaims.NO_CELL  ## UNCLAIM: the cell the panel would give up, NO_CELL in claim mode
+var _release_reason := ""
+var _release_building := ""
+var _release_used := 0
+
+## UNCLAIM: the consequence of giving up `cell`, in the panel's words. `why` is the refusal ("" when
+## the plot can be released), `building` names what stands on it. Two lines: what the release does to
+## the land and its buildings, and that pressing RELEASE PLOT is what does it.
+static func describe_release(used: int, cell: Vector2i, why: String, building: String) -> String:
+	var n := IslandClaims.cell_tiles()
+	if why != "":
+		return "You hold %d plot%s.\nNo release here: %s. Nothing changes." % [used, "" if used == 1 else "s", IslandClaims.reason_text(why)]
+	var left := maxi(0, used - 1)
+	var on_it := "Nothing is built on it." if building == "" else "A %s stands on it, so it cannot be released until the building is packed up." % building
+	# Kept to a few short lines: the panel is 166 px tall on a landscape phone, and a paragraph
+	# scrolled off it. Every consequence the owner asked to state is still named.
+	return "You hold %d plot%s; %d %s yours.\nRelease the %dx%d plot at (%d, %d)? It stops being yours: no building or managing there. Anyone (you included) can claim it again later. %s Cleared grass and props do not regrow; no claim stake is refunded.\nOnly RELEASE PLOT gives it up." % [
+		used, "" if used == 1 else "s", left, "stays" if left == 1 else "stay", n, n, cell.x, cell.y, on_it]
 
 ## `plots` held on this island now, `tile` where the survivor stands, `rect` the plot the press would
 ## stake, `why` "" when that plot expands the land held (IslandRuntime.claim_expand_reason), `stake`
@@ -45,6 +73,84 @@ static func _inner_tiles(plots: Array, rect: Rect2i) -> int:
 	return n
 
 func open(plots: Array, tile: Vector2i, rect: Rect2i, why: String, stake: bool) -> void:
+	# UNCLAIM: a press while standing on a plot of your own Domain is a release, not an expansion. The
+	# panel asks the same question in release mode (open_release) so the HUD needs no second path and
+	# no press can give a plot up without this confirm.
+	var rt: IslandRuntime = World.runtime as IslandRuntime if World != null else null
+	if rt != null and is_instance_valid(rt) and IslandClaims.has_domain(rt):
+		var cell := IslandClaims.cell_of(rt, tile)
+		if IslandClaims.owned_cells(rt).has(cell):
+			open_release(rt, IslandClaims.used(rt), cell, IslandClaims.release_reason(rt, cell), IslandClaims.building_on(rt, cell))
+			return
+	_release_cell = IslandClaims.NO_CELL
+	_release_reason = ""
+	_release_building = ""
+	_release_used = plots.size()
+	_shell(TITLE, describe(plots, tile, rect, why, stake))
+	_cancel = _button("Cancel", false)
+	_cancel.name = "ClaimCancel"
+	_cancel.pressed.connect(func () -> void: answered.emit(false))
+	(_row as HBoxContainer).add_child(_cancel)
+	var ok_btn := _button("Expand", true)  # greyed when the plot would not expand (the body says why)
+	ok_btn.name = "ClaimConfirm"
+	ok_btn.disabled = why != ""
+	ok_btn.size_flags_stretch_ratio = 1.6
+	ok_btn.pressed.connect(func () -> void: answered.emit(true))
+	(_row as HBoxContainer).add_child(ok_btn)
+	_confirm = ok_btn
+	visible = true
+	UiTokens.focus_first([_cancel, _confirm])
+
+## UNCLAIM: the release confirm. `rt` is the island whose plot `cell` would be given up; `why` is
+## IslandClaims.release_reason ("" when it can go) and `building` names what stands on it. Nothing
+## changes until RELEASE PLOT is pressed; KEEP (or walking away) cancels. The panel is the confirm
+## step for BOTH entry points (the HUD's CLAIM press on your own plot and the Domain screen's grid),
+## so no path can drop a plot without it.
+func open_release(rt: IslandRuntime, used: int, cell: Vector2i, why: String, building: String) -> void:
+	_release_rt = rt
+	_release_cell = cell
+	_release_reason = why
+	_release_building = building
+	_release_used = used
+	_shell(RELEASE_TITLE, describe_release(used, cell, why, building))
+	_cancel = _button("Keep", false)
+	_cancel.name = "ClaimCancel"
+	_cancel.pressed.connect(func () -> void: answered.emit(false))
+	(_row as HBoxContainer).add_child(_cancel)
+	var ok_btn := _button("Release plot", true)
+	ok_btn.name = "ClaimConfirm"
+	ok_btn.disabled = why != ""
+	ok_btn.size_flags_stretch_ratio = 1.6
+	ok_btn.pressed.connect(_on_release_pressed)
+	(_row as HBoxContainer).add_child(ok_btn)
+	_confirm = ok_btn
+	visible = true
+	UiTokens.focus_first([_cancel, _confirm])
+
+## The confirm: one cell leaves the domain, through the one write path (IslandClaims.release_cell).
+## A plot that became illegal while the panel was open (a build finished on it, the domain changed)
+## is refused here and the panel says why; nothing is dropped.
+func _on_release_pressed() -> void:
+	if _release_cell == IslandClaims.NO_CELL or _release_rt == null or not is_instance_valid(_release_rt):
+		return
+	var out: Dictionary = IslandClaims.release_cell(_release_rt, _release_cell)
+	if not bool(out["ok"]):
+		_release_reason = str(out["reason"])
+		if _body != null:
+			_body.text = describe_release(_release_used, _release_cell, _release_reason, _release_building)
+		if _confirm != null:
+			_confirm.disabled = true
+		return
+	var cell := _release_cell
+	_release_cell = IslandClaims.NO_CELL
+	released.emit(cell)
+	answered.emit(false)  # closes the panel (no claim was staked)
+
+func release_cell() -> Vector2i:
+	return _release_cell
+
+## The shared chrome: parchment header with `title`, the body label `text`, and an empty button row.
+func _shell(title_text: String, text: String) -> void:
 	# B4 look (ui-redesign-spec §7 B4, §8): parchment header, body on the HUD fill, Cancel outlined and
 	# the action a GOLD button with CTA ink.
 	name = "ClaimPanel"
@@ -73,11 +179,12 @@ func open(plots: Array, tile: Vector2i, rect: Rect2i, why: String, stake: bool) 
 	box.add_child(head)
 	var title := Label.new()
 	title.name = "ClaimTitle"
-	title.text = TITLE
+	title.text = title_text
 	title.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
 	title.add_theme_font_size_override("font_size", 18 if compact else UiTokens.HEADER_PX)
 	title.add_theme_color_override("font_color", UiTokens.PARCHMENT_INK)
 	head.add_child(title)
+	_title = title
 	var inner := MarginContainer.new()
 	for side in ["left", "right"]:
 		inner.add_theme_constant_override("margin_" + side, 20)
@@ -90,29 +197,16 @@ func open(plots: Array, tile: Vector2i, rect: Rect2i, why: String, stake: bool) 
 	inner.add_child(col)
 	_body = Label.new()
 	_body.name = "ClaimBody"
-	_body.text = describe(plots, tile, rect, why, stake)
+	_body.text = text
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body.add_theme_font_size_override("font_size", 13 if compact else 16)
 	_body.add_theme_color_override("font_color", UiTokens.TEXT)
 	_body.add_theme_constant_override("line_spacing", 2)
 	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(_body)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	col.add_child(row)
-	_cancel = _button("Cancel", false)
-	_cancel.name = "ClaimCancel"
-	_cancel.pressed.connect(func () -> void: answered.emit(false))
-	row.add_child(_cancel)
-	var ok_btn := _button("Expand", true)  # greyed when the plot would not expand (the body says why)
-	ok_btn.name = "ClaimConfirm"
-	ok_btn.disabled = why != ""
-	ok_btn.size_flags_stretch_ratio = 1.6
-	ok_btn.pressed.connect(func () -> void: answered.emit(true))
-	row.add_child(ok_btn)
-	_confirm = ok_btn
-	visible = true
-	UiTokens.focus_first([_cancel, _confirm])
+	_row = HBoxContainer.new()
+	(_row as HBoxContainer).add_theme_constant_override("separation", 12)
+	col.add_child(_row)
 
 func body_text() -> String:
 	return _body.text if _body else ""

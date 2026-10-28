@@ -100,6 +100,15 @@ Three kit-placed fires share `game/scripts/world/bonfire.gd` (`Bonfire`); their 
 - Station: HUD chip falls back to `CraftStation.quality_chip_text()` when idle, which reads
   `ProcessStation.label_text()`.
 
+## Releasing land under a building (UNCLAIM, 2026-10-28)
+
+A Domain plot can be given up from the Domain screen or the CLAIM panel, one plot at a time, through
+`IslandClaims.release_cell()`. A plot with anything built on it is **refused** until the building is
+packed up (`IslandClaims.building_on`: a kit's node in `BuildGrid._occupied`, a construction site, or
+any modular `StructurePiece` whose module covers the plot). Nothing is moved, destroyed or orphaned by
+a release, and storage contents stay with their owner — the land leaves, the building does not.
+`game/tests/t_unclaim.gd` covers both a kit and a foundation.
+
 ## Persistence
 
 - Piece rows carry `level`, `inherited_attributes`, `quality_durability`, `quality_storage`
@@ -118,5 +127,8 @@ Three kit-placed fires share `game/scripts/world/bonfire.gd` (`Bonfire`); their 
   material site (20,20,12,12 → 16) finishing into a station with a shorter job and a repackaged one.
 - `game/tests/t_buildsys.gd`, `t_buildflow.gd`, `t_build.gd` — placement, costs, support/collapse,
   repair/upgrade, rows, site escrow and completion.
+- `game/tests/t_unclaim.gd` — releasing a plot: the last plot, the camp's own landing plot, a plot
+  with a building on it and a release that would split the Domain are all refused with a reason; an
+  edge plot releases, persists through a reload and can be claimed again.
 - `game/tests/t_firepits.gd` — the fires: empty vs loaded pit, temporary burn-out and wear (2× outside a
   Domain), the cooking gate and hex menu, the info line, and the save round trip through the sanitizer.
