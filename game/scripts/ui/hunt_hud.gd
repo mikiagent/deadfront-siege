@@ -282,7 +282,7 @@ func _build_menu_row() -> void:
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
 	_pets_hex = _hex("", HEX, "ANIMALS")
 	_pets_hex.icon = UiIcons.icon(&"animals")
-	_pets_hex.pressed.connect(_open_animals)
+	_pets_hex.pressed.connect(open_animals)
 	_build_hex = _hex("⌂", HEX, "BUILD")
 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
 	_skills_hex = _hex("★", HEX, "SKILLS")
@@ -341,7 +341,8 @@ func _toggle_debug() -> void:
 	print("[hud] debug %s" % ("on" if Game.debug_overlay else "off"))
 
 
-func _open_animals() -> void:
+## The Animals screen; with a record (the pet radial's Animals segment) it opens on that pet.
+func open_animals(rec: PetRecord = null) -> void:
 	_close_sheet()
 	if _animal_screen == null:
 		_animal_screen = AnimalScreen.new()
@@ -351,7 +352,7 @@ func _open_animals() -> void:
 		layer.layer = 96
 		add_child(layer)
 		layer.add_child(_animal_screen)
-	_animal_screen.open(player)
+	_animal_screen.open(player, rec)
 
 func _build_combat() -> void:
 	_sprint_hex = HexButton.new(HEX)
@@ -1328,7 +1329,8 @@ func _draw() -> void:
 	drawn_blocks["level"] = Rect2(lv_pos - Vector2(0.0, 12.0), Vector2(lw, 15.0))
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
-	if cam:
+	# Not under the pet radial: its see-through centre shows the pet, and the ring cut the name in two.
+	if cam and not (player.pets.menu and player.pets.menu.visible):
 		drawn_blocks["nameplate"] = HudLayout.nameplate_rect(cam, player, _font)
 		var at := (drawn_blocks["nameplate"] as Rect2).position + Vector2(0.0, NAME_PX)
 		draw_string(_font, at + Vector2.ONE, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0, 0, 0, 0.7))

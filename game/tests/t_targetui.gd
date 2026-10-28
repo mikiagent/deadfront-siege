@@ -606,7 +606,7 @@ func _test_screens() -> void:
 	inv.visible = false
 	await _frames(3)
 	_expect(_swords_shown(), "bag closed: the swords are back")
-	hud.call("_open_animals")
+	hud.open_animals()
 	await _frames(3)
 	_expect(not _swords_shown(), "Animals open: no swords")
 	_press(&"interact")

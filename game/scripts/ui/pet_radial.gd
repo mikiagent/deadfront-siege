@@ -228,7 +228,9 @@ func _fade_covered() -> void:
 		return
 	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
 	# Its caption hangs 18 px below the slot (HudLayout.taken_rects).
-	if held and held.is_visible_in_tree() and covers(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18))):
+	var bag := held.get_node_or_null(^"InventoryButton") as Control if held else null  # the BAG hex over HANDS fades with it
+	if held and held.is_visible_in_tree() and (covers(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18))) \
+			or (bag and covers(Rect2(bag.get_global_rect().position, bag.size + Vector2(0, 18))))):
 		held.modulate.a = 0.0
 		_faded.append(held)
 	for n in get_tree().get_nodes_in_group(&"hex_button"):

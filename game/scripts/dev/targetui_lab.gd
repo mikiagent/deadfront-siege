@@ -172,7 +172,7 @@ func _run() -> void:
 	_player.ui.visible = false
 	await _frames(4)
 	_check(_swords().is_visible_in_tree(), "bag closed: the swords are back")
-	_hud._open_animals()
+	_hud.open_animals()
 	await _frames(4)
 	_check(not _swords().is_visible_in_tree(), "Animals open: no swords")
 	await _shot("animals_open")

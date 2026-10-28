@@ -237,7 +237,7 @@ func _run() -> void:
 	await _capture("bag", [], logical)
 	_player.ui.visible = false
 	# animal screen (protected): shot only, for the eye check of the token theme on it
-	_hud.call("_open_animals")
+	_hud.open_animals()
 	await _frames(3)
 	await _capture("animals", [], logical, false)
 	var animals := _hud.get_node_or_null("AnimalLayer/AnimalScreen") as Control

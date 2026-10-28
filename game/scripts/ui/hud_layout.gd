@@ -175,7 +175,7 @@ static func _placer_row_score(at: Vector2, offsets: Array, rel: Array, taken: Ar
 
 ## Screen rects the HUD holds this frame: the blocks _draw has painted so far (drawn_blocks, minus
 ## keys starting with one of `skip`), every visible hex on screen (HUD, station and gather radials)
-## with its caption, the HUD's other controls and HANDS. Moving text (world pills, toasts, notices)
+## with its caption, the HUD's other controls, HANDS and the open pet radial. Moving text (world pills, toasts, notices)
 ## and the creature plates keep off them: at 844x390 they drew over the quest card and the COOK hex.
 static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rect2]:
 	var out: Array[Rect2] = []
@@ -207,6 +207,11 @@ static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rec
 	var fig := figure_rect(hud)
 	if fig.has_area():
 		out.append(fig)
+	# The open pet radial: a creature plate drew over its Animals label, a "Bush Berries" pill in its centre.
+	var pet_radial: PetRadial = hud.player.pets.menu if hud.player and hud.player.pets else null
+	if pet_radial and pet_radial.visible:
+		out.append(pet_radial.ring_rect())
+		out.append_array(pet_radial.label_rects)
 	return out
 
 ## The survivor on screen, head to name. Moving text keeps off it (a notice and a creature plate sat

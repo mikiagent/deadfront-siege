@@ -236,13 +236,18 @@ func _do_feed_pet() -> void:
 	_player.pets.interact(pet)
 	await _wait(0.4)
 	var hex := _station_hex(&"feed")
-	if hex == null:
+	var radial := _player.pets.menu as PetRadial  # spec 23: the pet radial replaced the pet hex menu
+	var seg: int = radial.ids().find(&"feed") if radial and radial.visible else -1
+	if hex == null and seg < 0:
 		_unreachable += 1
 		_notes.append("feed_pet: no FEED hex in the pet menu")
 		return
 	await _shot("pet_feed_hex")
 	var before: float = pet.hunger
-	_tap(hex)
+	if hex:
+		_tap(hex)
+	else:
+		radial.choose(seg)
 	await _wait(0.3)
 	_ok["feed_pet"] = 1 if pet.hunger > before + 1.0 else 0
 	_notes.append("feed_pet hunger %.0f -> %.0f" % [before, pet.hunger])
@@ -297,7 +302,7 @@ func _station_hex(id: StringName) -> HexButton:
 		menus.append(_player.station_craft.menu)
 	for m in menus:
 		var menu := m as StationMenu
-		if not menu.visible:
+		if menu == null or not menu.visible:
 			continue
 		for b in menu._buttons:
 			var hex := b as HexButton

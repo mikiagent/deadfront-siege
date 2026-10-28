@@ -331,8 +331,8 @@ func _test_pet_hp_and_summon() -> void:
 	block.queue_free()
 	await process_frame
 
-## tame-13, tame-16, build-storage-01: the pet menu offers Bag on a protoceratops (a mount with a
-## bag), Bag opens that bag, Feed reaches the pet whose menu was opened (not just the first one),
+## tame-13, tame-16, build-storage-01: the pet radial offers Bag on a protoceratops (a mount with a
+## bag), Bag opens that bag, Feed reaches the pet whose radial was opened (not just the first one),
 ## and a bag dump into full storage keeps what did not fit.
 func _test_pet_menu_bag_feed_dump() -> void:
 	await _reset_at(Vector3(0, 1.0, 0))
@@ -348,7 +348,7 @@ func _test_pet_menu_bag_feed_dump() -> void:
 	var ids: Array = []
 	for e in player.pets.entries(proto):
 		ids.append(e["id"])
-	_expect(&"ride" in ids and &"bag" in ids and &"feed" in ids and &"orders" in ids, "protoceratops menu: %s" % [ids])
+	_expect(&"ride" in ids and &"bag" in ids and &"feed" in ids and &"dismiss" in ids, "protoceratops menu: %s" % [ids])
 	player.pets.interact(proto)
 	_expect(player.pets.menu.visible and player.mounted_on == null, "tapping a mount pet opens its menu instead of mounting it")
 	player.pets._on_menu(proto, &"bag")

@@ -13,6 +13,7 @@ const OWNED := [
 	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
 	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
 	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd",
+	"res://scripts/ui/pet_radial.gd", "res://scripts/ui/pet_rename_dialog.gd",
 ]
 const TYPE_MIN := 12
 ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail

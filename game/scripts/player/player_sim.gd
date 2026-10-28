@@ -294,6 +294,9 @@ func _no_creature_climb(y0: float) -> void:
 		p.velocity.y = minf(p.velocity.y, 0.0)
 
 func input_vector() -> Vector2:
+	# Typing in a text field (the pet Rename) must not walk her: the field takes the keys, polling still sees them.
+	if p.get_viewport().gui_get_focus_owner() is LineEdit:
+		return Vector2.ZERO
 	return Input.get_vector("move_left", "move_right", "move_up", "move_down")
 
 func cam_dir(input: Vector2) -> Vector3:

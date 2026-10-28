@@ -505,6 +505,19 @@ func attack(target: Creature = null) -> bool:
 		hunt.start(target)
 	return hunt.swing_now()
 
+## The pet radial's Rename: the character-name rule (CharacterStore.name_problem). Returns "" or why not.
+func rename_pet(rec: PetRecord, new_name: String) -> String:
+	var nm := new_name.strip_edges()
+	var why := CharacterStore.name_problem(nm)
+	if rec == null or why != "":
+		return why if why != "" else "no pet"
+	if online:
+		_send(&"pet_rename", {"pet_uid": rec.uid, "name": nm})
+		return ""
+	rec.name = nm
+	print("[pets] renamed %s to %s" % [rec.species, nm])
+	return ""
+
 ## One swing at the scenery: the nearest destroyable prop in front of the survivor goes.
 func clear_prop_in_front() -> bool:
 	if World == null or World.runtime == null:
