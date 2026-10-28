@@ -420,8 +420,7 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	# Self-defence: bitten with no live target -> turn on the biter (auto-attack takes it from there).
 	if not dead and hunt and who and not who.is_pet and not who.health.dead and hunt.target != who:
 		var cur := hunt.target
-		if hunt.walking_off or cur == null or not is_instance_valid(cur) or cur.health.dead or global_position.distance_to(cur.global_position) > 6.0:
-			clear_nav()  # bitten on a walk-away: the walk ends and she turns on the biter (move priority)
+		if cur == null or not is_instance_valid(cur) or cur.health.dead or global_position.distance_to(cur.global_position) > 6.0:
 			hunt.start(who)
 			print("[combat] retaliate %s" % who.def.id)
 	if skills:

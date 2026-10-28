@@ -311,7 +311,7 @@ func _case_tap_walk_away(target_dies: bool) -> void:
 			c.queue_free()
 		t += 1.0 / 60.0
 		await physics_frame
-		if not player.hunt.walking_off:
+		if not player.move_order:
 			reached = _arrived(goal)
 			break
 	var st := _samp.stats()
@@ -453,7 +453,7 @@ func _case_island_walk_away() -> void:
 		_strafe(c, start, 1.8, t)
 		t += 1.0 / 60.0
 		await physics_frame
-		if not player.hunt.walking_off:
+		if not player.move_order:
 			reached = _arrived(goal, 1.6)
 			break
 	var st := _samp.stats()

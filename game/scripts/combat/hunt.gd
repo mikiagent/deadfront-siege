@@ -10,9 +10,10 @@ signal hit_landed(target: Creature)
 
 var target: Creature
 var hold: bool = false
-## A ground tap during the fight (owner: "pathfind to where I want to walk and then re-engage"): the
-## hunt keeps its target but neither chases, swings nor faces until the walk ends, then re-engages.
-var walking_off: bool = false
+## A ground tap during the fight (Player.move_order; owner: "pathfind to where I want to walk and then
+## re-engage"): the hunt keeps its target but neither chases, swings nor faces until the order ends, then
+## re-engages. A hit ends the order and Player.receive_creature_hit retargets (start() clears this).
+var _resume_after_move: bool = false
 var auto: bool = true  # HUD Auto hexagon: auto-attack when in range
 var _ring: MeshInstance3D
 var _ranged_pending := false
@@ -41,14 +42,14 @@ func start(t: Creature) -> void:
 	if t == null or t.health.dead or t.is_pet:
 		return  # F / retaliation / taps never turn the survivor on his own pet
 	target = t
-	walking_off = false
+	_resume_after_move = false
 	_attach_ring(t)
 	started.emit(t)
 	print("[combat] hunt start %s" % t.def.id)
 
 func stop() -> void:
 	target = null
-	walking_off = false
+	_resume_after_move = false
 	if _ring and is_instance_valid(_ring):
 		_ring.queue_free()
 	_ring = null
@@ -95,10 +96,11 @@ func _process(delta: float) -> void:
 	_kick_cd = maxf(0.0, _kick_cd - delta)
 	_net_cd = maxf(0.0, _net_cd - delta)
 	_tactic_lock = maxf(0.0, _tactic_lock - delta)
-	if walking_off:
-		if player.nav_active:
-			return
-		walking_off = false
+	if player.move_order:
+		_resume_after_move = _resume_after_move or target != null
+		return  # [owner 2026-10-28] a click-to-move order outranks combat: no chase, swing or facing
+	if _resume_after_move:
+		_resume_after_move = false
 		if target == null or not is_instance_valid(target) or target.health.dead \
 				or player.global_position.distance_to(target.global_position) > 28.0:
 			var near := player.actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
@@ -110,10 +112,6 @@ func _process(delta: float) -> void:
 	if target == null or not is_instance_valid(target) or target.health.dead:
 		if target:
 			stop()
-		return
-	# [owner 2026-10-28] A click-to-move order outranks combat: no chase, no swing and no facing
-	# until she arrives (or the order is broken by a hit).
-	if player.move_order:
 		return
 	_maybe_stun_hint()
 	if not auto:

@@ -244,7 +244,7 @@ func face_tick(delta: float, move_dir: Vector3) -> void:
 	else:
 		_face_dir = Vector3.ZERO
 		var h := p.hunt
-		if h and h.target and is_instance_valid(h.target) and not h.target.health.dead and not h.walking_off:
+		if h and h.target and is_instance_valid(h.target) and not h.target.health.dead and not p.move_order:
 			goal = h.target.global_position - p.global_position
 	goal.y = 0.0
 	if goal.length_squared() < 0.0001:
