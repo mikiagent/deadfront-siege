@@ -138,7 +138,9 @@ func tick(delta: float) -> void:
 		p.velocity.x = 0.0
 		p.velocity.z = 0.0
 		p.move_and_slide()
-		if anim:
+		if _stagger_left <= 0.0 and anim:
+			anim.end_hurt()  # the stun is over: locomotion takes the body back this frame
+		elif anim:
 			anim._physics_tick(0.0)
 		return
 	if p.rolling:
@@ -431,12 +433,25 @@ func _end_roll() -> void:
 	if p.anim and p.anim.current_clip in [&"roll", &"roll_back"]:
 		p.anim.play_clip(&"idle")
 
-func on_hit() -> void:
+## Hurt (owner 2026-10-28): a hit stuns her for exactly the hurt clip's length, then she is free to
+## walk/run; for HIT_STUN_IMMUNE_S after that, further hits (the combo's 2nd and 3rd bites) still
+## damage but cannot stun again, so nothing can chain-stun her. Returns true when this hit stunned.
+# ASSUMPTION: 0.8 s of stun immunity after the stun ends.
+const HIT_STUN_IMMUNE_S := 0.8
+
+func on_hit() -> bool:
 	var now_s := Time.get_ticks_msec() * 0.001
-	if not p.rolling and now_s >= _stagger_immune_until:
-		_stagger_left = 0.35
-		_stagger_immune_until = now_s + 1.5
-		p.clear_nav()
+	if p.rolling or now_s < _stagger_immune_until:
+		return false
+	_stagger_left = hurt_stun_seconds()
+	_stagger_immune_until = now_s + _stagger_left + HIT_STUN_IMMUNE_S
+	p.clear_nav()
+	return true
+
+## The hurt clip's length as PlayerAnim plays it (speed 1); 0.35 s without a rig or clip.
+func hurt_stun_seconds() -> float:
+	var ap: AnimationPlayer = p.rig.anim_player if p.rig else null
+	return ap.get_animation(&"hit_react").length if ap and ap.has_animation(&"hit_react") else 0.35
 
 # ---------------------------------------------------------------- tap-to-walk routes
 

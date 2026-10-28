@@ -9,7 +9,7 @@ const CONTRACT: Array[StringName] = [
 const LOOPING: Array[StringName] = [&"idle", &"walk", &"run"]
 ## Authored on some species only; loaded when the GLB exists, CreatureAnim falls back to idle where
 ## missing. bite_combo: deinonychus chomp, Chomp, CHOMP (three hit fracs in anim_events.json).
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo"]
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120
