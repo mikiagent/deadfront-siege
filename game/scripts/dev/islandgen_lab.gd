@@ -106,6 +106,10 @@ func _run() -> void:
 			await _shot_at(str(id) + "_river", Vector3(mid.x, rt.surface_y(mid.x, mid.y), mid.y), rt)
 		if _shot_dir != "" and _args.has("iso-shots"):
 			await _iso_shot(str(id), rt)
+		if _shot_dir != "" and _args.has("topo-shots"):
+			await _topo_shots(str(id), rt)
+	if _shot_dir != "" and _args.has("sheet") and not _args.has("no-shots"):
+		_contact_sheet(ids)
 	# Let the last island settle before quitting (the shot already awaited a frame).
 	await _frames(2)
 	get_tree().quit(0)
@@ -425,3 +429,66 @@ func _shot(id: String, rt: IslandRuntime, bbox: Vector2) -> void:
 		print("[islandgen-shot] %s %dx%d" % [out, img.get_width(), img.get_height()])
 	cam.queue_free()
 	await _frames(1)
+
+## ISLANDSHAPES: three-quarter close-ups of the island's topography (one per kind, up to 3) and of one
+## rock outcrop, as the player's camera sees them.
+func _topo_shots(id: String, rt: IslandRuntime) -> void:
+	if rt._shape == null:
+		return
+	var done := {}
+	for f in rt._shape.topo:
+		var kind := str(f["kind"])
+		if done.has(kind) or done.size() >= 3:
+			continue
+		done[kind] = true
+		var p: Vector2 = f["pos"]
+		var at := Vector3(p.x, rt.surface_y(p.x, p.y), p.y)
+		var dist := float(f["reach"]) * 1.6 + 25.0
+		await _oblique("%s_%s" % [id, kind], at, Vector3(0.0, dist * 0.75, dist), rt)
+	if rt.props != null:
+		for row in rt.props._rows:
+			if bool(row.get("outcrop", false)):
+				await _oblique("%s_outcrop" % id, row["pos"], Vector3(0.0, 16.0, 24.0), rt)
+				break
+
+func _oblique(tag: String, at: Vector3, off: Vector3, rt: IslandRuntime) -> void:
+	var cam := Camera3D.new()
+	cam.fov = 45.0
+	cam.far = rt._size * 4.0
+	cam.position = at + off
+	add_child(cam)
+	cam.look_at(at + Vector3(0.0, 2.0, 0.0))
+	cam.make_current()
+	for cl in get_tree().root.find_children("*", "CanvasLayer", true, false):
+		(cl as CanvasLayer).visible = false
+	await _frames(8)
+	await RenderingServer.frame_post_draw
+	var img := get_tree().root.get_texture().get_image()
+	if img:
+		var out := "%s/%s.png" % [_shot_dir, tag]
+		img.save_png(out)
+		print("[islandgen-shot] %s %dx%d" % [out, img.get_width(), img.get_height()])
+	cam.queue_free()
+	await _frames(1)
+
+## The top-down shots, cropped to their square and tiled 5 wide into one contact sheet.
+func _contact_sheet(ids: Array) -> void:
+	var cell := 320
+	var cols := 5
+	var rows := int(ceil(float(ids.size()) / float(cols)))
+	var sheet := Image.create(cols * cell, rows * cell, false, Image.FORMAT_RGB8)
+	sheet.fill(Color(0.06, 0.06, 0.08))
+	var i := 0
+	for id in ids:
+		var img := Image.load_from_file("%s/%s_top.png" % [_shot_dir, str(id)])
+		if img == null or img.is_empty():
+			continue
+		img.convert(Image.FORMAT_RGB8)
+		var side := mini(img.get_width(), img.get_height())
+		var sq := img.get_region(Rect2i((img.get_width() - side) / 2, (img.get_height() - side) / 2, side, side))
+		sq.resize(cell, cell, Image.INTERPOLATE_BILINEAR)
+		sheet.blit_rect(sq, Rect2i(0, 0, cell, cell), Vector2i((i % cols) * cell, (i / cols) * cell))
+		i += 1
+	var out := "%s/contact_sheet_top.png" % _shot_dir
+	sheet.save_png(out)
+	print("[islandgen-shot] %s %dx%d" % [out, sheet.get_width(), sheet.get_height()])

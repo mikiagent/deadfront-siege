@@ -16,6 +16,24 @@ var respawn_s: float = 240.0
 var _live: Array[Creature] = []
 var _acc := 0.0
 var _down_until := 0.0
+## Species whose model and clips were already asked of the loader's worker threads this run.
+static var _warmed: Dictionary = {}
+
+## TUTPERF: the first wake of a species read its model and clips from disk on the main thread, a
+## ~50 ms hitch mid-walk. Ask the loader for them on a worker thread as soon as the zone exists;
+## Spawner's own load() then finds them cached (or waits for the thread, never longer than before).
+func _ready() -> void:
+	if _warmed.has(species):
+		return
+	_warmed[species] = true
+	var dir := "res://assets/creatures/%s" % species
+	var paths: Array[String] = ["%s/%s.glb" % [dir, species]]
+	for f in ResourceLoader.list_directory(dir + "/anim"):
+		if f.ends_with(".glb"):
+			paths.append("%s/anim/%s" % [dir, f])
+	for path in paths:
+		if ResourceLoader.exists(path):
+			ResourceLoader.load_threaded_request(path)
 
 func _process(delta: float) -> void:
 	_acc += delta
