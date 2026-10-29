@@ -38,5 +38,5 @@ Tests out of date with owner-approved changes (assertion updated):
 
 ## Notes for the next agent
 
-- Timing tests were not flaky in these runs; none needed a pass.
+- Timing tests were not flaky in these runs. t_waves timed out once under the full 5-slot load: its windowed child stalled for 600 s and outlived the parent. The child now runs under a 90 s perl alarm; three solo reruns pass in 10 s.
 - Untracked `.uid` files from the import (`skyshadows_lab.gd.uid`, `t_playervisible.gd.uid`) were left out.
