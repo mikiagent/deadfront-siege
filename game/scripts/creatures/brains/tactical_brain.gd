@@ -42,6 +42,11 @@ var _circle_t := 0.0
 var _wait_t := 0.0  ## seconds spent repositioning while pressed, waiting for an opening
 ## Leaps (owner: "it shouldnt walk back, it should jump back"): one in flight at a time.
 var _hop_then: StringName = &"circle"
+var _hop_to := Vector3.ZERO
+var _scurry_left := 0.0  ## a swarm's run-back instead of a leap (tactics.backoff "scurry")
+var _flee_left := 0.0  ## seconds a swarm keeps fleeing (hurt, or a packmate died)
+var _pack_seen := 0
+var _fight_t := 0.0  ## seconds on the current prey (the surround ring turns with the leader's)  ## live pack size last think, to notice a packmate's death
 var _just_disengaged := false
 var _beat_since_basic := true  ## a hold/hop/feint/strafe beat since the last basic bite
 var _basic_streak := 0  ## basics since the last special or two beats in a row  ## the last move was a back-leap: the next back-off waits for an attack or a hold
@@ -53,6 +58,7 @@ var _j_len := 0.55
 var _j_air := Vector2(0.0, 1.0)  ## airborne window as fractions of _j_len
 var _j_height := 0.7
 var _j_timed := false
+var _j_loop: StringName = &""  ## a loop clip standing in for a missing leap clip
 var _pounce_hit_u := 1.0
 var _pounce_hit_done := false
 var _pounce_landed := false
@@ -93,6 +99,11 @@ func _full_rate() -> bool:
 	return state in MOVES
 
 func _pre_think(dt: float) -> bool:
+	# Before the shared rules (a disengage would skip the think): a packmate just died, the rest scatter.
+	var pack_now := _pack_members().size()
+	if tac.has("mate_death_flee_s") and _pack_seen > pack_now and _valid_target() and state != &"flee" and state != &"sleep":
+		_start_flee(_t("mate_death_flee_s", 3.0))
+	_pack_seen = pack_now
 	var handled := super._pre_think(dt)
 	if _pounce_phase != &"" and not _valid_target():
 		_end_pounce()
@@ -101,20 +112,54 @@ func _pre_think(dt: float) -> bool:
 ## ENRAGE (owner 2026-10-28: "more aggressive moves (more jumping around and using combo moves)"):
 ## while the creature is enraged, tactics.enraged scales a knob, pulled toward 1 by the nature's
 ## enrage_mult (Aggressive/Brave most, Docile least): value = 1 + (row - 1) x enrage_mult.
-func _rage(key: String, fallback: float) -> float:
-	if not creature.statuses.has(&"enraged"):
-		return fallback
-	var row: Dictionary = tac.get("enraged", {})
-	if not row.has(key):
-		return fallback
-	return maxf(0.05, 1.0 + (float(row[key]) - 1.0) * creature.nature_knob("enrage_mult", 1.0))
+## The profile's situational modifier blocks, multiplied together (each a {knob: factor} row):
+##   enraged    - while enraged, pulled toward 1 by the nature's enrage_mult;
+##   pack_bold  - a pack of pack_bold.n or more live members on the fight (bolder in numbers);
+##   alone      - no live packmate left;
+##   weak_prey  - the prey's HP fraction is under weak_prey.hp_frac (opportunistic).
+## fallback is returned when no active block names the knob.
+func _mod(key: String, fallback: float) -> float:
+	var out := fallback
+	var hit := false
+	for name in _active_mods():
+		var row: Dictionary = tac.get(name, {})
+		if not row.has(key):
+			continue
+		var f := float(row[key])
+		if name == "enraged":
+			f = 1.0 + (f - 1.0) * creature.nature_knob("enrage_mult", 1.0)
+		out = (out if hit else 1.0) * f
+		hit = true
+	return maxf(0.05, out) if hit else fallback
+
+func _active_mods() -> Array[String]:
+	var on: Array[String] = []
+	if creature.statuses.has(&"enraged"):
+		on.append("enraged")
+	if tac.has("pack_bold") or tac.has("alone"):
+		var n := _pack_members().size()
+		if tac.has("pack_bold") and n >= int((tac["pack_bold"] as Dictionary).get("n", 4)):
+			on.append("pack_bold")
+		elif tac.has("alone") and n <= 1:
+			on.append("alone")
+	if tac.has("weak_prey") and _valid_target() and _target_hp_frac() < float((tac["weak_prey"] as Dictionary).get("hp_frac", 0.4)):
+		on.append("weak_prey")
+	return on
+
+func _target_hp_frac() -> float:
+	if attack_target is Player:
+		var v := (attack_target as Player).vitals
+		return v.health / maxf(1.0, v.effective_max_health()) if v else 1.0
+	if attack_target is Creature:
+		return (attack_target as Creature).health.fraction()
+	return 1.0
 
 func _t(key: String, fallback: float) -> float:
 	return float(tac.get(key, fallback))
 
 ## Cooldowns scale with the nature (Aggressive shorter).
 func _start_cd(move: StringName) -> void:
-	_cd[move] = _t(str(move) + "_cd", 2.0) * creature.nature_knob("tactic_cooldown_mult", 1.0) * _rage("cooldown_mult", 1.0)
+	_cd[move] = _t(str(move) + "_cd", 2.0) * creature.nature_knob("tactic_cooldown_mult", 1.0) * _mod("cooldown_mult", 1.0)
 
 func cooldown_left(move: StringName) -> float:
 	return float(_cd.get(move, 0.0))
@@ -130,7 +175,7 @@ func ring_m() -> float:
 
 ## HP fraction below which it backs off: the archetype's, times the nature's (Timid sooner, Brave later).
 func retreat_frac() -> float:
-	return clampf(_t("retreat_frac", 0.4) * creature.nature_knob("retreat_threshold_mult", 1.0), 0.0, 0.95)
+	return clampf(_t("retreat_frac", 0.4) * creature.nature_knob("retreat_threshold_mult", 1.0) * _mod("retreat_frac_mult", 1.0), 0.0, 0.95)
 
 func hit_damage_mult(clip: StringName, hit_index: int) -> float:
 	var mult := 1.0
@@ -152,11 +197,16 @@ func _think(delta: float) -> void:
 	speed_override = -1.0
 	strafe_face = null
 	gait_clip = &""
+	if _flee_left > 0.0:
+		_flee_left -= delta
+		if _flee_left <= 0.0 and state == &"flee" and not _enrage_fled:
+			_set_state(&"approach" if _valid_target() else &"roam")
 	if not _valid_target() or not state in MOVES:
 		_end_pounce()
 		super._think(delta)  # roam, scan, alert, flee and the reacquire rule stay shared
 		return
 	_combat_memory_left = 4.0
+	_fight_t += delta
 	var leader := _pack_leader()
 	if leader and leader != creature and leader.brain and leader.brain._valid_target():
 		attack_target = leader.brain.attack_target
@@ -296,9 +346,12 @@ func _circle(delta: float) -> void:
 	strafe_face = attack_target
 	_circle_t += delta
 	speed_override = creature.walk_mps(creature.move_speed_mps()) * _t("circle_speed_frac", 0.8)
-	var step := deg_to_rad(_t("circle_step_deg", 35.0)) * _circle_sign
-	# Steering at a point `step` ahead settles at radius * cos(step); aim past the ring so it holds the ring.
-	creature.move_to(attack_target.global_position + _to_me().rotated(Vector3.UP, step) * ring_m() / cos(step))
+	if tac.get("surround", false) and _pack_members().size() > 1:
+		creature.move_to(_surround_slot())
+	else:
+		var step := deg_to_rad(_t("circle_step_deg", 35.0)) * _circle_sign
+		# Steering at a point `step` ahead settles at radius * cos(step); aim past the ring so it holds the ring.
+		creature.move_to(attack_target.global_position + _to_me().rotated(Vector3.UP, step) * ring_m() / cos(step))
 	# At the ring (or with prey that followed it into its jaws after a beat of backing off) the
 	# strongest attack that is ready goes; while everything cools down it keeps moving.
 	var in_jaws := d <= reach_to(attack_target) and _circle_t >= _t("contact_after_s", 1.0)
@@ -307,6 +360,18 @@ func _circle(delta: float) -> void:
 	_left -= delta
 	if _left <= 0.0:
 		_move_beat()
+
+## SURROUND (swarm): each packmate holds its own slot on the ring, evenly spaced by pack index, the
+## whole ring turning slowly (surround_turn_deg per second of the pack leader's fight clock, so every
+## member agrees), so a pack closes in from every side.
+func _surround_slot() -> Vector3:
+	var members := _pack_members()
+	var i := maxi(0, members.find(creature))
+	var leader := _pack_leader()
+	var clock: float = (leader.brain as TacticalBrain)._fight_t if leader and leader.brain is TacticalBrain else _fight_t
+	var turn := deg_to_rad(_t("surround_turn_deg", 20.0)) * clock
+	var ang := turn + TAU * float(i) / float(maxi(1, members.size()))
+	return attack_target.global_position + Vector3(cos(ang), 0.0, sin(ang)) * ring_m()
 
 func _can_swing() -> bool:
 	# The hold's alert pose never blocks a strike: it is a pose, not a commitment.
@@ -393,7 +458,7 @@ func pick_sequence(d: float) -> Dictionary:
 		if not _terminal_ready(last, d):
 			continue
 		var w := float((row as Dictionary).get("weight", 1.0)) * creature.nature_knob("tactic_w_" + str(last), 1.0) \
-			* _rage("w_" + str(last), 1.0) * (_rage("combo_seq_mult", 1.0) if (row["steps"] as Array).size() > 1 else 1.0)
+			* _mod("w_" + str(last), 1.0) * (_mod("combo_seq_mult", 1.0) if (row["steps"] as Array).size() > 1 else 1.0)
 		if w <= 0.0:
 			continue
 		ok.append([row, w])
@@ -428,7 +493,7 @@ func _offence(d: float, in_jaws: bool) -> bool:
 	# Pressed (owner: "when a player pursues it should strafe and strafe walk to wait for an attack
 	# opening"): while she closes in it repositions until her swing is recovering, her back is
 	# turned, or it has waited wait_max_s; then it commits.
-	if _prey_advancing() and not attack_opening() and _wait_t < _t("wait_max_s", 3.0) * _rage("wait_mult", 1.0):
+	if _prey_advancing() and not attack_opening() and _wait_t < _t("wait_max_s", 3.0) * _mod("wait_mult", 1.0):
 		return false
 	_wait_t = 0.0
 	if in_jaws and _strike(d, tac.get("point_blank", ["combo", "bite"])):
@@ -544,16 +609,18 @@ func _charge(delta: float) -> void:
 ## under max_retreat_m. Holding is twice as likely while the prey is not advancing. Natures scale
 ## hold (Brave, Aggressive) and back-off (Timid) weights.
 func _move_beat() -> void:
-	_left = rng.randf_range(_t("circle_min_s", 0.8), _t("circle_max_s", 1.6)) * _rage("beat_mult", 1.0)
+	_left = rng.randf_range(_t("circle_min_s", 0.8), _t("circle_max_s", 1.6)) * _mod("beat_mult", 1.0)
 	var d := _flat_dist(attack_target)
 	# Reposition (owner): while the basic bite is cooling down, or while she presses it, the filler is
 	# only strafe-walk, the power strafe and one backstep; hold and feint wait for later.
 	var reposition := not _ready_to(&"bite") or _prey_advancing()
 	var w_hold := 0.0 if reposition else _t("w_hold", 0.35) * creature.nature_knob("tactic_hold_mult", 1.0) * (1.0 if _prey_advancing() else 2.0)
-	var w_strafe := _t("w_strafe", 0.35) * _rage("w_strafe", 1.0)
-	var w_dodge := _t("w_dodge", 0.3) * _rage("w_dodge", 1.0) if creature.can_sprint() else 0.0
-	var w_feint := 0.0 if reposition else (_t("w_feint", 0.15) * creature.nature_knob("tactic_feint_mult", 1.0) if creature.can_sprint() and d >= ring_m() - 1.0 else 0.0)
-	var w_hop := _t("w_hop", 0.15) * creature.nature_knob("tactic_backoff_mult", 1.0) * _rage("w_hop", 1.0) if can_disengage() and d < ring_m() - 0.5 else 0.0
+	var w_strafe := _t("w_strafe", 0.35) * _mod("w_strafe", 1.0)
+	var w_dodge := _t("w_dodge", 0.3) * _mod("w_dodge", 1.0) if creature.can_sprint() else 0.0
+	# A swarm's feint is a dart in and out (tactics.feint_repositions): it stays a repositioning filler.
+	var feint_ok := not reposition or bool(tac.get("feint_repositions", false))
+	var w_feint := 0.0 if not feint_ok else (_t("w_feint", 0.15) * creature.nature_knob("tactic_feint_mult", 1.0) * _mod("w_feint", 1.0) if creature.can_sprint() and d >= ring_m() - 1.0 else 0.0)
+	var w_hop := _t("w_hop", 0.15) * creature.nature_knob("tactic_backoff_mult", 1.0) * _mod("w_hop", 1.0) if can_disengage() and d < ring_m() - 0.5 else 0.0
 	var r := rng.randf() * (w_hold + w_strafe + w_dodge + w_feint + w_hop)
 	if r < w_hold:
 		filler.emit(&"hold")
@@ -699,7 +766,7 @@ func _combo() -> void:
 
 func _mark_pack() -> void:
 	if _is_pack_member():
-		_pack_cooldown_until[creature.pack_id] = _now_s() + _t("pack_gap_s", 0.6)
+		_pack_cooldown_until[creature.pack_id] = _sim_s() + _t("pack_gap_s", 0.6)
 
 ## Standing in a bite or the combo: face the prey, leap back out when the clip ends.
 func _swing(delta: float) -> void:
@@ -816,6 +883,7 @@ func _clip_len(clip: StringName, fallback: float) -> float:
 ## inside its airborne fracs (anim_events <clip>.airborne); without it the heavy clip is retimed over
 ## fallback_s and land_s follows. The arc height scales with the distance (leap_height_per_m).
 func _jump_begin(to: Vector3, clip: StringName, fallback_s: float, land_s: float, height_per_m: float = -1.0) -> void:
+	_j_loop = &""
 	_j_from = creature.global_position
 	_j_to = to
 	_j_t = 0.0
@@ -827,7 +895,8 @@ func _jump_begin(to: Vector3, clip: StringName, fallback_s: float, land_s: float
 		_j_air = Vector2(0.0, fallback_s / maxf(0.01, _j_len))
 		return
 	if clip in CreatureClips.LOOPING:
-		# A loop stands in (no dodge clip): played fast over fallback_s, the body moving the whole time.
+		# A loop stands in (no dodge clip): played over fallback_s, the body moving the whole time.
+		_j_loop = clip
 		creature.anim.play_clip(clip)
 		_j_len = fallback_s + land_s
 		_j_air = Vector2(0.0, fallback_s / maxf(0.01, _j_len))
@@ -843,6 +912,8 @@ func _jump_begin(to: Vector3, clip: StringName, fallback_s: float, land_s: float
 ## One frame of the leap; true once the clip (or the timed landing) is over.
 func _jump_tick(delta: float) -> bool:
 	_j_t += delta
+	if _j_loop != &"" and creature.anim.current_clip != _j_loop:
+		creature.anim.play_clip(_j_loop)  # the body's idle reset would otherwise stop the stand-in loop
 	var u := _j_t / maxf(0.01, _j_len)
 	if u <= _j_air.y:
 		_arc_step(_j_from, _j_to, clampf((u - _j_air.x) / maxf(0.01, _j_air.y - _j_air.x), 0.0, 1.0), _j_height)
@@ -852,6 +923,7 @@ func _jump_tick(delta: float) -> bool:
 	return _j_t >= _j_len
 
 func _jump_end() -> void:
+	_j_loop = &""
 	if creature and creature.view:
 		creature.view.position.y = 0.0
 	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back", &"dodge_left", &"dodge_right"]:
@@ -880,14 +952,28 @@ func _start_hop(then: StringName = &"circle", long: bool = false, dist_mult: flo
 	_start_cd(&"hop")
 	_just_disengaged = true
 	_beat()
-	_jump_begin(creature.global_position + _to_me() * dist, clip, _t("hop_s", 0.4), _t("hop_land_s", 0.15))
+	_hop_to = creature.global_position + _to_me() * dist
+	_scurry_left = _t("scurry_s", 0.6) if str(tac.get("backoff", "leap")) == "scurry" else 0.0
+	if _scurry_left <= 0.0:
+		_jump_begin(_hop_to, clip, _t("hop_s", 0.4), _t("hop_land_s", 0.15))
 	tactic.emit(&"hop")
 
 func _hop(delta: float) -> void:
-	creature.face_towards(attack_target.global_position, delta)
-	if not _jump_tick(delta):
-		return
-	_jump_end()
+	if _scurry_left > 0.0:
+		# Scurry (swarm): dart back out at a run facing the prey (walk_back / strafes by direction).
+		_scurry_left -= delta
+		strafe_face = attack_target
+		speed_override = creature.move_speed_mps()
+		creature.move_to(_hop_to)
+		if _scurry_left > 0.0 and _flat_dist_to(_hop_to) > 0.4:
+			return
+		_scurry_left = 0.0
+		creature.stop_move()
+	else:
+		creature.face_towards(attack_target.global_position, delta)
+		if not _jump_tick(delta):
+			return
+		_jump_end()
 	if _hop_then == &"retreat":
 		_set_state(&"retreat")
 	elif _hop_then == &"seq":
@@ -906,6 +992,10 @@ func _end_pounce() -> void:
 	_telegraph = null
 
 func _start_retreat(seconds: float) -> void:
+	if str(tac.get("retreat_mode", "leap")) == "flee":
+		_start_flee(_t("flee_s", 3.0))
+		_retreat_cd = _t("retreat_cd", 10.0)
+		return
 	_end_pounce()
 	_retreat_left = seconds
 	_retreat_cd = _t("retreat_cd", 10.0)
@@ -928,6 +1018,14 @@ func _retreat_tick(delta: float) -> void:
 	_retreat_left -= delta
 	if _retreat_left <= 0.0:
 		_enter_circle()
+
+## Swarm flight: run from the prey (BrainFlight.flee) for `seconds`, then come back to the fight.
+func _start_flee(seconds: float) -> void:
+	_end_pounce()
+	_seq = []
+	_flee_left = maxf(_flee_left, seconds)
+	_set_state(&"flee")
+	tactic.emit(&"flee")
 
 func _on_state_changed(prev: StringName, _next: StringName) -> void:
 	if prev == &"pounce":

@@ -39,6 +39,31 @@ Full-rate thinking runs in every one of these states (`_full_rate`).
 | `retreat_frac`, `wide_ring_mult`, `wide_circle_s` | 0.4, 1.6, 4 s | back off when hurt, then circle wider |
 | `ambush`, `cover_m`, `ambush_radius_m`, `back_radius_m`, `ambush_pounce_max_m` | true, 14, 6, 10, 10 m | lurk at the tree nearest home and open with the pounce |
 
+## Modifier blocks (`tactics.<block>`, multiplied together)
+A block is `{knob: factor}` over the profile's own knobs (`cooldown_mult`, `w_<finisher>`,
+`combo_seq_mult`, `w_dodge` / `w_hop` / `w_strafe` / `w_feint`, `beat_mult`, `wait_mult`,
+`retreat_frac_mult`). It is active when:
+- `enraged`: the creature is enraged. The nature's `enrage_mult` pulls each factor toward 1.
+- `pack_bold`: at least `pack_bold.n` live packmates are on the fight (bolder in numbers).
+- `alone`: no live packmate is left.
+- `weak_prey`: the prey's HP fraction is under `weak_prey.hp_frac` (opportunistic).
+
+Genetic alphas are separate: `tactics.alpha` multiplies the nature knobs (Creature.nature_knob).
+
+## Swarm extras (compsognathus)
+- `surround: true`: each packmate steers to its own slot on the ring, evenly spaced by pack index,
+  the ring turning `surround_turn_deg` per second.
+- `backoff: "scurry"`: back-offs run out (`scurry_s`, facing the prey: walk_back/strafe clips)
+  instead of leaping.
+- `retreat_mode: "flee"`: below `retreat_frac` it flees for `flee_s` and comes back. A packmate's
+  death makes the rest flee for `mate_death_flee_s`.
+- `feint_repositions: true`: its feint (a dart in and out with no bite) stays a filler while the
+  bite cools.
+- Sequences: dart (charge into a bite), or strafe_left/right then dart; point blank is the bite.
+- Missing clips for the art thread: hop_back, leap_back, dodge_left/right, pounce, charge,
+  bite_combo. It plays well without them: the strafes stand in for dodges, the run for the charge,
+  and it scurries instead of leaping.
+
 ## Rules the brain enforces
 - **Offence comes from movement.** A sequence is picked by weight × the nature's
   `tactic_w_<finisher>`, and only when its finisher is off cooldown and affordable. Steps:
@@ -132,6 +157,7 @@ call `IntentHandlers.rolls_dodge`.
    run in order, basics ≤ share, a beat between basics, back-jumps never adjacent, distance ≤
    `max_retreat_m`, energy gate, retreat. Then run t_ai, t_combat, t_natures, t_canim and
    `tools/smoke.sh`.
-7. Watch it in the creature lab:
+7. Watch it in the creature lab: press SPAWN (left) to pick the species, count, nature and Alpha,
+   or launch with
    `Godot --path game -- --lab=creature_lab --species=<id>` (F3 prints every move;
    `--seq=DIR` saves frames).
