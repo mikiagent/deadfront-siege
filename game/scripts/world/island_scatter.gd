@@ -76,6 +76,13 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 		rt.harvest_count += _plant_family(rt, fs, role, n, fallback, tool, climate, tier, size, rng, col)
 	PerfTrace.mark("scatter.families")
 	_scatter_special_tiles(rt, climate, tier, rng)
+	# FOODTORPOR, ASSUMPTION placement: 2 narcoberry bushes per island, none on the scripted tutorial
+	# island (its bot's workbench walk broke with them). Own RNG stream, so every placement after this
+	# one is where it was before the bushes existed.
+	if str(def.get("kind", "")) != "tutorial":
+		var narco := RandomNumberGenerator.new()
+		narco.seed = hash("narcoberry_bush:%d" % rng.seed)
+		_spawn_special_family(rt, "narcoberry_bush", 2, [IslandTerrain.TileType.GRASS, IslandTerrain.TileType.DRY], 0.25, 6.0, &"narcoberry", &"none", climate, tier, Color(0.62, 0.5, 0.95), narco)
 	PerfTrace.mark("scatter.special")
 	_top_up(rt, total_target(counts, rt, home), climate, tier, size, rng)
 	PerfTrace.mark("scatter.topup")
@@ -622,11 +629,6 @@ static func _scatter_special_tiles(rt: IslandRuntime, climate: String, tier: int
 	_spawn_special_family(rt, "clay", 2, [IslandTerrain.TileType.MUD, IslandTerrain.TileType.DIRT], -0.1, 0.9, &"clay", &"pick", climate, tier, Color(0.44, 0.30, 0.22), rng)
 	_spawn_special_family(rt, "berry_bush", 3, [IslandTerrain.TileType.GRASS, IslandTerrain.TileType.DRY], 0.25, 6.0, &"berry", &"none", climate, tier, Color(0.58, 0.24, 0.24), rng)
 	_spawn_special_family(rt, "tree_stump", 1, [IslandTerrain.TileType.GRASS, IslandTerrain.TileType.DRY], 0.25, 6.5, &"wood_log", &"axe", climate, tier, Color(0.41, 0.27, 0.19), rng)
-	# FOODTORPOR, ASSUMPTION placement: 2 narcoberry bushes per island. Own RNG stream, so every
-	# placement after this one is where it was before the bushes existed.
-	var narco := RandomNumberGenerator.new()
-	narco.seed = hash("narcoberry_bush:%d" % rng.seed)
-	_spawn_special_family(rt, "narcoberry_bush", 2, [IslandTerrain.TileType.GRASS, IslandTerrain.TileType.DRY], 0.25, 6.0, &"narcoberry", &"none", climate, tier, Color(0.62, 0.5, 0.95), narco)
 
 static func _spawn_special_family(rt: IslandRuntime, family: String, count: int, tile_kinds: Array, min_h: float, max_h: float, fallback_id: StringName, tool: StringName, climate: String, tier: int, tint: Color, rng: RandomNumberGenerator) -> void:
 	var placed := 0

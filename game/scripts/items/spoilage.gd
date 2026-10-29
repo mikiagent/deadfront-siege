@@ -38,10 +38,9 @@ static func seconds_left(s: ItemStack, at: float = -1.0) -> float:
 		return INF
 	return float(s.attributes[ATTR]) - (now() if at < 0.0 else at)
 
-## Stamps fresh perishable lots and turns spoiled ones over. Spoiled lots in `inv` become the spoiled
-## item in place; with `out` (the Food Bag ticking into the main bag) they leave `inv` for `out`
-## instead. Returns how many lots spoiled.
-static func tick(inv: Inventory, at: float = -1.0, out: Inventory = null) -> int:
+## Stamps fresh perishable lots and turns spoiled ones into the spoiled item in place (a new uid, so
+## it drops out of the Food Bag). Returns how many lots spoiled.
+static func tick(inv: Inventory, at: float = -1.0) -> int:
 	if inv == null:
 		return 0
 	if at < 0.0:
@@ -49,7 +48,7 @@ static func tick(inv: Inventory, at: float = -1.0, out: Inventory = null) -> int
 	var spoiled := 0
 	for i in inv.slot_count:
 		var s := inv.slots[i]
-		if s == null or s.is_locked():
+		if s == null:  # a locked (protected) lot still spoils
 			continue
 		var secs := seconds_for(s.def())
 		if secs <= 0.0:
@@ -62,15 +61,8 @@ static func tick(inv: Inventory, at: float = -1.0, out: Inventory = null) -> int
 		var rotten := ItemStack.make(spoils_into(s.def()), s.count)
 		print("[spoil] %s x%d -> %s" % [s.def_id, s.count, rotten.def_id])
 		spoiled += 1
-		if out == null:
-			Inventory.mint(rotten)
-			inv.slots[i] = rotten
-			continue
-		inv.slots[i] = null
-		var left := out.add(rotten)
-		if left > 0:
-			# shortcut: a full main bag loses the overflow rot; a ground drop would keep it.
-			print("[spoil] bag full, %d %s lost" % [left, rotten.def_id])
+		Inventory.mint(rotten)
+		inv.slots[i] = rotten
 	if spoiled > 0:
 		inv.changed.emit()
 	return spoiled
