@@ -53,10 +53,13 @@ calls it — before the guaranteed-trait pass, so pool parts carry a rare trait 
 
 ## Verified
 `t_alphas` (9 sections, PASS): tag text and rect for alpha vs normal, plate chip visible and in front of
-the name, no "Alpha" word in the name, plain-text bracket form, refusals on every capture path including a
-forced-success net (nothing bagged, animal not freed), pen stack refusal, pool drops over 60 seeded rolls,
-`alpha_extras` adding pool stacks, and normal carcasses never yielding a pool item (60 + 40 seeded rolls and
-every normal butchering table). `t_natures`, `t_capture09`, `t_tame`, `t_genetics`, `t_fieldhud`,
+the name, no "Alpha" word in the name, plain-text bracket form, `HuntHud.alpha_tag_pos` geometry for the
+drawn target plate, the size rule (the alpha floor beats every species' top normal roll, 40 made alphas all
+inside the range), refusals on every capture path (window, feeding, `Hunt.use_net` on a live target, a
+forced-success net that bags nothing and frees nothing, the field-tame action, the pen stack,
+`capturable()`), pool drops over 60 seeded rolls, `alpha_extras` adding pool stacks, a real alpha corpse
+(death -> Corpse -> `ButcherLoot.roll_into`) holding pool loot while a normal corpse of the same species
+holds none, and no normal butchering table naming a pool item. `t_natures`, `t_capture09`, `t_tame`, `t_genetics`, `t_fieldhud`,
 `t_uiworld`, `t_butcher`, `t_gather`, `t_data`, `run_all` and `tools/smoke.sh` (`SMOKE PASS`) all pass.
 
 ## What the next agent needs

@@ -281,8 +281,9 @@ an `# ASSUMPTION` (Open Questions G5-G12).
 
 - Spawn: `Spawner.spawn_now` rolls `CreatureGenetics.alpha_pick` once per group (`chance_per_group` 0.08);
   on a hit member 0 spawns with `alpha_spawn`, and `Creature.spawn` calls `genetics.make_alpha()`.
-- Body: size 1.24-1.32x (above every normal roll), natural colours darker and richer (value x0.6 from at
-  most 1.0, saturation x1.3, pattern x1.3, clamped to the natural limits), eyeshine x2.5 with a wider bloom.
+- Body: size 1.24-1.32x (above every normal roll — `t_alphas` walks every species' `genetics.size_range`
+  top to prove the alpha floor beats it), natural colours darker and richer (value x0.6 from at most 1.0,
+  saturation x1.3, pattern x1.3, clamped to the natural limits), eyeshine x2.5 with a wider bloom.
 - Stats while wild (`Creature.alpha_stat_mult`): HP x3.0, defense x1.5, attack x1.6, speed x1.15 on top of
   the size factor. Tactics (`Creature._alpha_knob` multiplies the `tactic_*` nature knobs): cooldowns x0.6,
   feints and holds x0.5, pounce / charge / combo weight x1.6.
