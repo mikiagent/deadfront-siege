@@ -47,6 +47,9 @@ var _sleep_pending: Node3D
 ## the visual, not the body), reused so waking puts them back on their feet at the same height.
 var _stand_offset: float = 0.9
 var _autofeed_cd: float = 0.0
+## STARVING: a Starving stack more every STARVE_STACK_S of an empty stomach (ASSUMPTION: no spec rule).
+const STARVE_STACK_S := 120.0  # ASSUMPTION: no spec gives a starvation rule
+var starving_s := 0.0
 ## Sitting down to rest (the Rest hex, the X key): RestState.
 var rest: RestState
 
@@ -68,6 +71,24 @@ func tick_survival_xp(delta: float) -> void:
 		_survival_acc -= 60.0
 		p.skills.add_xp("survival", 1)
 
+## STARVING (owner 2026-10-28): an empty stomach is the Starving status, a stack more every
+## STARVE_STACK_S of it (statuses.json max_stacks); leaving "empty" clears it at once.
+
+func _tick_starving(delta: float) -> void:
+	if p.dead or p.vitals.fullness_state != &"empty":
+		starving_s = 0.0
+		if p.statuses.has(&"starving"):
+			p.statuses.clear_id(&"starving")
+		return
+	starving_s += delta
+	if not p.statuses.has(&"starving"):
+		p.statuses.apply(&"starving", p)
+	var inst := p.statuses.get_instance(&"starving")
+	var def := Data.status(&"starving")
+	if inst and def:
+		inst.stacks = clampi(1 + int(starving_s / STARVE_STACK_S), 1, def.max_stacks)
+		inst.time_left = def.duration  # until fed, never runs out
+
 func tick(delta: float) -> void:
 	var anim := p.anim
 	if p.statuses != null and p.vitals != null:
@@ -77,6 +98,7 @@ func tick(delta: float) -> void:
 		p.vitals.fullness_state = Digestion.state_for(dig.fullness())
 		p.vitals.fullness_mult = Digestion.fatigue_mult_for(p.vitals.fullness_state)
 		p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult() * p.vitals.fullness_mult
+		_tick_starving(delta)
 	p.in_water = WaterAccess.in_water(p.global_position)
 	p.swimming = p.in_water and WaterAccess.is_swimming(p.global_position)
 	_tick_swimming(delta)

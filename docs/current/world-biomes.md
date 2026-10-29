@@ -97,6 +97,66 @@ Every gather pass at a resource node lands **exactly one** item instance (owner 
 
 Code: `game/scripts/world/harvest_node.gd` (`roll_yield`), `game/scripts/gather/gather_service.gd`, `game/scripts/gather/loot_roller.gd` (`trait_chance`). Test: `game/tests/t_onegather.gd`.
 
+## Ground: smooth terrain, blended zone colours
+
+How the island ground is drawn (TERRAINSMOOTH, 2026-10-28). Code: `game/scripts/world/island_terrain.gd`,
+`game/scripts/world/terrain_tiles.gdshader`; test `game/tests/t_terrainsmooth.gd`; review shots
+`game/scripts/dev/terrain_lab.gd`.
+
+- **Two grids.** `IslandShape` still computes the 161 x 161 data grid (cells 2.3-2.9 m). Tile types, zones,
+  the walk mask, the fresh-water mask, TilePath and spawns read only that grid, so they are unchanged.
+  The ground you see and stand on is that grid **refined 2x** (321 x 321, cells about 1.3 m): grid
+  nodes keep their heights, each new midpoint is a cubic (-1, 9, 9, -1)/16 clamped between its two
+  neighbours, so hills curve but cliffs and the shore never overshoot into ridges or dips.
+- **One surface.** The terrain mesh (8 x 8 indexed chunks with smooth normals shared across chunk edges),
+  the collision heightmap, the water shader's height texture and `surface_y` all read the refined
+  array; `surface_y` follows the mesh's own triangles, so feet, nodes and buildings sit exactly on the
+  drawn ground. The nav bake still reads the data grid.
+- **Zone colours blend.** Each zone's tint and layer mix are baked into two small textures (one texel
+  per 2 m) with mipmaps; the shader reads them at the LOD of the zone edge width (`biome_edge_m`, 8 m by
+  default) at two points warped by 18 m and 9 m noise and averages them, so a border is a soft band
+  about 9 m wide that wanders instead of a line along the tile grid.
+- **No tile stair steps.** Rock, ash, river mud and crater dirt come from a mipmapped mask texture read
+  blurred over 1.5-3 m at a noise-warped point; harvested (bare) tiles, which change in play, use a
+  bilinear mask over the 1 m tile grid with a noise-wandering edge.
+- **Macro variation** at 41 m, 15 m (`macro_scale`) and 6.5 m wavelengths, scaled by `macro_strength`.
+- Works the same under Forward+ and gl_compatibility (the web build).
+
+## Sandy beaches and shore vegetation
+
+Every island has sandy beaches on part of its coast (owner 2026-10-28), not all of it.
+
+- **Where.** `IslandTerrain._beach_plan` uses a low-frequency noise around the coast to pick stretches
+  covering `beach_share` of the coast's bearings. A stretch's sand reaches 4-10 m inland of the
+  waterline (`beach_width_m`), wider on flatter shore, and its ends taper with noise. Sand only lands on
+  grass or dry ground under `beach_max_h` (2 m), on shore slopes under `beach_max_slope` (0.45
+  rise/run). It never lands on cliffs, rock, the river mouth, the camp clearing or the crater.
+- **Share per climate** (`biomes.json`, each row's `beach_share`; *ASSUMPTION* numbers): desert,
+  tropical and blue_tropical 60 %; grassland and savannah 50 %; temperate and swamp 45 %; tundra,
+  snowfield and volcanic 40 %. Measured on test islands: home 56 %, savannah_15 49 %, tropical_25 62 %,
+  tundra_30 42 %.
+- **Tiles.** Beach tiles are `SAND`, which matters in play:
+  - TilePath weights sand 1.4, so paths prefer grass a little;
+  - no ground-cover grass grows on sand;
+  - props and dressing treat sand as beach.
+  The walk mask is unchanged, because sand was already walkable. Beach tiles take the `beach` zone, so
+  they are painted in the climate's sand colours and blend into the inland zone. The thin waterline
+  sand strip runs round the whole coast as before.
+- **Shore vegetation** (`biome_dress.json` `zones.beach`). A zone entry's optional `climates` list
+  limits it (*ASSUMPTION* mapping):
+
+  | climate | beach dressing |
+  |---|---|
+  | tropical, blue_tropical | young palm cards, coral, shells, driftwood, boulders; tropical also gets reeds |
+  | grassland, temperate, savannah, swamp | dune (straw) grass, reeds, driftwood, shells, pebbles, boulders |
+  | desert | dry straw grass, aloe scrub, shells, driftwood, boulders |
+  | tundra, snowfield | driftwood only |
+  | volcanic | basalt chunks and basalt pebbles, plus driftwood |
+
+- **Palms.** Harvestable `PalmTree` nodes (palm fronds, wood, coconuts) grow by the shore only on
+  climates whose `biomes.json` row lists `PalmTree` in `palm_allowlist` (tropical, blue_tropical).
+  Before this change every climate except tundra and volcanic grew them, including the home grassland.
+
 ## Claimed land is clear of scenery
 
 A domain cell (spec 29) is bare of decoration the moment it is staked, and stays that way:

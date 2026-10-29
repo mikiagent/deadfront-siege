@@ -259,7 +259,8 @@ static func _plant_family(rt: IslandRuntime, family: String, role: String, n: in
 	# the rejection loop from burning its tries in the sea).
 	var half := size * 0.5 - 15.0
 	var tries := 0
-	var palms := family != "PalmTree" and role.begins_with("tree") and not (climate in ["tundra", "volcanic"]) and _models("PalmTree").size() > 0
+	# Only climates whose biomes.json row allows palms (tropical, blue_tropical) grow them by the shore.
+	var palms := family != "PalmTree" and role.begins_with("tree") and (BiomeMaterial.row(climate).get("palm_allowlist", []) as Array).has("PalmTree") and _models("PalmTree").size() > 0
 	while placed < n and tries < n * 30:
 		tries += 1
 		var cx := rng.randf_range(-half, half)

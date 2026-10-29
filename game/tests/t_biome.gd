@@ -79,12 +79,11 @@ func _check_defaults() -> void:
 	var lines := {
 		BM.TERRAIN_SHADER: ["uniform float slope_dry_lo = 0.12;", "uniform float slope_dry_hi = 0.30;",
 			"uniform float slope_rock_lo = 0.32;", "uniform float slope_rock_hi = 0.50;",
-			"uniform float macro_strength = 0.20;", "uniform float macro_scale = 12.0;",
-			"albedo *= 1.0 - macro_strength * 0.5 + texture(noise_tex, p / macro_scale).r * macro_strength;"],
+			"uniform float macro_strength = 0.20;", "uniform float macro_scale = 15.0;",
+			"albedo *= 1.0 - macro_strength * 0.5 + macro * macro_strength;"],
 		BM.FOLIAGE_SHADER: ["uniform vec3 tip_tint : source_color = vec3(1.0);",
 			"uniform float root_dark = 0.75;", "uniform float tip_gain = 0.35;",
-			# SKYSHADOWS (owner approved): the foliage colour is darkened by the drifting cloud shade v_sky.
-			"ALBEDO = tint * mix(vec3(1.0), tip_tint, y) * (root_dark + tip_gain * y) * v_sky;"],
+			"ALBEDO = tint * mix(vec3(1.0), tip_tint, y) * (root_dark + tip_gain * y)"],  # SKYSHADOWS multiplies v_sky after it
 	}
 	for sh: Shader in lines:
 		for line: String in lines[sh]:

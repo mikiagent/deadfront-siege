@@ -152,6 +152,16 @@ static func density_of(zone: String, id: String) -> float:
 				return maxf(0.0, float((e as Dictionary).get("density", 0.0)))
 	return 0.0
 
+## A zone entry's optional "climates" list (beach dressing differs by climate); missing = all climates.
+static func grows_in(zone: String, id: String, climate: String) -> bool:
+	var z: Variant = (data().get("zones", {}) as Dictionary).get(zone, {})
+	if z is Dictionary:
+		for e in (z as Dictionary).get("kinds", []):
+			if e is Dictionary and str((e as Dictionary).get("id", "")) == id:
+				var cl: Variant = (e as Dictionary).get("climates", null)
+				return not (cl is Array) or (cl as Array).has(climate)
+	return true
+
 static func min_zone_tiles() -> int:
 	return maxi(1, int(data().get("min_zone_tiles", 40)))
 
@@ -203,6 +213,8 @@ static func plan(rt: IslandRuntime, seed_value: int) -> Array[Dictionary]:
 		var tiles: Array = row["sample"]
 		var zone := BiomeZones.zone_name(z)
 		for id in zone_kinds(zone):
+			if not grows_in(zone, id, rt._climate):
+				continue
 			var want := maxi(2, int(round(density_of(zone, id) * float(row["count"]))))
 			_plan_kind(rt, zone, id, want, float(row["count"]), tiles, span, half, rng, out)
 	return out
