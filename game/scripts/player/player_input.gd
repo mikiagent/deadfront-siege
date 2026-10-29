@@ -602,7 +602,8 @@ func context_actions() -> Array:
 		out.append({"id": "warp", "glyph": "📦", "label": "Cargo warp"})
 	if near.call("taming_pen", 3.0):
 		out.append({"id": "pen", "glyph": "🪤", "label": "Pen"})
-	if World.runtime and World.runtime.has_method("is_claimed") and not World.runtime.is_claimed(BuildGrid.tile_of(p.global_position)):
+	# The tutorial island is shared town and wild land: nobody claims it (owner 2026-10-28).
+	if World.runtime and World.runtime.has_method("is_claimed") and not World.is_tutorial() and not World.runtime.is_claimed(BuildGrid.tile_of(p.global_position)):
 		var free := not World.free_claim_used and not World.is_home()
 		out.append({"id": "claim", "glyph": "▦", "label": "Claim" if (free or inv.count_of(&"claim_stake") > 0 or World.is_home()) else "Claim (stake)"})
 	return out

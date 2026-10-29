@@ -41,6 +41,14 @@ func _ready() -> void:
 			hud.name = "HuntHud"
 			hud.bind(player)
 			$UI.add_child(hud)
+			var pointer := TutorialPointer.new()  # TUTORIAL ISLAND: draws over the HUD, only while a tutorial order runs
+			pointer.player = player
+			$UI.add_child(pointer)
+			if "--tutorial-bot" in OS.get_cmdline_user_args():
+				var tbot = (load("res://scripts/dev/tutorial_bot.gd") as GDScript).new()
+				tbot.name = "TutorialBot"
+				add_child(tbot)
+				tbot.call_deferred("run_windowed", self)
 			if "--gather-test" in OS.get_cmdline_user_args():
 				_gather_test(player)
 			if "--combat-test" in OS.get_cmdline_user_args():

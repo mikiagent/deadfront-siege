@@ -136,6 +136,8 @@ func _finish() -> void:
 		return
 	var paid := _apply_bundle()
 	last_paid = paid
+	Tutorial.note("eat")  # TUTORIAL ISLAND: the eat orders count committed meals only
+	Tutorial.note("eat:%s" % str(_stack_snapshot.def_id))
 	print("[food] eat done %s instant=%.1f digested=%.1f energy=%.1f" % [
 		str(_stack_snapshot.def_id), float(paid.get("instant_energy", 0.0)),
 		float(paid.get("digested_energy", 0.0)), player.vitals.energy])
