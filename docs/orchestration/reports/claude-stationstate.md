@@ -52,8 +52,9 @@ No credits spent (all props procedural).
   fence assemblies like `taming_pen`. `game/scripts/dev/market_harness.gd`: `earn()` target 25 -> 40;
   the Settlers' demand table rotates over items.json, so new items cut the viewer's overshoot and the
   "affordable listing" check failed.
-- `t_buildspeed` failed on different islands each run (2.5-4.1 s spikes) with ~30 Godot processes on the
-  machine; nothing it loads changed. Re-run it on a quiet machine.
+- Full suite (128 tests, JOBS=3 on a machine with ~30 other Godot runs): 124 pass; t_buildspeed,
+  t_eyetrails (timing budgets), t_dismount and t_save failed under load and all four PASS re-run alone
+  (JOBS=1). `tools/smoke.sh --no-import`: SMOKE PASS.
 
 ## Save changes (backward compatible, flagged for the owner's gate)
 - Pen rows: `kind` may now be `taming_pen_medium|large|apex`; old rows (`makeshift_taming_pen`) load as the
