@@ -291,7 +291,7 @@ func _test_alpha_tag() -> void:
 	var name_pos := Vector2(100.0, 60.0)
 	var tpos: Vector2 = HH.alpha_tag_pos(name_pos, true)
 	var trect: Rect2 = AC.rect_at(font, tpos, true)
-	_expect(not trect.has_area() or (tpos.x < name_pos.x + 1.0 and trect.end.x <= name_pos.x + AlphaChip.NAME_GAP + 1.0), "the target plate's tag starts at the name's left (%.1f vs %.1f)" % [tpos.x, name_pos.x])
+	_expect(trect.has_area() and is_equal_approx(tpos.x, name_pos.x) and trect.size.x > 0.0, "the target plate's tag starts at the name's left (%.1f vs %.1f)" % [tpos.x, name_pos.x])
 	_expect(absf((tpos.y + trect.size.y) - (name_pos.y + 2.0)) <= 3.0, "the tag rides the name's baseline row (tag bottom %.1f, name y %.1f)" % [tpos.y + trect.size.y, name_pos.y])
 	_expect(HH.alpha_tag_pos(name_pos, false) == name_pos, "the target plate places no tag for a normal animal")
 	# The name is the species alone (the tag is the chip), never "Alpha Deinonychus".
