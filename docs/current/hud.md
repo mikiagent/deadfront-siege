@@ -33,9 +33,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   (right of the ring) and the chip row drops under it while it shows. `hud_stomach.gd`:
   - Inner ring = fullness. A full stomach is a complete circle, and it degrades clockwise: the lit arc
     always ends at 12 o'clock, and the gap opens from 12 o'clock clockwise (`HudStomach.arc_for`). The
-    colour comes from bands blended between stops (`STOPS`, in points): red empty (< 10), yellow peckish
-    (10-30) and the first half of fed (30-45), green fed and well fed (70-100), red overfull (above 100),
-    blended in between; an empty ring shows a faint red track. Fullness is `Digestion`'s stored stomach in
+    colour comes from stops blended up from bands (`HudStomach.stops()`, in points, rebuilt from the
+    `hunger` block's own edges): red empty (< 10), yellow peckish (10-30) and the first half of fed,
+    green through fed and well fed (to 100), red overfull (above 100), blended in between; an empty ring
+    shows a faint red track. Fullness is `Digestion`'s stored stomach in
     points (`rules.json` `hunger` band edges, HUNGER memo 2026-10-29). `game/tests/t_hudrules.gd` pins the
     stops.
   - Outer thin yellow ring = the `while_fed` meal buff time left (`Digestion.saturation`): the stomach's

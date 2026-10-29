@@ -254,6 +254,13 @@ func _test_stomach(view: Vector2) -> void:
 	_expect(ST.color_for(0.0).is_equal_approx(TOK.STOMACH_EMPTY) and ST.color_for(9.0).is_equal_approx(TOK.STOMACH_EMPTY), "empty is red")
 	_expect(ST.color_for(30.0).is_equal_approx(TOK.STOMACH_HUNGRY) and ST.color_for(45.0).is_equal_approx(TOK.STOMACH_HUNGRY), "peckish is yellow, through the first half of fed")
 	_expect(ST.color_for(70.0).is_equal_approx(TOK.STOMACH_FULL) and ST.color_for(85.0).is_equal_approx(TOK.STOMACH_FULL) and TOK.STOMACH_FULL.h > 0.25 and TOK.STOMACH_FULL.h < 0.45, "fed and well fed are green")
+	# The stops come from rules.json's hunger block, not a copy in the view (HUNGER memo 1.4 step 4).
+	var stops_now: Array = ST.stops()
+	var dig_rules: Dictionary = (root.get_node("Data").world_rules.get("hunger", {}) as Dictionary)
+	_expect(is_equal_approx(float(stops_now[1][0]), float(dig_rules.get("empty_below", -1.0))) \
+		and is_equal_approx(float(stops_now[2][0]), float(dig_rules.get("peckish_below", -1.0))) \
+		and is_equal_approx(float(stops_now[4][0]), float(dig_rules.get("fed_below", -1.0))) \
+		and is_equal_approx(float(stops_now[5][0]), float(dig_rules.get("well_fed_below", -1.0))), "the ring's stops are the hunger block's band edges")
 	_expect(ST.color_for(120.0).is_equal_approx(TOK.STOMACH_OVERFULL) and TOK.STOMACH_OVERFULL.h < 0.06, "overfull is red")
 	var mid: Color = ST.color_for(60.0)
 	_expect(not mid.is_equal_approx(TOK.STOMACH_HUNGRY) and not mid.is_equal_approx(TOK.STOMACH_FULL) and mid.g > TOK.STOMACH_HUNGRY.g, "60 points blends yellow into green (%s)" % mid)

@@ -13,12 +13,26 @@ extends RefCounted
 ## while a while_fed meal buff is on. It only reads the food system; no hunger rule lives here.
 
 const TRACK := Color(0.08, 0.08, 0.1, 0.9)
-## Colour stops in stomach points, blended linearly between them: red empty, yellow peckish, green fed,
-## richer green well fed, red overfull. Edges are the model's (Digestion = rules.json hunger.*).
-const STOPS := [[0.0, UiTokens.STOMACH_EMPTY], [Digestion.EMPTY_BELOW, UiTokens.STOMACH_EMPTY],
-	[Digestion.PECKISH_BELOW, UiTokens.STOMACH_HUNGRY], [45.0, UiTokens.STOMACH_HUNGRY],
-	[Digestion.FED_BELOW, UiTokens.STOMACH_FULL], [Digestion.WELL_FED_BELOW, UiTokens.STOMACH_FULL],
-	[Digestion.OVERFULL_MAX, UiTokens.STOMACH_OVERFULL]]
+## Colour stops in stomach points, blended linearly between them: red empty, yellow peckish, green fed
+## and well fed, red overfull. The edges are the data's (rules.json hunger.*, read through Digestion), so
+## a tuning pass moves the ring with the bands; HUNGER memo 2026-10-29 s1.4 step 4.
+static var _stops_cache: Array = []
+
+static func stops() -> Array:
+	if not _stops_cache.is_empty():
+		return _stops_cache
+	var empty := Digestion.hunger_num("empty_below", Digestion.EMPTY_BELOW)
+	var peckish := Digestion.hunger_num("peckish_below", Digestion.PECKISH_BELOW)
+	var fed := Digestion.hunger_num("fed_below", Digestion.FED_BELOW)
+	var well := Digestion.hunger_num("well_fed_below", Digestion.WELL_FED_BELOW)
+	# The plateaus keep their own lengths: yellow across peckish and the first half of fed, then green
+	# through fed and well fed, so the ring never shows a muddy blend in the middle of a band.
+	_stops_cache = [[0.0, UiTokens.STOMACH_EMPTY], [empty, UiTokens.STOMACH_EMPTY],
+		[peckish, UiTokens.STOMACH_HUNGRY], [peckish + (fed - peckish) * 0.5, UiTokens.STOMACH_HUNGRY],
+		[fed, UiTokens.STOMACH_FULL], [well, UiTokens.STOMACH_FULL],
+		[Digestion.OVERFULL_MAX, UiTokens.STOMACH_OVERFULL]]
+	return _stops_cache
+
 ## The glyph's drawn size per state (owner: "empty stomach looks shrunk, full stomach looks big"); HuntHud
 ## eases the drawn scale toward it (SCALE_SPEED per second) so a state change grows or shrinks the glyph.
 const GLYPH_SCALE := {&"empty": 0.92, &"peckish": 0.95, &"fed": 0.98, &"well_fed": 1.0, &"overfull": 1.06}
@@ -41,13 +55,14 @@ static func state_of(f: float) -> StringName:
 
 ## The colour for a stomach value in points.
 static func color_for(f: float) -> Color:
-	for i in range(1, STOPS.size()):
-		var hi: Array = STOPS[i]
+	var table := stops()
+	for i in range(1, table.size()):
+		var hi: Array = table[i]
 		if f <= float(hi[0]):
-			var lo: Array = STOPS[i - 1]
+			var lo: Array = table[i - 1]
 			var t := clampf((f - float(lo[0])) / maxf(0.0001, float(hi[0]) - float(lo[0])), 0.0, 1.0)
 			return (lo[1] as Color).lerp(hi[1] as Color, t)
-	return STOPS[STOPS.size() - 1][1]
+	return table[table.size() - 1][1]
 
 ## The arc still lit for `frac` (owner: "degrades clockwise"): it always ends at 12 o'clock, and the gap
 ## opens from 12 o'clock clockwise as it empties. Returns (start, end) angles, end - start = TAU * frac.
