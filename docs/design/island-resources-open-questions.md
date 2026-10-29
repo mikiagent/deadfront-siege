@@ -2,16 +2,16 @@
 
 **Status:** 2026-10-29, companion to [`island-resources.md`](island-resources.md). Three lists, kept apart on purpose:
 
-- **A. Decisions for Milan:** choices that change the game's goals or canon. Each has a recommendation. Nothing in
-  section A is built until Milan answers.
+- **A. Decisions for Milan:** all eight **decided 2026-10-29**: Milan chose "go with recommended", so the
+  Recommendation column is now the rule.
 - **B. Build-thread calls:** tuning and implementation choices the build thread makes with the default shown, marked
   `# ASSUMPTION` in data, per Milan's rule "no small tuning questions".
 - **C. Unverified history:** Durango facts the handoff could not establish. They stay here until footage or game files
   settle them, and none of them blocks our design.
 
-## A. Decisions for Milan
+## A. Decisions for Milan (decided 2026-10-29: the recommendation in every row)
 
-| # | Question | Options | Recommendation | Why it matters |
+| # | Question | Options | Decision | Why it matters |
 |---|---|---|---|---|
 | **A1** | When an expedition island resets, what happens to buildings and stored goods left on it? | (1) Packed kits and harbour cargo survive to a home vault; placed buildings are lost but refund a share of materials. (2) Everything left is lost. (3) Everything is salvaged in full. | **(1)**, with a 50 % material refund (*ASSUMPTION*) | Decides whether expedition camps are worth building and whether "pack it or lose it" is the closing beat of a trip. Vision §2 leaves it open. |
 | **A2** | Does an expedition island's clock run while the game is closed? | (1) Only while the game runs. (2) Real time, offline included. | **(1)** | With (2) a player can come back to a sunk camp they never saw sink. With (1) resets only happen while you could react. |

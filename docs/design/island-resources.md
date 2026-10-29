@@ -1,7 +1,8 @@
 # Island maps and resource distribution: landmarks, biomes, depletion
 
-**Status:** PROPOSAL v1, 2026-10-29. Not canon. Nothing here changes a shipped rule until Milan says so; the build
-thread may only pick up the parts marked "build-thread call" in the open-questions file.
+**Status:** v2, 2026-10-29. **Approved design.** Milan answered every decision in the open-questions file with "go
+with recommended" (2026-10-29 18:55), so decisions A1-A8 below are canon for the build. Numbers marked *ASSUMPTION*
+are still starting values for the build thread to tune (section B of the open-questions file).
 **Input:** Milan's research handoff "Durango: Wild Lands — Island Maps and Resource Distribution" (29 Oct 2026), read
 against the docs wiki and the build on `claude/mmo-overhaul` d0c649fa.
 **Companion file:** [`island-resources-open-questions.md`](island-resources-open-questions.md) (decisions for Milan,
@@ -50,8 +51,11 @@ build-thread defaults, and unverified history).
    landmark trait bonus.
 4. **Six milestones** with test gates (section 6), in roadmap order after the island-shapes and zone work already
    running.
-5. **Decisions for Milan** are in the open-questions file. The first one is what happens to buildings left on an
-   island when it resets.
+5. **Decisions** (all approved 2026-10-29, section 8): packed kits and harbour cargo survive a reset and placed
+   buildings refund 50 % (A1); island clocks run only while the game runs (A2); dormant landmarks open with Gold (A3);
+   home material levels 1-10 by zone now, growth later (A4); iron veins on tropical 40 and tundra 55 (A5); iron ore
+   added now, other new materials later (A6); rare traits and landmark bonuses from the player's hands only (A7);
+   several landmarks per island (A8).
 
 ---
 
@@ -199,7 +203,7 @@ Notes:
 
 - **Ambient / habitat** lists are CURRENT (`climates.json` materials and the islands plan's zone sets).
 - **Landmarks** are PROPOSED. Yields in *italics* are materials **we do not have yet**; each needs an item row, a node
-  family and a card, so each is a proposal for Milan to accept or cut (open Q A6), not canon.
+  family and a card. Decision A6: iron ore now; the others are later content packages, not part of M1-M5.
 - **Durango reference** is HISTORICAL and only there to show where we diverge on purpose.
 - Landmark levels are tier +5 (cap 60). Guardians are tier +3.
 
@@ -237,7 +241,8 @@ visit a level 20 island for its landmark.
 | Steel | iron + carbon | volcanic | **60** | follows iron |
 
 This is the most important content fix in the doc: without it the whole iron tier (knife, axe, pick, sword, four armour
-pieces) is out of reach until the last island. Whether iron should be that late is Milan's call (open Q A5).
+pieces) is out of reach until the last island. **Approved (A5, A6):** add an `iron_ore` item and Iron Vein landmarks on
+tropical 40 and tundra 55.
 
 ---
 
@@ -260,7 +265,7 @@ Budget per island (*ASSUMPTION*), by land area so walking time per find stays si
 
 | Island | Land | Landmarks | Contested share | Dormant |
 |---|---|---|---|---|
-| Home (any pick) | 375 x 300 m | 2-3 (low level, see A4) | 0 | 0 |
+| Home (any pick) | 375 x 300 m | 2-3 (home zone levels 1-10, A4) | 0 | 0 |
 | Tutorial | 795 x 636 m | 6-8 authored (one per teaching beat) | 1-2 | 0 |
 | Unstable 15-25 | 330 x 265 m | 4-6 | 1-2 | 0-1 |
 | Unstable 30-45 | 375 x 300 m | 6-8 | 2-3 | 1 |
@@ -281,7 +286,7 @@ landmark of the new kind.
 - **Pool:** each landmark node has a normal pool (CURRENT pools: a rock or tree gives 30 passes, a bush 12), so a
   landmark yields roughly 60-200 items before it is spent, which is several trips' worth of carrying.
 
-### 5.3 Dormant landmarks (PROPOSED, needs Milan's yes: open Q A3)
+### 5.3 Dormant landmarks (APPROVED, A3)
 
 - A dormant landmark shows on the map once found, as a sealed site (a capped vent, a sealed cave, a dead grove).
 - The player opens it at the site by paying Gold (CURRENT data: `craters.open_cost_tstones` 50, now Gold). Opening wakes
@@ -305,12 +310,12 @@ everything depletes forever, a bad first trip ruins an island. So the rule diffe
 The partial-regrowth rule is the HISTORICAL player report, adopted because it gives a real choice: strip a vein now,
 or leave a unit in each node and come back after the next sail.
 
-### 5.5 Island lifecycle and reset (PROPOSED; parts need Milan: open Q A1, A2)
+### 5.5 Island lifecycle and reset (APPROVED, A1 and A2)
 
 1. **Lifetime** per world-design §8 and `rules.json lifetime_hours`: 6 h (15-25), 12 h (30-45), 24 h (50-60). The
    CURRENT `temperate_25` override of 2 h is a test value and should go.
 2. **One clock per expedition island**, saved in its `ExpeditionInstance`, counting game time while the game runs on
-   any island (*ASSUMPTION*: not while the game is closed, so a player cannot lose a camp while away; open Q A2).
+   any island, not while the game is closed, so a player cannot lose a camp while away (A2).
    Leaving and coming back no longer restarts the clock (CURRENT behaviour restarts it on every arrival).
 3. **Shown everywhere it matters:** the map panel's "Island Life Span" row (spec 15), the Sail chart, and a HUD chip
    in the last 10 minutes.
@@ -319,9 +324,9 @@ or leave a unit in each node and come back after the next sail.
 5. **At 0:** the player (if there) is carried to the harbour and offered the sail menu; the island's generation
    increases, a new seed builds a new layout of the same climate and tier, the fog, found landmarks and harvest state
    clear, and the clock starts again.
-6. **Buildings and stored goods left there:** Milan's decision (A1). Recommended: packed prefab kits and anything in
-   a cargo box at the harbour survive into the vault at home; placed structures are lost but return a share of their
-   materials (vision §2 "salvage vault" option). This makes "pack it or lose it" the expedition's closing decision,
+6. **Buildings and stored goods left there (A1):** packed prefab kits and anything in a cargo box at the harbour
+   survive into the vault at home; placed structures are lost but return 50 % of their materials (*ASSUMPTION* on the
+   exact share) to that vault (vision §2 "salvage vault" option). This makes "pack it or lose it" the expedition's closing decision,
    which is what vision §22 "the unstable-island expedition" describes.
 
 ### 5.6 Discovery and map (PROPOSED)
@@ -338,7 +343,7 @@ or leave a unit in each node and come back after the next sail.
   range; a spyglass item can come later. This uses our hills and plateaus and rewards climbing them.
 - **Warp holes** (world-design §2) stay later; see open Q B6.
 
-### 5.7 Active beats passive (PROPOSED, closes G14)
+### 5.7 Active beats passive (APPROVED, A7; closes G14)
 
 | Source | Can harvest | Trait odds | Landmark bonus |
 |---|---|---|---|
@@ -348,7 +353,7 @@ or leave a unit in each node and come back after the next sail.
 
 So passive work keeps the base fed and recovers losses, while rare materials and high perk tiers come from the player
 being at the landmark. The tribe numbers are the build thread's call (the 2026-10-29 tribe memo leaves open questions
-to it); this table states only the principle that needs Milan's yes (open Q A7).
+to it); the principle itself is approved (A7).
 
 ---
 
@@ -375,21 +380,23 @@ save round-trip.
 - `tools/ui_screens.sh` shots of the map panel with the counter at both resolutions.
 
 **M3 Landmark yields, guardians, active rule, dormant sites.** Level +5, trait bonus, signature rares from data,
-guardian spawn on approach, tribe restrictions, dormant open with Gold (if A3 is yes).
+guardian spawn on approach, tribe restrictions (A7), dormant open with Gold (A3), home zone levels 1-10 (A4).
 - Simulated 2,000 harvests per source: landmark hand-harvest rare rate is 1.4-1.6x ambient at the same tool; tribe
   ASSIGN never yields perk tier III+; one item per harvest holds everywhere.
 - Guardians spawn once per approach, return to the landmark, respect the tutorial's no-alpha rule.
 - Opening a dormant landmark charges Gold once, grows its nodes, withers them after the window.
 
 **M4 Depletion and reset.** `ExpeditionInstance` save block; per-kind regrowth; partial regrowth on landmark nodes;
-real reset with a new seed; warnings; the buildings rule from A1.
+real reset with a new seed; warnings; the A1 buildings rule (kits and harbour cargo to the home vault, placed
+buildings refund 50 %); the A2 clock (game running only).
 - `t_island_reset.gd`: advancing the clock past 0 increments the generation, changes the seed, moves at least 70 % of
   landmark centres by over 40 m, clears found and harvest state, puts the player at the harbour; mid-life save and
   load keeps `expires_at`; leaving and returning does not restart the clock; two expedition islands keep separate
-  harvest state.
+  harvest state; a packed kit and harbour cargo arrive in the home vault, a placed building's refund equals 50 % of its
+  delivered materials; the clock does not move across a quit and relaunch.
 - Old saves load with no new block and behave as a first visit.
 
-**M5 Matrix content.** Approved new materials (A6), iron veins (A5), node families, card art through the CURRENT card
+**M5 Matrix content.** `iron_ore` and Iron Vein landmarks (A5, A6), node families, card art through the CURRENT card
 pipeline, recipes that consume the new materials.
 - A ladder audit (`tools/docs_wiki/` style script or `t_data` check) prints the earliest island level for each tool
   rung and fails if a rung has no source at or below its intended level.
@@ -404,13 +411,13 @@ pipeline, recipes that consume the new materials.
 
 ---
 
-## 7. Proposed wiki changes (not applied; need Milan's OK)
+## 7. Wiki changes to make as the milestones land
 
 | File | Change |
 |---|---|
-| `docs/design/world-design.md` §6, §8 | Point to this doc for landmarks and resets once Milan approves; mark "one crater per island" superseded. |
+| `docs/design/world-design.md` §6, §8 | Point to this doc for landmarks and resets; mark "one crater per island" superseded. |
 | `docs/design/islands-and-loop-plan.md` §1.3 "Crater, every island" | Same pointer. |
-| `docs/vision/WildLandsMMO_Open_Questions.md` | Add the open-question rows A1-A7 with links. |
+| `docs/vision/WildLandsMMO_Open_Questions.md` | Record A1-A8 as decided, with a link; vision §2's island-reset salvage question is answered by A1. |
 | `docs/current/world-biomes.md` | Generated "Landmarks per climate" section when M1 lands (from `landmarks.json` via `gen_game_data.py`; never hand-edited). |
 | `docs/current/map-format.md` | `landmark` marker gains a `type` prop when M1 lands. |
 | `tools/docs_wiki/phase-map.json` | New roadmap features: `landmarks` (phase 3, after `zone-terrain`), `landmark-discovery` (phase 3), `material-ladder-coverage` (phase 4), and fold M4 into the existing `island-rotation`. |
