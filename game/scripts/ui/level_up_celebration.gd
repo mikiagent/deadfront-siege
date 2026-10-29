@@ -254,14 +254,14 @@ func draw_bar_pulse(hud: HuntHud, bar: Rect2) -> void:
 
 ## The desktop stack's top left (owner 2026-10-28: "move this UI to the far left please"): the
 ## view's left edge inside the safe area, centred in the height between the vitals' bottom and the
-## quick slots' top (HuntHud.hands_spot), else from the vitals' bottom down. The left XP feed and
+## quick slots' top (HuntHud.quick_row_y), else from the vitals' bottom down. The left XP feed and
 ## the status chips under the vitals are drawn after it and keep off it.
 static func desktop_anchor(hud: HuntHud, h: float) -> Vector2:
 	var view := hud.get_viewport_rect().size
 	var v := HudLayout.vitals_rect(hud, view)
 	var x := v.position.x + 16.0  # the vitals' text column, inside the safe area
 	var lo := v.end.y + 10.0
-	var hi := hud.hands_spot().y - 12.0 - h
+	var hi := hud.quick_row_y() - 12.0 - h
 	return Vector2(x, roundf(clampf((view.y - h) * 0.5, lo, maxf(lo, hi))))
 
 ## The desktop stack's height for `lines` (_draw_stack's layout): LEVEL UP and the level, then a

@@ -546,7 +546,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "split",
+          "category": "thick_pillar",
           "count": 2,
           "primary": true
         }
@@ -735,6 +735,112 @@
       },
       "station": null,
       "seconds": 2.5,
+      "process_step": "bind",
+      "process_add": 1,
+      "requires_node": "taming_pen"
+    },
+    {
+      "id": "taming_pen_medium_kit",
+      "display_name": "Medium Taming Pen Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "nails",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "taming_pen_medium",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "requires_node": "taming_pen"
+    },
+    {
+      "id": "taming_pen_large_kit",
+      "display_name": "Large Taming Pen Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 12,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "stone",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "nails",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "taming_pen_large",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "requires_node": "taming_pen"
+    },
+    {
+      "id": "taming_pen_apex_kit",
+      "display_name": "Apex Taming Pen Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "log",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 8,
+          "primary": false
+        },
+        {
+          "category": "stone",
+          "count": 12,
+          "primary": false
+        },
+        {
+          "category": "nails",
+          "count": 8,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "taming_pen_apex",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
       "process_step": "bind",
       "process_add": 1,
       "requires_node": "taming_pen"
@@ -4530,6 +4636,33 @@
       "tree": "construction"
     },
     {
+      "id": "metal_nails",
+      "display_name": "Metal Nails",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "ingot",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "fuel",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "metal_nails",
+        "count": 4
+      },
+      "station": "forge",
+      "seconds": 6.0,
+      "process_step": "smelt",
+      "process_add": 1,
+      "requires_node": "nails_pillars"
+    },
+    {
       "id": "cloth_scrap",
       "display_name": "Cloth Scrap",
       "skill": "tailoring",
@@ -5618,6 +5751,75 @@
       "process_add": 1,
       "_about": "SADDLES: one saddle per tame size class; riding needs a fitting one equipped. Colour follows the primary hide's natural tint (spec 35, build_output copies its attributes). ASSUMPTION materials, counts, levels and station (the PRDs give no saddle recipe).",
       "required_ability": 65
+    },
+    {
+      "id": "metal_stick",
+      "display_name": "Metal Stick",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "chunk",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "metal_stick",
+        "count": 2
+      },
+      "station": "anvil",
+      "seconds": 600.0,
+      "process_step": "hammer",
+      "process_add": 1,
+      "_note": "# ASSUMPTION (CRAFTRADIAL, owner's Durango reference): 1 metal chunk -> 2 metal sticks in 10:00 at the anvil; the reference's Tool slot is left out (tools are not consumed)."
+    },
+    {
+      "id": "metal_nails_from_chunk",
+      "display_name": "Metal Nails (from a chunk)",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "chunk",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "metal_nails",
+        "count": 4
+      },
+      "station": "anvil",
+      "seconds": 120.0,
+      "process_step": "hammer",
+      "process_add": 1,
+      "_note": "# ASSUMPTION (CRAFTRADIAL): nails also come from the metal-chunk chain, 4 per chunk in 2:00 at the anvil; the item is STATIONSTATE's metal_nails."
+    },
+    {
+      "id": "silver_chunk",
+      "display_name": "Silver Chunk",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "ore",
+          "count": 2,
+          "primary": true,
+          "allowed_ids": [
+            "silver_ore"
+          ]
+        }
+      ],
+      "output": {
+        "id": "silver_chunk",
+        "count": 1
+      },
+      "station": "forge",
+      "seconds": 30.0,
+      "process_step": "smelt",
+      "process_add": 1,
+      "_note": "# ASSUMPTION (CRAFTRADIAL): 2 silver ore smelt into 1 silver chunk at the forge."
     }
   ]
 }

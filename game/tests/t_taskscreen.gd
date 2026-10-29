@@ -62,6 +62,7 @@ func _run() -> void:
 	_test_tabs()
 	_test_progress_and_claim()
 	_test_main()
+	_test_tutorial()
 	_test_reset()
 	await _test_screen()
 	await _test_save()
@@ -160,6 +161,37 @@ func _test_main() -> void:
 	var ids := _ids(&"main")
 	_expect(not ids.has("main." + str((steps[3] as Dictionary)["id"])) and T.claimable_count(_player, &"main") == 0, "orders skipped by a hand-over are not listed and pay nothing")
 	W.objective = was
+
+## TUTORIAL ISLAND: its 19 orders are Main Task while it runs; a finished one stays claimable after the
+## ferry (the standing orders resume part-way down their list) and the skipped standing orders never pay.
+func _test_tutorial() -> void:
+	var D: Node = W.get_node("/root/Data")
+	var tut: Array = D.world_tutorial
+	var was_obj: int = W.objective
+	var was_tut: Dictionary = W.tutorial
+	W.tutorial = {"done": false, "did": {}}
+	W.objective = 0
+	var ids := _ids(&"main")
+	_expect(tut.size() == 19 and ids.size() == 19 and ids.has("main." + str((tut[0] as Dictionary)["id"])), "while the tutorial runs Main Task lists its %d orders (%d)" % [tut.size(), ids.size()])
+	# Finish the first two tutorial orders the way Objectives.settle does, claim one.
+	var first := "main." + str((tut[0] as Dictionary)["id"])
+	var second := "main." + str((tut[1] as Dictionary)["id"])
+	T.mark_done(str((tut[0] as Dictionary)["id"]))
+	T.mark_done(str((tut[1] as Dictionary)["id"]))
+	W.objective = 2
+	var t0: int = W.t_stones
+	var paid: Dictionary = T.claim(first, _player)
+	_expect(not paid.is_empty() and W.t_stones == t0 + int((tut[0] as Dictionary).get("t_stones", 0)), "a finished tutorial order pays its own reward on Receive")
+	# The ferry: the tutorial ends and the standing orders resume at tutorial_resume_at.
+	W.tutorial = {"done": true, "did": {}}
+	W.objective = load("res://scripts/core/tutorial.gd").resume_index()
+	ids = _ids(&"main")
+	_expect(ids.has(second) and _row(second)["claimable"] and not ids.has(first), "after the ferry the unreceived tutorial order is still claimable, the received one is gone")
+	_expect(T.claimable_count(_player, &"main") == 1, "the standing orders the tutorial skipped (before index %d) pay nothing" % W.objective)
+	T.claim(second, _player)
+	_expect(not _ids(&"main").has(second), "once received it leaves the list")
+	W.tutorial = was_tut
+	W.objective = was_obj
 
 func _test_reset() -> void:
 	T.note(&"build", 1)

@@ -62,6 +62,19 @@
    "seat_half_len_m": 0.28,
    "cushion_m": 0.06,
    "skirt_m": 0.16
+  },
+  "styracosaurus": {
+   "seat_half_w_m": 0.3,
+   "seat_half_len_m": 0.32,
+   "cushion_m": 0.07,
+   "skirt_m": 0.18
+  },
+  "pachycephalosaurus": {
+   "seat_half_w_m": 0.21,
+   "seat_half_len_m": 0.24,
+   "cushion_m": 0.05,
+   "skirt_m": 0.11,
+   "seat_frac": -0.6
   }
  }
 }

@@ -280,7 +280,7 @@ static func _buildings(rows: Array) -> Array:
 			b.erase("cell")
 		if b.has("contents"):
 			b["contents"] = stacks(b["contents"]) if b["contents"] is Array else []
-		if b.has("occupant") or str(b["kind"]) == "makeshift_taming_pen":
+		if b.has("occupant") or TamingPen.is_pen_kind(StringName(str(b["kind"]))):
 			b["occupant"] = _stack(b.get("occupant")) # null when it is not a known, well-formed stack
 			if b["occupant"] == null:
 				b["running"] = false # a running pen reads its occupant when the timer ends

@@ -39,7 +39,7 @@ func _px(v: float) -> int:
 
 func _ready() -> void:
 	layer = 60
-	add_to_group(&"character_creation")  # HANDS (layer 64) hides while this is up
+	add_to_group(&"character_creation")
 	_rng.randomize()
 	_root = Control.new()
 	_root.name = "CharacterCreationRoot"

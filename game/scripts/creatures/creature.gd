@@ -774,7 +774,8 @@ func _blood_trail() -> void:
 ## Step outside it and the chase ends (BrainFlight.track). Vertices follow the
 ## terrain so the ring reads on slopes; rebuilt at 10 Hz while the creature moves.
 func _update_aggro_ring(delta: float) -> void:
-	var show := not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()
+	# Debug only (owner 2026-10-28: the ring looks unpolished in normal play).
+	var show := Game.debug_overlay and not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()
 	if not show:
 		if _aggro_ring and _aggro_ring.visible:
 			_aggro_ring.visible = false
@@ -848,6 +849,8 @@ func _on_hit(clip: StringName) -> void:
 		# A contact attack lands at impact, not anywhere the target ran during windup.
 		var offset := global_position - target.global_position
 		if brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3:
+			if target is Player or target is Creature:
+				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
 		if not CreatureAttack.apply_for(self, clip, target, brain.hit_damage_mult(clip, anim.hit_index) if brain else 1.0):
 			return

@@ -35,7 +35,8 @@
         0.2,
         0.65
       ],
-      "note": "0.46 s: crouch, backward leap, landing squash; in place, the game moves the creature back during it. tools/jaw/make_hop_back.py (deinonychus first)."
+      "note": "0.46 s: crouch, backward leap, landing squash; in place, the game moves the creature back during it. tools/jaw/make_hop_back.py (deinonychus first).",
+      "note_compsognathus": "compsognathus: tools/gait/make_leap.py hop_back, 0.458 s, IK-planted toes on the ground frames, jaw hisses open 10 deg"
     },
     "strafe_left": {
       "note": "sidestep loop for every species, body keeps facing; tools/gait/make_gait.py <species>.json walk --as strafe_left --travel 1,0,0"
@@ -48,7 +49,8 @@
         0.2,
         0.65
       ],
-      "note": "long backward leap, 0.79 s, wings fully flared; the game sets the distance (~5 m)"
+      "note": "long backward leap, 0.79 s, wings fully flared; the game sets the distance (~5 m)",
+      "note_compsognathus": "compsognathus: tools/gait/make_leap.py leap_back, 0.667 s, deeper crouch, high tuck, nose-up landing"
     },
     "pounce": {
       "airborne": [
@@ -56,24 +58,28 @@
         0.65
       ],
       "hit_frac": 0.7,
-      "note": "ambush pounce, 0.96 s: crouch, long high forward leap nose-down, wings fully flared; the game sets the distance (owner: larger leaps, ~8-10 m from cover)"
+      "note": "ambush pounce, 0.96 s: crouch, long high forward leap nose-down, wings fully flared; the game sets the distance (owner: larger leaps, ~8-10 m from cover)",
+      "note_compsognathus": "compsognathus: tools/gait/make_leap.py pounce, 0.75 s, jaws wide (28 deg) in the air, snapping shut on hit_frac 0.7, arms thrown forward"
     },
     "walk_back": {
-      "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing"
+      "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing",
+      "note_compsognathus": "compsognathus: its own backpedal loop (make_gait.py compsognathus.json strafe --as walk_back --travel 0,1,0), 0.625 s, natural_speeds.compsognathus.walk_back"
     },
     "dodge_left": {
       "airborne": [
         0.2,
         0.65
       ],
-      "note": "explosive sideways dodge to the left, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side left)"
+      "note": "explosive sideways dodge to the left, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side left)",
+      "note_compsognathus": "compsognathus: tools/gait/make_leap.py dodge_left, 0.417 s, banks into the jump"
     },
     "dodge_right": {
       "airborne": [
         0.2,
         0.65
       ],
-      "note": "explosive sideways dodge to the right, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side right)"
+      "note": "explosive sideways dodge to the right, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side right)",
+      "note_compsognathus": "compsognathus: tools/gait/make_leap.py dodge_right, 0.417 s, banks into the jump"
     },
     "kick": {
       "hit_frac": 0.45,
@@ -121,7 +127,9 @@
       "strafe_left": 0.574,
       "strafe_left_len": 0.625,
       "strafe_right": 0.574,
-      "strafe_right_len": 0.625
+      "strafe_right_len": 0.625,
+      "walk_back": 0.576,
+      "walk_back_len": 0.625
     },
     "deinonychus": {
       "height_m": 2.0,
@@ -157,6 +165,21 @@
       "walk": 1.292,
       "run": 5.954
     },
+    "pachycephalosaurus": {
+      "height_m": 1.8,
+      "run_l": 3.595,
+      "run_len": 0.542,
+      "run_r": 3.595,
+      "walk_l": 0.952,
+      "walk_len": 1.0,
+      "walk_r": 0.952,
+      "walk": 0.952,
+      "run": 3.595,
+      "strafe_left": 0.952,
+      "strafe_left_len": 1.0,
+      "strafe_right": 0.952,
+      "strafe_right_len": 1.0
+    },
     "protoceratops": {
       "height_m": 1.6,
       "run_l": 0.63,
@@ -167,6 +190,21 @@
       "walk_r": 0.174,
       "walk": 0.174,
       "run": 0.63
+    },
+    "styracosaurus": {
+      "height_m": 2.25,
+      "run_l": 3.35,
+      "run_len": 0.667,
+      "run_r": 3.35,
+      "walk_l": 1.329,
+      "walk_len": 0.917,
+      "walk_r": 1.329,
+      "walk": 1.329,
+      "run": 3.35,
+      "strafe_left": 1.329,
+      "strafe_left_len": 0.917,
+      "strafe_right": 1.329,
+      "strafe_right_len": 0.917
     },
     "tyrannosaurus": {
       "height_m": 8.0,
@@ -203,14 +241,14 @@
     },
     "zebraceratops": {
       "height_m": 1.8,
-      "run_l": 4.02,
-      "run_len": 0.542,
-      "run_r": 3.974,
+      "run_l": 4.102,
+      "run_len": 0.625,
+      "run_r": 4.109,
       "walk_l": 1.541,
-      "walk_len": 0.708,
-      "walk_r": 1.542,
-      "walk": 1.542,
-      "run": 3.997
+      "walk_len": 0.833,
+      "walk_r": 1.541,
+      "walk": 1.541,
+      "run": 4.106
     }
   }
 }

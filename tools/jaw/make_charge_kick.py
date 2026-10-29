@@ -104,6 +104,7 @@ bpy.context.scene.frame_set(int(src.frame_range[0]))
 start = {pb.name: pb.matrix_basis.copy() for pb in arm.pose.bones}
 arm.animation_data.action = None; bpy.data.actions.remove(src)
 side = side_axis(arm)
+body = find(arm, "Body", "hips")  # the charge's pose bones died with its scene (stale pointer -> SIGBUS)
 act = bpy.data.actions.new("kick"); arm.animation_data.action = act
 thighs = [b for b in (find(arm, "BackUpLeg.L", "hind_thigh_L"), find(arm, "BackUpLeg.R", "hind_thigh_R")) if b]
 shins = [b for b in (find(arm, "BackLowLeg.L", "hind_shin_L"), find(arm, "BackLowLeg.R", "hind_shin_R")) if b]

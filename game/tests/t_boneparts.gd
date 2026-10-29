@@ -115,7 +115,8 @@ func _test_recipes(data: Node) -> void:
 			["dorsal_plate", "armor_scute"], ["frill_plate", "armor_scute"], ["skull_plate", "armor_scute"]]:
 		var a: ItemDef = data.item(StringName(pair[0]))
 		var b: ItemDef = data.item(StringName(pair[1]))
-		_check(a != null and b != null and a.categories == b.categories, "%s keeps %s categories" % pair)
+		# Keeps every one; a part may add its own shape tags (CRAFTRADIAL: leg bones are thick_pillar).
+		_check(a != null and b != null and b.categories.all(func (c: StringName) -> bool: return c in a.categories), "%s keeps %s categories" % pair)
 		_check(_gate(pair[0]) == _gate(pair[1]), "%s has the same Butchering gate as %s" % pair)
 
 ## The trees.json node whose butcher effect lists `id` ("" = ungated).

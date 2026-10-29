@@ -167,15 +167,34 @@ func _model_leaf(leaf_name: String) -> Node3D:
 
 ## Where the survivor lies down: the middle of the bedding, not wherever they happened to stand.
 ## PlacedBuilding's origin is the ground centre of the footprint (props_manifest), so for a tent this
-## is inside it - the survivor sleeps within the shelter rather than beside it.
+## is inside it - the survivor sleeps within the shelter rather than beside it. PlayerSim switches her
+## collision with this body off while she lies here, so the tent's box collider does not push her out.
 func sleep_anchor() -> Vector3:
 	return global_position
 
-## Where the survivor stands up: one step outside the footprint on the door side (+Z; the Blender
-## models face -Y, which Godot sees as +Z). Standing up inside a tent is not possible - it is 1.6 m
-## tall - so waking moves them out first.
+## The bedding's long axis in its own frame. tent.glb (tent and canvas_tent) runs its ridge along
+## Godot X with the doorway at +X (tools/blender/structures/structures.py tent() turns the Blender
+## A-frame +90 deg about Z); the straw roll is long along Z.
+# ASSUMPTION: no data field names a sleep axis; this is read off the models.
+func _sleep_axis() -> Vector3:
+	return Vector3.FORWARD if kind == &"straw_roll" else Vector3.RIGHT
+
+## Her yaw lying down (RiggedModel faces -Z): along the long axis, so she lies under the ridge.
+func sleep_yaw() -> float:
+	var d := global_basis * _sleep_axis()
+	return atan2(-d.x, -d.z)
+
+## Where the survivor stands up: one step out of the doorway (a tent) or off the side (a straw roll),
+## clear of the collider. Standing up inside a tent is not possible, so waking moves them out first.
 func wake_anchor() -> Vector3:
-	return global_transform * Vector3(0.0, 0.0, 1.6)
+	var cs := get_node_or_null("Shape") as CollisionShape3D
+	var half := 0.5 * ((cs.shape as BoxShape3D).size if cs and cs.shape is BoxShape3D else _fallback_size())
+	return global_transform * Vector3(half.x + 0.6, 0.0, 0.0)  # +X: the tent's door, the roll's side
+
+## A tent keeps her asleep inside after the sleep is paid, until she gets up (PlayerSim._tick_sleep).
+# ASSUMPTION: the owner asked it of tents; a straw roll still ends on its own.
+func keeps_sleeper() -> bool:
+	return kind == &"tent" or kind == &"canvas_tent"
 
 func sleep_duration() -> float:
 	return 12.0 if kind == &"straw_roll" else (8.0 if kind == &"canvas_tent" else (7.0 if kind == &"log_shelter" else (5.0 if kind == &"cabin_bed" else 10.0)))

@@ -45,7 +45,7 @@ func _run() -> void:
 	var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(_host, 4.0)
 	_player = kit["player"]
 	for c in (kit["ui"] as CanvasLayer).get_children():
-		if c.has_method("hands_spot"):
+		if c.has_method("quick_row_y"):
 			_hud = c
 	_world.load_island(_host, &"home_grassland", Vector3(0, 1, 18), false)
 	(kit["nav"] as Node).queue_free()
@@ -84,7 +84,7 @@ func _test_entries() -> void:
 	for id in nav.entries:
 		var b: Button = nav.entries[id]
 		_expect(b.disabled == false, "%s is %s" % [id, "disabled" if b.disabled else "enabled"])
-	_expect(_hud.sheet_open(), "the nav menu counts as an open sheet (HANDS and plates hide)")
+	_expect(_hud.sheet_open(), "the nav menu counts as an open sheet (creature plates hide)")
 
 func _test_layout() -> void:
 	var was_size: Vector2i = root.size

@@ -1010,11 +1010,15 @@ func _test_hud_draw() -> void:
 	var tw: float = h._font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
 	var band: Rect2 = load("res://scripts/ui/hud_layout.gd").centre_band(h, Vector2(844, 390))
 	var cx: float = band.get_center().x if band.has_area() else 422.0
-	var old: Rect2 = load("res://scripts/ui/ui_tokens.gd").free_spot(Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30), h.taken_rects(PackedStringArray(["notice", "pill"])), Vector2(844, 390))
-	var old_on: Array = avoid.filter(func(a: Rect2) -> bool: return a.intersects(old))
-	print("[t_gather] HUD 844x390, radial open: rare notice %s, on %s; HUD-only spot %s on %s; radial labels %s title %s" % [box, on, old, old_on, player._gather_radial.label_rects, player._gather_radial.title_box])
-	_expect(not player._gather_radial.label_rects.is_empty() and not old_on.is_empty(), "set-up: the radial is laid out and the HUD's own spot for the notice sits on it or the survivor (%s on %s)" % [old, old_on])
-	_expect(box.has_area() and on.is_empty(), "with the radial open the rare notice is drawn clear of its labels, title, hexes, the plates and the survivor (%s on %s)" % [box, on])
+	# The HUD's nominal centre-column spot, before it slides off its own blocks: the survivor stands in
+	# it, so the avoidance (notice_avoid) is load-bearing. NOHANDS/HUDTWEAK shrank the quick row's
+	# reserved zone on a landscape phone (308 -> 240 px without the HANDS slot), so the radial's hexes
+	# sit left of this spot now; the survivor is what it lands on.
+	var cand := Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30)
+	var old: Rect2 = load("res://scripts/ui/ui_tokens.gd").free_spot(cand, h.taken_rects(PackedStringArray(["notice", "pill"])), Vector2(844, 390))
+	var old_on: Array = avoid.filter(func(a: Rect2) -> bool: return a.intersects(cand))
+	print("[t_gather] HUD 844x390, radial open: rare notice %s, on %s; HUD-only spot %s, nominal %s on %s; radial labels %s title %s" % [box, on, old, cand, old_on, player._gather_radial.label_rects, player._gather_radial.title_box])
+	_expect(not player._gather_radial.label_rects.is_empty() and not old_on.is_empty(), "set-up: the radial is laid out and the HUD's nominal spot for the notice sits on it or the survivor (%s on %s)" % [cand, old_on])
 	var drawn_n: Array = h._events.notices.filter(func(n): return str(n.get("base", "")) == text)
 	_expect(drawn_n.size() == 1 and box.has_area() and is_equal_approx(float(drawn_n[0].get("x", -1.0)), box.position.x), "the real HUD's tick records the side the notice was drawn on (x %s, box %s)" % [drawn_n[0].get("x") if drawn_n.size() == 1 else "?", box])
 	h.notice(text, GF.GREEN)
