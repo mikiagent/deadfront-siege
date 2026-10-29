@@ -58,10 +58,7 @@ func _shot_setup() -> void:
 	if _player.station_craft:
 		_player.station_craft._sync_hand_tool()
 	if Game.shot_path.contains("held"):
-		if _player.station_craft and _player.station_craft.held_slot:
-			_player.station_craft.held_slot.refresh()
-			_player.station_craft.held_slot.open_swap_for_shot()
-			print("[ui] held-slot shot ready tools=%d" % _player.inventory.gather_tools_in_bag().size())
+		print("[ui] held-slot shot ready tools=%d" % _player.inventory.gather_tools_in_bag().size())
 		return
 	if Game.shot_path.contains("stmenu_bonfire"):
 		_player.global_position = _bonfire.global_position + Vector3(1.6, 0, 0.6)
