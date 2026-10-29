@@ -183,3 +183,19 @@ three times the research total.
 - `tools/smoke.sh --no-import`: SMOKE PASS.
 - `skillfeel_lab` (windowed, `--position 6000,3000`): batch, sweep and research shots taken. It exits 1
   on "no skillpulse block" (the MENU hex halo; not touched here).
+
+## Landing merge (2026-10-29)
+- Merged origin/claude/mmo-overhaul through BAGUI (02362ad2) and the roadmap refresh (d0c649fa).
+  Conflicts resolved:
+  - `items.json` / `recipes.json`: kept both sides' new rows.
+  - `market_harness.gd`: took canon's earn(40).
+  - `combat_avoid.gd`: canon's &"miss" plus this branch's `earned`. Defense XP is paid only for
+    &"dodge" or &"block", and only when earned.
+  - `creature_attack.gd`: canon's hit/miss split. A telegraph sidestep passes `lands`; a miss or
+    passive dodge passes `earned = false`.
+  - Open Questions: kept both.
+- Tests after the BAGUI merge: `tools/all_tests.sh` 141 tests, 140 pass. t_tutorial failed once under
+  load (bot's carcass despawned) and passes alone (355 s). The pre-BAGUI run had only t_buildspeed /
+  t_perfgates over the island build budget on a loaded box. Targeted runs pass: t_skilltrees,
+  t_levelbar, t_dodgetext, t_uimarket, t_research, t_skillgear, t_skillfeel, t_roll, t_w2_skills,
+  t_levelfx, t_xpecon, t_data, t_iconart. t_save passes with its own HOME. SMOKE PASS.
