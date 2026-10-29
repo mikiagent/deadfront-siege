@@ -121,8 +121,8 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   healing, like the stomach's full band). A 2 px gap after every segment of `segment_xp` (100) XP of
   the level's cost, grouped into a multiple of 100 past `max_segments` (40) (`LevelDisplay.xp_segments`),
   so a dearer level draws more, thinner segments; the last is the leftover. The label over it reads
-  "Lv. 10  137 / 305 XP  · 100 XP each" (desktop centred, phone right above the rail). The cost is
-  exponential: `World.xp_for_level` = round(110 x 1.12^n) (`pioneer_levels.json xp_curve`). Test
+  "Lv. 10  137 / 763 XP  · 100 XP each" (desktop centred, phone right above the rail). The cost is
+  exponential: `World.xp_for_level` = round(110 x 1.12^n x 2.5) (`pioneer_levels.json xp_curve`, `progression.json player_xp_cost_mult`). Test
   `t_levelbar.gd`. the survivor's name draws
   under her feet (15 px, projected from the camera).
 - Quest card (HUDRULES, owner 2026-10-28):
@@ -263,7 +263,11 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 ## Notices, toasts, hits, level-up
 - Skill XP lines (left feed, owner §1.6, UIGATHER): under the vitals, one 44 px row per tree gain (34 on
   a phone) — a small hex with the skill's initial, "Gathering +6 XP Lv. 1" and a thin XP bar of that
-  tree's progress; a tree level-up is the same row in GOLD with ▲. Each row takes a free spot off
+  tree's progress; a tree level-up is the same row in GOLD with ▲. Batched (SLOWLEVELS, owner
+  2026-10-28): one bar per tree takes every gain while it shows ("+60 Gathering XP"); each gain moves a
+  light-green ghost at once, the real fill waits `SKILL_CATCHUP_DELAY` 0.6 s after the last gain and
+  eases up to it, flashing white when it rolls over a level, then the bar lingers `SKILL_LIFE` 2.5 s and
+  fades (`HudEventState.skill_bar`, test `t_skillfeel._test_batch`). Each row takes a free spot off
   `taken_rects`. Item gains are TopFeed rows (below); notices
   (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
   confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders

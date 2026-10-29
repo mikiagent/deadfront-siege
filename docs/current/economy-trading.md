@@ -75,7 +75,7 @@ the loader loads neither file.
 The first-of-kind memory is `World.pioneer_buildings` (kind -> placements, saved under
 `pioneer_buildings`; a save without the field loads with none). Both bars follow: the Construction
 tree grant is mirrored into `World.add_xp` by `SkillState.add_xp`. The level curve is LEVELBAR's
-(owner 2026-10-28, exponential: `World.xp_for_level` = round(110 x 1.12^level), `pioneer_levels.json xp_curve`). A repacked kit (pack up, place again) pays nothing.
+(owner 2026-10-28, exponential: `World.xp_for_level` = round(110 x 1.12^level x `player_xp_cost_mult`), `pioneer_levels.json xp_curve`; the multiplier is 2.5 in `game/data/progression.json`, owner 2026-10-28 "levels up slower"). A repacked kit (pack up, place again) pays nothing.
 Test: `game/tests/t_xpecon.gd`.
 
 ## What does exist that moves value

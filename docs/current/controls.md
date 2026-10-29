@@ -117,7 +117,7 @@ back-roll clip. The numbers live in `game/data/combat_tuning.json` `roll` and ar
 | | today |
 |---|---|
 | dash | 0.56 s, 39 m/s at the press decaying to 0.2 of it, ~10.9 m on open ground |
-| invulnerable | the first 0.32 s: a creature hit that would land then is dodged — no damage, no stagger, a "Dodged" line, Defense XP once |
+| invulnerable | the first 0.32 s: a creature hit that would land then is dodged — no damage, no stagger, a "Dodged" line, Defense XP once. Defense trains only here: a hit taken pays none, nor does a roll with nothing to avoid (owner 2026-10-28) |
 | cost | 12 stamina |
 | cooldown | 0.9 s from the press; a press inside it is refused ("Roll on cooldown") |
 

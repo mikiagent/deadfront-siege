@@ -6508,6 +6508,31 @@
           "impl": "defined"
         },
         {
+          "id": "spiky_armor",
+          "level": 30,
+          "sp": 4,
+          "type": "unlock",
+          "unlocks": "spiky armour and helmet",
+          "description": "Make spiky armor and a spiky armor helmet. Wear them to increase Butchering (+5 per piece) and grind for better gear.",
+          "requires": null,
+          "name": "Spiky Armor",
+          "auto": false,
+          "source": "owner_2026_10_28",
+          "effects": [
+            {
+              "type": "recipe",
+              "recipes": [
+                "spiky_armor",
+                "spiky_armor_helmet"
+              ]
+            }
+          ],
+          "sp_assumed": true,
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
+        },
+        {
           "id": "scute_armor",
           "level": 45,
           "sp": 30,

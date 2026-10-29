@@ -31,7 +31,7 @@ T1-T15 in `docs/vision/WildLandsMMO_Open_Questions.md`.
 
 - Seven gear slots, the survivor's (`EntityEquipment.HUMAN_SLOTS`: weapon, head, body, arms, legs, accessory1, accessory2). A work tool (pick, axe, knife, hoe) goes in the weapon hand. Equip moves the exact item out of the survivor's bag; unequip puts it back (refused when the bag is full).
 - Needs: health (80 + 4 per level), energy 0-100, fatigue 0-100, fullness 0-100.
-- Skills Gathering and Melee level at 40 × level XP; 2 XP per harvest or landed hit, times potential. Level = average of the two.
+- Skills Gathering and Melee level at 40 × level × `tribe_xp_cost_mult` (2.5, `game/data/progression.json`) XP; 2 XP per harvest or landed hit, times potential. Level = average of the two.
 - At 0 HP a member is knocked out: it lies down, recovers HP ×3 faster, and stands at half HP. Nobody dies in M1.
 - At home every member and waiting recruit has a body. Away, only members on a follow order come along.
 

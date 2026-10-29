@@ -254,6 +254,8 @@ func _test_iframes() -> void:
 	var dmg_out: float = 1000.0 - player.vitals.health
 	print("[t_roll] measure bite at %.2fs: landed=%s dmg=%.2f" % [t_out, landed_out, dmg_out])
 	_expect(t_out >= RR.iframes_s() and landed_out and dmg_out > 0.0, "a bite %.2f s in (after the %.2f s window) deals %.1f damage" % [t_out, RR.iframes_s(), dmg_out])
+	# Owner 2026-10-28: getting hit never trains Defense; only a defensive action that avoids the attack does.
+	_expect(is_equal_approx(_defense_total(), xp0), "a bite that lands pays no Defense XP (%.1f)" % (_defense_total() - xp0))
 	while player.rolling:
 		await physics_frame
 	CT.reset_overrides()

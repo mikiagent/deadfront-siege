@@ -1,0 +1,17 @@
+{
+  "_about": "Owner 2026-10-28: 'make it so everything levels up slower (skills, player level, etc)'. One knob per progression track: the XP each level costs is multiplied by it (curve shapes, XP grants and the 100-XP bar segment stay). 1.0 = the pre-2026-10-28 pace. ASSUMPTION: 2.5x slower everywhere (docs pin no slower pace; islands-and-loop-plan 3.2's hour-one Lv 11-13 is superseded). Open Questions: progression pace.",
+  "player_xp_cost_mult": 2.5,
+  "skill_xp_cost_mult": 2.5,
+  "pet_xp_cost_mult": 2.5,
+  "tribe_xp_cost_mult": 2.5,
+  "skill_research": {
+    "_about": "Owner 2026-10-28: 'for skills, you have to research the skill when the progress fills up ... Tailoring 49->50 takes 2 days (48hours), it shows the countdown' and 'you have to manually start the skill research'. A full XP bar marks the tree Research ready; the player starts the research on the Skills sheet; the level arrives when the real-time countdown ends (absolute unix end time in the save, so it runs offline). Level n -> n+1 takes min(max_s, first_s x g^(n-1)) seconds, g set so anchor_level -> +1 takes anchor_s. ASSUMPTION: every level is researched (owner, superseding spec 03's every-fifth-level gates), 1 min at 1->2, 48 h at 49->50 (owner anchor), capped at spec 03's 72 h; Survival exempt (spec 03: 'Survival exempt from normal research'); one research at a time; XP past a full bar keeps banking toward later levels.",
+    "first_s": 60,
+    "anchor_level": 49,
+    "anchor_s": 172800,
+    "max_s": 259200,
+    "exempt": [
+      "survival"
+    ]
+  }
+}

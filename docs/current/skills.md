@@ -3,6 +3,12 @@
 Updated 2026-10-28 by the skilltrees job (dsc). See `game/data/skills/trees.json` for the data and
 `game/tests/t_skilltrees.gd` for the checks.
 
+## Tree levels
+
+A tree goes from level n to n+1 at `SkillState.xp_to_next(n)` = (20 + 8 n) x `skill_xp_cost_mult` XP
+(2.5 in `game/data/progression.json`, owner 2026-10-28 "levels up slower"): Lv 1->2 costs 70. A tree
+never passes the character level (`SkillState.level_cap`); XP past it is banked.
+
 ## What a node's marks mean
 
 Every node in the twelve playable trees carries two fields alongside its `status`:

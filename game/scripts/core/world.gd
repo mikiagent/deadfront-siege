@@ -688,7 +688,8 @@ func domain_for_current() -> Dictionary:
 ## One player level. Every skill-tree XP grant (gathering, fighting, crafting, cooking, building,
 ## farming...) also lands here (SkillState.add_xp), so the bottom bar moves with everything.
 ## Owner 2026-10-28: each level costs exponentially more. Stored level n needs
-## round(base x growth^n) XP (pioneer_levels.json xp_curve; ASSUMPTION base 110, growth 1.12).
+## round(base x growth^n x player_xp_cost_mult) XP (pioneer_levels.json xp_curve; ASSUMPTION base 110,
+## growth 1.12; progression.json knob, owner 2026-10-28 "levels up slower").
 static var _xp_curve: Dictionary = {}
 
 static func xp_curve() -> Dictionary:
@@ -700,7 +701,7 @@ static func xp_curve() -> Dictionary:
 
 static func xp_for_level(level: int) -> int:
 	var c := xp_curve()
-	return maxi(1, roundi(float(c["base"]) * pow(float(c["growth"]), maxi(0, level))))
+	return maxi(1, roundi(float(c["base"]) * pow(float(c["growth"]), maxi(0, level)) * Progression.mult("player_xp_cost_mult")))
 
 ## The pre-2026-10-28 linear curve, only to read an old save's total XP.
 static func old_xp_for_level(level: int) -> int:

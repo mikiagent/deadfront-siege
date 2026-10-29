@@ -100,12 +100,12 @@ func start_respawn() -> void:
 	summoned = false
 ## Pet level: kills by the pet pay most, kills by the survivor with the pet fighting nearby pay
 ## less. Each level adds three random growth points; PetStats turns level and points into stats.
-## ASSUMPTION: level n needs 30 + 15 n XP.
+## ASSUMPTION: level n needs (30 + 15 n) x pet_xp_cost_mult XP (progression.json).
 var level: int = 1
 var xp: float = 0.0
 
 static func xp_to_next(lv: int) -> float:
-	return 30.0 + 15.0 * float(lv)
+	return (30.0 + 15.0 * float(lv)) * Progression.mult("pet_xp_cost_mult")
 
 ## Returns the number of levels gained.
 func add_xp(amount: float) -> int:

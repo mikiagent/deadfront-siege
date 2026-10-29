@@ -168,17 +168,17 @@ func _test_new_survivor() -> void:
 
 func _test_level_cap() -> void:
 	var sk := _fresh()
-	sk.add_xp("melee", 200.0, true) # mirrored: no World XP, so the character stays Lv. 1
+	sk.add_xp("melee", 500.0, true) # mirrored: no World XP, so the character stays Lv. 1
 	_expect(sk.level_of("melee") == 1, "melee cannot pass character Lv. 1 (got %d)" % sk.level_of("melee"))
 	# Spec 03:7 "even when the player has lots of category XP": XP at the cap is kept, not dropped
 	# (W2-DATA's t_build checks that a build still pays construction XP after earlier builds filled the bar).
-	_expect(is_equal_approx(sk.xp_of("melee"), 200.0), "XP at the cap is banked, not dropped (xp %.0f of 200)" % sk.xp_of("melee"))
+	_expect(is_equal_approx(sk.xp_of("melee"), 500.0), "XP at the cap is banked, not dropped (xp %.0f of 500)" % sk.xp_of("melee"))
 	_expect(sk.sp_earned == 0, "no SP while the character is Lv. 1")
 	_world().pioneer_level = 4 # character Lv. 5
 	_world().pioneer_changed.emit(4)
-	# Survival trained alongside (every gain also trains Survival), so it banked too. 200 XP pays
-	# levels 2-5 (28 + 36 + 44 + 52 = 160) and 40 stay banked at the new cap.
-	_expect(sk.level_of("melee") == 5 and sk.level_of("survival") == 5 and is_equal_approx(sk.xp_of("melee"), 40.0), "a character level-up spends the banked XP (melee %d, survival %d, %.0f XP left)" % [sk.level_of("melee"), sk.level_of("survival"), sk.xp_of("melee")])
+	# Survival trained alongside (every gain also trains Survival), so it banked too. 500 XP pays
+	# levels 2-5 ((28 + 36 + 44 + 52) x 2.5 skill_xp_cost_mult = 400) and 100 stay banked at the new cap.
+	_expect(sk.level_of("melee") == 5 and sk.level_of("survival") == 5 and is_equal_approx(sk.xp_of("melee"), 100.0), "a character level-up spends the banked XP (melee %d, survival %d, %.0f XP left)" % [sk.level_of("melee"), sk.level_of("survival"), sk.xp_of("melee")])
 	_expect(sk.sp_earned == Rules.paid_for_level(sk, 5) and sk.sp_available == sk.sp_earned, "character Lv. 5 pays levels 2-5 (%d SP), the released tree levels pay nothing" % sk.sp_earned)
 	sk.add_xp("melee", 99999.0, true)
 	_expect(sk.level_of("melee") == 5, "melee stays at the character level 5 (got %d)" % sk.level_of("melee"))
@@ -565,7 +565,8 @@ func _test_sheet_rows() -> void:
 	sheet.open(sk, "melee")
 	var xp_label: Label = sheet.find_child("SkillXp", true, false)
 	var xp_text := xp_label.text if xp_label else ""
-	_expect(xp_text == "28 / 28", "melee at the cap with 200 XP banked reads a full bar ('%s')" % xp_text)
+	var rung := int(SkillStateS.xp_to_next(1))
+	_expect(xp_text == "%d / %d" % [rung, rung], "melee at the cap with 200 XP banked reads a full bar ('%s')" % xp_text)
 	_done_with(sk)
 	sk = _fresh(59)
 	_grant(sk, "processing", 25)
@@ -578,9 +579,9 @@ func _test_sheet_rows() -> void:
 		var btn: Button = row.find_children("*", "Button", true, false)[0] if row else null
 		var why: Label = row.find_child("RefundBlock", true, false) if row else null
 		if used == 0:
-			_expect(btn != null and btn.text == "Refund" and not btn.disabled and why == null, "a free refund leaves Charcoal's Refund active (button %s)" % [btn])
+			_expect(btn != null and btn.text == "Unlearn" and not btn.disabled and why == null, "a free refund leaves Charcoal's Unlearn active (button %s)" % [btn])
 		else:
-			_expect(btn != null and btn.text == "Refund" and btn.disabled and why != null and why.text.contains("free refunds"), "the day's %d refunds used: Charcoal's Refund is greyed and says why before the tap (disabled %s, reason '%s')" % [used, btn.disabled if btn else null, why.text if why else ""])
+			_expect(btn != null and btn.text == "Unlearn" and btn.disabled and why != null and why.text.contains("free refunds"), "the day's %d refunds used: Charcoal's Unlearn is greyed and says why before the tap (disabled %s, reason '%s')" % [used, btn.disabled if btn else null, why.text if why else ""])
 	get_root().remove_child(sheet)
 	sheet.free()
 	_done_with(sk)

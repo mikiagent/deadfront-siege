@@ -43,10 +43,12 @@ func _run() -> void:
 	# A character level that pays SP (Lv. 2 = 10 SP) and a tree with room to gain.
 	World.pioneer_level = 1
 	_player.skills._recount_sp()
+	await _shot_batch()
 	await _shot_xp()
 	await _shot_full()
 	await _shot_pulse()
 	await _shot_spent()
+	await _shot_sweep()
 	_first_hour()
 	_r["ui_min_px"] = _min_tap_px()
 	# The halo must be around the SKILLS hex itself, inside the view, and the toasts off every block.
@@ -64,6 +66,20 @@ func _run() -> void:
 		get_tree().quit(1)
 
 # ---------------------------------------------------------------- the shots
+
+## SLOWLEVELS (owner 2026-10-28 "batched"): three quick Gathering gains are one bar; mid-batch the
+## light-green ghost leads and the real fill has not moved yet.
+func _shot_batch() -> void:
+	for i in 3:
+		_player.skills.add_xp("gathering", 20.0)
+		await _wait(0.15)
+	var ev := _hud.get("_events") as HudEventState
+	var rows := ev.skill_toasts.filter(func (e: Dictionary) -> bool: return str(e["tree"]) == "gathering")
+	var bar: Array = HudEventState.skill_bar(rows[0]) if rows.size() == 1 else [-1.0, -1.0, 0, 0.0]
+	print("[skillfeel] batch: rows %d, bar %s" % [rows.size(), bar])
+	_r["batch_one_bar"] = 1 if rows.size() == 1 and float(bar[1]) > float(bar[0]) else 0
+	await _shot("skillbatch")
+	await _wait(HudEventState.SKILL_LIFE + 3.0)
 
 ## A gain of Gathering XP shows "+4 Gathering XP", then two more merge into it, and a tree level-up
 ## shows the bigger line above it.
@@ -164,6 +180,24 @@ func _shot_spent() -> void:
 	print("[skillfeel] spent: bought %d, SP %d left, affordable %s, pulsing %s" % [bought, int(sk.sp_now()), affordable, pulsing])
 	_r["no_pulse_when_not"] = 1 if not affordable and not pulsing else 0
 	await _shot("skillsnopulse")
+
+## Owner 2026-10-28 "the bar fills and the unlocks flash": the Skills sheet opened on Gathering
+## Lv. 13 with SP, shot mid-sweep (gold track part way, the first unlockable rows flashing).
+func _shot_sweep() -> void:
+	World.pioneer_level = FIRST_HOUR_LEVEL - 1
+	_player.skills._on_character_level()
+	_player.skills.trees["gathering"]["level"] = FIRST_HOUR_LEVEL  # researched up to the cap
+	_player.skills._learn_autos("gathering")
+	await _wait(SkillsSheet.SWEEP_SKIP_S + 0.2)  # the earlier FULL shot opened the sheet
+	_hud.open_skills("gathering")
+	await _wait(0.3)
+	var sheet := _hud.get("_skills_sheet") as SkillsSheet
+	print("[skillfeel] sweep: gathering Lv. %d, sweeping %s, flashed %s, SP %d" % [_player.skills.level_of("gathering"), sheet.sweeping(), sheet.sweep_flashed, _player.skills.sp_available])
+	_r["sweep_running"] = 1 if sheet.sweeping() else 0
+	await _shot("skillsweep")
+	await _wait(1.0)
+	_hud.call("_toggle_skills", "")
+	await _wait(0.4)
 
 # ---------------------------------------------------------------- the numbers
 

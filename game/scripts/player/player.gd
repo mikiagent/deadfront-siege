@@ -427,8 +427,7 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 		if cur == null or not is_instance_valid(cur) or cur.health.dead or global_position.distance_to(cur.global_position) > 6.0:
 			hunt.start(who)
 			print("[combat] retaliate %s" % who.def.id)
-	if skills:
-		skills.add_xp("defense", 1)
+	# Owner 2026-10-28: Defense trains only on a defensive action that avoids an attack (roll_dodge), never on a hit taken.
 	vitals.add_fatigue(2.0, &"combat")
 	WaterAccess.soil(self, &"hit")
 	_flinch()

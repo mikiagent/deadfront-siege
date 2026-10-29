@@ -312,7 +312,7 @@ Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"`
 ## Pets & mounts
 - Bonded cap = `Data.bonded_cap`: 3 + Animal Handling `bonded_slots` nodes, at most 7
   (`SkillRules.bonded_capacity`). At most `MAX_OUT` = 3 pets out at once (`player_pets.gd`).
-- `PetRecord`: level to `PetStats.MAX_LEVEL` 60, XP curve `xp_to_next` = 30 + 15 × level,
+- `PetRecord`: level to `PetStats.MAX_LEVEL` 60, XP curve `xp_to_next` = (30 + 15 × level) × `pet_xp_cost_mult` (2.5, `game/data/progression.json`),
   `RESPAWN_TIME` 180 s, per-pet `bag` inventory, stats recomputed by `recompute` from
   `PetStats` (health growth 0.028/level, attacks 0.002, defenses 0.006).
 - Mounting: `PlayerPets.mount` requires `&"mount"` in the pet's `tamed_role`. Ridden, the mount walks

@@ -213,7 +213,7 @@ func _watch_skills() -> void:
 	var sk := _skills_watched
 	if sk.has_signal("skill_xp_gained"):
 		sk.skill_xp_gained.connect(func (tree: StringName, amount: float, level: int) -> void:
-			_events.add_skill_xp(str(tree), amount, level)
+			_events.add_skill_xp(str(tree), amount, level, HudEventState.progress_of(sk, str(tree)))
 		)
 	if sk.has_signal("skill_leveled"):
 		sk.skill_leveled.connect(func (tree: StringName, level: int) -> void:
