@@ -1,11 +1,25 @@
 # Economy & trading — T-stones, sinks, sources, market data
 
-The only currency in the build is **T-stones**: a plain int `World.t_stones` in
+The soft currency is **T-stones**, shown to players as **Gold** (owner 2026-10-28: "Change T-stones
+currency to Gold for now"; every player-facing string says Gold, the gold coin icon; the code
+names `World.t_stones`, the save key `t_stones` and the market's wallet stay unchanged, so saves load
+as before): a plain int `World.t_stones` in
 `game/scripts/core/world.gd`, starting at 20. It is not an item — no `t_stone` id exists in
 `game/data/items.json`, and no inventory slot holds it. It saves as the key `t_stones`
 (`game/scripts/core/save_game.gd`) and the sanitizer clamps it to 0–`MAX_T_STONES` 100000
 (`game/scripts/core/save_sanitizer.gd`). There is no second currency, no bank and no wallet on the
-client. (Warp Gems mentioned as a skill-refund charge are not implemented.)
+client.
+
+**Warp Gems** (BAGUI 2026-10-28, the premium currency: spec 33's gold gem with a "+", the name from
+`docs/design/skills.md`): a plain int `World.warp_gems`, saved as `warp_gems`, clamped like T-stones;
+# ASSUMPTION a new game (and an older save without the key) starts with 25; the first standing order
+(Knap a stone knife) grants 10. **Harbour sailing costs Warp Gems** (owner: "Harbor should use Warp
+Gems to teleport to islands"): `World.pay_sail(sail_cost)` in `World.travel`, refusing with "Needs N
+Warp Gems to sail (you have M)."; the route cards read "Sail · N Warp Gems". The per-island
+`sail_cost` values are unchanged (5, 0 home), now in gems. There is no purchase flow: the "+" shows
+"Warp Gem store is not open yet." Both balances show in `CurrencyBar`
+(`game/scripts/ui/currency_bar.gd`): the nav menu header, the bag header, and (gems only, beside the
+server wallet) the Island Market header.
 
 Client display: the level-up stack prints "T-stones n" (`game/scripts/ui/hunt_hud.gd`), the map
 screen meta line (`game/scripts/ui/map_screen.gd`), the island-pick rows and the camp status line
@@ -14,7 +28,7 @@ screen meta line (`game/scripts/ui/map_screen.gd`), the island-pick rows and the
 ## Sinks that exist today
 | sink | cost | where |
 |---|---|---|
-| Sail to another island | `sail_cost` of the destination: 5 for every island without an explicit value, 0 for `home_grassland`, 5 in `game/data/islands/temperate_25.json`; gated further by a Survival level | `World.travel`, `game/scripts/core/world.gd` |
+| Sail to another island (**Warp Gems** since BAGUI, not T-stones) | `sail_cost` of the destination: 5 for every island without an explicit value, 0 for `home_grassland`, 5 in `game/data/islands/temperate_25.json`; gated further by a Survival level | `World.travel`, `game/scripts/core/world.gd` |
 | Cargo warp (camp chest on an unstable island) | `World.CARGO_FEE` = 2 per shipment, charged only when something is accepted | `World.cargo_warp`, `game/scripts/world/cargo_warp.gd` |
 
 Not T-stone sinks: repairs cost materials (`StructurePlacer.repair_cost`, half of the blueprint),
@@ -30,6 +44,14 @@ skill nodes cost SP, travel to the harbour/warp home is free. `rules.json` `crat
 
 There is no selling, no vendor NPC and no trade with other survivors in client code. The unstable
 flag on materials is removed by cargo warp, not by selling.
+
+## Sell tab (BAGUI, `market_sell.gd`)
+The server bag shows in the bag's grid (`BagGrid`). Equipped gear and locked items are tinted red and
+a tap only says why. Picking an item fills the price with its **going rate**: the median unit price
+of that item id's open fixed listings (`MarketSell.median`: 40,000 and 50,000 -> 45,000; odd count
+the middle one), else its category base price from `market.json` (# ASSUMPTION), shown as
+"Going rate N"; − / + step 5 % of it; the player can type any price. Offline the tab stays the
+offline card. Tested in `uimarket_checks.gd` on `MarketHarness` (which now wears a knife).
 
 ## Market data — `game/data/world/market.json`
 Data only for the client. The Island Market screens (`game/scripts/ui/market/`, see

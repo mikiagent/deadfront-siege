@@ -2405,13 +2405,38 @@
       "display_name": "Predator Tendon",
       "categories": [
         "tendon",
-        "lashing"
+        "lashing",
+        "strap",
+        "meat",
+        "food",
+        "edible"
       ],
+      "_tags": "BAGUI (owner 2026-10-28: 'Tendons can be turned into bowstring and you can eat them (meat)'): categories are the item's classification tags (ItemTags). ASSUMPTION food values: a chewy raw cut, about half a raw meat's energy, the same raw-meat risks.",
       "stack_max": 999,
       "base_level": 1,
       "tool_class": "none",
+      "diet": "carnivore",
+      "food_energy": 6.0,
+      "raw": true,
+      "poison_chance": 0.25,
+      "tastes_bad_chance": 0.4,
       "market_category": "cordage",
       "rarity": "rare"
+    },
+    {
+      "id": "bowstring",
+      "display_name": "Bowstring",
+      "categories": [
+        "bowstring",
+        "component",
+        "lashing"
+      ],
+      "_about": "BAGUI (owner 2026-10-28): twisted from any item tagged strap (a tendon, a strap). ASSUMPTION: a plain component; no bow recipe takes it yet.",
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "cordage",
+      "rarity": "uncommon"
     },
     {
       "id": "armor_scute",

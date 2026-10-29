@@ -142,7 +142,7 @@ raid_maul,Volcano Raid Maul,weapon,1,none,1,legendary,weapon,,
 raid_helm,Raid Hide Helm,armor_head,1,none,1,epic,clothing,,
 raid_cuirass,Raid Hide Cuirass,armor_body,1,none,1,epic,clothing,,
 raid_greaves,Raid Hide Greaves,armor_legs,1,none,1,epic,clothing,,
-predator_tendon,Predator Tendon,tendon;lashing,999,none,1,rare,cordage,,
+predator_tendon,Predator Tendon,tendon;lashing;strap;meat;food;edible,999,none,1,rare,cordage,,6.0
 armor_scute,Osteoderm,scute;bone,999,none,1,rare,bone,,
 dorsal_plate,Dorsal Plate,scute;bone,999,none,1,rare,bone,,
 frill_plate,Frill Plate,scute;bone,999,none,1,rare,bone,,
@@ -240,6 +240,7 @@ specialized_storage_bag,Specialized Storage Bag,accessory;bag,1,none,1,epic,clot
 plank_shape,Plank Shape,component;plank_shape;wood,1,none,1,common,building_kit,,
 pillar_shape,Pillar Shape,component;pillar_shape;wood,1,none,1,common,building_kit,,
 strap,Strap,component;strap;lashing,1,none,1,common,cordage,,
+bowstring,Bowstring,bowstring;component;lashing,1,none,1,uncommon,cordage,,
 trimmed_plank,Trimmed Plank,wood;trimmed_plank,1,none,1,common,building_kit,,
 fine_plank,Fine Plank,wood;fine_plank,1,none,1,common,building_kit,,
 spring_water,Spring Water,water;drink;food,20,none,1,common,food_raw,,4
