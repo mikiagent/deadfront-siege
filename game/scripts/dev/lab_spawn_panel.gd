@@ -1,7 +1,8 @@
 class_name LabSpawnPanel
 extends Control
 ## Creature lab spawner (owner 2026-10-28: "a dinosaur selector so I can spawn them"). A SPAWN tab
-## opens a panel: every species that has a model, a count (1-6), a nature (or Random), an Alpha
+## opens a panel: a dropdown of every species in game/data/creatures (model-less ones spawn as the
+## box stand-in CreatureView builds and are marked "(stand-in)"), a count (1-6), a nature (or Random), an Alpha
 ## toggle; SPAWN drops them as a pack in front of the survivor, CLEAR ALL removes every wild animal.
 ## SheetChrome look, 64 px tap targets, mouse and touch.
 
@@ -14,20 +15,26 @@ var count := 1
 var nature: StringName = &""  ## "" = rolled per animal
 var alpha := false
 var _panel: PanelContainer
-var _list: VBoxContainer
+var _species_opt: OptionButton
 var _count: Label
 var _nature: Button
 var _alpha: Button
-var _species_buttons: Dictionary = {}
+var _ids: Array[StringName] = []
 
-## Every species with a mesh on disk (assets/creatures/<id>/<id>.glb), sorted.
-static func species_with_models() -> Array[StringName]:
+## Every species in the data, sorted (owner 2026-10-28: "put all of the animals in the creature lab").
+static func all_species() -> Array[StringName]:
 	var out: Array[StringName] = []
 	for id in Data.creatures:
-		if ResourceLoader.exists("res://assets/creatures/%s/%s.glb" % [id, id]):
-			out.append(StringName(id))
+		out.append(StringName(id))
 	out.sort_custom(func(a: StringName, b: StringName) -> bool: return str(a) < str(b))  # StringName sort is not alphabetical
 	return out
+
+static func has_model(id: StringName) -> bool:
+	return ResourceLoader.exists("res://assets/creatures/%s/%s.glb" % [id, id])
+
+## Dropdown row text: model-less species spawn as CreatureView's box placeholder.
+static func item_label(id: StringName) -> String:
+	return str(id).capitalize() + ("" if has_model(id) else " (stand-in)")
 
 func setup(p: Player) -> void:
 	player = p
@@ -50,18 +57,19 @@ func setup(p: Player) -> void:
 	col.add_theme_constant_override("separation", 6)
 	_panel.add_child(col)
 	col.add_child(SheetChrome.label("Species", 16, UiTokens.TEXT, true))
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(320, SheetChrome.TAP * 3.0)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	col.add_child(scroll)
-	_list = VBoxContainer.new()
-	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_list)
-	for id in species_with_models():
-		var b := SheetChrome.ghost_button(str(id).capitalize())
-		b.pressed.connect(_pick_species.bind(id))
-		_list.add_child(b)
-		_species_buttons[id] = b
+	_species_opt = OptionButton.new()
+	_species_opt.name = "SpeciesPicker"
+	_species_opt.custom_minimum_size = Vector2(320, SheetChrome.TAP)
+	_species_opt.fit_to_longest_item = false
+	_ids = all_species()
+	for id in _ids:
+		_species_opt.add_item(item_label(id))
+	var pop := _species_opt.get_popup()
+	pop.add_theme_font_size_override("font_size", 20)
+	pop.add_theme_constant_override("v_separation", int(SheetChrome.TAP) - 28)  # ~64 px touch rows at 20 px text
+	pop.max_size = Vector2i(400, 64 * 6)  # scrolls past six rows so it fits a 390 px tall phone
+	_species_opt.item_selected.connect(func(i: int) -> void: _pick_species(_ids[i]))
+	col.add_child(_species_opt)
 	var row := HBoxContainer.new()
 	col.add_child(row)
 	var minus := SheetChrome.ghost_button("-")
@@ -94,9 +102,8 @@ func setup(p: Player) -> void:
 	clear.name = "ClearAll"
 	clear.pressed.connect(clear_all)
 	col.add_child(clear)
-	var ids := species_with_models()
-	if not ids.is_empty():
-		_pick_species(&"compsognathus" if ids.has(&"compsognathus") else ids[0])
+	if not _ids.is_empty():
+		_pick_species(&"compsognathus" if _ids.has(&"compsognathus") else _ids[0])
 	_refresh()
 
 func set_count(n: int) -> void:
@@ -119,8 +126,7 @@ func _refresh() -> void:
 	_count.text = "x%d" % count
 	_nature.text = "Nature: %s" % ("Random" if nature == &"" else CreatureNatures.label(nature))
 	_alpha.text = "Alpha: %s" % ("ON" if alpha else "off")
-	for id in _species_buttons:
-		SheetChrome.style_action(_species_buttons[id], &"cta" if id == species_id else &"ghost")
+	_species_opt.select(_ids.find(species_id))
 
 ## Drop `n` of `sp` as one pack SPAWN_AHEAD_M in front of the survivor (member 0 an alpha when asked).
 func spawn(sp: StringName, n: int, nat: StringName = &"", is_alpha: bool = false) -> Array[Creature]:

@@ -83,6 +83,19 @@ Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tri
 | **T14** | Away from home only following members come along; working and staying members remain at home. There is no expedition slot limit yet (vision §7 says three shared slots). | `TribeDirector.sync` | Party size on trips. |
 | **T15** | Work reach: a worker stands at the visible edge of a node (card or mesh footprint) plus 0.3 m. | `HarvestNode.visual_radius` | Visual only. |
 
+### ZEBRAAI (2026-10-28) — zebraceratops / pack_mule behaviour
+
+Source: branch `claude/mmo-zebraai`, report `docs/orchestration/reports/claude-zebraai.md`. Numbers live in `game/data/creatures/ai.json archetypes.pack_mule.tactics` (every one an ASSUMPTION). Protoceratops shares the archetype and so the profile.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **Z1** | The zebraceratops stays a skittish grazer: it flees on sight and fights back only after 3 hits (the existing temperament); the tactics run only while provoked. | `temperaments.skittish`, `TacticalBrain._provoked` | First tame: a new player can approach, but hitting it starts a fight. |
+| **Z2** | Natures: Timid never fights back (only runs), Brave stands its ground with a head-lowering display and charges inside 5 m or on the first hit, Aggressive charges on sight (this also fixed Aggressive grazers of every species, which used to go back to grazing after the alert). | `tactics.flee_natures / stand_ground_natures / display_charge_m`, `CreatureBrain._provoked` | Owner: "Timid flees, Brave/Aggressive charge". |
+| **Z3** | Herd defence: a hit herdmate pulls the rest of the herd (not Timid) onto the attacker for 8 s, no farther than 16 m from their home; the hurt one runs. A herd of three on a fresh survivor is a real fight. | `herd_defend`, `defend_s`, `guard_m` | PRD verb "herd solidarity"; could make the first capture too hard for a beginner (spec 07: "keep beginners' first Zebraceratops feasible"). |
+| **Z4** | The charge: locked straight line, 1.5 × run, impact 1.8 × attack (≈ 55 on an unarmoured survivor at the species' 36 attack), 6 s cooldown, 1.2 s display before it; a sidestep or roll dodges it and leaves it staggered 1.5 s. | `charge_*`, `display_s` | The main danger and the main skill test of the first tame. |
+| **Z5** | Hind kick: 1.4 × attack, 5 s cooldown, only with the survivor behind it at contact (typically right after a charge through her). | `kick_*` | Punishes standing behind a grazer. |
+| **Z6** | A provoked zebra flees for 4 s below 25 % HP (under the 30 % capture line, so a weakened one stays capturable for a moment) and comes back while still provoked. | `retreat_frac`, `flee_s` | Decides whether capture turns into a chase. |
+
 ## Parked by other docs
 
 Each vision doc's unresolved points remain inside that doc until the workshop; the sections listed below are the owners' pointers, collected here only for reachability:
