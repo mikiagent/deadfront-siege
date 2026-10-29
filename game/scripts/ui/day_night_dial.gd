@@ -249,6 +249,10 @@ func dock(map: Rect2) -> void:
 	_anchor = Vector2(map.position.x - DOCK, map.end.y - _face.y)
 	_fit()
 
+## The face alone (the label grows leftwards from it), in the HUD's coordinates.
+func face_rect() -> Rect2:
+	return Rect2(_anchor - Vector2(_face.x, 0.0), _face)
+
 func is_open() -> bool:
 	return _open_left > 0.0
 
