@@ -41,6 +41,8 @@ func _ready() -> void:
 			ride = a.substr(7)
 		elif a.begins_with("--seq="):
 			_seq_dir = a.substr(6)
+		elif a == "--spawn-open":
+			(func() -> void: spawn_panel.get_node("SpawnPanel").visible = true).call_deferred()
 		elif a == "--enrage":
 			get_tree().create_timer(1.0).timeout.connect(_enrage_nearest)
 	if ride != "":

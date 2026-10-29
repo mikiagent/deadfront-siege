@@ -26,7 +26,7 @@ static func species_with_models() -> Array[StringName]:
 	for id in Data.creatures:
 		if ResourceLoader.exists("res://assets/creatures/%s/%s.glb" % [id, id]):
 			out.append(StringName(id))
-	out.sort()
+	out.sort_custom(func(a: StringName, b: StringName) -> bool: return str(a) < str(b))  # StringName sort is not alphabetical
 	return out
 
 func setup(p: Player) -> void:
@@ -37,12 +37,12 @@ func setup(p: Player) -> void:
 	var toggle := SheetChrome.gold_button("SPAWN")
 	toggle.name = "SpawnToggle"
 	toggle.custom_minimum_size = Vector2(140, SheetChrome.TAP)
-	toggle.position = Vector2(16, 120)
+	toggle.position = Vector2(16, 96)
 	toggle.pressed.connect(func() -> void: _panel.visible = not _panel.visible)
 	add_child(toggle)
 	_panel = SheetChrome.panel()
 	_panel.name = "SpawnPanel"
-	_panel.position = Vector2(16, 120 + SheetChrome.TAP + 8)
+	_panel.position = Vector2(16 + 140 + 8, 96)  # beside the toggle, so it fits a 720 px tall window
 	_panel.custom_minimum_size = Vector2(340, 0)
 	_panel.visible = false
 	add_child(_panel)
@@ -51,7 +51,7 @@ func setup(p: Player) -> void:
 	_panel.add_child(col)
 	col.add_child(SheetChrome.label("Species", 16, UiTokens.TEXT, true))
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(320, SheetChrome.TAP * 4.5)
+	scroll.custom_minimum_size = Vector2(320, SheetChrome.TAP * 3.0)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	col.add_child(scroll)
 	_list = VBoxContainer.new()
