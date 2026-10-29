@@ -68,6 +68,9 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
   210/240, velociraptor 300, deinonychus 360. A zone spawns when the survivor is within 110 m,
   removes its living animals past 170 m (never her hunt target), respawns 240 s after a kill,
   checks at 2 Hz and stays inside `Game.max_creatures_per_island` (24).
+- Safe town (`town_safe_m` 100): every zone is pushed out to at least 100 m from the town, so the
+  single compsognathus sit at 100 m (200/265/310 degrees), the pair at 160 m, and the early gather orders are not harassed. No alphas
+  roll on this island (`no_alphas`). Open Questions TU9-TU10.
 - Perf limits (island data): ground cover full within 120 m of the town and 6 % beyond
   (`cover_full_radius_m`, `cover_far_share`, `GroundCover.plan`), biome dressing 30 %
   (`dress_share`, `BiomeDress`). Measured headless (t_tutorial / probe): build 8.2-9.0 s, ~66k

@@ -196,14 +196,16 @@ static func _wild_zones(rt: IslandRuntime) -> void:
 	var rows: Variant = World.def_of(ISLAND).get("wild_zones", [])
 	if not rows is Array:
 		return
+	# ASSUMPTION: the town and its surroundings are free of wild zones (island data town_safe_m).
+	var safe := float(World.def_of(ISLAND).get("town_safe_m", 0.0))
 	var n := 0
 	for row in rows:
 		if not row is Dictionary:
 			continue
 		var r := row as Dictionary
 		var ang := deg_to_rad(float(r.get("angle", 0.0)))
-		var want := camp + Vector3(cos(ang), 0.0, sin(ang)) * float(r.get("dist", 60.0))
-		var spot := _dry_near(rt, want)
+		var want := camp + Vector3(cos(ang), 0.0, sin(ang)) * maxf(safe, float(r.get("dist", 60.0)))
+		var spot := _dry_near(rt, want, safe)
 		if spot == Vector3.INF:
 			print("[tutorial] wild zone %s: no dry land near %s" % [r.get("species", "?"), want.snapped(Vector3.ONE)])
 			continue
@@ -217,13 +219,15 @@ static func _wild_zones(rt: IslandRuntime) -> void:
 		n += 1
 
 ## The nearest dry spawnable ground to `want`, searched on rings out to 40 m, toward the town first.
-static func _dry_near(rt: IslandRuntime, want: Vector3) -> Vector3:
+## Never closer than `min_town_m` to the town (town_safe_m).
+static func _dry_near(rt: IslandRuntime, want: Vector3, min_town_m: float = 0.0) -> Vector3:
+	var camp := rt._camp_pos
 	for r in range(0, 41, 4):
 		for k in 12:
 			var a := TAU * float(k) / 12.0
 			var q := want + Vector3(cos(a), 0.0, sin(a)) * float(r)
 			q.y = rt.surface_y(q.x, q.z) + 0.3
-			if rt.spawn_ok(q, false) and rt.is_dry(q):
+			if rt.spawn_ok(q, false) and rt.is_dry(q) and Vector2(q.x - camp.x, q.z - camp.z).length() >= min_town_m:
 				return q
 			if r == 0:
 				break

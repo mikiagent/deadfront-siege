@@ -117,11 +117,20 @@ func _test_new_character() -> void:
 				if str((o as Dictionary).get("item", "")) == "wood_log" and (n as Node3D).global_position.distance_to(camp) < 25.0:
 					logs += 1
 		_expect(logs >= 1, "a tree for logs stands by the camp (%d)" % logs)
-		var compys := 0
+		# The town is safe (island town_safe_m): the compsognathus live in wild zones outside it.
+		var safe := float((W.call("def_of", &"tutorial_isle") as Dictionary).get("town_safe_m", 0.0))
+		var compy_zones := 0
+		for z in rt.find_children("WildZone_*", "", false, false):
+			var zd := Vector2((z as Node3D).global_position.x - camp.x, (z as Node3D).global_position.z - camp.z).length()
+			_expect(zd >= safe, "%s sits outside the town's safe ring (%.0f >= %.0f m)" % [z.name, zd, safe])
+			if str(z.get("species")) == "compsognathus":
+				compy_zones += 1
+		_expect(safe >= 60.0 and compy_zones >= 2, "weak animals to hunt in the wild lands (%d compsognathus zones, safe %.0f m)" % [compy_zones, safe])
+		var alphas := 0
 		for n in get_nodes_in_group("creatures"):
-			if n.get("def") and n.get("def").id == &"compsognathus":
-				compys += 1
-		_expect(compys >= 2, "weak animals to hunt (%d compsognathus)" % compys)
+			if n.has_method("is_alpha") and n.call("is_alpha"):
+				alphas += 1
+		_expect(alphas == 0, "no alphas on the newcomer island (%d)" % alphas)
 		_test_town(rt, camp)
 		_test_size_and_perf(rt, build_ms)
 	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SG.get("path")))
@@ -180,10 +189,21 @@ func _test_streaming() -> void:
 	if rt == null:
 		return
 	var home_pos: Vector3 = _player.global_position
+	# The compsognathus live outside the town's safe ring: stand by the nearest of their zones first.
+	var compy_at := Vector3.INF
+	for z in rt.find_children("WildZone_*_compsognathus", "", false, false):
+		if compy_at == Vector3.INF or (z as Node3D).global_position.distance_to(home_pos) < compy_at.distance_to(home_pos):
+			compy_at = (z as Node3D).global_position
+	_expect(compy_at != Vector3.INF, "a compsognathus zone exists")
+	if compy_at == Vector3.INF:
+		return
+	_player.global_position = compy_at + Vector3.UP
+	await create_timer(1.5).timeout
 	var near_town := _count(&"compsognathus")
+	_expect(near_town > 0, "the compsognathus zone wakes when she comes near (%d)" % near_town)
 	var far := Vector3.INF
 	for z in rt.find_children("WildZone_*", "", false, false):
-		if (z as Node3D).global_position.distance_to(home_pos) > 280.0:
+		if (z as Node3D).global_position.distance_to(compy_at) > 280.0:
 			far = (z as Node3D).global_position
 	_expect(far != Vector3.INF, "a wild zone lies far out in the wild lands")
 	if far == Vector3.INF:
@@ -194,11 +214,13 @@ func _test_streaming() -> void:
 	for c in get_nodes_in_group("creatures"):
 		if (c as Node3D).global_position.distance_to(far) < 60.0:
 			far_species += 1
-	_expect(_count(&"compsognathus") < near_town, "the town's compsognathus sleep while she is far (%d -> %d)" % [near_town, _count(&"compsognathus")])
+	_expect(_count(&"compsognathus") < near_town, "the compsognathus sleep while she is far (%d -> %d)" % [near_town, _count(&"compsognathus")])
 	_expect(far_species > 0, "the far zone wakes when she arrives (%d animals)" % far_species)
+	_player.global_position = compy_at + Vector3.UP
+	await create_timer(1.5).timeout
+	_expect(_count(&"compsognathus") >= near_town, "the compsognathus wake again on her return (%d)" % _count(&"compsognathus"))
 	_player.global_position = home_pos
 	await create_timer(1.5).timeout
-	_expect(_count(&"compsognathus") >= near_town, "the town's compsognathus wake again on her return (%d)" % _count(&"compsognathus"))
 
 func _count(species: StringName) -> int:
 	var n := 0
