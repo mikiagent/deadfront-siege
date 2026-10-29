@@ -1,0 +1,641 @@
+{
+  "_about": "ISLANDSHAPES (owner 2026-10-29, reference 'Satellite Island Map Grid'): the landmass families IslandShape draws from. A roster (unstable) island names its family in its island row ('shape_family', game/data/world/islands.json: the 14 roster islands were dealt two of each family by a seeded deal, matched to climate where it reads well, e.g. tropical atolls, a volcano round-peak); a row without one draws from 'roster_pick' by its seed; a Tamed (private) island other than the legacy meadow (seed 17) takes one from 'personal_pick'; the legacy meadow and the tutorial island keep 'classic' (the pre-ISLANDSHAPES generator, unchanged). Ranges are [min, max] drawn per island from the seed. Unit lengths are in the generator's unit space (the main coast sits at ~1.0, about 150-190 m); topography sizes are metres. Every number here is # ASSUMPTION (the PRDs give no island shapes); logged in docs/vision/WildLandsMMO_Open_Questions.md.",
+  "roster_pick": [
+    "chain",
+    "round_peak",
+    "lobed",
+    "crescent",
+    "atoll",
+    "spiral",
+    "bulky"
+  ],
+  "personal_pick": [
+    "bulky",
+    "lobed"
+  ],
+  "topo_sizes": {
+    "_about": "Non-navigable topography (metres): footprint radius r, height h. Every tile inside a footprint is CLIFF (no walk, no build, no spawn) and cut out of the nav mesh.",
+    "mountain": {
+      "r": [
+        24,
+        34
+      ],
+      "h": [
+        11,
+        16
+      ]
+    },
+    "ridge": {
+      "len": [
+        50,
+        85
+      ],
+      "r": [
+        7,
+        10
+      ],
+      "h": [
+        5,
+        8
+      ]
+    },
+    "mesa": {
+      "r": [
+        10,
+        17
+      ],
+      "h": [
+        4.5,
+        6.5
+      ]
+    },
+    "volcano": {
+      "r": [
+        32,
+        42
+      ],
+      "h": [
+        13,
+        18
+      ],
+      "crater": 0.26
+    },
+    "keep_coast_m": 12,
+    "keep_camp_m": 10,
+    "keep_river_m": 10,
+    "keep_path_m": 10,
+    "gap_m": 16
+  },
+  "families": {
+    "classic": {
+      "_about": "The pre-ISLANDSHAPES landmass (legacy meadow, tutorial). Nothing below applies."
+    },
+    "bulky": {
+      "_about": "A broad, heavy landmass with short headlands, a few offshore rocks and wide shelves.",
+      "aspect": [
+        0.86,
+        0.95
+      ],
+      "amps": [
+        0.03,
+        0.05
+      ],
+      "pens": [
+        1,
+        2
+      ],
+      "pen_amp": [
+        0.12,
+        0.22
+      ],
+      "pen_sigma": [
+        0.2,
+        0.3
+      ],
+      "bays": [
+        1,
+        2
+      ],
+      "bay_amp": [
+        0.1,
+        0.16
+      ],
+      "bay_sigma": [
+        0.14,
+        0.22
+      ],
+      "jag": 0.054,
+      "islets": [
+        2,
+        4
+      ],
+      "islet_r": [
+        0.04,
+        0.08
+      ],
+      "shelf_m": [
+        10,
+        45
+      ],
+      "plateau": true,
+      "river": "radial",
+      "river_scale": 1.0,
+      "topo": {
+        "mountain": [
+          1,
+          1
+        ],
+        "ridge": [
+          1,
+          2
+        ],
+        "mesa": [
+          1,
+          2
+        ]
+      },
+      "volcano_dormant": 0.2,
+      "outcrops": [
+        5,
+        8
+      ]
+    },
+    "round_peak": {
+      "_about": "A round island around a tall peak (reference 2, 11, 13).",
+      "aspect": [
+        0.9,
+        0.99
+      ],
+      "amps": [
+        0.02,
+        0.04
+      ],
+      "pens": [
+        2,
+        3
+      ],
+      "pen_amp": [
+        0.14,
+        0.24
+      ],
+      "pen_sigma": [
+        0.12,
+        0.18
+      ],
+      "bays": [
+        1,
+        2
+      ],
+      "bay_amp": [
+        0.08,
+        0.14
+      ],
+      "bay_sigma": [
+        0.12,
+        0.18
+      ],
+      "jag": 0.063,
+      "islets": [
+        2,
+        5
+      ],
+      "islet_r": [
+        0.03,
+        0.07
+      ],
+      "shelf_m": [
+        8,
+        40
+      ],
+      "plateau": false,
+      "river": "radial",
+      "river_scale": 0.9,
+      "topo": {
+        "mountain": [
+          1,
+          1
+        ],
+        "ridge": [
+          1,
+          1
+        ],
+        "mesa": [
+          1,
+          2
+        ]
+      },
+      "volcano_dormant": 0.3,
+      "peak_central": true,
+      "outcrops": [
+        4,
+        6
+      ]
+    },
+    "lobed": {
+      "_about": "Blobby multi-lobed land with deep narrow bays (reference 4, 6, 9).",
+      "aspect": [
+        0.8,
+        0.9
+      ],
+      "amps": [
+        0.04,
+        0.07
+      ],
+      "edge_min": 0.3,
+      "pens": [
+        3,
+        4
+      ],
+      "pen_amp": [
+        0.32,
+        0.5
+      ],
+      "pen_sigma": [
+        0.22,
+        0.32
+      ],
+      "bays": [
+        2,
+        3
+      ],
+      "bay_amp": [
+        0.3,
+        0.42
+      ],
+      "bay_sigma": [
+        0.07,
+        0.11
+      ],
+      "jag": 0.072,
+      "islets": [
+        3,
+        6
+      ],
+      "islet_r": [
+        0.03,
+        0.07
+      ],
+      "shelf_m": [
+        6,
+        35
+      ],
+      "plateau": true,
+      "river": "radial",
+      "river_scale": 0.9,
+      "topo": {
+        "mountain": [
+          0,
+          1
+        ],
+        "ridge": [
+          1,
+          1
+        ],
+        "mesa": [
+          2,
+          3
+        ]
+      },
+      "volcano_dormant": 0.15,
+      "outcrops": [
+        5,
+        8
+      ]
+    },
+    "crescent": {
+      "_about": "A hook around a shallow lagoon, barrier islets across its mouth (reference 5, 12).",
+      "aspect": [
+        0.86,
+        0.95
+      ],
+      "amps": [
+        0.02,
+        0.04
+      ],
+      "pens": [
+        0,
+        1
+      ],
+      "pen_amp": [
+        0.1,
+        0.18
+      ],
+      "pen_sigma": [
+        0.14,
+        0.2
+      ],
+      "bays": [
+        0,
+        1
+      ],
+      "bay_amp": [
+        0.06,
+        0.12
+      ],
+      "bay_sigma": [
+        0.12,
+        0.18
+      ],
+      "jag": 0.072,
+      "islets": [
+        1,
+        3
+      ],
+      "islet_r": [
+        0.03,
+        0.06
+      ],
+      "shelf_m": [
+        10,
+        40
+      ],
+      "lagoon_offset": [
+        0.8,
+        0.9
+      ],
+      "lagoon_r": [
+        0.52,
+        0.6
+      ],
+      "barrier": [
+        3,
+        5
+      ],
+      "plateau": false,
+      "river": "polar",
+      "river_scale": 0.65,
+      "topo": {
+        "mountain": [
+          0,
+          1
+        ],
+        "ridge": [
+          1,
+          2
+        ],
+        "mesa": [
+          1,
+          2
+        ]
+      },
+      "volcano_dormant": 0.15,
+      "outcrops": [
+        4,
+        6
+      ]
+    },
+    "atoll": {
+      "_about": "A ring of land round a lagoon with a central island on sandbars, a pass through the reef (reference 8).",
+      "aspect": [
+        0.9,
+        0.99
+      ],
+      "amps": [
+        0.02,
+        0.035
+      ],
+      "pens": [
+        0,
+        1
+      ],
+      "pen_amp": [
+        0.08,
+        0.14
+      ],
+      "pen_sigma": [
+        0.12,
+        0.18
+      ],
+      "bays": [
+        0,
+        0
+      ],
+      "bay_amp": [
+        0.0,
+        0.0
+      ],
+      "bay_sigma": [
+        0.1,
+        0.1
+      ],
+      "jag": 0.054,
+      "islets": [
+        3,
+        6
+      ],
+      "islet_r": [
+        0.03,
+        0.06
+      ],
+      "shelf_m": [
+        12,
+        45
+      ],
+      "ring_r": [
+        0.54,
+        0.58
+      ],
+      "ring_w": [
+        0.14,
+        0.17
+      ],
+      "bridges": 2,
+      "bridge_r": 0.065,
+      "passes": 1,
+      "plateau": false,
+      "river": "polar",
+      "river_scale": 0.5,
+      "topo": {
+        "mountain": [
+          0,
+          0
+        ],
+        "ridge": [
+          1,
+          2
+        ],
+        "mesa": [
+          1,
+          2
+        ]
+      },
+      "volcano_dormant": 0.0,
+      "outcrops": [
+        4,
+        6
+      ]
+    },
+    "spiral": {
+      "_about": "A core island with a spiral arm of islets winding out from it (reference 15).",
+      "aspect": [
+        0.9,
+        0.98
+      ],
+      "amps": [
+        0.03,
+        0.05
+      ],
+      "main_scale": [
+        0.58,
+        0.64
+      ],
+      "pens": [
+        1,
+        2
+      ],
+      "pen_amp": [
+        0.1,
+        0.18
+      ],
+      "pen_sigma": [
+        0.12,
+        0.18
+      ],
+      "bays": [
+        0,
+        1
+      ],
+      "bay_amp": [
+        0.08,
+        0.14
+      ],
+      "bay_sigma": [
+        0.12,
+        0.18
+      ],
+      "jag": 0.063,
+      "islets": [
+        1,
+        2
+      ],
+      "islet_r": [
+        0.03,
+        0.05
+      ],
+      "shelf_m": [
+        12,
+        45
+      ],
+      "spiral_n": [
+        12,
+        14
+      ],
+      "spiral_step": [
+        0.4,
+        0.46
+      ],
+      "spiral_grow": [
+        0.075,
+        0.088
+      ],
+      "spiral_r0": [
+        0.15,
+        0.18
+      ],
+      "plateau": false,
+      "river": "radial",
+      "river_scale": 0.5,
+      "topo": {
+        "mountain": [
+          0,
+          1
+        ],
+        "ridge": [
+          0,
+          1
+        ],
+        "mesa": [
+          1,
+          2
+        ]
+      },
+      "volcano_dormant": 0.2,
+      "outcrops": [
+        3,
+        5
+      ]
+    },
+    "chain": {
+      "_about": "A long diagonal archipelago: a sandbar-linked spine with loose islets at both ends (reference 1, 3, 7, 10, 14).",
+      "aspect": [
+        0.92,
+        0.98
+      ],
+      "amps": [
+        0.03,
+        0.05
+      ],
+      "main_scale": [
+        0.4,
+        0.46
+      ],
+      "pens": [
+        0,
+        0
+      ],
+      "pen_amp": [
+        0.0,
+        0.0
+      ],
+      "pen_sigma": [
+        0.1,
+        0.1
+      ],
+      "bays": [
+        0,
+        0
+      ],
+      "bay_amp": [
+        0.0,
+        0.0
+      ],
+      "bay_sigma": [
+        0.1,
+        0.1
+      ],
+      "jag": 0.072,
+      "islets": [
+        2,
+        4
+      ],
+      "islet_r": [
+        0.025,
+        0.05
+      ],
+      "shelf_m": [
+        12,
+        50
+      ],
+      "chain_axis_deg": [
+        30,
+        60
+      ],
+      "chunks": [
+        7,
+        9
+      ],
+      "chunk_r": [
+        0.2,
+        0.3
+      ],
+      "chain_span": 1.55,
+      "bridged_t": 1.12,
+      "bridge_r": 0.07,
+      "plateau": false,
+      "river": "linear",
+      "river_scale": 0.5,
+      "topo": {
+        "mountain": [
+          0,
+          0
+        ],
+        "ridge": [
+          1,
+          2
+        ],
+        "mesa": [
+          1,
+          2
+        ]
+      },
+      "volcano_dormant": 0.0,
+      "outcrops": [
+        4,
+        6
+      ]
+    }
+  },
+  "climate_topo": {
+    "_about": "Climate overrides on top of the family's topography: a volcanic island always has a live volcano (glowing crater, smoke); tundra peaks run taller.",
+    "volcanic": {
+      "volcano": [
+        1,
+        1
+      ],
+      "live": true
+    },
+    "tundra": {
+      "mountain_h_mul": 1.2
+    }
+  }
+}
