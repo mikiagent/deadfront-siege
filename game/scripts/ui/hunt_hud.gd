@@ -1400,6 +1400,13 @@ func open_taming_pen(pen: TamingPen = null) -> TamingPenUI:
 	s.open(player, pen)
 	return s
 
+## FIREFUEL: a fire's fuel sheet (StationMenu's FUEL hex calls this).
+func open_fire_fuel(fire: Bonfire, who: Player = null) -> FireFuelSheet:
+	_close_sheet()
+	var s := _world_sheet(&"fire_fuel", func () -> UiWorldSheet: return FireFuelSheet.new()) as FireFuelSheet
+	s.open(who if who != null else player, fire)
+	return s
+
 # ---------------------------------------------------------------- per frame
 
 func _build_fatigue_panel() -> void:
