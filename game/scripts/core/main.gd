@@ -102,6 +102,10 @@ func _ready() -> void:
 				var probe = load("res://scripts/dev/progression_probe.gd").new()
 				add_child(probe)
 				probe.call_deferred("run", self)
+			if "--tutperf-probe" in OS.get_cmdline_user_args():
+				var perf_probe = load("res://scripts/dev/tutperf_probe.gd").new()
+				add_child(perf_probe)
+				perf_probe.call_deferred("run", self)
 			if "--bot" in OS.get_cmdline_user_args():
 				var bot = (load("res://scripts/dev/bot_survivor.gd") as GDScript).new()
 				bot.name = "BotSurvivor"

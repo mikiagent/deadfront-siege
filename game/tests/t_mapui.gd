@@ -118,6 +118,19 @@ func _test_reveal_math() -> void:
 	e.land_from(_rt)
 	_expect(e.land.size() == e.span * e.span, "the land mask covers every cell")
 	print("[t_mapui] reveal brush=%.0f m cells=%d new=%d" % [FOG_R, f.span * f.span, added])
+	# TUTPERF: walking repaints only the revealed patch; the image must equal a full repaint.
+	var w = _fog()
+	w.texture()
+	for step in 6:
+		w.walk(Vector3(-40.0 + step * 9.0, 0.0, -30.0 + step * 7.0))
+		w.texture()
+	var whole = _fog()
+	whole.cells = w.cells.duplicate()
+	w.texture()
+	whole.texture()
+	# The fog's own image: a headless (dummy) texture does not hand back what update() uploaded.
+	_expect(w._img.get_data() == whole._img.get_data(),
+		"the fog texture after walking (patched per reveal) equals a full repaint")
 
 # ---------------------------------------------------------------- trail
 
