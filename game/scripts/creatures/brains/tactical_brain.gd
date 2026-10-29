@@ -78,7 +78,8 @@ var _cover := Vector3.ZERO
 var _cover_cd := 0.0
 var _opening := false
 var _open_left := 0.0  ## seconds the ambush keeps waiting to open with the pounce
-## Straight charge (tactics.charge_straight): locked line, one horn impact, a miss staggers it.
+## Straight charge (tactics.charge_straight): locked line, one body-slam impact (charge_shove_m knocks
+## the survivor back), a miss staggers it.
 var _charge_to := Vector3.ZERO
 var _charge_dir := Vector3.FORWARD
 var _charge_hit := false
@@ -397,7 +398,17 @@ func _approach_ring() -> void:
 		# A quick bite (or the pounce) on the run; the long combo would only let her walk off.
 		if (d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])) or (d <= reach_to(attack_target) and _strike(d, ["bite"])):
 			return
+		# tactics.chase_hop (swarm): at her heels with the bite not allowed yet (cooling, or no beat since the
+		# last one) it hops back out instead of trotting glued to her forever; the hop is the beat, the chase
+		# picks up again after it.
+		if tac.get("chase_hop", false) and d <= reach_to(attack_target) and can_disengage():
+			_start_hop(&"approach")
+			return
 		creature.move_to(attack_target.global_position)
+		return
+	# tactics.approach_pounce (swarm): coming in, it opens with a pounce as soon as one is in range (not a
+	# lone one: timid alone).
+	if tac.get("approach_pounce", false) and not "alone" in _active_mods() and _strike(_flat_dist(attack_target), ["pounce"]):
 		return
 	# The nav agent stops target_desired_distance (0.9 m) short of its goal: count that as arrived.
 	if _flat_dist(attack_target) <= ring_m() + 0.6 + creature.agent.target_desired_distance:
@@ -425,7 +436,11 @@ func _circle(delta: float) -> void:
 	_circle_t += delta
 	speed_override = creature.walk_mps(creature.move_speed_mps()) * _t("circle_speed_frac", 0.8)
 	if tac.get("surround", false) and _pack_members().size() > 1:
-		creature.move_to(_surround_slot())
+		var slot := _surround_slot()
+		# Thrown off its slot (a back-leap, a strafe jump, a pounce), it hurries back at slot_catchup_mult.
+		if _flat_dist_to(slot) > _t("slot_tolerance_m", 1.2):
+			speed_override *= _t("slot_catchup_mult", 1.0)
+		creature.move_to(slot)
 	else:
 		var step := deg_to_rad(_t("circle_step_deg", 35.0)) * _circle_sign
 		# Steering at a point `step` ahead settles at radius * cos(step); aim past the ring so it holds the ring.
@@ -649,6 +664,16 @@ func _seq_next() -> void:
 		_:
 			_seq_next()
 
+## A filler dodge's side: in a surrounding pack, towards its own ring slot (a 2.5 m jump would otherwise
+## throw it out of the surround); else the rolled side.
+func _dodge_side(rolled: float) -> float:
+	if not (tac.get("surround", false) and _pack_members().size() > 1):
+		return rolled
+	var facing := -_to_me()
+	var off := _surround_slot() - creature.global_position
+	var along := off.dot(Vector3(-facing.z, 0.0, facing.x))
+	return signf(along) if absf(along) > 0.5 else rolled
+
 ## The powerful strafe: an explosive sideways dodge (dodge_left/right, else the strafe loop) of
 ## strafe_m across the prey's line, landing still facing it.
 func _start_dodge(side: float) -> void:
@@ -713,7 +738,11 @@ func _charge_impact() -> void:
 	tactic.emit(&"charge_hit")
 	_mark_pack()
 	if CreatureAttack.apply_for(creature, &"attack_heavy", attack_target, mult) and attack_target is Player:
-		(attack_target as Player).receive_creature_hit(creature, &"attack_heavy")
+		var pl := attack_target as Player
+		pl.receive_creature_hit(creature, &"attack_heavy")
+		# A ram, not a horn stab (owner 2026-10-29: "tackling/ramming"): the body-slam shoves her along the line.
+		if pl.sim:
+			pl.sim.shove(_charge_dir * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6))
 
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).
@@ -806,7 +835,7 @@ func _move_beat() -> void:
 			_circle_sign = -_circle_sign
 	elif r < w_hold + w_strafe + w_dodge:
 		filler.emit(&"dodge")
-		_start_dodge(1.0 if rng.randf() < 0.5 else -1.0)
+		_start_dodge(_dodge_side(1.0 if rng.randf() < 0.5 else -1.0))
 	elif r < w_hold + w_strafe + w_dodge + w_feint:
 		filler.emit(&"feint")
 		_start_feint()
@@ -942,7 +971,14 @@ func _mark_pack() -> void:
 
 ## Standing in a bite or the combo: face the prey, leap back out when the clip ends.
 func _swing(delta: float) -> void:
-	creature.stop_move()
+	# tactics.bite_track (swarm, owner 2026-10-28: "it should land some attacks"): until the bite's contact
+	# frame it keeps lunging after prey that walks out of its jaws, instead of snapping at the spot she left.
+	if tac.get("bite_track", false) and creature.anim.current_clip == &"attack_primary" and not creature.anim._os_hit_done \
+			and _flat_dist(attack_target) > reach_to(attack_target) * _t("bite_track_frac", 0.6):
+		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.3)
+		creature.move_to(attack_target.global_position)
+	else:
+		creature.stop_move()
 	if creature.anim.current_clip != &"kick":  # a hind kick keeps its back to the prey
 		creature.face_towards(attack_target.global_position, delta)
 	if not creature.anim._busy:
@@ -1036,6 +1072,8 @@ func _pounce_land() -> void:
 	# Jaws first: prey it sailed past (behind it along the flight) is missed, however close.
 	if _flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(_pounce_dir) < 0.0:
 		_log("[ai] %s pounce missed" % creature.def.id)
+		if tgt is Player or tgt is Creature:
+			CombatAvoid.avoided(tgt, creature, &"miss")
 		return
 	if tgt is Player and (tgt as Player).dead:
 		return
@@ -1149,6 +1187,8 @@ func _hop(delta: float) -> void:
 		_jump_end()
 	if _hop_then == &"retreat":
 		_set_state(&"retreat")
+	elif _hop_then == &"approach":
+		_set_state(&"approach")
 	elif _hop_then == &"seq":
 		_seq_next()
 	else:

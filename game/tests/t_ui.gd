@@ -6,7 +6,7 @@ extends SceneTree
 const OWNED := [
 	"res://scripts/core/display_mode.gd", "res://scripts/ui/ui_tokens.gd", "res://scripts/ui/hex_button.gd",
 	"res://scripts/ui/status_glyph.gd", "res://scripts/ui/gather_ring.gd", "res://scripts/ui/eat_progress.gd",
-	"res://scripts/ui/held_item_slot.gd", "res://scripts/ui/craft_ui.gd", "res://scripts/ui/craft_card.gd",
+	"res://scripts/ui/craft_ui.gd", "res://scripts/ui/craft_card.gd",
 	"res://scripts/ui/station_menu.gd", "res://scripts/ui/station_radial.gd", "res://scripts/ui/skills_sheet.gd",
 	"res://scripts/ui/map_screen.gd", "res://scripts/ui/fatigue_panel.gd", "res://scripts/ui/world_ui.gd",
 	"res://scripts/ui/creature_plates.gd", "res://scripts/ui/context_radial.gd", "res://scripts/ui/gather_radial.gd",
@@ -289,11 +289,11 @@ func _test_display_mode() -> void:
 	_expect(SS.is_sheet(Vector2(1600, 900)) and SS.panel_rect(Vector2(1600, 900)) == Rect2(0, 0, 1600, 900), "desktop skills is a full-screen sheet")
 	_expect(sheet.end.y <= land.y and sheet.size.y >= 4.0 * SS.ROW_H, "landscape skills panel fits the view with room for rows (%s)" % sheet)
 	_expect(zones.size() == 6 and zones[1].position.x > land.x * 0.7, "landscape HUD zones include the right map/rail column (%s)" % [zones])
-	# HANDS takes the quick row's fourth slot above the MENU / BUILD / BAG rail (owner layout 2026-10-28;
-	# it stood over the old four-hex rail's last hex): 64 px rail and quick hexes on a landscape phone.
-	var HS: GDScript = load("res://scripts/ui/held_item_slot.gd")
-	var hands := Rect2(16.0 + 3.0 * (HS.SLOT + 10.0), land.y - 14.0 - 18.0 - 64.0 - 12.0 - 18.0 - 64.0, HS.SLOT, HS.SLOT + 18.0)
-	_expect(zones.size() == 6 and zones[3].encloses(hands), "landscape HUD zones cover the HANDS slot %s" % hands)
+	# The quick row holds three slots above the MENU / BUILD / BAG rail (HANDS removed, owner 2026-10-28):
+	# CHASE in the third, and the zone stops there (64 px rail and quick hexes on a landscape phone).
+	var chase := Rect2(16.0 + 2.0 * 74.0, land.y - 14.0 - 18.0 - 64.0 - 12.0 - 18.0 - 64.0, 64.0, 82.0)
+	_expect(zones.size() == 6 and zones[3].encloses(chase), "landscape HUD zones cover the CHASE slot %s" % chase)
+	_expect(zones[3].end.x < 16.0 + 3.0 * 74.0 + 32.0, "the quick-row zone no longer reserves a fourth slot (%s)" % zones[3])
 	# ...the quick-food row beside it, and the pet whistle row under the vitals (hunt_hud.gd).
 	_expect(zones[3].encloses(Rect2(16.0, land.y - 96.0 - 64.0 - 30.0, 64.0, 82.0)), "landscape HUD zones cover the first quick-food hex")
 	_expect(zones[5].encloses(Rect2(16.0, 104.0, 3.0 * 74.0 - 10.0, 82.0)), "landscape HUD zones cover the whistle row under the vitals (%s)" % zones[5])

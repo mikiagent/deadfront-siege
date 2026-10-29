@@ -36,6 +36,16 @@ static func hit_chance(accuracy: float, dodge: float) -> float:
 	var dg := force_dodge if force_dodge >= 0.0 else dodge
 	return clampf(acc, 0.0, 1.0) * (1.0 - clampf(dg, 0.0, 1.0))
 
+## One swing roll with the same odds and the same single draw as roll(hit_chance(...)), telling a miss
+## from a dodge for the floating text: &"" hit, &"dodge" (the defender's dodge took it), &"miss" (the
+## attacker's own accuracy failed).
+static func swing_outcome(accuracy: float, dodge: float) -> StringName:
+	var acc := clampf(force_accuracy if force_accuracy >= 0.0 else accuracy, 0.0, 1.0)
+	var r := rng.randf()
+	if r < hit_chance(accuracy, dodge):
+		return &""
+	return &"dodge" if r < acc else &"miss"
+
 static func reset_overrides() -> void:
 	force_dodge = -1.0
 	force_accuracy = -1.0

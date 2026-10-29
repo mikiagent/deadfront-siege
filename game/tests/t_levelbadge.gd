@@ -51,7 +51,7 @@ func _run() -> void:
 	root.add_child(_host)
 	var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(_host, 4.0)
 	for c in (kit["ui"] as CanvasLayer).get_children():
-		if c.has_method("hands_spot"):
+		if c.has_method("quick_row_y"):
 			_hud = c
 	_world.load_island(_host, &"home_grassland", Vector3(0, 1, 18), false)
 	(kit["nav"] as Node).queue_free()
@@ -117,13 +117,28 @@ func _test_hud(view: Vector2, B: GDScript) -> void:
 	await _frames(2)
 	_expect(row.tooltip_rect.has_area(), "%s a tap still pins the chip's tooltip" % tag)
 	row.toggle("dirty")
-	# Stomach (owner): the ring leads the buff row, chip-sized.
+	# HUDTWEAK (owner 2026-10-28): chips start at the health bar's left edge; the stomach ring is the badge's size, centred under it.
 	var ring: Rect2 = _hud.stomach_rect
 	var first_chip := Rect2()
 	for k in row.chips:
 		first_chip = row.chips[k] if not first_chip.has_area() or row.chips[k].position.x < first_chip.position.x else first_chip
-	_expect(absf(ring.size.y - RW.CHIP) < 1.0 and absf(ring.get_center().y - first_chip.get_center().y) < 1.0 and ring.end.x <= first_chip.position.x, "%s the stomach ring leads the buff row (%s before %s)" % [tag, ring, first_chip])
-	_expect(ring.position.y > _hud.hp_bar_rect.end.y + 20.0, "%s the ring is no longer beside the health bar" % tag)
+	_expect(absf(first_chip.position.x - _hud.hp_bar_rect.position.x) < 1.0, "%s the chip row starts at the health bar's left edge (%.0f vs %.0f)" % [tag, first_chip.position.x, _hud.hp_bar_rect.position.x])
+	var bc: Vector2 = _hud.get("_badge_centre_drawn")
+	_expect(absf(ring.size.x - B.R * 2.0) < 1.0 and absf(ring.get_center().x - bc.x) < 1.0 and ring.position.y > bc.y + B.R, "%s the stomach ring is badge-sized, centred under the badge (%s, badge at %s)" % [tag, ring, bc])
+	_expect(not ring.intersects(first_chip) and not ring.intersects(_hud.hp_bar_rect), "%s the ring keeps off the chips and the bars" % tag)
+	var belt0: Rect2 = load("res://scripts/ui/exhaust_treadmill.gd").last_rect
+	_expect(absf(belt0.position.y - (_hud.hp_bar_rect.end.y + 6.0 + _hud.hp_bar_rect.size.y + 6.0)) < 1.0, "%s the belt sits right under the energy bar (%s)" % [tag, belt0])
+	var src2 := FileAccess.get_file_as_string("res://scripts/ui/hunt_hud.gd")
+	_expect(not src2.contains("\"WORN\"") and not src2.contains("face_label"), "%s no exhaustion tier word" % tag)
+	var claim = _hud.get("_claim_hex")
+	if is_instance_valid(claim) and claim.is_visible_in_tree():
+		var face: Rect2 = _hud._daynight.face_rect()
+		var hr: Rect2 = claim.hex_rect()
+		_expect(hr.end.y <= face.position.y and absf(hr.get_center().x - face.get_center().x) < 2.0, "%s CLAIM sits above the day/night dial (%s over %s)" % [tag, hr, face])
+		_expect(not hr.intersects(_hud.drawn_blocks.get("map_text", Rect2())), "%s CLAIM keeps off the coordinates" % tag)
+		_expect(not TOK_compact(view) or claim.size.x >= 64.0, "%s CLAIM is a 64 px tap on a phone" % tag)
+	else:
+		_expect(false, "%s CLAIM shows on the home island at spawn" % tag)
 	# Ghost trail (owner: Pokémon-style): a loss drops the fill, the pale ghost holds then eases down; a gain leads with the ghost.
 	var v = p.vitals
 	v.health = v.effective_max_health()

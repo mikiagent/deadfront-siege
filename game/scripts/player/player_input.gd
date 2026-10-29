@@ -8,7 +8,7 @@ const HOLD_WALK_DELAY := 0.25
 const HOLD_WALK_RETARGET := 0.15
 const TAP_PICK_RADIUS := 1.0
 const INTERACT_GATHER_RANGE := 2.6
-# ASSUMPTION: HANDS/Space may seek a visible nearby resource within 12 m, then the normal gather
+# ASSUMPTION: Space / INTERACT may seek a visible nearby resource within 12 m, then the normal gather
 # route walks to the node. The ordinary interact key keeps its close 2.6 m reach.
 const QUICK_GATHER_RADIUS := 12.0
 const FORCE_CLIPS: Array[StringName] = [
@@ -426,7 +426,7 @@ func toggle_inventory() -> void:
 	if p.ui:
 		p.ui.visible = not p.ui.visible
 
-## Space / HANDS: gather the nearest live resource. Single-yield nodes start immediately; nodes
+## Space / INTERACT (its last fallback): gather the nearest live resource. Single-yield nodes start immediately; nodes
 ## such as berry bushes still open their choice wheel.
 func gather_nearest() -> void:
 	var node := _nearest_harvest_node(QUICK_GATHER_RADIUS)
@@ -602,7 +602,8 @@ func context_actions() -> Array:
 		out.append({"id": "warp", "glyph": "📦", "label": "Cargo warp"})
 	if near.call("taming_pen", 3.0):
 		out.append({"id": "pen", "glyph": "🪤", "label": "Pen"})
-	if World.runtime and World.runtime.has_method("is_claimed") and not World.runtime.is_claimed(BuildGrid.tile_of(p.global_position)):
+	# The tutorial island is shared town and wild land: nobody claims it (owner 2026-10-28).
+	if World.runtime and World.runtime.has_method("is_claimed") and not World.is_tutorial() and not World.runtime.is_claimed(BuildGrid.tile_of(p.global_position)):
 		var free := not World.free_claim_used and not World.is_home()
 		out.append({"id": "claim", "glyph": "▦", "label": "Claim" if (free or inv.count_of(&"claim_stake") > 0 or World.is_home()) else "Claim (stake)"})
 	return out
