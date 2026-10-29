@@ -12,6 +12,30 @@ const CAPTURE_HEALTH_FRAC := 0.30
 ## make a first tame; every higher tier needs its technique, the same nodes nets check.
 const FREE_CAPTURE_TIER := 1
 
+## ALPHATAG (owner 2026-10-29: "The alpha animals are larger, not tamable/capturable"): the one
+## refusal every capture path shows. The alpha's genoma is the source of truth (CreatureGenetics.alpha),
+## so a netted or a hand-made stack carrying it is refused too.
+const ALPHA_REFUSAL := "Alphas can't be tamed."
+
+## ALPHATAG: true for an alpha animal (or a creature-like node that says so). Never tamable.
+static func is_alpha(creature: Variant) -> bool:
+	if creature == null or not (creature is Object) or not is_instance_valid(creature):
+		return false
+	return (creature as Object).has_method("is_alpha") and bool((creature as Object).call("is_alpha"))
+
+## ALPHATAG: the refusal for an alpha, "" for anything else. Every capture entry point reads it.
+static func alpha_lock(creature: Variant) -> String:
+	return ALPHA_REFUSAL if is_alpha(creature) else ""
+
+## ALPHATAG: true when a saved animal stack (a captured_animal cage, a legacy tamed_animal) holds an
+## alpha's genome. ASSUMPTION: such a stack can only come from a save written before this rule, and it
+## is refused like a live alpha rather than silently tamed.
+static func alpha_stack(stack: ItemStack) -> bool:
+	if stack == null:
+		return false
+	var g: Variant = stack.attributes.get("genetics", {})
+	return g is Dictionary and (g as Dictionary).get("alpha", false) is bool and (g as Dictionary).get("alpha") == true
+
 ## The health half of the rule on its own, for callers that hold numbers instead of a Creature
 ## (server intents) or that gate a low-HP collapse. Spec 09: <= 30 %, not <.
 static func health_allows_capture(fraction: float) -> bool:
@@ -28,7 +52,7 @@ static func window_open(hp: float, hp_max: float, stunned: bool) -> bool:
 static func capture_window(creature: Creature) -> bool:
 	if creature == null or creature.def == null or creature.health == null:
 		return false
-	if creature.health.dead or not creature.def.tameable or creature.is_pet:
+	if creature.health.dead or not creature.def.tameable or creature.is_pet or is_alpha(creature):
 		return false
 	var stunned := creature.statuses != null and creature.statuses.has(&"knockdown")
 	return window_open(creature.health.hp, creature.health.max_hp, stunned)
@@ -36,7 +60,7 @@ static func capture_window(creature: Creature) -> bool:
 static func can_attempt(creature: Creature) -> bool:
 	if creature == null or creature.def == null or creature.health == null:
 		return false
-	if creature.health.dead or not creature.def.tameable or creature.is_pet:
+	if creature.health.dead or not creature.def.tameable or creature.is_pet or is_alpha(creature):
 		return false
 	if creature.tame_cooldown_left > 0.0:
 		return false
@@ -143,13 +167,16 @@ static func _net_tier(inv: Inventory) -> int:
 	return net.def().capture_tier if net != null else 1
 
 static func refuse_message(creature: Creature) -> String:
+	var alpha := alpha_lock(creature)
+	if alpha != "":
+		return alpha
 	var locked := lock_reason(creature)
 	return locked if locked != "" else "needs %s" % preferred_need(creature)
 
 static func begin_window(creature: Creature) -> void:
 	if creature == null or creature.def == null:
 		return
-	if not creature.def.tameable or creature.is_pet:
+	if not creature.def.tameable or creature.is_pet or is_alpha(creature):
 		return
 	if creature.tame_cooldown_left > 0.0:
 		return
@@ -160,6 +187,9 @@ static func begin_window(creature: Creature) -> void:
 
 static func apply_feed(player: Player, creature: Creature, food_id: StringName) -> bool:
 	if player == null or not can_attempt(creature):
+		if player != null and is_alpha(creature):
+			player.notice(ALPHA_REFUSAL)
+			print("[tame] refused: %s" % ALPHA_REFUSAL)
 		return false
 	if lock_reason(creature) != "":
 		print("[tame] refused: %s" % lock_reason(creature))

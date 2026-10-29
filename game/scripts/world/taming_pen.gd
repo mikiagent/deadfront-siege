@@ -115,6 +115,18 @@ static func required_kind(def: CreatureDef) -> StringName:
 			return StringName(str((t as Dictionary)["kind"]))
 	return &""
 
+## ALPHATAG (owner 2026-10-29: "not tamable/capturable"): a pen never takes an alpha. The camera's
+## stack carries the alpha genome, so a cage saved before this rule is refused like a fresh one.
+static func alpha_refusal(stack: ItemStack) -> String:
+	return FieldTame.ALPHA_REFUSAL if FieldTame.alpha_stack(stack) else ""
+
+## The refusal for one captured stack: the alpha rule first, then the pen tier.
+static func refuse_stack(p_kind: StringName, stack: ItemStack) -> String:
+	var alpha := alpha_refusal(stack)
+	if alpha != "":
+		return alpha
+	return refuse_text(p_kind, _species_def(stack))
+
 ## "" when this pen takes the species, else the player-facing reason.
 static func refuse_text(p_kind: StringName, def: CreatureDef) -> String:
 	if def == null or fits(p_kind, def):
@@ -149,14 +161,14 @@ func try_insert(player: Player, slot: int = -1) -> bool:
 			var st: ItemStack = player.inventory.slots[i]
 			if st == null or st.def_id != &"captured_animal":
 				continue
-			if refuse_text(kind, _species_def(st)) == "":
+			if refuse_stack(kind, st) == "":
 				idx = i
 				break
 			if idx < 0:
 				idx = i
 	if idx < 0:
 		return false
-	last_refusal = refuse_text(kind, _species_def(player.inventory.slots[idx]))
+	last_refusal = refuse_stack(kind, player.inventory.slots[idx])
 	if last_refusal != "":
 		player.notice(last_refusal)
 		print("[capture] pen refused: %s" % last_refusal)

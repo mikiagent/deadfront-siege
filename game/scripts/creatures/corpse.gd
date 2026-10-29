@@ -97,7 +97,7 @@ func open_loot(player: Player) -> void:
 	if _is_empty():
 		_on_loot_empty()
 		if player.has_method("notice"):
-			player.notice("Nothing left on the %s." % species_display_name().to_lower())
+			player.notice("Nothing left on the %s." % species_lower_name())
 		return
 	open_picker(player)
 
@@ -122,7 +122,7 @@ func open_loot_chest(player: Player) -> void:
 	if _is_empty():
 		_on_loot_empty()
 		if player.has_method("notice"):
-			player.notice("Nothing left on the %s." % species_display_name().to_lower())
+			player.notice("Nothing left on the %s." % species_lower_name())
 		return
 	_units_seen = _kind_units()
 	var why := can_butcher(player.inventory)
@@ -414,8 +414,15 @@ func take_slot(slot: int, player: Player) -> ItemStack:
 	_on_take_from_loot()
 	return taken
 
+## ALPHATAG (owner 2026-10-29): an alpha carcass reads "[ALPHA] Deinonychus" — the tag prefixes the
+## name on the loot sheet's title, the world pill and the full-up notice, as on the living animal.
 func species_display_name() -> String:
-	return _label_species if _label_species != "" else str(species).capitalize()
+	var base := _label_species if _label_species != "" else str(species).capitalize()
+	return CreatureNatures.tagged(base, alpha)
+
+## The same name in the middle of a sentence ("Nothing left on the ..."), tag kept in caps.
+func species_lower_name() -> String:
+	return CreatureNatures.tagged((_label_species if _label_species != "" else str(species)).to_lower(), alpha)
 
 func plate_anchor() -> Vector3:
 	return global_position + Vector3(0.0, 1.05, 0.0)

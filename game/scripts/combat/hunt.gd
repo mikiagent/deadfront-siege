@@ -360,6 +360,10 @@ func use_kick() -> void:
 func use_net() -> void:
 	if target == null:
 		return
+	# ALPHATAG (owner 2026-10-29): an alpha cannot be netted; the refusal names the rule, not the HP.
+	if FieldTame.is_alpha(target):
+		say(FieldTame.ALPHA_REFUSAL)
+		return
 	if not _net_health_ok():
 		say(CAPTURE_REFUSAL)
 		return

@@ -279,6 +279,11 @@ func on_option_picked(anchor: Node3D, index: int) -> void:
 # ---------------------------------------------------------------- tame
 
 func begin_field_tame(creature: Creature) -> bool:
+	# ALPHATAG (owner 2026-10-29): an alpha is never tamable; the tap says so.
+	if FieldTame.is_alpha(creature):
+		p.notice(FieldTame.ALPHA_REFUSAL)
+		print("[tame] refused: %s" % FieldTame.ALPHA_REFUSAL)
+		return false
 	if not FieldTame.can_attempt(creature):
 		return false
 	var food := FieldTame.food_in_bag(p.inventory, creature)
