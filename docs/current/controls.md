@@ -114,12 +114,17 @@ hysteresis band, so a target hovering at the edge cannot make her stutter. Both 
 - It uses its own flag (`Player.chase_sprint`), never the HUD SPRINT latch: a sprint the player
   tapped on stays on, and chase-sprint turning off never turns their latch off.
 - It ends with the chase: target dead or cleared, End Combat, or a ground-tap move order (a move
-  order outranks combat, so she stops sprinting after the target too).
+  order outranks combat, so she stops sprinting after the target too). The hunt keeps its target
+  through the move order, so the sprint comes back when the order ends.
 - Energy is respected: a winded survivor (empty stamina or the Exhausted tier) is never forced to
   sprint, and the forced sprint only returns once the bar is back to a quarter.
 - Mounted, the same flag asks the mount to run, on **its own** energy pool; a winded mount walks.
+- The HUD SPRINT hex tracks the player's own latch only, so it stays unlit while chase sprint is
+  running her; the hex is the manual override, not the auto state.
 - `game/tests/t_chasesprint.gd` measures the radii, the hysteresis, the manual latch, the winded
-  case and the mounted case.
+  case, the move order, the chase ending and the mounted case.
+- Open questions CS1-CS4 in `docs/vision/WildLandsMMO_Open_Questions.md` hold the numbers as
+  ASSUMPTIONs for the owner to tune.
 
 ## Full screen
 
