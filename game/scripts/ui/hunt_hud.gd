@@ -71,6 +71,7 @@ var _orders_poll := 0.0
 const ORDERS_AUTO_S := 4.0  # ASSUMPTION: the owner asked for "a few seconds"
 var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
 var _ctx_hexes: Array[HexButton] = []
+var _claim_hex: HexButton  ## HUDTWEAK: the CLAIM context hex while it exists (above the day/night dial)
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
 var _place_hexes: Array[HexButton] = []
@@ -83,6 +84,7 @@ var _levelup_summary: String = ""
 var _levelup_sp: String = ""  ## the skill points the phone banner shows behind the brain glyph
 var hp_bar_rect := Rect2()  ## LEVELBAR: the health bar as last drawn (the energy bar is the same width under it)
 var xp_bar_rect := Rect2()  ## LEVELBAR: the bottom level bar as last drawn (tests read it)
+var _badge_centre_drawn := Vector2.ZERO  ## HUDTWEAK: tests read where the badge was centred
 var level_badge_rect := Rect2()  ## LEVELBADGE: the top-left level badge as last drawn, glow included
 var bar_trail: Dictionary = {}  ## LEVELBADGE: per-bar (fill, ghost, hold) for the trailing ghost fill (_trail)
 const TRAIL_HOLD := 0.4
@@ -861,8 +863,9 @@ func _refresh_context(delta: float) -> void:
 		h.pressed.connect(_on_context.bind(id))
 		add_child(h)
 		if id == "claim":
-			# Spec §6: a small gold-rim CLAIM hex by the minimap, right-aligned under its "X n  Y n" line
-			# (the day/night dial holds the map's lower-left edge). Portrait: under the quest card.
+			# Spec §6: a small gold-rim CLAIM hex by the minimap. HUDTWEAK (owner 2026-10-28): "Move claim to
+			# above the day/night UI": centred over the dial's face, clear of the "X n  Y n" line under the
+			# map. Portrait: under the quest card.
 			var cp := HudField.px(&"claim", r)
 			HudField.fit(h, cp)
 			h.rim_color = Color(UiTokens.GOLD, 0.8)
@@ -874,7 +877,10 @@ func _refresh_context(delta: float) -> void:
 			if UiTokens.is_narrow(r):
 				h.position = Vector2(_minimap.position.x + MAP_PX - cp, _minimap.position.y + MAP_PX + 52.0 + 72.0 + 8.0)
 			else:
-				h.position = Vector2(_minimap.position.x + MAP_PX - cp, map_floor() + 4.0 - (cp - cp * 0.866) * 0.5)
+				var face := _daynight.face_rect()
+				var cap := CAPTION_H if h.caption != "" else 0.0  # the caption hangs under the hex, above the dial
+				h.position = Vector2(face.get_center().x - cp * 0.5, face.position.y - cp - cap - 4.0)
+			_claim_hex = h
 		else:
 			if x < left:  # wrap: one row up, from the right again, clear of the quick slots and HANDS
 				row_y -= 70.0 + CAPTION_H + 8.0
@@ -1600,7 +1606,8 @@ func _draw() -> void:
 	var bar_px := UiTokens.meta(r) if not phone else 12
 	# LEVELBADGE (owner): no dark box behind the vitals; each piece carries its own rim and shadow.
 	drawn_blocks["vitals"] = vitals
-	var badge_c := Vector2(x + HudLevelBadge.R + 6.0, y + 4.0 + (big * 2.0 + gap * 2.0 + 22.0) * 0.5)
+	var badge_c := HudLayout.badge_centre(self, r)
+	_badge_centre_drawn = badge_c
 	level_badge_rect = HudLevelBadge.draw(self, badge_c, HudLevelBadge.R, LevelDisplay.player_level(), Time.get_ticks_msec() * 0.001, _font)
 	level_badge_tier = HudLevelBadge.tier_of(LevelDisplay.player_level())
 	_levelups.draw_pulse_rings(self, badge_c, HudLevelBadge.R)  # LEVELFX: gold rings out of the badge on a level-up
@@ -1624,18 +1631,11 @@ func _draw() -> void:
 	stomach_state = HudStomach.state_of(stomach_fill)
 	stomach_glyph_scale = move_toward(stomach_glyph_scale, float(HudStomach.GLYPH_SCALE[stomach_state]), get_process_delta_time() * HudStomach.SCALE_SPEED)
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
-	var face_pos := Vector2(x + 11.0, yy + 10.0)  # the tier row (the face itself rides the belt below)
-	# The words follow spec 01's fatigue scale (0-24 rested, 25-49 slightly tired, 50-74 tired,
-	# 75-99 exhausted); the playtest read "TIRED" a few minutes into a walk and it was 25 %.
-	var face_label := "RESTED" if strain < 0.25 else ("WORN" if strain < 0.5 else ("TIRED" if strain < 0.75 else "EXHAUSTED"))
 	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
-	draw_string_outline(_font, Vector2(x + 1.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, full_w - 4.0, bar_px, 3, Color(0, 0, 0, 0.75))
-	draw_string(_font, Vector2(x + 1.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, full_w - 4.0, bar_px, face_col)
-	yy += 22.0
 	# Owner 2026-10-27: this row is a treadmill — the tread chevrons point and scroll right while
 	# exhaustion rises (work, climate, wet) and left while it eases (sleep, meals); scroll speed
-	# carries how fast it is changing. The drift is sampled in _process; the face's
-	# RESTED/WORN/TIRED/EXHAUSTED tier stays one row above.
+	# carries how fast it is changing. The drift is sampled in _process. HUDTWEAK (owner 2026-10-28):
+	# no tier word; the belt sits right under the energy bar and the face sticker says the tier.
 	var belt := Rect2(Vector2(x, yy), Vector2(full_w, ExhaustTreadmill.BELT_H))
 	draw_rect(Rect2(belt.position + Vector2(0, 2), belt.size), Color(0, 0, 0, 0.35))  # drop shadow, no panel behind
 	ExhaustTreadmill.draw_belt(self, belt, _fat_rate, _belt_phase, strain, face_col, _font, bar_px)
@@ -1643,20 +1643,21 @@ func _draw() -> void:
 	var sticker := Vector2(clampf(ExhaustTreadmill.marker_rect.get_center().x, belt.position.x + 11.0, belt.end.x - 11.0), belt.get_center().y)
 	_draw_exhaustion_face(sticker, strain)
 	exhaust_sticker_rect = Rect2(sticker - Vector2(12, 12), Vector2(24, 24))
-	_fatigue_rect = Rect2(x, face_pos.y - 14.0, full_w, maxf(UiTokens.TARGET_MIN, yy + ExhaustTreadmill.BELT_H - face_pos.y + 14.0))
+	_fatigue_rect = Rect2(x, belt.get_center().y - UiTokens.TARGET_MIN * 0.5, full_w, maxf(UiTokens.TARGET_MIN, ExhaustTreadmill.BELT_H))
 	if _fatigue_panel and _fatigue_panel.visible:
 		_fatigue_panel.position = Vector2(_fatigue_rect.position.x, _fatigue_rect.end.y + 8.0)
 	# Player conditions belong with the player's vitals, directly beneath the top-left panel. On a
 	# landscape phone with pet commands visible, keep the row after those commands so they do not
 	# occupy the same strip; both remain within the wide compact vitals block.
-	var sx := vitals.position.x + 8.0
+	# HUDTWEAK (owner 2026-10-28): the chip row starts at the health bar's left edge; the stomach ring is
+	# the badge's size, centred under it. A landscape phone's whistle row takes the same strip, so the chips drop under it.
+	var sx := hp_bar_rect.position.x
 	var sy := vitals.end.y + 8.0
-	if HudLayout.landscape_phone(r):
-		sx += 3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0
-	# Owner 2026-10-28: "move stomach indicator by the buffs/debuffs": the ring leads the row, chip-sized.
-	var ring_r := HudBuffRow.CHIP * 0.5
-	stomach_rect = HudStomach.draw(self, Vector2(sx + ring_r, sy + ring_r), ring_r, stomach_fill, stomach_saturation, stomach_glyph_scale)
-	sx += HudBuffRow.PITCH
+	if HudLayout.landscape_phone(r) and _whistle_hexes[0].visible:
+		sy = _whistle_hexes[0].position.y + _whistle_hexes[0].size.y + 6.0
+	var sc := HudLayout.stomach_circle(self, r)
+	stomach_rect = HudStomach.draw(self, Vector2(sc.x, sc.y), sc.z, stomach_fill, stomach_saturation, stomach_glyph_scale)
+	drawn_blocks["stomach"] = stomach_rect  # tooltips and notices place around it
 	if player.statuses:
 		var sx0 := sx
 		var rest_lines := player.sim.rest.hud_lines() if player.sim else PackedStringArray()
@@ -1980,6 +1981,8 @@ func quest_rect(r: Vector2, mp: Vector2) -> Rect2:
 	var phone := UiTokens.is_phone(r)
 	var w := MAP_PX if phone else 240.0  # wide enough for "Home Grassland" at heading size
 	var origin := Vector2(mp.x, mp.y + MAP_PX + 52.0) if phone else Vector2(mp.x - w - 12.0, mp.y)
+	if not phone and is_instance_valid(_claim_hex) and _claim_hex.is_visible_in_tree():
+		origin.x = minf(origin.x, _claim_hex.hex_rect().position.x - w - 8.0)  # HUDTWEAK: CLAIM sits over the dial
 	return Rect2(maxf(origin.x, 8.0), origin.y, w, 72.0)
 
 func _draw_quest(r: Vector2, mp: Vector2) -> void:

@@ -242,10 +242,10 @@ func _test_stomach(view: Vector2) -> void:
 	var ring: Rect2 = _hud.stomach_rect
 	var vit: Rect2 = _hud.drawn_blocks.get("vitals", Rect2())
 	_expect(ring.has_area(), "%s the ring draws (%s)" % [tag, ring])
-	# Owner 2026-10-28 (LEVELBADGE): the ring moved under the vitals, leading the buff row.
-	_expect(ring.position.y >= vit.end.y and ring.position.x <= vit.position.x + 16.0, "%s the ring leads the buff row under the vitals (%s)" % [tag, ring])
+	# Owner 2026-10-28 (HUDTWEAK): the ring sits under the level badge, below the vitals' bars.
+	_expect(ring.position.y >= vit.end.y and ring.position.x <= vit.position.x + 16.0, "%s the ring sits under the badge, below the vitals (%s)" % [tag, ring])
 	var hit := Rect2()
-	for t: Rect2 in _hud.taken_rects(PackedStringArray(["vitals"])):
+	for t: Rect2 in _hud.taken_rects(PackedStringArray(["vitals", "stomach"])):
 		if t.intersects(ring):
 			hit = t
 	_expect(not hit.has_area(), "%s the ring is off every other HUD rect (hits %s)" % [tag, hit])
