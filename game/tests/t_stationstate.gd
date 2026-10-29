@@ -36,6 +36,7 @@ func _run() -> void:
 	_test_worksite()
 	_test_pen_odds()
 	await _test_work_card()
+	_test_twine_keeps_twine()
 	if _fails.is_empty():
 		print("[t_stationstate] PASS")
 		quit(0)
@@ -275,3 +276,21 @@ func _test_work_card() -> void:
 		waited += 1
 	_expect(not sc.crafting and not sc.card.visible, "the card is gone when the job ends (frames %d)" % waited)
 	_expect(_player.inventory.count_of(&"empty_bucket") == 1, "the job made its bucket")
+
+## Gathered stalks roll traits now, so a plain twine was the cheapest "fibre" and a second twine ate
+## the first (market harness: no capture net). The recipe's own output is spent last.
+func _test_twine_keeps_twine() -> void:
+	var IS: GDScript = load("res://scripts/items/item_stack.gd")
+	var C: GDScript = load("res://scripts/items/crafting.gd")
+	var inv: Variant = load("res://scripts/items/inventory.gd").new(8)
+	inv.add(IS.make(&"twine", 1))
+	for i in 2:
+		var st: Variant = IS.make(&"fibre_stalk", 1)
+		st.attributes["soft_fiber"] = 1 + i
+		inv.add(st)
+	var rec: Dictionary = C.recipe(&"twine")
+	var plan: Array = C._plan(inv, rec)
+	var used: Array = []
+	for part in (plan[0]["parts"] if not plan.is_empty() else []):
+		used.append(str(inv.slots[int(part["idx"])].def_id))
+	_expect(used == ["fibre_stalk", "fibre_stalk"], "a twine craft spends the two stalks, not the twine (%s)" % [used])
