@@ -263,6 +263,7 @@ func _build_all() -> void:
 	for entry in plan:
 		var n: int = maxi(1, int(round(float(entry["n"]) * scale)))
 		_place_kind(str(entry["kind"]), entry["rows"], entry["models"], n)
+	_place_outcrops()
 	if cards != null:
 		cards.commit()
 	for b: VegBatch in _batches.values():
@@ -567,6 +568,78 @@ func _place_kind(kind: String, rows: Dictionary, models: PackedStringArray, n: i
 		_spawn(kind, path, Vector3(wx, h, wz), sc, collide, destroyable, radius, want_h)
 		placed += 1
 	return placed
+
+## ISLANDSHAPES topography props: clusters of big blocking rock (a cliff block or spire, boulders round
+## it, now and then a big cliff) on the flat inland ground of a shaped island, counted by its family's
+## "outcrops" range. Never on the camp ring, the dock or its approach, the camp-to-dock walk, the river,
+## a beach, claimed land or a slope; every rock stands on the drawn ground (surface_y). Returns the
+## rocks placed.
+const OUTCROP_KINDS := [["cliff_rock", 4.5, 6.5], ["boulder", 2.6, 3.8], ["boulder", 2.6, 3.8], ["rock_spire", 6.0, 8.5], ["mesa_cliff", 9.0, 12.0]]
+var outcrop_count := 0
+
+func _place_outcrops() -> int:
+	var sh: IslandShape = runtime._shape
+	if sh == null or sh.family == "classic" or runtime.harbour == null:
+		return 0
+	var n := IslandShape._rng_int(_rng, sh._fam, "outcrops")
+	var camp := Vector2(runtime._camp_pos.x, runtime._camp_pos.z)
+	var a3: Vector3 = runtime.arrival_point()
+	var arrive := Vector2(a3.x, a3.z)
+	var half := runtime._size * 0.45
+	var placed := 0
+	for _k in n:
+		for _attempt in 120:
+			var c := Vector2(_rng.randf_range(-half, half), _rng.randf_range(-half, half))
+			if not _outcrop_ok(c, camp, arrive, 7.0):
+				continue
+			var rocks := _rng.randi_range(3, 6)
+			for j in rocks:
+				var row: Array = OUTCROP_KINDS[0 if j == 0 else _rng.randi_range(0, OUTCROP_KINDS.size() - 1)]
+				if j > 0 and str(row[0]) == "mesa_cliff" and _rng.randf() > 0.25:
+					row = OUTCROP_KINDS[1]
+				var p := c if j == 0 else c + Vector2.from_angle(_rng.randf() * TAU) * _rng.randf_range(3.5, 8.0)
+				if j > 0 and not _outcrop_ok(p, camp, arrive, 0.0):
+					continue
+				var tile := BuildGrid.tile_of(Vector3(p.x, 0.0, p.y))
+				if _cell_props.has(tile) or runtime._used_tiles.has(tile) or _claimed_footprint(tile, float(row[2]) * 0.5):
+					continue
+				if _place_rock(str(row[0]), Vector3(p.x, runtime.surface_y(p.x, p.y), p.y), _rng.randf_range(float(row[1]), float(row[2]))):
+					_rows[_rows.size() - 1]["outcrop"] = true
+					placed += 1
+			break
+	outcrop_count = placed
+	return placed
+
+## Inland, flat, dry, clear of the camp ring, the dock, the walk between them and the river.
+func _outcrop_ok(p: Vector2, camp: Vector2, arrive: Vector2, extra: float) -> bool:
+	var pos := Vector3(p.x, runtime.surface_y(p.x, p.y), p.y)
+	if not runtime.spawn_ok(pos, true) or runtime.near_harbour(pos):
+		return false
+	if runtime.rad_at(p.x, p.y) > runtime.land_radius() - 8.0 - extra:
+		return false
+	if runtime.river_dist_at(p.x, p.y) < 12.0 + extra:
+		return false
+	if IslandShape._seg_dist(p, camp, arrive) < 10.0 + extra:
+		return false
+	if IslandTerrain.slope_deg(runtime, p.x, p.y) > 18.0:
+		return false
+	return true
+
+## One blocking rock of `kind` at want_size metres (its painted card, else its first model).
+func _place_rock(kind: String, pos: Vector3, want_size: float) -> bool:
+	var rows := kind_row(kind)
+	if rows.is_empty():
+		return false
+	if has_cards(kind):
+		_spawn(kind, "", pos, 1.0, true, false, float(rows.get("radius_m", 0.6)), want_size)
+		return true
+	var models := _existing_models(rows)
+	if models.is_empty():
+		return false
+	var path := models[_rng.randi_range(0, models.size() - 1)]
+	var sc := clampf(want_size / maxf(0.02, VegBatch.mesh_longest(path)), 0.02, 60.0)
+	_spawn(kind, path, pos, sc, true, false, float(rows.get("radius_m", 0.6)), want_size)
+	return true
 
 ## CLAIMPROPS: the radius (m) a prop of `kind` covers at this spot. A painted-card kind is as wide as
 ## its sprite's art ratio, exactly like _spawn() sizes its footprint.

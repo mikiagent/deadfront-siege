@@ -24,10 +24,14 @@ const EXPECTED_FAIL_TIME := false
 ## change no output). These are the island the plan's budget is about; they may not change.
 ## Re-recorded 2026-10-28 for TERRAINSMOOTH (refined 2x surface, sandy beach stretches), a change of
 ## output by design: canon 0ae592a5 built the old digests, the terrain merge on top builds these.
+## Re-recorded 2026-10-29 for ISLANDSHAPES (shape families, southern-most dock, topography and rock
+## outcrops), a change of output by design: canon origin/claude/mmo-overhaul a67768b3 still builds the
+## three digests above this line's predecessors (8f711ab5..., 92c05535..., 9c9c8c7c...), this branch
+## builds these. Home keeps its classic body; only its dock (and so what the scatter keeps clear) moved.
 const BEFORE := {
-	"home_grassland": "8f711ab5979e9d36d55b50cec073c986e1bc8e38623d512876f6eb8968327b3a",
-	"savannah_15": "92c0553497c7e3ef18c5e1ed9b8c67d617d127d9c36f2c452c516296ba78abd9",
-	"volcanic_60": "9c9c8c7c37a811a0908bb0ec56b5337c682133c80bddc7f3c18130d663e74d5f",
+	"home_grassland": "ee9810de15febc71efacdee0a77a16a020326335f2d87d440c51d52bac917077",
+	"savannah_15": "3baa8c6121f1a40fd49c312702d22000ca73de2f543bec52642f9c531599b0cf",
+	"volcanic_60": "d7f9bb524d393a8edc9ae9d1c63f1c77e67f261135c8cbd1e6bfa639dd66aa68",
 }
 
 var _fails: PackedStringArray = []
