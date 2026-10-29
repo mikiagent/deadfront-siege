@@ -774,7 +774,8 @@ func _blood_trail() -> void:
 ## Step outside it and the chase ends (BrainFlight.track). Vertices follow the
 ## terrain so the ring reads on slopes; rebuilt at 10 Hz while the creature moves.
 func _update_aggro_ring(delta: float) -> void:
-	var show := not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()
+	# Debug only (owner 2026-10-28: the ring looks unpolished in normal play).
+	var show := Game.debug_overlay and not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()
 	if not show:
 		if _aggro_ring and _aggro_ring.visible:
 			_aggro_ring.visible = false

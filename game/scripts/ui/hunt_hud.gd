@@ -745,6 +745,10 @@ func _build_place_hexes() -> void:
 func bite_on_player(amount: float, heavy: bool) -> void:
 	_events.add_bite(amount, heavy)
 
+## CombatAvoid: "Dodged" / "Blocked" rises over her where a damage number would, smaller and grey.
+func avoid_on_player(text: String) -> void:
+	_events.add_float(text, CombatAvoid.COLOR, 0.0, CombatAvoid.PX)
+
 func _draw_bites(cam: Camera3D) -> void:
 	if cam == null or player == null:
 		return

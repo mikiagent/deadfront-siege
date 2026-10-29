@@ -245,7 +245,7 @@ func _swing_damage(w: ItemStack) -> float:
 ## and the tyrant counter happen only on a landed hit.
 func land_hit(t: Creature, w: ItemStack) -> bool:
 	if not CombatTuning.roll(hit_chance(t)):
-		t.combat_float.emit(0.0, &"dodge")
+		CombatAvoid.avoided(t, player)
 		return false
 	var tune := CombatTuning.section("player_melee")
 	var def := w.def() if w else null
