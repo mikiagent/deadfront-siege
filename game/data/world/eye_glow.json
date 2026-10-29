@@ -4,5 +4,12 @@
   "ramp_pow": 1.5,
   "trail_from": 0.2,
   "trail_to": 0.5,
-  "day_halo": 0.3
+  "day_halo": 0.3,
+  "_threat": "THREAT (owner 2026-10-28: 'compsognathus looks very intimidating with the eye trails but it's not that powerful'). threat = clamp((tier - threat_tier_low) / (threat_tier_high - threat_tier_low), 0, 1) from the species tier (its level: compsognathus 15, deinonychus 35, T. rex 60), or the species eyes block 'threat' (0..1) when set. At threat t the flame trail's length is lerp(weak_length, 1, t) of its full length, the trail energy lerp(weak_energy, 1, t), the bloom/halo size lerp(weak_size, 1, t) and the dot + rim glow lerp(weak_glow, 1, t). An alpha's eye_glow_mult multiplies on top. ASSUMPTION: every number here.",
+  "threat_tier_low": 10,
+  "threat_tier_high": 60,
+  "weak_length": 0.05,
+  "weak_energy": 0.25,
+  "weak_size": 0.6,
+  "weak_glow": 0.45
 }

@@ -8,7 +8,7 @@ extends Control
 ## A tap anywhere else closes the ring and does nothing else; so do Esc and the pet going away.
 ## Walking does not close it (the station menu's nav_active close hid it while the survivor still walked).
 ## HUD hexes under the ring or its labels fade out while it is open: a landscape phone in a fight has no
-## free spot for it (its labels sat on CHASE and FISTS), and a tap there only closes the ring.
+## free spot for it (its labels sat on the quick row), and a tap there only closes the ring.
 
 signal action_chosen(pet: Node3D, action_id: StringName)
 
@@ -256,7 +256,7 @@ func _set_chip(nature: StringName) -> void:
 	_chip_nature = nature
 	_chip.configure(nature)
 
-## Fades the HUD's hexes and the HANDS slot where the ring or a label covers them (only the HUD's:
+## Fades the HUD's hexes where the ring or a label covers them (only the HUD's:
 ## other menus animate their own), and brings back the ones it no longer covers; all once it closes.
 func _fade_covered() -> void:
 	for c in _faded:
@@ -266,13 +266,6 @@ func _fade_covered() -> void:
 	var hud := get_tree().get_first_node_in_group(&"hud") if visible and is_inside_tree() else null
 	if hud == null:
 		return
-	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
-	# Its caption hangs 18 px below the slot (HudLayout.taken_rects).
-	var bag := held.get_node_or_null(^"InventoryButton") as Control if held else null  # the BAG hex over HANDS fades with it
-	if held and held.is_visible_in_tree() and (covers(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18))) \
-			or (bag and covers(Rect2(bag.get_global_rect().position, bag.size + Vector2(0, 18))))):
-		held.modulate.a = 0.0
-		_faded.append(held)
 	for n in get_tree().get_nodes_in_group(&"hex_button"):
 		var h := n as HexButton
 		if h and h.is_visible_in_tree() and hud.is_ancestor_of(h) and (covers(h.hex_rect()) or covers(h.caption_rect())):

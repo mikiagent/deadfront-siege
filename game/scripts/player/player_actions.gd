@@ -156,7 +156,8 @@ func finish_gather() -> void:
 			stop_gather_cycle()
 			p.gather_target = null
 			return
-	var stack := gt.roll_yield()  # ONEGATHER: one instance per pass, never more
+	# ONEGATHER: one instance per pass, never more; HARVESTROLL: its own level and traits every pass.
+	var stack := gt.roll_yield(GatherService.rng, GatherService.tool_tier(p.inventory, gt.required_tool_class, gt.family), GatherService._skill(p))
 	if p.skills:
 		# rules.json gathering_downrank: a node above your Gathering level yields at your level.
 		# ASSUMPTION: floor of 5 so a fresh survivor still gets usable materials.
@@ -684,6 +685,9 @@ func claim() -> void:
 func claim_confirmed() -> bool:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
+		return false
+	if World.is_tutorial():
+		p.notice("The tutorial island can't be claimed: your own island comes at the end of the orders")
 		return false
 	# PRD 13.1: with land already held a claim is one orthogonal expansion of it, never a plot out on
 	# its own (the confirm path runs this too, so a stale panel cannot stake a hop).

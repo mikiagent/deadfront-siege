@@ -91,9 +91,9 @@ static func actions_for(sid: StringName, p: Player) -> Array:
 		list = [{"id": &"craft", "label": "CRAFT", "icon": "hammer", "glyph": "C"}]
 	for a in list:
 		out.append((a as Dictionary).duplicate())
-	# FIREPITS: any fire takes wood; the permanent pit needs it to burn at all.
+	# FIREPITS / FIREFUEL: any fire takes wood; FUEL opens its fuel sheet (branches and logs).
 	if sid in [&"bonfire", &"campfire"]:
-		out.append({"id": &"wood", "label": "LOAD WOOD", "icon": "branch", "glyph": "W"})
+		out.append({"id": &"wood", "label": "FUEL", "icon": "wood_log", "glyph": "W"})
 	if sid == &"bonfire" and p != null and p.statuses \
 			and (p.statuses.has(&"bleed") or p.statuses.has(&"deep_bleed")):
 		out.append({"id": &"cauterise", "label": "CAUTERISE", "icon": "bonfire_kit", "glyph": "B"})
@@ -110,12 +110,9 @@ static func filter_actions(st: Node3D, actions: Array) -> Array:
 	var cook_why := ""
 	if st != null and is_instance_valid(st) and st.has_method("cook_block_reason"):
 		cook_why = str(st.call("cook_block_reason"))
-	var wood_full := st != null and is_instance_valid(st) and st.has_method("can_load_wood") and not bool(st.call("can_load_wood"))
 	for a: Variant in actions:
 		var aid := str((a as Dictionary).get("id", ""))
 		if cook_why != "" and aid == "cook":
-			continue
-		if aid == "wood" and wood_full:
 			continue
 		out.append(a)
 	return out
@@ -308,8 +305,14 @@ func hide_menu() -> void:
 
 func _on_pressed(aid: StringName) -> void:
 	var st := station
-	# FIREPITS: these two act on the fire in place and keep the menu open, so its fuel line updates.
+	# FIREFUEL: FUEL opens the fire's fuel sheet; with no HUD (labs, bare tests) it loads one piece of
+	# wood in place and keeps the menu open, so its fuel line updates.
 	if aid == &"wood" and st != null and is_instance_valid(st) and st.has_method("load_wood"):
+		var hud := get_tree().get_first_node_in_group("hud") if is_inside_tree() else null
+		if hud != null and hud.has_method("open_fire_fuel") and st is Bonfire:
+			hide_menu()
+			hud.call("open_fire_fuel", st, player)
+			return
 		st.call("load_wood", player)
 		_show_info()
 		return

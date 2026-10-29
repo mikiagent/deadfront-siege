@@ -20,10 +20,18 @@ static func _dress(hud: HuntHud) -> void:
 	var p := hud.player
 	if p == null:
 		return
-	if Game.shot_path.contains("levelbar"):  # LEVELBAR captures: "levelbar-lv10" shows Lv. 10, 45 % into it
+	if Game.shot_path.contains("levelbar") or Game.shot_path.contains("levelbadge"):  # LEVELBAR captures: "levelbar-lv10" shows Lv. 10, 45 % into it
 		var m := RegEx.create_from_string("lv(\\d+)").search(Game.shot_path)
 		World.pioneer_level = (int(m.get_string(1)) if m else 2) - 1
 		World.pioneer_xp = int(World.xp_for_level(World.pioneer_level) * 0.45)
+		if Game.shot_path.contains("levelbadge"):  # LEVELBADGE: some wear, so the bars and the belt sticker sit mid-way
+			p.vitals.health = p.vitals.effective_max_health() * 0.72
+			p.vitals.fatigue = p.vitals.max_fatigue * 0.38
+			for id: StringName in [&"well_rested", &"caffeinated", &"dirty", &"thirsty"]:  # buffs and debuffs for the row
+				p.statuses.apply(id)
+			if Game.shot_path.contains("trail"):  # mid-trail: 92 % -> 45 % health, the pale ghost still held
+				p.vitals.health = p.vitals.effective_max_health() * 0.45
+				hud.bar_trail[&"hp"] = Vector3(0.45, 0.92, 999.0)
 		return
 	if Game.shot_path.contains("titles"):  # TITLES captures: only a worn title over her name
 		World.player_name = "Milan"

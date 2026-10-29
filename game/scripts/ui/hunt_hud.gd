@@ -83,6 +83,14 @@ var _levelup_summary: String = ""
 var _levelup_sp: String = ""  ## the skill points the phone banner shows behind the brain glyph
 var hp_bar_rect := Rect2()  ## LEVELBAR: the health bar as last drawn (the energy bar is the same width under it)
 var xp_bar_rect := Rect2()  ## LEVELBAR: the bottom level bar as last drawn (tests read it)
+var level_badge_rect := Rect2()  ## LEVELBADGE: the top-left level badge as last drawn, glow included
+var bar_trail: Dictionary = {}  ## LEVELBADGE: per-bar (fill, ghost, hold) for the trailing ghost fill (_trail)
+const TRAIL_HOLD := 0.4
+const TRAIL_EASE := 6.0
+var map_xy_text := ""  ## LEVELBADGE: the coordinates under the minimap, as last drawn
+var _map_xy := Vector2i(1 << 30, 0)
+var level_badge_tier := 0  ## its tier (HudLevelBadge.tier_of)
+var exhaust_sticker_rect := Rect2()  ## LEVELBADGE: the exhaustion face riding the belt at the strain marker
 var xp_bar_segments := 0  ## its segment count as last drawn
 var _levelups := LevelUpCelebration.new()  ## level-ups queued, celebrated one at a time, with their light (LEVELFX)
 ## Screen rects of the blocks _draw paints (vitals, quest card, map text, status badges, level line,
@@ -105,6 +113,7 @@ var _death_alpha: float = 0.0
 var _death_btn: Button
 
 const MAP_PX := 154.0
+const MAP_RIM := 6.0  ## LEVELBADGE: the minimap frame band
 const MAP_SCALE := 0.95  # metres per pixel
 const HEX := 64.0
 const SKILL_HEX := 72.0  # the hunt skill hexes (net / tackle / kick / roll)
@@ -179,7 +188,7 @@ func _ready() -> void:
 				player.statuses.apply(&"bleed_3")
 				if Game.shot_path.contains("poison"):
 					player.statuses.apply(&"venom"))
-	if Game.shot_path.contains("hudrules") or Game.shot_path.contains("titles") or Game.shot_path.contains("levelbar"):  # HUDRULES captures: bleed, Well Rested, a food buff (HudrulesShot)
+	if Game.shot_path.contains("hudrules") or Game.shot_path.contains("titles") or Game.shot_path.contains("levelbar") or Game.shot_path.contains("levelbadge"):  # HUDRULES captures: bleed, Well Rested, a food buff (HudrulesShot)
 		get_tree().create_timer(0.6).timeout.connect(func () -> void: HudrulesShot.stage(self))
 	get_viewport().size_changed.connect(_layout)
 	_layout()
@@ -258,10 +267,9 @@ func _layout() -> void:
 		HudField.fit(h, rail)
 		h.position = Vector2(x, y)
 		x += rail + 10.0
-	# Quick slots above the rail: two quick-food hexes, CHASE in the third slot during a fight, HANDS
-	# (held_item_slot.gd, its own layer) in the fourth (hands_spot).
+	# Quick slots above the rail: two quick-food hexes, CHASE in the third slot during a fight.
 	var q := HudField.px(&"quick", r)
-	var qy := y - q - CAPTION_H - 12.0
+	var qy := quick_row_y()
 	for i in _food_hexes.size():
 		HudField.fit(_food_hexes[i], q)
 		_food_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (q + 10.0), qy)
@@ -290,14 +298,11 @@ func _layout() -> void:
 func map_floor() -> float:
 	return _minimap.position.y + MAP_PX + 24.0
 
-## Where HANDS (held_item_slot.gd) stands: the quick row's fourth slot, centred in it.
-func hands_spot() -> Vector2:
+## The quick row's top (food, food, CHASE above the rail).
+func quick_row_y() -> float:
 	var r := get_viewport_rect().size
-	var inset := _safe_insets()
 	var q := HudField.px(&"quick", r)
-	var qy := r.y - HudField.px(&"rail", r) - CAPTION_H - 14.0 - inset.y - q - CAPTION_H - 12.0
-	var off := (q - HeldItemSlot.SLOT) * 0.5
-	return Vector2(16.0 + inset.w + 3.0 * (q + 10.0) + off, qy + off)
+	return r.y - HudField.px(&"rail", r) - CAPTION_H - 14.0 - _safe_insets().y - q - CAPTION_H - 12.0
 
 ## A notice for the MENU badge (HudField.notify): &"skills", &"market" (hook: no client market events
 ## yet) or any sheet id; urgent draws the badge red. Cleared when that sheet opens.
@@ -607,9 +612,17 @@ func _build_death() -> void:
 	)
 	_death_card.add_child(_death_btn)
 
+const DEATH_FADE_IN := 2.0
+
+## The survivor's "HP / max" text. Rounded up, so 0 only ever means dead: "%.0f" showed a 0.4 HP survivor
+## as "0 / 100" and she fought on at a seeming 0 (owner: "still alive at 0 health for a while").
+static func hp_label(v: Vitals) -> String:
+	return "%d / %d" % [ceili(v.health), ceili(v.effective_max_health())]
+
 func _tick_death(delta: float) -> void:
 	var dead := player != null and player.dead
-	_death_alpha = move_toward(_death_alpha, 1.0 if dead else 0.0, delta * (0.8 if dead else 4.0))
+	# EYESDEATH: full in 0.5 s (was 1.25 s at 0.8/s; the faint first second read as "alive at 0").
+	_death_alpha = move_toward(_death_alpha, 1.0 if dead else 0.0, delta * (DEATH_FADE_IN if dead else 4.0))
 	var show := _death_alpha > 0.01
 	if _death_panel.visible != show:
 		_death_panel.visible = show
@@ -736,6 +749,10 @@ func _build_place_hexes() -> void:
 func bite_on_player(amount: float, heavy: bool) -> void:
 	_events.add_bite(amount, heavy)
 
+## CombatAvoid: "Dodged" / "Blocked" rises over her where a damage number would, smaller and grey.
+func avoid_on_player(text: String) -> void:
+	_events.add_float(text, CombatAvoid.COLOR, 0.0, CombatAvoid.PX)
+
 func _draw_bites(cam: Camera3D) -> void:
 	if cam == null or player == null:
 		return
@@ -825,13 +842,13 @@ func _refresh_context(delta: float) -> void:
 	var inset := _safe_insets()
 	var compact := UiTokens.is_compact(r)
 	# The row runs right to left from SPRINT along the bottom line; past the rail it wraps one row up,
-	# where on the left it stops short of the quick slots and HANDS.
+	# where on the left it stops short of the quick slots.
 	var right := field.sprint_hex.position.x - 8.0
 	var left := _bag_hex.position.x + _bag_hex.size.x + 12.0
 	var row_y := r.y - UiTokens.xp_line_zone(r).size.y - CAPTION_H - 70.0 - inset.y  # captions clear the XP line
 	if UiTokens.is_narrow(r):  # portrait: the row above the quick slots, from the left
 		right = r.x - 16.0 - inset.x - field.interact_hex.size.x - 8.0
-		row_y = hands_spot().y - CAPTION_H - 12.0 - 70.0
+		row_y = quick_row_y() - CAPTION_H - 12.0 - 70.0
 		left = 16.0 + inset.w
 	var x := right - 70.0
 	for a in actions:
@@ -845,6 +862,7 @@ func _refresh_context(delta: float) -> void:
 		if h.glyph == "" and h.icon == null:
 			h.glyph = h.caption
 			h.caption = ""
+		h.name = "Ctx_" + id  # TUTORIAL ISLAND: the onboarding pointer finds a context action by name
 		h.pressed.connect(_on_context.bind(id))
 		add_child(h)
 		if id == "claim":
@@ -863,10 +881,10 @@ func _refresh_context(delta: float) -> void:
 			else:
 				h.position = Vector2(_minimap.position.x + MAP_PX - cp, map_floor() + 4.0 - (cp - cp * 0.866) * 0.5)
 		else:
-			if x < left:  # wrap: one row up, from the right again, clear of the quick slots and HANDS
+			if x < left:  # wrap: one row up, from the right again, clear of the quick slots
 				row_y -= 70.0 + CAPTION_H + 8.0
 				x = right - 70.0
-				left = hands_spot().x + HeldItemSlot.SLOT + 12.0
+				left = _chase_hex.position.x + _chase_hex.size.x + 12.0
 			h.position = Vector2(x, row_y)
 			x -= 78.0
 		_ctx_hexes.append(h)
@@ -989,9 +1007,6 @@ func _placer_taken() -> Array[Rect2]:
 		if ctl is Label and (ctl as Label).text.strip_edges() == "":
 			continue
 		out.append(ctl.get_global_rect())
-	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
-	if held and held.is_visible_in_tree():
-		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
 	if player and player.build_ui and is_instance_valid(player.build_ui) and (player.build_ui as BuildUI).visible:
 		out.append_array((player.build_ui as BuildUI).taken_rects())  # the build drawer stays open beside the ghost
 	var fig := figure_rect()
@@ -1189,9 +1204,8 @@ func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
 	b.pressed.connect(cb)
 	box.add_child(b)
 
-## True while one of the HUD's sheets is open. HANDS (held_item_slot.gd) and the creature plates sit
-## on canvas layers above the HUD's and hide meanwhile: on a landscape phone HANDS sat on the sheet's
-## Close, so a tap there swapped the held tool.
+## True while one of the HUD's sheets is open. The creature plates sit on canvas layers above the
+## HUD's and hide meanwhile.
 func sheet_open() -> bool:
 	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible) or (_orders_sheet != null and _orders_sheet.visible)
 
@@ -1386,6 +1400,13 @@ func open_taming_pen(pen: TamingPen = null) -> TamingPenUI:
 	s.open(player, pen)
 	return s
 
+## FIREFUEL: a fire's fuel sheet (StationMenu's FUEL hex calls this).
+func open_fire_fuel(fire: Bonfire, who: Player = null) -> FireFuelSheet:
+	_close_sheet()
+	var s := _world_sheet(&"fire_fuel", func () -> UiWorldSheet: return FireFuelSheet.new()) as FireFuelSheet
+	s.open(who if who != null else player, fire)
+	return s
+
 # ---------------------------------------------------------------- per frame
 
 func _build_fatigue_panel() -> void:
@@ -1570,20 +1591,24 @@ func _draw() -> void:
 	# old 176 px / 12 px block "tiny desktop typography"). Phone keeps the compact block.
 	var vitals := HudLayout.vitals_rect(self, r)
 	var panel_w := vitals.size.x
-	# LEVELBAR (owner 2026-10-28): no level badge here, the bottom bar shows the level; the bars take its room.
-	var full_w := 276.0 if not phone else maxf(128.0, panel_w - 14.0)
+	# LEVELBADGE (owner 2026-10-28): the level badge is back at the left, its ring richer toward Lv 60; the bars follow it.
+	var full_w := panel_w - HudLevelBadge.COLUMN - 24.0 if UiTokens.is_compact(r) or phone else 276.0
 	var big := 16.0 if not phone else 12.0
 	var gap := 6.0
-	# HUDRULES: the stomach ring stands right of the health and energy bars, as tall as both.
-	var ring_d := big * 2.0 + gap
-	var bar_w := full_w - ring_d - 6.0
+	# Owner 2026-10-28: the stomach ring moved down to lead the buff row, so the bars take the full width.
+	var bar_w := full_w
 	var num_px := UiTokens.body(r) - 1 if not phone else 12
 	var bar_px := UiTokens.meta(r) if not phone else 12
-	draw_rect(vitals, UiTokens.INK)
+	# LEVELBADGE (owner): no dark box behind the vitals; each piece carries its own rim and shadow.
 	drawn_blocks["vitals"] = vitals
+	var badge_c := Vector2(x + HudLevelBadge.R + 6.0, y + 4.0 + (big * 2.0 + gap * 2.0 + 22.0) * 0.5)
+	level_badge_rect = HudLevelBadge.draw(self, badge_c, HudLevelBadge.R, LevelDisplay.player_level(), Time.get_ticks_msec() * 0.001, _font)
+	level_badge_tier = HudLevelBadge.tier_of(LevelDisplay.player_level())
+	_levelups.draw_pulse_rings(self, badge_c, HudLevelBadge.R)  # LEVELFX: gold rings out of the badge on a level-up
+	x += HudLevelBadge.COLUMN
 	var yy := y
 	hp_bar_rect = Rect2(Vector2(x, yy), Vector2(bar_w, big))
-	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px)
+	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", hp_label(v), num_px, 0, &"hp")
 	yy += big + gap
 	var en := energy_reading(player)
 	var en_text := "%.0f / %.0f" % [en.value, en.max]
@@ -1593,27 +1618,32 @@ func _draw() -> void:
 	# Owner 2026-10-28: riding, the bar is the mount's, segmented and a darker blue (UiTokens.MOUNT_ENERGY).
 	energy_bar_color = UiTokens.MOUNT_ENERGY if en.name != "" else UiTokens.PLAYER_ENERGY
 	energy_bar_segments = UiTokens.MOUNT_ENERGY_SEGMENTS if en.name != "" else 0
-	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), energy_bar_color, "", en_text, num_px, energy_bar_segments)
+	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), energy_bar_color, "", en_text, num_px, energy_bar_segments, StringName("en:" + en.name))
 	yy += big + gap
 	stomach_fill = HudStomach.fullness_of(player)
 	stomach_saturation = HudStomach.saturation_of(player)
 	stomach_state = HudStomach.state_of(stomach_fill)
 	stomach_glyph_scale = move_toward(stomach_glyph_scale, float(HudStomach.GLYPH_SCALE[stomach_state]), get_process_delta_time() * HudStomach.SCALE_SPEED)
-	stomach_rect = HudStomach.draw(self, Vector2(x + bar_w + 6.0 + ring_d * 0.5, y + ring_d * 0.5), ring_d * 0.5, stomach_fill, stomach_saturation, stomach_glyph_scale)
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
-	var face_pos := Vector2(x + 11.0, yy + 10.0)
-	_draw_exhaustion_face(face_pos, strain)
+	var face_pos := Vector2(x + 11.0, yy + 10.0)  # the tier row (the face itself rides the belt below)
 	# The words follow spec 01's fatigue scale (0-24 rested, 25-49 slightly tired, 50-74 tired,
 	# 75-99 exhausted); the playtest read "TIRED" a few minutes into a walk and it was 25 %.
 	var face_label := "RESTED" if strain < 0.25 else ("WORN" if strain < 0.5 else ("TIRED" if strain < 0.75 else "EXHAUSTED"))
 	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
-	draw_string(_font, Vector2(x + 27.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, full_w - 30.0, bar_px, face_col)
+	draw_string_outline(_font, Vector2(x + 1.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, full_w - 4.0, bar_px, 3, Color(0, 0, 0, 0.75))
+	draw_string(_font, Vector2(x + 1.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, full_w - 4.0, bar_px, face_col)
 	yy += 22.0
 	# Owner 2026-10-27: this row is a treadmill — the tread chevrons point and scroll right while
 	# exhaustion rises (work, climate, wet) and left while it eases (sleep, meals); scroll speed
 	# carries how fast it is changing. The drift is sampled in _process; the face's
 	# RESTED/WORN/TIRED/EXHAUSTED tier stays one row above.
-	ExhaustTreadmill.draw_belt(self, Rect2(Vector2(x, yy), Vector2(full_w, ExhaustTreadmill.BELT_H)), _fat_rate, _belt_phase, strain, face_col, _font, bar_px)
+	var belt := Rect2(Vector2(x, yy), Vector2(full_w, ExhaustTreadmill.BELT_H))
+	draw_rect(Rect2(belt.position + Vector2(0, 2), belt.size), Color(0, 0, 0, 0.35))  # drop shadow, no panel behind
+	ExhaustTreadmill.draw_belt(self, belt, _fat_rate, _belt_phase, strain, face_col, _font, bar_px)
+	# Owner 2026-10-28: the face rides the belt like a sticker, at the strain marker.
+	var sticker := Vector2(clampf(ExhaustTreadmill.marker_rect.get_center().x, belt.position.x + 11.0, belt.end.x - 11.0), belt.get_center().y)
+	_draw_exhaustion_face(sticker, strain)
+	exhaust_sticker_rect = Rect2(sticker - Vector2(12, 12), Vector2(24, 24))
 	_fatigue_rect = Rect2(x, face_pos.y - 14.0, full_w, maxf(UiTokens.TARGET_MIN, yy + ExhaustTreadmill.BELT_H - face_pos.y + 14.0))
 	if _fatigue_panel and _fatigue_panel.visible:
 		_fatigue_panel.position = Vector2(_fatigue_rect.position.x, _fatigue_rect.end.y + 8.0)
@@ -1624,23 +1654,27 @@ func _draw() -> void:
 	var sy := vitals.end.y + 8.0
 	if HudLayout.landscape_phone(r):
 		sx += 3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0
+	# Owner 2026-10-28: "move stomach indicator by the buffs/debuffs": the ring leads the row, chip-sized.
+	var ring_r := HudBuffRow.CHIP * 0.5
+	stomach_rect = HudStomach.draw(self, Vector2(sx + ring_r, sy + ring_r), ring_r, stomach_fill, stomach_saturation, stomach_glyph_scale)
+	sx += HudBuffRow.PITCH
 	if player.statuses:
 		var sx0 := sx
 		var rest_lines := player.sim.rest.hud_lines() if player.sim else PackedStringArray()
 		if not rest_lines.is_empty():  # REST: the Resting chip comes first while she rests or sleeps
-			HudRestBox.chip(self, _font, Vector2(sx, sy))
-			sx += 30
+			HudBuffRow.draw_chip(self, _font, Rect2(Vector2(sx, sy), Vector2(HudBuffRow.CHIP, HudBuffRow.CHIP)), &"resting", &"")
+			sx += HudBuffRow.PITCH
 		# HUDRULES: only buffs, boons and debuffs here; afflictions are StatusFx's boxes beside her.
 		var row := _buff_row.draw(self, _font, Vector2(sx, sy), player, r)
 		if row.has_area():
 			sx = row.end.x + 4.0
 		if sx > sx0:
-			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
+			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - (HudBuffRow.PITCH - HudBuffRow.CHIP), HudBuffRow.ROW_H)
 		# SAVEFIX: a status that lowers max HP says so under its chip (the number alone was a mystery).
 		var hp_note: String = player.statuses.max_health_note()
-		var rest_y := sy + 46.0
+		var rest_y := sy + HudBuffRow.ROW_H + 2.0
 		if hp_note != "":
-			var ny := sy + 46.0
+			var ny := sy + HudBuffRow.ROW_H + 2.0
 			var nw := _font.get_string_size(hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px).x
 			draw_string(_font, Vector2(sx0, ny), hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px, Color(0.96, 0.62, 0.42))
 			drawn_blocks["status_maxhp"] = Rect2(sx0, ny - bar_px, nw, bar_px + 4.0)
@@ -1648,14 +1682,22 @@ func _draw() -> void:
 		if not rest_lines.is_empty():  # REST: its live rates in a box right under the chips (and the max-HP note)
 			drawn_blocks["rest"] = HudRestBox.draw(self, _font, Vector2(sx0, rest_y), UiTokens.body(r), rest_lines)
 	var mp := _minimap.position
-	var top := "Home" if World.is_home() else ("Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
+	var top := "Home" if World.is_home() else ("Tutorial Island" if World.is_tutorial() else "Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
 	if World.island_id == &"":
 		top = "Lab"
 	var meta_px := UiTokens.meta(r)
-	draw_string(_font, Vector2(mp.x, mp.y - 16.0), UiTokens.ellipsis(_font, top, MAP_PX, meta_px), HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, Color.WHITE)
+	var top_s := UiTokens.ellipsis(_font, top, MAP_PX, meta_px)
+	draw_string_outline(_font, Vector2(mp.x, mp.y - 16.0), top_s, HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, 3, Color(0, 0, 0, 0.75))
+	draw_string(_font, Vector2(mp.x, mp.y - 16.0), top_s, HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, Color.WHITE)
 	drawn_blocks["map_title"] = Rect2(mp.x, mp.y - 16.0 - meta_px, MAP_PX, meta_px + 4.0)
-	var tile := BuildGrid.tile_of(player.global_position)
-	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 16), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
+	# Owner 2026-10-28: "X 503 Y 295" centred under the map, her world X / Z in whole metres.
+	var xy := Vector2i(roundi(player.global_position.x), roundi(player.global_position.z))
+	if xy != _map_xy:  # format only when a metre changes
+		_map_xy = xy
+		map_xy_text = "X %d  Y %d" % [xy.x, xy.y]
+	var xy_pos := Vector2(mp.x, mp.y + MAP_PX + 16)
+	draw_string_outline(_font, xy_pos, map_xy_text, HORIZONTAL_ALIGNMENT_CENTER, MAP_PX, meta_px, 3, Color(0, 0, 0, 0.75))
+	draw_string(_font, xy_pos, map_xy_text, HORIZONTAL_ALIGNMENT_CENTER, MAP_PX, meta_px, Color(0.92, 0.94, 0.96))
 	# The clock and phase line moved into the day/night dial's label: the dial shows the phase already.
 	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, meta_px + 4.0)
 	# The target plate (current hunt target, else on desktop the selection, else the last creature attacked while it lives) and
@@ -1915,7 +1957,7 @@ func _draw_quest_strip(r: Vector2) -> bool:
 	if step.is_empty():
 		return false
 	var v := HudLayout.vitals_rect(self, r)
-	var top := v.end.y + 8.0
+	var top := maxf(v.end.y + 8.0, stomach_rect.end.y + 6.0)  # under the stomach ring that leads the buff row
 	for k in ["statuses", "status_maxhp", "rest"]:
 		if drawn_blocks.has(k):
 			top = maxf(top, (drawn_blocks[k] as Rect2).end.y + 6.0)
@@ -1972,8 +2014,10 @@ func _draw_quest(r: Vector2, mp: Vector2) -> void:
 func _draw_exhaustion_face(center: Vector2, strain: float) -> void:
 	var tier := mini(3, int(strain * 4.0))
 	var col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
-	draw_circle(center, 10.0, col)
-	draw_arc(center, 10.0, 0.0, TAU, 18, Color(0.06, 0.08, 0.08), 1.4)
+	draw_circle(center + Vector2(0, 1.5), 12.5, Color(0, 0, 0, 0.45), true, -1.0, true)  # sticker: shadow, white peel rim
+	draw_circle(center, 12.0, Color(0.97, 0.97, 0.94), true, -1.0, true)
+	draw_circle(center, 10.0, col, true, -1.0, true)
+	draw_arc(center, 10.0, 0.0, TAU, 24, Color(0.06, 0.08, 0.08), 1.2, true)
 	for side in [-1.0, 1.0]:
 		draw_circle(center + Vector2(side * 3.4, -2.0), 1.0, Color(0.08, 0.1, 0.1))
 	var dark := Color(0.08, 0.1, 0.1)
@@ -1996,9 +2040,18 @@ static func energy_reading(pl: Player) -> Dictionary:
 		return {"value": m.energy, "max": m.energy_max, "name": nm}
 	return {"value": pl.vitals.energy, "max": pl.vitals.effective_max_energy(), "name": ""}
 
-func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12, segments: int = 0) -> void:
+func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12, segments: int = 0, trail_key: StringName = &"") -> void:
+	# LEVELBADGE: no panel behind, so each bar has its own shadow, dark rim and a lit top edge.
+	draw_rect(Rect2(pos + Vector2(-1, 1), size + Vector2(2, 2)), Color(0, 0, 0, 0.4))
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))
-	draw_rect(Rect2(pos, Vector2(size.x * clampf(frac, 0.0, 1.0), size.y)), col)
+	frac = clampf(frac, 0.0, 1.0)
+	if trail_key != &"":  # a pale ghost trails a loss and leads a gain; the real fill moves, never jumps up
+		var t := _trail(trail_key, frac, get_process_delta_time())
+		frac = t.x
+		if t.y > t.x:
+			draw_rect(Rect2(pos + Vector2(size.x * t.x, 0), Vector2(size.x * (t.y - t.x), size.y)), col.lerp(Color.WHITE, 0.55))
+	draw_rect(Rect2(pos, Vector2(size.x * frac, size.y)), col)
+	draw_rect(Rect2(pos, Vector2(size.x * frac, maxf(1.0, size.y * 0.3))), Color(1, 1, 1, 0.16))
 	for k in range(1, segments):  # a 2 px dark gap between segments
 		draw_rect(Rect2(pos.x + size.x * float(k) / float(segments) - 1.0, pos.y, 2.0, size.y), Color(0.02, 0.03, 0.05, 0.9))
 	draw_rect(Rect2(pos, size), Color(0, 0, 0, 0.6), false, 1.0)
@@ -2006,7 +2059,28 @@ func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, t
 		draw_string(_font, pos + Vector2(-14, size.y - 3), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	if text != "":
 		var w := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, text_px).x
+		draw_string_outline(_font, pos + Vector2(size.x - w - 6, size.y * 0.5 + text_px * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_px, 3, Color(0, 0, 0, 0.6))
 		draw_string(_font, pos + Vector2(size.x - w - 6, size.y * 0.5 + text_px * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_px, Color.WHITE)
+
+## Pokémon-style bar motion (owner 2026-10-28): bar_trail[key] = (drawn fill, ghost, hold). A loss drops
+## the fill at once and the ghost holds at the old value TRAIL_HOLD s, then eases down; a gain puts the
+## ghost at the new value and the fill eases up to it. Returns (fill, ghost) to draw.
+func _trail(key: StringName, target: float, dt: float) -> Vector2:
+	var s: Vector3 = bar_trail.get(key, Vector3(target, target, 0.0))
+	if target < s.x - 0.0005:
+		s.y = maxf(s.y, s.x)
+		s.x = target
+		s.z = TRAIL_HOLD
+	elif target > s.x:
+		s.y = maxf(s.y, target)
+		s.x = target if target - s.x < 0.002 else lerpf(s.x, target, 1.0 - exp(-TRAIL_EASE * dt))
+	if s.z > 0.0:
+		s.z -= dt
+	else:  # the ghost settles on the target (down after a loss; on a gain it already sits there)
+		s.y = target if absf(s.y - target) < 0.002 else lerpf(s.y, target, 1.0 - exp(-TRAIL_EASE * dt))
+	s.y = maxf(s.y, s.x)
+	bar_trail[key] = s
+	return Vector2(s.x, s.y)
 
 # ---------------------------------------------------------------- minimap
 
@@ -2028,7 +2102,12 @@ func _ensure_map_texture() -> void:
 
 func _draw_minimap() -> void:
 	var c := _minimap
-	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0.05, 0.06, 0.08, 0.85))
+	# LEVELBADGE (owner 2026-10-28): no square box; the map is a disc drawn as a UV polygon (clipped by
+	# geometry, so nothing covers the corners), framed by a shadowed metal rim.
+	var centre := Vector2(MAP_PX * 0.5, MAP_PX * 0.5)
+	var disc_r := MAP_PX * 0.5 - MAP_RIM
+	c.draw_circle(centre + Vector2(0, 2.0), MAP_PX * 0.5 - 1.0, Color(0, 0, 0, 0.45), true, -1.0, true)
+	c.draw_circle(centre, disc_r, Color(0.05, 0.06, 0.08, 0.92), true, -1.0, true)
 	_ensure_map_texture()
 	if player == null:
 		return
@@ -2036,18 +2115,14 @@ func _draw_minimap() -> void:
 	# Camera-up map: the iso camera looks along a 45° diagonal, so a north-up map made running
 	# left read as south-west. Everything below is drawn rotated by the camera yaw around the
 	# centre (so screen-up on the map is screen-up in the world); the frame clips the corners.
-	var centre := Vector2(MAP_PX * 0.5, MAP_PX * 0.5)
 	var cam := get_viewport().get_camera_3d()
 	var cam_yaw := cam.global_rotation.y if cam else 0.0
 	c.draw_set_transform(centre, cam_yaw, Vector2.ONE)
 	if _map_tex and rt:
 		var size_m: float = float(rt.get("_size"))
-		var span_px := MAP_PX * 1.45  # covers the frame's corners once rotated
-		var half := span_px * 0.5 * MAP_SCALE  # metres from centre to the drawn edge
+		var half := disc_r * MAP_SCALE  # metres from centre to the disc's edge
 		var pp := player.global_position
-		var u0 := (pp.x - half + size_m * 0.5)
-		var v0 := (pp.z - half + size_m * 0.5)
-		c.draw_texture_rect_region(_map_tex, Rect2(Vector2(-span_px * 0.5, -span_px * 0.5), Vector2(span_px, span_px)), Rect2(u0, v0, half * 2.0, half * 2.0))
+		_map_disc(c, _map_tex, disc_r, Vector2(pp.x + size_m * 0.5, pp.z + size_m * 0.5), MAP_SCALE)  # one texel per metre
 		var to_px := func (w: Vector3) -> Vector2:
 			return Vector2((w.x - pp.x) / MAP_SCALE, (w.z - pp.z) / MAP_SCALE)
 		# Fog of war: the same per-island bitmap the atlas draws, camera-up like the terrain. The
@@ -2057,19 +2132,18 @@ func _draw_minimap() -> void:
 		if fog_tex:
 			# The fog image is one pixel per fog cell, not per terrain tile.
 			var cell_m := size_m / float(maxi(1, fog.span))
-			var f0 := Vector2((pp.x - half + size_m * 0.5) / cell_m, (pp.z - half + size_m * 0.5) / cell_m)
-			c.draw_texture_rect_region(fog_tex, Rect2(Vector2(-span_px * 0.5, -span_px * 0.5), Vector2(span_px, span_px)), Rect2(f0, Vector2(half * 2.0 / cell_m, half * 2.0 / cell_m)))
+			_map_disc(c, fog_tex, disc_r, Vector2(pp.x + size_m * 0.5, pp.z + size_m * 0.5) / cell_m, MAP_SCALE / cell_m)
 		var trail_pts: Array = []
 		var trail_alphas: Array[float] = []
 		if fog:
 			for i in fog.trail.size():
 				var tp := fog.trail[i]
 				var q := Vector2((tp.x - pp.x) / MAP_SCALE, (tp.y - pp.z) / MAP_SCALE)
-				if q.length() <= MAP_PX * 0.5:
+				if q.length() <= disc_r:
 					trail_pts.append(q)
 					trail_alphas.append(fog.trail_alpha(i))
 			MapIcons.trail(c, trail_pts, 1.6, trail_alphas)
-		var marker_r := MAP_PX * 0.5 - 5.0
+		var marker_r := disc_r - 4.0
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")
 		var camp_q: Vector2 = to_px.call(camp)
@@ -2102,21 +2176,27 @@ func _draw_minimap() -> void:
 	_draw_minimap_bezel(c)
 
 func _draw_minimap_bezel(c: Control) -> void:
-	# Shader clipping was lost after island travel in WebGL. Cover the four square corners
-	# with opaque polygons instead; this is pure Canvas draw state and survives texture swaps.
+	# LEVELBADGE: a dark rim, a bronze band lit on its top-left, and a fine inner line; no corner covers.
 	var centre := c.size * 0.5
-	var radius := MAP_PX * 0.5 - 1.5
-	var cover := Color(0.035, 0.04, 0.05, 1.0)
-	var corners := [
-		[Vector2(centre.x, 0), Vector2(c.size.x, 0), Vector2(c.size.x, centre.y), 0.0, -PI * 0.5],
-		[Vector2(c.size.x, centre.y), Vector2(c.size.x, c.size.y), Vector2(centre.x, c.size.y), PI * 0.5, 0.0],
-		[Vector2(centre.x, c.size.y), Vector2(0, c.size.y), Vector2(0, centre.y), PI, PI * 0.5],
-		[Vector2(0, centre.y), Vector2(0, 0), Vector2(centre.x, 0), PI * 1.5, PI],
-	]
-	for spec in corners:
-		var pts := PackedVector2Array([spec[0], spec[1], spec[2]])
-		for i in 13:
-			var angle: float = lerpf(float(spec[3]), float(spec[4]), float(i) / 12.0)
-			pts.append(centre + Vector2(cos(angle), sin(angle)) * radius)
-		c.draw_colored_polygon(pts, cover)
-	c.draw_circle(centre, radius, Color(1, 1, 1, 0.48), false, 2.0)
+	var r := MAP_PX * 0.5 - MAP_RIM * 0.5
+	c.draw_arc(centre, r, 0.0, TAU, 64, Color(0.02, 0.02, 0.03, 0.95), MAP_RIM + 2.0, true)
+	c.draw_arc(centre, r, 0.0, TAU, 64, Color(0.55, 0.45, 0.30), MAP_RIM - 1.5, true)
+	c.draw_arc(centre, r, PI * 0.95, PI * 1.85, 24, Color(0.95, 0.85, 0.62, 0.85), (MAP_RIM - 1.5) * 0.45, true)
+	c.draw_arc(centre, r, -0.05 * PI, 0.85 * PI, 24, Color(0.20, 0.15, 0.08, 0.8), (MAP_RIM - 1.5) * 0.4, true)
+	c.draw_arc(centre, MAP_PX * 0.5 - MAP_RIM - 0.5, 0.0, TAU, 64, Color(0, 0, 0, 0.6), 1.0, true)
+	# A small compass pip at the bottom of the rim, where the coordinates hang.
+	var b := Vector2(centre.x, MAP_PX - MAP_RIM * 0.5)
+	c.draw_colored_polygon(PackedVector2Array([b + Vector2(0, -5), b + Vector2(4, 0), b + Vector2(0, 5), b + Vector2(-4, 0)]), Color(0.02, 0.02, 0.03))
+	c.draw_colored_polygon(PackedVector2Array([b + Vector2(0, -3.5), b + Vector2(2.6, 0), b + Vector2(0, 3.5), b + Vector2(-2.6, 0)]), Color(0.98, 0.86, 0.55))
+
+## A texture as a disc of radius `r` around the map centre (already rotated to the camera):
+## `at` is the texel under the centre, `per_px` texels per map pixel.
+func _map_disc(c: Control, tex: Texture2D, r: float, at: Vector2, per_px: float) -> void:
+	var ts := tex.get_size()
+	var pts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	for i in 48:
+		var d := Vector2.from_angle(TAU * float(i) / 48.0) * r
+		pts.append(d)
+		uvs.append((at + d * per_px) / ts)
+	c.draw_polygon(pts, PackedColorArray([Color.WHITE]), uvs, tex)

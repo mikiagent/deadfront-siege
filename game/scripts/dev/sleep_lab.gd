@@ -70,6 +70,7 @@ func _demo() -> void:
 	print("[sleeplab] movement interrupts without consuming use; up returns to idle, outside the tent")
 	player._start_sleep(tent)
 	await get_tree().create_timer(10.5).timeout
+	player.sim.get_up()  # a tent keeps her until she gets up (owner 2026-10-28)
 	assert(player._sleep_left == 0.0 and player.vitals.fatigue < 1.0)
 	assert(int(tent.get("sleeps_left")) == 5)
 	assert(player.anim.current_clip == &"sleep_up")

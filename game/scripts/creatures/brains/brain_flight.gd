@@ -105,7 +105,7 @@ func flee() -> void:
 	if not _b._valid_target():
 		end()
 		return
-	if _b._provoked():
+	if _b._provoked() and not _b._holds_flee():
 		_b._set_state(&"approach")
 		return
 	var here := _b.creature.global_position

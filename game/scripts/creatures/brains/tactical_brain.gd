@@ -9,6 +9,10 @@ extends CreatureBrain
 ##   retreat - below the HP threshold: back off facing the prey, then circle wider before re-engaging
 ## Every move has its own cooldown; specials (pounce, combo) also need energy (Creature.try_special) and
 ## the dashes need Creature.can_sprint(). Natures scale it (natures.json tactic_* knobs).
+## GRAZERS (a profile on a herbivore archetype, e.g. pack_mule / zebraceratops): the tactics run only while
+## the animal is provoked (CreatureBrain._provoked); otherwise it is a grazer (flee on sight, or, for a
+## tactics.stand_ground_natures nature, a threat display). Extras: the display step, a straight horn charge
+## (tactics.charge_straight), a hind kick at point blank when the prey is behind it, and herd defence.
 
 ## Every manoeuvre as it starts (tests, labs, debug): bite, combo, lunge, feint, pounce, leap, retreat.
 signal tactic(kind: StringName)
@@ -22,7 +26,7 @@ signal sequence_step(step: StringName)
 ## The cooling filler picked: hold, strafe (strafe-walk), dodge (power strafe), feint or hop.
 signal filler(kind: StringName)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display"]
 
 var tac: Dictionary = {}
 ## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
@@ -74,6 +78,10 @@ var _cover := Vector3.ZERO
 var _cover_cd := 0.0
 var _opening := false
 var _open_left := 0.0  ## seconds the ambush keeps waiting to open with the pounce
+## Straight charge (tactics.charge_straight): locked line, one horn impact, a miss staggers it.
+var _charge_to := Vector3.ZERO
+var _charge_dir := Vector3.FORWARD
+var _charge_hit := false
 
 static func tactics_for(archetype: StringName) -> Dictionary:
 	var row: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(archetype), {})
@@ -94,6 +102,54 @@ func on_aggro(who: Node) -> void:
 	super.on_aggro(who)
 	if who is Node3D:
 		_propagate_alert(who as Node3D)
+		if tac.get("herd_defend", false) and _is_herbivore() and _now_s() - _last_hit_s < 0.5:  # hit, not just spotted
+			_rally_herd(who as Node3D)
+
+## HERD DEFENCE (zebraceratops verb "herd solidarity"): a herdmate that is hit pulls the rest of the herd
+## onto its attacker for defend_s. The flee natures run instead, and a member hit in the last few seconds
+## keeps running (the hurt one gets away while the others turn on the attacker).
+func _rally_herd(who: Node3D) -> void:
+	for c in _pack_members():
+		if c == creature or not c.brain is TacticalBrain:
+			continue
+		var b := c.brain as TacticalBrain
+		if b._flee_nature() or _now_s() - b._last_hit_s < BrainFlight.FRESH_HIT_S:
+			continue
+		b.attack_target = who
+		b._combat_memory_left = 4.0
+		b._provoked_until = maxf(b._provoked_until, _now_s() + _t("defend_s", 8.0))
+		if b.state in [&"roam", &"alert", &"flee", &"display", &"disengage", &"sleep"] and b._provoked():
+			b._seq = []
+			b._set_state(&"approach")
+			b.tactic.emit(&"defend")
+
+## Natures that never fight back (they only flee) and natures that stand their ground with a threat
+## display instead of fleeing on sight (tactics.flee_natures / stand_ground_natures).
+func _flee_nature() -> bool:
+	return str(creature.nature_id()) in tac.get("flee_natures", [])
+
+func _stands_ground() -> bool:
+	return str(creature.nature_id()) in tac.get("stand_ground_natures", [])
+
+## A grazer's provocation also ends when the prey is past guard_m from its home (it defends, it does
+## not hunt), and a flee nature is never provoked.
+func _provoked() -> bool:
+	if _is_herbivore() and not tac.is_empty():
+		if _flee_nature():
+			return false
+		if tac.has("guard_m") and _valid_target() and Vector2(attack_target.global_position.x - creature.spawn_home.x, attack_target.global_position.z - creature.spawn_home.z).length() > _t("guard_m", 16.0):
+			return false
+	return super._provoked()
+
+## A stand-ground grazer fights back from the first hit.
+func note_damage(amount: float) -> void:
+	if _is_herbivore() and _stands_ground() and creature and not creature.health.dead:
+		_provoked_until = maxf(_provoked_until, _now_s() + PROVOKE_SECONDS)
+	super.note_damage(amount)
+
+## A tactical flight (hurt, a packmate's death, a Timid rage) keeps running even while provoked.
+func _holds_flee() -> bool:
+	return _flee_left > 0.0 or _enrage_fled
 
 func _full_rate() -> bool:
 	return state in MOVES
@@ -182,6 +238,8 @@ func hit_damage_mult(clip: StringName, hit_index: int) -> float:
 	if clip == &"bite_combo":
 		var mults: Array = tac.get("combo_mults", [1.0, 1.3, 1.8])
 		mult = float(mults[clampi(hit_index, 0, mults.size() - 1)])
+	elif clip == &"kick":
+		mult = _t("kick_mult", 1.0)
 	tactic_hit.emit(clip, hit_index, mult)
 	return mult
 
@@ -201,9 +259,27 @@ func _think(delta: float) -> void:
 		_flee_left -= delta
 		if _flee_left <= 0.0 and state == &"flee" and not _enrage_fled:
 			_set_state(&"approach" if _valid_target() else &"roam")
+	# GRAZER: a stand-ground nature that spotted a threat lowers its head instead of fleeing.
+	if state == &"alert" and _valid_target() and _is_herbivore() and _stands_ground() and not _provoked():
+		_alert_left -= delta
+		if _alert_left <= 0.0:
+			_seq = []
+			_start_display()
+		return
+	if state == &"display" and not _valid_target():
+		_set_state(&"roam")
 	if not _valid_target() or not state in MOVES:
 		_end_pounce()
 		super._think(delta)  # roam, scan, alert, flee and the reacquire rule stay shared
+		return
+	# GRAZER: provocation over (time, or the prey left its guard_m): stand down and let the grazer rules
+	# decide (flee on sight, display, or graze). The standoff display is not a fight.
+	if _is_herbivore() and not (state == &"display" and _seq.is_empty()) and _flee_left <= 0.0 and not _provoked():
+		_end_pounce()
+		_seq = []
+		_set_state(&"alert")
+		_alert_left = 0.3
+		tactic.emit(&"stand_down")
 		return
 	_combat_memory_left = 4.0
 	_fight_t += delta
@@ -234,6 +310,7 @@ func _think(delta: float) -> void:
 		&"hold": _hold(delta)
 		&"dodge": _dodge(delta)
 		&"charge": _charge(delta)
+		&"display": _display(delta)
 
 ## AMBUSH: roam is lurking at cover (crouched by a tree near home), not wandering.
 func _roam(delta: float) -> void:
@@ -402,6 +479,8 @@ func attack_available(move: StringName, d: float) -> bool:
 				and d >= _t("pounce_min_m", 4.0) and at_hit <= far + _size_excess(attack_target)
 		&"charge":
 			return creature.can_sprint()
+		&"kick":
+			return creature.anim.has_state(&"kick") and in_reach and _prey_behind()
 		&"bite":
 			# Anti-spam (owner: "what i want to avoid is basic attack spam"): a non-attack beat between
 			# two basics, and at most max_basic_streak basics before a beat or a special.
@@ -441,6 +520,8 @@ func _strike(d: float, only: Array = []) -> bool:
 					_start_lunge(&"attack_primary")
 			&"charge":
 				_start_charge()
+			&"kick":
+				_kick()
 		return true
 	return false
 
@@ -483,7 +564,7 @@ func _terminal_ready(last: StringName, d: float) -> bool:
 		&"combo":
 			return creature.anim.has_state(&"bite_combo") and creature.can_use_special(creature.special_cost(&"bite_combo")) and creature.can_sprint()
 		&"charge":
-			return creature.can_sprint() and _ready_to(&"bite")  # it ends in a bite
+			return creature.can_sprint() and (tac.get("charge_straight", false) or _ready_to(&"bite"))  # a homing charge ends in a bite
 	return false
 
 ## The offensive pick from the ring or a hold: the ambush opener while it waits for its pounce, point
@@ -558,6 +639,8 @@ func _seq_next() -> void:
 				_enter_circle()
 		&"charge":
 			_start_charge()
+		&"display":
+			_start_display()
 		&"combo":
 			if _flat_dist(attack_target) <= reach_to(attack_target) and creature.try_special(&"bite_combo"):
 				_combo()
@@ -588,16 +671,32 @@ func _dodge(delta: float) -> void:
 	_jump_end()
 	_seq_next() if not _seq.is_empty() else _enter_circle()
 
-## Charge: run straight at the prey (the run clip) into a bite.
+## Charge: run at the prey (the run clip) into a bite. tactics.charge_straight: a horn charge on a
+## line locked at the start, through the prey's spot by charge_through_m; contact in front of it is
+## one impact (charge_mult, the heavy hit's roll rules); a sidestep makes it miss and stagger.
 func _start_charge() -> void:
 	_set_state(&"charge")
 	_left = _t("charge_max_s", 1.6)
 	_just_disengaged = false
 	_seq = []
+	_charge_hit = false
+	_charge_dir = -_to_me()
+	_charge_to = attack_target.global_position + _charge_dir * _t("charge_through_m", 2.5)
 	tactic.emit(&"charge")
 
 func _charge(delta: float) -> void:
 	_left -= delta
+	if tac.get("charge_straight", false):
+		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # committed: no can_sprint gate mid-line
+		gait_clip = &"charge"
+		creature.move_to(_charge_to)
+		var to := attack_target.global_position - creature.global_position
+		to.y = 0.0
+		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2:
+			_charge_impact()
+		if _flat_dist_to(_charge_to) <= 1.0 or _left <= 0.0:
+			_charge_end()
+		return
 	if creature.can_sprint():
 		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # visibly faster than its run
 		gait_clip = &"charge"  # the low "naruto run" when the rig has it, else the run at charge speed
@@ -606,6 +705,75 @@ func _charge(delta: float) -> void:
 		_bite(true)
 	elif _left <= 0.0:
 		_enter_circle()
+
+func _charge_impact() -> void:
+	_charge_hit = true
+	var mult := _t("charge_mult", 1.8)
+	tactic_hit.emit(&"charge", 0, mult)
+	tactic.emit(&"charge_hit")
+	_mark_pack()
+	if CreatureAttack.apply_for(creature, &"attack_heavy", attack_target, mult) and attack_target is Player:
+		(attack_target as Player).receive_creature_hit(creature, &"attack_heavy")
+
+## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
+## after a miss it stands staggered for charge_miss_recover_s (the punish window).
+func _charge_end() -> void:
+	if _charge_hit:
+		if not _strike(_flat_dist(attack_target), ["kick"]):
+			_back_off()
+		return
+	tactic.emit(&"charge_miss")
+	creature.stagger_left = maxf(creature.stagger_left, _t("charge_miss_recover_s", 1.5))
+	_start_hold()
+
+## The prey is in its rear arc (the hind kick's side).
+func _prey_behind() -> bool:
+	var fwd := -creature.global_basis.z
+	var to := attack_target.global_position - creature.global_position
+	fwd.y = 0.0
+	to.y = 0.0
+	return fwd.length_squared() > 0.01 and to.length_squared() > 0.01 and fwd.normalized().dot(to.normalized()) < -0.3
+
+## Hind kick (the kick clip; hit at its anim_events hit_frac, x kick_mult): only at point blank with
+## the prey behind it. Not a basic: no anti-spam beat needed.
+func _kick() -> void:
+	_just_disengaged = false
+	_basic_streak = 0
+	creature.stop_move()
+	creature.anim.play_clip(&"kick")
+	_set_state(&"attack")
+	_mark_pack()
+	tactic.emit(&"kick")
+
+## Threat display (owner 2026-10-28: "head lowering"): it stops, faces the threat and plays the alert
+## pose for display_s. In a sequence it leads into the charge. As a grazer's standoff (not provoked)
+## it charges when the threat comes within display_charge_m and grazes again once it has gone.
+func _start_display() -> void:
+	_set_state(&"display")
+	_left = _t("display_s", 1.2)
+	creature.stop_move()
+	if creature.anim.has_state(&"alert") and not creature.anim._busy:
+		creature.anim.play_clip(&"alert")
+	tactic.emit(&"display")
+
+func _display(delta: float) -> void:
+	creature.stop_move()
+	creature.face_towards(attack_target.global_position, delta)
+	_left -= delta
+	if not _seq.is_empty():
+		if _left <= 0.0:
+			_seq_next()
+		return
+	if _provoked() or _surface_dist(attack_target) <= _t("display_charge_m", 5.0):
+		_provoked_until = maxf(_provoked_until, _now_s() + PROVOKE_SECONDS)
+		_enter_circle(0.0)
+		return
+	if _flat_dist(attack_target) > _effective_perception() * 1.2:
+		attack_target = null
+		_set_state(&"roam")
+		return
+	if _left <= 0.0:
+		_start_display()
 
 ## Nothing ready: one weighted pick among hold (stand its ground facing the prey, alert pose), strafe,
 ## feint and hop back (owner: "it should be holding its ground sometimes too"). A back-leap needs its
@@ -775,7 +943,8 @@ func _mark_pack() -> void:
 ## Standing in a bite or the combo: face the prey, leap back out when the clip ends.
 func _swing(delta: float) -> void:
 	creature.stop_move()
-	creature.face_towards(attack_target.global_position, delta)
+	if creature.anim.current_clip != &"kick":  # a hind kick keeps its back to the prey
+		creature.face_towards(attack_target.global_position, delta)
 	if not creature.anim._busy:
 		_back_off()
 

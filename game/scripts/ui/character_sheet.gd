@@ -373,7 +373,7 @@ func stat_rows() -> Array:
 	var snap := InvStats.snapshot(player)
 	if player and player.vitals:
 		var v := player.vitals
-		rows.append(["Life", "%d / %d" % [roundi(v.health), roundi(v.effective_max_health())]])
+		rows.append(["Life", HuntHud.hp_label(v)])
 		rows.append(["Energy", "%d / %d" % [roundi(v.energy), roundi(v.effective_max_energy())]])
 	for r: Array in InvStats.ROWS:
 		if r[0] in ["max_health", "energy", "capacity"]:

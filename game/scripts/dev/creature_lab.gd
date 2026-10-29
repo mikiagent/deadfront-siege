@@ -3,7 +3,7 @@ extends Node3D
 ## The survivor cannot die, tire or exhaust here (god mode, this lab only) so clips can be watched up close.
 ## --species=deinonychus[,velociraptor...] spawns only those (one each) instead of the default roster.
 ## --ride=deinonychus spawns that species as a saddled pet and puts the survivor on it.
-## The SPAWN button (left) opens a selector: species with a model, count 1-6, nature or Random, Alpha;
+## The SPAWN button (left) opens a selector: a dropdown of every species (model-less ones as stand-ins), count 1-6, nature or Random, Alpha;
 ## SPAWN drops them in front of the survivor, CLEAR ALL removes every wild animal.
 ## Key N (or --enrage) enrages the nearest wild creature.
 ## Key 0 plays bite_combo (chomp, Chomp, CHOMP) on the mount, or else the nearest creature that has one.

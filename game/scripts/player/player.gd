@@ -441,7 +441,7 @@ func roll_dodge(clip: StringName, who: Creature, lands: bool) -> void:
 	if sim == null:
 		return
 	_roll_dodged_frame = Engine.get_physics_frames()
-	notice("Dodged")  # a small "Dodged" line on the HUD: the hit never touched her
+	CombatAvoid.avoided(self, who)  # "Dodged" floats over her: the hit never touched her
 	if lands and skills:
 		skills.add_xp("defense", RollRules.defense_xp())
 	print("[combat] dodged by roll %s %s t=%.2f xp=%s" % [who.def.id if who and who.def else "?", clip, sim.roll_elapsed(), lands])
@@ -459,12 +459,12 @@ func _flinch() -> void:
 		anim.on_damaged()
 
 func _on_vitals_damaged() -> void:
-	if statuses.ticking and (sim.rest.resting or _sleep_left > 0.0 or sim._sleep_pending != null):
-		return  # a bleed or stomachache tick hurts, but only hits and fights end a rest, a sleep or the walk to bed (spec 01:19)
+	# A status tick (starving, poison, bleed, cold, smoke) hurts but never stuns, ends a rest or sleep, or
+	# cancels a gather (owner 2026-10-29: "let me harvest berries while im hungry"). Only hits do (spec 01:19).
+	if statuses.ticking:
+		return
 	sim.interrupt_sleep()
 	actions.cancel_work()
-	if statuses.ticking:
-		return  # a bleed/poison tick damages but never stuns: ticks every 0.5 s re-stunned her forever (owner bug)
 	_flinch()
 
 func _on_vitals_died() -> void:

@@ -4,6 +4,8 @@ extends Node3D
 ## and puts a fresh bonfire and campfire beside it, then prints ONE measured
 ## "[firepits] RESULT k=v ..." line and saves a PNG per step into --shot-dir, and quits.
 ## Headless runs never reach frame_post_draw, so it only runs in a window.
+## FIREFUEL: scenes/dev/firefuel_lab.tscn runs this on its own (--lab=firefuel_lab --shot-dir=...), so
+## the fuel shots are not cut short by kitchen_lab's own quit.
 
 const SHOT_WAIT := 0.5
 
@@ -22,6 +24,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot-dir="):
 			_shot_dir = a.substr(11)
+	if _shot_dir != "":
+		DirAccess.make_dir_recursive_absolute(_shot_dir)
 	_player = PlayerRegistry.local()
 	_build_stage()
 	var win := get_tree().root.get_visible_rect().size
@@ -107,6 +111,7 @@ func _run() -> void:
 	_measured["pit_flame_loaded"] = 1 if bool(_pit.call("flame_visible")) else 0
 	_measured["pit_burning"] = 1 if bool(_pit.call("burning")) else 0
 	await _shot("firepits_pit_loaded")
+	await _fuel_shots()
 	# 3. The temporary fires show wood and flame from placement.
 	_measured["bonfire_wood"] = 1 if bool(_bonfire.call("wood_visible")) else 0
 	_measured["bonfire_flame"] = 1 if bool(_bonfire.call("flame_visible")) else 0
@@ -150,6 +155,27 @@ func _run() -> void:
 	_measured["all_ok"] = 1 if _all_ok() else 0
 	_report()
 	get_tree().quit(0)
+
+## FIREFUEL: the pit close up at 10 / 5 / 1 / 0 minutes of fuel (10 / 5 / 1 / 0 logs), then a tight
+## flame close-up at full. Measures the drawn logs per shot; the camera goes back after.
+func _fuel_shots() -> void:
+	var keep := _cam.transform
+	var pit_at := _pit.global_position
+	_cam.global_position = pit_at + Vector3(0.0, 2.3, 3.6)
+	_cam.look_at(pit_at + Vector3(0, 0.5, 0))
+	for m in [10, 5, 1, 0]:
+		_pit.set("fuel_seconds", float(m) * 60.0)
+		_pit.call("_sync_fire_nodes")
+		await get_tree().create_timer(0.9).timeout
+		_measured["fuel_logs_%02dmin" % m] = int(_pit.call("visible_log_count"))
+		await _shot("firefuel_%02dmin" % m)
+	_pit.set("fuel_seconds", 600.0)
+	_pit.call("_sync_fire_nodes")
+	_cam.global_position = pit_at + Vector3(0.0, 1.1, 2.2)
+	_cam.look_at(pit_at + Vector3(0, 0.75, 0))
+	await get_tree().create_timer(0.9).timeout
+	await _shot("firefuel_flame_closeup")
+	_cam.transform = keep
 
 func _measure_wear() -> Array:
 	var B := load("res://scripts/world/bonfire.gd") as GDScript
@@ -203,6 +229,8 @@ func _all_ok() -> bool:
 		and int(_measured.get("pit_wood_after", 1)) == 0 \
 		and int(_measured.get("pit_alive_after", 0)) == 1 \
 		and int(_measured.get("save_fuel", 0)) == 1 \
+		and int(_measured.get("fuel_logs_10min", 0)) == 10 and int(_measured.get("fuel_logs_05min", 0)) == 5 \
+		and int(_measured.get("fuel_logs_01min", 0)) == 1 and int(_measured.get("fuel_logs_00min", 1)) == 0 \
 		and int(_measured.get("save_durability", 0)) == 1
 
 func _shot(shot_name: String) -> void:

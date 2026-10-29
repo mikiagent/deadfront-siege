@@ -56,7 +56,7 @@ func _run() -> void:
 	var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(_host, 4.0)
 	_player = kit["player"]
 	for c in (kit["ui"] as CanvasLayer).get_children():
-		if c.has_method("hands_spot"):
+		if c.has_method("quick_row_y"):
 			_hud = c
 	_world.load_island(_host, &"home_grassland", Vector3(0, 1, 18), false)
 	(kit["nav"] as Node).queue_free()
@@ -241,8 +241,9 @@ func _test_stomach(view: Vector2) -> void:
 	_expect(_hud.stomach_fill > 1.4 and _hud.stomach_state == &"overfull", "%s three roasts: overfull (%.2f %s)" % [tag, _hud.stomach_fill, _hud.stomach_state])
 	var ring: Rect2 = _hud.stomach_rect
 	var vit: Rect2 = _hud.drawn_blocks.get("vitals", Rect2())
-	_expect(ring.has_area() and vit.encloses(ring), "%s the ring sits inside the vitals panel (%s in %s)" % [tag, ring, vit])
-	_expect(ring.position.x > vit.position.x + vit.size.x * 0.5 and ring.position.y < vit.position.y + 30.0, "%s the ring is at the right, level with the health bar (%s)" % [tag, ring])
+	_expect(ring.has_area(), "%s the ring draws (%s)" % [tag, ring])
+	# Owner 2026-10-28 (LEVELBADGE): the ring moved under the vitals, leading the buff row.
+	_expect(ring.position.y >= vit.end.y and ring.position.x <= vit.position.x + 16.0, "%s the ring leads the buff row under the vitals (%s)" % [tag, ring])
 	var hit := Rect2()
 	for t: Rect2 in _hud.taken_rects(PackedStringArray(["vitals"])):
 		if t.intersects(ring):

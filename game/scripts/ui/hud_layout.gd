@@ -93,7 +93,11 @@ static func vitals_rect(hud: HuntHud, r: Vector2) -> Rect2:
 	var phone := UiTokens.is_phone(r)
 	var x := 16.0 + inset.w
 	var big := 16.0 if not phone else 12.0
-	var panel_w := 300.0 if not phone else maxf(148.0, hud._minimap.position.x - x - 8.0)
+	# LEVELBADGE: the badge column widens the block on a desktop; a compact canvas keeps 300 px (the centre
+	# band between the vitals and the map holds the top feed and the quest card) and the bars give way.
+	var panel_w := 300.0 + (0.0 if UiTokens.is_compact(r) else HudLevelBadge.COLUMN)
+	if phone:
+		panel_w = maxf(148.0, hud._minimap.position.x - x - 8.0)
 	return Rect2(x - 8.0, 6.0 + inset.z, panel_w, big * 2.0 + ExhaustTreadmill.BELT_H + 6.0 * 2.0 + 36.0)
 
 ## Landscape phone: the strip between the vitals and the minimap; portrait: the strip under the map
@@ -196,7 +200,7 @@ static func _placer_row_score(at: Vector2, offsets: Array, rel: Array, taken: Ar
 
 ## Screen rects the HUD holds this frame: the blocks _draw has painted so far (drawn_blocks, minus
 ## keys starting with one of `skip`), every visible hex on screen (HUD, station and gather radials)
-## with its caption, the HUD's other controls, HANDS and the open pet radial. Moving text (world pills, toasts, notices)
+## with its caption, the HUD's other controls and the open pet radial. Moving text (world pills, toasts, notices)
 ## and the creature plates keep off them: at 844x390 they drew over the quest card and the COOK hex.
 static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rect2]:
 	var out: Array[Rect2] = []
@@ -219,9 +223,6 @@ static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rec
 		if ctl is Label and (ctl as Label).text.strip_edges() == "":
 			continue
 		out.append(ctl.get_global_rect())
-	var held: Control = hud.player.station_craft.held_slot if hud.player and hud.player.station_craft else null
-	if held and held.is_visible_in_tree():
-		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
 	var fig := figure_rect(hud)
 	if fig.has_area():
 		out.append(fig)

@@ -9,11 +9,25 @@ Screens (Map, Animals, Domain, Skills sheet, claim confirm) live on canvas layer
 screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true`.
 
 ## Fixed layout (per canvas, `HudLayout`)
-- Vitals panel top-left: desktop 300 px wide with 16 px bars and body-size numerals; phone compact
-  (min 148 px, the room left of the minimap). The two bars (health red, stamina blue) start at the
-  panel's left edge: LEVELBAR (owner 2026-10-28) retired the level disc that sat left of them and gave
-  its 44 px to the bars (232 px wide); the level shows only on the bottom bar. Right of both bars, as tall as the pair (38 px desktop, 30 phone), the stomach
-  indicator (HUDRULES rounds 1 and 3, owner 2026-10-28; `hud_stomach.gd`):
+- Vitals top-left (LEVELBADGE, owner 2026-10-28): no dark panel behind it; every piece carries its own
+  shadow, dark rim and outlined text so it reads over sand, grass and night. `HudLayout.vitals_rect` is the
+  block (300 px + the badge's `HudLevelBadge.COLUMN` 78 px; used for layout, never painted).
+  - Level badge (`hud_level_badge.gd`) at the left, radius 30, reversing LEVELBAR's "no top-left level":
+    the number and LEVEL in a dark well inside a ring that escalates with the shown level toward the cap 60
+    (ASSUMPTION: 60, from the owner's reference). Tiers (`TIER_FROM` 1/10/25/40/55/60): slate ring; bronze;
+    silver with 12 notches; gold with 24 notches, filigree dots and a 12-point spiked star; glowing gold with
+    a 16-point slowly turning star, a breathing halo, a shimmer arc circling the band and 4 twinkling sparks;
+    Lv 60 adds a crown of three tall spikes, a brighter halo and 7 sparks. Canvas calls only (no shader or
+    texture), ~20-70 small draws, animated off the clock the HUD already redraws on. A level-up sends the
+    LEVELFX gold rings out of it (`draw_pulse_rings`).
+  - Health (red) and energy (blue) bars, 276 px desktop, right of the badge. Pokémon-style motion
+    (`HuntHud._trail`, `bar_trail`): a loss drops the fill at once and a pale ghost holds the old value
+    0.4 s (`TRAIL_HOLD`) then eases down; a gain puts the ghost at the new value and the fill eases up to it
+    (`TRAIL_EASE` 6/s). The mounted energy bar trails under its own key.
+  - Under the bars the tier word (RESTED / WORN / TIRED / EXHAUSTED), then the treadmill belt. The exhaustion
+    face rides the belt like a sticker (owner): white peel rim and shadow, centred on the strain marker.
+- Stomach indicator (HUDRULES rounds 1 and 3; moved by the owner 2026-10-28 "by the buffs/debuffs"): the
+  first item of the status row under the vitals, chip-sized (38 px; `hud_stomach.gd`):
   - Inner ring = fullness. A full stomach is a complete circle, and it degrades clockwise: the lit arc
     always ends at 12 o'clock, and the gap opens from 12 o'clock clockwise (`HudStomach.arc_for`). The
     colour comes from bands blended between stops (`STOPS`): red empty (< 0.1), yellow hungry
@@ -27,7 +41,8 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
     `stomach_overfull` (swollen, two pressure marks). The drawn scale eases (0.6/s) to `GLYPH_SCALE`
     (0.92 → 1.06), so a state change grows or shrinks it.
   - ASSUMPTIONs: no satiety meter exists (the PRD forbids one), and the band edges (0.1 / 0.4 / 0.7 /
-    1.0 for the state) are mine. Read only; no hunger rule changed. Below: the exhaustion face + tier word, then the treadmill belt. While Well
+    1.0 for the state) are mine. Read only; no hunger rule changed.
+- Treadmill belt (under the bars): while Well
   Rested the belt pauses (`ExhaustTreadmill.paused_rate`: the drift eases to 0 in ~0.2 s and holds)
   unless exhaustion is falling right then (a rest or a meal still runs it left); the status row shows
   the Well Rested chip (sun over a pillow, `well_rested.svg`) with its countdown.
@@ -36,10 +51,14 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   the mount's name leads the numbers (a phone bar shows only the numbers when the name does not fit; the segmented darker blue still says "mount").
   It goes back to the survivor's blue stamina on dismount (`HuntHud.energy_reading`). The exhaustion
   face and treadmill always belong to the survivor, and the mount running does not move them.
-- Status chips row under the vitals (HUDRULES, owner 2026-10-28; `hud_buff_row.gd`): **buffs, boons and
+- Status chips row under the vitals, after the stomach ring (HUDRULES, owner 2026-10-28; `hud_buff_row.gd`).
+  Owner 2026-10-28: larger and black and white: 38 px chips (`CHIP`, 44 px pitch), black tile, white rim
+  (GOLD while its tooltip shows), white icon, and the one colour a corner arrow badge: blue up
+  (`UP_BLUE`) for a buff or boon, red down (`DOWN_RED`) for a debuff; the countdown sits under it, outlined.
+  Chips show **buffs, boons and
   debuffs only** — statuses whose `statuses.json` `kind` is `buff` / `boon` / `debuff`, then the food buffs
   (`BuffSlots` rows, `eat` icon, GOLD rim). Afflictions (`kind: effect`) never show here; they are the boxes
-  beside her (below). 30 px pitch, a 1.5 px rim in the status colour, a countdown under 3600 s (longer =
+  beside her (below). a countdown under 3600 s (longer =
   "until treated"). Each chip has a tooltip (name, BUFF/BOON/DEBUFF, the food buff's stats, the status
   `desc`, time left) on a free spot under the chip off `taken_rects` (`buff_tip` block): desktop hover
   shows it, a click pins / unpins it (GOLD rim while shown); touch: a tap toggles it (the emulated mouse
@@ -62,10 +81,14 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   The title is `World.player_title` (save field `player_title`, "" by default; older saves load with
   none), picked on the Character sheet's Titles tab: Wear on an earned title (titles.json key at or
   under her level), Remove on the worn one (gold, italic). The tab scrolls.
-- Minimap top-right: a round 154 px window (`MAP_PX`), drawn camera-up (rotated by camera yaw),
+- Minimap top-right: a round 154 px window (`MAP_PX`; LEVELBADGE: no square box — the terrain and fog are
+  drawn as UV-mapped disc polygons, so no corner covers; a shadowed bronze rim `MAP_RIM` 6 px with a lit
+  top-left and a small compass pip at the bottom), drawn camera-up (rotated by camera yaw),
   0.95 m per pixel (`MAP_SCALE`), with fog-of-war, the foot trail, camp flame, harbour anchor,
   crater, creature dots (pets green, wild red, only inside revealed fog) and the player arrow.
-  Above it "Home" / "Survivable N min" / "Lab"; below it the X/Y tile readout. A tap opens MapScreen.
+  Above it "Home" / "Survivable N min" / "Lab"; centred below it "X 503  Y 295" (owner 2026-10-28): her
+  world X / Z in whole metres, reformatted only when a metre changes (`map_xy_text`). Both outlined. A tap
+  opens MapScreen. Test `t_levelbadge.gd`; captures `docs/orchestration/reports/levelbadge/`.
 - DayNightDial (`day_night_dial.gd`, DAYNIGHT 2026-10-28, the owner's pick of three faces) docked at the
   minimap's bottom-left edge: a gold-rimmed half-dial, 112x76 on desktop, 66x64 on compact canvases (a
   phone keeps the same face with three-hourly ticks, no lens flare). The half-disc sky is painted:
@@ -101,8 +124,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   opens; the nav menu's Skills entry carries the same count as its own badge. Market (buy/sell) notices: the
   hook (`notify_menu(&"market")`) and its badge exist but nothing calls it — the offline market generates no
   client event. Nothing is urgent today.
-- Quick slots above the rail: two quick-food hexes (×count, unchanged), CHASE in the third slot in a
-  fight, HANDS (held tool; tap gathers nearest, long-press unequips) in the fourth (`hands_spot`).
+- Quick slots above the rail (`quick_row_y`): two quick-food hexes (×count, unchanged) and CHASE in the
+  third slot in a fight. The HANDS hex that stood fourth is gone (owner 2026-10-28, "interact is the
+  same"): INTERACT gathers the nearest resource as its last pick, and the held tool is set in the bag
+  (a tool's Equip tool / Unequip tool button) or by tapping the Character sheet's tool slot (cycles).
 - Bottom-right (`hud_field.gd`): one large INTERACT hex in the corner. It shows what
   `PlayerInput.interact_choice` picks, rescanned every 0.2 s, and runs a fresh pick on press:
   dismount, sleep (bed, fatigue ≥ 1), pen, OPEN (station), field, fire, butcher (corpse), harbour,
@@ -156,7 +181,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Landscape phones: the strip between the vitals and the minimap carries the quest card; the target
   plate and the level-up banner take it over while they show. Portrait: a strip under the map text.
 - HUD-owned rects (`drawn_blocks`: vitals, map text, status row, plate, name, toasts…) plus every
-  visible hex (with captions), other HUD controls, HANDS and the survivor figure form
+  visible hex (with captions), other HUD controls and the survivor figure form
   `taken_rects`; moving text picks a free spot via `UiTokens.free_spot` and is skipped when none.
 
 ## Combat layer (active while `player.hunt.target` lives)
@@ -197,7 +222,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   last creature attacked (within 40 m) until it dies or a new one is hit.
 - Context hexes (70 px, rescanned every 0.3 s from `player.context_actions()`) offer Wash, Fill,
   Rest, etc. and hide in combat. They run right to left along the bottom from SPRINT (wrapping one row
-  up, clear of HANDS). CLAIM is a gold-rim hex (52 px desktop, 64 phone) right-aligned under the
+  up, clear of the quick slots). CLAIM is a gold-rim hex (52 px desktop, 64 phone) right-aligned under the
   minimap's "X Y" line; icon-only on a landscape phone (ASSUMPTION: no room for a caption there). Claiming while already
   holding land here opens the ClaimPanel confirm; it cancels on walking away, moving placement, or
   a second tap. Ground-placing anchors a ROTATE / SAVE / CANCEL hex row near the ghost via a
@@ -353,7 +378,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   system yet); Character opens the Character screen the bag's Character tab also opens, Communication the
   Domain screen's Communications Center. Compact canvases fold each side into two columns of three 72 px rows.
 - Sheets (BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
-  scrolling when short; landscape phones lay them out as a two-column grid. HANDS and the creature
+  scrolling when short; landscape phones lay them out as a two-column grid. The creature
   plates hide while one (or the nav menu) is open.
 
 ## Screens (phone landscape, [all screens](ui-screens.md))

@@ -42,6 +42,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a == "--smoke":
 			smoke_test = true
+		elif a == "--lab=tutorial":
+			pass  # TUTORIAL ISLAND: the real new-game flow in its own fresh save folder (SaveGame.run_name), no lab scene
 		elif a.begins_with("--lab="):
 			lab_name = a.substr(6)
 		elif a.begins_with("--shot="):

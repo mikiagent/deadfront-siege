@@ -69,6 +69,7 @@ func _run() -> void:
 	for id: StringName in [&"deinonychus", &"tyrannosaurus"]:
 		await _test_hidden_eye(id)
 	await _test_cost_and_cull()
+	await _test_threat()
 	for c in _creatures:
 		if is_instance_valid(c):
 			c.queue_free()
@@ -823,3 +824,36 @@ func _test_cost_and_cull() -> void:
 		c.queue_free()
 	WL.night = had_night
 	await process_frame
+
+## EYESDEATH (owner: a compsognathus "looks very intimidating with the eye trails but it's not that
+## powerful"): trail length x energy, the bloom radius and the dot glow rise with threat (species tier):
+## compsognathus < deinonychus < T. rex; an alpha still gets eye_glow_mult (2.5x) on its own species.
+func _test_threat() -> void:
+	var got: Array[Vector4] = []
+	for id: StringName in [&"compsognathus", &"deinonychus", &"tyrannosaurus"]:
+		var c := _spawn(id)
+		await process_frame
+		var eyes = c.view.get_node_or_null("Eyes")
+		var trail = _trail_of(c)
+		if eyes == null or trail == null:
+			_expect(false, "%s threat test has eyes and a trail" % id)
+			return
+		var strength: float = trail.max_length_m * trail.energy
+		got.append(Vector4(eyes.threat, strength, 0.0, eyes.threat_glow))
+		print("[t_eyetrails] %s threat %.2f trail strength %.2f (length %.2f m x energy %.2f) glow %.2f" % [id,
+			eyes.threat, strength, trail.max_length_m, trail.energy, eyes.threat_glow])
+		if id == &"tyrannosaurus":
+			var e0: float = trail.energy
+			var b0: float = float(eyes.eye_material.emission_energy_multiplier)
+			c.view.apply_genome(1.0, 2.5)
+			var e1: float = eyes.trail.energy
+			var b1: float = float(eyes.eye_material.emission_energy_multiplier)
+			_expect(is_equal_approx(e1 / e0, 2.5) and is_equal_approx(b1 / b0, 2.5),
+				"an alpha keeps its 2.5x glow over its species (trail %.2f, dot %.2f)" % [e1 / e0, b1 / b0])
+		c.queue_free()
+		await process_frame
+	_expect(got[0].y < got[1].y and got[1].y < got[2].y,
+		"trail strength rises with threat: compy %.2f < deinonychus %.2f < T. rex %.2f" % [got[0].y, got[1].y, got[2].y])
+	_expect(got[0].w < got[1].w and got[1].w < got[2].w, "dot glow rises with threat (%.2f < %.2f < %.2f)" % [got[0].w, got[1].w, got[2].w])
+	_expect(got[0].y < got[2].y * 0.15, "a compsognathus trail is a stub of a T. rex's (%.2f vs %.2f)" % [got[0].y, got[2].y])
+	_expect(is_equal_approx(got[2].x, 1.0), "T. rex keeps the full trail (threat %.2f)" % got[2].x)
