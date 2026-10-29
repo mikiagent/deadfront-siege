@@ -121,13 +121,16 @@ func earn(acct: int, target: int) -> void:
 				continue
 			var n := mini(int(o.qty) - int(o.filled), 20)
 			_gather(acct, str(o.def_id), n)
-			var slot := _slot(acct, str(o.def_id))
-			if slot < 0:
-				continue
-			n = mini(n, int(_bag(acct)[slot].count))
-			var dep := op(acct, "vault.deposit", {"bag_slot": slot, "count": n})
-			if dep.ok:
-				op(acct, "market.sell_to_order", {"order_id": str(o.id), "uid": str(dep.r.uid), "count": n})
+			# ONEGATHER: every pass lands its own one-unit row, so the order is filled row by row.
+			while n > 0 and tradable(acct) < target:
+				var slot := _slot(acct, str(o.def_id))
+				if slot < 0:
+					break
+				var k := mini(n, int(_bag(acct)[slot].count))
+				var dep := op(acct, "vault.deposit", {"bag_slot": slot, "count": k})
+				if not dep.ok or not op(acct, "market.sell_to_order", {"order_id": str(o.id), "uid": str(dep.r.uid), "count": k}).ok:
+					break
+				n -= k
 	failures.append("account %d earned only %d of %d tradable T-stones" % [acct, tradable(acct), target])
 
 func tick() -> void:

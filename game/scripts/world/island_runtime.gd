@@ -29,6 +29,8 @@ var _surf_res: int = 0
 ## The landmass generator (IslandShape): coastline, river, mesa, peaks. is_dry and the scatter
 ## read its precomputed rad grid through rad_at.
 var _shape: IslandShape
+## MAPLAB: the authored map this island was built from (def "map" path or "map_doc"), else null.
+var map_doc: MapDoc = null
 ## Per-heightmap-vertex effective radius, river distance and gradient (IslandShape.compute).
 var _rad: PackedFloat32Array = PackedFloat32Array()
 var _river_d: PackedFloat32Array = PackedFloat32Array()
@@ -176,7 +178,13 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	var res := clampi(int(def.get("terrain_res", 161)), 65, 321)
 	_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, res, _climate, land)
 	_shape.camp_hint = Vector2(_camp_hint.x, _camp_hint.z)
-	_shape.compute()
+	map_doc = def.get("map_doc", null) as MapDoc
+	if map_doc == null and def.has("map"):
+		map_doc = MapDoc.load_file(str(def["map"]))
+	if map_doc != null:
+		map_doc.apply_to_shape(_shape)  # the painted land, heights and water replace the generator's
+	else:
+		_shape.compute()
 	PerfTrace.mark("shape")
 	var t1 := Time.get_ticks_usec()
 	IslandTerrain.build(self, size, _climate, _shape)

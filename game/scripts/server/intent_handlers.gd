@@ -232,7 +232,7 @@ func _craft(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return no("insufficient_items", "picks must still hold the materials")
 	if status == "full":
 		return no("bag_full", "no room for %s" % str((rec.get("output", {}) as Dictionary).get("id", rid)))
-	var uids := ch.commit(inv, "craft", seq)
+	var uids := ch.commit(inv, "craft", seq, now) # run_plan stamps crafted instances with the wall clock
 	for id in taken:
 		count("consumed", id, int(taken[id]))
 	if status == "failed":

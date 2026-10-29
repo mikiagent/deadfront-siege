@@ -623,7 +623,7 @@ func _fuzz_and_replay(n: int, seed: int) -> void:
 			return
 	var a := st.state_json()
 	var b := fresh.state_json()
-	expect(a == b, "journal replay from empty reproduces byte-identical canonical JSON (%d vs %d bytes)" % [a.length(), b.length()])
+	expect(a == b, "journal replay from empty reproduces byte-identical canonical JSON (%d vs %d bytes) live: %s replayed: %s" % [a.length(), b.length(), _around(a, b), _around(b, a)])
 	print("[srvdom] replay lines=%d byte_identical=%s bytes=%d sha256=%s" % [st.lines.size(), a == b, a.length(), b.sha256_text().substr(0, 16)])
 
 ## The island moving on between ops: knockdowns, deaths and respawns, regrowth, new corpses.

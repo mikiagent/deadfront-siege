@@ -96,6 +96,8 @@ func _find_site(around: Vector2i) -> Vector2i:
 				ok = ok and _why(&"foundation", _slot(c, 0, 0)) == ""
 				lo = minf(lo, span.x)
 				hi = maxf(hi, span.y)
+			# The ramp case builds on the module west of the pad: TERRAINSMOOTH's dressing can put a resource there.
+			ok = ok and _why(&"foundation", _slot(o + Vector2i(-1, 0), 0, 0)) == ""
 			if ok and hi - lo < best_span:
 				best_span = hi - lo
 				best = o

@@ -444,7 +444,17 @@ func _case_island_walk_away() -> void:
 	await _frames(3)
 	player.hunt.start(c)
 	await _frames(30)
+	# A ground tile clear of resources: TERRAINSMOOTH's scatter put a harvest node beside the old fixed
+	# (4, 6) goal, so the tap opened it (interact) instead of walking.
 	var goal: Vector3 = BuildGrid_centre(start + Vector3(4, 0, 6), rt)
+	for off in [Vector3(4, 0, 6), Vector3(-4, 0, 6), Vector3(4, 0, 4), Vector3(-4, 0, 4), Vector3(6, 0, 2), Vector3(-6, 0, 2)]:
+		var at: Vector3 = BuildGrid_centre(start + off, rt)
+		var clear := true
+		for n in get_nodes_in_group(&"harvest"):
+			clear = clear and Vector2((n as Node3D).global_position.x - at.x, (n as Node3D).global_position.z - at.z).length() > 2.5
+		if clear:
+			goal = at
+			break
 	var kind: StringName = _tap(goal)
 	_samp.start(player)
 	var t := 0.0
