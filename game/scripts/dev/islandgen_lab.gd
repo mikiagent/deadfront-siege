@@ -8,6 +8,7 @@ extends Node3D
 ##   Godot --path game --resolution 1600x900 --rendering-method gl_compatibility -- \
 ##     --lab=islandgen_lab --shot-dir=/tmp/isg_shots
 ## Optional: --ids=a,b (default: all), --no-shots.
+## --map=<name>: build only game/data/maps/<name>.map.json through the MAPLAB importer (id map_<name>).
 
 var _args := {}
 var _shot_dir := ""
@@ -30,7 +31,13 @@ func _run() -> void:
 	if _shot_dir != "":
 		DirAccess.make_dir_recursive_absolute(_shot_dir)
 	var ids: Array = []
-	if _args.has("ids"):
+	if _args.has("map"):
+		var doc := MapDoc.load_file("res://data/maps/%s.map.json" % _args["map"])
+		if doc != null:
+			var id := "map_" + str(_args["map"])
+			World.islands[id] = doc.island_def({"id": id, "display_name": doc.name, "kind": "unstable", "tier": 10, "level_override": 1})
+			ids.append(StringName(id))
+	elif _args.has("ids"):
 		for s in str(_args["ids"]).split(",", false):
 			ids.append(StringName(s))
 	else:
