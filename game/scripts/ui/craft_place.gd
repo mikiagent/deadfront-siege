@@ -1,6 +1,9 @@
 class_name CraftPlace
 extends HBoxContainer
-## D3 "Craft, place materials" (docs/design/ui-redesign-spec.md §7 D3), a sub-view of CraftUI.
+## D3 "Craft, place materials" (docs/design/ui-redesign-spec.md §7 D3), a sub-view of CraftUI, and
+## the Construction panel (§7 D5): `open_site(site)` fills a ConstructionSite's blueprint slot groups
+## by tag (Blueprints.fits) with the same chevrons, candidate grid, numbered picks, Expected Result,
+## "Fill Automatically" / "Place Material" and, once every material is in, the build timer.
 ## The player picks, slot by slot, which bag instance leads it:
 ##   left    - "Crafting complete n%" and one chevron per recipe slot (OK_GREEN once placed);
 ##   centre  - the slot's header (name n / need, what it accepts), the candidate grid (icon, level,
@@ -19,6 +22,10 @@ const PIPS := 3
 
 var host: CraftUI
 var rec: Dictionary = {}
+## Construction mode: the site being filled (null = a recipe). `picked` holds, per slot, the bag
+## indices chosen to place next, one unit each, in badge order.
+var site: ConstructionSite = null
+var picked: Array = []
 var placed: Array[int] = []  ## bag index leading each slot, -1 = not placed yet
 var slot_sel: int = 0
 var focus_idx: int = -1
@@ -166,6 +173,7 @@ func _ready() -> void:
 # ---------------------------------------------------------------- state
 
 func open(p_rec: Dictionary) -> void:
+	site = null
 	rec = p_rec
 	var n := (rec.get("slots", []) as Array).size()
 	placed.clear()
@@ -175,6 +183,8 @@ func open(p_rec: Dictionary) -> void:
 	_select_slot(0)
 
 func subtitle() -> String:
+	if site != null and is_instance_valid(site):
+		return str(site.bp().get("display_name", "Site"))
 	if rec.is_empty() or host == null:
 		return ""
 	var sid := Crafting.station_id(rec)
@@ -184,7 +194,7 @@ func _inv() -> Inventory:
 	return host.player.inventory if host and host.player else null
 
 func _slot(i: int) -> Dictionary:
-	var slots: Array = rec.get("slots", [])
+	var slots: Array = site.bp().get("slots", []) if site else rec.get("slots", [])
 	return slots[i] if i >= 0 and i < slots.size() and slots[i] is Dictionary else {}
 
 ## The bag indices that can go into slot `i` (its category, its allowed_ids).
@@ -193,6 +203,12 @@ func candidates(i: int) -> Array[int]:
 	var inv := _inv()
 	var slot := _slot(i)
 	if inv == null or slot.is_empty():
+		return out
+	if site:
+		for idx in inv.slot_count:
+			var st: ItemStack = inv.slots[idx]
+			if st != null and st.def_id != Inventory.LOCK and not st.is_locked() and Blueprints.fits(slot, st):
+				out.append(idx)
 		return out
 	for idx in inv.find_by_category(StringName(str(slot.get("category", "")))):
 		if inv.slots[idx] and Crafting._allowed(slot, inv.slots[idx]):
@@ -239,6 +255,11 @@ func order_of(i: int) -> Dictionary:
 
 func _select_slot(i: int) -> void:
 	slot_sel = clampi(i, 0, maxi(0, placed.size() - 1))
+	if site:
+		var c := candidates(slot_sel)
+		focus_idx = c[0] if not c.is_empty() else -1
+		rebuild()
+		return
 	if slot_sel < placed.size() and placed[slot_sel] >= 0:
 		focus_idx = placed[slot_sel]
 	else:
@@ -258,6 +279,9 @@ func _set_qty(n: int) -> void:
 ## "Place material" puts the focused instance at the head of the slot (an explicit pick), refused
 ## when the plan cannot fill the recipe with it (another slot needs it); "Craft" once all are placed.
 func _on_cta() -> void:
+	if site:
+		_site_cta()
+		return
 	if all_placed():
 		var uids: Array[String] = []
 		var inv := _inv()
@@ -288,7 +312,15 @@ func place_focused() -> bool:
 # ---------------------------------------------------------------- drawing
 
 func rebuild() -> void:
-	if rec.is_empty() or host == null or host.player == null:
+	if site != null and not is_instance_valid(site):
+		site = null
+		if host:
+			host.hide_ui()
+		return
+	if host == null or host.player == null or (rec.is_empty() and site == null):
+		return
+	if site:
+		_rebuild_site()
 		return
 	var inv := _inv()
 	# Bag indices move when the bag changes: drop any placement that no longer fits its slot.
@@ -368,6 +400,7 @@ func rebuild() -> void:
 	_fill_focus(compact)
 	_fill_result(compact)
 	_qty_label.text = str(qty)
+	(_qty_label.get_parent().get_parent() as Control).visible = true
 	_qty_label.add_theme_font_size_override("font_size", 22 if compact else 30)
 	var rate := Crafting.success_for(rec, host.player)
 	_success.text = "%d%%" % int(round(rate * 100.0))
@@ -382,6 +415,253 @@ func rebuild() -> void:
 	(_success.get_parent().get_child(0) as Label).add_theme_font_size_override("font_size", 15 if compact else 20)
 	if host:
 		host.call_deferred("_layout_safe")
+
+# ---------------------------------------------------------------- Construction (site mode)
+
+func open_site(s: ConstructionSite) -> void:
+	site = s
+	rec = {}
+	qty = 1
+	var n := s.slot_count()
+	placed.clear()
+	placed.resize(n)
+	placed.fill(-1)
+	picked.clear()
+	for i in n:
+		picked.append([])
+	var first := 0
+	for i in n:
+		if s.deposited(i) < s.needed(i):
+			first = i
+			break
+	_select_slot(first)
+
+## Units still open in slot `i` once the deposited and the picked ones are counted.
+func site_room(i: int) -> int:
+	return site.needed(i) - site.deposited(i) - (picked[i] as Array).size()
+
+## Units of bag index `idx` already picked in any slot (a stack of 3 can serve 3 picks).
+func _picked_units(idx: int) -> int:
+	var n := 0
+	for col: Array in picked:
+		n += col.count(idx)
+	return n
+
+## Tap on a candidate: pick one unit of it for this slot (next badge number), or drop it again.
+func toggle_pick(idx: int) -> void:
+	focus_idx = idx
+	var col: Array = picked[slot_sel]
+	if col.has(idx):
+		col.erase(idx)
+	elif site_room(slot_sel) > 0 and _picked_units(idx) < _inv().slots[idx].count:
+		col.append(idx)
+	rebuild()
+
+## "Fill Automatically": every open unit of every slot gets the best eligible instance (highest
+## level first), never more units of a stack than it holds.
+func auto_fill() -> void:
+	var inv := _inv()
+	for i in picked.size():
+		var cands := candidates(i)
+		cands.sort_custom(func (a: int, b: int) -> bool: return inv.slots[a].level > inv.slots[b].level)
+		for idx in cands:
+			while site_room(i) > 0 and _picked_units(idx) < inv.slots[idx].count:
+				(picked[i] as Array).append(idx)
+	rebuild()
+
+func has_picks() -> bool:
+	for col: Array in picked:
+		if not col.is_empty():
+			return true
+	return false
+
+## "Place Material": the picked units go into the site's escrow (the exact instances, via
+## ConstructionSite.deposit); once every slot is full the build timer starts.
+func place_picks() -> int:
+	var n := 0
+	var inv := _inv()
+	for i in picked.size():
+		var uids: Array[String] = []
+		for idx: int in picked[i]:
+			uids.append(inv.slots[idx].uid if inv.slots[idx] else "")
+		for k in (picked[i] as Array).size():
+			# Indices can empty as units leave: find each unit again by uid, else by the slot's fit.
+			var at := _uid_index(uids[k]) if uids[k] != "" else int(picked[i][k])
+			if at >= 0 and site.deposit(i, at, World.player_name if World.player_name != "" else ""):
+				n += 1
+		(picked[i] as Array).clear()
+	if site.materials_ready():
+		site.building = true
+	var next := -1
+	for i in placed.size():
+		if site.deposited(i) < site.needed(i):
+			next = i
+			break
+	_select_slot(maxi(0, next) if next >= 0 else slot_sel)
+	return n
+
+func _uid_index(uid: String) -> int:
+	var inv := _inv()
+	for i in inv.slot_count:
+		if inv.slots[i] and inv.slots[i].uid == uid:
+			return i
+	return -1
+
+func _site_cta() -> void:
+	if site.ready_to_finish():
+		var p := host.player
+		BuildFlow.complete(p, site)
+		site = null
+		host.hide_ui()
+	elif site.materials_ready():
+		site.building = true
+		rebuild()
+	elif has_picks():
+		place_picks()
+	else:
+		auto_fill()
+
+static func clock(seconds: float) -> String:
+	var t := maxi(0, ceili(seconds))
+	return "%02d:%02d:%02d" % [t / 3600, (t / 60) % 60, t % 60]
+
+func _process(_delta: float) -> void:
+	if site != null and is_instance_valid(site) and visible and site.building:
+		_timer_tick()
+
+func _timer_tick() -> void:
+	var lbl := _result.find_child("SiteTimer", true, false) as Label
+	if lbl:
+		lbl.text = clock(float(site.bp().get("work_seconds", 0.0)) - site.work_progress)
+	if site.ready_to_finish() and _cta.text != "Finish":
+		rebuild()
+
+func _rebuild_site() -> void:
+	var inv := _inv()
+	var view := get_viewport_rect().size
+	var compact := UiTokens.is_compact(view)
+	for i in picked.size():  # bag indices move when the bag changes: drop picks that no longer fit
+		var keep: Array = []
+		for idx: int in picked[i]:
+			if candidates(i).has(idx):
+				keep.append(idx)
+		picked[i] = keep
+	add_theme_constant_override("separation", 6 if compact else 16)
+	(get_node("PlaceSlots") as Control).custom_minimum_size = Vector2(108 if compact else 190, 0)
+	(get_node("FocusCard") as Control).custom_minimum_size = Vector2(150 if compact else 320, 0)
+	(get_node("ResultCard") as Control).custom_minimum_size = Vector2(186 if compact else 330, 0)
+	(get_node("FocusCard") as Control).size_flags_stretch_ratio = 0.01
+	(get_node("ResultCard") as Control).size_flags_stretch_ratio = 0.01
+	(_complete.get_parent().get_node("CompleteCap") as Label).add_theme_font_size_override("font_size", UiTokens.TYPE_MIN if compact else 17)
+	_complete.text = "%d%%" % int(round(site.materials_ratio() * 100.0))
+	_complete.add_theme_font_size_override("font_size", 30 if compact else 46)
+	for c in _chevrons.get_children():
+		_chevrons.remove_child(c)
+		c.queue_free()
+	for i in site.slot_count():
+		var ch := _Chevron.new()
+		ch.name = "Chevron_%d" % i
+		ch.title = Blueprints.slot_label(_slot(i))
+		ch.count_text = "%d/%d" % [site.deposited(i), site.needed(i)]
+		ch.filled = site.deposited(i) >= site.needed(i)
+		ch.chosen = i == slot_sel
+		ch.compact = compact
+		ch.custom_minimum_size = Vector2(0, 96 if compact else 130)
+		ch.pressed.connect(_select_slot.bind(i))
+		_chevrons.add_child(ch)
+	var slot := _slot(slot_sel)
+	var cands := candidates(slot_sel)
+	_slot_title.text = "%s   %d / %d" % [Blueprints.slot_label(slot), site.deposited(slot_sel) + (picked[slot_sel] as Array).size(), site.needed(slot_sel)]
+	_slot_title.add_theme_font_size_override("font_size", 20 if compact else 30)
+	var tags: PackedStringArray = []
+	for t: Variant in slot.get("accepted_tags", []):
+		tags.append(LevelDisplay.nice_name(str(t)))
+	_slot_accepts.text = "Material: %s  ·  %s or higher  ·  accepts %s" % [Blueprints.slot_label(slot), LevelDisplay.label(int(slot.get("min_level", 1))), " / ".join(tags) if not tags.is_empty() else "anything"]
+	_slot_accepts.add_theme_font_size_override("font_size", 12 if compact else 18)
+	_slot_accepts.add_theme_color_override("font_color", UiTokens.TEXT if not cands.is_empty() or site.deposited(slot_sel) >= site.needed(slot_sel) else UiTokens.LIFE)
+	(_slot_title.get_parent().get_parent() as PanelContainer).add_theme_stylebox_override("panel", CraftUI.pad(Color(0.02, 0.025, 0.03, 0.9), 10 if compact else 22, 10 if compact else 22, 4 if compact else 10, 6 if compact else 12))
+	for c in _grid.get_children():
+		_grid.remove_child(c)
+		c.queue_free()
+	_grid.columns = 3 if compact else 5
+	# Placed instances first, with a gold check; then the bag's eligible ones (badges = pick order).
+	var placed_n := 0
+	if slot_sel < site.slot_items.size():
+		for st: ItemStack in site.slot_items[slot_sel]:
+			var cell := _cand_cell(st, compact)
+			cell.name = "Placed_%d" % placed_n
+			cell.placed_check = true
+			cell.disabled = true
+			_grid.add_child(cell)
+			placed_n += 1
+	var col: Array = picked[slot_sel]
+	for idx in cands:
+		var cell := _cand_cell(inv.slots[idx], compact)
+		cell.name = "Cand_%d" % idx
+		cell.order = col.find(idx) + 1
+		cell.focused = idx == focus_idx
+		cell.pressed.connect(toggle_pick.bind(idx))
+		_grid.add_child(cell)
+	_note.text = "Placed materials stay in the site until it is finished or cancelled."
+	_note.add_theme_font_size_override("font_size", 12 if compact else 17)
+	_note.custom_minimum_size = Vector2(0, 30 if compact else 44)
+	_fill_focus(compact)
+	_fill_site_result(compact)
+	(_qty_label.get_parent().get_parent() as Control).visible = false
+	_success.text = "100%"  # ASSUMPTION: spec 30 gives construction no failure roll
+	_success.add_theme_font_size_override("font_size", 15 if compact else 20)
+	(_success.get_parent().get_child(0) as Label).add_theme_font_size_override("font_size", 15 if compact else 20)
+	if site.ready_to_finish():
+		_cta.text = "Finish"
+	elif site.materials_ready():
+		_cta.text = "Building…" if site.building else "Start build"
+	elif has_picks():
+		_cta.text = "Place Material"
+	else:
+		_cta.text = "Fill Automatically"
+	_cta.disabled = site.materials_ready() and site.building and not site.ready_to_finish()
+	_cta.add_theme_font_size_override("font_size", 18 if compact else 26)
+	_cta.custom_minimum_size = Vector2(0, 64 if compact else 72)
+	if host:
+		host.call_deferred("_layout_safe")
+
+func _cand_cell(st: ItemStack, compact: bool) -> _Candidate:
+	var cell := _Candidate.new()
+	cell.icon_tex = ItemIcons.texture(st.def_id)
+	cell.level = st.level
+	cell.pips = clampi(1 + maxi(0, ItemArt.rarity_order().find(str(ItemArt.rarity(st.def_id)))), 1, PIPS)
+	cell.locked = st.is_locked()
+	cell.custom_minimum_size = Vector2(64, 96 if compact else 120)
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return cell
+
+func _fill_site_result(compact: bool) -> void:
+	for c in _result.get_children():
+		_result.remove_child(c)
+		c.queue_free()
+	var bp := site.bp()
+	var cap := CraftUI._label("Expected Result", 12 if compact else 15, UiTokens.MUTED)
+	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_result.add_child(_pad(cap, 10, 2 if compact else 6))
+	var lvl := int((host.player.skills as SkillState).level_of("construction")) if host.player.get("skills") else 0
+	var name := CraftUI._label("", 16 if compact else 26, UiTokens.TEXT)
+	name.name = "ResultName"
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name.text = "%s  %s" % [str(bp.get("display_name", "Station")), LevelDisplay.label(site.preview_level(lvl))] if site.materials_ready() else "Select all materials to preview"
+	name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name.clip_text = false
+	name.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_result.add_child(_pad(name, 8, 2 if compact else 6))
+	# ASSUMPTION: blueprints name no station to build at; the requirement shown is the blueprint's
+	# Construction level (spec 30 §1).
+	var req := CraftUI._label("Construction %s" % LevelDisplay.label(int(bp.get("construction_level", 1))), 12 if compact else 18, UiTokens.GOLD if lvl >= int(bp.get("construction_level", 1)) else UiTokens.LIFE)
+	req.name = "SiteRequirement"
+	req.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_result.add_child(_pad(req, 8, 2))
+	var timer := CraftUI._label(clock(float(bp.get("work_seconds", 0.0)) - site.work_progress), 18 if compact else 30, UiTokens.TEXT)
+	timer.name = "SiteTimer"
+	timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_result.add_child(_pad(timer, 8, 2 if compact else 8))
 
 func _fill_focus(compact: bool) -> void:
 	for c in _focus.get_children():
@@ -555,6 +835,7 @@ class _Candidate extends Button:
 	var order := 0
 	var focused := false
 	var locked := false
+	var placed_check := false  ## Construction: already in the site's escrow
 
 	func _ready() -> void:
 		focus_mode = Control.FOCUS_ALL
@@ -584,5 +865,10 @@ class _Candidate extends Button:
 			var br := maxf(11.0, size.y * 0.09)
 			draw_circle(bc, br, UiTokens.GOLD)
 			UiTokens.draw_centered(self, UiTokens.ui_face(UiTokens.WEIGHT_BOLD), bc, str(order), maxi(UiTokens.TYPE_MIN, int(br * 1.2)), UiTokens.CTA_INK)
+		if placed_check:
+			var cc := Vector2(size.x - maxf(14.0, size.y * 0.14), size.y - maxf(14.0, size.y * 0.14))
+			draw_circle(cc, maxf(11.0, size.y * 0.09), UiTokens.GOLD)
+			var k := maxf(5.0, size.y * 0.05)
+			draw_polyline(PackedVector2Array([cc + Vector2(-k, 0), cc + Vector2(-k * 0.3, k * 0.7), cc + Vector2(k, -k * 0.7)]), UiTokens.CTA_INK, 2.5, true)
 		if focused:
 			UiTokens.draw_brackets(self, r.grow(-4.0), UiTokens.GOLD, minf(22.0, size.y * 0.16), UiTokens.BRACKET_W)

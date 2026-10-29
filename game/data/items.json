@@ -54,7 +54,8 @@
       "categories": [
         "wood",
         "split",
-        "burnable"
+        "burnable",
+        "thick_pillar"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -111,7 +112,8 @@
       "display_name": "Metal Shard",
       "categories": [
         "metal",
-        "blade_mat"
+        "blade_mat",
+        "chunk"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -709,7 +711,8 @@
         "bone",
         "blade_mat",
         "handle",
-        "tier_bone"
+        "tier_bone",
+        "thick_pillar"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -1518,7 +1521,8 @@
       "categories": [
         "bone",
         "blade_mat",
-        "tier_bone"
+        "tier_bone",
+        "thick_pillar"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -4496,6 +4500,42 @@
       "market_category": "clothing",
       "rarity": "uncommon",
       "_about": "SADDLES: fits a large tame (PetRecord.saddle_size); equip it from the tame's Gear screen to ride."
+    },
+    {
+      "id": "silver_chunk",
+      "display_name": "Silver Chunk",
+      "categories": [
+        "metal",
+        "chunk",
+        "smelted_metal",
+        "precious_metal",
+        "tier_silver"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#d8dde3"
+      },
+      "market_category": "ingot",
+      "rarity": "rare"
+    },
+    {
+      "id": "metal_stick",
+      "display_name": "Metal Stick",
+      "categories": [
+        "metal",
+        "stick",
+        "handle"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#b0b8c0"
+      },
+      "market_category": "ingot",
+      "rarity": "uncommon"
     }
   ]
 }
