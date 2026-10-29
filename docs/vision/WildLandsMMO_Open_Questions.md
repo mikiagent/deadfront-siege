@@ -106,6 +106,25 @@ Source: branch `claude/mmo-zebraai`, report `docs/orchestration/reports/claude-z
 | **Z5** | Hind kick: 1.4 × attack, 5 s cooldown, only with the survivor behind it at contact (typically right after a charge through her). | `kick_*` | Punishes standing behind a grazer. |
 | **Z6** | A provoked zebra flees for 4 s below 25 % HP (under the 30 % capture line, so a weakened one stays capturable for a moment) and comes back while still provoked. | `retreat_frac`, `flee_s` | Decides whether capture turns into a chase. |
 
+### TASKSCREEN (2026-10-28) — the Task screen (Daily, Achievement, Domain Construction, Main Task, Weekly)
+
+Source: branch `claude/mmo-taskscreen`, report `docs/orchestration/reports/claude-taskscreen.md`. Numbers live in `game/data/world/tasks.json`; the Durango research it imports is `docs/reference/durango_all_tasks_research.xlsx` (mapping in `docs/reference/tasks.md`).
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TS1** | Nothing pays on its own any more: a finished standing order advances the HUD card as before, but its xp / T-stones wait in Main Task until Receive. | `Objectives.settle`, `Tasks.claim` | A player who never opens Tasks never gets order rewards; the red dot and the MENU badge are the only prompt. |
+| **TS2** | Daily resets at 00:00 UTC and weekly at Monday 00:00 UTC (device clock), not local midnight. Unclaimed dailies are lost at the reset. | `Tasks.roll` | A wrong device clock can reset early; the server should own this later. |
+| **TS3** | Quantities the sheet leaves blank: gather 30 / day, trim 3 planks, 2 stone knives, 1 build, 2 hunts / day; weekly 2 landings on Lv 30+ islands, 300 gathers, 25 crafts, 15 hunts. | `tasks.json daily / weekly` | Daily load per session. |
+| **TS4** | Achievement chains are ours: character Lv 5, 10, ... 60 and every skill Lv 10, 20, ... 60, one row per chain (the next unclaimed milestone). Each pays L T-stones, 1 skill point (SkillState.sp_extra) and 5 x L EXP. 13 chains x 6-12 milestones add about 84 SP over a full game (~11 % of the level SP). | `tasks.json achievement` | SP economy; claimed by hand, so a late player can claim a backlog at once. |
+| **TS5** | Domain Construction tasks are ours (campfire, basket, tent, workbench, drying rack, taming pen, well, 10 fences); each pays 5-15 T-stones, 30-80 EXP and 1 skill point (the sheet: civilized-domain build tasks pay extra SP, DW-T0128). Old saves count buildings already placed. | `tasks.json domain`, `World.pioneer_buildings` | Early SP and T-stones. |
+| **TS6** | Daily and weekly rewards: 5 T-stones + 40 EXP per daily, 25 + 250 per weekly (the sheet names the kinds, never amounts). | `tasks.json` | T-stone faucet (economy.md). |
+| **TS7** | The returning-player tab ("Prodigal Pioneer") is left out. | `OrdersSheet` | No such system. |
+| **TS8** | Durango item names mapped to ours: Trimmed Material -> `trimmed_plank`; Pebble Stone Blade -> `improvised_stone_knife` / `stone_knife`; "Butcher 10 times" = 10 part kinds taken from carcasses; "minerals" = material Lv 60 from rock-role nodes. | `tasks.json` | Naming only. |
+| **TS9** | Weekly Explore Level-30 Islands pays 100 T-stones + 300 EXP, not the sheet's ~10,000 T-Stones (a 2019 player estimate in Durango's economy; ours starts at 20). A load on a Lv 30+ island also counts as a landing. | `tasks.json weekly.explore30` | Owner call on the T-stone scale. |
+| **TS10** | Data only, hidden until the system exists: Craft Leaf Outfits (no recipe), daily task points -> Warp Gems (neither exists), Advanced Kiln (not placeable), Cheer (no emotes / players), the 8-part finale (no story). | `tasks.json hidden` | Becomes live when the thing exists. |
+| **TS11** | Not imported: faction missions, career guides, Google Play achievements, events and rank titles (other systems). | `docs/reference/tasks.md` | Future Communication / Career Guide work. |
+| **TS12** | Main Task counts an order finished when Objectives.settle passes it (a saved set), not by index, so the tutorial's hand-over part-way down the standing orders never pays a skipped order. | `Tasks.done` | Save field (`tasks.done`). |
+
 ## Parked by other docs
 
 Each vision doc's unresolved points remain inside that doc until the workshop; the sections listed below are the owners' pointers, collected here only for reachability:
