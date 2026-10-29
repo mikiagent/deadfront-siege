@@ -502,13 +502,18 @@ func eat(index: int) -> bool:
 		return _send(&"eat", {"slot": index})
 	return p.eat_session != null and p.eat_session.begin_eat(index)
 
-## FOODTORPOR: eat the first Food Bag item that can be eaten now, in the order it was put in.
+## FOODTORPOR: eat the Food Bag front to back (the BAGUI eat queue); online, one lot per intent.
 func eat_food_bag() -> bool:
-	for idx in p.inventory.food_bag_prune():
-		if Food.can_eat(p, p.inventory.slots[idx]) == "":
-			return eat(idx)
-	p.notice("Nothing in the Food Bag can be eaten now")
-	return false
+	var order := p.inventory.food_bag_prune().filter(func (i: int) -> bool: return Food.can_eat(p, p.inventory.slots[i]) == "")
+	if order.is_empty():
+		p.notice("Nothing in the Food Bag can be eaten now")
+		return false
+	if online or p.eat_session == null:
+		return eat(order[0])
+	var stacks: Array[ItemStack] = []
+	for i: int in order:
+		stacks.append(p.inventory.slots[i])
+	return p.eat_session.begin_queue(stacks) > 0
 
 func equip(slot: StringName, def_id: StringName) -> bool:
 	if online:

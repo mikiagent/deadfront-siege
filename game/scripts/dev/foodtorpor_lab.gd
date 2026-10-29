@@ -67,16 +67,18 @@ func _run() -> void:
 	await _shot("plate_torpor")
 	# The Food Bag tab: mango, then berry, then grilled meat put in, in that order.
 	_player.hunt.stop()
+	raptor.queue_free()
+	# The lab's HUD sits in the bag's own layer, above it; in the game the open bag covers the HUD.
+	for n in get_tree().get_nodes_in_group("hud"):
+		(n as CanvasItem).visible = false
 	var inv := _player.inventory
 	for id in [&"mango", &"berry", &"grilled_meat"]:
 		inv.food_bag_add(inv.find_first(id))
-	var ui := get_tree().get_first_node_in_group("inventory_ui") as InventoryUI
-	if ui == null:
-		ui = find_children("*", "InventoryUI", true, false)[0] as InventoryUI
-	ui.bind(inv, _player)
+	var ui := _player.ui as InventoryUI
 	ui.visible = true
-	if ui.has_method("show_food_bag"):
-		ui.call("show_food_bag")
+	ui.rebuild()
+	ui._set_filter("food_bag")
+	ui._select(inv.food_bag_prune()[0])
 	await get_tree().create_timer(0.8).timeout
 	await _shot("food_bag")
 	get_tree().quit(0)

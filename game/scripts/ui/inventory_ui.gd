@@ -59,6 +59,9 @@ var _sort_btn: OptionButton
 var _lock_btn: Button
 var _place_btn: Button
 var _eat_btn: Button
+## FOODTORPOR: the card's Food Bag toggle and the Food Bag tab's "Eat in order".
+var _food_bag_btn: Button
+var _eat_order_btn: Button
 var _inspect_btn: Button
 var _feed_btn: Button
 var _store_btn: Button
@@ -105,7 +108,7 @@ const SHEET_SHARE := 0.52
 const SHEET_MIN_PX := 520.0
 const SHEET_MAX_PX := 900.0
 ## The filter rail's icon per BagGrid filter (white UI icons; "action" is the sparkle for Rare).
-const RAIL_ICONS := {"": &"bag", "materials": &"gathering", "food": &"eat", "gear": &"equip", "tools": &"tool_pick",
+const RAIL_ICONS := {"": &"bag", "materials": &"gathering", "food": &"eat", "food_bag": &"quick_food", "gear": &"equip", "tools": &"tool_pick",
 	"building": &"build", "rare": &"action", "locked": &"lock"}
 
 func _ready() -> void:
@@ -302,6 +305,10 @@ func _build_bag_page() -> void:
 	_batch_eat_btn.name = "BatchEatButton"
 	_batch_eat_btn.pressed.connect(_on_batch_eat)
 	_toolbar.add_child(_batch_eat_btn)
+	_eat_order_btn = _btn("Eat in order", Vector2(140, TAP))
+	_eat_order_btn.name = "EatOrderButton"
+	_eat_order_btn.pressed.connect(_on_eat_food_bag)
+	_toolbar.add_child(_eat_order_btn)
 	_batch_store_btn = _btn("Deposit", Vector2(TAP, TAP))
 	_batch_store_btn.name = "BatchStoreButton"
 	_batch_store_btn.pressed.connect(_on_batch_store)
@@ -333,6 +340,8 @@ func _build_card() -> void:
 	_inspect_btn = _action("Inspect", _on_inspect)
 	_food1_btn = _action("Food 1", func () -> void: _set_quick(0))
 	_food2_btn = _action("Food 2", func () -> void: _set_quick(1))
+	_food_bag_btn = _action("To Food Bag", _toggle_food_bag)
+	_food_bag_btn.name = "FoodBagButton"
 	_feed_btn = _action("Feed", _on_feed_pet)
 	_place_btn = _action("Place", _on_place_pressed)
 	_store_btn = _action("Store", _store_selected)
@@ -529,7 +538,7 @@ func _layout_card() -> void:
 func _all_buttons() -> Array[Button]:
 	var out: Array[Button] = [_sort_btn, _select_btn, _lock_btn,
 		_destroy_btn, _take_all_btn, _batch_lock_btn, _batch_drop_btn, _batch_destroy_btn,
-		_batch_store_btn, _batch_take_btn, _batch_eat_btn, _equip_btn, _eat_btn, _inspect_btn, _food1_btn, _food2_btn, _feed_btn, _place_btn, _store_btn, _take_btn, _drop_btn]
+		_batch_store_btn, _batch_take_btn, _batch_eat_btn, _eat_order_btn, _food_bag_btn, _equip_btn, _eat_btn, _inspect_btn, _food1_btn, _food2_btn, _feed_btn, _place_btn, _store_btn, _take_btn, _drop_btn]
 	return out
 
 # ---------------------------------------------------------------- rebuild
@@ -595,7 +604,7 @@ func _update_toolbar() -> void:
 	var g := _active_grid()
 	var multi := g != null and g.multi_mode
 	_sort_btn.select(maxi(0, BagGrid.SORTS.find(g.sort_key)))
-	_sort_btn.visible = not multi
+	_sort_btn.visible = not multi and g.filter_id != "food_bag"  # the Food Bag keeps its eating order
 	for f: String in _rail_btns:
 		_rail_style(_rail_btns[f], f == g.filter_id)
 	_select_btn.visible = true
@@ -608,6 +617,8 @@ func _update_toolbar() -> void:
 	_batch_take_btn.visible = multi and store
 	_batch_eat_btn.visible = multi and not store and _owner_player != null and pet_bag == null # a chest open: Deposit
 	_take_all_btn.visible = _take_all_btn.visible and not multi
+	_eat_order_btn.visible = not store and not multi and g.filter_id == "food_bag" and _owner_player != null
+	_eat_order_btn.disabled = inventory == null or inventory.food_bag_prune().is_empty()
 	_batch_label.visible = false # the header counter reads "<n> Select" instead
 
 func _active_grid() -> BagGrid:
@@ -687,7 +698,7 @@ static func valid_actions(stack: ItemStack, ctx: Dictionary = {}) -> Array[Strin
 	var d := stack.def()
 	var food := Food.is_food(stack)
 	if food:
-		out.append_array(["eat", "food1", "food2", "inspect"])
+		out.append_array(["eat", "food1", "food2", "food_bag", "inspect"])
 		if bool(ctx.get("pet", false)):
 			out.append("feed")
 	elif BagCapacity.is_bag(stack.def_id):
@@ -717,7 +728,7 @@ func _on_use() -> void:
 		(btn as Button).pressed.emit()
 
 func _action_buttons() -> Dictionary:
-	return {"eat": _eat_btn, "food1": _food1_btn, "food2": _food2_btn, "inspect": _inspect_btn, "feed": _feed_btn,
+	return {"eat": _eat_btn, "food1": _food1_btn, "food2": _food2_btn, "food_bag": _food_bag_btn, "inspect": _inspect_btn, "feed": _feed_btn,
 		"equip": _equip_btn, "place": _place_btn, "store": _store_btn, "take": _take_btn, "drop": _drop_btn}
 
 func _show_actions(valid: Array[String]) -> void:
@@ -758,6 +769,10 @@ func _select(index: int) -> void:
 	_drop_btn.disabled = not _can_drop_selected()
 	_drop_btn.tooltip_text = "Unlock this item before dropping it." if stack.is_locked() else "Drop this item in a loot bag."
 	_inspect_btn.text = "Inspect bag" if BagCapacity.is_bag(stack.def_id) and not Food.is_food(stack) else "Inspect"
+	var bagged := inventory.in_food_bag(stack)
+	_food_bag_btn.text = "Out of Food Bag" if bagged else "To Food Bag"
+	_food_bag_btn.disabled = not bagged and inventory.food_bag_prune().size() >= Inventory.FOOD_BAG_MAX
+	_food_bag_btn.tooltip_text = "The Food Bag is full (%d)." % Inventory.FOOD_BAG_MAX if _food_bag_btn.disabled else "Food in the Food Bag is eaten in the order it was put in."
 	var d := stack.def()
 	var slot := Inventory.slot_for(d)
 	_equip_btn.text = "Equip %s" % (str(EQUIP_LABELS.get(str(slot), slot)) if slot != &"" else "tool")
@@ -858,6 +873,24 @@ func _on_eat_food() -> void:
 	hide_ui()
 	if not _owner_player.begin_eat_slot(_selected) and st != null:
 		_owner_player.notice("Too full to eat." if Food.can_eat(_owner_player, st) == "full" else "You can't eat that now.") # never a silent no
+
+## FOODTORPOR: put the selected food at the back of the Food Bag, or take it out.
+func _toggle_food_bag() -> void:
+	if inventory == null or _selected < 0:
+		return
+	if not inventory.food_bag_remove(_selected) and not inventory.food_bag_add(_selected):
+		_tip.text = "Only food goes in the Food Bag (%d at most)." % Inventory.FOOD_BAG_MAX
+		return
+	_grid.rebuild()
+	_select(_selected if _selected < inventory.slot_count and inventory.slots[_selected] != null else -1)
+	_update_toolbar()
+
+## The Food Bag tab's "Eat in order": every lot, front to back, through the eat queue.
+func _on_eat_food_bag() -> void:
+	if _owner_player == null:
+		return
+	hide_ui()
+	_owner_player.actions.eat_food_bag()
 
 func _on_feed_pet() -> void:
 	if _owner_player == null or _selected < 0:

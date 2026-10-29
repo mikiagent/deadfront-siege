@@ -59,6 +59,7 @@ func _run() -> void:
 	_test_food_bag()
 	_test_spoilage()
 	await _test_eat_order()
+	_test_food_bag_tab()
 	_test_recipes()
 	await _test_torpor()
 	_finish()
@@ -169,12 +170,15 @@ func _test_eat_order() -> void:
 	p.inventory.food_bag_add(berry)
 	var first_uid: String = p.inventory.slots[mango].uid
 	var second_uid: String = p.inventory.slots[berry].uid
-	_expect(p.actions.eat_food_bag(), "Eat from the Food Bag starts a meal")
+	_expect(p.actions.eat_food_bag(), "Eat from the Food Bag starts the queue")
 	_expect(p.eat_session._instance != null and p.eat_session._instance.uid == first_uid, "it eats the mango first (put in first)")
-	_eat_out()
+	var guard := 0
+	while p.eat_session.eating and p.eat_session._instance.uid == first_uid and guard < 2000:
+		p.eat_session.advance(0.1)
+		guard += 1
+	_expect(p.eat_session.eating and p.eat_session._instance.uid == second_uid, "then the queue moves on to the berry")
 	var left_idx: Array[int] = p.inventory.food_bag_prune()
 	_expect(left_idx.size() == 1 and p.inventory.slots[left_idx[0]].uid == second_uid, "the eaten mango left the Food Bag")
-	_expect(p.actions.eat_food_bag() and p.eat_session._instance.uid == second_uid, "then the berry")
 	_eat_out()
 	_expect(p.inventory.food_bag_prune().is_empty() and p.inventory.count_of(&"berry") == 1, "the berry not in the Food Bag is still in the bag")
 	# Auto-feed takes the Food Bag first, over a quick-food pick.
@@ -188,6 +192,45 @@ func _test_eat_order() -> void:
 	_expect(p.eat_session.eating and p.eat_session._instance.uid == bag_uid, "auto-feed eats the Food Bag's mango before the quick-food berry")
 	_eat_out()
 	p.inventory.set_quick_food(0, &"")
+
+# ---------------------------------------------------------------- the bag panel's tab
+
+func _test_food_bag_tab() -> void:
+	var p = _player
+	var ui = p.ui
+	var BG: GDScript = load("res://scripts/ui/bag_grid.gd")
+	_expect(BG.FILTERS.has("food_bag") and str(BG.FILTER_LABELS.get("food_bag", "")) == "Food Bag", "the bag panel has a Food Bag tab")
+	_expect(ui.find_child("Filter_food_bag", true, false) != null, "the filter rail shows the Food Bag tab button")
+	for id in [&"stone", &"mango", &"raw_meat"]:
+		p.inventory.add(IS.make(id, 1))
+	ui.visible = true
+	ui.rebuild()
+	var meat: int = p.inventory.find_first(&"raw_meat")
+	var mango: int = p.inventory.find_first(&"mango")
+	var stone: int = p.inventory.find_first(&"stone")
+	ui._select(meat)
+	var btn: Button = ui.find_child("FoodBagButton", true, false)
+	_expect(btn != null and btn.visible and btn.text == "To Food Bag", "a food's card offers To Food Bag")
+	btn.pressed.emit()
+	ui._select(mango)
+	btn.pressed.emit()
+	ui._select(stone)
+	_expect(not btn.visible, "a stone's card has no Food Bag button")
+	ui._set_filter("food_bag")
+	var shown: Array = BG.view_order(p.inventory, ui._grid.sort_key, ui._grid.filter_id).map(func(i: int) -> StringName: return p.inventory.slots[i].def_id)
+	_expect(shown == [&"raw_meat", &"mango"], "the Food Bag tab lists raw meat, then mango, as put in (%s)" % [shown])
+	var eat_btn: Button = ui.find_child("EatOrderButton", true, false)
+	_expect(eat_btn != null and eat_btn.visible and not eat_btn.disabled, "the Food Bag tab offers Eat in order")
+	ui._select(p.inventory.find_first(&"raw_meat"))
+	_expect(btn.text == "Out of Food Bag", "a bagged food's card offers Out of Food Bag")
+	btn.pressed.emit()
+	shown = BG.view_order(p.inventory, "", "food_bag").map(func(i: int) -> StringName: return p.inventory.slots[i].def_id)
+	_expect(shown == [&"mango"], "Out of Food Bag takes it out (%s)" % [shown])
+	ui._set_filter("")
+	ui.hide_ui()
+	p.inventory.food_bag.clear()
+	for id in [&"stone", &"mango", &"raw_meat"]:
+		p.inventory.consume(id, p.inventory.count_of(id))
 
 # ---------------------------------------------------------------- recipes
 
