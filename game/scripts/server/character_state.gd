@@ -94,7 +94,8 @@ func inventory() -> Inventory:
 
 ## Writes `inv` back. Stacks that were in the bag keep their stamp (a merge adds units to an
 ## existing container); every new stack gets a uid, `origin` and `seq`. Returns the new uids.
-func commit(inv: Inventory, origin: String, seq: int) -> Array[String]:
+## `now` (the op's server time) replaces a new stack's wall-clock created_at so journal replay stays exact.
+func commit(inv: Inventory, origin: String, seq: int, now: int = -1) -> Array[String]:
 	var bag: Array = []
 	var minted: Array[String] = []
 	for stack in inv.slots:
@@ -111,6 +112,8 @@ func commit(inv: Inventory, origin: String, seq: int) -> Array[String]:
 		else:
 			var uid := Provenance.item_uid(seq, minted.size())
 			Provenance.stamp(row, uid, origin, seq)
+			if now >= 0 and row.has("created_at"):
+				row.created_at = now
 			minted.append(uid)
 		bag.append(row)
 	d.bag = bag

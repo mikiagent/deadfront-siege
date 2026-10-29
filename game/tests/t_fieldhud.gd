@@ -129,6 +129,11 @@ func _sheet_button(prefix: String) -> Button:
 func _test_badge() -> void:
 	var menu = _hud.get("_menu_hex")
 	_hud.field.notices.clear()
+	# TRIBE M1 (owner): dock recruits badge MENU too, and the starter recruit waits on the first home
+	# load. This section counts notices alone, so the dock is emptied for it (t_tribe covers that badge).
+	var tribe: GDScript = load("res://scripts/tribe/tribe.gd")  # loaded: a --script run compiles before autoloads
+	var waiting: Array = (tribe.pending as Array).duplicate()
+	(tribe.pending as Array).clear()
 	_hud.field.apply_badge()
 	_expect(menu.badge == "", "no notices: no badge")
 	_hud.notify_menu(&"skills")
@@ -148,6 +153,8 @@ func _test_badge() -> void:
 	_hud._toggle_skills()
 	_hud.field.clear(&"market")
 	_expect(menu.badge == "", "all read: the badge is gone")
+	(tribe.pending as Array).assign(waiting)
+	_hud.field.apply_badge()
 	var corner: Vector2 = menu.position + Vector2(menu.size.x * 0.5, 0.0)
 	_expect(corner.x > menu.position.x, "the badge sits in MENU's top-right quarter (HexButton badge at +0.55r, -0.55r)")
 	await _frames(1)

@@ -135,8 +135,10 @@ func _run() -> void:
 func _render_checks() -> void:
 	for method in ["forward_plus", "gl_compatibility"]:
 		var out: Array = []
-		var code := OS.execute(OS.get_executable_path(), ["--path", ProjectSettings.globalize_path("res://"),
-			"--rendering-method", method, "--resolution", "160x120", "--audio-driver", "Dummy",
+		# perl's alarm kills a child whose window stalls (seen once under a full 5-slot test load: it hung
+		# for the parent's whole 600 s and outlived it). A killed probe exits non-zero and fails the check.
+		var code := OS.execute("/usr/bin/perl", ["-e", "alarm 90; exec @ARGV", OS.get_executable_path(), "--path", ProjectSettings.globalize_path("res://"),
+			"--rendering-method", method, "--resolution", "160x120", "--position", "6000,3000", "--audio-driver", "Dummy", # off-screen: the owner plays on this Mac
 			"--script", "res://tests/t_waves_render.gd"], out, true)
 		var txt := "\n".join(out)
 		var line := ""

@@ -218,17 +218,14 @@ func _test_yields() -> void:
 	var rock = _node("Rock", &"stone")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2024
-	var total := 0
-	var in_range := true
+	var all_one := true
 	var climate_free := true
 	for i in 200:
 		var s = rock.roll_yield(rng)
-		total += s.count
-		in_range = in_range and s.count >= 2 and s.count <= 4
+		all_one = all_one and s.count == 1
 		climate_free = climate_free and not s.attributes.has("climate")
-	var mean := float(total) / 200.0
-	print("[t_items] 200 Rock rolls mean=%.2f in_range=%s" % [mean, in_range])
-	_expect(in_range and mean > 2.4, "Rock stone rolls stay in [2,4] with mean > 2.4 (mean %.2f)" % mean)
+	# ONEGATHER (owner 2026-10-28): one unit per pass; the manifest's [min, max] no longer counts.
+	_expect(all_one, "Rock stone rolls land exactly one unit per pass (ONEGATHER)")
 	_expect(climate_free, "gathered stacks carry no climate stamp")
 	rock.free()
 
