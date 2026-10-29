@@ -113,15 +113,12 @@ func _plate_pills() -> Array[Rect2]:
 			out.append(Rect2(node.position + pill.position * node.scale, pill.size * node.scale))
 	return out
 
-## The HUD's hexes and the HANDS slot that are showing.
+## The HUD's hexes that are showing.
 func _hud_controls() -> Array[Control]:
 	var out: Array[Control] = []
 	for n in get_tree().get_nodes_in_group(&"hex_button"):
 		if n is HexButton and (n as Control).is_visible_in_tree() and _hud.is_ancestor_of(n):
 			out.append(n as Control)
-	var held := _player.station_craft.held_slot as Control
-	if held and held.is_visible_in_tree():
-		out.append(held)
 	return out
 
 func _name_of(c: Control) -> String:
@@ -237,7 +234,7 @@ func _run() -> void:
 	for r in _plate_pills():
 		clash = clash or r.intersects(radial.ring_rect())
 	_check(radial.visible and _player.hunt.target == wild and not clash, "pet tap mid-fight: ring open %s, hunt kept %s, no plate on the ring %s" % [radial.visible, _player.hunt.target == wild, not clash])
-	# HUD hexes (and HANDS) the ring or a label covers are faded while it is open, and only those.
+	# HUD hexes the ring or a label covers are faded while it is open, and only those.
 	var shown_under: Array[String] = []
 	var faded: Array[String] = []
 	for c in _hud_controls():

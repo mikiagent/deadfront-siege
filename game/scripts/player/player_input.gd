@@ -8,7 +8,7 @@ const HOLD_WALK_DELAY := 0.25
 const HOLD_WALK_RETARGET := 0.15
 const TAP_PICK_RADIUS := 1.0
 const INTERACT_GATHER_RANGE := 2.6
-# ASSUMPTION: HANDS/Space may seek a visible nearby resource within 12 m, then the normal gather
+# ASSUMPTION: Space / INTERACT may seek a visible nearby resource within 12 m, then the normal gather
 # route walks to the node. The ordinary interact key keeps its close 2.6 m reach.
 const QUICK_GATHER_RADIUS := 12.0
 const FORCE_CLIPS: Array[StringName] = [
@@ -426,7 +426,7 @@ func toggle_inventory() -> void:
 	if p.ui:
 		p.ui.visible = not p.ui.visible
 
-## Space / HANDS: gather the nearest live resource. Single-yield nodes start immediately; nodes
+## Space / INTERACT (its last fallback): gather the nearest live resource. Single-yield nodes start immediately; nodes
 ## such as berry bushes still open their choice wheel.
 func gather_nearest() -> void:
 	var node := _nearest_harvest_node(QUICK_GATHER_RADIUS)

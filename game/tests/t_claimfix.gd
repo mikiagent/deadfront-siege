@@ -205,8 +205,7 @@ func _test_ghost_seat() -> void:
 	placer.cancel()
 
 ## Both canvases: no placer hex or its caption overlaps another visible HUD control. Checked against
-## every HUD rect taken_rects() reports, its own three hexes the only exemption (HANDS counts too: it
-## left the corner while placing, so the row may use it).
+## every HUD rect taken_rects() reports, its own three hexes the only exemption.
 func _test_placer_hexes_clear() -> void:
 	var was_size: Vector2i = root.size
 	var was_scale: Vector2i = root.content_scale_size

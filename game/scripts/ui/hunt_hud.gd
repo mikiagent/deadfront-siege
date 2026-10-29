@@ -267,10 +267,9 @@ func _layout() -> void:
 		HudField.fit(h, rail)
 		h.position = Vector2(x, y)
 		x += rail + 10.0
-	# Quick slots above the rail: two quick-food hexes, CHASE in the third slot during a fight, HANDS
-	# (held_item_slot.gd, its own layer) in the fourth (hands_spot).
+	# Quick slots above the rail: two quick-food hexes, CHASE in the third slot during a fight.
 	var q := HudField.px(&"quick", r)
-	var qy := y - q - CAPTION_H - 12.0
+	var qy := quick_row_y()
 	for i in _food_hexes.size():
 		HudField.fit(_food_hexes[i], q)
 		_food_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (q + 10.0), qy)
@@ -299,14 +298,11 @@ func _layout() -> void:
 func map_floor() -> float:
 	return _minimap.position.y + MAP_PX + 24.0
 
-## Where HANDS (held_item_slot.gd) stands: the quick row's fourth slot, centred in it.
-func hands_spot() -> Vector2:
+## The quick row's top (food, food, CHASE above the rail).
+func quick_row_y() -> float:
 	var r := get_viewport_rect().size
-	var inset := _safe_insets()
 	var q := HudField.px(&"quick", r)
-	var qy := r.y - HudField.px(&"rail", r) - CAPTION_H - 14.0 - inset.y - q - CAPTION_H - 12.0
-	var off := (q - HeldItemSlot.SLOT) * 0.5
-	return Vector2(16.0 + inset.w + 3.0 * (q + 10.0) + off, qy + off)
+	return r.y - HudField.px(&"rail", r) - CAPTION_H - 14.0 - _safe_insets().y - q - CAPTION_H - 12.0
 
 ## A notice for the MENU badge (HudField.notify): &"skills", &"market" (hook: no client market events
 ## yet) or any sheet id; urgent draws the badge red. Cleared when that sheet opens.
@@ -846,13 +842,13 @@ func _refresh_context(delta: float) -> void:
 	var inset := _safe_insets()
 	var compact := UiTokens.is_compact(r)
 	# The row runs right to left from SPRINT along the bottom line; past the rail it wraps one row up,
-	# where on the left it stops short of the quick slots and HANDS.
+	# where on the left it stops short of the quick slots.
 	var right := field.sprint_hex.position.x - 8.0
 	var left := _bag_hex.position.x + _bag_hex.size.x + 12.0
 	var row_y := r.y - UiTokens.xp_line_zone(r).size.y - CAPTION_H - 70.0 - inset.y  # captions clear the XP line
 	if UiTokens.is_narrow(r):  # portrait: the row above the quick slots, from the left
 		right = r.x - 16.0 - inset.x - field.interact_hex.size.x - 8.0
-		row_y = hands_spot().y - CAPTION_H - 12.0 - 70.0
+		row_y = quick_row_y() - CAPTION_H - 12.0 - 70.0
 		left = 16.0 + inset.w
 	var x := right - 70.0
 	for a in actions:
@@ -885,10 +881,10 @@ func _refresh_context(delta: float) -> void:
 			else:
 				h.position = Vector2(_minimap.position.x + MAP_PX - cp, map_floor() + 4.0 - (cp - cp * 0.866) * 0.5)
 		else:
-			if x < left:  # wrap: one row up, from the right again, clear of the quick slots and HANDS
+			if x < left:  # wrap: one row up, from the right again, clear of the quick slots
 				row_y -= 70.0 + CAPTION_H + 8.0
 				x = right - 70.0
-				left = hands_spot().x + HeldItemSlot.SLOT + 12.0
+				left = _chase_hex.position.x + _chase_hex.size.x + 12.0
 			h.position = Vector2(x, row_y)
 			x -= 78.0
 		_ctx_hexes.append(h)
@@ -1011,9 +1007,6 @@ func _placer_taken() -> Array[Rect2]:
 		if ctl is Label and (ctl as Label).text.strip_edges() == "":
 			continue
 		out.append(ctl.get_global_rect())
-	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
-	if held and held.is_visible_in_tree():
-		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
 	if player and player.build_ui and is_instance_valid(player.build_ui) and (player.build_ui as BuildUI).visible:
 		out.append_array((player.build_ui as BuildUI).taken_rects())  # the build drawer stays open beside the ghost
 	var fig := figure_rect()
@@ -1211,9 +1204,8 @@ func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
 	b.pressed.connect(cb)
 	box.add_child(b)
 
-## True while one of the HUD's sheets is open. HANDS (held_item_slot.gd) and the creature plates sit
-## on canvas layers above the HUD's and hide meanwhile: on a landscape phone HANDS sat on the sheet's
-## Close, so a tap there swapped the held tool.
+## True while one of the HUD's sheets is open. The creature plates sit on canvas layers above the
+## HUD's and hide meanwhile.
 func sheet_open() -> bool:
 	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible) or (_orders_sheet != null and _orders_sheet.visible)
 

@@ -200,7 +200,7 @@ static func _placer_row_score(at: Vector2, offsets: Array, rel: Array, taken: Ar
 
 ## Screen rects the HUD holds this frame: the blocks _draw has painted so far (drawn_blocks, minus
 ## keys starting with one of `skip`), every visible hex on screen (HUD, station and gather radials)
-## with its caption, the HUD's other controls, HANDS and the open pet radial. Moving text (world pills, toasts, notices)
+## with its caption, the HUD's other controls and the open pet radial. Moving text (world pills, toasts, notices)
 ## and the creature plates keep off them: at 844x390 they drew over the quest card and the COOK hex.
 static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rect2]:
 	var out: Array[Rect2] = []
@@ -223,9 +223,6 @@ static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rec
 		if ctl is Label and (ctl as Label).text.strip_edges() == "":
 			continue
 		out.append(ctl.get_global_rect())
-	var held: Control = hud.player.station_craft.held_slot if hud.player and hud.player.station_craft else null
-	if held and held.is_visible_in_tree():
-		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
 	var fig := figure_rect(hud)
 	if fig.has_area():
 		out.append(fig)
