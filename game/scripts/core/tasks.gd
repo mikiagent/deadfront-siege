@@ -110,7 +110,7 @@ static func _row(cat: StringName, t: Dictionary, got: int) -> Dictionary:
 	var id := "%s.%s" % [cat, t.get("id", "")]
 	var desc := str(t.get("desc", ""))
 	return _shape(id, cat, str(t.get("title", "")), desc % want if desc.contains("%d") else desc, str(t.get("icon", "notice")),
-		got, want, got >= want, {"t_stones": int(t.get("t_stones", 0)), "xp": int(t.get("xp", 0)), "sp": int(t.get("sp", 0))})
+		got, want, got >= want, {"t_stones": int(t.get("t_stones", 0)), "warp_gems": int(t.get("warp_gems", 0)), "xp": int(t.get("xp", 0)), "sp": int(t.get("sp", 0))})
 
 static func _shape(id: String, cat: StringName, title: String, desc: String, icon: String, got: int, want: int, done: bool, rewards: Dictionary) -> Dictionary:
 	var is_claimed := claimed.has(id)
@@ -142,7 +142,7 @@ static func _main_rows(p: Player) -> Array[Dictionary]:
 				if i == World.objective:
 					st = Objectives._with_best(st)
 		var r := _shape(id, &"main", str(s.get("title", "")), str(s.get("hint", "")), "notice",
-			int(st["got"]), int(st["want"]), is_done, {"t_stones": int(s.get("t_stones", 0)), "xp": int(s.get("xp", 0)), "sp": 0})
+			int(st["got"]), int(st["want"]), is_done, {"t_stones": int(s.get("t_stones", 0)), "warp_gems": int(s.get("warp_gems", 0)), "xp": int(s.get("xp", 0)), "sp": 0})
 		r["index"] = i
 		out.append(r)
 	for list_name in ["world_tutorial", "world_objectives"]:
@@ -154,7 +154,7 @@ static func _main_rows(p: Player) -> Array[Dictionary]:
 			if not listed.has(id) and done.has(id) and not claimed.has(id):
 				listed[id] = true
 				var r := _shape(id, &"main", str(s.get("title", "")), str(s.get("hint", "")), "notice", 1, 1, true,
-					{"t_stones": int(s.get("t_stones", 0)), "xp": int(s.get("xp", 0)), "sp": 0})
+					{"t_stones": int(s.get("t_stones", 0)), "warp_gems": int(s.get("warp_gems", 0)), "xp": int(s.get("xp", 0)), "sp": 0})
 				r["index"] = -1
 				out.append(r)
 	return out
@@ -215,11 +215,12 @@ static func claim(id: String, p: Player) -> Dictionary:
 	claimed[id] = true
 	var rw: Dictionary = r["rewards"]
 	World.t_stones += int(rw.get("t_stones", 0))
+	World.warp_gems += maxi(0, int(rw.get("warp_gems", 0))) # BAGUI: the knife order's tutorial grant
 	World.add_xp(int(rw.get("xp", 0)))
 	if int(rw.get("sp", 0)) > 0 and p != null and p.skills != null:
 		p.skills.sp_extra += int(rw["sp"])
 		p.skills.sp_now()
-	print("[tasks] received %s (+%d T, +%d SP, +%d xp)" % [id, int(rw.get("t_stones", 0)), int(rw.get("sp", 0)), int(rw.get("xp", 0))])
+	print("[tasks] received %s (+%d gold, +%d gems, +%d SP, +%d xp)" % [id, int(rw.get("t_stones", 0)), int(rw.get("warp_gems", 0)), int(rw.get("sp", 0)), int(rw.get("xp", 0))])
 	r["claimed"] = true
 	r["claimable"] = false
 	return r

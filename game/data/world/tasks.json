@@ -8,7 +8,7 @@
     {"id": "build", "source": "DW-T0123", "title": "Construct a Building", "desc": "Build %d structure today.", "count": "build", "want": 1, "icon": "construction", "t_stones": 5, "xp": 40},
     {"id": "hunt", "title": "Daily Hunt", "desc": "Hunt down %d wild animals today.", "count": "hunt", "want": 2, "icon": "melee", "t_stones": 5, "xp": 40},
     {"id": "leaf_outfit", "source": "DW-T0120", "hidden": true, "_why": "no leaf_outfit recipe exists yet (only the Tailoring node)", "title": "Craft Leaf Outfits", "desc": "Craft %d leaf outfits today.", "count": "craft:leaf_outfit", "want": 2, "icon": "tailoring", "t_stones": 5, "xp": 40},
-    {"id": "task_points", "source": "DW-T0124", "hidden": true, "_why": "no task points or Warp Gems in the game", "title": "Daily Task Points", "desc": "Reach %d daily task points.", "count": "task_points", "want": 50, "icon": "notice", "durango_reward": "15 Warp Gems"}
+    {"id": "task_points", "source": "DW-T0124", "hidden": true, "_why": "no task points yet (Warp Gems exist since BAGUI)", "title": "Daily Task Points", "desc": "Reach %d daily task points.", "count": "task_points", "want": 50, "icon": "notice", "durango_reward": "15 Warp Gems"}
   ],
   "weekly": [
     {"id": "explore30", "source": "DW-T0125", "title": "Explore Level-30 Islands", "desc": "Land on a level 30+ island %d times this week.", "count": "explore30", "want": 2, "icon": "map", "t_stones": 100, "xp": 300, "durango_reward": "around 10,000 T-Stones (2019 player estimate); scaled to this economy, TS9"},

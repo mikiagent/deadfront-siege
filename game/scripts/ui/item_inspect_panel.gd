@@ -6,6 +6,10 @@ extends PanelContainer
 ## green rare (InvAttributes) - and, at the bottom, the host's actions for this item. Which actions
 ## exist is the host's call (InventoryUI.valid_actions): the card only lays them out, two or three to
 ## a row, each a 64 px tap target. Presentation only: it never touches an Inventory.
+## BAGUI (owner 2026-10-28, Durango reference): under the art, a quality line (rarity + dots), the
+## item's tag chips, then sections - Traits (gold/grey), Perks (green, with their tier I-V), Info
+## (flat-top hex colour swatches), Maintenance, Craft into (recipes that take this item) - and the
+## host's big Use button (use_row) under the smaller actions.
 
 const BG := Color("#33342A")
 const BAND := Color("#CAAD69")
@@ -21,12 +25,21 @@ var shown_title := ""
 var shown_uid := ""
 ## The action buttons go here (the host adds them once and toggles visibility).
 var actions: GridContainer
+## The host's big Use button goes here.
+var use_row: VBoxContainer
+## What the BAGUI sections show, for tests and labs.
+var shown_tags: Array[String] = []
+var shown_craft_into: Array[String] = []
+var shown_swatches: Array[Color] = []
 
 var _title: Label
 var _art: TextureRect
 var _level: Label
 var _kind: Label
 var _rows: VBoxContainer
+var _quality: Label
+var _tags: HFlowContainer
+var _sections: VBoxContainer
 var _scroll: ScrollContainer
 ## Material appearance hook (spec 35, a separate worker): a row for the instance's `look` swatch.
 ## It stays hidden and empty here; show_look() is the one place that fills it.
@@ -89,19 +102,34 @@ func _init() -> void:
 	_kind.clip_text = true
 	_kind.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	hv.add_child(_kind)
-	look_row = HBoxContainer.new()
-	look_row.name = "LookRow"
-	look_row.visible = false
-	facts.add_child(look_row)
+	_quality = Label.new()
+	_quality.name = "Quality"
+	hv.add_child(_quality)
+	_tags = HFlowContainer.new()
+	_tags.name = "Tags"
+	_tags.add_theme_constant_override("h_separation", 4)
+	_tags.add_theme_constant_override("v_separation", 4)
+	facts.add_child(_tags)
 	_rows = VBoxContainer.new()
 	_rows.add_theme_constant_override("separation", 1)
 	facts.add_child(_rows)
+	_sections = VBoxContainer.new()
+	_sections.name = "Sections"
+	_sections.add_theme_constant_override("separation", 1)
+	facts.add_child(_sections)
+	look_row = HBoxContainer.new()
+	look_row.name = "LookRow"
+	look_row.visible = false
+	look_row.add_theme_constant_override("separation", 6)
 	actions = GridContainer.new()
 	actions.name = "CardActions"
 	actions.columns = 2
 	actions.add_theme_constant_override("h_separation", 4)
 	actions.add_theme_constant_override("v_separation", 4)
 	box.add_child(actions)
+	use_row = VBoxContainer.new()
+	use_row.name = "UseRow"
+	box.add_child(use_row)
 
 ## Type sizes per view: 12 px is the floor (UiTokens.TYPE_MIN).
 func set_scale_for(view: Vector2) -> void:
@@ -127,20 +155,71 @@ func show_stack(stack: ItemStack, where: String = "") -> void:
 	_level.text = "%s%s" % [LevelDisplay.label(stack.level), "  x%d" % stack.count if stack.count > 1 else ""]
 	_kind.text = kind_text(stack) + ("  ·  in %s" % where if where != "" else "")
 	shown_rows = rows_for(stack)
-	for c in _rows.get_children():
-		_rows.remove_child(c)
-		c.queue_free()
+	var rq := ItemArt.rarity(stack.def_id)
+	var dots := ItemArt.rarity_order().find(rq) + 1
+	_quality.text = "%s  %s%s" % [str(rq).capitalize(), "•".repeat(maxi(1, dots)), "   Flawless" if &"flawless" in stack.flags else ""]
+	_quality.add_theme_color_override("font_color", ItemArt.color_for_rarity(rq))
+	_quality.add_theme_font_size_override("font_size", maxi(12, _font_px - 1))
+	for c in _rows.get_children() + _sections.get_children() + _tags.get_children():
+		c.get_parent().remove_child(c)
+		if c != look_row: # kept and re-added under Info
+			c.queue_free()
+	shown_tags = tags_for(stack)
+	for t in shown_tags:
+		_tags.add_child(SheetChrome.chip(t, &"neutral", maxi(12, _font_px - 2)))
+	# Plain facts first, then the reference's sections.
+	var traits: Array[Dictionary] = []
+	var perks: Array[Dictionary] = []
 	for r in shown_rows:
-		var l := Label.new()
-		l.text = str(r.text)
-		l.clip_text = true # one line per fact: the card's height never depends on a wrap pass
-		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		l.add_theme_font_size_override("font_size", _font_px)
-		l.add_theme_color_override("font_color", color_of(str(r.cls)))
-		l.add_theme_constant_override("line_spacing", 0)
-		_rows.add_child(l)
+		match str(r.cls):
+			"positive", "negative":
+				traits.append(r)
+			"rare":
+				perks.append(r)
+			_:
+				_rows.add_child(_row_label(str(r.text), str(r.cls)))
+	if not traits.is_empty():
+		_section("Traits")
+		for r in traits:
+			_sections.add_child(_row_label(str(r.text), str(r.cls)))
+	if not perks.is_empty():
+		_section("Perks")
+		for r in perks:
+			_sections.add_child(_row_label(str(r.text), "rare"))
+	_section("Info")
 	show_look(stack)
+	_section("Maintenance")
+	_sections.add_child(_row_label(repair_text(stack), ""))
+	shown_craft_into = craft_into(stack)
+	if not shown_craft_into.is_empty():
+		_section("Craft into")
+		for n in shown_craft_into:
+			_sections.add_child(_row_label("›  " + n, ""))
 	visible = true
+
+func _row_label(t: String, cls: String) -> Label:
+	var l := Label.new()
+	l.text = t
+	l.clip_text = true # one line per fact: the card's height never depends on a wrap pass
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	l.add_theme_font_size_override("font_size", _font_px)
+	l.add_theme_color_override("font_color", color_of(cls))
+	l.add_theme_constant_override("line_spacing", 0)
+	return l
+
+## A small GOLD section heading with a hairline above it.
+func _section(t: String) -> void:
+	var l := Label.new()
+	l.text = t.to_upper()
+	l.add_theme_font_size_override("font_size", maxi(12, _font_px - 3))
+	l.add_theme_color_override("font_color", BAND)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_color = DIVIDER
+	sb.border_width_top = 1
+	sb.content_margin_top = 6
+	l.add_theme_stylebox_override("normal", sb)
+	_sections.add_child(l)
 
 ## Sizes the card to its content but never past `max_h`: the facts scroll, the title band and the
 ## actions always stay inside. The host sets custom_minimum_size.x (the width) first.
@@ -151,12 +230,30 @@ func fit(max_h: float) -> void:
 	_scroll.custom_minimum_size.y = clampf(facts_h, 0.0, maxf(0.0, max_h - rest))
 	size = Vector2(custom_minimum_size.x, minf(get_combined_minimum_size().y, max_h))
 
-## Spec 35 hook for the material-appearance worker: fill look_row from stack.attributes.look (the
-## species colour swatch) and show it. Deliberately empty here: the row stays hidden until then.
-func show_look(_stack: ItemStack) -> void:
-	look_row.visible = false
+## Spec 35's look row, filled (BAGUI "Info"): flat-top hex swatches of the instance's natural colour
+## and its light and dark tones, with the hex code.
+func show_look(stack: ItemStack) -> void:
+	shown_swatches = swatches(stack)
+	for c in look_row.get_children():
+		look_row.remove_child(c)
+		c.queue_free()
+	for col in shown_swatches:
+		var h := HexSwatch.new()
+		h.color = col
+		h.custom_minimum_size = Vector2(28, 26) if _font_px < 16 else Vector2(36, 32)
+		look_row.add_child(h)
+	var code := Label.new()
+	code.text = "#" + shown_swatches[0].to_html(false).to_upper() if not shown_swatches.is_empty() else "No colour"
+	code.add_theme_font_size_override("font_size", maxi(12, _font_px - 1))
+	code.add_theme_color_override("font_color", TEXT_2)
+	code.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	look_row.add_child(code)
+	look_row.visible = true
+	_sections.add_child(look_row)
 
 func hide_card() -> void:
+	if look_row.get_parent():
+		look_row.get_parent().remove_child(look_row) # it is re-added under Info by the next show
 	visible = false
 	shown_uid = ""
 	shown_title = ""
@@ -207,3 +304,73 @@ static func color_of(cls: String) -> Color:
 	if InvAttributes.COLORS.has(cls):
 		return InvAttributes.COLORS[cls]
 	return UiTokens.DANGER if cls == "warn" else TEXT
+
+## The item's classification tags as chips ("Tendon", "Strap", "Meat", "Edible"; ItemTags), without
+## bookkeeping tier_* rows.
+static func tags_for(stack: ItemStack) -> Array[String]:
+	var out: Array[String] = []
+	for t in ItemTags.tags(stack.def_id):
+		var l := ItemTags.label(t)
+		if l != "":
+			out.append(l)
+	return out
+
+## No item repair exists in the build (recipes.json "repairs" is data no code reads), so the line is
+## honest about it. Durability itself is a fact row above.
+static func repair_text(_stack: ItemStack) -> String:
+	return "Repair: Not Possible"
+
+## Display names of the recipes this item can fill a slot of (by category, allowed id or preferred
+## id), sorted, at most CRAFT_INTO_MAX.
+const CRAFT_INTO_MAX := 8
+static func craft_into(stack: ItemStack) -> Array[String]:
+	var out: Array[String] = []
+	var d := stack.def()
+	if d == null:
+		return out
+	var seen := {}
+	for rec: Variant in Crafting.all_recipes():
+		if not rec is Dictionary:
+			continue
+		for slot: Variant in (rec as Dictionary).get("slots", []):
+			if not slot is Dictionary:
+				continue
+			var sd := slot as Dictionary
+			var ids: Variant = sd.get("allowed_ids", [])
+			var fits := d.has_category(StringName(str(sd.get("category", "")))) or str(sd.get("prefer_id", "")) == str(stack.def_id) \
+				or (ids is Array and str(stack.def_id) in (ids as Array))
+			if fits:
+				var n := str((rec as Dictionary).get("display_name", (rec as Dictionary).get("id", "")))
+				if not seen.has(n):
+					seen[n] = true
+					out.append(n)
+				break
+	out.sort()
+	return out.slice(0, CRAFT_INTO_MAX)
+
+## The instance's natural colour (its tint) and a light and a dark tone of it; [] without a tint.
+# ASSUMPTION: the reference shows three swatches; items carry one colour, so the other two are its tones.
+static func swatches(stack: ItemStack) -> Array[Color]:
+	var out: Array[Color] = []
+	if not str(stack.attributes.get("tint", "")).begins_with("#"):
+		return out
+	var c := stack.tint_color()
+	out.append(c)
+	out.append(c.lightened(0.3))
+	out.append(c.darkened(0.35))
+	return out
+
+## A flat-top hexagon filled with one colour (the Info swatch).
+class HexSwatch extends Control:
+	var color := Color.WHITE
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := minf(size.x * 0.5, size.y / sqrt(3.0))
+		var pts := PackedVector2Array()
+		for i in 6:
+			var a := deg_to_rad(60.0 * i)
+			pts.append(c + Vector2(cos(a), sin(a)) * r)
+		draw_colored_polygon(pts, color)
+		pts.append(pts[0])
+		draw_polyline(pts, Color(0, 0, 0, 0.6), 1.5, true)

@@ -38,7 +38,7 @@ func create(me: int, a: EconArgs) -> Dictionary:
 	if L.vault_full(me, "item"):
 		return EconArgs.no("limit_reached", "your vault is full; withdraw something first")
 	if L.tradable(me) < qty * unit:
-		return EconArgs.no("insufficient_funds", "order escrow is %d tradable T-stones" % (qty * unit))
+		return EconArgs.no("insufficient_funds", "order escrow is %d tradable Gold" % (qty * unit))
 	var o := post(me, def_id, lo, hi, qty, unit, L.now + hours * 3600)
 	return EconArgs.ok({"order": view(o), "wallet": acct.wallet})
 

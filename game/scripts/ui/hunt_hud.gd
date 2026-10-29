@@ -1041,7 +1041,7 @@ func _on_level_up(stored: int) -> void:
 	_levelup_title = ""
 	_levelup_lines.append([LevelDisplay.label(level), 40, Color(1.0, 0.85, 0.35)])
 	_levelup_lines.append(["Pioneer XP %d" % World.pioneer_xp, 18, Color.WHITE])
-	_levelup_lines.append(["T-stones %d" % World.t_stones, 18, Color.WHITE])
+	_levelup_lines.append(["Gold %d" % World.t_stones, 18, Color.WHITE])
 	# W2-SKILLS: character levels pay the SP (spec 03); show what SkillState holds (sp_now recounts,
 	# since its own handler on this signal may not have run yet).
 	var sp: int = player.skills.sp_now() if player and player.skills else 0

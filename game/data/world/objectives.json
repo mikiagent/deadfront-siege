@@ -89,7 +89,8 @@
       },
       "point_at": "ui:MenuHex",
       "xp": 40,
-      "t_stones": 1
+      "t_stones": 1,
+      "warp_gems": 10
     },
     {
       "id": "tut_axe",
@@ -248,7 +249,8 @@
         "stone_knife_work": 1
       },
       "xp": 50,
-      "t_stones": 2
+      "t_stones": 2,
+      "warp_gems": 10
     },
     {
       "id": "axe",

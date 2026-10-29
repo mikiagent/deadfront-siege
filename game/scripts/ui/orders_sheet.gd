@@ -19,8 +19,10 @@ static var tracked: int = -1
 ## HUDRULES: the HUD card is expanded (else the minimap badge). Session-only; starts collapsed.
 static var hud_expanded: bool = false
 
-const REWARD_ICONS := {"t_stones": &"t_stones", "sp": &"brain", "xp": &"xp"}
-const REWARD_NAMES := {"t_stones": "T-Stones", "sp": "Skill Point", "xp": "EXP"}
+## T-stones read "Gold" on screen (owner 2026-10-28, BAGUI currency bar); the field keeps its name.
+const REWARD_ICONS := {"t_stones": &"t_stones", "warp_gems": &"warp_gem", "sp": &"brain", "xp": &"xp"}
+const REWARD_NAMES := {"t_stones": "Gold", "warp_gems": "Warp Gems", "sp": "Skill Point", "xp": "EXP"}
+const REWARD_ORDER := ["t_stones", "warp_gems", "sp", "xp"]
 
 var player: Player
 var cat: StringName = &"main"  ## the open category
@@ -59,7 +61,7 @@ class XpHex extends Control:
 		draw_colored_polygon(UiTokens.hex_points(c, r, true), UiTokens.XP)
 		UiTokens.draw_centered(self, UiTokens.ui_face(UiTokens.WEIGHT_BOLD), c, "XP", maxi(UiTokens.TYPE_MIN, int(r * 0.95)), UiTokens.CTA_INK)
 
-## The icon for reward `k` at `px`: the GOLD T-stone coin, the white brain (skill point), the XP hex.
+## The icon for reward `k` at `px`: the GOLD coin (T-stones, shown as Gold), the Warp Gem, the white brain (skill point), the XP hex.
 static func reward_icon(k: String, px: float) -> Control:
 	if k == "xp":
 		var x := XpHex.new()
@@ -289,7 +291,7 @@ static func row(p: Player, i: int) -> Dictionary:
 		return {}
 	var s: Dictionary = all[i]
 	var out := {"title": str(s.get("title", "")), "hint": str(s.get("hint", "")), "index": i, "count": all.size(),
-		"xp": int(s.get("xp", 0)), "t_stones": int(s.get("t_stones", 0))}
+		"xp": int(s.get("xp", 0)), "t_stones": int(s.get("t_stones", 0)), "warp_gems": int(s.get("warp_gems", 0))}
 	if i < World.objective:
 		out.merge({"progress": "Done", "frac": 1.0, "done": true})
 	elif i == World.objective and p != null:
@@ -426,7 +428,7 @@ func _reward_line(rw: Dictionary, view: Vector2) -> HBoxContainer:
 	line.add_theme_constant_override("separation", 6)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var px := SheetChrome.px(view, 19, 13)
-	for k in ["t_stones", "sp", "xp"]:
+	for k in REWARD_ORDER:
 		if int(rw.get(k, 0)) <= 0:
 			continue
 		line.add_child(reward_icon(k, px + 6))
@@ -446,7 +448,7 @@ func _show_popup(r: Dictionary) -> void:
 		c.queue_free()
 	var px := SheetChrome.px(view, 24, 16)
 	var rw: Dictionary = r["rewards"]
-	for k in ["t_stones", "sp", "xp"]:
+	for k in REWARD_ORDER:
 		if int(rw.get(k, 0)) <= 0:
 			continue
 		var line := HBoxContainer.new()

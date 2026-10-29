@@ -270,7 +270,7 @@ func _traited(inv, id: StringName) -> int:
 	var traits: Array = LT.trait_cfg().get("traits", [])
 	var n := 0
 	for st in inv.slots:
-		if st and st.def_id == id and traits.any(func(t): return st.attributes.get(str(t), false) == true):
+		if st and st.def_id == id and traits.any(func(t): return st.attributes.has(str(t))):
 			n += st.count
 	return n
 
@@ -949,7 +949,7 @@ func _test_server_gather() -> void:
 		var it = inv.slots[i]
 		if it and it.def_id == &"flint":
 			flint_uid = ch.slot_uid(i)
-		if it and it.def_id == &"stone" and LT.trait_cfg()["traits"].any(func(t): return it.attributes.get(str(t), false) == true) and ch.slot_uid(i) != "":
+		if it and it.def_id == &"stone" and LT.trait_cfg()["traits"].any(func(t): return it.attributes.has(str(t))) and ch.slot_uid(i) != "":
 			traited_uids += it.count
 		if it and ch.slot_uid(i) == old_stone:
 			old_plain = INV.traits(it).is_empty()

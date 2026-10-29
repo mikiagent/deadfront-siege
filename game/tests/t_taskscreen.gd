@@ -190,6 +190,14 @@ func _test_tutorial() -> void:
 	_expect(T.claimable_count(_player, &"main") == 1, "the standing orders the tutorial skipped (before index %d) pay nothing" % W.objective)
 	T.claim(second, _player)
 	_expect(not _ids(&"main").has(second), "once received it leaves the list")
+	# BAGUI: the knife order grants Warp Gems; they wait for Receive like everything else.
+	var knife: Array = tut.filter(func (x: Dictionary) -> bool: return int(x.get("warp_gems", 0)) > 0)
+	if not knife.is_empty():
+		var kid := str((knife[0] as Dictionary)["id"])
+		var g0: int = W.warp_gems
+		T.mark_done(kid)
+		var kr: Dictionary = T.claim("main." + kid, _player)
+		_expect(not kr.is_empty() and W.warp_gems == g0 + int((knife[0] as Dictionary)["warp_gems"]) and int(kr["rewards"]["warp_gems"]) > 0, "a tutorial order's Warp Gems are paid on Receive (%d -> %d)" % [g0, W.warp_gems])
 	W.tutorial = was_tut
 	W.objective = was_obj
 

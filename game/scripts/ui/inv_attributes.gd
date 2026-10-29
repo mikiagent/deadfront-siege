@@ -39,8 +39,11 @@ static func sections(stack: ItemStack) -> Dictionary:
 			continue
 		var row: Variant = classes.get(str(k))
 		var label := str((row as Dictionary).get("label", "")) if row is Dictionary else ""
-		(out[cls] as Array).append({"key": str(k), "label": label if label != "" else str(k).capitalize(),
-			"level": int(v) if (v is int or v is float) else 0})
+		var row_out := {"key": str(k), "label": label if label != "" else str(k).capitalize(),
+			"level": int(v) if (v is int or v is float) else 0}
+		if cls == "rare":
+			row_out["tier"] = tier_of(v)
+		(out[cls] as Array).append(row_out)
 	for k: String in out:
 		(out[k] as Array).sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.label) < str(b.label))
 	return out
@@ -48,6 +51,15 @@ static func sections(stack: ItemStack) -> Dictionary:
 static func has_rare(stack: ItemStack) -> bool:
 	return not (sections(stack).rare as Array).is_empty()
 
-## "Firm Lv. 8", or just "Black Sheen" for a trait without a level.
+## BAGUI: a rare trait's value is its perk tier 1-5; an older true (or a number out of range) clamps.
+static func tier_of(v: Variant) -> int:
+	return clampi(int(v), 1, 5) if (v is int or v is float) else 1
+
+static func roman(n: int) -> String:
+	return ["I", "II", "III", "IV", "V"][clampi(n, 1, 5) - 1]
+
+## "Firm Lv. 8", a perk with its tier "Black Sheen IV", or just the label for a trait without a level.
 static func line(row: Dictionary) -> String:
+	if row.has("tier"):
+		return "%s %s" % [row.label, roman(int(row.tier))]
 	return "%s %s" % [row.label, LevelDisplay.label(int(row.level))] if int(row.level) > 0 else str(row.label)
