@@ -27,7 +27,10 @@ var away_domain: Dictionary = {}
 ## home.comm_center only once it has progress, so an old save keeps its exact shape.
 var home_comm_center: Dictionary = {}
 var free_claim_used: bool = false
-var objective: int = 0 ## index into Data.world_objectives; the survivor's standing orders
+var objective: int = 0 ## index into Data.world_objectives (Data.world_tutorial while the tutorial runs)
+## TUTORIAL ISLAND (Tutorial): {"done", "did"}. Done for every save written before it (they own a home);
+## a new survivor gets Tutorial.fresh() when character creation finishes. Saved as "tutorial".
+var tutorial: Dictionary = {"done": true, "did": {}}
 var visited_islands: Dictionary = {} ## persistent voyage log
 var raid_victory: bool = false ## persists only a player/pet T-rex kill on volcanic_60
 var objective_best: int = 0 ## high-water progress on the current order (materials get spent)
@@ -117,6 +120,9 @@ func is_home() -> bool:
 
 func is_unstable() -> bool:
 	return str(island_def.get("kind", "")) == "unstable"
+
+func is_tutorial() -> bool:
+	return str(island_def.get("kind", "")) == "tutorial"
 
 ## The home island carries the chosen Tamed Island shape: its seed drives the landmass, its
 ## display name the island title. Every other island is the catalogue row unchanged.
@@ -243,6 +249,7 @@ func start_new(host: Node) -> void:
 	raid_victory = false
 	objective = 0
 	objective_best = 0
+	tutorial = {"done": true, "did": {}}
 	# Character creation first (M10), then the home island with the terrain pick.
 	var cc := CharacterCreation.new()
 	cc.name = "CharacterCreation"
@@ -258,6 +265,11 @@ func start_new(host: Node) -> void:
 			CharacterLook.apply(p.rig, look)
 			Digestion.of(p).seed_starter()  # FULLFATIGUE: she starts "normal", not "empty" at x2 exhaustion
 		print("[world] new survivor %s (%s, %s)" % [nm, occ, gender])
+		# TUTORIAL ISLAND: a new survivor lands on the shared tutorial island; its last order opens
+		# the Tamed Island pick. --skip-tutorial keeps the old straight-to-the-pick flow (dev).
+		if not Tutorial.skip_requested():
+			Tutorial.begin(host)
+			return
 		# ISLANDPICK: the Tamed Island shape step sits inside character creation's own sheet (the
 		# old free-standing terrain panel would open over it). It hands back the one permanent pick.
 		var ip = (load("res://scripts/ui/island_pick.gd") as GDScript).instance_on(host)
@@ -287,6 +299,8 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 	var terrain := home_terrain if is_home() and home_terrain != &"" else &"meadow"
 	ir.build(island_def, terrain)
 	runtime = ir
+	if str(island_def.get("kind", "")) == "tutorial":
+		Tutorial.dress(ir)
 	var dp := host.get_node_or_null("DefaultPlayfield")
 	if dp:
 		dp.visible = false
@@ -315,6 +329,10 @@ func travel(to_id: StringName, mode: StringName) -> void:
 		return
 	var player := _player()
 	if player == null:
+		return
+	# ASSUMPTION: the tutorial island's only way off is its last order (the Tamed Island grant).
+	if is_tutorial() and Tutorial.active():
+		player.notice("Finish the orders here first: the last one earns your own island")
 		return
 	if mode == &"sail":
 		var required := route_level(to_id)
@@ -355,7 +373,7 @@ func route_level(id: StringName) -> int:
 func harbour_routes() -> Array[String]:
 	var routes: Array[String] = []
 	for id in islands:
-		if id != "home_grassland":
+		if id != "home_grassland" and str((islands[id] as Dictionary).get("kind", "")) != "tutorial":
 			routes.append(str(id))
 	routes.sort_custom(func (a: String, b: String) -> bool:
 		var ta := int(def_of(StringName(a)).get("tier", 0))
@@ -365,6 +383,8 @@ func harbour_routes() -> Array[String]:
 	return routes
 
 func record_raid_kill(species: StringName, source: Node) -> void:
+	if source is Player:
+		Tutorial.note("kill")
 	if raid_victory or island_id != &"volcanic_60" or species != &"tyrannosaurus":
 		return
 	if not (source is Player or (source is Creature and (source as Creature).is_pet)):
@@ -457,6 +477,7 @@ func note_building(kind: StringName, at: Vector3 = Vector3.ZERO, player: Player 
 	# The first-of-kind memory and the spam rule are the Tamed Island's (is_home), as before: an
 	# unstable island is a visit, so every build there pays the repeat award (the old flat 8) and no
 	# kind is remembered.
+	Tutorial.note("build")
 	var total := maxi(0, extra_xp)
 	if is_home():
 		total += build_placement_xp(kind, at)

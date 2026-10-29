@@ -127,8 +127,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   opens; the nav menu's Skills entry carries the same count as its own badge. Market (buy/sell) notices: the
   hook (`notify_menu(&"market")`) and its badge exist but nothing calls it — the offline market generates no
   client event. Nothing is urgent today.
-- Quick slots above the rail: two quick-food hexes (×count, unchanged), CHASE in the third slot in a
-  fight, HANDS (held tool; tap gathers nearest, long-press unequips) in the fourth (`hands_spot`).
+- Quick slots above the rail (`quick_row_y`): two quick-food hexes (×count, unchanged) and CHASE in the
+  third slot in a fight. The HANDS hex that stood fourth is gone (owner 2026-10-28, "interact is the
+  same"): INTERACT gathers the nearest resource as its last pick, and the held tool is set in the bag
+  (a tool's Equip tool / Unequip tool button) or by tapping the Character sheet's tool slot (cycles).
 - Bottom-right (`hud_field.gd`): one large INTERACT hex in the corner. It shows what
   `PlayerInput.interact_choice` picks, rescanned every 0.2 s, and runs a fresh pick on press:
   dismount, sleep (bed, fatigue ≥ 1), pen, OPEN (station), field, fire, butcher (corpse), harbour,
@@ -182,7 +184,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Landscape phones: the strip between the vitals and the minimap carries the quest card; the target
   plate and the level-up banner take it over while they show. Portrait: a strip under the map text.
 - HUD-owned rects (`drawn_blocks`: vitals, map text, status row, plate, name, toasts…) plus every
-  visible hex (with captions), other HUD controls, HANDS and the survivor figure form
+  visible hex (with captions), other HUD controls and the survivor figure form
   `taken_rects`; moving text picks a free spot via `UiTokens.free_spot` and is skipped when none.
 
 ## Combat layer (active while `player.hunt.target` lives)
@@ -223,7 +225,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   last creature attacked (within 40 m) until it dies or a new one is hit.
 - Context hexes (70 px, rescanned every 0.3 s from `player.context_actions()`) offer Wash, Fill,
   Rest, etc. and hide in combat. They run right to left along the bottom from SPRINT (wrapping one row
-  up, clear of HANDS). CLAIM is a gold-rim hex (52 px desktop, 64 phone) centred just above the
+  up, clear of the quick slots). CLAIM is a gold-rim hex (52 px desktop, 64 phone) centred just above the
   day/night dial's face (HUDTWEAK, owner 2026-10-28 "Move claim to above the day/night UI"; its caption
   fits between them on desktop, where the expanded quest card shifts left of it); icon-only on a landscape phone (ASSUMPTION: no room for a caption there). Claiming while already
   holding land here opens the ClaimPanel confirm; it cancels on walking away, moving placement, or
@@ -380,7 +382,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   system yet); Character opens the Character screen the bag's Character tab also opens, Communication the
   Domain screen's Communications Center. Compact canvases fold each side into two columns of three 72 px rows.
 - Sheets (BUILD / structure cards; Animals is its own screen) stand on the rail and grow upward, wading into
-  scrolling when short; landscape phones lay them out as a two-column grid. HANDS and the creature
+  scrolling when short; landscape phones lay them out as a two-column grid. The creature
   plates hide while one (or the nav menu) is open.
 
 ## Screens (phone landscape, [all screens](ui-screens.md))

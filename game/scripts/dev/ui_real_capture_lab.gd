@@ -249,9 +249,6 @@ func _run() -> void:
 	var cc := CharacterCreation.new()
 	root.add_child(cc)
 	await _frames(3)
-	# HANDS (layer 64) drew on the creation cards (layer 60) on a fresh save.
-	var hands: Control = _player.station_craft.held_slot if _player.station_craft else null
-	_expect(hands == null or not hands.is_visible_in_tree(), "charcreate: HANDS hides while character creation is up")
 	# Spec 19's three steps (CHARCREATE): Gender/Profession, Create Character and Name. Buttons outside the
 	# scrolling lists must sit inside the view without overlapping; the primary controls are full size.
 	for cstep: Array in [[0, "charcreate", ["Next"]], [1, "charcreate_look", ["Next", "Randomize"]], [2, "charcreate_name", ["NameField", "OK"]]]:
@@ -400,9 +397,6 @@ static func hud_blocks(hud: HuntHud, player: Player, _r: Vector2) -> Dictionary:
 				out[key + ".caption"] = (ctl as HexButton).caption_rect()
 		else:
 			out[key] = ctl.get_global_rect()
-	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
-	if held and held.is_visible_in_tree():
-		out["HeldItemSlot"] = Rect2(held.get_global_rect().position, held.size + Vector2(0, 18))
 	for k in hud.drawn_blocks:
 		out[k] = hud.drawn_blocks[k]
 	return out
@@ -496,8 +490,6 @@ func _check_sheet(kind: String, sheet: Control, logical: Vector2) -> void:
 	_expect(total > 0 and (shown == total or scrolls), "sheet %s: rows past its window scroll (%d/%d shown)" % [kind, shown, total])
 	if kind == "menu":  # Bag, Craft, Map, Save, Debug: one look, no scroll
 		_expect(shown == total, "sheet menu shows all %d rows without scrolling (got %d)" % [total, shown])
-	var held: Control = _player.station_craft.held_slot if _player.station_craft else null
-	_expect(held == null or not held.is_visible_in_tree() or not held.get_global_rect().intersects(rect), "sheet %s: HANDS is hidden or off the sheet (%s)" % [kind, held.get_global_rect() if held else ""])
 	var plates := Game.creature_ui as CreaturePlates
 	_expect(plates == null or not (plates.get("_root") as Control).visible, "sheet %s: creature plates hide while it is open" % kind)
 	var above := false

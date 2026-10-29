@@ -43,7 +43,7 @@ func _run() -> void:
 	var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(_host, 4.0)
 	_player = kit["player"]
 	for c in (kit["ui"] as CanvasLayer).get_children():
-		if c.has_method("hands_spot"):
+		if c.has_method("quick_row_y"):
 			_hud = c
 	_world.load_island(_host, &"home_grassland", Vector3(0, 1, 18), false)
 	(kit["nav"] as Node).queue_free()
@@ -83,6 +83,8 @@ func _test_rail_and_menu() -> void:
 		return
 	var caps: Array = rail.map(func (h) -> String: return str(h.caption))
 	_expect(caps == ["MENU", "BUILD", "BAG"], "the rail reads MENU, BUILD, BAG (%s)" % [caps])
+	_expect(root.find_children("*", "HeldItemSlot", true, false).is_empty() and root.find_child("HeldItemSlot", true, false) == null,
+		"no HANDS slot in the quick row (owner 2026-10-28: INTERACT gathers)")
 	_expect((rail[0] as Control).position.x < (rail[1] as Control).position.x and (rail[1] as Control).position.x < (rail[2] as Control).position.x
 		and (rail[0] as Control).position.y == (rail[2] as Control).position.y, "MENU, BUILD, BAG run left to right on one line")
 	for n in _hud.get_children():
@@ -347,7 +349,6 @@ func _check_rects(view: Vector2, state: String, phone: bool) -> void:
 		items.append(["feed", _hud.get("_feed_hex")])
 		items.append(["end", _hud.get("_end_btn")])
 		items.append(["stance", _hud.get("_stance_label")])
-	var held: Control = _player.station_craft.held_slot if _player.station_craft else null
 	var rects: Array = []  # [name, Rect2]
 	for it in items:
 		var c: Control = it[1]
@@ -361,11 +362,6 @@ func _check_rects(view: Vector2, state: String, phone: bool) -> void:
 			rects.append([it[0], c.get_global_rect()])
 			if phone and c is Button:
 				_expect(c.size.y >= 64.0, "%s: %s is 64 px tall (%s)" % [tag, it[0], c.size])
-	if held:
-		var hp: Vector2 = _hud.hands_spot()
-		rects.append(["HANDS", Rect2(hp, Vector2(held.size.x, held.size.y + 18.0))])
-		if phone:
-			_expect(held.size.x >= 64.0, "%s: HANDS is a 64 px tap target" % tag)
 	rects.append(["minimap", (_hud.get("_minimap") as Control).get_global_rect()])
 	rects.append(["dial", (_hud.get("_daynight") as Control).get_global_rect()])
 	for k in ["vitals", "map_text", "map_title"]:

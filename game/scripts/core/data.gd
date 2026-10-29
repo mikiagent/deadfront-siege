@@ -15,6 +15,10 @@ var world_rules: Dictionary = {}
 var world_climates: Dictionary = {}
 var world_islands: Dictionary = {}
 var world_objectives: Array = [] ## ordered standing orders; see data/world/objectives.json
+## TUTORIAL ISLAND: the orders a new survivor follows before owning a home (objectives.json "tutorial"),
+## and the standing order id the main list resumes at once the tutorial is done.
+var world_tutorial: Array = []
+var tutorial_resume_at: String = ""
 var props_manifest: Dictionary = {}
 ## Scenery props (world/props.json): non-resource decoration, biome weights and the resource
 ## scatter weighting. IslandProps reads it through this field; a missing file leaves it empty.
@@ -205,6 +209,9 @@ func _load_world() -> void:
 	var obj := _parse_json("res://data/world/objectives.json")
 	var steps: Variant = obj.get("steps", [])
 	world_objectives = steps if steps is Array else []
+	var tut: Variant = obj.get("tutorial", [])
+	world_tutorial = tut if tut is Array else []
+	tutorial_resume_at = str(obj.get("tutorial_resume_at", ""))
 
 func _load_creature_ai(path: String) -> void:
 	if not FileAccess.file_exists(path):

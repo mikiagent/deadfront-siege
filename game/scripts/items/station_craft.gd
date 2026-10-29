@@ -13,7 +13,6 @@ var player: Player
 var menu: StationMenu
 var radial: StationRadial
 var card: CraftCard
-var held_slot: HeldItemSlot
 
 var station: Node3D
 var _pending_overflow: Array[ItemStack] = []  ## crafted units waiting for bag room
@@ -52,19 +51,12 @@ func setup(p: Player, layer: CanvasLayer) -> void:
 	card = CraftCard.new()
 	card.name = "CraftCard"
 	layer.add_child(card)
-	held_slot = HeldItemSlot.new()
-	held_slot.name = "HeldItemSlot"
-	layer.add_child(held_slot)
-	held_slot.bind(player)
-	held_slot.equip_requested.connect(_on_equip)
-	held_slot.unequip_requested.connect(_on_unequip)
-	held_slot.gather_requested.connect(player.controls.gather_nearest)
 	set_process(true)
 
 func reparent_ui(layer: CanvasLayer) -> void:
 	if layer == null:
 		return
-	for n in [menu, radial, card, held_slot]:
+	for n in [menu, radial, card]:
 		if n and is_instance_valid(n) and n.get_parent() != layer:
 			n.reparent(layer)
 
@@ -476,18 +468,6 @@ func _clear_session() -> void:
 func force_progress_for_shot(p: float) -> void:
 	if card and card.visible:
 		card.set_progress(p)
-
-func _on_equip(idx: int) -> void:
-	if player:
-		player.inventory.set_equipped_tool_index(idx)
-		held_slot.refresh()
-		_sync_hand_tool()
-
-func _on_unequip() -> void:
-	if player:
-		player.inventory.set_equipped_tool_index(-1)
-		held_slot.refresh()
-		_sync_hand_tool()
 
 func _sync_hand_tool() -> void:
 	if player == null:
