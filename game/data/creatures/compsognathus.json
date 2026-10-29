@@ -30,7 +30,7 @@
     "knockdown": "Tiny dinosaur is flung onto its side and lies stunned",
     "alert": "Tiny dinosaur freezes with its head raised"
   },
-  "look": "tiny chicken-sized theropod, small pointed head, long thin tail, short folded arms, fine downy proto-feathers, mottled brown and grey with a pale belly,",
+  "look": "small theropod, vivid leaf-green scaly back with darker mottling along the spine, cream throat and belly, yellow-ochre scaly legs, red-orange eyes, narrow long-snouted head, S-neck, long stiff tail, three-clawed arms, no feathers,",
   "variants": [
     "compsognathus_temperate",
     "compsognathus_tropical",
@@ -73,8 +73,16 @@
   "pipeline": {
     "route": "skeleton_transplant_v3",
     "forward_axis": "+Z",
-    "version": 1,
-    "mesh_source": "res://assets/creatures/compsognathus/work/compsognathus_i2m_v1.glb",
+    "version": 2,
+    "mesh_source": "res://assets/creatures/compsognathus/work/compsognathus_tripo_v2.glb",
+    "remodel_2026_10_28": {
+      "why": "owner's new reference (green raptor turnaround sheet, ref/compsognathus_sheet_v2.png)",
+      "tripo_task": "e9f3b219-7fdb-4812-b2ab-b27b830a84f4",
+      "tripo_params": "multiview-to-model P1-20260311, front + left views cropped from the sheet, texture + pbr, face_limit 15000",
+      "tripo_credits": 50,
+      "jaw": "tools/jaw/add_jaw.py --open --part 8 (mesh modelled mouth-open, closed in the bind pose)",
+      "clips": "tools/gait/transfer_clips.py from the v1 clips; strafes tools/gait/make_gait.py compsognathus.json; idle tools/gait/make_nervous_idle.py"
+    },
     "reference": {
       "side": "01a0b1d5-ac1b-774a-855d-4e973bc66264",
       "front": "01a0b1d6-0f77-714b-ad83-0db94a9b1eee"
@@ -88,8 +96,8 @@
     "credits_spent": 48,
     "donor_rig": "tools/standins/quaternius/Velociraptor.fbx",
     "transplant_tool": "tools/transplant_rig.py",
-    "source_height_m": 0.7625,
-    "source_length_m": 1.9017,
+    "source_height_m": 0.502,
+    "source_length_m": 0.998,
     "repair": {
       "loose_removed": 639,
       "doubles_merged": 10281,
@@ -156,10 +164,10 @@
   "eyes": {
     "bone": "Head",
     "points": [
-      [0.1155, 0.0221, 0.1272],
-      [0.0449, 0.0220, 0.1659]
+      [0.0374, -0.0149, 0.1252],
+      [0.0884, -0.0144, 0.0963]
     ],
-    "radius": 0.03,
+    "radius": 0.02,
     "color": [
       1.0,
       0.15,

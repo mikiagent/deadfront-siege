@@ -93,7 +93,11 @@ static func vitals_rect(hud: HuntHud, r: Vector2) -> Rect2:
 	var phone := UiTokens.is_phone(r)
 	var x := 16.0 + inset.w
 	var big := 16.0 if not phone else 12.0
-	var panel_w := 300.0 if not phone else maxf(148.0, hud._minimap.position.x - x - 8.0)
+	# LEVELBADGE: the badge column widens the block on a desktop; a compact canvas keeps 300 px (the centre
+	# band between the vitals and the map holds the top feed and the quest card) and the bars give way.
+	var panel_w := 300.0 + (0.0 if UiTokens.is_compact(r) else HudLevelBadge.COLUMN)
+	if phone:
+		panel_w = maxf(148.0, hud._minimap.position.x - x - 8.0)
 	return Rect2(x - 8.0, 6.0 + inset.z, panel_w, big * 2.0 + ExhaustTreadmill.BELT_H + 6.0 * 2.0 + 36.0)
 
 ## Landscape phone: the strip between the vitals and the minimap; portrait: the strip under the map

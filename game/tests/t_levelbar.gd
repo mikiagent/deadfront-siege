@@ -3,7 +3,7 @@ extends SceneTree
 ## your level is shown on the level UI at the bottom of the screen. Add segments to the level UI that
 ## are proportional to a unit amount of xp and as you level up it should get exponentially harder to
 ## level up to the next one, the segments reflect that" and "make it green for the xp bar too".
-## - no level badge or level text in the top-left vitals block; the level line sits at the bottom;
+## - the level line sits at the bottom (LEVELBADGE later brought the top-left badge back: t_levelbadge);
 ## - the bar draws ceil(level cost / unit) segments, at most max_segments, more as levels climb;
 ## - the curve (pioneer_levels.json xp_curve) is monotonic and exponential; level from total XP
 ##   matches the table; an old linear save keeps its level as a floor;
@@ -145,23 +145,20 @@ func _test_hud(view: Vector2) -> void:
 	var tread: Rect2 = _hud.get("_fatigue_rect")
 	var phone: bool = TOK.is_phone(view)
 	var old_bar_w := (232.0 if not phone else maxf(88.0, vit.size.x - 54.0)) - ((16.0 if not phone else 12.0) * 2.0 + 6.0) - 6.0
-	_expect(hp.size.x >= old_bar_w + 40.0, "%s the HP/energy bars are wider than before (%.0f vs %.0f)" % [tag, hp.size.x, old_bar_w])
-	_expect(hp.position.x - vit.position.x <= 10.0 and tread.position.x - vit.position.x <= 10.0, "%s no gap where the circle was (bars at %.0f, treadmill at %.0f, panel at %.0f)" % [tag, hp.position.x, tread.position.x, vit.position.x])
-	_expect(not ring.intersects(hp) and ring.position.x >= hp.end.x and ring.position.x - hp.end.x <= 12.0, "%s the stomach ring sits right beside the bars (%s / %s)" % [tag, ring, hp])
-	_expect(vit.encloses(hp) and vit.encloses(ring) and vit.encloses(Rect2(tread.position, Vector2(tread.size.x, 1.0))), "%s bars, ring and treadmill stay in the vitals panel (%s)" % [tag, vit])
-	_expect(absf(tread.end.x - ring.end.x) <= 12.0, "%s the treadmill spans the group's width (ends %.0f vs ring %.0f)" % [tag, tread.end.x, ring.end.x])
+	# LEVELBADGE: the badge took room back; on a compact canvas the bars give some of it (still wider than pre-LEVELBAR).
+	_expect(hp.size.x >= old_bar_w + (5.0 if TOK.is_compact(view) else 40.0), "%s the HP/energy bars are wider than before (%.0f vs %.0f)" % [tag, hp.size.x, old_bar_w])
+	# LEVELBADGE (owner 2026-10-28) brought the badge back: the bars and the treadmill start right after its column.
+	var col: float = load("res://scripts/ui/hud_level_badge.gd").COLUMN
+	_expect(hp.position.x - vit.position.x <= 10.0 + col and tread.position.x - vit.position.x <= 10.0 + col, "%s bars and treadmill start after the badge column (bars at %.0f, treadmill at %.0f, panel at %.0f)" % [tag, hp.position.x, tread.position.x, vit.position.x])
+	# LEVELBADGE (owner 2026-10-28): the stomach ring moved down to lead the buff row; bars and treadmill share the width.
+	_expect(not ring.intersects(hp) and ring.position.y >= vit.end.y, "%s the stomach ring sits under the vitals (%s / %s)" % [tag, ring, hp])
+	_expect(vit.encloses(hp) and vit.encloses(Rect2(tread.position, Vector2(tread.size.x, 1.0))), "%s bars and treadmill stay in the vitals panel (%s)" % [tag, vit])
+	_expect(absf(tread.end.x - hp.end.x) <= 12.0, "%s the treadmill spans the bars' width (ends %.0f vs %.0f)" % [tag, tread.end.x, hp.end.x])
 	for k in _hud.drawn_blocks:
 		var other: Rect2 = _hud.drawn_blocks[k]
 		if str(k) != "vitals" and other.has_area():
-			_expect(not other.intersects(Rect2(hp.position, Vector2(ring.end.x - hp.position.x, ring.size.y))), "%s %s keeps off the vitals group" % [tag, k])
-	for k in _hud.drawn_blocks:
-		var r: Rect2 = _hud.drawn_blocks[k]
-		_expect(not (str(k).contains("level") and r.intersects(vit)), "%s no level block in the vitals (%s)" % [tag, k])
-	for n in _hud.find_children("*", "Label", true, false):
-		var l := n as Label
-		_expect(not (l.visible and l.text.begins_with("Lv.") and l.get_global_rect().intersects(vit)), "%s no level label in the vitals (%s)" % [tag, l.text])
-	# The level number is never drawn up there: the source no longer draws the badge.
+			_expect(not other.intersects(Rect2(hp.position, Vector2(hp.size.x, hp.size.y * 2.0 + 6.0))), "%s %s keeps off the vitals group" % [tag, k])
+	# LEVELBADGE reversed "no top-left level": t_levelbadge checks the badge; the bottom line still shows the level.
 	var src := FileAccess.get_file_as_string("res://scripts/ui/hunt_hud.gd")
-	_expect(not src.contains("str(LevelDisplay.player_level())") and not src.contains("draw_badge"), "%s hunt_hud draws no top-left level badge" % tag)
 	_expect(TOK.XP_GREEN.h > 0.25 and TOK.XP_GREEN.h < 0.45 and TOK.XP_GREEN.s > 0.4, "%s the bar fills XP_GREEN (green, owner exception)" % tag)
 	_expect(src.contains("UiTokens.XP_GREEN"), "%s the bar's fill is UiTokens.XP_GREEN" % tag)
