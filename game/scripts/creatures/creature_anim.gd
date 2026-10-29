@@ -11,8 +11,8 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert"]
-const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick"]
+const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick"]
 const HUBS: Array[StringName] = [&"idle", &"walk", &"run"]
 const XFADE := 0.08
 const GAIT_XFADE := 0.2  # walk <-> run: long enough that a gait change never pops
@@ -102,22 +102,26 @@ func set_move_speed(mps: float) -> void:
 ## Each is stride-matched; a rig without the clip falls back to the forward gait.
 const BACK_DOT := -0.5
 const SIDE_DOT := 0.7
+## While a brain sidesteps facing its prey (strafe_face: circling the ring, a scurry), a diagonal past 60 deg
+## off the facing is still a sidestep (owner 2026-10-28: "strafe left and strafe right animations are needed on
+## compsagnathus"); at the default 0.7 a surround slot reached on a diagonal glided on the forward walk.
+const FACING_SIDE_DOT := 0.5
 
-static func pick_direction(vel: Vector3, basis: Basis) -> StringName:
+static func pick_direction(vel: Vector3, basis: Basis, side_dot: float = SIDE_DOT) -> StringName:
 	var v := Vector3(vel.x, 0.0, vel.z)
 	if v.length_squared() < 0.0001:
 		return &""
 	v = v.normalized()
 	var side := v.dot(basis.x)  # the body faces -Z, so +X is its right
-	if absf(side) > SIDE_DOT:
+	if absf(side) > side_dot:
 		return &"strafe_right" if side > 0.0 else &"strafe_left"
 	if v.dot(-basis.z) < BACK_DOT:
 		return &"walk_back"
 	return &""
 
-func set_move_velocity(vel: Vector3, basis: Basis) -> void:
+func set_move_velocity(vel: Vector3, basis: Basis, side_dot: float = SIDE_DOT) -> void:
 	var mps := Vector2(vel.x, vel.z).length()
-	var clip := pick_direction(vel, basis)
+	var clip := pick_direction(vel, basis, side_dot)
 	if clip == &"" or not _param.has(clip) or mps <= 0.05:
 		set_move_speed(mps)
 		return

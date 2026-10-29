@@ -1,7 +1,7 @@
 # Enemy AI template: class profiles, sequences, cooldowns
 
-How a wild creature fights, as the build runs it today. The deinonychus (`pack_flanker`) is the
-first and so far only class on it. Its profile is the template for the other classes.
+How a wild creature fights, as the build runs it today. Classes on it: the deinonychus (`pack_flanker`,
+the template), the compsognathus (`swarm`) and the herd grazers (`pack_mule`: zebraceratops, protoceratops).
 Code: `game/scripts/creatures/brains/tactical_brain.gd` (`TacticalBrain`), data:
 `game/data/creatures/ai.json` → `archetypes.<archetype>.tactics`, test: `game/tests/t_tactical.gd`.
 
@@ -64,6 +64,36 @@ Genetic alphas are separate: `tactics.alpha` multiplies the nature knobs (Creatu
   bite_combo. It plays well without them: the strafes stand in for dodges, the run for the charge,
   and it scurries instead of leaping.
 
+## Herd grazer extras (pack_mule: zebraceratops, protoceratops)
+A profile on a herbivore archetype runs only while the animal is **provoked** (`CreatureBrain._provoked`):
+skittish after 3 hits in 8 s, a `stand_ground_natures` nature after 1 hit, Aggressive (`auto_engage`)
+always, a herdmate's rally for `defend_s`. When the provocation ends, or the prey is more than `guard_m`
+from the animal's home, it stands down (`stand_down`) to alert and the grazer rules decide again.
+- **Natures.** `flee_natures` (Timid) are never provoked: hit or not, they run. `stand_ground_natures`
+  (Brave) do not flee on sight: they hold a threat display at the threat and charge when it comes within
+  `display_charge_m` 5 m (surface to surface) or hits them, and graze again once it is past 1.2 × sight.
+  Everyone else flees on sight (skittish) until provoked.
+- **`display` step:** stop, face the prey, play `alert` (head lowered) for `display_s` 1.2 s. The main
+  sequence is display → charge (weight 3); plain charge 1; strafe_left/right → charge 0.5 each.
+- **Straight charge (`charge_straight`):** the line is locked at the start, through the prey's spot by
+  `charge_through_m` 2.5 m, at `charge_speed_mult` 1.5 × run with the `charge` clip. Contact with the prey
+  in front (dot > 0.2) is one impact: `CreatureAttack.apply_for(attack_heavy, charge_mult 1.8)`, rolls
+  dodge it. A miss staggers it for `charge_miss_recover_s` 1.5 s (the punish window). After a hit that
+  leaves the prey behind it, the kick follows; else the one back-off.
+- **Kick (`kick` clip, `kick_cd` 5 s, `kick_mult` 1.4):** point blank only, and only with the prey in its
+  rear arc (dot < -0.3). The body keeps its back to her while the kick plays. `kick` is a one-shot attack
+  in `CreatureAnim.ATTACKS`, its hit at `anim_events.json kick.hit_frac` 0.45.
+- **Herd defence (`herd_defend`):** a herdmate that takes a hit rallies every other member (not Timid, not
+  one hit in the last 3 s) onto the attacker for `defend_s` 8 s (`tactic` "defend"). The hurt one runs.
+- **Retreat:** `retreat_mode` flee below `retreat_frac` 0.25 for `flee_s` 4 s (`_holds_flee` keeps a
+  provoked grazer running); `alone` scales feints ×1.5, retreat ×1.4, cooldowns ×1.3.
+- Back-offs scurry (`walk_back` clip) instead of leaping; no dodge (`w_dodge` 0).
+- Taming is unchanged: knocked down, it is not thinking; capture at ≤ 30 % or stunned (spec 09).
+- Missing clips for the art thread: a front-foot **stamp** for the display (it uses `alert` now), and a
+  horn **impact** (the charge's hit shows on the run-through, no strike pose).
+- Test: `game/tests/t_zebra.gd`. Lab: `--lab=creature_lab --species=zebraceratops`, or SPAWN →
+  Zebraceratops, a nature, count 3.
+
 ## Rules the brain enforces
 - **Offence comes from movement.** A sequence is picked by weight × the nature's
   `tactic_w_<finisher>`, and only when its finisher is off cooldown and affordable. Steps:
@@ -114,8 +144,11 @@ hop_back, leap_back, pounce, dodge_left, dodge_right, strafe_left, strafe_right,
 charge (a loop like run, stride-matched by `natural_speeds.<id>.charge`).
 Fallbacks: a leap without its clip retimes attack_heavy over the profile's `*_s`. A dodge
 without its clip plays the strafe loop. Locomotion picks a clip by velocity against facing
-(`CreatureAnim.set_move_velocity`): walk_back when dot < -0.5, a strafe when |side| > 0.7, each
-stride-matched, otherwise walk/run. The same applies to ridden mounts.
+(`CreatureAnim.set_move_velocity`): walk_back when dot < -0.5, a strafe when |side| > 0.7 (0.5 while the
+brain's `strafe_face` holds it facing the prey, so circling and surround slots reached on a diagonal still
+sidestep), each stride-matched (`natural_speeds.<id>.strafe_left/right` when set, else the walk's), otherwise
+walk/run. The same applies to ridden mounts. `t_swarm` checks that a circling compy plays the strafe on the
+side it moves to.
 
 ## Natures (`natures.json`, default 1.0)
 | Knob | Aggressive | Timid | Brave |
@@ -157,7 +190,8 @@ call `IntentHandlers.rolls_dodge`.
    run in order, basics ≤ share, a beat between basics, back-jumps never adjacent, distance ≤
    `max_retreat_m`, energy gate, retreat. Then run t_ai, t_combat, t_natures, t_canim and
    `tools/smoke.sh`.
-7. Watch it in the creature lab: press SPAWN (left) to pick the species, count, nature and Alpha,
+7. Watch it in the creature lab: press SPAWN (left) to pick the species from the dropdown (every
+   species; model-less ones spawn as the box stand-in, marked "(stand-in)"), count, nature and Alpha,
    or launch with
    `Godot --path game -- --lab=creature_lab --species=<id>` (F3 prints every move;
    `--seq=DIR` saves frames).

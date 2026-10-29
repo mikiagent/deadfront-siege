@@ -234,6 +234,7 @@ func _recover_for_work() -> String:
 		player._start_sleep(spot)
 		if player._sleep_left <= 0.0: return "sleep was refused"
 		await _beat(spot.sleep_duration() + 0.5)
+		player.sim.get_up()  # a tent keeps her until she gets up
 		if player.vitals.fatigue >= 70.0: return "sleep interrupted"
 	var deadline := _t + 12.0
 	while _t < deadline and player.vitals.energy < 65.0:

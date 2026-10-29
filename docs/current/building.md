@@ -72,23 +72,36 @@ Three kit-placed fires share `game/scripts/world/bonfire.gd` (`Bonfire`); their 
 
 | Kind | Kit | Permanent | Wood | Fuel |
 |---|---|---|---|---|
-| `stone_fire_pit` | `stone_fire_pit_kit` | yes, never decays | hidden until wood is loaded | 1 branch = 120 s, up to 600 s |
+| `stone_fire_pit` | `stone_fire_pit_kit` | yes, never decays | one log drawn per minute of fuel (0-10) | 1 branch = 60 s, 1 log = 300 s, up to 600 s |
 | `bonfire` | `bonfire_kit` | no | shown from placement | lit with 600 s, burns out |
 | `campfire` | `campfire_kit` | no | shown from placement | lit with 120 s, burns out |
 
 - **The permanent pit.** Its Blender model bakes wood and a spit into the mesh, so `Bonfire` hides
   that model and draws its own two-course stone ring. `WoodPile` and `Flame` are separate nodes shown
-  only while `fuel_seconds > 0`. `load_wood(player)` spends one `branch` for
-  `wood_seconds_per_branch`; when the fuel runs out the wood and flame go and the rocks stay.
+  only while `fuel_seconds > 0`; an ash bed stays inside the rocks. `add_fuel(player, item)` spends one
+  `branch` (`wood_seconds_per_branch`, 60 s) or one `wood_log` (`wood_seconds_per_log`, 300 s), capped at
+  `fuel_max_seconds` (600 s; fuel past the cap is lost, `# ASSUMPTION`). When the fuel runs out the wood
+  and flame go and the rocks stay.
+- **Wood you can see (FIREFUEL, owner 2026-10-28).** The pit draws `logs_shown() = ceil(minutes left)`
+  logs, 0..10: two crossed on the coals first, then a six-log teepee, then two against its foot. The fire
+  reads `fuel_state()`: `roaring` (7-10 min), `burning` (3-6), `low` (1-2: small flame, the coal bed glows
+  hotter), `out` (0 logs, no flame). Every fire (pit, bonfire, campfire) has a particle flame: CPU
+  particles (all renderers, web included) — flame body (~1.2 m at full), a hot core, rising embers and
+  smoke wisps, about 66 particles per fire; the flame node scales 1.0 / 0.72 / 0.42 by state, rain
+  shrinks it further, and the night fire light scales with it.
 - **Temporary fires** burn down every frame, wear `durability_per_minute` (1/min), wear twice as fast
   when the fire stands outside a Domain (the same claim check `BuildGrid.can_place` uses), and are
   removed at burn-out or at 0 durability — the game has no ash state.
 - **Cooking** works only while a fire burns: `Bonfire.can_cook()` / `cook_block_reason()`,
   `StationMenu.filter_actions` drops the COOK hex and `StationMenu._on_pressed` refuses the press.
-- **LOAD WOOD** is a hex on every fire (`StationMenu.actions_for` → `Bonfire.load_wood`); hidden once
-  full. The menu also prints the fire's state line (`info_lines`: `Fuel m:ss · Burning/Out` and
+- **FUEL** is a hex on every fire (`StationMenu.actions_for`). With the HUD up it opens the fire's fuel
+  sheet (`FireFuelSheet`, `HuntHud.open_fire_fuel`): ten wood slots (one per minute left), the fuel bar,
+  the state and time left, and two 64 px buttons, Branch +1 min and Log +5 min, with the bag counts;
+  a button greys out when the fire is full, too wet to light, or the bag has none. Without a HUD (labs)
+  the hex loads one branch (or a log) in place. The menu also prints the fire's state line (`info_lines`: `Fuel m:ss · Burning/Out` and
   `Durability cur/max` for temporary fires).
-- **Save.** Rows carry `fuel_seconds` and `durability` (the campfire still mirrors `seconds_left`);
+- **Save.** The fuel sheet is not a separate container: `fuel_seconds` is the whole fuel inventory, so
+  no save field was added. Rows carry `fuel_seconds` and `durability` (the campfire still mirrors `seconds_left`);
   `SaveSanitizer` keeps both fields, and a row without them loads a lit, whole fire.
 
 ## Where it is visible
@@ -156,4 +169,7 @@ a release, and storage contents stay with their owner — the land leaves, the b
   with a building on it and a release that would split the Domain are all refused with a reason; an
   edge plot releases, persists through a reload and can be claimed again.
 - `game/tests/t_firepits.gd` — the fires: empty vs loaded pit, temporary burn-out and wear (2× outside a
-  Domain), the cooking gate and hex menu, the info line, and the save round trip through the sanitizer.
+  Domain), the cooking gate and hex menu, the info line, and the save round trip through the sanitizer;
+  FIREFUEL: branch/log fuel, the 10 min cap, logs = ceil(minutes) every minute 10→1, the states, 0 logs and
+  no particles when out, the shrinking flame, 4:30 saving as 5 logs, and the fuel sheet's slots and
+  64 px buttons. Windowed PNGs: `docs/orchestration/reports/firefuel/`.

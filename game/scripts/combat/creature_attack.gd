@@ -85,7 +85,7 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 			survivor.roll_dodge(clip, attacker, lands)
 			return false
 		if Telegraph.player_dodged(attacker) or not lands:
-			print("[combat] dodged %s %s" % [attacker.def.id, attacker.anim.current_clip])
+			CombatAvoid.avoided(survivor, attacker)
 			return false
 		survivor.refresh_equipment_vitals()
 		var defn := (CombatTuning.num("creature_melee", "player_base_defense", 20.0) + survivor.inventory.equipped_armor()) * survivor.statuses.defense_mult()
@@ -101,7 +101,7 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 	if target is Creature:
 		var cr := target as Creature
 		if not CombatTuning.roll(hit_chance(attacker, cr)):
-			cr.combat_float.emit(0.0, &"dodge")
+			CombatAvoid.avoided(cr, attacker)
 			return false
 		var defn := (cr.pet_record.stat_value(&"melee_defense") if cr.is_pet and cr.pet_record else cr.defense_for(false)) * cr.statuses.defense_mult()
 		var dealt := mitigated(atk, defn)

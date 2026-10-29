@@ -20,10 +20,13 @@ if [[ $# -gt 0 ]]; then names=("$@"); else
 fi
 
 run_one() {
-  local t="$1" log="$LOGS/$1.log" start=$SECONDS rc
+  local t="$1" log="$LOGS/$1.log" start=$SECONDS rc home
+  # Own HOME per test: parallel tests shared one user:// save folder and clobbered each other (t_save, t_tutorial).
+  home="$(mktemp -d)"; mkdir -p "$home/Library/Application Support"
   # shellcheck disable=SC2086
-  $WRAP perl -e "alarm $TEST_TIMEOUT; exec @ARGV" "$G" --headless --path "$ROOT/game" --script "res://tests/$t.gd" >"$log" 2>&1
+  HOME="$home" $WRAP perl -e "alarm $TEST_TIMEOUT; exec @ARGV" "$G" --headless --path "$ROOT/game" --script "res://tests/$t.gd" >"$log" 2>&1
   rc=$?
+  rm -rf "$home"
   if [[ $rc -eq 0 ]] && grep -q 'PASS' "$log"; then echo "PASS $t ($((SECONDS - start))s)"
   else echo "FAIL $t rc=$rc ($((SECONDS - start))s) $(grep -m1 -E 'FAIL|ERROR|SCRIPT ERROR' "$log" | cut -c1-160)"; fi
 }

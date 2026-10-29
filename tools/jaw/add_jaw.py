@@ -20,6 +20,8 @@ ap.add_argument("--lip-z", type=float, default=None, help="set a flat mouth line
 ap.add_argument("--chin-depth", type=float, default=None, help="only skin this far below the mouth line (x snout length) is jaw; keeps a long throat or neck off it")
 ap.add_argument("--hook", type=float, default=0.0, help="this fraction of the snout behind the tip stays on Head (hooked beaks)")
 ap.add_argument("--corner", type=float, default=0.3, help="mouth corner no further back than this fraction of the snout")
+ap.add_argument("--open", action="store_true", help="the mesh was modelled with the mouth open: fit the line through the gape (the widest empty band per slice), then close the mouth in the bind pose")
+ap.add_argument("--part", type=float, default=3.0, help="with --open: degrees left parted after closing (lips never fuse)")
 ap.add_argument("--debug", action="store_true")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
@@ -70,6 +72,16 @@ def fit(ps):
     n = len(ps); mt = sum(t for t, _ in ps) / n; mz = sum(z for _, z in ps) / n
     b = sum((t - mt) * (z - mz) for t, z in ps) / max(sum((t - mt) ** 2 for t, _ in ps), 1e-9)
     return mz - b * mt, b
+gape = []  # --open: (t, top of the lower jaw, bottom of the upper jaw) per slice
+if a.open:
+    pts_t = []
+    for k in range(a.slices):
+        t0 = L * (0.3 + 0.65 * k / a.slices); t1 = t0 + L * 0.65 / a.slices
+        zs = sorted(p.z for v, p, n in hv if t0 <= (p - joint).dot(fwd) < t1)
+        if len(zs) < 8: continue
+        g, i = max((zs[i + 1] - zs[i], i) for i in range(len(zs) - 1))
+        if g > 0.03 * L:
+            gape.append(((t0 + t1) / 2, zs[i], zs[i + 1])); pts_t.append(((t0 + t1) / 2, (zs[i] + zs[i + 1]) / 2))
 if len(pts_t) < 4:
     sys.exit(f"mouth line not found ({len(pts_t)} slices); set it by hand")
 c0, c1 = fit(pts_t)
@@ -105,6 +117,8 @@ moved = 0
 for v in ob.data.vertices:
     p = mw @ v.co; t = (p - joint).dot(fwd)
     hg = next((g for g in v.groups if g.group == HI and g.weight > 0), None)
+    if a.open and hg is None and t > t_corner + span and abs(p.z - lip_z(t)) < 0.35 * L:
+        hg = True  # open-mouth meshes: snout skin and teeth weighted to Neck or nothing still belong to the head
     if hg is None or t < t_corner - 0.02 * L: continue
     if a.chin_depth is not None and p.z < lip_z(t) - a.chin_depth * L: continue  # throat and neck stay put
     # Meshy weights the snout about half to Neck, so the whole skull bends with the neck. Ramp both halves of the
@@ -112,12 +126,50 @@ for v in ob.data.vertices:
     x = min(max((t - t_corner) / span, 0.0), 1.0); w = x * x * (3 - 2 * x)
     jaw = p.z < lip_z(t) and t < t_tip - a.hook * L  # a hooked beak dips below the line but belongs to the skull
     old = {g.group: g.weight for g in v.groups}
-    share = old.pop(HI)
+    share = old.pop(HI, 0.0)
     for gi, gw in old.items(): ob.vertex_groups[names[gi]].add([v.index], gw * (1 - w), "REPLACE")
-    ob.vertex_groups[a.head].remove([v.index])
+    if HI in [g.group for g in v.groups]: ob.vertex_groups[a.head].remove([v.index])
     (jaw_g if jaw else ob.vertex_groups[a.head]).add([v.index], share * (1 - w) + w, "REPLACE")
     moved += jaw
 print(f"jaw skin: {moved} verts moved from {a.head} to Jaw")
+
+if a.open:  # close the modelled gape in the bind pose: pose the jaw shut, bake that shape into the mesh
+    import math
+    import bmesh
+    # teeth and other small islands in the snout move as one piece with whichever jaw holds them
+    bm = bmesh.new(); bm.from_mesh(ob.data); bm.verts.ensure_lookup_table()
+    seen = set(); rigid = 0
+    for v0 in bm.verts:
+        if v0.index in seen: continue
+        isl, st = [], [v0]; seen.add(v0.index)
+        while st:
+            c = st.pop(); isl.append(c.index)
+            for e in c.link_edges:
+                o = e.other_vert(c)
+                if o.index not in seen: seen.add(o.index); st.append(o)
+        if len(isl) > 400: continue
+        cen = sum((mw @ ob.data.vertices[i].co for i in isl), Vector()) / len(isl)
+        t = (cen - joint).dot(fwd)
+        if t < t_corner + span or abs(cen.z - lip_z(t)) > 0.35 * L: continue  # the corner's ramp keeps its blended skin
+        tgt = jaw_g if cen.z < lip_z(t) else ob.vertex_groups[a.head]
+        for g in list(ob.vertex_groups): g.remove(isl)
+        tgt.add(isl, 1.0, "REPLACE"); rigid += 1
+    bm.free()
+    print(f"rigid snout islands (teeth): {rigid}")
+    # gape = angle at the pivot between the snout tip and the lower jaw tip, in the side plane
+    def ang(p): d = p - pivot; return math.atan2(d.z, d.dot(fwd))
+    jaw_pts = [mw @ v.co for v in ob.data.vertices if any(g.group == jaw_g.index and g.weight > 0.9 for g in v.groups)]
+    skull_pts = [mw @ v.co for v in ob.data.vertices if any(g.group == HI and g.weight > 0.9 for g in v.groups)]
+    lt = max(jaw_pts, key=lambda q: (q - pivot).dot(fwd)); ut = max(skull_pts, key=lambda q: (q - pivot).dot(fwd))
+    gape_deg = math.degrees(ang(ut) - ang(lt)) - 6.0  # a shut mouth still has the snout tip a few degrees above the chin
+    close = max(0.0, gape_deg - a.part)
+    print(f"open mouth: gape {gape_deg:.1f} deg over {len(gape)} slices, closing {close:.1f} deg")
+    pb = arm.pose.bones["Jaw"]; pb.rotation_mode = "XYZ"; pb.rotation_euler.x = -math.radians(close)
+    bpy.context.view_layer.update()
+    ev = ob.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    co = [v.co.copy() for v in ev.to_mesh().vertices]; ev.to_mesh_clear()
+    pb.rotation_euler.x = 0.0; bpy.context.view_layer.update()
+    for v, c in zip(ob.data.vertices, co): v.co = c
 
 for o in list(bpy.data.objects):
     if o not in (arm, ob) and o.type == "MESH" and o.parent is None: bpy.data.objects.remove(o)  # bone-shape sphere
