@@ -48,10 +48,8 @@ func _ready() -> void:
 		return
 	if _hud:
 		_hud.visible = false
-	# Only the hud view shows the game; elsewhere the live hands slot and the survivor muddy the sheet.
+	# Only the hud view shows the game; elsewhere the survivor muddies the sheet.
 	player.visible = false
-	for n in get_tree().root.find_children("*", "HeldItemSlot", true, false):
-		(n as CanvasItem).visible = false
 	var layer := CanvasLayer.new()
 	layer.layer = 90
 	add_child(layer)
@@ -201,12 +199,6 @@ func _process(_delta: float) -> void:
 			h.glyph = ""
 			h.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 			h.queue_redraw()
-	for n in get_tree().root.find_children("*", "HeldItemSlot", true, false):
-		var slot := n as HeldItemSlot
-		var bare := {"HANDS": &"hands", "FISTS": &"fists"}
-		if bare.has(slot._caption):
-			slot._icon = UiIcons.icon(bare[slot._caption])
-			slot.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 
 func _force_combat_cluster() -> void:
 	for h in _hud._skill_hexes:

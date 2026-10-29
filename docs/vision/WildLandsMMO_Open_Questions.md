@@ -68,8 +68,9 @@ Source: branch `claude/mmo-harvestroll`, report `docs/orchestration/reports/clau
 | # | Default taken | Where | Why it matters |
 |---|---|---|---|
 | **HR1** | A pass's level rolls in max(1, S-5)..S for node level S, `L = lo + min(5, floor(6 x U^gamma))`; gamma 1.5 at Gathering 1 bare-handed, down 0.5 by Gathering 60 and 0.25 at a steel tool (the Traits math doc's illustrative novice/competent/expert values). Starter nodes of level 1 always yield level 1. | `LootRoller.roll_lot` | How often a gatherer lands top-of-band material; how fast skill pays. |
-| **HR2** | Each material lot rolls one grey trait at 96% and one gold trait at 7% (the math doc's unapproved candidates), gold odds +15% relative per tool tier above stone and +20% relative at Gathering 60, capped 12%; magnitude 1-3 each. | `loot_tables.json lot` | Nearly every branch/stone now carries a grey trait; crafting averages these into outputs. |
+| **HR2** | Each material lot rolls one grey trait at 35% (PERKCAP: owner called 96% "too harsh"; 35% is ours) and one gold trait at 7% (the math doc's unapproved candidate), never the grey one's opposite; gold odds +15% relative per tool tier above stone and +20% relative at Gathering 60, capped 12%; magnitude 1-3 each. | `loot_tables.json lot` | About a third of branches/stones carry a grey trait; crafting averages these into outputs. |
 | **HR3** | Which gold/grey traits a material can roll is by its first category (wood, stone, ore, fibre, lashing, earth), read off spec 04's trait meanings; food, herbs and treasure roll level only. | `lot.by_category` | Spec 04 asks for per-resource tables; these are placeholders until the owner names per-material ones. |
+| **HR4** | PERKCAP (owner: "1-2 perks on each gathered item max"): green + gold + grey together are at most 2 per gathered item (`lot.max_perks`). A green trait that lands on a full item replaces its grey one, else it is skipped. The top feed row shows the latest item's perks, and its count reads "+n total" when several gains collapse into it. | `GatherService._make_room`, `TopFeed._add` | Which perk gives way when a green lands on a full item. |
 
 ### TRIBE M1 (2026-10-28) — tribe members and dock recruits
 
@@ -93,6 +94,23 @@ Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tri
 | **T14** | Away from home only following members come along; working and staying members remain at home. There is no expedition slot limit yet (vision §7 says three shared slots). | `TribeDirector.sync` | Party size on trips. |
 | **T15** | Work reach: a worker stands at the visible edge of a node (card or mesh footprint) plus 0.3 m. | `HarvestNode.visual_radius` | Visual only. |
 
+### TUTORIAL ISLAND (2026-10-28)
+
+Source: branch `claude/mmo-tutorial-island`, report `docs/orchestration/reports/claude-tutorial.md` (its A12-A19, renumbered TU1-TU8 at the merge: canon already used A12-A17).
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TU1** | TUTORIAL ISLAND: the island pick (ISLANDPICK A2) moved from the end of character creation to the end of the tutorial (the last order, walking onto the dock, opens it). | `Tutorial.grant_home`, `docs/current/tutorial.md` | The owner asked that the tutorial "ends with them owning their own personal island"; no doc places the pick. |
+| **TU2** | The tutorial island: one shared generated grassland island at 4.5x the home's land (795 x 636 m, owner asked 4-5x), level 1, seed 9091; the town 36 m from the dock; wild lands as 11 streamed zones (compsognathus by the town, then zebraceratops, gallimimus, protoceratops, coelophysis, velociraptor, deinonychus out to 360 m). | `data/islands/tutorial_isle.json` | Size and content set the tutorial's walking time (bot: ~3.3 min of play for 19 orders) and its build cost (8-9 s headless vs ~3.9 s home). |
+| **TU3** | The town: "Adventurer's Guild" (working name) is a quest-hub building whose tap opens the Orders sheet; a market stall opens the Island Market; models are stand-ins (log shelter, fishing stand, signpost, barrel, crates). The guild does not yet run the comm-center contribution track or comms_ui faction offers (those are home-island/faction systems). | `TownBuilding`, `Tutorial.dress` | Which quests beyond the tutorial orders the guild should offer is open. |
+| **TU4** | Perf limits on the big island: ground cover full within 120 m of the town and 6 % beyond, biome dressing 30 %, terrain 241 res, harvest nodes inside the scatter's 420-600 clamp, creatures streamed by zone (wake 110 m, sleep 170 m, respawn 240 s). Terrain and nav are not chunked. | island data + `ZoneSpawner` | The far wild lands look thinner than the town; true chunk streaming of terrain/nav/scatter is not built. |
+| **TU5** | Everything carries over to the home (bag, gear, skills, levels, T-stones, bonded animals); buildings placed on the tutorial island stay there. | `Tutorial.ferry` | The docs say nothing about a tutorial carry-over. |
+| **TU6** | 19 tutorial orders, one system each: report to the guild, branches, stones, fibre, drink, eat, rest, twine, stone knife (needed to cut meat), work axe, logs, hunt, butcher, light the fire pit, cook a Herb Roast (COOKROLES main + topping), eat it, learn a skill, build a straw bedroll, board the ferry. Rewards 15-60 XP and 0-3 T-stones each. **No taming order**: vision section 1 says the first bond is found in open play, not a guided award. | `objectives.json "tutorial"` | Order, count and rewards are this build's; the plan's 16-step rewrite of the standing orders is still open. |
+| **TU7** | After the tutorial the standing orders resume at "Weave a capture net" (`tutorial_resume_at: net`); the main list's first 9 orders (branches to skewer) are skipped because the tutorial taught them. | `objectives.json` | A survivor never sees those 9 orders; change the id to resume elsewhere. |
+| **TU8** | The tutorial island cannot be left early: harbour routes and warp home are refused until its last order. | `World.travel` | A player who wants to skip has no in-game way out (dev: `--skip-tutorial`). |
+| **TU9** | No alphas spawn on the tutorial island: it is the level-1 newcomer island (an alpha compsognathus has ~3.9x HP, 391 vs a barehanded ~1.7 per hit). Island-def knob `no_alphas`, read by `Spawner`. | `data/islands/tutorial_isle.json`, `Spawner.spawn_now` | Whether alphas should ever appear on starter content. |
+| **TU10** | The town is a safe ring: no wild zone sits closer than `town_safe_m` = 100 m to the town, so compsognathus packs stay in the wild lands and do not interrupt the early gather orders (canon's hit-interrupt rule and combat numbers are unchanged). TU2's "compsognathus by the town" now means the first ring past 100 m: single compys at 200/265/310 degrees (spread so the first hunt meets one, not two) and the compy pair moved out to 160 m. The first hunt walks ~100 m out. | `data/islands/tutorial_isle.json` `town_safe_m`, `Tutorial._wild_zones` | Size of the safe ring; whether other newcomer areas (home island camp) want the same. |
+
 ### ZEBRAAI (2026-10-28) — zebraceratops / pack_mule behaviour
 
 Source: branch `claude/mmo-zebraai`, report `docs/orchestration/reports/claude-zebraai.md`. Numbers live in `game/data/creatures/ai.json archetypes.pack_mule.tactics` (every one an ASSUMPTION). Protoceratops shares the archetype and so the profile.
@@ -105,6 +123,20 @@ Source: branch `claude/mmo-zebraai`, report `docs/orchestration/reports/claude-z
 | **Z4** | The charge: locked straight line, 1.5 × run, impact 1.8 × attack (≈ 55 on an unarmoured survivor at the species' 36 attack), 6 s cooldown, 1.2 s display before it; a sidestep or roll dodges it and leaves it staggered 1.5 s. | `charge_*`, `display_s` | The main danger and the main skill test of the first tame. |
 | **Z5** | Hind kick: 1.4 × attack, 5 s cooldown, only with the survivor behind it at contact (typically right after a charge through her). | `kick_*` | Punishes standing behind a grazer. |
 | **Z6** | A provoked zebra flees for 4 s below 25 % HP (under the 30 % capture line, so a weakened one stays capturable for a moment) and comes back while still provoked. | `retreat_frac`, `flee_s` | Decides whether capture turns into a chase. |
+
+### COMPYJUMPS (2026-10-28) — compsognathus leaps, pounces and strafe jumps
+
+Source: branch `claude/mmo-compyjumps`, report `docs/orchestration/reports/claude-compyjumps.md`. Numbers live in `game/data/creatures/ai.json archetypes.swarm.tactics` (every one an ASSUMPTION). Owner: "should jump back similar to the deinonychus (far jumps, far pounces, far strafe jumps, combo moves, it can jump and miss the player)".
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **C1** | Back-offs are leaps, not a scurry: hop_back 3 m, leap_back 4 m after a bite, never past 5.5 m from the prey (the compy's short leash); arc 0.15 m per metre. | `hop_m`, `leap_back_m`, `max_retreat_m`, `leap_height_per_m` | Owner asked for deinonychus-style jump-backs; longer leaps would drop the hunt. |
+| **C2** | Pounce 2-6 m, 5 s cooldown, 0.45 s telegraph, 1.6 x bite (about 11 damage at attack 7), 20 % overshoot by 1.5 m, 1.0 s recovery after a miss. It also opens a fight from the approach (`approach_pounce`). | `pounce_*`, `approach_pounce` | A pack of four can pounce a lot; this is the main damage knob of the starter-island swarm. |
+| **C3** | Strafe jump (dodge_left/right) 2.5 m in 0.42 s; filler weight 0.4 next to the strafe walk 0.5. | `strafe_m`, `w_dodge` | How jumpy the circling looks. |
+| **C4** | Sequences: dart 2, pounce 2, strafe -> dart 1 each side, strafe -> pounce 1.5 each side, backstep -> strafe -> pounce 1 each side. Pack of 4+ pounces x1.3, alone x0.6, weak prey x1.3, enraged x1.4. | `sequences`, `pack_bold/alone/weak_prey/enraged.w_pounce` | Mix of moves. |
+| **C5** | The pounce aims at the prey plus her velocity over the flight and locks that point at take-off, so a sidestep after take-off always misses. | `TacticalBrain._pounce` (unchanged) | The skill test against a pounce. |
+| **C6** | Landing: the bite keeps lunging at 1.3 x run until its contact frame while she is beyond 0.6 x reach; a compy at a walking survivor's heels with no bite allowed hops back and chases again. Target share of bites and pounces that connect on a survivor who does not roll: about 50-85 % (t_swarm measures standing and walking 2 m/s). | `bite_track`, `bite_track_frac`, `chase_hop` | Owner: "attacks aren't landing very often". The swarm's chase speed (0.5) still lets a running survivor get away. |
+| **C7** | "Missed" (grey, like Dodged/Blocked) is shown for a failed accuracy roll, an out-of-reach contact frame, a pounce that lands with the prey out of its jaws, and a survivor swing the creature stepped out of. A failed roll against a creature with a dodge chance is split by the same single draw: inside the dodge part "Dodged", inside the accuracy part "Missed". | `CombatTuning.swing_outcome`, `CombatAvoid` | Owner: damage text "Dodged" "Blocked" or "Missed". |
 
 ## Parked by other docs
 

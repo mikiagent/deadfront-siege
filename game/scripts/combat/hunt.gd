@@ -219,8 +219,10 @@ func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3) -> void:
 	offset.y = 0.0
 	var tune := CombatTuning.section("player_melee")
 	if offset.length() > melee_reach(t) + float(tune.get("hit_reach_slack_m", 0.3)):
+		CombatAvoid.avoided(t, player, &"miss")
 		return  # it stepped out of the swing
 	if forward != Vector3.ZERO and offset.normalized().dot(forward) < float(tune.get("hit_arc_min_dot", 0.0)):
+		CombatAvoid.avoided(t, player, &"miss")
 		return  # it got behind the swing
 	if not MeleeQuery.clear(player, t):
 		return
@@ -231,6 +233,11 @@ func hit_chance(t: Creature) -> float:
 	var acc := CombatTuning.num("player_melee", "base_accuracy", 1.0) * player.statuses.accuracy_mult()
 	var dodge := t.dodge_chance() + t.statuses.evasion_add() * CombatTuning.top("evasion_add_scale", 0.01)
 	return CombatTuning.hit_chance(acc, dodge)
+
+## One roll of a swing on it: &"" hit, &"dodge" (its dodge) or &"miss" (her accuracy).
+func swing_outcome(t: Creature) -> StringName:
+	var acc := CombatTuning.num("player_melee", "base_accuracy", 1.0) * player.statuses.accuracy_mult()
+	return CombatTuning.swing_outcome(acc, t.dodge_chance() + t.statuses.evasion_add() * CombatTuning.top("evasion_add_scale", 0.01))
 
 func _swing_damage(w: ItemStack) -> float:
 	var tune := CombatTuning.section("player_melee")
@@ -244,8 +251,9 @@ func _swing_damage(w: ItemStack) -> float:
 ## Resolve one swing that reached the target. Returns whether it landed. Statuses, wear, XP
 ## and the tyrant counter happen only on a landed hit.
 func land_hit(t: Creature, w: ItemStack) -> bool:
-	if not CombatTuning.roll(hit_chance(t)):
-		t.combat_float.emit(0.0, &"dodge")
+	var how := swing_outcome(t)
+	if how != &"":
+		CombatAvoid.avoided(t, player, how)
 		return false
 	var tune := CombatTuning.section("player_melee")
 	var def := w.def() if w else null

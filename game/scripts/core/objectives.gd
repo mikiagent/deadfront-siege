@@ -51,10 +51,16 @@ static func settle(player: Player) -> int:
 		done += 1
 		if player and player.has_method("notice"):
 			var next := current(player)
-			if next.is_empty():
+			if bool(step.get("grant_home", false)):
+				player.notice("Choose your own island")
+			elif next.is_empty():
 				player.notice("Standing orders complete")
 			else:
 				player.notice("Next: %s" % next["title"])
+		# TUTORIAL ISLAND: the last tutorial order grants the Tamed Island (the pick, then the ferry).
+		if bool(step.get("grant_home", false)) and Tutorial.active():
+			Tutorial.grant_home(World.runtime.get_parent() if World.runtime else player.get_tree().current_scene)
+			break
 	return done
 
 ## Materials are spent as fast as they are gathered, so an order tracks the most the survivor
@@ -72,7 +78,7 @@ static func _with_best(state: Dictionary) -> Dictionary:
 	}
 
 static func _steps() -> Array:
-	var raw: Variant = Data.world_objectives
+	var raw: Variant = Data.world_tutorial if Tutorial.active() else Data.world_objectives
 	return raw if raw is Array else []
 
 ## {"done", "frac", "label"} for one step.
@@ -104,6 +110,23 @@ static func _progress(player: Player, step: Dictionary) -> Dictionary:
 		return _row(player.bonded.size(), int(step["pets"]))
 	if step.has("away"):
 		return _row(0 if World.is_home() else 1, 1)
+	# TUTORIAL ISLAND conditions (objectives.json "_tutorial_about").
+	if step.has("near"):
+		return _row(1 if Tutorial.near(player, str(step["near"]), float(step.get("radius", 6.0))) else 0, 1)
+	if step.has("status"):
+		return _row(1 if player.statuses and player.statuses.has(StringName(str(step["status"]))) else 0, 1)
+	if step.has("resting"):
+		return _row(1 if player.sim.rest.resting or player._sleep_left > 0.0 else 0, 1)
+	if step.has("fire_lit"):
+		return _row(1 if Tutorial.fire_lit() else 0, 1)
+	if step.has("did"):
+		var did: Dictionary = step["did"]
+		var got_d := 0
+		var want_d := 0
+		for key in did:
+			want_d += int(did[key])
+			got_d += mini(int(did[key]), Tutorial.did(str(key)))
+		return _row(got_d, want_d)
 	return _row(0, 1)
 
 static func _row(got: int, want: int) -> Dictionary:

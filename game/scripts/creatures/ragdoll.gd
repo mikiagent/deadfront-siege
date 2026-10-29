@@ -646,9 +646,11 @@ func trunk_half_width() -> float:
 ## The hips height a lying carcass of this species may keep: LIE_FRAC of its standing hips height, or
 ## LIE_WIDTH_K x its trunk's half-width when the body is rounder than its legs are long (a
 ## zebraceratops on its side rests on its barrel: 0.3 m of a 0.6 m hip height). The lab's lying gate
-## and t_ragdoll both read this, so a species' profile is scored the same way in both.
+## and t_ragdoll both read this, so a species' profile is scored the same way in both. A profile's
+## lie_frac replaces LIE_FRAC for a barrel-bodied species.
 func lie_limit(stand_hips: float) -> float:
-	return maxf(stand_hips * LIE_FRAC, trunk_half_width() * LIE_WIDTH_K)
+	var frac := float(profile(creature.def.id).get("lie_frac", LIE_FRAC)) if creature and creature.def else LIE_FRAC
+	return maxf(stand_hips * frac, trunk_half_width() * LIE_WIDTH_K)
 
 func _hips_world(sk: Skeleton3D, prof: Dictionary) -> Vector3:
 	var hb := sk.find_bone(str(prof.get("hips", "Hips"))) if sk else -1

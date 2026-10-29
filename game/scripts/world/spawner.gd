@@ -29,6 +29,8 @@ func spawn_now() -> Array[Creature]:
 	var out: Array[Creature] = []
 	# ALPHAS: one roll per spawn group (ai.json alpha.chance_per_group); the winner is member 0.
 	var alpha_idx := 0 if force_alpha else CreatureGenetics.alpha_pick(count, null)
+	if not force_alpha and World and bool(World.island_def.get("no_alphas", false)):
+		alpha_idx = -1  # ASSUMPTION: an island def can forbid rolled alphas (the tutorial island does)
 	for i in count:
 		var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 		var ang := TAU * float(i) / float(maxi(1, count))

@@ -8,14 +8,21 @@ extends RefCounted
 ## compact canvas each chip's touch area is padded to 64 px tall and at least 64 px wide; where padded
 ## areas overlap the nearest chip wins. HuntHud owns the drawing order and calls draw / draw_tooltip / input.
 
-const PITCH := 30.0
+## Owner 2026-10-28: "the buffs under the healthbars etc should be larger and black/white except for a blue
+## arrow up or a red arrow down (indicating buff or debuff)". Chips are CHIP px, drawn black and white;
+## the one colour is the corner arrow (UP_BLUE for a buff or boon, DOWN_RED for a debuff).
+const CHIP := 38.0
+const PITCH := 44.0
+const ROW_H := 56.0  ## chip plus the countdown under it
+const UP_BLUE := Color(0.24, 0.62, 1.0)
+const DOWN_RED := Color(0.92, 0.22, 0.20)
 const TOUCH := 64.0
 const TIP_W := 270.0
 const TIP_W_COMPACT := 210.0
 const PAD := 8.0
 const FOOD_ICON := &"eat"
 
-## Drawn this frame: entry key -> chip rect (the 26 px square), in row order.
+## Drawn this frame: entry key -> chip rect (the CHIP px square), in row order.
 var chips: Dictionary = {}
 ## The key whose tooltip is pinned (click / tap); "" = none. A hover shows without pinning.
 var pinned: String = ""
@@ -78,12 +85,12 @@ func draw(ci: CanvasItem, font: Font, at: Vector2, p: Player, r: Vector2) -> Rec
 	var x := at.x
 	for e in entries(p):
 		var key: String = e["key"]
-		var box := Rect2(Vector2(x, at.y), Vector2(HudStatusChip.PX, HudStatusChip.PX))
-		HudStatusChip.draw(ci, font, box.position, e["icon"], Color(1, 0.75, 0.45))
-		var col: Color = e["color"]
-		ci.draw_rect(box.grow(-0.75), UiTokens.GOLD if key == shown() else col, false, 2.0 if key == shown() else 1.5)
+		var box := Rect2(Vector2(x, at.y), Vector2(CHIP, CHIP))
+		draw_chip(ci, font, box, e["icon"], e["kind"], key == shown())
 		if float(e["time_left"]) < 3600.0:  # "until washed / treated" statuses (9999 s) show no countdown
-			ci.draw_string(font, Vector2(x, at.y + 40), "%.0f" % float(e["time_left"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
+			var tt := "%.0f" % float(e["time_left"])
+			ci.draw_string_outline(font, Vector2(x, at.y + CHIP + 14.0), tt, HORIZONTAL_ALIGNMENT_CENTER, CHIP, 12, 3, Color(0, 0, 0, 0.8))
+			ci.draw_string(font, Vector2(x, at.y + CHIP + 14.0), tt, HORIZONTAL_ALIGNMENT_CENTER, CHIP, 12, Color.WHITE)
 		chips[key] = box
 		_entries[key] = e
 		x += PITCH
@@ -91,7 +98,28 @@ func draw(ci: CanvasItem, font: Font, at: Vector2, p: Player, r: Vector2) -> Rec
 		pinned = ""  # the buff ended
 	if hovered != "" and not chips.has(hovered):
 		hovered = ""
-	return Rect2(at, Vector2(x - at.x - 4.0, 44.0)) if not chips.is_empty() else Rect2()
+	return Rect2(at, Vector2(x - at.x - (PITCH - CHIP), ROW_H)) if not chips.is_empty() else Rect2()
+
+## One chip in black and white: a shadow, a black tile with a white rim (GOLD while its tooltip shows), the
+## white icon, and for `kind` buff / boon / debuff the coloured arrow on a black disc at the top-right.
+static func draw_chip(ci: CanvasItem, font: Font, box: Rect2, icon: StringName, kind: StringName, lit: bool = false) -> void:
+	ci.draw_rect(Rect2(box.position + Vector2(0, 2), box.size), Color(0, 0, 0, 0.45))
+	ci.draw_rect(box, Color(0.04, 0.04, 0.05, 0.92))
+	ci.draw_rect(box.grow(-1.0), UiTokens.GOLD if lit else Color(0.95, 0.95, 0.95), false, 2.0)
+	var tex := HudStatusChip.icon_for(icon)
+	var inner := box.grow(-6.0)
+	if tex:
+		ci.draw_texture_rect(tex, inner, false, Color.WHITE)
+	else:
+		ci.draw_string(font, Vector2(box.position.x, box.get_center().y + 5.0), str(icon).left(2).to_upper(), HORIZONTAL_ALIGNMENT_CENTER, box.size.x, 14, Color.WHITE)
+	if kind == &"debuff" or kind == &"buff" or kind == &"boon":
+		var up := kind != &"debuff"
+		var c := box.position + Vector2(box.size.x - 2.0, 2.0)
+		ci.draw_circle(c, 8.0, Color(0, 0, 0, 0.95), true, -1.0, true)
+		ci.draw_circle(c, 8.0, Color(0.95, 0.95, 0.95), false, 1.2, true)
+		var tri := PackedVector2Array([c + Vector2(0, -5), c + Vector2(4.6, 1.5), c + Vector2(-4.6, 1.5)]) if up else PackedVector2Array([c + Vector2(0, 5), c + Vector2(4.6, -1.5), c + Vector2(-4.6, -1.5)])
+		ci.draw_colored_polygon(tri, UP_BLUE if up else DOWN_RED)
+		ci.draw_rect(Rect2(c + Vector2(-1.5, 1.0 if up else -4.5), Vector2(3, 3.5)), UP_BLUE if up else DOWN_RED)
 
 ## The key whose tooltip shows: the pinned one, else the hovered one.
 func shown() -> String:

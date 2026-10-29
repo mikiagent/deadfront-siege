@@ -385,10 +385,14 @@ func _test_flow_and_save() -> void:
 		_check(false, "hooks patch not applied: World.look is missing")
 		return
 	_check(W.look == want_look, "World keeps the look (%s)" % [W.look])
-	# ISLANDPICK follows creation: pick a Tamed Island shape, then the world. The look survives the landing.
+	# TUTORIAL ISLAND: creation lands on the tutorial island; its last order opens the ISLANDPICK
+	# grant (t_tutorial plays the orders). Jump to that grant here: pick a shape, then the home.
+	_check(W.island_id == &"tutorial_isle" and get_nodes_in_group(&"island_pick").is_empty(), "the Name step lands on the tutorial island, not the pick (%s)" % W.island_id)
+	load("res://scripts/core/tutorial.gd").call("grant_home", host)
+	await process_frame
 	var ips := get_nodes_in_group(&"island_pick")
 	var ip = ips[0] if not ips.is_empty() else null
-	_check(ip != null and ip.visible, "the Tamed Island pick opens after the Name step")
+	_check(ip != null and ip.visible, "the Tamed Island pick opens at the tutorial grant")
 	if ip == null:
 		return
 	var card := ip.find_child("Shape_forest", true, false) as Button
@@ -398,6 +402,10 @@ func _test_flow_and_save() -> void:
 		return
 	card.pressed.emit()
 	go.pressed.emit()
+	for k in 120:  # the ferry fades out and in (World._fade_to) before the home is built
+		if W.home_shape != &"":
+			break
+		await process_frame
 	await process_frame
 	_check(not W.creation_pending and W.home_shape == &"forest", "create character -> pick island -> world (shape=%s pending=%s)" % [W.home_shape, W.creation_pending])
 	_check(W.look == want_look, "the look survives the island pick")
