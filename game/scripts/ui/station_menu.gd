@@ -54,6 +54,16 @@ const HEIGHTS := {
 	&"crock_pot": 1.45,
 }
 const DEFAULT_HEIGHT := 1.45
+## Kingdom Rush layout (owner 2026-10-28): six fixed slots around the station, the same slot for the
+## same action every time. Angles in degrees from +x, screen y down: 0 top, 1 top-right, 2 bottom-right,
+## 3 bottom, 4 bottom-left, 5 top-left.
+const SLOT_ANGLES := [-90.0, -30.0, 30.0, 90.0, 150.0, -150.0]
+## Fixed slots by action; the station's own main action takes the top (0); others take the first free.
+const SLOT_OF := {&"package": 4, &"remove": 2, &"wood": 1, &"collect": 5, &"take_back": 3, &"cauterise": 3}
+const OPEN_SECONDS := 0.15
+const STAGGER := 0.03
+## Ring radius in hexes: wide enough that neighbouring slots (60 degrees apart) never touch.
+const RADIUS_HEX := 1.55
 
 var station: Node3D
 var player: Player
@@ -359,16 +369,6 @@ func _card_spot(view: Vector2, safe: Vector4) -> Vector2:
 		return Vector2(safe.w + 8.0, safe.z + 116.0)  # under the vitals, over the (usually empty) whistle row
 	return Vector2(safe.w + 12.0, safe.z + (100.0 if UiTokens.is_narrow(view) else 120.0))
 
-## Kingdom Rush layout (owner 2026-10-28): six fixed slots around the station, the same slot for the
-## same action every time. Angles in degrees from +x, screen y down: 0 top, 1 top-right, 2 bottom-right,
-## 3 bottom, 4 bottom-left, 5 top-left.
-const SLOT_ANGLES := [-90.0, -30.0, 30.0, 90.0, 150.0, -150.0]
-## Fixed slots by action; the station's own main action takes the top (0); others take the first free.
-const SLOT_OF := {&"package": 4, &"remove": 2, &"wood": 1, &"collect": 5, &"take_back": 3, &"cauterise": 3}
-const OPEN_SECONDS := 0.15
-const STAGGER := 0.03
-## Ring radius in hexes: wide enough that neighbouring slots (60 degrees apart) never touch.
-const RADIUS_HEX := 1.55
 
 ## Slot index per button, in button order: fixed per action kind, the main action on top.
 static func slots_for(ids: Array) -> Array[int]:
