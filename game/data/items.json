@@ -158,6 +158,22 @@
       "rarity": "uncommon"
     },
     {
+      "id": "metal_nails",
+      "display_name": "Metal Nails",
+      "categories": [
+        "metal",
+        "nails"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#9aa0a8"
+      },
+      "market_category": "ingot",
+      "rarity": "uncommon"
+    },
+    {
       "id": "copper_ingot",
       "display_name": "Copper Ingot",
       "categories": [
@@ -866,6 +882,57 @@
       ],
       "market_category": "building_kit",
       "rarity": "common"
+    },
+    {
+      "id": "taming_pen_medium",
+      "display_name": "Medium Taming Pen",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "taming_pen_medium",
+      "footprint": [
+        5,
+        5
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
+    },
+    {
+      "id": "taming_pen_large",
+      "display_name": "Large Taming Pen",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "taming_pen_large",
+      "footprint": [
+        6,
+        6
+      ],
+      "market_category": "building_kit",
+      "rarity": "rare"
+    },
+    {
+      "id": "taming_pen_apex",
+      "display_name": "Apex Taming Pen",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "taming_pen_apex",
+      "footprint": [
+        8,
+        8
+      ],
+      "market_category": "building_kit",
+      "rarity": "epic"
     },
     {
       "id": "campfire_kit",

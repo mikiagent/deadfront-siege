@@ -740,6 +740,112 @@
       "requires_node": "taming_pen"
     },
     {
+      "id": "taming_pen_medium_kit",
+      "display_name": "Medium Taming Pen Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "nails",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "taming_pen_medium",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "requires_node": "taming_pen"
+    },
+    {
+      "id": "taming_pen_large_kit",
+      "display_name": "Large Taming Pen Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 12,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "stone",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "nails",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "taming_pen_large",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "requires_node": "taming_pen"
+    },
+    {
+      "id": "taming_pen_apex_kit",
+      "display_name": "Apex Taming Pen Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "log",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 8,
+          "primary": false
+        },
+        {
+          "category": "stone",
+          "count": 12,
+          "primary": false
+        },
+        {
+          "category": "nails",
+          "count": 8,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "taming_pen_apex",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "requires_node": "taming_pen"
+    },
+    {
       "id": "workbench_kit",
       "display_name": "Workbench Kit",
       "skill": "construction",
@@ -4528,6 +4634,33 @@
       "process_add": 1,
       "requires_node": "nails_pillars",
       "tree": "construction"
+    },
+    {
+      "id": "metal_nails",
+      "display_name": "Metal Nails",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "ingot",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "fuel",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "metal_nails",
+        "count": 4
+      },
+      "station": "forge",
+      "seconds": 6.0,
+      "process_step": "smelt",
+      "process_add": 1,
+      "requires_node": "nails_pillars"
     },
     {
       "id": "cloth_scrap",

@@ -1,5 +1,5 @@
 {
-  "_about": "Crop growth and yield. Water amount raises success chance; fertilizer raises yield with overflow. Output level capped by Farming skill.",
+  "_about": "Crop growth and yield. `color`: the ripening head drawn on the field (FieldPlot crop stages).  Water amount raises success chance; fertilizer raises yield with overflow. Output level capped by Farming skill.",
   "base_success": 0.55,
   "water_bonus_per_unit": 0.12,
   "max_success": 0.95,
@@ -8,6 +8,7 @@
   "crops": {
     "flax": {
       "seed": "flax_seed",
+      "color": "#6d8fd6",
       "output": "flax",
       "growth_seconds": 120.0,
       "base_yield": 2,
@@ -15,6 +16,7 @@
     },
     "corn": {
       "seed": "corn_seed",
+      "color": "#e8c53a",
       "output": "corn",
       "growth_seconds": 90.0,
       "base_yield": 3,
@@ -22,6 +24,7 @@
     },
     "wheat": {
       "seed": "wheat_seed",
+      "color": "#d9b25a",
       "output": "wheat",
       "growth_seconds": 100.0,
       "base_yield": 3,
@@ -29,6 +32,7 @@
     },
     "berry": {
       "seed": "berry_seed",
+      "color": "#c2304a",
       "output": "berry",
       "growth_seconds": 80.0,
       "base_yield": 2,
