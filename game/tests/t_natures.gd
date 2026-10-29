@@ -512,6 +512,8 @@ func _test_taming_numbers() -> void:
 	# The capture rule still gates every feed (spec 09): bring both to 20 % HP first.
 	docile.health.hp = docile.health.max_hp * 0.2
 	stubborn.health.hp = stubborn.health.max_hp * 0.2
+	docile.torpor = docile.torpor_max()  # FOODTORPOR: knocked out = weak + torpor past the threshold
+	stubborn.torpor = stubborn.torpor_max()
 	FT.begin_window(docile)
 	var window: float = docile.tame_window_left
 	var okay: bool = FT.apply_feed(player, docile, &"berry")
@@ -610,6 +612,7 @@ func _test_pet_keeps_nature() -> void:
 	# The tame itself carries it: FieldTame stamps the animal's nature onto the record it makes.
 	var fresh := _creature(&"protoceratops", Vector3(0, 1, -126), &"stubborn")
 	fresh.health.hp = fresh.health.max_hp * 0.2
+	fresh.torpor = fresh.torpor_max()  # FOODTORPOR
 	var player: Node = load("res://scenes/player/player.tscn").instantiate()
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(player)

@@ -28,7 +28,7 @@ var _icon_cache: Dictionary = {}
 var _emphasis_id: int = 0
 
 const TORPOR_COLOR := Color(0.58, 0.42, 1.0, 0.95)
-const TORPOR_H := 3.0
+const TORPOR_H := 4.0
 
 func _ready() -> void:
 	layer = 58
@@ -443,6 +443,9 @@ func _fit_pill(entry: Dictionary, full: bool) -> void:
 		return
 	var by := float(entry.get("bar_y", bar_top(false)))
 	var bottom := by + 17.0  # name, nature tag, then the HP bar
+	var torpor := entry.get("torpor_bg", null) as Control
+	if torpor and torpor.visible:
+		bottom = by + 14.0 + 1.0 + TORPOR_H + 3.0  # the torpor strip under the HP bar
 	var line3 := entry.get("line3", null) as Control
 	if line3 and line3.visible:
 		for g in line3.get_children():

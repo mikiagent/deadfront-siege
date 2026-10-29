@@ -24,10 +24,12 @@ const EXPECTED_FAIL_TIME := false
 ## change no output). These are the island the plan's budget is about; they may not change.
 ## Re-recorded 2026-10-28 for TERRAINSMOOTH (refined 2x surface, sandy beach stretches), a change of
 ## output by design: canon 0ae592a5 built the old digests, the terrain merge on top builds these.
+## Re-recorded 2026-10-29 for FOODTORPOR (2 narcoberry bushes per island, own RNG stream; with their
+## count set to 0 the build still matched the TERRAINSMOOTH digests above, checked before re-recording).
 const BEFORE := {
-	"home_grassland": "8f711ab5979e9d36d55b50cec073c986e1bc8e38623d512876f6eb8968327b3a",
-	"savannah_15": "92c0553497c7e3ef18c5e1ed9b8c67d617d127d9c36f2c452c516296ba78abd9",
-	"volcanic_60": "9c9c8c7c37a811a0908bb0ec56b5337c682133c80bddc7f3c18130d663e74d5f",
+	"home_grassland": "31ca1eae0499e4616beb0b8ae203be59a2a6e6ca52cb192af76585e1846c7d15",
+	"savannah_15": "83512eba4bc7f122a400a9d995f8dda47c7469d0bbdb152520e4d3404f1fc925",
+	"volcanic_60": "abbbb45a9095edc218d12db5924f6f4fa201498ac2a1a749b3d9e8b48f77eb22",
 }
 
 var _fails: PackedStringArray = []

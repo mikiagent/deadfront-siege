@@ -33,6 +33,8 @@
 		"fire_ranged": "res://assets/icons/ui/fire_ranged.svg",
 		"fire": "res://assets/icons/ui/fire_ranged.svg",
 		"coat_weapon": "res://assets/icons/ui/coat.svg",
+		"coat_sedative": "res://assets/icons/ui/coat.svg",
+		"fire_dart": "res://assets/icons/ui/fire_ranged.svg",
 		"coat": "res://assets/icons/ui/coat.svg",
 		"rope_snare": "res://assets/icons/ui/snare.svg",
 		"heavy_snare": "res://assets/icons/ui/snare.svg",

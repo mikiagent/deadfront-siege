@@ -501,6 +501,7 @@ func _test_field_tame_cap() -> void:
 	c.add_child(c.statuses)
 	c.health.hp = def.hp * 0.2
 	c.statuses.apply(&"knockdown")
+	c.torpor = c.torpor_max()  # FOODTORPOR: knocked out = weak + torpor past the threshold
 	var food: StringName = def.preferred_food[0]
 	p.inventory.add(IS.make(food, 2))
 	var hint: Dictionary = FT.plate_hint(c, p.inventory)

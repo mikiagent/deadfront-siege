@@ -205,6 +205,9 @@ func _test_net() -> void:
 	_expect(net.bottom_text == "", "NET leaves its bottom line free for the taming odds")
 	z.health.hp = z.health.max_hp * 0.25
 	_hud._process(0.1)
-	_expect(not net.disabled and net.fill == GOLD and net.rim_color == GOLD, "NET turns gold at 25 %")
+	_expect(net.fill != GOLD, "FOODTORPOR: NET is not gold at 25 % with no torpor")
+	z.torpor = z.torpor_max()  # knocked out = weak + torpor past the threshold
+	_hud._process(0.1)
+	_expect(not net.disabled and net.fill == GOLD and net.rim_color == GOLD, "NET turns gold at 25 % once sedated")
 	_player.hunt.stop()
 	z.queue_free()

@@ -30,7 +30,7 @@ var player: Player
 var last_notice: String = ""
 ## Spec 09: one "stun it" hint per creature, when a tameable wild animal under the hunt drops to
 ## <= 50 % HP and is not stunned. Keyed by instance id so a second animal gets its own hint.
-const STUN_HINT := "Stun the dinosaur to capture it safely."
+const STUN_HINT := "Weaken and sedate the dinosaur to capture it."
 const STUN_HINT_FRAC := 0.50  ## the early tutorial target the spec names (not a hard capture rule)
 const TRANQ_DART := &"tranquilizer_dart"
 const CAPTURE_REFUSAL := "Weaken it and sedate it until it is knocked out to capture it."

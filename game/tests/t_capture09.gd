@@ -6,7 +6,7 @@ extends SceneTree
 ## Run: Godot --headless --path game --script res://tests/t_capture09.gd -> "[t_capture09] PASS".
 ## Scripts are load()ed on the first frame: `--script` compiles this file before autoloads exist.
 
-const HINT := "Stun the dinosaur to capture it safely."
+const HINT := "Weaken and sedate the dinosaur to capture it."
 const WATCHDOG_S := 60.0
 
 var _fails: PackedStringArray = []
