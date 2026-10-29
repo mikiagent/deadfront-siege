@@ -81,13 +81,14 @@ func _test_rect(view: Vector2) -> void:
 	var phone: bool = TOK.is_phone(view)
 	var vit: Rect2 = _hud.drawn_blocks["vitals"]
 	# LEVELBAR (owner 2026-10-28): the level disc left of the bars is gone and the row took its 44 px.
-	var full_w := 276.0 if not phone else maxf(128.0, vit.size.x - 14.0)
+	var full_w: float = vit.size.x - HudLevelBadge.COLUMN - 24.0 if TOK.is_compact(view) or phone else 276.0  # LEVELBADGE
 	var b: Rect2 = ET.last_rect
 	_expect(b.size.is_equal_approx(Vector2(full_w, ET.BELT_H)), "%s the belt keeps its size %s (got %s)" % [tag, Vector2(full_w, ET.BELT_H), b.size])
 	var m: Rect2 = ET.marker_rect
 	_expect(m.size.y > m.size.x and m.size.y > b.size.y and absf(m.get_center().y - b.get_center().y) < 0.01 and m.position.x >= b.position.x and m.end.x <= b.end.x,
 		"%s the strain marker is a tall bar across the belt (%s on %s)" % [tag, m, b])
-	_expect(is_equal_approx(b.position.x, vit.position.x + 8.0) and vit.encloses(b), "%s the belt keeps its place inside the vitals block (%s in %s)" % [tag, b, vit])
+	# LEVELBADGE (owner 2026-10-28): the level badge is back left of the bars; the belt starts after its column.
+	_expect(is_equal_approx(b.position.x, vit.position.x + 8.0 + HudLevelBadge.COLUMN) and vit.encloses(b), "%s the belt keeps its place inside the vitals block (%s in %s)" % [tag, b, vit])
 
 ## The belt drawn 50 times a frame on a bare Control, before the world loads. 600 frames with the belt
 ## off, then 600 with it on: the difference in net static memory and object count is what the belt costs
