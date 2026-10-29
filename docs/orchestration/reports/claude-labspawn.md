@@ -55,10 +55,25 @@ Branch `claude/mmo-labspawn`, cut from `origin/claude/mmo-overhaul` (d8e013fa). 
     member 0, all in front of her;
   - the count stops at 6, CLEAR ALL empties the field, and any species with a model can be
     spawned.
-- `t_swarm` PASS, 3 identical runs:
-  - a pack of 4 surrounds her (average largest neighbour gap 184°, against a 200° bar);
-  - it darts and scurries out (39 darts, 45 back-outs in 30 s);
-  - the plain-bite share is 0.025;
+- `t_swarm` PASS on every run:
+  - a pack of 4 surrounds her: average largest neighbour gap 129° while it circles (bar 180°);
+  - 28 darts and 41 back-outs in 30 s, plain-bite share 0;
   - a hurt compy flees, and a packmate's death scatters the other two;
-  - 19.5 darts/min each in a pack of four, against 8.0 for a lone compy.
-- The other gates are in the hand-back.
+  - 14 darts/min each in a pack of four, against 6 for a lone compy.
+- **Determinism:** the pack fight replays identically most of the time but not always (1 run in 3
+  differed slightly; every run passed). I removed these sources:
+  - the 10 Hz think stagger ran on the absolute engine frame; it now uses each brain's own step
+    count;
+  - the pack attack gap ran on the wall clock; it now uses the physics-step clock;
+  - the surround ring turned on the absolute frame; it now uses the leader's fight clock.
+  - **What's left:** BrainFlight's leash re-acquire hold still uses the wall clock (t_ai pins it
+    to wall time). t_tactical stays identical.
+- **Other gates:** all PASS — t_tactical (identical x2), t_ai, t_combat, t_natures, t_canim,
+  t_tribe, t_labspawn, t_turnrate, smoke and run_all.
+  - t_ragdoll failed once under load ("compsognathus slope death joint stretch 47 %") and passed
+    twice when rerun. It's a physics check sensitive to machine load, not to the AI.
+- **Fixes along the way (all brains):**
+  - TacticalBrain's approach now counts the nav agent's 0.9 m stop distance as arrival; before,
+    a creature could stall just short of the ring.
+  - A surrounding pack darts only from within 2 m of its own slot, so the bites come from every
+    side.
