@@ -77,6 +77,8 @@ func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Di
 	_apply_tint()
 
 func _ready() -> void:
+	# TUTPERF: only a regrowing node ticks (600-odd nodes per island used to run an empty _process).
+	set_process(not _pool_regen.is_empty())
 	var runtime := get_parent()
 	if runtime and runtime.has_method("surface_y"):
 		_tile = BuildGrid.tile_of(global_position)
@@ -131,6 +133,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if _pool_regen.is_empty() or regen_seconds <= 0.0:
+		set_process(false)
 		return
 	var refilled := false
 	for item in _pool_regen.keys():
@@ -209,6 +212,7 @@ func restore_pools(snap: Dictionary) -> void:
 		pool_maxes = (m as Dictionary).duplicate()
 	if r is Dictionary:
 		_pool_regen = (r as Dictionary).duplicate()
+		set_process(not _pool_regen.is_empty())
 	_ensure_pools()
 	_regen_left = _min_regen()
 	_sync_visual_state()
@@ -364,6 +368,7 @@ func consume_unit() -> bool:
 		pools[key] = maxf(0.0, float(pools[key]) - 1.0)
 		if int(floor(float(pools[key]) + 0.0001)) <= 0 and regen_seconds > 0.0:
 			_pool_regen[key] = regen_seconds  # the family's own regrowth time, not a flat hour
+			set_process(true)
 			_regen_left = _min_regen()
 	else:
 		pool = maxf(0.0, pool - 1.0)
