@@ -140,12 +140,12 @@ func _test_solo_spawn_and_tame_pack() -> void:
 		c.free()
 	sp.free()
 
-## qa-ai-01: the leash rule for all 19 species, not 3. A target just inside aggro_radius is
+## qa-ai-01: the leash rule for all 20 species, not 3. A target just inside aggro_radius is
 ## kept for a think; one just outside is dropped on the next think and the animal stands down.
 func _test_leash_every_species() -> void:
 	game.time_of_day = 0.40
 	var ids := _species()
-	_check(ids.size() == 19, "expected 19 species, found %d" % ids.size())
+	_check(ids.size() == 20, "expected 20 species, found %d" % ids.size())
 	var bad: Array[String] = []
 	for id in ids:
 		var c := _creature(id)
