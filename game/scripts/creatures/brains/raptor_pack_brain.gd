@@ -68,7 +68,7 @@ func _think(delta: float) -> void:
 		creature.anim.play_clip(&"attack_primary")
 		_attack_cd = 1.1 * _rage_cd()
 		if _is_pack_member():
-			_pack_cooldown_until[creature.pack_id] = _now_s() + 0.25
+			_pack_cooldown_until[creature.pack_id] = _sim_s() + 0.25
 
 func _is_off_axis() -> bool:
 	if attack_target == null:

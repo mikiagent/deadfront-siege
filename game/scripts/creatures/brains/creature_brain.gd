@@ -53,6 +53,7 @@ var _last_hit_s: float = -999.0
 var _provoked_until: float = -1.0
 var _retarget_cd: float = 0.0
 var _think_phase: int = 0
+var _frame_n: int = 0  ## physics steps this brain has run
 var _think_dt: float = 0.0
 var _dt: float = 0.0
 var _awake_until: float = -1.0
@@ -199,7 +200,9 @@ func _physics_process(delta: float) -> void:
 		return
 	_think_dt += delta
 	_face_target(delta)
-	if not _should_think(Engine.get_physics_frames()):
+	_frame_n += 1
+	# The brain's own step count, not the engine's: the 10 Hz stagger then replays the same from spawn.
+	if not _should_think(_frame_n):
 		return
 	var dt := _think_dt
 	_think_dt = 0.0
@@ -544,7 +547,7 @@ func _do_attack() -> void:
 	creature.anim.play_clip(clip)
 	_attack_cd = (1.2 if clip == &"attack_primary" else 1.8) * _rage_cd()
 	if _is_pack_member():
-		_pack_cooldown_until[creature.pack_id] = _now_s() + 0.4
+		_pack_cooldown_until[creature.pack_id] = _sim_s() + 0.4
 
 func _retreat(delta: float) -> void:
 	if not _valid_target():
@@ -606,7 +609,7 @@ func _pack_ready() -> bool:
 	if not _is_pack_member():
 		return true
 	var until := float(_pack_cooldown_until.get(creature.pack_id, 0.0))
-	if until > _now_s():
+	if until > _sim_s():
 		return false
 	if _is_pack_leader():
 		return true
@@ -731,6 +734,11 @@ func _set_state(next: StringName) -> void:
 func _log(msg: String) -> void:
 	if Game and Game.debug_overlay:
 		print(msg)
+
+## Physics-step seconds (steps / ticks per second): the pack's shared attack gap is timed on this, not
+## the wall clock, so a seeded replay (t_tactical, t_swarm) gaps the same way under any machine load.
+func _sim_s() -> float:
+	return float(Engine.get_physics_frames()) / float(Engine.physics_ticks_per_second)
 
 func _now_s() -> float:
 	return float(Time.get_ticks_msec()) * 0.001

@@ -61,7 +61,7 @@ completion.
 - Brain selection (`Creature._make_brain`, `game/scripts/creatures/creature.gd`): pet → `PetBrain`;
   tyrannosaurus → `TyrantBrain`; any other species whose archetype row has a `tactics` block →
   `TacticalBrain` (`TacticalBrain.has_tactics`); a `raptor_pack` archetype → `RaptorPackBrain`; else
-  `CreatureBrain`. Today only `pack_flanker` (deinonychus) carries `tactics`.
+  `CreatureBrain`. Today `pack_flanker` (deinonychus) and `swarm` (compsognathus) carry `tactics`.
 - Tactical AI: a `TacticalBrain` animal closes to a stand-off ring (`ring_m` 5.5 for the deinonychus),
   strafes around it, and picks its strongest off-cooldown, affordable, in-range attack from
   `attack_priority` (deinonychus: combo, pounce, bite). Every move has its own cooldown in the
@@ -81,7 +81,8 @@ Driven by the archetype (`ai.json archetypes.<a>.tactics`), not by per-species c
 |---|---|---|
 | pack_flanker (fast_hunter) | deinonychus | **built**: ambush from tree cover; sequences (backstep / powerful strafe → pounce, charge, leap-in combo); leap back; hold / strafe / feint fillers; rare basic bite |
 | pack_raptor, apex_raptor (fast_hunter) | velociraptor; utahraptor, allosaurus | planned (owner suggestion): circle, flank, lunge, pounce; apex fewer feints, bigger pounce. Today: RaptorPackBrain |
-| swarm, flock_harass (fast_hunter) | compsognathus; coelophysis | planned: hit-and-run darting. Today: CreatureBrain |
+| swarm (fast_hunter) | compsognathus | **built**: surround (each packmate holds its own slot on a slowly turning ring), dart in (charge into a bite), scurry back out, feints, flee when hurt or when a packmate dies, bolder in a pack of 4+, timid alone, presses a weakened survivor; rare basic bite |
+| flock_harass (fast_hunter) | coelophysis | planned: hit-and-run darting. Today: CreatureBrain |
 | saber_cat (fast_hunter) | smilodon | planned: stalk, then pounce from stand-off |
 | tyrant, titan (giant) | T. rex, tarbosaurus; brachiosaurus | T. rex: TyrantBrain (telegraphed bite / stomp, no circling); the rest planned the same |
 | horned_charger, antlered | triceratops, styracosaurus; megaloceros | planned: line up, long wind-up straight charge, staggered after a miss |

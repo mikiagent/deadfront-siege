@@ -3,6 +3,8 @@ extends Node3D
 ## The survivor cannot die, tire or exhaust here (god mode, this lab only) so clips can be watched up close.
 ## --species=deinonychus[,velociraptor...] spawns only those (one each) instead of the default roster.
 ## --ride=deinonychus spawns that species as a saddled pet and puts the survivor on it.
+## The SPAWN button (left) opens a selector: species with a model, count 1-6, nature or Random, Alpha;
+## SPAWN drops them in front of the survivor, CLEAR ALL removes every wild animal.
 ## Key N (or --enrage) enrages the nearest wild creature.
 ## Key 0 plays bite_combo (chomp, Chomp, CHOMP) on the mount, or else the nearest creature that has one.
 ## Wild deinonychus fight with TacticalBrain (circle, feint, lunge, pounce, combo); F3 prints each move.
@@ -10,6 +12,8 @@ extends Node3D
 ## a lurking ambusher is stepped into its ambush radius after a second so the capture shows the fight.
 
 var _player: Player
+## The on-screen SPAWN selector (species, count 1-6, nature, Alpha; Spawn / Clear all).
+var spawn_panel: LabSpawnPanel
 var _seq_dir := ""
 var _seq_t := 0.0
 var _seq_n := 0
@@ -22,6 +26,12 @@ func _ready() -> void:
 	_obstacle(Vector3(-8, 1, 5))
 	_obstacle(Vector3(3, 1, -10))
 	LabKit.bake(self)  # the crates carve the navmesh, so ground taps route around them
+	var layer := CanvasLayer.new()
+	layer.layer = 5
+	add_child(layer)
+	spawn_panel = LabSpawnPanel.new()
+	layer.add_child(spawn_panel)
+	spawn_panel.setup(_player)
 	var only := ""
 	var ride := ""
 	for a in OS.get_cmdline_user_args():
@@ -31,6 +41,8 @@ func _ready() -> void:
 			ride = a.substr(7)
 		elif a.begins_with("--seq="):
 			_seq_dir = a.substr(6)
+		elif a == "--spawn-open":
+			(func() -> void: spawn_panel.get_node("SpawnPanel").visible = true).call_deferred()
 		elif a == "--enrage":
 			get_tree().create_timer(1.0).timeout.connect(_enrage_nearest)
 	if ride != "":
