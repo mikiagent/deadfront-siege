@@ -69,7 +69,7 @@ static func spawn(row: Dictionary) -> Node3D:
 			return CraftStation.from_dict(row)
 		&"bonfire", &"stone_fire_pit", &"campfire":
 			return Bonfire.from_dict(row)
-		&"makeshift_taming_pen":
+		&"makeshift_taming_pen", &"taming_pen_medium", &"taming_pen_large", &"taming_pen_apex":
 			return TamingPen.from_dict(row)
 		&"field_small", &"field_large":
 			return FieldPlot.from_dict(row)

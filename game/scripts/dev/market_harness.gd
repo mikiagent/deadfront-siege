@@ -56,10 +56,9 @@ func client(acct: int = VIEWER) -> LocalMarketClient:
 func seed_scene() -> void:
 	now += int(bridge.econ.engine.L.rules.num("trade_lock_s")) + 1 # new accounts wait out the lock
 	for acct: int in [SELLER_A, SELLER_B, VIEWER]:
-		# Settlers' orders pay 26-36 tradable in the 48 windows earn() waits. The viewer aims higher: it
-		# buys a 20 bone later and must still afford a 12 listing, and how far a window overshoots the
-		# target moves whenever items.json gains a market item (CRAFTRADIAL's metal items left it at 11).
-		earn(acct, 35 if acct == VIEWER else 25)
+		# 40, not 25: the viewer spends 20 on a bone and must still afford a 12-stone listing; the exact
+		# overshoot past a lower target moved whenever items.json grew (Settlers' demand rotates over it).
+		earn(acct, 40)
 	# Seller A: three single branches, two bones, a knife with durability.
 	_gather(SELLER_A, "branch", 5)
 	for i in 3:
@@ -180,7 +179,11 @@ func tame(acct: int, net_id: String) -> String:
 ## A captured_animal cage in the bag through the real capture steps; returns its slot or -1.
 func capture(acct: int, net_id: String) -> int:
 	var before := _count(acct, "captured_animal")
-	_net(acct)
+	_gather(acct, "fibre_stalk", 4)
+	_gather(acct, "branch", 1)
+	for i in 2:
+		bridge.client("act.craft", acct, {"recipe_id": "twine", "picks": [_slot(acct, "fibre_stalk")]}, now)
+	bridge.client("act.craft", acct, {"recipe_id": "capture_net_i"}, now)
 	world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 10.0})
 	for i in 40:
 		world.creatures[net_id].knocked = true
@@ -188,21 +191,11 @@ func capture(acct: int, net_id: String) -> int:
 		if got.get("ok", false) and got.r.get("captured", false):
 			break
 		if _count(acct, "capture_net_i") == 0:
-			_net(acct)
+			bridge.client("act.craft", acct, {"recipe_id": "capture_net_i"}, now)
 	if _count(acct, "captured_animal") <= before:
 		failures.append("capture %s put no cage in the bag" % net_id)
 		return -1
 	return _slot(acct, "captured_animal")
-
-## One capture net from fresh materials. A broken net used to be re-crafted from whatever the bag held,
-## so once the first net's twine was spent every later throw had no net and the capture never landed
-## (which seed run hit that moved with how long earn() took).
-func _net(acct: int) -> void:
-	_gather(acct, "fibre_stalk", 4)
-	_gather(acct, "branch", 1)
-	for i in 2:
-		bridge.client("act.craft", acct, {"recipe_id": "twine", "picks": [_slot(acct, "fibre_stalk")]}, now)
-	bridge.client("act.craft", acct, {"recipe_id": "capture_net_i"}, now)
 
 func _craft_knife(acct: int) -> bool:
 	_gather(acct, "branch", 1) # the handle: a branch left over from earn() depends on which Settlers' orders are open

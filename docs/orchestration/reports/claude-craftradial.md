@@ -82,11 +82,10 @@ Branch `claude/mmo-craftradial` (from `origin/claude/mmo-overhaul`). Rules writt
 - Bones become planks: the Plank slot now asks for `thick_pillar` instead of `split`. Split wood, large leg
   bones and stout leg bones carry that tag.
 - Metal becomes sticks: new items `silver_chunk`, `metal_stick` (tags metal / stick / handle, so it fills handle
-  slots) and `metal_nail`. `metal_shard` gains the `chunk` tag.
-- New anvil recipes: `metal_stick` (1 chunk → 2 sticks, 10:00) and `metal_nail` (1 chunk → 4 nails, 2:00).
+  slots); nails are STATIONSTATE's `metal_nails` (deduped: my `metal_nail` item is gone). `metal_shard` gains the `chunk` tag.
+- New anvil recipes: `metal_stick` (1 chunk → 2 sticks, 10:00) and `metal_nails_from_chunk` (1 chunk → 4 `metal_nails`, 2:00, next to STATIONSTATE's ingot recipe at the forge).
   The new items have stack_max 1, so each output is its own item. Outputs inherit the primary input's
   attributes through the existing `build_output`; the test checks that Firm 4 carries over.
-- **I added `metal_nail` to the canon data. If claude/mmo-stationstate adds `metal_nails`, keep only one.**
 
 ## Verification
 
@@ -117,7 +116,7 @@ Branch `claude/mmo-craftradial` (from `origin/claude/mmo-overhaul`). Rules writt
   - `market_harness.gd` raises the viewer's earn target from 25 to 35. The new metal items enter the Settlers'
     demand rotation, which shifts how far each window overshoots the target, and the viewer ended at 11
     tradable, one short of the cheapest listing.
-  - `icons_manifest.json` aliases `silver_chunk` and `metal_nail` to the `metal_shard` icon and `metal_stick`
+  - `icons_manifest.json` aliases `silver_chunk` to the `metal_shard` icon and `metal_stick`
     to the `ingot` icon.
   - The new `silver_chunk` recipe smelts 2 silver ore into 1 chunk at the forge, so the chunk can be reached
     in-game (t_data).

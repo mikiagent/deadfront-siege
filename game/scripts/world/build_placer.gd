@@ -263,7 +263,7 @@ static func kind_of_building(n: Node) -> StringName:
 	if n == null:
 		return &""
 	if n is TamingPen:
-		return &"makeshift_taming_pen"
+		return (n as TamingPen).kind
 	if n is Bonfire:
 		return (n as Bonfire).kind
 	if n is CraftStation:
@@ -654,8 +654,8 @@ func _spawn(kind: StringName) -> Node3D:
 	match kind:
 		&"catapult":
 			return FieldCatapult.new()
-		&"makeshift_taming_pen":
-			return TamingPen.make()
+		&"makeshift_taming_pen", &"taming_pen_medium", &"taming_pen_large", &"taming_pen_apex":
+			return TamingPen.make(kind)
 		&"bonfire":
 			return Bonfire.make()
 		&"stone_fire_pit":

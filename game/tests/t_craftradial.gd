@@ -260,7 +260,7 @@ func _test_tags() -> void:
 	var made: Variant = _craft(rec, picks)
 	_expect(made != null and _player.inventory.count_of(&"plank") == 1 and _player.inventory.count_of(&"large_leg_bone") == 0, "the bones became a plank")
 	var silver_into: Array = CR.recipes_accepting(&"silver_chunk").map(func (r) -> String: return str(r.get("id", "")))
-	_expect(silver_into.has("metal_stick") and silver_into.has("metal_nail"), "silver's craft-into list has Metal Stick and Metal Nail (%s)" % [silver_into])
+	_expect(silver_into.has("metal_stick") and silver_into.has("metal_nails_from_chunk"), "silver's craft-into list has Metal Stick and Metal Nail (%s)" % [silver_into])
 	_bag([["silver_chunk", 1, 50, {"firm": 4}]])
 	rec = CR.recipe(&"metal_stick")
 	picks = CR.default_picks(_player.inventory, rec)

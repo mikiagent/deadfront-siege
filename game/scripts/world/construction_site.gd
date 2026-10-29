@@ -50,6 +50,60 @@ func _ready() -> void:
 		_pending = {}
 	if slot_items.is_empty():
 		setup(blueprint_id, owner_name)
+	_add_worksite_marks()
+
+## Owner 2026-10-28: a worksite reads as a bare patch of trodden dirt the size of its footprint, with a
+## faint grey round symbol of what is being built in the middle and its build progress over it.
+func _add_worksite_marks() -> void:
+	PropVisuals.ensure_foundation(self, grid_kind)
+	if get_node_or_null("SiteIcon") == null:
+		var disc := MeshInstance3D.new()
+		disc.name = "SiteIconDisc"
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.42
+		cyl.bottom_radius = 0.42
+		cyl.height = 0.01
+		cyl.radial_segments = 32
+		disc.mesh = cyl
+		var dm := StandardMaterial3D.new()
+		dm.albedo_color = Color(0.85, 0.85, 0.82, 0.35)
+		dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		disc.material_override = dm
+		disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		disc.position = Vector3(0.0, 0.12, 0.0)
+		add_child(disc)
+		var icon := Sprite3D.new()
+		icon.name = "SiteIcon"
+		icon.texture = HexButton.grey_texture(ItemIcons.texture(icon_item()))
+		icon.axis = Vector3.AXIS_Y # lies on the dirt, a symbol drawn on the plot
+		icon.pixel_size = 0.6 / maxf(1.0, float(icon.texture.get_width()) if icon.texture else 1.0)
+		icon.modulate = Color(1, 1, 1, 0.7)
+		icon.transparent = true
+		icon.shaded = false
+		icon.position = Vector3(0.0, 0.13, 0.0)
+		add_child(icon)
+	_sync_progress_label()
+
+## The item whose icon is the symbol: the station's kit (workbench_kit for a Workbench).
+func icon_item() -> StringName:
+	var kit := BuildPlacer.kit_for(grid_kind)
+	return kit if kit != &"" else grid_kind
+
+func _sync_progress_label() -> void:
+	var l := get_node_or_null("SiteProgress") as Label3D
+	if l == null:
+		l = StationState.floating_label("SiteProgress", 1.2)
+		add_child(l)
+	l.text = "Building %d%%" % roundi(overall_progress() * 100.0)
+
+var _label_left := 0.0
+
+func _process(delta: float) -> void:
+	_label_left -= delta
+	if _label_left <= 0.0:
+		_label_left = 0.25
+		_sync_progress_label()
 
 ## Unfinished sites use the art pipeline's stage models when they exist (site_small_0/1/2,
 ## site_large_0/1/2 under assets/props/blender/), else a simple stand-in (PropVisuals fallback).

@@ -138,6 +138,17 @@ Source: branch `claude/mmo-compyjumps`, report `docs/orchestration/reports/claud
 | **C6** | Landing: the bite keeps lunging at 1.3 x run until its contact frame while she is beyond 0.6 x reach; a compy at a walking survivor's heels with no bite allowed hops back and chases again. Target share of bites and pounces that connect on a survivor who does not roll: about 50-85 % (t_swarm measures standing and walking 2 m/s). | `bite_track`, `bite_track_frac`, `chase_hop` | Owner: "attacks aren't landing very often". The swarm's chase speed (0.5) still lets a running survivor get away. |
 | **C7** | "Missed" (grey, like Dodged/Blocked) is shown for a failed accuracy roll, an out-of-reach contact frame, a pounce that lands with the prey out of its jaws, and a survivor swing the creature stepped out of. A failed roll against a creature with a dodge chance is split by the same single draw: inside the dodge part "Dodged", inside the accuracy part "Missed". | `CombatTuning.swing_outcome`, `CombatAvoid` | Owner: damage text "Dodged" "Blocked" or "Missed". |
 
+## 2026-10-28 — Stations and pens (claude/mmo-stationstate)
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **P1** | Four pen tiers: small (≤ 6 m, value ≤ 2), medium (≤ 12 m, ≤ 4), large (≤ 18 m, ≤ 5), apex (any). Value = capture_tier, 0 counts as 6. Footprints 4/5/6/8 m. | `game/data/taming_pens.json` | Which dinosaurs each pen tames; the owner said "largely based on size and how good the dinosaur is". |
+| **P2** | Bigger pens cost wood/lashing/stone/log plus nails at a workbench, need the existing `taming_pen` node. | `recipes.json` `taming_pen_*_kit` | Progression pacing. |
+| **P3** | The pen rolls the capture S-curve (survival level vs animal level, health term 0, tier-1 net) instead of a flat 70 %; failure = the animal escapes wild. Size, nature, genetics show `???` until tamed (colours and level stay visible; the pen wait still follows the hidden nature). | `TamingPen.odds`, `TamingPenUI` | Taming difficulty; whether the wait leaks the nature. |
+| **P4** | `metal_nails`: 4 from 1 ingot + 1 fuel at the forge (node `nails_pillars`); required by the medium/large/apex pens (2/4/8). No other station needs them yet: kiln, oven, tanning frame, large drying rack and looms are not buildable kinds. | `items.json`, `recipes.json` | The owner wants nails to gate the next station tier. |
+| **P5** | The stone grill is the cooking station that shows the spit; no oven or tanning frame kind exists, so neither has a station-state row (one row in `station_state.json` once they do). The forge body is built from data boxes until a forge GLB lands. | `station_state.json` | Art and station roster. |
+| **P6** | Work loops per station: workbench/anvil/mortar hammer, grill/crock pot/steamer stir, rack/smoker hang, forge forge, tanning frame tan; `play_work(kind)` gets the short kind (clip `work_<kind>`). | `station_state.json` `work_anim` | Must match claude/mmo-rummage's PlayerAnim API. |
+
 ## Parked by other docs
 
 Each vision doc's unresolved points remain inside that doc until the workshop; the sections listed below are the owners' pointers, collected here only for reachability:

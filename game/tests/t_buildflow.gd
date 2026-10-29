@@ -300,6 +300,7 @@ func _test_work_and_completion() -> void:
 	var station = _BF.complete(_player, _site)
 	_expect(station != null and station.get_script() == _CS, "completion creates exactly one finished Workbench")
 	_expect(not is_instance_valid(_site) or _site.is_queued_for_deletion(), "the site is removed")
+	_expect(station == null or station.get_node_or_null("SiteIcon") == null, "the finished station replaces the worksite's dirt symbol")
 	_expect(site_units == 10 and _site.escrow().size() == 0, "escrow is consumed exactly once (was %d, now %d)" % [site_units, _site.escrow().size()])
 	var benches := 0
 	for n in _rt.get_tree().get_nodes_in_group("craft_station"):
