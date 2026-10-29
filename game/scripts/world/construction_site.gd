@@ -100,10 +100,20 @@ func _sync_progress_label() -> void:
 var _label_left := 0.0
 
 func _process(delta: float) -> void:
+	_tick_build(delta)
 	_label_left -= delta
 	if _label_left <= 0.0:
 		_label_left = 0.25
 		_sync_progress_label()
+
+## CRAFTRADIAL: the build timer, once the Construction panel placed every material.
+func _tick_build(delta: float) -> void:
+	if not building:
+		return
+	if not materials_ready() or work_done():
+		building = false
+		return
+	work_progress = minf(float(bp().get("work_seconds", 1.0)), work_progress + delta)
 
 ## Unfinished sites use the art pipeline's stage models when they exist (site_small_0/1/2,
 ## site_large_0/1/2 under assets/props/blender/), else a simple stand-in (PropVisuals fallback).
@@ -316,14 +326,6 @@ func work(seconds: float) -> bool:
 	work_progress = minf(secs, work_progress + maxf(0.01, seconds))
 	print("[buildflow] %s work %.1f/%.1f" % [site_id, work_progress, secs])
 	return true
-
-func _process(delta: float) -> void:
-	if not building:
-		return
-	if not materials_ready() or work_done():
-		building = false
-		return
-	work_progress = minf(float(bp().get("work_seconds", 1.0)), work_progress + delta)
 
 ## Tap entry: the construction site sheet (BuildUI). PlayerActions routes a site tap to the UI.
 func interact(player: Player) -> bool:
