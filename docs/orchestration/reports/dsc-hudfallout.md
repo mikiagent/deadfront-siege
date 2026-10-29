@@ -56,3 +56,7 @@ No gameplay or `game/scripts/ui/` code was changed.
 
 `bash …/verify_hudfallout.sh` → `VERIFY PASS` (t_death, t_gather, t_fieldhud, t_ui, t_levelfx,
 `tools/smoke.sh --no-import`).
+
+Re-run after canon moved again (CRAFTRADIAL, merge `2a95b264`, folded in here as `105a70bb`):
+still `VERIFY PASS`. The branch now differs from canon only in `.dsc-task/TASK.md`,
+`game/tests/t_death.gd`, `game/tests/t_gather.gd` and this report.
