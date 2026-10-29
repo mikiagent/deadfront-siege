@@ -233,6 +233,8 @@ func _hunt_weak() -> String:
 		var last_gap := INF
 		var stuck_since := _t
 		while _t < until and is_instance_valid(target) and not target.health.dead:
+			if get_tree().get_first_node_in_group("corpse") != null:
+				break  # a retaliation (canon's hit-interrupt) can kill a different compy first: that carcass counts
 			var gap := player.global_position.distance_to(target.global_position)
 			if gap > 2.0 and not player.nav_active:
 				player.nav_to(player._closest_nav_point(target.global_position))
@@ -245,7 +247,8 @@ func _hunt_weak() -> String:
 				shot = true
 				await capture("03_fight")
 			await _beat(0.25)
-		if is_instance_valid(target) and target.health.dead:
+		if (is_instance_valid(target) and target.health.dead) or get_tree().get_first_node_in_group("corpse") != null:
+			player.hunt.stop()
 			return ""
 		player.hunt.stop()
 		player.clear_nav()

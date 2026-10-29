@@ -36,6 +36,41 @@ static func roll_gather_rares(family: String, role: String, climate: String, too
 			out.append(StringName(str(row.get("item", ""))))
 	return out
 
+## HARVESTROLL: one gathered lot's own rolls (loot_tables.json "lot"): its level inside the node's band
+## (max(1, S - width)..S, never above S) and one grey and maybe one gold trait from the item's category.
+## Gathering and tool tier skew the level to the top of the band and raise the gold odds. Every pass
+## calls this once with the caller's rng, so a seeded rng replays the same sequence.
+## Returns {"level": int, trait_key: magnitude, ...}.
+static func roll_lot(item: StringName, site_level: int, tool_tier: StringName, skill: int, rng: RandomNumberGenerator) -> Dictionary:
+	var cfg := LootTables.lot_cfg()
+	var tier_idx := ProgressionScaling.tier_index(tool_tier) if tool_tier != &"" else -1
+	var skill_f := clampf(float(skill - 1) / 59.0, 0.0, 1.0)
+	var tool_f := clampf(float(tier_idx) / float(ProgressionScaling.TOOL_TIERS.size() - 1), 0.0, 1.0)
+	var gamma := float(cfg.get("gamma_novice", 1.0)) - float(cfg.get("gamma_skill_drop", 0.0)) * skill_f - float(cfg.get("gamma_tool_drop", 0.0)) * tool_f
+	var hi := maxi(1, site_level)
+	var lo := maxi(1, hi - int(cfg.get("width", 0)))
+	var out := {"level": lo + mini(hi - lo, int(floor(float(hi - lo + 1) * pow(rng.randf(), maxf(0.1, gamma)))))}
+	var def := Data.item(item)
+	var rows: Dictionary = cfg.get("by_category", {})
+	var row: Dictionary = {}
+	if def:
+		for c in def.categories:
+			if rows.has(str(c)):
+				row = rows[str(c)]
+				break
+	if row.is_empty():
+		return out
+	var mag := maxi(1, int(cfg.get("max_magnitude", 1)))
+	var neg: Array = row.get("negative", [])
+	if not neg.is_empty() and rng.randf() < float(cfg.get("negative_chance", 0.0)):
+		out[str(neg[rng.randi() % neg.size()])] = 1 + rng.randi() % mag
+	var pos: Array = row.get("positive", [])
+	var pc := scaled_chance(float(cfg.get("positive_chance", 0.0)), tier_idx, skill, float(cfg.get("tool_tier_bonus", 0.0)),
+			float(cfg.get("skill_bonus_per_level", 0.0)), float(cfg.get("max_positive_chance", 1.0)))
+	if not pos.is_empty() and rng.randf() < pc:
+		out[str(pos[rng.randi() % pos.size()])] = 1 + rng.randi() % mag
+	return out
+
 ## The green rare trait one gathered item rolls (world-design.md:55, PRD:541), or &"" for none.
 ## RAREATTR: the trait comes from the material's own list (spec 04:33, rare_trait.by_material), so a
 ## stone never rolls a timber trait; the shared six stay the fallback for an item with no list.

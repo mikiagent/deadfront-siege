@@ -17,10 +17,6 @@ var _hp0 := -1.0
 var _fat0 := -1.0
 var _left := FLOAT_EVERY_S
 
-## The Resting chip, first in the status row: the rest icon on a status chip.
-static func chip(ci: CanvasItem, font: Font, at: Vector2) -> void:
-	HudStatusChip.draw(ci, font, at, &"resting", Color(1, 0.75, 0.45))
-
 ## Draws the pill with its top-left at `at` (at most MAX_W wide); returns the drawn rect (HUD drawn_blocks).
 static func draw(ci: CanvasItem, font: Font, at: Vector2, px: int, lines: PackedStringArray) -> Rect2:
 	var text_w := 0.0

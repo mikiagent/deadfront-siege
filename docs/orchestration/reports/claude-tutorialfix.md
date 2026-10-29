@@ -51,3 +51,18 @@ None spent.
   workbench, with repeated "abandoned route to 48,160 after 5.0s stuck". It looks like nav or physics at the
   bench approach, and it may depend on leftover user:// state. Not investigated further.
 - all_tests.sh with JOBS > 1 shares one user:// dir; giving each test its own HOME would remove the suite flakes.
+
+## Re-merge onto canon cc79a457 (2026-10-29)
+
+- Conflicts resolved:
+  - `spawner.gd`: kept canon's `force_alpha` and applied `no_alphas` on top. A forced alpha (labs and tests)
+    still wins; only rolled alphas are blocked.
+  - Open Questions: kept both sides (TU9-TU10 and canon's new ZEBRAAI section).
+- New flake after the merge, and its fix: canon's retaliation can switch the hunt to a second compy and kill
+  that one first. The bot kept waiting on its original target until the carcass despawned ("no carcass" at
+  butcher, 1 of 3 runs). `tutorial_bot._hunt_weak` now counts any carcass as the hunt's result, which is test
+  bot code only.
+- Results: `t_tutorial` 3/3 PASS (each run with its own HOME), `t_islandgen` PASS, `t_alphas` PASS,
+  `t_genetics` PASS, `smoke.sh --no-import` SMOKE PASS.
+- Note: on cc79a457 the tutorial hunt takes 122-136 s, against about 33 s on 5b4bf4ad. The cause is not
+  investigated. Each run fought several compys (retaliation).

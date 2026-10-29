@@ -156,7 +156,8 @@ func finish_gather() -> void:
 			stop_gather_cycle()
 			p.gather_target = null
 			return
-	var stack := gt.roll_yield()  # ONEGATHER: one instance per pass, never more
+	# ONEGATHER: one instance per pass, never more; HARVESTROLL: its own level and traits every pass.
+	var stack := gt.roll_yield(GatherService.rng, GatherService.tool_tier(p.inventory, gt.required_tool_class, gt.family), GatherService._skill(p))
 	if p.skills:
 		# rules.json gathering_downrank: a node above your Gathering level yields at your level.
 		# ASSUMPTION: floor of 5 so a fresh survivor still gets usable materials.

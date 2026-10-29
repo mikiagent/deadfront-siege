@@ -342,13 +342,15 @@ func can_gather(inv: Inventory) -> String:
 
 ## ONEGATHER (owner 2026-10-28, "cap it to 1 per harvest"): a pass is always ONE instance. yield_min/max
 ## (the manifest's old [min, max] per pass) no longer count; tools and skill change speed and quality.
-func roll_yield(_rng: RandomNumberGenerator = null) -> ItemStack:
+## HARVESTROLL: each pass is its own lot (LootRoller.roll_lot): level inside the node's band and signed
+## traits, skewed by `tool_tier` (&"" bare hands) and Gathering `skill`. `rng` defaults to GatherService.rng.
+func roll_yield(rng: RandomNumberGenerator = null, tool_tier: StringName = &"", skill: int = 1) -> ItemStack:
 	var n := 1
-	var material_level := int(yield_attributes.get("level", 1))
 	var attrs := yield_attributes.duplicate(true)
 	for k in ItemStack.MERGE_IGNORED_ATTRS:
 		attrs.erase(k)
-	var stack := ItemStack.make(yield_def_id, n, attrs, material_level)
+	attrs.merge(LootRoller.roll_lot(yield_def_id, int(yield_attributes.get("level", 1)), tool_tier, skill, rng if rng else GatherService.rng), true)
+	var stack := ItemStack.make(yield_def_id, n, attrs, int(attrs["level"]))
 	if World and World.is_unstable():
 		stack.set_flag(&"unstable", true)
 	return stack

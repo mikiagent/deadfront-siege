@@ -561,7 +561,7 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 	var key := c.get_instance_id()
 	if not _entries.has(key):
 		return
-	if amount < 0.5 and kind != &"heal" and kind != &"xp" and kind != &"dodge":
+	if amount < 0.5 and kind != &"heal" and kind != &"xp" and not CombatAvoid.TEXT.has(kind):
 		return  # a bleed tick under 1 HP read "-0" over the plate
 	var entry: Dictionary = _entries[key]
 	var layer := entry["floats"] as Control
@@ -571,8 +571,8 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 		shown = "+%s" % shown
 	elif kind == &"xp":
 		shown = "+%s XP" % shown
-	elif kind == &"dodge":  # a dodged hit emits 0.0; it read "-0" over the plate
-		shown = "DODGE"
+	elif CombatAvoid.TEXT.has(kind):  # an avoided hit emits 0.0; it read "-0" over the plate
+		shown = CombatAvoid.TEXT[kind]
 	else:
 		shown = "-%s" % shown
 	# White = normal, grey = not very effective, orange = super effective, red = critical.
@@ -587,8 +587,11 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 		&"dot":
 			col = Color(0.95, 0.4, 0.4)
 			fs = 14
-		&"weak", &"dodge":
+		&"weak":
 			col = Color(0.62, 0.62, 0.62)
+			fs = 14
+		&"dodge", &"block":
+			col = CombatAvoid.COLOR
 			fs = 14
 		&"strong":
 			col = Color(1.0, 0.6, 0.15)
