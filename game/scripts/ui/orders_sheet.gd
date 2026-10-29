@@ -221,11 +221,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			close()
 		get_viewport().set_input_as_handled()
 
-## Opens on the first category with something to receive, else Main Task.
+## Opens on Main Task when an order waits for Receive (the tutorial teaches it there), else the first
+## category with something to receive, else Main Task.
 func open(p: Player) -> void:
 	player = p
 	cat = &"main"
-	for c in Tasks.CATS:
+	for c in ([&"main"] as Array[StringName]) + Tasks.CATS:
 		if Tasks.claimable_count(p, c) > 0:
 			cat = c
 			break

@@ -172,7 +172,7 @@ func _test_tutorial() -> void:
 	W.tutorial = {"done": false, "did": {}}
 	W.objective = 0
 	var ids := _ids(&"main")
-	_expect(tut.size() == 19 and ids.size() == 19 and ids.has("main." + str((tut[0] as Dictionary)["id"])), "while the tutorial runs Main Task lists its %d orders (%d)" % [tut.size(), ids.size()])
+	_expect(tut.size() >= 19 and ids.size() == tut.size() and ids.has("main." + str((tut[0] as Dictionary)["id"])), "while the tutorial runs Main Task lists its %d orders (%d)" % [tut.size(), ids.size()])
 	# Finish the first two tutorial orders the way Objectives.settle does, claim one.
 	var first := "main." + str((tut[0] as Dictionary)["id"])
 	var second := "main." + str((tut[1] as Dictionary)["id"])

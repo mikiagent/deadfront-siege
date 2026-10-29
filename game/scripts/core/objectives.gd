@@ -104,6 +104,9 @@ static func _progress(player: Player, step: Dictionary) -> Dictionary:
 	if step.has("away"):
 		return _row(0 if World.is_home() else 1, 1)
 	# TUTORIAL ISLAND conditions (objectives.json "_tutorial_about").
+	# TASKSCREEN: any order's reward received in Tasks (the tutorial's "Claim your reward" order).
+	if step.has("received_any"):
+		return _row(1 if Tasks.claimed.keys().any(func (k: Variant) -> bool: return str(k).begins_with("main.")) else 0, 1)
 	if step.has("near"):
 		return _row(1 if Tutorial.near(player, str(step["near"]), float(step.get("radius", 6.0))) else 0, 1)
 	if step.has("status"):
