@@ -171,6 +171,7 @@ func _test_leash_every_species() -> void:
 func _test_hit_beyond_leash_flees() -> void:
 	game.time_of_day = 0.40
 	var zeb := _creature(&"zebraceratops")
+	zeb.nature = &"loyal"  # a plain skittish grazer (a Brave one stands its ground: t_zebra)
 	var shooter := Node3D.new()
 	get_root().add_child(shooter)
 	shooter.global_position = Vector3(zeb.brain.aggro_radius() + 0.5, 0.0, 0.0)

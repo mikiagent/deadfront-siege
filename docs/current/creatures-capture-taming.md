@@ -88,7 +88,8 @@ Driven by the archetype (`ai.json archetypes.<a>.tactics`), not by per-species c
 | horned_charger, antlered | triceratops, styracosaurus; megaloceros | planned: line up, long wind-up straight charge, staggered after a miss |
 | club_tail, spiked_tail (armored) | ankylosaurus; stegosaurus | planned: turn side-on, tail swipe when you are beside or behind |
 | venom_ranged (venom_hunter) | dilophosaurus | planned: keep distance and spit |
-| pack_mule, runner | protoceratops, zebraceratops; gallimimus | planned: flee, kick when cornered |
+| pack_mule (herd grazer) | zebraceratops, protoceratops | **built** (only while provoked): threat display (alert pose, head lowered) into a straight horn charge on a locked line (a sidestep makes it miss and stand staggered), hind kick at point blank with the prey behind it, bluff charges, scurry back; flees when badly hurt; a hit herdmate rallies the herd onto its attacker (`defend_s` 8 s, `guard_m` 16 m from home). Default: flees on sight, fights after 3 hits. Timid: never fights back. Brave: stands its ground and displays, charges if you come within 5 m or hit it. Aggressive: charges on sight |
+| runner | gallimimus | planned: flee, kick when cornered |
 A "berserker" is a nature (Aggressive: shorter cooldowns, more charges), not a class.
 
 ## Spawns
