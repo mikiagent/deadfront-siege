@@ -616,9 +616,17 @@ func _build_death() -> void:
 	)
 	_death_card.add_child(_death_btn)
 
+const DEATH_FADE_IN := 2.0
+
+## The survivor's "HP / max" text. Rounded up, so 0 only ever means dead: "%.0f" showed a 0.4 HP survivor
+## as "0 / 100" and she fought on at a seeming 0 (owner: "still alive at 0 health for a while").
+static func hp_label(v: Vitals) -> String:
+	return "%d / %d" % [ceili(v.health), ceili(v.effective_max_health())]
+
 func _tick_death(delta: float) -> void:
 	var dead := player != null and player.dead
-	_death_alpha = move_toward(_death_alpha, 1.0 if dead else 0.0, delta * (0.8 if dead else 4.0))
+	# EYESDEATH: full in 0.5 s (was 1.25 s at 0.8/s; the faint first second read as "alive at 0").
+	_death_alpha = move_toward(_death_alpha, 1.0 if dead else 0.0, delta * (DEATH_FADE_IN if dead else 4.0))
 	var show := _death_alpha > 0.01
 	if _death_panel.visible != show:
 		_death_panel.visible = show
@@ -1607,7 +1615,7 @@ func _draw() -> void:
 	x += HudLevelBadge.COLUMN
 	var yy := y
 	hp_bar_rect = Rect2(Vector2(x, yy), Vector2(bar_w, big))
-	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px, 0, &"hp")
+	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", hp_label(v), num_px, 0, &"hp")
 	yy += big + gap
 	var en := energy_reading(player)
 	var en_text := "%.0f / %.0f" % [en.value, en.max]
