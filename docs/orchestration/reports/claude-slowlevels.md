@@ -199,3 +199,13 @@ three times the research total.
   t_perfgates over the island build budget on a loaded box. Targeted runs pass: t_skilltrees,
   t_levelbar, t_dodgetext, t_uimarket, t_research, t_skillgear, t_skillfeel, t_roll, t_w2_skills,
   t_levelfx, t_xpecon, t_data, t_iconart. t_save passes with its own HOME. SMOKE PASS.
+
+## Re-merge onto canon + TUTPERF/ISLANDSHAPES/WIKI-STEWARD (2026-10-29, SLOWFIX)
+- Merged `origin/claude/mmo-overhaul` (ISLANDSHAPES, TUTPERF, WIKI-STEWARD) into `claude/mmo-slowlevels`;
+  no conflicts.
+- `tests/run_all.gd` failed on one check: `econ: the torn bytes are cut from the file`. The torn-tail
+  sentinel was the bare text "9999" searched through the whole journal, and a creature stat
+  (`0.029999999999972715`) can contain it; run_all's economy has different state than t_econ's, so it
+  failed there only. The sentinel is now a unique marker inside the torn line; the check is unchanged.
+- Owner scope added after the merge (no banked skill XP, blocked FULL feedback, ghost fills on the
+  Skills screen): see `docs/orchestration/reports/dsc-slowfix.md` from this point on.
