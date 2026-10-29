@@ -41,5 +41,7 @@ toggle sprint to chase it".
 ## Notes for the next agent
 
 - Chase sprint is a flag, not a HUD state: the SPRINT hex stays unlit while it is on. Logged as CS4.
+- The radii live on `Player`, so tuning is one constant each; `docs/current/controls.md` and the
+  Open Questions register carry the same numbers and must move together.
 - Sprint costs 9 stamina/s (`PlayerSim._walk`), so a long chase can still empty the bar and she then
   walks on her own — the intended interaction with the winded gate.
