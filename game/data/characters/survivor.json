@@ -37,7 +37,16 @@
     "idle_cold",
     "idle_heat",
     "idle_tired",
-    "idle_exhausted"
+    "idle_exhausted",
+    "rummage_in",
+    "rummage",
+    "rummage_out",
+    "work_hammer",
+    "work_stir",
+    "work_hang",
+    "work_forge",
+    "work_tan",
+    "kick_dirt"
   ],
   "clips_missing": [],
   "pipeline": {
