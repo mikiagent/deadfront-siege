@@ -58,7 +58,7 @@
               "amount": 4
             }
           ],
-          "sp_assumed": true,
+          "sp_source": "durango_xlsx row 11",
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"
@@ -177,7 +177,7 @@
               "amount": 4
             }
           ],
-          "sp_assumed": true,
+          "sp_source": "durango_xlsx row 12",
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"
@@ -247,7 +247,7 @@
               "amount": 4
             }
           ],
-          "sp_assumed": true,
+          "sp_source": "durango_xlsx row 13",
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"
@@ -324,7 +324,7 @@
           "id": "stealth_4",
           "name": "Stealth IV",
           "level": 40,
-          "sp": 5,
+          "sp": 4,
           "type": "unlock",
           "unlocks": "+4 Stealth Ability",
           "requires": "stealth_3",
@@ -337,7 +337,7 @@
               "amount": 4
             }
           ],
-          "sp_assumed": true,
+          "sp_source": "durango_xlsx row 14",
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"
@@ -441,7 +441,7 @@
               "amount": 4
             }
           ],
-          "sp_assumed": true,
+          "sp_source": "durango_xlsx row 15",
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"

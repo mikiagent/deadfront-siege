@@ -85,3 +85,76 @@ times are overstated by this model.
   is editing hunt_hud.gd's bars, so it was left alone.
 - `skillfeel_lab` still exits 1 on "no skillpulse block: the halo was not drawn" (the MENU/Skills hex
   halo, untouched here); its other results pass, including `batch_one_bar=1`.
+
+## Added scope 3: Skills sheet opening sweep (owner 2026-10-28)
+- `skills_sheet.gd`: a gold `SkillsLevelTrack` under the XP bar (the tree's level over its highest node
+  level). On open it sweeps from 0 to the level in 0.8 s (cubic ease-out); each node that can be
+  unlocked flashes gold as the track passes its level (lowest first, `sweep_flashed`); the free skill
+  points count up. A reopen within 4 s skips it. No reduced-motion setting exists (ASSUMPTION), so
+  none is read. A node that can be unlocked gets a gold ▲.
+- Not done: Durango's per-level column layout and the arrow tip; the sheet stays a list.
+- Test `t_skillfeel._test_sweep`. Shot `slowlevels/skillsweep_midsweep_1600x900.png`.
+
+## Added scope 4: skill research (owner 2026-10-28)
+- A full bar no longer levels a tree (all but Survival, which spec 03 exempts). The card and detail
+  read "Research ready"; the player presses Start Research; the level arrives when the countdown ends.
+  Nothing starts by itself. One research at a time. XP past a full bar keeps banking.
+- `SkillState.research` = {tree, from, end (unix s)}, saved as an optional `skills_v2.research` key
+  (no rev bump; old saves load with none; `save_sanitizer` drops a malformed one and clamps the end to
+  at most one research from now). A research that ended while the game was closed lands on load.
+  shortcut: an end forged into the past is not caught (no start is stored).
+- Duration `research_s(n)` = min(72 h, 60 s x g^(n-1)), g = 2880^(1/48) so 49->50 = 48 h (owner
+  anchor): 1 min, 4.5 min at 10, 23 min at 20, 2 h at 30, 11 h at 40, 48 h at 49, 72 h from 52.
+  Knobs in `progression.json skill_research`.
+- Sheet: "Researching Lv. N · Remaining Time 23h 59m" live, Start Research (CTA), Instant Completion
+  and Decrease Research Time as disabled "coming soon" stubs (no purchases wired), grid card
+  "Lv. 49 · 50" in gold while researching.
+- Server `CharacterState.add_xp` banks gated trees and never levels them (shortcut: research is
+  client-side until W3-SRVACT).
+- Character level is untouched.
+- Test `t_research`: full bar -> no level, no timer even 10 days later; Survival still levels;
+  start -> countdown = research_s(1); second research refused; save/load mid-way keeps the remaining
+  time; done one second early -> no, after -> Lv. 2 with one signal, rung spent; offline completion
+  on load; 49->50 = 48 h; old save without the key. Shot
+  `slowlevels/skillresearch_countdown_1600x900.png`.
+
+### Re-estimated early pace (slowdown x research), ~35 character XP/min
+| milestone | before | after slowdown only | after slowdown + research |
+|---|---|---|---|
+| Character Lv 2 / 5 / 10 | 3 / 15 / 46 min | 8 / 38 / 116 min | same (research never touches it) |
+| First tree level (e.g. Gathering 2) | ~3 min | ~8 min | ~9 min: the bar fills by ~2 min, the cap opens at character Lv 2 (8 min), then 1 min of research the player must start |
+| A tree at Lv 5 | ~15 min | ~38 min | ~45 min (4 researches, 6 min in all, one at a time across trees) |
+| A tree at Lv 10 | ~46 min | ~116 min | ~2 h 25 min (9 researches, 23 min) |
+| A tree at Lv 20 | — | — | + 4.5 h of research for that tree alone |
+Several trees compete for the single research slot, so a player training three trees waits roughly
+three times the research total.
+
+## Added scope 5: recipe nodes and cross-skill gear (owner 2026-10-28)
+- Nodes already gate recipes through `effects: [{type: recipe, recipes: [...]}]` (SkillRules); used
+  that instead of a new `unlocks_recipes` field.
+- `ItemDef.skill_bonus` {tree: levels}, `Inventory.skill_bonus(tree)` over worn, unbroken pieces,
+  `SkillRules.effective_level(p, tree)` = tree level + gear, capped at 60. Butchering's cut budget and
+  part rolls read it (`corpse.gd`, `carcass_parts.gd`, `butcher_loot.gd`).
+- Tailoring node `spiky_armor` (Lv. 30, 4 SP, ASSUMPTION) unlocks `spiky_armor` and
+  `spiky_armor_helmet` (workbench; cured hide, dense bone such as tail spikes, lashing). Each worn piece
+  +5 Butchering (ASSUMPTION). Placeholder art: the hide-and-bone pieces.
+- Sheet rows show the node's description and "Craft: Spiky Armor, Spiky Armor Helmet"; a learned
+  node's button reads Unlearn (full SP refund; the existing refund rules block it when a learned node
+  depends on it or the day's free refunds are used).
+- Test `t_skillgear`: locked before, learn costs 4 SP and unlocks both recipes, wearing both -> 14
+  effective Butchering from tree level 4, helmet off -> 9, Unlearn refunds and relocks.
+- Follow-up: populate node -> recipe -> skill-bonus for every tree.
+
+## Added scope 6: Durango skill-point workbook
+- `docs/reference/durango_skill_point_upgrades.xlsx` + one CSV per sheet (exported with a zipfile XML
+  reader; no openpyxl here), summary `docs/reference/skill-upgrades.md`.
+- Imported: Stealth I-V SP/levels now cite the sheet (Stealth IV 5 -> 4 SP); Animal Handling I-IV
+  already matched.
+- Not imported (listed in skill-upgrades.md, Open Questions SL4): Stealth VI, Exploration I-III,
+  Bulk Up I-X, Surviving Durango I-VII (new nodes; rename "Surviving Durango" when added), the
+  per-family capture nodes (conflict with our Capture Technique ladder), and all 144 records of the other
+  11 categories (no SP in the source).
+
+## Pending
+- Defense XP through `CombatAvoid.avoided` (claude/mmo-dodgetext): not on origin/claude/mmo-overhaul
+  when this branch was last merged; Defense XP still comes only from `Player.roll_dodge`.

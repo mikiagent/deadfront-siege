@@ -288,11 +288,11 @@ func _research_line() -> void:
 	_research_btn.visible = SkillState.research_gated(_tree)
 	(_research_btn.get_parent() as Control).visible = SkillState.research_gated(_tree)
 	if skills.researching(_tree):
-		_research_shown = "Researching Lv. %d · Remaining Time %s" % [lvl + 1, time_text(skills.research_left())]
+		_research_shown = "Researching %s · Remaining Time %s" % [LevelDisplay.label(lvl + 1), time_text(skills.research_left())]
 		_research_btn.disabled = true
 		_research_btn.text = "Researching"
 	elif skills.research_ready(_tree):
-		_research_shown = "Research ready · Lv. %d takes %s" % [lvl + 1, time_text(SkillState.research_s(lvl))]
+		_research_shown = "Research ready · %s takes %s" % [LevelDisplay.label(lvl + 1), time_text(SkillState.research_s(lvl))]
 		_research_btn.disabled = skills.researching()
 		_research_btn.text = "Start Research" if not skills.researching() else "Another research is running"
 	else:

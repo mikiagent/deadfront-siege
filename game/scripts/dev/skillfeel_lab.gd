@@ -95,6 +95,11 @@ func _shot_xp() -> void:
 	sk.add_xp("cooking", 2.0)
 	# A level-up: enough XP for targeting Lv. 2 (tree and character both have room at Lv. 2).
 	sk.add_xp("melee", SkillState.xp_to_next(1) + 1.0)
+	# Research gates the level (owner 2026-10-28): start it and let a test clock run it out.
+	sk.start_research("melee")
+	SkillState.clock_override = SkillState.now_s() + SkillState.research_s(1) + 1.0
+	sk.poll_research()
+	SkillState.clock_override = -1.0
 	await _wait(0.15)
 	var rows: Array = (_hud.get("_events") as HudEventState).skill_toasts
 	var texts: Array[String] = []
@@ -117,7 +122,8 @@ func _shot_full() -> void:
 	var sk := _player.skills
 	World.pioneer_level = 2  # character Lv. 3 caps every tree at Lv. 3
 	_player.skills._on_character_level()
-	sk.add_xp("melee", 200.0)  # more than the rung it waits on: the rest is banked and the row says so
+	sk.trees["melee"]["level"] = 3  # researched up to the cap
+	sk.add_xp("melee", 200.0)  # at the cap: banked, and the row says so
 	await get_tree().process_frame
 	var capped: bool = sk.level_of("melee") >= sk.level_cap("melee")
 	_hud.call("_toggle_skills", "")
@@ -196,6 +202,16 @@ func _shot_sweep() -> void:
 	_r["sweep_running"] = 1 if sheet.sweeping() else 0
 	await _shot("skillsweep")
 	await _wait(1.0)
+	# Research: a full Melee bar, started by the player; the panel counts down.
+	var sk := _player.skills
+	sk.add_xp("melee", SkillState.xp_to_next(sk.level_of("melee")) + 1.0, true)
+	var why := sk.start_research("melee")
+	_hud.open_skills("melee")
+	await _wait(1.2)
+	var line := sheet.find_child("SkillsResearch", true, false) as Label
+	print("[skillfeel] research: start \"%s\", line \"%s\"" % [why, line.text if line else ""])
+	_r["research_shown"] = 1 if why == "" and line and line.text.contains("Remaining Time") else 0
+	await _shot("skillresearch")
 	_hud.call("_toggle_skills", "")
 	await _wait(0.4)
 

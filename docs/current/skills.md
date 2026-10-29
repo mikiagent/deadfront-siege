@@ -9,6 +9,26 @@ A tree goes from level n to n+1 at `SkillState.xp_to_next(n)` = (20 + 8 n) x `sk
 (2.5 in `game/data/progression.json`, owner 2026-10-28 "levels up slower"): Lv 1->2 costs 70. A tree
 never passes the character level (`SkillState.level_cap`); XP past it is banked.
 
+Research (owner 2026-10-28): every tree but Survival stops at a full bar ("Research ready" on the
+card and in the detail). The player presses **Start Research** on the Skills sheet; the level arrives
+when the real-time countdown ends (`SkillState.start_research` / `poll_research`, `research` saved with
+an absolute unix end, so it runs while the game is closed). One research at a time. Duration
+`SkillState.research_s(n)` = min(72 h, 60 s x g^(n-1)), g so 49->50 = 48 h (`progression.json
+skill_research`). Instant Completion and Decrease Research Time are disabled stubs. XP past a full bar
+keeps banking. The server mirror (`CharacterState.add_xp`) banks gated trees and never levels them.
+Tests `t_research`.
+
+Opening the sheet sweeps the gold level track (`SkillsLevelTrack`) to the tree's level in 0.8 s,
+flashing each node that can be unlocked as the track passes it and counting the free skill points
+up; a reopen within 4 s skips it (`SkillsSheet.tick_sweep`, test `t_skillfeel._test_sweep`). A node
+that can be unlocked shows a gold ▲; a node's recipes are listed as "Craft: ..."; a learned node's
+button reads **Unlearn** (full SP refund, `SkillState.refund`).
+
+Worn gear can raise a skill: `ItemDef.skill_bonus` {tree: levels}, read through
+`SkillRules.effective_level` (butchering cut budget and part rolls use it). Worked example:
+Tailoring's Spiky Armor (Lv. 30, 4 SP) unlocks Spiky Armor and its helmet, +5 Butchering each
+(test `t_skillgear`).
+
 ## What a node's marks mean
 
 Every node in the twelve playable trees carries two fields alongside its `status`:

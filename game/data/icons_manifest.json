@@ -189,6 +189,8 @@
     "forager_wraps": "hide_strap",
     "forager_leggings": "hide_strap",
     "hide_bone_helm": "dried_hide",
+    "spiky_armor": "armour_body",
+    "spiky_armor_helmet": "armour_head",
     "hide_bone_cuirass": "raw_hide",
     "hide_bone_bracers": "hide_strap",
     "hide_bone_greaves": "hide_strap",

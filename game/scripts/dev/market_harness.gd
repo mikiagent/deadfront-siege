@@ -57,6 +57,9 @@ func seed_scene() -> void:
 	now += int(bridge.econ.engine.L.rules.num("trade_lock_s")) + 1 # new accounts wait out the lock
 	for acct: int in [SELLER_A, SELLER_B, VIEWER]:
 		earn(acct, 25) # Settlers' orders pay 26-36 tradable in the 48 windows earn() waits
+	# The viewer pays listing fees below; earning 40 keeps one 12 T listing affordable whichever
+	# items the Settlers' rotating demand lands on (it shifts whenever a tradeable item is added).
+	earn(VIEWER, 40)
 	# Seller A: three single branches, two bones, a knife with durability.
 	_gather(SELLER_A, "branch", 5)
 	for i in 3:
