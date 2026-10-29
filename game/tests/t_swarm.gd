@@ -150,6 +150,11 @@ func _fight(cs: Array, secs: float, measure_ring: bool) -> Dictionary:
 		_keep_alive()
 		for c in cs:
 			c.health.hp = c.health.max_hp
+		if OS.has_environment("TS_TRACE"):
+			var row := ""
+			for c in cs:
+				row += " %s %.3f,%.3f e%.1f" % [c.brain.state, c.global_position.x, c.global_position.z, c.energy]
+			print("[trace] %d%s" % [Engine.get_physics_frames() - f0, row])
 		if measure_ring and Engine.get_physics_frames() - f0 > n / 3:
 			var angs: Array[float] = []
 			for c in cs:

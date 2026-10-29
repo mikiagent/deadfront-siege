@@ -53,6 +53,7 @@ var _last_hit_s: float = -999.0
 var _provoked_until: float = -1.0
 var _retarget_cd: float = 0.0
 var _think_phase: int = 0
+var _frame_n: int = 0  ## physics steps this brain has run
 var _think_dt: float = 0.0
 var _dt: float = 0.0
 var _awake_until: float = -1.0
@@ -199,7 +200,9 @@ func _physics_process(delta: float) -> void:
 		return
 	_think_dt += delta
 	_face_target(delta)
-	if not _should_think(Engine.get_physics_frames()):
+	_frame_n += 1
+	# The brain's own step count, not the engine's: the 10 Hz stagger then replays the same from spawn.
+	if not _should_think(_frame_n):
 		return
 	var dt := _think_dt
 	_think_dt = 0.0
