@@ -11,6 +11,10 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot-dir="):
 			_out = a.substr(11)
+		if a.begins_with("--canvas="):  # the phone canvas, as tools/ui_screens.sh draws it (2x window)
+			var wh := a.substr(9).split("x")
+			DisplayMode.canvas_override = Vector2i(int(wh[0]), int(wh[1]))
+			DisplayMode.fit(get_tree().root)
 	if _out != "":
 		DirAccess.make_dir_recursive_absolute(_out)
 	Game.debug_overlay = false
