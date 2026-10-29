@@ -49,6 +49,12 @@ var _harbour_pos: Vector3 = Vector3.ZERO
 var _camp_hint: Vector3 = Vector3.ZERO
 var _crater_pos: Vector3 = Vector3.ZERO
 var _crater_hint: Vector3 = Vector3.ZERO
+## LANDMARKS M1: the named sites this island was built with (IslandLandmarks): each {id, type,
+## display, x, z, level, discovery_radius, gold, contested, nodes...}. The discovery pass (M2) and
+## the map read it; the build's [landmarks] line counts it.
+var landmarks: Array[Dictionary] = []
+## LANDMARKS M1: placed/skipped/types of the landmark pass (IslandLandmarks.build).
+var landmark_stats: Dictionary = {}
 var _ridge_dir: Vector2 = Vector2.RIGHT
 var _tile_span: int = 0
 var tile_types: PackedByteArray = PackedByteArray()
@@ -243,6 +249,8 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	var t5 := Time.get_ticks_usec()
 	IslandSpawns.spawn_all(self, def)
 	PerfTrace.mark("spawns")
+	# LANDMARKS M1: the authored crater keeps its spot and its discovery trigger; its six herb nodes
+	# are planted by the landmark pass (IslandLandmarks, in the scatter), with their historical ids.
 	if crater_v is Array:
 		_crater(_at(float(crater_v[0]), float(crater_v[2])))
 	weather.install(self)
@@ -596,12 +604,6 @@ func _crater(at: Vector3) -> void:
 			World.discover_crater()
 	)
 	add_child(area)
-	var crater_lv := clampi(_tier + 5, 1, 60)
-	for i in 6:
-		var ang := float(i) * TAU / 6.0
-		var p := Vector3(at.x + cos(ang) * 9.0, 0.0, at.z + sin(ang) * 9.0)
-		p.y = surface_y(p.x, p.z)
-		harvest_count += _plant_at("Plant", "crater_node_%d" % i, p, &"herb_leaf", &"none", _climate, crater_lv, Color(0.45, 0.2, 0.35))
 
 func _on_tile_bare(node: HarvestNode, tile: Vector2i) -> void:
 	if node == null:

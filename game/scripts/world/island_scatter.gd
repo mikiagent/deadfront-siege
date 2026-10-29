@@ -77,6 +77,10 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 	PerfTrace.mark("scatter.families")
 	_scatter_special_tiles(rt, climate, tier, rng)
 	PerfTrace.mark("scatter.special")
+	# LANDMARKS M1: the named sites, their node groups, before the top-up so the top-up yields to them
+	# (design doc section 3.3: "the scatter's top-up yields to landmarks").
+	rt.landmark_stats = IslandLandmarks.build(rt, def)
+	PerfTrace.mark("scatter.landmarks")
 	_top_up(rt, total_target(counts, rt, home), climate, tier, size, rng)
 	PerfTrace.mark("scatter.topup")
 	PerfTrace.mark("scatter.commit")
