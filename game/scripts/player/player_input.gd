@@ -579,9 +579,10 @@ func context_actions() -> Array:
 			out.append({"id": str(snare), "glyph": "S", "label": "Heavy snare" if snare == &"heavy_snare" else "Rope snare"})
 	if WaterAccess.near_fresh(p.global_position):
 		out.append({"id": "drink", "glyph": "💧", "label": "Drink"})
-		out.append({"id": "wash", "glyph": "🫧", "label": "Wash"})
 		if inv.count_of(&"empty_bucket") > 0:
 			out.append({"id": "fill", "label": "Fill"})
+	if WaterAccess.near_any(p.global_position):
+		out.append({"id": "wash", "glyph": "🫧", "label": "Wash"})
 	var sleep_spot := p.sim.nearest_sleep_spot()
 	if sleep_spot:
 		var left := int(sleep_spot.get("sleeps_left"))
