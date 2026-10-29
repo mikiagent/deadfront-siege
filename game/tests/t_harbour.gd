@@ -126,7 +126,8 @@ func _test_old_save_snaps_to_coast() -> void:
 
 ## A moved home harbour remains the source of travel, basket placement and walkable deck state.
 func _test_moved_harbour_follows() -> void:
-	var site: Dictionary = _HS.find(_world.runtime, Vector2(61.0, -7.0))
+	# The hint rule (not the southern-most one the island itself uses): a pose the player moved to.
+	var site: Dictionary = _HS.find(_world.runtime, Vector2(61.0, -7.0), false)
 	_expect(not site.is_empty(), "found a legal moved harbour pose")
 	if site.is_empty():
 		return

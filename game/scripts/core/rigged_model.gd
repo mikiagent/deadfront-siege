@@ -148,23 +148,32 @@ func _fallbacks(_loaded: Dictionary) -> void:
 	if not library.has_animation(&"feed") and library.has_animation(&"idle"):
 		library.add_animation(&"feed", library.get_animation(&"idle").duplicate(true) as Animation)
 
+## TUTPERF: the clip glb's first animation, per path. Every rig used to instantiate (and free) each
+## clip's whole scene, mesh and skeleton included, just to read one Animation: ~8 ms per creature
+## spawn. The source is never mutated (callers get a deep copy), so it is shared.
+static var _clip_src: Dictionary = {}
+
 static func animation_from_glb(path: String, player: AnimationPlayer, search: Node, clip: StringName, tag: String) -> Animation:
-	var packed := load(path)
-	if packed == null:
-		return null
-	var inst: Node = packed.instantiate()
-	var ap := inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if ap == null:
+	var src := _clip_src.get(path) as Animation
+	if src == null:
+		var packed := load(path)
+		if packed == null:
+			return null
+		var inst: Node = packed.instantiate()
+		var ap := inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if ap == null:
+			inst.free()
+			print("[%s] missing AnimationPlayer in %s" % [tag, path])
+			return null
+		var names := ap.get_animation_list()
+		if names.is_empty():
+			inst.free()
+			return null
+		src = ap.get_animation(names[0])
 		inst.free()
-		print("[%s] missing AnimationPlayer in %s" % [tag, path])
-		return null
-	var names := ap.get_animation_list()
-	if names.is_empty():
-		inst.free()
-		return null
-	var copy := ap.get_animation(names[0]).duplicate(true) as Animation
+		_clip_src[path] = src
+	var copy := src.duplicate(true) as Animation
 	var missing := remap_tracks(copy, player, search, clip, tag)
-	inst.free()
 	if missing > 0:
 		return null
 	return copy

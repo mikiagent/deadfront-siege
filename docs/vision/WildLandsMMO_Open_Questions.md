@@ -165,6 +165,23 @@ Source: branch `claude/mmo-foodtorpor`, report `docs/orchestration/reports/claud
 | **F2** | Spoil times from the moment the survivor's bag first holds a lot, real time incl. offline: raw meat / raw 2 h, fruit / mushroom / cactus 4 h, cooked 6 h, cold food 1 h; preserved (dried, smoked), drinks, pet feed and burnt food never. Meat (incl. cooked meat) -> Spoiled Meat, other food -> Rot, one for one. | `foods.json spoilage` | Spec 08 had forbidden a freshness timer; the owner asked for one. Pets' bags, chests and the online server do not spoil yet. |
 | **F3** | Rot composts at the mortar: 3 Rot + 1 earth -> 1 Fruit Fertilizer (same Fertilizer node as the fruit recipe). | `recipes.json rot_compost` | The vision mentions compost; no compost heap station exists yet. |
 
+### ISLANDSHAPES (2026-10-29) — island shape families, southern-most dock, topography
+
+Source: branch `claude/mmo-islandshapes`, report `docs/orchestration/reports/claude-islandshapes.md`. Numbers live in `game/data/world/island_families.json` (every one an ASSUMPTION) and `islands.json` `shape_family`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **S1** | Seven families (bulky, round_peak, lobed, crescent, atoll, spiral, chain) from the owner's reference sheet; the 14 roster islands were dealt two of each, matched to climate (tropical/swamp atolls, volcanic round-peak). The legacy meadow and the tutorial keep the old body. | `islands.json shape_family`, `roster_pick` | Which island looks like what. |
+| **S2** | Other Tamed Island picks (forest, rocky, riverside, coastal) now take a bulky or lobed body. An old save on one of those picks gets new ground outside its legacy core (r 75 m); its buildings beyond that may stand on changed ground. | `personal_pick` | Save risk for non-meadow Tamed Islands (the meadow is unchanged). |
+| **S3** | The dock is the southern-most legal mainland pose (+z = south), ties to the x = 0 midline; a saved dock pose is kept while legal. On the home meadow a NEW game's dock moves from the cove near the camp (~(0, 62)) to the south coast (~(18, 154)). | `HarbourSite.find` | Owner: "start at the southern-most port"; the walk from dock to camp is now 90-150 m on most islands. |
+| **S4** | The camp ("town") stays where the island row puts it (the middle); only the dock moved. The tutorial island keeps its hand-tuned dock beside its town (`dock_rule: hint`), so a new survivor's very first landing is not at the southern-most port. | `IslandRuntime.build` | A camp beside the dock would be a different layout decision. |
+| **S5** | Topography sizes: mountain r 24-34 m, h 11-16 m (tundra x1.2); ridge 50-85 m long, r 7-10, h 5-8; mesa r 10-17, h 4.5-6.5; volcano r 32-42, h 13-18, crater 26 % of r; 2.4 m cliff skirt. Counts per family (1-5 features). Volcanic climate: one live volcano; dormant volcano chance 0-30 % per family. | `topo_sizes`, `families.*.topo`, `climate_topo` | How much of an island is out of bounds; camera occlusion near tall peaks. |
+| **S6** | Keep-outs: footprint 12 m from the coast, 10 m past the 30 m camp disc, 10 m from the river (+ channel), 10 m from the camp-to-dock walk, 16 m between features; thin islands fall back to one small butte. | `topo_sizes.keep_*` | Free walking room round every feature. |
+| **S7** | Outcrops: 3-8 clusters per island of 3-6 blocking rocks (cliff block 4.5-6.5 m, boulder 2.6-3.8 m, spire 6-8.5 m, a big cliff 9-12 m now and then), non-destroyable except boulders under 4 m (the existing prop rule). | `families.*.outcrops`, `IslandProps.OUTCROP_KINDS` | Rock density on the flats. |
+| **S8** | Shallow shelf at -0.85 m reaching 6-50 m past the beach (noise), lagoon floors all shelf. | `shelf_m` | Reads turquoise; still boat-deep for the 0.4 m dock draft. |
+| **S9** | Rivers on thin families may be shorter: minimum arc 0.55 x target long axis x river_scale (chain/atoll 0.5, spiral 0.5, crescent 0.65). | `river_scale` | Fresh-water reach on chains and atolls. |
+| **S10** | Islets are not reachable on foot (the shelf is deep water); they still get scatter. | `IslandShape._islets` | Whether islets should hold loot or be scenery only. |
+
 ## Parked by other docs
 
 Each vision doc's unresolved points remain inside that doc until the workshop; the sections listed below are the owners' pointers, collected here only for reachability:

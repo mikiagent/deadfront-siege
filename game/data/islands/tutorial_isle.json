@@ -10,6 +10,8 @@
   "kind": "tutorial",
   "lifetime_seconds": 0,
   "sail_cost": 0,
+  "dock_rule": "hint",
+  "_dock_rule_note": "ISLANDSHAPES: the tutorial keeps its hand-tuned dock beside the town (the json harbour), not the southern-most-port rule every other island uses.",
   "harbour": [
     60,
     0,
