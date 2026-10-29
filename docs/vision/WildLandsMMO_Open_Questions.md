@@ -62,6 +62,16 @@ Source: merges into `claude/mmo-overhaul` on 2026-10-28. Each is marked `# ASSUM
 | **LB3** | The bottom level bar draws one segment per 100 XP, grouped into a multiple of 100 to stay at or under 40 segments; the label reads "Lv. n  xp / cost XP · unit XP each". | `pioneer_levels.json xp_curve.segment_xp / max_segments` | Past Lv ~39 a segment is 200+ XP, so the unit changes between levels. |
 | **SL1** | Everything levels 2.5x slower (owner 2026-10-28: "make it so everything levels up slower"). Each track's XP cost per level is multiplied by one knob in `game/data/progression.json` (`player_xp_cost_mult`, `skill_xp_cost_mult`, `pet_xp_cost_mult`, `tribe_xp_cost_mult`, all 2.5); XP grants, curve shapes and the 100-XP bar segment are unchanged. Character Lv 1 now costs 275 (Lv 10 763), skill Lv 1->2 costs 70, pet Lv 1->2 112.5, tribe skill 100 x level. At the plan's ~35 XP/min, Lv 10 lands near 2 h instead of 47 min; islands-and-loop-plan §3.2's hour-one Lv 11-13 target is superseded (now about Lv 6). | `progression.json`, `Progression.mult`, report `claude-slowlevels.md` | The docs pin no slower pace; 2.5 is a default. Owner: is 2.5x the feel you want, and should every track share it? |
 
+### HARVESTROLL (2026-10-28) — every gather pass is its own lot
+
+Source: branch `claude/mmo-harvestroll`, report `docs/orchestration/reports/claude-harvestroll.md`. Numbers live in `game/data/loot_tables.json` `lot`. Owner: "I get the same loot every time ... it kept giving me the same branch".
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **HR1** | A pass's level rolls in max(1, S-5)..S for node level S, `L = lo + min(5, floor(6 x U^gamma))`; gamma 1.5 at Gathering 1 bare-handed, down 0.5 by Gathering 60 and 0.25 at a steel tool (the Traits math doc's illustrative novice/competent/expert values). Starter nodes of level 1 always yield level 1. | `LootRoller.roll_lot` | How often a gatherer lands top-of-band material; how fast skill pays. |
+| **HR2** | Each material lot rolls one grey trait at 96% and one gold trait at 7% (the math doc's unapproved candidates), gold odds +15% relative per tool tier above stone and +20% relative at Gathering 60, capped 12%; magnitude 1-3 each. | `loot_tables.json lot` | Nearly every branch/stone now carries a grey trait; crafting averages these into outputs. |
+| **HR3** | Which gold/grey traits a material can roll is by its first category (wood, stone, ore, fibre, lashing, earth), read off spec 04's trait meanings; food, herbs and treasure roll level only. | `lot.by_category` | Spec 04 asks for per-resource tables; these are placeholders until the owner names per-material ones. |
+
 ### TRIBE M1 (2026-10-28) — tribe members and dock recruits
 
 Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tribe.md`. Numbers live in `game/data/tribe.json` (every one an ASSUMPTION) unless a file is named. A tribe member now exists in code (this supersedes the last clause of A15).
@@ -83,6 +93,19 @@ Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tri
 | **T13** | Orders: follow (fights only what attacks it), guard (also defends the survivor, her pets and her hunt target within 9 m), heel (never fights), attack (the survivor's hunt target), stay. Fights are leashed to 20 m from the survivor. Following members take the follow slots after her summoned pets. | `TribeMember._pick_target` | Pet-style orders on a human. |
 | **T14** | Away from home only following members come along; working and staying members remain at home. There is no expedition slot limit yet (vision §7 says three shared slots). | `TribeDirector.sync` | Party size on trips. |
 | **T15** | Work reach: a worker stands at the visible edge of a node (card or mesh footprint) plus 0.3 m. | `HarvestNode.visual_radius` | Visual only. |
+
+### ZEBRAAI (2026-10-28) — zebraceratops / pack_mule behaviour
+
+Source: branch `claude/mmo-zebraai`, report `docs/orchestration/reports/claude-zebraai.md`. Numbers live in `game/data/creatures/ai.json archetypes.pack_mule.tactics` (every one an ASSUMPTION). Protoceratops shares the archetype and so the profile.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **Z1** | The zebraceratops stays a skittish grazer: it flees on sight and fights back only after 3 hits (the existing temperament); the tactics run only while provoked. | `temperaments.skittish`, `TacticalBrain._provoked` | First tame: a new player can approach, but hitting it starts a fight. |
+| **Z2** | Natures: Timid never fights back (only runs), Brave stands its ground with a head-lowering display and charges inside 5 m or on the first hit, Aggressive charges on sight (this also fixed Aggressive grazers of every species, which used to go back to grazing after the alert). | `tactics.flee_natures / stand_ground_natures / display_charge_m`, `CreatureBrain._provoked` | Owner: "Timid flees, Brave/Aggressive charge". |
+| **Z3** | Herd defence: a hit herdmate pulls the rest of the herd (not Timid) onto the attacker for 8 s, no farther than 16 m from their home; the hurt one runs. A herd of three on a fresh survivor is a real fight. | `herd_defend`, `defend_s`, `guard_m` | PRD verb "herd solidarity"; could make the first capture too hard for a beginner (spec 07: "keep beginners' first Zebraceratops feasible"). |
+| **Z4** | The charge: locked straight line, 1.5 × run, impact 1.8 × attack (≈ 55 on an unarmoured survivor at the species' 36 attack), 6 s cooldown, 1.2 s display before it; a sidestep or roll dodges it and leaves it staggered 1.5 s. | `charge_*`, `display_s` | The main danger and the main skill test of the first tame. |
+| **Z5** | Hind kick: 1.4 × attack, 5 s cooldown, only with the survivor behind it at contact (typically right after a charge through her). | `kick_*` | Punishes standing behind a grazer. |
+| **Z6** | A provoked zebra flees for 4 s below 25 % HP (under the 30 % capture line, so a weakened one stays capturable for a moment) and comes back while still provoked. | `retreat_frac`, `flee_s` | Decides whether capture turns into a chase. |
 
 ## Parked by other docs
 

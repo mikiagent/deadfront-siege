@@ -321,3 +321,19 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
   clockwise. The **glyph changes with the state**: shrunken when empty, big when full, swollen when
   overfull, easing in scale between them. **Saturation** is a thin yellow outer ring that drains like a
   cooldown while the last meal digests.
+
+## Candidate, not adopted: main menu as a left pop-out panel
+
+Saved 2026-10-29 at the owner's request ("save it just in case we want to go with this later"). The current design is the
+menu-open zoom-out with parallax clouds; this is an alternative to revisit.
+
+- A dark translucent column about 1/6 of the screen wide slides out from the left over the game. The world stays visible,
+  slightly dimmed.
+- Top row: small icons (mail, announcements, social, settings).
+- Below: a 3-column grid of round dark icons with labels. Some carry a hotkey letter in a square badge at the top left
+  (P Character, K Skills, C Craft/Build, I Bag, J Orders, M Map). Notification dots sit on icons that need attention.
+- Entries in the reference: Character, Change Character, Play; Skills, Craft/Build, Bag; Animals, Island Market, Domain;
+  Shop, Orders, Support; Events, Brawl, Daily Log; Clan, Friends, Party; Encyclopedia, Screenshot, Map. Ours would use our
+  own nav entries; nothing here adds features.
+- "Exit Game" at the bottom.
+- Mobile: the column must keep 64 px tap targets and respect the left safe area, so on a phone it is wider than 1/6.
