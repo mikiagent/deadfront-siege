@@ -252,6 +252,7 @@ func _test_sleep() -> void:
 		if player._sleep_left <= 0.0:
 			break
 		player.sim._tick_sleep(0.5)
+	player.sim.get_up()  # a tent keeps her asleep until she gets up
 	await _frames(3)
 	_expect(player.vitals.fatigue < before - 10.0, "sleep lowered fatigue (%.1f -> %.1f)" % [before, player.vitals.fatigue])
 	_expect(int(spot.get("sleeps_left")) == 5, "the tent spent one of its six sleeps (%s left)" % str(spot.get("sleeps_left")))

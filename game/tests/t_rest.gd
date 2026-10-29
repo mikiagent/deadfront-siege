@@ -206,7 +206,8 @@ func _test_sleep_recovers(at: Vector3) -> void:
 	if rest:
 		_expect(rest.hud_lines().size() == 3 and rest.hud_lines()[0] == "Sleeping", "the chip shows Sleeping with its rates %s" % [rest.hud_lines()])
 	await _seconds(6.5)
-	_expect(player._sleep_left <= 0.0 and player.vitals.fatigue < 1.0, "a completed tent sleep still clears fatigue (%.2f)" % player.vitals.fatigue)
+	_expect(player.vitals.fatigue < 1.0, "a completed tent sleep still clears fatigue (%.2f)" % player.vitals.fatigue)
+	player.sim.get_up()  # a tent keeps her asleep until she gets up (owner 2026-10-28)
 	await _seconds(2.2)
 
 ## Pre-merge fix: one upright seated pose everywhere (the held sleep_down frame leaned back on one arm
@@ -403,6 +404,7 @@ func _test_status_ticks(at: Vector3) -> void:
 	player.sim.start_sleep()
 	var left0: float = player._sleep_left
 	await _seconds(left0 + 0.6)
+	player.sim.get_up()  # a tent keeps her until she gets up
 	_expect(player.statuses.has(&"stomachache") and player._sleep_left <= 0.0 and player.vitals.fatigue < 1.0,
 		"Sleep at the tent with a Stomachache completes: fatigue %.2f (the base woke her on the first tick)" % player.vitals.fatigue)
 	await _seconds(2.2)
@@ -588,6 +590,7 @@ func _test_well_rested(at: Vector3) -> void:
 	player.sim.start_sleep()
 	_expect(player._sleep_left > 0.0, "well rested: the tent sleep starts")
 	await _seconds(player._sleep_left + 0.4)
+	player.sim.get_up()  # a tent keeps her until she gets up; the rewards land then
 	var inst = player.statuses.get_instance(&"well_rested")
 	var cfg: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string("res://data/rest.json")) as Dictionary)["well_rested"]
 	var want: float = clampf(60.0 * float(cfg["secs_per_point"]), float(cfg["min_s"]), float(cfg["max_s"]))

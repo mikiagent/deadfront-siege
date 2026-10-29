@@ -558,6 +558,9 @@ func context_actions() -> Array:
 	if p.mounted_on:
 		out.append({"id": "dismount", "glyph": "⤓", "label": "Dismount"})
 		return out
+	if p._sleep_left > 0.0:
+		out.append({"id": "get_up", "glyph": "↑", "label": "Get up"})  # the one hex while she sleeps
+		return out
 	var inv := p.inventory
 	var near := func (group: String, reach: float) -> Node3D:
 		var n := p._nearest_group(group)
@@ -623,6 +626,8 @@ func context_action(id: String) -> void:
 			p.actions.fill_water()
 		"sleep":
 			p.sim.start_sleep()
+		"get_up":
+			p.sim.get_up()
 		"rest":
 			p.actions.rest()
 		"wash":
