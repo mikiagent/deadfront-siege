@@ -8,8 +8,8 @@ Part 1 §1.4 items 1-6 and the §1.5 table. Worktree: `.claude/worktrees/mmo-hun
 **Data**
 - `game/data/world/rules.json`: new `hunger` block — `decay_per_min` 2.5, band edges
   `empty_below` 10 / `peckish_below` 30 / `fed_below` 70 / `well_fed_below` 100,
-  `fatigue_mult` per band (overfull 1.3, well_fed 0.85, fed 1.0, peckish 1.1, empty 1.5 → the
-  table's own numbers), `starving_after_s` 600, `starving_stack_s` 180, `well_fed_regen` 0.2,
+  `fatigue_mult` per band (overfull 1.05, well_fed 0.85, fed 1.0, peckish 1.1, empty 1.3, starving 1.5),
+  `starving_after_s` 600, `starving_stack_s` 180, `well_fed_regen` 0.2,
   `buff_off_below` 10. The old `fatigue.fullness_mult` map is retired; `Digestion.fatigue_mult_for`
   reads the hunger block.
 - `game/data/foods.json`: fullness rescaled per class — raw fruit/berries/fish/mushroom/cactus 6-10

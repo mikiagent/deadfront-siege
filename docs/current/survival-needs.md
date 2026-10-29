@@ -46,11 +46,11 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
 
 | state | fullness (points) | fatigue gain |
 |---|---|---|
-| empty | < 10 | x1.5 |
+| empty | < 10 | x1.3 (x1.5 once starving) |
 | peckish | 10–30 | x1.1 |
 | fed | 30–70 | x1.0 |
 | well fed | 70–100 | x0.85 (and +0.2 Health/s, the `well_fed` chip) |
-| overfull | > 100 | x1.3 (sluggish) |
+| overfull | > 100 | x1.05 (sluggish) |
 
   Fullness is now its own stored value: eating adds the food's `foods.json` `fullness`
   (`Digestion.add_fullness`, called by `EatSession`) and the stomach drains a flat
