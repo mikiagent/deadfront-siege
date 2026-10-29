@@ -266,14 +266,21 @@
       "chase_speed_mult": 0.5,
       "_note": "Compys: short sight, short leash, slower chase so a survivor can walk away from a swarm.",
       "tactics": {
-        "_about": "SWARM (compsognathus, owner 2026-10-28): a tiny pack scavenger. Surrounds the prey (each packmate its own slot on a slowly turning ring), darts in for a bite and scurries straight back out, feints, flees when hurt or when a packmate dies, is bolder in numbers and timid alone, and presses a weakened survivor. Every number is an ASSUMPTION; template: docs/current/enemy-ai-template.md.",
+        "_about": "SWARM (compsognathus, owner 2026-10-28): a tiny pack harasser. Surrounds the prey (each packmate its own slot on a slowly turning ring), pounces in from range or darts in for a bite and JUMPS back out (leap_back, never a scurry), mixes far sideways strafe jumps (dodge_left/right) into the strafe walk, chains short combos (dodge -> pounce, backstep -> dodge -> pounce), flees when hurt or when a packmate dies, is bolder in numbers and timid alone, and presses a weakened survivor. Every number is an ASSUMPTION; template: docs/current/enemy-ai-template.md.",
         "sequences": [
           {
             "name": "dart",
             "steps": [
               "charge"
             ],
-            "weight": 3.0
+            "weight": 2.0
+          },
+          {
+            "name": "pounce",
+            "steps": [
+              "pounce"
+            ],
+            "weight": 2.0
           },
           {
             "name": "strafe_left_dart",
@@ -288,6 +295,40 @@
             "steps": [
               "strafe_right",
               "charge"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "strafe_left_pounce",
+            "steps": [
+              "strafe_left",
+              "pounce"
+            ],
+            "weight": 1.5
+          },
+          {
+            "name": "strafe_right_pounce",
+            "steps": [
+              "strafe_right",
+              "pounce"
+            ],
+            "weight": 1.5
+          },
+          {
+            "name": "backstep_strafe_right_pounce",
+            "steps": [
+              "backstep",
+              "strafe_right",
+              "pounce"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "backstep_strafe_left_pounce",
+            "steps": [
+              "backstep",
+              "strafe_left",
+              "pounce"
             ],
             "weight": 1.0
           }
@@ -308,20 +349,18 @@
         "charge_cd": 2.5,
         "charge_speed_mult": 1.3,
         "charge_max_s": 1.0,
-        "strafe_m": 1.5,
-        "strafe_s": 0.35,
-        "dodge_height_per_m": 0.0,
-        "backoff": "scurry",
-        "scurry_s": 0.6,
+        "strafe_m": 2.5,
+        "strafe_s": 0.42,
+        "dodge_height_per_m": 0.1,
         "hop_m": 3.0,
         "hop_cd": 1.0,
-        "leap_back_m": 3.0,
+        "leap_back_m": 4.0,
         "max_retreat_m": 5.5,
         "w_hold": 0.2,
         "w_strafe": 0.5,
-        "w_dodge": 0.2,
+        "w_dodge": 0.4,
         "w_feint": 0.3,
-        "w_hop": 0.1,
+        "w_hop": 0.15,
         "hold_min_s": 0.5,
         "hold_max_s": 1.0,
         "feint_s": 0.6,
@@ -335,25 +374,49 @@
         "max_basic_streak": 2,
         "max_basic_share": 0.15,
         "pack_gap_s": 0.3,
+        "_jumps": "COMPYJUMPS (owner 2026-10-28: 'should jump back similar to the deinonychus (far jumps, far pounces, far strafe jumps, combo moves, it can jump and miss the player)'): every back-off is a leap facing the prey (hop_back hop_m, leap_back leap_back_m after a bite, both inside max_retreat_m), the power strafe is a dodge_left/right jump of strafe_m, and approach_pounce lets it open with a pounce from range on the way in. The pounce locks its landing point at take-off (aimed at the prey's position plus its velocity over the flight); a prey that sidesteps after take-off is missed and the compy lands past her for pounce_miss_recover_s. Clips: tools/gait/make_leap.py. ASSUMPTION numbers, smaller than the deinonychus's for a small harasser.",
+        "leap_height_per_m": 0.15,
+        "hop_s": 0.35,
+        "hop_land_s": 0.1,
+        "pounce_cd": 5.0,
+        "pounce_min_m": 2.0,
+        "pounce_max_m": 6.0,
+        "chase_pounce_max_m": 5.0,
+        "approach_pounce": true,
+        "pounce_telegraph_s": 0.45,
+        "pounce_leap_s": 0.35,
+        "pounce_radius_m": 0.9,
+        "pounce_recover_s": 0.4,
+        "pounce_miss_recover_s": 1.0,
+        "pounce_mult": 1.6,
+        "pounce_overshoot_chance": 0.2,
+        "pounce_overshoot_m": 1.5,
+        "bite_track": true,
+        "bite_track_frac": 0.6,
+        "chase_hop": true,
+        "_landing": "COMPYJUMPS (owner 2026-10-28: 'compsagnathus attacks aren't landing very often, it should land some attacks'): bite_track keeps the bite lunging after prey that walks out of its jaws until the contact frame (past bite_track_frac x reach, at charge_speed_mult x run). t_swarm measures the landed share on a standing and on a walking survivor with real accuracy rolls. chase_hop: chasing a survivor who walks on, a compy at her heels whose bite is not allowed yet (cooldown, or no beat since its last bite) hops back and chases again, instead of trotting glued to her without biting.",
         "pack_bold": {
           "n": 4,
           "cooldown_mult": 0.5,
           "w_charge": 1.5,
           "beat_mult": 0.6,
           "wait_mult": 0.5,
-          "retreat_frac_mult": 0.6
+          "retreat_frac_mult": 0.6,
+          "w_pounce": 1.3
         },
         "alone": {
           "cooldown_mult": 2.2,
           "w_feint": 1.5,
           "retreat_frac_mult": 1.6,
-          "w_hop": 2.0
+          "w_hop": 2.0,
+          "w_pounce": 0.4
         },
         "weak_prey": {
           "hp_frac": 0.4,
           "cooldown_mult": 0.6,
           "w_charge": 1.5,
-          "wait_mult": 0.3
+          "wait_mult": 0.3,
+          "w_pounce": 1.3
         },
         "enraged": {
           "cooldown_mult": 0.6,
@@ -361,11 +424,13 @@
           "combo_seq_mult": 1.3,
           "w_dodge": 1.5,
           "beat_mult": 0.7,
-          "wait_mult": 0.5
+          "wait_mult": 0.5,
+          "w_pounce": 1.4
         },
         "feint_repositions": true,
-        "_leash": "max_retreat_m 5.5 keeps a scurry inside the compy's own short leash (perception ~5.75 m x leash_mult 1.2): backing off must never drop the hunt.",
-        "slot_tolerance_m": 2.0
+        "_leash": "max_retreat_m 5.5 keeps every back-leap inside the compy's own short leash (perception ~5.75 m x leash_mult 1.2): backing off must never drop the hunt.",
+        "slot_tolerance_m": 2.0,
+        "slot_catchup_mult": 2.0
       }
     },
     "flock_harass": {
