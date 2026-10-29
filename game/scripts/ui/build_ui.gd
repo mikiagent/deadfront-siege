@@ -213,6 +213,13 @@ func hide_ui() -> void:
 
 ## A tap on a placed site (ConstructionSite.interact lands here).
 func show_site(s: ConstructionSite) -> void:
+	# CRAFTRADIAL: a site opens the Construction panel (CraftUI's right pop-out, CraftPlace site mode).
+	# The drawer's old site view stays for a survivor with no craft menu (labs).
+	var cui: Variant = player.get("craft_ui") if player else null
+	if cui != null and cui.has_method("open_site"):
+		hide_ui()
+		cui.open_site(s)
+		return
 	site = s
 	_site_mode = true
 	_selected = str(s.blueprint_id)
@@ -489,6 +496,9 @@ func _place_selected() -> void:
 	var s := BuildFlow.place_site(player, StringName(_selected), _here_cell(), 0)
 	if s == null:
 		return
+	# The survivor kicks the dirt to mark the site (clip from claude/mmo-rummage; played once it lands).
+	if player.anim and ResourceLoader.exists("res://assets/characters/survivor/anim/kick_dirt.glb"):
+		player.anim.play_clip(&"kick_dirt")
 	show_site(s)
 	print("[ui] build placed %s site %s" % [_selected, s.site_id])
 

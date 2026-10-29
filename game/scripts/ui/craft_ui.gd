@@ -1,17 +1,19 @@
 class_name CraftUI
 extends Control
-## The one crafting menu, open from anywhere (Menu > Craft, the craft key, or a tap on a station).
-## UICRAFT (docs/design/ui-redesign-spec.md §7 D1 / D3, §8 chrome): a full-screen sheet with the
-## HEADER bar and torn edge, "Back · Craft / Build" and ✕. Three columns:
-##   left   - station chooser (By hand / Workbench n m / Bonfire n m ...) over a category grid;
-##   middle - search and the recipe list grouped by what it makes (Axe, Knife, Food ...);
-##   right  - the recipe: parchment header, Max Level / Related Skill / Station / Time · Success ·
-##            Flawless, the materials with have / need, Craft (GOLD) and Craft ×5 pinned at the bottom.
-## "Materials · Place materials" opens D3 (CraftPlace): choose which instance leads each slot, then Craft.
-## Choosing Craft closes the menu and crafts it like gathering: the survivor walks to the station if
-## needed, the hex over it fills once per item, the item lands in the bag (StationCraft). Every number
-## comes from Crafting (the same functions the craft rolls with); no crafting rule lives here.
-## Phone landscape keeps the three columns at phone type sizes; a portrait phone shows one pane.
+## The one crafting menu, open from anywhere (Menu > Craft, the craft key, a station radial's top wedge
+## or a tap in its output row). CRAFTRADIAL (docs/design/ui-redesign-spec.md §7 D5): a RIGHT-SIDE
+## pop-out (RightSheet) with the world left visible beside it. Header "‹ Craft / Build ✕" (+ Build),
+## a Search field, a 2-row grid of category tabs (All, Material Processing, Cooking, Tool, Clothing,
+## Building Components, Weapon, Farming; the active one underlined GOLD), the recipes grouped under thin
+## section headers as a two-column icon + name list, and the footer hint "Select a pattern.".
+## Selecting a recipe swaps the list for its detail (Max Level / Related Skill / Station / odds, the
+## materials with have / need, Craft and Craft ×5); ‹ goes back to the list.
+## "Materials · Place materials" opens D3 (CraftPlace, full screen): choose which instance leads each
+## slot, then Craft. Choosing Craft closes the menu and crafts it like gathering: the survivor walks to
+## the station if needed, the hex over it fills once per item (StationCraft). Every number comes from
+## Crafting (the same functions the craft rolls with); no crafting rule lives here.
+## From the menu the list holds every recipe (each row says its station); from a station only that
+## station's recipes.
 
 ## [station id, name, symbol icon id]. Symbols are white (HexButton.symbol); system emoji drew in colour.
 ## Campfire and crock pot have their own symbols: their kit icons alias the bonfire and grill ones.
@@ -22,30 +24,40 @@ const STATIONS := [
 	["stone_grill", "Stone grill", "stone_grill_kit"], ["steamer", "Steamer", "steamer_kit"], ["well", "Well", "well_kit"],
 	["forge", "Forge", "ingot"], ["anvil", "Anvil", "hammer"],
 ]
-## The category grid: [recipe skill ("" = all), label, symbol ids]. The skills are recipes.json's own
-## `skill` values. # ASSUMPTION: the canvas's Rest / Shelter and Taming tiles have no recipe skill
-## behind them, so the grid shows the six skills the data has (spec: don't invent categories).
+## The category tabs (owner's Durango reference): [key ("" = all), label, symbol ids]. Keys are
+## recipes.json `skill` values, except Tool / Weapon, which split weapon_tools by what the recipe
+## makes (in_category). # ASSUMPTION: Farming kept as an eighth tab (7 farming recipes have no other home).
 const CATEGORIES := [
 	["", "All", ["stone_knife", "hammer"]],
 	["processing", "Material Processing", ["plank", "ingot"]],
 	["cooking", "Cooking", ["grilled_meat"]],
+	["tool", "Tool", ["stone_axe", "hammer"]],
 	["tailoring", "Clothing", ["cloth", "dried_hide"]],
-	["weapon_tools", "Weapons & Tools", ["stone_knife"]],
-	["construction", "Structures", ["workbench_kit"]],
+	["construction", "Building Components", ["workbench_kit"]],
+	["weapon", "Weapon", ["stone_knife"]],
 	["farming", "Farming", ["berry_seed"]],
 ]
+## Outputs whose first category is one of these are a Weapon; the rest of weapon_tools is a Tool.
+const WEAPON_CATS := [&"weapon", &"ammunition", &"siege_ammunition", &"counter_supply"]
+## _station value for "every recipe, any station" (the menu's view).
+const ALL := "*"
 const NO_LEVEL := LevelDisplay.NONE
 const FOOTER_H := 64.0
 const TAP := 64.0  ## every control a finger presses (owner rule: 64 px or more)
 
 var player: Player
-var _station: String = ""
+var _station: String = ALL
 var _category: String = ""
 var _selected_id: String = ""
 var _query: String = ""
-var _phone_detail := false  ## portrait phone: the detail pane is up instead of the list
+var _phone_detail := false  ## the detail page is up instead of the list (every size: one page at a time)
+## "build": the same pop-out lists what can be placed (kits in the bag, blueprints); a tap enters the
+## existing placement flow (BuildUI.pick_kit ghost / BuildUI.tap_blueprint site).
+var _mode := "craft"
 var _refresh_left: float = 0.0
 
+var _sheet: RightSheet
+var _backdrop: ColorRect  ## only behind the full-screen D3 view
 var _header: SheetChrome
 var _title: Label
 var _subtitle: Label
@@ -53,11 +65,9 @@ var _hint: Label
 var _back_btn: Button
 var _build_btn: Button
 var _close_btn: Button
-var _body: HBoxContainer
-var _left: VBoxContainer
+var _body: VBoxContainer
 var _mid: VBoxContainer
 var _right: VBoxContainer
-var _tabs: HBoxContainer  ## the station chooser row
 var _cats: GridContainer
 var _search: LineEdit
 var _list: VBoxContainer
@@ -67,19 +77,22 @@ var _place: CraftPlace
 
 func _ready() -> void:
 	visible = false
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_filter = Control.MOUSE_FILTER_IGNORE  # the world left of the panel stays tappable
 	z_index = 40  # above the HUD, which is added to the same UI layer after this menu
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var th := Theme.new()
 	th.default_font = UiTokens.ui_face()
 	theme = th
-	add_child(SheetChrome.backdrop())
-	_header = SheetChrome.new("Craft / Build")
+	_backdrop = SheetChrome.backdrop()
+	_backdrop.visible = false
+	add_child(_backdrop)
+	_sheet = RightSheet.new("Craft / Build")
+	_sheet.name = "CraftSheet"
+	_sheet.back_pressed.connect(_on_back)
+	_sheet.close_pressed.connect(hide_ui)
+	add_child(_sheet)
+	_header = _sheet.header
 	_header.name = "CraftHeader"
-	_header.mouse_filter = Control.MOUSE_FILTER_STOP
-	_header.back_pressed.connect(_on_back)
-	_header.close_pressed.connect(hide_ui)
-	add_child(_header)
 	_back_btn = _header.back
 	_back_btn.name = "CraftBack"
 	_title = _header.title
@@ -88,15 +101,8 @@ func _ready() -> void:
 	_subtitle.name = "CraftSubtitle"
 	_subtitle.add_theme_color_override("font_color", UiTokens.MUTED)
 	_header.add_child(_subtitle)
-	_hint = Label.new()
-	_hint.name = "CraftHint"
-	_hint.add_theme_color_override("font_color", UiTokens.MUTED)
-	_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_hint.clip_text = true
-	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_header.add_child(_hint)
 	# Spec 30 §2: Build (blueprints, construction) is the other half of "Craft / Build".
-	_build_btn = mk_btn("Build", _open_build, Vector2(120, TAP), "ghost")
+	_build_btn = mk_btn("Build", _open_build, Vector2(104, TAP), "ghost")
 	_build_btn.name = "BuildRow"
 	_build_btn.icon = HexButton.symbol(["hammer", "workbench_kit"])
 	_build_btn.expand_icon = true
@@ -105,10 +111,11 @@ func _ready() -> void:
 	_header.right.add_child(_build_btn)
 	_close_btn = _header.close
 	_close_btn.name = "CraftClose"
-	_body = HBoxContainer.new()
+	_body = VBoxContainer.new()
 	_body.name = "CraftBody"
-	add_child(_body)
-	_build_left()
+	_body.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_body.add_theme_constant_override("separation", 0)
+	_sheet.body.add_child(_body)
 	_build_mid()
 	_build_right()
 	_place = CraftPlace.new()
@@ -123,48 +130,13 @@ func _ready() -> void:
 	if Game.shot_path.contains("craft"):
 		get_tree().create_timer(0.9).timeout.connect(func () -> void: show_for_station(&"bonfire"))
 
-func _build_left() -> void:
-	_left = VBoxContainer.new()
-	_left.name = "CraftLeft"
-	_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_left.size_flags_stretch_ratio = 1.0
-	_left.add_theme_constant_override("separation", 12)
-	_body.add_child(_left)
-	var tab_scroll := ScrollContainer.new()
-	tab_scroll.name = "StationScroll"
-	tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	_left.add_child(tab_scroll)
-	_tabs = HBoxContainer.new()
-	_tabs.name = "StationRow"
-	_tabs.add_theme_constant_override("separation", 6)
-	tab_scroll.add_child(_tabs)
-	var cat_scroll := ScrollContainer.new()
-	cat_scroll.name = "CategoryScroll"
-	cat_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	cat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	cat_scroll.add_theme_stylebox_override("panel", flat(UiTokens.PANEL, Color(1, 1, 1, 0.06), 1))
-	_left.add_child(cat_scroll)
-	_cats = GridContainer.new()
-	_cats.name = "CategoryGrid"
-	_cats.columns = 2
-	_cats.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_cats.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_cats.add_theme_constant_override("h_separation", 1)
-	_cats.add_theme_constant_override("v_separation", 1)
-	cat_scroll.add_child(_cats)
-
+## The list page: Search, the category tabs, the grouped recipes and the footer hint.
 func _build_mid() -> void:
 	_mid = VBoxContainer.new()
 	_mid.name = "CraftMid"
-	_mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_mid.size_flags_stretch_ratio = 1.36
-	_mid.add_theme_constant_override("separation", 0)
+	_mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_mid.add_theme_constant_override("separation", 6)
 	_body.add_child(_mid)
-	var search_pad := PanelContainer.new()
-	search_pad.name = "SearchPad"
-	search_pad.add_theme_stylebox_override("panel", pad(UiTokens.PANEL, 14, 14, 12, 12))
-	_mid.add_child(search_pad)
 	_search = LineEdit.new()
 	_search.name = "CraftSearch"
 	_search.placeholder_text = "Search"
@@ -176,31 +148,47 @@ func _build_mid() -> void:
 	_search.text_changed.connect(func (t: String) -> void:
 		_query = t.strip_edges().to_lower()
 		_refresh_list())
-	search_pad.add_child(_search)
+	_mid.add_child(_search)
+	_hint = Label.new()
+	_hint.name = "CraftHint"
+	_hint.add_theme_color_override("font_color", UiTokens.MUTED)
+	_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_hint.clip_text = true
+	_mid.add_child(_hint)
+	_cats = GridContainer.new()
+	_cats.name = "CategoryGrid"
+	_cats.columns = 4
+	_cats.add_theme_constant_override("h_separation", 2)
+	_cats.add_theme_constant_override("v_separation", 2)
+	_mid.add_child(_cats)
 	var list_scroll := ScrollContainer.new()
 	list_scroll.name = "RecipeScroll"
 	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	list_scroll.add_theme_stylebox_override("panel", flat(UiTokens.PANEL))
+	list_scroll.add_theme_stylebox_override("panel", flat(Color(0, 0, 0, 0.18)))
 	_mid.add_child(list_scroll)
 	_list = VBoxContainer.new()
 	_list.name = "RecipeList"
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 0)
 	list_scroll.add_child(_list)
+	var foot := _label("Select a pattern.", 14, UiTokens.MUTED)
+	foot.name = "CraftFootHint"
+	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_mid.add_child(foot)
 
+## The detail page: the recipe, then Craft / Craft ×5 pinned under it.
 func _build_right() -> void:
 	_right = VBoxContainer.new()
 	_right.name = "CraftRight"
-	_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_right.size_flags_stretch_ratio = 1.03
+	_right.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_right.add_theme_constant_override("separation", 0)
+	_right.visible = false
 	_body.add_child(_right)
 	var detail_scroll := ScrollContainer.new()
 	detail_scroll.name = "DetailScroll"
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	detail_scroll.add_theme_stylebox_override("panel", flat(UiTokens.PANEL))
 	_right.add_child(detail_scroll)
 	_detail = VBoxContainer.new()
 	_detail.name = "Detail"
@@ -209,7 +197,7 @@ func _build_right() -> void:
 	detail_scroll.add_child(_detail)
 	var foot_pad := PanelContainer.new()
 	foot_pad.name = "FooterPad"
-	foot_pad.add_theme_stylebox_override("panel", pad(UiTokens.PANEL, 18, 18, 12, 18))
+	foot_pad.add_theme_stylebox_override("panel", pad(Color(0, 0, 0, 0), 0, 0, 8, 0))
 	_right.add_child(foot_pad)
 	_footer = HBoxContainer.new()
 	_footer.name = "CraftFooter"
@@ -221,6 +209,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
 		if _place.visible:
 			close_place()
+		elif _phone_detail:
+			_back_to_list()
 		else:
 			hide_ui()
 		get_viewport().set_input_as_handled()
@@ -234,10 +224,13 @@ func _on_inventory_changed() -> void:
 	if visible:
 		rebuild()
 
+## The menu's way in: every recipe, any station.
 func toggle() -> void:
 	if visible:
 		hide_ui()
 	else:
+		_station = ALL
+		_mode = "craft"
 		show_ui()
 
 func show_ui() -> void:
@@ -245,22 +238,33 @@ func show_ui() -> void:
 	_phone_detail = false
 	_place.visible = false
 	_body.visible = true
-	_layout_safe()
+	_apply_phone_pane()
 	rebuild()
 	UiTokens.focus_first(_list.find_children("*", "Button", true, false))
 
-## A station tap lands on that station's group.
+## A station lands on that station's recipes.
 func show_for_station(sid: StringName) -> void:
 	_station = str(sid)
+	_mode = "craft"
 	show_ui()
+
+## A station radial's output slot: that station's list with `rid` open on its detail page.
+func show_recipe(sid: StringName, rid: StringName) -> void:
+	_station = str(sid)
+	_mode = "craft"
+	_category = ""
+	_query = ""
+	_search.text = ""
+	show_ui()
+	_choose_recipe(str(rid))
 
 func hide_ui() -> void:
 	visible = false
 	_place.visible = false
 	_body.visible = true
 
-## Back in the header: D3 back to the recipe, a portrait detail back to the list, else back to the
-## MENU sheet (spec §8: Back returns to the MENU, ✕ to the HUD).
+## ‹ in the header: D3 back to the recipe, the detail back to the list, else back to the MENU sheet
+## (spec §8: Back returns to the MENU, ✕ to the HUD).
 func _on_back() -> void:
 	if _place.visible:
 		close_place()
@@ -277,8 +281,8 @@ func _process(delta: float) -> void:
 	_refresh_left -= delta
 	if _refresh_left <= 0.0:  # distances change as the survivor walks
 		_refresh_left = 0.5
-		if not _place.visible:
-			_refresh_tabs()
+		if not _place.visible and not _phone_detail and _mode == "craft":
+			_hint.text = _hint_text()
 
 # ---------------------------------------------------------------- build
 
@@ -288,114 +292,145 @@ func rebuild() -> void:
 	if _place.visible:
 		_place.rebuild()
 		return
-	_refresh_tabs()
+	_cats.visible = _mode == "craft"
+	_build_btn.text = "Craft" if _mode == "build" else "Build"
+	if _mode == "build":
+		_refresh_build_list()
+		return
 	_refresh_cats()
 	_refresh_list()
-
-func _refresh_tabs() -> void:
-	for c in _tabs.get_children():
-		_tabs.remove_child(c)  # detach first: focus_first and finds must not see rows about to go
-		c.queue_free()
-	var compact := _compact()
-	var view := get_viewport_rect().size
-	for row in STATIONS:
-		var sid: String = row[0]
-		var info := _station_info(sid)
-		var status := ""
-		if sid == "":
-			status = "anywhere"
-		elif info["near"]:
-			status = "here"
-		elif info["exists"]:
-			status = "%d m away" % int(info["dist"])
-		else:
-			status = "none built"
-		var chosen := sid == _station
-		var b := Button.new()
-		b.name = "Station_" + (sid if sid != "" else "hand")
-		b.custom_minimum_size = Vector2(104 if compact else 142, TAP if compact else 92)
-		style_cell(b, chosen)
-		if chosen:  # the canvas draws the chosen station with a full gold rim, not brackets
-			for k in ["normal", "hover", "pressed"]:
-				var sb := b.get_theme_stylebox(k) as StyleBoxFlat
-				sb.border_color = UiTokens.GOLD
-				sb.set_border_width_all(2)
-		b.pressed.connect(_pick_station.bind(sid))
-		var box := VBoxContainer.new()
-		box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		box.alignment = BoxContainer.ALIGNMENT_CENTER
-		box.add_theme_constant_override("separation", -2)
-		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		b.add_child(box)
-		var nm := _label(row[1], UiTokens.body(view) + (0 if compact else 4), UiTokens.GOLD if chosen else UiTokens.TEXT)
-		nm.name = "StationName"
-		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		box.add_child(nm)
-		var st := _label(status, UiTokens.TYPE_MIN, UiTokens.MUTED if info["exists"] else Color(0.6, 0.45, 0.4))
-		st.name = "StationStatus"
-		st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		box.add_child(st)
-		_tabs.add_child(b)
 
 func _refresh_cats() -> void:
 	for c in _cats.get_children():
 		_cats.remove_child(c)
 		c.queue_free()
-	var recipes := Crafting.recipes_for_station(StringName(_station))
-	var compact := _compact()
+	var recipes := _station_recipes()
+	var view := get_viewport_rect().size
 	for row in CATEGORIES:
-		var skill: String = row[0]
+		var key: String = row[0]
 		var n := 0
 		for rec in recipes:
-			if skill == "" or str(rec.get("skill", "")) == skill:
+			if in_category(rec, key):
 				n += 1
 		var cell := _CategoryCell.new()
-		cell.name = "Cat_" + (skill if skill != "" else "all")
+		cell.name = "Cat_" + (key if key != "" else "all")
 		cell.title = row[1]
 		cell.icon_tex = HexButton.symbol(row[2])
-		cell.chosen = skill == _category
+		cell.chosen = key == _category
 		cell.empty = n == 0
-		cell.font_px = UiTokens.body(get_viewport_rect().size) + (0 if compact else 8)
-		cell.custom_minimum_size = Vector2(0, TAP if compact else 150)
+		cell.font_px = UiTokens.meta(view) + (0 if _compact() else 2)
+		cell.custom_minimum_size = Vector2(TAP, TAP if _compact() else 76)
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		cell.pressed.connect(_pick_category.bind(skill))
+		cell.pressed.connect(_pick_category.bind(key))
 		_cats.add_child(cell)
 
-## The Build menu is created on first press, so the craft sheet works before anything is built.
+## Build / Craft in the header switches the pop-out between the recipe list and the placeables.
 func _open_build() -> void:
-	hide_ui()
-	var ui := BuildUI.ensure(player)
-	if ui:
-		ui.open()
-
-func _pick_station(sid: String) -> void:
-	_station = sid
+	_mode = "craft" if _mode == "build" else "build"
 	_phone_detail = false
+	_apply_phone_pane()
 	rebuild()
 
-func _pick_category(skill: String) -> void:
-	_category = skill
+## The symbol of what a blueprint builds: its station kind's kit icon (Basic Workbench = the workbench
+## kit); a kind with no kit falls back to the hammer.
+static func blueprint_icon(bp_id: StringName) -> StringName:
+	var kind := BuildFlow._grid_kind(bp_id)
+	var kit := BuildPlacer.kit_for(kind)
+	return kit if kit != &"" else &"hammer"
+
+## Build page rows: the kits in the bag (place as their kind) and the blueprints (construction sites).
+## Same callbacks as the Build drawer, so placement, rotation and confirm stay BuildUI's.
+func _refresh_build_list() -> void:
+	for c in _list.get_children():
+		_list.remove_child(c)
+		c.queue_free()
+	_hint.text = "Pick a building, then place it."
+	var ui := BuildUI.ensure(player)
+	var kits: Array = []
+	var seen := {}
+	for st: ItemStack in player.inventory.slots:
+		if st == null or Data.item(st.def_id) == null or str(Data.item(st.def_id).get("place_as")) == "" or seen.has(st.def_id):
+			continue
+		seen[st.def_id] = true
+		kits.append({"id": "Kit_" + str(st.def_id), "name": Data.item(st.def_id).display_name, "icon": st.def_id, "meta": "in bag", "cb": func () -> void:
+			hide_ui()
+			ui.pick_kit(StringName(str(Data.item(st.def_id).get("place_as"))))})
+	var bps: Array = []
+	for row in BuildFlow.menu_rows(player):
+		var id := str(row.get("id", ""))
+		var blocked := str(row.get("blocked", ""))
+		bps.append({"id": "BP_" + id, "name": str(row.get("name", id)), "icon": blueprint_icon(StringName(id)), "meta": "Buildable" if blocked == "" else blocked, "cb": func () -> void:
+			hide_ui()
+			if blocked != "":
+				player.notice("%s: %s" % [str(row.get("name", id)), blocked])
+			elif player.placer:
+				player.placer.begin_blueprint(StringName(id))  # the grid-snap / drag / rotate ghost, then a plot
+			else:
+				ui.tap_blueprint(id)})
+	for sec in [["Stations", kits], ["Blueprints", bps]]:
+		var head := _label(str(sec[0]), UiTokens.meta(get_viewport_rect().size) + 2, UiTokens.MUTED)
+		head.name = "Group_" + str(sec[0])
+		head.custom_minimum_size = Vector2(0, 28)
+		_list.add_child(head)
+		var grid := GridContainer.new()
+		grid.columns = 2
+		grid.add_theme_constant_override("h_separation", 2)
+		grid.add_theme_constant_override("v_separation", 2)
+		_list.add_child(grid)
+		for r: Dictionary in sec[1]:
+			var b := mk_btn("  " + str(r["name"]), r["cb"], Vector2(0, TAP), "ghost")
+			b.name = str(r["id"])
+			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			b.icon = ItemIcons.texture(r["icon"])
+			b.expand_icon = true
+			b.add_theme_constant_override("icon_max_width", 36)
+			b.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+			b.tooltip_text = str(r["meta"])
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			grid.add_child(b)
+
+func _pick_category(key: String) -> void:
+	_category = key
 	_phone_detail = false
 	_refresh_cats()
 	_refresh_list()
+	_apply_phone_pane()
 
 static func recipe_count(n: int) -> String:
 	return "%d recipe%s" % [n, "" if n == 1 else "s"]
 
-## Portrait phone: one pane at a time (stations + recipes, or the detail).
-func _single_pane() -> bool:
-	return UiTokens.is_narrow(get_viewport_rect().size)
-
-## Phone type sizes and tighter columns, either way up.
+## Phone type sizes and tighter rows, either way up.
 func _compact() -> bool:
 	return UiTokens.is_compact(get_viewport_rect().size)
+
+## Does `rec` belong under category tab `key`? Tool / Weapon split weapon_tools by the output.
+static func in_category(rec: Dictionary, key: String) -> bool:
+	if key == "":
+		return true
+	var skill := str(rec.get("skill", ""))
+	if key == "tool" or key == "weapon":
+		if skill != "weapon_tools":
+			return false
+		var d := Data.item(StringName(str((rec.get("output", {}) as Dictionary).get("id", ""))))
+		var weapon := d != null and not d.categories.is_empty() and d.categories[0] in WEAPON_CATS
+		return weapon == (key == "weapon")
+	return skill == key
+
+## Every recipe this view lists before filters: one station's, or all of them (ALL).
+func _station_recipes() -> Array[Dictionary]:
+	if _station != ALL:
+		return Crafting.recipes_for_station(StringName(_station))
+	var out: Array[Dictionary] = []
+	for row in Data.recipe_list:
+		if row is Dictionary:
+			out.append(row as Dictionary)
+	return out
 
 ## The recipes the list shows: the station's, narrowed by category and search.
 func _shown_recipes() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for rec in Crafting.recipes_for_station(StringName(_station)):
-		if _category != "" and str(rec.get("skill", "")) != _category:
+	for rec in _station_recipes():
+		if not in_category(rec, _category):
 			continue
 		if _query != "" and not _output_name(rec).to_lower().contains(_query):
 			continue
@@ -414,12 +449,12 @@ static func group_of(rec: Dictionary) -> String:
 		return LevelDisplay.nice_name(str(out_def.categories[0]))
 	return "Other"
 
+
 func _refresh_list() -> void:
 	for c in _list.get_children():
 		_list.remove_child(c)
 		c.queue_free()
-	var info := _station_info(_station)
-	_hint.text = _hint_text(station_name(_station), info)
+	_hint.text = _hint_text()
 	var recipes := _shown_recipes()
 	if recipes.is_empty():
 		var l := _label("No recipes here yet." if _query == "" else "No recipe matches \"%s\"." % _query, UiTokens.body(get_viewport_rect().size), UiTokens.MUTED)
@@ -428,13 +463,10 @@ func _refresh_list() -> void:
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		_list.add_child(l)
 		_selected_id = ""
-		_show_detail(info)
+		_show_detail()
 		return
-	var found := false
-	for rec in recipes:
-		if str(rec.get("id", "")) == _selected_id:
-			found = true
-	if not found:
+	# The detail page is built for the chosen recipe, else the first one (shown once picked).
+	if not recipes.any(func (r: Dictionary) -> bool: return str(r.get("id", "")) == _selected_id):
 		_selected_id = str(recipes[0].get("id", ""))
 	var groups: Dictionary = {}
 	for rec in recipes:
@@ -446,25 +478,33 @@ func _refresh_list() -> void:
 	names.sort()
 	var compact := _compact()
 	for g in names:
-		var head := _label(str(g), UiTokens.body(get_viewport_rect().size) + (0 if compact else 4), UiTokens.TEXT)
+		# A thin section header: the group name over a hairline (Durango's "Processed Material").
+		var head := _label(str(g), UiTokens.meta(get_viewport_rect().size) + (0 if compact else 2), UiTokens.MUTED)
 		head.name = "Group_" + str(g)
-		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		head.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		head.custom_minimum_size = Vector2(0, 30 if compact else 44)
-		head.add_theme_stylebox_override("normal", flat(Color(0.03, 0.07, 0.10, 0.9)))
+		head.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+		head.custom_minimum_size = Vector2(0, 24 if compact else 32)
+		var sb := pad(Color(0, 0, 0, 0), 8, 8, 0, 2)
+		sb.border_color = Color(1, 1, 1, 0.12)
+		sb.border_width_bottom = 1
+		head.add_theme_stylebox_override("normal", sb)
 		_list.add_child(head)
 		var grid := GridContainer.new()
 		grid.columns = 2
-		grid.add_theme_constant_override("h_separation", 1)
-		grid.add_theme_constant_override("v_separation", 1)
+		grid.add_theme_constant_override("h_separation", 2)
+		grid.add_theme_constant_override("v_separation", 2)
 		_list.add_child(grid)
 		for rec in groups[g]:
-			grid.add_child(_recipe_row(rec, info))
-	_show_detail(info)
+			grid.add_child(_recipe_row(rec))
+	_show_detail()
 
-func _hint_text(name: String, info: Dictionary) -> String:
+## The list's one-line context: which station this view is, and where it is.
+func _hint_text() -> String:
+	if _station == ALL:
+		return "All patterns · %s" % recipe_count(_shown_recipes().size())
 	if _station == "":
 		return "Hand recipes craft anywhere."
+	var name := station_name(_station)
+	var info := _station_info(_station)
 	var ps := ProcessStation.of(info.get("node", null)) if info["near"] else null
 	if ps != null and ps.capacity() > 0:
 		# Spec 30 §13: the station's own job queue, so a queued job is visible where it was started.
@@ -475,28 +515,31 @@ func _hint_text(name: String, info: Dictionary) -> String:
 		return "Nearest %s %d m away: a craft walks there first." % [name.to_lower(), int(info["dist"])]
 	return "No %s built yet: craft its kit by hand, place it from Build." % name.to_lower()
 
-## Why a recipe cannot start now ("" = it can).
-func _block_reason(rec: Dictionary, info: Dictionary) -> String:
+## Why a recipe cannot start now ("" = it can). The recipe's own station decides (ALL lists many).
+func _block_reason(rec: Dictionary, info: Dictionary = {}) -> String:
+	var sid := Crafting.station_id(rec)
+	if info.is_empty():
+		info = _station_info(sid)
 	var blocked := Crafting.progression_block(player, rec)
 	if blocked != "":
 		return "Locked"
 	# Spec 30 §10-11: a station's tags and its level gate the recipe, and the row says which.
-	if _station != "":
+	if sid != "":
 		var st: Variant = info.get("node", null)
 		if st is CraftStation:
-			var gate := CraftStation.station_gate(rec, (st as CraftStation).station_tags, (st as CraftStation).station_level, StringName(_station))
+			var gate := CraftStation.station_gate(rec, (st as CraftStation).station_tags, (st as CraftStation).station_level, StringName(sid))
 			if gate != "":
 				return gate + "  " + str(rec.get("id", "")).replace("_", " ").capitalize()
 	if not Crafting.picks_valid(player.inventory, rec, Crafting.default_picks(player.inventory, rec)):
 		return "Missing items"
-	if _station != "" and not info["exists"]:
+	if sid != "" and not info["exists"]:
 		return "No station"
 	return ""
 
 ## One cell per recipe: icon, name, level · time. Tap selects it; gold brackets mark the selection.
 ## Button > HBox > VBox > RecipeMeta (ui_real_capture_lab walks up from the meta to the button).
-func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
-	var reason := _block_reason(rec, info)
+func _recipe_row(rec: Dictionary) -> Control:
+	var reason := _block_reason(rec)
 	var can := reason == ""
 	var chosen := str(rec.get("id", "")) == _selected_id
 	var view := get_viewport_rect().size
@@ -583,29 +626,24 @@ func slot_rows(rec: Dictionary) -> Array[Dictionary]:
 		out.append({"category": cat, "need": need, "have": have, "sample_id": sample_id, "name": nm})
 	return out
 
+
 func _choose_recipe(rid: String) -> void:
 	_selected_id = rid
-	_phone_detail = _single_pane()
+	_phone_detail = rid != ""
 	rebuild()
 	_apply_phone_pane()
 
 func _back_to_list() -> void:
 	_phone_detail = false
 	_apply_phone_pane()
+	rebuild()
 
-## Portrait phone: the list pane (stations + recipes) or the detail pane. Otherwise all three.
+## One page at a time in the pop-out: the list (search, tabs, recipes) or the chosen recipe's detail.
 func _apply_phone_pane() -> void:
-	var single := _single_pane()
-	_left.visible = not single
-	_mid.visible = not single or not _phone_detail
-	_right.visible = not single or _phone_detail
-	var stations := _tabs.get_parent()
-	if single and stations.get_parent() != _mid:
-		stations.reparent(_mid)
-		_mid.move_child(stations, 0)
-	elif not single and stations.get_parent() != _left:
-		stations.reparent(_left)
-		_left.move_child(stations, 0)
+	_mid.visible = not _phone_detail
+	_right.visible = _phone_detail
+	_title.text = "Craft" if _phone_detail else ("Build" if _mode == "build" else "Craft / Build")
+	_layout_safe()
 
 func _start(rec: Dictionary, count: int) -> void:
 	start_with(rec, count, [])
@@ -633,7 +671,7 @@ func station_name(sid: String) -> String:
 			return row[1]
 	return LevelDisplay.nice_name(sid)
 
-func _show_detail(info: Dictionary) -> void:
+func _show_detail() -> void:
 	if _detail == null:
 		return
 	# Detach before freeing: a queued sibling still holds "CraftOne", so the new button got renamed.
@@ -649,6 +687,7 @@ func _show_detail(info: Dictionary) -> void:
 		empty.custom_minimum_size = Vector2(0, TAP)
 		_detail.add_child(_padded(empty))
 		return
+	var info := _station_info(Crafting.station_id(rec))
 	var out_row := output_row(player.inventory, rec)
 	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
 	# Parchment header (§8: detail panels open with one).
@@ -707,7 +746,7 @@ func _show_detail(info: Dictionary) -> void:
 		lock.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 		lock.clip_text = false
 		_detail.add_child(_padded(lock, 8))
-	elif _station != "" and not bool(info.get("exists", false)):
+	elif Crafting.station_id(rec) != "" and not bool(info.get("exists", false)):
 		var lock := _label("Station not built. The recipe stays listed.", UiTokens.body(view), UiTokens.DANGER)
 		lock.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lock.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
@@ -730,7 +769,7 @@ func _show_detail(info: Dictionary) -> void:
 		_detail.add_child(_padded(bl, 8))
 	# Craft (GOLD CTA) and Craft ×5, pinned under the scroll so they are never below the fold.
 	var can := _block_reason(rec, info) == ""
-	var walk := _station != "" and not bool(info.get("near", false))
+	var walk := Crafting.station_id(rec) != "" and not bool(info.get("near", false))
 	var one := mk_btn("Walk & craft" if walk else "Craft", _start.bind(rec, 1), Vector2(110, FOOTER_H if compact else 76), "cta")
 	one.name = "CraftOne"
 	one.disabled = not can
@@ -792,27 +831,44 @@ func _material_row(row: Dictionary) -> Control:
 	h.add_child(n)
 	return _padded(h, 0)
 
+
 func _selected_recipe() -> Dictionary:
-	for rec in Crafting.recipes_for_station(StringName(_station)):
-		if str(rec.get("id", "")) == _selected_id:
-			return rec
-	return {}
+	return Crafting.recipe(StringName(_selected_id)) if _selected_id != "" else {}
 
 # ---------------------------------------------------------------- D3 place materials
 
-## Opens the place-materials sub-view for recipe `rid` (D3).
+## Opens the place-materials view for recipe `rid` (D3), in its own wider right pop-out.
 func open_place(rid: String) -> void:
 	var rec := Crafting.recipe(StringName(rid))
 	if rec.is_empty() or player == null:
 		return
+	visible = true
 	_place.visible = true
 	_body.visible = false
 	_layout_safe()
 	_place.open(rec)
 
+## The Construction panel (spec 30 §7, Durango "Construction"): the same D3 view filling a
+## ConstructionSite's blueprint slots by tag. A site tap lands here (BuildUI.show_site).
+func open_site(site: ConstructionSite) -> void:
+	if site == null or player == null:
+		return
+	site.bind_bag(player.inventory)
+	visible = true
+	_place.visible = true
+	_body.visible = false
+	_layout_safe()
+	_place.open_site(site)
+	_layout_safe()
+
 func close_place() -> void:
+	var was_site := _place.site != null
 	_place.visible = false
+	_place.site = null
 	_body.visible = true
+	if was_site:
+		hide_ui()
+		return
 	_layout_safe()
 	rebuild()
 
@@ -826,40 +882,29 @@ func _layout_safe() -> void:
 		return
 	var safe := UiTokens.safe_insets(get_viewport())
 	var compact := _compact()
-	var hh := 64.0 if compact else UiTokens.HEADER_H
-	var margin := 10.0 if compact else 32.0
-	var top := safe.z
-	_title.text = "Craft" if _place.visible else "Craft / Build"
-	_build_btn.visible = not _place.visible
-	_build_btn.add_theme_font_size_override("font_size", UiTokens.body(view) + (0 if compact else 4))
-	_build_btn.custom_minimum_size = Vector2(104 if compact else 132, TAP)
-	_header.layout(view, safe)
-	_subtitle.visible = _place.visible
-	_subtitle.text = _place.subtitle() if _place.visible else ""
-	_subtitle.add_theme_font_size_override("font_size", UiTokens.body(view) + (0 if compact else 6))
-	_subtitle.position = Vector2(_title.position.x + _title.size.x + 14.0, top + 2.0)
-	_subtitle.size = Vector2(_subtitle.get_combined_minimum_size().x, hh)
+	var placing := _place.visible
+	# D3 / Construction needs its four columns: the same pop-out, widened to most of the view.
+	_sheet.share = 0.86 if placing else 0.42
+	if placing:
+		_title.text = "Construction" if _place.site != null else "Craft"
+	_build_btn.visible = not placing and not _phone_detail
+	_build_btn.add_theme_font_size_override("font_size", UiTokens.body(view) + (0 if compact else 2))
+	_build_btn.custom_minimum_size = Vector2(96 if compact else 120, TAP)
+	_subtitle.visible = placing
+	_subtitle.text = _place.subtitle() if placing else ""
+	_sheet.layout(view, safe)
+	_body.queue_sort()  # a body resized while hidden (D3 was up) kept its children's old rects
+	_subtitle.add_theme_font_size_override("font_size", UiTokens.body(view) + (0 if compact else 4))
+	_subtitle.position = Vector2(_title.position.x + _title.size.x + 14.0, safe.z)
+	_subtitle.size = Vector2(maxf(0.0, _header.right.position.x - _subtitle.position.x - 8.0) if _header.right.visible else _subtitle.get_combined_minimum_size().x, _header.header_h)
+	_subtitle.clip_text = true
 	_subtitle.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	# The hint takes the room between the title and Build; hidden when it would not fit (phones).
-	var hint_l := _title.position.x + _title.size.x + 24.0
-	var hint_w := view.x + _header.right.offset_left - 16.0 - hint_l
-	_hint.add_theme_font_size_override("font_size", UiTokens.meta(view) + 2)
-	_hint.position = Vector2(hint_l, top)
-	_hint.size = Vector2(maxf(0.0, hint_w), hh)
-	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_hint.visible = not compact and not _place.visible and hint_w > 160.0
-	var body_top := top + hh + (10.0 if compact else 30.0)
-	_body.position = Vector2(safe.w + margin, body_top)
-	_body.size = Vector2(view.x - safe.w - safe.x - margin * 2.0, view.y - safe.y - (8.0 if compact else 32.0) - body_top)
-	_body.add_theme_constant_override("separation", 8 if compact else 20)
-	var place_top := top + hh + (10.0 if compact else 22.0)
-	_place.position = Vector2(safe.w + (8.0 if compact else 24.0), place_top)
-	_place.size = Vector2(view.x - safe.w - safe.x - (16.0 if compact else 48.0), view.y - safe.y - place_top - (8.0 if compact else 24.0))
-	(_tabs.get_parent() as ScrollContainer).custom_minimum_size = Vector2(0, TAP if compact else 92)
-	(_footer.get_parent() as PanelContainer).add_theme_stylebox_override("panel", pad(UiTokens.PANEL, 8 if compact else 18, 8 if compact else 18, 6 if compact else 12, 6 if compact else 18))
-	(_search.get_parent() as PanelContainer).add_theme_stylebox_override("panel", pad(UiTokens.PANEL, 8 if compact else 14, 8 if compact else 14, 6 if compact else 12, 6 if compact else 12))
-	_search.add_theme_font_size_override("font_size", UiTokens.body(view) + (0 if compact else 6))
-	_apply_phone_pane()
+	_place.position = _sheet.position + _sheet.body.position
+	_place.size = _sheet.body.size
+	_hint.add_theme_font_size_override("font_size", UiTokens.meta(view))
+	_hint.custom_minimum_size = Vector2(0, 18 if compact else 22)
+	_search.add_theme_font_size_override("font_size", UiTokens.body(view) + (0 if compact else 4))
+	_mid.add_theme_constant_override("separation", 4 if compact else 8)
 
 # ---------------------------------------------------------------- widgets
 

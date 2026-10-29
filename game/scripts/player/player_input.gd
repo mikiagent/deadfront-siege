@@ -303,7 +303,7 @@ func interact_tap_target(col: Object) -> void:
 		# Reference: tapping a station opens its recipe radial (M8e); cauterise lives in the context hexes.
 		p.open_station_craft(col as Node3D)
 	elif col is TamingPen:
-		p.actions.pen_interact(col as TamingPen)
+		p.open_station_craft(col as Node3D)  # CRAFTRADIAL: the radial's PEN wedge opens the pen screen
 	elif col is Node and (col as Node).is_in_group("harbour"):
 		col.open()
 	elif col is Node and (col as Node).is_in_group("cargo_warp"):
