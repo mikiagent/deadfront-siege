@@ -10,6 +10,10 @@ const FOLLOW_ORDERS: Array[StringName] = [&"follow", &"guard", &"heel", &"attack
 const ORDERS: Array[StringName] = [&"follow", &"guard", &"heel", &"attack", &"stay", &"work"]
 ## Job kinds = HarvestNode.gather_kind(): mine rock, chop trees, gather (fibre, berries, bushes).
 const JOB_KINDS: Array[StringName] = [&"mine", &"chop", &"gather"]
+## TRIBE M2a hand-off orders (TribeWork): one craft at a station, or one construction site.
+const STATION_JOBS: Array[StringName] = [&"craft", &"build"]
+## Escrow size: a recipe's picked units plus its output. # ASSUMPTION: no recipe takes more than 14 stacks.
+const ESCROW_SLOTS := 16
 const SKILLS := ["gathering", "melee"]
 
 var uid: String = ""
@@ -29,8 +33,12 @@ var equipment := EntityEquipment.new(EntityEquipment.HUMAN_SLOTS)
 ## What the member is carrying between the job node and the chest (saved, so nothing vanishes).
 var carry := Inventory.new(6)
 var order: StringName = &"stay"
-## {"kind": "mine", "center": [x, z], "radius": 12.0, "chest": [x, z] or []}
+## {"kind": "mine", "center": [x, z], "radius": 12.0, "chest": [x, z] or []}; a station job adds its
+## own keys (TribeWork: craft = station, recipe, outcome, progress...; build = site id).
 var job: Dictionary = {}
+## TRIBE M2a: the exact instances a craft order took from the survivor's bag (then its output until
+## delivered). Saved, so a reload mid-craft loses nothing; cancel hands them back.
+var escrow := Inventory.new(ESCROW_SLOTS)
 ## Last position at home [x, y, z] ([] = not placed yet: spawns at the dock).
 var pos: Array = []
 ## Pending recruits only: seconds left before the boat leaves with them.
@@ -77,6 +85,7 @@ func to_dict() -> Dictionary:
 		"health": health, "energy": energy, "fatigue": fatigue, "fullness": fullness,
 		"equipment": equipment.to_dict(), "carry": carry.to_array(),
 		"order": str(order), "job": job.duplicate(true), "pos": pos.duplicate(), "wait_left": wait_left,
+		"escrow": escrow.to_array(),
 	}
 
 ## Defensive: the save is user-editable (SaveSanitizer shapes it first). A bad field keeps its default.
@@ -94,7 +103,15 @@ static func from_dict(d: Variant) -> TribeRecord:
 	r.potential = pot if not Tribe.potential_row(pot).is_empty() else "mediocre"
 	r.level = clampi(int(_n(row.get("level"), 1.0)), 1, 60)
 	r.xp = maxf(0.0, _n(row.get("xp"), 0.0))
-	for k in SKILLS:
+	# M2a: a member trains whatever skill its work orders use (construction, processing...), so any
+	# saved skill id loads; Gathering and Melee always exist.
+	var sd: Variant = row.get("skills", {})
+	var keys: Array = SKILLS.duplicate()
+	if sd is Dictionary:
+		for k: Variant in sd:
+			if k is String and not keys.has(k) and (k as String).length() <= 32:
+				keys.append(k)
+	for k in keys:
 		var sv: Variant = row.get("skills", {})
 		var xv: Variant = row.get("skill_xp", {})
 		r.skills[k] = clampi(int(_n((sv as Dictionary).get(k) if sv is Dictionary else null, 1.0)), 1, int(Tribe.num("max_skill", 60)))
@@ -108,6 +125,9 @@ static func from_dict(d: Variant) -> TribeRecord:
 	var cv: Variant = row.get("carry", [])
 	if cv is Array:
 		r.carry.load_array(cv)
+	var ev: Variant = row.get("escrow", [])
+	if ev is Array:
+		r.escrow.load_array(ev)
 	var o := StringName(str(row.get("order", "stay")))
 	r.order = o if o in ORDERS else &"stay"
 	var jv: Variant = row.get("job", {})
@@ -126,6 +146,8 @@ static func _clean_job(v: Variant) -> Dictionary:
 	var j: Dictionary = v
 	var kind := StringName(str(j.get("kind", "")))
 	var c: Variant = j.get("center", [])
+	if kind in STATION_JOBS:
+		return TribeWork.clean_job(j)
 	if not kind in JOB_KINDS or not _xz(c):
 		return {}
 	var out := {"kind": str(kind), "center": [float(c[0]), float(c[1])], "radius": clampf(_n(j.get("radius"), 12.0), 2.0, 40.0), "chest": []}

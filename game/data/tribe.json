@@ -18,6 +18,16 @@
     {"id": "exceptional", "label": "Exceptional", "weight": 0.5, "xp_mult": 1.5}
   ],
   "names": ["Ada", "Bram", "Cora", "Dell", "Edda", "Finn", "Gale", "Hollis", "Ines", "Joss", "Kit", "Lena", "Moss", "Nell", "Orrin", "Pia", "Quill", "Rhea", "Sol", "Tamsin", "Ulf", "Vera", "Wren", "Yara"],
+  "work": {
+    "_note": "TRIBE M2a hand-off (docs/design/hunger-and-tribe-automation.md 2.2). Every number is an ASSUMPTION (Open Questions T16-T23).",
+    "min_success": 0.8,
+    "speed_per_level": 0.01,
+    "min_time_mult": 0.5,
+    "chest_link_m": 6.0,
+    "fatigue_per_work_s": 0.25,
+    "energy_per_work_s": 0.15,
+    "teach_by_doing": true
+  },
   "member": {
     "hp": 80.0,
     "hp_per_level": 4.0,

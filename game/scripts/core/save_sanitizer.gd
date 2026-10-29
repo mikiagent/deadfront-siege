@@ -164,6 +164,8 @@ static func clean(data: Dictionary) -> Dictionary:
 				for r: Dictionary in data["tribe"][k]:
 					if r.get("carry") is Array:
 						r["carry"] = stacks(r["carry"])
+					if r.get("escrow") is Array:
+						r["escrow"] = stacks(r["escrow"])
 					var gear := {}
 					if r.get("equipment") is Dictionary:
 						for slot in r["equipment"]:
