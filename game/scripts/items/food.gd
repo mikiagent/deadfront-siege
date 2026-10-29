@@ -130,9 +130,10 @@ static func can_eat(player: Player, stack: ItemStack) -> String:
 	# Owner 2026-10-28 bug ("I can't select eat again the second time"): every finished meal applies
 	# the Full status for its full_seconds, and this gate refused any eat while it lasted, so a second
 	# berry silently failed for 10 s. The stomach itself decides now: only an overfull stomach
-	# (Digestion fullness over OVERFULL_ABOVE) refuses. Full stays a status for its other effects.
+	# (HUNGER: fullness above rules.json hunger.well_fed_below, i.e. past 100 points) refuses. Full
+	# stays a status for its other effects.
 	var dig := Digestion.of(player)
-	if dig != null and dig.fullness() > Digestion.OVERFULL_ABOVE:
+	if dig != null and Digestion.state_for(dig.fullness()) == &"overfull":
 		return "full"
 	return ""
 

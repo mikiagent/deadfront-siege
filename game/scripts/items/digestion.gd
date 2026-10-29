@@ -41,7 +41,8 @@ var _next_id: int = 1
 var paid_since_read: float = 0.0
 ## HUNGER: the stored stomach, in points. Saved; never derived from the rows any more.
 var stored_fullness: float = 0.0
-## Seconds she has been on an empty stomach (the Starving clock). Saved, so a reload keeps it.
+## Seconds she has been on an empty stomach (the Starving clock). Written by PlayerSim._tick_starving,
+## saved here so a reload keeps the ten minutes she has already gone without food.
 var empty_for_s: float = 0.0
 ## The one-time starter meal was handed out (a new survivor starts Fed, not empty).
 var starter_given: bool = false
@@ -193,10 +194,7 @@ func tick(player: Player, delta: float) -> float:
 	if delta <= 0.0:
 		return 0.0
 	stored_fullness = maxf(0.0, stored_fullness - decay_per_s() * delta)
-	if stored_fullness < _rule("empty_below", EMPTY_BELOW):
-		empty_for_s += delta
-	else:
-		empty_for_s = 0.0
+	# empty_for_s (the Starving clock) is PlayerSim's, written here each tick so the save carries it.
 	if _rows.is_empty() or player == null or player.vitals == null:
 		return 0.0
 	var paid_total := 0.0

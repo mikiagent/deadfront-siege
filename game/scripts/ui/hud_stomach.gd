@@ -16,8 +16,9 @@ const TRACK := Color(0.08, 0.08, 0.1, 0.9)
 ## Colour stops in stomach points, blended linearly between them: red empty, yellow peckish, green fed,
 ## richer green well fed, red overfull. Edges are the model's (Digestion = rules.json hunger.*).
 const STOPS := [[0.0, UiTokens.STOMACH_EMPTY], [Digestion.EMPTY_BELOW, UiTokens.STOMACH_EMPTY],
-	[Digestion.PECKISH_BELOW, UiTokens.STOMACH_HUNGRY], [Digestion.FED_BELOW, UiTokens.STOMACH_FULL],
-	[Digestion.WELL_FED_BELOW, UiTokens.STOMACH_FULL], [Digestion.OVERFULL_MAX, UiTokens.STOMACH_OVERFULL]]
+	[Digestion.PECKISH_BELOW, UiTokens.STOMACH_HUNGRY], [45.0, UiTokens.STOMACH_HUNGRY],
+	[Digestion.FED_BELOW, UiTokens.STOMACH_FULL], [Digestion.WELL_FED_BELOW, UiTokens.STOMACH_FULL],
+	[Digestion.OVERFULL_MAX, UiTokens.STOMACH_OVERFULL]]
 ## The glyph's drawn size per state (owner: "empty stomach looks shrunk, full stomach looks big"); HuntHud
 ## eases the drawn scale toward it (SCALE_SPEED per second) so a state change grows or shrinks the glyph.
 const GLYPH_SCALE := {&"empty": 0.92, &"peckish": 0.95, &"fed": 0.98, &"well_fed": 1.0, &"overfull": 1.06}

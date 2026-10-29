@@ -58,7 +58,7 @@ func _run() -> void:
 	_test_rules()
 	_test_foods()
 	_test_decay()
-	_test_bands()
+	await _test_bands()
 	_test_save()
 	await _test_while_fed()
 	await _test_starving_delay()
@@ -152,20 +152,23 @@ func _test_decay() -> void:
 	# Decay is independent of digestion: Energy still pays out over its own window.
 	_fresh(0.0)
 	_player.vitals.energy = 0.0
+	dig.add_fullness(40.0)
 	dig.schedule(&"roast", 60.0, 300.0)
 	var before: float = dig.fullness()
 	dig.tick(_player, 30.0)
 	_expect(absf(dig.fullness() - before + 1.25) < 0.001, "digesting Energy does not lift fullness; only decay moves it (%.2f -> %.2f)" % [before, dig.fullness()])
 	_expect(_player.vitals.energy > 0.0, "the meal's Energy still digests (%.2f)" % _player.vitals.energy)
-	# A full stomach cannot pass the cap.
+	# Eating past 100 is overfull (the full gate), and the hard ceiling is the overfull maximum.
 	_fresh(0.0)
 	dig.add_fullness(95.0)
 	dig.add_fullness(10.0)
-	_expect(is_equal_approx(dig.fullness(), 100.0), "fullness stops at the cap (%.1f)" % dig.fullness())
-	_expect(DIG.state_for(dig.fullness()) == &"well_fed", "100 points is well fed (%.1f %s)" % [dig.fullness(), DIG.state_for(dig.fullness())])
-	dig.add_fullness(5.0)
+	_expect(is_equal_approx(dig.fullness(), 105.0), "eating past a full stomach goes overfull (%.1f)" % dig.fullness())
 	_expect(DIG.state_for(dig.fullness()) == &"overfull", "above 100 is overfull (%s)" % DIG.state_for(dig.fullness()))
+	dig.add_fullness(999.0)
+	_expect(is_equal_approx(dig.fullness(), DIG.OVERFULL_MAX), "the stomach stops at the overfull ceiling (%.1f)" % dig.fullness())
 	_expect(FoodCanEat() == "full", "an overfull stomach refuses a meal")
+	dig.set_fullness(100.0)
+	_expect(DIG.state_for(dig.fullness()) == &"well_fed" and FoodCanEat() == "", "100 points is well fed and may eat one more")
 	dig.set_fullness(0.0)
 	_expect(FoodCanEat() == "", "an empty stomach accepts one")
 	_expect(is_equal_approx(dig.decay_per_s(), 2.5 / 60.0), "decay_per_s is the rate the HUD counts with (%.5f)" % dig.decay_per_s())
@@ -229,7 +232,8 @@ func _test_save() -> void:
 	old.from_dict({"rows": [{"id": "dig1", "def_id": "roast", "total": 60.0, "remaining": 30.0, "seconds": 300.0, "rate": 0.2}], "next_id": 2})
 	_expect(old.fullness() > 0.0, "an old save seeds fullness from its digestion rows (%.1f)" % old.fullness())
 	var seeded: float = old.fullness()
-	_expect(absf(seeded - 24.0) < 0.5, "a half-digested roast is about half its %.0f points (%.1f)" % (float(FX.entry_for(&"roast").get("fullness", 0.0)), seeded))
+	var roast_seed := float(FX.entry_for(&"roast").get("fullness", 0.0))
+	_expect(absf(seeded - roast_seed * 0.5) < 0.5, "a half-digested roast is half its %.0f points (%.1f)" % [roast_seed, seeded])
 	old.from_dict(old.to_dict())
 	_expect(is_equal_approx(old.fullness(), seeded), "the seed is saved, so a second load does not recompute it (%.1f)" % old.fullness())
 	# A save from before the rework with nothing digesting starts empty, not fed.
@@ -256,7 +260,8 @@ func _test_while_fed() -> void:
 		guard += 1
 	var row: Dictionary = slots.by_group("enhanced_ability")
 	_expect(not row.is_empty() and str(row.get("id", "")) == "roast_catalog", "the roast's buff took the Enhanced Ability slot (%s)" % str(row.get("id", "")))
-	_expect(is_equal_approx(dig.fullness(), 50.0), "eating added the roast's 50 points (%.1f)" % dig.fullness())
+	var roast_points := float(FX.entry_for(&"roast").get("fullness", 0.0))
+	_expect(is_equal_approx(dig.fullness(), roast_points), "eating added the roast's %.0f points (%.1f)" % [roast_points, dig.fullness()])
 	_expect(bool(row.get("while_fed", false)), "the cooked dish's buff is marked while_fed")
 	# Its timer does not run out first: 20 minutes on the clock, still fed.
 	slots.tick(_player, 1200.0)
@@ -284,8 +289,15 @@ func _test_while_fed() -> void:
 	dig = DIG.of(_player)
 	slots.restore(_player, {"buffs": [{"id": "probe_meal", "group": "enhanced_ability", "display_name": "Probe", "duration": 600.0, "time_left": 600.0, "stats": {}, "while_fed": true}]})
 	await _frames(2)
-	var want := 50.0 / (2.5 / 60.0) / 960.0
+	var want := clampf((50.0 - DIG.buff_off_below()) / DIG.decay_per_s() / DIG.fed_full_seconds(), 0.0, 1.0)
 	_expect(absf(_hud.stomach_saturation - want) < 0.01, "the outer ring counts the fed time left (%.3f want %.3f)" % [_hud.stomach_saturation, want])
+	# It tracks the stomach: half the points above the off line is half the ring.
+	dig.set_fullness(30.0)
+	await _frames(2)
+	_expect(absf(_hud.stomach_saturation - 0.222) < 0.01, "30 points leaves a fifth of the fed span (%.2f)" % _hud.stomach_saturation)
+	dig.set_fullness(95.0)
+	await _frames(2)
+	_expect(absf(_hud.stomach_saturation - 0.944) < 0.01, "95 points nearly fills it (%.2f)" % _hud.stomach_saturation)
 	_fresh(5.0)
 	await _frames(2)
 	_expect(is_equal_approx(_hud.stomach_saturation, 0.0), "with no meal buff and an empty stomach the outer ring is dark (%.2f)" % _hud.stomach_saturation)

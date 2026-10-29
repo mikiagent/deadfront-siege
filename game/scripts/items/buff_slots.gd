@@ -168,11 +168,16 @@ func tick(player: Player, delta: float) -> void:
 	var off := fed == null or fed.fullness() < Digestion.buff_off_below()
 	var expired: Array[Dictionary] = []
 	for r in _rows:
+		if bool(r.get("while_fed", false)):
+			# HUNGER: a while_fed meal buff ends the moment the stomach is below the off line. Until
+			# then its own timer does not run: the stomach is what feeds it, and time_left follows
+			# it so the HUD's outer ring counts down the fed time that is really left.
+			r["time_left"] = fed.fed_seconds_from_fullness() if fed != null else 0.0
+			if off:
+				expired.append(r)
+			continue
 		r["time_left"] = float(r.get("time_left", 0.0)) - delta
-		# HUNGER: a while_fed meal buff ends the moment the stomach is below the off line.
-		if bool(r.get("while_fed", false)) and off:
-			expired.append(r)
-		elif float(r["time_left"]) <= 0.0:
+		if float(r["time_left"]) <= 0.0:
 			expired.append(r)
 	if not expired.is_empty():
 		for r in expired:

@@ -89,11 +89,15 @@ func tick_survival_xp(delta: float) -> void:
 ## (10 min) on an empty stomach, the same rule for the survivor, members and (later) tames. The clock
 ## is Digestion.empty_for_s, which the save keeps, so a reload does not restart the ten minutes.
 func _tick_starving(delta: float) -> void:
-	# The clock itself is Digestion's (tick adds the seconds empty, and eating resets it); this reads it.
 	var dig := Digestion.of(p)
-	if dig != null and p.vitals.fullness_state != &"empty":
-		dig.empty_for_s = 0.0
-	starving_s = dig.empty_for_s if dig != null else 0.0
+	if starving_s <= 0.0 and dig != null:
+		starving_s = dig.empty_for_s  # a loaded save keeps the time she has already gone unfed
+	if p.dead or p.vitals.fullness_state != &"empty":
+		starving_s = 0.0
+	else:
+		starving_s += delta
+	if dig != null:
+		dig.empty_for_s = starving_s
 	if p.dead or p.vitals.fullness_state != &"empty" or starving_s < Digestion.starving_after_s():
 		if p.statuses.has(&"starving"):
 			p.statuses.clear_id(&"starving")
