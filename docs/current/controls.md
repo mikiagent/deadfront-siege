@@ -103,6 +103,24 @@ my player glitches out... pathfind to where I want to walk and then re-engage".
   her own tile's centre.
 - `game/tests/t_playerturn.gd` measures all of this.
 
+## Chase sprint (auto-sprint after a fleeing target)
+
+Owner: "when chasing a fleeing enemy, when it leaves a certain radius around the player, toggle
+sprint to chase it". While the hunt has a live target, the survivor sprints by herself once it is
+**farther than 7 m**, and drops back to a walk once it is **within 4 m** — the two radii are a
+hysteresis band, so a target hovering at the edge cannot make her stutter. Both numbers are
+`# ASSUMPTION` defaults (`Player.CHASE_SPRINT_ON_M` / `CHASE_SPRINT_OFF_M`).
+
+- It uses its own flag (`Player.chase_sprint`), never the HUD SPRINT latch: a sprint the player
+  tapped on stays on, and chase-sprint turning off never turns their latch off.
+- It ends with the chase: target dead or cleared, End Combat, or a ground-tap move order (a move
+  order outranks combat, so she stops sprinting after the target too).
+- Energy is respected: a winded survivor (empty stamina or the Exhausted tier) is never forced to
+  sprint, and the forced sprint only returns once the bar is back to a quarter.
+- Mounted, the same flag asks the mount to run, on **its own** energy pool; a winded mount walks.
+- `game/tests/t_chasesprint.gd` measures the radii, the hysteresis, the manual latch, the winded
+  case and the mounted case.
+
 ## Full screen
 
 F11 toggles full screen on desktop and in the browser. The pause menu also has a Full screen button,
