@@ -257,7 +257,7 @@ func _reachable_compy(skip: Array) -> Creature:
 	var best_d := INF
 	for node in get_tree().get_nodes_in_group("creatures"):
 		var c := node as Creature
-		if c == null or c in skip or c.is_pet or c.health == null or c.health.dead or c.def == null or c.def.id != &"compsognathus":
+		if c == null or c in skip or c.is_pet or c.health == null or c.health.dead or c.def == null or c.def.id != &"compsognathus" or c.is_alpha():  # ALPHAS: 3.9x HP is no first hunt
 			continue
 		var d := player.global_position.distance_to(c.global_position)
 		if d >= best_d:
