@@ -403,6 +403,9 @@
     "pack_mule": {
       "is_herbivore": true,
       "attack_range": 1.8,
+      "_flee": "ASSUMPTION (owner 2026-10-29: 'way too fast, it should gallop away slowly'): a heavy, lumbering gallop. 3 m/s base x1.2 x run_speed_mult 1.25 = 4.5 m/s, under the 5.5 m/s survivor walk, so a first tame is catchable. Overrides skittish's 1.6 / 6.5 m/s floor for this archetype only.",
+      "flee_speed_mult": 1.2,
+      "flee_min_mps": 0.0,
       "weak_to": [
         "blunt"
       ],
