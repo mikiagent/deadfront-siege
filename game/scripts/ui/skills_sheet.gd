@@ -272,6 +272,7 @@ func _build_grid() -> void:
 		var on := id == _tree
 		var cell := Button.new()
 		cell.name = "Skill_%s" % id
+		cell.set_meta(&"tut_chosen", on)  # Tutorial.guide: the spend button acts on this skill
 		cell.focus_mode = Control.FOCUS_NONE
 		cell.custom_minimum_size = Vector2(SheetChrome.TAP, cell_h)
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL

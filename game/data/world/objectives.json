@@ -55,12 +55,23 @@
     {
       "id": "tut_eat",
       "title": "Eat some berries",
-      "hint": "Pick berries, then eat them from the bag",
+      "hint": "Pick berries, then BAG > tap Berries > Use: Eat",
       "did": {
         "eat": 1
       },
       "point_at": "have:berries=ui:BagHex|harvest:berries",
-      "xp": 20
+      "xp": 20,
+      "menu": [
+        [
+          "have:berries",
+          "BagHex",
+          "bag:berries",
+          "UseButton"
+        ],
+        [
+          "harvest:berries"
+        ]
+      ]
     },
     {
       "id": "tut_rest",
@@ -73,35 +84,62 @@
     {
       "id": "tut_twine",
       "title": "Twist fibre into twine",
-      "hint": "MENU > Craft: 2 fibre twists into twine by hand",
+      "hint": "MENU > Craft > Materials (first tab) > Twine > Craft: 2 fibre twist into twine by hand",
       "have": {
         "twine": 1
       },
       "point_at": "ui:MenuHex",
-      "xp": 30
+      "xp": 30,
+      "menu": [
+        [
+          "MenuHex",
+          "Nav_craft",
+          "Cat_processing",
+          "Recipe_twine",
+          "CraftOne"
+        ]
+      ]
     },
     {
       "id": "tut_knife",
       "title": "Knap a stone knife",
-      "hint": "MENU > Craft, by hand: a stone, a branch and twine. A knife cuts meat from a carcass",
+      "hint": "MENU > Craft > Tool tab > Stone Work Knife > Craft: a stone, a branch and twine, by hand. A knife cuts meat from a carcass",
       "have": {
         "stone_knife_work": 1
       },
       "point_at": "ui:MenuHex",
       "xp": 40,
       "t_stones": 1,
-      "warp_gems": 10
+      "warp_gems": 10,
+      "menu": [
+        [
+          "MenuHex",
+          "Nav_craft",
+          "Cat_tool",
+          "Recipe_improvised_stone_knife",
+          "CraftOne"
+        ]
+      ]
     },
     {
       "id": "tut_axe",
       "title": "Make a work axe at the bench",
-      "hint": "At the camp workbench: a stone, a branch and twine (twist 2 more fibre)",
+      "hint": "Tap the town workbench > CRAFT > Tool tab > Work Axe > Craft: a stone, a branch and twine (twist 2 more fibre first)",
       "have": {
         "work_axe": 1
       },
       "point_at": "world:bench",
       "xp": 50,
-      "t_stones": 2
+      "t_stones": 2,
+      "menu": [
+        [
+          "world:bench",
+          "Wedge_craft",
+          "Cat_tool",
+          "Recipe_work_axe",
+          "CraftOne"
+        ]
+      ]
     },
     {
       "id": "tut_logs",
@@ -143,54 +181,105 @@
     {
       "id": "tut_fire",
       "title": "Light the fire pit",
-      "hint": "Tap the stone fire pit by the camp and load a branch: it burns while fuelled",
+      "hint": "Tap the stone fire pit by the guild > FUEL > add a Branch: it burns while fuelled",
       "fire_lit": true,
       "point_at": "world:firepit",
       "xp": 30,
-      "t_stones": 1
+      "t_stones": 1,
+      "menu": [
+        [
+          "world:firepit",
+          "Wedge_wood",
+          "Add_branch"
+        ]
+      ]
     },
     {
       "id": "tut_cook",
       "title": "Cook a Herb Roast",
-      "hint": "Meat (main) + herb (topping) + a branch, at the burning fire pit",
+      "hint": "Tap the burning fire pit > COOK > Cooking tab > Herbed Meal > Craft: meat (main) + herb (topping) + a branch",
       "have": {
         "herb_buff_meal": 1
       },
       "point_at": "have:herb_leaf=world:firepit|harvest:herb_leaf",
       "xp": 60,
-      "t_stones": 2
+      "t_stones": 2,
+      "menu": [
+        [
+          "have:herb_leaf",
+          "world:firepit",
+          "Wedge_cook",
+          "Cat_cooking",
+          "Recipe_roled_herb_roast",
+          "CraftOne"
+        ],
+        [
+          "harvest:herb_leaf"
+        ]
+      ]
     },
     {
       "id": "tut_meal",
       "title": "Eat the Herb Roast",
-      "hint": "Eat it from the bag and watch its buff in the status row",
+      "hint": "BAG > tap the Herbed Meal > Use: Eat, then watch its buff in the status row",
       "did": {
         "eat:herb_buff_meal": 1
       },
       "point_at": "ui:BagHex",
-      "xp": 40
+      "xp": 40,
+      "menu": [
+        [
+          "BagHex",
+          "bag:herb_buff_meal",
+          "UseButton"
+        ]
+      ]
     },
     {
       "id": "tut_skill",
       "title": "Learn a skill",
-      "hint": "MENU > Skills: spend a skill point on any lit node",
+      "hint": "MENU > Skills > a skill with a gold dot > the gold Learn button at the bottom",
       "did": {
         "skill": 1
       },
       "point_at": "ui:MenuHex",
       "xp": 40,
-      "t_stones": 1
+      "t_stones": 1,
+      "menu": [
+        [
+          "MenuHex",
+          "Nav_skills",
+          "skill:buyable",
+          "SkillsSpend"
+        ]
+      ]
     },
     {
       "id": "tut_build",
       "title": "Build a straw bedroll",
-      "hint": "Craft a Straw Roll kit (3 fibre, 1 twine), then BUILD and place it at the camp",
+      "hint": "MENU > Craft > Building Components tab > Straw Roll > Craft (3 fibre, 1 twine), then MENU > Craft > Build (the very bottom) > Straw Roll, and place it at the camp",
       "did": {
         "build": 1
       },
       "point_at": "have:straw_roll_kit=ui:BuildHex|ui:MenuHex",
       "xp": 50,
-      "t_stones": 2
+      "t_stones": 2,
+      "menu": [
+        [
+          "have:straw_roll_kit",
+          "MenuHex",
+          "Nav_craft",
+          "BuildRow",
+          "Kit_straw_roll_kit"
+        ],
+        [
+          "MenuHex",
+          "Nav_craft",
+          "Cat_construction",
+          "Recipe_straw_roll_kit",
+          "CraftOne"
+        ]
+      ]
     },
     {
       "id": "tut_ferry",
@@ -450,5 +539,6 @@
       "xp": 500,
       "t_stones": 20
     }
-  ]
+  ],
+  "_tutorial_menu_about": "MENU GUIDANCE (owner 2026-10-29): an order done inside a menu lists its taps under 'menu' (alternatives, each optionally led by 'have:<item>'); Tutorial.guide rings the deepest element on screen, opens the right tab before the entry, scrolls the entry into view or shows a scroll cue. The hint names the same tab and entry. # ASSUMPTION: paths and hint wording (open question TT4)."
 }

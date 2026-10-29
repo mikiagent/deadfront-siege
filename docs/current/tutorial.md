@@ -30,19 +30,19 @@ orders, and the last order grants their own Tamed Island. Flow: `game/scripts/co
 | 3 | tut_stone | hold 2 stone | harvest:stone |
 | 4 | tut_fibre | hold 4 fibre_stalk | harvest:fibre_stalk |
 | 5 | tut_drink | status `quenched` | ctx:drink, else world:water |
-| 6 | tut_eat | 1 committed meal (`did.eat`) | bag while holding berries, else harvest:berries |
+| 6 | tut_eat | 1 committed meal (`did.eat`) | menu: BAG > Berries > Use while holding berries, else harvest:berries |
 | 7 | tut_rest | resting or sleeping | ctx:rest |
-| 8 | tut_twine | hold 1 twine | ui:MenuHex |
-| 9 | tut_knife | hold 1 stone_knife_work (by hand; a knife is needed to cut meat) | ui:MenuHex |
-| 10 | tut_axe | hold 1 work_axe (workbench) | world:bench |
+| 8 | tut_twine | hold 1 twine | menu: MENU > Craft > Materials > Twine > Craft |
+| 9 | tut_knife | hold 1 stone_knife_work (by hand; a knife is needed to cut meat) | menu: MENU > Craft > Tool > Stone Work Knife > Craft |
+| 10 | tut_axe | hold 1 work_axe (workbench) | menu: bench > CRAFT > Tool > Work Axe > Craft |
 | 11 | tut_logs | hold 2 wood_log | harvest:wood_log |
 | 12 | tut_hunt | 1 kill by the survivor (`did.kill`) | world:creature |
 | 13 | tut_butcher | hold raw_meat or raptor_meat | world:corpse |
-| 14 | tut_fire | the stone fire pit burns (`Bonfire.burning()`; a fire without it counts as lit) | world:firepit |
-| 15 | tut_cook | hold 1 herb_buff_meal (`roled_herb_roast`: meat main + herb topping + branch support, station bonfire) | herb node, then the pit |
-| 16 | tut_meal | ate a herb_buff_meal (`did.eat:herb_buff_meal`) | ui:BagHex |
-| 17 | tut_skill | 1 skill node with an SP cost learned (`did.skill`) | ui:MenuHex |
-| 18 | tut_build | 1 placement (`did.build`); hint: straw_roll_kit | ui:BuildHex / MenuHex |
+| 14 | tut_fire | the stone fire pit burns (`Bonfire.burning()`; a fire without it counts as lit) | menu: pit > FUEL > Branch |
+| 15 | tut_cook | hold 1 herb_buff_meal (`roled_herb_roast`: meat main + herb topping + branch support, station bonfire) | herb node, then menu: pit > COOK > Cooking > Herbed Meal > Craft |
+| 16 | tut_meal | ate a herb_buff_meal (`did.eat:herb_buff_meal`) | menu: BAG > Herbed Meal > Use |
+| 17 | tut_skill | 1 skill node with an SP cost learned (`did.skill`) | menu: MENU > Skills > a skill with a dot > Learn |
+| 18 | tut_build | 1 placement (`did.build`); hint: straw_roll_kit | menu: MENU > Craft > Building Components > Straw Roll > Craft, then MENU > Craft > Build (bottom) > Straw Roll |
 | 19 | tut_ferry | within 7 m of the dock arrival; `grant_home` | world:harbour |
 Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
 
@@ -79,11 +79,39 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
 - HUD map title reads "Tutorial Island"; the atlas lists island time as "Permanent"; town pills show
   the building's name (`hud_pills.gd`); the domain banner never shows on this island (`domain_banner.gd`).
 
+## The town (`game/scripts/world/town_dress.gd`, TUTTOWN 2026-10-29)
+- `Tutorial.dress` ends with `TownDress.build(rt)`: the camp square (24 m) stays as above; around it
+  five dirt avenues (one to the dock) and two ring roads, four rings of lots and fields / pens past the
+  outer ring, out to 96 m. Districts by angle from the dock: harbour, market (striped stalls), homes,
+  pens + hunters' tents (toward the wild lands), farms, workshops (open shelters; forges and grills
+  always busy through `StationState`, racks of drying meat, kilns, looms). The Adventurer's Guild hall
+  (two storeys, banner, torches) stands behind the guild pavilion. Lamp posts and signposts line the
+  streets. Townsfolk (survivor body, random look) idle or loop a work clip at the stations; four walk
+  the avenues; tamed animals stand in the pens.
+- Measured headless (lab probe, same machine): about 50 houses, 12 stalls, 8 workshops, 10 fields,
+  5 pens, 46 lamps; ~1,750 instances in ~147 MultiMeshInstance3D; 149 collision boxes on one physics
+  body; town build ~0.7-1.0 s; scene nodes +~300 over the bare island (5,608 -> ~5,910, budget 6,000).
+- Scenery only: no node is saved or damaged; the footprints are occupied in the BuildGrid (nothing is
+  built over them, the tile router walks the streets); cover, dressing, props and non-tutorial
+  harvest nodes on footprints and roads are cleared. Every order target, the dock and every wild zone
+  stay reachable from the camp.
+
+## Menu guidance (`Tutorial.guide`, TUTTOWN 2026-10-29)
+- An order done in a menu lists its taps under `menu` in objectives.json (alternatives, each optionally
+  led by `have:<item>`). The pointer rings the deepest element on screen with a "Tap <name>" caption,
+  so it walks MENU -> Craft -> the tab -> the entry -> Craft as the player taps. A tab that shows but is
+  not the open one blocks the entry behind it (All open still asks for Materials first). An entry in a
+  list is scrolled into view once; if the player scrolls it away, a "Scroll down / up" cue shows on the
+  list instead of the ring. The hints spell the same route. Test: `game/tests/t_tutguide.gd`.
+- Craft / Build tab order: Materials, Tool, Weapon, Cooking, Clothing, Building Components, Farming,
+  All; Build is the bottom row of the list page.
+
 ## Onboarding pointer (`game/scripts/ui/tutorial_pointer.gd`)
-- Added over the HUD by `main.gd`. 5 Hz `Tutorial.pointer_target`; draws a pulsing gold ring
+- Added by `main.gd` on its own canvas layer (`TutorialLayer`, 97: over the HUD, the menus and the modals). 5 Hz `Tutorial.pointer_target`; draws a pulsing gold ring
   and arrow on a HUD Control (`ui:<node name>`, `ctx:<id>` → the `Ctx_<id>` context hex or
   INTERACT when it carries that action) or an arrow over a world point (edge arrow off screen).
-- Hidden while the bag, craft screen, a HUD sheet or character creation/pick is up.
+- A plain pointer (and a menu path's first element) hides while the bag, craft screen, a HUD sheet or
+  character creation/pick is up; inside a menu the guide's ring and caption show over it.
 
 ## Saves
 - `"tutorial": {"done": bool, "did": {key: int}}` is written only while the tutorial runs. A

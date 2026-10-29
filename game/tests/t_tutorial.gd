@@ -132,6 +132,7 @@ func _test_new_character() -> void:
 				alphas += 1
 		_expect(alphas == 0, "no alphas on the newcomer island (%d)" % alphas)
 		_test_town(rt, camp)
+		_test_town_dress(rt, camp)
 		_test_size_and_perf(rt, build_ms)
 	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SG.get("path")))
 	_expect(str(saved.get("island_id", "")) == "tutorial_isle", "the first save is on the tutorial island")
@@ -163,6 +164,49 @@ func _test_town(rt: Node3D, camp: Vector3) -> void:
 	_expect(not bool(_player.actions.call("claim_confirmed")), "a claim on the tutorial island is refused")
 	var guild: Variant = TUT.call("world_point", _player, "guild")
 	_expect(guild is Vector3 and (guild as Vector3).distance_to(camp) < 25.0, "the guild stands in the town")
+
+## TUTTOWN (owner 2026-10-29: "It should feel like a massive town"): districts full of houses, stalls,
+## workshops, fields, pens, lamps and townsfolk; cheap (MultiMesh, few lights); every order target, the
+## dock and every wild zone still reachable on the tile router through the streets.
+func _test_town_dress(rt: Node3D, camp: Vector3) -> void:
+	var town: Node = rt.get_node_or_null("TownDress")
+	_expect(town != null, "the town is dressed (TownDress)")
+	if town == null:
+		return
+	var st: Dictionary = town.get("stats")
+	print("[t_tutorial] town %s" % st)
+	_expect(int(st["houses"]) >= 40 and int(st["stalls"]) >= 6 and int(st["workshops"]) >= 4 and int(st["fields"]) >= 4 and int(st["pens"]) >= 2,
+		"a big town: %d houses, %d stalls, %d workshops, %d fields, %d pens" % [st["houses"], st["stalls"], st["workshops"], st["fields"], st["pens"]])
+	_expect(int(st["npcs"]) >= 8 and int(st["npcs"]) <= 16 and int(st["animals"]) >= 2 and int(st["lamps"]) >= 20, "townsfolk %d, pen animals %d, lamps %d" % [st["npcs"], st["animals"], st["lamps"]])
+	# Pen animals carry their eye rims (hidden, energy 0 until a threat): only lights that are on count.
+	var lights: Array = town.find_children("*", "Light3D", true, false).filter(func (l: Node) -> bool: return (l as Light3D).visible and (l as Light3D).light_energy > 0.0)
+	_expect(lights.size() <= 4, "at most 4 real lights in town (%s)" % [lights.map(func (l: Node) -> String: return str(l.get_parent().name) + "/" + str(l.name))])
+	var mmis: Array = town.find_children("*", "MultiMeshInstance3D", false, false)
+	_expect(mmis.size() >= 20 and mmis.size() <= 220 and int(st["instances"]) > 800, "the town is batched: %d MultiMeshes, %d instances" % [mmis.size(), st["instances"]])
+	var far_ok := true
+	for m in mmis:
+		far_ok = far_ok and (m as GeometryInstance3D).visibility_range_end > 0.0
+	_expect(far_ok, "every town batch has a visibility range")
+	var guild: Variant = TUT.call("world_point", _player, "guild")
+	var hall := false
+	for k in town.get("cells"):
+		if Vector2(float(k.x) - (guild as Vector3).x, float(k.y) - (guild as Vector3).z).length() < 16.0:
+			hall = true
+			break
+	_expect(hall, "the guild hall stands by the guild")
+	var pathing: Variant = rt.get("pathing")
+	var targets := {"dock": rt.call("arrival_point"), "guild": guild, "bench": TUT.call("world_point", _player, "bench"), "firepit": TUT.call("world_point", _player, "firepit")}
+	for z in rt.find_children("WildZone_*", "", false, false):
+		targets[str(z.name)] = (z as Node3D).global_position
+	var bad: Array = []
+	for k in targets:
+		if not targets[k] is Vector3:
+			bad.append(k)
+			continue
+		var res: Dictionary = pathing.call("path_result", camp, targets[k], 0)
+		if not bool(res["reachable"]):
+			bad.append(k)
+	_expect(bad.is_empty(), "the camp reaches the dock, the guild, the bench, the pit and every wild zone through the town (%s)" % [bad])
 
 ## Owner: 4-5x the home island's land. Measured land area from the dry tiles, build time and cover.
 func _test_size_and_perf(rt: Node3D, build_ms: int) -> void:

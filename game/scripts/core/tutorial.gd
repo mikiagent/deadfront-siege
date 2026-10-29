@@ -189,6 +189,7 @@ static func dress(rt: IslandRuntime) -> void:
 		var t: Vector3 = camp + [Vector3(-19, 0, 2), Vector3(19, 0, 1)][i]
 		t.y = rt.surface_y(t.x, t.z)
 		rt.harvest_count += rt._plant_at("CommonTree", "tutorial_tree_%d" % i, t, &"wood_log", &"axe", rt._climate, lv, Color(0.35, 0.22, 0.1))
+	TownDress.build(rt)  # TUTTOWN: the rest of the town, its districts, streets and townsfolk
 	_wild_zones(rt)
 
 static func _wild_zones(rt: IslandRuntime) -> void:
@@ -259,7 +260,167 @@ static func near(p: Player, what: String, radius: float) -> bool:
 static func pointer_target(p: Player) -> Dictionary:
 	if not active() or p == null or World.objective < 0 or World.objective >= steps().size():
 		return {}
-	return resolve(p, str((steps()[World.objective] as Dictionary).get("point_at", "")))
+	var step := steps()[World.objective] as Dictionary
+	if step.has("menu"):
+		return guide(p, step)
+	return resolve(p, str(step.get("point_at", "")))
+
+# ---------------------------------------------------------------- menu guidance
+
+## MENU GUIDANCE (owner 2026-10-29: "it points to a menu and doesn't tell you where to scroll"). An
+## order that is done inside a menu lists the taps in order under "menu": every alternative is a path
+## such as ["MenuHex", "Nav_craft", "Cat_processing", "Recipe_twine", "CraftOne"], optionally led by
+## "have:<item>" (that path only while the bag holds it). One shared rule for every order: the pointer
+## rings the DEEPEST element of the path that is on screen now, so it walks MENU -> the Craft entry ->
+## the tab -> the recipe -> Craft as the player taps. A tab, recipe, skill or bag slot is a gate
+## (meta tut_chosen): while it shows and is not the chosen one, nothing past it counts (All open shows
+## the twine row, but the pointer still asks for the Materials tab first). A target inside a
+## ScrollContainer is scrolled into view once (ensure_control_visible); if it is still outside (the
+## player scrolled away), the result carries a scroll cue instead of the ring.
+## Elements: a node name under the HUD and the open screens; world:/harvest:/ctx: as point_at;
+## "bag:<item>" (the bag cell holding it); "skill:buyable" (the first skill with a node to learn).
+## Result: {} or {"ui": Control | "world": Vector3, "index": i, "path": Array, "caption": String,
+## "scroll": ScrollContainer, "cue": -1 up / 0 none / 1 down, "covered_ok": bool}.
+static var _scrolled_for := ""
+
+static func guide(p: Player, step: Dictionary) -> Dictionary:
+	var path := guide_path(p, step)
+	if path.is_empty():
+		return {}
+	var roots := _ui_roots(p)
+	var found: Array = []
+	for el in path:
+		found.append(_find_el(p, roots, str(el)))
+	var pick := -1
+	for i in range(path.size() - 1, -1, -1):
+		var hit: Dictionary = found[i]
+		if hit.is_empty() or (hit.has("ui") and not _shown(hit["ui"] as Control)):
+			continue
+		var gated := false
+		for j in range(1, i):  # path[0] is the way in (MENU, the station): never a gate
+			if _blocks(found[j]):
+				gated = true
+				break
+		if not gated:
+			pick = i
+			break
+	if pick < 0:
+		return {}
+	var out: Dictionary = (found[pick] as Dictionary).duplicate()
+	out["index"] = pick
+	out["path"] = path
+	out["cue"] = 0
+	if out.has("ui"):
+		var c := out["ui"] as Control
+		out["caption"] = "Tap " + caption_of(c)
+		var sc := _scroll_of(c)
+		if sc:
+			out["scroll"] = sc
+			# Scroll it in until it has been seen in view once; after that the player may scroll away
+			# (then the cue shows). The list lays out a frame after a rebuild, so this repeats till then.
+			var key := "%d:%s" % [World.objective, str(path[pick])]
+			var view := sc.get_global_rect()
+			var r := c.get_global_rect()
+			if view.grow(1.0).encloses(r):
+				_scrolled_for = key
+			elif _scrolled_for != key:
+				sc.ensure_control_visible(c)
+			if r.end.y > view.end.y + 1.0:
+				out["cue"] = 1
+			elif r.position.y < view.position.y - 1.0:
+				out["cue"] = -1
+	return out
+
+## The step's path: the first "menu" alternative whose have: condition holds.
+static func guide_path(p: Player, step: Dictionary) -> Array:
+	for alt in step.get("menu", []):
+		if not alt is Array or (alt as Array).is_empty():
+			continue
+		var a := alt as Array
+		var head := str(a[0])
+		if head.begins_with("have:"):
+			if p.inventory.count_of(StringName(head.substr(5))) <= 0:
+				continue
+			return a.slice(1)
+		return a
+	return []
+
+## Where menu elements live: the HUD (MENU, NavMenu, skills), the craft sheet, the bag, the station
+## ring and the build drawer.
+static func _ui_roots(p: Player) -> Array[Node]:
+	var out: Array[Node] = []
+	var hud := p.get_tree().get_first_node_in_group("hud")
+	for n: Variant in [hud, p.craft_ui, p.ui, p.station_craft.menu if p.station_craft else null, p.get("build_ui")]:
+		if n != null and is_instance_valid(n):
+			out.append(n as Node)
+	return out
+
+static func _find_el(p: Player, roots: Array[Node], el: String) -> Dictionary:
+	if el.begins_with("world:") or el.begins_with("harvest:") or el.begins_with("ctx:"):
+		return _resolve_one(p, el)
+	if el.begins_with("bag:"):
+		return _bag_cell(p, StringName(el.substr(4)))
+	if el == "skill:buyable":
+		for r in roots:
+			for c in r.find_children("Skill_*", "Button", true, false):
+				if (c as Node).find_child("Unread", true, false) != null:
+					return {"ui": c}
+		return {}
+	for r in roots:
+		var c := r.find_child(el, true, false) as Control
+		if c:
+			return {"ui": c}
+	return {}
+
+## The bag cell that draws `item` (the bag sorts and filters, so cells are found by what they hold).
+static func _bag_cell(p: Player, item: StringName) -> Dictionary:
+	if p.ui == null or not is_instance_valid(p.ui):
+		return {}
+	for c in (p.ui as Node).find_children("Slot*", "", true, false):
+		var st: Variant = c.get("stack")
+		if st is ItemStack and (st as ItemStack).def_id == item:
+			c.set_meta(&"tut_chosen", bool(c.get("selected")))
+			c.set_meta(&"tut_hard", true)  # Use acts on the selected cell, shown or not
+			return {"ui": c}
+	return {}
+
+static func _shown(c: Control) -> bool:
+	return c != null and is_instance_valid(c) and c.is_visible_in_tree() and c.size.x > 1.0
+
+## A gate that is not chosen blocks the rest of the path: tabs only while they show, recipes and bag
+## cells (tut_hard) always.
+static func _blocks(hit: Dictionary) -> bool:
+	if not hit.has("ui"):
+		return false
+	var c := hit["ui"] as Control
+	if c == null or not c.has_meta(&"tut_chosen") or bool(c.get_meta(&"tut_chosen")):
+		return false
+	return c.has_meta(&"tut_hard") or _shown(c)
+
+static func _scroll_of(c: Control) -> ScrollContainer:
+	var n := c.get_parent()
+	while n != null and n is Control:
+		if n is ScrollContainer:
+			return n as ScrollContainer
+		n = n.get_parent()
+	return null
+
+## What the tapped thing says: its title, button text, hex caption or recipe name.
+static func caption_of(c: Control) -> String:
+	for k in ["title", "caption", "bottom_text"]:
+		var v: Variant = c.get(k)
+		if v is String and str(v).strip_edges() != "":
+			return str(v).strip_edges()
+	var rn := c.find_child("RecipeName", true, false) as Label
+	if rn:
+		return rn.text
+	if c is Button and (c as Button).text.strip_edges() != "":
+		return (c as Button).text.strip_edges()
+	var st: Variant = c.get("stack")
+	if st is ItemStack:
+		var d := (st as ItemStack).def()
+		return d.display_name if d else str((st as ItemStack).def_id)
+	return "here"
 
 static func resolve(p: Player, spec: String) -> Dictionary:
 	for alt in spec.split("|", false):

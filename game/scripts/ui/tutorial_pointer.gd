@@ -5,7 +5,11 @@ extends Control
 ## runs it rings the exact HUD element the order names (MENU, BUILD, BAG, a context hex such as
 ## Drink or Rest) or bobs an arrow over the world spot (camp, bench, fire pit, the nearest branch
 ## node, the animal, the dock). Tutorial.pointer_target decides; this only draws. Nothing here takes
-## input (mouse_filter IGNORE) and it hides while a full-screen sheet or modal is up.
+## input (mouse_filter IGNORE). MENU GUIDANCE (2026-10-29): it sits on its own canvas layer over every
+## menu (TutorialLayer, 97), so inside the menus it rings the tab / entry / button Tutorial.guide names
+## with a "Tap <name>" caption, or a "Scroll down" cue on the list when the entry is out of view. A
+## path's way in (MENU, the station, a world spot) and every plain pointer still hide while a sheet,
+## the bag or the craft screen covers them.
 
 const GOLD := Color(1.0, 0.82, 0.32)
 var player: Player
@@ -23,7 +27,9 @@ func _process(delta: float) -> void:
 	_acc += delta
 	if _acc >= 0.2:  # the target search walks groups; 5 Hz is plenty for a pointer
 		_acc = 0.0
-		_target = Tutorial.pointer_target(player) if player and not _covered() else {}
+		_target = Tutorial.pointer_target(player) if player else {}
+		if not _target.is_empty() and int(_target.get("index", 0)) == 0 and _covered():
+			_target = {}
 	visible = not _target.is_empty()
 	if visible:
 		queue_redraw()
@@ -48,6 +54,12 @@ func _draw() -> void:
 		if c == null or not is_instance_valid(c):
 			return
 		var r := c.get_global_rect()
+		var cue := int(_target.get("cue", 0))
+		if cue != 0 and _target.get("scroll") is ScrollContainer:
+			_scroll_cue((_target["scroll"] as ScrollContainer).get_global_rect(), cue, pulse)
+			return
+		if _target.has("caption"):
+			_caption(r, str(_target["caption"]))
 		var centre := r.get_center() - get_global_rect().position
 		var rad := maxf(r.size.x, r.size.y) * 0.5 + 6.0 + 6.0 * pulse
 		draw_arc(centre, rad, 0.0, TAU, 48, Color(GOLD, 0.95), 4.0, true)
@@ -82,3 +94,23 @@ func _arrow(tip: Vector2, dir: Vector2) -> void:
 	draw_colored_polygon(pts, GOLD)
 	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(0.1, 0.08, 0.02, 0.9), 2.0, true)
 	draw_line(tip + back * 18.0, tip + back * 44.0, GOLD, 6.0, true)
+
+## "Tap Materials" beside the ringed control: above it, or below when it sits at the top edge.
+func _caption(r: Rect2, text: String) -> void:
+	var font := ThemeDB.fallback_font
+	var px := 18
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 20.0
+	var view := get_viewport_rect().size
+	var y := r.position.y - 64.0 if r.position.y > 90.0 else r.end.y + 18.0
+	var box := Rect2(Vector2(clampf(r.get_center().x - w * 0.5, 4.0, view.x - w - 4.0), y), Vector2(w, 28.0))
+	draw_rect(box, Color(0.08, 0.07, 0.04, 0.92))
+	draw_rect(box, GOLD, false, 2.0)
+	draw_string(font, box.position + Vector2(10.0, 20.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, GOLD)
+
+## The entry is in the list but scrolled out of view: a bobbing arrow on the list's edge and
+## "Scroll down" / "Scroll up".
+func _scroll_cue(view: Rect2, dir: int, pulse: float) -> void:
+	var d := Vector2(0.0, float(dir))
+	var tip := Vector2(view.get_center().x, (view.end.y - 10.0 if dir > 0 else view.position.y + 10.0) + d.y * 6.0 * pulse)
+	_arrow(tip, d)
+	_caption(Rect2(tip - Vector2(0.0, 40.0 if dir > 0 else -40.0), Vector2.ZERO), "Scroll down" if dir > 0 else "Scroll up")
