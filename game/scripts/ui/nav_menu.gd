@@ -22,7 +22,7 @@ const LEFT := [
 const RIGHT := [
 	{"id": &"atlas", "label": "World Atlas", "icon": &"map"},
 	{"id": &"domain", "label": "Domain", "icon": &"claim"},
-	{"id": &"orders", "label": "Orders", "icon": &"notice"},
+	{"id": &"orders", "label": "Tasks", "icon": &"notice"},
 	{"id": &"communication", "label": "Communication", "icon": &"chat"},
 	# ASSUMPTION: Island Market (spec 33/14: Main Menu -> Island Market) takes the Friends slot; Friends has no system
 	# and the phone layout fits six rows a side. Friends comes back when a friend system exists.

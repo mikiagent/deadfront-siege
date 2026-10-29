@@ -243,6 +243,7 @@ func start_new(host: Node) -> void:
 	raid_victory = false
 	objective = 0
 	objective_best = 0
+	Tasks.reset()
 	# Character creation first (M10), then the home island with the terrain pick.
 	var cc := CharacterCreation.new()
 	cc.name = "CharacterCreation"
@@ -418,6 +419,7 @@ func cargo_warp(player: Player) -> void:
 	print("[world] cargo warp %d stacks fee=%d" % [moved, CARGO_FEE])
 
 func note_craft(recipe_id: StringName) -> void:
+	Tasks.note(&"craft")  # TASKSCREEN: every craft counts toward the daily / weekly craft tasks
 	if pioneer_crafts.has(str(recipe_id)):
 		return
 	pioneer_crafts[str(recipe_id)] = true

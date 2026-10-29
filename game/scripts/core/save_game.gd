@@ -141,6 +141,7 @@ static func save_now() -> bool:
 		"raid_victory": World.raid_victory,
 		"objective": World.objective,
 		"objective_best": World.objective_best,
+		"tasks": Tasks.to_dict(), # TASKSCREEN: claimed tasks, daily/weekly counts and their reset day/week
 		"island_id": str(World.island_id),
 		"unstable": {
 			"remaining": World.remaining_lifetime,
@@ -267,6 +268,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.raid_victory = bool(data.get("raid_victory", false))
 	World.objective = int(data.get("objective", 0))  # older saves start the standing orders over
 	World.objective_best = int(data.get("objective_best", 0))
+	Tasks.from_dict(data.get("tasks", null)) # no block (older save): the orders already finished load as received
 	World.remaining_lifetime = float(data.get("unstable", {}).get("remaining", 0.0))
 	World.harvested = data.get("unstable", {}).get("harvested", {})
 	World.crater_discovered = bool(data.get("unstable", {}).get("crater_discovered", false))

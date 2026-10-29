@@ -28,8 +28,9 @@ static func current(player: Player) -> Dictionary:
 		"last": i == steps.size() - 1,
 	}
 
-## Advance while the current objective is satisfied, paying out each one. Returns the number
-## completed this tick so the caller can decide whether to announce anything.
+## Advance while the current objective is satisfied. TASKSCREEN: nothing pays here any more; a finished
+## order waits as a claimable Main Task (Tasks.claim pays its xp / t_stones from the Task screen).
+## Returns the number completed this tick so the caller can decide whether to announce anything.
 static func settle(player: Player) -> int:
 	var steps := _steps()
 	var done := 0
@@ -38,23 +39,13 @@ static func settle(player: Player) -> int:
 		var state := _with_best(_progress(player, step))
 		if not bool(state["done"]):
 			break
-		var xp := int(step.get("xp", 0))
-		var stones := int(step.get("t_stones", 0))
-		if xp > 0:
-			World.add_xp(xp)
-		if stones > 0:
-			World.t_stones += stones
-		print("[objective] done %s (+%d xp%s)" % [
-			step.get("id", "?"), xp, ", +%d T" % stones if stones > 0 else ""])
+		print("[objective] done %s (reward waits in Tasks)" % step.get("id", "?"))
 		World.objective += 1
 		World.objective_best = 0
 		done += 1
 		if player and player.has_method("notice"):
 			var next := current(player)
-			if next.is_empty():
-				player.notice("Standing orders complete")
-			else:
-				player.notice("Next: %s" % next["title"])
+			player.notice("Order complete: receive the reward in Tasks" if next.is_empty() else "Order complete · Next: %s" % next["title"])
 	return done
 
 ## Materials are spent as fast as they are gathered, so an order tracks the most the survivor

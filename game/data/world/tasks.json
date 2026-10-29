@@ -1,0 +1,31 @@
+{
+  "_about": "TASKSCREEN 2026-10-28: the Task screen's categories (Durango's Task screen, owner reference). Main Task = the standing orders of objectives.json (their own xp / t_stones). Everything below is an ASSUMPTION: the PRDs and durango-prompts name no daily, weekly, achievement or domain-construction tasks or rewards (logged in docs/vision/WildLandsMMO_Open_Questions.md, TS1-TS7). Rewards are claimed by hand with Receive; nothing pays on its own. Daily resets at 00:00 UTC, weekly at Monday 00:00 UTC.",
+  "daily": [
+    {"id": "gather", "title": "Daily Gathering", "desc": "Gather %d materials today.", "count": "gather", "want": 30, "icon": "gathering", "t_stones": 5, "xp": 40},
+    {"id": "craft", "title": "Daily Crafting", "desc": "Craft %d items today.", "count": "craft", "want": 3, "icon": "craft", "t_stones": 5, "xp": 40},
+    {"id": "hunt", "title": "Daily Hunt", "desc": "Hunt down %d wild animals today.", "count": "hunt", "want": 2, "icon": "melee", "t_stones": 5, "xp": 40}
+  ],
+  "weekly": [
+    {"id": "gather", "title": "Weekly Gathering", "desc": "Gather %d materials this week.", "count": "gather", "want": 300, "icon": "gathering", "t_stones": 25, "xp": 250},
+    {"id": "craft", "title": "Weekly Crafting", "desc": "Craft %d items this week.", "count": "craft", "want": 25, "icon": "craft", "t_stones": 25, "xp": 250},
+    {"id": "hunt", "title": "Weekly Hunt", "desc": "Hunt down %d wild animals this week.", "count": "hunt", "want": 15, "icon": "melee", "t_stones": 25, "xp": 250}
+  ],
+  "domain": [
+    {"id": "campfire", "title": "Light a Campfire", "desc": "Build a campfire in your domain.", "kind": "campfire", "want": 1, "icon": "station_campfire", "t_stones": 5, "xp": 30},
+    {"id": "basket", "title": "Place a Basket", "desc": "Place a storage basket in your domain.", "kind": "basket", "want": 1, "icon": "store", "t_stones": 5, "xp": 30},
+    {"id": "tent", "title": "Pitch a Tent", "desc": "Pitch a tent in your domain.", "kind": "tent", "want": 1, "icon": "sleep", "t_stones": 5, "xp": 30},
+    {"id": "workbench", "title": "Build a Workbench", "desc": "Place a workbench in your domain.", "kind": "workbench", "want": 1, "icon": "station_workbench", "t_stones": 10, "xp": 50},
+    {"id": "drying_rack", "title": "Build a Drying Rack", "desc": "Build a drying rack in your domain.", "kind": "drying_rack", "want": 1, "icon": "station_drying_rack", "t_stones": 10, "xp": 50},
+    {"id": "taming_pen", "title": "Build a Taming Pen", "desc": "Build a taming pen in your domain.", "kind": "makeshift_taming_pen", "want": 1, "icon": "pen", "t_stones": 15, "xp": 80},
+    {"id": "well", "title": "Dig a Well", "desc": "Dig a well in your domain.", "kind": "well", "want": 1, "icon": "station_well", "t_stones": 15, "xp": 80},
+    {"id": "fence", "title": "Raise a Fence Line", "desc": "Place %d fences in your domain.", "kind": "fence", "want": 10, "icon": "build", "t_stones": 10, "xp": 60}
+  ],
+  "achievement": {
+    "character_levels": [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60],
+    "skill_levels": [10, 20, 30, 40, 50, 60],
+    "_reward": "per milestone of level L: L T-stones, 1 skill point, 5 x L character XP",
+    "t_stones_per_level": 1,
+    "xp_per_level": 5,
+    "skill_points": 1
+  }
+}

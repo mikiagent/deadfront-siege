@@ -1,0 +1,15 @@
+MISSING DATA,,,
+Research backlog: do not treat missing data as 0 or as never existing,,,
+Subsystem,Coverage gap,What is missing,Suggested verification path
+ALL,Completeness,No full official 2019 in-game Task UI dump survived in accessible sources.,"Need original client text assets, game dumps, UI screenshots or reliable community exports."
+Faction missions,Level 10–55,Available named mission table covers selected Lv. 60 island biomes; earlier missions not listed.,Scrape archived clients or other mission sheets.
+Faction missions,Faction assignment,Some mission faction columns are damaged by Scribd text extraction.,Find original structured Google Sheet or high-resolution scan.
+Faction missions,Quest rewards,Most per-quest XP / T-Stone / trust values are not archived.,Use game asset data / screenshots; do not assume same values.
+Daily tasks,Full list & counts,"Only a few individual examples were found, not a complete daily table.","Capture task-board screens, translated resources, original game JSON."
+Weekly tasks,Full list & rewards,Only one weekly example and a rough reward value recovered.,Find weekly-board captures.
+In-game achievements,Complete list,"Exophase's 16 achievements are Google Play achievements, not the in-game achievement catalog.",Recover game achievement config/strings.
+Career guides,Individual checklist,58 named career titles with bonuses recovered; detailed requirements unavailable for 57.,Skill configuration extraction or screenshot records.
+Storyline,Final chapters,"8-quest finale verified, individual chapter names and exact tasks missing.",Search Korean ending quest archives.
+Events,Seasonal tasks,"Limited event quests exist, but no complete event quest list.",Archived news/event patch notes or client assets.
+Versioning,2017 vs 2019,"The game changed between 2017 beta, 2018 Korean launch, 2019 global launch, and final sunset.",Track content by build date where discoverable.
+Task labels,Normalized English,A few titles use OCR-cleaned spelling/capitalization and some groupings are reconstructed.,Compare to original English localization before canonicalizing.
