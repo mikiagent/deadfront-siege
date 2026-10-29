@@ -97,7 +97,12 @@ func _test_state_changed_once() -> void:
 func _test_profiles() -> void:
 	var zeb := _creature(&"zebraceratops")
 	var skittish: Dictionary = (data.creature_ai.get("temperaments", {}) as Dictionary).get("skittish", {})
-	_check(skittish.has("flee_speed_mult") and is_equal_approx(float(zeb.brain.profile.get("flee_speed_mult", 0.0)), float(skittish["flee_speed_mult"])), "skittish temperament not merged into zebraceratops profile")
+	var galli := _creature(&"gallimimus")
+	_check(skittish.has("flee_speed_mult") and is_equal_approx(float(galli.brain.profile.get("flee_speed_mult", 0.0)), float(skittish["flee_speed_mult"])), "skittish temperament not merged into gallimimus profile")
+	# The archetype row beats its temperament: pack_mule (owner: 'gallop away slowly') keeps its own 1.2, no floor.
+	var mule: Dictionary = (data.creature_ai.get("archetypes", {}) as Dictionary).get("pack_mule", {})
+	_check(is_equal_approx(float(zeb.brain.profile.get("flee_speed_mult", 0.0)), float(mule.get("flee_speed_mult", -1.0))) and bool(zeb.brain.profile.get("flee_on_sight", false)), "pack_mule flee override not merged over skittish on zebraceratops")
+	galli.free()
 	var raptor := _creature(&"velociraptor")
 	_check(is_equal_approx(float(raptor.brain.profile.get("chase_speed_mult", 0.0)), 0.7), "chase_speed_mult missing on pack_raptor")
 	# Every carnivore archetype names its chase multiplier (the owner tunes it per archetype).
@@ -140,12 +145,12 @@ func _test_solo_spawn_and_tame_pack() -> void:
 		c.free()
 	sp.free()
 
-## qa-ai-01: the leash rule for all 19 species, not 3. A target just inside aggro_radius is
+## qa-ai-01: the leash rule for all 20 species, not 3. A target just inside aggro_radius is
 ## kept for a think; one just outside is dropped on the next think and the animal stands down.
 func _test_leash_every_species() -> void:
 	game.time_of_day = 0.40
 	var ids := _species()
-	_check(ids.size() == 19, "expected 19 species, found %d" % ids.size())
+	_check(ids.size() == 20, "expected 20 species, found %d" % ids.size())
 	var bad: Array[String] = []
 	for id in ids:
 		var c := _creature(id)
@@ -316,26 +321,41 @@ func _test_think_rate() -> void:
 	c.free()
 	rex.free()
 
-## Worst-IV (0 of 31, 85 % speed) zebraceratops in flee still beats the 5.5 m/s survivor walk.
+## Worst-IV (0 of 31, 85 % speed) gallimimus in flee still beats the 5.5 m/s survivor walk (the skittish floor);
+## the zebraceratops (pack_mule, owner 2026-10-29: 'gallop away slowly') flees under that walk, so it is catchable.
 func _test_flee_speed_floor() -> void:
-	var zeb: Node = load(CREATURE_SCENE).instantiate()
-	get_root().add_child(zeb)
 	var g: RefCounted = load("res://scripts/creatures/creature_genetics.gd").neutral()
 	for stat in g.ivs:
 		g.ivs[stat] = 0
-	zeb.genetics = g
-	zeb.spawn(data.creature(&"zebraceratops"), &"", 0)
-	var base: float = zeb.move_speed_mps()
+	var galli: Node = load(CREATURE_SCENE).instantiate()
+	get_root().add_child(galli)
+	galli.genetics = g
+	galli.spawn(data.creature(&"gallimimus"), &"", 0)
+	var base: float = galli.move_speed_mps()
 	# The physics step's own flee rule, not a copy of it: deleting the floor in creature.gd fails here.
-	var flee: float = zeb.flee_speed(base, 1.0)
-	_check(flee >= 6.0, "worst-IV zebraceratops flees at %.2f m/s (base %.2f), want >= 6.0" % [flee, base])
+	var flee: float = galli.flee_speed(base, 1.0)
+	_check(flee >= 6.0, "worst-IV gallimimus flees at %.2f m/s (base %.2f), want >= 6.0" % [flee, base])
 	# And the real step: flee with a goal 2 m away, one physics frame, read the velocity it produced.
-	zeb.brain.state = &"flee"
-	zeb._path_active = true
-	zeb._path_goal = zeb.global_position + Vector3(2.0, 0.0, 0.0)
-	zeb.velocity = Vector3.ZERO
-	zeb._physics_process(1.0 / 60.0)
-	var stepped := Vector2(zeb.velocity.x, zeb.velocity.z).length()
-	zeb._path_active = false
-	_check(stepped >= 6.0, "worst-IV zebraceratops flee physics step moves at %.2f m/s, want >= 6.0 (floor deleted in creature.gd fails here)" % stepped)
+	galli.brain.state = &"flee"
+	galli._path_active = true
+	galli._path_goal = galli.global_position + Vector3(2.0, 0.0, 0.0)
+	galli.velocity = Vector3.ZERO
+	galli._physics_process(1.0 / 60.0)
+	var stepped := Vector2(galli.velocity.x, galli.velocity.z).length()
+	galli._path_active = false
+	_check(stepped >= 6.0, "worst-IV gallimimus flee physics step moves at %.2f m/s, want >= 6.0 (floor deleted in creature.gd fails here)" % stepped)
+	galli.free()
+	# Best-IV zebraceratops still flees under the walk.
+	var zeb: Node = load(CREATURE_SCENE).instantiate()
+	get_root().add_child(zeb)
+	var gz: RefCounted = load("res://scripts/creatures/creature_genetics.gd").neutral()
+	for stat in gz.ivs:
+		gz.ivs[stat] = 31
+	zeb.genetics = gz
+	zeb.spawn(data.creature(&"zebraceratops"), &"", 0)
+	var zflee: float = zeb.flee_speed(zeb.move_speed_mps(), 1.0) * zeb.run_speed_mult()  # the sprint mult the step applies
+	_check(zflee < 5.5, "best-IV zebraceratops flees at %.2f m/s, want < 5.5 (the survivor walk: a slow gallop)" % zflee)
+	# Gallops at about its run clip's natural stride, not a sped-up run.
+	var cad: float = zflee / float(((data.anim_events.get("natural_speeds", {}) as Dictionary).get("zebraceratops", {}) as Dictionary).get("run", 1.0))
+	_check(cad > 0.8 and cad < 1.3, "zebraceratops flee plays the run at x%.2f, want ~1 (not sped up)" % cad)
 	zeb.free()

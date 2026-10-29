@@ -5,6 +5,9 @@ extends SceneTree
 ##   floats "Blocked" over her; a survivor swing a creature dodges deals no damage and floats "Dodged"
 ##   over its plate, a block "Blocked"; the aggro ring is hidden with the debug overlay off and shown
 ##   with it on. Every avoided hit goes through CombatAvoid.avoided.
+##   COMPYJUMPS (owner 2026-10-28: "there should be a damage text that says "Dodged" "Blocked" or "Missed""):
+##   a failed accuracy roll, a bite whose prey is out of reach at the contact frame, and a survivor swing
+##   the creature stepped out of float "Missed", over the survivor or over the creature's plate.
 ## Usage: godot --headless --path game --script res://tests/t_dodgetext.gd -> "[t_dodgetext] PASS".
 ## Windowed with `-- --shot-dir=<dir>` it also saves dodged.png (the survivor's "Dodged" float).
 
@@ -109,15 +112,49 @@ func _run() -> void:
 	var f: Dictionary = (_hud.get("_events").player_floats as Array).back()
 	_expect(int(f.get("px", 22)) < 22, "the avoid text is smaller than a damage number (%d px)" % int(f.get("px", 22)))
 
+	# 1b. Survivor: a bite whose accuracy roll fails (she is not rolling) floats "Missed".
+	for i in 120:
+		if not _player.rolling and not _player.sim.roll_invulnerable():
+			break
+		await physics_frame
+	CT.force_accuracy = 0.0
+	hp0 = _player.vitals.health
+	landed = CA.apply_for(raptor, &"attack_primary", _player)
+	_expect(not landed and is_equal_approx(_player.vitals.health, hp0) and (_player_texts().back() == "Missed"), "a bite whose accuracy roll fails floats \"Missed\" over the survivor (%s)" % [_player_texts()])
+	CT.force_accuracy = 1.0
+	# 1c. Survivor: she is out of reach at the bite's contact frame (it snaps at air).
+	raptor.brain.attack_target = _player
+	raptor.global_position = Vector3(0, 0, -6.0)
+	hp0 = _player.vitals.health
+	raptor._on_hit(&"attack_primary")
+	_expect(is_equal_approx(_player.vitals.health, hp0) and _player_texts().back() == "Missed", "a bite that reaches nothing at its contact frame floats \"Missed\" (%s)" % [_player_texts()])
+	raptor.global_position = Vector3(0, 0, -1.6)
+
 	# 2. Creature: the survivor's swing it dodges.
 	plates.reveal_creature(raptor, 30.0)
-	CT.force_accuracy = 0.0
+	CT.force_accuracy = 1.0
+	CT.force_dodge = 1.0
 	var chp: float = raptor.health.hp
 	var hit: bool = _player.hunt.land_hit(raptor, null)
 	_expect(not hit and is_equal_approx(raptor.health.hp, chp), "a swing the creature dodges deals no damage")
 	_expect(_plate_texts(plates, raptor).has("Dodged"), "and floats \"Dodged\" over its plate (%s)" % [_plate_texts(plates, raptor)])
 	AV.avoided(raptor, _player, &"block")
 	_expect(_plate_texts(plates, raptor).has("Blocked"), "a creature block floats \"Blocked\" over its plate")
+	# 2b. Creature: her accuracy roll fails, and a swing it stepped out of.
+	CT.force_dodge = 0.0
+	CT.force_accuracy = 0.0
+	chp = raptor.health.hp
+	hit = _player.hunt.land_hit(raptor, null)
+	var tx: Array = _plate_texts(plates, raptor)
+	_expect(not hit and is_equal_approx(raptor.health.hp, chp) and tx.count("Missed") == 1, "a swing whose accuracy roll fails floats \"Missed\" over its plate (%s)" % [tx])
+	CT.force_accuracy = 1.0
+	_player.hunt.target = raptor
+	raptor.global_position = Vector3(0, 0, -7.0)
+	_player.hunt._on_swing_hit(weakref(raptor), null, Vector3.ZERO)
+	tx = _plate_texts(plates, raptor)
+	_expect(is_equal_approx(raptor.health.hp, chp) and tx.count("Missed") == 2, "a swing the creature stepped out of floats \"Missed\" (%s)" % [tx])
+	raptor.global_position = Vector3(0, 0, -1.6)
+	_player.hunt.target = null
 	CT.force_accuracy = -1.0
 	CT.force_dodge = -1.0
 

@@ -174,8 +174,8 @@ func _mode_toggle_case() -> void:
 	creature.queue_free()
 	await process_frame
 
-## Tap routes walk unless Sprint is latched. HANDS gathers the nearest resource, and its Bag button
-## opens a right-side inventory sheet while leaving a useful strip of the game visible.
+## Tap routes walk unless Sprint is latched. INTERACT gathers the nearest resource (HANDS removed, owner
+## 2026-10-28), and the rail's Bag button opens a right-side inventory sheet while leaving a useful strip of the game visible.
 func _interaction_controls_case(layer: CanvasLayer) -> void:
 	player.clear_nav()
 	player.global_position = Vector3.ZERO
@@ -199,28 +199,23 @@ func _interaction_controls_case(layer: CanvasLayer) -> void:
 	far.position = Vector3(14.0, 0.0, 0.0)
 	host.add_child(far)
 	await process_frame
-	var held = player.station_craft.held_slot if player.station_craft else null
-	_expect(held != null, "the HANDS control exists")
-	if held:
-		var press := InputEventMouseButton.new()
-		press.button_index = MOUSE_BUTTON_LEFT
-		press.pressed = true
-		held._gui_input(press)
-		var release := InputEventMouseButton.new()
-		release.button_index = MOUSE_BUTTON_LEFT
-		release.pressed = false
-		held._gui_input(release)
-		_expect(player.gather_target == near, "HANDS selects the nearest resource inside its seek radius")
-		_expect(player.nav_active, "HANDS pathfinds to a resource outside immediate gather reach")
+	_expect(hud.find_child("HeldItemSlot", true, false) == null and player.station_craft.get("held_slot") == null,
+		"no HANDS slot on the HUD")
+	var ihex: Control = hud.field.interact_hex if hud.field else null
+	_expect(ihex != null, "the INTERACT hex exists")
+	if ihex:
+		ihex.emit_signal("pressed")
+		_expect(player.gather_target == near, "INTERACT selects the nearest resource inside its seek radius")
+		_expect(player.nav_active, "INTERACT pathfinds to a resource outside immediate gather reach")
 		var expected_goal: Vector3 = player.sim.closest_nav_point(near.global_position)
 		_expect(player._path_goal.distance_to(expected_goal) < 0.1,
 			"the gather route ends at the resource's nearest navigable point")
 		player.actions.cancel_work()
 		near.position = Vector3(13.0, 0.0, 0.0)
 		_expect(player.controls._nearest_harvest_node(float(player.controls.QUICK_GATHER_RADIUS)) == null,
-			"HANDS ignores resources outside its seek radius")
+			"INTERACT ignores resources outside its seek radius")
 
-		# Owner layout 2026-10-28: BAG left HANDS for the bottom-left rail (MENU, BUILD, BAG).
+		# Owner layout 2026-10-28: BAG stands in the bottom-left rail (MENU, BUILD, BAG).
 		var bag_button := hud.get_node_or_null("BagHex") as Control
 		_expect(bag_button != null, "a BAG hex stands in the rail")
 		if bag_button:

@@ -1,0 +1,10 @@
+{
+  "_about": "Taming pen tiers (owner 2026-10-28: each pen only tames certain dinosaurs, mainly by size and how good the dinosaur is). A pen takes a species when real_length_m <= max_length_m AND its value <= max_value. Value = the species' capture_tier (1-5); capture_tier 0 (cannot be netted) counts as 6. Tiers are in rank order; a species needs the first tier it fits. A big tame is shown at its full size and may overhang the fence (never scaled down). # ASSUMPTION: the four tiers, their limits and footprints are defaults, logged in docs/vision/WildLandsMMO_Open_Questions.md.",
+  "zero_capture_tier_value": 6,
+  "tiers": [
+    {"kind": "makeshift_taming_pen", "label": "Small Taming Pen", "max_length_m": 6.0, "max_value": 2, "size_m": 4},
+    {"kind": "taming_pen_medium", "label": "Medium Taming Pen", "max_length_m": 12.0, "max_value": 4, "size_m": 5},
+    {"kind": "taming_pen_large", "label": "Large Taming Pen", "max_length_m": 18.0, "max_value": 5, "size_m": 6},
+    {"kind": "taming_pen_apex", "label": "Apex Taming Pen", "max_length_m": 999.0, "max_value": 6, "size_m": 8}
+  ]
+}

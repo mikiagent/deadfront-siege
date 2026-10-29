@@ -15,9 +15,10 @@ const TITLE_INK := Color(0.86, 0.84, 0.78, 0.82)  # dimmer than the name's 0.95 
 # ASSUMPTION: these phone placements are ours; the combat reference only fixes End Combat right, skills bottom right.
 static func place_landscape_phone(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 	var under_vitals := vitals_rect(hud, r).end.y + 8.0
+	var left := 16.0 + inset.w + HudLevelBadge.COLUMN  # HUDTWEAK: under the bars, right of the stomach ring under the badge
 	for i in hud._whistle_hexes.size():
 		HudField.fit(hud._whistle_hexes[i], HudField.px(&"whistle", r))
-		hud._whistle_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HuntHud.HEX + 10.0), under_vitals)
+		hud._whistle_hexes[i].position = Vector2(left + float(i) * (HuntHud.HEX + 10.0), under_vitals)
 	var ih := hud.field.interact_hex
 	hud._end_btn.add_theme_font_size_override("font_size", 14)
 	hud._end_btn.custom_minimum_size = Vector2(r.x - 16.0 - inset.x - ih.position.x, 64.0)
@@ -98,7 +99,21 @@ static func vitals_rect(hud: HuntHud, r: Vector2) -> Rect2:
 	var panel_w := 300.0 + (0.0 if UiTokens.is_compact(r) else HudLevelBadge.COLUMN)
 	if phone:
 		panel_w = maxf(148.0, hud._minimap.position.x - x - 8.0)
-	return Rect2(x - 8.0, 6.0 + inset.z, panel_w, big * 2.0 + ExhaustTreadmill.BELT_H + 6.0 * 2.0 + 36.0)
+	# HUDTWEAK (owner 2026-10-28): the tier word is gone and the belt sits right under the energy bar.
+	return Rect2(x - 8.0, 6.0 + inset.z, panel_w, big * 2.0 + ExhaustTreadmill.BELT_H + 6.0 * 2.0 + 12.0)
+
+## The level badge's centre: left of the bars, level with the bars-and-belt stack.
+static func badge_centre(hud: HuntHud, r: Vector2) -> Vector2:
+	var v := vitals_rect(hud, r)
+	var big := 16.0 if not UiTokens.is_phone(r) else 12.0
+	return Vector2(v.position.x + 8.0 + HudLevelBadge.R + 6.0, v.position.y + 10.0 + (big * 2.0 + 6.0 * 2.0 + ExhaustTreadmill.BELT_H) * 0.5)
+
+## The stomach ring (owner 2026-10-28: "bigger and centered underneath level"): the badge's radius,
+## centred under it. Returns (centre, radius) as a Rect2-free Vector3.
+static func stomach_circle(hud: HuntHud, r: Vector2) -> Vector3:
+	var c := badge_centre(hud, r)
+	var rad := HudLevelBadge.R
+	return Vector3(c.x, c.y + HudLevelBadge.R + 12.0 + rad, rad)
 
 ## Landscape phone: the strip between the vitals and the minimap; portrait: the strip under the map
 ## text. The quest card lives in it; the target plate and the level-up banner take it over while
@@ -200,7 +215,7 @@ static func _placer_row_score(at: Vector2, offsets: Array, rel: Array, taken: Ar
 
 ## Screen rects the HUD holds this frame: the blocks _draw has painted so far (drawn_blocks, minus
 ## keys starting with one of `skip`), every visible hex on screen (HUD, station and gather radials)
-## with its caption, the HUD's other controls, HANDS and the open pet radial. Moving text (world pills, toasts, notices)
+## with its caption, the HUD's other controls and the open pet radial. Moving text (world pills, toasts, notices)
 ## and the creature plates keep off them: at 844x390 they drew over the quest card and the COOK hex.
 static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rect2]:
 	var out: Array[Rect2] = []
@@ -223,9 +238,6 @@ static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rec
 		if ctl is Label and (ctl as Label).text.strip_edges() == "":
 			continue
 		out.append(ctl.get_global_rect())
-	var held: Control = hud.player.station_craft.held_slot if hud.player and hud.player.station_craft else null
-	if held and held.is_visible_in_tree():
-		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
 	var fig := figure_rect(hud)
 	if fig.has_area():
 		out.append(fig)

@@ -2203,6 +2203,45 @@
         }
       ]
     },
+    "taming_pen_medium": {
+      "max_durability": 900,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 8
+        },
+        {
+          "item": "twine",
+          "quantity": 4
+        }
+      ]
+    },
+    "taming_pen_large": {
+      "max_durability": 1300,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 12
+        },
+        {
+          "item": "twine",
+          "quantity": 6
+        }
+      ]
+    },
+    "taming_pen_apex": {
+      "max_durability": 2000,
+      "repair": [
+        {
+          "item": "wood_log",
+          "quantity": 4
+        },
+        {
+          "item": "twine",
+          "quantity": 8
+        }
+      ]
+    },
     "field_small": {
       "max_durability": 300,
       "repair": [

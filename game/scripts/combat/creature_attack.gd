@@ -48,6 +48,15 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 ## Chance this attacker's swing connects with that target (accuracy x status accuracy_mult,
 ## against the target's dodge plus status evasion_add).
 static func hit_chance(attacker: Creature, target: Node) -> float:
+	var ad := _acc_dodge(attacker, target)
+	return CombatTuning.hit_chance(ad.x, ad.y)
+
+## One roll of this swing: &"" hit, &"dodge" or &"miss" (CombatTuning.swing_outcome, the same odds).
+static func outcome(attacker: Creature, target: Node) -> StringName:
+	var ad := _acc_dodge(attacker, target)
+	return CombatTuning.swing_outcome(ad.x, ad.y)
+
+static func _acc_dodge(attacker: Creature, target: Node) -> Vector2:
 	var acc := attacker.accuracy_chance() * attacker.statuses.accuracy_mult()
 	var dodge := 0.0  # the survivor's only dodge is the roll, checked against the telegraph
 	if target is Creature:
@@ -56,7 +65,7 @@ static func hit_chance(attacker: Creature, target: Node) -> float:
 		dodge += cr.statuses.evasion_add() * CombatTuning.top("evasion_add_scale", 0.01)
 	elif target is Player:
 		dodge = (target as Player).statuses.evasion_add() * CombatTuning.top("evasion_add_scale", 0.01)
-	return CombatTuning.hit_chance(acc, dodge)
+	return Vector2(acc, dodge)
 
 ## Subtractive armour with a floor, today's model (armor-01 / pc-balance-01 wait on the owner).
 static func mitigated(atk: float, defense: float) -> float:
@@ -78,15 +87,19 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 		var survivor := target as Player
 		if survivor.dead:
 			return false
-		var lands := CombatTuning.roll(hit_chance(attacker, survivor))
+		var how := outcome(attacker, survivor)
+		var lands := how == &""
 		# The roll's opening window (RollRules.iframes_s(), the same rule the server times): a hit
 		# that reaches her inside it is dodged outright, before any damage, stagger or status.
 		if survivor.sim != null and survivor.sim.roll_invulnerable():
 			survivor.roll_dodge(clip, attacker, lands)
 			return false
-		if Telegraph.player_dodged(attacker) or not lands:
-			# Stepping out of a telegraphed attack that would have landed trains Defense; a plain miss does not.
-			CombatAvoid.avoided(survivor, attacker, &"dodge", lands and Telegraph.player_dodged(attacker))
+		if Telegraph.player_dodged(attacker):
+			# Stepping out of a telegraphed attack trains Defense only when it would have landed.
+			CombatAvoid.avoided(survivor, attacker, &"dodge", lands)
+			return false
+		if not lands:
+			CombatAvoid.avoided(survivor, attacker, how, false)  # a passive dodge-chance or plain miss: no Defense XP
 			return false
 		survivor.refresh_equipment_vitals()
 		var defn := (CombatTuning.num("creature_melee", "player_base_defense", 20.0) + survivor.inventory.equipped_armor()) * survivor.statuses.defense_mult()
@@ -101,8 +114,9 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 		return true
 	if target is Creature:
 		var cr := target as Creature
-		if not CombatTuning.roll(hit_chance(attacker, cr)):
-			CombatAvoid.avoided(cr, attacker)
+		var how := outcome(attacker, cr)
+		if how != &"":
+			CombatAvoid.avoided(cr, attacker, how)
 			return false
 		var defn := (cr.pet_record.stat_value(&"melee_defense") if cr.is_pet and cr.pet_record else cr.defense_for(false)) * cr.statuses.defense_mult()
 		var dealt := mitigated(atk, defn)

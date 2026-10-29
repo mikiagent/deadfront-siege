@@ -280,6 +280,8 @@ func unlock(tree: String, node_id: String) -> bool:
 		if tree == "survival":
 			_mirror_survival(node_id, true)
 		print("[skill] unlocked %s (%s, %d SP)" % [node_id, tree, cost])
+		if cost > 0:
+			Tutorial.note("skill")  # TUTORIAL ISLAND: the "learn a skill" order counts a spent point
 		skill_changed.emit(StringName(tree), level_of(tree))
 		return true
 	return false

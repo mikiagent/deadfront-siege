@@ -54,7 +54,8 @@
       "categories": [
         "wood",
         "split",
-        "burnable"
+        "burnable",
+        "thick_pillar"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -111,7 +112,8 @@
       "display_name": "Metal Shard",
       "categories": [
         "metal",
-        "blade_mat"
+        "blade_mat",
+        "chunk"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -153,6 +155,22 @@
       "default_attributes": {
         "tint": "#c0c4cc",
         "hardness": 4
+      },
+      "market_category": "ingot",
+      "rarity": "uncommon"
+    },
+    {
+      "id": "metal_nails",
+      "display_name": "Metal Nails",
+      "categories": [
+        "metal",
+        "nails"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#9aa0a8"
       },
       "market_category": "ingot",
       "rarity": "uncommon"
@@ -693,7 +711,8 @@
         "bone",
         "blade_mat",
         "handle",
-        "tier_bone"
+        "tier_bone",
+        "thick_pillar"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -866,6 +885,57 @@
       ],
       "market_category": "building_kit",
       "rarity": "common"
+    },
+    {
+      "id": "taming_pen_medium",
+      "display_name": "Medium Taming Pen",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "taming_pen_medium",
+      "footprint": [
+        5,
+        5
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
+    },
+    {
+      "id": "taming_pen_large",
+      "display_name": "Large Taming Pen",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "taming_pen_large",
+      "footprint": [
+        6,
+        6
+      ],
+      "market_category": "building_kit",
+      "rarity": "rare"
+    },
+    {
+      "id": "taming_pen_apex",
+      "display_name": "Apex Taming Pen",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "taming_pen_apex",
+      "footprint": [
+        8,
+        8
+      ],
+      "market_category": "building_kit",
+      "rarity": "epic"
     },
     {
       "id": "campfire_kit",
@@ -1451,7 +1521,8 @@
       "categories": [
         "bone",
         "blade_mat",
-        "tier_bone"
+        "tier_bone",
+        "thick_pillar"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -4481,6 +4552,42 @@
       "market_category": "clothing",
       "rarity": "uncommon",
       "_about": "SLOWLEVELS worked example (owner 2026-10-28: 'Spikey armor, increases Butchering ability -> helps you grind for better gear'): Tailoring's Spiky Armor node unlocks it; while worn its skill_bonus raises the effective Butchering level (SkillRules.effective_level). ASSUMPTION: armour, durability, +5 Butchering per piece; the hide-and-bone art stands in."
+    },
+    {
+      "id": "silver_chunk",
+      "display_name": "Silver Chunk",
+      "categories": [
+        "metal",
+        "chunk",
+        "smelted_metal",
+        "precious_metal",
+        "tier_silver"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#d8dde3"
+      },
+      "market_category": "ingot",
+      "rarity": "rare"
+    },
+    {
+      "id": "metal_stick",
+      "display_name": "Metal Stick",
+      "categories": [
+        "metal",
+        "stick",
+        "handle"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#b0b8c0"
+      },
+      "market_category": "ingot",
+      "rarity": "uncommon"
     }
   ]
 }

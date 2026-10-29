@@ -13,7 +13,6 @@ var player: Player
 var menu: StationMenu
 var radial: StationRadial
 var card: CraftCard
-var held_slot: HeldItemSlot
 
 var station: Node3D
 var _pending_overflow: Array[ItemStack] = []  ## crafted units waiting for bag room
@@ -52,19 +51,12 @@ func setup(p: Player, layer: CanvasLayer) -> void:
 	card = CraftCard.new()
 	card.name = "CraftCard"
 	layer.add_child(card)
-	held_slot = HeldItemSlot.new()
-	held_slot.name = "HeldItemSlot"
-	layer.add_child(held_slot)
-	held_slot.bind(player)
-	held_slot.equip_requested.connect(_on_equip)
-	held_slot.unequip_requested.connect(_on_unequip)
-	held_slot.gather_requested.connect(player.controls.gather_nearest)
 	set_process(true)
 
 func reparent_ui(layer: CanvasLayer) -> void:
 	if layer == null:
 		return
-	for n in [menu, radial, card, held_slot]:
+	for n in [menu, radial, card]:
 		if n and is_instance_valid(n) and n.get_parent() != layer:
 			n.reparent(layer)
 
@@ -110,8 +102,55 @@ func _on_menu_action(st: Node3D, action_id: StringName) -> void:
 		&"cauterise":
 			if st is Bonfire:
 				(st as Bonfire).cauterise(player)
+		&"package":
+			BuildPlacer.pack_up_node(st, player)  # the one pack-up: kit + contents back, all or nothing
+		&"remove":
+			remove_station(st, player)
+		&"pen":
+			if st is TamingPen:
+				player.actions.pen_interact(st as TamingPen)
+		&"open":
+			player.actions.open_basket(st)
 		_:
 			print("[craft] unknown station action %s" % action_id)
+
+## REMOVE (confirmed on the radial): demolish a placed building. What it held goes back to the bag
+## (then home cargo, then a loot bag; StructureHealth.salvage), never deleted. Refund per the demolish
+## rule (StructurePlacer.demolish: demolish_refund x health share of the cost): a station's cost is its
+## one kit, and floor(0.5 x 1) = 0, so only the contents come back; PACKAGE is the lossless way.
+## Refused, like pack-up, off your land, for camp pieces and while a process station still runs jobs.
+static func remove_station(st: Node, p: Player) -> bool:
+	if st == null or not is_instance_valid(st) or st.is_queued_for_deletion():
+		return false
+	var why := ""
+	if st.get("is_cargo") == true or st.get("persist_building") == false:
+		why = "Camp pieces stay put"
+	elif not BuildPlacer._on_owned_land(st):
+		why = "Not on your land"
+	elif st is CraftStation:  # a loaded process station first gives its jobs back (COLLECT / TAKE BACK)
+		why = str(st.call("pack_up_block_reason"))
+	if why != "":
+		if p:
+			p.notice("Can't remove: %s" % why)
+		return false
+	var share := float(StructurePiece.defs().get("demolish_refund", 0.5))
+	var h := StructureHealth.of(st, false)
+	var back := BuildPlacer.stored_items(st)
+	var kit := BuildPlacer.kit_for(BuildPlacer.kind_of_building(st))
+	var n := floori(share * (h.fraction() if h else 1.0))
+	if kit != &"" and n > 0:
+		back.append(ItemStack.make(kit, n))
+	StructureHealth.salvage(back, (st as Node3D).global_position, p)
+	var storage: Variant = st.get("storage")
+	if storage is Inventory:
+		(storage as Inventory).load_array([])
+	if st.get("occupant") is ItemStack:
+		st.set("occupant", null)
+	if World.runtime and World.runtime.get("build_grid") is BuildGrid:
+		(World.runtime.get("build_grid") as BuildGrid).release(st)
+	st.queue_free()
+	print("[item] removed %s" % BuildPlacer.kind_of_building(st))
+	return true
 
 func open_station(st: Node3D) -> void:
 	if st == null or not is_instance_valid(st):
@@ -281,8 +320,7 @@ func _start_craft_cycle() -> void:
 	# CRAFTFEEL (plan §3.3): the odds and the loss warning ride on the live craft card, not only on
 	# the menu's detail pane, so the stakes stay on screen while the survivor works.
 	_show_card(rec)
-	if player.anim:
-		player.anim.on_gather(&"craft")
+	_play_work()
 	if station and is_instance_valid(station):
 		player.face_world(station.global_position)
 	player.clear_nav()
@@ -447,6 +485,7 @@ func _finish_one() -> void:
 		if card:
 			card.hide_card()
 		_hide_ring()
+		_stop_work()
 		recipe_id = &""
 		_hand_craft = false
 
@@ -455,6 +494,22 @@ func cancel_and_refund() -> void:
 	if crafting:
 		print("[craft] cancelled %s; inputs stay in the bag" % recipe_id)
 	_clear_session()
+
+## The survivor's work loop at the station (station_state.json `work_anim`: hammer at the workbench,
+## stir at the grill, forge at the forge...). PlayerAnim.play_work(kind) plays clip "work_<kind>" when
+## that branch has landed; without it the old craft gather loop plays.
+func _play_work() -> void:
+	if player.anim == null:
+		return
+	var kind := StationState.work_kind(station_id_of(station)) if station and is_instance_valid(station) else &""
+	if kind != &"" and player.anim.has_method("play_work"):
+		player.anim.call("play_work", kind)
+	else:
+		player.anim.on_gather(&"craft")
+
+func _stop_work() -> void:
+	if player and player.anim and player.anim.has_method("stop_work"):
+		player.anim.call("stop_work")
 
 func _clear_session() -> void:
 	crafting = false
@@ -470,24 +525,13 @@ func _clear_session() -> void:
 	if card:
 		card.hide_card()
 	_hide_ring()
+	_stop_work()
 	close_radial()
 	close_menu()
 
 func force_progress_for_shot(p: float) -> void:
 	if card and card.visible:
 		card.set_progress(p)
-
-func _on_equip(idx: int) -> void:
-	if player:
-		player.inventory.set_equipped_tool_index(idx)
-		held_slot.refresh()
-		_sync_hand_tool()
-
-func _on_unequip() -> void:
-	if player:
-		player.inventory.set_equipped_tool_index(-1)
-		held_slot.refresh()
-		_sync_hand_tool()
 
 func _sync_hand_tool() -> void:
 	if player == null:

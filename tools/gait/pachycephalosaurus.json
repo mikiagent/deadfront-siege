@@ -1,0 +1,92 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Body",
+  "view_size": 0.9,
+  "view_centre": [
+    -0.1,
+    0.2
+  ],
+  "legs": {
+    "L": {
+      "up": "BackUpLeg.L",
+      "low": "BackLowLeg.L",
+      "foot": "BackFoot.L",
+      "root": "BackLeg.L",
+      "end": "hind"
+    },
+    "R": {
+      "up": "BackUpLeg.R",
+      "low": "BackLowLeg.R",
+      "foot": "BackFoot.R",
+      "root": "BackLeg.R",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck": {
+      "key": "head",
+      "axis": "pitch"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.25
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "clips": {
+    "walk": {
+      "cycle_s": 1.0,
+      "duty": 0.62,
+      "stride": 0.22,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.028,
+      "swing_curl_hind": 30,
+      "toe_roll": 25,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "bob": 0.004,
+      "bob_harmonic": 2,
+      "roll_deg": 2.0,
+      "sway": 0.005,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 1.5
+    },
+    "run": {
+      "cycle_s": 0.55,
+      "duty": 0.36,
+      "stride": 0.45,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.05,
+      "swing_curl_hind": 45,
+      "toe_roll": 35,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "crouch": 0.012,
+      "bob": 0.0066,
+      "bob_harmonic": 2,
+      "bob_phase": 0.0,
+      "roll_deg": 1.5,
+      "sway": 0.0028,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 2.0
+    }
+  },
+  "note": "2026-10-28 pachycephalosaurus (Tripo mesh 1.0 units long, hip 0.22 like the compy): stocky biped, slower heavier stride, stiff tail (small tail wiggle) per the owner's sheet"
+}

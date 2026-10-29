@@ -42,6 +42,7 @@ func _ready() -> void:
 		if not _pending_process.is_empty():
 			ps.load_dict(_pending_process)
 			_pending_process = {}
+	StationState.attach_to(self, station_id)  # busy/idle props (spit, forge glow) for kinds with a row
 
 ## What a kind can do before a crafted instance gives it more (processing.json/recipes' station_tags
 ## take the crafted tags first). # ASSUMPTION: only the workbench family is tagged so far.
@@ -191,6 +192,8 @@ static func make(id: StringName) -> CraftStation:
 	return s
 
 func _fallback_size() -> Vector3:
+	if station_id == &"forge":
+		return Vector3(1.0, 1.0, 0.9)  # the data-built hearth (station_state.json body)
 	return Vector3(1.6, 0.9, 0.8) if station_id == &"workbench" else Vector3(1.4, 1.4, 0.5)
 
 func _fallback_color() -> Color:

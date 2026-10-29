@@ -53,6 +53,9 @@ browsers hide a controller until it is used.
 
 Mouse or touch taps gather, attack and place directly. On the HUD: INTERACT (E, pad A) and ATTACK
 NEAREST (F, pad X) bottom-right, SPRINT beside them (tap toggles), MENU / BUILD / BAG (I) bottom-left.
+There is no HANDS hex (removed 2026-10-28): INTERACT or Space gathers the nearest resource, and the held
+tool changes in the bag (select a tool: Equip tool, or Unequip tool on the one held) or on the Character
+sheet's tool slot (each tap cycles to the next tool).
 Desktop hexes show their key in a small box. No new InputMap action was needed: `interact` (E, A)
 and `attack` (F, X) already existed and keep their keys.
 

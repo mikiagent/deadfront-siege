@@ -294,7 +294,11 @@ func setup(eyes: CreatureEyes, dots: Array[MeshInstance3D], radius_world: float,
 	var sep := dots[0].global_position.distance_to(dots[1].global_position) if dots.size() >= 2 else 0.0
 	_clear_m = sep * CLEAR_PER_SEPARATION
 	_sep = sep
-	_apply_knobs(block, MAX_LENGTH_M * clampf(sep / LENGTH_REF_SEPARATION_M, LENGTH_SCALE_MIN, LENGTH_SCALE_MAX))
+	# Threat (CreatureEyes.threat_of): a weak animal's defaults shrink; explicit trail knobs still win.
+	var t := eyes.threat if eyes != null else 1.0
+	_radius *= lerpf(CreatureEyes.weak_size, 1.0, t)
+	_apply_knobs(block, MAX_LENGTH_M * clampf(sep / LENGTH_REF_SEPARATION_M, LENGTH_SCALE_MIN, LENGTH_SCALE_MAX)
+		* lerpf(CreatureEyes.weak_length, 1.0, t), ENERGY * lerpf(CreatureEyes.weak_energy, 1.0, t))
 	_low = low_quality
 	_strands = STRANDS_LOW if _low else STRANDS
 	_set = STRAND_SET_LOW if _low else STRAND_SET
@@ -331,7 +335,7 @@ func setup(eyes: CreatureEyes, dots: Array[MeshInstance3D], radius_world: float,
 		_speed.append(0.0)
 
 ## Optional per-species overrides, clamped so a typo can neither spin the buffer nor paint the world.
-func _apply_knobs(block: Dictionary, length_m: float = MAX_LENGTH_M) -> void:
+func _apply_knobs(block: Dictionary, length_m: float = MAX_LENGTH_M, energy_default: float = ENERGY) -> void:
 	var raw: Variant = block.get("trail", {})
 	var t: Dictionary = raw if raw is Dictionary else {}
 	max_samples = clampi(int(t.get("max_samples", MAX_SAMPLES)), 2, MAX_SAMPLES)
@@ -339,7 +343,7 @@ func _apply_knobs(block: Dictionary, length_m: float = MAX_LENGTH_M) -> void:
 	min_speed_mps = maxf(float(t.get("min_speed_mps", MIN_SPEED_MPS)), 0.0)
 	full_speed_mps = maxf(float(t.get("full_speed_mps", FULL_SPEED_MPS)), min_speed_mps + 0.05)
 	width_per_radius = clampf(float(t.get("width_per_radius", WIDTH_PER_RADIUS)), 0.5, 6.0)
-	energy = clampf(float(t.get("energy", ENERGY)), 0.1, 12.0)
+	energy = clampf(float(t.get("energy", energy_default)), 0.1, 12.0)
 	max_distance_m = maxf(float(t.get("max_distance_m", MAX_CAMERA_DISTANCE_M)), 1.0)
 	max_length_m = clampf(float(t.get("max_length_m", length_m)), 0.02, 6.0)
 	flicker = clampf(float(t.get("flicker", FLICKER)), 0.0, 1.0)

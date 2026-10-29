@@ -72,9 +72,8 @@ func push_gain(player: Player, id: StringName, n: int) -> void:
 				stack = s
 	if not fresh.is_empty():
 		stack = fresh[0]
-	var chips: Array = []
-	for s in (fresh if not fresh.is_empty() else ([stack] if stack else [])):
-		_merge_chips(chips, YieldCard.chips_for(s))
+	# PERKCAP: the row shows ONE item's perks (the first fresh one), never a union over several lots.
+	var chips: Array = YieldCard.chips_for(stack)
 	sync(player)
 	var tier := tier_for(chips, stack)
 	for s in fresh:
@@ -129,8 +128,14 @@ var _compact := false
 func _add(e: Dictionary) -> void:
 	for r in rows + waiting:
 		if r["kind"] == &"gain" and r["id"] == e["id"] and float(r.get("out", -1.0)) < 0.0 and str(r.get("where", "")) == str(e.get("where", "")):
+			# The count is a running total of the collapsed gains; the chips, art and tier are the latest
+			# item's own (PERKCAP: merging chips stacked Soft Lv. 1/2/3 from 21 different branches).
 			r["n"] = int(r["n"]) + int(e["n"])
-			_merge_chips(r["chips"], e["chips"])
+			r["gains"] = int(r.get("gains", 1)) + 1
+			r["chips"] = e["chips"]
+			r["stack"] = e["stack"]
+			if TIERS.find(e["tier"]) < TIERS.find(r["tier"]):
+				r["tier"] = e["tier"]
 			if TIERS.find(e["tier"]) > TIERS.find(r["tier"]):
 				r["tier"] = e["tier"]
 				r["t"] = 0.0
@@ -315,7 +320,7 @@ func _draw_gain(hud: HuntHud, font: Font, box: Rect2, r: Dictionary) -> void:
 		hud.draw_texture_rect(tex, tr.grow(-3.0), false, Color(stack.tint_color() if stack else Color.WHITE, a))
 	var name_px := 15 if _compact else 21
 	var tx := tr.end.x + pad
-	var plus := ("+%d" % int(r["n"])) if int(r["n"]) > 0 else str(r.get("where", ""))
+	var plus := ("+%d%s" % [int(r["n"]), " total" if int(r.get("gains", 1)) > 1 else ""]) if int(r["n"]) > 0 else str(r.get("where", ""))
 	var pw := font.get_string_size(plus, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x
 	var base := tr.position.y + float(name_px) * 0.9 if not _compact else tr.get_center().y + float(name_px) * 0.36
 	var chip_px := UiTokens.CHIP_PX if _compact else 14

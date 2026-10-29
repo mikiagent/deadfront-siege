@@ -68,6 +68,10 @@
   "captured_animal": "common",
   "tamed_animal": "rare",
   "makeshift_taming_pen": "common",
+  "metal_nails": "uncommon",
+  "taming_pen_medium": "uncommon",
+  "taming_pen_large": "rare",
+  "taming_pen_apex": "epic",
   "campfire_kit": "common",
   "bonfire_kit": "common",
   "stone_fire_pit_kit": "uncommon",
@@ -276,6 +280,8 @@
   "shaved_ice": "uncommon",
   "saddle_small": "uncommon",
   "saddle_medium": "uncommon",
-  "saddle_large": "uncommon"
+  "saddle_large": "uncommon",
+  "silver_chunk": "rare",
+  "metal_stick": "uncommon"
  }
 }

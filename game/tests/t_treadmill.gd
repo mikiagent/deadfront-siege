@@ -37,7 +37,7 @@ func _run() -> void:
 	var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(host, 20.0)
 	_player = kit["player"]
 	for c in (kit["ui"] as CanvasLayer).get_children():
-		if c.has_method("hands_spot"):
+		if c.has_method("quick_row_y"):
 			_hud = c
 	await _frames(5)
 	_test_colours()

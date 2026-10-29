@@ -69,6 +69,10 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 			radial_node = gr.node
 			avoid.append_array(gr.label_rects)
 			avoid.append(gr.title_box)
+	# CRAFTRADIAL: an open station radial names its station in the ring's centre; no second chip.
+	var sc: Variant = hud.player.get("station_craft")
+	if radial_node == null and sc != null and sc.menu != null and sc.menu.visible and is_instance_valid(sc.menu.station):
+		radial_node = sc.menu.station
 	var rows: Array = []
 	var pm := pill_metrics(hud.get_viewport_rect().size)
 	var fs := pm.y
@@ -140,6 +144,8 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 			if kind == null:
 				kind = n3.get("station_id")
 			name = str(kind if kind != null else n3.name).replace("_", " ").capitalize()
+			if n3 is TownBuilding and (n3 as TownBuilding).display_name != "":
+				name = (n3 as TownBuilding).display_name  # TUTORIAL ISLAND town: "Adventurer's Guild", "Market stall"
 			if grp == "cargo_warp":
 				name = "Cargo Warp"
 			elif grp == "harbour":
