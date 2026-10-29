@@ -74,6 +74,7 @@ func _run() -> void:
 	await _test_manual_latch(target)
 	await _test_winded(target)
 	await _test_chase_end(target)
+	await _test_move_order(target)
 	await _test_mounted(target)
 	_finish()
 
@@ -156,6 +157,25 @@ func _test_chase_end(target) -> void:
 	player.chase_sprint_tick()
 	_expect(not player.chase_sprint, "the chase ending switches chase sprint off")
 	_expect(not player.sim.wants_sprint(), "and the movement tick stops sprinting")
+
+## 3b: a ground-tap move order outranks combat, so it also ends the chase sprint; the hunt keeps its
+## target and the sprint comes back when the order is done.
+func _test_move_order(target) -> void:
+	player.sprint_toggled = false
+	target.global_position = player.global_position + Vector3(0, 0, -9)
+	player.hunt.start(target)
+	player.chase_sprint_tick()
+	_expect(player.chase_sprint, "chase sprint on with the target 9 m off")
+	player.move_order = true
+	player.nav_active = true
+	player.chase_sprint_tick()
+	_expect(not player.chase_sprint, "a ground-tap move order ends the chase sprint")
+	_expect(not player.sim.wants_sprint(), "and she walks her own path")
+	player.move_order = false
+	player.clear_nav()
+	player.chase_sprint_tick()
+	_expect(player.chase_sprint and player.hunt.target == target,
+		"the target is still held and the chase sprint returns when the order ends")
 
 ## 6: mounted, the flag asks the mount to run; the mount's pool gates it.
 func _test_mounted(target) -> void:
