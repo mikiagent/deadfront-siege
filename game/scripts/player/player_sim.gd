@@ -46,6 +46,10 @@ var _sleep_pending: Node3D
 ## Capsule-centre height above the ground the survivor had when they lay down (the sleep pose moves
 ## the visual, not the body), reused so waking puts them back on their feet at the same height.
 var _stand_offset: float = 0.9
+## The bedding she lies IN: her capsule ignores its collider until she is back out at the door, or the
+## tent's box would push her out to its edge on the first move_and_slide (owner: "doesn't place me
+## within the actual tent").
+var _in_bed: Node3D
 var _autofeed_cd: float = 0.0
 ## STARVING: a Starving stack more every STARVE_STACK_S of an empty stomach (ASSUMPTION: no spec rule).
 const STARVE_STACK_S := 120.0  # ASSUMPTION: no spec gives a starvation rule
@@ -702,18 +706,18 @@ func _track_tile_blocked(delta: float) -> bool:
 ## should run left through the whole sleep, not snap at wake).
 ## While asleep she also heals at the shelter rest rate (data/rest.json, RestState.heal);
 ## exhaustion moves only by the sleep's own drain above, never by the rest rate too.
+## A tent keeps her (owner 2026-10-28: "stay in the tent for as long as you would like. It kicks you
+## out when you are no longer exhausted"): once the drain is paid the sleep counts as completed, and she
+## sleeps on inside until she gets up (Get up hex, a move, a real hit). The use and Well Rested land then.
 func _tick_sleep(delta: float) -> void:
 	var hurt := (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 1.0
 	if input_vector().length_squared() > 0.04 or p.nav_active or p.vitals.in_combat or hurt or p.dead \
 			or not is_instance_valid(_sleep_spot) or p.global_position.distance_to(_sleep_spot.global_position) > 3.2:
+		if _slept_full:
+			_end_sleep(true)
+			return
 		var slept := _sleep_dur - p._sleep_left
-		p._sleep_left = 0.0
-		_sleep_drained = 0.0
-		var left := _sleep_spot
-		_sleep_spot = null
-		_wake_at(left)
-		if p.anim:
-			p.anim.wake_from_sleep()
+		_end_sleep(false)
 		p.notice("Sleep interrupted")
 		if not (p.vitals.in_combat or hurt or p.dead):  # got up on purpose: a long enough nap still counts
 			rest.grant_well_rested(_sleep_f0 - p.vitals.fatigue, slept)
@@ -722,29 +726,65 @@ func _tick_sleep(delta: float) -> void:
 	# roll (65 pts / 12 s) drops ~5.4 pts per second and the belt reads the slope
 	# directly. A completed sleep lands the tiny float remainder exactly.
 	var spot: Node3D = _sleep_spot
-	if _sleep_dur > 0.0 and _sleep_drained < spot.sleep_restore():
-		var step: float = spot.sleep_restore() * delta / _sleep_dur
-		p.vitals.rest(step)
-		_sleep_drained += step
-	p._sleep_left = maxf(0.0, p._sleep_left - delta)
+	if not _slept_full:
+		if _sleep_dur > 0.0 and _sleep_drained < spot.sleep_restore():
+			var step: float = spot.sleep_restore() * delta / _sleep_dur
+			p.vitals.rest(step)
+			_sleep_drained += step
+		p._sleep_left = maxf(0.0, p._sleep_left - delta)
 	rest.heal(&"shelter", delta)
 	p.velocity.x = 0.0
 	p.velocity.z = 0.0
 	p.move_and_slide()
-	if p._sleep_left <= 0.0:
-		_sleep_spot = null
-		_wake_at(spot)
+	if not _slept_full and p._sleep_left <= 0.0:
 		p.vitals.rest(maxf(0.0, spot.sleep_restore() - _sleep_drained))
 		_sleep_drained = 0.0
-		spot.complete_sleep()
-		if p.anim:
-			p.anim.wake_from_sleep()
+		if spot.has_method("keeps_sleeper") and spot.keeps_sleeper():
+			_slept_full = true
+			p._sleep_left = STAY_LEFT
+			p.notice("Rested - get up when you like")
+			return
+		_end_sleep(true)
+
+## While she stays in a tent after a full sleep, _sleep_left holds this, so every "asleep" check
+## (_sleep_left > 0: HUD, roll, rest, autofeed, status-tick guard) still reads her as asleep.
+const STAY_LEFT := 0.001
+## The drain is paid and she is sleeping on in a tent (see _tick_sleep).
+var _slept_full := false
+
+## Get up (the Get up hex): a completed stay ends with its rewards, an early one as a move would.
+func get_up() -> void:
+	if p._sleep_left <= 0.0:
+		return
+	if _slept_full:
+		_end_sleep(true)
+		return
+	var slept := _sleep_dur - p._sleep_left
+	_end_sleep(false)
+	p.notice("Sleep interrupted")
+	rest.grant_well_rested(_sleep_f0 - p.vitals.fatigue, slept)
+
+## Every end of a sleep: out of the bedding, the wake clip, and for a completed one the spent use,
+## "Rested" and Well Rested (sized by what the sleep removed).
+func _end_sleep(completed: bool) -> void:
+	var spot := _sleep_spot
+	var was_asleep := p._sleep_left > 0.0
+	p._sleep_left = 0.0
+	_sleep_drained = 0.0
+	_sleep_spot = null
+	_slept_full = false
+	_leave_bed()
+	if was_asleep and p.anim:
+		p.anim.wake_from_sleep()
+	if completed:
+		if is_instance_valid(spot):
+			spot.complete_sleep()
 		p.notice("Rested")
 		rest.grant_well_rested(_sleep_f0 - p.vitals.fatigue, _sleep_dur)
 
 ## The running sleep's exhaustion drain per minute (restore / duration), for the HUD; 0 when awake.
 func sleep_fatigue_per_min() -> float:
-	if p._sleep_left <= 0.0 or not is_instance_valid(_sleep_spot) or _sleep_dur <= 0.0:
+	if p._sleep_left <= 0.0 or _slept_full or not is_instance_valid(_sleep_spot) or _sleep_dur <= 0.0:
 		return 0.0
 	return float(_sleep_spot.sleep_restore()) / _sleep_dur * 60.0
 
@@ -780,12 +820,6 @@ func start_sleep(spot: Node3D = null) -> void:
 		p.notice("Walking to sleep")
 		return
 	_sleep_pending = null
-	# Lie IN the bedding: step onto its centre at the survivor's own standing height. The anchor is a
-	# GROUND point (a tent's origin is its ground centre), so copying it verbatim drops the capsule
-	# through the floor.
-	if p.global_position.distance_to(anchor) > 0.15:
-		_stand_offset = p.global_position.y - _surface_y(p.global_position)
-		p.global_position = Vector3(anchor.x, _surface_y(anchor) + _stand_offset, anchor.z)
 	if p.vitals.in_combat or (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 5.0 or p.dead:
 		p.notice("Can't sleep in combat")
 		return
@@ -797,9 +831,11 @@ func start_sleep(spot: Node3D = null) -> void:
 	p.actions.cancel_work()
 	_sleep_spot = spot
 	_sleep_dur = maxf(0.01, spot.sleep_duration())
+	_slept_full = false
 	_sleep_drained = 0.0
 	_sleep_f0 = p.vitals.fatigue
 	p._sleep_left = _sleep_dur
+	_enter_bed(spot, anchor)
 	if p.anim:
 		p.anim.start_sleep()
 	p.notice("Sleeping - move to wake")
@@ -809,17 +845,36 @@ func _surface_y(at: Vector3) -> float:
 		return float(World.runtime.surface_y(at.x, at.z))
 	return at.y
 
-## Stand up outside the bedding: the tent is too low to stand in, so waking steps the survivor out
-## onto the door side before the wake clip plays.
-func _wake_at(spot: Node3D) -> void:
+## Lie IN the bedding: step onto its centre at the survivor's own standing height, along its long
+## axis, with her collision against it off. The anchor is a GROUND point (a tent's origin is its
+## ground centre), so copying it verbatim drops the capsule through the floor.
+func _enter_bed(spot: Node3D, anchor: Vector3) -> void:
+	_stand_offset = p.global_position.y - _surface_y(p.global_position)
+	if spot is PhysicsBody3D:
+		p.add_collision_exception_with(spot)
+	_in_bed = spot
+	Occlusion.hold(spot, true)  # the tent goes see-through around her (owner: "slightly transparent")
+	p.global_position = Vector3(anchor.x, _surface_y(anchor) + _stand_offset, anchor.z)
+	if spot.has_method("sleep_yaw"):
+		p.visual.rotation.y = float(spot.sleep_yaw())
+
+## Stand up outside the bedding: the tent is too low to stand in, so waking steps the survivor out of
+## the doorway, then her collision with it comes back. Every way a sleep ends comes through here.
+func _leave_bed() -> void:
+	var spot := _in_bed
+	_in_bed = null
 	if spot == null or not is_instance_valid(spot):
 		return
 	var at: Vector3 = spot.wake_anchor() if spot.has_method("wake_anchor") else spot.global_position
 	p.global_position = Vector3(at.x, _surface_y(at) + _stand_offset, at.z)
+	if spot is PhysicsBody3D:
+		p.remove_collision_exception_with(spot)
+	Occlusion.hold(spot, false)
 
+## A real hit or death: she gets up and out of the bedding (status ticks never reach here, Player).
+## A tent stay whose drain was already paid still counts as completed.
 func interrupt_sleep() -> void:
-	p._sleep_left = 0.0
-	_sleep_spot = null
+	_end_sleep(_slept_full)
 	_sleep_pending = null
 	rest.stop()  # hurt or dead: a rest ends too, with the stand-up
 
