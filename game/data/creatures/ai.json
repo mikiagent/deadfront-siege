@@ -468,6 +468,9 @@
     "pack_mule": {
       "is_herbivore": true,
       "attack_range": 1.8,
+      "_flee": "ASSUMPTION (owner 2026-10-29: 'way too fast, it should gallop away slowly'): a heavy, lumbering gallop. 3 m/s base x1.2 x run_speed_mult 1.25 = 4.5 m/s, under the 5.5 m/s survivor walk, so a first tame is catchable. Overrides skittish's 1.6 / 6.5 m/s floor for this archetype only.",
+      "flee_speed_mult": 1.2,
+      "flee_min_mps": 0.0,
       "weak_to": [
         "blunt"
       ],
@@ -476,7 +479,7 @@
       ],
       "temperament": "skittish",
       "tactics": {
-        "_about": "HERD GRAZER (zebraceratops, protoceratops; owner 2026-10-28: zebraceratops is an early tame, 'we want to get this right'). PRD verb: head shove, herd solidarity. Runs only while provoked (skittish: 3 hits; stand_ground natures: 1 hit; Aggressive: always). Threat display (alert pose, head lowered) then a straight horn charge on a locked line; a sidestep makes it miss and stand staggered. Hind kick at point blank when the prey is behind it (after a charge through her). Bluff charges (feint), scurries back facing the prey (walk_back). Flees when badly hurt. A hit herdmate rallies the rest onto its attacker for defend_s, as far as guard_m from home. Timid never fights back; Brave stands its ground and displays instead of fleeing on sight. Every number is an ASSUMPTION; template: docs/current/enemy-ai-template.md.",
+        "_about": "HERD GRAZER (zebraceratops, protoceratops; owner 2026-10-28: zebraceratops is an early tame, 'we want to get this right'). PRD verb: head shove, herd solidarity. Runs only while provoked (skittish: 3 hits; stand_ground natures: 1 hit; Aggressive: always). Threat display (alert pose, head lowered) then a straight head-low ram on a locked line that shoves the survivor back; a sidestep makes it miss and stand staggered. Hind kick at point blank when the prey is behind it (after a charge through her). Bluff charges (feint), scurries back facing the prey (walk_back). Flees when badly hurt. A hit herdmate rallies the rest onto its attacker for defend_s, as far as guard_m from home. Timid never fights back; Brave stands its ground and displays instead of fleeing on sight. Every number is an ASSUMPTION; template: docs/current/enemy-ai-template.md.",
         "sequences": [
           {
             "name": "display_charge",
@@ -530,6 +533,9 @@
         "charge_max_s": 2.2,
         "charge_through_m": 2.5,
         "charge_mult": 1.8,
+        "_charge_shove": "ASSUMPTION (owner 2026-10-29: 'tackling/ramming'): the charge is a head-low body-slam; a landed one shoves the survivor charge_shove_m along the charge line over charge_shove_stagger_s, in which she cannot act.",
+        "charge_shove_m": 2.5,
+        "charge_shove_stagger_s": 0.6,
         "charge_miss_recover_s": 1.5,
         "display_s": 1.2,
         "display_charge_m": 5.0,

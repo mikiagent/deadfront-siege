@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://caanil0sqeaca"
-path="res://.godot/imported/zebraceratops_Color_99e1106a-a664-4593-a5f9-f4a7537f6197.jpg-97352b1434783bc68cdb6d6d07a1598c.ctex"
+uid="uid://bud3qua5bquw"
+path="res://.godot/imported/zebraceratops_NormalGL_0137446b-db46-451b-91eb-8afaa5a8bff8.png-9e5ea199c99f3a17b1f5b61ee5ef48a8.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "c7a6cf52f5224e88a58a9968ea17532a"
+"md5": "65c4845c5091a30840e5b6e59c4ff72a"
 }
 
 [deps]
 
-source_file="res://assets/creatures/zebraceratops/zebraceratops_Color_99e1106a-a664-4593-a5f9-f4a7537f6197.jpg"
-dest_files=["res://.godot/imported/zebraceratops_Color_99e1106a-a664-4593-a5f9-f4a7537f6197.jpg-97352b1434783bc68cdb6d6d07a1598c.ctex"]
+source_file="res://assets/creatures/zebraceratops/zebraceratops_NormalGL_0137446b-db46-451b-91eb-8afaa5a8bff8.png"
+dest_files=["res://.godot/imported/zebraceratops_NormalGL_0137446b-db46-451b-91eb-8afaa5a8bff8.png-9e5ea199c99f3a17b1f5b61ee5ef48a8.ctex"]
 
 [params]
 
