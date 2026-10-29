@@ -99,7 +99,7 @@ static func stamp_traits(inv: Inventory, had: Dictionary, landed: ItemStack, gai
 		if t != &"" and not _make_room(s):
 			t = &""
 		if t != &"":
-			s.attributes[str(t)] = true
+			s.attributes[str(t)] = LootRoller.roll_tier(r, tier) # BAGUI: the value is the perk tier (I-V)
 			out.append(t)
 	if not out.is_empty():
 		inv.changed.emit()

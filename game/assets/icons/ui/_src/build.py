@@ -18,8 +18,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 from geo import f  # noqa: E402
-MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h", "icons_i", "icons_j", "icons_k", "icons_l", "icons_m", "icons_n", "icons_o", "icons_p", "icons_q", "icons_r"]
-SOLID = {"icons_g", "icons_h", "icons_i", "icons_j", "icons_k", "icons_l", "icons_m", "icons_n", "icons_o", "icons_p", "icons_q", "icons_r"}
+MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h", "icons_i", "icons_j", "icons_k", "icons_l", "icons_m", "icons_n", "icons_o", "icons_p", "icons_q", "icons_r", "icons_s"]
+SOLID = {"icons_g", "icons_h", "icons_i", "icons_j", "icons_k", "icons_l", "icons_m", "icons_n", "icons_o", "icons_p", "icons_q", "icons_r", "icons_s"}
 HEAD = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">\n'
 NOTE_LINE = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->\n'
 NOTE_SOLID = '<!-- DEADFRONT UI icon "%s". 64 grid, live area 6-58, solid shapes, white only. -->\n'

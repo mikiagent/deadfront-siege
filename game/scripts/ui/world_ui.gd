@@ -195,7 +195,7 @@ func show_harbour() -> void:
 	root.add_child(SheetChrome.backdrop())
 	var chrome := SheetChrome.new("Harbour")
 	root.add_child(chrome)
-	chrome.counter.text = "Survival %d  ·  T-stones %d" % [level, World.t_stones]
+	chrome.counter.text = "Survival %d  ·  Warp Gems %d" % [level, World.warp_gems]
 	chrome.back_pressed.connect(func () -> void:
 		hide_all()
 		var hud := get_tree().get_first_node_in_group("hud")
@@ -237,12 +237,12 @@ func show_harbour() -> void:
 		if level < required:
 			need = "Needs Survival %d · you are %d" % [required, level]
 			col = UiTokens.LIFE
-		elif World.t_stones < cost:
-			need = "Needs %d T-stones · you have %d" % [cost, World.t_stones]
+		elif World.warp_gems < cost:
+			need = "Needs %d Warp Gems · you have %d" % [cost, World.warp_gems]
 			col = UiTokens.LIFE
 		elif World.visited_islands.has(key):
 			need = "Visited · ready to sail"
-		grid.add_child(_route_card(MapScreen.island_name(key), line, need, col, "Sail · %d T-stones" % cost, id, level < required or World.t_stones < cost, card_w, compact))
+		grid.add_child(_route_card(MapScreen.island_name(key), line, need, col, "Sail · %d Warp Gems" % cost, id, level < required or World.warp_gems < cost, card_w, compact))
 	var buttons: Array = []
 	for b in grid.find_children("*", "Button", true, false):
 		if not (b as Button).disabled:
@@ -294,7 +294,7 @@ func show_map() -> void:
 	var fat := 0.0
 	if player:
 		fat = player.vitals.fatigue
-	var body := "Island %s\n%s\nPioneer %d   T-stones %d\nFatigue %.0f  (walk / gather / climate)\nCrater discovered: %s" % [
+	var body := "Island %s\n%s\nPioneer %d   Gold %d\nFatigue %.0f  (walk / gather / climate)\nCrater discovered: %s" % [
 		World.island_id, life, LevelDisplay.player_level(), World.t_stones, fat, crater]
 	var rows: Array = [["Warp home", &"warp"], ["Harbour routes", &"harbour"]]
 	if World.is_unstable():

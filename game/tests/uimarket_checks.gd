@@ -51,7 +51,7 @@ func run(tree: SceneTree) -> Array[String]:
 		if int(r.v.listing.seller) != h.VIEWER and int(r.v.price) <= s.tradable():
 			target = r
 			break
-	_expect(target != null, "an affordable listing by someone else")
+	_expect(target != null, "an affordable listing by someone else (tradable %d, prices %s)" % [s.tradable(), buy.rows.map(func (r: MarketRow) -> String: return "%d@%d" % [int(r.v.listing.seller), int(r.v.price)])])
 	_layout_checks(s, "buy")
 	if target:
 		var before := int(s.wallet.wallet)
@@ -87,7 +87,22 @@ func run(tree: SceneTree) -> Array[String]:
 	s.show_tab(&"sell")
 	var sell: MarketSell = s.panes[&"sell"]
 	_expect(not sell.rows.is_empty(), "sell picker lists the server bag")
-	_expect(sell.list_btn.disabled, "list is off without a price")
+	# BAGUI: equipped gear is in the grid, tinted red, and a tap does not pick it.
+	var worn_i := -1
+	for k: int in sell.grid.blocked:
+		if sell.grid.blocked[k] == "equipped":
+			worn_i = k
+	_expect(worn_i >= 0 and sell.grid.cell_for(worn_i) != null and sell.grid.cell_for(worn_i).blocked, "the equipped knife shows red in the sell grid (%s)" % [sell.grid.blocked])
+	var was: MarketRow = sell.picked
+	if worn_i >= 0:
+		sell.tap_slot(worn_i)
+	_expect(sell.picked == was and sell.status.text.begins_with("Equipped"), "tapping the equipped knife does not pick it (%s)" % sell.status.text)
+	_expect(MarketSell.median([40000, 50000] as Array[int]) == 45000 and MarketSell.median([9, 1, 5] as Array[int]) == 5 and MarketSell.median([] as Array[int]) == 0, "going rate median: even, odd, empty")
+	if sell.picked:
+		_expect(sell.price.text == str(sell.going) and sell.going > 0 and sell.rate_label.text.begins_with("Going rate"), "picking prefills the going rate (%s, %s)" % [sell.price.text, sell.rate_label.text])
+		var g0: int = int(sell.price.text)
+		sell.step_price(1)
+		_expect(int(sell.price.text) > g0, "+ raises the price (%s)" % sell.price.text)
 	var pick: MarketRow = null
 	for r in sell.rows:
 		if not r.disabled and r.v.deposit.has("bag_slot"):

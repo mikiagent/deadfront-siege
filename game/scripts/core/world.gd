@@ -14,6 +14,13 @@ var home_terrain: StringName = &""
 var home_shapes: Array = []
 var home_shape: StringName = &""
 var t_stones: int = 20 ## ASSUMPTION: starting T-stones
+## BAGUI: the premium currency (spec 33's gold gem with a "+"; docs/design/skills.md names Warp Gems).
+## Shown by CurrencyBar in the nav menu, bag and market headers. The Harbour's sailings cost it
+## (pay_sail, each island's sail_cost); the first standing order grants 10 (objectives.json). There
+## is no purchase flow (the "+" is a placeholder). ASSUMPTION: a new game starts with 25 (five 5-gem
+## sailings); the owner sets the real grant and prices.
+const START_WARP_GEMS := 25
+var warp_gems: int = START_WARP_GEMS
 var pioneer_level: int = 0
 var pioneer_xp: int = 0
 var home_claims: Array = []  # [[x, z, w, d], ...] tile rects on the home island (saved)
@@ -322,6 +329,14 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 	if show_terrain and is_home() and home_terrain == &"":
 		(load("res://scripts/ui/world_ui.gd") as GDScript).instance_on(host).show_terrain()
 
+## BAGUI (owner 2026-10-28: "Harbor should use Warp Gems to teleport to islands"): a sailing's
+## sail_cost is paid in Warp Gems. "" when paid, else the refusal the player sees; a refusal spends nothing.
+func pay_sail(cost: int) -> String:
+	if warp_gems < cost:
+		return "Needs %d Warp Gems to sail (you have %d)." % [cost, warp_gems]
+	warp_gems -= maxi(0, cost)
+	return ""
+
 func travel(to_id: StringName, mode: StringName) -> void:
 	var dest := def_of(to_id)
 	if dest.is_empty():
@@ -339,11 +354,10 @@ func travel(to_id: StringName, mode: StringName) -> void:
 		if player.skills == null or player.skills.level_of("survival") < required:
 			player.notice("Needs Survival %d" % required)
 			return
-		var cost := int(dest.get("sail_cost", 0))
-		if t_stones < cost:
-			print("[world] need %d T-stones" % cost)
+		var why := pay_sail(int(dest.get("sail_cost", 0)))
+		if why != "":
+			player.notice(why)
 			return
-		t_stones -= cost
 	if mode == &"harbour_home" or (mode == &"warp_home"):
 		_strip_unstable_on_foot(player)
 	var host := runtime.get_parent() if runtime else get_tree().current_scene
@@ -415,7 +429,7 @@ func cargo_warp(player: Player) -> void:
 		print("[world] cargo warp is at the unstable camp")
 		return
 	if t_stones < CARGO_FEE:
-		print("[world] cargo warp needs %d T-stones" % CARGO_FEE)
+		print("[world] cargo warp needs %d Gold" % CARGO_FEE)
 		return
 	var moved := 0
 	for i in range(player.inventory.slot_count - 1, -1, -1):
