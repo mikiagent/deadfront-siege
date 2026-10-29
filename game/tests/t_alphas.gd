@@ -350,6 +350,13 @@ func _test_no_tame() -> void:
 	var after: int = p.inventory.count_of(&"captured_animal") if p.inventory.has_method("count_of") else 0
 	_expect(after == before and is_instance_valid(a) and not a.is_queued_for_deletion(), "the alpha is not bagged and not freed")
 	_expect(not a.capturable(), "Creature.capturable() is false for an alpha")
+	# The net, through the hunt overlay the survivor actually presses (Hunt.use_net): the refusal is the
+	# alpha rule, not the "weaken it to 30 %" hint, and the throw is never made.
+	p.hunt.start(a)
+	p.hunt.use_net()
+	_expect(p.hunt.last_notice == FT.ALPHA_REFUSAL, "Hunt.use_net refuses an alpha with '%s' (got '%s')" % [FT.ALPHA_REFUSAL, p.hunt.last_notice])
+	_expect(p.hunt.target == a and is_instance_valid(a) and not a.is_queued_for_deletion(), "the netted alpha is still the target and still alive")
+	p.hunt.stop()
 	# The field tame action (the tap path).
 	var started: bool = p.actions.begin_field_tame(a) if p.get("actions") else false
 	_expect(not started and p.tame_target == null, "the field tame action refuses an alpha")
