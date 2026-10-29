@@ -39,7 +39,7 @@ func _run() -> void:
 	var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(_host, 4.0)
 	_player = kit["player"]
 	for c in (kit["ui"] as CanvasLayer).get_children():
-		if c.has_method("hands_spot"):
+		if c.has_method("quick_row_y"):
 			_hud = c
 	_world.load_island(_host, &"home_grassland", Vector3(0, 1, 18), false)
 	(kit["nav"] as Node).queue_free()

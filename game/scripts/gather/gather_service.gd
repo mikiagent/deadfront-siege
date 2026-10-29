@@ -96,12 +96,26 @@ static func stamp_traits(inv: Inventory, had: Dictionary, landed: ItemStack, gai
 	for s: ItemStack in fresh.slice(0, gained):
 		# The roll comes from that material's own list (RAREATTR), not one pool for everything.
 		var t := LootRoller.roll_trait(r, s.def_id, tier)
+		if t != &"" and not _make_room(s):
+			t = &""
 		if t != &"":
 			s.attributes[str(t)] = LootRoller.roll_tier(r, tier) # BAGUI: the value is the perk tier (I-V)
 			out.append(t)
 	if not out.is_empty():
 		inv.changed.emit()
 	return out
+
+## PERKCAP: room for one more perk on a gathered item under loot_tables.json lot.max_perks (green + gold +
+## grey together). A full item drops its grey trait to make room; false when it has none to drop.
+static func _make_room(s: ItemStack) -> bool:
+	var sec := InvAttributes.sections(s)
+	var have: int = (sec.rare as Array).size() + (sec.positive as Array).size() + (sec.negative as Array).size()
+	if have < int(LootTables.lot_cfg().get("max_perks", 99)):
+		return true
+	if (sec.negative as Array).is_empty():
+		return false
+	s.attributes.erase(str((sec.negative as Array)[0]["key"]))
+	return true
 
 ## Rolls one unit's rare finds on a node (family, required tool class, island climate) and adds each
 ## to `inv`. Client and server (act.gather) share it. Returns the ids that landed.

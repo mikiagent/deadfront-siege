@@ -400,7 +400,7 @@ func _harvest() -> void:
 		if not _tools.wear_gather_tool(node.required_tool_class):
 			_release_node()
 			return
-	var stack := node.roll_yield()
+	var stack := node.roll_yield(GatherService.rng, GatherService.tool_tier(_tools, node.required_tool_class, node.family), maxi(1, record.skill("gathering")))
 	var cap := maxi(record.skill("gathering"), 5)
 	if stack.level > cap:
 		stack.level = cap

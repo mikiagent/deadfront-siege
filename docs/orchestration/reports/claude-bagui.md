@@ -129,3 +129,17 @@ by Full (it keeps its own 12 s cooldown).
 - Lab note: `[baguilab] rummage=idle`: this branch has no `rummage.glb`, so the hook held idle as
   designed. Canon has since merged rummage, rummage_in and rummage_out clips; the hook plays
   `rummage` only (in/out transitions not wired).
+
+## Merge with origin/claude/mmo-overhaul (a67768b3+, 2026-10-29; Milan approved landing)
+- Conflicts resolved: `objectives.json` (canon's tutorial list kept; the +10 Warp Gem grant moved to
+  its `tut_knife` step as well as the old `knife` step), `rigged_model.gd` (canon's LOOPING list),
+  `market_harness.gd` (canon's earn 40 kept; my 30 dropped; equip_first kept, env hack removed).
+- `Food.can_eat`: canon's EATFIX and mine merged as one version.
+- `Crafting.recipes_accepting` (CRAFTRADIAL) now checks slots through `ItemTags.has_tag`.
+- Rummage: the bag hook now plays canon's `play_rummage`: rummage_in -> rummage loop -> rummage_out.
+- Found by run_all after the merge: tagging the tendon `meat` made a poisoned carcass drop it. The
+  spoiled-carcass filter (`LootRoller` x2, `CarcassParts`) now drops `raw_meat` only (every carcass
+  meat carries it), so tendons stay a counter material.
+- Reran: t_bagui, t_eatqueue, t_invscreens, t_rareattr, t_alphas, t_gather, t_uimarket, t_controls,
+  t_craftradial, t_stationstate, t_outputs, t_invslots, t_bags, t_backpacks, t_uiicons, t_butcher,
+  t_boneparts, run_all: all PASS. `tools/smoke.sh --no-import`: SMOKE PASS.

@@ -156,7 +156,8 @@ func finish_gather() -> void:
 			stop_gather_cycle()
 			p.gather_target = null
 			return
-	var stack := gt.roll_yield()  # ONEGATHER: one instance per pass, never more
+	# ONEGATHER: one instance per pass, never more; HARVESTROLL: its own level and traits every pass.
+	var stack := gt.roll_yield(GatherService.rng, GatherService.tool_tier(p.inventory, gt.required_tool_class, gt.family), GatherService._skill(p))
 	if p.skills:
 		# rules.json gathering_downrank: a node above your Gathering level yields at your level.
 		# ASSUMPTION: floor of 5 so a fresh survivor still gets usable materials.
@@ -685,6 +686,9 @@ func claim_confirmed() -> bool:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
 		return false
+	if World.is_tutorial():
+		p.notice("The tutorial island can't be claimed: your own island comes at the end of the orders")
+		return false
 	# PRD 13.1: with land already held a claim is one orthogonal expansion of it, never a plot out on
 	# its own (the confirm path runs this too, so a stale panel cannot stake a hop).
 	if not (rt.get("claims") as Array).is_empty() and rt.has_method("claim_expand_reason"):
@@ -714,6 +718,15 @@ func claim_confirmed() -> bool:
 
 ## Tap on a placed structure. Gates open and close (structure.interact), shift-tap at home packs
 ## any kind up (one shared pack-up, all-or-nothing on the bag), baskets open their storage.
+## A basket's storage (the radial's OPEN wedge): a pet's bag empties into it first.
+func open_basket(b: Node) -> void:
+	if b == null or not b.get("storage") or p.ui == null:
+		return
+	var pet := p.pets.nearest(9999.0)
+	if pet and pet.pet_record and pet.pet_record.bag:
+		p.pets.dump_bag_into(pet, b.storage)
+	p.ui.show_storage(b.storage, p, {"title":"Basket","allow_deposit":true})
+
 func building_interact(b: Node) -> void:
 	if World.is_home() and Input.is_action_pressed("sprint"):
 		BuildPlacer.pack_up_node(b, p)
@@ -730,10 +743,7 @@ func building_interact(b: Node) -> void:
 		p.open_station_craft(b as Node3D)
 		return
 	if str(b.get("kind")) == "basket" and b.get("storage") and p.ui:
-		var pet := p.pets.nearest(9999.0)
-		if pet and pet.pet_record and pet.pet_record.bag:
-			p.pets.dump_bag_into(pet, b.storage)
-		p.ui.show_storage(b.storage, p, {"title":"Basket","allow_deposit":true})
+		p.open_station_craft(b as Node3D)  # CRAFTRADIAL: the radial's OPEN wedge calls open_basket
 		return
 	if str(b.get("kind")) == "sign":
 		print("[world] sign: %s" % (str(b.get("sign_text")) if str(b.get("sign_text")) != "" else "(blank)"))

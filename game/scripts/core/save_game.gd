@@ -160,6 +160,10 @@ static func save_now() -> bool:
 	# Written only once the island has some, so a save with no center keeps exactly the old shape.
 	if not World.home_comm_center.is_empty():
 		(payload["home"] as Dictionary)["comm_center"] = CommCenter.to_save()
+	# TUTORIAL ISLAND: written only while the tutorial runs. A save without the row loads as done, so
+	# every home survivor's save keeps exactly its old shape.
+	if Tutorial.active():
+		payload["tutorial"] = World.tutorial
 	if not World.is_home():
 		# The island the survivor is standing on: its buildings, storage and staked claims.
 		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims}
@@ -269,6 +273,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.raid_victory = bool(data.get("raid_victory", false))
 	World.objective = int(data.get("objective", 0))  # older saves start the standing orders over
 	World.objective_best = int(data.get("objective_best", 0))
+	# TUTORIAL ISLAND: no row = a survivor from before the tutorial, who owns a home: done, never shown.
+	World.tutorial = Tutorial.from_save(data.get("tutorial", null))
 	World.remaining_lifetime = float(data.get("unstable", {}).get("remaining", 0.0))
 	World.harvested = data.get("unstable", {}).get("harvested", {})
 	World.crater_discovered = bool(data.get("unstable", {}).get("crater_discovered", false))
@@ -401,7 +407,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	# A survivor was loaded: creation is behind us, so the autosave runs again (a failed load that
 	# opened creation leaves the flag up until that creation finishes).
 	World.creation_pending = false
-	print("[world] loaded island=%s terrain=%s pioneer=%d" % [iid, World.home_terrain, World.pioneer_level])
+	print("[world] loaded island=%s terrain=%s pioneer=%d tutorial=%s" % [iid, World.home_terrain, World.pioneer_level, "running step %d" % (World.objective + 1) if Tutorial.active() else "done"])
+	Tutorial.resume(host)  # a tutorial whose orders are all done re-opens its Tamed Island grant
 	if from_backup:
 		player.notice("Your last save was damaged; the backup before it was loaded")
 	blocked_reason = ""

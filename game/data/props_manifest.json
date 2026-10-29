@@ -310,6 +310,51 @@
       ],
       "upgrade": "low-poly hand-built Blender (384 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
+    "taming_pen_medium": {
+      "footprint": [
+        5,
+        5
+      ],
+      "note": "Medium Taming Pen: an assembly; TamingPen._ring_layout stretches the taming_pen fence ring (fence.glb) to 5 m a side; data/taming_pens.json tier",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/fence.glb",
+      "aabb_m": [
+        5.0,
+        1.84,
+        5.0
+      ],
+      "upgrade": "assembly of the taming_pen fence segments (fence.glb); upgrade path: the fence GLB's own"
+    },
+    "taming_pen_large": {
+      "footprint": [
+        6,
+        6
+      ],
+      "note": "Large Taming Pen: an assembly; TamingPen._ring_layout stretches the taming_pen fence ring (fence.glb) to 6 m a side; data/taming_pens.json tier",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/fence.glb",
+      "aabb_m": [
+        6.0,
+        1.84,
+        6.0
+      ],
+      "upgrade": "assembly of the taming_pen fence segments (fence.glb); upgrade path: the fence GLB's own"
+    },
+    "taming_pen_apex": {
+      "footprint": [
+        8,
+        8
+      ],
+      "note": "Apex Taming Pen: an assembly; TamingPen._ring_layout stretches the taming_pen fence ring (fence.glb) to 8 m a side; data/taming_pens.json tier",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/fence.glb",
+      "aabb_m": [
+        8.0,
+        1.84,
+        8.0
+      ],
+      "upgrade": "assembly of the taming_pen fence segments (fence.glb); upgrade path: the fence GLB's own"
+    },
     "sign": {
       "model": "signpost-single",
       "footprint": [

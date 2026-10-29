@@ -42,6 +42,24 @@ const EXHAUSTED_AT := 0.75
 const SWIM_LIFT := {&"swim": 0.45, &"swim_idle": -0.4}
 var swim_lift: float = 0.0
 const IDLE_BLEND := 0.5  # one idle into another: slow, it is a change of mood, not of action
+## Bag rummage (owner 2026-10-28): kneel, set the satchel down and open it (rummage_in), dig in it (rummage,
+## loops), shut it and stand (rummage_out); tools/make_rummage.py. The satchel prop plays the same-named
+## animation in sync and shows only during these clips. Independent of the bag UI: it calls play_rummage().
+const RUMMAGE_CLIPS: Array[StringName] = [&"rummage_in", &"rummage", &"rummage_out"]
+const SATCHEL_GLB := "res://assets/characters/survivor/props/satchel.glb"
+var _satchel: Node3D
+var _satchel_ap: AnimationPlayer
+## Crafting-station work loops (owner 2026-10-28: "crafting stations have interact animations (hammering onto
+## the table)") and the worksite kick; tools/make_work_clips.py. work_hammer / work_forge hold the hammer prop
+## (survivor armature + hammer skinned to RightHand), shown only during those clips.
+const WORK_CLIPS: Array[StringName] = [&"work_hammer", &"work_stir", &"work_hang", &"work_forge", &"work_tan"]
+const HAMMER_CLIPS: Array[StringName] = [&"work_hammer", &"work_forge"]
+const HAMMER_GLB := "res://assets/characters/survivor/props/work_hammer.glb"
+var _hammer: Array[MeshInstance3D] = []
+var _hammer_loaded := false
+## Forced clips that walking off cancels, and that ease in and out of the idle.
+const SOFT_CLIPS: Array[StringName] = [&"rummage_in", &"rummage", &"rummage_out", &"kick_dirt",
+	&"work_hammer", &"work_stir", &"work_hang", &"work_forge", &"work_tan"]
 
 func setup(p: Player, p_rig: RiggedModel) -> void:
 	player = p
@@ -95,20 +113,25 @@ func play_locomotion(speed: float, running: bool = false) -> void:
 		return
 	_play(&"run" if running and speed > 2.5 else &"walk")
 
-## BAGUI: the survivor crouches and rummages through her bag while the bag sheet is open in the
-## field (clip `rummage`, made on claude/mmo-rummage into assets/characters/survivor/anim/). Without
-## the clip she simply idles. Held (forced) so locomotion does not replace it; stop_rummage releases
+## BAGUI: the survivor kneels and rummages through her bag while the bag sheet is open in the field:
+## rummage_in -> rummage (loop) -> rummage_out on close (play_rummage); with only `rummage` it loops
+## that; without the clips she simply idles. Held (forced) so locomotion does not replace it; stop_rummage releases
 ## it. Not while mounted, swimming, asleep, sitting, busy or dead.
 func start_rummage() -> bool:
 	if _dead or _busy or _sleeping or _waking or _sitting or player == null or player.mounted_on or player.swimming:
 		return false
-	if rig and rig.has_clip(&"rummage"):
+	if rig and rig.has_clip(&"rummage_in"):
+		play_rummage(true) # kneel and open (rummage_in), then the rummage loop
+	elif rig and rig.has_clip(&"rummage"):
 		play_clip(&"rummage", true)
 	else:
 		play_clip(idle_clip(), true)
 	return true
 
 func stop_rummage() -> void:
+	if rig and rig.has_clip(&"rummage_out") and current_clip in [&"rummage_in", &"rummage"]:
+		play_rummage(false) # shut the bag and stand (rummage_out), then idle
+		return
 	if not _forced or _dead or _requested_clip not in [&"rummage", idle_clip(), &"idle"]:
 		return # something else took over (a hit, sleep): leave it
 	_forced = false
@@ -133,6 +156,40 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 	_play(clip)
 	if _busy and _resolved_missing:
 		_schedule_missing_done(clip)
+
+## true: kneel and open the bag, then rummage until play_rummage(false) shuts it and stands her up.
+## Moving or any other clip (hit, death, gather) ends it at once.
+func play_rummage(on: bool) -> void:
+	if _dead:
+		return
+	if on and current_clip not in [&"rummage_in", &"rummage"]:
+		play_clip(&"rummage_in", true)
+	elif not on and current_clip in [&"rummage_in", &"rummage"]:
+		play_clip(&"rummage_out", true)
+
+func is_rummaging() -> bool:
+	return current_clip in RUMMAGE_CLIPS
+
+## Station work loop. kind: &"hammer", &"stir", &"hang", &"forge", &"tan" (or the clip name, work_*). Loops until
+## stop_work(), another clip, or the player walks off.
+func play_work(kind: StringName) -> void:
+	var clip := kind if str(kind).begins_with("work_") else StringName("work_" + str(kind))
+	if _dead or clip not in WORK_CLIPS or current_clip == clip:
+		return
+	play_clip(clip, true)
+
+func stop_work() -> void:
+	if current_clip in WORK_CLIPS:
+		_forced = false
+		play_idle()
+
+func is_working() -> bool:
+	return current_clip in WORK_CLIPS
+
+## A one-shot that plays to its end and returns to the idle (kick_dirt when a worksite is placed).
+func play_oneshot(clip: StringName) -> void:
+	if not _dead:
+		play_clip(clip, true)
 
 func start_sleep() -> void:
 	if _dead:
@@ -428,6 +485,8 @@ func _physics_tick(speed: float, running: bool = false) -> void:
 		if not _busy:
 			_play(&"mount_idle")
 		return
+	if current_clip in SOFT_CLIPS and speed >= 0.08:
+		_forced = false  # walking off ends a rummage, station work or the kick; props vanish with the next clip
 	play_locomotion(speed, running)
 
 func _play(clip: StringName) -> void:
@@ -441,6 +500,9 @@ func _play(clip: StringName) -> void:
 		blend = IDLE_BLEND
 	if resolved in loco and (current_clip in [&"punch", &"attack_primary", &"attack_heavy"] or current_clip in GATHER_CLIPS):
 		blend = 0.12  # trimmed one-shots end mid-pose; ease back into locomotion
+	if resolved != current_clip and (resolved in [&"rummage_in", &"kick_dirt"] or resolved in WORK_CLIPS
+			or current_clip in [&"rummage_out", &"kick_dirt"] or current_clip in WORK_CLIPS):
+		blend = 0.2  # standing ends of the rummage, work loops, the kick: ease in and out of the idle
 	current_clip = resolved
 	var speed := 1.0
 	if clip == &"attack_primary":
@@ -456,6 +518,37 @@ func _play(clip: StringName) -> void:
 			var duration := rig.anim_player.get_animation(resolved).length
 			speed = maxf(speed, duration * maxf(0.2, rate) / 0.65)
 		rig.play(resolved, speed, blend)
+	_sync_satchel(resolved, speed)
+	_sync_hammer(resolved)
+
+func _sync_hammer(clip: StringName) -> void:
+	var show := clip in HAMMER_CLIPS
+	if show and not _hammer_loaded and rig and rig.skeleton:
+		_hammer_loaded = true
+		_hammer = RiggedModel.attach_skinned(rig.skeleton, HAMMER_GLB)
+	for mi in _hammer:
+		mi.visible = show
+
+func _sync_satchel(clip: StringName, speed: float) -> void:
+	if clip not in RUMMAGE_CLIPS:
+		if _satchel:
+			_satchel.visible = false
+		return
+	if _satchel == null:
+		if rig == null or rig.mesh_root == null or not ResourceLoader.exists(SATCHEL_GLB):
+			return
+		# Authored in the survivor's model space, so it sits under the same root as her skeleton.
+		_satchel = (load(SATCHEL_GLB) as PackedScene).instantiate() as Node3D
+		_satchel.name = "Satchel"
+		rig.mesh_root.add_child(_satchel)
+		_satchel_ap = _satchel.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if _satchel_ap and _satchel_ap.has_animation(&"rummage"):
+			_satchel_ap.get_animation(&"rummage").loop_mode = Animation.LOOP_LINEAR
+	_satchel.visible = true
+	if _satchel_ap and _satchel_ap.has_animation(clip):
+		_satchel_ap.speed_scale = speed
+		_satchel_ap.play(clip)
+		_satchel_ap.seek(0.0, true)
 
 func _resolve(clip: StringName) -> StringName:
 	_resolved_missing = false
@@ -503,6 +596,9 @@ func _on_clip_finished(clip: StringName) -> void:
 		return
 	if clip == &"sleep_up":
 		_waking = false
+	if clip == &"rummage_in":
+		_play(&"rummage")  # stays forced: loops until play_rummage(false)
+		return
 	if clip == &"attack_primary" or clip == &"attack_heavy" or clip == &"punch":
 		attack_done.emit()
 	if clip == &"death":

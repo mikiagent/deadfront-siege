@@ -155,8 +155,14 @@
     "skull_plate": "res://assets/icons/render/skull_plate.png"
   },
   "aliases": {
+    "silver_chunk": "metal_shard",
+    "metal_stick": "ingot",
     "alpha_trophy": "raptor_talon",
     "taming_pen_kit": "fence_kit",
+    "metal_nails": "ingot",
+    "taming_pen_medium": "makeshift_taming_pen",
+    "taming_pen_large": "makeshift_taming_pen",
+    "taming_pen_apex": "makeshift_taming_pen",
     "crock_pot_kit": "stone_grill_kit",
     "camp_stew": "boiled_meat",
     "stone_fire_pit_kit": "bonfire_kit",

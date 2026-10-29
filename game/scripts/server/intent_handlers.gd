@@ -116,10 +116,13 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return ok({"broke": str(tool.def_id), "gained": 0})
 	var attrs: Dictionary = n.get("attributes", {})
 	var zone := int(attrs.get("level", n.get("level", 1)))
-	var stack := ItemStack.make(def.id, 1, attrs, zone)  # ONEGATHER: one instance per pass, as on the client
+	var family := str(n.get("family", ""))
+	# ONEGATHER: one instance per pass; HARVESTROLL: its own level and traits from this op's rng, as on the client.
+	var lot := attrs.duplicate(true)
+	lot.merge(LootRoller.roll_lot(def.id, zone, GatherService.tool_tier(inv, tool_class, family), maxi(1, ch.level_of("gathering")), rng), true)
+	var stack := ItemStack.make(def.id, 1, lot, int(lot["level"]))
 	if bool(n.get("unstable", false)):
 		stack.set_flag(&"unstable", true)
-	var family := str(n.get("family", ""))
 	var cap := maxi(ch.level_of("gathering"), 5) # rules.json gathering_downrank, floor 5 as on the client
 	if stack.level > cap:
 		stack.level = cap

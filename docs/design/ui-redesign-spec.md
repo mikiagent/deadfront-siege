@@ -228,7 +228,7 @@ Artboard IDs match the screenshots in §0.
 | C2 Bag | `inventory_ui.gd`, `bag_grid.gd`, `bag_inspect.gd`, `food_inspector.gd`, `art_slot.gd` | 8-column grid, one item per cell (already), **drop the count label in `art_slot.gd` for non-stacking items**, tint by natural colour, NEW badge, gold brackets; inspector with trait chips and Eat / Feed pet / Drop / Destroy. |
 | C3 Skills | `skills_sheet.gd` | 4-column skill grid (icon, Lv, thin XP bar, unread dot) + right detail (parchment header, XP, SP spent, description, unlocks, GOLD button). F7 `skill_debug.gd` unchanged. |
 | C4 Orders | quest card in `hunt_hud.gd`; full list: **new `orders_sheet.gd`** | List of orders with steps and rewards, "Track on HUD". |
-| D1 Craft (stations) | `craft_ui.gd`, `craft_card.gd` | Station chooser (By hand / Workbench n m / Bonfire n m), category grid, grouped recipe list, detail with time · success · flawless, Craft and Craft ×5. |
+| D1 Craft (stations) | `craft_ui.gd`, `craft_card.gd` | **Superseded by D5** (CRAFTRADIAL 2026-10-28): the station chooser is gone; the menu lists every pattern, a station only its own. |
 | D2 Build mode | `build_ui.gd`, placer hexes in `hunt_hud.gd` / `hud_layout.gd` (`placer_anchor`) | Blueprint drawer as hex tiles by tier; placement row: ROTATE (icon only), **SAVE (OK_GREEN check)**, **CANCEL** **[owner]**; red ghost when partly outside the Domain. |
 | D3 Craft — place materials | `craft_ui.gd` slot assignment (has per-slot have/need today) | New sub-view: completion %, chevron per slot (OK_GREEN when filled), candidate grid with order badges and quality pips, focus card with trait chips, expected result inheriting **slot-1 traits only** (archive systems PRD §8.3 on `main`: `docs/prd/durango-wild-lands-systems-prd.md`), quantity stepper, success rate, "Place material" → "Craft". |
 | E1 Animals | `animal_screen.gd` | Pack slots 3 of 7 with locked slots shown (owner 3→7 bonded rule, [spec 09](durango-prompts/09_capture_threshold_and_bonded_pet_limits.md)), portrait, growth XP, grade, stats, needs, Feed / Ride / Release. **Conflict:** the script header says "unlimited roster, three active companions" — reconcile with the 3→7 bonded rule before restyling. |
@@ -241,7 +241,56 @@ Unchanged: `touch_controls.gd`, `touch_gestures.gd`, `virtual_joystick.gd`, `ite
 `item_art.gd`, `ui_icons.gd`, `level_display.gd`, `pet_radial.gd` (hex restyle via HexButton only),
 `pet_rename_dialog.gd`, `status_glyph.gd`, `player_portrait.gd`.
 
-## 8. Shared screen chrome
+### 7a. CRAFTRADIAL rules (owner 2026-10-28, Durango reference)
+
+**D4 Station radial** (`station_menu.gd`, dispatched by `station_craft.gd`). Every placed building
+(stations, fires, beds, the basket, the taming pen) opens the same radial on tap:
+- **Kingdom Rush layout (owner 2026-10-28):** six fixed screen slots around the station's projected
+  point (top, top-right, bottom-right, bottom, bottom-left, top-left), the same slot for the same
+  action every time: main action top, LOAD WOOD top-right, REMOVE bottom-right, TAKE BACK / CAUTERISE
+  bottom, PACKAGE bottom-left, COLLECT top-left. No turning or per-hex HUD avoidance; the whole
+  six-slot cluster slides inside the safe area as one (on a phone also above the output row). The
+  anchor follows a moving camera smoothly and holds still (no re-solve under 0.75 px) once it stops.
+  On open each hex flies out from the station (0.15 s ease-out, 0.03 s stagger).
+- a dark ring around the station; its wedges are 64 px+ flat-top hexes on the ring, the main action
+  **on top** with a GOLD rim, then **PACKAGE** (pack it back into its kit: `BuildPlacer.pack_up_node`,
+  all or nothing, kit + contents to the bag) and **REMOVE** (LIFE-red rim and glyph). Fires keep
+  LOAD WOOD / CAUTERISE between them; process stations put COLLECT / TAKE BACK first.
+- main wedge by kind: workbench CRAFT; bonfire / campfire COOK; stone grill (the "oven"), crock pot,
+  steamer, smoker COOK; drying rack DRY; taming pen PEN (opens the Taming Pen screen); basket OPEN
+  (storage); beds SLEEP; any other station with recipes CRAFT.
+- REMOVE never acts on the first tap: the wedge turns into **CONFIRM** (LIFE wash) with a notice; the
+  second tap demolishes. Contents always come back (bag, then home cargo, then a loot bag).
+- the station's name pill sits in the ring's centre.
+- a card at the **top left** (under the desktop vitals block; right of the left column on a phone
+  landscape) shows icon, "Name Lv n", durability, type and the station's own state line (fuel).
+- under the ring a **horizontally scrolling output row**: one 64 px+ slot per distinct recipe output
+  of that station (icon + quality dots = rarity tier); a tap opens that recipe's detail in the craft
+  panel. The row keeps off the bottom HUD corners and scrolls instead of growing.
+
+**D5 Right-side pop-out** (`right_sheet.gd` = `RightSheet`, shared by Craft, Construction and the Bag
+panel on claude/mmo-bagui). A full-height column pinned to the right edge (≥ 440 px on a phone, ≈ 42 %
+of a desktop, ≤ 760 px), the world visible beside it; the §8 header (‹ title ✕) inside it. A wide
+sub-view (D3 place materials, Construction) uses the same sheet at ≈ 86 % width.
+- **Craft / Build**: Search, then a 2-row grid of category tabs (All, Material Processing, Cooking,
+  Tool, Clothing, Building Components, Weapon, Farming; the active tab GOLD), recipes under thin
+  section headers as a two-column icon + name list, footer "Select a pattern.". One page at a time:
+  a recipe swaps the list for its detail (‹ goes back). Build in the header swaps the list for the
+  placeables (kits in the bag, blueprints), each with the symbol of what it builds (its kit icon); a
+  tap enters the existing placer (`build_placer.gd`: 1 m grid snap, drag, rotate, SAVE / CANCEL).
+  A blueprint places a **construction plot** (ConstructionSite) with no materials asked at placement;
+  materials go in through the Construction panel, then the build timer runs.
+- **Craft and Construction share one slot panel** (`craft_place.gd`): "Crafting Complete n %",
+  chevron slot groups (selected GOLD outline, complete OK_GREEN, empty grey), the selected group's
+  header (Material · Lv. n or higher · accepts tags), the eligible-item grid (numbered GOLD pick
+  badges; already-placed items with a GOLD check), Expected Result, Success Rate and one action.
+  Craft adds the quantity stepper and "If crafting fails, materials are lost"; Construction shows the
+  Construction level it needs and the build timer (HH:MM:SS), and its action reads **Fill
+  Automatically** (best eligible items, highest level first) → **Place Material** → (timer runs on
+  its own) → **Finish**.
+- Recipe and blueprint slots accept items **by tag** (`ItemDef.has_category`), never by item id.
+
+
 
 Every full-screen sheet: blurred world + `SCREEN_DIM`, `HEADER` bar (88 px desktop) with "‹ Title",
 currency pills right, ✕ close, torn bottom edge; panels in `PANEL` with 1 px light divider; detail
@@ -321,3 +370,19 @@ target image, `game/tests/t_ui.gd` still green, `tools/smoke.sh` → `SMOKE PASS
   clockwise. The **glyph changes with the state**: shrunken when empty, big when full, swollen when
   overfull, easing in scale between them. **Saturation** is a thin yellow outer ring that drains like a
   cooldown while the last meal digests.
+
+## Candidate, not adopted: main menu as a left pop-out panel
+
+Saved 2026-10-29 at the owner's request ("save it just in case we want to go with this later"). The current design is the
+menu-open zoom-out with parallax clouds; this is an alternative to revisit.
+
+- A dark translucent column about 1/6 of the screen wide slides out from the left over the game. The world stays visible,
+  slightly dimmed.
+- Top row: small icons (mail, announcements, social, settings).
+- Below: a 3-column grid of round dark icons with labels. Some carry a hotkey letter in a square badge at the top left
+  (P Character, K Skills, C Craft/Build, I Bag, J Orders, M Map). Notification dots sit on icons that need attention.
+- Entries in the reference: Character, Change Character, Play; Skills, Craft/Build, Bag; Animals, Island Market, Domain;
+  Shop, Orders, Support; Events, Brawl, Daily Log; Clan, Friends, Party; Encyclopedia, Screenshot, Map. Ours would use our
+  own nav entries; nothing here adds features.
+- "Exit Game" at the bottom.
+- Mobile: the column must keep 64 px tap targets and respect the left safe area, so on a phone it is wider than 1/6.

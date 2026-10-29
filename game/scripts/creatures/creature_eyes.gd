@@ -20,6 +20,13 @@ static var day_halo := clampf(float(_glow_cfg.get("day_halo", 0.3)), 0.0, 1.0)
 static var ramp_pow := clampf(float(_glow_cfg.get("ramp_pow", 1.5)), 0.2, 6.0)
 static var trail_from := clampf(float(_glow_cfg.get("trail_from", 0.2)), 0.0, 0.99)
 static var trail_to := maxf(clampf(float(_glow_cfg.get("trail_to", 0.5)), 0.0, 1.0), trail_from + 0.01)
+## Threat scaling (eye_glow.json "_threat"): small harassers get a faint glow and a stub of a trail.
+static var threat_tier_low := float(_glow_cfg.get("threat_tier_low", 10.0))
+static var threat_tier_high := maxf(float(_glow_cfg.get("threat_tier_high", 60.0)), threat_tier_low + 1.0)
+static var weak_length := clampf(float(_glow_cfg.get("weak_length", 0.05)), 0.0, 1.0)
+static var weak_energy := clampf(float(_glow_cfg.get("weak_energy", 0.25)), 0.0, 1.0)
+static var weak_size := clampf(float(_glow_cfg.get("weak_size", 0.6)), 0.0, 1.0)
+static var weak_glow := clampf(float(_glow_cfg.get("weak_glow", 0.45)), 0.0, 1.0)
 ## Pushed this far (metres, in world space after the model scale) out of the painted eye so the dot
 ## never z-fights or sinks into the skull; the billboard quad is flat against the camera, so a dot
 ## left on the surface comes out a crescent.
@@ -55,6 +62,18 @@ var eye_color := Color.WHITE
 var bone_index: int = -1
 var eye_material: StandardMaterial3D
 var radius_model: float = 0.02
+## 0 (a harmless pest) .. 1 (an apex predator); see threat_of.
+var threat: float = 1.0
+## The dot and rim glow the threat allows (alpha glow multiplies on top).
+var threat_glow: float = 1.0
+
+## ASSUMPTION (owner: a compsognathus "looks very intimidating with the eye trails but it's not that
+## powerful"): threat follows the species tier (its level), or the eyes block "threat" override.
+static func threat_of(def: CreatureDef, eyes: Dictionary = {}) -> float:
+	if eyes.has("threat"):
+		return clampf(float(eyes["threat"]), 0.0, 1.0)
+	var tier := float(def.tier) if def else threat_tier_high
+	return clampf((tier - threat_tier_low) / (threat_tier_high - threat_tier_low), 0.0, 1.0)
 
 ## Builds the BoneAttachment3D on the head bone and the two dots. Returns false when the rig has no
 ## such bone or the data has no usable points (the caller then drops this node).
@@ -75,7 +94,9 @@ func setup(view: CreatureView, eyes: Dictionary) -> bool:
 	var raw: Variant = eyes.get("color", [1.0, 1.0, 1.0])
 	if raw is Array and (raw as Array).size() >= 3:
 		col = Color(float(raw[0]), float(raw[1]), float(raw[2]))
-	eye_material = material_for(col)
+	threat = threat_of(view.def, eyes)
+	threat_glow = lerpf(weak_glow, 1.0, threat)
+	eye_material = material_for(col, threat_glow)
 	var scale := maxf(view.rig.mesh_root.scale.x, 0.0001) if view.rig.mesh_root else 1.0
 	var height_m := view.def.height_meters if view.def else 1.0
 	var max_world_radius := clampf(height_m * EYE_RADIUS_PER_HEIGHT, MIN_WORLD_RADIUS_M, MAX_WORLD_RADIUS_M)
@@ -125,7 +146,7 @@ func setup(view: CreatureView, eyes: Dictionary) -> bool:
 func _add_rims(col: Color, scale: float) -> void:
 	var sep := dots[0].position.distance_to(dots[1].position)
 	var push_m := sep * scale * RIM_PUSH_PER_SEPARATION
-	_rim_energy = RIM_LEVEL * push_m * push_m
+	_rim_energy = RIM_LEVEL * push_m * push_m * threat_glow
 	for dot in dots:
 		var out := (dot.position - (dots[0].position + dots[1].position) * 0.5).normalized()
 		var l := OmniLight3D.new()
@@ -168,7 +189,7 @@ func set_glow(mult: float) -> void:
 	if trail != null:
 		trail.boost(mult / glow)
 	glow = mult
-	eye_material = material_for(eye_color, glow)
+	eye_material = material_for(eye_color, glow * threat_glow)
 	for d in dots:
 		d.material_override = eye_material
 

@@ -85,8 +85,14 @@ func _rage_cd() -> float:
 		return 1.0
 	return clampf(1.0 - (1.0 - float(profile.get("enraged_cd_mult", 0.6))) * creature.nature_knob("enrage_mult", 1.0), 0.2, 1.0)
 
+## NATURES: an Aggressive (auto_engage) grazer is always provoked; natures.json says it charges on
+## sight, but the alert step used to send it back to grazing.
 func _provoked() -> bool:
-	return _now_s() < _provoked_until
+	return _now_s() < _provoked_until or (_is_herbivore() and creature.nature_flag("auto_engage"))
+
+## TacticalBrain: a flight it started on purpose (hurt, a rage) that provocation must not cut short.
+func _holds_flee() -> bool:
+	return false
 
 func setup(c: Creature) -> void:
 	creature = c

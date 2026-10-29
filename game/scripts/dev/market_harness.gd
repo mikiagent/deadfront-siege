@@ -56,9 +56,9 @@ func client(acct: int = VIEWER) -> LocalMarketClient:
 func seed_scene() -> void:
 	now += int(bridge.econ.engine.L.rules.num("trade_lock_s")) + 1 # new accounts wait out the lock
 	for acct: int in [SELLER_A, SELLER_B, VIEWER]:
-		# Settlers' orders pay 26-36 tradable in the 48 windows earn() waits. The viewer aims higher: its
-		# listing fees come out of it and the Buy check needs the cheapest other listing (12) left over.
-		earn(acct, 30 if acct == VIEWER else 25)
+		# 40, not 25: the viewer spends 20 on a bone and must still afford a 12-stone listing; the exact
+		# overshoot past a lower target moved whenever items.json grew (Settlers' demand rotates over it).
+		earn(acct, 40)
 	# Seller A: three single branches, two bones, a knife with durability.
 	_gather(SELLER_A, "branch", 5)
 	for i in 3:
@@ -93,7 +93,7 @@ func seed_scene() -> void:
 	# The viewer's Sell picker: every kind of cell (stack, durability, cage, bonded pet, locked).
 	_loot(VIEWER, "bone", 2)
 	_craft_knife(VIEWER)
-	if OS.get_environment("BAGUI_NOEQUIP") == "": equip_first(VIEWER, "stone_knife_work") # BAGUI: an equipped item the Sell grid shows red
+	equip_first(VIEWER, "stone_knife_work") # BAGUI: an equipped item the Sell grid shows red
 	capture(VIEWER, "compy_mine_cage")
 	tame(VIEWER, "compy_mine")
 	lock_first(VIEWER, "stone")

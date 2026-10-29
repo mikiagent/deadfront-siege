@@ -266,14 +266,21 @@
       "chase_speed_mult": 0.5,
       "_note": "Compys: short sight, short leash, slower chase so a survivor can walk away from a swarm.",
       "tactics": {
-        "_about": "SWARM (compsognathus, owner 2026-10-28): a tiny pack scavenger. Surrounds the prey (each packmate its own slot on a slowly turning ring), darts in for a bite and scurries straight back out, feints, flees when hurt or when a packmate dies, is bolder in numbers and timid alone, and presses a weakened survivor. Every number is an ASSUMPTION; template: docs/current/enemy-ai-template.md.",
+        "_about": "SWARM (compsognathus, owner 2026-10-28): a tiny pack harasser. Surrounds the prey (each packmate its own slot on a slowly turning ring), pounces in from range or darts in for a bite and JUMPS back out (leap_back, never a scurry), mixes far sideways strafe jumps (dodge_left/right) into the strafe walk, chains short combos (dodge -> pounce, backstep -> dodge -> pounce), flees when hurt or when a packmate dies, is bolder in numbers and timid alone, and presses a weakened survivor. Every number is an ASSUMPTION; template: docs/current/enemy-ai-template.md.",
         "sequences": [
           {
             "name": "dart",
             "steps": [
               "charge"
             ],
-            "weight": 3.0
+            "weight": 2.0
+          },
+          {
+            "name": "pounce",
+            "steps": [
+              "pounce"
+            ],
+            "weight": 2.0
           },
           {
             "name": "strafe_left_dart",
@@ -288,6 +295,40 @@
             "steps": [
               "strafe_right",
               "charge"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "strafe_left_pounce",
+            "steps": [
+              "strafe_left",
+              "pounce"
+            ],
+            "weight": 1.5
+          },
+          {
+            "name": "strafe_right_pounce",
+            "steps": [
+              "strafe_right",
+              "pounce"
+            ],
+            "weight": 1.5
+          },
+          {
+            "name": "backstep_strafe_right_pounce",
+            "steps": [
+              "backstep",
+              "strafe_right",
+              "pounce"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "backstep_strafe_left_pounce",
+            "steps": [
+              "backstep",
+              "strafe_left",
+              "pounce"
             ],
             "weight": 1.0
           }
@@ -308,20 +349,18 @@
         "charge_cd": 2.5,
         "charge_speed_mult": 1.3,
         "charge_max_s": 1.0,
-        "strafe_m": 1.5,
-        "strafe_s": 0.35,
-        "dodge_height_per_m": 0.0,
-        "backoff": "scurry",
-        "scurry_s": 0.6,
+        "strafe_m": 2.5,
+        "strafe_s": 0.42,
+        "dodge_height_per_m": 0.1,
         "hop_m": 3.0,
         "hop_cd": 1.0,
-        "leap_back_m": 3.0,
+        "leap_back_m": 4.0,
         "max_retreat_m": 5.5,
         "w_hold": 0.2,
         "w_strafe": 0.5,
-        "w_dodge": 0.2,
+        "w_dodge": 0.4,
         "w_feint": 0.3,
-        "w_hop": 0.1,
+        "w_hop": 0.15,
         "hold_min_s": 0.5,
         "hold_max_s": 1.0,
         "feint_s": 0.6,
@@ -335,25 +374,49 @@
         "max_basic_streak": 2,
         "max_basic_share": 0.15,
         "pack_gap_s": 0.3,
+        "_jumps": "COMPYJUMPS (owner 2026-10-28: 'should jump back similar to the deinonychus (far jumps, far pounces, far strafe jumps, combo moves, it can jump and miss the player)'): every back-off is a leap facing the prey (hop_back hop_m, leap_back leap_back_m after a bite, both inside max_retreat_m), the power strafe is a dodge_left/right jump of strafe_m, and approach_pounce lets it open with a pounce from range on the way in. The pounce locks its landing point at take-off (aimed at the prey's position plus its velocity over the flight); a prey that sidesteps after take-off is missed and the compy lands past her for pounce_miss_recover_s. Clips: tools/gait/make_leap.py. ASSUMPTION numbers, smaller than the deinonychus's for a small harasser.",
+        "leap_height_per_m": 0.15,
+        "hop_s": 0.35,
+        "hop_land_s": 0.1,
+        "pounce_cd": 5.0,
+        "pounce_min_m": 2.0,
+        "pounce_max_m": 6.0,
+        "chase_pounce_max_m": 5.0,
+        "approach_pounce": true,
+        "pounce_telegraph_s": 0.45,
+        "pounce_leap_s": 0.35,
+        "pounce_radius_m": 0.9,
+        "pounce_recover_s": 0.4,
+        "pounce_miss_recover_s": 1.0,
+        "pounce_mult": 1.6,
+        "pounce_overshoot_chance": 0.2,
+        "pounce_overshoot_m": 1.5,
+        "bite_track": true,
+        "bite_track_frac": 0.6,
+        "chase_hop": true,
+        "_landing": "COMPYJUMPS (owner 2026-10-28: 'compsagnathus attacks aren't landing very often, it should land some attacks'): bite_track keeps the bite lunging after prey that walks out of its jaws until the contact frame (past bite_track_frac x reach, at charge_speed_mult x run). t_swarm measures the landed share on a standing and on a walking survivor with real accuracy rolls. chase_hop: chasing a survivor who walks on, a compy at her heels whose bite is not allowed yet (cooldown, or no beat since its last bite) hops back and chases again, instead of trotting glued to her without biting.",
         "pack_bold": {
           "n": 4,
           "cooldown_mult": 0.5,
           "w_charge": 1.5,
           "beat_mult": 0.6,
           "wait_mult": 0.5,
-          "retreat_frac_mult": 0.6
+          "retreat_frac_mult": 0.6,
+          "w_pounce": 1.3
         },
         "alone": {
           "cooldown_mult": 2.2,
           "w_feint": 1.5,
           "retreat_frac_mult": 1.6,
-          "w_hop": 2.0
+          "w_hop": 2.0,
+          "w_pounce": 0.4
         },
         "weak_prey": {
           "hp_frac": 0.4,
           "cooldown_mult": 0.6,
           "w_charge": 1.5,
-          "wait_mult": 0.3
+          "wait_mult": 0.3,
+          "w_pounce": 1.3
         },
         "enraged": {
           "cooldown_mult": 0.6,
@@ -361,11 +424,13 @@
           "combo_seq_mult": 1.3,
           "w_dodge": 1.5,
           "beat_mult": 0.7,
-          "wait_mult": 0.5
+          "wait_mult": 0.5,
+          "w_pounce": 1.4
         },
         "feint_repositions": true,
-        "_leash": "max_retreat_m 5.5 keeps a scurry inside the compy's own short leash (perception ~5.75 m x leash_mult 1.2): backing off must never drop the hunt.",
-        "slot_tolerance_m": 2.0
+        "_leash": "max_retreat_m 5.5 keeps every back-leap inside the compy's own short leash (perception ~5.75 m x leash_mult 1.2): backing off must never drop the hunt.",
+        "slot_tolerance_m": 2.0,
+        "slot_catchup_mult": 2.0
       }
     },
     "flock_harass": {
@@ -403,13 +468,125 @@
     "pack_mule": {
       "is_herbivore": true,
       "attack_range": 1.8,
+      "_flee": "ASSUMPTION (owner 2026-10-29: 'way too fast, it should gallop away slowly'): a heavy, lumbering gallop. 3 m/s base x1.2 x run_speed_mult 1.25 = 4.5 m/s, under the 5.5 m/s survivor walk, so a first tame is catchable. Overrides skittish's 1.6 / 6.5 m/s floor for this archetype only.",
+      "flee_speed_mult": 1.2,
+      "flee_min_mps": 0.0,
       "weak_to": [
         "blunt"
       ],
       "resists": [
         "slashing"
       ],
-      "temperament": "skittish"
+      "temperament": "skittish",
+      "tactics": {
+        "_about": "HERD GRAZER (zebraceratops, protoceratops; owner 2026-10-28: zebraceratops is an early tame, 'we want to get this right'). PRD verb: head shove, herd solidarity. Runs only while provoked (skittish: 3 hits; stand_ground natures: 1 hit; Aggressive: always). Threat display (alert pose, head lowered) then a straight head-low ram on a locked line that shoves the survivor back; a sidestep makes it miss and stand staggered. Hind kick at point blank when the prey is behind it (after a charge through her). Bluff charges (feint), scurries back facing the prey (walk_back). Flees when badly hurt. A hit herdmate rallies the rest onto its attacker for defend_s, as far as guard_m from home. Timid never fights back; Brave stands its ground and displays instead of fleeing on sight. Every number is an ASSUMPTION; template: docs/current/enemy-ai-template.md.",
+        "sequences": [
+          {
+            "name": "display_charge",
+            "steps": [
+              "display",
+              "charge"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "charge",
+            "steps": [
+              "charge"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "strafe_left_charge",
+            "steps": [
+              "strafe_left",
+              "charge"
+            ],
+            "weight": 0.5
+          },
+          {
+            "name": "strafe_right_charge",
+            "steps": [
+              "strafe_right",
+              "charge"
+            ],
+            "weight": 0.5
+          }
+        ],
+        "point_blank": [
+          "kick",
+          "bite"
+        ],
+        "ring_m": 7.0,
+        "circle_speed_frac": 0.7,
+        "circle_step_deg": 30.0,
+        "circle_min_s": 0.8,
+        "circle_max_s": 1.6,
+        "contact_after_s": 1.0,
+        "flip_chance": 0.3,
+        "bite_cd": 3.5,
+        "kick_cd": 5.0,
+        "kick_mult": 1.4,
+        "charge_cd": 6.0,
+        "charge_straight": true,
+        "charge_speed_mult": 1.5,
+        "charge_max_s": 2.2,
+        "charge_through_m": 2.5,
+        "charge_mult": 1.8,
+        "_charge_shove": "ASSUMPTION (owner 2026-10-29: 'tackling/ramming'): the charge is a head-low body-slam; a landed one shoves the survivor charge_shove_m along the charge line over charge_shove_stagger_s, in which she cannot act.",
+        "charge_shove_m": 2.5,
+        "charge_shove_stagger_s": 0.6,
+        "charge_miss_recover_s": 1.5,
+        "display_s": 1.2,
+        "display_charge_m": 5.0,
+        "strafe_m": 2.0,
+        "strafe_s": 0.5,
+        "dodge_height_per_m": 0.0,
+        "backoff": "scurry",
+        "scurry_s": 0.8,
+        "hop_m": 3.0,
+        "hop_cd": 3.0,
+        "leap_back_m": 3.0,
+        "max_retreat_m": 10.0,
+        "w_hold": 0.6,
+        "w_strafe": 0.4,
+        "w_dodge": 0.0,
+        "w_feint": 0.3,
+        "w_hop": 0.2,
+        "hold_min_s": 0.8,
+        "hold_max_s": 1.6,
+        "feint_s": 0.9,
+        "wait_max_s": 2.0,
+        "opening_swing_cd_s": 0.2,
+        "retreat_mode": "flee",
+        "retreat_frac": 0.25,
+        "retreat_cd": 12.0,
+        "flee_s": 4.0,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.25,
+        "pack_gap_s": 0.8,
+        "herd_defend": true,
+        "defend_s": 8.0,
+        "guard_m": 16.0,
+        "stand_ground_natures": [
+          "brave"
+        ],
+        "flee_natures": [
+          "timid"
+        ],
+        "alone": {
+          "w_feint": 1.5,
+          "retreat_frac_mult": 1.4,
+          "cooldown_mult": 1.3
+        },
+        "enraged": {
+          "cooldown_mult": 0.6,
+          "w_charge": 1.5,
+          "combo_seq_mult": 1.3,
+          "beat_mult": 0.7,
+          "wait_mult": 0.5
+        }
+      }
     },
     "spiked_tail": {
       "is_herbivore": true,

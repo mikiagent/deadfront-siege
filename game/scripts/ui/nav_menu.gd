@@ -6,7 +6,7 @@ extends Control
 ## Friends / Save on the right (label then icon), a header band with the Warp Gem and T-stone balances (CurrencyBar), and a close
 ## hex where MENU sat. The world keeps running underneath. Each entry carries the MENU badge's notices
 ## of its own kind (HudField.notices, spec §11). HuntHud keeps it as its open sheet (_sheet), so
-## sheet_open() hides HANDS and the creature plates while it is up. The menu draws on its own canvas
+## sheet_open() hides the creature plates while it is up. The menu draws on its own canvas
 ## layer and fades the HUD under it out (the mockup shows only the world, the menu and the close hex).
 ## A compact canvas (844x390) cannot stack six 64 px rows a side, so each side folds into two columns
 ## of three.

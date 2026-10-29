@@ -24,6 +24,8 @@ var picked := -1  ## bag slot of the captured animal shown (-1: the pen's occupa
 
 var _left: PanelContainer
 var _l_scroll: ScrollContainer
+## What a captured, untamed animal shows for its stats, nature and genetics.
+const HIDDEN := "???"
 var _l_title: Label
 var _l_icon: TextureRect
 var _l_species: Label
@@ -373,7 +375,7 @@ func _on_tame() -> void:
 		picked = -1
 		_msg.text = ""
 	else:
-		_msg.text = "The pen is busy." if pen.running else "No captured animal to put in."
+		_msg.text = "The pen is busy." if pen.running else (pen.last_refusal if pen.last_refusal != "" else "No captured animal to put in.")
 	_refresh()
 	relayout()
 
@@ -412,7 +414,6 @@ func _refresh() -> void:
 	var def: CreatureDef = Data.creature(species) if species != &"" else null
 	var sp_name := def.species if def != null else str(species).capitalize()
 	var lvl := int(s.attributes.get("level", 1)) if s != null else 0
-	var nat := StringName(str(s.attributes.get("nature", ""))) if s != null else &""
 	var icon := ItemIcons.texture(&"captured_animal")
 	if icon == null:
 		icon = UiIcons.icon(&"capture")
@@ -437,16 +438,19 @@ func _refresh() -> void:
 		_l_level.text = "Lv. %d" % lvl
 		var gr: Variant = s.attributes.get("genetics", {})
 		var genes := CreatureGenetics.from_dict(gr if gr is Dictionary else {})
-		_l_size.text = "Size %s" % CreatureView.size_text(genes.size)
+		# Owner 2026-10-28: "You don't know the stats until you tame it". Its colours are what you see;
+		# size, nature and genetics read ??? until the pen tames it (then the Animals screen shows them).
+		_l_size.text = "Size %s" % HIDDEN
 		_l_swatch.visible = true
 		_l_swatch.color = CreatureView.swatch_color(species, genes.coloration)
-		var nl := CreatureNatures.label(nat)
-		_l_nature.text = "Nature: %s" % (nl if nl != "" else "unknown")
+		var nl := HIDDEN
+		_l_nature.text = "Nature: %s" % HIDDEN
 		var cap := Data.bonded_cap()
 		var have: int = player.bonded.size() if player != null else 0
-		_l_bond.text = "Once tamed here it bonds with you and joins your pack (%d / %d)." % [have, cap]
+		var odds_txt := TamingOdds.caption(pen.odds(player, s)) if has_pen else ""
+		_l_bond.text = "%sOnce tamed here it bonds with you and joins your pack (%d / %d). If it fails, the animal escapes." % [(odds_txt + ". ") if odds_txt != "" else "", have, cap]
 		_a_name.text = "Captured %s" % sp_name
-		_a_sub.text = "Lv. %d%s" % [lvl, " · %s" % nl if nl != "" else ""]
+		_a_sub.text = "Lv. %d · stats %s until tamed" % [lvl, nl]
 		_info_line.text = "%s · %s · about %.0f m long" % [def.clade, def.period, def.real_length_m] if def != null and def.clade != "" else ""
 		var foods: Array[String] = []
 		if def != null:

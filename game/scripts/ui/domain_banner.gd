@@ -38,7 +38,8 @@ func tick(delta: float, rt: Node, at: Vector3) -> void:
 		age += minf(delta, 0.1)  # one long frame (the first portrait render, a busy phone) must not eat it
 		if age >= SHOW_S:
 			age = -1.0
-	var here: Dictionary = rt.call("owner_at", BuildGrid.tile_of(at)) if rt and rt.has_method("owner_at") else {}
+	# The tutorial island's town plot is nobody's domain (TUTORIAL ISLAND: the island is never claimed).
+	var here: Dictionary = rt.call("owner_at", BuildGrid.tile_of(at)) if rt and rt.has_method("owner_at") and not World.is_tutorial() else {}
 	var id := rt.get_instance_id() if rt else 0
 	var jumped := _last_at.distance_to(at) > JUMP_M
 	_last_at = at

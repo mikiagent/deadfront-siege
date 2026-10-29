@@ -56,7 +56,7 @@ func _run() -> void:
 	# D1: by hand, Weapons & Tools, the knife selected.
 	var craft := _player.craft_ui as CraftUI
 	craft._station = ""
-	craft._category = "weapon_tools"
+	craft._category = "tool"
 	craft._selected_id = "improvised_stone_knife"
 	craft.show_ui()
 	await _settle()

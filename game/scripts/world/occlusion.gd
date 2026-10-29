@@ -108,6 +108,8 @@ var _active: Dictionary = {}
 ## [owner id, MultiMeshInstance3D, frames waited] still to be read (see _add_instances).
 var _pending: Array = []
 var _max_r := 0.0
+## Mesh instance ids held faded whatever the sight line says (hold()).
+var _held: Dictionary = {}
 var _max_top := -INF
 var _slots_used := 0
 
@@ -201,6 +203,17 @@ static func release(node: Node) -> void:
 	if _driver:
 		_driver._inside.erase(node.get_instance_id())
 		_driver._forget(node.get_instance_id())
+
+## Holds every between mesh under `node` faded while `on` (an occupied tent: the survivor asleep
+## inside shows through the whole tent, not only the meshes on her sight line). Off lets them fade back.
+static func hold(node: Node, on: bool) -> void:
+	if _driver == null or node == null:
+		return
+	for gi in _geometry(node):
+		if on:
+			_driver._held[(gi as Node).get_instance_id()] = true
+		else:
+			_driver._held.erase((gi as Node).get_instance_id())
 
 ## "between", "inside" or "" when `node` is not occludable.
 static func mode_of(node: Node) -> String:
@@ -611,6 +624,9 @@ static func ray_hits_cylinder(s: Vector3, b: Vector3, c: Vector2, r: float, y0: 
 
 ## Moves every between fade toward "in the way" and sends the values (public so tests can drive it).
 func step_between(hits: Dictionary, delta: float, fwd: Vector3) -> void:
+	for id in _held:
+		for o: Obj in _owned.get(id, []):
+			hits[o] = true
 	for o in hits:
 		_active[o] = true
 	var slotted: Array = []

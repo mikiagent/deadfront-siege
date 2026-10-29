@@ -217,14 +217,16 @@
     },
     "zebraceratops": {
       "hips": "Tail2",
+      "_lie_frac": "ASSUMPTION (v2 mesh 2026-10-29, owner: bulky cow-like barrel): on its side the barrel holds the hips at about 60 % of their standing height, so its lying limit is 65 % instead of LIE_FRAC 50 %.",
+      "lie_frac": 0.65,
       "guards": {"belly_tilt_deg": 12.0},
       "feet": ["BackLowLeg.L_end", "BackLowLeg.R_end", "FrontLowLeg.L_end", "FrontLowLeg.R_end"],
       "mass_kg": 4.3,
       "reparent": {"BackFoot.L": "BackLowLeg.L", "BackFoot.R": "BackLowLeg.R", "FrontFoot.L": "FrontLowLeg.L", "FrontFoot.R": "FrontLowLeg.R"},
       "hit_react_s": 0.3,
       "bodies": [
-        {"bone": "Body", "from": "Tail2", "to": "Shoulders", "radius": 0.259, "mass_frac": 0.3, "angular_damp": 3.0},
-        {"bone": "Shoulders", "radius": 0.306, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 20, "twist": 15, "side": 30, "axis": [1, 0, 0], "min": -35, "max": 35}},
+        {"bone": "Body", "from": "Tail2", "to": "Shoulders", "radius": 0.42, "mass_frac": 0.3, "angular_damp": 3.0},
+        {"bone": "Shoulders", "radius": 0.4, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 20, "twist": 15, "side": 30, "axis": [1, 0, 0], "min": -35, "max": 35}},
         {"bone": "Neck", "dir": [0.0, -0.3, 1.0], "length": 1.0, "radius": 0.221, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 20, "twist": 15, "side": 10, "axis": [1, 0, 0], "min": -30, "max": 20}},
         {"bone": "Tail2", "to": "Tail5_end", "extend": 0.3, "radius": 0.17, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 10, "side": 4, "axis": [1, 0, 0]}},
         {"bone": "BackUpLeg.L", "from": "BackLeg.L", "to": "BackLowLeg.L", "radius": 0.19, "joint": {"type": "cone", "swing": 60, "side": 35, "twist": 12}},

@@ -163,6 +163,113 @@
       "min": 0,
       "max": 1,
       "_why": "Crafting.apply_outcome copies rules.json crafting.flawless_stat_bonus (0.1) here. # ASSUMPTION: bounded 0..1, a 100 % bump at most."
+    },
+    "firm": {
+      "_why": "HARVESTROLL: spec 04's gold/grey material traits (inv_ui.json attribute_classes). LootRoller.roll_lot stamps a magnitude 1..3 on each gathered lot, processing adds +1..+5, crafting averages them (floor, can read 0). Sync step: keep these equal to inv_ui.json attribute_classes.",
+      "_assumption": "ASSUMPTION: a signed trait's magnitude is 0..60, the item level range; no doc bounds it.",
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "lightweight": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "compact_structure": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "high_density": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "pointy": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "sharp_section": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "full": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "tough_fiber": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "high_elasticity": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "fluffy": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "thin": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "good_breathability": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "oily": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "beautiful_pattern": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "pocket": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "capacity": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "soft": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "heavy": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "low_density": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "weak_structure": {
+      "type": "int",
+      "min": 0,
+      "max": 60
+    },
+    "soft_fiber": {
+      "type": "int",
+      "min": 0,
+      "max": 60
     }
   },
   "category_caps": {
@@ -285,6 +392,10 @@
     "capture_net_i": 10,
     "capture_net_ii": 10,
     "makeshift_taming_pen": 20,
+    "metal_nails": 600,
+    "taming_pen_medium": 20,
+    "taming_pen_large": 20,
+    "taming_pen_apex": 20,
     "campfire_kit": 20,
     "bonfire_kit": 20,
     "stone_fire_pit_kit": 20,

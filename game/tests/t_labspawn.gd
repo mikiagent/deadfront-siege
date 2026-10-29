@@ -1,5 +1,5 @@
 extends SceneTree
-## Creature lab spawner (LabSpawnPanel): lists species with models, spawns the chosen species, count,
+## Creature lab spawner (LabSpawnPanel): lists every species in a dropdown, spawns the chosen species, count,
 ## nature and alpha in front of the survivor through its own buttons, and CLEAR ALL removes them.
 ## Usage: godot --headless --path game --script res://tests/t_labspawn.gd  -> "[t_labspawn] PASS"
 
@@ -45,8 +45,8 @@ func _run() -> void:
 	host.add_child(player)
 	await physics_frame
 	var PANEL = load("res://scripts/dev/lab_spawn_panel.gd")
-	var ids: Array = PANEL.species_with_models()
-	_expect(ids.has(&"compsognathus") and ids.has(&"deinonychus"), "the selector lists species with models (%d: %s)" % [ids.size(), ids])
+	var ids: Array = PANEL.all_species()
+	_expect(ids.size() == get_root().get_node("Data").creatures.size() and ids.has(&"compsognathus") and ids.has(&"zebraceratops"), "the selector covers every species (%d of %d)" % [ids.size(), get_root().get_node("Data").creatures.size()])
 	var layer := CanvasLayer.new()
 	get_root().add_child(layer)
 	var panel = PANEL.new()
@@ -56,6 +56,27 @@ func _run() -> void:
 	_expect(toggle.custom_minimum_size.y >= 64.0, "the SPAWN button is a 64 px tap target")
 	toggle.pressed.emit()
 	_expect(panel.get_node("SpawnPanel").visible, "SPAWN opens the selector")
+	var opt: OptionButton = panel.get_node("SpawnPanel").find_child("SpeciesPicker", true, false)
+	_expect(opt != null and opt.item_count == ids.size() and opt.custom_minimum_size.y >= 64.0, "the species picker is a 64 px dropdown with every species")
+	var stand_ins := 0
+	for i in opt.item_count:
+		if opt.get_item_text(i).ends_with("(stand-in)"):
+			stand_ins += 1
+			_expect(not PANEL.has_model(ids[i]), "%s is marked stand-in only when it has no model" % ids[i])
+	print("[t_labspawn] %d stand-ins of %d" % [stand_ins, ids.size()])
+	opt.select(ids.find(&"zebraceratops"))
+	opt.item_selected.emit(ids.find(&"zebraceratops"))
+	_expect(panel.species_id == &"zebraceratops", "picking a dropdown row selects that species")
+	# Every species spawns (stand-ins included) and clears.
+	var all_ok := true
+	for id in ids:
+		var one: Array = panel.spawn(id, 1)
+		if one.size() != 1 or one[0].def.id != id:
+			all_ok = false
+			print("[t_labspawn] FAIL could not spawn %s" % id)
+		panel.clear_all()
+		await physics_frame
+	_expect(all_ok, "every species spawns from the lab")
 	# Through the panel's own controls: species, count 4, a nature, Alpha on, then SPAWN.
 	panel._pick_species(&"compsognathus")
 	panel.set_count(4)
@@ -83,7 +104,7 @@ func _run() -> void:
 	await physics_frame
 	_expect(_wild().is_empty(), "CLEAR ALL removes every wild animal")
 	var two: Array = panel.spawn(&"deinonychus", 2, &"", false)
-	_expect(two.size() == 2 and two[0].def.id == &"deinonychus", "spawn() takes any species with a model")
+	_expect(two.size() == 2 and two[0].def.id == &"deinonychus", "spawn() takes any species")
 	panel.clear_all()
 	if failures.is_empty():
 		print("[t_labspawn] PASS")

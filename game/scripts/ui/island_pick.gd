@@ -113,7 +113,7 @@ func open() -> void:
 		_build()
 
 func _ready() -> void:
-	layer = 62  # over character creation (60); HANDS hides while creation is up
+	layer = 62  # over character creation (60)
 	_i = self
 	add_to_group(&"island_pick")
 	visible = false  # open() shows it when character creation reaches the pick

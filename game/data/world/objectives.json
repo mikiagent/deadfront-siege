@@ -1,5 +1,209 @@
 {
-  "_about": "The survivor's standing orders: one objective at a time, in order, shown on the HUD card. Every condition is read from state the player can already see (bag contents, bonded animals, which island you are on), so no system has to report completion. Rewards are pioneer XP and Gold. Added 2026-09-22 after a bot playthrough found the early game had no stated goal at all. HUDRULES 2026-10-28: an optional 'fight' list names the creature ids whose fight serves the order ('*' = any wild animal); the HUD keeps the order card up in combat only then.",
+  "_about": "The survivor's standing orders: one objective at a time, in order, shown on the HUD card. Every condition is read from state the player can already see (bag contents, bonded animals, which island you are on), so no system has to report completion. Rewards are pioneer XP and T-stones. Added 2026-09-22 after a bot playthrough found the early game had no stated goal at all. HUDRULES 2026-10-28: an optional 'fight' list names the creature ids whose fight serves the order ('*' = any wild animal); the HUD keeps the order card up in combat only then.",
+  "_tutorial_about": "TUTORIAL ISLAND (owner 2026-10-28): the first orders a NEW survivor follows on the shared tutorial island (data/islands/tutorial_isle.json), one system per step. Objectives uses this list while World.tutorial.done is false; the last step (grant_home) opens the Tamed Island pick and ferries the survivor home, then the standing orders below continue from 'tutorial_resume_at'. Extra conditions: near (camp|guild|harbour, radius m), status (a status id is active), resting, did (counts the tutorial records: eat, eat:<item>, kill, build, skill), fire_lit (a fire on this island is burning). point_at is the onboarding pointer: 'ui:<HUD node name>', 'ctx:<context action id>', 'world:camp|guild|bench|firepit|harbour|creature|corpse|water', 'harvest:<item>'; 'a|b' tries a then b; 'have:<item>=X' uses X only while the bag holds the item. Taming is not a tutorial step: vision section 1 says the first bond is discovered in open play, not a guided award.",
+  "tutorial_resume_at": "net",
+  "tutorial": [
+    {
+      "id": "tut_camp",
+      "title": "Report to the Adventurer's Guild",
+      "hint": "Tap the ground or use WASD: the guild hall is in the town up from the dock. Tap it for your orders",
+      "near": "guild",
+      "radius": 6,
+      "point_at": "world:guild",
+      "xp": 15,
+      "t_stones": 1
+    },
+    {
+      "id": "tut_branches",
+      "title": "Gather 3 branches",
+      "hint": "Tap a tree and pick Branch from the wheel",
+      "have": {
+        "branch": 3
+      },
+      "point_at": "harvest:branch",
+      "xp": 20
+    },
+    {
+      "id": "tut_stone",
+      "title": "Pick up 2 stones",
+      "hint": "Loose rock comes up by hand",
+      "have": {
+        "stone": 2
+      },
+      "point_at": "harvest:stone",
+      "xp": 20
+    },
+    {
+      "id": "tut_fibre",
+      "title": "Strip 4 plant fibre",
+      "hint": "Bushes and wild grass, no tool needed",
+      "have": {
+        "fibre_stalk": 4
+      },
+      "point_at": "harvest:fibre_stalk",
+      "xp": 20
+    },
+    {
+      "id": "tut_drink",
+      "title": "Drink fresh water",
+      "hint": "Walk to the stream and tap Drink",
+      "status": "quenched",
+      "point_at": "ctx:drink|world:water",
+      "xp": 20,
+      "t_stones": 1
+    },
+    {
+      "id": "tut_eat",
+      "title": "Eat some berries",
+      "hint": "Pick berries, then eat them from the bag",
+      "did": {
+        "eat": 1
+      },
+      "point_at": "have:berries=ui:BagHex|harvest:berries",
+      "xp": 20
+    },
+    {
+      "id": "tut_rest",
+      "title": "Sit down and rest",
+      "hint": "Tap Rest: sitting recovers fatigue",
+      "resting": true,
+      "point_at": "ctx:rest",
+      "xp": 20
+    },
+    {
+      "id": "tut_twine",
+      "title": "Twist fibre into twine",
+      "hint": "MENU > Craft: 2 fibre twists into twine by hand",
+      "have": {
+        "twine": 1
+      },
+      "point_at": "ui:MenuHex",
+      "xp": 30
+    },
+    {
+      "id": "tut_knife",
+      "title": "Knap a stone knife",
+      "hint": "MENU > Craft, by hand: a stone, a branch and twine. A knife cuts meat from a carcass",
+      "have": {
+        "stone_knife_work": 1
+      },
+      "point_at": "ui:MenuHex",
+      "xp": 40,
+      "t_stones": 1,
+      "warp_gems": 10
+    },
+    {
+      "id": "tut_axe",
+      "title": "Make a work axe at the bench",
+      "hint": "At the camp workbench: a stone, a branch and twine (twist 2 more fibre)",
+      "have": {
+        "work_axe": 1
+      },
+      "point_at": "world:bench",
+      "xp": 50,
+      "t_stones": 2
+    },
+    {
+      "id": "tut_logs",
+      "title": "Fell 2 wood logs",
+      "hint": "The axe opens Wood Log on any tree",
+      "have": {
+        "wood_log": 2
+      },
+      "point_at": "harvest:wood_log",
+      "xp": 40
+    },
+    {
+      "id": "tut_hunt",
+      "title": "Hunt a compsognathus",
+      "hint": "Small and quick. Tap it, then ATTACK",
+      "fight": [
+        "*"
+      ],
+      "did": {
+        "kill": 1
+      },
+      "point_at": "world:creature",
+      "xp": 60
+    },
+    {
+      "id": "tut_butcher",
+      "title": "Butcher the carcass for meat",
+      "hint": "Stand by the body and tap Loot",
+      "fight": [
+        "*"
+      ],
+      "have_any": {
+        "raw_meat": 1,
+        "raptor_meat": 1
+      },
+      "point_at": "world:corpse",
+      "xp": 40
+    },
+    {
+      "id": "tut_fire",
+      "title": "Light the fire pit",
+      "hint": "Tap the stone fire pit by the camp and load a branch: it burns while fuelled",
+      "fire_lit": true,
+      "point_at": "world:firepit",
+      "xp": 30,
+      "t_stones": 1
+    },
+    {
+      "id": "tut_cook",
+      "title": "Cook a Herb Roast",
+      "hint": "Meat (main) + herb (topping) + a branch, at the burning fire pit",
+      "have": {
+        "herb_buff_meal": 1
+      },
+      "point_at": "have:herb_leaf=world:firepit|harvest:herb_leaf",
+      "xp": 60,
+      "t_stones": 2
+    },
+    {
+      "id": "tut_meal",
+      "title": "Eat the Herb Roast",
+      "hint": "Eat it from the bag and watch its buff in the status row",
+      "did": {
+        "eat:herb_buff_meal": 1
+      },
+      "point_at": "ui:BagHex",
+      "xp": 40
+    },
+    {
+      "id": "tut_skill",
+      "title": "Learn a skill",
+      "hint": "MENU > Skills: spend a skill point on any lit node",
+      "did": {
+        "skill": 1
+      },
+      "point_at": "ui:MenuHex",
+      "xp": 40,
+      "t_stones": 1
+    },
+    {
+      "id": "tut_build",
+      "title": "Build a straw bedroll",
+      "hint": "Craft a Straw Roll kit (3 fibre, 1 twine), then BUILD and place it at the camp",
+      "did": {
+        "build": 1
+      },
+      "point_at": "have:straw_roll_kit=ui:BuildHex|ui:MenuHex",
+      "xp": 50,
+      "t_stones": 2
+    },
+    {
+      "id": "tut_ferry",
+      "title": "Board the ferry to your own island",
+      "hint": "Walk onto the dock: you will choose your Tamed Island and sail there",
+      "near": "harbour",
+      "radius": 7,
+      "grant_home": true,
+      "point_at": "world:harbour",
+      "xp": 60,
+      "t_stones": 3
+    }
+  ],
   "steps": [
     {
       "id": "branches",

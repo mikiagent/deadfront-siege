@@ -88,7 +88,8 @@ Driven by the archetype (`ai.json archetypes.<a>.tactics`), not by per-species c
 | horned_charger, antlered | triceratops, styracosaurus; megaloceros | planned: line up, long wind-up straight charge, staggered after a miss |
 | club_tail, spiked_tail (armored) | ankylosaurus; stegosaurus | planned: turn side-on, tail swipe when you are beside or behind |
 | venom_ranged (venom_hunter) | dilophosaurus | planned: keep distance and spit |
-| pack_mule, runner | protoceratops, zebraceratops; gallimimus | planned: flee, kick when cornered |
+| pack_mule (herd grazer) | zebraceratops, protoceratops | **built** (only while provoked): threat display (alert pose, head lowered) into a straight horn charge on a locked line (a sidestep makes it miss and stand staggered), hind kick at point blank with the prey behind it, bluff charges, scurry back; flees when badly hurt; a hit herdmate rallies the herd onto its attacker (`defend_s` 8 s, `guard_m` 16 m from home). Default: flees on sight, fights after 3 hits. Timid: never fights back. Brave: stands its ground and displays, charges if you come within 5 m or hit it. Aggressive: charges on sight |
+| runner | gallimimus | planned: flee, kick when cornered |
 A "berserker" is a nature (Aggressive: shorter cooldowns, more charges), not a class.
 
 ## Spawns
@@ -158,12 +159,34 @@ tier, clamped to [0.05, 0.95]. Roadmap: `docs/design/durango-informed-improvemen
   bait. ASSUMPTION: the doc says the grade improves with preparation but not by how much, so this is
   bait yes / no only.
 
-## Pen (`TamingPen`, building `makeshift_taming_pen`)
-- `try_insert` takes one `captured_animal` from the bag; `BASE_SECONDS` = 30 min of real time,
-  scaled by `Game.time_scale`. Each `feed` costs 1 raptor_meat and sets the remaining time to
-  max(5 s, 60% of what is left).
-- On finish: `SUCCESS_CHANCE` = 0.70 bonds the animal (origin `capture`); failure spawns it back
-  wild and fleeing. At the bonded cap the finished animal stays in the pen unbonded.
+## Pen (`TamingPen`, buildings `makeshift_taming_pen` .. `taming_pen_apex`)
+Owner 2026-10-28: capture first, tame later. A net in the wild (stunned, or at 30 % HP or less) gives a
+`captured_animal` stack in the bag (transport = the bag, `slot_span` 4); it is not tamed. Its size,
+nature and genetics read `???` on the Taming Pen screen until the pen tames it; once bonded, the
+Animals screen shows its stats.
+- `try_insert` takes one `captured_animal` the pen's tier allows (below); `BASE_SECONDS` = 30 min of
+  real time × the nature's `pen_time_mult`, scaled by `Game.time_scale`. Each `feed` costs 1
+  raptor_meat and sets the remaining time to max(5 s, 60 % of what is left).
+- On finish the pen rolls `TamingPen.odds()`: the capture S-curve (`TamingOdds.odds_for_values`) on
+  survival level vs the animal's level, at the capture threshold's health and a tier-1 net (shown on
+  the pen screen as "Tame 64%"). Success bonds it (origin `capture`); failure: it escapes, wild and
+  fleeing. `# ASSUMPTION` (Open Questions P3). At the bonded cap the finished animal stays in the pen.
+- In the world the animal stands in the pen at its own size (genetics body size, never shrunk to the
+  fence), so a big tame overhangs the rails; a floating line reads "Taming 24m 10s".
+
+### Pen tiers (`game/data/taming_pens.json`, owner 2026-10-28; `# ASSUMPTION` defaults, Open Questions P1)
+A pen takes a species when `real_length_m` ≤ its max length AND the species' value ≤ its max value.
+Value = `capture_tier` (1-5); `capture_tier` 0 (cannot be netted) counts as 6. A refused animal stays
+in the bag with "The Ankylosaurus is too big for a Small Taming Pen: it needs a Large Taming Pen."
+
+| Kind | Label | Footprint | Max length | Max value | Kit (workbench unless noted) | Takes |
+|---|---|---|---|---|---|---|
+| `makeshift_taming_pen` | Small Taming Pen | 4×4 | 6 m | 2 | wood 4, lashing 2 (hand) | zebraceratops, compsognathus, coelophysis, protoceratops, velociraptor, megaloceros |
+| `taming_pen_medium` | Medium Taming Pen | 5×5 | 12 m | 4 | wood 8, lashing 4, nails 2 | + gallimimus, deinonychus, dilophosaurus, styracosaurus |
+| `taming_pen_large` | Large Taming Pen | 6×6 | 18 m | 5 | wood 12, lashing 6, stone 6, nails 4 | + smilodon, stegosaurus, utahraptor, ankylosaurus, triceratops |
+| `taming_pen_apex` | Apex Taming Pen | 8×8 | any | 6 | log 8, lashing 8, stone 12, nails 8 | + tarbosaurus, tyrannosaurus |
+
+Saves: a pen row's `kind` is its tier; old rows (`makeshift_taming_pen`) load as the small pen.
 
 ## Natures (owner 2026-10-28)
 

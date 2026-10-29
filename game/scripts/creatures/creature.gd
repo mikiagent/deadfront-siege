@@ -585,10 +585,11 @@ func _physics_process(delta: float) -> void:
 			face_heading(_face_vel, delta)
 		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide); a
 		# brain's named gait (the charge) wins when the rig has it.
+		var facing_prey: bool = brain != null and not is_pet and brain.strafe_face != null and is_instance_valid(brain.strafe_face)
 		if brain and not is_pet and brain.gait_clip != &"":
 			anim.set_gait_clip(brain.gait_clip, speed, dir * speed, global_basis)
 		else:
-			anim.set_move_velocity(dir * speed, global_basis)
+			anim.set_move_velocity(dir * speed, global_basis, CreatureAnim.FACING_SIDE_DOT if facing_prey else CreatureAnim.SIDE_DOT)
 		running = sprint
 	else:
 		velocity.x = 0.0
@@ -773,7 +774,8 @@ func _blood_trail() -> void:
 ## Step outside it and the chase ends (BrainFlight.track). Vertices follow the
 ## terrain so the ring reads on slopes; rebuilt at 10 Hz while the creature moves.
 func _update_aggro_ring(delta: float) -> void:
-	var show := not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()
+	# Debug only (owner 2026-10-28: the ring looks unpolished in normal play).
+	var show := Game.debug_overlay and not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()
 	if not show:
 		if _aggro_ring and _aggro_ring.visible:
 			_aggro_ring.visible = false
@@ -847,6 +849,8 @@ func _on_hit(clip: StringName) -> void:
 		# A contact attack lands at impact, not anywhere the target ran during windup.
 		var offset := global_position - target.global_position
 		if brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3:
+			if target is Player or target is Creature:
+				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
 		if not CreatureAttack.apply_for(self, clip, target, brain.hit_damage_mult(clip, anim.hit_index) if brain else 1.0):
 			return

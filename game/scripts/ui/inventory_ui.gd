@@ -761,6 +761,8 @@ func _select(index: int) -> void:
 	var d := stack.def()
 	var slot := Inventory.slot_for(d)
 	_equip_btn.text = "Equip %s" % (str(EQUIP_LABELS.get(str(slot), slot)) if slot != &"" else "tool")
+	if slot == &"" and inventory.equipped_tool_index == _selected:
+		_equip_btn.text = "Unequip tool"
 	if _place_btn.visible:
 		_place_btn.text = "Place %dx%d" % [maxi(1, d.footprint.x), maxi(1, d.footprint.y)]
 	if _store_btn.visible:
@@ -807,7 +809,8 @@ func _on_equip_pressed() -> void:
 	if slot != &"":
 		inventory.equip_at(_selected, slot) # the exact item selected, not the first of its id
 	elif d and d.tool_class != &"" and d.tool_class != &"none":
-		inventory.set_equipped_tool_index(_selected)
+		# The held tool's button unequips it (back to the best tool in the bag): the HUD's HANDS hex is gone.
+		inventory.set_equipped_tool_index(-1 if inventory.equipped_tool_index == _selected else _selected)
 	_select(_selected)
 
 func _set_quick(i: int) -> void:
