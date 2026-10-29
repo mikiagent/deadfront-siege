@@ -93,11 +93,19 @@ func seed_scene() -> void:
 	# The viewer's Sell picker: every kind of cell (stack, durability, cage, bonded pet, locked).
 	_loot(VIEWER, "bone", 2)
 	_craft_knife(VIEWER)
+	equip_first(VIEWER, "stone_knife_work") # BAGUI: an equipped item the Sell grid shows red
 	capture(VIEWER, "compy_mine_cage")
 	tame(VIEWER, "compy_mine")
 	lock_first(VIEWER, "stone")
 	now += 13 * HOUR
 	tick()
+
+## Wears the first `def` of the account's bag through the real act.equip intent.
+func equip_first(acct: int, def: String) -> void:
+	var slot := _slot(acct, def)
+	var r := bridge.client("act.equip", acct, {"bag_slot": slot}, now) if slot >= 0 else {}
+	if not r.get("ok", false):
+		failures.append("equip %s: %s" % [def, r])
 
 ## Stands in for the Bag's Lock (InventoryUI sets the "locked" flag on a stack): the server has no
 ## lock intent yet, so the same flag goes on the server character's stack.

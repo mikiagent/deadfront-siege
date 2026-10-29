@@ -130,7 +130,7 @@ func open_cancel(v: Dictionary) -> void:
 		if res.get("ok", false):
 			res.say = "Listing cancelled. The item waits in storage: Receive All takes it back. The listing fee is not refunded."
 		return res
-	var info := [["Price", "%s T-stones" % MarketRow._num(int(l.price))], ["Listing fee paid", MarketRow._num(int(l.get("fee", 0)))], ["Ends in", _span(int(l.ends) - screen.client.now())]]
+	var info := [["Price", "%s Gold" % MarketRow._num(int(l.price))], ["Listing fee paid", MarketRow._num(int(l.get("fee", 0)))], ["Ends in", _span(int(l.ends) - screen.client.now())]]
 	screen.confirm.open(v, info, "Cancel listing", cancel, refresh, "", "Keep listing")
 
 ## Takes every stored item and animal into the server bag, one withdrawal each (each with its own

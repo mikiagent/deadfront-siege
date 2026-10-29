@@ -351,7 +351,7 @@ func _status_line(id: String) -> Array:
 	if lvl < need:
 		return ["Needs Survival %d · harbour route" % need, UiTokens.MUTED]
 	var seen := "Visited · " if World.visited_islands.has(id) else ""
-	return ["%sHarbour route · %d T-stones" % [seen, cost], UiTokens.TEXT]
+	return ["%sHarbour route · %d Warp Gems" % [seen, cost], UiTokens.TEXT]
 
 ## The column's foot: facts about this island (the canvas's fatigue / landmarks rows).
 ## ASSUMPTION: no landmark counter exists in code; the rows are island time and islands charted.
@@ -471,7 +471,7 @@ func _place() -> void:
 	_meta.position = Vector2(pad, _title.position.y + _title.size.y)
 	_meta.size = Vector2(pw - pad * 2.0, 18.0 if compact else 26.0)
 	var tile := BuildGrid.tile_of(player.global_position) if player else Vector2i.ZERO
-	_meta.text = "You X %d · Y %d · %s · T-stones %d" % [tile.x, tile.y, LevelDisplay.player_label(), World.t_stones]
+	_meta.text = "You X %d · Y %d · %s · Gold %d" % [tile.x, tile.y, LevelDisplay.player_label(), World.t_stones]
 	var list_top := _meta.position.y + _meta.size.y + (6.0 if compact else 10.0)
 	var cta_h := 64.0 if _cta.visible else 0.0
 	var fact_px := 13 if compact else 18

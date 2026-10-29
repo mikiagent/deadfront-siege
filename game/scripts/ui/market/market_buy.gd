@@ -159,9 +159,9 @@ func open_listing(v: Dictionary) -> void:
 	var l: Dictionary = v.listing
 	var price := int(l.price)
 	var own := int(l.get("seller", -1)) == screen.client.account
-	var why := "This is your own listing." if own else ("You have %d tradable T-stones; this costs %d." % [screen.tradable(), price] if screen.tradable() < price else "")
-	var info := [["Seller", str(l.get("seller_name", "?"))], ["Price", "%s T-stones" % MarketRow._num(price)],
-		["Your tradable T-stones", MarketRow._num(screen.tradable())]]
+	var why := "This is your own listing." if own else ("You have %d tradable Gold; this costs %d." % [screen.tradable(), price] if screen.tradable() < price else "")
+	var info := [["Seller", str(l.get("seller_name", "?"))], ["Price", "%s Gold" % MarketRow._num(price)],
+		["Your tradable Gold", MarketRow._num(screen.tradable())]]
 	var buy := func () -> Dictionary:
 		var res := screen.client.request("market.buy", {"listing_id": str(l.id), "count": 1})
 		if res.get("ok", false):

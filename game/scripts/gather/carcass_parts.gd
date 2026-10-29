@@ -95,7 +95,7 @@ static func reason(part: Dictionary, ctx: Dictionary) -> String:
 		if block != "":
 			return block
 	var def := Data.item(id)
-	if def != null and bool(ctx.get("no_meat", false)) and def.has_category(&"meat"):
+	if def != null and bool(ctx.get("no_meat", false)) and def.has_category(&"raw_meat"):
 		return "meat spoiled"
 	return ""
 

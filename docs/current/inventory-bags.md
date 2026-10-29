@@ -102,33 +102,50 @@ grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in
   The hide is the primary, so the saddle inherits its `tint` (spec 35). Icons: renders of the
   zebraceratops and velociraptor saddle GLBs (`assets/icons/saddle_*.png`; large borrows medium).
 
-## Bag screens (spec 13, `inventory_ui.gd`, INVSCREENS)
-- One sheet docked on the right (68 % of the view, 520-1120 px). Header: Bag tab, `used / capacity`
-  (`Inventory.capacity()`, danger colour when full), the open container's tab, Character, close.
-- Bag page: `BagGrid` + bottom toolbar: Auto Sort (cycles bag order / type / level / name), Filter
-  (all, materials, food, gear, tools, building, rare, locked), Select, Lock, Destroy (two taps);
+## Bag screens (spec 13, `inventory_ui.gd`, INVSCREENS; BAGUI 2026-10-28)
+- One sheet docked on the right (52 % of the view, 520-900 px). Header is `SheetChrome`: ‹ (back to
+  the MENU), tabs **Bag** | the open container | **Character**, the counter `used / capacity`
+  (`Inventory.capacity()`: base 100 + the worn backpack's slots + clothing Pocket; danger colour when
+  full), the `CurrencyBar` (Warp Gems with a placeholder "+", T-stones), ✕. With a container open the
+  Bag tab reads `Bag used / capacity` and the container's `<name> used / capacity`.
+- Body: the **filter rail** on the left (64 px tabs with icon + label: All, Materials, Food, Gear,
+  Tools, Building, Rare, Locked; GOLD when on), the grid, a tip line and the bottom bar:
+  **Sort by** dropdown (Bag order, Level, Rarity, Type, Newest, Name), Select, Lock, Trash (two taps).
   Take all on a take-all container's tab. Sort and filter change only the draw order
   (`BagGrid.view_order`); every cell keeps its real slot index and nothing in the bag moves.
-- Cells: `Lv. N` grey top right (level > 1, non-fungible), blue NEW tag top left, green corner for
-  a rare trait, small lock for a locked item, gold brackets for the selection, blue for batch marks.
+- Cells: `Lv. N` grey top right (level > 1, non-fungible), quality dots along the bottom (one per
+  rarity step, rarity colour), blue NEW tag top left, green corner for a rare perk, small lock for a
+  locked item, gold brackets for the selection, blue for batch marks, and on every selected or marked
+  item a GOLD check badge in the top-left corner (owner 2026-10-28; `BagGrid.Cell._check_badge`, so
+  every screen built on `BagGrid` gets it), red tint for a `blocked` slot (the market's Sell grid:
+  equipped / locked). In Select mode the header counter reads "<n> Select".
 - NEW: uids that enter the bag after `bind` (worn gear coming off is not new). A tap acknowledges
   one; closing the bag acknowledges all. Not saved: a load shows nothing as NEW.
-- Item card (`item_inspect_panel.gd`): floats left of the sheet over the world (over the sheet's
-  left half when the strip is under 220 px). Tan title band, art + level + kind, durability,
-  processing left, damage / armour / storage, food energy and raw/poisoned, traits classed by
-  `InvAttributes` (gold positive and grey negative from `game/data/inv_ui.json`, green rare from
-  `rules.json crafting.rare_attributes`), then only the valid actions (`InventoryUI.valid_actions`:
-  eat / food1 / food2 / inspect / feed / equip / place / store / take / drop). `look_row` +
-  `show_look()` is the empty hook for spec 35's material swatch.
+- Item card (`item_inspect_panel.gd`): floats left of the sheet (over its left half when the strip
+  is under 220 px). Tan title band, art + level + kind + quality line (rarity, dots, Flawless), tag
+  chips (the def's categories, no `tier_*`), the facts (durability, processing left, damage /
+  armour / storage, energy, raw / poisoned, locked, unstable), then sections **Traits** (gold
+  positive, grey negative), **Perks** (green rare traits with their tier, "Black Sheen IV"),
+  **Info** (flat-top hex swatches of the instance's tint and a light and dark tone, with the hex
+  code; # ASSUMPTION: items carry one colour), **Maintenance** ("Repair: Not Possible": no item
+  repair exists; recipes.json `repairs` is unread data), **Craft into** (recipes that take the item
+  by category / allowed id / preferred id, at most 8). Under it the valid smaller actions and the
+  big GOLD **Use** (`InventoryUI.use_action`: eat, else equip, else place; disabled otherwise).
+- Rummage (BAGUI): opening the bag or a container calls `PlayerAnim.start_rummage` (clip `rummage`
+  from claude/mmo-rummage, looping; idle while the clip is missing; not mounted / swimming / asleep /
+  busy); closing calls `stop_rummage` (back to idle). Any move (stick, keys, a tap-to-walk route)
+  closes the bag (`InventoryUI._process`).
 - Containers (`show_storage`, `show_pet_bag` = "<name> cargo"): their own tab with the same grid;
-  a tap selects, the card's "Transfer to Bag" / "Transfer to <title>" moves that exact instance.
-  A take-only container closes when emptied; a deposit container stays open.
+  a tap selects, the card's "Transfer to Bag" / "Transfer to <title>" moves that exact instance. In
+  Select mode the bag tab's bar has **Deposit** and the container tab's **Withdraw** (what does not
+  fit stays; locked items and the held tool are skipped). A chest opens here from its structure
+  sheet. A take-only container closes when emptied; a deposit container stays open. With a
+  container open the card's big button is "Transfer to <name>". On a phone the header drops the
+  Character tab and the gem "+" (and, with a container open, the T-stone pill) to fit.
 - Character page (full view): portrait, name, title, level, occupation, XP bar, Combat / Crafting /
-  Gathering Power (highest skill in each `inv_ui.json powers` group), My Info Attack / Defense /
-  Accuracy (`InvStats`, computed from what is worn), Detailed Stats; Gear | Decorative tabs
-  (no decorative gear exists yet: the tab says so), presets 1-4 (open at shown level 1/10/30/50),
-  ten slots with faded silhouettes when empty; a tapped worn slot shows its line and Unequip.
-- Every button is >= 64 px; t_invscreens proves no overflow at 844x390 and 1600x900.
+  Gathering Power, My Info, Detailed Stats; Gear | Decorative tabs, presets 1-4, ten slots.
+- Every button is >= 64 px; t_invscreens proves no overflow at 844x390 and 1600x900; t_bagui
+  covers rail, sort, lock vs trash, the header, chest deposit / withdraw and the card.
 
 ## Multi-select, locking, transfer (`bag_grid.gd`, `inventory_ui.gd`)
 - Cell size: 64 px on a phone, up to 120 on desktop; tap vs drag separated at `TAP_DEADZONE` = 12 px.

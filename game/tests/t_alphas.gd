@@ -147,7 +147,7 @@ func _test_loot() -> void:
 			var traits = INV.traits(stack)
 			var has_rare = false
 			for k in traits:
-				has_rare = has_rare or traits[k] == true
+				has_rare = has_rare or (traits[k] is bool and traits[k]) or (str(k) in (load("res://scripts/gather/loot_tables.gd").trait_cfg()["traits"] as Array) and float(traits[k]) >= 1.0)
 			_expect(has_rare, "#%d alpha part %s carries a rare trait (%s)" % [i, stack.def_id, traits])
 		_expect(trophies == int(_rules()["loot"]["trophy_count"]), "#%d alpha carcass has the trophy" % i)
 		var plain: Dictionary = LR.roll_carcass(base, rare, 30, &"", 5, 0, false, _rng(i), false)

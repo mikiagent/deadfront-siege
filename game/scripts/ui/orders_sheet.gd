@@ -208,7 +208,7 @@ static func row(p: Player, i: int) -> Dictionary:
 		return {}
 	var s: Dictionary = all[i]
 	var out := {"title": str(s.get("title", "")), "hint": str(s.get("hint", "")), "index": i, "count": all.size(),
-		"xp": int(s.get("xp", 0)), "t_stones": int(s.get("t_stones", 0))}
+		"xp": int(s.get("xp", 0)), "t_stones": int(s.get("t_stones", 0)), "warp_gems": int(s.get("warp_gems", 0))}
 	if i < World.objective:
 		out.merge({"progress": "Done", "frac": 1.0, "done": true})
 	elif i == World.objective and p != null:
@@ -344,7 +344,7 @@ func _build_detail() -> void:
 	_title.text = str(r["title"])
 	_about.text = "Order %d of %d  ·  %s" % [_sel + 1, int(r["count"]), "done" if _sel < World.objective else ("running now" if _sel == World.objective else "%s so far" % str(r["progress"]))]
 	_how.text = str(r["hint"])
-	for chip: String in (["+%d XP" % int(r["xp"])] if int(r["xp"]) > 0 else []) + (["+%d T-stones" % int(r["t_stones"])] if int(r["t_stones"]) > 0 else []):
+	for chip: String in (["+%d XP" % int(r["xp"])] if int(r["xp"]) > 0 else []) + (["+%d Gold" % int(r["t_stones"])] if int(r["t_stones"]) > 0 else []) + (["+%d Warp Gems" % int(r["warp_gems"])] if int(r["warp_gems"]) > 0 else []):
 		var pc := PanelContainer.new()
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(1, 1, 1, 0.08)
