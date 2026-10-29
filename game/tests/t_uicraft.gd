@@ -121,44 +121,33 @@ func _test_d1() -> void:
 	craft._category = ""
 	craft.show_ui()
 	await _frames(3)
+	# CRAFTRADIAL: a right-side pop-out, one page at a time (list, then the recipe's detail).
 	var hb: Control = craft.find_child("CraftHeader", true, false)
-	var left: Control = craft.find_child("CraftLeft", true, false)
+	var sheet: Control = craft.find_child("CraftSheet", true, false)
 	var mid: Control = craft.find_child("CraftMid", true, false)
-	var right: Control = craft.find_child("CraftRight", true, false)
-	_expect(craft.find_child("Station_hand", true, false) != null and craft.find_child("Station_workbench", true, false) != null, "D1: station chooser lists By hand and Workbench")
-	_expect(craft.find_child("Cat_all", true, false) != null and craft.find_child("Cat_weapon_tools", true, false) != null, "D1: category grid has All and Weapons & Tools")
+	_expect(absf(sheet.get_global_rect().end.x - float(_size.x)) < 1.0 and sheet.get_global_rect().position.x > 0.0, "D1: the sheet pops out on the right")
+	_expect(craft.find_child("Cat_all", true, false) != null and craft.find_child("Cat_weapon", true, false) != null and craft.find_child("Cat_tool", true, false) != null, "D1: category tabs have All, Tool and Weapon")
 	var groups: Array = craft._list.get_children().filter(func (n: Node) -> bool: return str(n.name).begins_with("Group_"))
 	_expect(groups.size() >= 2, "D1: the recipe list is grouped (%d groups)" % groups.size())
-	var odds: Label = craft.find_child("DetailOdds", true, false)
-	_expect(odds != null and odds.text.count("%") == 2 and odds.text.count("·") == 2, "D1: detail shows time · success · flawless (%s)" % (odds.text if odds else "none"))
-	_taps_ok(craft, "D1")
-	var one: Control = craft.find_child("CraftOne", true, false)
-	var five: Control = craft.find_child("CraftFive", true, false)
-	var rects := {"header": Rect2(hb.global_position, hb.size), "left": left.get_global_rect(), "mid": mid.get_global_rect(), "right": right.get_global_rect()}
-	_in_view(rects.merged({"craft": one.get_global_rect(), "craft5": five.get_global_rect()}), "D1 panes and Craft buttons")
-	_apart(rects, "D1 header and columns")
+	_taps_ok(craft, "D1 list")
+	var rects := {"header": Rect2(hb.global_position, hb.size), "list": mid.get_global_rect()}
+	_in_view(rects, "D1 list page")
+	_apart(rects, "D1 header and list")
 	for n in ["CraftBack", "CraftClose", "BuildRow"]:
 		var c: Control = craft.find_child(n, true, false)
 		_expect(c != null and c.is_visible_in_tree() and Rect2(hb.global_position, hb.size).encloses(c.get_global_rect()), "D1: %s sits in the header" % n)
-	# Labels in the detail stay inside its column (nothing spills over the right edge).
-	var spill: Array[String] = []
-	for l in craft._detail.find_children("*", "Label", true, false):
-		var lab := l as Label
-		if lab.is_visible_in_tree() and lab.get_global_rect().end.x > right.get_global_rect().end.x + 0.5:
-			spill.append(lab.name)
-	_expect(spill.is_empty(), "D1: detail text stays inside its column (%s)" % [spill])
-	# Weapons & Tools narrows the list; picking the first craftable recipe and Craft starts it.
-	(craft.find_child("Cat_weapon_tools", true, false) as Button).pressed.emit()
+	# Weapons narrows the list; picking the first craftable recipe and Craft starts it.
+	(craft.find_child("Cat_weapon", true, false) as Button).pressed.emit()
 	await _frames(2)
 	var all_ok := true
 	for rec in craft._shown_recipes():
 		all_ok = all_ok and str(rec.get("skill", "")) == "weapon_tools"
-	_expect(all_ok and not craft._shown_recipes().is_empty(), "D1: the Weapons & Tools tile shows weapon_tools recipes only")
+	_expect(all_ok and not craft._shown_recipes().is_empty(), "D1: the Weapon tab shows weapon_tools recipes only")
 	(craft.find_child("Cat_all", true, false) as Button).pressed.emit()
 	await _frames(1)
 	var pick := ""
 	for rec in craft._shown_recipes():
-		if craft._block_reason(rec, craft._station_info("")) == "":
+		if craft._block_reason(rec) == "":
 			pick = str(rec.get("id", ""))
 			break
 	_expect(pick != "", "D1: some hand recipe can be crafted from the test bag")
@@ -168,9 +157,20 @@ func _test_d1() -> void:
 	var row: Button = craft.find_child("Recipe_" + pick, true, false)
 	row.pressed.emit()
 	await _frames(2)
-	var bracket: Node = (craft.find_child("Recipe_" + pick, true, false) as Node).find_child("Brackets", false, false)
-	_expect(bracket != null, "D1: the chosen recipe carries gold brackets")
-	one = craft.find_child("CraftOne", true, false)
+	var right: Control = craft.find_child("CraftRight", true, false)
+	_expect(right.is_visible_in_tree() and not mid.is_visible_in_tree(), "D1: choosing a recipe swaps the list for its detail")
+	var odds: Label = craft.find_child("DetailOdds", true, false)
+	_expect(odds != null and odds.text.count("%") == 2 and odds.text.count("·") == 2, "D1: detail shows time · success · flawless (%s)" % (odds.text if odds else "none"))
+	_taps_ok(craft, "D1 detail")
+	var one: Control = craft.find_child("CraftOne", true, false)
+	var five: Control = craft.find_child("CraftFive", true, false)
+	_in_view({"craft": one.get_global_rect(), "craft5": five.get_global_rect(), "detail": right.get_global_rect()}, "D1 detail and Craft buttons")
+	var spill: Array[String] = []
+	for l in craft._detail.find_children("*", "Label", true, false):
+		var lab := l as Label
+		if lab.is_visible_in_tree() and lab.get_global_rect().end.x > right.get_global_rect().end.x + 0.5:
+			spill.append(lab.name)
+	_expect(spill.is_empty(), "D1: detail text stays inside the sheet (%s)" % [spill])
 	_expect(not (one as Button).disabled, "D1: Craft is enabled for %s" % pick)
 	(one as Button).pressed.emit()
 	await _frames(2)
@@ -190,7 +190,7 @@ func _test_d3() -> void:
 	craft.open_place("capture_net_i")
 	await _frames(3)
 	var place = craft._place
-	_expect(place.visible and not craft._body.visible, "D3: the place-materials view replaces the stations sheet")
+	_expect(place.visible and not craft._body.visible, "D3: the place-materials view replaces the recipe list")
 	var chev: Array = place.find_children("Chevron_*", "", true, false)
 	_expect(chev.size() == 2, "D3: one chevron per slot (%d)" % chev.size())
 	_expect(place._complete.text == "0%", "D3: nothing placed reads 0%% (%s)" % place._complete.text)

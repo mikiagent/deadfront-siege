@@ -28,6 +28,10 @@ var rot_step: int = 0
 var _rot_manual: bool = false  # once the player rotates, fence/gate auto-alignment stops overriding it
 var _repacked: bool = false  # the kit just paid for came from pack-up: place it without XP
 var piece_tier: StringName = &"thatch"
+## CRAFTRADIAL: a blueprint plot rides the same ghost, grid snap, drag, rotate and confirm as a kit;
+## confirm places a ConstructionSite (BuildFlow.place_site) instead of spending a kit. No materials
+## are asked for here: they go in later through the Construction panel.
+var blueprint: StringName = &""
 var piece_at: Dictionary = {}  # the last StructurePlacer.snap() result while placing a piece
 var _aim: Vector3 = Vector3.ZERO
 var _aim_locked: bool = false  # aim_at() pins the aim (labs, tests); the pointer ray drives it otherwise
@@ -176,7 +180,13 @@ func _ready() -> void:
 	_snap_points.material_override = snap_mat
 	add_child(_snap_points)
 
+## Place blueprint `bp_id` as a construction plot: its station kind's ghost and footprint.
+func begin_blueprint(bp_id: StringName) -> void:
+	begin(BuildFlow._grid_kind(bp_id))
+	blueprint = bp_id
+
 func begin(kind: StringName) -> void:
+	blueprint = &""
 	_ghost_label.position.y = 3.2
 	_last_sync = [Vector2i(999999, 999999), -1, ""]
 	_snap_key = []
@@ -499,6 +509,7 @@ func cancel() -> void:
 	if grid:
 		grid.clear_actor(get_parent() as Node3D)
 	placing = &""
+	blueprint = &""
 	valid = false
 	reason = ""
 	_aim_locked = false
@@ -592,6 +603,17 @@ func confirm(player: Player) -> bool:
 		_snap_key = []  # the grid changed: re-snap (the ghost stays up for the next piece)
 		_sync_grid_state()
 		return _report("place", str(res["reason"]), player)
+	if blueprint != &"":
+		var site := BuildFlow.place_site(player, blueprint, cell, rot_step, grid)
+		if site == null:
+			return false
+		if player.anim and ResourceLoader.exists("res://assets/characters/survivor/anim/kick_dirt.glb"):
+			player.anim.play_clip(&"kick_dirt")  # claude/mmo-rummage's clip, once it lands
+		var cui: Variant = player.get("craft_ui")
+		cancel()
+		if cui != null and cui.has_method("open_site"):
+			cui.open_site(site)
+		return true
 	if not _can_pay(player):
 		print("[build] rejected missing_kit")
 		if player.has_method("notice"):
@@ -1005,6 +1027,8 @@ func _surface_y(x: float, z: float) -> float:
 	return 0.0
 
 func _cost_text() -> String:
+	if blueprint != &"":
+		return "Plot · materials go in later"
 	var kit := _kit_id(placing)
 	if kit == "":
 		kit = str(placing)

@@ -925,6 +925,24 @@ static func recipes_for_station(sid: StringName) -> Array[Dictionary]:
 			out.append(row as Dictionary)
 	return out
 
+## "Craft into...": every recipe with a slot this item's tags satisfy (its categories, through
+## ItemDef.has_category, the one tag check; allowed_ids still narrow a slot). A large leg bone tagged
+## thick_pillar lists Plank, like split wood.
+static func recipes_accepting(def_id: StringName) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var probe := ItemStack.make(def_id, 1)
+	var d := probe.def() if probe else null
+	if d == null:
+		return out
+	for row in Data.recipe_list:
+		if not row is Dictionary:
+			continue
+		for slot: Variant in (row as Dictionary).get("slots", []):
+			if slot is Dictionary and d.has_category(StringName(str((slot as Dictionary).get("category", "")))) and _allowed(slot, probe):
+				out.append(row as Dictionary)
+				break
+	return out
+
 static func missing_ingredient_name(inv: Inventory, rec: Dictionary) -> String:
 	if inv == null or rec.is_empty():
 		return "?"

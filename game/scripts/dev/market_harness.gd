@@ -56,7 +56,10 @@ func client(acct: int = VIEWER) -> LocalMarketClient:
 func seed_scene() -> void:
 	now += int(bridge.econ.engine.L.rules.num("trade_lock_s")) + 1 # new accounts wait out the lock
 	for acct: int in [SELLER_A, SELLER_B, VIEWER]:
-		earn(acct, 25) # Settlers' orders pay 26-36 tradable in the 48 windows earn() waits
+		# Settlers' orders pay 26-36 tradable in the 48 windows earn() waits. The viewer aims higher: it
+		# buys a 20 bone later and must still afford a 12 listing, and how far a window overshoots the
+		# target moves whenever items.json gains a market item (CRAFTRADIAL's metal items left it at 11).
+		earn(acct, 35 if acct == VIEWER else 25)
 	# Seller A: three single branches, two bones, a knife with durability.
 	_gather(SELLER_A, "branch", 5)
 	for i in 3:

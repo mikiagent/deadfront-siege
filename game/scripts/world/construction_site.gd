@@ -23,6 +23,10 @@ var slot_items: Array = []  ## Array[Array[ItemStack]]
 var deposited_by: Dictionary = {}  ## uid -> name
 ## Construction work done so far, in seconds of the blueprint's work_seconds.
 var work_progress: float = 0.0
+## CRAFTRADIAL: the build timer runs by itself once the Construction panel placed every material.
+## # ASSUMPTION: not saved (no save-format change); a reloaded site resumes when its panel reopens
+## ("Start build") or through Work, as before.
+var building: bool = false
 var _pending: Dictionary = {}
 
 func setup(bp_id: StringName, p_owner: String) -> void:
@@ -258,6 +262,14 @@ func work(seconds: float) -> bool:
 	work_progress = minf(secs, work_progress + maxf(0.01, seconds))
 	print("[buildflow] %s work %.1f/%.1f" % [site_id, work_progress, secs])
 	return true
+
+func _process(delta: float) -> void:
+	if not building:
+		return
+	if not materials_ready() or work_done():
+		building = false
+		return
+	work_progress = minf(float(bp().get("work_seconds", 1.0)), work_progress + delta)
 
 ## Tap entry: the construction site sheet (BuildUI). PlayerActions routes a site tap to the UI.
 func interact(player: Player) -> bool:

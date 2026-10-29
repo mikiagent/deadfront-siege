@@ -110,8 +110,55 @@ func _on_menu_action(st: Node3D, action_id: StringName) -> void:
 		&"cauterise":
 			if st is Bonfire:
 				(st as Bonfire).cauterise(player)
+		&"package":
+			BuildPlacer.pack_up_node(st, player)  # the one pack-up: kit + contents back, all or nothing
+		&"remove":
+			remove_station(st, player)
+		&"pen":
+			if st is TamingPen:
+				player.actions.pen_interact(st as TamingPen)
+		&"open":
+			player.actions.open_basket(st)
 		_:
 			print("[craft] unknown station action %s" % action_id)
+
+## REMOVE (confirmed on the radial): demolish a placed building. What it held goes back to the bag
+## (then home cargo, then a loot bag; StructureHealth.salvage), never deleted. Refund per the demolish
+## rule (StructurePlacer.demolish: demolish_refund x health share of the cost): a station's cost is its
+## one kit, and floor(0.5 x 1) = 0, so only the contents come back; PACKAGE is the lossless way.
+## Refused, like pack-up, off your land, for camp pieces and while a process station still runs jobs.
+static func remove_station(st: Node, p: Player) -> bool:
+	if st == null or not is_instance_valid(st) or st.is_queued_for_deletion():
+		return false
+	var why := ""
+	if st.get("is_cargo") == true or st.get("persist_building") == false:
+		why = "Camp pieces stay put"
+	elif not BuildPlacer._on_owned_land(st):
+		why = "Not on your land"
+	elif st is CraftStation:  # a loaded process station first gives its jobs back (COLLECT / TAKE BACK)
+		why = str(st.call("pack_up_block_reason"))
+	if why != "":
+		if p:
+			p.notice("Can't remove: %s" % why)
+		return false
+	var share := float(StructurePiece.defs().get("demolish_refund", 0.5))
+	var h := StructureHealth.of(st, false)
+	var back := BuildPlacer.stored_items(st)
+	var kit := BuildPlacer.kit_for(BuildPlacer.kind_of_building(st))
+	var n := floori(share * (h.fraction() if h else 1.0))
+	if kit != &"" and n > 0:
+		back.append(ItemStack.make(kit, n))
+	StructureHealth.salvage(back, (st as Node3D).global_position, p)
+	var storage: Variant = st.get("storage")
+	if storage is Inventory:
+		(storage as Inventory).load_array([])
+	if st.get("occupant") is ItemStack:
+		st.set("occupant", null)
+	if World.runtime and World.runtime.get("build_grid") is BuildGrid:
+		(World.runtime.get("build_grid") as BuildGrid).release(st)
+	st.queue_free()
+	print("[item] removed %s" % BuildPlacer.kind_of_building(st))
+	return true
 
 func open_station(st: Node3D) -> void:
 	if st == null or not is_instance_valid(st):

@@ -274,6 +274,9 @@
   "shaved_ice": "uncommon",
   "saddle_small": "uncommon",
   "saddle_medium": "uncommon",
-  "saddle_large": "uncommon"
+  "saddle_large": "uncommon",
+  "silver_chunk": "rare",
+  "metal_stick": "uncommon",
+  "metal_nail": "uncommon"
  }
 }
