@@ -68,7 +68,11 @@ static func roll_lot(item: StringName, site_level: int, tool_tier: StringName, s
 	var pc := scaled_chance(float(cfg.get("positive_chance", 0.0)), tier_idx, skill, float(cfg.get("tool_tier_bonus", 0.0)),
 			float(cfg.get("skill_bonus_per_level", 0.0)), float(cfg.get("max_positive_chance", 1.0)))
 	if not pos.is_empty() and rng.randf() < pc:
-		out[str(pos[rng.randi() % pos.size()])] = 1 + rng.randi() % mag
+		var g := str(pos[rng.randi() % pos.size()])
+		var opp: Dictionary = cfg.get("opposites", {})
+		# PERKCAP: never a trait and its opposite on one lot (Soft with Firm); the gold roll is lost.
+		if not out.keys().any(func (k: Variant) -> bool: return str(opp.get(str(k), "")) == g):
+			out[g] = 1 + rng.randi() % mag
 	return out
 
 ## The green rare trait one gathered item rolls (world-design.md:55, PRD:541), or &"" for none.
