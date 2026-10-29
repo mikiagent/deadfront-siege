@@ -620,6 +620,8 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 		if beach_on[i] == 1:
 			bio[i] = beach_id
 	BiomeZones.install(rt, bio)
+	if rt.map_doc != null:
+		rt.map_doc.paint_zones(rt)  # MAPLAB: painted zones win; unset cells keep the generator's
 	PerfTrace.mark("tiles.smooth")
 	_write_tile_image(rt)
 	rt._tile_map_tex = ImageTexture.create_from_image(rt._tile_map_image)
