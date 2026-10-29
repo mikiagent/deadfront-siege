@@ -85,7 +85,8 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 			survivor.roll_dodge(clip, attacker, lands)
 			return false
 		if Telegraph.player_dodged(attacker) or not lands:
-			CombatAvoid.avoided(survivor, attacker)
+			# Stepping out of a telegraphed attack that would have landed trains Defense; a plain miss does not.
+			CombatAvoid.avoided(survivor, attacker, &"dodge", lands and Telegraph.player_dodged(attacker))
 			return false
 		survivor.refresh_equipment_vitals()
 		var defn := (CombatTuning.num("creature_melee", "player_base_defense", 20.0) + survivor.inventory.equipped_armor()) * survivor.statuses.defense_mult()

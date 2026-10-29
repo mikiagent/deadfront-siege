@@ -155,6 +155,31 @@ three times the research total.
   per-family capture nodes (conflict with our Capture Technique ladder), and all 144 records of the other
   11 categories (no SP in the source).
 
-## Pending
-- Defense XP through `CombatAvoid.avoided` (claude/mmo-dodgetext): not on origin/claude/mmo-overhaul
-  when this branch was last merged; Defense XP still comes only from `Player.roll_dodge`.
+## Defense XP through CombatAvoid (after claude/mmo-dodgetext landed)
+- Merged origin/claude/mmo-overhaul (with DODGETEXT). `CombatAvoid.avoided(defender, attacker, how,
+  earned := true)` now pays Defense XP when the defender is the survivor and `earned` is true;
+  `Player.roll_dodge` passes `lands` and no longer pays its own. `CreatureAttack` passes
+  `lands and Telegraph.player_dodged(attacker)`: stepping out of a telegraphed attack that would have
+  landed trains Defense, a plain accuracy miss does not. Creature defenders never get XP. A block passes
+  the default (earned) — no block mechanic exists yet; when one lands it should call
+  `avoided(player, attacker, &"block")` from its "stopped damage" branch.
+- `t_roll`: an accuracy miss pays no Defense XP (new), beside the three existing checks.
+
+## Other test fixes
+- `market_harness.gd`: the viewer now earns 40 T before listing (was 25). The two new tradeable
+  items shift the Settlers' rotating demand, so the viewer ended at 11 tradable against a 12 T
+  cheapest listing (`t_uimarket`). Verified: canon passes; canon + this branch's items.json fails;
+  with the harness fix it passes.
+- `t_skilltrees`: 214 nodes, `spiky_armor` in the Tailoring baseline. `t_levelfx`, `t_skillfeel`,
+  `t_w2_skills`: level-ups of gated trees go through a research run out on a test clock
+  (`clock_override`). `t_data` / `t_iconart`: rarity and armour icon aliases for the new items.
+
+## Verification (2026-10-29)
+- `tools/all_tests.sh`: 134 tests. Full run: 128 pass. The 6 failures were rerun one at a time:
+  t_rest, t_save, t_uigather, t_dismount and t_eyetrails pass (they share user:// or measure frame time,
+  and the box was running ~180 Godot processes). **t_buildspeed still fails on load:** home island
+  build 2571 ms against a 2500 ms budget. The same test failed at 3454 ms before any change of mine.
+  Nothing here touches island building.
+- `tools/smoke.sh --no-import`: SMOKE PASS.
+- `skillfeel_lab` (windowed, `--position 6000,3000`): batch, sweep and research shots taken. It exits 1
+  on "no skillpulse block" (the MENU hex halo; not touched here).

@@ -258,6 +258,11 @@ func _test_iframes() -> void:
 	_expect(is_equal_approx(_defense_total(), xp0), "a bite that lands pays no Defense XP (%.1f)" % (_defense_total() - xp0))
 	while player.rolling:
 		await physics_frame
+	# A bite that simply misses (the accuracy roll) is avoided but earned nothing: no Defense XP.
+	CT.force_accuracy = 0.0
+	var xp_miss := _defense_total()
+	var landed_miss: bool = CA.apply_for(raptor, &"attack_primary", player)
+	_expect(not landed_miss and is_equal_approx(_defense_total(), xp_miss), "an accuracy miss pays no Defense XP (landed %s, %.1f)" % [landed_miss, _defense_total() - xp_miss])
 	CT.reset_overrides()
 	await _clear_creatures()
 

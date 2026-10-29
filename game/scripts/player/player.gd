@@ -440,9 +440,7 @@ func roll_dodge(clip: StringName, who: Creature, lands: bool) -> void:
 	if sim == null:
 		return
 	_roll_dodged_frame = Engine.get_physics_frames()
-	CombatAvoid.avoided(self, who)  # "Dodged" floats over her: the hit never touched her
-	if lands and skills:
-		skills.add_xp("defense", RollRules.defense_xp())
+	CombatAvoid.avoided(self, who, &"dodge", lands)  # "Dodged" floats over her; Defense XP only if it would have landed
 	print("[combat] dodged by roll %s %s t=%.2f xp=%s" % [who.def.id if who and who.def else "?", clip, sim.roll_elapsed(), lands])
 
 ## Hit reaction; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse). The
