@@ -116,15 +116,18 @@ Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
   Swim_Idle_Loop on the survivor skeleton; the rig is lifted +0.45 m / -0.4 m to sit in the water.
 
 ## Food & relief
-- No satiety meter in this build (`game/scripts/items/eat_session.gd`): eating pays instant Energy
-  now + digested Energy on a schedule (`digest_seconds`), and always applies the `full` status
-  (default 10 s; the bundle may extend it) — the only eating gate (`Food.can_eat` refuses `full`).
+- Eating (`game/scripts/items/eat_session.gd`) pays instant Energy now + digested Energy on a schedule
+  (`digest_seconds`), adds the food's `fullness` to the stored stomach (HUNGER memo 2026-10-29; the
+  stomach is the satiety number, not a second meter), and always applies the `full` status (default 10 s;
+  the bundle may extend it) — the eating gate (`Food.can_eat` refuses `full`, and refuses a meal while the
+  stomach is overfull).
 - Relief: a food's own `fatigue` row applies directly (negative eases current fatigue, positive
   adds it). Foods without a spec-32 bundle (dried/smoked outputs) keep the legacy path:
   `Vitals.eat()` — rest of 25% × ((instant + digested) × 1.5) — plus their `fatigue_relief` row.
   Raw-food rolls can add `stomachache` / `tastes_bad`.
 - Autofeed (`player_sim.tick_autofeed`): a quick-slot food auto-eats when Energy ≤ 50% of base max
-  or fatigue ≥ 60% of base max, outside combat, near-idle; 12 s cooldown after a bite.
+  or fatigue ≥ 60% of base max or the stomach is Peckish (below 30 points; HUNGER memo 2026-10-29),
+  outside combat, near-idle; 12 s cooldown after a bite.
 - Warming/Cooling meals, dried/smoked relief and capacity buffs (Dutch Coffee's max-fatigue
   ceiling): per-food numbers in items-traits.md; buffs live in `BuffSlots`.
 
