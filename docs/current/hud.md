@@ -24,10 +24,13 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
     (`HuntHud._trail`, `bar_trail`): a loss drops the fill at once and a pale ghost holds the old value
     0.4 s (`TRAIL_HOLD`) then eases down; a gain puts the ghost at the new value and the fill eases up to it
     (`TRAIL_EASE` 6/s). The mounted energy bar trails under its own key.
-  - Under the bars the tier word (RESTED / WORN / TIRED / EXHAUSTED), then the treadmill belt. The exhaustion
-    face rides the belt like a sticker (owner): white peel rim and shadow, centred on the strain marker.
-- Stomach indicator (HUDRULES rounds 1 and 3; moved by the owner 2026-10-28 "by the buffs/debuffs"): the
-  first item of the status row under the vitals, chip-sized (38 px; `hud_stomach.gd`):
+  - The treadmill belt sits right under the energy bar (HUDTWEAK, owner 2026-10-28: no tier word; the
+    face sticker says the tier). The exhaustion face rides the belt like a sticker: white peel rim and
+    shadow, centred on the strain marker.
+- Stomach indicator (HUDRULES rounds 1 and 3; HUDTWEAK, owner 2026-10-28 "make hunger bigger and centered
+  underneath level"): the level badge's size (radius `HudLevelBadge.R`), centred under the badge
+  (`HudLayout.stomach_circle`), drawn block `stomach`. A landscape phone's whistle row hangs under the bars
+  (right of the ring) and the chip row drops under it while it shows. `hud_stomach.gd`:
   - Inner ring = fullness. A full stomach is a complete circle, and it degrades clockwise: the lit arc
     always ends at 12 o'clock, and the gap opens from 12 o'clock clockwise (`HudStomach.arc_for`). The
     colour comes from bands blended between stops (`STOPS`): red empty (< 0.1), yellow hungry
@@ -51,7 +54,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   the mount's name leads the numbers (a phone bar shows only the numbers when the name does not fit; the segmented darker blue still says "mount").
   It goes back to the survivor's blue stamina on dismount (`HuntHud.energy_reading`). The exhaustion
   face and treadmill always belong to the survivor, and the mount running does not move them.
-- Status chips row under the vitals, after the stomach ring (HUDRULES, owner 2026-10-28; `hud_buff_row.gd`).
+- Status chips row under the vitals, starting at the health bar's left edge (HUDTWEAK; HUDRULES, owner 2026-10-28; `hud_buff_row.gd`).
   Owner 2026-10-28: larger and black and white: 38 px chips (`CHIP`, 44 px pitch), black tile, white rim
   (GOLD while its tooltip shows), white icon, and the one colour a corner arrow badge: blue up
   (`UP_BLUE`) for a buff or boon, red down (`DOWN_RED`) for a debuff; the countdown sits under it, outlined.
@@ -222,8 +225,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   last creature attacked (within 40 m) until it dies or a new one is hit.
 - Context hexes (70 px, rescanned every 0.3 s from `player.context_actions()`) offer Wash, Fill,
   Rest, etc. and hide in combat. They run right to left along the bottom from SPRINT (wrapping one row
-  up, clear of the quick slots). CLAIM is a gold-rim hex (52 px desktop, 64 phone) right-aligned under the
-  minimap's "X Y" line; icon-only on a landscape phone (ASSUMPTION: no room for a caption there). Claiming while already
+  up, clear of the quick slots). CLAIM is a gold-rim hex (52 px desktop, 64 phone) centred just above the
+  day/night dial's face (HUDTWEAK, owner 2026-10-28 "Move claim to above the day/night UI"; its caption
+  fits between them on desktop, where the expanded quest card shifts left of it); icon-only on a landscape phone (ASSUMPTION: no room for a caption there). Claiming while already
   holding land here opens the ClaimPanel confirm; it cancels on walking away, moving placement, or
   a second tap. Ground-placing anchors a ROTATE / SAVE / CANCEL hex row near the ghost via a
   scored clear-spot sweep (`HudLayout.placer_anchor`), clear of the build drawer (`BuildUI.taken_rects`);

@@ -3,7 +3,7 @@ extends SceneTree
 ## a Brave herd lowers its head (display) and then horn-charges, a default zebra flees on sight and only
 ## fights after three hits, a Timid one never fights back, a hit herdmate rallies the herd (defend), a
 ## sidestepped charge misses and staggers, the hind kick fires only with the prey behind it, and a
-## grazer stands down once the prey is past guard_m.
+## grazer stands down once the prey is past guard_m, and a landed charge (a ram) shoves her back.
 ## Usage: godot --headless --path game --script res://tests/t_zebra.gd  -> "[t_zebra] PASS"
 
 const TIME_SCALE := 2.0
@@ -176,6 +176,31 @@ func _run() -> void:
 	_expect(engaged and not g.brain._provoked() and glog.has(&"stand_down"), "past guard_m it stands down (engaged %s, provoked now %s, %s)" % [engaged, g.brain._provoked(), _head(glog)])
 	player.global_position = Vector3(0, 0.9, 0)
 	_free([g])
+
+	# 8. The charge is a ram (owner 2026-10-29: "tackling/ramming"): a landed one shoves her back along its line.
+	player.process_mode = Node.PROCESS_MODE_INHERIT
+	player.global_position = Vector3(0, 0.9, 0)
+	var ram = _herd(1, 0, &"brave", Vector3(0, 0.1, -8))[0]
+	var rlog := _listen([ram])
+	var at_hit := [Vector3.INF]
+	ram.brain.tactic.connect(func(kind: StringName) -> void:
+		if kind == &"charge_hit":
+			at_hit[0] = player.global_position)
+	ram.brain.attack_target = player
+	ram.brain._provoked_until = ram.brain._now_s() + 30.0
+	ram.brain._start_charge()
+	var line: Vector3 = ram.brain._charge_dir
+	for i in 30:
+		await _sim(0.1)
+		if at_hit[0] != Vector3.INF:
+			break
+	var pushed_s := float(tac.get("charge_shove_stagger_s", 0.6))
+	await _sim(pushed_s + 0.1)
+	var moved: float = (player.global_position - at_hit[0]).dot(line) if at_hit[0] != Vector3.INF else 0.0
+	_expect(rlog.has(&"charge_hit") and moved >= 0.6 * float(tac.get("charge_shove_m", 2.5)), "a landed ram shoves her back along its line (%.2f m, want ~%.1f; %s)" % [moved, float(tac.get("charge_shove_m", 2.5)), _head(rlog)])
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	player.velocity = Vector3.ZERO
+	_free([ram])
 
 	load("res://scripts/combat/combat_tuning.gd").reset_overrides()
 	if failures.is_empty():

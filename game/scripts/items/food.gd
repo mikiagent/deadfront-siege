@@ -127,7 +127,12 @@ static func inspector_text(stack: ItemStack) -> String:
 static func can_eat(player: Player, stack: ItemStack) -> String:
 	if player == null or stack == null or not is_food(stack):
 		return "not_food"
-	if player.statuses and player.statuses.has(&"full"):
+	# Owner 2026-10-28 bug ("I can't select eat again the second time"): every finished meal applies
+	# the Full status for its full_seconds, and this gate refused any eat while it lasted, so a second
+	# berry silently failed for 10 s. The stomach itself decides now: only an overfull stomach
+	# (Digestion fullness over OVERFULL_ABOVE) refuses. Full stays a status for its other effects.
+	var dig := Digestion.of(player)
+	if dig != null and dig.fullness() > Digestion.OVERFULL_ABOVE:
 		return "full"
 	return ""
 
