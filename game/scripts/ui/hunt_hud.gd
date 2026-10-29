@@ -214,6 +214,19 @@ var _skills_watched: SkillState = null
 const SKILL_PULSE_TICK := 0.25
 var skills_pulse_on: bool = false
 var _pulse_check: float = 0.0
+## HUDREDRAW probes and tests: how many times the HUD and its minimap have painted (t_hudredraw reads
+## them to count redraws while nothing changes).
+var draw_count: int = 0
+var map_draw_count: int = 0
+var draw_usec: int = 0  ## script time the HUD's own _draw has spent (t_hudredraw compares before/after)
+var map_draw_usec: int = 0
+## HUDREDRAW: the values the paint reads, as drawn (see _hud_sig). _process repaints only when this
+## changes, or while a piece animates (_animating). Every input of _draw must be in here.
+var _sig: Array = []
+var _sig_ready := false
+## Seconds since the last paint: the belt's drift and the pill timers only need whole-pixel / whole-
+## second resolution, so an idle HUD answers 0 redraws a second.
+var _since_draw := 0.0
 
 func _watch_skills() -> void:
 	if player == null or player.skills == null:
@@ -1566,8 +1579,12 @@ func _process(delta: float) -> void:
 		_pulse_check = SKILL_PULSE_TICK
 		_refresh_skill_pulse()
 	_domain.tick(delta, World.runtime, player.global_position)
-	_minimap.queue_redraw()
-	queue_redraw()
+	# The stomach ring's fill and its eased glyph scale (drawn, but read here so the paint is pure).
+	stomach_fill = HudStomach.fullness_of(player)
+	stomach_saturation = HudStomach.saturation_of(player)
+	stomach_state = HudStomach.state_of(stomach_fill)
+	stomach_glyph_scale = move_toward(stomach_glyph_scale, float(HudStomach.GLYPH_SCALE[stomach_state]), delta * HudStomach.SCALE_SPEED)
+	_tick_redraw(delta)
 
 ## The bottom level bar: a track, the green fill, and a gap after every `unit` XP of the level's
 ## `cost` (the last segment is what is left over, so widths stay proportional to XP).
@@ -1581,6 +1598,13 @@ func _draw_xp_bar(rect: Rect2, xp: int, cost: int, unit: int) -> void:
 		gap_x += step
 
 func _draw() -> void:
+	# HUDREDRAW: the paint is one function (`_draw_hud`) so the probe can count and time it.
+	var t_draw := Time.get_ticks_usec()
+	draw_count += 1
+	_draw_hud()
+	draw_usec += Time.get_ticks_usec() - t_draw
+
+func _draw_hud() -> void:
 	if player == null or player.dead:
 		return
 	var r := get_viewport_rect().size
@@ -1627,10 +1651,7 @@ func _draw() -> void:
 	energy_bar_segments = UiTokens.MOUNT_ENERGY_SEGMENTS if en.name != "" else 0
 	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), energy_bar_color, "", en_text, num_px, energy_bar_segments, StringName("en:" + en.name))
 	yy += big + gap
-	stomach_fill = HudStomach.fullness_of(player)
-	stomach_saturation = HudStomach.saturation_of(player)
-	stomach_state = HudStomach.state_of(stomach_fill)
-	stomach_glyph_scale = move_toward(stomach_glyph_scale, float(HudStomach.GLYPH_SCALE[stomach_state]), get_process_delta_time() * HudStomach.SCALE_SPEED)
+	# HUDREDRAW: kept up to date (and eased) by _process; the paint only reads them.
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
 	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
 	# Owner 2026-10-27: this row is a treadmill — the tread chevrons point and scroll right while
@@ -2104,6 +2125,12 @@ func _ensure_map_texture() -> void:
 	_map_span = span
 
 func _draw_minimap() -> void:
+	var t_draw := Time.get_ticks_usec()
+	map_draw_count += 1
+	_draw_minimap_body()
+	map_draw_usec += Time.get_ticks_usec() - t_draw
+
+func _draw_minimap_body() -> void:
 	var c := _minimap
 	# LEVELBADGE (owner 2026-10-28): no square box; the map is a disc drawn as a UV polygon (clipped by
 	# geometry, so nothing covers the corners), framed by a shadowed metal rim.
