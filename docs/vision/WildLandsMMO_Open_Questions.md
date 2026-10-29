@@ -83,6 +83,17 @@ Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tri
 | **T14** | Away from home only following members come along; working and staying members remain at home. There is no expedition slot limit yet (vision §7 says three shared slots). | `TribeDirector.sync` | Party size on trips. |
 | **T15** | Work reach: a worker stands at the visible edge of a node (card or mesh footprint) plus 0.3 m. | `HarvestNode.visual_radius` | Visual only. |
 
+## 2026-10-28 — Stations and pens (claude/mmo-stationstate)
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **P1** | Four pen tiers: small (≤ 6 m, value ≤ 2), medium (≤ 12 m, ≤ 4), large (≤ 18 m, ≤ 5), apex (any). Value = capture_tier, 0 counts as 6. Footprints 4/5/6/8 m. | `game/data/taming_pens.json` | Which dinosaurs each pen tames; the owner said "largely based on size and how good the dinosaur is". |
+| **P2** | Bigger pens cost wood/lashing/stone/log plus nails at a workbench, need the existing `taming_pen` node. | `recipes.json` `taming_pen_*_kit` | Progression pacing. |
+| **P3** | The pen rolls the capture S-curve (survival level vs animal level, health term 0, tier-1 net) instead of a flat 70 %; failure = the animal escapes wild. Size, nature, genetics show `???` until tamed (colours and level stay visible; the pen wait still follows the hidden nature). | `TamingPen.odds`, `TamingPenUI` | Taming difficulty; whether the wait leaks the nature. |
+| **P4** | `metal_nails`: 4 from 1 ingot + 1 fuel at the forge (node `nails_pillars`); required by the medium/large/apex pens (2/4/8). No other station needs them yet: kiln, oven, tanning frame, large drying rack and looms are not buildable kinds. | `items.json`, `recipes.json` | The owner wants nails to gate the next station tier. |
+| **P5** | The stone grill is the cooking station that shows the spit; no oven or tanning frame kind exists, so neither has a station-state row (one row in `station_state.json` once they do). The forge body is built from data boxes until a forge GLB lands. | `station_state.json` | Art and station roster. |
+| **P6** | Work loops per station: workbench/anvil/mortar hammer, grill/crock pot/steamer stir, rack/smoker hang, forge forge, tanning frame tan; `play_work(kind)` gets the short kind (clip `work_<kind>`). | `station_state.json` `work_anim` | Must match claude/mmo-rummage's PlayerAnim API. |
+
 ## Parked by other docs
 
 Each vision doc's unresolved points remain inside that doc until the workshop; the sections listed below are the owners' pointers, collected here only for reachability:

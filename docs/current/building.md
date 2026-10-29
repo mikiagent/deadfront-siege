@@ -100,6 +100,31 @@ Three kit-placed fires share `game/scripts/world/bonfire.gd` (`Bonfire`); their 
 - Station: HUD chip falls back to `CraftStation.quality_chip_text()` when idle, which reads
   `ProcessStation.label_text()`.
 
+## Station state is visible (owner 2026-10-28)
+"The state of the stations shows what is happening at the station." Code: `StationState`
+(`game/scripts/world/station_state.gd`, data `game/data/station_state.json`), `ProcessFx`, `FieldPlot`.
+
+| Station | Idle | Working |
+|---|---|---|
+| Stone grill (the cooking station) | bare grill | spit posts, rod and roasting meat, embers, warm light |
+| Forge (data-built hearth: no GLB yet) | cold dark coals | hot emissive coals, glowing billet, orange light, sparks |
+| Drying rack | empty rack model | raw → drying → dried strip models, smoke |
+| Smoker / crock pot / steamer | empty | strips / bowls per job, smoke or steam, glow |
+| Farm plot | bare soil | plant rows through sprout / young / growing / mature (failed wilts brown), floating "1m 30s" / "Ready" |
+| Taming pen | empty fence | the animal at full size, "Taming 24m 10s" |
+| Worksite (`ConstructionSite`) | dirt patch of its footprint, faint grey round symbol of the station's kit icon, "Building 40%" | completion swaps it for the station |
+
+Busy = a ProcessStation job runs, or a survivor's stand-and-craft (`StationCraft.crafting`) is at that
+station. While the survivor works she plays the station's loop (`work_anim` in station_state.json:
+hammer, stir, hang, forge, tan → `PlayerAnim.play_work(kind)` once claude/mmo-rummage lands; the old
+craft loop until then) and the craft card floats over the station. Fires belong to claude/mmo-firefuel.
+No tanning frame or oven kind is buildable yet (`# ASSUMPTION`, Open Questions P5).
+
+## Metal nails gate tier-2 stations (owner 2026-10-28)
+`metal_nails` (Metal Nails ×4 from 1 ingot + 1 fuel at the forge, skill node `nails_pillars`) are
+required by the medium (2), large (4) and apex (8) taming pens. `# ASSUMPTION` amounts and stations
+(Open Questions P4).
+
 ## Releasing land under a building (UNCLAIM, 2026-10-28)
 
 A Domain plot can be given up from the Domain screen or the CLAIM panel, one plot at a time, through

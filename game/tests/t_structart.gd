@@ -21,7 +21,7 @@ const MAX_TRIS := 4000
 const TOL := 0.05
 ## Rows whose GLB is one piece of a larger assembly: aabb_m is the assembly (the collider), which must
 ## cover the footprint; the piece itself is only checked for triangles and material.
-const ASSEMBLIES := ["taming_pen"]
+const ASSEMBLIES := ["taming_pen", "taming_pen_medium", "taming_pen_large", "taming_pen_apex"]
 ## W1-HARBOUR's t_harbour: the dock must be a composite of at least this many meshes.
 const HARBOUR_MIN_PARTS := 20
 

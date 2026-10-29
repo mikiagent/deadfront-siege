@@ -281,8 +281,7 @@ func _start_craft_cycle() -> void:
 	# CRAFTFEEL (plan §3.3): the odds and the loss warning ride on the live craft card, not only on
 	# the menu's detail pane, so the stakes stay on screen while the survivor works.
 	_show_card(rec)
-	if player.anim:
-		player.anim.on_gather(&"craft")
+	_play_work()
 	if station and is_instance_valid(station):
 		player.face_world(station.global_position)
 	player.clear_nav()
@@ -447,6 +446,7 @@ func _finish_one() -> void:
 		if card:
 			card.hide_card()
 		_hide_ring()
+		_stop_work()
 		recipe_id = &""
 		_hand_craft = false
 
@@ -455,6 +455,22 @@ func cancel_and_refund() -> void:
 	if crafting:
 		print("[craft] cancelled %s; inputs stay in the bag" % recipe_id)
 	_clear_session()
+
+## The survivor's work loop at the station (station_state.json `work_anim`: hammer at the workbench,
+## stir at the grill, forge at the forge...). PlayerAnim.play_work(kind) plays clip "work_<kind>" when
+## that branch has landed; without it the old craft gather loop plays.
+func _play_work() -> void:
+	if player.anim == null:
+		return
+	var kind := StationState.work_kind(station_id_of(station)) if station and is_instance_valid(station) else &""
+	if kind != &"" and player.anim.has_method("play_work"):
+		player.anim.call("play_work", kind)
+	else:
+		player.anim.on_gather(&"craft")
+
+func _stop_work() -> void:
+	if player and player.anim and player.anim.has_method("stop_work"):
+		player.anim.call("stop_work")
 
 func _clear_session() -> void:
 	crafting = false
@@ -470,6 +486,7 @@ func _clear_session() -> void:
 	if card:
 		card.hide_card()
 	_hide_ring()
+	_stop_work()
 	close_radial()
 	close_menu()
 
