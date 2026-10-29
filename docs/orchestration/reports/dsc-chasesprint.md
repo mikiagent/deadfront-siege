@@ -38,6 +38,9 @@ toggle sprint to chase it".
 `bash .../dsc/verify_chasesprint.sh` → VERIFY PASS: `t_chasesprint`, `t_controls`, `t_combat`,
 `t_movepriority`, `tests/run_all.gd`, `tools/smoke.sh --no-import`.
 
+Headless only: every run used `--headless --path game --script res://tests/<t>.gd`; no windowed Godot
+was started and no Meshy credits were spent.
+
 ## Notes for the next agent
 
 - Chase sprint is a flag, not a HUD state: the SPRINT hex stays unlit while it is on. Logged as CS4.
