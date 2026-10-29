@@ -158,6 +158,8 @@
     "silver_chunk": "metal_shard",
     "metal_stick": "ingot",
     "alpha_trophy": "raptor_talon",
+    "alpha_hide": "raptor_hide",
+    "alpha_fang": "raptor_talon",
     "taming_pen_kit": "fence_kit",
     "metal_nails": "ingot",
     "taming_pen_medium": "makeshift_taming_pen",

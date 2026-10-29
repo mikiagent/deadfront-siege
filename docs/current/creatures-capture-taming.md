@@ -219,7 +219,8 @@ above (it never replaces them and never edits a species' stats). Table:
   `FieldTame` (window, feeds, completion) and `TamingPen` (wait at insert, nature carried on the
   captured stack by `CaptureSystem`) read them. Spec 09's capture rule is unchanged.
 - Name and tag (owner 2026-10-28: "put it as a tag under their name, not in the name itself"): the
-  name is the animal's own — species, with the colour variant or "Alpha" (a genetic alpha, or the pack leader) in front:
+  name is the animal's own — species, with the colour variant (or "Alpha" for a plain pack leader; a
+  genetic alpha wears the `ALPHA` prefix chip instead, see Alphas below) in front:
   "Velociraptor", "Alpha Velociraptor". The nature is a small chip directly UNDER that name, its
   short label only ("Timid"), built by `game/scripts/ui/nature_chip.gd` (`NatureChip`, the spec §5
   trait chip in its gold/positive style) and fed by `CreatureNatures.tag_for()` / `tag()`. Shown on
@@ -288,13 +289,34 @@ an `# ASSUMPTION` (Open Questions G5-G12).
 - Pack aura (`Creature.pack_aura_mult`): a living wild alpha gives packmates within 12 m attack x1.15,
   defense x1.1 and speed x1.1; nothing outside the radius, for the alpha itself, other packs or pets.
 - Loot (`Corpse.alpha` -> `ButcherLoot.roll_into`): `LootRoller.roll_carcass(..., rares_guaranteed)` drops
-  every rare row (skill-node gates still apply), `ButcherLoot.alpha_extras` stamps one rare trait on every
-  part and adds one `alpha_trophy` (new item, epic, `items.json`). XP: `Creature.kill_xp_mult` 4x for the
-  survivor's melee XP and the pets' kill XP.
-- Name: "Alpha" stays in the name (`CreatureNatures.display_title`: a genetic alpha always, otherwise the
-  pack leader as before), with the nature chip under it.
-- Tamed: a tamed alpha keeps size, colours and the name, not the stat buffs or the aura.
-- Test: `game/tests/t_alphas.gd`.
+  every rare row (skill-node gates still apply), `ButcherLoot.alpha_extras` rolls the ALPHA-ONLY pool first
+  (see below), stamps one rare trait on every part (the pool's parts included) and adds one `alpha_trophy`
+  (epic, `items.json`). XP: `Creature.kill_xp_mult` 4x for the survivor's melee XP and the pets' kill XP.
+- Alpha loot pool (owner 2026-10-29: "special loot pools specific to alpha animals"): `loot_tables.json`
+  `"alpha"` holds `pool` (the default, every species) and `by_species` overrides (`tyrannosaurus`,
+  `tarbosaurus`, `allosaurus` get two units of each part). `LootTables.alpha_pool/alpha_pool_ids` read it,
+  `LootRoller.roll_alpha_pool` rolls one instance per unit at the carcass level, and only
+  `ButcherLoot.alpha_extras` (an alpha carcass) calls it. Items: `alpha_hide` (hide, rare) and `alpha_fang`
+  (bone, rare), both `source_pending` (no recipe yet). Every id is `items.json`-checked and no normal
+  butchering table may name one (`game/tests/t_data.gd` walks it; `t_alphas` proves a normal carcass never
+  drops one).
+- Name (owner 2026-10-29: "Alpha should be a tag in front of the name (prefix tag)"): a genetic alpha's
+  name carries no "Alpha" word. The plate draws a solid gold `ALPHA` chip (`ui/alpha_chip.gd`, `AlphaChip`)
+  in front of the name — world plate (`CreaturePlates`, the name label starts to its right and its ellipsis
+  budget shrinks by the chip) and the HUD target plate (`HuntHud._draw_target_plate`, `target_rows["alpha"]`).
+  Plain-text surfaces (carcass pill, `Loot · …` title, "Nothing left on the …") use
+  `CreatureNatures.tagged()` = "[ALPHA] Deinonychus". `CreatureNatures.alpha_tag/tagged_title` are the
+  helpers; `display_title` drops the word for a genetic alpha and keeps it for a plain pack leader.
+- Not tamable, not capturable (owner 2026-10-29): `FieldTame.ALPHA_REFUSAL` =
+  "Alphas can't be tamed." Every path refuses: `FieldTame.capture_window/can_attempt/begin_window/apply_feed`,
+  `CaptureSystem.attempt`, `Hunt.use_net`, `PlayerActions.begin_field_tame`, `Creature.capturable()`,
+  `TamingPen.refuse_stack` (a stack whose genome is alpha — a cage saved before this rule — is refused
+  too), and the server's `act.tame` / `act.capture` (they read the creature record's `alpha` flag). The
+  capture hint and the plate's tame row never appear for an alpha (`can_attempt` is false).
+- A tamed alpha is no longer a case: no new one can be tamed. A pet record that already holds an alpha
+  genome keeps its size and colours, not the stat buffs or the aura (`Creature.alpha_stat_mult`).
+- Test: `game/tests/t_alphas.gd` (tag text/rect, prefix geometry on the plate, refusals on every capture
+  path, pool drops and the normal-carcass counter-check).
 
 ## Energy (owner 2026-10-28)
 

@@ -23,7 +23,7 @@ static func roll_into(corpse: Corpse, body: Node3D = null) -> Array[StringName]:
 	var res := LootRoller.roll_carcass(table.get("base", []), table.get("rare", []), corpse.level,
 			knife.material_tier() if knife else &"", Data.butchering_level(), skill, corpse.poison_spoiled, rng, corpse.alpha)
 	if corpse.alpha:
-		alpha_extras(res, corpse.level, rng)
+		alpha_extras(res, corpse.level, rng, corpse.species)
 	for st in res["stacks"]:
 		corpse.loot.add_growing(st)  # one instance per unit (W2-INV): the carcass grows rather than drop parts
 	var rares: Array[StringName] = []
@@ -37,9 +37,15 @@ static func roll_into(corpse: Corpse, body: Node3D = null) -> Array[StringName]:
 	return rares
 
 ## ALPHAS (owner 2026-10-28: "special loot"): every part carries one rare trait and the alpha-only
-## trophy (ai.json alpha.loot) is added and announced. The rare rows were already guaranteed by
+## trophy (ai.json alpha.loot) is added and announced. ALPHATAG (owner 2026-10-29): the species' alpha
+## pool (loot_tables.json "alpha") drops on top of that. The rare rows were already guaranteed by
 ## roll_carcass. Pure, so the server and tests can run it.
-static func alpha_extras(res: Dictionary, level: int, r: RandomNumberGenerator) -> void:
+static func alpha_extras(res: Dictionary, level: int, r: RandomNumberGenerator, species: StringName = &"") -> void:
+	# ALPHATAG: the alpha-only pool (loot_tables.json "alpha") first, so its parts carry the trait too.
+	for st in LootRoller.roll_alpha_pool(species, level, r):
+		(res["stacks"] as Array).append(st)
+		if not (res["rares"] as Array).has(st.def_id):
+			(res["rares"] as Array).append(st.def_id)
 	for st: ItemStack in res["stacks"]:
 		var t := LootRoller.roll_trait(r, st.def_id, &"", true)
 		if t != &"":

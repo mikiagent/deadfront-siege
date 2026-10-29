@@ -73,6 +73,13 @@ static func prefix_width(is_alpha: bool) -> float:
 
 const ALPHA_TEXT := "ALPHA"
 
+## The tag's box at `pos` for a font: empty for a normal animal. Pure, so a caller that lays text out
+## (or a test) can measure it without drawing.
+static func rect_at(font: Font, pos: Vector2, is_alpha: bool) -> Rect2:
+	if not is_alpha or font == null:
+		return Rect2()
+	return Rect2(pos, Vector2(font.get_string_size(ALPHA_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX).x + PAD_X * 2.0, CHIP_H))
+
 ## The tag drawn straight onto a CanvasItem (the HUD's target plate is drawn, not built of nodes).
 ## Returns the chip's rect; empty for a normal animal. `pos` is its top-left.
 static func draw_at(ci: CanvasItem, font: Font, pos: Vector2, is_alpha: bool, a: float = 1.0) -> Rect2:
@@ -93,3 +100,7 @@ static func draw_at(ci: CanvasItem, font: Font, pos: Vector2, is_alpha: bool, a:
 
 func chip_text() -> String:
 	return label.text
+
+## Where the chip ends on its row (the name starts NAME_GAP past this).
+func end_x() -> float:
+	return position.x + size.x

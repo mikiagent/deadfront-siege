@@ -83,7 +83,7 @@ func add_node(node_id: String, pos: Vector3, options: Array, level: int = 1, fam
 	nodes[node_id] = {"pos": arr(pos), "level": level, "unstable": false, "family": family, "attributes": {"level": level}, "options": options.duplicate(true)}
 
 func add_creature(net_id: String, species: String, pos: Vector3, hp: float, extra: Dictionary = {}) -> void:
-	var c := {"species": species, "variant": "", "pos": arr(pos), "hp": hp, "hp_max": hp, "knocked": false, "defense": 10.0, "dodge": 0.04, "feeds": 0.0, "cooldown": 0.0, "pet": false}
+	var c := {"species": species, "variant": "", "pos": arr(pos), "hp": hp, "hp_max": hp, "knocked": false, "defense": 10.0, "dodge": 0.04, "feeds": 0.0, "cooldown": 0.0, "pet": false, "alpha": false}
 	c.merge(extra, true)
 	creatures[net_id] = c
 
