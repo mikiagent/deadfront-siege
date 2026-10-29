@@ -61,6 +61,16 @@ Source: merges into `claude/mmo-overhaul` on 2026-10-28. Each is marked `# ASSUM
 | **LB2** | Old saves keep their total XP and recompute the level on the new curve; where that would drop a level the stored level stays as a floor (XP into it kept, clamped under its cost). Saves are marked `xp_curve: 2`. | `World.migrate_linear_xp`, `SaveGame._apply` | A Lv 10-11 save may gain a level (its per-level HP/energy granted quietly); Lv 13+ saves keep their level and need the new cost for the next. |
 | **LB3** | The bottom level bar draws one segment per 100 XP, grouped into a multiple of 100 to stay at or under 40 segments; the label reads "Lv. n  xp / cost XP · unit XP each". | `pioneer_levels.json xp_curve.segment_xp / max_segments` | Past Lv ~39 a segment is 200+ XP, so the unit changes between levels. |
 
+### HARVESTROLL (2026-10-28) — every gather pass is its own lot
+
+Source: branch `claude/mmo-harvestroll`, report `docs/orchestration/reports/claude-harvestroll.md`. Numbers live in `game/data/loot_tables.json` `lot`. Owner: "I get the same loot every time ... it kept giving me the same branch".
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **HR1** | A pass's level rolls in max(1, S-5)..S for node level S, `L = lo + min(5, floor(6 x U^gamma))`; gamma 1.5 at Gathering 1 bare-handed, down 0.5 by Gathering 60 and 0.25 at a steel tool (the Traits math doc's illustrative novice/competent/expert values). Starter nodes of level 1 always yield level 1. | `LootRoller.roll_lot` | How often a gatherer lands top-of-band material; how fast skill pays. |
+| **HR2** | Each material lot rolls one grey trait at 96% and one gold trait at 7% (the math doc's unapproved candidates), gold odds +15% relative per tool tier above stone and +20% relative at Gathering 60, capped 12%; magnitude 1-3 each. | `loot_tables.json lot` | Nearly every branch/stone now carries a grey trait; crafting averages these into outputs. |
+| **HR3** | Which gold/grey traits a material can roll is by its first category (wood, stone, ore, fibre, lashing, earth), read off spec 04's trait meanings; food, herbs and treasure roll level only. | `lot.by_category` | Spec 04 asks for per-resource tables; these are placeholders until the owner names per-material ones. |
+
 ### TRIBE M1 (2026-10-28) — tribe members and dock recruits
 
 Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tribe.md`. Numbers live in `game/data/tribe.json` (every one an ASSUMPTION) unless a file is named. A tribe member now exists in code (this supersedes the last clause of A15).
