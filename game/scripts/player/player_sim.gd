@@ -31,6 +31,9 @@ var _roll_cd_left: float = 0.0
 ## Stagger: a short unmovable hurt window after a hit (0.35 s), at most once every 1.5 s.
 var _stagger_left: float = 0.0
 var _stagger_immune_until: float = -1.0
+## Ram shove (a grazer's body-slam charge): slid along _shove, decaying to 0 over _shove_s of stagger.
+var _shove := Vector3.ZERO
+var _shove_s: float = 0.0
 var _wet_acc: float = 0.0
 var _swim_damage_acc: float = 0.0
 var _survival_acc: float = 0.0
@@ -161,9 +164,13 @@ func tick(delta: float) -> void:
 		return
 	if _stagger_left > 0.0:
 		_stagger_left -= delta
-		p.velocity.x = 0.0
-		p.velocity.z = 0.0
+		var k := clampf(_stagger_left / _shove_s, 0.0, 1.0) if _shove_s > 0.0 else 0.0
+		p.velocity.x = _shove.x * k
+		p.velocity.z = _shove.z * k
 		p.move_and_slide()
+		if _stagger_left <= 0.0:
+			_shove = Vector3.ZERO
+			_shove_s = 0.0
 		if _stagger_left <= 0.0 and anim:
 			anim.end_hurt()  # the stun is over: locomotion takes the body back this frame
 		elif anim:
@@ -515,6 +522,17 @@ func on_hit() -> bool:
 	_stagger_immune_until = now_s + _stagger_left + HIT_STUN_IMMUNE_S
 	p.clear_nav()
 	return true
+
+## Knocked back push metres (flat) over stagger_s, no control meanwhile; walls stop the slide (move_and_slide).
+## A roll in flight dodged the hit, so it is not shoved.
+func shove(push: Vector3, stagger_s: float) -> void:
+	if p.rolling or stagger_s <= 0.0 or push.length_squared() <= 0.0:
+		return
+	push.y = 0.0
+	_shove_s = stagger_s
+	_shove = push * (2.0 / stagger_s)  # linear decay from 2d/T to 0 covers d metres
+	_stagger_left = maxf(_stagger_left, stagger_s)
+	p.clear_nav()
 
 ## The hurt clip's length as PlayerAnim plays it (speed 1); 0.35 s without a rig or clip.
 func hurt_stun_seconds() -> float:

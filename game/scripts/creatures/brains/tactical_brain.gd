@@ -78,7 +78,8 @@ var _cover := Vector3.ZERO
 var _cover_cd := 0.0
 var _opening := false
 var _open_left := 0.0  ## seconds the ambush keeps waiting to open with the pounce
-## Straight charge (tactics.charge_straight): locked line, one horn impact, a miss staggers it.
+## Straight charge (tactics.charge_straight): locked line, one body-slam impact (charge_shove_m knocks
+## the survivor back), a miss staggers it.
 var _charge_to := Vector3.ZERO
 var _charge_dir := Vector3.FORWARD
 var _charge_hit := false
@@ -713,7 +714,11 @@ func _charge_impact() -> void:
 	tactic.emit(&"charge_hit")
 	_mark_pack()
 	if CreatureAttack.apply_for(creature, &"attack_heavy", attack_target, mult) and attack_target is Player:
-		(attack_target as Player).receive_creature_hit(creature, &"attack_heavy")
+		var pl := attack_target as Player
+		pl.receive_creature_hit(creature, &"attack_heavy")
+		# A ram, not a horn stab (owner 2026-10-29: "tackling/ramming"): the body-slam shoves her along the line.
+		if pl.sim:
+			pl.sim.shove(_charge_dir * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6))
 
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).
