@@ -33,18 +33,20 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   (right of the ring) and the chip row drops under it while it shows. `hud_stomach.gd`:
   - Inner ring = fullness. A full stomach is a complete circle, and it degrades clockwise: the lit arc
     always ends at 12 o'clock, and the gap opens from 12 o'clock clockwise (`HudStomach.arc_for`). The
-    colour comes from bands blended between stops (`STOPS`): red empty (< 0.1), yellow hungry
-    (0.3-0.5), green full (0.8-1.0), red overfull (> 1.2), blended in between; an empty ring shows a
-    faint red track. Fullness = Σ over digesting meals of the food's foods.json `fullness` × the share of
-    its Energy still undigested, over the fullness cap (100). Above 1 = overfull.
-  - Outer thin yellow ring = saturation, a cooldown: the longest digestion's time left over its digest
-    time. Full on a fresh meal, it drains in the same clockwise way and is empty when nothing digests.
-  - Glyph by state (`GLYPH`, `_src/icons_p.py`): empty `stomach_empty` (thin, shrunk), hungry
-    `stomach_hungry`, normal and full `stomach` (big and round; normal drawn smaller), overfull
+    colour comes from bands blended between stops (`STOPS`, in points): red empty (< 10), yellow peckish
+    (10-30) and the first half of fed (30-45), green fed and well fed (70-100), red overfull (above 100),
+    blended in between; an empty ring shows a faint red track. Fullness is `Digestion`'s stored stomach in
+    points (`rules.json` `hunger` band edges, HUNGER memo 2026-10-29). `game/tests/t_hudrules.gd` pins the
+    stops.
+  - Outer thin yellow ring = the `while_fed` meal buff time left (`Digestion.saturation`): the stomach's
+    remaining fed time over a full stomach's, so it drains in the same clockwise way and is empty when no
+    cooked dish's buff is on.
+  - Glyph by state (`GLYPH`, `_src/icons_p.py`): empty `stomach_empty` (thin, shrunk), peckish and fed
+    `stomach_hungry` / `stomach`, well fed `stomach` (big and round), overfull
     `stomach_overfull` (swollen, two pressure marks). The drawn scale eases (0.6/s) to `GLYPH_SCALE`
     (0.92 → 1.06), so a state change grows or shrinks it.
-  - ASSUMPTIONs: no satiety meter exists (the PRD forbids one), and the band edges (0.1 / 0.4 / 0.7 /
-    1.0 for the state) are mine. Read only; no hunger rule changed.
+  - ASSUMPTIONs: no satiety meter exists (the PRD forbids one); the band edges (10 / 30 / 70 / 100
+    points) are the memo's numbers in `rules.json` `hunger`. Read only; no hunger rule changed.
 - Treadmill belt (under the bars): while Well
   Rested the belt pauses (`ExhaustTreadmill.paused_rate`: the drift eases to 0 in ~0.2 s and holds)
   unless exhaustion is falling right then (a rest or a meal still runs it left); the status row shows
@@ -146,7 +148,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - The DEBUG hex shows only while `Game.debug_overlay` (phone: lower-right; desktop: under the dial).
 - Level bar (LEVELBAR, owner 2026-10-28): 6 px (`UiTokens.XP_BAR_H`) along the bottom edge, filled
   `UiTokens.XP_GREEN` (owner: "make it green for the xp bar too"; an owner exception to green =
-  healing, like the stomach's full band). A 2 px gap after every segment of `segment_xp` (100) XP of
+  healing, like the stomach's well fed band). A 2 px gap after every segment of `segment_xp` (100) XP of
   the level's cost, grouped into a multiple of 100 past `max_segments` (40) (`LevelDisplay.xp_segments`),
   so a dearer level draws more, thinner segments; the last is the leftover. The label over it reads
   "Lv. 10  137 / 305 XP  · 100 XP each" (desktop centred, phone right above the rail). The cost is
@@ -260,7 +262,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   (0.8 s `FORGET_TAU` held 2 s) so the belt eases out of the sweep.
 - Tapping the face or belt opens FatiguePanel (300 px, refreshing every 0.5 s): up to 4 causes at
   ≥3% share of recent fatigue (each row a name, % and a remedy line), plus a context line with the
-  level-gap sentence, the stomach factor ("Hungry: +50% exhaustion.", FULLFATIGUE), the climate shortfall and the live drift ("Exhaustion is falling slowly
+  level-gap sentence, the stomach factor ("Peckish: +10% exhaustion.", FULLFATIGUE; `hunger.fatigue_mult`), the climate shortfall and the live drift ("Exhaustion is falling slowly
   (+x/min)"). Vitals owns the rows; the decay window is `fatigue.breakdown_window_s` (180 s).
 
 ## Gather radial (UIGATHER, spec §4, B1)
@@ -314,6 +316,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
     room, and is a drawn block (`statusfx`) so toasts keep off it. A box that loses the one above it
     glides up (8 slots/s) instead of jumping.
   - Bleed's icon is the claw mark (`claw.svg`, `_src/icons_n.py`); the HUD chip row uses it too.
+  - Well Fed (HUNGER memo 2026-10-29) is a `boon` chip in the chip row, its own green glyph
+    (`well_fed.svg`), on while the stomach is in the Well Fed band (70-100 points) and off when it leaves;
+    it carries no flags — the slower exhaustion and the +0.2 Health/s live in `PlayerSim` off the `hunger`
+    block, so the chip can never double them.
   - Starving (owner 2026-10-28) is an effect box with a ribcage glyph (`starving.svg`, `_src/icons_r.py`) in
     `UiTokens.STARVING` dark amber, with a faint vignette that pulses on its ticks and tick numbers in its colour.
   - Colours (ASSUMPTION, from the spec tokens; owner 2026-10-28: no green negatives, `UiTokens.HEAL` /

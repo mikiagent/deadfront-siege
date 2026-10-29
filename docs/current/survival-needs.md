@@ -30,30 +30,39 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
 - Every positive gain multiplies: amount × 0.5 (owner halving, `FATIGUE_ACCUMULATION_MULT`) ×
   statuses' `fatigue_mult` product (and ×0.5 again inside a shelter's `coziness` area) ×
   the stomach factor × `level_gap_mult`. Reductions (`rest`, meals, sleep) are never halved.
-- Starving (owner 2026-10-28): while `Vitals.fullness_state` is empty, `PlayerSim._tick_starving` keeps the
-  `starving` effect on her (statuses.json; 0.25 HP/s per stack, a stack more every 120 s up to 3, until fed)
-  and clears it the moment a meal lifts her out of empty. Statuses flagged `nonlethal` (starving, venom,
-  poisoned, stomachache) tick down to 1 HP and never below; hits and the other DoTs (bleed, deep bleed,
-  pinned) still kill. ASSUMPTIONs, Open Questions A17.
-- Stomach factor (FULLFATIGUE, owner 2026-10-28): `PlayerSim.tick` reads `Digestion.fullness()`, sets
-  `Vitals.fullness_state` (`Digestion.state_for`) and `Vitals.fullness_mult` from `rules.json`
-  `fatigue.fullness_mult`, and folds it into `fatigue_gain_mult`, so it reaches every gain including the
-  idle baseline. Values are ASSUMPTIONs (Open Questions A16):
+- Starving (owner 2026-10-28; HUNGER memo 2026-10-29 Part 1): `Vitals.fullness_state` empty only starts the
+  clock. `PlayerSim._tick_starving` keeps `Digestion.empty_for_s` (saved, so a reload does not restart it)
+  and applies the `starving` effect after `rules.json` `hunger.starving_after_s` (600 s) on an empty stomach;
+  it adds a stack every `hunger.starving_stack_s` (180 s) up to `statuses.json` `max_stacks` 3, and clears
+  the effect the moment a meal lifts her out of empty. The damage is 0.1 HP/s per stack (0.1 / 0.2 / 0.3).
+  Statuses flagged `nonlethal` (starving, venom, poisoned, stomachache) tick down to 1 HP and never below;
+  hits and the other DoTs (bleed, deep bleed, pinned) still kill. The rate, delay, growth and cap are
+  ASSUMPTIONs of the memo; the numbers live in the data. `game/tests/t_starving.gd` pins them.
+- Stomach factor (FULLFATIGUE, owner 2026-10-28; HUNGER memo 2026-10-29): `PlayerSim.tick` reads
+  `Digestion.fullness()` (the stored stomach, in points), sets `Vitals.fullness_state`
+  (`Digestion.state_for`) and `Vitals.fullness_mult` from `rules.json` `hunger.fatigue_mult`, and folds it
+  into `fatigue_gain_mult`, so it reaches every gain including the idle baseline. The old
+  `fatigue.fullness_mult` map is retired: the bands and their multipliers are the `hunger` block's.
 
-| state | fullness | fatigue gain |
+| state | fullness (points) | fatigue gain |
 |---|---|---|
-| empty | < 0.1 | ×2.0 |
-| hungry | 0.1–0.4 | ×1.5 |
-| normal | 0.4–0.7 | ×1.0 |
-| full | 0.7–1.0 | ×0.85 |
-| overfull | > 1.0 | ×1.1 (sluggish) |
+| empty | < 10 | x1.5 |
+| peckish | 10–30 | x1.1 |
+| fed | 30–70 | x1.0 |
+| well fed | 70–100 | x0.85 (and +0.2 Health/s, the `well_fed` chip) |
+| overfull | > 100 | x1.3 (sluggish) |
 
-  Fullness = Σ over digesting meals of the food's foods.json `fullness` × its undigested Energy share,
-  over the fullness cap (100). The HUD ring shows the same value and state. The breakdown panel's context
-  line names the factor ("Hungry: +50% exhaustion."). A survivor with nothing digesting is "empty". A new survivor, and an old save loaded with nothing
-  digesting, gets one starter meal once (`Digestion.seed_starter`, run when a survivor's Digestion is first made and again on load; flag `starter_given` saved in the
-  digestion record). It has fullness 60, lasts 15 min and carries 1 Energy, so she starts "normal" for
-  about 5 min, is hungry until about 12.5 min, then empty. ASSUMPTION.
+  Fullness is now its own stored value: eating adds the food's `foods.json` `fullness`
+  (`Digestion.add_fullness`, called by `EatSession`) and the stomach drains a flat
+  `hunger.decay_per_min` 2.5 points a minute whether or not anything is still digesting. The point scale is
+  the same 0-100 the HUD shows; the overfull ceiling is 120. Foods are classed: raw fruit/berries/fish/
+  mushroom/cactus are 6-10 points (`snack: true`), cooked 25-30, dishes 45-60, a feast 80+. The HUD ring
+  shows the same value and state. The breakdown panel's context line names the factor ("Peckish: +10%
+  exhaustion."). A new survivor starts Fed at 60 points (`Digestion.STARTER_FULLNESS`); an old save without
+  a `fullness` key seeds the stomach once from the previous formula (sum of each digesting meal's food
+  `fullness` x its undigested Energy share) and stores the number on the next save. The save adds
+  `fullness` and `empty_for_s` to the digestion record (`starter_given` is kept for old saves).
+  ASSUMPTIONs: the class values, the flat decay, the 120 ceiling and the starting 60 points.
 - Baseline idle: `EXHAUSTION_PER_SEC` = 100 pts per 45 min before the halving — 100 pts in ~90 min.
   Tagged `time`; the level gap never applies to it.
 - Movement per s (before the halving): walk 0.05, run 0.09, sprint 0.2 (`player_sim._walk`).
@@ -83,6 +92,7 @@ Hits on the survivor: `game/scripts/player/player.gd`. Status definitions: `game
 | infected_wound | +0.15 fatigue/min, max HP ×0.8 | until treated |
 | tastes_bad | +0.5 fatigue/min | 60 s |
 | tastes_horrible / tastes_disgusting | fatigue ×1.2 / ×1.3 | 300 s |
+| well_fed | the Well Fed band's chip: no flags, the effects are `PlayerSim`'s off the `hunger` block | while the band lasts |
 
 Rates are on the 0-100 fatigue scale; all multipliers of one kind multiply together
 (`StatusEffects._product`). `game/data/statuses.json` defines 33 statuses in all; the fatigue
@@ -93,7 +103,7 @@ five `tastes_*` and `hot_food` / `cold_food`, vigor) and the cleanliness pair (d
 are above, clean is too). Each status's `fx` block gives its HUD colour, icon, particles and
 vignette (see [hud.md](hud.md)). Each status also has a `kind` (HUDRULES 2026-10-28): `effect` (afflictions: the box beside
 the survivor) or `buff` / `boon` / `debuff` (the chip row under the vitals, with its `desc` in a tooltip).
-The HUD stomach indicator (no satiety meter exists) reads fullness as the digesting meals' foods.json `fullness` × their undigested share / 100, and saturation as the longest digestion's time left (see [hud.md](hud.md)). Washing clears dirty/very_dirty and grants Clean; drinking clears
+The HUD stomach indicator (no satiety meter exists) reads the stored fullness in points (0-100, overfull above) for its inner ring and, for the outer ring, the fed time a `while_fed` meal buff has left (see [hud.md](hud.md)). Washing clears dirty/very_dirty and grants Clean; drinking clears
 Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 
 ## Water: drink, wash, swim (spec 17; `game/tests/t_water.gd`)

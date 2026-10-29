@@ -53,7 +53,7 @@ Fights are leashed to 20 m from the survivor. A swing uses the worn weapon (a wo
 - Loop: nearest node of that kind (`HarvestNode.gather_kind`: rock = mine, trees = chop, the rest = gather) inside the radius that its tool can work (`HarvestNode.can_gather`), walk to its visible edge (`HarvestNode.visual_radius` + 0.3 m), work it with `gather_mine` / `gather_chop` / `gather` and the tool in hand.
 - Each pass lands exactly one item, taking `GatherService.unit_seconds_for(tool, node, Gathering)` seconds; the required tool wears per pass, a helper tool wears too, the item level is capped at max(Gathering, 5). Workers roll no rare finds or green traits.
 - After 5 units it walks to the chest and deposits. No chest near the job: it holds what it carries and stands.
-- Fullness drains 60 per in-game day. Below 30 it walks to the chest and eats one food item (+ its energy value, at least 15). No food: keeps working, looks again in 30 s.
+- Fullness drains at the shared `rules.json` `hunger.decay_per_min` (2.5 points a minute, the survivor's own rate) on the same 0-100 scale and with the same bands. In the Peckish band (below 30) it walks to the chest and eats one food item, filling its stomach by the item's `foods.json` `fullness`. No food: keeps working, looks again in 30 s. `tribe.json` no longer carries `fullness_per_day` or `eat_below` (HUNGER memo 2026-10-29 Part 1: the tribe shares the survivor's hunger rules).
 - Each pass adds 2.5 fatigue and costs 3 energy. At 75 fatigue (or out of energy) it rests in place (sleep clip) until fatigue ≤ 10 and energy ≥ 50.
 
 ## Tribe screen

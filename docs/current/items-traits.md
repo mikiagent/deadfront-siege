@@ -29,12 +29,12 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `bark_strip` | Bark Strip | 1 | 20 | common | none | fibre · lashing · strap_material |  |
 | `basic_bag` | Basic Bag | 1 | 1 | common | none | accessory · bag |  |
 | `basket_kit` | Basket Kit | 1 | 2 | common | none | building |  |
-| `berries` | Berries | 1 | 20 | common | none | food · herb · fruit · berry_crop |  |
-| `berry` | Berry | 1 | 20 | common | none | food · herb · fruit · berry_crop |  |
+| `berries` | Berries | 1 | 20 | common | none | 8 |  |
+| `berry` | Berry | 1 | 20 | common | none | 8 |  |
 | `berry_seed` | Berry Seed | 1 | 50 | common | none | seed · berry |  |
 | `black_iron` | Black Iron | 1 | 10 | rare | none | ore · iron_ore | material_tier=iron |
 | `blue_dye` | Blue Dye | 1 | 20 | uncommon | none | dye |  |
-| `boiled_meat` | Boiled Meat | 1 | 20 | uncommon | none | food · cooked · meat |  |
+| `boiled_meat` | Boiled Meat | 1 | 20 | uncommon | none | 45 |  |
 | `bone` | Leg Bone | 1 | 20 | common | none | bone · blade_mat · tier_bone | material_tier=bone |
 | `bone_axe` | Bone Axe | 1 | 1 | common | axe | tool · weapon |  |
 | `bone_hammer` | Dense Bone Hammer | 1 |  | rare | none | weapon |  |
@@ -55,11 +55,11 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `brow_horn` | Brow Horn | 1 | 999 | rare | none | dense_bone · bone · blade_mat · tier_bone |  |
 | `burnt_food` | Burnt Food | 1 | 20 | common | none | food · burnt |  |
 | `cabin_bed_kit` | Cabin Bed Kit (Planned) | 1 | 1 | rare | none | building |  |
-| `cactus_flesh` | Cactus Flesh | 1 | 10 | common | none | food · cactus |  |
+| `cactus_flesh` | Cactus Flesh | 1 | 10 | common | none | 12 |  |
 | `cactus_flower` | Cactus Flower | 1 |  | uncommon | none | herb · dye |  |
-| `cactus_juice` | Cactus Juice | 1 | 20 | uncommon | none | drink · food · juice |  |
+| `cactus_juice` | Cactus Juice | 1 | 20 | uncommon | none | 10 |  |
 | `cactus_spine` | Cactus Spine | 1 | 20 | common | none | needle |  |
-| `camp_stew` | Camp Stew | 1 | 20 | uncommon | none | food · cooked · meal |  |
+| `camp_stew` | Camp Stew | 1 | 20 | uncommon | none | 50 |  |
 | `campfire_kit` | Campfire Kit | 1 | 1 | common | none | building |  |
 | `canvas_tent_kit` | Canvas Tent Kit | 1 | 1 | uncommon | none | building |  |
 | `capture_net_i` | Capture Net I | 1 | 5 | uncommon | none | tool |  |
@@ -68,7 +68,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `capture_net_iv` | Capture Net IV | 1 |  | epic | none | tool |  |
 | `capture_net_v` | Capture Net V | 1 |  | epic | none | tool |  |
 | `captured_animal` | Captured Animal | 1 | 1 | common | none | tool |  |
-| `carnivore_feed` | Carnivore Feed | 1 | 30 | common | none | pet_feed · meat · food |  |
+| `carnivore_feed` | Carnivore Feed | 1 | 30 | common | none | 30 |  |
 | `catapult_kit` | Field Catapult Kit | 1 | 1 | epic | none | building |  |
 | `charcoal` | Charcoal | 1 | 20 | uncommon | none | fuel · burnable | tint=#2a2a2a |
 | `claim_stake` | Claim Stake | 1 | 5 | common | none | building |  |
@@ -76,7 +76,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `cloth` | Cloth | 1 | 10 | uncommon | none | cloth |  |
 | `cloth_scrap` | Cloth Scrap | 1 | 20 | common | none | cloth |  |
 | `club` | Wooden Club | 1 | 1 | common | none | weapon · handle |  |
-| `coconut` | Coconut | 1 | 10 | common | none | food · fruit |  |
+| `coconut` | Coconut | 1 | 10 | common | none | 7 |  |
 | `copper_axe` | Copper Axe | 1 | 1 | uncommon | axe | tool · weapon |  |
 | `copper_bracers` | Copper Bracers | 1 | 1 | uncommon | none | armor_arms |  |
 | `copper_cuirass` | Copper Cuirass | 1 | 1 | uncommon | none | armor_body |  |
@@ -88,26 +88,26 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `copper_pick` | Copper Pick | 1 | 1 | uncommon | pick | tool |  |
 | `copper_sword` | Copper Sword | 1 | 1 | uncommon | none | weapon |  |
 | `coral` | Coral | 1 | 10 | rare | none | treasure · coral |  |
-| `corn` | Corn | 1 | 30 | common | none | food · crop · fruit · stalk · corn_crop |  |
+| `corn` | Corn | 1 | 30 | common | none | 7 |  |
 | `corn_seed` | Corn Seed | 1 | 50 | common | none | seed · corn |  |
-| `crafters_meal` | Crafter's Meal | 1 | 20 | rare | none | food · cooked · meal · buff_food |  |
+| `crafters_meal` | Crafter's Meal | 1 | 20 | rare | none | 45 |  |
 | `crock_pot_kit` | Crock Pot Kit | 1 | 1 | uncommon | none | building |  |
 | `dense_bone` | Dense Bone | 1 | 999 | rare | none | dense_bone · bone · blade_mat · tier_bone |  |
 | `dorsal_plate` | Dorsal Plate | 1 | 999 | rare | none | scute · bone |  |
 | `dried_hide` | Dried Hide | 1 | 10 | uncommon | none | hide · uncut_hide · dried_hide · cured_hide |  |
 | `dried_meat` | Dried Meat | 1 | 20 | uncommon | none | food · meat · preserved |  |
-| `drip_coffee` | Drip Coffee | 1 | 20 | uncommon | none | drink · food · brew |  |
+| `drip_coffee` | Drip Coffee | 1 | 20 | uncommon | none | 4 |  |
 | `dry_grass` | Dry Grass | 1 | 30 | common | none | fibre · tinder |  |
 | `drying_rack_kit` | Drying Rack Kit | 1 | 1 | uncommon | none | building |  |
-| `dutch_coffee` | Dutch Coffee | 1 | 20 | rare | none | drink · food · brew · buff_food |  |
+| `dutch_coffee` | Dutch Coffee | 1 | 20 | rare | none | 4 |  |
 | `empty_bucket` | Empty Bucket | 1 | 5 | uncommon | none | tool · bucket |  |
-| `fatigue_tonic` | Fatigue Restorative | 1 | 20 | uncommon | none | drink · medicine · food |  |
+| `fatigue_tonic` | Fatigue Restorative | 1 | 20 | uncommon | none | 4 |  |
 | `fence_kit` | Fence Segment | 1 | 20 | common | none | building |  |
 | `fibre_stalk` | Fibre Stalk | 1 | 30 | common | none | fibre · stalk · strap_material |  |
 | `field_large_kit` | Large Field Kit | 1 | 3 | common | none | building |  |
 | `field_small_kit` | Small Field Kit | 1 | 5 | common | none | building |  |
 | `fine_plank` | Fine Plank | 1 | 1 | common | none | wood · fine_plank |  |
-| `fish` | Fish | 1 | 20 | common | none | meat · food · raw_meat |  |
+| `fish` | Fish | 1 | 20 | common | none | 10 |  |
 | `flax` | Flax | 1 | 30 | common | none | fibre · crop · flax · flax_crop |  |
 | `flax_seed` | Flax Seed | 1 | 50 | common | none | seed · flax |  |
 | `flint` | Flint | 1 | 20 | uncommon | none | stone · tier_flint | material_tier=flint |
@@ -122,14 +122,14 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `forge_kit` | Forge | 1 | 1 | uncommon | none | building |  |
 | `frill_plate` | Frill Plate | 1 | 999 | rare | none | scute · bone |  |
 | `fruit_fertilizer` | Fruit Fertilizer | 1 | 20 | common | none | fertilizer |  |
-| `fruit_juice` | Fruit Juice | 1 | 20 | uncommon | none | drink · food · juice |  |
+| `fruit_juice` | Fruit Juice | 1 | 20 | uncommon | none | 10 |  |
 | `gate_kit` | Gate | 1 | 5 | uncommon | none | building |  |
-| `grilled_meat` | Grilled Meat | 1 | 20 | uncommon | none | food · cooked · meat |  |
+| `grilled_meat` | Grilled Meat | 1 | 20 | uncommon | none | 28 |  |
 | `heavy_snare` | Heavy Cable Snare | 1 | 999 | epic | none | counter_supply |  |
-| `herb_buff_meal` | Herbed Meal | 1 | 10 | rare | none | food · cooked · buff_food |  |
+| `herb_buff_meal` | Herbed Meal | 1 | 10 | rare | none | 25 |  |
 | `herb_leaf` | Herb Leaf | 1 | 20 | common | none | herb |  |
-| `herbal_tea` | Herbal Tea | 1 | 20 | uncommon | none | drink · food · medicine |  |
-| `herbivore_feed` | Herbivore Feed | 1 | 30 | common | none | pet_feed · food |  |
+| `herbal_tea` | Herbal Tea | 1 | 20 | uncommon | none | 12 |  |
+| `herbivore_feed` | Herbivore Feed | 1 | 30 | common | none | 30 |  |
 | `hide_bone_bracers` | Hide and Bone Bracers | 1 | 1 | rare | none | armor_arms |  |
 | `hide_bone_cuirass` | Hide and Bone Cuirass | 1 | 1 | rare | none | armor_body |  |
 | `hide_bone_greaves` | Hide and Bone Greaves | 1 | 1 | rare | none | armor_legs |  |
@@ -158,16 +158,16 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `leech` | Leech | 1 | 10 | common | none | bait |  |
 | `log_shelter_kit` | Log Shelter Kit (Planned) | 1 | 1 | rare | none | building |  |
 | `makeshift_taming_pen` | Makeshift Taming Pen | 1 | 1 | common | none | building |  |
-| `mango` | Mango | 1 | 10 | common | none | food · fruit |  |
+| `mango` | Mango | 1 | 10 | common | none | 8 |  |
 | `marsh_herb` | Marsh Herb | 1 | 20 | common | none | herb |  |
-| `meat_broth` | Meat Broth | 1 | 20 | uncommon | none | drink · food · broth |  |
-| `meatball` | Meatball | 1 | 20 | uncommon | none | food · cooked · meat |  |
-| `meatball_mix` | Meatball Mix | 1 | 20 | common | none | food · meat · raw |  |
+| `meat_broth` | Meat Broth | 1 | 20 | uncommon | none | 10 |  |
+| `meatball` | Meatball | 1 | 20 | uncommon | none | 45 |  |
+| `meatball_mix` | Meatball Mix | 1 | 20 | common | none | 14 |  |
 | `metal_shard` | Metal Shard | 1 | 10 | uncommon | none | metal · blade_mat | tint=#b0b8c0, hardness=3 |
 | `mortar_kit` | Mortar Kit | 1 | 1 | uncommon | none | building |  |
 | `moss` | Moss | 1 |  | common | none | fibre · tinder |  |
 | `mud` | Mud | 1 | 20 | common | none | earth |  |
-| `mushroom` | Mushroom | 1 | 20 | common | none | food · mushroom · herb |  |
+| `mushroom` | Mushroom | 1 | 20 | common | none | 12 |  |
 | `obsidian` | Obsidian | 1 | 10 | rare | none | stone · tier_obsidian | material_tier=obsidian |
 | `obsidian_axe` | Obsidian Axe | 1 | 1 | uncommon | axe | tool · weapon |  |
 | `obsidian_knife` | Obsidian Knife | 1 | 1 | uncommon | knife | tool · blade · weapon |  |
@@ -192,25 +192,25 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `raid_maul` | Volcano Raid Maul | 1 | 1 | legendary | none | weapon |  |
 | `raptor_bone` | Raptor Leg Bone | 1 | 10 | uncommon | none | bone · blade_mat · handle · tier_bone | hardness=2, tint=#d4c4a8, material_tier=bone |
 | `raptor_hide` | Raptor Hide | 1 | 10 | uncommon | none | hide · uncut_hide · green_hide | feathered=1, tint=#6b5a3e |
-| `raptor_meat` | Raptor Meat | 1 | 10 | uncommon | none | meat · food · raw_meat |  |
+| `raptor_meat` | Raptor Meat | 1 | 10 | uncommon | none | 18 |  |
 | `raptor_talon` | Sickle Claw | 1 | 5 | uncommon | none | bone · blade_mat · talon | hardness=3, tint=#c9b48a |
 | `raw_hide` | Raw Hide | 1 | 10 | common | none | hide · uncut_hide · green_hide |  |
-| `raw_meat` | Raw Meat | 1 | 20 | common | none | meat · food · raw_meat |  |
+| `raw_meat` | Raw Meat | 1 | 20 | common | none | 18 |  |
 | `reed` | Reed | 1 | 30 | common | none | fibre · lashing · strap_material | tint=#8a9a4a |
 | `resin` | Resin | 1 | 20 | uncommon | none | tinder |  |
-| `roast` | Roast | 1 | 10 | uncommon | none | food · cooked · meat |  |
+| `roast` | Roast | 1 | 10 | uncommon | none | 55 |  |
 | `root` | Root | 1 | 20 | common | none | lashing · strap_material | tint=#5a4030 |
 | `rope` | Rope | 1 | 10 | uncommon | none | lashing · rope |  |
 | `rope_snare` | Rope Snare | 1 | 999 | uncommon | none | counter_supply |  |
-| `salad` | Salad | 1 | 20 | uncommon | none | food · cooked · meal |  |
+| `salad` | Salad | 1 | 20 | uncommon | none | 45 |  |
 | `salt` | Salt | 1 | 20 | uncommon | none | seasoning |  |
 | `sandstone` | Sandstone | 1 | 20 | uncommon | none | stone |  |
-| `sashimi` | Sashimi | 1 | 30 | uncommon | none | food · cooked · meat |  |
-| `seasoned_roast` | Seasoned Roast | 1 | 10 | rare | none | food · cooked · meat · buff_food |  |
-| `shaved_ice` | Shaved Ice | 1 | 20 | uncommon | none | food · cold_food |  |
+| `sashimi` | Sashimi | 1 | 30 | uncommon | none | 26 |  |
+| `seasoned_roast` | Seasoned Roast | 1 | 10 | rare | none | 60 |  |
+| `shaved_ice` | Shaved Ice | 1 | 20 | uncommon | none | 10 |  |
 | `sign_kit` | Sign | 1 | 5 | common | none | building |  |
 | `silver_ore` | Silver Ore | 1 | 20 | uncommon | none | ore |  |
-| `skewer` | Skewer | 1 | 20 | uncommon | none | food · cooked · meat |  |
+| `skewer` | Skewer | 1 | 20 | uncommon | none | 25 |  |
 | `skull_plate` | Skull Plate | 1 | 999 | rare | none | scute · bone |  |
 | `slingshot` | Bone Slingshot | 1 |  | uncommon | none | weapon |  |
 | `small_pouch` | Small Pouch | 1 | 1 | common | none | accessory · bag |  |
@@ -219,10 +219,10 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `snow_pine` | Snow Pine | 1 | 10 | common | none | wood · log |  |
 | `specialized_storage_bag` | Specialized Storage Bag | 1 | 1 | epic | none | accessory · bag |  |
 | `spice_herb` | Spice Herb | 1 | 20 | common | none | herb · spice |  |
-| `spiced_skewer` | Spiced Skewer | 1 | 20 | rare | none | food · cooked · buff_food · meat |  |
+| `spiced_skewer` | Spiced Skewer | 1 | 20 | rare | none | 28 |  |
 | `splint` | Splint | 1 | 5 | uncommon | none | medicine |  |
 | `split_wood` | Split Wood | 1 | 20 | common | none | wood · split · burnable |  |
-| `spring_water` | Spring Water | 1 | 20 | common | none | water · drink · food |  |
+| `spring_water` | Spring Water | 1 | 20 | common | none | 0 |  |
 | `steamed_food` | Steamed Dish | 1 | 20 | uncommon | none | food · cooked · steamed |  |
 | `steamer_kit` | Steamer Kit | 1 | 1 | common | none | building |  |
 | `steel_axe` | Steel Axe | 1 | 1 | epic | axe | tool · weapon |  |
@@ -247,7 +247,7 @@ Item *traits* are the attribute keys stamped on an instance: a def's `default_at
 | `tail_club` | Tail Club | 1 | 999 | rare | none | dense_bone · bone · blade_mat · tier_bone |  |
 | `tail_spike` | Tail Spike | 1 | 999 | rare | none | dense_bone · bone · blade_mat · tier_bone |  |
 | `tamed_animal` | Tamed Animal | 1 | 1 | rare | none | tool |  |
-| `tea` | Tea | 1 | 20 | uncommon | none | drink · food · brew |  |
+| `tea` | Tea | 1 | 20 | uncommon | none | 4 |  |
 | `tent_kit` | Tent Kit | 1 | 1 | common | none | building |  |
 | `thread` | Thread | 1 | 20 | uncommon | none | thread · fibre |  |
 | `tin_ingot` | Tin Ingot | 1 |  | uncommon | none | metal · ingot · tin |  |
@@ -278,41 +278,41 @@ Channels name what an item does; every number carries its `provenance` (`extract
 
 | item | provenance | channels | energy | digest (s) | thirst | fullness | eat (s) | taste |
 |---|---|---|---|---|---|---|---|---|
-| `berries` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 10 |  |  |
-| `berry` | restoration-evaluated | energy · taste · fullness | digest_seconds=240.0 instant_release_ratio=0.6 | 240.0 |  | 10 |  | 58 |
-| `boiled_meat` | restoration-evaluated | energy · fullness · status · attribute | digest_seconds=300.0 instant_release_ratio=0.65 | 300.0 |  | 10 |  |  |
-| `cactus_flesh` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 15 |  |  |
-| `cactus_juice` | restoration-evaluated | energy · fullness · thirst | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 | 20 | 7 |  |  |
-| `camp_stew` | restoration-evaluated | energy · fullness · health · status · attribute | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 7 |  | 62 |
+| `berries` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 8 |  |  |
+| `berry` | restoration-evaluated | energy · taste · fullness | digest_seconds=240.0 instant_release_ratio=0.6 | 240.0 |  | 8 |  | 58 |
+| `boiled_meat` | restoration-evaluated | energy · fullness · status · attribute | digest_seconds=300.0 instant_release_ratio=0.65 | 300.0 |  | 45 |  |  |
+| `cactus_flesh` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 12 |  |  |
+| `cactus_juice` | restoration-evaluated | energy · fullness · thirst | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 | 20 | 10 |  |  |
+| `camp_stew` | restoration-evaluated | energy · fullness · health · status · attribute | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 50 |  | 62 |
 | `carnivore_feed` | restoration-evaluated | energy · fullness · fatigue | digest_seconds=300.0 instant_release_ratio=0.9 | 300.0 |  | 30 |  |  |
-| `coconut` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 10 |  |  |
-| `corn` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 10 |  |  |
-| `crafters_meal` | restoration-evaluated | energy · fullness · ability · taste | digest_seconds=300.0 instant_release_ratio=0.8 | 300.0 |  | 10 | 3.0 | 70 |
-| `drip_coffee` | restoration-evaluated | energy · fatigue · status · taste · fullness | digest_seconds=300.0 instant_release_ratio=0.851 | 300.0 |  | 5 | 2.5 | 56 |
-| `dutch_coffee` | restoration-evaluated | energy · status · taste · max_fatigue · fullness | digest_seconds=300.0 instant_release_ratio=0.851 | 300.0 |  | 5 | 2.5 | 56 |
-| `fatigue_tonic` | restoration-evaluated | fatigue · taste · fullness · thirst |  |  | 20 | 5 | 1.5 | 30 |
+| `coconut` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 7 |  |  |
+| `corn` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 7 |  |  |
+| `crafters_meal` | restoration-evaluated | energy · fullness · ability · taste | digest_seconds=300.0 instant_release_ratio=0.8 | 300.0 |  | 45 | 3.0 | 70 |
+| `drip_coffee` | restoration-evaluated | energy · fatigue · status · taste · fullness | digest_seconds=300.0 instant_release_ratio=0.851 | 300.0 |  | 4 | 2.5 | 56 |
+| `dutch_coffee` | restoration-evaluated | energy · status · taste · max_fatigue · fullness | digest_seconds=300.0 instant_release_ratio=0.851 | 300.0 |  | 4 | 2.5 | 56 |
+| `fatigue_tonic` | restoration-evaluated | fatigue · taste · fullness · thirst |  |  | 20 | 4 | 1.5 | 30 |
 | `fish` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.3 | 300.0 |  | 10 |  |  |
-| `fruit_juice` | restoration-evaluated | energy · fullness · thirst · attribute | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 | 20 | 7 |  |  |
-| `grilled_meat` | restoration-evaluated | energy · fullness · taste | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 12 |  | 66 |
-| `herb_buff_meal` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 12 |  | 60 |
-| `herbal_tea` | restoration-evaluated | energy · fullness · health | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 30 |  |  |
+| `fruit_juice` | restoration-evaluated | energy · fullness · thirst · attribute | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 | 20 | 10 |  |  |
+| `grilled_meat` | restoration-evaluated | energy · fullness · taste | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 28 |  | 66 |
+| `herb_buff_meal` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 25 |  | 60 |
+| `herbal_tea` | restoration-evaluated | energy · fullness · health | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 12 |  |  |
 | `herbivore_feed` | restoration-evaluated | energy · fullness · fatigue | digest_seconds=300.0 instant_release_ratio=0.9 | 300.0 |  | 30 |  |  |
-| `mango` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 10 |  |  |
-| `meat_broth` | restoration-evaluated | energy · fullness · thirst | digest_seconds=300.0 instant_release_ratio=0.8 | 300.0 | 20 | 5 |  |  |
-| `meatball` | restoration-evaluated | energy · fullness · attribute | digest_seconds=300.0 instant_release_ratio=0.35 | 300.0 |  | 10 |  |  |
-| `meatball_mix` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.25 | 300.0 |  | 20 |  |  |
-| `mushroom` | restoration-evaluated | energy · fullness · status | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 30 |  |  |
-| `raptor_meat` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.45 | 300.0 |  | 20 |  |  |
-| `raw_meat` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.25 | 300.0 |  | 20 |  | 20 |
-| `roast` | restoration-evaluated | energy · fullness · status · attribute · combat | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 50 |  |  |
-| `salad` | restoration-evaluated | energy · fullness · attribute | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 10 |  |  |
-| `sashimi` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 15 |  |  |
-| `seasoned_roast` | restoration-evaluated | energy · fullness · status · attribute · combat | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 50 |  |  |
+| `mango` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 8 |  |  |
+| `meat_broth` | restoration-evaluated | energy · fullness · thirst | digest_seconds=300.0 instant_release_ratio=0.8 | 300.0 | 20 | 10 |  |  |
+| `meatball` | restoration-evaluated | energy · fullness · attribute | digest_seconds=300.0 instant_release_ratio=0.35 | 300.0 |  | 45 |  |  |
+| `meatball_mix` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.25 | 300.0 |  | 14 |  |  |
+| `mushroom` | restoration-evaluated | energy · fullness · status | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 |  | 12 |  |  |
+| `raptor_meat` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.45 | 300.0 |  | 18 |  |  |
+| `raw_meat` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.25 | 300.0 |  | 18 |  | 20 |
+| `roast` | restoration-evaluated | energy · fullness · status · attribute · combat | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 55 |  |  |
+| `salad` | restoration-evaluated | energy · fullness · attribute | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 45 |  |  |
+| `sashimi` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 26 |  |  |
+| `seasoned_roast` | restoration-evaluated | energy · fullness · status · attribute · combat | digest_seconds=300.0 instant_release_ratio=0.7 | 300.0 |  | 60 |  |  |
 | `shaved_ice` | restoration-evaluated | energy · fullness · status | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 10 |  |  |
-| `skewer` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 12 |  | 58 |
-| `spiced_skewer` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 12 |  |  |
-| `spring_water` | new-design | energy · thirst | digest_seconds=0.0 instant_release_ratio=1.0 | 0.0 | 35.0 |  | 1.5 | 40 |
-| `tea` | restoration-evaluated | energy · thirst · taste · fullness | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 | 20.0 | 5 | 2.5 | 62 |
+| `skewer` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 25 |  | 58 |
+| `spiced_skewer` | restoration-evaluated | energy · fullness | digest_seconds=300.0 instant_release_ratio=0.6 | 300.0 |  | 28 |  |  |
+| `spring_water` | new-design | energy · thirst | digest_seconds=0.0 instant_release_ratio=1.0 | 0.0 | 35.0 | 0 | 1.5 | 40 |
+| `tea` | restoration-evaluated | energy · thirst · taste · fullness | digest_seconds=300.0 instant_release_ratio=0.5 | 300.0 | 20.0 | 4 | 2.5 | 62 |
 
 ## Per-food flavour, status & assumption notes
 
