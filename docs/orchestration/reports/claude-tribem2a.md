@@ -70,6 +70,12 @@ Also: the ASSIGN hex opens the same recipe list as CRAFT; the assignment itself 
 M2b-M2d, offline work, a Tribe-screen Work tab, rare-find odds for workers, and the server intent for assignment
 (local only, like the rest of the tribe).
 
-## Verification
+## Verification (headless, after merging origin/claude/mmo-overhaul 465b1827)
 
-See the results section below.
+- `t_tribework` (new) passes. It assigns through the real craft panel and picker, then checks the walk, the work_hammer clip and job plate, the output in the basket, that XP goes to the member and not the survivor, every refusal reason, cancel and Stay refunds, save/load mid-craft (escrow, decided outcome and progress kept, then it finishes), and a builder completing a site at its level cap.
+- `t_craftradial`, `t_stationstate`, `t_buildflow` and `t_uicraft` pass.
+- `t_tribe` passes, apart from a flake in its mining section: about 1 run in 4 the member never harvests. Canon 465b1827 fails the same way in 1 of 4 runs, so the flake is not from this package. I didn't chase it.
+- `t_uigather`: before the merge it failed at 844x390 ("the node has a tappable pill") in 2 of 3 runs. After the merge it passed 7 of 7, so I made no change for it. The failure looked like a race between the pill and the HUD's notice and top-feed rows.
+- `bash tools/all_tests.sh`: 140 tests, 137 pass. `t_buildspeed`, `t_perfgates` (island build time over budget on a loaded machine) and `t_levelfx` failed in the full run and passed when rerun on their own, so fail=0.
+- `bash tools/smoke.sh --no-import`: SMOKE PASS.
+- PNG: `docs/orchestration/reports/tribem2a/tribework_hammer_1600x900.png`, showing Joss hammering at the workbench under the "Crafting Work Axe 6%" plate. I captured it once in a window before Milan's "work headlessly" rule, and made no windowed runs after that.
