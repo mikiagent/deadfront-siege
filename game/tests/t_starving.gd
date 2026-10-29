@@ -102,19 +102,19 @@ func _test_appears_and_clears() -> void:
 	dig.empty_for_s = 100.0
 	_sim()
 	_expect(v.fullness_state == &"empty" and not _player.statuses.has(&"starving"), "empty for 100 s: no Starving yet")
-	_player.sim.starving_s = Digestion.starving_after_s()  # past the ten minutes
+	_player.sim.starving_s = DIG.starving_after_s()  # past the ten minutes
 	dig.empty_for_s = _player.sim.starving_s
 	_sim()
-	_expect(_player.statuses.has(&"starving") and _player.statuses.get_instance(&"starving").stacks == 1, "empty past %.0f s: Starving, one stack" % Digestion.starving_after_s())
+	_expect(_player.statuses.has(&"starving") and _player.statuses.get_instance(&"starving").stacks == 1, "empty past %.0f s: Starving, one stack" % DIG.starving_after_s())
 	await _frames(4)
 	var sx = _hud.get("_status_fx")
 	_expect(sx.boxes.has(&"starving"), "its box shows beside her")
 	_expect(sx.vignette_alpha > 0.0, "the vignette shows (%.2f)" % sx.vignette_alpha)
 	# The rate: 0.5 s ticks of 0.1 HP/s per stack, numbers in its own colour.
 	var inst = _player.statuses.get_instance(&"starving")
-	var after := Digestion.starving_after_s()
+	var after: float = DIG.starving_after_s()
 	for stacks in [1, 3]:
-		var secs := after if stacks == 1 else after + Digestion.starving_stack_s() * 2.0
+		var secs: float = after if stacks == 1 else after + DIG.starving_stack_s() * 2.0
 		_player.sim.starving_s = secs
 		dig.empty_for_s = secs
 		_sim()
@@ -141,7 +141,7 @@ func _test_nonlethal() -> void:
 	var v = _player.vitals
 	# Starving alone stops at 1 HP.
 	dig.set_fullness(0.0)
-	_player.sim.starving_s = Digestion.starving_after_s() + 1.0
+	_player.sim.starving_s = DIG.starving_after_s() + 1.0
 	dig.empty_for_s = _player.sim.starving_s
 	_sim()
 	v.health = 1.3
@@ -172,7 +172,7 @@ func _test_nonlethal() -> void:
 	await _frames(2)
 	# Starved to 1 HP, a creature bite still kills.
 	dig.set_fullness(0.0)
-	_player.sim.starving_s = Digestion.starving_after_s() + 1.0
+	_player.sim.starving_s = DIG.starving_after_s() + 1.0
 	dig.empty_for_s = _player.sim.starving_s
 	_sim()
 	v.health = 1.2
