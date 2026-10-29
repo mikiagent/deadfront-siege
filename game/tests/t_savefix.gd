@@ -317,6 +317,12 @@ func _test_walking() -> void:
 		w.raining = false
 		w._rain_cd = 1.0e9  # no rain this run: Wet is a separate rule
 	v.level_gap_mult = 1.0
+	# FULLFATIGUE (owner 2026-10-28): the stomach scales every fatigue gain (x2 empty). The docs' walk
+	# rate is for a "normal" stomach, so a fresh starter meal digests through the sample (x1.0).
+	var dig = load("res://scripts/items/digestion.gd").of(player)
+	dig.rows().clear()
+	dig.schedule(&"starter", 1.0, 900.0)
+	print("[t_savefix] stomach for the walk: %s" % dig.state_for(dig.fullness()))
 	# The live pipeline runs for SAMPLE_S; every charge it makes is linear in time (a constant rate
 	# per second), so ten minutes = the measured per-second rate x 600.
 	const SAMPLE_S := 12.0

@@ -205,11 +205,11 @@ func _test_rain_streaks() -> void:
 	get_root().add_child(rt)
 	var weather = load("res://scripts/world/world_weather.gd").new()
 	weather.install(rt)
-	var fx := rt.find_children("*", "GPUParticles3D", false, false)
-	_check(fx.size() == 1, "rain layer missing")
-	if fx.is_empty():
+	# WEATHER round 2 (owner 2026-10-28) added a "RainSplash" layer for pouring rain; the streaks are "Rain".
+	var rain := rt.get_node_or_null("Rain") as GPUParticles3D
+	_check(rain != null, "rain layer missing")
+	if rain == null:
 		return
-	var rain := fx[0] as GPUParticles3D
 	var mat := (rain.draw_pass_1 as PrimitiveMesh).material as StandardMaterial3D if rain.draw_pass_1 is PrimitiveMesh else null
 	_check(mat != null and mat.vertex_color_use_as_albedo, "rain draw pass material ignores particle colour")
 	_check(rain.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "rain casts shadows")

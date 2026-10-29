@@ -147,10 +147,20 @@ static func placer_anchor(near: Vector2, offsets: Array, rel: Array, taken: Arra
 	cands.append(Vector2(view.x - 250.0 - inset.x, view.y * 0.5))
 	cands.append(Vector2(250.0 + inset.w, view.y * 0.5))
 	var step := 56.0
+	# The grid's columns start where the row sits flush with the left room edge and end flush right
+	# (a fixed 90 px start put the left hex off-screen in the first column at every hex size, and the
+	# step then jumped past the one free spot left of HANDS at 844x390).
+	var left := 0.0
+	var right := 0.0
+	for i in offsets.size():
+		for k in 2:
+			var r: Rect2 = (rel[i] as Array)[k]
+			left = minf(left, (offsets[i] as Vector2).x + r.position.x)
+			right = maxf(right, (offsets[i] as Vector2).x + r.end.x)
 	var y := 140.0 + inset.z
 	while y < view.y - 110.0 - inset.y:
-		var x := 90.0 + inset.w
-		while x < view.x - 90.0 - inset.x:
+		var x := 6.0 + inset.w - left
+		while x <= view.x - 6.0 - inset.x - right:
 			cands.append(Vector2(x, y))
 			x += step
 		y += step
