@@ -65,7 +65,15 @@ func run_steps(from: int, to: int) -> String:
 		if why != "":
 			failure = "step %d %s: %s" % [i + 1, id, why]
 			return failure
+		_receive_rewards()
 	return ""
+
+## TASKSCREEN: order rewards wait in Tasks > Main Task; a player presses Receive, so the bot does too
+## (the XP's character levels lift the skill caps the hunt relies on).
+func _receive_rewards() -> void:
+	for r in Tasks.rows(&"main", player):
+		if r["claimable"]:
+			Tasks.claim(str(r["id"]), player)
 
 func _wait_done(i: int, secs: float) -> String:
 	var until := _t + secs

@@ -167,6 +167,7 @@ Source: branch `claude/mmo-taskscreen`, report `docs/orchestration/reports/claud
 | **TS10** | Data only, hidden until the system exists: Craft Leaf Outfits (no recipe), daily task points -> Warp Gems (neither exists), Advanced Kiln (not placeable), Cheer (no emotes / players), the 8-part finale (no story). | `tasks.json hidden` | Becomes live when the thing exists. |
 | **TS11** | Not imported: faction missions, career guides, Google Play achievements, events and rank titles (other systems). | `docs/reference/tasks.md` | Future Communication / Career Guide work. |
 | **TS12** | Main Task counts an order finished when Objectives.settle passes it (a saved set), not by index, so the tutorial's hand-over part-way down the standing orders never pays a skipped order. | `Tasks.done` | Save field (`tasks.done`). |
+| **TS13** | The tutorial does not tell a new survivor to press Receive. Its order XP now waits in Tasks, and a survivor who never claims stays a character level or two lower through the first hunt (lower skill caps). In t_tutorial the stone knife then broke before butchering in 2 of 4 runs; the bot now presses Receive after each order, as a player would. Candidate fix: a tutorial order "Receive your reward in Tasks" (needs an owner call). | `tutorial_bot.gd _receive_rewards` | First-hour difficulty. |
 
 ## Parked by other docs
 
