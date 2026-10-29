@@ -116,6 +116,7 @@ func _run() -> void:
 	await _frames(3)
 	_check(_player.controls.selection.current() == null and not _swords().is_visible_in_tree(), "a freed selection clears the swords")
 	# 3. A raptor already on the survivor: its aggro ring and the select ring together.
+	Game.debug_overlay = true  # the aggro ring is a debug-overlay marker now
 	var raptor := _spawn(&"velociraptor", Vector3(-6.0, 0, 3.0))
 	if raptor:
 		raptor.brain.on_aggro(_player)
@@ -130,6 +131,7 @@ func _run() -> void:
 		await _shot("aggro_select")
 		raptor.queue_free()
 		await _frames(3)
+	Game.debug_overlay = false
 	# 4. A herd shoulder to shoulder: the swords keep off every neighbour, and a tap on one selects it.
 	var right := Vector3(_cam.global_basis.x.x, 0.0, _cam.global_basis.x.z).normalized()
 	var herd: Array[Creature] = []
