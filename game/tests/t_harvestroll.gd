@@ -41,6 +41,8 @@ func _process(_delta: float) -> bool:
 	r.seed = 7
 	for i in 50:
 		_expect(int(lr.roll_lot(&"branch", 1, &"", 1, r)["level"]) == 1, "level-1 node yields level 1")
+	_test_perk_cap(n)
+	_test_feed_latest()
 	n.queue_free()
 	if failures.is_empty():
 		print("[t_harvestroll] PASS")
@@ -66,6 +68,52 @@ func _passes(n, seed_v: int) -> Array[String]:
 				sig += "|%s=%s" % [k, st.attributes[k]]
 		out.append(sig)
 	return out
+
+## PERKCAP (owner: "1-2 perks on each gathered item max"): 200 passes through the real yield + green-trait
+## stamp (steel tool, so the gold and green odds are at their highest) never exceed 2 perks or carry a
+## trait with its opposite; the grey rate sits near lot.negative_chance (35%).
+func _test_perk_cap(n) -> void:
+	var gs: GDScript = load("res://scripts/gather/gather_service.gd")
+	var inv_s: GDScript = load("res://scripts/items/inventory.gd")
+	var ia: GDScript = load("res://scripts/ui/inv_attributes.gd")
+	var opp: Dictionary = load("res://scripts/gather/loot_tables.gd").lot_cfg().get("opposites", {})
+	var r := RandomNumberGenerator.new()
+	r.seed = 2028
+	var grey := 0
+	var green := 0
+	var worst := 0
+	for i in 200:
+		var bag = inv_s.new(20)
+		var had: Dictionary = bag.uids()
+		var st = n.roll_yield(r, &"steel", 60)
+		bag.add(st)
+		gs.stamp_traits(bag, had, st, 1, r, &"steel")
+		var item = bag.slots.filter(func (x) -> bool: return x != null)[0]
+		var sec: Dictionary = ia.sections(item)
+		var keys: Array = []
+		for cls in ["rare", "positive", "negative"]:
+			for row: Dictionary in sec[cls]:
+				keys.append(str(row["key"]))
+		worst = maxi(worst, keys.size())
+		if not (sec["negative"] as Array).is_empty():
+			grey += 1
+		if not (sec["rare"] as Array).is_empty():
+			green += 1
+		for k: String in keys:
+			_expect(not keys.has(str(opp.get(k, ""))), "pass %d carries %s with its opposite (%s)" % [i, k, keys])
+	print("[t_harvestroll] 200 passes: most perks %d, grey %d, green %d" % [worst, grey, green])
+	_expect(worst <= 2, "no gathered item carries more than 2 perks (worst %d)" % worst)
+	_expect(grey >= 45 and grey <= 95, "grey rate near 35%% (%d of 200)" % grey)
+
+## The feed row's chips are the latest item's own; the count is a labelled running total.
+func _test_feed_latest() -> void:
+	var feed = load("res://scripts/ui/top_feed.gd").new()
+	feed._add({"kind": &"gain", "id": &"branch", "n": 1, "chips": [["Soft Lv. 1", &"negative"]], "stack": null, "tier": &"grey"})
+	feed._add({"kind": &"gain", "id": &"branch", "n": 1, "chips": [["Heavy Lv. 2", &"negative"]], "stack": null, "tier": &"grey"})
+	feed._add({"kind": &"gain", "id": &"branch", "n": 1, "chips": [["Firm Lv. 3", &"positive"]], "stack": null, "tier": &"yellow"})
+	var rows: Array = feed.rows
+	_expect(rows.size() == 1 and int(rows[0]["n"]) == 3 and int(rows[0].get("gains", 1)) == 3, "three branch gains collapse into one +3 total row")
+	_expect(rows.size() == 1 and rows[0]["chips"] == [["Firm Lv. 3", &"positive"]], "the row shows the latest item's perks only (%s)" % [rows[0]["chips"] if not rows.is_empty() else []])
 
 func _mean_level(lr: GDScript, tier: StringName, skill: int) -> float:
 	var r := RandomNumberGenerator.new()
