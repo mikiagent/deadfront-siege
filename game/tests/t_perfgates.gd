@@ -113,6 +113,7 @@ func _run() -> void:
 	await _measure(home_id, true)
 	for row in _budget.get("islands", {}).get("unstable", []):
 		await _measure(StringName(str(row)), false)
+	await _measure_tutorial()
 	_report()
 	_finish()
 
@@ -177,6 +178,53 @@ func _data_checks() -> void:
 	var nh: Array = _budget.get("not_headless", [])
 	_expect(nh.has("camp_view_prims") and nh.has("camp_view_draws") and nh.has("web_frame_p95_ms"),
 		"the budget lists the measures a headless run cannot take")
+
+# ------------------------------------------------------------------ the tutorial island
+
+## TUTPERF: the new-player island, gated by counts so a loaded box cannot flake it: how many nodes
+## under the island tick every frame, how many full harvest nodes still tick (0), and how many
+## creatures stand at build (0: its wild zones wake them near the survivor).
+func _measure_tutorial() -> void:
+	var tb: Dictionary = _budget.get("tutorial", {})
+	_expect(not tb.is_empty(), "the budget has a tutorial entry")
+	if tb.is_empty():
+		return
+	var id := StringName(str(tb.get("island", "tutorial_isle")))
+	_clear_island()
+	await _frames(3)
+	await physics_frame
+	var t0 := Time.get_ticks_usec()
+	_world.call("load_island", _host, id, Vector3(0, 1, 0), false)
+	var build_ms := float(Time.get_ticks_usec() - t0) / 1000.0
+	await _frames(3)
+	var rt: Node = _world.get("runtime")
+	if rt == null:
+		_expect(false, "%s built an island runtime" % id)
+		return
+	var ticking := 0
+	var harvest_ticking := 0
+	var zones := 0
+	var stack: Array[Node] = [rt]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		stack.append_array(n.get_children())
+		var file: String = (n.get_script() as Script).resource_path.get_file() if n.get_script() != null else ""
+		if file == "zone_spawner.gd":
+			zones += 1
+		if n.is_processing() or n.is_physics_processing():
+			ticking += 1
+			if file == "harvest_node.gd":
+				harvest_ticking += 1
+	var creatures := _count_in(rt, "creatures")
+	var scene_nodes := _subtree_nodes(rt)
+	print("[t_perfgates] tutorial id=%s build_ms=%.0f ticking=%d harvest_ticking=%d creatures=%d zones=%d scene_nodes=%d" % [
+		id, build_ms, ticking, harvest_ticking, creatures, zones, scene_nodes])
+	_expect(zones > 0, "%s has wild zones (%d)" % [id, zones])
+	_judge(ticking <= int(tb["ticking_max"]), "%s ticks %d nodes every frame (budget %d)" % [id, ticking, int(tb["ticking_max"])], true)
+	_judge(harvest_ticking <= int(tb["harvest_ticking_max"]), "%s: %d full harvest nodes tick (budget %d)" % [id, harvest_ticking, int(tb["harvest_ticking_max"])], true)
+	_judge(creatures <= int(tb["creatures_at_build_max"]), "%s stands %d creatures at build (budget %d)" % [id, creatures, int(tb["creatures_at_build_max"])], true)
+	_judge(scene_nodes <= int(tb["scene_nodes_max"]), "%s builds %d scene nodes (budget %d)" % [id, scene_nodes, int(tb["scene_nodes_max"])], true)
+	_judge(build_ms <= float(tb["build_max_ms"]), "%s builds in %.0f ms (budget %.0f ms, one build)" % [id, build_ms, float(tb["build_max_ms"])], bool(tb.get("enforce_build", false)))
 
 # ------------------------------------------------------------------ one island
 
