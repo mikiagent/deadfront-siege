@@ -33,7 +33,7 @@ func _run() -> void:
 	var player = kit["player"]
 	var hud = null
 	for c in (kit["ui"] as CanvasLayer).get_children():
-		if c.has_method("hands_spot"):
+		if c.has_method("quick_row_y"):
 			hud = c
 	_expect(hud != null, "the lab kit has a HuntHud")
 	for _i in 5:
