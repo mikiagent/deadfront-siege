@@ -280,6 +280,12 @@ func _loot_corpse() -> String:
 	var w := await _walk_to(corpse.global_position, 2.2)
 	if w != "":
 		return w
+	await _fight_off_attackers()
+	if not is_instance_valid(corpse):
+		return "carcass gone"
+	w = await _walk_to(corpse.global_position, 2.2)
+	if w != "":
+		return w
 	await _beat(5.5)  # a hit within the last seconds cancels a cut, as it does for a player
 	player.context_action("loot")  # opens the part picker over the carcass (or the chest)
 	await _beat(0.6)
@@ -297,6 +303,28 @@ func _loot_corpse() -> String:
 	if player.ui and player.ui.visible:
 		player.ui.hide()
 	return ""
+
+## A wild animal that is after her cancels every cut (canon's hit-interrupt): fight it off first, as a
+## player would. Up to 60 s; returns when nothing within 10 m is targeting her.
+func _fight_off_attackers() -> void:
+	var until := _t + 60.0
+	while _t < until:
+		var foe: Creature = null
+		for node in get_tree().get_nodes_in_group("creatures"):
+			var c := node as Creature
+			if c and not c.is_pet and c.health and not c.health.dead and c.brain and c.brain.attack_target == player \
+					and c.global_position.distance_to(player.global_position) < 10.0:
+				foe = c
+				break
+		if foe == null:
+			return
+		player.hunt.start(foe)
+		while _t < until and is_instance_valid(foe) and not foe.health.dead and foe.brain.attack_target == player:
+			if foe.global_position.distance_to(player.global_position) > 2.0 and not player.nav_active:
+				player.nav_to(player._closest_nav_point(foe.global_position))
+			await _beat(0.25)
+		player.hunt.stop()
+		player.clear_nav()
 
 ## The stone fire pit's own public action (FIREPITS load_wood); before FIREPITS a pit always burns.
 func _light_fire() -> String:

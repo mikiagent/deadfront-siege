@@ -66,3 +66,9 @@ None spent.
   `t_genetics` PASS, `smoke.sh --no-import` SMOKE PASS.
 - Note: on cc79a457 the tutorial hunt takes 122-136 s, against about 33 s on 5b4bf4ad. The cause is not
   investigated. Each run fought several compys (retaliation).
+- Canon moved on to 2c446449 (FIREFUEL) during the work. That merge was clean. One more flake appeared: retaliating
+  compys kept biting her, which cancelled every butcher cut (1 of 3 runs). Fix: `tutorial_bot._fight_off_attackers`
+  now fights off anything within 10 m whose target is her before it cuts the carcass, as a player would. This is
+  test-bot code only; game rules are unchanged.
+- Final results on this head: `t_tutorial` 4/4 PASS (own HOME each; hunt 136-175 s, butcher 8-9 s), `t_islandgen`,
+  `t_alphas`, `t_genetics` PASS, SMOKE PASS.
