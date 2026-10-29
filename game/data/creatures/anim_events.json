@@ -110,14 +110,18 @@
     },
     "compsognathus": {
       "height_m": 1.2,
-      "run_l": 2.508,
+      "run_l": 2.367,
       "run_len": 0.708,
-      "run_r": 2.508,
-      "walk_l": 0.331,
+      "run_r": 2.367,
+      "walk_l": 0.312,
       "walk_len": 2.458,
-      "walk_r": 0.331,
-      "walk": 0.331,
-      "run": 2.508
+      "walk_r": 0.312,
+      "walk": 0.312,
+      "run": 2.367,
+      "strafe_left": 0.574,
+      "strafe_left_len": 0.625,
+      "strafe_right": 0.574,
+      "strafe_right_len": 0.625
     },
     "deinonychus": {
       "height_m": 2.0,

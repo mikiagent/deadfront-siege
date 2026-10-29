@@ -539,6 +539,7 @@ func _test_direction_clips() -> void:
 	_expect(CA.pick_direction(Vector3(3, 0, 0), b) == &"strafe_right", "velocity to the right -> strafe_right")
 	_expect(CA.pick_direction(Vector3(-3, 0, 0), b) == &"strafe_left", "velocity to the left -> strafe_left")
 	_expect(CA.pick_direction(Vector3(0.5, 0, -1), b) == &"", "diagonal forward -> forward gait")
+	_expect(CA.pick_direction(Vector3(1, 0, -1.2), b, CA.FACING_SIDE_DOT) == &"strafe_right" and CA.pick_direction(Vector3(-1, 0, -1.2), b, CA.FACING_SIDE_DOT) == &"strafe_left", "facing the prey, a 50 deg diagonal is a sidestep by its lateral sign")
 	var turned := Basis(Vector3.UP, PI)  # facing +Z now
 	_expect(CA.pick_direction(Vector3(0, 0, -3), turned) == &"walk_back", "walk_back follows the body's own facing")
 	var c = _spawn(&"zebraceratops", Vector3(30, 0.1, 30), &"loyal")
