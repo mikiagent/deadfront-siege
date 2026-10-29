@@ -137,6 +137,7 @@ static func save_now() -> bool:
 		"pioneer_crafts": World.pioneer_crafts,
 		"pioneer_buildings": World.pioneer_buildings,
 		"t_stones": World.t_stones,
+		"warp_gems": World.warp_gems,
 		"visited_islands": World.visited_islands,
 		"raid_victory": World.raid_victory,
 		"objective": World.objective,
@@ -267,6 +268,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.pioneer_crafts = data.get("pioneer_crafts", {})
 	World.pioneer_buildings = data.get("pioneer_buildings", {})
 	World.t_stones = int(data.get("t_stones", 20))
+	World.warp_gems = int(data.get("warp_gems", World.START_WARP_GEMS)) # an older save gets the new-game grant
 	World.visited_islands = data.get("visited_islands", {}).duplicate()
 	World.raid_victory = bool(data.get("raid_victory", false))
 	World.objective = int(data.get("objective", 0))  # older saves start the standing orders over

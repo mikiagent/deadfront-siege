@@ -206,6 +206,59 @@ Code: `game/scripts/world/world_weather.gd` (state), `game/scripts/world/weather
 
 The look columns run from fully resisted to fully unmet.
 
+## Island shapes, the southern-most dock and topography (ISLANDSHAPES)
+
+Owner 2026-10-29: "Start at the southern-most port of any island. Be creative with the shapes ... most of
+the area is flat but there are some large rocks, plateaus, etc that are non-navigable", plus "mountains and
+volcanos could be good props too". Code: `game/scripts/world/island_shape.gd` (families, topography),
+`harbour_site.gd` (dock rule), `island_props.gd` (`_place_outcrops`), `island_terrain.gd` (CLIFF tiles,
+nav cut), `island_runtime.gd` (`_volcano_fx`). Data: `game/data/world/island_families.json`.
+
+**Shape families.** Every landmass is drawn from one family. The family adds features to the old
+star-shaped body in the generator's unit space, then one field decides the coast: islets and land capsules
+are unioned in, lagoons, reef passes and atoll rings are cut out, and sandbars are laid back over the cut.
+
+| family | what it is (reference image numbers) | roster islands |
+|---|---|---|
+| `classic` | the pre-ISLANDSHAPES body, unchanged | home meadow (seed 17), tutorial |
+| `bulky` | broad heavy land, short headlands, offshore rocks | savannah_15, tundra_30 |
+| `round_peak` | round island with a big peak near the middle (2, 11, 13) | temperate_35, volcanic_60 |
+| `lobed` | multi-lobed land with deep narrow bays (4, 6, 9) | savannah_45, desert_35 |
+| `crescent` | a hook round a shallow lagoon, barrier islets across its mouth (5, 12) | temperate_25, tropical_40 |
+| `atoll` | a ring round a lagoon, a central island on two sandbars, one reef pass (8) | tropical_25, swamp_55 |
+| `spiral` | a core with a spiral arm of islets (15) | temperate_45, tundra_55 |
+| `chain` | a diagonal archipelago: chunks joined by sandbars, loose islets at both ends (1, 3, 7, 10, 14) | temperate_20, desert_50 |
+
+A roster island names its family in `islands.json` (`shape_family`); a row without one draws from
+`roster_pick` by its seed. Other Tamed Island picks (forest, rocky, riverside, coastal) draw bulky or lobed;
+the meadow keeps the classic body so old saves keep their ground. Shaped coasts are jagged (unit-space
+noise), and past the beach a shallow turquoise shelf (-0.85 m, still boat-deep) runs 6-50 m out before the
+drop; a lagoon's whole floor is shelf. Each island still has one river (radial; along the ring or round the
+lagoon on atolls and crescents; down the spine on chains) with its minimum length scaled by the family
+(`river_scale`).
+
+**Dock.** `HarbourSite.find` puts the dock on the southern-most legal mainland coast (+z is south):
+every legal pose is collected and the one farthest south wins (ties: nearer the x = 0 midline). An islet
+is skipped and the scan looks at the coast behind it. New games (the Tamed Island pick) and travel
+arrivals land at `arrival_point()`, so every arrival is at the southern-most port. The tutorial island opts
+out (`"dock_rule": "hint"`): its dock stays beside its hand-tuned town. A save's own dock pose
+(`World.camp_layout`) is kept while it is legal. Death respawns at the camp, as before (there is no
+respawn-at-dock).
+
+**Topography.** Shaped islands get volcanoes, mountains, ridges and mesas as ground (heightfield), so they
+are grounded by construction, each on a 2.4 m cliff skirt. Every tile inside a footprint is CLIFF: not
+walkable (TilePath, `is_dry`), not buildable, no spawns, and cut out of the nav mesh. A feature keeps its
+whole footprint inland, off the camp disc and its claim, the river and ford, the camp-to-dock walk, the
+dock end of the island and the row's fixed points (crater, fixed spawns), with a walkable gap between
+features. A volcanic-climate island always has a live volcano (glowing crater, smoke); others may get a
+dormant one. Rock outcrops (3-6 big cliff blocks, boulders, spires) are scattered as blocking props on flat
+inland ground, never on the camp ring, the dock or its approach, the walk, the river or claimed land.
+Every size and count is an ASSUMPTION (Open Questions, ISLANDSHAPES).
+
+Check: `t_islandgen` (families, dock rule, topography solid and clear, mainland walkable from the dock).
+Contact sheet: `docs/orchestration/reports/islandshapes/`; quick headless map of every landmass:
+`Godot --headless --path game --script res://scripts/dev/islandshapes_sheet.gd -- --out=/abs/sheet.png`.
+
 ## Sea and shore
 
 Code: `game/scripts/world/water.gdshader` (sea), `game/scripts/world/shore_wash.gdshader` (swash skin), `game/scripts/world/sea_waves.gd` (weather driver, skin and surf mask). Test: `game/tests/t_waves.gd`; lab: `scenes/dev/waves_lab.tscn`.

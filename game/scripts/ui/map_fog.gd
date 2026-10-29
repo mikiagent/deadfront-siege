@@ -39,6 +39,12 @@ var land := PackedByteArray()
 var _tex: ImageTexture
 var _tex_version := -1
 var _tex_land_tag := -1
+## TUTPERF: the fog image is kept and only the cells a reveal touched are repainted and re-uploaded.
+## A full repaint of the tutorial island's 440x440 bitmap is ~55 ms of GDScript, and the 4 Hz walk
+## reveal used to trigger one every step: the walking hitch the owner felt as lag.
+var _img: Image
+var _dirty := Rect2i()
+var _full := true
 
 func setup(id: String, island_size: float) -> void:
 	island_id = id
@@ -57,6 +63,7 @@ func setup(id: String, island_size: float) -> void:
 	version = 0
 	_tex = null
 	_tex_version = -1
+	_full = true
 
 func matches(island_size: float) -> bool:
 	return span == maxi(1, int(ceil(maxf(CELL_M * 4.0, island_size) / CELL_M)))
@@ -102,6 +109,8 @@ func reveal(pos: Vector3, radius_m: float = BRUSH_M) -> int:
 				added += 1
 	if added > 0:
 		version += 1
+		var r := Rect2i(c.x - rc, c.y - rc, rc * 2 + 1, rc * 2 + 1)
+		_dirty = _dirty.merge(r) if _dirty.has_area() else r
 	return added
 
 ## One step of walking: reveal the brush and add a trail dot once the survivor is TRAIL_STEP_M
@@ -170,6 +179,7 @@ func land_from(runtime: Node) -> void:
 			var t := int(types[tx + tz * res])
 			land[_idx(x, z)] = 0 if (t == 4 or t == 8) else 1
 	version += 1
+	_full = true
 
 func to_dict() -> Dictionary:
 	var bit_len := span * span
@@ -235,15 +245,32 @@ static func for_old_save(id: String, island_size: float, camp: Vector3) -> MapFo
 func texture() -> ImageTexture:
 	if span <= 0:
 		return null
-	if _tex != null and _tex_version == version and _tex_land_tag == land.size():
+	if _tex != null and _img != null and not _full and _tex_land_tag == land.size():
+		if _dirty.has_area():
+			# A cell's pixel reads its four neighbours, so the ring around the change repaints too.
+			_paint(_dirty.grow(1).intersection(Rect2i(0, 0, span, span)))
+			_tex.update(_img)
+			_dirty = Rect2i()
+		_tex_version = version
 		return _tex
-	var img := Image.create(span, span, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
+	_img = Image.create(span, span, false, Image.FORMAT_RGBA8)
+	_img.fill(Color(0, 0, 0, 0))
+	_paint(Rect2i(0, 0, span, span))
+	_tex = ImageTexture.create_from_image(_img)
+	_tex_version = version
+	_tex_land_tag = land.size()
+	_dirty = Rect2i()
+	_full = false
+	return _tex
+
+func _paint(r: Rect2i) -> void:
 	var grey := Color(0.34, 0.35, 0.38)
-	for z in span:
-		for x in span:
+	var clear := Color(0, 0, 0, 0)
+	for z in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
 			var i := _idx(x, z)
 			if cells[i] != 0 or land[i] == 0:
+				_img.set_pixel(x, z, clear)
 				continue
 			var near := false
 			if x > 0 and cells[_idx(x - 1, z)] != 0: near = true
@@ -252,8 +279,4 @@ func texture() -> ImageTexture:
 			elif z + 1 < span and cells[_idx(x, z + 1)] != 0: near = true
 			var c := grey
 			c.a = 0.62 if near else 0.94
-			img.set_pixel(x, z, c)
-	_tex = ImageTexture.create_from_image(img)
-	_tex_version = version
-	_tex_land_tag = land.size()
-	return _tex
+			_img.set_pixel(x, z, c)

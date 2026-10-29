@@ -113,6 +113,30 @@ func play_locomotion(speed: float, running: bool = false) -> void:
 		return
 	_play(&"run" if running and speed > 2.5 else &"walk")
 
+## BAGUI: the survivor kneels and rummages through her bag while the bag sheet is open in the field:
+## rummage_in -> rummage (loop) -> rummage_out on close (play_rummage); with only `rummage` it loops
+## that; without the clips she simply idles. Held (forced) so locomotion does not replace it; stop_rummage releases
+## it. Not while mounted, swimming, asleep, sitting, busy or dead.
+func start_rummage() -> bool:
+	if _dead or _busy or _sleeping or _waking or _sitting or player == null or player.mounted_on or player.swimming:
+		return false
+	if rig and rig.has_clip(&"rummage_in"):
+		play_rummage(true) # kneel and open (rummage_in), then the rummage loop
+	elif rig and rig.has_clip(&"rummage"):
+		play_clip(&"rummage", true)
+	else:
+		play_clip(idle_clip(), true)
+	return true
+
+func stop_rummage() -> void:
+	if rig and rig.has_clip(&"rummage_out") and current_clip in [&"rummage_in", &"rummage"]:
+		play_rummage(false) # shut the bag and stand (rummage_out), then idle
+		return
+	if not _forced or _dead or _requested_clip not in [&"rummage", idle_clip(), &"idle"]:
+		return # something else took over (a hit, sleep): leave it
+	_forced = false
+	play_idle()
+
 func play_clip(clip: StringName, forced: bool = false) -> void:
 	if clip not in [&"sleep", &"sleep_down", &"sleep_up", &"sit"]:
 		if _sleeping or _waking:

@@ -95,6 +95,41 @@ class ValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(phase_map.PhaseError, "ascending"):
             self.validate(data)
 
+    def test_evidence_accepts_paths_commits_and_links(self):
+        self.validate(self.good(evidence=["docs/design/x.md", "commit:2a95b264",
+                                          "https://github.com/o/r/pull/1"]))
+        with self.assertRaisesRegex(phase_map.PhaseError, "not a file"):
+            self.validate(self.good(evidence=["docs/design/absent.png"]))
+        with self.assertRaisesRegex(phase_map.PhaseError, "evidence"):
+            self.validate(self.good(evidence="docs/design/x.md"))
+        with self.assertRaisesRegex(phase_map.PhaseError, "a evidence: .*not a file"):
+            self.validate(self.good(evidence=["http://example.com/x"]))
+
+
+class AuditTests(unittest.TestCase):
+    def feature(self, fid, status, depends=(), **extra):
+        return {"id": fid, "title": fid.title(), "status": status, "depends": list(depends),
+                "source": "docs/design/x.md", **extra}
+
+    def test_audit_sorts_next_and_flags_unevidenced_done(self):
+        data = {"goal": "g", "phases": [{"phase": 0, "title": "P", "theme": "", "features": [
+            self.feature("base", "done"),
+            self.feature("proved", "done", evidence=["commit:abcdef1"]),
+            self.feature("ready", "next", ["base"]),
+            self.feature("wait", "next", ["later-one"]),
+            self.feature("later-one", "later"),
+        ]}]}
+        report = phase_map.audit(data)
+        self.assertEqual([r["id"] for r in report["done_without_evidence"]], ["base"])
+        self.assertEqual([r["id"] for r in report["next_buildable"]], ["ready"])
+        self.assertEqual(report["next_blocked"][0]["waiting_on"], ["later-one"])
+
+    def test_audit_runs_on_the_authored_map(self):
+        root = Path(phase_map.__file__).resolve().parents[2]
+        report = phase_map.audit(phase_map.load(root))
+        self.assertEqual(set(report), {"done_without_evidence", "next_blocked", "next_buildable"})
+
+
 
 class MergeTests(unittest.TestCase):
     def setUp(self):

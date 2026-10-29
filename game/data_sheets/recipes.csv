@@ -164,6 +164,7 @@ advanced_backpack,Advanced Backpack,tailoring,60,workbench,6.0,cured_hide=2; clo
 specialized_storage_bag,Specialized Storage Bag,tailoring,60,workbench,8.0,cured_hide=3; cloth=3; rope=1; fibre=2,specialized_storage_bag,1,sew,1
 plank_shape,Plank Shape,construction,60,hand,1.5,log=1,plank_shape,1,shape,1
 pillar_shape,Pillar Shape,construction,60,hand,2.0,log=2,pillar_shape,1,shape,1
+bowstring,Bowstring,construction,60,hand,1.0,strap=1,bowstring,1,twist,1
 strap,Strap,construction,60,hand,0.5,strap_material=1,strap,1,twist,1
 trimmed_plank,Trimmed Plank,processing,60,workbench,12.0,plank_shape=1,trimmed_plank,1,trim,1
 fine_plank,Fine Plank,processing,60,workbench,12.0,plank_shape=1,fine_plank,1,trim,1
