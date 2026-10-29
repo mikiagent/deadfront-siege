@@ -74,7 +74,8 @@ its later head 65f0f6f9.
 - Updated tests:
   - `t_uichar`: the Orders section now drives the Task screen (Main Task, Track).
   - `t_uinav`: the nav label now reads "Tasks".
-- RESULTS_PLACEHOLDER
+- `bash tools/all_tests.sh`: 132 tests, 128 pass, 4 fail. The 4 failures were t_buildspeed, t_perfgates, t_eyetrails (timing budgets) and t_levelfx (top-feed layout). Rerun alone, all 4 pass. `t_taskscreen` passes.
+- `bash tools/smoke.sh --no-import`: SMOKE PASS.
 
 ## PNGs
 
