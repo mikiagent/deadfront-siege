@@ -203,8 +203,12 @@ static func _chunk_mesh(rt: IslandRuntime, fcell: float, x0: int, z0: int, n: in
 ## the ones under the sea. Returns null when the whole chunk is sea.
 static func _nav_chunk(rt: IslandRuntime, size: float, cell: float, x0: int, z0: int, x1: int, z1: int) -> ArrayMesh:
 	var tris := PackedVector3Array()
+	var tm: PackedByteArray = rt._shape.topo_mask if rt._shape != null else PackedByteArray()
 	for z in range(z0, z1):
 		for x in range(x0, x1):
+			# ISLANDSHAPES: topography (mountains, volcanoes, ridges, mesas) is not navigable.
+			if not tm.is_empty() and (tm[x + z * rt._res] | tm[x + 1 + z * rt._res] | tm[x + (z + 1) * rt._res] | tm[x + 1 + (z + 1) * rt._res]) != 0:
+				continue
 			_nav_tri(tris, _vpos(rt, size, cell, x, z), _vpos(rt, size, cell, x + 1, z), _vpos(rt, size, cell, x, z + 1))
 			_nav_tri(tris, _vpos(rt, size, cell, x + 1, z), _vpos(rt, size, cell, x + 1, z + 1), _vpos(rt, size, cell, x, z + 1))
 	if tris.is_empty():
@@ -488,6 +492,9 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	var b_maxh := float(beach.get("max_h", 2.0))
 	var b_jit: FastNoiseLite = beach.get("jitter", null)
 	var b_reach := float(beach.get("reach", 10.0)) + 4.0
+	# ISLANDSHAPES: the topography footprints (IslandShape.topo_mask, per grid vertex).
+	var tmask: PackedByteArray = shape.topo_mask if shape != null else PackedByteArray()
+	var has_topo := not tmask.is_empty()
 	for z in span:
 		for x in span:
 			var wx := -half + float(x) + 0.5
@@ -545,6 +552,11 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 				t = TileType.DRY
 			if has_ash and h > 4.8 and t == TileType.ROCK:
 				t = TileType.ASH
+			# Topography: any corner inside a footprint makes the tile a CLIFF (no walk, no build, no
+			# spawn, solid in TilePath), painted rock (ash on a volcanic island) through the soft mask.
+			var topo_tile := has_topo and h > 0.3 and (tmask[i00] | tmask[i10] | tmask[i01] | tmask[i11]) != 0
+			if topo_tile:
+				t = TileType.CLIFF
 			# The river: one continuous channel of MUD (half-width `hw`) with its bed under the
 			# -0.05 water plane. The ford is a SHALLOW crossing (bed -0.10 m), not a dry gap: the
 			# channel and its fresh-water mask run unbroken through it.
@@ -581,7 +593,9 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 			types[idx] = t
 			biomes[idx] = b
 			fresh[idx] = 1 if t == TileType.MUD else 0
-			if t == TileType.ROCK:
+			if topo_tile:
+				soft[idx * 4 + (1 if has_ash else 0)] = 255
+			elif t == TileType.ROCK:
 				soft[idx * 4] = 255
 			elif t == TileType.ASH:
 				soft[idx * 4 + 1] = 255

@@ -176,7 +176,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	var land_v: Variant = def.get("land_m", [])
 	var land := Vector2(float(land_v[0]), float(land_v[1])) if land_v is Array and (land_v as Array).size() >= 2 else Vector2.ZERO
 	var res := clampi(int(def.get("terrain_res", 161)), 65, 321)
-	_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, res, _climate, land)
+	_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, res, _climate, land, str(def.get("shape_family", "")), keep_points(def))
 	_shape.camp_hint = Vector2(_camp_hint.x, _camp_hint.z)
 	map_doc = def.get("map_doc", null) as MapDoc
 	if map_doc == null and def.has("map"):
@@ -192,6 +192,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	var t2 := Time.get_ticks_usec()
 	IslandTerrain.bake_nav(self)
 	PerfTrace.mark("nav")
+	_volcano_fx()
 	build_grid = BuildGrid.new()
 	build_grid.name = "BuildGrid"
 	build_grid.setup(self)
@@ -200,12 +201,16 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	_harbour_pos = _tile_at(float(harbour_a[0]), float(harbour_a[2]))
 	if _crater_hint != Vector3.ZERO:
 		_crater_pos = _tile_at(_crater_hint.x, _crater_hint.z)
-	# The json harbour is a hint: the dock goes on the legal coast pose nearest it (HarbourSite).
-	var site := HarbourSite.find(self, hint)
+	# ISLANDSHAPES: the dock goes on the island's southern-most legal coast (HarbourSite.find); an
+	# island row with "dock_rule": "hint" keeps the old rule (the legal pose nearest its json harbour).
+	var site := HarbourSite.find(self, hint, str(def.get("dock_rule", "south")) != "hint")
 	if site.is_empty():
 		push_error("[world] island %s has no coast for the harbour" % def.get("id", ""))
 	harbour = (load("res://scripts/world/harbour.gd") as GDScript).new()
 	_camp_place(harbour, "Harbour", &"harbour", site.get("cell", BuildGrid.tile_of(_harbour_pos) - Vector2i(1, 3)), int(site.get("rot", 0)))
+	# The dock is where it was placed, not the json hint: the 25 m landing ring and the scatter's
+	# keep-clear measure from it (the southern-most rule moves it away from the stored hint).
+	_harbour_pos = harbour.global_position
 	_publish_harbour_arrival()
 	_camp(_camp_pos)
 	cargo = (load("res://scripts/world/cargo_warp.gd") as GDScript).new()
@@ -247,6 +252,82 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	if OS.get_environment("ISL_TIME") == "1":
 		print("[islandgen-time] %s shape=%.0fms terrain=%.0fms rest=%.0fms scatter=%.0fms pathing=%.0fms total=%.0fms" % [def.get("id", ""), float(t1 - t0) / 1000.0, float(t2 - t1) / 1000.0, float(t3 - t2) / 1000.0, float(t4 - t3) / 1000.0, float(t5 - t4) / 1000.0, float(Time.get_ticks_usec() - t0) / 1000.0])
 	print("[world] island %s nodes=%d creatures=%d spawn_rejected=%d" % [def.get("id", ""), harvest_count, creature_count, spawn_rejected])
+
+## ISLANDSHAPES: a volcano's crater gets a lava glow (an unshaded emissive disc on its floor); a live
+## one (volcanic climate) also smokes. Two nodes per volcano, no light, no shadow: mobile-cheap.
+func _volcano_fx() -> void:
+	if _shape == null:
+		return
+	for f in _shape.topo:
+		if str(f["kind"]) != "volcano":
+			continue
+		var p: Vector2 = f["pos"]
+		var cr := float(f["r"]) * float(f.get("crater", 0.24))
+		var floor_y := surface_y(p.x, p.y)
+		var lava := MeshInstance3D.new()
+		lava.name = "VolcanoLava"
+		var disc := CylinderMesh.new()
+		disc.top_radius = cr * 0.62
+		disc.bottom_radius = cr * 0.62
+		disc.height = 0.1
+		disc.radial_segments = 20
+		disc.rings = 1
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		var live := bool(f.get("live", false))
+		# ASSUMPTION: a dormant volcano's crater is dull embers, a live one bright lava.
+		mat.albedo_color = Color(1.0, 0.42, 0.08) if live else Color(0.45, 0.16, 0.06)
+		disc.material = mat
+		lava.mesh = disc
+		lava.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		lava.position = Vector3(p.x, floor_y + 0.25, p.y)
+		add_child(lava)
+		if not live:
+			continue
+		var smoke := CPUParticles3D.new()
+		smoke.name = "VolcanoSmoke"
+		smoke.amount = 18
+		smoke.lifetime = 7.0
+		smoke.preprocess = 7.0
+		smoke.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+		smoke.emission_sphere_radius = cr * 0.4
+		smoke.direction = Vector3.UP
+		smoke.spread = 12.0
+		smoke.gravity = Vector3(0.6, 0.9, 0.0)
+		smoke.initial_velocity_min = 1.5
+		smoke.initial_velocity_max = 2.5
+		smoke.scale_amount_min = 4.0
+		smoke.scale_amount_max = 7.0
+		var quad := QuadMesh.new()
+		quad.size = Vector2.ONE
+		var sm := StandardMaterial3D.new()
+		sm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		sm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		sm.vertex_color_use_as_albedo = true
+		sm.albedo_color = Color(0.32, 0.30, 0.30, 0.45)
+		quad.material = sm
+		smoke.mesh = quad
+		var ramp := Gradient.new()
+		ramp.set_color(0, Color(1, 1, 1, 0.9))
+		ramp.set_color(1, Color(1, 1, 1, 0.0))
+		smoke.color_ramp = ramp
+		smoke.position = Vector3(p.x, floor_y + 1.0, p.y)
+		add_child(smoke)
+
+## The world points an island row needs on dry land (its crater and fixed creature spawns): the
+## shape generator keeps its lagoons away from them.
+static func keep_points(def: Dictionary) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var cr: Variant = def.get("crater", null)
+	if cr is Array and (cr as Array).size() >= 3:
+		out.append(Vector2(float(cr[0]), float(cr[2])))
+	for row in def.get("creatures", []):
+		if row is Dictionary:
+			var at: Array = (row as Dictionary).get("at", [0, 0, 0])
+			if at.size() >= 3:
+				out.append(Vector2(float(at[0]), float(at[2])))
+	return out
 
 func mark_pathing_dirty() -> void:
 	if pathing:
@@ -437,7 +518,12 @@ func arrival_point() -> Vector3:
 
 ## Scatter keeps the dock, its approach and the cargo basket clear.
 func near_harbour(pos: Vector3) -> bool:
-	return Vector2(pos.x - _harbour_pos.x, pos.z - _harbour_pos.z).length() < 8.0 or on_harbour_approach(pos)
+	if Vector2(pos.x - _harbour_pos.x, pos.z - _harbour_pos.z).length() < 8.0 or on_harbour_approach(pos):
+		return true
+	if harbour == null:
+		return false
+	var a := HarbourSite.arrival_point(harbour.build_cell, harbour.build_rot)
+	return Vector2(pos.x - a.x, pos.z - a.y).length() < 8.0
 
 ## The home cargo basket: beside the dock's base, walked inland until it stands on dry land.
 func _dry_beside_harbour() -> Vector3:
