@@ -60,7 +60,7 @@ func _run() -> void:
 	await _test_name()
 	_test_alpha_tag()
 	await _test_no_tame()
-	_test_alpha_pool()
+	await _test_alpha_pool()
 	var want = 9
 	_expect(_sections == want, "only %d of %d sections completed" % [_sections, want])
 	if _fails.is_empty():
@@ -417,6 +417,42 @@ func _test_alpha_pool() -> void:
 		for st in plain["stacks"]:
 			_expect(not ids.has(st.def_id), "#%d a normal carcass holds no alpha item (%s)" % [i, st.def_id])
 		_expect(plain["stacks"].size() == plain_before, "the normal roll is untouched")
+	# Through the corpse that really dies (Creature -> Corpse -> ButcherLoot.roll_into), so nothing is
+	# stubbed: an alpha carcass carries pool items, a normal carcass of the same species never does.
+	var hero: Node = load("res://scenes/player/player.tscn").instantiate()
+	hero.process_mode = Node.PROCESS_MODE_DISABLED
+	root.add_child(hero)
+	hero.global_position = Vector3(600, 1, 0)
+	var alpha_body = _spawn(true, Vector3(600, 0, 0))
+	var plain_body = _spawn(false, Vector3(610, 0, 0))
+	await process_frame
+	for body in [alpha_body, plain_body]:
+		body.health.take_damage(body.health.max_hp + 1.0, null)
+	await process_frame
+	var alpha_corpse = null
+	var plain_corpse = null
+	for n in root.get_children():
+		if n.has_method("cut_part") and n._owner == alpha_body:
+			alpha_corpse = n
+		if n.has_method("cut_part") and n._owner == plain_body:
+			plain_corpse = n
+	_expect(alpha_corpse != null and plain_corpse != null, "both carcasses exist")
+	if alpha_corpse != null:
+		var has_pool := false
+		for i in alpha_corpse.loot.slot_count:
+			var st = alpha_corpse.loot.slots[i]
+			if st != null and ids.has(st.def_id):
+				has_pool = true
+		_expect(has_pool, "a real alpha carcass holds alpha-pool loot")
+		alpha_corpse.queue_free()
+	if plain_corpse != null:
+		for i in plain_corpse.loot.slot_count:
+			var st = plain_corpse.loot.slots[i]
+			_expect(st == null or not ids.has(st.def_id), "a real normal carcass holds no alpha-pool loot (%s)" % (st.def_id if st else ""))
+		plain_corpse.queue_free()
+	alpha_body.queue_free()
+	plain_body.queue_free()
+	hero.queue_free()
 	print("[t_alphas] alpha pool: %d items over 40 carcasses (%s)" % [total, seen.keys()])
 	_expect(seen.size() >= mini(2, ids.size()), "both pool items can drop (%s)" % [seen.keys()])
 	_sections += 1
