@@ -63,6 +63,7 @@ static func draw(ci: CanvasItem, c: Vector2, rad: float, fullness: float, satura
 	var sw := maxf(2.0, rad * 0.1)    # outer saturation ring
 	var w := maxf(4.0, rad * 0.27)    # inner fullness ring
 	var r_in := rad - sw - 2.5 - w * 0.5
+	ci.draw_circle(c + Vector2(0, 1.5), rad + 1.5, Color(0, 0, 0, 0.45), true, -1.0, true)  # LEVELBADGE: its own shadow, no panel
 	ci.draw_circle(c, rad, UiTokens.HUD_FILL)
 	ci.draw_arc(c, rad - sw * 0.5, 0.0, TAU, 40, Color(UiTokens.SATURATION, 0.18), sw, true)
 	if saturation > 0.0:

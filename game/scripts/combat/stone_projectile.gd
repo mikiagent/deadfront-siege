@@ -52,7 +52,7 @@ func _physics_process(delta: float) -> void:
 func impact(victim: Creature) -> void:
 	var dodge := victim.dodge_chance() + victim.statuses.evasion_add() * CombatTuning.top("evasion_add_scale", 0.01)
 	if not CombatTuning.roll(CombatTuning.hit_chance(source.statuses.accuracy_mult(), dodge)):
-		victim.combat_float.emit(0.0, &"dodge")
+		CombatAvoid.avoided(victim, source)
 		return
 	var tune := CombatTuning.section("ranged")
 	var raw := maxf(damage * float(tune.get("min_damage_frac", 0.05)), damage - victim.defense_for(true) * victim.statuses.defense_mult() * float(tune.get("defense_factor", 0.5)))

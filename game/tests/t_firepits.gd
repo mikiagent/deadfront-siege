@@ -70,6 +70,7 @@ func _run() -> void:
 		_finish())
 	_test_pit_empty()
 	_test_pit_wood()
+	await _test_fuel_logs()
 	_test_temporary_lit()
 	_test_burn_out()
 	_test_wear_inside_and_outside()
@@ -128,6 +129,83 @@ func _test_pit_wood() -> void:
 	# Loading again relights it.
 	pit.call("load_wood", _player)
 	_expect(bool(pit.call("burning")) and bool(pit.call("wood_visible")), "loading wood again relights the pit")
+	pit.queue_free()
+
+## FIREFUEL (owner 2026-10-28): branch +1 min, log +5 min, 10 min max; the pit draws one log per
+## minute left (ceil), 0 when out; the state reads roaring / burning / low / out as it runs down.
+func _test_fuel_logs() -> void:
+	_player.inventory.consume(&"wood_log", _player.inventory.count_of(&"wood_log"))
+	_player.inventory.add(IS.make(&"wood_log", 4))
+	_wood_log()
+	var pit := _fire(&"stone_fire_pit")
+	_expect(int(pit.call("logs_shown")) == 0 and int(pit.call("visible_log_count")) == 0 and pit.call("fuel_state") == &"out", "an empty pit draws 0 logs and reads out")
+	var g1: float = pit.call("add_fuel", _player, &"branch")
+	_expect(is_equal_approx(g1, 60.0) and int(pit.call("visible_log_count")) == 1, "a branch adds 1 min and draws 1 log")
+	var g2: float = pit.call("add_fuel", _player, &"wood_log")
+	_expect(is_equal_approx(g2, 300.0) and int(pit.call("visible_log_count")) == 6, "a log adds 5 min (6 min: 6 logs)")
+	pit.call("add_fuel", _player, &"wood_log")
+	var logs_before: int = _player.inventory.count_of(&"wood_log")
+	var g3: float = pit.call("add_fuel", _player, &"wood_log")
+	print("[t_firepits] fuel full=%.0fs logs=%d state=%s refused=%.0f" % [float(pit.get("fuel_seconds")), int(pit.call("visible_log_count")), pit.call("fuel_state"), g3])
+	_expect(is_equal_approx(float(pit.get("fuel_seconds")), 600.0), "fuel caps at 10 min")
+	_expect(g3 == 0.0 and _player.inventory.count_of(&"wood_log") == logs_before, "a full fire refuses wood and keeps it in the bag")
+	_expect(int(pit.call("visible_log_count")) == 10 and pit.call("fuel_state") == &"roaring", "a full fire draws 10 logs and roars")
+	# Burn down a minute at a time: the drawn logs follow ceil(minutes left).
+	var match_all := true
+	var states := {}
+	for m in range(10, 0, -1):
+		var want := m
+		var got: int = pit.call("visible_log_count")
+		states[m] = pit.call("fuel_state")
+		if got != want or int(pit.call("logs_shown")) != want:
+			match_all = false
+			print("[t_firepits] at %d min drawn=%d" % [m, got])
+		pit.call("tick", 30.0)
+		if int(pit.call("visible_log_count")) != want:  # mid-minute still shows the started minute
+			match_all = false
+		pit.call("tick", 30.0)
+	print("[t_firepits] states by minute %s" % str(states))
+	_expect(match_all, "every minute the pit draws ceil(minutes left) logs, 10 down to 1")
+	_expect(states[10] == &"roaring" and states[5] == &"burning" and states[2] == &"low" and states[1] == &"low", "the fire reads roaring, then burning, then low as it runs down")
+	_expect(int(pit.call("visible_log_count")) == 0 and not bool(pit.call("wood_visible")) and not bool(pit.call("flame_visible")) and pit.call("fuel_state") == &"out", "burnt out: 0 logs, no flame")
+	var fx_on := false
+	for e in pit.find_children("*", "CPUParticles3D", true, false):
+		fx_on = fx_on or (e as CPUParticles3D).emitting
+	_expect(not fx_on, "an out fire emits no flame particles")
+	pit.call("add_fuel", _player, &"wood_log")
+	var emitting := 0
+	for e in pit.find_children("*", "CPUParticles3D", true, false):
+		emitting += 1 if (e as CPUParticles3D).emitting else 0
+	_expect(emitting >= 3, "a lit fire runs its flame, ember and smoke particles (%d emitting)" % emitting)
+	var big: float = (pit.get("_flame") as Node3D).scale.y
+	pit.call("tick", 240.0)
+	pit.call("_process", 0.0)
+	var small: float = (pit.get("_flame") as Node3D).scale.y
+	_expect(small < big, "the flame shrinks as the fuel runs low (%.2f -> %.2f)" % [big, small])
+	# Save round trip: the fuel (and so the logs) come back.
+	pit.set("fuel_seconds", 270.0)
+	pit.call("_sync_fire_nodes")
+	var back: StaticBody3D = B.from_dict(pit.call("to_dict"))
+	_host.add_child(back)
+	print("[t_firepits] save fuel=%.0f logs %d -> %d" % [float(back.get("fuel_seconds")), int(pit.call("visible_log_count")), int(back.call("visible_log_count"))])
+	_expect(int(back.call("visible_log_count")) == 5 and is_equal_approx(float(back.get("fuel_seconds")), 270.0), "4:30 of fuel saves and loads as 5 logs")
+	# The fuel sheet shows the same slots and feeds the fire.
+	var hud: Node = get_first_node_in_group("hud")
+	_expect(hud != null and hud.has_method("open_fire_fuel"), "the HUD opens a fire's fuel sheet")
+	if hud != null:
+		var sheet: Variant = hud.call("open_fire_fuel", back, _player)
+		_expect(int(sheet.call("filled_slots")) == 5, "the fuel sheet fills 5 of 10 slots at 4:30")
+		var gained: float = sheet.call("add", &"branch")
+		_expect(gained > 0.0 and int(sheet.call("filled_slots")) == 6, "a branch from the sheet adds a minute and a slot")
+		await process_frame
+		await process_frame
+		var lo := INF
+		for b: Button in UiWorldSheet.buttons_in(sheet):
+			print("[t_firepits] sheet button %s %s" % [b.name, str(b.get_global_rect().size)])
+			lo = minf(lo, minf(b.size.x, b.size.y))
+		_expect(lo >= 64.0 - 0.5, "every fuel sheet button is a 64 px tap target (%.0f)" % lo)
+		sheet.call("close")
+	back.queue_free()
 	pit.queue_free()
 
 # ---------------------------------------------------------------- bonfire / campfire: temporary
@@ -216,9 +294,16 @@ func _test_cooking_gate() -> void:
 		menu.call("_on_pressed", &"cook")
 		_expect(emitted.is_empty(), "a COOK press on a cold pit emits nothing")
 		_wood_log()
-		menu.call("show_for", cold_pit, [{"id": &"wood", "label": "LOAD WOOD"}])
+		menu.call("show_for", cold_pit, [{"id": &"wood", "label": "FUEL"}])
 		menu.call("_on_pressed", &"wood")
-		_expect(float(cold_pit.get("fuel_seconds")) > 0.0 and bool(cold_pit.call("can_cook")), "LOAD WOOD from the menu lights the pit")
+		# FIREFUEL: FUEL opens the fire's fuel sheet; its Branch button lights the pit.
+		var hud: Node = get_first_node_in_group("hud")
+		var sheet: Variant = hud.get("_world_sheets").get(&"fire_fuel") if hud != null else null
+		_expect(sheet != null and bool(sheet.call("is_open")) and sheet.get("fire") == cold_pit, "FUEL from the menu opens the fire's fuel sheet")
+		if sheet != null:
+			sheet.call("add", &"branch")
+			sheet.call("close")
+		_expect(float(cold_pit.get("fuel_seconds")) > 0.0 and bool(cold_pit.call("can_cook")), "a branch from the fuel sheet lights the pit")
 		menu.call("hide_menu")
 		cold_pit.queue_free()
 	# A cook that is under way on the fire stops when the fire goes out, and its inputs stay in the bag.

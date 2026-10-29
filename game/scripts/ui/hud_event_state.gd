@@ -125,8 +125,8 @@ func add_bite(amount: float, heavy: bool) -> void:
 	player_floats.append({"t": 0.0, "n": amount, "x": randf_range(-18.0, 18.0)})
 
 ## A text float over the survivor (REST's recovery: "+3 HP", "-1 fatigue"), `dy` px below the damage row.
-func add_float(text: String, color: Color, dy: float = 0.0) -> void:
-	player_floats.append({"t": 0.0, "txt": text, "col": color, "x": 0.0, "dy": dy})
+func add_float(text: String, color: Color, dy: float = 0.0, px: int = 22) -> void:
+	player_floats.append({"t": 0.0, "txt": text, "col": color, "x": 0.0, "dy": dy, "px": px})
 
 ## STATUSFX: a damage-over-time tick's number over her ("-0.2", "-3"): smaller than a hit's 22 px, it
 ## pops in from 70 % and then rises and fades on the same path as a hit's number.

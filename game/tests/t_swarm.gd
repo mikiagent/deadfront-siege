@@ -61,6 +61,9 @@ func _run() -> void:
 	_expect(float(group.surround_gap) < 180.0, "the pack surrounds her (largest gap between neighbours %.0f deg on average while it circles)" % group.surround_gap)
 	_expect(int(group.darts) >= 8 and int(group.outs) * 2 >= int(group.darts), "darts in and scurries back out (%d darts, %d back-outs)" % [group.darts, group.outs])
 	_expect(float(group.bite_share) <= float(tac.get("max_basic_share", 0.15)), "the plain bite stays rare (%.2f of attacks)" % group.bite_share)
+	# Owner 2026-10-28: "strafe left and strafe right animations are needed on compsagnathus". Circling the ring
+	# sideways plays the strafe on the side it moves to, not a forward walk gliding sideways.
+	_expect(int(group.circle_side_frames) > 60 and float(group.circle_strafe_share) >= 0.8, "circling sideways plays strafe_left/right (%.2f of %d frames)" % [group.circle_strafe_share, group.circle_side_frames])
 	# Hurt: one flees.
 	var hurt = pack[1]
 	hurt.health.hp = hurt.health.max_hp * 0.2
@@ -145,6 +148,8 @@ func _fight(cs: Array, secs: float, measure_ring: bool) -> Dictionary:
 	var f0 := Engine.get_physics_frames()
 	var gap_sum := 0.0
 	var gap_n := 0
+	var circ_moving := 0  ## physics frames a member circled while moving sideways to its facing
+	var circ_strafe := 0  ## ...of which it played strafe_left/right on the side it moved to
 	while Engine.get_physics_frames() - f0 < n:
 		await physics_frame
 		_keep_alive()
@@ -158,6 +163,12 @@ func _fight(cs: Array, secs: float, measure_ring: bool) -> Dictionary:
 		var ringed := 0
 		for c in cs:
 			ringed += 1 if c.brain.state == &"circle" else 0
+			var v := Vector3(c.velocity.x, 0.0, c.velocity.z)
+			if c.brain.state == &"circle" and v.length() > 0.2:
+				var side: float = v.normalized().dot(c.global_basis.x)
+				if absf(side) > 0.5:
+					circ_moving += 1
+					circ_strafe += 1 if c.current_clip == (&"strafe_right" if side > 0.0 else &"strafe_left") else 0
 		# Measured while the pack is on its ring (3+ circling), not mid-dart.
 		if measure_ring and Engine.get_physics_frames() - f0 > n / 3 and ringed >= 3:
 			var angs: Array[float] = []
@@ -185,4 +196,5 @@ func _fight(cs: Array, secs: float, measure_ring: bool) -> Dictionary:
 		if k in [&"charge", &"bite"]:
 			attacks += 1
 	return {"darts": darts, "outs": outs, "bite_share": float(bites) / maxf(1.0, float(attacks)),
-		"surround_gap": gap_sum / maxf(1.0, float(gap_n)), "darts_per_min_each": float(darts) * 60.0 / secs / float(cs.size())}
+		"surround_gap": gap_sum / maxf(1.0, float(gap_n)), "circle_side_frames": circ_moving,
+		"circle_strafe_share": float(circ_strafe) / maxf(1.0, float(circ_moving)), "darts_per_min_each": float(darts) * 60.0 / secs / float(cs.size())}
