@@ -316,7 +316,7 @@
         "hop_m": 3.0,
         "hop_cd": 1.0,
         "leap_back_m": 3.0,
-        "max_retreat_m": 7.0,
+        "max_retreat_m": 5.5,
         "w_hold": 0.2,
         "w_strafe": 0.5,
         "w_dodge": 0.2,
@@ -337,14 +337,14 @@
         "pack_gap_s": 0.3,
         "pack_bold": {
           "n": 4,
-          "cooldown_mult": 0.6,
+          "cooldown_mult": 0.5,
           "w_charge": 1.5,
           "beat_mult": 0.6,
           "wait_mult": 0.5,
           "retreat_frac_mult": 0.6
         },
         "alone": {
-          "cooldown_mult": 1.8,
+          "cooldown_mult": 2.2,
           "w_feint": 1.5,
           "retreat_frac_mult": 1.6,
           "w_hop": 2.0
@@ -363,7 +363,9 @@
           "beat_mult": 0.7,
           "wait_mult": 0.5
         },
-        "feint_repositions": true
+        "feint_repositions": true,
+        "_leash": "max_retreat_m 5.5 keeps a scurry inside the compy's own short leash (perception ~5.75 m x leash_mult 1.2): backing off must never drop the hunt.",
+        "slot_tolerance_m": 2.0
       }
     },
     "flock_harass": {

@@ -58,7 +58,7 @@ func _run() -> void:
 	_expect(pack[0].brain.get_script().get_global_name() == &"TacticalBrain", "compsognathus gets the TacticalBrain")
 	var group: Dictionary = await _fight(pack, 30.0, true)
 	print("[t_swarm] pack census %s" % group)
-	_expect(float(group.surround_gap) < 200.0, "the pack surrounds her (largest gap between neighbours %.0f deg on average)" % group.surround_gap)
+	_expect(float(group.surround_gap) < 180.0, "the pack surrounds her (largest gap between neighbours %.0f deg on average while it circles)" % group.surround_gap)
 	_expect(int(group.darts) >= 8 and int(group.outs) * 2 >= int(group.darts), "darts in and scurries back out (%d darts, %d back-outs)" % [group.darts, group.outs])
 	_expect(float(group.bite_share) <= float(tac.get("max_basic_share", 0.15)), "the plain bite stays rare (%.2f of attacks)" % group.bite_share)
 	# Hurt: one flees.
@@ -155,7 +155,11 @@ func _fight(cs: Array, secs: float, measure_ring: bool) -> Dictionary:
 			for c in cs:
 				row += " %s %.3f,%.3f e%.1f" % [c.brain.state, c.global_position.x, c.global_position.z, c.energy]
 			print("[trace] %d%s" % [Engine.get_physics_frames() - f0, row])
-		if measure_ring and Engine.get_physics_frames() - f0 > n / 3:
+		var ringed := 0
+		for c in cs:
+			ringed += 1 if c.brain.state == &"circle" else 0
+		# Measured while the pack is on its ring (3+ circling), not mid-dart.
+		if measure_ring and Engine.get_physics_frames() - f0 > n / 3 and ringed >= 3:
 			var angs: Array[float] = []
 			for c in cs:
 				var v: Vector3 = c.global_position - player.global_position

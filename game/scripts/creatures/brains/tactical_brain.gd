@@ -322,7 +322,8 @@ func _approach_ring() -> void:
 			return
 		creature.move_to(attack_target.global_position)
 		return
-	if _flat_dist(attack_target) <= ring_m() + 0.6:
+	# The nav agent stops target_desired_distance (0.9 m) short of its goal: count that as arrived.
+	if _flat_dist(attack_target) <= ring_m() + 0.6 + creature.agent.target_desired_distance:
 		_enter_circle()
 		return
 	creature.move_to(attack_target.global_position + _to_me() * ring_m())
@@ -498,6 +499,9 @@ func _offence(d: float, in_jaws: bool) -> bool:
 	_wait_t = 0.0
 	if in_jaws and _strike(d, tac.get("point_blank", ["combo", "bite"])):
 		return true
+	# A surrounding pack darts from its own slot: reach it first, so the bites come from every side.
+	if tac.get("surround", false) and _pack_members().size() > 1 and _flat_dist_to(_surround_slot()) > _t("slot_tolerance_m", 1.2):
+		return false
 	return _start_sequence(d)
 
 ## An opening on the prey: a survivor whose swing is recovering (or playing) or whose back is turned.
