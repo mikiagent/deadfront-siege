@@ -37,7 +37,7 @@ enum TileType {
 static func build(rt: IslandRuntime, size: float, climate: String, shape: IslandShape) -> void:
 	rt._size = size
 	# 160 divides into the 8 mesh chunks; cells 2.3-2.9 m so hills and cliffs do not facet badly.
-	rt._res = 161
+	rt._res = shape.res  # 161 unless the island asks for more (terrain_res); (res - 1) splits into the 8 mesh chunks
 	rt._shape = shape
 	rt._rad = shape.rads
 	rt._river_d = shape.river_d

@@ -83,6 +83,21 @@ Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tri
 | **T14** | Away from home only following members come along; working and staying members remain at home. There is no expedition slot limit yet (vision §7 says three shared slots). | `TribeDirector.sync` | Party size on trips. |
 | **T15** | Work reach: a worker stands at the visible edge of a node (card or mesh footprint) plus 0.3 m. | `HarvestNode.visual_radius` | Visual only. |
 
+### TUTORIAL ISLAND (2026-10-28)
+
+Source: branch `claude/mmo-tutorial-island`, report `docs/orchestration/reports/claude-tutorial.md` (its A12-A19, renumbered TU1-TU8 at the merge: canon already used A12-A17).
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TU1** | TUTORIAL ISLAND: the island pick (ISLANDPICK A2) moved from the end of character creation to the end of the tutorial (the last order, walking onto the dock, opens it). | `Tutorial.grant_home`, `docs/current/tutorial.md` | The owner asked that the tutorial "ends with them owning their own personal island"; no doc places the pick. |
+| **TU2** | The tutorial island: one shared generated grassland island at 4.5x the home's land (795 x 636 m, owner asked 4-5x), level 1, seed 9091; the town 36 m from the dock; wild lands as 11 streamed zones (compsognathus by the town, then zebraceratops, gallimimus, protoceratops, coelophysis, velociraptor, deinonychus out to 360 m). | `data/islands/tutorial_isle.json` | Size and content set the tutorial's walking time (bot: ~3.3 min of play for 19 orders) and its build cost (8-9 s headless vs ~3.9 s home). |
+| **TU3** | The town: "Adventurer's Guild" (working name) is a quest-hub building whose tap opens the Orders sheet; a market stall opens the Island Market; models are stand-ins (log shelter, fishing stand, signpost, barrel, crates). The guild does not yet run the comm-center contribution track or comms_ui faction offers (those are home-island/faction systems). | `TownBuilding`, `Tutorial.dress` | Which quests beyond the tutorial orders the guild should offer is open. |
+| **TU4** | Perf limits on the big island: ground cover full within 120 m of the town and 6 % beyond, biome dressing 30 %, terrain 241 res, harvest nodes inside the scatter's 420-600 clamp, creatures streamed by zone (wake 110 m, sleep 170 m, respawn 240 s). Terrain and nav are not chunked. | island data + `ZoneSpawner` | The far wild lands look thinner than the town; true chunk streaming of terrain/nav/scatter is not built. |
+| **TU5** | Everything carries over to the home (bag, gear, skills, levels, T-stones, bonded animals); buildings placed on the tutorial island stay there. | `Tutorial.ferry` | The docs say nothing about a tutorial carry-over. |
+| **TU6** | 19 tutorial orders, one system each: report to the guild, branches, stones, fibre, drink, eat, rest, twine, stone knife (needed to cut meat), work axe, logs, hunt, butcher, light the fire pit, cook a Herb Roast (COOKROLES main + topping), eat it, learn a skill, build a straw bedroll, board the ferry. Rewards 15-60 XP and 0-3 T-stones each. **No taming order**: vision section 1 says the first bond is found in open play, not a guided award. | `objectives.json "tutorial"` | Order, count and rewards are this build's; the plan's 16-step rewrite of the standing orders is still open. |
+| **TU7** | After the tutorial the standing orders resume at "Weave a capture net" (`tutorial_resume_at: net`); the main list's first 9 orders (branches to skewer) are skipped because the tutorial taught them. | `objectives.json` | A survivor never sees those 9 orders; change the id to resume elsewhere. |
+| **TU8** | The tutorial island cannot be left early: harbour routes and warp home are refused until its last order. | `World.travel` | A player who wants to skip has no in-game way out (dev: `--skip-tutorial`). |
+
 ## Parked by other docs
 
 Each vision doc's unresolved points remain inside that doc until the workshop; the sections listed below are the owners' pointers, collected here only for reachability:

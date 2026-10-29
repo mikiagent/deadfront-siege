@@ -845,6 +845,7 @@ func _refresh_context(delta: float) -> void:
 		if h.glyph == "" and h.icon == null:
 			h.glyph = h.caption
 			h.caption = ""
+		h.name = "Ctx_" + id  # TUTORIAL ISLAND: the onboarding pointer finds a context action by name
 		h.pressed.connect(_on_context.bind(id))
 		add_child(h)
 		if id == "claim":
@@ -1648,7 +1649,7 @@ func _draw() -> void:
 		if not rest_lines.is_empty():  # REST: its live rates in a box right under the chips (and the max-HP note)
 			drawn_blocks["rest"] = HudRestBox.draw(self, _font, Vector2(sx0, rest_y), UiTokens.body(r), rest_lines)
 	var mp := _minimap.position
-	var top := "Home" if World.is_home() else ("Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
+	var top := "Home" if World.is_home() else ("Tutorial Island" if World.is_tutorial() else "Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
 	if World.island_id == &"":
 		top = "Lab"
 	var meta_px := UiTokens.meta(r)

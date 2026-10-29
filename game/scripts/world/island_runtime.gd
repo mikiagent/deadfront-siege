@@ -37,6 +37,12 @@ var _climate: String = "temperate"
 var _tier: int = 25
 var _level_override: int = 0
 var _camp_pos: Vector3 = Vector3.ZERO
+## Ground cover kept at full density within this many metres of the camp, and this share of it beyond
+## (0 = everywhere full, the stock islands). Island data: cover_full_radius_m, cover_far_share.
+var cover_full_radius: float = 0.0
+var cover_far_share: float = 1.0
+## BiomeDress density share (island data dress_share; 1 on the stock islands).
+var dress_share: float = 1.0
 var _harbour_pos: Vector3 = Vector3.ZERO
 var _camp_hint: Vector3 = Vector3.ZERO
 var _crater_pos: Vector3 = Vector3.ZERO
@@ -165,7 +171,10 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	var hint := Vector2(float(harbour_a[0]), float(harbour_a[2])) if def.has("harbour") else Vector2(_camp_hint.x, _camp_hint.z)
 	var t0 := Time.get_ticks_usec()
 	PerfTrace.start(str(def.get("id", "")))
-	_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, 161, _climate)
+	var land_v: Variant = def.get("land_m", [])
+	var land := Vector2(float(land_v[0]), float(land_v[1])) if land_v is Array and (land_v as Array).size() >= 2 else Vector2.ZERO
+	var res := clampi(int(def.get("terrain_res", 161)), 65, 321)
+	_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, res, _climate, land)
 	_shape.camp_hint = Vector2(_camp_hint.x, _camp_hint.z)
 	_shape.compute()
 	PerfTrace.mark("shape")
@@ -204,6 +213,9 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	IslandClaims.setup(self, def)
 	var t3 := Time.get_ticks_usec()
 	PerfTrace.mark("camp")
+	cover_full_radius = float(def.get("cover_full_radius_m", 0.0))
+	cover_far_share = clampf(float(def.get("cover_far_share", 1.0)), 0.0, 1.0)
+	dress_share = clampf(float(def.get("dress_share", 1.0)), 0.05, 1.0)
 	IslandScatter.scatter(self, def, terrain, _climate, _tier, size)
 	PerfTrace.mark("scatter")
 	props = IslandProps.build(self)

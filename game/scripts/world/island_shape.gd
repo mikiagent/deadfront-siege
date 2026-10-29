@@ -127,7 +127,8 @@ static func target_short(tier: int) -> float:
 
 ## Builds the parameter set for one island. `harbour_hint` aims the cove (the harbour sits at its
 ## head); Vector2.ZERO picks a random coast. `legacy_core` turns on the old-height blend (home).
-static func make(p_size: float, p_seed: int, p_kind: String, p_tier: int, harbour_hint: Vector2, legacy_core: bool, p_res: int, p_climate: String) -> IslandShape:
+## `p_land` (long, short m) overrides the tier band for an island that names its own landmass (the tutorial island).
+static func make(p_size: float, p_seed: int, p_kind: String, p_tier: int, harbour_hint: Vector2, legacy_core: bool, p_res: int, p_climate: String, p_land: Vector2 = Vector2.ZERO) -> IslandShape:
 	var s := IslandShape.new()
 	s.size = p_size
 	s.res = p_res
@@ -201,8 +202,8 @@ static func make(p_size: float, p_seed: int, p_kind: String, p_tier: int, harbou
 	# depth in metres is the calibrated short axis times this fraction, not a metre figure.
 	s._cove = [cove_ang, 0.34 if legacy_core else r.randf_range(0.14, 0.22), r.randf_range(0.14, 0.20)]
 	# Calibrate x/z so the land bbox is the tier's target (measured on the analytic coastline).
-	var long_m := HOME_LONG if legacy_core else target_long(p_tier)
-	var short_m := HOME_SHORT if legacy_core else target_short(p_tier)
+	var long_m := HOME_LONG if legacy_core else (p_land.x if p_land.x > 0.0 else target_long(p_tier))
+	var short_m := HOME_SHORT if legacy_core else (p_land.y if p_land.y > 0.0 else target_short(p_tier))
 	s.target = Vector2(long_m, short_m)
 	var half := Vector2(0.0, 0.0)
 	for i in 720:

@@ -215,7 +215,7 @@ static func plan(rt: IslandRuntime, seed_value: int) -> Array[Dictionary]:
 		for id in zone_kinds(zone):
 			if not grows_in(zone, id, rt._climate):
 				continue
-			var want := maxi(2, int(round(density_of(zone, id) * float(row["count"]))))
+			var want := maxi(2, int(round(density_of(zone, id) * float(row["count"]) * rt.dress_share)))
 			_plan_kind(rt, zone, id, want, float(row["count"]), tiles, span, half, rng, out)
 	return out
 
