@@ -53,16 +53,34 @@ Genetic alphas are separate: `tactics.alpha` multiplies the nature knobs (Creatu
 ## Swarm extras (compsognathus)
 - `surround: true`: each packmate steers to its own slot on the ring, evenly spaced by pack index,
   the ring turning `surround_turn_deg` per second.
-- `backoff: "scurry"`: back-offs run out (`scurry_s`, facing the prey: walk_back/strafe clips)
-  instead of leaping.
+- Back-offs are **leaps** (COMPYJUMPS, owner 2026-10-28: "should jump back similar to the
+  deinonychus"): `hop_back` over `hop_m` 3 m as a filler or backstep, `leap_back` over `leap_back_m`
+  4 m after a bite, always facing the prey and never past `max_retreat_m` 5.5 m (its short leash).
+  `backoff: "scurry"` (run out over `scurry_s` on walk_back/strafes) is still supported for herds.
+- Power strafe: `dodge_left/right` jumps of `strafe_m` 2.5 m (`w_dodge` 0.4) mixed into the strafe
+  walk (`w_strafe` 0.5) while it circles.
+- Pounce: `pounce_min_m` 2 to `pounce_max_m` 6 m, `pounce_cd` 5 s, telegraph 0.45 s, 1.6 x bite.
+  `approach_pounce: true` lets it open with a pounce on the way in. The landing point is locked at
+  take-off (prey position + velocity over the flight), so a sidestep after take-off misses and it
+  lands on the locked spot, recovering `pounce_miss_recover_s` 1.0 s; `pounce_overshoot_chance` 0.2
+  sails 1.5 m past her.
+- Landing (owner 2026-10-28: "it should land some attacks"): `bite_track` keeps the bite lunging
+  after prey that walks out of its jaws until the contact frame (past `bite_track_frac` 0.6 x reach);
+  `chase_hop` makes a compy at a walking survivor's heels, whose bite is not allowed yet, hop back
+  and chase again instead of trotting glued to her. A filler dodge in a surrounding pack jumps towards
+  its own ring slot. Off its slot by more than `slot_tolerance_m`, it hurries back at
+  `slot_catchup_mult` 2 x its circling pace. A lone compy does not open with the approach pounce.
 - `retreat_mode: "flee"`: below `retreat_frac` it flees for `flee_s` and comes back. A packmate's
   death makes the rest flee for `mate_death_flee_s`.
 - `feint_repositions: true`: its feint (a dart in and out with no bite) stays a filler while the
   bite cools.
-- Sequences: dart (charge into a bite), or strafe_left/right then dart; point blank is the bite.
-- Missing clips for the art thread: hop_back, leap_back, dodge_left/right, pounce, charge,
-  bite_combo. It plays well without them: the strafes stand in for dodges, the run for the charge,
-  and it scurries instead of leaping.
+- Sequences: dart (charge into a bite), pounce, strafe_left/right then dart or pounce, and
+  backstep -> strafe -> pounce; point blank is the bite. `pack_bold`, `alone`, `weak_prey` and
+  `enraged` scale `w_pounce` too.
+- Clips (all on the rig): hop_back, leap_back, pounce (jaws open in the air, shut on hit_frac 0.7),
+  dodge_left/right from `tools/gait/make_leap.py` (checked by `tools/gait/check_leap.py`: no ground
+  penetration, toes planted on the ground frames), and a backpedal `walk_back` from `make_gait.py`.
+  Still missing for the art thread: charge, bite_combo (the run and the bite stand in).
 
 ## Herd grazer extras (pack_mule: zebraceratops, protoceratops)
 A profile on a herbivore archetype runs only while the animal is **provoked** (`CreatureBrain._provoked`):
@@ -195,3 +213,11 @@ call `IntentHandlers.rolls_dodge`.
    or launch with
    `Godot --path game -- --lab=creature_lab --species=<id>` (F3 prints every move;
    `--seq=DIR` saves frames).
+
+## Avoided-hit text (CombatAvoid)
+Every avoided hit floats grey text over the defender (survivor HUD or creature plate):
+"Dodged" (a roll's i-frames, the defender's dodge chance), "Blocked", and "Missed" (owner
+2026-10-28): the attacker's own accuracy roll failed (`CombatTuning.swing_outcome` splits the one
+draw into hit / dodge / miss with unchanged odds), a creature bite with the prey out of reach at the
+contact frame, a pounce that lands with her out of its jaws, or a survivor swing the creature stepped
+out of. Test: `game/tests/t_dodgetext.gd`.

@@ -106,6 +106,20 @@ Source: branch `claude/mmo-zebraai`, report `docs/orchestration/reports/claude-z
 | **Z5** | Hind kick: 1.4 × attack, 5 s cooldown, only with the survivor behind it at contact (typically right after a charge through her). | `kick_*` | Punishes standing behind a grazer. |
 | **Z6** | A provoked zebra flees for 4 s below 25 % HP (under the 30 % capture line, so a weakened one stays capturable for a moment) and comes back while still provoked. | `retreat_frac`, `flee_s` | Decides whether capture turns into a chase. |
 
+### COMPYJUMPS (2026-10-28) — compsognathus leaps, pounces and strafe jumps
+
+Source: branch `claude/mmo-compyjumps`, report `docs/orchestration/reports/claude-compyjumps.md`. Numbers live in `game/data/creatures/ai.json archetypes.swarm.tactics` (every one an ASSUMPTION). Owner: "should jump back similar to the deinonychus (far jumps, far pounces, far strafe jumps, combo moves, it can jump and miss the player)".
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **C1** | Back-offs are leaps, not a scurry: hop_back 3 m, leap_back 4 m after a bite, never past 5.5 m from the prey (the compy's short leash); arc 0.15 m per metre. | `hop_m`, `leap_back_m`, `max_retreat_m`, `leap_height_per_m` | Owner asked for deinonychus-style jump-backs; longer leaps would drop the hunt. |
+| **C2** | Pounce 2-6 m, 5 s cooldown, 0.45 s telegraph, 1.6 x bite (about 11 damage at attack 7), 20 % overshoot by 1.5 m, 1.0 s recovery after a miss. It also opens a fight from the approach (`approach_pounce`). | `pounce_*`, `approach_pounce` | A pack of four can pounce a lot; this is the main damage knob of the starter-island swarm. |
+| **C3** | Strafe jump (dodge_left/right) 2.5 m in 0.42 s; filler weight 0.4 next to the strafe walk 0.5. | `strafe_m`, `w_dodge` | How jumpy the circling looks. |
+| **C4** | Sequences: dart 2, pounce 2, strafe -> dart 1 each side, strafe -> pounce 1.5 each side, backstep -> strafe -> pounce 1 each side. Pack of 4+ pounces x1.3, alone x0.6, weak prey x1.3, enraged x1.4. | `sequences`, `pack_bold/alone/weak_prey/enraged.w_pounce` | Mix of moves. |
+| **C5** | The pounce aims at the prey plus her velocity over the flight and locks that point at take-off, so a sidestep after take-off always misses. | `TacticalBrain._pounce` (unchanged) | The skill test against a pounce. |
+| **C6** | Landing: the bite keeps lunging at 1.3 x run until its contact frame while she is beyond 0.6 x reach; a compy at a walking survivor's heels with no bite allowed hops back and chases again. Target share of bites and pounces that connect on a survivor who does not roll: about 50-85 % (t_swarm measures standing and walking 2 m/s). | `bite_track`, `bite_track_frac`, `chase_hop` | Owner: "attacks aren't landing very often". The swarm's chase speed (0.5) still lets a running survivor get away. |
+| **C7** | "Missed" (grey, like Dodged/Blocked) is shown for a failed accuracy roll, an out-of-reach contact frame, a pounce that lands with the prey out of its jaws, and a survivor swing the creature stepped out of. A failed roll against a creature with a dodge chance is split by the same single draw: inside the dodge part "Dodged", inside the accuracy part "Missed". | `CombatTuning.swing_outcome`, `CombatAvoid` | Owner: damage text "Dodged" "Blocked" or "Missed". |
+
 ## Parked by other docs
 
 Each vision doc's unresolved points remain inside that doc until the workshop; the sections listed below are the owners' pointers, collected here only for reachability:
