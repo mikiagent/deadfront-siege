@@ -114,8 +114,11 @@ hop_back, leap_back, pounce, dodge_left, dodge_right, strafe_left, strafe_right,
 charge (a loop like run, stride-matched by `natural_speeds.<id>.charge`).
 Fallbacks: a leap without its clip retimes attack_heavy over the profile's `*_s`. A dodge
 without its clip plays the strafe loop. Locomotion picks a clip by velocity against facing
-(`CreatureAnim.set_move_velocity`): walk_back when dot < -0.5, a strafe when |side| > 0.7, each
-stride-matched, otherwise walk/run. The same applies to ridden mounts.
+(`CreatureAnim.set_move_velocity`): walk_back when dot < -0.5, a strafe when |side| > 0.7 (0.5 while the
+brain's `strafe_face` holds it facing the prey, so circling and surround slots reached on a diagonal still
+sidestep), each stride-matched (`natural_speeds.<id>.strafe_left/right` when set, else the walk's), otherwise
+walk/run. The same applies to ridden mounts. `t_swarm` checks that a circling compy plays the strafe on the
+side it moves to.
 
 ## Natures (`natures.json`, default 1.0)
 | Knob | Aggressive | Timid | Brave |
