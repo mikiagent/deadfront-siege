@@ -40,6 +40,7 @@ static func settle(player: Player) -> int:
 		if not bool(state["done"]):
 			break
 		print("[objective] done %s (reward waits in Tasks)" % step.get("id", "?"))
+		Tasks.mark_done(str(step.get("id", World.objective)))
 		World.objective += 1
 		World.objective_best = 0
 		done += 1

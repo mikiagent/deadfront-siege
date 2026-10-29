@@ -13,7 +13,8 @@ const PATH := "res://data/world/tasks.json"
 const DAY_S := 86400
 
 static var claimed: Dictionary = {}  ## task id -> true
-static var counts: Dictionary = {}   ## "daily.gather" / "weekly.craft" ... -> count since the last reset
+static var counts: Dictionary = {}   ## "daily.gather" / "weekly.craft" -> count since the last reset; "life.<kind>" never resets
+static var done: Dictionary = {}     ## "main.<order id>" -> true once Objectives.settle finished it (claimable until received)
 static var day: int = -1             ## UTC day number the daily counts belong to
 static var week: int = -1            ## Monday-based UTC week number the weekly counts belong to
 static var clock_override: int = -1  ## tests: unix seconds to use instead of the system clock
@@ -28,9 +29,14 @@ static func defs() -> Dictionary:
 static func reset() -> void:
 	claimed = {}
 	counts = {}
+	done = {}
 	day = -1
 	week = -1
 	roll()
+
+## Objectives.settle finished standing order `id` (objectives.json, or a tutorial order).
+static func mark_done(order_id: String) -> void:
+	done["main." + order_id] = true
 
 # ---------------------------------------------------------------- counting and resets
 
@@ -54,12 +60,13 @@ static func _clear(prefix: String) -> void:
 			if str(k).begins_with(prefix):
 				dict.erase(k)
 
-## Something the daily / weekly tasks count happened: &"gather" (units landed), &"craft", &"hunt" (a kill).
+## Something a task counts happened: &"gather" (units landed), &"craft" and &"craft:<recipe>", &"hunt" (a
+## kill), &"butcher" (a part kind taken from a carcass), &"build", &"explore30", &"mineral60".
 static func note(kind: StringName, n: int = 1) -> void:
 	if n <= 0:
 		return
 	roll()
-	for cat in ["daily", "weekly"]:
+	for cat in ["daily", "weekly", "life"]:
 		var k := "%s.%s" % [cat, kind]
 		counts[k] = int(counts.get(k, 0)) + n
 
@@ -75,10 +82,12 @@ static func rows(cat: StringName, p: Player) -> Array[Dictionary]:
 			out = _main_rows(p)
 		&"daily", &"weekly":
 			for t: Dictionary in defs().get(str(cat), []):
-				out.append(_row(cat, t, int(counts.get("%s.%s" % [cat, t.get("count", "")], 0))))
+				if not t.get("hidden", false):
+					out.append(_row(cat, t, _counted(str(cat), t.get("count", ""))))
 		&"domain":
 			for t: Dictionary in defs().get("domain", []):
-				out.append(_row(cat, t, int(World.pioneer_buildings.get(str(t.get("kind", "")), 0))))
+				if not t.get("hidden", false):
+					out.append(_row(cat, t, int(World.pioneer_buildings.get(str(t.get("kind", "")), 0))))
 		&"achievement":
 			out = _achievement_rows(p)
 	var rank := func (r: Dictionary) -> int: return 0 if r["claimable"] else (2 if r["claimed"] else 1)
@@ -88,6 +97,13 @@ static func rows(cat: StringName, p: Player) -> Array[Dictionary]:
 			if rank.call(r) == want_rank:
 				order.append(r)
 	return order
+
+## The count `what` (a kind, or a list of kinds that sum) under `prefix` ("daily", "weekly", "life").
+static func _counted(prefix: String, what: Variant) -> int:
+	var n := 0
+	for k in (what if what is Array else [what]):
+		n += int(counts.get("%s.%s" % [prefix, k], 0))
+	return n
 
 static func _row(cat: StringName, t: Dictionary, got: int) -> Dictionary:
 	var want := maxi(1, int(t.get("want", 1)))
@@ -102,24 +118,45 @@ static func _shape(id: String, cat: StringName, title: String, desc: String, ico
 		"frac": clampf(float(got) / float(want), 0.0, 1.0), "done": done, "claimed": is_claimed,
 		"claimable": done and not is_claimed, "rewards": rewards}
 
-## Every standing order. Earlier ones are done (claimable until received); the running one reads its
-## best-held count (Objectives); a later one reads the bag now and is never done before its turn.
+## Every order of the running list (Objectives._steps: the tutorial's while it runs, else the standing
+## orders). Done = finished by Objectives.settle (the `done` set, not the index: the tutorial hands over to
+## the standing orders part-way down their list). The running one reads its best-held count; a later one
+## reads the bag now. An earlier order that was never finished (skipped by that hand-over) is not listed.
+## A finished, unreceived order of the other list (the tutorial's, once it ended) stays listed until received.
 static func _main_rows(p: Player) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var steps := Objectives._steps()
+	var listed := {}
 	for i in steps.size():
 		var s: Dictionary = steps[i]
+		var id := "main." + str(s.get("id", i))
+		listed[id] = true
+		var is_done := done.has(id)
+		if i < World.objective and not is_done:
+			continue
 		var st: Dictionary = {"got": 1, "want": 1}
-		if i >= World.objective and p != null:
-			st = Objectives._progress(p, s)
-			if i == World.objective:
-				st = Objectives._with_best(st)
-		elif i >= World.objective:
+		if not is_done:
 			st = {"got": 0, "want": 1}
-		var r := _shape("main." + str(s.get("id", i)), &"main", str(s.get("title", "")), str(s.get("hint", "")), "notice",
-			int(st["got"]), int(st["want"]), i < World.objective, {"t_stones": int(s.get("t_stones", 0)), "xp": int(s.get("xp", 0)), "sp": 0})
+			if p != null:
+				st = Objectives._progress(p, s)
+				if i == World.objective:
+					st = Objectives._with_best(st)
+		var r := _shape(id, &"main", str(s.get("title", "")), str(s.get("hint", "")), "notice",
+			int(st["got"]), int(st["want"]), is_done, {"t_stones": int(s.get("t_stones", 0)), "xp": int(s.get("xp", 0)), "sp": 0})
 		r["index"] = i
 		out.append(r)
+	for list_name in ["world_tutorial", "world_objectives"]:
+		var other: Variant = Data.get(list_name)
+		if not other is Array:
+			continue
+		for s: Dictionary in other:
+			var id := "main." + str(s.get("id", ""))
+			if not listed.has(id) and done.has(id) and not claimed.has(id):
+				listed[id] = true
+				var r := _shape(id, &"main", str(s.get("title", "")), str(s.get("hint", "")), "notice", 1, 1, true,
+					{"t_stones": int(s.get("t_stones", 0)), "xp": int(s.get("xp", 0)), "sp": 0})
+				r["index"] = -1
+				out.append(r)
 	return out
 
 ## One row per chain (the character level, then each skill tree in SkillState.ORDER): its lowest unclaimed
@@ -145,6 +182,9 @@ static func _achievement_rows(p: Player) -> Array[Dictionary]:
 		var rewards := {"t_stones": int(a.get("t_stones_per_level", 1)) * pick, "sp": int(a.get("skill_points", 1)), "xp": int(a.get("xp_per_level", 5)) * pick}
 		out.append(_shape("achievement.%s.%d" % [c[0], pick], &"achievement", "Level Up %s" % c[1],
 			"Reach %s level %d." % ["character" if c[0] == "character" else str(c[1]), pick], str(c[2]), lv, pick, lv >= pick, rewards))
+	for t: Dictionary in a.get("tasks", []):
+		if not t.get("hidden", false):
+			out.append(_row(&"achievement", t, _counted("life", t.get("count", ""))))
 	return out
 
 static func find(id: String, p: Player) -> Dictionary:
@@ -187,19 +227,22 @@ static func claim(id: String, p: Player) -> Dictionary:
 # ---------------------------------------------------------------- save
 
 static func to_dict() -> Dictionary:
-	return {"claimed": claimed.duplicate(), "counts": counts.duplicate(), "day": day, "week": week}
+	return {"claimed": claimed.duplicate(), "done": done.duplicate(), "counts": counts.duplicate(), "day": day, "week": week}
 
 ## `v` is the save's "tasks" block. A save from before the Task screen has none: its standing orders up
 ## to World.objective were paid when they finished, so they load as received (set World.objective first).
 static func from_dict(v: Variant) -> void:
 	claimed = {}
 	counts = {}
+	done = {}
 	day = -1
 	week = -1
 	if v is Dictionary and (v as Dictionary).has("claimed"):
 		var d: Dictionary = v
 		for k in (d["claimed"] if d["claimed"] is Dictionary else {}):
 			claimed[str(k)] = true
+		for k in (d["done"] if d.get("done") is Dictionary else {}):
+			done[str(k)] = true
 		var c: Dictionary = d["counts"] if d.get("counts") is Dictionary else {}
 		for k in c:
 			counts[str(k)] = clampi(int(c[k]), 0, 1000000) if (c[k] is int or c[k] is float) else 0
@@ -208,5 +251,7 @@ static func from_dict(v: Variant) -> void:
 	else:
 		var steps := Objectives._steps()
 		for i in mini(World.objective, steps.size()):
-			claimed["main." + str((steps[i] as Dictionary).get("id", i))] = true
+			var id := "main." + str((steps[i] as Dictionary).get("id", i))
+			claimed[id] = true
+			done[id] = true
 	roll()

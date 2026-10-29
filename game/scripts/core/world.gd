@@ -305,6 +305,8 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 	_ensure_map_fog(ir, camp_at if camp_at is Vector3 and (camp_at as Vector3) != Vector3.ZERO else (player.global_position if player else at))
 	print("[world] island %s nodes=%d creatures=%d terrain=%s" % [
 		id, int(ir.harvest_count), int(ir.creature_count), terrain])
+	if int(island_def.get("tier", 0)) >= 30:
+		Tasks.note(&"explore30")  # TASKSCREEN: weekly Explore Level-30 Islands (DW-T0125)
 	island_changed.emit(id)
 	if show_terrain and is_home() and home_terrain == &"":
 		(load("res://scripts/ui/world_ui.gd") as GDScript).instance_on(host).show_terrain()
@@ -419,7 +421,8 @@ func cargo_warp(player: Player) -> void:
 	print("[world] cargo warp %d stacks fee=%d" % [moved, CARGO_FEE])
 
 func note_craft(recipe_id: StringName) -> void:
-	Tasks.note(&"craft")  # TASKSCREEN: every craft counts toward the daily / weekly craft tasks
+	Tasks.note(&"craft")  # TASKSCREEN: every craft counts toward the craft tasks, and per recipe
+	Tasks.note(StringName("craft:" + str(recipe_id)))
 	if pioneer_crafts.has(str(recipe_id)):
 		return
 	pioneer_crafts[str(recipe_id)] = true
@@ -459,6 +462,7 @@ func note_building(kind: StringName, at: Vector3 = Vector3.ZERO, player: Player 
 	# The first-of-kind memory and the spam rule are the Tamed Island's (is_home), as before: an
 	# unstable island is a visit, so every build there pays the repeat award (the old flat 8) and no
 	# kind is remembered.
+	Tasks.note(&"build")  # TASKSCREEN: daily Construct a Building (DW-T0123)
 	var total := maxi(0, extra_xp)
 	if is_home():
 		total += build_placement_xp(kind, at)

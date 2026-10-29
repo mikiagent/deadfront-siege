@@ -81,12 +81,13 @@ func _ids(cat: StringName) -> Array:
 func _test_tabs() -> void:
 	_expect(T.CATS == [&"daily", &"achievement", &"domain", &"main", &"weekly"], "five categories in Durango's order")
 	var daily := _ids(&"daily")
-	_expect(daily.size() == 3 and daily.has("daily.gather") and daily.has("daily.craft") and daily.has("daily.hunt"), "Daily lists gather / craft / hunt (%s)" % [daily])
-	_expect(_ids(&"weekly").size() == 3 and _ids(&"weekly").has("weekly.hunt"), "Weekly lists its three")
+	_expect(daily == ["daily.gather", "daily.butcher", "daily.trim", "daily.stone_blade", "daily.build", "daily.hunt"], "Daily lists the Task Board's trackable dailies plus the hunt (%s)" % [daily])
+	_expect(not daily.has("daily.leaf_outfit") and not daily.has("daily.task_points"), "data-only dailies (no leaf outfit recipe, no task points) stay hidden")
+	_expect(_ids(&"weekly") == ["weekly.explore30", "weekly.gather", "weekly.craft", "weekly.hunt"], "Weekly lists Explore Level-30 Islands first (%s)" % [_ids(&"weekly")])
 	var dom := _ids(&"domain")
-	_expect(dom.has("domain.workbench") and dom.has("domain.taming_pen") and dom.size() == 8, "Domain Construction lists the build milestones (%s)" % [dom])
+	_expect(dom.has("domain.workbench") and dom.has("domain.taming_pen") and dom.size() == 8 and not dom.has("domain.advanced_kiln"), "Domain Construction lists the build milestones (%s)" % [dom])
 	var ach := _ids(&"achievement")
-	_expect(ach.size() == 13 and ach.has("achievement.character.5") and ach.has("achievement.cooking.10"), "Achievement: one row per chain, character + 12 skills (%s)" % [ach.slice(0, 3)])
+	_expect(ach.size() == 14 and ach.has("achievement.character.5") and ach.has("achievement.cooking.10") and ach.has("achievement.minerals60"), "Achievement: one row per chain (character + 12 skills) and Gather Level-60 Minerals (%s)" % [ach.slice(0, 3)])
 	_expect(_ids(&"main").size() == W.get_node("/root/Data").world_objectives.size(), "Main Task lists every standing order")
 
 func _row(id: String) -> Dictionary:
@@ -112,17 +113,29 @@ func _test_progress_and_claim() -> void:
 	_expect(_row("daily.gather")["claimed"] and T.claimable_count(_player, &"daily") == 0, "the row reads received; the dot clears")
 	# Domain: buildings placed in the domain (the saved first-of-kind memory).
 	W.pioneer_buildings["workbench"] = 1
-	_expect(_row("domain.workbench")["claimable"], "a placed workbench completes Build a Workbench")
+	_expect(_row("domain.workbench")["claimable"] and int(_row("domain.workbench")["rewards"]["sp"]) == 1, "a placed workbench completes Build a Workbench (pays a skill point, DW-T0128)")
+	# Hooks: crafting counts per recipe; butchering counts each part kind once per carcass.
+	W.note_craft(&"trimmed_plank")
+	W.note_craft(&"improvised_stone_knife")
+	_expect(int(_row("daily.trim")["got"]) == 1 and int(_row("daily.stone_blade")["got"]) == 1 and int(_row("weekly.craft")["got"]) == 2, "a craft counts for its recipe's daily and the weekly craft")
+	var corpse = load("res://scripts/creatures/corpse.gd").new()
+	corpse.first_take_of(&"raw_meat")
+	corpse.first_take_of(&"raw_meat")
+	corpse.first_take_of(&"hide")
+	corpse.free()
+	_expect(int(_row("daily.butcher")["got"]) == 2, "butchering counts each part kind once (%d)" % _row("daily.butcher")["got"])
+	T.note(&"mineral60", 5)
+	_expect(int(_row("achievement.minerals60")["got"]) == 5, "level-60 minerals count toward the achievement")
 	W.pioneer_buildings.erase("workbench")
 	# Achievement: a skill level through the skills API, paying T-stones, one skill point and EXP.
 	var sk = _player.skills
 	sk.trees["cooking"]["level"] = 10
 	var a := _row("achievement.cooking.10")
 	_expect(a["claimable"] and str(a["title"]) == "Level Up Cooking" and str(a["desc"]) == "Reach Cooking level 10.", "Cooking Lv 10 completes Level Up Cooking (%s / %s)" % [a.get("title"), a.get("desc")])
-	var sp0: int = sk.sp_now()
+	var sp0: int = sk.sp_extra  # the claim's EXP can also level the character, which pays its own SP
 	var t1: int = W.t_stones
 	T.claim("achievement.cooking.10", _player)
-	_expect(sk.sp_now() == sp0 + 1 and W.t_stones == t1 + 10, "the achievement pays 1 skill point and 10 T-stones (SP %d -> %d)" % [sp0, sk.sp_now()])
+	_expect(sk.sp_extra == sp0 + 1 and W.t_stones == t1 + 10, "the achievement pays 1 skill point and 10 T-stones (extra SP %d -> %d)" % [sp0, sk.sp_extra])
 	var next: Array = T.rows(&"achievement", _player).filter(func (x: Dictionary) -> bool: return str(x["id"]).begins_with("achievement.cooking."))
 	_expect(next.size() == 1 and str(next[0]["id"]) == "achievement.cooking.20" and not next[0]["claimable"], "the Cooking chain moves on to Lv 20")
 	sk.trees["cooking"]["level"] = 1
@@ -140,15 +153,24 @@ func _test_main() -> void:
 	_expect(T.rows(&"main", _player)[0]["id"] == first, "claimable rows sort first")
 	T.claim(first, _player)
 	_expect(_row(first)["claimed"], "Receive marks the order received")
+	# The tutorial hands over to the standing orders part-way down (objectives.json tutorial_resume_at):
+	# orders skipped that way were never finished, so they are neither listed nor claimable.
+	var was: int = W.objective
+	W.objective = 6
+	var ids := _ids(&"main")
+	_expect(not ids.has("main." + str((steps[3] as Dictionary)["id"])) and T.claimable_count(_player, &"main") == 0, "orders skipped by a hand-over are not listed and pay nothing")
+	W.objective = was
 
 func _test_reset() -> void:
-	T.note(&"craft", 3)
+	T.note(&"build", 1)
 	T.note(&"hunt", 1)
-	_expect(_row("daily.craft")["claimable"], "3 crafts complete the daily craft")
-	T.claim("daily.craft", _player)
+	var wc := int(_row("weekly.craft")["got"])
+	_expect(_row("daily.build")["claimable"], "a build completes Construct a Building")
+	T.claim("daily.build", _player)
 	T.clock_override += 3 * 3600  # Wednesday 01:13 UTC: a new day, same week
-	_expect(int(_row("daily.craft")["got"]) == 0 and not _row("daily.craft")["claimed"], "the next UTC day resets the daily counts and claims")
-	_expect(int(_row("weekly.craft")["got"]) == 3 and int(_row("weekly.hunt")["got"]) == 1, "the weekly counts carry over inside the week")
+	_expect(int(_row("daily.build")["got"]) == 0 and not _row("daily.build")["claimed"], "the next UTC day resets the daily counts and claims")
+	_expect(wc > 0 and int(_row("weekly.craft")["got"]) == wc and int(_row("weekly.hunt")["got"]) == 1, "the weekly counts carry over inside the week")
+	_expect(int(_row("achievement.minerals60")["got"]) == 5, "lifetime counts never reset")
 	T.clock_override += 5 * 86400  # the next Monday 01:13 UTC
 	_expect(int(_row("weekly.craft")["got"]) == 0, "Monday 00:00 UTC resets the weekly counts")
 
@@ -198,6 +220,7 @@ func _test_save() -> void:
 	# An old save has no tasks block: the orders it already finished were paid, so they load as received.
 	W.objective = 3
 	T.from_dict(null)
+	_expect(T.done.has("main." + str((W.get_node("/root/Data").world_objectives[2] as Dictionary)["id"])), "and as finished")
 	var steps: Array = W.get_node("/root/Data").world_objectives
 	_expect(_row("main." + str((steps[2] as Dictionary)["id"]))["claimed"] and not _row("main." + str((steps[3] as Dictionary)["id"]))["claimed"] and T.claimable_count(_player, &"main") == 0, "an old save's finished orders load as received, nothing to claim twice")
 	T.from_dict({"claimed": "junk", "counts": {"daily.gather": [1]}, "day": "x"})
