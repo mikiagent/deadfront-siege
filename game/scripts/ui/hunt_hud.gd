@@ -1841,6 +1841,13 @@ func _draw_capture_hint(cam: Camera3D, taken: Array[Rect2], a: float) -> void:
 	draw_string(_font, Vector2(box.position.x + 9.0, box.end.y - 6.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(0, 0, 0, 0.7 * a))
 	draw_string(_font, Vector2(box.position.x + 8.0, box.end.y - 7.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(UiTokens.GOLD, a))
 
+## ALPHATAG: where the ALPHA chip's top-left goes so it sits on the name's baseline row, `name_pos` being
+## the name's left-baseline point. Pure, so the geometry (and a test) can be checked without a draw pass.
+static func alpha_tag_pos(name_pos: Vector2, is_alpha: bool) -> Vector2:
+	if not is_alpha:
+		return name_pos
+	return Vector2(name_pos.x, name_pos.y - AlphaChip.CHIP_H + 1.0)
+
 func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 	var r := get_viewport_rect().size
 	if true:
@@ -1863,7 +1870,7 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			# ALPHATAG: a gold "ALPHA" tag in front of the name, then the name starts after it.
 			var prefix_w := 0.0
 			var aname_x := px + 12.0
-			var atag := AlphaChip.draw_at(self, _font, Vector2(px + 12, py + 28.0 - AlphaChip.CHIP_H + 1.0), t.is_alpha(), a)
+			var atag := AlphaChip.draw_at(self, _font, alpha_tag_pos(Vector2(px + 12, py + 28), t.is_alpha()), t.is_alpha(), a)
 			if atag.has_area():
 				prefix_w = atag.size.x + AlphaChip.NAME_GAP
 				aname_x = atag.end.x + AlphaChip.NAME_GAP

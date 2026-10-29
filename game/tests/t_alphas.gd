@@ -286,6 +286,14 @@ func _test_alpha_tag() -> void:
 	_expect(achip != null and aline != null and achip.position.y + achip.size.y <= aline.position.y + 16.0 + 1.0, "the tag rides the name's row, not under it")
 	_expect(aline != null and not aline.text.contains("Alpha"), "the plate's name carries no Alpha word ('%s')" % (aline.text if aline else ""))
 	_expect(nchip != null and not nchip.visible and nline != null and is_equal_approx(nline.position.x, 8.0), "a normal animal has no tag and its name starts at the margin")
+	# The HUD's drawn target plate uses the same geometry: the tag's rect on the name's row, ahead of it.
+	var HH: GDScript = load("res://scripts/ui/hunt_hud.gd")
+	var name_pos := Vector2(100.0, 60.0)
+	var tpos: Vector2 = HH.alpha_tag_pos(name_pos, true)
+	var trect: Rect2 = AC.rect_at(font, tpos, true)
+	_expect(not trect.has_area() or (tpos.x < name_pos.x + 1.0 and trect.end.x <= name_pos.x + AlphaChip.NAME_GAP + 1.0), "the target plate's tag starts at the name's left (%.1f vs %.1f)" % [tpos.x, name_pos.x])
+	_expect(absf((tpos.y + trect.size.y) - (name_pos.y + 2.0)) <= 3.0, "the tag rides the name's baseline row (tag bottom %.1f, name y %.1f)" % [tpos.y + trect.size.y, name_pos.y])
+	_expect(HH.alpha_tag_pos(name_pos, false) == name_pos, "the target plate places no tag for a normal animal")
 	# The name is the species alone (the tag is the chip), never "Alpha Deinonychus".
 	_expect(aline != null and aline.text.contains("Deino"), "the plate still names the species ('%s')" % (aline.text if aline else ""))
 	cam.queue_free()
