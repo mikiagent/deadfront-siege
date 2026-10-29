@@ -137,7 +137,7 @@ func _test_roll_rate() -> void:
 		var mine = inv.slots[0]
 		var n := 0
 		for t: Variant in pools[str(id)]:
-			if mine != null and mine.attributes.get(str(t), false) == true:
+			if mine != null and mine.attributes.has(str(t)):
 				n += 1
 		if n > 0:
 			hits += 1
@@ -199,7 +199,7 @@ func _rare_of(st: Variant, id: StringName) -> String:
 		return ""
 	var attrs: Dictionary = st.attributes
 	for t: Variant in LT.material_traits(id):
-		if attrs.get(str(t), false) == true:
+		if attrs.has(str(t)):
 			return str(t)
 	return ""
 
@@ -218,7 +218,7 @@ func _test_craft_carry() -> void:
 	var out = CR.commit_outcome(_player, rec, picks, {"success": true, "flawless": false, "rare": &""})
 	print("[t_rareattr] slot1 craft: picks %s -> %s %s" % [picks, out.def_id if out else "<none>", out.attributes if out else {}])
 	_expect(out != null and out.def_id == &"stone_knife_work", "a craft with the rare blade in slot 1 makes its item (%s)" % (out.def_id if out else "<none>"))
-	_expect(out != null and out.attributes.get("black_sheen", false) == true, "the slot-1 rare attribute carries into the crafted item (%s)" % (out.attributes if out else {}))
+	_expect(out != null and out.attributes.has("black_sheen"), "the slot-1 rare attribute carries into the crafted item (%s)" % (out.attributes if out else {}))
 	_expect(out != null and IA.class_of("black_sheen") == "rare" and IA.has_rare(out), "the crafted item's carried attribute is a rare (green) trait")
 	# Slot 2 (handle) does not.
 	picks = _bag_for("", "black_sheen", "")

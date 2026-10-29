@@ -97,7 +97,7 @@ static func stamp_traits(inv: Inventory, had: Dictionary, landed: ItemStack, gai
 		# The roll comes from that material's own list (RAREATTR), not one pool for everything.
 		var t := LootRoller.roll_trait(r, s.def_id, tier)
 		if t != &"":
-			s.attributes[str(t)] = true
+			s.attributes[str(t)] = LootRoller.roll_tier(r, tier) # BAGUI: the value is the perk tier (I-V)
 			out.append(t)
 	if not out.is_empty():
 		inv.changed.emit()

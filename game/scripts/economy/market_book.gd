@@ -68,7 +68,7 @@ func buy(me: int, a: EconArgs) -> Dictionary:
 		return _full()
 	var total := int(lst.unit_price) * count
 	if L.tradable(me) < total:
-		return EconArgs.no("insufficient_funds", "needs %d tradable T-stones" % total)
+		return EconArgs.no("insufficient_funds", "needs %d tradable Gold" % total)
 	L.debit(me, total)
 	var trade := _pay_seller(lst, me, count, total, "fixed")
 	var part := _release(lst, count)
@@ -105,7 +105,7 @@ func bid(me: int, a: EconArgs) -> Dictionary:
 		return EconArgs.no("bad_request", "bid reaches the buyout price; use buyout")
 	var held := current if int(lst.bidder) == me else 0
 	if L.tradable(me) + held < amount:
-		return EconArgs.no("insufficient_funds", "needs %d tradable T-stones" % amount)
+		return EconArgs.no("insufficient_funds", "needs %d tradable Gold" % amount)
 	_release_bid(lst, me, amount)
 	L.debit(me, amount)
 	lst.bid = amount
@@ -136,7 +136,7 @@ func buyout(me: int, a: EconArgs) -> Dictionary:
 	var price := int(lst.buyout)
 	var held := int(lst.bid) if int(lst.bidder) == me else 0
 	if L.tradable(me) + held < price:
-		return EconArgs.no("insufficient_funds", "needs %d tradable T-stones" % price)
+		return EconArgs.no("insufficient_funds", "needs %d tradable Gold" % price)
 	_release_bid(lst, me, price)
 	L.debit(me, price)
 	lst.bid = price
@@ -254,7 +254,7 @@ func _can_open(me: int, fee: int) -> Dictionary:
 	# ASSUMPTION: a listing fee goes to the sink, not to another account, so bound T-stones pay it
 	# (contract v2 0.6 binds the start against transfers); a new player can sell from day one.
 	if int(acct.wallet) < fee:
-		return EconArgs.no("insufficient_funds", "listing fee is %d T-stones" % fee)
+		return EconArgs.no("insufficient_funds", "listing fee is %d Gold" % fee)
 	return {}
 
 func _open(me: int, kind: String, pick: Dictionary, fee: int, hours: int, extra: Dictionary) -> Dictionary:

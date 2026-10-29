@@ -257,7 +257,7 @@ func _spend(me: int, a: EconArgs) -> Dictionary:
 		return EconArgs.no("bad_request", "%s costs %s" % [reason, str(cat.spend_costs[reason])])
 	var acct := L.acct(me)
 	if int(acct.wallet) < amount:
-		return EconArgs.no("insufficient_funds", "needs %d T-stones" % amount)
+		return EconArgs.no("insufficient_funds", "needs %d Gold" % amount)
 	L.pay_sink(me, amount)
 	return EconArgs.ok({"reason": reason, "spent": amount, "wallet": acct.wallet})
 

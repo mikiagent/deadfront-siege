@@ -43,7 +43,7 @@ static func alpha_extras(res: Dictionary, level: int, r: RandomNumberGenerator) 
 	for st: ItemStack in res["stacks"]:
 		var t := LootRoller.roll_trait(r, st.def_id, &"", true)
 		if t != &"":
-			st.attributes[str(t)] = true
+			st.attributes[str(t)] = LootRoller.roll_tier(r) # BAGUI: perk tier I-V
 	var loot: Variant = CreatureGenetics.alpha_rules().get("loot", {})
 	var trophy := StringName(str((loot as Dictionary).get("trophy", "alpha_trophy"))) if loot is Dictionary else &"alpha_trophy"
 	if Data.item(trophy) != null:

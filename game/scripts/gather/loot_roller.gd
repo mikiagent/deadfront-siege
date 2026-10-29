@@ -51,6 +51,19 @@ static func roll_trait(rng: RandomNumberGenerator, material: StringName = &"", t
 		return &""
 	return StringName(str(traits[rng.randi() % traits.size()]))
 
+## BAGUI: the tier (1-5, shown I-V) of a rare trait that just rolled. From I, each further step
+## succeeds with rare_trait.tier_step, raised by the tool's tier above stone and by `skill` levels
+## (loot_tables.json, ASSUMPTION values), so higher tiers are rarer and better tools shift the odds.
+static func roll_tier(rng: RandomNumberGenerator, tool_tier: StringName = &"", skill: int = 0) -> int:
+	var cfg := LootTables.trait_cfg()
+	var tier_idx := ProgressionScaling.tier_index(tool_tier) if tool_tier != &"" else 0
+	var step := clampf(float(cfg.get("tier_step", 0.35)) + float(cfg.get("tier_step_tool_bonus", 0.0)) * float(maxi(0, tier_idx))
+			+ float(cfg.get("tier_step_skill_bonus", 0.0)) * float(maxi(0, skill)), 0.0, float(cfg.get("tier_step_max", 0.6)))
+	var tier := 1
+	while tier < 5 and rng.randf() < step:
+		tier += 1
+	return tier
+
 ## The green rare-trait odds per gathered unit with a tool of `tool_tier` (&"" = bare hands).
 static func trait_chance(tool_tier: StringName = &"") -> float:
 	var cfg := LootTables.trait_cfg()

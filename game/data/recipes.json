@@ -4989,6 +4989,29 @@
       "process_add": 1
     },
     {
+      "id": "bowstring",
+      "display_name": "Bowstring",
+      "skill": "construction",
+      "tree": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "strap",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "bowstring",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 1.0,
+      "process_step": "twist",
+      "process_add": 1,
+      "_about": "BAGUI (owner 2026-10-28: 'Tendons can be turned into bowstring'): any item tagged strap. ASSUMPTION: by hand, one strap, construction like Strap."
+    },
+    {
       "id": "strap",
       "display_name": "Strap",
       "skill": "construction",

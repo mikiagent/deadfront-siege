@@ -282,7 +282,7 @@ func _inventory_discard_case(inv: Control, drop_button: Button, destroy_button: 
 	player.inventory.add(stack_script.make(&"stone", 1, {"control_test": "destroy"}, 14))
 	inv._on_bag_slot_tapped(destroy_index)
 	destroy_button.pressed.emit()
-	_expect(player.inventory.slots[destroy_index] != null and destroy_button.text == "Destroy?",
+	_expect(player.inventory.slots[destroy_index] != null and destroy_button.text == "Trash?",
 		"Destroy's first tap asks for confirmation and keeps the item")
 	destroy_button.pressed.emit()
 	_expect(player.inventory.slots[destroy_index] == null,

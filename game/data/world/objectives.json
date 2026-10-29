@@ -1,5 +1,5 @@
 {
-  "_about": "The survivor's standing orders: one objective at a time, in order, shown on the HUD card. Every condition is read from state the player can already see (bag contents, bonded animals, which island you are on), so no system has to report completion. Rewards are pioneer XP and T-stones. Added 2026-09-22 after a bot playthrough found the early game had no stated goal at all. HUDRULES 2026-10-28: an optional 'fight' list names the creature ids whose fight serves the order ('*' = any wild animal); the HUD keeps the order card up in combat only then.",
+  "_about": "The survivor's standing orders: one objective at a time, in order, shown on the HUD card. Every condition is read from state the player can already see (bag contents, bonded animals, which island you are on), so no system has to report completion. Rewards are pioneer XP and Gold. Added 2026-09-22 after a bot playthrough found the early game had no stated goal at all. HUDRULES 2026-10-28: an optional 'fight' list names the creature ids whose fight serves the order ('*' = any wild animal); the HUD keeps the order card up in combat only then.",
   "steps": [
     {
       "id": "branches",
@@ -45,7 +45,8 @@
         "stone_knife_work": 1
       },
       "xp": 50,
-      "t_stones": 2
+      "t_stones": 2,
+      "warp_gems": 10
     },
     {
       "id": "axe",

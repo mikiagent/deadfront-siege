@@ -44,6 +44,7 @@ static func settle(player: Player) -> int:
 			World.add_xp(xp)
 		if stones > 0:
 			World.t_stones += stones
+		World.warp_gems += maxi(0, int(step.get("warp_gems", 0))) # BAGUI: the first order's tutorial grant
 		print("[objective] done %s (+%d xp%s)" % [
 			step.get("id", "?"), xp, ", +%d T" % stones if stones > 0 else ""])
 		World.objective += 1

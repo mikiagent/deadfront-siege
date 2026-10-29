@@ -81,7 +81,9 @@ static func roll_outcome_for(rec: Dictionary, primary: ItemStack, ability: float
 		var pool := rare_attributes()
 		if not pool.is_empty():
 			rare = StringName(str(pool[rand.randi_range(0, pool.size() - 1)]))
-	return {"success": success, "flawless": flawless, "rare": rare}
+	# BAGUI: a trait the primary carries keeps its own tier (build_output copies it); a rolled one rolls I-V.
+	var tier := LootRoller.roll_tier(rand) if rare != &"" and not Inventory.traits(primary).has(str(rare)) else 1
+	return {"success": success, "flawless": flawless, "rare": rare, "rare_tier": tier}
 
 ## The deterministic quality a recipe card advertises: the success and flawless chances, and the
 ## primary trait the result inherits. Never rolls anything, so a preview cannot disagree with itself.
@@ -125,8 +127,8 @@ static func apply_outcome(out: ItemStack, rec: Dictionary, outcome: Dictionary, 
 		return out
 	var rare := StringName(str(outcome.get("rare", "")))
 	if rare != &"" and not out.attributes.has(str(rare)):
-		# A rare trait the primary already carried keeps its own level; a rolled one starts at 1.
-		out.attributes[str(rare)] = 1
+		# A rare trait the primary already carried keeps its own tier; a rolled one takes its rolled tier.
+		out.attributes[str(rare)] = clampi(int(outcome.get("rare_tier", 1)), 1, 5)
 	return out
 
 static func recipe(id: StringName) -> Dictionary:

@@ -95,6 +95,25 @@ func play_locomotion(speed: float, running: bool = false) -> void:
 		return
 	_play(&"run" if running and speed > 2.5 else &"walk")
 
+## BAGUI: the survivor crouches and rummages through her bag while the bag sheet is open in the
+## field (clip `rummage`, made on claude/mmo-rummage into assets/characters/survivor/anim/). Without
+## the clip she simply idles. Held (forced) so locomotion does not replace it; stop_rummage releases
+## it. Not while mounted, swimming, asleep, sitting, busy or dead.
+func start_rummage() -> bool:
+	if _dead or _busy or _sleeping or _waking or _sitting or player == null or player.mounted_on or player.swimming:
+		return false
+	if rig and rig.has_clip(&"rummage"):
+		play_clip(&"rummage", true)
+	else:
+		play_clip(idle_clip(), true)
+	return true
+
+func stop_rummage() -> void:
+	if not _forced or _dead or _requested_clip not in [&"rummage", idle_clip(), &"idle"]:
+		return # something else took over (a hit, sleep): leave it
+	_forced = false
+	play_idle()
+
 func play_clip(clip: StringName, forced: bool = false) -> void:
 	if clip not in [&"sleep", &"sleep_down", &"sleep_up", &"sit"]:
 		if _sleeping or _waking:
