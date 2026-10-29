@@ -164,6 +164,21 @@
       "walk": 0.174,
       "run": 0.63
     },
+    "styracosaurus": {
+      "height_m": 2.25,
+      "run_l": 3.35,
+      "run_len": 0.667,
+      "run_r": 3.35,
+      "walk_l": 1.329,
+      "walk_len": 0.917,
+      "walk_r": 1.329,
+      "walk": 1.329,
+      "run": 3.35,
+      "strafe_left": 1.329,
+      "strafe_left_len": 0.917,
+      "strafe_right": 1.329,
+      "strafe_right_len": 0.917
+    },
     "tyrannosaurus": {
       "height_m": 8.0,
       "run_l": 0.442,

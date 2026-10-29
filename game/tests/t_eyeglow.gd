@@ -8,7 +8,7 @@ extends SceneTree
 ## Scripts are load()ed on the first frame: `--script` compiles this file before autoloads exist.
 
 const SPECIES: Array[StringName] = [&"tyrannosaurus", &"utahraptor", &"deinonychus",
-	&"velociraptor", &"coelophysis", &"compsognathus"]
+	&"velociraptor", &"coelophysis", &"compsognathus", &"styracosaurus"]
 const PLAIN: Array[StringName] = [&"zebraceratops"]
 const DRIFT_LIMIT_M := 0.001
 const EYE_RADIUS_PER_HEIGHT := 0.006

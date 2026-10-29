@@ -47,6 +47,8 @@ P.add_argument("--no-repair", action="store_true")
 P.add_argument("--hold-frames", type=int, default=8)
 P.add_argument("--hold-at", type=float, default=0.3)
 P.add_argument("--alert-pitch-deg", type=float, default=20.0)
+P.add_argument("--hip-z", type=float, default=None, help="quadruped: hip landmark height by hand (mesh units) when frill spikes or splayed feet fool the lateral-surface measure")
+P.add_argument("--shoulder-z", type=float, default=None, help="quadruped: shoulder landmark height by hand (mesh units)")
 A = P.parse_args(argv)
 OUT = A.output_root
 
@@ -277,6 +279,8 @@ if is_quadruped:
         lateral = sl[abs(sl[:, 0]) > .60 * max(abs(sl[:, 0]))]
         return float(np.quantile(lateral[:, 2], .85))
     hip_z, shoulder_z = surface_center(back_y), surface_center(front_y)
+    hip_z = A.hip_z if A.hip_z is not None else hip_z
+    shoulder_z = A.shoulder_z if A.shoulder_z is not None else shoulder_z
     head_slice = arr[arr[:, 1] < mlo.y + .13 * L]
     head_z = float(np.median(head_slice[:, 2]))
     tail_slice = arr[arr[:, 1] > mhi.y - .08 * L]
