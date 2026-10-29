@@ -44,7 +44,7 @@ for o in old_objs:
     bpy.data.objects.remove(o, do_unlink=True)
 print("TRANSFER leg ratio", round(K, 4))
 pbs = new_arm.pose.bones
-LEGS += [l for l in FRONT if all(n in pbs for n in l)]
+LEGS += [l for l in FRONT if all(n in pbs for n in l) and pbs[l[2]].parent.name != l[1]]  # bipeds: the hand hangs off the forearm, no IK
 for pb in pbs:
     pb.rotation_mode = "QUATERNION"
 sc = bpy.context.scene

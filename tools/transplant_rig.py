@@ -49,6 +49,9 @@ P.add_argument("--hold-at", type=float, default=0.3)
 P.add_argument("--alert-pitch-deg", type=float, default=20.0)
 P.add_argument("--hip-z", type=float, default=None, help="quadruped: hip landmark height by hand (mesh units) when frill spikes or splayed feet fool the lateral-surface measure")
 P.add_argument("--shoulder-z", type=float, default=None, help="quadruped: shoulder landmark height by hand (mesh units)")
+P.add_argument("--leg", nargs=4, default=None, metavar="X,Y,Z",
+               help="biped: hind-leg joints by hand (hip knee ankle toe, left side, mesh units) when the mesh stands in a "
+                    "crouch the landmark warp can't follow (the hip landed 0.25 ahead of the thigh on the pachycephalosaurus)")
 A = P.parse_args(argv)
 OUT = A.output_root
 
@@ -297,6 +300,23 @@ if is_quadruped:
     bpy.ops.object.mode_set(mode='OBJECT')
     warp_info = {'mode': 'quadruped_landmarks', 'front_foot_y': float(front_y), 'back_foot_y': float(back_y), 'foot_half_width': foot_x, 'hip_z': hip_z, 'shoulder_z': shoulder_z, 'head_z': head_z}
 
+if A.leg and not is_quadruped:
+    hip, knee, ankle, toe = (Vector([float(c) for c in j.split(",")]) for j in A.leg)
+    bpy.ops.object.mode_set(mode="EDIT")
+    E = arm.data.edit_bones
+    for sd, k in (("L", 1.0), ("R", -1.0)):
+        m = lambda v: Vector((v.x * k, v.y, v.z))
+        H_, K_, A_, T_ = m(hip), m(knee), m(ankle), m(toe)
+        E["BackLeg." + sd].tail = H_
+        E["BackUpLeg." + sd].head, E["BackUpLeg." + sd].tail = H_, K_
+        E["BackLowLeg." + sd].head, E["BackLowLeg." + sd].tail = K_, A_
+        if "BackLowLeg.%s_end" % sd in E:
+            e = E["BackLowLeg.%s_end" % sd]; d = e.tail - e.head; e.head = A_; e.tail = A_ + d
+        E["BackFoot." + sd].head, E["BackFoot." + sd].tail = A_, T_
+        if "BackFoot.%s_end" % sd in E:
+            e = E["BackFoot.%s_end" % sd]; e.head = T_; e.tail = T_ + (T_ - A_)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    warp_info["leg_by_hand"] = A.leg
 log("WARP", json.dumps(warp_info))
 
 # ---------------------------------------------------------------- 5. weights

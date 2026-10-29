@@ -153,6 +153,21 @@
       "walk": 1.292,
       "run": 5.954
     },
+    "pachycephalosaurus": {
+      "height_m": 1.8,
+      "run_l": 3.595,
+      "run_len": 0.542,
+      "run_r": 3.595,
+      "walk_l": 0.952,
+      "walk_len": 1.0,
+      "walk_r": 0.952,
+      "walk": 0.952,
+      "run": 3.595,
+      "strafe_left": 0.952,
+      "strafe_left_len": 1.0,
+      "strafe_right": 0.952,
+      "strafe_right_len": 1.0
+    },
     "protoceratops": {
       "height_m": 1.6,
       "run_l": 0.63,
