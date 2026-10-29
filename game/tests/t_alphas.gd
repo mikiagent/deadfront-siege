@@ -116,6 +116,27 @@ func _test_stats() -> void:
 	_expect(a.is_alpha() and not n.is_alpha(), "alpha_spawn makes an alpha")
 	var top: float = CG.size_range_for(a.def).y
 	_expect(a.size_scale() > top, "alpha is bigger than any normal roll (%.3f > %.3f)" % [a.size_scale(), top])
+	# ALPHATAG (owner 2026-10-29: "The alpha animals are larger"): the rule's floor is above EVERY normal
+	# roll, not just this species', and the alpha's range is a single knob in ai.json.
+	var lo := float((_rules()["size_range"] as Array)[0])
+	var hi := float((_rules()["size_range"] as Array)[1])
+	var top_all := 0.0
+	var worst := &""
+	for id in data.creatures:
+		var d: CreatureDef = data.creatures[id]
+		var t: float = CG.size_range_for(d).y
+		if t > top_all:
+			top_all = t
+			worst = id
+	_expect(lo > top_all, "the alpha floor %.2f beats every species' top roll (%.2f, %s)" % [lo, top_all, worst])
+	_expect(hi >= lo and hi <= CG.SIZE_LIMIT.y, "the alpha range %.2f-%.2f holds inside the save limit %.1f" % [lo, hi, CG.SIZE_LIMIT.y])
+	var min_alpha := 2.0
+	for i in 40:
+		var g: CreatureGenetics = CG.for_species(a.def, _rng(i))
+		g.make_alpha(_rng(100 + i))
+		min_alpha = minf(min_alpha, g.size)
+		_expect(g.size >= lo and g.size <= hi, "#%d a made alpha lands in %.2f-%.2f (%.3f)" % [i, lo, hi, g.size])
+	_expect(min_alpha > top_all, "every made alpha outgrows every normal roll (%.2f > %.2f)" % [min_alpha, top_all])
 	var st: Dictionary = _rules()["stats"]
 	var sf = func(stat: StringName) -> float: return a.genetics.size_factor(stat)
 	var hp_ratio = a.health.max_hp / n.health.max_hp
