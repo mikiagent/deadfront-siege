@@ -60,7 +60,9 @@ func _finish() -> void:
 		quit(1)
 
 ## A bare wild animal with only what the rule reads: def, health, statuses.
-func _creature(species: StringName, hp_frac: float, stunned: bool = false):
+## FOODTORPOR: torpor defaults to full, so this file keeps checking spec 09's "weak" half; the
+## torpor half is checked in _test_window and t_foodtorpor.
+func _creature(species: StringName, hp_frac: float, stunned: bool = false, torpor_frac: float = 1.0):
 	var cr = CreatureS.new()
 	cr.def = (get_root().get_node("Data") as Node).creature(species)
 	cr.health = HealthS.new()
@@ -69,6 +71,7 @@ func _creature(species: StringName, hp_frac: float, stunned: bool = false):
 	cr.statuses = StatusS.new()
 	cr.add_child(cr.statuses)
 	cr.health.hp = cr.def.hp * hp_frac
+	cr.torpor = cr.torpor_max() * torpor_frac
 	cr.is_capturable = true
 	if stunned:
 		cr.statuses.apply(&"knockdown")
@@ -105,6 +108,12 @@ func _test_window() -> void:
 	var untameable = _creature(&"allosaurus", 0.10, true)
 	_expect(not FieldTameS.capture_window(untameable), "a non-tameable species is not capturable")
 	untameable.free()
+
+	var sober = _creature(name, 0.20, true, 0.59)
+	_expect(not FieldTameS.capture_window(sober), "FOODTORPOR: stunned at 20 %% HP with torpor 59 %% (< 60 %%) is not capturable")
+	sober.torpor = sober.torpor_max() * 0.60
+	_expect(FieldTameS.capture_window(sober), "FOODTORPOR: the same animal at exactly 60 %% torpor is")
+	sober.free()
 
 	var nulled = FieldTameS.capture_window(null)
 	_expect(not nulled, "no creature is not capturable")

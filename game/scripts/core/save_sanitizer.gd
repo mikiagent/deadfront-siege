@@ -21,7 +21,7 @@ static var abort_for_test := false
 ## Expected type of each field the loader reads; the value is only a type sample. A field of the
 ## wrong type is erased so the loader's own default applies.
 const SHAPE := {
-	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0, "presets": {}}, "position": []},
+	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0, "presets": {}, "food_bag": []}, "position": []},
 	"pets": [], "tribe": {"members": [], "pending": []}, "ground_snares": [], "carcasses": [], "skills": {}, "skills_v2": {},
 	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
@@ -62,7 +62,7 @@ const PET_ROW := {
 }
 ## Stack attributes read with int() (taming pen, hunt, material tier) or handed to
 ## CreatureGenetics.from_dict (taming pen, tamed animal release).
-const ATTR_ROW := {"grade_seed": 0, "barbed_hits": 0, "toxin_hits": 0, "hardness": 0, "genetics": GENETICS}
+const ATTR_ROW := {"grade_seed": 0, "barbed_hits": 0, "toxin_hits": 0, "sedative_hits": 0, "hardness": 0, "genetics": GENETICS}
 
 ## The five Tamed Island shapes a save may hold as home.shape. Read from the catalogue itself so the
 ## sanitizer needs no autoload (tests call clean() before World exists) and a shape added to the json

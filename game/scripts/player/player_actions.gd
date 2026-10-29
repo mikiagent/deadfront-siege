@@ -502,6 +502,14 @@ func eat(index: int) -> bool:
 		return _send(&"eat", {"slot": index})
 	return p.eat_session != null and p.eat_session.begin_eat(index)
 
+## FOODTORPOR: eat the first Food Bag item that can be eaten now, in the order it was put in.
+func eat_food_bag() -> bool:
+	for idx in p.inventory.food_bag_prune():
+		if Food.can_eat(p, p.inventory.slots[idx]) == "":
+			return eat(idx)
+	p.notice("Nothing in the Food Bag can be eaten now")
+	return false
+
 func equip(slot: StringName, def_id: StringName) -> bool:
 	if online:
 		return _send(&"equip", {"slot": str(slot), "def_id": str(def_id)})
@@ -590,18 +598,20 @@ func use_medicine() -> void:
 		print("[item] used pressure_dressing")
 
 ## Normal context action. One dose gives three landed hits; never overwrites live charges.
-func coat_weapon() -> bool:
+## `coating` toxin_coating (poison) or sedative (FOODTORPOR: each charged hit adds sedative torpor).
+func coat_weapon(coating: StringName = &"toxin_coating") -> bool:
 	var weapon := p.inventory.equipped_weapon()
+	var attr := "sedative_hits" if coating == &"sedative" else "toxin_hits"
 	if p.dead or p.rolling or p.anim._busy or p.vitals.in_combat or (p.hunt and p.hunt.target != null):
 		p.notice("Coat your weapon outside combat")
 		return false
-	if weapon == null or int(weapon.attributes.get("toxin_hits", 0)) > 0:
+	if weapon == null or int(weapon.attributes.get(attr, 0)) > 0:
 		p.notice("Equip an uncoated weapon")
 		return false
-	if not p.inventory.consume(&"toxin_coating", 1): return false
-	weapon.attributes["toxin_hits"] = 3
+	if not p.inventory.consume(coating, 1): return false
+	weapon.attributes[attr] = 3
 	p.inventory.changed.emit()
-	p.notice("Toxin ready:3 landed hits")
+	p.notice("%s ready: 3 landed hits" % ("Sedative" if coating == &"sedative" else "Toxin"))
 	return true
 
 ## Place one snare 2 m ahead using normal HUD action, valid dry terrain and real inventory.

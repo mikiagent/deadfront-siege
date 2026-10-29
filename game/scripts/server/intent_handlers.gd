@@ -368,9 +368,9 @@ func _tame(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if ch.pos().distance_to(WorldFacade.v3(c.get("pos"))) > body_reach(def) + REACH_SLACK:
 		return no("out_of_range", "%s is out of reach" % net_id)
 	var hp_max := maxf(1.0, float(c.get("hp_max", 1.0)))
-	# Spec 09 §1, the one rule: stunned at any HP, or HP <= 30 %.
-	if float(c.get("cooldown", 0.0)) > 0.0 or not FieldTame.window_open(float(c.get("hp", 0.0)), hp_max, bool(c.get("knocked", false))):
-		return no("not_ready", "Stun it or weaken it to %d%% health to capture it." % int(FieldTame.CAPTURE_HEALTH_FRAC * 100.0))
+	# The one rule (FieldTame.window_open): weak (stunned, or HP <= 30 %) and torpor past the threshold.
+	if float(c.get("cooldown", 0.0)) > 0.0 or not FieldTame.window_open(float(c.get("hp", 0.0)), hp_max, bool(c.get("knocked", false)), float(c.get("torpor", 0.0))):
+		return no("not_ready", "Weaken it and sedate it until it is knocked out to capture it.")
 	var food_id := StringName(str(food))
 	var value := FieldTame.PREFERRED_FEED if food_id in def.preferred_food else (FieldTame.ACCEPTED_FEED if food_id in def.accepted_food else 0.0)
 	if value <= 0.0:
@@ -419,8 +419,8 @@ func _capture(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if ch.pos().distance_to(WorldFacade.v3(c.get("pos"))) > body_reach(def) + REACH_SLACK:
 		return no("out_of_range", "%s is out of reach" % net_id)
 	var frac := float(c.get("hp", 0.0)) / maxf(1.0, float(c.get("hp_max", 1.0)))
-	if not FieldTame.window_open(float(c.get("hp", 0.0)), float(c.get("hp_max", 1.0)), bool(c.get("knocked", false))):
-		return no("not_ready", "Stun it or weaken it to %d%% health to capture it." % int(FieldTame.CAPTURE_HEALTH_FRAC * 100.0))
+	if not FieldTame.window_open(float(c.get("hp", 0.0)), float(c.get("hp_max", 1.0)), bool(c.get("knocked", false)), float(c.get("torpor", 0.0))):
+		return no("not_ready", "Weaken it and sedate it until it is knocked out to capture it.")
 	var inv := ch.inventory()
 	var net := inv.best_capture_net()
 	if net == null or net.def().capture_tier < def.capture_tier:

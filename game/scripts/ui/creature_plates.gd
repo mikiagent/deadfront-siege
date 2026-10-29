@@ -27,6 +27,9 @@ var _icons: Dictionary = {}
 var _icon_cache: Dictionary = {}
 var _emphasis_id: int = 0
 
+const TORPOR_COLOR := Color(0.58, 0.42, 1.0, 0.95)
+const TORPOR_H := 3.0
+
 func _ready() -> void:
 	layer = 58
 	_root = Control.new()
@@ -215,6 +218,22 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	bar_fill.size = Vector2(160, 14)
 	bar_fill.color = Color(0.2, 0.85, 0.4, 0.95)
 	bar_bg.add_child(bar_fill)
+	# FOODTORPOR: the torpor bar, a thin violet strip right under the HP bar with a tick at the
+	# knock-out threshold (purple/blue so it never reads as health).
+	var torpor_bg := ColorRect.new()
+	torpor_bg.name = "TorporBg"
+	torpor_bg.color = Color(0.06, 0.04, 0.12, 0.9)
+	torpor_bg.visible = false
+	torpor_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(torpor_bg)
+	var torpor_fill := ColorRect.new()
+	torpor_fill.name = "TorporFill"
+	torpor_fill.color = TORPOR_COLOR
+	torpor_bg.add_child(torpor_fill)
+	var torpor_tick := ColorRect.new()
+	torpor_tick.name = "TorporTick"
+	torpor_tick.color = Color(1, 1, 1, 0.9)
+	torpor_bg.add_child(torpor_tick)
 	var hp_dbg := Label.new()
 	hp_dbg.name = "HpDebug"
 	hp_dbg.position = Vector2(172, 18)
@@ -281,6 +300,9 @@ func _ensure_entry(c: Creature) -> Dictionary:
 		"chip_ready": false,
 		"bar_fill": bar_fill,
 		"bar_recent": bar_recent,
+		"torpor_bg": torpor_bg,
+		"torpor_fill": torpor_fill,
+		"torpor_tick": torpor_tick,
 		"hp_dbg": hp_dbg,
 		"line3": line3,
 		"tame_row": tame_row,
@@ -371,6 +393,7 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	if flash_left > 0.0:
 		var f := clampf(flash_left / 0.12, 0.0, 1.0)
 		root.modulate = Color(1.0, 0.6 + f * 0.4, 0.6 + f * 0.4, alpha)
+	_tick_torpor(entry, c, full, bar_w, bar_h)
 	var hp_dbg := entry["hp_dbg"] as Label
 	hp_dbg.visible = Game.debug_overlay
 	if Game.debug_overlay:
@@ -387,6 +410,23 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	_tick_xp(entry, c, full)
 	_tick_floaters(entry, delta)
 	_fit_pill(entry, full)
+
+## Wild animals with any torpor: fill = torpor / max, the white tick = the knock-out threshold.
+func _tick_torpor(entry: Dictionary, c: Creature, full: bool, bar_w: float, bar_h: float) -> void:
+	var bg := entry.get("torpor_bg", null) as ColorRect
+	if bg == null:
+		return
+	bg.visible = not c.is_pet and c.torpor > 0.05
+	if not bg.visible:
+		return
+	var h := TORPOR_H if full else 3.0
+	bg.position = Vector2(8, float(entry.get("bar_y", 2.0)) + bar_h + 1.0)
+	bg.size = Vector2(bar_w, h)
+	var fill := entry["torpor_fill"] as ColorRect
+	fill.size = Vector2(bar_w * c.torpor_frac(), h)
+	var tick := entry["torpor_tick"] as ColorRect
+	tick.position = Vector2(bar_w * FieldTame.torpor_ko_frac() - 1.0, 0.0)
+	tick.size = Vector2(2.0, h)
 
 ## Top of a full plate's HP bar: under the nature tag and its gap, else right under the name.
 static func bar_top(has_nature: bool) -> float:

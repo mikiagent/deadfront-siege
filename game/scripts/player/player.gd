@@ -161,6 +161,7 @@ func _physics_process(delta: float) -> void:
 		food_buffs.tick(delta)
 		sim.tick_survival_xp(delta)
 		sim.tick_autofeed(delta)
+		sim.tick_spoilage(delta)
 		controls.tick_hold_walk(delta)
 		sim.tick(delta)
 	view.tick(delta)

@@ -481,6 +481,13 @@ static func _attach_card_visual(rt: IslandRuntime, node: HarvestNode, vis: Dicti
 		else:
 			empty_card.queue_free()
 			empty_card = null
+	# A family "tint" (nature_manifest) recolours shared art: the narcoberry bush is the berry bush in violet.
+	var tint: Variant = Data.nature_families.get(family, {}).get("tint", null)
+	if tint is Array and (tint as Array).size() >= 3:
+		for c in [card, empty_card]:
+			var mi := (c.get_node_or_null("Card") as MeshInstance3D) if c else null
+			if mi and mi.material_override is ShaderMaterial:
+				(mi.material_override as ShaderMaterial).set_shader_parameter("tint", Color(float(tint[0]), float(tint[1]), float(tint[2])))
 	node.set_card_visual(card, empty_card)
 	# A card tall enough to hide the survivor fades like a batched tree does (W2-OCCLUDE): its
 	# material includes the same dither body, driven per instance.
@@ -615,6 +622,11 @@ static func _scatter_special_tiles(rt: IslandRuntime, climate: String, tier: int
 	_spawn_special_family(rt, "clay", 2, [IslandTerrain.TileType.MUD, IslandTerrain.TileType.DIRT], -0.1, 0.9, &"clay", &"pick", climate, tier, Color(0.44, 0.30, 0.22), rng)
 	_spawn_special_family(rt, "berry_bush", 3, [IslandTerrain.TileType.GRASS, IslandTerrain.TileType.DRY], 0.25, 6.0, &"berry", &"none", climate, tier, Color(0.58, 0.24, 0.24), rng)
 	_spawn_special_family(rt, "tree_stump", 1, [IslandTerrain.TileType.GRASS, IslandTerrain.TileType.DRY], 0.25, 6.5, &"wood_log", &"axe", climate, tier, Color(0.41, 0.27, 0.19), rng)
+	# FOODTORPOR, ASSUMPTION placement: 2 narcoberry bushes per island. Own RNG stream, so every
+	# placement after this one is where it was before the bushes existed.
+	var narco := RandomNumberGenerator.new()
+	narco.seed = hash("narcoberry_bush:%d" % rng.seed)
+	_spawn_special_family(rt, "narcoberry_bush", 2, [IslandTerrain.TileType.GRASS, IslandTerrain.TileType.DRY], 0.25, 6.0, &"narcoberry", &"none", climate, tier, Color(0.62, 0.5, 0.95), narco)
 
 static func _spawn_special_family(rt: IslandRuntime, family: String, count: int, tile_kinds: Array, min_h: float, max_h: float, fallback_id: StringName, tool: StringName, climate: String, tier: int, tint: Color, rng: RandomNumberGenerator) -> void:
 	var placed := 0

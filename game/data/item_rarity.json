@@ -280,6 +280,11 @@
   "saddle_medium": "uncommon",
   "saddle_large": "uncommon",
   "silver_chunk": "rare",
-  "metal_stick": "uncommon"
+  "metal_stick": "uncommon",
+  "spoiled_meat": "common",
+  "rot": "common",
+  "narcoberry": "uncommon",
+  "sedative": "uncommon",
+  "tranquilizer_dart": "uncommon"
  }
 }

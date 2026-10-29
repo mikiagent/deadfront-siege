@@ -1828,7 +1828,7 @@ func _draw_capture_hint(cam: Camera3D, taken: Array[Rect2], a: float) -> void:
 	var at := t.global_position + Vector3.UP * 1.2
 	if cam.is_position_behind(at):
 		return
-	var text := "Capturable — throw the net!" if FieldTame.capture_window(t) else "Weaken to %d%% to capture" % int(round(FieldTame.CAPTURE_HEALTH_FRAC * 100.0))
+	var text := "Knocked out — throw the net!" if FieldTame.capture_window(t) else ("Sedate it: torpor %d%% / %d%%" % [int(round(100.0 * t.torpor_frac())), int(round(100.0 * FieldTame.torpor_ko_frac()))] if FieldTame.is_weak(t) else "Weaken to %d%% to capture" % int(round(FieldTame.CAPTURE_HEALTH_FRAC * 100.0)))
 	var view := get_viewport_rect().size
 	var px := UiTokens.body(view)
 	var w := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 16.0
@@ -1876,11 +1876,16 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			py += dy  # everything below the tag
 			target_rows["bar"] = Rect2(px, py + 44, pw, 22)
 			draw_rect(Rect2(px, py + 44, pw, 22), Color(0.12, 0.05, 0.05, 0.9 * a))
-			var window := FieldTame.capture_window(t)  # spec 09: stunned or <= 30 %, the bar turns GOLD
+			var window := FieldTame.capture_window(t)  # weak + torpor past the threshold: the bar turns GOLD
 			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(UiTokens.GOLD, 0.95 * a) if window else Color(0.80, 0.12, 0.12, 0.95 * a))
 			var hp := "%.0f / %.0f" % [t.health.hp, t.health.max_hp]
 			var hw := _font.get_string_size(hp, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 			draw_string(_font, Vector2(px + pw * 0.5 - hw * 0.5, py + 61), hp, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, a))
+			if not t.is_pet and t.torpor > 0.05:  # FOODTORPOR: violet torpor strip + the knock-out tick
+				draw_rect(Rect2(px, py + 67, pw, 5), Color(0.06, 0.04, 0.12, 0.9 * a))
+				draw_rect(Rect2(px, py + 67, pw * t.torpor_frac(), 5), Color(CreaturePlates.TORPOR_COLOR, 0.95 * a))
+				draw_rect(Rect2(px + pw * FieldTame.torpor_ko_frac() - 1.0, py + 67, 2, 5), Color(1, 1, 1, 0.9 * a))
+				target_rows["torpor"] = Rect2(px, py + 67, pw, 5)
 			if t.brain is TyrantBrain:
 				var label := (t.brain as TyrantBrain).opening_label()
 				draw_rect(Rect2(px,py+108,pw,26),Color(0.1,0.1,0.12,0.9*a))
