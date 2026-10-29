@@ -55,7 +55,12 @@ var _stand_offset: float = 0.9
 var _in_bed: Node3D
 var _autofeed_cd: float = 0.0
 ## STARVING: a Starving stack more every STARVE_STACK_S of an empty stomach (ASSUMPTION: no spec rule).
-const STARVE_STACK_S := 120.0  # ASSUMPTION: no spec gives a starvation rule
+## HUNGER (owner-approved memo 2026-10-29 Part 1 s1.4 step 3): the clock only reaches Starving after
+## STARVING_AFTER (rules.json hunger.starving_after_s) and stacks every STARVE_STACK_S after that; both
+## are the data's. The clock itself is Digestion.empty_for_s, which the save carries.
+const STARVE_STACK_S := 180.0  # ASSUMPTION: no spec gives a starvation rule (memo 1.4)
+const STARVING_AFTER := 600.0  # ASSUMPTION (memo 1.4): ten minutes on an empty stomach
+## Mirror of Digestion.empty_for_s for the tests/panels that read it.
 var starving_s := 0.0
 ## Sitting down to rest (the Rest hex, the X key): RestState.
 var rest: RestState
@@ -80,21 +85,43 @@ func tick_survival_xp(delta: float) -> void:
 
 ## STARVING (owner 2026-10-28): an empty stomach is the Starving status, a stack more every
 ## STARVE_STACK_S of it (statuses.json max_stacks); leaving "empty" clears it at once.
-
+## HUNGER (owner-approved memo 2026-10-29 Part 1 s1.4 step 3): the first stack waits STARVING_AFTER
+## (10 min) on an empty stomach, the same rule for the survivor, members and (later) tames. The clock
+## is Digestion.empty_for_s, which the save keeps, so a reload does not restart the ten minutes.
 func _tick_starving(delta: float) -> void:
-	if p.dead or p.vitals.fullness_state != &"empty":
-		starving_s = 0.0
+	# The clock itself is Digestion's (tick adds the seconds empty, and eating resets it); this reads it.
+	var dig := Digestion.of(p)
+	if dig != null and p.vitals.fullness_state != &"empty":
+		dig.empty_for_s = 0.0
+	starving_s = dig.empty_for_s if dig != null else 0.0
+	if p.dead or p.vitals.fullness_state != &"empty" or starving_s < Digestion.starving_after_s():
 		if p.statuses.has(&"starving"):
 			p.statuses.clear_id(&"starving")
 		return
-	starving_s += delta
+	var after := Digestion.starving_after_s()
 	if not p.statuses.has(&"starving"):
 		p.statuses.apply(&"starving", p)
 	var inst := p.statuses.get_instance(&"starving")
 	var def := Data.status(&"starving")
 	if inst and def:
-		inst.stacks = clampi(1 + int(starving_s / STARVE_STACK_S), 1, def.max_stacks)
+		inst.stacks = clampi(1 + int((starving_s - after) / Digestion.starving_stack_s()), 1, def.max_stacks)
 		inst.time_left = def.duration  # until fed, never runs out
+
+## HUNGER (memo s1.4 step 3): the Well Fed band shows as a chip and heals a little faster; leaving the
+## band takes the chip off. The fatigue side of the band is already in fullness_mult (fatigue_gain_mult).
+func _tick_well_fed(delta: float) -> void:
+	var fed := p.vitals.fullness_state == &"well_fed"
+	if p.statuses.has(&"well_fed") != fed:
+		if fed:
+			p.statuses.apply(&"well_fed", p)
+			var inst := p.statuses.get_instance(&"well_fed")
+			var def := Data.status(&"well_fed")
+			if inst and def:
+				inst.time_left = def.duration  # until the band is left, never runs out
+		else:
+			p.statuses.clear_id(&"well_fed")
+	if fed and not p.dead and not p.vitals.blocks_regen:
+		p.vitals.heal(Digestion.well_fed_regen() * delta)
 
 func tick(delta: float) -> void:
 	var anim := p.anim
@@ -106,6 +133,7 @@ func tick(delta: float) -> void:
 		p.vitals.fullness_mult = Digestion.fatigue_mult_for(p.vitals.fullness_state)
 		p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult() * p.vitals.fullness_mult
 		_tick_starving(delta)
+		_tick_well_fed(delta)
 	p.in_water = WaterAccess.in_water(p.global_position)
 	p.swimming = p.in_water and WaterAccess.is_swimming(p.global_position)
 	_tick_swimming(delta)
@@ -898,12 +926,16 @@ func interrupt_sleep() -> void:
 
 # ---------------------------------------------------------------- autofeed
 
-## Offer quick food when energy is low or exhaustion is high, outside combat.
+## Offer quick food when the stomach is Peckish (HUNGER, memo s1.4 step 5), or when energy is low or
+## exhaustion is high, outside combat. A player who keeps a good dish in the quick slot never has to
+## look at hunger.
 func tick_autofeed(delta: float) -> void:
 	_autofeed_cd = maxf(0.0, _autofeed_cd - delta)
 	var v := p.vitals
-	if _autofeed_cd > 0.0 or v == null or p._sleep_left > 0.0 or rest.resting or p.dead \
-			or (v.energy > v.max_energy * 0.5 and v.fatigue < v.max_fatigue * 0.6):
+	if _autofeed_cd > 0.0 or v == null or p._sleep_left > 0.0 or rest.resting or p.dead:
+		return
+	var peckish := v.fullness_state == &"peckish" or v.fullness_state == &"empty"
+	if not peckish and v.energy > v.max_energy * 0.5 and v.fatigue < v.max_fatigue * 0.6:
 		return
 	if p.eat_session == null or p.eat_session.eating or p.nav_active or p._gathering or Vector2(p.velocity.x, p.velocity.z).length() > 0.3:
 		return

@@ -208,7 +208,8 @@
 		"river": "res://assets/icons/ui/river.svg",
 		"riverside": "res://assets/icons/ui/river.svg",
 		"coast": "res://assets/icons/ui/coast.svg",
-		"coastal": "res://assets/icons/ui/coast.svg"
+		"coastal": "res://assets/icons/ui/coast.svg",
+		"well_fed": "res://assets/icons/ui/well_fed.svg"
 	},
 	"glyphs": {
 		"≡": "menu",
