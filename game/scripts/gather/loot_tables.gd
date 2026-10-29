@@ -41,6 +41,10 @@ static func trait_materials() -> Dictionary:
 	var rows: Variant = trait_cfg().get("by_material", {})
 	return rows as Dictionary if rows is Dictionary else {}
 
+## HARVESTROLL: one gathered lot's level band and signed-trait odds (loot_tables.json "lot").
+static func lot_cfg() -> Dictionary:
+	return loot().get("lot", {})
+
 static func butcher_cfg() -> Dictionary:
 	return loot().get("butcher", {})
 

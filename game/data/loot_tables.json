@@ -65,6 +65,28 @@
       "leech": ["split_easily", "vivid_inspiration"]
     }
   },
+  "lot": {
+    "_doc": "HARVESTROLL: every gather pass is its own lot (spec 04 'rolled positive/negative/rare attributes' per instance; Traits_Gathering_Processing_Math 'lots differ in level, quality, defects and rare virtues'). Level: L = max(1, S - width) + min(width, floor((width + 1) * U^gamma)) for node level S (that doc's site roll; a level-50 node yields 45-50, never above). gamma runs from gamma_novice (Gathering 1, bare hands) down by gamma_skill_drop at Gathering 60 and gamma_tool_drop at the top tool tier, so skill and tools favour the top of the band. Signed traits: by the item's first listed category in by_category; one grey trait at negative_chance, one gold trait at positive_chance (scaled by tool tier and Gathering, capped), each of magnitude 1..max_magnitude. Items with no category row (food, herbs, treasure) roll only the level.",
+    "_assumption": "ASSUMPTION (HARVESTROLL, logged in docs/vision/WildLandsMMO_Open_Questions.md): width 5 and gammas 1.5/1.0/0.75 are the math doc's illustrative values; 96%/7% are its unapproved candidate odds; skill bonus 20% relative at Gathering 60 (doc: worker 0-20%), tool bonus 15% per tier above stone (rare_trait's), cap 12%; magnitudes 1-3; which gold/grey traits each category can roll is read off spec 04's trait meanings.",
+    "width": 5,
+    "gamma_novice": 1.5,
+    "gamma_skill_drop": 0.5,
+    "gamma_tool_drop": 0.25,
+    "negative_chance": 0.96,
+    "positive_chance": 0.07,
+    "tool_tier_bonus": 0.15,
+    "skill_bonus_per_level": 0.0034,
+    "max_positive_chance": 0.12,
+    "max_magnitude": 3,
+    "by_category": {
+      "wood": {"positive": ["firm", "high_density", "lightweight"], "negative": ["soft", "low_density", "heavy"]},
+      "stone": {"positive": ["firm", "high_density", "sharp_section", "pointy"], "negative": ["heavy", "weak_structure", "low_density"]},
+      "ore": {"positive": ["high_density", "compact_structure"], "negative": ["heavy", "weak_structure"]},
+      "fibre": {"positive": ["tough_fiber", "high_elasticity", "thin"], "negative": ["soft_fiber", "weak_structure"]},
+      "lashing": {"positive": ["tough_fiber", "high_elasticity"], "negative": ["soft_fiber", "weak_structure"]},
+      "earth": {"positive": ["compact_structure", "high_density"], "negative": ["soft", "weak_structure"]}
+    }
+  },
   "gather_rare": {
     "_skill_bonus": "0 by spec 12 s1: 'never silently grant rare material traits purely for reaching a high level'. Better tools raise the odds (ASSUMPTION); skill level does not.",
     "tool_tier_bonus": 0.15,
