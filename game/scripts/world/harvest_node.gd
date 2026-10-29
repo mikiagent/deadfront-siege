@@ -292,7 +292,7 @@ func min_pick_tier(item: StringName) -> StringName:
 static func best_pick(inv: Inventory) -> ItemStack:
 	var best: ItemStack = null
 	for s in inv.slots:
-		if s == null or s.is_locked() or s.is_broken() or s.def() == null or s.def().tool_class != &"pick":
+		if s == null or s.is_broken() or s.def() == null or s.def().tool_class != &"pick":
 			continue
 		if best == null:
 			best = s
