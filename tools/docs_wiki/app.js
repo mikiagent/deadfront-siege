@@ -528,6 +528,7 @@ function renderPhase(pane) {
       <div class="feat-meta">
         ${f.depends.length ? `<div class="feat-deps"><span>relies on</span> ${depTag(f.depends)}${f.status === "next" && blocked ? '<span class="blocked-note">blocked</span>' : ""}</div>` : ""}
         ${f.source ? `<a class="feat-src" href="/?doc=${encodeURIComponent(docKeyFor(f.source))}">${esc(f.source)}</a>` : ""}
+        ${f.evidence && f.evidence.length ? `<div class="feat-evidence"><span>evidence</span> ${f.evidence.map((e) => /^(https:|commit:)/.test(e) ? `<code>${esc(e)}</code>` : `<a class="feat-src" href="/?doc=${encodeURIComponent(docKeyFor(e))}">${esc(e)}</a>`).join(" ")}</div>` : (f.status === "done" ? '<div class="feat-evidence dim">no evidence linked</div>' : "")}
         ${f.note ? `<div class="feat-note">${esc(f.note)}${f.seed_note ? `<details class="seed-note"><summary>authored note</summary>${esc(f.seed_note)}</details>` : ""}</div>` : ""}
       </div>
     </div>`;
