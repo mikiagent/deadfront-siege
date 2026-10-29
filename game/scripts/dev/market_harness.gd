@@ -180,11 +180,7 @@ func tame(acct: int, net_id: String) -> String:
 ## A captured_animal cage in the bag through the real capture steps; returns its slot or -1.
 func capture(acct: int, net_id: String) -> int:
 	var before := _count(acct, "captured_animal")
-	_gather(acct, "fibre_stalk", 4)
-	_gather(acct, "branch", 1)
-	for i in 2:
-		bridge.client("act.craft", acct, {"recipe_id": "twine", "picks": [_slot(acct, "fibre_stalk")]}, now)
-	bridge.client("act.craft", acct, {"recipe_id": "capture_net_i"}, now)
+	_net(acct)
 	world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 10.0})
 	for i in 40:
 		world.creatures[net_id].knocked = true
@@ -192,11 +188,21 @@ func capture(acct: int, net_id: String) -> int:
 		if got.get("ok", false) and got.r.get("captured", false):
 			break
 		if _count(acct, "capture_net_i") == 0:
-			bridge.client("act.craft", acct, {"recipe_id": "capture_net_i"}, now)
+			_net(acct)
 	if _count(acct, "captured_animal") <= before:
 		failures.append("capture %s put no cage in the bag" % net_id)
 		return -1
 	return _slot(acct, "captured_animal")
+
+## One capture net from fresh materials. A broken net used to be re-crafted from whatever the bag held,
+## so once the first net's twine was spent every later throw had no net and the capture never landed
+## (which seed run hit that moved with how long earn() took).
+func _net(acct: int) -> void:
+	_gather(acct, "fibre_stalk", 4)
+	_gather(acct, "branch", 1)
+	for i in 2:
+		bridge.client("act.craft", acct, {"recipe_id": "twine", "picks": [_slot(acct, "fibre_stalk")]}, now)
+	bridge.client("act.craft", acct, {"recipe_id": "capture_net_i"}, now)
 
 func _craft_knife(acct: int) -> bool:
 	_gather(acct, "branch", 1) # the handle: a branch left over from earn() depends on which Settlers' orders are open
