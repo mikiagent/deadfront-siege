@@ -46,3 +46,9 @@ static func for_glyph(glyph: String) -> Texture2D:
 	_load()
 	var id := str((_manifest.get("glyphs", {}) as Dictionary).get(glyph, ""))
 	return icon(StringName(id)) if id != "" else null
+
+## White part icon for a carcass part's item id (data/ui_icons.json "parts"), null when it has none.
+static func for_part(item_id: StringName) -> Texture2D:
+	_load()
+	var id := str((_manifest.get("parts", {}) as Dictionary).get(str(item_id), ""))
+	return icon(StringName(id)) if id != "" else null

@@ -154,6 +154,13 @@ func _test_carcass(view: Vector2) -> void:
 	var scute: int = by_id.get("frill_plate", -1)
 	_expect(scute >= 0 and radial._buttons[scute].disabled and radial._buttons[scute].badge == "⊘" and str(radial._labels[scute]["reason"]) != "",
 		"%s: the locked part is red with its reason (%s)" % [tag, radial._labels[scute]["reason"] if scute >= 0 else "no hex"])
+	# BUTCHERHEX: the skill lock wears the tool_needed badge; every hex draws its white part icon.
+	_expect(scute >= 0 and radial._buttons[scute].badge_icon == UiIcons.icon(&"tool_needed"), "%s: the skill-locked part wears the tool_needed badge" % tag)
+	_expect(meat >= 0 and radial._buttons[meat].icon == UiIcons.for_part(&"raw_meat") and not radial._buttons[meat].color_icon, "%s: the meat hex draws the white part_meat icon" % tag)
+	_expect(not radial.tool_gate("already cut") and radial.tool_gate("needs knife") and radial.tool_gate("your axe is broken"), "%s: only tool and skill locks count as tool gates" % tag)
+	for row in (JSON.parse_string(FileAccess.get_file_as_string("res://data/butchering.json"))["species"] as Dictionary).values():
+		for e in (row as Dictionary).get("base", []) + (row as Dictionary).get("rare", []):
+			_expect(UiIcons.for_part(StringName(str(e["id"]))) != null, "butcher yield %s has a part icon" % e["id"])
 	if scute >= 0:
 		_player.actions.on_option_picked(c, scute)
 		_expect(not c.cut_running and c.cuts_left == 2, "%s: the locked part refuses (running %s, cuts %d)" % [tag, c.cut_running, c.cuts_left])
