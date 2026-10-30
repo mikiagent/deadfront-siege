@@ -133,6 +133,7 @@ func _lay_out() -> void:
 	_outskirts()
 	_harbour()
 	_infill()
+	_clutter()
 	_wall()
 	_roads()
 	_street_props()
@@ -419,6 +420,10 @@ func _stall_lot(deg: float, r: float, facing: float) -> float:
 	var hues := [Color(0.75, 0.2, 0.15), Color(0.2, 0.4, 0.7), Color(0.85, 0.65, 0.2), Color(0.25, 0.55, 0.3)]
 	var col: Color = hues[_rng.randi_range(0, hues.size() - 1)]
 	unit("canvas", Transform3D(b.scaled(Vector3(4.2, 0.6, 3.2)), c + Vector3(0, 2.16, 0)), col, FAR_PROP)
+	# A lantern on the front beam: the market stays lit after dark (glass + halo, no real light).
+	var lan := c + b * Vector3(1.2, 1.78, 1.3)
+	unit("lantern", Transform3D(b.scaled(Vector3(0.2, 0.28, 0.2)), lan), Color(1.0, 0.8, 0.5), FAR_PROP)
+	unit("halo", Transform3D(Basis().scaled(Vector3.ONE * 1.8), lan + Vector3(0, 0.15, 0)), Color.WHITE, FAR_PROP)
 	var goods := ["basket", "bucket", "chest", "barrel"]
 	for i in 3:
 		prop(goods[_rng.randi_range(0, 3)], c + b * Vector3(-1.2 + 1.2 * float(i), 0.9, 1.0), yaw, 0.55)
@@ -512,7 +517,11 @@ func _field_lot(deg: float, r: float) -> float:
 	var s2: String = stages[_rng.randi_range(0, stages.size() - 1)]
 	for i in 4:
 		for j in 3:
-			prop(s1 if i < 2 else s2, c + b * Vector3(-3.0 + 2.0 * float(i), 0, -2.0 + 2.0 * float(j)), yaw)
+			var at := c + b * Vector3(-3.0 + 2.0 * float(i), 0, -2.0 + 2.0 * float(j))
+			var crop: String = s1 if i < 2 else s2
+			if crop != "field_tilled":
+				prop("field_tilled", at, yaw)  # the crop stands in a tilled bed, not on lawn
+			prop(crop, at, yaw)
 	_fence_rect(c, 8.6, 6.6, yaw, true)
 	prop(["scarecrow", "compost_heap", "well", "trellis"][_rng.randi_range(0, 3)], c + b * Vector3(5.2, 0, 0), yaw)
 	if _rng.randf() < 0.5:
@@ -607,6 +616,46 @@ func _infill() -> void:
 				_take(c, 3.0, 3.0, 1.2, yaw)
 				stats["yards"] = int(stats.get("yards", 0)) + 1
 
+## TOWNPOLISH: the gaps the lots leave (too small, a slope, a corner) get yard life instead of bare
+## grass: a hand cart, a woodpile, barrels and crates, straw, a well now and then.
+func _clutter() -> void:
+	var step := 6.0
+	var n := int(TOWN_R * 2.0 / step)
+	for i in n:
+		for j in n:
+			var off := Vector3(-TOWN_R + step * (float(i) + _rng.randf_range(0.2, 0.8)), 0, -TOWN_R + step * (float(j) + _rng.randf_range(0.2, 0.8)))
+			var c := camp + off
+			var r := Vector2(off.x, off.z).length()
+			if r < PLAZA_R + 2.0 or r > TOWN_R - 2.0 or street_d(c) < 4.0 or _rng.randf() < 0.35:
+				continue
+			var yaw := _rng.randf() * TAU
+			var y := lot_base(c, 2.6, 2.6, yaw, 0.4)
+			if is_nan(y):
+				continue
+			c.y = y
+			var b := Basis(Vector3.UP, yaw)
+			match _rng.randi_range(0, 5):
+				0:
+					prop("town_cart", c, yaw)
+				1:
+					prop("town_woodpile", c, yaw)
+					prop("large_box", c + b * Vector3(1.3, 0, 0.2), yaw + 0.3)
+				2:
+					prop("barrel", c, yaw)
+					prop("barrel", c + b * Vector3(0.7, 0, 0.2), yaw + 1.0)
+					prop("large_box", c + b * Vector3(-0.8, 0, 0.1), yaw + 0.4)
+				3:
+					prop("straw_roll", c, yaw)
+					prop("straw_roll", c + b * Vector3(1.0, 0, 0.3), yaw + 0.6)
+				4:
+					prop("well" if _rng.randf() < 0.3 else "water_trough", c, yaw)
+				_:
+					prop("chest", c, yaw)
+					prop("basket", c + b * Vector3(0.8, 0, 0), yaw)
+					prop("bucket", c + b * Vector3(0.4, 0, 0.7), yaw)
+			_take(c, 2.6, 2.6, 1.2, yaw, false)  # walk-through: the tutorial bot's routes stay open
+			stats["clutter"] = int(stats.get("clutter", 0)) + 1
+
 func _deg_of(p: Vector3) -> float:
 	return _wrap(rad_to_deg(atan2(p.z - camp.z, p.x - camp.x)) - dock_deg)
 
@@ -653,13 +702,15 @@ func _wall() -> void:
 	for i in n:
 		var deg := 360.0 * (float(i) + 0.5) / float(n)
 		var gate := false
+		var near_gate := false
 		for av: float in AVENUES:
-			if absf(_wrap(deg - av)) * PI / 180.0 * WALL_R < AVENUE_W * 0.5 + 1.2:
-				gate = true
+			var off := absf(_wrap(deg - av)) * PI / 180.0 * WALL_R
+			gate = gate or off < AVENUE_W * 0.5 + 1.2
+			near_gate = near_gate or off < AVENUE_W * 0.5 + 6.0
 		var p := polar(deg, WALL_R)
 		# A wicket (a 4 m gap between two posts) every WICKET_EVERY panels: walks out to the wild
 		# lands and back stay short (the tutorial bot timed out detouring to the avenue gates).
-		var wicket := i % WICKET_EVERY < 2
+		var wicket := i % WICKET_EVERY < 2 and not near_gate  # TOWNPOLISH: wicket posts stood inside the gates
 		if wicket and i % WICKET_EVERY == 0 and rt.is_dry(p):
 			for e in [-1.0, 1.0]:
 				var wp := polar(deg + e * 1.2 * 180.0 / PI / WALL_R * 2.0, WALL_R)
@@ -1182,7 +1233,7 @@ func _clear_ground() -> void:
 			var hit := false
 			for i in mini(tiles.size(), mmi.multimesh.instance_count):
 				# Tall cards (reeds, ferns) never stay inside the wall; short grass thins to a third.
-				if all.has(tiles[i]) or _trodden(tiles[i]) or (_inside(tiles[i]) and mmi.multimesh.get_instance_transform(i).basis.y.length() > 0.5):
+				if all.has(tiles[i]) or _trodden(tiles[i]) or (_inside(tiles[i]) and mmi.multimesh.get_instance_transform(i).basis.y.length() > 0.8):
 					mmi.multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 0.001), Vector3.ZERO))
 					# TOWNPOLISH: with physics interpolation on, the renderer kept drawing the previous
 					# transform of a cleared card (reeds stood on the streets); reset it with the new one.

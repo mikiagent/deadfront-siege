@@ -145,6 +145,7 @@ func _hide_ui(on: bool) -> void:
 func _place_player(p: Vector3, yaw: float = 0.0) -> void:
 	if _player.has_method("clear_nav"):
 		_player.call("clear_nav")
+	p.y = float(_town.get("rt").call("surface_y", p.x, p.z))
 	_player.global_position = p + Vector3(0, 0.2, 0)
 	_player.rotation.y = yaw
 	_player.reset_physics_interpolation()
