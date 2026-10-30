@@ -16,8 +16,12 @@ extends RefCounted
 ## Every number is # ASSUMPTION: see data/world/landmarks.json and the M1 report.
 
 const DATA_PATH := "res://data/world/landmarks.json"
-## Candidate tiles tested per type and ring band (see _legal_candidates).
-const SAMPLE_MAX := 600
+## Candidate tiles drawn per site from its ring band (see _try_place), and how many passing tiles the
+## draw compares (it keeps the roomiest) before it stops early.
+const DRAW_TRIES := 500
+const KEEP_BEST := 6
+## Tiles of a band that go through the site-independent tests once per type (see _legal_of).
+const LEGAL_SCAN := 1600
 ## Rings the node group grows on: a tight ring for small groups, a wider one for large.
 const RING_M := [7.0, 9.5]
 
@@ -126,6 +130,18 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 	var sites: Array[Dictionary] = []
 	var skipped := 0
 	var landmark_ctx := _context(rt, def)
+	if OS.get_environment("LM_DEBUG") == "1":
+		var dry := 0
+		for i in rt.dry_walk.size():
+			if int(rt.dry_walk[i]) == 1:
+				dry += 1
+		var reach_n := 0
+		var reach: PackedByteArray = landmark_ctx["reach"]
+		for i in reach.size():
+			if int(reach[i]) == 1:
+				reach_n += 1
+		var near_band := _band(landmark_ctx, 60.0, 180.0).size()
+		print("[lm-ctx] island=%s dry=%d reach=%d cands=%d band60-180=%d" % [id, dry, reach_n, (landmark_ctx["cands"] as PackedVector2Array).size(), near_band])
 	# Authored points first: an island row's crater and a map's typed landmark markers.
 	var authored := _authored(rt, def, climate)
 	for site in authored:
@@ -169,7 +185,10 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 			var row2: Dictionary = rows[(k + round_i) % rows.size()]
 			# The last two rounds read the whole band (no stride): a small island's free gaps are few and
 			# the sample can miss all of them, and this only runs when the island is below its minimum.
-			var site2 := _try_place(rt, landmark_ctx, climate, row2, sites, rng, false, floor_m, round_i >= 8)
+			var site2 := _try_place(rt, landmark_ctx, climate, row2, sites, rng, false, floor_m)
+			if site2.is_empty() and round_i >= 2:
+				# The band is full for this type: open its far edge to the island's dry extent (wide).
+				site2 = _try_place(rt, landmark_ctx, climate, row2, sites, rng, false, floor_m, true)
 			if site2.is_empty():
 				skipped += 1
 				continue
@@ -204,6 +223,27 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 					if not near.is_empty():
 						sites.append(near)
 						break
+	if OS.get_environment("LM_DEBUG") == "1" and sites.size() < b.x:
+		var buckets := {}
+		var total := 0
+		var valut := 0
+		for q in (landmark_ctx["cands"] as PackedVector2Array):
+			total += 1
+			if _min_site_dist(q, sites) < float(landmark_ctx["spacing"]):
+				continue
+			valut += 1
+			var bkt := int(floor(q.distance_to(landmark_ctx["landing"]) / 30.0)) * 30
+			buckets[bkt] = int(buckets.get(bkt, 0)) + 1
+		print("[lm-free] island=%s below min %d/%d cands=%d free=%d by_dist=%s" % [id, sites.size(), b.x, total, valut, str(buckets)])
+		var flat := {}
+		var flat_total := 0
+		for q in (landmark_ctx["cands"] as PackedVector2Array):
+			if IslandTerrain.slope_deg(rt, q.x, q.y) > 14.0:
+				continue
+			flat_total += 1
+			var bkt2 := int(floor(q.distance_to(landmark_ctx["landing"]) / 60.0)) * 60
+			flat[bkt2] = int(flat.get(bkt2, 0)) + 1
+		print("[lm-flat] island=%s family=%s flat=%d of %d by60=%s" % [id, str(rt._shape.family), flat_total, total, str(flat)])
 	return {"sites": sites, "skipped": skipped, "budget": b, "cands": (landmark_ctx["cands"] as PackedVector2Array).size()}
 
 static func _has_near(sites: Array, ctx: Dictionary) -> bool:
@@ -354,10 +394,17 @@ static func _context(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 		"safe_ring": safe,
 		"circles": circles,
 		"reach": reach,
+		"far": _far_of(cands, Vector2(landing.x, landing.z)),
 		"half": rt._size * 0.5,
 		"span": rt._tile_span,
 		"span_tiles": rt._tile_span,
 	}
+
+static func _far_of(cands: PackedVector2Array, landing: Vector2) -> float:
+	var far := 0.0
+	for q in cands:
+		far = maxf(far, q.distance_to(landing))
+	return far
 
 ## The dry tiles connected to the camp (and to the landing's inland side): a landmark nobody can walk
 ## to is the doc's anti-pattern. One 4-neighbour BFS over dry_walk; TilePath is built later in the build,
@@ -643,11 +690,33 @@ static func _node_positions(site: Dictionary) -> Array[Vector2]:
 			i += 1
 	return out
 
-## One drawn row placed: sample candidates until one passes, else {} (the type is skipped, never
-## forced onto a bad tile: doc section 3.2 step 4).
+## Band indices that pass the site-independent rules for this type and band (cached in the context).
+static func _legal_of(rt: IslandRuntime, ctx: Dictionary, probes: Dictionary, ids: PackedInt32Array,
+		key: String) -> PackedInt32Array:
+	var cands: PackedVector2Array = ctx["cands"]
+	var out := PackedInt32Array()
+	var n := mini(LEGAL_SCAN, ids.size())
+	var start := int(hash(key)) % ids.size()
+	for k in n:
+		var idx := ids[(start + k) % ids.size()]
+		var q := cands[idx]
+		probes["x"] = q.x
+		probes["z"] = q.y
+		if _reject_reason(rt, ctx, probes, []) == "":
+			out.append(idx)
+	return out
+
+## One drawn row placed: draw candidate tiles from the type's ring band until one passes every rule,
+## else {} (the type is skipped, never forced onto a bad tile: doc section 3.2 step 4).
+## The draw tests the cheapest rules first (spacing to the sites already placed, then the rest) and keeps
+## the roomiest of the tiles that pass, so the sites spread instead of packing into the first gap the
+## scan happens to meet. Sampling, not scanning: a tier-50 band holds ~2 000-8 000 tiles and a full
+## terrain test costs ~10 us, so a whole-band scan per row would cost 0.1-0.2 s of the pass's +0.3 s.
+## DRAW_TRIES random draws per row is ~5 ms and finds a free tile whenever the island has one: the
+## free share of a band is usually 30-70 % and a passing tile needs ~10 draws (see the M1 report).
 static func _try_place(rt: IslandRuntime, ctx: Dictionary, climate: String, row: Dictionary,
 		sites: Array, rng: RandomNumberGenerator, near: bool, spacing_m: float = -1.0,
-		full_scan: bool = false) -> Dictionary:
+		wide: bool = false) -> Dictionary:
 	if row.is_empty():
 		return {}
 	var site := _site_from_row(row, climate, rng)
@@ -662,69 +731,67 @@ static func _try_place(rt: IslandRuntime, ctx: Dictionary, climate: String, row:
 	if near:
 		hi = minf(hi, float(ctx["near"]) - 4.0)
 		lo = minf(lo, float(ctx["landing_clear"]) + 6.0)
-	# Two steps, both linear in the band. First every candidate is tested against the rules that do not
-	# depend on the other sites (terrain, the node group's fit, dry ground, reachability): that list is
-	# cached per type and band, so the island's eight sites pay for it once. Then spacing is a packing
-	# problem on a narrow island, where a random draw misses the few free gaps: take the first legal
-	# candidate, or else the one farthest from the sites already placed (the doc's "keep the best by
-	# score: distance from other landmarks").
+	if wide:
+		# The fill round's fallback: the type's ring band is a preference, not a wall. When every legal
+		# tile of the band is taken, the band's far edge opens to the island's own dry extent so the
+		# budget's minimum is still met; the near edge and every other rule (spacing, camp, near
+		# landing) stay. # ASSUMPTION: see the M1 report.
+		hi = maxf(hi, float(ctx["far"]))
 	var ids := _band(ctx, lo, hi)
 	if ids.is_empty():
 		return {}
 	var cands: PackedVector2Array = ctx["cands"]
-	var legal := _legal_candidates(rt, ctx, site, ids, full_scan)
-	if legal.is_empty():
-		return {}
-	# The candidate farthest from the sites already placed (the doc's "keep the best by score: distance
-	# from other landmarks"): greedy first-fit packs early sites close together and strands the later
-	# ones on a narrow island, while farthest-point keeps the whole island usable.
 	var spacing := float(ctx["spacing"]) if spacing_m < 0.0 else spacing_m
-	var best_idx := -1
+	var probes := site.duplicate(false)
+	# The tiles whose site-independent rules (terrain, the node group's fit, dry ground, reach) pass,
+	# kept in the context per type and band: the fill round and the near-landing retry then draw from
+	# legal ground only instead of re-testing tile after tile that never can hold the type. The list is
+	# `legal_scan` tiles of the band per type (a suffix of the band from a hashed offset, so the draw
+	# covers the island evenly); the pass's whole cost is a few of these scans (~10 us a tile).
+	var key := "%s|%s|%d|%d|%d|%d" % [str(site.get("type", "")), str(site.get("display", "")), lo, hi, ids.size(), 1 if near else 0]
+	var pool: PackedInt32Array
+	var legal: Dictionary = ctx["legal"]
+	if legal.has(key):
+		pool = legal[key]
+	else:
+		pool = _legal_of(rt, ctx, probes, ids, key)
+		legal[key] = pool
+	var best := {}
 	var best_gap := -1.0
-	for idx_v in legal:
-		var gap := _min_site_dist(cands[int(idx_v)], sites)
+	var passers := 0
+	var seen := {}
+	if pool.is_empty():
+		return {}
+	var tries := mini(DRAW_TRIES, pool.size())
+	var i := 0
+	while i < tries:
+		i += 1
+		var k := rng.randi_range(0, pool.size() - 1)
+		if seen.has(k):
+			continue
+		seen[k] = true
+		var q := cands[pool[k]]
+		var gap := _min_site_dist(q, sites)
+		if not sites.is_empty() and gap < spacing:
+			continue
+		probes["x"] = q.x
+		probes["z"] = q.y
+		if _reject_reason(rt, ctx, probes, sites) != "":
+			continue
+		passers += 1
 		if gap > best_gap:
 			best_gap = gap
-			best_idx = int(idx_v)
-	if best_idx < 0 or (not sites.is_empty() and best_gap < spacing):
-		# Every legal candidate is inside another site's spacing: the type is skipped, never squeezed.
+			best = probes.duplicate(false)
+			best["x"] = q.x
+			best["z"] = q.y
+		if passers >= KEEP_BEST and best_gap >= spacing + 20.0:
+			break
+	if OS.get_environment("LM_DEBUG") == "1":
+		print("[lm-try] %s/%s band=%.0f:%.0f ids=%d tries=%d passers=%d best_gap=%.0f need=%.0f near=%s" % [site.get("type", ""), site.get("display", ""), lo, hi, ids.size(), tries, passers, best_gap, spacing, str(near)])
+	if best.is_empty():
 		return {}
-	var q := cands[best_idx]
-	site["x"] = q.x
-	site["z"] = q.y
-	site["dist_landing"] = q.distance_to(ctx["landing"])
-	return site
-
-## Band indices that pass every rule except spacing, cached per site type and band. The probe copy only
-## carries the type and node group; positions are written per candidate.
-## A band of a tier-50 island holds ~15 000 tiles and a full test costs ~10 us (terrain tokens, the node
-## group's ring, the reachability lookup): the whole band would be 0.2 s per type, over the pass's whole
-## +0.3 s budget. The doc's step 3 says "sample candidate tiles", so a strided sample of SAMPLE_MAX
-## covers the band evenly (one tile in ~25 on a big island) and the farthest-point pick then works on
-## the sample. The stride is a hash of the type and band, so two types sample different tiles.
-static func _legal_candidates(rt: IslandRuntime, ctx: Dictionary, site: Dictionary,
-		ids: PackedInt32Array, full: bool = false) -> PackedInt32Array:
-	var key := "%s|%s|%d|%d|%d" % [str(site.get("type", "")), str(site.get("display", "")), ids.size(),
-		int(ids[0]) if ids.size() > 0 else -1, 1 if full else 0]
-	var cache: Dictionary = ctx["legal"]
-	if cache.has(key):
-		return cache[key]
-	var cands: PackedVector2Array = ctx["cands"]
-	var probe := site.duplicate(false)
-	var out := PackedInt32Array()
-	var step := 1 if full else maxi(1, ids.size() / SAMPLE_MAX)
-	var offset := int(hash(key)) % step if step > 1 else 0
-	var i := offset
-	while i < ids.size():
-		var idx_v := ids[i]
-		var q := cands[int(idx_v)]
-		probe["x"] = q.x
-		probe["z"] = q.y
-		if _reject_reason(rt, ctx, probe, []) == "":
-			out.append(int(idx_v))
-		i += step
-	cache[key] = out
-	return out
+	best["dist_landing"] = Vector2(float(best["x"]), float(best["z"])).distance_to(ctx["landing"])
+	return best
 
 static var _rejects: Dictionary = {}
 
