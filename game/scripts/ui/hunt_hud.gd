@@ -1859,7 +1859,7 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			var latin: Font = (_font as FontVariation).base_font if _font is FontVariation else _font
 			var chip_y := py + 29.0 + latin.get_descent(name_px)  # 1 px under the name's line box
 			var dy := maxf(0.0, chip_y + NatureChip.CHIP_H + CreaturePlates.CHIP_GAP - (py + 44.0)) if NatureChip.text_for(nat) != "" else 0.0
-			var block := Rect2(px, py - 4.0, pw, 70.0 + dy)
+			var block := Rect2(px, py - 4.0, pw, 70.0 + dy + HudBuffRow.CHIP + 8.0)
 			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
 			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
 			draw_rect(Rect2(px, py - 4, pw, 48 + dy), Color(UiTokens.INK, 0.75 * a))  # the reference's dark band: the name reads on foliage
@@ -1887,11 +1887,17 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 				draw_string(_font,Vector2(px+8,py+128),label,HORIZONTAL_ALIGNMENT_LEFT,pw-16,16,Color(1,0.85,0.2,a))
 				block = block.merge(Rect2(px, py + 108.0, pw, 26.0))
 			var ix := px
+			# CREATURECHIPS: the target bar's status chips are the player's chip renderer (HudBuffRow
+			# .draw_chip, 38 px black tile, white rim, white icon) with the numbered stack badge —
+			# the same look and count as the plate's chips and her own row.
+			target_rows["chips"] = {}
 			if t.statuses:
-				for inst in t.statuses.instances():
-					var chip := HudStatusChip.draw_named(self, _font, Vector2(ix, py + 74), inst.id, a, 13 if band.has_area() else 15)
-					block = block.merge(chip)
-					ix += chip.size.x + 6.0
+				for e in HudBuffRow.creature_entries(t):
+					var box := Rect2(Vector2(ix, py + 74.0), Vector2(HudBuffRow.CHIP, HudBuffRow.CHIP))
+					HudBuffRow.draw_chip(self, _font, box, e["icon"], e["kind"], false, int(e.get("stacks", 1)))
+					target_rows["chips"][str(e["key"])] = box
+					block = block.merge(box.grow(2.0))
+					ix += HudBuffRow.PITCH
 			drawn_blocks["plate"] = block
 
 ## HUDRULES: true while she fights an animal the shown order's `fight` list names (objectives.json).
