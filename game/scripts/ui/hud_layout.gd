@@ -32,7 +32,8 @@ static func place_landscape_phone(hud: HuntHud, r: Vector2, inset: Vector4) -> v
 	var net := hud._skill_hexes[0].position
 	var up := row_y - 8.0 - HuntHud.CAPTION_H - HuntHud.HEX
 	hud._auto_hex.position = Vector2(net.x + HuntHud.SKILL_HEX + 4.0 - HuntHud.HEX * 0.5, up)  # over the NET/TACKLE seam
-	hud._feed_hex.position = hud._auto_hex.position - Vector2(HuntHud.HEX + 8.0, 0.0)
+	hud._auto_ability_hex.position = hud._auto_hex.position - Vector2(HuntHud.HEX + 8.0, 0.0)
+	hud._feed_hex.position = hud._auto_ability_hex.position - Vector2(HuntHud.HEX + 8.0, 0.0)
 	var sw := hud._stance_label.get_combined_minimum_size()
 	hud._stance_label.position = Vector2(hud._auto_hex.position.x + HuntHud.HEX + 8.0, up + HuntHud.HEX * 0.5 - sw.y * 0.5)
 
@@ -51,7 +52,8 @@ static func place_portrait(hud: HuntHud, r: Vector2, inset: Vector4, rail_y: flo
 		x -= HuntHud.SKILL_HEX + 8.0
 	var up := row_y - 8.0 - HuntHud.CAPTION_H - HuntHud.HEX
 	hud._feed_hex.position = Vector2(16.0 + inset.w, up)
-	hud._auto_hex.position = Vector2(16.0 + inset.w + HuntHud.HEX + 10.0, up)
+	hud._auto_ability_hex.position = Vector2(16.0 + inset.w + HuntHud.HEX + 10.0, up)
+	hud._auto_hex.position = Vector2(16.0 + inset.w + 2.0 * (HuntHud.HEX + 10.0), up)
 	var end_x := 16.0 + inset.w + 3.0 * (HuntHud.HEX + 10.0) + 4.0
 	hud._end_btn.custom_minimum_size = Vector2(r.x - 16.0 - inset.x - end_x, UiTokens.TARGET_PRIMARY)
 	hud._end_btn.size = hud._end_btn.custom_minimum_size
@@ -73,6 +75,7 @@ static func place_desktop(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 	for i in hud._skill_hexes.size():
 		hud._skill_hexes[i].position = Vector2(cx, cy) + slots[i]
 	hud._auto_hex.position = Vector2(cx + 84.0, cy + 40.0)  # under ROLL's caption (at +60/+30 it sat on it)
+	hud._auto_ability_hex.position = hud._auto_hex.position - Vector2(HuntHud.HEX + 8.0, 0.0)
 	hud._feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
 	# The whistle row stands beside the rail (spec §6), bottom-aligned with it.
 	var rail := HudField.px(&"rail", r)

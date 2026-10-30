@@ -103,7 +103,28 @@ my player glitches out... pathfind to where I want to walk and then re-engage".
   her own tile's centre.
 - `game/tests/t_playerturn.gd` measures all of this.
 
-## Full screen
+## AUTO-ABILITY (2026-10-29)
+
+The AUTO-ABILITY hex sits beside AUTO in the combat layer (64 px, same style; desktop left of AUTO,
+between FEED and AUTO on phones). It is **on by default** for new and loaded games (the flag lives on
+`Hunt.auto_ability`, not in the save, so an older save gets the same default). While a fight runs and
+the toggle is on, the hunt casts the strongest **auto-castable** ability that is off cooldown, in
+body-edge reach, line of sight and affordable (stamina) **instead of the next basic attack** — owner:
+"uses the player's most powerful ability off cooldown and prioritizes that over basic attacks".
+
+- "Most powerful" = highest expected damage per cast (the ability row's damage x the weapon's damage),
+  tie-break the longer cooldown. # ASSUMPTION (docs/vision/WildLandsMMO_Open_Questions.md AUTOABILITY):
+  the rows are flat ability damage today (tackle 6, kick 4), so the rank is the row damage.
+- Only Tackle and Kick are auto-castable by default; Roll (a dodge) and Net (a capture tool) stay
+  manual. Which abilities the auto-cast may use is data:
+  `game/data/combat_tuning.json auto_ability.abilities` (a row with `auto: true` joins the rotation).
+- The cast runs the same gates as the manual press (reach, line of sight, stamina, the tactic lock, a
+  hurt stun) and never spams a refusal notice; when nothing qualifies the basic attack takes over.
+- A click-to-move order, the movement stick, a roll or a hurt stun still outrank everything, exactly
+  as with the auto-attack. Toggling the AUTO hex off stops the auto-attack entirely; toggling
+  AUTO-ABILITY off keeps the auto-attack but only ever basic-attacks.
+
+
 
 F11 toggles full screen on desktop and in the browser. The pause menu also has a Full screen button,
 which is the reliable route on a phone or tablet browser because browsers only allow full screen from

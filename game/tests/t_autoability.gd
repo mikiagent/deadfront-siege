@@ -2,7 +2,7 @@ extends SceneTree
 ## AUTO-ABILITY acceptance (docs/orchestration/reports/dsc-autoability.md). The owner: "an
 ## auto-ability button that uses the player's most powerful ability off cooldown and prioritizes
 ## that over basic attacks" / "put that on by default".
-## - the toggle is ON for a fresh player (default, no save write needed)
+## - the toggle is ON for a fresh player (default, no save field needed)
 ## - with an ability ready the next action is the ability, not a basic attack
 ## - on cooldown it falls back to basic attacks
 ## - toggle off -> basic attacks only
@@ -73,11 +73,13 @@ func _creature(at: Vector3):
 	return c
 
 func _engage(at := Vector3(0, 0, -1.6)):
-	var c := _creature(at)
+	var c = _creature(at)
 	player.hunt.auto = true
 	player.hunt.auto_ability = true
+	player.hunt.last_auto_cast = &""
 	player.hunt.start(c)
 	player.hunt._swing_cd = 0.0
+	player.hunt._swing_pending = false
 	player.hunt._tackle_cd = 0.0
 	player.hunt._kick_cd = 0.0
 	player.hunt._tactic_lock = 0.0
@@ -89,8 +91,30 @@ func _engage(at := Vector3(0, 0, -1.6)):
 	player.hunt._resume_after_move = false
 	return c
 
+## A swing counter in an Array: a GDScript lambda captures locals by value, so `n += 1` in a
+## lambda would never reach the test's own variable.
+func _swinger() -> Array:
+	var n := [0]
+	player.hunt.swing_started.connect(func () -> void: n[0] += 1)
+	return n
+
 func _frames(n: int) -> void:
 	for i in n:
+		await physics_frame
+
+## The previous test's attack clip can still hold `can_start_tactic()` while the basic swing is not
+## gated on it, so the swing wins the race before the auto-cast. Wait for the anim to go idle.
+func _await_idle(frames: int) -> void:
+	for i in frames:
+		if not player.anim._busy and not player.rolling:
+			return
+		await physics_frame
+
+## Wait until the fight's next action shows (an auto-cast or a swing started), or frames run out.
+func _await_action(frames: int) -> void:
+	for i in frames:
+		if player.hunt.last_auto_cast != &"" or player.hunt._swing_pending:
+			return
 		await physics_frame
 
 func _test_data() -> void:
@@ -100,54 +124,59 @@ func _test_data() -> void:
 ## The default + the ready-cast rule: the next action is the ability, not a basic attack.
 func _test_default_on_and_ready_cast() -> void:
 	_expect(player.hunt.auto_ability, "auto-ability defaults ON for a new player (no save field needed)")
-	var c := _engage()
-	await _frames(4)  # let _process run the auto-cast before the basic swing
+	var c = _engage()
+	var swings := _swinger()
+	await _await_action(180)  # spawn clips may hold the tactic gate for a moment
 	_expect(player.hunt.target == c, "hunt holds its target through the auto-cast")
-	var hit_by_ability: bool = c.next_hit_kind != StringName() or c.statuses.has(&"groggy") \
-			or c.stagger_left > 0.0 or player.hunt.last_auto_cast != &""
-	var no_swing_yet: bool = player.hunt._swing_pending == false
-	_expect(hit_by_ability and no_swing_yet, "a ready ability casts before any basic swing (last=%s groggy=%s)" % [player.hunt.last_auto_cast, str(c.statuses.has(&"groggy"))])
+	_expect(player.hunt.last_auto_cast == &"tackle" and swings[0] == 0,
+			"a ready ability casts before any basic swing (last=%s swings=%d)" % [player.hunt.last_auto_cast, swings[0]])
 	_expect(player.hunt.cooldown_left(&"tackle") > 0.0, "the cast committed its cooldown")
 	player.hunt.stop()
 	c.free()
+	await _await_idle(240)  # the tackle clip ends before the next engagement
+	await physics_frame
 
 ## Tackle on cooldown: the picker falls back to Kick (still an ability), and with both cooling down
 ## it falls back to the basic attack.
 func _test_cooldown_fallback() -> void:
-	var c := _engage()
+	await _await_idle(240)
+	var c = _engage()
 	player.hunt._tackle_cd = 5.0  # the strongest row is cooling down
-	await _frames(4)
+	await _await_action(120)
 	_expect(player.hunt.last_auto_cast == &"kick", "tackle cooling down -> kick is cast instead (got %s)" % player.hunt.last_auto_cast)
 	player.hunt.stop()
 	c.free()
+	await _await_idle(240)
+	await physics_frame
 	c = _engage()
 	player.hunt._tackle_cd = 5.0
 	player.hunt._kick_cd = 5.0
-	var swings: int = 0
-	player.hunt.swing_started.connect(func () -> void: swings += 1)
-	await _frames(40)  # long enough for a basic swing to start once, never an auto-cast
-	_expect(player.hunt.last_auto_cast == &"" and swings >= 1, "both abilities cooling down -> basic attacks only")
+	var swings := _swinger()
+	await _frames(30)  # a basic swing starts inside 0.5 s; no auto-cast must appear
+	_expect(player.hunt.last_auto_cast == &"" and swings[0] >= 1, "both abilities cooling down -> basic attacks only (swings=%d)" % swings[0])
 	player.hunt.stop()
 	c.free()
+	await _await_idle(240)
+	await physics_frame
 
 ## Toggle off: no ability cast, basic attacks only.
 func _test_toggle_off() -> void:
-	var c := _engage()
+	await _await_idle(240)
+	var c = _engage()
 	player.hunt.auto_ability = false
-	player.hunt._tackle_cd = 0.0
-	player.hunt._kick_cd = 0.0
-	var swings: int = 0
-	player.hunt.swing_started.connect(func () -> void: swings += 1)
-	await _frames(40)
-	_expect(player.hunt.last_auto_cast == &"" and swings >= 1, "toggle off -> basic attacks only (swings=%d)" % swings)
+	var swings := _swinger()
+	await _frames(30)
+	_expect(player.hunt.last_auto_cast == &"" and swings[0] >= 1, "toggle off -> basic attacks only (swings=%d)" % swings[0])
 	player.hunt.stop()
 	c.free()
+	await _await_idle(240)
+	await physics_frame
 
 ## The picker alone (no engine timing): the strongest of two ready rows wins; the longer cooldown
 ## breaks a damage tie; an unaffordable or cooling row is skipped.
 func _test_pick_ranking() -> void:
 	player.vitals.energy = player.vitals.effective_max_energy()
-	var c := _creature(Vector3(0, 0, -1.6))
+	var c = _creature(Vector3(0, 0, -1.6))
 	player.hunt.start(c)
 	_expect(AA.pick(player.hunt) == &"tackle", "tackle (6 dmg) beats kick (4 dmg) when both are ready")
 	c.free()

@@ -193,7 +193,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Four 72 px skill hexes in a row, ROLL rightmost: NET / TACKLE / KICK / ROLL. With a ranged weapon
   equipped NET becomes FIRE n (ammo count, disabled when out); near a catapult both swap to the
   siege hexes (SIEGE n stone_shot / TOXIN n). Cooldowns and reloads disable their hex.
-- AUTO toggles the hunt's auto-attacks; an "Attack Stance ◎" label sits beside the row; CHASE⇄HOLD
+- AUTO toggles the hunt's auto-attacks; AUTO-ABILITY beside it (on by default) casts the strongest
+  auto-castable ability off cooldown instead of the next basic attack (see controls.md); an
+  "Attack Stance ◎" label sits beside the row; CHASE⇄HOLD
   joins the quick-food row; FEED appears on tameable targets (`FieldTame.can_attempt`).
 - Whistle row SIC / HEEL / GUARD while a pet is out, selected state mirroring the pet's brain mode:
   desktop a row beside the rail (spec §6); landscape phone a row under the vitals; portrait a

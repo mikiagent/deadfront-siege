@@ -346,6 +346,7 @@ func _check_rects(view: Vector2, state: String, phone: bool) -> void:
 		for h in _hud.get("_skill_hexes"):
 			items.append(["skill " + str(h.caption), h])
 		items.append(["auto", _hud.get("_auto_hex")])
+		items.append(["autoability", _hud.get("_auto_ability_hex")])
 		items.append(["feed", _hud.get("_feed_hex")])
 		items.append(["end", _hud.get("_end_btn")])
 		items.append(["stance", _hud.get("_stance_label")])
