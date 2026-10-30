@@ -80,8 +80,10 @@ func _run() -> void:
 	_free(brave)
 
 	# 2. The charge is a ram (owner 2026-10-29, pack_mule rule): a landed one shoves her back along its line.
+	#    The survivor must be live for the sim to slide her (a disabled body cannot be pushed).
 	player.process_mode = Node.PROCESS_MODE_INHERIT
 	player.global_position = Vector3(0, 0.9, 0)
+	player.velocity = Vector3.ZERO
 	var ram = _herd(1, 0, &"brave", Vector3(0, 0.1, -9))[0]
 	var rlog := _listen([ram])
 	var at_hit := [Vector3.INF]
@@ -120,7 +122,13 @@ func _run() -> void:
 		staggered = staggered or miss.stagger_left > 0.5
 		if mlog.has(&"charge_miss"):
 			break
-	_expect(mlog.has(&"charge_miss") and not mlog.has(&"charge_hit") and staggered, "a sidestepped charge misses and staggers it (%s)" % [_head(mlog)])
+	# The miss must come before any hit: a re-engage that later catches her at the new spot is not
+	# the sidestep dodge working, it is the charge being repeated. (The miss already staggered it.)
+	var hit_i := mlog.find(&"charge_hit")
+	var miss_i := mlog.find(&"charge_miss")
+	var miss_first := miss_i >= 0 and (hit_i < 0 or miss_i < hit_i)
+	_expect(miss_first and staggered, "a sidestepped charge misses and staggers it (miss %s, %s)" % [miss_first, _head(mlog)])
+	miss.brain.attack_target = null
 	player.global_position = Vector3(0, 0.9, 0)
 	_free([miss])
 	await physics_frame
