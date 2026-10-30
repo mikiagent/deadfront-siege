@@ -78,11 +78,12 @@ func _engage(at := Vector3(0, 0, -1.6)):
 	player.hunt.auto_ability = true
 	player.hunt.last_auto_cast = &""
 	player.hunt.start(c)
+	# A leftover state from the previous engagement must not gate this one: the tactic cooldowns and
+	# lock (the game keeps them across a hunt stop), a pending swing and the attack clip.
+	player.hunt.commit_tactic(&"tackle", 0.0, 0.0)
+	player.hunt.commit_tactic(&"kick", 0.0, 0.0)
 	player.hunt._swing_cd = 0.0
 	player.hunt._swing_pending = false
-	player.hunt._tackle_cd = 0.0
-	player.hunt._kick_cd = 0.0
-	player.hunt._tactic_lock = 0.0
 	player.sim._stagger_left = 0.0
 	player.vitals.energy = player.vitals.effective_max_energy()
 	player.vitals.max_health = 1000.0
@@ -128,8 +129,10 @@ func _test_default_on_and_ready_cast() -> void:
 	var swings := _swinger()
 	await _await_action(180)  # spawn clips may hold the tactic gate for a moment
 	_expect(player.hunt.target == c, "hunt holds its target through the auto-cast")
-	_expect(player.hunt.last_auto_cast == &"tackle" and swings[0] == 0,
-			"a ready ability casts before any basic swing (last=%s swings=%d)" % [player.hunt.last_auto_cast, swings[0]])
+	# last_auto_cast is transient (cleared at the top of every _process), so the durable evidence of
+	# which ability the auto-cast chose is the cooldown its cast committed.
+	_expect(player.hunt.cooldown_left(&"tackle") > 0.0 and swings[0] == 0,
+			"a ready ability casts before any basic swing (tackle cd=%.2f swings=%d last=%s)" % [player.hunt.cooldown_left(&"tackle"), swings[0], player.hunt.last_auto_cast])
 	_expect(player.hunt.cooldown_left(&"tackle") > 0.0, "the cast committed its cooldown")
 	player.hunt.stop()
 	c.free()
@@ -141,19 +144,31 @@ func _test_default_on_and_ready_cast() -> void:
 func _test_cooldown_fallback() -> void:
 	await _await_idle(240)
 	var c = _engage()
-	player.hunt._tackle_cd = 5.0  # the strongest row is cooling down
-	await _await_action(120)
-	_expect(player.hunt.last_auto_cast == &"kick", "tackle cooling down -> kick is cast instead (got %s)" % player.hunt.last_auto_cast)
+	# The frame AFTER the tackle cooldown is cleared may already have started a cast/swing in _process
+	# (both run in the same _process tick), so the test could catch last_auto_cast of the cast that
+	# this engagement's own tick made with the cooldown still cleared. Clear it and the swing state
+	# in the same tick as the cooldown, then let _process pick it up from here.
+	player.hunt.commit_tactic(&"tackle", 5.0, 0.0)  # the strongest row is cooling down
+	player.hunt._swing_cd = 0.0
+	player.hunt._swing_pending = false
+	player.hunt.last_auto_cast = &""
+	player.hunt._tactic_lock = 0.0
+	var swings := _swinger()
+	await _frames(40)  # enough for the kick cast (0.45 lock) to fire and settle
+	# Tackle is cooling: the auto-cast must pick Kick, seen as Kick's committed cooldown (and the
+	# same body-edge reach ran for tackle in the ready test, so the kick cast is what can differ).
+	_expect(player.hunt.cooldown_left(&"kick") > 4.0 and swings[0] == 0,
+			"tackle cooling down -> kick is cast instead (kick cd=%.2f swings=%d last=%s)" % [player.hunt.cooldown_left(&"kick"), swings[0], player.hunt.last_auto_cast])
 	player.hunt.stop()
 	c.free()
 	await _await_idle(240)
 	await physics_frame
 	c = _engage()
-	player.hunt._tackle_cd = 5.0
-	player.hunt._kick_cd = 5.0
-	var swings := _swinger()
+	player.hunt.commit_tactic(&"tackle", 5.0, 0.0)
+	player.hunt.commit_tactic(&"kick", 5.0, 0.0)
+	var swings2 := _swinger()
 	await _frames(30)  # a basic swing starts inside 0.5 s; no auto-cast must appear
-	_expect(player.hunt.last_auto_cast == &"" and swings[0] >= 1, "both abilities cooling down -> basic attacks only (swings=%d)" % swings[0])
+	_expect(player.hunt.last_auto_cast == &"" and swings2[0] >= 1, "both abilities cooling down -> basic attacks only (swings=%d)" % swings2[0])
 	player.hunt.stop()
 	c.free()
 	await _await_idle(240)
