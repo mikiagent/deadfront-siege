@@ -4596,6 +4596,7 @@
       "base_level": 1,
       "default_attributes": {
         "hardness": 4,
+        "material_tier": "bone",
         "tint": "#e8dcbd"
       },
       "market_category": "bone",
