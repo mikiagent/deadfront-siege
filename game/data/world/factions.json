@@ -1,5 +1,5 @@
 {
-  "_about": "Support organisations (systems PRD \u00a715.1). Trust has 10 ranks; each rank band unlocks a support crate. Radio University offers career guides only.",
+  "_about": "Support organisations (systems PRD §15.1) = the five factions (docs/design/factions.md). Trust has 10 ranks: rank n needs rank_k*n*(n+1) reputation. Each rank band unlocks a support crate (paid once per new rank); Radio University has no crates and pays rank_sp instead. 'missions': count = Tasks.note kind(s) (a list sums) or deliver:<item>; cadence daily|weekly|once; lifetime = counts from the start of the save (career guides); min_rank gates. Every number is an ASSUMPTION (FA1-FA14 in docs/vision/WildLandsMMO_Open_Questions.md).",
   "company": {
     "name": "The Company",
     "unlock": "tutorial",
@@ -31,7 +31,109 @@
         "pressure_dressing",
         "corn_seed"
       ]
-    }
+    },
+    "colour": "#e8742a",
+    "trim": "#f2e6cc",
+    "motto": "Nobody is left on the beach.",
+    "sigil": "radio mast over a lifebuoy",
+    "values": "Feeding and clothing newcomers, keeping fires lit.",
+    "rewards": "Gathering, cooking, bandages, clothing, food deliveries",
+    "titles": [
+      "Walk-and-Talker",
+      "K's Acquaintance",
+      "Kindhearted",
+      "Trustworthy"
+    ],
+    "missions": [
+      {
+        "id": "herbs",
+        "title": "Herbs for the Sick",
+        "desc": "Gather %d herbs for Charlie's kit.",
+        "count": "gather:herb_leaf",
+        "want": 6,
+        "cadence": "daily",
+        "rep": 50,
+        "t_stones": 6,
+        "xp": 40,
+        "pool": "gather_herbs"
+      },
+      {
+        "id": "fuel",
+        "title": "Keep the Fires Lit",
+        "desc": "Gather %d branches or logs.",
+        "count": [
+          "gather:branch",
+          "gather:wood_log"
+        ],
+        "want": 10,
+        "cadence": "daily",
+        "rep": 50,
+        "t_stones": 6,
+        "xp": 40,
+        "pool": "gather_fuel"
+      },
+      {
+        "id": "meals",
+        "title": "Hot Meals",
+        "desc": "Cook %d meals at a fire.",
+        "count": [
+          "craft:cook_meatball",
+          "craft:camp_stew",
+          "craft:skewer",
+          "craft:campfire_skewer",
+          "craft:roast",
+          "craft:boil"
+        ],
+        "want": 2,
+        "cadence": "daily",
+        "rep": 50,
+        "t_stones": 8,
+        "xp": 50,
+        "pool": "cook_meatballs"
+      },
+      {
+        "id": "bandages",
+        "title": "Bandages for Newcomers",
+        "desc": "Deliver %d bandages.",
+        "count": "deliver:bandage",
+        "want": 3,
+        "cadence": "daily",
+        "rep": 60,
+        "t_stones": 8,
+        "xp": 50,
+        "min_rank": 1
+      },
+      {
+        "id": "fish",
+        "title": "Fish for the Galley",
+        "desc": "Deliver %d fish.",
+        "count": "deliver:fish",
+        "want": 5,
+        "cadence": "weekly",
+        "rep": 150,
+        "t_stones": 40,
+        "xp": 200,
+        "pool": "catch_fish"
+      },
+      {
+        "id": "clothes",
+        "title": "Clothe the Ferry",
+        "desc": "Sew %d pieces of travel clothing.",
+        "count": [
+          "craft:travel_shirt",
+          "craft:travel_sleeves",
+          "craft:travel_trousers"
+        ],
+        "want": 2,
+        "cadence": "weekly",
+        "rep": 200,
+        "t_stones": 50,
+        "xp": 250,
+        "min_rank": 4,
+        "pool": "craft_clothing"
+      }
+    ],
+    "unlock_level": 0
   },
   "chlorophyll_forum": {
     "name": "Chlorophyll Forum",
@@ -59,7 +161,93 @@
         "hoe",
         "marsh_herb"
       ]
-    }
+    },
+    "colour": "#4c9a3f",
+    "trim": "#6b4a2c",
+    "motto": "Take only what grows back.",
+    "sigil": "an open leaf",
+    "values": "Living beside the herds, seed saving, gentle harvests. Opposed to the Pioneer Council.",
+    "rewards": "Berries and herbs, seeds, compost, taming, plant craters",
+    "titles": [
+      "Green Cell",
+      "Born Again Green",
+      "Busy Bee",
+      "Ecological Elite"
+    ],
+    "missions": [
+      {
+        "id": "berries",
+        "title": "Berry Census",
+        "desc": "Pick %d berries.",
+        "count": [
+          "gather:berries",
+          "gather:berry"
+        ],
+        "want": 8,
+        "cadence": "daily",
+        "rep": 50,
+        "t_stones": 5,
+        "xp": 40,
+        "pool": "gather_plants_no_uproot"
+      },
+      {
+        "id": "seeds",
+        "title": "Save the Seed",
+        "desc": "Prepare %d seed packets at a bench.",
+        "count": [
+          "craft:seeds_flax",
+          "craft:seeds_corn",
+          "craft:seeds_wheat",
+          "craft:seeds_berry"
+        ],
+        "want": 2,
+        "cadence": "daily",
+        "rep": 50,
+        "t_stones": 6,
+        "xp": 40,
+        "pool": "plant_seeds"
+      },
+      {
+        "id": "compost",
+        "title": "Back to the Soil",
+        "desc": "Make %d compost or fruit fertilizer.",
+        "count": [
+          "craft:rot_compost",
+          "craft:fruit_fertilizer"
+        ],
+        "want": 2,
+        "cadence": "daily",
+        "rep": 60,
+        "t_stones": 8,
+        "xp": 50,
+        "min_rank": 4
+      },
+      {
+        "id": "bond",
+        "title": "Walk with the Herd",
+        "desc": "Tame %d wild animal.",
+        "count": "tame",
+        "want": 1,
+        "cadence": "weekly",
+        "rep": 200,
+        "t_stones": 40,
+        "xp": 250,
+        "pool": "observe_herd"
+      },
+      {
+        "id": "crater",
+        "title": "Plant Crater Survey",
+        "desc": "Discover %d crater.",
+        "count": "crater",
+        "want": 1,
+        "cadence": "weekly",
+        "rep": 150,
+        "t_stones": 30,
+        "xp": 200,
+        "pool": "discover_plant_crater"
+      }
+    ],
+    "unlock_level": 0
   },
   "pioneer_council": {
     "name": "Pioneer Council",
@@ -88,7 +276,91 @@
         "black_iron",
         "anvil_kit"
       ]
-    }
+    },
+    "colour": "#3e6a9e",
+    "trim": "#c9a24a",
+    "motto": "Build the frontier.",
+    "sigil": "hammer over compass",
+    "values": "Ore, ingots, planks and buildings that stand. Opposed to the Chlorophyll Forum.",
+    "rewards": "Mining, smelting, building in the domain, plank deliveries, mineral craters",
+    "titles": [
+      "Five-Toed Sloth",
+      "Intern No More",
+      "Brown-Noser",
+      "Pampered Executive"
+    ],
+    "missions": [
+      {
+        "id": "ore",
+        "title": "Core Samples",
+        "desc": "Mine %d ore.",
+        "count": [
+          "gather:ore",
+          "gather:copper_ore",
+          "gather:tin_ore",
+          "gather:silver_ore"
+        ],
+        "want": 10,
+        "cadence": "daily",
+        "rep": 50,
+        "t_stones": 6,
+        "xp": 50,
+        "pool": "mine_ore"
+      },
+      {
+        "id": "ingot",
+        "title": "Hot Metal",
+        "desc": "Smelt %d ingots.",
+        "count": [
+          "craft:ingot",
+          "craft:smelt_copper",
+          "craft:smelt_tin",
+          "craft:smelt_iron"
+        ],
+        "want": 2,
+        "cadence": "daily",
+        "rep": 50,
+        "t_stones": 8,
+        "xp": 60,
+        "pool": "smelt_ingot"
+      },
+      {
+        "id": "build",
+        "title": "Raise a Structure",
+        "desc": "Build %d structure.",
+        "count": "build",
+        "want": 1,
+        "cadence": "daily",
+        "rep": 50,
+        "t_stones": 6,
+        "xp": 50,
+        "pool": "build_structure"
+      },
+      {
+        "id": "planks",
+        "title": "Lumber Order",
+        "desc": "Deliver %d planks.",
+        "count": "deliver:plank",
+        "want": 10,
+        "cadence": "weekly",
+        "rep": 150,
+        "t_stones": 40,
+        "xp": 250,
+        "pool": "deliver_planks"
+      },
+      {
+        "id": "crater",
+        "title": "Mineral Survey",
+        "desc": "Discover %d crater.",
+        "count": "crater",
+        "want": 1,
+        "cadence": "weekly",
+        "rep": 150,
+        "t_stones": 30,
+        "xp": 200,
+        "pool": "discover_mineral_crater"
+      }
+    ]
   },
   "committee": {
     "name": "The Committee",
@@ -119,7 +391,82 @@
     "crate_tstones": {
       "1-3": 200,
       "7-10": 2000
-    }
+    },
+    "colour": "#1e1e22",
+    "trim": "#a3202a",
+    "motto": "Results.",
+    "sigil": "a closed eye",
+    "values": "Kills, clean captures, rare parts. Pays well, thanks no one.",
+    "rewards": "Hunting, butchering, captures, rare parts; gold x1.8",
+    "titles": [
+      "Ill-Informed",
+      "Obedient",
+      "Harried",
+      "Philosophical"
+    ],
+    "missions": [
+      {
+        "id": "hunt",
+        "title": "Cull Order",
+        "desc": "Hunt down %d animals.",
+        "count": "hunt",
+        "want": 3,
+        "cadence": "daily",
+        "rep": 50,
+        "t_stones": 6,
+        "xp": 50,
+        "pool": "hunt_predator"
+      },
+      {
+        "id": "butcher",
+        "title": "Clean Work",
+        "desc": "Butcher %d part kinds from carcasses.",
+        "count": "butcher",
+        "want": 6,
+        "cadence": "daily",
+        "rep": 50,
+        "t_stones": 6,
+        "xp": 50
+      },
+      {
+        "id": "capture",
+        "title": "Live Specimen",
+        "desc": "Capture %d animal in a net.",
+        "count": "capture",
+        "want": 1,
+        "cadence": "weekly",
+        "rep": 200,
+        "t_stones": 40,
+        "xp": 250,
+        "pool": "capture_animal"
+      },
+      {
+        "id": "guardians",
+        "title": "Clear the Guardians",
+        "desc": "Hunt down %d animals this week.",
+        "count": "hunt",
+        "want": 12,
+        "cadence": "weekly",
+        "rep": 150,
+        "t_stones": 40,
+        "xp": 250,
+        "min_rank": 1,
+        "pool": "clear_crater_guardians"
+      },
+      {
+        "id": "talons",
+        "title": "Trophy Request",
+        "desc": "Deliver %d raptor talons.",
+        "count": "deliver:raptor_talon",
+        "want": 2,
+        "cadence": "weekly",
+        "rep": 200,
+        "t_stones": 60,
+        "xp": 300,
+        "min_rank": 4,
+        "pool": "deliver_rare_part"
+      }
+    ]
   },
   "radio_university": {
     "name": "Radio University",
@@ -136,6 +483,148 @@
       "smelt_first_ingot",
       "build_house"
     ],
-    "sp_per_guide": 2
+    "sp_per_guide": 2,
+    "colour": "#6b4fa0",
+    "trim": "#efe8d6",
+    "motto": "Every island is a lecture.",
+    "sigil": "three radio arcs",
+    "values": "Learning by doing. Dr. Lamar grades by checklist.",
+    "rewards": "Career guides: lifetime milestones for SP",
+    "titles": [
+      "Freshman",
+      "Sophomore",
+      "Junior",
+      "Senior"
+    ],
+    "missions": [
+      {
+        "id": "first_knife",
+        "title": "Your First Knife",
+        "desc": "Craft a knife.",
+        "count": [
+          "craft:improvised_stone_knife",
+          "craft:stone_knife",
+          "craft:flint_knife",
+          "craft:bone_knife"
+        ],
+        "want": 1,
+        "cadence": "once",
+        "rep": 100,
+        "t_stones": 0,
+        "xp": 60,
+        "lifetime": true,
+        "sp": 2
+      },
+      {
+        "id": "first_tame",
+        "title": "First Tame",
+        "desc": "Bond with a wild animal.",
+        "count": "tame",
+        "want": 1,
+        "cadence": "once",
+        "rep": 100,
+        "t_stones": 0,
+        "xp": 60,
+        "lifetime": true,
+        "sp": 2
+      },
+      {
+        "id": "ten_recipes",
+        "title": "Ten Crafts",
+        "desc": "Craft %d things.",
+        "count": "craft",
+        "want": 10,
+        "cadence": "once",
+        "rep": 100,
+        "t_stones": 0,
+        "xp": 60,
+        "lifetime": true,
+        "sp": 2
+      },
+      {
+        "id": "three_climates",
+        "title": "Three Islands",
+        "desc": "Land on %d islands.",
+        "count": "land",
+        "want": 3,
+        "cadence": "once",
+        "rep": 100,
+        "t_stones": 0,
+        "xp": 60,
+        "lifetime": true,
+        "sp": 2
+      },
+      {
+        "id": "cook_steam",
+        "title": "Steam Cooking",
+        "desc": "Cook a dish in a steamer.",
+        "count": "craft:steam",
+        "want": 1,
+        "cadence": "once",
+        "rep": 100,
+        "t_stones": 0,
+        "xp": 60,
+        "lifetime": true,
+        "sp": 2
+      },
+      {
+        "id": "smelt_first_ingot",
+        "title": "First Ingot",
+        "desc": "Smelt an ingot.",
+        "count": [
+          "craft:ingot",
+          "craft:smelt_copper",
+          "craft:smelt_tin"
+        ],
+        "want": 1,
+        "cadence": "once",
+        "rep": 100,
+        "t_stones": 0,
+        "xp": 60,
+        "lifetime": true,
+        "sp": 2
+      },
+      {
+        "id": "build_house",
+        "title": "A Roof of Your Own",
+        "desc": "Build a log shelter.",
+        "count": "build:log_shelter",
+        "want": 1,
+        "cadence": "once",
+        "rep": 100,
+        "t_stones": 0,
+        "xp": 60,
+        "lifetime": true,
+        "sp": 2
+      }
+    ]
+  },
+  "_rules": {
+    "rank_k": 25,
+    "offers": 3,
+    "max_active": 4,
+    "rank_sp": 1,
+    "tiers": [
+      [
+        0,
+        "Stranger"
+      ],
+      [
+        1,
+        "t1"
+      ],
+      [
+        4,
+        "t2"
+      ],
+      [
+        7,
+        "t3"
+      ],
+      [
+        10,
+        "t4"
+      ]
+    ]
   }
 }

@@ -3,13 +3,15 @@ extends StaticBody3D
 ## TUTORIAL ISLAND town (owner 2026-10-28): a prebuilt, indestructible town building. Never saved
 ## (persist_building = false), so StructureHealth never counts it as a structure (no creature or
 ## siege damage), pack-up refuses it ("Camp pieces stay put"), and its grid cells are occupied, so
-## nothing is built over it. Roles: "guild" (the Adventurer's Guild, # ASSUMPTION working name: the
-## quest hub; a tap opens the Orders sheet with the tutorial orders), "market" (a stall; a tap opens
+## nothing is built over it. Roles: "guild" (the Faction Hall's desk, FACTIONS: a tap opens the Orders
+## sheet with the tutorial orders while they run, then the Factions screen), "faction_board" (a faction's
+## mission board: the Factions screen on `faction`), "market" (a stall; a tap opens
 ## the Island Market screen), "decor" (signs, crates, barrels: no action).
 
 var kind: StringName = &"log_shelter"
 var role: StringName = &"decor"
 var display_name: String = ""
+var faction: String = ""  ## FACTIONS: a faction board's faction ("" = a general board: the Factions screen as it was)
 var persist_building: bool = false
 var build_cell: Vector2i = Vector2i.ZERO
 var build_rot: int = 0
@@ -38,10 +40,18 @@ func interact(p: Player) -> bool:
 	var hud := get_tree().get_first_node_in_group("hud")
 	match role:
 		&"guild":
-			if p:
-				p.notice("Adventurer's Guild: your orders")
-			if hud and hud.has_method("open_orders"):
-				hud.call("open_orders")
+			# The Faction Hall's desk: the tutorial's orders while they run, then the Factions screen.
+			if Tutorial.active():
+				if p:
+					p.notice("Faction Hall: your orders")
+				if hud and hud.has_method("open_orders"):
+					hud.call("open_orders")
+			elif hud and hud.has_method("open_comms"):
+				hud.call("open_comms")
+			return true
+		&"faction_board":
+			if hud and hud.has_method("open_comms"):
+				hud.call("open_comms", faction)
 			return true
 		&"market":
 			if hud and hud.has_method("open_market"):

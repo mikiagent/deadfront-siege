@@ -261,6 +261,28 @@ Source: branch `claude/mmo-taskscreen`, report `docs/orchestration/reports/claud
 | **TS12** | Main Task counts an order finished when Objectives.settle passes it (a saved set), not by index, so the tutorial's hand-over part-way down the standing orders never pays a skipped order. | `Tasks.done` | Save field (`tasks.done`). |
 | **TS13** | Order rewards wait for Receive, so the tutorial teaches it: order 2 "Claim your reward in Tasks" (10 EXP; the pointer goes MENU -> Tasks -> Receive) is done once any order's reward is received. The Task screen opens on Main Task while an order waits. Owner go 2026-10-29; the order itself is ours. | `objectives.json tut_claim`, `Objectives received_any` | One extra tutorial step; a player who skips claiming later is a level or two behind. |
 
+### FACTIONS (2026-10-29) — five factions, reputation, the Faction Hall
+
+Source: `docs/design/factions.md`, data `game/data/world/factions.json`, branch `claude/mmo-factions`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **FA0** | The five factions are the PRD's five support organisations (Company, Chlorophyll Forum, Pioneer Council, Committee, Radio University) with a new look, missions and the hall, not five new groups. | `factions.json` | Five new names next to five existing ones would make ten groups and two trust systems. |
+| **FA1** | Rank n needs `25 n (n+1)` reputation (50 ... 2750 for rank 10). | `factions.json rank_k` | About 55 daily missions to max a faction. |
+| **FA2** | Tier titles are Durango's rank titles, with no stat bonus in v1. | `tiers` | Durango gave CHA/AGI/... bonuses. |
+| **FA3** | A Radio University rank-up pays 1 SP (it has no crates per the PRD). | `rank_sp` | SP inflation. |
+| **FA4** | Mission sizes and pay: daily 50 rep, 5-8 gold, 40-60 XP; weekly 150-200 rep, 30-60 gold, 200-300 XP; a guide 100 rep, 2 SP. | `missions` | Pace of rank. |
+| **FA5** | 3 offers per faction, rotated by the UTC day; 4 active at most (PRD). | `Factions.OFFERS`, `MAX_ACTIVE` | |
+| **FA6** | An active mission never expires; the period limits only re-accepting it. | `Tasks.accept` | Durango missions had timers. |
+| **FA7** | Receive works anywhere; the PRD's turn-in at the shed and objective pin visit are deferred. | | |
+| **FA8** | Rerolls deferred; the daily rotation stands in. | | |
+| **FA9** | The Task screen keeps 5 tabs; faction missions live on the Factions screen (Tasks category `faction`). | `Tasks.CATS` | One line to add a tab. |
+| **FA10** | Faction missions waiting to be received count in the HUD Tasks badge. | `Tasks.claimable_count` | |
+| **FA11** | The plaza has 7 boards: the hall NE of the square (desk at +19, -15 m from the camp), 5 faction stalls in a row before it, all on the grid facing south (owner rule) plus 2 general boards (dock, plaza far side). | `tutorial.gd dress` | Crowd spread on a busy server. |
+| **FA12** | 8 milling survivors on the plaza (own cap and RNG, on top of the 16 townsfolk), groups at the boards and walkers dock -> hall. | `town_dress.gd` | Perf budget. |
+| **FA13** | Career guide targets: ten_recipes = any 10 crafts; three_climates = 3 island landings; build_house = a log shelter. | `radio_university.missions` | The PRD names the guides, not their checklists. |
+| **FA14** | Rank-up crate = one of each item in the rank's band; overflow goes to home cargo. | `Factions.add_rep` | PRD: "3 items per rank band, some RNG". |
+
 ## Parked by other docs
 
 Each vision doc's unresolved points remain inside that doc until the workshop; the sections listed below are the owners' pointers, collected here only for reachability:

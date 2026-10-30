@@ -1414,11 +1414,11 @@ func open_domain() -> DomainScreen:
 		_open_domain()
 	return _domain_screen
 
-## F3: the Communication screen (factions, trust, offers).
-func open_comms() -> CommsUI:
+## F3: the Factions screen (factions, reputation, missions); `fid` preselects a faction (a board's tap).
+func open_comms(fid: String = "") -> CommsUI:
 	_close_sheet()
 	var s := _world_sheet(&"comms", func () -> UiWorldSheet: return CommsUI.new()) as CommsUI
-	s.open(player)
+	s.open(player, fid)
 	return s
 
 ## F3: Radio University (career guides), its own screen; Back returns to Communication.

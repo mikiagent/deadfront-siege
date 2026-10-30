@@ -182,7 +182,7 @@ static func _as_set(a: Array) -> Dictionary:
 func _test_comms(view: Vector2) -> void:
 	var comms: Node = _hud.call("open_comms")
 	await _frames(3)
-	_expect(comms != null and comms.call("is_open"), "%s: open_comms() opens Communication" % view)
+	_expect(comms != null and comms.call("is_open"), "%s: open_comms() opens Factions" % view)
 	if comms == null:
 		return
 	comms.call("select", "company")
@@ -192,7 +192,7 @@ func _test_comms(view: Vector2) -> void:
 	var accepts := comms.find_children("Accept", "Button", true, false)
 	_expect(accepts.size() == 3, "three mission offers for the Company (%d)" % accepts.size())
 	for a in accepts:
-		_expect((a as Button).disabled, "Accept is disabled while missions are not live")
+		_expect(not (a as Button).disabled, "FACTIONS: Accept is live for the Company (unlocked at the tutorial)")
 	_expect(str((comms.get("counter") as RichTextLabel).get_parsed_text()).contains("0 / 4"), "the header counts active missions out of 4")
 	_check_targets("comms", comms, view)
 	comms.call("select", "committee")

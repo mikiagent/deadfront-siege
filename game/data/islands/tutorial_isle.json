@@ -1,7 +1,7 @@
 {
   "id": "tutorial_isle",
   "display_name": "Tutorial Island",
-  "_about": "TUTORIAL ISLAND (owner 2026-10-28): the shared island every NEW survivor lands on after character creation, before owning a Tamed Island. Kind 'tutorial': permanent, never a sail route, never a home, never claimed. A prebuilt indestructible town at the landing (Tutorial.dress: the standard camp fire, bench and shed, the Adventurer's Guild, a market stall, a stone fire pit, a drying rack, herbs, berries and trees) and wild lands outside it (wild_zones). # ASSUMPTION: grassland climate, tier 15 materials band at level 1 everywhere; seed and zone rows are this build's own.",
+  "_about": "TUTORIAL ISLAND (owner 2026-10-28): the shared island every NEW survivor lands on after character creation, before owning a Tamed Island. Kind 'tutorial': permanent, never a sail route, never a home, never claimed. A prebuilt indestructible town at the landing (Tutorial.dress: the standard camp fire, bench and shed, the Faction Hall and its faction boards, a market stall, a stone fire pit, a drying rack, herbs, berries and trees) and wild lands outside it (wild_zones). # ASSUMPTION: grassland climate, tier 15 materials band at level 1 everywhere; seed and zone rows are this build's own.",
   "climate": "grassland",
   "tier": 15,
   "level_override": 1,

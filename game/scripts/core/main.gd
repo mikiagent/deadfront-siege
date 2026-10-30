@@ -110,6 +110,10 @@ func _ready() -> void:
 				var perf_probe = load("res://scripts/dev/tutperf_probe.gd").new()
 				add_child(perf_probe)
 				perf_probe.call_deferred("run", self)
+			if Array(OS.get_cmdline_user_args()).any(func (x: String) -> bool: return x.begins_with("--faction-shots=")):
+				var fshots = load("res://scripts/dev/faction_shots_probe.gd").new()
+				add_child(fshots)
+				fshots.call_deferred("run", self)
 			if "--bot" in OS.get_cmdline_user_args():
 				var bot = (load("res://scripts/dev/bot_survivor.gd") as GDScript).new()
 				bot.name = "BotSurvivor"
