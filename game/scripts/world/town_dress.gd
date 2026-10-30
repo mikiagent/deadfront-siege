@@ -747,7 +747,8 @@ func _wall() -> void:
 		for post in posts:
 			lamp(post - (polar(av, WALL_R - 1.0) - g).normalized() * 1.2)
 			_boxes.append([Transform3D(Basis(), post + Vector3(0, 2.4, 0)), Vector3(1.0, 4.8, 1.0)])
-			cells[BuildGrid.tile_of(post)] = true
+			for t in _rect_tiles(post, 1.2, 1.2, 0.0):  # the tower straddles tiles: the router keeps off all of them
+				cells[t] = true
 		prop("signpost", polar(av, WALL_R + 3.0) + side * (AVENUE_W * 0.5 + 1.5), yaw_out(av))
 		stats["gates"] = int(stats.get("gates", 0)) + 1
 
