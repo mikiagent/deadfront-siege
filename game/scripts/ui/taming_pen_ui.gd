@@ -5,7 +5,7 @@ extends UiWorldSheet
 ## its nature, what bonding means against the bonded cap, diet / role tiles, info and care lines).
 ## Right: the dialog card - question header, the animal's row with pen space, the mood slider with the
 ## pen time above it, the pen grid (the pen's occupant and every captured animal in the bag; tap one
-## to pick it), and Store / Tame. Once the pen runs: "Taming started" with a live countdown, Feed meat
+## to pick it), and Store / Tame. Once the pen runs: "Taming started" with a live countdown, Feed (its diet)
 ## and OK. Wired to the existing pen (TamingPen.try_insert / feed, 30 min x nature, 70 % success)
 ## through PlayerActions.pen_interact -> HuntHud.open_taming_pen(pen).
 ##
@@ -252,7 +252,7 @@ func _build() -> void:
 	_tame = SheetChrome.gold_button("Tame")
 	_tame.name = "Tame"
 	_tame.pressed.connect(_on_tame)
-	_feed = SheetChrome.ghost_button("Feed meat")
+	_feed = SheetChrome.ghost_button("Feed")
 	_feed.name = "Feed"
 	_feed.pressed.connect(_on_feed)
 	_ok = SheetChrome.gold_button("OK")
@@ -382,7 +382,7 @@ func _on_tame() -> void:
 func _on_feed() -> void:
 	if pen == null or not is_instance_valid(pen):
 		return
-	_msg.text = "" if pen.feed(player) else "Needs raptor meat in your bag (each feed cuts the wait to 60 %)."
+	_msg.text = "" if pen.feed(player) else pen.last_feed_refusal
 	_refresh()
 
 func _process(_delta: float) -> void:

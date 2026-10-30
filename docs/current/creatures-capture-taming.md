@@ -189,8 +189,13 @@ Owner 2026-10-28: capture first, tame later. A net in the wild (knocked out: wea
 nature and genetics read `???` on the Taming Pen screen until the pen tames it; once bonded, the
 Animals screen shows its stats.
 - `try_insert` takes one `captured_animal` the pen's tier allows (below); `BASE_SECONDS` = 30 min of
-  real time × the nature's `pen_time_mult`, scaled by `Game.time_scale`. Each `feed` costs 1
-  raptor_meat and sets the remaining time to max(5 s, 60 % of what is left).
+  real time × the nature's `pen_time_mult`, scaled by `Game.time_scale`. Each `feed` eats one item
+  of the species' taming diet (PEN-DIET, spec 02): the first `preferred_food` in the bag sets the
+  remaining time to max(5 s, 60 % of what is left), else the first `accepted_food` to 80 %
+  (`ACCEPTED_FEED_MULT`, `# ASSUMPTION`: half the preferred cut, like field feeding's 1.0 / 0.5).
+  Anything else (meat for a herbivore, berries for a carnivore, `spoiled_meat`, `rot`) is refused
+  before anything is eaten (so is any food once 5 s or less is left), and the pen screen shows `TamingPen.feed_hint` ("Needs berry or herb
+  leaf (or fibre stalk) in your bag."). Test: `game/tests/t_pen_diet.gd`.
 - On finish the pen rolls `TamingPen.odds()`: the capture S-curve (`TamingOdds.odds_for_values`) on
   survival level vs the animal's level, at the capture threshold's health and a tier-1 net (shown on
   the pen screen as "Tame 64%"). Success bonds it (origin `capture`); failure: it escapes, wild and
