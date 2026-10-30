@@ -365,6 +365,10 @@ func _rebuild_facts() -> void:
 	_facts.add_child(_fact("Island time", life, UiTokens.TEXT, px))
 	var charted := World.visited_islands.size() + (0 if World.visited_islands.has(str(World.island_id)) else 1)
 	_facts.add_child(_fact("Islands visited", "%d / %d" % [charted, _island_ids().size()], UiTokens.GOLD, px))
+	# LANDMARKS (doc section 5.6): the island's landmark count, shown once it has any.
+	var lm := World.landmarks_found_count()
+	if lm.y > 0:
+		_facts.add_child(_fact("Landmarks Found", "%d / %d" % [lm.x, lm.y], UiTokens.GOLD, px))
 
 func _fact(label: String, value: String, col: Color, px: int) -> Control:
 	var row := HBoxContainer.new()
@@ -615,8 +619,13 @@ func _draw() -> void:
 		var harb: Vector3 = rt.get("_harbour_pos")
 		draw_circle(to_map.call(camp), 4.5, legend_color("camp"))
 		_mark(to_map.call(harb), 7.0, "harbour", Color(0.02, 0.05, 0.12, 0.95))
-		if World.crater_discovered:
+		if World.crater_discovered and World.current_landmarks().is_empty():
 			draw_circle(to_map.call(rt.get("_crater_pos")), 6.0, legend_color("crater"))
+		# LANDMARKS: found sites only (the crater is one of them now), with their names.
+		for lm in MapIcons.found_landmarks():
+			var q: Vector2 = to_map.call(lm["at"])
+			MapIcons.landmark(self, q, 7.0, bool(lm["sealed"]), Color(0.02, 0.05, 0.12, 0.95))
+			draw_string(ThemeDB.fallback_font, q + Vector2(9.0, 4.0), str(lm["name"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.9))
 		for m in _player_dots():
 			draw_circle(to_map.call(m["at"]), 4.0, legend_color("other"))
 			draw_circle(to_map.call(m["at"]), 4.0, Color(0.9, 0.9, 0.95, 0.7), false, 1.0)

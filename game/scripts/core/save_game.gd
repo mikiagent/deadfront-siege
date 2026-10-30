@@ -149,6 +149,8 @@ static func save_now() -> bool:
 			"harvested": World.harvested,
 			"crater_discovered": World.crater_discovered,
 		},
+		# LANDMARKS: found sites and opened dormant windows, per island id.
+		"landmarks": {"found": World.landmarks_found, "state": World.landmark_state},
 		"clock": Game.time_of_day,
 		"saved_unix": int(Time.get_unix_time_from_system()),
 		"pending_refunds": SaveRestore.pending_refunds,
@@ -281,6 +283,10 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.remaining_lifetime = float(data.get("unstable", {}).get("remaining", 0.0))
 	World.harvested = data.get("unstable", {}).get("harvested", {})
 	World.crater_discovered = bool(data.get("unstable", {}).get("crater_discovered", false))
+	# LANDMARKS: no block (an older save) = nothing found anywhere, no site open.
+	var lm: Variant = data.get("landmarks", {})
+	World.landmarks_found = SaveSanitizer.landmark_rows((lm as Dictionary).get("found", {}) if lm is Dictionary else {}, false)
+	World.landmark_state = SaveSanitizer.landmark_rows((lm as Dictionary).get("state", {}) if lm is Dictionary else {}, true)
 	World.cargo_home.load_array(data.get("home", {}).get("cargo", []))
 	World._home_buildings_cache = data.get("home", {}).get("buildings", [])
 	World.home_claims = data.get("home", {}).get("claims", [])

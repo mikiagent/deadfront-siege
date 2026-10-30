@@ -1,0 +1,924 @@
+{
+  "_about": "LANDMARKS M1 (design docs/design/island-resources.md section 3.4/5.1, approved 2026-10-29). The named sites an expedition island is scouted for: 'types' holds the eight landmark kinds of the design doc and their placement rules; 'climates' holds, per climate, the site rows an island of that climate can draw (type, display name, weight, must, max sites, and the node group's families). IslandLandmarks (game/scripts/world/island_landmarks.gd) reads this file during the island build: it draws site rows by weight without repeating a row past 'max', guarantees the climate's 'must' rows first, samples candidate tiles that pass the type's terrain tokens, and rejects anything that fails the validation rules below. Every number is # ASSUMPTION (the doc marks its starting values *ASSUMPTION*); logged in the report and docs/vision/WildLandsMMO_Open_Questions.md.",
+  "rules": {
+    "_about": "Placement rules from the design doc section 3.3. Distances are metres from the landing (the harbour's arrival point, the island's ring centre).",
+    "spacing_m": {
+      "unstable": 45,
+      "private": 30,
+      "tutorial": 30
+    },
+    "camp_clear_m": 60,
+    "landing_clear_m": 36,
+    "near_landing_m": 140,
+    "group_radius_m": [
+      6,
+      12
+    ],
+    "level_offset": 5,
+    "level_cap": 60,
+    "guardian_tier_offset": 3,
+    "discovery": {
+      "radius_m": 18,
+      "gold": 20
+    },
+    "tries_per_site": 900,
+    "spacing_floor_share": 0.6,
+    "node_fit_share": 0.7,
+    "_spacing_note": "# ASSUMPTION: 45 m between landmark centres on expedition islands, 30 m on the home island (doc section 3.3).",
+    "_landing_note": "# ASSUMPTION: no landmark centre inside the 60 m camp clearing or 36 m of the landing point (the doc keeps the dock area calm; 25 m is the landing ring, +11 m for the node group).",
+    "_floor_note": "# ASSUMPTION: when a small island cannot hold the budget's minimum at the doc's spacing, the fill round packs sites at 0.6 x that spacing (27 m unstable, 18 m home) instead of shipping half the budget. Each find stays a separate destination; the doc's 45 m still applies to every drawn site.",
+    "_near_note": "One site per island is clamped into [landing_clear_m + 6, near_landing_m] when its ring band allows it, so the first find is within ~30 s of running from camp (doc section 3.3).",
+    "_budgets_note": "Per kind: the doc's section 5.1 table, by tier band. An island row may override with its own landmark_budget [min, max].",
+    "gold_by_tier": [
+      [
+        15,
+        20
+      ],
+      [
+        60,
+        60
+      ]
+    ],
+    "_gold_note": "# ASSUMPTION (doc section 5.6): a find pays 20 Gold at tier 15 rising linearly to 60 at tier 60 (clamped outside). Home and other islands below 15 pay the tier-15 value.",
+    "joy_fatigue": -20,
+    "_joy_note": "Doc section 5.6: the first find per island also gives the CURRENT Joy of Discovery fatigue drop (rules.json craters.discover_fatigue, 20).",
+    "hand_bonus": {
+      "tier_step": 0.05,
+      "chance_mult": 1.5
+    },
+    "_hand_note": "Doc section 5.2 / 5.7: a landmark node's HAND harvest raises the perk-tier step by +0.05 and the rare-trait chance x1.5 (the cap x1.5 too). Tribe work never gets it: ASSIGN jobs skip landmark nodes. # ASSUMPTION values from the doc.",
+    "dormant": {
+      "min_tier": 30,
+      "per_island": 1,
+      "open_cost_gold": 50,
+      "window_s": 1200,
+      "interact_m": 4.0
+    },
+    "_dormant_note": "Doc section 5.3 (A3): from island tier 30 exactly one landmark per island is dormant (# ASSUMPTION: one even at 50-60, the doc's 1-2 left for tuning). It shows sealed on the map once found and opens at the site for open_cost_gold Gold (rules.json craters.open_cost_tstones 50); its nodes then grow for window_s seconds of play (# ASSUMPTION: the doc's '20 game-minutes' read as 20 minutes of play, a game minute is 0.5 s), after which unharvested nodes wither. Never a Warp Gem cost.",
+    "level_cap_by_kind": {
+      "private": 10
+    },
+    "_level_cap_note": "A4 (approved): home material levels run 1-10 by zone, so a home landmark's nodes cap at 10 (tier 10 + 5 would read 15). Expedition islands cap at level_cap 60."
+  },
+  "budgets": {
+    "private": [
+      2,
+      3
+    ],
+    "tutorial": [
+      6,
+      8
+    ],
+    "unstable": [
+      [
+        15,
+        25,
+        4,
+        6
+      ],
+      [
+        30,
+        45,
+        6,
+        8
+      ],
+      [
+        50,
+        60,
+        8,
+        10
+      ]
+    ]
+  },
+  "types": {
+    "grove": {
+      "display": "Old Grove",
+      "ring": [
+        90,
+        200
+      ],
+      "terrain": [
+        "flat",
+        "zone:forest,meadow,savanna"
+      ],
+      "trait_bonus": {
+        "tier_step": 0.05
+      },
+      "guardians": {
+        "chance": 0.2
+      },
+      "depletion": "slow",
+      "_about": "5-8 trees of the climate's best wood (doc section 5.1)."
+    },
+    "garden": {
+      "display": "Garden",
+      "ring": [
+        60,
+        180
+      ],
+      "terrain": [
+        "flat"
+      ],
+      "trait_bonus": {
+        "tier_step": 0.05
+      },
+      "guardians": {
+        "chance": 0.05
+      },
+      "depletion": "slow",
+      "_about": "6-10 plants (fibre, herbs, fruit, flax) (doc section 5.1)."
+    },
+    "vein": {
+      "display": "Vein",
+      "ring": [
+        110,
+        240
+      ],
+      "terrain": [
+        "rock_near"
+      ],
+      "trait_bonus": {
+        "tier_step": 0.05
+      },
+      "guardians": {
+        "chance": 0.4
+      },
+      "depletion": "slow",
+      "_about": "4-6 ore or stone nodes on a rock face (doc section 5.1); needs the right pick tier."
+    },
+    "mud_pit": {
+      "display": "Mud Pit",
+      "ring": [
+        60,
+        200
+      ],
+      "terrain": [
+        "flat",
+        "water_near"
+      ],
+      "trait_bonus": {
+        "tier_step": 0.05
+      },
+      "guardians": {
+        "chance": 0.05
+      },
+      "depletion": "slow",
+      "_about": "4-6 mud, clay or peat nodes at a bank (doc section 5.1)."
+    },
+    "nest": {
+      "display": "Nests",
+      "ring": [
+        110,
+        240
+      ],
+      "terrain": [
+        "flat",
+        "zone:savanna,meadow"
+      ],
+      "families_ready": false,
+      "trait_bonus": {
+        "tier_step": 0.05
+      },
+      "guardians": {
+        "chance": 1.0
+      },
+      "depletion": "slow",
+      "_about": "3 nests, always guarded (doc section 5.1). Defined for M1 but no climate lists it yet: the egg/feather node family lands with M3 (landmark yields)."
+    },
+    "bone_field": {
+      "display": "Bone Field",
+      "ring": [
+        140,
+        260
+      ],
+      "terrain": [
+        "flat",
+        "dry"
+      ],
+      "families_ready": false,
+      "trait_bonus": {
+        "tier_step": 0.05
+      },
+      "guardians": {
+        "chance": 0.4
+      },
+      "depletion": "slow",
+      "_about": "4-6 bone piles, scavengers swarm (doc section 5.1). No bone-pile node family exists yet: M3."
+    },
+    "warp_remnant": {
+      "display": "Warp Remnant",
+      "ring": [
+        60,
+        260
+      ],
+      "terrain": [
+        "coast"
+      ],
+      "families_ready": false,
+      "trait_bonus": {
+        "tier_step": 0.05
+      },
+      "guardians": {
+        "chance": 1.0
+      },
+      "depletion": "no_regen",
+      "_about": "2-4 containers of modern junk, every item unstable (doc section 5.1). No container node family exists yet: M3."
+    },
+    "reef": {
+      "display": "Reef",
+      "ring": [
+        40,
+        220
+      ],
+      "terrain": [
+        "coast"
+      ],
+      "trait_bonus": {
+        "tier_step": 0.05
+      },
+      "guardians": {
+        "chance": 0.05
+      },
+      "depletion": "slow",
+      "_about": "4-6 coral and pearl nodes in the shallows (doc section 5.1); blue tropical only."
+    }
+  },
+  "climates": {
+    "grassland": [
+      {
+        "type": "grove",
+        "display": "Old Grove",
+        "weight": 3,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "CommonTree": [
+            3,
+            5
+          ],
+          "BirchTree": [
+            2,
+            3
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Berry Garden",
+        "weight": 3,
+        "max": 2,
+        "nodes": {
+          "BerrySprig": [
+            3,
+            4
+          ],
+          "HerbPlant": [
+            2,
+            3
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Flint Scree",
+        "weight": 2,
+        "max": 2,
+        "nodes": {
+          "GraniteBoulder": [
+            3,
+            5
+          ],
+          "Rock": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "type": "mud_pit",
+        "display": "Clay Bank",
+        "weight": 2,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "clay": [
+            3,
+            5
+          ],
+          "mud": [
+            1,
+            2
+          ]
+        }
+      }
+    ],
+    "savannah": [
+      {
+        "type": "grove",
+        "display": "Acacia Grove",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "AcaciaTree": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Flax Garden",
+        "weight": 3,
+        "max": 2,
+        "nodes": {
+          "FlaxPlant": [
+            4,
+            6
+          ],
+          "DryGrassTuft": [
+            2,
+            3
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Ochre Pit",
+        "weight": 3,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "OchreNode": [
+            3,
+            5
+          ],
+          "SandstoneNode": [
+            2,
+            3
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Termite Mound",
+        "weight": 1,
+        "max": 1,
+        "nodes": {
+          "DryGrassTuft": [
+            4,
+            6
+          ]
+        }
+      }
+    ],
+    "temperate": [
+      {
+        "type": "grove",
+        "display": "Old Grove",
+        "weight": 3,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "CommonTree": [
+            3,
+            5
+          ],
+          "Willow": [
+            2,
+            3
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Flax Garden",
+        "weight": 3,
+        "max": 2,
+        "nodes": {
+          "FlaxPlant": [
+            3,
+            5
+          ],
+          "HerbPlant": [
+            2,
+            3
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Flint Quarry",
+        "weight": 3,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "FlintNode": [
+            4,
+            6
+          ],
+          "Rock": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Tin Vein",
+        "weight": 2,
+        "max": 2,
+        "nodes": {
+          "TinOreNode": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "mud_pit",
+        "display": "Reed Pond",
+        "weight": 2,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "mud": [
+            3,
+            4
+          ],
+          "clay": [
+            2,
+            3
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Wheat Field",
+        "weight": 1,
+        "max": 1,
+        "nodes": {
+          "Wheat": [
+            5,
+            7
+          ]
+        }
+      }
+    ],
+    "tropical": [
+      {
+        "type": "grove",
+        "display": "Palm Grove",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "PalmTree": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Bamboo Grove",
+        "weight": 3,
+        "max": 2,
+        "nodes": {
+          "BambooPlant": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Fruit Garden",
+        "weight": 3,
+        "max": 2,
+        "nodes": {
+          "MangoBush": [
+            3,
+            5
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Obsidian Ridge",
+        "weight": 3,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "ObsidianNode": [
+            4,
+            6
+          ],
+          "Rock": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Vine Tangle",
+        "weight": 2,
+        "max": 2,
+        "nodes": {
+          "VinePlant": [
+            4,
+            6
+          ]
+        }
+      }
+    ],
+    "tundra": [
+      {
+        "type": "grove",
+        "display": "Resin Pines",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "PineTree_Snow": [
+            4,
+            6
+          ],
+          "PineTree": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "type": "grove",
+        "display": "Dead Stand",
+        "weight": 2,
+        "max": 2,
+        "nodes": {
+          "CommonTree_Dead_Snow": [
+            3,
+            5
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Tin Vein",
+        "weight": 3,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "TinOreNode": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Ice Field",
+        "weight": 3,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "IceNode": [
+            3,
+            5
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Snowbound Scree",
+        "weight": 2,
+        "max": 2,
+        "nodes": {
+          "Rock_Snow": [
+            3,
+            5
+          ]
+        }
+      }
+    ],
+    "desert": [
+      {
+        "type": "garden",
+        "display": "Cactus Garden",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "CactusFlowers": [
+            3,
+            4
+          ],
+          "Cactus": [
+            2,
+            3
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Copper Vein",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "CopperOreNode": [
+            4,
+            6
+          ],
+          "Rock": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Salt Pan",
+        "weight": 3,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "SaltNode": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Sandstone Shelf",
+        "weight": 2,
+        "max": 2,
+        "nodes": {
+          "SandstoneNode": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "grove",
+        "display": "Dry Thicket",
+        "weight": 2,
+        "max": 1,
+        "nodes": {
+          "CommonTree_Dead": [
+            4,
+            6
+          ]
+        }
+      }
+    ],
+    "swamp": [
+      {
+        "type": "grove",
+        "display": "Willow Stand",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "Willow": [
+            3,
+            5
+          ],
+          "Willow_Dead": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "type": "mud_pit",
+        "display": "Mud Pit",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "mud": [
+            3,
+            4
+          ],
+          "clay": [
+            2,
+            3
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Peat Bog",
+        "weight": 3,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "PeatNode": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Marsh Garden",
+        "weight": 3,
+        "max": 2,
+        "nodes": {
+          "MarshHerbPlant": [
+            4,
+            6
+          ],
+          "ReedPlant": [
+            2,
+            3
+          ]
+        }
+      }
+    ],
+    "snowfield": [
+      {
+        "type": "grove",
+        "display": "Snow Pines",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "PineTree_Snow": [
+            4,
+            6
+          ],
+          "BirchTree_Snow": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Silver Vein",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "SilverOreNode": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Ice Field",
+        "weight": 3,
+        "max": 2,
+        "nodes": {
+          "IceNode": [
+            3,
+            5
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Frozen Thicket",
+        "weight": 2,
+        "max": 2,
+        "nodes": {
+          "Bush_Snow": [
+            4,
+            6
+          ]
+        }
+      }
+    ],
+    "blue_tropical": [
+      {
+        "type": "grove",
+        "display": "Palm Grove",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "PalmTree": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "reef",
+        "display": "Reef",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "CoralNode": [
+            3,
+            5
+          ],
+          "PearlNode": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "type": "garden",
+        "display": "Fern Hollow",
+        "weight": 2,
+        "max": 2,
+        "nodes": {
+          "Plant": [
+            4,
+            6
+          ]
+        }
+      }
+    ],
+    "volcanic": [
+      {
+        "type": "vein",
+        "display": "Black Iron Vein",
+        "weight": 4,
+        "must": true,
+        "max": 2,
+        "nodes": {
+          "BlackIronNode": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Sulphur Vents",
+        "weight": 3,
+        "max": 2,
+        "nodes": {
+          "SulphurNode": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Ash Field",
+        "weight": 3,
+        "max": 2,
+        "nodes": {
+          "AshNode": [
+            4,
+            6
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Lava Rock",
+        "weight": 2,
+        "max": 2,
+        "nodes": {
+          "LavaRockNode": [
+            3,
+            5
+          ]
+        }
+      },
+      {
+        "type": "grove",
+        "display": "Scorched Stand",
+        "weight": 2,
+        "max": 2,
+        "nodes": {
+          "CommonTree_Dead": [
+            3,
+            5
+          ]
+        }
+      }
+    ]
+  },
+  "authored": {
+    "_about": "Islands whose json pins a landmark (today temperate_25's crater) keep it: the site is placed exactly at the authored point with the listed type and the climate row's node families. The crater's six herb nodes keep their historical ids and positions (IslandRuntime._crater), so an old save's harvest rows still match.",
+    "temperate_25:crater": {
+      "type": "garden",
+      "display": "Crater",
+      "id": "crater",
+      "nodes": {
+        "Plant": [
+          6,
+          6
+        ]
+      },
+      "node_ids": "crater_node_%d",
+      "level_offset": 5,
+      "fallback": "herb_leaf"
+    }
+  }
+}

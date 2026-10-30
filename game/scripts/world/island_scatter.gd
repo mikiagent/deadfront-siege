@@ -84,6 +84,10 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 		narco.seed = hash("narcoberry_bush:%d" % rng.seed)
 		_spawn_special_family(rt, "narcoberry_bush", 2, [IslandTerrain.TileType.GRASS, IslandTerrain.TileType.DRY], 0.25, 6.0, &"narcoberry", &"none", climate, tier, Color(0.62, 0.5, 0.95), narco)
 	PerfTrace.mark("scatter.special")
+	# LANDMARKS M1: the named sites, their node groups, before the top-up so the top-up yields to them
+	# (design doc section 3.3: "the scatter's top-up yields to landmarks").
+	rt.landmark_stats = IslandLandmarks.build(rt, def)
+	PerfTrace.mark("scatter.landmarks")
 	_top_up(rt, total_target(counts, rt, home), climate, tier, size, rng)
 	PerfTrace.mark("scatter.topup")
 	PerfTrace.mark("scatter.commit")

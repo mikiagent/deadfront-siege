@@ -2174,11 +2174,15 @@ func _draw_minimap() -> void:
 			MapIcons.flame(c, camp_q, 3.4, Color(1.0, 0.90, 0.55), Color(0.02, 0.03, 0.05, 0.9))
 		if harb_q.length() <= marker_r:
 			MapIcons.anchor(c, harb_q, 3.6, Color(0.70, 0.85, 1.0), Color(0.02, 0.03, 0.05, 0.9))
-		if World.crater_discovered:
+		if World.crater_discovered and World.current_landmarks().is_empty():
 			var cr: Vector3 = rt.get("_crater_pos")
 			var crater_q: Vector2 = to_px.call(cr)
 			if crater_q.length() <= marker_r:
 				c.draw_circle(crater_q, 4.0, Color(0.9, 0.4, 0.2))
+		for lm in MapIcons.found_landmarks():  # LANDMARKS: found sites only
+			var lq: Vector2 = to_px.call(lm["at"])
+			if lq.length() <= marker_r:
+				MapIcons.landmark(c, lq, 4.0, bool(lm["sealed"]), Color(0.02, 0.03, 0.05, 0.9))
 		for n in get_tree().get_nodes_in_group("creatures"):
 			var cr := n as Creature
 			if cr == null or cr.health.dead:

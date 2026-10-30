@@ -484,6 +484,9 @@ func interact_choice() -> Dictionary:
 	var basket := p._nearest_group("basket")
 	if basket and p.global_position.distance_to(basket.global_position) < 2.8:
 		return ui.call("store", "Open", &"store", p.actions.building_interact.bind(basket))
+	var seal := p._nearest_group("landmark_seal") as LandmarkSeal
+	if seal and p.global_position.distance_to(seal.global_position) < float((IslandLandmarks.rules().get("dormant", {}) as Dictionary).get("interact_m", 4.0)):
+		return ui.call("open_landmark", seal.label(), &"use", seal.open_by.bind(p))
 	var node := _nearest_harvest_node()
 	if node and p._gather_radial and not node.options().is_empty():
 		return _gather_choice(node)

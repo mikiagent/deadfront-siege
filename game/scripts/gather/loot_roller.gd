@@ -81,23 +81,25 @@ static func roll_lot(item: StringName, site_level: int, tool_tier: StringName, s
 ## ONEGATHER: tool_tier (&"" bare hands, stone the base) raises the odds by rare_trait.tool_tier_bonus per
 ## tier above stone, capped at max_chance; Gathering level never does (spec 12:42).
 ## `guaranteed` skips the chance (an alpha's parts always carry one).
-static func roll_trait(rng: RandomNumberGenerator, material: StringName = &"", tool_tier: StringName = &"", guaranteed: bool = false) -> StringName:
+## LANDMARKS: `chance_mult` scales the odds and their cap (a landmark node's hand harvest, x1.5).
+static func roll_trait(rng: RandomNumberGenerator, material: StringName = &"", tool_tier: StringName = &"", guaranteed: bool = false, chance_mult: float = 1.0) -> StringName:
 	var cfg := LootTables.trait_cfg()
 	var traits: Array = LootTables.material_traits(material) if material != &"" else (cfg.get("traits", []) as Array)
 	if traits.is_empty() and guaranteed:
 		traits = cfg.get("traits", []) as Array
-	if traits.is_empty() or (not guaranteed and rng.randf() >= trait_chance(tool_tier)):
+	if traits.is_empty() or (not guaranteed and rng.randf() >= trait_chance(tool_tier) * maxf(0.0, chance_mult)):
 		return &""
 	return StringName(str(traits[rng.randi() % traits.size()]))
 
 ## BAGUI: the tier (1-5, shown I-V) of a rare trait that just rolled. From I, each further step
 ## succeeds with rare_trait.tier_step, raised by the tool's tier above stone and by `skill` levels
 ## (loot_tables.json, ASSUMPTION values), so higher tiers are rarer and better tools shift the odds.
-static func roll_tier(rng: RandomNumberGenerator, tool_tier: StringName = &"", skill: int = 0) -> int:
+## LANDMARKS: `step_add` (a landmark node's hand harvest, +0.05) adds to the step and to its cap.
+static func roll_tier(rng: RandomNumberGenerator, tool_tier: StringName = &"", skill: int = 0, step_add: float = 0.0) -> int:
 	var cfg := LootTables.trait_cfg()
 	var tier_idx := ProgressionScaling.tier_index(tool_tier) if tool_tier != &"" else 0
 	var step := clampf(float(cfg.get("tier_step", 0.35)) + float(cfg.get("tier_step_tool_bonus", 0.0)) * float(maxi(0, tier_idx))
-			+ float(cfg.get("tier_step_skill_bonus", 0.0)) * float(maxi(0, skill)), 0.0, float(cfg.get("tier_step_max", 0.6)))
+			+ float(cfg.get("tier_step_skill_bonus", 0.0)) * float(maxi(0, skill)) + step_add, 0.0, float(cfg.get("tier_step_max", 0.6)) + maxf(0.0, step_add))
 	var tier := 1
 	while tier < 5 and rng.randf() < step:
 		tier += 1

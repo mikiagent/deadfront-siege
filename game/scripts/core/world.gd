@@ -58,6 +58,13 @@ var build_recent: Array = []
 var cargo_home: Inventory = Inventory.new(60) ## ASSUMPTION: 60 slots for mobile UI
 var remaining_lifetime: float = 0.0
 var crater_discovered: bool = false
+## LANDMARKS (docs/design/island-resources.md sections 5.3 and 5.6): the landmarks found, per island
+## id -> {site id: true}, and each opened dormant site's state, island id -> {site id: {"left": s}}
+## (seconds of play its window still runs). Saved under "landmarks"; an old save has neither and
+## behaves as a first visit everywhere.
+var landmarks_found: Dictionary = {}
+var landmark_state: Dictionary = {}
+signal landmark_found(site: Dictionary)
 var _sink_warned: bool = false
 var harvested: Dictionary = {} ## node_id -> {pool, pool_max, session_gathered}
 var runtime: Node3D
@@ -115,6 +122,8 @@ func _process(delta: float) -> void:
 		var w := _player()
 		if w and not w.dead and runtime and runtime.has_method("surface_y"):
 			note_map_walk(w.global_position)
+			check_landmarks(w.global_position)
+	_tick_landmark_windows(delta)
 	_save_acc += delta
 	if _save_acc >= 60.0:
 		_save_acc = 0.0
@@ -513,7 +522,145 @@ func note_building(kind: StringName, at: Vector3 = Vector3.ZERO, player: Player 
 		add_xp(total)
 	return total
 
+# ------------------------------------------------------------------------------------ landmarks
+
+## The landmarks of the island being played (IslandRuntime.landmarks), [] off-island.
+func current_landmarks() -> Array:
+	if runtime == null or not is_instance_valid(runtime):
+		return []
+	var v: Variant = runtime.get("landmarks")
+	return v if v is Array else []
+
+func landmark_is_found(island: String, site_id: String) -> bool:
+	var row: Variant = landmarks_found.get(island, null)
+	return row is Dictionary and bool((row as Dictionary).get(site_id, false))
+
+## Found / total on the island being played: the map's "Landmarks Found x / y".
+func landmarks_found_count() -> Vector2i:
+	var all := current_landmarks()
+	var n := 0
+	for s in all:
+		if landmark_is_found(str(island_id), str((s as Dictionary).get("id", ""))):
+			n += 1
+	return Vector2i(n, all.size())
+
+## True while a dormant site's opened window still runs (IslandLandmarks.build regrows it on a reload).
+func landmark_open(island: String, site_id: String) -> bool:
+	var row: Variant = landmark_state.get(island, {})
+	if not row is Dictionary:
+		return false
+	var st: Variant = (row as Dictionary).get(site_id, null)
+	return st is Dictionary and float((st as Dictionary).get("left", 0.0)) > 0.0
+
+## True once a dormant site's window has closed: it stays empty (and unsealed) until the island resets.
+func landmark_spent(island: String, site_id: String) -> bool:
+	var row: Variant = landmark_state.get(island, {})
+	if not row is Dictionary:
+		return false
+	var st: Variant = (row as Dictionary).get(site_id, null)
+	return st is Dictionary and bool((st as Dictionary).get("spent", false))
+
+## 4 Hz from _process (and the tests): a landmark is found when the survivor walks within its
+## discovery radius (doc section 5.6, 18 m # ASSUMPTION). Returns the site found this call, or {}.
+func check_landmarks(pos: Vector3) -> Dictionary:
+	if creation_pending:
+		return {}
+	for s in current_landmarks():
+		var site: Dictionary = s
+		if landmark_is_found(str(island_id), str(site.get("id", ""))):
+			continue
+		var r := float(site.get("discovery_radius", 18.0))
+		var dx := pos.x - float(site.get("x", 0.0))
+		var dz := pos.z - float(site.get("z", 0.0))
+		if dx * dx + dz * dz <= r * r:
+			discover_landmark(site)
+			return site
+	return {}
+
+## Marks one landmark found on the island being played and pays for it once: Gold by island tier
+## (IslandLandmarks.gold_for_tier), and on the island's first find the Joy of Discovery fatigue drop.
+## False when it was already found.
+func discover_landmark(site: Dictionary) -> bool:
+	var key := str(island_id)
+	var sid := str(site.get("id", ""))
+	if sid == "" or landmark_is_found(key, sid):
+		return false
+	var row: Dictionary = landmarks_found.get(key, {}) if landmarks_found.get(key, {}) is Dictionary else {}
+	var first := row.is_empty()
+	row[sid] = true
+	landmarks_found[key] = row
+	var gold := int(site.get("gold", 20))
+	t_stones += gold
+	if sid == "crater":
+		crater_discovered = true
+	var player := _player()
+	if player:
+		if first:
+			player.vitals.rest(absf(float(IslandLandmarks.rules().get("joy_fatigue", -20))))
+		var c := landmarks_found_count()
+		var sealed := " (sealed)" if bool(site.get("dormant", false)) and not landmark_open(key, sid) else ""
+		player.notice("Landmark found: %s%s  +%d Gold  (%d / %d)" % [str(site.get("display", sid)), sealed, gold, c.x, c.y])
+	print("[landmarks] found island=%s id=%s gold=%d" % [key, sid, gold])
+	landmark_found.emit(site)
+	return true
+
+## Opens a found dormant landmark at the site for Gold (doc section 5.3, A3): charges once, grows its
+## node group, starts its window. "" when it opened, else the refusal the player sees (nothing spent).
+func open_landmark(site_id: String) -> String:
+	var key := str(island_id)
+	var site := IslandLandmarks.site_by_id(runtime as IslandRuntime, site_id)
+	if site.is_empty() or not bool(site.get("dormant", false)):
+		return "Nothing to open here"
+	if landmark_spent(key, site_id):
+		return "This site is spent until the island resets"
+	if landmark_open(key, site_id) or int(site.get("planted", 0)) > 0:
+		return "Already open"
+	var cfg: Dictionary = IslandLandmarks.rules().get("dormant", {})
+	var cost := int(cfg.get("open_cost_gold", 50))
+	if t_stones < cost:
+		return "Needs %d Gold to open (you have %d)" % [cost, t_stones]
+	if not IslandLandmarks.open_site(runtime as IslandRuntime, island_def, site):
+		return "The site will not open"
+	t_stones -= cost
+	var row: Dictionary = landmark_state.get(key, {}) if landmark_state.get(key, {}) is Dictionary else {}
+	row[site_id] = {"left": float(cfg.get("window_s", 1200))}
+	landmark_state[key] = row
+	if not landmark_is_found(key, site_id):
+		discover_landmark(site)
+	var seal: Variant = site.get("seal", null)
+	if seal is Node and is_instance_valid(seal):
+		(seal as Node).queue_free()
+	site.erase("seal")
+	print("[landmarks] opened island=%s id=%s cost=%d" % [key, site_id, cost])
+	return ""
+
+## An opened dormant window counts down only while that island is the one being played (the game
+## running there); at 0 the site's unharvested nodes wither and it stays spent.
+func _tick_landmark_windows(delta: float) -> void:
+	var row: Variant = landmark_state.get(str(island_id), null)
+	if not row is Dictionary:
+		return
+	for sid in (row as Dictionary).keys():
+		var st: Variant = (row as Dictionary)[sid]
+		if not st is Dictionary or float((st as Dictionary).get("left", 0.0)) <= 0.0:
+			continue
+		var left := maxf(0.0, float((st as Dictionary)["left"]) - delta)
+		(st as Dictionary)["left"] = left
+		if left <= 0.0:
+			(st as Dictionary)["spent"] = true
+			var site := IslandLandmarks.site_by_id(runtime as IslandRuntime, str(sid))
+			if not site.is_empty():
+				var gone := IslandLandmarks.wither_site(runtime as IslandRuntime, site)
+				site["spent"] = true
+				print("[landmarks] withered island=%s id=%s nodes=%d" % [str(island_id), str(sid), gone])
+
 func discover_crater() -> void:
+	# LANDMARKS: the crater is one landmark now; its find pays through discover_landmark (tier Gold).
+	for s in current_landmarks():
+		if str((s as Dictionary).get("id", "")) == "crater":
+			discover_landmark(s)
+			crater_discovered = true
+			return
 	if crater_discovered:
 		return
 	crater_discovered = true
