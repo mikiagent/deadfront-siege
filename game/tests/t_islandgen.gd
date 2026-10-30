@@ -507,6 +507,9 @@ func _check_islandshapes(id: String, rt) -> void:
 		for row in props._rows:
 			if not ["cliff_rock", "rock_spire", "mesa_cliff", "boulder"].has(str(row["kind"])) or not bool(row.get("collide", false)):
 				continue
+			# A rock the build cleared (a tutorial town house, a claim) is gone: nothing stands there to block.
+			if bool(row.get("cleared", false)):
+				continue
 			var pos: Vector3 = row["pos"]
 			if absf(pos.y - rt.surface_y(pos.x, pos.z)) > 0.05:
 				_expect(false, "%s %s at %s is not on the ground (y %.2f vs %.2f)" % [id, row["kind"], pos, pos.y, rt.surface_y(pos.x, pos.z)])
