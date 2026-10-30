@@ -49,6 +49,23 @@ its later head 65f0f6f9.
   resolves by keeping both sides. Keep the tutorial's `grant_home` / `break` after my `Tasks.mark_done`
   call. A spawner.gd conflict comes from canon vs the tutorial, not from this branch.
 
+## Merges and the tutorial (2026-10-29)
+
+- **Merges:** origin/claude/mmo-overhaul was merged three times. The second merge brought TUTORIAL ISLAND and its siblings, the third BAGUI, the last 465b1827.
+  - Conflicts were resolved by keeping both sides.
+  - `Tasks.mark_done` runs before the tutorial's `grant_home` / `break`.
+  - The tasks save block loads after `World.tutorial`, so an old save reads the list it was running.
+- **Tutorial orders are Main Task.** Each tutorial order's reward, including the knife order's 10 Warp Gems, waits for Receive. An order finished but not received stays claimable after the ferry. Standing orders the tutorial skips (before `tutorial_resume_at`) never pay. All of this is covered in t_taskscreen.
+- **BAGUI:** rewards now include Warp Gems, and T-stones read "Gold" on screen.
+- **TS13, new tutorial order 2 "Claim your reward in Tasks"** (`tut_claim`, ASSUMPTION, owner go).
+  - The pointer goes MENU -> Tasks -> Receive. The Task screen opens on Main Task while an order waits.
+  - The tutorial bot opens Tasks and presses the highlighted Receive. After that it receives each order's reward, as a player would.
+- **Occupation side effect:** the occupation's Lv 20 head start makes two skill achievements claimable at once (Lv 10 and Lv 20 in that tree).
+- **t_tutorial**, 3 runs, each with its own HOME: 2 PASS, 1 FAIL.
+  - The failure was the stone knife breaking before butchering after a long compy hunt.
+  - Canon 465b1827, 3 runs, own HOME: 2 PASS, 1 FAIL (a walk to the fire pit).
+  - Hunt length follows the crafted knife's damage, which varies with material traits: 3.5-5.6 per hit on both branches. I count it as a bot flake. I did not tune it.
+
 ## Save change (owner's gate)
 
 - New top-level `"tasks"` block, always written:
@@ -74,7 +91,9 @@ its later head 65f0f6f9.
 - Updated tests:
   - `t_uichar`: the Orders section now drives the Task screen (Main Task, Track).
   - `t_uinav`: the nav label now reads "Tasks".
-- `bash tools/all_tests.sh`: 132 tests, 128 pass, 4 fail. The 4 failures were t_buildspeed, t_perfgates, t_eyetrails (timing budgets) and t_levelfx (top-feed layout). Rerun alone, all 4 pass. `t_taskscreen` passes.
+- Final head, after merging 465b1827:
+  - `bash tools/all_tests.sh`: **140 pass, 0 fail**. This run includes t_taskscreen, t_uichar, t_uinav and t_tutorial.
+  - `t_save` with its own HOME: PASS.
 - `bash tools/smoke.sh --no-import`: SMOKE PASS.
 
 ## PNGs
