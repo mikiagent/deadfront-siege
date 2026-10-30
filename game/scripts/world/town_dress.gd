@@ -473,7 +473,8 @@ func _benches() -> void:
 		for s in [-0.75, 0.75]:
 			unit("box", Transform3D(bb.scaled(Vector3(0.12, 0.42, 0.42)), p + bb * Vector3(s, 0, 0)), Color(0.33, 0.22, 0.13), FAR_PROP)
 		_boxes.append([Transform3D(bb, p + Vector3(0, 0.3, 0)), Vector3(1.8, 0.6, 0.5)])
-		cells[BuildGrid.tile_of(p)] = true
+		for t in _rect_tiles(p, 1.8, 0.5, yaw):  # every tile the seat covers, so the router walks round it
+			cells[t] = true
 		stats["benches"] = int(stats.get("benches", 0)) + 1
 
 ## Survivors milling: pairs at the boards (taking work), a walker from the dock to the square and one

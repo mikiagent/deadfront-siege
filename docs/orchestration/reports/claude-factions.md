@@ -106,13 +106,13 @@ for each: a look, values, a mission list, rank unlocks and a desk in the hall.
   live Accept buttons.
 - **t_perfgates**, tutorial island: ticking 653 (budget 900), scene nodes 5,970 (budget 9,000).
 - **run_all** `[tests] PASS`; `tools/smoke.sh --no-import` SMOKE PASS.
-- **t_tutorial** (own HOME, alarm 1200): PASS 3/3 on the final tree. Each run retries the axe step
-  once, as canon 24d2a22f also does (canon was 2/2 PASS in this session).
-  - Earlier layouts failed: the hall stood straight across from the dock, on the road north to
-    the water, and the bot snagged on a wing corner and got sent past a compy zone.
-  - The fixes: a 1 m router pad round the hall and wings, tall colliders, the hall turned 30
-    degrees off the dock line (`Tutorial.HALL_DEG` = 210), and the two tutorial trees moved clear
-    of the board arc.
+- **t_tutorial** (own HOME, alarm 1200) on the re-merged tree (canon fc08395e, which includes
+  KNIFESPLIT and TOWNPOLISH): 2/3 PASS. Canon fc08395e alone, run at the same time, was also 2/3.
+  Both failures are the same canon flake at butcher: "carcass gone".
+  - Earlier layouts failed in the hall's own area. The bot snagged on a wing corner, on a faction
+    board post, and on a 1.8 m bench that blocked only one router tile.
+  - Fixes: 1 m router pads round the hall, wings, boards and desk; tall colliders on the slope; every
+    tile a bench covers is blocked for the router; the hall moved (not turned) east of the road north.
 - **Footprint map**: `docs/orchestration/reports/factions/plaza_footprint.png` (written by
   `game/scripts/dev/faction_plaza_map.gd`, headless). Dock at the bottom; the white desk with the hall
   behind it; the five board colours in a row; grey general boards; the crowd and walkers in cyan.
@@ -120,6 +120,20 @@ for each: a look, values, a mission list, rank unlocks and a desk in the hall.
   and `factions_company_*`, `factions_forum_receive_*`. They come from
   `game/scripts/dev/faction_shots_probe.gd`; run it with
   `-- --faction-shots=<dir> --new-game --occupation=farmer`. It quits by itself.
+
+## Re-merge (2026-10-30)
+
+- Merged origin/claude/mmo-overhaul twice (KNIFESPLIT a431ba31, TOWNPOLISH d1f710b3, then fc08395e).
+- The one conflict was town_dress.gd; both sides were kept. Tutorial order 1 is "Report to the
+  Faction Hall", and the dagger order is in place.
+- The breakage after the first canon merge: a fresh import parses cleanly here and SMOKE passes. My
+  read is that canon's `.godot` class cache did not know the new `Factions` class (no `--import` after
+  the merge). That produces "stale class cache" errors and every test then prints nothing. Run
+  `--import` after merging.
+- Owner rule: the hall, wings, stalls, boards and desk sit on the 1 m BuildGrid facing south, which
+  is the placer's default; benches snap to tiles in 90 degree steps. The hall is north-east of the
+  square, east of the road north.
+- No painted prop cards were made; everything new is 3D (MultiMesh boxes and GLB parts).
 
 ## Known issues and next steps
 
