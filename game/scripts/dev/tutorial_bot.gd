@@ -126,7 +126,7 @@ func _do_step(id: String) -> String:
 		"tut_drink":
 			var water: Variant = Tutorial.nearest_fresh_water(player.global_position)
 			if water == null:
-				return "no fresh water within 160 m"
+				return "no fresh water within 260 m"
 			var w := await _walk_to(water as Vector3, 0.6, func () -> bool: return WaterAccess.near_fresh(player.global_position))
 			if w != "":
 				return w
