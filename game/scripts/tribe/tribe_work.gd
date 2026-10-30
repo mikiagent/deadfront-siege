@@ -135,6 +135,9 @@ static func _craft_why(p: Player, r: TribeRecord, rec: Dictionary, station: Node
 		return "%s already works here" % other.name
 	if bool((Tribe.cfg().get("work", {}) as Dictionary).get("teach_by_doing", true)) and not World.pioneer_crafts.has(rid):
 		return "Craft it once yourself first"  # memo §2.5 "teach by doing"
+	var tool := Crafting.tool_block(tool_bag(r), rec)
+	if tool != "":
+		return tool  # RECIPETOOLS: the member's own held work tool, never the survivor's
 	var minimum := int(rec.get("min_level", 0))
 	if minimum > int(o["level"]):
 		return "Needs %s %d" % [nice_skill(str(o["skill"])), minimum]
@@ -144,6 +147,12 @@ static func _craft_why(p: Player, r: TribeRecord, rec: Dictionary, station: Node
 	if float(o["success"]) < min_ok:
 		return "%d%% success, needs %s %d" % [roundi(float(o["success"]) * 100.0), nice_skill(str(o["skill"])), level_for_success(rec, min_ok)]
 	return ""
+
+## A member's hands as a one-slot bag (the tool it holds in its weapon slot), for recipe tool gates.
+static func tool_bag(r: TribeRecord) -> Inventory:
+	var inv := Inventory.new(1)
+	inv.slots[0] = r.equipment.worn(&"weapon") if r else null
+	return inv
 
 ## The survivor's picks for `uids` (one per recipe slot, from the craft panel): each slot led by that
 ## instance wherever the bag holds it now, the rest default.
@@ -289,7 +298,8 @@ static func _finish_craft(r: TribeRecord, station: Node3D) -> void:
 	var oc: Dictionary = r.job.get("outcome", {})
 	plan["outcome"] = {"success": bool(oc.get("success", true)), "flawless": bool(oc.get("flawless", false)), "rare": StringName(str(oc.get("rare", "")))}
 	plan["burnt"] = bool(r.job.get("burnt", false))
-	var res := Crafting.run_plan(rec, r.escrow, plan)
+	var none: Array[ItemStack] = []
+	var res := Crafting.run_plan(rec, r.escrow, plan, none, tool_bag(r))
 	var name := str(rec.get("display_name", rid))
 	match str(res.get("status", "")):
 		"made":
@@ -304,7 +314,7 @@ static func _finish_craft(r: TribeRecord, station: Node3D) -> void:
 			_end(r, "")
 		_:
 			if p:
-				p.notice("%s stopped the %s: %s" % [r.name, name, str(res.get("status", ""))])
+				p.notice("%s stopped the %s: %s" % [r.name, name, str(res.get("why", res.get("status", "")))])
 			cancel(p, r)
 
 ## Output (and anything left in escrow) into the station's chest, else the survivor's bag. What fits

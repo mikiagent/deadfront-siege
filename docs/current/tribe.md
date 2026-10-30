@@ -72,7 +72,9 @@ picks as for her own craft; **Assign…** beside Craft opens the member picker: 
 - refusals (`TribeWork.craft_offer`): "Joss is busy (Crafting Plank 40%)", "Needs a workbench", "The smoker
   runs this by itself", "Kit already works here" (one worker per station), "Craft it once yourself first"
   (teach by doing), "Needs Tailoring 10" (the recipe's min level vs the member's skill), "Missing materials",
-  "62% success, needs Tailoring 14" (below the 80 % minimum);
+  "62% success, needs Tailoring 14" (below the 80 % minimum), "Needs work axe (stone)" (RECIPETOOLS: a
+  tool-gated recipe needs a work tool of that class and tier in the **member's** hand, its weapon slot, never
+  the survivor's bag; the member's craft wears that tool 1 per run, success or failure);
 - accepted (`TribeWork.assign_craft`): the exact planned instances leave the bag into the member's escrow
   (`TribeRecord.escrow`), and the outcome (success, flawless, rare, burn) and output level are decided now at
   the member's skill and never re-rolled. Hand recipes stay the survivor's.

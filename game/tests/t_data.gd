@@ -200,7 +200,8 @@ func _check_references() -> void:
 			if r.has(k):
 				_expect(items.has(str(r[k])), "recipe %s %s %s exists" % [rid, k, r[k]])
 		if r.has("requires_tool"):
-			_expect(tool_classes.has(str(r["requires_tool"])), "recipe %s requires_tool %s is some item's tool_class" % [rid, r["requires_tool"]])
+			var need: Dictionary = load("res://scripts/items/crafting.gd").tool_need(r)
+			_expect(tool_classes.has(str(need.get("class", ""))) and PS.TOOL_TIERS.has(StringName(str(need.get("min_tier", "")))), "recipe %s requires_tool %s is some item's tool_class at a ladder tier" % [rid, r["requires_tool"]])
 		if r.has("requires_node"):
 			_expect(trees_nodes.has(str(r["requires_node"])), "recipe %s requires_node %s is a trees.json node" % [rid, r["requires_node"]])
 		var st := _station(r)
@@ -275,11 +276,14 @@ func _offer(id: String, c: float, level: int, why: String) -> bool:
 		how[id] = why
 	return better
 
-func _has_tool(cls: String) -> bool:
+## RECIPETOOLS: a reached WORK tool of the class whose id names a tier at or above `min_tier` (a work axe
+## counts as stone even when made from flint, so the walk is conservative).
+func _has_tool(cls: String, min_tier: String = "stone") -> bool:
 	if cls == "" or cls == "none":
 		return true
 	for id in cost:
-		if str(items[id].get("tool_class", "none")) == cls:
+		if str(items[id].get("tool_class", "none")) == cls and bool(items[id].get("is_work_tool", false)) \
+				and maxi(0, _tier_of(id)) >= PS.TOOL_TIERS.find(StringName(min_tier)):
 			return true
 	return false
 
@@ -369,8 +373,10 @@ func _try_recipe(r: Dictionary) -> bool:
 	var st := _station(r)
 	if st != "" and _station_kits(st).filter(func(k: String) -> bool: return cost.has(k)).is_empty():
 		return false
-	if r.has("requires_tool") and not _has_tool(str(r["requires_tool"])):
-		return false
+	if r.has("requires_tool"):
+		var need: Dictionary = load("res://scripts/items/crafting.gd").tool_need(r)
+		if not _has_tool(str(need.get("class", "")), str(need.get("min_tier", "stone"))):
+			return false
 	var total := float(r.get("seconds", 3.0))
 	var lvl_sum := 0
 	var n := 0

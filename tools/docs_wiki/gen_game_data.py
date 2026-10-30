@@ -80,6 +80,15 @@ def energy_cell(f) -> str:
 
 # ------------------------------------------------------------------ recipes
 
+def tool_txt(t):
+    """requires_tool as 'axe (flint+)'; the old string form is that class at any tier."""
+    if not t:
+        return ""
+    if isinstance(t, str):
+        return "%s (stone+)" % t
+    return "%s (%s+)" % (t.get("class", "?"), t.get("min_tier", "stone"))
+
+
 def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
     rec = load(data, "recipes.json")
     items = {r["id"]: r for r in load(data, "items.json")["items"]}
@@ -98,6 +107,10 @@ def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
       "cap; the actual result also depends on materials, skill, and runtime bounds. Absent values use the defaults in "
       "`game/scripts/items/crafting.gd`: minimum 0, ability 0, and output cap 60.")
     a("")
+    a("`tool` (RECIPETOOLS, `requires_tool`): a **work** tool of that class at or above that material tier must be in the bag "
+      "(never a combat weapon, never the worn weapon slot; a tribe member uses the tool it holds). Each craft run wears it 1, "
+      "success or failure. Design: `docs/design/tools-durability-crafting.md` §3.4.")
+    a("")
     by_station = OrderedDict()
     for r in rows:
         by_station.setdefault(r.get("station") or "hand", []).append(r)
@@ -112,8 +125,8 @@ def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
                 a("")
                 a("Stand-and-craft seconds are the recipe rows below; the station's own **real convergence times finish even while the player is away or offline**: " + ", ".join("`%s` %ss" % (rid, td.get("seconds", "?")) for rid, td in sorted(times.items())) + ".")
         a("")
-        a("| recipe | output | inputs | skill | min skill | ability target | recipe max_level | time (s) | process |")
-        a("|---|---|---|---|---|---|---|---|---|")
+        a("| recipe | output | inputs | skill | min skill | ability target | recipe max_level | time (s) | process | tool |")
+        a("|---|---|---|---|---|---|---|---|---|---|")
         for r in list_:
             out_row = "%s x%s" % (name(r["output"]["id"]), r["output"].get("count", 1))
             if r.get("outputs_by_primary"):
@@ -122,10 +135,10 @@ def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
             step = []
             if r.get("process_step"):
                 step.append("%s +%s" % (r["process_step"], r.get("process_add", 0)))
-            a("| `%s` | %s | %s | %s | %s | %s | %s | %s | %s |" % (
+            a("| `%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
                 r["id"], out_row, slots_txt(r.get("slots")), skill,
                 r.get("min_level", 0), max(0, r.get("required_ability", 0)), r.get("max_level", 60),
-                r.get("seconds", "?"), "; ".join(step)))
+                r.get("seconds", "?"), "; ".join(step), tool_txt(r.get("requires_tool"))))
         a("")
     reps = rec.get("repairs", [])
     if reps:

@@ -233,6 +233,8 @@ func _craft(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var status := str(res.get("status", ""))
 	if status == "left":
 		return no("insufficient_items", "picks must still hold the materials")
+	if status == "tool":
+		return no("not_ready", str(res.get("why", "needs a tool")))
 	if status == "full":
 		return no("bag_full", "no room for %s" % str((rec.get("output", {}) as Dictionary).get("id", rid)))
 	var uids := ch.commit(inv, "craft", seq, now) # run_plan stamps crafted instances with the wall clock

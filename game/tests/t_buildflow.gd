@@ -353,6 +353,7 @@ func _test_station_job() -> void:
 	var station = _site
 	_clear_bag()
 	_give(&"plank_shape", 1, 20)
+	_give(&"work_axe", 1, 1)  # RECIPETOOLS: trimming needs a work axe in the bag
 	var ps = _PS.of(station)
 	_expect(ps != null and ps.slots() >= 1, "the workbench runs job machinery")
 	var added: int = ps.load_from(_player.inventory, &"trimmed_plank", 1) if ps else 0
@@ -401,6 +402,7 @@ func _test_station_job() -> void:
 	# §17 14b: a full bag never eats a finished output: it stays on the station until there is room.
 	_clear_bag()
 	_give(&"plank_shape", 1, 20)
+	_give(&"work_axe", 1, 1)
 	var full_ps = _PS.of(_site)
 	var full_loaded: int = full_ps.load_from(_player.inventory, &"trimmed_plank", 1) if full_ps else 0
 	_PS.clock_skew_s = _PS.job_seconds(&"workbench", &"trimmed_plank") + 1.0
@@ -421,6 +423,7 @@ func _test_station_job() -> void:
 	# §17 16: destroying the station hands its contents over, once.
 	_clear_bag()
 	_give(&"plank_shape", 1, 20)
+	_give(&"work_axe", 1, 1)
 	var ps2 = _PS.of(_site)
 	var loaded: int = ps2.load_from(_player.inventory, &"trimmed_plank", 1) if ps2 else 0
 	var salvaged: Array = _site.call("salvage_contents") if _site.has_method("salvage_contents") else []

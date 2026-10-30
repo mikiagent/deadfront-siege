@@ -497,7 +497,7 @@ func _finish_one() -> void:
 			_pending_overflow.append(left)
 	if out:
 		player.toast(out.def_id, out.count)  # UIGATHER: the HUD's yield card (PickupToast retired)
-	if str(res.get("status", "")) == "left":
+	if str(res.get("status", "")) in ["left", "tool"]:
 		_clear_session()
 		return
 	crafting = false

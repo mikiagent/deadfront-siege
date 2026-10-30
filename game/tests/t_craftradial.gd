@@ -253,7 +253,7 @@ func _test_panel() -> void:
 func _test_tags() -> void:
 	var into: Array = CR.recipes_accepting(&"large_leg_bone").map(func (r) -> String: return str(r.get("id", "")))
 	_expect(into.has("plank"), "a large leg bone's craft-into list has Plank (%s)" % [into])
-	_bag([["large_leg_bone", 2, 10]])
+	_bag([["large_leg_bone", 2, 10], ["work_axe", 1, 1]])  # RECIPETOOLS: a plank needs a work axe
 	var rec: Dictionary = CR.recipe(&"plank")
 	var picks: Array[int] = CR.default_picks(_player.inventory, rec)
 	_expect(CR.picks_valid(_player.inventory, rec, picks), "two leg bones fill the plank's Thick Pillar slot")
