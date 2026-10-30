@@ -114,3 +114,5 @@ canon's own `t_tame` uses. Alphas are still refused on every path.
 
 Gate: `verify_alphatag.sh` (now includes `t_data`) -> **VERIFY PASS**: t_data, t_alphas, t_genetics,
 t_capture09, t_tame, run_all, smoke, report. Nothing pushed.
+
+Gate log for this re-merge: `.dsc/verify_merge.log` (VERIFY PASS, exit 0).
