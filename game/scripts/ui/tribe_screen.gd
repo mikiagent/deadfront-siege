@@ -185,6 +185,8 @@ static func _clock(s: float) -> String:
 func _doing(r: TribeRecord) -> String:
 	var body := player.tribe.body_of(r) if player and player.tribe else null
 	var st := str(body.state) if body else "away"
+	if TribeWork.is_station_job(r):
+		return "%s · %s" % [TribeWork.plate_text(r), st]  # TRIBE M2a: Stay cancels it and refunds
 	if r.order == &"work":
 		return "%s job · %s" % [str(r.job.get("kind", "")).capitalize(), st]
 	return "%s · %s" % [str(r.order).capitalize(), st]

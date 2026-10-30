@@ -69,7 +69,9 @@ static func _grid() -> BuildGrid:
 ## Finish the site atomically (spec 30 §8): consume the escrow exactly once, work out the level,
 ## remove the site and add exactly one tagged, leveled CraftStation of the blueprint's station kind.
 ## Refuses (and changes nothing) unless every slot is full and the work is done.
-static func complete(player: Player, site: Node) -> CraftStation:
+## TRIBE M2a: `builder` (a tribe member on a build order) finishes it at its own Construction level and
+## takes the XP; the survivor's level and XP are untouched.
+static func complete(player: Player, site: Node, builder: TribeRecord = null) -> CraftStation:
 	if site == null or not is_instance_valid(site) or not (site is ConstructionSite):
 		return null
 	var cs := site as ConstructionSite
@@ -86,7 +88,7 @@ static func complete(player: Player, site: Node) -> CraftStation:
 	var rot := cs.build_rot
 	# Compute before consuming: the levels come from the exact instances about to be spent.
 	# # ASSUMPTION: a blueprint whose slots all count for attributes but not the level lands on 1.
-	var level := maxi(1, Blueprints.result_level(bp, cs.contributing_levels(), player.skills.level_of("construction") if player and player.skills else 1))
+	var level := maxi(1, Blueprints.result_level(bp, cs.contributing_levels(), builder.skill("construction") if builder else (player.skills.level_of("construction") if player and player.skills else 1)))
 	var traits := cs.contributing_traits()
 	var station_cfg: Dictionary = bp.get("station", {})
 	var kind := StringName(str(station_cfg.get("kind", "workbench")))
@@ -115,7 +117,10 @@ static func complete(player: Player, site: Node) -> CraftStation:
 	grid.occupy(station, grid.cells_for(kind, cell, rot))
 	cs.queue_free()
 	print("[buildflow] %s complete: %s lv %d traits=%s from %s" % [cs.site_id, kind, level, traits, spent.map(func (s: ItemStack) -> int: return s.level)])
-	if player and player.skills:
+	if builder:
+		builder.add_skill_xp("construction", float(bp.get("xp", 25.0)))
+		World.note_building(kind)
+	elif player and player.skills:
 		# XP once, on completion only (never per work tick, cancel or reopen).
 		player.skills.add_xp("construction", float(bp.get("xp", 25.0)))
 		World.note_building(kind)

@@ -94,6 +94,22 @@ Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tri
 | **T14** | Away from home only following members come along; working and staying members remain at home. There is no expedition slot limit yet (vision §7 says three shared slots). | `TribeDirector.sync` | Party size on trips. |
 | **T15** | Work reach: a worker stands at the visible edge of a node (card or mesh footprint) plus 0.3 m. | `HarvestNode.visual_radius` | Visual only. |
 
+### TRIBE M2a (2026-10-29) — hand-off work orders (memo `docs/design/hunger-and-tribe-automation.md` §2.2, approved as the working plan)
+
+Source: branch `claude/mmo-tribem2a`, report `docs/orchestration/reports/claude-tribem2a.md`. Numbers live in `game/data/tribe.json` `work` unless a file is named.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **T16** | Minimum success for a hand-off: 80 %. Below it the member refuses: "62% success, needs Woodworking 14" (the level that would reach 80 %). | `work.min_success` | Protects "a failed craft loses the materials" from eating the best picks. |
+| **T17** | Worker speed: craft or build time × max(0.5, 1 − 0.01 × skill level). Only workers use it in M2a; the survivor's own craft time is unchanged. | `work.speed_per_level`, `work.min_time_mult` | The memo says one formula for both; the survivor half is a separate tuning call. |
+| **T18** | A member's crafting ability is its skill level only (no learned nodes, no food buffs until M2b); success, output level cap and burn odds use the survivor's rules at that level. Members train any skill a job uses (Construction, Processing, Weapon Tools…), starting at 1. | `TribeWork.craft_offer` | Fresh recruits only take recipes with no ability requirement. |
+| **T19** | Teach by doing (memo Q6): a recipe the survivor has never made herself is refused ("Craft it once yourself first"). | `work.teach_by_doing` | Cheap to switch off if it feels like a chore. |
+| **T20** | Output goes to the storage building nearest the station within 6 m, else the survivor's bag (wherever she is). What fits nowhere waits with the member ("ready · no room") and is retried every second. Stations have no output tray yet. | `work.chest_link_m`, `TribeWork._deliver` | Where finished goods appear. |
+| **T21** | Working costs 0.25 fatigue and 0.15 energy per second; a member rests (pausing the order) at the M1 thresholds and eats from storage near the station when hungry (M1 rules, unchanged hunger model). | `work.fatigue_per_work_s`, `work.energy_per_work_s` | Upkeep of a station worker. |
+| **T22** | One worker per station or site; one order per member; only station recipes that are not a process station's own jobs (smoker, drying rack run by themselves) and only craft stations (fires excluded until cook orders, M2c). | `TribeWork._craft_why`, `StationCraft.assign_actions` | Scope of M2a. |
+| **T23** | A builder needs no Construction level gate (the blueprint gate is the survivor's knowledge, tribe-wide) but its Construction level caps the finished station's level (`Blueprints.result_level`), so a level-1 builder makes a Lv 1 station; the picker shows the predicted level. The site's own timer stops while a builder is assigned; the builder finishes the site itself. | `TribeWork.build_offer`, `BuildFlow.complete(builder)` | Delegating a build can cost station level. |
+| **T24** | No offline catch-up yet: work runs only while the member's body is loaded (at home). The memo's 8 h offline cap is for M2c. | `TribeMember._station_work` | A trip pauses home orders. |
+
 ## 2026-10-28 — Stations and pens (claude/mmo-stationstate)
 
 | # | Default taken | Where | Why it matters |

@@ -108,7 +108,7 @@ func _process(delta: float) -> void:
 
 ## CRAFTRADIAL: the build timer, once the Construction panel placed every material.
 func _tick_build(delta: float) -> void:
-	if not building:
+	if not building or has_meta(&"tribe_builder"):  # TRIBE M2a: an assigned builder drives the work
 		return
 	if not materials_ready() or work_done():
 		building = false
