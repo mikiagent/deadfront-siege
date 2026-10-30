@@ -92,3 +92,25 @@ report). Docs: AT6 in `docs/vision/WildLandsMMO_Open_Questions.md` and the alpha
 Convention for later data work: a non-metal item whose `hardness` is 4 or more must declare
 `default_attributes.material_tier`, otherwise `ProgressionScaling.material_tier` maps it onto the metal half of
 the ladder and every recipe slot it fills inherits that tier. `t_data` was not changed.
+
+## Re-merge (2026-10-30 03:01Z): new canon (FOODTORPOR, SLOWLEVELS, CREATURECHIPS, CHASESPRINT)
+`origin/claude/mmo-overhaul` moved to 303c122e; merged into `claude/mmo-alphatag` (merge commit a76e2a71,
+no conflict markers left). Conflicts and how both intents were kept:
+- `game/data/items.json` — the merge had interleaved ALPHATAG's tail rows (`alpha_hide`, `alpha_fang`) with
+  FOODTORPOR's (`spoiled_meat`, `rot`, `narcoberry`, `sedative`, `tranquilizer_dart`); resolved by keeping every
+  row from both sides (275 items, no duplicate ids, valid JSON).
+- `game/scripts/server/world_facade.gd` `add_creature` — kept both `"torpor": 0.0` (FOODTORPOR) and
+  `"alpha": false` (ALPHATAG) in the spawned-creature dictionary.
+- `game/scripts/ui/hunt_hud.gd` `_draw_target_plate` — kept canon's taller block (`HudBuffRow.CHIP` row) and
+  ALPHATAG's gold prefix tag: `block` height is canon's, the ALPHA chip still shifts the name and the ellipsis
+  width via `prefix_w`.
+- Docs auto-merged; `docs/vision/WildLandsMMO_Open_Questions.md` keeps both the FOODTORPOR section and
+  ALPHATAG AT1-AT7.
+
+Test fix the new canon required (not a loosening): FOODTORPOR made the capture window require torpor past the
+KO threshold as well as weakness. `t_alphas._test_no_tame` now sets `torpor` past `FieldTame.torpor_ko_frac()`
+on both animals before asserting "normal animal is in the window / alpha is not", which is the same rule the
+canon's own `t_tame` uses. Alphas are still refused on every path.
+
+Gate: `verify_alphatag.sh` (now includes `t_data`) -> **VERIFY PASS**: t_data, t_alphas, t_genetics,
+t_capture09, t_tame, run_all, smoke, report. Nothing pushed.

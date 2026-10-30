@@ -334,9 +334,11 @@ func _test_no_tame() -> void:
 	var a = _spawn(true, Vector3(-400, 0, 0))
 	var n = _spawn(false, Vector3(-404, 0, 0))
 	await process_frame
-	# Both are collapsed and inside the window's health rule: only the alpha is refused.
+	# Both are weak (10 % HP) and knocked out (FOODTORPOR: torpor past the KO threshold), which is what
+	# the capture window now needs; only the alpha is refused.
 	for c in [a, n]:
 		c.health.hp = c.health.max_hp * 0.1
+		c.torpor = c.torpor_max() * minf(1.0, FT.torpor_ko_frac() + 0.1)
 		c.is_capturable = true
 	_expect(FT.capture_window(n), "a normal animal at 10 %% HP is in the capture window")
 	_expect(not FT.capture_window(a), "an alpha at 10 %% HP is NOT in the capture window")
