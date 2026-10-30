@@ -18,3 +18,8 @@ Merged onto origin/claude/mmo-overhaul (now 3d5d84b0), everything passes except 
 1. `git fetch origin && git merge origin/claude/mmo-overhaul` (keep both sides; Open Questions: both).
 2. Find which of this branch's data changes (new alpha items/categories/tiers in items.json, loot tables, material tiers) makes those recipes' primary material read as copper-tier, and fix it at the root without loosening t_data.
 3. Add t_data to your verify list mentally: it must PASS. Then VERIFY PASS as before; update the report.
+
+## Follow-up (integrator, 03:01Z): re-merge onto the new canon
+Canon moved (FOODTORPOR, SLOWLEVELS, CREATURECHIPS, CHASESPRINT landed). Merging this branch now conflicts in: game/data/items.json, game/scripts/server/world_facade.gd.
+1. `git fetch origin && git merge origin/claude/mmo-overhaul`. Resolve keeping BOTH sides' intent (JSON: keep every row from both sides, no duplicate ids, valid JSON; code: combine both changes; docs: keep both sections). Open Questions: keep both.
+2. Rerun your verify. VERIFY PASS as before; append a "re-merge" note to your report; commit (message ends with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`). Do not push.
