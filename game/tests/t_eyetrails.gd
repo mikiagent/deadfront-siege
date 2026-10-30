@@ -629,8 +629,8 @@ func _shot_species(id: StringName, dir: String, cam: Camera3D) -> void:
 	cam.set("_target", focus)
 	var dt := 1.0 / 60.0
 	var speed := 8.0
-	# Start running along the camera's screen-right (yaw -45 deg), so the streak lies across the screen.
-	var yaw := deg_to_rad(-45.0)
+	# Start running along the camera's screen-right (camera yaw - 90 deg), so the streak lies across the screen.
+	var yaw := deg_to_rad(IsoCamera.YAW_DEG - 90.0)
 	c.rotation.y = yaw
 	var t := 0.0
 	var idle_peak := 0.0

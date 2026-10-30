@@ -158,12 +158,12 @@ func _test_hud(view: Vector2, B: GDScript) -> void:
 	await create_timer(1.6).timeout
 	await _frames(2)
 	_expect((_hud.bar_trail[&"hp"] as Vector3).x > 0.99, "%s the fill reaches the healed value" % tag)
-	# Coordinates: world X / Z in whole metres, following her.
+	# Coordinates: X = world x, Y = -world z (north-positive), whole metres, following her.
 	for d in [Vector3.ZERO, Vector3(12.4, 0, -7.6)]:
 		p.global_position += d
 		_hud.queue_redraw()
 		await _frames(2)
-		var want := "X %d  Y %d" % [roundi(p.global_position.x), roundi(p.global_position.z)]
+		var want := "X %d  Y %d" % [roundi(p.global_position.x), -roundi(p.global_position.z)]
 		_expect(_hud.map_xy_text == want, "%s map coordinates read \"%s\" (got \"%s\")" % [tag, want, _hud.map_xy_text])
 	var mt: Rect2 = _hud.drawn_blocks.get("map_text", Rect2())
 	var mp: Vector2 = _hud._minimap.position

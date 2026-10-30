@@ -1,6 +1,6 @@
 extends SceneTree
 ## CAMERA package (docs/orchestration/reports/claude-mmo-camera.md): the follow camera is the long-lens
-## perspective camera measured from Durango (pitch 38.7, FOV 4.3, yaw 45), `size` stays its zoom (metres
+## perspective camera measured from Durango (pitch 38.7, FOV 4.3; yaw 0, north up: NORTHUP), `size` stays its zoom (metres
 ## of view height at the focus) and the consumers line up with it.
 ## Usage: godot --headless --path game --script res://tests/t_camera.gd   -> "[t_camera] PASS", exit 0/1.
 
@@ -24,9 +24,9 @@ func _expect(ok: bool, msg: String) -> void:
 func _run() -> void:
 	var Iso: GDScript = load("res://scripts/camera/iso_camera.gd")
 	_expect(not Iso.ortho, "the run is not --cam-ortho")
-	_expect(Iso.PROJECTION == Camera3D.PROJECTION_PERSPECTIVE and is_equal_approx(Iso.PITCH_DEG, -38.7) and is_equal_approx(Iso.YAW_DEG, 45.0) and is_equal_approx(Iso.FOV_DEG, 4.3),
-		"constants: perspective, pitch -38.7, yaw 45, FOV 4.3")
-	_expect(Iso.view_basis().is_equal_approx(Basis.from_euler(Vector3(deg_to_rad(-38.7), deg_to_rad(45.0), 0.0))), "view_basis() is the shipped angle")
+	_expect(Iso.PROJECTION == Camera3D.PROJECTION_PERSPECTIVE and is_equal_approx(Iso.PITCH_DEG, -38.7) and is_equal_approx(Iso.YAW_DEG, 0.0) and is_equal_approx(Iso.FOV_DEG, 4.3),
+		"constants: perspective, pitch -38.7, yaw 0, FOV 4.3")
+	_expect(Iso.view_basis().is_equal_approx(Basis.from_euler(Vector3(deg_to_rad(-38.7), 0.0, 0.0))), "view_basis() is the shipped angle")
 	_expect(absf(Iso.distance_for(11.0) - 11.0 / (2.0 * tan(deg_to_rad(2.15)))) < 0.01, "distance_for(11) = %.1f m" % Iso.distance_for(11.0))
 	_expect(Iso.cull_range(8.0) > Iso.distance_for(Iso.LAB_MAX_SIZE), "cull ranges reach past the farthest lab camera (%.0f m)" % Iso.cull_range(8.0))
 
@@ -42,7 +42,7 @@ func _run() -> void:
 	await process_frame
 	_expect(cam.projection == Camera3D.PROJECTION_PERSPECTIVE and is_equal_approx(cam.fov, 4.3), "the camera is perspective with a 4.3 deg lens")
 	_expect(is_equal_approx(cam.size, Iso.DEFAULT_SIZE) and is_equal_approx(cam.distance, Iso.distance_for(cam.size)), "default zoom %.1f m at %.1f m" % [cam.size, cam.distance])
-	_expect(cam.rotation_degrees.is_equal_approx(Vector3(-38.7, 45.0, 0.0)), "rotation %s" % cam.rotation_degrees)
+	_expect(cam.rotation_degrees.is_equal_approx(Vector3(-38.7, 0.0, 0.0)), "rotation %s" % cam.rotation_degrees)
 	_expect(cam.focus_point().distance_to(target.global_position) < 0.01, "it looks at its target (%.3f m off)" % cam.focus_point().distance_to(target.global_position))
 	_expect(Iso.focus.distance_to(target.global_position) < 0.01, "it publishes the focus it looks at")
 	var view: Vector2 = cam.get_viewport().get_visible_rect().size
