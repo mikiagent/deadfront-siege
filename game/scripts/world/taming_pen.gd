@@ -1,8 +1,9 @@
 class_name TamingPen
 extends StaticBody3D
-## Holds one captured animal. 30 real minutes, scaled by Game.time_scale. Success bonds the animal
-## straight into the survivor's roster (origin capture); failure lets it escape. A full bonded
-## roster (Data.bonded_cap(), spec 09) holds the finished animal here, unbonded and uncounted.
+## Holds one captured animal. 30 real minutes, scaled by Game.time_scale. PENCLAIM: the wait is an end
+## timestamp (wall clock), so a pen keeps taming while the game is closed. Success holds the new pet
+## in the pen (`tamed`, saved) until the survivor taps Bond (claim(), which respects the bonded cap,
+## Data.bonded_cap(), spec 09) or keeps it penned; failure lets it escape and leaves nothing to claim.
 ## Pen tiers (data/taming_pens.json): each kind takes only species up to its size and value; the
 ## animal inside is shown at its full size, so a big tame overhangs the fence.
 
@@ -21,10 +22,23 @@ var persist_building: bool = true
 var build_cell: Vector2i = Vector2i.ZERO
 var build_rot: int = 0
 var occupant: ItemStack
-var remaining: float = 0.0
+## Unix seconds (TamingPen.now()) when the wait ends; 0 = no timer.
+var end_at: float = 0.0
+## Game seconds left, read from end_at (writing it moves end_at, so feeding moves the end time).
+var remaining: float:
+	get:
+		return maxf(0.0, end_at - now()) * Game.time_scale if end_at > 0.0 else 0.0
+	set(v):
+		end_at = now() + maxf(0.0, v) / maxf(0.01, Game.time_scale)
 var running: bool = false
 var force_result: int = 0
-var _told_full := false # the roster-full notice shows once per wait, not every frame
+## PENCLAIM: the pet a successful tame made, waiting in the pen for Bond (null: nothing to claim).
+## Its uid is fixed at the roll, so a double tap or a reload can never make a second one.
+var tamed: PetRecord
+## Tests push the clock forward with this (seconds).
+static var time_skew := 0.0
+static var _now_frame := -1
+static var _now_cache := 0.0
 ## Why the last try_insert refused ("" after a start): the pen screen shows it.
 var last_refusal: String = ""
 ## Why the last feed was refused ("" when it ate or the pen was not taming): the pen screen shows it.
@@ -57,10 +71,22 @@ func to_dict() -> Dictionary:
 		"x": global_position.x,
 		"z": global_position.z,
 		"running": running,
-		"remaining": remaining,
+		"remaining": remaining, # a snapshot for older builds; end_at is the timer
+		"end_at": end_at,
 	}
 	rec["occupant"] = occupant.to_dict() if occupant else null
+	if tamed != null:
+		rec["tamed"] = tamed.to_dict()
 	return rec
+
+## Wall-clock unix seconds plus the test skew. Read once per frame, so everything a frame does
+## (feed, save, the countdown) agrees on one "now".
+static func now() -> float:
+	var f := Engine.get_process_frames()
+	if f != _now_frame:
+		_now_frame = f
+		_now_cache = Time.get_unix_time_from_system()
+	return _now_cache + time_skew
 
 static func make(p_kind: StringName = &"makeshift_taming_pen") -> TamingPen:
 	var pen := TamingPen.new()
@@ -77,10 +103,18 @@ static func from_dict(d: Dictionary) -> TamingPen:
 		pen.build_cell = Vector2i(int(cell_v[0]), int(cell_v[1]))
 	pen.build_rot = int(d.get("rot", 0))
 	pen.running = bool(d.get("running", false))
-	pen.remaining = float(d.get("remaining", 0.0))
+	# A save from before PENCLAIM has only "remaining": its wait restarts from the load.
+	if d.has("end_at"):
+		pen.end_at = float(d["end_at"])
+	elif pen.running:
+		pen.remaining = float(d.get("remaining", 0.0))
 	var occ: Variant = d.get("occupant", null)
 	if occ is Dictionary:
 		pen.occupant = ItemStack.from_dict(occ as Dictionary)
+	var t: Variant = d.get("tamed", null)
+	if t is Dictionary and pen.occupant != null:
+		pen.tamed = PetRecord.from_dict(t as Dictionary)
+		pen.running = false
 	return pen
 
 # --- tiers (data/taming_pens.json) ---
@@ -146,7 +180,7 @@ static func refuse_text(p_kind: StringName, def: CreatureDef) -> String:
 ## first one in the bag this pen can hold.
 func try_insert(player: Player, slot: int = -1) -> bool:
 	last_refusal = ""
-	if running or occupant != null:
+	if running or occupant != null or tamed != null:
 		return false  # an animal is already inside; inserting would overwrite (and lose) it
 	# Older saves can hold a tamed_animal item from the pen's old ending; a pen bonds it, then still
 	# takes a captured_animal in the same tap (a survivor can hold both).
@@ -209,9 +243,6 @@ func feed(player: Player) -> bool:
 	last_feed_refusal = ""
 	if not running or occupant == null:
 		return false
-	if remaining <= 0.0:
-		_notice_full(player) # finished and waiting for a bonded slot: food would only restart the timer
-		return false
 	if remaining <= 5.0:
 		last_feed_refusal = "Almost tamed: it does not need more food."
 		return false # food cannot shorten a wait already at the 5 s floor, so none is eaten
@@ -244,26 +275,28 @@ static func _food_names(ids: Array[StringName]) -> String:
 		names.append(item.display_name.to_lower() if item != null and item.display_name != "" else str(id).replace("_", " "))
 	return " or ".join(names)
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	_sync_occupant()
 	_sync_label()
+	if tamed != null:
+		return # tamed, waiting for Bond: nothing ticks
 	if not running or occupant == null:
 		running = false
 		return
-	remaining -= delta * Game.time_scale
 	if remaining > 0.0:
 		return
 	var player := PlayerRegistry.local()
 	if player == null:
 		return  # stays finished-but-running until a survivor is around to receive it
-	# Spec 09: a bond takes a bonded slot. At the cap the animal waits here (caged and penned animals
-	# never count) and the pen resolves on the first frame a slot is free: nothing is lost or rolled twice.
-	if player.bonded.size() >= Data.bonded_cap():
-		if not _told_full:
-			_told_full = true
-			_notice_full(player)
+	resolve(player)
+
+## The one taming roll, when the wait is over: success holds the pet in `tamed`, failure frees the
+## animal. running drops first, so a pen is never rolled twice (a loaded pen whose end time passed
+## while the game was closed resolves on its first frame). The bonded cap is checked at claim().
+## ASSUMPTION (Open Questions PC1): the roll no longer waits for a free bonded slot.
+func resolve(player: Player) -> void:
+	if not running or occupant == null or tamed != null:
 		return
-	_told_full = false
 	var species := StringName(str(occupant.attributes.get("species", "velociraptor")))
 	var def := Data.creature(species)
 	if def == null:
@@ -288,13 +321,38 @@ func _process(delta: float) -> void:
 		var nat := StringName(str(occupant.attributes.get("nature", "")))
 		rec.nature = nat if CreatureNatures.is_valid(nat) else CreatureNatures.from_uid(rec.uid, rec.species, def.archetype)
 		rec.tamer = player.display_name()
-		player.bonded.append(rec)
-		player.notice("%s bonded (grade %s, Lv. %d)." % [str(def.species), rec.grade, rec.level])
-		print("[capture] pen %s bonded grade=%s lv=%d uid=%s" % [species, rec.grade, rec.level, rec.uid])
+		tamed = rec
+		player.notice("%s tamed: open the pen to bond it." % str(def.species))
+		print("[capture] pen %s tamed grade=%s lv=%d uid=%s" % [species, rec.grade, rec.level, rec.uid])
 	else:
 		print("[capture] pen %s escaped" % species)
+		player.notice("The %s broke out of the pen and escaped." % str(def.species))
 		_spawn_wild(def)
+		occupant = null
+
+## Bond: the tamed pet joins the roster. Idempotent: the record leaves the pen in the same call, and a
+## uid already on the roster is never added twice. At the bonded cap it stays in the pen.
+func claim(player: Player) -> bool:
+	if tamed == null or player == null:
+		return false
+	for r: PetRecord in player.bonded:
+		if r.uid == tamed.uid:
+			_clear_tamed()
+			return false
+	if player.bonded.size() >= Data.bonded_cap():
+		_notice_full(player)
+		return false
+	var rec := tamed
+	_clear_tamed()
+	player.bonded.append(rec)
+	player.notice("%s bonded (grade %s, Lv. %d)." % [str(rec.species).capitalize(), rec.grade, rec.level])
+	print("[capture] pen %s bonded grade=%s lv=%d uid=%s" % [rec.species, rec.grade, rec.level, rec.uid])
+	return true
+
+func _clear_tamed() -> void:
+	tamed = null
 	occupant = null
+	end_at = 0.0
 
 func _notice_full(player: Player) -> void:
 	var species := str(occupant.attributes.get("species", "animal")).capitalize() if occupant else "Animal"
@@ -339,12 +397,14 @@ func _sync_occupant() -> void:
 				ap.play(clip)
 				break
 
-## "Taming 24m 10s" over an occupied pen, "Tamed: waiting for a pack slot" when done; hidden when empty.
+## "Taming 24m 10s" over an occupied pen, "Tamed: tap to bond" when done; hidden when empty.
 func status_text() -> String:
 	if occupant == null:
 		return ""
+	if tamed != null:
+		return "Tamed: tap to bond"
 	if remaining <= 0.0:
-		return "Tamed: waiting for a pack slot"
+		return "Taming done"
 	return "Taming %s" % FieldPlot.duration_text(ceili(remaining / maxf(0.01, Game.time_scale)))
 
 func _sync_label() -> void:
