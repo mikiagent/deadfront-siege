@@ -10,6 +10,8 @@ extends Node3D
 ## Wild deinonychus fight with TacticalBrain (circle, feint, lunge, pounce, combo); F3 prints each move.
 ## --seq=DIR saves a frame every 0.25 s for 25 s (named by the nearest creature's brain state), then quits;
 ## a lurking ambusher is stepped into its ambush radius after a second so the capture shows the fight.
+## --clipshots=DIR (with --species=X): the selector shows X picked, then that creature plays each clip of CLIPSHOTS
+## with its brain off, side-on beside the survivor, 6 frames per clip saved as DIR/<clip>_<k>.png, then the lab quits.
 
 var _player: Player
 ## The on-screen SPAWN selector (species, count 1-6, nature, Alpha; Spawn / Clear all).
@@ -17,6 +19,7 @@ var spawn_panel: LabSpawnPanel
 var _seq_dir := ""
 var _seq_t := 0.0
 var _seq_n := 0
+const CLIPSHOTS: Array[StringName] = [&"idle", &"walk", &"run", &"alert", &"attack_primary", &"attack_heavy", &"tail_swipe"]
 
 func _ready() -> void:
 	Game.lab_force_clips = true
@@ -43,6 +46,8 @@ func _ready() -> void:
 			_seq_dir = a.substr(6)
 		elif a == "--spawn-open":
 			(func() -> void: spawn_panel.get_node("SpawnPanel").visible = true).call_deferred()
+		elif a.begins_with("--clipshots="):
+			_clipshots.call_deferred(a.substr(12), StringName(only.get_slice(",", 0)))
 		elif a == "--enrage":
 			get_tree().create_timer(1.0).timeout.connect(_enrage_nearest)
 	if ride != "":
@@ -120,6 +125,47 @@ func _ride(id: StringName) -> void:
 	c.global_position = _player.global_position + Vector3(3, 0.2, 0)
 	await get_tree().create_timer(0.4).timeout
 	_player.mount(c)
+
+func _clipshots(dir: String, id: StringName) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	spawn_panel.get_node("SpawnPanel").visible = true
+	spawn_panel._pick_species(id)
+	await get_tree().create_timer(1.5).timeout
+	get_viewport().get_texture().get_image().save_png("%s/selector.png" % dir)
+	spawn_panel.get_node("SpawnPanel").visible = false
+	var c: Creature = null
+	for n in get_tree().get_nodes_in_group("creatures"):
+		if n is Creature and (n as Creature).def.id == id:
+			c = n
+	if c == null:
+		push_error("[clipshots] no %s spawned" % id)
+		get_tree().quit(1)
+		return
+	c.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	c.set_physics_process(false)
+	c.global_position = Vector3(-18, 0, -24)  # clear of the lab crates
+	c.rotation.y = -PI / 2.0  # faces +X: side-on to the camera
+	_player.global_position = c.global_position + Vector3(c.def.height_meters * 1.3, 0.1, 2.0)
+	_player.rotation.y = -PI / 2.0  # faces the snout
+	var h := c.def.height_meters
+	var cam := Camera3D.new()
+	add_child(cam)
+	cam.fov = 40.0
+	cam.global_position = c.global_position + Vector3(h * 0.4, h * 0.6, h * 4.4)
+	cam.look_at(c.global_position + Vector3(h * 0.4, h * 0.45, 0.0))
+	cam.current = true
+	for clip in CLIPSHOTS:
+		if not c.anim.has_state(clip):
+			continue
+		c.anim.play_clip(clip, true)
+		var dur: float = c.anim.player.get_animation(clip).length if c.anim.player.has_animation(clip) else 1.0
+		for k in 6:
+			await get_tree().create_timer(dur / 6.0).timeout
+			get_viewport().get_texture().get_image().save_png("%s/%s_%d.png" % [dir, clip, k])
+		c.anim.play_idle()
+		await get_tree().create_timer(0.4).timeout
+	print("[clipshots] wrote %s" % dir)
+	get_tree().quit()
 
 func _spawn(species: StringName, count: int, pos: Vector3, radius: float, pack: bool) -> void:
 	var s := Spawner.new()

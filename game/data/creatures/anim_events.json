@@ -208,14 +208,20 @@
     },
     "tyrannosaurus": {
       "height_m": 8.0,
-      "run_l": 0.442,
-      "run_len": 0.9,
-      "run_r": 0.401,
-      "walk_l": 2.05,
-      "walk_len": 1.6,
-      "walk_r": 2.05,
-      "walk": 2.05,
-      "run": 0.421
+      "run_l": 4.581,
+      "run_len": 0.917,
+      "run_r": 4.578,
+      "walk_l": 1.552,
+      "walk_len": 1.417,
+      "walk_r": 1.552,
+      "walk": 1.552,
+      "run": 4.58,
+      "strafe_left": 1.552,
+      "strafe_left_len": 1.417,
+      "strafe_right": 1.552,
+      "strafe_right_len": 1.417,
+      "walk_back": 1.552,
+      "walk_back_len": 1.417
     },
     "utahraptor": {
       "height_m": 4.0,
