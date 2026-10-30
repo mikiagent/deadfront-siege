@@ -499,6 +499,7 @@
     },
     {
       "id": "hide_strap",
+      "requires_tool": {"class": "knife", "min_tier": "stone"},
       "display_name": "Hide Strap",
       "skill": "processing",
       "max_level": 60,
@@ -542,6 +543,7 @@
     },
     {
       "id": "plank",
+      "requires_tool": {"class": "axe", "min_tier": "stone"},
       "display_name": "Plank",
       "skill": "processing",
       "max_level": 60,
@@ -1686,7 +1688,7 @@
       "process_step": "till",
       "process_add": 0,
       "tree": "farming",
-      "requires_tool": "hoe"
+      "requires_tool": {"class": "hoe", "min_tier": "stone"}
     },
     {
       "id": "field_large",
@@ -1709,7 +1711,7 @@
       "process_step": "till",
       "process_add": 0,
       "tree": "farming",
-      "requires_tool": "hoe"
+      "requires_tool": {"class": "hoe", "min_tier": "stone"}
     },
     {
       "id": "empty_bucket",
@@ -4614,6 +4616,7 @@
     },
     {
       "id": "pillar",
+      "requires_tool": {"class": "axe", "min_tier": "stone"},
       "display_name": "Pillar",
       "skill": "construction",
       "max_level": 60,
@@ -5079,6 +5082,7 @@
     },
     {
       "id": "plank_shape",
+      "requires_tool": {"class": "axe", "min_tier": "stone"},
       "display_name": "Plank Shape",
       "skill": "construction",
       "tree": "construction",
@@ -5101,6 +5105,7 @@
     },
     {
       "id": "pillar_shape",
+      "requires_tool": {"class": "axe", "min_tier": "stone"},
       "display_name": "Pillar Shape",
       "skill": "construction",
       "tree": "construction",
@@ -5168,6 +5173,7 @@
     },
     {
       "id": "trimmed_plank",
+      "requires_tool": {"class": "axe", "min_tier": "stone"},
       "display_name": "Trimmed Plank",
       "skill": "processing",
       "tree": "processing",
@@ -5195,6 +5201,7 @@
     },
     {
       "id": "fine_plank",
+      "requires_tool": {"class": "axe", "min_tier": "flint"},
       "display_name": "Fine Plank",
       "skill": "processing",
       "tree": "processing",

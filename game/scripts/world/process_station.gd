@@ -141,6 +141,8 @@ func refuse_reason(inv: Inventory, rid: StringName, player: Player = null, picks
 		return "The %s is full." % str(station_id).replace("_", " ")
 	if player and Crafting.progression_block(player, rec) != "":
 		return Crafting.progression_block(player, rec)
+	if Crafting.tool_block(inv, rec) != "":
+		return Crafting.tool_block(inv, rec)  # RECIPETOOLS: the loading bag holds the tool
 	var use := picks if not picks.is_empty() else Crafting.default_picks(inv, rec)
 	if not Crafting.picks_valid(inv, rec, use):
 		var missing := Crafting.missing_ingredient_name(inv, rec)
@@ -170,6 +172,7 @@ func load_from(inv: Inventory, rid: StringName, count: int = 1, player: Player =
 		use = []
 		if inputs.is_empty():
 			break
+		Crafting.wear_recipe_tool(inv, rec)  # one run, one point of wear, paid when the job is loaded
 		jobs.append({
 			"recipe": str(rid),
 			"inputs": inputs,

@@ -416,6 +416,10 @@ func rebuild() -> void:
 	_success.text = "%d%%" % int(round(rate * 100.0))
 	_cta.text = "Craft" if all_placed() else "Place material"
 	_cta.disabled = not all_placed() and focus_idx < 0
+	var tool := Crafting.tool_block(inv, rec)
+	if tool != "" and all_placed():
+		_cta.text = tool  # RECIPETOOLS: the gate reads on the button, like a station gate
+		_cta.disabled = true
 	_cta.add_theme_font_size_override("font_size", 20 if compact else 30)
 	_cta.custom_minimum_size = Vector2(0, 64 if compact else 72)
 	_sync_assign(compact)
@@ -818,6 +822,14 @@ func _fill_result(compact: bool) -> void:
 	if out and out.max_durability > 0:
 		var dur := CraftUI._label("Durability %d / %d" % [out.durability, out.max_durability], 13 if compact else 20, UiTokens.TEXT)
 		_result.add_child(_pad(dur, 14, 4))
+	var need := Crafting.tool_need(rec)
+	if not need.is_empty():
+		var t := Crafting.recipe_tool(inv, rec)
+		var tl := CraftUI._label(Crafting.tool_block(inv, rec) if t == null else "Uses %s (1 durability)" % t.def().display_name, 13 if compact else 18, UiTokens.DANGER if t == null else UiTokens.MUTED)
+		tl.name = "ResultTool"
+		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_result.add_child(_pad(tl, 14, 2))
 	var chips := trait_chips(out, compact) if out else HFlowContainer.new()
 	chips.name = "ResultTraits"
 	_result.add_child(_pad(chips, 14, 6))

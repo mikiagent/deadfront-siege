@@ -43,6 +43,9 @@
     "tint": {
       "type": "color"
     },
+    "trait_stats": {
+      "type": "bool"
+    },
     "material_tier": {
       "type": "enum",
       "values": [

@@ -538,9 +538,11 @@ func _block_reason(rec: Dictionary, info: Dictionary = {}) -> String:
 	var sid := Crafting.station_id(rec)
 	if info.is_empty():
 		info = _station_info(sid)
+	# RECIPETOOLS: a tool gate names the tool ("Needs work axe (flint)") like the station gates below.
+	var tool := Crafting.tool_block(player.inventory, rec)
 	var blocked := Crafting.progression_block(player, rec)
 	if blocked != "":
-		return "Locked"
+		return tool if blocked == tool else "Locked"
 	# Spec 30 §10-11: a station's tags and its level gate the recipe, and the row says which.
 	if sid != "":
 		var st: Variant = info.get("node", null)

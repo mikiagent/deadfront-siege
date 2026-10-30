@@ -422,6 +422,7 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 		var od := out.def()
 		if od and (od.has_category(&"tool") or od.damage > 0.0 or od.armor_value > 0.0):
 			out.attributes["material_tier"] = str(ProgressionScaling.material_tier(primary.def_id, primary.attributes))
+			out.attributes[ItemStack.TRAIT_STAMP] = true  # TRAITGEAR: new crafts read their traits
 		# Poison persists through cooking (PRD §9.3 MAY keep).
 		if &"poisoned" in primary.flags:
 			out.set_flag(&"poisoned", true)
@@ -510,6 +511,53 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
 	var n := nearest_station(player, StringName(sid))
 	return n != null and player.global_position.distance_to(n.global_position) <= STATION_RANGE
 
+## RECIPETOOLS (docs/design/tools-durability-crafting.md §3.4): a recipe's `requires_tool`, as
+## {"class", "min_tier", "min_level"}; {} when it needs none. The old string form ("hoe") is that class at
+## any tier. # ASSUMPTION: tier is the material ladder (stone..steel), the same one the pick gates use.
+static func tool_need(rec: Dictionary) -> Dictionary:
+	var v: Variant = rec.get("requires_tool", null)
+	if v is String and v != "":
+		return {"class": v, "min_tier": "stone", "min_level": 0}
+	if v is Dictionary and str((v as Dictionary).get("class", "")) != "":
+		return {"class": str(v["class"]), "min_tier": str((v as Dictionary).get("min_tier", "stone")),
+			"min_level": int((v as Dictionary).get("min_level", 0))}
+	return {}
+
+## The work tool a craft uses: the bag's best unbroken WORK tool of the class at or above the tier
+## (Inventory._best_tool's order: highest gather power), never a combat weapon and never the worn weapon
+## slot (a Stone Dagger never satisfies "needs a knife"). Null when the recipe needs none or none qualifies.
+static func recipe_tool(inv: Inventory, rec: Dictionary) -> ItemStack:
+	var need := tool_need(rec)
+	if need.is_empty() or inv == null:
+		return null
+	var best: ItemStack = null
+	for s in inv.slots:
+		if s == null or s.is_broken() or s.def() == null or not s.def().is_work_tool or str(s.def().tool_class) != str(need["class"]):
+			continue
+		if ProgressionScaling.tier_index(s.material_tier()) < ProgressionScaling.tier_index(StringName(str(need["min_tier"]))) or s.level < int(need["min_level"]):
+			continue
+		if best == null or s.gather_power() > best.gather_power():
+			best = s
+	return best
+
+## "" when the bag holds the recipe's tool, else the row's reason: "Needs work axe (flint)".
+static func tool_block(inv: Inventory, rec: Dictionary) -> String:
+	var need := tool_need(rec)
+	if need.is_empty() or recipe_tool(inv, rec) != null:
+		return ""
+	var lv := " Lv %d" % int(need["min_level"]) if int(need["min_level"]) > 0 else ""
+	var tool := str(need["class"]) if str(need["class"]) == "hoe" else "work " + str(need["class"])
+	return "Needs %s (%s%s)" % [tool, need["min_tier"], lv]
+
+## One craft run's wear on its tool: 1 durability, success or failure (§3.4). # ASSUMPTION: 1 per run.
+static func wear_recipe_tool(inv: Inventory, rec: Dictionary) -> void:
+	var t := recipe_tool(inv, rec)
+	if t == null:
+		return
+	if not t.wear(1):
+		print("[item] %s broke" % t.def_id)
+	inv.changed.emit()
+
 ## Optional endgame gates. Existing recipes are unchanged.
 static func progression_block(player: Player, rec: Dictionary) -> String:
 	# W2-SKILLS: a recipe a skill node gates (a node's recipe effect or the recipe's requires_node)
@@ -529,6 +577,8 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
 		var levels := consumed_levels(player.inventory, rec, default_picks(player.inventory, rec))
 		if levels.is_empty() or crafted_level_for(rec, levels, player) < minimum:
 			return "needs materials and crafting skill for level %d" % minimum
+	if player != null:
+		return tool_block(player.inventory, rec)
 	return ""
 
 static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
@@ -789,14 +839,22 @@ static func plan_fits(inv: Inventory, rec: Dictionary, plan: Dictionary) -> bool
 ##   "failed"  spec 25 §8: the picked instances are gone and nothing was made,
 ##   "full"    no room; nothing consumed, the plan is still good,
 ##   "left"    a planned instance is no longer in the bag; nothing consumed, no substitution.
-static func run_plan(rec: Dictionary, inv: Inventory, plan: Dictionary, overflow: Array[ItemStack] = []) -> Dictionary:
+static func run_plan(rec: Dictionary, inv: Inventory, plan: Dictionary, overflow: Array[ItemStack] = [], tools: Inventory = null) -> Dictionary:
 	if rec.is_empty() or inv == null or plan.is_empty():
 		return {"status": "left", "item": null}
 	var parts := plan_parts(inv, rec, plan)
 	if parts.is_empty():
 		return {"status": "left", "item": null}
+	# RECIPETOOLS: the tool comes from `tools` (a tribe member's hands) or the crafting bag; every
+	# path (survivor, server intent, tribe order) refuses here without it and wears it once per run.
+	if tools == null:
+		tools = inv
+	if tool_block(tools, rec) != "":
+		print("[craft] refused %s: %s" % [rec.get("id", ""), tool_block(tools, rec)])
+		return {"status": "tool", "item": null, "why": tool_block(tools, rec)}
 	var outcome: Dictionary = plan.get("outcome", {})
 	if not bool(outcome.get("success", true)):
+		wear_recipe_tool(tools, rec)
 		var lost := consume_parts(inv, rec, parts)
 		var names: PackedStringArray = []
 		for s in lost:
@@ -811,6 +869,7 @@ static func run_plan(rec: Dictionary, inv: Inventory, plan: Dictionary, overflow
 	var consumed := consume_parts(inv, rec, parts)
 	if consumed.is_empty():
 		return {"status": "left", "item": null}
+	wear_recipe_tool(tools, rec)
 	var out := build_output(rec, consumed[0], int(plan.get("level", 1)), consumed, bool(plan.get("burnt", false)), got)
 	apply_outcome(out, rec, outcome)
 	if not out.is_fungible() and out.uid == "":  # in-place output keeps its instance identity
@@ -841,6 +900,10 @@ static func report_plan(player: Player, rec: Dictionary, res: Dictionary) -> voi
 		"left":
 			if player:
 				player.notice("Craft stopped: its materials left the bag.")
+			return
+		"tool":
+			if player:
+				player.notice("Craft stopped: %s." % str(res.get("why", "")).to_lower())
 			return
 	if str(res.get("status", "")) != "made":
 		return

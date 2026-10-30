@@ -353,7 +353,7 @@ func can_gather(inv: Inventory) -> String:
 		# shortcut: primes gather_seconds because player.gd (protected) reads the field; move to PlayerActions (W2-PLAYER).
 		var pick := best_pick(inv)
 		if pick:
-			gather_seconds = _base_seconds / ProgressionScaling.tool_power(pick.level, pick.material_tier())
+			gather_seconds = _base_seconds / pick.gather_power()  # level, tier and TRAITGEAR elasticity
 	return ""
 
 ## ONEGATHER (owner 2026-10-28, "cap it to 1 per harvest"): a pass is always ONE instance. yield_min/max

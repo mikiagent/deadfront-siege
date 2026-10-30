@@ -278,6 +278,8 @@ static func rows_for(stack: ItemStack) -> Array[Dictionary]:
 	var armor := stack.scaled_armor()
 	if armor > 0.0:
 		out.append({"text": "Armour %.0f" % armor, "cls": ""})
+	for line in trait_effect_lines(stack):
+		out.append({"text": line, "cls": ""})
 	if BagCapacity.is_bag(stack.def_id):
 		out.append({"text": "Storage +%d slots" % int(BagCapacity.of_stack(stack).get("total", 0)), "cls": ""})
 	if Food.is_food(stack):
@@ -294,6 +296,22 @@ static func rows_for(stack: ItemStack) -> Array[Dictionary]:
 		out.append({"text": "Locked", "cls": ""})
 	if stack.is_unstable():
 		out.append({"text": "Unstable", "cls": "warn"})
+	return out
+
+## TRAITGEAR: "+9 % durability (High Density 3)", one line per stat its traits move.
+static func trait_effect_lines(stack: ItemStack) -> Array[String]:
+	var out: Array[String] = []
+	var eff := stack.trait_effects()
+	for stat: String in ["durability", "damage", "armor", "gather_power"]:
+		if not eff.has(stat):
+			continue
+		var e: Dictionary = eff[stat]
+		var names: PackedStringArray = []
+		for f: Array in e["from"]:
+			var row: Variant = (InvAttributes.data().get("attribute_classes", {}) as Dictionary).get(str(f[0]))
+			names.append("%s %d" % [str((row as Dictionary).get("label", str(f[0]).capitalize())) if row is Dictionary else str(f[0]).capitalize(), int(f[1])])
+		var pct := roundi(float(e["pct"]) * 100.0)
+		out.append("%s%d %% %s (%s%s)" % ["+" if pct >= 0 else "", pct, stat.replace("_", " ").replace("armor", "armour"), ", ".join(names), ", capped" if bool(e["capped"]) else ""])
 	return out
 
 ## The first category as a word ("Bone", "Food"), the kind line under the level.

@@ -336,3 +336,6 @@ canon). Nothing is built yet; each default below ships with its package unless t
 | **TD10** | Gear trait effects per level: high_density +3 % max durability (low_density -3 %), firm +2 % damage (soft -2 %), tough_fiber +2 % armor (soft_fiber -2 %), high_elasticity +2 % gather power; the sum per stat clamps at +-15 %; only gear crafted after P4 gets them. | P4, `rules.json crafting.gear_traits` | Trait-hunting payoff; existing gear is not recalculated. |
 | **TD11** | No hard minimum tool level per resource level (the research's 35+ needs 25+, 55+ needs 45+); the per-material pick tier gates stay, and TD1 makes an under-levelled tool cost more. | `ProgressionScaling` "no hard gates" | A level-1 tool can still gather on a level-50 island, slowly and expensively. |
 | **TD12** | With no combat weapon carried, a work axe fights (0.45x damage) and wears 1 per landed hit like any weapon. KNIFESPLIT's guarantee covers the Work Knife only. | `Inventory.equipped_weapon`, `Hunt.wear_weapon` | Whether a work tool should ever take combat wear. |
+
+Build status: TD4, TD5 (P2 RECIPETOOLS) and TD10 (P4 TRAITGEAR) are built with these defaults on branch
+`claude/mmo-recipetools`, not merged yet (report `docs/orchestration/reports/claude-recipetools.md`).
