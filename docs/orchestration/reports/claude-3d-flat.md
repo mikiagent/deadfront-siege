@@ -22,5 +22,14 @@ Shots (Mac, ab3d_lab `--only=rocks`): `3d-flat/ab3d_relief_jungle_rocks.png`, `a
 ## Before flipping the default (needs the owner)
 Flat land removes the plateaus, mesas, cliffs and the waterfall the heightmap made. Package 5
 (claude/mmo-3d-rocks) brings mountains and cliffs back as meshes; flipping the default before that leaves
-islands without landmarks of height. Not yet checked under "flat": t_islandgen's cliff/mesa/waterfall
-assertions, t_landmarks, t_tutorial and the unstable isles; those are this package's step 2.
+islands without landmarks of height.
+
+## Step 2: the island tests with `-- --flat` forced
+- t_unstable_isles, t_props2d: PASS.
+- t_islandgen: 41 failures, all expected: 40 "mesa / ridge / mountain / volcano rises from dry ground (top 1.0,
+  foot 1.0)" (that relief is what flat removes) and "home_grassland has cliff faces". These checks move to
+  package 5, which places those landmarks as meshes and asserts the meshes instead of the heights.
+- t_landmarks: 1 failure, temperate_20 seed 3 has no landmark within 140 m of the landing (a mesa that
+  stood there no longer counts as one). Same owner: package 5.
+- Not run under flat: t_tutorial (long bot run).
+So nothing outside the relief itself breaks; the default can flip once package 5 lands.
