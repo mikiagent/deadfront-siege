@@ -22,10 +22,12 @@
       "gold": 20
     },
     "tries_per_site": 900,
+  "spacing_floor_share": 0.6,
     "node_fit_share": 0.7,
     "_spacing_note": "# ASSUMPTION: 45 m between landmark centres on expedition islands, 30 m on the home island (doc section 3.3).",
     "_landing_note": "# ASSUMPTION: no landmark centre inside the 60 m camp clearing or 36 m of the landing point (the doc keeps the dock area calm; 25 m is the landing ring, +11 m for the node group).",
-    "_near_note": "One site per island is clamped into [landing_clear_m + 6, near_landing_m] when its ring band allows it, so the first find is within ~30 s of running from camp (doc section 3.3).",
+    "_floor_note": "# ASSUMPTION: when a small island cannot hold the budget's minimum at the doc's spacing, the fill round packs sites at 0.6 x that spacing (27 m unstable, 18 m home) instead of shipping half the budget. Each find stays a separate destination; the doc's 45 m still applies to every drawn site.",
+  "_near_note": "One site per island is clamped into [landing_clear_m + 6, near_landing_m] when its ring band allows it, so the first find is within ~30 s of running from camp (doc section 3.3).",
     "_budgets_note": "Per kind: the doc's section 5.1 table, by tier band. An island row may override with its own landmark_budget [min, max]."
   },
   "budgets": {
