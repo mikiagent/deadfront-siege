@@ -56,6 +56,7 @@ func _run() -> void:
 	await _test_badge()
 	await _test_interact()
 	await _test_attack_and_sprint()
+	await _test_idle_redraw()
 	await _test_layout()
 	if _fails.is_empty():
 		print("[t_fieldhud] PASS")
@@ -298,6 +299,41 @@ func _test_attack_and_sprint() -> void:
 	_expect(_player.sprint_toggled and sprint.selected, "SPRINT taps on")
 	sprint.pressed.emit()
 	_expect(not _player.sprint_toggled and not sprint.selected, "SPRINT taps off")
+	await _frames(2)
+
+# ---------------------------------------------------------------- HUDREDRAW
+
+## HUDREDRAW: with nothing changing the HUD stops repainting (it used to paint every frame, ~1.3-1.7 ms
+## of a desktop frame). A change that is drawn still repaints it on the next frame.
+func _test_idle_redraw() -> void:
+	_player.vitals.fatigue = 0.0
+	_player.vitals.health = _player.vitals.effective_max_health()
+	_hud._levelups.clear()
+	_hud.top_feed.clear()
+	var ev = _hud.get("_events")
+	ev.notices.clear()
+	ev.toasts.clear()
+	ev.skill_toasts.clear()
+	ev.bites.clear()
+	ev.player_floats.clear()
+	if _player.statuses:
+		_player.statuses.clear_all()
+	await create_timer(4.0).timeout  # the belt's drift EMA and the ghost fills settle
+	await _frames(4)
+	var d0: int = int(_hud.draw_count)
+	var m0: int = int(_hud.map_draw_count)
+	await _frames(60)
+	var draws: int = int(_hud.draw_count) - d0
+	var map_draws: int = int(_hud.map_draw_count) - m0
+	print("[t_fieldhud] idle 60 frames: HUD draws %d, minimap draws %d" % [draws, map_draws])
+	_expect(draws <= 6, "with nothing changing for 60 frames the HUD paints at most a 1 Hz catch-up (%d)" % draws)
+	_expect(map_draws <= 2, "the minimap stands still too (%d draws over 60 frames)" % map_draws)
+	# A change it draws still reaches the screen at once.
+	var before: int = int(_hud.draw_count)
+	_player.vitals.health = maxf(1.0, _player.vitals.health - 10.0)
+	await _frames(2)
+	_expect(int(_hud.draw_count) > before, "a health change still repaints the HUD")
+	_player.vitals.health = _player.vitals.effective_max_health()
 	await _frames(2)
 
 # ---------------------------------------------------------------- layout

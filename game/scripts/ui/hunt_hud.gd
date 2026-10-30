@@ -227,6 +227,7 @@ var _sig_ready := false
 ## Seconds since the last paint: the belt's drift and the pill timers only need whole-pixel / whole-
 ## second resolution, so an idle HUD answers 0 redraws a second.
 var _since_draw := 0.0
+var _debug_sig := "--hudredraw-debug" in OS.get_cmdline_user_args()
 
 func _watch_skills() -> void:
 	if player == null or player.skills == null:
@@ -1591,10 +1592,9 @@ func _process(delta: float) -> void:
 ## HUDREDRAW: the field HUD used to call queue_redraw() on itself and the minimap every frame
 ## (~1.3-1.7 ms of a desktop frame, claude-tutperf). It now paints only when what it paints changed:
 ## `_hud_sig()` is every value `_draw` reads, quantized to what can be seen (whole metres, whole
-## seconds, 0.1 px), and `_animating()` is true while a piece that moves by itself is on screen. The
-## prices: a change that is not in the signature waits for the next animating frame or the 1 Hz
-## catch-all; the day/night dial and the hexes keep their own redraw logic.
-const REDRAW_CATCHUP_S := 1.0
+## seconds, 0.1 px), and `_animating()` is true while a piece that moves by itself is on screen. A new
+## input of `_draw` must be added to the signature, or it waits for the next animating frame. The
+## day/night dial and the hexes keep their own redraw logic.
 
 func _q10(v: float) -> int:
 	return int(round(v * 10.0))
@@ -1663,7 +1663,8 @@ func _hud_sig() -> Array:
 	var near: Array = []
 	for n in get_tree().get_nodes_in_group("harvest"):
 		if n is Node3D and player.global_position.distance_to((n as Node3D).global_position) <= 9.0:
-			near.append(n.get_instance_id())
+			# A picked-clean node's pill shows its regrow timer: whole seconds, so it steps once a second.
+			near.append([n.get_instance_id(), int(ceil((n as HarvestNode).regen_left())) if n is HarvestNode else 0])
 	out.append(near)
 	out.append(player.velocity.length() > 0.5)
 	out.append(_fatigue_panel != null and _fatigue_panel.visible)
@@ -1695,36 +1696,20 @@ func _animating() -> bool:
 		return true
 	return false
 
-## True while a number the HUD shows only changes once a second or so and is not in the signature of
-## its own (a buff countdown's whole seconds, a node's regrow timer, the sinking island's minutes):
-## those are the pieces the 1 Hz catch-up repaint exists for. With none on screen an idle HUD can stand
-## still for as long as nothing changes.
-func _slow_tick_needed() -> bool:
-	for e in HudBuffRow.entries(player):
-		if float(e["time_left"]) < 3600.0:
-			return true
-	if player.sim and not player.sim.rest.hud_lines().is_empty():
-		return true
-	if not World.is_home() and not World.is_tutorial():
-		return true  # "Survivable N min"
-	for n in get_tree().get_nodes_in_group("harvest"):
-		if n is HarvestNode and player.global_position.distance_to((n as Node3D).global_position) <= 8.0:
-			return true
-	return false
-
 func _tick_redraw(delta: float) -> void:
 	_tick_trails(delta)
 	_tick_map_redraw(delta)
 	_since_draw += delta
 	var sig := _hud_sig()
-	var slow := _slow_tick_needed() and _since_draw >= REDRAW_CATCHUP_S
-	if not _sig_ready or sig != _sig or _animating() or slow:
+	if _debug_sig and _sig_ready and sig != _sig:
+		print("[hudredraw] sig %s" % _sig_diff(_sig, sig))
+	if not _sig_ready or sig != _sig or _animating():
 		_sig = sig
 		_sig_ready = true
 		_since_draw = 0.0
 		queue_redraw()
 
-## Which signature slots differ (debug: --hudredraw-debug).
+## Which signature slots differ (`-- --hudredraw-debug` prints it; a help for the next HUD change).
 func _sig_diff(a: Array, b: Array) -> String:
 	var out: Array = []
 	for i in maxi(a.size(), b.size()):
