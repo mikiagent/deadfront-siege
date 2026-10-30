@@ -19,7 +19,7 @@ const BASELINE := {
 		"ranged": ["throw", "barrage", "bow_1", "draw_1", "barrage_damage_1", "kiting", "fire_rate_1", "barrage_damage_2", "crossbow", "barrage_damage_3", "draw_2", "volley", "raid_arrows"],
 		"defense": ["roll", "max_health_1", "roll_duration_1", "parry", "counter", "roll_duration_2", "max_health_2", "anti_knockdown", "roll_duration_3", "recovery", "iron_body", "max_health_3"],
 		"weapon_tools": ["improvised_tools", "makeshift_shovel_hoe", "work_pick", "spear", "stone_saw", "combat_knife", "splint", "hammer", "handle", "stone_mortar", "standard_bow", "two_hand", "bone_saw", "copper_tools", "cooking_utensils", "blade_shapes", "improved_handle", "earthenware_mortar", "metal_saw", "iron_weapons", "shaft", "metal_mortar"],
-		"tailoring": ["leaf_outfit", "footwraps", "leaf_hat", "bandage", "small_bag", "straw_shoes", "cloth_clothes", "heat_resist", "cold_resist", "pressure_dressing", "leather_sandals", "large_bag", "armor_1", "scute_armor", "master_bag"],
+		"tailoring": ["leaf_outfit", "footwraps", "leaf_hat", "bandage", "small_bag", "straw_shoes", "cloth_clothes", "heat_resist", "cold_resist", "pressure_dressing", "leather_sandals", "large_bag", "armor_1", "spiky_armor", "scute_armor", "master_bag"],
 		"construction": ["bonfire", "workbench", "fence", "taming_pen", "drying_rack", "storage_2", "simple_well", "residence", "furnace_kiln", "well", "barn", "clan_structures"],
 		"cooking": ["skewer", "meatball", "stone_grill", "antivenom", "steam", "antibiotic", "buff_food", "sashimi", "boiling", "roast", "pet_food"],
 		"farming": ["small_field", "corn", "apple_tree", "flax", "fertilizer", "large_field", "orchard", "advanced_fertilizer", "ranching", "sprinkler"],
@@ -108,7 +108,7 @@ func _test_impl_marks() -> void:
 		print("[t_skilltrees] %-16s %5d %10d %8d %7d" % [tree, nodes.size(), c.functional, c.partial, c.defined])
 	var total: int = counts.functional + counts.partial + counts.defined
 	print("[t_skilltrees] %-16s %5d %10d %8d %7d" % ["TOTAL", total, counts.functional, counts.partial, counts.defined])
-	_expect(total == 213, "the 213 existing nodes all carry impl (got %d)" % total)
+	_expect(total == 214, "the 214 existing nodes (213 + SLOWLEVELS spiky_armor) all carry impl (got %d)" % total)
 	_expect(counts.functional >= 30, "at least 30 nodes are functional today (got %d)" % counts.functional)
 	_expect(counts.defined <= 160, "at most 160 nodes stay defined (got %d)" % counts.defined)
 	_sections += 1

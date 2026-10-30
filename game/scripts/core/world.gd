@@ -256,6 +256,7 @@ func start_new(host: Node) -> void:
 	raid_victory = false
 	objective = 0
 	objective_best = 0
+	Tasks.reset()
 	tutorial = {"done": true, "did": {}}
 	# Character creation first (M10), then the home island with the terrain pick.
 	var cc := CharacterCreation.new()
@@ -325,6 +326,8 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 	_ensure_map_fog(ir, camp_at if camp_at is Vector3 and (camp_at as Vector3) != Vector3.ZERO else (player.global_position if player else at))
 	print("[world] island %s nodes=%d creatures=%d terrain=%s" % [
 		id, int(ir.harvest_count), int(ir.creature_count), terrain])
+	if int(island_def.get("tier", 0)) >= 30:
+		Tasks.note(&"explore30")  # TASKSCREEN: weekly Explore Level-30 Islands (DW-T0125)
 	island_changed.emit(id)
 	if show_terrain and is_home() and home_terrain == &"":
 		(load("res://scripts/ui/world_ui.gd") as GDScript).instance_on(host).show_terrain()
@@ -452,6 +455,8 @@ func cargo_warp(player: Player) -> void:
 	print("[world] cargo warp %d stacks fee=%d" % [moved, CARGO_FEE])
 
 func note_craft(recipe_id: StringName) -> void:
+	Tasks.note(&"craft")  # TASKSCREEN: every craft counts toward the craft tasks, and per recipe
+	Tasks.note(StringName("craft:" + str(recipe_id)))
 	if pioneer_crafts.has(str(recipe_id)):
 		return
 	pioneer_crafts[str(recipe_id)] = true
@@ -491,6 +496,7 @@ func note_building(kind: StringName, at: Vector3 = Vector3.ZERO, player: Player 
 	# The first-of-kind memory and the spam rule are the Tamed Island's (is_home), as before: an
 	# unstable island is a visit, so every build there pays the repeat award (the old flat 8) and no
 	# kind is remembered.
+	Tasks.note(&"build")  # TASKSCREEN: daily Construct a Building (DW-T0123)
 	Tutorial.note("build")
 	var total := maxi(0, extra_xp)
 	if is_home():
@@ -723,7 +729,8 @@ func domain_for_current() -> Dictionary:
 ## One player level. Every skill-tree XP grant (gathering, fighting, crafting, cooking, building,
 ## farming...) also lands here (SkillState.add_xp), so the bottom bar moves with everything.
 ## Owner 2026-10-28: each level costs exponentially more. Stored level n needs
-## round(base x growth^n) XP (pioneer_levels.json xp_curve; ASSUMPTION base 110, growth 1.12).
+## round(base x growth^n x player_xp_cost_mult) XP (pioneer_levels.json xp_curve; ASSUMPTION base 110,
+## growth 1.12; progression.json knob, owner 2026-10-28 "levels up slower").
 static var _xp_curve: Dictionary = {}
 
 static func xp_curve() -> Dictionary:
@@ -735,7 +742,7 @@ static func xp_curve() -> Dictionary:
 
 static func xp_for_level(level: int) -> int:
 	var c := xp_curve()
-	return maxi(1, roundi(float(c["base"]) * pow(float(c["growth"]), maxi(0, level))))
+	return maxi(1, roundi(float(c["base"]) * pow(float(c["growth"]), maxi(0, level)) * Progression.mult("player_xp_cost_mult")))
 
 ## The pre-2026-10-28 linear curve, only to read an old save's total XP.
 static func old_xp_for_level(level: int) -> int:

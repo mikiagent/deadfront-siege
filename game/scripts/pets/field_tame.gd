@@ -17,21 +17,41 @@ const FREE_CAPTURE_TIER := 1
 static func health_allows_capture(fraction: float) -> bool:
 	return fraction <= CAPTURE_HEALTH_FRAC
 
-## Spec 09 §1: stunned/collapsed (the existing `knockdown` status) at ANY HP, OR HP <= 30 %.
-## The one capture rule; feeding, the net, the hunt UI and the server all come through here.
-static func window_open(hp: float, hp_max: float, stunned: bool) -> bool:
+## FOODTORPOR (owner 2026-10-29): "they need to be weak and they have a torpor bar ... once it reaches
+## a torpor threshold it can be knocked out". Weak is spec 09's rule (stunned at any HP, or HP <= 30 %);
+## knocked out = weak AND torpor at or past the threshold. Only a knocked-out animal can be netted or fed.
+## `torpor_frac` is torpor / torpor max (Creature.torpor_frac()).
+static func weak(hp: float, hp_max: float, stunned: bool) -> bool:
 	if hp <= 0.0:
 		return false
 	return stunned or hp / maxf(1.0, hp_max) <= CAPTURE_HEALTH_FRAC
 
-## Not dead, tameable, not already a pet, and inside the window (stunned at any HP, or <= 30 %).
+static func torpor_ko_frac() -> float:
+	return CombatTuning.num("torpor", "ko_frac", 0.6)
+
+static func window_open(hp: float, hp_max: float, stunned: bool, torpor_frac: float = 0.0) -> bool:
+	return weak(hp, hp_max, stunned) and torpor_frac + 0.0001 >= torpor_ko_frac()
+
+## Not dead, tameable, not already a pet, and knocked out (weak + torpor past the threshold).
 static func capture_window(creature: Creature) -> bool:
 	if creature == null or creature.def == null or creature.health == null:
 		return false
 	if creature.health.dead or not creature.def.tameable or creature.is_pet:
 		return false
-	var stunned := creature.statuses != null and creature.statuses.has(&"knockdown")
-	return window_open(creature.health.hp, creature.health.max_hp, stunned)
+	return window_open(creature.health.hp, creature.health.max_hp, _stunned(creature), creature.torpor_frac())
+
+## Weak by spec 09, ignoring torpor: the HUD uses it to say which half is still missing.
+static func is_weak(creature: Creature) -> bool:
+	return creature != null and creature.health != null and weak(creature.health.hp, creature.health.max_hp, _stunned(creature))
+
+static func _stunned(creature: Creature) -> bool:
+	return creature.statuses != null and creature.statuses.has(&"knockdown")
+
+## What the survivor still has to do before the net can go (empty when it can).
+static func refusal(creature: Creature) -> String:
+	if creature != null and not is_weak(creature):
+		return "Weaken it to %d%% health, then sedate it to capture it." % int(round(CAPTURE_HEALTH_FRAC * 100.0))
+	return "Sedate it: torpor must pass %d%% to knock it out." % int(round(torpor_ko_frac() * 100.0))
 
 static func can_attempt(creature: Creature) -> bool:
 	if creature == null or creature.def == null or creature.health == null:

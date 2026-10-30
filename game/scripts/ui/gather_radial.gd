@@ -109,7 +109,7 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		b.bottom_text = str(int(o["left"])) if o.has("left") else ""  # units left on this yield
 		var tool := StringName(str(o.get("tool", "none")))
 		var blocked := tool != &"none" and tool != &"" and inv != null and not inv.has_tool_class(tool)
-		var reason := ("needs %s" % tool) if blocked else str(o.get("blocked_reason", ""))
+		var reason := inv.tool_block_reason(tool) if blocked else str(o.get("blocked_reason", ""))
 		blocked = blocked or reason != ""
 		b.disabled = blocked
 		_set_badge(b, blocked, bool(o.get("rare", false)))
@@ -238,7 +238,7 @@ func refresh() -> void:
 		var reason := str(o.get("blocked_reason", ""))
 		var tool := StringName(str(o.get("tool", "none")))
 		if reason == "" and tool != &"none" and tool != &"" and _inventory != null and not _inventory.has_tool_class(tool):
-			reason = "needs %s" % tool
+			reason = _inventory.tool_block_reason(tool)
 		b.disabled = reason != ""
 		_set_badge(b, reason != "", bool(o.get("rare", false)))
 		b.queue_redraw()

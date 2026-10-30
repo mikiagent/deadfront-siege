@@ -37,6 +37,12 @@ var occupation: String = ""
 var config: Dictionary = {}  # trees.json minus the trees (bonded_base, category_cap, refund, reference)
 var refund_day: int = -1     # UTC day refunds_today counts (optional save fields, no rev bump)
 var refunds_today: int = 0
+## The one running skill research (owner 2026-10-28): {tree, from (the level it leaves), end (unix s)}.
+## Empty when none runs. Saved as-is; the end is absolute, so it keeps running while the game is closed.
+var research: Dictionary = {}
+## Tests set a fake clock (unix seconds); < 0 = the system clock.
+static var clock_override: float = -1.0
+var _poll_acc := 0.0
 var _rules_cache: Dictionary = {} # SkillRules' lookups over trees.json and Data.recipes (built once, see SkillRules._index)
 
 ## The World autoload, resolved at runtime. `--script` test entry points compile this file before
@@ -81,9 +87,10 @@ func _load() -> void:
 		_learn_autos(id)
 	_recount_sp()
 
-## XP needed to go from `level` to the next. ASSUMPTION: 20 + 8 per level (level 60 ≈ 15k XP total).
+## XP needed to go from `level` to the next. ASSUMPTION: (20 + 8 per level) x skill_xp_cost_mult
+## (progression.json; at 2.5 level 60 ≈ 38k XP total).
 static func xp_to_next(level: int) -> float:
-	return 20.0 + float(level) * 8.0
+	return (20.0 + float(level) * 8.0) * Progression.mult("skill_xp_cost_mult")
 
 func level_of(tree: String) -> int:
 	return int(trees.get(tree, {}).get("level", MIN_LEVEL))
@@ -107,12 +114,76 @@ func add_xp(tree: String, amount: float, mirrored: bool = false) -> void:
 		skill_xp_gained.emit(StringName(tree), amount, int(t["level"]))
 	_resolve(tree)
 
-## Level-ups the banked XP allows. At the character-level cap the XP is kept, not dropped (spec 03:7
+## Unix seconds now (or the test clock).
+static func now_s() -> float:
+	return clock_override if clock_override >= 0.0 else Time.get_unix_time_from_system()
+
+## A tree that levels only through research (every tree but the exempt ones, progression.json).
+static func research_gated(tree: String) -> bool:
+	return not (Progression.section("skill_research").get("exempt", ["survival"]) as Array).has(tree)
+
+## Seconds the research from `level` to level + 1 takes (progression.json skill_research).
+static func research_s(level: int) -> float:
+	var c := Progression.section("skill_research")
+	var first := float(c.get("first_s", 60.0))
+	var g := pow(float(c.get("anchor_s", 172800.0)) / first, 1.0 / float(maxi(1, int(c.get("anchor_level", 49)) - 1)))
+	return minf(float(c.get("max_s", 259200.0)), first * pow(g, float(maxi(1, level) - 1)))
+
+## The bar is full and the next level may be researched: under the cap, enough XP, not researching it.
+func research_ready(tree: String) -> bool:
+	if not trees.has(tree) or not research_gated(tree) or researching(tree):
+		return false
+	var lv := level_of(tree)
+	return lv < level_cap(tree) and xp_of(tree) >= xp_to_next(lv)
+
+func researching(tree: String = "") -> bool:
+	return not research.is_empty() and (tree == "" or str(research.get("tree", "")) == tree)
+
+func research_left() -> float:
+	return maxf(0.0, float(research.get("end", 0.0)) - now_s()) if not research.is_empty() else 0.0
+
+## Starts researching `tree`'s next level (the player's choice; nothing starts on its own). Returns ""
+## when it started, else why not.
+func start_research(tree: String) -> String:
+	if not research.is_empty():
+		return "Already researching %s" % str(NAMES.get(str(research["tree"]), research["tree"]))
+	if not research_ready(tree):
+		return "The %s bar is not full yet" % str(NAMES.get(tree, tree))
+	var lv := level_of(tree)
+	research = {"tree": tree, "from": lv, "end": now_s() + research_s(lv)}
+	print("[skill] research %s %d -> %d, %.0f s" % [tree, lv, lv + 1, research_s(lv)])
+	skill_changed.emit(StringName(tree), lv)
+	return ""
+
+## Finishes the research when its time is up: the level, its free nodes, the level-up signals.
+func poll_research() -> void:
+	if research.is_empty() or now_s() < float(research.get("end", 0.0)):
+		return
+	var tree := str(research["tree"])
+	research = {}
+	var t: Dictionary = trees.get(tree, {})
+	if t.is_empty() or int(t["level"]) >= MAX_LEVEL:
+		return
+	t["xp"] = maxf(0.0, float(t["xp"]) - xp_to_next(int(t["level"])))
+	t["level"] = int(t["level"]) + 1
+	print("[skill] %s %d (researched)" % [tree, int(t["level"])])
+	_learn_autos(tree)
+	skill_changed.emit(StringName(tree), int(t["level"]))
+	skill_leveled.emit(StringName(tree), int(t["level"]))
+
+func _process(delta: float) -> void:
+	_poll_acc += delta
+	if _poll_acc >= 0.5:
+		_poll_acc = 0.0
+		poll_research()
+
+## Level-ups the banked XP allows. Research-gated trees never level here: a full bar waits for the
+## player's research (owner 2026-10-28) and further XP banks. At the character-level cap the XP is kept, not dropped (spec 03:7
 ## "even when the player has lots of category XP", 03:34): the sheet shows a full bar and
 ## World.pioneer_changed spends the bank. Only XP past what the tree can still use up to Lv. 60 goes.
 func _resolve(tree: String) -> void:
 	var t: Dictionary = trees[tree]
-	var cap := level_cap(tree)
+	var cap := level_cap(tree) if not research_gated(tree) else 0
 	while int(t["level"]) < cap and float(t["xp"]) >= xp_to_next(int(t["level"])):
 		t["xp"] = float(t["xp"]) - xp_to_next(int(t["level"]))
 		t["level"] = int(t["level"]) + 1
@@ -346,10 +417,13 @@ func to_dict() -> Dictionary:
 	for id in ORDER:
 		var t: Dictionary = trees[id]
 		out["trees"][id] = {"level": int(t["level"]), "xp": float(t["xp"]), "unlocked": (t["unlocked"] as Array).duplicate()}
+	if not research.is_empty():
+		out["research"] = research.duplicate()  # optional key (no rev bump): older saves have none
 	return out
 
 func from_dict(d: Dictionary) -> void:
 	sp_extra = 0
+	research = {}
 	refund_day = int(d.get("refund_day", -1)) # optional; save_sanitizer makes both numbers (H6)
 	refunds_today = maxi(0, int(d.get("refunds_today", 0)))
 	if d.is_empty():
@@ -369,6 +443,12 @@ func from_dict(d: Dictionary) -> void:
 	# restored before the skills) plus sp_extra, minus what the learned nodes cost today.
 	for id in ORDER:
 		_learn_autos(id)
+	# A research in flight, if it still matches its tree (save_sanitizer bounds it); done offline -> lands now.
+	var r: Variant = d.get("research", {})
+	research = {}
+	if r is Dictionary and trees.has(str((r as Dictionary).get("tree", ""))) and int((r as Dictionary).get("from", -1)) == level_of(str(r["tree"])):
+		research = {"tree": str(r["tree"]), "from": int(r["from"]), "end": float(r.get("end", 0.0))}
+	poll_research()
 	_recount_sp()
 	if rev < REV:
 		# A rev-1 save earned its SP per tree level. It keeps every node and every unspent SP: what the

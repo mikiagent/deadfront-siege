@@ -101,10 +101,16 @@ A "berserker" is a nature (Aggressive: shorter cooldowns, more charges), not a c
   `Spawner.spawn_now` builds the nodes; a `count>1` row becomes a pack.
 
 ## Capture, as the code does it now (`CaptureSystem.attempt`, `Hunt.use_net`)
-1. `FieldTame.capture_window()` must be open: alive, `tameable`, not a pet, and either the `knockdown`
-   status at any HP or HP fraction ≤ `FieldTame.CAPTURE_HEALTH_FRAC` = 0.30 (spec 09).
-2. One hint per creature, "Stun the dinosaur to capture it safely.", when a hunted tameable animal
-   is at ≤ 50 % HP and not stunned (`Hunt.STUN_HINT_FRAC`). DoTs skip an animal inside the window.
+1. `FieldTame.capture_window()` must be open: alive, `tameable`, not a pet, and **knocked out**.
+   FOODTORPOR (owner 2026-10-29: "they need to be weak and they have a torpor bar ... once it reaches a
+   torpor threshold it can be knocked out"): knocked out = **weak** (spec 09 unchanged: the `knockdown`
+   status at any HP, or HP fraction ≤ `FieldTame.CAPTURE_HEALTH_FRAC` = 0.30) **and** torpor ≥
+   `ko_frac` (0.6) × torpor max. `FieldTame.window_open(hp, hp_max, stunned, torpor_frac)` is the one
+   rule; the server intents (`act.tame`, `act.capture`) pass the creature row's `torpor` (0..1).
+   Feeding tames go through the same window.
+2. One hint per creature, "Weaken and sedate the dinosaur to capture it.", when a hunted tameable animal
+   is at ≤ 50 % HP and not stunned (`Hunt.STUN_HINT_FRAC`). DoTs skip a tameable animal that is weak
+   (`FieldTame.is_weak`), so a bleed cannot kill it while it is being sedated.
 3. `Inventory.best_capture_net` must hold a net whose `capture_tier` ≥ the species'
    `capture_tier`; nets are `capture_net_i` … `capture_net_v` (tiers 1–5) in `game/data/items.json`.
 4. The survivor needs the matching capture technique (`Data.has_capture_technique`).
@@ -117,8 +123,25 @@ A "berserker" is a nature (Aggressive: shorter cooldowns, more charges), not a c
 6. Success consumes 1 net and puts a `captured_animal` stack (species, variant, level, genetics,
    `slot_span` 4) into the bag. Failure clears capturability and applies `enraged`.
 
-Nets do not damage. `Hunt.use_net` refuses with "Stun it or weaken it to 30% health to capture it."
+Nets do not damage. `Hunt.use_net` refuses with `FieldTame.refusal()`: "Weaken it to 30% health, then
+sedate it to capture it." while it is not weak, else "Sedate it: torpor must pass 60% to knock it out."
 Knockdown itself comes from tackle/kick/stagger — see `game/scripts/combat/combat_tactics.gd`.
+
+### Torpor (`Creature.torpor`, `game/data/combat_tuning.json` "torpor", every number `# ASSUMPTION`)
+- 0 .. `max` 100 for every species (flat; Open Questions T1). Not saved: wild animals respawn fresh.
+- Doses (`Creature.add_torpor`): a landed **blunt** melee hit or stone shot +6; one charge of a
+  **Sedative**-coated weapon +20 (on top of the hit's own blunt dose); a **Tranquilizer Dart** +30.
+- Sedative: crafted by hand from 1 Spoiled Meat + 2 Narcoberry; the "Sedate (n/3)" context hex coats the
+  equipped weapon for 3 landed hits (`sedative_hits`, the toxin coating's pattern).
+- Tranquilizer Dart: 1 Sedative + 1 bone → 3 darts. Slingshot ammo, fired from the "Dart (n)" context
+  hex next to "Fire" (`Hunt.fire_ranged(&"tranquilizer_dart")`); the shot does 25 % of the slingshot's
+  damage (`dart_damage_mult`).
+- The moment a weak animal's torpor reaches the threshold it collapses (`knockdown` status + clip),
+  which opens the feeding window too. Torpor holds while it is down; otherwise it drains 3 / s after
+  6 s with no new dose.
+- Plates: a violet strip under the HP bar on the creature plate and on the hunt target plate, with a
+  white tick at the threshold (`CreaturePlates.TORPOR_COLOR`). The hunt hint above the target reads
+  "Sedate it: torpor 35% / 60%" once it is weak, "Knocked out — throw the net!" in the window.
 
 ## Taming odds (`TamingOdds`, `game/data/taming_odds.json`)
 
@@ -140,7 +163,8 @@ tier, clamped to [0.05, 0.95]. Roadmap: `docs/design/durango-informed-improvemen
   while feeds are still owed), and `CaptureSystem.attempt` rolls `TamingOdds.succeeds(chance, rng)`.
 - ASSUMPTION: the levels in the JSON besides the doc's three anchors (health slope 1.5, tier slope
   0.25, clamp band) are first-pass numbers, not balance. Balance is the owner's, after skills/building.
-- The capture-open rule did not move: 0.30 opens, 0.31 stays closed, odds never open a 31 % animal.
+- The health half of the capture rule did not move: 0.30 opens, 0.31 stays closed, odds never open a
+  31 % animal. FOODTORPOR added the torpor half on top (see Torpor above).
 
 ## Field tame (`FieldTame`)
 - `can_attempt`: alive, `tameable`, not a pet, no tame cooldown, inside `capture_window()`.
@@ -160,7 +184,7 @@ tier, clamped to [0.05, 0.95]. Roadmap: `docs/design/durango-informed-improvemen
   bait yes / no only.
 
 ## Pen (`TamingPen`, buildings `makeshift_taming_pen` .. `taming_pen_apex`)
-Owner 2026-10-28: capture first, tame later. A net in the wild (stunned, or at 30 % HP or less) gives a
+Owner 2026-10-28: capture first, tame later. A net in the wild (knocked out: weak and torpor past the threshold) gives a
 `captured_animal` stack in the bag (transport = the bag, `slot_span` 4); it is not tamed. Its size,
 nature and genetics read `???` on the Taming Pen screen until the pen tames it; once bonded, the
 Animals screen shows its stats.
@@ -336,7 +360,7 @@ Rules: `ai.json` `"energy"`. A species JSON may override them with an `"energy"`
 ## Pets & mounts
 - Bonded cap = `Data.bonded_cap`: 3 + Animal Handling `bonded_slots` nodes, at most 7
   (`SkillRules.bonded_capacity`). At most `MAX_OUT` = 3 pets out at once (`player_pets.gd`).
-- `PetRecord`: level to `PetStats.MAX_LEVEL` 60, XP curve `xp_to_next` = 30 + 15 × level,
+- `PetRecord`: level to `PetStats.MAX_LEVEL` 60, XP curve `xp_to_next` = (30 + 15 × level) × `pet_xp_cost_mult` (2.5, `game/data/progression.json`),
   `RESPAWN_TIME` 180 s, per-pet `bag` inventory, stats recomputed by `recompute` from
   `PetStats` (health growth 0.028/level, attacks 0.002, defenses 0.006).
 - Mounting: `PlayerPets.mount` requires `&"mount"` in the pet's `tamed_role`. Ridden, the mount walks

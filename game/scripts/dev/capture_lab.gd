@@ -169,6 +169,8 @@ func _rule_checks() -> void:
 	hp_31.health.hp = hp_31.health.max_hp * 0.31
 	dot_high.health.hp = dot_high.health.max_hp * 0.80
 	hint_fodder.health.hp = hint_fodder.health.max_hp * 0.45
+	for c in [stun_high, hp_30, hp_31]:
+		c.torpor = c.torpor_max()  # FOODTORPOR: the window also needs torpor past the threshold
 	await get_tree().process_frame
 
 	_m["window_stun80"] = 1 if FieldTame.capture_window(stun_high) else 0
@@ -244,6 +246,7 @@ func _shots(a: Creature, cat: Creature) -> void:
 	var full := stunned.health.max_hp
 	stunned.health.hp = full * 0.82
 	stunned.statuses.apply(&"knockdown", _player)
+	stunned.torpor = stunned.torpor_max()
 	stunned.anim.play_clip(&"knockdown")
 	_m["shot_hp"] = int(round(100.0 * stunned.health.fraction()))
 	_m["shot_window"] = 1 if FieldTame.capture_window(stunned) else 0
@@ -270,7 +273,7 @@ func _shots(a: Creature, cat: Creature) -> void:
 		stunned.statuses.clear_id(inst.id)
 	stunned.health.hp = full * 0.70
 	_player.hunt.use_net()
-	_m["refusal_text"] = 1 if _player.hunt.last_notice == Hunt.CAPTURE_REFUSAL else 0
+	_m["refusal_text"] = 1 if _player.hunt.last_notice == FieldTame.refusal(stunned) else 0
 	await get_tree().create_timer(0.3).timeout
 	await _shot("refused_unstunned")
 	_check(int(_m.get("shot_window", 0)) == 1 and int(_m.get("net_label", 0)) == 1 and int(_m.get("refusal_text", 0)) == 1, "windowed: stun@%d%% opens the net, unstunned @70%% refuses" % int(_m.get("shot_hp", 0)))

@@ -77,12 +77,12 @@ func _test_curve() -> void:
 		var a: int = _world.xp_for_level(n)
 		var b: int = _world.xp_for_level(n + 1)
 		mono = mono and b > a
-		var want := float(c["base"]) * pow(growth, n)
+		var want := float(c["base"]) * pow(growth, n) * Progression.mult("player_xp_cost_mult")  # SLOWLEVELS knob
 		expo = expo and absf(a - want) <= 0.5 + 0.0001 * want
 		if n >= 5:  # rounding blurs the first few ratios
 			expo = expo and absf(float(b) / a - growth) < 0.01
 	_expect(mono, "every level costs more than the one before (Lv 1-81)")
-	_expect(expo, "level n costs round(base x growth^n), ratio within 1 %% of %.2f" % growth)
+	_expect(expo, "level n costs round(base x growth^n x player_xp_cost_mult), ratio within 1 %% of %.2f" % growth)
 	_expect(_world.xp_for_level(29) > 3 * _world.xp_for_level(9), "Lv 30 costs over 3x Lv 10 (%d vs %d)" % [_world.xp_for_level(29), _world.xp_for_level(9)])
 	# level from total XP matches the table
 	var total := 0
@@ -95,11 +95,15 @@ func _test_curve() -> void:
 
 ## Old saves: the same total, the level recomputed; never below the stored level.
 func _test_floor() -> void:
-	# Lv 4 on the old curve with 50 XP: 100 + 125 + 150 + 50 = 425 -> new 110 + 123 + 138 = 371, 54 into Lv 4.
+	# Lv 4 on the old curve with 50 XP: 100 + 125 + 150 + 50 = 425 -> on the x2.5 curve (275 + 308 + 345)
+	# that is only Lv 2, so the stored Lv 4 stays as a floor with its 50 XP.
 	var low: Vector2i = _world.migrate_linear_xp(3, 50)
-	_expect(low == Vector2i(3, 54), "a Lv 4 old save keeps its total: stored 3 with 54 XP (got %s)" % low)
-	var gain: Vector2i = _world.migrate_linear_xp(9, 300)  # old total 1800 + 300 = 2100 > new Lv 11 total 1930
-	_expect(gain.x == 10 and gain.y == 2100 - 1930, "a Lv 10 old save recomputes up to Lv 11 (got %s)" % gain)
+	_expect(low == Vector2i(3, 50), "a Lv 4 old save keeps Lv 4 as a floor with its 50 XP (got %s)" % low)
+	var gain: Vector2i = _world.migrate_linear_xp(9, 300)  # old total 2100 < new Lv 10 total 4064 (SLOWLEVELS x2.5)
+	_expect(gain == Vector2i(9, 300), "a Lv 10 old save keeps Lv 10 as a floor (got %s)" % gain)
+	# Recompute upward still works for a total past the curve: Lv 1 + 400 XP over a 275 cost.
+	var up: Vector2i = _world.level_from_total(_world.xp_for_level(0) + 7)
+	_expect(up == Vector2i(1, 7), "a total past Lv 1's cost recomputes to Lv 2 (got %s)" % up)
 	var high: Vector2i = _world.migrate_linear_xp(29, 700)  # old total 13050 + 700 < new Lv 30 total
 	_expect(high.x == 29 and high.y == 700, "a Lv 30 old save keeps Lv 30 as a floor (got %s)" % high)
 	var near: Vector2i = _world.migrate_linear_xp(29, 5000)  # leftover clamped under the level's cost

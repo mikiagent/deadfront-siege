@@ -149,9 +149,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   healing, like the stomach's full band). A 2 px gap after every segment of `segment_xp` (100) XP of
   the level's cost, grouped into a multiple of 100 past `max_segments` (40) (`LevelDisplay.xp_segments`),
   so a dearer level draws more, thinner segments; the last is the leftover. The label over it reads
-  "Lv. 10  137 / 305 XP  · 100 XP each", bottom-left just over the quick-food (EAT) row since owner
+  "Lv. 10  137 / 763 XP  · 100 XP each", bottom-left just over the quick-food (EAT) row since owner
   2026-10-30 ("the skill XP + player XP UI lower, above eat"), where the skill XP rows stack above it. The cost is
-  exponential: `World.xp_for_level` = round(110 x 1.12^n) (`pioneer_levels.json xp_curve`). Test
+  exponential: `World.xp_for_level` = round(110 x 1.12^n x 2.5) (`pioneer_levels.json xp_curve`, `progression.json player_xp_cost_mult`). Test
   `t_levelbar.gd`. the survivor's name draws
   under her feet (15 px, projected from the camera).
 - Quest card (HUDRULES, owner 2026-10-28):
@@ -290,13 +290,35 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   (`chips_for`, `layout_chips`, `meta_line`) and the XP feed (`draw_feed`). The per-node yield card
   is retired (owner 2026-10-28).
 
+## Repaint policy (HUDREDRAW)
+- The field HUD and its minimap no longer call `queue_redraw()` every frame (claude-tutperf measured
+  ~1.3-1.7 ms a frame of it). `HuntHud._process` ends in `_tick_redraw` (and `_tick_map_redraw` for the
+  map) and repaints only when the paint's inputs changed — `_hud_sig()` / `_map_sig_key()`, every value
+  `_draw` reads at drawn precision (0.1 px, whole metres / seconds / degrees): vitals and their
+  effective maxima, the HP label, mount energy, stomach fullness / saturation / eased glyph scale,
+  level + XP bar, statuses and buff chips (id, stacks, whole seconds), the rest box, the order card and
+  badge, the target plate (its HP, torpor strip, status chips and stack counts), nearby harvest nodes,
+  the camera, the canvas and the placer.
+- `_animating()` keeps the repaint going only while a piece moves by itself: notices / toasts / XP rows
+  and their batched ghost fill and level flash, bites and floats, the level-up celebration and MENU
+  pulse, the status pulse, the domain banner, the orders flash, gliding pills, the combat frame fade,
+  the fog trail fading, the ghost fills still easing, a placement mode and a level badge at tier 4+.
+- With nothing animating an idle HUD paints 0 times in 60 frames (`t_fieldhud`, `t_hudredraw`); a 1 Hz
+  catch-up runs only while a piece shows whole seconds (buff countdowns, rest rates, a node's regrow
+  timer). The day/night dial, the hexes and the sheets keep their own redraw logic. A new input of
+  `_draw` must be added to the signature or it waits for the next animating frame.
+
 ## Notices, toasts, hits, level-up
 - Skill XP lines (XP feed, owner §1.6, UIGATHER; moved by owner 2026-10-30: "the skill XP + player XP UI
   lower (above eat)"): the bottom-left corner, stacking UPWARDS from just over the quick-food (EAT) row,
   one 44 px row per tree gain (34 on a phone) — a small hex with the skill's initial, "Gathering +6 XP
-  Lv. 1" and a thin XP bar of that tree's progress; a tree level-up is the same row in GOLD with ▲. Each
-  row takes a free spot off `taken_rects` (`HudLayout.xp_feed_top` is the anchor, the player XP readout
-  sits right under it). Item gains are TopFeed rows (below); notices
+  Lv. 1" and a thin XP bar of that tree's progress; a tree level-up is the same row in GOLD with ▲. Batched
+  (SLOWLEVELS, owner 2026-10-28): one bar per tree takes every gain while it shows ("+60 Gathering XP");
+  each gain moves a light-green ghost at once, the real fill waits `SKILL_CATCHUP_DELAY` 0.6 s after the
+  last gain and eases up to it, flashing white when it rolls over a level, then the bar lingers
+  `SKILL_LIFE` 2.5 s and fades (`HudEventState.skill_bar`, test `t_skillfeel._test_batch`). Each row takes
+  a free spot off `taken_rects` (`HudLayout.xp_feed_top` is the anchor, the player XP readout sits right
+  under it). Item gains are TopFeed rows (below); notices
   (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
   confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders
   on the HUD fill with an OK_GREEN edge and a check (`HudEventState.draw_notice`, B4). Nothing covers

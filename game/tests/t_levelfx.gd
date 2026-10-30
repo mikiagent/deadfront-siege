@@ -152,6 +152,9 @@ func _test_burst() -> void:
 	var need: int = world.xp_for_level(before) - world.pioneer_xp + world.xp_for_level(before + 1)
 	var lv_g: int = s.level_of("gathering")
 	s.add_xp("gathering", float(need))
+	# Research (owner 2026-10-28): the grant fills Gathering's bar; its level comes from a research the
+	# player starts, run out here on the test clock in the same frame.
+	_research_now(s, "gathering")
 	var after: int = world.pioneer_level
 	_expect(after == before + 2 and s.level_of("gathering") > lv_g, "burst: one grant gave two character levels (%d -> %d) and gathering levels (%d -> %d)" % [before + 1, after + 1, lv_g, s.level_of("gathering")])
 	if cel == null:
@@ -172,6 +175,16 @@ func _test_burst() -> void:
 	_expect(float(rec["block_jump"]) == 0.0, "burst: no celebration moves between frames (max %.2f px)" % rec["block_jump"])
 	_expect(float(rec["cam_offset"]) == 0.0 and float(rec["cam_step"]) < 0.001, "burst: the camera neither shakes nor moves (offset %.4f, step %.5f m)" % [rec["cam_offset"], rec["cam_step"]])
 	_expect(_fxs().is_empty() and str(cel.call("showing_key")) == "", "burst: everything ends on its own")
+
+## Research (owner 2026-10-28): a full bar of a gated tree levels only through a research the player
+## starts; the tests start it and run it out on the test clock in the same frame.
+func _research_now(s: Node, tree: String) -> void:
+	if not s.research_ready(tree):
+		return
+	s.start_research(tree)
+	s.get_script().set("clock_override", float(s.now_s()) + float(s.research_s(s.level_of(tree))) + 1.0)
+	s.poll_research()
+	s.get_script().set("clock_override", -1.0)
 
 ## A character level-up while riding the T. rex (Player.mount's saddle path, as equip_mount_lab).
 func _test_mounted() -> void:
@@ -241,6 +254,7 @@ func _test_toasts() -> void:
 	hud.notice("Too heavy to carry more")
 	await create_timer(0.6).timeout  # the yield card (UIGATHER, toast0) has popped in and settled
 	s.add_xp("processing", s.xp_to_next(lv) - s.xp_of("processing"), true)
+	_research_now(s, "processing")
 	var last: Dictionary = {}  # "toast:<item>" or "notice:<text>" -> [box, k]
 	var worst := 0.0
 	var worst_at := ""
@@ -401,6 +415,7 @@ func _test_neighbours(size: Vector2i) -> void:
 	hud.toast(&"fiber", 2)
 	await _frames(4)
 	s.add_xp(tree, s.xp_to_next(lv) - s.xp_of(tree))  # not mirrored: the feed row and pioneer XP too
+	_research_now(s, tree)
 	var hits := 0
 	var hit_what := ""
 	var jumps := 0
@@ -568,6 +583,7 @@ func _test_menu_pulse() -> void:
 	var s = player.skills
 	var lv: int = s.level_of("butchering")
 	s.add_xp("butchering", s.xp_to_next(lv) - s.xp_of("butchering"), true)
+	_research_now(s, "butchering")
 	await _frames(3)
 	_expect(int(hud.get("field").count(&"skills")) >= 1, "menu pulse: the skill level-up is a MENU skills notice (%d)" % hud.get("field").count(&"skills"))
 	_expect(float(cel.call("menu_pulse")) > 0.0, "menu pulse: the MENU hex pulses as the level-up shows (%.2f)" % cel.call("menu_pulse"))

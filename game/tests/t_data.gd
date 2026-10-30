@@ -24,7 +24,7 @@ extends SceneTree
 const D := "res://data/"
 const RUNGS := ["stone", "bone", "flint", "obsidian", "copper", "bronze", "iron", "steel"]
 ## Special families IslandScatter._scatter_special_tiles plants on every island.
-const SPECIAL_FAMILIES := ["mud", "clay", "berry_bush", "tree_stump"]
+const SPECIAL_FAMILIES := ["mud", "clay", "berry_bush", "tree_stump", "narcoberry_bush"]
 ## cleared_by entries in statuses.json that are actions or places, not items.
 const STATUS_ACTIONS := ["cauterise", "residence", "struggle", "pet_aggro", "wash", "drink"]  # wash/drink: WaterAccess verbs (WATER)
 ## Seconds a capture or a taming takes, for the time log only (# ASSUMPTION).
@@ -334,6 +334,12 @@ func _walk(home_only: bool) -> void:
 				if cost.has(seed):
 					var y := maxf(1.0, float(crops[c].get("base_yield", 1)))
 					changed = _offer(str(crops[c]["output"]), (float(crops[c].get("growth_seconds", 120)) + float(cost[seed])) / y, 60, "farm %s" % c) or changed
+		# FOODTORPOR: food left to spoil (Spoilage) turns into Spoiled Meat or Rot; one spoil per lot.
+		for id in cost.keys():
+			if _has_cat(id, "food") and _has_cat(id, "meat"):
+				changed = _offer("spoiled_meat", float(cost[id]), int(lvl[id]), "spoil %s" % id) or changed
+			elif _has_cat(id, "fruit"):
+				changed = _offer("rot", float(cost[id]), int(lvl[id]), "spoil %s" % id) or changed
 		# Capture (CaptureSystem) and taming (taming pen) are systems, not recipes.
 		var nets := cost.keys().filter(func(id: String) -> bool: return int(items[id].get("capture_tier", 0)) > 0)
 		if not nets.is_empty():

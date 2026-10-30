@@ -200,6 +200,8 @@
   "hide_bone_cuirass": "rare",
   "hide_bone_bracers": "rare",
   "hide_bone_greaves": "rare",
+  "spiky_armor": "uncommon",
+  "spiky_armor_helmet": "uncommon",
   "tin_ore": "uncommon",
   "tin_ingot": "uncommon",
   "moss": "common",
@@ -281,6 +283,11 @@
   "saddle_medium": "uncommon",
   "saddle_large": "uncommon",
   "silver_chunk": "rare",
-  "metal_stick": "uncommon"
+  "metal_stick": "uncommon",
+  "spoiled_meat": "common",
+  "rot": "common",
+  "narcoberry": "uncommon",
+  "sedative": "uncommon",
+  "tranquilizer_dart": "uncommon"
  }
 }
