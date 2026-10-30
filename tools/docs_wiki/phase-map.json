@@ -606,6 +606,49 @@
             "commit:c7dc0a5b",
             "game/tests/t_water.gd"
           ]
+        },
+        {
+          "id": "tool-wear-scaling",
+          "title": "Wear by level gap: gather wear scales with resource level vs tool level, armor wears on hits taken, tribe workers stop at 1 durability (P1 WEAR)",
+          "status": "next",
+          "depends": [
+            "knife-fix",
+            "harvest-roll"
+          ],
+          "source": "docs/design/tools-durability-crafting.md",
+          "note": "Built on claude/mmo-wearrepair, awaiting merge: wear x clamp(1 + 0.04 x level gap, 0.5, 2.5) on every gather and butcher cut, armor 1 per damaging hit (one piece, weighted by armor), tribe workers stop at 1 durability and say so. Gate t_toolwear.gd passes."
+        },
+        {
+          "id": "recipe-tool-gates",
+          "title": "Recipe tool gates: work-tool class and minimum tier on recipes, each craft wears the tool, hoe rows enforced (P2 RECIPETOOLS)",
+          "status": "next",
+          "depends": [
+            "craft-outcomes",
+            "knife-fix"
+          ],
+          "source": "docs/design/tools-durability-crafting.md",
+          "note": "P2 of the tools doc: requires_tool {class, min_tier}, work tools only, 1 wear per run, axe/knife/hoe data pass, ladder deadlock audit. Gate t_recipetools.gd plus t_tutorial."
+        },
+        {
+          "id": "gear-repair",
+          "title": "Gear repair at the tier's station: refills durability, max drops to 80 % per repair, 4 repairs (P3 GEARREPAIR)",
+          "status": "next",
+          "depends": [
+            "tool-wear-scaling"
+          ],
+          "source": "docs/design/tools-durability-crafting.md",
+          "note": "Built on claude/mmo-wearrepair, awaiting merge: REPAIR hex on the workbench / anvil station menu, cost from recipes.json repairs, max x0.8 per repair, 4 repairs then worn out, repair count in attributes.repairs (save and vault compatible). Gate t_gearrepair.gd passes."
+        },
+        {
+          "id": "trait-gear-stats",
+          "title": "Material traits change gear stats: durability, damage, armor and gather power from the primary's traits, clamped at 15 % (P4 TRAITGEAR)",
+          "status": "next",
+          "depends": [
+            "rare-attributes",
+            "craft-outcomes"
+          ],
+          "source": "docs/design/tools-durability-crafting.md",
+          "note": "P4 of the tools doc: high/low density, firm/soft, tough/soft fiber, high elasticity; new crafts only. Gate t_traitgear.gd."
         }
       ]
     },

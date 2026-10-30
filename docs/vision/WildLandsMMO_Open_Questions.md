@@ -124,6 +124,7 @@ Source: branch `claude/mmo-tribem2a`, report `docs/orchestration/reports/claude-
 | **P4** | `metal_nails`: 4 from 1 ingot + 1 fuel at the forge (node `nails_pillars`); required by the medium/large/apex pens (2/4/8). No other station needs them yet: kiln, oven, tanning frame, large drying rack and looms are not buildable kinds. | `items.json`, `recipes.json` | The owner wants nails to gate the next station tier. |
 | **P5** | The stone grill is the cooking station that shows the spit; no oven or tanning frame kind exists, so neither has a station-state row (one row in `station_state.json` once they do). The forge body is built from data boxes until a forge GLB lands. | `station_state.json` | Art and station roster. |
 | **P6** | Work loops per station: workbench/anvil/mortar hammer, grill/crock pot/steamer stir, rack/smoker hang, forge forge, tanning frame tan; `play_work(kind)` gets the short kind (clip `work_<kind>`). | `station_state.json` `work_anim` | Must match claude/mmo-rummage's PlayerAnim API. |
+| **P7** | Pen feeding follows the species' taming diet (PEN-DIET 2026-10-30): a preferred food cuts the wait to 60 %, an accepted food to 80 % (half the cut, like field feeding's 1.0 / 0.5); spoiled meat, rot and off-diet food are refused. Food quality and perks are ignored. | `TamingPen.ACCEPTED_FEED_MULT`, `TamingPen.feed` | How much grinding a non-preferred food saves; whether better food should tame faster or better. |
 
 ### TUTORIAL ISLAND (2026-10-28)
 
@@ -260,6 +261,28 @@ Source: branch `claude/mmo-taskscreen`, report `docs/orchestration/reports/claud
 | **TS12** | Main Task counts an order finished when Objectives.settle passes it (a saved set), not by index, so the tutorial's hand-over part-way down the standing orders never pays a skipped order. | `Tasks.done` | Save field (`tasks.done`). |
 | **TS13** | Order rewards wait for Receive, so the tutorial teaches it: order 2 "Claim your reward in Tasks" (10 EXP; the pointer goes MENU -> Tasks -> Receive) is done once any order's reward is received. The Task screen opens on Main Task while an order waits. Owner go 2026-10-29; the order itself is ours. | `objectives.json tut_claim`, `Objectives received_any` | One extra tutorial step; a player who skips claiming later is a level or two behind. |
 
+### FACTIONS (2026-10-29) — five factions, reputation, the Faction Hall
+
+Source: `docs/design/factions.md`, data `game/data/world/factions.json`, branch `claude/mmo-factions`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **FA0** | The five factions are the PRD's five support organisations (Company, Chlorophyll Forum, Pioneer Council, Committee, Radio University) with a new look, missions and the hall, not five new groups. | `factions.json` | Five new names next to five existing ones would make ten groups and two trust systems. |
+| **FA1** | Rank n needs `25 n (n+1)` reputation (50 ... 2750 for rank 10). | `factions.json rank_k` | About 55 daily missions to max a faction. |
+| **FA2** | Tier titles are Durango's rank titles, with no stat bonus in v1. | `tiers` | Durango gave CHA/AGI/... bonuses. |
+| **FA3** | A Radio University rank-up pays 1 SP (it has no crates per the PRD). | `rank_sp` | SP inflation. |
+| **FA4** | Mission sizes and pay: daily 50 rep, 5-8 gold, 40-60 XP; weekly 150-200 rep, 30-60 gold, 200-300 XP; a guide 100 rep, 2 SP. | `missions` | Pace of rank. |
+| **FA5** | 3 offers per faction, rotated by the UTC day; 4 active at most (PRD). | `Factions.OFFERS`, `MAX_ACTIVE` | |
+| **FA6** | An active mission never expires; the period limits only re-accepting it. | `Tasks.accept` | Durango missions had timers. |
+| **FA7** | Receive works anywhere; the PRD's turn-in at the shed and objective pin visit are deferred. | | |
+| **FA8** | Rerolls deferred; the daily rotation stands in. | | |
+| **FA9** | The Task screen keeps 5 tabs; faction missions live on the Factions screen (Tasks category `faction`). | `Tasks.CATS` | One line to add a tab. |
+| **FA10** | Faction missions waiting to be received count in the HUD Tasks badge. | `Tasks.claimable_count` | |
+| **FA11** | The plaza has 7 boards: the hall NE of the square (desk at +19, -15 m from the camp), 5 faction stalls in a row before it, all on the grid facing south (owner rule) plus 2 general boards (dock, plaza far side). | `tutorial.gd dress` | Crowd spread on a busy server. |
+| **FA12** | 8 milling survivors on the plaza (own cap and RNG, on top of the 16 townsfolk), groups at the boards and walkers dock -> hall. | `town_dress.gd` | Perf budget. |
+| **FA13** | Career guide targets: ten_recipes = any 10 crafts; three_climates = 3 island landings; build_house = a log shelter. | `radio_university.missions` | The PRD names the guides, not their checklists. |
+| **FA14** | Rank-up crate = one of each item in the rank's band; overflow goes to home cargo. | `Factions.add_rep` | PRD: "3 items per rank band, some RNG". |
+
 ## Parked by other docs
 
 Each vision doc's unresolved points remain inside that doc until the workshop; the sections listed below are the owners' pointers, collected here only for reachability:
@@ -292,3 +315,24 @@ Source: branch `claude/mmo-styratactics`, report `docs/orchestration/reports/dsc
 | **S2** | The charge is a ram: straight locked line, 2.0 × attack impact and a 4 m body-slam shove with a 0.9 s stagger along the charge line; a sidestep or roll dodges it and staggers it 2.0 s. | `charge_mult`, `charge_shove_m`, `charge_shove_stagger_s`, `charge_miss_recover_s` | Owner 2026-10-29: "tackling/ramming". |
 | **S3** | Point blank it sweeps the horns: the `heavy` move (attack_heavy clip) x 2.2, 7 s cooldown, before kick/bite in `point_blank`. | `heavy_cd`, `heavy_mult`, `point_blank`, `TacticalBrain` heavy move | Gives the big head a finisher that is not a bite. |
 | **S4** | It fights to 25 % HP, then flees 4 s; guard 20 m around its home; herd defence as pack_mule. | `retreat_frac`, `guard_m`, `herd_defend` | Braver than the zebra; still capturable when weak. |
+
+### TOOLSDOC (2026-10-30) — tools, durability, repair and gear traits
+
+Source: `docs/design/tools-durability-crafting.md` (PROPOSED; packages P1-P4 on the roadmap), from Milan's research
+upload `docs/reference/durango-wildlands-durability-tools-crafting-research.md` (historical Durango player tests, not
+canon). Nothing is built yet; each default below ships with its package unless the owner changes it.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TD1** | Gather wear = base x clamp(1 + 0.04 x (resource level - tool level), 0.5, 2.5); base 1 for a work tool, 3 for a weapon used as a tool; fractions round stochastically. 0.04 is the research's one measured slope (about 3.8 % per level). | P1, `rules.json gathering.wear` | How many gathers a tool lasts on a high-level island; how many spare tools an expedition needs. |
+| **TD2** | Armor wears 1 durability per damaging creature hit, on one worn piece picked at random weighted by armor value; dodged or fully absorbed hits wear nothing. | P1, creature-hit path | A new item sink; armor (150-400 durability) never wore before. |
+| **TD3** | Tribe workers stop at 1 durability (the Vision's "normally") with no owner override to work a tool to breaking. | P1, `TribeMember._harvest` | Unattended work never breaks a tool; a worker idles instead. |
+| **TD4** | Recipe tool gates use the material tier (stone to steel), not tool level; only work tools qualify (never a Stone Dagger); each craft run wears the tool 1, success or failure. | P2, `recipes.json requires_tool`, `Crafting.progression_block` | Profession identity vs friction at the workbench. |
+| **TD5** | First gated recipes: axe for pillar, plank, plank_shape, pillar_shape, trimmed_plank, fine_plank (flint tier); knife for hide strap and cut-hide recipes; hoe for fields (already in data, now enforced). Everything else ungated. | P2 data | Which crafts need a tool in the bag; the tutorial must still finish. |
+| **TD6** | Repair at the tier's station from `recipes.json repairs` (workbench stone-obsidian, anvil copper-steel), cost ceil(missing / (0.5 x max)) tier units; each repair sets max to 80 % of the old max and refills it; 4 repairs, then "worn out". | P3 | Replacement demand for crafters vs how long a favourite tool lives. |
+| **TD7** | Forge and anvil recipes need no tool: we have no hammer class. Add a Work Hammer (and saw / needle) as items and gate metalwork on it? | P2 skip | New items and recipes; the research's metalwork gates all use a hammer. |
+| **TD8** | No repair kits. A carried `workbench_kit` plus tier material is the field repair. | P3 skip | Expedition packing; the research had Basic / Practical / Advanced kits. |
+| **TD9** | Traits with no gear stat to feed stay inert on gear: lightweight (accuracy / evasion), compact_structure (lethality), pointy (penetration), sharp_section (wound damage), full (stun). | P4 skip | They become worth crafting for only when combat gains those stats. |
+| **TD10** | Gear trait effects per level: high_density +3 % max durability (low_density -3 %), firm +2 % damage (soft -2 %), tough_fiber +2 % armor (soft_fiber -2 %), high_elasticity +2 % gather power; the sum per stat clamps at +-15 %; only gear crafted after P4 gets them. | P4, `rules.json crafting.gear_traits` | Trait-hunting payoff; existing gear is not recalculated. |
+| **TD11** | No hard minimum tool level per resource level (the research's 35+ needs 25+, 55+ needs 45+); the per-material pick tier gates stay, and TD1 makes an under-levelled tool cost more. | `ProgressionScaling` "no hard gates" | A level-1 tool can still gather on a level-50 island, slowly and expensively. |
+| **TD12** | With no combat weapon carried, a work axe fights (0.45x damage) and wears 1 per landed hit like any weapon. KNIFESPLIT's guarantee covers the Work Knife only. | `Inventory.equipped_weapon`, `Hunt.wear_weapon` | Whether a work tool should ever take combat wear. |

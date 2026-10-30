@@ -39,6 +39,9 @@ static func view_of(asset: Dictionary, price: int = -1, note: String = "") -> Di
 		name = "Captured " + _species_name(sp)
 		type_line = _species_name(sp)
 	var dmax := int(asset.get("max_durability", def.max_durability if def else 0)) # an instance carries its own max
+	var fixes := int((asset.get("attributes", {}) as Dictionary).get("repairs", 0))
+	if fixes > 0:  # P3 GEARREPAIR: buyers see how often it was repaired (each cut its max)
+		type_line += " · repaired %d/%d" % [fixes, GearRepair.max_repairs()]
 	var t := str((asset.get("attributes", {}) as Dictionary).get("tint", ""))
 	out.merge({"icon": id, "name": name, "type": type_line, "level": int(asset.get("level", 1)),
 		"dur": "%d/%d" % [int(asset.get("durability", dmax)), dmax] if dmax > 0 else "—", "pet": false,

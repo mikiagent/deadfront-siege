@@ -18,6 +18,8 @@ static var done: Dictionary = {}     ## "main.<order id>" -> true once Objective
 static var day: int = -1             ## UTC day number the daily counts belong to
 static var week: int = -1            ## Monday-based UTC week number the weekly counts belong to
 static var clock_override: int = -1  ## tests: unix seconds to use instead of the system clock
+static var active: Dictionary = {}  ## FACTIONS: "faction.<fid>.<mid>" -> {"base": life count at accept, "at": period}
+static var taken: Dictionary = {}   ## FACTIONS: "faction.<fid>.<mid>" -> the period it was last accepted in
 static var _defs: Dictionary = {}
 
 static func defs() -> Dictionary:
@@ -32,6 +34,8 @@ static func reset() -> void:
 	done = {}
 	day = -1
 	week = -1
+	active = {}
+	taken = {}
 	roll()
 
 ## Objectives.settle finished standing order `id` (objectives.json, or a tutorial order).
@@ -90,6 +94,8 @@ static func rows(cat: StringName, p: Player) -> Array[Dictionary]:
 					out.append(_row(cat, t, int(World.pioneer_buildings.get(str(t.get("kind", "")), 0))))
 		&"achievement":
 			out = _achievement_rows(p)
+		&"faction":
+			out = _faction_rows(p)
 	var rank := func (r: Dictionary) -> int: return 0 if r["claimable"] else (2 if r["claimed"] else 1)
 	var order: Array[Dictionary] = []
 	for want_rank in 3:
@@ -199,7 +205,7 @@ static func find(id: String, p: Player) -> Dictionary:
 ## How many tasks in `cat` (every category when &"") can be received now. Cheap enough to poll.
 static func claimable_count(p: Player, cat: StringName = &"") -> int:
 	var n := 0
-	for c in CATS:
+	for c in CATS + ([&"faction"] as Array[StringName]):
 		if cat == &"" or c == cat:
 			for r in rows(c, p):
 				n += 1 if r["claimable"] else 0
@@ -212,7 +218,10 @@ static func claim(id: String, p: Player) -> Dictionary:
 	var r := find(id, p)
 	if r.is_empty() or not r["claimable"]:
 		return {}
-	claimed[id] = true
+	if r["cat"] == &"faction":
+		_hand_in(r, p)
+	else:
+		claimed[id] = true
 	var rw: Dictionary = r["rewards"]
 	World.t_stones += int(rw.get("t_stones", 0))
 	World.warp_gems += maxi(0, int(rw.get("warp_gems", 0))) # BAGUI: the knife order's tutorial grant
@@ -221,6 +230,8 @@ static func claim(id: String, p: Player) -> Dictionary:
 		p.skills.sp_extra += int(rw["sp"])
 		p.skills.sp_now()
 	print("[tasks] received %s (+%d gold, +%d gems, +%d SP, +%d xp)" % [id, int(rw.get("t_stones", 0)), int(rw.get("warp_gems", 0)), int(rw.get("sp", 0)), int(rw.get("xp", 0))])
+	if r["cat"] == &"faction":
+		r["ranks"] = Factions.add_rep(str(r["faction"]), int(rw.get("rep", 0)), p)
 	r["claimed"] = true
 	r["claimable"] = false
 	return r
@@ -228,7 +239,8 @@ static func claim(id: String, p: Player) -> Dictionary:
 # ---------------------------------------------------------------- save
 
 static func to_dict() -> Dictionary:
-	return {"claimed": claimed.duplicate(), "done": done.duplicate(), "counts": counts.duplicate(), "day": day, "week": week}
+	return {"claimed": claimed.duplicate(), "done": done.duplicate(), "counts": counts.duplicate(), "day": day, "week": week,
+		"active": active.duplicate(true), "taken": taken.duplicate()}
 
 ## `v` is the save's "tasks" block. A save from before the Task screen has none: its standing orders up
 ## to World.objective were paid when they finished, so they load as received (set World.objective first).
@@ -238,6 +250,8 @@ static func from_dict(v: Variant) -> void:
 	done = {}
 	day = -1
 	week = -1
+	active = {}
+	taken = {}
 	if v is Dictionary and (v as Dictionary).has("claimed"):
 		var d: Dictionary = v
 		for k in (d["claimed"] if d["claimed"] is Dictionary else {}):
@@ -249,6 +263,16 @@ static func from_dict(v: Variant) -> void:
 			counts[str(k)] = clampi(int(c[k]), 0, 1000000) if (c[k] is int or c[k] is float) else 0
 		day = int(d["day"]) if (d.get("day") is int or d.get("day") is float) else -1
 		week = int(d["week"]) if (d.get("week") is int or d.get("week") is float) else -1
+		# FACTIONS: missing in older saves (no faction missions then); unknown missions are dropped.
+		var a: Dictionary = d["active"] if d.get("active") is Dictionary else {}
+		for k in a:
+			var e: Variant = a[k]
+			if not mission_def(str(k)).is_empty() and e is Dictionary and ((e as Dictionary).get("base") is int or (e as Dictionary).get("base") is float):
+				active[str(k)] = {"base": maxi(0, int(e["base"])), "at": str((e as Dictionary).get("at", ""))}
+		var tk: Dictionary = d["taken"] if d.get("taken") is Dictionary else {}
+		for k in tk:
+			if not mission_def(str(k)).is_empty():
+				taken[str(k)] = str(tk[k])
 	else:
 		var steps := Objectives._steps()
 		for i in mini(World.objective, steps.size()):
@@ -256,3 +280,110 @@ static func from_dict(v: Variant) -> void:
 			claimed[id] = true
 			done[id] = true
 	roll()
+
+# ---------------------------------------------------------------- faction missions (FACTIONS)
+
+## The mission row of factions.json behind "faction.<fid>.<mid>", with "faction" set ({} when unknown).
+static func mission_def(key: String) -> Dictionary:
+	var parts := key.split(".")
+	if parts.size() != 3 or parts[0] != "faction":
+		return {}
+	for m: Dictionary in Factions.def(parts[1]).get("missions", []):
+		if str(m.get("id", "")) == parts[2]:
+			var out := m.duplicate()
+			out["faction"] = parts[1]
+			return out
+	return {}
+
+## The period a mission of `cadence` belongs to now: "d<utc day>", "w<utc week>" or "once".
+static func period(cadence: String) -> String:
+	roll()
+	match cadence:
+		"weekly":
+			return "w%d" % week
+		"once":
+			return "once"
+	return "d%d" % day
+
+## Why `key` cannot be accepted by `p` now ("" = it can).
+static func accept_block(key: String, p: Player) -> String:
+	var m := mission_def(key)
+	if m.is_empty():
+		return "Unknown mission"
+	var fid := str(m["faction"])
+	if not Factions.unlocked(fid, Factions.char_level(p)):
+		return "Unlocks at level %d" % int(Factions.def(fid).get("unlock_level", 0))
+	if Factions.rank(fid) < int(m.get("min_rank", 0)):
+		return "Needs rank %d" % int(m.get("min_rank", 0))
+	if active.has(key):
+		return "Already accepted"
+	if taken.get(key, "") == period(str(m.get("cadence", "daily"))):
+		return "Done for today" if str(m.get("cadence", "")) == "daily" else ("Done this week" if str(m.get("cadence", "")) == "weekly" else "Completed")
+	if active.size() >= int(Factions.rule("max_active", 4)):
+		return "%d missions active (the most)" % active.size()
+	return ""
+
+## Up to `offers` missions `fid`'s board offers today: the eligible ones (unlocked, rank met, not active,
+## not taken this period), rotated by the UTC day so the list changes daily. Keys, in show order.
+static func offers(fid: String, p: Player) -> Array[String]:
+	var pool: Array[String] = []
+	for m: Dictionary in Factions.def(fid).get("missions", []):
+		var key := "faction.%s.%s" % [fid, m.get("id", "")]
+		var why := accept_block(key, p)
+		if why == "" or why.ends_with("(the most)"):
+			pool.append(key)
+	var out: Array[String] = []
+	var n := pool.size()
+	for i in mini(int(Factions.rule("offers", 3)), n):
+		out.append(pool[(i + maxi(day, 0)) % n])
+	return out
+
+## Accept mission `key`: progress counts from now (career guides read lifetime counts). "" on success.
+static func accept(key: String, p: Player) -> String:
+	var why := accept_block(key, p)
+	if why != "":
+		return why
+	var m := mission_def(key)
+	var per := period(str(m.get("cadence", "daily")))
+	active[key] = {"base": 0 if bool(m.get("lifetime", false)) else _counted("life", m.get("count", "")), "at": per}
+	taken[key] = per
+	print("[tasks] accepted %s" % key)
+	return ""
+
+## Drop active mission `key` without pay. It stays taken for this period (the PRD's cooldown).
+static func abandon(key: String) -> void:
+	active.erase(key)
+
+## Units of `item` in the bag.
+static func held(p: Player, item: String) -> int:
+	return p.inventory.count_of(StringName(item)) if p != null and p.inventory != null else 0
+
+## Every active faction mission as a Task row (+ "faction", "cadence"; rewards include "rep").
+static func _faction_rows(p: Player) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for key in active:
+		var m := mission_def(key)
+		if m.is_empty():
+			continue
+		var what: Variant = m.get("count", "")
+		var got := 0
+		if what is String and (what as String).begins_with("deliver:"):
+			got = held(p, (what as String).trim_prefix("deliver:"))
+		else:
+			got = _counted("life", what) - int((active[key] as Dictionary).get("base", 0))
+		var want := maxi(1, int(m.get("want", 1)))
+		var desc := str(m.get("desc", ""))
+		var mult := float(Factions.def(str(m["faction"])).get("reward_multiplier", 1.0))
+		var r := _shape(key, &"faction", str(m.get("title", "")), desc % want if desc.contains("%d") else desc, "notice", maxi(got, 0), want, got >= want,
+			{"t_stones": int(round(int(m.get("t_stones", 0)) * mult)), "xp": int(m.get("xp", 0)), "sp": int(m.get("sp", 0)), "rep": int(m.get("rep", 0))})
+		r["faction"] = str(m["faction"])
+		r["cadence"] = str(m.get("cadence", "daily"))
+		out.append(r)
+	return out
+
+## Receive of a faction mission: takes delivered items from the bag and frees the slot.
+static func _hand_in(r: Dictionary, p: Player) -> void:
+	var what: Variant = mission_def(str(r["id"])).get("count", "")
+	if what is String and (what as String).begins_with("deliver:") and p != null:
+		p.inventory.consume(StringName((what as String).trim_prefix("deliver:")), int(r["want"]))
+	active.erase(str(r["id"]))

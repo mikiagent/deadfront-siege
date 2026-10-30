@@ -515,7 +515,7 @@ func _check_islandshapes(id: String, rt) -> void:
 				_expect(false, "%s %s at %s is not on the ground (y %.2f vs %.2f)" % [id, row["kind"], pos, pos.y, rt.surface_y(pos.x, pos.z)])
 			if rt.pathing.is_walkable(row["tile"]):
 				_expect(false, "%s blocking %s at %s is walkable in TilePath" % [id, row["kind"], row["tile"]])
-			if Vector2(pos.x, pos.z).distance_to(Vector2(arrive.x, arrive.z)) < 8.0 or rt.on_harbour_approach(pos):
+			if rt.near_harbour(pos) or rt.on_harbour_approach(pos):  # the clearing scatter keeps (the landing is on the approach)
 				_expect(false, "%s %s at %s sits on the dock or its approach" % [id, row["kind"], pos])
 			rocks += 1
 		if fam != "classic":

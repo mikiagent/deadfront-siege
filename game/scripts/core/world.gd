@@ -287,6 +287,7 @@ func start_new(host: Node) -> void:
 	objective = 0
 	objective_best = 0
 	Tasks.reset()
+	Factions.reset()
 	tutorial = {"done": true, "did": {}}
 	# Character creation first (M10), then the home island with the terrain pick.
 	var cc := CharacterCreation.new()
@@ -426,6 +427,7 @@ func travel(to_id: StringName, mode: StringName) -> void:
 		if is_home(): _save_now()
 		remaining_lifetime = 0.0 # each destination starts its own island lifetime
 		load_island(host, to_id, pos, false)
+		Tasks.note(&"land")  # FACTIONS: Three Islands counts real arrivals by travel, never a save load (t_save re-save)
 		if runtime and runtime.has_method("arrival_point"):
 			player.global_position = runtime.arrival_point() + Vector3.UP
 		if is_home():
@@ -555,6 +557,7 @@ func note_building(kind: StringName, at: Vector3 = Vector3.ZERO, player: Player 
 	# unstable island is a visit, so every build there pays the repeat award (the old flat 8) and no
 	# kind is remembered.
 	Tasks.note(&"build")  # TASKSCREEN: daily Construct a Building (DW-T0123)
+	Tasks.note(StringName("build:" + str(kind)))  # FACTIONS: missions that name a building
 	Tutorial.note("build")
 	var total := maxi(0, extra_xp)
 	if is_home():
@@ -1062,6 +1065,7 @@ func discover_crater() -> void:
 	if crater_discovered:
 		return
 	crater_discovered = true
+	Tasks.note(&"crater")  # FACTIONS: crater survey missions (the island's landmark)
 	var player := _player()
 	if player:
 		var drop := absf(float(Data.world_rules.get("craters", {}).get("discover_fatigue", -20)))

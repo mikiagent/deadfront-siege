@@ -5,8 +5,8 @@
   "tutorial": [
     {
       "id": "tut_camp",
-      "title": "Report to the Adventurer's Guild",
-      "hint": "Tap the ground or use WASD: the guild hall is in the town up from the dock. Tap it for your orders",
+      "title": "Report to the Faction Hall",
+      "hint": "Tap the ground or use WASD: the Faction Hall stands across the square, straight up from the dock. Tap its desk for your orders",
       "near": "guild",
       "radius": 6,
       "point_at": "world:guild",
@@ -210,7 +210,7 @@
     {
       "id": "tut_fire",
       "title": "Light the fire pit",
-      "hint": "Tap the stone fire pit by the guild > FUEL > add a Branch: it burns while fuelled",
+      "hint": "Tap the stone fire pit on the square > FUEL > add a Branch: it burns while fuelled",
       "fire_lit": true,
       "point_at": "world:firepit",
       "xp": 30,

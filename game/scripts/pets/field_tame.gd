@@ -105,12 +105,19 @@ static func preferred_need(creature: Creature) -> StringName:
 ## A locked species accepts no food, so callers fall through to refuse_message(), which then
 ## names the missing technique instead of a food.
 static func food_in_bag(inv: Inventory, creature: Creature) -> StringName:
-	if inv == null or creature == null or creature.def == null or lock_reason(creature) != "":
+	if creature == null or lock_reason(creature) != "":
 		return &""
-	for id in creature.def.preferred_food:
+	return diet_food_in_bag(inv, creature.def)
+
+## The species' first preferred food found in the bag (diet list order), else its first accepted
+## food. Shared by field feeding and the taming pen (PEN-DIET), so both read one diet.
+static func diet_food_in_bag(inv: Inventory, def: CreatureDef) -> StringName:
+	if inv == null or def == null:
+		return &""
+	for id in def.preferred_food:
 		if inv.find_first(id) >= 0:
 			return id
-	for id in creature.def.accepted_food:
+	for id in def.accepted_food:
 		if inv.find_first(id) >= 0:
 			return id
 	return &""
@@ -303,6 +310,7 @@ static func _complete(player: Player, creature: Creature) -> void:
 	if player.hunt and player.hunt.target == creature:
 		player.hunt.stop()
 	creature.become_pet(rec)
+	Tasks.note(&"tame")  # FACTIONS: taming missions and the First Tame guide
 	# Same wounds, pet-sized pool: the fraction of HP left carries over to the pet's max.
 	var frac := creature.health.fraction()
 	creature.health.max_hp = rec.hp

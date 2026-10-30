@@ -218,7 +218,7 @@ func _walk_to(at: Vector3, reach: float, arrived: Callable = Callable()) -> Stri
 		if not player.nav_active:
 			player.nav_to(player._closest_nav_point(at))
 		await _beat(0.25)
-	return "could not walk to %s (%.0f m short)" % [at.snapped(Vector3.ONE), player.global_position.distance_to(at)]
+	return "could not walk to %s (%.0f m short, stopped at %s)" % [at.snapped(Vector3.ONE), player.global_position.distance_to(at), player.global_position.snapped(Vector3.ONE * 0.1)]
 
 ## Gather until the bag holds `n` (an earlier craft may have spent some).
 func _gather_to(item: StringName, n: int) -> String:

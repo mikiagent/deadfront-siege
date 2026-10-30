@@ -135,7 +135,7 @@ func open_loot_chest(player: Player) -> void:
 		"on_empty": Callable(self, "_on_loot_empty"),
 	})
 	if readonly == "":
-		player.inventory.wear_gather_tool(&"knife")
+		player.inventory.wear_gather_tool(&"knife", level)
 
 ## Radial options (Durango reference): one hex per loot stack, 1.6 s each, knife-gated.
 func loot_options(inv: Inventory) -> Array:
@@ -378,7 +378,7 @@ func cut_part(id: StringName, p: Player) -> Array[ItemStack]:
 	cut_parts.append(id)
 	cuts_left = maxi(0, cuts_left - 1)
 	note_tapped()
-	p.inventory.wear_gather_tool(&"knife")
+	p.inventory.wear_gather_tool(&"knife", level)
 	if _is_empty():
 		_on_loot_empty()
 	return out
@@ -410,7 +410,7 @@ func take_slot(slot: int, player: Player) -> ItemStack:
 	var st: ItemStack = loot.slots[slot]
 	var taken := loot.remove_at(slot, st.count)
 	if taken and player:
-		player.inventory.wear_gather_tool(&"knife")
+		player.inventory.wear_gather_tool(&"knife", level)
 	_on_take_from_loot()
 	return taken
 

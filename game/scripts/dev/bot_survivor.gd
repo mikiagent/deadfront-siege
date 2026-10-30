@@ -324,7 +324,7 @@ func _craft(rec: Dictionary) -> bool:
 			if not await _beat(0.25):
 				break
 		if player.global_position.distance_to(st.global_position) > Crafting.STATION_RANGE:
-			_event("craft-blocked", "%s: could not reach the %s (%.0f m short)" % [rid, station, player.global_position.distance_to(st.global_position)])
+			_event("craft-blocked", "%s: could not reach the %s (%.0f m short) at %s, station %s" % [rid, station, player.global_position.distance_to(st.global_position), player.global_position.snapped(Vector3.ONE * 0.1), st.global_position.snapped(Vector3.ONE * 0.1)])
 			return false
 	# Stop the station approach first. StationCraft starts only when nav is idle;
 	# a near-enough path can still be active when this loop exits.

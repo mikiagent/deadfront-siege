@@ -233,7 +233,7 @@ func _test_screen() -> void:
 		var ch = ui._character
 		_expect(ch.visible and not ui._panel.visible, "%s: the Character tab opens the Character sheet" % view)
 		ch._on_equip_slot_pressed("weapon")
-		_expect(ch._unequip_btn.visible and ch._sel_label.text.contains("Stone Knife"), "%s: a worn knife selected shows Unequip (%s)" % [view, ch._sel_label.text])
+		_expect(ch._unequip_btn.visible and ch._sel_label.text.contains("Stone Dagger"), "%s: a worn dagger selected shows Unequip (%s)" % [view, ch._sel_label.text])
 		_expect(not ch._preset_btns[0].disabled, "%s: preset 1 is open at level 1" % view)
 		ch._unequip_btn.pressed.emit()
 		_expect(inv.worn(&"weapon") == null and inv.find_first(&"stone_knife") >= 0, "%s: Unequip puts the knife back in the bag" % view)
