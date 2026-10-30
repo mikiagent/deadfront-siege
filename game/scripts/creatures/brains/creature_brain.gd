@@ -453,7 +453,7 @@ func _spot(who: Node3D) -> void:
 	_set_state(&"alert")
 	_alert_left = maxf(_alert_left, 0.6)
 	creature.mark_aggro_now()
-	creature.anim.play_clip(&"alert")
+	creature.anim.play_clip(&"sniff" if creature.anim.has_state(&"sniff") else &"alert")
 	_propagate_alert(who)
 
 func _nearest_live_prey(radius: float) -> Node3D:
@@ -473,6 +473,10 @@ func _nearest_live_prey(radius: float) -> Node3D:
 				best = pet
 				best_d = d
 	return best
+
+## Aware of prey but not attacking it: the creature stands in its investigate idle (CreatureAnim.play_idle).
+func aware_idle() -> bool:
+	return state == &"alert" and _valid_target()
 
 func _valid_target() -> bool:
 	if attack_target == null or not is_instance_valid(attack_target):

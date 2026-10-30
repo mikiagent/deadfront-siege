@@ -181,14 +181,18 @@
       "idle",
       "knockdown",
       "run",
-      "walk"
+      "walk",
+      "investigate",
+      "sniff"
     ],
     "authored_clips": {
       "knockdown": "complete death collapse followed by 8-frame grounded hold",
       "hit_react": "dedicated 0.6s head/neck recoil from neutral idle; no death frames",
       "alert": "idle 0-40% with head pitched 20.0 deg",
       "attack_heavy": "telegraph hold of 8 frames at 30%",
-      "death": "coherent sideways collapse with small neck release; corrected to ground each frame"
+      "death": "coherent sideways collapse with small neck release; corrected to ground each frame",
+      "investigate": "4.0 s loop, tools/gait/make_investigate_idle.py: low crouch, bird-like head-cock snaps and holds, a hiss toward the prey, twitchy weight shifts, feet planted (owner 2026-10-30)",
+      "sniff": "1.5 s one-shot, tools/gait/make_investigate_idle.py --clip sniff: neck stretches to the prey, snout bobs with the jaw, inspect tilt, snap back up"
     },
     "version": 2,
     "i2m_params": {
