@@ -30,10 +30,14 @@ const EXPECTED_FAIL_TIME := false
 ## builds these. Home keeps its classic body; only its dock (and so what the scatter keeps clear) moved.
 ## Re-recorded 2026-10-29 on the FOODTORPOR merge (2 narcoberry bushes per island, own RNG stream; with
 ## their count set to 0 the merged build still matched canon's digests, checked before re-recording).
+## Re-recorded 2026-10-30 on the LANDMARKS / ISLAND RESET / ISLAND MATRIX merges (4a685bc4): named
+## landmark sites plant their node groups before the family scatter (which then fills around them),
+## expedition ambient nodes regrow 5x slower and the crater's herbs belong to its landmark, all
+## output changes by design. Canon 24d2a22f built the three digests above this line's predecessors.
 const BEFORE := {
-	"home_grassland": "f04996a5adbe88a9b849e106a3be05c93a5d663c91f5ce15d6a494fb4e2991dd",
-	"savannah_15": "84bf66db6484494df6fe5e7c5148370f96b0f87d66415f52d785bb2bd970c9cf",
-	"volcanic_60": "c3029c63b88e5bb4191a0db34bfe924c07839e4839b70f0ffefd4ae064b9f25b",
+	"home_grassland": "fff95c7f934e87b2437ef57c296021fd1a100855b7cc24d6f9df52119ec6756e",
+	"savannah_15": "bc0b47991c1bd4b7b49f4e41e21a2386c0d914ff96e3c74f41e5cffd503dc498",
+	"volcanic_60": "e06016a424ce6a5c1313c09d91d459f49bbc997c7dc9550e43757927f284e821",
 }
 
 var _fails: PackedStringArray = []
