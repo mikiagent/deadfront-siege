@@ -672,7 +672,7 @@ static func drift_block(raw: Variant) -> Dictionary:
 		"climate": str((tmpl_row as Dictionary).get("climate", "")),
 		"template": tmpl,
 		"family": str(r.get("family", "classic")),
-		"size_m": clampi(int(r["size_m"]), 200, 420),
+		"size_m": clampi(int(r["size_m"]), 200, 440),
 		"offer_left": clampf(float(r["offer_left"]), 0.0, 86400.0),
 	}
 	out["count"] = maxi(int(out["count"]), int(out["row"]["n"]))

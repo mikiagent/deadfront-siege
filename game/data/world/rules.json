@@ -175,7 +175,7 @@
     "max_live": 1,
     "min_survival": 10,
     "tier_spread": 5,
-    "size_m": [260, 340],
+    "size_share": [0.9, 1.0],
     "landmark_extra": 2,
     "level_offset": 8,
     "trait_mult": 1.25,

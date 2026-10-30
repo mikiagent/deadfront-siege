@@ -338,11 +338,20 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 		remaining_lifetime = float(row["left"])
 		var snap: Variant = row.get("harvested", {})
 		harvested = (snap as Dictionary).duplicate(true) if snap is Dictionary else {}
-	var ir = (load("res://scripts/world/island_runtime.gd") as GDScript).new()
-	ir.name = "IslandRuntime"
-	host.add_child(ir)
 	var terrain := home_terrain if is_home() and home_terrain != &"" else &"meadow"
-	ir.build(island_def, terrain)
+	var ir = _build_runtime(host, terrain)
+	# UNSTABLE ISLES: a rolled isle must be a real destination (doc section 7): its Rift Pool and its
+	# landmark minimum reachable from the dock. A roll that is not (a swamp chain whose mud cuts the
+	# harbour off) re-rolls its seed before anyone sees it, at most twice.
+	for _retry in 2:
+		if not is_drift(str(id)) or _drift_valid(ir):
+			break
+		print("[world] unstable isle %s seed %d is not a valid destination; re-rolling" % [id, int(drift.get("seed", 0))])
+		ir.free()
+		drift["seed"] = absi(hash("%d|reroll" % int(drift.get("seed", 0)))) % 2000000000
+		_install_drift()
+		island_def = def_of(id)
+		ir = _build_runtime(host, terrain)
 	runtime = ir
 	if str(island_def.get("kind", "")) == "tutorial":
 		Tutorial.dress(ir)
@@ -778,7 +787,7 @@ func roll_drift(p_seed: int, survival: int) -> String:
 	var climate := str(climates[rng.randi_range(0, climates.size() - 1)])
 	var picks: Variant = IslandShape.fam_root().get("roster_pick", ["classic"])
 	var fams: Array = picks if picks is Array and not (picks as Array).is_empty() else ["classic"]
-	var size_r: Array = r.get("size_m", [260, 340])
+	var size_r: Array = r.get("size_share", [0.9, 1.0])
 	drift_count += 1
 	drift = {
 		"id": "drift_%d" % drift_count,
@@ -788,7 +797,7 @@ func roll_drift(p_seed: int, survival: int) -> String:
 		"climate": climate,
 		"template": str((best[climate] as Array)[0]),
 		"family": str(fams[rng.randi_range(0, fams.size() - 1)]),
-		"size_m": rng.randi_range(int(size_r[0]), int(size_r[1])),
+		"size_m": roundi(float((islands[str((best[climate] as Array)[0])] as Dictionary).get("size_m", 368)) * rng.randf_range(float(size_r[0]), float(size_r[1]))),
 		"offer_left": float(r.get("offer_window_s", 1200)),
 	}
 	_install_drift()
@@ -845,6 +854,22 @@ func tick_drifts(delta: float) -> void:
 	if float(drift["offer_left"]) <= 0.0:
 		print("[world] unstable isle %s left the board" % drift.get("id", ""))
 		_erase_drift(str(drift.get("id", "")))
+
+func _build_runtime(host: Node, terrain: StringName) -> Node:
+	var ir = (load("res://scripts/world/island_runtime.gd") as GDScript).new()
+	ir.name = "IslandRuntime"
+	host.add_child(ir)
+	ir.build(island_def, terrain)
+	return ir
+
+## A built isle with its Rift Pool and at least its budget's minimum of (reachable) landmarks.
+func _drift_valid(ir: Node) -> bool:
+	var sites: Array = ir.get("landmarks")
+	var rift := false
+	for s in sites:
+		if str((s as Dictionary).get("type", "")) == "rift":
+			rift = true
+	return rift and sites.size() >= IslandLandmarks.budget_for(island_def).x
 
 func _erase_drift(id: String) -> void:
 	islands.erase(id)

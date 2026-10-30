@@ -19,13 +19,13 @@ to look at the board.
 | Where it comes from | A hand-tuned row in `world/islands.json` | Rolled on demand from a seed |
 | Life | 6-24 h of play, then rerolls under the same name | Route open 20 min; once you land, 40 min; then it sinks and is gone |
 | Building | Kits, blueprints, modular pieces | **Kits only** (packed prefabs). No blueprints, no walls or floors |
-| Landmarks | 4-10, level +5 | Budget +2, level +8, plus one Rift Pool (driftglass), found only here |
+| Landmarks | 4-10, level +5 | Budget top +2, level +8, plus one Rift Pool (driftglass), found only here |
 | When it ends | Buildings refund 50 % to the home vault | Placed kits and their storage sink with it. You keep what you carry |
 
 ## 2. Rolling one (data: `world/rules.json` "unstable_isles")
 
-A new isle is rolled when the survivor is at a harbour and none is on offer, at most once per **30 min of play**
-(`offer_every_s` 1800). The first offer comes once the survivor reaches Survival 10 (the first sail gate).
+A new isle rolls in the background when none is on offer, at most once per **30 min of play**
+(`offer_every_s` 1800), and the survivor gets a notice naming it. The first offer comes once the survivor reaches Survival 10 (the first sail gate).
 
 From one seed, in this order:
 
@@ -35,7 +35,7 @@ From one seed, in this order:
    spawns, guardians, weather). Home climates are excluded.
 3. **Shape family.** From `island_families.json` `roster_pick` (chains, bulky, round-with-peak, lobed, crescent, atoll,
    spiral), drawn on the seed's own stream.
-4. **Size.** 260-340 m, smaller than a roster island (368-416 m), so a 40-minute trip can cross it.
+4. **Size.** 90-100 % of its template roster island (`size_share`), so it still holds its landmarks.
 5. **Name.** `"<Climate> Drift <roman numeral>"`, numbered by how many isles have been rolled.
 
 The isle's id is `drift_<n>`. It is a normal `kind: "unstable"` island in every other way: unstable loot flags,
@@ -53,7 +53,7 @@ cargo warp, warp home strips unstable goods on foot, the harvest snapshot and re
 
 ## 4. Why go: richer or rarer
 
-- **Landmarks:** the climate's normal budget +2, level offset +8 instead of +5 (capped at 60).
+- **Landmarks:** the climate's normal budget with its top raised by 2 (the minimum stays), level offset +8 instead of +5 (capped at 60).
 - **Rift Pool:** one extra landmark per isle, never on a roster island. Its Driftglass Node yields
   **driftglass**, a trade good that only grows on unstable isles. It sells high at the market, and it is the material of
   later warp-tier gear. That gear is a later content package, so for now it is a sell-only treasure.
@@ -73,17 +73,17 @@ When the clock reaches 0:
 
 ## 6. Data and code
 
-- `world/rules.json` `unstable_isles`: offer_every_s, offer_window_s, life_s, max_live, size_m, tier_spread,
+- `world/rules.json` `unstable_isles`: offer_every_s, offer_window_s, life_s, max_live, size_share, tier_spread,
   landmark_extra, level_offset, trait_mult, min_survival.
 - `world/landmarks.json`: a `rift` type, and the `"generated"` climate row (the Rift Pool), used only by isles
   (`generated_only` rows).
-- `World.drifts`: the live offer or isle row `{id, seed, tier, climate, template, family, size_m, offer_left, life_left, n}`, saved.
+- `World.drift`: the live offer or isle row `{id, n, seed, tier, climate, template, family, size_m, offer_left}` (its clock, once landed, is its `World.expeditions` row`, saved.
   `World.roll_drift()`, `World.tick_drifts(delta)`, `World.sink_drift()`. `def_of()` builds the def from the row.
 - Building on an isle refuses blueprints and modular pieces ("Only packed kits stand on an unstable isle").
 
 ## 7. Test gate (`game/tests/t_unstable_isles.gd`)
 
-- 12 seeds roll and build: each is valid (a harbour, landmarks inside the budget + 2, every landmark reachable by TilePath,
+- 12 seeds roll and build: each is valid (a harbour, landmarks inside the budget (top + 2), every landmark reachable by TilePath,
   the Rift Pool placed), and its climate and tier are inside the band.
 - The route expires when not sailed; the cooldown holds.
 - Running the life clock out while on the isle sinks it: the survivor is at the home harbour with the bag intact, the isle's row and
