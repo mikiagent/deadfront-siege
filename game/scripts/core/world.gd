@@ -71,6 +71,13 @@ var crater_discovered: bool = false
 var expeditions: Dictionary = {}
 var _life_warned: Dictionary = {} ## warning seconds already shown on this visit
 signal island_reset(id: StringName, generation: int)
+## UNSTABLE ISLES (docs/design/unstable-isles.md): the one generated, short-life island on offer or
+## live ({} when none), the play seconds before the next may roll, and how many have been rolled.
+var drift: Dictionary = {}
+var drift_cooldown: float = 0.0
+var drift_count: int = 0
+signal drift_offered(id: StringName)
+signal drift_sunk(id: StringName)
 var landmarks_found: Dictionary = {}
 var landmark_state: Dictionary = {}
 signal landmark_found(site: Dictionary)
@@ -109,6 +116,7 @@ func _process(delta: float) -> void:
 		map_fog.advance_trail(delta)
 	if not creation_pending:
 		tick_expeditions(delta)
+		tick_drifts(delta)
 	_objective_acc += delta
 	if _objective_acc >= 0.5:
 		_objective_acc = 0.0
@@ -336,11 +344,20 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 		remaining_lifetime = float(row["left"])
 		var snap: Variant = row.get("harvested", {})
 		harvested = (snap as Dictionary).duplicate(true) if snap is Dictionary else {}
-	var ir = (load("res://scripts/world/island_runtime.gd") as GDScript).new()
-	ir.name = "IslandRuntime"
-	host.add_child(ir)
 	var terrain := home_terrain if is_home() and home_terrain != &"" else &"meadow"
-	ir.build(island_def, terrain)
+	var ir = _build_runtime(host, terrain)
+	# UNSTABLE ISLES: a rolled isle must be a real destination (doc section 7): its Rift Pool and its
+	# landmark minimum reachable from the dock. A roll that is not (a swamp chain whose mud cuts the
+	# harbour off) re-rolls its seed before anyone sees it, at most twice.
+	for _retry in 2:
+		if not is_drift(str(id)) or _drift_valid(ir):
+			break
+		print("[world] unstable isle %s seed %d is not a valid destination; re-rolling" % [id, int(drift.get("seed", 0))])
+		ir.free()
+		drift["seed"] = absi(hash("%d|reroll" % int(drift.get("seed", 0)))) % 2000000000
+		_install_drift()
+		island_def = def_of(id)
+		ir = _build_runtime(host, terrain)
 	runtime = ir
 	if str(island_def.get("kind", "")) == "tutorial":
 		Tutorial.dress(ir)
@@ -561,6 +578,8 @@ func note_building(kind: StringName, at: Vector3 = Vector3.ZERO, player: Player 
 ## it is not the old 2-hour test value.
 func expedition_lifetime(id: String) -> float:
 	var d := islands.get(id, {}) as Dictionary
+	if bool(d.get("generated", false)):
+		return float(drift_rules().get("life_s", 2400))
 	var tier := int(d.get("tier", 25))
 	var bands: Dictionary = Data.world_rules.get("lifetime_hours", {})
 	for key in bands.keys():
@@ -607,10 +626,15 @@ func tick_expeditions(delta: float) -> void:
 				_sink_warned = true
 				var p := _player()
 				if p:
-					p.notice("This island resets in %s: pack your kits and ship your cargo" % ("10 minutes" if warn_s >= 600.0 else "%d seconds" % int(warn_s)))
+					p.notice("This island %s in %s: pack your kits and ship your cargo" % [
+						"sinks" if is_drift(str(island_id)) else "resets",
+						"10 minutes" if warn_s >= 600.0 else "%d seconds" % int(warn_s)])
 				print("[world] sink warning %.0fs" % remaining_lifetime)
 	for id in due:
-		reset_expedition(id)
+		if is_drift(id):
+			sink_drift(id)
+		else:
+			reset_expedition(id)
 
 ## The island rerolls (doc section 5.5 step 5): generation + 1 (a new seed), its found landmarks,
 ## opened sites, fog and harvest state cleared, and its clock starts again. When the survivor stands
@@ -715,6 +739,186 @@ func _category_item(cat: StringName, item: String) -> StringName:
 			best_lv = lv
 			best = StringName(str(id))
 	return best
+
+# ------------------------------------------------------------------------------------ unstable isles
+
+## rules.json "unstable_isles" (all # ASSUMPTION, docs/design/unstable-isles.md section 2).
+func drift_rules() -> Dictionary:
+	return Data.world_rules.get("unstable_isles", {}) as Dictionary
+
+func is_drift(id: String) -> bool:
+	return bool((islands.get(id, {}) as Dictionary).get("generated", false))
+
+## True once the survivor has landed (the isle's own clock runs): the route can no longer expire.
+func drift_landed() -> bool:
+	return not drift.is_empty() and expeditions.has(str(drift.get("id", "")))
+
+## Seconds left on the board (offer) or before it sinks (landed); 0 with no isle.
+func drift_time_left() -> float:
+	if drift.is_empty():
+		return 0.0
+	if drift_landed():
+		return float(expedition_row(str(drift["id"])).get("left", 0.0))
+	return float(drift.get("offer_left", 0.0))
+
+## The highest roster tier a survivor of this Survival level can sail to (route_level = tier - 5).
+func _sailable_top(survival: int) -> int:
+	var top := 15
+	for id in islands:
+		var d: Dictionary = islands[id]
+		if str(d.get("kind", "")) != "unstable" or bool(d.get("generated", false)):
+			continue
+		if route_level(StringName(str(id))) <= survival:
+			top = maxi(top, int(d.get("tier", 15)))
+	return top
+
+## Rolls a new isle from `p_seed` (doc section 2): level band around the survivor's top sailable tier,
+## a climate whose roster islands sit near it (the nearest roster row is the template: spawns, weather),
+## a roster shape family, a smaller size. Installs it as a harbour route; returns its id ("" when none).
+func roll_drift(p_seed: int, survival: int) -> String:
+	if not drift.is_empty():
+		return ""
+	var r := drift_rules()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = p_seed
+	var spread := int(r.get("tier_spread", 5))
+	var tier := clampi(_sailable_top(survival) + rng.randi_range(-1, 1) * spread, 15, 60)
+	# Templates: roster expedition rows within 10 levels, one entry per climate (the nearest tier).
+	var best := {}
+	for id in islands:
+		var d: Dictionary = islands[id]
+		if str(d.get("kind", "")) != "unstable" or bool(d.get("generated", false)):
+			continue
+		var gap := absi(int(d.get("tier", 0)) - tier)
+		if gap > 10:
+			continue
+		var cl := str(d.get("climate", ""))
+		if not best.has(cl) or gap < int((best[cl] as Array)[1]):
+			best[cl] = [str(id), gap]
+	if best.is_empty():
+		return ""
+	var climates := best.keys()
+	climates.sort()
+	var climate := str(climates[rng.randi_range(0, climates.size() - 1)])
+	var picks: Variant = IslandShape.fam_root().get("roster_pick", ["classic"])
+	var fams: Array = picks if picks is Array and not (picks as Array).is_empty() else ["classic"]
+	var size_r: Array = r.get("size_share", [0.9, 1.0])
+	drift_count += 1
+	drift = {
+		"id": "drift_%d" % drift_count,
+		"n": drift_count,
+		"seed": absi(hash("%d|drift" % p_seed)) % 2000000000,
+		"tier": tier,
+		"climate": climate,
+		"template": str((best[climate] as Array)[0]),
+		"family": str(fams[rng.randi_range(0, fams.size() - 1)]),
+		"size_m": roundi(float((islands[str((best[climate] as Array)[0])] as Dictionary).get("size_m", 368)) * rng.randf_range(float(size_r[0]), float(size_r[1]))),
+		"offer_left": float(r.get("offer_window_s", 1200)),
+	}
+	_install_drift()
+	print("[world] unstable isle %s rolled tier=%d climate=%s family=%s" % [drift["id"], tier, climate, drift["family"]])
+	drift_offered.emit(StringName(str(drift["id"])))
+	return str(drift["id"])
+
+const _ROMAN := ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+
+## The isle's catalogue row: its template's row (spawns, guardians, weather) with the rolled seed,
+## tier, climate, shape and size, and no fixed harbour (the dock goes on the southern-most coast).
+func _install_drift() -> void:
+	var id := str(drift.get("id", ""))
+	var base: Dictionary = (islands.get(str(drift.get("template", "")), {}) as Dictionary).duplicate(true)
+	for k in ["harbour", "camp", "_harbour_note", "map", "map_doc", "lifetime_seconds", "lifetime_hours", "display_name"]:
+		base.erase(k)
+	var n := int(drift.get("n", 1))
+	base["id"] = id
+	base["kind"] = "unstable"
+	base["generated"] = true
+	base["seed"] = int(drift["seed"])
+	base["tier"] = int(drift["tier"])
+	base["climate"] = str(drift["climate"])
+	base["shape_family"] = str(drift["family"])
+	base["size_m"] = int(drift["size_m"])
+	base["display_name"] = "%s Drift %s" % [str(drift["climate"]).replace("_", " ").capitalize(), _ROMAN[(n - 1) % _ROMAN.size()] if n <= _ROMAN.size() else str(n)]
+	if not base.has("sail_cost"):
+		base["sail_cost"] = 5
+	islands[id] = base
+
+## The board: a new isle rolls once the cooldown is over (and the survivor has the first sail gate);
+## an offer nobody sailed expires; a landed isle's clock is its expeditions row (tick_expeditions).
+func tick_drifts(delta: float) -> void:
+	var r := drift_rules()
+	if r.is_empty():
+		return
+	if drift.is_empty():
+		drift_cooldown = maxf(0.0, drift_cooldown - delta)
+		if drift_cooldown > 0.0:
+			return
+		var p := _player()
+		if p == null or p.skills == null or is_tutorial():
+			return
+		var surv := int(p.skills.level_of("survival"))
+		if surv < int(r.get("min_survival", 10)):
+			return
+		if roll_drift(randi(), surv) != "":
+			p.notice("An unstable isle surfaced: %s. Sail from the harbour within %d minutes." % [
+				str(def_of(StringName(str(drift["id"]))).get("display_name", "")), int(float(drift["offer_left"]) / 60.0)])
+		return
+	if drift_landed():
+		return
+	drift["offer_left"] = maxf(0.0, float(drift.get("offer_left", 0.0)) - delta)
+	if float(drift["offer_left"]) <= 0.0:
+		print("[world] unstable isle %s left the board" % drift.get("id", ""))
+		_erase_drift(str(drift.get("id", "")))
+
+func _build_runtime(host: Node, terrain: StringName) -> Node:
+	var ir = (load("res://scripts/world/island_runtime.gd") as GDScript).new()
+	ir.name = "IslandRuntime"
+	host.add_child(ir)
+	ir.build(island_def, terrain)
+	return ir
+
+## A built isle with its Rift Pool and at least its budget's minimum of (reachable) landmarks.
+func _drift_valid(ir: Node) -> bool:
+	var sites: Array = ir.get("landmarks")
+	var rift := false
+	for s in sites:
+		if str((s as Dictionary).get("type", "")) == "rift":
+			rift = true
+	return rift and sites.size() >= IslandLandmarks.budget_for(island_def).x
+
+func _erase_drift(id: String) -> void:
+	islands.erase(id)
+	expeditions.erase(id)
+	landmarks_found.erase(id)
+	landmark_state.erase(id)
+	map_fogs.erase(id)
+	visited_islands.erase(id)
+	drift = {}
+	drift_cooldown = float(drift_rules().get("offer_every_s", 1800))
+
+## The isle sinks for good (doc section 5): a survivor on it is pulled to the home harbour with the bag
+## as it is (carried goods keep their unstable flag); placed kits and their storage go down with it;
+## every trace of the isle (row, clock, landmarks, fog, harvest) is deleted.
+func sink_drift(id: String) -> void:
+	var on := str(island_id) == id and runtime != null and is_instance_valid(runtime)
+	print("[world] unstable isle %s sank on=%s" % [id, str(on)])
+	_erase_drift(id)
+	if on:
+		var host := runtime.get_parent()
+		_clear_runtime()
+		harvested = {}
+		map_fog = null
+		unstable_claims = []
+		away_domain = {}
+		remaining_lifetime = 0.0
+		var player := _player()
+		load_island(host, &"home_grassland", Vector3.ZERO, false)
+		if player and runtime and runtime.has_method("arrival_point"):
+			player.global_position = runtime.arrival_point() + Vector3.UP
+		(load("res://scripts/core/save_game.gd") as GDScript)._restore_buildings(_home_buildings_cache, SaveMigrations.CURRENT_SCHEMA)
+		if player:
+			player.notice("The isle sank beneath you. The tide carried you home with your bag.")
+	drift_sunk.emit(StringName(id))
 
 # ------------------------------------------------------------------------------------ landmarks
 

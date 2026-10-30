@@ -241,9 +241,39 @@
       },
       "depletion": "slow",
       "_about": "4-6 coral and pearl nodes in the shallows (doc section 5.1); blue tropical only."
+    },
+    "rift": {
+      "display": "Rift Pool",
+      "ring": [
+        80,
+        240
+      ],
+      "terrain": [
+        "flat"
+      ],
+      "guardians": {
+        "chance": 0.5
+      },
+      "depletion": "no_regen",
+      "_about": "UNSTABLE ISLES only (docs/design/unstable-isles.md section 4): a glassy pool where driftglass grows. Never on a roster island."
     }
   },
   "climates": {
+    "generated": [
+      {
+        "type": "rift",
+        "display": "Rift Pool",
+        "weight": 5,
+        "must": true,
+        "max": 1,
+        "nodes": {
+          "DriftglassNode": [
+            4,
+            6
+          ]
+        }
+      }
+    ],
     "grassland": [
       {
         "type": "grove",

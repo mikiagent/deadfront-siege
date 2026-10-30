@@ -542,6 +542,9 @@ static func _family_pool_max(family: String, role: String) -> int:
 static func regen_mult(rt: IslandRuntime) -> float:
 	if rt == null or rt.kind != "unstable":
 		return 1.0
+	if rt.generated:
+		# UNSTABLE ISLES: one pass at the ambient nodes in a 40-minute life.
+		return float((Data.world_rules.get("unstable_isles", {}) as Dictionary).get("regen_mult", 100.0))
 	return float((Data.world_rules.get("reset", {}) as Dictionary).get("expedition_regen_mult", 5.0))
 
 static func _family_regen_seconds(family: String, role: String) -> float:
