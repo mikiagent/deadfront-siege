@@ -146,6 +146,21 @@
     "building_refund": 0.5,
     "_refund_note": "A1 (approved; # ASSUMPTION on the share): a placed building left on an island at its reset refunds 50 % of its kit recipe (rounded down per slot) to the home vault; its storage moves there whole."
   },
+  "unstable_isles": {
+    "_about": "UNSTABLE ISLES (docs/design/unstable-isles.md): generated, short-life islands. One at a time: it rolls from a seed (level band, climate, shape family, size), sits on the harbour board for offer_window_s, lives life_s of play once landed, then sinks for good. All numbers # ASSUMPTION.",
+    "offer_every_s": 1800,
+    "offer_window_s": 1200,
+    "life_s": 2400,
+    "max_live": 1,
+    "min_survival": 10,
+    "tier_spread": 5,
+    "size_m": [260, 340],
+    "landmark_extra": 2,
+    "level_offset": 8,
+    "trait_mult": 1.25,
+    "regen_mult": 100.0,
+    "_regen_note": "Ambient nodes effectively do not regrow inside the 40-minute life (100x the home time)."
+  },
   "creature_cap_mobile": 24,
   "night_predator_perception_bonus": 0.5,
   "wet_after_seconds_in_water": 5,

@@ -232,6 +232,10 @@ func show_harbour() -> void:
 		var required := World.route_level(id)
 		var cost := int(dest.get("sail_cost", 5))
 		var line := "%s · %s" % [LevelDisplay.label(int(dest.get("tier", 1))), str(dest.get("climate", "")).capitalize()]
+		if World.is_drift(key):
+			# UNSTABLE ISLES: the route's own countdown (off the board, or sinking once landed).
+			var t := int(World.drift_time_left())
+			line += " · %s %d:%02d" % ["sinks in" if World.drift_landed() else "leaves the board in", t / 60, t % 60]
 		var need := "Ready to sail"
 		var col := UiTokens.OK_GREEN
 		if level < required:

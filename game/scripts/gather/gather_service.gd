@@ -73,8 +73,10 @@ static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: 
 	# LANDMARKS (doc sections 5.2 and 5.7): a landmark node gathered by the survivor's own hands rolls
 	# better perks; tribe work never comes through here.
 	var bonus := landmark_bonus(node)
+	# UNSTABLE ISLES: every node on a generated isle rolls rare traits x1.25, on top of a landmark's bonus.
+	var isle_mult := float((Data.world_rules.get("unstable_isles", {}) as Dictionary).get("trait_mult", 1.25)) if World and World.is_drift(str(World.island_id)) else 1.0
 	var traits := stamp_traits(p.inventory, had, landed, gained, rng, tool_tier(p.inventory, node.required_tool_class, node.family),
-			float(bonus.get("chance_mult", 1.0)), float(bonus.get("tier_step", 0.0)))
+			float(bonus.get("chance_mult", 1.0)) * isle_mult, float(bonus.get("tier_step", 0.0)))
 	var finds := add_finds(p.inventory, node.family, node.required_tool_class, climate, level, _skill(p), rng)
 	for id in finds:
 		p.toast(id, 1)

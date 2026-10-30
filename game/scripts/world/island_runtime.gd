@@ -55,6 +55,8 @@ var _crater_hint: Vector3 = Vector3.ZERO
 var landmarks: Array[Dictionary] = []
 ## The island row's kind ("private", "unstable", "tutorial"): expedition islands regrow slower.
 var kind: String = "unstable"
+## UNSTABLE ISLES: a generated, short-life isle (docs/design/unstable-isles.md).
+var generated := false
 ## LANDMARKS M1: placed/skipped/types of the landmark pass (IslandLandmarks.build).
 var landmark_stats: Dictionary = {}
 var _ridge_dir: Vector2 = Vector2.RIGHT
@@ -166,6 +168,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	_climate = str(def.get("climate", "grassland"))
 	_tier = int(def.get("tier", 10))
 	kind = str(def.get("kind", "unstable"))
+	generated = bool(def.get("generated", false))
 	_level_override = int(def.get("level_override", 0))
 	var harbour_a: Array = def.get("harbour", [0, 0, 12])
 	var camp_a: Array = def.get("camp", [0, 0, 6])

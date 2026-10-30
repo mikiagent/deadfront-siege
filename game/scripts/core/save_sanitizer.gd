@@ -30,7 +30,7 @@ const SHAPE := {
 	"objective": 0, "objective_best": 0, "island_id": "",
 	"tasks": {"claimed": {}, "done": {}, "counts": {}, "day": 0, "week": 0},
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
-	"landmarks": {"found": {}, "state": {}}, "expeditions": {},
+	"landmarks": {"found": {}, "state": {}}, "expeditions": {}, "drift": {},
 	"clock": 0.0, "saved_unix": 0,
 }
 ## Fields the building from_dicts read with int()/float()/bool() (placed_building, bonfire,
@@ -196,7 +196,10 @@ static func clean(data: Dictionary) -> Dictionary:
 			data[key] = _int(data[key], 0, 1000000000)
 	if data.has("saved_unix"):
 		data["saved_unix"] = _int(data["saved_unix"], 0, int(Time.get_unix_time_from_system()))
-	if data.has("island_id") and not World.islands.has(str(data["island_id"])):
+	# UNSTABLE ISLES: a save standing on the live isle names an id the catalogue only gets back once the
+	# saved roll is reinstalled (SaveGame); drift_block decides whether that roll is sound.
+	var on_drift := data.has("island_id") and str(data["island_id"]) == str((drift_block(data.get("drift", null))["row"] as Dictionary).get("id", "-"))
+	if data.has("island_id") and not World.islands.has(str(data["island_id"])) and not on_drift:
 		data["island_id"] = "home_grassland"
 	if abort_for_test:
 		var none: Object = null
@@ -626,4 +629,51 @@ static func expedition_rows(raw: Variant) -> Dictionary:
 			"left": clampf(float(l), -1.0, 7.0 * 86400.0) if (l is int or l is float) and is_finite(float(l)) else -1.0,
 			"harvested": h if h is Dictionary else {},
 		}
+		# The last layout's landmark centres ([[x, z], ...]): the next reroll keeps away from them.
+		var lc: Variant = r.get("last_centres", null)
+		if lc is Array:
+			var pts: Array = []
+			for pt in (lc as Array).slice(0, 32):
+				if pt is Array and (pt as Array).size() >= 2 and (pt[0] is int or pt[0] is float) and (pt[1] is int or pt[1] is float) and is_finite(float(pt[0])) and is_finite(float(pt[1])):
+					pts.append([float(pt[0]), float(pt[1])])
+			out[str(island)]["last_centres"] = pts
+	return out
+
+## UNSTABLE ISLES: the saved board {"row", "cooldown", "count"}. A row that does not name a known
+## template, climate and shape is dropped (no isle), so a forged save cannot invent an island kind.
+static func drift_block(raw: Variant) -> Dictionary:
+	var out := {"row": {}, "cooldown": 0.0, "count": 0}
+	if not raw is Dictionary:
+		return out
+	var d: Dictionary = raw
+	var cd: Variant = d.get("cooldown", 0.0)
+	out["cooldown"] = clampf(float(cd), 0.0, 86400.0) if (cd is int or cd is float) and is_finite(float(cd)) else 0.0
+	var n: Variant = d.get("count", 0)
+	out["count"] = clampi(int(n), 0, 1000000) if (n is int or n is float) and is_finite(float(n)) else 0
+	var row: Variant = d.get("row", {})
+	if not row is Dictionary or (row as Dictionary).is_empty():
+		return out
+	var r: Dictionary = row
+	var tmpl := str(r.get("template", ""))
+	var id := str(r.get("id", ""))
+	var tmpl_row: Variant = World.islands.get(tmpl, null) if World else null
+	if not id.begins_with("drift_") or id.length() > 24 or not tmpl_row is Dictionary or str((tmpl_row as Dictionary).get("kind", "")) != "unstable":
+		return out
+	var nums := ["n", "seed", "tier", "size_m", "offer_left"]
+	for k in nums:
+		var v: Variant = r.get(k, null)
+		if not (v is int or v is float) or not is_finite(float(v)):
+			return out
+	out["row"] = {
+		"id": id,
+		"n": clampi(int(r["n"]), 1, 1000000),
+		"seed": int(r["seed"]),
+		"tier": clampi(int(r["tier"]), 15, 60),
+		"climate": str((tmpl_row as Dictionary).get("climate", "")),
+		"template": tmpl,
+		"family": str(r.get("family", "classic")),
+		"size_m": clampi(int(r["size_m"]), 200, 420),
+		"offer_left": clampf(float(r["offer_left"]), 0.0, 86400.0),
+	}
+	out["count"] = maxi(int(out["count"]), int(out["row"]["n"]))
 	return out

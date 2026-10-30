@@ -1376,6 +1376,26 @@
         1.0
       ]
     },
+    "DriftglassNode": {
+      "_note": "UNSTABLE ISLES: the Rift Pool's glassy shards; placed only by the generated-only landmark row (never in a climate's vegetation).",
+      "models": [
+        "res://assets/resources/generated/min-ice-final.glb"
+      ],
+      "role": "rock",
+      "climates": [],
+      "harvest": {
+        "driftglass": [
+          1,
+          1
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "height": [
+        0.5,
+        0.8
+      ]
+    },
     "PearlNode": {
       "models": [
         "res://assets/resources/generated/min3-pearl-final.glb"
