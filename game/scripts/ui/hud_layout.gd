@@ -75,7 +75,9 @@ static func place_desktop(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 	for i in hud._skill_hexes.size():
 		hud._skill_hexes[i].position = Vector2(cx, cy) + slots[i]
 	hud._auto_hex.position = Vector2(cx + 84.0, cy + 40.0)  # under ROLL's caption (at +60/+30 it sat on it)
-	hud._auto_ability_hex.position = hud._auto_hex.position - Vector2(HuntHud.HEX + 8.0, 0.0)
+	# Under TACKLE's caption, between KICK and Auto (left of Auto it sat on TACKLE's caption).
+	var tackle := hud._skill_hexes[1].position
+	hud._auto_ability_hex.position = tackle + Vector2((HuntHud.SKILL_HEX - HuntHud.HEX) * 0.5, HuntHud.SKILL_HEX + HuntHud.CAPTION_H + 4.0)
 	hud._feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
 	# The whistle row stands beside the rail (spec §6), bottom-aligned with it.
 	var rail := HudField.px(&"rail", r)
