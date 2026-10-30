@@ -19,7 +19,7 @@ extends Node3D
 ## harvest nodes inside a house footprint or on a road are cleared.
 ## # ASSUMPTION: every layout number below (rings, avenues, districts, sizes, counts); open question TT1.
 
-const CHUNK_M := 80.0
+const CHUNK_M := 120.0  ## TOWNPOLISH: 80 -> 120 m keeps the batch count in budget with the town kit
 const GLB := "res://assets/props/blender/%s.glb"
 const PLAZA_R := 24.0  ## the camp square stays as it was (guild, market stall, bench, pit, herbs, trees)
 const AVENUE_W := 6.0
@@ -32,8 +32,12 @@ const WALL_R := 97.0  ## the palisade round the town, open where an avenue passe
 const BANDS := [[29.0, -1.0], [36.5, 1.0], [55.0, -1.0], [75.0, -1.0]]  ## [ring radius, door faces +1 out / -1 in]
 const AVENUES := [0.0, 72.0, 144.0, -72.0, -144.0]  ## degrees from the dock direction
 const NPC_RANGE_M := 60.0
-const FAR_HOUSE := 220.0
-const FAR_PROP := 110.0
+## Visibility ranges, metres from the camera. TOWNPOLISH: the iso camera stands distance_for(size)
+## back (186 m at the default zoom, 240 m at the widest game zoom), so the old 110 m prop range
+## hid every crate, fence, field and the palisade in play, and the 220 m house range dropped houses
+## at max zoom. Both now cover the widest lab zoom plus a chunk.
+static var FAR_HOUSE: float = IsoCamera.cull_range(CHUNK_M)
+static var FAR_PROP: float = IsoCamera.cull_range(CHUNK_M * 0.5)
 const MAX_FOLK := 16  ## townsfolk rigs (each a skinned survivor body)
 const MAX_ANIMALS := 6
 
@@ -59,6 +63,7 @@ var stats := {"houses": 0, "stalls": 0, "workshops": 0, "fields": 0, "pens": 0, 
 var npcs: Array[Node3D] = []
 var cells: Dictionary = {}  ## Vector2i -> true: tiles a house, stall, shelter or pen covers
 var road_tiles: Dictionary = {}
+var lots: Array[Vector3] = []  ## the centre of every footprint taken (capture probes aim at these)
 var soft_cells: Dictionary = {}  ## the walk-through part of cells: fields, open shelters
 var _rng := RandomNumberGenerator.new()
 var _batches: Dictionary = {}  ## "cx:cz:part:i" -> {"mesh", "xf", "colors", "far", "shadow", "occlude"}
@@ -66,6 +71,7 @@ var _boxes: Array = []  ## [Transform3D, Vector3 size]
 var _body := RID()
 var _shapes: Array[RID] = []
 var _npc_left := 0.0
+var _night_was := -1.0
 static var _parts: Dictionary = {}  ## glb name -> Array of [Mesh, Transform3D]
 static var _mats: Dictionary = {}
 static var _unit: Dictionary = {}
@@ -127,6 +133,7 @@ func _lay_out() -> void:
 	_outskirts()
 	_harbour()
 	_infill()
+	_clutter()
 	_wall()
 	_roads()
 	_street_props()
@@ -209,6 +216,7 @@ func _rect_tiles(c: Vector3, w: float, d: float, yaw: float) -> Array[Vector2i]:
 
 ## Mark a footprint taken (cells for the router and the build grid) and add its collision box.
 func _take(c: Vector3, w: float, d: float, h: float, yaw: float, solid: bool = true) -> void:
+	lots.append(c)
 	for t in _rect_tiles(c, w, d, yaw):
 		cells[t] = true
 		if not solid:
@@ -235,7 +243,7 @@ const WALLS := {
 const ROOF_COLORS := {"timber": Color(0.78, 0.64, 0.36), "plain": Color(0.72, 0.58, 0.33), "stone": Color(0.42, 0.40, 0.40)}
 ## Roof finishes (one material, coloured per instance): thatch, wood shingle, slate, fired tile.
 const ROOFS := {"thatch": Color(0.80, 0.66, 0.38), "shingle": Color(0.45, 0.30, 0.20), "slate": Color(0.34, 0.37, 0.42), "tile": Color(0.66, 0.30, 0.20)}
-const ROOF_BY_STYLE := {"timber": ["thatch", "thatch", "shingle"], "plain": ["thatch", "tile", "shingle"], "stone": ["slate", "tile"]}
+const ROOF_BY_STYLE := {"timber": ["thatch", "thatch", "shingle", "tile"], "plain": ["thatch", "tile", "shingle"], "stone": ["slate", "slate", "tile"]}
 
 func _house_lot(deg: float, r: float, facing: float, w: int, d: int, style: String) -> float:
 	var lot := _lot(deg, r, facing, float(w), float(d))
@@ -275,7 +283,9 @@ func _garden(c: Vector3, w: float, yaw: float) -> void:
 	var b := Basis(Vector3.UP, yaw)
 	for i in int(gw / 2.0):
 		var stage: String = ["field_crop_1", "field_crop_2", "field_crop_3", "field_tilled"][_rng.randi_range(0, 3)]
-		prop(stage, c + b * Vector3(-gw * 0.5 + 1.0 + 2.0 * float(i), 0, 0), yaw, 0.8)
+		var at := c + b * Vector3(-gw * 0.5 + 1.0 + 2.0 * float(i), 0, 0)
+		at.y = rt.surface_y(at.x, at.z)
+		prop(stage, at, yaw, 0.8)
 	_fence_rect(c, gw + 0.4, 3.8, yaw, false)
 	if _rng.randf() < 0.3:
 		prop(["scarecrow", "barrel", "compost_heap"][_rng.randi_range(0, 2)], c + b * Vector3(gw * 0.5 + 0.8, 0, 0), yaw)
@@ -283,7 +293,11 @@ func _garden(c: Vector3, w: float, yaw: float) -> void:
 	stats["gardens"] = int(stats.get("gardens", 0)) + 1
 
 ## A house: stone plinth, 2 m wall panels of one style (a doorway in front, windows here and there),
-## timber corner posts and a gabled roof (thatch, or slate on stone houses). Local +Z is the front.
+## timber corner posts and one town-kit roof (tools/blender/structures/townkit.py) sized to the plan,
+## so the slopes, gable ends and ridge always sit on the walls. Local +Z is the front.
+## TOWNPOLISH: the roof was a unit prism with a flat plaster triangle per gable that lit blue and
+## floated; the door leaf hung half outside its doorway. Windows get a night glow; doors an awning
+## now and then, front windows a flower box, side walls a woodpile.
 func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int = 1) -> void:
 	var b := Basis(Vector3.UP, yaw)
 	var lo := INF
@@ -295,6 +309,7 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 	unit("plinth", Transform3D(b.scaled(Vector3(float(w) + 0.3, plinth_h, float(d) + 0.3)), Vector3(c.x, lo - 0.25, c.z)), Color(0.5, 0.48, 0.45), FAR_HOUSE)
 	var pair: Array = WALLS.get(style, WALLS["timber"])
 	var wall_h := 2.4
+	var extras := _rng.randf()
 	for st in storeys:
 		var y := top + wall_h * float(st)
 		var wall_style: Array = pair if st == 0 or style != "stone" else WALLS["timber"]  # a stone hall gets a timber upper floor
@@ -309,27 +324,36 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 				var part: String = wall_style[0]
 				if side == 0 and st == 0 and i == n / 2:
 					part = "house_wall_doorway"
-					part_at("house_door", Transform3D(sb, at + sb * Vector3(0, 0, 0.05)), FAR_HOUSE)
+					# The leaf's origin is its hinge (house kit): hang it on the doorway's left jamb.
+					part_at("house_door", Transform3D(sb, at + sb * Vector3(-0.475, 0, 0.0)), FAR_HOUSE)
+					if extras < 0.35:
+						part_at("town_awning", Transform3D(sb, at + sb * Vector3(0, 2.25, 0.12)), FAR_HOUSE)
 				elif _rng.randf() < 0.45:
 					part = wall_style[1]
+					# Warm glass behind the frame: dark by day, lit at night (_night).
+					unit("winglow", Transform3D(sb.scaled(Vector3(0.86, 0.86, 0.04)), at + sb * Vector3(0, 1.02, 0.0)), Color.WHITE, FAR_HOUSE)
+					if side == 0 and st == 0 and extras > 0.5:
+						part_at("town_flowerbox", Transform3D(sb, at + sb * Vector3(0, 0.98, 0.2)), FAR_PROP)
+				elif side == 1 and st == 0 and extras > 0.75 and i == 0:
+					part_at("town_woodpile", Transform3D(sb, at + sb * Vector3(0, 0, 0.55)), FAR_PROP)
 				part_at(part, Transform3D(sb, at), FAR_HOUSE, true)
-		for k in 4:
-			var q := Vector3((float(k % 2) - 0.5) * float(w), 0.0, (float(k / 2) - 0.5) * float(d))
-			unit("box", Transform3D(b.scaled(Vector3(0.32, wall_h, 0.32)), Vector3(c.x, y, c.z) + b * q), Color(0.33, 0.22, 0.13), FAR_HOUSE)
+			for k in 4:
+				var q := Vector3((float(k % 2) - 0.5) * float(w), 0.0, (float(k / 2) - 0.5) * float(d))
+				unit("box", Transform3D(b.scaled(Vector3(0.32, wall_h, 0.32)), Vector3(c.x, y, c.z) + b * q), Color(0.33, 0.22, 0.13), FAR_HOUSE)
 	var eave := top + wall_h * float(storeys)
-	var span := float(mini(w, d))
-	var long := float(maxi(w, d))
+	var span := mini(w, d)
+	var long := maxi(w, d)
 	var rb := b if w >= d else Basis(Vector3.UP, yaw + PI * 0.5)  # ridge along the long side
-	var rh := span * _rng.randf_range(0.45, 0.75)
 	var finishes: Array = ROOF_BY_STYLE.get(style, ROOF_BY_STYLE["timber"])
-	var col: Color = ROOFS[finishes[_rng.randi_range(0, finishes.size() - 1)]]
-	col = col.lerp(Color(0.55, 0.48, 0.38), _rng.randf() * 0.25)
-	unit("roof", Transform3D(rb.scaled(Vector3(long + 0.8, rh, span + 1.0)), Vector3(c.x, eave, c.z)), col, FAR_HOUSE, true)
-	for e in [-1.0, 1.0]:
-		unit("gable", Transform3D(rb.scaled(Vector3(1.0, rh, span)), Vector3(c.x, eave, c.z) + rb * Vector3(e * long * 0.5, 0, 0)), Color(0.80, 0.72, 0.58), FAR_HOUSE)
-	if style == "stone" or _rng.randf() < 0.3:
-		var ch := Vector3(c.x, eave, c.z) + rb * Vector3(long * 0.3, 0, 0)
-		unit("box", Transform3D(b.scaled(Vector3(0.6, rh + 0.9, 0.6)), ch), Color(0.45, 0.42, 0.4), FAR_HOUSE)
+	var fin: String = finishes[_rng.randi_range(0, finishes.size() - 1)]
+	var roof := "town_roof_%s_%dx%d" % [fin, long, span]
+	if not ResourceLoader.exists(GLB % roof):
+		roof = "town_roof_%s_%dx%d" % [fin, 6 if span <= 4 else 8, 4 if span <= 4 else 6]
+	part_at(roof, Transform3D(rb, Vector3(c.x, eave, c.z)), FAR_HOUSE, true)
+	var rh := float(span) * 0.5 * (0.9 if fin == "thatch" else 0.62)
+	if style == "stone" or _rng.randf() < 0.45:
+		var ch := Vector3(c.x, eave, c.z) + rb * Vector3(float(long) * 0.3 * (1.0 if extras < 0.5 else -1.0), 0, -0.55)
+		part_at("town_chimney", Transform3D(rb, ch), FAR_HOUSE)
 	_take(c, float(w), float(d), eave + rh - c.y, yaw)
 	stats["houses"] += 1
 
@@ -394,13 +418,14 @@ func _stall_lot(deg: float, r: float, facing: float) -> float:
 	var c: Vector3 = lot["c"]
 	var b: Basis = lot["b"]
 	var yaw: float = lot["yaw"]
-	for k in 4:
-		var q := Vector3((float(k % 2) - 0.5) * 3.6, 0.0, (float(k / 2) - 0.5) * 2.6)
-		unit("box", Transform3D(b.scaled(Vector3(0.14, 2.5 if k < 2 else 2.1, 0.14)), c + b * q), Color(0.36, 0.25, 0.14), FAR_PROP)
+	part_at("town_stall", Transform3D(b, c), FAR_PROP)
 	var hues := [Color(0.75, 0.2, 0.15), Color(0.2, 0.4, 0.7), Color(0.85, 0.65, 0.2), Color(0.25, 0.55, 0.3)]
 	var col: Color = hues[_rng.randi_range(0, hues.size() - 1)]
-	unit("canvas", Transform3D(b.scaled(Vector3(4.2, 0.5, 3.2)), c + Vector3(0, 2.05, 0)), col, FAR_PROP)
-	unit("box", Transform3D(b.scaled(Vector3(3.4, 0.9, 0.8)), c + b * Vector3(0, 0, 1.0)), Color(0.45, 0.32, 0.18), FAR_PROP)
+	unit("canvas", Transform3D(b.scaled(Vector3(4.2, 0.6, 3.2)), c + Vector3(0, 2.16, 0)), col, FAR_PROP)
+	# A lantern on the front beam: the market stays lit after dark (glass + halo, no real light).
+	var lan := c + b * Vector3(1.2, 1.78, 1.3)
+	unit("lantern", Transform3D(b.scaled(Vector3(0.2, 0.28, 0.2)), lan), Color(1.0, 0.8, 0.5), FAR_PROP)
+	unit("halo", Transform3D(Basis().scaled(Vector3.ONE * 1.8), lan + Vector3(0, 0.15, 0)), Color.WHITE, FAR_PROP)
 	var goods := ["basket", "bucket", "chest", "barrel"]
 	for i in 3:
 		prop(goods[_rng.randi_range(0, 3)], c + b * Vector3(-1.2 + 1.2 * float(i), 0.9, 1.0), yaw, 0.55)
@@ -436,8 +461,8 @@ func _workshop_lot(deg: float, r: float, facing: float) -> float:
 	for k in 4:
 		var q := Vector3((float(k % 2) - 0.5) * 5.6, 0.0, (float(k / 2) - 0.5) * 4.6)
 		unit("box", Transform3D(b.scaled(Vector3(0.22, 2.7, 0.22)), c + b * q), Color(0.34, 0.23, 0.13), FAR_HOUSE)
-	unit("roof", Transform3D(b.scaled(Vector3(6.6, 1.4, 5.6)), c + Vector3(0, 2.7, 0)), ROOF_COLORS["timber"], FAR_HOUSE, true)
-	unit("plinth", Transform3D(b.scaled(Vector3(6.0, 0.3, 5.0)), c + Vector3(0, -0.2, 0)), Color(0.42, 0.36, 0.3), FAR_PROP)
+	part_at("town_roof_%s_6x4" % ["thatch", "shingle", "tile"][_shop_i % 3], Transform3D(b, c + Vector3(0, 2.7, 0)), FAR_HOUSE, true)
+	unit("plinth", Transform3D(b.scaled(Vector3(6.0, 0.3, 5.0)), c + Vector3(0, -0.2, 0)), Color(0.36, 0.29, 0.22), FAR_PROP)
 	var row: Array = SHOPS[_shop_i % SHOPS.size()]
 	_shop_i += 1
 	var kind: String = row[0]
@@ -487,10 +512,16 @@ func _field_lot(deg: float, r: float) -> float:
 	var c: Vector3 = lot["c"]
 	var b: Basis = lot["b"]
 	var yaw: float = lot["yaw"]
-	for i in 3:
-		for j in 2:
-			var stage: String = ["field_crop_0", "field_crop_1", "field_crop_2", "field_crop_3", "field_tilled"][_rng.randi_range(0, 4)]
-			prop(stage, c + b * Vector3(-2.4 + 2.4 * float(i), 0, -1.2 + 2.4 * float(j)), yaw)
+	# TOWNPOLISH: the whole bed planted (4 x 3 modules of 2 m) in one or two crop stages, rows
+	# running together, instead of six scattered patches (fields read as empty paddocks).
+	var stages := ["field_crop_1", "field_crop_2", "field_crop_3", "field_crop_3", "field_tilled"]
+	var s1: String = stages[_rng.randi_range(0, stages.size() - 1)]
+	var s2: String = stages[_rng.randi_range(0, stages.size() - 1)]
+	for i in 4:
+		for j in 3:
+			var at := c + b * Vector3(-3.0 + 2.0 * float(i), 0, -2.0 + 2.0 * float(j))
+			at.y = rt.surface_y(at.x, at.z)  # each 2 m bed on its own ground: on a slope they sank under the grass
+			prop(s1 if i < 2 else s2, at, yaw)
 	_fence_rect(c, 8.6, 6.6, yaw, true)
 	prop(["scarecrow", "compost_heap", "well", "trellis"][_rng.randi_range(0, 3)], c + b * Vector3(5.2, 0, 0), yaw)
 	if _rng.randf() < 0.5:
@@ -585,6 +616,55 @@ func _infill() -> void:
 				_take(c, 3.0, 3.0, 1.2, yaw)
 				stats["yards"] = int(stats.get("yards", 0)) + 1
 
+## TOWNPOLISH: the gaps the lots leave (too small, a slope, a corner) get yard life instead of bare
+## grass: a hand cart, a woodpile, barrels and crates, straw, a well now and then.
+func _clutter() -> void:
+	var step := 6.0
+	var n := int(TOWN_R * 2.0 / step)
+	for i in n:
+		for j in n:
+			var off := Vector3(-TOWN_R + step * (float(i) + _rng.randf_range(0.2, 0.8)), 0, -TOWN_R + step * (float(j) + _rng.randf_range(0.2, 0.8)))
+			var c := camp + off
+			var r := Vector2(off.x, off.z).length()
+			if r < PLAZA_R + 2.0 or r > TOWN_R - 2.0 or street_d(c) < 4.0 or _rng.randf() < 0.35:
+				continue
+			var yaw := _rng.randf() * TAU
+			var y := lot_base(c, 2.6, 2.6, yaw, 0.4)
+			if is_nan(y):
+				continue
+			c.y = y
+			var b := Basis(Vector3.UP, yaw)
+			match _rng.randi_range(0, 5):
+				0:
+					prop("town_cart", c, yaw)
+				1:
+					prop("town_woodpile", c, yaw)
+					prop("large_box", c + b * Vector3(1.3, 0, 0.2), yaw + 0.3)
+				2:
+					prop("barrel", c, yaw)
+					prop("barrel", c + b * Vector3(0.7, 0, 0.2), yaw + 1.0)
+					prop("large_box", c + b * Vector3(-0.8, 0, 0.1), yaw + 0.4)
+				3:
+					prop("straw_roll", c, yaw)
+					prop("straw_roll", c + b * Vector3(1.0, 0, 0.3), yaw + 0.6)
+				4:
+					prop("well" if _rng.randf() < 0.3 else "water_trough", c, yaw)
+				_:
+					prop("chest", c, yaw)
+					prop("basket", c + b * Vector3(0.8, 0, 0), yaw)
+					prop("bucket", c + b * Vector3(0.4, 0, 0.7), yaw)
+			lots.append(c)  # no cells: clutter never closes a lane to the router (t_tutorial's bot detoured)
+			stats["clutter"] = int(stats.get("clutter", 0)) + 1
+
+## Inside or beside an avenue gate (the opening, the towers and a post-width either side: a wicket
+## post there left a gap too narrow to pass that the router still took).
+func _in_gateway(p: Vector3) -> bool:
+	var dg := _deg_of(p)
+	for av: float in AVENUES:
+		if absf(_wrap(dg - av)) * PI / 180.0 * WALL_R < 8.0:
+			return true
+	return false
+
 func _deg_of(p: Vector3) -> float:
 	return _wrap(rad_to_deg(atan2(p.z - camp.z, p.x - camp.x)) - dock_deg)
 
@@ -641,6 +721,8 @@ func _wall() -> void:
 		if wicket and i % WICKET_EVERY == 0 and rt.is_dry(p):
 			for e in [-1.0, 1.0]:
 				var wp := polar(deg + e * 1.2 * 180.0 / PI / WALL_R * 2.0, WALL_R)
+				if _in_gateway(wp):
+					continue  # TOWNPOLISH: a wicket beside a gate stood its post in the gate opening
 				unit("box", Transform3D(Basis().scaled(Vector3(0.4, 2.8, 0.4)), wp), Color(0.32, 0.22, 0.13), FAR_HOUSE)
 				_boxes.append([Transform3D(Basis(), wp + Vector3(0, 1.4, 0)), Vector3(0.4, 2.8, 0.4)])
 				cells[BuildGrid.tile_of(wp)] = true
@@ -660,14 +742,22 @@ func _wall() -> void:
 		if not rt.is_dry(g):
 			continue
 		var side := Vector3(-sin(deg_to_rad(dock_deg + av)), 0, cos(deg_to_rad(dock_deg + av)))
+		var posts: Array[Vector3] = []
 		for e in [-1.0, 1.0]:
-			var post: Vector3 = g + side * e * (AVENUE_W * 0.5 + 0.6)
+			var post: Vector3 = g + side * e * 3.85
 			post.y = rt.surface_y(post.x, post.z)
-			unit("box", Transform3D(Basis().scaled(Vector3(0.5, 3.6, 0.5)), post), Color(0.32, 0.22, 0.13), FAR_HOUSE)
-			lamp(post + Vector3(0, 0, 0) - (polar(av, WALL_R - 1.0) - g).normalized() * 0.8, 2.4)
-			_boxes.append([Transform3D(Basis(), post + Vector3(0, 1.8, 0)), Vector3(0.5, 3.6, 0.5)])
-			cells[BuildGrid.tile_of(post)] = true
-		unit("box", Transform3D(Basis(Vector3.UP, yaw_out(av) + PI * 0.5).scaled(Vector3(AVENUE_W + 1.7, 0.4, 0.4)), g + Vector3(0, 3.3, 0)), Color(0.32, 0.22, 0.13), FAR_HOUSE)
+			posts.append(post)
+		if not (rt.is_dry(posts[0]) and rt.is_dry(posts[1])):
+			continue  # never half a gate in the water
+		# TOWNPOLISH: one town-kit gate (towers, beam, roof, sign) instead of three loose boxes whose
+		# beam was turned the wrong way. Its base sits at the lower tower's ground.
+		g.y = minf(posts[0].y, posts[1].y)
+		part_at("town_gate", Transform3D(Basis(Vector3.UP, yaw_out(av)), g), FAR_HOUSE)
+		for post in posts:
+			lamp(post - (polar(av, WALL_R - 1.0) - g).normalized() * 1.2)
+			_boxes.append([Transform3D(Basis(), post + Vector3(0, 2.4, 0)), Vector3(1.0, 4.8, 1.0)])
+			for t in _rect_tiles(post, 1.6, 1.6, 0.0):  # the tower straddles tiles: the router keeps off all of them
+				cells[t] = true
 		prop("signpost", polar(av, WALL_R + 3.0) + side * (AVENUE_W * 0.5 + 1.5), yaw_out(av))
 		stats["gates"] = int(stats.get("gates", 0)) + 1
 
@@ -735,6 +825,10 @@ func _road_step(st: SurfaceTool, prev: Array, p: Vector3, side: Vector3, w: floa
 	for k in int(w) + 1:
 		road_tiles[BuildGrid.tile_of(p + side * (float(k) - w * 0.5))] = true
 	if not prev.is_empty():
+		# TOWNPOLISH: cross-sections are 2 m apart; mark the row between them too (cover stood on it).
+		var mid := ((prev[0] as Vector3) + (prev[1] as Vector3)) * 0.25 + p * 0.5
+		for k in int(w) + 1:
+			road_tiles[BuildGrid.tile_of(mid + side * (float(k) - w * 0.5))] = true
 		var pl: Vector3 = prev[0]
 		var pr: Vector3 = prev[1]
 		for v in [[pl, Vector2(0, 0)], [l, Vector2(0, 1)], [r, Vector2(1, 1)], [pl, Vector2(0, 0)], [r, Vector2(1, 1)], [pr, Vector2(1, 0)]]:
@@ -774,11 +868,20 @@ func _street_props() -> void:
 		if rt.is_dry(a) and rt.is_dry(z):
 			walker(a + Vector3(0, 0, 0.8 * float(i % 2)), z)
 
-func lamp(at: Vector3, h: float = 2.6) -> void:
+## A street lamp (town kit): post, iron cage, the glass lit at night with a soft halo round it.
+func lamp(at: Vector3, _h: float = 2.6) -> void:
+	# Never within 2 m of a wall or post: a lamp beside a house corner left a pinch the router took
+	# and the tutorial bot wedged in.
+	for dx in range(-2, 3):
+		for dz in range(-2, 3):
+			if cells.has(BuildGrid.tile_of(at) + Vector2i(dx, dz)):
+				return
 	at.y = rt.surface_y(at.x, at.z)
-	unit("box", Transform3D(Basis().scaled(Vector3(0.14, h, 0.14)), at), Color(0.25, 0.17, 0.1), FAR_PROP)
-	unit("lantern", Transform3D(Basis().scaled(Vector3(0.32, 0.38, 0.32)), at + Vector3(0, h, 0)), Color(1.0, 0.72, 0.35), FAR_HOUSE)
-	_boxes.append([Transform3D(Basis(), at + Vector3(0, h * 0.5, 0)), Vector3(0.2, h, 0.2)])
+	var yaw := _rng.randf() * TAU
+	part_at("town_lamp", Transform3D(Basis(Vector3.UP, yaw), at), FAR_PROP)
+	unit("lantern", Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(0.24, 0.34, 0.24)), at + Vector3(0, 2.63, 0)), Color(1.0, 0.8, 0.5), FAR_HOUSE)
+	unit("halo", Transform3D(Basis().scaled(Vector3.ONE * 2.2), at + Vector3(0, 2.8, 0)), Color.WHITE, FAR_PROP)
+	_boxes.append([Transform3D(Basis(), at + Vector3(0, 1.3, 0)), Vector3(0.3, 2.6, 0.3)])
 	cells[BuildGrid.tile_of(at)] = true  # the router steps round the post instead of into it
 	stats["lamps"] += 1
 
@@ -843,6 +946,7 @@ func _process(delta: float) -> void:
 	if _npc_left > 0.0:
 		return
 	_npc_left = 0.5
+	_night()
 	var cam := get_viewport().get_camera_3d() if get_viewport() else null
 	var p := PlayerRegistry.local()
 	var focus: Vector3 = p.global_position if p else (cam.global_position if cam else camp)
@@ -962,11 +1066,18 @@ static func _unit_mesh(kind: String) -> Mesh:
 			var am := st.commit()
 			m = _shift(am, Vector3(0, 0.5, 0))
 			m.surface_set_material(0, _mat("stone" if kind == "plinth" else "wood", Color.WHITE))
-		"lantern":
+		"lantern", "winglow":
 			var st4 := SurfaceTool.new()
 			st4.create_from(BoxMesh.new(), 0)
 			m = _shift(st4.commit(), Vector3(0, 0.5, 0))
-			m.surface_set_material(0, _mat("glow", Color.WHITE))
+			m.surface_set_material(0, _mat("glow" if kind == "lantern" else "winglow", Color.WHITE))
+		"halo":
+			var qm := QuadMesh.new()
+			qm.size = Vector2.ONE
+			var st5 := SurfaceTool.new()
+			st5.create_from(qm, 0)
+			m = st5.commit()
+			m.surface_set_material(0, _mat("halo", Color.WHITE))
 		"roof", "canvas":
 			m = _prism(kind == "canvas")
 			m.surface_set_material(0, _mat("thatch" if kind == "roof" else "cloth", Color.WHITE))
@@ -1028,14 +1139,27 @@ static func _mat(kind: String, _c: Color) -> Material:
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		"cloth":
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+			m.albedo_texture = _stripe_tex()  # TOWNPOLISH: striped market canvas, tinted per stall
 		"plaster", "stone", "wood":
 			m.albedo_texture = _noise(0.05, Vector2.ONE)
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED if kind == "plaster" else BaseMaterial3D.CULL_BACK
-		"glow":
+		"glow", "winglow":
+			# Lantern glass and lit windows; _night() turns them up after dusk and down by day.
 			m.emission_enabled = true
-			m.emission = Color(1.0, 0.65, 0.3)
+			m.emission = Color(1.0, 0.62, 0.28)
 			m.emission_energy_multiplier = 2.2
+			m.albedo_color = Color(0.25, 0.2, 0.15) if kind == "winglow" else Color.WHITE
+		"halo":
+			# A soft additive glow card round each lantern at night (no real light: TUTPERF caps them).
+			m.vertex_color_use_as_albedo = false
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+			m.billboard_keep_scale = true
+			m.no_depth_test = false
+			m.albedo_texture = _halo_tex()
+			m.albedo_color = Color(1.0, 0.7, 0.35, 0.0)
 		"paved":
 			m.vertex_color_use_as_albedo = false
 			m.albedo_color = Color(0.56, 0.53, 0.48)
@@ -1047,6 +1171,42 @@ static func _mat(kind: String, _c: Color) -> Material:
 			m.uv1_scale = Vector3(1, 1, 1)
 	_mats[kind] = m
 	return m
+
+static func _stripe_tex() -> ImageTexture:
+	var img := Image.create(64, 8, false, Image.FORMAT_RGB8)
+	for x in 64:
+		var v := 1.0 if (x / 8) % 2 == 0 else 0.62
+		for y in 8:
+			img.set_pixel(x, y, Color(v, v * 0.97, v * 0.92))
+	return ImageTexture.create_from_image(img)
+
+static func _halo_tex() -> GradientTexture2D:
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 1))
+	g.set_color(1, Color(1, 1, 1, 0))
+	g.add_point(0.25, Color(1, 1, 1, 0.45))
+	var t := GradientTexture2D.new()
+	t.gradient = g
+	t.fill = GradientTexture2D.FILL_RADIAL
+	t.fill_from = Vector2(0.5, 0.5)
+	t.fill_to = Vector2(0.5, 0.0)
+	t.width = 64
+	t.height = 64
+	return t
+
+## 0 by day, 1 at night, ramping through dusk and dawn (Game's phase bounds, 0.22 and 0.80).
+static func night_of(tod: float) -> float:
+	return clampf(maxf(smoothstep(0.30, 0.20, tod), smoothstep(0.74, 0.82, tod)), 0.0, 1.0)
+
+## Lamps and windows follow the clock: the shared materials change, no per-instance work.
+func _night() -> void:
+	var n := night_of(float(Game.time_of_day))
+	if absf(n - _night_was) < 0.02:
+		return
+	_night_was = n
+	(_mat("glow", Color.WHITE) as StandardMaterial3D).emission_energy_multiplier = lerpf(0.15, 3.2, n)
+	(_mat("winglow", Color.WHITE) as StandardMaterial3D).emission_energy_multiplier = lerpf(0.0, 1.6, n)
+	(_mat("halo", Color.WHITE) as StandardMaterial3D).albedo_color.a = 0.55 * n
 
 static func _noise(freq: float, stretch: Vector2) -> NoiseTexture2D:
 	var n := FastNoiseLite.new()
@@ -1065,6 +1225,15 @@ static func _noise(freq: float, stretch: Vector2) -> NoiseTexture2D:
 
 # ---------------------------------------------------------------- clearing
 
+## Inside the palisade (tile centre within WALL_R of the camp).
+func _inside(t: Vector2i) -> bool:
+	return Vector2(float(t.x) + 0.5 - camp.x, float(t.y) + 0.5 - camp.z).length() < WALL_R
+
+## TOWNPOLISH: a lived-in town is trodden, so inside the wall only about a third of the ground cover
+## stays (a stable hash per tile), and the tall bushes and reeds of the biome dress go entirely.
+func _trodden(t: Vector2i) -> bool:
+	return _inside(t) and (absi(t.x * 73856093 ^ t.y * 19349663) % 100) >= 35
+
 ## Collapse ground cover and dressing, clear scenery props and remove (non-tutorial) harvest nodes on
 ## every taken tile and every road tile; then tell the build grid and the router.
 func _clear_ground() -> void:
@@ -1079,17 +1248,25 @@ func _clear_ground() -> void:
 			var tiles: Array = gc._tiles.get(key, [])
 			var hit := false
 			for i in mini(tiles.size(), mmi.multimesh.instance_count):
-				if all.has(tiles[i]):
+				# Tall cards (reeds, ferns) never stay inside the wall; short grass thins to a third.
+				if all.has(tiles[i]) or _trodden(tiles[i]) or (_inside(tiles[i]) and mmi.multimesh.get_instance_transform(i).basis.y.length() > 0.8):
 					mmi.multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 0.001), Vector3.ZERO))
+					# TOWNPOLISH: with physics interpolation on, the renderer kept drawing the previous
+					# transform of a cleared card (reeds stood on the streets); reset it with the new one.
+					mmi.multimesh.reset_instance_physics_interpolation(i)
 					hit = true
+					stats["cover_cleared"] = int(stats.get("cover_cleared", 0)) + 1
 			if hit:
 				mmi.multimesh = mmi.multimesh
 	var bd := rt.get_node_or_null("BiomeDress")
 	if bd:
 		for i in bd._points.size():
 			var t := BuildGrid.tile_of(bd._points[i])
-			if all.has(t):
+			if all.has(t) or _inside(t):
 				bd._clear_slot(t, bd._points[i])
+		# Static cards need no physics interpolation; with it on, cleared cards kept drawing.
+		for m in bd.find_children("*", "MultiMeshInstance3D", true, false):
+			(m as Node).physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if rt.props and rt.props.has_method("clear_cells"):
 		rt.props.clear_cells(all.keys())
 	var drop: Array = []

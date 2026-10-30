@@ -13,6 +13,7 @@ from mathutils import Euler, Matrix, Vector
 
 from lib import Part
 import farmkit
+import townkit
 
 R = math.radians
 
@@ -2184,3 +2185,4 @@ BUILDERS = {
     "site_large_1": lambda: site_large(1),
     "site_large_2": lambda: site_large(2),
 }
+BUILDERS.update(townkit.builders())

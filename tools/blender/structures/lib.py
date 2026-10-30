@@ -38,6 +38,8 @@ TILES = [
     # farm set (dsc farmkit): dark tilled soil, grass, crop leaves, straw, compost
     "soil", "soil_dark", "grass", "crop_leaf", "crop_leaf_dark", "straw", "compost",
     "soil_ridge",
+    # town kit (townpolish): fired clay roof tiles and whitewashed plaster
+    "roof_tile", "plaster",
 ]
 TILE_INDEX = {n: i for i, n in enumerate(TILES)}
 
@@ -475,6 +477,8 @@ def paint_atlas():
         "crop_leaf_dark": _leaf(45, (0.3, 0.42, 0.15), (0.13, 0.22, 0.06)),
         "straw": _straw(46, (0.68, 0.56, 0.3), (0.42, 0.32, 0.15)),
         "compost": _compost(47),
+        "roof_tile": _tabbed_tile(151, (0.62, 0.30, 0.18), rows=6, tabs=5, tone_lo=0.8, tone_hi=1.15, seam=0.6),
+        "plaster": _speckle(152, (0.84, 0.80, 0.70), (0.70, 0.65, 0.55), light=(0.9, 0.88, 0.8), scale=4),
     }
     img = np.zeros((ATLAS, ATLAS, 4))
     img[..., 3] = 1.0
