@@ -345,7 +345,9 @@ func _walk_case(dir: Vector3) -> void:
 	const HITCH_S := 0.025
 	var hitches := 0
 	var over := 0
-	while player.global_position.distance_to(node.global_position) > REACH_M:
+	# A millimetre of slack: the last step can land a float ulp outside REACH_M (1.6000004 along the
+	# north-up axes), and the next step then rounds to no move at all, so the loop never ended.
+	while player.global_position.distance_to(node.global_position) > REACH_M + 0.001:
 		var step := minf(WALK_MPS / 60.0, player.global_position.distance_to(node.global_position) - REACH_M)
 		player.global_position += (node.global_position - player.global_position).normalized() * step
 		var t0 := Time.get_ticks_usec()
