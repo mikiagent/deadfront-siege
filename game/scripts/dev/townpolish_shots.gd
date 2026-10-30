@@ -84,11 +84,84 @@ func _run() -> void:
 					elif xf.origin.distance_to(_town.get("camp")) < 85.0:
 						live += 1
 			print("[townshots] cover %s live_in_town=%d collapsed=%d" % [gc.get_path(), live, dead])
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--walkto="):  # debugging: walk the survivor from the camp, print where it gets to
+			var xz := a.substr(9).split(",")
+			var goal := Vector3(float(xz[0]), 0, float(xz[1]))
+			print("[townshots] gates %s" % [_town.get("gates")])
+			_place_player(_town.get("camp") + Vector3(4, 0, 6))
+			for b in OS.get_cmdline_user_args():
+				if b.begins_with("--walkfrom="):
+					var fz := b.substr(11).split(",")
+					_place_player(Vector3(float(fz[0]), 0, float(fz[1])))
+			var hrow := ""
+			for zz in range(180, 140, -2):
+				hrow += " z%d:%.2f" % [zz, float(_town.get("rt").call("surface_y", -52.5, float(zz)))]
+			print("[townshots] heights x=-52.5%s" % hrow)
+			var pth: Variant = _town.get("rt").get("pathing")
+			var cg: Vector3 = _player.call("_closest_nav_point", goal)
+			var pts: PackedVector3Array = pth.call("path", _player.global_position, cg, 0, true)
+			var summ := []
+			for k in range(0, pts.size(), maxi(1, pts.size() / 25)):
+				summ.append(Vector2(pts[k].x, pts[k].z).snapped(Vector2.ONE))
+			print("[townshots] route to %s reach=%s n=%d %s" % [cg.snapped(Vector3.ONE), pth.get("last_reachable"), pts.size(), summ])
+			for frm: Vector3 in [Vector3(-52, 2, 166), Vector3(-52, 2, 175), Vector3(-52, 2, 190), Vector3(-30, 2, 166)]:
+				var p2: PackedVector3Array = pth.call("path", frm, cg, 0, false)
+				var s2 := []
+				for k in range(0, p2.size(), maxi(1, p2.size() / 12)):
+					s2.append(Vector2(p2[k].x, p2[k].z).snapped(Vector2.ONE))
+				print("[townshots] route from %s reach=%s n=%d %s" % [frm, pth.get("last_reachable"), p2.size(), s2])
+			_player.call("nav_to", _player.call("_closest_nav_point", goal))
+			for i in 60:
+				await create_timer(1.0).timeout
+				if not _player.get("nav_active"):
+					_player.call("nav_to", _player.call("_closest_nav_point", goal))
+				var hit := ""
+				if _player is CharacterBody3D:
+					var cb := _player as CharacterBody3D
+					for ci in cb.get_slide_collision_count():
+						var col := cb.get_slide_collision(ci).get_collider()
+						hit += " %s%s" % [col.name if col is Node else str(col), cb.get_slide_collision(ci).get_normal().snapped(Vector3.ONE * 0.01)]
+				var pp: PackedVector3Array = _player.get("sim").call("path_points") if _player.get("sim") else PackedVector3Array()
+				print("[townshots] walk t=%d at %s hit=%s next=%s" % [i * 2, _player.global_position.snapped(Vector3.ONE * 0.1), hit, pp[pp.size() - 1].snapped(Vector3.ONE) if pp.size() > 0 else "-"])
+			quit(0)
+			return
 	var anchors := _anchors()
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--spot="):  # debugging: one extra game shot at x,z
 			var xz := a.substr(7).split(",")
 			anchors = {"spot": Vector3(float(xz[0]), 0, float(xz[1]))}
+			var rt: Node = _town.get("rt")
+			for f: Dictionary in rt.get("_shape").get("topo"):
+				print("[townshots] topo %s pos=%s r=%.1f reach=%.1f camp_d=%.1f" % [f["kind"], f["pos"], f["r"], f["reach"], (f["pos"] as Vector2).distance_to(Vector2(rt.get("_camp_pos").x, rt.get("_camp_pos").z))])
+			var span: int = rt.get("_tile_span")
+			var row := ""
+			for dz in range(-12, 13, 3):
+				for dx in range(-12, 13, 3):
+					var tx := int(floor(float(xz[0]) + dx + float(rt.get("_size")) * 0.5))
+					var tz := int(floor(float(xz[1]) + dz + float(rt.get("_size")) * 0.5))
+					row += "%2d " % (rt.get("tile_types") as PackedByteArray)[tx + tz * span]
+				row += "| "
+			print("[townshots] tiles ", row)
+			var bt: PackedByteArray = load("res://scripts/world/biome_zones.gd").call("biome_types", rt)
+			var zrow := ""
+			for dz in range(-60, 61, 20):
+				for dx in range(-60, 61, 20):
+					var cp0: Vector3 = rt.get("_camp_pos")
+					var tx := int(floor(cp0.x + dx + float(rt.get("_size")) * 0.5))
+					var tz := int(floor(cp0.z + dz + float(rt.get("_size")) * 0.5))
+					zrow += "%d" % bt[tx + tz * span]
+				zrow += " "
+			print("[townshots] zones ", zrow)
+			var cp: Vector3 = rt.get("_camp_pos")
+			var hs := []
+			for r in [0, 20, 40, 60, 80, 100]:
+				var line := "r%d:" % r
+				for k in 8:
+					var ang := TAU * k / 8.0
+					line += " %.1f" % rt.call("surface_y", cp.x + cos(ang) * r, cp.z + sin(ang) * r)
+				hs.append(line)
+			print("[townshots] camp %s heights %s river_d=%.1f" % [cp, hs, rt.call("river_dist_at", cp.x, cp.z)])
 	print("[townshots] anchors %s" % [anchors.keys()])
 	for tod: Array in [["day", 0.42], ["night", 0.93]]:
 		await _set_time(float(tod[1]))
@@ -104,8 +177,8 @@ func _run() -> void:
 			continue
 		await _over("overview_%s_%s" % [tod[0], tag])
 		if tod[0] == "day":
-			for av: float in [0.0, 72.0, 144.0, -72.0, -144.0]:
-				await _gate_shot("gate_%d_%s_%s" % [int(av), tod[0], tag], av)
+			for gi in 4:
+				await _gate_shot("gate_%d_%s_%s" % [gi, tod[0], tag], gi)
 	print("[townshots] DONE")
 	quit(0)
 
@@ -180,13 +253,19 @@ func _street_shot(name: String, at: Vector3) -> void:
 	_street.look_at(at + Vector3(0, 1.8, 0))
 	await _save(name)
 
-func _gate_shot(name: String, av: float) -> void:
+func _gate_shot(name: String, i: int) -> void:
 	if not _want(name):
 		return
-	var wall := 97.0
-	var p: Vector3 = _town.call("polar", av, wall - 14.0)
-	var g: Vector3 = _town.call("polar", av, wall)
-	_place_player(_town.call("polar", av, wall - 6.0))
+	var gs: Array = _town.get("gates")
+	if i >= gs.size():
+		return
+	var g: Vector3 = gs[i]
+	var c: Vector3 = _town.get("camp")
+	var inward := Vector3(c.x - g.x, 0, c.z - g.z)
+	inward = (Vector3(signf(inward.x), 0, 0) if absf(inward.x) > absf(inward.z) else Vector3(0, 0, signf(inward.z)))
+	var p := g + inward * 14.0
+	p.y = float(_town.get("rt").call("surface_y", p.x, p.z))
+	_place_player(g + inward * 6.0)
 	_street.current = true
 	_street.global_position = p + Vector3(0, 3.0, 0)
 	_street.look_at(g + Vector3(0, 1.5, 0))

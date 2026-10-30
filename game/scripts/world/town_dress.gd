@@ -22,15 +22,18 @@ extends Node3D
 const CHUNK_M := 120.0  ## TOWNPOLISH: 80 -> 120 m keeps the batch count in budget with the town kit
 const GLB := "res://assets/props/blender/%s.glb"
 const PLAZA_R := 24.0  ## the camp square (hall desk, faction boards, market stall, bench, pit, herbs, trees)
-const AVENUE_W := 6.0
-const RING_A := 44.0
-const RING_B := 66.0
-const ROAD_W := 5.0
-const TOWN_R := 94.0  ## inside the town wall (WALL_R) and the island's town_safe_m (100)
-const WICKET_EVERY := 12  ## a 4 m wicket gap every 12 panels (~25 m) of palisade
-const WALL_R := 97.0  ## the palisade round the town, open where an avenue passes (a gate)
-const BANDS := [[29.0, -1.0], [36.5, 1.0], [55.0, -1.0], [75.0, -1.0]]  ## [ring radius, door faces +1 out / -1 in]
-const AVENUES := [0.0, 72.0, 144.0, -72.0, -144.0]  ## degrees from the dock direction
+## TOWNPOLISH2 (owner 2026-10-30: "The town should follow the same building rules the player follows
+## and lock to the grid, ideally with the default orientation of the player (facing south)"):
+## streets run on the grid axes, every footprint snaps to the 1 m BuildGrid in 90 degree steps with
+## the player's slope rule (BuildGrid.MAX_SLOPE_SPREAD), fronts face south (rot 0, +Z) unless the
+## street is on the other side, and the palisade is a square. # ASSUMPTION: every number below.
+const AVENUE_W := 6  ## the four main streets out of the square, through the gates
+const ROAD_W := 4  ## the side streets
+const STREET_EVERY := 24  ## streets every 24 m, E-W and N-S
+const STREET_K := 3  ## streets at 0, +-24, +-48, +-72 m from the camp
+const HALF := 86  ## the square palisade, metres from the camp along each axis
+const WICKET_EVERY := 12  ## a 4 m wicket gap every 12 panels (~22 m) of palisade
+const PANEL_M := 1.84  ## fence and palisade modules have end posts 1.84 m apart: runs step by that, so joins share one post
 const NPC_RANGE_M := 60.0
 ## Visibility ranges, metres from the camera. TOWNPOLISH: the iso camera stands distance_for(size)
 ## back (186 m at the default zoom, 240 m at the widest game zoom), so the old 110 m prop range
@@ -59,6 +62,9 @@ static func district_of(deg: float) -> StringName:
 
 var rt: IslandRuntime
 var camp: Vector3
+var o := Vector2i.ZERO  ## the grid origin: the camp's tile corner nearest it
+var gates: Array[Vector3] = []  ## where the main streets leave through the palisade
+var _tut_tiles: Dictionary = {}  ## tiles of the tutorial's own harvest nodes (orders need them)
 var dock_deg := 0.0
 var stats := {"houses": 0, "stalls": 0, "workshops": 0, "fields": 0, "pens": 0, "npcs": 0, "animals": 0, "lamps": 0, "instances": 0, "mmi": 0, "boxes": 0, "cleared_nodes": 0}
 var npcs: Array[Node3D] = []
@@ -84,6 +90,7 @@ static func build(p_rt: IslandRuntime) -> TownDress:
 	t.name = "TownDress"
 	t.rt = p_rt
 	t.camp = p_rt._camp_pos
+	t.o = Vector2i(roundi(t.camp.x), roundi(t.camp.z))
 	var h := p_rt.arrival_point() - t.camp
 	t.dock_deg = rad_to_deg(atan2(h.z, h.x))
 	t._rng.seed = 9091
@@ -112,18 +119,13 @@ func yaw_out(deg: float) -> float:
 static func _wrap(d: float) -> float:
 	return wrapf(d, -180.0, 180.0)
 
-## Distance (m) from a point to the nearest street centre line (avenues, the two rings).
-func street_d(p: Vector3) -> float:
-	var v := Vector2(p.x - camp.x, p.z - camp.z)
-	var r := v.length()
-	var deg := _wrap(rad_to_deg(atan2(v.y, v.x)) - dock_deg)
-	var best := minf(absf(r - RING_A), absf(r - RING_B))
-	if r > PLAZA_R - 4.0:
-		for av: float in AVENUES:
-			var dd := deg_to_rad(_wrap(deg - av))
-			if cos(dd) > 0.0:
-				best = minf(best, absf(r * sin(dd)))
-	return best
+## Half width (tiles) of street k (0 = a main avenue).
+static func _half_w(k: int) -> int:
+	return AVENUE_W / 2 if k == 0 else ROAD_W / 2
+
+## Chebyshev distance (m) from the camp: the town is square, so "how far out" is the larger axis.
+func out_of(p: Vector3) -> float:
+	return maxf(absf(p.x - camp.x), absf(p.z - camp.z))
 
 # ---------------------------------------------------------------- layout
 
@@ -131,69 +133,189 @@ func _lay_out() -> void:
 	var t0 := Time.get_ticks_msec()
 	_guild_hall()
 	_pit_shelter()
-	for band: Array in BANDS:
-		_band(float(band[0]), float(band[1]))
-	_outskirts()
+	for key in rt._harvest_nodes.keys():
+		var node: Variant = rt._harvest_nodes[key]
+		if str(key).begins_with("tutorial_") and is_instance_valid(node) and node is Node3D:
+			for dx in range(-1, 2):
+				for dz in range(-1, 2):
+					_tut_tiles[BuildGrid.tile_of((node as Node3D).global_position) + Vector2i(dx, dz)] = true
+	_street_tiles()
+	_rows()
 	_harbour()
 	_infill()
+	_greenery()
 	_clutter()
 	_wall()
 	_roads()
 	_street_props()
 	_flush()
 	_clear_ground()
+	_domain()
 	print("[tuttown] town built in %d ms: %s refused=%s" % [Time.get_ticks_msec() - t0, stats, refused])
 
-## One ring of lots: walk the ring in steps, fill each free lot by its district.
-func _band(r: float, facing: float) -> void:
-	var circ := TAU * r
-	var s := 0.0
-	while s < circ:
-		var deg := _wrap(s / circ * 360.0)
-		var dist := district_of(deg)
-		var w := 2 * _rng.randi_range(2, 3)  # 4 or 6 m wide, 4 or 6 m deep
-		var d := 4 if r < 40.0 else 2 * _rng.randi_range(2, 3)
-		if r > 60.0 and _rng.randf() < 0.25:
-			w = 8  # a long house now and then
-		var used := 0.0
-		match dist:
-			&"market":
-				used = _stall_lot(deg, r, facing) if r < 40.0 or (r < 60.0 and _rng.randf() < 0.5) else _house_lot(deg, r, facing, w, d, "plain")
-			&"workshops":
-				used = _workshop_lot(deg, r, facing) if r < 60.0 else _house_lot(deg, r, facing, w, d, "stone")
-			&"farms":
-				used = _house_lot(deg, r, facing, w, d, "timber") if r < 40.0 else _field_lot(deg, r)
-			&"pens":
-				used = _house_lot(deg, r, facing, w, d, "timber") if r < 40.0 else (_pen_lot(deg, r) if r > 60.0 else _tent_lot(deg, r, facing))
-			&"harbour":
-				used = _house_lot(deg, r, facing, 6, 6, "stone")
-			_:
-				used = _house_lot(deg, r, facing, w, d, "timber" if _rng.randf() < 0.7 else "plain")
-		s += maxf(used, 3.0) + 1.6
+## TOWNPOLISH2 (owner 2026-10-30: "with the town's domain, you should give it some name and profile
+## picture and extend the domain to encompass the entire town"): the whole square inside and up to
+## the palisade is the town's domain, a claim row with the island's town_name and town_emblem, so the
+## domain banner and the claim outline show it like a survivor's land.
+func _domain() -> void:
+	var def: Dictionary = World.def_of(&"tutorial_isle") if World else {}
+	var nm := str(def.get("town_name", ""))
+	if nm == "":
+		return
+	var r := Rect2i(o.x - HALF - 1, o.y - HALF - 1, HALF * 2 + 2, HALF * 2 + 2)
+	rt.set_other_claims([{"rect": [r.position.x, r.position.y, r.size.x, r.size.y],
+		"owner": {"id": "town_" + nm.to_lower(), "name": nm, "emblem": str(def.get("town_emblem", ""))}}])
+	stats["domain"] = nm
 
-## A rectangle (local w x d around `c`, turned `yaw`) is free: dry, not steep, off the streets, off
-## the square, off anything already placed. Returns the base height or NAN.
+## The street grid's tiles: avenue k = 0 on both axes runs out through the gates, side streets stop
+## inside the palisade; none crosses the square, a footprint already taken (the guild hall) or water.
+func _street_tiles() -> void:
+	for k in range(-STREET_K, STREET_K + 1):
+		var hw := _half_w(k)
+		var s := STREET_EVERY * k
+		for a in range(-HALF - 8, HALF + 8):
+			if k != 0 and absi(a) >= HALF - 1:
+				continue
+			for e in range(-hw, hw):
+				_road_tile(Vector2i(o.x + a, o.y + s + e))
+				_road_tile(Vector2i(o.x + s + e, o.y + a))
+
+func _road_tile(t: Vector2i) -> void:
+	var q := Vector3(float(t.x) + 0.5, 0.0, float(t.y) + 0.5)
+	if Vector2(q.x - camp.x, q.z - camp.z).length() < PLAZA_R - 2.0:
+		return
+	if cells.has(t) or rt.build_grid._occupied.has(t) or not rt.is_dry(q):
+		return
+	road_tiles[t] = true
+
+## Lots along both sides of every E-W street, west to east: the row north of a street faces south
+## (rot 0, the player's default), the row south of it faces north onto it (rot 2).
+func _rows() -> void:
+	for k in range(-STREET_K, STREET_K + 1):
+		var zs := o.y + STREET_EVERY * k
+		var hw := _half_w(k)
+		for side in [-1, 1]:
+			var x := o.x - HALF + 3
+			while x < o.x + HALF - 3:
+				x += _row_lot(x, zs, hw, side) + 2
+
+## One lot at tile column x beside street zs: its kind by district and distance out. Returns the
+## width used (2 when nothing fitted, so the walk moves on).
+func _row_lot(x: int, zs: int, hw: int, side: int) -> int:
+	var probe := Vector3(float(x) + 3.0, 0.0, float(zs) + float(side) * (float(hw) + 4.0))
+	var dist := district_of(_deg_of(probe))
+	var near := out_of(probe)
+	var w := 2 * _rng.randi_range(2, 3)
+	var d := 4 if near < 36.0 else 2 * _rng.randi_range(2, 3)
+	if near > 56.0 and _rng.randf() < 0.25:
+		w = 8  # a long house now and then
+	var kind := "house"
+	var style := "timber" if _rng.randf() < 0.7 else "plain"
+	match dist:
+		&"market":
+			if near < 36.0 or (near < 60.0 and _rng.randf() < 0.5):
+				kind = "stall"
+				w = 4
+				d = 3
+			else:
+				style = "plain"
+		&"workshops":
+			if near < 60.0:
+				kind = "workshop"
+				w = 6
+				d = 5
+			else:
+				style = "stone"
+		&"farms":
+			if near >= 36.0:
+				kind = "field"
+				w = 8
+				d = 6
+		&"pens":
+			if near > 56.0:
+				kind = "pen"
+				w = 10
+				d = 8
+			elif near >= 36.0:
+				kind = "tent"
+				w = 6
+				d = 4
+		&"harbour":
+			style = "stone"
+			w = 6
+			d = 6
+	var lot := _grid_at(x, zs, hw, side, w, d)
+	if lot.is_empty():
+		return 2
+	match kind:
+		"stall":
+			_stall_lot(lot)
+		"workshop":
+			_workshop_lot(lot)
+		"field":
+			_field_lot(lot)
+		"pen":
+			_pen_lot(lot)
+		"tent":
+			_tent_lot(lot)
+		_:
+			_house_lot(lot, w, d, style, 2 if near < 40.0 and _rng.randf() < 0.3 else 1)
+	return w
+
+## A w x d footprint with its NW tile column at x, one tile back from street zs on `side` (-1 north,
+## +1 south), front to the street. {} when the player's rules refuse it.
+func _grid_at(x: int, zs: int, hw: int, side: int, w: int, d: int) -> Dictionary:
+	var c := Vector3(float(x) + float(w) * 0.5, 0.0, float(zs) + float(side) * (float(hw) + 1.0 + float(d) * 0.5))
+	var yaw := 0.0 if side < 0 else PI
+	var base := lot_base(c, float(w), float(d), yaw)
+	if is_nan(base):
+		return {}
+	c.y = base
+	return {"c": c, "yaw": yaw, "b": Basis(Vector3.UP, yaw)}
+
+## A rectangle (w x d around `c`, yaw a multiple of 90 degrees) passes the player's build rules:
+## inside the palisade, off the square, the streets and anything taken (BuildGrid occupancy and
+## reservations, the tutorial's own harvest nodes), on dry land, corner spread within
+## BuildGrid.MAX_SLOPE_SPREAD. `margin` tiles round it must be free of footprints and streets too.
+## Returns the base height (the lowest corner) or NAN.
 func lot_base(c: Vector3, w: float, d: float, yaw: float, margin: float = 1.0) -> float:
-	var v := Vector2(c.x - camp.x, c.z - camp.z)
-	if v.length() - maxf(w, d) * 0.5 < PLAZA_R or v.length() + maxf(w, d) * 0.5 > TOWN_R:
+	var swap := posmod(roundi(yaw / (PI * 0.5)), 2) == 1
+	var ww := d if swap else w
+	var dd := w if swap else d
+	if absf(c.x - camp.x) + ww * 0.5 > float(HALF) - 2.0 or absf(c.z - camp.z) + dd * 0.5 > float(HALF) - 2.0:
 		return _no("ring")
-	if street_d(c) < Vector2(w, d).length() * 0.5 + AVENUE_W * 0.5 - 0.5:
-		return _no("street")
+	var nearest := Vector2(clampf(camp.x, c.x - ww * 0.5, c.x + ww * 0.5), clampf(camp.z, c.z - dd * 0.5, c.z + dd * 0.5))
+	if nearest.distance_to(Vector2(camp.x, camp.z)) < PLAZA_R:
+		return _no("plaza")
+	var x0 := floori(c.x - ww * 0.5 + 0.01)
+	var z0 := floori(c.z - dd * 0.5 + 0.01)
+	var x1 := ceili(c.x + ww * 0.5 - 0.01)
+	var z1 := ceili(c.z + dd * 0.5 - 0.01)
+	var m := floori(margin + 0.5)
+	for tx in range(x0 - m, x1 + m):
+		for tz in range(z0 - m, z1 + m):
+			var t := Vector2i(tx, tz)
+			if cells.has(t):
+				return _no("taken")
+			if road_tiles.has(t):
+				return _no("street")
+			if tx < x0 or tx >= x1 or tz < z0 or tz >= z1:
+				continue
+			if rt.build_grid._occupied.has(t) or rt.build_grid._reserved.has(t):
+				return _no("taken")
+			if _tut_tiles.has(t):
+				return _no("resource")
+			var q := Vector3(float(tx) + 0.5, 0.0, float(tz) + 0.5)
+			if not rt.is_dry(q) or not rt.spawn_ok(q, false):
+				return _no("wet")
 	var lo := INF
 	var hi := -INF
-	var b := Basis(Vector3.UP, yaw)
-	for k in 9:
-		var q := c + b * Vector3((float(k % 3) - 1.0) * (w * 0.5 + margin), 0.0, (float(k / 3) - 1.0) * (d * 0.5 + margin))
-		if not rt.is_dry(q) or not rt.spawn_ok(q, false):
-			return _no("wet")
-		var y := rt.surface_y(q.x, q.z)
+	for q: Vector2 in [Vector2(x0, z0), Vector2(x1, z0), Vector2(x0, z1), Vector2(x1, z1)]:
+		var y := rt.surface_y(q.x, q.y)
 		lo = minf(lo, y)
 		hi = maxf(hi, y)
-	if hi - lo > 2.0:
+	if hi - lo > BuildGrid.MAX_SLOPE_SPREAD:
 		return _no("steep")
-	for t in _rect_tiles(c, w + margin, d + margin, yaw):
-		if cells.has(t) or rt.build_grid._occupied.has(t) or rt.build_grid._reserved.has(t):
-			return _no("taken")
 	return lo
 
 ## Counts why lots were refused (the build line prints it; tuning the layout reads it).
@@ -210,12 +332,23 @@ func _rect_tiles(c: Vector3, w: float, d: float, yaw: float) -> Array[Vector2i]:
 	var seen := {}
 	for i in nx * 2 + 1:
 		for j in nz * 2 + 1:
-			var q := c + b * Vector3(-w * 0.5 + float(i) * w / float(nx * 2), 0.0, -d * 0.5 + float(j) * d / float(nz * 2))
+			# Inset 1 cm: an edge on a tile line must not take the tile past it.
+			var q := c + b * Vector3(-w * 0.5 + 0.01 + float(i) * (w - 0.02) / float(nx * 2), 0.0, -d * 0.5 + 0.01 + float(j) * (d - 0.02) / float(nz * 2))
 			var t := BuildGrid.tile_of(q)
 			if not seen.has(t):
 				seen[t] = true
 				out.append(t)
 	return out
+
+## TOWNPOLISH2: a small solid (post, lamp, tree trunk, gate tower) standing at `at`: its collision box,
+## and every tile within a walker's radius of it closed to the router. One tile per post let the
+## router's string-pulled line graze the box (the tutorial bot wedged on a gate tower; factions found
+## the same with a bench).
+const WALKER_R := 0.4
+func _solid(at: Vector3, size: Vector3) -> void:
+	_boxes.append([Transform3D(Basis(), at + Vector3(0, size.y * 0.5, 0)), size])
+	for t in _rect_tiles(at, size.x + WALKER_R * 2.0, size.z + WALKER_R * 2.0, 0.0):
+		cells[t] = true
 
 ## Mark a footprint taken (cells for the router and the build grid) and add its collision box.
 func _take(c: Vector3, w: float, d: float, h: float, yaw: float, solid: bool = true) -> void:
@@ -226,15 +359,6 @@ func _take(c: Vector3, w: float, d: float, h: float, yaw: float, solid: bool = t
 			soft_cells[t] = true
 	if solid:
 		_boxes.append([Transform3D(Basis(Vector3.UP, yaw), c + Vector3(0, h * 0.5, 0)), Vector3(w, h, d)])
-
-func _lot(deg: float, r: float, facing: float, w: float, d: float) -> Dictionary:
-	var c := polar(deg, r)
-	var yaw := yaw_out(deg) + (0.0 if facing > 0.0 else PI)
-	var base := lot_base(c, w, d, yaw)
-	if is_nan(base):
-		return {}
-	c.y = base
-	return {"c": c, "yaw": yaw, "b": Basis(Vector3.UP, yaw)}
 
 # ---------------------------------------------------------------- houses
 
@@ -248,22 +372,18 @@ const ROOF_COLORS := {"timber": Color(0.78, 0.64, 0.36), "plain": Color(0.72, 0.
 const ROOFS := {"thatch": Color(0.80, 0.66, 0.38), "shingle": Color(0.45, 0.30, 0.20), "slate": Color(0.34, 0.37, 0.42), "tile": Color(0.66, 0.30, 0.20)}
 const ROOF_BY_STYLE := {"timber": ["thatch", "thatch", "shingle", "tile"], "plain": ["thatch", "tile", "shingle"], "stone": ["slate", "slate", "tile"]}
 
-func _house_lot(deg: float, r: float, facing: float, w: int, d: int, style: String) -> float:
-	var lot := _lot(deg, r, facing, float(w), float(d))
-	if lot.is_empty():
-		return 2.0
-	house(lot["c"], w, d, lot["yaw"], style, 2 if r < 40.0 and _rng.randf() < 0.3 else 1)
+func _house_lot(lot: Dictionary, w: int, d: int, style: String, storeys: int) -> void:
+	house(lot["c"], w, d, lot["yaw"], style, storeys)
 	# Life at the door: a barrel, crates or a bench beside it.
 	var b: Basis = lot["b"]
 	var door: Vector3 = (lot["c"] as Vector3) + b * Vector3(float(w) * 0.5 - 0.6, 0.0, float(d) * 0.5 + 0.7)
 	var pick: String = ["barrel", "large_box", "basket", "bucket", "chest"][_rng.randi_range(0, 4)]
-	prop(pick, door, (lot["yaw"] as float) + _rng.randf_range(-0.4, 0.4))
+	prop(pick, door, lot["yaw"])
 	_door_path(lot["c"], b, float(d))
-	if _rng.randf() < 0.35:
-		_garden((lot["c"] as Vector3) + b * Vector3(0, 0, -float(d) * 0.5 - 2.6), float(w), lot["yaw"])
-	if district_of(deg) == &"market" and _rng.randf() < 0.5:
+	if _rng.randf() < 0.45:
+		_garden((lot["c"] as Vector3) + b * Vector3(0, 0, -float(d) * 0.5 - 3.0), float(w), lot["yaw"])
+	if district_of(_deg_of(lot["c"])) == &"market" and _rng.randf() < 0.5:
 		prop("sign", (lot["c"] as Vector3) + b * Vector3(-float(w) * 0.5 + 0.4, 0, float(d) * 0.5 + 0.6), lot["yaw"])
-	return float(w)
 
 ## A short footpath from a front door out to the street (a strip in the road mesh).
 var _paths: Array = []  ## [from, to]
@@ -273,15 +393,18 @@ func _door_path(c: Vector3, b: Basis, d: float) -> void:
 	var to := from
 	for k in 16:
 		to = from + dir * float(k)
-		if street_d(to) < ROAD_W * 0.5 or not rt.is_dry(to):
+		var t := BuildGrid.tile_of(to)
+		if road_tiles.has(t):
 			break
+		if k > 0 and cells.has(t) or not rt.is_dry(to) or k == 15:
+			return  # a path that would cross another lot or never meets a street is no path
 	if from.distance_to(to) > 0.9:
 		_paths.append([from, to])
 
 ## A fenced kitchen garden behind a house: crop rows, sometimes a scarecrow or a water butt.
 func _garden(c: Vector3, w: float, yaw: float) -> void:
 	var gw := maxf(w, 4.0)
-	if is_nan(lot_base(c, gw, 3.6, yaw, 0.3)):
+	if is_nan(lot_base(c, gw, 4.0, yaw, 0.3)):
 		return
 	var b := Basis(Vector3.UP, yaw)
 	for i in int(gw / 2.0):
@@ -309,7 +432,7 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 		lo = minf(lo, rt.surface_y(q.x, q.z))
 	var top := c.y + 0.35
 	var plinth_h := top - lo + 0.25
-	unit("plinth", Transform3D(b.scaled(Vector3(float(w) + 0.3, plinth_h, float(d) + 0.3)), Vector3(c.x, lo - 0.25, c.z)), Color(0.5, 0.48, 0.45), FAR_HOUSE)
+	unit("plinth", Transform3D(b.scaled_local(Vector3(float(w) + 0.3, plinth_h, float(d) + 0.3)), Vector3(c.x, lo - 0.25, c.z)), Color(0.5, 0.48, 0.45), FAR_HOUSE)
 	var pair: Array = WALLS.get(style, WALLS["timber"])
 	var wall_h := 2.4
 	var extras := _rng.randf()
@@ -334,7 +457,7 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 				elif _rng.randf() < 0.45:
 					part = wall_style[1]
 					# Warm glass behind the frame: dark by day, lit at night (_night).
-					unit("winglow", Transform3D(sb.scaled(Vector3(0.86, 0.86, 0.04)), at + sb * Vector3(0, 1.02, 0.0)), Color.WHITE, FAR_HOUSE)
+					unit("winglow", Transform3D(sb.scaled_local(Vector3(0.86, 0.86, 0.04)), at + sb * Vector3(0, 1.02, 0.0)), Color.WHITE, FAR_HOUSE)
 					if side == 0 and st == 0 and extras > 0.5:
 						part_at("town_flowerbox", Transform3D(sb, at + sb * Vector3(0, 0.98, 0.2)), FAR_PROP)
 				elif side == 1 and st == 0 and extras > 0.75 and i == 0:
@@ -342,7 +465,7 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 				part_at(part, Transform3D(sb, at), FAR_HOUSE, true)
 			for k in 4:
 				var q := Vector3((float(k % 2) - 0.5) * float(w), 0.0, (float(k / 2) - 0.5) * float(d))
-				unit("box", Transform3D(b.scaled(Vector3(0.32, wall_h, 0.32)), Vector3(c.x, y, c.z) + b * q), Color(0.33, 0.22, 0.13), FAR_HOUSE)
+				unit("box", Transform3D(b.scaled_local(Vector3(0.32, wall_h, 0.32)), Vector3(c.x, y, c.z) + b * q), Color(0.33, 0.22, 0.13), FAR_HOUSE)
 	var eave := top + wall_h * float(storeys)
 	var span := mini(w, d)
 	var long := maxi(w, d)
@@ -527,25 +650,22 @@ func _pit_shelter() -> void:
 # ---------------------------------------------------------------- districts
 
 ## Market: a stall under a striped canvas (two colours), goods on the counter, barrels and baskets.
-func _stall_lot(deg: float, r: float, facing: float) -> float:
-	var lot := _lot(deg, r + 2.0, facing, 4.0, 3.0)
-	if lot.is_empty():
-		return 2.0
+func _stall_lot(lot: Dictionary) -> void:
 	var c: Vector3 = lot["c"]
 	var b: Basis = lot["b"]
 	var yaw: float = lot["yaw"]
 	part_at("town_stall", Transform3D(b, c), FAR_PROP)
 	var hues := [Color(0.75, 0.2, 0.15), Color(0.2, 0.4, 0.7), Color(0.85, 0.65, 0.2), Color(0.25, 0.55, 0.3)]
 	var col: Color = hues[_rng.randi_range(0, hues.size() - 1)]
-	unit("canvas", Transform3D(b.scaled(Vector3(4.2, 0.6, 3.2)), c + Vector3(0, 2.16, 0)), col, FAR_PROP)
+	unit("canvas", Transform3D(b.scaled_local(Vector3(4.2, 0.6, 3.2)), c + Vector3(0, 2.16, 0)), col, FAR_PROP)
 	# A lantern on the front beam: the market stays lit after dark (glass + halo, no real light).
 	var lan := c + b * Vector3(1.2, 1.78, 1.3)
-	unit("lantern", Transform3D(b.scaled(Vector3(0.2, 0.28, 0.2)), lan), Color(1.0, 0.8, 0.5), FAR_PROP)
+	unit("lantern", Transform3D(b.scaled_local(Vector3(0.2, 0.28, 0.2)), lan), Color(1.0, 0.8, 0.5), FAR_PROP)
 	unit("halo", Transform3D(Basis().scaled(Vector3.ONE * 1.8), lan + Vector3(0, 0.15, 0)), Color.WHITE, FAR_PROP)
 	var goods := ["basket", "bucket", "chest", "barrel"]
 	for i in 3:
 		prop(goods[_rng.randi_range(0, 3)], c + b * Vector3(-1.2 + 1.2 * float(i), 0.9, 1.0), yaw, 0.55)
-	prop("large_box", c + b * Vector3(-2.4, 0, -0.6), yaw + 0.2)
+	prop("large_box", c + b * Vector3(-2.4, 0, -0.6), yaw)
 	if _rng.randf() < 0.5:
 		prop("sign", c + b * Vector3(1.9, 0, 1.6), yaw)
 	prop(["barrel", "large_box", "basket"][_rng.randi_range(0, 2)], c + b * Vector3(2.4, 0, 0.3), yaw)
@@ -553,7 +673,6 @@ func _stall_lot(deg: float, r: float, facing: float) -> float:
 	stats["stalls"] += 1
 	if _rng.randf() < 0.5:
 		npc(c + b * Vector3(0, 0, -0.3), yaw, &"idle")
-	return 4.0
 
 ## Workshops: an open shelter over a station, its state on show. Every third one is a forge or a
 ## grill that is busy (StationState: hearth glow, sparks, the spit), the rest hold racks of drying
@@ -567,18 +686,15 @@ const SHOPS := [
 var _shop_i := 0
 var _busy_lights := 0
 
-func _workshop_lot(deg: float, r: float, facing: float) -> float:
-	var lot := _lot(deg, r, facing, 6.0, 5.0)
-	if lot.is_empty():
-		return 2.0
+func _workshop_lot(lot: Dictionary) -> void:
 	var c: Vector3 = lot["c"]
 	var b: Basis = lot["b"]
 	var yaw: float = lot["yaw"]
 	for k in 4:
 		var q := Vector3((float(k % 2) - 0.5) * 5.6, 0.0, (float(k / 2) - 0.5) * 4.6)
-		unit("box", Transform3D(b.scaled(Vector3(0.22, 2.7, 0.22)), c + b * q), Color(0.34, 0.23, 0.13), FAR_HOUSE)
+		unit("box", Transform3D(b.scaled_local(Vector3(0.22, 2.7, 0.22)), c + b * q), Color(0.34, 0.23, 0.13), FAR_HOUSE)
 	part_at("town_roof_%s_6x4" % ["thatch", "shingle", "tile"][_shop_i % 3], Transform3D(b, c + Vector3(0, 2.7, 0)), FAR_HOUSE, true)
-	unit("plinth", Transform3D(b.scaled(Vector3(6.0, 0.3, 5.0)), c + Vector3(0, -0.2, 0)), Color(0.36, 0.29, 0.22), FAR_PROP)
+	unit("plinth", Transform3D(b.scaled_local(Vector3(6.0, 0.3, 5.0)), c + Vector3(0, -0.2, 0)), Color(0.36, 0.29, 0.22), FAR_PROP)
 	var row: Array = SHOPS[_shop_i % SHOPS.size()]
 	_shop_i += 1
 	var kind: String = row[0]
@@ -596,7 +712,6 @@ func _workshop_lot(deg: float, r: float, facing: float) -> float:
 		var q := Vector3((float(k % 2) - 0.5) * 5.6, 0.0, (float(k / 2) - 0.5) * 4.6)
 		_boxes.append([Transform3D(b, c + b * q + Vector3(0, 1.35, 0)), Vector3(0.3, 2.7, 0.3)])
 	stats["workshops"] += 1
-	return 6.0
 
 ## A station that is always at work: a plain host with StationState forced busy. Lights stay capped.
 class BusyState extends StationState:
@@ -621,10 +736,7 @@ func _busy_station(sid: StringName, at: Vector3, yaw: float) -> void:
 	host.add_child(st)
 
 ## Farms: a fenced field in crop (four growth stages), a scarecrow or compost heap, a farmer.
-func _field_lot(deg: float, r: float) -> float:
-	var lot := _lot(deg, r, 1.0, 8.0, 6.0)
-	if lot.is_empty():
-		return 2.0
+func _field_lot(lot: Dictionary) -> void:
 	var c: Vector3 = lot["c"]
 	var b: Basis = lot["b"]
 	var yaw: float = lot["yaw"]
@@ -644,16 +756,12 @@ func _field_lot(deg: float, r: float) -> float:
 		npc(c + b * Vector3(-1.2, 0, 3.8), yaw + PI, &"farm")
 	_take(c, 8.6, 6.6, 1.2, yaw, false)
 	stats["fields"] += 1
-	return 9.0
 
 ## Pens: a fenced paddock with a tamed animal or two (the real species art, idle loop).
 const PEN_SPECIES := [&"zebraceratops", &"compsognathus"]  ## owner 2026-10-29: only these two on the tutorial island
 var _pen_i := 0
 
-func _pen_lot(deg: float, r: float) -> float:
-	var lot := _lot(deg, r, 1.0, 10.0, 8.0)
-	if lot.is_empty():
-		return 2.0
+func _pen_lot(lot: Dictionary) -> void:
 	var c: Vector3 = lot["c"]
 	var b: Basis = lot["b"]
 	var yaw: float = lot["yaw"]
@@ -663,88 +771,108 @@ func _pen_lot(deg: float, r: float) -> float:
 	var sp: StringName = PEN_SPECIES[_pen_i % PEN_SPECIES.size()]
 	_pen_i += 1
 	for k in (2 if sp == &"compsognathus" else 1):
-		animal(sp, c + b * Vector3(-1.0 + 2.2 * float(k), 0, 0.5), yaw + _rng.randf_range(-1.2, 1.2))
+		animal(sp, c + b * Vector3(-1.0 + 2.2 * float(k), 0, 0.5), yaw + _rng.randf_range(-1.2, 1.2))  # animals, not buildings: any heading
 	_take(c, 10.0, 8.0, 1.5, yaw)
 	stats["pens"] += 1
-	return 11.0
 
 ## Hide tents of the hunters by the north gate.
-func _tent_lot(deg: float, r: float, facing: float) -> float:
-	var lot := _lot(deg, r, facing, 3.4, 3.4)
-	if lot.is_empty():
-		return 2.0
-	prop("tent" if _rng.randf() < 0.5 else "tent_canvas", lot["c"], lot["yaw"])
-	prop("drying_rack_dried", (lot["c"] as Vector3) + (lot["b"] as Basis) * Vector3(2.8, 0, 0), lot["yaw"])
-	_take(lot["c"], 3.4, 3.4, 2.3, lot["yaw"])
-	return 6.0
+func _tent_lot(lot: Dictionary) -> void:
+	var b: Basis = lot["b"]
+	prop("tent" if _rng.randf() < 0.5 else "tent_canvas", (lot["c"] as Vector3) + b * Vector3(-1.2, 0, 0), lot["yaw"])
+	prop("drying_rack_dried", (lot["c"] as Vector3) + b * Vector3(1.9, 0, 0), lot["yaw"])
+	_take(lot["c"], 6.0, 4.0, 2.3, lot["yaw"])
 
 func _fence_rect(c: Vector3, w: float, d: float, yaw: float, gate: bool) -> void:
-	var b := Basis(Vector3.UP, yaw)
 	for side in 4:
 		var along := w if side % 2 == 0 else d
 		var across := d if side % 2 == 0 else w
 		var sb := Basis(Vector3.UP, yaw + float(side) * PI * 0.5)
-		var n := int(round(along / 2.0))
+		# TOWNPOLISH2: n modules stretched to meet post on post (they stood 2 m apart with their own
+		# end posts 1.84 m apart, so every join showed two posts); the corner posts coincide too.
+		var n := maxi(1, ceili(along / PANEL_M - 0.05))
+		var step := along / float(n)
 		for i in n:
-			var q := c + sb * Vector3(-along * 0.5 + 1.0 + 2.0 * float(i) * along / (2.0 * float(n)), 0.0, across * 0.5)
+			var q := c + sb * Vector3(-along * 0.5 + step * (float(i) + 0.5), 0.0, across * 0.5)
 			q.y = rt.surface_y(q.x, q.z)
-			prop("gate" if gate and side == 0 and i == n / 2 else "fence", q, yaw + float(side) * PI * 0.5)
+			var nm := "gate" if gate and side == 0 and i == n / 2 else "fence"
+			if ResourceLoader.exists(GLB % nm):
+				part_at(nm, Transform3D(sb.scaled_local(Vector3(step / PANEL_M, 1.0, 1.0)), q), FAR_PROP)
 
-## Outskirts past the outer ring by the farms and pens: more fields and a well.
-func _outskirts() -> void:
-	for deg in range(-178, -100, 14):
-		_field_lot(float(deg), 88.0)
-	for deg in range(160, 200, 16):
-		_pen_lot(_wrap(float(deg)), 88.0)
-
-## Fill the empty lots: every free spot left in town gets a cottage, a shed, a fenced garden or a
-## yard (woodpile, crates, hay), facing the nearest avenue or the square.
+## Fill the empty lots: every free spot left in town gets a cottage, a fenced garden or a yard
+## (woodpile, crates, hay), on the grid, front to the south (the player's default facing).
 func _infill() -> void:
-	var step := 4.5
-	var n := int(TOWN_R * 2.0 / step)
-	for i in n:
-		for j in n:
-			var off := Vector3(-TOWN_R + step * (float(i) + _rng.randf_range(0.2, 0.8)), 0, -TOWN_R + step * (float(j) + _rng.randf_range(0.2, 0.8)))
-			var c := camp + off
-			var r := Vector2(off.x, off.z).length()
-			if r < PLAZA_R + 3.0 or r > TOWN_R - 3.0 or street_d(c) < 5.0:
+	for gx in range(-HALF + 3, HALF - 3, 5):
+		for gz in range(-HALF + 3, HALF - 3, 5):
+			var c := Vector3(float(o.x + gx + _rng.randi_range(0, 2)), 0.0, float(o.y + gz + _rng.randi_range(0, 2)))
+			if Vector2(c.x - camp.x, c.z - camp.z).length() < PLAZA_R + 3.0:
 				continue
-			var yaw := atan2(-off.x, -off.z)  # door to the square
 			var roll := _rng.randf()
 			if roll < 0.55:
-				var lot_y := lot_base(c, 4.0, 4.0, yaw, 0.6)
+				var lot_y := lot_base(c, 4.0, 4.0, 0.0, 1.0)
 				if is_nan(lot_y):
 					continue
 				c.y = lot_y
 				var style: String = "stone" if district_of(_deg_of(c)) in [&"harbour", &"workshops"] else ("timber" if _rng.randf() < 0.7 else "plain")
-				house(c, 4, 4, yaw, style)
-				_door_path(c, Basis(Vector3.UP, yaw), 4.0)
+				house(c, 4, 4, 0.0, style)
+				_door_path(c, Basis.IDENTITY, 4.0)
 				stats["infill"] = int(stats.get("infill", 0)) + 1
 			elif roll < 0.8:
-				_garden(c, 4.0, yaw)
+				_garden(c, 4.0, 0.0)
 			else:
-				if is_nan(lot_base(c, 3.0, 3.0, yaw, 0.3)):
+				c += Vector3(0.5, 0, 0.5)
+				if is_nan(lot_base(c, 3.0, 3.0, 0.0, 0.3)):
 					continue
+				var rot := _rng.randi_range(0, 3)
+				var yaw := float(rot) * PI * 0.5
 				var b := Basis(Vector3.UP, yaw)
 				prop(["large_box", "straw_roll", "barrel", "basket"][_rng.randi_range(0, 3)], c, yaw)
-				prop(["barrel", "bucket", "chest", "large_box"][_rng.randi_range(0, 3)], c + b * Vector3(1.3, 0, 0.4), yaw + 0.5)
-				prop("straw_roll", c + b * Vector3(-1.2, 0, -0.3), yaw + 1.2)
-				_take(c, 3.0, 3.0, 1.2, yaw)
+				prop(["barrel", "bucket", "chest", "large_box"][_rng.randi_range(0, 3)], c + b * Vector3(1.0, 0, 0.5), yaw)
+				prop("straw_roll", c + b * Vector3(-1.0, 0, -0.5), yaw + PI * 0.5)
+				_take(c, 3.0, 3.0, 1.2, 0.0)
 				stats["yards"] = int(stats.get("yards", 0)) + 1
 
-## TOWNPOLISH: the gaps the lots leave (too small, a slope, a corner) get yard life instead of bare
-## grass: a hand cart, a woodpile, barrels and crates, straw, a well now and then.
-func _clutter() -> void:
-	var step := 6.0
-	var n := int(TOWN_R * 2.0 / step)
-	for i in n:
-		for j in n:
-			var off := Vector3(-TOWN_R + step * (float(i) + _rng.randf_range(0.2, 0.8)), 0, -TOWN_R + step * (float(j) + _rng.randf_range(0.2, 0.8)))
-			var c := camp + off
-			var r := Vector2(off.x, off.z).length()
-			if r < PLAZA_R + 2.0 or r > TOWN_R - 2.0 or street_d(c) < 4.0 or _rng.randf() < 0.35:
+## TOWNPOLISH2: trees and shrubs on the grass the lots leave between homes (round-6 leftover). Owner
+## 2026-10-30 "keep pushing to full 3D": the nature kit's own 3D models (assets/nature/generated),
+## batched like every other town piece, scenery only (no harvest node). A tree's trunk tile is taken
+## (collision, and the router steps round it); a shrub blocks nothing. Plants turn and scale freely:
+## they are nature, not buildings, but they stand on tile centres.
+const NATURE := "res://assets/nature/generated/%s.glb"
+const GREEN_TREES := ["tree-common-a", "tree-common-b", "tree-birch-a", "tree-willow-a"]  ## # ASSUMPTION: the meadow's own trees
+const GREEN_SHRUBS := ["bush-berries-a-empty", "bush-berries-b-empty", "plant-a"]
+func _greenery() -> void:
+	for gx in range(-HALF + 4, HALF - 4, 6):
+		for gz in range(-HALF + 4, HALF - 4, 6):
+			if _rng.randf() < 0.35:
 				continue
-			var yaw := _rng.randf() * TAU
+			var c := Vector3(float(o.x + gx + _rng.randi_range(0, 2)) + 0.5, 0.0, float(o.y + gz + _rng.randi_range(0, 2)) + 0.5)
+			if Vector2(c.x - camp.x, c.z - camp.z).length() < PLAZA_R + 4.0 or _in_gateway(c):
+				continue
+			var tree := _rng.randf() < 0.45
+			if is_nan(lot_base(c, 3.0 if tree else 1.0, 3.0 if tree else 1.0, 0.0, 0.3 if tree else 0.0)):
+				continue
+			c.y = rt.surface_y(c.x, c.z)
+			var names: Array = GREEN_TREES if tree else GREEN_SHRUBS
+			var path: String = NATURE % names[_rng.randi_range(0, names.size() - 1)]
+			if not ResourceLoader.exists(path):
+				continue
+			var h := _rng.randf_range(6.0, 8.5) if tree else _rng.randf_range(1.0, 1.6)
+			var sc := h / VegBatch.mesh_height(path)
+			part_at(path, Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled_local(Vector3.ONE * sc), c), FAR_HOUSE if tree else FAR_PROP, tree)
+			if tree:
+				_solid(c, Vector3(0.5, 3.0, 0.5))
+			lots.append(c)
+			stats["trees" if tree else "shrubs"] = int(stats.get("trees" if tree else "shrubs", 0)) + 1
+
+## TOWNPOLISH: the gaps the lots leave (too small, a corner) get yard life instead of bare grass: a
+## hand cart, a woodpile, barrels and crates, straw, a well now and then. On the grid, turned in
+## 90 degree steps.
+func _clutter() -> void:
+	for gx in range(-HALF + 3, HALF - 3, 6):
+		for gz in range(-HALF + 3, HALF - 3, 6):
+			var c := Vector3(float(o.x + gx + _rng.randi_range(0, 3)), 0.0, float(o.y + gz + _rng.randi_range(0, 3)))
+			if Vector2(c.x - camp.x, c.z - camp.z).length() < PLAZA_R + 2.0 or _rng.randf() < 0.35:
+				continue
+			var yaw := float(_rng.randi_range(0, 3)) * PI * 0.5
 			var y := lot_base(c, 2.6, 2.6, yaw, 0.4)
 			if is_nan(y):
 				continue
@@ -755,14 +883,14 @@ func _clutter() -> void:
 					prop("town_cart", c, yaw)
 				1:
 					prop("town_woodpile", c, yaw)
-					prop("large_box", c + b * Vector3(1.3, 0, 0.2), yaw + 0.3)
+					prop("large_box", c + b * Vector3(1.3, 0, 0.2), yaw)
 				2:
 					prop("barrel", c, yaw)
-					prop("barrel", c + b * Vector3(0.7, 0, 0.2), yaw + 1.0)
-					prop("large_box", c + b * Vector3(-0.8, 0, 0.1), yaw + 0.4)
+					prop("barrel", c + b * Vector3(0.7, 0, 0.2), yaw)
+					prop("large_box", c + b * Vector3(-0.8, 0, 0.1), yaw)
 				3:
 					prop("straw_roll", c, yaw)
-					prop("straw_roll", c + b * Vector3(1.0, 0, 0.3), yaw + 0.6)
+					prop("straw_roll", c + b * Vector3(1.0, 0, 0.3), yaw)
 				4:
 					prop("well" if _rng.randf() < 0.3 else "water_trough", c, yaw)
 				_:
@@ -772,12 +900,15 @@ func _clutter() -> void:
 			lots.append(c)  # no cells: clutter never closes a lane to the router (t_tutorial's bot detoured)
 			stats["clutter"] = int(stats.get("clutter", 0)) + 1
 
-## Inside or beside an avenue gate (the opening, the towers and a post-width either side: a wicket
-## post there left a gap too narrow to pass that the router still took).
+## Inside or beside a gate (the opening, the towers and a post-width either side: a wicket post there
+## left a gap too narrow to pass that the router still took).
 func _in_gateway(p: Vector3) -> bool:
-	var dg := _deg_of(p)
-	for av: float in AVENUES:
-		if absf(_wrap(dg - av)) * PI / 180.0 * WALL_R < 8.0:
+	for g in gates:
+		if Vector2(p.x - g.x, p.z - g.z).length() < 8.0:
+			return true
+	# Gates are laid after the lots: before that, the avenue ends count.
+	for e: Vector2i in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+		if Vector2(p.x - float(o.x + e.x * HALF), p.z - float(o.y + e.y * HALF)).length() < 8.0:
 			return true
 	return false
 
@@ -820,169 +951,179 @@ func _harbour() -> void:
 	lamp(base - sea * 5.0 - along * 3.0)
 	lamp(base - sea * 5.0 + along * 3.0)
 
-## The palisade: fortified fence panels on a ring round the town, a gate wherever an avenue leaves
-## (two tall posts with lamps and a signpost outside), nothing over water.
+## The palisade: a square of fortified panels HALF m out on each axis, a kit gate where each main
+## avenue leaves (towers, lamps, a signpost outside), a wicket every WICKET_EVERY panels, nothing
+## over water. Panels step PANEL_M so neighbours share their end posts.
 func _wall() -> void:
-	var n := int(TAU * WALL_R / 2.05)
-	for i in n:
-		var deg := 360.0 * (float(i) + 0.5) / float(n)
-		var gate := false
-		for av: float in AVENUES:
-			if absf(_wrap(deg - av)) * PI / 180.0 * WALL_R < AVENUE_W * 0.5 + 1.2:
-				gate = true
-		var p := polar(deg, WALL_R)
-		# A wicket (a 4 m gap between two posts) every WICKET_EVERY panels: walks out to the wild
-		# lands and back stay short (the tutorial bot timed out detouring to the avenue gates).
-		var wicket := i % WICKET_EVERY < 2
-		if wicket and i % WICKET_EVERY == 0 and rt.is_dry(p):
-			for e in [-1.0, 1.0]:
-				var wp := polar(deg + e * 1.2 * 180.0 / PI / WALL_R * 2.0, WALL_R)
-				if _in_gateway(wp):
-					continue  # TOWNPOLISH: a wicket beside a gate stood its post in the gate opening
-				unit("box", Transform3D(Basis().scaled(Vector3(0.4, 2.8, 0.4)), wp), Color(0.32, 0.22, 0.13), FAR_HOUSE)
-				_boxes.append([Transform3D(Basis(), wp + Vector3(0, 1.4, 0)), Vector3(0.4, 2.8, 0.4)])
-				cells[BuildGrid.tile_of(wp)] = true
-		if gate or wicket or not rt.is_dry(p) or not rt.spawn_ok(p, false):
-			continue
-		var t := BuildGrid.tile_of(p)
-		if rt.build_grid._occupied.has(t) or rt.build_grid._reserved.has(t):
-			continue
-		var yaw := yaw_out(deg) + PI * 0.5  # the panel runs along the ring
-		prop("fence_fortified", p, yaw)
-		_boxes.append([Transform3D(Basis(Vector3.UP, yaw), p + Vector3(0, 1.1, 0)), Vector3(2.05, 2.2, 0.5)])
-		for k in [-0.8, 0.0, 0.8]:
-			cells[BuildGrid.tile_of(p + Basis(Vector3.UP, yaw) * Vector3(k, 0, 0))] = true
-		stats["wall"] = int(stats.get("wall", 0)) + 1
-	for av: float in AVENUES:
-		var g := polar(av, WALL_R)
+	gates.clear()
+	for e: Vector2i in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+		var g := Vector3(float(o.x + e.x * HALF), 0.0, float(o.y + e.y * HALF))
+		g.y = rt.surface_y(g.x, g.z)
 		if not rt.is_dry(g):
+			refused["gate_wet"] = int(refused.get("gate_wet", 0)) + 1
 			continue
-		var side := Vector3(-sin(deg_to_rad(dock_deg + av)), 0, cos(deg_to_rad(dock_deg + av)))
+		var out := Vector3(float(e.x), 0, float(e.y))
+		var side := Vector3(-out.z, 0, out.x)
 		var posts: Array[Vector3] = []
-		for e in [-1.0, 1.0]:
-			var post: Vector3 = g + side * e * 3.85
+		for s in [-1.0, 1.0]:
+			var post: Vector3 = g + side * s * 3.85
 			post.y = rt.surface_y(post.x, post.z)
 			posts.append(post)
 		if not (rt.is_dry(posts[0]) and rt.is_dry(posts[1])):
+			refused["gate_half_wet"] = int(refused.get("gate_half_wet", 0)) + 1
 			continue  # never half a gate in the water
-		# TOWNPOLISH: one town-kit gate (towers, beam, roof, sign) instead of three loose boxes whose
-		# beam was turned the wrong way. Its base sits at the lower tower's ground.
 		g.y = minf(posts[0].y, posts[1].y)
-		part_at("town_gate", Transform3D(Basis(Vector3.UP, yaw_out(av)), g), FAR_HOUSE)
+		var yaw := atan2(out.x, out.z)  # the kit gate's +Z faces out
+		part_at("town_gate", Transform3D(Basis(Vector3.UP, yaw), g), FAR_HOUSE)
+		gates.append(g)
 		for post in posts:
-			lamp(post - (polar(av, WALL_R - 1.0) - g).normalized() * 1.2)
-			_boxes.append([Transform3D(Basis(), post + Vector3(0, 2.4, 0)), Vector3(1.0, 4.8, 1.0)])
-			for t in _rect_tiles(post, 1.6, 1.6, 0.0):  # the tower straddles tiles: the router keeps off all of them
-				cells[t] = true
-		prop("signpost", polar(av, WALL_R + 3.0) + side * (AVENUE_W * 0.5 + 1.5), yaw_out(av))
+			lamp(post - out * 1.2)
+			_solid(post, Vector3(1.0, 4.8, 1.0))
+		prop("signpost", g + out * 3.0 + side * (float(AVENUE_W) * 0.5 + 1.5), yaw)
 		stats["gates"] = int(stats.get("gates", 0)) + 1
+	var n := ceili(float(HALF * 2) / PANEL_M)
+	var step := float(HALF * 2) / float(n)
+	var idx := 0
+	for edge in 4:
+		var horiz := edge < 2  # north and south runs go along x
+		var sgn := -1.0 if edge % 2 == 0 else 1.0
+		var yaw := 0.0 if horiz else PI * 0.5
+		var b := Basis(Vector3.UP, yaw)
+		for i in n:
+			idx += 1
+			var a := -float(HALF) + step * (float(i) + 0.5)
+			var p := Vector3(float(o.x) + (a if horiz else sgn * float(HALF)), 0.0, float(o.y) + (sgn * float(HALF) if horiz else a))
+			p.y = rt.surface_y(p.x, p.z)
+			if absf(a) < float(AVENUE_W) * 0.5 + 1.2:
+				continue  # the gate opening (or the avenue's end, where the gate stood in water)
+			# A wicket (a gap between two posts) every WICKET_EVERY panels: walks out to the wild lands
+			# and back stay short (the tutorial bot timed out detouring to the gates).
+			if idx % WICKET_EVERY < 2:
+				if idx % WICKET_EVERY == 0 and rt.is_dry(p) and not _in_gateway(p):
+					# Posts at the two outer ends of the two skipped panels: a gap 2 panels wide.
+					for s in [-0.5, 1.5]:
+						var wp := p + b * Vector3(s * step, 0, 0)
+						wp.y = rt.surface_y(wp.x, wp.z)
+						unit("box", Transform3D(Basis().scaled_local(Vector3(0.4, 2.8, 0.4)), wp), Color(0.32, 0.22, 0.13), FAR_HOUSE)
+						_solid(wp, Vector3(0.4, 2.8, 0.4))
+				continue
+			if not rt.is_dry(p) or not rt.spawn_ok(p, false):
+				continue
+			var t := BuildGrid.tile_of(p)
+			if rt.build_grid._occupied.has(t) or rt.build_grid._reserved.has(t) or road_tiles.has(t):
+				continue
+			part_at("fence_fortified", Transform3D(b.scaled_local(Vector3(step / PANEL_M, 1.0, 1.0)), p), FAR_PROP)
+			_boxes.append([Transform3D(b, p + Vector3(0, 1.1, 0)), Vector3(step, 2.2, 0.5)])
+			# The panel's 0.5 m box straddles the tile line it stands on: both rows, or the router walks
+			# the outer row and the survivor scrapes along the logs.
+			for pt in _rect_tiles(p, step, 0.6, yaw):
+				cells[pt] = true
+			stats["wall"] = int(stats.get("wall", 0)) + 1
 
 # ---------------------------------------------------------------- streets
 
-## Dirt avenues and ring roads: one mesh hugging the ground, cover cleared under it.
-## Inside ring A the streets are paved (cobbles), outside them packed dirt; footpaths run from every
-## front door to its street.
+## TOWNPOLISH2: the streets are one mesh of 1 m tiles on the grid, every corner on the drawn ground
+## (surface_y) plus ROAD_LIFT, so the terrain never cuts through between samples (the old strips had a
+## vertex every 2 m at the edges only and sank into any bulge). The road shader pulls the surface a
+## little toward the camera (a decal's depth bias) and frays the outer edge with noise. Inside the
+## inner streets (out_of < PAVED_M) the tiles are paved. Footpaths from the doors are tiles too.
+const ROAD_LIFT := 0.04
+const PAVED_M := 34.0
 func _roads() -> void:
+	for row: Array in _paths:
+		var a3: Vector3 = row[0]
+		var b3: Vector3 = row[1]
+		var k := 0.0
+		while k <= a3.distance_to(b3):
+			var t := BuildGrid.tile_of(a3 + (b3 - a3).normalized() * k)
+			if not cells.has(t):
+				road_tiles[t] = true
+			k += 0.5
 	var paved := SurfaceTool.new()
 	paved.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var dirt := SurfaceTool.new()
 	dirt.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for av: float in AVENUES:
-		var prev: Array = []
-		var r := PLAZA_R - 6.0
-		var was_paved := true
-		while r <= WALL_R + 8.0:
-			var p := polar(av, r)
-			var side := Vector3(-sin(deg_to_rad(dock_deg + av)), 0, cos(deg_to_rad(dock_deg + av)))
-			var now_paved := r <= RING_A + ROAD_W
-			if now_paved != was_paved:
-				_road_step(paved if was_paved else dirt, prev, p, side, AVENUE_W)  # close the strip on the seam
-				prev = []
-				was_paved = now_paved
-			prev = _road_step(paved if now_paved else dirt, prev, p, side, AVENUE_W)
-			r += 2.0
-	for ring in [RING_A, RING_B]:
-		var prev: Array = []
-		var n := int(TAU * float(ring) / 2.0)
-		for i in n + 1:
-			var deg := 360.0 * float(i) / float(n)
-			var p := polar(deg, ring)
-			var a := deg_to_rad(dock_deg + deg)
-			prev = _road_step(paved if ring == RING_A else dirt, prev, p, Vector3(cos(a), 0, sin(a)), ROAD_W)
-	for row: Array in _paths:
-		var a3: Vector3 = row[0]
-		var b3: Vector3 = row[1]
-		var dir := (b3 - a3).normalized()
-		var side := Vector3(-dir.z, 0, dir.x)
-		var prev: Array = []
-		var k := 0.0
-		while k <= a3.distance_to(b3):
-			prev = _road_step(dirt, prev, a3 + dir * k, side, 1.6)
-			k += 1.0
+	for t: Vector2i in road_tiles:
+		var st := paved if out_of(Vector3(float(t.x) + 0.5, 0, float(t.y) + 0.5)) < PAVED_M else dirt
+		var corners := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)]
+		var vs: Array[Vector3] = []
+		var edge: Array[float] = []
+		for cc: Vector2i in corners:
+			var x := float(t.x + cc.x)
+			var z := float(t.y + cc.y)
+			vs.append(Vector3(x, rt.surface_y(x, z) + ROAD_LIFT, z))
+			# The share of the four tiles round this corner that are road (1 inside, 0.5 on a side, 0.25
+			# on an outer corner): the shader frays the edge with it.
+			var share := 0.0
+			for dd: Vector2i in [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 0)]:
+				share += 0.25 if road_tiles.has(t + cc + dd) else 0.0
+			edge.append(share)
+		for i in [0, 1, 2, 0, 2, 3]:  # clockwise from above: Godot's front face
+			st.set_color(Color(1, 1, 1, edge[i]))
+			st.set_normal(Vector3.UP)
+			st.set_uv(Vector2(vs[i].x, vs[i].z))
+			st.add_vertex(vs[i])
 	for pair in [[paved, "paved", "TownStreetsPaved"], [dirt, "road", "TownRoads"]]:
+		(pair[0] as SurfaceTool).index()
 		var m := (pair[0] as SurfaceTool).commit()
 		if m.get_surface_count() == 0:
 			continue
 		var mi := MeshInstance3D.new()
 		mi.name = pair[2]
 		mi.mesh = m
-		mi.material_override = _mat(pair[1], Color.WHITE)
+		mi.material_override = _road_mat(pair[1] == "paved")
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
 
-## One road quad from the previous cross-section to this one; a wet or steep point breaks the strip.
-func _road_step(st: SurfaceTool, prev: Array, p: Vector3, side: Vector3, w: float) -> Array:
-	if not rt.is_dry(p):
-		return []
-	var l := p + side * w * 0.5
-	var r := p - side * w * 0.5
-	l.y = rt.surface_y(l.x, l.z) + 0.07
-	r.y = rt.surface_y(r.x, r.z) + 0.07
-	for k in int(w) + 1:
-		road_tiles[BuildGrid.tile_of(p + side * (float(k) - w * 0.5))] = true
-	if not prev.is_empty():
-		# TOWNPOLISH: cross-sections are 2 m apart; mark the row between them too (cover stood on it).
-		var mid := ((prev[0] as Vector3) + (prev[1] as Vector3)) * 0.25 + p * 0.5
-		for k in int(w) + 1:
-			road_tiles[BuildGrid.tile_of(mid + side * (float(k) - w * 0.5))] = true
-		var pl: Vector3 = prev[0]
-		var pr: Vector3 = prev[1]
-		for v in [[pl, Vector2(0, 0)], [l, Vector2(0, 1)], [r, Vector2(1, 1)], [pl, Vector2(0, 0)], [r, Vector2(1, 1)], [pr, Vector2(1, 0)]]:
-			st.set_normal(Vector3.UP)
-			st.set_uv((v[1] as Vector2) * Vector2(1, 0.5) + Vector2(0, (v[0] as Vector3).x * 0.13 + (v[0] as Vector3).z * 0.11))
-			st.add_vertex(v[0])
-	return [l, r]
+static var _road_mats: Dictionary = {}
+static func _road_mat(paved: bool) -> ShaderMaterial:
+	if _road_mats.has(paved):
+		return _road_mats[paved]
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://scripts/world/town_road.gdshader")
+	m.set_shader_parameter("tint", Color(0.56, 0.53, 0.48) if paved else Color(0.46, 0.39, 0.31))
+	m.set_shader_parameter("cobble", 1.0 if paved else 0.0)
+	m.set_shader_parameter("noise_tex", _noise(0.35 if paved else 0.08, Vector2.ONE))
+	var fray := NoiseTexture2D.new()  # full 0..1 range (_noise's ramp would never cut)
+	fray.width = 128
+	fray.height = 128
+	fray.seamless = true
+	fray.noise = FastNoiseLite.new()
+	(fray.noise as FastNoiseLite).frequency = 0.08
+	m.set_shader_parameter("fray_tex", fray)
+	_road_mats[paved] = m
+	return m
 
-## Lamp posts along the avenues and rings, signposts where an avenue leaves the square.
+## Lamp posts along the streets (alternate sides, every 13 m), signposts where an avenue leaves the
+## square, and a few walkers on the avenues. On the grid: a lamp stands on a tile centre.
 func _street_props() -> void:
-	for av: float in AVENUES:
-		var r := PLAZA_R + 2.0
-		var k := 0
-		while r < TOWN_R:
-			var off := AVENUE_W * 0.5 + 0.6
-			var p := polar(av, r)
-			var a := deg_to_rad(dock_deg + av)
-			var q := p + Vector3(-sin(a), 0, cos(a)) * off * (1.0 if k % 2 == 0 else -1.0)
-			if rt.is_dry(q) and not cells.has(BuildGrid.tile_of(q)):
-				lamp(q)
-			r += 13.0
-			k += 1
-		var s := polar(av, PLAZA_R) + Vector3(-sin(deg_to_rad(dock_deg + av)), 0, cos(deg_to_rad(dock_deg + av))) * (AVENUE_W * 0.5 + 1.2)
-		if rt.is_dry(s):
-			prop("signpost", s, yaw_out(av))
-	for ring in [RING_A, RING_B]:
-		for i in int(TAU * ring / 24.0):
-			var deg := 360.0 * float(i) / float(int(TAU * ring / 24.0)) + 9.0
-			var q := polar(deg, ring + ROAD_W * 0.5 + 0.6)
-			if rt.is_dry(q) and not cells.has(BuildGrid.tile_of(q)) and street_d(q) > 2.0:
-				lamp(q)
-	# A few walkers on the streets.
+	for k in range(-STREET_K, STREET_K + 1):
+		var hw := float(_half_w(k))
+		var s := float(STREET_EVERY * k)
+		var i := 0
+		for a in range(-HALF + 4, HALF - 4, 13):
+			var off := (hw + 0.5) * (1.0 if i % 2 == 0 else -1.0)
+			i += 1
+			for q: Vector3 in [Vector3(float(o.x + a) + 0.5, 0, float(o.y) + s + off), Vector3(float(o.x) + s + off, 0, float(o.y + a) + 0.5)]:
+				if Vector2(q.x - camp.x, q.z - camp.z).length() < PLAZA_R:
+					continue
+				if rt.is_dry(q) and not cells.has(BuildGrid.tile_of(q)) and not road_tiles.has(BuildGrid.tile_of(q)):
+					lamp(q)
+	for e: Vector2i in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+		var out := Vector3(float(e.x), 0, float(e.y))
+		var side := Vector3(-out.z, 0, out.x)
+		var sp := Vector3(camp.x, 0, camp.z) + out * PLAZA_R + side * (float(AVENUE_W) * 0.5 + 1.2)
+		if rt.is_dry(sp) and not cells.has(BuildGrid.tile_of(sp)):
+			sp.y = rt.surface_y(sp.x, sp.z)
+			prop("signpost", sp, atan2(out.x, out.z))
+	# A few walkers on the avenues.
+	var dirs := [Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0), Vector3(0, 0, 1)]
 	for i in 4:
-		var av: float = AVENUES[(i * 2 + 1) % AVENUES.size()]
-		var a := polar(av, PLAZA_R + 4.0)
-		var z := polar(av, RING_B - 4.0)
+		var d: Vector3 = dirs[i]
+		var a := Vector3(float(o.x), 0, float(o.y)) + d * (PLAZA_R + 4.0) + Vector3(-d.z, 0, d.x) * 1.0
+		var z := Vector3(float(o.x), 0, float(o.y)) + d * float(STREET_EVERY * 2) + Vector3(-d.z, 0, d.x) * 1.0
 		if rt.is_dry(a) and rt.is_dry(z):
-			walker(a + Vector3(0, 0, 0.8 * float(i % 2)), z)
+			walker(a, z)
 
 ## A street lamp (town kit): post, iron cage, the glass lit at night with a soft halo round it.
 func lamp(at: Vector3, _h: float = 2.6) -> void:
@@ -995,10 +1136,9 @@ func lamp(at: Vector3, _h: float = 2.6) -> void:
 	at.y = rt.surface_y(at.x, at.z)
 	var yaw := _rng.randf() * TAU
 	part_at("town_lamp", Transform3D(Basis(Vector3.UP, yaw), at), FAR_PROP)
-	unit("lantern", Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(0.24, 0.34, 0.24)), at + Vector3(0, 2.63, 0)), Color(1.0, 0.8, 0.5), FAR_HOUSE)
+	unit("lantern", Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3(0.24, 0.34, 0.24)), at + Vector3(0, 2.63, 0)), Color(1.0, 0.8, 0.5), FAR_HOUSE)
 	unit("halo", Transform3D(Basis().scaled(Vector3.ONE * 2.2), at + Vector3(0, 2.8, 0)), Color.WHITE, FAR_PROP)
-	_boxes.append([Transform3D(Basis(), at + Vector3(0, 1.3, 0)), Vector3(0.3, 2.6, 0.3)])
-	cells[BuildGrid.tile_of(at)] = true  # the router steps round the post instead of into it
+	_solid(at, Vector3(0.3, 2.6, 0.3))  # the router steps round the post instead of into it
 	stats["lamps"] += 1
 
 # ---------------------------------------------------------------- people and animals
@@ -1082,13 +1222,14 @@ func _process(delta: float) -> void:
 func prop(name: String, at: Vector3, yaw: float, s: float = 1.0) -> void:
 	if not ResourceLoader.exists(GLB % name):
 		return
-	part_at(name, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), at), FAR_PROP)
+	part_at(name, Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3.ONE * s), at), FAR_PROP)
 
 func part_at(name: String, xf: Transform3D, far: float, occlude: bool = false) -> void:
 	var parts := _glb_parts(name)
 	for i in parts.size():
 		var row: Array = parts[i]
-		_add("%s:%d" % [name, i], row[0], xf * (row[1] as Transform3D), Color.WHITE, far, occlude)
+		var label := ("nature_" + name.get_file().get_basename()) if name.begins_with("res://") else name
+		_add("%s:%d" % [label, i], row[0], xf * (row[1] as Transform3D), Color.WHITE, far, occlude)
 
 ## Procedural pieces: plinth, box, roof, gable, canvas, flag, lantern (unit meshes, coloured per instance).
 func unit(kind: String, xf: Transform3D, col: Color, far: float, occlude: bool = false) -> void:
@@ -1127,6 +1268,8 @@ func _flush() -> void:
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mmi)
 		if bool(b["occlude"]):
+			if not k.contains(":nature_"):
+				mmi.set_meta(&"occl_box", true)  # buildings fade only when in the sight line's box (Occlusion._instance_hit)
 			Occlusion.make_occludable(mmi, Occlusion.BETWEEN)
 		stats["instances"] += xs.size()
 		stats["mmi"] += 1
@@ -1151,7 +1294,7 @@ static func _glb_parts(name: String) -> Array:
 	if _parts.has(name):
 		return _parts[name]
 	var out: Array = []
-	var ps := load(GLB % name) as PackedScene
+	var ps := load(name if name.begins_with("res://") else GLB % name) as PackedScene
 	if ps:
 		var s := ps.instantiate()
 		for m in s.find_children("*", "MeshInstance3D", true, false):
@@ -1345,14 +1488,16 @@ static func _noise(freq: float, stretch: Vector2) -> NoiseTexture2D:
 
 # ---------------------------------------------------------------- clearing
 
-## Inside the palisade (tile centre within WALL_R of the camp).
+## Inside the square palisade.
 func _inside(t: Vector2i) -> bool:
-	return Vector2(float(t.x) + 0.5 - camp.x, float(t.y) + 0.5 - camp.z).length() < WALL_R
+	return out_of(Vector3(float(t.x) + 0.5, 0, float(t.y) + 0.5)) < float(HALF)
 
-## TOWNPOLISH: a lived-in town is trodden, so inside the wall only about a third of the ground cover
+## TOWNPOLISH: a lived-in town is trodden, so inside the wall only some of the ground cover
 ## stays (a stable hash per tile), and the tall bushes and reeds of the biome dress go entirely.
 func _trodden(t: Vector2i) -> bool:
-	return _inside(t) and (absi(t.x * 73856093 ^ t.y * 19349663) % 100) >= 35
+	# TOWNPOLISH2: a third kept left the bare base texture showing, which read washed-out pale in
+	# daylight (owner bug); three quarters stay now, still cleared off every lot and street.
+	return _inside(t) and (absi(t.x * 73856093 ^ t.y * 19349663) % 100) >= 75
 
 ## Collapse ground cover and dressing, clear scenery props and remove (non-tutorial) harvest nodes on
 ## every taken tile and every road tile; then tell the build grid and the router.
