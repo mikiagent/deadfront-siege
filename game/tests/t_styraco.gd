@@ -96,26 +96,34 @@ func _run() -> void:
 	var ram = _herd(1, 0, &"brave", Vector3(0, 0.1, -9))[0]
 	var rlog := _listen([ram])
 	var at_hit := [Vector3.INF]
+	var line := [Vector3.ZERO]  # captured at impact: _charge_dir is only set inside _start_charge
 	ram.brain.tactic.connect(func(kind: StringName) -> void:
 		if kind == &"charge_hit":
-			at_hit[0] = player.global_position)
+			at_hit[0] = player.global_position
+			line[0] = ram.brain._charge_dir)
 	ram.brain.attack_target = player
 	ram.brain._provoked_until = ram.brain._now_s() + 30.0
 	# The impact is one accuracy roll (force_accuracy = 1.0 makes every roll land, but the draw
 	# order differs per run): retry from a fresh seed until a charge lands, then measure the shove.
-	var line: Vector3 = ram.brain._charge_dir
 	var attempts := 0
 	while at_hit[0] == Vector3.INF and attempts < 4:
 		attempts += 1
+		if ram.brain.attack_target == null:  # a leash break between tries nulls it: re-aggro
+			ram.brain.attack_target = player
+			ram.brain.flight.reacquire_at = 0.0
+			ram.brain._provoked_until = ram.brain._now_s() + 30.0
+		print("[t_styraco] try %d: ram=(%.1f,%.1f) player=(%.1f,%.1f) dist=%.1f aggR=%.1f tgt=%s" % [attempts, ram.global_position.x, ram.global_position.z, player.global_position.x, player.global_position.z, ram.brain._flat_dist(player), ram.brain.aggro_radius(), ram.brain.attack_target != null])
 		ram.brain._start_charge()
 		for i in 40:
 			await _sim(0.1)
 			if at_hit[0] != Vector3.INF:
 				break
+			player.global_position = Vector3(0, 0.9, 0)  # pinned: she must be a stationary target
+			player.velocity = Vector3.ZERO
 	_expect(rlog.has(&"charge_hit"), "the ram lands on a stationary survivor (%d tries, %s)" % [attempts, _head(rlog)])
 	var pushed_s := float(tac.get("charge_shove_stagger_s", 0.6))
 	await _sim(pushed_s + 0.2)
-	var moved: float = (player.global_position - at_hit[0]).dot(line) if at_hit[0] != Vector3.INF else 0.0
+	var moved: float = (player.global_position - at_hit[0]).dot(line[0]) if at_hit[0] != Vector3.INF else 0.0
 	_expect(moved >= 0.6 * float(tac.get("charge_shove_m", 2.5)), "a landed ram shoves her back along its line (%.2f m, want ~%.1f; %s)" % [moved, float(tac.get("charge_shove_m", 2.5)), _head(rlog)])
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	player.velocity = Vector3.ZERO
@@ -152,7 +160,7 @@ func _run() -> void:
 	player.anim.release_knockdown()
 	if player.hunt:
 		player.hunt.stop()
-	var swipe = _herd(1, 0, &"brave", Vector3(0, 0.1, -2.4))[0]
+	var swipe = _herd(1, 0, &"brave", Vector3(0, 0.1, -1.8))[0]  # well inside reach_to (2.4 m)
 	swipe.brain.attack_target = player
 	swipe.brain._provoked_until = swipe.brain._now_s() + 30.0
 	swipe.look_at(Vector3(0, 0.1, -10), Vector3.UP)  # the survivor in front of it
@@ -160,11 +168,14 @@ func _run() -> void:
 	swipe.brain.tactic_hit.connect(func(clip: StringName, _i: int, m: float) -> void:
 		if clip == &"attack_heavy":
 			heavy_hits[0] = m)
-	var hp0: float = player.vitals.health
+	# _keep_alive refills her every frame inside _sim, so hp equality proves nothing: count the
+	# landed hits through the vitals' damaged signal instead (one signal per landed hit).
+	var dmg_taken := [0]
+	player.vitals.damaged.connect(func() -> void: dmg_taken[0] += 1)
 	_expect(swipe.brain._strike(swipe.brain._flat_dist(player), ["heavy"]), "the horn swipe starts at point blank")
 	await _sim(2.5)
 	_expect(heavy_hits[0] >= float(tac.get("charge_mult", 1.8)), "the swipe resolves as the heavy (x%.2f, heavy_mult %.1f)" % [heavy_hits[0], float(tac.get("heavy_mult", 2.2))])
-	_expect(player.vitals.health < hp0, "the swipe lands on the survivor (hp %.0f -> %.0f)" % [hp0, player.vitals.health])
+	_expect(dmg_taken[0] >= 1, "the swipe lands on the survivor (%d hits)" % dmg_taken[0])
 	_free([swipe])
 
 	# 5. No flee above 25% HP: hurt to 60% it keeps fighting; only below retreat_frac does it run.
