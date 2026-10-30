@@ -270,7 +270,9 @@ static func rows_for(stack: ItemStack) -> Array[Dictionary]:
 		var total := int((ProcessStation.rules().get("in_place", {}) as Dictionary).get("opportunities", 2))
 		out.append({"text": "Processing left %d" % maxi(0, total - ((done as Array).size() if done is Array else 0)), "cls": ""})
 	var dmg := stack.scaled_damage()
-	if dmg > 0.0:
+	if stack.def() and stack.def().is_work_tool and Inventory.slot_for(stack.def()) != &"weapon":
+		out.append({"text": "Work tool: butchers and harvests, never used in combat", "cls": ""}) # KNIFESPLIT
+	elif dmg > 0.0:
 		out.append({"text": "Damage %.0f" % dmg, "cls": ""})
 	var armor := stack.scaled_armor()
 	if armor > 0.0:

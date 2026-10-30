@@ -45,6 +45,7 @@ const CATEGORY_ITEMS := {
 	"fuel": ["charcoal"],
 	"meat": ["raw_meat", "raptor_meat"],  # looted from a corpse, never gathered
 	"stone_mat": ["stone"],
+	"tier_stone": ["stone"],  # KNIFESPLIT: the Stone Dagger
 }
 
 var player: Player

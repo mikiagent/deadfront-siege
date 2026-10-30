@@ -468,7 +468,7 @@ func _attack(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return no("out_of_range", "%s is out of reach" % net_id)
 	var inv := ch.inventory()
 	var wi := ch.find_uid(str(ch.d.equipment.get("weapon", "")))
-	var w := inv.slots[wi] if wi >= 0 else inv.equipped_weapon() # by uid: two clubs may differ in level
+	var w := inv.slots[wi] if wi >= 0 and Inventory.slot_for(inv.slots[wi].def()) == &"weapon" else inv.equipped_weapon() # by uid: two clubs may differ in level; KNIFESPLIT: never the Work Knife
 	var wd := w.def() if w else null
 	if wd and wd.range_m > 0.0:
 		return no("bad_request", "ranged attacks are not server-side yet")

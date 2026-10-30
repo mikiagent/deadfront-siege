@@ -93,7 +93,7 @@
   "recipes": [
     {
       "id": "improvised_stone_knife",
-      "display_name": "Improvised Stone Knife",
+      "display_name": "Work Knife",
       "skill": "weapon_tools",
       "max_level": 60,
       "slots": [
@@ -4582,13 +4582,13 @@
     },
     {
       "id": "stone_knife",
-      "display_name": "Stone Knife",
+      "display_name": "Stone Dagger",
       "skill": "weapon_tools",
       "max_level": 60,
       "slots": [
         {
           "category": "tier_stone",
-          "count": 2,
+          "count": 1,
           "primary": true
         },
         {
@@ -4598,7 +4598,7 @@
         },
         {
           "category": "lashing",
-          "count": 2,
+          "count": 1,
           "primary": false
         }
       ],
@@ -4609,8 +4609,7 @@
       "station": "workbench",
       "seconds": 3.0,
       "process_step": "bind",
-      "process_add": 1,
-      "requires_node": "makeshift_shovel_hoe"
+      "process_add": 1
     },
     {
       "id": "pillar",

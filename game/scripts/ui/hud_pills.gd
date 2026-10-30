@@ -4,7 +4,7 @@ extends RefCounted
 ## one, the tool icons they need, and drawing them onto the HUD's canvas off its taken rects. Static
 ## functions over the HUD, split out of hunt_hud.gd (review: no god-file growth).
 
-const TOOL_ICON_ITEM := {"axe": "work_axe", "pick": "work_pick", "knife": "stone_knife", "none": "hands", "": "hands"}
+const TOOL_ICON_ITEM := {"axe": "work_axe", "pick": "work_pick", "knife": "stone_knife_work", "none": "hands", "": "hands"}
 const GLIDE_PX := 5.0  ## px per frame a pill slides toward a new row (it hopped a whole row in one frame)
 
 ## Each pill's offset from its anchor as last drawn, by object instance id.
