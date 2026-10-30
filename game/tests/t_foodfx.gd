@@ -91,6 +91,7 @@ func _run() -> void:
 	await _test_buff_slots()
 	await _test_max_fatigue_expiry()
 	await _test_tonic_vs_cap()
+	await _test_while_fed()
 	await _test_plain_food_keeps_buff()
 	await _test_unbundled_food_keeps_legacy_fatigue_relief()
 	_test_mirror_has_no_stale_keys()
@@ -360,6 +361,32 @@ func _test_buff_slots() -> void:
 	_eat_slot(player_stack(&"crafters_meal"))
 	_expect(str(slots.by_group("enhanced_ability").get("id", "")) == "crafters_meal_ability", "eating the meal again takes the group back")
 	_expect(not slots.by_group("enhanced_survival").is_empty(), "the survival drink survives a new ability meal")
+
+# ---------------------------------------------------------------- 7b. while fed
+
+## HUNGER (owner-approved memo 2026-10-29 Part 1 s1.4 step 4): a cooked dish's meal buff is not a timer -
+## it lasts while the stomach is above the off line, and the food's own duration is only the floor.
+func _test_while_fed() -> void:
+	print("[t_foodfx] -- while fed")
+	_fresh()
+	var dig = DIG.of(_player)
+	dig.set_fullness(70.0)
+	_give(&"crafters_meal", 1)
+	_expect(_eat_slot(player_stack(&"crafters_meal")), "a profession meal is eaten on a full stomach")
+	var slots = SLOTS.of(_player)
+	var row: Dictionary = slots.by_group("enhanced_ability")
+	_expect(not row.is_empty(), "the meal fills the Enhanced Ability slot")
+	_expect(bool(row.get("while_fed", false)), "the cooked dish's buff is marked while_fed")
+	_player.vitals.energy = 100.0
+	# Twenty minutes on the clock (past the dish's own 1200 s) with the stomach still fed.
+	_tick(1300.0)
+	_expect(dig.fullness() >= DIG.buff_off_below(), "the stomach is still fed after 1300 s (%.1f points)" % dig.fullness())
+	_expect(not slots.by_group("enhanced_ability").is_empty(), "the meal buff outlives its own duration while fed (%s)" % str(slots.ids()))
+	_expect(absf(float(slots.by_group("enhanced_ability").get("time_left", 0.0)) - dig.fed_seconds_from_fullness()) < 0.5, "its time left follows the stomach, not a timer")
+	# Below the off line the buff goes the same tick.
+	dig.set_fullness(DIG.buff_off_below() - 0.1)
+	_tick(0.1)
+	_expect(slots.by_group("enhanced_ability").is_empty(), "below the off line the meal buff expires (%s)" % str(slots.ids()))
 
 # ---------------------------------------------------------------- 8. max fatigue expiry
 
