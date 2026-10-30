@@ -2,8 +2,8 @@ class_name IsoCamera
 extends Camera3D
 ## The follow camera, matched to Durango: Wild Lands from the owner's screenshots (method and
 ## numbers: docs/orchestration/reports/claude-mmo-camera.md). Durango draws with a long-lens
-## PERSPECTIVE camera: pitch 38.7 deg down, a vertical field of view of about 4.3 deg, yawed 45 deg
-## to the build grid. At that lens the ground recedes gently (the top of a 16:9 screen ~9 % smaller
+## PERSPECTIVE camera: pitch 38.7 deg down, a vertical field of view of about 4.3 deg, yaw 0 (north up;
+## Durango itself yaws 45 deg to its build grid). At that lens the ground recedes gently (the top of a 16:9 screen ~9 % smaller
 ## than the bottom), tall things fan out a few degrees towards the screen edges, and a crown slides
 ## against the ground as the camera moves past it (the parallax the owner pointed at).
 ## `size` stays the zoom in both projections: metres of view height at the focus. In perspective the
@@ -18,8 +18,11 @@ extends Camera3D
 ## placing grid, two domain borders): pitch 38.55-38.85 deg; 38 deg from a fire pit's ellipse. Euler x,
 ## so negative looks down.
 const PITCH_DEG := -38.7
-## The build grid's diagonal runs up the screen in every reference (its tiles are symmetric diamonds).
-const YAW_DEG := 45.0
+## World axes: north = -Z, south = +Z, east = +X, west = -X (MapDoc row 0 is the north edge; the dock
+## sits on the southern-most coast, largest z). Owner 2026-10-29: "north is up and south is down", so
+## the camera looks due north: screen up = -Z, screen right = +X. (Durango yaws 45 deg so its build
+## grid reads as diamonds; that made screen-left south-west.)
+const YAW_DEG := 0.0
 ## Vertical field of view (keep_aspect KEEP_HEIGHT): 3.7-4.6 deg from how the parallel ground lines
 ## converge (an orthographic camera fits those lines 10-25x worse).
 const FOV_DEG := 4.3
