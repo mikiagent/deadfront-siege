@@ -246,6 +246,9 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	var t4 := Time.get_ticks_usec()
 	_setup_pathing()
 	PerfTrace.mark("pathing")
+	# LANDMARKS: TilePath is the real walk test (trees, props, cliffs); a site it cannot reach from
+	# the harbour is dropped, never left as an unreachable mine (doc section 3.3).
+	IslandLandmarks.prune_unreachable(self, def)
 	var t5 := Time.get_ticks_usec()
 	IslandSpawns.spawn_all(self, def)
 	PerfTrace.mark("spawns")

@@ -123,6 +123,7 @@ static func build(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 				stats["types"].append(t)
 	stats["placed"] = placed
 	stats["skipped"] = int(planned["skipped"]) + (planned["sites"].size() - placed)
+	stats["missed"] = planned.get("missed", PackedStringArray())
 	if OS.get_environment("LM_DEBUG") == "1":
 		print("[landmarks-debug] island=%s budget=%s planned=%d rejects=%s" % [
 			def.get("id", ""), str(budget_for(def)), planned["sites"].size(), str(reject_counts())])
@@ -197,6 +198,40 @@ static func wither_site(rt: IslandRuntime, site: Dictionary) -> int:
 	site["planted"] = 0
 	return gone
 
+## Drops every site TilePath cannot reach from the landing (its centre, or a point 4 m off it). Run
+## once the island's pathing exists (IslandRuntime.build). Each drop is logged and counted as a skip.
+static func prune_unreachable(rt: IslandRuntime, def: Dictionary) -> int:
+	if rt.pathing == null or rt.landmarks.is_empty():
+		return 0
+	var landing: Vector3 = rt.arrival_point() if rt.harbour != null else rt._camp_pos
+	var dropped := 0
+	for i in range(rt.landmarks.size() - 1, -1, -1):
+		var site: Dictionary = rt.landmarks[i]
+		if reachable(rt, landing, site):
+			continue
+		wither_site(rt, site)
+		var seal: Variant = site.get("seal", null)
+		if seal is Node and is_instance_valid(seal):
+			(seal as Node).queue_free()
+		rt.landmarks.remove_at(i)
+		dropped += 1
+		print("[landmarks] skipped %s reason=unreachable island=%s" % [str(site.get("id", "")), str(def.get("id", ""))])
+	if dropped > 0:
+		rt.landmark_stats["placed"] = int(rt.landmark_stats.get("placed", 0)) - dropped
+		rt.landmark_stats["skipped"] = int(rt.landmark_stats.get("skipped", 0)) + dropped
+	return dropped
+
+## True when TilePath walks from `from` to the site's centre or a point 4 m off it.
+static func reachable(rt: IslandRuntime, from: Vector3, site: Dictionary) -> bool:
+	for k in 9:
+		var a := float(k) * TAU / 8.0
+		var off := Vector3.ZERO if k == 0 else Vector3(cos(a) * 4.0, 0.0, sin(a) * 4.0)
+		var at := Vector3(float(site["x"]), 0.0, float(site["z"])) + off
+		at.y = rt.surface_y(at.x, at.z)
+		if bool(rt.pathing.path_result(from, at, 0).get("reachable", false)):
+			return true
+	return false
+
 ## The site record with this id on the island being played, or {}.
 static func site_by_id(rt: IslandRuntime, id: String) -> Dictionary:
 	if rt == null:
@@ -207,9 +242,10 @@ static func site_by_id(rt: IslandRuntime, id: String) -> Dictionary:
 	return {}
 
 static func _print_line(rt: IslandRuntime, def: Dictionary, stats: Dictionary) -> void:
-	print("[landmarks] island=%s placed=%d skipped=%d types=%s" % [
+	print("[landmarks] island=%s placed=%d skipped=%d types=%s missed=%s" % [
 		def.get("id", rt.name), int(stats["placed"]), int(stats["skipped"]),
-		",".join(PackedStringArray(stats["types"])) if not stats["types"].is_empty() else "-"])
+		",".join(PackedStringArray(stats["types"])) if not stats["types"].is_empty() else "-",
+		",".join(stats.get("missed", PackedStringArray())) if not (stats.get("missed", PackedStringArray()) as PackedStringArray).is_empty() else "-"])
 
 ## The deterministic plan: the sites this island would place, with their families and node counts.
 ## Pure placement (no nodes): t_landmarks uses it to check the other four seeds on one build.
@@ -248,6 +284,8 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 	# Draw the climate's rows: the "must" rows first, then weighted without replacement past "max".
 	var order := _draw_order(rows, want, rng)
 	var used := {}
+	# A skip is a drawn type that found no site at all (doc section 3.2 step 4), counted once per row.
+	var failed := {}
 	for row in order:
 		if sites.size() >= want:
 			break
@@ -257,7 +295,7 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 			continue
 		var site := _try_place(rt, landmark_ctx, climate, row, sites, rng, false)
 		if site.is_empty():
-			skipped += 1
+			failed[key] = true
 			continue
 		used[key] = int(used.get(key, 0)) + 1
 		sites.append(site)
@@ -275,25 +313,27 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 	# also what t_landmarks asserts, so a squeezed island is still a set of separate destinations.
 	var floor_m := float(landmark_ctx["spacing"]) * float(rules().get("spacing_floor_share", 0.6))
 	var round_i := 0
-	while sites.size() < b.x and round_i < 10:
-		var placed_one := false
-		for k in rows.size():
-			var row2: Dictionary = rows[(k + round_i) % rows.size()]
-			# The last two rounds read the whole band (no stride): a small island's free gaps are few and
-			# the sample can miss all of them, and this only runs when the island is below its minimum.
-			var site2 := _try_place(rt, landmark_ctx, climate, row2, sites, rng, false, floor_m)
-			if site2.is_empty() and round_i >= 2:
-				# The band is full for this type: open its far edge to the island's dry extent (wide).
-				site2 = _try_place(rt, landmark_ctx, climate, row2, sites, rng, false, floor_m, true)
-			if site2.is_empty():
-				skipped += 1
-				continue
-			sites.append(site2)
-			placed_one = true
-			break
-		round_i += 1
-		if not placed_one:
-			break
+	# Fill: relax the spacing stepwise (the doc's 45 m, then 0.8x, then the floor) and open each type's
+	# band to the island's dry extent before giving up: long chain, spiral and atoll islands hold most
+	# of their land past the doc's ring bands. Rows go in rotation so a used-up rock pocket does not
+	# starve the climate's common grove.
+	var steps: Array[float] = [float(landmark_ctx["spacing"]), float(landmark_ctx["spacing"]) * 0.8, floor_m]
+	for step_m in steps:
+		while sites.size() < b.x and round_i < 24:
+			var placed_one := false
+			for k in rows.size():
+				var row2: Dictionary = rows[(k + round_i) % rows.size()]
+				var site2 := _try_place(rt, landmark_ctx, climate, row2, sites, rng, false, step_m)
+				if site2.is_empty():
+					site2 = _try_place(rt, landmark_ctx, climate, row2, sites, rng, false, step_m, true)
+				if site2.is_empty():
+					continue
+				sites.append(site2)
+				placed_one = true
+				break
+			round_i += 1
+			if not placed_one:
+				break
 	# Doc section 3.3: at least one site within near_landing_m of the landing. Move the last site whose
 	# ring band reaches into that zone, or add one when the budget has room.
 	if not _has_near(sites, landmark_ctx):
@@ -340,7 +380,20 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 			var bkt2 := int(floor(q.distance_to(landmark_ctx["landing"]) / 60.0)) * 60
 			flat[bkt2] = int(flat.get(bkt2, 0)) + 1
 		print("[lm-flat] island=%s family=%s flat=%d of %d by60=%s" % [id, str(rt._shape.family), flat_total, total, str(flat)])
-	return {"sites": sites, "skipped": skipped, "budget": b, "cands": (landmark_ctx["cands"] as PackedVector2Array).size()}
+	# A skip is a site the island's rolled budget wanted and no ground could hold (doc section 3.2
+	# step 4: never forced onto a bad tile). A drawn type that found no ground but whose slot another
+	# type filled is a "miss": logged, not a lost landmark.
+	var missed := PackedStringArray()
+	for key in failed.keys():
+		var hit := false
+		for q in sites:
+			if "%s:%s" % [str(q.get("type", "")), str(q.get("display", ""))] == str(key):
+				hit = true
+				break
+		if not hit:
+			missed.append(str(key))
+	skipped += maxi(0, want - sites.size())
+	return {"sites": sites, "skipped": skipped, "missed": missed, "budget": b, "cands": (landmark_ctx["cands"] as PackedVector2Array).size()}
 
 static func _has_near(sites: Array, ctx: Dictionary) -> bool:
 	var near_m := float(rules().get("near_landing_m", 140))
@@ -700,7 +753,7 @@ static func _token_ok(rt: IslandRuntime, token: String, x: float, z: float) -> b
 ## the reachable component, then spacing, then terrain and the node group's fit).
 ## Why a candidate centre was refused ("" when it passes). A string so a lab run with LM_DEBUG=1 can
 ## print it; the placement loop only branches on it being empty.
-static func _reject_reason(rt: IslandRuntime, ctx: Dictionary, site: Dictionary, sites: Array) -> String:
+static func _reject_reason(rt: IslandRuntime, ctx: Dictionary, site: Dictionary, sites: Array, spacing_m: float = -1.0) -> String:
 	var x := float(site["x"])
 	var z := float(site["z"])
 	var p := Vector2(x, z)
@@ -729,8 +782,9 @@ static func _reject_reason(rt: IslandRuntime, ctx: Dictionary, site: Dictionary,
 		return "wet"
 	if not _reach_ok(ctx, x, z):
 		return "unreachable"
+	var need := float(ctx["spacing"]) if spacing_m < 0.0 else spacing_m
 	for other in sites:
-		if p.distance_to(Vector2(float(other["x"]), float(other["z"]))) < float(ctx["spacing"]):
+		if p.distance_to(Vector2(float(other["x"]), float(other["z"]))) < need:
 			return "spacing"
 	var type_row: Dictionary = (data().get("types", {}) as Dictionary).get(str(site.get("type", "")), {})
 	if type_row.is_empty():
@@ -742,6 +796,10 @@ static func _reject_reason(rt: IslandRuntime, ctx: Dictionary, site: Dictionary,
 		if bool(site.get("near", false)):
 			hi = minf(hi, float(ctx["near"]) - 2.0)
 			lo = minf(lo, float(ctx["landing_clear"]) + 6.0)
+		if site.has("band_hi"):
+			# The caller's band (the fill round's wide band, the near clamp) is the one to test.
+			lo = float(site["band_lo"])
+			hi = float(site["band_hi"])
 		if dl < lo or dl > hi:
 			return "ring"
 	if not _terrain_ok(rt, type_row, x, z):
@@ -793,14 +851,20 @@ static func _legal_of(rt: IslandRuntime, ctx: Dictionary, probes: Dictionary, id
 	var cands: PackedVector2Array = ctx["cands"]
 	var out := PackedInt32Array()
 	var n := mini(LEGAL_SCAN, ids.size())
-	var start := int(hash(key)) % ids.size()
+	var start := absi(int(hash(key))) % ids.size()
+	# Strided over the whole band: the ids run in row order, so a contiguous run of LEGAL_SCAN of them
+	# covered one strip of the island and left long chain islands short of sites.
+	var stride := maxf(1.0, float(ids.size()) / float(n))
 	for k in n:
-		var idx := ids[(start + k) % ids.size()]
+		var idx := ids[(start + int(float(k) * stride)) % ids.size()]
 		var q := cands[idx]
 		probes["x"] = q.x
 		probes["z"] = q.y
-		if _reject_reason(rt, ctx, probes, []) == "":
+		var why := _reject_reason(rt, ctx, probes, [])
+		if why == "":
 			out.append(idx)
+		elif OS.get_environment("LM_DEBUG") == "1":
+			_note_reject(key, why)
 	return out
 
 ## One drawn row placed: draw candidate tiles from the type's ring band until one passes every rule,
@@ -840,6 +904,8 @@ static func _try_place(rt: IslandRuntime, ctx: Dictionary, climate: String, row:
 	var cands: PackedVector2Array = ctx["cands"]
 	var spacing := float(ctx["spacing"]) if spacing_m < 0.0 else spacing_m
 	var probes := site.duplicate(false)
+	probes["band_lo"] = lo
+	probes["band_hi"] = hi
 	# The tiles whose site-independent rules (terrain, the node group's fit, dry ground, reach) pass,
 	# kept in the context per type and band: the fill round and the near-landing retry then draw from
 	# legal ground only instead of re-testing tile after tile that never can hold the type. The list is
@@ -873,7 +939,10 @@ static func _try_place(rt: IslandRuntime, ctx: Dictionary, climate: String, row:
 			continue
 		probes["x"] = q.x
 		probes["z"] = q.y
-		if _reject_reason(rt, ctx, probes, sites) != "":
+		var why := _reject_reason(rt, ctx, probes, sites, spacing)
+		if why != "":
+			if OS.get_environment("LM_DEBUG") == "1":
+				_note_reject("draw", "draw_" + why)
 			continue
 		passers += 1
 		if gap > best_gap:

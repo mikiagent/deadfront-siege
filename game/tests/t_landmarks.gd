@@ -49,9 +49,12 @@ func _run() -> void:
 	root.add_child(_host)
 	_world = root.get_node("World")
 	var worst_ms := 0.0
-	for id in IDS:
+	# LM_IDS=a,b / LM_SEEDS=n narrow a debug run; LM_SKIP_PLAY=1 skips the play checks.
+	var ids: Array = Array(OS.get_environment("LM_IDS").split(",", false)) if OS.get_environment("LM_IDS") != "" else IDS
+	var seeds := int(OS.get_environment("LM_SEEDS")) if OS.get_environment("LM_SEEDS") != "" else SEEDS
+	for id in ids:
 		var base: Dictionary = _world.def_of(StringName(id))
-		for k in SEEDS:
+		for k in seeds:
 			var def := base.duplicate(true)
 			def["seed"] = int(base.get("seed", 17)) + k * 7919
 			var t0 := Time.get_ticks_usec()
@@ -63,9 +66,10 @@ func _run() -> void:
 			await process_frame
 	var total := _placed + _skipped
 	_expect(total > 0 and float(_skipped) / float(total) < 0.10, "landmark skips under 10%% of the run (placed %d skipped %d)" % [_placed, _skipped])
-	await _check_play()
+	if OS.get_environment("LM_SKIP_PLAY") != "1":
+		await _check_play()
 	if _fails.is_empty():
-		print("[t_landmarks] PASS islands=%d seeds=%d placed=%d skipped=%d worst_build_ms=%.0f" % [IDS.size(), SEEDS, _placed, _skipped, worst_ms])
+		print("[t_landmarks] PASS islands=%d seeds=%d placed=%d skipped=%d worst_build_ms=%.0f" % [ids.size(), seeds, _placed, _skipped, worst_ms])
 		quit(0)
 	else:
 		print("[t_landmarks] FAIL count=%d" % _fails.size())
@@ -110,8 +114,7 @@ func _check_island(id: String, k: int, def: Dictionary, rt) -> void:
 			var o: Dictionary = sites[j]
 			var d := Vector2(float(o["x"]) - at.x, float(o["z"]) - at.z).length()
 			_expect(d >= spacing - 0.5, "%s %s and %s %.0f m apart (floor %.0f)" % [tag, sid, str(o.get("id", "")), d, spacing])
-		var res: Dictionary = rt.pathing.path_result(landing, at, 0)
-		_expect(bool(res.get("reachable", false)), "%s %s reachable from the harbour by TilePath" % [tag, sid])
+		_expect(_IL.reachable(rt, landing, s), "%s %s reachable from the harbour by TilePath" % [tag, sid])
 		var tile := Vector2i(floori(at.x), floori(at.z))  # BuildGrid.tile_of, 1 m cells
 		_expect(not rt.is_claimed(tile), "%s %s not on a claim" % [tag, sid])
 		if bool(s.get("dormant", false)):
