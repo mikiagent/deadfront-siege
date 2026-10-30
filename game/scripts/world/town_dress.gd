@@ -121,6 +121,7 @@ func street_d(p: Vector3) -> float:
 func _lay_out() -> void:
 	var t0 := Time.get_ticks_msec()
 	_guild_hall()
+	_pit_shelter()
 	for band: Array in BANDS:
 		_band(float(band[0]), float(band[1]))
 	_outskirts()
@@ -357,6 +358,31 @@ func _guild_hall() -> void:
 	unit("box", Transform3D(b.scaled(Vector3(0.18, 9.0, 0.18)), pole), Color(0.3, 0.2, 0.12), FAR_HOUSE)
 	unit("flag", Transform3D(b.scaled(Vector3(2.2, 1.4, 1.0)), pole + Vector3(0, 7.4, 0) + b * Vector3(1.1, 0, 0)), Color(0.75, 0.16, 0.12), FAR_HOUSE)
 	prop("signpost", door + b * Vector3(3.0, 0, 1.2), yaw)
+
+## The square's stone fire pit stands under an open timber shelter (four posts and a thatched roof),
+## so rain never stops the "light the fire" order (FireWeather.roof_over reads the fire_roof marker).
+func _pit_shelter() -> void:
+	var pit: Node3D = null
+	for n in get_tree().get_nodes_in_group("bonfire"):
+		if n.get("kind") == &"stone_fire_pit" and rt.is_ancestor_of(n):
+			pit = n
+	if pit == null:
+		return
+	var c := pit.global_position
+	var y := c.y
+	for k in 4:
+		var q := c + Vector3((float(k % 2) - 0.5) * 4.4, 0.0, (float(k / 2) - 0.5) * 4.4)
+		q.y = rt.surface_y(q.x, q.z)
+		unit("box", Transform3D(Basis().scaled(Vector3(0.22, y + 2.9 - q.y, 0.22)), q), Color(0.34, 0.23, 0.13), FAR_HOUSE)
+		_boxes.append([Transform3D(Basis(), q + Vector3(0, 1.4, 0)), Vector3(0.25, 2.8, 0.25)])
+		cells[BuildGrid.tile_of(q)] = true
+	unit("roof", Transform3D(Basis().scaled(Vector3(5.2, 1.3, 5.2)), Vector3(c.x, y + 2.9, c.z)), ROOFS["thatch"], FAR_HOUSE, true)
+	var marker := Node3D.new()
+	marker.name = "PitShelterRoof"
+	marker.set_meta(&"half", 2.4)
+	marker.add_to_group(&"fire_roof")
+	add_child(marker)
+	marker.global_position = Vector3(c.x, y + 3.0, c.z)
 
 # ---------------------------------------------------------------- districts
 

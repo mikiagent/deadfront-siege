@@ -187,6 +187,10 @@ func _test_town_dress(rt: Node3D, camp: Vector3) -> void:
 	for m in mmis:
 		far_ok = far_ok and (m as GeometryInstance3D).visibility_range_end > 0.0
 	_expect(far_ok, "every town batch has a visibility range")
+	# The light-the-fire order never waits on the weather: the square's pit stands under a shelter.
+	var pit_at: Variant = TUT.call("world_point", _player, "firepit")
+	_expect(pit_at is Vector3 and load("res://scripts/world/fire_weather.gd").call("roof_over", rt.get_tree(), pit_at) != null,
+		"the stone fire pit stands under a roof (rain cannot stop the fire order)")
 	var guild: Variant = TUT.call("world_point", _player, "guild")
 	var hall := false
 	for k in town.get("cells"):
