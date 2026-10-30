@@ -14,7 +14,7 @@ extends Control
 ## ASSUMPTION: these item symbols stand in for skill art until skill icons exist (W1-ICONART).
 ## Ranged and Weapon / Tools use the dart and pick: the crossbow drew as a thin line, the hammer as a blob.
 const SYMBOLS := {
-	"survival": "tent_kit", "gathering": "herb_leaf", "butchering": "stone_knife", "processing": "mortar_kit",
+	"survival": "tent_kit", "gathering": "herb_leaf", "butchering": "stone_knife_work", "processing": "mortar_kit",
 	"melee": "club", "ranged": "cactus_spine", "defense": "hide_strap", "weapon_tools": "work_pick",
 	"tailoring": "thread", "construction": "pillar", "cooking": "skewer", "farming": "wheat",
 }

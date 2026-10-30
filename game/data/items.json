@@ -436,11 +436,10 @@
     },
     {
       "id": "stone_knife_work",
-      "display_name": "Stone Work Knife",
+      "display_name": "Work Knife",
       "categories": [
         "tool",
-        "blade",
-        "weapon"
+        "blade"
       ],
       "stack_max": 1,
       "tool_class": "knife",
@@ -459,7 +458,7 @@
     },
     {
       "id": "stone_knife",
-      "display_name": "Stone Knife",
+      "display_name": "Stone Dagger",
       "categories": [
         "weapon",
         "blade",

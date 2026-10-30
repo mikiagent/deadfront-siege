@@ -111,8 +111,8 @@
     },
     {
       "id": "tut_knife",
-      "title": "Knap a stone knife",
-      "hint": "MENU > Craft > Tool tab > Stone Work Knife > Craft: a stone, a branch and twine, by hand. A knife cuts meat from a carcass",
+      "title": "Knap a work knife",
+      "hint": "MENU > Craft > Tool tab > Work Knife > Craft: a stone, a branch and twine, by hand. The work knife butchers carcasses; it never fights",
       "have": {
         "stone_knife_work": 1
       },
@@ -146,6 +146,26 @@
           "Wedge_craft",
           "Cat_tool",
           "Recipe_work_axe",
+          "CraftOne"
+        ]
+      ]
+    },
+    {
+      "id": "tut_dagger",
+      "title": "Make a stone dagger at the bench",
+      "hint": "Tap the town workbench > CRAFT > Weapon tab > Stone Dagger > Craft: a stone, a branch and twine (twist 2 more fibre first). The dagger fights, so the work knife stays sharp for butchering",
+      "have": {
+        "stone_knife": 1
+      },
+      "point_at": "world:bench",
+      "xp": 50,
+      "t_stones": 1,
+      "menu": [
+        [
+          "world:bench",
+          "Wedge_craft",
+          "Cat_weapon",
+          "Recipe_stone_knife",
           "CraftOne"
         ]
       ]
@@ -341,8 +361,8 @@
     },
     {
       "id": "knife",
-      "title": "Knap a stone knife",
-      "hint": "Stone, a branch and twine",
+      "title": "Knap a work knife",
+      "hint": "Stone, a branch and twine. It butchers; fight with a Stone Dagger",
       "have": {
         "stone_knife_work": 1
       },

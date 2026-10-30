@@ -156,6 +156,8 @@ func extras_from_dict(d: Dictionary) -> void:
 	if equipped_tool_index < -1 or equipped_tool_index >= slot_count:
 		equipped_tool_index = -1
 	InventoryEquipment.load_worn(self, d, seen)
+	if worn(&"weapon") and slot_for(worn(&"weapon").def()) != &"weapon":
+		unequip(&"weapon") # KNIFESPLIT: a pre-split save's worn Work Knife goes back to the bag
 	var q: Variant = d.get("quick_food", [])
 	if q is Array and (q as Array).size() >= 2:
 		quick_food = [str(q[0]), str(q[1])]
@@ -234,7 +236,8 @@ func find_gather_tool(tool: StringName) -> ItemStack:
 	if tool == &"" or tool == &"none":
 		return null
 	var held := _held_tool()
-	if held and held.def().tool_class == tool:
+	# KNIFESPLIT: a held weapon (Stone Dagger) only cuts when no work tool of the class is carried.
+	if held and held.def().tool_class == tool and held.def().is_work_tool:
 		return held
 	return _best_tool(tool)
 
@@ -527,16 +530,20 @@ func consume_by_category(cat: StringName, amount: int) -> bool:
 	return true
 
 func equipped_weapon() -> ItemStack:
+	# KNIFESPLIT: only a real weapon fights (an old save's worn Work Knife does not); a bag weapon that
+	# is not a work tool (Stone Dagger) wins over a work-tool weapon (axe), else fists.
 	var chosen := equipped_in(&"weapon")
-	if chosen:
+	if chosen and slot_for(chosen.def()) == &"weapon":
 		return chosen
+	var fallback: ItemStack = null
 	for s in slots:
-		if s == null:
+		if s == null or slot_for(s.def()) != &"weapon":
 			continue
-		var d := s.def()
-		if d and d.has_category(&"weapon") and d.damage > 0.0:
+		if not s.def().is_work_tool:
 			return s
-	return null
+		if fallback == null:
+			fallback = s
+	return fallback
 
 func best_capture_net() -> ItemStack:
 	var best: ItemStack = null

@@ -283,7 +283,7 @@ func land_hit(t: Creature, w: ItemStack) -> float:
 
 func _weapon() -> ItemStack:
 	var w := record.equipment.worn(&"weapon")
-	return null if w == null or w.is_broken() else w
+	return null if w == null or w.is_broken() or Inventory.slot_for(w.def()) != &"weapon" else w # KNIFESPLIT
 
 ## A creature's bite (CreatureAttack): the member's own defense, base + worn armour.
 func take_creature_hit(attacker: Creature, atk: float) -> bool:

@@ -154,6 +154,12 @@ func _do_step(id: String) -> String:
 				if f != "" or not await _craft(Crafting.recipe(&"twine")):
 					return "no twine for the axe %s" % f
 			return await _make(&"work_axe")
+		"tut_dagger":
+			if player.inventory.count_of(&"twine") < 1:  # the hint's way: twist 2 more fibre
+				var f := await _gather_to(&"fibre_stalk", 2)
+				if f != "" or not await _craft(Crafting.recipe(&"twine")):
+					return "no twine for the dagger %s" % f
+			return await _make(&"stone_knife")
 		"tut_logs":
 			return await _gather_to(&"wood_log", 2)
 		"tut_hunt":
