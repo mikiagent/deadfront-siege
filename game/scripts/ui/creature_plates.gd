@@ -221,8 +221,8 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	var line3 := HBoxContainer.new()
 	line3.name = "Line3"
 	line3.position = Vector2(8, 47)
-	line3.custom_minimum_size = Vector2(160, 26)
-	line3.add_theme_constant_override("separation", 4)
+	line3.custom_minimum_size = Vector2(160, HudBuffRow.CHIP)
+	line3.add_theme_constant_override("separation", 6)
 	root.add_child(line3)
 	var tame_row := HBoxContainer.new()
 	tame_row.name = "TameRow"

@@ -133,6 +133,25 @@ func _run() -> void:
 				hit = true
 		_expect(not hit and floater_r.has_area(), "the status floater's rect %s stays clear of the name rect %s" % [floater_r, name_r])
 
+	# --- a multi-status creature keeps the same order and separate chips (bleed + venom)
+	c.statuses.apply(&"venom")
+	await _frames(3)
+	var e2: Array = RW.creature_entries(c)
+	_expect(e2.size() == 2, "a bled and envenomed creature lists both statuses (%d rows)" % e2.size())
+	var pe3: Dictionary = plates._entries.get(c.get_instance_id(), {})
+	var line3b := pe3.get("line3", null) as Control
+	if line3b:
+		var shown := 0
+		var boxes: Array[Rect2] = []
+		for g in line3b.get_children():
+			var chip := g as Control
+			if chip != null and chip.visible:
+				shown += 1
+				boxes.append(Rect2(chip.position, chip.size))
+		_expect(shown == 2, "the plate shows both chips (%d)" % shown)
+		if boxes.size() == 2:
+			_expect(not boxes[0].intersects(boxes[1]), "the two chips do not overlap (%s, %s)" % [str(boxes[0]), str(boxes[1])])
+
 	# --- the damage-number colour rule: a status's damage colour is its own colour, green is healing only
 	var CR: GDScript = load("res://scripts/creatures/creature.gd")
 	_expect((CR.STATUS_COLORS["bleed"] as Color).r > 0.8 and (CR.STATUS_COLORS["bleed"] as Color).g < 0.5,
