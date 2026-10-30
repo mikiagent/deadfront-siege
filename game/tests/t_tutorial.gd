@@ -104,7 +104,7 @@ func _test_new_character() -> void:
 			if n.get("kind") == &"stone_fire_pit":
 				pit = true
 		_expect(pit, "the tutorial camp has a stone fire pit")
-		_expect(TUT.call("nearest_fresh_water", camp) != null, "fresh water within 160 m of the town")
+		_expect(TUT.call("nearest_fresh_water", camp) != null, "fresh water within 260 m of the town")
 		var herbs := 0
 		for n in get_nodes_in_group("harvest"):
 			for o in n.call("options"):
@@ -198,15 +198,20 @@ func _test_town_dress(rt: Node3D, camp: Vector3) -> void:
 	var targets := {"dock": rt.call("arrival_point"), "guild": guild, "bench": TUT.call("world_point", _player, "bench"), "firepit": TUT.call("world_point", _player, "firepit")}
 	for z in rt.find_children("WildZone_*", "", false, false):
 		targets[str(z.name)] = (z as Node3D).global_position
+	targets["water"] = TUT.call("nearest_fresh_water", camp)
+	for n in get_nodes_in_group("harvest"):
+		if (n as Node3D).global_position.distance_to(camp) < 25.0:
+			targets["node " + str(n.name)] = (n as Node3D).global_position
 	var bad: Array = []
 	for k in targets:
 		if not targets[k] is Vector3:
 			bad.append(k)
 			continue
-		var res: Dictionary = pathing.call("path_result", camp, targets[k], 0)
-		if not bool(res["reachable"]):
-			bad.append(k)
-	_expect(bad.is_empty(), "the camp reaches the dock, the guild, the bench, the pit and every wild zone through the town (%s)" % [bad])
+		for from in [camp, rt.call("arrival_point")]:  # from the town square and from the dock
+			var res: Dictionary = pathing.call("path_result", from, targets[k], 0)
+			if not bool(res["reachable"]) and not k in bad:
+				bad.append(k)
+	_expect(bad.is_empty(), "the square and the dock reach the guild, the bench, the pit, the water, the town's herbs, berries and trees and every wild zone (%s)" % [bad])
 
 ## Owner: 4-5x the home island's land. Measured land area from the dry tiles, build time and cover.
 func _test_size_and_perf(rt: Node3D, build_ms: int) -> void:
@@ -245,6 +250,27 @@ func _test_streaming() -> void:
 	await create_timer(1.5).timeout
 	var near_town := _count(&"compsognathus")
 	_expect(near_town > 0, "the compsognathus zone wakes when she comes near (%d)" % near_town)
+	# Owner 2026-10-29: the hunt order pointed at a protoceratops. It names a compsognathus only.
+	var keep_obj := int(W.get("objective"))
+	var steps: Array = TUT.call("steps")
+	for i in steps.size():
+		if str((steps[i] as Dictionary).get("id", "")) == "tut_hunt":
+			W.set("objective", i)
+	var hunt: Dictionary = TUT.call("pointer_target", _player)
+	var node: Variant = hunt.get("node")
+	_expect(node is Node and (node as Node).get("def") != null and (node as Node).get("def").id == &"compsognathus",
+		"the hunt order points at a compsognathus (%s)" % [(node as Node).get("def").id if node is Node and (node as Node).get("def") != null else "nothing"])
+	W.set("objective", keep_obj)
+	# Owner 2026-10-29: only compsognathus and zebraceratops live on the tutorial island.
+	var others: Array = []
+	for z in rt.find_children("WildZone_*", "", false, false):
+		if not str(z.get("species")) in ["compsognathus", "zebraceratops"]:
+			others.append(str(z.get("species")))
+	for c in get_nodes_in_group("creatures"):
+		var d: Variant = c.get("def")
+		if d != null and not str(d.id) in ["compsognathus", "zebraceratops"]:
+			others.append(str(d.id))
+	_expect(others.is_empty(), "the tutorial island spawns only compsognathus and zebraceratops (%s)" % [others])
 	var far := Vector3.INF
 	for z in rt.find_children("WildZone_*", "", false, false):
 		if (z as Node3D).global_position.distance_to(compy_at) > 280.0:

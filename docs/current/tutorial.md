@@ -29,14 +29,14 @@ orders, and the last order grants their own Tamed Island. Flow: `game/scripts/co
 | 2 | tut_branches | hold 3 branch | harvest:branch |
 | 3 | tut_stone | hold 2 stone | harvest:stone |
 | 4 | tut_fibre | hold 4 fibre_stalk | harvest:fibre_stalk |
-| 5 | tut_drink | status `quenched` | ctx:drink, else world:water |
+| 5 | tut_drink | status `quenched` (water search 260 m) | ctx:drink, else world:water |
 | 6 | tut_eat | 1 committed meal (`did.eat`) | menu: BAG > Berries > Use while holding berries, else harvest:berries |
 | 7 | tut_rest | resting or sleeping | ctx:rest |
 | 8 | tut_twine | hold 1 twine | menu: MENU > Craft > Materials > Twine > Craft |
 | 9 | tut_knife | hold 1 stone_knife_work (by hand; a knife is needed to cut meat) | menu: MENU > Craft > Tool > Stone Work Knife > Craft |
 | 10 | tut_axe | hold 1 work_axe (workbench) | menu: bench > CRAFT > Tool > Work Axe > Craft |
 | 11 | tut_logs | hold 2 wood_log | harvest:wood_log |
-| 12 | tut_hunt | 1 kill by the survivor (`did.kill`) | world:creature |
+| 12 | tut_hunt | 1 kill by the survivor (`did.kill`) | world:creature:compsognathus |
 | 13 | tut_butcher | hold raw_meat or raptor_meat | world:corpse |
 | 14 | tut_fire | the stone fire pit burns (`Bonfire.burning()`; a fire without it counts as lit) | menu: pit > FUEL > Branch |
 | 15 | tut_cook | hold 1 herb_buff_meal (`roled_herb_roast`: meat main + herb topping + branch support, station bonfire) | herb node, then menu: pit > COOK > Cooking > Herbed Meal > Craft |
@@ -53,8 +53,10 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
 ## The island (`tutorial_isle.json`)
 - kind `tutorial`, permanent, grassland, `level_override` 1, seed 9091. Landmass `land_m`
   795 x 636 m (4.5x the home's 375 x 300; `IslandShape.make` `p_land`), `size_m` 880,
-  `terrain_res` 241 (`IslandTerrain` takes the shape's res). Harbour hint (60, 194), camp (town
-  centre) hint (44, 160): the dock is 36 m from the town.
+  `terrain_res` 241 (`IslandTerrain` takes the shape's res). `dock_rule` south (TUTTOWN 2026-10-29,
+  owner "move it"): the dock is on the southern-most coast like every island (lands at about
+  (-67, 317)); the camp (town centre) hint (-51, 271) is the flattest dry ground ~48 m inland of it,
+  on the southern peninsula. The nearest fresh water (the river) is ~205 m north, through the gate.
 - Never claimed: no CLAIM context hex (`player_input.gd`), `claim_confirmed` refuses with a notice.
   The camp's landing plot stays buildable (the bedroll order places there).
 - Town (`Tutorial.dress`, around the camp): the camp's fire, workbench, shed and cargo chest, plus
@@ -63,13 +65,15 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
   barrel, crates — a stone fire pit and a drying rack. All `persist_building = false`: never saved,
   `StructureHealth.is_structure` false (no damage), pack-up refused, grid cells occupied.
 - 3 HerbPlant, 3 BerrySprig 14-16 m and 2 CommonTree 19 m from the town centre.
-- Wild lands (`wild_zones`, `ZoneSpawner`): 11 groups at 40-360 m from the town, aimed inland —
-  compsognathus (40-60 m), zebraceratops 85, gallimimus 110, protoceratops 140, coelophysis packs
-  210/240, velociraptor 300, deinonychus 360. A zone spawns when the survivor is within 110 m,
+- Wild lands (`wild_zones`, `ZoneSpawner`): 11 groups at 100-360 m from the town, aimed north
+  (inland). Owner 2026-10-29: ONLY compsognathus (the first hunt: singles at 100 m, packs of 2-3
+  further out) and zebraceratops (the first tame: herds of 2-3 at 120-360 m); the town pens hold the
+  same two. The hunt order's pointer (`world:creature:compsognathus`) names only a living
+  compsognathus, else the nearest compsognathus zone. A zone spawns when the survivor is within 110 m,
   removes its living animals past 170 m (never her hunt target), respawns 240 s after a kill,
   checks at 2 Hz and stays inside `Game.max_creatures_per_island` (24).
 - Safe town (`town_safe_m` 100): every zone is pushed out to at least 100 m from the town, so the
-  single compsognathus sit at 100 m (200/265/310 degrees), the pair at 160 m, and the early gather orders are not harassed. No alphas
+  single compsognathus sit at 100 m (200/265/330 degrees), the packs further out, and the early gather orders are not harassed. No alphas
   roll on this island (`no_alphas`). Open Questions TU9-TU10.
 - Perf limits (island data): ground cover full within 120 m of the town and 6 % beyond
   (`cover_full_radius_m`, `cover_far_share`, `GroundCover.plan`), biome dressing 30 %
@@ -81,16 +85,21 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
 
 ## The town (`game/scripts/world/town_dress.gd`, TUTTOWN 2026-10-29)
 - `Tutorial.dress` ends with `TownDress.build(rt)`: the camp square (24 m) stays as above; around it
-  five dirt avenues (one to the dock) and two ring roads, four rings of lots and fields / pens past the
-  outer ring, out to 96 m. Districts by angle from the dock: harbour, market (striped stalls), homes,
+  five avenues (one to the dock) and two ring roads, paved inside the inner ring and dirt beyond, with
+  footpaths from every front door; four rings of lots, then an infill pass that fills every free lot
+  with a cottage, a fenced kitchen garden or a yard; fields / pens past the outer ring; a palisade at
+  97 m with a gate (posts, lintel, lamps, signpost) wherever an avenue leaves; extra piers with boats,
+  crates and fish racks beside the dock. Roofs: thatch, shingle, slate or tile, pitch 0.45-0.75. Districts by angle from the dock: harbour, market (striped stalls), homes,
   pens + hunters' tents (toward the wild lands), farms, workshops (open shelters; forges and grills
   always busy through `StationState`, racks of drying meat, kilns, looms). The Adventurer's Guild hall
   (two storeys, banner, torches) stands behind the guild pavilion. Lamp posts and signposts line the
   streets. Townsfolk (survivor body, random look) idle or loop a work clip at the stations; four walk
   the avenues; tamed animals stand in the pens.
-- Measured headless (lab probe, same machine): about 50 houses, 12 stalls, 8 workshops, 10 fields,
-  5 pens, 46 lamps; ~1,750 instances in ~147 MultiMeshInstance3D; 149 collision boxes on one physics
-  body; town build ~0.7-1.0 s; scene nodes +~300 over the bare island (5,608 -> ~5,910, budget 6,000).
+- Measured headless (`scripts/dev/tuttown_map.gd`, which also writes the top-down footprint PNG):
+  ~75 houses (50 on the rings + 25 infill), 13 stalls, 6 workshops, 8 fields, 13 gardens, 13 yards,
+  4 pens, 2 extra piers, 79 palisade panels, 41 lamps, 13 townsfolk, 6 pen animals; ~1,960 instances
+  in ~182 MultiMeshInstance3D; 235 collision boxes on one physics body; town build ~0.9 s; island
+  scene ~6,540 nodes (TUTPERF budget 9,000), 666 ticking (budget 900).
 - Scenery only: no node is saved or damaged; the footprints are occupied in the BuildGrid (nothing is
   built over them, the tile router walks the streets); cover, dressing, props and non-tutorial
   harvest nodes on footprints and roads are cleared. Every order target, the dock and every wild zone
@@ -107,7 +116,10 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
   All; Build is the bottom row of the list page.
 
 ## Onboarding pointer (`game/scripts/ui/tutorial_pointer.gd`)
-- Added by `main.gd` on its own canvas layer (`TutorialLayer`, 97: over the HUD, the menus and the modals). 5 Hz `Tutorial.pointer_target`; draws a pulsing gold ring
+- Added by `main.gd` on its own canvas layer (`TutorialLayer`, 97: over the HUD, the menus and the modals).
+  It eases toward its goal every frame (exponential approach 12/s, at most 2,600 px/s), so a new
+  target glides instead of jumping, and a world target that is a node (a creature, a carcass, a
+  harvest node) is read every frame so the arrow follows it. 5 Hz `Tutorial.pointer_target`; draws a pulsing gold ring
   and arrow on a HUD Control (`ui:<node name>`, `ctx:<id>` → the `Ctx_<id>` context hex or
   INTERACT when it carries that action) or an arrow over a world point (edge arrow off screen).
 - A plain pointer (and a menu path's first element) hides while the bag, craft screen, a HUD sheet or

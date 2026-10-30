@@ -466,10 +466,13 @@ static func _resolve_one(p: Player, s: String) -> Dictionary:
 						best_d = d
 						best = hn
 					break
-		return {"world": best.global_position} if best else {}
+		return {"world": best.global_position, "node": best} if best else {}
 	if s.begins_with("world:"):
+		_nearest_node = null
 		var at: Variant = world_point(p, s.substr(6))
-		return {"world": at} if at is Vector3 else {}
+		if not at is Vector3:
+			return {}
+		return {"world": at, "node": _nearest_node} if _nearest_node != null else {"world": at}
 	return {}
 
 ## Named places on the tutorial island (and the nearest live thing for creature / corpse / water).
@@ -490,15 +493,42 @@ static func world_point(p: Player, what: String) -> Variant:
 			var pit: Variant = _nearest(p, "bonfire", func (n: Node) -> bool: return n.get("kind") == &"stone_fire_pit")
 			return pit if pit != null else _nearest(p, "bonfire", func (_n: Node) -> bool: return true)
 		"creature":
-			return _nearest(p, "creatures", func (n: Node) -> bool: return n is Creature and not (n as Creature).is_pet and (n as Creature).health != null and not (n as Creature).health.dead)
+			return _nearest(p, "creatures", func (n: Node) -> bool: return _huntable(n, &""))
 		"corpse":
 			return _nearest(p, "corpse", func (_n: Node) -> bool: return true)
 		"water":
 			return nearest_fresh_water(p.global_position)
+	# "creature:<species>": a species order points only at that species (owner 2026-10-29: the hunt
+	# order pointed at a protoceratops); none awake -> the nearest wild zone of that species.
+	if what.begins_with("creature:"):
+		var sp := StringName(what.substr(9))
+		var live: Variant = _nearest(p, "creatures", func (n: Node) -> bool: return _huntable(n, sp))
+		if live != null:
+			return live
+		var best: Variant = null
+		var best_d := INF
+		for z in rt.find_children("WildZone_*", "", false, false):
+			if z.get("species") == sp and p.global_position.distance_squared_to((z as Node3D).global_position) < best_d:
+				best_d = p.global_position.distance_squared_to((z as Node3D).global_position)
+				best = (z as Node3D).global_position
+		return best
 	return null
+
+## A living wild animal (of `species`, when given) the survivor can hunt.
+static func _huntable(n: Node, species: StringName) -> bool:
+	if not n is Creature:
+		return false
+	var c := n as Creature
+	if c.is_pet or c.health == null or c.health.dead:
+		return false
+	return species == &"" or (c.def != null and c.def.id == species)
+
+## The node the last _nearest() picked (the pointer follows it every frame).
+static var _nearest_node: Node3D = null
 
 static func _nearest(p: Player, group: String, ok: Callable) -> Variant:
 	var best: Variant = null
+	var best_n: Node3D = null
 	var best_d := INF
 	for n in p.get_tree().get_nodes_in_group(group):
 		if not n is Node3D or (n as Node).is_queued_for_deletion() or not ok.call(n):
@@ -507,19 +537,24 @@ static func _nearest(p: Player, group: String, ok: Callable) -> Variant:
 		if d < best_d:
 			best_d = d
 			best = (n as Node3D).global_position
+			best_n = n as Node3D
+	_nearest_node = best_n
 	return best
 
 static var _water_cache: Dictionary = {}
+const WATER_SEARCH_M := 260
 
-## The nearest dry bank beside fresh water (where Drink is offered) within 160 m, on a 3 m ring
-## search; cached per 12 m cell (water does not move).
+## The nearest dry bank beside fresh water (where Drink is offered) within WATER_SEARCH_M, on 3 m
+## rings out to 60 m and 4 m rings past that; cached per 12 m cell (water does not move).
+## # ASSUMPTION (TUTTOWN 2026-10-29): 260 m; the town by the southern dock is ~205 m from the river.
 static func nearest_fresh_water(from: Vector3) -> Variant:
 	var key := "%s:%d:%d" % [World.island_id, roundi(from.x / 12.0), roundi(from.z / 12.0)]
 	if _water_cache.has(key):
 		return _water_cache[key]
 	var found: Variant = null
-	for r in range(3, 161, 3):
-		var steps_n := maxi(8, int(TAU * float(r) / 3.0))
+	var radii: Array = range(3, 61, 3) + range(64, WATER_SEARCH_M + 1, 4)
+	for r: int in radii:
+		var steps_n := maxi(8, int(TAU * float(r) / (3.0 if r <= 60 else 4.0)))
 		for k in steps_n:
 			var a := TAU * float(k) / float(steps_n)
 			var q := from + Vector3(cos(a) * float(r), 0.0, sin(a) * float(r))

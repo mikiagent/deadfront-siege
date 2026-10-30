@@ -63,6 +63,8 @@ func _run() -> void:
 		root.size = s
 		root.content_scale_size = s
 		await _frames(3)
+		if s.x == 1600:
+			await _test_pointer_glides()  # needs a sized viewport (the camera unprojects)
 		var steps: Array = TUT.call("steps")
 		for i in steps.size():
 			var step: Dictionary = steps[i]
@@ -79,6 +81,45 @@ func _run() -> void:
 	else:
 		print("[t_tutguide] FAILED %d: %s" % [_fails.size(), "; ".join(_fails)])
 		quit(1)
+
+## The pointer eases (owner 2026-10-29: it jumped): a jump of the target is covered in bounded steps,
+## it settles on a still target, keeps up with a moving one, and follows a world node every frame.
+func _test_pointer_glides() -> void:
+	var tps: GDScript = load("res://scripts/ui/tutorial_pointer.gd")
+	var tp = tps.new()
+	root.add_child(tp)
+	tp.set_process(false)
+	var box := Control.new()
+	box.size = Vector2(64, 64)
+	box.position = Vector2(100, 100)
+	root.add_child(box)
+	await _frames(1)
+	var dt := 1.0 / 60.0
+	var cap: float = float(tps.get_script_constant_map()["MAX_PX_S"]) * dt + 0.01
+	tp.set_target({"ui": box})
+	tp.step(dt)
+	box.position = Vector2(900, 600)  # the target changes: no teleport
+	var worst := 0.0
+	for i in 90:
+		tp.step(dt)
+		worst = maxf(worst, tp.last_step)
+	var settle: float = (tp.pos as Vector2).distance_to(box.get_global_rect().get_center())
+	_expect(worst <= cap and worst > 1.0 and settle < 2.0, "the pointer glides to a new target: max step %.1f px/frame (cap %.1f), settles %.2f px off" % [worst, cap, settle])
+	var lag := 0.0
+	for i in 120:
+		box.position += Vector2(4, 1)  # 240 px/s
+		tp.step(dt)
+		lag = (tp.pos as Vector2).distance_to(box.get_global_rect().get_center())
+	_expect(lag < 30.0, "the pointer keeps up with a moving target (%.1f px behind)" % lag)
+	var mover := Node3D.new()
+	root.add_child(mover)
+	var t := {"world": Vector3.ZERO, "node": mover}
+	var before: Vector3 = tps.call("world_anchor", t)
+	mover.position = Vector3(2, 0, 0)
+	_expect((tps.call("world_anchor", t) as Vector3).distance_to(before) > 1.9, "a world target that moves is followed every frame (its node is read, not the picked spot)")
+	for n in [tp, box, mover]:
+		n.queue_free()
+	await _frames(1)
 
 ## Craft / Build: Materials first, the tools together, All last; Build is the bottom row of the list page.
 func _test_order() -> void:

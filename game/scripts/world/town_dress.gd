@@ -26,7 +26,8 @@ const AVENUE_W := 6.0
 const RING_A := 44.0
 const RING_B := 66.0
 const ROAD_W := 5.0
-const TOWN_R := 96.0  ## inside the island's town_safe_m (100)
+const TOWN_R := 94.0  ## inside the town wall (WALL_R) and the island's town_safe_m (100)
+const WALL_R := 97.0  ## the palisade round the town, open where an avenue passes (a gate)
 const BANDS := [[29.0, -1.0], [36.5, 1.0], [55.0, -1.0], [75.0, -1.0]]  ## [ring radius, door faces +1 out / -1 in]
 const AVENUES := [0.0, 72.0, 144.0, -72.0, -144.0]  ## degrees from the dock direction
 const NPC_RANGE_M := 60.0
@@ -57,6 +58,7 @@ var stats := {"houses": 0, "stalls": 0, "workshops": 0, "fields": 0, "pens": 0, 
 var npcs: Array[Node3D] = []
 var cells: Dictionary = {}  ## Vector2i -> true: tiles a house, stall, shelter or pen covers
 var road_tiles: Dictionary = {}
+var soft_cells: Dictionary = {}  ## the walk-through part of cells: fields, open shelters
 var _rng := RandomNumberGenerator.new()
 var _batches: Dictionary = {}  ## "cx:cz:part:i" -> {"mesh", "xf", "colors", "far", "shadow", "occlude"}
 var _boxes: Array = []  ## [Transform3D, Vector3 size]
@@ -121,6 +123,9 @@ func _lay_out() -> void:
 	for band: Array in BANDS:
 		_band(float(band[0]), float(band[1]))
 	_outskirts()
+	_harbour()
+	_infill()
+	_wall()
 	_roads()
 	_street_props()
 	_flush()
@@ -141,7 +146,7 @@ func _band(r: float, facing: float) -> void:
 		var used := 0.0
 		match dist:
 			&"market":
-				used = _stall_lot(deg, r, facing) if r < 40.0 else _house_lot(deg, r, facing, w, d, "plain")
+				used = _stall_lot(deg, r, facing) if r < 40.0 or (r < 60.0 and _rng.randf() < 0.5) else _house_lot(deg, r, facing, w, d, "plain")
 			&"workshops":
 				used = _workshop_lot(deg, r, facing) if r < 60.0 else _house_lot(deg, r, facing, w, d, "stone")
 			&"farms":
@@ -204,6 +209,8 @@ func _rect_tiles(c: Vector3, w: float, d: float, yaw: float) -> Array[Vector2i]:
 func _take(c: Vector3, w: float, d: float, h: float, yaw: float, solid: bool = true) -> void:
 	for t in _rect_tiles(c, w, d, yaw):
 		cells[t] = true
+		if not solid:
+			soft_cells[t] = true
 	if solid:
 		_boxes.append([Transform3D(Basis(Vector3.UP, yaw), c + Vector3(0, h * 0.5, 0)), Vector3(w, h, d)])
 
@@ -224,6 +231,9 @@ const WALLS := {
 	"stone": ["house_wall_stone", "house_wall_window_stone"],
 }
 const ROOF_COLORS := {"timber": Color(0.78, 0.64, 0.36), "plain": Color(0.72, 0.58, 0.33), "stone": Color(0.42, 0.40, 0.40)}
+## Roof finishes (one material, coloured per instance): thatch, wood shingle, slate, fired tile.
+const ROOFS := {"thatch": Color(0.80, 0.66, 0.38), "shingle": Color(0.45, 0.30, 0.20), "slate": Color(0.34, 0.37, 0.42), "tile": Color(0.66, 0.30, 0.20)}
+const ROOF_BY_STYLE := {"timber": ["thatch", "thatch", "shingle"], "plain": ["thatch", "tile", "shingle"], "stone": ["slate", "tile"]}
 
 func _house_lot(deg: float, r: float, facing: float, w: int, d: int, style: String) -> float:
 	var lot := _lot(deg, r, facing, float(w), float(d))
@@ -235,7 +245,40 @@ func _house_lot(deg: float, r: float, facing: float, w: int, d: int, style: Stri
 	var door: Vector3 = (lot["c"] as Vector3) + b * Vector3(float(w) * 0.5 - 0.6, 0.0, float(d) * 0.5 + 0.7)
 	var pick: String = ["barrel", "large_box", "basket", "bucket", "chest"][_rng.randi_range(0, 4)]
 	prop(pick, door, (lot["yaw"] as float) + _rng.randf_range(-0.4, 0.4))
+	_door_path(lot["c"], b, float(d))
+	if _rng.randf() < 0.35:
+		_garden((lot["c"] as Vector3) + b * Vector3(0, 0, -float(d) * 0.5 - 2.6), float(w), lot["yaw"])
+	if district_of(deg) == &"market" and _rng.randf() < 0.5:
+		prop("sign", (lot["c"] as Vector3) + b * Vector3(-float(w) * 0.5 + 0.4, 0, float(d) * 0.5 + 0.6), lot["yaw"])
 	return float(w)
+
+## A short footpath from a front door out to the street (a strip in the road mesh).
+var _paths: Array = []  ## [from, to]
+func _door_path(c: Vector3, b: Basis, d: float) -> void:
+	var from := c + b * Vector3(0, 0, d * 0.5 + 0.4)
+	var dir := b * Vector3(0, 0, 1)
+	var to := from
+	for k in 16:
+		to = from + dir * float(k)
+		if street_d(to) < ROAD_W * 0.5 or not rt.is_dry(to):
+			break
+	if from.distance_to(to) > 0.9:
+		_paths.append([from, to])
+
+## A fenced kitchen garden behind a house: crop rows, sometimes a scarecrow or a water butt.
+func _garden(c: Vector3, w: float, yaw: float) -> void:
+	var gw := maxf(w, 4.0)
+	if is_nan(lot_base(c, gw, 3.6, yaw, 0.3)):
+		return
+	var b := Basis(Vector3.UP, yaw)
+	for i in int(gw / 2.0):
+		var stage: String = ["field_crop_1", "field_crop_2", "field_crop_3", "field_tilled"][_rng.randi_range(0, 3)]
+		prop(stage, c + b * Vector3(-gw * 0.5 + 1.0 + 2.0 * float(i), 0, 0), yaw, 0.8)
+	_fence_rect(c, gw + 0.4, 3.8, yaw, false)
+	if _rng.randf() < 0.3:
+		prop(["scarecrow", "barrel", "compost_heap"][_rng.randi_range(0, 2)], c + b * Vector3(gw * 0.5 + 0.8, 0, 0), yaw)
+	_take(c, gw + 0.4, 3.8, 1.2, yaw, false)
+	stats["gardens"] = int(stats.get("gardens", 0)) + 1
 
 ## A house: stone plinth, 2 m wall panels of one style (a doorway in front, windows here and there),
 ## timber corner posts and a gabled roof (thatch, or slate on stone houses). Local +Z is the front.
@@ -275,9 +318,10 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 	var span := float(mini(w, d))
 	var long := float(maxi(w, d))
 	var rb := b if w >= d else Basis(Vector3.UP, yaw + PI * 0.5)  # ridge along the long side
-	var rh := span * 0.55
-	var col: Color = ROOF_COLORS.get(style, ROOF_COLORS["timber"])
-	col = col.lerp(Color(0.6, 0.5, 0.3), _rng.randf() * 0.3)
+	var rh := span * _rng.randf_range(0.45, 0.75)
+	var finishes: Array = ROOF_BY_STYLE.get(style, ROOF_BY_STYLE["timber"])
+	var col: Color = ROOFS[finishes[_rng.randi_range(0, finishes.size() - 1)]]
+	col = col.lerp(Color(0.55, 0.48, 0.38), _rng.randf() * 0.25)
 	unit("roof", Transform3D(rb.scaled(Vector3(long + 0.8, rh, span + 1.0)), Vector3(c.x, eave, c.z)), col, FAR_HOUSE, true)
 	for e in [-1.0, 1.0]:
 		unit("gable", Transform3D(rb.scaled(Vector3(1.0, rh, span)), Vector3(c.x, eave, c.z) + rb * Vector3(e * long * 0.5, 0, 0)), Color(0.80, 0.72, 0.58), FAR_HOUSE)
@@ -331,8 +375,11 @@ func _stall_lot(deg: float, r: float, facing: float) -> float:
 	unit("canvas", Transform3D(b.scaled(Vector3(4.2, 0.5, 3.2)), c + Vector3(0, 2.05, 0)), col, FAR_PROP)
 	unit("box", Transform3D(b.scaled(Vector3(3.4, 0.9, 0.8)), c + b * Vector3(0, 0, 1.0)), Color(0.45, 0.32, 0.18), FAR_PROP)
 	var goods := ["basket", "bucket", "chest", "barrel"]
-	for i in 2:
-		prop(goods[_rng.randi_range(0, 3)], c + b * Vector3(-0.9 + 1.8 * float(i), 0.9, 1.0), yaw, 0.6)
+	for i in 3:
+		prop(goods[_rng.randi_range(0, 3)], c + b * Vector3(-1.2 + 1.2 * float(i), 0.9, 1.0), yaw, 0.55)
+	prop("large_box", c + b * Vector3(-2.4, 0, -0.6), yaw + 0.2)
+	if _rng.randf() < 0.5:
+		prop("sign", c + b * Vector3(1.9, 0, 1.6), yaw)
 	prop(["barrel", "large_box", "basket"][_rng.randi_range(0, 2)], c + b * Vector3(2.4, 0, 0.3), yaw)
 	_take(c, 4.0, 3.0, 2.4, yaw)
 	stats["stalls"] += 1
@@ -374,6 +421,7 @@ func _workshop_lot(deg: float, r: float, facing: float) -> float:
 		prop(kind, at, yaw)
 	prop(["barrel", "chest", "large_box", "basket"][_rng.randi_range(0, 3)], c + b * Vector3(2.2, 0.1, -1.6), yaw)
 	prop("bucket", c + b * Vector3(-2.3, 0.1, -1.7), yaw)
+	prop("sign", c + b * Vector3(-3.2, 0, 2.6), yaw)
 	npc(c + b * Vector3(0.0, 0.1, 0.9), yaw + PI, row[2])
 	_take(c, 6.0, 5.0, 2.8, yaw, false)
 	for k in 4:  # only the posts block: the shelter stays walkable
@@ -425,7 +473,7 @@ func _field_lot(deg: float, r: float) -> float:
 	return 9.0
 
 ## Pens: a fenced paddock with a tamed animal or two (the real species art, idle loop).
-const PEN_SPECIES := [&"protoceratops", &"zebraceratops", &"gallimimus", &"compsognathus"]
+const PEN_SPECIES := [&"zebraceratops", &"compsognathus"]  ## owner 2026-10-29: only these two on the tutorial island
 var _pen_i := 0
 
 func _pen_lot(deg: float, r: float) -> float:
@@ -475,19 +523,140 @@ func _outskirts() -> void:
 	for deg in range(160, 200, 16):
 		_pen_lot(_wrap(float(deg)), 88.0)
 
+## Fill the empty lots: every free spot left in town gets a cottage, a shed, a fenced garden or a
+## yard (woodpile, crates, hay), facing the nearest avenue or the square.
+func _infill() -> void:
+	var step := 4.5
+	var n := int(TOWN_R * 2.0 / step)
+	for i in n:
+		for j in n:
+			var off := Vector3(-TOWN_R + step * (float(i) + _rng.randf_range(0.2, 0.8)), 0, -TOWN_R + step * (float(j) + _rng.randf_range(0.2, 0.8)))
+			var c := camp + off
+			var r := Vector2(off.x, off.z).length()
+			if r < PLAZA_R + 3.0 or r > TOWN_R - 3.0 or street_d(c) < 5.0:
+				continue
+			var yaw := atan2(-off.x, -off.z)  # door to the square
+			var roll := _rng.randf()
+			if roll < 0.55:
+				var lot_y := lot_base(c, 4.0, 4.0, yaw, 0.6)
+				if is_nan(lot_y):
+					continue
+				c.y = lot_y
+				var style: String = "stone" if district_of(_deg_of(c)) in [&"harbour", &"workshops"] else ("timber" if _rng.randf() < 0.7 else "plain")
+				house(c, 4, 4, yaw, style)
+				_door_path(c, Basis(Vector3.UP, yaw), 4.0)
+				stats["infill"] = int(stats.get("infill", 0)) + 1
+			elif roll < 0.8:
+				_garden(c, 4.0, yaw)
+			else:
+				if is_nan(lot_base(c, 3.0, 3.0, yaw, 0.3)):
+					continue
+				var b := Basis(Vector3.UP, yaw)
+				prop(["large_box", "straw_roll", "barrel", "basket"][_rng.randi_range(0, 3)], c, yaw)
+				prop(["barrel", "bucket", "chest", "large_box"][_rng.randi_range(0, 3)], c + b * Vector3(1.3, 0, 0.4), yaw + 0.5)
+				prop("straw_roll", c + b * Vector3(-1.2, 0, -0.3), yaw + 1.2)
+				_take(c, 3.0, 3.0, 1.2, yaw)
+				stats["yards"] = int(stats.get("yards", 0)) + 1
+
+func _deg_of(p: Vector3) -> float:
+	return _wrap(rad_to_deg(atan2(p.z - camp.z, p.x - camp.x)) - dock_deg)
+
+## The harbour front: the real dock (Harbour) plus moored piers to each side with their boats, crates
+## and fish, stacks of barrels and crates on the quay, fish racks and a fishing stand.
+func _harbour() -> void:
+	var h: Node3D = rt.harbour
+	if h == null:
+		return
+	var s2 := HarbourSite.seaward(int(h.get("build_rot")))
+	var sea := Vector3(s2.x, 0, s2.y)
+	var along := Vector3(-sea.z, 0, sea.x)
+	var base := rt.arrival_point()
+	for off in [-24.0, -15.0, 15.0, 24.0]:
+		var p: Vector3 = base + along * off - sea * 12.0
+		var k := 0
+		while k < 40 and rt.is_dry(p):
+			p += sea * 0.5
+			k += 1
+		if k >= 40 or k < 2:
+			continue
+		var pier_at: Vector3 = p + sea * 2.4
+		pier_at.y = h.global_position.y
+		part_at("pier", Transform3D(Basis(Vector3.UP, atan2(-sea.x, -sea.z)), pier_at), FAR_HOUSE)
+		var quay: Vector3 = p - sea * 2.5
+		quay.y = rt.surface_y(quay.x, quay.z)
+		var yaw := atan2(sea.x, sea.z)
+		var qb := Basis(Vector3.UP, yaw)
+		prop("large_box", quay + qb * Vector3(1.6, 0, 0), yaw)
+		prop("barrel", quay + qb * Vector3(-1.4, 0, 0.3), yaw)
+		prop("barrel", quay + qb * Vector3(-2.2, 0, -0.4), yaw + 0.7)
+		prop("drying_rack_dried" if absf(off) > 20.0 else "fishing_stand", quay + qb * Vector3(0, 0, -2.6), yaw)
+		_take(quay, 5.0, 3.0, 1.4, yaw)
+		stats["piers"] = int(stats.get("piers", 0)) + 1
+	var sign_at := base - sea * 6.0 + along * 3.5
+	prop("signpost", sign_at, atan2(sea.x, sea.z))
+	lamp(base - sea * 5.0 - along * 3.0)
+	lamp(base - sea * 5.0 + along * 3.0)
+
+## The palisade: fortified fence panels on a ring round the town, a gate wherever an avenue leaves
+## (two tall posts with lamps and a signpost outside), nothing over water.
+func _wall() -> void:
+	var n := int(TAU * WALL_R / 2.05)
+	for i in n:
+		var deg := 360.0 * (float(i) + 0.5) / float(n)
+		var gate := false
+		for av: float in AVENUES:
+			if absf(_wrap(deg - av)) * PI / 180.0 * WALL_R < AVENUE_W * 0.5 + 1.2:
+				gate = true
+		var p := polar(deg, WALL_R)
+		if gate or not rt.is_dry(p) or not rt.spawn_ok(p, false):
+			continue
+		var t := BuildGrid.tile_of(p)
+		if rt.build_grid._occupied.has(t) or rt.build_grid._reserved.has(t):
+			continue
+		var yaw := yaw_out(deg) + PI * 0.5  # the panel runs along the ring
+		prop("fence_fortified", p, yaw)
+		_boxes.append([Transform3D(Basis(Vector3.UP, yaw), p + Vector3(0, 1.1, 0)), Vector3(2.05, 2.2, 0.5)])
+		for k in [-0.8, 0.0, 0.8]:
+			cells[BuildGrid.tile_of(p + Basis(Vector3.UP, yaw) * Vector3(k, 0, 0))] = true
+		stats["wall"] = int(stats.get("wall", 0)) + 1
+	for av: float in AVENUES:
+		var g := polar(av, WALL_R)
+		if not rt.is_dry(g):
+			continue
+		var side := Vector3(-sin(deg_to_rad(dock_deg + av)), 0, cos(deg_to_rad(dock_deg + av)))
+		for e in [-1.0, 1.0]:
+			var post: Vector3 = g + side * e * (AVENUE_W * 0.5 + 0.6)
+			post.y = rt.surface_y(post.x, post.z)
+			unit("box", Transform3D(Basis().scaled(Vector3(0.5, 3.6, 0.5)), post), Color(0.32, 0.22, 0.13), FAR_HOUSE)
+			lamp(post + Vector3(0, 0, 0) - (polar(av, WALL_R - 1.0) - g).normalized() * 0.8, 2.4)
+			_boxes.append([Transform3D(Basis(), post + Vector3(0, 1.8, 0)), Vector3(0.5, 3.6, 0.5)])
+		unit("box", Transform3D(Basis(Vector3.UP, yaw_out(av) + PI * 0.5).scaled(Vector3(AVENUE_W + 1.7, 0.4, 0.4)), g + Vector3(0, 3.3, 0)), Color(0.32, 0.22, 0.13), FAR_HOUSE)
+		prop("signpost", polar(av, WALL_R + 3.0) + side * (AVENUE_W * 0.5 + 1.5), yaw_out(av))
+		stats["gates"] = int(stats.get("gates", 0)) + 1
+
 # ---------------------------------------------------------------- streets
 
 ## Dirt avenues and ring roads: one mesh hugging the ground, cover cleared under it.
+## Inside ring A the streets are paved (cobbles), outside them packed dirt; footpaths run from every
+## front door to its street.
 func _roads() -> void:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var paved := SurfaceTool.new()
+	paved.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var dirt := SurfaceTool.new()
+	dirt.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for av: float in AVENUES:
 		var prev: Array = []
 		var r := PLAZA_R - 6.0
-		while r <= TOWN_R:
+		var was_paved := true
+		while r <= WALL_R + 8.0:
 			var p := polar(av, r)
 			var side := Vector3(-sin(deg_to_rad(dock_deg + av)), 0, cos(deg_to_rad(dock_deg + av)))
-			prev = _road_step(st, prev, p, side, AVENUE_W)
+			var now_paved := r <= RING_A + ROAD_W
+			if now_paved != was_paved:
+				_road_step(paved if was_paved else dirt, prev, p, side, AVENUE_W)  # close the strip on the seam
+				prev = []
+				was_paved = now_paved
+			prev = _road_step(paved if now_paved else dirt, prev, p, side, AVENUE_W)
 			r += 2.0
 	for ring in [RING_A, RING_B]:
 		var prev: Array = []
@@ -496,16 +665,27 @@ func _roads() -> void:
 			var deg := 360.0 * float(i) / float(n)
 			var p := polar(deg, ring)
 			var a := deg_to_rad(dock_deg + deg)
-			prev = _road_step(st, prev, p, Vector3(cos(a), 0, sin(a)), ROAD_W)
-	var m := st.commit()
-	if m.get_surface_count() == 0:
-		return
-	var mi := MeshInstance3D.new()
-	mi.name = "TownRoads"
-	mi.mesh = m
-	mi.material_override = _mat("road", Color.WHITE)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mi)
+			prev = _road_step(paved if ring == RING_A else dirt, prev, p, Vector3(cos(a), 0, sin(a)), ROAD_W)
+	for row: Array in _paths:
+		var a3: Vector3 = row[0]
+		var b3: Vector3 = row[1]
+		var dir := (b3 - a3).normalized()
+		var side := Vector3(-dir.z, 0, dir.x)
+		var prev: Array = []
+		var k := 0.0
+		while k <= a3.distance_to(b3):
+			prev = _road_step(dirt, prev, a3 + dir * k, side, 1.6)
+			k += 1.0
+	for pair in [[paved, "paved", "TownStreetsPaved"], [dirt, "road", "TownRoads"]]:
+		var m := (pair[0] as SurfaceTool).commit()
+		if m.get_surface_count() == 0:
+			continue
+		var mi := MeshInstance3D.new()
+		mi.name = pair[2]
+		mi.mesh = m
+		mi.material_override = _mat(pair[1], Color.WHITE)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
 
 ## One road quad from the previous cross-section to this one; a wet or steep point breaks the strip.
 func _road_step(st: SurfaceTool, prev: Array, p: Vector3, side: Vector3, w: float) -> Array:
@@ -819,6 +999,10 @@ static func _mat(kind: String, _c: Color) -> Material:
 			m.emission = Color(1.0, 0.65, 0.3)
 			m.emission_energy_multiplier = 2.2
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		"paved":
+			m.vertex_color_use_as_albedo = false
+			m.albedo_color = Color(0.56, 0.53, 0.48)
+			m.albedo_texture = _noise(0.35, Vector2.ONE)
 		"road":
 			m.vertex_color_use_as_albedo = false
 			m.albedo_color = Color(0.47, 0.38, 0.27)

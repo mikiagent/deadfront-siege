@@ -46,7 +46,7 @@
     {
       "id": "tut_drink",
       "title": "Drink fresh water",
-      "hint": "Walk to the stream and tap Drink",
+      "hint": "Out through the north gate to the stream, then tap Drink",
       "status": "quenched",
       "point_at": "ctx:drink|world:water",
       "xp": 20,
@@ -161,7 +161,7 @@
       "did": {
         "kill": 1
       },
-      "point_at": "world:creature",
+      "point_at": "world:creature:compsognathus",
       "xp": 60
     },
     {

@@ -10,17 +10,17 @@
   "kind": "tutorial",
   "lifetime_seconds": 0,
   "sail_cost": 0,
-  "dock_rule": "hint",
-  "_dock_rule_note": "ISLANDSHAPES: the tutorial keeps its hand-tuned dock beside the town (the json harbour), not the southern-most-port rule every other island uses.",
+  "dock_rule": "south",
+  "_dock_rule_note": "Owner 2026-10-29 (TUTTOWN): the tutorial follows the ISLANDSHAPES rule too: the dock is on the southern-most coast, and the town (camp) sits just inland of it.",
   "harbour": [
-    60,
+    -67,
     0,
-    194
+    317
   ],
   "camp": [
-    44,
+    -51,
     0,
-    160
+    271
   ],
   "crater": null,
   "terrains": {
@@ -48,7 +48,7 @@
   "_no_alphas_note": "# ASSUMPTION (2026-10-28): the level-1 newcomer island rolls no alphas (Spawner reads island_def.no_alphas).",
   "town_safe_m": 100,
   "_town_safe_note": "# ASSUMPTION (2026-10-28): no wild zone sits closer than town_safe_m to the town, so compsognathus packs stay in the wild lands and leave the town and the early gather orders alone (Tutorial._wild_zones clamps each row's dist). The compsognathus pair sits at 160 m and the single compys are spread (200/265/310 degrees, ~75-105 m apart on the ring) so the first hunt meets one compy, not two.",
-  "wild_zones_about": "Wild lands outside the town (ZoneSpawner): each row is a group placed 'dist' m from the town at 'angle' degrees (nearest dry land), spawned only while the survivor is within wake_m. Weak animals by the town, harder ones further out. # ASSUMPTION: rows, distances and species mix (existing species only).",
+  "wild_zones_about": "Wild lands outside the town (ZoneSpawner): each row is a group placed 'dist' m from the town at 'angle' degrees (absolute, from +x; 270 = north, inland of the southern dock), at least town_safe_m out, spawned only while the survivor is within wake_m. Owner 2026-10-29: the tutorial island spawns ONLY compsognathus (the first hunt) and zebraceratops (the first tame, herds of 2-3). # ASSUMPTION: rows and distances.",
   "wild_zones": [
     {
       "species": "compsognathus",
@@ -64,64 +64,66 @@
     },
     {
       "species": "compsognathus",
-      "count": 2,
-      "pack": true,
-      "dist": 160,
-      "angle": 280
-    },
-    {
-      "species": "compsognathus",
       "count": 1,
       "dist": 60,
-      "angle": 310
+      "angle": 330
     },
     {
       "species": "zebraceratops",
-      "count": 1,
-      "dist": 85,
-      "angle": 250
-    },
-    {
-      "species": "gallimimus",
-      "count": 2,
-      "pack": true,
-      "dist": 110,
-      "angle": 300
-    },
-    {
-      "species": "protoceratops",
-      "count": 2,
-      "pack": true,
-      "dist": 140,
-      "angle": 220
-    },
-    {
-      "species": "coelophysis",
       "count": 3,
       "pack": true,
-      "dist": 210,
+      "dist": 120,
       "angle": 240
     },
     {
-      "species": "coelophysis",
+      "species": "compsognathus",
+      "count": 2,
+      "pack": true,
+      "dist": 160,
+      "angle": 285
+    },
+    {
+      "species": "zebraceratops",
+      "count": 2,
+      "pack": true,
+      "dist": 170,
+      "angle": 310
+    },
+    {
+      "species": "compsognathus",
+      "count": 2,
+      "pack": true,
+      "dist": 200,
+      "angle": 220
+    },
+    {
+      "species": "zebraceratops",
       "count": 3,
       "pack": true,
       "dist": 240,
-      "angle": 280
+      "angle": 265
     },
     {
-      "species": "velociraptor",
+      "species": "compsognathus",
       "count": 3,
       "pack": true,
-      "dist": 300,
-      "angle": 260
+      "dist": 280,
+      "angle": 300
     },
     {
-      "species": "deinonychus",
+      "species": "compsognathus",
       "count": 2,
       "pack": true,
+      "dist": 320,
+      "angle": 235
+    },
+    {
+      "species": "zebraceratops",
+      "count": 3,
+      "pack": true,
       "dist": 360,
-      "angle": 230
+      "angle": 275
     }
-  ]
+  ],
+  "_camp_note": "TUTTOWN (owner 2026-10-29: 'move it'): the town centre sits ~49 m inland (north) of the southern-most dock (dock_rule south); the harbour district runs down to the dock. # ASSUMPTION: the spot is the flattest dry ground 30-50 m inland of the dock (scripts/dev/tuttown_map.gd --suggest)."
 }
