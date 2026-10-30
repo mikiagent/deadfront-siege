@@ -94,6 +94,12 @@
       "min": 1,
       "max": 60
     },
+    "repairs": {
+      "type": "int",
+      "min": 0,
+      "max": 4,
+      "_why": "P3 GEARREPAIR: GearRepair stamps the repair count; recipes.json repair_rules.max_repairs (4)."
+    },
     "toxin_hits": {
       "type": "int",
       "min": 0,

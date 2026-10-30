@@ -64,7 +64,8 @@ the first island pick have not finished), and `saved_unix` is written on every s
   the island origin (positions, claims, domain cells), `MAX_CLAIM_TILES` 14, `MAX_RANK` 7,
   `DEFAULT_POSITION` `[0, 1, 12]` for a malformed position.
 - Wrong-typed fields are erased so loader defaults apply. Unknown item ids drop the row; `count`
-  ≥ 1 and ≤ the def's stack max; durability ≤ a fresh stack's `max_durability`; `attributes.species`
+  ≥ 1 and ≤ the def's stack max; durability ≤ a fresh stack's `max_durability`; a repaired item keeps its lowered `max_durability` and its
+  repair count in `attributes.repairs` (P3 GEARREPAIR, a new key inside `attributes`; old saves read 0); `attributes.species`
   must exist in the creature data.
 - `home.shape` must be a shape id in `game/data/world/island_shapes.json`; `island_id` must be a
   known island, else `home_grassland`.

@@ -69,7 +69,7 @@ static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: 
 	Tasks.note(&"gather", gained)  # TASKSCREEN: daily / weekly gather counts
 	if landed.level >= 60 and role_of_family(node.family) == "rock":
 		Tasks.note(&"mineral60", gained)  # achievement Gather Level-60 Minerals (DW-T0137)
-	wear_role_tool(p.inventory, node.required_tool_class, node.family)
+	wear_role_tool(p.inventory, node.required_tool_class, node.family, landed.level)
 	# LANDMARKS (doc sections 5.2 and 5.7): a landmark node gathered by the survivor's own hands rolls
 	# better perks; tribe work never comes through here.
 	var bonus := landmark_bonus(node)
@@ -85,12 +85,13 @@ static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: 
 
 ## A helper tool wears like a required one (spec 12:44 "Tool wear ... integrate directly"): a knife on a
 ## bush, a pick on loose stone. A node that requires its tool already wore it in PlayerActions.
-static func wear_role_tool(inv: Inventory, need: StringName, family: String) -> void:
+## `level` is the landed lot's (P1 WEAR); `spare_last` keeps a tribe worker's tool at 1.
+static func wear_role_tool(inv: Inventory, need: StringName, family: String, level: int = -1, spare_last: bool = false) -> void:
 	if need != &"" and need != &"none":
 		return
 	var tool := tool_for(inv, need, family)
 	if tool:
-		inv.wear_tool(tool)
+		inv.wear_tool(tool, level, spare_last)
 
 ## Each of the `gained` items that just landed rolls the green rare trait (world-design.md:55, PRD:541).
 ## Every gathered item is its own instance (W2-INV), so a hit marks the unit that landed, in place: the

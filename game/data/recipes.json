@@ -89,7 +89,8 @@
       "restore_fraction": 0.5
     }
   ],
-  "_repairs_about": "Per-tier repair cost: one unit of the tier's material at the station restores restore_fraction of max durability. ASSUMPTION values; read by the repair hook (W2-PROCESS/W2-CRAFT).",
+  "_repairs_about": "Per-tier repair cost: one unit of the tier's material at the station restores restore_fraction of max durability. ASSUMPTION values; read by GearRepair (P3 GEARREPAIR, station menu REPAIR).",
+  "repair_rules": {"_about": "P3 GEARREPAIR: each repair sets max durability to round(max x max_factor) and refills it; the repair after max_repairs is refused. ASSUMPTION values.", "max_factor": 0.8, "max_repairs": 4},
   "recipes": [
     {
       "id": "improvised_stone_knife",

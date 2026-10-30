@@ -127,8 +127,9 @@ grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in
   armour / storage, energy, raw / poisoned, locked, unstable), then sections **Traits** (gold
   positive, grey negative), **Perks** (green rare traits with their tier, "Black Sheen IV"),
   **Info** (flat-top hex swatches of the instance's tint and a light and dark tone, with the hex
-  code; # ASSUMPTION: items carry one colour), **Maintenance** ("Repair: Not Possible": no item
-  repair exists; recipes.json `repairs` is unread data), **Craft into** (recipes that take the item
+  code; # ASSUMPTION: items carry one colour), **Maintenance** (`GearRepair.text`: "Repair at Workbench: 2 Stone material · max 50 -> 40
+  (repair 1 of 4)", "Repair: worn out (repaired 4 of 4)", or "Repair: Not Possible" for items without
+  durability; the repair itself is the station menu's REPAIR hex, P3 GEARREPAIR), **Craft into** (recipes that take the item
   by category / allowed id / preferred id, at most 8). Under it the valid smaller actions and the
   big GOLD **Use** (`InventoryUI.use_action`: eat, else equip, else place; disabled otherwise).
 - Rummage (BAGUI): opening the bag or a container calls `PlayerAnim.start_rummage` (clip `rummage`
@@ -179,6 +180,18 @@ grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in
   mines (KNIFEFIX 2026-10-29, `Inventory._is_tool`). When only broken tools of a class are carried,
   the blocked option reads "your knife is broken" instead of "needs knife"
   (`Inventory.tool_block_reason`). The stone knife's `max_durability` is 120 (was 40).
+- Wear (P1 WEAR, `Inventory.wear_tool`): a gather or butcher cut wears base 1 (work tool) or 3 (a weapon
+  used as a tool) x clamp(1 + 0.04 x (resource level - tool level), 0.5, 2.5) (`rules.json gathering.wear`),
+  rounded stochastically with `GatherService.rng`. The resource level is the landed lot's (after the
+  Gathering downrank) or the carcass level; callers without one wear flat. A damaging creature hit wears
+  1 (`combat_tuning.json armor_wear_per_hit`) on one worn, unbroken armor piece picked at random weighted
+  by its armor value (`Inventory.wear_armor_piece`); a dodge or miss wears nothing.
+- Repair (P3 GEARREPAIR, `GearRepair`): the station menu shows REPAIR on a workbench or anvil while the
+  survivor carries or wears worn gear of that station's tiers; it opens `RepairPicker` (one 64 px row
+  per worn item, refusals in red). A repair costs ceil(missing / (0.5 x max)) units of the tier
+  material (`recipes.json repairs`), refills the item and sets max to round(max x 0.8)
+  (`repair_rules`); the count is `attributes.repairs` (old items read 0), at most 4. Market rows add
+  "repaired n/4" to the type line; the vault accepts `repairs` 0-4 (`economy/limits.json`).
 - `Inventory.transfer_to` moves one slot to another container, refusing locked items and markers.
 
 ## Saves

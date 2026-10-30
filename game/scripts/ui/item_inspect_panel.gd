@@ -189,7 +189,8 @@ func show_stack(stack: ItemStack, where: String = "") -> void:
 	_section("Info")
 	show_look(stack)
 	_section("Maintenance")
-	_sections.add_child(_row_label(repair_text(stack), ""))
+	for line in GearRepair.lines(stack):  # one fact per row (P3 GEARREPAIR)
+		_sections.add_child(_row_label(line, ""))
 	shown_craft_into = craft_into(stack)
 	if not shown_craft_into.is_empty():
 		_section("Craft into")
@@ -335,10 +336,10 @@ static func tags_for(stack: ItemStack) -> Array[String]:
 			out.append(l)
 	return out
 
-## No item repair exists in the build (recipes.json "repairs" is data no code reads), so the line is
-## honest about it. Durability itself is a fact row above.
-static func repair_text(_stack: ItemStack) -> String:
-	return "Repair: Not Possible"
+## P3 GEARREPAIR: where, for what and to which max (GearRepair.text); "Repair: Not Possible" for items
+## without durability. Durability itself is a fact row above.
+static func repair_text(stack: ItemStack) -> String:
+	return GearRepair.text(stack)
 
 ## Display names of the recipes this item can fill a slot of (by category, allowed id or preferred
 ## id), sorted, at most CRAFT_INTO_MAX.

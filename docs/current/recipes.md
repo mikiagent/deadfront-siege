@@ -344,7 +344,7 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 
 ## Repairs — per-tier cost
 
-One unit of the tier's material restores `restore_fraction` of max durability at the named station (ASSUMPTION values, W2-PROCESS/W2-CRAFT).
+P3 GEARREPAIR (`GearRepair`, station menu REPAIR at a workbench or anvil): an item repairs at its material tier's station for ceil(missing / (`restore_fraction` x max)) units of the tier material (a broken item 2, a half-worn one 1). Each repair refills it and sets max durability to round(max x 0.8); the count is the item's `repairs` attribute, and the repair after 4 is refused ("worn out"). A full item is refused. ASSUMPTION values.
 
 | tier | station | input | restore |
 |---|---|---|---|

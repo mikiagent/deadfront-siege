@@ -124,6 +124,7 @@ Source: branch `claude/mmo-tribem2a`, report `docs/orchestration/reports/claude-
 | **P4** | `metal_nails`: 4 from 1 ingot + 1 fuel at the forge (node `nails_pillars`); required by the medium/large/apex pens (2/4/8). No other station needs them yet: kiln, oven, tanning frame, large drying rack and looms are not buildable kinds. | `items.json`, `recipes.json` | The owner wants nails to gate the next station tier. |
 | **P5** | The stone grill is the cooking station that shows the spit; no oven or tanning frame kind exists, so neither has a station-state row (one row in `station_state.json` once they do). The forge body is built from data boxes until a forge GLB lands. | `station_state.json` | Art and station roster. |
 | **P6** | Work loops per station: workbench/anvil/mortar hammer, grill/crock pot/steamer stir, rack/smoker hang, forge forge, tanning frame tan; `play_work(kind)` gets the short kind (clip `work_<kind>`). | `station_state.json` `work_anim` | Must match claude/mmo-rummage's PlayerAnim API. |
+| **P7** | Pen feeding follows the species' taming diet (PEN-DIET 2026-10-30): a preferred food cuts the wait to 60 %, an accepted food to 80 % (half the cut, like field feeding's 1.0 / 0.5); spoiled meat, rot and off-diet food are refused. Food quality and perks are ignored. | `TamingPen.ACCEPTED_FEED_MULT`, `TamingPen.feed` | How much grinding a non-preferred food saves; whether better food should tame faster or better. |
 
 ### TUTORIAL ISLAND (2026-10-28)
 

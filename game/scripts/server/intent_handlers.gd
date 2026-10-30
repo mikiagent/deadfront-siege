@@ -111,9 +111,6 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if not inv.has_tool_class(tool_class):
 		return no("missing_tool", "needs a %s" % tool_class)
 	var tool := inv.find_gather_tool(tool_class)
-	if tool and not inv.wear_gather_tool(tool_class):
-		ch.commit(inv, "gather", seq) # the tool broke on this pass: the wear stands, nothing is gathered
-		return ok({"broke": str(tool.def_id), "gained": 0})
 	var attrs: Dictionary = n.get("attributes", {})
 	var zone := int(attrs.get("level", n.get("level", 1)))
 	var family := str(n.get("family", ""))
@@ -127,6 +124,9 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if stack.level > cap:
 		stack.level = cap
 		stack.attributes["level"] = cap
+	if tool and not inv.wear_gather_tool(tool_class, stack.level): # P1 WEAR: by the landed lot's level
+		ch.commit(inv, "gather", seq) # the tool broke on this pass: the wear stands, nothing is gathered
+		return ok({"broke": str(tool.def_id), "gained": 0})
 	var before := stack.count
 	var had := inv.uids()  # W2-GATHER: the units this pass lands are the instances not in it
 	var gained := before - inv.add(stack)
@@ -134,7 +134,7 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return no("bag_full", "bag is full")
 	# W2-GATHER: as on the client, a helper tool wears, each item rolls the green rare trait, and the
 	# finds roll on the node's island climate, all with this op's rng.
-	GatherService.wear_role_tool(inv, tool_class, family)
+	GatherService.wear_role_tool(inv, tool_class, family, stack.level)
 	var traits := GatherService.stamp_traits(inv, had, stack, gained, rng, GatherService.tool_tier(inv, tool_class, family))
 	var rares := GatherService.add_finds(inv, family, tool_class, str(attrs.get("climate", "")), stack.level, maxi(1, ch.level_of("gathering")), rng)
 	_write("take_node_unit", [node_id, str(def.id)])

@@ -104,6 +104,10 @@
     "build_spam_seconds": 60.0
   },
   "gathering_downrank": "node level above Gathering skill level is reduced to the skill level",
+  "gathering": {
+    "_about": "P1 WEAR (docs/design/tools-durability-crafting.md 3.7): wear per gather = base x clamp(1 + per_level x (resource level - tool level), min_mult, max_mult), rounded stochastically. ASSUMPTION: all numbers.",
+    "wear": {"work_tool_base": 1, "weapon_base": 3, "per_level": 0.04, "min_mult": 0.5, "max_mult": 2.5}
+  },
   "crafted_level": "floor(mean of consumed material levels), clamped by governing skill level and recipe max_level",
   "rare_attribute_chance": 0.05,
   "crafting": {
