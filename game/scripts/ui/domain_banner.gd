@@ -38,8 +38,11 @@ func tick(delta: float, rt: Node, at: Vector3) -> void:
 		age += minf(delta, 0.1)  # one long frame (the first portrait render, a busy phone) must not eat it
 		if age >= SHOW_S:
 			age = -1.0
-	# The tutorial island's town plot is nobody's domain (TUTORIAL ISLAND: the island is never claimed).
-	var here: Dictionary = rt.call("owner_at", BuildGrid.tile_of(at)) if rt and rt.has_method("owner_at") and not World.is_tutorial() else {}
+	# The tutorial island is never claimed by a survivor; its town is the town's own domain
+	# (TOWNPOLISH2: TownDress registers it as a claim row with a name and an emblem).
+	var here: Dictionary = {}
+	if rt and rt.has_method("owner_at"):
+		here = rt.call("owner_at", BuildGrid.tile_of(at)) if not World.is_tutorial() else _town_at(rt, BuildGrid.tile_of(at))
 	var id := rt.get_instance_id() if rt else 0
 	var jumped := _last_at.distance_to(at) > JUMP_M
 	_last_at = at
@@ -64,6 +67,13 @@ func tick(delta: float, rt: Node, at: Vector3) -> void:
 		if not here.is_empty():
 			shown = here
 			age = 0.0
+
+static func _town_at(rt: Node, tile: Vector2i) -> Dictionary:
+	var rows: Variant = rt.get("other_claims")
+	for row in (rows if rows is Array else []):
+		if (row["rect"] as Rect2i).has_point(tile):
+			return row["owner"]
+	return {}
 
 ## Desktop: top centre, else the nearest free spot straight down (under the target plate), off the
 ## vitals, minimap, quest card, hexes and the survivor, inside the safe area. Landscape phone: a slim

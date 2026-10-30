@@ -47,6 +47,9 @@
   "no_alphas": true,
   "_no_alphas_note": "# ASSUMPTION (2026-10-28): the level-1 newcomer island rolls no alphas (Spawner reads island_def.no_alphas).",
   "town_safe_m": 100,
+  "town_name": "Landfall",
+  "town_emblem": "res://assets/ui/emblems/landfall.svg",
+  "_town_name_note": "# ASSUMPTION (TOWNPOLISH2, 2026-10-30): owner asked for the town's domain to have a name and a picture. 'Landfall' (where every new survivor lands) is a name only, no lore; the emblem is a gold boat and palisade on a teal shield (assets/ui/emblems/landfall.svg). Logged in the wiki Open Questions.",
   "_town_safe_note": "# ASSUMPTION (2026-10-28): no wild zone sits closer than town_safe_m to the town, so compsognathus packs stay in the wild lands and leave the town and the early gather orders alone (Tutorial._wild_zones clamps each row's dist). The compsognathus pair sits at 160 m and the single compys are spread (200/265/310 degrees, ~75-105 m apart on the ring) so the first hunt meets one compy, not two.",
   "wild_zones_about": "Wild lands outside the town (ZoneSpawner): each row is a group placed 'dist' m from the town at 'angle' degrees (absolute, from +x; 270 = north, inland of the southern dock), at least town_safe_m out, spawned only while the survivor is within wake_m. Owner 2026-10-29: the tutorial island spawns ONLY compsognathus (the first hunt) and zebraceratops (the first tame, herds of 2-3). # ASSUMPTION: rows and distances.",
   "wild_zones": [

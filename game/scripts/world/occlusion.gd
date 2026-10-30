@@ -574,9 +574,20 @@ static func _instance_hit(o: Obj, chest: Vector3, back: Vector3) -> bool:
 	var wb := xf * box
 	if wb.size.y < 0.05:
 		return false
+	var line := unlean(chest, back, xf.origin)
+	if o.mmi.has_meta(&"occl_box"):
+		# TOWNPOLISH2: a building part (a wall panel, a long roof) is a box, not a round crown: its
+		# bounding cylinder reached a metre or more past a house's short side, so a house BESIDE the
+		# survivor faded. Test the sight line against the part's own turned box instead.
+		var inv := xf.affine_inverse()
+		var grown := box.grow(BODY_R_M / maxf(0.01, minf(s.x, s.z)))
+		grown.position.y -= HEAD_M / maxf(0.01, s.y)
+		grown.size.y += (HEAD_M + FEET_M) / maxf(0.01, s.y)
+		var from := inv * (line[0] as Vector3)
+		var dir := inv.basis * (line[1] as Vector3)
+		return grown.has_point(from) or grown.intersects_segment(from, from + dir * REACH_MAX_M)
 	var c := wb.get_center()
 	var r := 0.5 * maxf(box.size.x * s.x, box.size.z * s.z) + BODY_R_M
-	var line := unlean(chest, back, xf.origin)
 	return ray_hits_cylinder(line[0], line[1], Vector2(c.x, c.z), r, wb.position.y - HEAD_M, wb.end.y + FEET_M)
 
 ## The sight line in the prop's own unleaned shape: on screen a tall prop leans sideways by

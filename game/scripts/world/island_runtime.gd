@@ -190,6 +190,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	var res := clampi(int(def.get("terrain_res", 161)), 65, 321)
 	_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, res, _climate, land, str(def.get("shape_family", "")), keep_points(def))
 	_shape.camp_hint = Vector2(_camp_hint.x, _camp_hint.z)
+	_shape.town_r = float(def.get("town_safe_m", 0.0))  # TOWNPOLISH2: the town stands on one plane
 	map_doc = def.get("map_doc", null) as MapDoc
 	if map_doc == null and def.has("map"):
 		map_doc = MapDoc.load_file(str(def["map"]))

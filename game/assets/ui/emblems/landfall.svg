@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- TOWNPOLISH2: Landfall's emblem (the tutorial town's domain picture). Drawn round-cropped by the
+       domain banner, so everything that matters sits inside the central circle. # ASSUMPTION design. -->
+  <rect width="256" height="256" fill="#1d4a4f"/>
+  <circle cx="128" cy="128" r="112" fill="#24626a" stroke="#e8b54a" stroke-width="8"/>
+  <!-- the sea -->
+  <path d="M40 150 Q64 140 88 150 T136 150 T184 150 T232 150 L232 200 L24 200 Z" fill="#1a3f45"/>
+  <!-- a boat with a sail, landing -->
+  <path d="M84 146 L172 146 L158 166 L98 166 Z" fill="#e8b54a"/>
+  <rect x="124" y="70" width="7" height="78" fill="#e8b54a"/>
+  <path d="M133 74 L178 136 L133 136 Z" fill="#f4e6c4"/>
+  <path d="M121 86 L90 136 L121 136 Z" fill="#d9c79c"/>
+  <!-- the palisade on the shore -->
+  <g fill="#e8b54a">
+    <path d="M60 210 L60 182 L66 172 L72 182 L72 210 Z"/>
+    <path d="M80 210 L80 178 L86 168 L92 178 L92 210 Z"/>
+    <path d="M100 210 L100 182 L106 172 L112 182 L112 210 Z"/>
+    <path d="M144 210 L144 182 L150 172 L156 182 L156 210 Z"/>
+    <path d="M164 210 L164 178 L170 168 L176 178 L176 210 Z"/>
+    <path d="M184 210 L184 182 L190 172 L196 182 L196 210 Z"/>
+  </g>
+</svg>

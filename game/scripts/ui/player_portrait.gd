@@ -13,6 +13,9 @@ static var _silhouette: ImageTexture
 ## The owner's portrait: yours (the silhouette until PortraitService's first render lands), anyone
 ## else's the silhouette. HuntHud redraws every frame, so a finished render shows on the next one.
 static func texture_for(owner: Dictionary, _host: Node) -> Texture2D:
+	var emblem := str(owner.get("emblem", ""))
+	if emblem != "" and ResourceLoader.exists(emblem):
+		return load(emblem) as Texture2D  # a town's picture (TOWNPOLISH2)
 	var mine: Texture2D = PortraitService.of_player() if bool(owner.get("own", false)) else null
 	return mine if mine else silhouette()
 
