@@ -95,7 +95,6 @@ var _walk_acc: float = 0.0
 ## may be written before that: the 60 s autosave did once, on the creation screen, and a reload then
 ## skipped both and loaded a default "Survivor" (playtest 2026-10-21).
 var creation_pending: bool = false
-var _fade: ColorRect
 
 const SAVE_PATH := "user://save_1.json"
 const CARGO_FEE := 2 ## ASSUMPTION: T-stones to cargo-warp a bag of unstable goods
@@ -103,7 +102,6 @@ const CARGO_FEE := 2 ## ASSUMPTION: T-stones to cargo-warp a bag of unstable goo
 func _ready() -> void:
 	_load_islands("res://data/islands")
 	_load_shapes()
-	_ensure_fade()
 	call_deferred("_boot")
 
 func _process(delta: float) -> void:
@@ -214,6 +212,8 @@ func _boot() -> void:
 	if host == null or host.is_in_group("shell"):
 		return  # downloader shell is showing; shell/boot.gd calls _boot once the game scene is up
 	if runtime != null and is_instance_valid(runtime):
+		if LoadingScreen.active():
+			LoadingScreen.current.finish()
 		return  # already booted
 	ensure_survivor(host)
 
@@ -225,8 +225,11 @@ func ensure_survivor(host: Node) -> bool:
 	var sg := load("res://scripts/core/save_game.gd") as GDScript
 	var saved := _save_exists() and not ("--new-game" in OS.get_cmdline_user_args())
 	if saved and not sg.has_precreation_save():
-		_load_now(host)  # a real save: SaveGame._apply also lifts "creation pending"
+		# a real save: SaveGame._apply also lifts "creation pending". LOADING: under the overlay.
+		LoadingScreen.run("Loading your save", func () -> void: _load_now(host))
 		return true
+	if LoadingScreen.active():
+		LoadingScreen.current.finish()  # the boot overlay lifts off character creation
 	start_new(host)
 	return false
 
@@ -295,14 +298,17 @@ func start_new(host: Node) -> void:
 		# TUTORIAL ISLAND: a new survivor lands on the shared tutorial island; its last order opens
 		# the Tamed Island pick. --skip-tutorial keeps the old straight-to-the-pick flow (dev).
 		if not Tutorial.skip_requested():
-			Tutorial.begin(host)
+			LoadingScreen.run("Entering the %s" % str(def_of(Tutorial.ISLAND).get("display_name", "Tutorial Island")),
+				func () -> void: Tutorial.begin(host))
 			return
 		# ISLANDPICK: the Tamed Island shape step sits inside character creation's own sheet (the
 		# old free-standing terrain panel would open over it). It hands back the one permanent pick.
 		var ip = (load("res://scripts/ui/island_pick.gd") as GDScript).instance_on(host)
 		ip.picked.connect(func (shape_id: StringName) -> void:
 			# Only a pick the world accepts proceeds: the screen re-enables itself otherwise.
-			if not complete_pick(host, shape_id):
+			var ok := [false]
+			await LoadingScreen.run(sail_title(&"home_grassland", shape_id), func () -> void: ok[0] = complete_pick(host, shape_id))
+			if not ok[0]:
 				print("[world] tamed island pick refused: shape=%s" % shape_id)
 				ip.failed()
 				return
@@ -395,6 +401,7 @@ func travel(to_id: StringName, mode: StringName) -> void:
 	var host := runtime.get_parent() if runtime else get_tree().current_scene
 	var harbour: Array = dest.get("harbour", [0, 0, 12])
 	var pos := Vector3(float(harbour[0]), 1.0, float(harbour[2]))
+	var title := ("Warping to %s" if mode == &"warp_home" else "Sailing to %s") % str(dest.get("display_name", to_id))
 	await _fade_to(func () -> void:
 		if str(island_def.get("kind", "")) == "unstable":
 			_snapshot_harvest()
@@ -407,7 +414,12 @@ func travel(to_id: StringName, mode: StringName) -> void:
 		if is_home():
 			(load("res://scripts/core/save_game.gd") as GDScript)._restore_buildings(_home_buildings_cache, SaveMigrations.CURRENT_SCHEMA)
 		_save_now()
-	)
+	, title)
+
+## LOADING: "Sailing to Meadow Isle" for the Tamed Island being picked (its name comes from the shape).
+func sail_title(to_id: StringName, shape_id: StringName = &"") -> String:
+	var nm := str(shape_def(shape_id).get("display_name", "")) if shape_id != &"" else ""
+	return "Sailing to %s" % (nm if nm != "" else str(def_of(to_id).get("display_name", to_id)))
 
 ## Survival gates follow trees.json's L10/20/30/40/50 island nodes.
 ## Intermediate bands fill every five levels; volcano opens at Survival55.
@@ -630,9 +642,12 @@ func reset_expedition(id: String) -> void:
 		unstable_claims = []
 		away_domain = {}
 		var player := _player()
-		load_island(host, StringName(id), Vector3.ZERO, false)
-		if player and runtime and runtime.has_method("arrival_point"):
-			player.global_position = runtime.arrival_point() + Vector3.UP
+		# LOADING: the reroll rebuilds the island under the overlay, not as a hard cut.
+		await LoadingScreen.run("The island shifted: charting %s" % str(def_of(StringName(id)).get("display_name", id)), func () -> void:
+			load_island(host, StringName(id), Vector3.ZERO, false)
+			if player and runtime and runtime.has_method("arrival_point"):
+				player.global_position = runtime.arrival_point() + Vector3.UP
+		)
 		if player:
 			player.notice("The island shifted. %s" % ("Your camp's salvage went to the home vault." if salvage > 0 else "A new coast waits."))
 		var ui = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure()
@@ -986,27 +1001,9 @@ func _clear_runtime() -> void:
 func _player() -> Player:
 	return PlayerRegistry.local()
 
-func _ensure_fade() -> void:
-	var layer := CanvasLayer.new()
-	layer.layer = 80
-	layer.name = "WorldFade"
-	add_child(layer)
-	_fade = ColorRect.new()
-	_fade.color = Color(0, 0, 0, 0)
-	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(_fade)
-
-func _fade_to(cb: Callable) -> void:
-	_fade.mouse_filter = Control.MOUSE_FILTER_STOP
-	var tw := create_tween()
-	tw.tween_property(_fade, "color:a", 1.0, 0.25)
-	await tw.finished
-	cb.call()
-	var tw2 := create_tween()
-	tw2.tween_property(_fade, "color:a", 0.0, 0.25)
-	await tw2.finished
-	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+## LOADING: every World transition runs under the loading overlay (it replaced the black fade).
+func _fade_to(cb: Callable, title: String = "Loading") -> void:
+	await LoadingScreen.run(title, cb)
 
 func _save_now() -> void:
 	(load("res://scripts/core/save_game.gd") as GDScript).save_now()
