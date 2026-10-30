@@ -227,6 +227,19 @@ Source: branch `claude/mmo-islandshapes`, report `docs/orchestration/reports/cla
 | **S9** | Rivers on thin families may be shorter: minimum arc 0.55 x target long axis x river_scale (chain/atoll 0.5, spiral 0.5, crescent 0.65). | `river_scale` | Fresh-water reach on chains and atolls. |
 | **S10** | Islets are not reachable on foot (the shelf is deep water); they still get scatter. | `IslandShape._islets` | Whether islets should hold loot or be scenery only. |
 
+### AUTOABILITY (2026-10-29) — the auto-ability toggle and what "most powerful" means
+
+Source: branch `claude/mmo-autoability`, report `docs/orchestration/reports/dsc-autoability.md`.
+Owner: "there should be an auto-ability button that uses the player's most powerful ability off
+cooldown and prioritizes that over basic attacks" / "put that on by default".
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **A1** | The AUTO-ABILITY hex sits beside AUTO in the combat layer, is ON for new games (the flag lives on `Hunt`, default `true`, not in the save), and toggling it off restores basic attacks only. | `Hunt.auto_ability` | Owner: "put that on by default"; no save field means no migration and no drift between new and loaded games (a save that predates the flag gets the same default). |
+| **A2** | "Most powerful" = highest expected damage per cast: the ability row's damage x the weapon's damage, tie-break the longer cooldown. Today the rows are flat ability damage (tackle 6, kick 4), so the rank is the row damage. | `game/data/combat_tuning.json auto_ability.abilities`, `AutoAbility.pick` | The owner did not define "most powerful"; damage per cast is the simplest reading and stays data-driven when abilities gain multipliers. |
+| **A3** | Only Tackle and Kick are auto-castable by default; Roll (a dodge) and Net (a capture tool) are listed `auto:false` in data — utility stays manual unless a row marks `auto:true`. | `auto_ability.abilities` | Auto-spending stamina on a dodge or throwing the capture net unasked would fight the player. |
+| **A4** | The auto-cast runs the same gates as the manual press (reach body-edge to body-edge, line of sight, stamina, the tactic lock, a hurt stun) and never spams a refusal notice; when nothing qualifies the basic attack takes over. | `AutoAbility.try_cast` | Prioritized over basic attacks, not a replacement for their rules. |
+| **A5** | The player's skills and gear do not yet give abilities with cooldowns, so the candidate list holds the two body tactics; new rows (an eventual skill ability, a weapon power) join by adding a row with `auto:true`. | `auto_ability.abilities` | No ability system exists in data beyond trees.json effects; the list is where one plugs in. |
 ### TASKSCREEN (2026-10-28) — the Task screen (Daily, Achievement, Domain Construction, Main Task, Weekly)
 
 Source: branch `claude/mmo-taskscreen`, report `docs/orchestration/reports/claude-taskscreen.md`. Numbers live in `game/data/world/tasks.json`; the Durango research it imports is `docs/reference/durango_all_tasks_research.xlsx` (mapping in `docs/reference/tasks.md`).

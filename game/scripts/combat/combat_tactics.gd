@@ -35,6 +35,7 @@ static func tackle(h: Hunt) -> void:
 		return
 	player.clear_nav()
 	player.face_world(target.global_position)
+	h.last_auto_cast = &"tackle"
 	var to := target.global_position - player.global_position
 	to.y = 0.0
 	var lunge_distance := minf(float(tune.get("lunge_max_m", 1.0)), maxf(0.0, MeleeQuery.surface_gap(player, target) - 0.1))
@@ -89,6 +90,7 @@ static func kick(h: Hunt) -> void:
 		return
 	player.clear_nav()
 	player.face_world(target.global_position)
+	h.last_auto_cast = &"kick"
 	player.play_attack(false)
 	var push := kick_push(target)
 	if push <= 0.0:

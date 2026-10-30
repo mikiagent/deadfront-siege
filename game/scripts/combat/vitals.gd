@@ -239,6 +239,11 @@ func spend_energy(amount: float) -> bool:
 	_stamina_lock = STAMINA_LOCK_S
 	return true
 
+## Read-only affordance check (AUTO-ABILITY picker): the same gate spend_energy applies, without
+## spending or setting the regen lock. Kept beside spend_energy so the two cannot drift apart.
+func spendable_energy(amount: float) -> bool:
+	return energy >= amount
+
 ## Continuous drain (running): returns false when empty so the caller drops to a walk.
 func drain_energy(per_second: float, delta: float) -> bool:
 	if energy <= 0.0:

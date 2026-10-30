@@ -35,6 +35,7 @@ var _inspector: Panel
 var _end_btn: Button
 var _skill_hexes: Array[HexButton] = []
 var _auto_hex: HexButton
+var _auto_ability_hex: HexButton  ## AUTO-ABILITY (owner: on by default): casts the strongest ready ability over the basic attack
 var _chase_hex: HexButton
 var _feed_hex: HexButton
 var _food_hexes: Array[HexButton] = []
@@ -523,6 +524,18 @@ func _build_combat() -> void:
 			_auto_hex.queue_redraw()
 	)
 	add_child(_auto_hex)
+	_auto_ability_hex = HexButton.new(64.0)
+	_auto_ability_hex.icon = UiIcons.icon(&"auto")
+	_auto_ability_hex.caption = "AUTO-ABILITY"
+	_combat_style(_auto_ability_hex)
+	_auto_ability_hex.visible = false
+	_auto_ability_hex.pressed.connect(func () -> void:
+		if player and player.hunt:
+			player.hunt.auto_ability = not player.hunt.auto_ability
+			_auto_ability_hex.selected = player.hunt.auto_ability
+			_auto_ability_hex.queue_redraw()
+	)
+	add_child(_auto_ability_hex)
 	for spec in [["attack", "sic", "SIC"], ["heel", "heel", "HEEL"], ["guard", "guard", "GUARD"]]:
 		var wh := HexButton.new(64.0)
 		wh.icon = UiIcons.icon(StringName(str(spec[1])))
@@ -1520,6 +1533,9 @@ func _process(delta: float) -> void:
 		for h in _skill_hexes:
 			h.visible = hunting
 		_auto_hex.visible = hunting
+		_auto_ability_hex.visible = hunting
+		_auto_ability_hex.selected = player.hunt.auto_ability
+		_auto_ability_hex.queue_redraw()
 		_stance_label.visible = hunting
 		_chase_hex.visible = hunting
 		if not hunting:

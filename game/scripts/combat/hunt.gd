@@ -15,6 +15,12 @@ var hold: bool = false
 ## re-engages. A hit ends the order and Player.receive_creature_hit retargets (start() clears this).
 var _resume_after_move: bool = false
 var auto: bool = true  # HUD Auto hexagon: auto-attack when in range
+## AUTO-ABILITY (owner: on by default): with a target and any auto-castable ability ready, cast the
+## most powerful one instead of the next basic swing. The HUD hex toggles it; the picker is
+## scripts/combat/auto_ability.gd over data/combat_tuning.json "auto_ability".
+var auto_ability: bool = true
+## The ability id the last auto-cast chose ("tackle" / "kick"), for tests and the HUD row. "" = none.
+var last_auto_cast: StringName = &""
 var _ring: MeshInstance3D
 var _ranged_pending := false
 var _swing_cd: float = 0.0
@@ -122,6 +128,11 @@ func _process(delta: float) -> void:
 		return
 	if player.sim.input_vector().length_squared() > 0.0:
 		return  # the stick owns her: no chase, no swing; she re-engages when it lets go
+	# AUTO-ABILITY before the swing: a ready ability outranks the basic attack. A click-to-move order
+	# (checked again inside _auto_attack) still outranks everything.
+	last_auto_cast = &""
+	if _swing_cd <= 0.0 and not _swing_pending and AutoAbility.try_cast(self):
+		return
 	_auto_attack()  # facing the target is PlayerSim.face_tick's (physics), not a _process write
 
 ## Keep small-creature reach unchanged, but strike the edge of large collision bodies.
