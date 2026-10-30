@@ -191,6 +191,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	_shape = IslandShape.make(size, seed, str(def.get("kind", "unstable")), _tier, hint, legacy, res, _climate, land, str(def.get("shape_family", "")), keep_points(def))
 	_shape.camp_hint = Vector2(_camp_hint.x, _camp_hint.z)
 	_shape.town_r = float(def.get("town_safe_m", 0.0))  # TOWNPOLISH2: the town stands on one plane
+	_shape.flat_land = flat_enabled()
 	map_doc = def.get("map_doc", null) as MapDoc
 	if map_doc == null and def.has("map"):
 		map_doc = MapDoc.load_file(str(def["map"]))
@@ -782,3 +783,12 @@ func _tile_type_at_world(x: float, z: float) -> int:
 
 func _slope_deg(x: float, z: float) -> float:
 	return IslandTerrain.slope_deg(self, x, z)
+
+## 3D-FLAT switch: rules.json terrain_relief "flat", or --flat on the command line (--relief forces the heightmap).
+static func flat_enabled() -> bool:
+	var args := OS.get_cmdline_user_args()
+	if "--relief" in args:
+		return false
+	if "--flat" in args:
+		return true
+	return str(Data.world_rules.get("terrain_relief", "heightmap")) == "flat"
