@@ -170,6 +170,10 @@ func tick(delta: float) -> void:
 		rows.append(e)
 		shown.emit(e["kind"], e["tier"], e["id"])
 
+## HUDREDRAW: true while any row shows or waits (the column eases, pops and fades every frame).
+func busy() -> bool:
+	return not rows.is_empty() or not waiting.is_empty()
+
 ## The column's centre: the view's middle on the desktop; on a phone the middle of the centre band's
 ## part left of the day/night dial (the dial hangs off the minimap into the band).
 static func column_cx(hud: HuntHud, view: Vector2) -> float:
@@ -190,11 +194,16 @@ func draw(hud: HuntHud, font: Font, cx: float, top: float, taken: Array[Rect2]) 
 	var c := cfg()
 	var w := float(c.get("width_compact" if _compact else "width", 300 if _compact else 380))
 	var dt := hud.get_process_delta_time()
-	var y := top
+	var y := top  # the gain rows' cursor: the top middle
+	# LAYOUT (owner 2026-10-30: "the level-up banner goes left, below the hunger ring"): a skill row
+	# keeps its own column, hung from the left edge under the stomach ring.
+	var left := HudLayout.levelup_top(hud, view)
+	var sy := left.y
 	var gi := 0
 	for r in rows:
 		var h := _height(r, font, w)
-		var cand := Rect2(cx - w * 0.5, y, w, h)
+		var skill: bool = r["kind"] == &"skill"
+		var cand := Rect2(left.x, sy, minf(w, view.x - left.x - 8.0), h) if skill else Rect2(cx - w * 0.5, y, w, h)
 		var box := UiTokens._slide(cand, taken, view, 1.0)  # down only: the column stays in order
 		if not box.has_area():
 			continue
@@ -212,7 +221,10 @@ func draw(hud: HuntHud, font: Font, cx: float, top: float, taken: Array[Rect2]) 
 				r["y"] = target
 				break
 		taken.append(box)
-		y = box.end.y + 6.0
+		if skill:
+			sy = box.end.y + 6.0
+		else:
+			y = box.end.y + 6.0
 		if r["kind"] == &"skill":
 			_draw_skill(hud, font, box, r)
 			out["levelup"] = box

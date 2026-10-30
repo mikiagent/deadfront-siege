@@ -100,14 +100,32 @@ static func tier_color(strain: float) -> Color:
 
 ## Animation state, once per HUD frame (HuntHud._process): the clock, the Well Rested frost fade and
 ## the worse-tier pulse. Drawing reads it and never mutates.
-static func tick(delta: float, strain: float, paused: bool) -> void:
-	_clock = fposmod(_clock + delta, 600.0)
-	_frost = move_toward(_frost, 1.0 if paused else 0.0, delta / FROST_S)
+## HUDREDRAW: the sheen clock only advances while the belt is animating (`running`: the treads scroll,
+## the frost fades or a worse-tier pulse plays). A belt standing still is a still picture, so the HUD
+## need not repaint it every frame; `animating()` tells the HUD when it does.
+static func tick(delta: float, strain: float, paused: bool, running: bool = true) -> void:
 	var t := tier_of(strain)
+	var was_pulse := _pulse
+	_frost = move_toward(_frost, 1.0 if paused else 0.0, delta / FROST_S)
 	if _tier >= 0 and t > _tier:
 		_pulse = PULSE_S
 	_tier = t
 	_pulse = maxf(0.0, _pulse - delta)
+	_moving = running or _frost > 0.0 or was_pulse > 0.0 or _pulse > 0.0
+	if _moving:
+		_clock = fposmod(_clock + delta, 600.0)
+
+static var _moving := false
+
+## True while the belt's look still moves (the treads, the sheen, the frost or a pulse).
+static func animating() -> bool:
+	return _moving
+
+## HUDREDRAW: the belt's look as the HUD's redraw signature sees it — the treads at whole pixels and
+## the sheen at 15 Hz (it sweeps 26 px in 2.6 s, so 0.7 px a step): a still or crawling belt changes
+## this key a few times a second instead of every frame, and no step is visible.
+static func look_key(phase: float) -> Vector3i:
+	return Vector3i(int(floor(phase)), int(floor(_clock * 15.0)), int(round(_pulse / PULSE_S * 20.0)) + int(round(_frost * 20.0)) * 32)
 
 ## Draws the belt over the fatigue row inside `rect` (only the needle reaches past it): chevrons point and
 ## scroll with the drift (flat ticks while stationary), the strain marker in the face's level

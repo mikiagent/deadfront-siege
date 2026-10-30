@@ -137,9 +137,11 @@ func _physics_process(delta: float) -> void:
 		record.pos = [global_position.x, global_position.y, global_position.z]
 		record.health = health.hp
 
-## Fullness drains all day; energy and HP come back while not working or fighting.
+## Fullness drains all day at the shared HUNGER rate (rules.json hunger.decay_per_min, the survivor's own);
+## energy and HP come back while not working or fighting. Members use the shared stomach and bands
+## (memo Part 1 s1.4 step 6: one rule for everyone).
 func _tick_needs(delta: float) -> void:
-	record.fullness = maxf(0.0, record.fullness - Tribe.num("fullness_per_day", 60.0) / Tribe.day_seconds() * delta)
+	record.fullness = maxf(0.0, record.fullness - Digestion.decay_per_s() * delta)
 	if state in [&"idle", &"follow", &"walk", &"find", &"deposit", &"eat", &"rest"]:
 		record.energy = minf(Tribe.num("energy_max", 100.0), record.energy + Tribe.num("energy_regen_per_s", 1.5) * delta)
 	if state != &"fight" and not health.dead:
@@ -319,7 +321,8 @@ func _tend_needs() -> bool:
 		_halt(&"rest")
 		return true
 	var now := Time.get_ticks_msec() / 1000.0
-	if m.fullness < Tribe.num("eat_below", 30.0) and now >= _no_food_until:
+	# HUNGER: a member eats at Peckish, the same line the survivor's autofeed uses.
+	if m.fullness < Digestion.hunger_num("peckish_below", Digestion.PECKISH_BELOW) and now >= _no_food_until:
 		var food_at := _storage_with_food()
 		if food_at:
 			_eat_from(food_at)
@@ -581,7 +584,9 @@ func _eat_from(s: Node3D) -> void:
 		var st := inv.slots[i]
 		if Food.is_food(st) and not Food.is_poisoned(st):
 			var one := inv.remove_at(i, 1)
-			var gain := maxf(Tribe.num("food_min", 15.0), Food.energy_restore(one))
+			# HUNGER: a meal fills the stomach by its foods.json points, not by its Energy (memo s1.4 step 6).
+			# No floor any more: the old food_min (15) would have made a berry fill like a cooked dish.
+			var gain := float(FoodEffects.entry_for(one.def_id).get("fullness", 0.0))
 			record.fullness = minf(Tribe.num("fullness_max", 100.0), record.fullness + gain)
 			meals += 1
 			_play(&"eat" if rig and rig.has_clip(&"eat") else &"idle", true)

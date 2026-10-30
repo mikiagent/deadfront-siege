@@ -118,6 +118,27 @@
       "CoralNode": [{"item": "pearl", "chance": 0.03, "climates": ["blue_tropical"]}]
     }
   },
+  "alpha": {
+    "_about": "ALPHATAG (owner 2026-10-29: alphas 'drop better loot (and special loot pools specific to alpha animals)'): the ALPHA-ONLY pool. ButcherLoot.alpha_extras rolls it for an alpha carcass only, on top of the guaranteed rare rows and the trophy; a normal animal never rolls a row from here. `pool` is the default for every species, `by_species` overrides it per creature id. Rows are {id, min, max} like butchering.json; every unit is one instance. Every id here must be an items.json item and no normal butchering table may name it.",
+    "pool": [
+      {"id": "alpha_hide", "min": 1, "max": 2},
+      {"id": "alpha_fang", "min": 1, "max": 1}
+    ],
+    "by_species": {
+      "tyrannosaurus": [
+        {"id": "alpha_hide", "min": 2, "max": 3},
+        {"id": "alpha_fang", "min": 2, "max": 2}
+      ],
+      "tarbosaurus": [
+        {"id": "alpha_hide", "min": 2, "max": 2},
+        {"id": "alpha_fang", "min": 1, "max": 2}
+      ],
+      "allosaurus": [
+        {"id": "alpha_hide", "min": 1, "max": 2},
+        {"id": "alpha_fang", "min": 1, "max": 2}
+      ]
+    }
+  },
   "butcher": {
     "_rare_chance": "ASSUMPTION: spec 12 s2 ('Carcass Part Selection, Not Generic Random Loot') unlocks each part by Butchering nodes, tool and Slaughter Ability. Until W2-BUTCHER adds the Slaughter Ability roll, an unlocked rare part still rolls this chance (or the row's own) as its stand-in.",
     "default_rare_chance": 0.12,

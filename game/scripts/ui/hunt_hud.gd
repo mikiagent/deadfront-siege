@@ -35,6 +35,7 @@ var _inspector: Panel
 var _end_btn: Button
 var _skill_hexes: Array[HexButton] = []
 var _auto_hex: HexButton
+var _auto_ability_hex: HexButton  ## AUTO-ABILITY (owner: on by default): casts the strongest ready ability over the basic attack
 var _chase_hex: HexButton
 var _feed_hex: HexButton
 var _food_hexes: Array[HexButton] = []
@@ -215,6 +216,20 @@ var _skills_watched: SkillState = null
 const SKILL_PULSE_TICK := 0.25
 var skills_pulse_on: bool = false
 var _pulse_check: float = 0.0
+## HUDREDRAW probes and tests: how many times the HUD and its minimap have painted (t_hudredraw reads
+## them to count redraws while nothing changes).
+var draw_count: int = 0
+var map_draw_count: int = 0
+var draw_usec: int = 0  ## script time the HUD's own _draw has spent (t_hudredraw compares before/after)
+var map_draw_usec: int = 0
+## HUDREDRAW: the values the paint reads, as drawn (see _hud_sig). _process repaints only when this
+## changes, or while a piece animates (_animating). Every input of _draw must be in here.
+var _sig: Array = []
+var _sig_ready := false
+## Seconds since the last paint: the belt's drift and the pill timers only need whole-pixel / whole-
+## second resolution, so an idle HUD answers 0 redraws a second.
+var _since_draw := 0.0
+var _debug_sig := "--hudredraw-debug" in OS.get_cmdline_user_args()
 
 func _watch_skills() -> void:
 	if player == null or player.skills == null:
@@ -509,6 +524,18 @@ func _build_combat() -> void:
 			_auto_hex.queue_redraw()
 	)
 	add_child(_auto_hex)
+	_auto_ability_hex = HexButton.new(64.0)
+	_auto_ability_hex.icon = UiIcons.icon(&"auto")
+	_auto_ability_hex.caption = "AUTO-ABILITY"
+	_combat_style(_auto_ability_hex)
+	_auto_ability_hex.visible = false
+	_auto_ability_hex.pressed.connect(func () -> void:
+		if player and player.hunt:
+			player.hunt.auto_ability = not player.hunt.auto_ability
+			_auto_ability_hex.selected = player.hunt.auto_ability
+			_auto_ability_hex.queue_redraw()
+	)
+	add_child(_auto_ability_hex)
 	for spec in [["attack", "sic", "SIC"], ["heel", "heel", "HEEL"], ["guard", "guard", "GUARD"]]:
 		var wh := HexButton.new(64.0)
 		wh.icon = UiIcons.icon(StringName(str(spec[1])))
@@ -1493,7 +1520,9 @@ func _process(delta: float) -> void:
 		_fat_prev = vf
 		_fat_forgive = maxf(0.0, _fat_forgive - delta)
 		_belt_phase = ExhaustTreadmill.phase(_belt_phase, _fat_rate, delta)
-		ExhaustTreadmill.tick(delta, clampf(vf / maxf(1.0, player.vitals.max_fatigue), 0.0, 1.0), player.vitals.blocks_fatigue_gain)
+		# HUDREDRAW: the sheen clock only runs while the treads scroll (a belt at rest is a still picture).
+		ExhaustTreadmill.tick(delta, clampf(vf / maxf(1.0, player.vitals.max_fatigue), 0.0, 1.0),
+			player.vitals.blocks_fatigue_gain, ExhaustTreadmill.direction(_fat_rate) != 0)
 		if _fatigue_panel != null:
 			_fatigue_panel.rate = _fat_rate
 	var hunting := player.hunt != null and player.hunt.target != null and is_instance_valid(player.hunt.target)
@@ -1504,6 +1533,9 @@ func _process(delta: float) -> void:
 		for h in _skill_hexes:
 			h.visible = hunting
 		_auto_hex.visible = hunting
+		_auto_ability_hex.visible = hunting
+		_auto_ability_hex.selected = player.hunt.auto_ability
+		_auto_ability_hex.queue_redraw()
 		_stance_label.visible = hunting
 		_chase_hex.visible = hunting
 		if not hunting:
@@ -1567,8 +1599,175 @@ func _process(delta: float) -> void:
 		_pulse_check = SKILL_PULSE_TICK
 		_refresh_skill_pulse()
 	_domain.tick(delta, World.runtime, player.global_position)
-	_minimap.queue_redraw()
-	queue_redraw()
+	# The stomach ring's fill and its eased glyph scale (drawn, but read here so the paint is pure).
+	stomach_fill = HudStomach.fullness_of(player)
+	stomach_saturation = HudStomach.saturation_of(player)
+	stomach_state = HudStomach.state_of(stomach_fill)
+	stomach_glyph_scale = move_toward(stomach_glyph_scale, float(HudStomach.GLYPH_SCALE[stomach_state]), delta * HudStomach.SCALE_SPEED)
+	_tick_redraw(delta)
+
+# ---------------------------------------------------------------- HUDREDRAW
+
+## HUDREDRAW: the field HUD used to call queue_redraw() on itself and the minimap every frame
+## (~1.3-1.7 ms of a desktop frame, claude-tutperf). It now paints only when what it paints changed:
+## `_hud_sig()` is every value `_draw` reads, quantized to what can be seen (whole metres, whole
+## seconds, 0.1 px), and `_animating()` is true while a piece that moves by itself is on screen. A new
+## input of `_draw` must be added to the signature, or it waits for the next animating frame. The
+## day/night dial and the hexes keep their own redraw logic.
+
+func _q10(v: float) -> int:
+	return int(round(v * 10.0))
+
+func _q2(v: Vector2) -> Vector2i:
+	return Vector2i(_q10(v.x), _q10(v.y))
+
+func _q3(v: Vector3) -> Vector3i:
+	return Vector3i(_q10(v.x), _q10(v.y), _q10(v.z))
+
+## Everything _draw reads, as one comparable key.
+func _hud_sig() -> Array:
+	var cam := get_viewport().get_camera_3d()
+	var v := player.vitals
+	var out: Array = [get_viewport_rect().size, player.dead, _q3(player.global_position), level_badge_tier,
+		HudStomach.fullness_of(player), HudStomach.saturation_of(player), stomach_state, _q10(stomach_glyph_scale)]
+	if v != null:
+		out.append_array([_q10(v.health), _q10(v.effective_max_health()), _q10(v.energy), _q10(v.effective_max_energy()),
+			_q10(v.fatigue), _q10(v.max_fatigue), hp_label(v)])
+	# The treadmill: its treads at whole pixels and its sheen at 15 Hz (ExhaustTreadmill.look_key), so a
+	# crawling belt steps a pixel now and then instead of repainting 60 times a second.
+	out.append(ExhaustTreadmill.look_key(_belt_phase))
+	var en := energy_reading(player)
+	out.append_array([_q10(float(en["value"])), _q10(float(en["max"])), str(en["name"])])
+	# Level badge, level bar, XP feed: the badge animates only from tier 4 (grey/bronze/silver are still).
+	out.append_array([LevelDisplay.player_level(), LevelDisplay.xp_bar()])
+	if player.visual:
+		out.append(_q10(player.visual.rotation.y))
+	if cam:
+		out.append_array([_q3(cam.global_position), _q3(cam.global_rotation), _q10(cam.fov)])
+	out.append_array([World.island_id, World.objective, World.is_home(), World.is_tutorial(),
+		int(ceil(World.remaining_lifetime / 60.0)), World.crater_discovered])
+	# Statuses: the chip row (a buff, boon or debuff) and the max-HP note; the afflictions' own boxes
+	# (StatusFx) animate while they show anyway.
+	var statuses: Array = []
+	if player.statuses:
+		for inst in player.statuses.instances():
+			statuses.append([str(inst.id), inst.stacks, int(ceil(inst.time_left))])
+		out.append(player.statuses.max_health_note())
+	out.append(statuses)
+	var buffs: Array = []
+	for e in HudBuffRow.entries(player):
+		buffs.append([str(e["key"]), int(e["stacks"]), int(ceil(float(e["time_left"])))])
+	out.append(buffs)
+	# Open tooltips: a hover on a chip or a status box changes what is painted without any other input.
+	out.append_array([_buff_row.shown(), _buff_row.pinned, str(_status_fx.pinned), str(_status_fx.hovered)])
+	if player.sim:
+		out.append(Array(player.sim.rest.hud_lines()))
+	# Orders card / badge and the level bar: rounded progress, so a slow fill steps a pixel at a time.
+	var step := OrdersSheet.hud_step(player)
+	out.append_array([int(step.get("index", -1)), int(step.get("count", 0)), str(step.get("progress", "")),
+		_q10(float(step.get("frac", 0.0))), orders_expanded(), _orders_flash > 0.0, orders_badge_text])
+	# The target plate (and its capture hint) follows the fight target.
+	var t: Creature = player.hunt.target if player.hunt and player.hunt.target and is_instance_valid(player.hunt.target) else null
+	if t == null and player.controls and player.controls.selection:
+		t = player.controls.selection.current()
+	if t and is_instance_valid(t):
+		var st: Array = []
+		if t.statuses:
+			for inst in t.statuses.instances():
+				st.append([str(inst.id), inst.stacks])
+		# FOODTORPOR: the plate's violet torpor strip and its knock-out tick follow t.torpor.
+		out.append_array([t.get_instance_id(), _q10(t.health.hp), t.level, t.nature_id(), st, _q3(t.global_position),
+			_q10(t.torpor) if t.torpor > 0.05 else 0])
+	else:
+		out.append(0)
+	# The world pills and the nameplate: what is near her, and whether she is moving (pills fade).
+	var near: Array = []
+	for n in get_tree().get_nodes_in_group("harvest"):
+		if n is Node3D and player.global_position.distance_to((n as Node3D).global_position) <= 9.0:
+			# A picked-clean node's pill shows its regrow timer: whole seconds, so it steps once a second.
+			near.append([n.get_instance_id(), int(ceil((n as HarvestNode).regen_left())) if n is HarvestNode else 0])
+	out.append(near)
+	out.append(player.velocity.length() > 0.5)
+	out.append(_fatigue_panel != null and _fatigue_panel.visible)
+	if player.placer:
+		out.append_array([str(player.placer.placing), player.placer.layout_mode, player.placer.moving != null])
+	return out
+
+## True while a piece of the HUD moves by itself: transient text, celebrations, the status pulse, the
+## domain banner, the combat frame, a high-tier level badge, the treadmill, the ghost fills, pills
+## gliding and the fog trail fading. Only then does an otherwise idle HUD repaint.
+func _animating() -> bool:
+	if not (_events.notices.is_empty() and _events.toasts.is_empty() and _events.skill_toasts.is_empty()
+			and _events.bites.is_empty() and _events.player_floats.is_empty()):
+		return true
+	if top_feed.busy() or _levelups.showing() or _levelups.menu_pulse() > 0.0:
+		return true
+	if _status_fx.pulsing() or not StatusFx.effects(player).is_empty():
+		return true
+	if _domain.showing() or _orders_flash > 0.0 or HudPills.animating:
+		return true
+	if absf(_combat_alpha - (1.0 if _in_combat else 0.0)) > 0.001:
+		return true
+	if level_badge_tier >= 4 or _trail_moving:
+		return true
+	var fog := World.map_fog
+	if fog and not fog.trail.is_empty() and player.velocity.length() > 0.2:
+		return true  # its dots fade out as she walks on (a standing trail holds its alphas)
+	if player.placer and (player.placer.placing != &"" or player.placer.layout_mode):
+		return true
+	return false
+
+func _tick_redraw(delta: float) -> void:
+	_tick_trails(delta)
+	_tick_map_redraw(delta)
+	_since_draw += delta
+	var sig := _hud_sig()
+	if _debug_sig and _sig_ready and sig != _sig:
+		print("[hudredraw] sig %s" % _sig_diff(_sig, sig))
+	if not _sig_ready or sig != _sig or _animating():
+		_sig = sig
+		_sig_ready = true
+		_since_draw = 0.0
+		queue_redraw()
+
+## Which signature slots differ (`-- --hudredraw-debug` prints it; a help for the next HUD change).
+func _sig_diff(a: Array, b: Array) -> String:
+	var out: Array = []
+	for i in maxi(a.size(), b.size()):
+		var x: Variant = a[i] if i < a.size() else null
+		var y: Variant = b[i] if i < b.size() else null
+		if str(x) != str(y):
+			out.append("%d: %s -> %s" % [i, str(x).left(60), str(y).left(60)])
+	return " | ".join(out)
+
+## The minimap's own key: where she stands, which way she and the camera face, what the fog and the
+## map texture show, and the creatures inside the disc.
+var _map_sig: Array = []
+var _map_sig_ready := false
+
+func _map_sig_key() -> Array:
+	var cam := get_viewport().get_camera_3d()
+	var out: Array = [get_viewport_rect().size, World.island_id, _map_tex != null,
+		Vector2i(roundi(player.global_position.x / MAP_SCALE), roundi(player.global_position.z / MAP_SCALE)),
+		int(round(rad_to_deg(player.visual.rotation.y))) if player.visual else 0,
+		int(round(rad_to_deg(cam.global_rotation.y))) if cam else 0]
+	var fog := World.map_fog
+	out.append_array([fog.version if fog else -1, fog.trail.size() if fog else 0,
+		orders_badge_text, _orders_flash > 0.0, World.crater_discovered])
+	var near: Array = []
+	for n in get_tree().get_nodes_in_group("creatures"):
+		var cr := n as Creature
+		if cr and not cr.health.dead and player.global_position.distance_to(cr.global_position) < 130.0:
+			near.append([cr.get_instance_id(), Vector2i(roundi(cr.global_position.x / MAP_SCALE), roundi(cr.global_position.z / MAP_SCALE)), cr.is_pet])
+	out.append(near)
+	return out
+
+func _tick_map_redraw(_delta: float) -> void:
+	var key := _map_sig_key()
+	if not _map_sig_ready or key != _map_sig or _animating():
+		_map_sig = key
+		_map_sig_ready = true
+		_minimap.queue_redraw()
 
 ## The bottom level bar: a track, the green fill, and a gap after every `unit` XP of the level's
 ## `cost` (the last segment is what is left over, so widths stay proportional to XP).
@@ -1582,6 +1781,13 @@ func _draw_xp_bar(rect: Rect2, xp: int, cost: int, unit: int) -> void:
 		gap_x += step
 
 func _draw() -> void:
+	# HUDREDRAW: the paint is one function (`_draw_hud`) so the probe can count and time it.
+	var t_draw := Time.get_ticks_usec()
+	draw_count += 1
+	_draw_hud()
+	draw_usec += Time.get_ticks_usec() - t_draw
+
+func _draw_hud() -> void:
 	if player == null or player.dead:
 		return
 	var r := get_viewport_rect().size
@@ -1628,10 +1834,7 @@ func _draw() -> void:
 	energy_bar_segments = UiTokens.MOUNT_ENERGY_SEGMENTS if en.name != "" else 0
 	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), energy_bar_color, "", en_text, num_px, energy_bar_segments, StringName("en:" + en.name))
 	yy += big + gap
-	stomach_fill = HudStomach.fullness_of(player)
-	stomach_saturation = HudStomach.saturation_of(player)
-	stomach_state = HudStomach.state_of(stomach_fill)
-	stomach_glyph_scale = move_toward(stomach_glyph_scale, float(HudStomach.GLYPH_SCALE[stomach_state]), get_process_delta_time() * HudStomach.SCALE_SPEED)
+	# HUDREDRAW: kept up to date (and eased) by _process; the paint only reads them.
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
 	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
 	# Owner 2026-10-27: this row is a treadmill — the tread chevrons point and scroll right while
@@ -1729,7 +1932,9 @@ func _draw() -> void:
 	_levelups.draw_bar_pulse(self, xp_bar_rect)
 	var lv := "%s  %d / %d XP  · %d XP each" % [LevelDisplay.player_label(), int(xb["xp"]), int(xb["cost"]), int(xb["unit"])]
 	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
-	var lv_pos := Vector2(r.x - lw - 16.0 - inset.x, r.y - HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - UiTokens.XP_BAR_H - 5.0)
+	# LAYOUT (owner 2026-10-30: "the skill XP + player XP UI lower, above EAT"): the readout stands
+	# bottom-left, just over the quick-food row, where the skill XP rows stack above it.
+	var lv_pos := Vector2(16.0 + inset.w, HudLayout.xp_feed_top(self) - 4.0)
 	draw_string_outline(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3, Color(0.0, 0.0, 0.0, 0.7))
 	draw_string(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	drawn_blocks["level"] = Rect2(lv_pos - Vector2(0.0, 12.0), Vector2(lw, 15.0))
@@ -1768,7 +1973,7 @@ func _draw() -> void:
 	var cx := band.get_center().x if band.has_area() else r.x * 0.5  # a phone's free middle, off HANDS and the map
 	# UIGATHER (spec §6, owner §1.6): skill XP lines are the left feed under the vitals; item gains are
 	# the yield card above the node (YieldCard, spec §4.5) instead of the top-centre toast.
-	drawn_blocks.merge(YieldCard.draw_feed(self, _font, _events.skill_toasts, Vector2(vitals.position.x, vitals.end.y + 8.0), taken, player.skills), true)
+	drawn_blocks.merge(YieldCard.draw_feed(self, _font, _events.skill_toasts, Vector2(16.0 + inset.w, HudLayout.xp_feed_top(self) - 20.0), taken, player.skills), true)
 	if player.placer and player.placer.layout_mode:
 		var hint := "Layout mode: drag a building to move it · tap one to rotate · blue = ok, red = blocked · DONE saves" if player.placer.moving == null else "Release to drop (red snaps it back)"
 		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
@@ -1842,6 +2047,13 @@ func _draw_capture_hint(cam: Camera3D, taken: Array[Rect2], a: float) -> void:
 	draw_string(_font, Vector2(box.position.x + 9.0, box.end.y - 6.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(0, 0, 0, 0.7 * a))
 	draw_string(_font, Vector2(box.position.x + 8.0, box.end.y - 7.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(UiTokens.GOLD, a))
 
+## ALPHATAG: where the ALPHA chip's top-left goes so it sits on the name's baseline row, `name_pos` being
+## the name's left-baseline point. Pure, so the geometry (and a test) can be checked without a draw pass.
+static func alpha_tag_pos(name_pos: Vector2, is_alpha: bool) -> Vector2:
+	if not is_alpha:
+		return name_pos
+	return Vector2(name_pos.x, name_pos.y - AlphaChip.CHIP_H + 1.0)
+
 func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 	var r := get_viewport_rect().size
 	if true:
@@ -1861,13 +2073,23 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			var chip_y := py + 29.0 + latin.get_descent(name_px)  # 1 px under the name's line box
 			var dy := maxf(0.0, chip_y + NatureChip.CHIP_H + CreaturePlates.CHIP_GAP - (py + 44.0)) if NatureChip.text_for(nat) != "" else 0.0
 			var block := Rect2(px, py - 4.0, pw, 70.0 + dy + HudBuffRow.CHIP + 8.0)
-			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
-			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
+			# ALPHATAG: a gold "ALPHA" tag in front of the name, then the name starts after it.
+			var prefix_w := 0.0
+			var aname_x := px + 12.0
+			var atag := AlphaChip.draw_at(self, _font, alpha_tag_pos(Vector2(px + 12, py + 28), t.is_alpha()), t.is_alpha(), a)
+			if atag.has_area():
+				prefix_w = atag.size.x + AlphaChip.NAME_GAP
+				aname_x = atag.end.x + AlphaChip.NAME_GAP
+				block = block.merge(atag)
+			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else CreatureNatures.display_title(t)
+			nm = UiTokens.ellipsis(_font, nm, pw - 150.0 - prefix_w, name_px)
 			draw_rect(Rect2(px, py - 4, pw, 48 + dy), Color(UiTokens.INK, 0.75 * a))  # the reference's dark band: the name reads on foliage
-			draw_string(_font, Vector2(px + 12, py + 28), nm, HORIZONTAL_ALIGNMENT_LEFT, pw - 120.0, name_px, Color(1, 1, 1, a))
-			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x
+			draw_string(_font, Vector2(aname_x, py + 28), nm, HORIZONTAL_ALIGNMENT_LEFT, pw - 120.0 - prefix_w, name_px, Color(1, 1, 1, a))
+			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x + prefix_w
 			var asc := latin.get_ascent(name_px)
 			target_rows = {"name": Rect2(px + 12, py + 28 - asc, nmw, asc + latin.get_descent(name_px))}
+			if atag.has_area():
+				target_rows["alpha"] = atag
 			target_rows["chip"] = NatureChip.draw_at(self, _font, Vector2(px + 12, chip_y), nat, a)
 			draw_string(_font, Vector2(px + 18 + nmw, py + 28), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, UiTokens.DANGER)
 			draw_rect(Rect2(px + pw - 60, py - 4, 52, 52), Color(0.12, 0.12, 0.14, 0.9 * a))
@@ -2068,10 +2290,11 @@ func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, t
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))
 	frac = clampf(frac, 0.0, 1.0)
 	if trail_key != &"":  # a pale ghost trails a loss and leads a gain; the real fill moves, never jumps up
-		var t := _trail(trail_key, frac, get_process_delta_time())
-		frac = t.x
-		if t.y > t.x:
-			draw_rect(Rect2(pos + Vector2(size.x * t.x, 0), Vector2(size.x * (t.y - t.x), size.y)), col.lerp(Color.WHITE, 0.55))
+		# HUDREDRAW: _tick_trails eases it once a frame in _process; the paint only reads it.
+		var st: Vector3 = bar_trail.get(trail_key, Vector3(frac, frac, 0.0))
+		frac = clampf(st.x, 0.0, 1.0)
+		if st.y > st.x:
+			draw_rect(Rect2(pos + Vector2(size.x * st.x, 0), Vector2(size.x * (st.y - st.x), size.y)), col.lerp(Color.WHITE, 0.55))
 	draw_rect(Rect2(pos, Vector2(size.x * frac, size.y)), col)
 	draw_rect(Rect2(pos, Vector2(size.x * frac, maxf(1.0, size.y * 0.3))), Color(1, 1, 1, 0.16))
 	for k in range(1, segments):  # a 2 px dark gap between segments
@@ -2104,6 +2327,23 @@ func _trail(key: StringName, target: float, dt: float) -> Vector2:
 	bar_trail[key] = s
 	return Vector2(s.x, s.y)
 
+## HUDREDRAW: the ghost-fill easing, once a frame from _process (it used to advance inside _draw, which
+## made the paint mutate state and left the trail with no frame to move in once the HUD stopped
+## repainting). `_trail_moving` says whether it is still easing (the HUD then keeps repainting).
+var _trail_moving := false
+
+func _tick_trails(dt: float) -> void:
+	var v := player.vitals
+	var hp := clampf(v.health / maxf(1.0, v.effective_max_health()), 0.0, 1.0)
+	_trail(&"hp", hp, dt)
+	var en := energy_reading(player)
+	_trail(StringName("en:" + en.name), clampf(float(en.value) / maxf(1.0, float(en.max)), 0.0, 1.0), dt)
+	_trail_moving = false
+	for key in bar_trail:
+		var st: Vector3 = bar_trail[key]
+		if st.z > 0.0 or absf(st.y - st.x) > 0.0005:
+			_trail_moving = true
+
 # ---------------------------------------------------------------- minimap
 
 func _ensure_map_texture() -> void:
@@ -2123,6 +2363,12 @@ func _ensure_map_texture() -> void:
 	_map_span = span
 
 func _draw_minimap() -> void:
+	var t_draw := Time.get_ticks_usec()
+	map_draw_count += 1
+	_draw_minimap_body()
+	map_draw_usec += Time.get_ticks_usec() - t_draw
+
+func _draw_minimap_body() -> void:
 	var c := _minimap
 	# LEVELBADGE (owner 2026-10-28): no square box; the map is a disc drawn as a UV polygon (clipped by
 	# geometry, so nothing covers the corners), framed by a shadowed metal rim.

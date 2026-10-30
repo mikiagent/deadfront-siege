@@ -163,9 +163,13 @@ static func variant_word(variant: StringName, species: StringName) -> String:
 		v = v.substr(sp.length() + 1)
 	return v.replace("_", " ").capitalize()
 
+## ALPHATAG (owner 2026-10-29: "Alpha should be a tag in front of the name (prefix tag)"): the text of
+## the chip that prefixes a genetic alpha's name. The word itself never goes back into the name.
+const ALPHA_TAG := "ALPHA"
+
 ## "Alpha Velociraptor", "Crested Raptor": the animal's NAME. A nature is never part of it — it is a
 ## tag under the name (owner 2026-10-28). The variant word ("Alpha" for a pack leader, a colour
-## variant) stays in the name.
+## variant) stays in the name; a genetic alpha's "Alpha" is the prefix tag instead (alpha_tag).
 static func display_name(variant_label: String, species_text: String) -> String:
 	var parts: PackedStringArray = []
 	if variant_label != "":
@@ -174,20 +178,46 @@ static func display_name(variant_label: String, species_text: String) -> String:
 		parts.append(species_text)
 	return " ".join(parts)
 
-## The name shown on a plate and on the screens: "Alpha" when it leads its pack, its colour variant
-## when it has one, then the species. The nature is deliberately absent (the chip carries it).
+## The name shown on a plate and on the screens: "Alpha" when it LEADS its pack (a plain pack leader),
+## its colour variant when it has one, then the species. The nature is deliberately absent (the chip
+## carries it), and so is a genetic alpha's "Alpha": that is the prefix tag (alpha_tag).
 static func display_title(c: Node) -> String:
 	if c == null:
 		return ""
 	var def: CreatureDef = c.get("def")
 	var species_text := str(def.species if def != null else "").capitalize()
 	var words: Array[String] = []
-	if _is_pack_alpha(c):
+	if _is_pack_alpha(c) and not is_genetic_alpha(c):
 		words.append("Alpha")
 	var vw := variant_word(StringName(str(c.get("variant"))), def.id if def != null else &"")
 	if vw != "":
 		words.append(vw)
 	return display_name(" ".join(words), species_text)
+
+## ALPHATAG: true for an alpha animal of the ALPHAS package (bigger, better loot, not tamable).
+## A pack leader that is not a genetic alpha is not one: its "Alpha" word stays in the name.
+static func is_genetic_alpha(c: Node) -> bool:
+	return c != null and c.has_method("is_alpha") and bool(c.call("is_alpha"))
+
+## ALPHATAG: the prefix tag an animal wears before its name, "" for every normal animal.
+static func alpha_tag(c: Node) -> String:
+	return ALPHA_TAG if is_genetic_alpha(c) else ""
+
+## ALPHATAG: the tag in brackets, for the plain-text surfaces that have no chip to draw (a loot sheet
+## title, a pill, a notice): "[ALPHA] Deinonychus".
+static func bracketed_alpha_tag() -> String:
+	return "[%s]" % ALPHA_TAG
+
+## ALPHATAG: the name a plain-text surface shows ("Loot · [ALPHA] Deinonychus", a kill line, a log):
+## the bracketed tag, a space, then the name. No tag, exactly display_title().
+static func tagged_title(c: Node) -> String:
+	var name := display_title(c)
+	return "%s %s" % [bracketed_alpha_tag(), name] if is_genetic_alpha(c) else name
+
+## ALPHATAG: the same tag in front of a name that is not a Creature (a carcass, a captured stack):
+## "[ALPHA] Deinonychus" for an alpha, the name untouched otherwise.
+static func tagged(name: String, is_alpha: bool) -> String:
+	return "%s %s" % [bracketed_alpha_tag(), name] if is_alpha else name
 
 ## The nature TAG under a living animal's name ("Timid"): the plate's chip and every screen read
 ## this, so the word under the name and the name can never disagree.

@@ -37,6 +37,12 @@ var _pulse := 0.0
 var _events: HudEventState = null
 var _watched: StatusEffects = null
 
+## HUDREDRAW: true while the screen edge pulses or a box glides to a new slot (the HUD repaints).
+func pulsing() -> bool:
+	return _pulse > 0.0 or not _gliding.is_empty()
+
+var _gliding: Dictionary = {}
+
 func tick(p: Player, events: HudEventState, delta: float) -> void:
 	_events = events
 	if p == null or p.statuses == null:
@@ -51,11 +57,18 @@ func tick(p: Player, events: HudEventState, delta: float) -> void:
 	var i := 0
 	for inst in effects(p):
 		live[inst.id] = true
-		_slot[inst.id] = move_toward(float(_slot.get(inst.id, i)), float(i), delta * SLOT_SPEED)
+		var want := float(i)
+		var cur := float(_slot.get(inst.id, want))
+		_slot[inst.id] = move_toward(cur, want, delta * SLOT_SPEED)
+		if absf(float(_slot[inst.id]) - want) > 0.001:
+			_gliding[inst.id] = true
+		else:
+			_gliding.erase(inst.id)
 		i += 1
 	for id in _slot.keys():
 		if not live.has(id):
 			_slot.erase(id)
+			_gliding.erase(id)
 	_sync_emitters(p, live)
 
 ## A tick landed: its red number over her, and a pulse of the screen edge when the status has one.

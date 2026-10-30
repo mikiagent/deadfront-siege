@@ -84,6 +84,16 @@
     "min_push_m": 0.3,
     "stagger_s": 0.5
   },
+  "auto_ability": {
+    "_about": "AUTO-ABILITY (owner: an auto-ability button that uses the player's most powerful ability off cooldown, prioritized over basic attacks, on by default). Rows the auto-cast may use; damage x the weapon's damage ranks them (the rows are flat ability damage today), tie-break the longer cooldown. auto=false rows are manual-only; add a row with auto=true to let the auto-cast use it. Read by scripts/combat/auto_ability.gd.",
+    "_doc_ranks": "most powerful = highest expected damage per cast; the rows carry each ability's damage so the picker stays data-driven when abilities gain multipliers.",
+    "abilities": [
+      { "id": "tackle", "damage": 6.0, "cooldown": 8.0, "energy": 15.0, "tune": "tackle", "auto": true },
+      { "id": "kick", "damage": 4.0, "cooldown": 6.0, "energy": 10.0, "tune": "kick", "auto": true },
+      { "id": "roll", "damage": 0.0, "cooldown": 0.9, "energy": 12.0, "tune": "roll", "auto": false },
+      { "id": "net", "damage": 0.0, "cooldown": 0.0, "energy": 0.0, "tune": "", "auto": false }
+    ]
+  },
   "camera": {
     "trauma_decay_per_s": 1.4,
     "max_offset_m": 0.45,

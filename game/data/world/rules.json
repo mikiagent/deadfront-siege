@@ -64,14 +64,35 @@
     "gap_min": 0.5,
     "gap_max": 2.0,
     "climate_per_min": 4.0,
-    "breakdown_window_s": 180.0,
-    "fullness_mult": {
-      "_about": "FULLFATIGUE (owner 2026-10-28: 'fullness should affect exhaustion where exhaustion happens much quicker when empty stomach, moderately fast when hungry etc'). Multiplies every fatigue gain (the idle baseline too) by the stomach state (Digestion.state_for). ASSUMPTION values; overfull is a small sluggish penalty.",
-      "empty": 2.0,
-      "hungry": 1.5,
-      "normal": 1.0,
-      "full": 0.85,
-      "overfull": 1.1
+    "breakdown_window_s": 180.0
+  },
+  "hunger": {
+    "_about": "HUNGER (owner-approved memo docs/design/hunger-and-tribe-automation.md Part 1, 2026-10-29: 'the stomach is a budget, and what fills it is your buff'). Fullness is its own saved value in points (foods.json fullness, cap 100): eating adds it, it decays at decay_per_min whether or not anything digests, and the bands below set the exhaustion multiplier, the meal-buff lifetime and the HUD ring. Digestion still pays Energy over its own 300 s; only the stomach number changed. Every number is an ASSUMPTION (memo 1.4).",
+    "decay_per_min": 2.5,
+    "empty_below": 10.0,
+    "peckish_below": 30.0,
+    "fed_below": 70.0,
+    "well_fed_below": 100.0,
+    "_bands": "Overfull > well_fed_below (100); Well Fed 70-100; Fed 30-70; Peckish 10-30 (the quick-slot autofeed fires here); Empty < 10 (meal buffs switch off below buff_off_below).",
+    "fatigue_mult": {
+      "_about": "Multiplies every fatigue gain (the idle baseline too) by the stomach state (Digestion.state_for). ASSUMPTION; overfull is a small sluggish penalty, starving the empty band after starving_after_s.",
+      "overfull": 1.05,
+      "well_fed": 0.85,
+      "fed": 1.0,
+      "peckish": 1.1,
+      "empty": 1.3,
+      "starving": 1.5
+    },
+    "starving_after_s": 600.0,
+    "starving_stack_s": 180.0,
+    "well_fed_regen": 0.2,
+    "buff_off_below": 10.0,
+    "fullness_classes": {
+      "_about": "Fullness a food class is worth (foods.json 'fullness'): raw fruit and berries are a snack (6-10, 'snack': true, no buff), simple cooked food 25-30, dishes with roles 45-60, feast-tier dishes (later) 80+. ASSUMPTION: no shipped dish is feast tier yet.",
+      "snack": [6.0, 10.0],
+      "simple_cooked": [25.0, 30.0],
+      "role_dish": [45.0, 60.0],
+      "feast": [80.0, 140.0]
     }
   },
   "xp": {

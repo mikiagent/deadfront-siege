@@ -240,11 +240,13 @@ func _apply_bundle() -> Dictionary:
 			v.rest(Food.fatigue_relief(_stack_snapshot))
 	# --- Fullness, thirst, health, life, fatigue, capacity deltas.
 	# A finished meal always applies Full (the rule before spec 32); the bundle may only lengthen it.
-	# Fullness as a value is carried for the panel and the report: this build has no satiety meter
-	# (PRD :72/:1030 forbids one), so it is the same Full status with the food's own duration.
+	# HUNGER (memo Part 1 s1.4): the food's `fullness` is points added to the stored stomach
+	# (Digestion.add_fullness), which then decays on its own. Full stays the status with its own duration.
 	var fullness := float(bundle.get("fullness", 0.0))
 	if stacks != null:
 		_apply_status(stacks, &"full", float(bundle.get("full_seconds", 10.0)))
+		if digestion != null:
+			digestion.add_fullness(fullness)
 		out["fullness"] = fullness
 	var thirst := float(bundle.get("thirst", 0.0))
 	if stacks != null and thirst > 0.0:

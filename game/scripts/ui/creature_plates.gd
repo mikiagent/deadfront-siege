@@ -198,6 +198,10 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	var chip := NatureChip.new()
 	chip.position = CHIP_POS
 	root.add_child(chip)
+	# ALPHATAG (owner 2026-10-29): "Alpha" is a PREFIX tag, a gold chip in front of the name.
+	var alpha_chip := AlphaChip.new()
+	alpha_chip.position = Vector2(8, 1)
+	root.add_child(alpha_chip)
 	var bar_bg := ColorRect.new()
 	bar_bg.name = "BarBg"
 	bar_bg.position = Vector2(8, bar_top(false))
@@ -293,6 +297,7 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	var entry := {
 		"node": root,
 		"line1": line1,
+		"alpha_chip": alpha_chip,
 		"chip": chip,
 		"chip_nature": "",
 		"chip_ready": false,
@@ -340,8 +345,18 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	# NATURES (owner 2026-10-28): the name is the animal's name only ("Alpha Velociraptor") and its
 	# nature is the TAG directly under it ("Timid"); no nature, no chip and no gap.
 	var title := CreatureNatures.display_title(c)
+	# ALPHATAG: the gold "ALPHA" tag sits in FRONT of the name; the name starts after it.
+	var atag := entry.get("alpha_chip", null) as AlphaChip
+	var prefix_w := 0.0
+	if atag:
+		if not bool(entry.get("alpha_ready", false)) or bool(entry.get("alpha_on", false)) != c.is_alpha():
+			atag.configure(c.is_alpha())
+			entry["alpha_on"] = c.is_alpha()
+			entry["alpha_ready"] = true
+		prefix_w = AlphaChip.prefix_width(c.is_alpha())
+		line1.position = Vector2(8.0 + prefix_w, 0)
 	var raw_name := ("%s  %s  [%s]" % [LevelDisplay.label(c.level), title, c.genetics.overall_tier() if c.genetics else &"?"]) if c.is_pet else ("%s  %s" % [LevelDisplay.label(c.level), title])
-	line1.text = UiTokens.ellipsis(ThemeDB.fallback_font, raw_name, BASE_WIDTH - 20.0, 14)
+	line1.text = UiTokens.ellipsis(ThemeDB.fallback_font, raw_name, BASE_WIDTH - 20.0 - prefix_w, 14)
 	# The tag is configured only when it changes (its label width is measured on configure), so a
 	# plate that keeps its nature costs nothing per frame and never re-measures between frames.
 	var chip := entry.get("chip", null) as NatureChip

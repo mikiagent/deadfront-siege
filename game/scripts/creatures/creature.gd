@@ -467,8 +467,9 @@ func flee_speed(base_mps: float, slow: float = 1.0) -> float:
 	return maxf(base_mps * float(brain.profile.get("flee_speed_mult", 1.0)),
 		float(brain.profile.get("flee_min_mps", 0.0)) * slow)
 
+## ALPHATAG (owner 2026-10-29): an alpha is never capturable, stunned or not.
 func capturable() -> bool:
-	return is_capturable and health.hp > 0.0 and def.tameable
+	return is_capturable and health.hp > 0.0 and def.tameable and not is_alpha()
 
 func field_tame_open() -> bool:
 	return FieldTame.can_attempt(self)

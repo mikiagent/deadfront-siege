@@ -29,7 +29,8 @@ const SOURCE_REMEDIES := {
 const DEFAULT_REMEDY := "Wait it out, or cure the status."
 
 ## FULLFATIGUE: the stomach state's word in the context line.
-const STOMACH_WORD := {&"empty": "Empty stomach", &"hungry": "Hungry", &"normal": "Fed", &"full": "Full", &"overfull": "Overfull, sluggish"}
+const STOMACH_WORD := {&"empty": "Empty stomach", &"peckish": "Peckish", &"fed": "Fed", &"well_fed": "Well Fed",
+	&"starving": "Empty stomach", &"overfull": "Overfull, sluggish"}
 var player: Player
 ## Latest HUD-side exhaustion drift (pt/s; negative while it eases). HuntHud writes it every
 ## frame from ExhaustTreadmill's EMA; refresh() turns it into one sentence in the context line.

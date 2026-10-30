@@ -363,6 +363,9 @@ func _tame(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if c.is_empty():
 		return no("not_found", "no creature %s" % net_id)
 	var def := Data.creature(StringName(str(c.get("species", ""))))
+	# ALPHATAG (owner 2026-10-29): an alpha is never tamable, on the server as on the client.
+	if bool(c.get("alpha", false)):
+		return no("bad_request", FieldTame.ALPHA_REFUSAL)
 	if def == null or not def.tameable or bool(c.get("pet", false)):
 		return no("bad_request", "%s cannot be tamed" % net_id)
 	if ch.pos().distance_to(WorldFacade.v3(c.get("pos"))) > body_reach(def) + REACH_SLACK:
@@ -414,6 +417,9 @@ func _capture(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if c.is_empty():
 		return no("not_found", "no creature %s" % net_id)
 	var def := Data.creature(StringName(str(c.get("species", ""))))
+	# ALPHATAG (owner 2026-10-29): an alpha is never capturable, on the server as on the client.
+	if bool(c.get("alpha", false)):
+		return no("bad_request", FieldTame.ALPHA_REFUSAL)
 	if def == null or not def.tameable or bool(c.get("pet", false)):
 		return no("bad_request", "%s cannot be captured" % net_id)
 	if ch.pos().distance_to(WorldFacade.v3(c.get("pos"))) > body_reach(def) + REACH_SLACK:

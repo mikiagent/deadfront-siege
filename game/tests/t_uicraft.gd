@@ -133,9 +133,14 @@ func _test_d1() -> void:
 	var rects := {"header": Rect2(hb.global_position, hb.size), "list": mid.get_global_rect()}
 	_in_view(rects, "D1 list page")
 	_apart(rects, "D1 header and list")
-	for n in ["CraftBack", "CraftClose", "BuildRow"]:
+	for n in ["CraftBack", "CraftClose"]:
 		var c: Control = craft.find_child(n, true, false)
 		_expect(c != null and c.is_visible_in_tree() and Rect2(hb.global_position, hb.size).encloses(c.get_global_rect()), "D1: %s sits in the header" % n)
+	# Owner 2026-10-29: Build is the very bottom of Craft / Build, under the categories and the list.
+	var build_row: Control = craft.find_child("BuildRow", true, false)
+	var list_rect: Rect2 = (craft.find_child("RecipeScroll", true, false) as Control).get_global_rect()
+	_expect(build_row != null and build_row.is_visible_in_tree() and build_row.get_global_rect().position.y >= list_rect.end.y - 0.5 and _view().grow(0.5).encloses(build_row.get_global_rect()),
+		"D1: Build sits at the very bottom, under the recipe list")
 	# Weapons narrows the list; picking the first craftable recipe and Craft starts it.
 	(craft.find_child("Cat_weapon", true, false) as Button).pressed.emit()
 	await _frames(2)

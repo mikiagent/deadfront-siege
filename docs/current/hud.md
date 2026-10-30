@@ -33,18 +33,21 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   (right of the ring) and the chip row drops under it while it shows. `hud_stomach.gd`:
   - Inner ring = fullness. A full stomach is a complete circle, and it degrades clockwise: the lit arc
     always ends at 12 o'clock, and the gap opens from 12 o'clock clockwise (`HudStomach.arc_for`). The
-    colour comes from bands blended between stops (`STOPS`): red empty (< 0.1), yellow hungry
-    (0.3-0.5), green full (0.8-1.0), red overfull (> 1.2), blended in between; an empty ring shows a
-    faint red track. Fullness = Σ over digesting meals of the food's foods.json `fullness` × the share of
-    its Energy still undigested, over the fullness cap (100). Above 1 = overfull.
-  - Outer thin yellow ring = saturation, a cooldown: the longest digestion's time left over its digest
-    time. Full on a fresh meal, it drains in the same clockwise way and is empty when nothing digests.
-  - Glyph by state (`GLYPH`, `_src/icons_p.py`): empty `stomach_empty` (thin, shrunk), hungry
-    `stomach_hungry`, normal and full `stomach` (big and round; normal drawn smaller), overfull
+    colour comes from stops blended up from bands (`HudStomach.stops()`, in points, rebuilt from the
+    `hunger` block's own edges): red empty (< 10), yellow peckish (10-30) and the first half of fed,
+    green through fed and well fed (to 100), red overfull (above 100), blended in between; an empty ring
+    shows a faint red track. Fullness is `Digestion`'s stored stomach in
+    points (`rules.json` `hunger` band edges, HUNGER memo 2026-10-29). `game/tests/t_hudrules.gd` pins the
+    stops.
+  - Outer thin yellow ring = the `while_fed` meal buff time left (`Digestion.saturation`): the stomach's
+    remaining fed time over a full stomach's, so it drains in the same clockwise way and is empty when no
+    cooked dish's buff is on.
+  - Glyph by state (`GLYPH`, `_src/icons_p.py`): empty `stomach_empty` (thin, shrunk), peckish and fed
+    `stomach_hungry` / `stomach`, well fed `stomach` (big and round), overfull
     `stomach_overfull` (swollen, two pressure marks). The drawn scale eases (0.6/s) to `GLYPH_SCALE`
     (0.92 → 1.06), so a state change grows or shrinks it.
-  - ASSUMPTIONs: no satiety meter exists (the PRD forbids one), and the band edges (0.1 / 0.4 / 0.7 /
-    1.0 for the state) are mine. Read only; no hunger rule changed.
+  - ASSUMPTIONs: no satiety meter exists (the PRD forbids one); the band edges (10 / 30 / 70 / 100
+    points) are the memo's numbers in `rules.json` `hunger`. Read only; no hunger rule changed.
 - Treadmill belt (under the bars): while Well
   Rested the belt pauses (`ExhaustTreadmill.paused_rate`: the drift eases to 0 in ~0.2 s and holds)
   unless exhaustion is falling right then (a rest or a meal still runs it left); the status row shows
@@ -146,10 +149,11 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - The DEBUG hex shows only while `Game.debug_overlay` (phone: lower-right; desktop: under the dial).
 - Level bar (LEVELBAR, owner 2026-10-28): 6 px (`UiTokens.XP_BAR_H`) along the bottom edge, filled
   `UiTokens.XP_GREEN` (owner: "make it green for the xp bar too"; an owner exception to green =
-  healing, like the stomach's full band). A 2 px gap after every segment of `segment_xp` (100) XP of
+  healing, like the stomach's well fed band). A 2 px gap after every segment of `segment_xp` (100) XP of
   the level's cost, grouped into a multiple of 100 past `max_segments` (40) (`LevelDisplay.xp_segments`),
   so a dearer level draws more, thinner segments; the last is the leftover. The label over it reads
-  "Lv. 10  137 / 763 XP  · 100 XP each" (desktop centred, phone right above the rail). The cost is
+  "Lv. 10  137 / 763 XP  · 100 XP each", bottom-left just over the quick-food (EAT) row since owner
+  2026-10-30 ("the skill XP + player XP UI lower, above eat"), where the skill XP rows stack above it. The cost is
   exponential: `World.xp_for_level` = round(110 x 1.12^n x 2.5) (`pioneer_levels.json xp_curve`, `progression.json player_xp_cost_mult`). Test
   `t_levelbar.gd`. the survivor's name draws
   under her feet (15 px, projected from the camera).
@@ -193,7 +197,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - Four 72 px skill hexes in a row, ROLL rightmost: NET / TACKLE / KICK / ROLL. With a ranged weapon
   equipped NET becomes FIRE n (ammo count, disabled when out); near a catapult both swap to the
   siege hexes (SIEGE n stone_shot / TOXIN n). Cooldowns and reloads disable their hex.
-- AUTO toggles the hunt's auto-attacks; an "Attack Stance ◎" label sits beside the row; CHASE⇄HOLD
+- AUTO toggles the hunt's auto-attacks; AUTO-ABILITY beside it (on by default) casts the strongest
+  auto-castable ability off cooldown instead of the next basic attack (see controls.md); an
+  "Attack Stance ◎" label sits beside the row; CHASE⇄HOLD
   joins the quick-food row; FEED appears on tameable targets (`FieldTame.can_attempt`).
 - Whistle row SIC / HEEL / GUARD while a pet is out, selected state mirroring the pet's brain mode:
   desktop a row beside the rail (spec §6); landscape phone a row under the vitals; portrait a
@@ -260,7 +266,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   (0.8 s `FORGET_TAU` held 2 s) so the belt eases out of the sweep.
 - Tapping the face or belt opens FatiguePanel (300 px, refreshing every 0.5 s): up to 4 causes at
   ≥3% share of recent fatigue (each row a name, % and a remedy line), plus a context line with the
-  level-gap sentence, the stomach factor ("Hungry: +50% exhaustion.", FULLFATIGUE), the climate shortfall and the live drift ("Exhaustion is falling slowly
+  level-gap sentence, the stomach factor ("Peckish: +10% exhaustion.", FULLFATIGUE; `hunger.fatigue_mult`), the climate shortfall and the live drift ("Exhaustion is falling slowly
   (+x/min)"). Vitals owns the rows; the decay window is `fatigue.breakdown_window_s` (180 s).
 
 ## Gather radial (UIGATHER, spec §4, B1)
@@ -286,18 +292,38 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - The camera already leans toward the selected or worked node (`Player.camera_interest`, IsoCamera
   `SELECTION_BIAS` 0.35, follow lerp 8/s); UIGATHER leaves those values as they are.
 - Gains show in the top-middle column (TopFeed, below); `yield_card.gd` keeps only the chip helpers
-  (`chips_for`, `layout_chips`, `meta_line`) and the left XP feed (`draw_feed`). The per-node yield card
+  (`chips_for`, `layout_chips`, `meta_line`) and the XP feed (`draw_feed`). The per-node yield card
   is retired (owner 2026-10-28).
 
+## Repaint policy (HUDREDRAW)
+- The field HUD and its minimap no longer call `queue_redraw()` every frame (claude-tutperf measured
+  ~1.3-1.7 ms a frame of it). `HuntHud._process` ends in `_tick_redraw` (and `_tick_map_redraw` for the
+  map) and repaints only when the paint's inputs changed — `_hud_sig()` / `_map_sig_key()`, every value
+  `_draw` reads at drawn precision (0.1 px, whole metres / seconds / degrees): vitals and their
+  effective maxima, the HP label, mount energy, stomach fullness / saturation / eased glyph scale,
+  level + XP bar, statuses and buff chips (id, stacks, whole seconds), the rest box, the order card and
+  badge, the target plate (its HP, torpor strip, status chips and stack counts), nearby harvest nodes,
+  the camera, the canvas and the placer.
+- `_animating()` keeps the repaint going only while a piece moves by itself: notices / toasts / XP rows
+  and their batched ghost fill and level flash, bites and floats, the level-up celebration and MENU
+  pulse, the status pulse, the domain banner, the orders flash, gliding pills, the combat frame fade,
+  the fog trail fading, the ghost fills still easing, a placement mode and a level badge at tier 4+.
+- With nothing animating an idle HUD paints 0 times in 60 frames (`t_fieldhud`, `t_hudredraw`); a 1 Hz
+  catch-up runs only while a piece shows whole seconds (buff countdowns, rest rates, a node's regrow
+  timer). The day/night dial, the hexes and the sheets keep their own redraw logic. A new input of
+  `_draw` must be added to the signature or it waits for the next animating frame.
+
 ## Notices, toasts, hits, level-up
-- Skill XP lines (left feed, owner §1.6, UIGATHER): under the vitals, one 44 px row per tree gain (34 on
-  a phone) — a small hex with the skill's initial, "Gathering +6 XP Lv. 1" and a thin XP bar of that
-  tree's progress; a tree level-up is the same row in GOLD with ▲. Batched (SLOWLEVELS, owner
-  2026-10-28): one bar per tree takes every gain while it shows ("+60 Gathering XP"); each gain moves a
-  light-green ghost at once, the real fill waits `SKILL_CATCHUP_DELAY` 0.6 s after the last gain and
-  eases up to it, flashing white when it rolls over a level, then the bar lingers `SKILL_LIFE` 2.5 s and
-  fades (`HudEventState.skill_bar`, test `t_skillfeel._test_batch`). Each row takes a free spot off
-  `taken_rects`. Item gains are TopFeed rows (below); notices
+- Skill XP lines (XP feed, owner §1.6, UIGATHER; moved by owner 2026-10-30: "the skill XP + player XP UI
+  lower (above eat)"): the bottom-left corner, stacking UPWARDS from just over the quick-food (EAT) row,
+  one 44 px row per tree gain (34 on a phone) — a small hex with the skill's initial, "Gathering +6 XP
+  Lv. 1" and a thin XP bar of that tree's progress; a tree level-up is the same row in GOLD with ▲. Batched
+  (SLOWLEVELS, owner 2026-10-28): one bar per tree takes every gain while it shows ("+60 Gathering XP");
+  each gain moves a light-green ghost at once, the real fill waits `SKILL_CATCHUP_DELAY` 0.6 s after the
+  last gain and eases up to it, flashing white when it rolls over a level, then the bar lingers
+  `SKILL_LIFE` 2.5 s and fades (`HudEventState.skill_bar`, test `t_skillfeel._test_batch`). Each row takes
+  a free spot off `taken_rects` (`HudLayout.xp_feed_top` is the anchor, the player XP readout sits right
+  under it). Item gains are TopFeed rows (below); notices
   (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
   confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders
   on the HUD fill with an OK_GREEN edge and a check (`HudEventState.draw_notice`, B4). Nothing covers
@@ -318,6 +344,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
     room, and is a drawn block (`statusfx`) so toasts keep off it. A box that loses the one above it
     glides up (8 slots/s) instead of jumping.
   - Bleed's icon is the claw mark (`claw.svg`, `_src/icons_n.py`); the HUD chip row uses it too.
+  - Well Fed (HUNGER memo 2026-10-29) is a `boon` chip in the chip row, its own green glyph
+    (`well_fed.svg`), on while the stomach is in the Well Fed band (70-100 points) and off when it leaves;
+    it carries no flags — the slower exhaustion and the +0.2 Health/s live in `PlayerSim` off the `hunger`
+    block, so the chip can never double them.
   - Starving (owner 2026-10-28) is an effect box with a ribcage glyph (`starving.svg`, `_src/icons_r.py`) in
     `UiTokens.STARVING` dark amber, with a faint vignette that pulses on its ticks and tick numbers in its colour.
   - Colours (ASSUMPTION, from the spec tokens; owner 2026-10-28: no green negatives, `UiTokens.HEAL` /
@@ -332,10 +362,12 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   - Tick numbers: `StatusEffects.ticked(id, amount)` fires per damage-over-time tick on the player with
     the Health it took; `HudEventState.add_tick` floats a 16 px "-N" in the status's fx colour (owner 2026-10-28) ("-0.2" for a fraction) on the
     hit numbers' path (pops in from 70 %, rises, fades); two ticks on one frame stand side by side.
-- Top-middle column (`top_feed.gd`, `HuntHud.top_feed`; owner 2026-10-28): skill category level-ups
-  and every gain, centred on the view (desktop, from under the vitals' bottom, y 112 at 1600x900, 380 px
-  rows) or on the centre band's part left of the day/night dial (phone, under the band, 236 px one-line
-  rows). Rows take the next free spot down off `taken_rects` and the open radial, drawn after the
+- Top-middle column (`top_feed.gd`, `HuntHud.top_feed`; owner 2026-10-28): every gain, centred on the
+  view (desktop, from under the vitals' bottom, y 112 at 1600x900, 380 px rows) or on the centre band's
+  part left of the day/night dial (phone, under the band, 236 px one-line rows). A skill category
+  level-up row left the column (owner 2026-10-30: "the level-up banner goes left, below the hunger
+  ring"): it hangs from `HudLayout.levelup_top`, the left column under the stomach ring, and slides
+  down only as far as a control in that strip requires. Rows take the next free spot down off `taken_rects` and the open radial, drawn after the
   notices, and ease (never snap) when one above leaves; a new row goes under those showing. At most 3
   rows (2 on a compact canvas); later ones wait, a skill row first. Drawn blocks: `levelup` (a skill
   row), `toast<i>` (gain rows).
@@ -354,8 +386,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   with a light at the survivor (`fx/level_up_fx.gd`: gold pillar, two rings, rays, sparkles, a shadowless
   OmniLight, 2 s; riding, on the saddle with the rings on the ground). Desktop: "LEVEL UP" and the level
   pop over a flare, then XP, T-stones, the brain glyph with the skill points ("50 (+10)"), title and stat
-  lines slide in, at the far left (owner 2026-10-28), x = vitals + 16, centred between the vitals and the
-  quick slots; ~6 s (4 s with more queued). The bottom level bar pulses gold (`draw_bar_pulse`). Phones: the banner
+  lines slide in, at the far left (owner 2026-10-28), x = vitals + 16, its top right under the stomach
+  ring (`HudLayout.levelup_top`; owner 2026-10-30: "move the level up UI higher (below hunger)"), and
+  never lower than the quick slots leave room; ~6 s (4 s with more queued). The bottom level bar pulses gold (`draw_bar_pulse`). Phones: the banner
   in the centre band (level, LEVEL UP, title, one stat line ending in the brain and the skill points),
   pushed under a target plate with a fade. Gains land via `Vitals.grant_level_bonus` (saved).
 - Skill category level-up (`SkillState.skill_leveled`): the small light at her feet and a TopFeed row

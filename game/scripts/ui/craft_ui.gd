@@ -27,15 +27,18 @@ const STATIONS := [
 ## The category tabs (owner's Durango reference): [key ("" = all), label, symbol ids]. Keys are
 ## recipes.json `skill` values, except Tool / Weapon, which split weapon_tools by what the recipe
 ## makes (in_category). # ASSUMPTION: Farming kept as an eighth tab (7 farming recipes have no other home).
+## Order (owner 2026-10-29): Materials (Material Processing) first, the tools together (Tool, Weapon),
+## then the rest; Build is not a tab but the row at the very bottom of the list page (BuildRow).
+## # ASSUMPTION: "All" moves to the last tab and the processing tab reads "Materials" (open question TT3).
 const CATEGORIES := [
-	["", "All", ["stone_knife", "hammer"]],
-	["processing", "Material Processing", ["plank", "ingot"]],
-	["cooking", "Cooking", ["grilled_meat"]],
+	["processing", "Materials", ["plank", "ingot"]],
 	["tool", "Tool", ["stone_axe", "hammer"]],
+	["weapon", "Weapon", ["stone_knife"]],
+	["cooking", "Cooking", ["grilled_meat"]],
 	["tailoring", "Clothing", ["cloth", "dried_hide"]],
 	["construction", "Building Components", ["workbench_kit"]],
-	["weapon", "Weapon", ["stone_knife"]],
 	["farming", "Farming", ["berry_seed"]],
+	["", "All", ["stone_knife", "hammer"]],
 ]
 ## Outputs whose first category is one of these are a Weapon; the rest of weapon_tools is a Tool.
 const WEAPON_CATS := [&"weapon", &"ammunition", &"siege_ammunition", &"counter_supply"]
@@ -69,6 +72,7 @@ var _body: VBoxContainer
 var _mid: VBoxContainer
 var _right: VBoxContainer
 var _cats: GridContainer
+var _cat_scroll: ScrollContainer
 var _search: LineEdit
 var _list: VBoxContainer
 var _detail: VBoxContainer
@@ -107,8 +111,7 @@ func _ready() -> void:
 	_build_btn.icon = HexButton.symbol(["hammer", "workbench_kit"])
 	_build_btn.expand_icon = true
 	_build_btn.add_theme_constant_override("icon_max_width", 26)
-	_build_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_header.right.add_child(_build_btn)
+	_build_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_close_btn = _header.close
 	_close_btn.name = "CraftClose"
 	_body = VBoxContainer.new()
@@ -155,12 +158,19 @@ func _build_mid() -> void:
 	_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_hint.clip_text = true
 	_mid.add_child(_hint)
+	# A phone (844x390) has no height for two rows of tabs above the list and Build below it: there the
+	# tabs are one row that scrolls sideways (the tutorial guide scrolls its tab into view).
+	_cat_scroll = ScrollContainer.new()
+	_cat_scroll.name = "CategoryScroll"
+	_cat_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_mid.add_child(_cat_scroll)
 	_cats = GridContainer.new()
 	_cats.name = "CategoryGrid"
 	_cats.columns = 4
+	_cats.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_cats.add_theme_constant_override("h_separation", 2)
 	_cats.add_theme_constant_override("v_separation", 2)
-	_mid.add_child(_cats)
+	_cat_scroll.add_child(_cats)
 	var list_scroll := ScrollContainer.new()
 	list_scroll.name = "RecipeScroll"
 	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -172,10 +182,16 @@ func _build_mid() -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 0)
 	list_scroll.add_child(_list)
+	# Owner 2026-10-29: Build sits at the very bottom of Craft / Build, under every category and recipe.
+	var foot_row := HBoxContainer.new()
+	foot_row.name = "CraftFootRow"
+	foot_row.add_theme_constant_override("separation", 8)
+	_mid.add_child(foot_row)
 	var foot := _label("Select a pattern.", 14, UiTokens.MUTED)
 	foot.name = "CraftFootHint"
-	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_mid.add_child(foot)
+	foot.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	foot_row.add_child(foot)
+	foot_row.add_child(_build_btn)
 
 ## The detail page: the recipe, then Craft / Craft ×5 pinned under it.
 func _build_right() -> void:
@@ -292,8 +308,9 @@ func rebuild() -> void:
 	if _place.visible:
 		_place.rebuild()
 		return
-	_cats.visible = _mode == "craft"
+	_cat_scroll.visible = _mode == "craft"
 	_build_btn.text = "Craft" if _mode == "build" else "Build"
+	_build_btn.set_meta(&"tut_chosen", _mode == "build")  # Tutorial.guide's gate: the Build page is open
 	if _mode == "build":
 		_refresh_build_list()
 		return
@@ -317,9 +334,10 @@ func _refresh_cats() -> void:
 		cell.title = row[1]
 		cell.icon_tex = HexButton.symbol(row[2])
 		cell.chosen = key == _category
+		cell.set_meta(&"tut_chosen", cell.chosen)  # Tutorial.guide: the tab is open (checked while it shows)
 		cell.empty = n == 0
 		cell.font_px = UiTokens.meta(view) + (0 if _compact() else 2)
-		cell.custom_minimum_size = Vector2(TAP, TAP if _compact() else 76)
+		cell.custom_minimum_size = Vector2(108 if _compact() else TAP, TAP if _compact() else 76)
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.pressed.connect(_pick_category.bind(key))
 		_cats.add_child(cell)
@@ -549,6 +567,8 @@ func _recipe_row(rec: Dictionary) -> Control:
 	row.custom_minimum_size = Vector2(0, TAP if compact else 92)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	style_cell(row, chosen)
+	row.set_meta(&"tut_chosen", chosen)  # Tutorial.guide: Craft below acts on this recipe
+	row.set_meta(&"tut_hard", true)  # checked on the detail page too, where the list is hidden
 	row.pressed.connect(_choose_recipe.bind(str(rec.get("id", ""))))
 	var h := HBoxContainer.new()
 	h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -905,6 +925,7 @@ func _layout_safe() -> void:
 	_hint.custom_minimum_size = Vector2(0, 18 if compact else 22)
 	_search.add_theme_font_size_override("font_size", UiTokens.body(view) + (0 if compact else 4))
 	_mid.add_theme_constant_override("separation", 4 if compact else 8)
+	_cats.columns = CATEGORIES.size() if compact else 4
 
 # ---------------------------------------------------------------- widgets
 

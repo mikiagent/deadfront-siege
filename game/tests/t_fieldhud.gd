@@ -56,6 +56,7 @@ func _run() -> void:
 	await _test_badge()
 	await _test_interact()
 	await _test_attack_and_sprint()
+	await _test_idle_redraw()
 	await _test_layout()
 	if _fails.is_empty():
 		print("[t_fieldhud] PASS")
@@ -300,6 +301,52 @@ func _test_attack_and_sprint() -> void:
 	_expect(not _player.sprint_toggled and not sprint.selected, "SPRINT taps off")
 	await _frames(2)
 
+# ---------------------------------------------------------------- HUDREDRAW
+
+## HUDREDRAW: with nothing changing the HUD stops repainting (it used to paint every frame, ~1.3-1.7 ms
+## of a desktop frame). A change that is drawn still repaints it on the next frame.
+func _test_idle_redraw() -> void:
+	_player.vitals.fatigue = 0.0
+	_player.vitals.health = _player.vitals.effective_max_health()
+	_hud._levelups.clear()
+	_hud.top_feed.clear()
+	var ev = _hud.get("_events")
+	ev.notices.clear()
+	ev.toasts.clear()
+	ev.skill_toasts.clear()
+	ev.bites.clear()
+	ev.player_floats.clear()
+	if _player.statuses:
+		_player.statuses.clear_all()
+	await create_timer(4.0).timeout  # the belt's drift EMA and the ghost fills settle
+	await _frames(4)
+	var d0: int = int(_hud.draw_count)
+	var m0: int = int(_hud.map_draw_count)
+	await _frames(60)
+	var draws: int = int(_hud.draw_count) - d0
+	var map_draws: int = int(_hud.map_draw_count) - m0
+	print("[t_fieldhud] idle 60 frames: HUD draws %d, minimap draws %d" % [draws, map_draws])
+	_expect(draws <= 6, "with nothing changing for 60 frames the HUD paints only while the belt's drift creeps a pixel (%d)" % draws)
+	_expect(map_draws <= 2, "the minimap stands still too (%d draws over 60 frames)" % map_draws)
+	# With nothing animating at all (the exhaustion belt at rest) it paints not once.
+	_hud._fat_rate = 0.0
+	_hud._fat_forgive = 0.0
+	await _frames(10)
+	var still0: int = int(_hud.draw_count)
+	var stillm0: int = int(_hud.map_draw_count)
+	await _frames(60)
+	var still: int = int(_hud.draw_count) - still0
+	print("[t_fieldhud] idle 60 frames with nothing animating: HUD draws %d, minimap draws %d" % [still, int(_hud.map_draw_count) - stillm0])
+	_expect(still == 0, "with nothing changing and nothing animating the HUD does not repaint (%d draws)" % still)
+	_expect(int(_hud.map_draw_count) - stillm0 == 0, "nor does the minimap")
+	# A change it draws still reaches the screen at once.
+	var before: int = int(_hud.draw_count)
+	_player.vitals.health = maxf(1.0, _player.vitals.health - 10.0)
+	await _frames(2)
+	_expect(int(_hud.draw_count) > before, "a health change still repaints the HUD")
+	_player.vitals.health = _player.vitals.effective_max_health()
+	await _frames(2)
+
 # ---------------------------------------------------------------- layout
 
 func _test_layout() -> void:
@@ -346,6 +393,7 @@ func _check_rects(view: Vector2, state: String, phone: bool) -> void:
 		for h in _hud.get("_skill_hexes"):
 			items.append(["skill " + str(h.caption), h])
 		items.append(["auto", _hud.get("_auto_hex")])
+		items.append(["autoability", _hud.get("_auto_ability_hex")])
 		items.append(["feed", _hud.get("_feed_hex")])
 		items.append(["end", _hud.get("_end_btn")])
 		items.append(["stance", _hud.get("_stance_label")])
@@ -369,7 +417,10 @@ func _check_rects(view: Vector2, state: String, phone: bool) -> void:
 			rects.append([k, _hud.drawn_blocks[k]])
 	if state == "idle" and _hud.drawn_blocks.has("quest"):
 		rects.append(["quest", _hud.drawn_blocks["quest"]])
-	rects.append(["xp line", Rect2(view.x * 0.5 - 160.0, view.y - 30.0, 320.0, 30.0)])  # UiTokens.xp_line_zone
+	# LAYOUT (owner 2026-10-30: "the skill XP + player XP UI lower, above EAT"): the player XP readout
+	# stands bottom-left over the EAT row, so it is checked where it is drawn.
+	if _hud.drawn_blocks.has("level"):
+		rects.append(["xp line", _hud.drawn_blocks["level"]])
 	var screen := Rect2(Vector2.ZERO, view)
 	var overlaps := 0
 	for i in rects.size():
