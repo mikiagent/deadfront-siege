@@ -670,6 +670,8 @@ func _check_pen(label: String, keeps: bool) -> void:
 		p.running = true
 		p.remaining = 0.0
 		p._process(1.0)
+		if p.tamed != null:
+			p.claim(player) # PENCLAIM: a finished tame waits in the pen for Bond
 	var done: bool = player.bonded.size() == tamed + 1 if keeps else p.occupant == null
 	_check(done and not p.running and errors.script_errors == errs, "hostile '%s': keeps animal=%s, the pen finishes without a script error (tamed +%d, running=%s, script_errors=%d)" % [label, keeps, player.bonded.size() - tamed, p.running, errors.script_errors - errs])
 	print("[t_save] hostile '%s' pen kept_animal=%s tamed=+%d script_errors=%d" % [label, keeps, player.bonded.size() - tamed, errors.script_errors - errs])

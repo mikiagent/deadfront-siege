@@ -463,7 +463,7 @@ func _waiting_rows() -> Array:
 				continue
 			var sp := str((occ as ItemStack).attributes.get("species", "")).capitalize()
 			var left := float(pen.get("remaining")) / maxf(0.001, Game.time_scale) if pen.get("remaining") != null else 0.0
-			out.append(["%s · in a pen" % sp, "Ready · needs a free slot" if left <= 0.0 else "Taming · %d min left" % ceili(left / 60.0)])
+			out.append(["%s · in a pen" % sp, "Tamed · tap the pen to bond" if left <= 0.0 else "Taming · %d min left" % ceili(left / 60.0)])
 	return out
 
 func _waiting_row(row: Array, view: Vector2) -> Control:

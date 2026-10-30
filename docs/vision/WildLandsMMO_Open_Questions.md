@@ -341,3 +341,14 @@ Build status: TD4, TD5 (P2 RECIPETOOLS) and TD10 (P4 TRAITGEAR) are built with t
 `claude/mmo-recipetools`, not merged yet (report `docs/orchestration/reports/claude-recipetools.md`).
 
 - **HOLDKICK (2026-10-30):** with HOLD on, the auto-ability no longer casts push abilities (Kick), because the push shoves the target out of reach while HOLD keeps the survivor still. The manual Kick press still works under HOLD. # ASSUMPTION, owner can flip it.
+
+### PENCLAIM (2026-10-30) — tame result card and offline pen timer
+
+Branch `claude/mmo-penclaim`, report `docs/orchestration/reports/claude-penclaim.md`. Defaults taken:
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **PC1** | The pen rolls when its wait ends even at the bonded cap; the tamed pet waits in the pen, and the cap is checked at Bond. The old "hold the roll at the cap" (and a paused-left timer for it) is gone. | `TamingPen.resolve` / `claim` | A full roster no longer delays the result; the pet just stays in the pen. |
+| **PC2** | A pen tame is generation 1; the card's Bag is the pet's bag slot count (the reference showed a carry value of 100). | `TamingPenUI._fill_result` | Bag reads as slots, not weight, until pets get a carry stat. |
+| **PC3** | Packing up or demolishing a pen whose tame is waiting for Bond hands the captured animal back (the tame result is dropped, as taming progress always was). | `BuildPlacer.stored_items` (unchanged) | The player can lose a finished tame by packing the pen up. |
+| **PC4** | The wait runs on the wall clock: closed game, a pen on an island you left, and a paused game all count. A save from before the change restarts its remaining wait from the load. | `TamingPen.end_at` | Offline taming; old in-progress pens get no free catch-up time. |
