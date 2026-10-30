@@ -175,7 +175,7 @@ func _list_slot(acct: int, slot: int, count: int, price: int, hours: int) -> Str
 
 func tame(acct: int, net_id: String) -> String:
 	_gather(acct, "berry", 3)
-	world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 20.0, "knocked": true})
+	world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 20.0, "knocked": true, "torpor": 1.0})
 	var r := {}
 	for i in 3:
 		r = bridge.client("act.tame", acct, {"net_id": net_id, "food": "berry"}, now + i)
@@ -192,7 +192,7 @@ func capture(acct: int, net_id: String) -> int:
 	for i in 2:
 		bridge.client("act.craft", acct, {"recipe_id": "twine", "picks": [_slot(acct, "fibre_stalk")]}, now)
 	bridge.client("act.craft", acct, {"recipe_id": "capture_net_i"}, now)
-	world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 10.0})
+	world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 10.0, "torpor": 1.0})
 	for i in 40:
 		world.creatures[net_id].knocked = true
 		var got := bridge.client("act.capture", acct, {"net_id": net_id}, now + i)

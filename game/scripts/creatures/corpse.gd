@@ -52,7 +52,7 @@ func setup(c: Creature) -> void:
 	# The body is placed by the ragdoll (Corpse.place_settled), not snapped to the tile centre.
 	# BUTCHER (spec 12 §2): the cut budget is the killer's, fixed at death like the loot roll.
 	var p := PlayerRegistry.local()
-	cuts_budget = CarcassParts.cut_budget(maxi(0, p.skills.level_of("butchering")) if p != null and p.skills != null else 0)
+	cuts_budget = CarcassParts.cut_budget(maxi(0, SkillRules.effective_level(p, "butchering")) if p != null and p.skills != null else 0)
 	cuts_left = cuts_budget
 
 func _ready() -> void:
@@ -469,6 +469,7 @@ func first_take_of(def_id: StringName) -> bool:
 	if _paid_kinds.has(def_id):
 		return false
 	_paid_kinds[def_id] = true
+	Tasks.note(&"butcher")  # TASKSCREEN: daily Butcher 10 Times (DW-T0119), one per part kind taken
 	return true
 
 func _kind_units() -> Dictionary:

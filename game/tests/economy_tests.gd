@@ -1162,12 +1162,13 @@ func _test_journal_replay() -> bool:
 	_expect(why == "" and fresh.state_json() == live, "journal replay from empty reproduces the state byte for byte (%s %s)" % [why, _same(store.engine, fresh)])
 	var f := FileAccess.open(dir + "/journal.jsonl", FileAccess.READ_WRITE)
 	f.seek_end()
-	f.store_string("{\"seq\": 9999, \"ts\": 17")
+	f.store_string("{\"seq\": 9999, \"ts\": 17, \"torn\": \"TORN-TAIL-MARKER\"")
 	f.close()
 	var reboot := EconStore.new(MarketEngine.new(_rules(), cat), dir)
 	reboot.snapshot_every_ops = 0
 	_expect(reboot.open() == "" and reboot.engine.state_json() == live, "a torn final journal line is discarded")
-	_expect(not FileAccess.get_file_as_string(dir + "/journal.jsonl").contains("9999"), "the torn bytes are cut from the file")
+	# A numeric sentinel can occur inside a stat value (0.029999999999972715); the marker is unique.
+	_expect(not FileAccess.get_file_as_string(dir + "/journal.jsonl").contains("TORN-TAIL-MARKER"), "the torn bytes are cut from the file")
 	var res := reboot.apply("wallet.spend", 1, {"reason": "travel", "amount": 5, "rid": "after-torn"}, T0 + 13 * 3600)
 	_expect(res.ok, "the store keeps journaling after a torn line")
 	var after := reboot.engine.state_json()

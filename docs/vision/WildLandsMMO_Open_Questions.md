@@ -60,6 +60,7 @@ Source: merges into `claude/mmo-overhaul` on 2026-10-28. Each is marked `# ASSUM
 | **LB1** | Character XP curve is exponential: stored level n costs round(110 x 1.12^n) XP (Lv 1 110, Lv 10 305, Lv 20 947, Lv 30 2942; was 100 + 25 n). Owner asked for "exponentially harder"; the constants are ours. | `pioneer_levels.json xp_curve`, `World.xp_for_level` | Sets how long every character level takes; Lv 1-11 stay within ~15 % of the old cost, Lv 30 costs 3.6x the old. |
 | **LB2** | Old saves keep their total XP and recompute the level on the new curve; where that would drop a level the stored level stays as a floor (XP into it kept, clamped under its cost). Saves are marked `xp_curve: 2`. | `World.migrate_linear_xp`, `SaveGame._apply` | A Lv 10-11 save may gain a level (its per-level HP/energy granted quietly); Lv 13+ saves keep their level and need the new cost for the next. |
 | **LB3** | The bottom level bar draws one segment per 100 XP, grouped into a multiple of 100 to stay at or under 40 segments; the label reads "Lv. n  xp / cost XP · unit XP each". | `pioneer_levels.json xp_curve.segment_xp / max_segments` | Past Lv ~39 a segment is 200+ XP, so the unit changes between levels. |
+| **SL1** | Everything levels 2.5x slower (owner 2026-10-28: "make it so everything levels up slower"). Each track's XP cost per level is multiplied by one knob in `game/data/progression.json` (`player_xp_cost_mult`, `skill_xp_cost_mult`, `pet_xp_cost_mult`, `tribe_xp_cost_mult`, all 2.5); XP grants, curve shapes and the 100-XP bar segment are unchanged. Character Lv 1 now costs 275 (Lv 10 763), skill Lv 1->2 costs 70, pet Lv 1->2 112.5, tribe skill 100 x level. At the plan's ~35 XP/min, Lv 10 lands near 2 h instead of 47 min; islands-and-loop-plan §3.2's hour-one Lv 11-13 target is superseded (now about Lv 6). | `progression.json`, `Progression.mult`, report `claude-slowlevels.md` | The docs pin no slower pace; 2.5 is a default. Owner: is 2.5x the feel you want, and should every track share it? |
 
 ### HARVESTROLL (2026-10-28) — every gather pass is its own lot
 
@@ -70,6 +71,9 @@ Source: branch `claude/mmo-harvestroll`, report `docs/orchestration/reports/clau
 | **HR1** | A pass's level rolls in max(1, S-5)..S for node level S, `L = lo + min(5, floor(6 x U^gamma))`; gamma 1.5 at Gathering 1 bare-handed, down 0.5 by Gathering 60 and 0.25 at a steel tool (the Traits math doc's illustrative novice/competent/expert values). Starter nodes of level 1 always yield level 1. | `LootRoller.roll_lot` | How often a gatherer lands top-of-band material; how fast skill pays. |
 | **HR2** | Each material lot rolls one grey trait at 35% (PERKCAP: owner called 96% "too harsh"; 35% is ours) and one gold trait at 7% (the math doc's unapproved candidate), never the grey one's opposite; gold odds +15% relative per tool tier above stone and +20% relative at Gathering 60, capped 12%; magnitude 1-3 each. | `loot_tables.json lot` | About a third of branches/stones carry a grey trait; crafting averages these into outputs. |
 | **HR3** | Which gold/grey traits a material can roll is by its first category (wood, stone, ore, fibre, lashing, earth), read off spec 04's trait meanings; food, herbs and treasure roll level only. | `lot.by_category` | Spec 04 asks for per-resource tables; these are placeholders until the owner names per-material ones. |
+| **SL2** | Skill research (owner 2026-10-28): every level of every tree but Survival is researched after its bar fills, started by the player, one at a time. Duration min(72 h, 60 s x g^(n-1)) with g so 49->50 = 48 h (owner anchor): 1->2 1 min, 10->11 4.5 min, 20->21 23 min, 30->31 2 h, 40->41 11 h, 52+ capped at 72 h; all 59 researches of one tree take about 42 days. XP past a full bar keeps banking. Instant Completion and Decrease Research Time are disabled stubs. | `progression.json skill_research`, `SkillState.start_research`, report `claude-slowlevels.md` | Spec 03 gated only every fifth level from 20 (5 min to 72 h); the owner's "research when the progress fills" reads as every level. Is every level right, and is Survival exempt as spec 03 says? |
+| **SL3** | Spiky Armor (Tailoring Lv. 30, 4 SP) unlocks Spiky Armor and Spiky Armor Helmet; each worn piece adds +5 to the effective Butchering level (cut budget, part rolls), not to the tree level. Armour 250 / 110, durability 300, hide-and-bone art. | `trees.json` tailoring `spiky_armor`, `items.json`, `recipes.json`, `SkillRules.effective_level` | Owner example of the cross-skill loop; every number is a default. |
+| **SL4** | The Durango workbook's Survival capture nodes (Capturing Quadrupedal / Bipedal / Combative / Fast / Mammal Dinos I-II) conflict with our Capture Technique I-V ladder (spec 09). Kept ours; the workbook rows stay reference. | `docs/reference/skill-upgrades.md` | Which ladder is canon? |
 | **HR4** | PERKCAP (owner: "1-2 perks on each gathered item max"): green + gold + grey together are at most 2 per gathered item (`lot.max_perks`). A green trait that lands on a full item replaces its grey one, else it is skipped. The top feed row shows the latest item's perks, and its count reads "+n total" when several gains collapse into it. | `GatherService._make_room`, `TopFeed._add` | Which perk gives way when a green lands on a full item. |
 
 ### TRIBE M1 (2026-10-28) — tribe members and dock recruits
@@ -93,6 +97,22 @@ Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tri
 | **T13** | Orders: follow (fights only what attacks it), guard (also defends the survivor, her pets and her hunt target within 9 m), heel (never fights), attack (the survivor's hunt target), stay. Fights are leashed to 20 m from the survivor. Following members take the follow slots after her summoned pets. | `TribeMember._pick_target` | Pet-style orders on a human. |
 | **T14** | Away from home only following members come along; working and staying members remain at home. There is no expedition slot limit yet (vision §7 says three shared slots). | `TribeDirector.sync` | Party size on trips. |
 | **T15** | Work reach: a worker stands at the visible edge of a node (card or mesh footprint) plus 0.3 m. | `HarvestNode.visual_radius` | Visual only. |
+
+### TRIBE M2a (2026-10-29) — hand-off work orders (memo `docs/design/hunger-and-tribe-automation.md` §2.2, approved as the working plan)
+
+Source: branch `claude/mmo-tribem2a`, report `docs/orchestration/reports/claude-tribem2a.md`. Numbers live in `game/data/tribe.json` `work` unless a file is named.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **T16** | Minimum success for a hand-off: 80 %. Below it the member refuses: "62% success, needs Woodworking 14" (the level that would reach 80 %). | `work.min_success` | Protects "a failed craft loses the materials" from eating the best picks. |
+| **T17** | Worker speed: craft or build time × max(0.5, 1 − 0.01 × skill level). Only workers use it in M2a; the survivor's own craft time is unchanged. | `work.speed_per_level`, `work.min_time_mult` | The memo says one formula for both; the survivor half is a separate tuning call. |
+| **T18** | A member's crafting ability is its skill level only (no learned nodes, no food buffs until M2b); success, output level cap and burn odds use the survivor's rules at that level. Members train any skill a job uses (Construction, Processing, Weapon Tools…), starting at 1. | `TribeWork.craft_offer` | Fresh recruits only take recipes with no ability requirement. |
+| **T19** | Teach by doing (memo Q6): a recipe the survivor has never made herself is refused ("Craft it once yourself first"). | `work.teach_by_doing` | Cheap to switch off if it feels like a chore. |
+| **T20** | Output goes to the storage building nearest the station within 6 m, else the survivor's bag (wherever she is). What fits nowhere waits with the member ("ready · no room") and is retried every second. Stations have no output tray yet. | `work.chest_link_m`, `TribeWork._deliver` | Where finished goods appear. |
+| **T21** | Working costs 0.25 fatigue and 0.15 energy per second; a member rests (pausing the order) at the M1 thresholds and eats from storage near the station when hungry (M1 rules, unchanged hunger model). | `work.fatigue_per_work_s`, `work.energy_per_work_s` | Upkeep of a station worker. |
+| **T22** | One worker per station or site; one order per member; only station recipes that are not a process station's own jobs (smoker, drying rack run by themselves) and only craft stations (fires excluded until cook orders, M2c). | `TribeWork._craft_why`, `StationCraft.assign_actions` | Scope of M2a. |
+| **T23** | A builder needs no Construction level gate (the blueprint gate is the survivor's knowledge, tribe-wide) but its Construction level caps the finished station's level (`Blueprints.result_level`), so a level-1 builder makes a Lv 1 station; the picker shows the predicted level. The site's own timer stops while a builder is assigned; the builder finishes the site itself. | `TribeWork.build_offer`, `BuildFlow.complete(builder)` | Delegating a build can cost station level. |
+| **T24** | No offline catch-up yet: work runs only while the member's body is loaded (at home). The memo's 8 h offline cap is for M2c. | `TribeMember._station_work` | A trip pauses home orders. |
 
 ## 2026-10-28 — Stations and pens (claude/mmo-stationstate)
 
@@ -149,6 +169,22 @@ Source: branch `claude/mmo-compyjumps`, report `docs/orchestration/reports/claud
 | **C6** | Landing: the bite keeps lunging at 1.3 x run until its contact frame while she is beyond 0.6 x reach; a compy at a walking survivor's heels with no bite allowed hops back and chases again. Target share of bites and pounces that connect on a survivor who does not roll: about 50-85 % (t_swarm measures standing and walking 2 m/s). | `bite_track`, `bite_track_frac`, `chase_hop` | Owner: "attacks aren't landing very often". The swarm's chase speed (0.5) still lets a running survivor get away. |
 | **C7** | "Missed" (grey, like Dodged/Blocked) is shown for a failed accuracy roll, an out-of-reach contact frame, a pounce that lands with the prey out of its jaws, and a survivor swing the creature stepped out of. A failed roll against a creature with a dodge chance is split by the same single draw: inside the dodge part "Dodged", inside the accuracy part "Missed". | `CombatTuning.swing_outcome`, `CombatAvoid` | Owner: damage text "Dodged" "Blocked" or "Missed". |
 
+### FOODTORPOR (2026-10-29) — Food Bag, spoilage, torpor
+
+Source: branch `claude/mmo-foodtorpor`, report `docs/orchestration/reports/claude-foodtorpor.md`. Owner: a "Food Bag" tab eaten in placement order; spoiled food leaves it as "Spoiled Meat" or "Rot"; Spoiled Meat + Narcoberry make the capture drug (player-facing "Sedative"); creatures get a torpor bar and must be weak and past a torpor threshold to be knocked out. Every number below is a default taken, not balance.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **T1** | Torpor max 100 for every species (no size or tier scaling). | `combat_tuning.json torpor.max` | A T. rex goes down as fast as a compy; scaling by size is the obvious next step. |
+| **T2** | Knock-out threshold 60 % of max; "weak" is spec 09's rule (stunned at any HP, or HP <= 30 %). | `torpor.ko_frac`, `FieldTame.window_open` | Decides how many doses a capture costs. |
+| **T3** | Doses: blunt hit +6, Sedative charge +20 (plus the hit's blunt +6), Tranquilizer Dart +30; a dart does 25 % of the slingshot's damage. | `torpor.blunt / sedative / dart / dart_damage_mult` | Club-only capture takes ~10 hits; 2 darts are enough. |
+| **T4** | Torpor holds while knocked down, drains 3 / s after 6 s with no new dose; not saved. | `torpor.decay_delay_s / decay_per_s` | How long a survivor has between doses. |
+| **T5** | Sedative = 1 Spoiled Meat + 2 Narcoberry by hand; coats the weapon for 3 landed hits. Dart = 1 Sedative + 1 bone -> 3 darts, slingshot ammo. | `recipes.json sedative / tranquilizer_dart` | The crafting cost of a capture. |
+| **T6** | Narcoberry bushes: the berry bush art tinted violet, 2 per island on grass / dry tiles, every climate except the tutorial island, 1-2 berries a pick. | `nature_manifest.json narcoberry_bush`, `IslandScatter.scatter` | The PRDs give no biome for it. |
+| **F1** | Food Bag holds 20 lots; it is a view of food in the main bag (uids in order), not a second container. Eat and auto-feed take the first lot that can be eaten now. | `Inventory.FOOD_BAG_MAX`, `food_bag` | A separate container would need its own weight and transfer rules. |
+| **F2** | Spoil times from the moment the survivor's bag first holds a lot, real time incl. offline: raw meat / raw 2 h, fruit / mushroom / cactus 4 h, cooked 6 h, cold food 1 h; preserved (dried, smoked), drinks, pet feed and burnt food never. Meat (incl. cooked meat) -> Spoiled Meat, other food -> Rot, one for one. | `foods.json spoilage` | Spec 08 had forbidden a freshness timer; the owner asked for one. Pets' bags, chests and the online server do not spoil yet. |
+| **F3** | Rot composts at the mortar: 3 Rot + 1 earth -> 1 Fruit Fertilizer (same Fertilizer node as the fruit recipe). | `recipes.json rot_compost` | The vision mentions compost; no compost heap station exists yet. |
+
 ### ISLANDSHAPES (2026-10-29) — island shape families, southern-most dock, topography
 
 Source: branch `claude/mmo-islandshapes`, report `docs/orchestration/reports/claude-islandshapes.md`. Numbers live in `game/data/world/island_families.json` (every one an ASSUMPTION) and `islands.json` `shape_family`.
@@ -179,6 +215,25 @@ cooldown and prioritizes that over basic attacks" / "put that on by default".
 | **A3** | Only Tackle and Kick are auto-castable by default; Roll (a dodge) and Net (a capture tool) are listed `auto:false` in data — utility stays manual unless a row marks `auto:true`. | `auto_ability.abilities` | Auto-spending stamina on a dodge or throwing the capture net unasked would fight the player. |
 | **A4** | The auto-cast runs the same gates as the manual press (reach body-edge to body-edge, line of sight, stamina, the tactic lock, a hurt stun) and never spams a refusal notice; when nothing qualifies the basic attack takes over. | `AutoAbility.try_cast` | Prioritized over basic attacks, not a replacement for their rules. |
 | **A5** | The player's skills and gear do not yet give abilities with cooldowns, so the candidate list holds the two body tactics; new rows (an eventual skill ability, a weapon power) join by adding a row with `auto:true`. | `auto_ability.abilities` | No ability system exists in data beyond trees.json effects; the list is where one plugs in. |
+### TASKSCREEN (2026-10-28) — the Task screen (Daily, Achievement, Domain Construction, Main Task, Weekly)
+
+Source: branch `claude/mmo-taskscreen`, report `docs/orchestration/reports/claude-taskscreen.md`. Numbers live in `game/data/world/tasks.json`; the Durango research it imports is `docs/reference/durango_all_tasks_research.xlsx` (mapping in `docs/reference/tasks.md`).
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TS1** | Nothing pays on its own any more: a finished standing order advances the HUD card as before, but its xp / T-stones wait in Main Task until Receive. | `Objectives.settle`, `Tasks.claim` | A player who never opens Tasks never gets order rewards; the red dot and the MENU badge are the only prompt. |
+| **TS2** | Daily resets at 00:00 UTC and weekly at Monday 00:00 UTC (device clock), not local midnight. Unclaimed dailies are lost at the reset. | `Tasks.roll` | A wrong device clock can reset early; the server should own this later. |
+| **TS3** | Quantities the sheet leaves blank: gather 30 / day, trim 3 planks, 2 stone knives, 1 build, 2 hunts / day; weekly 2 landings on Lv 30+ islands, 300 gathers, 25 crafts, 15 hunts. | `tasks.json daily / weekly` | Daily load per session. |
+| **TS4** | Achievement chains are ours: character Lv 5, 10, ... 60 and every skill Lv 10, 20, ... 60, one row per chain (the next unclaimed milestone). Each pays L T-stones, 1 skill point (SkillState.sp_extra) and 5 x L EXP. 13 chains x 6-12 milestones add about 84 SP over a full game (~11 % of the level SP). | `tasks.json achievement` | SP economy; claimed by hand, so a late player can claim a backlog at once. |
+| **TS5** | Domain Construction tasks are ours (campfire, basket, tent, workbench, drying rack, taming pen, well, 10 fences); each pays 5-15 T-stones, 30-80 EXP and 1 skill point (the sheet: civilized-domain build tasks pay extra SP, DW-T0128). Old saves count buildings already placed. | `tasks.json domain`, `World.pioneer_buildings` | Early SP and T-stones. |
+| **TS6** | Daily and weekly rewards: 5 T-stones + 40 EXP per daily, 25 + 250 per weekly (the sheet names the kinds, never amounts). | `tasks.json` | T-stone faucet (economy.md). |
+| **TS7** | The returning-player tab ("Prodigal Pioneer") is left out. | `OrdersSheet` | No such system. |
+| **TS8** | Durango item names mapped to ours: Trimmed Material -> `trimmed_plank`; Pebble Stone Blade -> `improvised_stone_knife` / `stone_knife`; "Butcher 10 times" = 10 part kinds taken from carcasses; "minerals" = material Lv 60 from rock-role nodes. | `tasks.json` | Naming only. |
+| **TS9** | Weekly Explore Level-30 Islands pays 100 T-stones + 300 EXP, not the sheet's ~10,000 T-Stones (a 2019 player estimate in Durango's economy; ours starts at 20). A load on a Lv 30+ island also counts as a landing. | `tasks.json weekly.explore30` | Owner call on the T-stone scale. |
+| **TS10** | Data only, hidden until the system exists: Craft Leaf Outfits (no recipe), daily task points -> Warp Gems (neither exists), Advanced Kiln (not placeable), Cheer (no emotes / players), the 8-part finale (no story). | `tasks.json hidden` | Becomes live when the thing exists. |
+| **TS11** | Not imported: faction missions, career guides, Google Play achievements, events and rank titles (other systems). | `docs/reference/tasks.md` | Future Communication / Career Guide work. |
+| **TS12** | Main Task counts an order finished when Objectives.settle passes it (a saved set), not by index, so the tutorial's hand-over part-way down the standing orders never pays a skipped order. | `Tasks.done` | Save field (`tasks.done`). |
+| **TS13** | Order rewards wait for Receive, so the tutorial teaches it: order 2 "Claim your reward in Tasks" (10 EXP; the pointer goes MENU -> Tasks -> Receive) is done once any order's reward is received. The Task screen opens on Main Task while an order waits. Owner go 2026-10-29; the order itself is ours. | `objectives.json tut_claim`, `Objectives received_any` | One extra tutorial step; a player who skips claiming later is a level or two behind. |
 
 ## Parked by other docs
 
@@ -191,3 +246,24 @@ Each vision doc's unresolved points remain inside that doc until the workshop; t
 - Vision unknowns: `WildLandsMMO_Game_Vision.md` (§5 revival, §20 UI, …).
 
 - 2026-10-28 owner idea (not necessary): rotatable camera (e.g. 45 degree steps) keeping the 2.5D look; 2D cards stay camera-facing. Logged as roadmap feature camera-rotate-25d (later).
+
+## 2026-10-29 — Chase sprint (auto-sprint after a fleeing target)
+
+Source: branch `mmo-chasesprint`, report `docs/orchestration/reports/dsc-chasesprint.md`. Owner: "when chasing a fleeing enemy, when it leaves a certain radius around the player, toggle sprint to chase it". Numbers live in `game/scripts/player/player.gd` (`CHASE_SPRINT_ON_M`, `CHASE_SPRINT_OFF_M`, `CHASE_SPRINT_RESUME_FRAC`), every one an ASSUMPTION.
+
+| # | Question | Why it matters | Lands in |
+|---|---|---|---|
+| **CS1** | **Sprint-on radius: 7 m.** Once the hunt target is farther than 7 m she sprints after it by herself. Larger (9-10 m) keeps a slow walk-up longer; smaller (5 m) starts sprinting during ordinary melee repositioning. | Continuous stamina drain (9/s) in every fight where the target backs off; it can empty the bar while she is still swinging. | `docs/current/controls.md` § Chase sprint |
+| **CS2** | **Sprint-off radius: 4 m**, the hysteresis floor, so a target at the edge cannot make her stutter between walk and sprint. Equal to the on radius (no band) is the alternative. | Whether a fight reads as "step in, swing" or as a flickering run. | same |
+| **CS3** | A winded survivor (empty stamina or the Exhausted tier) is never forced to sprint, and the forced sprint only returns at a quarter of the bar. Should exhaustion block it at a lower tier, or should the forced sprint be allowed to run her dry once? | How much of the chase is the player's to manage. | same |
+| **CS4** | Chase sprint uses its own flag, so it never toggles the HUD SPRINT hex and never turns off a latch the player set. Should the HUD show a separate chase-sprint state instead of staying unlit? | The player cannot currently tell the auto-sprint from a walk besides her speed. | `game/scripts/ui/hud_field.gd` |
+### STYRA (2026-10-30) — styracosaurus / triceratops (horned_charger) behaviour
+
+Source: branch `claude/mmo-styratactics`, report `docs/orchestration/reports/dsc-styratactics.md`. Numbers live in `game/data/creatures/ai.json archetypes.horned_charger.tactics` (every one an ASSUMPTION); template pack_mule.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **S1** | The big ceratopsians stand their ground (temperament territorial, Brave never flees on sight) and fight only while provoked; they hold a 2.0 s head-lowering display at ring 9 m before the charge. | `temperament`, `ring_m`, `display_s` | Owner: "a display first, then the charge". |
+| **S2** | The charge is a ram: straight locked line, 2.0 × attack impact and a 4 m body-slam shove with a 0.9 s stagger along the charge line; a sidestep or roll dodges it and staggers it 2.0 s. | `charge_mult`, `charge_shove_m`, `charge_shove_stagger_s`, `charge_miss_recover_s` | Owner 2026-10-29: "tackling/ramming". |
+| **S3** | Point blank it sweeps the horns: the `heavy` move (attack_heavy clip) x 2.2, 7 s cooldown, before kick/bite in `point_blank`. | `heavy_cd`, `heavy_mult`, `point_blank`, `TacticalBrain` heavy move | Gives the big head a finisher that is not a bite. |
+| **S4** | It fights to 25 % HP, then flees 4 s; guard 20 m around its home; herd defence as pack_mule. | `retreat_frac`, `guard_m`, `herd_defend` | Braver than the zebra; still capturable when weak. |

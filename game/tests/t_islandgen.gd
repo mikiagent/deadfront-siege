@@ -27,7 +27,7 @@ const IDS := ["home_grassland", "savannah_15", "temperate_35", "volcanic_60"]
 ## Every island is checked for the SHAPE contract (four-side sea margins, river length and body,
 ## MUD channel, mesa warp): the merge review found the clipped-headland and coastal-stub defects on
 ## islands the four-island set did not cover.
-const ALL_IDS := ["home_grassland", "savannah_15", "savannah_45", "temperate_20", "temperate_25",
+const ALL_IDS := ["home_grassland", "tutorial_isle", "savannah_15", "savannah_45", "temperate_20", "temperate_25",
 	"temperate_35", "temperate_45", "tropical_25", "tropical_40", "desert_35", "desert_50",
 	"tundra_30", "tundra_55", "swamp_55", "volcanic_60"]
 const TARGET := {
@@ -413,32 +413,36 @@ func _check_islandshapes(id: String, rt) -> void:
 		_expect(fam == str(def["shape_family"]), "%s family %s is its island row's %s" % [id, fam, def["shape_family"]])
 	if id == "home_grassland":
 		_expect(fam == "classic", "the legacy meadow keeps the classic body (%s)" % fam)
-	# Southern-most dock: no legal mainland pose lies farther south than the one placed.
+	# The tutorial island keeps its hand-tuned dock beside its town (ISLANDSHAPES S4, dock_rule:
+	# hint), so the southern-most rule does not apply to it.
 	var HS: GDScript = load("res://scripts/world/harbour_site.gd")
 	var dock_c: Vector2 = HS.centre(rt.harbour.build_cell, rt.harbour.build_rot)
 	var site: Dictionary = HS.find(rt, Vector2.ZERO, true)
-	_expect(not site.is_empty(), "%s has a legal dock pose" % id)
-	if not site.is_empty():
-		var best_c: Vector2 = HS.centre(site["cell"], site["rot"])
-		_expect(dock_c.y >= best_c.y - 0.01, "%s dock (z %.1f) is on the southern-most legal coast (z %.1f)" % [id, dock_c.y, best_c.y])
+	if str(def.get("dock_rule", "")) != "hint":
+		_expect(not site.is_empty(), "%s has a legal dock pose" % id)
+		if not site.is_empty():
+			var best_c: Vector2 = HS.centre(site["cell"], site["rot"])
+			_expect(dock_c.y >= best_c.y - 0.01, "%s dock (z %.1f) is on the southern-most legal coast (z %.1f)" % [id, dock_c.y, best_c.y])
 	_expect(str(HS.check(rt, rt.harbour.build_cell, rt.harbour.build_rot)) == "", "%s dock pose is legal" % id)
 	var arrive: Vector3 = rt.arrival_point()
 	_expect(Vector2(arrive.x, arrive.z).distance_to(dock_c) < 6.0, "%s arrival lands at the dock (%s)" % [id, arrive])
 	_expect(sh.on_mainland(arrive.x, arrive.z), "%s dock is on the mainland, not an islet" % id)
 	# The land south of the dock: nothing on the mainland stands more than a dock's length past it.
+	# The tutorial island keeps its hand-tuned dock (S4), so the southern-most rule does not apply.
 	var south_land := -INF
 	var span: int = rt._tile_span
 	var half: float = rt._size * 0.5
-	for z in range(0, span, 2):
-		for x in range(0, span, 2):
-			if rt.dry_walk[x + z * span] == 1:
-				var wx := -half + float(x) + 0.5
-				var wz := -half + float(z) + 0.5
-				if sh.on_mainland(wx, wz):
-					south_land = maxf(south_land, wz)
-	# ASSUMPTION: 25 m of slack: the dock needs a legal shore (gentle beach, deep water off it), and the
-	# very tip of a headland is often too steep or shallow for one.
-	_expect(arrive.z >= south_land - 25.0, "%s arrival z %.0f is at the southern-most mainland (dry land reaches z %.0f)" % [id, arrive.z, south_land])
+	if str(def.get("dock_rule", "")) != "hint":
+		for z in range(0, span, 2):
+			for x in range(0, span, 2):
+				if rt.dry_walk[x + z * span] == 1:
+					var wx := -half + float(x) + 0.5
+					var wz := -half + float(z) + 0.5
+					if sh.on_mainland(wx, wz):
+						south_land = maxf(south_land, wz)
+		# ASSUMPTION: 25 m of slack: the dock needs a legal shore (gentle beach, deep water off it), and the
+		# very tip of a headland is often too steep or shallow for one.
+		_expect(arrive.z >= south_land - 25.0, "%s arrival z %.0f is at the southern-most mainland (dry land reaches z %.0f)" % [id, arrive.z, south_land])
 	# Walkable: dock to camp, and dock to dry mainland tiles spread over the island.
 	_expect(rt.pathing.path(arrive, rt._camp_pos, 0).size() > 1, "%s dock and camp are connected on foot" % id)
 	var probes := 0
@@ -513,8 +517,25 @@ func _check_islandshapes(id: String, rt) -> void:
 			rocks += 1
 		if fam != "classic":
 			_expect(int(props.outcrop_count) > 0, "%s has rock outcrops (%d rocks)" % [id, int(props.outcrop_count)])
-	print("[t_islandgen] shapes %s family=%s topo=%d outcrops=%d dock=%s arrive_z=%.0f south_land=%.0f" % [
-		id, fam, sh.topo.size(), int(props.outcrop_count) if props != null else 0, dock_c, arrive.z, south_land])
+	# FOODTORPOR: the narcoberry bushes must not stand on ISLANDSHAPES topography (a CLIFF/outcrop
+	# tile is no walkable, no buildable, no spawn ground) and keep off the dock approach like every
+	# other special family. The bushes are the two "narcoberry_bush" harvest nodes.
+	var narco := 0
+	for node in rt._harvest_nodes.values():
+		if not is_instance_valid(node) or str(node.family) != "narcoberry_bush":
+			continue
+		narco += 1
+		var np: Vector3 = node.position
+		var nt := int(_IT.tile_type_at_world(rt, np.x, np.z))
+		_expect(nt != _IT.TileType.CLIFF, "%s narcoberry bush at %s is not on a CLIFF topography tile (type %d)" % [id, np, nt])
+		_expect(rt.is_dry(np) and rt.spawn_ok(np, false), "%s narcoberry bush at %s is on walkable dry ground" % [id, np])
+		_expect(not rt.on_harbour_approach(np), "%s narcoberry bush at %s keeps off the dock approach" % [id, np])
+	if str(def.get("kind", "")) != "tutorial":
+		_expect(narco == 2, "%s has its 2 narcoberry bushes (%d)" % [id, narco])
+	else:
+		_expect(narco == 0, "the tutorial island keeps no narcoberry bushes (%d)" % narco)
+	print("[t_islandgen] shapes %s family=%s topo=%d outcrops=%d dock=%s arrive_z=%.0f south_land=%.0f narcoberry=%d" % [
+		id, fam, sh.topo.size(), int(props.outcrop_count) if props != null else 0, dock_c, arrive.z, south_land, narco])
 
 func _in_topo(sh, wx: float, wz: float) -> bool:
 	var tm: PackedByteArray = sh.topo_mask

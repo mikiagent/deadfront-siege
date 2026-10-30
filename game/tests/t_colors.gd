@@ -307,6 +307,7 @@ func _test_tame_keeps_profile() -> void:
 	player.inventory = (load("res://scripts/items/inventory.gd") as GDScript).new(28)
 	c.health.hp = c.health.max_hp * 0.2
 	c.statuses.apply(&"knockdown")
+	c.torpor = c.torpor_max()  # FOODTORPOR: knocked out = weak + torpor past the threshold
 	player.inventory.add(ItemStackS.make(&"raw_meat", 5))
 	FieldTameS.begin_window(c)
 	var fed := 0
@@ -335,6 +336,7 @@ func _test_tame_keeps_profile() -> void:
 	var c2 = _spawn(&"velociraptor", Vector3(-4.0, 0.0, 1.0))
 	c2.health.hp = c2.health.max_hp * 0.2
 	c2.statuses.apply(&"knockdown")
+	c2.torpor = c2.torpor_max()
 	c2.is_capturable = true
 	var genes2: Dictionary = c2.genetics.to_dict()
 	var netted: bool = CaptureS.attempt(p2, c2, 1)

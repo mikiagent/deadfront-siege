@@ -36,9 +36,10 @@ var player: Player
 var last_notice: String = ""
 ## Spec 09: one "stun it" hint per creature, when a tameable wild animal under the hunt drops to
 ## <= 50 % HP and is not stunned. Keyed by instance id so a second animal gets its own hint.
-const STUN_HINT := "Stun the dinosaur to capture it safely."
+const STUN_HINT := "Weaken and sedate the dinosaur to capture it."
 const STUN_HINT_FRAC := 0.50  ## the early tutorial target the spec names (not a hard capture rule)
-const CAPTURE_REFUSAL := "Stun it or weaken it to 30% health to capture it."
+const TRANQ_DART := &"tranquilizer_dart"
+const CAPTURE_REFUSAL := "Weaken it and sedate it until it is knocked out to capture it."
 var _stun_hinted: Dictionary = {}
 
 func setup(p: Player) -> void:
@@ -295,6 +296,8 @@ func land_hit(t: Creature, w: ItemStack) -> bool:
 	wear_weapon(w)
 	apply_counter_hit(w, t)
 	if dtype == &"blunt" and t.brain is TyrantBrain: (t.brain as TyrantBrain).blunt_counter()
+	if dtype == &"blunt":
+		t.add_torpor(CombatTuning.num("torpor", "blunt", 6.0), player)
 	if dtype == &"blunt" and not t.health.dead and CombatTuning.roll(float(tune.get("blunt_groggy_chance", 0.35))):
 		t.statuses.apply(&"groggy", player)
 	if kind == &"crit" or (dtype == &"blunt" and dmg > float(tune.get("heavy_swing_min_damage", 10.0))):
@@ -367,12 +370,13 @@ func use_tackle() -> void:
 func use_kick() -> void:
 	CombatTactics.kick(self)
 
-## Nets follow the one capture rule (FieldTame.capture_window): stunned at any HP, or <= 30 %.
+## Nets follow the one capture rule (FieldTame.capture_window): weak (stunned, or <= 30 %) and torpor
+## past the knock-out threshold.
 func use_net() -> void:
 	if target == null:
 		return
 	if not _net_health_ok():
-		say(CAPTURE_REFUSAL)
+		say(FieldTame.refusal(target))
 		return
 	CaptureSystem.attempt(player, target)
 
@@ -422,13 +426,18 @@ func apply_counter_hit(w: ItemStack, victim: Creature) -> void:
 			victim.statuses.apply(&"bleeding_target", player)
 	elif def and def.damage_type == &"slashing" and not victim.health.dead and CombatTuning.roll(CombatTuning.num("player_melee", "slashing_bleed_chance", 0.25)):
 		victim.statuses.apply(&"bleeding_target", player)
+	if w and int(w.attributes.get("sedative_hits", 0)) > 0:
+		w.attributes["sedative_hits"] = int(w.attributes["sedative_hits"]) - 1
+		victim.add_torpor(CombatTuning.num("torpor", "sedative", 20.0), player)
+		player.inventory.changed.emit()
 	if w and int(w.attributes.get("toxin_hits", 0)) > 0:
 		w.attributes["toxin_hits"] = int(w.attributes["toxin_hits"]) - 1
 		if not victim.health.dead: victim.statuses.apply(&"poisoned_target", player)
 		player.inventory.changed.emit()
 
 ## Fixed aim at launch, real projectile collision. Auto and Fire context share this action.
-func fire_ranged() -> bool:
+## `ammo` overrides the weapon's own ammo (a Tranquilizer Dart from the "Dart" hex).
+func fire_ranged(ammo: StringName = &"") -> bool:
 	if target == null or not is_instance_valid(target) or target.health.dead: return false
 	var weapon := _weapon()
 	var def := weapon.def() if weapon else null
@@ -444,8 +453,9 @@ func fire_ranged() -> bool:
 	if not hit.is_empty() and hit.get("collider") != target:
 		say_throttled("No clear shot: something is in the way.")
 		return false
-	if player.inventory.count_of(def.ammo_id) < 1:
-		say("Need stone shot")
+	var ammo_id := ammo if ammo != &"" else def.ammo_id
+	if player.inventory.count_of(ammo_id) < 1:
+		say("Need %s" % (Data.item(ammo_id).display_name.to_lower() if Data.item(ammo_id) else str(ammo_id)))
 		_swing_cd = 1.0
 		return false
 	player.clear_nav()
@@ -458,12 +468,15 @@ func fire_ranged() -> bool:
 	player.get_tree().create_timer(0.25).timeout.connect(func () -> void:
 		_ranged_pending = false
 		if not is_instance_valid(player) or player.dead or player.rolling or player.inventory.equipped_weapon() != weapon or not is_instance_valid(runtime) or runtime != World.runtime or player.anim.current_clip != &"attack_primary": return
-		if not player.inventory.consume(def.ammo_id, 1): return
+		if not player.inventory.consume(ammo_id, 1): return
 		var shot := StoneProjectile.new()
 		shot.source = player
 		shot.weapon = weapon
 		shot.velocity = StoneProjectile.launch_velocity(offset)
 		shot.damage = weapon.scaled_damage()
+		if ammo_id == TRANQ_DART:
+			shot.damage *= CombatTuning.num("torpor", "dart_damage_mult", 0.25)
+			shot.torpor = CombatTuning.num("torpor", "dart", 30.0)
 		# The arc flies past the weapon's straight range so a lobbed stone can land on a target at
 		# the edge; the multiplier is tuning, not code (combat_tuning.json ranged.arc_range_mult).
 		shot.range_left = def.range_m * float(CombatTuning.section("ranged").get("arc_range_mult", 1.5))

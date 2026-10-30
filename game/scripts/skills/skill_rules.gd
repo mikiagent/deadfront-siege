@@ -68,6 +68,15 @@ static func recipe_block(sk: SkillState, recipe_id: String) -> String:
 		msg += "; you have %d SP, reach %s for +%d SP" % [sk.sp_available, LevelDisplay.label(lv + 1), sk.sp_for_level(lv + 1)]
 	return msg
 
+## The level a skill acts at for `p`: the tree level plus what worn gear adds (ItemDef.skill_bonus),
+## at most Lv. 60. Research and the level cap read the tree level; actions read this.
+static func effective_level(p: Node, tree: String) -> int:
+	if p == null or p.get("skills") == null:
+		return 0
+	var inv: Variant = p.get("inventory")
+	var bonus: int = inv.skill_bonus(tree) if inv != null and inv.has_method("skill_bonus") else 0
+	return mini(SkillState.MAX_LEVEL, (p.get("skills") as SkillState).level_of(tree) + bonus)
+
 ## Sum of {"type": "ability", "ability": name, "amount": n} over learned nodes.
 static func ability(sk: SkillState, name: String) -> int:
 	var total := 0

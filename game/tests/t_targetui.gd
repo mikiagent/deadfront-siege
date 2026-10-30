@@ -367,6 +367,7 @@ func _test_tame_and_mounted() -> void:
 	_expect(_swords().get("_key_drawn") == true, "dismounted: the E key cap is back")
 	wild.health.hp = wild.health.max_hp * 0.2
 	wild.statuses.apply(&"knockdown")
+	wild.torpor = wild.torpor_max()  # FOODTORPOR: knocked out = weak + torpor past the threshold
 	await _frames(3)
 	_expect(load("res://scripts/pets/field_tame.gd").can_attempt(wild) and _selected() == wild and not _swords_shown(),
 		"knocked down and tameable: still selected, no swords")

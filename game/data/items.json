@@ -449,7 +449,7 @@
       "damage": 18,
       "damage_type": "slashing",
       "is_work_tool": true,
-      "max_durability": 40,
+      "max_durability": 120,
       "stats_per_level": {
         "damage": 0.02,
         "max_durability": 0.02
@@ -4527,6 +4527,58 @@
       "_about": "SADDLES: fits a large tame (PetRecord.saddle_size); equip it from the tame's Gear screen to ride."
     },
     {
+      "id": "spiky_armor",
+      "display_name": "Spiky Armor",
+      "categories": [
+        "armor_body"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 250,
+      "max_durability": 300,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "skill_bonus": {
+        "butchering": 5
+      },
+      "visual": "hide_and_bone/chest",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SLOWLEVELS worked example (owner 2026-10-28: 'Spikey armor, increases Butchering ability -> helps you grind for better gear'): Tailoring's Spiky Armor node unlocks it; while worn its skill_bonus raises the effective Butchering level (SkillRules.effective_level). ASSUMPTION: armour, durability, +5 Butchering per piece; the hide-and-bone art stands in."
+    },
+    {
+      "id": "spiky_armor_helmet",
+      "display_name": "Spiky Armor Helmet",
+      "categories": [
+        "armor_head"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 110,
+      "max_durability": 300,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "skill_bonus": {
+        "butchering": 5
+      },
+      "visual": "hide_and_bone/helmet",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SLOWLEVELS worked example (owner 2026-10-28: 'Spikey armor, increases Butchering ability -> helps you grind for better gear'): Tailoring's Spiky Armor node unlocks it; while worn its skill_bonus raises the effective Butchering level (SkillRules.effective_level). ASSUMPTION: armour, durability, +5 Butchering per piece; the hide-and-bone art stands in."
+    },
+    {
       "id": "silver_chunk",
       "display_name": "Silver Chunk",
       "categories": [
@@ -4561,6 +4613,76 @@
       },
       "market_category": "ingot",
       "rarity": "uncommon"
+    },
+    {
+      "id": "spoiled_meat",
+      "display_name": "Spoiled Meat",
+      "categories": [
+        "spoiled",
+        "spoiled_meat"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "meat",
+      "rarity": "common",
+      "_about": "FOODTORPOR: what raw or cooked meat becomes when it spoils (Spoilage). Not edible; mixed with Narcoberry into Sedative."
+    },
+    {
+      "id": "rot",
+      "display_name": "Rot",
+      "categories": [
+        "spoiled",
+        "rot"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common",
+      "_about": "FOODTORPOR: what spoiled plant food becomes (Spoilage). Not edible; composted into fertilizer at the mortar."
+    },
+    {
+      "id": "narcoberry",
+      "display_name": "Narcoberry",
+      "categories": [
+        "herb",
+        "narcoberry"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "uncommon",
+      "_about": "FOODTORPOR: a sleep-inducing berry from narcoberry bushes; a Sedative ingredient, not a food."
+    },
+    {
+      "id": "sedative",
+      "display_name": "Sedative",
+      "categories": [
+        "counter_supply",
+        "sedative"
+      ],
+      "stack_max": 999,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "medicine",
+      "rarity": "uncommon",
+      "_about": "FOODTORPOR: coats the equipped weapon for 3 landed hits, each adding sedative torpor; also the dose in a Tranquilizer Dart."
+    },
+    {
+      "id": "tranquilizer_dart",
+      "display_name": "Tranquilizer Dart",
+      "categories": [
+        "ammunition",
+        "tranquilizer_dart"
+      ],
+      "stack_max": 999,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "weapon",
+      "rarity": "uncommon",
+      "_about": "FOODTORPOR: slingshot ammo fired from the Dart hex; light damage, a large torpor dose."
     }
   ]
 }

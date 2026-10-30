@@ -124,7 +124,30 @@ body-edge reach, line of sight and affordable (stamina) **instead of the next ba
   as with the auto-attack. Toggling the AUTO hex off stops the auto-attack entirely; toggling
   AUTO-ABILITY off keeps the auto-attack but only ever basic-attacks.
 
+## Chase sprint (auto-sprint after a fleeing target)
 
+Owner: "when chasing a fleeing enemy, when it leaves a certain radius around the player, toggle
+sprint to chase it". While the hunt has a live target, the survivor sprints by herself once it is
+**farther than 7 m**, and drops back to a walk once it is **within 4 m** — the two radii are a
+hysteresis band, so a target hovering at the edge cannot make her stutter. Both numbers are
+`# ASSUMPTION` defaults (`Player.CHASE_SPRINT_ON_M` / `CHASE_SPRINT_OFF_M`).
+
+- It uses its own flag (`Player.chase_sprint`), never the HUD SPRINT latch: a sprint the player
+  tapped on stays on, and chase-sprint turning off never turns their latch off.
+- It ends with the chase: target dead or cleared, End Combat, or a ground-tap move order (a move
+  order outranks combat, so she stops sprinting after the target too). The hunt keeps its target
+  through the move order, so the sprint comes back when the order ends.
+- Energy is respected: a winded survivor (empty stamina or the Exhausted tier) is never forced to
+  sprint, and the forced sprint only returns once the bar is back to a quarter.
+- Mounted, the same flag asks the mount to run, on **its own** energy pool; a winded mount walks.
+- The HUD SPRINT hex tracks the player's own latch only, so it stays unlit while chase sprint is
+  running her; the hex is the manual override, not the auto state.
+- `game/tests/t_chasesprint.gd` measures the radii, the hysteresis, the manual latch, the winded
+  case, the move order, the chase ending and the mounted case.
+- Open questions CS1-CS4 in `docs/vision/WildLandsMMO_Open_Questions.md` hold the numbers as
+  ASSUMPTIONs for the owner to tune.
+
+## Full screen
 
 F11 toggles full screen on desktop and in the browser. The pause menu also has a Full screen button,
 which is the reliable route on a phone or tablet browser because browsers only allow full screen from
@@ -141,7 +164,7 @@ back-roll clip. The numbers live in `game/data/combat_tuning.json` `roll` and ar
 | | today |
 |---|---|
 | dash | 0.56 s, 39 m/s at the press decaying to 0.2 of it, ~10.9 m on open ground |
-| invulnerable | the first 0.32 s: a creature hit that would land then is dodged — no damage, no stagger, a "Dodged" line, Defense XP once |
+| invulnerable | the first 0.32 s: a creature hit that would land then is dodged — no damage, no stagger, a "Dodged" line, Defense XP once. Defense trains only through `CombatAvoid.avoided(..., earned)`: this roll, or stepping out of a telegraphed attack, when the attack would have landed; a hit taken, an accuracy miss or a roll with nothing to avoid pays none (owner 2026-10-28) |
 | cost | 12 stamina |
 | cooldown | 0.9 s from the press; a press inside it is refused ("Roll on cooldown") |
 

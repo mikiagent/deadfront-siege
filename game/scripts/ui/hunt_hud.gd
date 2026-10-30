@@ -69,6 +69,7 @@ var _orders_suppressed := false  # collapsed by hand during this activity: stays
 var _orders_frac := -1.0
 var _orders_frac_index := -1
 var _orders_poll := 0.0
+var _tasks_poll := 0.0  ## TASKSCREEN: seconds to the next claimable-task count for the MENU / Orders badge
 const ORDERS_AUTO_S := 4.0  # ASSUMPTION: the owner asked for "a few seconds"
 var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
 var _ctx_hexes: Array[HexButton] = []
@@ -225,7 +226,7 @@ func _watch_skills() -> void:
 	var sk := _skills_watched
 	if sk.has_signal("skill_xp_gained"):
 		sk.skill_xp_gained.connect(func (tree: StringName, amount: float, level: int) -> void:
-			_events.add_skill_xp(str(tree), amount, level)
+			_events.add_skill_xp(str(tree), amount, level, HudEventState.progress_of(sk, str(tree)))
 		)
 	if sk.has_signal("skill_leveled"):
 		sk.skill_leveled.connect(func (tree: StringName, level: int) -> void:
@@ -1844,7 +1845,7 @@ func _draw_capture_hint(cam: Camera3D, taken: Array[Rect2], a: float) -> void:
 	var at := t.global_position + Vector3.UP * 1.2
 	if cam.is_position_behind(at):
 		return
-	var text := "Capturable — throw the net!" if FieldTame.capture_window(t) else "Weaken to %d%% to capture" % int(round(FieldTame.CAPTURE_HEALTH_FRAC * 100.0))
+	var text := "Knocked out — throw the net!" if FieldTame.capture_window(t) else ("Sedate it: torpor %d%% / %d%%" % [int(round(100.0 * t.torpor_frac())), int(round(100.0 * FieldTame.torpor_ko_frac()))] if FieldTame.is_weak(t) else "Weaken to %d%% to capture" % int(round(FieldTame.CAPTURE_HEALTH_FRAC * 100.0)))
 	var view := get_viewport_rect().size
 	var px := UiTokens.body(view)
 	var w := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 16.0
@@ -1875,7 +1876,7 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			var latin: Font = (_font as FontVariation).base_font if _font is FontVariation else _font
 			var chip_y := py + 29.0 + latin.get_descent(name_px)  # 1 px under the name's line box
 			var dy := maxf(0.0, chip_y + NatureChip.CHIP_H + CreaturePlates.CHIP_GAP - (py + 44.0)) if NatureChip.text_for(nat) != "" else 0.0
-			var block := Rect2(px, py - 4.0, pw, 70.0 + dy)
+			var block := Rect2(px, py - 4.0, pw, 70.0 + dy + HudBuffRow.CHIP + 8.0)
 			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
 			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
 			draw_rect(Rect2(px, py - 4, pw, 48 + dy), Color(UiTokens.INK, 0.75 * a))  # the reference's dark band: the name reads on foliage
@@ -1892,22 +1893,33 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			py += dy  # everything below the tag
 			target_rows["bar"] = Rect2(px, py + 44, pw, 22)
 			draw_rect(Rect2(px, py + 44, pw, 22), Color(0.12, 0.05, 0.05, 0.9 * a))
-			var window := FieldTame.capture_window(t)  # spec 09: stunned or <= 30 %, the bar turns GOLD
+			var window := FieldTame.capture_window(t)  # weak + torpor past the threshold: the bar turns GOLD
 			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(UiTokens.GOLD, 0.95 * a) if window else Color(0.80, 0.12, 0.12, 0.95 * a))
 			var hp := "%.0f / %.0f" % [t.health.hp, t.health.max_hp]
 			var hw := _font.get_string_size(hp, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 			draw_string(_font, Vector2(px + pw * 0.5 - hw * 0.5, py + 61), hp, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, a))
+			if not t.is_pet and t.torpor > 0.05:  # FOODTORPOR: violet torpor strip + the knock-out tick
+				draw_rect(Rect2(px, py + 67, pw, 5), Color(0.06, 0.04, 0.12, 0.9 * a))
+				draw_rect(Rect2(px, py + 67, pw * t.torpor_frac(), 5), Color(CreaturePlates.TORPOR_COLOR, 0.95 * a))
+				draw_rect(Rect2(px + pw * FieldTame.torpor_ko_frac() - 1.0, py + 67, 2, 5), Color(1, 1, 1, 0.9 * a))
+				target_rows["torpor"] = Rect2(px, py + 67, pw, 5)
 			if t.brain is TyrantBrain:
 				var label := (t.brain as TyrantBrain).opening_label()
 				draw_rect(Rect2(px,py+108,pw,26),Color(0.1,0.1,0.12,0.9*a))
 				draw_string(_font,Vector2(px+8,py+128),label,HORIZONTAL_ALIGNMENT_LEFT,pw-16,16,Color(1,0.85,0.2,a))
 				block = block.merge(Rect2(px, py + 108.0, pw, 26.0))
 			var ix := px
+			# CREATURECHIPS: the target bar's status chips are the player's chip renderer (HudBuffRow
+			# .draw_chip, 38 px black tile, white rim, white icon) with the numbered stack badge —
+			# the same look and count as the plate's chips and her own row.
+			target_rows["chips"] = {}
 			if t.statuses:
-				for inst in t.statuses.instances():
-					var chip := HudStatusChip.draw_named(self, _font, Vector2(ix, py + 74), inst.id, a, 13 if band.has_area() else 15)
-					block = block.merge(chip)
-					ix += chip.size.x + 6.0
+				for e in HudBuffRow.creature_entries(t):
+					var box := Rect2(Vector2(ix, py + 74.0), Vector2(HudBuffRow.CHIP, HudBuffRow.CHIP))
+					HudBuffRow.draw_chip(self, _font, box, e["icon"], e["kind"], false, int(e.get("stacks", 1)))
+					target_rows["chips"][str(e["key"])] = box
+					block = block.merge(box.grow(2.0))
+					ix += HudBuffRow.PITCH
 			drawn_blocks["plate"] = block
 
 ## HUDRULES: true while she fights an animal the shown order's `fight` list names (objectives.json).
@@ -1941,6 +1953,13 @@ func _tick_orders_auto(delta: float) -> void:
 	orders_auto_t = maxf(0.0, orders_auto_t - delta)
 	if orders_auto_t <= 0.0:
 		_orders_suppressed = false
+	_tasks_poll -= delta
+	if _tasks_poll <= 0.0:
+		_tasks_poll = 1.0
+		var ready := Tasks.claimable_count(player)
+		if ready != field.tasks_ready:
+			field.tasks_ready = ready
+			field.apply_badge()
 	_orders_poll -= delta
 	if _orders_poll > 0.0:
 		return

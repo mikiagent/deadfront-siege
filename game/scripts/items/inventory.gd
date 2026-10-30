@@ -25,6 +25,11 @@ const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"
 var equipment: Dictionary = {}
 ## Two quick-food def ids for the HUD food hexes + auto-feed.
 var quick_food: Array = ["", ""]
+## FOODTORPOR Food Bag (owner 2026-10-29): uids of food instances in this bag, in the order they were
+## put in; eating from it and auto-feed go front to back. The food stays in its bag slot (the tab is
+## a view); a uid whose item left the bag or stopped being food (spoiled into Rot) drops out.
+var food_bag: Array[String] = []
+const FOOD_BAG_MAX := 20 ## ASSUMPTION: 20 lots, a fifth of the base bag.
 ## Character -> Gear numbered loadouts (GearPresets): {"active": int, "sets": [{slot: uid}]}; {} until used.
 var presets: Dictionary = {}
 ## uids taken while loading (home cargo, then this bag): a worn row repeating one is reminted.
@@ -98,6 +103,15 @@ func equipped_armor() -> float:
 			value += item.scaled_armor()
 	return value
 
+## Levels worn gear adds to `tree` (ItemDef.skill_bonus), broken pieces excluded.
+func skill_bonus(tree: String) -> int:
+	var total := 0
+	for slot in [&"head", &"body", &"arms", &"legs"]:
+		var item := equipped_in(slot)
+		if item and not item.is_broken() and item.def():
+			total += int(item.def().skill_bonus.get(tree, 0))
+	return total
+
 func has_raid_protection() -> bool:
 	for pair in [[&"head", &"raid_helm"], [&"body", &"raid_cuirass"], [&"legs", &"raid_greaves"]]:
 		var item := equipped_in(pair[0])
@@ -128,6 +142,8 @@ func extras_to_dict() -> Dictionary:
 	var out := {"worn": w, "quick_food": quick_food.duplicate(), "tool_index": equipped_tool_index}
 	if not presets.is_empty():
 		out["presets"] = presets.duplicate(true) # additive: a save that never used presets is unchanged
+	if not food_bag.is_empty():
+		out["food_bag"] = food_bag.duplicate() # FOODTORPOR, additive: an old save has none
 	return out
 
 ## Call after load_array: worn gear (InventoryEquipment.load_worn, which also migrates the
@@ -144,7 +160,56 @@ func extras_from_dict(d: Dictionary) -> void:
 	if q is Array and (q as Array).size() >= 2:
 		quick_food = [str(q[0]), str(q[1])]
 	presets = GearPresets.sanitize(d.get("presets", null))
+	food_bag.clear()
+	var fb: Variant = d.get("food_bag", [])
+	if fb is Array:
+		for u: Variant in fb:
+			if u is String and food_bag.size() < FOOD_BAG_MAX and not food_bag.has(u):
+				food_bag.append(u)
+	food_bag_prune()
 	changed.emit()
+
+# ---------------------------------------------------------------- food bag
+
+## Puts the food at bag `index` at the back of the Food Bag. Food only (the "food" tag), no repeats.
+func food_bag_add(index: int) -> bool:
+	if index < 0 or index >= slot_count or slots[index] == null:
+		return false
+	var s := slots[index]
+	if s.def() == null or not s.def().has_category(&"food") or s.is_locked():
+		return false
+	mint(s)
+	if s.uid == "" or food_bag.has(s.uid) or food_bag_prune().size() >= FOOD_BAG_MAX:
+		return false
+	food_bag.append(s.uid)
+	changed.emit()
+	return true
+
+func food_bag_remove(index: int) -> bool:
+	if index < 0 or index >= slot_count or slots[index] == null or not food_bag.has(slots[index].uid):
+		return false
+	food_bag.erase(slots[index].uid)
+	changed.emit()
+	return true
+
+func in_food_bag(s: ItemStack) -> bool:
+	return s != null and s.uid != "" and food_bag.has(s.uid)
+
+## Bag indices of the Food Bag in eating order; drops uids that left the bag or are no longer food.
+func food_bag_prune() -> Array[int]:
+	var at := {}
+	for i in slot_count:
+		var s := slots[i]
+		if s != null and s.uid != "" and s.def() != null and s.def().has_category(&"food"):
+			at[s.uid] = i
+	var out: Array[int] = []
+	var keep: Array[String] = []
+	for u in food_bag:
+		if at.has(u):
+			keep.append(u)
+			out.append(int(at[u]))
+	food_bag = keep
+	return out
 
 # ---------------------------------------------------------------- tools
 
@@ -177,6 +242,16 @@ func has_tool_class(tool: StringName) -> bool:
 	if tool == &"" or tool == &"none":
 		return true
 	return find_gather_tool(tool) != null
+
+## Why a tool-gated action is blocked, for labels: "" when a usable tool is here, "your knife is broken"
+## when only broken ones are (owner bug 2026-10-29: a broken knife read "needs knife"), else "needs knife".
+func tool_block_reason(tool: StringName) -> String:
+	if has_tool_class(tool):
+		return ""
+	for s in slots:
+		if s != null and s.is_broken() and s.def() != null and s.def().tool_class == tool:
+			return "your %s is broken" % tool
+	return "needs %s" % tool
 
 func wear_gather_tool(tool: StringName) -> bool:
 	var s := find_gather_tool(tool)
@@ -222,7 +297,9 @@ func _best_tool(tool: StringName) -> ItemStack:
 	return best
 
 func _is_tool(s: ItemStack, tool: StringName) -> bool:
-	if s == null or s.is_locked() or s.is_broken():
+	# A player Lock (BAGUI) protects an item from trash, sale and use as a material, not from use as a
+	# tool: a locked knife still butchers (owner bug 2026-10-29 "i have a knife and it still says I need a knife").
+	if s == null or s.is_broken():
 		return false
 	var d := s.def()
 	if d == null or d.tool_class == &"" or d.tool_class == &"none":

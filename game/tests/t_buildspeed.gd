@@ -28,10 +28,12 @@ const EXPECTED_FAIL_TIME := false
 ## outcrops), a change of output by design: canon origin/claude/mmo-overhaul a67768b3 still builds the
 ## three digests above this line's predecessors (8f711ab5..., 92c05535..., 9c9c8c7c...), this branch
 ## builds these. Home keeps its classic body; only its dock (and so what the scatter keeps clear) moved.
+## Re-recorded 2026-10-29 on the FOODTORPOR merge (2 narcoberry bushes per island, own RNG stream; with
+## their count set to 0 the merged build still matched canon's digests, checked before re-recording).
 const BEFORE := {
-	"home_grassland": "ee9810de15febc71efacdee0a77a16a020326335f2d87d440c51d52bac917077",
-	"savannah_15": "3baa8c6121f1a40fd49c312702d22000ca73de2f543bec52642f9c531599b0cf",
-	"volcanic_60": "d7f9bb524d393a8edc9ae9d1c63f1c77e67f261135c8cbd1e6bfa639dd66aa68",
+	"home_grassland": "f04996a5adbe88a9b849e106a3be05c93a5d663c91f5ce15d6a494fb4e2991dd",
+	"savannah_15": "84bf66db6484494df6fe5e7c5148370f96b0f87d66415f52d785bb2bd970c9cf",
+	"volcanic_60": "c3029c63b88e5bb4191a0db34bfe924c07839e4839b70f0ffefd4ae064b9f25b",
 }
 
 var _fails: PackedStringArray = []

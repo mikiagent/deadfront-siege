@@ -96,6 +96,16 @@
       "min": 0,
       "max": 3
     },
+    "sedative_hits": {
+      "type": "int",
+      "min": 0,
+      "max": 3
+    },
+    "spoil_at": {
+      "type": "num",
+      "min": 0,
+      "max": 100000000000
+    },
     "barbed_hits": {
       "type": "int",
       "min": 0,
