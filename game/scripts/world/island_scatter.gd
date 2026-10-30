@@ -91,6 +91,10 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 	PerfTrace.mark("scatter.special")
 	_top_up(rt, total_target(counts, rt, home), climate, tier, size, rng)
 	PerfTrace.mark("scatter.topup")
+	# 3D-RESOURCES: the model path's batches only draw once committed (BUILDSPEED dropped this loop while
+	# every resource was a card, which left trees and palms invisible under --models). Empty under cards.
+	for b in rt._batches:
+		b.commit()
 	PerfTrace.mark("scatter.commit")
 	for node in rt._harvest_nodes.values():
 		if is_instance_valid(node):

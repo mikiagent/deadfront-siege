@@ -276,6 +276,15 @@ func _test_islands() -> void:
 	rules["resource_render"] = "model"
 	_expect(not IS.cards_enabled(), "with resource_render=model the card path is off")
 	_expect(await _island_cards(true) == 0, "with resource_render=model a home island draws no cards")
+	# 3D-RESOURCES: under the model path every tree's batch is committed, so its instance draws.
+	var trees := 0
+	var drawn := 0
+	for node in get_nodes_in_group("harvest"):
+		if node.is_tree() and node.get("_batch") != null:
+			trees += 1
+			if node.get("_batch").cell_for(node.get("_batch_idx")) != null:
+				drawn += 1
+	_expect(trees > 0 and drawn == trees, "with resource_render=model every tree draws its model (%d of %d)" % [drawn, trees])
 	# "card": every carded family draws a card, and the nodes still gather through the real path.
 	rules["resource_render"] = "card"
 	_expect(IS.cards_enabled(), "with resource_render=card the card path is on")
