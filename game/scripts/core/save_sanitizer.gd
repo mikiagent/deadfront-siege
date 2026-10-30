@@ -30,6 +30,7 @@ const SHAPE := {
 	"objective": 0, "objective_best": 0, "island_id": "",
 	"tasks": {"claimed": {}, "done": {}, "counts": {}, "day": 0, "week": 0},
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
+	"landmarks": {"found": {}, "state": {}}, "expeditions": {},
 	"clock": 0.0, "saved_unix": 0,
 }
 ## Fields the building from_dicts read with int()/float()/bool() (placed_building, bonfire,
@@ -578,3 +579,51 @@ static func _num(v: Variant, lo: float, hi: float, fallback: float) -> float:
 
 static func _int(v: Variant, lo: int, hi: int) -> int:
 	return int(_num(v, float(lo), float(hi), float(lo)))
+
+## LANDMARKS: the save's landmarks.found / landmarks.state rows, island id -> {site id: value}. Found
+## rows keep true flags; state rows keep {"left": seconds >= 0, "spent": bool}. Anything else (a hand
+## edit, a wrong type) is dropped, and ids are capped so a crafted file cannot grow the dictionary.
+static func landmark_rows(raw: Variant, state: bool) -> Dictionary:
+	var out := {}
+	if not raw is Dictionary:
+		return out
+	for island in (raw as Dictionary).keys():
+		var row: Variant = (raw as Dictionary)[island]
+		if not row is Dictionary or str(island).length() > 64:
+			continue
+		var clean := {}
+		for sid in (row as Dictionary).keys():
+			if str(sid).length() > 64 or clean.size() >= 32:
+				continue
+			var v: Variant = (row as Dictionary)[sid]
+			if state:
+				if v is Dictionary:
+					var left: Variant = (v as Dictionary).get("left", 0.0)
+					var l := float(left) if (left is float or left is int) and is_finite(float(left)) else 0.0
+					clean[str(sid)] = {"left": clampf(l, 0.0, 86400.0), "spent": bool((v as Dictionary).get("spent", false))}
+			elif v is bool and v:
+				clean[str(sid)] = true
+		if not clean.is_empty():
+			out[str(island)] = clean
+	return out
+
+## ISLAND RESET: the save's expeditions rows, island id -> {generation >= 0, left (seconds, -1 = no
+## clock), harvested (a node snapshot Dictionary)}. Wrong types fall back to a first visit.
+static func expedition_rows(raw: Variant) -> Dictionary:
+	var out := {}
+	if not raw is Dictionary:
+		return out
+	for island in (raw as Dictionary).keys():
+		var row: Variant = (raw as Dictionary)[island]
+		if not row is Dictionary or str(island).length() > 64 or out.size() >= 64:
+			continue
+		var r: Dictionary = row
+		var g: Variant = r.get("generation", 0)
+		var l: Variant = r.get("left", -1.0)
+		var h: Variant = r.get("harvested", {})
+		out[str(island)] = {
+			"generation": clampi(int(g), 0, 1000000) if (g is int or g is float) and is_finite(float(g)) else 0,
+			"left": clampf(float(l), -1.0, 7.0 * 86400.0) if (l is int or l is float) and is_finite(float(l)) else -1.0,
+			"harvested": h if h is Dictionary else {},
+		}
+	return out

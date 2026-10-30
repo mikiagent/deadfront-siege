@@ -204,6 +204,7 @@
     "hide_bone_bracers": "hide_strap",
     "hide_bone_greaves": "hide_strap",
     "tin_ore": "ore",
+    "iron_ore": "ore",
     "tin_ingot": "ingot",
     "moss": "fibre_stalk",
     "cactus_flower": "petals",

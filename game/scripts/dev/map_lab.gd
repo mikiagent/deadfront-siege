@@ -456,9 +456,12 @@ func _select(id: int) -> void:
 		h.add_child(l)
 		var field: Control
 		match k:
-			"species", "resource":
+			"species", "resource", "type":
 				var o := OptionButton.new()
-				var opts: Array = MapDoc._species() if k == "species" else Array(MapDoc.RESOURCES)
+				var opts: Array = MapDoc._species() if k == "species" else (MapDoc.landmark_types() if k == "type" else Array(MapDoc.RESOURCES))
+				# LANDMARKS M1: an empty landmark type is a plain point of interest.
+				if k == "type":
+					opts = [""] + opts
 				opts.sort()
 				for s in opts:
 					o.add_item(str(s))

@@ -603,7 +603,8 @@
         "y": 193
       },
       "families": [
-        "PineTree"
+        "PineTree",
+        "ResinPine"
       ],
       "kind": "tree",
       "model": "res://assets/nature/generated/tree-pine-a.glb",

@@ -43,6 +43,10 @@ var _card: CardProp
 var _card_empty: CardProp
 var _tile: Vector2i = Vector2i.ZERO
 var _regen_left: float = 0.0
+## ISLAND RESET (doc section 5.4): a landmark node on an expedition island regrows only partly: while
+## any unit is left it gains one back every `trickle_seconds`, and a pool taken to 0 stays empty until
+## the island resets. 0 = the normal rule (a spent pool refills after regen_seconds).
+var trickle_seconds: float = 0.0
 
 func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Dictionary, tool: StringName, color: Color, gather: float = 1.2, regen: float = 8.0, p_family: String = "", p_falls: bool = false, p_pool_max: int = 0) -> void:
 	node_id = p_id
@@ -142,7 +146,15 @@ func _process(delta: float) -> void:
 			# Regrowing now would wrap the collider around whoever stands here.
 			_pool_regen[item] = OCCUPIED_RETRY
 			continue
-		if left <= 0.0:
+		if left <= 0.0 and trickle_seconds > 0.0:
+			var mx := float(pool_maxes.get(item, pool_max))
+			pools[item] = minf(mx, float(pools.get(item, 0.0)) + 1.0)
+			if float(pools[item]) >= mx:
+				_pool_regen.erase(item)
+			else:
+				_pool_regen[item] = trickle_seconds
+			refilled = true
+		elif left <= 0.0:
 			pools[item] = float(pool_maxes.get(item, pool_max))
 			_pool_regen.erase(item)
 			refilled = true
@@ -366,7 +378,15 @@ func consume_unit() -> bool:
 	var key := str(yield_def_id)
 	if pools.has(key):
 		pools[key] = maxf(0.0, float(pools[key]) - 1.0)
-		if int(floor(float(pools[key]) + 0.0001)) <= 0 and regen_seconds > 0.0:
+		if trickle_seconds > 0.0:
+			# Partial regrowth: units left trickle back; a stripped pool stays empty until the reset.
+			if int(floor(float(pools[key]) + 0.0001)) <= 0:
+				_pool_regen.erase(key)
+			elif not _pool_regen.has(key):
+				_pool_regen[key] = trickle_seconds
+				set_process(true)
+			_regen_left = _min_regen()
+		elif int(floor(float(pools[key]) + 0.0001)) <= 0 and regen_seconds > 0.0:
 			_pool_regen[key] = regen_seconds  # the family's own regrowth time, not a flat hour
 			set_process(true)
 			_regen_left = _min_regen()

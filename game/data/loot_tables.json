@@ -30,6 +30,7 @@
       "tin_ore": ["black_sheen", "low_vibration", "vivid_inspiration"],
       "silver_ore": ["black_sheen", "low_vibration", "vivid_inspiration"],
       "black_iron": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "iron_ore": ["black_sheen", "low_vibration", "vivid_inspiration"],
       "salt": ["split_easily", "vivid_inspiration"],
       "sulphur": ["split_easily", "vivid_inspiration"],
       "ash": ["split_easily", "vivid_inspiration"],

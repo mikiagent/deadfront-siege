@@ -70,7 +70,11 @@ static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: 
 	if landed.level >= 60 and role_of_family(node.family) == "rock":
 		Tasks.note(&"mineral60", gained)  # achievement Gather Level-60 Minerals (DW-T0137)
 	wear_role_tool(p.inventory, node.required_tool_class, node.family)
-	var traits := stamp_traits(p.inventory, had, landed, gained, rng, tool_tier(p.inventory, node.required_tool_class, node.family))
+	# LANDMARKS (doc sections 5.2 and 5.7): a landmark node gathered by the survivor's own hands rolls
+	# better perks; tribe work never comes through here.
+	var bonus := landmark_bonus(node)
+	var traits := stamp_traits(p.inventory, had, landed, gained, rng, tool_tier(p.inventory, node.required_tool_class, node.family),
+			float(bonus.get("chance_mult", 1.0)), float(bonus.get("tier_step", 0.0)))
 	var finds := add_finds(p.inventory, node.family, node.required_tool_class, climate, level, _skill(p), rng)
 	for id in finds:
 		p.toast(id, 1)
@@ -92,17 +96,23 @@ static func wear_role_tool(inv: Inventory, need: StringName, family: String) -> 
 ## before the add), never one the bag already held. Client and server (act.gather) share it.
 ## `tier` is the working tool's material tier (&"" bare hands): ONEGATHER's quality lever.
 ## Returns the traits stamped.
-static func stamp_traits(inv: Inventory, had: Dictionary, landed: ItemStack, gained: int, r: RandomNumberGenerator, tier: StringName = &"") -> Array[StringName]:
+## LANDMARKS: the hand-harvest bonus a node gives ({} off a landmark): landmarks.json rules.hand_bonus.
+static func landmark_bonus(node: Node) -> Dictionary:
+	if node == null or str(node.get_meta(&"landmark", "")) == "":
+		return {}
+	return IslandLandmarks.rules().get("hand_bonus", {"tier_step": 0.05, "chance_mult": 1.5})
+
+static func stamp_traits(inv: Inventory, had: Dictionary, landed: ItemStack, gained: int, r: RandomNumberGenerator, tier: StringName = &"", chance_mult: float = 1.0, step_add: float = 0.0) -> Array[StringName]:
 	var out: Array[StringName] = []
 	# shortcut: a stacking-category item (inventory.json) has no uid to find, so it rolls no trait; no nature node yields one today.
 	var fresh := inv.slots.filter(func(s: ItemStack) -> bool: return s != null and s.def_id == landed.def_id and s.uid != "" and not had.has(s.uid))
 	for s: ItemStack in fresh.slice(0, gained):
 		# The roll comes from that material's own list (RAREATTR), not one pool for everything.
-		var t := LootRoller.roll_trait(r, s.def_id, tier)
+		var t := LootRoller.roll_trait(r, s.def_id, tier, false, chance_mult)
 		if t != &"" and not _make_room(s):
 			t = &""
 		if t != &"":
-			s.attributes[str(t)] = LootRoller.roll_tier(r, tier) # BAGUI: the value is the perk tier (I-V)
+			s.attributes[str(t)] = LootRoller.roll_tier(r, tier, 0, step_add) # BAGUI: the value is the perk tier (I-V)
 			out.append(t)
 	if not out.is_empty():
 		inv.changed.emit()

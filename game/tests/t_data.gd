@@ -286,6 +286,19 @@ func _has_tool(cls: String) -> bool:
 func _tier_of(id: String) -> int:
 	return PS.TOOL_TIERS.find(PS.material_tier(StringName(id), {}))
 
+## ISLAND RESOURCES: a climate's landmark rows grow their families too (world/landmarks.json), a row
+## with "min_tier" only on islands of that tier and up (the Iron Veins).
+var _landmark_rows: Dictionary = {}
+
+func _landmark_families(cname: String, tier: int) -> Array:
+	if _landmark_rows.is_empty():
+		_landmark_rows = _json("world/landmarks.json").get("climates", {})
+	var out: Array = []
+	for row in _landmark_rows.get(cname, []):
+		if int((row as Dictionary).get("min_tier", 0)) <= tier:
+			out.append_array(((row as Dictionary).get("nodes", {}) as Dictionary).keys())
+	return out
+
 func _walk(home_only: bool) -> void:
 	var butch: Dictionary = _json("butchering.json").get("species", {})
 	var crops: Dictionary = _json("farming.json").get("crops", {})
@@ -301,7 +314,7 @@ func _walk(home_only: bool) -> void:
 		for isl: Dictionary in walked:
 			var cname := str(isl["climate"])
 			var top := int(isl.get("tier", 1))
-			for fam in climates[cname].get("vegetation", []) + SPECIAL_FAMILIES:
+			for fam in climates[cname].get("vegetation", []) + SPECIAL_FAMILIES + _landmark_families(cname, top):
 				var harvest: Dictionary = nature.get(fam, {}).get("harvest", {})
 				for k: String in harvest:
 					var need := str(nature[fam].get("min_pick_tier", {}).get(k, ""))
