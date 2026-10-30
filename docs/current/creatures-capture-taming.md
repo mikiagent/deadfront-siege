@@ -293,6 +293,9 @@ an `# ASSUMPTION` (Open Questions G5-G12).
   every rare row (skill-node gates still apply), `ButcherLoot.alpha_extras` rolls the ALPHA-ONLY pool first
   (see below), stamps one rare trait on every part (the pool's parts included) and adds one `alpha_trophy`
   (epic, `items.json`). XP: `Creature.kill_xp_mult` 4x for the survivor's melee XP and the pets' kill XP.
+- Alpha data merged onto canon 2026-10-30 (`claude/mmo-overhaul` 3d5d84b0): `alpha_fang` declares
+  `material_tier: "bone"` so the stone-rate recipes that accept a blade_mat/bone primary stay stone-tier
+  (`t_data` gates copper primaries at Lv 30). Any future non-metal item with `hardness` 4+ needs the same tag.
 - Alpha loot pool (owner 2026-10-29: "special loot pools specific to alpha animals"): `loot_tables.json`
   `"alpha"` holds `pool` (the default, every species) and `by_species` overrides (`tyrannosaurus`,
   `tarbosaurus`, `allosaurus` get two units of each part). `LootTables.alpha_pool/alpha_pool_ids` read it,
