@@ -79,6 +79,11 @@ var high_side := 1.0
 var _home_river_z := -34.0
 ## The camp hint (island def), flattened a little; home (0,8), unstable (0,12) by default.
 var camp_hint := Vector2(0.0, 12.0)
+## TOWNPOLISH2 (owner 2026-10-30: "The terrain should be flat and depth is added through props,
+## structures, buildings, resources"): an island with a prebuilt town (town_safe_m, the tutorial
+## island) flattens the land within town_r of the camp to one plane, and topography keeps off it.
+var town_r := 0.0
+const TOWN_BLEND_M := 50.0  ## # ASSUMPTION: the ramp from the town plane back to the island's own heights
 ## {"pos": Vector2, "r": float, "h": float} or {}; most islands have one.
 var mesa: Dictionary = {}
 var river := PackedVector2Array()
@@ -696,11 +701,37 @@ func compute() -> void:
 		_place_topo()
 		PerfTrace.mark("shape.topo")
 	_fill_heightmap()
+	_flatten_town()
 	PerfTrace.mark("shape.resettle")
 	_slopes(size / float(res - 1))
 	PerfTrace.mark("shape.slopes")
 	_find_waterfall()
 	PerfTrace.mark("shape.waterfall")
+
+## The town plane: land within town_r of the camp takes the camp's height, easing back to the
+## island's own heights over TOWN_BLEND_M. The sea, the wet sand and the beach keep their shore
+## profile (the weight fades out below 0.9 m), so the dock's coast is unchanged.
+func _flatten_town() -> void:
+	if town_r <= 0.0 or heights.is_empty():
+		return
+	var cell := size / float(res - 1)
+	var cx := clampi(int(round((camp_hint.x + size * 0.5) / cell)), 0, res - 1)
+	var cz := clampi(int(round((camp_hint.y + size * 0.5) / cell)), 0, res - 1)
+	var flat := maxf(heights[cx + cz * res], 0.9)
+	var reach := town_r + TOWN_BLEND_M
+	for z in res:
+		var wz := -size * 0.5 + float(z) * cell
+		if absf(wz - camp_hint.y) > reach:
+			continue
+		for x in res:
+			var wx := -size * 0.5 + float(x) * cell
+			var d := Vector2(wx - camp_hint.x, wz - camp_hint.y).length()
+			if d > reach:
+				continue
+			var i := x + z * res
+			var h := heights[i]
+			var w := (1.0 - smoothstep(town_r, reach, d)) * smoothstep(0.2, 0.9, h)
+			heights[i] = lerpf(h, flat, w)
 
 ## Recentre and (if needed) shrink the land so every side of the square keeps SEA_MARGIN of sea,
 ## measured on the analytic coastline. Returns true when it changed sx/sz/centre.
@@ -1752,6 +1783,8 @@ func _topo_fits(f: Dictionary, keep_coast: float, keep_camp: float, keep_river: 
 				return false
 	if _seg_dist(camp_hint, a, b) < fr + keep_camp:
 		return false
+	if town_r > 0.0 and _seg_dist(camp_hint, a, b) < reach + town_r + TOWN_BLEND_M:
+		return false  # never an outcrop in the town or on its ramp
 	if legacy and _seg_dist(Vector2.ZERO, a, b) < fr + LEGACY_END:
 		return false
 	# The island row's own fixed points (crater, fixed spawns) stay on open ground.

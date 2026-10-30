@@ -814,7 +814,10 @@ static func set_others(rt: IslandRuntime, rows: Array) -> void:
 		if rect.size.x > 0 and rect.size.y > 0:
 			rect = rect.intersection(island)
 		if rect.has_area():
-			rt.other_claims.append({"rect": rect, "owner": {"id": str(who["id"]), "name": str(who.get("name", "Survivor"))}})
+			var who_row := {"id": str(who["id"]), "name": str(who.get("name", "Survivor"))}
+			if str(who.get("emblem", "")) != "":
+				who_row["emblem"] = str(who["emblem"])  # TOWNPOLISH2: a town's picture (PlayerPortrait)
+			rt.other_claims.append({"rect": rect, "owner": who_row})
 	_rebuild_claim_mesh(rt)
 
 static func _rebuild_claim_mesh(rt: IslandRuntime) -> void:

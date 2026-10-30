@@ -211,6 +211,13 @@ static func context(rt: IslandRuntime, climate: String, camp: Vector3, seed: int
 		"high_h": high_h,
 		"land_radius": rt.land_radius(),
 		"camp": camp,
+		# TOWNPOLISH2: a prebuilt town (town_safe_m) is meadow corner to corner; its square palisade
+		# reaches ~1.25 x town_r on the diagonal. Elsewhere the camp clearing keeps the inner third
+		# of the plan's 60 m core. (The town read washed-out yellow where a savanna patch fell on it.)
+		"camp_r": (rt._shape.town_r * 1.25) if rt._shape != null and rt._shape.town_r > 0.0 else float(rules()["camp_radius_m"]) * 0.35,
+		# Forest was tried for the town (round 3): its layer mix reads paler than meadow once the
+		# ground cover is thinned, so the town keeps meadow, corner to corner.
+		"camp_zone": zone_id("meadow"),
 		"moist": moist,
 		"pick": pick,
 	}
@@ -225,8 +232,8 @@ static func zone_of(ctx: Dictionary, wx: float, wz: float, h: float, slope: floa
 		return zone_id("beach")
 	var camp: Vector3 = ctx["camp"]
 	# ASSUMPTION: the camp clearing keeps meadow for the inner third of the plan's 60 m core.
-	if camp != Vector3.ZERO and Vector2(wx - camp.x, wz - camp.z).length() < float(r["camp_radius_m"]) * 0.35:
-		return zone_id("meadow")
+	if camp != Vector3.ZERO and Vector2(wx - camp.x, wz - camp.z).length() < float(ctx.get("camp_r", float(r["camp_radius_m"]) * 0.35)):
+		return int(ctx.get("camp_zone", zone_id("meadow")))
 	if river_d < float(r["river_m"]):
 		return zone_id("wetland")
 	if slope > float(r["rock_slope_deg"]) or h > float(ctx["high_h"]):
@@ -257,7 +264,7 @@ static func fast_state(ctx: Dictionary) -> Array:
 		0.0,
 		float(r.get("beach_low_h", 0.55)),
 		ctx["camp"],
-		float(r["camp_radius_m"]) * 0.35,
+		float(ctx.get("camp_r", float(r["camp_radius_m"]) * 0.35)),
 		float(r["river_m"]),
 		float(r["rock_slope_deg"]),
 		float(ctx["high_h"]),
@@ -267,7 +274,7 @@ static func fast_state(ctx: Dictionary) -> Array:
 		veg,
 		ctx["cum"],
 		zone_id("beach"),
-		zone_id("meadow"),
+		int(ctx.get("camp_zone", zone_id("meadow"))),
 		zone_id("wetland"),
 		veg[veg.size() - 1],
 	]

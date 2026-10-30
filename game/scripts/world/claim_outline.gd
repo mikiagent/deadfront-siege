@@ -102,7 +102,9 @@ static func dashes(rt: IslandRuntime, others: Variant = null) -> Array:
 		var p := t + off
 		return ids[int(grid.get_pixelv(p).r)] if p.x >= 0 and p.y >= 0 and p.x < span and p.y < span else ""
 	var rows: Array = []  # [rect, colour, dash length]
-	for r in rt.claims:
+	# TOWNPOLISH2: on the tutorial island the camp's buildable plot is part of the town's domain;
+	# only the town's border is drawn (a 16 m dashed square inside it read as a second domain).
+	for r in (rt.claims if not World.is_tutorial() else []):
 		rows.append([r, COLOR, DASH])
 	for i in (range(rt.other_claims.size()) if others == null else others):
 		rows.append([rt.other_claims[i]["rect"], OTHER_COLOR, DOT])
