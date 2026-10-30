@@ -53,6 +53,12 @@
       "death",
       "alert"
     ],
+    "model_variants": {
+      "graded": "",
+      "ochre": "stegosaurus_tex_ochre_albedo.jpg"
+    },
+    "variant_note": "Two looks on one Tripo mesh, rig and clip set (bakeoff/stegosaurus-v2): graded = the shipped grey-brown grade (GLB as authored), ochre = the earlier olive hide with amber-edged plates (work/tripo_stegosaurus_ochre.glb albedo). The museum recolour was rejected by the owner and is not used.",
+    "grounding": "2026-10-30 STEGOFIX: charge, kick, death, knockdown, strafe_left/right sank 2-7 cm; tools/gait/ground_clip.py lifts the root on those frames. Gate: Blender -b -P tools/gait/check_stego.py -- stegosaurus.glb anim (STEGO_CHECK PASS)",
     "verifier": "creature-verify.mjs --height 6.4: ALL HARD CHECKS PASSED (feed, sleep, tail_swipe optional, missing)",
     "provenance": "/Users/milankinzy/Documents/DeepseekCLI/bakeoff/stegosaurus-v2/out/REPORT.md (outside repo)",
     "review_video": "/Users/milankinzy/Documents/DeepseekCLI/bakeoff/review/steg2_tripo_v3/all.mp4 (outside repo)",
