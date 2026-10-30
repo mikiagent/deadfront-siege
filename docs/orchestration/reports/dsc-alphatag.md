@@ -88,3 +88,7 @@ to), so the tier lookup returns `bone` instead of guessing from hardness. `t_dat
 Gate: `verify_alphatag.sh` -> VERIFY PASS (t_data, t_alphas, t_genetics, t_capture09, t_tame, run_all, smoke,
 report). Docs: AT6 in `docs/vision/WildLandsMMO_Open_Questions.md` and the alpha loot pool paragraph in
 `docs/current/creatures-capture-taming.md` now record the tier tag and why it exists.
+
+Convention for later data work: a non-metal item whose `hardness` is 4 or more must declare
+`default_attributes.material_tier`, otherwise `ProgressionScaling.material_tier` maps it onto the metal half of
+the ladder and every recipe slot it fills inherits that tier. `t_data` was not changed.
