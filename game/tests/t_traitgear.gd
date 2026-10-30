@@ -69,6 +69,16 @@ func _run() -> void:
 	_expect(back.max_durability == 47 and back.durability == 30 and is_equal_approx(back.trait_mult(&"durability"), 1.0), "old gear keeps its stored max after load (%d/%d)" % [back.durability, back.max_durability])
 	var dense_back = IS.from_dict(dense.to_dict())
 	_expect(dense_back.max_durability == dense.max_durability and is_equal_approx(dense_back.trait_mult(&"durability"), 1.09), "new gear keeps its trait max after load")
+	# P3 repair shrinks the trait-adjusted max it finds (x0.8 per repair), and the trait line stays.
+	var GR: GDScript = load("res://scripts/items/gear_repair.gd")
+	var inv = load("res://scripts/items/inventory.gd").new(8)
+	inv.add(IS.make(&"stone", 10, {}, 1))
+	var fixed = _craft(&"work_axe", &"stone", {"high_density": 3})
+	var m0: int = fixed.max_durability
+	fixed.durability = 0
+	var why: String = GR.repair(fixed, inv, &"workbench")
+	_expect(why == "" and fixed.max_durability == maxi(1, roundi(m0 * 0.8)) and fixed.durability == fixed.max_durability, "repair takes the High Density max %d to %d ('%s')" % [m0, fixed.max_durability, why])
+	_expect(is_equal_approx(fixed.trait_mult(&"durability"), 1.09) and IS.from_dict(fixed.to_dict()).max_durability == fixed.max_durability, "the repaired max is stored, not recomputed from traits on load")
 	# The item card lists each effect.
 	var lines: Array = []
 	for r in PANEL.rows_for(dense):
