@@ -141,6 +141,20 @@ func _test_eat() -> void:
 	_expect(v.energy > before + 1.0, "eating raised Energy (%.1f -> %.1f)" % [before, v.energy])
 	_expect(player.statuses.has(&"full"), "eating applied Full (statuses %s)" % [str(_status_ids())])
 	_expect(player.inventory.find_first(&"skewer") < 0, "the eaten skewer left the bag")
+	# HUNGER (memo Part 1 s1.4): the meal fills the stored stomach by its foods.json points, and the
+	# Full status is no longer the gate - a stomach under the overfull line can take another bite.
+	var dig = load("res://scripts/items/digestion.gd").of(player)
+	var fed_before: float = dig.fullness()
+	_expect(fed_before >= 25.0, "the skewer filled the stomach (%.1f points)" % fed_before)
+	player.inventory.add(ItemStackS.make(&"berry", 1))
+	var berry_idx: int = player.inventory.find_first(&"berry")
+	_expect(player.statuses.has(&"full") and player.begin_eat_slot(berry_idx), "a fed stomach under the overfull line can eat again (Full is not the gate)")
+	for i in 40:
+		if not player.eat_session.eating:
+			break
+		player.eat_session._process(0.1)
+	_expect(dig.fullness() > fed_before, "the second bite added its own points (%.1f -> %.1f)" % [fed_before, dig.fullness()])
+	dig.set_fullness(0.0)  # leave the survivor as the other sections expect
 	# Raw meat through the same Eat path: the session rolls the raw risk and, with a seed that poisons,
 	# applies Stomachache (PRD :594: raw meat can poison). Energy still rises.
 	player.statuses.from_array([])

@@ -9,15 +9,65 @@
   "housing": {
     "base": 2,
     "per_bed": 1,
-    "bed_kinds": ["tent", "canvas_tent", "straw_roll", "bed"]
+    "bed_kinds": [
+      "tent",
+      "canvas_tent",
+      "straw_roll",
+      "bed"
+    ]
   },
   "potential": [
-    {"id": "weak", "label": "Weak", "weight": 45.0, "xp_mult": 0.8},
-    {"id": "mediocre", "label": "Mediocre", "weight": 40.0, "xp_mult": 1.0},
-    {"id": "capable", "label": "Capable", "weight": 14.5, "xp_mult": 1.2},
-    {"id": "exceptional", "label": "Exceptional", "weight": 0.5, "xp_mult": 1.5}
+    {
+      "id": "weak",
+      "label": "Weak",
+      "weight": 45.0,
+      "xp_mult": 0.8
+    },
+    {
+      "id": "mediocre",
+      "label": "Mediocre",
+      "weight": 40.0,
+      "xp_mult": 1.0
+    },
+    {
+      "id": "capable",
+      "label": "Capable",
+      "weight": 14.5,
+      "xp_mult": 1.2
+    },
+    {
+      "id": "exceptional",
+      "label": "Exceptional",
+      "weight": 0.5,
+      "xp_mult": 1.5
+    }
   ],
-  "names": ["Ada", "Bram", "Cora", "Dell", "Edda", "Finn", "Gale", "Hollis", "Ines", "Joss", "Kit", "Lena", "Moss", "Nell", "Orrin", "Pia", "Quill", "Rhea", "Sol", "Tamsin", "Ulf", "Vera", "Wren", "Yara"],
+  "names": [
+    "Ada",
+    "Bram",
+    "Cora",
+    "Dell",
+    "Edda",
+    "Finn",
+    "Gale",
+    "Hollis",
+    "Ines",
+    "Joss",
+    "Kit",
+    "Lena",
+    "Moss",
+    "Nell",
+    "Orrin",
+    "Pia",
+    "Quill",
+    "Rhea",
+    "Sol",
+    "Tamsin",
+    "Ulf",
+    "Vera",
+    "Wren",
+    "Yara"
+  ],
   "work": {
     "_note": "TRIBE M2a hand-off (docs/design/hunger-and-tribe-automation.md 2.2). Every number is an ASSUMPTION (Open Questions T16-T23).",
     "min_success": 0.8,
@@ -41,9 +91,6 @@
     "leash_m": 20.0,
     "guard_radius_m": 9.0,
     "fullness_max": 100.0,
-    "fullness_per_day": 60.0,
-    "eat_below": 30.0,
-    "food_min": 15.0,
     "fatigue_max": 100.0,
     "fatigue_per_harvest": 2.5,
     "rest_at": 75.0,
@@ -58,5 +105,8 @@
     "xp_per_hit": 2.0,
     "xp_per_level": 40.0,
     "max_skill": 60
+  },
+  "hunger": {
+    "_note": "HUNGER (owner-approved memo docs/design/hunger-and-tribe-automation.md Part 1, 2026-10-29 s1.4 step 6): members use the shared stomach and bands - fullness_max is the stomach cap and the decay, band edges, fatigue multipliers and starving_delay are rules.json 'hunger'. fullness_per_day and eat_below were retired with the rework; a member eats at Peckish, the same line the survivor's autofeed uses, and a meal fills the stomach by its foods.json fullness. Every number here is an ASSUMPTION."
   }
 }

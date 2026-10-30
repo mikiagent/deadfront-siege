@@ -267,6 +267,10 @@ static func evaluate(stack: ItemStack, ctx: Dictionary = {}) -> Dictionary:
 		b["group"] = gid
 		b["group_name"] = str((groups[gid] as Dictionary).get("display_name", gid))
 		b["player_stats"] = _player_stats(stats)
+		# HUNGER (memo Part 1 s1.4 step 4): a dish with duration_mode "while_fed" keeps its meal buff
+		# until the stomach drops below hunger.buff_off_below, however long that takes. It is the
+		# default for cooked dishes with a buff (the data sets it explicitly on each).
+		b["while_fed"] = str(entry.get("duration_mode", "")) == "while_fed"
 		buffs.append(b)
 	# --- Statuses (negative effects and medicine: Stomach Pain, Caffeinated...).
 	for row: Variant in entry.get("statuses", []):

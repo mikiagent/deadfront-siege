@@ -104,6 +104,7 @@ func _reset() -> void:
 	for row in slots.rows().duplicate():
 		slots.rows().erase(row)
 	DIG.of(_player).rows().clear()
+	DIG.of(_player).set_fullness(0.0)
 	_hud._buff_row.pinned = ""
 	_hud._buff_row.hovered = ""
 	_player.vitals.health = _player.vitals.effective_max_health()
@@ -214,31 +215,27 @@ func _test_stomach(view: Vector2) -> void:
 	var tag := "%dx%d" % [view.x, view.y]
 	var ST: GDScript = load("res://scripts/ui/hud_stomach.gd")
 	var dig = DIG.of(_player)
-	dig.rows().clear()
+	var slots = BS.of(_player)
+	slots.restore(_player, {})
+	dig.set_fullness(0.0)
 	await _frames(2)
-	_expect(is_equal_approx(_hud.stomach_fill, 0.0) and _hud.stomach_state == &"empty" and is_equal_approx(_hud.stomach_saturation, 0.0), "%s nothing digesting: empty, no saturation (%.2f, %s, %.2f)" % [tag, _hud.stomach_fill, _hud.stomach_state, _hud.stomach_saturation])
-	# A roast (foods.json fullness 50 of a 100 cap), 60 Energy digesting over 300 s.
-	var row: Dictionary = dig.schedule(&"roast", 60.0, 300.0)
+	_expect(is_equal_approx(_hud.stomach_fill, 0.0) and _hud.stomach_state == &"empty" and is_equal_approx(_hud.stomach_saturation, 0.0), "%s an empty stomach: empty, no meal-buff ring (%.2f, %s, %.2f)" % [tag, _hud.stomach_fill, _hud.stomach_state, _hud.stomach_saturation])
+	# HUNGER (memo Part 1): the inner ring is the stored stomach in points; a roast is 55 of 100.
+	dig.set_fullness(55.0)
 	await _frames(2)
-	_expect(absf(_hud.stomach_fill - 0.5) < 0.001 and _hud.stomach_state == &"normal", "%s one fresh roast reads half full, normal (%.2f %s)" % [tag, _hud.stomach_fill, _hud.stomach_state])
-	_expect(absf(_hud.stomach_saturation - 1.0) < 0.001, "%s fresh meal: the saturation ring is full (%.2f)" % [tag, _hud.stomach_saturation])
-	for left in [45.0, 30.0, 6.0]:
-		row["remaining"] = left
+	_expect(absf(_hud.stomach_fill - 55.0) < 0.001 and _hud.stomach_state == &"fed", "%s one roast reads 55 points, fed (%.2f %s)" % [tag, _hud.stomach_fill, _hud.stomach_state])
+	_expect(is_equal_approx(_hud.stomach_saturation, 0.0), "%s with no meal buff the outer ring is dark (%.2f)" % [tag, _hud.stomach_saturation])
+	# With a while_fed meal buff the outer ring is the fed time left: points above the off line over the
+	# decay rate, against a full stomach's span.
+	slots.restore(_player, {"buffs": [{"id": "probe_meal", "group": "enhanced_ability", "display_name": "Probe", "duration": 600.0, "time_left": 600.0, "stats": {}, "while_fed": true}]})
+	await _frames(2)
+	var span: float = (DIG.cap() - DIG.buff_off_below()) / DIG.decay_per_s()
+	for points in [55.0, 30.0, 95.0, 5.0]:
+		dig.set_fullness(points)
 		await _frames(2)
-		var want_sat: float = left / (60.0 / 300.0) / 300.0
-		_expect(absf(_hud.stomach_fill - 0.5 * left / 60.0) < 0.001, "%s %.0f of 60 left reads %.2f full" % [tag, left, _hud.stomach_fill])
-		_expect(absf(_hud.stomach_saturation - want_sat) < 0.001, "%s saturation follows the digestion time left (%.2f, want %.2f)" % [tag, _hud.stomach_saturation, want_sat])
-	_expect(_hud.stomach_state == &"empty", "%s 6 of 60 left (0.05) is empty" % tag)
-	row["remaining"] = 30.0
-	await _frames(2)
-	_expect(_hud.stomach_state == &"hungry", "%s 0.25 is hungry (%s)" % [tag, _hud.stomach_state])
-	dig.schedule(&"roast", 60.0, 300.0)
-	row["remaining"] = 60.0
-	await _frames(2)
-	_expect(absf(_hud.stomach_fill - 1.0) < 0.001 and _hud.stomach_state == &"full", "%s two roasts: full (%.2f %s)" % [tag, _hud.stomach_fill, _hud.stomach_state])
-	dig.schedule(&"roast", 60.0, 300.0)
-	await _frames(2)
-	_expect(_hud.stomach_fill > 1.4 and _hud.stomach_state == &"overfull", "%s three roasts: overfull (%.2f %s)" % [tag, _hud.stomach_fill, _hud.stomach_state])
+		var want := clampf((points - DIG.buff_off_below()) / DIG.decay_per_s() / span, 0.0, 1.0)
+		_expect(absf(_hud.stomach_saturation - want) < 0.001, "%s %.0f points leaves %.2f of the fed span (%.2f)" % [tag, points, want, _hud.stomach_saturation])
+	slots.restore(_player, {})
 	var ring: Rect2 = _hud.stomach_rect
 	var vit: Rect2 = _hud.drawn_blocks.get("vitals", Rect2())
 	_expect(ring.has_area(), "%s the ring draws (%s)" % [tag, ring])
@@ -249,26 +246,36 @@ func _test_stomach(view: Vector2) -> void:
 		if t.intersects(ring):
 			hit = t
 	_expect(not hit.has_area(), "%s the ring is off every other HUD rect (hits %s)" % [tag, hit])
-	dig.rows().clear()
+	dig.set_fullness(0.0)
 	await _frames(1)
 	if tag != "844x390":
 		return
-	# Band colours (once): red empty, yellow hungry, green full, red overfull, blended between.
-	_expect(ST.color_for(0.0).is_equal_approx(TOK.STOMACH_EMPTY) and ST.color_for(0.05).is_equal_approx(TOK.STOMACH_EMPTY), "empty is red")
-	_expect(ST.color_for(0.4).is_equal_approx(TOK.STOMACH_HUNGRY), "hungry is yellow")
-	_expect(ST.color_for(0.9).is_equal_approx(TOK.STOMACH_FULL) and TOK.STOMACH_FULL.h > 0.25 and TOK.STOMACH_FULL.h < 0.45, "full is green")
-	_expect(ST.color_for(1.3).is_equal_approx(TOK.STOMACH_OVERFULL) and TOK.STOMACH_OVERFULL.h < 0.06, "overfull is red")
-	var mid: Color = ST.color_for(0.65)
-	_expect(not mid.is_equal_approx(TOK.STOMACH_HUNGRY) and not mid.is_equal_approx(TOK.STOMACH_FULL) and mid.g >= TOK.STOMACH_HUNGRY.g - 0.01, "0.65 blends yellow into green (%s)" % mid)
+	# Band colours (once) in points: red empty, yellow peckish, green fed and well fed, red overfull.
+	_expect(ST.color_for(0.0).is_equal_approx(TOK.STOMACH_EMPTY) and ST.color_for(9.0).is_equal_approx(TOK.STOMACH_EMPTY), "empty is red")
+	_expect(ST.color_for(30.0).is_equal_approx(TOK.STOMACH_HUNGRY) and ST.color_for(45.0).is_equal_approx(TOK.STOMACH_HUNGRY), "peckish is yellow, through the first half of fed")
+	_expect(ST.color_for(70.0).is_equal_approx(TOK.STOMACH_FULL) and ST.color_for(85.0).is_equal_approx(TOK.STOMACH_FULL) and TOK.STOMACH_FULL.h > 0.25 and TOK.STOMACH_FULL.h < 0.45, "fed and well fed are green")
+	# The stops come from rules.json's hunger block, not a copy in the view (HUNGER memo 1.4 step 4).
+	var stops_now: Array = ST.stops()
+	var dig_rules: Dictionary = (root.get_node("Data").world_rules.get("hunger", {}) as Dictionary)
+	_expect(is_equal_approx(float(stops_now[1][0]), float(dig_rules.get("empty_below", -1.0))) \
+		and is_equal_approx(float(stops_now[2][0]), float(dig_rules.get("peckish_below", -1.0))) \
+		and is_equal_approx(float(stops_now[4][0]), float(dig_rules.get("fed_below", -1.0))) \
+		and is_equal_approx(float(stops_now[5][0]), float(dig_rules.get("well_fed_below", -1.0))), "the ring's stops are the hunger block's band edges")
+	_expect(ST.color_for(120.0).is_equal_approx(TOK.STOMACH_OVERFULL) and TOK.STOMACH_OVERFULL.h < 0.06, "overfull is red")
+	var mid: Color = ST.color_for(60.0)
+	_expect(not mid.is_equal_approx(TOK.STOMACH_HUNGRY) and not mid.is_equal_approx(TOK.STOMACH_FULL) and mid.g > TOK.STOMACH_HUNGRY.g, "60 points blends yellow into green (%s)" % mid)
+	var low: Color = ST.color_for(20.0)
+	_expect(not low.is_equal_approx(TOK.STOMACH_EMPTY) and not low.is_equal_approx(TOK.STOMACH_HUNGRY) and low.g > TOK.STOMACH_EMPTY.g, "20 points blends red into yellow (%s)" % low)
 	var icons: GDScript = load("res://scripts/ui/ui_icons.gd")
 	var seen := {}
-	for st in [&"empty", &"hungry", &"full", &"overfull"]:
+	for st in [&"empty", &"peckish", &"overfull"]:
 		var gid: StringName = ST.GLYPH[st]
 		_expect(icons.path_for(gid) != "" and icons.icon(gid) != null and not seen.has(gid), "%s has its own glyph %s" % [st, gid])
 		seen[gid] = true
-	_expect(ST.GLYPH[&"normal"] == ST.GLYPH[&"full"] and ST.GLYPH_SCALE[&"normal"] < ST.GLYPH_SCALE[&"full"], "normal draws the full stomach, smaller")
-	for pair in [[0.0, &"empty"], [0.2, &"hungry"], [0.55, &"normal"], [0.85, &"full"], [1.1, &"overfull"]]:
-		_expect(ST.state_of(pair[0]) == pair[1], "%.2f is %s (%s)" % [pair[0], pair[1], ST.state_of(pair[0])])
+	_expect(icons.path_for(&"well_fed") != "", "the Well Fed chip has its own icon")
+	_expect(ST.GLYPH[&"fed"] == ST.GLYPH[&"well_fed"] and ST.GLYPH_SCALE[&"fed"] < ST.GLYPH_SCALE[&"well_fed"], "fed draws the full stomach, smaller than well fed")
+	for pair in [[0.0, &"empty"], [20.0, &"peckish"], [50.0, &"fed"], [80.0, &"well_fed"], [110.0, &"overfull"]]:
+		_expect(ST.state_of(pair[0]) == pair[1], "%.0f points is %s (%s)" % [pair[0], pair[1], ST.state_of(pair[0])])
 	# Degrades clockwise: the lit arc always ends at 12 o'clock and starts later (clockwise) as it empties.
 	var top := -PI * 0.5 + TAU
 	var last := -INF
@@ -277,18 +284,15 @@ func _test_stomach(view: Vector2) -> void:
 		_expect(is_equal_approx(arc.y, top) and absf(arc.y - arc.x - TAU * f) < 0.0001 and arc.x > last, "%.2f full lights %.2f of the ring, ending at 12 o'clock (%s)" % [f, f, arc])
 		last = arc.x
 	_expect(is_equal_approx(ST.arc_for(0.75).x, 0.0), "at 75 %% the gap runs clockwise from 12 to 3 o'clock")
-	# The glyph's drawn scale follows the state: shrunk empty, big full, bigger overfull.
+	# The glyph's drawn scale follows the state: shrunk empty, big fed, bigger overfull.
 	var sc: Dictionary = ST.GLYPH_SCALE
-	_expect(sc[&"empty"] < sc[&"hungry"] and sc[&"hungry"] < sc[&"normal"] and sc[&"normal"] < sc[&"full"] and sc[&"full"] < sc[&"overfull"], "glyph scale grows from empty to overfull (%s)" % sc)
+	_expect(sc[&"empty"] < sc[&"peckish"] and sc[&"peckish"] < sc[&"fed"] and sc[&"fed"] < sc[&"well_fed"] and sc[&"well_fed"] < sc[&"overfull"], "glyph scale grows from empty to overfull (%s)" % sc)
 	var dig2 = DIG.of(_player)
-	for st in [[[], &"empty"], [[1.0, 1.0], &"full"], [[1.0, 1.0, 1.0], &"overfull"], [[0.5], &"hungry"]]:
-		dig2.rows().clear()
-		for share in st[0]:
-			var r2: Dictionary = dig2.schedule(&"roast", 60.0, 300.0)
-			r2["remaining"] = 60.0 * float(share)
+	for st in [[0.0, &"empty"], [50.0, &"fed"], [110.0, &"overfull"], [20.0, &"peckish"]]:
+		dig2.set_fullness(float(st[0]))
 		await _secs(0.6)
 		_expect(_hud.stomach_state == st[1] and absf(_hud.stomach_glyph_scale - float(sc[st[1]])) < 0.001, "%s: glyph %s at scale %.2f (want %.2f)" % [st[1], ST.GLYPH[_hud.stomach_state], _hud.stomach_glyph_scale, sc[st[1]]])
-	dig2.rows().clear()
+	dig2.set_fullness(0.0)
 	await _frames(1)
 
 func _creature(species: StringName, at: Vector3):
@@ -412,11 +416,11 @@ func _test_fullness_fatigue() -> void:
 	var v = _player.vitals
 	var FP: GDScript = load("res://scripts/ui/fatigue_panel.gd")
 	var gains := {}
-	for st in [[[], &"empty"], [[0.5], &"hungry"], [[1.0], &"normal"], [[1.0, 1.0], &"full"], [[1.0, 1.0, 1.0], &"overfull"]]:
-		dig.rows().clear()
-		for share in st[0]:
-			var r: Dictionary = dig.schedule(&"roast", 60.0, 300.0)
-			r["remaining"] = 60.0 * float(share)
+	# HUNGER bands (memo Part 1 s1.3): empty < 10, peckish 10-30, fed 30-70, well fed 70-100, overfull > 100.
+	var want_line := {&"empty": "Empty stomach: +30% exhaustion.", &"peckish": "Peckish: +10% exhaustion.",
+		&"fed": "", &"well_fed": "Well Fed: -15% exhaustion.", &"overfull": "Overfull, sluggish: +5% exhaustion."}
+	for st in [[0.0, &"empty"], [20.0, &"peckish"], [50.0, &"fed"], [85.0, &"well_fed"], [110.0, &"overfull"]]:
+		dig.set_fullness(float(st[0]))
 		_player.sim.tick(0.0)  # PlayerSim sets the stomach state and folds its factor into fatigue_gain_mult
 		_expect(v.fullness_state == st[1], "%s: the model's state (%s)" % [st[1], v.fullness_state])
 		v.fatigue = 0.0
@@ -424,27 +428,38 @@ func _test_fullness_fatigue() -> void:
 		v.add_fatigue(1.0, &"walk")
 		gains[st[1]] = v.fatigue
 		var line: String = FP.context_text(v, _player)
-		var want: String = {&"empty": "Empty stomach: +100% exhaustion.", &"hungry": "Hungry: +50% exhaustion.", &"normal": "", &"full": "Full: -15% exhaustion.", &"overfull": "Overfull, sluggish: +10% exhaustion."}[st[1]]
+		var want: String = want_line[st[1]]
 		_expect((want == "" and not line.contains("exhaustion.")) or line.contains(want), "%s: the breakdown panel reads \"%s\" (%s)" % [st[1], want, line])
 		await _frames(2)
 		_expect(absf(_hud.stomach_fill - dig.fullness()) < 0.0001 and _hud.stomach_state == v.fullness_state, "%s: the ring shows the model (%.2f %s)" % [st[1], _hud.stomach_fill, _hud.stomach_state])
 	print("[t_hudrules] fatigue per 1.0 walk gain by stomach: %s" % gains)
-	_expect(gains[&"empty"] > gains[&"hungry"] and gains[&"hungry"] > gains[&"normal"] and gains[&"normal"] > gains[&"full"], "fatigue gain is ordered empty > hungry > normal > full (%s)" % gains)
-	_expect(absf(gains[&"empty"] / gains[&"normal"] - 2.0) < 0.001 and absf(gains[&"overfull"] / gains[&"normal"] - 1.1) < 0.001, "empty doubles it, overfull adds 10 %%")
-	# A new survivor and an old save with nothing digesting start "normal" (a starter meal), once.
+	_expect(gains[&"empty"] > gains[&"peckish"] and gains[&"peckish"] > gains[&"fed"] and gains[&"fed"] > gains[&"well_fed"], "fatigue gain is ordered empty > peckish > fed > well fed (%s)" % gains)
+	_expect(absf(gains[&"empty"] / gains[&"fed"] - 1.3) < 0.001 and absf(gains[&"well_fed"] / gains[&"fed"] - 0.85) < 0.001 and absf(gains[&"overfull"] / gains[&"fed"] - 1.05) < 0.001, "empty is x1.3, well fed x0.85, overfull x1.05")
+	# The Well Fed band shows its chip and adds its regen bonus; leaving the band takes the chip off.
+	dig.set_fullness(85.0)
+	v.health = v.effective_max_health() - 20.0
+	_player.sim.tick(0.0)
+	_expect(_player.statuses.has(&"well_fed"), "well fed applies its chip")
+	var hp: float = v.health
+	_player.sim.tick(1.0)
+	_expect(v.health > hp + 0.1, "well fed adds its regen bonus (%.2f -> %.2f)" % [hp, v.health])
+	dig.set_fullness(40.0)
+	_player.sim.tick(0.0)
+	_expect(not _player.statuses.has(&"well_fed"), "leaving the band takes the chip off")
+	# A new survivor starts fed (the starter fullness), once.
 	var fresh = DIG.new()
-	_expect(fresh.seed_starter() and DIG.state_for(fresh.fullness()) == &"normal", "a new survivor starts normal (%.2f)" % fresh.fullness())
-	_expect(not fresh.seed_starter() and fresh.rows().size() == 1, "the starter meal is given once")
+	_expect(fresh.seed_starter() and DIG.state_for(fresh.fullness()) == &"fed", "a new survivor starts fed (%.2f)" % fresh.fullness())
+	_expect(not fresh.seed_starter() and is_equal_approx(fresh.fullness(), DIG.STARTER_FULLNESS), "the starter fullness is given once")
 	var old = DIG.new()
-	old.from_dict({"rows": [], "next_id": 4})  # a save from before the flag, nothing digesting
-	_expect(old.seed_starter() and DIG.state_for(old.fullness()) == &"normal", "an old save with nothing digesting loads normal")
+	old.from_dict({"rows": [], "next_id": 4})  # a save from before the rework, nothing digesting
+	_expect(old.seed_starter() and DIG.state_for(old.fullness()) == &"fed", "an old save with nothing digesting loads fed")
 	var again = DIG.new()
 	again.from_dict({"rows": [], "next_id": 9, "starter_given": true})
 	_expect(not again.seed_starter() and again.rows().is_empty() and DIG.state_for(again.fullness()) == &"empty", "a later save with nothing digesting stays empty (no free meal per load)")
 	var rt = DIG.new()
 	rt.from_dict(fresh.to_dict())
-	_expect(rt.starter_given and rt.rows().size() == 1, "the flag and the starter row survive a save")
-	dig.rows().clear()
+	_expect(rt.starter_given and is_equal_approx(rt.fullness(), fresh.fullness()), "the stomach and the flag survive a save")
+	dig.set_fullness(0.0)
 	v.fatigue = 0.0
 	_player.sim.tick(0.0)
 

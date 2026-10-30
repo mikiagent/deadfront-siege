@@ -83,6 +83,10 @@ func would_replace(bundle_buffs: Array) -> Array[Dictionary]:
 	return out
 
 ## Apply one bundle's buffs: each replaces its own group only. Returns what was replaced.
+## HUNGER (memo Part 1 s1.4 step 4): a row whose bundle says `while_fed` lives until the stomach drops
+## below hunger.buff_off_below. Its `time_left` is that fed time at the rate, so the HUD's outer ring
+## can count it down; tick() also ends it the tick the stomach crosses the line (the authority).
+## Rows without the flag keep their own timer.
 func apply(player: Player, bundle_buffs: Array) -> Array[Dictionary]:
 	var replaced: Array[Dictionary] = []
 	for b: Variant in bundle_buffs:
@@ -93,12 +97,15 @@ func apply(player: Player, bundle_buffs: Array) -> Array[Dictionary]:
 		var group := str(row.get("group", "enhanced_ability"))
 		if id == "" or float(row.get("duration", 0.0)) <= 0.0:
 			continue
+		var while_fed := bool(row.get("while_fed", false))
+		var life := _life_seconds(player, float(row.get("duration", 0.0)), while_fed)
 		var old := by_group(group)
 		if not old.is_empty():
 			if str(old.get("id", "")) == id:
 				# Same food again: refresh rather than replace (spec 32 §11 step 7: only the group).
-				old["time_left"] = float(row.get("duration", 0.0))
-				old["duration"] = float(row.get("duration", 0.0))
+				old["duration"] = life
+				old["time_left"] = life if while_fed else maxf(float(old.get("time_left", 0.0)), float(row.get("duration", 0.0)))
+				old["while_fed"] = while_fed
 				old["stats"] = (row.get("stats", {}) as Dictionary).duplicate(true)
 				_sync(player)
 				return replaced
@@ -109,12 +116,31 @@ func apply(player: Player, bundle_buffs: Array) -> Array[Dictionary]:
 			"group": group,
 			"group_name": str(row.get("group_name", group)),
 			"display_name": str(row.get("display_name", id)),
-			"duration": float(row.get("duration", 0.0)),
-			"time_left": float(row.get("duration", 0.0)),
+			"duration": life,
+			"time_left": life,
 			"stats": (row.get("stats", {}) as Dictionary).duplicate(true),
+			"while_fed": while_fed,
 		})
 	_sync(player)
 	return replaced
+
+## How long a buff row lives: its own duration, or - for a while_fed meal - as long as the stomach can
+## feed it (a bigger meal fills more, so it lasts longer, memo s1.4). The stomach's line is the authority
+## (tick), so the row's timer is the fed time and never shorter than the dish's own duration.
+static func _life_seconds(player: Player, duration: float, while_fed: bool) -> float:
+	if not while_fed or player == null:
+		return duration
+	var dig := Digestion.of(player)
+	if dig == null:
+		return duration
+	return maxf(duration, dig.fed_seconds_from_fullness())
+
+## True while any active row is a while_fed meal buff (the HUD's outer ring only counts those).
+func has_while_fed() -> bool:
+	for r in _rows:
+		if bool(r.get("while_fed", false)):
+			return true
+	return false
 
 ## Sum of one stat's `add` (minus `sub`) over active rows; 0.0 for a stat no buff carries.
 func stat_add(stat: String) -> float:
@@ -138,8 +164,18 @@ func stat_mult(stat: String) -> float:
 func tick(player: Player, delta: float) -> void:
 	if _rows.is_empty():
 		return
+	var fed := Digestion.of(player)
+	var off := fed == null or fed.fullness() < Digestion.buff_off_below()
 	var expired: Array[Dictionary] = []
 	for r in _rows:
+		if bool(r.get("while_fed", false)):
+			# HUNGER: a while_fed meal buff ends the moment the stomach is below the off line. Until
+			# then its own timer does not run: the stomach is what feeds it, and time_left follows
+			# it so the HUD's outer ring counts down the fed time that is really left.
+			r["time_left"] = fed.fed_seconds_from_fullness() if fed != null else 0.0
+			if off:
+				expired.append(r)
+			continue
 		r["time_left"] = float(r.get("time_left", 0.0)) - delta
 		if float(r["time_left"]) <= 0.0:
 			expired.append(r)

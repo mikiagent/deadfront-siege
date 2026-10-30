@@ -830,11 +830,34 @@
       "_note": "Owner 2026-10-28: after a sleep, exhaustion does not accumulate for a while (the treadmill pauses); recovery still works. ASSUMPTION: no doc gives a length; PlayerSim grants it on waking with a time from data/rest.json well_rested (secs per point of exhaustion the sleep removed, clamped), so this duration is only the fallback. weakness_rank 6 so the 3-status cap never drops it for a minor status."
     },
     {
+      "id": "well_fed",
+      "display_name": "Well Fed",
+      "kind": "boon",
+      "desc": "A full stomach: exhaustion builds 15% slower and Health recovers 0.2 a second faster. Meal buffs stay on while you are fed.",
+      "dps": 0.0,
+      "duration": 9999.0,
+      "max_stacks": 1,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "weakness_rank": 6,
+      "cleared_by": [],
+      "fx": {
+        "body": "none",
+        "color": "#7fd4a0",
+        "icon": "well_fed",
+        "particles": "none",
+        "vignette": false
+      },
+      "_note": "HUNGER (owner-approved memo 2026-10-29 Part 1 s1.3 step 3): the Well Fed band (fullness 70-100) shows as a chip, and PlayerSim keeps it on while Digestion's state is well_fed, clearing it on leaving the band. Its numbers are live in PlayerSim/Vitals (rules.json hunger.fatigue_mult.well_fed and hunger.well_fed_regen); the chip itself carries no flags so it never stacks a second copy of the effect. ASSUMPTION: the chip's colour."
+    },
+    {
       "id": "starving",
       "display_name": "Starving",
       "kind": "effect",
-      "desc": "Nothing left in your stomach: losing 0.25 Health a second, more the longer it lasts (up to x3). Eat to end it. It cannot take your last Health point.",
-      "dps": 0.25,
+      "desc": "Nothing left in your stomach for ten minutes: losing 0.1 Health a second, more the longer it lasts (up to x3). Eat to end it. It cannot take your last Health point.",
+      "dps": 0.1,
       "duration": 9999.0,
       "max_stacks": 3,
       "flags": [],
@@ -851,7 +874,7 @@
         "particles": "none",
         "vignette": true
       },
-      "_note": "Owner 2026-10-28: 'if you're starving, it should show up like a status effect and you should lose health'; 'starving and poison cant directly kill you but they can get you to 1HP'. PlayerSim applies it while Digestion's state is empty and clears it on leaving empty; a stack every 120 s of starving, max 3 (0.25 / 0.5 / 0.75 HP/s). ASSUMPTION: rate, growth and cap; no spec gives a starvation rule."
+      "_note": "Owner 2026-10-28: 'if you're starving, it should show up like a status effect and you should lose health'; 'starving and poison cant directly kill you but they can get you to 1HP'. HUNGER (owner-approved memo 2026-10-29 Part 1 s1.3 step 3): PlayerSim applies it only after rules.json hunger.starving_after_s (600 s) on an empty stomach and clears it on leaving empty; a stack every hunger.starving_stack_s (180 s), max 3 (0.1 / 0.2 / 0.3 HP/s). ASSUMPTION (memo 1.4): rate, delay, growth and cap; no spec gives a starvation rule."
     }
   ]
 }
