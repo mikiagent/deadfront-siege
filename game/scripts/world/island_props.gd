@@ -372,7 +372,12 @@ static var _card_cache: Dictionary = {}
 ## props.json names them: "sprite_kind" (all rows of that kind, e.g. "prop:boulder") and/or "sprites"
 ## (explicit ids, for a kind no prop:* row describes, e.g. a reed clump). Older rows that only carry
 ## "card": "prop:<id>" resolve through that id. Empty = the kind has no painted art yet.
+static var models_3d: bool = "--models" in OS.get_cmdline_user_args()
+
 static func card_sprites(kind: String) -> Array[Dictionary]:
+	# 3D A/B (dev): under --models a kind that lists GLBs draws them instead of its painted cards.
+	if models_3d and not (kind_row(kind).get("models", []) as Array).is_empty():
+		return []
 	var cached: Variant = _card_cache.get(kind, null)
 	if cached is Array:
 		return cached as Array[Dictionary]

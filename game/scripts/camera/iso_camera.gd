@@ -80,10 +80,20 @@ var weather_offset := Vector2.ZERO
 const WEATHER_OFFSET_MAX := 0.2
 ## Accessibility: no camera shake at all, combat or weather (--reduce-shake).
 static var reduce_shake: bool = "--reduce-shake" in OS.get_cmdline_user_args()
+## 3D A/B (dev): --cam-fov=<deg> and --cam-pitch=<deg> try a wider lens or another tilt in place of
+## FOV_DEG and PITCH_DEG; the camera still stands distance_for(size) back, so zoom keeps meaning metres.
+static var fov_deg: float = _arg_float("--cam-fov=", FOV_DEG)
+static var pitch_override: float = _arg_float("--cam-pitch=", PITCH_DEG)
+
+static func _arg_float(prefix: String, fallback: float) -> float:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with(prefix):
+			return float(a.substr(prefix.length()))
+	return fallback
 
 ## The view angle of the camera this run uses, in degrees (Euler x; negative looks down).
 static func pitch_deg() -> float:
-	return ORTHO_PITCH_DEG if ortho else PITCH_DEG
+	return ORTHO_PITCH_DEG if ortho else pitch_override
 
 ## The camera's rotation: x = screen right, y = screen up, z = towards the viewer. From the constants
 ## (not a live node), so offline tools (CARD2D's card bake) and the running game cannot drift apart.
@@ -98,7 +108,7 @@ static func projection_mode() -> Camera3D.ProjectionType:
 static func distance_for(view_height: float) -> float:
 	if ortho:
 		return ORTHO_DISTANCE
-	return view_height / (2.0 * tan(deg_to_rad(FOV_DEG) * 0.5))
+	return view_height / (2.0 * tan(deg_to_rad(fov_deg) * 0.5))
 
 ## A visibility_range_end that keeps everything within `radius_m` of the focus drawn at every zoom
 ## up to LAB_MAX_SIZE (the old 40 m camera's ranges were 40 + radius).
@@ -125,7 +135,7 @@ func _ready() -> void:
 		max_size = ORTHO_MAX_SIZE
 		default_size = ORTHO_DEFAULT_SIZE
 	else:
-		fov = FOV_DEG
+		fov = fov_deg
 	keep_aspect = Camera3D.KEEP_HEIGHT
 	# Moved every frame after the target's interpolated transform, so it is not interpolated itself:
 	# interpolated, unproject_position() in _process read last frame's camera and screen UI trailed the world.
