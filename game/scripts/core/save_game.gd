@@ -149,6 +149,12 @@ static func save_now() -> bool:
 			"harvested": World.harvested,
 			"crater_discovered": World.crater_discovered,
 		},
+		# LANDMARKS: found sites and opened dormant windows, per island id.
+		"landmarks": {"found": World.landmarks_found, "state": World.landmark_state},
+		# ISLAND RESET: every expedition island's generation, clock and harvest snapshot.
+		"expeditions": World.expeditions,
+		# UNSTABLE ISLES: the isle on offer or live, the cooldown before the next, the roll count.
+		"drift": {"row": World.drift, "cooldown": World.drift_cooldown, "count": World.drift_count},
 		"clock": Game.time_of_day,
 		"saved_unix": int(Time.get_unix_time_from_system()),
 		"pending_refunds": SaveRestore.pending_refunds,
@@ -281,6 +287,24 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.remaining_lifetime = float(data.get("unstable", {}).get("remaining", 0.0))
 	World.harvested = data.get("unstable", {}).get("harvested", {})
 	World.crater_discovered = bool(data.get("unstable", {}).get("crater_discovered", false))
+	# LANDMARKS: no block (an older save) = nothing found anywhere, no site open.
+	var lm: Variant = data.get("landmarks", {})
+	World.landmarks_found = SaveSanitizer.landmark_rows((lm as Dictionary).get("found", {}) if lm is Dictionary else {}, false)
+	World.landmark_state = SaveSanitizer.landmark_rows((lm as Dictionary).get("state", {}) if lm is Dictionary else {}, true)
+	# ISLAND RESET: no block (an older save) = generation 0 everywhere; the island the save stands on
+	# keeps its old single snapshot and its remaining time, so the visit carries on as it was.
+	World.expeditions = SaveSanitizer.expedition_rows(data.get("expeditions", null))
+	var here := str(data.get("island_id", ""))
+	if not data.has("expeditions") and here != "" and str(World.def_of(StringName(here)).get("kind", "")) == "unstable":
+		World.expeditions[here] = {"generation": 0, "left": World.remaining_lifetime if World.remaining_lifetime > 0.0 else -1.0, "harvested": World.harvested}
+	# UNSTABLE ISLES: no block = no isle yet. The isle's row is rebuilt from its saved roll, before the
+	# island the save stands on loads (it may be that isle).
+	var dr: Dictionary = SaveSanitizer.drift_block(data.get("drift", null))
+	World.drift = dr["row"]
+	World.drift_cooldown = float(dr["cooldown"])
+	World.drift_count = int(dr["count"])
+	if not World.drift.is_empty():
+		World._install_drift()
 	World.cargo_home.load_array(data.get("home", {}).get("cargo", []))
 	World._home_buildings_cache = data.get("home", {}).get("buildings", [])
 	World.home_claims = data.get("home", {}).get("claims", [])
@@ -310,6 +334,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	var away_dom: Variant = away.get("domain", {})
 	World.away_domain = (away_dom as Dictionary).duplicate(true) if away_dom is Dictionary else {}
 	var iid := StringName(str(data.get("island_id", "home_grassland")))
+	if not World.islands.has(str(iid)):
+		iid = &"home_grassland"  # a sunk isle (or a removed row): wake at home
 	var pos_a: Array = data.get("player", {}).get("position", [0, 1, 12])
 	var pos := Vector3(float(pos_a[0]), float(pos_a[1]), float(pos_a[2]))
 	World.load_island(host, iid, pos, false)

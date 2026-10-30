@@ -156,6 +156,32 @@
     "50-60": 24
   },
   "sink_warning_seconds": 60,
+  "reset": {
+    "_about": "ISLAND RESET (docs/design/island-resources.md sections 5.4 and 5.5, A1 + A2). Expedition islands live lifetime_hours by tier band (6/12/24 h of play); every started clock counts down while the game runs on any island, never while it is closed. At 0 the island rerolls a new layout (generation + 1).",
+    "expedition_regen_mult": 5.0,
+    "_regen_note": "# ASSUMPTION (doc 5.4): ambient and habitat nodes on an expedition island regrow 5x slower than on home (60-240 s becomes 5-20 min).",
+    "landmark_trickle_s": 600.0,
+    "_trickle_note": "# ASSUMPTION (doc 5.4): an expedition landmark node with any units left regains one per 10 min; taken to 0 it stays empty until the reset.",
+    "landmark_home_regen_s": 720.0,
+    "_home_note": "# ASSUMPTION (doc 5.4): a spent home landmark pool refills after one in-game day (Game.day_length_seconds 720).",
+    "building_refund": 0.5,
+    "_refund_note": "A1 (approved; # ASSUMPTION on the share): a placed building left on an island at its reset refunds 50 % of its kit recipe (rounded down per slot) to the home vault; its storage moves there whole."
+  },
+  "unstable_isles": {
+    "_about": "UNSTABLE ISLES (docs/design/unstable-isles.md): generated, short-life islands. One at a time: it rolls from a seed (level band, climate, shape family, size), sits on the harbour board for offer_window_s, lives life_s of play once landed, then sinks for good. All numbers # ASSUMPTION.",
+    "offer_every_s": 1800,
+    "offer_window_s": 1200,
+    "life_s": 2400,
+    "max_live": 1,
+    "min_survival": 10,
+    "tier_spread": 5,
+    "size_share": [0.9, 1.0],
+    "landmark_extra": 2,
+    "level_offset": 8,
+    "trait_mult": 1.25,
+    "regen_mult": 100.0,
+    "_regen_note": "Ambient nodes effectively do not regrow inside the 40-minute life (100x the home time)."
+  },
   "creature_cap_mobile": 24,
   "night_predator_perception_bonus": 0.5,
   "wet_after_seconds_in_water": 5,

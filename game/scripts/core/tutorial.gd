@@ -136,7 +136,7 @@ static func ferry(host: Node, shape_id: StringName) -> bool:
 	World.unstable_claims = []
 	World.free_claim_used = false
 	var ok := [false]
-	await World._fade_to(func () -> void: ok[0] = World.complete_pick(host, shape_id))
+	await World._fade_to(func () -> void: ok[0] = World.complete_pick(host, shape_id), World.sail_title(&"home_grassland", shape_id))
 	if not ok[0]:
 		World.tutorial["done"] = false
 		World.objective = keep_objective

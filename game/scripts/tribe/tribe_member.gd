@@ -380,6 +380,10 @@ func _find_node() -> HarvestNode:
 			continue
 		if _flat(h.global_position, center) > radius:
 			continue
+		# LANDMARKS (doc section 5.7, A7): an ASSIGN job never works a landmark node; those are the
+		# survivor's own to harvest.
+		if str(h.get_meta(&"landmark", "")) != "":
+			continue
 		var claim: String = str(h.get_meta(&"tribe_claim", ""))
 		if claim != "" and claim != record.uid:
 			continue

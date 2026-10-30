@@ -160,6 +160,10 @@ static func default_props(kind: String) -> Dictionary:
 			return {"resource": "trees", "count": 6, "radius_m": 16.0}
 		"claim_free":
 			return {"name": "", "radius_m": 30.0}
+		"landmark":
+			# LANDMARKS M1: "type" names a site type of data/world/landmarks.json; an empty type is a
+			# plain point of interest (a peak, a ruin) and places no resource site.
+			return {"name": "", "type": ""}
 		_:
 			return {"name": ""}
 
@@ -360,6 +364,8 @@ func issues() -> Array[Dictionary]:
 			var lv := int(p.get("level", 0))
 			if lv < 1 or lv > 60:
 				out.append(_issue("error", "bad_level", "%s: level %d is outside 1-60." % [label, lv]))
+		if kind == "landmark" and str(p.get("type", "")) != "" and not landmark_types().has(str(p.get("type", ""))):
+			out.append(_issue("warn", "unknown_landmark_type", "%s: landmark type '%s' is not one of %s." % [label, p.get("type", ""), ", ".join(landmark_types())]))
 		if kind == "resource" and not RESOURCES.has(str(p.get("resource", ""))):
 			out.append(_issue("error", "unknown_resource", "%s: resource '%s' is not one of %s." % [label, p.get("resource", ""), ", ".join(RESOURCES)]))
 	if count("land", 1) > 0:
@@ -416,6 +422,16 @@ func _river_without_outlet() -> bool:
 			if not outlet:
 				return true
 	return false
+
+## LANDMARKS M1: the site types data/world/landmarks.json defines (the map's landmark markers and
+## IslandLandmarks share them).
+static func landmark_types() -> Array:
+	var f := FileAccess.open("res://data/world/landmarks.json", FileAccess.READ)
+	if f == null:
+		return []
+	var v: Variant = JSON.parse_string(f.get_as_text())
+	var t: Variant = (v as Dictionary).get("types", {}) if v is Dictionary else {}
+	return (t as Dictionary).keys() if t is Dictionary else []
 
 static func _species() -> Array:
 	var tree := Engine.get_main_loop() as SceneTree
