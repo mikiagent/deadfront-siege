@@ -221,3 +221,20 @@ Every avoided hit floats grey text over the defender (survivor HUD or creature p
 draw into hit / dodge / miss with unchanged odds), a creature bite with the prey out of reach at the
 contact frame, a pounce that lands with her out of its jaws, or a survivor swing the creature stepped
 out of. Test: `game/tests/t_dodgetext.gd`.
+
+## Horned charger extras (horned_charger: styracosaurus, triceratops)
+The pack_mule template, heavier and braver (branch `claude/mmo-styratactics`); every number an
+ASSUMPTION, logged as STYRA in `WildLandsMMO_Open_Questions.md`. Still a provoked-only grazer
+brain; the difference is temperament `territorial` (Brave stands its ground from one hit) and the
+bigger numbers:
+- **Stand-off ring 9 m** (pack_mule 5), `display_s` 2.0, `charge_cd` 8 s, `charge_mult` 2.0,
+  `charge_shove_m` 4.0 with a 0.9 s stagger: a landed ram body-slams her 4 m back along its line
+  (owner 2026-10-29 "tackling/ramming"). Miss recover 2.0 s. It flees only below `retreat_frac`
+  0.25 HP and defends its herd within `guard_m` 20 m.
+- **Horn swipe (`heavy` move, `attack_heavy` clip):** a point-blank finisher in
+  `tactics.point_blank` (before kick/bite), x `heavy_mult` 2.2, `heavy_cd` 7 s. `TacticalBrain`
+  gained the `heavy` move: `attack_available` (point blank, prey in front), `_heavy()` (plays the
+  clip, one swing), and `hit_damage_mult` maps the clip to `heavy_mult`. ASSUMPTION.
+- **Slower turning** (`turn_mult` 0.6 of the profile's turn rate): big head, wide swings.
+- Missing clips: none new — the swipe reuses the `attack_heavy` clip (a CONTRACT clip).
+- Test: `game/tests/t_styraco.gd`. Lab: `--lab=creature_lab --species=styracosaurus`.

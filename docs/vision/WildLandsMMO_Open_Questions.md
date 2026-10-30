@@ -244,3 +244,13 @@ Source: branch `mmo-chasesprint`, report `docs/orchestration/reports/dsc-chasesp
 | **CS2** | **Sprint-off radius: 4 m**, the hysteresis floor, so a target at the edge cannot make her stutter between walk and sprint. Equal to the on radius (no band) is the alternative. | Whether a fight reads as "step in, swing" or as a flickering run. | same |
 | **CS3** | A winded survivor (empty stamina or the Exhausted tier) is never forced to sprint, and the forced sprint only returns at a quarter of the bar. Should exhaustion block it at a lower tier, or should the forced sprint be allowed to run her dry once? | How much of the chase is the player's to manage. | same |
 | **CS4** | Chase sprint uses its own flag, so it never toggles the HUD SPRINT hex and never turns off a latch the player set. Should the HUD show a separate chase-sprint state instead of staying unlit? | The player cannot currently tell the auto-sprint from a walk besides her speed. | `game/scripts/ui/hud_field.gd` |
+### STYRA (2026-10-30) — styracosaurus / triceratops (horned_charger) behaviour
+
+Source: branch `claude/mmo-styratactics`, report `docs/orchestration/reports/dsc-styratactics.md`. Numbers live in `game/data/creatures/ai.json archetypes.horned_charger.tactics` (every one an ASSUMPTION); template pack_mule.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **S1** | The big ceratopsians stand their ground (temperament territorial, Brave never flees on sight) and fight only while provoked; they hold a 2.0 s head-lowering display at ring 9 m before the charge. | `temperament`, `ring_m`, `display_s` | Owner: "a display first, then the charge". |
+| **S2** | The charge is a ram: straight locked line, 2.0 × attack impact and a 4 m body-slam shove with a 0.9 s stagger along the charge line; a sidestep or roll dodges it and staggers it 2.0 s. | `charge_mult`, `charge_shove_m`, `charge_shove_stagger_s`, `charge_miss_recover_s` | Owner 2026-10-29: "tackling/ramming". |
+| **S3** | Point blank it sweeps the horns: the `heavy` move (attack_heavy clip) x 2.2, 7 s cooldown, before kick/bite in `point_blank`. | `heavy_cd`, `heavy_mult`, `point_blank`, `TacticalBrain` heavy move | Gives the big head a finisher that is not a bite. |
+| **S4** | It fights to 25 % HP, then flees 4 s; guard 20 m around its home; herd defence as pack_mule. | `retreat_frac`, `guard_m`, `herd_defend` | Braver than the zebra; still capturable when weak. |
