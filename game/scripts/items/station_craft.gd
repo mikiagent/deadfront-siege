@@ -80,6 +80,7 @@ func open_station_menu(st: Node3D) -> void:
 		print("[craft] no actions for station %s" % station_id_of(st))
 		return
 	actions.append_array(assign_actions(st))
+	actions.append_array(repair_actions(station_id_of(st), player.inventory if player else null))
 	close_radial()
 	menu.show_for(st, actions)
 
@@ -117,6 +118,8 @@ func _on_menu_action(st: Node3D, action_id: StringName) -> void:
 			var cui: Variant = player.get("craft_ui")
 			if cui != null and cui.has_method("show_for_station"):
 				cui.show_for_station(station_id_of(st))
+		&"repair":
+			RepairPicker.open_for(menu.get_parent(), player, station_id_of(st))
 		&"stop_job":
 			var who := TribeWork.worker_at(st)
 			if who:
@@ -138,6 +141,16 @@ static func assign_actions(st: Node3D) -> Array:
 	for rec in Crafting.recipes_for_station(StringName(Crafting.node_station_id(st))):
 		if ps == null or not ps.runs(StringName(str(rec.get("id", "")))):
 			return [{"id": &"assign", "label": "ASSIGN", "icon": "", "glyph": "A"}]
+	return []
+
+## P3 GEARREPAIR: a REPAIR hex on a repair station (recipes.json repairs: workbench, anvil) while the
+## survivor carries or wears worn or broken gear.
+static func repair_actions(sid: StringName, inv: Inventory) -> Array:
+	if inv == null or GearRepair.damaged_in(inv).is_empty():
+		return []
+	for s in GearRepair.damaged_in(inv):
+		if GearRepair.station_of(s) == sid:
+			return [{"id": &"repair", "label": "REPAIR", "icon": "hammer", "glyph": "R"}]
 	return []
 
 ## REMOVE (confirmed on the radial): demolish a placed building. What it held goes back to the bag
