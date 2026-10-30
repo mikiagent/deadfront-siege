@@ -525,19 +525,18 @@ func _test_top_feed(size: Vector2i) -> void:
 	var layer: Node = current_scene.get_node_or_null("GatherPopups") if current_scene else null
 	var popups := layer.get_child_count() if layer else 0
 	_expect(feed.rows.size() == 1 and feed.rows[0]["tier"] == &"green" and popups == 0, "%s top feed: a rare find turns its row green, one popup per gain (%d rows, tier %s, %d stacks by the node)" % [tag, feed.rows.size(), feed.rows[0]["tier"] if not feed.rows.is_empty() else "-", popups])
-	# The skill row at the top middle. The rare find above left its centre-top notice up for a few
-	# seconds, and the feed hangs under notices by design: clear it so this checks the feed alone (it
-	# pushed the row to y 260 at 844x390 on a slow run).
+	# The skill row at the left column. The rare find above left its centre-top notice up for a few
+	# seconds, and a row keeps off the taken rects by design: clear it so this checks the row alone.
 	feed.clear()
 	(hud.get("_events").get("notices") as Array).clear()
 	cel.call("push_skill", &"cooking", 3)
 	await _frames(4)
 	var lu: Rect2 = (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2())
-	if lu.position.y >= view.y * 0.4:
-		for k in hud.get("drawn_blocks"):
-			print("[t_levelfx] DBG %s %s" % [k, hud.get("drawn_blocks")[k]])
-		print("[t_levelfx] DBG rows %s" % [feed.rows.map(func (x): return [x["kind"], x["id"], x.get("y")])])
-	_expect(lu.has_area() and absf(lu.get_center().x - cx) < 2.0 and lu.position.y < view.y * 0.4, "%s top feed: a skill level-up is a row at the top middle (%s)" % [tag, lu])
+	# LAYOUT (owner 2026-10-30: "the level-up banner goes left, below the hunger ring")
+	var left: Vector2 = load("res://scripts/ui/hud_layout.gd").levelup_top(hud, view)
+	var ring: Rect2 = hud.get("stomach_rect")
+	# It may slide further down to clear a control in the strip (a phone's whistle row), never up.
+	_expect(lu.has_area() and absf(lu.position.x - left.x) < 2.0 and lu.position.y >= left.y - 2.0 and lu.position.y >= ring.end.y and not lu.intersects(ring), "%s level-up: the skill row sits in the left column under the hunger ring (row %s, anchor %s, ring %s)" % [tag, lu, left, ring])
 	if not band.has_area():  # the desktop character stack: far left (owner 2026-10-28), off the HUD
 		await _quiet()
 		player.statuses.apply(&"well_rested")  # HUDRULES: a buff chip in the row under the vitals
@@ -557,8 +556,12 @@ func _test_top_feed(size: Vector2i) -> void:
 			if h.is_visible_in_tree() and h.hex_rect().intersects(st):
 				over += 1
 				over_what = str(h.name)
-		_expect(st.has_area() and st.position.x >= inset.w and st.position.x <= vit.position.x + 16.5 and st.position.y >= vit.end.y and st.end.y <= view.y, "%s character stack: it hugs the left edge, under the vitals, inside the view (%s)" % [tag, st])
 		var stomach: Rect2 = hud.get("stomach_rect")
+		# LAYOUT (owner 2026-10-30: "move the level up UI higher (below hunger)"): the stack hangs from
+		# the left column's top, right under the stomach ring.
+		var anchor: Vector2 = load("res://scripts/ui/hud_layout.gd").levelup_top(hud, view)
+		_expect(st.has_area() and st.position.x >= inset.w and st.position.x <= vit.position.x + 16.5 and st.position.y >= vit.end.y and st.end.y <= view.y, "%s character stack: it hugs the left edge, under the vitals, inside the view (%s)" % [tag, st])
+		_expect(stomach.has_area() and absf(st.position.x - anchor.x) < 2.0 and st.position.y >= stomach.end.y and st.position.y <= anchor.y + 2.0, "%s character stack: it starts under the hunger ring (stack %s, anchor %s, ring %s)" % [tag, st, anchor, stomach])
 		var feed_rows: Array = []
 		for k in hud.get("drawn_blocks"):
 			if str(k).begins_with("toast"):

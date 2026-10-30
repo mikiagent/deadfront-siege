@@ -152,7 +152,8 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   healing, like the stomach's well fed band). A 2 px gap after every segment of `segment_xp` (100) XP of
   the level's cost, grouped into a multiple of 100 past `max_segments` (40) (`LevelDisplay.xp_segments`),
   so a dearer level draws more, thinner segments; the last is the leftover. The label over it reads
-  "Lv. 10  137 / 763 XP  · 100 XP each" (desktop centred, phone right above the rail). The cost is
+  "Lv. 10  137 / 763 XP  · 100 XP each", bottom-left just over the quick-food (EAT) row since owner
+  2026-10-30 ("the skill XP + player XP UI lower, above eat"), where the skill XP rows stack above it. The cost is
   exponential: `World.xp_for_level` = round(110 x 1.12^n x 2.5) (`pioneer_levels.json xp_curve`, `progression.json player_xp_cost_mult`). Test
   `t_levelbar.gd`. the survivor's name draws
   under her feet (15 px, projected from the camera).
@@ -289,18 +290,38 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - The camera already leans toward the selected or worked node (`Player.camera_interest`, IsoCamera
   `SELECTION_BIAS` 0.35, follow lerp 8/s); UIGATHER leaves those values as they are.
 - Gains show in the top-middle column (TopFeed, below); `yield_card.gd` keeps only the chip helpers
-  (`chips_for`, `layout_chips`, `meta_line`) and the left XP feed (`draw_feed`). The per-node yield card
+  (`chips_for`, `layout_chips`, `meta_line`) and the XP feed (`draw_feed`). The per-node yield card
   is retired (owner 2026-10-28).
 
+## Repaint policy (HUDREDRAW)
+- The field HUD and its minimap no longer call `queue_redraw()` every frame (claude-tutperf measured
+  ~1.3-1.7 ms a frame of it). `HuntHud._process` ends in `_tick_redraw` (and `_tick_map_redraw` for the
+  map) and repaints only when the paint's inputs changed — `_hud_sig()` / `_map_sig_key()`, every value
+  `_draw` reads at drawn precision (0.1 px, whole metres / seconds / degrees): vitals and their
+  effective maxima, the HP label, mount energy, stomach fullness / saturation / eased glyph scale,
+  level + XP bar, statuses and buff chips (id, stacks, whole seconds), the rest box, the order card and
+  badge, the target plate (its HP, torpor strip, status chips and stack counts), nearby harvest nodes,
+  the camera, the canvas and the placer.
+- `_animating()` keeps the repaint going only while a piece moves by itself: notices / toasts / XP rows
+  and their batched ghost fill and level flash, bites and floats, the level-up celebration and MENU
+  pulse, the status pulse, the domain banner, the orders flash, gliding pills, the combat frame fade,
+  the fog trail fading, the ghost fills still easing, a placement mode and a level badge at tier 4+.
+- With nothing animating an idle HUD paints 0 times in 60 frames (`t_fieldhud`, `t_hudredraw`); a 1 Hz
+  catch-up runs only while a piece shows whole seconds (buff countdowns, rest rates, a node's regrow
+  timer). The day/night dial, the hexes and the sheets keep their own redraw logic. A new input of
+  `_draw` must be added to the signature or it waits for the next animating frame.
+
 ## Notices, toasts, hits, level-up
-- Skill XP lines (left feed, owner §1.6, UIGATHER): under the vitals, one 44 px row per tree gain (34 on
-  a phone) — a small hex with the skill's initial, "Gathering +6 XP Lv. 1" and a thin XP bar of that
-  tree's progress; a tree level-up is the same row in GOLD with ▲. Batched (SLOWLEVELS, owner
-  2026-10-28): one bar per tree takes every gain while it shows ("+60 Gathering XP"); each gain moves a
-  light-green ghost at once, the real fill waits `SKILL_CATCHUP_DELAY` 0.6 s after the last gain and
-  eases up to it, flashing white when it rolls over a level, then the bar lingers `SKILL_LIFE` 2.5 s and
-  fades (`HudEventState.skill_bar`, test `t_skillfeel._test_batch`). Each row takes a free spot off
-  `taken_rects`. Item gains are TopFeed rows (below); notices
+- Skill XP lines (XP feed, owner §1.6, UIGATHER; moved by owner 2026-10-30: "the skill XP + player XP UI
+  lower (above eat)"): the bottom-left corner, stacking UPWARDS from just over the quick-food (EAT) row,
+  one 44 px row per tree gain (34 on a phone) — a small hex with the skill's initial, "Gathering +6 XP
+  Lv. 1" and a thin XP bar of that tree's progress; a tree level-up is the same row in GOLD with ▲. Batched
+  (SLOWLEVELS, owner 2026-10-28): one bar per tree takes every gain while it shows ("+60 Gathering XP");
+  each gain moves a light-green ghost at once, the real fill waits `SKILL_CATCHUP_DELAY` 0.6 s after the
+  last gain and eases up to it, flashing white when it rolls over a level, then the bar lingers
+  `SKILL_LIFE` 2.5 s and fades (`HudEventState.skill_bar`, test `t_skillfeel._test_batch`). Each row takes
+  a free spot off `taken_rects` (`HudLayout.xp_feed_top` is the anchor, the player XP readout sits right
+  under it). Item gains are TopFeed rows (below); notices
   (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
   confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders
   on the HUD fill with an OK_GREEN edge and a check (`HudEventState.draw_notice`, B4). Nothing covers
@@ -339,10 +360,12 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   - Tick numbers: `StatusEffects.ticked(id, amount)` fires per damage-over-time tick on the player with
     the Health it took; `HudEventState.add_tick` floats a 16 px "-N" in the status's fx colour (owner 2026-10-28) ("-0.2" for a fraction) on the
     hit numbers' path (pops in from 70 %, rises, fades); two ticks on one frame stand side by side.
-- Top-middle column (`top_feed.gd`, `HuntHud.top_feed`; owner 2026-10-28): skill category level-ups
-  and every gain, centred on the view (desktop, from under the vitals' bottom, y 112 at 1600x900, 380 px
-  rows) or on the centre band's part left of the day/night dial (phone, under the band, 236 px one-line
-  rows). Rows take the next free spot down off `taken_rects` and the open radial, drawn after the
+- Top-middle column (`top_feed.gd`, `HuntHud.top_feed`; owner 2026-10-28): every gain, centred on the
+  view (desktop, from under the vitals' bottom, y 112 at 1600x900, 380 px rows) or on the centre band's
+  part left of the day/night dial (phone, under the band, 236 px one-line rows). A skill category
+  level-up row left the column (owner 2026-10-30: "the level-up banner goes left, below the hunger
+  ring"): it hangs from `HudLayout.levelup_top`, the left column under the stomach ring, and slides
+  down only as far as a control in that strip requires. Rows take the next free spot down off `taken_rects` and the open radial, drawn after the
   notices, and ease (never snap) when one above leaves; a new row goes under those showing. At most 3
   rows (2 on a compact canvas); later ones wait, a skill row first. Drawn blocks: `levelup` (a skill
   row), `toast<i>` (gain rows).
@@ -361,8 +384,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   with a light at the survivor (`fx/level_up_fx.gd`: gold pillar, two rings, rays, sparkles, a shadowless
   OmniLight, 2 s; riding, on the saddle with the rings on the ground). Desktop: "LEVEL UP" and the level
   pop over a flare, then XP, T-stones, the brain glyph with the skill points ("50 (+10)"), title and stat
-  lines slide in, at the far left (owner 2026-10-28), x = vitals + 16, centred between the vitals and the
-  quick slots; ~6 s (4 s with more queued). The bottom level bar pulses gold (`draw_bar_pulse`). Phones: the banner
+  lines slide in, at the far left (owner 2026-10-28), x = vitals + 16, its top right under the stomach
+  ring (`HudLayout.levelup_top`; owner 2026-10-30: "move the level up UI higher (below hunger)"), and
+  never lower than the quick slots leave room; ~6 s (4 s with more queued). The bottom level bar pulses gold (`draw_bar_pulse`). Phones: the banner
   in the centre band (level, LEVEL UP, title, one stat line ending in the brain and the skill points),
   pushed under a target plate with a fade. Gains land via `Vitals.grant_level_bonus` (saved).
 - Skill category level-up (`SkillState.skill_leveled`): the small light at her feet and a TopFeed row

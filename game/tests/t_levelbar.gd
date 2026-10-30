@@ -141,7 +141,9 @@ func _test_hud(view: Vector2) -> void:
 		var bar: Rect2 = _hud.xp_bar_rect
 		_expect(bar.end.y >= view.y - 0.5 and bar.size.x >= view.x - 0.5, "%s the bar runs along the bottom (%s)" % [tag, bar])
 		var lvl: Rect2 = _hud.drawn_blocks.get("level", Rect2())
-		_expect(lvl.has_area() and lvl.position.y > view.y * 0.5, "%s the level line is at the bottom (%s)" % [tag, lvl])
+		# LAYOUT (owner 2026-10-30: "the skill XP + player XP UI lower, above EAT"): bottom-left.
+		var quick_y: float = _hud.quick_row_y()
+		_expect(lvl.has_area() and lvl.position.x < view.x * 0.5 and lvl.end.y <= quick_y + 0.5, "%s the level line stands bottom-left, over the EAT row (%s, quick row %.0f)" % [tag, lvl, quick_y])
 	var vit: Rect2 = _hud.drawn_blocks.get("vitals", Rect2())
 	# Owner: the freed circle's room goes to health, energy, hunger and exhaustion.
 	var hp: Rect2 = _hud.hp_bar_rect

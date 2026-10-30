@@ -14,6 +14,10 @@ static var _last_offset := {}
 static var last_drawn: Array = []
 ## The harvest and carcass pills drawn last frame, tappable (UIGATHER §4.1, LOOTRADIAL): {node, rect}.
 static var hit_pills: Array = []
+## HUDREDRAW: set by draw: a pill is still gliding to its spot (a label sliding a few px a frame) or
+## one shows a regrow countdown that ticks. The HUD then keeps repainting; with nothing left to move
+## it may stand still.
+static var animating := false
 
 ## Pill height and type size: a larger box on desktop (B1 mockup), the shipped 22 / 14 on a phone.
 static func pill_metrics(view: Vector2) -> Vector2i:
@@ -209,13 +213,18 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 				pending.erase(item)
 	last_drawn = []
 	hit_pills = []
+	animating = false
 	var offsets := {}
 	for item in UiTokens.layout_labels(pending, view, hard, soft):
 		last_drawn.append({"node": item["node"], "anchor": item["at"], "rect": item["rect"]})
 		var box: Rect2 = item["rect"]
 		var anchor: Vector2 = item["anchor"]
 		if _last_offset.has(item["id"]):
-			box.position = anchor + (_last_offset[item["id"]] as Vector2).move_toward(box.position - anchor, GLIDE_PX)
+			var from: Vector2 = anchor + (_last_offset[item["id"]] as Vector2)
+			var to: Vector2 = box.position
+			box.position = from.move_toward(to, GLIDE_PX)
+			if box.position.distance_to(to) > 0.01:
+				animating = true  # still sliding toward its row
 		offsets[item["id"]] = box.position - anchor
 		var under := false
 		for h in hard:
@@ -256,6 +265,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 			ix += 14.0
 		var timer: String = item["timer"]
 		if timer != "":
+			animating = true  # its "12m 34s" counts down
 			var tt := UiTokens.ellipsis(hud._font, timer, 96.0, UiTokens.meta(view))
 			var ttw := hud._font.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view)).x
 			var trect := Rect2(rect.position.x, rect.position.y + rect.size.y + 2.0, ttw + 16.0, 18.0)
