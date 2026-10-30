@@ -131,7 +131,11 @@ def gen_recipes(data: Path, docs: Path, sheets: Path) -> None:
     if reps:
         a("## Repairs — per-tier cost")
         a("")
-        a("One unit of the tier's material restores `restore_fraction` of max durability at the named station (ASSUMPTION values, W2-PROCESS/W2-CRAFT).")
+        rr = rec.get("repair_rules", {})
+        a("P3 GEARREPAIR (`GearRepair`, station menu REPAIR at a workbench or anvil): an item repairs at its material tier's "
+          "station for ceil(missing / (`restore_fraction` x max)) units of the tier material (a broken item 2, a half-worn one 1). "
+          "Each repair refills it and sets max durability to round(max x %s); the count is the item's `repairs` attribute, "
+          "and the repair after %s is refused (\"worn out\"). A full item is refused. ASSUMPTION values." % (rr.get("max_factor", 0.8), rr.get("max_repairs", 4)))
         a("")
         a("| tier | station | input | restore |")
         a("|---|---|---|---|")

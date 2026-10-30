@@ -256,24 +256,69 @@ func tool_block_reason(tool: StringName) -> String:
 			return "your %s is broken" % tool
 	return "needs %s" % tool
 
-func wear_gather_tool(tool: StringName) -> bool:
+## `resource_level` is the landed lot's (or carcass') level, -1 for flat wear; `spare_last` (tribe
+## workers, Game Vision § Tools) never takes the tool below 1 and refuses at 1.
+func wear_gather_tool(tool: StringName, resource_level: int = -1, spare_last: bool = false) -> bool:
 	var s := find_gather_tool(tool)
 	if s == null:
 		return false
-	return wear_tool(s)
+	return wear_tool(s, resource_level, spare_last)
 
-## One gather's wear on this tool stack (W2-GATHER wears the helper tool a node's role picked).
-func wear_tool(s: ItemStack) -> bool:
+## P1 WEAR (tools-durability-crafting.md 3.7): rules.json gathering.wear multiplier for a resource
+## `resource_level` levels against a tool of `tool_level`, clamped (1.0 when the level is unknown).
+static func wear_mult(resource_level: int, tool_level: int) -> float:
+	if resource_level < 0:
+		return 1.0
+	var w: Dictionary = (Data.world_rules.get("gathering", {}) as Dictionary).get("wear", {})
+	return clampf(1.0 + float(w.get("per_level", 0.04)) * float(resource_level - tool_level),
+			float(w.get("min_mult", 0.5)), float(w.get("max_mult", 2.5)))
+
+## One gather's wear on this tool (W2-GATHER wears the helper tool a node's role picked): base 1 for a
+## work tool, 3 for a weapon used as a tool, times wear_mult; a fraction rounds stochastically with
+## GatherService.rng so durability stays an integer. False when the tool broke, or (spare_last) is spent.
+func wear_tool(s: ItemStack, resource_level: int = -1, spare_last: bool = false) -> bool:
 	var d := s.def()
-	# ASSUMPTION: work tools lose 1 durability per gather; combat weapons used as tools lose 3.
-	var cost := 1
-	if d and not d.is_work_tool:
-		cost = 3
+	var w: Dictionary = (Data.world_rules.get("gathering", {}) as Dictionary).get("wear", {})
+	var base := float(w.get("work_tool_base", 1)) if d == null or d.is_work_tool else float(w.get("weapon_base", 3))
+	var raw := base * wear_mult(resource_level, s.level)
+	var cost := int(floor(raw))
+	if raw > float(cost) and GatherService.rng.randf() < raw - float(cost):
+		cost += 1
+	if spare_last and s.max_durability > 0:
+		if s.durability <= 1:
+			return false
+		cost = mini(cost, s.durability - 1)
 	var intact := s.wear(cost)
 	if not intact:
 		print("[item] %s broke" % s.def_id)
 	changed.emit()
 	return intact
+
+## P1 WEAR (3.1): a damaging creature hit wears one worn, unbroken armor or clothing piece, picked
+## at random weighted by its armor value (uniform when none has armor). Returns the piece, or null.
+static func wear_armor_piece(pieces: Array, r: RandomNumberGenerator) -> ItemStack:
+	var pool: Array[ItemStack] = []
+	var total := 0.0
+	for it in pieces:
+		var st := it as ItemStack
+		if st and st.max_durability > 0 and not st.is_broken():
+			pool.append(st)
+			total += maxf(0.0, st.scaled_armor())
+	if pool.is_empty():
+		return null
+	var pick := pool[-1]
+	if total <= 0.0:
+		pick = pool[r.randi_range(0, pool.size() - 1)]
+	else:
+		var x := r.randf() * total
+		for st in pool:
+			x -= maxf(0.0, st.scaled_armor())
+			if x < 0.0:
+				pick = st
+				break
+	if not pick.wear(int(CombatTuning.top("armor_wear_per_hit", 1))):  # ASSUMPTION: 1 per damaging hit
+		print("[item] %s broke" % pick.def_id)
+	return pick
 
 func _held_tool() -> ItemStack:
 	if equipped_tool_index >= 0 and equipped_tool_index < slot_count and _is_tool(slots[equipped_tool_index], &""):

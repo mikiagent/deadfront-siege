@@ -60,7 +60,7 @@ const DEFAULT_HEIGHT := 1.45
 const SLOT_ANGLES := [-90.0, -30.0, 30.0, 90.0, 150.0, -150.0]
 ## Fixed slots by action; the station's own main action takes the top (0); others take the first free.
 const SLOT_OF := {&"package": 4, &"remove": 2, &"wood": 1, &"collect": 5, &"take_back": 3, &"cauterise": 3,
-	&"assign": 1, &"stop_job": 1}
+	&"assign": 1, &"stop_job": 1, &"repair": 5}
 const OPEN_SECONDS := 0.15
 const STAGGER := 0.03
 ## Ring radius in hexes: wide enough that neighbouring slots (60 degrees apart) never touch.

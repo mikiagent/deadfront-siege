@@ -108,6 +108,10 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 			dealt *= crit_mult
 			attacker.combat_float.emit(dealt, &"crit")
 		survivor.vitals.take_damage(dealt)
+		if dealt > 0.0:  # P1 WEAR: a damaging hit wears one worn armor piece
+			var inv := survivor.inventory
+			if Inventory.wear_armor_piece([inv.equipped_in(&"head"), inv.equipped_in(&"body"), inv.equipped_in(&"arms"), inv.equipped_in(&"legs")], CombatTuning.rng):
+				inv.changed.emit()
 		survivor.take_hit_fx(dealt, clip == &"attack_heavy")
 		IsoCamera.shake(survivor, CombatTuning.num("camera", "heavy_hit" if clip == &"attack_heavy" else "player_hit", 0.35))
 		print("[combat] %s hit player dmg=%.1f clip=%s x%.2f" % [attacker.def.id, dealt, attacker.anim.current_clip, mult])
