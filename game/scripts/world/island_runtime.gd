@@ -529,9 +529,17 @@ func harbour_approach_rect() -> Rect2i:
 	return HarbourSite.approach_rect(harbour.build_cell, harbour.build_rot) if harbour != null else Rect2i()
 
 ## Travel lands the survivor here: the sand just behind the dock's base, at the water's edge.
+## Where travel and a new game put her: LANDING_ROW rows behind the base (on the approach strip), or
+## nearer the dock when that tile is under water. LEGSFIX (owner: "where did my legs go?"): on the north-up
+## camera the dock shed's roof (2.1-2.6 m) lies on the sight line to anyone within ~2.2 m of its landward
+## edge, so at row -1 its half-faded roof hid her legs and she looked sunk to the waist.
+const LANDING_ROW := -3
 func arrival_point() -> Vector3:
-	var p := HarbourSite.arrival_point(harbour.build_cell, harbour.build_rot)
-	return _at(p.x, p.y)
+	for k in range(LANDING_ROW, 0):
+		var p := HarbourSite.row_point(harbour.build_cell, harbour.build_rot, k)
+		if surface_y(p.x, p.y) >= 0.4 or k == -1:  # the approach strip is walkable by design; just not under water
+			return _at(p.x, p.y)
+	return Vector3.ZERO
 
 ## Scatter keeps the dock, its approach and the cargo basket clear.
 func near_harbour(pos: Vector3) -> bool:
