@@ -233,3 +233,14 @@ Each vision doc's unresolved points remain inside that doc until the workshop; t
 - Vision unknowns: `WildLandsMMO_Game_Vision.md` (§5 revival, §20 UI, …).
 
 - 2026-10-28 owner idea (not necessary): rotatable camera (e.g. 45 degree steps) keeping the 2.5D look; 2D cards stay camera-facing. Logged as roadmap feature camera-rotate-25d (later).
+
+## 2026-10-29 — Chase sprint (auto-sprint after a fleeing target)
+
+Source: branch `mmo-chasesprint`, report `docs/orchestration/reports/dsc-chasesprint.md`. Owner: "when chasing a fleeing enemy, when it leaves a certain radius around the player, toggle sprint to chase it". Numbers live in `game/scripts/player/player.gd` (`CHASE_SPRINT_ON_M`, `CHASE_SPRINT_OFF_M`, `CHASE_SPRINT_RESUME_FRAC`), every one an ASSUMPTION.
+
+| # | Question | Why it matters | Lands in |
+|---|---|---|---|
+| **CS1** | **Sprint-on radius: 7 m.** Once the hunt target is farther than 7 m she sprints after it by herself. Larger (9-10 m) keeps a slow walk-up longer; smaller (5 m) starts sprinting during ordinary melee repositioning. | Continuous stamina drain (9/s) in every fight where the target backs off; it can empty the bar while she is still swinging. | `docs/current/controls.md` § Chase sprint |
+| **CS2** | **Sprint-off radius: 4 m**, the hysteresis floor, so a target at the edge cannot make her stutter between walk and sprint. Equal to the on radius (no band) is the alternative. | Whether a fight reads as "step in, swing" or as a flickering run. | same |
+| **CS3** | A winded survivor (empty stamina or the Exhausted tier) is never forced to sprint, and the forced sprint only returns at a quarter of the bar. Should exhaustion block it at a lower tier, or should the forced sprint be allowed to run her dry once? | How much of the chase is the player's to manage. | same |
+| **CS4** | Chase sprint uses its own flag, so it never toggles the HUD SPRINT hex and never turns off a latch the player set. Should the HUD show a separate chase-sprint state instead of staying unlit? | The player cannot currently tell the auto-sprint from a walk besides her speed. | `game/scripts/ui/hud_field.gd` |

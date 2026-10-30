@@ -60,6 +60,17 @@ var in_water: bool = false
 var swimming: bool = false
 ## Persistent mobile/desktop sprint mode. The keyboard/gamepad hold action still works alongside it.
 var sprint_toggled: bool = false
+## CHASESPRINT (owner: "when chasing a fleeing enemy, when it leaves a certain radius around the
+## player, toggle sprint to chase it"): the hunt target pulling away switches sprint on by itself.
+## Own flag, never written into sprint_toggled, so the player's own latch is never switched off from
+## here. Sim.wants_sprint and PlayerPets.wants_mount_sprint read it.
+var chase_sprint: bool = false
+## # ASSUMPTION: sprint on once the target is past 7 m, off again inside 4 m (hysteresis, so a target
+## hovering at the edge cannot make her stutter between walk and sprint).
+const CHASE_SPRINT_ON_M := 7.0
+const CHASE_SPRINT_OFF_M := 4.0
+## # ASSUMPTION: a forced chase sprint resumes only once the stamina bar is back to a quarter.
+const CHASE_SPRINT_RESUME_FRAC := 0.25
 ## The climate of the island the survivor is on, set by the island each frame. The fatigue panel reads it.
 var current_climate: String = ""
 ## True from the fatal hit until respawn(): no input, no regen, creatures lose interest,
@@ -157,6 +168,7 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		sim.hold_still(delta)
 	else:
+		chase_sprint_tick()
 		view.draw_path_line(delta)
 		food_buffs.tick(delta)
 		sim.tick_survival_xp(delta)
@@ -202,6 +214,36 @@ func camera_interest() -> Node3D:
 func toggle_sprint() -> bool:
 	sprint_toggled = not sprint_toggled
 	return sprint_toggled
+
+## CHASESPRINT: every physics frame, before the movement tick. On while the hunt has a live target
+## farther than CHASE_SPRINT_ON_M, off once it is inside CHASE_SPRINT_OFF_M, and off when the chase
+## ends (a click-to-move order, a dead/cleared target, her own death). A winded survivor is never
+## forced to sprint; mounted, the mount's own pool decides (its energy pays the run, not hers).
+func chase_sprint_tick() -> void:
+	var t: Creature = null
+	if hunt and hunt.target and is_instance_valid(hunt.target) and not hunt.target.health.dead:
+		t = hunt.target
+	if t == null or dead or move_order:
+		chase_sprint = false
+		return
+	var mount: Creature = mounted_on if is_instance_valid(mounted_on) else null
+	var spent := false
+	var recovered := true
+	if mount:
+		spent = not mount.can_sprint()
+		recovered = mount.can_sprint()
+	else:
+		# Winded: an empty or exhausted pool never forces a sprint, and it only comes back once a
+		# quarter of the bar has refilled (# ASSUMPTION), so an empty bar cannot make her stutter.
+		spent = vitals.energy <= 0.0 or vitals.exhausted
+		recovered = not spent and vitals.energy >= vitals.effective_max_energy() * CHASE_SPRINT_RESUME_FRAC
+	var offset := t.global_position - global_position
+	var d := Vector2(offset.x, offset.z).length()
+	if chase_sprint:
+		if d <= CHASE_SPRINT_OFF_M or spent:
+			chase_sprint = false
+	elif d > CHASE_SPRINT_ON_M and recovered:
+		chase_sprint = true
 
 ## Combat mode targets the nearest wild animal; a second tap cleanly disengages.
 func toggle_combat() -> bool:

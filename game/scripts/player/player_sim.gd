@@ -292,7 +292,7 @@ func face_tick(delta: float, move_dir: Vector3) -> void:
 		p.visual.rotation.y = rotate_toward(yaw, yaw + err - signf(err) * slack, deg_to_rad(p.turn_rate_deg) * delta)
 
 func wants_sprint() -> bool:
-	return (Input.is_action_pressed("sprint") or p.sprint_toggled) \
+	return (Input.is_action_pressed("sprint") or p.sprint_toggled or p.chase_sprint) \
 		and not p.statuses.has_flag(&"no_sprint") and not p.in_water
 
 ## Buoyancy, continuous swimming stamina, and the exhausted-swimming health consequence.
