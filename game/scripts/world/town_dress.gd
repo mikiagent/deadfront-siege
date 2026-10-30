@@ -27,6 +27,7 @@ const RING_A := 44.0
 const RING_B := 66.0
 const ROAD_W := 5.0
 const TOWN_R := 94.0  ## inside the town wall (WALL_R) and the island's town_safe_m (100)
+const WICKET_EVERY := 12  ## a 4 m wicket gap every 12 panels (~25 m) of palisade
 const WALL_R := 97.0  ## the palisade round the town, open where an avenue passes (a gate)
 const BANDS := [[29.0, -1.0], [36.5, 1.0], [55.0, -1.0], [75.0, -1.0]]  ## [ring radius, door faces +1 out / -1 in]
 const AVENUES := [0.0, 72.0, 144.0, -72.0, -144.0]  ## degrees from the dock direction
@@ -608,7 +609,16 @@ func _wall() -> void:
 			if absf(_wrap(deg - av)) * PI / 180.0 * WALL_R < AVENUE_W * 0.5 + 1.2:
 				gate = true
 		var p := polar(deg, WALL_R)
-		if gate or not rt.is_dry(p) or not rt.spawn_ok(p, false):
+		# A wicket (a 4 m gap between two posts) every WICKET_EVERY panels: walks out to the wild
+		# lands and back stay short (the tutorial bot timed out detouring to the avenue gates).
+		var wicket := i % WICKET_EVERY < 2
+		if wicket and i % WICKET_EVERY == 0 and rt.is_dry(p):
+			for e in [-1.0, 1.0]:
+				var wp := polar(deg + e * 1.2 * 180.0 / PI / WALL_R * 2.0, WALL_R)
+				unit("box", Transform3D(Basis().scaled(Vector3(0.4, 2.8, 0.4)), wp), Color(0.32, 0.22, 0.13), FAR_HOUSE)
+				_boxes.append([Transform3D(Basis(), wp + Vector3(0, 1.4, 0)), Vector3(0.4, 2.8, 0.4)])
+				cells[BuildGrid.tile_of(wp)] = true
+		if gate or wicket or not rt.is_dry(p) or not rt.spawn_ok(p, false):
 			continue
 		var t := BuildGrid.tile_of(p)
 		if rt.build_grid._occupied.has(t) or rt.build_grid._reserved.has(t):
@@ -630,6 +640,7 @@ func _wall() -> void:
 			unit("box", Transform3D(Basis().scaled(Vector3(0.5, 3.6, 0.5)), post), Color(0.32, 0.22, 0.13), FAR_HOUSE)
 			lamp(post + Vector3(0, 0, 0) - (polar(av, WALL_R - 1.0) - g).normalized() * 0.8, 2.4)
 			_boxes.append([Transform3D(Basis(), post + Vector3(0, 1.8, 0)), Vector3(0.5, 3.6, 0.5)])
+			cells[BuildGrid.tile_of(post)] = true
 		unit("box", Transform3D(Basis(Vector3.UP, yaw_out(av) + PI * 0.5).scaled(Vector3(AVENUE_W + 1.7, 0.4, 0.4)), g + Vector3(0, 3.3, 0)), Color(0.32, 0.22, 0.13), FAR_HOUSE)
 		prop("signpost", polar(av, WALL_R + 3.0) + side * (AVENUE_W * 0.5 + 1.5), yaw_out(av))
 		stats["gates"] = int(stats.get("gates", 0)) + 1

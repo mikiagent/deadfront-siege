@@ -88,7 +88,7 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
   five avenues (one to the dock) and two ring roads, paved inside the inner ring and dirt beyond, with
   footpaths from every front door; four rings of lots, then an infill pass that fills every free lot
   with a cottage, a fenced kitchen garden or a yard; fields / pens past the outer ring; a palisade at
-  97 m with a gate (posts, lintel, lamps, signpost) wherever an avenue leaves; extra piers with boats,
+  97 m with a gate (posts, lintel, lamps, signpost) wherever an avenue leaves and a 4 m wicket every ~25 m; extra piers with boats,
   crates and fish racks beside the dock. Roofs: thatch, shingle, slate or tile, pitch 0.45-0.75. Districts by angle from the dock: harbour, market (striped stalls), homes,
   pens + hunters' tents (toward the wild lands), farms, workshops (open shelters; forges and grills
   always busy through `StationState`, racks of drying meat, kilns, looms). The Adventurer's Guild hall
@@ -97,7 +97,7 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
   the avenues; tamed animals stand in the pens.
 - Measured headless (`scripts/dev/tuttown_map.gd`, which also writes the top-down footprint PNG):
   ~75 houses (50 on the rings + 25 infill), 13 stalls, 6 workshops, 8 fields, 13 gardens, 13 yards,
-  4 pens, 2 extra piers, 79 palisade panels, 41 lamps, 13 townsfolk, 6 pen animals; ~1,960 instances
+  4 pens, 2 extra piers, 65 palisade panels, 41 lamps, 13 townsfolk, 6 pen animals; ~1,960 instances
   in ~182 MultiMeshInstance3D; 235 collision boxes on one physics body; town build ~0.9 s; island
   scene ~6,540 nodes (TUTPERF budget 9,000), 666 ticking (budget 900).
 - Scenery only: no node is saved or damaged; the footprints are occupied in the BuildGrid (nothing is
