@@ -298,7 +298,8 @@ an `# ASSUMPTION` (Open Questions G5-G12).
   `tarbosaurus`, `allosaurus` get two units of each part). `LootTables.alpha_pool/alpha_pool_ids` read it,
   `LootRoller.roll_alpha_pool` rolls one instance per unit at the carcass level, and only
   `ButcherLoot.alpha_extras` (an alpha carcass) calls it. Items: `alpha_hide` (hide, rare) and `alpha_fang`
-  (bone, rare), both `source_pending` (no recipe yet). Every id is `items.json`-checked and no normal
+  (bone, rare — `material_tier: bone`, because its hardness 4 would otherwise read as copper in recipes), both
+  `source_pending` (no recipe yet). Every id is `items.json`-checked and no normal
   butchering table may name one (`game/tests/t_data.gd` walks it; `t_alphas` proves a normal carcass never
   drops one).
 - Name (owner 2026-10-29: "Alpha should be a tag in front of the name (prefix tag)"): a genetic alpha's

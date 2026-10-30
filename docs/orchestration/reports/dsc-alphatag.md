@@ -70,3 +70,21 @@ holds none, and no normal butchering table naming a pool item. `t_natures`, `t_c
 - No recipe uses `alpha_hide` / `alpha_fang`; they are `source_pending` so `t_data`'s reachability walk stays
   honest. The alpha pool is per species in data, so adding a species override needs no code.
 - Purse: no Meshy credits spent (none needed).
+
+## Integrator follow-up (2026-10-30): merge onto canon, t_data fixed
+Canon `origin/claude/mmo-overhaul` (3d5d84b0) merged in (merge commit; no conflict markers, Open Questions
+keeps both canon's TU9/TU10 and ALPHATAG AT1-AT7). Canon alone passed `t_data`; the merged tree failed it on
+five recipes (`improvised_stone_knife`, `work_axe`, `work_pick`, `slingshot`, `hoe`): their primary slot is
+`blade_mat`/`bone`, which `alpha_fang` fills, and `ProgressionScaling.material_tier` maps an untagged item's
+`hardness` through `HARDNESS_TIERS` — hardness 4 is `copper`. So the alpha item made those stone-rate recipes
+read as copper-tier primaries with no Lv 30 gate.
+
+Root fix in data, not the test: `alpha_fang` now declares `"material_tier": "bone"` in
+`default_attributes` (it is a bone/talon part, and `bone` matches its category tags and the rung it belongs
+to), so the tier lookup returns `bone` instead of guessing from hardness. `t_data` is untouched and PASSes
+(`items=268 recipes=188`). Also re-ran `--import` afterwards, because the merge brought new `class_name`s
+(Tasks, ItemTags, TribeWork, CurrencyBar, TribeAssignPicker) and a stale class cache broke every script.
+
+Gate: `verify_alphatag.sh` -> VERIFY PASS (t_data, t_alphas, t_genetics, t_capture09, t_tame, run_all, smoke,
+report). Docs: AT6 in `docs/vision/WildLandsMMO_Open_Questions.md` and the alpha loot pool paragraph in
+`docs/current/creatures-capture-taming.md` now record the tier tag and why it exists.
