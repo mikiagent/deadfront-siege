@@ -386,6 +386,11 @@ func play_punch() -> void:
 	if anim:
 		anim.on_punch()
 
+## kick / tackle clip, or the attack swing (heavy for the tackle) when it is missing.
+func play_tactic(clip: StringName, heavy: bool) -> void:
+	if anim:
+		anim.on_tactic(clip, heavy)
+
 func play_attack(heavy: bool = false) -> void:
 	if anim:
 		anim.on_attack(heavy)

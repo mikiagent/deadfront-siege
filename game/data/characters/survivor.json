@@ -46,7 +46,9 @@
     "work_hang",
     "work_forge",
     "work_tan",
-    "kick_dirt"
+    "kick_dirt",
+    "kick",
+    "tackle"
   ],
   "clips_missing": [],
   "pipeline": {

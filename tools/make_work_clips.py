@@ -6,6 +6,8 @@
   work_forge   at a low anvil: heavier overhead strikes, left hand holding the work
   work_tan     scraping a hide on a slanted frame: both hands push the scraper down, return
   kick_dirt    one-shot, 1.5 s: two scuffs of the right foot to clear the ground for a worksite, back to idle
+  kick         combat one-shot, 0.46 s: left-leg front push-kick, support foot planted, back to idle
+  tackle       combat one-shot, 0.54 s: shoulder-first lunge (dip, lean, shoulder leads), feet planted, back to idle
 Each is the idle loop (same length and fps, so it loops) with layered body offsets, IK hands and, for the
 crouches, IK legs pinned to the idle's feet, baked to plain keys like tools/make_state_idles.py. Every motion uses
 an integer number of cycles over the loop. Hands are aimed after the bake (fingers / hammer face direction).
@@ -215,6 +217,40 @@ def kick_body(arm, t):
     rot(arm, "LeftArm", Y, 6 * env * math.sin(math.pi * q))   # a little arm swing for balance
 
 
+def push_kick_body(arm, t):
+    """Front push-kick with the left leg, 0.46 s: chamber the knee up, drive the sole out, recoil, set it back
+    down. The right (support) leg keeps the idle's keys, so that foot stays planted; it is the idle's flat foot
+    (the idle's left toes sit 4.5 cm up, so standing on the left foot would float). Thigh/shin/foot hinge on X:
+    - lifts the thigh forward, + bends the knee, - flexes the toes up (push with the sole)."""
+    th = keys(t, [(0, 0), (0.30, -78), (0.50, -84), (0.72, -64), (1, 0)])
+    kn = keys(t, [(0, 0), (0.30, 96), (0.50, 12), (0.72, 84), (1, 0)])
+    an = keys(t, [(0, 0), (0.30, 6), (0.50, -22), (0.72, 4), (1, 0)])
+    lean = keys(t, [(0, 0), (0.30, -6), (0.50, -14), (0.72, -6), (1, 0)])  # torso back against the push
+    rot(arm, "Spine", X, lean * 0.4); rot(arm, "Spine1", X, lean * 0.6)
+    rot(arm, "Neck", X, -lean * 0.8)                                       # eyes stay on the target
+    rot(arm, "LeftUpLeg", X, th); rot(arm, "LeftLeg", X, kn); rot(arm, "LeftFoot", X, an)
+    g = ss(0.0, 0.3, t) * (1 - ss(0.72, 1.0, t))                            # arms come up into a guard
+    rot(arm, "LeftArm", X, -30 * g); rot(arm, "LeftForeArm", X, -50 * g)
+    rot(arm, "RightArm", X, -30 * g); rot(arm, "RightForeArm", X, -50 * g)
+
+
+def tackle_body(arm, t):
+    """Shoulder-first body lunge, 0.54 s: dip, drive the right shoulder forward with the torso leaning in and the
+    arms tucked, hold the hit, recover to the idle stance. Feet stay where the idle put them (the code moves the
+    body); the dip is a hinge crouch so nothing slides."""
+    c = keys(t, [(0, 0), (0.25, 22), (0.55, 16), (1, 0)])
+    if c: crouch(arm, c)
+    lean = keys(t, [(0, 0), (0.25, 8), (0.45, 34), (0.65, 30), (1, 0)])    # total forward lean, degrees
+    sh = keys(t, [(0, 0), (0.25, 10), (0.45, 32), (0.65, 26), (1, 0)])     # + turns the right shoulder forward
+    rot(arm, "Spine", X, lean * 0.3); rot(arm, "Spine1", X, lean * 0.4); rot(arm, "Spine2", X, lean * 0.3)
+    rot(arm, "Spine", Z, sh * 0.3); rot(arm, "Spine1", Z, sh * 0.4); rot(arm, "Spine2", Z, sh * 0.3)
+    rot(arm, "Neck", X, -lean * 0.6); rot(arm, "Neck", Z, -sh * 0.6)      # head up, still facing the target
+    g = ss(0.0, 0.35, t) * (1 - ss(0.65, 1.0, t))
+    rot(arm, "RightArm", X, -20 * g); rot(arm, "RightArm", Y, -12 * g)      # right elbow in at the ribs,
+    rot(arm, "RightForeArm", X, -95 * g); rot(arm, "RightForeArm", Z, 60 * g)  # forearm across the chest
+    rot(arm, "LeftArm", X, -40 * g); rot(arm, "LeftForeArm", X, -60 * g); rot(arm, "LeftForeArm", Z, -30 * g)  # left braced
+
+
 CLIPS = {
     "work_hammer": dict(body=hammer_body, hands=hammer_hands, aim=hammer_aim),
     "work_stir": dict(body=stir_body, hands=stir_hands, aim=stir_aim, crouch=24),
@@ -223,6 +259,10 @@ CLIPS = {
     "work_tan": dict(body=tan_body, hands=tan_hands, aim=tan_aim, crouch=10),
     # one-shot (owner: "he like kicks the dirt to make the construction site"); 36 frames = 1.5 s
     "kick_dirt": dict(body=kick_body, hands=lambda arm, t: {}, aim=lambda t: {}, frames=36),
+    # combat one-shots (owner: "i don't think we have kick or tackle animations"), sized to the tactic locks in
+    # data/combat_tuning.json: kick 0.45 s -> 12 frames (0.46 s), tackle 0.55 s -> 14 frames (0.54 s)
+    "kick": dict(body=push_kick_body, hands=lambda arm, t: {}, aim=lambda t: {}, frames=12),
+    "tackle": dict(body=tackle_body, hands=lambda arm, t: {}, aim=lambda t: {}, frames=14),
 }
 
 

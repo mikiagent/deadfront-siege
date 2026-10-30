@@ -49,7 +49,7 @@ static func tackle(h: Hunt) -> void:
 	target.status_float.emit(&"tackle")
 	target.stagger_left = maxf(target.stagger_left, float(tune.get("stagger_s", 0.8)))  # a short stagger on the target
 	h.commit_tactic(&"tackle", float(tune.get("cooldown", 8.0)), float(tune.get("lock", 0.55)))
-	player.play_attack(true)
+	player.play_tactic(&"tackle", true)
 	print("[combat] body tackle %s" % target.def.id)
 
 ## Body mass stand-in for shoves.
@@ -91,7 +91,7 @@ static func kick(h: Hunt) -> void:
 	player.clear_nav()
 	player.face_world(target.global_position)
 	h.last_auto_cast = &"kick"
-	player.play_attack(false)
+	player.play_tactic(&"kick", false)
 	var push := kick_push(target)
 	if push <= 0.0:
 		h.say("Too heavy to shove: it barely feels the kick.")
