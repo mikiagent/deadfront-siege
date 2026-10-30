@@ -123,7 +123,7 @@ func _test_character(view: Vector2i) -> void:
 	_expect(needs.has("Exhaustion") and needs.has("Thirst") and needs.has("Hygiene"), "%s: survival panel lists %s" % [view, ", ".join(needs)])
 	sheet._on_equip_slot_pressed("weapon")
 	await _frames(1)
-	_expect(sheet._unequip_btn.is_visible_in_tree() and sheet._sel_label.text.contains("Stone Knife"), "%s: the worn knife selected shows Unequip (%s)" % [view, sheet._sel_label.text])
+	_expect(sheet._unequip_btn.is_visible_in_tree() and sheet._sel_label.text.contains("Stone Dagger"), "%s: the worn dagger selected shows Unequip (%s)" % [view, sheet._sel_label.text])
 	await _layout(sheet, view, "character", ["CharacterStatsPanel", "CharacterEquipPanel", "CharacterSurvivalPanel"])
 	# Slots never overlap each other or the figure.
 	var slot_rects: Array[Rect2] = []

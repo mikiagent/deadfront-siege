@@ -2,8 +2,8 @@ extends SceneTree
 ## FOODCAT acceptance: the owner's fan-guide catalog (docs/reference/durango-food-catalog-level60.csv,
 ## level-60 figures) mapped onto this build's foods through FOODFX's one effect bundle.
 ##   mapping invariants  every mapped food names a real catalog row; its Energy at level 60 is the
-##                       catalog's instant + digestion total, its release ratio and fullness are the
-##                       catalog's; every status/stat it names exists; new foods have a recipe + icon
+##                       catalog's instant + digestion total, its release ratio is the
+##                       catalog's (fullness is HUNGER's, t_hunger); every status/stat it names exists; new foods have a recipe + icon
 ##   effect types        each catalog effect type, eaten through the bag's real Eat path
 ##                       (Player.begin_eat_slot -> EatSession -> FoodEffects -> Vitals/StatusEffects/BuffSlots):
 ##                       stat buff, Stomach Pain Lv, Poisoned Lv, Hot Food Lv, Cold Food, Vigor Lv,
@@ -149,7 +149,9 @@ func _test_mapping() -> void:
 		if total > 0.0:
 			var ratio := float((e.get("energy", {}) as Dictionary).get("instant_release_ratio", -1.0))
 			_expect(absf(ratio - inst / total) < 0.001, "%s releases the catalog's instant share %.3f (%.3f)" % [id, inst / total, ratio])
-		_expect(is_equal_approx(float(e.get("fullness", -1.0)), float(row["Fullness"])), "%s fullness is the catalog's %s" % [id, row["Fullness"]])
+		# HUNGER (2026-10-29 memo Part 1) rescaled fullness to stomach points per food class; t_hunger
+		# owns those bands, so the catalog's Fullness column is no longer the value. It must still be set.
+		_expect(e.has("fullness") and float(e.get("fullness", -1.0)) >= 0.0, "%s has a HUNGER fullness (%s; catalog %s)" % [id, str(e.get("fullness", "none")), row["Fullness"]])
 		_expect(str(e.get("provenance", "")) == "restoration-evaluated", "%s is tagged restoration-evaluated, not an original constant" % id)
 		_expect(str(e.get("assumption", "")).contains("FOODCAT") and str(e.get("assumption", "")).contains(gid), "%s's note names its catalog source row" % id)
 		for s: Variant in e.get("statuses", []):
@@ -327,5 +329,6 @@ func _test_fullness() -> void:
 	print("[t_foodcat] -- fullness")
 	_fresh()
 	_expect(_eat(&"roast"), "a roast is eaten")
-	_expect(is_equal_approx(float(_player.eat_session.last_paid.get("fullness", 0.0)), 50.0), "the meal pays the catalog's Fullness 50 (%.1f)" % float(_player.eat_session.last_paid.get("fullness", 0.0)))
+	var want := float(FX.entry_for(&"roast").get("fullness", -1.0))
+	_expect(is_equal_approx(float(_player.eat_session.last_paid.get("fullness", 0.0)), want), "the meal pays foods.json's HUNGER fullness %.1f (%.1f)" % [want, float(_player.eat_session.last_paid.get("fullness", 0.0))])
 	_expect(_player.statuses.has(&"full"), "and leaves the survivor Full")

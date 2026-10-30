@@ -65,8 +65,8 @@ func _run() -> void:
 	_finish_one(first)
 	_expect(inv.slots.find(first) < 0 and inv.slots.find(second) >= 0 and _player.eat_session.eating, "the first marked berry went first, the next started")
 	var dig = load("res://scripts/items/digestion.gd").of(_player)
-	for k in 3:
-		dig.schedule(&"starter", 1.0, 900.0) # the stomach overfills during the second bite
+	# HUNGER: fullness is the stored stomach (Digestion.add_fullness), not digesting rows; overfill it.
+	dig.set_fullness(dig.OVERFULL_MAX)
 	_finish_one(second)
 	_expect(inv.slots.find(second) < 0, "the second marked berry was eaten")
 	_expect(inv.slots.find(third) >= 0 and not _player.eat_session.eating and _player.eat_session.queue.is_empty(), "Full stops the queue; the third berry stays in the bag")
@@ -86,6 +86,7 @@ func _single_eats(IS: GDScript) -> void:
 	inv.slots.fill(null)
 	var dig = load("res://scripts/items/digestion.gd").of(_player)
 	dig._rows.clear()
+	dig.set_fullness(0.0) # an empty stomach: three berries never overfill it, so only the Full status could block
 	for k in 3:
 		inv.slots[k] = IS.make(&"berry", 1, {}, 1)
 	inv.changed.emit()
