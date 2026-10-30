@@ -759,6 +759,9 @@ func _test_player_stun() -> void:
 	player.vitals.health = player.vitals.effective_max_health()
 
 func _test_tackle_kick() -> void:
+	# The manual presses are under test: AUTOABILITY (on by default) would cast the kick itself during
+	# the wait below and leave the manual kick on cooldown.
+	player.hunt.auto_ability = false
 	var raptor = _spawn(&"velociraptor", player.global_position + Vector3(0, 0, -1.6), &"loyal")
 	raptor.brain.process_mode = Node.PROCESS_MODE_DISABLED
 	await physics_frame
@@ -792,5 +795,6 @@ func _test_tackle_kick() -> void:
 	var floor_s: float = load("res://scripts/combat/combat_tuning.gd").num("player_melee", "basic_cooldown_s", 0.8)
 	_expect(hunt._swing_cd >= floor_s - 0.001, "player basic attack has its own cooldown (%.2fs >= %.2fs)" % [hunt._swing_cd, floor_s])
 	hunt.stop()
+	hunt.auto_ability = true
 	raptor.queue_free()
 	await physics_frame

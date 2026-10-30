@@ -75,11 +75,13 @@ func _level_nodes(sk: Node, tree: String) -> Array:
 			out.append(n)
 	return out
 
-## Trees a survivor "has levels in": a tree with a non-auto node at or under its current level.
+## Trees a survivor "has levels in": a tree with a non-auto node for sale at or under its current level.
+## A node the game does not run yet (NOT_IN_GAME) does not count: KNIFESPLIT ungated the Stone Dagger
+## recipe, so weapon_tools' only Lv. 1 node (Makeshift Shovel / Hoe) gates nothing until Lv. 5.
 func _level_trees(sk: Node) -> Array[String]:
 	var out: Array[String] = []
 	for tree in SkillStateS.ORDER:
-		if not _level_nodes(sk, tree).is_empty():
+		if _level_nodes(sk, tree).any(func (n: Dictionary) -> bool: return sk.node_state(tree, n)[1] != SkillStateS.NOT_IN_GAME):
 			out.append(tree)
 	return out
 

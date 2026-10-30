@@ -67,6 +67,9 @@ func _run() -> void:
 	await _frames(20)
 	player.vitals.max_health = 1000.0
 	player.vitals.health = 1000.0
+	# AUTOABILITY (on by default) casts Tackle/Kick before the basic swing, and the tackle lunge moves
+	# her; these checks are about move orders against the basic auto-attack (t_autoability owns that).
+	player.hunt.auto_ability = false
 	await _test_baseline_auto_attack()
 	await _test_ground_click_wins()
 	await _test_enemy_tap_and_tick()
