@@ -610,45 +610,61 @@
         {
           "id": "tool-wear-scaling",
           "title": "Wear by level gap: gather wear scales with resource level vs tool level, armor wears on hits taken, tribe workers stop at 1 durability (P1 WEAR)",
-          "status": "next",
+          "status": "done",
           "depends": [
             "knife-fix",
             "harvest-roll"
           ],
           "source": "docs/design/tools-durability-crafting.md",
-          "note": "Built on claude/mmo-wearrepair, awaiting merge: wear x clamp(1 + 0.04 x level gap, 0.5, 2.5) on every gather and butcher cut, armor 1 per damaging hit (one piece, weighted by armor), tribe workers stop at 1 durability and say so. Gate t_toolwear.gd passes."
+          "note": "WEARREPAIR merged 6afe7d9e: gather wear x clamp(1 + 0.04 x level gap, 0.5, 2.5), armor wears 1 per damaging hit, tribe workers stop at 1 durability.",
+          "evidence": [
+            "commit:6afe7d9e",
+            "game/tests/t_toolwear.gd"
+          ]
         },
         {
           "id": "recipe-tool-gates",
           "title": "Recipe tool gates: work-tool class and minimum tier on recipes, each craft wears the tool, hoe rows enforced (P2 RECIPETOOLS)",
-          "status": "next",
+          "status": "done",
           "depends": [
             "craft-outcomes",
             "knife-fix"
           ],
           "source": "docs/design/tools-durability-crafting.md",
-          "note": "P2 of the tools doc: requires_tool {class, min_tier}, work tools only, 1 wear per run, axe/knife/hoe data pass, ladder deadlock audit. Gate t_recipetools.gd plus t_tutorial. RECIPETOOLS built on claude/mmo-recipetools (gates PASS headless); waits for the owner's merge."
+          "note": "RECIPETOOLS merged 95f0583e: requires_tool {class, min_tier}, work tools only, 1 wear per craft run; axe on planks and pillars, knife on hide strap, hoe on fields. Ladder walk finds no deadlock.",
+          "evidence": [
+            "commit:95f0583e",
+            "game/tests/t_recipetools.gd"
+          ]
         },
         {
           "id": "gear-repair",
           "title": "Gear repair at the tier's station: refills durability, max drops to 80 % per repair, 4 repairs (P3 GEARREPAIR)",
-          "status": "next",
+          "status": "done",
           "depends": [
             "tool-wear-scaling"
           ],
           "source": "docs/design/tools-durability-crafting.md",
-          "note": "Built on claude/mmo-wearrepair, awaiting merge: REPAIR hex on the workbench / anvil station menu, cost from recipes.json repairs, max x0.8 per repair, 4 repairs then worn out, repair count in attributes.repairs (save and vault compatible). Gate t_gearrepair.gd passes."
+          "note": "WEARREPAIR merged 6afe7d9e: REPAIR hex on the workbench / anvil, max x0.8 per repair, 4 repairs then worn out, attributes.repairs saved. Online act.repair intent not built yet (offline only).",
+          "evidence": [
+            "commit:6afe7d9e",
+            "game/tests/t_gearrepair.gd"
+          ]
         },
         {
           "id": "trait-gear-stats",
           "title": "Material traits change gear stats: durability, damage, armor and gather power from the primary's traits, clamped at 15 % (P4 TRAITGEAR)",
-          "status": "next",
+          "status": "done",
           "depends": [
             "rare-attributes",
             "craft-outcomes"
           ],
           "source": "docs/design/tools-durability-crafting.md",
-          "note": "P4 of the tools doc: high/low density, firm/soft, tough/soft fiber, high elasticity; new crafts only. Gate t_traitgear.gd. TRAITGEAR built on claude/mmo-recipetools (gates PASS headless); waits for the owner's merge."
+          "note": "TRAITGEAR merged 95f0583e: density, firmness, fiber and elasticity traits shift durability, damage, armor and gather power, capped +-15 %, new crafts only; repair shrinks the trait-adjusted max.",
+          "evidence": [
+            "commit:95f0583e",
+            "game/tests/t_traitgear.gd"
+          ]
         }
       ]
     },
@@ -839,7 +855,7 @@
             "capture-rule"
           ],
           "source": "docs/design/durango-prompts/02_dinosaur_taming_and_companions.md",
-          "note": "STATIONSTATE merged d701a7fd: pen tiers by size, capture-then-tame, visible station state. FOODTORPOR 0fa4d0bf added torpor capture (Sedative, Tranquilizer Darts). Feeding, bonding, roles and care still to do."
+          "note": "STATIONSTATE merged d701a7fd: pen tiers by size, capture-then-tame, visible station state. FOODTORPOR 0fa4d0bf added torpor capture (Sedative, Tranquilizer Darts). Feeding, bonding, roles and care still to do. PENDIET merged 15ea588f: pens eat the species diet (preferred x0.6, accepted x0.8) and refuse off-diet or spoiled food. Bonding, roles and care still to do."
         },
         {
           "id": "caged-pets",
@@ -1481,6 +1497,100 @@
             "docs/orchestration/reports/northup/game_844x390.png",
             "docs/orchestration/reports/claude-northfollow.md"
           ]
+        },
+        {
+          "id": "full3d-ab",
+          "title": "Full 3D package 1: plan, A/B lab, camera fov/pitch dev flags, --models for scenery",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/full-3d-plan.md",
+          "note": "3D-AB merged 23c8407c. Export baseline on the Mac: PackCore 43.2 MB + PackAssets 319.8 MB.",
+          "evidence": [
+            "commit:23c8407c"
+          ]
+        },
+        {
+          "id": "full3d-flat",
+          "title": "Full 3D: flat terrain everywhere; depth from props, structures and resources (owner 2026-10-30)",
+          "status": "next",
+          "depends": [
+            "full3d-ab"
+          ],
+          "source": "docs/design/full-3d-plan.md",
+          "note": "Owner: \"The terrain should be flat and depth is added through props, structures, buildings, resources\". TOWNPOLISH2 flattens the tutorial town first."
+        },
+        {
+          "id": "full3d-resources",
+          "title": "Full 3D: resource nodes as models; trees and palms draw under --models, dead model paths fixed",
+          "status": "next",
+          "depends": [
+            "full3d-ab"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-trees",
+          "title": "Full 3D: textured tree and palm GLBs with LOD and tall-only shadows",
+          "status": "next",
+          "depends": [
+            "full3d-resources"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-rocks",
+          "title": "Full 3D: cliffs, spires, mesas, arches, pillars, waterfalls and mountains as meshes on flat ground",
+          "status": "next",
+          "depends": [
+            "full3d-flat"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-scenery",
+          "title": "Full 3D: logs, stumps, termite mounds and big ferns as models; small clutter and ground cards stay 2D",
+          "status": "next",
+          "depends": [
+            "full3d-resources"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-light",
+          "title": "Full 3D: real window, torch and fire lights",
+          "status": "next",
+          "depends": [
+            "full3d-ab"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-perf",
+          "title": "Full 3D: web and phone gates, Compatibility shader-instance buffer overflow, creature texture shrink",
+          "status": "next",
+          "depends": [
+            "full3d-trees",
+            "full3d-rocks"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-camera",
+          "title": "Full 3D: wider fixed north-up lens; sky, fog, cascades and culls refit",
+          "status": "next",
+          "depends": [
+            "full3d-perf"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-cleanup",
+          "title": "Full 3D: remove the card paths the models replaced",
+          "status": "next",
+          "depends": [
+            "full3d-camera"
+          ],
+          "source": "docs/design/full-3d-plan.md"
         }
       ]
     },
@@ -1656,10 +1766,14 @@
         {
           "id": "factions",
           "title": "Factions and the Faction Hall (FACTIONS)",
-          "status": "next",
+          "status": "done",
           "depends": [],
           "source": "docs/reference/tasks.md",
-          "note": "In progress on claude/mmo-factions (not pushed when checked 2026-10-30). Faction missions and rank titles were left out of TASKSCREEN for this package."
+          "note": "FACTIONS merged caa4ba3c: five factions with reputation, ranks and missions, the Faction Hall and stall row on the 1 m grid facing south; landings count only on travel.",
+          "evidence": [
+            "commit:caa4ba3c",
+            "game/tests/t_factions.gd"
+          ]
         }
       ]
     },
