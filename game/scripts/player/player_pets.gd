@@ -402,9 +402,9 @@ func _dismount_spot(c: Creature) -> Vector3:
 	# Every side blocked: the first grounded side, else straight up off the mount's own footing.
 	return first if first != Vector3.INF else c.global_position + Vector3.UP * (half + 0.05)
 
-## Shift held or the HUD SPRINT toggle on: the rider asks the mount to run.
+## Shift held, the HUD SPRINT toggle on, or the chase pulling away: the rider asks the mount to run.
 func wants_mount_sprint() -> bool:
-	return Input.is_action_pressed("sprint") or p.sprint_toggled
+	return Input.is_action_pressed("sprint") or p.sprint_toggled or p.chase_sprint
 
 ## Steer the mount. Running it goes at its pet pace (pet_record.speed, statuses, hunger; tame-21),
 ## walking at Creature.walk_mps of that. It moves here: the creature's own tick runs first (the rider

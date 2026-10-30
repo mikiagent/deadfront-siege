@@ -54,6 +54,23 @@ static func entries(p: Player) -> Array[Dictionary]:
 				"icon": FOOD_ICON, "color": UiTokens.GOLD, "stacks": 1})
 	return out
 
+## CREATURECHIPS: the same entry shape for a Creature's active statuses (bleed, venom, knockdown...),
+## so its plate and the hunt target bar can draw the player's chip renderer with stack counts.
+## Every active status shows (afflictions included — on an animal they are the point); kind passes
+## straight through so draw_chip draws no arrow for a plain "effect".
+static func creature_entries(c: Creature) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if c == null or c.statuses == null:
+		return out
+	for inst in c.statuses.instances():
+		var def := Data.status(inst.id)
+		if def == null:
+			continue
+		out.append({"key": str(inst.id), "name": def.display_name, "kind": def.kind, "desc": def.desc,
+			"effect": "", "time_left": inst.time_left, "icon": inst.id, "color": def.fx_color,
+			"stacks": inst.stacks})
+	return out
+
 ## "Max Fatigue +132.8, Perception +20.9" from a BuffSlots row's stats.
 static func stats_line(stats: Variant) -> String:
 	var parts: PackedStringArray = []
@@ -102,7 +119,9 @@ func draw(ci: CanvasItem, font: Font, at: Vector2, p: Player, r: Vector2) -> Rec
 
 ## One chip in black and white: a shadow, a black tile with a white rim (GOLD while its tooltip shows), the
 ## white icon, and for `kind` buff / boon / debuff the coloured arrow on a black disc at the top-right.
-static func draw_chip(ci: CanvasItem, font: Font, box: Rect2, icon: StringName, kind: StringName, lit: bool = false) -> void:
+## CREATURECHIPS: `stacks` > 1 draws the numbered stack badge (a white-rim disc, the count in white) at
+## the chip's bottom-right — the same badge the player's chips will show for multi-stack statuses.
+static func draw_chip(ci: CanvasItem, font: Font, box: Rect2, icon: StringName, kind: StringName, lit: bool = false, stacks: int = 1) -> void:
 	ci.draw_rect(Rect2(box.position + Vector2(0, 2), box.size), Color(0, 0, 0, 0.45))
 	ci.draw_rect(box, Color(0.04, 0.04, 0.05, 0.92))
 	ci.draw_rect(box.grow(-1.0), UiTokens.GOLD if lit else Color(0.95, 0.95, 0.95), false, 2.0)
@@ -120,6 +139,15 @@ static func draw_chip(ci: CanvasItem, font: Font, box: Rect2, icon: StringName, 
 		var tri := PackedVector2Array([c + Vector2(0, -5), c + Vector2(4.6, 1.5), c + Vector2(-4.6, 1.5)]) if up else PackedVector2Array([c + Vector2(0, 5), c + Vector2(4.6, -1.5), c + Vector2(-4.6, -1.5)])
 		ci.draw_colored_polygon(tri, UP_BLUE if up else DOWN_RED)
 		ci.draw_rect(Rect2(c + Vector2(-1.5, 1.0 if up else -4.5), Vector2(3, 3.5)), UP_BLUE if up else DOWN_RED)
+	if stacks > 1:
+		draw_stack_badge(ci, font, box, stacks)
+
+## The numbered stack badge: a black disc with a white rim at the chip's bottom-right, count in white.
+static func draw_stack_badge(ci: CanvasItem, font: Font, box: Rect2, stacks: int) -> void:
+	var c := box.position + Vector2(box.size.x - 1.0, box.size.y - 1.0)
+	ci.draw_circle(c, 8.0, Color(0, 0, 0, 0.95), true, -1.0, true)
+	ci.draw_circle(c, 8.0, Color(0.95, 0.95, 0.95), false, 1.2, true)
+	ci.draw_string(font, c + Vector2(-8.0, 4.5), str(stacks), HORIZONTAL_ALIGNMENT_CENTER, 16.0, 12, Color.WHITE)
 
 ## The key whose tooltip shows: the pinned one, else the hovered one.
 func shown() -> String:

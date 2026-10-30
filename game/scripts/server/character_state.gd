@@ -169,6 +169,11 @@ func add_xp(tree: String, amount: float, mirrored: bool = false) -> void:
 	if int(t.level) >= SkillState.MAX_LEVEL:
 		return
 	t.xp = float(t.xp) + amount
+	# shortcut: research (owner 2026-10-28) runs client-side only; a gated tree banks here and never
+	# levels on the server until research moves over with W3-SRVACT.
+	if SkillState.research_gated(tree):
+		t.xp = minf(float(t.xp), SkillState.xp_to_max(int(t.level)))
+		return
 	while int(t.level) < SkillState.MAX_LEVEL and float(t.xp) >= SkillState.xp_to_next(int(t.level)):
 		t.xp = float(t.xp) - SkillState.xp_to_next(int(t.level))
 		t.level = int(t.level) + 1

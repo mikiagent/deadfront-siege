@@ -198,6 +198,8 @@
     "forager_wraps": "hide_strap",
     "forager_leggings": "hide_strap",
     "hide_bone_helm": "dried_hide",
+    "spiky_armor": "armour_body",
+    "spiky_armor_helmet": "armour_head",
     "hide_bone_cuirass": "raw_hide",
     "hide_bone_bracers": "hide_strap",
     "hide_bone_greaves": "hide_strap",
@@ -266,7 +268,12 @@
     "salad": "herb_leaf",
     "herbal_tea": "herb_leaf",
     "shaved_ice": "ice",
-    "saddle_large": "saddle_medium"
+    "saddle_large": "saddle_medium",
+    "spoiled_meat": "raw_meat",
+    "rot": "ash",
+    "narcoberry": "berry",
+    "sedative": "marsh_herb",
+    "tranquilizer_dart": "hollow_bone"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

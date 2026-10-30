@@ -76,6 +76,13 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 		rt.harvest_count += _plant_family(rt, fs, role, n, fallback, tool, climate, tier, size, rng, col)
 	PerfTrace.mark("scatter.families")
 	_scatter_special_tiles(rt, climate, tier, rng)
+	# FOODTORPOR, ASSUMPTION placement: 2 narcoberry bushes per island, none on the scripted tutorial
+	# island (its bot's workbench walk broke with them). Own RNG stream, so every placement after this
+	# one is where it was before the bushes existed.
+	if str(def.get("kind", "")) != "tutorial":
+		var narco := RandomNumberGenerator.new()
+		narco.seed = hash("narcoberry_bush:%d" % rng.seed)
+		_spawn_special_family(rt, "narcoberry_bush", 2, [IslandTerrain.TileType.GRASS, IslandTerrain.TileType.DRY], 0.25, 6.0, &"narcoberry", &"none", climate, tier, Color(0.62, 0.5, 0.95), narco)
 	PerfTrace.mark("scatter.special")
 	_top_up(rt, total_target(counts, rt, home), climate, tier, size, rng)
 	PerfTrace.mark("scatter.topup")
@@ -481,6 +488,13 @@ static func _attach_card_visual(rt: IslandRuntime, node: HarvestNode, vis: Dicti
 		else:
 			empty_card.queue_free()
 			empty_card = null
+	# A family "tint" (nature_manifest) recolours shared art: the narcoberry bush is the berry bush in violet.
+	var tint: Variant = Data.nature_families.get(family, {}).get("tint", null)
+	if tint is Array and (tint as Array).size() >= 3:
+		for c in [card, empty_card]:
+			var mi := (c.get_node_or_null("Card") as MeshInstance3D) if c else null
+			if mi and mi.material_override is ShaderMaterial:
+				(mi.material_override as ShaderMaterial).set_shader_parameter("tint", Color(float(tint[0]), float(tint[1]), float(tint[2])))
 	node.set_card_visual(card, empty_card)
 	# A card tall enough to hide the survivor fades like a batched tree does (W2-OCCLUDE): its
 	# material includes the same dither body, driven per instance.

@@ -362,14 +362,15 @@ func _test_old_save_has_no_memory() -> void:
 		"with no memory a basket is first-of-kind again and pays +%d (got %.0f)" % [int(_cfg.get("build_first", 30)), float(again["sxp"])])
 
 ## XPECON changes what actions pay; the level curve is LEVELBAR's (owner 2026-10-28, exponential,
-## pioneer_levels.json xp_curve): Lv 1 costs 110, Lv 10 costs 305, Lv 11 costs 342.
+## pioneer_levels.json xp_curve) times progression.json player_xp_cost_mult 2.5 (owner 2026-10-28
+## "levels up slower"): Lv 1 costs 275, Lv 10 costs 763, Lv 11 costs 854.
 func _test_level_curve_unchanged() -> void:
 	var W: Node = _world
-	_expect(int(W.xp_for_level(0)) == 110 and int(W.xp_for_level(9)) == 305 and int(W.xp_for_level(10)) == 342,
-		"World.xp_for_level is the LEVELBAR curve: Lv 1 costs 110, Lv 10 costs 305, Lv 11 costs 342 (got %d / %d / %d)" % [
+	_expect(int(W.xp_for_level(0)) == 275 and int(W.xp_for_level(9)) == 763 and int(W.xp_for_level(10)) == 854,
+		"World.xp_for_level is the LEVELBAR curve x2.5: Lv 1 costs 275, Lv 10 costs 763, Lv 11 costs 854 (got %d / %d / %d)" % [
 			int(W.xp_for_level(0)), int(W.xp_for_level(9)), int(W.xp_for_level(10))])
 	var total := 0
 	for l in 10:
 		total += int(W.xp_for_level(l))
 	print("[t_xpecon] cumulative XP from Lv 1 to Lv 11: %d (LEVELBAR curve)" % total)
-	_expect(total == 1930, "the curve sums to 1930 from Lv 1 to Lv 10 (got %d)" % total)
+	_expect(total == 4827, "the curve sums to 4827 from Lv 1 to Lv 10 (got %d)" % total)

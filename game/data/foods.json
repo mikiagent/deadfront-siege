@@ -213,6 +213,11 @@
     "repeat_penalty_max": 32.0,
     "repeat_memory_seconds": 600.0
   },
+  "spoilage": {
+    "_about": "FOODTORPOR (owner 2026-10-29: spoiled food leaves the Food Bag as Spoiled Meat or Rot). Real seconds from when the survivor's bag first holds the lot, offline time included (vision: Crafting_Building_Math freshness). First matching category wins; a food with none of them never spoils. meat_categories pick Spoiled Meat, everything else Rot. Every number is an ASSUMPTION.",
+    "seconds_by_category": [["preserved", 0], ["drink", 0], ["pet_feed", 0], ["burnt", 0], ["raw_meat", 7200], ["raw", 7200], ["cooked", 21600], ["fruit", 14400], ["mushroom", 14400], ["cactus", 14400], ["cold_food", 3600]],
+    "meat_categories": ["meat", "raw_meat"]
+  },
   "foods": {
     "spring_water": {
       "display_name": "Spring Water",

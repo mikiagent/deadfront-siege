@@ -5776,6 +5776,76 @@
       "required_ability": 65
     },
     {
+      "id": "spiky_armor",
+      "display_name": "Spiky Armor",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "dense_bone",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "spiky_armor",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1,
+      "required_ability": 60,
+      "_about": "SLOWLEVELS: gated by Tailoring's spiky_armor node (trees.json recipe effect). ASSUMPTION counts, level and ability, modelled on the hide-and-bone helm; tail spikes and other dense bone by tag."
+    },
+    {
+      "id": "spiky_armor_helmet",
+      "display_name": "Spiky Armor Helmet",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "dense_bone",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "spiky_armor_helmet",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1,
+      "required_ability": 60,
+      "_about": "SLOWLEVELS: gated by Tailoring's spiky_armor node (trees.json recipe effect). ASSUMPTION counts, level and ability, modelled on the hide-and-bone helm; tail spikes and other dense bone by tag."
+    },
+    {
       "id": "metal_stick",
       "display_name": "Metal Stick",
       "skill": "processing",
@@ -5843,6 +5913,89 @@
       "process_step": "smelt",
       "process_add": 1,
       "_note": "# ASSUMPTION (CRAFTRADIAL): 2 silver ore smelt into 1 silver chunk at the forge."
+    },
+    {
+      "id": "sedative",
+      "display_name": "Sedative",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "spoiled_meat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "narcoberry",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "sedative",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 4,
+      "process_step": "mix",
+      "process_add": 1,
+      "_note": "# ASSUMPTION (FOODTORPOR): 1 Spoiled Meat + 2 Narcoberry by hand, like the toxin coatings."
+    },
+    {
+      "id": "tranquilizer_dart",
+      "display_name": "Tranquilizer Dart",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "sedative",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "bone",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "tranquilizer_dart",
+        "count": 3
+      },
+      "station": null,
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1,
+      "_note": "# ASSUMPTION (FOODTORPOR): 1 Sedative + 1 bone makes 3 darts."
+    },
+    {
+      "id": "rot_compost",
+      "display_name": "Rot Compost",
+      "skill": "farming",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "rot",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "earth",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "fruit_fertilizer",
+        "count": 1
+      },
+      "station": "mortar",
+      "seconds": 3.0,
+      "process_step": "grind",
+      "process_add": 1,
+      "tree": "farming",
+      "requires_node": "fertilizer",
+      "_note": "# ASSUMPTION (FOODTORPOR): 3 Rot + 1 earth grind into the same Fruit Fertilizer field plots already take."
     }
   ]
 }

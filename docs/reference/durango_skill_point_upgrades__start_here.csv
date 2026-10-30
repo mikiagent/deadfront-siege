@@ -1,0 +1,18 @@
+DURANGO  •  SKILL POINT ARCHIVE,,,,,,,
+,,,,,,,
+"Historically sourced skill upgrades, branch costs, and evidence quality  |  Compiled 28 Oct 2026",,,,,,,
+RESEARCH COVERAGE,VALUE,INTERPRETATION
+Original skill categories,12,All original categories included
+Branches with SP totals,73,Complete branch cost map from 2019 mastersheet
+Named upgrade / unlock records,184,Verified names plus separately marked recipe candidates
+Exactly priced Survival rows,40,Includes seven free automatic unlocks
+Historical total to learn all skills,3223,"2019 mastersheet, sum of 73 branches"
+Modern restoration estimate,3213,"2026 project reports 918 original nodes and 3,213 SP"
+Disputed difference,10,The source versions conflict; not reconciled
+HOW TO USE THIS WORKBOOK,,,,,,,
+01  SKILL UPGRADES,"Filter Category, Branch and Record Type; SP blank means unknown, not zero.",,,,,,
+02  SP BY BRANCH,"Complete 2019 branch SP costs, allowing budget-based game design.",,,,,,
+03  COMBAT BUILDS,"Historical example specialization totals, including stance and roll assumptions.",,,,,,
+04  SOURCES & GAPS,"Primary source URLs, conflicting totals, and collection limitations.",,,,,,
+ACCURACY RULE,"Only the Survival tree has level-by-level skill-point costs in retrieved records. Many other names are documented unlocks or recipes, not proven nodes.",,,,,,
+VERSION WARNING,"The original public game closed in 2019. These are reconstruction references, not a current official API or validated latest client dump.",,,,,,

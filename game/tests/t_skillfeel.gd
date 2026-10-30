@@ -33,12 +33,14 @@ func _process(_delta: float) -> bool:
 	Events = load("res://scripts/ui/hud_event_state.gd")
 	_test_signal_and_text()
 	_test_merge()
+	_test_batch()
+	_test_sweep()
 	_test_level_toast()
 	_test_full()
 	_test_pulse()
 	_test_hud()
 	_test_first_hour()
-	var want := 7
+	var want := 9
 	if _sections != want:
 		_fails.append("only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if _fails.is_empty():
@@ -122,13 +124,15 @@ func _test_merge() -> void:
 	# Another tree keeps its own toast.
 	ev.add_skill_xp("cooking", 2.0)
 	_expect((ev.get("skill_toasts") as Array).size() == 2, "a different tree gets its own toast (got %d)" % (ev.get("skill_toasts") as Array).size())
-	# Past the merge window the same tree starts a new toast.
+	# Owner 2026-10-28 "batched": while the bar still shows, a later gain keeps filling it, not a new one.
 	ev.tick(1.1)
 	ev.add_skill_xp("gathering", 5.0)
 	rows = ev.get("skill_toasts")
-	_expect(rows.size() == 3, "a Gathering gain 1.1 s later starts a new toast (got %d)" % rows.size())
-	_expect(str(rows[rows.size() - 1]["text"]) == "+5 Gathering XP", "the new toast does not carry the old amount (\"%s\")" % str(rows[rows.size() - 1]["text"]))
+	_expect(rows.size() == 2, "a Gathering gain 1.1 s later joins the bar still showing (got %d rows)" % rows.size())
+	_expect(str(rows[0]["text"]) == "+12 Gathering XP", "the batched bar adds it up (\"%s\")" % str(rows[0]["text"]))
 	# A burst cannot stack down over the survivor: the newest four lines are what the HUD draws.
+	for tree in ["survival", "butchering", "ranged"]:  # bars batch per tree: more trees than lines
+		ev.add_skill_xp(tree, 1.0)
 	for i in 10:
 		ev.add_skill_level("melee", 2 + i)
 	rows = ev.get("skill_toasts")
@@ -137,6 +141,89 @@ func _test_merge() -> void:
 	# Older toasts age out, so the HUD never piles them up.
 	ev.tick(4.0)
 	_expect((ev.get("skill_toasts") as Array).is_empty(), "toasts clear after their life (got %d)" % (ev.get("skill_toasts") as Array).size())
+	_sections += 1
+
+## Owner 2026-10-28: several gains make one bar; the light-green ghost leads at once, the real fill
+## waits until gains stop, then eases up to it (flashing over a level), lingers and fades.
+func _test_batch() -> void:
+	var ev := _events()
+	var rung := float(SkillStateS.xp_to_next(1))
+	var p := 1.0
+	for i in 3:
+		p += 10.0 / rung
+		ev.add_skill_xp("gathering", 10.0, 1, p)
+		ev.tick(0.3)  # under the catch-up delay: the gains are still a batch
+	var rows: Array = ev.get("skill_toasts")
+	_expect(rows.size() == 1 and str(rows[0]["text"]) == "+30 Gathering XP", "three gains make one bar \"+30 Gathering XP\" (got %s)" % [rows])
+	var row: Dictionary = rows[0] if not rows.is_empty() else {}
+	var bar: Array = Events.skill_bar(row)
+	print("[t_skillfeel] batch: shown %.3f pending %.3f bar %s" % [float(row.get("shown", -1)), float(row.get("pending", -1)), bar])
+	_expect(float(bar[1]) > float(bar[0]) + 0.2, "mid-batch the ghost leads the real fill (ghost %.2f, fill %.2f)" % [float(bar[1]), float(bar[0])])
+	var caught := 0.0
+	for i in 60:
+		ev.tick(0.1)
+		if float(row["shown"]) >= float(row["pending"]):
+			caught = 0.1 * float(i + 1)
+			break
+	_expect(caught > 0.0 and caught < 4.0 and (ev.get("skill_toasts") as Array).size() == 1, "after the gains stop the fill catches up and the bar is still there (%.1f s)" % caught)
+	ev.tick(Events.SKILL_LIFE * 0.5)
+	_expect((ev.get("skill_toasts") as Array).size() == 1, "a caught-up bar lingers")
+	ev.tick(Events.SKILL_LIFE)
+	_expect((ev.get("skill_toasts") as Array).is_empty(), "then it fades out")
+	# Over a level mid-batch: the ghost fills the bar, the fill rolls over with a flash.
+	ev = _events()
+	ev.add_skill_xp("gathering", 10.0, 1, 1.8)
+	ev.add_skill_xp("gathering", 30.0, 1, 2.2)
+	bar = Events.skill_bar((ev.get("skill_toasts") as Array)[0])
+	_expect(is_equal_approx(float(bar[1]), 1.0) and int(bar[2]) == 1, "a gain past the level fills the ghost to the end (%s)" % [bar])
+	var flashed := false
+	for i in 60:
+		ev.tick(0.1)
+		if (ev.get("skill_toasts") as Array).is_empty():
+			break
+		var b: Array = Events.skill_bar((ev.get("skill_toasts") as Array)[0])
+		flashed = flashed or (int(b[2]) == 2 and float(b[3]) > 0.5)
+	_expect(flashed, "the fill rolls over to Lv. 2 with a flash")
+	_sections += 1
+
+## Owner 2026-10-28 "the bar fills and the unlocks flash": opening the sheet sweeps the gold level
+## track to the skill level, flashes each unlockable node in level order as it passes, counts the SP up,
+## and a reopen within a few seconds skips it.
+func _test_sweep() -> void:
+	var sk := _fresh(10)
+	sk.trees["gathering"]["level"] = 10  # researched up to the cap (research is t_research's)
+	sk._learn_autos("gathering")
+	var Sheet: GDScript = load("res://scripts/ui/skills_sheet.gd")
+	var order: Array = Sheet.sweep_order(sk, "gathering")
+	var ids: Array[String] = []
+	for n in order:
+		ids.append(str(n["id"]))
+	_expect(not order.is_empty(), "Gathering Lv. %d with %d SP has nodes to unlock" % [sk.level_of("gathering"), sk.sp_available])
+	var sheet: Control = Sheet.new()
+	get_root().add_child(sheet)
+	sheet.open(sk, "gathering")
+	_expect(bool(sheet.call("sweeping")), "opening the sheet starts the sweep")
+	sheet.call("tick_sweep", 0.15)
+	var mid: Array = (sheet.get("sweep_flashed") as Array).duplicate()
+	var track: ProgressBar = sheet.find_child("SkillsLevelTrack", true, false)
+	var mid_v := track.value if track else -1.0
+	var pill := str((sheet.get("_sp_pill") as Label).text)
+	print("[t_skillfeel] sweep mid: track %.2f flashed %s pill \"%s\" order %s" % [mid_v, mid, pill, ids])
+	_expect(mid.size() < ids.size() and ids.slice(0, mid.size()) == mid, "mid-sweep only the lowest nodes have flashed, in order (%s of %s)" % [mid, ids])
+	_expect(pill != "%d free" % sk.sp_available, "the skill points are still counting up mid-sweep (\"%s\")" % pill)
+	for i in 20:
+		sheet.call("tick_sweep", 0.1)
+	var end_v := track.value if track else -1.0
+	var want_v: float = sheet.call("track_frac", float(sk.level_of("gathering")))
+	_expect(not bool(sheet.call("sweeping")) and absf(end_v - want_v) < 0.011 and end_v > mid_v, "the track ends at the skill level (%.2f, want %.2f)" % [end_v, want_v])
+	_expect(sheet.get("sweep_flashed") == ids, "every unlockable node flashed once, lowest level first (%s)" % [sheet.get("sweep_flashed")])
+	_expect(str((sheet.get("_sp_pill") as Label).text) == "%d free" % sk.sp_available, "the count ends at the free skill points")
+	sheet.close()
+	sheet.open(sk, "gathering")
+	_expect(not bool(sheet.call("sweeping")), "a reopen within a few seconds skips the sweep")
+	get_root().remove_child(sheet)
+	sheet.free()
+	_done_with(sk)
 	_sections += 1
 
 ## A tree level-up is a bigger toast than an XP gain, and it says the new level.
@@ -156,8 +243,14 @@ func _test_level_toast() -> void:
 	var ups: Array = []
 	sk.skill_leveled.connect(func (t: StringName, lv: int) -> void: ups.append([str(t), lv]))
 	sk.add_xp("gathering", _xp_to(sk, 2) + 1.0)
+	_expect(ups.filter(func (u: Array) -> bool: return str(u[0]) == "gathering").is_empty(), "a full Gathering bar does not level by itself (research)")
+	SkillStateS.clock_override = 1000.0
+	sk.start_research("gathering")
+	SkillStateS.clock_override = 1000.0 + SkillStateS.research_s(1) + 1.0
+	sk.poll_research()
+	SkillStateS.clock_override = -1.0
 	var gathering_ups: Array = ups.filter(func (u: Array) -> bool: return str(u[0]) == "gathering")
-	_expect(gathering_ups.size() == 1 and int(gathering_ups[0][1]) == 2, "gathering reaching Lv. 2 emits skill_leveled(gathering, 2) once (got %s)" % [ups])
+	_expect(gathering_ups.size() == 1 and int(gathering_ups[0][1]) == 2, "gathering researched to Lv. 2 emits skill_leveled(gathering, 2) once (got %s)" % [ups])
 	_done_with(sk)
 	_sections += 1
 
@@ -167,7 +260,8 @@ func _test_level_toast() -> void:
 func _test_full() -> void:
 	var sk := _fresh(3)  # character Lv. 3 caps every tree at Lv. 3
 	sk.add_xp("gathering", 5.0)  # still Lv. 1, under the cap
-	sk.add_xp("melee", 200.0)  # more than Lv. 1 -> 3 needs: the rest is banked (spec 03:7)
+	sk.trees["melee"]["level"] = 3  # researched up to the cap (research gates every gated level)
+	sk.add_xp("melee", 500.0, true)  # at the cap: all of it is banked (spec 03:7); mirrored keeps the character at Lv. 3
 	var sheet: Control = (load("res://scripts/ui/skills_sheet.gd") as GDScript).new()
 	get_root().add_child(sheet)
 	sheet.open(sk, "melee")
@@ -191,7 +285,7 @@ func _test_full() -> void:
 	melee = sheet.find_child("Skill_melee", true, false)
 	full = melee.find_child("SkillFull_melee", true, false) if melee else null
 	print("[t_skillfeel] after the character level: melee Lv. %d of cap %d, FULL %s" % [sk.level_of("melee"), sk.level_cap("melee"), full != null])
-	_expect(sk.level_of("melee") > 3, "melee spends the banked XP after the character level-up (Lv. %d)" % sk.level_of("melee"))
+	_expect(sk.level_of("melee") == 3 and sk.research_ready("melee"), "after the character level-up melee waits for research with its bank (Lv. %d)" % sk.level_of("melee"))
 	_expect(full == null, "FULL clears once the tree is under the cap again")
 	get_root().remove_child(sheet)
 	sheet.free()

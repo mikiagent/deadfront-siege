@@ -83,7 +83,8 @@ static func draw_feed(hud: Control, font: Font, rows: Array, top_left: Vector2, 
 			parts = [["▲ " + nm + " ", UiTokens.GOLD, px]]
 		else:
 			parts.append(["+%d XP " % int(round(float(e["amount"]))), UiTokens.GOLD, px])
-		var lv := int(e["level"])
+		var sb: Array = HudEventState.skill_bar(e)  # [real, ghost, level, flash]; -1 = no batch state
+		var lv := int(sb[2]) if float(sb[0]) >= 0.0 else int(e["level"])
 		if lv <= 0 and skills:
 			lv = skills.level_of(tree)
 		if lv > 0:
@@ -91,10 +92,19 @@ static func draw_feed(hud: Control, font: Font, rows: Array, top_left: Vector2, 
 		for p in parts:
 			hud.draw_string(font, Vector2(tx, base), str(p[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, int(p[2]), Color(p[1], a))
 			tx += font.get_string_size(str(p[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, int(p[2])).x
-		if skills:
-			var lvl := skills.level_of(tree)
-			var f := clampf(skills.xp_of(tree) / maxf(1.0, SkillState.xp_to_next(lvl)), 0.0, 1.0)
-			var bar := Rect2(hc.x + hr + 10.0, box.end.y - 7.0, box.end.x - hc.x - hr - 20.0, 3.0)
+		if skills or float(sb[0]) >= 0.0:
+			var f := float(sb[0])
+			var ghost := -1.0
+			if f >= 0.0:
+				ghost = float(sb[1])
+			else:
+				var lvl := skills.level_of(tree)
+				f = clampf(skills.xp_of(tree) / maxf(1.0, SkillState.xp_to_next(lvl)), 0.0, 1.0)
+			var bar := Rect2(hc.x + hr + 10.0, box.end.y - 8.0, box.end.x - hc.x - hr - 20.0, 4.0)
 			hud.draw_rect(bar, Color(1, 1, 1, 0.15 * a))
+			if ghost > f:  # gains not yet counted in: a light green lead the real fill eases up to
+				hud.draw_rect(Rect2(bar.position, Vector2(bar.size.x * ghost, bar.size.y)), Color(UiTokens.XP.lerp(Color.WHITE, 0.55), 0.75 * a))
 			hud.draw_rect(Rect2(bar.position, Vector2(bar.size.x * f, bar.size.y)), Color(UiTokens.XP, a))
+			if float(sb[3]) > 0.0:  # a level rolled over: the whole bar flashes and fades
+				hud.draw_rect(bar.grow(1.0), Color(1, 1, 1, float(sb[3]) * a))
 	return out

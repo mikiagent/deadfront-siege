@@ -216,7 +216,8 @@ func _test_identity() -> void:
 	print("[t_tame] uids distinct=%d/1000 sample=%s level wild25=%d wild75=%d" % [seen.size(), lv25.uid, lv25.level, lv75.level])
 	_sections += 1
 
-func _creature(id: StringName, hp_frac: float, knocked: bool):
+## FOODTORPOR: torpor defaults to full, so "knocked" / low HP model a knocked-out animal.
+func _creature(id: StringName, hp_frac: float, knocked: bool, torpor_frac: float = 1.0):
 	var cr = (load("res://scripts/creatures/creature.gd") as GDScript).new()
 	cr.def = _def(id)
 	cr.health = (load("res://scripts/combat/health.gd") as GDScript).new()
@@ -225,6 +226,7 @@ func _creature(id: StringName, hp_frac: float, knocked: bool):
 	cr.statuses = (load("res://scripts/combat/status_effects.gd") as GDScript).new()
 	cr.add_child(cr.statuses)
 	cr.health.hp = cr.def.hp * hp_frac
+	cr.torpor = cr.torpor_max() * torpor_frac
 	cr.is_capturable = true
 	if knocked:
 		cr.statuses.apply(&"knockdown")
@@ -244,6 +246,11 @@ func _test_rules() -> void:
 	var at_awake: bool = CaptureS.attempt(player, awake, 1)
 	_expect(at_awake == false and player.inventory.count_of(&"capture_net_ii") == 3 and player.inventory.find_first(&"captured_animal") < 0, "net refuses an unstunned animal at 50 %% HP (returned %s, nets %d)" % [at_awake, player.inventory.count_of(&"capture_net_ii")])
 	awake.free()
+	var groggy = _creature(&"velociraptor", 0.25, true, 0.3)
+	groggy.genetics = GeneticsS.neutral()
+	var at_groggy: bool = CaptureS.attempt(player, groggy, 1)
+	_expect(at_groggy == false and player.inventory.count_of(&"capture_net_ii") == 3, "FOODTORPOR: net refuses a weak, stunned animal whose torpor is under the threshold")
+	groggy.free()
 	var half = _creature(&"velociraptor", 0.5, true)
 	half.genetics = GeneticsS.neutral()
 	var at_half: bool = CaptureS.attempt(player, half, 1)

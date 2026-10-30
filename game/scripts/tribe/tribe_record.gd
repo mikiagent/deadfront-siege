@@ -63,7 +63,7 @@ func skill(id: String) -> int:
 
 ## Earned XP in a skill, scaled by innate potential. Returns levels gained.
 func add_skill_xp(id: String, amount: float) -> int:
-	var per := Tribe.num("xp_per_level", 40.0)
+	var per := Tribe.num("xp_per_level", 40.0) * Progression.mult("tribe_xp_cost_mult")
 	var gained := 0
 	var x := float(skill_xp.get(id, 0.0)) + amount * float(Tribe.potential_row(potential).get("xp_mult", 1.0))
 	while x >= per * float(skill(id)) and skill(id) < int(Tribe.num("max_skill", 60)):

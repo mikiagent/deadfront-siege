@@ -1,0 +1,18 @@
+DURANGO  •  SOURCE LOG & RESEARCH LIMITS,,,,,
+,,,,,
+URLs are retained inside the workbook so every record can be revisited and corrected.,,,,,
+Source,Period,What it Supports,URL,Limitations,Assessment
+Community Durango Wildlands Mastersheet,2019,"Branch totals, all Survival nodes & costs, combat build budgets",https://www.scribd.com/document/501357601/Durango-Wildlands-Mastersheet,Direct historical community record; author reports unfinished/possible mistakes,High for listed 2019 cost table; not authoritative client export
+"Character and Skill Leveling Guide, Reddit",2019,"Named Gathering, Butchering, Processing, combat actions, crafting unlocks",https://www.reddit.com/r/DurangoWildLands/comments/bn0shk/character_and_skill_leveling_guide/,Firsthand player guide; some upgrade names are common shorthand,Medium; per-node SP mostly not given
+"Durango Skills Guide, Touch Tap Play",2019,12 skill trees and select unlocks / thresholds,https://www.touchtapplay.com/durango-wild-lands-skills-guide-everything-you-need-to-know/,"Contemporary guide, mixes recipes and skill nodes",Medium for named references
+"Best Starting Character, Touch Tap Play",2019,22 named Defense skills and ranks,https://www.touchtapplay.com/durango-wild-lands-best-starting-character/,2019 screenshot-driven article text,High for name existence; SP mostly unknown
+"Durango Careers Guide, Touch Tap Play",2019,Gathering career prerequisites,https://www.touchtapplay.com/durango-wild-lands-careers-guide/,Career list names 7 relevant skills,Medium for exact categories
+Chinese forum 2019 skill cost digest,2019,"Corroborating 3,223 SP cost summary",https://forum.gamer.com.tw/C.php?bsn=26406&gothis=1605&page=1&snA=555,Forum text includes apparent typo '495' vs '49' in Standard Processing,"Medium, use mastersheet for normalized branch cost"
+Durango:0 Homecoming reconstruction notes,2026,"918 client-derived nodes claimed; SP estimate 3,213",https://kghj76138.github.io/durango-homecoming-guide/en/changes.html,Restoration project diverges from the 2019 sheet by 10 SP; web page no longer opened live,Indicative only; original data dump unavailable
+Original community Google spreadsheet,2019,Original file pointed to by a 2019 Reddit user,https://docs.google.com/spreadsheets/d/1AuOAOAwE3lBlfj8-vuiSmcmfLovaMHbk5vjhqv4JLWI/edit?usp=sharing,Direct export not accessible in this environment,Important candidate for future full node extraction
+KNOWN DATA GAPS,,,,,
+Individual exact SP (11 categories),"Not present in the retrieved 2019 archive; blank in Skills sheet, not inferred."
+Full original node roster,"2019 public mastersheet transcribes 40 Survival rows, not the reported 918 total."
+Auto-unlock/recipe distinction,Some guides say 'learn X' when X may be a craft recipe; records labeled accordingly.
+Original vs restoration total,"2019 master reports 3,223 vs 2026 restoration 3,213, a 10-point discrepancy."
+Research scope,Source-backed reconstruction. Do not use blank SP values as zero in a game balance model.

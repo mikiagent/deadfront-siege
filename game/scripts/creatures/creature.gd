@@ -47,6 +47,11 @@ var tame_feeds: float = 0.0
 var tame_window_left: float = 0.0
 var tame_cooldown_left: float = 0.0
 var tame_attempting: bool = false
+## FOODTORPOR: 0..torpor_max(). Blunt hits, Sedative-coated hits and Tranquilizer Darts add it; it
+## drains after a quiet spell. Weak + past FieldTame.torpor_ko_frac() = knocked out (capturable).
+## Not saved: wild animals respawn fresh.
+var torpor: float = 0.0
+var _torpor_quiet_s: float = 0.0
 ## NATURES: rolled once at spawn from the animal's spawn seed (species + point + pack) and kept
 ## when it is tamed (PetRecord.nature). Knobs are read through nature_knob(): one source, default 1.
 var nature: StringName = &""
@@ -524,6 +529,7 @@ func _physics_process(delta: float) -> void:
 	_fall_guard()
 	_apply_pet_passthrough()
 	FieldTame.tick(self, delta)
+	tick_torpor(delta)
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	if not ridden:  # a ridden mount's pool is ticked by PlayerPets.mounted_move
@@ -876,6 +882,34 @@ func _on_status_removed(id: StringName) -> void:
 	is_capturable = false
 	if tame_attempting and def and tame_feeds + 0.001 < feeds_needed() and not is_pet:
 		FieldTame.fail(self, null)
+
+func torpor_max() -> float:
+	return CombatTuning.num("torpor", "max", 100.0)
+
+func torpor_frac() -> float:
+	return clampf(torpor / maxf(1.0, torpor_max()), 0.0, 1.0)
+
+## Add torpor from a hit; a weak animal pushed past the threshold collapses (the knockdown status,
+## so the feeding tame window and the collapse clip follow the existing path).
+func add_torpor(amount: float, source: Node = null) -> void:
+	if amount <= 0.0 or is_pet or health == null or health.dead:
+		return
+	torpor = minf(torpor_max(), torpor + amount)
+	_torpor_quiet_s = 0.0
+	if statuses != null and not statuses.has(&"knockdown") and def != null and def.tameable and FieldTame.capture_window(self):
+		statuses.apply(&"knockdown", source)
+		if anim:
+			anim.play_clip(&"knockdown")
+		print("[torpor] %s knocked out torpor=%.0f hp=%.0f%%" % [def.id, torpor, 100.0 * health.fraction()])
+
+## ASSUMPTION: torpor holds while the animal is knocked down and for decay_delay_s after the last
+## dose, then drains at decay_per_s (combat_tuning.json "torpor").
+func tick_torpor(delta: float) -> void:
+	if torpor <= 0.0 or (statuses != null and statuses.has(&"knockdown")):
+		return
+	_torpor_quiet_s += delta
+	if _torpor_quiet_s >= CombatTuning.num("torpor", "decay_delay_s", 6.0):
+		torpor = maxf(0.0, torpor - CombatTuning.num("torpor", "decay_per_s", 3.0) * delta)
 
 func mark_aggro_now() -> void:
 	last_aggro_s = _now_s()
