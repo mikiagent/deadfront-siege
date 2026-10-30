@@ -2449,7 +2449,8 @@
       "base_level": 1,
       "tool_class": "none",
       "market_category": "bone",
-      "rarity": "rare"
+      "rarity": "rare",
+      "source_pending": "alpha carcass only: ButcherLoot.alpha_extras rolls loot_tables.json alpha.pool; no recipe yet"
     },
     {
       "id": "dorsal_plate",
@@ -4613,6 +4614,46 @@
       },
       "market_category": "ingot",
       "rarity": "uncommon"
+    },
+    {
+      "id": "alpha_hide",
+      "display_name": "Alpha Hide",
+      "_assumption": "ALPHATAG (owner 2026-10-29: alphas drop 'better loot (and special loot pools specific to alpha animals)'): a thicker, richer hide that only an alpha carcass yields (butchering.json species alpha_pool). ASSUMPTION: the docs name no alpha item, so it is a hide-tier material with no recipe yet.",
+      "categories": [
+        "hide",
+        "uncut_hide",
+        "green_hide"
+      ],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#7a6448"
+      },
+      "market_category": "hide",
+      "rarity": "rare",
+      "source_pending": "alpha carcass only: ButcherLoot.alpha_extras rolls loot_tables.json alpha.pool; no recipe yet"
+    },
+    {
+      "id": "alpha_fang",
+      "display_name": "Alpha Fang",
+      "_assumption": "ALPHATAG (owner 2026-10-29: 'special loot pools specific to alpha animals'): an oversized fang cut only from an alpha carcass (butchering.json species alpha_pool). ASSUMPTION: catalogue name, no recipe yet.",
+      "categories": [
+        "bone",
+        "blade_mat",
+        "talon"
+      ],
+      "stack_max": 3,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "hardness": 4,
+        "material_tier": "bone",
+        "tint": "#e8dcbd"
+      },
+      "market_category": "bone",
+      "rarity": "rare",
+      "source_pending": "alpha carcass only: ButcherLoot.alpha_extras rolls loot_tables.json alpha.pool; no recipe yet"
     },
     {
       "id": "spoiled_meat",

@@ -2031,6 +2031,13 @@ func _draw_capture_hint(cam: Camera3D, taken: Array[Rect2], a: float) -> void:
 	draw_string(_font, Vector2(box.position.x + 9.0, box.end.y - 6.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(0, 0, 0, 0.7 * a))
 	draw_string(_font, Vector2(box.position.x + 8.0, box.end.y - 7.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(UiTokens.GOLD, a))
 
+## ALPHATAG: where the ALPHA chip's top-left goes so it sits on the name's baseline row, `name_pos` being
+## the name's left-baseline point. Pure, so the geometry (and a test) can be checked without a draw pass.
+static func alpha_tag_pos(name_pos: Vector2, is_alpha: bool) -> Vector2:
+	if not is_alpha:
+		return name_pos
+	return Vector2(name_pos.x, name_pos.y - AlphaChip.CHIP_H + 1.0)
+
 func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 	var r := get_viewport_rect().size
 	if true:
@@ -2050,13 +2057,23 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			var chip_y := py + 29.0 + latin.get_descent(name_px)  # 1 px under the name's line box
 			var dy := maxf(0.0, chip_y + NatureChip.CHIP_H + CreaturePlates.CHIP_GAP - (py + 44.0)) if NatureChip.text_for(nat) != "" else 0.0
 			var block := Rect2(px, py - 4.0, pw, 70.0 + dy + HudBuffRow.CHIP + 8.0)
-			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
-			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
+			# ALPHATAG: a gold "ALPHA" tag in front of the name, then the name starts after it.
+			var prefix_w := 0.0
+			var aname_x := px + 12.0
+			var atag := AlphaChip.draw_at(self, _font, alpha_tag_pos(Vector2(px + 12, py + 28), t.is_alpha()), t.is_alpha(), a)
+			if atag.has_area():
+				prefix_w = atag.size.x + AlphaChip.NAME_GAP
+				aname_x = atag.end.x + AlphaChip.NAME_GAP
+				block = block.merge(atag)
+			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else CreatureNatures.display_title(t)
+			nm = UiTokens.ellipsis(_font, nm, pw - 150.0 - prefix_w, name_px)
 			draw_rect(Rect2(px, py - 4, pw, 48 + dy), Color(UiTokens.INK, 0.75 * a))  # the reference's dark band: the name reads on foliage
-			draw_string(_font, Vector2(px + 12, py + 28), nm, HORIZONTAL_ALIGNMENT_LEFT, pw - 120.0, name_px, Color(1, 1, 1, a))
-			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x
+			draw_string(_font, Vector2(aname_x, py + 28), nm, HORIZONTAL_ALIGNMENT_LEFT, pw - 120.0 - prefix_w, name_px, Color(1, 1, 1, a))
+			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x + prefix_w
 			var asc := latin.get_ascent(name_px)
 			target_rows = {"name": Rect2(px + 12, py + 28 - asc, nmw, asc + latin.get_descent(name_px))}
+			if atag.has_area():
+				target_rows["alpha"] = atag
 			target_rows["chip"] = NatureChip.draw_at(self, _font, Vector2(px + 12, chip_y), nat, a)
 			draw_string(_font, Vector2(px + 18 + nmw, py + 28), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, UiTokens.DANGER)
 			draw_rect(Rect2(px + pw - 60, py - 4, 52, 52), Color(0.12, 0.12, 0.14, 0.9 * a))

@@ -20,6 +20,12 @@ static func chance_for(creature: Creature, net_tier: int, player = null) -> floa
 ## Returns true when the animal went into the bag. `rng` makes the roll repeatable (a seeded test or
 ## a replay); with none the global generator is used.
 static func attempt(player: Player, creature: Creature, force_result: int = 0, rng: RandomNumberGenerator = null) -> bool:
+	# ALPHATAG (owner 2026-10-29): an alpha is never capturable; say so instead of the stun hint.
+	if FieldTame.is_alpha(creature):
+		if player != null:
+			player.notice(FieldTame.ALPHA_REFUSAL)
+		print("[capture] refused: %s" % FieldTame.ALPHA_REFUSAL)
+		return false
 	# Spec 09 §1, the one rule: stunned at any HP, or HP <= 30 % (FieldTame.capture_window).
 	if creature == null or not FieldTame.capture_window(creature):
 		if creature != null and creature.def != null and creature.health != null and not creature.health.dead:

@@ -140,6 +140,24 @@ static func roll_part(row: Dictionary, level: int, _knife_tier: StringName, node
 	attrs["level"] = level  # the carcass's level, not the catalogue base
 	return ItemStack.make(item_id, 1, attrs, level)
 
+## ALPHATAG: one alpha-only pool's stacks (loot_tables.json "alpha", LootTables.alpha_pool). Each row
+## drops between its own min and max, every unit ONE instance, at the carcass's level. A row naming an
+## unknown item is skipped, as every other loot row is. Pure, so the server and tests can run it.
+static func roll_alpha_pool(species: StringName, level: int, rng: RandomNumberGenerator) -> Array[ItemStack]:
+	var out: Array[ItemStack] = []
+	for row_v in LootTables.alpha_pool(species):
+		if not (row_v is Dictionary):
+			continue
+		var row := row_v as Dictionary
+		var item_id := StringName(str(row.get("id", "")))
+		if item_id == &"" or Data.item(item_id) == null:
+			continue
+		var lo := maxi(1, int(row.get("min", 1)))
+		var hi := maxi(lo, int(row.get("max", lo)))
+		for _i in rng.randi_range(lo, hi):
+			out.append(ItemStack.make(item_id, 1, {"level": level}, level))
+	return out
+
 ## Carcass loot from butchering.json base and rare rows (rare rows roll their "chance"). knife_tier &"" = no knife.
 ## node_tier is Data.butchering_level() (unlocked Butchering nodes gate skill rows);
 ## skill is the Butchering category level (scales the rare odds). Every part is ONE instance (owner rule
