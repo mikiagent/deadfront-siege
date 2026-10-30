@@ -68,6 +68,7 @@ var _orders_suppressed := false  # collapsed by hand during this activity: stays
 var _orders_frac := -1.0
 var _orders_frac_index := -1
 var _orders_poll := 0.0
+var _tasks_poll := 0.0  ## TASKSCREEN: seconds to the next claimable-task count for the MENU / Orders badge
 const ORDERS_AUTO_S := 4.0  # ASSUMPTION: the owner asked for "a few seconds"
 var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
 var _ctx_hexes: Array[HexButton] = []
@@ -1925,6 +1926,13 @@ func _tick_orders_auto(delta: float) -> void:
 	orders_auto_t = maxf(0.0, orders_auto_t - delta)
 	if orders_auto_t <= 0.0:
 		_orders_suppressed = false
+	_tasks_poll -= delta
+	if _tasks_poll <= 0.0:
+		_tasks_poll = 1.0
+		var ready := Tasks.claimable_count(player)
+		if ready != field.tasks_ready:
+			field.tasks_ready = ready
+			field.apply_badge()
 	_orders_poll -= delta
 	if _orders_poll > 0.0:
 		return

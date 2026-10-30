@@ -934,6 +934,8 @@ func _on_died(_source: Node) -> void:
 		if _source is FieldCatapult and is_instance_valid((_source as FieldCatapult).operator):
 			credited = (_source as FieldCatapult).operator
 		World.record_raid_kill(def.id, credited)
+		if PlayerRegistry.credit_for(credited) != null:
+			Tasks.note(&"hunt")  # TASKSCREEN: a kill by the survivor or her pet counts toward the hunt tasks
 	anim.play_clip(&"death")
 	# The dead creature stops physics processing before _update_aggro_ring can hide it. Remove the
 	# top-level world marker here so a dead dinosaur never leaves a red leash circle behind.

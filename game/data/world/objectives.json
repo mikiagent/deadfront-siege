@@ -14,6 +14,15 @@
       "t_stones": 1
     },
     {
+      "id": "tut_claim",
+      "_assumption": "ASSUMPTION (TASKSCREEN TS13, owner go 2026-10-29): order rewards wait in Tasks until Receive, so the tutorial teaches it right after the first reward.",
+      "title": "Claim your reward in Tasks",
+      "hint": "MENU > Tasks: press Receive on the finished order",
+      "received_any": true,
+      "point_at": "ui:Receive|ui:Tab_main|ui:Nav_orders|ui:MenuHex",
+      "xp": 10
+    },
+    {
       "id": "tut_branches",
       "title": "Gather 3 branches",
       "hint": "Tap a tree and pick Branch from the wheel",

@@ -469,6 +469,7 @@ func first_take_of(def_id: StringName) -> bool:
 	if _paid_kinds.has(def_id):
 		return false
 	_paid_kinds[def_id] = true
+	Tasks.note(&"butcher")  # TASKSCREEN: daily Butcher 10 Times (DW-T0119), one per part kind taken
 	return true
 
 func _kind_units() -> Dictionary:

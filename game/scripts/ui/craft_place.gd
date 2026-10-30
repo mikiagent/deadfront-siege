@@ -42,6 +42,8 @@ var _result: VBoxContainer
 var _qty_label: Label
 var _success: Label
 var _cta: Button
+## TRIBE M2a: "Assign…" beside the CTA (a recipe) / "Assign builder" (a filled site).
+var _assign: Button
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 16)
@@ -168,7 +170,15 @@ func _ready() -> void:
 	rbox.add_child(_pad(srow, 16, 10))
 	_cta = CraftUI.mk_btn("Place material", _on_cta, Vector2(0, 72), "cta")
 	_cta.name = "PlaceCta"
-	rbox.add_child(_pad(_cta, 14, 8))
+	_cta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var cta_row := HBoxContainer.new()
+	cta_row.name = "CtaRow"
+	cta_row.add_theme_constant_override("separation", 8)
+	cta_row.add_child(_cta)
+	_assign = CraftUI.mk_btn("Assign…", _on_assign, Vector2(0, 72), "ghost")
+	_assign.name = "AssignCta"
+	cta_row.add_child(_assign)
+	rbox.add_child(_pad(cta_row, 14, 8))
 
 # ---------------------------------------------------------------- state
 
@@ -408,7 +418,8 @@ func rebuild() -> void:
 	_cta.disabled = not all_placed() and focus_idx < 0
 	_cta.add_theme_font_size_override("font_size", 20 if compact else 30)
 	_cta.custom_minimum_size = Vector2(0, 64 if compact else 72)
-	for m in [_qty_label.get_parent().get_parent(), _success.get_parent().get_parent(), _cta.get_parent()]:
+	_sync_assign(compact)
+	for m in [_qty_label.get_parent().get_parent(), _success.get_parent().get_parent(), _cta.get_parent().get_parent()]:
 		(m as MarginContainer).add_theme_constant_override("margin_top", 2 if compact else 8)
 		(m as MarginContainer).add_theme_constant_override("margin_bottom", 2 if compact else 8)
 	_success.add_theme_font_size_override("font_size", 15 if compact else 20)
@@ -521,6 +532,76 @@ func _site_cta() -> void:
 	else:
 		auto_fill()
 
+# ---------------------------------------------------------------- TRIBE M2a: assign a member
+
+## The Assign button: shown when the tribe has members and the job can be handed off (a station
+## recipe; a site), live once the picks are placed (a recipe) or every material is in (a site).
+func _sync_assign(compact: bool) -> void:
+	if _assign == null:
+		return
+	_assign.add_theme_font_size_override("font_size", 18 if compact else 24)
+	_assign.custom_minimum_size = Vector2(0, 64 if compact else 72)
+	if site:
+		var who := TribeWork.worker_at(site)
+		_assign.visible = not Tribe.members.is_empty()
+		_assign.text = ("Stop " + who.name) if who else ("Assign" if compact else "Assign builder")
+		_assign.disabled = who == null and (not site.materials_ready() or site.ready_to_finish())
+		if who:
+			_cta.text = "%s building…" % who.name
+			_cta.disabled = true
+		return
+	_assign.visible = not Tribe.members.is_empty() and Crafting.station_id(rec) != ""
+	_assign.text = "Assign…"
+	_assign.disabled = not all_placed()
+
+func assign_station() -> Node3D:
+	return Crafting.nearest_station(host.player, StringName(Crafting.station_id(rec))) if host and host.player else null
+
+## The picker's rows: every member with its skill, success, time, or why it can't.
+func assign_rows() -> Array:
+	var rows: Array = []
+	var p := host.player if host else null
+	for r in Tribe.members:
+		var o := TribeWork.build_offer(r, site) if site else TribeWork.craft_offer(p, r, rec, assign_station(), picks())
+		rows.append({"record": r, "text": TribeWork.offer_text(r, o), "why": str(o["why"])})
+	return rows
+
+func _on_assign() -> void:
+	var p := host.player if host else null
+	if p == null:
+		return
+	if site:
+		var who := TribeWork.worker_at(site)
+		if who:
+			_refuse(TribeWork.cancel(p, who))
+			rebuild()
+			return
+		TribeAssignPicker.open_on(host.get_parent(), "Assign a builder · %s" % str(site.bp().get("display_name", "site")), assign_rows(), _assign_to)
+		return
+	TribeAssignPicker.open_on(host.get_parent(), "Assign a crafter · %s" % host._output_name(rec), assign_rows(), _assign_to)
+
+func _assign_to(r: TribeRecord) -> void:
+	var p := host.player
+	var why := ""
+	if site:
+		why = TribeWork.assign_build(r, site)
+	else:
+		var uids: Array[String] = []
+		var inv := _inv()
+		for idx in picks():
+			uids.append(inv.slots[idx].uid if idx >= 0 and inv.slots[idx] else "")
+		why = TribeWork.assign_craft(p, r, assign_station(), StringName(str(rec.get("id", ""))), uids)
+	if _refuse(why):
+		return
+	p.notice("%s: %s" % [r.name, TribeWork.plate_text(r)])
+	site = null
+	host.hide_ui()
+
+func _refuse(why: String) -> bool:
+	if why != "" and host and host.player:
+		host.player.notice(why)
+	return why != ""
+
 static func clock(seconds: float) -> String:
 	var t := maxi(0, ceili(seconds))
 	return "%02d:%02d:%02d" % [t / 3600, (t / 60) % 60, t % 60]
@@ -620,6 +701,7 @@ func _rebuild_site() -> void:
 	else:
 		_cta.text = "Fill Automatically"
 	_cta.disabled = site.materials_ready() and site.building and not site.ready_to_finish()
+	_sync_assign(compact)
 	_cta.add_theme_font_size_override("font_size", 18 if compact else 26)
 	_cta.custom_minimum_size = Vector2(0, 64 if compact else 72)
 	if host:

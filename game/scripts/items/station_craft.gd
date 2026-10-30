@@ -79,6 +79,7 @@ func open_station_menu(st: Node3D) -> void:
 	if actions.is_empty():
 		print("[craft] no actions for station %s" % station_id_of(st))
 		return
+	actions.append_array(assign_actions(st))
 	close_radial()
 	menu.show_for(st, actions)
 
@@ -111,8 +112,33 @@ func _on_menu_action(st: Node3D, action_id: StringName) -> void:
 				player.actions.pen_interact(st as TamingPen)
 		&"open":
 			player.actions.open_basket(st)
+		&"assign":
+			# TRIBE M2a: pick the recipe and its materials as for a craft, then "Assign…" in the panel.
+			var cui: Variant = player.get("craft_ui")
+			if cui != null and cui.has_method("show_for_station"):
+				cui.show_for_station(station_id_of(st))
+		&"stop_job":
+			var who := TribeWork.worker_at(st)
+			if who:
+				var why := TribeWork.cancel(player, who)
+				player.notice(why if why != "" else "%s stopped; the materials are back in your bag" % who.name)
 		_:
 			print("[craft] unknown station action %s" % action_id)
+
+## TRIBE M2a: the station's work-order hex. A member already working here gives STOP <name>; else a
+## station whose recipes a member could take (not a process station's own jobs) offers ASSIGN while
+## the tribe has members.
+static func assign_actions(st: Node3D) -> Array:
+	var who := TribeWork.worker_at(st)
+	if who:
+		return [{"id": &"stop_job", "label": "STOP " + who.name.to_upper(), "icon": "", "glyph": "■"}]
+	if Tribe.members.is_empty() or not (st is CraftStation):
+		return []
+	var ps := ProcessStation.of(st)
+	for rec in Crafting.recipes_for_station(StringName(Crafting.node_station_id(st))):
+		if ps == null or not ps.runs(StringName(str(rec.get("id", "")))):
+			return [{"id": &"assign", "label": "ASSIGN", "icon": "", "glyph": "A"}]
+	return []
 
 ## REMOVE (confirmed on the radial): demolish a placed building. What it held goes back to the bag
 ## (then home cargo, then a loot bag; StructureHealth.salvage), never deleted. Refund per the demolish

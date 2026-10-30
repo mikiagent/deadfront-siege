@@ -40,6 +40,7 @@ var choice_id: String = ""  ## what INTERACT shows now ("" = nothing in reach, t
 var _left := 0.0
 ## kind -> {"n": int, "urgent": bool}. Counts shown on the MENU hex; cleared when that sheet opens.
 var notices: Dictionary = {}
+var tasks_ready: int = 0  ## TASKSCREEN: Tasks.claimable_count, refreshed by HuntHud once a second
 
 func _init(owner: HuntHud) -> void:
 	hud = owner
@@ -157,11 +158,12 @@ func clear(kind: StringName) -> void:
 		apply_badge()
 
 ## TRIBE M1: recruits waiting at the dock count on Animals (and the MENU hex) until they are accepted
-## or denied; opening the screen does not clear them.
+## or denied; opening the screen does not clear them. TASKSCREEN: tasks waiting for Receive count on
+## Orders the same way (tasks_ready, polled by HuntHud) until they are received.
 func count(kind: StringName = &"") -> int:
 	if kind != &"":
-		return int((notices.get(kind, {"n": 0}) as Dictionary)["n"]) + (Tribe.pending.size() if kind == &"animals" else 0)
-	var n := Tribe.pending.size()
+		return int((notices.get(kind, {"n": 0}) as Dictionary)["n"]) + (Tribe.pending.size() if kind == &"animals" else 0) + (tasks_ready if kind == &"orders" else 0)
+	var n := Tribe.pending.size() + tasks_ready
 	for k in notices:
 		n += int(notices[k]["n"])
 	return n

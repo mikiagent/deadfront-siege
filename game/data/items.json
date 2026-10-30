@@ -449,7 +449,7 @@
       "damage": 18,
       "damage_type": "slashing",
       "is_work_tool": true,
-      "max_durability": 40,
+      "max_durability": 120,
       "stats_per_level": {
         "damage": 0.02,
         "max_durability": 0.02

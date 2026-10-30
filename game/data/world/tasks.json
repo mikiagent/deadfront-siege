@@ -1,0 +1,46 @@
+{
+  "_about": "TASKSCREEN 2026-10-28: the Task screen's categories (Durango's Task screen). Sources: docs/reference/durango_all_tasks_research.xlsx (Task Board sheet, ids DW-T01xx in 'source'; see docs/reference/tasks.md). Main Task = the standing orders of objectives.json (and the tutorial orders while the tutorial runs), with their own xp / t_stones. The sheet records almost no reward amounts or quantities, so every 'want' and reward below that the sheet leaves blank is an ASSUMPTION (logged in docs/vision/WildLandsMMO_Open_Questions.md TS1-TS12). Rewards are claimed by hand with Receive. Daily resets at 00:00 UTC, weekly at Monday 00:00 UTC. 'count' names what is counted (Tasks.note kinds, or 'craft:<recipe id>'); a list sums. 'hidden': true = data only, not shown or tracked (the game has no system for it yet; '_why' says what is missing).",
+  "daily": [
+    {"id": "gather", "source": "DW-T0122", "title": "Gather Resources", "desc": "Gather %d materials today.", "count": "gather", "want": 30, "icon": "gathering", "t_stones": 5, "xp": 40},
+    {"id": "butcher", "source": "DW-T0119", "title": "Butcher 10 Times", "desc": "Butcher %d times today: each kind of part taken from a carcass counts once.", "count": "butcher", "want": 10, "icon": "butchering", "t_stones": 5, "xp": 40},
+    {"id": "trim", "source": "DW-T0117", "title": "[Daily] Material Processing", "desc": "Trim %d planks at a workbench today.", "count": "craft:trimmed_plank", "want": 3, "icon": "processing", "t_stones": 5, "xp": 40},
+    {"id": "stone_blade", "source": "DW-T0121", "title": "Craft Stone Blades", "desc": "Craft %d stone knives today.", "count": ["craft:improvised_stone_knife", "craft:stone_knife"], "want": 2, "icon": "weapon_tools", "t_stones": 5, "xp": 40},
+    {"id": "build", "source": "DW-T0123", "title": "Construct a Building", "desc": "Build %d structure today.", "count": "build", "want": 1, "icon": "construction", "t_stones": 5, "xp": 40},
+    {"id": "hunt", "title": "Daily Hunt", "desc": "Hunt down %d wild animals today.", "count": "hunt", "want": 2, "icon": "melee", "t_stones": 5, "xp": 40},
+    {"id": "leaf_outfit", "source": "DW-T0120", "hidden": true, "_why": "no leaf_outfit recipe exists yet (only the Tailoring node)", "title": "Craft Leaf Outfits", "desc": "Craft %d leaf outfits today.", "count": "craft:leaf_outfit", "want": 2, "icon": "tailoring", "t_stones": 5, "xp": 40},
+    {"id": "task_points", "source": "DW-T0124", "hidden": true, "_why": "no task points yet (Warp Gems exist since BAGUI)", "title": "Daily Task Points", "desc": "Reach %d daily task points.", "count": "task_points", "want": 50, "icon": "notice", "durango_reward": "15 Warp Gems"}
+  ],
+  "weekly": [
+    {"id": "explore30", "source": "DW-T0125", "title": "Explore Level-30 Islands", "desc": "Land on a level 30+ island %d times this week.", "count": "explore30", "want": 2, "icon": "map", "t_stones": 100, "xp": 300, "durango_reward": "around 10,000 T-Stones (2019 player estimate); scaled to this economy, TS9"},
+    {"id": "gather", "title": "Weekly Gathering", "desc": "Gather %d materials this week.", "count": "gather", "want": 300, "icon": "gathering", "t_stones": 25, "xp": 250},
+    {"id": "craft", "title": "Weekly Crafting", "desc": "Craft %d items this week.", "count": "craft", "want": 25, "icon": "craft", "t_stones": 25, "xp": 250},
+    {"id": "hunt", "title": "Weekly Hunt", "desc": "Hunt down %d wild animals this week.", "count": "hunt", "want": 15, "icon": "melee", "t_stones": 25, "xp": 250}
+  ],
+  "domain": [
+    {"id": "campfire", "title": "Light a Campfire", "desc": "Build a campfire in your domain.", "kind": "campfire", "want": 1, "icon": "station_campfire", "t_stones": 5, "xp": 30, "sp": 1},
+    {"id": "basket", "title": "Place a Basket", "desc": "Place a storage basket in your domain.", "kind": "basket", "want": 1, "icon": "store", "t_stones": 5, "xp": 30, "sp": 1},
+    {"id": "tent", "title": "Pitch a Tent", "desc": "Pitch a tent in your domain.", "kind": "tent", "want": 1, "icon": "sleep", "t_stones": 5, "xp": 30, "sp": 1},
+    {"id": "workbench", "title": "Build a Workbench", "desc": "Place a workbench in your domain.", "kind": "workbench", "want": 1, "icon": "station_workbench", "t_stones": 10, "xp": 50, "sp": 1},
+    {"id": "drying_rack", "title": "Build a Drying Rack", "desc": "Build a drying rack in your domain.", "kind": "drying_rack", "want": 1, "icon": "station_drying_rack", "t_stones": 10, "xp": 50, "sp": 1},
+    {"id": "taming_pen", "title": "Build a Taming Pen", "desc": "Build a taming pen in your domain.", "kind": "makeshift_taming_pen", "want": 1, "icon": "pen", "t_stones": 15, "xp": 80, "sp": 1},
+    {"id": "well", "title": "Dig a Well", "desc": "Dig a well in your domain.", "kind": "well", "want": 1, "icon": "station_well", "t_stones": 15, "xp": 80, "sp": 1},
+    {"id": "fence", "title": "Raise a Fence Line", "desc": "Place %d fences in your domain.", "kind": "fence", "want": 10, "icon": "build", "t_stones": 10, "xp": 60, "sp": 1},
+    {"id": "advanced_kiln", "source": "DW-T0127", "hidden": true, "_why": "no placeable kiln exists yet", "title": "Construct an Advanced Kiln", "desc": "Build an advanced kiln in your domain.", "kind": "advanced_kiln", "want": 1, "icon": "station_kiln", "sp": 1}
+  ],
+  "achievement": {
+    "_source": "DW-T0137 (+1 Skill Point for the mineral task); the level chains are ours (TS4)",
+    "character_levels": [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60],
+    "skill_levels": [10, 20, 30, 40, 50, 60],
+    "_reward": "per level milestone L: L T-stones, 1 skill point, 5 x L character XP",
+    "t_stones_per_level": 1,
+    "xp_per_level": 5,
+    "skill_points": 1,
+    "tasks": [
+      {"id": "minerals60", "source": "DW-T0137", "title": "Gather Level-60 Minerals", "desc": "Gather %d minerals of material level 60.", "count": "mineral60", "want": 1000, "icon": "mine", "sp": 1}
+    ]
+  },
+  "main_hidden": [
+    {"id": "cheer", "source": "DW-T0126", "hidden": true, "_why": "no emotes and no other players yet", "title": "Encourage Other Pioneers With a Cheer"},
+    {"id": "finale", "source": "DW-T0135", "hidden": true, "_why": "no story chapters in the PRDs", "title": "Final storyline (8 quests)"}
+  ]
+}

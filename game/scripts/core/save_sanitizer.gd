@@ -28,6 +28,7 @@ const SHAPE := {
 	"pioneer_xp": 0, "pioneer_level": 0, "xp_curve": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
 	"player_name": "", "player_title": "", "occupation": "", "character_look": {}, "t_stones": 0, "warp_gems": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
+	"tasks": {"claimed": {}, "done": {}, "counts": {}, "day": 0, "week": 0},
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
 	"clock": 0.0, "saved_unix": 0,
 }
@@ -164,6 +165,8 @@ static func clean(data: Dictionary) -> Dictionary:
 				for r: Dictionary in data["tribe"][k]:
 					if r.get("carry") is Array:
 						r["carry"] = stacks(r["carry"])
+					if r.get("escrow") is Array:
+						r["escrow"] = stacks(r["escrow"])
 					var gear := {}
 					if r.get("equipment") is Dictionary:
 						for slot in r["equipment"]:
