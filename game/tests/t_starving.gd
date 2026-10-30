@@ -56,6 +56,7 @@ func _run() -> void:
 	_test_data()
 	await _test_appears_and_clears()
 	await _test_nonlethal()
+	_test_dot_never_interrupts()
 	if _fails.is_empty():
 		print("[t_starving] PASS")
 		quit(0)
@@ -135,6 +136,41 @@ func _test_appears_and_clears() -> void:
 	_expect(v.fullness_state != &"empty" and not _player.statuses.has(&"starving") and _player.sim.starving_s == 0.0, "a meal clears Starving (%s)" % v.fullness_state)
 	await _frames(4)
 	_expect(not sx.boxes.has(&"starving") and sx.vignette_alpha == 0.0, "its box and the vignette are gone")
+
+## HUNGER memo Part 1 s1.4 step 3 (owner 2026-10-29: "let me harvest berries while im hungry"): a status
+## tick hurts but never cancels a gather or ends a sleep; a real hit still does both.
+func _test_dot_never_interrupts() -> void:
+	var dig = DIG.of(_player)
+	var v = _player.vitals
+	_player.statuses.from_array([])
+	v.revive(v.effective_max_health())
+	_player.dead = false
+	_player._sleep_left = 0.0
+	dig.set_fullness(0.0)
+	_player.sim.starving_s = DIG.starving_after_s() + 1.0
+	dig.empty_for_s = _player.sim.starving_s
+	_sim()
+	_expect(_player.statuses.has(&"starving"), "she is starving for the interrupt check")
+	# A real harvest node (the island's own bushes are not guaranteed on this lab terrain).
+	var node := HarvestNode.new()
+	_host.add_child(node)
+	node.setup(&"probe_bush", &"berry", 1, 2, {}, &"none", Color.GREEN)
+	_expect(not node.depleted, "a live harvest node exists to gather from")
+	_player.gather_target = node
+	_player._sleep_left = 30.0
+	var hp: float = v.health
+	_player.statuses._dot(_player.statuses.get_instance(&"starving"))
+	_expect(v.health < hp, "the starving tick lands (%.2f -> %.2f)" % [hp, v.health])
+	_expect(_player.gather_target == node, "a status tick does not cancel the gather")
+	_expect(_player._sleep_left > 0.0, "a status tick does not end the sleep (%.1f s left)" % _player._sleep_left)
+	# A real hit still cancels both: the guard is specific to status ticks.
+	v.take_damage(3.0)
+	_expect(_player.gather_target == null, "a hit cancels the gather")
+	_expect(_player._sleep_left <= 0.0, "a hit ends the sleep")
+	node.queue_free()
+	_player.statuses.from_array([])
+	_player.sim.starving_s = 0.0
+	dig.set_fullness(60.0)
 
 func _test_nonlethal() -> void:
 	var dig = DIG.of(_player)
