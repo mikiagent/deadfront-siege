@@ -54,7 +54,10 @@ going left is going south."
 
 - PASS: t_northup, t_camera, t_levelbadge, t_mapui, t_tutguide, t_playerturn, t_switch2d, t_structart,
   t_weather, t_card2d, run_all (`[tests] PASS`), `tools/smoke.sh --no-import` (SMOKE PASS).
-- t_controls exits rc=70 silently after "inventory is a right-side sheet": the same on an untouched
-  origin/claude/mmo-overhaul checkout, so not from this change.
-- t_fieldhud: 1 FAIL, TACKLE caption overlaps the AUTOABILITY hex at 1600x900 (HUD layout from the
-  AUTOABILITY merge, not camera-related; see the base check in the hand-off).
+- t_controls exits rc=70 with no FAIL line, right after "inventory is a right-side sheet" (entering the
+  Drop/Destroy world-bag case, which does not touch the camera). NOT verified against a clean base: my
+  base-checkout attempt reused this worktree's .godot cache and failed to compile, so it proves nothing.
+- t_fieldhud: 1 FAIL, TACKLE caption overlaps the AUTOABILITY hex at 1600x900. That is screen-space
+  HUD layout (HudLayout, AUTOABILITY merge), not camera-dependent; also not verified on a clean base.
+- The screenshots were taken before the final sun band change ([-80,-130] -> [-55,-105]); the camera
+  orientation in them is the shipped one.
