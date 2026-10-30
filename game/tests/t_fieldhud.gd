@@ -326,8 +326,19 @@ func _test_idle_redraw() -> void:
 	var draws: int = int(_hud.draw_count) - d0
 	var map_draws: int = int(_hud.map_draw_count) - m0
 	print("[t_fieldhud] idle 60 frames: HUD draws %d, minimap draws %d" % [draws, map_draws])
-	_expect(draws <= 6, "with nothing changing for 60 frames the HUD paints at most a 1 Hz catch-up (%d)" % draws)
+	_expect(draws <= 6, "with nothing changing for 60 frames the HUD paints only while the belt's drift creeps a pixel (%d)" % draws)
 	_expect(map_draws <= 2, "the minimap stands still too (%d draws over 60 frames)" % map_draws)
+	# With nothing animating at all (the exhaustion belt at rest) it paints not once.
+	_hud._fat_rate = 0.0
+	_hud._fat_forgive = 0.0
+	await _frames(10)
+	var still0: int = int(_hud.draw_count)
+	var stillm0: int = int(_hud.map_draw_count)
+	await _frames(60)
+	var still: int = int(_hud.draw_count) - still0
+	print("[t_fieldhud] idle 60 frames with nothing animating: HUD draws %d, minimap draws %d" % [still, int(_hud.map_draw_count) - stillm0])
+	_expect(still == 0, "with nothing changing and nothing animating the HUD does not repaint (%d draws)" % still)
+	_expect(int(_hud.map_draw_count) - stillm0 == 0, "nor does the minimap")
 	# A change it draws still reaches the screen at once.
 	var before: int = int(_hud.draw_count)
 	_player.vitals.health = maxf(1.0, _player.vitals.health - 10.0)
