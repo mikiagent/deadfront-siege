@@ -64,3 +64,21 @@ flags should move into the save together.
   `auto:true` and a damage expression; `AutoAbility.pick` already handles cooldown/energy/reach.
 - If "most powerful" should count status effects (groggy value, knockdown), extend the row with a
   `value` field and rank on it — the picker is the only place to change.
+
+## Re-merge (2026-10-30, integrator follow-up)
+
+Canon moved (FOODTORPOR, SLOWLEVELS, CREATURECHIPS, CHASESPRINT, STYRATACTICS landed on
+`origin/claude/mmo-overhaul`), so the branch re-merged it (merge commit `b195a71e`).
+
+- Conflicts in `docs/current/controls.md` and `docs/vision/WildLandsMMO_Open_Questions.md` only;
+  both resolved keeping BOTH sides: controls.md now has AUTO-ABILITY followed by Chase sprint
+  (before Full screen); Open Questions keeps AUTOABILITY, TASKSCREEN and STYRA together.
+- Everything else auto-merged: `hunt.gd`/`auto_ability.gd`/`combat_tuning.json "auto_ability"`
+  and the HUD hex all intact; canon code (CHASE_SPRINT, CreaturePlateChip, spoilage) present.
+- One environment gotcha, not a code change: the 180-file merge left the `.godot` class cache
+  stale, so the first gate run failed every test with "Identifier "TribeWork" not declared"
+  cascades. Re-imported headless (`--import`) and all green.
+- Re-ran the gate after the merge: **VERIFY PASS** (t_autoability, t_combat, t_controls,
+  t_targetui, run_all, smoke all pass; log `/tmp/autoability_verify/`). `tools/smoke.sh
+  --no-import` standalone: SMOKE PASS. t_autoability: `[t_autoability] PASS` exit 0.
+- No new feature changes in this pass; the feature shipped at 564047c3 and behaves as before.
