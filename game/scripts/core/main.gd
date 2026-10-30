@@ -41,9 +41,14 @@ func _ready() -> void:
 			hud.name = "HuntHud"
 			hud.bind(player)
 			$UI.add_child(hud)
-			var pointer := TutorialPointer.new()  # TUTORIAL ISLAND: draws over the HUD, only while a tutorial order runs
+			# TUTORIAL ISLAND: draws over the HUD and every menu (layer 97, above the modals' 96), only while a tutorial order runs
+			var tut_layer := CanvasLayer.new()
+			tut_layer.name = "TutorialLayer"
+			tut_layer.layer = 97
+			add_child(tut_layer)
+			var pointer := TutorialPointer.new()
 			pointer.player = player
-			$UI.add_child(pointer)
+			tut_layer.add_child(pointer)
 			if "--tutorial-bot" in OS.get_cmdline_user_args():
 				var tbot = (load("res://scripts/dev/tutorial_bot.gd") as GDScript).new()
 				tbot.name = "TutorialBot"

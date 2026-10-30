@@ -342,6 +342,9 @@ func _test_no_tame() -> void:
 		c.is_capturable = true
 	_expect(FT.capture_window(n), "a normal animal at 10 %% HP is in the capture window")
 	_expect(not FT.capture_window(a), "an alpha at 10 %% HP is NOT in the capture window")
+	# FOODTORPOR's knock-out path (Creature.add_torpor): a weak alpha sedated past the threshold never collapses.
+	a.add_torpor(a.torpor_max())
+	_expect(not a.statuses.has(&"knockdown"), "a weak, fully sedated alpha is not knocked out")
 	_expect(not FT.can_attempt(a), "the feeding tame refuses an alpha")
 	_expect(FT.alpha_lock(a) == FT.ALPHA_REFUSAL and FT.alpha_lock(n) == "", "alpha_lock reads '%s' / '%s'" % [FT.alpha_lock(a), FT.alpha_lock(n)])
 	_expect(FT.refuse_message(a) == FT.ALPHA_REFUSAL, "the refusal message is '%s' (got '%s')" % [FT.ALPHA_REFUSAL, FT.refuse_message(a)])

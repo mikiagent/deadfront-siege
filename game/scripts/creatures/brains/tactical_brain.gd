@@ -241,6 +241,10 @@ func hit_damage_mult(clip: StringName, hit_index: int) -> float:
 		mult = float(mults[clampi(hit_index, 0, mults.size() - 1)])
 	elif clip == &"kick":
 		mult = _t("kick_mult", 1.0)
+	elif clip == &"attack_heavy":
+		# ASSUMPTION (horned_charger): the sweeping horn swipe, x heavy_mult (2.2). Only the
+		# anim-driven attack_heavy reads this (the charge and the pounce pass their own mult).
+		mult = _t("heavy_mult", 1.0)
 	tactic_hit.emit(clip, hit_index, mult)
 	return mult
 
@@ -496,6 +500,10 @@ func attack_available(move: StringName, d: float) -> bool:
 			return creature.can_sprint()
 		&"kick":
 			return creature.anim.has_state(&"kick") and in_reach and _prey_behind()
+		&"heavy":
+			# The sweeping horn swipe (the attack_heavy clip, a CONTRACT clip): point blank only,
+			# in front (the horns sweep the head's arc). ASSUMPTION: heavy_mult, heavy_cd.
+			return creature.anim.has_state(&"attack_heavy") and in_reach
 		&"bite":
 			# Anti-spam (owner: "what i want to avoid is basic attack spam"): a non-attack beat between
 			# two basics, and at most max_basic_streak basics before a beat or a special.
@@ -537,6 +545,8 @@ func _strike(d: float, only: Array = []) -> bool:
 				_start_charge()
 			&"kick":
 				_kick()
+			&"heavy":
+				_heavy()
 		return true
 	return false
 
@@ -773,6 +783,19 @@ func _kick() -> void:
 	_set_state(&"attack")
 	_mark_pack()
 	tactic.emit(&"kick")
+
+## The sweeping horn swipe (horned_charger, ASSUMPTION): the attack_heavy clip at point blank with
+## the prey in front — a wide head sweep, x heavy_mult. Not a basic: no anti-spam beat needed.
+func _heavy() -> void:
+	_just_disengaged = false
+	_basic_streak = 0
+	creature.stop_move()
+	creature.anim.play_clip(&"attack_heavy")
+	_start_cd(&"heavy")
+	_set_state(&"attack")
+	_mark_pack()
+	tactic.emit(&"heavy")
+	_log("[ai] %s horn swipe" % creature.def.id)
 
 ## Threat display (owner 2026-10-28: "head lowering"): it stops, faces the threat and plays the alert
 ## pose for display_s. In a sequence it leads into the charge. As a grazer's standoff (not provoked)

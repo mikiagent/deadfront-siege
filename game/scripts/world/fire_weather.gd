@@ -43,6 +43,16 @@ static func roof_over(tree: SceneTree, at: Vector3) -> Node3D:
 		var p := sp.global_position
 		if absf(p.x - at.x) <= half and absf(p.z - at.z) <= half and p.y > at.y + 0.5:
 			return sp
+	# Prebuilt roofs that are not structure pieces (the tutorial town's fire-pit shelter, TownDress):
+	# a Node3D in group fire_roof at roof height, covering meta "half" metres each way.
+	for n in tree.get_nodes_in_group(&"fire_roof"):
+		var r := n as Node3D
+		if r == null or r.is_queued_for_deletion():
+			continue
+		var h := float(r.get_meta(&"half", half))
+		var q := r.global_position
+		if absf(q.x - at.x) <= h and absf(q.z - at.z) <= h and q.y > at.y + 0.5:
+			return r
 	return null
 
 ## 0..1: how closed in `at`'s module is (walls 1, windows 0.8, doorways 0.5 on its four edges, at its

@@ -116,3 +116,18 @@ Gate: `verify_alphatag.sh` (now includes `t_data`) -> **VERIFY PASS**: t_data, t
 t_capture09, t_tame, run_all, smoke, report. Nothing pushed.
 
 Gate log for this re-merge: `.dsc/verify_merge.log` (VERIFY PASS, exit 0).
+
+## Re-merge 2026-10-29 (Claude, canon 0ee384b9: TUTTOWN, TUTORIAL ISLAND, LABSPAWN on top of FOODTORPOR)
+
+- Only conflict this time: `docs/vision/WildLandsMMO_Open_Questions.md` — kept ALPHATAG AT1-AT7 and canon's
+  TUTTOWN TT1-TT6. `items.json` / `world_facade.gd` were already resolved in the previous re-merge (275 items,
+  both `torpor` and `alpha` keys) and merged clean now.
+- Torpor knock-out: `Creature.add_torpor` only collapses an animal when `FieldTame.capture_window` is true,
+  which is false for an alpha, so an alpha can never be knocked out into capture; the server's `_tame` /
+  `_capture` refuse `alpha` before `window_open`. `t_alphas._test_no_tame` now also doses a weak alpha to full
+  torpor and asserts no `knockdown`.
+- t_data root cause (copper-tier primary on improvised_stone_knife / work_axe / work_pick): `alpha_fang` is
+  `blade_mat`+`talon` with `hardness` 4, and `ProgressionScaling.material_tier` maps untagged hardness 4 to
+  copper. Fixed at the item (`material_tier: "bone"`), t_data untouched.
+- Gate: t_data, t_alphas, t_genetics, t_capture09, t_tame, t_foodtorpor, t_butcher, t_natures, run_all PASS;
+  `tools/smoke.sh --no-import` SMOKE PASS.
