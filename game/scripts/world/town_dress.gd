@@ -283,7 +283,9 @@ func _garden(c: Vector3, w: float, yaw: float) -> void:
 	var b := Basis(Vector3.UP, yaw)
 	for i in int(gw / 2.0):
 		var stage: String = ["field_crop_1", "field_crop_2", "field_crop_3", "field_tilled"][_rng.randi_range(0, 3)]
-		prop(stage, c + b * Vector3(-gw * 0.5 + 1.0 + 2.0 * float(i), 0, 0), yaw, 0.8)
+		var at := c + b * Vector3(-gw * 0.5 + 1.0 + 2.0 * float(i), 0, 0)
+		at.y = rt.surface_y(at.x, at.z)
+		prop(stage, at, yaw, 0.8)
 	_fence_rect(c, gw + 0.4, 3.8, yaw, false)
 	if _rng.randf() < 0.3:
 		prop(["scarecrow", "barrel", "compost_heap"][_rng.randi_range(0, 2)], c + b * Vector3(gw * 0.5 + 0.8, 0, 0), yaw)
@@ -518,10 +520,8 @@ func _field_lot(deg: float, r: float) -> float:
 	for i in 4:
 		for j in 3:
 			var at := c + b * Vector3(-3.0 + 2.0 * float(i), 0, -2.0 + 2.0 * float(j))
-			var crop: String = s1 if i < 2 else s2
-			if crop != "field_tilled":
-				prop("field_tilled", at, yaw)  # the crop stands in a tilled bed, not on lawn
-			prop(crop, at, yaw)
+			at.y = rt.surface_y(at.x, at.z)  # each 2 m bed on its own ground: on a slope they sank under the grass
+			prop(s1 if i < 2 else s2, at, yaw)
 	_fence_rect(c, 8.6, 6.6, yaw, true)
 	prop(["scarecrow", "compost_heap", "well", "trellis"][_rng.randi_range(0, 3)], c + b * Vector3(5.2, 0, 0), yaw)
 	if _rng.randf() < 0.5:
