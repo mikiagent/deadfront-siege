@@ -41,6 +41,12 @@ var _instance: ItemStack
 var _consumed: Array[String] = []
 ## Injectable for reproducible raw-food rolls (tests, server).
 var rng: RandomNumberGenerator = null
+## BAGUI eat queue (owner 2026-10-28: "select multiple and for it to eat them in queue"): the exact
+## instances still to eat, in the order picked. Each goes through begin_eat like a single eat; a move,
+## a hit (Health drops) or a Full stomach stops the queue with a notice.
+var queue: Array[ItemStack] = []
+var _queue_hp := 0.0
+var last_queue_stop := ""
 var risk_rolled: bool = false
 var last_risk: StringName = &""
 
@@ -72,6 +78,10 @@ func _process(delta: float) -> void:
 func advance(delta: float) -> void:
 	if not eating or player == null:
 		return
+	if not queue.is_empty() and player.vitals and player.vitals.health < _queue_hp - 0.01:
+		_stop_queue("Hit: eating stopped.") # the current bite finishes or is cancelled as usual
+	if player.vitals:
+		_queue_hp = player.vitals.health
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if input.length_squared() > 0.04 or player.nav_active:
 		_cancel_with_full()
@@ -142,6 +152,42 @@ func _finish() -> void:
 		str(_stack_snapshot.def_id), float(paid.get("instant_energy", 0.0)),
 		float(paid.get("digested_energy", 0.0)), player.vitals.energy])
 	_clear()
+	_next_in_queue()
+
+## Eat `stacks` (exact bag instances) one after another, in that order. Returns how many queued
+## (the first starts now); 0 when the first cannot be eaten (Full, not food).
+func begin_queue(stacks: Array[ItemStack]) -> int:
+	if player == null or eating:
+		return 0
+	queue = stacks.filter(func (st: ItemStack) -> bool: return st != null and Food.is_food(st))
+	var n := queue.size()
+	last_queue_stop = ""
+	_queue_hp = player.vitals.health if player.vitals else 0.0
+	return n if _next_in_queue() else 0
+
+## Start the next queued instance still in the bag; false (and the queue cleared) when none can go.
+func _next_in_queue() -> bool:
+	while not queue.is_empty():
+		var st: ItemStack = queue.pop_front()
+		var idx := player.inventory.slots.find(st)
+		if idx < 0:
+			continue # it left the bag meanwhile: skip it, never eat another instance
+		if Food.can_eat(player, st) == "full":
+			queue.push_front(st) # still in the queue when it stops, so the stop reports it
+			_stop_queue("Too full to eat more.")
+			return false
+		if begin_eat(idx):
+			return true
+	return false
+
+func _stop_queue(why: String) -> void:
+	if queue.is_empty():
+		return
+	queue.clear()
+	last_queue_stop = why
+	print("[food] eat queue stopped: %s" % why)
+	if player and player.has_method("notice"):
+		player.notice(why)
 
 ## Consume the exact instance the transaction started on. False when the bag changed underneath
 ## (a market sale, a pet feed): the eat then pays nothing, which is the only safe outcome.
@@ -278,10 +324,12 @@ func _cancel_with_full() -> void:
 	if progress >= RAW_RISK_CANCEL_AT:
 		_roll_raw_risk()
 	_apply_full()
+	_stop_queue("Moved: eating stopped.")
 	_clear()
 
 func _abort(why: String) -> void:
 	print("[food] eat aborted: %s" % why)
+	_stop_queue("Eating stopped.")
 	_clear()
 
 func _roll_raw_risk() -> void:

@@ -87,14 +87,14 @@ func _test_traits() -> void:
 	var sec: Dictionary = IA.sections(bone)
 	_expect((sec.positive as Array).size() == 1 and IA.line(sec.positive[0]) == "Firm Lv. 8", "Firm Lv. 8 is positive (%s)" % [sec.positive])
 	_expect((sec.negative as Array).size() == 1 and IA.line(sec.negative[0]) == "Low Density Lv. 3", "Low Density Lv. 3 is negative (%s)" % [sec.negative])
-	_expect((sec.rare as Array).size() == 1 and IA.line(sec.rare[0]) == "Black Sheen", "Black Sheen is rare (%s)" % [sec.rare])
+	_expect((sec.rare as Array).size() == 1 and IA.line(sec.rare[0]) == "Black Sheen I", "Black Sheen is rare (%s)" % [sec.rare])
 	_expect(IA.has_rare(bone) and not IA.has_rare(IS.make(&"bone", 1, {"firm": 2})), "only a rare trait marks the slot")
 	var rows: Array = CARD.rows_for(bone)
 	var by_cls := {}
 	for r: Dictionary in rows:
 		by_cls[str(r.text)] = str(r.cls)
 		_expect(not str(r.text).to_lower().contains("tint") and not str(r.text).to_lower().contains("hardness"), "technical keys never show (%s)" % r.text)
-	_expect(by_cls.get("Firm Lv. 8") == "positive" and by_cls.get("Low Density Lv. 3") == "negative" and by_cls.get("Black Sheen") == "rare", "the card classes each trait (%s)" % [by_cls])
+	_expect(by_cls.get("Firm Lv. 8") == "positive" and by_cls.get("Low Density Lv. 3") == "negative" and by_cls.get("Black Sheen I") == "rare", "the card classes each trait (%s)" % [by_cls])
 	_expect(CARD.color_of("positive") == Color("#D9B65A") and CARD.color_of("negative") == Color("#A6A69B") and CARD.color_of("rare") == Color("#67B84E"),
 		"gold positive, grey negative, green rare")
 	for t in load("res://scripts/items/crafting.gd").rare_attributes():
@@ -181,9 +181,9 @@ func _test_screen() -> void:
 		_expect(not ui._new_uids.has(inv.slots[stone_i].uid) and not ui._grid.cell_for(stone_i).is_new, "%s: tapping it acknowledges NEW" % view)
 		# The card: a berry shows Eat and no Equip; the bone's traits are classed.
 		ui._on_bag_slot_tapped(inv.find_first(&"berry"))
-		_expect(ui._card.visible and ui._eat_btn.visible and not ui._equip_btn.visible, "%s: the berry's card offers Eat, not Equip" % view)
+		_expect(ui._card.visible and ui._use_btn.text.contains("Eat") and not ui._equip_btn.visible, "%s: the berry's card offers Eat (its Use), not Equip" % view)
 		ui._on_bag_slot_tapped(inv.find_first(&"stone_knife"))
-		_expect(ui._equip_btn.visible and not ui._eat_btn.visible, "%s: the knife's card offers Equip, not Eat" % view)
+		_expect(ui._use_btn.text.contains("Equip") and not ui._eat_btn.visible, "%s: the knife's card offers Equip (its Use), not Eat" % view)
 		ui._on_bag_slot_tapped(inv.find_first(&"bone"))
 		await _layout(ui, view, "bag card")
 		# Storage tab: transfers both ways conserve every instance.
@@ -202,7 +202,7 @@ func _test_screen() -> void:
 		var bone_i: int = inv.find_first(&"bone")
 		var bone_uid: String = inv.slots[bone_i].uid
 		ui._on_bag_slot_tapped(bone_i)
-		_expect(ui._store_btn.visible and ui._store_btn.text == "Transfer to Small Box", "%s: a bag item offers Transfer to Small Box" % view)
+		_expect(ui._use_btn.visible and ui._use_btn.text == "Transfer to Small Box", "%s: a bag item's big button is Transfer to Small Box" % view)
 		ui._store_btn.pressed.emit()
 		_expect(box.uids().has(bone_uid) and not inv.uids().has(bone_uid), "%s: the exact bone moves to the box" % view)
 		_expect(inv.uids().merged(box.uids()) == all_before, "%s: transfers conserve every instance (%d)" % [view, all_before.size()])
@@ -330,7 +330,7 @@ func _test_paint() -> void:
 	for i in range(1, 10):
 		_mouse(c0, mid.call(i), null)
 	_expect(g.multi.size() == 10, "dragging over 10 cells selects 10 (%d)" % g.multi.size())
-	_expect(ui._batch_label.visible and ui._batch_label.text == "10 selected", "the toolbar counts them (%s)" % ui._batch_label.text)
+	_expect(ui._cap_label.text == "10 Select", "the header counts them (%s)" % ui._cap_label.text)
 	_mouse(c0, mid.call(5), null)
 	_expect(g.multi_list() == [0, 1, 2, 3, 4, 5], "dragging back un-paints (%s)" % [g.multi_list()])
 	_mouse(c0, mid.call(0), null)

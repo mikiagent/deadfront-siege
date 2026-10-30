@@ -26,8 +26,9 @@ const SHAPE := {
 	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "xp_curve": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
-	"player_name": "", "player_title": "", "occupation": "", "character_look": {}, "t_stones": 0, "visited_islands": {}, "raid_victory": false,
+	"player_name": "", "player_title": "", "occupation": "", "character_look": {}, "t_stones": 0, "warp_gems": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
+	"tasks": {"claimed": {}, "done": {}, "counts": {}, "day": 0, "week": 0},
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
 	"clock": 0.0, "saved_unix": 0,
 }
@@ -164,6 +165,8 @@ static func clean(data: Dictionary) -> Dictionary:
 				for r: Dictionary in data["tribe"][k]:
 					if r.get("carry") is Array:
 						r["carry"] = stacks(r["carry"])
+					if r.get("escrow") is Array:
+						r["escrow"] = stacks(r["escrow"])
 					var gear := {}
 					if r.get("equipment") is Dictionary:
 						for slot in r["equipment"]:
@@ -185,6 +188,8 @@ static func clean(data: Dictionary) -> Dictionary:
 		data["skills"] = _legacy_survival(data["skills"], data.get("skills_v2", {}))
 	if data.has("t_stones"):
 		data["t_stones"] = _int(data["t_stones"], 0, MAX_T_STONES)
+	if data.has("warp_gems"):
+		data["warp_gems"] = _int(data["warp_gems"], 0, MAX_T_STONES) # BAGUI: same ceiling as T-stones
 	for key in ["pioneer_level", "pioneer_xp", "xp_curve", "objective", "objective_best"]:
 		if data.has(key):
 			data[key] = _int(data[key], 0, 1000000000)

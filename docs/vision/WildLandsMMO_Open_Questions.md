@@ -94,6 +94,22 @@ Source: branch `claude/mmo-tribe`, report `docs/orchestration/reports/claude-tri
 | **T14** | Away from home only following members come along; working and staying members remain at home. There is no expedition slot limit yet (vision §7 says three shared slots). | `TribeDirector.sync` | Party size on trips. |
 | **T15** | Work reach: a worker stands at the visible edge of a node (card or mesh footprint) plus 0.3 m. | `HarvestNode.visual_radius` | Visual only. |
 
+### TRIBE M2a (2026-10-29) — hand-off work orders (memo `docs/design/hunger-and-tribe-automation.md` §2.2, approved as the working plan)
+
+Source: branch `claude/mmo-tribem2a`, report `docs/orchestration/reports/claude-tribem2a.md`. Numbers live in `game/data/tribe.json` `work` unless a file is named.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **T16** | Minimum success for a hand-off: 80 %. Below it the member refuses: "62% success, needs Woodworking 14" (the level that would reach 80 %). | `work.min_success` | Protects "a failed craft loses the materials" from eating the best picks. |
+| **T17** | Worker speed: craft or build time × max(0.5, 1 − 0.01 × skill level). Only workers use it in M2a; the survivor's own craft time is unchanged. | `work.speed_per_level`, `work.min_time_mult` | The memo says one formula for both; the survivor half is a separate tuning call. |
+| **T18** | A member's crafting ability is its skill level only (no learned nodes, no food buffs until M2b); success, output level cap and burn odds use the survivor's rules at that level. Members train any skill a job uses (Construction, Processing, Weapon Tools…), starting at 1. | `TribeWork.craft_offer` | Fresh recruits only take recipes with no ability requirement. |
+| **T19** | Teach by doing (memo Q6): a recipe the survivor has never made herself is refused ("Craft it once yourself first"). | `work.teach_by_doing` | Cheap to switch off if it feels like a chore. |
+| **T20** | Output goes to the storage building nearest the station within 6 m, else the survivor's bag (wherever she is). What fits nowhere waits with the member ("ready · no room") and is retried every second. Stations have no output tray yet. | `work.chest_link_m`, `TribeWork._deliver` | Where finished goods appear. |
+| **T21** | Working costs 0.25 fatigue and 0.15 energy per second; a member rests (pausing the order) at the M1 thresholds and eats from storage near the station when hungry (M1 rules, unchanged hunger model). | `work.fatigue_per_work_s`, `work.energy_per_work_s` | Upkeep of a station worker. |
+| **T22** | One worker per station or site; one order per member; only station recipes that are not a process station's own jobs (smoker, drying rack run by themselves) and only craft stations (fires excluded until cook orders, M2c). | `TribeWork._craft_why`, `StationCraft.assign_actions` | Scope of M2a. |
+| **T23** | A builder needs no Construction level gate (the blueprint gate is the survivor's knowledge, tribe-wide) but its Construction level caps the finished station's level (`Blueprints.result_level`), so a level-1 builder makes a Lv 1 station; the picker shows the predicted level. The site's own timer stops while a builder is assigned; the builder finishes the site itself. | `TribeWork.build_offer`, `BuildFlow.complete(builder)` | Delegating a build can cost station level. |
+| **T24** | No offline catch-up yet: work runs only while the member's body is loaded (at home). The memo's 8 h offline cap is for M2c. | `TribeMember._station_work` | A trip pauses home orders. |
+
 ## 2026-10-28 — Stations and pens (claude/mmo-stationstate)
 
 | # | Default taken | Where | Why it matters |
@@ -162,6 +178,43 @@ Source: branch `claude/mmo-compyjumps`, report `docs/orchestration/reports/claud
 | **C5** | The pounce aims at the prey plus her velocity over the flight and locks that point at take-off, so a sidestep after take-off always misses. | `TacticalBrain._pounce` (unchanged) | The skill test against a pounce. |
 | **C6** | Landing: the bite keeps lunging at 1.3 x run until its contact frame while she is beyond 0.6 x reach; a compy at a walking survivor's heels with no bite allowed hops back and chases again. Target share of bites and pounces that connect on a survivor who does not roll: about 50-85 % (t_swarm measures standing and walking 2 m/s). | `bite_track`, `bite_track_frac`, `chase_hop` | Owner: "attacks aren't landing very often". The swarm's chase speed (0.5) still lets a running survivor get away. |
 | **C7** | "Missed" (grey, like Dodged/Blocked) is shown for a failed accuracy roll, an out-of-reach contact frame, a pounce that lands with the prey out of its jaws, and a survivor swing the creature stepped out of. A failed roll against a creature with a dodge chance is split by the same single draw: inside the dodge part "Dodged", inside the accuracy part "Missed". | `CombatTuning.swing_outcome`, `CombatAvoid` | Owner: damage text "Dodged" "Blocked" or "Missed". |
+
+### ISLANDSHAPES (2026-10-29) — island shape families, southern-most dock, topography
+
+Source: branch `claude/mmo-islandshapes`, report `docs/orchestration/reports/claude-islandshapes.md`. Numbers live in `game/data/world/island_families.json` (every one an ASSUMPTION) and `islands.json` `shape_family`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **S1** | Seven families (bulky, round_peak, lobed, crescent, atoll, spiral, chain) from the owner's reference sheet; the 14 roster islands were dealt two of each, matched to climate (tropical/swamp atolls, volcanic round-peak). The legacy meadow and the tutorial keep the old body. | `islands.json shape_family`, `roster_pick` | Which island looks like what. |
+| **S2** | Other Tamed Island picks (forest, rocky, riverside, coastal) now take a bulky or lobed body. An old save on one of those picks gets new ground outside its legacy core (r 75 m); its buildings beyond that may stand on changed ground. | `personal_pick` | Save risk for non-meadow Tamed Islands (the meadow is unchanged). |
+| **S3** | The dock is the southern-most legal mainland pose (+z = south), ties to the x = 0 midline; a saved dock pose is kept while legal. On the home meadow a NEW game's dock moves from the cove near the camp (~(0, 62)) to the south coast (~(18, 154)). | `HarbourSite.find` | Owner: "start at the southern-most port"; the walk from dock to camp is now 90-150 m on most islands. |
+| **S4** | The camp ("town") stays where the island row puts it (the middle); only the dock moved. The tutorial island keeps its hand-tuned dock beside its town (`dock_rule: hint`), so a new survivor's very first landing is not at the southern-most port. | `IslandRuntime.build` | A camp beside the dock would be a different layout decision. |
+| **S5** | Topography sizes: mountain r 24-34 m, h 11-16 m (tundra x1.2); ridge 50-85 m long, r 7-10, h 5-8; mesa r 10-17, h 4.5-6.5; volcano r 32-42, h 13-18, crater 26 % of r; 2.4 m cliff skirt. Counts per family (1-5 features). Volcanic climate: one live volcano; dormant volcano chance 0-30 % per family. | `topo_sizes`, `families.*.topo`, `climate_topo` | How much of an island is out of bounds; camera occlusion near tall peaks. |
+| **S6** | Keep-outs: footprint 12 m from the coast, 10 m past the 30 m camp disc, 10 m from the river (+ channel), 10 m from the camp-to-dock walk, 16 m between features; thin islands fall back to one small butte. | `topo_sizes.keep_*` | Free walking room round every feature. |
+| **S7** | Outcrops: 3-8 clusters per island of 3-6 blocking rocks (cliff block 4.5-6.5 m, boulder 2.6-3.8 m, spire 6-8.5 m, a big cliff 9-12 m now and then), non-destroyable except boulders under 4 m (the existing prop rule). | `families.*.outcrops`, `IslandProps.OUTCROP_KINDS` | Rock density on the flats. |
+| **S8** | Shallow shelf at -0.85 m reaching 6-50 m past the beach (noise), lagoon floors all shelf. | `shelf_m` | Reads turquoise; still boat-deep for the 0.4 m dock draft. |
+| **S9** | Rivers on thin families may be shorter: minimum arc 0.55 x target long axis x river_scale (chain/atoll 0.5, spiral 0.5, crescent 0.65). | `river_scale` | Fresh-water reach on chains and atolls. |
+| **S10** | Islets are not reachable on foot (the shelf is deep water); they still get scatter. | `IslandShape._islets` | Whether islets should hold loot or be scenery only. |
+
+### TASKSCREEN (2026-10-28) — the Task screen (Daily, Achievement, Domain Construction, Main Task, Weekly)
+
+Source: branch `claude/mmo-taskscreen`, report `docs/orchestration/reports/claude-taskscreen.md`. Numbers live in `game/data/world/tasks.json`; the Durango research it imports is `docs/reference/durango_all_tasks_research.xlsx` (mapping in `docs/reference/tasks.md`).
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TS1** | Nothing pays on its own any more: a finished standing order advances the HUD card as before, but its xp / T-stones wait in Main Task until Receive. | `Objectives.settle`, `Tasks.claim` | A player who never opens Tasks never gets order rewards; the red dot and the MENU badge are the only prompt. |
+| **TS2** | Daily resets at 00:00 UTC and weekly at Monday 00:00 UTC (device clock), not local midnight. Unclaimed dailies are lost at the reset. | `Tasks.roll` | A wrong device clock can reset early; the server should own this later. |
+| **TS3** | Quantities the sheet leaves blank: gather 30 / day, trim 3 planks, 2 stone knives, 1 build, 2 hunts / day; weekly 2 landings on Lv 30+ islands, 300 gathers, 25 crafts, 15 hunts. | `tasks.json daily / weekly` | Daily load per session. |
+| **TS4** | Achievement chains are ours: character Lv 5, 10, ... 60 and every skill Lv 10, 20, ... 60, one row per chain (the next unclaimed milestone). Each pays L T-stones, 1 skill point (SkillState.sp_extra) and 5 x L EXP. 13 chains x 6-12 milestones add about 84 SP over a full game (~11 % of the level SP). | `tasks.json achievement` | SP economy; claimed by hand, so a late player can claim a backlog at once. |
+| **TS5** | Domain Construction tasks are ours (campfire, basket, tent, workbench, drying rack, taming pen, well, 10 fences); each pays 5-15 T-stones, 30-80 EXP and 1 skill point (the sheet: civilized-domain build tasks pay extra SP, DW-T0128). Old saves count buildings already placed. | `tasks.json domain`, `World.pioneer_buildings` | Early SP and T-stones. |
+| **TS6** | Daily and weekly rewards: 5 T-stones + 40 EXP per daily, 25 + 250 per weekly (the sheet names the kinds, never amounts). | `tasks.json` | T-stone faucet (economy.md). |
+| **TS7** | The returning-player tab ("Prodigal Pioneer") is left out. | `OrdersSheet` | No such system. |
+| **TS8** | Durango item names mapped to ours: Trimmed Material -> `trimmed_plank`; Pebble Stone Blade -> `improvised_stone_knife` / `stone_knife`; "Butcher 10 times" = 10 part kinds taken from carcasses; "minerals" = material Lv 60 from rock-role nodes. | `tasks.json` | Naming only. |
+| **TS9** | Weekly Explore Level-30 Islands pays 100 T-stones + 300 EXP, not the sheet's ~10,000 T-Stones (a 2019 player estimate in Durango's economy; ours starts at 20). A load on a Lv 30+ island also counts as a landing. | `tasks.json weekly.explore30` | Owner call on the T-stone scale. |
+| **TS10** | Data only, hidden until the system exists: Craft Leaf Outfits (no recipe), daily task points -> Warp Gems (neither exists), Advanced Kiln (not placeable), Cheer (no emotes / players), the 8-part finale (no story). | `tasks.json hidden` | Becomes live when the thing exists. |
+| **TS11** | Not imported: faction missions, career guides, Google Play achievements, events and rank titles (other systems). | `docs/reference/tasks.md` | Future Communication / Career Guide work. |
+| **TS12** | Main Task counts an order finished when Objectives.settle passes it (a saved set), not by index, so the tutorial's hand-over part-way down the standing orders never pays a skipped order. | `Tasks.done` | Save field (`tasks.done`). |
+| **TS13** | Order rewards wait for Receive, so the tutorial teaches it: order 2 "Claim your reward in Tasks" (10 EXP; the pointer goes MENU -> Tasks -> Receive) is done once any order's reward is received. The Task screen opens on Main Task while an order waits. Owner go 2026-10-29; the order itself is ours. | `objectives.json tut_claim`, `Objectives received_any` | One extra tutorial step; a player who skips claiming later is a level or two behind. |
 
 ## Parked by other docs
 

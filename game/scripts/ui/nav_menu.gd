@@ -3,7 +3,7 @@ extends Control
 ## B3 nav menu (docs/design/ui-redesign-spec.md §7 B3, durango-prompts/33_ingame_hamburger_menu.md):
 ## the MENU hex opens two columns of entries over the live world, Character / Skills / Craft / Build /
 ## Bag / Animals on the left (icon then label) and World Atlas / Domain / Orders / Communication /
-## Friends / Save on the right (label then icon), a header band with the T-stone balance, and a close
+## Friends / Save on the right (label then icon), a header band with the Warp Gem and T-stone balances (CurrencyBar), and a close
 ## hex where MENU sat. The world keeps running underneath. Each entry carries the MENU badge's notices
 ## of its own kind (HudField.notices, spec §11). HuntHud keeps it as its open sheet (_sheet), so
 ## sheet_open() hides the creature plates while it is up. The menu draws on its own canvas
@@ -22,7 +22,7 @@ const LEFT := [
 const RIGHT := [
 	{"id": &"atlas", "label": "World Atlas", "icon": &"map"},
 	{"id": &"domain", "label": "Domain", "icon": &"claim"},
-	{"id": &"orders", "label": "Orders", "icon": &"notice"},
+	{"id": &"orders", "label": "Tasks", "icon": &"notice"},
 	{"id": &"communication", "label": "Communication", "icon": &"chat"},
 	# ASSUMPTION: Island Market (spec 33/14: Main Menu -> Island Market) takes the Friends slot; Friends has no system
 	# and the phone layout fits six rows a side. Friends comes back when a friend system exists.
@@ -36,6 +36,8 @@ var hud: HuntHud
 var entries: Dictionary = {}  ## id -> Button
 var close_hex: HexButton
 var debug_btn: Button
+## BAGUI: Warp Gems (+) and T-stones, the same widget as the bag header.
+var currency: CurrencyBar
 var _header_h := 0.0
 var _font: Font
 var _layer: CanvasLayer
@@ -78,6 +80,8 @@ func _init(p_hud: HuntHud = null) -> void:
 			hud._toggle_debug()
 		root.queue_redraw())
 	root.add_child(debug_btn)
+	currency = CurrencyBar.new()
+	root.add_child(currency)
 
 func _ready() -> void:
 	get_viewport().size_changed.connect(_layout)
@@ -166,6 +170,10 @@ func _layout() -> void:
 	debug_btn.custom_minimum_size = Vector2(g, g)
 	debug_btn.size = debug_btn.custom_minimum_size
 	debug_btn.position = Vector2(16.0 + inset.w, inset.z + (_header_h - g) * 0.5)
+	currency.set_px(18 if compact else 24)
+	currency.refresh()
+	currency.size = currency.get_combined_minimum_size()
+	currency.position = Vector2(r.x - 16.0 - inset.x - currency.size.x, inset.z + (_header_h - currency.size.y) * 0.5)
 	root.queue_redraw()
 
 ## Every tappable rect on the menu (tests and the capture lab check them for size and overlap).
@@ -175,6 +183,7 @@ func tap_rects() -> Dictionary:
 		out[str(id)] = (entries[id] as Control).get_global_rect()
 	out["close"] = close_hex.get_global_rect()  # the control is the tap target, as for MENU
 	out["debug"] = debug_btn.get_global_rect()
+	out["gems_add"] = currency.add_btn.get_global_rect()
 	return out
 
 # ---------------------------------------------------------------- badges (spec §11)
@@ -200,12 +209,11 @@ func _draw_root() -> void:
 	var clear := Color(0, 0, 0, 0)
 	root.draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(band, 0), Vector2(band, r.y), Vector2(0, r.y)]), PackedColorArray([dark, clear, clear, dark]))
 	root.draw_polygon(PackedVector2Array([Vector2(r.x - band, 0), Vector2(r.x, 0), Vector2(r.x, r.y), Vector2(r.x - band, r.y)]), PackedColorArray([clear, dark, dark, clear]))
-	# Header band: utilities left, the T-stone balance right.
+	# Header band: utilities left, the balances (CurrencyBar) right.
 	root.draw_rect(Rect2(0, 0, r.x, _header_h), Color(UiTokens.HEADER, 0.78))
 	root.draw_line(Vector2(0, _header_h), Vector2(r.x, _header_h), Color(1, 1, 1, 0.08), 1.0)
 	if Game.debug_overlay:
 		UiTokens.draw_brackets(root, debug_btn.get_rect().grow(-6.0), UiTokens.GOLD, 10.0, 2.0)
-	_draw_balance(r)
 	for id in entries:
 		var t := badge_text(id)
 		if t == "":
@@ -222,33 +230,6 @@ func _draw_root() -> void:
 			hud._levelups.draw_pulse_rings(root, at, rad)  # LEVELFX: a level-up just showed
 		root.draw_circle(at, rad, UiTokens.LIFE if urgent else UiTokens.GOLD)
 		UiTokens.draw_centered(root, _font, at, t, px, Color.WHITE if urgent else UiTokens.CTA_INK)
-
-func _draw_balance(r: Vector2) -> void:
-	var compact := UiTokens.is_compact(r)
-	var px := 18 if compact else 24
-	var txt := _thousands(World.t_stones)
-	var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	var h := 40.0 if compact else 46.0
-	var w := tw + h + 40.0
-	var inset := UiTokens.safe_insets(get_viewport())
-	var pill := Rect2(Vector2(r.x - 16.0 - inset.x - w, (_header_h - h) * 0.5 + inset.z), Vector2(w, h))
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0, 0, 0, 0.55)
-	sb.set_corner_radius_all(int(h * 0.5))
-	root.draw_style_box(sb, pill)
-	var ico := UiIcons.icon(&"t_stone")
-	if ico:
-		var isz := h * 0.6
-		root.draw_texture_rect(ico, Rect2(pill.position + Vector2(h * 0.35, (h - isz) * 0.5), Vector2(isz, isz)), false, UiTokens.GOLD)
-	root.draw_string(_font, Vector2(pill.end.x - 18.0 - tw, pill.position.y + h * 0.5 + px * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, px, UiTokens.TEXT)
-
-static func _thousands(n: int) -> String:
-	var s := str(absi(n))
-	var out := ""
-	while s.length() > 3:
-		out = "," + s.right(3) + out
-		s = s.left(s.length() - 3)
-	return ("-" if n < 0 else "") + s + out
 
 # ---------------------------------------------------------------- input
 

@@ -1,7 +1,7 @@
 {
   "goal": "A first hour that is fun on a phone: gather, loot, craft, build and skill up in one loop that pays out, on islands worth looking at. Then the Durango-style long game (capture and ride, regional trade, city islands) and the online world, with balance last and every step checked against a bot-run beat sheet instead of vibes.",
-  "updated": "2026-10-27",
-  "seed_note": "Statuses checked 2026-10-27 against the branches merged into claude/mmo-overhaul, the archived STATUS.md / FLEET.md and the code. 'next' = queued now; a feature is buildable when its dependencies are done. Correct a status in-page (it becomes a mark) or restructure here.",
+  "updated": "2026-10-29",
+  "seed_note": "Statuses checked 2026-10-29 against the branches merged into claude/mmo-overhaul, the archived STATUS.md / FLEET.md and the code. 'next' = queued now; a feature is buildable when its dependencies are done. Correct a status in-page (it becomes a mark) or restructure here.",
   "phases": [
     {
       "phase": 0,
@@ -111,6 +111,22 @@
           "depends": [],
           "source": "docs/current/README.md",
           "note": "CURRENTDOCS merged 080f2617: inventory/bags, creatures/capture/taming, saves, server contract, economy."
+        },
+        {
+          "id": "map-lab",
+          "title": "Map lab: author islands in a versioned map format with a validator and importer (MAPLAB)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_maplab.gd",
+          "note": "MAPLAB merged 3ed8c5f7."
+        },
+        {
+          "id": "canon-tests",
+          "title": "Canon test runner: standalone tests green on canon, tools/all_tests.sh with a per-test HOME (CANONRED, TESTHOME)",
+          "status": "done",
+          "depends": [],
+          "source": "tools/all_tests.sh",
+          "note": "CANONRED merged 5b4bf4ad, TESTHOME merged 7595702d."
         }
       ]
     },
@@ -357,6 +373,86 @@
           ],
           "source": "docs/design/durango-prompts/35_natural_material_color.md",
           "note": ""
+        },
+        {
+          "id": "harvest-roll",
+          "title": "Each harvest rolls its own level and traits (HARVESTROLL)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_harvestroll.gd",
+          "note": "HARVESTROLL merged 2ed2339a."
+        },
+        {
+          "id": "perk-cap",
+          "title": "Perk cap: at most 2 perks per gathered item, 35% grey rate, pickup row shows one item's perks (PERKCAP)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-perkcap.md",
+          "note": "PERKCAP merged 2ec3e916."
+        },
+        {
+          "id": "bone-parts",
+          "title": "Species bone parts with their own names and rendered icons (BONEPARTS)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_boneparts.gd",
+          "note": "BONEPARTS merged 64372619."
+        },
+        {
+          "id": "fire-fuel",
+          "title": "Firepit fuel inventory, visible logs per minute and particle flames (FIREFUEL)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_firepits.gd",
+          "note": "FIREFUEL merged 2c446449."
+        },
+        {
+          "id": "station-state",
+          "title": "Station state: pen tiers, capture-then-tame, visible station state, worksites, metal nails, work loops (STATIONSTATE)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_stationstate.gd",
+          "note": "STATIONSTATE merged d701a7fd."
+        },
+        {
+          "id": "craft-radial",
+          "title": "Craft/Build on the right, fixed-slot station radial, Construction panel, tag-based recipes, blueprint plots (CRAFTRADIAL)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_craftradial.gd",
+          "note": "CRAFTRADIAL merged 2a95b264."
+        },
+        {
+          "id": "bag-redesign",
+          "title": "Bag redesign: Gold + Warp Gems, perk tiers, chest tabs, market sell grid, eat queue, item tags (BAGUI)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_bagui.gd",
+          "note": "BAGUI merged 02362ad2."
+        },
+        {
+          "id": "no-hands",
+          "title": "No HANDS quick-slot: Interact gathers, the bag equips and unequips tools (NOHANDS, HUDFALLOUT)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-nohands.md",
+          "note": "NOHANDS merged 900ff50b; HUDFALLOUT merged 349e2b9e fixed t_death and t_gather after it."
+        },
+        {
+          "id": "slow-levels",
+          "title": "Slower levels: Defense XP through CombatAvoid, workbook import, spiky armor icons and rarity (SLOWLEVELS)",
+          "status": "next",
+          "depends": [],
+          "source": "docs/design/durango-prompts/03_leveling_progression_skill_trees.md",
+          "note": "Finished on claude/mmo-slowlevels (273b6d0e), not merged into canon yet."
+        },
+        {
+          "id": "task-screen",
+          "title": "Task screen: Daily, Achievement, Domain Construction, Main Task and Weekly tabs with manual Receive (TASKSCREEN)",
+          "status": "next",
+          "depends": [],
+          "source": "docs/current/ui-screens.md",
+          "note": "Finished on claude/mmo-taskscreen (07138898), not merged into canon yet."
         }
       ]
     },
@@ -476,12 +572,12 @@
         {
           "id": "ragdoll",
           "title": "Dinosaurs ragdoll onto the terrain on death and freeze once settled",
-          "status": "next",
+          "status": "done",
           "depends": [
             "creature-roster"
           ],
           "source": "docs/design/durango-prompts/07_combat_and_animal_capture.md",
-          "note": "Owner asked for it. Branch claude/mmo-w2-ragdoll (+28): three review majors (aborted ragdoll stands up, one blow direction tested, T. rex sinks 0.66 m)."
+          "note": "RAGDOLL merged 73cfe915: dinosaurs ragdoll on death and settle on slopes."
         },
         {
           "id": "player-death",
@@ -506,12 +602,12 @@
         {
           "id": "taming-pen",
           "title": "Taming pen and companions: feeding, bonding, roles and care (spec 02)",
-          "status": "later",
+          "status": "next",
           "depends": [
             "capture-rule"
           ],
           "source": "docs/design/durango-prompts/02_dinosaur_taming_and_companions.md",
-          "note": "The bonded cap 3 -> 7 via Animal Handling is live (W2-SKILLS); the pen, feeding and roles are not."
+          "note": "STATIONSTATE merged d701a7fd: pen tiers by size, capture-then-tame, visible station state. Torpor taming in progress (food-torpor); feeding/bonding/roles still to do."
         },
         {
           "id": "caged-pets",
@@ -626,6 +722,130 @@
           ],
           "source": "docs/design/durango-prompts/07_combat_and_animal_capture.md",
           "note": "OWNER DECISION 2026-10-28: each species fights by its innate CLASS (the archetype field: pack_flanker, pack_raptor, apex_raptor, tyrant, horned_charger, club_tail, spiked_tail, venom_ranged, saber_cat, swarm, flock_harass, antlered, runner, pack_mule, titan); its nature combines with that (no separate Berserker class). In progress on claude/mmo-tactical, deinonychus first. Owner 04:41: every attack on a cooldown (basic shortest), always use the strongest ready attack, move (jump back, strafe, feint) when all are cooling. Owner 04:44: back-offs are jumps, not walks. Owner 04:47: deinonychus redesign — smaller, wider wings, ambush predator from the trees with large forward and backward leaps. Step A (deinonychus) merged 2026-10-28."
+        },
+        {
+          "id": "genetics-alphas",
+          "title": "Genetics and alphas: heritable size and colour, 8% alpha per group (GENETICS + ALPHAS)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_genetics.gd",
+          "note": "GENETICS + ALPHAS merged 037a7c12."
+        },
+        {
+          "id": "alpha-tag",
+          "title": "Alpha prefix on names, alphas cannot be captured, alpha loot pools",
+          "status": "next",
+          "depends": [
+            "genetics-alphas"
+          ],
+          "source": "game/tests/t_alphas.gd",
+          "note": "In progress on claude/mmo-alphatag."
+        },
+        {
+          "id": "starving",
+          "title": "Starving: an empty stomach applies the Starving status (STARVING)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_starving.gd",
+          "note": "STARVING merged a4dd149e."
+        },
+        {
+          "id": "hunger-rework",
+          "title": "Hunger rework per the hunger and tribe automation memo",
+          "status": "next",
+          "depends": [
+            "starving"
+          ],
+          "source": "docs/current/survival-needs.md",
+          "note": "In progress on claude/mmo-hunger. Design memo: docs/design/hunger-and-tribe-automation.md on claude/mmo-hunger-tribe-doc."
+        },
+        {
+          "id": "food-torpor",
+          "title": "Food Bag, food spoilage and torpor taming",
+          "status": "next",
+          "depends": [],
+          "source": "docs/design/durango-prompts/02_dinosaur_taming_and_companions.md",
+          "note": "In progress on claude/mmo-foodtorpor."
+        },
+        {
+          "id": "eat-fix",
+          "title": "A second eat is no longer refused while the Full status lasts (EATFIX)",
+          "status": "done",
+          "depends": [],
+          "source": "game/scripts/items/food.gd",
+          "note": "EATFIX merged 3df3a7e1."
+        },
+        {
+          "id": "dot-gather",
+          "title": "Status ticks never cancel gathering or sleep (DOTGATHER)",
+          "status": "done",
+          "depends": [],
+          "source": "game/scripts/player/player.gd",
+          "note": "DOTGATHER merged 0716fd9a."
+        },
+        {
+          "id": "tent-sleep",
+          "title": "Sleep inside the tent: see-through tent, stay until you get up (TENTSLEEP)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_tentsleep.gd",
+          "note": "TENTSLEEP merged b779fa69."
+        },
+        {
+          "id": "survivor-rummage",
+          "title": "Survivor bag rummage, station work loops and dirt kick (RUMMAGE)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_rummage.gd",
+          "note": "RUMMAGE merged 5de47ecf."
+        },
+        {
+          "id": "tired-idle",
+          "title": "Rebuilt tired and exhausted idles (TIREDIDLE)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-tiredidle.md",
+          "note": "TIREDIDLE merged f0b0026f."
+        },
+        {
+          "id": "eyes-death",
+          "title": "Eye trails scale with threat, HP rounds up, death card within half a second (EYESDEATH)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-eyesdeath.md",
+          "note": "EYESDEATH merged dec42bc5."
+        },
+        {
+          "id": "lab-spawn",
+          "title": "Creature lab dinosaur selector with every species, compsognathus swarm AI (LABSPAWN)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_labspawn.gd",
+          "note": "LABSPAWN merged 0fea2471; ZEBRAAI 67d2947f filled the species dropdown."
+        },
+        {
+          "id": "zebra-herd",
+          "title": "Zebraceratops herd AI, then a slow heavy gallop, ramming shove and bulky model (ZEBRAAI, ZEBRA2)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_zebra.gd",
+          "note": "ZEBRAAI merged 67d2947f, ZEBRA2 merged bd9cecbb."
+        },
+        {
+          "id": "compy-rebuild",
+          "title": "Compsognathus rebuilt from Milan's sheet: jaw, strafes, nervous idle, leaps, pounces and combos (COMPYSTRAFE, COMPYJUMPS)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-compyjumps.md",
+          "note": "COMPYSTRAFE merged 65f0f6f9, COMPYJUMPS merged fd745aaf."
+        },
+        {
+          "id": "new-species",
+          "title": "Styracosaurus and pachycephalosaurus: models, jaws, clips and saddles (NEWSPECIES)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-newspecies.md",
+          "note": "NEWSPECIES merged 46a53f5a."
         }
       ]
     },
@@ -784,6 +1004,32 @@
           ],
           "source": "docs/design/durango-prompts/35_natural_material_color.md",
           "note": "Prefab save rows gain appearance: save gate for Milan. Blind A/B before merge."
+        },
+        {
+          "id": "terrain-smooth",
+          "title": "Refined smooth ground with blended zone colours (TERRAINSMOOTH)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_terrainsmooth.gd",
+          "note": "TERRAINSMOOTH merged d8e013fa."
+        },
+        {
+          "id": "tutorial-island",
+          "title": "Big tutorial island with a town, no alphas and a safe ring around the town (TUTORIAL ISLAND)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/current/tutorial.md",
+          "note": "TUTORIAL ISLAND merged 1b590eab."
+        },
+        {
+          "id": "island-shapes",
+          "title": "Island shapes, south-port spawn and topography",
+          "status": "next",
+          "depends": [
+            "map-lab"
+          ],
+          "source": "docs/current/world-biomes.md",
+          "note": "In progress on claude/mmo-islandshapes."
         }
       ]
     },
@@ -946,7 +1192,7 @@
           "status": "later",
           "depends": [],
           "source": "docs/vision/WildLandsMMO_Game_Vision.md",
-          "note": "Branch claude/mmo-net passed review r1 (10-21) with four pre-merge fixes. Server stays local until the owner picks a host."
+          "note": "Deferred: multiplayer servers come after the game is finished (owner 2026-10-29)."
         },
         {
           "id": "region-chat",
@@ -956,7 +1202,7 @@
             "net-core"
           ],
           "source": "docs/design/durango-prompts/20_region_chat.md",
-          "note": "Branch claude/mmo-chat, fix round 2 paused."
+          "note": "Deferred: multiplayer servers come after the game is finished (owner 2026-10-29)."
         },
         {
           "id": "server-islands",
@@ -966,7 +1212,7 @@
             "net-core"
           ],
           "source": "docs/vision/WildLandsMMO_Game_Vision.md",
-          "note": "Includes the act.* handlers merged packages left pending (drink, wash, fill, craft node gate)."
+          "note": "Deferred: multiplayer servers come after the game is finished (owner 2026-10-29)."
         },
         {
           "id": "city-islands",
@@ -987,7 +1233,7 @@
             "city-islands"
           ],
           "source": "docs/design/economy.md",
-          "note": "Post-v1 networking assumption; data model already carries it."
+          "note": "Deferred: multiplayer servers come after the game is finished (owner 2026-10-29)."
         },
         {
           "id": "follow-route",
@@ -1007,7 +1253,7 @@
             "construction-quality"
           ],
           "source": "docs/vision/WildLandsMMO_Game_Vision.md",
-          "note": "M1 built on claude/mmo-tribe (2026-10-28): your own people. Recruits arrive by boat and wait at the dock for Accept/Deny (cap 3, leave after a day), housing caps members, follow/guard/heel/attack orders, one job at a time (mine/chop/gather into a chest), eat and rest, 7 gear slots, Animals > Tribe tab, saved. Next (M2): direct control, expeditions slots, permadeath/revival, training. Open: tribe as a group of players (vision §24)."
+          "note": "TRIBE M1 merged 7313728a (recruits arrive by boat, Accept/Deny at the dock). M2a hand-off in progress, see tribe-m2a."
         },
         {
           "id": "recruitment-loss",
@@ -1039,7 +1285,7 @@
             "tribes-workers"
           ],
           "source": "docs/vision/WildLandsMMO_Game_Vision.md",
-          "note": ""
+          "note": "Deferred: multiplayer servers come after the game is finished (owner 2026-10-29)."
         },
         {
           "id": "siege-saddles",
@@ -1051,6 +1297,16 @@
           ],
           "source": "docs/vision/WildLandsMMO_Combat_Math.md",
           "note": "Owner-set caps: 1 crewed weapon, 2 automatic, 1 ammo box per platform saddle."
+        },
+        {
+          "id": "tribe-m2a",
+          "title": "Tribe M2a hand-off",
+          "status": "next",
+          "depends": [
+            "tribes-workers"
+          ],
+          "source": "docs/current/tribe.md",
+          "note": "In progress on claude/mmo-tribem2a. M1 merged 7313728a."
         }
       ]
     },
@@ -1260,13 +1516,10 @@
         {
           "id": "sky-shadows",
           "title": "Sky life: pteranodons circling overhead that cast moving ground shadows, and drifting cloud-cover shadows across the terrain",
-          "status": "later",
-          "depends": [
-            "light-grade",
-            "perf-gates"
-          ],
+          "status": "done",
+          "depends": [],
           "source": "docs/design/islands-and-loop-plan.md",
-          "note": "Owner 2026-10-28, for the polish and performance patch. Cheap: a few low-poly or card pteranodons on looped high paths with real shadows; a scrolling cloud-shadow texture in the terrain shader or a decal. Must fit the web budget."
+          "note": "SKYSHADOWS merged 0ae592a5: drifting cloud shadows with a sun dip and pteranodon shadows."
         },
         {
           "id": "camera-rotate-25d",
@@ -1275,6 +1528,26 @@
           "depends": [],
           "source": "docs/vision/WildLandsMMO_Open_Questions.md",
           "note": "Owner: 'the 2D assets maintain the same angle relative to the camera such that we can change perspectives'. Today: CARD2D resource/prop cards (card_sway.gdshader, card_prop.gd, prop_cards.gd) and ground cover already face the camera via the camera globals, so they would follow a rotation. Creatures, the survivor, trees/rocks GLBs, buildings and terrain are 3D meshes and rotate fine. Cost to check: IsoCamera assumes one yaw (occlusion, shadows fit, parallax, map/HUD north, input mapping of move directions, TilePath screen picks, sky shadows and weather screen effects)."
+        },
+        {
+          "id": "tutorial-perf",
+          "title": "Tutorial island performance",
+          "status": "next",
+          "depends": [
+            "tutorial-island"
+          ],
+          "source": "docs/current/tutorial.md",
+          "note": "In progress on claude/mmo-tutperf."
+        },
+        {
+          "id": "tutorial-town",
+          "title": "Tutorial town, step guidance and craft menu order",
+          "status": "next",
+          "depends": [
+            "tutorial-island"
+          ],
+          "source": "docs/current/tutorial.md",
+          "note": "In progress on claude/mmo-tuttown."
         }
       ]
     },
@@ -1362,6 +1635,38 @@
           ],
           "source": "docs/design/ui-redesign-spec.md",
           "note": "Owner standing rule 2026-10-28: any menu that renders as stretched full-width rows is rebuilt to the UI spec, not patched. Harbour goes with F2 World Atlas 'Harbour routes'. Sweep of game/scripts/ui found world_ui, build_ui, skills_sheet, animal_screen."
+        },
+        {
+          "id": "level-bar",
+          "title": "Exponential XP curve with a segmented green level bar (LEVELBAR)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_levelbar.gd",
+          "note": "LEVELBAR merged c1bed48d."
+        },
+        {
+          "id": "level-badge",
+          "title": "Tiered level badge, boxless top HUD, ghost-fill bars, map coordinates (LEVELBADGE)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_levelbadge.gd",
+          "note": "LEVELBADGE merged 87584993."
+        },
+        {
+          "id": "hud-tweak",
+          "title": "HUD tweaks: exhaustion under energy, claim above the dial, buffs aligned, big stomach under the badge (HUDTWEAK)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-hudtweak.md",
+          "note": "HUDTWEAK merged 6c1fad7e."
+        },
+        {
+          "id": "dodge-text",
+          "title": "Dodged/Blocked floating text and a debug-only aggro ring (DODGETEXT)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_dodgetext.gd",
+          "note": "DODGETEXT merged cc79a457."
         }
       ]
     }

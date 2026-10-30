@@ -178,6 +178,16 @@ func has_tool_class(tool: StringName) -> bool:
 		return true
 	return find_gather_tool(tool) != null
 
+## Why a tool-gated action is blocked, for labels: "" when a usable tool is here, "your knife is broken"
+## when only broken ones are (owner bug 2026-10-29: a broken knife read "needs knife"), else "needs knife".
+func tool_block_reason(tool: StringName) -> String:
+	if has_tool_class(tool):
+		return ""
+	for s in slots:
+		if s != null and s.is_broken() and s.def() != null and s.def().tool_class == tool:
+			return "your %s is broken" % tool
+	return "needs %s" % tool
+
 func wear_gather_tool(tool: StringName) -> bool:
 	var s := find_gather_tool(tool)
 	if s == null:
@@ -222,7 +232,9 @@ func _best_tool(tool: StringName) -> ItemStack:
 	return best
 
 func _is_tool(s: ItemStack, tool: StringName) -> bool:
-	if s == null or s.is_locked() or s.is_broken():
+	# A player Lock (BAGUI) protects an item from trash, sale and use as a material, not from use as a
+	# tool: a locked knife still butchers (owner bug 2026-10-29 "i have a knife and it still says I need a knife").
+	if s == null or s.is_broken():
 		return false
 	var d := s.def()
 	if d == null or d.tool_class == &"" or d.tool_class == &"none":

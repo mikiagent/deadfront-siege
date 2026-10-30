@@ -178,6 +178,8 @@ static func set_order(r: TribeRecord, o: StringName) -> void:
 		return
 	if o == &"work" and r.job.is_empty():
 		return
+	if o != &"work" and TribeWork.is_station_job(r):
+		TribeWork.cancel(PlayerRegistry.local(), r)  # escrow back to the bag (the director retries a full bag)
 	r.order = o
 	if o != &"work":
 		r.job = {}
@@ -189,6 +191,8 @@ static func set_job(r: TribeRecord, kind: StringName, center: Vector3, chest: Ve
 		return "No member"
 	if not kind in TribeRecord.JOB_KINDS:
 		return "Unknown job"
+	if TribeWork.is_station_job(r):
+		TribeWork.cancel(PlayerRegistry.local(), r)
 	r.job = {"kind": str(kind), "center": [center.x, center.z], "radius": radius if radius > 0.0 else num("job_radius_m", 12.0),
 		"chest": [] if chest == Vector3.INF else [chest.x, chest.z]}
 	r.order = &"work"

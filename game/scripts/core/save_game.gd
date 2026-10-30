@@ -137,10 +137,12 @@ static func save_now() -> bool:
 		"pioneer_crafts": World.pioneer_crafts,
 		"pioneer_buildings": World.pioneer_buildings,
 		"t_stones": World.t_stones,
+		"warp_gems": World.warp_gems,
 		"visited_islands": World.visited_islands,
 		"raid_victory": World.raid_victory,
 		"objective": World.objective,
 		"objective_best": World.objective_best,
+		"tasks": Tasks.to_dict(), # TASKSCREEN: claimed tasks, daily/weekly counts and their reset day/week
 		"island_id": str(World.island_id),
 		"unstable": {
 			"remaining": World.remaining_lifetime,
@@ -267,12 +269,15 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.pioneer_crafts = data.get("pioneer_crafts", {})
 	World.pioneer_buildings = data.get("pioneer_buildings", {})
 	World.t_stones = int(data.get("t_stones", 20))
+	World.warp_gems = int(data.get("warp_gems", World.START_WARP_GEMS)) # an older save gets the new-game grant
 	World.visited_islands = data.get("visited_islands", {}).duplicate()
 	World.raid_victory = bool(data.get("raid_victory", false))
 	World.objective = int(data.get("objective", 0))  # older saves start the standing orders over
 	World.objective_best = int(data.get("objective_best", 0))
 	# TUTORIAL ISLAND: no row = a survivor from before the tutorial, who owns a home: done, never shown.
 	World.tutorial = Tutorial.from_save(data.get("tutorial", null))
+	# TASKSCREEN: after World.tutorial, so an old save reads the list it was running (Objectives._steps).
+	Tasks.from_dict(data.get("tasks", null)) # no block (older save): the orders already finished load as received
 	World.remaining_lifetime = float(data.get("unstable", {}).get("remaining", 0.0))
 	World.harvested = data.get("unstable", {}).get("harvested", {})
 	World.crater_discovered = bool(data.get("unstable", {}).get("crater_discovered", false))

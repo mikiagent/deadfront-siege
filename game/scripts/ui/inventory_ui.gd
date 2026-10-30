@@ -1,9 +1,12 @@
 class_name InventoryUI
 extends Control
 ## The Bag family (owner spec 13), docked on the right over the live world (addendum 2):
-## - Bag page: header "Bag  used / capacity" (warning colour when full), a scrolling grid of one
-##   instance per slot (BagGrid: Lv., NEW, rare corner, gold brackets), and the bottom toolbar
-##   (Auto Sort, Filter, Select, Lock, Destroy; Take all on a container's tab).
+## - Bag page (BAGUI, owner 2026-10-28, Durango reference): SheetChrome header ‹ Bag | Character,
+##   "used / capacity" (warning colour when full) and the CurrencyBar, ✕ (capacity counts the worn backpack's slots: backpacks are the only source); a filter rail on the left; a scrolling grid of one instance per slot (BagGrid:
+##   Lv., quality dots, NEW, rare corner, gold brackets); the bottom bar (Sort dropdown, Select,
+##   Lock, Trash; Take all on a container's tab).
+## - Opening it in the field plays the survivor's rummage clip (PlayerAnim.start_rummage); moving
+##   closes it.
 ## - The item card (ItemInspectPanel) floats between the world and the bag: facts, gold / grey /
 ##   green traits and only the actions valid for the selected instance (valid_actions).
 ## - A container (storage box, basket, loot, a dinosaur's cargo) adds its own tab beside the Bag tab:
@@ -29,7 +32,16 @@ var _tab := "bag"
 var _page := "bag"
 
 var _panel: Panel
+var _chrome: SheetChrome
 var _root: VBoxContainer
+## BAGUI: the filter rail (one 64 px tab per BagGrid.FILTERS id), the balances, the card's Use button.
+var _rail: VBoxContainer
+var _rail_btns: Dictionary = {}
+var _currency: CurrencyBar
+var _use_btn: Button
+var _rummaging := false
+var _use_id := ""
+var _was_moving := true
 var _title: Label
 var _grid: BagGrid
 var _pet_grid: BagGrid
@@ -43,8 +55,7 @@ var _tip: Label
 var _card: ItemInspectPanel
 var _bag_page: VBoxContainer
 var _toolbar: HBoxContainer
-var _sort_btn: Button
-var _filter_btn: Button
+var _sort_btn: OptionButton
 var _lock_btn: Button
 var _place_btn: Button
 var _eat_btn: Button
@@ -64,6 +75,8 @@ var _batch_drop_btn: Button
 var _batch_destroy_btn: Button
 var _batch_destroy_armed := false
 var _batch_store_btn: Button
+## BAGUI eat queue: "Eat (n)" eats the marked foods one after another, in the order marked.
+var _batch_eat_btn: Button
 var _batch_take_btn: Button
 var _equip_btn: Button
 var _food1_btn: Button
@@ -86,13 +99,17 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
 const INK := Color(0.95, 0.95, 0.93)
 const GOLD := Color("#E6BE54")
 const PANEL := Color("#39392F")
-## ASSUMPTION: the sheet may use 68% of the view, capped at 1120 px, so the live world remains
-## visible on the left (where the item card floats) while the bag keeps usable widths.
-const SHEET_SHARE := 0.68
+## ASSUMPTION: the sheet takes 52% of the view (520-900 px, BAGUI: the Durango reference's right-hand
+## bag), so the live world and the item card on its left keep room.
+const SHEET_SHARE := 0.52
 const SHEET_MIN_PX := 520.0
-const SHEET_MAX_PX := 1120.0
+const SHEET_MAX_PX := 900.0
+## The filter rail's icon per BagGrid filter (white UI icons; "action" is the sparkle for Rare).
+const RAIL_ICONS := {"": &"bag", "materials": &"gathering", "food": &"eat", "gear": &"equip", "tools": &"tool_pick",
+	"building": &"build", "rare": &"action", "locked": &"lock"}
 
 func _ready() -> void:
+	theme = SheetChrome.ui_theme() # Roboto Condensed for the whole bag family
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -106,49 +123,36 @@ func _ready() -> void:
 	psb.set_corner_radius_all(3)
 	_panel.add_theme_stylebox_override("panel", psb)
 	add_child(_panel)
+	# Header (spec 13 s4, BAGUI): the shared chrome across the sheet's width.
+	_chrome = SheetChrome.new("")
+	_chrome.back_pressed.connect(func () -> void: hide_ui(); menu_requested.emit())
+	_chrome.close_pressed.connect(hide_ui)
+	_panel.add_child(_chrome)
+	_close_btn = _chrome.close
+	_close_btn.name = "CloseButton"
+	_title = Label.new() # kept for callers that read the screen's title
+	_title.visible = false
+	_panel.add_child(_title)
+	_bag_tab = _chrome.add_tab("Bag", true)
+	_bag_tab.name = "BagTab"
+	_bag_tab.pressed.connect(func () -> void: _show_page("bag", "bag"))
+	_store_tab = _chrome.add_tab("", false)
+	_store_tab.name = "StoreTab"
+	_store_tab.pressed.connect(func () -> void: _show_page("bag", "store"))
+	_char_tab = _chrome.add_tab("Character", false)
+	_char_tab.name = "CharacterTab"
+	_char_tab.pressed.connect(open_character)
+	_cap_label = _chrome.counter
+	_cap_label.name = "Capacity"
+	_currency = CurrencyBar.new()
+	_chrome.right.add_child(_currency)
 	_root = VBoxContainer.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.offset_left = 6
-	_root.offset_top = 6
 	_root.offset_right = -6
 	_root.offset_bottom = -6
 	_root.add_theme_constant_override("separation", 6)
 	_panel.add_child(_root)
-	# Header (spec 13 s4): "Bag  91 / 100", the container's tab, Character, close.
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 6)
-	_root.add_child(header)
-	_title = Label.new() # kept for callers that read the screen's title
-	_title.visible = false
-	header.add_child(_title)
-	_bag_tab = _btn("Bag", Vector2(72, TAP))
-	_bag_tab.name = "BagTab"
-	_bag_tab.pressed.connect(func () -> void: _show_page("bag", "bag"))
-	header.add_child(_bag_tab)
-	_cap_label = Label.new()
-	_cap_label.name = "Capacity"
-	_cap_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_cap_label.custom_minimum_size = Vector2(76, TAP)
-	_cap_label.add_theme_color_override("font_color", INK)
-	header.add_child(_cap_label)
-	_store_tab = _btn("", Vector2(150, TAP))
-	_store_tab.name = "StoreTab"
-	_store_tab.clip_text = true
-	_store_tab.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_store_tab.pressed.connect(func () -> void: _show_page("bag", "store"))
-	header.add_child(_store_tab)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	header.add_child(spacer)
-	_char_tab = _btn("Character", Vector2(112, TAP))
-	_char_tab.name = "CharacterTab"
-	_char_tab.pressed.connect(open_character)
-	header.add_child(_char_tab)
-	_close_btn = _btn("✕", Vector2(TAP, TAP))
-	_close_btn.name = "CloseButton"
-	_close_btn.pressed.connect(hide_ui)
-	header.add_child(_close_btn)
 	_build_bag_page()
 	_build_card()
 	_character = CharacterSheet.new()
@@ -178,15 +182,44 @@ func _ready() -> void:
 	_bag_inspector = BagInspect.new()
 	_bag_inspector.name = "BagInspector"
 	add_child(_bag_inspector)
+	visibility_changed.connect(_on_visibility)
 	resized.connect(_layout_safe)
 	_layout_safe()
 	rebuild()
 
 func _build_bag_page() -> void:
+	# Filter rail (BAGUI) beside the page; the page holds the grids, the tip and the bottom bar.
+	var body := HBoxContainer.new()
+	body.name = "Body"
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 6)
+	_root.add_child(body)
+	var rail_scroll := ScrollContainer.new()
+	rail_scroll.name = "FilterRail"
+	rail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	rail_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	rail_scroll.custom_minimum_size.x = TAP
+	body.add_child(rail_scroll)
+	_rail = VBoxContainer.new()
+	_rail.add_theme_constant_override("separation", 4)
+	rail_scroll.add_child(_rail)
+	for f: String in BagGrid.FILTERS:
+		var rb := _btn(str(BagGrid.FILTER_LABELS[f]), Vector2(TAP, TAP))
+		rb.name = "Filter_%s" % (f if f != "" else "all")
+		rb.icon = UiIcons.icon(RAIL_ICONS.get(f, &"bag"))
+		rb.expand_icon = false
+		rb.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		rb.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		rb.clip_text = true
+		rb.tooltip_text = str(BagGrid.FILTER_LABELS[f])
+		rb.pressed.connect(_set_filter.bind(f))
+		_rail.add_child(rb)
+		_rail_btns[f] = rb
 	_bag_page = VBoxContainer.new()
 	_bag_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_bag_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_bag_page.add_theme_constant_override("separation", 6)
-	_root.add_child(_bag_page)
+	body.add_child(_bag_page)
 	_storage_title = Label.new() # the container's name lives on its tab; kept for callers
 	_storage_title.visible = false
 	_bag_page.add_child(_storage_title)
@@ -214,20 +247,21 @@ func _build_bag_page() -> void:
 	_tip.clip_text = true
 	_tip.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_bag_page.add_child(_tip)
-	# Bottom toolbar (spec 13 s9): wide Auto Sort, then Filter, Select, Lock and the trash.
+	# Bottom bar (spec 13 s9, BAGUI): the Sort dropdown, then Select, Lock and Trash.
 	_toolbar = HBoxContainer.new()
 	_toolbar.name = "Toolbar"
 	_toolbar.add_theme_constant_override("separation", 6)
 	_bag_page.add_child(_toolbar)
-	_sort_btn = _btn("Auto Sort", Vector2(120, TAP))
+	_sort_btn = OptionButton.new()
 	_sort_btn.name = "SortButton"
+	_sort_btn.custom_minimum_size = Vector2(120, TAP)
 	_sort_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_sort_btn.pressed.connect(_on_sort)
+	_sort_btn.focus_mode = Control.FOCUS_NONE
+	_sort_btn.clip_text = true
+	for k: String in BagGrid.SORTS:
+		_sort_btn.add_item("Sort by %s" % str(BagGrid.SORT_LABELS[k]))
+	_sort_btn.item_selected.connect(func (i: int) -> void: _set_sort(BagGrid.SORTS[i]))
 	_toolbar.add_child(_sort_btn)
-	_filter_btn = _btn("All", Vector2(92, TAP))
-	_filter_btn.name = "FilterButton"
-	_filter_btn.pressed.connect(_on_filter)
-	_toolbar.add_child(_filter_btn)
 	_batch_label = Label.new()
 	_batch_label.text = "0 selected"
 	_batch_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -235,15 +269,15 @@ func _build_bag_page() -> void:
 	_batch_label.custom_minimum_size = Vector2(96, TAP)
 	_batch_label.visible = false
 	_toolbar.add_child(_batch_label)
-	_select_btn = _btn("Select", Vector2(84, TAP))
+	_select_btn = _btn("Select", Vector2(TAP, TAP))
 	_select_btn.name = "SelectButton"
 	_select_btn.pressed.connect(_on_toggle_multi)
 	_toolbar.add_child(_select_btn)
-	_lock_btn = _btn("Lock", Vector2(80, TAP))
+	_lock_btn = _btn("Lock", Vector2(TAP, TAP))
 	_lock_btn.name = "LockButton"
 	_lock_btn.pressed.connect(_toggle_lock)
 	_toolbar.add_child(_lock_btn)
-	_destroy_btn = _btn("Destroy", Vector2(92, TAP))
+	_destroy_btn = _btn("Trash", Vector2(TAP, TAP))
 	_destroy_btn.name = "DestroyButton"
 	_destroy_btn.add_theme_color_override("font_color", UiTokens.DANGER)
 	_destroy_btn.pressed.connect(_destroy_selected)
@@ -254,21 +288,25 @@ func _build_bag_page() -> void:
 	_toolbar.add_child(_take_all_btn)
 	# Select mode's batch actions share the toolbar row (they replace sort, filter, lock and trash).
 	_batch_row = _toolbar
-	_batch_lock_btn = _btn("Lock", Vector2(80, TAP))
+	_batch_lock_btn = _btn("Lock", Vector2(TAP, TAP))
 	_batch_lock_btn.pressed.connect(_on_batch_lock)
 	_toolbar.add_child(_batch_lock_btn)
-	_batch_drop_btn = _btn("Drop", Vector2(80, TAP))
+	_batch_drop_btn = _btn("Drop", Vector2(TAP, TAP))
 	_batch_drop_btn.pressed.connect(_on_batch_drop)
 	_toolbar.add_child(_batch_drop_btn)
-	_batch_destroy_btn = _btn("Destroy", Vector2(92, TAP))
+	_batch_destroy_btn = _btn("Trash", Vector2(TAP, TAP))
 	_batch_destroy_btn.add_theme_color_override("font_color", UiTokens.DANGER)
 	_batch_destroy_btn.pressed.connect(_on_batch_destroy)
 	_toolbar.add_child(_batch_destroy_btn)
-	_batch_store_btn = _btn("Store", Vector2(84, TAP))
+	_batch_eat_btn = _btn("Eat", Vector2(TAP, TAP))
+	_batch_eat_btn.name = "BatchEatButton"
+	_batch_eat_btn.pressed.connect(_on_batch_eat)
+	_toolbar.add_child(_batch_eat_btn)
+	_batch_store_btn = _btn("Deposit", Vector2(TAP, TAP))
 	_batch_store_btn.name = "BatchStoreButton"
 	_batch_store_btn.pressed.connect(_on_batch_store)
 	_toolbar.add_child(_batch_store_btn)
-	_batch_take_btn = _btn("Transfer to Bag", Vector2(150, TAP))
+	_batch_take_btn = _btn("Withdraw", Vector2(110, TAP))
 	_batch_take_btn.name = "BatchTakeButton"
 	_batch_take_btn.pressed.connect(_on_batch_take)
 	_toolbar.add_child(_batch_take_btn)
@@ -282,6 +320,14 @@ func _build_card() -> void:
 	_card = ItemInspectPanel.new()
 	_card.z_index = 1
 	add_child(_card)
+	# The reference's big Use: the item's main action (use_action), under the smaller ones.
+	_use_btn = SheetChrome.gold_button("Use")
+	_use_btn.name = "UseButton"
+	_use_btn.focus_mode = Control.FOCUS_NONE
+	_use_btn.custom_minimum_size = Vector2(TAP, TAP)
+	_use_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_use_btn.pressed.connect(_on_use)
+	_card.use_row.add_child(_use_btn)
 	_equip_btn = _action("Equip", _on_equip_pressed)
 	_eat_btn = _action("Eat", _on_eat_food)
 	_inspect_btn = _action("Inspect", _on_inspect)
@@ -315,16 +361,16 @@ func _action(text: String, cb: Callable) -> Button:
 	_card.actions.add_child(b)
 	return b
 
-## Active tab / preset: gold with dark text; the rest stay dark.
+## A phone header has room for ‹, the tabs, the counter, two balances and ✕: the Character tab
+## (also in the nav menu) and the gem "+" go, and with a container open the T-stone pill too.
+func _fit_header(compact: bool) -> void:
+	_char_tab.visible = not compact
+	_currency.add_btn.visible = not compact
+	_currency.show_stones(not (compact and pet_bag != null))
+	_currency.refresh()
+
 func _tab_style(b: Button, on: bool) -> void:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = GOLD if on else Color("#26322C")
-	sb.set_corner_radius_all(2)
-	sb.set_content_margin_all(6)
-	for st in ["normal", "hover", "pressed", "focus"]:
-		b.add_theme_stylebox_override(st, sb)
-	b.add_theme_color_override("font_color", Color("#1B1A14") if on else INK)
-	b.add_theme_color_override("font_hover_color", Color("#1B1A14") if on else INK)
+	SheetChrome.tab_style(b, on, UiTokens.is_compact(get_viewport_rect().size))
 
 # ---------------------------------------------------------------- open / close
 
@@ -356,6 +402,29 @@ func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
 		hide_ui()
 		get_viewport().set_input_as_handled()
+
+# ---------------------------------------------------------------- rummage (BAGUI)
+
+## Open in the field: the survivor rummages (her clip, else idle); closed: back to idle. A move
+## (stick, keys, a tap-to-walk route) closes the bag (_process).
+func _on_visibility() -> void:
+	var p := _owner_player
+	if p == null or p.anim == null:
+		return
+	if is_visible_in_tree() and not _rummaging:
+		_rummaging = p.anim.start_rummage()
+	elif not is_visible_in_tree() and _rummaging:
+		_rummaging = false
+		p.anim.stop_rummage()
+
+func _process(_dt: float) -> void:
+	if not visible or _owner_player == null or _owner_player.sim == null:
+		_was_moving = true # a move already under way when the bag opens does not close it
+		return
+	var moving := _owner_player.nav_active or _owner_player.sim.input_vector().length() > 0.2
+	if moving and not _was_moving:
+		hide_ui()
+	_was_moving = moving
 
 func show_pet_bag(rec: PetRecord) -> void:
 	# Spec 13 s17: a bonded dinosaur's cargo is the same grid on its own tab.
@@ -402,12 +471,21 @@ func _layout_safe() -> void:
 	var body := 14 if compact else UiTokens.body(r)
 	for b: Button in _all_buttons():
 		b.add_theme_font_size_override("font_size", body)
-	for l: Label in [_cap_label, _tip, _storage_note]:
+	for b: Button in _rail_btns.values():
+		b.add_theme_font_size_override("font_size", UiTokens.TYPE_MIN)
+		b.add_theme_constant_override("icon_max_width", 24 if compact else 28)
+	for l: Label in [_tip, _storage_note]:
 		if l:
 			l.add_theme_font_size_override("font_size", body)
 			l.add_theme_constant_override("line_spacing", 0) # the game theme's spacing made each line 29 px
+	_currency.set_px(15 if compact else 20)
+	# The chrome spans the sheet; the body sits under its torn edge.
+	_fit_header(compact)
+	_chrome.layout(sheet.size)
 	_cap_label.add_theme_font_size_override("font_size", 18 if compact else 26)
-	var cell := 64.0 if compact else clampf(floorf((sheet.size.x - 12.0 - 6.0 * 7.0) / 8.0), 64.0, 120.0)
+	_root.offset_top = SheetChrome.body_top(r) - (6.0 if compact else 14.0)
+	var grid_w := sheet.size.x - 12.0 - TAP - 6.0
+	var cell := 64.0 if compact else clampf(floorf((grid_w - 6.0 * 7.0) / 7.0), 64.0, 104.0)
 	_grid.cell_px = cell
 	_pet_grid.cell_px = cell
 	_card.set_scale_for(r)
@@ -429,7 +507,7 @@ static func card_rect(view: Vector2, safe: Vector4 = Vector4.ZERO) -> Rect2:
 	var left := 12.0 + safe.w
 	var free := sheet.position.x - 8.0 - left
 	if free >= 220.0:
-		return Rect2(Vector2(left, sheet.position.y), Vector2(minf(free, 400.0), sheet.size.y))
+		return Rect2(Vector2(sheet.position.x - 8.0 - minf(free, 440.0), sheet.position.y), Vector2(minf(free, 440.0), sheet.size.y))
 	return Rect2(sheet.position, Vector2(minf(sheet.size.x * 0.5, 320.0), sheet.size.y))
 
 ## Sizes the card to its content, never taller than its rect (its facts scroll inside).
@@ -439,14 +517,19 @@ func _layout_card() -> void:
 	var view := get_viewport_rect().size
 	var r := card_rect(view, UiTokens.safe_insets(get_viewport()))
 	_card.actions.columns = 2 if r.size.x < 320.0 else 3
+	# A phone card keeps its facts readable: Use joins the small actions' grid instead of its own row.
+	var host: Control = _card.actions if UiTokens.is_compact(view) else _card.use_row
+	if _use_btn.get_parent() != host:
+		_use_btn.reparent(host)
+		host.move_child(_use_btn, 0)
 	_card.position = r.position
 	_card.custom_minimum_size = Vector2(r.size.x, 0)
 	_card.fit(r.size.y)
 
 func _all_buttons() -> Array[Button]:
-	var out: Array[Button] = [_bag_tab, _store_tab, _char_tab, _close_btn, _sort_btn, _filter_btn, _select_btn, _lock_btn,
+	var out: Array[Button] = [_sort_btn, _select_btn, _lock_btn,
 		_destroy_btn, _take_all_btn, _batch_lock_btn, _batch_drop_btn, _batch_destroy_btn,
-		_batch_store_btn, _batch_take_btn, _equip_btn, _eat_btn, _inspect_btn, _food1_btn, _food2_btn, _feed_btn, _place_btn, _store_btn, _take_btn, _drop_btn]
+		_batch_store_btn, _batch_take_btn, _batch_eat_btn, _equip_btn, _eat_btn, _inspect_btn, _food1_btn, _food2_btn, _feed_btn, _place_btn, _store_btn, _take_btn, _drop_btn]
 	return out
 
 # ---------------------------------------------------------------- rebuild
@@ -476,6 +559,8 @@ func rebuild() -> void:
 		_pet_grid.set_selected(_store_sel)
 	_storage_title.text = str(_storage_opts.get("title", "")) if has_storage else ""
 	_title.text = "Bag" if not has_storage else "Bag  ·  %s" % _storage_title.text
+	# A chest open (owner 2026-10-28): two tabs, each with its own used / capacity.
+	_bag_tab.text = "Bag %d / %d" % [inventory.used_slots(), inventory.capacity()] if has_storage else "Bag"
 	var on_bag := _page == "bag"
 	_panel.visible = on_bag
 	_character.visible = not on_bag
@@ -486,6 +571,11 @@ func rebuild() -> void:
 	_tab_style(_bag_tab, on_bag and _tab == "bag")
 	_tab_style(_store_tab, on_bag and _tab == "store")
 	_tab_style(_char_tab, not on_bag)
+	if has_storage:
+		_cap_label.text = "" # each tab carries its own used / capacity
+	if _chrome.size.x > 0.0:
+		_fit_header(UiTokens.is_compact(get_viewport_rect().size))
+		_chrome.layout(_chrome.size) # the counter's width follows its text
 	_take_all_btn.disabled = _readonly_reason() != "" or pet_bag == null or pet_bag.used_slots() <= 0
 	_update_toolbar()
 	if on_bag:
@@ -504,10 +594,10 @@ func _update_toolbar() -> void:
 	var store := _tab == "store"
 	var g := _active_grid()
 	var multi := g != null and g.multi_mode
-	_sort_btn.text = "Auto Sort: %s" % str(BagGrid.SORT_LABELS.get(g.sort_key, "Bag order"))
-	_filter_btn.text = str(BagGrid.FILTER_LABELS.get(g.filter_id, "All"))
+	_sort_btn.select(maxi(0, BagGrid.SORTS.find(g.sort_key)))
 	_sort_btn.visible = not multi
-	_filter_btn.visible = not multi
+	for f: String in _rail_btns:
+		_rail_style(_rail_btns[f], f == g.filter_id)
 	_select_btn.visible = true
 	_lock_btn.visible = not store and not multi
 	_destroy_btn.visible = not store and not multi
@@ -516,23 +606,40 @@ func _update_toolbar() -> void:
 		b.visible = multi and not store
 	_batch_store_btn.visible = multi and not store and pet_bag != null and bool(_storage_opts.get("allow_deposit", false)) and _readonly_reason() == ""
 	_batch_take_btn.visible = multi and store
+	_batch_eat_btn.visible = multi and not store and _owner_player != null and pet_bag == null # a chest open: Deposit
 	_take_all_btn.visible = _take_all_btn.visible and not multi
-	_batch_label.visible = multi
+	_batch_label.visible = false # the header counter reads "<n> Select" instead
 
 func _active_grid() -> BagGrid:
 	return _pet_grid if _tab == "store" and pet_bag != null else _grid
 
-func _on_sort() -> void:
+## Sort and filter change only the draw order of the active grid (BagGrid.view_order).
+func _set_sort(key: String) -> void:
 	var g := _active_grid()
-	g.sort_key = BagGrid.SORTS[(BagGrid.SORTS.find(g.sort_key) + 1) % BagGrid.SORTS.size()]
+	g.sort_key = key
 	g.rebuild()
 	_update_toolbar()
 
-func _on_filter() -> void:
+func _set_filter(f: String) -> void:
 	var g := _active_grid()
-	g.filter_id = BagGrid.FILTERS[(BagGrid.FILTERS.find(g.filter_id) + 1) % BagGrid.FILTERS.size()]
+	g.filter_id = f
 	g.rebuild()
 	_update_toolbar()
+
+## A rail tab: GOLD ink and a GOLD left bar when its filter is on.
+func _rail_style(b: Button, on: bool) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(UiTokens.GOLD, 0.16) if on else Color(0, 0, 0, 0.25)
+	sb.border_color = UiTokens.GOLD
+	sb.border_width_left = 3 if on else 0
+	sb.set_corner_radius_all(3)
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 4
+	for st in ["normal", "hover", "pressed", "focus"]:
+		b.add_theme_stylebox_override(st, sb)
+	var ink := UiTokens.GOLD if on else UiTokens.TEXT
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "icon_normal_color", "icon_hover_color", "icon_pressed_color"]:
+		b.add_theme_color_override(c, ink)
 
 ## Every uid this survivor owns now: the bag and worn gear (unequipping is not "new").
 func _all_uids() -> Dictionary:
@@ -594,6 +701,21 @@ static func valid_actions(stack: ItemStack, ctx: Dictionary = {}) -> Array[Strin
 	out.append("drop")
 	return out
 
+## The card's big button: the item's main action among the valid ones (eat, equip, place), "" for
+## an item that is only material (the button then shows Use, disabled).
+static func use_action(valid: Array[String]) -> String:
+	for a in ["eat", "equip", "place"]:
+		if valid.has(a):
+			return a
+	return ""
+
+const USE_LABELS := {"eat": "Use: Eat", "equip": "Use: Equip", "place": "Use: Place"}
+
+func _on_use() -> void:
+	var btn: Variant = _action_buttons().get(_use_id, null)
+	if btn is Button and not (btn as Button).disabled:
+		(btn as Button).pressed.emit()
+
 func _action_buttons() -> Dictionary:
 	return {"eat": _eat_btn, "food1": _food1_btn, "food2": _food2_btn, "inspect": _inspect_btn, "feed": _feed_btn,
 		"equip": _equip_btn, "place": _place_btn, "store": _store_btn, "take": _take_btn, "drop": _drop_btn}
@@ -635,10 +757,7 @@ func _select(index: int) -> void:
 	_show_actions(valid)
 	_drop_btn.disabled = not _can_drop_selected()
 	_drop_btn.tooltip_text = "Unlock this item before dropping it." if stack.is_locked() else "Drop this item in a loot bag."
-	if BagCapacity.is_bag(stack.def_id) and not Food.is_food(stack):
-		_inspect_btn.text = "Inspect bag"
-	else:
-		_inspect_btn.text = "Inspect"
+	_inspect_btn.text = "Inspect bag" if BagCapacity.is_bag(stack.def_id) and not Food.is_food(stack) else "Inspect"
 	var d := stack.def()
 	var slot := Inventory.slot_for(d)
 	_equip_btn.text = "Equip %s" % (str(EQUIP_LABELS.get(str(slot), slot)) if slot != &"" else "tool")
@@ -649,6 +768,13 @@ func _select(index: int) -> void:
 	if _store_btn.visible:
 		_store_btn.text = "Transfer to %s" % str(_storage_opts.get("title", "Storage"))
 	_card.show_stack(stack)
+	# A chest open (owner 2026-10-28): the big button moves the item into it.
+	_use_id = "store" if valid.has("store") else use_action(valid)
+	_use_btn.disabled = _use_id == "" or (_action_buttons()[_use_id] as Button).disabled if _use_id != "" else true
+	_use_btn.text = ("Transfer to %s" % str(_storage_opts.get("title", "Storage"))) if _use_id == "store" else str(USE_LABELS.get(_use_id, "Use"))
+	_use_btn.visible = true
+	if _use_id != "":
+		(_action_buttons()[_use_id] as Button).visible = false # the big button is that action
 	_layout_card()
 
 ## Select a slot of the open container: its card offers "Transfer to Bag" (disabled with the reason
@@ -668,6 +794,7 @@ func _select_store(index: int) -> void:
 	_show_actions(valid_actions(stack, {"where": "store"}))
 	_take_btn.disabled = _readonly_reason() != "" or stack.is_locked()
 	_take_btn.tooltip_text = _readonly_reason()
+	_use_btn.visible = false # a container's item is taken first, then used
 	_card.show_stack(stack, str(_storage_opts.get("title", "Storage")))
 	_layout_card()
 
@@ -695,7 +822,7 @@ func _set_quick(i: int) -> void:
 	inventory.set_quick_food(i, st.def_id)
 
 ## Spec 31 §9/§11: one Inspect action opens the right panel; a bag shows its storage breakdown and
-## the capacity change against the worn bag. Ordinary gear/food keeps the food inspector.
+## the capacity change against the worn bag. Food keeps the food inspector.
 func _on_inspect() -> void:
 	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
 		return
@@ -727,8 +854,10 @@ func _on_inspect_food() -> void:
 func _on_eat_food() -> void:
 	if _owner_player == null or _selected < 0:
 		return
+	var st := inventory.slots[_selected] if _selected < inventory.slot_count else null
 	hide_ui()
-	_owner_player.begin_eat_slot(_selected)
+	if not _owner_player.begin_eat_slot(_selected) and st != null:
+		_owner_player.notice("Too full to eat." if Food.can_eat(_owner_player, st) == "full" else "You can't eat that now.") # never a silent no
 
 func _on_feed_pet() -> void:
 	if _owner_player == null or _selected < 0:
@@ -798,7 +927,7 @@ func _destroy_selected() -> void:
 		return
 	if _destroy_armed_index != _selected:
 		_destroy_armed_index = _selected
-		_destroy_btn.text = "Destroy?"
+		_destroy_btn.text = "Trash?"
 		_destroy_btn.tooltip_text = "Tap again to permanently destroy this item."
 		return
 	var index := _selected
@@ -818,7 +947,7 @@ func _destroy_selected() -> void:
 func _disarm_destroy() -> void:
 	_destroy_armed_index = -1
 	if _destroy_btn:
-		_destroy_btn.text = "Destroy"
+		_destroy_btn.text = "Trash"
 
 func _clear_empty_shortcuts(id: StringName) -> void:
 	if inventory == null or inventory.count_of(id) > 0:
@@ -865,23 +994,31 @@ func _update_batch_bar() -> void:
 		return
 	var on := _grid != null and _active_grid().multi_mode
 	if not on:
+		if inventory and _cap_label.text.ends_with("Select"):
+			_cap_label.text = "%d / %d" % [inventory.used_slots(), inventory.capacity()]
+			_chrome.layout(_chrome.size)
 		return
 	var n := _active_grid().multi.size()
 	_batch_label.text = "%d selected" % n
+	var foods := _marked_foods().size()
+	_batch_eat_btn.text = "Eat (%d)" % foods
+	_batch_eat_btn.disabled = foods == 0
+	_cap_label.text = "%d Select" % n # the header counts the marks while Select is on (reference)
+	_chrome.layout(_chrome.size)
 	_batch_take_btn.disabled = n == 0 or _readonly_reason() != ""
 	_batch_store_btn.disabled = n == 0
 	_batch_lock_btn.disabled = n == 0
 	_batch_drop_btn.disabled = n == 0
 	_batch_destroy_btn.disabled = n == 0
 	if _batch_destroy_armed:
-		_batch_destroy_btn.text = "Confirm destroy"
+		_batch_destroy_btn.text = "Confirm"
 	else:
-		_batch_destroy_btn.text = "Destroy"
+		_batch_destroy_btn.text = "Trash"
 
 func _disarm_batch_destroy() -> void:
 	_batch_destroy_armed = false
 	if _batch_destroy_btn:
-		_batch_destroy_btn.text = "Destroy"
+		_batch_destroy_btn.text = "Trash"
 
 ## The single-item call gates (_can_remove_selected / _can_drop_selected) as batch context:
 ## destroying and dropping are solo-camp actions, and a drop additionally needs the live world
@@ -963,7 +1100,7 @@ func _on_batch_store() -> void:
 			done += 1
 	if done < (res["ok"] as Array).size() and _owner_player:
 		_owner_player.notice("Storage is full.")
-	_finish_batch(res, "Stored", done)
+	_finish_batch(res, "Deposited", done)
 
 ## Batch take from the open container: each marked instance into the bag; what does not fit stays.
 func _on_batch_take() -> void:
@@ -981,6 +1118,27 @@ func _on_batch_take() -> void:
 	_tip.text = "Took %d item(s)." % done
 	_update_batch_bar()
 	_notify_storage_take()
+
+## The marked foods as exact instances, in the order they were marked.
+func _marked_foods() -> Array[ItemStack]:
+	var out: Array[ItemStack] = []
+	if inventory == null or _grid == null:
+		return out
+	for i: int in _grid.multi_order():
+		var s := inventory.slots[i] if i >= 0 and i < inventory.slot_count else null
+		if s != null and Food.is_food(s) and not s.is_locked():
+			out.append(s)
+	return out
+
+## Eat (n): close the bag and eat the marked foods in order through the normal eat flow (EatSession
+## queue: each bite's own time; a move, a hit or a Full stomach stops it with a notice).
+func _on_batch_eat() -> void:
+	var foods := _marked_foods()
+	if foods.is_empty() or _owner_player == null or _owner_player.eat_session == null:
+		return
+	hide_ui()
+	if _owner_player.eat_session.begin_queue(foods) == 0:
+		_owner_player.notice("Too full to eat." if Food.can_eat(_owner_player, foods[0]) == "full" else "Nothing to eat.")
 
 ## After a pass: release the marks, keep Select mode on for the next batch, and summarise what was
 ## skipped in the tip (or confirm the whole batch went through).

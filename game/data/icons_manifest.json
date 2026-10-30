@@ -182,6 +182,7 @@
     "barbed_knife": "stone_knife",
     "toxin_coating": "herb_leaf",
     "predator_tendon": "hide_strap",
+    "bowstring": "hide_strap",
     "venom_gland": "herb_leaf",
     "rope_snare": "capture_net_i",
     "heavy_snare": "capture_net_ii",

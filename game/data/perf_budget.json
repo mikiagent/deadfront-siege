@@ -5,7 +5,10 @@
   "_enforce_note": "A measure with its own \"enforce\" entry is gated by that entry (build_ms has one: it is under budget on all three islands). Measures without one are gated by this top-level flag, still false because the plan has one known miss left (the heap, ~171 MB against 90, owned by another job): those over-budget measures are printed and reported, never silently dropped, and the measurement itself is always asserted (builds happen, counters agree, cells are 32 m and shadowless).",
   "islands": {
     "home": "home_grassland",
-    "unstable": ["savannah_15", "volcanic_60"]
+    "unstable": [
+      "savannah_15",
+      "volcanic_60"
+    ]
   },
   "measures": {
     "build_ms": {
@@ -18,8 +21,14 @@
     },
     "harvest_nodes": {
       "_rule": "HarvestNodes per island inside [min, max]",
-      "home": [450, 600],
-      "unstable": [500, 750]
+      "home": [
+        450,
+        600
+      ],
+      "unstable": [
+        500,
+        750
+      ]
     },
     "scene_nodes": {
       "_rule": "Scene nodes the build adds (Performance.OBJECT_NODE_COUNT delta) <= max",
@@ -49,5 +58,16 @@
     "camp_view_prims",
     "camp_view_shadow_prims",
     "web_frame_p95_ms"
-  ]
+  ],
+  "tutorial": {
+    "_about": "TUTPERF (2026-10-29): the 880 m tutorial island every new survivor lands on. Gated by counts, not milliseconds (other agents' jobs share this box): nodes ticking every frame under the island, harvest nodes ticking while full (must be 0: only a regrowing node ticks), creatures standing at build (0: ZoneSpawners wake them near the survivor). build_ms is printed and judged against build_max_ms but only enforced when enforce_build is true (one ~6 s build, no best-of-5).",
+    "island": "tutorial_isle",
+    "ticking_max": 900,
+    "_ticking_note": "2026-10-29: 1,245 before TUTPERF (637 CardProps + 608 HarvestNodes), 637 after (CardProps keep facing the camera); 900 catches a new per-node _process on a populated island.",
+    "harvest_ticking_max": 0,
+    "creatures_at_build_max": 0,
+    "scene_nodes_max": 9000,
+    "build_max_ms": 7500,
+    "enforce_build": false
+  }
 }

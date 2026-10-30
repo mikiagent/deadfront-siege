@@ -129,7 +129,7 @@ func press_primary() -> void:
 static func say_error(res: Dictionary) -> String:
 	match str(res.get("err", "")):
 		"offline": return "The Island Market is offline."
-		"insufficient_funds": return "Not enough T-stones: %s." % str(res.get("msg", ""))
+		"insufficient_funds": return "Not enough Gold: %s." % str(res.get("msg", ""))
 		"closed", "not_found", "expired": return "Someone got there first: that listing is gone."
 		"limit_reached": return str(res.get("msg", "A limit was reached.")).capitalize()
 	return "The server refused: %s" % str(res.get("msg", res.get("err", "unknown error")))

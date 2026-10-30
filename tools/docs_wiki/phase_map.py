@@ -21,6 +21,9 @@ MAX_PHASES = 12
 MAX_FEATURES_PER_PHASE = 60
 MAX_TEXT_CHARS = 2_000
 MAX_PATH_CHARS = 200
+MAX_EVIDENCE = 8
+# Evidence that is not a file in this checkout: a commit or a web link.
+EVIDENCE_REF = re.compile(r"commit:[0-9a-f]{7,40}|https://\S+")
 
 
 class PhaseError(ValueError):
@@ -113,6 +116,11 @@ def validate(root: Path, data: object) -> dict:
             for extra in ("note",):
                 if extra in feature and not _text(feature[extra], allow_empty=True):
                     raise PhaseError(f"Feature {fid}: 'note' must be text.")
+            evidence = feature.get("evidence", [])
+            if (not isinstance(evidence, list) or len(evidence) > MAX_EVIDENCE
+                    or not all(_text(e, MAX_PATH_CHARS) for e in evidence)):
+                raise PhaseError(f"Feature {fid}: 'evidence' must be a list of up to "
+                                 f"{MAX_EVIDENCE} paths, commit:<sha> or https:// links.")
             features[fid] = feature
     if numbers != sorted(numbers) or len(set(numbers)) != len(numbers):
         raise PhaseError("Phases must be numbered strictly ascending, no repeats.")
@@ -127,6 +135,12 @@ def validate(root: Path, data: object) -> dict:
         graph[fid] = list(deps)
     for fid, feature in features.items():
         _check_source(root, feature["source"])
+        for item in feature.get("evidence", []):
+            if not EVIDENCE_REF.fullmatch(item):
+                try:
+                    _check_source(root, item)
+                except PhaseError as exc:
+                    raise PhaseError(f"Feature {fid} evidence: {exc}") from exc
     _cycle_check(graph)
     return data
 
@@ -168,3 +182,59 @@ def merge(data: dict, marks: object) -> dict:
             out_features.append(item)
         result["phases"].append({**phase, "features": out_features})
     return result
+
+
+def audit(data: dict) -> dict:
+    """Read-only drift report over a validated (optionally merged) map.
+
+    'done' only says a package merged; evidence says how anyone can check it.
+    """
+    status = {f["id"]: f["status"] for p in data["phases"] for f in p["features"]}
+    report: dict[str, list[dict]] = {"done_without_evidence": [], "next_blocked": [],
+                                     "next_buildable": []}
+    for phase in data["phases"]:
+        for f in phase["features"]:
+            row = {"id": f["id"], "phase": phase["phase"], "title": f["title"]}
+            if f["status"] == "done" and not f.get("evidence"):
+                report["done_without_evidence"].append(row)
+            elif f["status"] == "next":
+                waiting = [d for d in f["depends"] if status.get(d) != "done"]
+                if waiting:
+                    report["next_blocked"].append({**row, "waiting_on": waiting})
+                else:
+                    report["next_buildable"].append(row)
+    return report
+
+
+def _print_audit(report: dict) -> None:
+    labels = {"next_buildable": "Next and buildable (all dependencies done)",
+              "next_blocked": "Next but blocked",
+              "done_without_evidence": "Done with no evidence linked"}
+    for key, label in labels.items():
+        rows = report[key]
+        print(f"{label}: {len(rows)}")
+        for r in rows:
+            extra = f"  (waiting on {', '.join(r['waiting_on'])})" if "waiting_on" in r else ""
+            print(f"  P{r['phase']} {r['id']}: {r['title']}{extra}")
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="Validate or audit the phase map (read-only).")
+    parser.add_argument("command", choices=("check", "audit"))
+    parser.add_argument("--json", action="store_true", help="print the audit as JSON")
+    args = parser.parse_args()
+    repo = Path(__file__).resolve().parents[2]
+    try:
+        loaded = load(repo)
+    except PhaseError as exc:
+        print(f"phase-map.json invalid: {exc}", file=sys.stderr)
+        sys.exit(1)
+    if args.command == "check":
+        print("phase-map.json OK")
+    elif args.json:
+        print(json.dumps(audit(loaded), indent=1))
+    else:
+        _print_audit(audit(loaded))
