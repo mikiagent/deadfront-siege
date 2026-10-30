@@ -603,7 +603,7 @@ func _physics_process(delta: float) -> void:
 		velocity.z = 0.0
 		_face_vel = _face_vel.lerp(Vector3.ZERO, 1.0 - exp(-delta / FACE_VEL_TAU_S))
 		if not anim._busy and not anim._forced:
-			anim.play_idle()
+			anim.play_idle(brain != null and not is_pet and brain.aware_idle())
 	_slide()
 	current_clip = anim.current_clip
 	_status_fx()

@@ -5,6 +5,10 @@ extends CreatureBrain
 ## first in CreatureBrain._pre_think, so this think never has to repeat them.
 
 var _heavy_cd: float = 0.0
+## A raptor with an investigate clip sizes up prey it has just spotted before it commits (owner 2026-10-30:
+## "head tilt and curious/inquisitive movement ... more aggressive"): the sniff, then head-cocking in a crouch.
+## ASSUMPTION: 3 s, the 1.5 s sniff plus most of one investigate loop; a hit or prey in reach ends it at once.
+const INVESTIGATE_HOLD_S := 3.0
 
 func setup(c: Creature) -> void:
 	super.setup(c)
@@ -13,8 +17,15 @@ func setup(c: Creature) -> void:
 
 func on_aggro(who: Node) -> void:
 	super.on_aggro(who)
+	if state == &"alert":
+		_alert_left = 0.0  # hit while sizing it up: charge now
 	if who is Node3D:
 		_propagate_alert(who as Node3D)
+
+func _spot(who: Node3D) -> void:
+	super._spot(who)
+	if creature.anim.has_state(&"investigate"):
+		_alert_left = INVESTIGATE_HOLD_S
 
 func _think(delta: float) -> void:
 	_heavy_cd = maxf(0.0, _heavy_cd - delta)
@@ -44,6 +55,12 @@ func _think(delta: float) -> void:
 	var dist := creature.global_position.distance_to(attack_target.global_position)
 	var excess := _size_excess(attack_target)
 	var reach := maxf(1.2, float(profile.get("attack_range", 2.0)) + 0.2) + excess
+	if state == &"alert" and creature.anim.has_state(&"investigate"):
+		_alert_left = maxf(0.0, _alert_left - delta)
+		if _alert_left > 0.0 and dist > reach:
+			creature.stop_move()
+			creature.face_towards(attack_target.global_position, delta)
+			return
 	# Leave a bite only a little past reach, so a target stepping back does not flip the state.
 	if dist > reach + (0.4 if state == &"attack" else 0.0):
 		_set_state(&"approach")
