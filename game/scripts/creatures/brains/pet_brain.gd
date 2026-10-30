@@ -3,6 +3,8 @@ extends CreatureBrain
 ## Pet orders (whistles): "guard" (default) follows the owner and fights whatever the owner
 ## fights or whatever hunts the owner; "attack" goes for one ordered target until it is dead;
 ## "heel" stays at the owner's side and does not fight. A hungry pet still fights, just slower.
+## "stay" (PETSTAY, radial toggle) holds the spot it was told to stay at: no auto-targeting, but it
+## fights back whatever hits it and then walks back to that spot.
 ##
 ## FOLLOW (owner 2026-10-28: "tames should follow within a certain radius of the player, not
 ## directly on top of the player"): every summoned pet holds its own follow SLOT beside/behind the
@@ -30,6 +32,15 @@ const FOLLOW_DEFAULTS := {
 var hold: bool = false
 var mode: StringName = &"guard"
 var order_target: Creature
+## PETSTAY: where a staying pet holds, and the last wild animal that hit it there.
+var stay_spot := Vector3.ZERO
+var _stay_foe: Creature
+## ASSUMPTION: a staying pet drops a foe that drags it this far from its spot (no doc number).
+const STAY_LEASH_M := 15.0
+## A staying pet walks back once it is this far from its spot and stops inside STAY_ARRIVE_M.
+const STAY_RETURN_M := 0.6
+const STAY_ARRIVE_M := 0.3
+var _returning := false
 ## Hysteresis latch: true while the pet is walking to its slot. It is set only once the pet is
 ## farther than the outer radius and cleared once it is inside the inner one, so a pet parked
 ## between the two does not start or stop moving every think.
@@ -40,6 +51,9 @@ var _past_gate: bool = false
 func order(cmd: StringName, target: Creature = null) -> void:
 	mode = cmd
 	order_target = target if cmd == &"attack" else null
+	_stay_foe = null
+	if cmd == &"stay":
+		stay_spot = creature.global_position
 	print("[pet] %s order %s%s" % [creature.def.id, cmd, (" -> " + str(target.def.id)) if target else ""])
 
 ## The ai.json "follow" block (fallbacks merged in), read once per call: it is four lookups.
@@ -173,6 +187,32 @@ static func slot_for(player: Player, index: int, body_radius: float, slot_mode: 
 	var behind := f.rotated(Vector3.UP, PI + angle)
 	return player.global_position + behind * dist
 
+## A staying pet fights back what hits it (the base brain records the source too).
+func on_aggro(who: Node) -> void:
+	super(who)
+	if mode == &"stay" and who is Creature and not (who as Creature).is_pet:
+		_stay_foe = who as Creature
+
+## The foe a staying pet answers, while it lives and has not dragged the pet off its spot.
+func _stay_target() -> Creature:
+	if _stay_foe == null or not is_instance_valid(_stay_foe) or _stay_foe.health.dead \
+			or _flat_distance(creature.global_position, stay_spot) > STAY_LEASH_M:
+		_stay_foe = null
+	return _stay_foe
+
+## Back to the stay spot, with the same start/stop hysteresis as follow.
+func _hold_spot(delta: float) -> void:
+	var d := _flat_distance(creature.global_position, stay_spot)
+	if d > STAY_RETURN_M:
+		_returning = true
+	elif d <= STAY_ARRIVE_M:
+		_returning = false
+	if _returning:
+		creature.move_to(stay_spot)
+		creature.face_towards(stay_spot, delta)
+	else:
+		creature.stop_move()
+
 func _flat_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
@@ -279,6 +319,8 @@ func _think(delta: float) -> void:
 			order_target = null
 	if mode == &"guard" and not hold:
 		target = _pick_guard_target(player)
+	elif mode == &"stay":
+		target = _stay_target()
 	# NATURES: a badly hurt pet stands down, unless its nature keeps it fighting for its rider.
 	if target and creature.health.fraction() < retreat_fraction() and not nature_keeps_fighting():
 		target = null
@@ -306,5 +348,8 @@ func _think(delta: float) -> void:
 				_do_attack()
 			return
 	attack_target = null
-	_set_state(&"alert" if mode == &"heel" else &"roam")
+	_set_state(&"alert" if mode == &"heel" or mode == &"stay" else &"roam")
+	if mode == &"stay":
+		_hold_spot(delta)
+		return
 	_follow(player, delta)
