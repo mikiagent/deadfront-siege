@@ -107,3 +107,25 @@ lots as a uid view; spoil times; Rot compost recipe.
 - No dedicated icons: Spoiled Meat / Rot / Narcoberry / Sedative / Tranquilizer Dart borrow raw meat,
   ash, berry, marsh herb and hollow bone through `icons_manifest.json` aliases.
 - Credits spent: none.
+
+## Re-merge (2026-10-30, dsc FOODFIX)
+Merged `origin/claude/mmo-overhaul` into this branch (merge commit 9aa7013b, unpushed).
+- Conflicts were exactly the two the brief named:
+  - `game/tests/t_buildspeed.gd`: took canon's ISLANDSHAPES block (comment + digests), then
+    re-recorded the three digests on the merged tree. Provenance proof: with the `narcoberry_bush`
+    count temporarily 0 in `island_scatter.gd` the merged build produced exactly canon's digests
+    (ee9810de… / 3baa8c61… / d7f9bb52…), then the count was restored to 2 and the new digests
+    (f04996a5… / 84bf66db… / c3029c63…) recorded with an updated comment.
+  - `docs/vision/WildLandsMMO_Open_Questions.md`: kept BOTH sections (FOODTORPOR T1-T6/F1-F3 and
+    ISLANDSHAPES S1-S10) in sequence, no edits to their content.
+- Narcoberry vs topography: verified the placement path can never land a bush on ISLANDSHAPES
+  cliff/outcrop ground — `_spawn_special_family` only accepts GRASS/DRY tiles and requires
+  `spawn_ok(pos,false)` (is_dry -> dry_walk, 0 on every CLIFF tile) plus the harbour/camp keep-outs.
+  Now asserted per bush in `t_islandgen._check_islandshapes` (tile != CLIFF, dry + spawn_ok, off the
+  dock approach) on all 16 islands incl. the tutorial isle (0 bushes there). t_islandgen PASS.
+- t_islandgen gained `tutorial_isle` in its roster (for that check); its hand-tuned dock is exempt
+  from the southern-most-dock assertions (ISLANDSHAPES S4 `dock_rule: hint`).
+- Gate: `verify_foodfix.sh` VERIFY PASS (t_foodtorpor, t_buildspeed, t_islandgen, t_capture09, t_tame,
+  t_tutorial, run_all, smoke). Note: t_buildspeed's timing gate flakes under this box's load (8+ agent
+  Godot jobs; canon itself measured 3229 ms home under load ~8.7 per claude-islandshapes.md); the
+  digest checks are the merge's real acceptance and pass.
