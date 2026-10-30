@@ -19,7 +19,7 @@ const TOD_STEP := 1.0 / 1440.0
 ## It carries the colour keys too: without them _c() returns WHITE, which washed the night fog
 ## and the whole sky out instead of only losing the tuned values.
 const FALLBACK := {"sun_energy": 2.2, "sun_warm_energy_scale": 0.8, "sun_max_elevation_deg": 58.0,
-	"moon_energy": 1.1, "moon_energy_compat": 2.0, "moon_elevation_deg": 55.0, "moon_yaw_deg": -70.0, "ambient_energy": 0.3,
+	"moon_energy": 1.1, "moon_energy_compat": 2.0, "moon_elevation_deg": 55.0, "moon_yaw_deg": -80.0, "ambient_energy": 0.3,
 	"ambient_night_energy": 0.4, "exposure": 1.0, "exposure_compat": 1.0, "exposure_scale": 1.0,
 	"saturation": 1.1, "saturation_compat": 1.1, "glow_intensity": 0.3, "fog_density": 0.0022, "fog_night_density": 0.004,
 	"sun_color": [1.0, 0.95, 0.86], "sun_warm_color": [1.0, 0.68, 0.42], "moon_color": [0.52, 0.64, 1.0],
@@ -28,7 +28,7 @@ const FALLBACK := {"sun_energy": 2.2, "sun_warm_energy_scale": 0.8, "sun_max_ele
 	"sky_dusk_top": [0.22, 0.3, 0.52], "sky_dusk_horizon": [0.88, 0.66, 0.5],
 	"sky_night_top": [0.03, 0.05, 0.12], "sky_night_horizon": [0.08, 0.11, 0.2],
 	"ground_horizon": [0.24, 0.29, 0.34], "ground_bottom": [0.06, 0.08, 0.1],
-	"sun_yaw_deg": [-35.0, -85.0], "fog_sun_scatter": 0.15}
+	"sun_yaw_deg": [-55.0, -105.0], "fog_sun_scatter": 0.15}
 
 static var _profiles: Dictionary = {}
 ## 0 by day, 1 at full night (drive() writes it every call). Creature eyeshine scales by it.
@@ -248,9 +248,11 @@ func drive(tod: float, sky: bool = true) -> void:
 	var night := 1.0 - sun_up
 	WorldLighting.night = night
 	var elevation := maxf(MIN_ELEVATION_DEG, _f("sun_max_elevation_deg") * sin(PI * day_t))
-	# The iso camera looks down yaw 45; a sun near that axis hides each shadow behind its
-	# caster. The yaw band keeps the sun 80-130 deg off it while it crosses the sky.
-	var yaw_band: Array = profile.get("sun_yaw_deg", [-35.0, -85.0])
+	# The iso camera looks down yaw 0 (north); a sun near that axis hides each shadow behind its
+	# caster. The band keeps the sun 55-105 deg off it while it crosses the sky. NORTHUP (camera yaw
+	# 45 -> 0): the old 80-130 band would light only the back of a rot-0 tent (t_structart: 0.25 lit);
+	# ASSUMPTION: 55-105 keeps shadows to the side and the camera-facing canvas lit (0.37).
+	var yaw_band: Array = profile.get("sun_yaw_deg", [-55.0, -105.0])
 	sun.rotation_degrees = Vector3(-elevation, lerpf(float(yaw_band[0]), float(yaw_band[1]), day_t), 0.0)
 	sun.light_color = _c("sun_color").lerp(_c("sun_warm_color"), warm)
 	sun.light_energy = _f("sun_energy") * lerpf(1.0, _f("sun_warm_energy_scale"), warm) * sun_up

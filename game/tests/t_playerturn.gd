@@ -396,7 +396,7 @@ func _case_creature_lab_tap() -> void:
 	for c in get_nodes_in_group("creatures"):
 		c.queue_free()
 	await _frames(20)
-	for tap in [Vector3(-6, 0, 8), Vector3(9, 0, 1), Vector3(2, 0, -12)]:  # the 2nd and 3rd run past the lab's crates
+	for tap in [Vector3(-6, 0, 8), Vector3(9, 0, 1), Vector3(2, 0, -8)]:  # the 2nd and 3rd run past the lab's crates; NORTHUP: -12 was off the top of the north-up view
 		var goal := BuildGrid_centre(tap, null)
 		var kind: StringName = _tap(goal)
 		_samp.start(player)
