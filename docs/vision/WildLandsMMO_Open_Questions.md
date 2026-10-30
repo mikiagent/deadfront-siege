@@ -341,3 +341,13 @@ Build status: TD4, TD5 (P2 RECIPETOOLS) and TD10 (P4 TRAITGEAR) are built with t
 `claude/mmo-recipetools`, not merged yet (report `docs/orchestration/reports/claude-recipetools.md`).
 
 - **HOLDKICK (2026-10-30):** with HOLD on, the auto-ability no longer casts push abilities (Kick), because the push shoves the target out of reach while HOLD keeps the survivor still. The manual Kick press still works under HOLD. # ASSUMPTION, owner can flip it.
+
+### LOOKPASS (2026-10-30) — the tutorial town's look from engine settings (claude/mmo-lookpass)
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **LP1** | The sun peaks at 42 deg (was 58) and comes from the south-west (yaw band -38..-62, was -55..-105), so the fronts the north-up camera sees are sunlit and the two roof slopes differ. Sun colour warmer (1.0, 0.9, 0.76). Applies to every climate that does not set its own elevation (tundra 38, snowfield 34 keep theirs). | `lighting.json` default | Shadows now fall north-east, behind and to the right of buildings; if the owner wants shadows on the street side, the band moves. |
+| **LP2** | Sky top (0.34, 0.5, 0.74), warmer horizon (0.82, 0.8, 0.74), ambient 0.34 (band 0.25-0.35), contrast 1.06, fog 0.0026 (thinned by the camera's distance, ~0.0006 at the game zoom). | `lighting.json` default | Shade colour and haze are taste. |
+| **LP3** | Forward+ only: SSAO intensity 5, radius 2.5 m, light_affect 0.6; SSIL 0.5 at quality "very low"; their fade-out moved to 600-900 m (Godot's default 50-300 m hid them at the iso camera's 186-430 m). Never on the web/phone renderers; SDFGI stays off. | `lighting.json`, `project.godot`, `WorldLighting._screen_space` | Full-quality SSIL cost ~1 ms on the Mac for little visible change, so it is kept at very low. |
+| **LP4** | Golden hour ported from LIGHTPORT (374d7970): warmth ramps 0.56-0.64 and holds to NIGHT; the day-phase "neutral sun" check now ends at 0.54. LIGHTPORT's glow strength/bloom/soft-light and `--tod` pin are not ported. | `world_lighting.gd`, `t_lighting.gd` | LIGHTPORT can merge on top; its remaining parts conflict only in these lines. |
+| **LP5** | Town ground: worn dirt within 3 m of streets, door paths and every taken cell (houses, stalls, fields), coloured between the dirt texture and the road tint; untrodden town ground mixes two greens in ~12 m patches. Dense grass tufts (9 per m2 on Forward+, half on the web/phone renderers, about 24 k in the town), 6 % flowers, thinning with wear, off streets, cells and the square, no shadows, visibility range = the town's prop range. | `TownDress._ground_look`, `terrain_tiles.gdshader` | Density, colours and the wear width are visual tuning; the tufts are procedural blades, not painted cards. |
