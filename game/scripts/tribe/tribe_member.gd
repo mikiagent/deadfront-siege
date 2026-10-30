@@ -499,8 +499,9 @@ func _eat_from(s: Node3D) -> void:
 		var st := inv.slots[i]
 		if Food.is_food(st) and not Food.is_poisoned(st):
 			var one := inv.remove_at(i, 1)
-			# HUNGER: a meal fills the stomach by its foods.json points, not by its Energy (memo s1.4).
-			var gain := maxf(Tribe.num("food_min", 15.0), float(FoodEffects.entry_for(one.def_id).get("fullness", 0.0)))
+			# HUNGER: a meal fills the stomach by its foods.json points, not by its Energy (memo s1.4 step 6).
+			# No floor any more: the old food_min (15) would have made a berry fill like a cooked dish.
+			var gain := float(FoodEffects.entry_for(one.def_id).get("fullness", 0.0))
 			record.fullness = minf(Tribe.num("fullness_max", 100.0), record.fullness + gain)
 			meals += 1
 			_play(&"eat" if rig and rig.has_clip(&"eat") else &"idle", true)

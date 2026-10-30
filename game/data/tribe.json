@@ -81,7 +81,6 @@
     "leash_m": 20.0,
     "guard_radius_m": 9.0,
     "fullness_max": 100.0,
-    "food_min": 15.0,
     "fatigue_max": 100.0,
     "fatigue_per_harvest": 2.5,
     "rest_at": 75.0,

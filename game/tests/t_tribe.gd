@@ -5,14 +5,15 @@ extends SceneTree
 ## Deny sends them away; a member saves and loads (an old save has none); gear goes into the seven
 ## slots; follow keeps a slot near the survivor; guard engages a hostile that is attacking her and
 ## damages it; a mining job harvests ONE item per pass at the tool's speed into the chosen chest;
-## a hungry member eats from that chest, an exhausted one rests; one job at a time.
+## a hungry member eats from that chest, an exhausted one rests; one job at a time; a member's stomach
+## drains at the survivor's own rate and a meal fills it by the food's foods.json fullness (HUNGER).
 ## Run: Godot --headless --path game --script res://tests/t_tribe.gd -> "[t_tribe] PASS".
 
 var _fails: PackedStringArray = []
 var _started := false
 var _done := false
 var _sections := 0
-const WANT := 9
+const WANT := 10
 var data: Node
 var player: Node
 var host: Node3D
@@ -82,6 +83,7 @@ func _run() -> void:
 	await _test_guard(T)
 	await _test_mining(T)
 	await _test_eat_rest(T)
+	_test_hunger_shared(T)
 	_test_one_job(T)
 	_test_ui(T)
 	_finish()
@@ -328,6 +330,39 @@ func _test_eat_rest(T) -> void:
 	Engine.time_scale = 1.0
 	_expect(rested, "an exhausted member rests")
 	_expect(r.fatigue <= T.num("rest_until", 10.0) + 3.0, "rest brought fatigue down (%.0f)" % r.fatigue)
+	_sections += 1
+
+# ---------------------------------------------------------------- 7b. the shared stomach
+
+## HUNGER (memo Part 1 s1.4 step 6, "one rule for everyone"): a member's fullness drains at the
+## survivor's rate (rules.json hunger.decay_per_min) and a meal fills it by its foods.json points.
+func _test_hunger_shared(T) -> void:
+	var r = T.members[0] if not T.members.is_empty() else _member(T)
+	var body = _body(r)
+	if r == null or body == null:
+		_expect(false, "no working member for the shared-hunger check")
+		_sections += 1
+		return
+	var dig: GDScript = load("res://scripts/items/digestion.gd")
+	# tribe.json no longer carries its own rate; the survivor's block is the only one.
+	var member: Dictionary = T.cfg().get("member", {})
+	_expect(not (data.world_rules.get("hunger", {}) as Dictionary).is_empty() and not member.has("fullness_per_day") and not member.has("eat_below"), "the tribe has no rate of its own: it reads the shared hunger block")
+	r.fullness = 80.0
+	body.set_physics_process(false)
+	body._tick_needs(60.0)
+	body.set_physics_process(true)
+	_expect(absf(r.fullness - (80.0 - dig.decay_per_s() * 60.0)) < 0.01, "60 s of the shared rate drains %.2f points (80 -> %.2f)" % [dig.decay_per_s() * 60.0, r.fullness])
+	# A meal's gain is the food's own points: a berry is a snack, not a floor of 15.
+	var inv = _basket.storage
+	var before: int = inv.count_of(&"berries")
+	inv.add(IS.make(&"berries", 1, {}, 1))
+	r.fullness = 12.0
+	var was: float = r.fullness
+	body.global_position = _basket.global_position + Vector3(1.0, 0.0, 0.0)  # _eat_from only takes food within reach
+	body._eat_from(_basket)
+	var berry: float = float(load("res://scripts/items/food_effects.gd").entry_for(&"berries").get("fullness", 0.0))
+	_expect(inv.count_of(&"berries") == before, "a hungry member took one berry (%d -> %d left)" % [before, inv.count_of(&"berries")])
+	_expect(absf(r.fullness - (was + berry)) < 0.01, "the berry filled its own %.0f points (%.1f -> %.1f)" % [berry, was, r.fullness])
 	_sections += 1
 
 # ---------------------------------------------------------------- 8. one job at a time
