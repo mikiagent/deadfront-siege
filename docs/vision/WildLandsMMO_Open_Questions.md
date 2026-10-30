@@ -339,3 +339,5 @@ canon). Nothing is built yet; each default below ships with its package unless t
 
 Build status: TD4, TD5 (P2 RECIPETOOLS) and TD10 (P4 TRAITGEAR) are built with these defaults on branch
 `claude/mmo-recipetools`, not merged yet (report `docs/orchestration/reports/claude-recipetools.md`).
+
+- **HOLDKICK (2026-10-30):** with HOLD on, the auto-ability no longer casts push abilities (Kick), because the push shoves the target out of reach while HOLD keeps the survivor still. The manual Kick press still works under HOLD. # ASSUMPTION, owner can flip it.

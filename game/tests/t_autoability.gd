@@ -194,4 +194,11 @@ func _test_pick_ranking() -> void:
 	var c = _creature(Vector3(0, 0, -1.6))
 	player.hunt.start(c)
 	_expect(AA.pick(player.hunt) == &"tackle", "tackle (6 dmg) beats kick (4 dmg) when both are ready")
+	# HOLDKICK: under HOLD the auto-cast never picks a push (Kick), which would shove the target out of reach.
+	player.hunt._tackle_cd = 8.0
+	player.hunt.hold = true
+	_expect(AA.pick(player.hunt) == &"", "HOLD + tackle cooling -> no auto kick (got %s)" % AA.pick(player.hunt))
+	player.hunt.hold = false
+	_expect(AA.pick(player.hunt) == &"kick", "no HOLD + tackle cooling -> kick")
+	player.hunt._tackle_cd = 0.0
 	c.free()

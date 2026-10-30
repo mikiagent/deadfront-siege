@@ -34,6 +34,10 @@ static func pick(h: Hunt) -> StringName:
 			continue
 		if not _in_reach(h, d):
 			continue
+		# HOLD keeps her still, so a push (Kick) would shove the target out of her reach.
+		# ASSUMPTION (HOLDKICK): under HOLD the auto-cast skips push abilities; the manual press still works.
+		if h.hold and float(CombatTuning.section(str(d.get("tune", id))).get("push_m", 0.0)) > 0.0:
+			continue
 		var key := Vector2(float(d.get("damage", 0.0)), float(d.get("cooldown", 0.0)))
 		if key.x > best_key.x or (is_equal_approx(key.x, best_key.x) and key.y > best_key.y):
 			best = d
