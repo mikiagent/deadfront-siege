@@ -30,7 +30,7 @@ const SHAPE := {
 	"objective": 0, "objective_best": 0, "island_id": "",
 	"tasks": {"claimed": {}, "done": {}, "counts": {}, "day": 0, "week": 0},
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
-	"landmarks": {"found": {}, "state": {}},
+	"landmarks": {"found": {}, "state": {}}, "expeditions": {},
 	"clock": 0.0, "saved_unix": 0,
 }
 ## Fields the building from_dicts read with int()/float()/bool() (placed_building, bonfire,
@@ -605,4 +605,25 @@ static func landmark_rows(raw: Variant, state: bool) -> Dictionary:
 				clean[str(sid)] = true
 		if not clean.is_empty():
 			out[str(island)] = clean
+	return out
+
+## ISLAND RESET: the save's expeditions rows, island id -> {generation >= 0, left (seconds, -1 = no
+## clock), harvested (a node snapshot Dictionary)}. Wrong types fall back to a first visit.
+static func expedition_rows(raw: Variant) -> Dictionary:
+	var out := {}
+	if not raw is Dictionary:
+		return out
+	for island in (raw as Dictionary).keys():
+		var row: Variant = (raw as Dictionary)[island]
+		if not row is Dictionary or str(island).length() > 64 or out.size() >= 64:
+			continue
+		var r: Dictionary = row
+		var g: Variant = r.get("generation", 0)
+		var l: Variant = r.get("left", -1.0)
+		var h: Variant = r.get("harvested", {})
+		out[str(island)] = {
+			"generation": clampi(int(g), 0, 1000000) if (g is int or g is float) and is_finite(float(g)) else 0,
+			"left": clampf(float(l), -1.0, 7.0 * 86400.0) if (l is int or l is float) and is_finite(float(l)) else -1.0,
+			"harvested": h if h is Dictionary else {},
+		}
 	return out

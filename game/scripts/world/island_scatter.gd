@@ -364,7 +364,7 @@ static func plant_at(rt: IslandRuntime, family: String, role: String, pos: Vecto
 	var attrs := {"climate": climate, "level": level}
 	var role_s := str(Data.nature_families.get(family, {}).get("role", ""))
 	var pool_max := _family_pool_max(family, role_s)
-	var regen_s := _family_regen_seconds(family, role_s)
+	var regen_s := _family_regen_seconds(family, role_s) * regen_mult(rt)
 	node.setup(
 		StringName(role),
 		yield_id,
@@ -535,6 +535,14 @@ static func _family_pool_max(family: String, role: String) -> int:
 	if role.begins_with("tree") or role == "rock":
 		return 30
 	return 12
+
+## ISLAND RESET (doc section 5.4): ambient and habitat nodes on an expedition island regrow
+## rules.json reset.expedition_regen_mult (5, # ASSUMPTION) times slower than on home, so a camp's
+## surroundings thin out and the survivor moves on. Home and tutorial keep the fast regrowth.
+static func regen_mult(rt: IslandRuntime) -> float:
+	if rt == null or rt.kind != "unstable":
+		return 1.0
+	return float((Data.world_rules.get("reset", {}) as Dictionary).get("expedition_regen_mult", 5.0))
 
 static func _family_regen_seconds(family: String, role: String) -> float:
 	if family == "mud" or family == "clay":

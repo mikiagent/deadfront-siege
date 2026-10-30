@@ -528,6 +528,12 @@ static func _context(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 			if str(m.get("kind", "")) == "claim_free":
 				var p: Dictionary = m.get("props", {}) as Dictionary
 				circles.append({"x": float(m.get("x", 0.0)), "z": float(m.get("z", 0.0)), "r": float(p.get("radius_m", 30.0))})
+	# ISLAND RESET: the previous generation's centres (World.def_of), kept 40 m clear while the budget
+	# allows (the fill round's floor step may reuse them).
+	var avoid := PackedVector2Array()
+	for c in def.get("avoid_centres", []):
+		if c is Array and (c as Array).size() >= 2:
+			avoid.append(Vector2(float(c[0]), float(c[1])))
 	var reach := _reachable(rt)
 	var cands := _candidates(rt, reach, Vector2(landing.x, landing.z), Vector2(rt._camp_pos.x, rt._camp_pos.z),
 		float(r.get("camp_clear_m", 60)), safe, circles)
@@ -544,6 +550,8 @@ static func _context(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 		"safe_ring": safe,
 		"circles": circles,
 		"reach": reach,
+		"avoid": avoid,
+		"avoid_m": float(r.get("reset_move_m", 40.0)),
 		"far": _far_of(cands, Vector2(landing.x, landing.z)),
 		"half": rt._size * 0.5,
 		"span": rt._tile_span,
@@ -782,6 +790,11 @@ static func _reject_reason(rt: IslandRuntime, ctx: Dictionary, site: Dictionary,
 		return "wet"
 	if not _reach_ok(ctx, x, z):
 		return "unreachable"
+	if not bool(site.get("allow_old", false)):
+		var am := float(ctx.get("avoid_m", 40.0))
+		for o in (ctx.get("avoid", PackedVector2Array()) as PackedVector2Array):
+			if p.distance_to(o) <= am:
+				return "old_site"
 	var need := float(ctx["spacing"]) if spacing_m < 0.0 else spacing_m
 	for other in sites:
 		if p.distance_to(Vector2(float(other["x"]), float(other["z"]))) < need:
@@ -906,12 +919,14 @@ static func _try_place(rt: IslandRuntime, ctx: Dictionary, climate: String, row:
 	var probes := site.duplicate(false)
 	probes["band_lo"] = lo
 	probes["band_hi"] = hi
+	# The fill round's last (floor) step may reuse an old generation's ground rather than fall short.
+	probes["allow_old"] = spacing_m >= 0.0 and spacing_m <= float(ctx["spacing"]) * float(rules().get("spacing_floor_share", 0.6)) + 0.01
 	# The tiles whose site-independent rules (terrain, the node group's fit, dry ground, reach) pass,
 	# kept in the context per type and band: the fill round and the near-landing retry then draw from
 	# legal ground only instead of re-testing tile after tile that never can hold the type. The list is
 	# `legal_scan` tiles of the band per type (a suffix of the band from a hashed offset, so the draw
 	# covers the island evenly); the pass's whole cost is a few of these scans (~10 us a tile).
-	var key := "%s|%s|%d|%d|%d|%d" % [str(site.get("type", "")), str(site.get("display", "")), lo, hi, ids.size(), 1 if near else 0]
+	var key := "%s|%s|%d|%d|%d|%d|%d" % [str(site.get("type", "")), str(site.get("display", "")), lo, hi, ids.size(), 1 if near else 0, 1 if bool(probes["allow_old"]) else 0]
 	var pool: PackedInt32Array
 	var legal: Dictionary = ctx["legal"]
 	if legal.has(key):
@@ -945,8 +960,11 @@ static func _try_place(rt: IslandRuntime, ctx: Dictionary, climate: String, row:
 				_note_reject("draw", "draw_" + why)
 			continue
 		passers += 1
-		if gap > best_gap:
-			best_gap = gap
+		# Roomy, not roomiest: any passer with spacing + 20 m to spare competes on a random score, so
+		# a rerolled island (new seed) does not converge on the same widest gaps every generation.
+		var score := minf(gap, spacing + 20.0) + rng.randf() * 20.0
+		if score > best_gap:
+			best_gap = score
 			best = probes.duplicate(false)
 			best["x"] = q.x
 			best["z"] = q.y
@@ -1038,6 +1056,16 @@ static func _validate(rt: IslandRuntime, ctx: Dictionary, site: Dictionary, site
 
 # ------------------------------------------------------------------------------------ planting
 
+## Doc section 5.4: on an expedition island a landmark node regrows only partly (one unit back per
+## rules.json reset.landmark_trickle_s while any is left; stripped to 0 it stays empty until the
+## reset). On home and the tutorial a spent landmark pool refills after one in-game day.
+static func _landmark_regrowth(rt: IslandRuntime, hn: HarvestNode) -> void:
+	var cfg: Dictionary = Data.world_rules.get("reset", {})
+	if rt.kind == "unstable":
+		hn.trickle_seconds = float(cfg.get("landmark_trickle_s", 600.0))
+	else:
+		hn.regen_seconds = float(cfg.get("landmark_home_regen_s", 720.0))
+
 ## Plants a planned site's node group. Returns false when nothing could be planted.
 static func apply_site(rt: IslandRuntime, def: Dictionary, site: Dictionary) -> bool:
 	var climate := str(site.get("climate", def.get("climate", "temperate")))
@@ -1092,6 +1120,7 @@ static func apply_site(rt: IslandRuntime, def: Dictionary, site: Dictionary) -> 
 			var hn: Variant = rt._harvest_nodes.get(node_id, null)
 			if hn is HarvestNode:
 				(hn as HarvestNode).set_meta(&"landmark", key)
+				_landmark_regrowth(rt, hn as HarvestNode)
 	if planted == 0:
 		return false
 	site["level"] = level

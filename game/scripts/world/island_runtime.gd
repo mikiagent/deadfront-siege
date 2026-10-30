@@ -53,6 +53,8 @@ var _crater_hint: Vector3 = Vector3.ZERO
 ## display, x, z, level, discovery_radius, gold, contested, nodes...}. The discovery pass (M2) and
 ## the map read it; the build's [landmarks] line counts it.
 var landmarks: Array[Dictionary] = []
+## The island row's kind ("private", "unstable", "tutorial"): expedition islands regrow slower.
+var kind: String = "unstable"
 ## LANDMARKS M1: placed/skipped/types of the landmark pass (IslandLandmarks.build).
 var landmark_stats: Dictionary = {}
 var _ridge_dir: Vector2 = Vector2.RIGHT
@@ -163,6 +165,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	var size := float(def.get("size_m", 416))
 	_climate = str(def.get("climate", "grassland"))
 	_tier = int(def.get("tier", 10))
+	kind = str(def.get("kind", "unstable"))
 	_level_override = int(def.get("level_override", 0))
 	var harbour_a: Array = def.get("harbour", [0, 0, 12])
 	var camp_a: Array = def.get("camp", [0, 0, 6])

@@ -6,7 +6,6 @@
   "size_m": 368,
   "permanent": false,
   "kind": "unstable",
-  "lifetime_seconds": 7200,
   "sail_cost": 5,
   "harbour": [
     43.5,

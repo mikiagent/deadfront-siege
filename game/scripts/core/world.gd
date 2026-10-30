@@ -62,6 +62,15 @@ var crater_discovered: bool = false
 ## id -> {site id: true}, and each opened dormant site's state, island id -> {site id: {"left": s}}
 ## (seconds of play its window still runs). Saved under "landmarks"; an old save has neither and
 ## behaves as a first visit everywhere.
+## ISLAND RESET (docs/design/island-resources.md sections 3.4 and 5.5, A1 + A2): one record per
+## expedition island id, {"generation": int, "left": seconds of play until it resets (-1 = never
+## visited, no clock), "harvested": its node snapshot}. Every started clock runs while the game runs
+## on any island and never while it is closed; leaving and coming back does not restart it. At 0 the
+## island rerolls: generation + 1, a new seed, found landmarks, fog and harvest state cleared.
+## Saved as "expeditions"; an old save has none (generation 0, a first visit).
+var expeditions: Dictionary = {}
+var _life_warned: Dictionary = {} ## warning seconds already shown on this visit
+signal island_reset(id: StringName, generation: int)
 var landmarks_found: Dictionary = {}
 var landmark_state: Dictionary = {}
 signal landmark_found(site: Dictionary)
@@ -100,15 +109,8 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if map_fog != null:
 		map_fog.advance_trail(delta)
-	if str(island_def.get("kind", "")) == "unstable" and remaining_lifetime > 0.0:
-		remaining_lifetime = maxf(0.0, remaining_lifetime - delta)
-		var warn_at := float(Data.world_rules.get("sink_warning_seconds", 60))
-		if remaining_lifetime <= warn_at and remaining_lifetime > 0.0 and not _sink_warned:
-			_sink_warned = true
-			print("[world] sink warning %.0fs" % remaining_lifetime)
-		if remaining_lifetime <= 0.0:
-			print("[world] island sinking — return to camp")
-			recall_camp()
+	if not creation_pending:
+		tick_expeditions(delta)
 	_objective_acc += delta
 	if _objective_acc >= 0.5:
 		_objective_acc = 0.0
@@ -144,6 +146,14 @@ func is_tutorial() -> bool:
 ## display name the island title. Every other island is the catalogue row unchanged.
 func def_of(id: StringName) -> Dictionary:
 	var d := islands.get(str(id), {}) as Dictionary
+	# ISLAND RESET: a rerolled expedition island builds from hash(template seed, generation); generation
+	# 0 keeps the template's own seed, so a first visit (and every old save) is unchanged.
+	var gen := expedition_generation(str(id))
+	if gen > 0:
+		d = d.duplicate(true)
+		d["seed"] = expedition_seed(int(d.get("seed", 17)), gen)
+		d["generation"] = gen
+		d["avoid_centres"] = ((expeditions[str(id)] as Dictionary).get("last_centres", []) as Array).duplicate(true)
 	if str(id) == "home_grassland" and home_shape != &"":
 		var s := shape_def(home_shape)
 		if not s.is_empty():
@@ -302,14 +312,24 @@ func start_new(host: Node) -> void:
 	)
 
 func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) -> void:
+	# ISLAND RESET: the island being left keeps its own harvest state (two expedition islands never
+	# share one snapshot).
+	if is_unstable() and runtime != null and is_instance_valid(runtime) and not runtime.is_queued_for_deletion():
+		_snapshot_harvest()
 	_clear_runtime()
 	build_recent.clear()  # a load or a crossing starts the build-spam window over
 	island_id = id
 	visited_islands[str(id)] = true
 	island_def = def_of(id)
 	_sink_warned = false
-	if remaining_lifetime <= 0.0 and not bool(island_def.get("permanent", false)):
-		remaining_lifetime = float(island_def.get("lifetime_seconds", 7200))
+	_life_warned.clear()
+	if is_unstable():
+		# ISLAND RESET: the island's own clock (started on its first visit, never restarted by an
+		# arrival) and its own harvest state, not the last expedition island's.
+		var row := expedition_row(str(id), true)
+		remaining_lifetime = float(row["left"])
+		var snap: Variant = row.get("harvested", {})
+		harvested = (snap as Dictionary).duplicate(true) if snap is Dictionary else {}
 	var ir = (load("res://scripts/world/island_runtime.gd") as GDScript).new()
 	ir.name = "IslandRuntime"
 	host.add_child(ir)
@@ -522,6 +542,165 @@ func note_building(kind: StringName, at: Vector3 = Vector3.ZERO, player: Player 
 		add_xp(total)
 	return total
 
+# ------------------------------------------------------------------------------------ island reset
+
+## Seconds of play an expedition island lives (rules.json lifetime_hours by tier band: 6 h at 15-25,
+## 12 h at 30-45, 24 h at 50-60; doc section 5.5). An island row's own lifetime_seconds wins only when
+## it is not the old 2-hour test value.
+func expedition_lifetime(id: String) -> float:
+	var d := islands.get(id, {}) as Dictionary
+	var tier := int(d.get("tier", 25))
+	var bands: Dictionary = Data.world_rules.get("lifetime_hours", {})
+	for key in bands.keys():
+		var parts := str(key).split("-")
+		if parts.size() == 2 and tier >= int(parts[0]) and tier <= int(parts[1]):
+			return float(bands[key]) * 3600.0
+	return float(d.get("lifetime_seconds", 6 * 3600))
+
+## The island's record, made (clock started) on `start` when it has none or none running.
+func expedition_row(id: String, start: bool = false) -> Dictionary:
+	var row: Variant = expeditions.get(id, null)
+	if not row is Dictionary:
+		row = {"generation": 0, "left": -1.0, "harvested": {}}
+		if start:
+			expeditions[id] = row
+	if start and float((row as Dictionary).get("left", -1.0)) <= 0.0:
+		(row as Dictionary)["left"] = expedition_lifetime(id)
+	return row as Dictionary
+
+func expedition_generation(id: String) -> int:
+	var row: Variant = expeditions.get(id, null)
+	return int((row as Dictionary).get("generation", 0)) if row is Dictionary else 0
+
+static func expedition_seed(template_seed: int, generation: int) -> int:
+	return absi(hash("%d|%d|reset" % [template_seed, generation])) % 2000000000
+
+## Every started clock counts down while the game runs (A2: on any island, never while closed). The
+## current island also mirrors into remaining_lifetime (HUD, map) and warns at 10 min and 60 s.
+func tick_expeditions(delta: float) -> void:
+	var due: Array[String] = []
+	for id in expeditions.keys():
+		var row: Variant = expeditions[id]
+		if not row is Dictionary or float((row as Dictionary).get("left", -1.0)) <= 0.0:
+			continue
+		var left := maxf(0.0, float((row as Dictionary)["left"]) - delta)
+		(row as Dictionary)["left"] = left
+		if left <= 0.0:
+			due.append(str(id))
+	if is_unstable():
+		remaining_lifetime = float(expedition_row(str(island_id)).get("left", remaining_lifetime))
+		for warn_s in [600.0, float(Data.world_rules.get("sink_warning_seconds", 60))]:
+			if remaining_lifetime > 0.0 and remaining_lifetime <= warn_s and not _life_warned.has(warn_s):
+				_life_warned[warn_s] = true
+				_sink_warned = true
+				var p := _player()
+				if p:
+					p.notice("This island resets in %s: pack your kits and ship your cargo" % ("10 minutes" if warn_s >= 600.0 else "%d seconds" % int(warn_s)))
+				print("[world] sink warning %.0fs" % remaining_lifetime)
+	for id in due:
+		reset_expedition(id)
+
+## The island rerolls (doc section 5.5 step 5): generation + 1 (a new seed), its found landmarks,
+## opened sites, fog and harvest state cleared, and its clock starts again. When the survivor stands
+## on it, its placed buildings refund half their materials and its storage moves to the home vault
+## (A1), then the new layout builds and the survivor lands at its harbour with the sail menu open.
+func reset_expedition(id: String) -> void:
+	var row := expedition_row(id)
+	# The old layout's landmark centres: the next generation's sites keep away from them, so a reset
+	# reads as a new island (doc section 6, M4: 70 % of centres move over 40 m).
+	if str(island_id) == id:
+		var old: Array = []
+		for s in current_landmarks():
+			old.append([float((s as Dictionary).get("x", 0.0)), float((s as Dictionary).get("z", 0.0))])
+		row["last_centres"] = old
+	row["generation"] = int(row.get("generation", 0)) + 1
+	row["harvested"] = {}
+	row["left"] = expedition_lifetime(id)
+	expeditions[id] = row
+	landmarks_found.erase(id)
+	landmark_state.erase(id)
+	map_fogs.erase(id)
+	print("[world] island %s reset generation=%d" % [id, int(row["generation"])])
+	if str(island_id) == id and runtime != null and is_instance_valid(runtime):
+		var salvage := salvage_buildings()
+		var host := runtime.get_parent()
+		_clear_runtime()  # no outgoing snapshot: the old layout's harvest state is gone
+		harvested = {}
+		map_fog = null
+		unstable_claims = []
+		away_domain = {}
+		var player := _player()
+		load_island(host, StringName(id), Vector3.ZERO, false)
+		if player and runtime and runtime.has_method("arrival_point"):
+			player.global_position = runtime.arrival_point() + Vector3.UP
+		if player:
+			player.notice("The island shifted. %s" % ("Your camp's salvage went to the home vault." if salvage > 0 else "A new coast waits."))
+		var ui = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure()
+		if ui and ui.has_method("show_harbour"):
+			ui.show_harbour()
+	island_reset.emit(StringName(id), int(row["generation"]))
+
+## A1 (approved): what stood on the island when it reset. Every placed building's storage moves to
+## the home vault (cargo_home) whole, and the building itself refunds half the materials its kit's
+## recipe takes (# ASSUMPTION: 50 %, rounded down per slot, each slot paid in the lowest-level item of
+## its category). Returns the stacks moved.
+func salvage_buildings() -> int:
+	if runtime == null:
+		return 0
+	var moved := 0
+	for n in runtime.get_tree().get_nodes_in_group("placed_building"):
+		if not is_instance_valid(n) or n.is_queued_for_deletion() or n.get("persist_building") == false:
+			continue
+		if not runtime.is_ancestor_of(n):
+			continue
+		var back: Array[ItemStack] = BuildPlacer.stored_items(n)
+		back.append_array(building_refund(BuildPlacer.kind_of_building(n)))
+		for st in back:
+			st.set_flag(&"unstable", false)
+			if cargo_home.add(st) < st.count:
+				moved += 1
+	if moved > 0:
+		print("[world] reset salvage %d stacks to the home vault" % moved)
+	return moved
+
+## Half (rounded down) of a building kind's kit recipe, as stacks; [] when it has no recipe.
+func building_refund(kind: StringName) -> Array[ItemStack]:
+	var out: Array[ItemStack] = []
+	var kit := BuildPlacer.kit_for(kind)
+	if kit == &"":
+		return out
+	var recipe: Dictionary = {}
+	for rid in Data.recipes:
+		var r: Dictionary = Data.recipes[rid]
+		if str((r.get("output", {}) as Dictionary).get("id", "")) == str(kit):
+			recipe = r
+			break
+	var share := float((Data.world_rules.get("reset", {}) as Dictionary).get("building_refund", 0.5))
+	for slot in recipe.get("slots", []):
+		var n := int(floor(float((slot as Dictionary).get("count", 1)) * share))
+		var item := _category_item(StringName(str((slot as Dictionary).get("category", ""))), str((slot as Dictionary).get("item", "")))
+		if n > 0 and item != &"":
+			for _i in n:
+				out.append(ItemStack.make(item, 1))
+	return out
+
+## The item a refund pays a recipe slot in: the slot's own item, else the lowest-level item of its
+## category (ties by id, so a refund is the same every time).
+func _category_item(cat: StringName, item: String) -> StringName:
+	if item != "" and Data.item(StringName(item)) != null:
+		return StringName(item)
+	var best: StringName = &""
+	var best_lv := 1 << 30
+	for id in Data.items:
+		var def: ItemDef = Data.items[id]
+		if def == null or not def.has_category(cat):
+			continue
+		var lv := def.base_level
+		if lv < best_lv or (lv == best_lv and str(id) < str(best)):
+			best_lv = lv
+			best = StringName(str(id))
+	return best
+
 # ------------------------------------------------------------------------------------ landmarks
 
 ## The landmarks of the island being played (IslandRuntime.landmarks), [] off-island.
@@ -689,6 +868,10 @@ func _snapshot_harvest() -> void:
 		var node := n as HarvestNode
 		if node == null:
 			continue
+		# Only touched nodes: a missing row loads as a fresh node, and fourteen islands of full rows
+		# would bloat the save.
+		if node.session_gathered <= 0 and node.pool >= float(node.pool_max) and not node.depleted and node.regen_left() <= 0.0 and _pools_full(node):
+			continue
 		harvested[str(node.node_id)] = {
 			"pool": node.pool,
 			"pool_max": node.pool_max,
@@ -699,6 +882,14 @@ func _snapshot_harvest() -> void:
 		}
 	if runtime and runtime.has_method("harvest_tile_snapshot"):
 		harvested["__tiles"] = runtime.harvest_tile_snapshot()
+	if is_unstable():
+		expedition_row(str(island_id), true)["harvested"] = harvested.duplicate(true)
+
+func _pools_full(node: HarvestNode) -> bool:
+	for item in node.pools:
+		if float(node.pools[item]) < float(node.pool_maxes.get(item, node.pool_max)):
+			return false
+	return true
 
 func _apply_harvested(ir: Node) -> void:
 	for n in ir.get_tree().get_nodes_in_group("harvest"):

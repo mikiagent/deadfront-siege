@@ -151,6 +151,8 @@ static func save_now() -> bool:
 		},
 		# LANDMARKS: found sites and opened dormant windows, per island id.
 		"landmarks": {"found": World.landmarks_found, "state": World.landmark_state},
+		# ISLAND RESET: every expedition island's generation, clock and harvest snapshot.
+		"expeditions": World.expeditions,
 		"clock": Game.time_of_day,
 		"saved_unix": int(Time.get_unix_time_from_system()),
 		"pending_refunds": SaveRestore.pending_refunds,
@@ -287,6 +289,12 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	var lm: Variant = data.get("landmarks", {})
 	World.landmarks_found = SaveSanitizer.landmark_rows((lm as Dictionary).get("found", {}) if lm is Dictionary else {}, false)
 	World.landmark_state = SaveSanitizer.landmark_rows((lm as Dictionary).get("state", {}) if lm is Dictionary else {}, true)
+	# ISLAND RESET: no block (an older save) = generation 0 everywhere; the island the save stands on
+	# keeps its old single snapshot and its remaining time, so the visit carries on as it was.
+	World.expeditions = SaveSanitizer.expedition_rows(data.get("expeditions", null))
+	var here := str(data.get("island_id", ""))
+	if not data.has("expeditions") and here != "" and str(World.def_of(StringName(here)).get("kind", "")) == "unstable":
+		World.expeditions[here] = {"generation": 0, "left": World.remaining_lifetime if World.remaining_lifetime > 0.0 else -1.0, "harvested": World.harvested}
 	World.cargo_home.load_array(data.get("home", {}).get("cargo", []))
 	World._home_buildings_cache = data.get("home", {}).get("buildings", [])
 	World.home_claims = data.get("home", {}).get("claims", [])
