@@ -1517,7 +1517,7 @@
             "full3d-ab"
           ],
           "source": "docs/design/full-3d-plan.md",
-          "note": "Owner: \"The terrain should be flat and depth is added through props, structures, buildings, resources\". TOWNPOLISH2 flattens the tutorial town first."
+          "note": "Owner: \"The terrain should be flat and depth is added through props, structures, buildings, resources\". TOWNPOLISH2 flattens the tutorial town first. The tutorial town is flat since TOWNPOLISH2 af77ddb8; the other islands still use the heightmap."
         },
         {
           "id": "full3d-resources",
@@ -2189,12 +2189,17 @@
         {
           "id": "tutorial-town-polish",
           "title": "Tutorial town polish loop",
-          "status": "next",
+          "status": "done",
           "depends": [
             "tutorial-town"
           ],
           "source": "docs/current/tutorial.md",
-          "note": "In progress on claude/mmo-townpolish."
+          "note": "TOWNPOLISH d1f710b3 (kit roofs, gates, lit windows, fields) and TOWNPOLISH2 af77ddb8: flat town plane, every lot on the 1 m BuildGrid facing south, flush window lights, tiled decal streets, Landfall domain with an emblem covering the whole town. The look pass (light, sky, grass, path wear) follows as its own package.",
+          "evidence": [
+            "commit:d1f710b3",
+            "commit:af77ddb8",
+            "game/tests/t_domain.gd"
+          ]
         },
         {
           "id": "loading-screens",

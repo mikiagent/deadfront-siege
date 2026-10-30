@@ -1,3 +1,27 @@
+## 2026-10-30 evening: what landed, what is next
+
+Canon `claude/mmo-overhaul` at `af77ddb8` before this refresh. Roadmap counts: P0 14/16, P1 30/38, P2 35/45,
+P3 13/32 (10 full-3D rows added, 1 done), P4 6/16, P5 1/12, P6 11/23, P7 12/13.
+
+**Landed today, in merge order:** POSEFIX `ddf3e6a3` (survivor no longer stuck bent sideways), STUDIO-DOC
+`432c79c9` (workflow report, package-brief / goldfish-review / merge-gate / repro-bug skills), PENDIET
+`15ea588f` (pens eat the species diet), WEARREPAIR `6afe7d9e` (P1 wear by level gap, P3 station repair),
+KICKTACKLE `c10b6fe3` (survivor kick and tackle clips), CANONRED2 `3156efce` (12 stale tests brought up to
+date), FACTIONS `caa4ba3c` (five factions, reputation, missions, Faction Hall on the grid), LEGSFIX
+`c6ea3ffd` (landing clear of the dock roof that hid her legs), 3D-AB `23c8407c` (full-3D plan and A/B lab),
+RECIPETOOLS `95f0583e` (P2 tool gates, P4 trait gear stats), TOWNPOLISH2 `af77ddb8` (flat town, grid and
+face-south layout, flush windows, tiled streets, Landfall domain).
+
+**Direction (owner 2026-10-30):** full 3D in stages on flat terrain (docs/design/full-3d-plan.md); terrain is
+flat and depth comes from props, structures, buildings and resources; no new painted prop cards.
+
+**In the gate:** HOLDKICK (auto-ability skips Kick under HOLD), 3D-RESOURCES part 1 (resource batches commit
+again, so trees and palms draw under the model path).
+
+**Next:** full-3D packages 2 (flat terrain everywhere) and 4-10, town look pass (light, sky, grass, path
+wear), taming pen bonding / roles / care, level-up flash (port claude/mmo-levelfx), item icons (76 left),
+performance gates (home build 2.6 s against 2.5 s). Opus workers are capped until Nov 3 18:00 CT.
+
 ## 2026-10-30: what landed, what is in progress, what is next
 
 Canon `claude/mmo-overhaul` at `4aa0ba62`. The live record is the Roadmap (`tools/docs_wiki/phase-map.json`,
