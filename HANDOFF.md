@@ -355,3 +355,11 @@ Use this nine-step rig and animation service for every creature:
 7. Export only accepted clips, with exact source/action and file recorded.
 8. For missing or bad clips, use approved Text to Motion when its cap covers it, then Astra-authored Blender rig/weight/animation surgery. Mark rejected fallbacks rather than silently shipping them.
 9. Import into Godot, run the creature lab, and inspect desktop gameplay pixels for anatomy, scale, material, foot contact, plate/tail deformation and every required state before `INTEGRATED`.
+
+
+## Quick start for agents (skip character creation)
+
+Any windowed or new-game run lands on character creation and waits for input. Pass one of:
+- `-- --skip-charcreate` (default occupation and look), or `-- --occupation=<id>` to pick one;
+- or set `WILDLANDS_QUICKSTART=1` in the environment.
+Add `--new-game` for a fresh start even when a save exists. Windowed agent runs stay off-screen (`--position 6000,3000`) and must quit themselves.

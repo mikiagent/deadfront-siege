@@ -17,7 +17,7 @@ smoke_meat,Smoke Meat,processing,60,smoker,12.0,raw_meat=1,smoked_meat,1,smoke,1
 camp_stew,Camp Stew,cooking,60,crock_pot,6.0,raw_meat=1; herb=1; fruit=1,camp_stew,1,stew,1
 hide_strap,Hide Strap,processing,60,workbench,2.0,dried_hide=1,hide_strap,2,split,1
 split_wood,Split Wood,processing,60,workbench,2.0,log=1,split_wood,2,split,1
-plank,Plank,processing,60,workbench,2.0,split=2,plank,1,hammer,1
+plank,Plank,processing,60,workbench,2.0,thick_pillar=2,plank,1,hammer,1
 charcoal,Charcoal,processing,60,hand,3.0,burnable=2,charcoal,1,bake,1
 ingot,Crude Ingot,processing,60,forge,4.0,rough_ore=2; fuel=1,ingot,1,smelt,1
 campfire_kit,Campfire Kit,construction,60,hand,1.5,wood=2; tinder=1,campfire_kit,1,bind,1
@@ -25,6 +25,9 @@ bonfire_kit,Bonfire Kit,construction,60,hand,1.5,wood=2; fibre=1,bonfire_kit,1,b
 stone_fire_pit_kit,Stone Fire Pit Kit,construction,60,hand,2.5,stone=6; wood=2,stone_fire_pit_kit,1,stack,1
 stone_grill_kit,Flat Stone Grill Kit,construction,60,hand,3.0,stone=4; wood=2,stone_grill_kit,1,bind,1
 makeshift_taming_pen_kit,Makeshift Taming Pen Kit,construction,60,hand,2.5,wood=4; lashing=2,makeshift_taming_pen,1,bind,1
+taming_pen_medium_kit,Medium Taming Pen Kit,construction,60,workbench,4.0,wood=8; lashing=4; nails=2,taming_pen_medium,1,bind,1
+taming_pen_large_kit,Large Taming Pen Kit,construction,60,workbench,4.0,wood=12; lashing=6; stone=6; nails=4,taming_pen_large,1,bind,1
+taming_pen_apex_kit,Apex Taming Pen Kit,construction,60,workbench,4.0,log=8; lashing=8; stone=12; nails=8,taming_pen_apex,1,bind,1
 workbench_kit,Workbench Kit,construction,60,hand,2.0,wood=4; lashing=2,workbench_kit,1,bind,1
 mortar_kit,Mortar and Pestle Kit,construction,60,hand,3.0,stone=3; wood=1,mortar_kit,1,bind,1
 well_kit,Simple Well Kit,construction,60,hand,3.0,stone=6; wood=4; lashing=2,well_kit,1,bind,1
@@ -147,6 +150,7 @@ steamer_kit,Steamer,construction,60,hand,5.0,wood=3; lashing=2; pot_clay=1,steam
 hoe,Hoe,weapon_tools,60,hand,3.0,blade_mat=1; handle=1; lashing=1,hoe,1,bind,1
 stone_knife,Stone Knife,weapon_tools,60,workbench,3.0,tier_stone=2; handle=1; lashing=2,stone_knife,1,bind,1
 pillar,Pillar,construction,60,workbench,4.0,log=2,pillar,1,bind,1
+metal_nails,Metal Nails,processing,60,forge,6.0,ingot=1; fuel=1,metal_nails,4,smelt,1
 cloth_scrap,Cloth Scrap,tailoring,60,hand,2.0,fibre=2,cloth_scrap,1,bind,1
 claim_stake,Claim Stake,construction,60,hand,3.0,wood=2; lashing=1,claim_stake,1,bind,1
 blue_dye,Blue Dye,processing,60,mortar,3.0,coral=1,blue_dye,2,grind,1
@@ -174,3 +178,20 @@ meat_broth,Meat Broth,cooking,60,bonfire,3.0,raw_meat=1; water=1,meat_broth,1,br
 salad,Salad,cooking,60,workbench,2.0,fruit=1; herb=1,salad,1,mix,0
 herbal_tea,Herbal Tea,cooking,60,bonfire,2.5,herb=1; water=1,herbal_tea,1,brew,0
 shaved_ice,Shaved Ice,cooking,60,mortar,1.5,ice=1,shaved_ice,1,mix,0
+roled_grilled_meat,Grilled Cut,cooking,60,stone_grill,3.0,meat=1,grilled_meat,1,grill,1
+roled_berry_glazed_meat,Berry-Glazed Cut,cooking,60,stone_grill,4.0,meat=1; fruit=1,seasoned_roast,1,glaze,1
+roled_broth_soup,Broth Soup,cooking,60,crock_pot,6.0,meat=1; water=1,meat_broth,1,brew,1
+roled_spiced_stew,Spiced Stew,cooking,60,crock_pot,7.0,meat=1; spice=1; water=1,camp_stew,1,stew,1
+roled_herb_roast,Herb Roast,cooking,60,bonfire,4.0,meat=1; herb=1; handle=1,herb_buff_meal,1,cook,1
+roled_salad,Gathered Salad,cooking,60,workbench,3.0,fruit=1; herb=1,salad,1,mix,0
+saddle_small,Small Saddle,tailoring,60,hand,6.0,dried_hide=3; fibre=3; lashing=2,saddle_small,1,sew,1
+saddle_medium,Medium Saddle,tailoring,60,workbench,8.0,cured_hide=5; lashing=3; wood=2,saddle_medium,1,sew,1
+saddle_large,Large Saddle,tailoring,60,workbench,10.0,cured_hide=8; lashing=4; wood=3; bone=2,saddle_large,1,sew,1
+spiky_armor,Spiky Armor,tailoring,60,workbench,8,cured_hide=4; dense_bone=3; lashing=2,spiky_armor,1,bind,1
+spiky_armor_helmet,Spiky Armor Helmet,tailoring,60,workbench,8,cured_hide=2; dense_bone=2; lashing=1,spiky_armor_helmet,1,bind,1
+metal_stick,Metal Stick,processing,60,anvil,600.0,chunk=1,metal_stick,2,hammer,1
+metal_nails_from_chunk,Metal Nails (from a chunk),processing,60,anvil,120.0,chunk=1,metal_nails,4,hammer,1
+silver_chunk,Silver Chunk,processing,60,forge,30.0,ore=2,silver_chunk,1,smelt,1
+sedative,Sedative,processing,60,hand,4,spoiled_meat=1; narcoberry=2,sedative,1,mix,1
+tranquilizer_dart,Tranquilizer Dart,weapon_tools,60,hand,4,sedative=1; bone=1,tranquilizer_dart,3,bind,1
+rot_compost,Rot Compost,farming,60,mortar,3.0,rot=3; earth=1,fruit_fertilizer,1,grind,1

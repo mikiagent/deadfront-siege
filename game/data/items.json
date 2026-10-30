@@ -436,11 +436,10 @@
     },
     {
       "id": "stone_knife_work",
-      "display_name": "Stone Work Knife",
+      "display_name": "Work Knife",
       "categories": [
         "tool",
-        "blade",
-        "weapon"
+        "blade"
       ],
       "stack_max": 1,
       "tool_class": "knife",
@@ -459,7 +458,7 @@
     },
     {
       "id": "stone_knife",
-      "display_name": "Stone Knife",
+      "display_name": "Stone Dagger",
       "categories": [
         "weapon",
         "blade",
@@ -1664,6 +1663,19 @@
       "market_category": "metal_ore",
       "rarity": "uncommon",
       "source_pending": "island: only SilverOreNode (snowfield) yields it, and islands.json has no snowfield island yet"
+    },
+    {
+      "id": "driftglass",
+      "display_name": "Driftglass",
+      "categories": [
+        "treasure"
+      ],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "gem",
+      "rarity": "rare",
+      "source_pending": "island: only DriftglassNode at a Rift Pool, which grows on generated unstable isles (World.roll_drift); a fresh walk over the roster never meets one"
     },
     {
       "id": "pearl",
@@ -2953,6 +2965,21 @@
       ],
       "tool_class": "none",
       "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "metal_ore"
+    },
+    {
+      "id": "iron_ore",
+      "display_name": "Iron Ore",
+      "categories": [
+        "ore",
+        "iron_ore"
+      ],
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "iron"
+      },
       "rarity": "uncommon",
       "market_category": "metal_ore"
     },

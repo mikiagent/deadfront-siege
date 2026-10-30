@@ -1,0 +1,17 @@
+{
+  "_about": "LOADING: the rotating tip line on the loading screen (scripts/ui/loading_screen.gd). Only systems the game has; no new lore. Each tip names the system it teaches.",
+  "rotate_s": 4.5,
+  "tips": [
+    {"system": "taming", "text": "Weaken a wild animal to 30% health, then throw a net to capture it."},
+    {"system": "torpor", "text": "Sedatives build torpor. A knocked-out animal can be netted without fighting it down."},
+    {"system": "torpor", "text": "Narcoberries and rotten meat make Sedative."},
+    {"system": "food_bag", "text": "The Food Bag eats front to back: put the food you want eaten first in first."},
+    {"system": "spoilage", "text": "Raw and cooked meat spoil into Rot. Eat it, dry it or store it before it turns."},
+    {"system": "research", "text": "Every 5 skill levels past 20, a tree needs a timed research before it climbs further."},
+    {"system": "skills", "text": "Skill points unlock nodes in the Skills sheet; auto nodes are learned free when their level is reached."},
+    {"system": "travel", "text": "Sailing from the Harbour costs Warp Gems, and higher-tier islands need a higher Survival level."},
+    {"system": "islands", "text": "Expedition islands reset when their time runs out. Buildings left there refund half their materials."},
+    {"system": "islands", "text": "Your Tamed Island is yours for good. Expedition islands come and go."},
+    {"system": "gathering", "text": "Bring the right tool: bare hands gather slower than an axe, pick or knife on the node it suits."}
+  ]
+}

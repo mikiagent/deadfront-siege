@@ -108,8 +108,9 @@ Thirsty and grants Quenched (`game/scripts/player/water_access.gd`).
 
 ## Water: drink, wash, swim (spec 17; `game/tests/t_water.gd`)
 - Fresh water is the river only (PRD :314-315). Within 2 m of it or standing in it, INTERACT shows
-  Drink and the context row shows Wash (Fill too with an empty bucket). The salt sea offers none;
-  pressing INTERACT in it says "Salt water: drink and wash at the river".
+  Drink and the context row shows Wash (Fill too with an empty bucket). Drinking and filling stay
+  river-only. Washing works in any water, the sea included (KNIFEFIX, owner 2026-10-29: "no option to
+  wash off dirt in the ocean"; `WaterAccess.near_any`); away from all water Wash says "No water here".
 - Depth under 1.3 m (chest-deep) wades (x0.60 pace), deeper swims (x0.45, 6 Energy/s, 5 HP/s once Energy is
   empty). Swimming she floats with her centre at the water plane (velocity, so the floor snap never
   pins her to the seabed) and plays `swim` (moving) or `swim_idle` (still), UAL Swim_Fwd_Loop /

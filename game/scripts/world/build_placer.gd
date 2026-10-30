@@ -598,6 +598,12 @@ func confirm(player: Player) -> bool:
 	if runtime == null or grid == null:
 		print("[build] rejected no_runtime")
 		return false
+	# UNSTABLE ISLES: only packed kits stand on a generated isle (it sinks; nothing permanent is built).
+	if (is_piece() or blueprint != &"") and World.is_drift(str(World.island_id)):
+		print("[build] rejected drift_kits_only")
+		if player.has_method("notice"):
+			player.notice("Only packed kits stand on an unstable isle")
+		return false
 	if is_piece():
 		var res := StructurePlacer.place(grid.structures, runtime, placing, piece_tier, piece_at, player)
 		_snap_key = []  # the grid changed: re-snap (the ghost stays up for the next piece)

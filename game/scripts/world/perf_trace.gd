@@ -34,6 +34,7 @@ static func is_on() -> bool:
 
 ## Close the phase since the last mark and open a new one named `phase`.
 static func mark(phase: String) -> void:
+	LoadingScreen.stage(phase)  # LOADING: the overlay's bar follows the build's stages (no-op when none is up)
 	if not _on:
 		return
 	var now := Time.get_ticks_usec()
@@ -47,6 +48,7 @@ static func mark(phase: String) -> void:
 ## Close the last phase and print the table.
 static func finish() -> void:
 	if not _on:
+		LoadingScreen.stage("__end")
 		return
 	mark("__end")
 	_on = false

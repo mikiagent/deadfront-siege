@@ -283,7 +283,7 @@ func land_hit(t: Creature, w: ItemStack) -> float:
 
 func _weapon() -> ItemStack:
 	var w := record.equipment.worn(&"weapon")
-	return null if w == null or w.is_broken() else w
+	return null if w == null or w.is_broken() or Inventory.slot_for(w.def()) != &"weapon" else w # KNIFESPLIT
 
 ## A creature's bite (CreatureAttack): the member's own defense, base + worn armour.
 func take_creature_hit(attacker: Creature, atk: float) -> bool:
@@ -379,6 +379,10 @@ func _find_node() -> HarvestNode:
 		if h == null or h.is_queued_for_deletion() or h.pool_units_left() <= 0 or h.gather_kind() != kind:
 			continue
 		if _flat(h.global_position, center) > radius:
+			continue
+		# LANDMARKS (doc section 5.7, A7): an ASSIGN job never works a landmark node; those are the
+		# survivor's own to harvest.
+		if str(h.get_meta(&"landmark", "")) != "":
 			continue
 		var claim: String = str(h.get_meta(&"tribe_claim", ""))
 		if claim != "" and claim != record.uid:

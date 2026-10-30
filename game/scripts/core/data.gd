@@ -14,6 +14,9 @@ var nature_families: Dictionary = {}
 var world_rules: Dictionary = {}
 var world_climates: Dictionary = {}
 var world_islands: Dictionary = {}
+## LANDMARKS M1 (data/world/landmarks.json): the landmark types, per-climate site rows, budgets and
+## validation rules. Empty when the file is missing (the landmark pass then places nothing).
+var world_landmarks: Dictionary = {}
 var world_objectives: Array = [] ## ordered standing orders; see data/world/objectives.json
 ## TUTORIAL ISLAND: the orders a new survivor follows before owning a home (objectives.json "tutorial"),
 ## and the standing order id the main list resumes at once the tutorial is done.
@@ -204,6 +207,7 @@ func _load_world() -> void:
 	world_rules = _parse_json("res://data/world/rules.json")
 	world_climates = _parse_json("res://data/world/climates.json")
 	world_islands = _parse_json("res://data/world/islands.json")
+	world_landmarks = _parse_json("res://data/world/landmarks.json")
 	props_manifest = _parse_json("res://data/props_manifest.json")
 	world_props = _parse_json("res://data/world/props.json")
 	var obj := _parse_json("res://data/world/objectives.json")

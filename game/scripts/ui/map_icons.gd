@@ -45,6 +45,27 @@ static func anchor(ci: CanvasItem, at: Vector2, r: float, col: Color, ring: Colo
 	ci.draw_line(at + Vector2(-r * 0.9, r * 0.35), at + Vector2(r * 0.9, r * 0.35), col, maxf(1.4, r * 0.22))
 	ci.draw_arc(at, r * 0.75, 0.25, PI - 0.25, 12, col, maxf(1.4, r * 0.22))
 
+## LANDMARKS: a found landmark, a diamond (gold when it yields, violet while sealed).
+const LANDMARK := Color(1.0, 0.78, 0.25)
+const LANDMARK_SEALED := Color(0.68, 0.45, 0.95)
+static func landmark(ci: CanvasItem, at: Vector2, r: float, sealed: bool, ring: Color) -> void:
+	var pts := PackedVector2Array([at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0)])
+	ci.draw_colored_polygon(pts, LANDMARK_SEALED if sealed else LANDMARK)
+	ci.draw_polyline(pts + PackedVector2Array([pts[0]]), ring, 1.5, true)
+
+## The found landmarks to draw on the island being played: [{at: Vector3, sealed: bool, name}].
+## Unfound ones never show (doc section 5.6: arrival does not reveal every rare).
+static func found_landmarks() -> Array:
+	var out: Array = []
+	for s in World.current_landmarks():
+		var site: Dictionary = s
+		var sid := str(site.get("id", ""))
+		if not World.landmark_is_found(str(World.island_id), sid):
+			continue
+		var sealed := bool(site.get("dormant", false)) and not World.landmark_open(str(World.island_id), sid) and not bool(site.get("spent", false))
+		out.append({"at": Vector3(float(site.get("x", 0.0)), 0.0, float(site.get("z", 0.0))), "sealed": sealed, "name": str(site.get("display", ""))})
+	return out
+
 static func dot(ci: CanvasItem, at: Vector2, r: float, col: Color) -> void:
 	ci.draw_circle(at, r, col)
 

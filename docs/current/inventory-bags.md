@@ -147,6 +147,20 @@ grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in
 - Every button is >= 64 px; t_invscreens proves no overflow at 844x390 and 1600x900; t_bagui
   covers rail, sort, lock vs trash, the header, chest deposit / withdraw and the card.
 
+## Food Bag (FOODTORPOR, `Inventory.food_bag`)
+- A **Food Bag** tab on the bag's filter rail lists the food lots you put in it, in the order you put
+  them in (`BagGrid.FILTERS` "food_bag"; the Sort dropdown hides there). A food card offers **To Food
+  Bag / Out of Food Bag**; only `food`-tagged items go in, no repeats, at most 20 lots
+  (`Inventory.FOOD_BAG_MAX`, # ASSUMPTION).
+- It is an ordered list of instance uids over the main bag, not a second container, so eating,
+  crafting and selling are unchanged. A lot that leaves the bag or spoils drops out
+  (`Inventory.food_bag_prune`).
+- **Eat in order** hands the whole list, front to back, to the eat queue
+  (`PlayerActions.eat_food_bag` -> `EatSession.begin_queue`). Auto-feed takes the first edible Food
+  Bag lot before the quick-food picks (`PlayerSim.tick_autofeed`).
+- Spoilage, Sedative and torpor capture: [creatures-capture-taming.md](creatures-capture-taming.md).
+  Test: `game/tests/t_foodtorpor.gd`.
+
 ## Multi-select, locking, transfer (`bag_grid.gd`, `inventory_ui.gd`)
 - Cell size: 64 px on a phone, up to 120 on desktop; tap vs drag separated at `TAP_DEADZONE` = 12 px.
 - Select mode (`multi_mode`, `multi: Array[int]`) from the toolbar's Select, a long press
@@ -160,8 +174,11 @@ grid. Level 1–60 is the instance's `level`; there is no bag "quality" field in
   with a reason per index (`locked`, `empty`, `online`, `world`); locked items may be marked but every
   destructive or moving action skips them.
 - Lock is the `locked` flag on an instance (`ItemStack.is_locked`, toggled by `_toggle_lock`).
-  Locked items refuse drop/destroy/transfer/equip, are skipped by default craft picks and by the
-  auto-picked gather tool.
+  Locked items refuse drop/destroy/transfer/equip and are skipped by default craft picks. A Lock
+  does not stop an item working as a tool: a locked knife still butchers and a locked pick still
+  mines (KNIFEFIX 2026-10-29, `Inventory._is_tool`). When only broken tools of a class are carried,
+  the blocked option reads "your knife is broken" instead of "needs knife"
+  (`Inventory.tool_block_reason`). The stone knife's `max_durability` is 120 (was 40).
 - `Inventory.transfer_to` moves one slot to another container, refusing locked items and markers.
 
 ## Saves

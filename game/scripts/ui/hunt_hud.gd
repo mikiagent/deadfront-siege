@@ -1895,8 +1895,9 @@ func _draw_hud() -> void:
 	draw_string_outline(_font, Vector2(mp.x, mp.y - 16.0), top_s, HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, 3, Color(0, 0, 0, 0.75))
 	draw_string(_font, Vector2(mp.x, mp.y - 16.0), top_s, HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, Color.WHITE)
 	drawn_blocks["map_title"] = Rect2(mp.x, mp.y - 16.0 - meta_px, MAP_PX, meta_px + 4.0)
-	# Owner 2026-10-28: "X 503 Y 295" centred under the map, her world X / Z in whole metres.
-	var xy := Vector2i(roundi(player.global_position.x), roundi(player.global_position.z))
+	# Owner 2026-10-28: "X 503 Y 295" centred under the map, in whole metres. X = world x (east), Y = -world z
+	# (NORTHUP: Y grows northward, up the screen and the map).
+	var xy := Vector2i(roundi(player.global_position.x), -roundi(player.global_position.z))
 	if xy != _map_xy:  # format only when a metre changes
 		_map_xy = xy
 		map_xy_text = "X %d  Y %d" % [xy.x, xy.y]
@@ -2380,9 +2381,8 @@ func _draw_minimap_body() -> void:
 	if player == null:
 		return
 	var rt := World.runtime
-	# Camera-up map: the iso camera looks along a 45° diagonal, so a north-up map made running
-	# left read as south-west. Everything below is drawn rotated by the camera yaw around the
-	# centre (so screen-up on the map is screen-up in the world); the frame clips the corners.
+	# Camera-up map: drawn rotated by the camera yaw around the centre, so screen-up on the map is
+	# screen-up in the world. The camera looks due north (IsoCamera.YAW_DEG 0), so this is north-up.
 	var cam := get_viewport().get_camera_3d()
 	var cam_yaw := cam.global_rotation.y if cam else 0.0
 	c.draw_set_transform(centre, cam_yaw, Vector2.ONE)
@@ -2420,11 +2420,15 @@ func _draw_minimap_body() -> void:
 			MapIcons.flame(c, camp_q, 3.4, Color(1.0, 0.90, 0.55), Color(0.02, 0.03, 0.05, 0.9))
 		if harb_q.length() <= marker_r:
 			MapIcons.anchor(c, harb_q, 3.6, Color(0.70, 0.85, 1.0), Color(0.02, 0.03, 0.05, 0.9))
-		if World.crater_discovered:
+		if World.crater_discovered and World.current_landmarks().is_empty():
 			var cr: Vector3 = rt.get("_crater_pos")
 			var crater_q: Vector2 = to_px.call(cr)
 			if crater_q.length() <= marker_r:
 				c.draw_circle(crater_q, 4.0, Color(0.9, 0.4, 0.2))
+		for lm in MapIcons.found_landmarks():  # LANDMARKS: found sites only
+			var lq: Vector2 = to_px.call(lm["at"])
+			if lq.length() <= marker_r:
+				MapIcons.landmark(c, lq, 4.0, bool(lm["sealed"]), Color(0.02, 0.03, 0.05, 0.9))
 		for n in get_tree().get_nodes_in_group("creatures"):
 			var cr := n as Creature
 			if cr == null or cr.health.dead:

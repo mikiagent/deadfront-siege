@@ -12,10 +12,10 @@ extends Node3D
 const ROWS := 12
 const COLS := 13  # ~150 props a side
 const SPACING := 1.8
-## The patches stand side by side ON SCREEN: with IsoCamera's yaw the screen's right axis is
-## (0.7071, 0, -0.7071), so a world x/-z offset separates them left/right, not diagonally.
-const SCREEN_RIGHT := Vector3(0.7071, 0.0, -0.7071)
-const SCREEN_DEPTH := Vector3(0.7071, 0.0, 0.7071)
+## The patches stand side by side ON SCREEN: the screen's right / depth axes follow IsoCamera.YAW_DEG,
+## so the offset separates them left/right, not diagonally, whatever the camera's heading.
+var SCREEN_RIGHT := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(IsoCamera.YAW_DEG))
+var SCREEN_DEPTH := Vector3.BACK.rotated(Vector3.UP, deg_to_rad(IsoCamera.YAW_DEG))
 const HALF_OFFSET := 13.2
 ## Frames timed per phase after the switch (the first ones recompile pipelines).
 const PERF_FRAMES := 90

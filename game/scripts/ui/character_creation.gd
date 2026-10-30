@@ -77,6 +77,11 @@ func _ready() -> void:
 		if a.begins_with("--occupation="):
 			select_occupation(a.substr(13))
 			call_deferred("_finish")
+			return
+	# Dev quick start (owner 2026-10-30: agent windows sat on this screen): `-- --skip-charcreate` or
+	# WILDLANDS_QUICKSTART=1 finishes creation with the default row and look, straight into the world.
+	if "--skip-charcreate" in OS.get_cmdline_user_args() or OS.get_environment("WILDLANDS_QUICKSTART") == "1":
+		call_deferred("_finish")
 
 ## Shows step `i` (0 Gender/Profession, 1 Create Character, 2 Name) with the stage in its place.
 func _go(i: int) -> void:

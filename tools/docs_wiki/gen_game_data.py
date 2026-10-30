@@ -268,6 +268,9 @@ def weather_section(rules, cl, a) -> None:
 
 def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
     cl = load(data, "world/climates.json")
+    lm = load(data, "world/landmarks.json") or {}
+    lm_rows = lm.get("climates", {})
+    lm_rules = lm.get("rules", {})
     isl = [load(data, "islands/%s" % f.name) for f in sorted(Path(data, "islands").glob("*.json"))]
     but = load(data, "butchering.json").get("species", {})
     creatures = []
@@ -309,6 +312,16 @@ def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
             mats.append("`%s`%s" % (m["id"], " *(attr: %s)*" % m["attr"] if m.get("attr") else ""))
         if mats:
             a("- Gatherable materials (yellow-pip latent attr when noted): %s." % ", ".join(mats))
+        lms = lm_rows.get(cid, [])
+        if lms:
+            a("- Landmarks (`world/landmarks.json`; island level +%s, rare-trait bonus by hand): %s." % (
+                lm_rules.get("level_offset", 5),
+                "; ".join("**%s** (%s%s%s)" % (
+                    r.get("display", r.get("type")),
+                    ", ".join("`%s` x%s-%s" % (f, n[0], n[1]) for f, n in r.get("nodes", {}).items()),
+                    ", from tier %s" % r["min_tier"] if r.get("min_tier") else "",
+                    ", always" if r.get("must") else "")
+                          for r in lms)))
         a("")
     a("A climate's `materials` list is what its island generator may place; gather yields per family are the gather-system's own table (`world/rules.json`).")
     a("")

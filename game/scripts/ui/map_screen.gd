@@ -365,6 +365,10 @@ func _rebuild_facts() -> void:
 	_facts.add_child(_fact("Island time", life, UiTokens.TEXT, px))
 	var charted := World.visited_islands.size() + (0 if World.visited_islands.has(str(World.island_id)) else 1)
 	_facts.add_child(_fact("Islands visited", "%d / %d" % [charted, _island_ids().size()], UiTokens.GOLD, px))
+	# LANDMARKS (doc section 5.6): the island's landmark count, shown once it has any.
+	var lm := World.landmarks_found_count()
+	if lm.y > 0:
+		_facts.add_child(_fact("Landmarks Found", "%d / %d" % [lm.x, lm.y], UiTokens.GOLD, px))
 
 func _fact(label: String, value: String, col: Color, px: int) -> Control:
 	var row := HBoxContainer.new()
@@ -471,7 +475,7 @@ func _place() -> void:
 	_meta.position = Vector2(pad, _title.position.y + _title.size.y)
 	_meta.size = Vector2(pw - pad * 2.0, 18.0 if compact else 26.0)
 	var tile := BuildGrid.tile_of(player.global_position) if player else Vector2i.ZERO
-	_meta.text = "You X %d · Y %d · %s · Gold %d" % [tile.x, tile.y, LevelDisplay.player_label(), World.t_stones]
+	_meta.text = "You X %d · Y %d · %s · Gold %d" % [tile.x, -tile.y, LevelDisplay.player_label(), World.t_stones]
 	var list_top := _meta.position.y + _meta.size.y + (6.0 if compact else 10.0)
 	var cta_h := 64.0 if _cta.visible else 0.0
 	var fact_px := 13 if compact else 18
@@ -615,8 +619,13 @@ func _draw() -> void:
 		var harb: Vector3 = rt.get("_harbour_pos")
 		draw_circle(to_map.call(camp), 4.5, legend_color("camp"))
 		_mark(to_map.call(harb), 7.0, "harbour", Color(0.02, 0.05, 0.12, 0.95))
-		if World.crater_discovered:
+		if World.crater_discovered and World.current_landmarks().is_empty():
 			draw_circle(to_map.call(rt.get("_crater_pos")), 6.0, legend_color("crater"))
+		# LANDMARKS: found sites only (the crater is one of them now), with their names.
+		for lm in MapIcons.found_landmarks():
+			var q: Vector2 = to_map.call(lm["at"])
+			MapIcons.landmark(self, q, 7.0, bool(lm["sealed"]), Color(0.02, 0.05, 0.12, 0.95))
+			draw_string(ThemeDB.fallback_font, q + Vector2(9.0, 4.0), str(lm["name"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.9))
 		for m in _player_dots():
 			draw_circle(to_map.call(m["at"]), 4.0, legend_color("other"))
 			draw_circle(to_map.call(m["at"]), 4.0, Color(0.9, 0.9, 0.95, 0.7), false, 1.0)
@@ -639,7 +648,7 @@ func _draw() -> void:
 		var goal: Vector2 = to_map.call(player._path_goal)
 		draw_arc(goal, 6.0, 0.0, TAU, 24, Color(1, 1, 1, 0.9), 2.0, true)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# Compass: a dark disc left of ✕ (the atlas is north-up; the HUD minimap turns with the camera).
+	# Compass: a dark disc left of ✕ (the atlas is north-up, and so is the HUD minimap: it turns with the camera, which looks north).
 	var np := Vector2(_close.position.x - 40.0, _close.position.y + 32.0)
 	draw_circle(np, 24.0, Color(0.02, 0.025, 0.03, 0.9))
 	draw_colored_polygon(PackedVector2Array([np + Vector2(0, -16), np + Vector2(-6, -6), np + Vector2(6, -6)]), Color.WHITE)
@@ -681,5 +690,5 @@ func _gui_input(event: InputEvent) -> void:
 	world.y = rt.surface_y(world.x, world.z) if rt.has_method("surface_y") else 0.0
 	if player.has_method("nav_to"):
 		player.nav_to(player._closest_nav_point(world))
-		player.notice("Walking to X %d  Y %d" % [BuildGrid.tile_of(world).x, BuildGrid.tile_of(world).y])
+		player.notice("Walking to X %d  Y %d" % [BuildGrid.tile_of(world).x, -BuildGrid.tile_of(world).y])
 	close()

@@ -1,8 +1,8 @@
 # Crafting recipes — game data catalog
 
-> Generated 2026-10-28 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
+> Generated 2026-10-30 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
 
-`180 recipes` from `game/data/recipes.json`; station-only workflow times from `game/data/processing.json`.
+`196 recipes` from `game/data/recipes.json`; station-only workflow times from `game/data/processing.json`.
 
 These rows describe game data; a row alone does not prove that its output is playable. `min skill` is the recipe's minimum level gate when greater than zero; the gate also checks the resulting item level. Other gates may apply. `ability target` affects success chance rather than imposing a hard gate. `recipe max_level` is the configured output-level cap; the actual result also depends on materials, skill, and runtime bounds. Absent values use the defaults in `game/scripts/items/crafting.gd`: minimum 0, ability 0, and output cap 60.
 
@@ -115,7 +115,11 @@ to an output row (`{"id", "count"}`); `output` stays as the fallback.
 | `small_pouch` | Small Pouch x1 | dried_hide x1 (primary); fibre x2 | tailoring | 1 | 0 | 60 | 2.0 | sew +1 |
 | `plank_shape` | Plank Shape x1 | log x1 (primary) | construction | 0 | 0 | 60 | 1.5 | shape +1 |
 | `pillar_shape` | Pillar Shape x1 | log x2 (primary) | construction | 0 | 0 | 60 | 2.0 | shape +1 |
+| `bowstring` | Bowstring x1 | strap x1 (primary) | construction | 0 | 0 | 60 | 1.0 | twist +1 |
 | `strap` | Strap x1 | strap_material x1 (primary) | construction | 0 | 0 | 60 | 0.5 | twist +1 |
+| `saddle_small` | Small Saddle x1 | dried_hide x3 (primary); fibre x3; lashing x2 | tailoring | 1 | 0 | 60 | 6.0 | sew +1 |
+| `sedative` | Sedative x1 | spoiled_meat x1 (primary); narcoberry x2 | processing | 0 | 0 | 60 | 4 | mix +1 |
+| `tranquilizer_dart` | Tranquilizer Dart x3 | sedative x1 (primary); bone x1 | weapon_tools | 0 | 0 | 60 | 4 | bind +1 |
 
 ## Crafting (workbench)
 
@@ -129,7 +133,10 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `cloth` | Cloth x1 | thread x2 (primary) | tailoring | 0 | 0 | 60 | 2.0 | twist +1 |
 | `hide_strap` | Hide Strap x2 | dried_hide x1 (primary) | processing | 0 | 0 | 60 | 2.0 | split +1 |
 | `split_wood` | Split Wood x2 | log x1 (primary) | processing | 0 | 0 | 60 | 2.0 | split +1 |
-| `plank` | Plank x1 | split x2 (primary) | processing | 0 | 0 | 60 | 2.0 | hammer +1 |
+| `plank` | Plank x1 | thick_pillar x2 (primary) | processing | 0 | 0 | 60 | 2.0 | hammer +1 |
+| `taming_pen_medium_kit` | Medium Taming Pen x1 | wood x8 (primary); lashing x4; nails x2 | construction | 0 | 0 | 60 | 4.0 | bind +1 |
+| `taming_pen_large_kit` | Large Taming Pen x1 | wood x12 (primary); lashing x6; stone x6; nails x4 | construction | 0 | 0 | 60 | 4.0 | bind +1 |
+| `taming_pen_apex_kit` | Apex Taming Pen x1 | log x8 (primary); lashing x8; stone x12; nails x8 | construction | 0 | 0 | 60 | 4.0 | bind +1 |
 | `empty_bucket` | Empty Bucket x1 | wood x2 (primary); lashing x1 | construction | 0 | 0 | 60 | 2.0 | bind +1 |
 | `raid_maul` | Volcano Raid Maul x1 | tier_steel x4 (primary); handle x2; lashing x4 | weapon_tools | 55 | 95 | 60 | 12 | bind +1 |
 | `raid_helm` | Raid Hide Helm x1 | tier_steel x2 (primary); cured_hide x4; lashing x2 | tailoring | 55 | 95 | 60 | 12 | bind +1 |
@@ -181,6 +188,10 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `fine_plank` | Fine Plank x1 | plank_shape x1 (primary) | processing | 0 | 0 | 60 | 12.0 | trim +1 |
 | `salad` | Salad x1 | fruit x1 (primary); herb x1 | cooking | 0 | 0 | 60 | 2.0 | mix +0 |
 | `roled_salad` | Salad x1 | fruit x1 (primary); herb x1 | cooking | 0 | 0 | 60 | 3.0 | mix +0 |
+| `saddle_medium` | Medium Saddle x1 | cured_hide x5 (primary); lashing x3; wood x2 | tailoring | 12 | 55 | 60 | 8.0 | sew +1 |
+| `saddle_large` | Large Saddle x1 | cured_hide x8 (primary); lashing x4; wood x3; bone x2 | tailoring | 25 | 65 | 60 | 10.0 | sew +1 |
+| `spiky_armor` | Spiky Armor x1 | cured_hide x4 (primary); dense_bone x3; lashing x2 | tailoring | 30 | 60 | 60 | 8 | bind +1 |
+| `spiky_armor_helmet` | Spiky Armor Helmet x1 | cured_hide x2 (primary); dense_bone x2; lashing x1 | tailoring | 30 | 60 | 60 | 8 | bind +1 |
 
 ## Drying (drying_rack)
 
@@ -219,6 +230,8 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `alloy_bronze` | Bronze Ingot x2 | tier_copper x2 (primary); tin x1; fuel x1 | processing | 0 | 0 | 60 | 10.0 | alloy +1 |
 | `smelt_iron` | Iron Ingot x1 | iron_ore x2 (primary); fuel x1 | processing | 0 | 0 | 60 | 24.0 | smelt +1 |
 | `refine_steel` | Steel Ingot x1 | tier_iron x2 (primary); fuel x2 | processing | 0 | 0 | 60 | 14.0 | alloy +1 |
+| `metal_nails` | Metal Nails x4 | ingot x1 (primary); fuel x1 | processing | 0 | 0 | 60 | 6.0 | smelt +1 |
+| `silver_chunk` | Silver Chunk x1 | ore x2 (primary) | processing | 0 | 0 | 60 | 30.0 | smelt +1 |
 
 ## Fires and cooking
 
@@ -261,6 +274,7 @@ burning), and every fire refuses cooking once it is out. Fires take their recipe
 | `fruit_juice` | Fruit Juice x1 | fruit x1 (primary); water x1 | cooking | 0 | 0 | 60 | 2.0 | mix +0 |
 | `cactus_juice` | Cactus Juice x1 | cactus x1 (primary); water x1 | cooking | 0 | 0 | 60 | 2.0 | mix +0 |
 | `shaved_ice` | Shaved Ice x1 | ice x1 (primary) | cooking | 0 | 0 | 60 | 1.5 | mix +0 |
+| `rot_compost` | Fruit Fertilizer x1 | rot x3 (primary); earth x1 | farming | 0 | 0 | 60 | 3.0 | grind +1 |
 
 ## stone_grill (stone_grill)
 
@@ -323,6 +337,8 @@ Stand-and-craft seconds are the recipe rows below; the station's own **real conv
 | `steel_bracers` | Steel Bracers x1 | tier_steel x2 (primary); cured_hide x1; lashing x1 | tailoring | 55 | 95 | 60 | 6.0 | bind +1 |
 | `steel_greaves` | Steel Greaves x1 | tier_steel x4 (primary); cured_hide x2; lashing x2 | tailoring | 55 | 95 | 60 | 6.0 | bind +1 |
 | `metal_shards` | Metal Shard x2 | ingot x1 (primary) | processing | 0 | 0 | 60 | 4.0 | hammer +1 |
+| `metal_stick` | Metal Stick x2 | chunk x1 (primary) | processing | 0 | 0 | 60 | 600.0 | hammer +1 |
+| `metal_nails_from_chunk` | Metal Nails x4 | chunk x1 (primary) | processing | 0 | 0 | 60 | 120.0 | hammer +1 |
 
 ## Repairs — per-tier cost
 

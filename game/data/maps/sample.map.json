@@ -622,7 +622,8 @@
 			"id": 6,
 			"kind": "landmark",
 			"props": {
-				"name": "Lookout Peak"
+				"name": "Lookout Peak",
+				"type": ""
 			},
 			"x": 74.0,
 			"z": -98.0
@@ -631,7 +632,8 @@
 			"id": 7,
 			"kind": "landmark",
 			"props": {
-				"name": "Reed Pond"
+				"name": "Reed Pond",
+				"type": ""
 			},
 			"x": -30.0,
 			"z": 42.0

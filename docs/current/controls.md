@@ -105,8 +105,9 @@ my player glitches out... pathfind to where I want to walk and then re-engage".
 
 ## AUTO-ABILITY (2026-10-29)
 
-The AUTO-ABILITY hex sits beside AUTO in the combat layer (64 px, same style; desktop left of AUTO,
-between FEED and AUTO on phones). It is **on by default** for new and loaded games (the flag lives on
+The AUTO-ABILITY hex sits beside AUTO in the combat layer (64 px, same style; on desktop under
+TACKLE's caption, centred on TACKLE between KICK and AUTO since NORTHFOLLOW 2026-10-30, so it no longer
+covers the caption (`HudLayout.place_desktop`, `t_fieldhud`); between FEED and AUTO on phones). It is **on by default** for new and loaded games (the flag lives on
 `Hunt.auto_ability`, not in the save, so an older save gets the same default). While a fight runs and
 the toggle is on, the hunt casts the strongest **auto-castable** ability that is off cooldown, in
 body-edge reach, line of sight and affordable (stamina) **instead of the next basic attack** — owner:
