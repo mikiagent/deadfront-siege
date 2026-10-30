@@ -84,6 +84,11 @@ var camp_hint := Vector2(0.0, 12.0)
 ## island) flattens the land within town_r of the camp to one plane, and topography keeps off it.
 var town_r := 0.0
 const TOWN_BLEND_M := 50.0  ## # ASSUMPTION: the ramp from the town plane back to the island's own heights
+## 3D-FLAT (full-3D package 2, owner 2026-10-30: "The terrain should be flat"): every island's land above
+## the beach takes one height; relief comes back as 3D meshes (package 5). Off until rules.json
+## terrain_relief is "flat" or a run passes --flat.
+var flat_land := false
+const FLAT_H := 1.0  ## # ASSUMPTION: the land plane, the old mean inland height
 ## {"pos": Vector2, "r": float, "h": float} or {}; most islands have one.
 var mesa: Dictionary = {}
 var river := PackedVector2Array()
@@ -701,7 +706,10 @@ func compute() -> void:
 		_place_topo()
 		PerfTrace.mark("shape.topo")
 	_fill_heightmap()
-	_flatten_town()
+	if flat_land:
+		_flatten_land()
+	else:
+		_flatten_town()
 	PerfTrace.mark("shape.resettle")
 	_slopes(size / float(res - 1))
 	PerfTrace.mark("shape.slopes")
@@ -732,6 +740,13 @@ func _flatten_town() -> void:
 			var h := heights[i]
 			var w := (1.0 - smoothstep(town_r, reach, d)) * smoothstep(0.2, 0.9, h)
 			heights[i] = lerpf(h, flat, w)
+
+## 3D-FLAT: land above the beach goes to FLAT_H. The sea, wet sand, beach and river channel keep their
+## profile (the weight fades out below 0.9 m, as the town plane does), so coasts, docks and rivers stay.
+func _flatten_land() -> void:
+	for i in heights.size():
+		var h := heights[i]
+		heights[i] = lerpf(h, FLAT_H, smoothstep(0.2, 0.9, h))
 
 ## Recentre and (if needed) shrink the land so every side of the square keeps SEA_MARGIN of sea,
 ## measured on the analytic coastline. Returns true when it changed sx/sz/centre.

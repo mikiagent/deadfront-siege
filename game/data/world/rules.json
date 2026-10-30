@@ -1,6 +1,8 @@
 {
   "_about": "Material level and island archetype rules (docs/design/world-design.md §2–3). The island generator applies ring offsets to the island tier; crafting uses the mean-of-materials rule from the systems PRD §8.4.",
   "resource_render": "card",
+  "terrain_relief": "heightmap",
+  "_terrain_relief_note": "3D-FLAT (full-3D package 2, owner 2026-10-30: \"The terrain should be flat and depth is added through props, structures, buildings, resources\"): \"flat\" puts every island's land above the beach on one plane (coasts, beaches and rivers keep their profile); \"heightmap\" is today's relief. --flat / --relief override it on a run.",
   "_resource_render_note": "SWITCH2D (owner 2026-10-21: \"keep buildings 3D and make resources 2D\"): \"card\" draws every resource prop as a flat, camera-facing card - the owner's painted sprites (data/world/sprites2d.json) where a family's art is cut, else its baked CARD2D card (data/card2d.json), with data/world/sprites2d_map.json for overrides. \"model\" is the old 3D GLB look (--models on a lab run). Buildings stay 3D either way.",
   "island_size_m": {
     "unstable": 240,
