@@ -25,6 +25,17 @@
     "basic_cooldown_s": 0.8,
     "_basic_cooldown": "ASSUMPTION (owner: no basic-attack spam): the swing cooldown is 1/attack_rate but never under basic_cooldown_s; unarmed and rate-1 weapons keep today's 1.0 s."
   },
+  "torpor": {
+    "_doc": "FOODTORPOR, every number an ASSUMPTION (docs/vision/WildLandsMMO_Open_Questions.md). Flat max for every species; blunt = any landed blunt melee hit or stone shot; sedative = one charge of a Sedative-coated weapon; dart = a Tranquilizer Dart hit. Knocked out = weak (stunned or HP <= 30 %) AND torpor >= ko_frac x max.",
+    "max": 100.0,
+    "ko_frac": 0.6,
+    "blunt": 6.0,
+    "sedative": 20.0,
+    "dart": 30.0,
+    "dart_damage_mult": 0.25,
+    "decay_delay_s": 6.0,
+    "decay_per_s": 3.0
+  },
   "creature_melee": {
     "player_base_defense": 20.0,
     "defense_factor": 0.5,

@@ -165,6 +165,22 @@ Source: branch `claude/mmo-compyjumps`, report `docs/orchestration/reports/claud
 | **C6** | Landing: the bite keeps lunging at 1.3 x run until its contact frame while she is beyond 0.6 x reach; a compy at a walking survivor's heels with no bite allowed hops back and chases again. Target share of bites and pounces that connect on a survivor who does not roll: about 50-85 % (t_swarm measures standing and walking 2 m/s). | `bite_track`, `bite_track_frac`, `chase_hop` | Owner: "attacks aren't landing very often". The swarm's chase speed (0.5) still lets a running survivor get away. |
 | **C7** | "Missed" (grey, like Dodged/Blocked) is shown for a failed accuracy roll, an out-of-reach contact frame, a pounce that lands with the prey out of its jaws, and a survivor swing the creature stepped out of. A failed roll against a creature with a dodge chance is split by the same single draw: inside the dodge part "Dodged", inside the accuracy part "Missed". | `CombatTuning.swing_outcome`, `CombatAvoid` | Owner: damage text "Dodged" "Blocked" or "Missed". |
 
+### FOODTORPOR (2026-10-29) — Food Bag, spoilage, torpor
+
+Source: branch `claude/mmo-foodtorpor`, report `docs/orchestration/reports/claude-foodtorpor.md`. Owner: a "Food Bag" tab eaten in placement order; spoiled food leaves it as "Spoiled Meat" or "Rot"; Spoiled Meat + Narcoberry make the capture drug (player-facing "Sedative"); creatures get a torpor bar and must be weak and past a torpor threshold to be knocked out. Every number below is a default taken, not balance.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **T1** | Torpor max 100 for every species (no size or tier scaling). | `combat_tuning.json torpor.max` | A T. rex goes down as fast as a compy; scaling by size is the obvious next step. |
+| **T2** | Knock-out threshold 60 % of max; "weak" is spec 09's rule (stunned at any HP, or HP <= 30 %). | `torpor.ko_frac`, `FieldTame.window_open` | Decides how many doses a capture costs. |
+| **T3** | Doses: blunt hit +6, Sedative charge +20 (plus the hit's blunt +6), Tranquilizer Dart +30; a dart does 25 % of the slingshot's damage. | `torpor.blunt / sedative / dart / dart_damage_mult` | Club-only capture takes ~10 hits; 2 darts are enough. |
+| **T4** | Torpor holds while knocked down, drains 3 / s after 6 s with no new dose; not saved. | `torpor.decay_delay_s / decay_per_s` | How long a survivor has between doses. |
+| **T5** | Sedative = 1 Spoiled Meat + 2 Narcoberry by hand; coats the weapon for 3 landed hits. Dart = 1 Sedative + 1 bone -> 3 darts, slingshot ammo. | `recipes.json sedative / tranquilizer_dart` | The crafting cost of a capture. |
+| **T6** | Narcoberry bushes: the berry bush art tinted violet, 2 per island on grass / dry tiles, every climate except the tutorial island, 1-2 berries a pick. | `nature_manifest.json narcoberry_bush`, `IslandScatter.scatter` | The PRDs give no biome for it. |
+| **F1** | Food Bag holds 20 lots; it is a view of food in the main bag (uids in order), not a second container. Eat and auto-feed take the first lot that can be eaten now. | `Inventory.FOOD_BAG_MAX`, `food_bag` | A separate container would need its own weight and transfer rules. |
+| **F2** | Spoil times from the moment the survivor's bag first holds a lot, real time incl. offline: raw meat / raw 2 h, fruit / mushroom / cactus 4 h, cooked 6 h, cold food 1 h; preserved (dried, smoked), drinks, pet feed and burnt food never. Meat (incl. cooked meat) -> Spoiled Meat, other food -> Rot, one for one. | `foods.json spoilage` | Spec 08 had forbidden a freshness timer; the owner asked for one. Pets' bags, chests and the online server do not spoil yet. |
+| **F3** | Rot composts at the mortar: 3 Rot + 1 earth -> 1 Fruit Fertilizer (same Fertilizer node as the fruit recipe). | `recipes.json rot_compost` | The vision mentions compost; no compost heap station exists yet. |
+
 ### ISLANDSHAPES (2026-10-29) — island shape families, southern-most dock, topography
 
 Source: branch `claude/mmo-islandshapes`, report `docs/orchestration/reports/claude-islandshapes.md`. Numbers live in `game/data/world/island_families.json` (every one an ASSUMPTION) and `islands.json` `shape_family`.

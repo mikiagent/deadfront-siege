@@ -181,7 +181,7 @@ static func _vault(b: VaultBridge, acct: int) -> Dictionary:
 ## Tames a knocked-out compy for `acct` (srvdom's fixture creature) and returns the pet uid.
 func _tame(b: VaultBridge, acct: int, net_id: String) -> String:
 	_gather(b, acct, "bush", 0, "berry", 3)
-	_world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 20.0, "knocked": true})
+	_world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 20.0, "knocked": true, "torpor": 1.0})
 	var r := {}
 	for i in 3:
 		r = b.chars.apply("act.tame", acct, {"net_id": net_id, "food": "berry"}, T0 + i)
@@ -196,7 +196,7 @@ func _capture(b: VaultBridge, acct: int, net_id: String) -> int:
 		var fibre := b.chars.character(acct).inventory().find_first(&"fibre_stalk")
 		b.chars.apply("act.craft", acct, {"recipe_id": "twine", "picks": [fibre]}, T0)
 	_expect(b.chars.apply("act.craft", acct, {"recipe_id": "capture_net_i"}, T0).ok, "craft a capture net")
-	_world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 10.0})
+	_world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 10.0, "torpor": 1.0})
 	for i in 40:
 		_world.creatures[net_id].knocked = true
 		var got := b.chars.apply("act.capture", acct, {"net_id": net_id}, T0 + i)

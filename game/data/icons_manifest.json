@@ -264,7 +264,12 @@
     "salad": "herb_leaf",
     "herbal_tea": "herb_leaf",
     "shaved_ice": "ice",
-    "saddle_large": "saddle_medium"
+    "saddle_large": "saddle_medium",
+    "spoiled_meat": "raw_meat",
+    "rot": "ash",
+    "narcoberry": "berry",
+    "sedative": "marsh_herb",
+    "tranquilizer_dart": "hollow_bone"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

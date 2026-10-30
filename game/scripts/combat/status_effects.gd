@@ -221,7 +221,8 @@ func _dot(inst: StatusInstance) -> void:
 			# Never force damage onto a capturable animal: the same window as the net (spec 09,
 			# stunned at any HP or <= 30 %) decides. The bot's first tame kept dying to bleed
 			# between "weak enough" and the tackle. Direct hits still kill.
-			if FieldTame.capture_window(cr):
+			# FOODTORPOR: guard on "weak" alone, so a bleed cannot kill it while it is being sedated.
+			if cr.def != null and cr.def.tameable and not cr.is_pet and FieldTame.is_weak(cr):
 				return
 			dps = CombatCounters.dot_dps(cr.def.archetype, inst.id, cr.health.max_hp, inst.stacks)
 		elif def.dps_max_hp_frac > 0.0:

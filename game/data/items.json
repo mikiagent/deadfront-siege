@@ -4561,6 +4561,76 @@
       },
       "market_category": "ingot",
       "rarity": "uncommon"
+    },
+    {
+      "id": "spoiled_meat",
+      "display_name": "Spoiled Meat",
+      "categories": [
+        "spoiled",
+        "spoiled_meat"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "meat",
+      "rarity": "common",
+      "_about": "FOODTORPOR: what raw or cooked meat becomes when it spoils (Spoilage). Not edible; mixed with Narcoberry into Sedative."
+    },
+    {
+      "id": "rot",
+      "display_name": "Rot",
+      "categories": [
+        "spoiled",
+        "rot"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common",
+      "_about": "FOODTORPOR: what spoiled plant food becomes (Spoilage). Not edible; composted into fertilizer at the mortar."
+    },
+    {
+      "id": "narcoberry",
+      "display_name": "Narcoberry",
+      "categories": [
+        "herb",
+        "narcoberry"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "uncommon",
+      "_about": "FOODTORPOR: a sleep-inducing berry from narcoberry bushes; a Sedative ingredient, not a food."
+    },
+    {
+      "id": "sedative",
+      "display_name": "Sedative",
+      "categories": [
+        "counter_supply",
+        "sedative"
+      ],
+      "stack_max": 999,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "medicine",
+      "rarity": "uncommon",
+      "_about": "FOODTORPOR: coats the equipped weapon for 3 landed hits, each adding sedative torpor; also the dose in a Tranquilizer Dart."
+    },
+    {
+      "id": "tranquilizer_dart",
+      "display_name": "Tranquilizer Dart",
+      "categories": [
+        "ammunition",
+        "tranquilizer_dart"
+      ],
+      "stack_max": 999,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "weapon",
+      "rarity": "uncommon",
+      "_about": "FOODTORPOR: slingshot ammo fired from the Dart hex; light damage, a large torpor dose."
     }
   ]
 }

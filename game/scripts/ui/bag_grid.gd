@@ -43,8 +43,9 @@ var blocked: Dictionary = {}
 ## BAGUI: the bottom bar's Sort dropdown (owner: level, rarity, type, newest).
 const SORTS := ["", "level", "rarity", "type", "newest", "name"]
 const SORT_LABELS := {"": "Bag order", "level": "Level", "rarity": "Rarity", "type": "Type", "newest": "Newest", "name": "Name"}
-const FILTERS := ["", "materials", "food", "gear", "tools", "building", "rare", "locked"]
-const FILTER_LABELS := {"": "All", "materials": "Materials", "food": "Food", "gear": "Gear", "tools": "Tools", "building": "Building", "rare": "Rare", "locked": "Locked"}
+## FOODTORPOR: "food_bag" is the Food Bag tab (Inventory.food_bag): its food in the order put in.
+const FILTERS := ["", "materials", "food", "food_bag", "gear", "tools", "building", "rare", "locked"]
+const FILTER_LABELS := {"": "All", "materials": "Materials", "food": "Food", "food_bag": "Food Bag", "gear": "Gear", "tools": "Tools", "building": "Building", "rare": "Rare", "locked": "Locked"}
 ## Cell for each drawn slot index (the view may skip or reorder slots).
 var _cell_of: Dictionary = {}
 
@@ -315,6 +316,8 @@ func rebuild() -> void:
 ## Slot indices in draw order. No sort and no filter: 0..slot_count-1. A sort draws the occupied
 ## slots in key order, then the empty ones (capacity stays visible); a filter draws matches only.
 static func view_order(inv: Inventory, key: String, filter: String) -> Array[int]:
+	if filter == "food_bag":
+		return inv.food_bag_prune()  # eating order: never sorted
 	var out: Array[int] = []
 	var empties: Array[int] = []
 	for i in inv.slot_count:
