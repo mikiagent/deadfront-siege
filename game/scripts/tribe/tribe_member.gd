@@ -45,6 +45,8 @@ var _clip: StringName = &""
 var _held: Node3D
 var _held_id: StringName = &""
 var _tools := Inventory.new(1)
+## P1 WEAR: the worn tool is down to its last durability point, so the worker spares it (Tribe screen says so).
+var tool_worn := false
 ## TRIBE M2a: the station or site of its work order, and the plate over its head that names the job.
 var _station: Node3D
 var plate: Label3D
@@ -296,6 +298,9 @@ func take_creature_hit(attacker: Creature, atk: float) -> bool:
 			armor += it.scaled_armor()
 	var dealt := CreatureAttack.mitigated(atk, Tribe.num("base_defense", 15.0) + armor)
 	health.take_damage(dealt, attacker)
+	if dealt > 0.0:  # P1 WEAR: same armor wear rule as the survivor
+		var eq := record.equipment
+		Inventory.wear_armor_piece([eq.worn(&"head"), eq.worn(&"body"), eq.worn(&"arms"), eq.worn(&"legs")], CombatTuning.rng)
 	return true
 
 func _on_damaged(_amount: float, _source: Node) -> void:
@@ -348,7 +353,9 @@ func _work() -> void:
 			if m.carry.used_slots() > 0:
 				_deposit()
 			else:
-				_halt(&"idle")  # nothing left to work in the radius: wait for regrowth
+				if tool_worn:
+					print("[tribe] %s stops: tool worn (1 durability left)" % record.name)
+				_halt(&"idle")  # nothing left to work in the radius (or the tool is spent): wait
 			return
 		_work_node.set_meta(&"tribe_claim", m.uid)
 	var reach := work_reach(_work_node)
@@ -395,8 +402,12 @@ func _find_node() -> HarvestNode:
 			best = h
 	return best
 
+## P1 WEAR: a tool at 1 durability is spent for work (the worker spares it), so it stays out of _tools
+## and the job reports it ("tool worn") instead of breaking it.
 func _sync_tools() -> void:
-	_tools.slots[0] = record.equipment.worn(&"weapon")
+	var w := record.equipment.worn(&"weapon")
+	tool_worn = w != null and w.max_durability > 0 and w.durability <= 1
+	_tools.slots[0] = null if tool_worn else w
 
 func _begin_gather() -> void:
 	_sync_tools()
@@ -425,21 +436,22 @@ func _harvest() -> void:
 	if node.can_gather(_tools) != "":
 		_release_node()
 		return
-	if node.required_tool_class != &"" and node.required_tool_class != &"none":
-		if not _tools.wear_gather_tool(node.required_tool_class):
-			_release_node()
-			return
 	var stack := node.roll_yield(GatherService.rng, GatherService.tool_tier(_tools, node.required_tool_class, node.family), maxi(1, record.skill("gathering")))
 	var cap := maxi(record.skill("gathering"), 5)
 	if stack.level > cap:
 		stack.level = cap
 		stack.attributes["level"] = cap
+	if node.required_tool_class != &"" and node.required_tool_class != &"none":
+		# P1 WEAR: a worker never breaks its tool (Game Vision § Tools): it stops at 1 durability.
+		if not _tools.wear_gather_tool(node.required_tool_class, stack.level, true):
+			_release_node()
+			return
 	var units := stack.count  # always 1 (ONEGATHER); read before the bag takes the instance
 	if record.carry.add(stack) > 0:
 		_deposit()
 		return
 	node.consume_unit()
-	GatherService.wear_role_tool(_tools, node.required_tool_class, node.family)
+	GatherService.wear_role_tool(_tools, node.required_tool_class, node.family, stack.level, true)
 	harvests.append({"item": stack.def_id, "count": units, "seconds": _unit_s})
 	record.add_skill_xp("gathering", Tribe.num("xp_per_harvest", 2.0))
 	record.fatigue = minf(Tribe.num("fatigue_max", 100.0), record.fatigue + Tribe.num("fatigue_per_harvest", 2.5))
