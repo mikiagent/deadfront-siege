@@ -33,10 +33,18 @@ Part 1 §1.4 items 1-6 and the §1.5 table. Worktree: `.claude/worktrees/mmo-hun
   meal-buff time left.
 - `game/scripts/player/buff_slots.gd` + `game/scripts/items/food_effects.gd`: `while_fed` rows are kept
   until fullness drops under `buff_off_below`.
-- `game/scripts/tribe/tribe_member.gd`: decay/bands/eating all from the shared block.
+- `game/scripts/tribe/tribe_member.gd`: decay, bands and eating all come from the shared block; the old
+  `food_min` 15 floor is gone (it made a berry fill like a dish), so a berry adds its own 8 points.
 
-**Tests**: `game/tests/t_hunger.gd` (new), and `t_starving`, `t_hudrules`, `t_foodfx`, `t_needs`,
-`t_tribe` updated for the new numbers. `tools/smoke.sh` still prints SMOKE PASS.
+**Tests**: `game/tests/t_hunger.gd` (new: rules, food classes, decay, bands, save/seed, while_fed,
+starving delay), `t_foodfx` (new `_test_while_fed`: a real `crafters_meal` outlives its own 1200 s while
+fed, its time left follows the stomach, it expires the tick fullness drops under 10), `t_starving` (new
+`_test_dot_never_interrupts`: a starving tick neither cancels a gather nor ends a sleep, a hit does both;
+plus the 600 s delay, 0.1 HP/s per stack, 1 HP floor), `t_needs` (a meal fills the stomach by its own
+points and the Full status is no longer an eat gate), `t_tribe` (new `_test_hunger_shared`: no
+`fullness_per_day`/`eat_below`/`food_min` in tribe.json, 60 s drains exactly the shared rate, a berry adds
+its own points), `t_hudrules` (new band/ring stops). `tools/smoke.sh` still prints SMOKE PASS, and
+`game/tests/run_all.gd` passes.
 
 ## Assumptions (also `# ASSUMPTION:` in code)
 - The overfull ceiling is 120 points; a new survivor starts at 60 points (Fed).
@@ -45,6 +53,10 @@ Part 1 §1.4 items 1-6 and the §1.5 table. Worktree: `.claude/worktrees/mmo-hun
 - The `well_fed` chip carries no flags of its own — its fatigue and regen effects live in
   `PlayerSim` off the `hunger` block, so the chip can never double-apply them.
 - Old saves seed the stomach from the pre-rework formula once; there is no migration version bump.
+- A new survivor starts at 60 points and members' meals are worth their real `foods.json` fullness (no
+  floor): a berry is 8, a roast 55. A member eats at Peckish (under 30) and nothing else changed.
+- Starving only starts after 10 minutes *empty* (under 10 points), not after a peckish stretch; the
+  comment "fed band" test in `t_starving` keeps that line.
 
 ## Save change
 `digestion` (player metadata `foodfx_digestion`) gains `fullness` and `empty_for_s`; both are optional
