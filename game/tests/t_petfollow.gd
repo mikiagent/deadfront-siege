@@ -18,7 +18,7 @@ var _fails: PackedStringArray = []
 var _started := false
 var _done := false
 var _sections := 0
-var _want := 7
+var _want := 8
 var data: Node
 var player: Node
 var host: Node3D
@@ -95,6 +95,7 @@ func _run() -> void:
 	await _test_walk()
 	await _test_step_aside()
 	_test_orders()
+	await _test_stay()
 	_finish()
 
 # ---------------------------------------------------------------- setup
@@ -310,4 +311,88 @@ func _test_orders() -> void:
 	_expect(pet.brain.mode == &"attack" and pet.brain.order_target == target, "SIC did not take the ordered target")
 	target.free()
 	pet.brain.order(&"guard")
+	_sections += 1
+
+# ---------------------------------------------------------------- 8. PETSTAY: Stay holds, fights back, returns; Follow
+
+## A wild animal beside the pet that does not think (it only has to be there to be fought).
+func _wild(species: StringName, at: Vector3) -> Node:
+	var c: Node = load(CREATURE_SCENE).instantiate()
+	host.add_child(c)
+	c.global_position = at
+	c.spawn(data.creature(species))
+	if c.brain:
+		c.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	return c
+
+func _test_stay() -> void:
+	await _wait_settle(SETTLE_FRAMES)
+	var pet: Node = _pets()[0]
+	var rec: RefCounted = pet.pet_record
+	player.pets.set_command(pet, &"stay")
+	_expect(pet.brain.mode == &"stay" and rec.command == &"stay", "Stay did not set the pet's mode and record (%s / %s)" % [pet.brain.mode, rec.command])
+	_expect(&"follow" in player.pets.entries(pet).map(func(r): return r["id"]), "a staying pet's radial does not offer Follow")
+	var spot: Vector3 = pet.global_position
+	# 1. The survivor walks 20 m: the staying pet does not follow.
+	for i in WALK_FRAMES:
+		player.global_position += Vector3(0.1, 0, 0)
+		await physics_frame
+	for i in 120:
+		await physics_frame
+	var drift := _h(pet.global_position, spot)
+	print("[t_petfollow] stay: survivor walked 20 m, pet moved %.3f m" % drift)
+	_expect(drift < 0.5, "a staying pet moved %.2f m while the survivor walked 20 m" % drift)
+	# 2. Hit it: it turns on the attacker, then walks back once the attacker is dead.
+	var foe := _wild(&"compsognathus", spot + Vector3(0, 0, 4.0))
+	pet.health.take_damage(1.0, foe)
+	var fought := false
+	var left_spot := 0.0
+	for i in 240:
+		await physics_frame
+		if pet.brain.attack_target == foe and pet.brain.state in [&"chase", &"attack"]:
+			fought = true
+		left_spot = maxf(left_spot, _h(pet.global_position, spot))
+		if fought and left_spot > 1.0:
+			break
+	print("[t_petfollow] stay: hit -> fought=%s state=%s left spot %.2f m" % [fought, pet.brain.state, left_spot])
+	_expect(fought, "a staying pet did not fight back the animal that hit it")
+	foe.health.take_damage(99999.0, player)
+	var back := INF
+	for i in 600:
+		await physics_frame
+		back = _h(pet.global_position, spot)
+		if back < 0.5 and not bool(pet._path_active):
+			break
+	print("[t_petfollow] stay: foe dead, pet %.2f m from its stay spot" % back)
+	_expect(back < 0.6, "a staying pet did not walk back to its stay spot after the fight (%.2f m)" % back)
+	_expect(_h(pet.global_position, player.global_position) > 15.0, "a staying pet followed the survivor after the fight")
+	# 3. Save format: the additive "command" key round-trips; an old row without it loads as follow.
+	var row: Dictionary = rec.to_dict()
+	_expect(str(row.get("command", "")) == "stay", "PetRecord.to_dict has no command=stay (%s)" % row.get("command"))
+	_expect(PR.from_dict(row).command == &"stay", "a saved Stay does not load as Stay")
+	row.erase("command")
+	_expect(PR.from_dict(row).command == &"follow", "an old save without command does not load as Follow")
+	# 4. Dismiss and summon: it comes back staying.
+	var idx: int = player.bonded.find(rec)
+	player.summon_pet(idx)  # out -> dismissed
+	player.summon_pet(idx)
+	await physics_frame
+	var again: Node = null
+	for c in _pets():
+		if c.pet_record == rec:
+			again = c
+	_expect(again != null and again.brain.mode == &"stay", "a stayed pet did not come back staying after dismiss/summon")
+	if again == null:
+		return
+	# 5. Follow: it comes back to its slot beside the survivor.
+	player.pets.set_command(again, &"follow")
+	_expect(again.brain.mode == &"guard" and rec.command == &"follow", "Follow did not return the pet to guard")
+	var reached := false
+	for i in SETTLE_FRAMES:
+		await physics_frame
+		if _settled(again):
+			reached = true
+			break
+	print("[t_petfollow] follow: pet %.2f m from its slot" % _h(again.global_position, _slot_of(again)))
+	_expect(reached, "Follow did not bring the pet back to its slot")
 	_sections += 1

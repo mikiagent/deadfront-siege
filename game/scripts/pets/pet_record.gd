@@ -45,6 +45,8 @@ var bag: Inventory
 ## SADDLES: what the tame wears (EntityEquipment.TAME_SLOTS). Never null; an old save loads with none.
 var gear := EntityEquipment.new()
 var summoned: bool = false
+## PETSTAY: the radial Stay/Follow command, kept through dismiss/summon and saved ("command"). Old saves load as follow.
+var command: StringName = &"follow"
 ## A dead pet comes back after this long; the PETS sheet shows the countdown ring.
 ## GAUNTLET/HANDOFF rule: 3-minute death cooldown.
 const RESPAWN_TIME := 180.0
@@ -261,6 +263,7 @@ func to_dict() -> Dictionary:
 		"level": level,
 		"xp": xp,
 		"respawn_left": respawn_left,
+		"command": str(command),
 	}
 
 ## Stored stats, grade and rates are not trusted: they are recomputed (legacy saves carry the
@@ -325,4 +328,5 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	r.bag = Inventory.new(bag_slots_for(def, mini(bag_rows.size(), 10)))
 	r.bag.load_array(bag_rows)
 	r.gear = EntityEquipment.from_dict(d.get("gear", {}))
+	r.command = &"stay" if str(d.get("command", "")) == "stay" else &"follow"
 	return r
