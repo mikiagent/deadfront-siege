@@ -177,3 +177,14 @@ Each vision doc's unresolved points remain inside that doc until the workshop; t
 - Vision unknowns: `WildLandsMMO_Game_Vision.md` (§5 revival, §20 UI, …).
 
 - 2026-10-28 owner idea (not necessary): rotatable camera (e.g. 45 degree steps) keeping the 2.5D look; 2D cards stay camera-facing. Logged as roadmap feature camera-rotate-25d (later).
+
+### STYRA (2026-10-30) — styracosaurus / triceratops (horned_charger) behaviour
+
+Source: branch `claude/mmo-styratactics`, report `docs/orchestration/reports/dsc-styratactics.md`. Numbers live in `game/data/creatures/ai.json archetypes.horned_charger.tactics` (every one an ASSUMPTION); template pack_mule.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **S1** | The big ceratopsians stand their ground (temperament territorial, Brave never flees on sight) and fight only while provoked; they hold a 2.0 s head-lowering display at ring 9 m before the charge. | `temperament`, `ring_m`, `display_s` | Owner: "a display first, then the charge". |
+| **S2** | The charge is a ram: straight locked line, 2.0 × attack impact and a 4 m body-slam shove with a 0.9 s stagger along the charge line; a sidestep or roll dodges it and staggers it 2.0 s. | `charge_mult`, `charge_shove_m`, `charge_shove_stagger_s`, `charge_miss_recover_s` | Owner 2026-10-29: "tackling/ramming". |
+| **S3** | Point blank it sweeps the horns: the `heavy` move (attack_heavy clip) x 2.2, 7 s cooldown, before kick/bite in `point_blank`. | `heavy_cd`, `heavy_mult`, `point_blank`, `TacticalBrain` heavy move | Gives the big head a finisher that is not a bite. |
+| **S4** | It fights to 25 % HP, then flees 4 s; guard 20 m around its home; herd defence as pack_mule. | `retreat_frac`, `guard_m`, `herd_defend` | Braver than the zebra; still capturable when weak. |
