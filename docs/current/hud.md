@@ -149,7 +149,8 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   healing, like the stomach's full band). A 2 px gap after every segment of `segment_xp` (100) XP of
   the level's cost, grouped into a multiple of 100 past `max_segments` (40) (`LevelDisplay.xp_segments`),
   so a dearer level draws more, thinner segments; the last is the leftover. The label over it reads
-  "Lv. 10  137 / 305 XP  · 100 XP each" (desktop centred, phone right above the rail). The cost is
+  "Lv. 10  137 / 305 XP  · 100 XP each", bottom-left just over the quick-food (EAT) row since owner
+  2026-10-30 ("the skill XP + player XP UI lower, above eat"), where the skill XP rows stack above it. The cost is
   exponential: `World.xp_for_level` = round(110 x 1.12^n) (`pioneer_levels.json xp_curve`). Test
   `t_levelbar.gd`. the survivor's name draws
   under her feet (15 px, projected from the camera).
@@ -286,14 +287,16 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - The camera already leans toward the selected or worked node (`Player.camera_interest`, IsoCamera
   `SELECTION_BIAS` 0.35, follow lerp 8/s); UIGATHER leaves those values as they are.
 - Gains show in the top-middle column (TopFeed, below); `yield_card.gd` keeps only the chip helpers
-  (`chips_for`, `layout_chips`, `meta_line`) and the left XP feed (`draw_feed`). The per-node yield card
+  (`chips_for`, `layout_chips`, `meta_line`) and the XP feed (`draw_feed`). The per-node yield card
   is retired (owner 2026-10-28).
 
 ## Notices, toasts, hits, level-up
-- Skill XP lines (left feed, owner §1.6, UIGATHER): under the vitals, one 44 px row per tree gain (34 on
-  a phone) — a small hex with the skill's initial, "Gathering +6 XP Lv. 1" and a thin XP bar of that
-  tree's progress; a tree level-up is the same row in GOLD with ▲. Each row takes a free spot off
-  `taken_rects`. Item gains are TopFeed rows (below); notices
+- Skill XP lines (XP feed, owner §1.6, UIGATHER; moved by owner 2026-10-30: "the skill XP + player XP UI
+  lower (above eat)"): the bottom-left corner, stacking UPWARDS from just over the quick-food (EAT) row,
+  one 44 px row per tree gain (34 on a phone) — a small hex with the skill's initial, "Gathering +6 XP
+  Lv. 1" and a thin XP bar of that tree's progress; a tree level-up is the same row in GOLD with ▲. Each
+  row takes a free spot off `taken_rects` (`HudLayout.xp_feed_top` is the anchor, the player XP readout
+  sits right under it). Item gains are TopFeed rows (below); notices
   (refusals) render under them on dark red with a LIFE edge and a drawn warning triangle; a
   confirmation (`HudEventState.add_notice(text, true)`, e.g. the menu's "Game saved · HH:MM") renders
   on the HUD fill with an OK_GREEN edge and a check (`HudEventState.draw_notice`, B4). Nothing covers
@@ -328,10 +331,12 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   - Tick numbers: `StatusEffects.ticked(id, amount)` fires per damage-over-time tick on the player with
     the Health it took; `HudEventState.add_tick` floats a 16 px "-N" in the status's fx colour (owner 2026-10-28) ("-0.2" for a fraction) on the
     hit numbers' path (pops in from 70 %, rises, fades); two ticks on one frame stand side by side.
-- Top-middle column (`top_feed.gd`, `HuntHud.top_feed`; owner 2026-10-28): skill category level-ups
-  and every gain, centred on the view (desktop, from under the vitals' bottom, y 112 at 1600x900, 380 px
-  rows) or on the centre band's part left of the day/night dial (phone, under the band, 236 px one-line
-  rows). Rows take the next free spot down off `taken_rects` and the open radial, drawn after the
+- Top-middle column (`top_feed.gd`, `HuntHud.top_feed`; owner 2026-10-28): every gain, centred on the
+  view (desktop, from under the vitals' bottom, y 112 at 1600x900, 380 px rows) or on the centre band's
+  part left of the day/night dial (phone, under the band, 236 px one-line rows). A skill category
+  level-up row left the column (owner 2026-10-30: "the level-up banner goes left, below the hunger
+  ring"): it hangs from `HudLayout.levelup_top`, the left column under the stomach ring, and slides
+  down only as far as a control in that strip requires. Rows take the next free spot down off `taken_rects` and the open radial, drawn after the
   notices, and ease (never snap) when one above leaves; a new row goes under those showing. At most 3
   rows (2 on a compact canvas); later ones wait, a skill row first. Drawn blocks: `levelup` (a skill
   row), `toast<i>` (gain rows).
@@ -350,8 +355,9 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   with a light at the survivor (`fx/level_up_fx.gd`: gold pillar, two rings, rays, sparkles, a shadowless
   OmniLight, 2 s; riding, on the saddle with the rings on the ground). Desktop: "LEVEL UP" and the level
   pop over a flare, then XP, T-stones, the brain glyph with the skill points ("50 (+10)"), title and stat
-  lines slide in, at the far left (owner 2026-10-28), x = vitals + 16, centred between the vitals and the
-  quick slots; ~6 s (4 s with more queued). The bottom level bar pulses gold (`draw_bar_pulse`). Phones: the banner
+  lines slide in, at the far left (owner 2026-10-28), x = vitals + 16, its top right under the stomach
+  ring (`HudLayout.levelup_top`; owner 2026-10-30: "move the level up UI higher (below hunger)"), and
+  never lower than the quick slots leave room; ~6 s (4 s with more queued). The bottom level bar pulses gold (`draw_bar_pulse`). Phones: the banner
   in the centre band (level, LEVEL UP, title, one stat line ending in the brain and the skill points),
   pushed under a target plate with a fade. Gains land via `Vitals.grant_level_bonus` (saved).
 - Skill category level-up (`SkillState.skill_leveled`): the small light at her feet and a TopFeed row

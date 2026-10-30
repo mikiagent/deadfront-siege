@@ -115,6 +115,20 @@ static func stomach_circle(hud: HuntHud, r: Vector2) -> Vector3:
 	var rad := HudLevelBadge.R
 	return Vector3(c.x, c.y + HudLevelBadge.R + 12.0 + rad, rad)
 
+## LAYOUT (owner 2026-10-30: "move the level up UI higher (below hunger)"): the left column's top
+## edge, just under the stomach ring (or the vitals while no ring is drawn). Both level-up pieces
+## hang from here: the character stack, and the skill category row (TopFeed).
+static func levelup_top(hud: HuntHud, r: Vector2) -> Vector2:
+	var v := vitals_rect(hud, r)
+	var ring := hud.stomach_rect
+	var top := (ring.end.y if ring.has_area() else v.end.y) + 8.0
+	return Vector2(v.position.x + 16.0, roundf(top))
+
+## LAYOUT (owner 2026-10-30: "the skill XP + player XP UI lower, above EAT"): the bottom-left anchor
+## above the quick-food row, where the XP lines and the player XP readout stack upwards from.
+static func xp_feed_top(hud: HuntHud) -> float:
+	return hud.quick_row_y() - 8.0
+
 ## Landscape phone: the strip between the vitals and the minimap; portrait: the strip under the map
 ## text. The quest card lives in it; the target plate and the level-up banner take it over while
 ## they show. Empty on the desktop (the plate is top centre, the level-up stack top left).

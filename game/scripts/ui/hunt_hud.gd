@@ -1913,7 +1913,9 @@ func _draw_hud() -> void:
 	_levelups.draw_bar_pulse(self, xp_bar_rect)
 	var lv := "%s  %d / %d XP  · %d XP each" % [LevelDisplay.player_label(), int(xb["xp"]), int(xb["cost"]), int(xb["unit"])]
 	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
-	var lv_pos := Vector2(r.x - lw - 16.0 - inset.x, r.y - HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - UiTokens.XP_BAR_H - 5.0)
+	# LAYOUT (owner 2026-10-30: "the skill XP + player XP UI lower, above EAT"): the readout stands
+	# bottom-left, just over the quick-food row, where the skill XP rows stack above it.
+	var lv_pos := Vector2(16.0 + inset.w, HudLayout.xp_feed_top(self) - 4.0)
 	draw_string_outline(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3, Color(0.0, 0.0, 0.0, 0.7))
 	draw_string(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	drawn_blocks["level"] = Rect2(lv_pos - Vector2(0.0, 12.0), Vector2(lw, 15.0))
@@ -1952,7 +1954,7 @@ func _draw_hud() -> void:
 	var cx := band.get_center().x if band.has_area() else r.x * 0.5  # a phone's free middle, off HANDS and the map
 	# UIGATHER (spec §6, owner §1.6): skill XP lines are the left feed under the vitals; item gains are
 	# the yield card above the node (YieldCard, spec §4.5) instead of the top-centre toast.
-	drawn_blocks.merge(YieldCard.draw_feed(self, _font, _events.skill_toasts, Vector2(vitals.position.x, vitals.end.y + 8.0), taken, player.skills), true)
+	drawn_blocks.merge(YieldCard.draw_feed(self, _font, _events.skill_toasts, Vector2(16.0 + inset.w, HudLayout.xp_feed_top(self) - 20.0), taken, player.skills), true)
 	if player.placer and player.placer.layout_mode:
 		var hint := "Layout mode: drag a building to move it · tap one to rotate · blue = ok, red = blocked · DONE saves" if player.placer.moving == null else "Release to drop (red snaps it back)"
 		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x

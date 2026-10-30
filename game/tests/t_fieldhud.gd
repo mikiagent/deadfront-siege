@@ -416,7 +416,10 @@ func _check_rects(view: Vector2, state: String, phone: bool) -> void:
 			rects.append([k, _hud.drawn_blocks[k]])
 	if state == "idle" and _hud.drawn_blocks.has("quest"):
 		rects.append(["quest", _hud.drawn_blocks["quest"]])
-	rects.append(["xp line", Rect2(view.x * 0.5 - 160.0, view.y - 30.0, 320.0, 30.0)])  # UiTokens.xp_line_zone
+	# LAYOUT (owner 2026-10-30: "the skill XP + player XP UI lower, above EAT"): the player XP readout
+	# stands bottom-left over the EAT row, so it is checked where it is drawn.
+	if _hud.drawn_blocks.has("level"):
+		rects.append(["xp line", _hud.drawn_blocks["level"]])
 	var screen := Rect2(Vector2.ZERO, view)
 	var overlaps := 0
 	for i in rects.size():

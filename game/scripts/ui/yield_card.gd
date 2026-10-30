@@ -42,30 +42,32 @@ static func layout_chips(font: Font, chips: Array, width: float, px: int) -> Arr
 		x += w + 6.0
 	return [out, (y + h) if not chips.is_empty() else 0.0]
 
-## The left XP feed (§6): one row per skill toast under `top_left`, newest last — a small hex with the
-## skill's initial, "Gathering +6 XP Lv. 1" and a thin bar of that tree's progress to its next level.
-## Each row takes a free spot off `taken`; returns the rects drawn, keyed "skilltoast<i>".
-static func draw_feed(hud: Control, font: Font, rows: Array, top_left: Vector2, taken: Array[Rect2], skills: SkillState) -> Dictionary:
+## The XP feed (§6): one row per skill toast, newest last — a small hex with the skill's initial,
+## "Gathering +6 XP Lv. 1" and a thin bar of that tree's progress to its next level. LAYOUT (owner
+## 2026-10-30: "the skill XP + player XP UI lower, above EAT"): the rows stack UPWARDS from
+## `bottom_left`, the bottom-left corner just over the quick-food row. Each row takes a free spot off
+## `taken`; returns the rects drawn, keyed "skilltoast<i>".
+static func draw_feed(hud: Control, font: Font, rows: Array, bottom_left: Vector2, taken: Array[Rect2], skills: SkillState) -> Dictionary:
 	var out := {}
 	var view := hud.get_viewport_rect().size
 	var compact := UiTokens.is_compact(view)
 	var row_h := 34.0 if compact else 44.0
 	var px := 14 if compact else 18
 	var w := 220.0 if compact else 290.0
-	var y := top_left.y
+	var y := bottom_left.y  # the cursor is each row's bottom edge; it climbs
 	for i in rows.size():
 		var e: Dictionary = rows[i]
 		var age := float(e["t"])
 		var life := float(e["life"])
 		var a := 1.0 - smoothstep(life * 0.6, life, age)
 		var big := bool(e["big"])
-		var cand := Rect2(top_left.x, y, w, row_h)
-		var box := UiTokens.free_spot(cand, taken, view)
+		var cand := Rect2(bottom_left.x, y - row_h, w, row_h)
+		var box := UiTokens.free_spot(cand, taken, view, true)
 		if not box.has_area():
 			continue
 		taken.append(box)
 		out["skilltoast%d" % i] = box
-		y = box.end.y + 6.0
+		y = box.position.y - 6.0
 		hud.draw_rect(box, Color(UiTokens.HUD_FILL, 0.8 * a))
 		var hc := Vector2(box.position.x + row_h * 0.5 + 2.0, box.get_center().y)
 		var hr := row_h * 0.38

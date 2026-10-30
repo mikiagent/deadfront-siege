@@ -252,17 +252,15 @@ func draw_bar_pulse(hud: HuntHud, bar: Rect2) -> void:
 	var a := 1.0 if float(current["out"]) < 0.0 else 0.0
 	hud.draw_rect(Rect2(bar.position.x, bar.position.y - 1.0, bar.size.x, 1.0), Color(gold, 0.8 * a))
 
-## The desktop stack's top left (owner 2026-10-28: "move this UI to the far left please"): the
-## view's left edge inside the safe area, centred in the height between the vitals' bottom and the
-## quick slots' top (HuntHud.quick_row_y), else from the vitals' bottom down. The left XP feed and
-## the status chips under the vitals are drawn after it and keep off it.
+## The desktop stack's top left (owner 2026-10-28: "move this UI to the far left please"; owner
+## 2026-10-30: "move the level up UI higher (below hunger)"): the left column inside the safe area,
+## its top right under the stomach ring (HudLayout.levelup_top). Raised only as far as the quick slots
+## leave room, so a 13-line stack never runs off the bottom. The left XP feed and the status chips sit
+## lower and are drawn after it, keeping off it.
 static func desktop_anchor(hud: HuntHud, h: float) -> Vector2:
-	var view := hud.get_viewport_rect().size
-	var v := HudLayout.vitals_rect(hud, view)
-	var x := v.position.x + 16.0  # the vitals' text column, inside the safe area
-	var lo := v.end.y + 10.0
-	var hi := hud.quick_row_y() - 12.0 - h
-	return Vector2(x, roundf(clampf((view.y - h) * 0.5, lo, maxf(lo, hi))))
+	var at := HudLayout.levelup_top(hud, hud.get_viewport_rect().size)
+	# Never past the quick slots: a stack taller than the free column starts higher instead of running off.
+	return Vector2(at.x, roundf(minf(at.y, maxf(16.0, hud.quick_row_y() - 12.0 - h))))
 
 ## The desktop stack's height for `lines` (_draw_stack's layout): LEVEL UP and the level, then a
 ## line per row.

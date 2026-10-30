@@ -66,3 +66,37 @@ stomach scale.
 
 `t_hudredraw` (new probe), `t_levelbadge`, `t_levelbar`, `t_treadmill`, `t_hudrules`, `t_levelfx`,
 `t_fieldhud` PASS; `run_all` and `tools/smoke.sh` PASS (see the verify script).
+
+## Owner layout follow-up (same branch, Milan 2026-10-30)
+
+Verbatim: "move the level up UI higher (below hunger) and the skill XP + player XP UI lower (above
+eat)" / "the level-up banner goes left, below the hunger ring".
+
+- `HudLayout.levelup_top(hud, r)` is the new anchor: the left column inside the safe area, its top
+  8 px under the stomach (hunger) ring's bottom, or under the vitals when no ring is drawn.
+- `HudLayout.xp_feed_top(hud)` is the bottom-left anchor: 8 px above the quick-food (EAT) row.
+- Character level-up (`LevelUpCelebration.desktop_anchor`): the stack's top is `levelup_top` instead of
+  the middle of the free column; it is raised further only when a tall stack would run past the quick
+  slots. Phone banner and the target-plate push-down behaviour are unchanged.
+- Skill category level-up (`TopFeed.draw`): a `skill` row now has its own column, hung from
+  `levelup_top` (left, under the ring) and only sliding down past whatever control occupies that strip;
+  gain rows stay in the top-middle column.
+- XP feed (`YieldCard.draw_feed`): rows stack upwards from `xp_feed_top`, taking a free spot upward, so
+  the newest gain is the bottom one just over EAT.
+- Player XP readout ("Lv. N  x / y XP  · u XP each"): drawn bottom-left at the same anchor, under the
+  XP rows (it used to be centred on the desktop and right-aligned on a phone).
+
+### Assumptions
+
+- "Player XP UI" means that readout line (the level bar itself stays full width along the bottom edge);
+  its label moved with the skill rows so both XP figures sit together above EAT.
+- A phone canvas has no left column above the quick row for a 13-line character stack, so a phone keeps
+  the centre-band banner (unchanged, as before the follow-up).
+
+### Tests updated
+
+`t_levelfx` (skill row anchored under the ring; character stack starts under the ring, still off every
+block and hex), `t_levelbar` (the readout is bottom-left over EAT), `t_uigather` (the XP line is
+bottom-left over EAT), `t_fieldhud` (the layout check now uses the drawn readout instead of the retired
+centre `UiTokens.xp_line_zone`). `t_hudrules`, `t_levelbadge`, `t_treadmill`, `t_hudredraw` unchanged
+and PASS.

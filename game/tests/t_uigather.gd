@@ -175,7 +175,10 @@ func _test_yield_card() -> void:
 	_expect(card.has_area() and Rect2(Vector2.ZERO, view).encloses(card) and card.end.y < view.y * 0.5 and absf(card.get_center().x - view.x * 0.5) < 2.0, "the gain row is drawn at the top middle (%s)" % card)
 	_expect(card.size.x == 380.0, "the row is 380 px wide on desktop (%s)" % card.size.x)
 	var feed_row: Rect2 = _hud.drawn_blocks.get("skilltoast0", Rect2())
-	_expect(feed_row.has_area() and feed_row.end.x < view.x * 0.35, "the XP line is in the left feed (%s)" % feed_row)
+	# LAYOUT (owner 2026-10-30: "the skill XP + player XP UI lower, above EAT"): bottom-left, over the
+	# quick-food row, climbing upwards from it.
+	var quick_y: float = _hud.quick_row_y()
+	_expect(feed_row.has_area() and feed_row.end.x < view.x * 0.35 and feed_row.end.y <= quick_y + 0.5 and feed_row.position.y > view.y * 0.4, "the XP line stands bottom-left over the EAT row (%s, quick row %.0f)" % [feed_row, quick_y])
 	_expect(not feed_row.intersects(card), "the XP line and the gain row do not overlap")
 	feed.clear()
 	_player.gather_target = null
