@@ -379,7 +379,6 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 	_ensure_map_fog(ir, camp_at if camp_at is Vector3 and (camp_at as Vector3) != Vector3.ZERO else (player.global_position if player else at))
 	print("[world] island %s nodes=%d creatures=%d terrain=%s" % [
 		id, int(ir.harvest_count), int(ir.creature_count), terrain])
-	Tasks.note(&"land")  # FACTIONS: Radio University's Three Islands guide counts landings
 	if int(island_def.get("tier", 0)) >= 30:
 		Tasks.note(&"explore30")  # TASKSCREEN: weekly Explore Level-30 Islands (DW-T0125)
 	island_changed.emit(id)
@@ -428,6 +427,7 @@ func travel(to_id: StringName, mode: StringName) -> void:
 		if is_home(): _save_now()
 		remaining_lifetime = 0.0 # each destination starts its own island lifetime
 		load_island(host, to_id, pos, false)
+		Tasks.note(&"land")  # FACTIONS: Three Islands counts real arrivals by travel, never a save load (t_save re-save)
 		if runtime and runtime.has_method("arrival_point"):
 			player.global_position = runtime.arrival_point() + Vector3.UP
 		if is_home():

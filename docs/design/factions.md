@@ -81,7 +81,7 @@ Every mission counts something the game already tracks. All counting goes throug
 | `tame` | a field tame bonds | new |
 | `capture` | a capture net lands | new |
 | `crater` | a crater (the landmark of each island) is discovered | new |
-| `land` | a landing on any island | new |
+| `land` | an arrival by travel (World.travel); loading a save never counts | new |
 | `explore30` | a landing on a Lv 30+ island | existing |
 | `deliver:<item>` | the bag holds the items; Receive takes them | new |
 

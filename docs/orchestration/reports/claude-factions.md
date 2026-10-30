@@ -153,3 +153,13 @@ for each: a look, values, a mission list, rank unlocks and a desk in the hall.
 - `bot_survivor.gd` craft-blocked events and `tutorial_bot.gd` "could not walk" now also print
   positions, so stuck spots can be found.
 - Credits spent: 0.
+
+## t_save fix (2026-10-30)
+
+- `Tasks.note(&"land")` used to run in `World.load_island`, which also runs when a save loads. Each
+  load and re-save then bumped `tasks.counts.*.land`, so t_save's field-for-field re-save check
+  failed.
+- It now counts only real arrivals by travel (`World.travel`). Radio University's Three Islands
+  guide counts travel landings, not the home grant or a save load.
+- After merging origin/claude/mmo-overhaul: t_save, t_factions and t_taskscreen PASS, run_all
+  PASS, SMOKE PASS.
