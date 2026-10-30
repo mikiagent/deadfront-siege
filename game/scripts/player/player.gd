@@ -428,8 +428,7 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 		if cur == null or not is_instance_valid(cur) or cur.health.dead or global_position.distance_to(cur.global_position) > 6.0:
 			hunt.start(who)
 			print("[combat] retaliate %s" % who.def.id)
-	if skills:
-		skills.add_xp("defense", 1)
+	# Owner 2026-10-28: Defense trains only on a defensive action that avoids an attack (roll_dodge), never on a hit taken.
 	vitals.add_fatigue(2.0, &"combat")
 	WaterAccess.soil(self, &"hit")
 	_flinch()
@@ -442,9 +441,7 @@ func roll_dodge(clip: StringName, who: Creature, lands: bool) -> void:
 	if sim == null:
 		return
 	_roll_dodged_frame = Engine.get_physics_frames()
-	CombatAvoid.avoided(self, who)  # "Dodged" floats over her: the hit never touched her
-	if lands and skills:
-		skills.add_xp("defense", RollRules.defense_xp())
+	CombatAvoid.avoided(self, who, &"dodge", lands)  # "Dodged" floats over her; Defense XP only if it would have landed
 	print("[combat] dodged by roll %s %s t=%.2f xp=%s" % [who.def.id if who and who.def else "?", clip, sim.roll_elapsed(), lands])
 
 ## Hit reaction; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse). The

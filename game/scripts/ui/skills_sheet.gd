@@ -44,6 +44,21 @@ var _spend: Button
 var _sp_pill: Label
 var _sp_icon: TextureRect  ## the brain beside the free count (skill points are a brain glyph, never "SP")
 var _tree: String = "survival"
+## Opening sweep (owner 2026-10-28 "the bar fills and the unlocks flash ... for the skill points"): a gold
+## track of the tree's levels sweeps from the left to the skill level, each node it passes that can be
+## unlocked now flashes in turn, and the free skill points count up. Skipped when reopened within
+## SWEEP_SKIP_S. # ASSUMPTION: no reduced-motion setting exists yet; SWEEP_S 0.8 and the flash look.
+const SWEEP_S := 0.8
+const SWEEP_SKIP_S := 4.0
+const FLASH_S := 0.5
+var _track: ProgressBar
+var _research: Label
+var _research_btn: Button
+var _research_shown := ""
+var _sweep_t := -1.0  ## seconds into the sweep; < 0 = none running
+var _sweep_order: Array[Dictionary] = []  ## [{id, level}] the nodes to flash, by level
+var sweep_flashed: Array[String] = []  ## ids flashed this sweep, in order (the test reads it)
+var _last_open_ms := -100000
 
 func _ready() -> void:
 	# The HUD that hosts this sheet has no size, so anchor to the viewport instead (top_level).
@@ -122,6 +137,40 @@ func _ready() -> void:
 	xp_line.add_child(_xp_value)
 	_xp_bar = SheetChrome.thin_bar(0.0, UiTokens.XP, 6.0)
 	xp_box.add_child(_xp_bar)
+	_track = SheetChrome.thin_bar(0.0, UiTokens.GOLD, 8.0)
+	_track.name = "SkillsLevelTrack"
+	_track.step = 0.0  # a smooth sweep, not 1 % steps
+	xp_box.add_child(_track)
+	# Research (owner 2026-10-28): the countdown line and the action; the premium and item speed-ups are
+	# stubs (money is the owner's call; no item shortens research yet).
+	_research = SheetChrome.label("", 18, UiTokens.GOLD)
+	_research.name = "SkillsResearch"
+	_research.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	xp_box.add_child(_research)
+	var rrow := HBoxContainer.new()
+	rrow.name = "SkillsResearchRow"
+	rrow.add_theme_constant_override("separation", 8)
+	xp_box.add_child(rrow)
+	_research_btn = SheetChrome.action_button("Start Research", &"cta", false)
+	_research_btn.name = "SkillsResearchStart"
+	_research_btn.custom_minimum_size = Vector2(0, SheetChrome.TAP)
+	_research_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_research_btn.pressed.connect(func () -> void:
+		var why := skills.start_research(_tree)
+		if why != "":
+			_research.text = why
+		rebuild()
+	)
+	rrow.add_child(_research_btn)
+	for stub in [["SkillsInstant", "Instant Completion · coming soon"], ["SkillsDecrease", "Decrease Research Time · coming soon"]]:
+		var b := SheetChrome.action_button(str(stub[1]), &"ghost", false)
+		b.name = str(stub[0])
+		b.disabled = true
+		b.custom_minimum_size = Vector2(0, SheetChrome.TAP)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.clip_text = true
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		rrow.add_child(b)
 	_full = SheetChrome.label("", 15, UiTokens.GOLD)
 	_full.name = "SkillXpFull"
 	_full.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -188,6 +237,98 @@ func open(p_skills: SkillState, tree: String = "") -> void:
 		_tree = tree
 	visible = true
 	_layout()
+	var now := Time.get_ticks_msec()
+	if now - _last_open_ms > int(SWEEP_SKIP_S * 1000.0):
+		start_sweep()
+	_last_open_ms = now
+
+## The track's fill for the tree's level: level over the tree's highest node level.
+func track_frac(level: float) -> float:
+	var top := 1
+	for n in skills.nodes(_tree):
+		top = maxi(top, int(n.get("level", 1)))
+	return clampf(level / float(top), 0.0, 1.0)
+
+## Nodes of the open tree that can be unlocked now (not AUTO), lowest level first: the flash order.
+static func sweep_order(sk: SkillState, tree: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for n in sk.nodes(tree):
+		if not bool(n.get("auto", false)) and sk.node_state(tree, n)[0] == "available":
+			out.append({"id": str(n.get("id", "")), "level": int(n.get("level", 1))})
+	out.sort_custom(func (a: Dictionary, b: Dictionary) -> bool: return int(a["level"]) < int(b["level"]))
+	return out
+
+func start_sweep() -> void:
+	if skills == null or _track == null:
+		return
+	_sweep_order = sweep_order(skills, _tree)
+	sweep_flashed.clear()
+	_sweep_t = 0.0
+	tick_sweep(0.0)
+
+func _process(delta: float) -> void:
+	if _sweep_t >= 0.0:
+		tick_sweep(delta)
+	if visible and skills and _research and skills.researching():
+		_research_line()  # the live countdown; it polls, so the end lands here
+		if not skills.researching():
+			rebuild()
+
+## "23h 59m" (or "4m 05s" under an hour).
+static func time_text(s: float) -> String:
+	var t := ceili(s)
+	if t >= 3600:
+		return "%dh %02dm" % [t / 3600, (t % 3600) / 60]
+	return "%dm %02ds" % [t / 60, t % 60]
+
+## The research line and button for the selected tree; returns nothing, keeps _research_shown.
+func _research_line() -> void:
+	skills.poll_research()
+	var lvl := skills.level_of(_tree)
+	_research_btn.visible = SkillState.research_gated(_tree)
+	(_research_btn.get_parent() as Control).visible = SkillState.research_gated(_tree)
+	if skills.researching(_tree):
+		_research_shown = "Researching %s · Remaining Time %s" % [LevelDisplay.label(lvl + 1), time_text(skills.research_left())]
+		_research_btn.disabled = true
+		_research_btn.text = "Researching"
+	elif skills.research_ready(_tree):
+		_research_shown = "Research ready · %s takes %s" % [LevelDisplay.label(lvl + 1), time_text(SkillState.research_s(lvl))]
+		_research_btn.disabled = skills.researching()
+		_research_btn.text = "Start Research" if not skills.researching() else "Another research is running"
+	else:
+		_research_shown = ""
+		_research_btn.disabled = true
+		_research_btn.text = "Start Research"
+	_research.text = _research_shown
+	_research.visible = _research_shown != ""
+
+## Advances the sweep: ease-out bar to the level, flash each unlockable node the bar reaches, count SP up.
+func tick_sweep(delta: float) -> void:
+	if _sweep_t < 0.0 or skills == null:
+		return
+	_sweep_t += delta
+	var u := clampf(_sweep_t / SWEEP_S, 0.0, 1.0)
+	var e := 1.0 - pow(1.0 - u, 3.0)
+	var lvl := float(skills.level_of(_tree))
+	var at := lvl * e
+	_track.value = track_frac(at)
+	_sp_pill.text = "%d free" % roundi(float(skills.sp_available) * e)
+	for n in _sweep_order:
+		if not sweep_flashed.has(n["id"]) and (float(n["level"]) <= at + 0.001 or u >= 1.0):
+			sweep_flashed.append(n["id"])
+			_flash_row(str(n["id"]))
+	if u >= 1.0:
+		_sweep_t = -1.0
+
+func sweeping() -> bool:
+	return _sweep_t >= 0.0
+
+func _flash_row(nid: String) -> void:
+	var row := _box.get_node_or_null("SkillsNode_" + nid) as Control
+	if row == null:
+		return
+	row.modulate = Color(1.6, 1.35, 0.6)  # a gold flash that settles back to white
+	create_tween().tween_property(row, "modulate", Color.WHITE, FLASH_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 func close() -> void:
 	visible = false
@@ -242,7 +383,8 @@ func _layout() -> void:
 func rebuild() -> void:
 	if skills == null or _grid == null:
 		return
-	_sp_pill.text = "%d free" % skills.sp_available
+	if _sweep_t < 0.0:
+		_sp_pill.text = "%d free" % skills.sp_available
 	_build_grid()
 	_build_detail()
 
@@ -311,11 +453,19 @@ func _build_grid() -> void:
 		bar_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		col.add_child(bar_box)
 		# XP banked at the character-level cap reads as a full bar (spec 25 §7).
-		var bar := SheetChrome.thin_bar(1.0 if capped else xp / maxf(1.0, need), UiTokens.XP, 3.0)
+		var bar := SheetChrome.thin_bar(1.0 if capped or skills.research_ready(id) or skills.researching(id) else xp / maxf(1.0, need), UiTokens.XP, 3.0)
 		bar.custom_minimum_size = Vector2(56.0 if compact else 160.0, 3.0)
 		bar_box.add_child(bar)
 		var lv_line := LevelDisplay.label(lvl)
-		var lv := SheetChrome.label(lv_line, SheetChrome.px(view, 18, 12), UiTokens.MUTED)
+		var lv_col := UiTokens.MUTED
+		if skills.researching(id):
+			lv_line += " · %d" % (lvl + 1)  # owner reference: "Lv. 49 · 50" in gold while researching
+			lv_col = UiTokens.GOLD
+		elif skills.research_ready(id):
+			lv_line += " · Research ready"
+			lv_col = UiTokens.GOLD
+		var lv := SheetChrome.label(lv_line, SheetChrome.px(view, 18, 12), lv_col)
+		lv.name = "SkillLv_%s" % id
 		lv.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(lv)
 		if capped and xp > 0.0:
@@ -364,7 +514,10 @@ func _build_detail() -> void:
 	_title.text = nm
 	_sub.text = LevelDisplay.label(lvl)
 	_xp_value.text = "%d / %d" % [int(minf(xp, need)), int(need)]
-	_xp_bar.value = 1.0 if capped else clampf(xp / maxf(1.0, need), 0.0, 1.0)
+	_xp_bar.value = 1.0 if capped or skills.research_ready(_tree) or skills.researching(_tree) else clampf(xp / maxf(1.0, need), 0.0, 1.0)
+	_research_line()
+	if _sweep_t < 0.0:
+		_track.value = track_frac(float(lvl))
 	_full.text = ("FULL · %d XP banked for the next character level" % int(xp)) if capped else ""
 	_full.visible = capped and xp > 0.0
 	_spent.text = str(_spent_in(_tree))
@@ -418,9 +571,21 @@ func _build_detail() -> void:
 		col.add_theme_constant_override("separation", 0)
 		h.add_child(col)
 		var name_col := UiTokens.OK_GREEN if st[0] == "owned" else (UiTokens.TEXT if st[0] == "available" else Color(UiTokens.TEXT, 0.7))
-		var l := SheetChrome.label(title + ("  ·  AUTO" if auto else ""), body, name_col)
+		# Durango's mark: a gold up-arrow before a node that can be unlocked now.
+		var l := SheetChrome.label(("▲ " if st[0] == "available" and not auto else "") + title + ("  ·  AUTO" if auto else ""), body, UiTokens.GOLD if st[0] == "available" and not auto else name_col)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		col.add_child(l)
+		var desc := str(n.get("description", ""))
+		if desc != "":
+			var dl := SheetChrome.label(desc, meta, UiTokens.MUTED)
+			dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			col.add_child(dl)
+		var crafts := craft_names(n)
+		if not crafts.is_empty():  # the recipes this node unlocks (owner 2026-10-28 reference: a "Craft" list)
+			var cl := SheetChrome.label("Craft: " + ", ".join(crafts), meta, UiTokens.TEXT)
+			cl.name = "SkillsCraft_" + nid
+			cl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			col.add_child(cl)
 		var unlocks := str(n.get("unlocks", ""))
 		if unlocks != "" and unlocks.to_lower() != title.to_lower():
 			var u := SheetChrome.label(unlocks, meta, UiTokens.MUTED)
@@ -455,7 +620,7 @@ func _build_detail() -> void:
 		b.clip_text = true
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		if st[0] == "owned":
-			b.text = "Refund"
+			b.text = "Unlearn"  # owner reference; refunds the node's SP (SkillState.refund)
 			b.disabled = why != ""
 			b.pressed.connect(func () -> void:
 				skills.refund(_tree, nid)
@@ -492,6 +657,16 @@ func _build_detail() -> void:
 		_spend.text = "Spend %d on %s" % [int(next.get("sp", 0)), str(next.get("name", next.get("id", "")))]
 	else:
 		_spend.text = "No skill points to spend" if skills.sp_available <= 0 else "Nothing to unlock in %s yet" % nm
+
+## Display names of the recipes a node's recipe effects unlock, in data order.
+static func craft_names(n: Dictionary) -> PackedStringArray:
+	var out: PackedStringArray = []
+	for e in n.get("effects", []):
+		if e is Dictionary and str(e.get("type", "")) == "recipe":
+			for rid in e.get("recipes", []):
+				var rec: Dictionary = Data.recipes.get(StringName(str(rid)), Data.recipes.get(str(rid), {}))
+				out.append(str(rec.get("display_name", str(rid).replace("_", " ").capitalize())))
+	return out
 
 ## A skill point cost: the white brain glyph and the number, `px` text (the icon a little taller).
 static func sp_cost(n: int, px: int, col: Color) -> HBoxContainer:

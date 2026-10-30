@@ -58,7 +58,7 @@
               "amount": 4
             }
           ],
-          "sp_assumed": true,
+          "sp_source": "durango_xlsx row 11",
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"
@@ -177,7 +177,7 @@
               "amount": 4
             }
           ],
-          "sp_assumed": true,
+          "sp_source": "durango_xlsx row 12",
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"
@@ -247,7 +247,7 @@
               "amount": 4
             }
           ],
-          "sp_assumed": true,
+          "sp_source": "durango_xlsx row 13",
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"
@@ -324,7 +324,7 @@
           "id": "stealth_4",
           "name": "Stealth IV",
           "level": 40,
-          "sp": 5,
+          "sp": 4,
           "type": "unlock",
           "unlocks": "+4 Stealth Ability",
           "requires": "stealth_3",
@@ -337,7 +337,7 @@
               "amount": 4
             }
           ],
-          "sp_assumed": true,
+          "sp_source": "durango_xlsx row 14",
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"
@@ -441,7 +441,7 @@
               "amount": 4
             }
           ],
-          "sp_assumed": true,
+          "sp_source": "durango_xlsx row 15",
           "status": "partial",
           "impl": "partial",
           "impl_ref": "game/scripts/skills/skill_rules.gd:72"
@@ -6506,6 +6506,31 @@
           "effects": [],
           "status": "defined",
           "impl": "defined"
+        },
+        {
+          "id": "spiky_armor",
+          "level": 30,
+          "sp": 4,
+          "type": "unlock",
+          "unlocks": "spiky armour and helmet",
+          "description": "Make spiky armor and a spiky armor helmet. Wear them to increase Butchering (+5 per piece) and grind for better gear.",
+          "requires": null,
+          "name": "Spiky Armor",
+          "auto": false,
+          "source": "owner_2026_10_28",
+          "effects": [
+            {
+              "type": "recipe",
+              "recipes": [
+                "spiky_armor",
+                "spiky_armor_helmet"
+              ]
+            }
+          ],
+          "sp_assumed": true,
+          "status": "functional",
+          "impl": "functional",
+          "impl_ref": "game/scripts/skills/skill_rules.gd:9"
         },
         {
           "id": "scute_armor",

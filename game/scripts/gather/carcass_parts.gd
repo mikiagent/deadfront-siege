@@ -104,7 +104,7 @@ static func reason(part: Dictionary, ctx: Dictionary) -> String:
 static func context(p: Player, level: int, no_meat: bool, cuts_left: int, cut: Array) -> Dictionary:
 	var inv: Inventory = p.inventory if p != null else null
 	var knife: ItemStack = inv.find_gather_tool(&"knife") if inv != null else null
-	var skill := maxi(0, p.skills.level_of("butchering")) if p != null and p.skills != null else 0
+	var skill := maxi(0, SkillRules.effective_level(p, "butchering")) if p != null and p.skills != null else 0
 	return {
 		"level": level,
 		"knife_tier": knife.material_tier() if knife != null else &"",

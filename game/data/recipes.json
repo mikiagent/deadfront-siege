@@ -5776,6 +5776,76 @@
       "required_ability": 65
     },
     {
+      "id": "spiky_armor",
+      "display_name": "Spiky Armor",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "dense_bone",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "spiky_armor",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1,
+      "required_ability": 60,
+      "_about": "SLOWLEVELS: gated by Tailoring's spiky_armor node (trees.json recipe effect). ASSUMPTION counts, level and ability, modelled on the hide-and-bone helm; tail spikes and other dense bone by tag."
+    },
+    {
+      "id": "spiky_armor_helmet",
+      "display_name": "Spiky Armor Helmet",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "dense_bone",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "spiky_armor_helmet",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1,
+      "required_ability": 60,
+      "_about": "SLOWLEVELS: gated by Tailoring's spiky_armor node (trees.json recipe effect). ASSUMPTION counts, level and ability, modelled on the hide-and-bone helm; tail spikes and other dense bone by tag."
+    },
+    {
       "id": "metal_stick",
       "display_name": "Metal Stick",
       "skill": "processing",

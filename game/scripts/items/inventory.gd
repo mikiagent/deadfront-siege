@@ -103,6 +103,15 @@ func equipped_armor() -> float:
 			value += item.scaled_armor()
 	return value
 
+## Levels worn gear adds to `tree` (ItemDef.skill_bonus), broken pieces excluded.
+func skill_bonus(tree: String) -> int:
+	var total := 0
+	for slot in [&"head", &"body", &"arms", &"legs"]:
+		var item := equipped_in(slot)
+		if item and not item.is_broken() and item.def():
+			total += int(item.def().skill_bonus.get(tree, 0))
+	return total
+
 func has_raid_protection() -> bool:
 	for pair in [[&"head", &"raid_helm"], [&"body", &"raid_cuirass"], [&"legs", &"raid_greaves"]]:
 		var item := equipped_in(pair[0])

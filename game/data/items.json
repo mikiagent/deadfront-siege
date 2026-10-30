@@ -4527,6 +4527,58 @@
       "_about": "SADDLES: fits a large tame (PetRecord.saddle_size); equip it from the tame's Gear screen to ride."
     },
     {
+      "id": "spiky_armor",
+      "display_name": "Spiky Armor",
+      "categories": [
+        "armor_body"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 250,
+      "max_durability": 300,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "skill_bonus": {
+        "butchering": 5
+      },
+      "visual": "hide_and_bone/chest",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SLOWLEVELS worked example (owner 2026-10-28: 'Spikey armor, increases Butchering ability -> helps you grind for better gear'): Tailoring's Spiky Armor node unlocks it; while worn its skill_bonus raises the effective Butchering level (SkillRules.effective_level). ASSUMPTION: armour, durability, +5 Butchering per piece; the hide-and-bone art stands in."
+    },
+    {
+      "id": "spiky_armor_helmet",
+      "display_name": "Spiky Armor Helmet",
+      "categories": [
+        "armor_head"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 110,
+      "max_durability": 300,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "skill_bonus": {
+        "butchering": 5
+      },
+      "visual": "hide_and_bone/helmet",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SLOWLEVELS worked example (owner 2026-10-28: 'Spikey armor, increases Butchering ability -> helps you grind for better gear'): Tailoring's Spiky Armor node unlocks it; while worn its skill_bonus raises the effective Butchering level (SkillRules.effective_level). ASSUMPTION: armour, durability, +5 Butchering per piece; the hide-and-bone art stands in."
+    },
+    {
       "id": "silver_chunk",
       "display_name": "Silver Chunk",
       "categories": [
