@@ -62,14 +62,17 @@ static func budget_for(def: Dictionary) -> Vector2i:
 		var priv: Variant = b.get("private", [2, 3])
 		return Vector2i(int(priv[0]), int(priv[1]))
 	var tier := int(def.get("tier", 25))
+	# UNSTABLE ISLES: a generated isle aims up to landmark_extra (2) past its tier's band (the band's
+	# minimum stays the promise).
+	var extra := int((Data.world_rules.get("unstable_isles", {}) as Dictionary).get("landmark_extra", 2)) if bool(def.get("generated", false)) else 0
 	for row in b.get("unstable", []):
 		if row is Array and (row as Array).size() >= 4 and tier >= int(row[0]) and tier <= int(row[1]):
-			return Vector2i(int(row[2]), int(row[3]))
+			return Vector2i(int(row[2]), int(row[3]) + extra)
 	# Above the last band: its top. ASSUMPTION: no island row is outside the table.
 	var rows: Array = b.get("unstable", [])
 	if not rows.is_empty():
 		var last: Array = rows[rows.size() - 1]
-		return Vector2i(int(last[2]), int(last[3]))
+		return Vector2i(int(last[2]), int(last[3]) + extra)
 	return Vector2i(4, 6)
 
 # ------------------------------------------------------------------------------------ the build pass
@@ -137,7 +140,11 @@ static func build(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 ## own cap (the home's 10, A4).
 static func site_level(def: Dictionary, site: Dictionary) -> int:
 	var cap := int((rules().get("level_cap_by_kind", {}) as Dictionary).get(str(def.get("kind", "")), rules().get("level_cap", 60)))
-	return clampi(int(def.get("tier", 25)) + int(site.get("level_offset", rules().get("level_offset", 5))), 1, cap)
+	var offset := int(site.get("level_offset", rules().get("level_offset", 5)))
+	if bool(def.get("generated", false)):
+		# UNSTABLE ISLES: richer sites, tier + 8 instead of + 5 (doc section 4).
+		offset = maxi(offset, int((Data.world_rules.get("unstable_isles", {}) as Dictionary).get("level_offset", 8)))
+	return clampi(int(def.get("tier", 25)) + offset, 1, cap)
 
 ## Gold a find pays on an island of `tier` (rules.gold_by_tier: a line between two [tier, gold] points,
 ## clamped at both ends; doc section 5.6, # ASSUMPTION 20 at 15 up to 60 at 60).
@@ -154,6 +161,13 @@ static func gold_for_tier(tier: int) -> int:
 ## rules.dormant.min_tier one per expedition island, never the authored crater and never the one
 ## near-landing find, so the first landmark a survivor reaches always yields. The farthest drawn site
 ## seals: opening it is a trip, not a detour.
+static func _count_display(sites: Array, display: String) -> int:
+	var n := 0
+	for s in sites:
+		if str((s as Dictionary).get("display", "")) == display:
+			n += 1
+	return n
+
 static func dormant_pick(def: Dictionary, sites: Array) -> int:
 	var cfg: Dictionary = rules().get("dormant", {})
 	if str(def.get("kind", "")) != "unstable" or int(def.get("tier", 0)) < int(cfg.get("min_tier", 30)):
@@ -167,8 +181,8 @@ static func dormant_pick(def: Dictionary, sites: Array) -> int:
 	var best_d := -1.0
 	for i in sites.size():
 		var s: Dictionary = sites[i]
-		if bool(s.get("authored", false)):
-			continue
+		if bool(s.get("authored", false)) or str(s.get("type", "")) == "rift":
+			continue  # UNSTABLE ISLES: the Rift Pool is the reason to land; it is never sealed
 		var d := float(s.get("dist_landing", 0.0))
 		if d <= near_m and nears <= 1:
 			continue
@@ -262,6 +276,10 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 	# A row with "min_tier" (the Iron Veins, doc section 4.3) only exists on islands of that tier and up.
 	var rows: Array = ((data().get("climates", {}) as Dictionary).get(climate, []) as Array).filter(
 		func(row): return int((row as Dictionary).get("min_tier", 0)) <= tier_now)
+	if bool(def.get("generated", false)):
+		# UNSTABLE ISLES: the Rift Pool (driftglass) and any other generated-only rows join the draw.
+		# They go first: the must rows are drawn in row order, and the Rift Pool is the reason to land.
+		rows = ((data().get("climates", {}) as Dictionary).get("generated", []) as Array) + rows
 	var sites: Array[Dictionary] = []
 	var skipped := 0
 	var landmark_ctx := _context(rt, def)
@@ -326,6 +344,9 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 			var placed_one := false
 			for k in rows.size():
 				var row2: Dictionary = rows[(k + round_i) % rows.size()]
+				# A one-of row (an Iron Vein, the Rift Pool) stays one even when the fill packs sites.
+				if int(row2.get("max", 99)) <= 1 and _count_display(sites, str(row2.get("display", ""))) >= 1:
+					continue
 				var site2 := _try_place(rt, landmark_ctx, climate, row2, sites, rng, false, step_m)
 				if site2.is_empty():
 					site2 = _try_place(rt, landmark_ctx, climate, row2, sites, rng, false, step_m, true)

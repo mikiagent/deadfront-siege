@@ -1666,6 +1666,19 @@
       "source_pending": "island: only SilverOreNode (snowfield) yields it, and islands.json has no snowfield island yet"
     },
     {
+      "id": "driftglass",
+      "display_name": "Driftglass",
+      "categories": [
+        "treasure"
+      ],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "gem",
+      "rarity": "rare",
+      "source_pending": "island: only DriftglassNode at a Rift Pool, which grows on generated unstable isles (World.roll_drift); a fresh walk over the roster never meets one"
+    },
+    {
       "id": "pearl",
       "display_name": "Pearl",
       "categories": [
