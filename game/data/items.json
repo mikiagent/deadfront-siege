@@ -2956,6 +2956,21 @@
       "market_category": "metal_ore"
     },
     {
+      "id": "iron_ore",
+      "display_name": "Iron Ore",
+      "categories": [
+        "ore",
+        "iron_ore"
+      ],
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "iron"
+      },
+      "rarity": "uncommon",
+      "market_category": "metal_ore"
+    },
+    {
       "id": "tin_ingot",
       "display_name": "Tin Ingot",
       "categories": [

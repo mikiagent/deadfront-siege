@@ -521,6 +521,25 @@
         }
       },
       {
+        "type": "vein",
+        "display": "Iron Vein",
+        "weight": 3,
+        "must": true,
+        "max": 1,
+        "min_tier": 40,
+        "_note": "Doc section 4.3 / A5-A6: iron below level 60. Must on tiers that have it, one per island # ASSUMPTION.",
+        "nodes": {
+          "IronOreNode": [
+            4,
+            6
+          ],
+          "Rock": [
+            1,
+            2
+          ]
+        }
+      },
+      {
         "type": "garden",
         "display": "Vine Tangle",
         "weight": 2,
@@ -541,11 +560,11 @@
         "must": true,
         "max": 2,
         "nodes": {
-          "PineTree_Snow": [
+          "ResinPine": [
             4,
             6
           ],
-          "PineTree": [
+          "PineTree_Snow": [
             1,
             2
           ]
@@ -573,6 +592,25 @@
           "TinOreNode": [
             4,
             6
+          ]
+        }
+      },
+      {
+        "type": "vein",
+        "display": "Iron Vein",
+        "weight": 3,
+        "must": true,
+        "max": 1,
+        "min_tier": 55,
+        "_note": "Doc section 4.3 / A5-A6: iron below level 60. Must on tiers that have it, one per island # ASSUMPTION.",
+        "nodes": {
+          "IronOreNode": [
+            4,
+            6
+          ],
+          "Rock": [
+            1,
+            2
           ]
         }
       },

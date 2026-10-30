@@ -258,7 +258,10 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 	rng.seed = hash("%s|%d|landmarks" % [id, int(def.get("seed", 17))])
 	var b := budget_for(def)
 	var want := rng.randi_range(b.x, b.y)
-	var rows: Array = (data().get("climates", {}) as Dictionary).get(climate, [])
+	var tier_now := int(def.get("tier", 25))
+	# A row with "min_tier" (the Iron Veins, doc section 4.3) only exists on islands of that tier and up.
+	var rows: Array = ((data().get("climates", {}) as Dictionary).get(climate, []) as Array).filter(
+		func(row): return int((row as Dictionary).get("min_tier", 0)) <= tier_now)
 	var sites: Array[Dictionary] = []
 	var skipped := 0
 	var landmark_ctx := _context(rt, def)
