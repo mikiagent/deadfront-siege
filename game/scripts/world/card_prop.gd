@@ -470,22 +470,48 @@ func _face_camera(b: Basis) -> void:
 	_quad.position = right * ((0.5 - pivot.x) * _quad_size.x) + up * ((pivot.y - 0.5) * _quad_size.y)
 	_basis_used = b
 
-## Re-align while the active camera's basis differs from the one last applied (also covers a camera
-## that switches from orthographic iso to a perspective Durango view: the card follows its angle).
-func _process(_delta: float) -> void:
-	if not is_inside_tree():
-		return
-	var f := Engine.get_process_frames()
-	if f != _cam_frame:
-		_cam_frame = f
-		var cam := get_viewport().get_camera_3d()
-		_cam_valid = cam != null
-		if _cam_valid:
-			_cam_basis = cam.global_basis.orthonormalized()
+## PERF2: no card ticks. One driver node (CardDriver, made on the first card) reads the active camera
+## once per frame and re-aligns every live card only when that basis changed, plus any card that
+## entered since (it was built facing default_basis). A fixed iso camera then costs one basis compare
+## a frame for the whole island instead of 600-odd card _process calls (the tutorial town).
+static var _live: Dictionary = {}     # instance id -> CardProp, cards in the tree
+static var _fresh: Dictionary = {}    # instance id -> CardProp, entered since the last drive
+static var _driver: Node = null
+
+func _enter_tree() -> void:
+	var id := get_instance_id()
+	_live[id] = self
+	_fresh[id] = self
+	if _driver == null or not is_instance_valid(_driver):
+		_driver = CardDriver.new()
+		_driver.name = "CardDriver"
+		get_tree().root.add_child.call_deferred(_driver)
+
+func _exit_tree() -> void:
+	var id := get_instance_id()
+	_live.erase(id)
+	_fresh.erase(id)
+
+## The driver's frame: the camera basis once, then every card (basis changed) or the fresh ones.
+static func drive(vp: Viewport) -> void:
+	var cam := vp.get_camera_3d() if vp != null else null
+	_cam_valid = cam != null
+	_cam_frame = Engine.get_process_frames()
 	if not _cam_valid:
 		return
-	if not _basis_used.is_equal_approx(_cam_basis):
-		_face_camera(_cam_basis)
+	var b := cam.global_basis.orthonormalized()
+	var changed := not b.is_equal_approx(_cam_basis)
+	_cam_basis = b
+	var set := _live if changed else _fresh
+	for id in set:
+		var c: CardProp = set[id]
+		if is_instance_valid(c) and not c._basis_used.is_equal_approx(b):
+			c._face_camera(b)
+	_fresh.clear()
+
+class CardDriver extends Node:
+	func _process(_delta: float) -> void:
+		CardProp.drive(get_viewport())
 
 ## Short shiver after a gather (HarvestNode.mark_gathered calls this).
 func rustle(seconds: float = 0.6) -> void:
