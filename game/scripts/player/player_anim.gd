@@ -150,7 +150,7 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		return  # already on the ground; every hit re-triggering the fall looked like a glitch
 	_requested_clip = clip
 	_forced = forced
-	_busy = clip in [&"attack_primary", &"attack_heavy", &"punch", &"hit_react", &"roll", &"roll_back", &"knockdown"] or clip in GATHER_CLIPS
+	_busy = clip in [&"attack_primary", &"attack_heavy", &"punch", &"kick", &"tackle", &"hit_react", &"roll", &"roll_back", &"knockdown"] or clip in GATHER_CLIPS
 	if clip == &"death":
 		_dead = true
 	_play(clip)
@@ -454,6 +454,13 @@ func on_attack(heavy: bool = false) -> void:
 	play_clip(&"attack_heavy" if heavy else &"attack_primary")
 
 ## Unarmed: the punch clip when the survivor has one (anim/punch.glb), else the thrust.
+## Combat kick / tackle (tools/make_work_clips.py); the attack swing when the survivor has no such clip.
+func on_tactic(clip: StringName, heavy: bool) -> void:
+	if rig and rig.has_clip(clip):
+		play_clip(clip)
+	else:
+		on_attack(heavy)
+
 func on_punch() -> void:
 	play_clip(&"punch" if rig and rig.has_clip(&"punch") else &"attack_primary")
 
@@ -498,7 +505,7 @@ func _play(clip: StringName) -> void:
 	var blend := 0.18 if (resolved in loco and current_clip in loco) else 0.0
 	if (resolved == &"idle" or resolved in MOOD_IDLES) and (current_clip == &"idle" or current_clip in MOOD_IDLES):
 		blend = IDLE_BLEND
-	if resolved in loco and (current_clip in [&"punch", &"attack_primary", &"attack_heavy"] or current_clip in GATHER_CLIPS):
+	if resolved in loco and (current_clip in [&"punch", &"attack_primary", &"attack_heavy", &"kick", &"tackle"] or current_clip in GATHER_CLIPS):
 		blend = 0.12  # trimmed one-shots end mid-pose; ease back into locomotion
 	if resolved != current_clip and (resolved in [&"rummage_in", &"kick_dirt"] or resolved in WORK_CLIPS
 			or current_clip in [&"rummage_out", &"kick_dirt"] or current_clip in WORK_CLIPS):
