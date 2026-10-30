@@ -72,6 +72,7 @@ func _run() -> void:
 	await _frames(40)  # she lands on the floor; the warm-up copy comes and goes
 	cel = hud.get("_levelups")
 	_expect(cel != null, "the HUD holds a level-up queue (_levelups)")
+	await _test_idle()
 	await _test_character()
 	await _test_skill()
 	await _test_burst()
@@ -85,6 +86,18 @@ func _run() -> void:
 	await _test_occupation()
 	Engine.time_scale = 1.0
 	_finish()
+
+## Idle frames with no level-up spawn no light and add no nodes (the queue does nothing while empty).
+func _test_idle() -> void:
+	var before := _subtree_count(host)
+	await _frames(30)
+	_expect(_fxs().is_empty() and _subtree_count(host) == before, "idle: no level-up, no light and no new nodes (%d nodes, was %d)" % [_subtree_count(host), before])
+
+func _subtree_count(n: Node) -> int:
+	var k := 1
+	for c in n.get_children():
+		k += _subtree_count(c)
+	return k
 
 func _test_character() -> void:
 	var children: int = player.get_child_count()
