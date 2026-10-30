@@ -100,6 +100,13 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
   4 pens, 2 extra piers, 65 palisade panels, 41 lamps, 13 townsfolk, 6 pen animals; ~1,960 instances
   in ~182 MultiMeshInstance3D; 235 collision boxes on one physics body; town build ~0.9 s; island
   scene ~6,540 nodes (TUTPERF budget 9,000), 666 ticking (budget 900).
+- Walking performance (TUTPERF 2026-10-29, `docs/orchestration/reports/claude-tutperf.md`): the map
+  fog repaints only the revealed patch, creature clip sources are cached per GLB, each zone spawner
+  preloads its species on worker threads at build, and harvest nodes tick only while regrowing. Walk
+  hitches went from 40+ frames over 25 ms in 20 s to 2. Gate `game/tests/t_perfgates.gd`.
+- PERF2 2026-10-30 (`claude-perf2-opus.md`): the 637 town cards no longer tick (one `CardDriver`
+  re-aligns them when the camera turns), a far-goal replan joins the cached route (`t_pathcache.gd`),
+  and the TilePath and prop-sampling build stages are faster (about 8 % off the tutorial build).
 - Scenery only: no node is saved or damaged; the footprints are occupied in the BuildGrid (nothing is
   built over them, the tile router walks the streets); cover, dressing, props and non-tutorial
   harvest nodes on footprints and roads are cleared. Every order target, the dock and every wild zone

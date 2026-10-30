@@ -89,11 +89,12 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   under her level), Remove on the worn one (gold, italic). The tab scrolls.
 - Minimap top-right: a round 154 px window (`MAP_PX`; LEVELBADGE: no square box — the terrain and fog are
   drawn as UV-mapped disc polygons, so no corner covers; a shadowed bronze rim `MAP_RIM` 6 px with a lit
-  top-left and a small compass pip at the bottom), drawn camera-up (rotated by camera yaw),
+  top-left and a small compass pip at the bottom), drawn north-up (it turns by the camera yaw, which is 0 since NORTHUP),
   0.95 m per pixel (`MAP_SCALE`), with fog-of-war, the foot trail, camp flame, harbour anchor,
   crater, creature dots (pets green, wild red, only inside revealed fog) and the player arrow.
   Above it "Home" / "Survivable N min" / "Lab"; centred below it "X 503  Y 295" (owner 2026-10-28): her
-  world X / Z in whole metres, reformatted only when a metre changes (`map_xy_text`). Both outlined. A tap
+  world X and -Z in whole metres, so Y grows northward (NORTHUP 2026-10-29; the tutorial dock reads
+  Y -317; `t_northup.gd`), reformatted only when a metre changes (`map_xy_text`). Both outlined. A tap
   opens MapScreen. Test `t_levelbadge.gd`; captures `docs/orchestration/reports/levelbadge/`.
 - DayNightDial (`day_night_dial.gd`, DAYNIGHT 2026-10-28, the owner's pick of three faces) docked at the
   minimap's bottom-left edge: a gold-rimmed half-dial, 112x76 on desktop, 66x64 on compact canvases (a
@@ -209,7 +210,7 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   reads them, so no caps on NET / TACKLE / KICK). The NET hex turns GOLD-filled with a dark net and a
   GOLD rim while a throw is allowed (spec 09: stunned or at or under 30 %, and a net and technique cover
   the tier); its bottom line stays empty for a taming-odds figure. The target plate's HP bar turns GOLD
-  in the same window, its status chips show icon and name with a rim in the status colour, and a gold
+  in the same window, and a gold
   line by the animal reads "Weaken to 30% to capture" / "Capturable — throw the net!" (drawn before the
   pills, on a free spot off the plates; skipped where none is free).
 - Targets [owner 2026-10-28]: out of combat a tap on a wild animal only selects it and the red swords
@@ -222,8 +223,12 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
 - World creature plates (`creature_plates.gd`, 176 px pill): name line, then the animal's NATURE as a
   small chip directly under it (owner 2026-10-28; `ui/nature_chip.gd`, spec §5 trait chip in its gold
   style, short label only — "Timid"), then the HP bar and, on a target or tameable animal, pet XP,
-  status glyphs and the tame row. The name never contains the nature ("Alpha Velociraptor" keeps
-  "Alpha"). The 176x94 pill is unchanged and the chip row is always reserved, so a plate does not
+  status chips and the tame row. Status chips on the plate and on the top target bar are the player's
+  38 px chips with the same numbered stack badge (CREATURECHIPS 2026-10-29: `HudBuffRow.draw_chip`
+  with `stacks`, `HudBuffRow.creature_entries`, `ui/creature_plate_chip.gd`; plate height 114). Status
+  floaters (BLEED, VENOM) start below the name strip and rise at 18 px/s. Test
+  `game/tests/t_creaturechips.gd`. The name never contains the nature ("Alpha Velociraptor" keeps
+  "Alpha"). The 176 px pill keeps one height (114 px, `FULL_H`) and the chip row is always reserved, so a plate does not
   resize between creatures; an animal without a nature draws no chip. A landscape phone's bar-only
   plate has no chip.
 - Target plate top-centre (≤520 px): creature name + "Lv. n" (pets show their tier), an HP bar, a

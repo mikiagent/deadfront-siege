@@ -42,10 +42,16 @@ rules for the world: `game/scripts/core/save_restore.gd`. Validation after migra
 | `home` | terrain, shape, buildings (with their storage `contents`), cargo, claims, camp layout, optional domain / comm center. UNCLAIM needs no format change: a released plot is simply absent from `domain.cells` (and from the mirrored `claims` rects), so a save after a release cannot resurrect it and `IslandClaims.setup` rebuilds only what the record still lists. |
 | `pioneer_xp`, `pioneer_level`, `pioneer_crafts`, `pioneer_buildings`, `player_name`, `occupation` | progression |
 | `character_look` | optional (CHARCREATE): `gender`, `height` (0.92-1.08, visual only), `colors` (skin, outfit1-3, eye, lip), `parts`, `portrait` (`pattern`, `bg`). `CharacterLook.clean` coerces every field to what `data/characters/appearance.json` offers; a save without it (older builds) loads with the default look. Namespaced apart from item instances' own `look`. |
-| `t_stones` | currency int |
+| `t_stones`, `warp_gems` | currencies (T-stones read "Gold" on screen since BAGUI) |
+| `tribe` | TRIBE: members, recruits waiting at the dock, the boat timer (`Tribe.to_save`); no row = no members |
+| `tasks` | TASKSCREEN: claimed tasks, daily / weekly counts and their reset day / week (`Tasks.to_dict`) |
+| `tutorial` | written only while the tutorial runs; a save without it loads as done |
 | `visited_islands`, `island_id`, `clock`, `saved_unix` | travel + day clock |
 | `raid_victory`, `objective`, `objective_best` | objectives |
-| `unstable` | remaining time, harvested nodes, crater discovered |
+| `unstable` | remaining time, harvested nodes, crater discovered (legacy single snapshot; an old save carries it into `expeditions`) |
+| `landmarks` | LANDMARKS: `found` and `state` (opened dormant windows) per island id; an old save loads as a first visit |
+| `expeditions` | ISLAND RESET: per expedition island `{generation, left, harvested}` (only touched nodes) |
+| `drift` | UNSTABLE ISLES: `row` (the isle on offer or live), `cooldown`, `count` (rolls so far) |
 | `pending_refunds` | structures that could not be re-placed into cargo |
 | `away` | buildings/claims/domain while off the home island (only then) |
 
