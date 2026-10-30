@@ -44,7 +44,7 @@ func apply_level_stats() -> void:
 	if d == null:
 		return
 	if d.max_durability > 0:
-		max_durability = maxi(1, int(round(float(d.max_durability) * stat_multiplier())))
+		max_durability = maxi(1, int(round(float(d.max_durability) * stat_multiplier() * trait_mult(&"durability"))))
 		durability = max_durability
 
 ## Level and material tier both scale finished gear (ladder-02, level-01); item_def's
@@ -54,11 +54,11 @@ func stat_multiplier() -> float:
 
 func scaled_damage() -> float:
 	var d := def()
-	return d.damage * stat_multiplier() if d else 0.0
+	return d.damage * stat_multiplier() * trait_mult(&"damage") if d else 0.0
 
 func scaled_armor() -> float:
 	var d := def()
-	return d.armor_value * stat_multiplier() if d else 0.0
+	return d.armor_value * stat_multiplier() * trait_mult(&"armor") if d else 0.0
 
 func scaled_food_energy() -> float:
 	var d := def()
@@ -68,7 +68,38 @@ func material_tier() -> StringName:
 	return ProgressionScaling.material_tier(def_id, attributes)
 
 func gather_power() -> float:
-	return ProgressionScaling.tool_power(level, material_tier())
+	return ProgressionScaling.tool_power(level, material_tier()) * trait_mult(&"gather_power")
+
+## TRAITGEAR (docs/design/tools-durability-crafting.md §3.6): {stat: {"pct", "from": [[trait, level]], "capped"}}
+## from rules.json crafting.gear_traits, for gear stamped TRAIT_STAMP at craft time. Gear made before P4
+## carries no stamp and reads {}: its stats never change (no save migration).
+const TRAIT_STAMP := "trait_stats"
+func trait_effects() -> Dictionary:
+	var out := {}
+	if not attributes.get(TRAIT_STAMP, false):
+		return out
+	var cfg: Dictionary = Crafting.rules().get("gear_traits", {})
+	var rows: Dictionary = cfg.get("traits", {})
+	var cap := float(cfg.get("cap", 0.15))
+	for k: Variant in attributes:
+		var row: Variant = rows.get(str(k))
+		var v: Variant = attributes[k]
+		if not row is Dictionary or not (v is int or v is float) or int(v) <= 0:
+			continue
+		var stat := str((row as Dictionary).get("stat", ""))
+		var e: Dictionary = out.get(stat, {"pct": 0.0, "from": [], "capped": false})
+		e["pct"] = float(e["pct"]) + float((row as Dictionary).get("per_level", 0.0)) * int(v)
+		(e["from"] as Array).append([str(k), int(v)])
+		out[stat] = e
+	for stat: String in out:
+		var raw := float(out[stat]["pct"])
+		out[stat]["pct"] = clampf(raw, -cap, cap)
+		out[stat]["capped"] = absf(raw) > cap + 0.000001
+	return out
+
+## The multiplier one stat gets from its traits (1.0 = none).
+func trait_mult(stat: StringName) -> float:
+	return 1.0 + float((trait_effects().get(str(stat), {}) as Dictionary).get("pct", 0.0))
 
 func is_fungible() -> bool:
 	var d := def()

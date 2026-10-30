@@ -422,6 +422,7 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 		var od := out.def()
 		if od and (od.has_category(&"tool") or od.damage > 0.0 or od.armor_value > 0.0):
 			out.attributes["material_tier"] = str(ProgressionScaling.material_tier(primary.def_id, primary.attributes))
+			out.attributes[ItemStack.TRAIT_STAMP] = true  # TRAITGEAR: new crafts read their traits
 		# Poison persists through cooking (PRD §9.3 MAY keep).
 		if &"poisoned" in primary.flags:
 			out.set_flag(&"poisoned", true)

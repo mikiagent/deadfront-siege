@@ -49,7 +49,7 @@ static func unit_seconds_for(inv: Inventory, node: HarvestNode, skill: int) -> f
 	if tool == null:
 		base *= float(LootTables.rules().get("bare_hands_seconds_mult", 1.0))
 	var zone := int(node.yield_attributes.get("level", 1))
-	return ProgressionScaling.gather_seconds(base, zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, skill))
+	return ProgressionScaling.gather_seconds(base, zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, skill)) / (tool.trait_mult(&"gather_power") if tool else 1.0)
 
 ## The material tier of the tool that works this node, &"" for bare hands (the quality roll's input).
 static func tool_tier(inv: Inventory, need: StringName, family: String) -> StringName:

@@ -17,6 +17,16 @@ cap 0.6; # ASSUMPTION), so about II 35 %, III 12 %, IV 4 %, V 1.5 %. Gathering a
 a craft copies the primary's tier, a craft's own rare roll rolls a tier (`Crafting.roll_outcome_for`
 "rare_tier").
 
+Trait effects on gear (TRAITGEAR, `docs/design/tools-durability-crafting.md` §3.6): gear crafted after P4 is
+stamped `attributes.trait_stats` and its primary material's traits move its stats
+(`rules.json crafting.gear_traits`, all # ASSUMPTION): High Density +3 % max durability per level (Low
+Density -3 %), Firm +2 % damage (Soft -2 %), Tough Fiber +2 % armour (Soft Fiber -2 %), High Elasticity +2 %
+gather power (faster gathering). The sum on one stat clamps at +-15 %. `ItemStack.trait_effects()` /
+`trait_mult(stat)` feed `apply_level_stats`, `scaled_damage`, `scaled_armor` and `gather_power`; the item card
+lists each line ("+9 % durability (High Density 3)", ", capped" when the clamp bites). Gear made before P4 has
+no stamp and keeps its stats; a stored max durability is never recalculated. Lightweight, compact structure,
+pointy, sharp section and full feed no gear stat yet (TD9).
+
 Rarity: **common** `#a8adb3`, **uncommon** `#5cc864`, **rare** `#3c8cff`, **epic** `#b45cff`, **legendary** `#ffa424`.
 
 Item *traits* are the attribute keys stamped on an instance: a def's `default_attributes` (its baseline), a gather material's latent attr (the yellow pip), an inherited attribute carried through crafting, or a butcher/gather roll. The pip/stacking rules live in `game/data/inventory.json`; bag specials in `game/data/bags.json`.

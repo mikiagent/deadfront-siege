@@ -116,7 +116,20 @@
     "rare_attributes": [
       "black_sheen", "low_vibration", "wide_serration", "narrow_hook", "split_easily", "vivid_inspiration"
     ],
-    "ability_food_stat": "craft_ability"
+    "ability_food_stat": "craft_ability",
+    "gear_traits": {
+      "_about": "TRAITGEAR (docs/design/tools-durability-crafting.md 3.6, P4; open question TD10): the primary material's traits change the crafted gear's stats. per_level is a fraction per trait level; the sum on one stat clamps at +-cap (the structural-trait cap of WildLandsMMO_Crafting_Building_Math.md). Only gear crafted after P4 (attributes.trait_stats) reads them. # ASSUMPTION: every number here; TD9 traits (lightweight, compact_structure, pointy, sharp_section, full) feed no gear stat yet.",
+      "cap": 0.15,
+      "traits": {
+        "high_density": {"stat": "durability", "per_level": 0.03},
+        "low_density": {"stat": "durability", "per_level": -0.03},
+        "firm": {"stat": "damage", "per_level": 0.02},
+        "soft": {"stat": "damage", "per_level": -0.02},
+        "tough_fiber": {"stat": "armor", "per_level": 0.02},
+        "soft_fiber": {"stat": "armor", "per_level": -0.02},
+        "high_elasticity": {"stat": "gather_power", "per_level": 0.02}
+      }
+    }
   },
   "unstable_flag": "all materials from unstable islands until cargo-warped",
   "craters": {

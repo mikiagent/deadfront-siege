@@ -627,7 +627,7 @@
             "knife-fix"
           ],
           "source": "docs/design/tools-durability-crafting.md",
-          "note": "P2 of the tools doc: requires_tool {class, min_tier}, work tools only, 1 wear per run, axe/knife/hoe data pass, ladder deadlock audit. Gate t_recipetools.gd plus t_tutorial."
+          "note": "P2 of the tools doc: requires_tool {class, min_tier}, work tools only, 1 wear per run, axe/knife/hoe data pass, ladder deadlock audit. Gate t_recipetools.gd plus t_tutorial. RECIPETOOLS built on claude/mmo-recipetools (gates PASS headless); waits for the owner's merge."
         },
         {
           "id": "gear-repair",
@@ -648,7 +648,7 @@
             "craft-outcomes"
           ],
           "source": "docs/design/tools-durability-crafting.md",
-          "note": "P4 of the tools doc: high/low density, firm/soft, tough/soft fiber, high elasticity; new crafts only. Gate t_traitgear.gd."
+          "note": "P4 of the tools doc: high/low density, firm/soft, tough/soft fiber, high elasticity; new crafts only. Gate t_traitgear.gd. TRAITGEAR built on claude/mmo-recipetools (gates PASS headless); waits for the owner's merge."
         }
       ]
     },
