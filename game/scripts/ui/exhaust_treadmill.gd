@@ -124,8 +124,8 @@ static func animating() -> bool:
 ## HUDREDRAW: the belt's look as the HUD's redraw signature sees it — the treads at whole pixels and
 ## the sheen at 15 Hz (it sweeps 26 px in 2.6 s, so 0.7 px a step): a still or crawling belt changes
 ## this key a few times a second instead of every frame, and no step is visible.
-static func look_key(phase: float) -> Vector2i:
-	return Vector2i(int(floor(phase)), int(floor(_clock * 15.0)))
+static func look_key(phase: float) -> Vector3i:
+	return Vector3i(int(floor(phase)), int(floor(_clock * 15.0)), int(round(_pulse / PULSE_S * 20.0)) + int(round(_frost * 20.0)) * 32)
 
 ## Draws the belt over the fatigue row inside `rect` (only the needle reaches past it): chevrons point and
 ## scroll with the drift (flat ticks while stationary), the strain marker in the face's level

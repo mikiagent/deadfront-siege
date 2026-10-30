@@ -54,6 +54,7 @@ func _run() -> void:
 	# Idle: nothing changes for 60 frames.
 	_hud.visible = true
 	await _frames(10)
+	await create_timer(4.0).timeout  # the belt's drift EMA settles to rest
 	_clear()
 	await _frames(2)
 	var idle: Dictionary = await _sample(60)

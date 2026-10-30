@@ -170,6 +170,10 @@ func tick(delta: float) -> void:
 		rows.append(e)
 		shown.emit(e["kind"], e["tier"], e["id"])
 
+## HUDREDRAW: true while any row shows or waits (the column eases, pops and fades every frame).
+func busy() -> bool:
+	return not rows.is_empty() or not waiting.is_empty()
+
 ## The column's centre: the view's middle on the desktop; on a phone the middle of the centre band's
 ## part left of the day/night dial (the dial hangs off the minimap into the band).
 static func column_cx(hud: HuntHud, view: Vector2) -> float:
