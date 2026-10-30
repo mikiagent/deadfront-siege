@@ -292,3 +292,24 @@ Source: branch `claude/mmo-styratactics`, report `docs/orchestration/reports/dsc
 | **S2** | The charge is a ram: straight locked line, 2.0 × attack impact and a 4 m body-slam shove with a 0.9 s stagger along the charge line; a sidestep or roll dodges it and staggers it 2.0 s. | `charge_mult`, `charge_shove_m`, `charge_shove_stagger_s`, `charge_miss_recover_s` | Owner 2026-10-29: "tackling/ramming". |
 | **S3** | Point blank it sweeps the horns: the `heavy` move (attack_heavy clip) x 2.2, 7 s cooldown, before kick/bite in `point_blank`. | `heavy_cd`, `heavy_mult`, `point_blank`, `TacticalBrain` heavy move | Gives the big head a finisher that is not a bite. |
 | **S4** | It fights to 25 % HP, then flees 4 s; guard 20 m around its home; herd defence as pack_mule. | `retreat_frac`, `guard_m`, `herd_defend` | Braver than the zebra; still capturable when weak. |
+
+### TOOLSDOC (2026-10-30) — tools, durability, repair and gear traits
+
+Source: `docs/design/tools-durability-crafting.md` (PROPOSED; packages P1-P4 on the roadmap), from Milan's research
+upload `docs/reference/durango-wildlands-durability-tools-crafting-research.md` (historical Durango player tests, not
+canon). Nothing is built yet; each default below ships with its package unless the owner changes it.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TD1** | Gather wear = base x clamp(1 + 0.04 x (resource level - tool level), 0.5, 2.5); base 1 for a work tool, 3 for a weapon used as a tool; fractions round stochastically. 0.04 is the research's one measured slope (about 3.8 % per level). | P1, `rules.json gathering.wear` | How many gathers a tool lasts on a high-level island; how many spare tools an expedition needs. |
+| **TD2** | Armor wears 1 durability per damaging creature hit, on one worn piece picked at random weighted by armor value; dodged or fully absorbed hits wear nothing. | P1, creature-hit path | A new item sink; armor (150-400 durability) never wore before. |
+| **TD3** | Tribe workers stop at 1 durability (the Vision's "normally") with no owner override to work a tool to breaking. | P1, `TribeMember._harvest` | Unattended work never breaks a tool; a worker idles instead. |
+| **TD4** | Recipe tool gates use the material tier (stone to steel), not tool level; only work tools qualify (never a Stone Dagger); each craft run wears the tool 1, success or failure. | P2, `recipes.json requires_tool`, `Crafting.progression_block` | Profession identity vs friction at the workbench. |
+| **TD5** | First gated recipes: axe for pillar, plank, plank_shape, pillar_shape, trimmed_plank, fine_plank (flint tier); knife for hide strap and cut-hide recipes; hoe for fields (already in data, now enforced). Everything else ungated. | P2 data | Which crafts need a tool in the bag; the tutorial must still finish. |
+| **TD6** | Repair at the tier's station from `recipes.json repairs` (workbench stone-obsidian, anvil copper-steel), cost ceil(missing / (0.5 x max)) tier units; each repair sets max to 80 % of the old max and refills it; 4 repairs, then "worn out". | P3 | Replacement demand for crafters vs how long a favourite tool lives. |
+| **TD7** | Forge and anvil recipes need no tool: we have no hammer class. Add a Work Hammer (and saw / needle) as items and gate metalwork on it? | P2 skip | New items and recipes; the research's metalwork gates all use a hammer. |
+| **TD8** | No repair kits. A carried `workbench_kit` plus tier material is the field repair. | P3 skip | Expedition packing; the research had Basic / Practical / Advanced kits. |
+| **TD9** | Traits with no gear stat to feed stay inert on gear: lightweight (accuracy / evasion), compact_structure (lethality), pointy (penetration), sharp_section (wound damage), full (stun). | P4 skip | They become worth crafting for only when combat gains those stats. |
+| **TD10** | Gear trait effects per level: high_density +3 % max durability (low_density -3 %), firm +2 % damage (soft -2 %), tough_fiber +2 % armor (soft_fiber -2 %), high_elasticity +2 % gather power; the sum per stat clamps at +-15 %; only gear crafted after P4 gets them. | P4, `rules.json crafting.gear_traits` | Trait-hunting payoff; existing gear is not recalculated. |
+| **TD11** | No hard minimum tool level per resource level (the research's 35+ needs 25+, 55+ needs 45+); the per-material pick tier gates stay, and TD1 makes an under-levelled tool cost more. | `ProgressionScaling` "no hard gates" | A level-1 tool can still gather on a level-50 island, slowly and expensively. |
+| **TD12** | With no combat weapon carried, a work axe fights (0.45x damage) and wears 1 per landed hit like any weapon. KNIFESPLIT's guarantee covers the Work Knife only. | `Inventory.equipped_weapon`, `Hunt.wear_weapon` | Whether a work tool should ever take combat wear. |
