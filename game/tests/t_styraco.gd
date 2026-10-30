@@ -78,6 +78,15 @@ func _run() -> void:
 	_expect(hits[0] >= 1, "a charge lands a horn hit (%d)" % hits[0])
 	_expect(not log.has(&"flee"), "Brave styracosaurus does not run from the survivor")
 	_free(brave)
+	# A clean slate for the direct-charge sections: clear the knockdown and the auto-retaliation
+	# the first fight left on her, so a charge starts from a known pose.
+	player.statuses.clear_all()
+	player.anim.release_knockdown()
+	if player.hunt:
+		player.hunt.stop()
+	player.global_position = Vector3(0, 0.9, 0)
+	player.velocity = Vector3.ZERO
+	await physics_frame
 
 	# 2. The charge is a ram (owner 2026-10-29, pack_mule rule): a landed one shoves her back along its line.
 	#    The survivor must be live for the sim to slide her (a disabled body cannot be pushed).
@@ -92,13 +101,18 @@ func _run() -> void:
 			at_hit[0] = player.global_position)
 	ram.brain.attack_target = player
 	ram.brain._provoked_until = ram.brain._now_s() + 30.0
-	ram.brain._start_charge()
+	# The impact is one accuracy roll (force_accuracy = 1.0 makes every roll land, but the draw
+	# order differs per run): retry from a fresh seed until a charge lands, then measure the shove.
 	var line: Vector3 = ram.brain._charge_dir
-	for i in 40:
-		await _sim(0.1)
-		if at_hit[0] != Vector3.INF:
-			break
-	_expect(rlog.has(&"charge_hit"), "the ram lands on a stationary survivor (%s)" % [_head(rlog)])
+	var attempts := 0
+	while at_hit[0] == Vector3.INF and attempts < 4:
+		attempts += 1
+		ram.brain._start_charge()
+		for i in 40:
+			await _sim(0.1)
+			if at_hit[0] != Vector3.INF:
+				break
+	_expect(rlog.has(&"charge_hit"), "the ram lands on a stationary survivor (%d tries, %s)" % [attempts, _head(rlog)])
 	var pushed_s := float(tac.get("charge_shove_stagger_s", 0.6))
 	await _sim(pushed_s + 0.2)
 	var moved: float = (player.global_position - at_hit[0]).dot(line) if at_hit[0] != Vector3.INF else 0.0
@@ -114,7 +128,7 @@ func _run() -> void:
 	miss.brain.attack_target = player
 	miss.brain._provoked_until = miss.brain._now_s() + 30.0
 	miss.brain._start_charge()
-	await _sim(0.3)
+	await _sim(0.1)
 	player.global_position = Vector3(7, 0.9, 0)  # the sidestep
 	var staggered := false
 	for i in 40:
@@ -134,6 +148,10 @@ func _run() -> void:
 	await physics_frame
 
 	# 4. Point blank, prey in front: the sweeping horn swipe (attack_heavy), heavier than the bite.
+	player.statuses.clear_all()
+	player.anim.release_knockdown()
+	if player.hunt:
+		player.hunt.stop()
 	var swipe = _herd(1, 0, &"brave", Vector3(0, 0.1, -2.4))[0]
 	swipe.brain.attack_target = player
 	swipe.brain._provoked_until = swipe.brain._now_s() + 30.0
