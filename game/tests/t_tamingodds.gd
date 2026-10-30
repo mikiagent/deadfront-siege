@@ -79,7 +79,9 @@ func _finish() -> void:
 		quit(1)
 
 ## A bare wild animal with only what the odds read: def, health, level (no scene node, no brain).
-func _creature(species: StringName, hp_frac: float, lv: int = 1, stunned: bool = true):
+## FOODTORPOR: torpor defaults to full (a knocked-out animal); the rule's torpor half is checked in
+## _test_capture_boundary and t_foodtorpor.
+func _creature(species: StringName, hp_frac: float, lv: int = 1, stunned: bool = true, torpor_frac: float = 1.0):
 	var cr = CreatureS.new()
 	cr.def = (get_root().get_node("Data") as Node).creature(species)
 	cr.level = lv
@@ -89,6 +91,7 @@ func _creature(species: StringName, hp_frac: float, lv: int = 1, stunned: bool =
 	cr.statuses = StatusS.new()
 	cr.add_child(cr.statuses)
 	cr.health.hp = cr.def.hp * hp_frac
+	cr.torpor = cr.torpor_max() * torpor_frac
 	cr.is_capturable = true
 	if stunned:
 		cr.statuses.apply(&"knockdown")
@@ -205,7 +208,11 @@ func _test_capture_boundary() -> void:
 	_expect(FieldTameS.CAPTURE_HEALTH_FRAC == 0.30, "CAPTURE_HEALTH_FRAC is still 0.30 (got %.3f)" % FieldTameS.CAPTURE_HEALTH_FRAC)
 	_expect(FieldTameS.health_allows_capture(0.30), "0.30 opens the capture window")
 	_expect(not FieldTameS.health_allows_capture(0.31), "0.31 keeps it closed")
-	_expect(FieldTameS.window_open(30.0, 100.0, false) and not FieldTameS.window_open(31.0, 100.0, false), "window_open keeps the 0.30 / 0.31 boundary")
+	_expect(FieldTameS.window_open(30.0, 100.0, false, 1.0) and not FieldTameS.window_open(31.0, 100.0, false, 1.0), "window_open keeps the 0.30 / 0.31 boundary")
+	_expect(not FieldTameS.window_open(30.0, 100.0, false, 0.0), "FOODTORPOR: a weak animal with no torpor is not knocked out")
+	var no_torpor = _creature(&"velociraptor", 0.30, 25, true, 0.0)
+	_expect(not FieldTameS.capture_window(no_torpor) and not FieldTameS.can_attempt(no_torpor), "FOODTORPOR: stunned at 30 %% without torpor stays shut")
+	no_torpor.free()
 	_expect(FieldTameS.capture_window(at30) and not FieldTameS.capture_window(at31), "capture_window keeps the 0.30 / 0.31 boundary")
 	_expect(FieldTameS.can_attempt(at30) and not FieldTameS.can_attempt(at31), "can_attempt keeps the 0.30 / 0.31 boundary")
 	# Odds exist above the threshold (the plate can explain the gap) but never open it.
@@ -385,6 +392,7 @@ func _spawn_tameable(species: StringName, at: Vector3):
 		c.brain.process_mode = Node.PROCESS_MODE_DISABLED
 	c.health.hp = c.health.max_hp * 0.2
 	c.statuses.apply(&"knockdown")
+	c.torpor = c.torpor_max()  # FOODTORPOR: knocked out = weak + torpor past the threshold
 	return c
 
 func _iv_sum(rec) -> int:

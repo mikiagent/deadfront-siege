@@ -14,6 +14,13 @@ var home_terrain: StringName = &""
 var home_shapes: Array = []
 var home_shape: StringName = &""
 var t_stones: int = 20 ## ASSUMPTION: starting T-stones
+## BAGUI: the premium currency (spec 33's gold gem with a "+"; docs/design/skills.md names Warp Gems).
+## Shown by CurrencyBar in the nav menu, bag and market headers. The Harbour's sailings cost it
+## (pay_sail, each island's sail_cost); the first standing order grants 10 (objectives.json). There
+## is no purchase flow (the "+" is a placeholder). ASSUMPTION: a new game starts with 25 (five 5-gem
+## sailings); the owner sets the real grant and prices.
+const START_WARP_GEMS := 25
+var warp_gems: int = START_WARP_GEMS
 var pioneer_level: int = 0
 var pioneer_xp: int = 0
 var home_claims: Array = []  # [[x, z, w, d], ...] tile rects on the home island (saved)
@@ -249,6 +256,7 @@ func start_new(host: Node) -> void:
 	raid_victory = false
 	objective = 0
 	objective_best = 0
+	Tasks.reset()
 	tutorial = {"done": true, "did": {}}
 	# Character creation first (M10), then the home island with the terrain pick.
 	var cc := CharacterCreation.new()
@@ -318,9 +326,19 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 	_ensure_map_fog(ir, camp_at if camp_at is Vector3 and (camp_at as Vector3) != Vector3.ZERO else (player.global_position if player else at))
 	print("[world] island %s nodes=%d creatures=%d terrain=%s" % [
 		id, int(ir.harvest_count), int(ir.creature_count), terrain])
+	if int(island_def.get("tier", 0)) >= 30:
+		Tasks.note(&"explore30")  # TASKSCREEN: weekly Explore Level-30 Islands (DW-T0125)
 	island_changed.emit(id)
 	if show_terrain and is_home() and home_terrain == &"":
 		(load("res://scripts/ui/world_ui.gd") as GDScript).instance_on(host).show_terrain()
+
+## BAGUI (owner 2026-10-28: "Harbor should use Warp Gems to teleport to islands"): a sailing's
+## sail_cost is paid in Warp Gems. "" when paid, else the refusal the player sees; a refusal spends nothing.
+func pay_sail(cost: int) -> String:
+	if warp_gems < cost:
+		return "Needs %d Warp Gems to sail (you have %d)." % [cost, warp_gems]
+	warp_gems -= maxi(0, cost)
+	return ""
 
 func travel(to_id: StringName, mode: StringName) -> void:
 	var dest := def_of(to_id)
@@ -339,11 +357,10 @@ func travel(to_id: StringName, mode: StringName) -> void:
 		if player.skills == null or player.skills.level_of("survival") < required:
 			player.notice("Needs Survival %d" % required)
 			return
-		var cost := int(dest.get("sail_cost", 0))
-		if t_stones < cost:
-			print("[world] need %d T-stones" % cost)
+		var why := pay_sail(int(dest.get("sail_cost", 0)))
+		if why != "":
+			player.notice(why)
 			return
-		t_stones -= cost
 	if mode == &"harbour_home" or (mode == &"warp_home"):
 		_strip_unstable_on_foot(player)
 	var host := runtime.get_parent() if runtime else get_tree().current_scene
@@ -415,7 +432,7 @@ func cargo_warp(player: Player) -> void:
 		print("[world] cargo warp is at the unstable camp")
 		return
 	if t_stones < CARGO_FEE:
-		print("[world] cargo warp needs %d T-stones" % CARGO_FEE)
+		print("[world] cargo warp needs %d Gold" % CARGO_FEE)
 		return
 	var moved := 0
 	for i in range(player.inventory.slot_count - 1, -1, -1):
@@ -438,6 +455,8 @@ func cargo_warp(player: Player) -> void:
 	print("[world] cargo warp %d stacks fee=%d" % [moved, CARGO_FEE])
 
 func note_craft(recipe_id: StringName) -> void:
+	Tasks.note(&"craft")  # TASKSCREEN: every craft counts toward the craft tasks, and per recipe
+	Tasks.note(StringName("craft:" + str(recipe_id)))
 	if pioneer_crafts.has(str(recipe_id)):
 		return
 	pioneer_crafts[str(recipe_id)] = true
@@ -477,6 +496,7 @@ func note_building(kind: StringName, at: Vector3 = Vector3.ZERO, player: Player 
 	# The first-of-kind memory and the spam rule are the Tamed Island's (is_home), as before: an
 	# unstable island is a visit, so every build there pays the repeat award (the old flat 8) and no
 	# kind is remembered.
+	Tasks.note(&"build")  # TASKSCREEN: daily Construct a Building (DW-T0123)
 	Tutorial.note("build")
 	var total := maxi(0, extra_xp)
 	if is_home():
@@ -709,7 +729,8 @@ func domain_for_current() -> Dictionary:
 ## One player level. Every skill-tree XP grant (gathering, fighting, crafting, cooking, building,
 ## farming...) also lands here (SkillState.add_xp), so the bottom bar moves with everything.
 ## Owner 2026-10-28: each level costs exponentially more. Stored level n needs
-## round(base x growth^n) XP (pioneer_levels.json xp_curve; ASSUMPTION base 110, growth 1.12).
+## round(base x growth^n x player_xp_cost_mult) XP (pioneer_levels.json xp_curve; ASSUMPTION base 110,
+## growth 1.12; progression.json knob, owner 2026-10-28 "levels up slower").
 static var _xp_curve: Dictionary = {}
 
 static func xp_curve() -> Dictionary:
@@ -721,7 +742,7 @@ static func xp_curve() -> Dictionary:
 
 static func xp_for_level(level: int) -> int:
 	var c := xp_curve()
-	return maxi(1, roundi(float(c["base"]) * pow(float(c["growth"]), maxi(0, level))))
+	return maxi(1, roundi(float(c["base"]) * pow(float(c["growth"]), maxi(0, level)) * Progression.mult("player_xp_cost_mult")))
 
 ## The pre-2026-10-28 linear curve, only to read an old save's total XP.
 static func old_xp_for_level(level: int) -> int:

@@ -572,16 +572,21 @@ func context_actions() -> Array:
 	var weapon := inv.equipped_weapon()
 	if weapon and weapon.def() and weapon.def().range_m > 0 and p.hunt.target != null:
 		out.append({"id": "fire_ranged", "glyph": "F", "label": "Fire (%d)" % inv.count_of(weapon.def().ammo_id)})
+		if inv.count_of(Hunt.TRANQ_DART) > 0:
+			out.append({"id": "fire_dart", "glyph": "Z", "label": "Dart (%d)" % inv.count_of(Hunt.TRANQ_DART)})
 	if weapon and (inv.count_of(&"toxin_coating") > 0 or int(weapon.attributes.get("toxin_hits", 0)) > 0):
 		out.append({"id": "coat_weapon", "glyph": "V", "label": "Coat (%d/3)" % int(weapon.attributes.get("toxin_hits", 0))})
+	if weapon and (inv.count_of(&"sedative") > 0 or int(weapon.attributes.get("sedative_hits", 0)) > 0):
+		out.append({"id": "coat_sedative", "glyph": "Z", "label": "Sedate (%d/3)" % int(weapon.attributes.get("sedative_hits", 0))})
 	for snare in [&"rope_snare", &"heavy_snare"]:
 		if inv.count_of(snare) > 0:
 			out.append({"id": str(snare), "glyph": "S", "label": "Heavy snare" if snare == &"heavy_snare" else "Rope snare"})
 	if WaterAccess.near_fresh(p.global_position):
 		out.append({"id": "drink", "glyph": "💧", "label": "Drink"})
-		out.append({"id": "wash", "glyph": "🫧", "label": "Wash"})
 		if inv.count_of(&"empty_bucket") > 0:
 			out.append({"id": "fill", "label": "Fill"})
+	if WaterAccess.near_any(p.global_position):
+		out.append({"id": "wash", "glyph": "🫧", "label": "Wash"})
 	var sleep_spot := p.sim.nearest_sleep_spot()
 	if sleep_spot:
 		var left := int(sleep_spot.get("sleeps_left"))
@@ -615,6 +620,10 @@ func context_action(id: String) -> void:
 			if catapult: catapult.fire(p, p.hunt.target, id == "catapult_toxin")
 		"fire_ranged":
 			p.hunt.fire_ranged()
+		"fire_dart":
+			p.hunt.fire_ranged(Hunt.TRANQ_DART)
+		"coat_sedative":
+			p.actions.coat_weapon(&"sedative")
 		"rope_snare", "heavy_snare":
 			p.actions.place_snare(StringName(id))
 		"coat_weapon":

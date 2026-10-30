@@ -65,7 +65,37 @@ func run_steps(from: int, to: int) -> String:
 		if why != "":
 			failure = "step %d %s: %s" % [i + 1, id, why]
 			return failure
+		_receive_rewards()
 	return ""
+
+## TASKSCREEN: order rewards wait in Tasks > Main Task; a player presses Receive, so the bot does too
+## (the XP's character levels lift the skill caps the hunt relies on), once tut_claim has taught it.
+## The Task screen the way a player meets it: open it from the HUD, press the first Receive, OK, close.
+func _claim_in_tasks() -> String:
+	var hud := get_tree().get_first_node_in_group("hud")
+	if hud == null or not hud.has_method("open_orders"):
+		return "no HUD to open Tasks from"
+	hud.call("open_orders")
+	await _beat(0.5)
+	var sheet: Node = hud.get("_orders_sheet")
+	var rec := sheet.find_child("Receive", true, false) as Button if sheet else null
+	if rec == null or not rec.is_visible_in_tree():
+		return "Tasks shows no Receive button"
+	var tgt := Tutorial.pointer_target(player)
+	if not (tgt.get("ui") == rec):
+		return "the pointer is not on Receive (%s)" % [tgt]
+	rec.pressed.emit()
+	await _beat(0.5)
+	(sheet.get("_pop_ok") as Button).pressed.emit()
+	sheet.call("close")
+	return ""
+
+func _receive_rewards() -> void:
+	if not Tasks.claimed.keys().any(func (k: Variant) -> bool: return str(k).begins_with("main.")):
+		return
+	for r in Tasks.rows(&"main", player):
+		if r["claimable"]:
+			Tasks.claim(str(r["id"]), player)
 
 func _wait_done(i: int, secs: float) -> String:
 	var until := _t + secs
@@ -77,6 +107,8 @@ func _wait_done(i: int, secs: float) -> String:
 
 func _do_step(id: String) -> String:
 	match id:
+		"tut_claim":
+			return await _claim_in_tasks()
 		"tut_camp":
 			var guild: Variant = Tutorial.world_point(player, "guild")
 			if guild == null:

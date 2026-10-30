@@ -3,7 +3,7 @@ extends SceneTree
 ## open from the HUD's public entry points (open_character / open_skills / open_orders); at 844x390
 ## and 1600x900 every visible control of each sheet stays on screen, the header and its panels do not
 ## overlap, and every visible button is a 64 px target; the primary actions work (Unequip puts the
-## worn knife back, Open bag returns to the bag, the GOLD Spend button buys a node, Track on HUD points
+## worn knife back, Open bag returns to the bag, the GOLD Spend button buys a node, Track points
 ## the HUD quest card at the order) and ‹ returns to the MENU.
 ## Usage: godot --headless --path game --script res://tests/t_uichar.gd -> "[t_uichar] PASS", exit 0/1.
 
@@ -194,20 +194,26 @@ func _test_orders(view: Vector2i) -> void:
 	_hud.open_orders()
 	await _frames(2)
 	var sheet: Control = _hud._orders_sheet
+	sheet.select(&"main")
+	await _frames(1)
 	var steps: Array = OS_.steps()
-	_expect(sheet != null and sheet.visible and sheet._list.get_child_count() == steps.size() and steps.size() > 2, "%s: Orders lists every order (%d)" % [view, steps.size()])
-	_expect(sheet._track.disabled and sheet._track.text == "Tracking on HUD", "%s: the running order reads Tracking on HUD" % view)
-	await _layout(sheet, view, "orders", ["OrdersListPanel", "OrdersDetail"])
-	var later: int = _player.get_node("/root/World").objective + 2
-	(sheet._list.get_child(later) as Button).pressed.emit()
-	_expect(not sheet._track.disabled and sheet._track.text == "Track on HUD", "%s: a later order offers Track on HUD" % view)
-	sheet._track.pressed.emit()
+	_expect(sheet != null and sheet.visible and sheet._list.get_child_count() == steps.size() and steps.size() > 2, "%s: Main Task lists every order (%d)" % [view, steps.size()])
+	await _layout(sheet, view, "tasks", ["TaskTabsScroll", "TaskListPanel"])
+	var w: Node = _player.get_node("/root/World")
+	var later: int = w.objective + 2
+	var later_row: Control = sheet._list.find_child("Task_main_%s" % str((steps[later] as Dictionary)["id"]), false, false)
+	var track: Button = later_row.find_child("Track", true, false) if later_row else null
+	_expect(track != null and not track.disabled and track.text == "Track", "%s: a later order offers Track" % view)
+	if track:
+		track.pressed.emit()
 	var card: Dictionary = OS_.hud_step(_player)
-	_expect(OS_.tracked == later and str(card.get("title", "")) == str((steps[later] as Dictionary)["title"]), "%s: Track on HUD points the quest card at it (%s)" % [view, card.get("title", "")])
-	_expect(sheet._track.disabled and sheet._track.text == "Tracking on HUD", "%s: and it now reads Tracking on HUD" % view)
+	_expect(OS_.tracked == later and str(card.get("title", "")) == str((steps[later] as Dictionary)["title"]), "%s: Track points the quest card at it (%s)" % [view, card.get("title", "")])
+	later_row = sheet._list.find_child("Task_main_%s" % str((steps[later] as Dictionary)["id"]), false, false)
+	track = later_row.find_child("Track", true, false) if later_row else null
+	_expect(track != null and track.disabled and track.text == "Tracking", "%s: and it now reads Tracking" % view)
 	OS_.tracked = -1
 	_expect(str(OS_.hud_step(_player).get("title", "")) == str(load("res://scripts/core/objectives.gd").current(_player).get("title", "")), "%s: untracked, the card follows the running order" % view)
 	(sheet._c["back"] as Button).pressed.emit()
 	await _frames(1)
-	_expect(not sheet.visible and _hud._sheet_kind == &"menu", "%s: ‹ closes Orders and opens the MENU" % view)
+	_expect(not sheet.visible and _hud._sheet_kind == &"menu", "%s: ‹ closes Tasks and opens the MENU" % view)
 	_hud._close_sheet()

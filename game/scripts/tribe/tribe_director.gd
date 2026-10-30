@@ -45,6 +45,11 @@ func sync() -> void:
 	var home := at_home()
 	var want := {}
 	for r in Tribe.members:
+		# TRIBE M2a: escrow left without its order (a stopped order with a full bag, a save whose
+		# station job no longer loads) goes back to the bag as soon as it fits.
+		if r.escrow.used_slots() > 0 and not TribeWork.is_station_job(r):
+			TribeWork.refund(player, r, true)
+	for r in Tribe.members:
 		if home or r.is_following():
 			want[r.uid] = [r, false]
 	if home:

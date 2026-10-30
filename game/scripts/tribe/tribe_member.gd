@@ -45,6 +45,11 @@ var _clip: StringName = &""
 var _held: Node3D
 var _held_id: StringName = &""
 var _tools := Inventory.new(1)
+## TRIBE M2a: the station or site of its work order, and the plate over its head that names the job.
+var _station: Node3D
+var plate: Label3D
+var _hammer: Array[MeshInstance3D] = []
+var _hammer_loaded := false
 
 func setup(rec: TribeRecord, p_pending: bool = false) -> void:
 	record = rec
@@ -73,6 +78,10 @@ func _ready() -> void:
 	visual.name = "Visual"
 	add_child(visual)
 	_build_rig()
+	plate = StationState.floating_label("JobPlate", HALF_H + 0.55)
+	plate.font_size = 30
+	plate.visible = false
+	add_child(plate)
 	var p := PlayerRegistry.local()
 	if p:
 		add_collision_exception_with(p)  # never shove or block the survivor (as pets pass through)
@@ -117,6 +126,8 @@ func _physics_process(delta: float) -> void:
 			_think()
 		if state == &"gather":
 			_tick_gather(delta)
+		elif state == &"craft":
+			TribeWork.advance(record, _station if is_instance_valid(_station) else null, delta)
 		elif state == &"rest" or state == &"down":
 			_tick_rest(delta)
 	_steer(delta)
@@ -153,6 +164,10 @@ func _think() -> void:
 			_follow(p)
 		return
 	target = null
+	_sync_plate()
+	if TribeWork.is_station_job(record):
+		_station_work()
+		return
 	if record.order == &"work" and not record.job.is_empty():
 		_work()
 		return
@@ -298,22 +313,29 @@ func _on_died(_source: Node) -> void:
 
 # ---------------------------------------------------------------- work
 
-func _work() -> void:
+## Rest when exhausted, eat from the job's chest when hungry. True when that took the turn.
+func _tend_needs() -> bool:
 	var m := record
-	if state == &"rest":
-		return
 	if m.fatigue >= Tribe.num("rest_at", 75.0) or m.energy < Tribe.num("energy_per_harvest", 3.0):
 		_stop_work()
 		_halt(&"rest")
-		return
+		return true
 	var now := Time.get_ticks_msec() / 1000.0
 	# HUNGER: a member eats at Peckish, the same line the survivor's autofeed uses.
 	if m.fullness < Digestion.hunger_num("peckish_below", Digestion.PECKISH_BELOW) and now >= _no_food_until:
 		var food_at := _storage_with_food()
 		if food_at:
 			_eat_from(food_at)
-			return
+			return true
 		_no_food_until = now + 30.0  # ASSUMPTION: nothing to eat; look again in 30 s, keep working
+	return false
+
+func _work() -> void:
+	var m := record
+	if state == &"rest":
+		return
+	if _tend_needs():
+		return
 	if m.carry.used_slots() >= mini(int(Tribe.num("carry_units", 5.0)), m.carry.slot_count):
 		_deposit()
 		return
@@ -428,8 +450,67 @@ func _release_node() -> void:
 
 func _stop_work() -> void:
 	_release_node()
-	if state in [&"gather", &"walk", &"find", &"deposit", &"eat", &"rest"]:
+	_station = null
+	if state in [&"gather", &"walk", &"find", &"deposit", &"eat", &"rest", &"craft"]:
 		state = &"idle"
+
+# ---------------------------------------------------------------- M2a station work orders
+
+## A craft or build order: walk to the station (or site), then work it with the station's clip while
+## TribeWork.advance runs the clock. A station that is gone pauses a craft (Stay cancels it and hands
+## the materials back); a site that is gone (finished or cancelled by the survivor) ends the order.
+func _station_work() -> void:
+	if state == &"rest":
+		return
+	if _tend_needs():
+		return
+	var t := TribeWork.target_of(record)
+	if t == null:
+		_station = null
+		if TribeWork.job_kind(record) == &"build":
+			TribeWork.cancel(PlayerRegistry.local(), record)
+		_halt(&"idle")
+		return
+	_station = t
+	if state == &"craft":
+		return
+	var r := TribeWork.reach(t)
+	if _flat(global_position, t.global_position) > r:
+		state = &"walk"
+		_go(_stand_near(t.global_position, r - 0.4), false)
+		return
+	state = &"craft"
+	_moving = false
+	_face(t.global_position)
+	_show_held(null)
+	_play(work_clip(), true)
+
+## The station's work loop (station_state.json work_anim: hammer at the workbench, stir at the grill),
+## a hammer at a construction site, the old craft reach when the station names none.
+func work_clip() -> StringName:
+	var kind := &"hammer"
+	if TribeWork.job_kind(record) == &"craft":
+		kind = StationState.work_kind(StringName(str(record.job.get("station_id", ""))))
+	var clip := StringName("work_" + str(kind)) if kind != &"" else &"craft"
+	return clip if rig and rig.has_clip(clip) else &"craft"
+
+func _sync_plate() -> void:
+	if plate == null:
+		return
+	var on := TribeWork.is_station_job(record)
+	plate.visible = on
+	if on:
+		plate.text = "%s\n%s" % [record.name, TribeWork.plate_text(record)]
+
+## The survivor's skinned work hammer (PlayerAnim.HAMMER_GLB) in the fist during hammer clips.
+func _sync_hammer(clip: StringName) -> void:
+	var show := clip in PlayerAnim.HAMMER_CLIPS
+	if show and not _hammer_loaded and rig and rig.skeleton:
+		_hammer_loaded = true
+		_hammer = RiggedModel.attach_skinned(rig.skeleton, PlayerAnim.HAMMER_GLB)
+	for mi in _hammer:
+		if is_instance_valid(mi):
+			mi.visible = show
 
 ## The job's chest: the storage building nearest the chosen spot (or the job centre), else null.
 func storage() -> Node3D:
@@ -547,7 +628,7 @@ func _go(at: Vector3, run: bool) -> void:
 	_running = run
 
 func _steer(delta: float) -> void:
-	if not _moving or state in [&"down", &"rest", &"gather"]:
+	if not _moving or state in [&"down", &"rest", &"gather", &"craft"]:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		return
@@ -598,15 +679,18 @@ func _play(clip: StringName, force: bool = false) -> void:
 		clip = &"idle"
 	_clip = clip
 	rig.play(clip, 1.0, 0.15)
+	_sync_hammer(clip)
 
 func _on_clip_finished(clip: StringName) -> void:
 	if state == &"gather" and clip in GATHER_CLIPS.values():
 		_play(clip, true)  # the work loop re-triggers its one-shot, as PlayerAnim does
+	elif state == &"craft" and (clip in PlayerAnim.WORK_CLIPS or clip == &"craft"):
+		_play(clip, true)
 	elif clip in ONESHOTS:
 		_clip = &""
 
 func _animate() -> void:
-	if _clip in ONESHOTS:
+	if _clip in ONESHOTS or state == &"craft":
 		return
 	var want: StringName = &"idle"
 	if state == &"rest" or state == &"down":

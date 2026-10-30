@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "warp_gem". 64 grid, live area 6-58, solid shapes, white only. -->
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path fill-rule="evenodd" d="M19 9 L45 9 L58 32 L45 55 L19 55 L6 32 Z M23 17 L19.5 24 L32 24 L28.5 17 Z M35.5 17 L32 24 L44.5 24 L41 17 Z M15 32 L23 46 L28 46 L22 32 Z M42 32 L36 46 L41 46 L49 32 Z"/>
+</g>
+</svg>

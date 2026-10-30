@@ -4,6 +4,19 @@
 
 `255 items` from `game/data/items.json`; per-item consumption effects from `game/data/foods.json`; rarity palette from `game/data/item_rarity.json`.
 
+Tags (BAGUI 2026-10-28): an item's classification tags are its `categories`; API `ItemTags.tags(id)`,
+`ItemTags.has_tag(id, tag)`, `ItemTags.label(tag)` (`game/scripts/items/item_tags.gd`). Recipe slots
+accept by category, so a tag is what a slot takes. `predator_tendon` is tendon, lashing, strap, meat,
+food, edible (eats like raw meat at energy 6, # ASSUMPTION) and fills the new `bowstring` recipe (slot
+category strap, by hand).
+
+Perk tiers (BAGUI 2026-10-28): a rare (green) trait's value is its tier 1-5, shown I-V ("Black Sheen
+IV"; an older `true` reads I). `LootRoller.roll_tier`: from I each step succeeds with
+`loot_tables.json rare_trait.tier_step` 0.35 (+0.03 per tool tier above stone, +0.002 per skill level,
+cap 0.6; # ASSUMPTION), so about II 35 %, III 12 %, IV 4 %, V 1.5 %. Gathering and alpha parts roll it;
+a craft copies the primary's tier, a craft's own rare roll rolls a tier (`Crafting.roll_outcome_for`
+"rare_tier").
+
 Rarity: **common** `#a8adb3`, **uncommon** `#5cc864`, **rare** `#3c8cff`, **epic** `#b45cff`, **legendary** `#ffa424`.
 
 Item *traits* are the attribute keys stamped on an instance: a def's `default_attributes` (its baseline), a gather material's latent attr (the yellow pip), an inherited attribute carried through crafting, or a butcher/gather roll. The pip/stacking rules live in `game/data/inventory.json`; bag specials in `game/data/bags.json`.

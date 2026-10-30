@@ -324,7 +324,7 @@ func face_tick(delta: float, move_dir: Vector3) -> void:
 		p.visual.rotation.y = rotate_toward(yaw, yaw + err - signf(err) * slack, deg_to_rad(p.turn_rate_deg) * delta)
 
 func wants_sprint() -> bool:
-	return (Input.is_action_pressed("sprint") or p.sprint_toggled) \
+	return (Input.is_action_pressed("sprint") or p.sprint_toggled or p.chase_sprint) \
 		and not p.statuses.has_flag(&"no_sprint") and not p.in_water
 
 ## Buoyancy, continuous swimming stamina, and the exhausted-swimming health consequence.
@@ -945,6 +945,12 @@ func tick_autofeed(delta: float) -> void:
 		return
 	if p.hunt and p.hunt.target:
 		return
+	# FOODTORPOR: the Food Bag feeds first, front to back; quick food is the fallback.
+	for idx in p.inventory.food_bag_prune():
+		if Food.can_eat(p, p.inventory.slots[idx]) == "" and p.actions.eat(idx):
+			p.notice("Auto-eating %s (Food Bag)" % p.inventory.slots[idx].def().display_name)
+			_autofeed_cd = 12.0
+			return
 	for fid in p.inventory.quick_food:
 		if str(fid) == "":
 			continue
@@ -956,6 +962,23 @@ func tick_autofeed(delta: float) -> void:
 				_autofeed_cd = 12.0
 				return
 	_autofeed_cd = 3.0
+
+# ---------------------------------------------------------------- spoilage
+
+const SPOIL_TICK_S := 5.0
+var _spoil_cd: float = 0.0
+
+## FOODTORPOR: the bag's food spoils on the wall clock (Spoilage); spoiled lots leave the Food Bag.
+## shortcut: the client's own bag only; pet bags, chests and the online server do not spoil yet.
+func tick_spoilage(delta: float) -> void:
+	_spoil_cd -= delta
+	if _spoil_cd > 0.0 or p.actions == null or p.actions.online:
+		return
+	_spoil_cd = SPOIL_TICK_S
+	var n := Spoilage.tick(p.inventory)
+	if n > 0:
+		p.inventory.food_bag_prune()
+		p.notice("%d food lot%s spoiled" % [n, "" if n == 1 else "s"])
 
 # ---------------------------------------------------------------- guards
 

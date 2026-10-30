@@ -12,6 +12,11 @@ extends SceneTree
 ##   - home build time stays under the plan's 2.5 s budget;
 ##   - old saved BARE rows whose node id no longer exists are dropped, and a save whose position is
 ##     in the water is rescued to the camp.
+## ISLANDSHAPES (every island): its shape family is recorded and the roster spans >= 6 families; the
+## dock stands on the southern-most legal mainland coast and travel lands the survivor there; the
+## topography (mountains, volcanoes, ridges, mesas, rock outcrops) is never walkable, buildable or a
+## spawn spot, is cut out of the nav mesh, and keeps off the dock, its approach, the camp and the
+## camp-to-dock walk; the dock is walkable to the camp and to the far reaches of the mainland.
 ## Run: Godot --headless --path game --script res://tests/t_islandgen.gd -> "[t_islandgen] PASS", 0/1.
 ## Scripts are load()ed on the first frame: `--script` compiles this file before autoloads exist.
 
@@ -22,7 +27,7 @@ const IDS := ["home_grassland", "savannah_15", "temperate_35", "volcanic_60"]
 ## Every island is checked for the SHAPE contract (four-side sea margins, river length and body,
 ## MUD channel, mesa warp): the merge review found the clipped-headland and coastal-stub defects on
 ## islands the four-island set did not cover.
-const ALL_IDS := ["home_grassland", "savannah_15", "savannah_45", "temperate_20", "temperate_25",
+const ALL_IDS := ["home_grassland", "tutorial_isle", "savannah_15", "savannah_45", "temperate_20", "temperate_25",
 	"temperate_35", "temperate_45", "tropical_25", "tropical_40", "desert_35", "desert_50",
 	"tundra_30", "tundra_55", "swamp_55", "volcanic_60"]
 const TARGET := {
@@ -62,6 +67,7 @@ func _run() -> void:
 	root.add_child(_host)
 	_world = root.get_node("World")
 	var seen := {}
+	var families := {}
 	for id in ALL_IDS:
 		var t0 := Time.get_ticks_usec()
 		_world.load_island(_host, StringName(id), Vector3(0, 1, 0), false)
@@ -76,9 +82,13 @@ func _run() -> void:
 			_check_island(str(id), rt, ms)
 		else:
 			_check_shape(str(id), rt)
+		_check_islandshapes(str(id), rt)
+		if str(id) != "home_grassland":
+			families[str(rt._shape.family)] = true
 		if str(id) == "home_grassland":
 			_check_legacy_core(rt)
 			_check_save_rules(rt)
+	_expect(families.size() >= 6, "the roster islands span >= 6 shape families (%s)" % ", ".join(families.keys()))
 	if _fails.is_empty():
 		print("[t_islandgen] PASS islands=%d (%d shape-only)" % [ALL_IDS.size(), ALL_IDS.size() - IDS.size()])
 		quit(0)
@@ -106,7 +116,9 @@ func _check_island(id: String, rt, ms: float) -> void:
 	_expect(minf(minf(mw, me), minf(mn, msouth)) >= 20.0,
 		"%s has >= 20 m of sea on every side (w %.0f e %.0f n %.0f s %.0f)" % [id, mw, me, mn, msouth])
 	var aspect := float(m["aspect"])
-	_expect(aspect >= 0.70 and aspect <= 0.92, "%s aspect %.2f is 0.70-0.92 (principal axes)" % [id, aspect])
+	# ISLANDSHAPES: a round or bulky family is meant to be near-square; the classic body keeps 0.92.
+	var top := 0.92 if str(rt._shape.family) == "classic" else 0.98
+	_expect(aspect >= 0.70 and aspect <= top, "%s aspect %.2f is 0.70-%.2f (principal axes)" % [id, aspect, top])
 	var pens := int(m["peninsulas"])
 	_expect(pens >= 2, "%s has >= 2 headlands (%d)" % [id, pens])
 	var cliffs := int(m["cliff_cells"])
@@ -136,7 +148,8 @@ func _check_island(id: String, rt, ms: float) -> void:
 		for i in sh.river.size() - 1:
 			arc += sh.river[i].distance_to(sh.river[i + 1])
 		var long_axis := maxf(bbox.x, bbox.y)
-		_expect(arc >= 0.50 * long_axis, "%s river spans >= 50%% of the long axis (%.0f of %.0f m)" % [id, arc, long_axis])
+		var want := _river_want(sh, long_axis)
+		_expect(arc >= want, "%s river spans >= %.0f m (%.0f of a %.0f m long axis)" % [id, want, arc, long_axis])
 		_expect(sh.river_runs_inland(), "%s river body is inland and only its mouth reaches the sea" % id)
 		var mud := _channel_mud_fraction(rt)
 		_expect(mud >= 0.80, "%s channel is MUD along its length (%.0f%%)" % [id, mud * 100.0])
@@ -191,7 +204,8 @@ func _check_shape(id: String, rt) -> void:
 		for i in sh.river.size() - 1:
 			arc += sh.river[i].distance_to(sh.river[i + 1])
 		var long_axis := maxf(bbox.x, bbox.y)
-		_expect(arc >= 0.50 * long_axis, "%s river spans >= 50%% of the long axis (%.0f of %.0f m)" % [id, arc, long_axis])
+		var want := _river_want(sh, long_axis)
+		_expect(arc >= want, "%s river spans >= %.0f m (%.0f of a %.0f m long axis)" % [id, want, arc, long_axis])
 		_expect(sh.river_runs_inland(), "%s river body is inland (mouth only at the sea)" % id)
 		var mud := _channel_mud_fraction(rt)
 		_expect(mud >= 0.80, "%s channel is MUD along its length (%.0f%%)" % [id, mud * 100.0])
@@ -379,3 +393,167 @@ func _find_river(rt) -> Vector2:
 		if h <= -0.25 and h >= -0.38:
 			return p
 	return Vector2.ZERO
+
+## The river's minimum arc: half the long axis on a classic body; a shaped family's own figure
+## (IslandShape.river_want: a chain's spine or an atoll's ring cannot hold a river half the island long).
+func _river_want(sh, long_axis: float) -> float:
+	if str(sh.family) == "classic":
+		return 0.50 * long_axis
+	return minf(0.50 * long_axis, sh.river_want())
+
+## ISLANDSHAPES contract, every island.
+func _check_islandshapes(id: String, rt) -> void:
+	var sh = rt._shape
+	_expect(sh != null and str(sh.family) != "", "%s records its shape family" % id)
+	if sh == null:
+		return
+	var fam := str(sh.family)
+	var def: Dictionary = _world.islands.get(id, {})
+	if def.has("shape_family"):
+		_expect(fam == str(def["shape_family"]), "%s family %s is its island row's %s" % [id, fam, def["shape_family"]])
+	if id == "home_grassland":
+		_expect(fam == "classic", "the legacy meadow keeps the classic body (%s)" % fam)
+	# The tutorial island keeps its hand-tuned dock beside its town (ISLANDSHAPES S4, dock_rule:
+	# hint), so the southern-most rule does not apply to it.
+	var HS: GDScript = load("res://scripts/world/harbour_site.gd")
+	var dock_c: Vector2 = HS.centre(rt.harbour.build_cell, rt.harbour.build_rot)
+	var site: Dictionary = HS.find(rt, Vector2.ZERO, true)
+	if str(def.get("dock_rule", "")) != "hint":
+		_expect(not site.is_empty(), "%s has a legal dock pose" % id)
+		if not site.is_empty():
+			var best_c: Vector2 = HS.centre(site["cell"], site["rot"])
+			_expect(dock_c.y >= best_c.y - 0.01, "%s dock (z %.1f) is on the southern-most legal coast (z %.1f)" % [id, dock_c.y, best_c.y])
+	_expect(str(HS.check(rt, rt.harbour.build_cell, rt.harbour.build_rot)) == "", "%s dock pose is legal" % id)
+	var arrive: Vector3 = rt.arrival_point()
+	_expect(Vector2(arrive.x, arrive.z).distance_to(dock_c) < 6.0, "%s arrival lands at the dock (%s)" % [id, arrive])
+	_expect(sh.on_mainland(arrive.x, arrive.z), "%s dock is on the mainland, not an islet" % id)
+	# The land south of the dock: nothing on the mainland stands more than a dock's length past it.
+	# The tutorial island keeps its hand-tuned dock (S4), so the southern-most rule does not apply.
+	var south_land := -INF
+	var span: int = rt._tile_span
+	var half: float = rt._size * 0.5
+	if str(def.get("dock_rule", "")) != "hint":
+		for z in range(0, span, 2):
+			for x in range(0, span, 2):
+				if rt.dry_walk[x + z * span] == 1:
+					var wx := -half + float(x) + 0.5
+					var wz := -half + float(z) + 0.5
+					if sh.on_mainland(wx, wz):
+						south_land = maxf(south_land, wz)
+		# ASSUMPTION: 25 m of slack: the dock needs a legal shore (gentle beach, deep water off it), and the
+		# very tip of a headland is often too steep or shallow for one.
+		_expect(arrive.z >= south_land - 25.0, "%s arrival z %.0f is at the southern-most mainland (dry land reaches z %.0f)" % [id, arrive.z, south_land])
+	# Walkable: dock to camp, and dock to dry mainland tiles spread over the island.
+	_expect(rt.pathing.path(arrive, rt._camp_pos, 0).size() > 1, "%s dock and camp are connected on foot" % id)
+	var probes := 0
+	var reached := 0
+	for z in range(4, span - 4, 37):
+		for x in range(4, span - 4, 37):
+			if rt.dry_walk[x + z * span] != 1:
+				continue
+			var p := Vector3(-half + float(x) + 0.5, 0.0, -half + float(z) + 0.5)
+			if not sh.on_mainland(p.x, p.z) or not rt.pathing.is_walkable(Vector2i(floori(p.x), floori(p.z))):
+				continue
+			probes += 1
+			if rt.pathing.path(arrive, p, 0).size() > 1:
+				reached += 1
+	_expect(probes == 0 or float(reached) >= 0.85 * float(probes), "%s the mainland is walkable from the dock (%d of %d probes)" % [id, reached, probes])
+	# Topography: the generated footprints and the outcrop rocks are solid and never on the dock,
+	# the approach, the camp or the camp-to-dock walk.
+	var camp: Vector3 = rt._camp_pos
+	if fam != "classic":
+		var topo_tiles := 0
+		var bad := 0
+		var near_bad := 0
+		var tm: PackedByteArray = sh.topo_mask
+		_expect(not sh.topo.is_empty() and not tm.is_empty(), "%s has generated topography (%d features)" % [id, sh.topo.size()])
+		for z in range(0, span, 3):
+			for x in range(0, span, 3):
+				var wx := -half + float(x) + 0.5
+				var wz := -half + float(z) + 0.5
+				if not _in_topo(sh, wx, wz):
+					continue
+				topo_tiles += 1
+				var p := Vector3(wx, 0.0, wz)
+				var t := Vector2i(floori(wx), floori(wz))
+				if rt.is_dry(p) or rt.pathing.is_walkable(t) or int(_IT.tile_type_at_world(rt, wx, wz)) != _IT.TileType.CLIFF or rt.spawn_ok(p, false):
+					if bad == 0:
+						print("[t_islandgen] %s topo tile %s dry=%s walk=%s type=%d h=%.2f" % [id, t, rt.is_dry(p), rt.pathing.is_walkable(t), int(_IT.tile_type_at_world(rt, wx, wz)), rt.surface_y(wx, wz)])
+					bad += 1
+				if Vector2(wx, wz).distance_to(Vector2(arrive.x, arrive.z)) < 30.0 or Vector2(wx, wz).distance_to(Vector2(camp.x, camp.z)) < 34.0 \
+						or rt.on_harbour_approach(Vector3(wx, 1.0, wz)) or _seg_dist(Vector2(wx, wz), Vector2(camp.x, camp.z), Vector2(arrive.x, arrive.z)) < 6.0:
+					near_bad += 1
+		_expect(topo_tiles > 0, "%s topography covers tiles (%d sampled)" % [id, topo_tiles])
+		_expect(bad == 0, "%s topography tiles are CLIFF, not walkable, not buildable dry ground, no spawn (%d of %d wrong)" % [id, bad, topo_tiles])
+		_expect(near_bad == 0, "%s topography keeps off the dock, approach, camp and the walk (%d tiles too close)" % [id, near_bad])
+		# Grounded: every feature's base meets the ground round it (the skirt stands on it, no gap):
+		# its top is well above the ground just outside its footprint, and that ground is dry.
+		for f in sh.topo:
+			var fp: Vector2 = f["pos"]
+			var top: float = rt.surface_y(fp.x, fp.y)
+			var ring := INF
+			var fa: Vector2 = f.get("a", fp)
+			var fb: Vector2 = f.get("b", fp)
+			var out := float(f["r"]) * 1.12 + 3.0
+			for k in 8:
+				var c: Vector2 = fa.lerp(fb, float(k % 3) * 0.5)
+				var q: Vector2 = c + Vector2.from_angle(TAU * float(k) / 8.0) * out
+				ring = minf(ring, rt.surface_y(q.x, q.y))
+			_expect(top > ring + 2.0 and ring > 0.2, "%s %s at %s rises from dry ground (top %.1f, foot %.1f)" % [id, f["kind"], fp.snapped(Vector2.ONE), top, ring])
+	# Outcrops (props): solid, standing on the drawn ground, off the dock/camp/walk.
+	var props = rt.props
+	if props != null and props.has_method("blocked_cells"):
+		var rocks := 0
+		for row in props._rows:
+			if not ["cliff_rock", "rock_spire", "mesa_cliff", "boulder"].has(str(row["kind"])) or not bool(row.get("collide", false)):
+				continue
+			var pos: Vector3 = row["pos"]
+			if absf(pos.y - rt.surface_y(pos.x, pos.z)) > 0.05:
+				_expect(false, "%s %s at %s is not on the ground (y %.2f vs %.2f)" % [id, row["kind"], pos, pos.y, rt.surface_y(pos.x, pos.z)])
+			if rt.pathing.is_walkable(row["tile"]):
+				_expect(false, "%s blocking %s at %s is walkable in TilePath" % [id, row["kind"], row["tile"]])
+			if Vector2(pos.x, pos.z).distance_to(Vector2(arrive.x, arrive.z)) < 8.0 or rt.on_harbour_approach(pos):
+				_expect(false, "%s %s at %s sits on the dock or its approach" % [id, row["kind"], pos])
+			rocks += 1
+		if fam != "classic":
+			_expect(int(props.outcrop_count) > 0, "%s has rock outcrops (%d rocks)" % [id, int(props.outcrop_count)])
+	# FOODTORPOR: the narcoberry bushes must not stand on ISLANDSHAPES topography (a CLIFF/outcrop
+	# tile is no walkable, no buildable, no spawn ground) and keep off the dock approach like every
+	# other special family. The bushes are the two "narcoberry_bush" harvest nodes.
+	var narco := 0
+	for node in rt._harvest_nodes.values():
+		if not is_instance_valid(node) or str(node.family) != "narcoberry_bush":
+			continue
+		narco += 1
+		var np: Vector3 = node.position
+		var nt := int(_IT.tile_type_at_world(rt, np.x, np.z))
+		_expect(nt != _IT.TileType.CLIFF, "%s narcoberry bush at %s is not on a CLIFF topography tile (type %d)" % [id, np, nt])
+		_expect(rt.is_dry(np) and rt.spawn_ok(np, false), "%s narcoberry bush at %s is on walkable dry ground" % [id, np])
+		_expect(not rt.on_harbour_approach(np), "%s narcoberry bush at %s keeps off the dock approach" % [id, np])
+	if str(def.get("kind", "")) != "tutorial":
+		_expect(narco == 2, "%s has its 2 narcoberry bushes (%d)" % [id, narco])
+	else:
+		_expect(narco == 0, "the tutorial island keeps no narcoberry bushes (%d)" % narco)
+	print("[t_islandgen] shapes %s family=%s topo=%d outcrops=%d dock=%s arrive_z=%.0f south_land=%.0f narcoberry=%d" % [
+		id, fam, sh.topo.size(), int(props.outcrop_count) if props != null else 0, dock_c, arrive.z, south_land, narco])
+
+func _in_topo(sh, wx: float, wz: float) -> bool:
+	var tm: PackedByteArray = sh.topo_mask
+	if tm.is_empty():
+		return false
+	var res: int = sh.res
+	var cell: float = sh.size / float(res - 1)
+	var u: float = (wx + sh.size * 0.5) / cell
+	var v: float = (wz + sh.size * 0.5) / cell
+	var x0 := clampi(int(floor(u)), 0, res - 2)
+	var z0 := clampi(int(floor(v)), 0, res - 2)
+	# All four corners inside: the tile is wholly in the footprint (the edge tiles are CLIFF too, but a
+	# corner-only tile is the skirt's foot).
+	return tm[x0 + z0 * res] == 1 and tm[x0 + 1 + z0 * res] == 1 and tm[x0 + (z0 + 1) * res] == 1 and tm[x0 + 1 + (z0 + 1) * res] == 1
+
+static func _seg_dist(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var l2 := ab.length_squared()
+	if l2 < 0.0001:
+		return p.distance_to(a)
+	return p.distance_to(a + ab * clampf((p - a).dot(ab) / l2, 0.0, 1.0))

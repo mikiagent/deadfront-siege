@@ -208,12 +208,12 @@ func _test_hexes(river: Vector3, bank: Vector3, sea: Vector3) -> void:
 	ids = _ids_at(far)
 	_expect(not "drink" in ids and not "wash" in ids, "%.1f m from the river: no hexes %s" % [_water_dist(far), ids])
 	ids = _ids_at(sea)
-	_expect(not "drink" in ids and not "wash" in ids, "standing in the salt sea: no Drink/Wash (PRD :315) %s" % [ids])
+	_expect(not "drink" in ids and "wash" in ids, "standing in the salt sea: Wash but no Drink (owner 2026-10-29 wash in the ocean) %s" % [ids])
 	var shore: Vector3 = sea - Vector3(sea.x, 0.0, sea.z).normalized() * 1.0
 	while _is_water(shore.x, shore.z):
 		shore -= Vector3(sea.x, 0.0, sea.z).normalized() * 0.25
 	ids = _ids_at(shore)
-	_expect(not "drink" in ids and not "wash" in ids, "on the beach by the sea: no Drink/Wash %s" % [ids])
+	_expect(not "drink" in ids and "wash" in ids, "on the beach by the sea: Wash but no Drink %s" % [ids])
 	# The base's straight 10 m "Wet" box on z = 0 offered them on dry grass across the island.
 	var mid := Vector3(-48.0, 0.0, 0.0)
 	ids = _ids_at(mid)

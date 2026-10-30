@@ -66,6 +66,9 @@ static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: 
 	var level := mini(int(node.yield_attributes.get("level", 1)), maxi(_skill(p), 5))
 	# The node's island climate picks the rows and is stamped on the find (world-design.md:55: always climate and level).
 	var climate := str(node.yield_attributes.get("climate", ""))
+	Tasks.note(&"gather", gained)  # TASKSCREEN: daily / weekly gather counts
+	if landed.level >= 60 and role_of_family(node.family) == "rock":
+		Tasks.note(&"mineral60", gained)  # achievement Gather Level-60 Minerals (DW-T0137)
 	wear_role_tool(p.inventory, node.required_tool_class, node.family)
 	var traits := stamp_traits(p.inventory, had, landed, gained, rng, tool_tier(p.inventory, node.required_tool_class, node.family))
 	var finds := add_finds(p.inventory, node.family, node.required_tool_class, climate, level, _skill(p), rng)
@@ -99,7 +102,7 @@ static func stamp_traits(inv: Inventory, had: Dictionary, landed: ItemStack, gai
 		if t != &"" and not _make_room(s):
 			t = &""
 		if t != &"":
-			s.attributes[str(t)] = true
+			s.attributes[str(t)] = LootRoller.roll_tier(r, tier) # BAGUI: the value is the perk tier (I-V)
 			out.append(t)
 	if not out.is_empty():
 		inv.changed.emit()

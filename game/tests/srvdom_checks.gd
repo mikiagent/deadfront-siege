@@ -324,6 +324,7 @@ func _tame_once(seed: int) -> CharacterStore:
 	expect(early.get("err") == "not_ready" and st.state_hash() == h, "tame refuses a creature that is not knocked out below 30 %")
 	w.creatures.compy1.hp = 20.0
 	w.creatures.compy1.knocked = true
+	w.creatures.compy1.torpor = 1.0  # FOODTORPOR: knocked out = weak + torpor past the threshold
 	for i in 3:
 		_ok(st.apply("act.tame", 1, {"net_id": "compy1", "food": "berry"}, 4 + i), "tame feed %d" % i)
 	return st
@@ -479,6 +480,7 @@ func _capture_checks() -> void:
 	var got := {}
 	while throws < 30:
 		w.creatures.compy1.knocked = true # a missed net wakes it; the fixture knocks it down again
+		w.creatures.compy1.torpor = 1.0
 		throws += 1
 		got = _ok(st.apply("act.capture", 1, {"net_id": "compy1"}, 5 + throws), "capture throw %d" % throws)
 		if not got.get("ok", false) or bool(got.r.get("captured", false)):
@@ -634,6 +636,7 @@ static func _simulate(w: WorldFacade, spawned: int) -> int:
 			w.creatures.erase(id)
 		elif float(c.hp) < 0.3 * float(c.hp_max):
 			c.knocked = true
+			c.torpor = 1.0
 	while w.creatures.size() < 3:
 		spawned += 1
 		var p := Vector3([0.8, -0.8, 0.0][spawned % 3], 0, [0.6, 0.6, -0.9][spawned % 3])

@@ -47,6 +47,9 @@ static var _rules: Dictionary = {}
 @export var food_buff: StringName = &""
 ## Survivor armor piece shown when equipped, "<kit>/<piece>" under assets/characters/survivor/armor.
 @export var visual: String = ""
+## Skill levels this gear adds while worn, {tree: levels} (owner 2026-10-28 cross-skill loop: spiky
+## armour raises Butchering). Read through Inventory.skill_bonus / SkillRules.effective_level.
+@export var skill_bonus: Dictionary = {}
 
 static func from_dict(d: Dictionary) -> ItemDef:
 	var def := ItemDef.new()
@@ -85,6 +88,8 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.clears = _names(d.get("clears", []))
 	def.diet = StringName(str(d.get("diet", "")))
 	def.max_durability = int(d.get("max_durability", 0))
+	var sb: Variant = d.get("skill_bonus", {})
+	def.skill_bonus = (sb as Dictionary).duplicate() if sb is Dictionary else {}
 	var attrs: Variant = d.get("default_attributes", {})
 	if attrs is Dictionary:
 		def.default_attributes = (attrs as Dictionary).duplicate(true)

@@ -1,12 +1,14 @@
 class_name OrdersSheet
 extends Control
-## C4 Orders (docs/design/ui-redesign-spec.md §7 C4, mockup ui-redesign/c4-orders.webp): the standing
-## orders of data/world/objectives.json as a full-screen sheet (shared chrome §8). Left: every order
-## in sequence with a numbered circle (a check when done), title, hint and progress. Right: the
-## selected order's parchment header, how-to line, reward chips and "Track on HUD", which points the
-## HUD quest card at it (hunt_hud.gd reads OrdersSheet.hud_step).
-## Public entry: open(player) / close(); HuntHud.open_orders() opens it from the HUD.
-
+## TASKSCREEN (owner 2026-10-28, Durango's Task screen; replaces the C4 Orders sheet): SheetChrome's
+## full-screen frame headed "Task". Left: the category tabs (Daily Task, Achievement, Domain Construction,
+## Main Task, Weekly Task), a red dot on any with something to receive, GOLD corner brackets on the open one.
+## Right: that category's task rows (Tasks.rows): grey flat-top hex icon, GOLD title, grey description,
+## a thin GOLD bar with "got/want" centred, the reward line, and a GOLD Receive only when complete.
+## Receive pays once (Tasks.claim) and opens the "<Task> Complete" popup listing what was paid.
+## Main Task rows are the standing orders; one not yet done can be tracked on the HUD card (hunt_hud.gd
+## reads OrdersSheet.hud_step). Public entry: open(player) / close(); HuntHud.open_orders() opens it.
+## ASSUMPTION: Durango's "Prodigal Pioneer" (returning-player) tab is left out: no such system exists.
 
 ## Back (‹) is pressed: the host returns to its menu. Nothing connected: the sheet just closes.
 signal back_requested
@@ -17,159 +19,241 @@ static var tracked: int = -1
 ## HUDRULES: the HUD card is expanded (else the minimap badge). Session-only; starts collapsed.
 static var hud_expanded: bool = false
 
-var player: Player
-var _c: Dictionary = {}
-var _list: VBoxContainer
-var _parch: PanelContainer
-var _title: Label
-var _about: Label
-var _how: Label
-var _how_cap: Label
-var _rew_cap: Label
-var _rewards: HBoxContainer
-var _track: Button
-var _done_label: Label
-var _chapter: Label
-var _sel: int = -1
+## T-stones read "Gold" on screen (owner 2026-10-28, BAGUI currency bar); the field keeps its name.
+const REWARD_ICONS := {"t_stones": &"t_stones", "warp_gems": &"warp_gem", "sp": &"brain", "xp": &"xp"}
+const REWARD_NAMES := {"t_stones": "Gold", "warp_gems": "Warp Gems", "sp": "Skill Point", "xp": "EXP"}
+const REWARD_ORDER := ["t_stones", "warp_gems", "sp", "xp"]
 
-## A numbered circle, or a green check when done; gold when it is the order now running.
-class Marker extends Control:
-	var n := 1
-	var done := false
-	var now := false
+var player: Player
+var cat: StringName = &"main"  ## the open category
+var _c: Dictionary = {}
+var _tabs: VBoxContainer
+var _tab_scroll: ScrollContainer
+var _list: VBoxContainer
+var _scroll: ScrollContainer
+var _empty: Label
+var popup: Control           ## the "<Task> Complete" dialog
+var _pop_panel: PanelContainer
+var _pop_title: Label
+var _pop_rows: VBoxContainer
+var _pop_ok: Button
+
+## A grey flat-top hex with the task's white icon inside (spec: icons sit in flat-top hexes).
+class HexIcon extends Control:
+	var tex: Texture2D
+	var lit := false
 	func _draw() -> void:
 		var c := size * 0.5
-		var r := minf(size.x, size.y) * 0.5 - 1.5
-		var col := UiTokens.OK_GREEN if done else (UiTokens.GOLD if now else UiTokens.MUTED)
-		draw_arc(c, r, 0.0, TAU, 40, col, 2.0, true)
-		if done:
-			draw_polyline(PackedVector2Array([c + Vector2(-r * 0.4, 0), c + Vector2(-r * 0.1, r * 0.32), c + Vector2(r * 0.45, -r * 0.35)]), col, 2.0, true)
-		else:
-			UiTokens.draw_centered(self, UiTokens.ui_face(), c, str(n), int(r * 0.9), UiTokens.TEXT)
+		var r := minf(size.x, size.y) * 0.5 - 1.0
+		var pts := UiTokens.hex_points(c, r, true)
+		draw_colored_polygon(pts, Color(0.22, 0.24, 0.26, 0.95))
+		pts.append(pts[0])
+		draw_polyline(pts, Color(UiTokens.GOLD, 0.8) if lit else Color(UiTokens.MUTED, 0.7), 2.0, true)
+		if tex:
+			var s := r * 1.05
+			draw_texture_rect(tex, Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), false, Color(0.86, 0.87, 0.88))
+
+## The EXP reward glyph: a small flat-top hex in the XP colour lettered "XP" (Durango's XP hex).
+class XpHex extends Control:
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := minf(size.x, size.y) * 0.5
+		draw_colored_polygon(UiTokens.hex_points(c, r, true), UiTokens.XP)
+		UiTokens.draw_centered(self, UiTokens.ui_face(UiTokens.WEIGHT_BOLD), c, "XP", maxi(UiTokens.TYPE_MIN, int(r * 0.95)), UiTokens.CTA_INK)
+
+## The icon for reward `k` at `px`: the GOLD coin (T-stones, shown as Gold), the Warp Gem, the white brain (skill point), the XP hex.
+static func reward_icon(k: String, px: float) -> Control:
+	if k == "xp":
+		var x := XpHex.new()
+		x.custom_minimum_size = Vector2(px * 1.15, px)
+		x.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		x.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return x
+	return SheetChrome.icon_rect(REWARD_ICONS[k], px, UiTokens.GOLD if k == "t_stones" else Color.WHITE)
+
+## The thin GOLD progress bar with "got/want" centred on it.
+class Bar extends Control:
+	var frac := 0.0
+	var text := ""
+	var px := 14
+	func _draw() -> void:
+		var h := size.y
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.55))
+		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x * clampf(frac, 0.0, 1.0), h)), Color(UiTokens.GOLD, 0.85))
+		draw_rect(Rect2(Vector2.ZERO, size), Color(UiTokens.GOLD, 0.45), false, 1.0)
+		var f := UiTokens.ui_face(UiTokens.WEIGHT_BOLD)
+		var at := UiTokens.centered_origin(f, text, px, size * 0.5)
+		draw_string_outline(f, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, 4, Color(0, 0, 0, 0.85))
+		draw_string(f, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color.WHITE)
 
 func _ready() -> void:
 	top_level = true
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	z_index = 45  # above the HUD hexes that share its canvas layer
 	visible = false
-	_c = SheetChrome.build(self, "Orders")
+	_c = SheetChrome.build(self, "Task")
 	(_c["back"] as Button).pressed.connect(_on_back)
 	var close_btn: Button = _c["close"]
 	close_btn.name = "OrdersClose"
 	close_btn.pressed.connect(close)
-	_done_label = SheetChrome.label("", 24, UiTokens.TEXT)
-	_done_label.name = "OrdersDone"
-	_done_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	(_c["right"] as Control).add_child(_done_label)
 	var row := HBoxContainer.new()
 	row.name = "OrdersBody"
 	row.set_anchors_preset(Control.PRESET_FULL_RECT)
-	row.add_theme_constant_override("separation", 20)
+	row.add_theme_constant_override("separation", 16)
 	(_c["body"] as Control).add_child(row)
-	var left := PanelContainer.new()
-	left.name = "OrdersListPanel"
-	left.add_theme_stylebox_override("panel", SheetChrome.panel_style())
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left.size_flags_stretch_ratio = 0.75
-	row.add_child(left)
-	var lcol := VBoxContainer.new()
-	lcol.add_theme_constant_override("separation", 0)
-	left.add_child(lcol)
-	var chapter := PanelContainer.new()
-	var csb := StyleBoxFlat.new()
-	csb.bg_color = Color(1, 1, 1, 0.04)
-	csb.content_margin_left = 18
-	csb.content_margin_top = 8
-	csb.content_margin_bottom = 8
-	chapter.add_theme_stylebox_override("panel", csb)
-	# ASSUMPTION: objectives.json has no chapters, so the list is headed by what it is.
-	_chapter = SheetChrome.label("Standing orders", 20, UiTokens.TEXT)
-	_chapter.name = "OrdersChapter"
-	chapter.add_child(_chapter)
-	lcol.add_child(chapter)
-	var scroll := ScrollContainer.new()
-	scroll.name = "OrdersScroll"
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	lcol.add_child(scroll)
-	_list = VBoxContainer.new()
-	_list.name = "OrdersList"
-	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_list.add_theme_constant_override("separation", 0)
-	scroll.add_child(_list)
+	_tab_scroll = ScrollContainer.new()
+	_tab_scroll.name = "TaskTabsScroll"
+	_tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	row.add_child(_tab_scroll)
+	_tabs = VBoxContainer.new()
+	_tabs.name = "TaskTabs"
+	_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tabs.add_theme_constant_override("separation", 4)
+	_tab_scroll.add_child(_tabs)
+	for c in Tasks.CATS:
+		_tabs.add_child(_make_tab(c))
 	var right := PanelContainer.new()
-	right.name = "OrdersDetail"
+	right.name = "TaskListPanel"
 	right.add_theme_stylebox_override("panel", SheetChrome.panel_style())
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(right)
-	var d := VBoxContainer.new()
-	d.add_theme_constant_override("separation", 0)
-	right.add_child(d)
-	_parch = PanelContainer.new()
-	_parch.name = "OrdersParchment"
-	d.add_child(_parch)
-	_title = SheetChrome.label("", 32, UiTokens.PARCHMENT_INK, true)
-	_title.name = "OrdersTitle"
-	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_title.clip_text = true
-	_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_parch.add_child(_title)
-	var info_scroll := ScrollContainer.new()
-	info_scroll.name = "OrdersInfoScroll"
-	info_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	info_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	d.add_child(info_scroll)
-	var pad := MarginContainer.new()
-	pad.name = "OrdersInfoPad"
-	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info_scroll.add_child(pad)
-	var info := VBoxContainer.new()
-	info.add_theme_constant_override("separation", 10)
-	pad.add_child(info)
-	_about = SheetChrome.label("", 22)
-	_about.name = "OrdersAbout"
-	_about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info.add_child(_about)
-	_how_cap = SheetChrome.label("HOW", 15, UiTokens.MUTED)
-	info.add_child(_how_cap)
-	_how = SheetChrome.label("", 21)
-	_how.name = "OrdersHow"
-	_how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info.add_child(_how)
-	_rew_cap = SheetChrome.label("REWARD", 15, UiTokens.MUTED)
-	info.add_child(_rew_cap)
-	_rewards = HBoxContainer.new()
-	_rewards.name = "OrdersRewards"
-	_rewards.add_theme_constant_override("separation", 12)
-	info.add_child(_rewards)
-	var foot := MarginContainer.new()
-	foot.name = "OrdersFooter"
-	d.add_child(foot)
-	# ASSUMPTION: no "Show on map" button: orders carry no place in objectives.json.
-	_track = SheetChrome.gold_button("Track on HUD")
-	_track.name = "OrdersTrack"
-	_track.pressed.connect(_on_track)
-	foot.add_child(_track)
+	_scroll = ScrollContainer.new()
+	_scroll.name = "TaskScroll"
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right.add_child(_scroll)
+	_list = VBoxContainer.new()
+	_list.name = "TaskList"
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list.add_theme_constant_override("separation", 0)
+	_scroll.add_child(_list)
+	_empty = SheetChrome.label("Nothing here yet", 20, UiTokens.MUTED)
+	_empty.name = "TaskEmpty"
+	_empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_empty.visible = false
+	right.add_child(_empty)
+	_build_popup()
 	resized.connect(_layout)
+
+func _make_tab(c: StringName) -> Button:
+	var b := SheetChrome.Card.new()
+	b.name = "Tab_%s" % c
+	b.text = Tasks.NAMES[c]
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.clip_text = true
+	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	b.add_theme_font_override("font", UiTokens.ui_face(500))
+	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(k, UiTokens.TEXT)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(1, 1, 1, 0.05)
+	bg.content_margin_left = 18
+	bg.content_margin_right = 26
+	b.add_theme_stylebox_override("normal", bg)
+	var dot := SheetChrome.Dot.new()
+	dot.name = "Dot"
+	dot.color = UiTokens.LIFE
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dot.anchor_left = 1.0
+	dot.anchor_right = 1.0
+	dot.offset_left = -20
+	dot.offset_right = -8
+	dot.offset_top = 8
+	dot.offset_bottom = 20
+	dot.visible = false
+	b.add_child(dot)
+	b.pressed.connect(func () -> void: select(c))
+	return b
+
+func _build_popup() -> void:
+	popup = Control.new()
+	popup.name = "TaskClaimPopup"
+	popup.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	popup.mouse_filter = Control.MOUSE_FILTER_STOP
+	popup.visible = false
+	add_child(popup)
+	var dim := ColorRect.new()
+	dim.name = "PopDim"
+	dim.color = Color(0, 0, 0, 0.6)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	popup.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	popup.add_child(center)
+	_pop_panel = PanelContainer.new()
+	_pop_panel.name = "PopPanel"
+	_pop_panel.add_theme_stylebox_override("panel", SheetChrome.panel_style(UiTokens.INK_SOLID))
+	center.add_child(_pop_panel)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 0)
+	_pop_panel.add_child(col)
+	var head := PanelContainer.new()
+	head.name = "PopHead"
+	var hsb := StyleBoxFlat.new()
+	hsb.bg_color = UiTokens.GOLD
+	hsb.set_content_margin_all(12)
+	head.add_theme_stylebox_override("panel", hsb)
+	col.add_child(head)
+	_pop_title = SheetChrome.label("", 26, UiTokens.CTA_INK, true)
+	_pop_title.name = "PopTitle"
+	_pop_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.add_child(_pop_title)
+	var pad := MarginContainer.new()
+	pad.name = "PopPad"
+	col.add_child(pad)
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", 12)
+	pad.add_child(inner)
+	_pop_rows = VBoxContainer.new()
+	_pop_rows.name = "PopRewards"
+	_pop_rows.add_theme_constant_override("separation", 6)
+	inner.add_child(_pop_rows)
+	_pop_ok = SheetChrome.gold_button("OK")
+	_pop_ok.name = "PopOk"
+	_pop_ok.pressed.connect(func () -> void: popup.visible = false)
+	inner.add_child(_pop_ok)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
-		close()
+		if popup.visible:
+			popup.visible = false
+		else:
+			close()
 		get_viewport().set_input_as_handled()
 
-## Opens on the order the HUD card shows.
+## Opens on Main Task when an order waits for Receive (the tutorial teaches it there), else the first
+## category with something to receive, else Main Task.
 func open(p: Player) -> void:
 	player = p
-	_sel = shown_index()
+	cat = &"main"
+	for c in ([&"main"] as Array[StringName]) + Tasks.CATS:
+		if Tasks.claimable_count(p, c) > 0:
+			cat = c
+			break
+	popup.visible = false
 	visible = true
 	_layout()
 
 func close() -> void:
+	popup.visible = false
 	visible = false
 
 func _on_back() -> void:
 	close()
 	back_requested.emit()
+
+func select(c: StringName) -> void:
+	cat = c
+	rebuild()
+
+## Receive: pays task `id` once (Tasks.claim) and shows what it paid. False when it was not claimable.
+func receive(id: String) -> bool:
+	var r := Tasks.claim(id, player)
+	if r.is_empty():
+		return false
+	_show_popup(r)
+	rebuild()
+	return true
 
 # ---------------------------------------------------------------- data (also for the HUD card)
 
@@ -208,7 +292,7 @@ static func row(p: Player, i: int) -> Dictionary:
 		return {}
 	var s: Dictionary = all[i]
 	var out := {"title": str(s.get("title", "")), "hint": str(s.get("hint", "")), "index": i, "count": all.size(),
-		"xp": int(s.get("xp", 0)), "t_stones": int(s.get("t_stones", 0))}
+		"xp": int(s.get("xp", 0)), "t_stones": int(s.get("t_stones", 0)), "warp_gems": int(s.get("warp_gems", 0))}
 	if i < World.objective:
 		out.merge({"progress": "Done", "frac": 1.0, "done": true})
 	elif i == World.objective and p != null:
@@ -229,140 +313,157 @@ func _layout() -> void:
 	var view := get_viewport_rect().size
 	SheetChrome.fit(_c, view, UiTokens.safe_insets(get_viewport()))
 	var compact := SheetChrome.compact(view)
-	_parch.add_theme_stylebox_override("panel", SheetChrome.parchment_style(8.0 if compact else 22.0, 8.0 if compact else 22.0))
-	_parch.custom_minimum_size = Vector2(0, 48 if compact else 76)
-	_title.add_theme_font_size_override("font_size", SheetChrome.px(view, 32, 19))
-	_about.add_theme_font_size_override("font_size", SheetChrome.px(view, 22, 14))
-	_how.add_theme_font_size_override("font_size", SheetChrome.px(view, 21, 14))
-	for l: Label in [_how_cap, _rew_cap]:
-		l.add_theme_font_size_override("font_size", SheetChrome.px(view, 15, 12))
-	_done_label.add_theme_font_size_override("font_size", SheetChrome.px(view, 24, 16))
-	_chapter.add_theme_font_size_override("font_size", SheetChrome.px(view, 20, 14))
-	var pad := _about.get_parent().get_parent() as MarginContainer
+	(_tab_scroll.get_parent() as HBoxContainer).add_theme_constant_override("separation", 8 if compact else 16)
+	_tab_scroll.custom_minimum_size = Vector2(204 if compact else 300, 0)
+	_tabs.add_theme_constant_override("separation", 2 if compact else 6)
+	for b: Button in _tabs.get_children():
+		b.custom_minimum_size = Vector2(0, SheetChrome.TAP if compact else 84.0)
+		b.add_theme_font_size_override("font_size", SheetChrome.px(view, 24, 16))
+		(b.get_theme_stylebox("normal") as StyleBoxFlat).content_margin_left = 12 if compact else 22
+	_empty.add_theme_font_size_override("font_size", SheetChrome.px(view, 22, 15))
+	_pop_title.add_theme_font_size_override("font_size", SheetChrome.px(view, 30, 20))
+	_pop_panel.custom_minimum_size = Vector2(minf(view.x - 32.0, 560.0 if not compact else 400.0), 0)
+	var pad := _pop_rows.get_parent().get_parent() as MarginContainer
 	for side in ["left", "right", "top", "bottom"]:
-		pad.add_theme_constant_override("margin_" + side, 10 if compact else 24)
-	var foot := _track.get_parent() as MarginContainer
-	for side in ["left", "right", "top", "bottom"]:
-		foot.add_theme_constant_override("margin_" + side, 6 if compact else 18)
-	_track.add_theme_font_size_override("font_size", SheetChrome.px(view, 28, 16))
-	_track.custom_minimum_size = Vector2(0, 72 if not compact else SheetChrome.TAP)
+		pad.add_theme_constant_override("margin_" + side, 12 if compact else 24)
+	_pop_ok.add_theme_font_size_override("font_size", SheetChrome.px(view, 26, 18))
+	_pop_ok.custom_minimum_size = Vector2(0, 72 if not compact else SheetChrome.TAP)
 	if visible:
 		rebuild()
 
 func rebuild() -> void:
 	if _list == null:
 		return
-	var all := steps()
-	_done_label.text = "Done %d / %d" % [mini(World.objective, all.size()), all.size()]
-	if all.is_empty():
-		_sel = -1
-	else:
-		_sel = clampi(_sel, 0, all.size() - 1)
-	_build_list()
-	_build_detail()
-
-func _build_list() -> void:
+	for b: SheetChrome.Card in _tabs.get_children():
+		var c := StringName(str(b.name).trim_prefix("Tab_"))
+		b.selected = c == cat
+		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+			b.add_theme_color_override(k, UiTokens.GOLD if c == cat else UiTokens.TEXT)
+		(b.get_node("Dot") as Control).visible = Tasks.claimable_count(player, c) > 0
 	for c in _list.get_children():
 		_list.remove_child(c)
 		c.queue_free()
+	var rows := Tasks.rows(cat, player)
+	_empty.visible = rows.is_empty()
+	for r in rows:
+		_list.add_child(_make_row(r))
+
+func _make_row(r: Dictionary) -> Control:
 	var view := get_viewport_rect().size
 	var compact := SheetChrome.compact(view)
-	for i in steps().size():
-		var r := row(player, i)
-		var on := i == _sel
-		var b := Button.new()
-		b.name = "Order_%d" % i
-		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(0, SheetChrome.TAP if compact else 84.0)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = UiTokens.GOLD_DIM if on else Color(0, 0, 0, 0)
-		sb.border_color = Color(1, 1, 1, 0.06)
-		sb.border_width_bottom = 1
-		var hv := sb.duplicate() as StyleBoxFlat
-		hv.bg_color = UiTokens.GOLD_DIM
-		for st in ["normal", "focus"]:
-			b.add_theme_stylebox_override(st, sb)
-		b.add_theme_stylebox_override("hover", hv)
-		b.add_theme_stylebox_override("pressed", hv)
-		var h := HBoxContainer.new()
-		h.set_anchors_preset(Control.PRESET_FULL_RECT)
-		h.offset_left = 12 if compact else 18
-		h.offset_right = -12 if compact else -18
-		h.add_theme_constant_override("separation", 10 if compact else 16)
-		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		b.add_child(h)
-		var m := Marker.new()
-		m.n = i + 1
-		m.done = bool(r["done"]) and i < World.objective
-		m.now = i == World.objective
-		m.custom_minimum_size = Vector2(28, 28) if compact else Vector2(38, 38)
-		m.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		m.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		h.add_child(m)
-		var col := VBoxContainer.new()
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		col.alignment = BoxContainer.ALIGNMENT_CENTER
-		col.add_theme_constant_override("separation", 0)
-		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		h.add_child(col)
-		var done := i < World.objective
-		var t := SheetChrome.label(str(r["title"]), SheetChrome.px(view, 22, 14), UiTokens.MUTED if done else UiTokens.TEXT)
-		t.clip_text = true
-		t.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		col.add_child(t)
-		var hint := SheetChrome.label(str(r["hint"]), SheetChrome.px(view, 15, 12), UiTokens.MUTED)
-		hint.clip_text = true
-		hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		col.add_child(hint)
-		var p := SheetChrome.label(str(r["progress"]), SheetChrome.px(view, 20, 14), UiTokens.GOLD)
-		p.name = "Progress"
-		p.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		h.add_child(p)
-		if on:
-			b.add_child(SheetChrome.Brackets.new())
-		var idx := i
+	var box := PanelContainer.new()
+	box.name = "Task_%s" % str(r["id"]).replace(".", "_")
+	box.set_meta("task_id", r["id"])
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 1, 1, 0.035)
+	sb.border_color = Color(1, 1, 1, 0.07)
+	sb.border_width_bottom = 1
+	sb.content_margin_left = 10 if compact else 20
+	sb.content_margin_right = sb.content_margin_left
+	sb.content_margin_top = 6 if compact else 14
+	sb.content_margin_bottom = sb.content_margin_top
+	box.add_theme_stylebox_override("panel", sb)
+	if r["claimed"]:
+		box.modulate = Color(1, 1, 1, 0.55)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10 if compact else 20)
+	box.add_child(h)
+	var hex := HexIcon.new()
+	hex.name = "Icon"
+	var icon_id := StringName(str(r["icon"]))
+	hex.tex = UiIcons.icon(icon_id if UiIcons.path_for(icon_id) != "" else &"notice")
+	hex.lit = r["claimable"]
+	hex.custom_minimum_size = Vector2(56, 50) if compact else Vector2(96, 84)
+	hex.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(hex)
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 2 if compact else 6)
+	h.add_child(col)
+	var title := SheetChrome.text(str(r["title"]), SheetChrome.px(view, 26, 17), UiTokens.GOLD)
+	title.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
+	col.add_child(title)
+	col.add_child(SheetChrome.text(str(r["desc"]), SheetChrome.px(view, 19, 13), UiTokens.MUTED))
+	var bar := Bar.new()
+	bar.name = "Bar"
+	bar.frac = float(r["frac"])
+	bar.text = "%d/%d" % [int(r["got"]), int(r["want"])]
+	bar.px = SheetChrome.px(view, 16, 12)
+	bar.custom_minimum_size = Vector2(0, 14 if compact else 20)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(bar)
+	col.add_child(_reward_line(r["rewards"], view))
+	var cta: Control = null
+	if r["claimable"]:
+		var b := SheetChrome.gold_button("Receive")
+		b.name = "Receive"
+		var id := str(r["id"])
+		b.pressed.connect(func () -> void: receive(id))
+		cta = b
+	elif r["claimed"]:
+		cta = SheetChrome.label("Received", SheetChrome.px(view, 20, 14), UiTokens.MUTED)
+		(cta as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	elif r["cat"] == &"main":
+		var i := int(r["index"])
+		var b := SheetChrome.ghost_button("Tracking" if i == shown_index() else "Track")
+		b.name = "Track"
+		b.disabled = i == shown_index()
 		b.pressed.connect(func () -> void:
-			_sel = idx
-			rebuild()
-		)
-		_list.add_child(b)
+			tracked = i if i > World.objective else -1
+			rebuild())
+		cta = b
+	if cta:
+		cta.custom_minimum_size = Vector2(112 if compact else 180, SheetChrome.TAP if compact else 72.0)
+		cta.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		if cta is Button:
+			cta.add_theme_font_size_override("font_size", SheetChrome.px(view, 26, 17))
+		h.add_child(cta)
+	return box
 
-func _build_detail() -> void:
-	for c in _rewards.get_children():
-		_rewards.remove_child(c)
-		c.queue_free()
-	var r := row(player, _sel)
-	if r.is_empty():
-		_title.text = "No orders"
-		_about.text = ""
-		_how.text = ""
-		_track.disabled = true
-		_track.text = "Track on HUD"
-		return
+## The reward line: one icon and amount per reward the task pays (T-stones, skill point, EXP).
+func _reward_line(rw: Dictionary, view: Vector2) -> HBoxContainer:
+	var line := HBoxContainer.new()
+	line.name = "Rewards"
+	line.add_theme_constant_override("separation", 6)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var px := SheetChrome.px(view, 19, 13)
+	for k in REWARD_ORDER:
+		if int(rw.get(k, 0)) <= 0:
+			continue
+		line.add_child(reward_icon(k, px + 6))
+		var l := SheetChrome.label("%d" % int(rw[k]), px, UiTokens.TEXT)
+		line.add_child(l)
+		var gap := Control.new()
+		gap.custom_minimum_size = Vector2(px * 0.6, 0)
+		gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_child(gap)
+	return line
+
+func _show_popup(r: Dictionary) -> void:
 	var view := get_viewport_rect().size
-	_title.text = str(r["title"])
-	_about.text = "Order %d of %d  ·  %s" % [_sel + 1, int(r["count"]), "done" if _sel < World.objective else ("running now" if _sel == World.objective else "%s so far" % str(r["progress"]))]
-	_how.text = str(r["hint"])
-	for chip: String in (["+%d XP" % int(r["xp"])] if int(r["xp"]) > 0 else []) + (["+%d T-stones" % int(r["t_stones"])] if int(r["t_stones"]) > 0 else []):
-		var pc := PanelContainer.new()
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(1, 1, 1, 0.08)
-		sb.set_content_margin_all(10 if not SheetChrome.compact(view) else 6)
-		pc.add_theme_stylebox_override("panel", sb)
-		pc.add_child(SheetChrome.label(chip, SheetChrome.px(view, 21, 14)))
-		_rewards.add_child(pc)
-	# Done orders cannot be tracked; the one the card already shows reads "Tracking on HUD" (grey).
-	if _sel < World.objective:
-		_track.disabled = true
-		_track.text = "Done"
-	elif _sel == shown_index():
-		_track.disabled = true
-		_track.text = "Tracking on HUD"
-	else:
-		_track.disabled = false
-		_track.text = "Track on HUD"
-
-func _on_track() -> void:
-	tracked = _sel if _sel > World.objective else -1
-	rebuild()
+	_pop_title.text = "%s Complete" % str(r["title"])
+	for c in _pop_rows.get_children():
+		_pop_rows.remove_child(c)
+		c.queue_free()
+	var px := SheetChrome.px(view, 24, 16)
+	var rw: Dictionary = r["rewards"]
+	for k in REWARD_ORDER:
+		if int(rw.get(k, 0)) <= 0:
+			continue
+		var line := HBoxContainer.new()
+		line.name = "Pop_%s" % k
+		line.add_theme_constant_override("separation", 14)
+		var ic := reward_icon(k, 34.0 if SheetChrome.compact(view) else 46.0)
+		ic.name = "Icon"
+		line.add_child(ic)
+		var nm := SheetChrome.label(REWARD_NAMES[k], px, UiTokens.TEXT)
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		nm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		line.add_child(nm)
+		var amt := SheetChrome.label("%d" % int(rw[k]), px, UiTokens.GOLD, true)
+		amt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		line.add_child(amt)
+		_pop_rows.add_child(line)
+	popup.visible = true

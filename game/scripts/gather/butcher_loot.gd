@@ -18,7 +18,7 @@ static func _new_rng() -> RandomNumberGenerator:
 static func roll_into(corpse: Corpse, body: Node3D = null) -> Array[StringName]:
 	var p := PlayerRegistry.local()
 	var knife: ItemStack = p.inventory.find_gather_tool(&"knife") if p else null
-	var skill := maxi(0, p.skills.level_of("butchering")) if p and p.skills else 0
+	var skill := maxi(0, SkillRules.effective_level(p, "butchering")) if p and p.skills else 0
 	var table: Dictionary = Data.butcher_tables.get(str(corpse.species), {})
 	var res := LootRoller.roll_carcass(table.get("base", []), table.get("rare", []), corpse.level,
 			knife.material_tier() if knife else &"", Data.butchering_level(), skill, corpse.poison_spoiled, rng, corpse.alpha)
@@ -43,7 +43,7 @@ static func alpha_extras(res: Dictionary, level: int, r: RandomNumberGenerator) 
 	for st: ItemStack in res["stacks"]:
 		var t := LootRoller.roll_trait(r, st.def_id, &"", true)
 		if t != &"":
-			st.attributes[str(t)] = true
+			st.attributes[str(t)] = LootRoller.roll_tier(r) # BAGUI: perk tier I-V
 	var loot: Variant = CreatureGenetics.alpha_rules().get("loot", {})
 	var trophy := StringName(str((loot as Dictionary).get("trophy", "alpha_trophy"))) if loot is Dictionary else &"alpha_trophy"
 	if Data.item(trophy) != null:

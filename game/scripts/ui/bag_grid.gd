@@ -37,10 +37,15 @@ var sort_key := ""
 var filter_id := ""
 ## uids the host flags as freshly acquired (blue NEW tag); the host clears them on acknowledge.
 var new_uids: Dictionary = {}
-const SORTS := ["", "type", "level", "name"]
-const SORT_LABELS := {"": "Bag order", "type": "Type", "level": "Level", "name": "Name"}
-const FILTERS := ["", "materials", "food", "gear", "tools", "building", "rare", "locked"]
-const FILTER_LABELS := {"": "All", "materials": "Materials", "food": "Food", "gear": "Gear", "tools": "Tools", "building": "Building", "rare": "Rare", "locked": "Locked"}
+## Slot index -> reason the host refuses it (the market's Sell: "equipped", "locked"). The cell is
+## tinted red; the tap still reaches the host, which says why it cannot be picked.
+var blocked: Dictionary = {}
+## BAGUI: the bottom bar's Sort dropdown (owner: level, rarity, type, newest).
+const SORTS := ["", "level", "rarity", "type", "newest", "name"]
+const SORT_LABELS := {"": "Bag order", "level": "Level", "rarity": "Rarity", "type": "Type", "newest": "Newest", "name": "Name"}
+## FOODTORPOR: "food_bag" is the Food Bag tab (Inventory.food_bag): its food in the order put in.
+const FILTERS := ["", "materials", "food", "food_bag", "gear", "tools", "building", "rare", "locked"]
+const FILTER_LABELS := {"": "All", "materials": "Materials", "food": "Food", "food_bag": "Food Bag", "gear": "Gear", "tools": "Tools", "building": "Building", "rare": "Rare", "locked": "Locked"}
 ## Cell for each drawn slot index (the view may skip or reorder slots).
 var _cell_of: Dictionary = {}
 
@@ -85,6 +90,13 @@ class Cell extends Control:
 				queue_redraw()
 	var font_px := 13
 	var is_new := false
+	## Select order (BAGUI): 1, 2, 3... in the order marked; 0 = not marked. The badge shows it.
+	var order := 0:
+		set(v):
+			if order != v:
+				order = v
+				queue_redraw()
+	var blocked := false
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_PASS
@@ -128,20 +140,44 @@ class Cell extends Control:
 				var e := r.end - Vector2(2, 2)
 				var k := size.x * 0.16
 				draw_colored_polygon(PackedVector2Array([e, e - Vector2(k, 0), e - Vector2(0, k)]), Color(InvAttributes.COLORS["rare"], 0.9))
+			# Quality dots (BAGUI): one per rarity step, in the rarity's colour, centred along the bottom.
+			var rq := ItemArt.rarity(stack.def_id)
+			var n := ItemArt.rarity_order().find(rq) + 1
+			var dr := clampf(size.x * 0.035, 2.0, 3.5)
+			for k in n:
+				draw_circle(Vector2(size.x * 0.5 + (float(k) - float(n - 1) * 0.5) * dr * 2.8, size.y - 5.0 - dr), dr, ItemArt.color_for_rarity(rq))
 			if stack.is_locked():
 				var lk := UiIcons.icon(&"lock")
 				if lk:
 					var ls := size.x * 0.2
 					draw_texture_rect(lk, Rect2(Vector2(3, size.y - ls - 3), Vector2(ls, ls)), false)
+		if blocked:
+			draw_rect(r, Color(0.85, 0.12, 0.10, 0.38), true)
+			draw_rect(r, Color(0.95, 0.25, 0.2, 0.9), false, 2.0)
 		if selected:
 			_brackets(r)
 		if member:
 			_brackets(r, BATCH_COL)
+		if stack != null and (selected or member):
+			_check_badge()
 
 	const LV_COL := Color(0.65, 0.65, 0.61, 1.0)
 	const NEW_COL := Color(0.09, 0.41, 0.59, 1.0)
 	const SEL_COL := Color(0.90, 0.75, 0.33, 1.0)
 	const BATCH_COL := Color(0.42, 0.80, 0.92, 1.0)
+
+	## Owner 2026-10-28: a selected item shows a clear GOLD check badge in its top-left corner (the
+	## single selection, a batch mark, the market's pick), dark outline, >= 14 px on a phone cell.
+	func _check_badge() -> void:
+		var rad := clampf(size.x * 0.16, 9.0, 16.0)
+		var c := Vector2(rad + 3.0, rad + 3.0)
+		draw_circle(c, rad + 1.5, Color(0.05, 0.05, 0.04, 0.95))
+		draw_circle(c, rad, SEL_COL)
+		var w := maxf(2.0, rad * 0.28)
+		if member and order > 0: # a batch mark shows its place in the queue
+			UiTokens.draw_centered(self, ThemeDB.fallback_font, c, str(order), int(rad * 1.25), Color(0.08, 0.07, 0.04))
+		else:
+			draw_polyline(PackedVector2Array([c + Vector2(-rad * 0.5, 0.0), c + Vector2(-rad * 0.12, rad * 0.4), c + Vector2(rad * 0.52, -rad * 0.42)]), Color(0.08, 0.07, 0.04), w, true)
 
 	func _brackets(r: Rect2, col: Color = SEL_COL) -> void:
 		var arm := clampf(r.size.x * 0.22, 8.0, 20.0)
@@ -223,18 +259,24 @@ func toggle_multi(index: int) -> bool:
 		multi.append(index)
 	for c in _cells:
 		c.member = multi.has(c.index)
+		c.order = multi.find(c.index) + 1
 	return multi.has(index)
 
 func clear_multi() -> void:
 	multi.clear()
 	for c in _cells:
 		c.member = false
+		c.order = 0
 
 ## The marked batch as ascending indices (stable order for the destructive passes).
 func multi_list() -> Array[int]:
 	var out := multi.duplicate()
 	out.sort()
 	return out
+
+## The marks in the order they were made (the eat queue's order).
+func multi_order() -> Array[int]:
+	return multi.duplicate()
 
 ## Builds (or reuses) one compartment per drawn slot: every bag index in bag order, or the sorted /
 ## filtered view (view_order).
@@ -264,14 +306,18 @@ func rebuild() -> void:
 			_empty += 1
 		_cells[k].set_stack(s, i)
 		_cells[k].is_new = s != null and s.uid != "" and new_uids.has(s.uid)
+		_cells[k].blocked = s != null and blocked.has(i)
 		_cells[k].selected = i == selected_index
 		_cells[k].member = multi.has(i)
+		_cells[k].order = multi.find(i) + 1
 		_cell_of[i] = _cells[k]
 	_place()
 
 ## Slot indices in draw order. No sort and no filter: 0..slot_count-1. A sort draws the occupied
 ## slots in key order, then the empty ones (capacity stays visible); a filter draws matches only.
 static func view_order(inv: Inventory, key: String, filter: String) -> Array[int]:
+	if filter == "food_bag":
+		return inv.food_bag_prune()  # eating order: never sorted
 	var out: Array[int] = []
 	var empties: Array[int] = []
 	for i in inv.slot_count:
@@ -305,6 +351,10 @@ static func sort_value(s: ItemStack, key: String) -> String:
 			return "%s|%s|%03d" % [str(d.categories[0]) if d and not d.categories.is_empty() else "~", nm, 999 - s.level]
 		"level":
 			return "%03d|%s" % [999 - s.level, nm]
+		"rarity": # rarest first (items.json rarity, ItemArt), then level
+			return "%d|%03d|%s" % [9 - ItemArt.rarity_order().find(ItemArt.rarity(s.def_id)), 999 - s.level, nm]
+		"newest": # the latest created_at first
+			return "%012d|%s" % [999999999999 - clampi(s.created_at, 0, 999999999999), nm]
 	return "%s|%03d" % [nm, 999 - s.level]
 
 ## Whether an instance shows under a filter (spec 13 s9 "filter by relevant item categories").
@@ -435,6 +485,7 @@ func paint_to(index: int) -> void:
 			multi.append(index)
 	for c in _cells:
 		c.member = multi.has(c.index)
+		c.order = multi.find(c.index) + 1
 	multi_changed.emit()
 
 ## End of the gesture. A one-cell press that started on an already-marked cell is a tap: it unmarks.
@@ -447,6 +498,7 @@ func end_paint() -> void:
 		multi.erase(_path[0])
 	for c in _cells:
 		c.member = multi.has(c.index)
+		c.order = multi.find(c.index) + 1
 	_path.clear()
 	multi_changed.emit()
 

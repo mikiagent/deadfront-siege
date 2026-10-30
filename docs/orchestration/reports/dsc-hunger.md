@@ -65,3 +65,17 @@ on load. Nothing else in the save format moved.
 ## For the next agent
 `t_starving` runs the status data, the ten-minute delay, the stack table and the 1 HP floor; the HUD
 colour stops are pinned by `t_hudrules`. Part 2 (tribe automation) is untouched.
+
+## Re-merge onto the new canon (integrator follow-up, 2026-10-30)
+Merged `origin/claude/mmo-overhaul` (FOODTORPOR, SLOWLEVELS, CREATURECHIPS, CHASESPRINT, STYRATACTICS,
+TRIBE M2a) into `claude/mmo-hunger`. Two files conflicted; both sides kept:
+- `game/data/foods.json`: kept the HUNGER `_hunger` note **and** FOODTORPOR's `spoilage` block. No food
+  row conflicted: the branch's rescale already sat on every row, and FOODTORPOR added none.
+- `game/data/tribe.json`: kept TRIBE M2a's `work` block and the branch's `hunger` note and its drop of
+  `fullness_per_day`/`eat_below`/`food_min`; the duplicate `names` key M2a reintroduced was removed, so
+  each key appears once. Valid JSON, no duplicate ids, `work` + `hunger` both present.
+Code auto-merged cleanly (`eat_session.gd` keeps the BAGUI eat queue beside `add_fullness`;
+`player_sim.gd`, `tribe_member.gd` combine both sides). `docs/vision/WildLandsMMO_Open_Questions.md`
+keeps both sections. A `--import` was needed after the merge (TribeWork class), then the full gate:
+`verify_hunger.sh` printed **VERIFY PASS** (t_hunger, t_needs, t_foodfx, t_hudrules, t_tribe, t_starving,
+run_all, smoke, report).

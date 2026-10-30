@@ -21,13 +21,14 @@ static var abort_for_test := false
 ## Expected type of each field the loader reads; the value is only a type sample. A field of the
 ## wrong type is erased so the loader's own default applies.
 const SHAPE := {
-	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0, "presets": {}}, "position": []},
+	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0, "presets": {}, "food_bag": []}, "position": []},
 	"pets": [], "tribe": {"members": [], "pending": []}, "ground_snares": [], "carcasses": [], "skills": {}, "skills_v2": {},
 	"home": {"terrain": "", "shape": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}, "domain": {}, "comm_center": {}},
 	"away": {"buildings": [], "claims": [], "domain": {}}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "xp_curve": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
-	"player_name": "", "player_title": "", "occupation": "", "character_look": {}, "t_stones": 0, "visited_islands": {}, "raid_victory": false,
+	"player_name": "", "player_title": "", "occupation": "", "character_look": {}, "t_stones": 0, "warp_gems": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
+	"tasks": {"claimed": {}, "done": {}, "counts": {}, "day": 0, "week": 0},
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
 	"clock": 0.0, "saved_unix": 0,
 }
@@ -62,7 +63,7 @@ const PET_ROW := {
 }
 ## Stack attributes read with int() (taming pen, hunt, material tier) or handed to
 ## CreatureGenetics.from_dict (taming pen, tamed animal release).
-const ATTR_ROW := {"grade_seed": 0, "barbed_hits": 0, "toxin_hits": 0, "hardness": 0, "genetics": GENETICS}
+const ATTR_ROW := {"grade_seed": 0, "barbed_hits": 0, "toxin_hits": 0, "sedative_hits": 0, "hardness": 0, "genetics": GENETICS}
 
 ## The five Tamed Island shapes a save may hold as home.shape. Read from the catalogue itself so the
 ## sanitizer needs no autoload (tests call clean() before World exists) and a shape added to the json
@@ -164,6 +165,8 @@ static func clean(data: Dictionary) -> Dictionary:
 				for r: Dictionary in data["tribe"][k]:
 					if r.get("carry") is Array:
 						r["carry"] = stacks(r["carry"])
+					if r.get("escrow") is Array:
+						r["escrow"] = stacks(r["escrow"])
 					var gear := {}
 					if r.get("equipment") is Dictionary:
 						for slot in r["equipment"]:
@@ -185,6 +188,8 @@ static func clean(data: Dictionary) -> Dictionary:
 		data["skills"] = _legacy_survival(data["skills"], data.get("skills_v2", {}))
 	if data.has("t_stones"):
 		data["t_stones"] = _int(data["t_stones"], 0, MAX_T_STONES)
+	if data.has("warp_gems"):
+		data["warp_gems"] = _int(data["warp_gems"], 0, MAX_T_STONES) # BAGUI: same ceiling as T-stones
 	for key in ["pioneer_level", "pioneer_xp", "xp_curve", "objective", "objective_best"]:
 		if data.has(key):
 			data[key] = _int(data[key], 0, 1000000000)
@@ -376,6 +381,17 @@ static func _skills(sv: Dictionary, pioneer_level: int = 0) -> void:
 				spent += cost
 		row["unlocked"] = kept
 	payout.free()
+	# SLOWLEVELS research: a known tree, the level it leaves, an end no later than that research takes from
+	# now. shortcut: an end forged into the past is not caught (no start is stored); add one if saves get shared.
+	var r: Variant = sv.get("research")
+	if r != null:
+		var rd: Dictionary = r if r is Dictionary else {}
+		var tid := str(rd.get("tree", ""))
+		if not SkillState.ORDER.has(tid) or not trees.has(tid) or not (rd.get("end") is float or rd.get("end") is int):
+			sv.erase("research")
+		else:
+			var from := _int(rd.get("from", 0), 1, MAX_LEVEL)
+			sv["research"] = {"tree": tid, "from": from, "end": minf(float(rd["end"]), SkillState.now_s() + SkillState.research_s(from))}
 	sv["trees"] = trees
 	sv["sp_spent"] = spent
 	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, maxi(0, earned - spent))

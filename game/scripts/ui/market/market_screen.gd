@@ -32,6 +32,7 @@ var back_btn: Button
 var close_btn: Button
 var title: Label
 var pill: Control
+var gems: CurrencyBar
 var rail_btns := {}
 var rail_note: Label
 var panes := {}
@@ -109,6 +110,11 @@ func _ready() -> void:
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pill.draw.connect(_draw_pill)
 	chrome.right.add_child(pill)
+	# BAGUI: the premium balance beside the market wallet (the pill above is the market's own T-stones).
+	gems = CurrencyBar.new()
+	gems.show_stones(false)
+	chrome.right.add_child(gems)
+	chrome.right.move_child(gems, 0)
 	for id: StringName in TABS:
 		var t := MarketRailTab.new(id, TAB_NAMES[id])
 		t.name = "Tab_" + str(id)
@@ -229,6 +235,7 @@ func _layout() -> void:
 	var ins := UiTokens.safe_insets(get_viewport()) # right, bottom, top, left
 	var hh: float = m.header_h + ins.z
 	pill.custom_minimum_size = Vector2(150.0 if m.compact else 220.0, 40.0 if m.compact else 48.0)
+	gems.set_px(int(m.get("small", 16)) + 4)
 	header.layout(view, ins)
 	pill.queue_redraw()
 	var top: float = hh + UiTokens.TORN_MAX + m.gap

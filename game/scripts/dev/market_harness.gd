@@ -93,11 +93,19 @@ func seed_scene() -> void:
 	# The viewer's Sell picker: every kind of cell (stack, durability, cage, bonded pet, locked).
 	_loot(VIEWER, "bone", 2)
 	_craft_knife(VIEWER)
+	equip_first(VIEWER, "stone_knife_work") # BAGUI: an equipped item the Sell grid shows red
 	capture(VIEWER, "compy_mine_cage")
 	tame(VIEWER, "compy_mine")
 	lock_first(VIEWER, "stone")
 	now += 13 * HOUR
 	tick()
+
+## Wears the first `def` of the account's bag through the real act.equip intent.
+func equip_first(acct: int, def: String) -> void:
+	var slot := _slot(acct, def)
+	var r := bridge.client("act.equip", acct, {"bag_slot": slot}, now) if slot >= 0 else {}
+	if not r.get("ok", false):
+		failures.append("equip %s: %s" % [def, r])
 
 ## Stands in for the Bag's Lock (InventoryUI sets the "locked" flag on a stack): the server has no
 ## lock intent yet, so the same flag goes on the server character's stack.
@@ -167,7 +175,7 @@ func _list_slot(acct: int, slot: int, count: int, price: int, hours: int) -> Str
 
 func tame(acct: int, net_id: String) -> String:
 	_gather(acct, "berry", 3)
-	world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 20.0, "knocked": true})
+	world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 20.0, "knocked": true, "torpor": 1.0})
 	var r := {}
 	for i in 3:
 		r = bridge.client("act.tame", acct, {"net_id": net_id, "food": "berry"}, now + i)
@@ -184,7 +192,7 @@ func capture(acct: int, net_id: String) -> int:
 	for i in 2:
 		bridge.client("act.craft", acct, {"recipe_id": "twine", "picks": [_slot(acct, "fibre_stalk")]}, now)
 	bridge.client("act.craft", acct, {"recipe_id": "capture_net_i"}, now)
-	world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 10.0})
+	world.add_creature(net_id, "compsognathus", Vector3(1, 0, 1), 90.0, {"hp": 10.0, "torpor": 1.0})
 	for i in 40:
 		world.creatures[net_id].knocked = true
 		var got := bridge.client("act.capture", acct, {"net_id": net_id}, now + i)

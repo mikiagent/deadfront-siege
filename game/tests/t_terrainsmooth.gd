@@ -27,7 +27,10 @@ const STEP_SHARE := 0.25
 const ISLANDS := [&"home_grassland", &"savannah_15", &"tropical_25", &"tundra_30"]
 ## Sandy beaches: share of coast bearings with sand (above the waterline band) 1-12 m inland.
 const BEACH_MIN := 0.3
-const BEACH_MAX := 0.65
+## ISLANDSHAPES: 0.65 -> 0.70. A shaped coast (an atoll's ring, a jagged lobe) puts more of its bearings
+## on a gentle shore, so a 0.6 climate (tropical) lands a little over 0.65; the data-share check below
+## (within 0.15) still holds every island to its climate's figure.
+const BEACH_MAX := 0.70
 
 var _fails: PackedStringArray = []
 var _started := false
