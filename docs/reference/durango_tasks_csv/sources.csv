@@ -1,0 +1,18 @@
+SOURCES,,,,,
+Every research source is linked | source-specific caveats included,,,,,
+Source ID,Source / archive,Used for,Limitations,Publication era,URL
+S01,Durango community mastersheet,"Mission table, 58 career-guide rewards, title stats, level-60 mission item/quantity info",Community sourced; original Google Sheet link not recovered,2019 community aggregation,https://www.scribd.com/document/501357601/Durango-Wildlands-Mastersheet
+S02,Exophase Google Play achievements,Complete platform list of 16 achievements and point values,"Google Play platform achievements, not in-game task board",Legacy listing,https://www.exophase.com/game/durango-wild-lands-android/achievements/
+S03,Durango career guide (TouchTapPlay),Career-guide mechanism and one detailed Gathering prerequisites example,Most individual prerequisites unavailable,2019-05-14,https://www.touchtapplay.com/durango-wild-lands-careers-guide/
+S04,2017 Inven beta quest/task system,"Daily/permanent quests, XP, T-Stones, milestone mechanics",Beta rules may have changed at global launch,2017-12-21,https://m.inven.co.kr/webzine/wznews.php?idx=191476&iskin=durango
+S05,Task tips and rewards (Level Winner),"50 daily task points -> 15 Warp Gems, milestones vs achievements",Not a full enumerated list,2019-06-13,https://www.levelwinner.com/durango-wild-lands-survival-guide-tips-cheats-strategies-to-maximize-growth-and-become-a-top-survivor/
+S06,MrGuider game guide,Trim-material daily task; cheer task; communication center instructions,"Some text republished later, may be older game info",Guide archived,https://www.mrguider.org/cheats/durango-wild-lands-guide-tips-cheats-strategies/
+S07,Reddit daily/weekly T-Stones guide,Butcher 10x daily; Level-30 island weekly objective; rough reward figures,"Player anecdote, amounts not universal",2019-06,https://www.reddit.com/r/DurangoWildLands/comments/bvjgh4
+S08,Reddit achievements/SP thread,Mineral gathering 1000x yields 1 SP; civilized-domain construction tasks,Player account rather than official record,2019-08,https://www.reddit.com/r/DurangoWildLands/comments/cocnny
+S09,Reddit crafting tasks tip,Leaf outfits and stone blades as daily task examples,Not verified as exact named tasks,2019-06,https://www.reddit.com/r/DurangoWildLands/comments/c296hj
+S10,Reddit task sidebar report,Original [Daily] Material processing display string,One user context,2019-09,https://www.reddit.com/r/DurangoWildLands/comments/d43xu9
+S11,Korean communication mission reroll guide,Named difficult task examples; four main factions; reroll 3 charges/30 min,Korean quest titles translated loosely,2018-03-21,https://walkrail.tistory.com/223
+S12,TouchTapPlay faction guide,"Faction names, trust and rewards, repeated mission structure","General rules, not a per-mission table",2019-05-13,https://www.touchtapplay.com/durango-wild-lands-guide-to-support-factions/
+S13,Nexon finale retrospective (Inven NDC21),Final 8 quest chain and side-quest mechanics,Individual chapter names not provided,2021-06-10,https://www.inven.co.kr/webzine/news/?game=5137&iskin=mini&news=257238
+S14,MMORPG.com review,Career guide example of Rank 3 leather outfits; time-gated guide progression,Some examples not precisely labeled,2019,https://www.mmorpg.com/columns/durango-wild-lands-review-big-things-do-come-in-small-packages-2000108364
+S15,Reddit exploration & tasks guide,"Faction missions, support rewards, UI context","General guide, not full task dataset",2019,https://www.reddit.com/r/DurangoWildLands/comments/bp60bc/
