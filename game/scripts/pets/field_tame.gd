@@ -303,6 +303,7 @@ static func _complete(player: Player, creature: Creature) -> void:
 	if player.hunt and player.hunt.target == creature:
 		player.hunt.stop()
 	creature.become_pet(rec)
+	Tasks.note(&"tame")  # FACTIONS: taming missions and the First Tame guide
 	# Same wounds, pet-sized pool: the fraction of HP left carries over to the pet's max.
 	var frac := creature.health.fraction()
 	creature.health.max_hp = rec.hp

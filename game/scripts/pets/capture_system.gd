@@ -63,6 +63,7 @@ static func attempt(player: Player, creature: Creature, force_result: int = 0, r
 			return false
 		player.inventory.consume(net.def_id, 1)
 		creature.captured.emit()
+		Tasks.note(&"capture")  # FACTIONS: capture missions
 		creature.queue_free()
 		return true
 	else:

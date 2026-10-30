@@ -4,8 +4,8 @@ extends Node3D
 ## town around the camp. Districts on rings and avenues: the harbour (stone warehouses, crates, fish
 ## racks), the market (stalls under striped canvas), homes (timber-framed, thatched), workshops (open
 ## shelters with busy stations: forges and grills that glow, racks with drying meat), farms (fields
-## in crop, a well, scarecrows), pens with tamed animals, and the Adventurer's Guild hall on the
-## square as the landmark. Lamp posts line the streets, signposts mark the avenues, and townsfolk
+## in crop, a well, scarecrows), pens with tamed animals, and the Faction Hall (FACTIONS) across the
+## square from the dock as the landmark. Lamp posts line the streets, signposts mark the avenues, and townsfolk
 ## idle or work at the stations.
 ##
 ## Everything here is scenery, never a building: no node is saved, damaged, claimed or packed up.
@@ -21,7 +21,7 @@ extends Node3D
 
 const CHUNK_M := 80.0
 const GLB := "res://assets/props/blender/%s.glb"
-const PLAZA_R := 24.0  ## the camp square stays as it was (guild, market stall, bench, pit, herbs, trees)
+const PLAZA_R := 24.0  ## the camp square (hall desk, faction boards, market stall, bench, pit, herbs, trees)
 const AVENUE_W := 6.0
 const RING_A := 44.0
 const RING_B := 66.0
@@ -35,6 +35,7 @@ const NPC_RANGE_M := 60.0
 const FAR_HOUSE := 220.0
 const FAR_PROP := 110.0
 const MAX_FOLK := 16  ## townsfolk rigs (each a skinned survivor body)
+const PLAZA_FOLK := 8  ## FACTIONS: the Faction Hall plaza crowd, on top of MAX_FOLK (FA12)
 const MAX_ANIMALS := 6
 
 ## District by angle from the dock direction (degrees, -180..180).
@@ -66,6 +67,8 @@ var _boxes: Array = []  ## [Transform3D, Vector3 size]
 var _body := RID()
 var _shapes: Array[RID] = []
 var _npc_left := 0.0
+var _plaza := false  ## FACTIONS: npc() is placing the plaza crowd (its own cap and RNG)
+var _plaza_folk := 0
 static var _parts: Dictionary = {}  ## glb name -> Array of [Mesh, Transform3D]
 static var _mats: Dictionary = {}
 static var _unit: Dictionary = {}
@@ -333,31 +336,140 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 	_take(c, float(w), float(d), eave + rh - c.y, yaw)
 	stats["houses"] += 1
 
-# ---------------------------------------------------------------- the guild hall
+# ---------------------------------------------------------------- the Faction Hall
 
-## The Adventurer's Guild: a two-storey stone and timber hall behind the guild pavilion on the square
-## (TownGuild keeps the tap), a banner pole and torches at its door. The landmark of the town.
+## FACTIONS (docs/design/factions.md §6): the Faction Hall, the island's Communications Center, stands
+## across the square from the dock behind its desk (TownGuild keeps the tap): a two-storey stone hall
+## with two one-storey wings, the five faction banners on tall poles along its front (banner order:
+## Company, Chlorophyll Forum, Radio University over the door, Pioneer Council, Committee, so the two
+## rivals hang on opposite wings), lamps at the door. Each faction board (TownBuilding "faction_board")
+## gets a stall canvas in its faction's colour; benches ring the square; survivors stand in groups at
+## the boards and walk dock -> square and along the hall front. # ASSUMPTION: sizes and counts (FA11, FA12).
+const HALL_W := 14
+const HALL_D := 10
+const PLAZA_FOLK_IDLE := 6
 func _guild_hall() -> void:
 	var g := Vector3.INF
 	for n in get_tree().get_nodes_in_group("town_building"):
-		if n.get("role") == &"guild":
+		if n.get("role") == &"guild" and rt.is_ancestor_of(n):
 			g = (n as Node3D).global_position
 	if g == Vector3.INF:
 		return
 	var away := Vector3(g.x - camp.x, 0, g.z - camp.z).normalized()
-	var c := g + away * 10.0
+	var c := g + away * (float(HALL_D) * 0.5 + 3.5)
 	c.y = rt.surface_y(c.x, c.z)
 	var yaw := atan2(-away.x, -away.z)  # its front faces the square
-	house(c, 10, 8, yaw, "stone", 2)
 	var b := Basis(Vector3.UP, yaw)
-	var door := c + b * Vector3(0, 0, 4.6)
-	for s in [-1.6, 1.6]:
-		lamp(door + b * Vector3(s, 0, 0.4), 2.2)
-	var pole := c + b * Vector3(-5.6, 0, 4.4)
-	pole.y = rt.surface_y(pole.x, pole.z)
-	unit("box", Transform3D(b.scaled(Vector3(0.18, 9.0, 0.18)), pole), Color(0.3, 0.2, 0.12), FAR_HOUSE)
-	unit("flag", Transform3D(b.scaled(Vector3(2.2, 1.4, 1.0)), pole + Vector3(0, 7.4, 0) + b * Vector3(1.1, 0, 0)), Color(0.75, 0.16, 0.12), FAR_HOUSE)
-	prop("signpost", door + b * Vector3(3.0, 0, 1.2), yaw)
+	house(c, HALL_W, HALL_D, yaw, "stone", 2)
+	# The hall stands where the land starts to rise behind the square: a tall collider over the hall
+	# and each wing, so nobody walks off the slope onto a roof (the house box stops at the ridge).
+	_boxes.append([Transform3D(b, c + Vector3(0, 8.0, 0)), Vector3(HALL_W, 16.0, HALL_D)])
+	for side in [-1.0, 1.0]:
+		var wc := c + b * Vector3(side * (float(HALL_W) * 0.5 + 3.0), 0, 1.0)  # flush with the hall: no seam the router would think walkable
+		wc.y = rt.surface_y(wc.x, wc.z)
+		house(wc, 6, 8, yaw, "stone", 1)
+		_boxes.append([Transform3D(b, wc + Vector3(0, 8.0, 0)), Vector3(6.0, 16.0, 8.0)])
+		_pad_cells(wc, 6.0, 8.0, yaw)
+	_pad_cells(c, float(HALL_W), float(HALL_D), yaw)
+	var door := c + b * Vector3(0, 0, float(HALL_D) * 0.5 + 0.6)
+	for s in [-2.0, 2.0]:
+		lamp(door + b * Vector3(s, 0, 0.4), 2.4)
+	var order := ["company", "chlorophyll_forum", "radio_university", "pioneer_council", "committee"]
+	for i in order.size():
+		var f := Factions.def(order[i])
+		var col := Color(str(f.get("colour", "#888888")))
+		var trim := Color(str(f.get("trim", "#cccccc")))
+		if i == 2:  # the centre banner hangs on the hall front over the door, no pole in the doorway
+			var hb := c + b * Vector3(0, 0, float(HALL_D) * 0.5 + 0.25)
+			unit("box", Transform3D(b.scaled(Vector3(2.4, 1.9, 0.08)), hb + Vector3(0, 3.1, 0)), col, FAR_HOUSE)
+			unit("box", Transform3D(b.scaled(Vector3(2.4, 0.35, 0.09)), hb + Vector3(0, 2.75, 0)), trim, FAR_HOUSE)
+			continue
+		var pole := c + b * Vector3([-9.0, -5.0, 0.0, 5.0, 9.0][i], 0, float(HALL_D) * 0.5 + 1.6)
+		pole.y = rt.surface_y(pole.x, pole.z)
+		var h := 8.5
+		unit("box", Transform3D(b.scaled(Vector3(0.2, h, 0.2)), pole), Color(0.3, 0.2, 0.12), FAR_HOUSE)
+		# A hanging banner: the faction colour with its trim colour as a band below.
+		unit("box", Transform3D(b.scaled(Vector3(1.5, 2.6, 0.08)), pole + Vector3(0, h - 3.0, 0) + b * Vector3(0, 0, 0.18)), col, FAR_HOUSE)
+		unit("box", Transform3D(b.scaled(Vector3(1.5, 0.35, 0.09)), pole + Vector3(0, h - 3.35, 0) + b * Vector3(0, 0, 0.18)), trim, FAR_HOUSE)
+		unit("box", Transform3D(b.scaled(Vector3(1.8, 0.12, 0.12)), pole + Vector3(0, h - 0.4, 0)), Color(0.3, 0.2, 0.12), FAR_HOUSE)
+		_boxes.append([Transform3D(b, pole + Vector3(0, h * 0.5, 0)), Vector3(0.25, h, 0.25)])
+		cells[BuildGrid.tile_of(pole)] = true
+	prop("signpost", door + b * Vector3(3.6, 0, 1.4), yaw)
+	_boards()
+	_benches()
+	# The plaza crowd draws its looks from its own RNG, so the districts' townsfolk come out as before.
+	var keep := _rng
+	_rng = RandomNumberGenerator.new()
+	_rng.seed = 4242
+	_plaza = true
+	_plaza_crowd(g, away)
+	_plaza = false
+	_rng = keep
+
+## A 1 m ring of router cells round a turned footprint: the tile router samples a rotated rectangle's
+## inside only, so a path could hug a corner the survivor's capsule then sticks on.
+func _pad_cells(c: Vector3, w: float, d: float, yaw: float) -> void:
+	for t in _rect_tiles(c, w + 2.0, d + 2.0, yaw):
+		cells[t] = true
+
+## A stall over each faction board: four posts, a canvas in the faction colour, a counter in front.
+func _boards() -> void:
+	for n in get_tree().get_nodes_in_group("town_building"):
+		if n.get("role") != &"faction_board" or not rt.is_ancestor_of(n):
+			continue
+		var at := (n as Node3D).global_position
+		var out := Vector3(at.x - camp.x, 0, at.z - camp.z).normalized()
+		var yaw := atan2(-out.x, -out.z)  # faces the square
+		var bb := Basis(Vector3.UP, yaw)
+		var fid := str(n.get("faction"))
+		var col := Color(str(Factions.def(fid).get("colour", "#8a6a3a"))) if fid != "" else Color(0.55, 0.42, 0.26)
+		for k in 4:
+			var q := at + bb * Vector3((float(k % 2) - 0.5) * 3.0, 0.0, (float(k / 2) - 0.5) * 2.2 - 0.2)
+			q.y = rt.surface_y(q.x, q.z)
+			unit("box", Transform3D(bb.scaled(Vector3(0.14, 2.6, 0.14)), q), Color(0.36, 0.25, 0.14), FAR_PROP)
+		unit("box", Transform3D(bb.scaled(Vector3(3.6, 0.16, 2.9)), at + Vector3(0, 2.6, 0)), col, FAR_PROP)  # the awning, flat in the faction colour
+		if fid != "":
+			unit("box", Transform3D(bb.scaled(Vector3(3.2, 0.3, 0.06)), at + Vector3(0, 2.25, 0) + bb * Vector3(0, 0, 1.2)), Color(str(Factions.def(fid).get("trim", "#cccccc"))), FAR_PROP)
+		prop("barrel" if fid == "" else "large_box", at + bb * Vector3(-1.9, 0, -0.3), yaw + 0.3, 0.8)
+		stats["boards"] = int(stats.get("boards", 0)) + 1
+
+## Benches round the square's edge between the avenues: the gathering spots of a busy hub.
+func _benches() -> void:
+	for deg in [-118.0, -100.0, -40.0, -22.0, 22.0, 40.0, 100.0, 118.0]:
+		var p := polar(deg, PLAZA_R - 2.5)
+		if not rt.is_dry(p) or cells.has(BuildGrid.tile_of(p)) or rt.build_grid._occupied.has(BuildGrid.tile_of(p)):
+			continue
+		var yaw := yaw_out(deg) + PI  # seat faces the square
+		var bb := Basis(Vector3.UP, yaw)
+		unit("box", Transform3D(bb.scaled(Vector3(1.8, 0.12, 0.5)), p + Vector3(0, 0.42, 0)), Color(0.45, 0.31, 0.17), FAR_PROP)
+		unit("box", Transform3D(bb.scaled(Vector3(1.8, 0.5, 0.1)), p + Vector3(0, 0.5, 0) + bb * Vector3(0, 0, -0.25)), Color(0.42, 0.29, 0.16), FAR_PROP)
+		for s in [-0.75, 0.75]:
+			unit("box", Transform3D(bb.scaled(Vector3(0.12, 0.42, 0.42)), p + bb * Vector3(s, 0, 0)), Color(0.33, 0.22, 0.13), FAR_PROP)
+		_boxes.append([Transform3D(bb, p + Vector3(0, 0.3, 0)), Vector3(1.8, 0.6, 0.5)])
+		cells[BuildGrid.tile_of(p)] = true
+		stats["benches"] = int(stats.get("benches", 0)) + 1
+
+## Survivors milling: pairs at the boards (taking work), a walker from the dock to the square and one
+## along the hall front. Stand-ins for real players until the server exists (FA12).
+func _plaza_crowd(desk: Vector3, away: Vector3) -> void:
+	var boards: Array[Node3D] = []
+	for n in get_tree().get_nodes_in_group("town_building"):
+		if (n.get("role") == &"faction_board" or n.get("role") == &"guild") and rt.is_ancestor_of(n):
+			boards.append(n as Node3D)
+	var idle := 0
+	for i in boards.size():
+		if idle >= PLAZA_FOLK_IDLE:
+			break
+		var at := boards[i].global_position
+		var to_sq := Vector3(camp.x - at.x, 0, camp.z - at.z).normalized()
+		var side := Vector3(-to_sq.z, 0, to_sq.x)
+		var spot := at + to_sq * 2.4 + side * (0.7 if i % 2 == 0 else -0.7)
+		if rt.is_dry(spot) and npc(spot, atan2(-to_sq.x, -to_sq.z), &"idle") != null:
+			idle += 1
+	var dock := rt.arrival_point()
+	walker(dock + (camp - dock).normalized() * 3.0, polar(0.0, PLAZA_R - 6.0))
+	var across := Vector3(-away.z, 0, away.x)
+	walker(desk - away * 4.0 - across * 9.0, desk - away * 4.0 + across * 9.0)
 
 ## The square's stone fire pit stands under an open timber shelter (four posts and a thatched roof),
 ## so rain never stops the "light the fire" order (FireWeather.roof_over reads the fire_roof marker).
@@ -787,7 +899,11 @@ func lamp(at: Vector3, h: float = 2.6) -> void:
 ## A townsperson: the survivor body with a random look, playing one loop where it stands, facing
 ## the way local +Z of `yaw` points (the rig itself faces -Z). Walkers keep 4 of the slots.
 func npc(at: Vector3, yaw: float, clip: StringName, walking: bool = false) -> Node3D:
-	if stats["npcs"] >= (MAX_FOLK if walking else MAX_FOLK - 4):
+	if _plaza:
+		if _plaza_folk >= PLAZA_FOLK:
+			return null
+		_plaza_folk += 1
+	elif stats["npcs"] - _plaza_folk >= (MAX_FOLK if walking else MAX_FOLK - 4):
 		return null
 	var root := Node3D.new()
 	root.name = "Townsfolk_%d" % npcs.size()
@@ -1070,6 +1186,14 @@ static func _noise(freq: float, stretch: Vector2) -> NoiseTexture2D:
 func _clear_ground() -> void:
 	var all := cells.duplicate()
 	all.merge(road_tiles)
+	# FACTIONS: the square itself is trodden (a busy hub): no ground-cover grass on it. Its scenery
+	# props, dress and harvest nodes stay (WildGrass is a gather prop the tutorial's fibre order uses).
+	var cover := all.duplicate()
+	var pr := int(PLAZA_R - 1.0)
+	for dx in range(-pr, pr + 1):
+		for dz in range(-pr, pr + 1):
+			if dx * dx + dz * dz <= pr * pr:
+				cover[BuildGrid.tile_of(camp + Vector3(dx, 0, dz))] = true
 	var gc := rt.get_node_or_null("GroundCover")
 	if gc:
 		for key: Vector2i in gc._cells:
@@ -1079,7 +1203,7 @@ func _clear_ground() -> void:
 			var tiles: Array = gc._tiles.get(key, [])
 			var hit := false
 			for i in mini(tiles.size(), mmi.multimesh.instance_count):
-				if all.has(tiles[i]):
+				if cover.has(tiles[i]):
 					mmi.multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 0.001), Vector3.ZERO))
 					hit = true
 			if hit:

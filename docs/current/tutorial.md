@@ -25,7 +25,7 @@ orders, and the last order grants their own Tamed Island. Flow: `game/scripts/co
 ## The orders (objectives.json "tutorial", 19)
 | # | id | Condition | Pointer (`point_at`) |
 |---|---|---|---|
-| 1 | tut_camp | within 6 m of the Adventurer's Guild | world:guild |
+| 1 | tut_camp | within 6 m of the Faction Hall desk (role `guild`) | world:guild |
 | 2 | tut_branches | hold 3 branch | harvest:branch |
 | 3 | tut_stone | hold 2 stone | harvest:stone |
 | 4 | tut_fibre | hold 4 fibre_stalk | harvest:fibre_stalk |
@@ -60,8 +60,11 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
 - Never claimed: no CLAIM context hex (`player_input.gd`), `claim_confirmed` refuses with a notice.
   The camp's landing plot stays buildable (the bedroll order places there).
 - Town (`Tutorial.dress`, around the camp): the camp's fire, workbench, shed and cargo chest, plus
-  `TownBuilding`s — Adventurer's Guild (`log_shelter` model, role guild: tap opens the Orders
-  sheet), Market stall (`fishing_stand`, role market: tap opens the Island Market), signpost,
+  `TownBuilding`s — the Faction Hall desk (`log_shelter` model, role guild, straight across the
+  square from the dock: tap opens the Orders sheet while the tutorial runs, then the Factions
+  screen), seven faction boards (`sign`, role faction_board: five faction stalls in an arc before
+  the hall, one on the square's dock side, one by the dock arrival; tap opens the Factions screen
+  on that faction; FACTIONS, `docs/design/factions.md` §6), Market stall (`fishing_stand`, role market: tap opens the Island Market), signpost,
   barrel, crates — a stone fire pit and a drying rack. All `persist_building = false`: never saved,
   `StructureHealth.is_structure` false (no damage), pack-up refused, grid cells occupied.
 - 3 HerbPlant, 3 BerrySprig 14-16 m and 2 CommonTree 19 m from the town centre.
@@ -91,8 +94,10 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
   97 m with a gate (posts, lintel, lamps, signpost) wherever an avenue leaves and a 4 m wicket every ~25 m; extra piers with boats,
   crates and fish racks beside the dock. Roofs: thatch, shingle, slate or tile, pitch 0.45-0.75. Districts by angle from the dock: harbour, market (striped stalls), homes,
   pens + hunters' tents (toward the wild lands), farms, workshops (open shelters; forges and grills
-  always busy through `StationState`, racks of drying meat, kilns, looms). The Adventurer's Guild hall
-  (two storeys, banner, torches) stands behind the guild pavilion. Lamp posts and signposts line the
+  always busy through `StationState`, racks of drying meat, kilns, looms). The Faction Hall
+  (two storeys, two wings, five faction banners, lamps) stands behind its desk; each faction
+  board has a canvas in its faction colour; benches ring the square; survivors stand at the
+  boards and walk dock -> square and along the hall front (8 plaza rigs on top of the 16 townsfolk). Lamp posts and signposts line the
   streets. Townsfolk (survivor body, random look) idle or loop a work clip at the stations; four walk
   the avenues; tamed animals stand in the pens.
 - Measured headless (`scripts/dev/tuttown_map.gd`, which also writes the top-down footprint PNG):

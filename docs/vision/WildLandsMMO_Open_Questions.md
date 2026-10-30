@@ -278,7 +278,7 @@ Source: `docs/design/factions.md`, data `game/data/world/factions.json`, branch 
 | **FA9** | The Task screen keeps 5 tabs; faction missions live on the Factions screen (Tasks category `faction`). | `Tasks.CATS` | One line to add a tab. |
 | **FA10** | Faction missions waiting to be received count in the HUD Tasks badge. | `Tasks.claimable_count` | |
 | **FA11** | The plaza has 7 boards: 5 faction stalls in an arc before the hall plus 2 general boards (dock, plaza far side). | `tutorial.gd dress` | Crowd spread on a busy server. |
-| **FA12** | 8 milling survivors on the plaza (townsfolk cap 16 -> 22), groups at the boards and walkers dock -> hall. | `town_dress.gd` | Perf budget. |
+| **FA12** | 8 milling survivors on the plaza (own cap and RNG, on top of the 16 townsfolk), groups at the boards and walkers dock -> hall. | `town_dress.gd` | Perf budget. |
 | **FA13** | Career guide targets: ten_recipes = any 10 crafts; three_climates = 3 island landings; build_house = a log shelter. | `radio_university.missions` | The PRD names the guides, not their checklists. |
 | **FA14** | Rank-up crate = one of each item in the rank's band; overflow goes to home cargo. | `Factions.add_rep` | PRD: "3 items per rank band, some RNG". |
 

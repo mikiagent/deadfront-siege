@@ -257,6 +257,7 @@ func start_new(host: Node) -> void:
 	objective = 0
 	objective_best = 0
 	Tasks.reset()
+	Factions.reset()
 	tutorial = {"done": true, "did": {}}
 	# Character creation first (M10), then the home island with the terrain pick.
 	var cc := CharacterCreation.new()
@@ -326,6 +327,7 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 	_ensure_map_fog(ir, camp_at if camp_at is Vector3 and (camp_at as Vector3) != Vector3.ZERO else (player.global_position if player else at))
 	print("[world] island %s nodes=%d creatures=%d terrain=%s" % [
 		id, int(ir.harvest_count), int(ir.creature_count), terrain])
+	Tasks.note(&"land")  # FACTIONS: Radio University's Three Islands guide counts landings
 	if int(island_def.get("tier", 0)) >= 30:
 		Tasks.note(&"explore30")  # TASKSCREEN: weekly Explore Level-30 Islands (DW-T0125)
 	island_changed.emit(id)
@@ -497,6 +499,7 @@ func note_building(kind: StringName, at: Vector3 = Vector3.ZERO, player: Player 
 	# unstable island is a visit, so every build there pays the repeat award (the old flat 8) and no
 	# kind is remembered.
 	Tasks.note(&"build")  # TASKSCREEN: daily Construct a Building (DW-T0123)
+	Tasks.note(StringName("build:" + str(kind)))  # FACTIONS: missions that name a building
 	Tutorial.note("build")
 	var total := maxi(0, extra_xp)
 	if is_home():
@@ -517,6 +520,7 @@ func discover_crater() -> void:
 	if crater_discovered:
 		return
 	crater_discovered = true
+	Tasks.note(&"crater")  # FACTIONS: crater survey missions (the island's landmark)
 	var player := _player()
 	if player:
 		var drop := absf(float(Data.world_rules.get("craters", {}).get("discover_fatigue", -20)))

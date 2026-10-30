@@ -148,7 +148,7 @@ func _test_town(rt: Node3D, camp: Vector3) -> void:
 		_expect(str(load("res://scripts/world/build_placer.gd").call("pack_up_blocker", b)) != "", "%s cannot be packed up" % b.name)
 		var cell: Vector2i = b.get("build_cell")
 		_expect(str(rt.get("build_grid").call("can_place", &"straw_roll", cell, 0)) != "", "nothing can be built over %s" % b.name)
-	_expect(roles.has("guild") and roles.has("market"), "the town has the Adventurer's Guild and a market stall (%s)" % [roles.keys()])
+	_expect(roles.has("guild") and roles.has("market"), "the town has the Faction Hall desk and a market stall (%s)" % [roles.keys()])
 	var bench := false
 	for n in get_nodes_in_group("craft_station"):
 		if n.get("station_id") == &"workbench" and (n as Node3D).global_position.distance_to(camp) < 25.0:
@@ -177,7 +177,7 @@ func _test_town_dress(rt: Node3D, camp: Vector3) -> void:
 	print("[t_tutorial] town %s" % st)
 	_expect(int(st["houses"]) >= 40 and int(st["stalls"]) >= 6 and int(st["workshops"]) >= 4 and int(st["fields"]) >= 4 and int(st["pens"]) >= 2,
 		"a big town: %d houses, %d stalls, %d workshops, %d fields, %d pens" % [st["houses"], st["stalls"], st["workshops"], st["fields"], st["pens"]])
-	_expect(int(st["npcs"]) >= 8 and int(st["npcs"]) <= 16 and int(st["animals"]) >= 2 and int(st["lamps"]) >= 20, "townsfolk %d, pen animals %d, lamps %d" % [st["npcs"], st["animals"], st["lamps"]])
+	_expect(int(st["npcs"]) >= 8 and int(st["npcs"]) <= 24 and int(st["animals"]) >= 2 and int(st["lamps"]) >= 20, "townsfolk %d, pen animals %d, lamps %d" % [st["npcs"], st["animals"], st["lamps"]])
 	# Pen animals carry their eye rims (hidden, energy 0 until a threat): only lights that are on count.
 	var lights: Array = town.find_children("*", "Light3D", true, false).filter(func (l: Node) -> bool: return (l as Light3D).visible and (l as Light3D).light_energy > 0.0)
 	_expect(lights.size() <= 4, "at most 4 real lights in town (%s)" % [lights.map(func (l: Node) -> String: return str(l.get_parent().name) + "/" + str(l.name))])

@@ -157,7 +157,7 @@ static func resume_index() -> int:
 # ---------------------------------------------------------------- island
 
 ## The prebuilt town on top of the generated island (owner 2026-10-28), around the camp at the
-## landing: the camp's own fire, workbench and shed, plus the Adventurer's Guild (the quest hub that
+## landing: the camp's own fire, workbench and shed, plus the Faction Hall's desk (the quest hub that
 ## hands out these orders), a market stall (Island Market screen), a permanent stone fire pit (the
 ## "light the fire" and cooking orders), a drying rack, a sign and crates. Every piece is
 ## indestructible and never saved (persist_building = false; see TownBuilding). Herbs, berries and
@@ -169,11 +169,14 @@ static func dress(rt: IslandRuntime) -> void:
 	var pit := Bonfire.make(&"stone_fire_pit")
 	pit.persist_building = false
 	rt._camp_place(pit, "TutorialFirePit", &"stone_fire_pit", at.call(-2.0, 4.5))
-	rt._camp_place(TownBuilding.make(&"log_shelter", &"guild", "Adventurer's Guild"), "TownGuild", &"log_shelter", at.call(-11.0, -9.0))
-	rt._camp_place(TownBuilding.make(&"fishing_stand", &"market", "Market stall"), "TownMarket", &"fishing_stand", at.call(10.0, -9.0))
-	rt._camp_place(TownBuilding.make(&"signpost", &"decor", "Tutorial Island town"), "TownSign", &"signpost", at.call(-5.0, -6.0))
-	rt._camp_place(TownBuilding.make(&"barrel", &"decor", ""), "TownBarrel", &"barrel", at.call(13.0, -6.0))
-	rt._camp_place(TownBuilding.make(&"large_box", &"decor", ""), "TownCrates", &"large_box", at.call(-14.0, -5.0))
+	_faction_plaza(rt)  # FACTIONS: the Faction Hall's desk (role guild) and the faction boards
+	# FACTIONS: the market, sign and crates stand dock-relative on the square's flanks, clear of the
+	# faction boards' arc in front of the hall (they were fixed world offsets before).
+	var flank := func (deg: float, r: float) -> Vector2i: return BuildGrid.tile_of(plaza_polar(rt, deg, r))
+	rt._camp_place(TownBuilding.make(&"fishing_stand", &"market", "Market stall"), "TownMarket", &"fishing_stand", flank.call(80.0, 12.0))
+	rt._camp_place(TownBuilding.make(&"signpost", &"decor", "Tutorial Island town"), "TownSign", &"signpost", flank.call(14.0, 9.0))
+	rt._camp_place(TownBuilding.make(&"barrel", &"decor", ""), "TownBarrel", &"barrel", flank.call(95.0, 13.0))
+	rt._camp_place(TownBuilding.make(&"large_box", &"decor", ""), "TownCrates", &"large_box", flank.call(-80.0, 12.0))
 	var rack := CraftStation.make(&"drying_rack")
 	rack.persist_building = false
 	rt._camp_place(rack, "TownDryingRack", &"drying_rack", at.call(8.0, 5.0))
@@ -186,11 +189,66 @@ static func dress(rt: IslandRuntime) -> void:
 		rt.harvest_count += rt._plant_at("HerbPlant" if herb else "BerrySprig", "tutorial_%s_%d" % ["herb" if herb else "berry", i], p,
 			&"herb_leaf" if herb else &"berries", &"none", rt._climate, lv, Color(0.3, 0.55, 0.25) if herb else Color(0.55, 0.15, 0.3))
 	for i in 2:
-		var t: Vector3 = camp + [Vector3(-19, 0, 2), Vector3(19, 0, 1)][i]
+		var t: Vector3 = plaza_polar(rt, [55.0, -55.0][i], 19.0)  # FACTIONS: dock-relative, clear of the faction boards' arc
 		t.y = rt.surface_y(t.x, t.z)
 		rt.harvest_count += rt._plant_at("CommonTree", "tutorial_tree_%d" % i, t, &"wood_log", &"axe", rt._climate, lv, Color(0.35, 0.22, 0.1))
 	TownDress.build(rt)  # TUTTOWN: the rest of the town, its districts, streets and townsfolk
 	_wild_zones(rt)
+
+## FACTIONS (docs/design/factions.md §6): the plaza is laid out from the dock. Across the square from
+## the dock (HALL_DEG) stands the Faction Hall (TownDress builds it behind its desk, TownGuild, role guild:
+## the tutorial's first order and the map still find it by that role); five faction boards stand in an
+## arc in front of it (FACTION_ORDER, the banner order) and two general boards spread the crowd: one by
+## the dock arrival, one on the square's dock side. Polar spots are dock-relative; a spot that is taken
+## moves outward. # ASSUMPTION: every distance and angle (FA11).
+const HALL_DEG := 210.0  ## across the square from the dock, turned 30 degrees off the line so the road north out of town stays open
+const HALL_DESK_R := 21.0
+const BOARD_R := 15.0
+const BOARD_DEG := [-56.0, -28.0, 0.0, 28.0, 56.0]
+const FACTION_ORDER := ["company", "chlorophyll_forum", "radio_university", "pioneer_council", "committee"]
+
+static func plaza_polar(rt: IslandRuntime, deg: float, r: float) -> Vector3:
+	var camp := rt._camp_pos
+	var h := rt.arrival_point() - camp
+	var a := atan2(h.z, h.x) + deg_to_rad(deg)
+	return camp + Vector3(cos(a), 0.0, sin(a)) * r
+
+## The free cell nearest `want` for a 1x1 piece, stepping out from the camp (Vector2i(-99999) = none).
+static func _free_cell(rt: IslandRuntime, want: Vector3) -> Vector2i:
+	var out := (want - rt._camp_pos)
+	out.y = 0.0
+	out = out.normalized()
+	for k in 8:
+		var q := want + out * float(k)
+		var c := BuildGrid.tile_of(q)
+		var free := rt.is_dry(q)
+		for dx in range(-1, 2):
+			for dz in range(-1, 2):
+				var n := c + Vector2i(dx, dz)
+				free = free and not rt.build_grid._occupied.has(n) and not rt.build_grid._reserved.has(n)
+		if free:
+			return c
+	return Vector2i(-99999, -99999)
+
+static func _faction_plaza(rt: IslandRuntime) -> void:
+	var desk := BuildGrid.tile_of(plaza_polar(rt, HALL_DEG, HALL_DESK_R))
+	var spot := _free_cell(rt, plaza_polar(rt, HALL_DEG, HALL_DESK_R))
+	rt._camp_place(TownBuilding.make(&"log_shelter", &"guild", "Faction Hall"), "TownGuild", &"log_shelter", spot if spot.x > -99999 else desk)
+	var boards: Array = []
+	for i in FACTION_ORDER.size():
+		boards.append([FACTION_ORDER[i], plaza_polar(rt, HALL_DEG + float(BOARD_DEG[i]), BOARD_R)])
+	boards.append(["", plaza_polar(rt, 24.0, 17.0)])  # the square's dock side
+	var dock := rt.arrival_point()
+	boards.append(["", dock + (rt._camp_pos - dock).normalized() * 9.0])  # by the arrival
+	for i in boards.size():
+		var fid: String = boards[i][0]
+		var cell := _free_cell(rt, boards[i][1])
+		if cell.x == -99999:
+			continue
+		var nm := str(Factions.def(fid).get("name", "")) + " board" if fid != "" else "Faction mission board"
+		var b := TownBuilding.make(&"sign", &"faction_board", nm)
+		b.faction = fid
+		rt._camp_place(b, "FactionBoard_%s" % (fid if fid != "" else str(i)), &"sign", cell)
 
 static func _wild_zones(rt: IslandRuntime) -> void:
 	var camp := rt._camp_pos

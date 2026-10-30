@@ -67,6 +67,7 @@ static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: 
 	# The node's island climate picks the rows and is stamped on the find (world-design.md:55: always climate and level).
 	var climate := str(node.yield_attributes.get("climate", ""))
 	Tasks.note(&"gather", gained)  # TASKSCREEN: daily / weekly gather counts
+	Tasks.note(StringName("gather:" + str(landed.def_id)), gained)  # FACTIONS: missions that name an item
 	if landed.level >= 60 and role_of_family(node.family) == "rock":
 		Tasks.note(&"mineral60", gained)  # achievement Gather Level-60 Minerals (DW-T0137)
 	wear_role_tool(p.inventory, node.required_tool_class, node.family)

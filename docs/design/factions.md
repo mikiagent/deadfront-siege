@@ -138,7 +138,7 @@ The tutorial town's guild hall becomes the **Faction Hall**. Its tap role stays 
 which keeps the tutorial pointer and map markers working, and every name shown in the game is
 "Faction Hall".
 
-- **Placement**: the hall stands across the plaza from the dock, facing it. A survivor stepping off the
+- **Placement**: the hall stands across the plaza from the dock, facing it, turned 30 degrees off the dock line so the road north out of town stays open (`Tutorial.HALL_DEG`, FA11). A survivor stepping off the
   ferry walks straight up the harbour avenue, across the plaza and into the hall. This is the arrival
   flow.
 - **Building**: a 14 x 9 m two-storey stone hall with two one-storey wings. Five faction banners hang
@@ -148,8 +148,8 @@ which keeps the tutorial pointer and map markers working, and every name shown i
   Two more general mission boards stand at the dock arrival and at the plaza's far side, so a crowd at
   the hall door is never the only place to take work (FA11). That makes seven tap points in all.
 - **Crowd**: survivors mill about. They are cheap: the townsfolk rigs, some standing in groups by the
-  boards, some walking dock to hall and hall to plaza on loops (FA12: 8 plaza rigs, inside the town's
-  existing townsfolk cap, which rises from 16 to 22). Benches stand round the plaza edge, and the fire
+  boards, some walking dock to hall and hall to plaza on loops (FA12: 8 plaza rigs on top of the town's
+  16 townsfolk, so up to 24 rigs). Benches stand round the plaza edge, and the fire
   pit shelter is the gathering spot.
 - **Budget**: everything is MultiMesh scenery, as in TUTTOWN. The boards are TownBuildings (one static
   body each), and the rigs are culled past 60 m. Gates: t_perfgates, at most 900 ticking nodes and 9,000

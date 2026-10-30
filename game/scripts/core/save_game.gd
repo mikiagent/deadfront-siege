@@ -143,6 +143,7 @@ static func save_now() -> bool:
 		"objective": World.objective,
 		"objective_best": World.objective_best,
 		"tasks": Tasks.to_dict(), # TASKSCREEN: claimed tasks, daily/weekly counts and their reset day/week
+		"factions": Factions.to_dict(), # FACTIONS: reputation per faction (missions live in "tasks")
 		"island_id": str(World.island_id),
 		"unstable": {
 			"remaining": World.remaining_lifetime,
@@ -278,6 +279,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.tutorial = Tutorial.from_save(data.get("tutorial", null))
 	# TASKSCREEN: after World.tutorial, so an old save reads the list it was running (Objectives._steps).
 	Tasks.from_dict(data.get("tasks", null)) # no block (older save): the orders already finished load as received
+	Factions.from_dict(data.get("factions", null)) # FACTIONS: no block (older save) = no reputation yet
 	World.remaining_lifetime = float(data.get("unstable", {}).get("remaining", 0.0))
 	World.harvested = data.get("unstable", {}).get("harvested", {})
 	World.crater_discovered = bool(data.get("unstable", {}).get("crater_discovered", false))
