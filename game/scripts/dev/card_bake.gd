@@ -187,8 +187,9 @@ func _render(path: String, res: int, cam_pos: Vector3, basis: Basis, cam_size: f
 			(gi as MeshInstance3D).material_override = nm
 	else:
 		# Soft neutral key light from the camera's upper left, so faces read as volume, not flat cutouts.
+		# Yaw is relative to the camera's (10° left of it), so a camera heading change keeps the look.
 		var sun := DirectionalLight3D.new()
-		var light_basis := Basis.from_euler(Vector3(deg_to_rad(-50.0), deg_to_rad(35.0), 0.0))
+		var light_basis := Basis.from_euler(Vector3(deg_to_rad(-50.0), deg_to_rad(IsoCamera.YAW_DEG - 10.0), 0.0))
 		sun.transform = Transform3D(light_basis, Vector3(0, 20, 0))
 		sun.light_color = Color(1.0, 0.98, 0.95)
 		sun.light_energy = 1.15

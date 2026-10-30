@@ -170,6 +170,17 @@ func _test_card_prop() -> void:
 	card._face_camera(other)
 	_expect((mi.global_basis.orthonormalized().z).is_equal_approx(other.z), "the card re-aligns to another camera basis")
 	card._face_camera(view)
+	# PERF2: no card ticks; the one driver re-aligns every card in the tree when the camera turns.
+	_expect(not card.is_processing(), "a card does not tick (the CardDriver aligns it)")
+	if card.is_inside_tree():
+		var cam := Camera3D.new()
+		card.get_tree().root.add_child(cam)
+		cam.make_current()
+		cam.global_basis = other
+		CP.drive(card.get_viewport())
+		_expect((mi.global_basis.orthonormalized().z).is_equal_approx(other.z), "the driver turns a card with the camera")
+		cam.free()
+		card._face_camera(view)
 	_expect(mi != null and mi.mesh != null, "the card has its quad")
 	if mi and mi.mesh:
 		var aabb := mi.get_aabb()

@@ -1,3 +1,35 @@
+## 2026-10-30: what landed, what is in progress, what is next
+
+Canon `claude/mmo-overhaul` at `4aa0ba62`. The live record is the Roadmap (`tools/docs_wiki/phase-map.json`,
+refreshed today with an `evidence` list per landed row) and `docs/orchestration/reports/`. Summary of this
+refresh: `docs/orchestration/reports/claude-wikirefresh.md`.
+
+**Landed since the 2026-10-29 refresh (d0c649fa), in merge order:**
+- Islands: ISLANDSHAPES `cccf2115` (seven shape families, southern-most dock, volcanoes, mesas, ridges,
+  outcrops); ISLANDMATRIX `4a685bc4` (landmarks M1-M3, island reset M4, iron ore and tundra resin M5);
+  ISLANDFIXES `7259b47a`; UNSTABLEISLES `8b633980` (generated 40-minute isles, kits only, sink returns
+  you home); NORTHUP `49f3318f` (camera faces north, north-up minimap, Y grows northward) and
+  NORTHFOLLOW `4aa0ba62` (prop cards re-baked, auto-ability hex off TACKLE's caption).
+- Tutorial: TUTPERF `5c4b32ff` (walking stutter fixed), TUTTOWN `0ee384b9` (town by the southern dock,
+  menu guidance, Craft/Build order), PERF2 `729dd10e` (faster TilePath, town cards stop ticking, cached
+  replans), LOADING `346b325c` (loading screens with real progress), QUICKSTART `bf0f4765` (dev skip of
+  character creation).
+- Survival and creatures: KNIFEFIX `c7dc0a5b`, FOODTORPOR `0fa4d0bf` (Food Bag, spoilage, Sedative,
+  torpor capture), HUNGER `a1ee7649`, ALPHATAG `2e6b33f0`, CREATURECHIPS `7151a3e3`, CHASESPRINT
+  `5eede6ba`, STYRATACTICS `d243d817`, AUTOABILITY `d989a7a6`.
+- Progression and UI: SLOWLEVELS `5f6d4c10` (2.5x slower levels, skill research), TASKSCREEN `3d5d84b0`
+  (Task screen, manual Receive), TRIBEM2A `76e4a04e` (tribe members on crafts and sites), HUDREDRAW
+  `95ec2b69`.
+- Wiki: WIKI-STEWARD `465b1827` (roadmap `evidence` field, `phase_map.py audit`, templates, skill).
+
+**In progress:** factions (`claude/mmo-factions`), tutorial town polish loop (`claude/mmo-townpolish`).
+
+**Next:** island resources M6 fun pass (Milan's play), taming pen care (feeding, bonding, roles),
+country-like islands (Milan to say whether ISLANDSHAPES closes it), zone content per climate, ground
+painting, light and grade (LIGHTPORT waits for a blind A/B), level-up flash, item icons, tribes beyond
+M2a, performance gates (home build still over 2.5 s). Multiplayer stays deferred until the game is
+finished (owner 2026-10-29).
+
 > **2026-10-29: this file is an archive.** The body below was last edited 2026-10-21 and is kept
 > unchanged for its owner decisions and merge log. The live record is the Roadmap
 > (`tools/docs_wiki/phase-map.json`, shown in the docs wiki) and the per-task reports in

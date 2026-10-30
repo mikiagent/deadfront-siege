@@ -4,11 +4,11 @@
   "cards": {
     "berry-sprig": {
       "content": {
-        "h": 310,
-        "mpp": 0.00119,
-        "w": 299,
-        "x": 87,
-        "y": 116
+        "h": 311,
+        "mpp": 0.00096,
+        "w": 455,
+        "x": 29,
+        "y": 100
       },
       "families": [
         "BerrySprig"
@@ -16,8 +16,8 @@
       "kind": "plant",
       "model": "res://assets/resources/generated/resource-berries-final.glb",
       "pivot": [
-        0.3307,
-        0.4748
+        0.4439,
+        0.5423
       ],
       "resolution": 512,
       "texture": [
@@ -25,17 +25,17 @@
         512
       ],
       "world_size": [
-        0.608,
-        0.608
+        0.492,
+        0.492
       ]
     },
     "branch-pile": {
       "content": {
-        "h": 184,
-        "mpp": 0.0011,
-        "w": 372,
-        "x": 67,
-        "y": 181
+        "h": 287,
+        "mpp": 0.00099,
+        "w": 483,
+        "x": 14,
+        "y": 116
       },
       "families": [
         "BranchPile"
@@ -43,26 +43,26 @@
       "kind": "plant",
       "model": "res://assets/resources/generated/resource-branch-final.glb",
       "pivot": [
-        0.3698,
-        0.7272
+        0.4727,
+        0.5034
       ],
       "resolution": 512,
       "texture": [
         512,
-        256
+        512
       ],
       "world_size": [
-        0.563,
-        0.282
+        0.508,
+        0.508
       ]
     },
     "bush-berries-a": {
       "content": {
-        "h": 272,
-        "mpp": 0.00692,
-        "w": 361,
-        "x": 84,
-        "y": 114
+        "h": 363,
+        "mpp": 0.006,
+        "w": 365,
+        "x": 73,
+        "y": 61
       },
       "families": [
         "BushBerries",
@@ -71,8 +71,8 @@
       "kind": "bush",
       "model": "res://assets/nature/generated/bush-berries-a.glb",
       "pivot": [
-        0.3359,
-        0.4849
+        0.3574,
+        0.6094
       ],
       "resolution": 512,
       "texture": [
@@ -80,24 +80,24 @@
         512
       ],
       "world_size": [
-        3.541,
-        3.541
+        3.074,
+        3.074
       ]
     },
     "bush-berries-a-empty": {
       "content": {
-        "h": 272,
-        "mpp": 0.00692,
-        "w": 361,
-        "x": 84,
-        "y": 114
+        "h": 363,
+        "mpp": 0.006,
+        "w": 365,
+        "x": 73,
+        "y": 61
       },
       "families": [],
       "kind": "bush",
       "model": "res://assets/nature/generated/bush-berries-a-empty.glb",
       "pivot": [
-        0.3359,
-        0.4849
+        0.3574,
+        0.6094
       ],
       "resolution": 512,
       "texture": [
@@ -105,17 +105,17 @@
         512
       ],
       "world_size": [
-        3.541,
-        3.541
+        3.074,
+        3.074
       ]
     },
     "bush-berries-b": {
       "content": {
-        "h": 262,
-        "mpp": 0.00832,
-        "w": 351,
-        "x": 70,
-        "y": 135
+        "h": 332,
+        "mpp": 0.00647,
+        "w": 453,
+        "x": 29,
+        "y": 94
       },
       "families": [
         "BushBerries",
@@ -124,8 +124,8 @@
       "kind": "bush",
       "model": "res://assets/nature/generated/bush-berries-b.glb",
       "pivot": [
-        0.3633,
-        0.4088
+        0.4434,
+        0.5284
       ],
       "resolution": 512,
       "texture": [
@@ -133,17 +133,17 @@
         512
       ],
       "world_size": [
-        4.26,
-        4.26
+        3.313,
+        3.313
       ]
     },
     "bush-berries-b-empty": {
       "content": {
-        "h": 262,
-        "mpp": 0.00832,
-        "w": 351,
-        "x": 70,
-        "y": 135
+        "h": 332,
+        "mpp": 0.00647,
+        "w": 453,
+        "x": 29,
+        "y": 94
       },
       "families": [
         "Bush"
@@ -151,8 +151,8 @@
       "kind": "bush",
       "model": "res://assets/nature/generated/bush-berries-b-empty.glb",
       "pivot": [
-        0.3633,
-        0.4088
+        0.4434,
+        0.5284
       ],
       "resolution": 512,
       "texture": [
@@ -160,17 +160,17 @@
         512
       ],
       "world_size": [
-        4.26,
-        4.26
+        3.313,
+        3.313
       ]
     },
     "cactus-a": {
       "content": {
-        "h": 403,
-        "mpp": 0.02347,
-        "w": 169,
-        "x": 166,
-        "y": 61
+        "h": 469,
+        "mpp": 0.01987,
+        "w": 246,
+        "x": 133,
+        "y": 28
       },
       "families": [
         "Cactus"
@@ -178,8 +178,8 @@
       "kind": "plant",
       "model": "res://assets/resources/generated/plant-cactus-final.glb",
       "pivot": [
-        0.3514,
-        0.721
+        0.4811,
+        0.8292
       ],
       "resolution": 512,
       "texture": [
@@ -187,17 +187,17 @@
         512
       ],
       "world_size": [
-        6.007,
-        12.014
+        5.086,
+        10.173
       ]
     },
     "fibre-stalk": {
       "content": {
-        "h": 388,
-        "mpp": 0.00053,
-        "w": 242,
-        "x": 139,
-        "y": 80
+        "h": 446,
+        "mpp": 0.00047,
+        "w": 230,
+        "x": 141,
+        "y": 50
       },
       "families": [
         "FibreTuft"
@@ -205,8 +205,8 @@
       "kind": "plant",
       "model": "res://assets/resources/generated/resource-fibre_stalk-final.glb",
       "pivot": [
-        0.4701,
-        0.6509
+        0.4716,
+        0.7258
       ],
       "resolution": 512,
       "texture": [
@@ -214,17 +214,17 @@
         512
       ],
       "world_size": [
-        0.135,
-        0.27
+        0.121,
+        0.242
       ]
     },
     "granite-boulder": {
       "content": {
-        "h": 320,
-        "mpp": 0.00099,
-        "w": 326,
-        "x": 85,
-        "y": 113
+        "h": 377,
+        "mpp": 0.00082,
+        "w": 422,
+        "x": 45,
+        "y": 103
       },
       "families": [
         "GraniteBoulder"
@@ -232,8 +232,8 @@
       "kind": "rock",
       "model": "res://assets/resources/generated/min4-stone-final.glb",
       "pivot": [
-        0.3338,
-        0.4817
+        0.4122,
+        0.5318
       ],
       "resolution": 512,
       "texture": [
@@ -241,17 +241,17 @@
         512
       ],
       "world_size": [
-        0.505,
-        0.505
+        0.419,
+        0.419
       ]
     },
     "grass-a": {
       "content": {
-        "h": 342,
-        "mpp": 0.00206,
-        "w": 261,
+        "h": 393,
+        "mpp": 0.00182,
+        "w": 274,
         "x": 118,
-        "y": 97
+        "y": 62
       },
       "families": [
         "Grass"
@@ -260,7 +260,7 @@
       "model": "res://assets/nature/generated/grass-a.glb",
       "pivot": [
         0.2695,
-        0.5816
+        0.6726
       ],
       "resolution": 512,
       "texture": [
@@ -268,17 +268,17 @@
         512
       ],
       "world_size": [
-        1.054,
-        1.054
+        0.93,
+        0.93
       ]
     },
     "plant-a": {
       "content": {
-        "h": 397,
-        "mpp": 0.00165,
-        "w": 164,
-        "x": 161,
-        "y": 83
+        "h": 415,
+        "mpp": 0.00149,
+        "w": 180,
+        "x": 166,
+        "y": 79
       },
       "families": [
         "Plant"
@@ -286,8 +286,8 @@
       "kind": "plant",
       "model": "res://assets/nature/generated/plant-a.glb",
       "pivot": [
-        0.3711,
-        0.677
+        0.3516,
+        0.7036
       ],
       "resolution": 512,
       "texture": [
@@ -295,17 +295,17 @@
         512
       ],
       "world_size": [
-        0.421,
-        0.843
+        0.382,
+        0.763
       ]
     },
     "plant-dry-grass": {
       "content": {
-        "h": 366,
-        "mpp": 0.00151,
-        "w": 208,
-        "x": 167,
-        "y": 59
+        "h": 393,
+        "mpp": 0.00134,
+        "w": 239,
+        "x": 137,
+        "y": 42
       },
       "families": [
         "DryGrassTuft"
@@ -313,8 +313,8 @@
       "kind": "plant",
       "model": "res://assets/resources/generated/plant-dry_grass-final.glb",
       "pivot": [
-        0.3649,
-        0.7026
+        0.452,
+        0.758
       ],
       "resolution": 512,
       "texture": [
@@ -322,17 +322,17 @@
         512
       ],
       "world_size": [
-        0.386,
-        0.771
+        0.342,
+        0.684
       ]
     },
     "plant-herb-leaf": {
       "content": {
-        "h": 359,
-        "mpp": 0.00104,
-        "w": 229,
-        "x": 143,
-        "y": 88
+        "h": 375,
+        "mpp": 0.00094,
+        "w": 217,
+        "x": 148,
+        "y": 85
       },
       "families": [
         "HerbPlant"
@@ -340,8 +340,8 @@
       "kind": "plant",
       "model": "res://assets/resources/generated/plant-herb_leaf-final.glb",
       "pivot": [
-        0.4425,
-        0.6341
+        0.4237,
+        0.6573
       ],
       "resolution": 512,
       "texture": [
@@ -349,17 +349,17 @@
         512
       ],
       "world_size": [
-        0.267,
-        0.534
+        0.241,
+        0.483
       ]
     },
     "rock-a": {
       "content": {
-        "h": 225,
-        "mpp": 0.00641,
-        "w": 368,
-        "x": 77,
-        "y": 157
+        "h": 404,
+        "mpp": 0.00457,
+        "w": 458,
+        "x": 27,
+        "y": 75
       },
       "families": [
         "Rock"
@@ -367,26 +367,26 @@
       "kind": "rock",
       "model": "res://assets/nature/generated/rock-a.glb",
       "pivot": [
-        0.3496,
-        0.6356
+        0.4473,
+        0.5202
       ],
       "resolution": 512,
       "texture": [
         512,
-        256
+        512
       ],
       "world_size": [
-        3.28,
-        1.64
+        2.341,
+        2.341
       ]
     },
     "rock-moss-a": {
       "content": {
-        "h": 225,
-        "mpp": 0.00641,
-        "w": 368,
-        "x": 77,
-        "y": 157
+        "h": 404,
+        "mpp": 0.00457,
+        "w": 458,
+        "x": 27,
+        "y": 75
       },
       "families": [
         "Rock_Moss"
@@ -394,26 +394,26 @@
       "kind": "rock",
       "model": "res://assets/nature/generated/rock-moss-a.glb",
       "pivot": [
-        0.3496,
-        0.6356
+        0.4473,
+        0.5202
       ],
       "resolution": 512,
       "texture": [
         512,
-        256
+        512
       ],
       "world_size": [
-        3.28,
-        1.64
+        2.341,
+        2.341
       ]
     },
     "tree-acacia-a": {
       "content": {
-        "h": 566,
-        "mpp": 0.01737,
-        "w": 680,
-        "x": 169,
-        "y": 176
+        "h": 608,
+        "mpp": 0.01472,
+        "w": 750,
+        "x": 137,
+        "y": 161
       },
       "families": [
         "AcaciaTree"
@@ -421,8 +421,8 @@
       "kind": "tree",
       "model": "res://assets/nature/generated/tree-acacia-a.glb",
       "pivot": [
-        0.3365,
-        0.5587
+        0.3724,
+        0.6012
       ],
       "resolution": 1024,
       "texture": [
@@ -430,17 +430,17 @@
         1024
       ],
       "world_size": [
-        17.783,
-        17.783
+        15.072,
+        15.072
       ]
     },
     "tree-birch-a": {
       "content": {
-        "h": 720,
-        "mpp": 0.01857,
-        "w": 387,
-        "x": 332,
-        "y": 146
+        "h": 787,
+        "mpp": 0.01665,
+        "w": 418,
+        "x": 303,
+        "y": 103
       },
       "families": [
         "BirchTree"
@@ -448,8 +448,8 @@
       "kind": "tree",
       "model": "res://assets/nature/generated/tree-birch-a.glb",
       "pivot": [
-        0.3548,
-        0.6799
+        0.4119,
+        0.7424
       ],
       "resolution": 1024,
       "texture": [
@@ -457,24 +457,24 @@
         1024
       ],
       "world_size": [
-        9.508,
-        19.017
+        8.523,
+        17.045
       ]
     },
     "tree-birch-b": {
       "content": {
-        "h": 723,
-        "mpp": 0.01251,
-        "w": 389,
-        "x": 332,
-        "y": 177
+        "h": 808,
+        "mpp": 0.01105,
+        "w": 453,
+        "x": 285,
+        "y": 120
       },
       "families": [],
       "kind": "tree",
       "model": "res://assets/nature/generated/tree-birch-b.glb",
       "pivot": [
-        0.3491,
-        0.6454
+        0.4407,
+        0.7278
       ],
       "resolution": 1024,
       "texture": [
@@ -482,17 +482,17 @@
         1024
       ],
       "world_size": [
-        6.404,
-        12.807
+        5.657,
+        11.313
       ]
     },
     "tree-birch-dead": {
       "content": {
-        "h": 720,
-        "mpp": 0.01857,
-        "w": 387,
-        "x": 332,
-        "y": 146
+        "h": 787,
+        "mpp": 0.01665,
+        "w": 418,
+        "x": 303,
+        "y": 103
       },
       "families": [
         "BirchTree_Dead"
@@ -500,8 +500,8 @@
       "kind": "tree",
       "model": "res://assets/nature/generated/tree-birch-dead.glb",
       "pivot": [
-        0.3548,
-        0.6799
+        0.4119,
+        0.7424
       ],
       "resolution": 1024,
       "texture": [
@@ -509,17 +509,17 @@
         1024
       ],
       "world_size": [
-        9.508,
-        19.017
+        8.523,
+        17.045
       ]
     },
     "tree-common-a": {
       "content": {
-        "h": 705,
-        "mpp": 0.01055,
-        "w": 473,
-        "x": 274,
-        "y": 181
+        "h": 761,
+        "mpp": 0.00942,
+        "w": 466,
+        "x": 279,
+        "y": 147
       },
       "families": [
         "CommonTree"
@@ -527,8 +527,8 @@
       "kind": "tree",
       "model": "res://assets/nature/generated/tree-common-a.glb",
       "pivot": [
-        0.4652,
-        0.625
+        0.4541,
+        0.6795
       ],
       "resolution": 1024,
       "texture": [
@@ -536,17 +536,17 @@
         1024
       ],
       "world_size": [
-        5.402,
-        10.805
+        4.825,
+        9.65
       ]
     },
     "tree-common-dead": {
       "content": {
-        "h": 705,
-        "mpp": 0.01055,
-        "w": 473,
-        "x": 274,
-        "y": 181
+        "h": 761,
+        "mpp": 0.00942,
+        "w": 466,
+        "x": 279,
+        "y": 147
       },
       "families": [
         "CommonTree_Dead"
@@ -554,8 +554,8 @@
       "kind": "tree",
       "model": "res://assets/nature/generated/tree-common-dead.glb",
       "pivot": [
-        0.4652,
-        0.625
+        0.4541,
+        0.6795
       ],
       "resolution": 1024,
       "texture": [
@@ -563,17 +563,17 @@
         1024
       ],
       "world_size": [
-        5.402,
-        10.805
+        4.825,
+        9.65
       ]
     },
     "tree-palm-a": {
       "content": {
-        "h": 692,
-        "mpp": 0.0161,
-        "w": 445,
-        "x": 286,
-        "y": 144
+        "h": 760,
+        "mpp": 0.01427,
+        "w": 488,
+        "x": 267,
+        "y": 107
       },
       "families": [
         "PalmTree"
@@ -581,8 +581,8 @@
       "kind": "tree",
       "model": "res://assets/nature/generated/tree-palm-a.glb",
       "pivot": [
-        0.4382,
-        0.6555
+        0.4732,
+        0.716
       ],
       "resolution": 1024,
       "texture": [
@@ -590,17 +590,17 @@
         1024
       ],
       "world_size": [
-        8.244,
-        16.488
+        7.304,
+        14.609
       ]
     },
     "tree-pine-a": {
       "content": {
-        "h": 727,
-        "mpp": 0.02494,
-        "w": 382,
-        "x": 310,
-        "y": 193
+        "h": 795,
+        "mpp": 0.02238,
+        "w": 424,
+        "x": 300,
+        "y": 170
       },
       "families": [
         "PineTree",
@@ -609,8 +609,8 @@
       "kind": "tree",
       "model": "res://assets/nature/generated/tree-pine-a.glb",
       "pivot": [
-        0.3987,
-        0.6312
+        0.4217,
+        0.6731
       ],
       "resolution": 1024,
       "texture": [
@@ -618,17 +618,17 @@
         1024
       ],
       "world_size": [
-        12.767,
-        25.535
+        11.456,
+        22.912
       ]
     },
     "wildgrass-a": {
       "content": {
-        "h": 362,
-        "mpp": 0.00217,
-        "w": 186,
-        "x": 162,
-        "y": 72
+        "h": 408,
+        "mpp": 0.00188,
+        "w": 269,
+        "x": 118,
+        "y": 46
       },
       "families": [
         "WildGrass"
@@ -636,17 +636,17 @@
       "kind": "grass",
       "model": "res://assets/nature/generated/wildgrass-a.glb",
       "pivot": [
-        0.3672,
-        0.6531
+        0.2695,
+        0.7352
       ],
       "resolution": 512,
       "texture": [
-        256,
+        512,
         512
       ],
       "world_size": [
-        0.556,
-        1.112
+        0.96,
+        0.96
       ]
     }
   },

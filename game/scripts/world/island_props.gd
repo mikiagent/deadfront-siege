@@ -224,6 +224,7 @@ func _build_all() -> void:
 	cards.name = "PropCards"
 	add_child(cards)
 	_sample_biomes()
+	PerfTrace.mark("props.biomes")
 	# Want per kind first, then one proportional cut to MAX_PROPS: a budget spent in dict order
 	# would give everything to pebbles and nothing to the cliffs.
 	var plan: Array[Dictionary] = []
@@ -263,7 +264,9 @@ func _build_all() -> void:
 	for entry in plan:
 		var n: int = maxi(1, int(round(float(entry["n"]) * scale)))
 		_place_kind(str(entry["kind"]), entry["rows"], entry["models"], n)
+	PerfTrace.mark("props.kinds")
 	_place_outcrops()
+	PerfTrace.mark("props.outcrops")
 	if cards != null:
 		cards.commit()
 	for b: VegBatch in _batches.values():
@@ -282,15 +285,36 @@ func _sample_biomes() -> void:
 	if span <= 0:
 		return
 	var step := 2
+	# PERF2: the zone map and the tile map are byte arrays on the runtime; a sample reads both
+	# straight and names its zone id once per id (biome_of's answer depends on the id alone), instead
+	# of two helper calls, a dynamic call and a string mapping per sample (~190k on the tutorial).
+	var bz := _biome_module()
+	var zones: PackedByteArray = bz.call("biome_types", runtime) if bz != null and bz.has_method("biome_types") else PackedByteArray()
+	var types := runtime.tile_types
+	var fast := not zones.is_empty() and not types.is_empty() and zones.size() == span * span
+	var named := {}
+	var half := runtime._size * 0.5
 	for tz in range(0, span, step):
-		var wz := -runtime._size * 0.5 + float(tz) + 1.0
+		var wz := -half + float(tz) + 1.0
+		var iz := clampi(int(floor(wz + half)), 0, span - 1) * span
 		for tx in range(0, span, step):
-			var wx := -runtime._size * 0.5 + float(tx) + 1.0
-			var t := IslandTerrain.tile_type_at_world(runtime, wx, wz)
-			if t == IslandTerrain.TileType.SHALLOW or t == IslandTerrain.TileType.DEEP:
+			var wx := -half + float(tx) + 1.0
+			if not fast:
+				var t := IslandTerrain.tile_type_at_world(runtime, wx, wz)
+				if t == IslandTerrain.TileType.SHALLOW or t == IslandTerrain.TileType.DEEP:
+					continue
+				var b := biome_at(wx, wz)
+				_biome_area[b] = float(_biome_area.get(b, 0.0)) + float(step * step)
 				continue
-			var b := biome_at(wx, wz)
-			_biome_area[b] = float(_biome_area.get(b, 0.0)) + float(step * step)
+			var i := clampi(int(floor(wx + half)), 0, span - 1) + iz
+			var tt := int(types[i])
+			if tt == IslandTerrain.TileType.SHALLOW or tt == IslandTerrain.TileType.DEEP:
+				continue
+			var zid := int(zones[i])
+			if not named.has(zid):
+				named[zid] = biome_at(wx, wz)
+			var nm: String = named[zid]
+			_biome_area[nm] = float(_biome_area.get(nm, 0.0)) + float(step * step)
 
 func _by_kind_line() -> String:
 	var seen := {}

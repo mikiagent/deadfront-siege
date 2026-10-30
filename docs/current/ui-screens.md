@@ -7,7 +7,7 @@ Every screen the build opens, captured from the real home island in the landscap
 gate lab's screens (`ui_real_capture_lab.gd`) with its checks off, then the ones it does not open.
 
 Every full-screen screen is opened from the MENU nav menu (`game/scripts/ui/nav_menu.gd`, B3):
-Character, Skills, Craft, Build, Bag, Animals on the left; World Atlas, Domain, Orders,
+Character, Skills, Craft, Build, Bag, Animals on the left; World Atlas, Domain, Tasks,
 Communication, Island Market, Save on the right. Each screen's ‹ returns to the menu; ✕ or Esc goes
 back to the HUD. `HuntHud` holds the entry points (`open_character`, `open_skills(tree)`,
 `open_orders`, `open_animals(rec)`, `open_atlas`, `open_market(tab)`, `open_menu`). The menu draws on
@@ -139,7 +139,7 @@ Harbour, Market, Craft), `build()` + `fit()` (Character, Skills, Orders), the `U
 only. `tests/t_uichrome.gd` checks the three paths match and that nothing else draws a torn header.
 Shots: `docs/orchestration/reports/uichrome/`.
 
-## Character, Skills, Orders (UICHAR, spec §7 C1/C3/C4)
+## Character, Skills, Tasks (UICHAR, spec §7 C1/C3/C4; TASKSCREEN)
 
 Full-screen sheets with the shared §8 chrome (`SheetChrome.build()` / `fit()`, see "Shared sheet
 chrome" below).
@@ -161,10 +161,18 @@ chrome" below).
   banked at the cap); right, the selected skill: parchment name + Lv., Skill XP, SP spent here, what
   levels it, the unlock list (Unlock / Refund / lock reason per node, auto-learned line, not-in-game
   rows) and the GOLD "Spend n SP on <next node>". F7 `skill_debug.gd` is unchanged.
-- **Orders** (`orders_sheet.gd`; `HuntHud.open_orders()`). The standing orders of
-  `data/world/objectives.json`: numbered rows (check when done, gold ring on the running one), title,
-  hint, progress; right, the parchment title, how-to line, reward chips (+XP, +T-stones) and
-  "Track on HUD" / "Tracking on HUD" / "Done".
+- **Task** (TASKSCREEN 2026-10-29; `orders_sheet.gd`, class still `OrdersSheet`;
+  `HuntHud.open_orders()`; the nav entry reads "Tasks"). Five category tabs on the left: Daily Task,
+  Achievement, Domain Construction, Main Task, Weekly Task (GOLD brackets on the open tab, a red dot on
+  a tab with something to receive). Right, a scrolling list: hex icon, GOLD title, description, a thin
+  GOLD bar with "got/want", the reward line (Gold coin, skill point, XP). A complete task shows a GOLD
+  **Receive**; rewards are never paid automatically. Receive opens a "<Task> Complete" popup with one
+  row per reward and OK. Rows sort claimable, in progress, received (dimmed). Main Task lists the
+  standing orders (`data/world/objectives.json`), or the tutorial orders while the tutorial runs, with
+  Track / Tracking for the HUD order card. Core: `game/scripts/core/tasks.gd` (`rows`, `claim`,
+  `claimable_count`), data `game/data/world/tasks.json`; daily counts reset 00:00 UTC, weekly Monday
+  00:00 UTC; the claimable count badges the nav entry and the MENU hex. Saved as `tasks`. Test
+  `game/tests/t_taskscreen.gd`; shots `docs/orchestration/reports/taskscreen/`.
 
 **`skills`** — skills sheet (pre-UICHAR capture; recapture with `tools/ui_screens.sh`)
 
@@ -290,6 +298,24 @@ CHARCREATE restyle; recapture it.
 
 ![island_pick](screens/island_pick.webp)
 
+
+Dev quick start (QUICKSTART 2026-10-29, `character_creation.gd`): `-- --skip-charcreate` (default
+occupation and look), `-- --occupation=<id>`, or `WILDLANDS_QUICKSTART=1` skips this screen; add
+`--new-game` for a fresh start. Documented in `HANDOFF.md`.
+
+## Loading screen (LOADING, 2026-10-30)
+
+`game/scripts/ui/loading_screen.gd` (`LoadingScreen`, CanvasLayer 128, above everything): an opaque
+header-colour backdrop with a faint hex lattice, a hex emblem whose gold edge walks round, the
+destination title, a GOLD bar with the build stage and percent, and a rotating tip from
+`game/data/ui/loading_tips.json` (11 tips about systems the game has). Progress is real:
+`PerfTrace.mark` at each island build phase calls `LoadingScreen.stage`, weighted by a home build's
+profile. While it is up the tree is paused and no input reaches the world. It replaces the old 0.25 s
+black fade (`World._fade_to`) on every transition: boot ("Loading the world" / "Loading your save"),
+character creation to the tutorial, the tutorial ferry and `--skip-tutorial` pick ("Sailing to <shape>"),
+harbour sailing and warp home, and an expedition reset while you stand on it ("The island shifted").
+Headless runs skip fades and forced frames. Test `game/tests/t_loading.gd`; shots
+`docs/orchestration/reports/loading/`.
 
 ## Restyled world screens (UIWORLD, 2026-10-28)
 
