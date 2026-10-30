@@ -31,6 +31,7 @@ func _process(_delta: float) -> bool:
 	_test_spoiled()
 	_test_preferred_first()
 	_test_idle_pen()
+	_test_no_diet()
 	_test_floor()
 	_test_save_round_trip()
 	player.queue_free()
@@ -80,7 +81,7 @@ func _test_herbivore() -> void:
 	var ok: bool = pen.feed(player)
 	_expect(not ok and _n("raptor_meat") == 2 and is_equal_approx(pen.remaining, START), "zebraceratops refuses raptor meat and eats nothing (ok=%s meat=%d remaining=%.1f)" % [ok, _n("raptor_meat"), pen.remaining])
 	var want := "Needs berry or herb leaf (or fibre stalk) in your bag."
-	_expect(str(pen.last_feed_refusal).to_lower() == want.to_lower(), "refusal text '%s' (want '%s')" % [pen.last_feed_refusal, want])
+	_expect(pen.last_feed_refusal == want, "refusal text '%s' (want '%s')" % [pen.last_feed_refusal, want])
 	_bag({"berry": 2})
 	ok = pen.feed(player)
 	_expect(ok and _n("berry") == 1 and is_equal_approx(pen.remaining, START * 0.6), "berry: one eaten, wait x0.6 (ok=%s berry=%d remaining=%.1f)" % [ok, _n("berry"), pen.remaining])
@@ -102,6 +103,10 @@ func _test_carnivore() -> void:
 	_bag({"raw_meat": 1})
 	ok = pen.feed(player)
 	_expect(ok and _n("raw_meat") == 0 and is_equal_approx(pen.remaining, START * 0.6), "raw meat is preferred: x0.6 (remaining=%.1f)" % pen.remaining)
+	pen.remaining = START
+	_bag({"fish": 1})
+	ok = pen.feed(player)
+	_expect(ok and _n("fish") == 0 and is_equal_approx(pen.remaining, START * 0.8), "fish is accepted food for a raptor: x0.8 (remaining=%.1f)" % pen.remaining)
 	_drop(pen)
 
 func _test_spoiled() -> void:
@@ -117,6 +122,12 @@ func _test_preferred_first() -> void:
 	var ok: bool = pen.feed(player)
 	_expect(ok and _n("herb_leaf") == 0 and _n("fibre_stalk") == 1 and is_equal_approx(pen.remaining, START * 0.6), "preferred herb leaf is eaten before accepted fibre stalk")
 	_drop(pen)
+
+func _test_no_diet() -> void:
+	var def: Resource = load("res://scripts/creatures/creature_def.gd").new()
+	def.preferred_food.clear()
+	def.accepted_food.clear()
+	_expect(PenS.feed_hint(def) == "This animal takes no food here.", "a species with no diet says so: '%s'" % PenS.feed_hint(def))
 
 func _test_idle_pen() -> void:
 	var pen := _pen("zebraceratops")
@@ -135,9 +146,10 @@ func _test_floor() -> void:
 	pen.remaining = 6.0
 	pen.feed(player)
 	_expect(is_equal_approx(pen.remaining, 5.0), "6 s fed with berry stops at the 5 s floor (remaining=%.2f)" % pen.remaining)
+	_expect(_n("berry") == 1, "the 6 s feed ate one berry (berry=%d)" % _n("berry"))
 	pen.remaining = 0.15
-	pen.feed(player)
-	_expect(is_equal_approx(pen.remaining, 0.15), "0.15 s fed stays 0.15 s (remaining=%.2f)" % pen.remaining)
+	var ok: bool = pen.feed(player)
+	_expect(not ok and is_equal_approx(pen.remaining, 0.15) and _n("berry") == 1, "at <= 5 s the pen refuses food and eats none (ok=%s remaining=%.2f berry=%d)" % [ok, pen.remaining, _n("berry")])
 	_drop(pen)
 
 func _test_save_round_trip() -> void:

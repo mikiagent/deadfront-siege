@@ -212,6 +212,9 @@ func feed(player: Player) -> bool:
 	if remaining <= 0.0:
 		_notice_full(player) # finished and waiting for a bonded slot: food would only restart the timer
 		return false
+	if remaining <= 5.0:
+		last_feed_refusal = "Almost tamed: it does not need more food."
+		return false # food cannot shorten a wait already at the 5 s floor, so none is eaten
 	var def := _species_def(occupant)
 	# ASSUMPTION: no capture-technique lock in the pen: the animal is already caught.
 	var food := FieldTame.diet_food_in_bag(player.inventory, def)
@@ -221,8 +224,7 @@ func feed(player: Player) -> bool:
 		return false
 	var mult := PREFERRED_FEED_MULT if food in def.preferred_food else ACCEPTED_FEED_MULT
 	player.inventory.remove_at(player.inventory.find_first(food), 1)
-	# The 5 s floor never lengthens a nearly finished wait (it used to: 0.15 s fed became 5 s).
-	remaining = minf(remaining, maxf(5.0, remaining * mult))
+	remaining = maxf(5.0, remaining * mult) # remaining > 5 here, so a feed never lengthens the wait
 	print("[capture] pen fed %s remaining=%.1fs" % [food, remaining])
 	return true
 
@@ -235,10 +237,10 @@ static func feed_hint(def: CreatureDef) -> String:
 		text += " (or %s)" % _food_names(def.accepted_food)
 	return text + " in your bag."
 
-static func _food_names(ids: Array) -> String:
+static func _food_names(ids: Array[StringName]) -> String:
 	var names: Array[String] = []
 	for id in ids:
-		var item := Data.item(StringName(id))
+		var item := Data.item(id)
 		names.append(item.display_name.to_lower() if item != null and item.display_name != "" else str(id).replace("_", " "))
 	return " or ".join(names)
 

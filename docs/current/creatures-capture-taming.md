@@ -194,7 +194,7 @@ Animals screen shows its stats.
   remaining time to max(5 s, 60 % of what is left), else the first `accepted_food` to 80 %
   (`ACCEPTED_FEED_MULT`, `# ASSUMPTION`: half the preferred cut, like field feeding's 1.0 / 0.5).
   Anything else (meat for a herbivore, berries for a carnivore, `spoiled_meat`, `rot`) is refused
-  before anything is eaten, and the pen screen shows `TamingPen.feed_hint` ("Needs berry or herb
+  before anything is eaten (so is any food once 5 s or less is left), and the pen screen shows `TamingPen.feed_hint` ("Needs berry or herb
   leaf (or fibre stalk) in your bag."). Test: `game/tests/t_pen_diet.gd`.
 - On finish the pen rolls `TamingPen.odds()`: the capture S-curve (`TamingOdds.odds_for_values`) on
   survival level vs the animal's level, at the capture threshold's health and a tier-1 net (shown on
