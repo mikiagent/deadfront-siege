@@ -109,3 +109,18 @@ A level-up adds about 45 draw calls and 0.1–0.5 ms of render CPU. TopFeed is c
   - run_all prints `[tests] PASS` and smoke prints `SMOKE PASS`.
 - t_levelfx failed once on the phone skill-row placement (the row landed at y 260 instead of 114) and then passed 4 runs in a row. It now dumps the drawn blocks if that happens again. It is probably a leftover row from an earlier step under load, but I have not confirmed that.
 - I did not repeat the windowed captures after this merge. The HUD changes from HUDRULES sit in the vitals and the minimap; the panel and the feed were only checked headless.
+
+## Recheck on canon 36d1fac8 (2026-10-30)
+
+The coordinator asked again for LEVELFX2. It was already merged: canon has `LevelUpFx` (pillar, rings, rays, sparkles,
+light), driven by `LevelUpCelebration` from `hunt_hud.gd`, standing on the saddle while she rides and moving to her feet
+on a mid-way dismount. Nothing was ported again. Branch `claude/mmo-levelfx2` was moved forward to canon and carries two fixes:
+
+- `t_levelfx` gains an idle check: 30 frames with no level-up spawn no light and add no nodes under the lab (496 = 496).
+- `levelfx_lab` had drifted: canon's skill research (2026-10-28) means processing and gathering level only through a
+  research, so the lab's skill and burst passes saw no level-up and FAILed. The lab now runs the research out on the test
+  clock, as `t_levelfx._research_now` does. Windowed 1600x900 off-screen run: `[levelfx] PASS shots=15`.
+
+Gates: `t_levelfx` PASS, `t_hudredraw` PASS, `run_all` `[tests] PASS`, `tools/smoke.sh --no-import` SMOKE PASS.
+Shots: `levelfx2/recheck_*.jpg` (character by day, mounted on the T. rex by day, skill by night). Seen from the top-down
+camera, the T. rex's body hides most of the mounted pillar; the rings around it show. 844x390 was not re-shot.

@@ -100,6 +100,7 @@ func _skill(tag: String) -> void:
 		lv = s.level_of("processing")
 	_hud.toast(&"fibre_stalk", 2)  # a gather pays the skill XP: its pickup toast shows beside the banner
 	s.add_xp("processing", SkillState.xp_to_next(lv) - s.xp_of("processing"), true)
+	_research_now(s, "processing")
 	_expect(s.level_of("processing") == lv + 1, "%s: processing rose to Lv. %d" % [tag, s.level_of("processing")])
 	var fx := await _shots_of("skill_%s" % tag)
 	_expect(fx.has("skill") and not fx.has("character"), "%s: a skill level-up spawns the small light effect only (saw %s)" % [tag, fx])
@@ -164,11 +165,22 @@ func _burst() -> void:
 	var before := LevelDisplay.player_level()
 	var need := World.xp_for_level(before - 1) - World.pioneer_xp + World.xp_for_level(before)
 	_player.skills.add_xp("gathering", float(need))
+	_research_now(_player.skills, "gathering")
 	print("[levelfx] burst: Lv. %d -> Lv. %d, gathering Lv. %d, survival Lv. %d" % [before, LevelDisplay.player_level(), _player.skills.level_of("gathering"), _player.skills.level_of("survival")])
 	var rec := await _record(DRAIN_MAX_S, true)
 	_expect(int(rec["max_fx"]) <= 1, "burst: one light effect at a time (max %d)" % rec["max_fx"])
 	_expect((rec["order"] as Array).size() >= 3, "burst: the level-ups show one after another (%s)" % [rec["order"]])
 	_expect(float(rec["max_block_jump"]) <= 0.5, "burst: a celebration's block never jumps while it shows (max %.2f px)" % rec["max_block_jump"])
+
+## Research (owner 2026-10-28): a gated tree levels only through a research; run it out on the test
+## clock in the same frame (as t_levelfx._research_now).
+func _research_now(s: SkillState, tree: String) -> void:
+	if not s.research_ready(tree):
+		return
+	s.start_research(tree)
+	SkillState.clock_override = SkillState.now_s() + SkillState.research_s(s.level_of(tree)) + 1.0
+	s.poll_research()
+	SkillState.clock_override = -1.0
 
 ## A character level-up while the survivor walks (1.5 s of a 14 m walk, twice: without and with one):
 ## the effect stays on her feet, the camera gets no shake offset, the HUD block stays put. The camera's
