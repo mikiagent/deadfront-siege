@@ -79,7 +79,14 @@ static func build(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 		return stats
 	var planned := plan(rt, def)
 	var placed := 0
+	var index := 0
 	for site in planned["sites"]:
+		# A site's node ids are its display slug plus its order on this island: two sites of one type
+		# ("Palm Grove" twice) never share a node id.
+		if not site.get("authored", false):
+			site["slot"] = index
+			site["id"] = "%s_%d" % [str(site.get("id", site.get("type", "site"))), index]
+		index += 1
 		if apply_site(rt, def, site):
 			placed += 1
 			rt.landmarks.append(site)
@@ -88,6 +95,12 @@ static func build(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 				stats["types"].append(t)
 	stats["placed"] = placed
 	stats["skipped"] = int(planned["skipped"]) + (planned["sites"].size() - placed)
+	if OS.get_environment("LM_DEBUG") == "1":
+		print("[landmarks-debug] island=%s budget=%s planned=%d rejects=%s" % [
+			def.get("id", ""), str(budget_for(def)), planned["sites"].size(), str(reject_counts())])
+		print("[landmarks-debug2] island=%s cands=%d sites=%s" % [def.get("id", ""), int(planned.get("cands", 0)),
+			str(planned["sites"].map(func(q: Dictionary) -> String: return "%s@%.0f,%.0f d=%.0f" % [q.get("display", ""), q.get("x", 0.0), q.get("z", 0.0), q.get("dist_landing", 0.0)]))])
+		_rejects.clear()
 	_print_line(rt, def, stats)
 	return stats
 
@@ -134,18 +147,35 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 			continue
 		used[key] = int(used.get(key, 0)) + 1
 		sites.append(site)
+	# The band's minimum is the budget's promise (doc section 5.1): when the drawing came up short (a
+	# row past its "max", a terrain rule that rarely passes), draw again from the climate's rows until
+	# the minimum is met or the tries run out. Spacing and every other rule still apply.
+	var attempts := 0
+	while sites.size() < b.x and attempts < (b.x - sites.size() + 2) * 12:
+		attempts += 1
+		var row2 := _weighted_row(rows, rng)
+		if row2.is_empty():
+			break
+		var site2 := _try_place(rt, landmark_ctx, climate, row2, sites, rng, false)
+		if site2.is_empty():
+			skipped += 1
+			continue
+		sites.append(site2)
 	# Doc section 3.3: at least one site within near_landing_m of the landing. Move the last site whose
 	# ring band reaches into that zone, or add one when the budget has room.
 	if not _has_near(sites, landmark_ctx):
 		var moved := false
 		for i in range(sites.size() - 1, -1, -1):
 			if not sites[i].get("authored", false):
+				var old: Dictionary = sites[i]
 				sites.remove_at(i)
-				var row := _row_for(rows, str(sites[i].get("type", "")), str(sites[i].get("display", "")))
+				var row := _row_for(rows, str(old.get("type", "")), str(old.get("display", "")))
 				var near := _try_place(rt, landmark_ctx, climate, row, sites, rng, true) if not row.is_empty() else {}
 				if not near.is_empty():
 					sites.append(near)
 					moved = true
+				else:
+					sites.insert(i, old)
 				break
 		if not moved:
 			# No drawn row reaches in: add the climate's shortest-band row inside the band.
@@ -156,7 +186,7 @@ static func plan(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 					if not near.is_empty():
 						sites.append(near)
 						break
-	return {"sites": sites, "skipped": skipped, "budget": b}
+	return {"sites": sites, "skipped": skipped, "budget": b, "cands": (landmark_ctx["cands"] as PackedVector2Array).size()}
 
 static func _has_near(sites: Array, ctx: Dictionary) -> bool:
 	var near_m := float(rules().get("near_landing_m", 140))
@@ -164,6 +194,20 @@ static func _has_near(sites: Array, ctx: Dictionary) -> bool:
 		if float(s.get("dist_landing", 9999.0)) <= near_m:
 			return true
 	return false
+
+## One weighted draw from the climate's rows (a single site, no "max" bookkeeping).
+static func _weighted_row(rows: Array, rng: RandomNumberGenerator) -> Dictionary:
+	if rows.is_empty():
+		return {}
+	var total := 0.0
+	for row in rows:
+		total += maxf(0.01, float((row as Dictionary).get("weight", 1)))
+	var pick := rng.randf() * total
+	for row in rows:
+		pick -= maxf(0.01, float((row as Dictionary).get("weight", 1)))
+		if pick <= 0.0:
+			return row
+	return rows[rows.size() - 1]
 
 static func _row_for(rows: Array, type: String, display: String) -> Dictionary:
 	for row in rows:
@@ -177,10 +221,17 @@ static func _draw_order(rows: Array, want: int, rng: RandomNumberGenerator) -> A
 	var out: Array = []
 	var pool: Array = []
 	for row in rows:
-		if bool((row as Dictionary).get("must", false)):
-			out.append(row)
+		var row_d: Dictionary = row
+		var cap := mini(int(row_d.get("max", 99)), maxi(want, 1))
+		if bool(row_d.get("must", false)):
+			out.append(row_d)
+			if cap > 1:
+				pool.append(row_d)
 		else:
-			pool.append(row)
+			# A row may be drawn up to its "max" times: one pool entry per copy, so the weighted draw
+			# can pick it again without repeating it past the cap (the caller's `used` check).
+			for _c in maxi(cap, 1):
+				pool.append(row_d)
 	# Weighted draw without replacement.
 	while not pool.is_empty() and out.size() < want * 3:
 		var total := 0.0
@@ -269,7 +320,13 @@ static func _context(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 			if str(m.get("kind", "")) == "claim_free":
 				var p: Dictionary = m.get("props", {}) as Dictionary
 				circles.append({"x": float(m.get("x", 0.0)), "z": float(m.get("z", 0.0)), "r": float(p.get("radius_m", 30.0))})
+	var reach := _reachable(rt)
+	var cands := _candidates(rt, reach, Vector2(landing.x, landing.z), Vector2(rt._camp_pos.x, rt._camp_pos.z),
+		float(r.get("camp_clear_m", 60)), safe, circles)
 	return {
+		"cands": cands,
+		"band_idx": {},
+		"legal": {},
 		"landing": Vector2(landing.x, landing.z),
 		"camp": Vector2(rt._camp_pos.x, rt._camp_pos.z),
 		"spacing": spacing,
@@ -278,9 +335,10 @@ static func _context(rt: IslandRuntime, def: Dictionary) -> Dictionary:
 		"near": float(r.get("near_landing_m", 140)),
 		"safe_ring": safe,
 		"circles": circles,
-		"reach": _reachable(rt),
+		"reach": reach,
 		"half": rt._size * 0.5,
 		"span": rt._tile_span,
+		"span_tiles": rt._tile_span,
 	}
 
 ## The dry tiles connected to the camp (and to the landing's inland side): a landmark nobody can walk
@@ -327,9 +385,10 @@ static func _reachable(rt: IslandRuntime) -> PackedByteArray:
 	while not stack.is_empty():
 		var i: int = stack.pop_back()
 		var x := i % span
-		for d in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+		var z := i / span
+		for d: Vector2i in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
 			var nx := x + d.x
-			var nz := i / span + d.y
+			var nz := z + d.y
 			if nx < 0 or nz < 0 or nx >= span or nz >= span:
 				continue
 			var j := nx + nz * span
@@ -345,6 +404,81 @@ static func _tile_of(p: Vector3, half: float, span: int) -> int:
 	if x < 0 or z < 0 or x >= span or z >= span:
 		return -1
 	return x + z * span
+
+## Candidate centres: the centre of every reachable dry tile that is not already excluded by a rule
+## that does not depend on the site (the camp clearing, the tutorial safe ring, a claim_free circle,
+## a claim). The sampler draws from these, so a try is never wasted in the sea, a cliff pocket or the
+## camp. Candidate centres are ~half of the tiles but their tests use no per-site state.
+## A site's node ring needs ~8 m of room: tiles within 3 m of a claimed tile stay out too.
+static func _candidates(rt: IslandRuntime, reach: PackedByteArray, landing: Vector2, camp: Vector2,
+		camp_clear: float, safe: float, circles: Array) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var span := rt._tile_span
+	if span <= 0 or reach.is_empty():
+		return out
+	var half := rt._size * 0.5
+	var camp_r2 := camp_clear * camp_clear
+	var safe_r2 := safe * safe
+	var max_circle := 0.0
+	for c in circles:
+		max_circle = maxf(max_circle, float(c["r"]))
+	var claims: Array[Rect2i] = []
+	if rt.camp_claim.has_area():
+		claims.append(rt.camp_claim.grow(3))
+	for rect in rt.claims:
+		claims.append((rect as Rect2i).grow(3))
+	for i in reach.size():
+		if int(reach[i]) != 1:
+			continue
+		var x := i % span
+		var z := i / span
+		var px := -half + float(x) + 0.5
+		var pz := -half + float(z) + 0.5
+		# Square pre-tests first (cheap), the exact test on the few survivors.
+		if absf(px - camp.x) < camp_clear and absf(pz - camp.y) < camp_clear:
+			var dx := px - camp.x
+			var dz := pz - camp.y
+			if dx * dx + dz * dz < camp_r2:
+				continue
+			if safe > 0.0 and dx * dx + dz * dz < safe_r2:
+				continue
+		if not circles.is_empty() and max_circle > 0.0:
+			var p := Vector2(px, pz)
+			var in_circle := false
+			for c in circles:
+				if p.distance_squared_to(Vector2(float(c["x"]), float(c["z"]))) < float(c["r"]) * float(c["r"]):
+					in_circle = true
+					break
+			if in_circle:
+				continue
+		if not claims.is_empty():
+			var tile := Vector2i(x - int(half), z - int(half))
+			var claimed := false
+			for rect in claims:
+				if rect.has_point(tile):
+					claimed = true
+					break
+			if claimed:
+				continue
+		out.append(Vector2(px, pz))
+	return out
+
+## The candidate indices whose distance from the landing lies in [lo, hi]: built once per row and
+## cached in the context (a 40k-entry scan, not hundreds of rejected tries).
+static func _band(ctx: Dictionary, lo: float, hi: float) -> PackedInt32Array:
+	var key := "%.0f:%.0f" % [lo, hi]
+	var idx: Dictionary = ctx["band_idx"]
+	if idx.has(key):
+		return idx[key]
+	var cands: PackedVector2Array = ctx["cands"]
+	var landing: Vector2 = ctx["landing"]
+	var arr := PackedInt32Array()
+	for i in cands.size():
+		var d := cands[i].distance_to(landing)
+		if d >= lo and d <= hi:
+			arr.append(i)
+	idx[key] = arr
+	return arr
 
 ## True when the centre is on the reachable dry component and on a walkable tile.
 static func _reach_ok(ctx: Dictionary, x: float, z: float) -> bool:
@@ -402,7 +536,9 @@ static func _token_ok(rt: IslandRuntime, token: String, x: float, z: float) -> b
 
 ## A candidate centre: the doc section 3.3 rules, in the cheapest order (distance, then claims, then
 ## the reachable component, then spacing, then terrain and the node group's fit).
-static func _center_ok(rt: IslandRuntime, ctx: Dictionary, site: Dictionary, sites: Array) -> bool:
+## Why a candidate centre was refused ("" when it passes). A string so a lab run with LM_DEBUG=1 can
+## print it; the placement loop only branches on it being empty.
+static func _reject_reason(rt: IslandRuntime, ctx: Dictionary, site: Dictionary, sites: Array) -> String:
 	var x := float(site["x"])
 	var z := float(site["z"])
 	var p := Vector2(x, z)
@@ -410,33 +546,33 @@ static func _center_ok(rt: IslandRuntime, ctx: Dictionary, site: Dictionary, sit
 	var dl := p.distance_to(landing)
 	var dc := p.distance_to(ctx["camp"])
 	if dc < float(ctx["camp_clear"]):
-		return false
+		return "camp"
 	if dl < float(ctx["landing_clear"]):
-		return false
+		return "landing"
 	var safe := float(ctx["safe_ring"])
 	if safe > 0.0 and dc < safe:
-		return false
+		return "safe_ring"
 	for c in ctx["circles"]:
 		var ctr := Vector2(float(c["x"]), float(c["z"]))
 		if p.distance_to(ctr) < float(c["r"]):
-			return false
+			return "claim_free"
 	# Claims: the camp's landing claim and every owned cell.
 	var tile := BuildGrid.tile_of(Vector3(x, 0.0, z))
 	if rt.camp_claim.has_area() and rt.camp_claim.grow(3).has_point(tile):
-		return false
+		return "claim"
 	for rect in rt.claims:
 		if (rect as Rect2i).grow(3).has_point(tile):
-			return false
+			return "claim"
 	if not rt.is_dry(Vector3(x, 0.0, z)):
-		return false
+		return "wet"
 	if not _reach_ok(ctx, x, z):
-		return false
+		return "unreachable"
 	for other in sites:
 		if p.distance_to(Vector2(float(other["x"]), float(other["z"]))) < float(ctx["spacing"]):
-			return false
+			return "spacing"
 	var type_row: Dictionary = (data().get("types", {}) as Dictionary).get(str(site.get("type", "")), {})
 	if type_row.is_empty():
-		return false
+		return "no_type"
 	if not site.get("authored", false):
 		var band: Array = type_row.get("ring", [0, 0])
 		var lo := float(band[0]) if band.size() >= 2 else 0.0
@@ -445,10 +581,15 @@ static func _center_ok(rt: IslandRuntime, ctx: Dictionary, site: Dictionary, sit
 			hi = minf(hi, float(ctx["near"]) - 2.0)
 			lo = minf(lo, float(ctx["landing_clear"]) + 6.0)
 		if dl < lo or dl > hi:
-			return false
+			return "ring"
 	if not _terrain_ok(rt, type_row, x, z):
-		return false
-	return _group_fits(rt, site)
+		return "terrain"
+	if not _group_fits(rt, site):
+		return "group"
+	return ""
+
+static func _center_ok(rt: IslandRuntime, ctx: Dictionary, site: Dictionary, sites: Array) -> bool:
+	return _reject_reason(rt, ctx, site, sites) == ""
 
 
 ## The node group's ring fits: at least node_fit_share of its positions are dry, unoccupied ground.
@@ -494,24 +635,88 @@ static func _try_place(rt: IslandRuntime, ctx: Dictionary, climate: String, row:
 	if site.is_empty():
 		return {}
 	site["near"] = near
-	var half: float = float(ctx["half"]) - 16.0
-	var tries := int(rules().get("tries_per_site", 220))
-	for _i in tries:
-		if near:
-			# Sample the near band around the landing directly (a ring sample, not the whole island).
-			var lo := float(ctx["landing_clear"]) + 8.0
-			var hi := float(ctx["near"]) - 6.0
-			var a := rng.randf_range(0.0, TAU)
-			var d := rng.randf_range(lo, maxf(lo + 1.0, hi))
-			site["x"] = float(ctx["landing"].x) + cos(a) * d
-			site["z"] = float(ctx["landing"].y) + sin(a) * d
-		else:
-			site["x"] = rng.randf_range(-half, half)
-			site["z"] = rng.randf_range(-half, half)
-		if _center_ok(rt, ctx, site, sites):
-			site["dist_landing"] = Vector2(float(site["x"]), float(site["z"])).distance_to(ctx["landing"])
-			return site
-	return {}
+	# The candidate band: the type's ring, clamped into the near band when this site must be close.
+	var type_row: Dictionary = (data().get("types", {}) as Dictionary).get(str(site.get("type", "")), {})
+	var ring_band: Array = type_row.get("ring", [0, 0])
+	var lo := float(ring_band[0]) if ring_band.size() >= 2 else 0.0
+	var hi := float(ring_band[1]) if ring_band.size() >= 2 else 9999.0
+	if near:
+		hi = minf(hi, float(ctx["near"]) - 4.0)
+		lo = minf(lo, float(ctx["landing_clear"]) + 6.0)
+	# Two steps, both linear in the band. First every candidate is tested against the rules that do not
+	# depend on the other sites (terrain, the node group's fit, dry ground, reachability): that list is
+	# cached per type and band, so the island's eight sites pay for it once. Then spacing is a packing
+	# problem on a narrow island, where a random draw misses the few free gaps: take the first legal
+	# candidate, or else the one farthest from the sites already placed (the doc's "keep the best by
+	# score: distance from other landmarks").
+	var ids := _band(ctx, lo, hi)
+	if ids.is_empty():
+		return {}
+	var cands: PackedVector2Array = ctx["cands"]
+	var legal := _legal_candidates(rt, ctx, site, ids)
+	if legal.is_empty():
+		return {}
+	# The candidate farthest from the sites already placed (the doc's "keep the best by score: distance
+	# from other landmarks"): greedy first-fit packs early sites close together and strands the later
+	# ones on a narrow island, while farthest-point keeps the whole island usable.
+	var spacing := float(ctx["spacing"])
+	var best_idx := -1
+	var best_gap := -1.0
+	for idx_v in legal:
+		var gap := _min_site_dist(cands[int(idx_v)], sites)
+		if gap > best_gap:
+			best_gap = gap
+			best_idx = int(idx_v)
+	if OS.get_environment("LM_DEBUG") == "1":
+		print("[landmarks-gap] %s legal=%d best=%.1f spacing=%.0f sites=%d" % [str(site.get("display", "")), legal.size(), best_gap, spacing, sites.size()])
+	if best_idx < 0 or (not sites.is_empty() and best_gap < spacing):
+		# Every legal candidate is inside another site's spacing: the type is skipped, never squeezed.
+		return {}
+	var q := cands[best_idx]
+	site["x"] = q.x
+	site["z"] = q.y
+	site["dist_landing"] = q.distance_to(ctx["landing"])
+	return site
+
+## Band indices that pass every rule except spacing, cached per site type and band. The probe copy only
+## carries the type and node group; positions are written per candidate.
+static func _legal_candidates(rt: IslandRuntime, ctx: Dictionary, site: Dictionary,
+		ids: PackedInt32Array) -> PackedInt32Array:
+	var key := "%s|%s|%d|%d" % [str(site.get("type", "")), str(site.get("display", "")), ids.size(), int(ids[0]) if ids.size() > 0 else -1]
+	var cache: Dictionary = ctx["legal"]
+	if cache.has(key):
+		return cache[key]
+	var cands: PackedVector2Array = ctx["cands"]
+	var probe := site.duplicate(false)
+	var out := PackedInt32Array()
+	for idx_v in ids:
+		var q := cands[int(idx_v)]
+		probe["x"] = q.x
+		probe["z"] = q.y
+		if _reject_reason(rt, ctx, probe, []) == "":
+			out.append(int(idx_v))
+	cache[key] = out
+	return out
+
+static var _rejects: Dictionary = {}
+
+static func _note_reject(_display: String, why: String) -> void:
+	_rejects[why] = int(_rejects.get(why, 0)) + 1
+
+static func site_at(site: Dictionary, q: Vector2) -> Dictionary:
+	var copy := site.duplicate(false)
+	copy["x"] = q.x
+	copy["z"] = q.y
+	return copy
+
+static func _min_site_dist(q: Vector2, sites: Array) -> float:
+	var best := 1e9
+	for other in sites:
+		best = minf(best, q.distance_to(Vector2(float(other["x"]), float(other["z"]))))
+	return best
+
+static func reject_counts() -> Dictionary:
+	return _rejects
 
 ## The site record from a climate row: the node group's family counts, level offset, discovery data.
 static func _site_from_row(row: Dictionary, climate: String, rng: RandomNumberGenerator) -> Dictionary:
@@ -601,13 +806,15 @@ static func apply_site(rt: IslandRuntime, def: Dictionary, site: Dictionary) -> 
 		for _k in n:
 			var a := float(idx) * TAU / float(maxi(total, 1)) + rng.randf_range(-0.12, 0.12) * jitter
 			var d := ring + rng.randf_range(-1.5, 1.5) * jitter
-			var p := Vector3(float(site["x"]) + cos(a) * d, 0.0, float(site["z"]) + sin(a) * d)
+			var want := Vector2(float(site["x"]) + cos(a) * d, float(site["z"]) + sin(a) * d)
 			idx += 1
-			if not rt.is_dry(p):
+			# The slot is the planned point when it is free dry ground; otherwise the nearest free tile
+			# within 6 m (a neighbour's node, a river edge, a cliff foot). A slot with no free tile
+			# within 6 m is dropped: the group shrinks, it is never stacked.
+			var slot := _free_slot(rt, want, 6.0)
+			if slot.x != slot.x:  # NaN: no free tile
 				continue
-			var tile := BuildGrid.tile_of(p)
-			if rt._used_tiles.has(tile):
-				continue
+			var p := Vector3(slot.x, 0.0, slot.y)
 			p.y = rt.surface_y(p.x, p.z)
 			var node_id := (pattern % planted) if pattern != "" else "lm_%s_%d" % [key, planted]
 			if rt._harvest_nodes.has(node_id):
@@ -637,6 +844,30 @@ static func _fallback_for(family: String, role: String) -> StringName:
 			return &"fibre_stalk"
 		_:
 			return &"stone"
+
+## The nearest dry, unoccupied tile centre to `want` within `reach_m` (Vector2(NAN, NAN) when none).
+static func _free_slot(rt: IslandRuntime, want: Vector2, reach_m: float) -> Vector2:
+	var home := BuildGrid.tile_of(Vector3(want.x, 0.0, want.y))
+	if _slot_free(rt, home, want):
+		return want
+	var steps := int(ceil(reach_m))
+	for ring in range(1, steps + 1):
+		for dz in range(-ring, ring + 1):
+			for dx in range(-ring, ring + 1):
+				if absi(dx) != ring and absi(dz) != ring:
+					continue
+				var t := home + Vector2i(dx, dz)
+				if Vector2(float(dx), float(dz)).length() > reach_m:
+					continue
+				var c := BuildGrid.tile_centre(t, rt)
+				if _slot_free(rt, t, Vector2(c.x, c.z)):
+					return Vector2(c.x, c.z)
+	return Vector2(NAN, NAN)
+
+static func _slot_free(rt: IslandRuntime, tile: Vector2i, at: Vector2) -> bool:
+	if rt._used_tiles.has(tile):
+		return false
+	return rt.is_dry(Vector3(at.x, 0.0, at.y))
 
 static func _family_color(family: String, role: String) -> Color:
 	match role:

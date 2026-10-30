@@ -21,7 +21,7 @@
       "radius_m": 18,
       "gold": 20
     },
-    "tries_per_site": 220,
+    "tries_per_site": 900,
     "node_fit_share": 0.7,
     "_spacing_note": "# ASSUMPTION: 45 m between landmark centres on expedition islands, 30 m on the home island (doc section 3.3).",
     "_landing_note": "# ASSUMPTION: no landmark centre inside the 60 m camp clearing or 36 m of the landing point (the doc keeps the dock area calm; 25 m is the landing ring, +11 m for the node group).",
