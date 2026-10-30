@@ -100,3 +100,37 @@ block and hex), `t_levelbar` (the readout is bottom-left over EAT), `t_uigather`
 bottom-left over EAT), `t_fieldhud` (the layout check now uses the drawn readout instead of the retired
 centre `UiTokens.xp_line_zone`). `t_hudrules`, `t_levelbadge`, `t_treadmill`, `t_hudredraw` unchanged
 and PASS.
+
+## Re-merge onto the new canon (integrator follow-up, 2026-10-30)
+
+Fetched `origin` and merged `origin/claude/mmo-overhaul` (b1e88e3d: FOODTORPOR, SLOWLEVELS,
+CREATURECHIPS, TASKSCREEN, STYRATACTICS) into the branch. One conflict, in `docs/current/hud.md`,
+resolved keeping both intents:
+
+- Level bar label: our owner-2026-10-30 bottom-left anchor just over the EAT row (with the skill XP
+  rows stacking above it) plus canon's `137 / 763 XP` and cost `round(110 x 1.12^n x 2.5)`
+  (`player_xp_cost_mult`).
+- Skill XP lines: our `HudLayout.xp_feed_top` bottom-left placement **and** canon's SLOWLEVELS batch
+  wording (one bar per tree, light-green ghost, `SKILL_CATCHUP_DELAY` 0.6 s, level flash, `SKILL_LIFE`
+  2.5 s), merged into one bullet. This file has no Open Questions section, so nothing to merge there.
+
+Code: `hunt_hud.gd` auto-merged and keeps the `_draw`/`_draw_hud` split, the signature and
+`_animating()`. One canon input was missing from the signature and is now in it: the target plate's
+FOODTORPOR torpor strip and knock-out tick read `t.torpor` (`_q10(t.torpor)`, 0 while the strip is
+hidden) — a sedated target's strip would otherwise have frozen between repaints. CREATURECHIPS and
+TASKSCREEN need no change: the plate's creature chips are already keyed by `[id, stacks]` in the
+target slot, and the claimable-task count only drives the MENU hex's badge (`field.apply_badge` →
+`m.queue_redraw()`), which owns its own repaint.
+
+Also added a short "Repaint policy (HUDREDRAW)" section to `docs/current/hud.md` (canon had merged the
+canvas section without it): the signature, `_animating()`, the 1 Hz catch-up and the 0-redraw idle.
+
+Re-verified after the merge: `t_hudredraw` — HUD `_draw` 0 over 120 shown frames and 0 over the 60-frame
+idle sample, minimap 5/120 and 5/60, process mean 5.26 ms shown vs 6.29 ms hidden (headless noise at
+this sample size; the deltas that matter are the draw counts and the per-draw script time, ~1.28 ms).
+`t_fieldhud` prints "idle 60 frames with nothing animating: HUD draws 0, minimap draws 0";
+`t_levelfx`, `t_levelbadge`, `t_levelbar`, `t_hudrules`, `t_treadmill` PASS; the full
+`verify_hudredraw.sh` (including `run_all` and `smoke`) passes.
+
+Gotcha for the next agent: after such a merge, a class added by canon needs one `--import` before any
+headless test, or every autoload fails to compile with "Identifier ... not declared".
