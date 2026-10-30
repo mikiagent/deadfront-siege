@@ -138,12 +138,12 @@ The tutorial town's guild hall becomes the **Faction Hall**. Its tap role stays 
 which keeps the tutorial pointer and map markers working, and every name shown in the game is
 "Faction Hall".
 
-- **Placement**: the hall stands across the plaza from the dock, facing it, turned 30 degrees off the dock line so the road north out of town stays open (`Tutorial.HALL_DEG`, FA11). A survivor stepping off the
+- **Placement**: the hall stands on the north-east side of the square, east of the road north out of town so that road stays open (`Tutorial.HALL_DESK`, FA11). Like every town building, it follows the player's building rules (owner 2026-10-30): it sits on the 1 m BuildGrid, faces south (the placer's default) and turns only in 90 degree steps. A survivor stepping off the
   ferry walks straight up the harbour avenue, across the plaza and into the hall. This is the arrival
   flow.
 - **Building**: a 14 x 9 m two-storey stone hall with two one-storey wings. Five faction banners hang
   on the front on tall poles in the faction colours, and lamps light the door.
-- **Boards**: five faction stalls stand in an arc in front of the hall, one per faction. Each has a
+- **Boards**: five faction stalls stand in a row in front of the hall, all facing south, one per faction. Each has a
   canvas in that faction's colour and a tappable board that opens the Factions screen on that faction.
   Two more general mission boards stand at the dock arrival and at the plaza's far side, so a crowd at
   the hall door is never the only place to take work (FA11). That makes seven tap points in all.

@@ -31,7 +31,8 @@ func run(host: Node) -> void:
 		fwd.y = 0.0
 		fwd = fwd.normalized()
 	# The camera looks along `fwd`: stand short of each subject so it sits in the upper middle of the view.
-	var spots := {"hall": Tutorial.plaza_polar(rt, Tutorial.HALL_DEG, 29.0) - fwd * 17.0, "boards": Tutorial.plaza_polar(rt, Tutorial.HALL_DEG, 15.0) - fwd * 8.0,
+	var desk: Vector3 = rt._camp_pos + Tutorial.HALL_DESK
+	var spots := {"hall": desk + Vector3(0, 0, 9), "boards": desk + Vector3(0, 0, 14),
 		"plaza": rt._camp_pos - fwd * 6.0, "dock": rt.arrival_point()}
 	for k in spots:
 		var p: Vector3 = spots[k]

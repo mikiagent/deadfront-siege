@@ -62,8 +62,8 @@ Rewards per order: 15-60 XP and 0-3 T-stones (the json). No taming order.
 - Town (`Tutorial.dress`, around the camp): the camp's fire, workbench, shed and cargo chest, plus
   `TownBuilding`s — the Faction Hall desk (`log_shelter` model, role guild, straight across the
   square from the dock: tap opens the Orders sheet while the tutorial runs, then the Factions
-  screen), seven faction boards (`sign`, role faction_board: five faction stalls in an arc before
-  the hall, one on the square's dock side, one by the dock arrival; tap opens the Factions screen
+  screen), seven faction boards (`sign`, role faction_board: five faction stalls in a row before
+  the hall, on the grid, facing south, one on the square's dock side, one by the dock arrival; tap opens the Factions screen
   on that faction; FACTIONS, `docs/design/factions.md` §6), Market stall (`fishing_stand`, role market: tap opens the Island Market), signpost,
   barrel, crates — a stone fire pit and a drying rack. All `persist_building = false`: never saved,
   `StructureHealth.is_structure` false (no damage), pack-up refused, grid cells occupied.

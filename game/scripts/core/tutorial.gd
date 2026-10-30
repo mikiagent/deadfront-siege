@@ -195,16 +195,17 @@ static func dress(rt: IslandRuntime) -> void:
 	TownDress.build(rt)  # TUTTOWN: the rest of the town, its districts, streets and townsfolk
 	_wild_zones(rt)
 
-## FACTIONS (docs/design/factions.md §6): the plaza is laid out from the dock. Across the square from
-## the dock (HALL_DEG) stands the Faction Hall (TownDress builds it behind its desk, TownGuild, role guild:
-## the tutorial's first order and the map still find it by that role); five faction boards stand in an
-## arc in front of it (FACTION_ORDER, the banner order) and two general boards spread the crowd: one by
-## the dock arrival, one on the square's dock side. Polar spots are dock-relative; a spot that is taken
-## moves outward. # ASSUMPTION: every distance and angle (FA11).
-const HALL_DEG := 210.0  ## across the square from the dock, turned 30 degrees off the line so the road north out of town stays open
-const HALL_DESK_R := 21.0
-const BOARD_R := 15.0
-const BOARD_DEG := [-56.0, -28.0, 0.0, 28.0, 56.0]
+## FACTIONS (docs/design/factions.md §6): the town follows the player's building rules (owner
+## 2026-10-30): every piece on the 1 m BuildGrid, in the placer's default orientation, front facing
+## south (+Z, toward the dock on this island and the bottom of the north-up screen). The Faction Hall
+## stands north-east of the square (TownDress builds it behind its desk, TownGuild, role guild: the
+## tutorial's first order and the map still find it by that role), east of the road north out of town
+## so that road stays open. Five faction boards stand in a row in front of it (FACTION_ORDER, the banner
+## order); two general boards spread the crowd: one on the square's dock side, one by the dock arrival.
+## A spot that is taken moves outward. # ASSUMPTION: every offset (FA11).
+const HALL_DESK := Vector3(19.0, 0.0, -15.0)  ## from the camp, metres: the desk in front of the hall door
+const BOARD_ROW_Z := -8.0
+const BOARD_X := [-12.0, -6.0, 0.0, 6.0, 12.0]  ## along the row, from the desk's x
 const FACTION_ORDER := ["company", "chlorophyll_forum", "radio_university", "pioneer_council", "committee"]
 
 static func plaza_polar(rt: IslandRuntime, deg: float, r: float) -> Vector3:
@@ -231,12 +232,12 @@ static func _free_cell(rt: IslandRuntime, want: Vector3) -> Vector2i:
 	return Vector2i(-99999, -99999)
 
 static func _faction_plaza(rt: IslandRuntime) -> void:
-	var desk := BuildGrid.tile_of(plaza_polar(rt, HALL_DEG, HALL_DESK_R))
-	var spot := _free_cell(rt, plaza_polar(rt, HALL_DEG, HALL_DESK_R))
+	var desk := BuildGrid.tile_of(rt._camp_pos + HALL_DESK)
+	var spot := _free_cell(rt, rt._camp_pos + HALL_DESK)
 	rt._camp_place(TownBuilding.make(&"log_shelter", &"guild", "Faction Hall"), "TownGuild", &"log_shelter", spot if spot.x > -99999 else desk)
 	var boards: Array = []
 	for i in FACTION_ORDER.size():
-		boards.append([FACTION_ORDER[i], plaza_polar(rt, HALL_DEG + float(BOARD_DEG[i]), BOARD_R)])
+		boards.append([FACTION_ORDER[i], rt._camp_pos + Vector3(HALL_DESK.x + float(BOARD_X[i]), 0.0, BOARD_ROW_Z)])
 	boards.append(["", plaza_polar(rt, 24.0, 17.0)])  # the square's dock side
 	var dock := rt.arrival_point()
 	boards.append(["", dock + (rt._camp_pos - dock).normalized() * 9.0])  # by the arrival

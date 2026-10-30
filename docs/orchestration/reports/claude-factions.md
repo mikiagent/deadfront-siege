@@ -56,9 +56,10 @@ for each: a look, values, a mission list, rank unlocks and a desk in the hall.
     unchanged.
 - **Faction Hall** (tutorial town):
   - `Tutorial._faction_plaza`: the desk (TownGuild, role `guild` kept, named "Faction Hall") stands
-    across the square from the dock, 30 degrees off the dock line (HALL_DEG 210), so the road north
-    to the water stays open.
-  - Seven `faction_board` TownBuildings (`sign`): five faction boards in an arc in front of the hall
+    north-east of the square, east of the road north to the water so that road stays open. All of it
+    sits on the 1 m BuildGrid facing south, the placer's default (owner rule 2026-10-30); benches turn
+    only in 90 degree steps.
+  - Seven `faction_board` TownBuildings (`sign`): five faction boards in a row in front of the hall
     in banner order, one on the square's dock side, and one by the dock arrival. Tapping a board opens
     the Factions screen on its faction. The desk opens the tutorial orders while the tutorial runs,
     then the Factions screen.
@@ -114,7 +115,7 @@ for each: a look, values, a mission list, rank unlocks and a desk in the hall.
     of the board arc.
 - **Footprint map**: `docs/orchestration/reports/factions/plaza_footprint.png` (written by
   `game/scripts/dev/faction_plaza_map.gd`, headless). Dock at the bottom; the white desk with the hall
-  behind it; the five board colours in an arc; grey general boards; the crowd and walkers in cyan.
+  behind it; the five board colours in a row; grey general boards; the crowd and walkers in cyan.
 - **Windowed shots**: `docs/orchestration/reports/factions/hall_{hall,boards,plaza,dock}_{1600x900,844x390}.png`
   and `factions_company_*`, `factions_forum_receive_*`. They come from
   `game/scripts/dev/faction_shots_probe.gd`; run it with

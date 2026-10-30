@@ -379,10 +379,11 @@ func _guild_hall() -> void:
 			g = (n as Node3D).global_position
 	if g == Vector3.INF:
 		return
-	var away := Vector3(g.x - camp.x, 0, g.z - camp.z).normalized()
-	var c := g + away * (float(HALL_D) * 0.5 + 3.5)
+	# On the grid, front to the south (+Z) like a building the player places with its default rotation.
+	var away := Vector3(0, 0, -1)
+	var c := (g + away * (float(HALL_D) * 0.5 + 3.5)).round()
 	c.y = rt.surface_y(c.x, c.z)
-	var yaw := atan2(-away.x, -away.z)  # its front faces the square
+	var yaw := 0.0
 	var b := Basis(Vector3.UP, yaw)
 	house(c, HALL_W, HALL_D, yaw, "stone", 2)
 	# The hall stands where the land starts to rise behind the square: a tall collider over the hall
@@ -419,6 +420,7 @@ func _guild_hall() -> void:
 		_boxes.append([Transform3D(b, pole + Vector3(0, h * 0.5, 0)), Vector3(0.25, h, 0.25)])
 		cells[BuildGrid.tile_of(pole)] = true
 	prop("signpost", door + b * Vector3(3.6, 0, 1.4), yaw)
+	_pad_cells(g, 3.0, 3.0, yaw)  # and of the hall desk
 	_boards()
 	_benches()
 	# The plaza crowd draws its looks from its own RNG, so the districts' townsfolk come out as before.
@@ -442,8 +444,7 @@ func _boards() -> void:
 		if n.get("role") != &"faction_board" or not rt.is_ancestor_of(n):
 			continue
 		var at := (n as Node3D).global_position
-		var out := Vector3(at.x - camp.x, 0, at.z - camp.z).normalized()
-		var yaw := atan2(-out.x, -out.z)  # faces the square
+		var yaw := 0.0  # grid default: the stall's front faces south
 		var bb := Basis(Vector3.UP, yaw)
 		var fid := str(n.get("faction"))
 		var col := Color(str(Factions.def(fid).get("colour", "#8a6a3a"))) if fid != "" else Color(0.55, 0.42, 0.26)
@@ -455,6 +456,7 @@ func _boards() -> void:
 		if fid != "":
 			unit("box", Transform3D(bb.scaled(Vector3(3.2, 0.3, 0.06)), at + Vector3(0, 2.25, 0) + bb * Vector3(0, 0, 1.2)), Color(str(Factions.def(fid).get("trim", "#cccccc"))), FAR_PROP)
 		prop("barrel" if fid == "" else "large_box", at + bb * Vector3(-1.9, 0, -0.3), yaw + 0.3, 0.8)
+		_pad_cells(at, 1.0, 1.0, yaw)  # the router keeps a step clear of the board's post (the bot snagged on it)
 		stats["boards"] = int(stats.get("boards", 0)) + 1
 
 ## Benches round the square's edge between the avenues: the gathering spots of a busy hub.
@@ -463,7 +465,8 @@ func _benches() -> void:
 		var p := polar(deg, PLAZA_R - 2.5)
 		if not rt.is_dry(p) or cells.has(BuildGrid.tile_of(p)) or rt.build_grid._occupied.has(BuildGrid.tile_of(p)):
 			continue
-		var yaw := yaw_out(deg) + PI  # seat faces the square
+		p = Vector3(floorf(p.x) + 0.5, p.y, floorf(p.z) + 0.5)  # on a grid tile
+		var yaw := snappedf(yaw_out(deg) + PI, PI * 0.5)  # seat faces the square, in 90 degree steps
 		var bb := Basis(Vector3.UP, yaw)
 		unit("box", Transform3D(bb.scaled(Vector3(1.8, 0.12, 0.5)), p + Vector3(0, 0.42, 0)), Color(0.45, 0.31, 0.17), FAR_PROP)
 		unit("box", Transform3D(bb.scaled(Vector3(1.8, 0.5, 0.1)), p + Vector3(0, 0.5, 0) + bb * Vector3(0, 0, -0.25)), Color(0.42, 0.29, 0.16), FAR_PROP)
