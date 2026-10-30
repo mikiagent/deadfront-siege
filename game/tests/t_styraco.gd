@@ -21,7 +21,7 @@ func _process(_delta: float) -> bool:
 		return false
 	_started = true
 	data = get_root().get_node("Data")
-	get_root().get_node("Game").debug_overlay = false
+	get_root().get_node("Game").debug_overlay = true  # ai chatter in the log (leash, disengage)
 	get_root().get_node("Game").time_of_day = 0.4  # daytime: grazers asleep at night would not react
 	_run.call_deferred()
 	return false
