@@ -151,13 +151,15 @@ func finish_gather() -> void:
 		stop_gather_cycle()
 		p.gather_target = null
 		return
+	# ONEGATHER: one instance per pass, never more; HARVESTROLL: its own level and traits every pass.
+	var stack := gt.roll_yield(GatherService.rng, GatherService.tool_tier(p.inventory, gt.required_tool_class, gt.family), GatherService._skill(p))
 	if gt.required_tool_class != &"" and gt.required_tool_class != &"none":
-		if not p.inventory.wear_gather_tool(gt.required_tool_class):
+		# P1 WEAR: the lot's level after the downrank below sets the wear.
+		var lot_level := mini(stack.level, maxi(p.skills.level_of("gathering"), 5)) if p.skills else stack.level
+		if not p.inventory.wear_gather_tool(gt.required_tool_class, lot_level):
 			stop_gather_cycle()
 			p.gather_target = null
 			return
-	# ONEGATHER: one instance per pass, never more; HARVESTROLL: its own level and traits every pass.
-	var stack := gt.roll_yield(GatherService.rng, GatherService.tool_tier(p.inventory, gt.required_tool_class, gt.family), GatherService._skill(p))
 	if p.skills:
 		# rules.json gathering_downrank: a node above your Gathering level yields at your level.
 		# ASSUMPTION: floor of 5 so a fresh survivor still gets usable materials.
@@ -425,7 +427,7 @@ func loot(corpse: Corpse, slot: int) -> int:
 	if moved <= 0:
 		p.notice("Bag is full.")
 		return 0
-	p.inventory.wear_gather_tool(&"knife")
+	p.inventory.wear_gather_tool(&"knife", corpse.level)  # P1 WEAR: the carcass level
 	print("[item] +%d %s (loot %s)" % [moved, def_id, corpse.species])
 	if corpse.first_take_of(def_id): # W2-INV: once per drop kind, not per instance taken
 		if p.skills:

@@ -616,7 +616,7 @@
             "harvest-roll"
           ],
           "source": "docs/design/tools-durability-crafting.md",
-          "note": "P1 of the tools doc: wear x clamp(1 + 0.04 x level gap, 0.5, 2.5), armor 1 per damaging hit, Vision's stop-at-1 for workers. Gate t_toolwear.gd."
+          "note": "Built on claude/mmo-wearrepair, awaiting merge: wear x clamp(1 + 0.04 x level gap, 0.5, 2.5) on every gather and butcher cut, armor 1 per damaging hit (one piece, weighted by armor), tribe workers stop at 1 durability and say so. Gate t_toolwear.gd passes."
         },
         {
           "id": "recipe-tool-gates",
@@ -637,7 +637,7 @@
             "tool-wear-scaling"
           ],
           "source": "docs/design/tools-durability-crafting.md",
-          "note": "P3 of the tools doc: reads the unread recipes.json repairs table; no repair kits (a carried workbench_kit is field repair). Gate t_gearrepair.gd."
+          "note": "Built on claude/mmo-wearrepair, awaiting merge: REPAIR hex on the workbench / anvil station menu, cost from recipes.json repairs, max x0.8 per repair, 4 repairs then worn out, repair count in attributes.repairs (save and vault compatible). Gate t_gearrepair.gd passes."
         },
         {
           "id": "trait-gear-stats",

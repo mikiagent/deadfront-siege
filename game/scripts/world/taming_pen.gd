@@ -8,6 +8,10 @@ extends StaticBody3D
 
 const BASE_SECONDS := 30.0 * 60.0
 const SUCCESS_CHANCE := 0.70 ## ASSUMPTION:
+## PEN-DIET: a preferred food cuts the remaining wait to 60 % (the pen's old meat rate); an accepted
+## food helps half as much, as in field feeding (FieldTame PREFERRED 1.0 / ACCEPTED 0.5).
+const PREFERRED_FEED_MULT := 0.6
+const ACCEPTED_FEED_MULT := 0.8 ## ASSUMPTION: half the preferred cut
 const TIERS_PATH := "res://data/taming_pens.json"
 
 static var _tiers: Dictionary = {}
@@ -23,6 +27,8 @@ var force_result: int = 0
 var _told_full := false # the roster-full notice shows once per wait, not every frame
 ## Why the last try_insert refused ("" after a start): the pen screen shows it.
 var last_refusal: String = ""
+## Why the last feed was refused ("" when it ate or the pen was not taming): the pen screen shows it.
+var last_feed_refusal: String = ""
 var _shown_species: String = "" # the species the Occupant view was built for
 
 func _ready() -> void:
@@ -196,19 +202,47 @@ func odds(player: Player = null, st: ItemStack = null) -> float:
 static func _species_def(st: ItemStack) -> CreatureDef:
 	return Data.creature(StringName(str(st.attributes.get("species", "")))) if st else null
 
+## PEN-DIET (spec 02: "validate food items and consume them exactly once"): the animal eats from
+## its species' taming diet, preferred food first, then accepted food, one item per feed, and only
+## after every refusal check. Spoiled meat and rot are in no diet, so they are refused.
 func feed(player: Player) -> bool:
+	last_feed_refusal = ""
 	if not running or occupant == null:
 		return false
 	if remaining <= 0.0:
-		_notice_full(player) # finished and waiting for a bonded slot: meat would only restart the timer
+		_notice_full(player) # finished and waiting for a bonded slot: food would only restart the timer
 		return false
-	var meat := player.inventory.find_first(&"raptor_meat")
-	if meat < 0:
+	if remaining <= 5.0:
+		last_feed_refusal = "Almost tamed: it does not need more food."
+		return false # food cannot shorten a wait already at the 5 s floor, so none is eaten
+	var def := _species_def(occupant)
+	# ASSUMPTION: no capture-technique lock in the pen: the animal is already caught.
+	var food := FieldTame.diet_food_in_bag(player.inventory, def)
+	if food == &"":
+		last_feed_refusal = feed_hint(def)
+		print("[capture] pen refused feed: %s" % last_feed_refusal)
 		return false
-	player.inventory.remove_at(meat, 1)
-	remaining = maxf(5.0, remaining * 0.6)
-	print("[capture] pen fed remaining=%.1fs" % remaining)
+	var mult := PREFERRED_FEED_MULT if food in def.preferred_food else ACCEPTED_FEED_MULT
+	player.inventory.remove_at(player.inventory.find_first(food), 1)
+	remaining = maxf(5.0, remaining * mult) # remaining > 5 here, so a feed never lengthens the wait
+	print("[capture] pen fed %s remaining=%.1fs" % [food, remaining])
 	return true
+
+## What the pen screen says when nothing in the bag fits: "Needs berry or herb leaf (or fibre stalk)."
+static func feed_hint(def: CreatureDef) -> String:
+	if def == null or (def.preferred_food.is_empty() and def.accepted_food.is_empty()):
+		return "This animal takes no food here."
+	var text := "Needs %s" % _food_names(def.preferred_food)
+	if not def.accepted_food.is_empty():
+		text += " (or %s)" % _food_names(def.accepted_food)
+	return text + " in your bag."
+
+static func _food_names(ids: Array[StringName]) -> String:
+	var names: Array[String] = []
+	for id in ids:
+		var item := Data.item(id)
+		names.append(item.display_name.to_lower() if item != null and item.display_name != "" else str(id).replace("_", " "))
+	return " or ".join(names)
 
 func _process(delta: float) -> void:
 	_sync_occupant()
