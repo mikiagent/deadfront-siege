@@ -22,6 +22,8 @@ var fill: Color = Color(0.07, 0.08, 0.09, 0.93)
 var badge: String = ""  # e.g. "⊘" when blocked
 var badge_color: Color = Color(0.85, 0.15, 0.12, 0.95)
 var badge_ink: Color = Color.WHITE  ## the badge's text (CTA_INK on a GOLD notice badge)
+## A white UiIcons drawing painted in the badge instead of its text (the butcher fan's tool_needed).
+var badge_icon: Texture2D
 var label_text: String = ""   # optional label drawn to the right (station radial)
 var caption: String = ""      # action word drawn under the hex, outside the outline (rail, skills)
 var hint_text: String = ""    # small red line under the label (blocked reason)
@@ -184,7 +186,12 @@ func _draw() -> void:
 		draw_rect(kr, UiTokens.INK)
 		draw_rect(kr, Color(0.85, 0.85, 0.85), false, 1.5)
 		UiTokens.draw_centered(self, font, kr.get_center(), key_hint, HINT_PX, UiTokens.TEXT)
-	if badge != "":
+	if badge != "" and badge_icon != null:
+		var bc := c + Vector2(r * 0.74, -r * 0.62)  # on the upper-right edge, clear of the seconds on top
+		var br := r * 0.3  # a drawing needs a little more room than one glyph
+		draw_circle(bc, br, badge_color)
+		draw_texture_rect(badge_icon, Rect2(bc - Vector2(br, br) * 0.8, Vector2(br, br) * 1.6), false, badge_ink)
+	elif badge != "":
 		var bc := c + Vector2(r * 0.55, -r * 0.55)
 		draw_circle(bc, r * 0.26, badge_color)
 		var bsz := maxi(UiTokens.TYPE_MIN, int(r * 0.34))
