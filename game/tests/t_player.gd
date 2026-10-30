@@ -245,6 +245,9 @@ func _test_hold_and_manual_swing() -> void:
 	var hits := [0]
 	var count := func (_t) -> void: hits[0] += 1
 	player.hunt.hit_landed.connect(count)
+	# Basic-swing cadence is under test: AUTOABILITY (on by default) opens with Tackle and Kick, and the
+	# kick pushes the raptor out of reach while HOLD keeps her in place (t_autoability owns the casts).
+	player.hunt.auto_ability = false
 	player.hunt.hold = true
 	player.hunt.start(raptor)
 	var window := 4.5
@@ -262,6 +265,7 @@ func _test_hold_and_manual_swing() -> void:
 	await create_timer(0.6, true, true).timeout
 	_expect(hits[0] == 1, "Auto off: F swings and lands once (%d)" % hits[0])
 	player.hunt.auto = true
+	player.hunt.auto_ability = true
 	player.hunt.hit_landed.disconnect(count)
 	await _clear_creatures()
 

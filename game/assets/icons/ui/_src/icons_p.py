@@ -45,12 +45,23 @@ def body(width_k, extra=0.0):
 # read as the same silhouette at 24 px (t_uiicons IoU check), so "normal" draws the full stomach a little smaller (HudStomach.GLYPH_SCALE). Empty is a thin, shrunken stomach, each state rounder and
 # bigger, full the round stomach ("stomach"), overfull swollen past it with two pressure marks beside the
 # gullet. Each variant also scales about the full stomach's optical centre (SCALE), so they share one centre.
-SCALE = {"stomach_empty": 0.8, "stomach_hungry": 0.86, "stomach": 1.0, "stomach_overfull": 1.0}
+def heart(cx, cy, w):
+    """A heart w wide, its notch above (cx, cy) and its point below."""
+    return path((cx, cy + 0.5 * w), ((cx - 0.15 * w, cy + 0.3 * w), (cx - 0.55 * w, cy + 0.05 * w), (cx - 0.5 * w, cy - 0.2 * w)),
+                ((cx - 0.45 * w, cy - 0.48 * w), (cx - 0.1 * w, cy - 0.5 * w), (cx, cy - 0.25 * w)),
+                ((cx + 0.1 * w, cy - 0.5 * w), (cx + 0.45 * w, cy - 0.48 * w), (cx + 0.5 * w, cy - 0.2 * w)),
+                ((cx + 0.55 * w, cy + 0.05 * w), (cx + 0.15 * w, cy + 0.3 * w), (cx, cy + 0.5 * w)))[:-1]
+
+
+# HUNGER well_fed (fullness 70-100): the stomach, a little smaller, with a solid heart beside the gullet
+# (a heart knocked out of the body read as the plain stomach at 24 px, t_uiicons IoU check).
+SCALE = {"stomach_empty": 0.8, "stomach_hungry": 0.86, "stomach": 1.0, "stomach_overfull": 1.0, "well_fed": 0.76}
 VARIANTS = {
     "stomach_empty": [([body(0.55)], False)],
     "stomach_hungry": [([body(0.68)], False)],
     "stomach": [([OUTER], False)],
     "stomach_overfull": [([body(1.0, 5.0)], False), ([capsule((37.0, 15.0), (41.5, 10.0), 3.6), capsule((42.5, 22.0), (48.0, 19.0), 3.6)], False)],
+    "well_fed": [([OUTER], False), ([heart(47.0, 15.0, 20.0)], False)],
 }
 (ox, oy), lo, hi = optical(VARIANTS["stomach"])
 DX = round((32 - ox) * 2) / 2

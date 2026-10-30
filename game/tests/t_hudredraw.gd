@@ -4,7 +4,7 @@ extends SceneTree
 ## Performance.TIME_PROCESS and the frame p95; the second run hides the HUD, so the difference is the
 ## HUD's own per-frame cost. Then it clears every transient piece and samples the idle signature again
 ## (how many of the 60 frames redrew the HUD, the minimap, and the process time with the fix in).
-## Numbers only: this probe always exits 0, so it can be run before and after the change.
+## Numbers first: it prints PASS unless the idle HUD repaints past t_fieldhud's bound (6 of 60 frames).
 ## Usage: godot --headless --path game --script res://tests/t_hudredraw.gd
 
 const FRAMES := 120
@@ -59,7 +59,14 @@ func _run() -> void:
 	await _frames(2)
 	var idle: Dictionary = await _sample(60)
 	print("[t_hudredraw] idle  : 60 frames, HUD draws %d, minimap draws %d, minimap draws %.3f ms, process mean %.3f ms, p95 %.3f ms" % [idle["draws"], idle["map_draws"], idle["map_draw_ms"], idle["mean_ms"], idle["p95_ms"]])
-	quit(0)
+	# tools/all_tests.sh needs a PASS line. The redraw rules are asserted in t_fieldhud; this probe only
+	# fails when the idle HUD repaints past t_fieldhud's bound (6 of 60 frames, the belt's drift creep).
+	if int(idle["draws"]) <= 6:
+		print("[t_hudredraw] PASS probe")
+		quit(0)
+	else:
+		print("[t_hudredraw] FAIL idle HUD repainted %d of 60 frames" % int(idle["draws"]))
+		quit(1)
 
 ## Drops every short-lived piece so the next sample measures the resting HUD.
 func _clear() -> void:

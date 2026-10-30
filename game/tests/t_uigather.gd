@@ -90,11 +90,20 @@ func _test_radial(view: Vector2) -> void:
 	var radial = _player._gather_radial
 	radial.close()
 	await _frames(4)
-	# A tap on the node's pill, through the HUD's input, opens the fan on that node.
+	# A tap on the node's pill, through the HUD's input, opens the fan on that node. The camera eases
+	# after the teleport, so the pill's anchor drifts: on the compact view it crosses a centre notice
+	# (a pill over a HUD block is hidden) and pills glide 5 px a frame to their rows. Wait (up to
+	# 3 s) for the node's pill to settle in place.
+	var pills = load("res://scripts/ui/hud_pills.gd")
 	var pill := Rect2()
-	for d: Dictionary in load("res://scripts/ui/hud_pills.gd").hit_pills:
-		if d["node"] == node:
-			pill = d["rect"]
+	for i in 180:
+		pill = Rect2()
+		for d: Dictionary in pills.hit_pills:
+			if d["node"] == node:
+				pill = d["rect"]
+		if pill.has_area() and not pills.animating:
+			break
+		await process_frame
 	_expect(pill.has_area(), "%s: the node has a tappable pill" % tag)
 	if pill.has_area():
 		_expect(pill.size.y >= (30.0 if view.y > 500 else 22.0), "%s: the pill is the spec's dark box (%s)" % [tag, pill])
