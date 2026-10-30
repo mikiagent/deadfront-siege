@@ -85,6 +85,10 @@ func _run() -> void:
 						live += 1
 			print("[townshots] cover %s live_in_town=%d collapsed=%d" % [gc.get_path(), live, dead])
 	var anchors := _anchors()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--spot="):  # debugging: one extra game shot at x,z
+			var xz := a.substr(7).split(",")
+			anchors = {"spot": Vector3(float(xz[0]), 0, float(xz[1]))}
 	print("[townshots] anchors %s" % [anchors.keys()])
 	for tod: Array in [["day", 0.42], ["night", 0.93]]:
 		await _set_time(float(tod[1]))

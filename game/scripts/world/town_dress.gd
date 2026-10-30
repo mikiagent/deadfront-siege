@@ -653,8 +653,17 @@ func _clutter() -> void:
 					prop("chest", c, yaw)
 					prop("basket", c + b * Vector3(0.8, 0, 0), yaw)
 					prop("bucket", c + b * Vector3(0.4, 0, 0.7), yaw)
-			_take(c, 2.6, 2.6, 1.2, yaw, false)  # walk-through: the tutorial bot's routes stay open
+			lots.append(c)  # no cells: clutter never closes a lane to the router (t_tutorial's bot detoured)
 			stats["clutter"] = int(stats.get("clutter", 0)) + 1
+
+## Inside or beside an avenue gate (the opening, the towers and a post-width either side: a wicket
+## post there left a gap too narrow to pass that the router still took).
+func _in_gateway(p: Vector3) -> bool:
+	var dg := _deg_of(p)
+	for av: float in AVENUES:
+		if absf(_wrap(dg - av)) * PI / 180.0 * WALL_R < 8.0:
+			return true
+	return false
 
 func _deg_of(p: Vector3) -> float:
 	return _wrap(rad_to_deg(atan2(p.z - camp.z, p.x - camp.x)) - dock_deg)
@@ -702,18 +711,18 @@ func _wall() -> void:
 	for i in n:
 		var deg := 360.0 * (float(i) + 0.5) / float(n)
 		var gate := false
-		var near_gate := false
 		for av: float in AVENUES:
-			var off := absf(_wrap(deg - av)) * PI / 180.0 * WALL_R
-			gate = gate or off < AVENUE_W * 0.5 + 1.2
-			near_gate = near_gate or off < AVENUE_W * 0.5 + 6.0
+			if absf(_wrap(deg - av)) * PI / 180.0 * WALL_R < AVENUE_W * 0.5 + 1.2:
+				gate = true
 		var p := polar(deg, WALL_R)
 		# A wicket (a 4 m gap between two posts) every WICKET_EVERY panels: walks out to the wild
 		# lands and back stay short (the tutorial bot timed out detouring to the avenue gates).
-		var wicket := i % WICKET_EVERY < 2 and not near_gate  # TOWNPOLISH: wicket posts stood inside the gates
+		var wicket := i % WICKET_EVERY < 2
 		if wicket and i % WICKET_EVERY == 0 and rt.is_dry(p):
 			for e in [-1.0, 1.0]:
 				var wp := polar(deg + e * 1.2 * 180.0 / PI / WALL_R * 2.0, WALL_R)
+				if _in_gateway(wp):
+					continue  # TOWNPOLISH: a wicket beside a gate stood its post in the gate opening
 				unit("box", Transform3D(Basis().scaled(Vector3(0.4, 2.8, 0.4)), wp), Color(0.32, 0.22, 0.13), FAR_HOUSE)
 				_boxes.append([Transform3D(Basis(), wp + Vector3(0, 1.4, 0)), Vector3(0.4, 2.8, 0.4)])
 				cells[BuildGrid.tile_of(wp)] = true
@@ -747,7 +756,7 @@ func _wall() -> void:
 		for post in posts:
 			lamp(post - (polar(av, WALL_R - 1.0) - g).normalized() * 1.2)
 			_boxes.append([Transform3D(Basis(), post + Vector3(0, 2.4, 0)), Vector3(1.0, 4.8, 1.0)])
-			for t in _rect_tiles(post, 1.2, 1.2, 0.0):  # the tower straddles tiles: the router keeps off all of them
+			for t in _rect_tiles(post, 1.6, 1.6, 0.0):  # the tower straddles tiles: the router keeps off all of them
 				cells[t] = true
 		prop("signpost", polar(av, WALL_R + 3.0) + side * (AVENUE_W * 0.5 + 1.5), yaw_out(av))
 		stats["gates"] = int(stats.get("gates", 0)) + 1
@@ -861,6 +870,12 @@ func _street_props() -> void:
 
 ## A street lamp (town kit): post, iron cage, the glass lit at night with a soft halo round it.
 func lamp(at: Vector3, _h: float = 2.6) -> void:
+	# Never within 2 m of a wall or post: a lamp beside a house corner left a pinch the router took
+	# and the tutorial bot wedged in.
+	for dx in range(-2, 3):
+		for dz in range(-2, 3):
+			if cells.has(BuildGrid.tile_of(at) + Vector2i(dx, dz)):
+				return
 	at.y = rt.surface_y(at.x, at.z)
 	var yaw := _rng.randf() * TAU
 	part_at("town_lamp", Transform3D(Basis(Vector3.UP, yaw), at), FAR_PROP)
