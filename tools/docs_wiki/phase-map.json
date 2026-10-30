@@ -1188,12 +1188,15 @@
         {
           "id": "country-islands",
           "title": "Country-like islands: long, ragged, Japan/Croatia-style coasts, more and bigger islands; starter stays modest",
-          "status": "next",
+          "status": "done",
           "depends": [
             "shape-generator"
           ],
           "source": "docs/design/durango-prompts/15_island_map_scale.md",
-          "note": "Owner 2026-10-28. In progress on claude/mmo-islands2, which also fixes the broken river channels SHAPEGATES measured. Saves gate if land moves under saved claims. Since then claude/mmo-islands2 was archived and ISLANDSHAPES (cccf2115) shipped seven shape families; whether that closes this row is Milan's call."
+          "note": "Owner 2026-10-28. In progress on claude/mmo-islands2, which also fixes the broken river channels SHAPEGATES measured. Saves gate if land moves under saved claims. Since then claude/mmo-islands2 was archived and ISLANDSHAPES (cccf2115) shipped seven shape families; whether that closes this row is Milan's call. Closed 2026-10-30: owner says ISLANDSHAPES \"pretty much\" covers it.",
+          "evidence": [
+            "commit:cccf2115"
+          ]
         },
         {
           "id": "zone-terrain",

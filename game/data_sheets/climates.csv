@@ -7,5 +7,5 @@ snowfield,50;60,,cold_high;wind,PineTree_Snow;BirchTree_Snow;Willow_Snow;Rock_Sn
 swamp,45;55;60,,heat_weak;humidity,Willow;Willow_Dead;Lilypad;Plant;Grass;Rock_Moss;WoodLog_Moss;WildGrass;PeatNode;ReedPlant;MarshHerbPlant,reed;willow_wood+pliant;peat;clay;marsh_herb+medicinal;leech
 temperate,20;35,,cold_weak,CommonTree;BirchTree;Willow;PineTree;Bush;BushBerries;Grass;Plant;Flowers;Rock_Moss;Rock;WoodLog_Moss;TreeStump_Moss;WildGrass;FlintNode;GraniteBoulder;FlaxPlant;ReedPlant;HerbPlant;FibreTuft;BranchPile;BerrySprig;TinOreNode;Wheat,fibre_stalk;herb_leaf;branch;wood_log+straight;reed;flint;clay;berries;stone;tin_ore;wheat
 tropical,25;40,,heat_high,PalmTree;Plant;Grass;Bush;Rock_Moss;Lilypad;WildGrass;ObsidianNode;BambooPlant;MangoBush;VinePlant,palm_frond;coconut+water;bamboo+flexible;mango;vine;obsidian+hard;stone
-tundra,30;40;55,,cold_high,PineTree;PineTree_Snow;Bush_Snow;Rock_Snow;Grass_Short;WoodLog_Snow;WildGrass;IceNode;TinOreNode,pine_log+resinous;resin;ice;bone;stone;branch;tin_ore
+tundra,30;40;55,,cold_high,ResinPine;PineTree_Snow;Bush_Snow;Rock_Snow;Grass_Short;WoodLog_Snow;WildGrass;IceNode;TinOreNode,pine_log+resinous;resin;ice;bone;stone;branch;tin_ore
 volcanic,60,,heat_volcanic,Rock;CommonTree_Dead;Rock_Snow;WildGrass;BlackIronNode;SulphurNode;LavaRockNode;AshNode,black_iron+hard;lava;sulphur;ash

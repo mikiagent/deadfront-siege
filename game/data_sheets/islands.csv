@@ -6,11 +6,12 @@ savannah_15,Unstable Savannah,savannah,15,unstable,,,368
 savannah_45,Unstable Savannah,savannah,45,unstable,,,416
 swamp_55,Unstable Swamp,swamp,55,unstable,,,464
 temperate_20,Unstable Temperate,temperate,20,unstable,,,368
-temperate_25,Unstable Temperate,temperate,25,unstable,False,7200,368
+temperate_25,Unstable Temperate,temperate,25,unstable,False,,368
 temperate_35,Unstable Temperate,temperate,35,unstable,,,416
 temperate_45,Unstable Temperate,temperate,45,unstable,,,416
 tropical_25,Unstable Tropical,tropical,25,unstable,,,368
 tropical_40,Unstable Tropical,tropical,40,unstable,,,416
 tundra_30,Unstable Tundra,tundra,30,unstable,,,416
 tundra_55,Unstable Tundra,tundra,55,unstable,,,464
+tutorial_isle,Tutorial Island,grassland,15,tutorial,True,0,880
 volcanic_60,Unstable Volcanic,volcanic,60,unstable,,,464
