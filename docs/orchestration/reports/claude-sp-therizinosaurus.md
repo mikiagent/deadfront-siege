@@ -65,7 +65,7 @@ What read wrong and was fixed:
 - In the lab, a held sleep pose carried into the next clip shot, so feed is shot before the lying clips.
 
 ## Gates
-After merging canon f1b05695 (ceratosaurus); the merged `.gd` files were scanned for duplicate `func` names (none).
+After merging canon f1b05695 (ceratosaurus), then 0348fea1 (trikealpha: t_sp_therizinosaurus, t_noboxes, t_combat, t_canim, t_data, run_all, smoke and the gait gate re-run, all PASS); the merged `.gd` files were scanned for duplicate `func` names (none).
 - `tools/gait/check_theri.py --height 8.0` (new, check_pachy adapted): **THERI_CHECK PASS**, 15 clips: stretch (gate 10), floor, moonwalk on gaits and strafes, no gliding in one-shots, and the claws are the hit (a claw tip at survivor height, ahead of the chest and moving at every hit frame of the sweep, the rake and all three combo hits; the rake raised over 4 m first). Claw reach at the hits 6.1-6.9 m ahead of its centre.
 - `python3 tools/audit_gaits.py --gate`: GATE PASS.
 - `game/tests/t_sp_therizinosaurus.gd`: **PASS**: model, 15 clips, Jaw/Claw/ClawTip bones, 8 m tall; feet planted in 7 standing clips; claw tip in front at the sweep's hit and both claws high in the rake's telegraph; live fight: point blank the brain picks the rake, it lands and bleeds; the sweep lands, shoves her away and does not bleed; the hook dashes in from 9.5 m, lands and drags her toward it; a sweep with her behind it misses; a Brave (not Aggressive) one ignores her at 40 m and turns on her inside its territory; spawn rows; the lab lists it.
