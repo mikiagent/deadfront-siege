@@ -188,6 +188,17 @@ After this merge, all of these pass:
 - t_coelomoves, t_compyfeel, t_combat, t_canim, t_mounts, t_saddles, t_godlab, t_swarm;
 - run_all `[tests] PASS` and SMOKE PASS.
 
+### Fourth merge: the t_saddles red on canon d915e67f, and 8082c43b
+
+- **Cause**: the merge commit 0fe34eb5 (d915e67f into this branch, not mine) resolved the clip-list conflict by
+  dropping `StringName] = [` from ONESHOT and ATTACKS in `creature_anim.gd` and OPTIONAL in `creature_clips.gd`.
+  `CreatureAnim` and `CreatureClips` then failed to parse. Every creature script that depends on them failed with
+  it, and t_saddles and run_all showed that first.
+- **Fix**: repaired the three lines in 84553e47.
+- **Second merge**: 8082c43b (tarbosaurus) merged clean.
+- **After both**: t_saddles, t_mounts, run_all `[tests] PASS` and SMOKE PASS.
+- **t_styrafix**: passed 7 of 8 runs. The failed run printed only the failure count, and 6 more runs all passed.
+
 ## Gates
 
 - t_styrafix PASS (5 runs in a row on the final code). Earlier runs failed on 2 frames at the start of the run: a
