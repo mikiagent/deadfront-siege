@@ -145,7 +145,7 @@ func _test_solo_spawn_and_tame_pack() -> void:
 		c.free()
 	sp.free()
 
-## qa-ai-01: the leash rule for all 20 species, not 3. A target just inside aggro_radius is
+## qa-ai-01: the leash rule for every species (21 with the carnotaurus), not 3. A target just inside aggro_radius is
 ## kept for a think; one just outside is dropped on the next think and the animal stands down.
 func _test_leash_every_species() -> void:
 	game.time_of_day = 0.40

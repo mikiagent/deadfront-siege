@@ -922,6 +922,8 @@ func _on_hit(clip: StringName) -> void:
 			return
 		if target is Player:
 			(target as Player).receive_creature_hit(self, clip)
+		if brain is TacticalBrain:
+			(brain as TacticalBrain).landed(clip, target)
 
 ## Where a move hits a body without hurtboxes (a structure; species JSON pipeline.hit_parts.<clip>: {bones,
 ## radius_m}). HITBOXES: against hurtboxes those bones are the move's parts in hitboxes.json instead: at

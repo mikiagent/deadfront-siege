@@ -123,9 +123,35 @@
       ],
       "windup": false,
       "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)"
+    },
+    "charge_turn": {
+      "airborne": [
+        0.2,
+        0.6
+      ],
+      "note": "carnotaurus: the sharp turn at the end of a straight charge, 0.71 s: plant and crouch, hop with the body banked into a LEFT turn and the tail flung wide, land squashed. In place; TacticalBrain (tactics.charge_turn) carries it on along the old line and yaws it round to the prey only inside the airborne window, so the planted feet never skid. tools/gait/make_carno_moves.py charge_turn"
     }
   },
   "natural_speeds": {
+    "carnotaurus": {
+      "height_m": 5.74,
+      "walk": 3.203,
+      "walk_l": 3.203,
+      "walk_r": 3.203,
+      "walk_len": 1.042,
+      "run": 9.058,
+      "run_l": 9.058,
+      "run_r": 9.058,
+      "run_len": 0.708,
+      "charge": 14.688,
+      "charge_len": 0.542,
+      "strafe_left": 3.203,
+      "strafe_left_len": 1.042,
+      "strafe_right": 3.203,
+      "strafe_right_len": 1.042,
+      "walk_back": 1.725,
+      "walk_back_len": 1.042
+    },
     "ankylosaurus": {
       "height_m": 2.25,
       "run_l": 2.06,
