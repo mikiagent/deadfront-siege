@@ -45,7 +45,7 @@ unappealing"). It had no sheet here; its model is deleted and tamed ones load as
 | [Entelodont](#entelodont) | No model yet | 1 |
 | [Daeodon](#daeodon) | No model yet | 1 |
 | [Megaloceros](#megaloceros) | In game with a model | 2 |
-| [Giant sloth (Megatherium)](#giant-sloth-megatherium) | No model yet | 1 |
+| [Giant sloth (Megatherium)](#giant-sloth-megatherium) | In game with a model | 1 |
 | [Woolly rhino](#woolly-rhino) | In game with a model | 2 |
 | [Teleoceras](#teleoceras) | No model yet | 2 |
 | [Toxodon](#toxodon) | No model yet | 1 |
@@ -296,7 +296,7 @@ unappealing"). It had no sheet here; its model is deleted and tamed ones load as
 
 ## Giant sloth (Megatherium)
 
-**Status:** No model yet.
+**Status:** In game with a model (claude/mmo-sp-megatherium, id `megatherium`): Codex views of the regular sheet in a knuckle-walking stance -> Tripo model, hand-built rig and clips.
 
 ![Regular](../art/species/giant_sloth/giant_sloth_owner_sheet_1.jpg)
 *Regular* (`giant_sloth_owner_sheet_1`)
